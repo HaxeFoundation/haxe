@@ -1667,7 +1667,7 @@ let configure gen =
     end
   ));
   
-  CastDetect.configure gen (CastDetect.default_implementation gen (Some (TEnum(empty_e, []))));
+  CastDetect.configure gen (CastDetect.default_implementation gen (Some (TEnum(empty_e, []))) false);
   
   (*FollowAll.configure gen;*)
   

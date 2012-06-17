@@ -255,7 +255,7 @@ struct
 
   let new_source_writer () =
     {
-      sw_buf = Buffer.create (1 lsl 14);
+      sw_buf = Buffer.create 0;
       sw_has_content = false;
       sw_indent = "";
       sw_indents = [];
@@ -558,6 +558,8 @@ type generator_ctx =
   (* internal apis *)
   (* param_func_call : used by TypeParams and CastDetection *)
   mutable gparam_func_call : texpr->texpr->tparams->texpr list->texpr;
+  (* does it already have a type parameter cast handler? This is used by CastDetect to know if it should handle type parameter casts *)
+  mutable ghas_tparam_cast_handler : bool;
   (* type parameter casts - special cases *)
   (* function cast_from, cast_to -> texpr *)
   gtparam_cast : (path, (texpr->t->texpr)) Hashtbl.t;
@@ -709,6 +711,7 @@ let new_ctx con =
     
     (* as a default, ignore the params *)
     gparam_func_call = (fun ecall efield params elist -> { ecall with eexpr = TCall(efield, elist) });
+    ghas_tparam_cast_handler = false;
     gtparam_cast = Hashtbl.create 0;
     
     gspecial_vars = Hashtbl.create 0;
@@ -3421,8 +3424,8 @@ struct
   (* this function will receive the original function argument, the applied function argument and the original function parameters. *)
   (* from this info, it will infer the applied tparams for the function *)
   (* this function is used by CastDetection module *)
-  let infer_params gen pos (original_args:((string * bool * t) list * t)) (applied_args:((string * bool * t) list * t)) (params:(string * t) list) : tparams =
-    let args_list args = ( List.map (fun (_,_,t) -> t) (fst args) ) @ [snd args] in
+  let infer_params gen pos (original_args:((string * bool * t) list * t)) (applied_args:((string * bool * t) list * t)) (params:(string * t) list) impossible_tparam_is_dynamic : tparams =
+    let args_list args = ( List.map (fun (_,_,t) -> t) (fst args) ) @ (if impossible_tparam_is_dynamic then [] else [snd args]) in
     let params_tbl = Hashtbl.create (List.length params) in
     
     let pmap_iter2 fn orig_pmap applied_pmap =
@@ -3478,6 +3481,8 @@ struct
     
     List.map (fun (_,t) ->
       match follow t with
+        | TInst(cl,_) when impossible_tparam_is_dynamic ->
+          (try Hashtbl.find params_tbl cl.cl_path with | Not_found -> t_empty)
         | TInst(cl,_) ->
           (try Hashtbl.find params_tbl cl.cl_path with | Not_found -> (gen.gcon.error ("Error: function argument " ^ (snd cl.cl_path) ^ " not applied.") pos); assert false)
         | _ -> 
@@ -3921,6 +3926,7 @@ struct
       run
     
     let configure gen traverse =
+      gen.ghas_tparam_cast_handler <- true;
       let map e = Some(traverse e) in
       gen.gsyntax_filters#add ~name:name ~priority:(PCustom priority) map
     
@@ -4155,8 +4161,44 @@ struct
       | TInst( { cl_path = ([], "String") }, []), _ ->
         mk_cast to_t e
       | TInst(cl_to, params_to), TInst(cl_from, params_from) ->
-        if can_be_converted gen cl_from params_from cl_to params_to then 
-          e 
+        let ret = ref None in
+        (*
+          this is a little confusing:
+          we are here mapping classes until we have the same to and from classes, applying the type parameters in each step, so we can
+          compare the type parameters;
+          
+          If a class is found - meaning that the cl_from can be converted without a cast into cl_to,
+          we still need to check their type parameters.
+        *)
+        ignore (map_cls gen (gen.guse_tp_constraints || (not (cl_from.cl_kind = KTypeParameter || cl_to.cl_kind = KTypeParameter))) (fun _ tl ->
+          try
+            (* type found, checking type parameters *)
+            List.iter2 (type_eq EqStrict) tl params_to;
+            ret := Some e;
+            true
+          with | Unify_error _ -> 
+            (* type parameters need casting *)
+            if gen.ghas_tparam_cast_handler then begin
+              (* 
+                if we are already handling type parameter casts on other part of code (e.g. RealTypeParameters), 
+                we'll just make a cast to indicate that this place needs type parameter-involved casting
+              *)
+              ret := Some (mk_cast to_t e);
+              true
+            end else 
+              (*
+                if not, we're going to check if we only need a simple cast, or if we need to first cast into the dynamic version of it
+              *)
+              try
+                List.iter2 (type_eq EqRightDynamic) tl params_to;
+                ret := Some (mk_cast to_t e);
+                true
+              with | Unify_error _ ->
+                ret := Some (mk_cast to_t (mk_cast (TInst(cl_to, List.map (fun _ -> t_dynamic) params_to)) e));
+                true
+        ) cl_to cl_from params_from);
+        if is_some !ret then
+          get !ret
         else if is_cl_related gen cl_from params_from cl_to params_to then 
           mk_cast to_t e 
         else 
@@ -4269,10 +4311,12 @@ struct
     It will handle both TCall(TField) and TCall by receiving a texpr option field: e
     Also it will transform the type parameters with greal_type_param and make 
     
+    handle_impossible_tparam - should cases where the type parameter is impossible to be determined from the called parameters be Dynamic?
+    e.g. static function test<T>():T {}
   *)
   
   (* match e.eexpr with | TCall( ({ eexpr = TField(ef, f) }) as e1, elist ) -> *)
-  let handle_type_parameter gen e e1 ef f elist =
+  let handle_type_parameter gen e e1 ef f elist impossible_tparam_is_dynamic =
     (* the ONLY way to know if this call has parameters is to analyze the calling field. *)
     (* To make matters a little worse, on both C# and Java only in some special cases that type parameters will be used *)
     (* Namely, when using reflection type parameters are useless, of course. This also includes anonymous types *)
@@ -4327,7 +4371,7 @@ struct
                   handle_cast gen ({ ecall with eexpr = TCall({ e1 with eexpr = TField(ef, f) }, elist )  }) (gen.greal_type ecall.etype) (gen.greal_type ret)
                 )
               | _ ->
-                let params = TypeParams.infer_params gen ecall.epos (get_fun cf.cf_type) (get_fun e1.etype) cf.cf_params in
+                let params = TypeParams.infer_params gen ecall.epos (get_fun cf.cf_type) (get_fun e1.etype) cf.cf_params impossible_tparam_is_dynamic in
                 let args, ret = get_args actual_t in
                 let actual_t = TFun(List.map (fun (n,o,t) -> (n,o,gen.greal_type t)) args, gen.greal_type ret) in
                 
@@ -4354,7 +4398,7 @@ struct
             let args, ret = get_args (efield.ef_type) in
             handle_cast gen { ecall with eexpr = TCall({ e1 with eexpr = TEnumField(en, f) }, List.map2 (fun param (_,_,t) -> handle_cast gen param (gen.greal_type t) (gen.greal_type param.etype)) elist args) } (gen.greal_type ecall.etype) (gen.greal_type ret)
           | _ ->
-            let params = TypeParams.infer_params gen ecall.epos (get_fun efield.ef_type) (get_fun e1.etype) en.e_types in
+            let params = TypeParams.infer_params gen ecall.epos (get_fun efield.ef_type) (get_fun e1.etype) en.e_types impossible_tparam_is_dynamic in
             let args, ret = get_args efield.ef_type in
             let actual_t = TFun(List.map (fun (n,o,t) -> (n,o,gen.greal_type t)) args, gen.greal_type ret) in
             (* 
@@ -4392,7 +4436,7 @@ struct
   (* end of type parameter handling *)
   (* ****************************** *)
   
-  let default_implementation gen maybe_empty_t =
+  let default_implementation gen maybe_empty_t impossible_tparam_is_dynamic =
     
     let current_ret_type = ref None in
     
@@ -4416,7 +4460,7 @@ struct
         | TBinop ( (Ast.OpAssignOp _ as op),e1,e2) ->
           { e with eexpr = TBinop(op, Type.map_expr run e1, handle (run e2) e1.etype e2.etype) }
         | TField(ef, f) ->
-          handle_type_parameter gen None e (run ef) f []
+          handle_type_parameter gen None e (run ef) f [] impossible_tparam_is_dynamic
         | TArrayDecl el ->
           let et = e.etype in
           let base_type = match follow et with
@@ -4427,7 +4471,7 @@ struct
         | TCall( ({ eexpr = TField({ eexpr = TLocal(v) },_) } as tf), params ) when String.get v.v_name 0 = '_' &&String.get v.v_name 1 = '_' && Hashtbl.mem gen.gspecial_vars v.v_name ->
           { e with eexpr = TCall(tf, List.map run params) }
         | TCall( ({ eexpr = TField(ef, f) }) as e1, elist ) ->
-          handle_type_parameter gen (Some e) (e1) (run ef) f (List.map run elist)
+          handle_type_parameter gen (Some e) (e1) (run ef) f (List.map run elist) impossible_tparam_is_dynamic
           
         | TCall (ef, eparams) ->
           (match ef.etype with

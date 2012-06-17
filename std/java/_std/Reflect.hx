@@ -66,8 +66,8 @@ import java.Boot;
 	@:functionBody('
 		if (o instanceof haxe.lang.IHxObject)
 			((haxe.lang.IHxObject) o).__hx_setField(field, value);
-		
-		 haxe.lang.Runtime.slowSetField(o, field, value);
+		else
+			haxe.lang.Runtime.slowSetField(o, field, value);
 	')
 	public static function setField( o : Dynamic, field : String, value : Dynamic ) : Void
 	{

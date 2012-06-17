@@ -43,7 +43,7 @@ enum ValueType {
 		
 		java.lang.Class<T> ret = (java.lang.Class<T>) o.getClass();
 		String name = ret.getName();
-		if (name == "java.lang.Object" || name == "haxe.lang.Dynamic" || name == "java.lang.Class")
+		if (name == "java.lang.Object" || name == "haxe.lang.DynamicObject" || name == "java.lang.Class")
 			return null;
 		return ret;
 	')
@@ -63,7 +63,10 @@ enum ValueType {
 	}
 	
 	@:functionBody('
-		return (c == null) ? null : c.getSuperclass();
+		java.lang.Class cl = (c == null) ? null : c.getSuperclass();
+		if (cl != null && cl.getName() != "haxe.lang.HxObject")
+			return cl;
+		return null;
 	')
 	public static function getSuperClass( c : Class<Dynamic> ) : Class<Dynamic> untyped 
 	{

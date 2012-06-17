@@ -1715,7 +1715,7 @@ let configure gen =
     { ecall with eexpr = TCall(efield, elist) }
   );
   
-  CastDetect.configure gen (CastDetect.default_implementation gen (Some (TEnum(empty_e, []))));
+  CastDetect.configure gen (CastDetect.default_implementation gen (Some (TEnum(empty_e, []))) true);
   
   (*FollowAll.configure gen;*)
   

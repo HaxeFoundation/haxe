@@ -191,7 +191,7 @@ class Serializer {
 				#if flash9
 				var v : Array<Dynamic> = v;
 				#end
-				var l = #if (neko || flash9 || php) v.length #elseif cpp v.__length() #else v[untyped "length"] #end;
+				var l = #if (neko || flash9 || php || cs || java) v.length #elseif cpp v.__length() #else v[untyped "length"] #end;
 				for( i in 0...l ) {
 					if( v[i] == null )
 						ucount++;
@@ -279,7 +279,7 @@ class Serializer {
 				buf.add(chars);
 			default:
 				cache.pop();
-				if( #if flash9 try v.hxSerialize != null catch( e : Dynamic ) false #else v.hxSerialize != null #end  ) {
+				if( #if flash9 try v.hxSerialize != null catch( e : Dynamic ) false #elseif (cs || java) Reflect.hasField(v, "hxSerialize") #else v.hxSerialize != null #end  ) {
 					buf.add("C");
 					serializeString(Type.getClassName(c));
 					cache.push(v);

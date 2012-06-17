@@ -65,8 +65,8 @@ import haxe.lang.Function;
 	@:functionBody('
 		if (o is haxe.lang.IHxObject)
 			((haxe.lang.IHxObject) o).__hx_setField(field, haxe.lang.FieldLookup.hash(field), false, value);
-		
-		 haxe.lang.Runtime.slowSetField(o, field, value);
+		else
+			haxe.lang.Runtime.slowSetField(o, field, value);
 	')
 	public static function setField( o : Dynamic, field : String, value : Dynamic ) : Void
 	{
