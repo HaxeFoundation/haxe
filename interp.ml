@@ -2361,6 +2361,9 @@ let rec eval ctx (e,p) =
 			| VObject o -> get_field o h
 			| _ -> throw ctx p ("Invalid field access : " ^ f)
 		)
+	| ECall ((EConst (Builtin "mk_pos"),_),[(ECall (_,[EConst (String file),_]),_);(EConst (Int min),_);(EConst (Int max),_)]) ->
+		let pos = VAbstract (APos { Ast.pfile = file; Ast.pmin = min; Ast.pmax = max }) in
+		(fun() -> pos)
 	| ECall ((EConst (Builtin "typewrap"),_),[t]) ->
 		(fun() -> VAbstract (ATDecl (Obj.magic t)))
 	| ECall ((EConst (Builtin "delay_call"),_),[EConst (Int index),_]) ->
