@@ -92,7 +92,9 @@ enum ValueType {
 		var ret:String = e.getName();
 		if (ret.startsWith("haxe.root."))
 			return ret.substr(10);
-			
+		else if (ret == "boolean" || ret == "java.lang.Boolean")
+			return "Bool";
+		
 		return ret;
 	}
 
@@ -104,6 +106,11 @@ enum ValueType {
 		}
 		catch (java.lang.ClassNotFoundException e)
 		{
+			if (name.equals("haxe.root.Int")) return int.class;
+			else if (name.equals("haxe.root.Float")) return double.class;
+			else if (name.equals("haxe.root.String")) return java.lang.String.class;
+			else if (name.equals("haxe.root.Math")) return java.lang.Math.class;
+			else if (name.equals("haxe.root.Class")) return java.lang.Class.class;
 			return null;
 		}
 	')
@@ -115,6 +122,7 @@ enum ValueType {
 
 	public static function resolveEnum( name : String ) : Enum<Dynamic> untyped 
 	{
+		if (name.equals("Bool")) return Bool;
 		return resolveClass(name);
 	}
 
@@ -126,7 +134,6 @@ enum ValueType {
 			
 			java.lang.reflect.Constructor[] ms = cl.getConstructors();
 			int msl = ms.length;
-			int lstRes = 0;
 			int realMsl = 0;
 			for(int i =0; i < msl; i++)
 			{
@@ -134,10 +141,9 @@ enum ValueType {
 				{
 					ms[i] = null;
 				} else {
-					ms[lstRes] = ms[i];
-					if (lstRes != i)
+					ms[realMsl] = ms[i];
+					if (realMsl != i)
 						ms[i] = null;
-					lstRes++;
 					realMsl++;
 				}
 			}
@@ -152,8 +158,8 @@ enum ValueType {
 				
 				if (!(o instanceof java.lang.Number))
 				{
-					lstRes = 0;
 					msl = realMsl;
+					realMsl = 0;
 					
 					for (int j = 0; j < msl; j++)
 					{
@@ -164,10 +170,9 @@ enum ValueType {
 							{
 								ms[j] = null;
 							} else {
-								ms[lstRes] = ms[j];
-								if (lstRes != j)
+								ms[realMsl] = ms[j];
+								if (realMsl != j)
 									ms[j] = null;
-								lstRes++;
 								realMsl++;
 							}
 						}

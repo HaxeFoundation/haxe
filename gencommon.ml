@@ -4069,12 +4069,70 @@ struct
     in
     loop 
   
+  let follow_dyn t = match follow t with
+    | TMono _ | TLazy _ -> t_dynamic
+    | t -> t
+  
+  let rec type_eq gen param a b =
+    if a == b then
+      ()
+    else match follow_dyn (gen.greal_type a) , follow_dyn (gen.greal_type b) with
+    | TEnum (e1,tl1) , TEnum (e2,tl2) ->
+      if e1 != e2 && not (param = EqCoreType && e1.e_path = e2.e_path) then Type.error [cannot_unify a b];
+      List.iter2 (type_eq gen param) tl1 tl2
+    | TInst (c1,tl1) , TInst (c2,tl2) ->
+      if c1 != c2 && not (param = EqCoreType && c1.cl_path = c2.cl_path) && (match c1.cl_kind, c2.cl_kind with KExpr _, KExpr _ -> false | _ -> true) then Type.error [cannot_unify a b];
+      List.iter2 (type_eq gen param) tl1 tl2
+    | TFun (l1,r1) , TFun (l2,r2) when List.length l1 = List.length l2 ->
+      (try
+        type_eq gen param r1 r2;
+        List.iter2 (fun (n,o1,t1) (_,o2,t2) ->
+          if o1 <> o2 then Type.error [Not_matching_optional n];
+          type_eq gen param t1 t2
+        ) l1 l2
+      with
+        Unify_error l -> Type.error (cannot_unify a b :: l))
+    | TDynamic a , TDynamic b ->
+      type_eq gen param a b
+    | TAnon a1, TAnon a2 ->
+      (try
+        PMap.iter (fun n f1 ->
+          try
+            let f2 = PMap.find n a2.a_fields in
+            if f1.cf_kind <> f2.cf_kind && (param = EqStrict || param = EqCoreType || not (unify_kind f1.cf_kind f2.cf_kind)) then Type.error [invalid_kind n f1.cf_kind f2.cf_kind];
+            try
+              type_eq gen param f1.cf_type f2.cf_type
+            with
+              Unify_error l -> Type.error (invalid_field n :: l)
+          with
+            Not_found ->
+              if is_closed a2 then Type.error [has_no_field b n];
+              if not (link (ref None) b f1.cf_type) then Type.error [cannot_unify a b];
+              a2.a_fields <- PMap.add n f1 a2.a_fields
+        ) a1.a_fields;
+        PMap.iter (fun n f2 ->
+          if not (PMap.mem n a1.a_fields) then begin
+            if is_closed a1 then Type.error [has_no_field a n];
+            if not (link (ref None) a f2.cf_type) then Type.error [cannot_unify a b];
+            a1.a_fields <- PMap.add n f2 a1.a_fields
+          end;
+        ) a2.a_fields;
+      with
+        Unify_error l -> Type.error (cannot_unify a b :: l))
+    | _ , _ ->
+      if b == t_dynamic && (param = EqRightDynamic || param = EqBothDynamic) then
+        ()
+      else if a == t_dynamic && param = EqBothDynamic then
+        ()
+      else
+        Type.error [cannot_unify a b]
+  
   (* Helpers for cast handling *)
   (* will return true if 'super' is a superclass of 'cl' or if cl implements super or if they are the same class *)
   let can_be_converted gen cl tl super_t super_tl = 
     map_cls gen (gen.guse_tp_constraints || (not (cl.cl_kind = KTypeParameter || super_t.cl_kind = KTypeParameter))) (fun _ tl ->
       try
-        List.iter2 (type_eq (if gen.gallow_tp_dynamic_conversion then EqRightDynamic else EqStrict)) tl super_tl;
+        List.iter2 (type_eq gen (if gen.gallow_tp_dynamic_conversion then EqRightDynamic else EqStrict)) tl super_tl;
         true
       with | Unify_error _ -> false
     ) super_t cl tl
@@ -4173,7 +4231,7 @@ struct
         ignore (map_cls gen (gen.guse_tp_constraints || (not (cl_from.cl_kind = KTypeParameter || cl_to.cl_kind = KTypeParameter))) (fun _ tl ->
           try
             (* type found, checking type parameters *)
-            List.iter2 (type_eq EqStrict) tl params_to;
+            List.iter2 (type_eq gen EqStrict) tl params_to;
             ret := Some e;
             true
           with | Unify_error _ -> 
@@ -4190,7 +4248,7 @@ struct
                 if not, we're going to check if we only need a simple cast, or if we need to first cast into the dynamic version of it
               *)
               try
-                List.iter2 (type_eq EqRightDynamic) tl params_to;
+                List.iter2 (type_eq gen EqRightDynamic) tl params_to;
                 ret := Some (mk_cast to_t e);
                 true
               with | Unify_error _ ->
@@ -4225,7 +4283,7 @@ struct
           (do_unsafe_cast ())
       | TEnum(e_to, params_to), TEnum(e_from, params_from) when e_to.e_path = e_from.e_path ->
         (try
-            List.iter2 (type_eq (if gen.gallow_tp_dynamic_conversion then EqRightDynamic else EqStrict)) params_from params_to;
+            List.iter2 (type_eq gen (if gen.gallow_tp_dynamic_conversion then EqRightDynamic else EqStrict)) params_from params_to;
             e
           with 
             | Unify_error _ -> do_unsafe_cast ()
@@ -4235,7 +4293,7 @@ struct
         (* this is here for max compatibility with EnumsToClass module *)
         if en.e_path = cl.cl_path && en.e_extern then begin
           (try
-            List.iter2 (type_eq (if gen.gallow_tp_dynamic_conversion then EqRightDynamic else EqStrict)) params_from params_to;
+            List.iter2 (type_eq gen (if gen.gallow_tp_dynamic_conversion then EqRightDynamic else EqStrict)) params_from params_to;
             e
           with 
             | Invalid_argument("List.iter2") ->
@@ -4252,7 +4310,7 @@ struct
       | TType(t_to, params_to), TType(t_from, params_from) when t_to == t_from ->
         if gen.gspecial_needs_cast real_to_t real_from_t then
           (try
-            List.iter2 (type_eq (if gen.gallow_tp_dynamic_conversion then EqRightDynamic else EqStrict)) params_from params_to;
+            List.iter2 (type_eq gen (if gen.gallow_tp_dynamic_conversion then EqRightDynamic else EqStrict)) params_from params_to;
             e
           with 
             | Unify_error _ -> do_unsafe_cast ()
@@ -4297,7 +4355,7 @@ struct
         mk_cast to_t e
       | TFun(args, ret), TFun(args2, ret2) ->
         let get_args = List.map (fun (_,_,t) -> t) in
-        (try List.iter2 (type_eq (EqBothDynamic)) (ret :: get_args args) (ret2 :: get_args args2); e with | Unify_error _ | Invalid_argument("List.iter2") -> mk_cast to_t e)
+        (try List.iter2 (type_eq gen (EqBothDynamic)) (ret :: get_args args) (ret2 :: get_args args2); e with | Unify_error _ | Invalid_argument("List.iter2") -> mk_cast to_t e)
       | _, _ ->
         do_unsafe_cast ()
   

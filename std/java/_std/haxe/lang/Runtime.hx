@@ -344,7 +344,6 @@ package haxe.lang;
 			
 			java.lang.reflect.Method[] ms = cl.getDeclaredMethods();
 			int msl = ms.length;
-			int lstRes = 0;
 			int realMsl = 0;
 			for(int i =0; i < msl; i++)
 			{
@@ -352,10 +351,9 @@ package haxe.lang;
 				{
 					ms[i] = null;
 				} else {
-					ms[lstRes] = ms[i];
-					if (lstRes != i)
+					ms[realMsl] = ms[i];
+					if (realMsl != i)
 						ms[i] = null;
-					lstRes = i + 1;
 					realMsl++;
 				}
 			}
@@ -370,8 +368,8 @@ package haxe.lang;
 				
 				if (!(o instanceof java.lang.Number))
 				{
-					lstRes = 0;
 					msl = realMsl;
+					realMsl = 0;
 					
 					for (int j = 0; j < msl; j++)
 					{
@@ -382,10 +380,9 @@ package haxe.lang;
 							{
 								ms[j] = null;
 							} else {
-								ms[lstRes] = ms[j];
-								if (lstRes != j)
+								ms[realMsl] = ms[j];
+								if (realMsl != j)
 									ms[j] = null;
-								lstRes = j + 1;
 								realMsl++;
 							}
 						}

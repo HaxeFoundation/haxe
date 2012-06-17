@@ -73,6 +73,7 @@
 				valuesArr.splice(i, 1);
 				return true;
 			}
+			i++;
 		}
 		return false;
 	}
