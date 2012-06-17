@@ -1410,26 +1410,28 @@ and type_expr_with_type_raise ctx e t =
 	| EParenthesis e ->
 		let e = type_expr_with_type_raise ctx e t in
 		mk (TParenthesis e) e.etype p;
-	| ECall (((EConst (Ident s),p) as e),el) when s.[0] <> '$' ->
+	| ECall (((EConst (Ident s),p) as e),el) ->
 		(try
-			ignore(type_ident_raise ~imported_enums:false ctx s p MGet);
-			type_call ctx e el t p
-		with Not_found -> try
-			(match t with
-			| None -> raise Not_found
-			| Some t ->
-				match follow t with
-				| TEnum (e,pl) ->
-					(try
-						let ef = PMap.find s e.e_constrs in
-						mark_used_enum ctx e;
-						let constr = mk (TEnumField (e,s)) (apply_params e.e_types pl ef.ef_type) p in
-						build_call ctx (AKExpr constr) el (Some t) p
-					with Not_found ->
-						display_error ctx ("Identifier '" ^ s ^ "' is not part of enum " ^ s_type_path e.e_path) p;
-						mk (TConst TNull) t p)
-				| _ -> raise Not_found)
-		with Not_found | Exit ->
+			let t, e, pl = (match t with
+				| None -> raise Exit
+				| Some t ->
+					match follow t with
+					| TEnum (e,pl) -> t, e, pl
+					| _ -> raise Exit
+			) in
+			try
+				ignore(type_ident_raise ~imported_enums:false ctx s p MCall);
+				raise Exit
+			with Not_found -> try
+				let ef = PMap.find s e.e_constrs in
+				mark_used_enum ctx e;
+				let constr = mk (TEnumField (e,s)) (apply_params e.e_types pl ef.ef_type) p in
+				build_call ctx (AKExpr constr) el (Some t) p
+			with Not_found ->
+				if ctx.untyped then raise Exit; (* __js__, etc. *)
+				display_error ctx ("Identifier '" ^ s ^ "' is not part of enum " ^ s_type_path e.e_path) p;
+				mk (TConst TNull) t p
+		with Exit ->
 			type_call ctx e el t p)
 	| ECall (e,el) ->
 		type_call ctx e el t p
