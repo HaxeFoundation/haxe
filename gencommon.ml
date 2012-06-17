@@ -3443,23 +3443,22 @@ struct
           Hashtbl.replace params_tbl cl.cl_path applied
         | TInst(cl, params), TInst(cl2, params2) ->
           let rec loop cl2 params2 =
-            if cl == cl2 then
-              List.iter2 (get_arg) params params2
-            else begin
-              if not (List.exists (fun (cs,tls) ->
-                if (cs == cl) then begin
-                  loop cs (List.map (apply_params cl2.cl_types params2) tls);
-                  true
-                end else
-                  false
+            if cl == cl2 then begin
+              List.iter2 (get_arg) params params2;
+              true
+            end else begin
+              if not (cl.cl_interface && List.exists (fun (cs,tls) ->
+                loop cs (List.map (apply_params cl2.cl_types params2) tls)
               ) cl2.cl_implements) then
                 match cl2.cl_super with
-                  | None -> (* not related ! *) ()
+                  | None -> (* not related ! *) false
                   | Some (cs,tls) ->
                     loop cs (List.map (apply_params cl2.cl_types params2) tls)
+              else
+                true
             end
           in
-          loop cl2 params2
+          ignore (loop cl2 params2)
           
         | TEnum(e, params), TEnum(e2, params2) ->
           List.iter2 (get_arg) params params2
