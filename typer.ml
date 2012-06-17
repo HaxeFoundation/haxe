@@ -2113,6 +2113,9 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let e = type_expr_with_type ctx e (Some t) in
 		unify ctx e.etype t e.epos;
 		if e.etype == t then e else mk (TCast (e,None)) t p
+	| EMacro esub ->
+		let e = Ast.expr_to_value ctx.in_macro esub in
+		type_expr_with_type ctx e (Some (Typeload.load_complex_type ctx p (CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = None; tparams = [] })))
 
 and type_call ctx e el twith p =
 	match e, el with

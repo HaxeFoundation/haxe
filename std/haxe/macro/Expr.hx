@@ -121,9 +121,10 @@ enum ExprDef {
 	EDisplayNew( t : TypePath );
 	ETernary( econd : Expr, eif : Expr, eelse : Expr );
 	ECheckType( e : Expr, t : ComplexType );
+	EMacro( e : Expr );
 	#if !haxe3
 	EType( e : Expr, field : String );
-	#end	
+	#end
 }
 
 enum ComplexType {

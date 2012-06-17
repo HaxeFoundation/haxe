@@ -612,6 +612,7 @@ and expr = parser
 		(match b with
 		| EObjectDecl _ -> expr_next e s
 		| _ -> e)
+	| [< '(Const (Ident "macro"),p); e = expr >] -> (EMacro e,punion p (pos e))
 	| [< '(Const c,p); s >] -> expr_next (EConst c,p) s
 	| [< '(Kwd This,p); s >] -> expr_next (EConst (Ident "this"),p) s
 	| [< '(Kwd True,p); s >] -> expr_next (EConst (Ident "true"),p) s

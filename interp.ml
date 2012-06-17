@@ -3508,6 +3508,8 @@ and encode_expr e =
 				27, [loop econd;loop e1;loop e2]
 			| ECheckType (e,t) ->
 				28, [loop e; encode_type t]
+			| EMacro e ->
+				29, [loop e]
 		in
 		enc_obj [
 			"pos", encode_pos p;
