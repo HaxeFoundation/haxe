@@ -8352,8 +8352,9 @@ end;;
     On languages that do not support goto, a custom solution must be enforced
   
   dependencies:
-    We assume that no loop will be found at the condition, nor break will be found at switch "cases", so it's better to execute it after ExprUnwrap
-    But it's very unlikely and probably a justifiable error if such an expression is found
+    Since UnreachableCodeElimination must run before it, and Unreachable should be one of the
+    very last filters to run, we will make a fixed value which runs after UnreachableCodeElimination
+    (meaning: it's the very last filter)
   
 *)
 
@@ -8362,7 +8363,7 @@ struct
 
   let name = "switch_break_synf"
   
-  let priority = solve_deps name []
+  let priority = min_dep -. 150.0
   
   type add_to_block_api = texpr->bool->unit
   
@@ -8453,6 +8454,7 @@ end;;
       (http://docs.oracle.com/javase/specs/jls/se7/html/jls-14.html#jls-14.21) will be added
   
   dependencies:
+    This must run before SwitchBreakSynf (see SwitchBreakSynf dependecy value)
     This must be the LAST syntax filter to run. It expects ExpressionUnwrap to have run correctly, since this will only work for source-code based targets
   
 *)
