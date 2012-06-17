@@ -9,7 +9,7 @@ class Gc
 
    static public function run(major:Bool) : Void
    {
-      untyped __global__.__hxcpp_collect();
+      untyped __global__.__hxcpp_collect(major);
    }
 
    static public function trace(sought:Class<Dynamic>,printInstances:Bool=true) : Int
@@ -17,11 +17,7 @@ class Gc
       return untyped __global__.__hxcpp_gc_trace(sought,printInstances);
    }
 
-   // Can't add these until the next hxcpp release....
-   @:functionCode("\n#ifdef HXCPP_GC_FUNCTIONS_1\n")
-   @:functionTailCode('\n#else\n#error "Please upgrade your version of HXCPP"\n#endif\n')
    static public function versionCheck() { return true; }
-
 
    static public function doNotKill(inObject:Dynamic) : Void
    {
