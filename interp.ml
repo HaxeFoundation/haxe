@@ -3761,7 +3761,9 @@ let decode_expr v =
 			ETernary (loop e1,loop e2,loop e3)
 		| 28, [e;t] ->
 			ECheckType (loop e, decode_ctype t)
-		| 29, [e;f] ->
+		| 29, [e] ->
+			EMacro (loop e)
+		| 30, [e;f] ->
 			EField (loop e, dec_string f) (*** deprecated EType, keep until haxe 3 **)
 		| _ ->
 			raise Invalid_expr
