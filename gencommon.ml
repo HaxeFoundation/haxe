@@ -3881,7 +3881,7 @@ struct
         
         let rec run md =
           match md with 
-            | TClassDecl ({ cl_extern = false; cl_interface = false; cl_types = hd :: tl } as cl) when set_hxgeneric gen md ->
+            | TClassDecl ({ cl_extern = false; cl_types = hd :: tl } as cl) when set_hxgeneric gen md ->
               let iface = mk_class cl.cl_module cl.cl_path cl.cl_pos in
               iface.cl_array_access <- Option.map (apply_params (cl.cl_types) (List.map (fun _ -> t_dynamic) cl.cl_types)) cl.cl_array_access;
               iface.cl_module <- cl.cl_module;
