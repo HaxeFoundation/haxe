@@ -3442,7 +3442,25 @@ struct
         | TInst( ({ cl_kind = KTypeParameter } as cl ), []), _ ->
           Hashtbl.replace params_tbl cl.cl_path applied
         | TInst(cl, params), TInst(cl2, params2) ->
-          List.iter2 (get_arg) params params2
+          let rec loop cl2 params2 =
+            if cl == cl2 then
+              List.iter2 (get_arg) params params2
+            else begin
+              if not (List.exists (fun (cs,tls) ->
+                if (cs == cl) then begin
+                  loop cs (List.map (apply_params cl2.cl_types params2) tls);
+                  true
+                end else
+                  false
+              ) cl2.cl_implements) then
+                match cl2.cl_super with
+                  | None -> (* not related ! *) ()
+                  | Some (cs,tls) ->
+                    loop cs (List.map (apply_params cl2.cl_types params2) tls)
+            end
+          in
+          loop cl2 params2
+          
         | TEnum(e, params), TEnum(e2, params2) ->
           List.iter2 (get_arg) params params2
         | TFun(params, ret), TFun(params2, ret2) ->
