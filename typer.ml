@@ -1410,7 +1410,7 @@ and type_expr_with_type_raise ctx e t =
 	| EParenthesis e ->
 		let e = type_expr_with_type_raise ctx e t in
 		mk (TParenthesis e) e.etype p;
-	| ECall (((EConst (Ident s),p) as e),el) ->
+	| ECall (((EConst (Ident s),p) as e),el) when s.[0] <> '$' ->
 		(try
 			ignore(type_ident_raise ~imported_enums:false ctx s p MGet);
 			type_call ctx e el t p
