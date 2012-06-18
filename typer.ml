@@ -1262,10 +1262,10 @@ and type_switch ctx e cases def need_val with_type p =
 			| _ -> e
 		) in
 		let e = if need_val then type_expr_with_type ctx e with_type else type_expr ~need_val ctx e in
-		el := !el @ [e];
+		el := e :: !el;
 		e
 	in
-	let def = (match def with
+	let def() = (match def with
 		| None -> None
 		| Some e ->
 			let locals = save_locals ctx in
@@ -1322,6 +1322,7 @@ and type_switch ctx e cases def need_val with_type p =
 			List.map (fun c -> c.ef_index) el, vars, e
 		in
 		let cases = List.map matchs cases in
+		let def = def() in
 		(match def with
 		| Some _ -> ()
 		| None ->
@@ -1332,7 +1333,7 @@ and type_switch ctx e cases def need_val with_type p =
 			| [] -> ()
 			| _ -> display_error ctx ("Some constructors are not matched : " ^ String.concat "," l) p
 		);
-		let t = if not need_val then (mk_mono()) else unify_min ctx !el in
+		let t = if not need_val then (mk_mono()) else unify_min ctx (List.rev !el) in
 		mk (TMatch (eval,(enum,enparams),List.map indexes cases,def)) t p
 	| _ ->
 		let consts = Hashtbl.create 0 in
@@ -1352,7 +1353,8 @@ and type_switch ctx e cases def need_val with_type p =
 			el, e
 		in
 		let cases = List.map exprs cases in
-		let t = if not need_val then (mk_mono()) else unify_min ctx !el in
+		let def = def() in
+		let t = if not need_val then (mk_mono()) else unify_min ctx (List.rev !el) in
 		mk (TSwitch (eval,cases,def)) t p
 
 and type_ident ctx i p mode =
