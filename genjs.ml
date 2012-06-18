@@ -397,7 +397,7 @@ and gen_expr ctx e =
 	| TLocal v -> spr ctx (ident v.v_name)
 	| TEnumField (e,s) ->
 		print ctx "%s%s" (ctx.type_accessor (TEnumDecl e)) (field s)
-	| TArray (e1,{ eexpr = TConst (TString s) }) ->
+	| TArray (e1,{ eexpr = TConst (TString s) }) when valid_js_ident s ->
 		gen_value ctx e1;
 		spr ctx (field s)
 	| TArray (e1,e2) ->
