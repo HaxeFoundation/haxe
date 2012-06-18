@@ -612,7 +612,14 @@ and expr = parser
 		(match b with
 		| EObjectDecl _ -> expr_next e s
 		| _ -> e)
-	| [< '(Const (Ident "macro"),p); e = expr >] -> (EMacro e,punion p (pos e))
+	| [< '(Const (Ident "macro"),p); s >] ->
+		(match Stream.npeek 1 s with
+		| [(_,p2)] when p2.pmin > p.pmax ->
+			(match s with parser
+			| [< e = expr >] -> (EMacro e,punion p (pos e))
+			| [< >] -> expr_next (EConst (Ident "macro"),p) s)
+		| _ ->
+			expr_next (EConst (Ident "macro"),p) s)
 	| [< '(Const c,p); s >] -> expr_next (EConst c,p) s
 	| [< '(Kwd This,p); s >] -> expr_next (EConst (Ident "this"),p) s
 	| [< '(Kwd True,p); s >] -> expr_next (EConst (Ident "true"),p) s
