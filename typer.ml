@@ -2368,12 +2368,10 @@ let get_main ctx =
 		Some (mk (TCall (mk (TField (emain,"main")) ft null_pos,[])) r null_pos)
 
 let rec finalize ctx =
-	let delays = ctx.g.delayed.df_normal in
-	ctx.g.delayed.df_normal <- [];
-	match delays,ctx.g.delayed.df_late with
+	match ctx.g.delayed.df_normal,ctx.g.delayed.df_late with
 	| [],[] when ctx.com.dead_code_elimination ->
 		ignore(get_main ctx);
-		if dce_finalize ctx && ctx.g.delayed.df_normal = [] then dce_optimize ctx else finalize ctx
+		if dce_finalize ctx && ctx.g.delayed.df_normal = [] && ctx.g.delayed.df_late = [] then dce_optimize ctx else finalize ctx
 	| [],[] ->
 		(* at last done *)
 		()
@@ -2383,6 +2381,7 @@ let rec finalize ctx =
 		List.iter (fun f -> f()) l;
 		finalize ctx		
 	| l,_ ->
+		ctx.g.delayed.df_normal <- [];
 		List.iter (fun f -> f()) l;
 		finalize ctx
 
