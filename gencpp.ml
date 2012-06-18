@@ -149,7 +149,7 @@ type context =
 	mutable ctx_debug_type : bool;
 	mutable ctx_real_this_ptr : bool;
 	mutable ctx_dynamic_this_ptr : bool;
-	mutable ctx_push_src_pos : string;
+	mutable ctx_dump_src_pos : unit -> unit;
 	mutable ctx_static_id_curr : int;
 	mutable ctx_static_id_used : int;
 	mutable ctx_static_id_depth : int;
@@ -170,7 +170,7 @@ let new_context common_ctx writer debug =
 	ctx_assigning = false;
 	ctx_debug = debug;
 	ctx_debug_type = debug;
-	ctx_push_src_pos = "";
+	ctx_dump_src_pos = (fun() -> ());
 	ctx_return_from_block = false;
 	ctx_return_from_internal_node = false;
 	ctx_real_this_ptr = true;
@@ -1177,8 +1177,8 @@ and gen_expression ctx retval expression =
 	ctx.ctx_return_from_block <- false;
 	let return_from_internal_node = ctx.ctx_return_from_internal_node in
 	ctx.ctx_return_from_internal_node <- false;
-	let push_src_pos = ctx.ctx_push_src_pos in
-	ctx.ctx_push_src_pos <- "";
+	let dump_src_pos = ctx.ctx_dump_src_pos in
+	ctx.ctx_dump_src_pos <- (fun() -> ());
 
 	(* Annotate source code with debug - can get a bit verbose.  Mainly for debugging code gen,
 		rather than the run time *)
@@ -1296,7 +1296,7 @@ and gen_expression ctx retval expression =
 			)
 		end else begin
 			writer#begin_block;
-			if (push_src_pos<>"") then output_i ("HX_SOURCE_PUSH(\"" ^ push_src_pos ^ "\")\n");
+			dump_src_pos();
 			(* Save old values, and equalize for new input ... *)
 			let pop_names = push_anon_names ctx in
 			let remaining = ref (List.length expr_list) in
@@ -1790,7 +1790,16 @@ let gen_field ctx class_def class_name ptr_name is_static is_interface field =
 		let nargs = string_of_int (List.length function_def.tf_args) in
 		let is_void = (type_string function_def.tf_type ) = "Void" in
 		let ret = if is_void  then "(void)" else "return " in
-		let src_name = if (Type.has_meta ":noStack" field.cf_meta) then "" else ptr_name ^ "::" ^ field.cf_name in
+		let output_i = ctx.ctx_writer#write_i in
+		let dump_src = if (Type.has_meta ":noStack" field.cf_meta) then
+			(fun()->())
+		else
+			(fun() ->
+         output_i ("HX_SOURCE_PUSH(\"" ^ ptr_name ^ "::" ^ field.cf_name ^ "\");\n");
+         if (not is_static) then output_i ("HX_LOCAL_THIS(this)\n");
+			List.iter (fun (v,_) -> output_i ("HX_LOCAL_ARG(" ^ (keyword_remap v.v_name) ^ ",\"" ^ v.v_name ^"\")\n") )
+            function_def.tf_args )
+		in
 
 		if (not (is_dynamic_haxe_method field)) then begin
 			(* The actual function definition *)
@@ -1805,7 +1814,7 @@ let gen_field ctx class_def class_name ptr_name is_static is_interface field =
 			if (has_default_values function_def.tf_args) then begin
 				ctx.ctx_writer#begin_block;
 				generate_default_values ctx function_def.tf_args "__o_";
-				if (src_name<>"") then output ("\tHX_SOURCE_PUSH(\"" ^ src_name ^ "\");\n");
+				dump_src();
             output code;
 				gen_expression ctx false function_def.tf_expr;
             output tail_code;
@@ -1814,7 +1823,7 @@ let gen_field ctx class_def class_name ptr_name is_static is_interface field =
 			end else begin
 				let add_block = is_void || (code <> "") || (tail_code <> "") in
 				if (add_block) then ctx.ctx_writer#begin_block;
-				ctx.ctx_push_src_pos <- src_name;
+			   ctx.ctx_dump_src_pos <- dump_src;
 				output code;
 				gen_expression ctx false (to_block function_def.tf_expr);
 				output tail_code;
@@ -1839,7 +1848,7 @@ let gen_field ctx class_def class_name ptr_name is_static is_interface field =
 			output ("HX_BEGIN_DEFAULT_FUNC(" ^ func_name ^ "," ^ class_name ^ ")\n");
 			output return_type;
 			output (" run(" ^ (gen_arg_list function_def.tf_args "") ^ ")");
-			ctx.ctx_push_src_pos <- src_name;
+			ctx.ctx_dump_src_pos <- dump_src;
 			if (is_void) then begin
 				ctx.ctx_writer#begin_block;
 				gen_expression ctx false function_def.tf_expr;
