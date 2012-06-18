@@ -36,10 +36,15 @@ type macro_mode =
 	| MBuild
 	| MMacroType
 
+type delayed_functions = {
+	mutable df_normal : (unit -> unit) list;
+	mutable df_late : (unit -> unit) list;
+}
+
 type typer_globals = {
 	types_module : (path, path) Hashtbl.t;
 	modules : (path , module_def) Hashtbl.t;
-	mutable delayed : (unit -> unit) list;
+	mutable delayed : delayed_functions;
 	doinline : bool;
 	mutable core_api : typer option;
 	mutable macros : ((unit -> unit) * typer) option;
@@ -209,7 +214,10 @@ let not_opened = ref Closed
 let mk_anon fl = TAnon { a_fields = fl; a_status = not_opened; }
 
 let delay ctx f =
-	ctx.g.delayed <- f :: ctx.g.delayed
+	ctx.g.delayed.df_normal <- f :: ctx.g.delayed.df_normal
+
+let delay_late ctx f =
+	ctx.g.delayed.df_late <- f :: ctx.g.delayed.df_late
 
 let mk_field name t p = {
 	cf_name = name;

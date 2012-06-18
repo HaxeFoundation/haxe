@@ -2368,16 +2368,21 @@ let get_main ctx =
 		Some (mk (TCall (mk (TField (emain,"main")) ft null_pos,[])) r null_pos)
 
 let rec finalize ctx =
-	let delays = ctx.g.delayed in
-	ctx.g.delayed <- [];
-	match delays with
-	| [] when ctx.com.dead_code_elimination ->
+	let delays = ctx.g.delayed.df_normal in
+	ctx.g.delayed.df_normal <- [];
+	match delays,ctx.g.delayed.df_late with
+	| [],[] when ctx.com.dead_code_elimination ->
 		ignore(get_main ctx);
-		if dce_finalize ctx && ctx.g.delayed = [] then dce_optimize ctx else finalize ctx
-	| [] ->
+		if dce_finalize ctx && ctx.g.delayed.df_normal = [] then dce_optimize ctx else finalize ctx
+	| [],[] ->
 		(* at last done *)
 		()
-	| l ->
+	| [],l ->
+		(* normal done, but late remains *)
+		ctx.g.delayed.df_late <- [];
+		List.iter (fun f -> f()) l;
+		finalize ctx		
+	| l,_ ->
 		List.iter (fun f -> f()) l;
 		finalize ctx
 
@@ -2975,7 +2980,10 @@ let rec create com is_macro_ctx =
 			modules = Hashtbl.create 0;
 			types_module = Hashtbl.create 0;
 			type_patches = Hashtbl.create 0;
-			delayed = [];
+			delayed = {
+				df_normal = [];
+				df_late = [];
+			};
 			doinline = not (Common.defined com "no_inline" || com.display);
 			hook_generate = [];
 			get_build_infos = (fun() -> None);
