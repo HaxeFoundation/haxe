@@ -62,6 +62,7 @@ and typer = {
 	mutable t : basic_types;
 	g : typer_globals;
 	mutable in_macro : bool;
+	mutable macro_depth : int;
 	(* per-module *)
 	current : module_def;
 	mutable local_types : module_type list;

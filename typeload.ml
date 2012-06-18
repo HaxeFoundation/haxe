@@ -1342,6 +1342,7 @@ let type_module ctx m file tdecls loadp =
 		com = ctx.com;
 		g = ctx.g;
 		t = ctx.t;
+		macro_depth = ctx.macro_depth;
 		curclass = ctx.curclass;
 		tthis = ctx.tthis;
 		ret = ctx.ret;

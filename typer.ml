@@ -2182,7 +2182,9 @@ and build_call ctx acc el twith p =
 			| _ -> assert false)
 		| _ -> assert false)
 	| AKMacro (ethis,f) ->
-		(match ethis.eexpr with
+		if ctx.macro_depth > 300 then error "Stack overflow" p;
+		ctx.macro_depth <- ctx.macro_depth + 1;
+		let e = (match ethis.eexpr with
 		| TTypeExpr (TClassDecl c) ->
 			(match ctx.g.do_macro ctx MExpr c.cl_path f.cf_name el p with
 			| None -> type_expr ctx (EConst (Ident "null"),p)
@@ -2202,7 +2204,9 @@ and build_call ctx acc el twith p =
 						| Some (csup,_) -> loop csup
 				in
 				loop c
-			| _ -> assert false))
+			| _ -> assert false)) in
+		ctx.macro_depth <- ctx.macro_depth - 1;
+		e;
 	| AKNo _ | AKSet _ ->
 		ignore(acc_get ctx acc p);
 		assert false
@@ -2983,6 +2987,7 @@ let rec create com is_macro_ctx =
 			do_optimize = Optimizer.reduce_expression;
 			do_build_instance = Codegen.build_instance;
 		};
+		macro_depth = 0;
 		untyped = false;
 		curfun = FStatic;
 		in_loop = false;
