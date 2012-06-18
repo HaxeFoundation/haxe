@@ -117,11 +117,14 @@ let rec load_type_def ctx p t =
 				Exit -> next()
 
 let check_param_constraints ctx types t pl c p =
-	List.iter (fun (i,tl) ->
-		let ti = try snd (List.find (fun (_,t) -> match follow t with TInst(i2,[]) -> i == i2 | _ -> false) types) with Not_found -> TInst (i,tl) in
-		let ti = apply_params types pl ti in
-		unify ctx t ti p
-	) c.cl_implements
+ 	match follow t with
+	| TMono _ -> ()
+	| _ ->
+		List.iter (fun (i,tl) ->
+			let ti = try snd (List.find (fun (_,t) -> match follow t with TInst(i2,[]) -> i == i2 | _ -> false) types) with Not_found -> TInst (i,tl) in
+			let ti = apply_params types pl ti in
+			unify ctx t ti p
+		) c.cl_implements
 
 (* build an instance from a full type *)
 let rec load_instance ctx t p allow_no_params =
@@ -138,7 +141,7 @@ let rec load_instance ctx t p allow_no_params =
 				match follow t with
 				| TInst (c,_) ->
 					let t = mk_mono() in
-					if c.cl_implements <> [] then delay ctx (fun() -> check_param_constraints ctx types t (!pl) c p);
+					if c.cl_implements <> [] then delay_late ctx (fun() -> check_param_constraints ctx types t (!pl) c p);
 					t;
 				| _ -> assert false
 			) types;
