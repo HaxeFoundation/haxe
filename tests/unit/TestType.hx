@@ -280,7 +280,7 @@ class TestType extends Test {
 		// note that this does not
 		var foo = function(bar:Null<Int> = 2) { return bar; };
 		var l = callback(foo, _);
-		eq(2, l());		
+		eq(2, l());
 	}
 	
 	function testConstantAnonCovariance()
@@ -394,4 +394,17 @@ class TestType extends Test {
 		}
 		eq(l(), "foo");
 	}
+	
+	function testOptionalParamsSkip() {
+		#if !macro
+		function foo( a : MyEnum, ?b : Bool, ?c : MyEnum ) {
+			return "";
+		}
+		typedAs(foo(A), "");
+		typedAs(foo(A, true), "");
+		typedAs(foo(A, A), "");
+		typeError(foo(A, A, false));
+		#end
+	}
+	
 }

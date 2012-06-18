@@ -1387,11 +1387,14 @@ and type_ident ctx i p mode =
 			end
 		end
 
-and type_expr_with_type_raise ctx e t =
+and type_expr_with_type_raise ?(print_error=true) ctx e t =
 	let p = snd e in
+	let error msg p =
+		if print_error then display_error ctx msg p else raise (Error (Unify [],p))
+	in
 	match fst e with
 	| EParenthesis e ->
-		let e = type_expr_with_type_raise ctx e t in
+		let e = type_expr_with_type_raise ~print_error ctx e t in
 		mk (TParenthesis e) e.etype p;
 	| ECall (((EConst (Ident s),p) as e),el) ->
 		(try
@@ -1412,7 +1415,7 @@ and type_expr_with_type_raise ctx e t =
 				build_call ctx (AKExpr constr) el (Some t) p
 			with Not_found ->
 				if ctx.untyped then raise Exit; (* __js__, etc. *)
-				display_error ctx ("Identifier '" ^ s ^ "' is not part of enum " ^ s_type_path e.e_path) p;
+				error ("Identifier '" ^ s ^ "' is not part of enum " ^ s_type_path e.e_path) p;
 				mk (TConst TNull) t p
 		with Exit ->
 			type_call ctx e el t p)
@@ -1437,15 +1440,15 @@ and type_expr_with_type_raise ctx e t =
 			| [] -> []
 			| [e] ->
 				(try
-					[type_expr_with_type_raise ctx e t]
+					[type_expr_with_type_raise ~print_error ctx e t]
 				with
-					Error (e,p) -> display_error ctx (error_msg e) p; [])
+					Error (e,p) -> error (error_msg e) p; [])
 			| e :: l ->
 				try
 					let e = type_expr ctx ~need_val:false e in
 					e :: loop l
 				with
-					Error (e,p) -> display_error ctx (error_msg e) p; loop l
+					Error (e,p) -> error (error_msg e) p; loop l
 		in
 		let l = loop l in
 		locals();
@@ -1469,7 +1472,7 @@ and type_expr_with_type_raise ctx e t =
 						mark_used_enum ctx e;
 						mk (TEnumField (e,s)) (apply_params e.e_types pl ef.ef_type) p
 					with Not_found ->
-						display_error ctx ("Identifier '" ^ s ^ "' is not part of enum " ^ s_type_path e.e_path) p;
+						error ("Identifier '" ^ s ^ "' is not part of enum " ^ s_type_path e.e_path) p;
 						mk (TConst TNull) t p)
 				| _ -> raise Not_found)
 		with Not_found ->
@@ -1485,7 +1488,7 @@ and type_expr_with_type_raise ctx e t =
 					type_expr ctx e
 				| _ ->
 					let el = List.map (fun e ->
-						let e = type_expr_with_type_raise ctx e (Some tp) in
+						let e = type_expr_with_type_raise ~print_error ctx e (Some tp) in
 						unify_raise ctx e.etype tp e.epos;
 						e
 					) el in
@@ -1508,7 +1511,7 @@ and type_expr_with_type_raise ctx e t =
 					if PMap.mem n !fields then error ("Duplicate field in object declaration : " ^ n) p;
 					let e = try
 						let t = (PMap.find n a.a_fields).cf_type in
-						let e = type_expr_with_type_raise ctx e (Some t) in
+						let e = type_expr_with_type_raise ~print_error ctx e (Some t) in
 						unify ctx e.etype t e.epos;
 						{e with etype = t}
 					with Not_found ->
@@ -1527,8 +1530,8 @@ and type_expr_with_type_raise ctx e t =
 						if not (has_meta ":optional" cf.cf_meta) && not (PMap.mem n !fields) then raise (Error (Unify [has_no_field t n],p));
 					) a.a_fields;
 					(match !extra_fields with
-						| [] -> ()
-						| _ -> raise (Error (Unify (List.map (fun n -> has_extra_field t n) !extra_fields),p)));
+					| [] -> ()
+					| _ -> raise (Error (Unify (List.map (fun n -> has_extra_field t n) !extra_fields),p)));
 				end;
 				a.a_status := Closed;
 				mk (TObjectDecl el) t p
@@ -3046,4 +3049,4 @@ let rec create com =
 ;;
 type_field_rec := type_field;
 unify_min_ref := unify_min;
-type_expr_with_type_ref := (fun ctx e t do_raise -> if do_raise then type_expr_with_type_raise ctx e t else type_expr_with_type ctx e t);
+type_expr_with_type_ref := (fun ctx e t do_raise -> if do_raise then type_expr_with_type_raise ~print_error:false ctx e t else type_expr_with_type ctx e t);
