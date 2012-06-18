@@ -438,7 +438,7 @@ and gen_expr ctx e =
 		| _ ->
 			print ctx "($_=";
 			gen_value ctx x;
-			print ctx ",$bind($_,$_.%s)" s)
+			print ctx ",$bind($_,$_.%s))" s)
 	| TTypeExpr t ->
 		spr ctx (ctx.type_accessor t)
 	| TParenthesis e ->
