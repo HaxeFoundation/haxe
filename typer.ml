@@ -960,6 +960,7 @@ let rec type_binop ctx op e1 e2 p =
 		| KUnk | KDyn | KParam _ | KOther ->
 			let std = type_type ctx ([],"Std") e.epos in
 			let acc = acc_get ctx (type_field ctx std "string" e.epos MCall) e.epos in
+			ignore(follow acc.etype);
 			let acc = (match acc.eexpr with TClosure (e,f) -> { acc with eexpr = TField (e,f) } | _ -> acc) in
 			make_call ctx acc [e] ctx.t.tstring e.epos
 		| KInt | KFloat | KString -> e
