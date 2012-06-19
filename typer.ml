@@ -1742,7 +1742,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		mk (TObjectDecl (List.rev fields)) (TAnon { a_fields = types; a_status = x }) p
 	| EArrayDecl el ->
 		let el = List.map (type_expr ctx) el in
-		let t = unify_min ctx el in
+		let t = try unify_min_raise ctx el with Error (Unify l,p) -> if Common.defined ctx.com "haxe3" then raise (Error (Unify l, p)) else t_dynamic in
 		mk (TArrayDecl el) (ctx.t.tarray t) p
 	| EVars vl ->
 		let vl = List.map (fun (v,t,e) ->
