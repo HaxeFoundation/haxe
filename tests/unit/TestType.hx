@@ -427,5 +427,8 @@ class TestType extends Test {
 		eq(pcc.memberComplex(ci1, l), l);
 		eq(pcc.memberComplex(ci1, lmono), lmono);
 		//typeError(pcc.memberComplex(ci1, [ci1]));
+		
+		eq(pcc.memberBasic("foo", ["bar"]), "bar");
+		//eq(pcc.memberBasic("foo", ["bar"]), "foobar");
 	}
 }

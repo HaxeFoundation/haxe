@@ -580,6 +580,7 @@ let set_heritance ctx c herits p =
 let type_type_params ctx path get_params p (n,flags) =
 	let c = mk_class ctx.current (fst path @ [snd path],n) p in
 	c.cl_kind <- KTypeParameter;
+	c.cl_meta <- (":hack",[],p) :: c.cl_meta;
 	let t = TInst (c,[]) in
 	match flags with
 	| [] -> n, t
