@@ -398,4 +398,34 @@ class TestType extends Test {
 		#end
 	}
 	
+	function testParamConstraints()
+	{
+		var pcc = new ParamConstraintsClass();
+		var b = new Base();
+		var c1 = new Child1();
+		var u = new Unrelated();
+		var ci1 = new CI1();
+		
+		eq(ParamConstraintsClass.staticSingle(b), b);
+		eq(ParamConstraintsClass.staticSingle(c1), c1);
+		// TODO: cannot test this at the moment because it will break compilation
+		//typeError(ParamConstraintsClass.staticSingle(u));
+		//typeError(ParamConstraintsClass.staticSingle(1));
+		//typeError(ParamConstraintsClass.staticSingle("foo"));
+		
+		eq(pcc.memberSingle(b), b);
+		eq(pcc.memberSingle(c1), c1);
+		//typeError(pcc.memberSingle(u), u);
+		
+		eq(pcc.memberMultiple(ci1), ci1);
+		//typeError(pcc.memberMultiple(b));
+		//typeError(pcc.memberMultiple(c1));
+		
+		var l = new List();
+		l.push(ci1);
+		var lmono = new List();
+		eq(pcc.memberComplex(ci1, l), l);
+		eq(pcc.memberComplex(ci1, lmono), lmono);
+		//typeError(pcc.memberComplex(ci1, [ci1]));
+	}
 }

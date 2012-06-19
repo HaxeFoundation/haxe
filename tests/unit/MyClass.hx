@@ -126,3 +126,11 @@ class InitProperties {
 	
 	public function new() { }
 }
+
+class ParamConstraintsClass {
+	public function new() { }
+	static public function staticSingle< A:Base > (a:A):A { return a; }
+	public function memberSingle< A:Base > (a:A):A { return a; }
+	public function memberMultiple < A:(Base, I1) > (a:A):A { return a; }
+	public function memberComplex < A:I1, B:List<A> > (a:A, b:B) { return b; }
+}
