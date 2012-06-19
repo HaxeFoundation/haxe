@@ -6,37 +6,34 @@ typedef StackFrame = Dynamic;
 
 class Debugger
 {
+   public static inline var BRK_TERMINATE = -1;
+
+   public static inline var BRK_NONE  = 0;
+   public static inline var BRK_ASAP  = 1;
+   public static inline var BRK_STEP  = 2;
+   public static inline var BRK_ENTER = 3;
+   public static inline var BRK_LEAVE = 4;
+
    public static function setHandler(inHandler:Void->Void)
    {
       untyped __global__.__hxcpp_dbg_set_handler(inHandler);
    }
 
    // Generate a handler callback ASAP
-   public static function breakASAP(?inThread:Thread)
+   public static function setBreak(inMode:Int,?inIgnoreThread:Thread)
    {
-      untyped __global__.__hxcpp_dbg_break_asap(inThread);
+      untyped __global__.__hxcpp_dbg_set_break(inMode,inIgnoreThread==null?null:inIgnoreThread.handle);
    }
 
-   // Stepping
-   public static function stepOver(?inThread:Thread)
+   public static function exit()
    {
-      untyped __global__.__hxcpp_dbg_step_over(inThread);
-   }
-
-   public static function stepInto(?inThread:Thread)
-   {
-      untyped __global__.__hxcpp_dbg_step_into(inThread);
-   }
-
-   public static function stepOut(?inThread:Thread)
-   {
-      untyped __global__.__hxcpp_dbg_step_out(inThread);
+      untyped __global__.__hxcpp_dbg_set_break(BRK_TERMINATE,null);
    }
 
    // Breakpoint
    public static function addBreakpoint(inBreakpoint:Breakpoint)
    {
-      return untyped __global__.__hxcpp_breakpoints_add(inBreakpoint);
+      untyped __global__.__hxcpp_breakpoints_add(inBreakpoint);
    }
 
    public static function getBreakpoints() : Array<Breakpoint>

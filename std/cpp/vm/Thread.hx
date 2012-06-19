@@ -28,7 +28,7 @@ typedef ThreadHandle = Dynamic;
 
 class Thread {
 
-	var handle : ThreadHandle;
+	public var handle(default,null) : ThreadHandle;
 
 	function new(h) {
 		handle = h;
