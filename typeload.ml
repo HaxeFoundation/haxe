@@ -596,31 +596,6 @@ let type_type_params ctx path get_params p (n,flags) =
 let type_function_params ctx fd fname fmeta p =
 	let params = ref [] in
 	params := List.map (fun (n,flags) ->
-		(match flags with
-		| [] -> ()
-		| _ ->
-			(** look if the type is contained into arguments **)
-			let rec lookup_type t =
-				match t with
-				| CTPath { tpackage = []; tname = n2 } when n = n2 -> true
-				| CTPath p -> List.exists lookup_tparam p.tparams
-				| CTFunction (cl,r) -> List.exists lookup_type (r::cl)
-				| CTExtend (_,fl) | CTAnonymous fl -> List.exists lookup_cfield fl
-				| CTOptional t | CTParent t -> lookup_type t						
-			and lookup_cfield f =
-				match f.cff_kind with
-				| FVar (None,_) -> false
-				| FProp (_,_,t,_) | FVar (Some t,_) -> lookup_type t
-				| FFun f -> lookup_fun f
-			and lookup_fun f =
-				List.exists (fun (_,_,t,_) -> match t with None -> false | Some t -> lookup_type t) f.f_args || 
-				List.exists (fun (_,tl) -> List.exists lookup_type tl) f.f_params ||
-				(match f.f_type with None -> false | Some t -> lookup_type t)
-			and lookup_tparam = function
-				| TPType t -> lookup_type t
-				| TPExpr _ -> false
-			in
-			if lookup_fun { fd with f_type = None; f_params = [] } && not (has_meta ":allowConstraint" fmeta) then error "This notation is not allowed because it can't be checked" p);
 		type_type_params ctx ([],fname) (fun() -> !params) p (n,flags)
 	) fd.f_params;
 	!params

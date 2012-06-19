@@ -278,13 +278,28 @@ let rec unify_call_params ctx cf el args r p inline =
 		else
 			(null (ctx.t.tnull t) p, true)
 	in
+	let tout = TFun(args,r) in
+	let tout = match cf with
+	| Some cf when cf.cf_params <> [] ->
+		let params = ref [] in
+		params := List.map (fun (n,t) ->
+			match follow t with
+			| TInst(c,[]) ->
+				let t = mk_mono() in
+				delay_late ctx (fun () -> Typeload.check_param_constraints ctx cf.cf_params t (!params) c p);
+				t
+			| _ -> assert false
+		) cf.cf_params;
+		apply_params cf.cf_params !params tout 
+	| _ -> tout in
+	let args,r = match tout with TFun(args,r) -> args,r | _ -> assert false in
 	let rec loop acc l l2 skip =
 		match l , l2 with
 		| [] , [] ->
 			if not (inline && ctx.g.doinline) && (match ctx.com.platform with Flash8 | Flash | Js -> true | _ -> false) then
-				List.rev (no_opt acc), (TFun(args,r))
+				List.rev (no_opt acc), tout
 			else
-				List.rev (List.map fst acc), (TFun(args,r))
+				List.rev (List.map fst acc), tout
 		| [] , (_,false,_) :: _ ->
 			error (List.fold_left (fun acc (_,_,t) -> default_value t :: acc) acc l2) "Not enough"
 		| [] , (name,true,t) :: l ->
@@ -693,6 +708,9 @@ let rec type_field ctx e i p mode =
 		if not ctx.untyped then display_error ctx (s_type (print_context()) e.etype ^ " has no field " ^ i) p;
 		AKExpr (mk (TField (e,i)) (mk_mono()) p)
 	in
+	(* we do not want to monofy the field in call context immediately to support parameter constraints *)
+	let class_field = match mode with MGet | MSet -> class_field | MCall -> raw_class_field (fun f -> f.cf_type) in
+	let field_type = match mode with MGet | MSet -> field_type | MCall -> fun f -> f.cf_type in
 	match follow e.etype with
 	| TInst (c,params) ->
 		let rec loop_dyn c params =
