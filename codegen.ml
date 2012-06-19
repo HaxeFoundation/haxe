@@ -539,7 +539,7 @@ let on_generate ctx t =
 		List.iter (fun m ->
 			match m with
 			| ":native",[Ast.EConst (Ast.String name),p],mp ->
-				c.cl_meta <- (":real",[Ast.EConst (Ast.String (s_type_path c.cl_path)),p],mp) :: c.cl_meta;
+				c.cl_meta <- (":realPath",[Ast.EConst (Ast.String (s_type_path c.cl_path)),p],mp) :: c.cl_meta;
 				c.cl_path <- parse_path name;
 			| _ -> ()
 		) c.cl_meta;
@@ -579,7 +579,7 @@ let on_generate ctx t =
 		List.iter (fun m ->
 			match m with
 			| ":native",[Ast.EConst (Ast.String name),p],mp ->
-				e.e_meta <- (":real",[Ast.EConst (Ast.String (s_type_path e.e_path)),p],mp) :: e.e_meta;
+				e.e_meta <- (":realPath",[Ast.EConst (Ast.String (s_type_path e.e_path)),p],mp) :: e.e_meta;
 				e.e_path <- parse_path name;
 			| _ -> ()
 		) e.e_meta;

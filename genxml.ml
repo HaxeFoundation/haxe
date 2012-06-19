@@ -54,7 +54,7 @@ let gen_arg_name (name,opt,_) =
 let cpath c =
 	let rec loop = function
 		| [] -> c.cl_path
-		| (":real",[(Ast.EConst (Ast.String s),_)],_) :: _ -> parse_path s
+		| (":realPath",[(Ast.EConst (Ast.String s),_)],_) :: _ -> parse_path s
 		| _ :: l -> loop l
 	in
 	loop c.cl_meta
@@ -82,8 +82,7 @@ let rec sexpr (e,_) =
 let gen_meta meta = match meta with
 	| [] -> []
 	| _ ->
-		let ignore = [":?used"; ":real"] in
-		let meta = List.filter (fun (m,_,_) -> not (List.mem m ignore)) meta in
+		let meta = List.filter (fun (m,_,_) -> match m with ":?used" | ":realPath" -> false | _ -> true) meta in
 		let nodes = List.map (fun (m,el,_) ->
 			node "m" ["n",m] (List.map (fun e -> node "e" [] [gen_string (sexpr e)]) el)
 		) meta in

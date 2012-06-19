@@ -2262,7 +2262,7 @@ let generate_type ctx t =
 	match t with
 	| TClassDecl c ->
 		if c.cl_path = (["flash";"_Boot"],"RealBoot") then c.cl_path <- ctx.boot;
-		if c.cl_extern && (c.cl_path <> ([],"Dynamic") || has_meta ":real" c.cl_meta) then
+		if c.cl_extern && (c.cl_path <> ([],"Dynamic") || has_meta ":realPath" c.cl_meta) then
 			None
 		else
 			let hlc = generate_class ctx c in

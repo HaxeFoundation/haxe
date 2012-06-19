@@ -534,7 +534,7 @@ and wait_loop boot_com host port =
 						| TEnumDecl e ->
 							let rec loop acc = function
 								| [] -> ()
-								| (":real",[Ast.EConst (Ast.String path),_],_) :: l ->
+								| (":realPath",[Ast.EConst (Ast.String path),_],_) :: l ->
 									e.e_path <- Ast.parse_path path;
 									e.e_meta <- (List.rev acc) @ l;
 								| x :: l -> loop (x::acc) l
