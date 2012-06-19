@@ -932,7 +932,8 @@ let rec unify a b =
 				a1.a_status := Closed
 			| _ -> ());
 			(match !(a2.a_status) with
-			| Statics _ | EnumStatics _ -> error []
+			| Statics c -> (match !(a1.a_status) with Statics c2 when c == c2 -> () | _ -> error [])
+			| EnumStatics e -> (match !(a1.a_status) with EnumStatics e2 when e == e2 -> () | _ -> error [])
 			| Opened -> a2.a_status := Closed
 			| _ -> ())
 		with
