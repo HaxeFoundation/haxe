@@ -24,6 +24,8 @@ LIBS=unix.cmxa str.cmxa libs/extlib/extLib.cmxa libs/xml-light/xml-light.cmxa li
 
 NATIVE_LIBS=-cclib libs/extc/extc_stubs.o -cclib -lz
 
+RELDIR=../../..
+
 EXPORT=../../../projects/motionTools/haxe
 
 MODULES=ast type lexer common genxml parser typecore optimizer typeload \
@@ -43,10 +45,10 @@ haxe: $(MODULES:=.cmx)
 	$(OCAMLOPT) -o $(OUTPUT) $(NATIVE_LIBS) $(LIBS) $(MODULES:=.cmx)
 
 haxelib:
-	(cd std/tools/haxelib && ../../../$(OUTPUT) haxelib.hxml && cp haxelib ../../..)
+	(cd std/tools/haxelib && HAXE_LIBRARY_PATH=$(RELDIR)/std $(RELDIR)/$(OUTPUT) haxelib.hxml && cp haxelib $(RELDIR))
 
 haxedoc:
-	(cd std/tools/haxedoc && ../../../$(OUTPUT) haxedoc.hxml && cp haxedoc ../../..)
+	(cd std/tools/haxedoc && HAXE_LIBRARY_PATH=$(RELDIR)/std $(RELDIR)/$(OUTPUT) haxedoc.hxml && cp haxedoc $(RELDIR))
 
 tools: haxelib haxedoc
 
