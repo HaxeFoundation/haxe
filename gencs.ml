@@ -475,11 +475,11 @@ let rec get_fun_modifiers meta access modifiers =
 let configure gen =
   let basic = gen.gcon.basic in
 
-  let fn_cl = get_cl (Hashtbl.find gen.gtypes (["haxe";"lang"],"Function")) in
+  let fn_cl = get_cl (get_type gen (["haxe";"lang"],"Function")) in
   
-  let null_t = (get_cl (Hashtbl.find gen.gtypes (["haxe";"lang"],"Null")) ) in
+  let null_t = (get_cl (get_type gen (["haxe";"lang"],"Null")) ) in
   
-  let runtime_cl = get_cl (Hashtbl.find gen.gtypes (["haxe";"lang"],"Runtime")) in
+  let runtime_cl = get_cl (get_type gen (["haxe";"lang"],"Runtime")) in
   
   let no_root = Common.defined gen.gcon "no-root" in
   
@@ -1396,15 +1396,15 @@ let configure gen =
   
   IteratorsInterface.configure gen (fun e -> e);
   
-  ClosuresToClass.configure gen (ClosuresToClass.default_implementation closure_t (get_cl (Hashtbl.find gen.gtypes (["haxe";"lang"],"Function")) ));
+  ClosuresToClass.configure gen (ClosuresToClass.default_implementation closure_t (get_cl (get_type gen (["haxe";"lang"],"Function")) ));
   
-  EnumToClass.configure gen (Some (fun e -> mk_cast gen.gcon.basic.tint e)) false true (get_cl (Hashtbl.find gen.gtypes (["haxe";"lang"],"Enum")) ) true false;
+  EnumToClass.configure gen (Some (fun e -> mk_cast gen.gcon.basic.tint e)) false true (get_cl (get_type gen (["haxe";"lang"],"Enum")) ) true false;
   
   InterfaceVarsDeleteModf.configure gen;
   
-  let dynamic_object = (get_cl (Hashtbl.find gen.gtypes (["haxe";"lang"],"DynamicObject")) ) in
+  let dynamic_object = (get_cl (get_type gen (["haxe";"lang"],"DynamicObject")) ) in
   
-  let object_iface = get_cl (Hashtbl.find gen.gtypes (["haxe";"lang"],"IHxObject")) in
+  let object_iface = get_cl (get_type gen (["haxe";"lang"],"IHxObject")) in
   
   (*fixme: THIS IS A HACK. take this off *)
   let empty_e = match (get_type gen (["haxe";"lang"], "EmptyObject")) with | TEnumDecl e -> e | _ -> assert false in
@@ -1412,8 +1412,8 @@ let configure gen =
   
   OverloadingConstructor.configure gen (TEnum(empty_e, [])) ({eexpr=TEnumField(empty_e, "EMPTY"); etype=TEnum(empty_e,[]); epos=null_pos;}) false;
   
-  let rcf_static_find = mk_static_field_access_infer (get_cl (Hashtbl.find gen.gtypes (["haxe";"lang"], "FieldLookup"))) "findHash" Ast.null_pos [] in
-  let rcf_static_lookup = mk_static_field_access_infer (get_cl (Hashtbl.find gen.gtypes (["haxe";"lang"], "FieldLookup"))) "lookupHash" Ast.null_pos [] in
+  let rcf_static_find = mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) "findHash" Ast.null_pos [] in
+  let rcf_static_lookup = mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) "lookupHash" Ast.null_pos [] in
   
   let can_be_float t = match follow t with
     | TInst({ cl_path = ([], "Int") }, []) 
@@ -1478,13 +1478,13 @@ let configure gen =
     { hash with eexpr = TCall(rcf_static_find, [hash; hash_array]); etype=basic.tint }
   ) (fun hash -> { hash with eexpr = TCall(rcf_static_lookup, [hash]); etype = gen.gcon.basic.tstring } ) true in
   
-  ReflectionCFs.UniversalBaseClass.default_config gen (get_cl (Hashtbl.find gen.gtypes (["haxe";"lang"],"HxObject")) ) object_iface dynamic_object;
+  ReflectionCFs.UniversalBaseClass.default_config gen (get_cl (get_type gen (["haxe";"lang"],"HxObject")) ) object_iface dynamic_object;
   
-  ReflectionCFs.implement_class_methods rcf_ctx ( get_cl (Hashtbl.find gen.gtypes (["haxe";"lang"],"Class")) );
+  ReflectionCFs.implement_class_methods rcf_ctx ( get_cl (get_type gen (["haxe";"lang"],"Class")) );
   
   ReflectionCFs.configure_dynamic_field_access rcf_ctx false;
   
-  let closure_func = ReflectionCFs.implement_closure_cl rcf_ctx ( get_cl (Hashtbl.find gen.gtypes (["haxe";"lang"],"Closure")) ) in
+  let closure_func = ReflectionCFs.implement_closure_cl rcf_ctx ( get_cl (get_type gen (["haxe";"lang"],"Closure")) ) in
   
   ReflectionCFs.implement_varargs_cl rcf_ctx ( get_cl (get_type gen (["haxe";"lang"], "VarArgsBase")) );
   
@@ -1719,7 +1719,7 @@ let configure gen =
   let hashes = Hashtbl.fold (fun i s acc -> (i,s) :: acc) rcf_ctx.rcf_hash_fields [] in
   let hashes = List.sort (fun (i,s) (i2,s2) -> compare i i2) hashes in
   
-  let flookup_cl = get_cl (Hashtbl.find gen.gtypes (["haxe";"lang"], "FieldLookup")) in
+  let flookup_cl = get_cl (get_type gen (["haxe";"lang"], "FieldLookup")) in
   (try
     let basic = gen.gcon.basic in
     let change_array = ArrayDeclSynf.default_implementation gen native_arr_cl in

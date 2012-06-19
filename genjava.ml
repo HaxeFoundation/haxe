@@ -618,10 +618,10 @@ let rec get_fun_modifiers meta access modifiers =
 (* so 'configure' is almost 'top-level' and will have all functions needed to make this work *)
 let configure gen =
   let basic = gen.gcon.basic in
-
-  let fn_cl = get_cl (Hashtbl.find gen.gtypes (["haxe";"lang"],"Function")) in
   
-  let runtime_cl = get_cl (Hashtbl.find gen.gtypes (["haxe";"lang"],"Runtime")) in
+  let fn_cl = get_cl (get_type gen (["haxe";"lang"],"Function")) in
+  
+  let runtime_cl = get_cl (get_type gen (["haxe";"lang"],"Runtime")) in
   
   (*let string_ref = get_cl ( get_type gen (["haxe";"lang"], "StringRefl")) in*)
   
@@ -701,7 +701,7 @@ let configure gen =
     | (ns,clname) -> path_s (change_ns ns, change_clname clname)
   in
   
-  let cl_cl = get_cl (Hashtbl.find gen.gtypes (["java";"lang"],"Class")) in
+  let cl_cl = get_cl (get_type gen (["java";"lang"],"Class")) in
   
   let rec real_type t =
     let t = gen.gfollow#run_f t in
@@ -1452,15 +1452,15 @@ let configure gen =
   
   IteratorsInterface.configure gen (fun e -> e);
   
-  ClosuresToClass.configure gen (ClosuresToClass.default_implementation closure_t (get_cl (Hashtbl.find gen.gtypes (["haxe";"lang"],"Function")) ));
+  ClosuresToClass.configure gen (ClosuresToClass.default_implementation closure_t (get_cl (get_type gen (["haxe";"lang"],"Function")) ));
   
-  EnumToClass.configure gen (None) false true (get_cl (Hashtbl.find gen.gtypes (["haxe";"lang"],"Enum")) ) false true;
+  EnumToClass.configure gen (None) false true (get_cl (get_type gen (["haxe";"lang"],"Enum")) ) false true;
   
   InterfaceVarsDeleteModf.configure gen;
   
-  let dynamic_object = (get_cl (Hashtbl.find gen.gtypes (["haxe";"lang"],"DynamicObject")) ) in
+  let dynamic_object = (get_cl (get_type gen (["haxe";"lang"],"DynamicObject")) ) in
   
-  let object_iface = get_cl (Hashtbl.find gen.gtypes (["haxe";"lang"],"IHxObject")) in
+  let object_iface = get_cl (get_type gen (["haxe";"lang"],"IHxObject")) in
   
   (*fixme: THIS IS A HACK. take this off *)
   let empty_e = match (get_type gen (["haxe";"lang"], "EmptyObject")) with | TEnumDecl e -> e | _ -> assert false in
@@ -1468,8 +1468,8 @@ let configure gen =
   
   OverloadingConstructor.configure gen (TEnum(empty_e, [])) ({eexpr=TEnumField(empty_e, "EMPTY"); etype=TEnum(empty_e,[]); epos=null_pos;}) false;
   
-  let rcf_static_find = mk_static_field_access_infer (get_cl (Hashtbl.find gen.gtypes (["haxe";"lang"], "FieldLookup"))) "findHash" Ast.null_pos [] in
-  (*let rcf_static_lookup = mk_static_field_access_infer (get_cl (Hashtbl.find gen.gtypes (["haxe";"lang"], "FieldLookup"))) "lookupHash" Ast.null_pos [] in*)
+  let rcf_static_find = mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) "findHash" Ast.null_pos [] in
+  (*let rcf_static_lookup = mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) "lookupHash" Ast.null_pos [] in*)
   
   let can_be_float t = match follow t with
     | TInst({ cl_path = (["haxe"], "Int32")}, [] )
@@ -1534,11 +1534,11 @@ let configure gen =
     { hash with eexpr = TCall(rcf_static_find, [hash; hash_array]); etype=basic.tint }
   ) (fun hash -> hash ) false in
   
-  ReflectionCFs.UniversalBaseClass.default_config gen (get_cl (Hashtbl.find gen.gtypes (["haxe";"lang"],"HxObject")) ) object_iface dynamic_object;
+  ReflectionCFs.UniversalBaseClass.default_config gen (get_cl (get_type gen (["haxe";"lang"],"HxObject")) ) object_iface dynamic_object;
   
   ReflectionCFs.configure_dynamic_field_access rcf_ctx false;
   
-  let closure_func = ReflectionCFs.implement_closure_cl rcf_ctx ( get_cl (Hashtbl.find gen.gtypes (["haxe";"lang"],"Closure")) ) in
+  let closure_func = ReflectionCFs.implement_closure_cl rcf_ctx ( get_cl (get_type gen (["haxe";"lang"],"Closure")) ) in
   
   let closure_func eclosure e field is_static =
     let is_hxobject = match real_type e.etype with
