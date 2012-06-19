@@ -2583,6 +2583,7 @@ let make_macro_api ctx p =
 		| TEnumDecl e -> TEnum (e,List.map snd e.e_types)
 		| TTypeDecl t -> TType (t,List.map snd t.t_types)
 	in
+	let add_types = Hashtbl.iter (fun v m -> Interp.add_types (Interp.get_ctx()) m.m_types) ctx.g.modules in
 	{
 		Interp.pos = p;
 		Interp.get_com = (fun() -> ctx.com);
@@ -2590,7 +2591,9 @@ let make_macro_api ctx p =
 			typing_timer ctx (fun() ->
 				let path = parse_path s in
 				try
-					Some (Typeload.load_instance ctx { tpackage = fst path; tname = snd path; tparams = []; tsub = None } p true)
+					let m = Some (Typeload.load_instance ctx { tpackage = fst path; tname = snd path; tparams = []; tsub = None } p true) in
+					if ctx.in_macro then add_types;
+					m
 				with Error (Module_not_found _,p2) when p == p2 ->
 					None
 			)
@@ -2598,7 +2601,9 @@ let make_macro_api ctx p =
 		Interp.get_module = (fun s ->
 			typing_timer ctx (fun() ->
 				let path = parse_path s in
-				List.map make_instance (Typeload.load_module ctx path p).m_types
+				let m = List.map make_instance (Typeload.load_module ctx path p).m_types in
+				if ctx.in_macro then add_types;
+				m
 			)
 		);
 		Interp.on_generate = (fun f ->
