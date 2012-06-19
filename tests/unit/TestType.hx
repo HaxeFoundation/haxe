@@ -347,16 +347,19 @@ class TestType extends Test {
 		eq(c.i, 2);
 		eq(c.s, "foo");
 		eq(c.b, true);
+		eq(c.t, untyped String);
 		
 		var c = new InitChild();
 		eq(c.i, 2);
 		eq(c.s, "foo");
 		eq(c.b, true);
+		eq(c.t, untyped String);
 		
 		var c = new InitChildWithCtor(null);
 		eq(c.i, 2);
 		eq(c.s, "foo");
 		eq(c.b, true);
+		eq(c.t, untyped String);
 		
 		var c = Type.createInstance(InitWithoutCtor, []);
 		eq(c.i, 2);

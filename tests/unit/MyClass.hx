@@ -99,6 +99,7 @@ class InitBase {
 	public var i = 2;
 	public var s = "foo";
 	public var b = true;
+	public var t = String;
 	public function new() { }
 }
 

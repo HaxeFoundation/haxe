@@ -465,10 +465,12 @@ let on_inherit ctx c p h =
 	Adds member field initializations as assignments to the constructor
 *)
 let add_field_inits com c =
-	let rec can_init_inline cf e = match com.platform with
-		| Flash8 -> true
-		| Flash when Common.defined com "as3" -> true
-		| Php when (match cf.cf_kind with Var({v_write = AccCall _}) -> false | _ -> true) -> true
+	let rec can_init_inline cf e = match com.platform,e.eexpr with
+		| Flash8,_ -> true
+		| Flash,_ when Common.defined com "as3" -> true
+		| Php, TTypeExpr _ -> false
+		| Php,_ ->
+			(match cf.cf_kind with Var({v_write = AccCall _}) -> false | _ -> true)
 		| _ -> false
 	in
 	let inits = List.filter (fun cf ->

@@ -950,13 +950,14 @@ let init_class ctx c p herits fields =
 					if not inline then mark_used cf;
 					let e = type_var_field ctx t e stat p in
 					let e = (match cf.cf_kind with
-					| Var v when not stat || v.v_read = AccInline ->
+					| Var v when not stat ->
 						let e = ctx.g.do_optimize ctx e in
 						let rec is_const e =
 							match e.eexpr with
 							| TConst _ -> true
 							| TBinop ((OpAdd|OpSub|OpMult|OpDiv|OpMod),e1,e2) -> is_const e1 && is_const e2
 							| TParenthesis e -> is_const e
+							| TTypeExpr e -> true
 							| _ -> false
 						in
 						if not (is_const e) then display_error ctx "Variable initialization must be a constant value" p;
