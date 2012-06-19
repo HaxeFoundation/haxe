@@ -950,7 +950,7 @@ let init_class ctx c p herits fields =
 					if not inline then mark_used cf;
 					let e = type_var_field ctx t e stat p in
 					let e = (match cf.cf_kind with
-					| Var v when not stat ->
+					| Var v when not stat || (v.v_read = AccInline && Common.defined ctx.com "haxe3") ->
 						let e = ctx.g.do_optimize ctx e in
 						let rec is_const e =
 							match e.eexpr with
