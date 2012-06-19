@@ -1,4 +1,4 @@
-2012-??-??: 2.10
+2012-06-20: 2.10 RC
 	all : fixed List and Null<T> for first, last, pop
 	js : added js.Lib.debug()
 	flash : fixed Xml.parent() when no parent
@@ -9,7 +9,6 @@
 	flash : removed wrapping for Xml nodes, use instead specific compare when comparing two typed nodes
 	js : use new haxe.xml.Parser (faster, not based on Regexp)
 	flash : fixed completion issue with for( x in Vector )
-	all : forbid static inline var when not a constant (after optimization)
 	all : optimized Std.int(123) and Std.int(123.45)
 	flash : bugfix for @:bitmap with 24-bits PNG (flash decode wrong colors)
 	as3 : fixed EnumValue becomes Object
@@ -40,10 +39,11 @@
 	flash : allow @:getter/@:setter in interfaces
 	flash : added support for "arguments" in methods
 	all : not used enums and inline var/methods are now removed by DCE
-	all : no longer automatically type arrays of mixed content as Array<Dynamic> (type must be explicit)
 	all : allow @:overload to use type parameters and not-absolute type paths
 	all : ensure that Std.string of arrays and enums are now consistent across platforms
 	all : allow to inline functions containing other functions
+	xml : added metadata output to xml generator
+	macro : added macro <expr> reification
 
 2012-04-14: 2.09
 	all : optimized const == const and const != const (with different const types)
