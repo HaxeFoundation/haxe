@@ -282,7 +282,7 @@ let handle_break ctx e =
 
 let handle_expose ctx path meta =
 	let rec loop = function
-		| (":expose", args, pos) :: l ->
+		| (":expose", args, pos) :: l when ctx.js_modern ->
 			ctx.found_expose <- true;
 			let exposed_path = (match args with
 				| [EConst (String s), _] -> s
