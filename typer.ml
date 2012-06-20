@@ -2793,8 +2793,9 @@ let get_macro_context ctx p =
 			| _ when List.exists (fun (_,d) -> "flash" ^ d = k) Common.flash_versions -> acc
 			| _ -> PMap.add k () acc
 		) com2.defines PMap.empty;
+		Common.define com2 "macro";
 		Common.init_platform com2 Neko;
-		let ctx2 = ctx.g.do_create com2 true in
+		let ctx2 = ctx.g.do_create com2 in
 		let mctx = Interp.create com2 api in
 		let on_error = com2.error in
 		com2.error <- (fun e p -> Interp.set_error mctx true; on_error e p);
@@ -3007,8 +3008,7 @@ let call_init_macro ctx e =
 (* ---------------------------------------------------------------------- *)
 (* TYPER INITIALIZATION *)
 
-let rec create com is_macro_ctx =
-	if is_macro_ctx then Common.define com "macro";
+let rec create com =
 	let ctx = {
 		com = com;
 		t = com.basic;
@@ -3039,7 +3039,7 @@ let rec create com is_macro_ctx =
 		in_loop = false;
 		in_super_call = false;
 		in_display = false;
-		in_macro = is_macro_ctx;
+		in_macro = Common.defined com "macro";
 		ret = mk_mono();
 		locals = PMap.empty;
 		local_types = [];

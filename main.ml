@@ -1013,7 +1013,7 @@ try
 		Common.log com ("Defines : " ^ (String.concat ";" (PMap.foldi (fun v _ acc -> v :: acc) com.defines [])));
 		let t = Common.timer "typing" in
 		Typecore.type_expr_ref := (fun ctx e need_val -> Typer.type_expr ~need_val ctx e);
-		let tctx = Typer.create com false in
+		let tctx = Typer.create com in
 		List.iter (Typer.call_init_macro tctx) (List.rev !config_macros);
 		List.iter (fun cpath -> ignore(tctx.Typecore.g.Typecore.do_load_module tctx cpath Ast.null_pos)) (List.rev !classes);
 		Typer.finalize tctx;
@@ -1144,7 +1144,7 @@ with
 				complete_fields (List.map (fun f -> f,"","") (packs @ classes))
 		| Some (c,cur_package) ->
 			try
-				let ctx = Typer.create com false in
+				let ctx = Typer.create com in
 				let rec lookup p =
 					try
 						Typeload.load_module ctx (p,c) Ast.null_pos

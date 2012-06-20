@@ -680,7 +680,7 @@ let init_core_api ctx c =
 			let com2 = Common.clone ctx.com in
 			Common.define com2 "core_api";
 			com2.class_path <- ctx.com.std_path;
-			let ctx2 = ctx.g.do_create com2 ctx.in_macro in
+			let ctx2 = ctx.g.do_create com2 in
 			ctx.g.core_api <- Some ctx2;
 			ctx2
 		| Some c ->
