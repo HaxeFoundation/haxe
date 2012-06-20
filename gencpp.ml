@@ -1020,14 +1020,18 @@ let rec define_local_function_ctx ctx func_name func_def =
 
 		let pop_real_this_ptr = clear_real_this_ptr ctx true in
 
+		writer#begin_block;
+		output_i ("HX_SOURCE_PUSH(\"*::" ^ func_name ^ "\");\n");
+		if (has_this) then
+			output_i ("HX_LOCAL_THIS(__this.mPtr);\n");
+		List.iter (fun (v,_) -> output_i ("HX_LOCAL_ARG(" ^ (keyword_remap v.v_name) ^ ",\"" ^ v.v_name ^"\");\n") )
+            func_def.tf_args;
+
 		if (block) then begin
-			writer#begin_block;
 			output_i "";
 			gen_expression ctx false func_def.tf_expr;
 			output_i "return null();\n";
-			writer#end_block;
 		end else begin
-			writer#begin_block;
 			(* Save old values, and equalize for new input ... *)
 			let pop_names = push_anon_names ctx in
 
@@ -1047,8 +1051,8 @@ let rec define_local_function_ctx ctx func_name func_def =
 			output ";\n";
 			output_i "return null();\n";
 			pop_names();
-			writer#end_block;
 		end;
+		writer#end_block;
 
 	   if close_defaults then writer#end_block;
 		pop_real_this_ptr();
@@ -1129,6 +1133,7 @@ and define_local_return_block_ctx ctx expression name =
 		output (")");
 		let return_data = ret_type <> "Void" in
 		writer#begin_block;
+		output_i "HX_BLOCK_PUSH();\n";
 		output_i "";
 
 		let pop_real_this_ptr = clear_real_this_ptr ctx false in
@@ -2467,6 +2472,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 
 	if (not class_def.cl_interface) then begin
 		output_cpp ("Void " ^ class_name ^ "::__construct(" ^ constructor_type_args ^ ")\n{\n");
+		output_cpp ("\tHX_SOURCE_PUSH(\"" ^ smart_class_name ^ "::new\")\n");
 		(match class_def.cl_constructor with
 			| Some definition ->
 					(match  definition.cf_expr with
@@ -2516,9 +2522,10 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 
 	(match class_def.cl_init with
 	| Some expression ->
-		output_cpp ("void " ^ class_name^ "::__init__()");
+		output_cpp ("void " ^ class_name^ "::__init__() {\n");
+		output_cpp ("HX_SOURCE_PUSH(\"" ^ smart_class_name ^ "::__init__\");");
 		gen_expression (new_context common_ctx cpp_file debug) false (to_block expression);
-		output_cpp "\n\n";
+		output_cpp "}\n\n";
 	| _ -> ());
 
 	let statics_except_meta = (List.filter (fun static -> static.cf_name <> "__meta__") class_def.cl_ordered_statics) in
