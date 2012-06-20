@@ -2612,7 +2612,11 @@ let make_macro_api ctx p =
 		| TEnumDecl e -> TEnum (e,List.map snd e.e_types)
 		| TTypeDecl t -> TType (t,List.map snd t.t_types)
 	in
-	let add_types () = Hashtbl.iter (fun v m -> Interp.add_types (Interp.get_ctx()) m.m_types) ctx.g.modules in
+	let add_types () =
+		finalize ctx;
+		let l = Hashtbl.fold (fun v m l -> l @ m.m_types) ctx.g.modules ctx.com.types in
+		Interp.add_types (Interp.get_ctx()) l;
+	in
 	{
 		Interp.pos = p;
 		Interp.get_com = (fun() -> ctx.com);
