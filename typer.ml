@@ -605,7 +605,7 @@ let get_this ctx p =
 		if ctx.untyped then display_error ctx "Cannot access this in 'untyped' mode : use either '__this__' or var 'me = this' (transitional)" p;
 		let v = (match ctx.vthis with
 			| None ->
-				let v = gen_local ctx ctx.tthis in
+				let v = add_local ctx "me" ctx.tthis in
 				ctx.vthis <- Some v;
 				v
 			| Some v -> v
