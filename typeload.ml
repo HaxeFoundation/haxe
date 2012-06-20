@@ -34,6 +34,7 @@ let parse_file com file p =
 
 let parse_hook = ref parse_file
 let type_module_hook = ref (fun _ _ _ -> None)
+let type_function_params_rec = ref (fun _ _ _ _ -> assert false)
 let return_partial_type = ref false
 
 let type_function_param ctx t e opt p =
@@ -300,14 +301,21 @@ and init_meta_overloads ctx cf =
 		| (":overload",[(EFunction (fname,f),p)],_)  ->
 			if fname <> None then error "Function name must not be part of @:overload" p;
 			(match f.f_expr with Some (EBlock [], _) -> () | _ -> error "Overload must only declare an empty method body {}" p);
+			let old = ctx.type_params in
+			(match cf.cf_params with
+			| [] -> ()
+			| l -> ctx.type_params <- List.filter (fun t -> not (List.mem t l)) ctx.type_params);
+			let params = (!type_function_params_rec) ctx f cf.cf_name p in
+			ctx.type_params <- params @ ctx.type_params;
 			let topt = function None -> error "Explicit type required" p | Some t -> load_complex_type ctx p t in
 			let args = List.map (fun (a,opt,t,_) ->  a,opt,topt t) f.f_args in
-			overloads := (args,topt f.f_type) :: !overloads;
+			overloads := (args,topt f.f_type, params) :: !overloads;
+			ctx.type_params <- old;
 			false
 		| _ ->
 			true
 	) cf.cf_meta;
-	cf.cf_overloads <- List.map (fun (args,ret) -> { cf with cf_type = TFun (args,ret) }) (List.rev !overloads)
+	cf.cf_overloads <- List.map (fun (args,ret,params) -> { cf with cf_type = TFun (args,ret); cf_params = params }) (List.rev !overloads)
 
 let hide_types ctx =
 	let old_locals = ctx.local_types in
@@ -593,7 +601,7 @@ let type_type_params ctx path get_params p (n,flags) =
 		delay ctx (fun () -> ignore(!r()));
 		n, TLazy r
 
-let type_function_params ctx fd fname fmeta p =
+let type_function_params ctx fd fname p =
 	let params = ref [] in
 	params := List.map (fun (n,flags) ->
 		type_type_params ctx ([],fname) (fun() -> !params) p (n,flags)
@@ -990,7 +998,7 @@ let init_class ctx c p herits fields =
 			let delay = bind_var ctx cf e stat inline in
 			f, false, cf, delay
 		| FFun fd ->
-			let params = type_function_params ctx fd f.cff_name f.cff_meta p in
+			let params = type_function_params ctx fd f.cff_name p in
 			if inline && c.cl_interface then error "You can't declare inline methods in interfaces" p;
 			let is_macro = (is_macro && stat) || has_meta ":macro" f.cff_meta in
 			let f, stat, fd = if not is_macro || stat then
@@ -1568,3 +1576,6 @@ let load_module ctx m p =
 	) in
 	add_dependency ctx.current m2;
 	m2
+
+;;
+type_function_params_rec := type_function_params

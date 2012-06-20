@@ -134,7 +134,6 @@ let field_type ctx c pl f p =
 					let ipl = List.map (apply_params f.cf_params monos) ipl in
 					TInst (i,ipl)
 				) constr in
-				let pr = print_context() in
 				delay_late ctx (fun() ->
 					List.iter (fun ct ->
 						try
@@ -1947,7 +1946,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 	| EUnop (op,flag,e) ->
 		type_unop ctx op flag e p
 	| EFunction (name,f) ->
-		let params = Typeload.type_function_params ctx f "localfun" [] p in
+		let params = Typeload.type_function_params ctx f "localfun" p in
 		if params <> [] && name = None then error("Type parameters not supported in unnamed local functions") p;
 		let old = ctx.type_params in
 		ctx.type_params <- params @ ctx.type_params;
