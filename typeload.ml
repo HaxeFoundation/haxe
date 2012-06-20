@@ -397,14 +397,13 @@ let check_overriding ctx c p () =
 			display_error ctx ("Field " ^ i ^ " is declared 'override' but doesn't override any field") p)
 	| Some (csup,params) ->
 		PMap.iter (fun i f ->
+			let p = f.cf_pos in
 			try
 				let t , f2 = raw_class_field (fun f -> f.cf_type) csup i in
 				(* allow to define fields that are not defined for this platform version in superclass *)
 				(match f2.cf_kind with
 				| Var { v_read = AccRequire _ } -> raise Not_found;
 				| _ -> ());
-				ignore(follow f.cf_type); (* force evaluation *)
-				let p = (match f.cf_expr with None -> p | Some e -> e.epos) in
 				if not (List.mem i c.cl_overrides) then
 					display_error ctx ("Field " ^ i ^ " should be declared with 'override' since it is inherited from superclass") p
 				else if not f.cf_public && f2.cf_public then
