@@ -125,11 +125,16 @@ let field_type ctx c pl f p =
 	match f.cf_params with
 	| [] -> f.cf_type
 	| l ->
-		let monos = List.map (fun (name,t) -> 
-			let m = mk_mono() in
-			(match follow t with
+		let monos = List.map (fun _ -> mk_mono()) l in
+		List.iter2 (fun m (name,t) -> 
+			match follow t with
 			| TInst ({ cl_implements = constr },_) when constr <> [] ->
-				let constr = List.map (fun (i,ipl) -> TInst (i,if pl = [] then ipl else List.map (apply_params c.cl_types pl) ipl)) constr in
+				let constr = List.map (fun (i,ipl) ->
+					let ipl = if pl = [] then ipl else List.map (apply_params c.cl_types pl) ipl in
+					let ipl = List.map (apply_params f.cf_params monos) ipl in
+					TInst (i,ipl)
+				) constr in
+				let pr = print_context() in
 				delay_late ctx (fun() ->
 					List.iter (fun ct ->
 						try
@@ -139,9 +144,8 @@ let field_type ctx c pl f p =
 							display_error ctx (error_msg (Unify l)) p;
 					) constr
 				);
-			| _ -> ());
-			m
-		) l in
+			| _ -> ()
+		) monos l;
 		apply_params l monos f.cf_type
 
 let class_field ctx c pl name p =
