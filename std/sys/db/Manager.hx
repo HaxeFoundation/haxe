@@ -492,9 +492,9 @@ class Manager<T : Object> {
 		var v = Reflect.field(x,prop);
 		if( v != null )
 			return v.value;
-		var x = unsafeGet(Reflect.field(x, key), lock);
-		Reflect.setField(x,prop,{ value : x });
-		return x;
+		var y = unsafeGet(Reflect.field(x, key), lock);
+		Reflect.setField(x,prop,{ value : y });
+		return y;
 	}
 
 	function __set( x : Dynamic, prop : String, key : String, v : T ) {
