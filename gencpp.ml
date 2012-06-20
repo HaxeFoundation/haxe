@@ -1509,11 +1509,13 @@ and gen_expression ctx retval expression =
 			else begin
             let type_name = (type_string tvar.v_type) in
 				output (if type_name="Void" then "Dynamic" else type_name );
-				output (" " ^ (keyword_remap tvar.v_name) );
+				let name = (keyword_remap tvar.v_name) in
+				output (" " ^ name );
 				(match optional_init with
 				| None -> ()
 				| Some expression -> output " = "; gen_expression ctx true expression);
 				count := !count -1;
+				output (";\t\tHX_LOCAL_VAR(" ^name ^",\""^ tvar.v_name ^"\")");
 				if (!count > 0) then begin output ";\n"; output_i "" end
 			end
 		) var_list
@@ -1796,8 +1798,8 @@ let gen_field ctx class_def class_name ptr_name is_static is_interface field =
 		else
 			(fun() ->
          output_i ("HX_SOURCE_PUSH(\"" ^ ptr_name ^ "::" ^ field.cf_name ^ "\");\n");
-         if (not is_static) then output_i ("HX_LOCAL_THIS(this)\n");
-			List.iter (fun (v,_) -> output_i ("HX_LOCAL_ARG(" ^ (keyword_remap v.v_name) ^ ",\"" ^ v.v_name ^"\")\n") )
+         if (not is_static) then output_i ("HX_LOCAL_THIS(this);\n");
+			List.iter (fun (v,_) -> output_i ("HX_LOCAL_ARG(" ^ (keyword_remap v.v_name) ^ ",\"" ^ v.v_name ^"\");\n") )
             function_def.tf_args )
 		in
 
