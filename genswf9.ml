@@ -1693,8 +1693,16 @@ and jump_expr_gen ctx e jif jfun =
 and jump_expr ctx e jif =
 	jump_expr_gen ctx e jif (jump ctx)
 
-let generate_method ctx fdata stat =
-	generate_function ctx fdata stat
+let do_debug ctx meta =
+	let old = ctx.debug in
+	ctx.debug <- (old || has_meta ":debug" meta) && not (has_meta ":nodebug" meta);
+	(fun() -> ctx.debug <- old)
+
+let generate_method ctx fdata stat fmeta =
+	let old = do_debug ctx fmeta in
+	let m = generate_function ctx fdata stat in
+	old();
+	m
 
 let generate_construct ctx fdata c =
 	(* make all args optional to allow no-param constructor *)
@@ -1729,7 +1737,7 @@ let generate_construct ctx fdata c =
 			write ctx (HGetProp id);
 			let j = jump ctx J3True in
 			write ctx (HFindProp id);
-			write ctx (HFunction (generate_method ctx fdata false));
+			write ctx (HFunction (generate_method ctx fdata false []));
 			write ctx (HInitProp id);
 			j();
 		| _ -> ()
@@ -1813,7 +1821,7 @@ let generate_class_init ctx c hc =
 		match f.cf_expr, f.cf_kind with
 		| Some { eexpr = TFunction fdata }, Method MethDynamic ->
 			write ctx HDup;
-			write ctx (HFunction (generate_method ctx fdata true));
+			write ctx (HFunction (generate_method ctx fdata true f.cf_meta));
 			write ctx (HInitProp (ident f.cf_name));
 		| _ -> ()
 	) c.cl_ordered_statics;
@@ -1918,10 +1926,7 @@ let generate_field_kind ctx f c stat =
 			})
 		| _ ->
 			let name, kind = method_kind() in
-			let old = ctx.debug in
-			ctx.debug <- (old || has_meta ":debug" f.cf_meta) && not (has_meta ":nodebug" f.cf_meta);
-			let m = generate_method ctx fdata stat in
-			ctx.debug <- old;
+			let m = generate_method ctx fdata stat f.cf_meta in
 			Some (HFMethod {
 				hlm_type = m;
 				hlm_final = stat || (has_meta ":final" f.cf_meta);
@@ -1975,7 +1980,11 @@ let generate_class ctx c =
 				} c
 		| Some f ->
 			match f.cf_expr with
-			| Some { eexpr = TFunction fdata } -> generate_construct ctx fdata c
+			| Some { eexpr = TFunction fdata } ->
+				let old = do_debug ctx f.cf_meta in
+				let m = generate_construct ctx fdata c in
+				old();
+				m
 			| _ -> assert false
 	) in
 	let has_protected = ref None in
