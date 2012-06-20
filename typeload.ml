@@ -517,7 +517,7 @@ let set_heritance ctx c herits p =
 	let process_meta csup =
 		List.iter (fun m ->
 			match m with
-			| ":final", _, _ -> if not (Type.has_meta ":hack" c.cl_meta) then error "Cannot extend a final class" p;
+			| ":final", _, _ -> if not (Type.has_meta ":hack" c.cl_meta || c.cl_kind = KTypeParameter) then error "Cannot extend a final class" p;
 			| ":autoBuild", el, p -> c.cl_meta <- (":build",el,p) :: m :: c.cl_meta;
 			| _ -> ()
 		) csup.cl_meta
@@ -580,7 +580,6 @@ let set_heritance ctx c herits p =
 let type_type_params ctx path get_params p (n,flags) =
 	let c = mk_class ctx.current (fst path @ [snd path],n) p in
 	c.cl_kind <- KTypeParameter;
-	c.cl_meta <- (":hack",[],p) :: c.cl_meta;
 	let t = TInst (c,[]) in
 	match flags with
 	| [] -> n, t
