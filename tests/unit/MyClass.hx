@@ -134,4 +134,7 @@ class ParamConstraintsClass {
 	public function memberMultiple < A:(Base, I1) > (a:A):A { return a; }
 	public function memberComplex < A:I1, B:List<A> > (a:A, b:B) { return b; }
 	public function memberBasic < A:String, B:Array<A> > (a:A, b:B) { return b[0]; }
+	
+	@:overload(function< A, B:Array<A> > (a:A, b:B):Void { } )
+	public function memberOverload<A,B>(a:String, b:String) { }
 }

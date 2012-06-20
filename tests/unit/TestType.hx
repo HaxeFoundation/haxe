@@ -429,6 +429,11 @@ class TestType extends Test {
 		//typeError(pcc.memberComplex(ci1, [ci1]));
 		
 		eq(pcc.memberBasic("foo", ["bar"]), "bar");
-		//eq(pcc.memberBasic("foo", ["bar"]), "foobar");
+		
+		pcc.memberOverload("foo", "bar");
+		pcc.memberOverload(1, [2]);
+		// TODO: this should fail
+		pcc.memberOverload(1, ["foo"]);
+		
 	}
 }
