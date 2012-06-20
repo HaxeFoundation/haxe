@@ -408,14 +408,14 @@ class TestType extends Test {
 		
 		eq(ParamConstraintsClass.staticSingle(b), b);
 		eq(ParamConstraintsClass.staticSingle(c1), c1);
-		// TODO: cannot test this at the moment because it will break compilation
-		//typeError(ParamConstraintsClass.staticSingle(u));
-		//typeError(ParamConstraintsClass.staticSingle(1));
-		//typeError(ParamConstraintsClass.staticSingle("foo"));
+		// TODO: these should fail (param is constrained to Base)
+		t(typeError(ParamConstraintsClass.staticSingle(u)));
+		t(typeError(ParamConstraintsClass.staticSingle(1)));
+		t(typeError(ParamConstraintsClass.staticSingle("foo")));
 		
 		eq(pcc.memberSingle(b), b);
 		eq(pcc.memberSingle(c1), c1);
-		//typeError(pcc.memberSingle(u), u);
+		//typeError(pcc.memberSingle(u));
 		
 		eq(pcc.memberMultiple(ci1), ci1);
 		//typeError(pcc.memberMultiple(b));
@@ -431,9 +431,21 @@ class TestType extends Test {
 		eq(pcc.memberBasic("foo", ["bar"]), "bar");
 		
 		pcc.memberOverload("foo", "bar");
-		pcc.memberOverload(1, [2]);
-		// TODO: this should fail
-		pcc.memberOverload(1, ["foo"]);
+		// TODO: this should not fail (overload accepts)
+		//pcc.memberOverload(1, [2]);
+		t(typeError(pcc.memberOverload(1, ["foo"])));
 		
+		var pcc2 = new ParamConstraintsClass2();
+		pcc2.check([1]);
+		//typeError(pcc2.check(["foo"]));
+		
+		var pcc2 = new ParamConstraintsClass2();
+		pcc2.bind("foo");
+		//typeError(pcc2.check([1]));
+		pcc2.check(["foo"]);
+		
+		var pcc2 = new ParamConstraintsClass2<String>();
+		//t(typeError(pcc2.check([1])));
+		pcc2.check(["foo"]);
 	}
 }

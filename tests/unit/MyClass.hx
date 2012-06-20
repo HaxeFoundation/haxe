@@ -138,3 +138,10 @@ class ParamConstraintsClass {
 	@:overload(function< A, B:Array<A> > (a:A, b:B):Void { } )
 	public function memberOverload<A,B>(a:String, b:String) { }
 }
+
+class ParamConstraintsClass2<T> {
+	public function new() { }
+	public function bind(t:T) { }
+	
+	public function check<A:Array<T>>(a:A) { }
+}
