@@ -1932,9 +1932,13 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			(match f.cf_kind with
 			| Var { v_read = AccRequire r } -> error_require r p
 			| _ -> ());
-			let el, _ = (match follow ct with
+			let el = (match follow ct with
 			| TFun (args,r) ->
-				unify_call_params ctx (Some (c,params,f)) el args r p false
+				(try
+					fst (unify_call_params ctx (Some (c,params,f)) el args r p false)
+				with Error (e,p) ->
+					display_error ctx (error_msg e) p; 
+					[])
 			| _ ->
 				error "Constructor is not a function" p
 			) in
