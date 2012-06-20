@@ -35,6 +35,7 @@
 	js : greatly reduced amount of generated code by using smarter DCE
 	php : made modulo operations more consistent
 	all : allow local functions to have both type parameters and be inlined
+	all : functions type parameters can be constraint (will be checked at end of compilation)
 	macro : use NekoVM runtime for regexps, process and xml parsing
 	flash : allow @:getter/@:setter in interfaces
 	flash : added support for "arguments" in methods
