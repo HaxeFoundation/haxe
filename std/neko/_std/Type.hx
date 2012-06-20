@@ -70,22 +70,7 @@ enum ValueType {
 		return a.join(".");
 	}
 
-	#if macro
-	static var moduleName:String;
-	@:macro static function macroResolve()
-	{
-		if (moduleName != null)
-			haxe.macro.Context.getModule(moduleName);
-		return macro null;
-	}	
-	#end
-	
 	public static function resolveClass( name : String ) : Class<Dynamic> untyped {
-		#if macro
-		moduleName = name;
-		macroResolve();
-		#end
-		
 		var path = name.split(".");
 		cl = Reflect.field(untyped neko.Boot.__classes,path[0]);
 		var i = 1;
@@ -99,12 +84,8 @@ enum ValueType {
 		return cl;
 	}
 
+
 	public static function resolveEnum( name : String ) : Enum<Dynamic> untyped {
-		#if macro
-		moduleName = name;
-		macroResolve();
-		#end
-		
 		var path = name.split(".");
 		e = Reflect.field(neko.Boot.__classes,path[0]);
 		var i = 1;
