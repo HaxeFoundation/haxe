@@ -986,13 +986,24 @@ and gen_expr ctx e =
 				gen_value_op ctx e2;
 			)
 		| Ast.OpAssignOp(Ast.OpAdd) when (is_uncertain_expr e1 && is_uncertain_expr e2) ->
-			leftside e1;
-			spr ctx " = ";
-			spr ctx "_hx_add(";
-			gen_value_op ctx e1;
-			spr ctx ", ";
-			gen_value_op ctx e2;
-			spr ctx ")";
+			(match e1.eexpr with
+			| TArray(te1, te2) ->
+				spr ctx "_hx_array_assign($»t1 = ";
+				gen_value ctx te1;
+				spr ctx ", $»t2 = ";
+				gen_value ctx te2;
+				spr ctx ", $»t1->»a[$»t2] + ";
+				gen_value_op ctx e2;
+				spr ctx ")";
+			| _ ->
+				leftside e1;
+				spr ctx " = ";
+				spr ctx "_hx_add(";
+				gen_value_op ctx e1;
+				spr ctx ", ";
+				gen_value_op ctx e2;
+				spr ctx ")";
+			)
 		| Ast.OpAssignOp(Ast.OpAdd) when (is_string_expr e1 || is_string_expr e2) ->
 			leftside e1;
 			spr ctx " .= ";
