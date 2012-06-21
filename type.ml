@@ -632,6 +632,7 @@ type unify_error =
 	| Not_matching_optional of string
 	| Cant_force_optional
 	| Invariant_parameter of t * t
+	| Constraint_failure of string
 
 exception Unify_error of unify_error list
 

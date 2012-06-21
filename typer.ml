@@ -139,8 +139,7 @@ let field_type ctx c pl f p =
 						try
 							Type.unify m ct
 						with Unify_error l ->
-							display_error ctx ("Constraint check failure for parameter " ^ f.cf_name ^ "." ^ name) p;
-							display_error ctx (error_msg (Unify l)) p;
+							display_error ctx (error_msg (Unify (Constraint_failure (f.cf_name ^ "." ^ name) :: l))) p;
 					) constr
 				);
 			| _ -> ()

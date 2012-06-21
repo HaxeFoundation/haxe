@@ -139,6 +139,8 @@ let unify_error_msg ctx = function
 		"Optional parameters can't be forced"
 	| Invariant_parameter _ ->
 		"Type parameters are invariant"
+	| Constraint_failure name ->
+		"Constraint check failure for " ^ name
 
 let rec error_msg = function
 	| Module_not_found m -> "Class not found : " ^ Ast.s_type_path m
