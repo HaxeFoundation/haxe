@@ -45,6 +45,13 @@ class DebugStdio
       }
    }
 
+   function vars(inI:Int)
+   {
+      var result = Debugger.getStackVars(inI);
+      Sys.println("Frame " + inI + " : " + result );
+   }
+
+
    function inputLoop()
    {
       var input = Sys.stdin();
@@ -52,7 +59,8 @@ class DebugStdio
       {
          Sys.print("debug >");
          var command = input.readLine();
-         switch(command)
+         var words = command.split(" ");
+         if (words.length>0) switch(words[0])
          {
             case "exit":
                Debugger.exit();
@@ -72,6 +80,17 @@ class DebugStdio
                else
                   debugQueue.add( function() inDebugger = false );
 
+            case "vars":
+               if (!inDebugger)
+                  Sys.println("Must break first.");
+               else
+               {
+                  var n = Std.parseInt(words[1]);
+                  debugQueue.add( function() vars(n) );
+                  waitDebugger();
+               }
+              
+
             case "where":
                if (!inDebugger)
                   Sys.println("Must break first.");
@@ -81,16 +100,12 @@ class DebugStdio
                   waitDebugger();
                }
 
-
-               debugQueue.add( function() inDebugger = false );
-
-            case "": // ignore
-
             case "help":
                Sys.println("help  - print this message");
                Sys.println("break - pause execution of one thread");
                Sys.println("cont  - continue execution");
                Sys.println("where - print call stack");
+               Sys.println("vars N - print local vars for frame N");
                Sys.println("exit  - exit programme");
 
             default:

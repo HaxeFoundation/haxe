@@ -55,6 +55,12 @@ class Debugger
       return untyped __global__.__hxcpp_dbg_stack_frames_get();
    }
 
+   public static function getStackVars(inFrame:Int) : Array<String>
+   {
+      return untyped __global__.__hxcpp_dbg_get_stack_vars(inFrame);
+   }
+
+
    public static function getFiles() : Array<String>
    {
       return untyped __global__.__hxcpp_dbg_get_files();

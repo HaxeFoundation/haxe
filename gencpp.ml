@@ -150,6 +150,7 @@ type context =
 	mutable ctx_real_this_ptr : bool;
 	mutable ctx_dynamic_this_ptr : bool;
 	mutable ctx_dump_src_pos : unit -> unit;
+	mutable ctx_dump_stack_line : bool;
 	mutable ctx_static_id_curr : int;
 	mutable ctx_static_id_used : int;
 	mutable ctx_static_id_depth : int;
@@ -171,6 +172,7 @@ let new_context common_ctx writer debug =
 	ctx_debug = debug;
 	ctx_debug_type = debug;
 	ctx_dump_src_pos = (fun() -> ());
+	ctx_dump_stack_line = true;
 	ctx_return_from_block = false;
 	ctx_return_from_internal_node = false;
 	ctx_real_this_ptr = true;
@@ -961,6 +963,11 @@ let has_default_values args =
             | _ -> false ) args ;;
 
 
+let hx_stack_push ctx output clazz func_name pos =
+	if (ctx.ctx_dump_stack_line) then
+		output ("HX_STACK_PUSH(\"" ^ clazz ^ "::" ^ func_name ^ "\",\"" ^ (Ast.s_escape pos.pfile) ^ "\","
+					^ (string_of_int (Lexer.get_error_line pos) ) ^ ");\n")
+;;
 
 
 (*
@@ -1021,10 +1028,10 @@ let rec define_local_function_ctx ctx func_name func_def =
 		let pop_real_this_ptr = clear_real_this_ptr ctx true in
 
 		writer#begin_block;
-		output_i ("HX_SOURCE_PUSH(\"*::" ^ func_name ^ "\");\n");
-		if (has_this) then
-			output_i ("HX_LOCAL_THIS(__this.mPtr);\n");
-		List.iter (fun (v,_) -> output_i ("HX_LOCAL_ARG(" ^ (keyword_remap v.v_name) ^ ",\"" ^ v.v_name ^"\");\n") )
+      hx_stack_push ctx output_i "*" func_name func_def.tf_expr.epos;
+		if (has_this && ctx.ctx_dump_stack_line) then
+			output_i ("HX_STACK_THIS(__this.mPtr);\n");
+		List.iter (fun (v,_) -> output_i ("HX_STACK_ARG(" ^ (keyword_remap v.v_name) ^ ",\"" ^ v.v_name ^"\");\n") )
             func_def.tf_args;
 
 		if (block) then begin
@@ -1133,7 +1140,7 @@ and define_local_return_block_ctx ctx expression name =
 		output (")");
 		let return_data = ret_type <> "Void" in
 		writer#begin_block;
-		output_i "HX_BLOCK_PUSH();\n";
+      hx_stack_push ctx output_i "*" "closure" expression.epos;
 		output_i "";
 
 		let pop_real_this_ptr = clear_real_this_ptr ctx false in
@@ -1308,9 +1315,8 @@ and gen_expression ctx retval expression =
 			List.iter (fun expression ->
 				let want_value = (return_from_block && !remaining = 1) in
 				find_local_functions_and_return_blocks_ctx ctx want_value expression;
-				let line = Lexer.get_error_line expression.epos in
-				output_i ("HX_SOURCE_POS(\"" ^ (Ast.s_escape expression.epos.pfile) ^ "\","
-					^ (string_of_int line) ^ ")\n" );
+				if (ctx.ctx_dump_stack_line) then
+				   output_i ("HX_STACK_LINE(" ^ (string_of_int (Lexer.get_error_line expression.epos)) ^ ")\n" );
 				output_i "";
 				ctx.ctx_return_from_internal_node <- return_from_internal_node;
 				if (want_value) then output "return ";
@@ -1520,7 +1526,8 @@ and gen_expression ctx retval expression =
 				| None -> ()
 				| Some expression -> output " = "; gen_expression ctx true expression);
 				count := !count -1;
-				output (";\t\tHX_LOCAL_VAR(" ^name ^",\""^ tvar.v_name ^"\")");
+            if (ctx.ctx_dump_stack_line) then
+				   output (";\t\tHX_STACK_VAR(" ^name ^",\""^ tvar.v_name ^"\")");
 				if (!count > 0) then begin output ";\n"; output_i "" end
 			end
 		) var_list
@@ -1798,15 +1805,17 @@ let gen_field ctx class_def class_name ptr_name is_static is_interface field =
 		let is_void = (type_string function_def.tf_type ) = "Void" in
 		let ret = if is_void  then "(void)" else "return " in
 		let output_i = ctx.ctx_writer#write_i in
-		let dump_src = if (Type.has_meta ":noStack" field.cf_meta) then
+		let dump_src = if (Type.has_meta ":noStack" field.cf_meta) then begin
+			ctx.ctx_dump_stack_line <- false;
 			(fun()->())
-		else
+		end else begin
+			ctx.ctx_dump_stack_line <- true;
 			(fun() ->
-         output_i ("HX_SOURCE_PUSH(\"" ^ ptr_name ^ "::" ^ field.cf_name ^ "\");\n");
-         if (not is_static) then output_i ("HX_LOCAL_THIS(this);\n");
-			List.iter (fun (v,_) -> output_i ("HX_LOCAL_ARG(" ^ (keyword_remap v.v_name) ^ ",\"" ^ v.v_name ^"\");\n") )
+         hx_stack_push ctx output_i ptr_name field.cf_name function_def.tf_expr.epos;
+         if (not is_static) then output_i ("HX_STACK_THIS(this);\n");
+			List.iter (fun (v,_) -> output_i ("HX_STACK_ARG(" ^ (keyword_remap v.v_name) ^ ",\"" ^ v.v_name ^"\");\n") )
             function_def.tf_args )
-		in
+		end in
 
 		if (not (is_dynamic_haxe_method field)) then begin
 			(* The actual function definition *)
@@ -2472,11 +2481,11 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 
 	if (not class_def.cl_interface) then begin
 		output_cpp ("Void " ^ class_name ^ "::__construct(" ^ constructor_type_args ^ ")\n{\n");
-		output_cpp ("\tHX_SOURCE_PUSH(\"" ^ smart_class_name ^ "::new\")\n");
 		(match class_def.cl_constructor with
 			| Some definition ->
 					(match  definition.cf_expr with
 					| Some { eexpr = TFunction function_def } ->
+      				hx_stack_push ctx output_cpp smart_class_name "new" function_def.tf_expr.epos;
 						if (has_default_values function_def.tf_args) then begin
 							generate_default_values ctx function_def.tf_args "__o_";
 							gen_expression ctx false (to_block function_def.tf_expr);
@@ -2523,7 +2532,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 	(match class_def.cl_init with
 	| Some expression ->
 		output_cpp ("void " ^ class_name^ "::__init__() {\n");
-		output_cpp ("HX_SOURCE_PUSH(\"" ^ smart_class_name ^ "::__init__\");");
+      hx_stack_push ctx output_cpp smart_class_name "__init__" expression.epos;
 		gen_expression (new_context common_ctx cpp_file debug) false (to_block expression);
 		output_cpp "}\n\n";
 	| _ -> ());
