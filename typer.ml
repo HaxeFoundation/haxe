@@ -2247,7 +2247,14 @@ and build_call ctx acc el twith p =
 	| AKExpr e | AKField (e,_) ->
 		let el , t, e = (match follow e.etype with
 		| TFun (args,r) ->
-			let fopts = (match acc with AKField (e,f) -> (match follow e.etype with TInst (c,pl) -> Some (c,pl,f) | _ -> None) | _ -> None) in
+			let fopts = (match acc with 
+				| AKField (e,f) ->
+					(match e.eexpr with 
+					| TField (e,_) -> (match follow e.etype with TInst (c,pl) -> Some (c,pl,f) | TAnon a -> (match !(a.a_status) with Statics c -> Some (c,[],f) | _ -> None) | _ -> None) 
+					| _ -> None)
+				| _ ->
+					None
+			) in
 			let el, tfunc = unify_call_params ctx fopts el args r p false in
 			el,(match tfunc with TFun(_,r) -> r | _ -> assert false), {e with etype = tfunc}
 		| TMono _ ->
