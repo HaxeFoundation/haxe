@@ -201,6 +201,7 @@ CAMLprim value get_full_path( value f ) {
 #endif
 }
 
+#ifdef _WIN32
 static void copyAscii( char *to, const char *from, int len ) {
 	while( len-- > 0 ) {
 		unsigned char c = *from;
@@ -210,6 +211,7 @@ static void copyAscii( char *to, const char *from, int len ) {
 		from++;
 	}
 }
+#end
 
 CAMLprim value get_real_path( value path ) {
 #ifdef _WIN32
