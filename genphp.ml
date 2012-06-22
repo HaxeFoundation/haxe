@@ -438,10 +438,20 @@ let gen_constant ctx p = function
 	| TThis -> spr ctx (this ctx)
 	| TSuper -> spr ctx "ERROR /* unexpected call to super in gen_constant */"
 
-let s_funarg ctx arg t p c =
+let arg_is_opt c =
+	match c with
+	| Some _ -> true
+	| None -> false
+	
+let s_funarg ctx arg t p o =
 	let byref = if (String.length arg > 7 && String.sub arg 0 7 = "byref__") then "&" else "" in
-	print ctx "%s$%s" byref (s_ident_local arg)
-
+	print ctx "%s$%s" byref (s_ident_local arg);
+	if o then spr ctx " = null"
+(*
+	match c with
+	| _, Some _ -> spr ctx " = null"
+	| _, None -> ()
+*)
 let is_in_dynamic_methods ctx e s =
 	List.exists (fun dm ->
 		(* TODO: I agree, this is a mess ... but after hours of trials and errors I gave up; maybe in a calmer day *)
@@ -773,7 +783,7 @@ and gen_dynamic_function ctx isstatic name f params p =
 	print ctx "function %s%s(" byref name;
 	concat ctx ", " (fun (v,c) ->
 		let arg = define_local ctx v.v_name in
-		s_funarg ctx arg v.v_type p c;
+		s_funarg ctx arg v.v_type p (arg_is_opt c);
 	) f.tf_args;
 	spr ctx ") {";
 
@@ -812,7 +822,7 @@ and gen_function ctx name f params p =
 	print ctx "function %s%s(" byref name;
 	concat ctx ", " (fun (v,o) ->
 		let arg = define_local ctx v.v_name in
-		s_funarg ctx arg v.v_type p o;
+		s_funarg ctx arg v.v_type p (arg_is_opt o);
 	) f.tf_args;
 	print ctx ") ";
 	gen_expr ctx (fun_block ctx f p);
