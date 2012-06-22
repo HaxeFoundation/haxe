@@ -8621,7 +8621,7 @@ struct
               | Some (TBool false), _ ->
                 has_break := last_has_break;
                 do_warn expr.epos;
-                null expr.etype expr.epos, k
+                null expr.etype expr.epos, Normal
               | _ ->
                 has_break := last_has_break;
                 return_loop { expr with eexpr = TWhile(cond,block,flag) } Normal
