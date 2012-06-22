@@ -3895,7 +3895,7 @@ struct
               let name = String.concat "." ((fst cl.cl_path) @ [snd cl.cl_path; original_name]) (* explicitly define it *) in
               let cast_cf = create_cast_cfield gen cl name in
               
-              cl.cl_ordered_fields <- cast_cf :: cl.cl_ordered_fields;
+              (if not cl.cl_interface then cl.cl_ordered_fields <- cast_cf :: cl.cl_ordered_fields);
               let iface_cf = mk_class_field original_name cast_cf.cf_type false cast_cf.cf_pos (Method MethNormal) cast_cf.cf_params in
               
               iface_cf.cf_type <- cast_cf.cf_type;
