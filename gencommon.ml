@@ -8590,10 +8590,10 @@ struct
           let last_has_break = !has_break in
           has_break := false;
           
-          let changed_block, kind = process_expr block in
+          let changed_block, _ = process_expr block in
           has_break := last_has_break;
           let expr = { expr with eexpr = TFor(var, cond, changed_block) } in
-          return_loop expr kind
+          return_loop expr Normal
         | TIf(cond, eif, None) ->
           if java_mode then
             match get_constant_expr cond with
@@ -8624,10 +8624,10 @@ struct
                 null expr.etype expr.epos, k
               | _ ->
                 has_break := last_has_break;
-                return_loop { expr with eexpr = TWhile(cond,block,flag) } k
+                return_loop { expr with eexpr = TWhile(cond,block,flag) } Normal
           else begin
             has_break := last_has_break;
-            return_loop { expr with eexpr = TWhile(cond,block,flag) } k
+            return_loop { expr with eexpr = TWhile(cond,block,flag) } Normal
           end
         | TSwitch(cond, el_e_l, None) ->
           { expr with eexpr = TSwitch(cond, List.map (fun (el, e) -> (el, handle_case (process_expr e))) el_e_l, None) }, Normal
