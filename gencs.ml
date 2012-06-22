@@ -297,9 +297,7 @@ struct
           
           if needs_cast then mk_cast e.etype ret else ret
         | TCast(expr, _) when is_string e.etype ->
-          (*{ e with eexpr = TCall( { expr with eexpr = TField(expr, "ToString"); etype = TFun([], basic.tstring) }, [] ) }*)
-          mk_paren { e with eexpr = TBinop(Ast.OpAdd, run expr, { e with eexpr = TConst(TString("")) }) }
-        
+          { e with eexpr = TCall( mk_static_field_access_infer runtime_cl "toString" expr.epos [], [expr] ) }
         | TBinop( (Ast.OpNotEq as op), e1, e2)
         | TBinop( (Ast.OpEq as op), e1, e2) when is_string e1.etype || is_string e2.etype ->
           let mk_ret e = match op with | Ast.OpNotEq -> { e with eexpr = TUnop(Ast.Not, Ast.Prefix, e) } | _ -> e in

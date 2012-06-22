@@ -540,6 +540,12 @@ package haxe.lang;
 		return null;
 	}
 	
+	public static function toString(obj:Dynamic):String
+	{
+		if (obj == null) 
+			return null;
+		return obj + "";
+	}
 }
 
 @:native("haxe.lang.EmptyObject") private enum EmptyObject

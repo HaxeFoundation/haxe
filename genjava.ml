@@ -557,8 +557,7 @@ struct
           in
           if need_second_cast then { e with eexpr = TCast(mk_cast (follow e.etype) (run expr), c) }  else Type.map_expr run e*)
         | TCast(expr, _) when is_string e.etype ->
-          (*{ e with eexpr = TCall( { expr with eexpr = TField(expr, "ToString"); etype = TFun([], basic.tstring) }, [] ) }*)
-          mk_paren { e with eexpr = TBinop(Ast.OpAdd, run expr, { e with eexpr = TConst(TString("")) }) }
+          { e with eexpr = TCall( mk_static_field_access_infer runtime_cl "toString" expr.epos [], [expr] ) }
           
         | TSwitch(cond, ecases, edefault) when is_string cond.etype ->
           (*let change_string_switch gen eswitch e1 ecases edefault =*)

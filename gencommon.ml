@@ -164,6 +164,8 @@ let debug_mode = ref false
 let trace s = if !debug_mode then print_endline s else ()
 let timer name = if !debug_mode then Common.timer name else fun () -> ()
 
+let is_string t = match follow t with | TInst({ cl_path = ([], "String") }, []) -> true | _ -> false
+
 (* helper function for creating Anon types of class / enum modules *)
 
 let anon_of_classtype cl =
@@ -1883,7 +1885,6 @@ struct
   let priority_as_synf = 100.0 (*solve_deps name [DBefore ExpressionUnwrap.priority]*)
   
   let abstract_implementation gen (should_change:texpr->bool) (equals_handler:texpr->texpr->texpr) (dyn_plus_handler:texpr->texpr->texpr->texpr) (compare_handler:texpr->texpr->texpr) =
-    let is_string t = match follow t with | TInst({ cl_path = ([], "String") }, []) -> true | _ -> false in
     
     let get_etype_one e =
       match follow e.etype with
@@ -4545,6 +4546,9 @@ struct
         | TBinop ( (Ast.OpAssign as op),e1,e2)
         | TBinop ( (Ast.OpAssignOp _ as op),e1,e2) ->
           { e with eexpr = TBinop(op, Type.map_expr run e1, handle (run e2) e1.etype e2.etype) }
+        (* this is an exception so we can avoid infinite loop on Std.String and haxe.lang.Runtime.toString(). It also takes off unnecessary casts to string *)
+        | TBinop ( Ast.OpAdd, ( { eexpr = TCast(e1, _) } as e1c), e2 ) when is_string e1c.etype && is_string e2.etype ->
+          { e with eexpr = TBinop( Ast.OpAdd, run e1, run e2 ) }
         | TField(ef, f) ->
           handle_type_parameter gen None e (run ef) f [] impossible_tparam_is_dynamic
         | TArrayDecl el ->
