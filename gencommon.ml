@@ -4090,6 +4090,10 @@ struct
     | TMono _ | TLazy _ -> t_dynamic
     | t -> t
   
+  (* 
+    this has a slight change from the type.ml version, in which it doesn't 
+    change a TMono into the other parameter
+  *)
   let rec type_eq gen param a b =
     if a == b then
       ()
@@ -4143,6 +4147,13 @@ struct
         ()
       else
         Type.error [cannot_unify a b]
+  
+  let type_iseq gen a b =
+    try
+      type_eq gen EqStrict a b;
+      true
+    with
+      Unify_error _ -> false
   
   (* Helpers for cast handling *)
   (* will return true if 'super' is a superclass of 'cl' or if cl implements super or if they are the same class *)
@@ -4359,7 +4370,7 @@ struct
       | TAnon (a_to), TAnon (a_from) ->
         if a_to == a_from then
           e
-        else if type_iseq to_t from_t then (* FIXME apply unify correctly *)
+        else if type_iseq gen to_t from_t then (* FIXME apply unify correctly *)
           e
         else
           mk_cast to_t e
@@ -4554,7 +4565,7 @@ struct
               handle ({ e with eexpr = TCall(run ef, List.map2 (fun param (_,_,t) -> handle (run param) t param.etype) eparams p) }) e.etype ret
             | _ -> Type.map_expr run e
           )
-        | TNew (cl, tparams, [ maybe_empty ]) when is_some maybe_empty_t && type_iseq (get maybe_empty_t) maybe_empty.etype ->
+        | TNew (cl, tparams, [ maybe_empty ]) when is_some maybe_empty_t && type_iseq gen (get maybe_empty_t) maybe_empty.etype ->
           { e with eexpr = TNew(cl, tparams, [ maybe_empty ]); etype = TInst(cl, tparams) }
         | TNew (cl, tparams, eparams) ->
           let get_f t =
@@ -4568,6 +4579,12 @@ struct
                 | Some (cls,tl) -> 
                   get_ctor_p cls (List.map (apply_params cls.cl_types p) tl)
                 | None -> TFun([],gen.gcon.basic.tvoid)
+          in
+          
+          let handle = if gen.gcon.platform = Java && List.length eparams = 1 then
+            (fun e t1 t2 -> mk_cast (gen.greal_type t1) e)
+          else
+            handle
           in
           
           (* try / with because TNew might be overloaded *)
