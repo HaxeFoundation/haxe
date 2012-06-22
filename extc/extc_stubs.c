@@ -211,7 +211,7 @@ static void copyAscii( char *to, const char *from, int len ) {
 		from++;
 	}
 }
-#end
+#endif
 
 CAMLprim value get_real_path( value path ) {
 #ifdef _WIN32
