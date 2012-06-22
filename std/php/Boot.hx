@@ -16,14 +16,6 @@ function _hx_add($a, $b) {
 	}
 }
 
-function _hx_add_assign(&$a, $b) {
-	if (!_hx_is_numeric($a) || !_hx_is_numeric($b)) {
-		return $a .= $b;
-	} else {
-		return $a += $b;
-	}
-}
-
 function _hx_anonymous($arr = array()) {
 	$o = new _hx_anonymous();
 	foreach($arr as $k => $v)
