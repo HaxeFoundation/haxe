@@ -132,6 +132,7 @@ struct
   let traverse gen runtime_cl =
     let basic = gen.gcon.basic in
     let float_cl = get_cl ( get_type gen (["java";"lang"], "Double")) in
+    let bool_md = get_type gen (["java";"lang"], "Boolean") in
     
     let is_var = alloc_var "__is__" t_dynamic in
     
@@ -188,6 +189,8 @@ struct
                 etype = basic.tbool;
                 epos = e.epos
               }
+            | TEnumDecl{ e_path = ([], "Bool") } ->
+              mk_is obj bool_md
             | _ ->
               mk_is obj md
           )
