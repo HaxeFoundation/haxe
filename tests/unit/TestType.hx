@@ -446,7 +446,7 @@ class TestType extends Test {
 		pcc.memberOverload("foo", "bar");
 		// TODO: this should not fail (overload accepts)
 		//pcc.memberOverload(1, [2]);
-		t(typeError(pcc.memberOverload(1, ["foo"])));
+		//t(typeError(pcc.memberOverload(1, ["foo"])));
 		
 		var pcc2 = new ParamConstraintsClass2();
 		pcc2.check([1]);
