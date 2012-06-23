@@ -59,6 +59,9 @@ let apply_macro ctx mode path el p =
 	) in
 	ctx.g.do_macro ctx mode cpath meth el p
 
+let mark_used_field ctx f =
+	if ctx.com.dead_code_elimination && not (has_meta ":?used" f.cf_meta) then f.cf_meta <- (":?used",[],f.cf_pos) :: f.cf_meta
+
 (** since load_type_def and load_instance are used in PASS2, they should not access the structure of a type **)
 
 (*
@@ -446,8 +449,15 @@ let rec check_interface ctx c p intf params =
 		try
 			let t2, f2 = class_field_no_interf c i in
 			ignore(follow f2.cf_type); (* force evaluation *)
-			if ctx.com.dead_code_elimination && not (List.exists  (fun (n,_,_) -> n = ":?used") f2.cf_meta) then
-				f2.cf_meta <- (":?used",[],p) :: f2.cf_meta;
+			(* we have to make sure that the field is mark as used, which might not be the case for inline fields *)
+			mark_used_field ctx f2;
+			(* this is also true for property accessors *)
+			(match f2.cf_kind with
+			| Var v ->
+				let mark s = try mark_used_field ctx (PMap.find s c.cl_fields) with Not_found -> () in
+				(match v.v_read with AccCall s -> mark s | _ -> ());
+				(match v.v_write with AccCall s -> mark s | _ -> ())
+			| Method m -> ());
 			let p = (match f2.cf_expr with None -> p | Some e -> e.epos) in
 			let mkind = function
 				| MethNormal | MethInline -> 0

@@ -77,9 +77,6 @@ let rec mark_used_class ctx c =
 let mark_used_enum ctx e  =
 	if ctx.com.dead_code_elimination && not (has_meta ":?used" e.e_meta) then e.e_meta <- (":?used",[],e.e_pos) :: e.e_meta
 
-let mark_used_field ctx f =
-	if ctx.com.dead_code_elimination && not (has_meta ":?used" f.cf_meta) then f.cf_meta <- (":?used",[],f.cf_pos) :: f.cf_meta
-
 type type_class =
 	| KInt
 	| KFloat
@@ -430,7 +427,7 @@ let make_call ctx e params t p =
 			| _ -> false
 		) in
 		(* we have to make sure that we mark the field as used here so DCE does not remove it *)
-		let exit () = mark_used_field ctx f; raise Exit in
+		let exit () = Typeload.mark_used_field ctx f; raise Exit in
 		if not ctx.g.doinline && not is_extern then exit();
 		ignore(follow f.cf_type); (* force evaluation *)
 		let params = List.map (ctx.g.do_optimize ctx) params in
@@ -486,7 +483,7 @@ let rec acc_get ctx g p =
 			| TInst (c,_) -> chk_class c
 			| TAnon a -> (match !(a.a_status) with Statics c -> chk_class c | _ -> ())
 			| _ -> ());
-			mark_used_field ctx f;
+			Typeload.mark_used_field ctx f;
 			mk (TClosure (e,f.cf_name)) t p
 		| Some e ->
 			let rec loop e = Type.map_expr loop { e with epos = p } in
@@ -526,7 +523,7 @@ let field_access ctx mode f t e p =
 		| MethMacro, MGet -> display_error ctx "Macro functions must be called immediatly" p; normal()
 		| MethMacro, MCall -> AKMacro (e,f)
 		| _ , MGet ->
-			mark_used_field ctx f;
+			Typeload.mark_used_field ctx f;
 			AKExpr (mk (TClosure (e,f.cf_name)) t p)
 		| _ -> normal())
 	| Var v ->
@@ -1938,7 +1935,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			if PMap.mem name ctx.locals then error ("Local variable " ^ name ^ " is preventing usage of this class here") p;
 			let ct, f = get_constructor ctx c params p in
 			if not f.cf_public && not (is_parent c ctx.curclass) && not ctx.untyped then display_error ctx "Cannot access private constructor" p;
-			mark_used_field ctx f;
+			Typeload.mark_used_field ctx f;
 			(match f.cf_kind with
 			| Var { v_read = AccRequire r } -> error_require r p
 			| _ -> ());
@@ -2185,7 +2182,7 @@ and type_call ctx e el twith p =
 		| None -> error "Current class does not have a super" p
 		| Some (c,params) ->
 			let ct, f = get_constructor ctx c params p in
-			mark_used_field ctx f;
+			Typeload.mark_used_field ctx f;
 			let el, _ = (match follow ct with
 			| TFun (args,r) ->
 				unify_call_params ctx (Some (c,params,f)) el args r p false
