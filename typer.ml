@@ -429,17 +429,17 @@ let make_call ctx e params t p =
 			| _ when has_meta ":extern" f.cf_meta -> true
 			| _ -> false
 		) in
-		if not ctx.g.doinline && not is_extern then raise Exit;
+		(* we have to make sure that we mark the field as used here so DCE does not remove it *)
+		let exit () = mark_used_field ctx f; raise Exit in
+		if not ctx.g.doinline && not is_extern then exit();
 		ignore(follow f.cf_type); (* force evaluation *)
 		let params = List.map (ctx.g.do_optimize ctx) params in
 		(match f.cf_expr with
 		| Some { eexpr = TFunction fd } ->
 			(match Optimizer.type_inline ctx f fd ethis params t p is_extern with
 			| None ->
-				(* we have to make sure that we mark the field as used here so DCE does not remove it *)
-				mark_used_field ctx f;
 				if is_extern then error "Inline could not be done" p;
-				raise Exit
+				exit()
 			| Some e -> e)
 		| _ ->
 			error "Recursive inline is not supported" p)
