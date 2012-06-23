@@ -18,7 +18,7 @@ class TestType extends Test {
 		return haxe.macro.Context.parse("{Test.count++; eq('" +Std.string(tActual) + "', '" +Std.string(tExpected) + "');}", haxe.macro.Context.currentPos());
 	}
 	
-	@:macro static function typeError(e:haxe.macro.Expr) {
+	@:macro static public function typeError(e:haxe.macro.Expr) {
 		var result = try {
 			haxe.macro.Context.typeof(e);
 			"false";
@@ -461,5 +461,12 @@ class TestType extends Test {
 		//t(typeError(pcc2.check([1])));
 		pcc2.check(["foo"]);
 		#end
+	}
+	
+	function testUsing()
+	{
+		eq(UsingChild1.test(), "FOOFOOfoo");
+		eq(UsingChild2.test(), "FOO");
+		eq(UsingUnrelated.test(), "FOOFOO");
 	}
 }

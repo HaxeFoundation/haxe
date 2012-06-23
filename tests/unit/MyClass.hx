@@ -145,3 +145,41 @@ class ParamConstraintsClass2<T> {
 	
 	public function check<A:Array<T>>(a:A) { }
 }
+
+class UsingBase {
+	static function privFunc(s:String) return s.toUpperCase()
+	static public function pupFunc(s:String) return s.toUpperCase()
+}
+
+using MyClass.UsingBase;
+using MyClass.UsingChild2;
+using MyClass.UsingChild1;
+
+class UsingChild1 extends UsingBase {
+	static public function test() {
+		return "foo".pupFunc() + "foo".privFunc() + "FOO".siblingFunc();
+	}
+	
+	static function siblingFunc(s:String) return s.toLowerCase()
+}
+
+class UsingChild2 extends UsingBase {
+	static public function test() {
+		#if !macro
+		TestType.typeError("foo".siblingFunc());
+		#end
+		return "foo".siblingFunc();
+	}
+	
+	static public function siblingFunc(s:String) return s.toUpperCase()
+}
+
+class UsingUnrelated {
+	static public function test() {
+		#if !macro
+		TestType.typeError("foo".privFunc());
+		TestType.typeError("foo".siblingFunc());
+		#end
+		return "foo".pupFunc() + "foo".siblingFunc();
+	}
+}

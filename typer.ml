@@ -149,6 +149,16 @@ let field_type ctx c pl f p =
 let class_field ctx c pl name p =
 	raw_class_field (fun f -> field_type ctx c pl f p) c name
 
+(* checks if class cs(ource) can access field cf of class ct(arget) *)
+let can_access cs ct cf stat =
+	let rec loop ct = 
+		((is_parent ct cs) && (PMap.mem cf.cf_name (if stat then ct.cl_statics else ct.cl_fields)))
+	 	|| match ct.cl_super with
+	 	   | Some (ct,_) -> loop ct
+	 	   | None -> false
+	in
+	cf.cf_public || loop ct
+
 (* ---------------------------------------------------------------------- *)
 (* PASS 3 : type expression & check structure *)
 
@@ -580,7 +590,7 @@ let using_field ctx mode e i p =
 				let f = PMap.find i c.cl_statics in
 				let t = field_type ctx c [] f p in
 				(match follow t with
-				| TFun ((_,_,t0) :: args,r) ->
+				| TFun ((_,_,t0) :: args,r) (* when can_access ctx.curclass c f true *) ->
 					let t0 = (try match t0 with
 					| TType({t_path=["haxe";"macro"], ("ExprOf"|"ExprRequire")}, [t]) ->
 						(try unify_raise ctx e.etype t p with Error (Unify _,_) -> raise Not_found); t;
@@ -739,10 +749,9 @@ let rec type_field ctx e i p mode =
 				| Some (c,params) -> loop_dyn c params
 		in
 		(try
-			let rec share_parent csup c = if (is_parent csup c) && (PMap.mem i csup.cl_fields) then true else match csup.cl_super with None -> false | Some (csup,_) -> share_parent csup c in
 			let t , f = class_field ctx c params i p in
 			if e.eexpr = TConst TSuper && (match f.cf_kind with Var _ -> true | _ -> false) && Common.platform ctx.com Flash then error "Cannot access superclass variable for calling : needs to be a proper method" p;
-			if not f.cf_public && not (share_parent c ctx.curclass) && not ctx.untyped then display_error ctx ("Cannot access to private field " ^ i) p;
+			if not (can_access ctx.curclass c f false) && not ctx.untyped then display_error ctx ("Cannot access to private field " ^ i) p;
 			field_access ctx mode f (apply_params c.cl_types params t) e p
 		with Not_found -> try
 			using_field ctx mode e i p
@@ -2097,11 +2106,12 @@ and type_expr ctx ?(need_val=true) (e,p) =
 						match follow (field_type ctx c [] f p) with
 						| TFun((_,_,TType({t_path=["haxe";"macro"], ("ExprOf"|"ExprRequire")}, [t])) :: args, ret)
 						| TFun ((_,_,t) :: args, ret) when (try unify_raise ctx (dup e.etype) t e.epos; true with Error (Unify _,_) -> false) ->
-							let f = { f with cf_type = TFun (args,ret); cf_params = [] } in
-							if follow e.etype == t_dynamic && follow t != t_dynamic then
+							if not (can_access ctx.curclass c f true) || follow e.etype == t_dynamic && follow t != t_dynamic then
 								()
-							else
+							else begin
+								let f = { f with cf_type = TFun (args, ret); cf_params = []; cf_public = true } in
 								acc := PMap.add f.cf_name f (!acc)
+							end
 						| _ -> ()
 					) c.cl_ordered_statics
 				| _ -> ());
