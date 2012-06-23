@@ -446,6 +446,8 @@ let rec check_interface ctx c p intf params =
 		try
 			let t2, f2 = class_field_no_interf c i in
 			ignore(follow f2.cf_type); (* force evaluation *)
+			if ctx.com.dead_code_elimination && not (List.exists  (fun (n,_,_) -> n = ":?used") f2.cf_meta) then
+				f2.cf_meta <- (":?used",[],p) :: f2.cf_meta;
 			let p = (match f2.cf_expr with None -> p | Some e -> e.epos) in
 			let mkind = function
 				| MethNormal | MethInline -> 0
