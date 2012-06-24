@@ -1,13 +1,11 @@
 package haxe.lang;
 
 /**
- * ...
- * @author waneck
- */
+ This class is meant for internal compiler use only. It provides the Haxe runtime
+ compatibility to the host language.
+**/
 
 @:nativegen
-//it's private so we don't have access to it in normal haxe code
-@:native('haxe.lang.Runtime')
 @:classContents('
 	public static object getField(haxe.lang.HxObject obj, string field, int fieldHash, bool throwErrors)
 	{
@@ -36,17 +34,12 @@ package haxe.lang;
 		return obj.__hx_invokeField(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, false, args);
 	}
 ')
-@:keep private class Runtime 
+@:keep class Runtime 
 {
-	public static var undefined:Dynamic = { };
+	public static var undefined(default, never):Dynamic = { };
 	
 	@:functionBody('
-		if (obj is haxe.lang.IHxObject)
-		{
-			return new haxe.lang.Closure(field, hash, (haxe.lang.IHxObject)obj);
-		} else {
-			return new haxe.lang.NativeMethodFunction(obj, field);
-		}
+		return new haxe.lang.Closure(obj, field, hash);
 	')
 	public static function closure(obj:Dynamic, hash:Int, field:String):Dynamic
 	{
@@ -218,7 +211,7 @@ package haxe.lang;
 				System.Reflection.MethodInfo m = t.GetMethod(field,  System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.FlattenHierarchy | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
 				if (m != null)
 				{
-					return new haxe.lang.NativeMethodFunction(obj, field);
+					return new haxe.lang.Closure(obj, field, 0);
 				} else {
 					if (throwErrors) 
 						throw HaxeException.wrap("Cannot access field \'" + field + "\'.");

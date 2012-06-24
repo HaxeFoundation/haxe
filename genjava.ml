@@ -557,7 +557,7 @@ struct
           in
           if need_second_cast then { e with eexpr = TCast(mk_cast (follow e.etype) (run expr), c) }  else Type.map_expr run e*)
         | TCast(expr, _) when is_string e.etype ->
-          { e with eexpr = TCall( mk_static_field_access_infer runtime_cl "toString" expr.epos [], [expr] ) }
+          { e with eexpr = TCall( mk_static_field_access_infer runtime_cl "toString" expr.epos [], [run expr] ) }
           
         | TSwitch(cond, ecases, edefault) when is_string cond.etype ->
           (*let change_string_switch gen eswitch e1 ecases edefault =*)
@@ -1540,24 +1540,10 @@ let configure gen =
   
   ReflectionCFs.configure_dynamic_field_access rcf_ctx false;
   
-  let closure_func = ReflectionCFs.implement_closure_cl rcf_ctx ( get_cl (get_type gen (["haxe";"lang"],"Closure")) ) in
+  (* let closure_func = ReflectionCFs.implement_closure_cl rcf_ctx ( get_cl (get_type gen (["haxe";"lang"],"Closure")) ) in *)
+  let closure_cl = get_cl (get_type gen (["haxe";"lang"],"Closure")) in
   
-  let closure_func eclosure e field is_static =
-    let is_hxobject = match real_type e.etype with
-      | TInst(cl,_) -> is_hxgen (TClassDecl cl)
-      | TEnum(e, _) -> is_hxgen (TEnumDecl e)
-      | TType(t, _) -> is_hxgen (TTypeDecl t)
-      | TDynamic _ | TAnon _ -> false
-      | _ -> assert false
-    in
-    if is_hxobject then 
-      closure_func eclosure e field is_static 
-    else begin
-      let static = mk_static_field_access_infer (runtime_cl) "closure" eclosure.epos [] in
-      let field = { eexpr = TConst(TString field); etype = basic.tstring; epos = eclosure.epos } in
-      mk_cast eclosure.etype { eclosure with eexpr = TCall(static, [ e; field ]); etype = t_dynamic }
-    end
-  in
+  let closure_func = ReflectionCFs.get_closure_func rcf_ctx closure_cl in
   
   ReflectionCFs.implement_varargs_cl rcf_ctx ( get_cl (get_type gen (["haxe";"lang"], "VarArgsBase")) );
   

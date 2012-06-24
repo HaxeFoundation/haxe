@@ -1,13 +1,11 @@
 package haxe.lang;
 
 /**
- * ...
- * @author waneck
- */
+ This class is meant for internal compiler use only. It provides the Haxe runtime
+ compatibility to the host language.
+**/
 
 @:nativegen
-//it's private so we don't have access to it in normal haxe code
-@:native('haxe.lang.Runtime')
 @:classContents('
 	public static java.lang.Object getField(haxe.lang.IHxObject obj, java.lang.String field, boolean throwErrors)
 	{
@@ -36,17 +34,12 @@ package haxe.lang;
 		return obj.__hx_invokeField(field, args);
 	}
 ')
-@:keep private class Runtime 
+@:keep class Runtime 
 {
 	public static var undefined:Dynamic = { };
 	
 	@:functionBody('
-		if (obj instanceof haxe.lang.IHxObject)
-		{
-			return new haxe.lang.Closure(field, (haxe.lang.IHxObject)obj);
-		} else {
-			return new haxe.lang.NativeMethodFunction(obj, field);
-		}
+	return new haxe.lang.Closure(obj, field);
 	')
 	public static function closure(obj:Dynamic, field:String):Dynamic
 	{
@@ -270,7 +263,7 @@ package haxe.lang;
 			{
 				if (ms[i].getName().equals(field))
 				{
-					return new haxe.lang.NativeMethodFunction(obj, field);
+					return new haxe.lang.Closure(obj, field);
 				}
 			}
 		} catch (Throwable t2)

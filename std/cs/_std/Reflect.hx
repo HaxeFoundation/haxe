@@ -175,11 +175,7 @@ import haxe.lang.Function;
 			haxe.lang.Closure f1c = (haxe.lang.Closure) f1;
 			haxe.lang.Closure f2c = (haxe.lang.Closure) f2;
 			
-			return haxe.lang.Runtime.refEq(f1c.target, f2c.target) && f1c.field.Equals(f2c.field);
-		} else if (f1 is haxe.lang.NativeMethodFunction && f2 is haxe.lang.NativeMethodFunction) {
-			haxe.lang.NativeMethodFunction f1n = (haxe.lang.NativeMethodFunction) f1;
-			haxe.lang.NativeMethodFunction f2n = (haxe.lang.NativeMethodFunction) f2;
-			return haxe.lang.Runtime.refEq(f1n.obj, f2n.obj) && f1n.field.Equals(f2n.field);
+			return haxe.lang.Runtime.refEq(f1c.obj, f2c.obj) && f1c.field.Equals(f2c.field);
 		}
 		
 		return false;

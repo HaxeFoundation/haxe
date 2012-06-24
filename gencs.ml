@@ -297,7 +297,7 @@ struct
           
           if needs_cast then mk_cast e.etype ret else ret
         | TCast(expr, _) when is_string e.etype ->
-          { e with eexpr = TCall( mk_static_field_access_infer runtime_cl "toString" expr.epos [], [expr] ) }
+          { e with eexpr = TCall( mk_static_field_access_infer runtime_cl "toString" expr.epos [], [run expr] ) }
         | TBinop( (Ast.OpNotEq as op), e1, e2)
         | TBinop( (Ast.OpEq as op), e1, e2) when is_string e1.etype || is_string e2.etype ->
           let mk_ret e = match op with | Ast.OpNotEq -> { e with eexpr = TUnop(Ast.Not, Ast.Prefix, e) } | _ -> e in
@@ -1482,7 +1482,10 @@ let configure gen =
   
   ReflectionCFs.configure_dynamic_field_access rcf_ctx false;
   
-  let closure_func = ReflectionCFs.implement_closure_cl rcf_ctx ( get_cl (get_type gen (["haxe";"lang"],"Closure")) ) in
+  (* let closure_func = ReflectionCFs.implement_closure_cl rcf_ctx ( get_cl (get_type gen (["haxe";"lang"],"Closure")) ) in *)
+  let closure_cl = get_cl (get_type gen (["haxe";"lang"],"Closure")) in
+  
+  let closure_func = ReflectionCFs.get_closure_func rcf_ctx closure_cl in
   
   ReflectionCFs.implement_varargs_cl rcf_ctx ( get_cl (get_type gen (["haxe";"lang"], "VarArgsBase")) );
   

@@ -7211,6 +7211,20 @@ struct
     in
     closure_fun
     
+  let get_closure_func ctx closure_cl =
+    let gen = ctx.rcf_gen in
+    let basic = gen.gcon.basic in
+    let closure_func eclosure e field is_static =
+      { eclosure with 
+        eexpr = TNew(closure_cl, [], [ 
+          e; 
+          { eexpr = TConst(TString field); etype = basic.tstring; epos = eclosure.epos }
+        ] @ (
+          if ctx.rcf_optimize then [ { eexpr = TConst(TInt (hash_field_i32 ctx eclosure.epos field)); etype = basic.tint; epos = eclosure.epos } ] else [] 
+        ))
+      }
+    in
+    closure_func
   
   (* 
       main expr -> field expr -> field string -> possible set expr -> should_throw_exceptions -> changed expression
