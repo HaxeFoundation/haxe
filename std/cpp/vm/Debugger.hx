@@ -1,8 +1,6 @@
 package cpp.vm;
 
-// TODO: implement this
-typedef Breakpoint = Dynamic;
-typedef StackFrame = Dynamic;
+import haxe.Stack;
 
 class Debugger
 {
@@ -31,12 +29,12 @@ class Debugger
    }
 
    // Breakpoint
-   public static function addBreakpoint(inBreakpoint:Breakpoint)
+   public static function addBreakpoint(inFileId:Int, inLine:Int)
    {
-      untyped __global__.__hxcpp_breakpoints_add(inBreakpoint);
+      untyped __global__.__hxcpp_breakpoints_add(inFileId, inLine);
    }
 
-   public static function getBreakpoints() : Array<Breakpoint>
+   public static function getBreakpoints() : Array<String>
    {
       return untyped __global__.__hxcpp_dbg_breakpoints_get();
    }
@@ -50,7 +48,7 @@ class Debugger
    // public static function suspendAll()
 
    // Callstack
-   public static function getStackFrames() : Array<StackFrame>
+   public static function getStackFrames() : Array<haxe.StackItem>
    {
       return untyped __global__.__hxcpp_dbg_stack_frames_get();
    }
