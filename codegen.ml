@@ -575,8 +575,7 @@ let on_generate ctx t =
 			f.cf_expr <- Some e;
 			c.cl_ordered_statics <- f :: c.cl_ordered_statics;
 			c.cl_statics <- PMap.add f.cf_name f c.cl_statics);
-		(* remove empty @:autoBuild interfaces to avoid duplicate interface problems *)
-		c.cl_implements <- List.filter (fun (c,_) -> not (has_meta ":autoBuild" c.cl_meta) || not (PMap.is_empty c.cl_fields)) c.cl_implements;
+		c.cl_implements <- List.filter (fun (c,_) -> not (has_meta ":remove" c.cl_meta)) c.cl_implements;
 	| TEnumDecl e ->
 		List.iter (fun m ->
 			match m with
