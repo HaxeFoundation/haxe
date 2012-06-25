@@ -1,4 +1,11 @@
 package haxe.lang;
+import cs.Lib;
+import cs.NativeArray;
+import cs.NativeArray;
+import system.Activator;
+import system.IConvertible;
+import system.reflection.MethodBase;
+import system.Type;
 
 /**
  This class is meant for internal compiler use only. It provides the Haxe runtime
@@ -10,28 +17,28 @@ package haxe.lang;
 	public static object getField(haxe.lang.HxObject obj, string field, int fieldHash, bool throwErrors)
 	{
 		if (obj == null && !throwErrors) return null;
-		return obj.__hx_getField(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, false, throwErrors, false);
+		return obj.__hx_getField(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, throwErrors, false);
 	}
 	
 	public static double getField_f(haxe.lang.HxObject obj, string field, int fieldHash, bool throwErrors)
 	{
 		if (obj == null && !throwErrors) return 0.0;
-		return obj.__hx_getField_f(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, false, throwErrors);
+		return obj.__hx_getField_f(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, throwErrors);
 	}
 	
 	public static object setField(haxe.lang.HxObject obj, string field, int fieldHash, object value)
 	{
-		return obj.__hx_setField(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, false, value);
+		return obj.__hx_setField(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, value);
 	}
 	
 	public static double setField_f(haxe.lang.HxObject obj, string field, int fieldHash, double value)
 	{
-		return obj.__hx_setField_f(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, false, value);
+		return obj.__hx_setField_f(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, value);
 	}
 	
 	public static object callField(haxe.lang.HxObject obj, string field, int fieldHash, Array args)
 	{
-		return obj.__hx_invokeField(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, false, args);
+		return obj.__hx_invokeField(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, args);
 	}
 ')
 @:keep class Runtime 
@@ -193,22 +200,25 @@ package haxe.lang;
 				return null;
 		
 		System.Type t = obj as System.Type;
+		System.Reflection.BindingFlags bf;
         if (t == null)
 		{
 			t = obj.GetType();
+			bf = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.FlattenHierarchy;
 		} else {
 			obj = null;
+			bf = System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public;
 		}
 
-		System.Reflection.FieldInfo f = t.GetField(field, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.FlattenHierarchy | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+		System.Reflection.FieldInfo f = t.GetField(field, bf);
 		if (f != null)
 		{
-			return f.GetValue(obj);
+			return haxe.lang.Runtime.unbox(f.GetValue(obj));
 		} else {
-			System.Reflection.PropertyInfo prop = t.GetProperty(field, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.FlattenHierarchy | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+			System.Reflection.PropertyInfo prop = t.GetProperty(field, bf);
 			if (prop == null)
 			{
-				System.Reflection.MethodInfo m = t.GetMethod(field,  System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.FlattenHierarchy | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+				System.Reflection.MethodInfo m = t.GetMethod(field, bf);
 				if (m != null)
 				{
 					return new haxe.lang.Closure(obj, field, 0);
@@ -219,7 +229,7 @@ package haxe.lang;
 						return null;
 				}
 			}
-			return prop.GetValue(obj, null);
+			return haxe.lang.Runtime.unbox(prop.GetValue(obj, null));
 		}
 	
 	')
@@ -231,14 +241,17 @@ package haxe.lang;
 	@:functionBody('
 		if (obj == null) return false;
 		System.Type t = obj as System.Type;
+		System.Reflection.BindingFlags bf;
         if (t == null)
 		{
 			t = obj.GetType();
+			bf = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.FlattenHierarchy;
 		} else {
 			obj = null;
+			bf = System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public;
 		}
 
-		System.Reflection.MemberInfo[] mi = t.GetMember(field, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.FlattenHierarchy | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+		System.Reflection.MemberInfo[] mi = t.GetMember(field, bf);
 		return mi != null && mi.Length > 0;
 	')
 	public static function slowHasField(obj:Dynamic, field:String):Bool
@@ -251,20 +264,37 @@ package haxe.lang;
 			throw new System.NullReferenceException("Cannot access field \'" + field + "\' of null.");
 		
 		System.Type t = obj as System.Type;
+		System.Reflection.BindingFlags bf;
         if (t == null)
 		{
 			t = obj.GetType();
+			bf = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.FlattenHierarchy;
 		} else {
 			obj = null;
+			bf = System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public;
 		}
 
-		System.Reflection.FieldInfo f = t.GetField(field, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.FlattenHierarchy | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+		System.Reflection.FieldInfo f = t.GetField(field, bf);
 		if (f != null)
 		{
+			if (f.FieldType.ToString().StartsWith("haxe.lang.Null"))
+			{
+				@value = haxe.lang.Runtime.mkNullable(@value, f.FieldType);
+			}
+			
 			f.SetValue(obj, @value);
 			return @value;
 		} else {
-			System.Reflection.PropertyInfo prop = t.GetProperty(field, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.FlattenHierarchy | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+			System.Reflection.PropertyInfo prop = t.GetProperty(field, bf);
+			if (prop == null)
+			{
+				throw haxe.lang.HaxeException.wrap("Field \'" + field + "\' not found for writing from Class " + t);
+			}
+			
+			if (prop.PropertyType.ToString().StartsWith("haxe.lang.Null"))
+			{
+				@value = haxe.lang.Runtime.mkNullable(@value, prop.PropertyType);
+			}
 			prop.SetValue(obj, @value, null);
 
 			return @value;
@@ -277,17 +307,113 @@ package haxe.lang;
 		throw "Not implemented";
 	}
 	
+	public static function callMethod(obj:Dynamic, methods:NativeArray<MethodBase>, methodLength:Int, args:Array<Dynamic>):Dynamic
+	{
+		var length = args.length;
+		var oargs:NativeArray<Dynamic> = new NativeArray(length);
+		var ts:NativeArray<system.Type> = new NativeArray(length);
+		
+		for (i in 0...length)
+		{
+			oargs[i] = args[i];
+			ts[i] = Lib.getNativeType(args[i]);
+		}
+		
+		var last = 0;
+		
+		//first filter by number of parameters and if it is assignable
+		if (methodLength > 1)
+		{
+			for (i in 0...methodLength)
+			{
+				var params = methods[i].GetParameters();
+				if (params.Length != length) {
+					continue;
+				} else {
+					var fits = true;
+					for (i in 0...params.Length)
+					{
+						var param = params[i].ParameterType;
+						var strParam = param + "";
+						if (untyped strParam.StartsWith("haxe.lang.Null") || ( (oargs[i] == null || Std.is(oargs[i], IConvertible) ) && cast(untyped __typeof__(IConvertible), Type).IsAssignableFrom(param) ))
+						{
+							continue;
+						} else if (!param.ContainsGenericParameters && !param.IsAssignableFrom(ts[i])) {
+							fits = false;
+							break;
+						}
+					}
+					
+					if (fits)
+					{
+						methods[last++] = methods[i];
+					}
+				}
+			}
+			
+			methodLength = last;
+		}
+		
+		//At this time, we should be left with only one method.
+		//Of course, realistically, we can be left with plenty of methods, if there are lots of variants with IConvertible
+		//But at this time we still aren't rating the best methods
+		//FIXME rate best methods
+		
+		if (methodLength == 0)
+			throw "Invalid calling parameters for method " + methods[0].Name;
+		
+		var params = methods[0].GetParameters();
+		for (i in 0...params.Length)
+		{
+			var param = params[i].ParameterType;
+			var strParam = param + "";
+			if (StringTools.startsWith(strParam, "haxe.lang.Null"))
+			{
+				oargs[i] = mkNullable(oargs[i], param);
+			} else if (cast(untyped __typeof__(IConvertible), Type).IsAssignableFrom(param)) {
+				if (oargs[i] == null) {
+					if (param.IsValueType)
+						oargs[i] = Activator.CreateInstance(param);
+				} else {
+					oargs[i] = cast(oargs[i], IConvertible).ToType(param, null);
+				}
+			}
+		}
+		
+		var ret = methods[0].Invoke(obj, oargs);
+		return unbox(ret);
+	}
+	
+	public static function unbox(dyn:Dynamic):Dynamic
+	{
+		if (dyn != null && untyped (Lib.getNativeType(dyn) + "").StartsWith("haxe.lang.Null"))
+		{
+			return dyn.toDynamic();
+		} else {
+			return dyn;
+		}
+	}
+	
+	@:functionBody('
+		return nullableType.GetMethod("_ofDynamic").Invoke(null, new object[] { obj });
+	')
+	public static function mkNullable(obj:Dynamic, nullableType:system.Type):Dynamic
+	{
+		return null;
+	}
+	
 	@:functionBody('
 		if (args == null) args = new Array<object>();
 		
+		System.Reflection.BindingFlags bf;
 		System.Type t = obj as System.Type;
 		if (t == null)
 		{
 			t = obj.GetType();
-		}
-		else
-		{
+			bf = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.FlattenHierarchy;
+		} else {
 			obj = null;
+			bf = System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public;
 		}
 
 		int length = (int)haxe.lang.Runtime.getField_f(args, "length", 520590566, true);
@@ -298,9 +424,23 @@ package haxe.lang;
 			oargs[i] = args[i];
 			ts[i] = oargs[i].GetType();
 		}
-
-		System.Reflection.MethodInfo mi = t.GetMethod(field, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.FlattenHierarchy | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance, null, ts, null);
-		return mi.Invoke(obj, oargs);
+		
+		System.Reflection.MethodInfo[] mis = t.GetMethods(bf);
+		int last = 0;
+		for (int i = 0; i < mis.Length; i++)
+		{
+			if (mis[i].Name.Equals(field))
+			{
+				mis[last++] = mis[i];
+			}
+		}
+		
+		if (last == 0)
+		{
+			throw haxe.lang.HaxeException.wrap("Method \'" + field + "\' not found on type " + t);
+		}
+		
+		return haxe.lang.Runtime.callMethod(obj, mis, last, args);
 	')
 	public static function slowCallField(obj:Dynamic, field:String, args:Array<Dynamic>):Dynamic
 	{
@@ -310,7 +450,7 @@ package haxe.lang;
 	@:functionBody('
 		haxe.lang.HxObject hxObj = obj as haxe.lang.HxObject;
 		if (hxObj != null)
-			return hxObj.__hx_invokeField(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, false, args);
+			return hxObj.__hx_invokeField(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, args);
 		
 		return slowCallField(obj, field, args);
 	')
@@ -323,7 +463,7 @@ package haxe.lang;
 	
 		haxe.lang.HxObject hxObj = obj as haxe.lang.HxObject;
 		if (hxObj != null)
-			return hxObj.__hx_getField(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, false, throwErrors, false);
+			return hxObj.__hx_getField(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, throwErrors, false);
 		
 		return slowGetField(obj, field, throwErrors);
 	
@@ -337,7 +477,7 @@ package haxe.lang;
 	
 		haxe.lang.HxObject hxObj = obj as haxe.lang.HxObject;
 		if (hxObj != null)
-			return hxObj.__hx_getField_f(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, false, throwErrors);
+			return hxObj.__hx_getField_f(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, throwErrors);
 		
 		return (double)slowGetField(obj, field, throwErrors);
 	
@@ -351,7 +491,7 @@ package haxe.lang;
 	
 		haxe.lang.HxObject hxObj = obj as haxe.lang.HxObject;
 		if (hxObj != null)
-			return hxObj.__hx_setField(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, false, value);
+			return hxObj.__hx_setField(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, value);
 		
 		return slowSetField(obj, field, value);
 	
@@ -362,10 +502,10 @@ package haxe.lang;
 	}
 	
 	@:functionBody('
-	
+
 		haxe.lang.HxObject hxObj = obj as haxe.lang.HxObject;
 		if (hxObj != null)
-			return hxObj.__hx_setField_f(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, false, value);
+			return hxObj.__hx_setField_f(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, value);
 		
 		return (double)slowSetField(obj, field, value);
 	
@@ -373,37 +513,6 @@ package haxe.lang;
 	public static function setField_f(obj:Dynamic, field:String, fieldHash:Int, value:Float):Float
 	{
 		return 0.0;
-	}
-	
-	
-	private static var classes:Hash<Class<Dynamic>> = new Hash();
-	
-	public static function registerClass(name:String, cl:Class<Dynamic>):Void
-	{
-		classes.set(name, cl);
-	}
-	
-	public static function getClass(name:String, t:system.Type):Class<Dynamic>
-	{
-		var ret:Class<Dynamic> = classes.get(name);
-		if (ret == null)
-			return slowGetClass(name, t);
-		else
-			return ret;
-	}
-	
-	@:functionBody('
-	if (t == null)
-		t = System.Type.GetType(name, false, true);
-	
-	if (t == null)
-		return null;
-	
-	return null;
-	')
-	public static function slowGetClass(name:String, t:system.Type):Class<Dynamic>
-	{
-		return null;
 	}
 	
 	public static function toString(obj:Dynamic):String

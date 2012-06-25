@@ -35,7 +35,7 @@ import haxe.lang.Function;
 	**/
 	@:functionBody('
 		if (o is haxe.lang.IHxObject)
-		return ((haxe.lang.IHxObject) o).__hx_getField(field, haxe.lang.FieldLookup.hash(field), false, false, true) != haxe.lang.Runtime.undefined;
+			return ((haxe.lang.IHxObject) o).__hx_getField(field, haxe.lang.FieldLookup.hash(field), false, true) != haxe.lang.Runtime.undefined;
 		
 		return haxe.lang.Runtime.slowHasField(o, field);
 	')
@@ -49,7 +49,7 @@ import haxe.lang.Function;
 	**/
 	@:functionBody('
 		if (o is haxe.lang.IHxObject)
-		return ((haxe.lang.IHxObject) o).__hx_getField(field, haxe.lang.FieldLookup.hash(field), false, false, false);
+			return ((haxe.lang.IHxObject) o).__hx_getField(field, haxe.lang.FieldLookup.hash(field), false, false);
 		
 		return haxe.lang.Runtime.slowGetField(o, field, false);
 	')
@@ -64,7 +64,7 @@ import haxe.lang.Function;
 	**/
 	@:functionBody('
 		if (o is haxe.lang.IHxObject)
-			((haxe.lang.IHxObject) o).__hx_setField(field, haxe.lang.FieldLookup.hash(field), false, value);
+			((haxe.lang.IHxObject) o).__hx_setField(field, haxe.lang.FieldLookup.hash(field), value);
 		else
 			haxe.lang.Runtime.slowSetField(o, field, value);
 	')
@@ -107,7 +107,7 @@ import haxe.lang.Function;
 		if (o is haxe.lang.IHxObject)
 		{
 			Array<object> ret = new Array<object>();
-			((haxe.lang.IHxObject) o).__hx_getFields(ret, false);
+				((haxe.lang.IHxObject) o).__hx_getFields(ret);
 			return ret;
 		} else {
 			Array<object> ret = new Array<object>();

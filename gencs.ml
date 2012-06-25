@@ -630,13 +630,13 @@ let configure gen =
       | TInst ({ cl_kind = KTypeParameter; cl_path=p }, []) -> snd p
       | TMono r -> (match !r with | None -> "object" | Some t -> t_s (run_follow gen t))
       | TInst ({ cl_path = [], "String" }, []) -> "string"
-      | TInst ({ cl_path = [], "Class" }, _) | TInst ({ cl_path = [], "Enum" }, _) -> "haxe.lang.Class"
+      | TInst ({ cl_path = [], "Class" }, _) | TInst ({ cl_path = [], "Enum" }, _) -> "System.Type"
       | TEnum ({ e_path = p }, params) -> (path_s p)
       | TInst (({ cl_path = p } as cl), params) -> (path_param_s (TClassDecl cl) p params)
       | TType (({ t_path = p } as t), params) -> (path_param_s (TTypeDecl t) p params)
       | TAnon (anon) ->
         (match !(anon.a_status) with
-          | Statics _ | EnumStatics _ -> "haxe.lang.Class"
+          | Statics _ | EnumStatics _ -> "System.Type"
           | _ -> "object")
       | TDynamic _ -> "object"
       (* No Lazy type nor Function type made. That's because function types will be at this point be converted into other types *)
@@ -1474,11 +1474,9 @@ let configure gen =
   
   let rcf_ctx = ReflectionCFs.new_ctx gen closure_t object_iface true rcf_on_getset_field rcf_on_call_field (fun hash hash_array ->
     { hash with eexpr = TCall(rcf_static_find, [hash; hash_array]); etype=basic.tint }
-  ) (fun hash -> { hash with eexpr = TCall(rcf_static_lookup, [hash]); etype = gen.gcon.basic.tstring } ) true in
+  ) (fun hash -> { hash with eexpr = TCall(rcf_static_lookup, [hash]); etype = gen.gcon.basic.tstring } ) false in
   
   ReflectionCFs.UniversalBaseClass.default_config gen (get_cl (get_type gen (["haxe";"lang"],"HxObject")) ) object_iface dynamic_object;
-  
-  ReflectionCFs.implement_class_methods rcf_ctx ( get_cl (get_type gen (["haxe";"lang"],"Class")) );
   
   ReflectionCFs.configure_dynamic_field_access rcf_ctx false;
   
@@ -1642,30 +1640,12 @@ let configure gen =
       (fun v e -> e)
   );
   
-  let native_class_wrapper = get_cl (get_type gen (["haxe";"lang"], "NativeClassWrapper")) in
-  
   let get_typeof e =
     { e with eexpr = TCall( { eexpr = TLocal( alloc_var "__typeof__" t_dynamic ); etype = t_dynamic; epos = e.epos }, [e] ) }
   in
   
   ClassInstance.configure gen (ClassInstance.traverse gen (fun e mt ->
-    if is_hxgen mt then begin
-      {
-        eexpr = TCall({
-          eexpr = TField(e, gen.gmk_internal_name "hx" "getClassStatic");
-          etype = TFun([], e.etype);
-          epos = e.epos
-        }, []);
-        etype = e.etype;
-        epos = e.epos;
-      }
-    end else begin
-      {
-        eexpr = TNew(native_class_wrapper, [], [ get_typeof e ]);
-        etype = e.etype;
-        epos = e.epos
-      }
-    end
+    get_typeof e
   ));
   
   CastDetect.configure gen (CastDetect.default_implementation gen (Some (TEnum(empty_e, []))) false);
@@ -1758,8 +1738,20 @@ let before_generate con =
   List.iter (Codegen.fix_overrides con) con.types
 
 let generate con =
-  let gen = new_ctx con in
   (try
+    let gen = new_ctx con in
+    let basic = con.basic in
+    
+    (* make the basic functions in C# *)
+    let type_cl = get_cl ( get_type gen (["System"], "Type")) in
+    let basic_fns = 
+    [
+      mk_class_field "Equals" (TFun(["obj",false,t_dynamic], basic.tbool)) true Ast.null_pos (Method MethNormal) [];
+      mk_class_field "ToString" (TFun([], basic.tstring)) true Ast.null_pos (Method MethNormal) [];
+      mk_class_field "GetHashCode" (TFun([], basic.tint)) true Ast.null_pos (Method MethNormal) [];
+      mk_class_field "GetType" (TFun([], TInst(type_cl, []))) true Ast.null_pos (Method MethNormal) [];
+    ] in
+    List.iter (fun cf -> gen.gbase_class_fields <- PMap.add cf.cf_name cf gen.gbase_class_fields) basic_fns;
     configure gen
   with | TypeNotFound path -> 
     con.error ("Error. Module '" ^ (path_s path) ^ "' is required and was not included in build.")  Ast.null_pos);

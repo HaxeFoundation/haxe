@@ -83,7 +83,6 @@ enum ValueType {
 			case "int", "java.lang.Integer": "Int";
 			case "double", "java.lang.Double": "Float";
 			case "java.lang.String": "String";
-			case "boolean", "java.lang.Boolean": "Bool";
 			default: name;
 		}
 	}
@@ -247,10 +246,10 @@ enum ValueType {
 	@:functionBody('
 		if (params == null) 
 		{
-			T ret = (T) haxe.lang.Runtime.slowGetField(e, constr, false);
+			java.lang.Object ret = haxe.lang.Runtime.slowGetField(e, constr, false);
 			if (ret instanceof haxe.lang.Function)
 				throw haxe.lang.HaxeException.wrap("Constructor " + constr + " needs parameters");
-			return ret;
+			return (T) ret;
 		} else {
 			return (T) haxe.lang.Runtime.slowCallField(e, constr, params);
 		}
