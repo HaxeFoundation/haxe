@@ -2320,7 +2320,6 @@ let dce_check_class ctx c =
 		|| (f.cf_name = "new" && has_meta ":?used" c.cl_meta)
 		|| match String.concat "." (fst c.cl_path @ [snd c.cl_path;f.cf_name]) with
 		| "EReg.new" -> true
-		| "flash._Boot.RealBoot.new" -> true
 		| _ -> false
 	in
 	keep

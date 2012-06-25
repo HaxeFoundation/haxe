@@ -25,7 +25,7 @@
 package flash;
 
 #if !as3
-private class RealBoot extends Boot, implements Dynamic {
+@:keep private class RealBoot extends Boot, implements Dynamic {
 	#if swc
 	public function new() {
 		super();
