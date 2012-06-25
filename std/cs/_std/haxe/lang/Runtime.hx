@@ -5,6 +5,7 @@ import cs.NativeArray;
 import system.Activator;
 import system.IConvertible;
 import system.reflection.MethodBase;
+import system.reflection.MethodInfo;
 import system.Type;
 
 /**
@@ -316,7 +317,8 @@ import system.Type;
 		for (i in 0...length)
 		{
 			oargs[i] = args[i];
-			ts[i] = Lib.getNativeType(args[i]);
+			if (args[i] != null)
+				ts[i] = Lib.getNativeType(args[i]);
 		}
 		
 		var last = 0;
@@ -380,6 +382,19 @@ import system.Type;
 			}
 		}
 		
+		if (methods[0].ContainsGenericParameters && Std.is(methods[0], system.reflection.MethodInfo))
+		{
+			var m:MethodInfo = cast methods[0];
+			var tgs = m.GetGenericArguments();
+			for (i in 0...tgs.Length)
+			{
+				tgs[i] = untyped __typeof__(Dynamic);
+			}
+			m = m.MakeGenericMethod(tgs);
+			var retg = m.Invoke(obj, oargs);
+			return haxe.lang.Runtime.unbox(retg);
+		}
+		
 		var ret = methods[0].Invoke(obj, oargs);
 		return unbox(ret);
 	}
@@ -395,6 +410,8 @@ import system.Type;
 	}
 	
 	@:functionBody('
+		if (nullableType.ContainsGenericParameters)
+			return haxe.lang.Null<object>.ofDynamic<object>(obj);
 		return nullableType.GetMethod("_ofDynamic").Invoke(null, new object[] { obj });
 	')
 	public static function mkNullable(obj:Dynamic, nullableType:system.Type):Dynamic
@@ -414,15 +431,6 @@ import system.Type;
 		} else {
 			obj = null;
 			bf = System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public;
-		}
-
-		int length = (int)haxe.lang.Runtime.getField_f(args, "length", 520590566, true);
-		object[] oargs = new object[length];
-		System.Type[] ts = new System.Type[length];
-		for (int i = 0; i < length; i++)
-		{
-			oargs[i] = args[i];
-			ts[i] = oargs[i].GetType();
 		}
 		
 		System.Reflection.MethodInfo[] mis = t.GetMethods(bf);

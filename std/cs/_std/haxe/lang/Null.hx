@@ -25,13 +25,13 @@ package haxe.lang;
 	@:functionBody('
 			if (! (v is System.ValueType))
 			{
-				if (v.Equals(default(T)))
+				if (System.Object.ReferenceEquals(v, default(T)))
 				{
 					hasValue = false;
 				}
 			}
 			
-			if (!v.Equals(default(T)))
+			if (!System.Object.ReferenceEquals(v, null) && !v.Equals(default(T)))
 			{
 				hasValue = true;
 			}
