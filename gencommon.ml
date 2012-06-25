@@ -3875,7 +3875,7 @@ struct
         
         cfield
       
-      let default_implementation gen ifaces =
+      let default_implementation gen ifaces base_generic =
         let add_iface cl = 
           gen.gadd_to_module (TClassDecl cl) (max_dep);
         in
@@ -3889,6 +3889,7 @@ struct
               iface.cl_meta <- (":hxgen", [], cl.cl_pos) :: iface.cl_meta;
               Hashtbl.add ifaces cl.cl_path iface;
               
+              iface.cl_implements <- (base_generic, []) :: iface.cl_implements;
               iface.cl_interface <- true;
               cl.cl_implements <- (iface, []) :: cl.cl_implements;
               
@@ -3948,9 +3949,9 @@ struct
       let map e = Some(traverse e) in
       gen.gsyntax_filters#add ~name:name ~priority:(PCustom priority) map
     
-    let default_config gen (dyn_tparam_cast:texpr->t->texpr) ifaces =
+    let default_config gen (dyn_tparam_cast:texpr->t->texpr) ifaces base_generic =
       configure gen (default_implementation gen dyn_tparam_cast ifaces);
-      RealTypeParamsModf.configure gen (RealTypeParamsModf.default_implementation gen ifaces)
+      RealTypeParamsModf.configure gen (RealTypeParamsModf.default_implementation gen ifaces base_generic)
     
   end;;
   

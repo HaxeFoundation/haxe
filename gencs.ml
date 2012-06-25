@@ -331,7 +331,7 @@ struct
 end;;
 
 (* Type Parameters Handling *)
-let handle_type_params gen ifaces =
+let handle_type_params gen ifaces base_generic =
   let basic = gen.gcon.basic in
     (*
       starting to set gtparam_cast.
@@ -426,7 +426,7 @@ let handle_type_params gen ifaces =
     Hashtbl.add gen.gtparam_cast (["cs"], "NativeArray") gtparam_cast_native_array;
     (* end set gtparam_cast *)
   
-  TypeParams.RealTypeParams.default_config gen (fun e t -> gen.gcon.warning ("Cannot cast to " ^ (debug_type t)) e.epos; mk_cast t e) ifaces
+  TypeParams.RealTypeParams.default_config gen (fun e t -> gen.gcon.warning ("Cannot cast to " ^ (debug_type t)) e.epos; mk_cast t e) ifaces base_generic
  
 let connecting_string = "?" (* ? see list here http://www.fileformat.info/info/unicode/category/index.htm and here for C# http://msdn.microsoft.com/en-us/library/aa664670.aspx *)
 let default_package = "cs" (* I'm having this separated as I'm still not happy with having a cs package. Maybe dotnet would be better? *)
@@ -1470,7 +1470,7 @@ let configure gen =
     mk_cast ecall.etype { ecall with eexpr = TCall(infer, call_args) }
   in
   
-  handle_type_params gen ifaces;
+  handle_type_params gen ifaces (get_cl (get_type gen (["haxe";"lang"], "IGenericObject")));
   
   let rcf_ctx = ReflectionCFs.new_ctx gen closure_t object_iface true rcf_on_getset_field rcf_on_call_field (fun hash hash_array ->
     { hash with eexpr = TCall(rcf_static_find, [hash; hash_array]); etype=basic.tint }

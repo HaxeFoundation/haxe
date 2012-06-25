@@ -85,7 +85,7 @@ enum ValueType {
 			case "System.Int32": "Int";
 			case "System.Double": "Float";
 			case "System.String": "String";
-			default: ret;
+			default: ret.split("`")[0];
 		}
 	}
 
@@ -118,9 +118,18 @@ enum ValueType {
 				case #if no-root "haxe.root.String" #else "String" #end: return String;
 				default: return null;
 			}
-		} else if (t.IsInterface && t.IsAssignableFrom(untyped __typeof__(IGenericObject))) { 
-			//return t.Get
-			return null;
+		} else if (t.IsInterface && cast(untyped __typeof__(IGenericObject), system.Type).IsAssignableFrom(t)) { 
+			t = null;
+			var i = 0;
+			var ts = "";
+			while (t == null && i < 18)
+			{
+				i++;
+				ts += (i == 1 ? "" : ",") + "System.Object";
+				t = system.Type.GetType(name + "`" + i + "[" + ts + "]");
+			}
+			
+			return Lib.fromNativeType(t);
 		} else {
 			return Lib.fromNativeType(t);
 		}
@@ -171,11 +180,11 @@ enum ValueType {
 	@:functionBody('
 		Array<object> ret = new Array<object>();
 
-        System.Reflection.MemberInfo[] mis = c.GetMembers(System.Reflection.BindingFlags.Public);
+        System.Reflection.MemberInfo[] mis = c.GetMembers(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.DeclaredOnly | System.Reflection.BindingFlags.Instance);
         for (int i = 0; i < mis.Length; i++)
         {
 			string n = mis[i].Name;
-			if (!n.StartsWith("__hx_"))
+			if (!n.StartsWith("__hx_") && n[0] != \'.\')
 				ret.push(mis[i].Name);
         }
 
