@@ -40,21 +40,32 @@ enum ValueType {
 
 @:core_api class Type {
 	
+	@:functionBody('
+		if (o is haxe.lang.DynamicObject || o is System.Type)
+			return null;
+		
+		return o.GetType();
+	')
 	public static function getClass<T>( o : T ) : Class<T> untyped 
 	{
-		return cast o.GetType();
+		return null;
 	}
 	
+	@:functionBody('
+		if (o is System.Enum || o is haxe.lang.Enum)
+			return o.GetType();
+		return null;
+	')
 	public static function getEnum( o : EnumValue ) : Enum<Dynamic> untyped 
 	{
-		return cast Lib.getNativeType(o);
+		return null;
 	}
 
 	public static function getSuperClass( c : Class<Dynamic> ) : Class<Dynamic> 
 	{
 		var t:system.Type = Lib.toNativeType(c);
 		var base = t.BaseType;
-		if (base == null || (base + "") == "haxe.lang.HxObject")
+		if (base == null || (base + "") == ("haxe.lang.HxObject") || (base + "") == ("System.Object"))
 		{
 			return null;
 		}
@@ -101,9 +112,10 @@ enum ValueType {
 		{
 			switch(name)
 			{
-				case "Int": return Int;
-				case "Float": return Float;
-				case "Class": return Class;
+				case #if no-root "haxe.root.Int" #else "Int" #end: return Int;
+				case #if no-root "haxe.root.Float" #else "Float" #end: return Float;
+				case #if no-root "haxe.root.Class" #else "Class" #end: return Class;
+				case #if no-root "haxe.root.String" #else "String" #end: return String;
 				default: return null;
 			}
 		} else if (t.IsInterface && t.IsAssignableFrom(untyped __typeof__(IGenericObject))) { 
@@ -193,7 +205,7 @@ enum ValueType {
 	public static function getEnumConstructs( e : Enum<Dynamic> ) : Array<String> {
 		if (Reflect.hasField(e, "constructs"))
 			return untyped e.constructs;
-		return getClassFields(cast e);
+		return untyped __cs__("new Array<object>(System.Enum.GetNames(e))");
 	}
 	
 	@:functionBody('

@@ -38,14 +38,10 @@ enum ValueType {
 @:core_api class Type {
 	
 	@:functionBody('
-		if (o instanceof java.lang.Enum || o instanceof haxe.lang.Enum)
+		if (o instanceof haxe.lang.DynamicObject || o instanceof java.lang.Class)
 			return null;
-		
-		java.lang.Class<T> ret = (java.lang.Class<T>) o.getClass();
-		String name = ret.getName();
-		if (name == "java.lang.Object" || name == "haxe.lang.DynamicObject" || name == "java.lang.Class")
-			return null;
-		return ret;
+			
+		return = (java.lang.Class<T>) o.getClass();
 	')
 	public static function getClass<T>( o : T ) : Class<T> untyped 
 	{
@@ -64,7 +60,7 @@ enum ValueType {
 	
 	@:functionBody('
 		java.lang.Class cl = (c == null) ? null : c.getSuperclass();
-		if (cl != null && cl.getName() != "haxe.lang.HxObject")
+		if (cl != null && !cl.getName().equals("haxe.lang.HxObject") && cl.getName().equals("java.lang.Object") )
 			return cl;
 		return null;
 	')
