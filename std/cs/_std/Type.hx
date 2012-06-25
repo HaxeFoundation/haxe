@@ -152,7 +152,8 @@ enum ValueType {
 	}
 
 	public static function createEnumIndex<T>( e : Enum<T>, index : Int, ?params : Array<Dynamic> ) : T {
-		return null;
+		var constr = getEnumConstructs(e);
+		return createEnum(e, constr[index], params);
 	}
 	
 	@:functionBody('
@@ -161,7 +162,9 @@ enum ValueType {
         System.Reflection.MemberInfo[] mis = c.GetMembers(System.Reflection.BindingFlags.Public);
         for (int i = 0; i < mis.Length; i++)
         {
-            ret.push(mis[i].Name);
+			string n = mis[i].Name;
+			if (!n.StartsWith("__hx_"))
+				ret.push(mis[i].Name);
         }
 
 		return ret;
@@ -176,7 +179,9 @@ enum ValueType {
         System.Reflection.MemberInfo[] mis = c.GetMembers(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
         for (int i = 0; i < mis.Length; i++)
         {
-            ret.push(mis[i].Name);
+            string n = mis[i].Name;
+			if (!n.StartsWith("__hx_"))
+				ret.push(mis[i].Name);
         }
 
         return ret;
@@ -190,7 +195,53 @@ enum ValueType {
 			return untyped e.constructs;
 		return getClassFields(cast e);
 	}
+	
+	@:functionBody('
+		if (v == null) return ValueType.TNull;
 
+        System.Type t = v as System.Type;
+        if (t != null)
+        {
+            //class type
+            return ValueType.TObject;
+        }
+
+        t = v.GetType();
+        if (t.IsEnum) 
+            return ValueType.TEnum(t);
+        if (t.IsValueType)
+        {
+            System.IConvertible vc = v as System.IConvertible;
+            if (vc != null)
+            {
+                switch (vc.GetTypeCode())
+                {
+                    case System.TypeCode.Boolean: return ValueType.TBool;
+                    case System.TypeCode.Double:
+                        return ValueType.TFloat;
+                    case System.TypeCode.Int32:
+                        return ValueType.TInt;
+                    default:
+                        return ValueType.TClass(t);
+                }
+            } else {
+                return ValueType.TClass(t);
+            }
+        }
+
+        if (v is haxe.lang.IHxObject)
+        {
+            if (v is haxe.lang.DynamicObject)
+                return ValueType.TObject;
+            else if (v is haxe.lang.Enum)
+                return ValueType.TEnum(t);
+            return ValueType.TClass(t);
+        } else if (v is haxe.lang.Function) {
+            return ValueType.TFunction;
+        } else {
+            return ValueType.TClass(t);
+        }
+	')
 	public static function typeof( v : Dynamic ) : ValueType 
 	{
 		return null;

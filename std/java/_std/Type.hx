@@ -259,19 +259,9 @@ enum ValueType {
 		return null;
 	}
 	
-	@:functionBody('
-		/*if (params == null) {
-			T ret = (T) e.__hx_getField(index + "", false, false, false);
-			if (ret instanceof haxe.lang.Function)
-				throw haxe.lang.HaxeException.wrap("Constructor " + index + " needs parameters");
-			return ret;
-		} else {
-			return (T)e.__hx_invokeField(index + "", false, params);
-		}*/
-		return null; //TODO
-	')
 	public static function createEnumIndex<T>( e : Enum<T>, index : Int, ?params : Array<Dynamic> ) : T {
-		return null;
+		var constr = getEnumConstructs(e);
+		return createEnum(e, constr[index], params);
 	}
 	
 	@:functionBody('
