@@ -1,5 +1,20 @@
 package cpp.vm;
 
+import haxe.Stack;
+
+enum DebugToken
+{
+   IDENT(name:String);
+   CONST(value:Dynamic);
+   DOT;
+   LPAREN;
+   RPAREN;
+   COMMA;
+   EQUALS;
+   LARRAY;
+   RARRAY;
+}
+
 
 class DebugStdio
 {
@@ -7,10 +22,12 @@ class DebugStdio
    var inputThread:Thread;
    var debugQueue:Deque<Dynamic>;
    var files:Array<String>;
+	var frame:Int;
    
 
    public function new()
    {
+		frame = 1;
 		files = Debugger.getFiles();
       inDebugger = false;
       Debugger.setHandler(onDebug);
@@ -44,7 +61,7 @@ class DebugStdio
       for(item in stack)
       {
          idx++;
-         Sys.println(idx + ":" + item);
+         Sys.println((idx==frame ? "*" : " ") + idx + ":" + item);
       }
    }
 
@@ -90,9 +107,257 @@ class DebugStdio
 			
 	}
 
+   static var dot:Int = ".".charCodeAt(0);
+   static var quote:Int = "\"".charCodeAt(0);
+   static var comma:Int = ",".charCodeAt(0);
+   static var equals:Int = "=".charCodeAt(0);
+   static var minus:Int = "-".charCodeAt(0);
+   static var a_code:Int = "a".charCodeAt(0);
+   static var z_code:Int = "z".charCodeAt(0);
+   static var A_code:Int = "A".charCodeAt(0);
+   static var Z_code:Int = "Z".charCodeAt(0);
+   static var __code:Int = "_".charCodeAt(0);
+   static var num0_code:Int = "0".charCodeAt(0);
+   static var num9_code:Int = "9".charCodeAt(0);
+   static var space_code:Int = " ".charCodeAt(0);
+   static var lparent:Int = "(".charCodeAt(0);
+   static var rparent:Int = ")".charCodeAt(0);
+   static var larray:Int = "[".charCodeAt(0);
+   static var rarray:Int = "]".charCodeAt(0);
+
+
+   function tokenize(inString:String) : Array<DebugToken>
+   {
+      var len = inString.length;
+      var result = new Array<DebugToken>();
+
+      var idx = 0;
+		while(idx<len)
+		{
+			var code = inString.charCodeAt(idx);
+
+         // Identifier ...
+         if ( (code>=a_code && code<=z_code) || (code>=A_code && code<=Z_code) || code==__code )
+         {
+            var start = idx++;
+				while(idx<len)
+            {
+			      code = inString.charCodeAt(idx);
+               if ( (code>=a_code && code<=z_code) || (code>=A_code && code<=Z_code) || code==__code ||
+                    (code>=num0_code && code<num9_code) )
+						idx++;
+					else
+						break;
+            }
+            result.push( IDENT( inString.substr(start, idx-start) ) );
+         }
+			else if (code==minus || (code>=num0_code && code<=num9_code) )
+         {
+            var start = idx++;
+				while(idx<len)
+            {
+			      code = inString.charCodeAt(idx);
+               if (code==dot || (code>=num0_code && code<=num9_code) )
+						idx++;
+					else
+						break;
+            }
+            var val = inString.substr(start, idx-start);
+            var num = Std.parseFloat(val);
+				if (!Math.isFinite(num))
+					throw ("Bad constant '" + val + "'");
+            result.push( CONST(num) );
+ 
+         }
+			else if (code==quote)
+			{
+            var start = ++idx;
+				while(idx<len)
+            {
+			      code = inString.charCodeAt(idx);
+               if (code==quote)
+                  break;
+               idx++;
+            }
+            var val = inString.substr(start, idx-start);
+            result.push( CONST(val) );
+            idx++;
+			}
+         else
+         {
+         	switch(code)
+				{
+					case space_code : // do nothing
+					case lparent : result.push( LPAREN );
+					case rparent : result.push( RPAREN );
+					case larray : result.push( LARRAY );
+					case rarray : result.push( RARRAY );
+					case dot : result.push( DOT );
+					case comma : result.push( COMMA );
+					case equals : result.push( EQUALS );
+				}
+				idx++;
+			}
+		}
+
+      return result;
+   }
+
+   function resolve(inName:String) : Dynamic
+	{
+		var cls = Type.resolveClass(inName);
+      return cls;
+   }
+
+
+   function getValue(inTokens:Array<DebugToken>) : Dynamic
+   {
+      var classPath = "";
+      var lhs:Dynamic = null;
+
+      var tok = 0;
+      var len = inTokens.length;
+      while(tok < len)
+      {
+			switch(inTokens[tok])
+         {
+   			case IDENT(name):
+					if (lhs!=null)
+						throw "Misplaced '" + name + "'";
+					lhs = resolve(name);
+					if (lhs==null)
+						classPath = name;
+					tok++;
+
+   			case CONST(value):
+					if (lhs!=null || classPath!="")
+						throw "Misplaced '" + value + "'";
+					lhs = value;
+					tok++;
+
+   			case DOT:
+					if (lhs==null && classPath=="")
+						throw "Bad '.' after null value";
+					tok++;
+					switch(inTokens[tok])
+					{
+						case IDENT(name):
+							if (lhs!=null)
+								lhs = Reflect.getProperty(lhs,name);
+							else
+							{
+								var qname = classPath + "." + name;
+								lhs = resolve(qname);
+								classPath = (lhs==null) ? qname : "";
+							}
+							tok++;
+						default: throw "Expected field after '.'";
+					}
+
+   			case LPAREN:
+						var args = new Array<Dynamic>();
+                  var lastComma = tok;
+						var start = ++tok;
+                  var parenOpen = 1;
+                  var arrayOpen = 0;
+						while(tok<len && (parenOpen!=0 || arrayOpen!=0) )
+						{
+					      switch(inTokens[tok])
+					      {
+   							case LPAREN: parenOpen++;
+   							case RPAREN: parenOpen--;
+   							case LARRAY: arrayOpen++;
+   							case RARRAY: arrayOpen--;
+   							case COMMA: 
+									if (arrayOpen==0 && parenOpen==1 && lhs!=null)
+									{
+										args.push( getValue( inTokens.slice(lastComma+1,tok) ) );
+										lastComma = tok;
+									}
+								default:
+ 							}
+							tok++;
+						}
+						if (parenOpen!=0  || arrayOpen!=0)
+							throw "Mismatched '(' "+parenOpen+"/"+arrayOpen;
+						// Not function call...
+						if (classPath!="")
+							throw "Unresolved " + classPath;
+						if (lhs==null)
+                  {
+							lhs = getValue( inTokens.slice(start,tok-1) );
+                  }
+						else
+						{
+                     if (lastComma+1 < tok-1)
+								args.push( getValue( inTokens.slice(lastComma+1,tok-1) ) );
+							lhs = untyped lhs.__Run( args );
+						}
+
+   			case LARRAY:
+						var start = ++tok;
+                  var parenOpen = 0;
+                  var arrayOpen = 1;
+						while(tok<len && (parenOpen!=0 || arrayOpen!=0) )
+						{
+					      switch(inTokens[tok])
+					      {
+   							case LPAREN: parenOpen++;
+   							case RPAREN: parenOpen--;
+   							case LARRAY: arrayOpen++;
+   							case RARRAY: arrayOpen--;
+								default:
+ 							}
+							tok++;
+						}
+						if (parenOpen!=0  || arrayOpen!=0)
+							throw "Mismatched '['";
+						if (classPath!=null)
+							throw "Unresolved " + classPath;
+						if (lhs==null)
+							throw "Error taking index of null object";
+						var val:Dynamic = getValue( inTokens.slice(start,tok) );
+						if ( !Std.is(val,Int) )
+							throw "Bad array index: " + val;
+						lhs = lhs[ Std.int(val) ];
+
+   			case RPAREN: throw "Misplaced ')'";
+   			case COMMA:  throw "Misplaced ','";
+   			case EQUALS: throw("Misplaced '='");
+   			case RARRAY: throw "Misplaced ']'";
+         }
+      }
+		if (classPath!="")
+			throw "Unresolved " + classPath;
+
+      return lhs;
+   }
+
+	function printResult(result:String)
+	{
+		Sys.println(result);
+	}
+
+
+   function print(inString:String)
+   {
+      var tokens:Array<DebugToken> = null;
+		try
+      {
+         tokens = tokenize(inString);
+         var result = getValue(tokens);
+         printResult(result);
+      }
+      catch (e:Dynamic)
+      {
+         Sys.println("Error while printing : " + e);//+ ( tokens==null ? "" : " : " + tokens) );
+      }
+   }
+
 
    function inputLoop()
    {
+		Debugger.setThread();
       var input = Sys.stdin();
       while(true)
       {
@@ -114,7 +379,7 @@ class DebugStdio
                   	Sys.println("already stopped.");
                	else
                	{
-                  	Debugger.setBreak(Debugger.BRK_ASAP,inputThread);
+                  	Debugger.setBreak(Debugger.BRK_ASAP);
                   	waitDebugger();
                	}
 					}
@@ -130,7 +395,10 @@ class DebugStdio
                if (!inDebugger)
                   Sys.println("Already running.");
                else
+					{
+						frame = 1;
                   debugQueue.add( function() inDebugger = false );
+					}
 
             case "vars","v":
                if (!inDebugger)
@@ -141,6 +409,29 @@ class DebugStdio
                   debugQueue.add( function() vars(n) );
                   waitDebugger();
                }
+
+
+            case "frame","f":
+               if (!inDebugger)
+                  Sys.println("Must break first.");
+               else
+               {
+						var stack:Array<StackItem>=null;
+						var vars:Array<String>;
+
+                  debugQueue.add( function() stack = haxe.Stack.callStack() );
+                  waitDebugger();
+						frame = Std.parseInt(words[1]);
+						if (frame<1 || frame+1 >= stack.length )
+							Sys.println("Stack out of range.");
+						else
+						{
+                  	debugQueue.add( function() vars = Debugger.getStackVars(frame) );
+                  	waitDebugger();
+							Sys.println(stack[frame+1] + "  " + vars );
+						}
+               }
+
               
 
             case "where","w":
@@ -152,7 +443,12 @@ class DebugStdio
                   waitDebugger();
                }
 
-            case "files","f":
+            case "print","p":
+					words.shift();
+					print(words.join(" "));
+
+
+            case "files","fi":
                showFiles();
 
             case "breakpoints","bp":

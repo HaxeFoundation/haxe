@@ -17,15 +17,21 @@ class Debugger
       untyped __global__.__hxcpp_dbg_set_handler(inHandler);
    }
 
-   // Generate a handler callback ASAP
-   public static function setBreak(inMode:Int,?inIgnoreThread:Thread)
+   public static function setThread(?inIgnoreThread:Thread)
    {
-      untyped __global__.__hxcpp_dbg_set_break(inMode,inIgnoreThread==null?null:inIgnoreThread.handle);
+      untyped __global__.__hxcpp_dbg_set_thread(inIgnoreThread==null?Thread.current().handle:inIgnoreThread.handle);
+   }
+
+
+   // Generate a handler callback ASAP
+   public static function setBreak(inMode:Int)
+   {
+      untyped __global__.__hxcpp_dbg_set_break(inMode);
    }
 
    public static function exit()
    {
-      untyped __global__.__hxcpp_dbg_set_break(BRK_TERMINATE,null);
+      untyped __global__.__hxcpp_dbg_set_break(BRK_TERMINATE);
    }
 
    // Breakpoint
