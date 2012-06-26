@@ -49,7 +49,7 @@ class List<T> {
 		Add an element at the end of the list.
 	**/
 	public function add( item : T ) {
-		var x = #if neko untyped __dollar__array(item,null) #else [item] #end;
+		var x:Array<Dynamic> = #if neko untyped __dollar__array(item,null) #else [item] #end;
 		if( h == null )
 			h = x;
 		else
