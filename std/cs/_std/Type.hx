@@ -146,7 +146,7 @@ enum ValueType {
 	{
 		var t:system.Type = Lib.toNativeType(cl);
 		var ctors = t.GetConstructors();
-		return Runtime.callMethod(t, cast ctors, ctors.Length, args);
+		return Runtime.callMethod(null, cast ctors, ctors.Length, args);
 	}
 
 	public static function createEmptyInstance<T>( cl : Class<T> ) : T 

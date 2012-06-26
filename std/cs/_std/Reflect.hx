@@ -35,7 +35,7 @@ import haxe.lang.Function;
 	**/
 	@:functionBody('
 		if (o is haxe.lang.IHxObject)
-			return ((haxe.lang.IHxObject) o).__hx_getField(field, haxe.lang.FieldLookup.hash(field), false, true) != haxe.lang.Runtime.undefined;
+			return ((haxe.lang.IHxObject) o).__hx_getField(field, haxe.lang.FieldLookup.hash(field), false, true, false) != haxe.lang.Runtime.undefined;
 		
 		return haxe.lang.Runtime.slowHasField(o, field);
 	')
@@ -49,7 +49,7 @@ import haxe.lang.Function;
 	**/
 	@:functionBody('
 		if (o is haxe.lang.IHxObject)
-			return ((haxe.lang.IHxObject) o).__hx_getField(field, haxe.lang.FieldLookup.hash(field), false, false);
+			return ((haxe.lang.IHxObject) o).__hx_getField(field, haxe.lang.FieldLookup.hash(field), false, false, false);
 		
 		return haxe.lang.Runtime.slowGetField(o, field, false);
 	')
@@ -64,7 +64,7 @@ import haxe.lang.Function;
 	**/
 	@:functionBody('
 		if (o is haxe.lang.IHxObject)
-			((haxe.lang.IHxObject) o).__hx_setField(field, haxe.lang.FieldLookup.hash(field), value);
+			((haxe.lang.IHxObject) o).__hx_setField(field, haxe.lang.FieldLookup.hash(field), value, false);
 		else
 			haxe.lang.Runtime.slowSetField(o, field, value);
 	')
@@ -76,6 +76,12 @@ import haxe.lang.Function;
 	/**
 		Similar to field but also supports property (might be slower).
 	**/
+	@:functionBody('
+		if (o is haxe.lang.IHxObject)
+			return ((haxe.lang.IHxObject) o).__hx_getField(field, haxe.lang.FieldLookup.hash(field), false, false, true);
+		
+		return haxe.lang.Runtime.slowGetField(o, field, false);
+	')
 	public static function getProperty( o : Dynamic, field : String ) : Dynamic
 	{
 		return null;
@@ -84,6 +90,12 @@ import haxe.lang.Function;
 	/**
 		Similar to setField but also supports property (might be slower).
 	**/
+	@:functionBody('
+		if (o is haxe.lang.IHxObject)
+			((haxe.lang.IHxObject) o).__hx_setField(field, haxe.lang.FieldLookup.hash(field), value, true);
+		else
+			haxe.lang.Runtime.slowSetField(o, field, value);
+	')
 	public static function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void
 	{
 		

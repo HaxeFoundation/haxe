@@ -18,23 +18,23 @@ import system.Type;
 	public static object getField(haxe.lang.HxObject obj, string field, int fieldHash, bool throwErrors)
 	{
 		if (obj == null && !throwErrors) return null;
-		return obj.__hx_getField(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, throwErrors, false);
+		return obj.__hx_getField(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, throwErrors, false, false);
 	}
 	
 	public static double getField_f(haxe.lang.HxObject obj, string field, int fieldHash, bool throwErrors)
 	{
 		if (obj == null && !throwErrors) return 0.0;
-		return obj.__hx_getField_f(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, throwErrors);
+		return obj.__hx_getField_f(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, throwErrors, false);
 	}
 	
 	public static object setField(haxe.lang.HxObject obj, string field, int fieldHash, object value)
 	{
-		return obj.__hx_setField(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, value);
+		return obj.__hx_setField(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, value, false);
 	}
 	
 	public static double setField_f(haxe.lang.HxObject obj, string field, int fieldHash, double value)
 	{
-		return obj.__hx_setField_f(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, value);
+		return obj.__hx_setField_f(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, value, false);
 	}
 	
 	public static object callField(haxe.lang.HxObject obj, string field, int fieldHash, Array args)
@@ -395,7 +395,14 @@ import system.Type;
 			return haxe.lang.Runtime.unbox(retg);
 		}
 		
-		var ret = methods[0].Invoke(obj, oargs);
+		var m = methods[0];
+		if (obj == null && Std.is(m, system.reflection.ConstructorInfo))
+		{
+			var ret = cast(m, system.reflection.ConstructorInfo).Invoke(oargs);
+			return unbox(ret);
+		}
+		
+		var ret = m.Invoke(obj, oargs);
 		return unbox(ret);
 	}
 	
@@ -471,7 +478,7 @@ import system.Type;
 	
 		haxe.lang.HxObject hxObj = obj as haxe.lang.HxObject;
 		if (hxObj != null)
-			return hxObj.__hx_getField(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, throwErrors, false);
+			return hxObj.__hx_getField(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, throwErrors, false, false);
 		
 		return slowGetField(obj, field, throwErrors);
 	
@@ -485,7 +492,7 @@ import system.Type;
 	
 		haxe.lang.HxObject hxObj = obj as haxe.lang.HxObject;
 		if (hxObj != null)
-			return hxObj.__hx_getField_f(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, throwErrors);
+			return hxObj.__hx_getField_f(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, throwErrors, false);
 		
 		return (double)slowGetField(obj, field, throwErrors);
 	
@@ -499,7 +506,7 @@ import system.Type;
 	
 		haxe.lang.HxObject hxObj = obj as haxe.lang.HxObject;
 		if (hxObj != null)
-			return hxObj.__hx_setField(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, value);
+			return hxObj.__hx_setField(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, value, false);
 		
 		return slowSetField(obj, field, value);
 	
@@ -513,7 +520,7 @@ import system.Type;
 
 		haxe.lang.HxObject hxObj = obj as haxe.lang.HxObject;
 		if (hxObj != null)
-			return hxObj.__hx_setField_f(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, value);
+			return hxObj.__hx_setField_f(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, value, false);
 		
 		return (double)slowSetField(obj, field, value);
 	

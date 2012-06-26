@@ -36,7 +36,7 @@ import java.Boot;
 	**/
 	@:functionBody('
 		if (o instanceof haxe.lang.IHxObject)
-			return ((haxe.lang.IHxObject) o).__hx_getField(field, false, true) != haxe.lang.Runtime.undefined;
+		return ((haxe.lang.IHxObject) o).__hx_getField(field, false, true, false) != haxe.lang.Runtime.undefined;
 		
 		return haxe.lang.Runtime.slowHasField(o, field);
 	')
@@ -50,7 +50,7 @@ import java.Boot;
 	**/
 	@:functionBody('
 		if (o instanceof haxe.lang.IHxObject)
-			return ((haxe.lang.IHxObject) o).__hx_getField(field, false, false);
+			return ((haxe.lang.IHxObject) o).__hx_getField(field, false, false, false);
 		
 		return haxe.lang.Runtime.slowGetField(o, field, false);
 	')
@@ -65,7 +65,7 @@ import java.Boot;
 	**/
 	@:functionBody('
 		if (o instanceof haxe.lang.IHxObject)
-			((haxe.lang.IHxObject) o).__hx_setField(field, value);
+			((haxe.lang.IHxObject) o).__hx_setField(field, value, false);
 		else
 			haxe.lang.Runtime.slowSetField(o, field, value);
 	')
@@ -77,6 +77,12 @@ import java.Boot;
 	/**
 		Similar to field but also supports property (might be slower).
 	**/
+	@:functionBody('
+		if (o instanceof haxe.lang.IHxObject)
+			return ((haxe.lang.IHxObject) o).__hx_getField(field, false, false, true);
+		
+		return haxe.lang.Runtime.slowGetField(o, field, false);
+	')
 	public static function getProperty( o : Dynamic, field : String ) : Dynamic
 	{
 		return null;
@@ -85,6 +91,12 @@ import java.Boot;
 	/**
 		Similar to setField but also supports property (might be slower).
 	**/
+	@:functionBody('
+		if (o instanceof haxe.lang.IHxObject)
+			((haxe.lang.IHxObject) o).__hx_setField(field, value, true);
+		else
+			haxe.lang.Runtime.slowSetField(o, field, value);
+	')
 	public static function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void
 	{
 		

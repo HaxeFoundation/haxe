@@ -5602,7 +5602,7 @@ struct
   
   (*
     Will implement getField / setField which will follow the following rule:
-      function getField(field, isStatic, throwErrors, isCheck):Dynamic
+      function getField(field, isStatic, throwErrors, isCheck, handleProperty, isFirst):Dynamic
       {
         if (isStatic)
         {
@@ -5610,7 +5610,9 @@ struct
           {
             case "aStaticField": return ThisClass.aStaticField;
             case "aDynamicField": return ThisClass.aDynamicField;
-            default: if(throwErrors) throw "Field not found"; else if (isCheck) return __undefined__ else return null;
+            default: 
+              if (isFirst) return getField_d(field, isStatic, throwErrors, handleProperty, false);
+              if(throwErrors) throw "Field not found"; else if (isCheck) return __undefined__ else   return null;
           }
         } else {
           switch(field)
@@ -5623,7 +5625,7 @@ struct
         }
       }
       
-      function getField_d(field, isStatic, throwErrors):Float
+      function getField_d(field, isStatic, throwErrors, handleProperty, isFirst):Float
       {
         if (isStatic)
         {
@@ -5656,6 +5658,9 @@ struct
   
   let mk_int ctx i pos = 
     { eexpr = TConst(TInt(Int32.of_int i)); etype = ctx.rcf_gen.gcon.basic.tint; epos = pos }
+    
+  let mk_bool ctx b pos = 
+    { eexpr = TConst(TBool(b)); etype = ctx.rcf_gen.gcon.basic.tbool; epos = pos }
   
   let mk_throw ctx str pos = { eexpr = TThrow (mk_string ctx str pos); etype = ctx.rcf_gen.gcon.basic.tvoid; epos = pos }
   
@@ -6153,19 +6158,21 @@ struct
   
   (*
     Implements:
-      __hx_lookupField(field:String, throwErrors:Bool, isCheck:Bool):Dynamic
+      __hx_lookupField(field:String, throwErrors:Bool, isCheck:Bool, handleProperties:Bool, isFirst:Bool):Dynamic
       
-      __hx_lookupField_f(field:String, throwErrors:Bool):Float
+      __hx_lookupField_f(field:String, throwErrors:Bool, handleProperties:Bool, isFirst:Bool):Float
       
-      __hx_lookupSetField(field:String, value:Dynamic):Dynamic;
+      __hx_lookupSetField(field:String, value:Dynamic, handleProperties:Bool, isFirst:Bool):Dynamic;
       
-      __hx_lookupSetField(field:String, value:Float):Float;
+      __hx_lookupSetField(field:String, value:Float, handleProperties:Bool, isFirst:Bool):Float;
   *)
   let implement_final_lookup ctx cl =
     let gen = ctx.rcf_gen in
     let basic = gen.gcon.basic in
     let pos = cl.cl_pos in
     let is_override = is_override cl in
+    
+    let this = { eexpr = TConst(TThis); etype = TInst(cl, List.map snd cl.cl_types); epos = pos } in
     
     (*
       this function will create the class fields and call callback for each version
@@ -6212,18 +6219,23 @@ struct
           } in
           
           let mk_may_check_throw msg = if is_dynamic then mk_return (null ret_t pos) else mk_check_throw msg in
-          if is_float then
-            mk_may_check_throw "Field not found or incompatible field type."
-          else
+          if is_float then begin
+            [
+              mk_may_check_throw "Field not found or incompatible field type.";
+            ]
+          end else begin
             let undefined = alloc_var "__undefined__" t_dynamic in
             let undefined_local = mk_local undefined pos in
             let is_check_local = mk_local (get is_check_opt) pos in
-            {
-              eexpr = TIf(is_check_local, mk_return undefined_local, Some( mk_may_check_throw "Field not found." ));
-              etype = ret_t;
-              epos = pos;
-            }
-        end in block @ [tl] else block in
+            [
+              {
+                eexpr = TIf(is_check_local, mk_return undefined_local, Some( mk_may_check_throw "Field not found." ));
+                etype = ret_t;
+                epos = pos;
+              }
+            ]
+          end
+        end in block @ tl else block in
         cf.cf_expr <- Some(
           {
             eexpr = TFunction({
@@ -6251,7 +6263,6 @@ struct
       ) cfs
     in
     
-    let this = { eexpr = TConst(TThis); etype = TInst(cl, List.map snd cl.cl_types); epos = pos } in
     if is_some cl.cl_dynamic then begin
       (* let abstract_dyn_lookup_implementation ctx this hash_local may_value is_float pos = *)
       (* callback : is_float fields_args switch_var throw_errors_option is_check_option value_option : texpr list *)
@@ -6283,6 +6294,9 @@ struct
       let local_switch_var = { eexpr = TLocal(switch_var); etype = switch_var.v_type; epos = pos } in
       let is_static = alloc_var "isStatic" basic.tbool in
       let is_static_local = { eexpr = TLocal(is_static); etype = basic.tbool; epos = pos } in
+      
+      let handle_prop = alloc_var "handleProperties" basic.tbool in
+      let handle_prop_local = mk_local handle_prop pos in
       
       let mk_this_call_raw name fun_t params =
         { eexpr = TCall( { eexpr = TField({ eexpr = TConst(TThis); etype = TInst(cl, List.map snd cl.cl_types); epos = pos }, name); etype = fun_t; epos = pos  }, params ); etype = snd (get_args fun_t); epos = pos }
@@ -6327,38 +6341,43 @@ struct
       let do_default, do_default_static , do_field, tf_args = if is_set then begin
         let value_var = alloc_var "value" (if is_float then basic.tfloat else t_dynamic) in
         let value_local = { eexpr = TLocal(value_var); etype = value_var.v_type; epos = pos } in
-        let tf_args = tf_args @ [value_var,None] in
+        let tf_args = tf_args @ [value_var,None; handle_prop, None; ] in
         let lookup_name = gen.gmk_internal_name "hx" ("lookupSetField" ^ if is_float then "_f" else "") in
+        
         let do_default = 
-            fun () -> mk_return (mk_this_call_raw lookup_name (TFun(fun_args (field_args @ [value_var,None]),value_var.v_type)) ( List.map (fun (v,_) -> mk_local v pos) field_args @ [ value_local ] ))
+            fun () -> 
+              mk_return (mk_this_call_raw lookup_name (TFun(fun_args (field_args @ [value_var,None]),value_var.v_type)) ( List.map (fun (v,_) -> mk_local v pos) field_args @ [ value_local ] ))
         in
         
         let do_field cf cf_type is_static =
           let get_field ethis name = { eexpr = TField (ethis, name); etype = cf_type; epos = pos } in
           let this = if is_static then mk_classtype_access cl pos else { eexpr = TConst(TThis); etype = t; epos = pos } in
-          match is_float, follow cf_type with
-            | true, TInst( { cl_kind = KTypeParameter }, [] ) -> 
+          
+          let ret = mk_return 
+          { 
+            eexpr = TBinop(Ast.OpAssign, 
+              get_field this cf.cf_name,
+              mk_cast cf_type value_local);
+            etype = cf_type;
+            epos = pos;
+          } in
+          match cf.cf_kind with
+            | Var { v_write = AccCall fn } ->
               let bl = 
               [
-                { 
-                  eexpr = TBinop(Ast.OpAssign, 
-                    get_field this cf.cf_name,
-                    mk_cast cf_type (mk_cast t_dynamic value_local));
-                  etype = cf_type;
-                  epos = pos;
-                };
+                mk_this_call_raw fn (TFun(["value",false,cf.cf_type], cf.cf_type)) [ value_local ];
                 mk_return value_local
               ] in
-              { eexpr = TBlock bl; etype = value_local.etype; epos = pos }
-            | _ ->
-              mk_return 
-              { 
-                eexpr = TBinop(Ast.OpAssign, 
-                  get_field this cf.cf_name,
-                  mk_cast cf_type value_local);
-                etype = cf_type;
+              {
+                eexpr = TIf(
+                  handle_prop_local,
+                  { eexpr = TBlock bl; etype = value_local.etype; epos = pos },
+                  Some ret);
+                etype = value_local.etype;
                 epos = pos;
               }
+            | _ ->
+              ret
         in
         
         (mk_do_default tf_args do_default, do_default, do_field, tf_args)
@@ -6370,24 +6389,40 @@ struct
           let is_check = alloc_var "isCheck" basic.tbool in
           let is_check_local = mk_local is_check pos in
           
+          let tf_args = tf_args @ [ throw_errors,None; ] in
+          
           (* default: if (isCheck) return __undefined__ else if(throwErrors) throw "Field not found"; else return null; *)
           let lookup_name = gen.gmk_internal_name "hx" "lookupField" in
           let do_default = 
-              fun () -> mk_return (mk_this_call_raw lookup_name (TFun(fun_args (field_args @ [throw_errors,None;is_check,None]),t_dynamic)) ( List.map (fun (v,_) -> mk_local v pos) field_args @ [ throw_errors_local; is_check_local ] ) )
+              fun () -> 
+                mk_return (mk_this_call_raw lookup_name (TFun(fun_args (field_args @ [throw_errors,None;is_check,None; ]),t_dynamic)) ( List.map (fun (v,_) -> mk_local v pos) field_args @ [ throw_errors_local; is_check_local; ] ))
           in
           
-          (do_default, tf_args @ [ throw_errors,None; is_check,None ])
+          (do_default, tf_args @ [ is_check,None; handle_prop,None; ])
         end else begin
+          let tf_args = tf_args @ [ throw_errors,None; ] in
+        
           let lookup_name = gen.gmk_internal_name "hx" "lookupField_f" in
           let do_default = 
-              fun () -> mk_return (mk_this_call_raw lookup_name (TFun(fun_args (field_args @ [throw_errors,None]),basic.tfloat)) ( List.map (fun (v,_) -> mk_local v pos) field_args @ [ throw_errors_local ] ))
+              fun () -> 
+                mk_return (mk_this_call_raw lookup_name (TFun(fun_args (field_args @ [throw_errors,None; ]),basic.tfloat)) ( List.map (fun (v,_) -> mk_local v pos) field_args @ [ throw_errors_local; ] ))
           in
           
-          (do_default, tf_args @ [ throw_errors,None ])
+          (do_default, tf_args @ [ handle_prop,None; ])
         end in
         
         let get_field cf cf_type ethis name = 
           match cf.cf_kind with
+            | Var { v_read = AccCall fn } ->
+              {
+                eexpr = TIf(
+                  handle_prop_local,
+                  mk_return (mk_this_call_raw fn (TFun(["value",false,cf.cf_type], cf.cf_type)) [  ]),
+                  Some { eexpr = TField (ethis, name); etype = cf_type; epos = pos }
+                );
+                etype = cf_type;
+                epos = pos;
+              }
             | Var _
             | Method MethDynamic -> { eexpr = TField (ethis, name); etype = cf_type; epos = pos }
             | _ -> { eexpr = TClosure (ethis, name); etype = cf_type; epos = pos }
@@ -6407,14 +6442,18 @@ struct
       let get_fields static =
         let ret = collect_fields cl ( if is_float || is_set then Some (false) else None ) (Some static) in
         let ret = if is_set then List.filter (fun (_,cf) -> not (has_meta ":readonly" cf.cf_meta)) ret else ret in
-        if is_float then List.filter (fun (_,cf) -> (* TODO: maybe really apply_params in cf.cf_type. The benefits would be limited, though *)
-          match follow (ctx.rcf_gen.greal_type (ctx.rcf_gen.gfollow#run_f cf.cf_type)) with
-            | TInst ({ cl_path = ([], "Float") }, [])
-            | TInst ({ cl_path = ([], "Int") }, [])
-            | TDynamic _ 
-            | TInst ({ cl_kind = KTypeParameter },_) -> true
-            | _ -> false
-        ) ret else ret
+        if is_float then 
+          List.filter (fun (_,cf) -> (* TODO: maybe really apply_params in cf.cf_type. The benefits would be limited, though *)
+            match follow (ctx.rcf_gen.greal_type (ctx.rcf_gen.gfollow#run_f cf.cf_type)) with
+              | TDynamic _ | TMono _
+              | TInst ({ cl_kind = KTypeParameter }, _)
+              | TInst ({ cl_path = ([], "Float") }, [])
+              | TInst ({ cl_path = ([], "Int") }, []) -> true
+              | _ -> false
+          ) ret 
+        else
+          (* dynamic will always contain all references *)
+          ret
       in
       
       (* now we have do_default, do_field and tf_args *)
@@ -6483,6 +6522,7 @@ struct
     let tf_args, args = if is_set then tf_args @ [ "setVal", false, rett ], args @ [get set_option] else tf_args, args in
     let tf_args, args = tf_args @ [ "throwErrors",false,basic.tbool ], args @ [throw_errors] in
     let tf_args, args = if is_set || is_float then tf_args, args else tf_args @ [ "isCheck", false, basic.tbool ], args @ [{ eexpr = TConst(TBool false); etype = basic.tbool; epos = pos }] in
+    let tf_args, args = tf_args @ [ "handleProperties",false,basic.tbool; ], args @ [ mk_bool ctx false pos; ] in
     
     {
       eexpr = TCall({
@@ -6581,19 +6621,18 @@ struct
       let tf_args = (v_base_arr,None) :: (if ctx.rcf_handle_statics then [v_is_inst, None] else []) in
       let t = TFun(fun_args tf_args, basic.tvoid) in
       let cf = mk_class_field name t false pos (Method MethNormal) [] in
-      cl.cl_ordered_fields <- cl.cl_ordered_fields @ [cf];
-      cl.cl_fields <- PMap.add cf.cf_name cf cl.cl_fields;
-      (if is_override cl then cl.cl_overrides <- name :: cl.cl_overrides);
       
       let mk_push value =
         { eexpr = TCall({ eexpr = TField(base_arr, "push"); etype = TFun(["x", false, basic.tstring], basic.tint); epos = pos}, [value] ); etype = basic.tint; epos = pos }
       in
       
+      let has_value = ref false in
       let map_fields =
         List.map (fun (_,cf) ->
           match cf.cf_kind with
             | Var _
-            | Method _ when not (List.mem cf.cf_name cl.cl_overrides) ->
+            | Method MethDynamic when not (List.mem cf.cf_name cl.cl_overrides) ->
+              has_value := true;
               mk_push { eexpr = TConst(TString(cf.cf_name)); etype = basic.tstring; epos = pos }
             | _ -> null basic.tvoid pos
         )
@@ -6662,6 +6701,11 @@ struct
         tf_expr = expr
       } in
       
+      (if !has_value || (not (is_override cl)) then begin
+        cl.cl_ordered_fields <- cl.cl_ordered_fields @ [cf];
+        cl.cl_fields <- PMap.add cf.cf_name cf cl.cl_fields;
+        (if is_override cl then cl.cl_overrides <- name :: cl.cl_overrides)
+      end);
       cf.cf_expr <- Some { eexpr = TFunction(fn); etype = t; epos = pos }
     in
     ignore fields
@@ -6801,8 +6845,8 @@ struct
       register_cf (do_proxy "getField_f" (fst_args @ [ alloc_var "isStatic" basic.tbool, None; alloc_var "throwErrors" basic.tbool, None ]) basic.tfloat fst_args_len) true;
       register_cf (do_proxy "setField_f" (fst_args @ [ alloc_var "isStatic" basic.tbool, None; alloc_var "value" basic.tfloat, None ]) basic.tfloat fst_args_len) true
     );
-    register_cf (do_proxy "getField" (fst_args @ [ alloc_var "isStatic" basic.tbool, None; alloc_var "throwErrors" basic.tbool, None; alloc_var "isCheck" basic.tbool, None ]) t_dynamic fst_args_len) true;
-    register_cf (do_proxy "setField" (fst_args @ [ alloc_var "isStatic" basic.tbool, None; alloc_var "value" t_dynamic, None ]) t_dynamic fst_args_len) true;
+    register_cf (do_proxy "getField" (fst_args @ [ alloc_var "isStatic" basic.tbool, None; alloc_var "throwErrors" basic.tbool, None; alloc_var "isCheck" basic.tbool, None; alloc_var "handleProperties" basic.tbool,None; ]) t_dynamic fst_args_len) true;
+    register_cf (do_proxy "setField" (fst_args @ [ alloc_var "isStatic" basic.tbool, None; alloc_var "value" t_dynamic, None; alloc_var "handleProperties" basic.tbool,None; ]) t_dynamic fst_args_len) true;
     
     (* invokeField -> redir the method with static = true *)
     register_cf (do_proxy "invokeField" (fst_args @ [ alloc_var "isStatic" basic.tbool, None; alloc_var "dynArgs" (basic.tarray t_dynamic), None ]) t_dynamic fst_args_len) true;

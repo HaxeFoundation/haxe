@@ -7,5 +7,6 @@ import cs.NativeArray;
 	var ContainsGenericParameters(default, null):Bool;
 	function GetParameters():NativeArray<ParameterInfo>;
 	function GetGenericArguments():NativeArray<system.Type>;
+	@:overload(function():Dynamic {})
 	function Invoke(obj:Dynamic, args:NativeArray<Dynamic>):Dynamic;
 }
