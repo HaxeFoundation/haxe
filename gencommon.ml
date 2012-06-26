@@ -6641,9 +6641,10 @@ struct
       (* 
         if it is first_dynamic, then we need to enumerate the dynamic fields
       *)
-      let if_not_inst = if is_some cl.cl_dynamic && is_first_dynamic cl then
+      let if_not_inst = if is_some cl.cl_dynamic && is_first_dynamic cl then begin
+        has_value := true;
         Some (enumerate_dynamic_fields ctx cl mk_push)
-      else
+      end else
         None
       in
       

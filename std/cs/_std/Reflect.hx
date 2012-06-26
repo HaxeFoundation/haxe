@@ -137,7 +137,7 @@ import haxe.lang.Function;
 				foreach(System.Reflection.MethodInfo mi in cl.GetMethods(System.Reflection.BindingFlags.Static))
 				{
 					string name = mi.Name;
-					if (last != name)
+					if (!last.Equals(name))
 					{
 						ret.push(name);
 						last = name;

@@ -54,6 +54,6 @@ import haxe.lang.Runtime;
 	
 	override public function __hx_invokeDynamic(dynArgs:Array<Dynamic>):Dynamic 
 	{
-		return Runtime.slowCallField(this.obj, this.field, dynArgs);
+		return Runtime.callField(obj, field, dynArgs);
 	}
 }

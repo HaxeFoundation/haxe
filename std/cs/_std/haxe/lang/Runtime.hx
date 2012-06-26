@@ -124,6 +124,19 @@ import system.Type;
 	}
 	
 	@:functionBody('
+			System.IConvertible cv1 = obj as System.IConvertible;
+			if (cv1 != null)
+			{
+				return cv1.ToDouble(null) == cv1.ToInt32(null);
+			}
+			return false;
+	')
+	public static function isInt(obj:Dynamic):Bool
+	{
+		return false;
+	}
+	
+	@:functionBody('
 			System.IConvertible cv1 = v1 as System.IConvertible;
 			if (cv1 != null)
 			{
@@ -217,8 +230,8 @@ import system.Type;
 			System.Reflection.PropertyInfo prop = t.GetProperty(field, bf);
 			if (prop == null)
 			{
-				System.Reflection.MethodInfo m = t.GetMethod(field, bf);
-				if (m != null)
+				System.Reflection.MemberInfo[] m = t.GetMember(field, bf);
+				if (m.Length > 0)
 				{
 					return new haxe.lang.Closure(obj, field, 0);
 				} else {

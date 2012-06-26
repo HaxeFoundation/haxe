@@ -120,7 +120,7 @@ import java.Boot;
 		if (o instanceof haxe.lang.IHxObject)
 		{
 			Array<String> ret = new Array<String>();
-			((haxe.lang.IHxObject) o).__hx_getFields(ret);
+				((haxe.lang.IHxObject) o).__hx_getFields(ret);
 			return ret;
 		} else {
 			Array<String> ret = new Array<String>();

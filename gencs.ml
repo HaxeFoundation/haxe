@@ -130,7 +130,7 @@ struct
           in
           let obj = run obj in
           (match follow_module follow md with
-            | TClassDecl({ cl_path = ([], "Float") }) ->
+            | TClassDecl{ cl_path = ([], "Float") } ->
               (* on the special case of seeing if it is a Float, we need to test if both it is a float and if it is an Int *)
               let mk_is local =
                 mk_paren {
@@ -153,6 +153,15 @@ struct
                   }
               in
               ret
+            | TClassDecl{ cl_path = ([], "Int") } ->
+              {
+                eexpr = TCall(
+                  mk_static_field_access_infer runtime_cl "isInt" e.epos [],
+                  [ obj ]
+                );
+                etype = basic.tbool;
+                epos = e.epos
+              }
             | _ ->
               mk_is obj md
           )
@@ -1719,7 +1728,14 @@ let configure gen =
   run_filters gen;
   (* after the filters have been run, add all hashed fields to FieldLookup *)
   
-  let hashes = Hashtbl.fold (fun i s acc -> (i,s) :: acc) rcf_ctx.rcf_hash_fields [] in
+  let normalize_i i =
+    let i = Int32.of_int (i) in
+    if i < Int32.zero then
+      Int32.logor (Int32.logand i (Int32.of_int 0x3FFFFFFF)) (Int32.shift_left Int32.one 30)
+    else i
+  in
+  
+  let hashes = Hashtbl.fold (fun i s acc -> (normalize_i i,s) :: acc) rcf_ctx.rcf_hash_fields [] in
   let hashes = List.sort (fun (i,s) (i2,s2) -> compare i i2) hashes in
   
   let flookup_cl = get_cl (get_type gen (["haxe";"lang"], "FieldLookup")) in
@@ -1731,7 +1747,7 @@ let configure gen =
     let fields = PMap.find "fields" cl.cl_statics in
     
     field_ids.cf_expr <- Some (change_array { 
-      eexpr = TArrayDecl(List.map (fun (i,s) -> { eexpr = TConst(TInt ( Int32.of_int i)); etype = basic.tint; epos = field_ids.cf_pos }) hashes);
+      eexpr = TArrayDecl(List.map (fun (i,s) -> { eexpr = TConst(TInt (i)); etype = basic.tint; epos = field_ids.cf_pos }) hashes);
       etype = basic.tarray basic.tint;
       epos = field_ids.cf_pos
     });
