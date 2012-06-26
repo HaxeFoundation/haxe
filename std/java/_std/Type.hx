@@ -60,7 +60,7 @@ enum ValueType {
 	
 	@:functionBody('
 		java.lang.Class cl = (c == null) ? null : c.getSuperclass();
-		if (cl != null && !cl.getName().equals("haxe.lang.HxObject") && cl.getName().equals("java.lang.Object") )
+		if (cl != null && !cl.getName().equals("haxe.lang.HxObject") && !cl.getName().equals("java.lang.Object") )
 			return cl;
 		return null;
 	')
