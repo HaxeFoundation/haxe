@@ -244,6 +244,7 @@ struct
         | _ -> false
     in
     
+    let is_cl t = match gen.greal_type t with | TInst ( { cl_path = (["System"], "Type") }, [] ) -> true | _ -> false in
     
     let rec run e =
       match e.eexpr with 
@@ -319,6 +320,15 @@ struct
               epos = e1.epos
             }, [ run e2 ])
           }
+        
+        | TBinop ( (Ast.OpEq as op), e1, e2 )
+        | TBinop ( (Ast.OpNotEq as op), e1, e2 ) when is_cl e1.etype ->
+          let static = mk_static_field_access_infer (runtime_cl) "typeEq" e.epos [] in
+          let ret = { e with eexpr = TCall(static, [run e1; run e2]); } in
+          if op = Ast.OpNotEq then
+            { ret with eexpr = TUnop(Ast.Not, Ast.Prefix, ret) }
+          else
+            ret
         
         | _ -> Type.map_expr run e
     in
@@ -524,11 +534,15 @@ let configure gen =
   
   let ti64 = match ( get_type gen ([], "Int64") ) with | TTypeDecl t -> TType(t,[]) | _ -> assert false in
   
+  let ttype = get_cl ( get_type gen (["System"], "Type") ) in
+  
   let rec real_type t =
     let t = gen.gfollow#run_f t in
     let ret = match t with
       | TInst( { cl_path = (["haxe"], "Int32") }, [] ) -> gen.gcon.basic.tint
       | TInst( { cl_path = (["haxe"], "Int64") }, [] ) -> ti64
+      | TInst( { cl_path = ([], "Class") }, _ )
+      | TInst( { cl_path = ([], "Enum") }, _ ) -> TInst(ttype,[])
       | TEnum(_, [])
       | TInst(_, []) -> t
       | TInst(cl, params) when 
@@ -630,7 +644,6 @@ let configure gen =
       | TInst ({ cl_kind = KTypeParameter; cl_path=p }, []) -> snd p
       | TMono r -> (match !r with | None -> "object" | Some t -> t_s (run_follow gen t))
       | TInst ({ cl_path = [], "String" }, []) -> "string"
-      | TInst ({ cl_path = [], "Class" }, _) | TInst ({ cl_path = [], "Enum" }, _) -> "System.Type"
       | TEnum ({ e_path = p }, params) -> (path_s p)
       | TInst (({ cl_path = p } as cl), params) -> (path_param_s (TClassDecl cl) p params)
       | TType (({ t_path = p } as t), params) -> (path_param_s (TTypeDecl t) p params)
@@ -1552,7 +1565,6 @@ let configure gen =
     match real_type t with
       | TDynamic _ | TAnon _ | TMono _
       | TInst( { cl_kind = KTypeParameter }, _ )
-      | TInst( { cl_path = ([], "String") }, [] )
       | TInst( { cl_path = (["haxe";"lang"], "Null") }, _ ) -> true
       | _ -> false
   in
@@ -1620,10 +1632,20 @@ let configure gen =
   let hx_exception = get_cl (get_type gen (["haxe";"lang"], "HaxeException")) in
   let hx_exception_t = TInst(hx_exception, []) in
   
+  let rec is_exception t =
+    match follow t with
+      | TInst(cl,_) -> 
+        if cl == base_exception then
+          true
+        else
+          (match cl.cl_super with | None -> false | Some (cl,arg) -> is_exception (TInst(cl,arg)))
+      | _ -> false
+  in
+  
   TryCatchWrapper.configure gen 
   (
     TryCatchWrapper.traverse gen 
-      (fun t -> try unify t base_exception_t; false with | Unify_error _ -> true)
+      (fun t -> not (is_exception (real_type t)))
       (fun throwexpr expr ->
         let wrap_static = mk_static_field_access (hx_exception) "wrap" (TFun([("obj",false,t_dynamic)], base_exception_t)) expr.epos in
         { throwexpr with eexpr = TThrow { expr with eexpr = TCall(wrap_static, [expr]) }; etype = gen.gcon.basic.tvoid }

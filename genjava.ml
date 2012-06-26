@@ -1668,13 +1668,20 @@ let configure gen =
   let hx_exception = get_cl (get_type gen (["haxe";"lang"], "HaxeException")) in
   let hx_exception_t = TInst(hx_exception, []) in
   
+  let rec is_exception t =
+    match follow t with
+      | TInst(cl,_) -> 
+        if cl == base_exception then
+          true
+        else
+          (match cl.cl_super with | None -> false | Some (cl,arg) -> is_exception (TInst(cl,arg)))
+      | _ -> false
+  in
+  
   TryCatchWrapper.configure gen 
   (
     TryCatchWrapper.traverse gen 
-      (fun t -> 
-        match real_type t with
-          | TDynamic _ | TAnon _ | TMono _ | TLazy _ | TEnum _ -> true
-          | _ -> try unify t base_exception_t; false with | Unify_error _ -> true)
+      (fun t -> not (is_exception (real_type t)))
       (fun throwexpr expr ->
         let wrap_static = mk_static_field_access (hx_exception) "wrap" (TFun([("obj",false,t_dynamic)], base_exception_t)) expr.epos in
         { throwexpr with eexpr = TThrow { expr with eexpr = TCall(wrap_static, [expr]) }; etype = gen.gcon.basic.tvoid }

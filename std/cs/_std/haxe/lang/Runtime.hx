@@ -92,8 +92,6 @@ import system.Type;
 				return v1.Equals(v2);
 			}
 			
-			//add here haxe.lang.Equatable test
-			
 			return false;
 	')
 	public static function eq(v1:Dynamic, v2:Dynamic):Bool
@@ -535,6 +533,16 @@ import system.Type;
 		if (obj == null) 
 			return null;
 		return obj + "";
+	}
+	
+	@:functionBody('
+			if (t1 == null || t2 == null)
+				return t1 == t2;
+			return t1.Name.Equals(t2.Name);
+	')
+	public static function typeEq(t1:system.Type, t2:system.Type):Bool
+	{
+		return false;
 	}
 }
 

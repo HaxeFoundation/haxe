@@ -267,7 +267,13 @@ enum ValueType {
 	{
 		return null;
 	}
-
+	
+	@:functionBody('
+			if (a is haxe.lang.Enum)
+				return a.Equals(b);
+			else
+				return haxe.lang.Runtime.eq(a, b);
+	')
 	public static function enumEq<T>( a : T, b : T ) : Bool 
 	{
 		return untyped a.Equals(b);

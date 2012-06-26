@@ -5,6 +5,7 @@ import system.reflection.ConstructorInfo;
 @:native("System.Type")
 extern class Type 
 {
+	public var Name(default, null):String;
 	public var BaseType(default, null):Type;
 	public var IsInterface(default, null):Bool;
 	public var ContainsGenericParameters(default, null):Bool;
