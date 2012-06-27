@@ -1061,6 +1061,7 @@ let configure gen =
         end (* TODO see how (get,set) variable handle when they are interfaces *)
       | Method mkind -> 
         let is_virtual = not is_final && match mkind with | MethInline -> false | _ when not is_new -> true | _ -> false in
+        let is_virtual = if not is_virtual || has_meta ":final" cf.cf_meta then false else is_virtual in
         let is_override = List.mem cf.cf_name cl.cl_overrides in
         let is_virtual = is_virtual && not (has_meta ":final" cl.cl_meta) && not (is_interface) in
         let visibility = if is_interface then "" else "public" in

@@ -535,9 +535,9 @@ package haxe.lang;
 	
 	public static function toString(obj:Dynamic):String
 	{
-		if (obj == null) 
+		if (obj == null)
 			return null;
-		return obj + "";
+		return untyped obj.toString();
 	}
 }
 

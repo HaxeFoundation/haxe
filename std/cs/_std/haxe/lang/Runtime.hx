@@ -545,7 +545,7 @@ import system.Type;
 	{
 		if (obj == null) 
 			return null;
-		return obj + "";
+		return untyped obj.ToString();
 	}
 	
 	@:functionBody('

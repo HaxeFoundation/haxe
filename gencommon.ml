@@ -578,6 +578,7 @@ and gen_classes =
   cl_type : tclass;
   cl_class : tclass;
   cl_enum : tclass;
+  cl_dyn : tclass;
   
   t_iterator : tdef;
 }
@@ -628,6 +629,7 @@ let new_ctx con =
       cl_type = get_cl (get_type con.types ([], "Type"));
       cl_class = get_cl (get_type con.types ([], "Class"));
       cl_enum = get_cl (get_type con.types ([], "Enum"));
+      cl_dyn = get_cl (get_type con.types ([], "Dynamic"));
       
       t_iterator = get_tdef (get_type con.types ([], "Iterator"));
     };
@@ -1143,9 +1145,15 @@ let field_access gen (t:t) (field:string) : (tfield_access) =
           let f = PMap.find field e.e_constrs in
           let is_param = match follow f.ef_type with | TFun _ -> true | _ -> false in
           FEnumField(e, f, is_param)
+        | _ when PMap.mem field gen.gbase_class_fields ->
+          let cf = PMap.find field gen.gbase_class_fields in
+          FClassField(gen.gclasses.cl_dyn, [t_dynamic], cf, false, cf.cf_type)
         | _ ->
           FAnonField(PMap.find field anon.a_fields)
       with | Not_found -> FNotFound)
+    | _ when PMap.mem field gen.gbase_class_fields ->
+      let cf = PMap.find field gen.gbase_class_fields in
+      FClassField(gen.gclasses.cl_dyn, [t_dynamic], cf, false, cf.cf_type)
     | TDynamic t -> FDynamicField t
     | TMono _ -> FDynamicField t_dynamic
     | _ -> FNotFound
