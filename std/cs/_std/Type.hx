@@ -309,7 +309,7 @@ enum ValueType {
 		else
 			return ((haxe.lang.Enum) e).index;
 	')
-	public inline static function enumIndex( e : EnumValue ) : Int  untyped
+	public static function enumIndex( e : EnumValue ) : Int  untyped
 	{
 		return e.index;
 	}
