@@ -18,18 +18,21 @@ enum DebugToken
 
 class DebugStdio
 {
-   var inDebugger:Bool;
+   var threadStopped:Bool;
    var inputThread:Thread;
    var debugQueue:Deque<Dynamic>;
    var files:Array<String>;
 	var frame:Int;
+	var stack:Array<StackItem>;
+	var vars:Array<String>;
    
 
    public function new()
    {
-		frame = 1;
+		frame = -1;
 		files = Debugger.getFiles();
-      inDebugger = false;
+      threadStopped = false;
+		Debugger.setThread();
       Debugger.setHandler(onDebug);
       debugQueue= new Deque<Dynamic>();
       inputThread = Thread.create(inputLoop);
@@ -38,8 +41,8 @@ class DebugStdio
    function onDebug()
    {
       Sys.println("stopped.");
-      inDebugger = true;
-      while(inDebugger)
+      threadStopped = true;
+      while(threadStopped)
       {
          var job = debugQueue.pop(true);
          job();
@@ -47,28 +50,22 @@ class DebugStdio
    }
 
    
-   function waitDebugger()
+   function waitDebugger(inPrint:Bool=true)
    {
       debugQueue.add( function() inputThread.sendMessage("Ok")  );
       var result = Thread.readMessage(true);
-      Sys.println(result);
+		if (inPrint)
+      	Sys.println(result);
    }
 
    function where()
    {
-      var stack = haxe.Stack.callStack();
       var idx = 0;
       for(item in stack)
       {
          idx++;
          Sys.println((idx==frame ? "*" : " ") + idx + ":" + item);
       }
-   }
-
-   function vars(inI:Int)
-   {
-      var result = Debugger.getStackVars(inI);
-      Sys.println("Frame " + inI + " : " + result );
    }
 
    function showFiles()
@@ -205,6 +202,12 @@ class DebugStdio
 
    function resolve(inName:String) : Dynamic
 	{
+		if (vars!=null)
+		{
+			for(v in vars)
+				if (v==inName)
+					return Debugger.getStackVar(frame,inName);
+		}
 		var cls = Type.resolveClass(inName);
       return cls;
    }
@@ -354,14 +357,46 @@ class DebugStdio
       }
    }
 
+   function setFrame(inFrame:Int)
+	{
+		if (stack!=null && inFrame>0 && inFrame <= stack.length )
+		{
+			frame = inFrame;
+         vars = Debugger.getStackVars(frame);
+		}
+	}
+
+   function getStack()
+	{
+      stack = haxe.Stack.callStack();
+		setFrame(1);
+	}
+
+   function checkStack()
+	{
+   	if (threadStopped && stack==null)
+		{
+          debugQueue.add( getStack );
+          waitDebugger(false);
+		}
+	}
+
+	function run()
+	{
+		stack = null;
+		vars = null;
+      debugQueue.add( function() { threadStopped = false; inputThread.sendMessage("running"); }  );
+      var result = Thread.readMessage(true);
+		Sys.println(result);
+	}
 
    function inputLoop()
    {
-		Debugger.setThread();
       var input = Sys.stdin();
       while(true)
       {
          Sys.print("debug >");
+			checkStack();
          var command = input.readLine();
          var words = command.split(" ");
          switch(words[0])
@@ -375,7 +410,7 @@ class DebugStdio
             case "break","b":
 					if (words.length==1)
 					{
-               	if (inDebugger)
+               	if (threadStopped)
                   	Sys.println("already stopped.");
                	else
                	{
@@ -392,56 +427,41 @@ class DebugStdio
 
 
             case "cont","c":
-               if (!inDebugger)
+               if (!threadStopped)
                   Sys.println("Already running.");
                else
-					{
-						frame = 1;
-                  debugQueue.add( function() inDebugger = false );
-					}
+						run();
 
             case "vars","v":
-               if (!inDebugger)
+               if (!threadStopped || vars==null)
                   Sys.println("Must break first.");
                else
                {
-                  var n = Std.parseInt(words[1]);
-                  debugQueue.add( function() vars(n) );
-                  waitDebugger();
+						Sys.println(vars);
                }
 
 
             case "frame","f":
-               if (!inDebugger)
+               if (!threadStopped || stack==null )
                   Sys.println("Must break first.");
                else
                {
-						var stack:Array<StackItem>=null;
-						var vars:Array<String>;
-
-                  debugQueue.add( function() stack = haxe.Stack.callStack() );
-                  waitDebugger();
-						frame = Std.parseInt(words[1]);
-						if (frame<1 || frame+1 >= stack.length )
+						var f = Std.parseInt(words[1]);
+						if (f<1 || f>stack.length )
 							Sys.println("Stack out of range.");
 						else
 						{
-                  	debugQueue.add( function() vars = Debugger.getStackVars(frame) );
+                  	debugQueue.add( function() setFrame(f) );
                   	waitDebugger();
-							Sys.println(stack[frame+1] + "  " + vars );
 						}
                }
-
               
 
             case "where","w":
-               if (!inDebugger)
+               if (!threadStopped || stack==null)
                   Sys.println("Must break first.");
                else
-               {
-                  debugQueue.add( function() where() );
-                  waitDebugger();
-               }
+						where();
 
             case "print","p":
 					words.shift();
@@ -473,7 +493,7 @@ class DebugStdio
                Sys.println("cont  - continue execution");
                Sys.println("where - print call stack");
                Sys.println("files - print file list that may be used with breakpoints");
-               Sys.println("vars N - print local vars for frame N");
+               Sys.println("vars - print local vars for frame");
                Sys.println("exit  - exit programme");
 
 

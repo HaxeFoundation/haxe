@@ -17,9 +17,9 @@ class Debugger
       untyped __global__.__hxcpp_dbg_set_handler(inHandler);
    }
 
-   public static function setThread(?inIgnoreThread:Thread)
+   public static function setThread(?inDebugThread:Thread)
    {
-      untyped __global__.__hxcpp_dbg_set_thread(inIgnoreThread==null?Thread.current().handle:inIgnoreThread.handle);
+      untyped __global__.__hxcpp_dbg_set_thread(inDebugThread==null?Thread.current().handle:inDebugThread.handle);
    }
 
 
@@ -64,15 +64,19 @@ class Debugger
       return untyped __global__.__hxcpp_dbg_get_stack_vars(inFrame);
    }
 
+   public static function getStackVar(inFrame:Int,inVar:String) : Dynamic
+   {
+      return untyped __global__.__hxcpp_dbg_get_stack_var(inFrame,inVar);
+   }
+
+   public static function setStackVar(inFrame:Int,inVar:String, inValue:Dynamic)
+   {
+      untyped __global__.__hxcpp_dbg_set_stack_var(inFrame,inVar,inValue);
+   }
 
    public static function getFiles() : Array<String>
    {
       return untyped __global__.__hxcpp_dbg_get_files();
-   }
-
-   public static function getClasses() : Array<Class<Dynamic> >
-   {
-      return untyped __global__.__hxcpp_dbg_get_classes();
    }
 }
 
