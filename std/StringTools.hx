@@ -109,7 +109,7 @@ class StringTools {
 	#if java
 	@:functionBody('return s.startsWith(start);')
 	#end
-	public static #if (cs) inline #end function startsWith( s : String, start : String ) {
+	public static #if (cs) inline #end function startsWith( s : String, start : String ) : Bool {
 		#if java
 		return untyped s.startsWith(start);
 		#elseif cs
@@ -125,7 +125,7 @@ class StringTools {
 	#if java
 	@:functionBody('return s.endsWith(end);')
 	#end
-	public static #if (cs) inline #end function endsWith( s : String, end : String ) {
+	public static #if (cs) inline #end function endsWith( s : String, end : String ) : Bool {
 		#if java
 		return untyped s.endsWith(end);
 		#elseif cs
