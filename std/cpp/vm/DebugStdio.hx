@@ -15,6 +15,15 @@ enum DebugToken
    RARRAY;
 }
 
+enum DebugExpr
+{
+   EXPR_VALUE(value:Dynamic);
+   EXPR_FIELD_REF(obj:Dynamic,member:String);
+   EXPR_ARRAY_REF(obj:Dynamic,index:Int);
+   EXPR_STACK_REF(name:String);
+}
+
+
 
 class DebugStdio
 {
@@ -200,23 +209,26 @@ class DebugStdio
       return result;
    }
 
-   function resolve(inName:String) : Dynamic
+   function resolve(inName:String) : DebugExpr
 	{
 		if (vars!=null)
 		{
 			for(v in vars)
 				if (v==inName)
-					return Debugger.getStackVar(frame,inName);
+					return EXPR_STACK_REF(inName);
 		}
 		var cls = Type.resolveClass(inName);
-      return cls;
+      if (cls!=null)
+         return EXPR_VALUE(cls);
+
+      return null;
    }
 
 
-   function getValue(inTokens:Array<DebugToken>) : Dynamic
+   function getExpression(inTokens:Array<DebugToken>) : DebugExpr
    {
       var classPath = "";
-      var lhs:Dynamic = null;
+      var expr:Dynamic = null;
 
       var tok = 0;
       var len = inTokens.length;
@@ -225,33 +237,33 @@ class DebugStdio
 			switch(inTokens[tok])
          {
    			case IDENT(name):
-					if (lhs!=null)
+					if (expr!=null)
 						throw "Misplaced '" + name + "'";
-					lhs = resolve(name);
-					if (lhs==null)
+					expr = resolve(name);
+					if (expr==null)
 						classPath = name;
 					tok++;
 
    			case CONST(value):
-					if (lhs!=null || classPath!="")
+					if (expr!=null || classPath!="")
 						throw "Misplaced '" + value + "'";
-					lhs = value;
+					expr = EXPR_VALUE(value);
 					tok++;
 
    			case DOT:
-					if (lhs==null && classPath=="")
+					if (expr==null && classPath=="")
 						throw "Bad '.' after null value";
 					tok++;
 					switch(inTokens[tok])
 					{
 						case IDENT(name):
-							if (lhs!=null)
-								lhs = Reflect.getProperty(lhs,name);
+							if (expr!=null)
+								expr = EXPR_FIELD_REF(exprToDynamic(expr),name);
 							else
 							{
 								var qname = classPath + "." + name;
-								lhs = resolve(qname);
-								classPath = (lhs==null) ? qname : "";
+								expr = resolve(qname);
+								classPath = (expr==null) ? qname : "";
 							}
 							tok++;
 						default: throw "Expected field after '.'";
@@ -272,7 +284,7 @@ class DebugStdio
    							case LARRAY: arrayOpen++;
    							case RARRAY: arrayOpen--;
    							case COMMA: 
-									if (arrayOpen==0 && parenOpen==1 && lhs!=null)
+									if (arrayOpen==0 && parenOpen==1 && expr!=null)
 									{
 										args.push( getValue( inTokens.slice(lastComma+1,tok) ) );
 										lastComma = tok;
@@ -286,15 +298,15 @@ class DebugStdio
 						// Not function call...
 						if (classPath!="")
 							throw "Unresolved " + classPath;
-						if (lhs==null)
+						if (expr==null)
                   {
-							lhs = getValue( inTokens.slice(start,tok-1) );
+							expr = EXPR_VALUE(getValue( inTokens.slice(start,tok-1) ));
                   }
 						else
 						{
                      if (lastComma+1 < tok-1)
 								args.push( getValue( inTokens.slice(lastComma+1,tok-1) ) );
-							lhs = untyped lhs.__Run( args );
+							expr = EXPR_VALUE( untyped expr.__Run( args ) );
 						}
 
    			case LARRAY:
@@ -317,12 +329,12 @@ class DebugStdio
 							throw "Mismatched '['";
 						if (classPath!=null)
 							throw "Unresolved " + classPath;
-						if (lhs==null)
+						if (expr==null)
 							throw "Error taking index of null object";
 						var val:Dynamic = getValue( inTokens.slice(start,tok) );
 						if ( !Std.is(val,Int) )
 							throw "Bad array index: " + val;
-						lhs = lhs[ Std.int(val) ];
+						expr = EXPR_ARRAY_REF(exprToDynamic(expr), Std.int(val));
 
    			case RPAREN: throw "Misplaced ')'";
    			case COMMA:  throw "Misplaced ','";
@@ -333,8 +345,25 @@ class DebugStdio
 		if (classPath!="")
 			throw "Unresolved " + classPath;
 
-      return lhs;
+      return expr==null ? EXPR_VALUE(null) : expr;
    }
+
+   function exprToDynamic(inExpr:DebugExpr)
+   {
+      switch(inExpr)
+      {
+         case EXPR_VALUE(value): return value;
+         case EXPR_FIELD_REF(obj,member): return Reflect.getProperty(obj,member);
+         case EXPR_ARRAY_REF(obj,index): return obj[index];
+         case EXPR_STACK_REF(name): return Debugger.getStackVar(frame,name);
+      }
+   }
+
+   function getValue(inTokens:Array<DebugToken>) : Dynamic
+   {
+      return exprToDynamic(getExpression(inTokens));
+   }
+
 
 	function printResult(result:String)
 	{
@@ -356,6 +385,46 @@ class DebugStdio
          Sys.println("Error while printing : " + e);//+ ( tokens==null ? "" : " : " + tokens) );
       }
    }
+
+   function set(inString:String)
+   {
+      var tokens:Array<DebugToken> = null;
+		try
+      {
+         tokens = tokenize(inString);
+
+         var equals_pos = -1;
+         for(i in 0...tokens.length)
+         {
+            if (tokens[i]==EQUALS)
+            {
+               if (equals_pos>=0)
+                  throw "more than one '='";
+               equals_pos = i;
+            }
+         }
+         if (equals_pos<0)
+             throw "use a = b syntax";
+         if (equals_pos==0 || equals_pos==tokens.length-1)
+             throw "Misplaced '='";
+
+         var lhs = getExpression( tokens.slice(0,equals_pos) );
+         var rhs = getValue( tokens.slice(equals_pos+1, tokens.length) );
+
+         switch(lhs)
+         {
+            case EXPR_VALUE(value): throw "left hand side can't be set";
+            case EXPR_FIELD_REF(obj,member): Reflect.setProperty(obj,member,rhs);
+            case EXPR_ARRAY_REF(obj,index): obj[index] = rhs;
+            case EXPR_STACK_REF(name): Debugger.setStackVar(frame,name,rhs);
+         }
+      }
+      catch (e:Dynamic)
+      {
+         Sys.println("Error while setting : " + e);//+ ( tokens==null ? "" : " : " + tokens) );
+      }
+   }
+
 
    function setFrame(inFrame:Int)
 	{
@@ -466,6 +535,10 @@ class DebugStdio
             case "print","p":
 					words.shift();
 					print(words.join(" "));
+
+            case "set","s":
+					words.shift();
+					set(words.join(" "));
 
 
             case "files","fi":
