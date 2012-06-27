@@ -64,12 +64,12 @@ enum XmlType {
 	{
 		return untyped __call__("str_replace", "'", '&apos;', __call__("htmlspecialchars", value, __php__('ENT_COMPAT'), 'UTF-8'));
 	}
-	
+
 	private static function __decodeent(value : String) : String
 	{
 		return untyped __call__("str_replace", "'", '&apos;', __call__("htmlentities", value, __php__('ENT_COMPAT'), 'UTF-8'));
 	}
-	
+
 	private static function __character_data_handler(parser : Dynamic, data : String) : Void {
 		var d = __decodeent(data);
 		if ((untyped __call__("strlen", data) == 1 && d != data) || d == data) {
@@ -108,7 +108,7 @@ enum XmlType {
 		untyped __call__("xml_parser_set_option", xml_parser, __php__("XML_OPTION_SKIP_WHITE"), 0);
 
 		reHeader.match(str);
-		
+
 		str = "<doc>"+reHeader.matchedRight()+"</doc>";
 
 		if(1 != untyped __call__("xml_parse", xml_parser, str, true)) {
@@ -121,11 +121,11 @@ enum XmlType {
 		build._parent = null;
 		build._nodeName = null;
 		build.nodeType = Document;
-		
+
 		var doctype = reHeader.matched(2);
 		if (null != doctype)
 			build.insertChild(createDocType(doctype), 0);
-			
+
 		var prolog = reHeader.matched(1);
 		if (null != prolog)
 			build.insertChild(createProlog(prolog), 0);
@@ -325,7 +325,7 @@ enum XmlType {
 			return "<!DOCTYPE "+_nodeValue+">";
 		else if ( nodeType == Xml.Prolog )
 			return "<?"+_nodeValue+"?>";
-		
+
 
 		for( x in iterator() )
 			s += x.toString();

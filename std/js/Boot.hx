@@ -38,8 +38,8 @@ class Boot {
 			fl.trace(msg);
 			#else
 			msg += __string_rec(v,"");
-			var d = document.getElementById("haxe:trace");
-			if( d != null )
+			var d;
+			if( __js__("typeof")(document) != "undefined" && (d = document.getElementById("haxe:trace")) != null )
 				d.innerHTML += __unhtml(msg)+"<br/>";
 			else if( __js__("typeof")(console) != "undefined" && console.log != null )
 				console.log(msg);
