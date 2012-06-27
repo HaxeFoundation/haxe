@@ -1002,8 +1002,9 @@ let rec define_local_function_ctx ctx func_name func_def =
 	let rec define_local_function func_name func_def =
 		let declarations = Hashtbl.create 0 in
 		let undeclared = Hashtbl.create 0 in
-		(* '__global__' is always defined *)
+		(* '__global__', '__cpp__' are always defined *)
 		Hashtbl.add declarations "__global__" ();
+		Hashtbl.add declarations "__cpp__" ();
 		(* Add args as defined variables *)
 		List.iter ( fun (arg_var, opt_val) ->
 			if (ctx.ctx_debug) then
@@ -1138,6 +1139,7 @@ and define_local_return_block_ctx ctx expression name =
 		let undeclared = Hashtbl.create 0 in
 		(* '__global__' is always defined *)
 		Hashtbl.add declarations "__global__" ();
+		Hashtbl.add declarations "__cpp__" ();
 		find_undeclared_variables_ctx ctx undeclared declarations "_obj" true expression;
 
 		let vars = (hash_keys undeclared) in
@@ -1290,14 +1292,21 @@ and gen_expression ctx retval expression =
 		output "super::__construct(";
 		gen_expression_list arg_list;
 		output ")";
+	| TCall (func, arg_list) when (match func.eexpr with
+	| TLocal { v_name = "__cpp__" } -> true
+	| _ -> false) ->
+		( match arg_list with
+		| [{ eexpr = TConst (TString code) }] -> output code;
+		| _ -> error "__cpp__ accepts only one string as an argument" func.epos;
+		)
 	| TCall (func, arg_list) ->
-      let rec is_variable e = match e.eexpr with
-         | TField _ -> false
-	     | TEnumField _ -> false
-		 | TLocal { v_name = "__global__" } -> false
-         | TParenthesis p -> is_variable p
-         | TCast (e,None) -> is_variable e
-         | _ -> true
+		let rec is_variable e = match e.eexpr with
+		| TField _ -> false
+		| TEnumField _ -> false
+		| TLocal { v_name = "__global__" } -> false
+		| TParenthesis p -> is_variable p
+		| TCast (e,None) -> is_variable e
+		| _ -> true
       in
 		let expr_type = type_string expression.etype in
 		if (ctx.ctx_debug_type) then output ("/* TCALL ret=" ^ expr_type ^ "*/");
