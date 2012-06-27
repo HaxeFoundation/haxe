@@ -23,19 +23,6 @@ package haxe.lang;
 	@:readonly public var hasValue:Bool;
 	
 	@:functionBody('
-			if (! (v is System.ValueType))
-			{
-				if (System.Object.ReferenceEquals(v, default(T)))
-				{
-					hasValue = false;
-				}
-			}
-			
-			if (!System.Object.ReferenceEquals(v, null) && !v.Equals(default(T)))
-			{
-				hasValue = true;
-			}
-			
 			this.@value = v;
 			this.hasValue = hasValue;
 	')
