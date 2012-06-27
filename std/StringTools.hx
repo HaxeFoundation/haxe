@@ -106,7 +106,10 @@ class StringTools {
 	/**
 		Tells if the string [s] starts with the string [start].
 	**/
-	public static #if (java || cs) inline #end function startsWith( s : String, start : String ) {
+	#if java
+	@:functionBody('return s.startsWith(start);')
+	#end
+	public static #if (cs) inline #end function startsWith( s : String, start : String ) {
 		#if java
 		return untyped s.startsWith(start);
 		#elseif cs
@@ -119,7 +122,10 @@ class StringTools {
 	/**
 		Tells if the string [s] ends with the string [end].
 	**/
-	public static #if (java || cs) inline #end function endsWith( s : String, end : String ) {
+	#if java
+	@:functionBody('return s.endsWith(end);')
+	#end
+	public static #if (cs) inline #end function endsWith( s : String, end : String ) {
 		#if java
 		return untyped s.endsWith(end);
 		#elseif cs
@@ -245,7 +251,10 @@ class StringTools {
 	/**
 		Replace all occurences of the string [sub] in the string [s] by the string [by].
 	**/
-	public #if (php || java) inline #end static function replace( s : String, sub : String, by : String ) : String {
+	#if java
+	@:functionBody('return s.replace(sub, by);')
+	#end
+	public #if (php) inline #end static function replace( s : String, sub : String, by : String ) : String {
 		#if php
 		return untyped __call__("str_replace", sub, by, s);
 		#elseif java

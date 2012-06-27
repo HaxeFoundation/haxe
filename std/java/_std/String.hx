@@ -93,12 +93,6 @@ extern class String {
 	
 	private function codePointAt( idx : Int ) : Int;
 	
-	private function startsWith( str : String ) : Bool;
-	
-	private function endsWith( str : String ) : Bool;
-	
-	private function replace( sub : String, by : String ) : String;
-	
 	private function substring( begin : Int, end : Int ) : String;
 
 	static function fromCharCode( code : Int ) : String;
