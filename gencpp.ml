@@ -1671,59 +1671,56 @@ and gen_expression ctx retval expression =
 			);
 		end
 	| TMatch (condition, enum, cases, default) ->
-	let tmp_var = get_switch_var ctx in
-	writer#begin_block;
-	output ( (type_string condition.etype) ^ " " ^ tmp_var ^ " = " );
-	gen_expression ctx true condition;
-	output ";\n";
+		let tmp_var = get_switch_var ctx in
+		writer#begin_block;
+		output_i (  "::" ^ (join_class_path (fst enum).e_path "::") ^ " " ^ tmp_var ^ " = " );
+		gen_expression ctx true condition;
+		output ";\n";
 
-        let use_if_statements = contains_break expression in
-
-        let dump_condition = if (use_if_statements) then begin
-		let tmp_name = get_switch_var ctx in
-		output_i ( "int " ^ tmp_name ^ " = (" ^ tmp_var ^ ")->GetIndex();" );
-                let elif = ref "if" in
-                ( fun case_ids ->
-			output (!elif ^ " (" );
-			elif := "else if";
-			output (String.concat "||"
-				(List.map (fun id -> (string_of_int id) ^ "==" ^ tmp_name ) case_ids ) );
-			output ") " )
-          end else begin
-		output_i ("switch((" ^ tmp_var ^ ")->GetIndex())");
-	  	( fun case_ids ->
-		    List.iter (fun id -> output ("case " ^ (string_of_int id) ^ ": ") ) case_ids;
-		    )
-          end in
-	writer#begin_block;
-	List.iter (fun (case_ids,params,expression) ->
-		output_i "";
-                dump_condition case_ids;
-		let has_params = match params with | Some _ -> true | _ -> false in
-		if (has_params) then begin
-			writer#begin_block;
-			List.iter (fun (name,vtype,id) -> output_i
-			((type_string vtype) ^ " " ^ (keyword_remap name) ^
-				" = " ^ tmp_var ^ "->__Param(" ^ (string_of_int id) ^ ");\n"))
-					(tmatch_params_to_args params);
-		end;
-		ctx.ctx_return_from_block <- return_from_internal_node;
-		gen_expression ctx false (to_block expression);
-		if (has_params) then writer#end_block;
-                if (not use_if_statements) then output_i ";break;\n";
-	) cases;
-	(match default with
-	| None -> ()
-	|  Some e ->
-                if (use_if_statements) then
-			output_i "else "
-		else
-			output_i "default: ";
-		ctx.ctx_return_from_block <- return_from_internal_node;
-		gen_expression ctx false (to_block e);
-	);
-	writer#end_block;
-	writer#end_block;
+		let use_if_statements = contains_break expression in
+		let dump_condition = if (use_if_statements) then begin
+			let tmp_name = get_switch_var ctx in
+			output_i ( "int " ^ tmp_name ^ " = (" ^ tmp_var ^ ")->GetIndex();" );
+			let elif = ref "if" in
+			( fun case_ids -> output (!elif ^ " (" ); elif := "else if";
+					output (String.concat "||"
+					(List.map (fun id -> (string_of_int id) ^ "==" ^ tmp_name ) case_ids ) );
+				output ") " )
+		end else begin
+			output_i ("switch((" ^ tmp_var ^ ")->GetIndex())");
+			( fun case_ids ->
+			List.iter (fun id -> output ("case " ^ (string_of_int id) ^ ": ") ) case_ids;
+			)
+		end in
+		writer#begin_block;
+		List.iter (fun (case_ids,params,expression) ->
+			output_i "";
+			dump_condition case_ids;
+			let has_params = match params with | Some _ -> true | _ -> false in
+			if (has_params) then begin
+				writer#begin_block;
+				List.iter (fun (name,vtype,id) -> output_i
+				((type_string vtype) ^ " " ^ (keyword_remap name) ^
+					" = " ^ tmp_var ^ "->__Param(" ^ (string_of_int id) ^ ");\n"))
+						(tmatch_params_to_args params);
+			end;
+			ctx.ctx_return_from_block <- return_from_internal_node;
+			gen_expression ctx false (to_block expression);
+			if (has_params) then writer#end_block;
+			if (not use_if_statements) then output_i ";break;\n";
+		) cases;
+		(match default with
+		| None -> ()
+		|  Some e ->
+			if (use_if_statements) then
+				output_i "else "
+			else
+				output_i "default: ";
+			ctx.ctx_return_from_block <- return_from_internal_node;
+			gen_expression ctx false (to_block e);
+		);
+		writer#end_block;
+		writer#end_block;
 
 	| TTry (expression, catch_list) ->
 		output "try";
@@ -2049,7 +2046,8 @@ let find_referenced_types ctx obj super_deps constructor_deps header_only =
 				| TTry (e,catches) ->
 					List.iter (fun (v,_) -> visit_type v.v_type) catches
 				(* Must visit the enum param types, Type.iter will visit the rest ... *)
-				| TMatch (_,_,cases,_) ->
+				| TMatch (_,enum,cases,_) ->
+					add_type (fst enum).e_path;
 					List.iter (fun (case_ids,params,expression) ->
 						(match params with
 						| None -> ()
