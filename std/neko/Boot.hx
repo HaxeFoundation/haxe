@@ -24,6 +24,7 @@
  */
 package neko;
 
+@:keep
 class Boot {
 
 	private static function __tmp_str() {

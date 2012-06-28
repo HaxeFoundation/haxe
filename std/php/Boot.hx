@@ -1,5 +1,6 @@
 package php;
 
+@:keep
 class Boot {
 	static var qtypes;
 	static var ttypes;

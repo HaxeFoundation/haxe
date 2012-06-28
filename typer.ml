@@ -2310,7 +2310,16 @@ let dce_check_metadata ctx meta =
 	) meta
 
 let dce_check_class ctx c =
-	let keep_whole_class = c.cl_interface || has_meta ":keep" c.cl_meta || (match c.cl_path with ["php"],"Boot" | ["neko"],"Boot" | ["flash"],"Boot" | [],"Array" | [],"String" -> not (platform ctx.com Js) | _ -> false)  in
+	let rec super_forces_keep c = match c.cl_super with
+		| Some (csup,_) when has_meta ":keepSub" csup.cl_meta -> true
+		| Some (csup,_) -> super_forces_keep csup
+		| _ -> false
+	in
+	let keep_whole_class = c.cl_interface
+		|| has_meta ":keep" c.cl_meta
+		|| (match c.cl_path with [],"Array" | [],"String" -> not (platform ctx.com Js) | _ -> false)
+		|| super_forces_keep c
+	in
 	let keep stat f =
 		keep_whole_class
 		|| (c.cl_extern && (match f.cf_kind with Method MethInline -> false | _ -> true))

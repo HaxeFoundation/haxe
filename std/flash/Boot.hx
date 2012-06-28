@@ -44,6 +44,7 @@ package flash;
 }
 #end
 
+@:keep
 class Boot extends flash.display.MovieClip {
 
 	static var tf : flash.text.TextField;
