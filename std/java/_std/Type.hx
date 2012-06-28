@@ -261,6 +261,11 @@ enum ValueType {
 	}
 	
 	@:functionBody('
+		if (c == java.lang.String.class)
+		{
+			return haxe.lang.StringRefl.fields;
+		}
+		
 		Array<String> ret = new Array<String>();
 		for (java.lang.reflect.Field f : c.getDeclaredFields())
 		{
@@ -284,6 +289,12 @@ enum ValueType {
 	
 	@:functionBody('
 		Array<String> ret = new Array<String>();
+		if (c == java.lang.String.class)
+		{
+			ret.push("fromCharCode");
+			return ret;
+		}
+		
 		for (java.lang.reflect.Field f : c.getDeclaredFields())
 		{
 			java.lang.String fname = f.getName();

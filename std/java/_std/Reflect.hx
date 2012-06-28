@@ -122,27 +122,10 @@ import java.Boot;
 			Array<String> ret = new Array<String>();
 				((haxe.lang.IHxObject) o).__hx_getFields(ret);
 			return ret;
+		} else if (o instanceof java.lang.Class) {
+			return Type.getClassFields( (java.lang.Class) o);
 		} else {
-			Array<String> ret = new Array<String>();
-			
-			if (o instanceof java.lang.Class)
-			{
-				Class<?> cl = (java.lang.Class) o;
-				
-				for(java.lang.reflect.Field f : cl.getFields())
-				{
-					if (java.lang.reflect.Modifier.isStatic(f.getModifiers()))
-						ret.push(f.getName());
-				}
-				
-				for(java.lang.reflect.Method m : cl.getMethods())
-				{
-					if (java.lang.reflect.Modifier.isStatic(m.getModifiers()))
-						ret.push(m.getName());
-				}
-			}
-			
-			return ret;
+			return new Array<String>();
 		}
 	')
 	public static function fields( o : Dynamic ) : Array<String>

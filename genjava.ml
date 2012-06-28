@@ -770,7 +770,7 @@ let configure gen =
       | TType (({t_path = p;} as t), params) -> (path_param_s (TTypeDecl t) p params)
       | TAnon (anon) ->
         (match !(anon.a_status) with
-          | Statics _ | EnumStatics _ -> "haxe.lang.Class"
+          | Statics _ | EnumStatics _ -> "java.lang.Class"
           | _ -> "java.lang.Object")
       | TDynamic _ -> "java.lang.Object"
       (* No Lazy type nor Function type made. That's because function types will be at this point be converted into other types *)

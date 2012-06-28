@@ -3051,6 +3051,9 @@ struct
           let args = func_args_i i in
           
           (* api fn *)
+          
+          (* only cast if needed *)
+          let mk_cast tto efrom = gen.ghandle_cast (gen.greal_type tto) (gen.greal_type efrom.etype) efrom in
           let api i t const =
             let vf, _ = List.nth args i in
             let vo, _ = List.nth args (i + arity) in
@@ -3079,7 +3082,7 @@ struct
                 }
             in
             
-            if is_float then {  
+            {  
               eexpr = TIf(
                 { eexpr = TBinop(Ast.OpEq, olocal, undefined pos); etype = basic.tbool; epos = pos },
                 (if needs_cast then mk_cast t flocal else flocal),
@@ -3087,8 +3090,7 @@ struct
               ); 
               etype = t;
               epos = pos
-            } else 
-              get_from_obj olocal
+            }
           in
           (* end of api fn *)
           

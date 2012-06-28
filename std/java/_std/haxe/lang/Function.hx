@@ -45,7 +45,7 @@ import haxe.lang.Runtime;
 	private var obj:Dynamic;
 	private var field:String;
 	
-	public function new(obj, field)
+	public function new(obj:Dynamic, field)
 	{
 		super(-1, -1);
 		this.obj = obj;

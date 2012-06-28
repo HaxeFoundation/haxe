@@ -2,7 +2,7 @@ package haxe.lang;
 
 /**
  This class is meant for internal compiler use only. It provides the Haxe runtime
- compatibility to the host language.
+ compatibility to the host language. Do not access it directly.
 **/
 
 @:nativegen
@@ -152,7 +152,12 @@ package haxe.lang;
 		java.lang.Class cl = null;
 		if (o instanceof java.lang.Class)
 		{
+			if (o == java.lang.String.class)
+				return field == "fromCharCode";
+			
 			cl = (java.lang.Class) o;
+		} else if (o instanceof java.lang.String) {
+			return haxe.lang.StringRefl.handleGetField( (java.lang.String) o, field, false) != null;
 		} else {
 			cl = o.getClass();
 		}
@@ -245,8 +250,13 @@ package haxe.lang;
 	{
 		if (obj instanceof java.lang.Class)
 		{
+			if (obj == java.lang.String.class && field.equals("fromCharCode"))
+				return new haxe.lang.Closure(haxe.lang.StringExt.class, field);
+			
 			cl = (java.lang.Class) obj;
 			obj = null;
+		} else if (obj instanceof java.lang.String) {
+			return haxe.lang.StringRefl.handleGetField((java.lang.String) obj, field, throwErrors);
 		} else {
 			cl = obj.getClass();
 		}
@@ -322,8 +332,13 @@ package haxe.lang;
 		java.lang.Class cl = null;
 		if (obj instanceof java.lang.Class)
 		{
+			if (obj == java.lang.String.class && field.equals("fromCharCode"))
+				return haxe.lang.StringExt.fromCharCode(toInt(args.__get(0)));
+			
 			cl = (java.lang.Class) obj;
 			obj = null;
+		} else if (obj instanceof java.lang.String) {
+			return haxe.lang.StringRefl.handleCallField((java.lang.String) obj, field, args);
 		} else {
 			cl = obj.getClass();
 		}
@@ -503,34 +518,6 @@ package haxe.lang;
 	public static function setField_f(obj:Dynamic, field:String, value:Float):Float
 	{
 		return 0.0;
-	}
-	
-	
-	private static var classes:Hash<Class<Dynamic>> = new Hash();
-	
-	public static function registerClass(name:String, cl:Class<Dynamic>):Void
-	{
-		classes.set(name, cl);
-	}
-	
-	public static function getClass(name:String, t:java.lang.Class<Dynamic>):Class<Dynamic>
-	{
-		var ret:Class<Dynamic> = classes.get(name);
-		if (ret == null)
-			return slowGetClass(name, t);
-		else
-			return ret;
-	}
-	
-	@:functionBody('
-	if (t == null)
-		return null;
-	
-	return null;
-	')
-	public static function slowGetClass(name:String, t:java.lang.Class<Dynamic>):Class<Dynamic>
-	{
-		return null;
 	}
 	
 	public static function toString(obj:Dynamic):String
