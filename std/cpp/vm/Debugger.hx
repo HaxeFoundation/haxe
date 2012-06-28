@@ -4,6 +4,7 @@ import haxe.Stack;
 
 class Debugger
 {
+   public static inline var BRK_THIS      = -2;
    public static inline var BRK_TERMINATE = -1;
 
    public static inline var BRK_NONE  = 0;
@@ -33,6 +34,12 @@ class Debugger
    {
       untyped __global__.__hxcpp_dbg_set_break(BRK_TERMINATE);
    }
+   public static function breakBad()
+   {
+      untyped __global__.__hxcpp_dbg_set_break(BRK_THIS);
+   }
+
+
 
    // Breakpoint
    public static function addBreakpoint(inFileId:Int, inLine:Int)
