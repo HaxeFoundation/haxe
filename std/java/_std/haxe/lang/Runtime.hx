@@ -395,8 +395,6 @@ package haxe.lang;
 					}
 				}
 				
-				if (realMsl == 0)
-					throw haxe.lang.HaxeException.wrap("No compatible method found for: " + field);
 			} else {
 				hasNumber = true;
 			}
@@ -405,7 +403,7 @@ package haxe.lang;
 		
 		java.lang.reflect.Method found;
 		if (ms.length == 0 || (found = ms[0]) == null)
-			throw haxe.lang.HaxeException.wrap("Method not found: " + field);
+			throw haxe.lang.HaxeException.wrap("No compatible method found for: " + field);
 		
 		if (hasNumber)
 		{
