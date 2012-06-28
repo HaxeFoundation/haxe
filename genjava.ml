@@ -917,13 +917,7 @@ let configure gen =
           write w (path_s (["haxe"], "Int32"))
         | TTypeExpr (TClassDecl { cl_path = (["haxe"], "Int64") }) ->
           write w (path_s (["haxe"], "Int64"))
-        | TTypeExpr mt ->
-          (*(match mt with
-            | TClassDecl { cl_path = (["haxe"], "Int32") } -> write w (path_s (["haxe"], "Int32"))
-            | TClassDecl cl -> write w (t_s (TInst(cl, List.map (fun _ -> t_empty) cl.cl_types)))
-            | TEnumDecl en -> write w (t_s (TEnum(en, List.map (fun _ -> t_empty) en.e_types)))
-            | TTypeDecl td -> write w (t_s (gen.gfollow#run_f (TType(td, List.map (fun _ -> t_empty) td.t_types)))) )*)
-          write w (md_s mt)
+        | TTypeExpr mt -> write w (md_s mt)
         | TParenthesis e ->
           write w "("; expr_s w e; write w ")"
         | TArrayDecl el when t_has_type_param_shallow false e.etype ->
@@ -968,8 +962,9 @@ let configure gen =
           print w "break label%ld" v
         | TCall ({ eexpr = TLocal( { v_name = "__label__" } ) }, [ { eexpr = TConst(TInt v) } ] ) ->
           print w "label%ld:" v
-        | TCall ({ eexpr = TLocal( { v_name = "__typeof__" } ) }, [ { eexpr = TTypeExpr md } ] ) ->
-          print w "%s.class" (md_s md)
+        | TCall ({ eexpr = TLocal( { v_name = "__typeof__" } ) }, [ { eexpr = TTypeExpr md } as expr ] ) ->
+          expr_s w expr;
+          write w ".class"
         | TCall (e, el) ->
           let rec extract_tparams params el =
             match el with
