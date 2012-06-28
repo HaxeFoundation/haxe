@@ -403,7 +403,9 @@ package haxe.lang;
 			
 		}
 		
-		java.lang.reflect.Method found = ms[0];
+		java.lang.reflect.Method found;
+		if (ms.length == 0 || (found = ms[0]) == null)
+			throw haxe.lang.HaxeException.wrap("Method not found: " + field);
 		
 		if (hasNumber)
 		{
