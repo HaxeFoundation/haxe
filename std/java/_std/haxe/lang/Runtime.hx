@@ -344,110 +344,118 @@ package haxe.lang;
 		}
 		
 		if (args == null) args = new Array();
+	
+		int len = args.length;
+		java.lang.Class[] cls = new java.lang.Class[len];
+		java.lang.Object[] objs = new java.lang.Object[len];
 		
-		try {
-			int len = args.length;
-			java.lang.Class[] cls = new java.lang.Class[len];
-			java.lang.Object[] objs = new java.lang.Object[len];
-			
-			java.lang.reflect.Method[] ms = cl.getDeclaredMethods();
-			int msl = ms.length;
-			int realMsl = 0;
-			for(int i =0; i < msl; i++)
+		java.lang.reflect.Method[] ms = cl.getDeclaredMethods();
+		int msl = ms.length;
+		int realMsl = 0;
+		for(int i =0; i < msl; i++)
+		{
+			if (ms[i].getName() != field || (!ms[i].isVarArgs() && ms[i].getParameterTypes().length != len))
 			{
-				if (ms[i].getName() != field || (!ms[i].isVarArgs() && ms[i].getParameterTypes().length != len))
-				{
+				ms[i] = null;
+			} else {
+				ms[realMsl] = ms[i];
+				if (realMsl != i)
 					ms[i] = null;
-				} else {
-					ms[realMsl] = ms[i];
-					if (realMsl != i)
-						ms[i] = null;
-					realMsl++;
+				realMsl++;
+			}
+		}
+		
+		boolean hasNumber = false;
+		
+		for (int i = 0; i < len; i++)
+		{
+			Object o = args.__get(i);
+			objs[i]= o;
+			cls[i] = o.getClass();
+			
+			if (!(o instanceof java.lang.Number))
+			{
+				msl = realMsl;
+				realMsl = 0;
+				
+				for (int j = 0; j < msl; j++)
+				{
+					java.lang.Class[] allcls = ms[j].getParameterTypes();
+					if (i < allcls.length)
+					{
+						if (!allcls[i].isAssignableFrom(cls[i]))
+						{
+							ms[j] = null;
+						} else {
+							ms[realMsl] = ms[j];
+							if (realMsl != j)
+								ms[j] = null;
+							realMsl++;
+						}
+					}
 				}
+				
+				if (realMsl == 0)
+					throw haxe.lang.HaxeException.wrap("No compatible method found for: " + field);
+			} else {
+				hasNumber = true;
 			}
 			
-			boolean hasNumber = false;
+		}
+		
+		java.lang.reflect.Method found = ms[0];
+		
+		if (hasNumber)
+		{
+			java.lang.Class[] allcls = found.getParameterTypes();
 			
 			for (int i = 0; i < len; i++)
 			{
-				Object o = args.__get(i);
-				objs[i]= o;
-				cls[i] = o.getClass();
-				
-				if (!(o instanceof java.lang.Number))
+				java.lang.Object o = objs[i];
+				if (o instanceof java.lang.Number)
 				{
-					msl = realMsl;
-					realMsl = 0;
-					
-					for (int j = 0; j < msl; j++)
+					java.lang.Class curCls = null;
+					if (i < allcls.length)
 					{
-						java.lang.Class[] allcls = ms[j].getParameterTypes();
-						if (i < allcls.length)
+						curCls = allcls[i];
+						if (!curCls.isAssignableFrom(o.getClass()))
 						{
-							if (!allcls[i].isAssignableFrom(cls[i]))
+							String name = curCls.getName();
+							if (name.equals("double") || name.equals("java.lang.Double"))
 							{
-								ms[j] = null;
-							} else {
-								ms[realMsl] = ms[j];
-								if (realMsl != j)
-									ms[j] = null;
-								realMsl++;
+								objs[i] = ((java.lang.Number)o).doubleValue();
+							} else if (name.equals("int") || name.equals("java.lang.Integer"))
+							{
+								objs[i] = ((java.lang.Number)o).intValue();
+							} else if (name.equals("float") || name.equals("java.lang.Float"))
+							{
+								objs[i] = ((java.lang.Number)o).floatValue();
+							} else if (name.equals("byte") || name.equals("java.lang.Byte"))
+							{
+								objs[i] = ((java.lang.Number)o).byteValue();
+							} else if (name.equals("short") || name.equals("java.lang.Short"))
+							{
+								objs[i] = ((java.lang.Number)o).shortValue();
 							}
 						}
-					}
-					
-					if (realMsl == 0)
-						throw haxe.lang.HaxeException.wrap("No compatible method found for: " + field);
-				} else {
-					hasNumber = true;
-				}
-				
-			}
-			
-			java.lang.reflect.Method found = ms[0];
-			
-			if (hasNumber)
-			{
-				java.lang.Class[] allcls = found.getParameterTypes();
-				
-				for (int i = 0; i < len; i++)
-				{
-					java.lang.Object o = objs[i];
-					if (o instanceof java.lang.Number)
-					{
-						java.lang.Class curCls = null;
-						if (i < allcls.length)
-						{
-							curCls = allcls[i];
-							if (!curCls.isAssignableFrom(o.getClass()))
-							{
-								String name = curCls.getName();
-								if (name.equals("double") || name.equals("java.lang.Double"))
-								{
-									objs[i] = ((java.lang.Number)o).doubleValue();
-								} else if (name.equals("int") || name.equals("java.lang.Integer"))
-								{
-									objs[i] = ((java.lang.Number)o).intValue();
-								} else if (name.equals("float") || name.equals("java.lang.Float"))
-								{
-									objs[i] = ((java.lang.Number)o).floatValue();
-								} else if (name.equals("byte") || name.equals("java.lang.Byte"))
-								{
-									objs[i] = ((java.lang.Number)o).byteValue();
-								} else if (name.equals("short") || name.equals("java.lang.Short"))
-								{
-									objs[i] = ((java.lang.Number)o).shortValue();
-								}
-							}
-						} //else varargs not handled TODO
-					}
+					} //else varargs not handled TODO
 				}
 			}
-			
+		}
+		
+		try {
 			found.setAccessible(true);
 			return found.invoke(obj, objs);
-		} catch(Throwable t) {
-			throw HaxeException.wrap(t);
+		} 
+		
+		catch (java.lang.reflect.InvocationTargetException e) 
+		{
+			throw haxe.lang.HaxeException.wrap(e.getCause());
+		}
+		
+		catch (Throwable t) 
+		{
+			throw haxe.lang.HaxeException.wrap(t);
 		}
 	')
 	public static function slowCallField(obj:Dynamic, field:String, args:Array<Dynamic>):Dynamic

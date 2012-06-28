@@ -122,7 +122,6 @@ enum ValueType {
 	}
 
 	@:functionBody('
-		try {
 			int len = args.length;
 			java.lang.Class[] cls = new java.lang.Class[len];
 			java.lang.Object[] objs = new java.lang.Object[len];
@@ -221,10 +220,18 @@ enum ValueType {
 				}
 			}
 			
+		try {
 			found.setAccessible(true);
 			return (T) found.newInstance(objs);
-		} catch(Throwable t) {
-			return null;
+		}
+		catch (java.lang.reflect.InvocationTargetException e) 
+		{
+			throw haxe.lang.HaxeException.wrap(e.getCause());
+		}
+		
+		catch (Throwable t) 
+		{
+			throw haxe.lang.HaxeException.wrap(t);
 		}
 	')
 	public static function createInstance<T>( cl : Class<T>, args : Array<Dynamic> ) : T untyped 
