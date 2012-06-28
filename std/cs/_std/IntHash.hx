@@ -452,5 +452,3 @@ import cs.NativeArray;
 	private static inline function flagsSize(m:Int):Int
 		return ((m) < 16? 1 : (m) >> 4)
 }
-
-//@:struct private class 

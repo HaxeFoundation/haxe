@@ -28,7 +28,7 @@ import cs.NativeArray;
 {
 	@:extern private static inline var HASH_UPPER = 0.77;
 	@:extern private static inline var FLAG_EMPTY = 0;
-	@:extern private static inline var FLAG_DEL = -1;
+	@:extern private static inline var FLAG_DEL = 1;
 	
 	/**
 	 * This is the most important structure here and the reason why it's so fast.
@@ -438,7 +438,7 @@ import cs.NativeArray;
 		return (((k) >> 3 ^ (k) << 3) | 1) & (mask)
 	
 	@:extern private static inline function isEither(v:HashType):Bool
-		return v <= 0
+		return (v & 0xFFFFFFFE) == 0
 	
 	@:extern private static inline function isEmpty(v:HashType):Bool
 		return v == FLAG_EMPTY
@@ -463,12 +463,15 @@ import cs.NativeArray;
 		k = (k+0xfd7046c5) + (k<<3);
 		k = (k^0xb55a4f09) ^ (k>>16);
 		
-		var ret = k & 0x7FFFFFFF;
-		if (ret == 0)
+		var ret = k;
+		if (isEither(ret))
 		{
-			ret = 1;
+			if (ret == 0)
+				ret = 2;
+			else
+				ret = 0xFFFFFFFF;
 		}
-		//at least for now, no negative numbers
+		
 		return ret;
 	}
 	
