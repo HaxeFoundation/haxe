@@ -1,7 +1,5 @@
 package;
 import cs.NativeArray;
-import cs.NativeArray;
-import cs.NativeArray;
 /*
  * Copyright (c) 2005, The haXe Project Contributors
  * All rights reserved.
@@ -30,11 +28,14 @@ import cs.NativeArray;
 /**
  * This IntHash implementation is based on khash (https://github.com/attractivechaos/klib/blob/master/khash.h)
  * Copyright goes to Attractive Chaos <attractor@live.co.uk> and his contributors
+ * 
+ * Thanks also to Jonas Malaco Filho for his Haxe-written IntHash code inspired by Python tables.
+ * (https://jonasmalaco.com/fossil/test/jonas-haxe/artifact/887b53126e237d6c68951111d594033403889304)
  */
  
 @:core_api class IntHash<T>  
 {
-	private static inline var HASH_UPPER = 0.77;
+	private static inline var HASH_UPPER = 0.7;
 	
 	private var flags:NativeArray<Int>;
 	private var _keys:NativeArray<Int>;
@@ -77,25 +78,17 @@ import cs.NativeArray;
 			} else {
 				var inc = getInc(k, mask);
 				var last = i;
-				while (!flagIsEmpty(flags, i) && (flagIsDel(flags, i) || _keys[i] != key))
+				while (! (isEither(flags, i) || _keys[i] == key) )
 				{
-					if (flagIsDel(flags, i))
-						site = i;
 					i = (i + inc) & mask;
+#if DEBUG_HASHTBL
 					if (i == last)
 					{
-						x = site;
-						break;
+						throw "assert";
 					}
+#end
 				}
-				
-				if (x == nBuckets)
-				{
-					if (flagIsEmpty(flags, i) && site != nBuckets)
-						x = site;
-					else
-						x = i;
-				}
+				x = i;
 			}
 		}
 		
@@ -217,13 +210,16 @@ import cs.NativeArray;
 			{
 				setIsDelTrue(flags, idx);
 				--size;
+				
+				vals[idx] = null;
+				_keys[idx] = 0;
 			}
 			
 			return true;
 		}
 	}
 	
-	private function resize(newNBuckets:Int) : Void
+	@:final private function resize(newNBuckets:Int) : Void
 	{
 		//This function uses 0.25*n_bucktes bytes of working space instead of [sizeof(key_t+val_t)+.25]*n_buckets.
 		var newFlags = null;
