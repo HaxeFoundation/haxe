@@ -33,6 +33,10 @@ package haxe.io;
 #elseif cpp
 	extern class Unsigned_char__ { }
 	typedef BytesData = Array<Unsigned_char__>;
+#elseif java
+	typedef BytesData = java.NativeArray<java.StdTypes.Int8>;
+#elseif cs
+	typedef BytesData = cs.NativeArray<cs.StdTypes.UInt8>;
 #else
 	typedef BytesData = Array<Int>;
 #end

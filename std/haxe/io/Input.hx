@@ -31,6 +31,9 @@ package haxe.io;
 class Input {
 
 	public var bigEndian(default,setEndian) : Bool;
+	#if cs
+	private var helper:BytesData;
+	#end
 
 	public function readByte() : Int {
 	#if cpp
@@ -79,6 +82,46 @@ class Input {
 		#else
 			bufsize = (1 << 14); // 16 Ko
 		#end
+		
+		#if (cs || java)
+		var buf = Bytes.alloc(bufsize);
+		var total = [];
+		var tlen = 0;
+		try
+		{
+			while (true)
+			{
+				var len = readBytes(buf, 0, bufsize);
+				tlen += len;
+				if (len == 0)
+					throw Error.Blocked;
+				total.push(buf);
+			}
+		} catch (e:Eof) {
+		}
+			#if cs
+			var ret = new cs.NativeArray(tlen);
+			var idx = 0;
+			for (buf in total)
+			{
+				var len = buf.getData().Length;
+				system.Array.Copy(buf.getData(), 0, ret, idx, len);
+				idx += buf.getData().Length;
+			}
+			return Bytes.ofData(ret);
+			#else
+			var ret = new java.NativeArray(tlen);
+			var idx = 0;
+			for (buf in total)
+			{
+				var len = buf.getData().length;
+				java.lang.System.arraycopy(buf.getData(), 0, ret, idx, len);
+				idx += buf.getData().length;
+			}
+			return Bytes.ofData(ret);
+			#end
+		#else
+		
 		var buf = Bytes.alloc(bufsize);
 		var total = new haxe.io.BytesBuffer();
 		try {
@@ -91,6 +134,7 @@ class Input {
 		} catch( e : Eof ) {
 		}
 		return total.getBytes();
+		#end
 	}
 
 	public function readFullBytes( s : Bytes, pos : Int, len : Int ) {
@@ -146,6 +190,24 @@ class Input {
 		#elseif php
 			var a = untyped __call__('unpack', 'f', readString(4));
 			return a[1];
+		#elseif cs
+			if (helper == null) helper = new cs.NativeArray(8);
+			
+			var helper = helper;
+			if (bigEndian == !system.BitConverter.IsLittleEndian)
+			{
+				helper[0] = readByte();
+				helper[1] = readByte();
+				helper[2] = readByte();
+				helper[3] = readByte();
+			} else {
+				helper[3] = readByte();
+				helper[2] = readByte();
+				helper[1] = readByte();
+				helper[0] = readByte();
+			}
+			
+			return system.BitConverter.ToSingle(helper, 0);
 		#else
 			var bytes = [];
 			bytes.push(readByte());
@@ -190,6 +252,32 @@ class Input {
 		if (sig == 0 && exp == -1023)
 			return 0.0;
 		return sign * (1.0 + Math.pow(2, -52) * sig) * Math.pow(2, exp);
+		#elseif cs
+		if (helper == null) helper = new cs.NativeArray(8);
+		
+		var helper = helper;
+		if (bigEndian == !system.BitConverter.IsLittleEndian)
+		{
+			helper[0] = readByte();
+			helper[1] = readByte();
+			helper[2] = readByte();
+			helper[3] = readByte();
+			helper[4] = readByte();
+			helper[5] = readByte();
+			helper[6] = readByte();
+			helper[7] = readByte();
+		} else {
+			helper[7] = readByte();
+			helper[6] = readByte();
+			helper[5] = readByte();
+			helper[4] = readByte();
+			helper[3] = readByte();
+			helper[2] = readByte();
+			helper[1] = readByte();
+			helper[0] = readByte();
+		}
+		
+		return system.BitConverter.ToDouble(helper, 0);
 		#else
 		return throw "not implemented";
 		#end

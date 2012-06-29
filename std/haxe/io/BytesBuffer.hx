@@ -34,6 +34,9 @@ class BytesBuffer {
 	var b : String;
 	#elseif cpp
 	var b : BytesData;
+	#elseif cs
+	var b : system.io.MemoryStream;
+	//java - ByteArrayOutputStream
 	#else
 	var b : Array<Int>;
 	#end
@@ -47,6 +50,8 @@ class BytesBuffer {
 		b = "";
 		#elseif cpp
 		b = new BytesData();
+		#elseif cs
+		b = new system.io.MemoryStream();
 		#else
 		b = new Array();
 		#end
@@ -61,6 +66,8 @@ class BytesBuffer {
 		b += untyped __call__("chr", byte);
 		#elseif cpp
 		b.push(untyped byte);
+		#elseif cs
+		b.WriteByte(byte);
 		#else
 		b.push(byte);
 		#end
@@ -73,6 +80,8 @@ class BytesBuffer {
 		b.writeBytes(src.getData());
 		#elseif php
 		b += cast src.getData();
+		#elseif cs
+		b.Write(src.getData(), 0, src.length);
 		#else
 		var b1 = b;
 		var b2 = src.getData();
@@ -91,6 +100,8 @@ class BytesBuffer {
 		b.writeBytes(src.getData(),pos,len);
 		#elseif php
 		b += untyped __call__("substr", src.b, pos, len);
+		#elseif cs
+		b.Write(src.getData(), pos, len);
 		#else
 		var b1 = b;
 		var b2 = src.getData();
@@ -112,6 +123,9 @@ class BytesBuffer {
 		b.position = 0;
 		#elseif php
 		var bytes = new Bytes(b.length, cast b);
+		#elseif cs
+		var buf = b.GetBuffer();
+		var bytes = new Bytes(buf.Length, buf);
 		#else
 		var bytes = new Bytes(b.length,b);
 		#end

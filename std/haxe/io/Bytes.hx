@@ -43,6 +43,8 @@ class Bytes {
 		return untyped __call__("ord", b[pos]);
 		#elseif cpp
 		return untyped b[pos];
+		#elseif java
+		return b[pos] & 0xFF;
 		#else
 		return b[pos];
 		#end
@@ -57,6 +59,10 @@ class Bytes {
 		b[pos] = untyped __call__("chr", v);
 		#elseif cpp
 		untyped b[pos] = v;
+		#elseif java
+		b[pos] = v;
+		#elseif cs
+		b[pos] = v;
 		#else
 		b[pos] = v & 0xFF;
 		#end
@@ -74,6 +80,10 @@ class Bytes {
 		#elseif flash9
 		b.position = pos;
 		if( len > 0 ) b.writeBytes(src.b,srcpos,len);
+		#elseif java
+		java.lang.System.arraycopy(b, pos, src.b, srcpos, len);
+		#elseif cs
+		system.Array.Copy(b, pos, src.b, srcpos, len);
 		#else
 		var b1 = b;
 		var b2 = src.b;
@@ -104,6 +114,14 @@ class Bytes {
 		#elseif php
 		// TODO: test me
 		return new Bytes(len, untyped __call__("substr", b, pos, len));
+		#elseif java
+		var newarr = new java.NativeArray(len);
+		java.lang.System.arraycopy(b, pos, newarr, 0, len);
+		return new Bytes(len, newarr);
+		#elseif cs
+		var newarr = new cs.NativeArray(len);
+		system.Array.Copy(b, pos, newarr, 0, len);
+		return new Bytes(len, newarr);
 		#else
 		return new Bytes(len,b.slice(pos,pos+len));
 		#end
@@ -130,6 +148,8 @@ class Bytes {
 		return length - other.length;
 		#elseif php
 		return untyped __php__("$this->b < $other->b ? -1 : ($this->b == $other->b ? 0 : 1)");
+		//#elseif cs
+		//TODO: memcmp if unsafe flag is on
 		#else
 		var b1 = b;
 		var b2 = other.b;
@@ -162,6 +182,10 @@ class Bytes {
 		var result:String="";
 		untyped __global__.__hxcpp_string_of_bytes(b,result,pos,len);
 		return result;
+		#elseif cs
+		return system.text.Encoding.UTF8.GetString(b, pos, len);
+		#elseif java
+		return new String(b, pos, len);
 		#else
 		var s = "";
 		var b = b;
@@ -199,6 +223,10 @@ class Bytes {
 		// TODO: test me
 		return cast b;
 //		return untyped __call__("call_user_func_array", "pack", __call__("array_merge", __call__("array", "C*"), b.»a));
+		#elseif cs
+		return system.text.Encoding.UTF8.GetString(b, 0, length);
+		#elseif java
+		return new String(b, 0, length);
 		#else
 		return readString(0,length);
 		#end
@@ -241,7 +269,11 @@ class Bytes {
 		#elseif cpp
 		var a = new BytesData();
 		if (length>0) a[length-1] = untyped 0;
-		return new Bytes(length,a);
+		return new Bytes(length, a);
+		#elseif cs
+		return new Bytes(length, new cs.NativeArray(length));
+		#elseif java
+		return new Bytes(length, new java.NativeArray(length));
 		#else
 		var a = new Array();
 		for( i in 0...length )
@@ -263,7 +295,11 @@ class Bytes {
 		#elseif cpp
 		var a = new BytesData();
 		untyped __global__.__hxcpp_bytes_of_string(a,s);
-		return new Bytes(a.length,a);
+		return new Bytes(a.length, a);
+		#elseif cs
+		return new Bytes(s.length, system.text.Encoding.UTF8.GetBytes(s));
+		#elseif java
+		return new Bytes(s.length, untyped s.getBytes());
 		#else
 		var a = new Array();
 		// utf8-decode
@@ -296,6 +332,8 @@ class Bytes {
 		return new Bytes(untyped __dollar__ssize(b),b);
 		#elseif php
 		return new Bytes(untyped __call__("strlen", b), b);
+		#elseif cs
+		return new Bytes(b.Length,b);
 		#else
 		return new Bytes(b.length,b);
 		#end

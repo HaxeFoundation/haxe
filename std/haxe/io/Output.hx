@@ -100,6 +100,20 @@ class Output {
 		write(Bytes.ofData(_float_bytes(x,bigEndian)));
 		#elseif php
 		write(untyped Bytes.ofString(__call__('pack', 'f', x)));
+		#elseif cs
+		var bytes = system.BitConverter.GetBytes(cast(x, Single));
+		if (bigEndian == system.BitConverter.IsLittleEndian)
+		{
+			writeByte(bytes[3]);
+			writeByte(bytes[2]);
+			writeByte(bytes[1]);
+			writeByte(bytes[0]);
+		} else {
+			writeByte(bytes[0]);
+			writeByte(bytes[1]);
+			writeByte(bytes[2]);
+			writeByte(bytes[3]);
+		}
 		#else
 		if (x == 0.0)
 		{
@@ -130,6 +144,28 @@ class Output {
 		write(Bytes.ofData(_double_bytes(x,bigEndian)));
 		#elseif php
 		write(untyped Bytes.ofString(__call__('pack', 'd', x)));
+		#elseif cs
+		var bytes = system.BitConverter.GetBytes(x);
+		if (bigEndian == system.BitConverter.IsLittleEndian)
+		{
+			writeByte(bytes[7]);
+			writeByte(bytes[6]);
+			writeByte(bytes[5]);
+			writeByte(bytes[4]);
+			writeByte(bytes[3]);
+			writeByte(bytes[2]);
+			writeByte(bytes[1]);
+			writeByte(bytes[0]);
+		} else {
+			writeByte(bytes[0]);
+			writeByte(bytes[1]);
+			writeByte(bytes[2]);
+			writeByte(bytes[3]);
+			writeByte(bytes[4]);
+			writeByte(bytes[5]);
+			writeByte(bytes[6]);
+			writeByte(bytes[7]);
+		}
 		#else
 		if (x == 0.0) 
 		{

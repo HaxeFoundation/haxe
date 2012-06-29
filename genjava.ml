@@ -1015,6 +1015,16 @@ let configure gen =
                 loop (times - 1)
           in
           check_t_s (TInst(cl, params)) 0 
+        | TNew ({ cl_path = ([], "String") } as cl, [], el) ->
+          write w "new ";
+          write w (t_s (TInst(cl, [])));
+          write w "(";
+          ignore (List.fold_left (fun acc e ->
+            (if acc <> 0 then write w ", ");
+            expr_s w e;
+            acc + 1
+          ) 0 el);
+          write w ")"
         | TNew (cl, params, el) -> 
           write w "new ";
           write w (path_param_s (TClassDecl cl) cl.cl_path params);
