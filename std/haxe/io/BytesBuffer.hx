@@ -36,7 +36,8 @@ class BytesBuffer {
 	var b : BytesData;
 	#elseif cs
 	var b : system.io.MemoryStream;
-	//java - ByteArrayOutputStream
+	#elseif java
+	var b : java.io.ByteArrayOutputStream;
 	#else
 	var b : Array<Int>;
 	#end
@@ -52,6 +53,8 @@ class BytesBuffer {
 		b = new BytesData();
 		#elseif cs
 		b = new system.io.MemoryStream();
+		#elseif java
+		b = new java.io.ByteArrayOutputStream();
 		#else
 		b = new Array();
 		#end
@@ -68,6 +71,8 @@ class BytesBuffer {
 		b.push(untyped byte);
 		#elseif cs
 		b.WriteByte(byte);
+		#elseif java
+		b.write(byte);
 		#else
 		b.push(byte);
 		#end
@@ -82,6 +87,8 @@ class BytesBuffer {
 		b += cast src.getData();
 		#elseif cs
 		b.Write(src.getData(), 0, src.length);
+		#elseif java
+		b.write(src.getData(), 0, src.length);
 		#else
 		var b1 = b;
 		var b2 = src.getData();
@@ -102,6 +109,8 @@ class BytesBuffer {
 		b += untyped __call__("substr", src.b, pos, len);
 		#elseif cs
 		b.Write(src.getData(), pos, len);
+		#elseif java
+		b.write(src.getData(), pos, len);
 		#else
 		var b1 = b;
 		var b2 = src.getData();
@@ -126,6 +135,9 @@ class BytesBuffer {
 		#elseif cs
 		var buf = b.GetBuffer();
 		var bytes = new Bytes(buf.Length, buf);
+		#elseif java
+		var buf = b.toByteArray();
+		var bytes = new Bytes(buf.length, buf);
 		#else
 		var bytes = new Bytes(b.length,b);
 		#end
