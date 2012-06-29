@@ -1,43 +1,59 @@
--cp ..
--swf unit8.swf
+#flash8
+params.hxml
+-main unit.Test
 -swf-header 300:300:30:FFFFFF
 -swf-version 8
--main unit.Test
--swf-version 8
-params.hxml
+-swf unit8.swf
+
+#flash9
 --next
--swf unit9.swf
+params.hxml
+-main unit.Test
 -swf-version 11
--main unit.Test
-params.hxml
+-swf unit9.swf
+
+#as3
 --next
+params.hxml
+-main unit.Test
 -as3 as3
--cp ..
--main unit.Test
+
+#js
 --next
+params.hxml
+-main unit.Test
 -js unit.js
-unit.Test
-params.hxml
+
+#neko
 --next
+params.hxml
+-main unit.Test
 -neko unit.n
--main unit.Test
-params.hxml
+
+#macro
 --next
--main unit.Test
 params.hxml
+-main unit.Test
 --interp
+
+#remoting
 --next
--neko remoting.n
--main unit.RemotingServer
 -cp ..
+-main unit.RemotingServer
+-neko remoting.n
+
+#php
 --next
+params.hxml
+-main unit.Test
 -php php
--main unit.Test
-params.hxml
+
+#cpp
 --next
--neko runcpp.n
 -main RunCpp
+-neko runcpp.n
+
 --next
--cpp cpp
--main unit.Test
 params.hxml
+-main unit.Test
+-cpp cpp

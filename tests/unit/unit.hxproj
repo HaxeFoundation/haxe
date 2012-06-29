@@ -2,7 +2,7 @@
 <project version="2">
   <!-- Output SWF options -->
   <output>
-    <movie outputType="Application" />
+    <movie outputType="CustomBuild" />
     <movie input="" />
     <movie path="unit8.swf" />
     <movie fps="30" />
@@ -23,7 +23,7 @@
     <option flashStrict="False" />
     <option mainClass="unit.Test" />
     <option enabledebug="False" />
-    <option additional="-swf-version 8&#xA;params.hxml&#xA;&#xA;# Flash9&#xA;--next&#xA;-swf unit9.swf&#xA;-swf-version 11&#xA;-main unit.Test&#xA;params.hxml&#xA;&#xA;# AS3&#xA;--next&#xA;-as3 as3&#xA;-cp ..&#xA;-main unit.Test&#xA;#-cmd mxmlc -default-size 800 600 -debug -output unit9_as3.swf as3/__main__.as&#xA;&#xA;# JS&#xA;--next&#xA;-js unit.js&#xA;unit.Test&#xA;params.hxml&#xA;&#xA;# Neko&#xA;--next&#xA;-neko unit.n&#xA;-main unit.Test&#xA;params.hxml&#xA;&#xA;# MACROS&#xA;--next&#xA;-main unit.Test&#xA;params.hxml&#xA;--interp&#xA;&#xA;# RemotingServer&#xA;--next&#xA;-neko remoting.n&#xA;-main unit.RemotingServer&#xA;-cp ..&#xA;&#xA;# PHP&#xA;--next&#xA;-php php&#xA;-main unit.Test&#xA;params.hxml&#xA;&#xA;# CPP&#xA;--next&#xA;-neko runcpp.n&#xA;-main RunCpp&#xA;--next&#xA;-cpp cpp&#xA;-main unit.Test&#xA;params.hxml" />
+    <option additional="" />
   </build>
   <!-- haxelib libraries -->
   <haxelib>
@@ -56,7 +56,7 @@
     <hidden path="unit.js.map" />
   </hiddenPaths>
   <!-- Executed before build -->
-  <preBuildCommand />
+  <preBuildCommand>haxe unit.hxml</preBuildCommand>
   <!-- Executed after build -->
   <postBuildCommand alwaysRun="False" />
   <!-- Other project options -->
