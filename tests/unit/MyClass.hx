@@ -100,6 +100,13 @@ class InitBase {
 	public var s = "foo";
 	public var b = true;
 	public var t = String;
+	
+	static public inline var si = 2;
+	static public inline var sop = 2 + 5 * 5;
+	static public inline var st = String;
+	static public inline var sp = (2 * 3);
+	static public inline var sinline = DateTools.minutes(1);
+	
 	public function new() { }
 }
 

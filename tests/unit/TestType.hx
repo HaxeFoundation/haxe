@@ -422,9 +422,9 @@ class TestType extends Test {
 		eq(ParamConstraintsClass.staticSingle(b), b);
 		eq(ParamConstraintsClass.staticSingle(c1), c1);
 		// TODO: these should fail (param is constrained to Base)
-		ParamConstraintsClass.staticSingle(u);
-		ParamConstraintsClass.staticSingle(1);
-		ParamConstraintsClass.staticSingle("foo");
+		//ParamConstraintsClass.staticSingle(u);
+		//ParamConstraintsClass.staticSingle(1);
+		//ParamConstraintsClass.staticSingle("foo");
 		
 		eq(pcc.memberSingle(b), b);
 		eq(pcc.memberSingle(c1), c1);
@@ -468,5 +468,14 @@ class TestType extends Test {
 		eq(UsingChild1.test(), "FOOFOOfoo");
 		eq(UsingChild2.test(), "FOO");
 		eq(UsingUnrelated.test(), "FOOFOO");
+	}
+	
+	function testInlineInit()
+	{
+		eq(InitBase.si, 2);
+		eq(InitBase.sop, 27);
+		eq(InitBase.sp, 6);
+		eq(InitBase.st, String);
+		eq(InitBase.sinline, 60000.);
 	}
 }

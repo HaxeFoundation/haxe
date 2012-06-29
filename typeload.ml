@@ -945,16 +945,29 @@ let init_class ctx c p herits fields =
 					let e = type_var_field ctx t e stat p in
 					let e = (match cf.cf_kind with
 					| Var v when not stat || (v.v_read = AccInline && Common.defined ctx.com "haxe3") ->
-						let e = ctx.g.do_optimize ctx e in
-						let rec is_const e =
+						let rec make_const e =
+							let e = ctx.g.do_optimize ctx e in
 							match e.eexpr with
-							| TConst _ -> true
-							| TBinop ((OpAdd|OpSub|OpMult|OpDiv|OpMod),e1,e2) -> is_const e1 && is_const e2
-							| TParenthesis e -> is_const e
-							| TTypeExpr e -> true
-							| _ -> false
+							| TConst _ -> Some e
+							| TBinop ((OpAdd|OpSub|OpMult|OpDiv|OpMod) as op,e1,e2) -> (match make_const e1,make_const e2 with
+								| Some e1, Some e2 -> Some (mk (TBinop(op, e1, e2)) e.etype e.epos)
+								| _ -> None)
+							| TParenthesis e -> Some e
+							| TTypeExpr _ -> Some e
+							(* try to inline static function calls *)
+							| TCall ({ etype = TFun(_,ret); eexpr = TField ({ eexpr = TTypeExpr (TClassDecl c) },n) },el) ->
+								(try
+									let cf = PMap.find n c.cl_statics in
+									let func = match cf.cf_expr with Some ({eexpr = TFunction func}) -> func | _ -> raise Not_found in
+									let ethis = mk (TConst TThis) t_dynamic e.epos in
+									let inl = (try Optimizer.type_inline ctx cf func ethis el ret e.epos false with Error (Custom _,_) -> None) in
+									(match inl with
+									| None -> None
+									| Some e -> make_const e)
+								with Not_found -> None)
+							| _ -> None
 						in
-						if not (is_const e) then display_error ctx "Variable initialization must be a constant value" p;
+						let e = match make_const e with Some e -> e | None -> display_error ctx "Variable initialization must be a constant value" p; e in
 						e
 					| _ ->
 						e
