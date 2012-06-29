@@ -121,31 +121,10 @@ import haxe.lang.Function;
 			Array<object> ret = new Array<object>();
 				((haxe.lang.IHxObject) o).__hx_getFields(ret);
 			return ret;
+		} else if (o is System.Type) {
+			return Type.getClassFields( (System.Type) o);
 		} else {
-			Array<object> ret = new Array<object>();
-			
-			if (o is System.Type)
-			{
-				System.Type cl = (System.Type) o;
-				
-				foreach(System.Reflection.FieldInfo fi in cl.GetFields(System.Reflection.BindingFlags.Static))
-				{
-					ret.push(fi.Name);
-				}
-				
-				string last = null;
-				foreach(System.Reflection.MethodInfo mi in cl.GetMethods(System.Reflection.BindingFlags.Static))
-				{
-					string name = mi.Name;
-					if (!last.Equals(name))
-					{
-						ret.push(name);
-						last = name;
-					}
-				}
-			}
-			
-			return ret;
+			return new Array<object>();
 		}
 	')
 	public static function fields( o : Dynamic ) : Array<String>

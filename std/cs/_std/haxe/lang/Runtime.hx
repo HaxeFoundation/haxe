@@ -215,9 +215,15 @@ import system.Type;
 		System.Reflection.BindingFlags bf;
         if (t == null)
 		{
+			string s = obj as string;
+			if (s != null)
+				return haxe.lang.StringRefl.handleGetField(s, field, throwErrors);
 			t = obj.GetType();
 			bf = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.FlattenHierarchy;
 		} else {
+			if (obj == typeof(string) && field.Equals("fromCharCode"))
+				return new haxe.lang.Closure(typeof(haxe.lang.StringExt), field, 0);
+			
 			obj = null;
 			bf = System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public;
 		}
@@ -256,9 +262,14 @@ import system.Type;
 		System.Reflection.BindingFlags bf;
         if (t == null)
 		{
+			string s = obj as string;
+			if (s != null)
+				return haxe.lang.StringRefl.handleGetField(s, field, false) != null;
 			t = obj.GetType();
 			bf = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.FlattenHierarchy;
 		} else {
+			if (t == typeof(string))
+				return field.Equals("fromCharCode");
 			obj = null;
 			bf = System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public;
 		}
@@ -444,9 +455,14 @@ import system.Type;
 		System.Type t = obj as System.Type;
 		if (t == null)
 		{
+			string s = obj as string;
+			if (s != null)
+				return haxe.lang.StringRefl.handleCallField(s, field, args);
 			t = obj.GetType();
 			bf = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.FlattenHierarchy;
 		} else {
+			if (t == typeof(string) && field.Equals("fromCharCode"))
+				return haxe.lang.StringExt.fromCharCode(toInt(args[0]));
 			obj = null;
 			bf = System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public;
 		}

@@ -153,7 +153,7 @@ package haxe.lang;
 		if (o instanceof java.lang.Class)
 		{
 			if (o == java.lang.String.class)
-				return field == "fromCharCode";
+				return field.equals("fromCharCode");
 			
 			cl = (java.lang.Class) o;
 		} else if (o instanceof java.lang.String) {

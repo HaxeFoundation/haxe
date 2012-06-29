@@ -83,6 +83,14 @@ extern class String {
 		If [len] is not specified, it takes all the remaining characters.
 	**/
 	function substr( pos : Int, ?len : Int ) : String;
+	
+	/**
+		Returns a part of the String, taking from [startIndex] to [endIndex] - 1.
+		If [endIndex] is not specified, length is used.
+		If [startIndex] or [endIndex] is smaller than 0, than 0 is used.
+		If [startIndex] > [endIndex] then they are swaped.
+	**/
+	function substring( startIndex : Int, ?endIndex : Int ) : String;
 
 	/**
 		Returns the String itself.
@@ -92,8 +100,6 @@ extern class String {
 	private function compareTo( anotherString : String ) : Int;
 	
 	private function codePointAt( idx : Int ) : Int;
-	
-	private function substring( begin : Int, end : Int ) : String;
 
 	static function fromCharCode( code : Int ) : String;
 

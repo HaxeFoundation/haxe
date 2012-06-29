@@ -509,6 +509,7 @@ struct
         | TCall( ( { eexpr = TField(ef, ("split" as field)) } ), args )
         | TCall( ( { eexpr = TField(ef, ("indexOf" as field)) } ), args )
         | TCall( ( { eexpr = TField(ef, ("lastIndexOf" as field)) } ), args )
+        | TCall( ( { eexpr = TField(ef, ("substring" as field)) } ), args )
         | TCall( ( { eexpr = TField(ef, ("substr" as field)) } ), args ) when is_string ef.etype ->
           { e with eexpr = TCall(mk_static_field_access_infer string_ext field e.epos [], [run ef] @ (List.map run args)) }
         

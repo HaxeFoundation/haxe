@@ -44,7 +44,7 @@ package haxe.lang;
 	private var field:String;
 	private var hash:Int;
 	
-	public function new(obj, field, hash)
+	public function new(obj:Dynamic, field, hash)
 	{
 		super(-1, -1);
 		this.obj = obj;

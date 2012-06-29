@@ -178,6 +178,11 @@ enum ValueType {
 	}
 	
 	@:functionBody('
+		if (c == typeof(string))
+		{
+			return haxe.lang.StringRefl.fields;
+		}
+		
 		Array<object> ret = new Array<object>();
 
         System.Reflection.MemberInfo[] mis = c.GetMembers(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.DeclaredOnly | System.Reflection.BindingFlags.Instance);
@@ -198,6 +203,12 @@ enum ValueType {
 	
 	@:functionBody('
 		Array<object> ret = new Array<object>();
+		
+		if (c == typeof(string))
+		{
+			ret.push("fromCharCode");
+			return ret;
+		}
 
         System.Reflection.MemberInfo[] mis = c.GetMembers(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
         for (int i = 0; i < mis.Length; i++)
