@@ -223,7 +223,7 @@ let init_platform com pf =
 	let forbid acc p = if p = name || PMap.mem p acc then acc else PMap.add p Forbidden acc in
 	com.package_rules <- List.fold_left forbid com.package_rules (List.map platform_name platforms);
 	(match pf with
-	| Cpp | Php | Neko -> define com "sys"
+	| Cpp | Php | Neko | Java | Cs -> define com "sys"
 	| _ -> com.package_rules <- PMap.add "sys" Forbidden com.package_rules);
 	define com name
 

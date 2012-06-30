@@ -33,4 +33,9 @@ import java.lang.Class;
 	{
 		return null;
 	}
+	
+	public static function fromNativeArray<T>(native:java.NativeArray<T>):Array<T>
+	{
+		return untyped Array.ofNative(native);
+	}
 }
