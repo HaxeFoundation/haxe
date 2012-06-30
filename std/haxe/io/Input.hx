@@ -33,6 +33,8 @@ class Input {
 	public var bigEndian(default,setEndian) : Bool;
 	#if cs
 	private var helper:BytesData;
+	#elseif java
+	private var helper:java.nio.ByteBuffer;
 	#end
 
 	public function readByte() : Int {
@@ -208,6 +210,24 @@ class Input {
 			}
 			
 			return system.BitConverter.ToSingle(helper, 0);
+		#elseif java
+			if (helper == null) helper = java.nio.ByteBuffer.allocateDirect(8);
+			var helper = helper;
+			
+			if ( (helper.order() == java.nio.ByteOrder.BIG_ENDIAN) == bigEndian )
+			{
+				helper.putChar(0, readByte());
+				helper.putChar(1, readByte());
+				helper.putChar(2, readByte());
+				helper.putChar(3, readByte());
+			} else {
+				helper.putChar(3, readByte());
+				helper.putChar(2, readByte());
+				helper.putChar(1, readByte());
+				helper.putChar(0, readByte());
+			}
+			
+			return helper.getFloat();
 		#else
 			var bytes = [];
 			bytes.push(readByte());
@@ -278,6 +298,32 @@ class Input {
 		}
 		
 		return system.BitConverter.ToDouble(helper, 0);
+		#elseif java
+		if (helper == null) helper = java.nio.ByteBuffer.allocateDirect(8);
+		var helper = helper;
+		
+		if ( (helper.order() == java.nio.ByteOrder.BIG_ENDIAN) == bigEndian )
+		{
+			helper.putChar(0, readByte());
+			helper.putChar(1, readByte());
+			helper.putChar(2, readByte());
+			helper.putChar(3, readByte());
+			helper.putChar(4, readByte());
+			helper.putChar(5, readByte());
+			helper.putChar(6, readByte());
+			helper.putChar(7, readByte());
+		} else {
+			helper.putChar(7, readByte());
+			helper.putChar(6, readByte());
+			helper.putChar(5, readByte());
+			helper.putChar(4, readByte());
+			helper.putChar(3, readByte());
+			helper.putChar(2, readByte());
+			helper.putChar(1, readByte());
+			helper.putChar(0, readByte());
+		}
+		
+		return helper.getDouble();
 		#else
 		return throw "not implemented";
 		#end

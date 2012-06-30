@@ -32,7 +32,11 @@ package haxe.io;
 **/
 class Output {
 	private static var LN2 = Math.log(2);
-	public var bigEndian(default,setEndian) : Bool;
+	public var bigEndian(default, setEndian) : Bool;
+	
+	#if java
+	private var helper:java.nio.ByteBuffer;
+	#end
 
 	public function writeByte( c : Int ) : Void {
 		throw "Not implemented";
@@ -114,6 +118,23 @@ class Output {
 			writeByte(bytes[2]);
 			writeByte(bytes[3]);
 		}
+		#elseif java
+		if (helper == null) helper = java.nio.ByteBuffer.allocateDirect(8);
+		var helper = helper;
+		
+		helper.putFloat(0, x);
+		if ( (helper.order() == java.nio.ByteOrder.BIG_ENDIAN) == bigEndian )
+		{
+			writeByte(helper.get(0));
+			writeByte(helper.get(1));
+			writeByte(helper.get(2));
+			writeByte(helper.get(3));
+		} else {
+			writeByte(helper.get(3));
+			writeByte(helper.get(2));
+			writeByte(helper.get(1));
+			writeByte(helper.get(0));
+		}
 		#else
 		if (x == 0.0)
 		{
@@ -165,6 +186,31 @@ class Output {
 			writeByte(bytes[5]);
 			writeByte(bytes[6]);
 			writeByte(bytes[7]);
+		}
+		#elseif java
+		if (helper == null) helper = java.nio.ByteBuffer.allocateDirect(8);
+		var helper = helper;
+		
+		helper.putDouble(0, x);
+		if ( (helper.order() == java.nio.ByteOrder.BIG_ENDIAN) == bigEndian )
+		{
+			writeByte(helper.get(0));
+			writeByte(helper.get(1));
+			writeByte(helper.get(2));
+			writeByte(helper.get(3));
+			writeByte(helper.get(4));
+			writeByte(helper.get(5));
+			writeByte(helper.get(6));
+			writeByte(helper.get(7));
+		} else {
+			writeByte(helper.get(7));
+			writeByte(helper.get(6));
+			writeByte(helper.get(5));
+			writeByte(helper.get(4));
+			writeByte(helper.get(3));
+			writeByte(helper.get(2));
+			writeByte(helper.get(1));
+			writeByte(helper.get(0));
 		}
 		#else
 		if (x == 0.0) 
