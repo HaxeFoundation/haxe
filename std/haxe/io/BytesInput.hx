@@ -25,7 +25,6 @@
 package haxe.io;
 
 class BytesInput extends Input {
-
 	var b : BytesData;
 	#if !flash9
 	var pos : Int;
@@ -66,6 +65,8 @@ class BytesInput extends Input {
 			return untyped __call__("ord", b[pos++]);
 			#elseif cpp
 			return untyped b[pos++];
+			#elseif java
+			return b[pos++] & 0xFF;
 			#else
 			return b[pos++];
 			#end
@@ -81,6 +82,14 @@ class BytesInput extends Input {
 			var avail : Int = b.bytesAvailable;
 			if( len > avail && avail > 0 ) len = avail;
 			try b.readBytes(buf.getData(),pos,len) catch( e : Dynamic ) throw new Eof();
+		#elseif java
+			java.lang.System.arraycopy(this.b, this.pos, buf, pos, len);
+			this.pos += len;
+			this.len -= len;
+		#elseif cs
+			system.Array.Copy(this.b, this.pos, bùf, pos, len);
+			this.pos += len;
+			this.len -= len;
 		#else
 			if( this.len == 0 && len > 0 )
 				throw new Eof();
