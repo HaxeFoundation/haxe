@@ -74,4 +74,9 @@ class Lib
 	{
 		return untyped obj.GetType();
 	}
+	
+	public static function fromNativeArray<T>(native:cs.NativeArray<T>):Array<T>
+	{
+		return untyped Array.ofNative(native);
+	}
 }

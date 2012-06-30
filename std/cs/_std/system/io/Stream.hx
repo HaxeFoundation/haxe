@@ -20,7 +20,7 @@ import haxe.io.BytesData;
 	function Flush():Void;
 	function Read(buf:BytesData, offset:Int, count:Int):Int;
 	function ReadByte():Int;
-	//function Seek(offset:Int64, 
+	function Seek(offset:Int64, origin:SeekOrigin):Int64;
 	function SetLength(value:Int64):Void;
 	function Write(buf:BytesData, offset:Int, count:Int):Void;
 	function WriteByte(value:UInt8):Void;

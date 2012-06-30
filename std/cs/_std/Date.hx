@@ -126,6 +126,7 @@ class Date
 		d.date = new DateTime(cast(t, Int64));
 		return d;
 	}
+	
 
 	/**
 		Returns a Date from a formated string of one of the following formats :
@@ -151,5 +152,12 @@ class Date
 			default:
 				throw "Invalid date format : " + s;
 		}
+	}
+	
+	private static function fromNative( d : system.DateTime ) : Date
+	{
+		var date = new Date(0, 0, 0, 0, 0, 0);
+		date.date = d;
+		return date;
 	}
 }
