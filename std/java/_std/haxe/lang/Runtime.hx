@@ -273,7 +273,7 @@ package haxe.lang;
 			{
 				if (ms[i].getName().equals(field))
 				{
-					return new haxe.lang.Closure(obj, field);
+					return new haxe.lang.Closure(obj != null ? obj : cl, field);
 				}
 			}
 		} catch (Throwable t2)

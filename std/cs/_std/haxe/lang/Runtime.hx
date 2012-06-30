@@ -239,7 +239,7 @@ import system.Type;
 				System.Reflection.MemberInfo[] m = t.GetMember(field, bf);
 				if (m.Length > 0)
 				{
-					return new haxe.lang.Closure(obj, field, 0);
+					return new haxe.lang.Closure(obj != null ? obj : t, field, 0);
 				} else {
 					if (throwErrors) 
 						throw HaxeException.wrap("Cannot access field \'" + field + "\'.");
