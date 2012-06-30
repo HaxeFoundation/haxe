@@ -41,7 +41,7 @@ enum StackItem {
 class Stack {
 
 	/**
-		Return the call stack elements.
+		Return the call stack elements, or an empty array if not available.
 	**/
 	public static function callStack() : Array<StackItem> {
 		#if neko
@@ -50,7 +50,7 @@ class Stack {
 			return a;
 		#elseif flash9
 			var a = makeStack( new flash.errors.Error().getStackTrace() );
-			a.shift(); // remove Stack.callstack()
+			a.shift(); // remove Stack.callStack()
 			return a;
 		#elseif flash
 			return makeStack("$s");
@@ -59,15 +59,39 @@ class Stack {
 		#elseif cpp
 			var s:Array<String> = untyped __global__.__hxcpp_get_call_stack(true);
 			return makeStack(s);
+		#elseif js
+			// https://code.google.com/p/v8/wiki/JavaScriptStackTraceApi
+			var oldValue = (untyped Error).prepareStackTrace;
+			(untyped Error).prepareStackTrace = function (error, callsites :Array<Dynamic>) {
+				var stack = [];
+				for (site in callsites) {
+					var method = null;
+					var fullName :String = site.getFunctionName();
+					if (fullName != null) {
+						var idx = fullName.lastIndexOf(".");
+						if (idx >= 0) {
+							var className = fullName.substr(0, idx);
+							var methodName = fullName.substr(idx+1);
+							method = Method(className, methodName);
+						}
+					}
+					stack.push(FilePos(method, site.getFileName(), site.getLineNumber()));
+				}
+				return stack;
+			}
+			var a = makeStack(untyped __new__("Error").stack);
+			a.shift(); // remove Stack.callStack()
+			(untyped Error).prepareStackTrace = oldValue;
+			return a;
 		#else
-			return [];
+			return []; // Unsupported
 		#end
 	}
 
 	/**
 		Return the exception stack : this is the stack elements between
 		the place the last exception was thrown and the place it was
-		catched.
+		caught, or an empty array if not available.
 	**/
 	#if cpp @:noStack #end /* Do not mess up the exception stack */
 	public static function exceptionStack() : Array<StackItem> {
@@ -97,7 +121,7 @@ class Stack {
 			var s:Array<String> = untyped __global__.__hxcpp_get_exception_stack();
 			return makeStack(s);
 		#else
-			return [];
+			return []; // Unsupported
 		#end
 	}
 
@@ -207,6 +231,18 @@ class Stack {
 					m.unshift(FilePos( Method(words[0],words[1]),words[2],Std.parseInt(words[3])));
 			}
 			return m;
+		#elseif js
+			if ((untyped __js__("typeof"))(s) == "string") {
+				// Return the raw lines in browsers that don't support prepareStackTrace
+				var stack : Array<String> = s.split("\n");
+				var m = [];
+				for( line in stack ) {
+					m.push(Module(line)); // A little weird, but better than nothing
+				}
+				return m;
+			} else {
+				return cast s;
+			}
 		#else
 			return null;
 		#end
