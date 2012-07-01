@@ -233,6 +233,8 @@ class ExampleJSGenerator {
 	public function generate() {
 		print("var $_, $hxClasses = $hxClasses || {}, $estr = function() { return js.Boot.__string_rec(this,''); }");
 		newline();
+		print("function $bind(o,m) { var f = function(){ return f.method.apply(f.scope, arguments); }; f.scope = o; f.method = m; return f; };");
+		newline();
 		for( t in api.types )
 			genType(t);
 		for( e in inits ) {
