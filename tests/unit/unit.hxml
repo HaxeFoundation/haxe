@@ -12,12 +12,6 @@ params.hxml
 -swf-version 11
 -swf unit9.swf
 
-#as3
---next
-params.hxml
--main unit.Test
--as3 as3
-
 #js
 --next
 params.hxml
@@ -57,6 +51,13 @@ params.hxml
 params.hxml
 -main unit.Test
 -cpp cpp
+
+#as3
+--next
+params.hxml
+-main unit.Test
+-as3 as3
+-cmd mxmlc as3/__main__.as --output unit9_as3.swf
 
 #java
 --next

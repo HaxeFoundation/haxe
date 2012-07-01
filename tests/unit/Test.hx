@@ -193,13 +193,13 @@ class Test #if swf_mark implements mt.Protect #end #if as3 implements haxe.Publi
 			new TestLocals(),
 			new TestEReg(),
 			new TestXML(),
-			#if !java
+			#if (!java && !as3)
 			// these don't compile
 			new TestMisc(),
 			new TestResource(),
 			new TestInt64(),			
 			// these cause runtime exceptions
-			new TestReflect(),			
+			new TestReflect(),
 			new TestSerialize(),
 			new TestMeta(),
 			#end

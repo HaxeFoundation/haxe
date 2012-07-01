@@ -959,7 +959,7 @@ let generate_field ctx static f =
 				print ctx "%s function set %s( __v : %s ) : void { $%s = __v; }" (if v.v_write = AccNo then "protected" else "private") id t id;
 				newline ctx
 			| _ -> ());
-			print ctx "protected var $%s : %s" (s_ident f.cf_name) (type_str ctx f.cf_type p);
+			print ctx "%sprotected var $%s : %s" (if static then "static " else "") (s_ident f.cf_name) (type_str ctx f.cf_type p);
 		end else begin
 			print ctx "%s var %s : %s" rights (s_ident f.cf_name) (type_str ctx f.cf_type p);
 			match f.cf_expr with
