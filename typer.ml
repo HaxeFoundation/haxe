@@ -587,7 +587,7 @@ let using_field ctx mode e i p =
 				let f = PMap.find i c.cl_statics in
 				let t = field_type ctx c [] f p in
 				(match follow t with
-				| TFun ((_,_,t0) :: args,r) (* when can_access ctx.curclass c f true *) ->
+				| TFun ((_,_,t0) :: args,r) ->
 					let t0 = (try match t0 with
 					| TType({t_path=["haxe";"macro"], ("ExprOf"|"ExprRequire")}, [t]) ->
 						(try unify_raise ctx e.etype t p with Error (Unify _,_) -> raise Not_found); t;

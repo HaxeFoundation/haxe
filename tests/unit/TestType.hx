@@ -465,7 +465,7 @@ class TestType extends Test {
 	
 	function testUsing()
 	{
-		eq(UsingChild1.test(), "FOOFOOfoo");
+		eq(UsingChild1.test(), "FOOFOOFOO");
 		eq(UsingChild2.test(), "FOO");
 		eq(UsingUnrelated.test(), "FOOFOO");
 	}
