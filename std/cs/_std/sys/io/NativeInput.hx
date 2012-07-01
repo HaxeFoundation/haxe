@@ -1,6 +1,7 @@
 package sys.io;
 import haxe.Int64;
 import haxe.io.Bytes;
+import haxe.io.Eof;
 import haxe.io.Input;
 
 class NativeInput extends Input
@@ -16,7 +17,9 @@ class NativeInput extends Input
 	
 	override public function readByte():Int 
 	{
-		return stream.ReadByte();
+		var ret = stream.ReadByte();
+		if (ret == -1) throw new Eof();
+		return ret;
 	}
 	
 	override public function readBytes(s:Bytes, pos:Int, len:Int):Int 
