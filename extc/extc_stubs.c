@@ -191,13 +191,10 @@ CAMLprim value get_full_path( value f ) {
 		failwith("get_full_path");
 	return caml_copy_string(path);
 #else
-	value cpath;
-	char *path = realpath(String_val(f),NULL);
-	if( path == NULL )
+	char path[4096];
+	if( realpath(String_val(f),path) == NULL )
 		failwith("get_full_path");
-	cpath = caml_copy_string(path);
-	free(path);
-	return cpath;
+	return caml_copy_string(path);
 #endif
 }
 
