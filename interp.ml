@@ -278,7 +278,7 @@ let parse_int s =
 		| '0'..'9' -> loop sp (i + 1)
 		| ' ' when sp = i -> loop (sp + 1) (i + 1)
 		| '-' when i = 0 -> loop sp (i + 1)
-		| 'x' when i = 1 && String.get s 0 = '0' -> loop_hex (i + 1)
+		| ('x' | 'X') when i = 1 && String.get s 0 = '0' -> loop_hex (i + 1)
 		| _ -> String.sub s sp (i - sp)
 	in
 	int_of_string (loop 0 0)

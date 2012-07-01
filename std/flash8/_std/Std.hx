@@ -41,7 +41,7 @@
 
 	public static function parseInt( x : String ) : Null<Int> untyped {
 		var v;
-		if( x.charCodeAt(1) == 'x'.code )
+		if( x.charCodeAt(1) == 'x'.code || x.charCodeAt(1) == 'X'.code)
 			v = _global["parseInt"](x);
 		else
 			v = _global["parseInt"](x, 10);
