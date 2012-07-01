@@ -81,9 +81,9 @@ class Bytes {
 		b.position = pos;
 		if( len > 0 ) b.writeBytes(src.b,srcpos,len);
 		#elseif java
-		java.lang.System.arraycopy(b, pos, src.b, srcpos, len);
+		java.lang.System.arraycopy(src.b, srcpos, b, pos, len);
 		#elseif cs
-		system.Array.Copy(b, pos, src.b, srcpos, len);
+		system.Array.Copy(src.b, srcpos, b, pos, len);
 		#else
 		var b1 = b;
 		var b2 = src.b;

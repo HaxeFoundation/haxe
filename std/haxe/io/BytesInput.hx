@@ -83,10 +83,18 @@ class BytesInput extends Input {
 			if( len > avail && avail > 0 ) len = avail;
 			try b.readBytes(buf.getData(),pos,len) catch( e : Dynamic ) throw new Eof();
 		#elseif java
+			var avail : Int = this.len;
+			if ( len > avail ) len = avail;
+			if (len == 0)
+				throw new Eof();
 			java.lang.System.arraycopy(this.b, this.pos, buf.getData(), pos, len);
 			this.pos += len;
 			this.len -= len;
 		#elseif cs
+			var avail : Int = this.len;
+			if ( len > avail ) len = avail;
+			if (len == 0)
+				throw new Eof();
 			system.Array.Copy(this.b,this.pos, buf.getData(), pos, len);
 			this.pos += len;
 			this.len -= len;

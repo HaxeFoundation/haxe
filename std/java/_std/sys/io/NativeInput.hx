@@ -30,9 +30,10 @@ class NativeInput extends Input
 	
 	override public function readBytes(s:Bytes, pos:Int, len:Int):Int 
 	{
+		var ret = 0;
 		try
 		{
-			return stream.Read(s.getDate(), pos, len);
+			ret = stream.read(s.getData(), pos, len);
 		}
 		
 		catch (e:EOFException) {
@@ -42,6 +43,10 @@ class NativeInput extends Input
 		catch (e:IOException) {
 			throw haxe.io.Error.Custom(e);
 		}
+		
+		if (ret == -1)
+			throw new Eof();
+		return ret;
 	}
 	
 	override public function close():Void

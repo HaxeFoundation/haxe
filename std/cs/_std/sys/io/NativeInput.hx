@@ -2,6 +2,7 @@ package sys.io;
 import haxe.Int64;
 import haxe.io.Bytes;
 import haxe.io.Eof;
+import haxe.io.Error;
 import haxe.io.Input;
 
 class NativeInput extends Input
@@ -24,7 +25,12 @@ class NativeInput extends Input
 	
 	override public function readBytes(s:Bytes, pos:Int, len:Int):Int 
 	{
-		return stream.Read(s.getData(), pos, len);
+		if( pos < 0 || len < 0 || pos + len > s.length )
+			throw Error.OutsideBounds;
+		var ret = stream.Read(s.getData(), pos, len);
+		if (ret == 0)
+			throw new Eof();
+		return ret;
 	}
 	
 	override public function close():Void

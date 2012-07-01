@@ -86,18 +86,26 @@ class Input {
 		#end
 		
 		#if (cs || java)
-		var buf = Bytes.alloc(bufsize);
+		var buf = null;
 		var total = [];
 		var tlen = 0;
+		var pos = 0;
 		try
 		{
 			while (true)
 			{
-				var len = readBytes(buf, 0, bufsize);
+				if (buf == null || pos >= bufsize)
+				{
+					pos = 0;
+					buf = Bytes.alloc(bufsize);
+					total.push(buf);
+				}
+				
+				var len = readBytes(buf, pos, bufsize - pos);
 				tlen += len;
+				pos += len;
 				if (len == 0)
 					throw Error.Blocked;
-				total.push(buf);
 			}
 		} catch (e:Eof) {
 		}
@@ -107,8 +115,11 @@ class Input {
 			for (buf in total)
 			{
 				var len = buf.getData().Length;
+				if (len > tlen)
+					len = tlen;
 				system.Array.Copy(buf.getData(), 0, ret, idx, len);
-				idx += buf.getData().Length;
+				idx += len;
+				tlen -= len;
 			}
 			return Bytes.ofData(ret);
 			#else
@@ -117,8 +128,11 @@ class Input {
 			for (buf in total)
 			{
 				var len = buf.getData().length;
+				if (len > tlen)
+					len = tlen;
 				java.lang.System.arraycopy(buf.getData(), 0, ret, idx, len);
-				idx += buf.getData().length;
+				idx += len;
+				tlen -= len;
 			}
 			return Bytes.ofData(ret);
 			#end

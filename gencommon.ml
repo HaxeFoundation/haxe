@@ -3436,7 +3436,7 @@ struct
   (* from this info, it will infer the applied tparams for the function *)
   (* this function is used by CastDetection module *)
   let infer_params gen pos (original_args:((string * bool * t) list * t)) (applied_args:((string * bool * t) list * t)) (params:(string * t) list) impossible_tparam_is_dynamic : tparams =
-    let args_list args = ( List.map (fun (_,_,t) -> t) (fst args) ) @ (if impossible_tparam_is_dynamic then [] else [snd args]) in
+    let args_list args = ( List.map (fun (_,_,t) -> if impossible_tparam_is_dynamic then gen.greal_type t else t) (fst args) ) @ (if impossible_tparam_is_dynamic then [] else [snd args]) in
     let params_tbl = Hashtbl.create (List.length params) in
     
     let pmap_iter2 fn orig_pmap applied_pmap =
