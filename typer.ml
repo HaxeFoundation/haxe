@@ -2202,7 +2202,7 @@ and build_call ctx acc el twith p =
 	match acc with
 	| AKInline (ethis,f,t) ->
 		let params, tfunc = (match follow t with
-			| TFun (args,r) -> unify_call_params ctx (match follow ethis.etype with TInst (c,pl) -> Some (c,pl,f) | _ -> None) el args r p true
+			| TFun (args,r) -> unify_call_params ctx (match follow ethis.etype with TInst (c,pl) -> Some (c,pl,f) | TAnon a -> (match !(a.a_status) with Statics c -> Some (c,[],f) | _ -> None) | _ -> None) el args r p true
 			| _ -> error (s_type (print_context()) t ^ " cannot be called") p
 		) in
 		make_call ctx (mk (TField (ethis,f.cf_name)) t p) params (match tfunc with TFun(_,r) -> r | _ -> assert false) p
