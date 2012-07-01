@@ -2369,7 +2369,7 @@ struct
               | _ -> 
                 [] 
             in
-            { e with eexpr = TTry(run ttry, nowrap_catches @ dyn_catch) }
+            { e with eexpr = TTry(run ttry, (List.rev nowrap_catches) @ dyn_catch) }
           | _ -> Type.map_expr run e
     in
     run

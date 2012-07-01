@@ -213,21 +213,14 @@ class Input {
 		#elseif java
 			if (helper == null) helper = java.nio.ByteBuffer.allocateDirect(8);
 			var helper = helper;
+			helper.order(bigEndian ? java.nio.ByteOrder.BIG_ENDIAN : java.nio.ByteOrder.LITTLE_ENDIAN);
 			
-			if ( (helper.order() == java.nio.ByteOrder.BIG_ENDIAN) == bigEndian )
-			{
-				helper.putChar(0, readByte());
-				helper.putChar(1, readByte());
-				helper.putChar(2, readByte());
-				helper.putChar(3, readByte());
-			} else {
-				helper.putChar(3, readByte());
-				helper.putChar(2, readByte());
-				helper.putChar(1, readByte());
-				helper.putChar(0, readByte());
-			}
+			helper.put(0, readByte());
+			helper.put(1, readByte());
+			helper.put(2, readByte());
+			helper.put(3, readByte());
 			
-			return helper.getFloat();
+			return helper.getFloat(0);
 		#else
 			var bytes = [];
 			bytes.push(readByte());
@@ -301,29 +294,18 @@ class Input {
 		#elseif java
 		if (helper == null) helper = java.nio.ByteBuffer.allocateDirect(8);
 		var helper = helper;
+		helper.order(bigEndian ? java.nio.ByteOrder.BIG_ENDIAN : java.nio.ByteOrder.LITTLE_ENDIAN);
 		
-		if ( (helper.order() == java.nio.ByteOrder.BIG_ENDIAN) == bigEndian )
-		{
-			helper.putChar(0, readByte());
-			helper.putChar(1, readByte());
-			helper.putChar(2, readByte());
-			helper.putChar(3, readByte());
-			helper.putChar(4, readByte());
-			helper.putChar(5, readByte());
-			helper.putChar(6, readByte());
-			helper.putChar(7, readByte());
-		} else {
-			helper.putChar(7, readByte());
-			helper.putChar(6, readByte());
-			helper.putChar(5, readByte());
-			helper.putChar(4, readByte());
-			helper.putChar(3, readByte());
-			helper.putChar(2, readByte());
-			helper.putChar(1, readByte());
-			helper.putChar(0, readByte());
-		}
+		helper.put(0, readByte());
+		helper.put(1, readByte());
+		helper.put(2, readByte());
+		helper.put(3, readByte());
+		helper.put(4, readByte());
+		helper.put(5, readByte());
+		helper.put(6, readByte());
+		helper.put(7, readByte());
 		
-		return helper.getDouble();
+		return helper.getDouble(0);
 		#else
 		return throw "not implemented";
 		#end

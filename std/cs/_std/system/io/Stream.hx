@@ -9,8 +9,8 @@ import haxe.io.BytesData;
 	var CanSeek(default, null):Bool;
 	var CanTimeout(default, null):Bool;
 	var CanWrite(default, null):Bool;
-	var Length(default, null):Bool;
-	var Position(default, null):Bool;
+	var Length(default, null):Int64;
+	var Position(default, null):Int64;
 	var ReadTimeout:Bool;
 	var WriteTimeout:Bool;
 	
