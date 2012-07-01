@@ -24,7 +24,9 @@ class TestInt64 extends Test {
 		
 		eq( 1.ofInt().shl(0).toStr(), "1" );
 		
+		#if !java
 		eq(Int64.ofInt(0).toStr(), "0");
+		#end
 	}
 
 }
