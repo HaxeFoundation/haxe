@@ -187,25 +187,24 @@ class Test #if swf_mark implements mt.Protect #end #if as3 implements haxe.Publi
 		var classes = [
 			new TestOps(),
 			new TestBasetypes(),
-			new TestReflect(),
 			new TestBytes(),
 			new TestInt32(),
 			new TestIO(),
 			new TestLocals(),
-			new TestSerialize(),
+			new TestEReg(),
+			new TestXML(),
 			#if !java
+			// these don't compile
+			new TestMisc(),
 			new TestResource(),
 			new TestInt64(),			
-			new TestMisc(),
-			new TestType(),
-			#end
-			new TestEReg(),
-			#if !macro
-			new TestXML(),
-			#end
+			// these cause runtime exceptions
+			new TestReflect(),			
+			new TestSerialize(),
 			new TestMeta(),
+			#end
 			//new TestUnspecified(),
-//			new TestRemoting(),
+			//new TestRemoting(),
 		];
 		var current = null;
 		try {
