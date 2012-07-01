@@ -21,7 +21,7 @@ params.hxml
 #js
 --next
 params.hxml
--main unit.Test
+unit.Test
 -js unit.js
 
 #neko
