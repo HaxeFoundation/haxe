@@ -1095,7 +1095,9 @@ let generate_enum ctx e =
 
 let generate_base_enum ctx =
 	let pack = open_block ctx in
-	spr ctx "\tpublic class enum {";
+	spr ctx "\timport flash.Boot";
+	newline ctx;
+	spr ctx "public class enum {";
 	let cl = open_block ctx in
 	newline ctx;
 	spr ctx "public var tag : String";
@@ -1103,6 +1105,8 @@ let generate_base_enum ctx =
 	spr ctx "public var index : int";
 	newline ctx;
 	spr ctx "public var params : Array";
+	newline ctx;
+	spr ctx "public function toString() : String { return flash.Boot.enum_to_string(this); }";
 	cl();
 	newline ctx;
 	print ctx "}";
