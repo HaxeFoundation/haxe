@@ -111,7 +111,7 @@ class StringTools {
 	#end
 	public static #if (cs) inline #end function startsWith( s : String, start : String ) : Bool {
 		#if java
-		return untyped s.startsWith(start);
+		return false;
 		#elseif cs
 		return untyped s.StartsWith(start);
 		#else
@@ -127,7 +127,7 @@ class StringTools {
 	#end
 	public static #if (cs) inline #end function endsWith( s : String, end : String ) : Bool {
 		#if java
-		return untyped s.endsWith(end);
+		return false;
 		#elseif cs
 		return untyped s.EndsWith(end);
 		#else

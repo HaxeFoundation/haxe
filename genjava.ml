@@ -1372,6 +1372,7 @@ let configure gen =
       | Some path when path = cl.cl_path ->
         write w "public static void main(String[] args)";
         begin_block w;
+        (if Hashtbl.mem gen.gtypes ([], "Sys") then write w "Sys._args = args;"; newline w);
         write w "main();";
         end_block w
       | _ -> ()
