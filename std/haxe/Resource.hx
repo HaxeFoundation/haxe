@@ -25,19 +25,28 @@
 package haxe;
 
 class Resource {
-
+	
+	#if !(java || cs)
 	static var content : Array<{ name : String, data : String, str : String }>;
+	#else
+	static var content : Array<String>;
+	#end
 
 	public static function listNames() : Array<String> {
 		var names = new Array();
-		for( x in content )
+		#if (java || cs)
+		for ( x in content )
+			names.push(x);
+		#else
+		for ( x in content )
 			names.push(x.name);
+		#end
 		return names;
 	}
 
 	public static function getString( name : String ) : String {
 		#if java
-		var stream = java.Lib.toNativeType(Resource).getResourceAsStream(name);
+		var stream = java.Lib.toNativeType(Resource).getResourceAsStream("/" + name);
 		if (stream == null)
 			return null;
 		var stream = new java.io.NativeInput(stream);
@@ -59,7 +68,7 @@ class Resource {
 
 	public static function getBytes( name : String ) : haxe.io.Bytes {
 		#if java
-		var stream = java.Lib.toNativeType(Resource).getResourceAsStream(name);
+		var stream = java.Lib.toNativeType(Resource).getResourceAsStream("/" + name);
 		if (stream == null)
 			return null;
 		var stream = new java.io.NativeInput(stream);

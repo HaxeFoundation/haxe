@@ -367,6 +367,23 @@ class Serializer {
 				for( i in 0...l )
 					serialize(untyped __field__(v, __php__("params"), i));
 			}
+			#elseif (java || cs)
+			if( useEnumIndex ) {
+				buf.add(":");
+				buf.add(Type.enumIndex(v));
+			} else
+				serializeString(Type.enumConstructor(v));
+			buf.add(":");
+			var arr:Array<Dynamic> = Type.enumParameters(v);
+			if (arr != null)
+			{
+				buf.add(arr.length);
+				for (v in arr)
+					serialize(v);
+			} else {
+				buf.add("0");
+			}
+			
 			#else
 			if( useEnumIndex ) {
 				buf.add(":");

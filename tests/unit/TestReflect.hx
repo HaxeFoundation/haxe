@@ -63,7 +63,7 @@ class TestReflect extends Test {
 		null,Int,String,Bool,Float,
 		Array,Hash,List,Date,Xml,Math,
 		unit.MyEnum,unit.MyClass,unit.MySubClass,
-		Class,Enum,Void,Dynamic,unit.MyInterface
+		Class,Enum,#if !(java || cs)Void,#end Dynamic,unit.MyInterface
 	];
 
 	static inline function u( s : String ) : String {
@@ -87,7 +87,7 @@ class TestReflect extends Test {
 		"null","Int","String","Bool","Float",
 		"Array",u("Hash"),u("List"),"Date","Xml","Math",
 		u2("unit","MyEnum"),u2("unit","MyClass"),u2("unit","MySubClass"),
-		#if !flash9 u #end("Class"), u("Enum"), u("Void"), u("Dynamic"),
+		#if !flash9 u #end("Class"), u("Enum"), #if !(java || cs) u("Void"), #end u("Dynamic"),
 		u2("unit","MyInterface")
 	];
 
@@ -99,7 +99,7 @@ class TestReflect extends Test {
 			f( t == null );
 			if( name == u("Enum") ) {
 				// neither an enum or a class
-			} else if( t == MyEnum || t == Void || t == Bool ) {
+			} else if( t == MyEnum || #if !(java || cs) t == Void || #end t == Bool ) {
 				eq( Type.getEnumName(t), name );
 				eq( Type.resolveEnum(name), t );
 			} else {

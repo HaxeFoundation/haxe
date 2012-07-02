@@ -77,7 +77,7 @@ class StringBuf {
 			b.Append(s, pos, l);
 		#elseif java
 			var l:Int = (len == null) ? s.length : len;
-			b.append(s, pos, l);
+			b.append(s, pos, pos + l);
 		#else
 			b += s.substr(pos,len);
 		#end

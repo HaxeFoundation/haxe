@@ -29,12 +29,14 @@ import java.internal.Exceptions;
 @:core_api @:nativegen class Std {
 	public static function is( v : Dynamic, t : Dynamic ) : Bool 
 	{
-		if (v == null) 
-			return v == t;
+		if (v == null)
+			return t == Dynamic;
+		if (t == null)
+			return false;
 		var clt:Class<Dynamic> = cast t;
 		if (clt == null)
 			return false;
-		var name = untyped __java__("clt.getName()");
+		var name:String = untyped __java__("clt.getName()");
 		
 		switch(name)
 		{
@@ -44,6 +46,8 @@ import java.internal.Exceptions;
 				return untyped __java__('haxe.lang.Runtime.isInt(v)');
 			case "boolean", "java.lang.Boolean":
 				return untyped __java__('v instanceof java.lang.Boolean');
+			case "java.lang.Object":
+				return true;
 		}
 		
 		var clv:Class<Dynamic> = untyped __java__('v.getClass()');

@@ -185,7 +185,9 @@ class Bytes {
 		#elseif cs
 		return system.text.Encoding.UTF8.GetString(b, pos, len);
 		#elseif java
-		return new String(b, pos, len);
+		try
+			return new String(b, pos, len, "UTF-8")
+		catch (e:Dynamic) throw e;
 		#else
 		var s = "";
 		var b = b;
@@ -226,7 +228,11 @@ class Bytes {
 		#elseif cs
 		return system.text.Encoding.UTF8.GetString(b, 0, length);
 		#elseif java
-		return new String(b, 0, length);
+		try
+		{
+			return new String(b, 0, length, "UTF-8");
+		}
+		catch (e:Dynamic) throw e;
 		#else
 		return readString(0,length);
 		#end
@@ -297,9 +303,16 @@ class Bytes {
 		untyped __global__.__hxcpp_bytes_of_string(a,s);
 		return new Bytes(a.length, a);
 		#elseif cs
-		return new Bytes(s.length, system.text.Encoding.UTF8.GetBytes(s));
+		var b = system.text.Encoding.UTF8.GetBytes(s);
+		return new Bytes(b.Length, b);
+		);
 		#elseif java
-		return new Bytes(s.length, untyped s.getBytes());
+		try
+		{
+			var b:BytesData = untyped s.getBytes("UTF-8");
+			return new Bytes(b.length, b);
+		}
+		catch (e:Dynamic) throw e;
 		#else
 		var a = new Array();
 		// utf8-decode

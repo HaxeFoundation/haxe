@@ -355,7 +355,7 @@ package java.internal;
 		int realMsl = 0;
 		for(int i =0; i < msl; i++)
 		{
-			if (ms[i].getName() != field || (!ms[i].isVarArgs() && ms[i].getParameterTypes().length != len))
+			if (!ms[i].getName().equals(field) || (!ms[i].isVarArgs() && ms[i].getParameterTypes().length != len))
 			{
 				ms[i] = null;
 			} else {
@@ -373,31 +373,32 @@ package java.internal;
 			Object o = args.__get(i);
 			objs[i]= o;
 			cls[i] = o.getClass();
+			boolean isNum = false;
 			
-			if (!(o instanceof java.lang.Number))
+			if (o instanceof java.lang.Number)
 			{
-				msl = realMsl;
-				realMsl = 0;
-				
-				for (int j = 0; j < msl; j++)
+				cls[i] = java.lang.Number.class;
+				isNum = hasNumber = true;
+			}
+			
+			msl = realMsl;
+			realMsl = 0;
+			
+			for (int j = 0; j < msl; j++)
+			{
+				java.lang.Class[] allcls = ms[j].getParameterTypes();
+				if (i < allcls.length)
 				{
-					java.lang.Class[] allcls = ms[j].getParameterTypes();
-					if (i < allcls.length)
+					if (!  ((isNum && allcls[i].isPrimitive()) || allcls[i].isAssignableFrom(cls[i])) )
 					{
-						if (!allcls[i].isAssignableFrom(cls[i]))
-						{
+						ms[j] = null;
+					} else {
+						ms[realMsl] = ms[j];
+						if (realMsl != j)
 							ms[j] = null;
-						} else {
-							ms[realMsl] = ms[j];
-							if (realMsl != j)
-								ms[j] = null;
-							realMsl++;
-						}
+						realMsl++;
 					}
 				}
-				
-			} else {
-				hasNumber = true;
 			}
 			
 		}

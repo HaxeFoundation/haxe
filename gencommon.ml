@@ -1914,10 +1914,32 @@ struct
         | _ -> (gen.gcon.basic.tfloat, { eexpr = TConst(TFloat("1.0")); etype = gen.gcon.basic.tfloat; epos = e.epos })
     in
     
+    let basic = gen.gcon.basic in
+    
     let rec run e = 
       match e.eexpr with
-        | TBinop (OpAssignOp op, e1, e2) when should_change e -> (* e1 will never contain another TBinop (true story) *)
-          mk_paren { e with eexpr = TBinop(OpAssign, e1, run { e with eexpr = TBinop(op, e1, e2) }) }
+        | TBinop (OpAssignOp op, e1, e2) when should_change e -> (* e1 will never contain another TBinop *)
+          (match e1.eexpr with
+            | TLocal _ ->
+              mk_paren { e with eexpr = TBinop(OpAssign, e1, run { e with eexpr = TBinop(op, e1, e2) }) }
+            | TField _ | TArray _ ->
+              let eleft, rest = match e1.eexpr with
+                | TField(ef, f) ->
+                  let v = mk_temp gen "dynop" ef.etype in
+                  { e1 with eexpr = TField(mk_local v ef.epos, f) }, [ { eexpr = TVars([v,Some (run ef)]); etype = basic.tvoid; epos = ef.epos } ]
+                | TArray(e1a, e2a) ->
+                  let v = mk_temp gen "dynop" e1a.etype in
+                  let v2 = mk_temp gen "dynopi" e2a.etype in
+                  { e1 with eexpr = TArray(mk_local v e1a.epos, mk_local v2 e2a.epos) }, [ { eexpr = TVars([v,Some (run e1a); v2, Some (run e2a)]); etype = basic.tvoid; epos = e1.epos } ]
+                | _ -> assert false
+              in
+              { e with
+                eexpr = TBlock (rest @ [ { e with eexpr = TBinop(OpAssign, eleft, run { e with eexpr = TBinop(op, eleft, e2) }) } ]);
+              }
+            | _ ->
+              assert false
+          )
+          
         | TBinop (OpAssign, e1, e2)
         | TBinop (OpInterval, e1, e2) -> Type.map_expr run e
         | TBinop (op, e1, e2) when should_change e->
@@ -4630,7 +4652,7 @@ struct
           (* try / with because TNew might be overloaded *)
           (
           try 
-            { e with eexpr = TNew(cl, tparams, List.map2 (fun e t -> handle (run e) t e.etype) eparams (get_f (get_ctor_p cl tparams))) } 
+            { e with eexpr = TNew(cl, tparams, List.map2 (fun e t -> handle (run e) t e.etype) eparams (get_f (get_ctor_p cl tparams))) }
           with 
             | Invalid_argument(_) -> 
               { e with eexpr = TNew(cl, tparams, List.map run eparams); etype = TInst(cl, tparams) }
@@ -5561,7 +5583,7 @@ struct
   let collect_fields cl (methods : bool option) (statics : bool option) =
     let collected = Hashtbl.create 0 in
     let collect cf acc =
-      if has_meta ":$CompilerGenerated" cf.cf_meta then 
+      if has_meta ":$CompilerGenerated" cf.cf_meta || has_meta ":skipReflection" cf.cf_meta then 
         acc 
       else match methods, cf.cf_kind with
         | None, _ when not (Hashtbl.mem collected cf.cf_name) -> Hashtbl.add collected cf.cf_name true; ([cf.cf_name], cf) :: acc
@@ -7594,6 +7616,15 @@ struct
       let cl = mk_class en.e_module en.e_path pos in
       Hashtbl.add t.ec_tbl en.e_path cl;
       
+      (match Codegen.build_metadata gen.gcon (TEnumDecl en) with
+        | Some expr ->
+          let cf = mk_class_field "__meta__" expr.etype false expr.epos (Var { v_read = AccNormal; v_write = AccNormal }) [] in
+          cf.cf_expr <- Some expr;
+          cl.cl_statics <- PMap.add "__meta__" cf cl.cl_statics;
+          cl.cl_ordered_statics <- cf :: cl.cl_ordered_statics
+        | _ -> ()
+      );
+      
       cl.cl_super <- Some(base_class,[]);
       cl.cl_extern <- en.e_extern;
       en.e_extern <- true;
@@ -7676,7 +7707,7 @@ struct
         epos = pos;
       };
       
-      cl.cl_ordered_statics <- constructs_cf :: cfs ;
+      cl.cl_ordered_statics <- constructs_cf :: cfs @ cl.cl_ordered_statics ;
       cl.cl_statics <- PMap.add "constructs" constructs_cf cl.cl_statics;
       
       (if should_be_hxgen then 
@@ -8788,9 +8819,7 @@ end;;
   the not-nullable type in the beginning of the function.
   
   dependencies:
-    Since it depends on no other module filter, but since any function programatically created
-    which needs default will only work if added before running DefaultArguments, it's best
-    if we keep it as the last 
+    It must run before OverloadingCtors, since OverloadingCtors will change optional structures behavior
   
 *)
 
@@ -8799,7 +8828,7 @@ struct
 
   let name = "default_arguments"
   
-  let priority = min_dep
+  let priority = solve_deps name [ DBefore OverloadingConstructor.priority ]
   
   let add_opt gen block pos (var,opt) =
     match opt with
@@ -8851,6 +8880,7 @@ struct
               tf_args = tf_args;
               tf_expr = Codegen.concat { tf.tf_expr with eexpr = TBlock(!block); etype = basic.tvoid } tf.tf_expr
             } ); etype = TFun(!args, ret) } );
+            cf.cf_type <- TFun(!args, ret)
             
           | _ -> ()
         );

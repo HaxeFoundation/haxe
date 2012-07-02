@@ -36,6 +36,7 @@ extern class String {
 	/**
 		Creates a copy from a given String.
 	**/
+	@:overload(function(b:haxe.io.BytesData, offset:Int, length:Int, charsetName:String):Void { })
 	@:overload(function(b:haxe.io.BytesData, offset:Int, length:Int):Void { })
 	function new(string:String) : Void;
 
@@ -102,7 +103,7 @@ extern class String {
 	
 	private function codePointAt( idx : Int ) : Int;
 	
-	private function getBytes() : haxe.io.BytesData;
+	private function getBytes(encoding:String) : haxe.io.BytesData;
 
 	static function fromCharCode( code : Int ) : String;
 

@@ -191,6 +191,11 @@ struct
               }
             | TEnumDecl{ e_path = ([], "Bool") } ->
               mk_is obj bool_md
+            | TClassDecl{ cl_path = ([], "Dynamic") } ->
+              (match obj.eexpr with
+                | TLocal _ | TConst _ -> { e with eexpr = TConst(TBool true) }
+                | _ -> { e with eexpr = TBlock([run obj; { e with eexpr = TConst(TBool true) }]) }
+              )
             | _ ->
               mk_is obj md
           )
@@ -809,20 +814,28 @@ let configure gen =
       | TEnum ({e_path = ([], "Void")}, []) -> "void"
       | _ -> t_s t
   in
-
+  
+  let escape ichar b =
+    match ichar with
+      | 92 (* \ *) -> Buffer.add_string b "\\\\"
+      | 39 (* ' *) -> Buffer.add_string b "\\\'"
+      | 34 -> Buffer.add_string b "\\\""
+      | 13 (* \r *) -> Buffer.add_string b "\\r"
+      | 10 (* \n *) -> Buffer.add_string b "\\n"
+      | 9 (* \t *) -> Buffer.add_string b "\\t"
+      | c when c < 32 || c >= 127 -> Buffer.add_string b (Printf.sprintf "\\u%.4x" c)
+      | c -> Buffer.add_char b (Char.chr c)
+  in
+  
   let escape s =
     let b = Buffer.create 0 in
-    for i = 0 to String.length s - 1 do
-      match String.unsafe_get s i with
-      | '\\' -> Buffer.add_string b "\\\\"
-      | '\'' -> Buffer.add_string b "\\\'"
-      | '\"' -> Buffer.add_string b "\\\""
-      | '\r' -> Buffer.add_string b "\\r"
-      | '\n' -> Buffer.add_string b "\\n"
-      | '\t' -> Buffer.add_string b "\\t"
-      | c when (Char.code c) < 32 -> Buffer.add_string b (Printf.sprintf "\\u00%.2X" (Char.code c))
-      | c -> Buffer.add_char b c
-    done;
+    (try 
+      UTF8.validate s;
+      UTF8.iter (fun c -> escape (UChar.code c) b) s
+    with
+      UTF8.Malformed_code ->
+        String.iter (fun c -> escape (Char.code c) b) s
+    );
     Buffer.contents b
   in
   
@@ -1773,6 +1786,20 @@ let configure gen =
   (* add native String as a String superclass *)
   let str_cl = match gen.gcon.basic.tstring with | TInst(cl,_) -> cl | _ -> assert false in
   str_cl.cl_super <- Some (get_cl (get_type gen (["haxe";"lang"], "NativeString")), []);
+  
+  (* add resources array *)
+  (try
+    let res = get_cl (Hashtbl.find gen.gtypes (["haxe"], "Resource")) in
+    let cf = PMap.find "content" res.cl_statics in
+    let res = ref [] in
+    Hashtbl.iter (fun name v -> 
+      res := { eexpr = TConst(TString name); etype = gen.gcon.basic.tstring; epos = Ast.null_pos } :: !res;
+      let f = open_out (gen.gcon.file ^ "/src/" ^ name) in
+      output_string f v;
+      close_out f
+    ) gen.gcon.resources;
+    cf.cf_expr <- Some ({ eexpr = TArrayDecl(!res); etype = gen.gcon.basic.tarray gen.gcon.basic.tstring; epos = Ast.null_pos })
+  with | Not_found -> ());
   
   run_filters gen;
   

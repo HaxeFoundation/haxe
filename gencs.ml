@@ -1737,6 +1737,17 @@ let configure gen =
   CSharpSpecificSynf.configure gen (CSharpSpecificSynf.traverse gen runtime_cl);
   CSharpSpecificESynf.configure gen (CSharpSpecificESynf.traverse gen runtime_cl);
   
+  (* add resources array *)
+  (try
+    let res = get_cl (Hashtbl.find gen.gtypes (["haxe"], "Resource")) in
+    let cf = PMap.find "content" res.cl_statics in
+    let res = ref [] in
+    Hashtbl.iter (fun name _ -> 
+      res := { eexpr = TConst(TString name); etype = gen.gcon.basic.tstring; epos = Ast.null_pos } :: !res
+    ) gen.gcon.resources;
+    cf.cf_expr <- Some ({ eexpr = TArrayDecl(!res); etype = gen.gcon.basic.tarray gen.gcon.basic.tstring; epos = Ast.null_pos })
+  with | Not_found -> ());
+  
   run_filters gen;
   (* after the filters have been run, add all hashed fields to FieldLookup *)
   

@@ -52,7 +52,9 @@ class StringTools {
 		#elseif cpp
 			return s.__URLEncode();
 		#elseif java
-			return untyped __java__("java.net.URLEncoder.encode(s)");
+			try
+				return untyped __java__("java.net.URLEncoder.encode(s, \"UTF-8\")")
+			catch (e:Dynamic) throw e;
 		#elseif cs
 			return untyped __cs__("System.Uri.EscapeUriString(s)");
 		#else
@@ -77,7 +79,9 @@ class StringTools {
 		#elseif cpp
 			return s.__URLDecode();
 		#elseif java
-			return untyped __java__("java.net.URLDecoder.decode(s)");
+			try
+				return untyped __java__("java.net.URLDecoder.decode(s, \"UTF-8\")")
+			catch (e:Dynamic) throw e;
 		#elseif cs
 			return untyped __cs__("System.Uri.UnescapeDataString(s)");
 		#else

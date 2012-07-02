@@ -73,12 +73,14 @@ enum ValueType {
 		var name:String = c.getName();
 		if (name.startsWith("haxe.root."))
 			return name.substr(10);
+		if (name.startsWith("java.lang"))
+			name = name.substr(10);
 			
 		return switch(name)
 		{
-			case "int", "java.lang.Integer": "Int";
-			case "double", "java.lang.Double": "Float";
-			case "java.lang.String": "String";
+			case "int", "Integer": "Int";
+			case "double", "Double": "Float";
+			case "Object": "Dynamic";
 			default: name;
 		}
 	}
@@ -106,6 +108,7 @@ enum ValueType {
 			else if (name.equals("haxe.root.String")) return java.lang.String.class;
 			else if (name.equals("haxe.root.Math")) return java.lang.Math.class;
 			else if (name.equals("haxe.root.Class")) return java.lang.Class.class;
+			else if (name.equals("haxe.root.Dynamic")) return java.lang.Object.class;
 			return null;
 		}
 	')
@@ -149,33 +152,32 @@ enum ValueType {
 				Object o = args.__get(i);
 				objs[i]= o;
 				cls[i] = o.getClass();
+				boolean isNum = false;
 				
-				if (!(o instanceof java.lang.Number))
+				if (o instanceof java.lang.Number)
 				{
-					msl = realMsl;
-					realMsl = 0;
-					
-					for (int j = 0; j < msl; j++)
+					cls[i] = java.lang.Number.class;
+					isNum = hasNumber = true;
+				}
+				
+				msl = realMsl;
+				realMsl = 0;
+				
+				for (int j = 0; j < msl; j++)
+				{
+					java.lang.Class[] allcls = ms[j].getParameterTypes();
+					if (i < allcls.length)
 					{
-						java.lang.Class[] allcls = ms[j].getParameterTypes();
-						if (i < allcls.length)
+						if (! ((isNum && allcls[i].isPrimitive()) || allcls[i].isAssignableFrom(cls[i])) )
 						{
-							if (!allcls[i].isAssignableFrom(cls[i]))
-							{
+							ms[j] = null;
+						} else {
+							ms[realMsl] = ms[j];
+							if (realMsl != j)
 								ms[j] = null;
-							} else {
-								ms[realMsl] = ms[j];
-								if (realMsl != j)
-									ms[j] = null;
-								realMsl++;
-							}
+							realMsl++;
 						}
 					}
-					
-					if (realMsl == 0)
-						return null;
-				} else {
-					hasNumber = true;
 				}
 				
 			}
@@ -336,8 +338,6 @@ enum ValueType {
 			java.lang.Class cl = vobj.getClass();
 			if (v instanceof haxe.lang.DynamicObject)
 				return ValueType.TObject;
-			else if (v instanceof haxe.lang.Enum)
-				return ValueType.TEnum(cl);
 			else
 				return ValueType.TClass(cl);
 		} else if (v instanceof java.lang.Number) {
@@ -348,7 +348,7 @@ enum ValueType {
 				return ValueType.TFloat;
 		} else if (v instanceof haxe.lang.Function) {
 			return ValueType.TFunction;
-		} else if (v instanceof java.lang.Enum) {
+		} else if (v instanceof java.lang.Enum || v instanceof haxe.lang.Enum) {
 			return ValueType.TEnum(v.getClass());
 		} else if (v instanceof java.lang.Boolean) {
 			return ValueType.TBool;
