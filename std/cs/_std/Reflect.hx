@@ -1,4 +1,4 @@
-import haxe.lang.Function;
+import cs.internal.Function;
 /*
  * Copyright (c) 2005, The haXe Project Contributors
  * All rights reserved.

@@ -1,4 +1,4 @@
-package haxe.lang;
+package cs.internal;
 import system.Exception;
 
 //should NOT be usable inside haxe code

@@ -1,11 +1,11 @@
-package sys.io;
+package java.io;
 import haxe.Int64;
 import haxe.io.Bytes;
 import haxe.io.Eof;
 import haxe.io.Output;
 import java.io.Exceptions;
 
-class NativeOutput extends Output
+@:native('haxe.java.io.NativeOutput') class NativeOutput extends Output
 {
 	var stream:java.io.OutputStream;
 	public function new(stream)

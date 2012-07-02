@@ -1,4 +1,4 @@
-package haxe.lang;
+package cs.internal;
 
 @:classContents('
 	//This function is here to be used with Reflection, when the haxe.lang.Null type is known

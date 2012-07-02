@@ -55,7 +55,7 @@ class Process {
 		var p = proc;
 		stderr = new ProcessInput(p.getErrorStream());
 		stdout = new ProcessInput(p.getInputStream());
-		stdin = new sys.io.NativeOutput(p.getOutputStream());
+		stdin = new java.io.NativeOutput(p.getOutputStream());
 	}
 	
 	public function getPid() : Int
@@ -90,7 +90,7 @@ class Process {
 }
 
 
-private class ProcessInput extends NativeInput
+private class ProcessInput extends java.io.NativeInput
 {
 	private var chained:BytesInput;
 	

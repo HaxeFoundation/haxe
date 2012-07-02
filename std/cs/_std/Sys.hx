@@ -218,7 +218,7 @@ class Sys {
 	public static function stdin() : haxe.io.Input
 	{
 #if !(Xbox || CF || MF)
-		return new sys.io.NativeInput(system.Console.OpenStandardInput());
+		return new cs.io.NativeInput(system.Console.OpenStandardInput());
 #else
 		return null;
 #end
@@ -230,7 +230,7 @@ class Sys {
 	public static function stdout() : haxe.io.Output
 	{
 #if !(Xbox || CF || MF)
-		return new sys.io.NativeOutput(system.Console.OpenStandardOutput());
+		return new cs.io.NativeOutput(system.Console.OpenStandardOutput());
 #else
 		return null;
 #end
@@ -242,7 +242,7 @@ class Sys {
 	public static function stderr() : haxe.io.Output
 	{
 #if !(Xbox || CF || MF)
-		return new sys.io.NativeOutput(system.Console.OpenStandardError());
+		return new cs.io.NativeOutput(system.Console.OpenStandardError());
 #else
 		return null;
 #end

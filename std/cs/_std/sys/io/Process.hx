@@ -53,9 +53,9 @@ class Process {
 		
 		native.Start();
 		
-		this.stdout = new sys.io.NativeInput(native.StandardOutput.BaseStream);
-		this.stderr = new sys.io.NativeInput(native.StandardError.BaseStream);
-		this.stdin = new sys.io.NativeOutput(native.StandardInput.BaseStream);
+		this.stdout = new cs.io.NativeInput(native.StandardOutput.BaseStream);
+		this.stderr = new cs.io.NativeInput(native.StandardError.BaseStream);
+		this.stdin = new cs.io.NativeOutput(native.StandardInput.BaseStream);
 	}
 	
 	public function getPid() : Int

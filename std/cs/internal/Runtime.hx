@@ -1,4 +1,4 @@
-package haxe.lang;
+package cs.internal;
 import cs.Lib;
 import cs.NativeArray;
 import cs.NativeArray;
@@ -14,6 +14,7 @@ import system.Type;
 **/
 
 @:nativegen
+@:native('haxe.lang.Runtime')
 @:classContents('
 	public static object getField(haxe.lang.HxObject obj, string field, int fieldHash, bool throwErrors)
 	{
@@ -414,7 +415,7 @@ import system.Type;
 			}
 			m = m.MakeGenericMethod(tgs);
 			var retg = m.Invoke(obj, oargs);
-			return haxe.lang.Runtime.unbox(retg);
+			return cs.internal.Runtime.unbox(retg);
 		}
 		
 		var m = methods[0];

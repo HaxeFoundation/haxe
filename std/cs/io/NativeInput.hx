@@ -1,4 +1,4 @@
-package sys.io;
+package cs.io;
 import haxe.Int64;
 import haxe.io.Bytes;
 import haxe.io.Eof;
@@ -43,7 +43,7 @@ class NativeInput extends Input
 		return stream.CanSeek;
 	}
 	
-	public function seek( p : Int, pos : FileSeek ) : Void
+	public function seek( p : Int, pos : sys.io.FileSeek ) : Void
 	{
 		var p = switch(pos)
 		{

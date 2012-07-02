@@ -211,7 +211,7 @@ import sys.io.Process;
 	public static function stdin() : haxe.io.Input
 	{
 		var _in:java.io.InputStream = Reflect.field(System, "in");
-		return new sys.io.NativeInput(_in);
+		return new java.io.NativeInput(_in);
 	}
 
 	/**
@@ -219,7 +219,7 @@ import sys.io.Process;
 	**/
 	public static function stdout() : haxe.io.Output
 	{
-		return new sys.io.NativeOutput(System.out);
+		return new java.io.NativeOutput(System.out);
 	}
 
 	/**
@@ -227,7 +227,7 @@ import sys.io.Process;
 	**/
 	public static function stderr() : haxe.io.Output
 	{
-		return new sys.io.NativeOutput(System.err);
+		return new java.io.NativeOutput(System.err);
 	}
 
 }

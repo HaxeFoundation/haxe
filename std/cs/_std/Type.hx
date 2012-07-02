@@ -1,6 +1,6 @@
 import cs.Lib;
-import haxe.lang.HxObject;
-import haxe.lang.Runtime;
+import cs.internal.HxObject;
+import cs.internal.Runtime;
 /*
  * Copyright (c) 2005, The haXe Project Contributors
  * All rights reserved.

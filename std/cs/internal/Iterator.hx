@@ -1,11 +1,6 @@
-package haxe.lang;
+package cs.internal;
 
-/**
- * ...
- * @author waneck
- */
-
-interface Iterator<T>
+@:native('haxe.lang.Iterator') interface Iterator<T>
 {
 	
 	public function hasNext():Bool;
@@ -14,7 +9,7 @@ interface Iterator<T>
 	
 }
 
-interface Iterable<T>
+@:native('haxe.lang.Iterable') interface Iterable<T>
 {
 	
 	public function iterator():Iterator<T>;

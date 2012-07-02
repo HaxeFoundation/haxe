@@ -1,21 +1,16 @@
 package cs;
-import haxe.lang.Exceptions;
-import haxe.lang.FieldLookup;
-import haxe.lang.Function;
-import haxe.lang.HxObject;
-import haxe.lang.Runtime;
-import haxe.lang.Iterator;
-import haxe.lang.Null;
+import cs.internal.Exceptions;
+import cs.internal.FieldLookup;
+import cs.internal.Function;
+import cs.internal.HxObject;
+import cs.internal.Runtime;
+import cs.internal.Iterator;
+import cs.internal.Null;
 import cs.Lib;
-import haxe.lang.StringExt;
+import cs.internal.StringExt;
 import cs.StdTypes;
 import Hash;
 import Reflect;
-
-/**
- * ...
- * @author waneck
- */
 
 class Boot 
 {
