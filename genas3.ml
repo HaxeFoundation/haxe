@@ -51,6 +51,14 @@ let is_var_field e v =
 		with Not_found -> false)
 	| _ -> false
 
+let is_special_compare e1 e2 =
+	match e1.eexpr, e2.eexpr with
+	| TConst TNull, _  | _ , TConst TNull -> None
+	| _ ->
+	match follow e1.etype, follow e2.etype with
+	| TInst ({ cl_path = [],"Xml" } as c,_) , _ | _ , TInst ({ cl_path = [],"Xml" } as c,_) -> Some c
+	| _ -> None
+
 let protect name =
 	match name with
 	| "Error" | "Namespace" -> "_" ^ name
@@ -502,6 +510,9 @@ and gen_expr ctx e =
 		spr ctx "[";
 		gen_value ctx e2;
 		spr ctx "]";
+	| TBinop (Ast.OpEq,e1,e2) when (match is_special_compare e1 e2 with Some c -> true | None -> false) ->
+		let c = match is_special_compare e1 e2 with Some c -> c | None -> assert false in
+		gen_expr ctx (mk (TCall (mk (TField (mk (TTypeExpr (TClassDecl c)) t_dynamic e.epos,"compare")) t_dynamic e.epos,[e1;e2])) ctx.inf.com.basic.tbool e.epos);
 	| TBinop (op,{ eexpr = TField (e1,s) },e2) ->
 		gen_value_op ctx e1;
 		gen_field_access ctx e1.etype s;
