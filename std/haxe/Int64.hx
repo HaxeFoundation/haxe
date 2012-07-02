@@ -35,7 +35,7 @@ class Int64 {
 		this.low = low;
 	}
 
-	function toString() {
+	#if as3 public #end function toString() {
 		if (high.isZero() && low.isZero())
 			return "0";
 		var str = "";
@@ -213,7 +213,7 @@ class Int64 {
 		return if( v != 0 ) v else Int32.ucompare(a.low, b.low);
 	}
 
-	public static #if !as3 inline #end function toStr( a : Int64 ) : String {
+	public static inline function toStr( a : Int64 ) : String {
 		return a.toString();
 	}
 
