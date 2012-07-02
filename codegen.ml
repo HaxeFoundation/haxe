@@ -466,32 +466,61 @@ let on_inherit ctx c p h =
 	Adds member field initializations as assignments to the constructor
 *)
 let add_field_inits com c =
+	let ethis = mk (TConst TThis) (TInst (c,List.map snd c.cl_types)) c.cl_pos in
+	(* TODO: we have to find a variable name which is not used in any of the functions *)
+	let v = alloc_var "_g" ethis.etype in
 	let rec can_init_inline cf e = match com.platform,e.eexpr with
 		| Flash8,_ -> true
-		| Flash,_ when Common.defined com "as3" -> true
+		| Flash,_ when Common.defined com "as3" && (match cf.cf_kind with Var _ -> true | Method _ -> false) -> true
 		| Php, TTypeExpr _ -> false
 		| Php,_ ->
 			(match cf.cf_kind with Var({v_write = AccCall _}) -> false | _ -> true)
 		| _ -> false
 	in
-	let inits = List.filter (fun cf ->
+	let need_this = ref false in
+	let inits,fields = List.fold_left (fun (inits,fields) cf ->
 		match cf.cf_kind,cf.cf_expr with
-		| Var _, Some e when can_init_inline cf e -> false
-		| Var _, Some _ -> true
-		| _ -> false
-	) c.cl_ordered_fields in
+		| Var _, Some e when can_init_inline cf e -> (inits, cf :: fields)
+		| Var _, Some _ -> (cf :: inits, cf :: fields)
+		| Method MethDynamic, Some e when Common.defined com "as3" ->
+			(* we move the initialization of dynamic functions to the constructor and also solve the
+			   'this' problem along the way *)
+			let rec use_this v e = match e.eexpr with
+				| TConst TThis ->
+					need_this := true;
+					mk (TLocal v) v.v_type e.epos
+				| _ -> Type.map_expr (use_this v) e
+			in
+			let e = Type.map_expr (use_this v) e in
+			let cf = {cf with cf_expr = Some e} in
+			(* if the method is an override, we have to remove the class field to not get invalid overrides *)
+			let fields = if List.mem cf.cf_name c.cl_overrides then begin
+				c.cl_fields <- PMap.remove cf.cf_name c.cl_fields;
+				fields
+			end else
+				cf :: fields
+			in
+			(cf :: inits, fields)
+		| _ -> (inits, cf :: fields)
+	) ([],[]) c.cl_ordered_fields in
+	c.cl_ordered_fields <- fields;
 	match inits with
 	| [] -> ()
 	| _ ->
-		let ethis = mk (TConst TThis) (TInst (c,List.map snd c.cl_types)) c.cl_pos in
 		let el = List.map (fun cf ->
 			match cf.cf_expr with
 			| None -> assert false
 			| Some e ->
 				let lhs = mk (TField(ethis,cf.cf_name)) e.etype e.epos in
 				cf.cf_expr <- None;
-				mk (TBinop(OpAssign,lhs,e)) lhs.etype e.epos
+				let eassign = mk (TBinop(OpAssign,lhs,e)) lhs.etype e.epos in
+				if Common.defined com "as3" then begin
+					let echeck = mk (TBinop(OpEq,lhs,(mk (TConst TNull) lhs.etype e.epos))) com.basic.tbool e.epos in
+					mk (TIf(echeck,eassign,None)) eassign.etype e.epos
+				end else
+					eassign;
 		) inits in
+		let el = if !need_this then (mk (TVars([v, Some ethis])) ethis.etype ethis.epos) :: el else el in
 		match c.cl_constructor with
 		| None ->
 			let ct = TFun([],com.basic.tvoid) in
@@ -501,7 +530,7 @@ let add_field_inits com c =
 				tf_expr = mk (TBlock el) com.basic.tvoid c.cl_pos;
 			}) ct c.cl_pos in
 			let ctor = mk_field "new" ct c.cl_pos in
-      ctor.cf_kind <- Method MethNormal;
+			ctor.cf_kind <- Method MethNormal;
 			c.cl_constructor <- Some { ctor with cf_expr = Some ce };
 		| Some cf ->
 			match cf.cf_expr with
