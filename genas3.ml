@@ -950,6 +950,12 @@ let generate_field ctx static f =
 				| _ -> assert false)
 			| _ -> ()
 		else
+		let gen_init () = match f.cf_expr with
+			| None -> ()
+			| Some e ->
+				print ctx " = ";
+				gen_value ctx e
+		in
 		if is_getset then begin
 			let t = type_str ctx f.cf_type p in
 			let id = s_ident f.cf_name in
@@ -978,13 +984,10 @@ let generate_field ctx static f =
 				newline ctx
 			| _ -> ());
 			print ctx "%sprotected var $%s : %s" (if static then "static " else "") (s_ident f.cf_name) (type_str ctx f.cf_type p);
+			gen_init()
 		end else begin
 			print ctx "%s var %s : %s" rights (s_ident f.cf_name) (type_str ctx f.cf_type p);
-			match f.cf_expr with
-			| None -> ()
-			| Some e ->
-				print ctx " = ";
-				gen_value ctx e
+			gen_init()
 		end
 
 let rec define_getset ctx stat c =
