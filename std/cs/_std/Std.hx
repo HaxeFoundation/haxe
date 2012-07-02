@@ -35,7 +35,7 @@ import cs.internal.Exceptions;
 		
 		var native:system.Type = untyped clt.nativeType();
 		
-		return native.IsAssignableFrom(Lib.getNativeType(v));
+		return native.IsAssignableFrom(Lib.nativeType(v));
 	}
 
 	public static inline function string( s : Dynamic ) : String {

@@ -341,7 +341,7 @@ import system.Type;
 		{
 			oargs[i] = args[i];
 			if (args[i] != null)
-				ts[i] = Lib.getNativeType(args[i]);
+				ts[i] = Lib.nativeType(args[i]);
 		}
 		
 		var last = 0;
@@ -431,7 +431,7 @@ import system.Type;
 	
 	public static function unbox(dyn:Dynamic):Dynamic
 	{
-		if (dyn != null && untyped (Lib.getNativeType(dyn) + "").StartsWith("haxe.lang.Null"))
+		if (dyn != null && untyped (Lib.nativeType(dyn) + "").StartsWith("haxe.lang.Null"))
 		{
 			return dyn.toDynamic();
 		} else {

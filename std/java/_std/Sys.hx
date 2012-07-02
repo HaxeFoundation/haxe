@@ -56,7 +56,7 @@ import sys.io.Process;
 	{
 		if (_args == null)
 			return [];
-		return java.Lib.fromNativeArray(_args);
+		return java.Lib.array(_args);
 	}
 
 	/**

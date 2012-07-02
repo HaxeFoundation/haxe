@@ -127,7 +127,7 @@ class FileSystem {
 		var f = new File(path);
 		if (!f.exists())
 			throw "Path " + path + " doesn't exist";
-		return Lib.fromNativeArray( f.list() );
+		return Lib.array( f.list() );
 	}
 
 }

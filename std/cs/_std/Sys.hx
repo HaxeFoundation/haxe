@@ -56,7 +56,7 @@ class Sys {
 	{
 		if (_args == null)
 		{
-			var ret = cs.Lib.fromNativeArray(Environment.GetCommandLineArgs());
+			var ret = cs.Lib.array(Environment.GetCommandLineArgs());
 			ret.shift();
 			_args = ret;
 		}

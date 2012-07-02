@@ -1,11 +1,6 @@
 package java;
 import java.lang.Class;
 
-/**
- * ...
- * @author waneck
- */
-
 //we cannot use the java package for custom classes, so we're redefining it as "haxe.java.Lib"
 @:native('haxe.java.Lib') class Lib 
 {
@@ -29,12 +24,12 @@ import java.lang.Class;
 	@:functionBody('
 		return (java.lang.Class<T>) obj.getClass();
 	')
-	public static function getNativeType<T>(obj:T):java.lang.Class<T>
+	public static function nativeType<T>(obj:T):java.lang.Class<T>
 	{
 		return null;
 	}
 	
-	public static function fromNativeArray<T>(native:java.NativeArray<T>):Array<T>
+	public static function array<T>(native:java.NativeArray<T>):Array<T>
 	{
 		return untyped Array.ofNative(native);
 	}

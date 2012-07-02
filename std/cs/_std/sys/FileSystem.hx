@@ -153,7 +153,7 @@ class FileSystem {
 			}
 		}
 		
-		return cs.Lib.fromNativeArray( ret );
+		return cs.Lib.array( ret );
 	}
 
 }

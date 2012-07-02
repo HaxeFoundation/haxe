@@ -70,12 +70,12 @@ class Lib
 	@:functionBody('
 			return obj.GetType();
 	')
-	public static function getNativeType(obj:Dynamic):Type
+	public static function nativeType(obj:Dynamic):Type
 	{
 		return untyped obj.GetType();
 	}
 	
-	public static function fromNativeArray<T>(native:cs.NativeArray<T>):Array<T>
+	public static function array<T>(native:cs.NativeArray<T>):Array<T>
 	{
 		return untyped Array.ofNative(native);
 	}
