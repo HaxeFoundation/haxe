@@ -1,10 +1,11 @@
-package haxe.lang;
+package java.internal;
 
 /**
  This class is meant for internal compiler use only. It provides the Haxe runtime
  compatibility to the host language. Do not access it directly.
 **/
 
+@:native('haxe.lang.Runtime')
 @:nativegen
 @:classContents('
 	public static java.lang.Object getField(haxe.lang.IHxObject obj, java.lang.String field, boolean throwErrors)

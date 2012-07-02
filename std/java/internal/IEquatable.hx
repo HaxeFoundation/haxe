@@ -1,10 +1,6 @@
-package haxe.lang;
+package java.internal;
 
-/**
- * ...
- * @author waneck
- */
-
+@:native('haxe.lang.IEquatable')
 interface IEquatable 
 {
 	

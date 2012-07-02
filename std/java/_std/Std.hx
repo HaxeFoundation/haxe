@@ -24,7 +24,7 @@
  */
 import java.Boot;
 import java.Lib;
-import haxe.lang.Exceptions;
+import java.internal.Exceptions;
  
 @:core_api @:nativegen class Std {
 	public static function is( v : Dynamic, t : Dynamic ) : Bool 

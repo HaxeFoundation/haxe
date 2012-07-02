@@ -1,10 +1,5 @@
-package haxe.lang;
+package java.internal;
 import java.lang.Throwable;
-
-/**
- * ...
- * @author waneck
- */
 
 @:nativegen @:keep @:native("haxe.lang.HaxeException") private class HaxeException extends RuntimeException
 {

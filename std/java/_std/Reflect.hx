@@ -1,4 +1,4 @@
-import haxe.lang.Function;
+import java.internal.Function;
 import java.Boot;
 /*
  * Copyright (c) 2005, The haXe Project Contributors

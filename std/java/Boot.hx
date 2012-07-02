@@ -1,11 +1,11 @@
 package java;
-import haxe.lang.Exceptions;
-import haxe.lang.Function;
-import haxe.lang.HxObject;
-import haxe.lang.Runtime;
-import haxe.lang.Iterator;
+import java.internal.Exceptions;
+import java.internal.Function;
+import java.internal.HxObject;
+import java.internal.Runtime;
+import java.internal.Iterator;
 import java.Lib;
-//import haxe.lang.StringExt;
+//import java.internal.StringExt;
 import java.StdTypes;
 import Hash;
 import Reflect;
@@ -14,12 +14,8 @@ import java.lang.Character;
 import java.lang.Class;
 import java.lang.Number;
 import java.lang.Throwable;
-import haxe.lang.StringExt;
-import haxe.lang.FieldLookup;
-/**
- * ...
- * @author waneck
- */
+import java.internal.StringExt;
+import java.internal.FieldLookup;
 
 extern class Boot 
 {

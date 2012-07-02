@@ -1,10 +1,6 @@
-package haxe.lang;
+package java.internal;
 
-/**
- * ...
- * @author waneck
- */
-
+@:native('haxe.lang.Iterator')
 interface Iterator<T>
 {
 	
@@ -14,6 +10,7 @@ interface Iterator<T>
 	
 }
 
+@:native('haxe.lang.Iterable')
 interface Iterable<T>
 {
 	
