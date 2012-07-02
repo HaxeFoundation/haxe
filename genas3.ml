@@ -38,6 +38,7 @@ type context = {
 	mutable gen_uid : int;
 	mutable local_types : t list;
 	mutable constructor_block : bool;
+	mutable block_inits : (unit -> unit) option;
 }
 
 let is_var_field e v =
@@ -132,6 +133,7 @@ let init infos path =
 		local_types = [];
 		get_sets = Hashtbl.create 0;
 		constructor_block = false;
+		block_inits = None;
 	}
 
 let close ctx =
@@ -290,8 +292,20 @@ let gen_function_header ctx name f params p =
 	let old = ctx.in_value in
 	let locals = save_locals ctx in
 	let old_t = ctx.local_types in
+	let old_bi = ctx.block_inits in
 	ctx.in_value <- None;
 	ctx.local_types <- List.map snd params @ ctx.local_types;
+	let init () = 
+ 		List.iter (fun (v,o) -> match o with
+			| Some c when is_nullable v.v_type && c <> TNull ->
+				newline ctx;
+				print ctx "if(%s==null) %s=" v.v_name v.v_name;
+				gen_constant ctx p c;
+			| _ -> ()
+		) f.tf_args;
+		ctx.block_inits <- None;
+	in
+	ctx.block_inits <- Some init;
 	print ctx "function%s(" (match name with None -> "" | Some (n,meta) ->
 		let rec loop = function
 			| [] -> n
@@ -316,6 +330,7 @@ let gen_function_header ctx name f params p =
 		ctx.in_value <- old;
 		locals();
 		ctx.local_types <- old_t;
+		ctx.block_inits <- old_bi;
 	)
 
 let rec gen_call ctx e el r =
@@ -537,6 +552,7 @@ and gen_expr ctx e =
 			print ctx " if( !%s.skip_constructor ) {" (s_path ctx true (["flash"],"Boot") e.epos);
             (fun() -> print ctx "}")
 		end) in
+		(match ctx.block_inits with None -> () | Some i -> i());
 		List.iter (fun e -> newline ctx; gen_expr ctx e) el;
 		bend();
 		newline ctx;
