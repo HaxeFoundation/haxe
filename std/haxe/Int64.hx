@@ -35,7 +35,7 @@ class Int64 {
 		this.low = low;
 	}
 
-	function toString() {
+	public function toString() {
 		if (high.isZero() && low.isZero())
 			return "0";
 		var str = "";
