@@ -12,6 +12,16 @@ class Gc
       untyped __global__.__hxcpp_collect(major);
    }
 
+   static public function compact() : Void
+   {
+      untyped __global__.__hxcpp_gc_compact();
+   }
+
+   static public function memUsage() : Int
+   {
+      return untyped __global__.__hxcpp_gc_used_bytes();
+   }
+
    static public function trace(sought:Class<Dynamic>,printInstances:Bool=true) : Int
    {
       return untyped __global__.__hxcpp_gc_trace(sought,printInstances);
