@@ -504,14 +504,16 @@ struct
           { e with eexpr = TCall(Type.map_expr run e, []) }
         | TCall( ( { eexpr = TField({ eexpr = TTypeExpr (TTypeDecl t) }, "fromCharCode") } ), [cc] ) when is_string (follow (TType(t,List.map snd t.t_types))) ->
           { e with eexpr = TNew(get_cl_from_t basic.tstring, [], [mk_cast tchar (run cc); mk_int gen 1 cc.epos]) }
-        | TCall( ( { eexpr = TField(ef, ("charAt" as field)) } ), args )
-        | TCall( ( { eexpr = TField(ef, ("charCodeAt" as field)) } ), args )
-        | TCall( ( { eexpr = TField(ef, ("split" as field)) } ), args )
-        | TCall( ( { eexpr = TField(ef, ("indexOf" as field)) } ), args )
-        | TCall( ( { eexpr = TField(ef, ("lastIndexOf" as field)) } ), args )
-        | TCall( ( { eexpr = TField(ef, ("substring" as field)) } ), args )
-        | TCall( ( { eexpr = TField(ef, ("substr" as field)) } ), args ) when is_string ef.etype ->
-          { e with eexpr = TCall(mk_static_field_access_infer string_ext field e.epos [], [run ef] @ (List.map run args)) }
+        | TCall( ( { eexpr = TField(ef, field) } as efield ), args ) when is_string ef.etype ->
+          (match field with
+            | "charAt" | "charCodeAt" | "split" | "indexOf"
+            | "lastIndexOf" | "substring" | "substr" ->
+              { e with eexpr = TCall(mk_static_field_access_infer string_ext field e.epos [], [run ef] @ (List.map run args)) }
+            | _ when String.get field 0 = '_' ->
+              { e with eexpr = TCall({ efield with eexpr = TField(run ef, String.sub field 1 ( (String.length field) - 1)) }, List.map run args) }
+            | _ ->
+              { e with eexpr = TCall(run efield, List.map run args) }
+          )
         
         | TCast(expr, m) when is_boxed_type e.etype ->
           (* let unboxed_type gen t tbyte tshort tchar tfloat = match follow t with *)
@@ -1763,6 +1765,10 @@ let configure gen =
   
   JavaSpecificSynf.configure gen (JavaSpecificSynf.traverse gen runtime_cl);
   JavaSpecificESynf.configure gen (JavaSpecificESynf.traverse gen runtime_cl);
+  
+  (* add native String as a String superclass *)
+  let str_cl = match gen.gcon.basic.tstring with | TInst(cl,_) -> cl | _ -> assert false in
+  str_cl.cl_super <- Some (get_cl (get_type gen (["haxe";"lang"], "NativeString")), []);
   
   run_filters gen;
   

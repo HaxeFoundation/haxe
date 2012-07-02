@@ -106,12 +106,9 @@ class StringTools {
 	/**
 		Tells if the string [s] starts with the string [start].
 	**/
-	#if java
-	@:functionBody('return s.startsWith(start);')
-	#end
-	public static #if (cs) inline #end function startsWith( s : String, start : String ) : Bool {
+	public static #if (cs || java) inline #end function startsWith( s : String, start : String ) : Bool {
 		#if java
-		return false;
+		return untyped s.startsWith(start);
 		#elseif cs
 		return untyped s.StartsWith(start);
 		#else
@@ -122,12 +119,9 @@ class StringTools {
 	/**
 		Tells if the string [s] ends with the string [end].
 	**/
-	#if java
-	@:functionBody('return s.endsWith(end);')
-	#end
-	public static #if (cs) inline #end function endsWith( s : String, end : String ) : Bool {
+	public static #if (cs || java) inline #end function endsWith( s : String, end : String ) : Bool {
 		#if java
-		return false;
+		return untyped s.endsWith(end);
 		#elseif cs
 		return untyped s.EndsWith(end);
 		#else
@@ -191,11 +185,13 @@ class StringTools {
 	/**
 		Removes spaces at the beginning and the end of the String [s].
 	**/
-	public #if (php || cs) inline #end static function trim( s : String ) : String {
+	public #if (php || cs || java) inline #end static function trim( s : String ) : String {
 		#if php
 		return untyped __call__("trim", s);
 		#elseif cs
 		return untyped s.Trim();
+		#elseif java
+		return untyped s.trim();
 		#else
 		return ltrim(rtrim(s));
 		#end
@@ -251,10 +247,7 @@ class StringTools {
 	/**
 		Replace all occurences of the string [sub] in the string [s] by the string [by].
 	**/
-	#if java
-	@:functionBody('return s.replace(sub, by);')
-	#end
-	public #if (php) inline #end static function replace( s : String, sub : String, by : String ) : String {
+	public #if (php || java || cs) inline #end static function replace( s : String, sub : String, by : String ) : String {
 		#if php
 		return untyped __call__("str_replace", sub, by, s);
 		#elseif java
@@ -292,7 +285,7 @@ class StringTools {
 		Provides a fast native string charCodeAt access. Since the EOF value might vary depending on the platforms, always test with StringTools.isEOF.
 		Only guaranteed to work if index in [0,s.length] range. Might not work with strings containing \0 char.
 	**/
-		public static #if !cs inline #end function fastCodeAt( s : String, index : Int ) : Int untyped {
+	public static inline function fastCodeAt( s : String, index : Int ) : Int untyped {
 		#if neko
 		return untyped __dollar__sget(s.__s, index);
 		#elseif cpp
@@ -302,12 +295,9 @@ class StringTools {
 		#elseif flash
 		return s["cca"](index);
 		#elseif java
-		return cast s.charCodeAt(index);
+		return ( index < s.length ) ? cast(_charAt(s, index), Int) : -1;
 		#elseif cs
-		if (cast(index, UInt) >= s.length)
-			return 0;
-		else
-			return cast(untyped s[index], Int);
+		return ( cast(index, UInt) < s.length ) ? cast(untyped s[index], Int) : -1;
 		#elseif js
 			#if mt
 		return (untyped s).cca(index);
@@ -318,7 +308,10 @@ class StringTools {
 		return s.cca(index);
 		#end
 	}
-
+	
+	#if java
+	private static inline function _charAt(str:String, idx:Int):java.StdTypes.Char16 return untyped str._charAt(idx)
+	#end
 	/*
 		Only to use together with fastCodeAt.
 	*/
@@ -332,9 +325,9 @@ class StringTools {
 		#elseif neko
 		return c == null;
 		#elseif cs
-		return c == 0;
+		return c == -1;
 		#elseif java
-		return c == 0;
+		return c == -1;
 		#else
 		return false;
 		#end
