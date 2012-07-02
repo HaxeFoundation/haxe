@@ -158,9 +158,15 @@ class TestBasetypes extends Test {
 		unspec( function() Math.ceil(-10000000000.7) );
 		unspec( function() Math.round(-10000000000.7) );
 		// should still give a proper result for lower bits
+		#if !(cs || java)
 		eq( Std.int(-10000000000.7) & 0xFFFFFF, 15997952 );
 		eq( Math.floor(-10000000000.7) & 0xFFFFFF, 15997951 );
-		eq( Math.ceil(-10000000000.7) & 0xFFFFFF, 15997952 );
+		eq( Math.ceil( -10000000000.7) & 0xFFFFFF, 15997952 );
+		#else
+		eq( Std.int(-10000000000.7) & 0xFFFFFF, 0 );
+		eq( Math.floor(-10000000000.7) & 0xFFFFFF, 0 );
+		eq( Math.ceil( -10000000000.7) & 0xFFFFFF, 0 );
+		#end
 		eq( Math.round(-10000000000.7) & 0xFFFFFF, 15997951 );
 	}
 

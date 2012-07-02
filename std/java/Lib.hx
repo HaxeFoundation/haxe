@@ -1,5 +1,4 @@
 package java;
-import java.lang.Class;
 
 //we cannot use the java package for custom classes, so we're redefining it as "haxe.java.Lib"
 @:native('haxe.java.Lib') class Lib 
@@ -18,8 +17,8 @@ import java.lang.Class;
 	
 	public static function toNativeType<T>(cl:Class<T>):java.lang.Class<T>
 	{
-		return untyped cl.nativeType();
-	}
+		return untyped cl;
+	}	
 	
 	@:functionBody('
 		return (java.lang.Class<T>) obj.getClass();

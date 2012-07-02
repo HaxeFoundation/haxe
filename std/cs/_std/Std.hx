@@ -52,13 +52,18 @@ import cs.internal.Exceptions;
 		var ret = 0;
 		var base = 10;
 		var i = -1;
-		if (StringTools.startsWith(x, "0x"))
+		var len = x.length;
+		
+		if (StringTools.startsWith(x, "0") && len > 2)
 		{
-			i = 1;
-			base = 16;
+			var c:Int = cast untyped x[1];
+			if (c == 'x'.code || c == 'X'.code)
+			{
+				i = 1;
+				base = 16;
+			}
 		}
 		
-		var len = x.length;
 		var foundAny = false;
 		var isNeg = false;
 		while (++i < len)

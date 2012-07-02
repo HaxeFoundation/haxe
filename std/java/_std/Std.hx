@@ -64,17 +64,22 @@ import java.internal.Exceptions;
 		
 		int ret = 0;
 		int base = 10;
+		int i = 0;
+		int len = x.length();
 		
-		if (x.startsWith("0x"))
+		if (x.startsWith("0") && len > 2)
 		{
-			x = x.substring(2);
-			base = 16;
+			char c = x.charAt(1);
+			if (c == \'x\' || c == \'X\')
+			{
+				i = 2;
+				base = 16;
+			}
 		}
 		
-		int len = x.length();
 		boolean foundAny = false;
 		boolean isNeg = false;
-		for (int i = 0; i < len; i++)
+		for (; i < len; i++)
 		{
 			char c = x.charAt(i);
 			if (!foundAny) 

@@ -142,8 +142,10 @@ class ParamConstraintsClass {
 	public function memberComplex < A:I1, B:List<A> > (a:A, b:B) { return b; }
 	public function memberBasic < A:String, B:Array<A> > (a:A, b:B) { return b[0]; }
 	
+#if !(java || cs)  //this is a known bug caused by issue #915
 	@:overload(function< A, B:Array<A> > (a:A, b:B):Void { } )
-	public function memberOverload<A,B>(a:String, b:String) { }
+	public function memberOverload < A, B > (a:String, b:String) { }
+#end
 }
 
 class ParamConstraintsClass2<T> {

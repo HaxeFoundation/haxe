@@ -83,7 +83,7 @@ class FileOutput extends Output {
 			switch(pos)
 			{
 				case SeekBegin: f.seek(cast p);
-				case SeekCur: f.seek(haxe.Int64.add(f.getFilePointer(), cast(p, Int64)));
+				case SeekCur: f.seek(haxe.Int64.add(f.getFilePointer(), cast(p, haxe.Int64)));
 				case SeekEnd: f.seek(haxe.Int64.add(f.length(), cast p));
 			}
 		}

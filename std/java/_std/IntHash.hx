@@ -102,6 +102,7 @@ import java.NativeArray;
 		} else if (flagIsDel(flags, x)) {
 			_keys[x] = key;
 			vals[x] = value;
+			setIsBothFalse(flags, x);
 			size++;
 		} else {
 			assert(_keys[x] == key);

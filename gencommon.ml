@@ -1816,10 +1816,24 @@ struct
                       | _ -> [tf.tf_expr]
                     in
                     
-                    let block = match block with
-                      | ({ eexpr = TCall({ eexpr = TConst(TSuper) }, _) } as hd) :: tl ->
-                        (hd :: funs) @ tl
-                      | _ -> funs @ block
+                    let found = ref false in
+                    let rec add_fn block acc =
+                      match block with
+                        | ({ eexpr = TCall({ eexpr = TConst(TSuper) }, _) } as hd) :: tl ->
+                          found := true;
+                          (List.rev acc) @ ((hd :: funs) @ tl)
+                        | ({ eexpr = TBlock bl } as hd) :: tl ->
+                          add_fn tl ( ({ hd with eexpr = TBlock (add_fn bl []) }) :: acc )
+                        | hd :: tl ->
+                          add_fn tl ( hd :: acc )
+                        | [] -> List.rev acc
+                    in
+                    
+                    let block = add_fn block [] in
+                    let block = if !found then 
+                      block
+                    else
+                      funs @ block
                     in
                     
                     { e with eexpr = TFunction({
@@ -4449,7 +4463,18 @@ struct
                 let args, ret = get_args e1.etype in
                 let args, ret = List.map (fun (n,o,t) -> (n,o,gen.greal_type t)) args, gen.greal_type ret in
                 (try
-                  handle_cast gen { ecall with eexpr = TCall({ e1 with eexpr = TField(ef, f) }, List.map2 (fun param (_,_,t) -> handle_cast gen param (gen.greal_type t) (gen.greal_type param.etype)) elist args) } (gen.greal_type ecall.etype) (gen.greal_type ret)
+                  handle_cast gen 
+                  { ecall with 
+                    eexpr = TCall(
+                      { e1 with eexpr = TField(ef, f) }, 
+                      List.map2 (fun param (_,_,t) -> 
+                        match param.eexpr with
+                          | TConst TNull -> (* when we have overloads and null const, we must force a cast otherwise we may get ambiguous call errors *)
+                            mk_cast (gen.greal_type t) param
+                          | _ ->
+                            handle_cast gen param (gen.greal_type t) (gen.greal_type param.etype)) elist args
+                    ) 
+                  } (gen.greal_type ecall.etype) (gen.greal_type ret)
                 with | Invalid_argument("List.map2") ->
                   gen.gcon.warning "This expression may be invalid" ecall.epos;
                   handle_cast gen ({ ecall with eexpr = TCall({ e1 with eexpr = TField(ef, f) }, elist )  }) (gen.greal_type ecall.etype) (gen.greal_type ret)
@@ -5993,11 +6018,15 @@ struct
       match objdecl with
         | [] -> acc,acc_f
         | ( (name,expr) as hd ) :: tl ->
-          match follow (gen.greal_type expr.etype) with
-            | TInst( { cl_path = [], "Float" }, [] )
-            | TInst( { cl_path = [], "Int" }, [] ) ->
-              loop tl acc (hd :: acc_f)
-            | _ -> loop tl (hd :: acc) acc_f
+          match follow expr.etype with
+            | TInst ( { cl_path = ["haxe"], "Int64" }, [] ) ->
+              loop tl (hd :: acc) acc_f
+            | _ ->
+              match follow (gen.greal_type expr.etype) with
+                | TInst( { cl_path = [], "Float" }, [] )
+                | TInst( { cl_path = [], "Int" }, [] ) ->
+                  loop tl acc (hd :: acc_f)
+                | _ -> loop tl (hd :: acc) acc_f
     in
     
     let may_hash_field s =

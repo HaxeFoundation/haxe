@@ -50,7 +50,6 @@ typedef UInt = Int
 
 #if (java || cs)
 typedef Single = Float;
-typedef Int64 = Int;
 #end
 
 /**

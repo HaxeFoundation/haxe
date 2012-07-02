@@ -36,6 +36,13 @@ class Resource {
 	}
 
 	public static function getString( name : String ) : String {
+		#if java
+		var stream = java.Lib.toNativeType(Resource).getResourceAsStream(name);
+		if (stream == null)
+			return null;
+		var stream = new java.io.NativeInput(stream);
+		return stream.readAll().toString();
+		#else
 		for( x in content )
 			if( x.name == name ) {
 				#if neko
@@ -47,9 +54,17 @@ class Resource {
 				#end
 			}
 		return null;
+		#end
 	}
 
 	public static function getBytes( name : String ) : haxe.io.Bytes {
+		#if java
+		var stream = java.Lib.toNativeType(Resource).getResourceAsStream(name);
+		if (stream == null)
+			return null;
+		var stream = new java.io.NativeInput(stream);
+		return stream.readAll();
+		#else
 		for( x in content )
 			if( x.name == name ) {
 				#if neko
@@ -60,6 +75,7 @@ class Resource {
 				#end
 			}
 		return null;
+		#end
 	}
 
 	static function __init__() {
@@ -70,6 +86,8 @@ class Resource {
 		content = null;
 		#elseif as3
 		null;
+		#elseif java
+		//do nothing
 		#else
 		content = untyped __resources__();
 		#end

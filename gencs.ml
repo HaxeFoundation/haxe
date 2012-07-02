@@ -523,7 +523,7 @@ let configure gen =
       | TInst ({ cl_path = ([],"Float") },[])
       | TInst ({ cl_path = ([],"Int") },[]) 
       | TType ({ t_path = [],"UInt" },[])
-      | TType ({ t_path = [],"Int64" },[])
+      | TType ({ t_path = ["haxe";"_Int64"], "NativeInt64" },[])
       | TType ({ t_path = ["cs"],"UInt64" },[])
       | TType ({ t_path = ["cs"],"UInt8" },[])
       | TType ({ t_path = ["cs"],"Int8" },[])
@@ -542,7 +542,7 @@ let configure gen =
   
   let ifaces = Hashtbl.create 1 in
   
-  let ti64 = match ( get_type gen ([], "Int64") ) with | TTypeDecl t -> TType(t,[]) | _ -> assert false in
+  let ti64 = match ( get_type gen (["haxe";"_Int64"], "NativeInt64") ) with | TTypeDecl t -> TType(t,[]) | _ -> assert false in
   
   let ttype = get_cl ( get_type gen (["System"], "Type") ) in
   
@@ -631,7 +631,7 @@ let configure gen =
       | TInst ({ cl_path = ([],"Float") },[]) -> "double"
       | TInst ({ cl_path = ([],"Int") },[]) -> "int"
       | TType ({ t_path = [],"UInt" },[]) -> "uint"
-      | TType ({ t_path = [],"Int64" },[]) -> "long"
+      | TType ({ t_path = ["haxe";"_Int64"], "NativeInt64" },[]) -> "long"
       | TType ({ t_path = ["cs"],"UInt64" },[]) -> "ulong"
       | TType ({ t_path = ["cs"],"UInt8" },[]) -> "byte"
       | TType ({ t_path = ["cs"],"Int8" },[]) -> "sbyte"
@@ -729,7 +729,7 @@ let configure gen =
             | TInt i32 -> 
               write w (Int32.to_string i32);
               (*match real_type e.etype with
-                | TType( { t_path = ([], "Int64") }, [] ) -> write w "L";
+                | TType( { t_path = (["haxe";"_Int64"], "NativeInt64") }, [] ) -> write w "L";
                 | _ -> ()
               *)
             | TFloat s -> 

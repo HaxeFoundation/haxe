@@ -501,6 +501,7 @@ let add_field_inits com c =
 				tf_expr = mk (TBlock el) com.basic.tvoid c.cl_pos;
 			}) ct c.cl_pos in
 			let ctor = mk_field "new" ct c.cl_pos in
+      ctor.cf_kind <- Method MethNormal;
 			c.cl_constructor <- Some { ctor with cf_expr = Some ce };
 		| Some cf ->
 			match cf.cf_expr with

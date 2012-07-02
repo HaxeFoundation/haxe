@@ -193,7 +193,7 @@ class Test #if swf_mark implements mt.Protect #end #if as3 implements haxe.Publi
 			new TestLocals(),
 			new TestEReg(),
 			new TestXML(),
-			#if (!java && !as3)
+			#if (!as3)
 			// these don't compile
 			new TestMisc(),
 			new TestResource(),
@@ -207,12 +207,18 @@ class Test #if swf_mark implements mt.Protect #end #if as3 implements haxe.Publi
 			//new TestRemoting(),
 		];
 		var current = null;
-		try {
+		#if (!fail_eager)
+		try 
+		#end
+		{
 			asyncWaits.push(null);
 			for( inst in classes ) {
 				current = Type.getClass(inst);
 				for( f in Type.getInstanceFields(current) )
 					if( f.substr(0,4) == "test" ) {
+						#if fail_eager
+						Reflect.callMethod(inst,Reflect.field(inst,f),[]);
+						#else
 						try {
 							Reflect.callMethod(inst,Reflect.field(inst,f),[]);
 						}
@@ -221,13 +227,14 @@ class Test #if swf_mark implements mt.Protect #end #if as3 implements haxe.Publi
 							onError(e,"EXCEPTION",Type.getClassName(current)+"."+f);
 						}
 						#end
+						#end
 						reportInfos = null;
 					}
 			}
 			asyncWaits.remove(null);
 			checkDone();
 		}
-		#if !as3
+		#if (!as3 && !(fail_eager))
 		catch( e : Dynamic ) {
 			asyncWaits.remove(null);
 			onError(e,"ABORTED",Type.getClassName(current));

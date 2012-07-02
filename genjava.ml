@@ -630,7 +630,7 @@ let configure gen =
   
   (*let string_ref = get_cl ( get_type gen (["haxe";"lang"], "StringRefl")) in*)
   
-  let ti64 = match ( get_type gen ([], "Int64") ) with | TTypeDecl t -> TType(t,[]) | _ -> assert false in
+  let ti64 = match ( get_type gen (["haxe";"_Int64"], "NativeInt64") ) with | TTypeDecl t -> TType(t,[]) | _ -> assert false in
   
   let has_tdynamic params =
     List.exists (fun e -> match gen.greal_type e with | TDynamic _ -> true | _ -> false) params
@@ -654,7 +654,7 @@ let configure gen =
                   | TInst ({ cl_path = ([],"Float") },[])
                   | TInst ({ cl_path = ["haxe"],"Int32" },[])
                   | TInst ({ cl_path = ([],"Int") },[])
-                  | TType ({ t_path = [],"Int64" },[])
+                  | TType ({ t_path = ["haxe";"_Int64"], "NativeInt64" },[])
                   | TType ({ t_path = ["haxe"],"Int64" },[])
                   | TType ({ t_path = ["java"],"Int8" },[])
                   | TType ({ t_path = ["java"],"Int16" },[])
@@ -691,7 +691,7 @@ let configure gen =
       | TInst ({ cl_path = ([],"Int") },[]) 
       | TInst( { cl_path = (["haxe"], "Int32") }, [] )
       | TInst( { cl_path = (["haxe"], "Int64") }, [] )
-      | TType ({ t_path = [],"Int64" },[])
+      | TType ({ t_path = ["haxe";"_Int64"], "NativeInt64" },[])
       | TType ({ t_path = ["java"],"Int8" },[])
       | TType ({ t_path = ["java"],"Int16" },[])
       | TType ({ t_path = ["java"],"Char16" },[])
@@ -747,7 +747,7 @@ let configure gen =
       | TEnum ({ e_path = ([], "Void") }, []) -> "java.lang.Object"
       | TInst ({ cl_path = ([],"Float") },[]) -> "double"
       | TInst ({ cl_path = ([],"Int") },[]) -> "int"
-      | TType ({ t_path = [],"Int64" },[]) -> "long"
+      | TType ({ t_path = ["haxe";"_Int64"], "NativeInt64" },[]) -> "long"
       | TType ({ t_path = ["java"],"Int8" },[]) -> "byte"
       | TType ({ t_path = ["java"],"Int16" },[]) -> "short"
       | TType ({ t_path = ["java"],"Char16" },[]) -> "char"
@@ -784,7 +784,7 @@ let configure gen =
       | TEnum ({ e_path = ([], "Bool") }, []) -> "java.lang.Boolean"
       | TInst ({ cl_path = ([],"Float") },[]) -> "java.lang.Double"
       | TInst ({ cl_path = ([],"Int") },[]) -> "java.lang.Integer"
-      | TType ({ t_path = [],"Int64" },[]) -> "java.lang.Long"
+      | TType ({ t_path = ["haxe";"_Int64"], "NativeInt64" },[]) -> "java.lang.Long"
       | TInst ({ cl_path = ["haxe"],"Int64" },[]) -> "java.lang.Long"
       | TInst ({ cl_path = ["haxe"],"Int32" },[]) -> "java.lang.Integer"
       | TType ({ t_path = ["java"],"Int8" },[]) -> "java.lang.Byte"
@@ -872,7 +872,7 @@ let configure gen =
             | TInt i32 -> 
               print w "%ld" i32;
               (match real_type e.etype with
-                | TType( { t_path = ([], "Int64") }, [] ) -> write w "L";
+                | TType( { t_path = (["haxe";"_Int64"], "NativeInt64") }, [] ) -> write w "L";
                 | _ -> ()
               )
             | TFloat s -> 
@@ -887,7 +887,7 @@ let configure gen =
             | TBool b -> write w (if b then "true" else "false")
             | TNull -> 
               (match real_type e.etype with
-                | TType( { t_path = ([], "Int64") }, [] )
+                | TType( { t_path = (["haxe";"_Int64"], "NativeInt64") }, [] )
                 | TInst( { cl_path = (["haxe"], "Int64") }, [] ) -> write w "0L"
                 | TInst( { cl_path = (["haxe"], "Int32") }, [] )
                 | TInst({ cl_path = ([], "Int") },[]) -> expr_s w ({ e with eexpr = TConst(TInt Int32.zero) })
@@ -1623,7 +1623,11 @@ let configure gen =
       let is_null e = match e.eexpr with | TConst(TNull) | TLocal({ v_name = "__undefined__" }) -> true | _ -> false in
       
       if is_null e1 || is_null e2 then 
-        { e1 with eexpr = TBinop(Ast.OpEq, e1, e2); etype = basic.tbool }
+        match e1.eexpr, e2.eexpr with
+          | TConst c1, TConst c2 ->
+            { e1 with eexpr = TConst(TBool (c1 = c2)); etype = basic.tbool }
+          | _ ->
+            { e1 with eexpr = TBinop(Ast.OpEq, e1, e2); etype = basic.tbool }
       else begin
         let is_ref = match follow e1.etype, follow e2.etype with
           | TDynamic _, _
