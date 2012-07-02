@@ -78,6 +78,9 @@ enum ValueType {
 		case "int": return "Int";
 		case "Number": return "Float";
 		case "Boolean": return "Bool";
+		#if as3
+		case "Object": return "Dynamic";
+		#end
 		default:
 		}
 		return str.split("::").join(".");
@@ -98,6 +101,9 @@ enum ValueType {
 			switch( name ) {
 			case "Int": return Int;
 			case "Float": return Float;
+			#if as3
+			case "Dynamic": return Dynamic;
+			#end
 			}
 			return null;
 		}
