@@ -75,7 +75,12 @@ class TestReflect extends Test {
 	}
 
 	static inline function u2( s : String, s2 ) : String {
-		return u(s)+"."+u(s2);
+		#if as3
+		return s + "." +s2;
+		#else
+		// this causes a null pointer exception on as3 for whatever reason
+		return u(s) + "." + u(s2);
+		#end
 	}
 
 	static var TNAMES = [

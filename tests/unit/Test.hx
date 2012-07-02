@@ -117,7 +117,7 @@ class Test #if swf_mark implements mt.Protect #end #if as3 implements haxe.Publi
 		}
 		haxe.Log.trace(msg,pos);
 		reportCount++;
-		if( reportCount == 20 ) {
+		if( reportCount == 50 ) {
 			trace("Too many errors");
 			report = function(msg,?pos) {};
 		}
@@ -196,9 +196,9 @@ class Test #if swf_mark implements mt.Protect #end #if as3 implements haxe.Publi
 			new TestMisc(),
 			new TestResource(),
 			new TestInt64(),			
-			#if (!as3)
 			new TestReflect(),
 			new TestSerialize(),
+			#if (!as3)
 			new TestMeta(),
 			#end
 			//new TestUnspecified(),

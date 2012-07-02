@@ -924,10 +924,12 @@ let generate_field ctx static f =
 				(match f.cf_kind with
 				| Var v ->
 					(match v.v_read with
-					| AccNormal | AccCall _ -> print ctx "function get %s() : %s;" id t;
+					| AccNormal -> print ctx "function get %s() : %s;" id t;
+					| AccCall s -> print ctx "function %s() : %s;" s t;
 					| _ -> ());
 					(match v.v_write with
-					| AccNormal | AccCall _ -> print ctx "function set %s( __v : %s ) : void;" id t;
+					| AccNormal -> print ctx "function set %s( __v : %s ) : void;" id t;
+					| AccCall s -> print ctx "function %s( __v : %s ) : %s;" s t t;
 					| _ -> ());
 				| _ -> assert false)
 			| _ -> ()

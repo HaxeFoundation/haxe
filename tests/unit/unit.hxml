@@ -57,7 +57,7 @@ params.hxml
 params.hxml
 -main unit.Test
 -as3 as3
--cmd mxmlc as3/__main__.as --output unit9_as3.swf
+-cmd mxmlc -debug as3/__main__.as --output unit9_as3.swf
 
 #java
 --next
