@@ -854,8 +854,7 @@ let type_callback ctx e params p =
 			error "Usage of _ is currently not supported for optional non-nullable arguments on flash9" p
 		| (n,o,t) :: args , ([] as params)
 		| (n,o,t) :: args , (EConst(Ident "_"),_) :: params ->
-			let v = alloc_var (alloc_name n) t in
-			if o then v.v_type <- ctx.t.tnull t;
+			let v = alloc_var (alloc_name n) (if o then ctx.t.tnull t else t) in
 			loop args params given_args (missing_args @ [v,o]) (ordered_args @ [vexpr v])
 		| (n,o,t) :: args , param :: params ->
 			let e = type_expr ctx param true in
