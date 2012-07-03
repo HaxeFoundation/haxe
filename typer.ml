@@ -868,8 +868,25 @@ let type_callback ctx e params p =
 	let inner_fun_args l = List.map (fun (v,o) -> v.v_name, o, v.v_type) l in
 	let t_inner = TFun(inner_fun_args missing_args, ret) in
 	let call = make_call ctx (vexpr loc) ordered_args ret p in
+  
+  let vars_to_update = Hashtbl.create 0 in
+  let tf_args = List.map (fun (v,o) -> 
+    if o then begin 
+      v.v_type <- ctx.t.tnull v.v_type;
+      Hashtbl.add vars_to_update v.v_id v;
+      v,Some TNull 
+    end else v,None) missing_args
+  in
+  let rec run e =
+    match e.eexpr with
+      | TLocal(v) when Hashtbl.mem vars_to_update v.v_id ->
+        { e with etype = v.v_type }
+      | _ -> Type.map_expr run e
+  in
+  let call = if Hashtbl.length vars_to_update > 0 then run call else call in
+  
 	let func = mk (TFunction {
-		tf_args = List.map (fun (v,o) -> if o then {v with v_type = ctx.t.tnull v.v_type},Some TNull else v,None) missing_args;
+		tf_args = tf_args;
 		tf_type = ret;
 		tf_expr = mk (TReturn (Some call)) ret p;
 	}) t_inner p in
