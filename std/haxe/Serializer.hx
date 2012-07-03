@@ -251,27 +251,30 @@ class Serializer {
 				#else
 				var i = 0;
 				var max = v.length - 2;
-				var chars = "";
+				var charsBuf = new StringBuf();
 				var b64 = BASE64;
 				while( i < max ) {
 					var b1 = v.get(i++);
 					var b2 = v.get(i++);
 					var b3 = v.get(i++);
-					chars += b64.charAt(b1 >> 2)
-						+ b64.charAt(((b1 << 4) | (b2 >> 4)) & 63)
-						+ b64.charAt(((b2 << 2) | (b3 >> 6)) & 63)
-						+ b64.charAt(b3 & 63);
+					
+					charsBuf.add(b64.charAt(b1 >> 2));
+					charsBuf.add(b64.charAt(((b1 << 4) | (b2 >> 4)) & 63));
+					charsBuf.add(b64.charAt(((b2 << 2) | (b3 >> 6)) & 63));
+					charsBuf.add(b64.charAt(b3 & 63));
 				}
 				if( i == max ) {
 					var b1 = v.get(i++);
 					var b2 = v.get(i++);
-					chars += b64.charAt(b1 >> 2)
-						+ b64.charAt(((b1 << 4) | (b2 >> 4)) & 63)
-						+ b64.charAt((b2 << 2) & 63);
+					charsBuf.add(b64.charAt(b1 >> 2));
+					charsBuf.add(b64.charAt(((b1 << 4) | (b2 >> 4)) & 63));
+					charsBuf.add(b64.charAt((b2 << 2) & 63));
 				} else if( i == max + 1 ) {
 					var b1 = v.get(i++);
-					chars += b64.charAt(b1 >> 2) + b64.charAt((b1 << 4) & 63);
+					charsBuf.add(b64.charAt(b1 >> 2));
+					charsBuf.add(b64.charAt((b1 << 4) & 63));
 				}
+				var chars = charsBuf.toString();
 				#end
 				buf.add("s");
 				buf.add(chars.length);
