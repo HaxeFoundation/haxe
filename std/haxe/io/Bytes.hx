@@ -305,7 +305,6 @@ class Bytes {
 		#elseif cs
 		var b = system.text.Encoding.UTF8.GetBytes(s);
 		return new Bytes(b.Length, b);
-		);
 		#elseif java
 		try
 		{

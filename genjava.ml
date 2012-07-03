@@ -1787,6 +1787,9 @@ let configure gen =
   let str_cl = match gen.gcon.basic.tstring with | TInst(cl,_) -> cl | _ -> assert false in
   str_cl.cl_super <- Some (get_cl (get_type gen (["haxe";"lang"], "NativeString")), []);
   
+  let mkdir dir = if not (Sys.file_exists dir) then Unix.mkdir dir 0o755 in
+  mkdir (gen.gcon.file ^ "/src");
+  
   (* add resources array *)
   (try
     let res = get_cl (Hashtbl.find gen.gtypes (["haxe"], "Resource")) in
@@ -1814,7 +1817,7 @@ let configure gen =
 (* end of configure function *)
 	
 let before_generate con = 
-  List.iter (Codegen.fix_overrides con) con.types
+  ()
 
 let generate con =
   let gen = new_ctx con in

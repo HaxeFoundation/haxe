@@ -26,17 +26,21 @@ package haxe;
 
 class Resource {
 	
-	#if !(java || cs)
-	static var content : Array<{ name : String, data : String, str : String }>;
-	#else
+	#if (java || cs)
 	static var content : Array<String>;
+	#else
+	static var content : Array<{ name : String, data : String, str : String }>;
 	#end
 
 	public static function listNames() : Array<String> {
 		var names = new Array();
-		#if (java || cs)
+		#if java
 		for ( x in content )
 			names.push(x);
+		#elseif cs
+		var all:cs.NativeArray<String> = untyped __cs__("typeof(haxe.Resource).Assembly.GetManifestResourceNames()");
+		for (i in 0...all.Length)
+			names.push(all[i]);
 		#else
 		for ( x in content )
 			names.push(x.name);
@@ -51,6 +55,11 @@ class Resource {
 			return null;
 		var stream = new java.io.NativeInput(stream);
 		return stream.readAll().toString();
+		#elseif cs
+		var str:system.io.Stream = untyped __cs__("typeof(haxe.Resource).Assembly.GetManifestResourceStream(\"Resources.\" + name)");
+		if (str != null)
+			return new cs.io.NativeInput(str).readAll().toString();
+		return null;
 		#else
 		for( x in content )
 			if( x.name == name ) {
@@ -73,6 +82,11 @@ class Resource {
 			return null;
 		var stream = new java.io.NativeInput(stream);
 		return stream.readAll();
+		#elseif cs
+		var str:system.io.Stream = untyped __cs__("typeof(haxe.Resource).Assembly.GetManifestResourceStream(\"Resources.\" + name)");
+		if (str != null)
+			return new cs.io.NativeInput(str).readAll();
+		return null;
 		#else
 		for( x in content )
 			if( x.name == name ) {
@@ -95,7 +109,7 @@ class Resource {
 		content = null;
 		#elseif as3
 		null;
-		#elseif java
+		#elseif (java || cs)
 		//do nothing
 		#else
 		content = untyped __resources__();

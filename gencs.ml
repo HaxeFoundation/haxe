@@ -677,16 +677,27 @@ let configure gen =
       | _ -> t_s t
   in
 
+  let escape ichar b =
+    match ichar with
+      | 92 (* \ *) -> Buffer.add_string b "\\\\"
+      | 39 (* ' *) -> Buffer.add_string b "\\\'"
+      | 34 -> Buffer.add_string b "\\\""
+      | 13 (* \r *) -> Buffer.add_string b "\\r"
+      | 10 (* \n *) -> Buffer.add_string b "\\n"
+      | 9 (* \t *) -> Buffer.add_string b "\\t"
+      | c when c < 32 || c >= 127 -> Buffer.add_string b (Printf.sprintf "\\u%.4x" c)
+      | c -> Buffer.add_char b (Char.chr c)
+  in
+  
   let escape s =
     let b = Buffer.create 0 in
-    for i = 0 to String.length s - 1 do
-      match String.unsafe_get s i with
-      | '\\' -> Buffer.add_string b "\\\\"
-      | '\'' -> Buffer.add_string b "\\\'"
-      | '\"' -> Buffer.add_string b "\\\""
-      | c when (Char.code c) < 32 -> Buffer.add_string b (Printf.sprintf "\\x%.2X" (Char.code c))
-      | c -> Buffer.add_char b c
-    done;
+    (try 
+      UTF8.validate s;
+      UTF8.iter (fun c -> escape (UChar.code c) b) s
+    with
+      UTF8.Malformed_code ->
+        String.iter (fun c -> escape (Char.code c) b) s
+    );
     Buffer.contents b
   in
   
@@ -1534,6 +1545,7 @@ let configure gen =
       | TArray(e1, e2) -> 
         ( match follow e1.etype with 
           | TDynamic _ | TAnon _ | TMono _ -> true 
+          | TInst({ cl_kind = KTypeParameter }, _) -> true
           | _ -> false ) 
       | _ -> assert false
   ) "__get" "__set" );
@@ -1737,13 +1749,21 @@ let configure gen =
   CSharpSpecificSynf.configure gen (CSharpSpecificSynf.traverse gen runtime_cl);
   CSharpSpecificESynf.configure gen (CSharpSpecificESynf.traverse gen runtime_cl);
   
+  let mkdir dir = if not (Sys.file_exists dir) then Unix.mkdir dir 0o755 in
+  mkdir (gen.gcon.file ^ "/src");
+  
   (* add resources array *)
   (try
     let res = get_cl (Hashtbl.find gen.gtypes (["haxe"], "Resource")) in
+    mkdir (gen.gcon.file ^ "/src/Resources");
     let cf = PMap.find "content" res.cl_statics in
     let res = ref [] in
-    Hashtbl.iter (fun name _ -> 
-      res := { eexpr = TConst(TString name); etype = gen.gcon.basic.tstring; epos = Ast.null_pos } :: !res
+    Hashtbl.iter (fun name v -> 
+      res := { eexpr = TConst(TString name); etype = gen.gcon.basic.tstring; epos = Ast.null_pos } :: !res;
+      
+      let f = open_out (gen.gcon.file ^ "/src/Resources/" ^ name) in
+      output_string f v;
+      close_out f
     ) gen.gcon.resources;
     cf.cf_expr <- Some ({ eexpr = TArrayDecl(!res); etype = gen.gcon.basic.tarray gen.gcon.basic.tstring; epos = Ast.null_pos })
   with | Not_found -> ());
@@ -1796,7 +1816,7 @@ let configure gen =
 (* end of configure function *)
 	
 let before_generate con = 
-  List.iter (Codegen.fix_overrides con) con.types
+  ()
 
 let generate con =
   (try
