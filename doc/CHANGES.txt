@@ -1,3 +1,9 @@
+2012-xx-xx: 2.10
+	as3 : many small fixes
+	js/flash : compile StringBuf as String for better performance
+	all : allow function calls as field variable initialization if a constant expression is returned
+	all : many DCE fixes
+
 2012-06-20: 2.10 RC
 	all : fixed List and Null<T> for first, last, pop
 	js : added js.Lib.debug()
