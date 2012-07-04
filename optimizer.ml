@@ -332,10 +332,15 @@ let rec type_inline ctx cf f ethis params tret p force =
 		let wrap e =
 			(* we can't mute the type of the expression because it is not correct to do so *)
 			(try
-				(* if the expression is "untyped", we don't want to unify it accidentally ! *)
-				(match follow e.etype with TMono _ -> raise (Unify_error []) | _ -> ());
-				type_eq EqStrict (if has_params then map_type e.etype else e.etype) tret;
-				e
+				(* if the expression is "untyped" and we don't want to unify it accidentally ! *)
+				(match follow e.etype with 
+				| TMono _ -> 
+					(match follow tret with
+					| TEnum ({ e_path = [],"Void" },_) -> e
+					| _ -> raise (Unify_error []))
+				| _ -> 
+					type_eq EqStrict (if has_params then map_type e.etype else e.etype) tret;
+					e)
 			with Unify_error _ ->
 				mk (TCast (e,None)) tret e.epos)
 		in
