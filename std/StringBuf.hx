@@ -33,14 +33,14 @@ extern class StringBuf {
 	public function new():Void {
 		
 	}
-	public inline function add( x : Dynamic ):String {
-		return untyped __this__ += x;
+	public inline function add( x : Dynamic ):Void {
+		untyped __this__ += x;
 	}
-	public inline function addChar( i : Int ):String {
-		return untyped __this__ += String.fromCharCode(i);
+	public inline function addChar( i : Int ):Void {
+		untyped __this__ += String.fromCharCode(i);
 	}
-	public inline function addSub( s : String, pos : Int, ?len : Int):String {
-		return untyped __this__ += s.substr(pos, len);
+	public inline function addSub( s : String, pos : Int, ?len : Int):Void {
+		untyped __this__ += s.substr(pos, len);
 	}
 	public inline function toString():String {
 		return untyped __this__;
