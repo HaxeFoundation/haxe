@@ -1411,6 +1411,8 @@ let gen_type_def ctx t =
 		setvar ctx VarObj;
 		(* true if implements mt.Protect *)
 		let flag = is_protected ctx ~stat:true (TInst (c,[])) "" in
+		if (Common.has_feature ctx.com "Reflect.getProperty") || (Common.has_feature ctx.com "Reflect.setProperty") then
+			Codegen.add_property_field ctx.com c;
 		List.iter (gen_class_static_field ctx c flag) c.cl_ordered_statics;
 		let flag = is_protected ctx (TInst (c,[])) "" in
 		PMap.iter (fun _ f -> match f.cf_kind with Var { v_read = AccResolve } -> () | _ -> gen_class_field ctx flag f) c.cl_fields;

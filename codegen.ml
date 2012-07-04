@@ -101,6 +101,23 @@ let get_properties fields =
 		| _ -> acc
 	) [] fields
 
+let add_property_field com c =
+	let p = c.cl_pos in
+	let props = get_properties (c.cl_ordered_statics @ c.cl_ordered_fields) in
+	match props with
+	| [] -> ()
+	| _ ->
+		let fields,values = List.fold_left (fun (fields,values) (n,v) ->
+			let cf = mk_field n com.basic.tstring p in
+			PMap.add n cf fields,(n, string com v p) :: values
+		) (PMap.empty,[]) props in
+		let t = mk_anon fields in
+		let e = mk (TObjectDecl values) t p in
+		let cf = mk_field "__properties__" t p in
+		cf.cf_expr <- Some e;
+		c.cl_statics <- PMap.add cf.cf_name cf c.cl_statics;
+		c.cl_ordered_statics <- cf :: c.cl_ordered_statics
+
 (* -------------------------------------------------------------------------- *)
 (* REMOTING PROXYS *)
 

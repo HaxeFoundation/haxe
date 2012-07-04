@@ -37,12 +37,30 @@
 		o[field] = value;
 	}
 
-	public static inline function getProperty( o : Dynamic, field : String ) : Dynamic {
-		return Reflect.field(o,field);
+	static function findAccessor( c : Class<Dynamic>, name : String ):Dynamic untyped {
+		do {
+			var getter = c.__properties__[name];
+			if (getter != null)
+				return getter;
+			c = c.__super__;
+		} while (c != null);
+		return null;
+	}
+	
+	public static function getProperty( o : Dynamic, field : String ) : Dynamic untyped {
+		var getter = findAccessor( Std.is(o,Class) ? o : o.__class__, "get_" +field);
+		return if (getter != null)
+			o[getter]["apply"](o, [field]);
+		else
+			Reflect.field(o, field);
 	}
 
-	public static inline function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void {
-		setField(o,field,value);
+	public static inline function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void untyped {
+		var setter = findAccessor( Std.is(o,Class) ? o : o.__class__, "set_" +field);
+		return if (setter != null)
+			o[setter]["apply"](o, [value]);
+		else
+			Reflect.setField(o, field, value);	
 	}
 
 	public inline static function callMethod( o : Dynamic, func : Dynamic, args : Array<Dynamic> ) : Dynamic untyped {
