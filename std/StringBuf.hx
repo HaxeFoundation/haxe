@@ -27,88 +27,34 @@
 	A String buffer is an efficient way to build a big string by
 	appending small elements together.
 **/
-#if (js || flash)
 @:native("String")
 extern class StringBuf {
-	public function new():Void {
-		
-	}
-	public inline function add( x : Dynamic ):Void {
-		untyped __this__ += x;
-	}
-	public inline function addChar( i : Int ):Void {
-		untyped __this__ += String.fromCharCode(i);
-	}
-	public inline function addSub( s : String, pos : Int, ?len : Int):Void {
-		untyped __this__ += s.substr(pos, len);
-	}
-	public inline function toString():String {
-		return untyped __this__;
-	}
-}
-#else
-class StringBuf {
 
 	/**
 		Creates a new string buffer.
 	**/
-	public function new() {
-		#if cpp
-			b = new Array();
-		#elseif cs
-			b = new cs.StringBuilder();
-		#elseif java
-			b = new java.lang.StringBuilder();
-		#else
-			b = "";
-		#end
+	public function new():Void {
 	}
 
 	/**
 		Adds the representation of any value to the string buffer.
 	**/
-	public inline function add( x : Dynamic ) {
-		#if cpp
-			b[b.length] = x;
-		#elseif cs
-			b.Append(x);
-		#elseif java
-			b.append(x);
-		#else
-			b += x;
-		#end
+	public inline function add( x : Dynamic ) : Void {
+		untyped __this__ += x;
 	}
 
 	/**
 		Adds a part of a string to the string buffer.
 	**/
-	public inline function addSub( s : String, pos : Int, ?len : Int ) {
-		#if cpp
-			b[b.length] = s.substr(pos,len);
-		#elseif cs
-			var l:Int = (len == null) ? (s.length - pos) : len;
-			b.Append(s, pos, l);
-		#elseif java
-			var l:Int = (len == null) ? s.length : len;
-			b.append(s, pos, pos + l);
-		#else
-			b += s.substr(pos,len);
-		#end
+	public inline function addChar( c : Int ) : Void {
+		untyped __this__ += String.fromCharCode(c);
 	}
 
 	/**
 		Adds a character to the string buffer.
 	**/
-	public inline function addChar( c : Int ) untyped {
-		#if cpp
-			b[b.length] = String.fromCharCode(c);
-		#elseif cs
-			b.Append(cast(c, cs.StdTypes.Char16));
-		#elseif java
-			b.append(cast(c, java.StdTypes.Char16));
-		#else
-			b += String.fromCharCode(c);
-		#end
+	public inline function addSub( s : String, pos : Int, ?len : Int) : Void {
+		untyped __this__ += s.substr(pos, len);
 	}
 
 	/**
@@ -116,27 +62,7 @@ class StringBuf {
 		The buffer is not emptied by this operation.
 	**/
 	public inline function toString() : String {
-		#if cpp
-			return b.join("");
-		#elseif cs
-			return b.ToString();
-		#elseif java
-			return b.toString();
-		#else
-			return b;
-		#end
+		return untyped __this__;
 	}
 
-	private var b :
-	#if cpp
-		Array<Dynamic>
-	#elseif cs 
-		cs.StringBuilder
-	#elseif java
-		java.lang.StringBuilder
-	#else
-		String
-	#end;
-
 }
-#end
