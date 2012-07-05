@@ -782,7 +782,7 @@ let rec type_field ctx e i p mode =
 				| Statics c when is_parent c ctx.curclass -> ()
 				| _ -> display_error ctx ("Cannot access to private field " ^ i) p
 			end;
-			field_access ctx mode f (Type.field_type f) e p
+			field_access ctx mode f (match !(a.a_status) with Statics c -> field_type ctx c [] f p | _ -> Type.field_type f) e p
 		with Not_found ->
 			if is_closed a then try
 				using_field ctx mode e i p
