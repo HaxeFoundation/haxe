@@ -44,6 +44,20 @@
 --macro ImportAll.run()
 
 --next
+-java all_java
+--no-output
+-xml java.xml
+-D xmldoc
+--macro ImportAll.run()
+
+--next
+-java all_cs
+--no-output
+-xml cs.xml
+-D xmldoc
+--macro ImportAll.run()
+
+--next
 
 -xml cross.xml
 --macro ImportAll.run()
