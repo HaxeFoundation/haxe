@@ -42,6 +42,13 @@ params.hxml
 -main unit.Test
 -php php
 
+#as3
+--next
+params.hxml
+-main unit.Test
+-as3 as3
+-cmd mxmlc -static-link-runtime-shared-libraries=true -debug as3/__main__.as --output unit9_as3.swf
+
 #cpp
 --next
 -main RunCpp
@@ -51,13 +58,6 @@ params.hxml
 params.hxml
 -main unit.Test
 -cpp cpp
-
-#as3
---next
-params.hxml
--main unit.Test
--as3 as3
--cmd mxmlc -debug as3/__main__.as --output unit9_as3.swf
 
 #java
 --next

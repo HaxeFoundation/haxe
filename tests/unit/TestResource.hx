@@ -4,7 +4,6 @@ class TestResource extends Test {
 
 	static var STR = "Héllo World !";
 
-	#if !as3
 	function testResources() {
 		var names = haxe.Resource.listNames();
 		eq( names.length, 2 );
@@ -31,7 +30,6 @@ class TestResource extends Test {
 		for( i in 0...lasts.length )
 			eq( b.get(b.length - lasts.length + i), lasts[i] );
 	}
-	#end
 
 	#if neko
 	static function main() {

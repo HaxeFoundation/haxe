@@ -113,16 +113,16 @@ let reserved =
 let s_ident n =
 	if Hashtbl.mem reserved n then "_" ^ n else n
 
+let rec create_dir acc = function
+	| [] -> ()
+	| d :: l ->
+		let dir = String.concat "/" (List.rev (d :: acc)) in
+		if not (Sys.file_exists dir) then Unix.mkdir dir 0o755;
+		create_dir (d :: acc) l
+
 let init infos path =
-	let rec create acc = function
-		| [] -> ()
-		| d :: l ->
-			let dir = String.concat "/" (List.rev (d :: acc)) in
-			if not (Sys.file_exists dir) then Unix.mkdir dir 0o755;
-			create (d :: acc) l
-	in
 	let dir = infos.com.file :: fst path in
-	create [] dir;
+	create_dir [] dir;
 	let ch = open_out (String.concat "/" dir ^ "/" ^ snd path ^ ".as") in
 	let imports = Hashtbl.create 0 in
 	Hashtbl.add imports (snd path) [fst path];
@@ -286,6 +286,38 @@ let escape_bin s =
 		| c -> Buffer.add_char b (Char.chr c)
 	done;
 	Buffer.contents b
+
+let generate_resources infos =
+	if Hashtbl.length infos.com.resources <> 0 then begin
+		let dir = (infos.com.file :: ["__res"]) in
+		create_dir [] dir;
+		let add_resource name data =
+			Std.output_file (String.concat "/" (dir @ [name])) data
+		in
+		Hashtbl.iter (fun name data -> add_resource name data) infos.com.resources;
+		let ctx = init infos ([],"__resources__") in
+		spr ctx "\timport flash.utils.Dictionary;\n";
+		spr ctx "\tpublic class __resources__ {\n";
+		spr ctx "\t\tpublic static var list:Dictionary;\n";
+		let inits = ref [] in
+		let k = ref 0 in
+		Hashtbl.iter (fun name _ ->
+			let varname = ("v" ^ (string_of_int !k)) in
+			k := !k + 1;
+			print ctx "\t\t[Embed(source = \"__res/%s\", mimeType = \"application/octet-stream\")]\n" name;
+			print ctx "\t\tpublic static var %s:Class;\n" varname;
+			inits := ("list[\"" ^name^ "\"] = " ^ varname ^ ";") :: !inits;
+		) infos.com.resources;
+		spr ctx "\t\tstatic public function __init__():void {\n";
+		spr ctx "\t\t\tlist = new Dictionary();\n";
+		List.iter (fun init ->
+			print ctx "\t\t\t%s\n" init
+		) !inits;
+		spr ctx "\t\t}\n";
+		spr ctx "\t}\n";
+		spr ctx "}";
+		close ctx;
+	end
 
 let gen_constant ctx p = function
 	| TInt i -> print ctx "%ld" i
@@ -1149,6 +1181,7 @@ let generate com =
 	let infos = {
 		com = com;
 	} in
+	generate_resources infos;
 	let ctx = init infos ([],"enum") in
 	generate_base_enum ctx;
 	close ctx;
