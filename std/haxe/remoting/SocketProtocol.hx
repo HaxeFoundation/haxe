@@ -137,7 +137,7 @@ class SocketProtocol {
 
 	public function sendMessage( msg : String ) {
 		var e = encodeMessageLength(msg.length + 3);
-		#if (neko || php || cpp)
+		#if sys
 		var o = socket.output;
 		o.writeByte(e.c1);
 		o.writeByte(e.c2);
@@ -189,7 +189,7 @@ class SocketProtocol {
 		return s.unserialize();
 	}
 
-	#if (neko || php || cpp)
+	#if sys
 
 	public function readMessage() {
 		var i = socket.input;
