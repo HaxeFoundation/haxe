@@ -292,7 +292,9 @@ let generate_resources infos =
 		let dir = (infos.com.file :: ["__res"]) in
 		create_dir [] dir;
 		let add_resource name data =
-			Std.output_file (String.concat "/" (dir @ [name])) data
+			let ch = open_out_bin (String.concat "/" (dir @ [name])) in
+			output_string ch data;
+			close_out ch
 		in
 		Hashtbl.iter (fun name data -> add_resource name data) infos.com.resources;
 		let ctx = init infos ([],"__resources__") in
