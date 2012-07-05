@@ -1429,7 +1429,7 @@ and type_ident ctx i p mode =
 and type_expr_with_type_raise ?(print_error=true) ctx e t =
 	let p = snd e in
 	let error msg p =
-		if print_error then display_error ctx msg p else raise (Error (Unify [],p))
+		if print_error then display_error ctx msg p else raise (Error (Unify [Unify_custom msg],p))
 	in
 	match fst e with
 	| EParenthesis e ->

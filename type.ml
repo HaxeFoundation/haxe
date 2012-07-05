@@ -633,6 +633,7 @@ type unify_error =
 	| Cant_force_optional
 	| Invariant_parameter of t * t
 	| Constraint_failure of string
+	| Unify_custom of string
 
 exception Unify_error of unify_error list
 

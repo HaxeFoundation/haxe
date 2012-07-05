@@ -141,6 +141,8 @@ let unify_error_msg ctx = function
 		"Type parameters are invariant"
 	| Constraint_failure name ->
 		"Constraint check failure for " ^ name
+	| Unify_custom msg ->
+		msg
 
 let rec error_msg = function
 	| Module_not_found m -> "Class not found : " ^ Ast.s_type_path m
