@@ -2311,8 +2311,8 @@ let dce_check_metadata ctx meta =
 	) meta
 
 let dce_check_class ctx c =
-	let rec super_forces_keep c = match c.cl_super with
-		| Some (csup,_) when has_meta ":keepSub" csup.cl_meta -> true
+	let rec super_forces_keep c =
+		has_meta ":keepSub" c.cl_meta || match c.cl_super with
 		| Some (csup,_) -> super_forces_keep csup
 		| _ -> false
 	in
