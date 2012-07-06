@@ -507,9 +507,10 @@ and gen_field_access ctx t s =
 		| [], "Date", "now"
 		| [], "Date", "fromTime"
 		| [], "Date", "fromString"
-		| [], "String", "charCodeAt"
 		->
 			print ctx "[\"%s\"]" s
+		| [], "String", "charCodeAt" ->
+			spr ctx "[\"charCodeAtHX\"]"
 		| [], "Date", "toString" ->
 			print ctx "[\"toStringHX\"]"
 		| [], "String", "cca" ->

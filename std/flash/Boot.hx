@@ -238,7 +238,11 @@ class Boot extends flash.display.MovieClip {
 		aproto.setPropertyIsEnumerable("insert", false);
 		aproto.setPropertyIsEnumerable("remove", false);
 		aproto.setPropertyIsEnumerable("iterator", false);
+		#if as3
+		String.prototype.charCodeAtHX = function(i) : Null<Int> {
+		#else
 		String.prototype.charCodeAt = function(i) : Null<Int> {
+		#end
 			var s : String = __this__;
 			var x : Float = s.cca(i);
 			if( __global__["isNaN"](x) )
