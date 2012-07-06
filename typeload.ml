@@ -454,9 +454,12 @@ let rec check_interface ctx c p intf params =
 			(* this is also true for property accessors *)
 			(match f2.cf_kind with
 			| Var v ->
-				let mark s = try mark_used_field ctx (PMap.find s c.cl_fields) with Not_found -> () in
-				(match v.v_read with AccCall s -> mark s | _ -> ());
-				(match v.v_write with AccCall s -> mark s | _ -> ())
+				let rec mark c s =
+					(try mark_used_field ctx (PMap.find s c.cl_fields) with Not_found -> ());
+					(match c.cl_super with None -> () | Some (c,_) -> mark c s)
+				in
+				(match v.v_read with AccCall s -> mark c s | _ -> ());
+				(match v.v_write with AccCall s -> mark c s | _ -> ())
 			| Method m -> ());
 			let p = (match f2.cf_expr with None -> p | Some e -> e.epos) in
 			let mkind = function
