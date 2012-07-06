@@ -68,7 +68,7 @@ enum XmlType {
 		return wrap( root, Xml.Document );
 	}
 	
-	#if as3 @:hack public #end static function compare( a : Xml, b : Xml ) : Bool {
+	@:keep #if as3 @:hack public #end static function compare( a : Xml, b : Xml ) : Bool {
 		return a == null ? b == null : (b == null ? false : a._node == b._node);
 	}
 
