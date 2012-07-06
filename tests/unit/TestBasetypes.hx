@@ -289,4 +289,9 @@ class TestBasetypes extends Test {
 		t( h.remove(1) );
 		f( h.remove(1) );
 	}
+	
+	function testObject() {
+		var l = { "new": "test" };
+		eq(Reflect.field(l, "new"), "test");
+	}
 }

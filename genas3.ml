@@ -107,6 +107,9 @@ let reserved =
 	(* some globals give some errors with Flex SDK as well *)
 	"print";"trace";
 	(* we don't include get+set since they are not 'real' keywords, but they can't be used as method names *)
+	"function";"class";"var";"if";"else";"while";"do";"for";"break";"continue";"return";"extends";"implements";
+	"import";"switch";"case";"default";"static";"public";"private";"try";"catch";"new";"this";"throw";"interface";
+	"override";"package";"null";"true";"false"
 	];
 	h
 
@@ -672,7 +675,8 @@ and gen_expr ctx e =
 		handle_break();
 	| TObjectDecl fields ->
 		spr ctx "{ ";
-		concat ctx ", " (fun (f,e) -> print ctx "%s : " (s_ident f); gen_value ctx e) fields;
+		let quote s = if Hashtbl.mem reserved s then "\"" ^ s ^ "\"" else s in 
+		concat ctx ", " (fun (f,e) -> print ctx "%s : " (quote f); gen_value ctx e) fields;
 		spr ctx "}"
 	| TFor (v,it,e) ->
 		let handle_break = handle_break ctx e in

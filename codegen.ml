@@ -379,11 +379,7 @@ let build_metadata com t =
 		mk (TObjectDecl (List.map (fun (f,el,p) ->
 			if Hashtbl.mem h f then error ("Duplicate metadata '" ^ f ^ "'") p;
 			Hashtbl.add h f ();
-			let name = match com.platform with
-				| Flash when Common.defined com "as3" -> "\"" ^ f ^ "\""
-				| _ -> f
-			in
-			name, mk (match el with [] -> TConst TNull | _ -> TArrayDecl (List.map (type_constant_value com) el)) (api.tarray t_dynamic) p
+			f, mk (match el with [] -> TConst TNull | _ -> TArrayDecl (List.map (type_constant_value com) el)) (api.tarray t_dynamic) p
 		) ml)) (api.tarray t_dynamic) p
 	in
 	let make_meta l =
