@@ -198,9 +198,7 @@ class Test #if swf_mark implements mt.Protect #end #if as3 implements haxe.Publi
 			new TestInt64(),			
 			new TestReflect(),
 			new TestSerialize(),
-			#if (!as3)
 			new TestMeta(),
-			#end
 			//new TestUnspecified(),
 			//new TestRemoting(),
 		];
