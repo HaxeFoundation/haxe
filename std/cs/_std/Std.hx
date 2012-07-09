@@ -29,17 +29,39 @@ import cs.internal.Exceptions;
 @:core_api @:nativegen class Std {
 	public static function is( v : Dynamic, t : Dynamic ) : Bool 
 	{
+		if (v == null)
+			return t == Dynamic;
+		if (t == null)
+			return false;
 		var clt:Class<Dynamic> = cast t;
 		if (clt == null)
 			return false;
+		var name:String = cast clt;
 		
-		var native:system.Type = untyped clt.nativeType();
+		switch(name)
+		{
+			case "System.Double":
+				return untyped __cs__('v is double || v is int');
+			case "System.Int32":
+				return untyped __cs__('haxe.lang.Runtime.isInt(v)');
+			case "System.Boolean":
+				return untyped __cs__('v is bool');
+			case "System.Object":
+				return true;
+		}
 		
-		return native.IsAssignableFrom(Lib.nativeType(v));
+		var clv:Class<Dynamic> = untyped __cs__('v.GetType()');
+		
+		return untyped clt.IsAssignableFrom(clv);
 	}
 
-	public static inline function string( s : Dynamic ) : String {
-		return cast s;
+	public static function string( s : Dynamic ) : String {
+		if (s == null)
+			return "null";
+		if (Std.is(s, Bool))
+			return cast(s, Bool) ? "true" : "false";
+		
+		return s.ToString();
 	}
 
 	public static inline function int( x : Float ) : Int {

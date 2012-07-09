@@ -38,7 +38,7 @@ enum ValueType {
 	TUnknown;
 }
 
-@:core_api class Type {
+@:keep @:core_api class Type {
 	
 	@:functionBody('
 		if (o is haxe.lang.DynamicObject || o is System.Type)
@@ -252,7 +252,8 @@ enum ValueType {
                 {
                     case System.TypeCode.Boolean: return ValueType.TBool;
                     case System.TypeCode.Double:
-						if (vc.ToDouble(null) == vc.ToInt32(null))
+						double d = vc.ToDouble(null);
+						if (d >= int.MinValue && d <= int.MaxValue && d == vc.ToInt32(null))
 							return ValueType.TInt;
 						else
 							return ValueType.TFloat;

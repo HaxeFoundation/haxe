@@ -524,6 +524,7 @@ let configure gen =
       | TInst ({ cl_path = ([],"Int") },[]) 
       | TType ({ t_path = [],"UInt" },[])
       | TType ({ t_path = ["haxe";"_Int64"], "NativeInt64" },[])
+      | TType ({ t_path = ["haxe";"_Int64"], "NativeUInt64" },[])
       | TType ({ t_path = ["cs"],"UInt64" },[])
       | TType ({ t_path = ["cs"],"UInt8" },[])
       | TType ({ t_path = ["cs"],"Int8" },[])
@@ -632,6 +633,7 @@ let configure gen =
       | TInst ({ cl_path = ([],"Int") },[]) -> "int"
       | TType ({ t_path = [],"UInt" },[]) -> "uint"
       | TType ({ t_path = ["haxe";"_Int64"], "NativeInt64" },[]) -> "long"
+      | TType ({ t_path = ["haxe";"_Int64"], "NativeUInt64" },[]) -> "ulong"
       | TType ({ t_path = ["cs"],"UInt64" },[]) -> "ulong"
       | TType ({ t_path = ["cs"],"UInt8" },[]) -> "byte"
       | TType ({ t_path = ["cs"],"Int8" },[]) -> "sbyte"
@@ -1085,6 +1087,14 @@ let configure gen =
         let is_virtual = not is_final && match mkind with | MethInline -> false | _ when not is_new -> true | _ -> false in
         let is_virtual = if not is_virtual || has_meta ":final" cf.cf_meta then false else is_virtual in
         let is_override = List.mem cf.cf_name cl.cl_overrides in
+        let is_override = is_override || match cf.cf_name, follow cf.cf_type with
+          | "Equals", TFun([_,_,targ], tret) ->
+            (match follow targ, follow tret with 
+              | TDynamic _, TEnum({ e_path = ([], "Bool") }, []) -> true
+              | _ -> false)
+          | _ -> false
+        in
+        
         let is_virtual = is_virtual && not (has_meta ":final" cl.cl_meta) && not (is_interface) in
         let visibility = if is_interface then "" else "public" in
         
@@ -1266,6 +1276,7 @@ let configure gen =
           begin_block w;
           write w "public static void Main()";
           begin_block w;
+          (if Hashtbl.mem gen.gtypes (["cs"], "Boot") then write w "cs.Boot.init();"; newline w);
           print w "global::%s.main();" (path_s path);
           end_block w;
           end_block w;
@@ -1302,6 +1313,7 @@ let configure gen =
     if is_main then begin
       write w "public static void Main()";
       begin_block w;
+      (if Hashtbl.mem gen.gtypes (["cs"], "Boot") then write w "cs.Boot.init();"; newline w);
       write w "main();";
       end_block w
     end;
@@ -1431,6 +1443,24 @@ let configure gen =
           }, []);
         etype = t_dynamic;
         epos = e.epos
+      }
+    )
+    (fun e ->
+      {
+        eexpr = TField(e, "hasValue");
+        etype = basic.tbool;
+        epos = e.epos
+      }
+    )
+    (fun e1 e2 ->
+      {
+        eexpr = TCall({
+          eexpr = TField(e1, "Equals");
+          etype = TFun(["obj",false,t_dynamic],basic.tbool);
+          epos = e1.epos
+        }, [e2]);
+        etype = basic.tbool;
+        epos = e1.epos;
       }
     )
     true
@@ -1651,7 +1681,7 @@ let configure gen =
           mk_cast e.etype { eexpr = TCall(static, [e1; e2]); etype = t_dynamic; epos=e1.epos })
     (fun e1 e2 -> 
       if is_string e1.etype then begin
-        { e1 with eexpr = TCall({ e1 with eexpr = TField(e1, "compareTo"); etype = TFun(["anotherString",false,gen.gcon.basic.tstring], gen.gcon.basic.tint) }, [ e2 ]); etype = gen.gcon.basic.tint }
+        { e1 with eexpr = TCall({ e1 with eexpr = TField(e1, "CompareTo"); etype = TFun(["anotherString",false,gen.gcon.basic.tstring], gen.gcon.basic.tint) }, [ e2 ]); etype = gen.gcon.basic.tint }
       end else begin
         let static = mk_static_field_access_infer (runtime_cl) "compare" e1.epos [] in
         { eexpr = TCall(static, [e1; e2]); etype = gen.gcon.basic.tint; epos=e1.epos } 
@@ -1703,7 +1733,7 @@ let configure gen =
     get_typeof e
   ));
   
-  CastDetect.configure gen (CastDetect.default_implementation gen (Some (TEnum(empty_e, []))) false);
+  CastDetect.configure gen (CastDetect.default_implementation gen (Some (TEnum(empty_e, []))) false~native_string_cast:false);
   
   (*FollowAll.configure gen;*)
   

@@ -8,4 +8,5 @@ import haxe.io.BytesData;
 {
 	function new():Void;
 	function GetBuffer():NativeArray<UInt8>;
+	
 }

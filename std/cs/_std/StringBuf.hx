@@ -32,8 +32,8 @@ class StringBuf {
 		b = new cs.StringBuilder();
 	}
 
-	public function add( x : Dynamic ) : Void {
-		b.Append(x);
+	public inline function add( x : Dynamic ) : Void {
+		b.Append(Std.string(x));
 	}
 
 	public function addSub( s : String, pos : Int, ?len : Int ) : Void {
@@ -41,7 +41,7 @@ class StringBuf {
 		b.Append(s, pos, l);
 	}
 
-	public function addChar( c : Int ) : Void untyped {
+	public inline function addChar( c : Int ) : Void untyped {
 		b.Append(cast(c, cs.StdTypes.Char16));
 	}
 

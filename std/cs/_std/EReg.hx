@@ -64,11 +64,11 @@ import system.text.regularExpressions.Regex;
 	}
 
 	public function matchedLeft() : String {
-		return untyped cur.Susbstring(0, m.Index);
+		return untyped cur.Substring(0, m.Index);
 	}
 
 	public function matchedRight() : String {
-		return untyped cur.Susbstring(m.Index + m.Length);
+		return untyped cur.Substring(m.Index + m.Length);
 	}
 
 	public function matchedPos() : { pos : Int, len : Int } {

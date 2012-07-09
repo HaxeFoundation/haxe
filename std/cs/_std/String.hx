@@ -105,6 +105,7 @@ extern class String implements ArrayAccess<Char16> {
 	private function EndsWith(value:String):Bool;
 	private function TrimStart():String;
 	private function TrimEnd():String;
+	private function CompareTo(obj:Dynamic):Int;
 	@:overload(function(startIndex:Int):String {})
 	private function Substring(startIndex:Int, length:Int):String;
 

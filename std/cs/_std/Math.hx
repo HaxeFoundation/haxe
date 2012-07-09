@@ -1,11 +1,6 @@
 package;
 import system.Random;
 
-/**
- * ...
- * @author waneck
- */
-
 @:core_api @:nativegen class Math
 {
 	public static inline function __init__():Void
@@ -76,7 +71,7 @@ import system.Random;
 	
 	public static inline function round(v:Float):Int
 	{
-		return Std.int(system.Math.Round(v)) ;
+		return Std.int(v < 0 ? system.Math.Floor(v) : system.Math.Round(v)) ;
 	}
 	
 	public static inline function floor(v:Float):Int
@@ -116,7 +111,7 @@ import system.Random;
 
 	public static function isFinite( f : Float ) : Bool
 	{
-		return untyped __cs__("double.IsInfinity(f)");
+		return untyped __cs__("!double.IsInfinity(f)");
 	}
 	
 	public static function isNaN( f : Float ) : Bool

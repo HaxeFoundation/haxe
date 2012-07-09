@@ -69,6 +69,12 @@ class TestBasetypes extends Test {
 		// null should not be swallowed
 		eq("hello" +null, "hellonull");
 		eq(null + "hello", "nullhello");
+		var x:Dynamic = null;
+		eq("hello" +x, "hellonull");
+		eq(x + "hello", "nullhello");
+		var x:String = null;
+		eq("hello" +x, "hellonull");
+		eq(x + "hello", "nullhello");
 
 		var x = { hello:"world", val:5 };
 		var xs = "" + x;
@@ -158,16 +164,22 @@ class TestBasetypes extends Test {
 		unspec( function() Math.ceil(-10000000000.7) );
 		unspec( function() Math.round(-10000000000.7) );
 		// should still give a proper result for lower bits
-		#if !(cs || java)
-		eq( Std.int(-10000000000.7) & 0xFFFFFF, 15997952 );
-		eq( Math.floor(-10000000000.7) & 0xFFFFFF, 15997951 );
-		eq( Math.ceil( -10000000000.7) & 0xFFFFFF, 15997952 );
-		#else
+		#if java
 		eq( Std.int(-10000000000.7) & 0xFFFFFF, 0 );
 		eq( Math.floor(-10000000000.7) & 0xFFFFFF, 0 );
 		eq( Math.ceil( -10000000000.7) & 0xFFFFFF, 0 );
-		#end
 		eq( Math.round(-10000000000.7) & 0xFFFFFF, 15997951 );
+		#elseif cs
+		eq( Std.int(-10000000000.7) & 0xFFFFFF, 15997952 );
+		eq( Math.floor(-10000000000.7) & 0xFFFFFF, 0 );
+		eq( Math.ceil( -10000000000.7) & 0xFFFFFF, 0 );
+		eq( Math.round(-10000000000.7) & 0xFFFFFF, 0 );
+		#else
+		eq( Std.int(-10000000000.7) & 0xFFFFFF, 15997952 );
+		eq( Math.floor(-10000000000.7) & 0xFFFFFF, 15997951 );
+		eq( Math.ceil( -10000000000.7) & 0xFFFFFF, 15997952 );
+		eq( Math.round(-10000000000.7) & 0xFFFFFF, 15997951 );
+		#end
 	}
 
 	function testParse() {

@@ -4588,7 +4588,7 @@ struct
   (* end of type parameter handling *)
   (* ****************************** *)
   
-  let default_implementation gen maybe_empty_t impossible_tparam_is_dynamic =
+  let default_implementation gen ?(native_string_cast = true) maybe_empty_t impossible_tparam_is_dynamic =
     
     let current_ret_type = ref None in
     
@@ -4612,16 +4612,17 @@ struct
         | TBinop ( (Ast.OpAssignOp _ as op),e1,e2) ->
           { e with eexpr = TBinop(op, Type.map_expr run e1, handle (run e2) e1.etype e2.etype) }
         (* this is an exception so we can avoid infinite loop on Std.String and haxe.lang.Runtime.toString(). It also takes off unnecessary casts to string *)
-        | TBinop ( Ast.OpAdd, ( { eexpr = TCast(e1, _) } as e1c), e2 ) when is_string e1c.etype && is_string e2.etype ->
+        | TBinop ( Ast.OpAdd, ( { eexpr = TCast(e1, _) } as e1c), e2 ) when native_string_cast && is_string e1c.etype && is_string e2.etype ->
           { e with eexpr = TBinop( Ast.OpAdd, run e1, run e2 ) }
         | TField(ef, f) ->
           handle_type_parameter gen None e (run ef) f [] impossible_tparam_is_dynamic
         | TArrayDecl el ->
           let et = e.etype in
           let base_type = match follow et with
-            | TInst({ cl_path = ([], "Array") }, bt :: []) -> bt
+            | TInst({ cl_path = ([], "Array") } as cl, bt) -> gen.greal_type_param (TClassDecl cl) bt
             | _ -> assert false
           in
+          let base_type = List.hd base_type in
           { e with eexpr = TArrayDecl( List.map (fun e -> handle (run e) base_type e.etype) el ); etype = et }
         | TCall( ({ eexpr = TField({ eexpr = TLocal(v) },_) } as tf), params ) when String.get v.v_name 0 = '_' &&String.get v.v_name 1 = '_' && Hashtbl.mem gen.gspecial_vars v.v_name ->
           { e with eexpr = TCall(tf, List.map run params) }
@@ -6046,16 +6047,17 @@ struct
     let rec loop objdecl acc acc_f =
       match objdecl with
         | [] -> acc,acc_f
-        | ( (name,expr) as hd ) :: tl ->
+        | (name,expr) :: tl ->
+          let real_t = gen.greal_type expr.etype in
           match follow expr.etype with
             | TInst ( { cl_path = ["haxe"], "Int64" }, [] ) ->
-              loop tl (hd :: acc) acc_f
+              loop tl ((name, gen.ghandle_cast t_dynamic real_t expr) :: acc) acc_f
             | _ ->
-              match follow (gen.greal_type expr.etype) with
+              match follow real_t with
                 | TInst( { cl_path = [], "Float" }, [] )
                 | TInst( { cl_path = [], "Int" }, [] ) ->
-                  loop tl acc (hd :: acc_f)
-                | _ -> loop tl (hd :: acc) acc_f
+                  loop tl acc ((name, gen.ghandle_cast basic.tfloat real_t expr) :: acc_f)
+                | _ -> loop tl ((name, gen.ghandle_cast t_dynamic real_t expr) :: acc) acc_f
     in
     
     let may_hash_field s =
@@ -8326,7 +8328,7 @@ struct
         Some( TType(tdef, [ strip_off_nullable of_t ]) )
       | _ -> None
   
-  let traverse gen unwrap_null wrap_val null_to_dynamic handle_opeq handle_cast =
+  let traverse gen unwrap_null wrap_val null_to_dynamic has_value opeq_handler handle_opeq handle_cast =
     let handle_unwrap to_t e =
       let e_null_t = get (is_null_t gen e.etype) in
       match gen.greal_type to_t with 
@@ -8420,6 +8422,37 @@ struct
               )
             | Ast.OpEq | Ast.OpNotEq when not handle_opeq ->
               Type.map_expr run e
+            | Ast.OpEq | Ast.OpNotEq ->
+              (match e1.eexpr, e2.eexpr with
+                | TConst(TNull), _ when is_some e2_t ->
+                  let e = has_value e2 in
+                  if op = Ast.OpEq then
+                    { e with eexpr = TUnop(Ast.Not, Ast.Prefix, e) }
+                  else
+                    e
+                | _, TConst(TNull) when is_some e1_t ->
+                  let e = has_value e1 in
+                  if op = Ast.OpEq then
+                    { e with eexpr = TUnop(Ast.Not, Ast.Prefix, e) }
+                  else
+                    e
+                | _ when is_some e1_t || is_some e2_t -> 
+                    let e1, e2 = 
+                      if not (is_some e1_t) then
+                        run e2, handle_wrap (run e1) (get e2_t)
+                      else if not (is_some e2_t) then
+                        run e1, handle_wrap (run e2) (get e1_t)
+                      else
+                        run e1, run e2
+                    in
+                    let e = opeq_handler e1 e2 in
+                    if op = Ast.OpEq then
+                      { e with eexpr = TUnop(Ast.Not, Ast.Prefix, e) }
+                    else
+                      e
+                | _ ->
+                  Type.map_expr run e
+              )
             | _ ->
               let e1 = if is_some e1_t then 
                 handle_unwrap (get e1_t) (run e1)

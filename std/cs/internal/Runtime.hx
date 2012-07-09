@@ -91,6 +91,15 @@ import system.Type;
 			if (v1v != null)
 			{
 				return v1.Equals(v2);
+			} else {
+				System.Type v1t = v1 as System.Type;
+				if (v1t != null)
+				{
+					System.Type v2t = v2 as System.Type;
+					if (v2t != null)
+						return typeEq(v1t, v2t);
+					return false;
+				}
 			}
 			
 			return false;
@@ -109,7 +118,7 @@ import system.Type;
 	}
 	
 	@:functionBody('
-			return (obj == null) ? 0.0 : ((System.IConvertible) obj).ToDouble(null);
+		return (obj == null) ? 0.0 : (obj is double) ? (double)obj : ((System.IConvertible) obj).ToDouble(null);
 	')
 	public static function toDouble(obj:Dynamic):Float
 	{
@@ -117,7 +126,7 @@ import system.Type;
 	}
 	
 	@:functionBody('
-			return (obj == null) ? 0 : ((System.IConvertible) obj).ToInt32(null);
+		return (obj == null) ? 0 : (obj is int) ? (int)obj : ((System.IConvertible) obj).ToInt32(null);
 	')
 	public static function toInt(obj:Dynamic):Int
 	{
@@ -128,7 +137,19 @@ import system.Type;
 			System.IConvertible cv1 = obj as System.IConvertible;
 			if (cv1 != null)
 			{
-				return cv1.ToDouble(null) == cv1.ToInt32(null);
+                switch (cv1.GetTypeCode())
+                {
+                    case System.TypeCode.Double:
+                        double d = (double)obj;
+
+				        return d >= int.MinValue && d <= int.MaxValue && d == ( (int)d );
+                    case System.TypeCode.UInt32:
+                    case System.TypeCode.Int32:
+                        return true;
+                    default:
+                        return false;
+                }
+				
 			}
 			return false;
 	')
@@ -157,6 +178,14 @@ import system.Type;
 					/*case System.TypeCode.Int64:
 					case System.TypeCode.UInt64:
 						return ((int) (cv1.ToUInt64() - cv2.ToUInt64())) no Int64 operator support */
+					case System.TypeCode.Double:
+					double d1 = (double) v1;
+					double d2 = cv2.ToDouble(null);
+					
+					if (double.IsInfinity(d1) || double.IsInfinity(d2))
+						return (d1 < d2) ? -1 : (d1 > d2) ? 1 : 0;
+					else
+						return (int) (d1 - d2);
 					default:
 						return ((int) (cv1.ToDouble(null) - cv2.ToDouble(null)));
 				}
@@ -574,9 +603,22 @@ import system.Type;
 	{
 		return false;
 	}
+	
+	/*@:functionBody('
+		if (typeof(To).TypeHandle == typeof(double).TypeHandle)
+			return (System.Converter<object,To>) new System.Converter<object,double>(toDouble);
+		else if (typeof(To).TypeHandle == typeof(double).TypeHandle)
+			return (System.Converter<object,To>) new System.Converter<object,double>(toDouble);
+		else
+			return (System.Converter<object, To>) delegate(object obj) { return (To) obj; };
+	')
+	public static function getConverter<To>():system.Converter<Dynamic,To>
+	{
+		return null;
+	}*/
 }
 
-@:native("haxe.lang.EmptyObject") private enum EmptyObject
+@:keep @:native("haxe.lang.EmptyObject") private enum EmptyObject
 {
 	EMPTY;
 }

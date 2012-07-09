@@ -6,7 +6,7 @@ package cs.internal;
  in modules (untested).
 **/
  
-@:abstract @:nativegen @:native("haxe.lang.Function") private class Function 
+@:keep @:abstract @:nativegen @:native("haxe.lang.Function") private class Function 
 {
 	function new(arity:Int, type:Int)
 	{
@@ -14,7 +14,7 @@ package cs.internal;
 	}
 }
 
-@:nativegen @:native("haxe.lang.VarArgsBase") private class VarArgsBase extends Function
+@:keep @:nativegen @:native("haxe.lang.VarArgsBase") private class VarArgsBase extends Function
 {
 	public function __hx_invokeDynamic(dynArgs:Array<Dynamic>):Dynamic
 	{
@@ -22,7 +22,7 @@ package cs.internal;
 	}
 }
 
-@:nativegen @:native('haxe.lang.VarArgsFunction') class VarArgsFunction extends VarArgsBase
+@:keep @:nativegen @:native('haxe.lang.VarArgsFunction') class VarArgsFunction extends VarArgsBase
 {
 	private var fun:Array<Dynamic>->Dynamic;
 	
@@ -38,7 +38,7 @@ package cs.internal;
 	}
 }
 
-@:nativegen @:native('haxe.lang.Closure') class Closure extends VarArgsBase
+@:keep @:nativegen @:native('haxe.lang.Closure') class Closure extends VarArgsBase
 {
 	private var obj:Dynamic;
 	private var field:String;

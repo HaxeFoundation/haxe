@@ -31,16 +31,32 @@ class Resource {
 	#else
 	static var content : Array<{ name : String, data : String, str : String }>;
 	#end
+	
+	#if cs
+	static var paths : Hash<String>;
+	
+	private static function getPaths():Hash<String>
+	{
+		if (paths != null)
+			return paths;
+		var p = new Hash();
+		var all:cs.NativeArray<String> = untyped __cs__("typeof(haxe.Resource).Assembly.GetManifestResourceNames()");
+		for (i in 0...all.Length)
+		{
+			var path = all[i];
+			var name = path.substr(path.indexOf("Resources.") + 10);
+			p.set(name, path);
+		}
+		
+		return paths = p;
+	}
+	#end
 
 	public static function listNames() : Array<String> {
 		var names = new Array();
-		#if java
+		#if (java || cs)
 		for ( x in content )
 			names.push(x);
-		#elseif cs
-		var all:cs.NativeArray<String> = untyped __cs__("typeof(haxe.Resource).Assembly.GetManifestResourceNames()");
-		for (i in 0...all.Length)
-			names.push(all[i]);
 		#else
 		for ( x in content )
 			names.push(x.name);
@@ -56,7 +72,7 @@ class Resource {
 		var stream = new java.io.NativeInput(stream);
 		return stream.readAll().toString();
 		#elseif cs
-		var str:system.io.Stream = untyped __cs__("typeof(haxe.Resource).Assembly.GetManifestResourceStream(\"Resources.\" + name)");
+		var str:system.io.Stream = untyped __cs__("typeof(haxe.Resource).Assembly.GetManifestResourceStream((string)getPaths().get(name).@value)");
 		if (str != null)
 			return new cs.io.NativeInput(str).readAll().toString();
 		return null;
@@ -83,7 +99,7 @@ class Resource {
 		var stream = new java.io.NativeInput(stream);
 		return stream.readAll();
 		#elseif cs
-		var str:system.io.Stream = untyped __cs__("typeof(haxe.Resource).Assembly.GetManifestResourceStream(\"Resources.\" + name)");
+		var str:system.io.Stream = untyped __cs__("typeof(haxe.Resource).Assembly.GetManifestResourceStream((string)getPaths().get(name).@value)");
 		if (str != null)
 			return new cs.io.NativeInput(str).readAll();
 		return null;

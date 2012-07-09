@@ -134,7 +134,7 @@ class BytesBuffer {
 		var bytes = new Bytes(b.length, cast b);
 		#elseif cs
 		var buf = b.GetBuffer();
-		var bytes = new Bytes(buf.Length, buf);
+		var bytes = new Bytes(cast b.Length, buf);
 		#elseif java
 		var buf = b.toByteArray();
 		var bytes = new Bytes(buf.length, buf);

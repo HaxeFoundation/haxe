@@ -6,7 +6,6 @@ import cs.internal.HxObject;
 import cs.internal.Runtime;
 import cs.internal.Iterator;
 import cs.internal.Null;
-import cs.Lib;
 import cs.internal.StringExt;
 import cs.StdTypes;
 import Hash;
@@ -15,6 +14,9 @@ import Reflect;
 class Boot 
 {
 
-	
+	@:keep public static function init():Void
+	{
+		cs.Lib.applyCultureChanges();
+	}
 	
 }

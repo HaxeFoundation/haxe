@@ -28,7 +28,7 @@ import cs.internal.Function;
 	The Reflect API is a way to manipulate values dynamicly through an
 	abstract interface in an untyped manner. Use with care.
 **/
-@:core_api class Reflect {
+@:keep @:core_api class Reflect {
 
 	/**
 		Tells if an object has a field set. This doesn't take into account the object prototype (class methods).

@@ -25,6 +25,7 @@
 package haxe;
 using haxe.Int64;
 private typedef NativeInt64 = Int;
+private typedef NativeUInt64 = Int;
 
 @:nativegen class Int64 
 {
@@ -57,7 +58,7 @@ private typedef NativeInt64 = Int;
 
 	public static inline function getHigh( x : haxe.Int64 ) : Int32 
 	{
-		return cast(cast(x,NativeInt64) >>> 32, Int32);
+		return cast(cast(x,NativeUInt64) >> 32, Int32);
 	}
 
 	public static inline function add( a : haxe.Int64, b : haxe.Int64 ) : haxe.Int64 
@@ -98,7 +99,7 @@ private typedef NativeInt64 = Int;
 	}
 
 	public static inline function ushr( a : haxe.Int64, b : Int ) : haxe.Int64 {
-		return (a.asNative() >>> b).ofNative();
+		return ( cast(a, NativeUInt64) >> b).ofNative();
 	}
 
 	public static inline function and( a : haxe.Int64, b : haxe.Int64 ) : haxe.Int64 
@@ -150,5 +151,3 @@ private typedef NativeInt64 = Int;
 		return a + "";
 	}
 }
-
-

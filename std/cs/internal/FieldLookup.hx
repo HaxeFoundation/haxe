@@ -1,7 +1,7 @@
 package cs.internal;
 
 @:native('haxe.lang.FieldLookup')
-@:static private class FieldLookup 
+@:keep @:static private class FieldLookup 
 {
 
 	@:private private static var fieldIds:Array<Int>;

@@ -16,7 +16,7 @@ package cs.internal;
 		}
 	}
 ')
-@:struct @:nativegen @:native("haxe.lang.Null") private class Nullable<T>
+@:keep @:struct @:nativegen @:native("haxe.lang.Null") private class Nullable<T>
 {
 	
 	@:readonly public var value:T;
@@ -37,14 +37,21 @@ package cs.internal;
 		this.hasValue = hasValue;
 	}
 	
-	public static function ofDynamic<T>(obj:Dynamic):Nullable<T>
-	{
+	@:functionBody('
 		if (obj == null)
 		{
-			return new Nullable<T>(null, false);
+			return new haxe.lang.Null<D>(default(D), false);
+		} else if (typeof(D).Equals(typeof(double))) {
+			return new haxe.lang.Null<D>((D) (object) haxe.lang.Runtime.toDouble(obj), true);
+		} else if (typeof(D).Equals(typeof(int))) {
+			return new haxe.lang.Null<D>((D) (object) haxe.lang.Runtime.toInt(obj), true);
 		} else {
-			return new Nullable<T>(obj, true);
+			return new haxe.lang.Null<D>((D) obj, true);
 		}
+	')
+	public static function ofDynamic<D>(obj:Dynamic):Nullable<D>
+	{
+		return null;
 	}
 	
 	@:functionBody('
