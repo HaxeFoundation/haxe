@@ -480,4 +480,20 @@ class TestType extends Test {
 		eq(InitBase.st, String);
 		eq(InitBase.sinline, 60000.);
 	}
+	
+	function testInline()
+	{
+		#if !macro
+		typedAs(inlineTest1([1]), Void);
+		typedAs(inlineTest2([1]), Void);
+		#end
+	}
+	
+	inline function inlineTest1<T>(map:Array<T>) {
+		map[0];
+	}
+	
+	inline function inlineTest2(map:Array<Dynamic>) {
+		map[0];
+	}
 }

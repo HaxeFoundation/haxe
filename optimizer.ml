@@ -344,11 +344,13 @@ let rec type_inline ctx cf f ethis params tret p force =
 			with Unify_error _ ->
 				mk (TCast (e,None)) tret e.epos)
 		in
-		let e = (match e.eexpr, init with
-			| TBlock [e] , None -> wrap e
-			| _ , None -> wrap e
-			| TBlock l, Some init -> mk (TBlock (init :: l)) tret e.epos
-			| _, Some init -> mk (TBlock [init;e]) tret e.epos
+		let e = (match e.eexpr, init, tret with
+			| _, None, TEnum ({ e_path = [],"Void" },_) ->
+				{e with etype = tret}
+			| TBlock [e] , None, _ -> wrap e
+			| _ , None, _ -> wrap e
+			| TBlock l, Some init, _ -> mk (TBlock (init :: l)) tret e.epos
+			| _, Some init, _ -> mk (TBlock [init;e]) tret e.epos
 		) in
 		(* we need to replace type-parameters that were used in the expression *)
 		if not has_params then
