@@ -163,7 +163,7 @@ extern class Xml {
 	function exists( att : String ) : Bool;
 
 	/**
-		Returns an [Iterator] on all the attributes values.
+		Returns an [Iterator] on all the attribute names.
 	**/
 	function attributes() : Iterator<String>;
 
