@@ -293,7 +293,7 @@ extern class JQuery implements ArrayAccess<Dom.HtmlDom> {
 	// queue
 	function clearQueue( ?queueName : String ) : JQuery;
 	function dequeue( ?queueName : String ) : JQuery;
-	function queue( ?queueName : String ) : { length : Int };
+	function queue( ?queueName : String, ?callb : (Void -> Void) -> Void ) : { length : Int };
 
 	// ajax
 	// TODO
