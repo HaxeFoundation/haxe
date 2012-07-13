@@ -708,7 +708,7 @@ let generate_libs_init = function
 				"@env(\"HAXEPATH\") + \"lib\\\\\"" ^
 				"else try $loader.loadprim(\"std@file_contents\",1)(@env(\"HOME\")+\"/.haxelib\") + \"/\"" ^
 				"catch e if( @s == \"Linux\" ) \"/usr/lib/haxe/lib/\" else \"/usr/local/lib/haxe/lib/\";" ^
-			"@s = @s + \"/\";"
+			"@s = @s + (if( $loader.loadprim(\"std@sys_is64\",0)() ) 64 else \"\") + \"/\";"
 		in
 		List.fold_left (fun acc l ->
 			let full_path = l.[0] = '/' || l.[1] = ':' in
