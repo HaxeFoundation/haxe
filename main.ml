@@ -297,7 +297,7 @@ let add_libs com libs =
 		lines
 	in
 	match libs with
-	| [] -> ()
+	| [] -> []
 	| _ ->
 		let lines = match !global_cache with
 			| Some cache ->
@@ -311,20 +311,22 @@ let add_libs com libs =
 					lines)
 			| _ -> call_haxelib()
 		in
+		let extra_args = ref [] in
 		let lines = List.fold_left (fun acc l ->
-			let p = String.length l - 1 in
-			let l = (if l.[p] = '\r' then String.sub l 0 p else l) in
-			match (if p > 3 then String.sub l 0 3 else "") with
-			| "-D " ->
-				Common.define com (String.sub l 3 (String.length l - 3));
-				acc
-			| "-L " ->
+			let l = ExtString.String.strip l in
+			if l = "" then acc else
+			if l.[0] <> '-' then l :: acc else 
+			match (try ExtString.String.split l " " with _ -> l, "") with
+			| ("-L",dir) ->
 				com.neko_libs <- String.sub l 3 (String.length l - 3) :: com.neko_libs;
 				acc
-			| _ ->
-				l :: acc
+			| param, value ->
+				extra_args := param :: !extra_args;
+				if value <> "" then extra_args := value :: !extra_args;
+				acc
 		) [] lines in
-		com.class_path <- lines @ com.class_path
+		com.class_path <- lines @ com.class_path;
+		List.rev !extra_args
 
 let run_command ctx cmd =	
 	let h = Hashtbl.create 0 in
@@ -740,9 +742,10 @@ try
 		if (pf = Flash8 || pf = Flash) && file_extension file = "swc" then Common.define com "swc";
 	in
 	let define f = Arg.Unit (fun () -> Common.define com f) in
+	let extra_args = ref [] in
 	let basic_args_spec = [
 		("-cp",Arg.String (fun path ->
-			add_libs com (!cp_libs);
+			extra_args := !extra_args @ (add_libs com (!cp_libs));
 			cp_libs := [];
 			com.class_path <- normalize_path path :: com.class_path
 		),"<path> : add a directory to find source files");
@@ -933,11 +936,23 @@ try
 			set_platform Flash file;
 		),"<file> : [deprecated] compile code to Flash9 SWF file");
 	] in
-	let current = ref 0 in
-	let args = Array.of_list ("" :: List.map expand_env ctx.com.args) in
 	let args_callback cl = classes := make_path cl :: !classes in
-	Arg.parse_argv ~current args (basic_args_spec @ adv_args_spec) args_callback usage;
-	add_libs com (!cp_libs);
+	let process args =
+		let current = ref 0 in
+		Arg.parse_argv ~current (Array.of_list ("" :: List.map expand_env args)) (basic_args_spec @ adv_args_spec) args_callback usage
+	in
+	process ctx.com.args;
+	let rec loop() =
+		extra_args := !extra_args @ add_libs com (!cp_libs);
+		cp_libs := [];
+		match !extra_args with
+		| [] -> ()
+		| l -> 
+			extra_args := [];
+			process l;
+			loop()
+	in
+	loop();
 	(try ignore(Common.find_file com "mt/Include.hx"); Common.define com "mt"; with Not_found -> ());
 	if com.display then begin
 		com.warning <- message ctx;

@@ -753,6 +753,11 @@ class Main {
 					throw "Library "+d.project+" version "+d.version+" does not have a neko dll for your system";
 				Sys.println("-L "+pdir+"ndll/");
 			}
+			try {
+				var f = sys.io.File.getContent(dir + "extraParams.hxml");
+				Sys.println(StringTools.trim(f));
+			} catch( e : Dynamic ) {
+			}
 			Sys.println(dir);
 			Sys.println("-D "+d.project);
 		}
