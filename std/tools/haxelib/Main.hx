@@ -867,11 +867,13 @@ class Main {
 	function run() {
 		var rep = getRepository();
 		var project = param("Library");
+		var temp = project.split(":");
+		project = temp[0];
 		var pdir = rep + Datas.safe(project);
 		if( !sys.FileSystem.exists(pdir) )
 			throw "Library "+project+" is not installed";
 		pdir += "/";
-		var version = sys.io.File.getContent(pdir+".current");
+		var version = temp[1] != null ? temp[1] : sys.io.File.getContent(pdir+".current");
 		var dev = try sys.io.File.getContent(pdir + ".dev") catch ( e : Dynamic ) null;
 		var vdir = dev!=null ? dev : pdir + Datas.safe(version);
 		var rdir = vdir + "/run.n";
