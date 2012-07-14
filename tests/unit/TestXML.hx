@@ -188,6 +188,33 @@ class TestXML extends Test {
 			exc(function() xml.removeChild(element));
 			exc(function() xml.insertChild(element, 0));
 			exc(function() for (x in xml) null);
-		}	
-	}	
+		}
+	}
+	
+	function testEntities() {
+		var entities = ["&lt;", "&gt;", "&quot;", "&amp;", "&apos;", "&nbsp;", "&euro;", "&#64;", "&#244;", "&#x3F;", "&#xFF;"];
+		var values = entities.copy();
+		#if flash
+		// flash parser does support XML + some HTML entities (nbsp only ?) + character codes entities
+		values = ['<', '>', '"', '&', "'", String.fromCharCode(160), '&euro;', '@', 'ô', '?', 'ÿ'];
+		#end
+		
+		#if flash9
+		// for a very strange reason, flash9 uses a non standard charcode for non breaking space
+		values[5] = String.fromCharCode(65440);
+		#end
+		
+		#if php
+		// &nbsp; and &euro; creates an invalid entity error (first time I see PHP being strict !)
+		entities[5] = "x";
+		entities[6] = "x";
+		// character codes entities are supported
+		values = ["&lt;", "&gt;", "&quot;", "&amp;", "&apos;", "x", "x", '@', 'ô', '?', 'ÿ'];
+		#end
+		
+		for( i in 0...entities.length ) {
+			infos(entities[i]);
+			eq( Xml.parse(entities[i]).firstChild().nodeValue, values[i] );
+		}
+	}
 }
