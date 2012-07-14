@@ -27,34 +27,34 @@
 	A String buffer is an efficient way to build a big string by
 	appending small elements together.
 **/
-@:native("String")
-extern class StringBuf {
+class StringBuf {
 
+	var b:String = "";
+	
 	/**
 		Creates a new string buffer.
 	**/
-	public function new():Void {
-	}
+	public function new() {}
 
 	/**
 		Adds the representation of any value to the string buffer.
 	**/
 	public inline function add( x : Dynamic ) : Void {
-		untyped __this__ += x;
+		b += x;
 	}
 
 	/**
 		Adds a part of a string to the string buffer.
 	**/
 	public inline function addChar( c : Int ) : Void {
-		untyped __this__ += String.fromCharCode(c);
+		b += String.fromCharCode(c);
 	}
 
 	/**
 		Adds a character to the string buffer.
 	**/
 	public inline function addSub( s : String, pos : Int, ?len : Int) : Void {
-		untyped __this__ += s.substr(pos, len);
+		b += s.substr(pos, len);
 	}
 
 	/**
@@ -62,7 +62,7 @@ extern class StringBuf {
 		The buffer is not emptied by this operation.
 	**/
 	public inline function toString() : String {
-		return untyped __this__;
+		return b;
 	}
 
 }
