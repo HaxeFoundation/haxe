@@ -74,7 +74,7 @@ class TableCreate {
 			throw "SQL Connection not initialized on Manager";
 		var dbName = cnx.dbName();
 		var infos = manager.dbInfos();
-		var sql = "CREATE TABLE "+quote(infos.name)+ " (";
+		var sql = "CREATE TABLE " + quote(infos.name) + " (";
 		var decls = [];
 		var hasID = false;
 		for( f in infos.fields ) {
@@ -84,7 +84,7 @@ class TableCreate {
 			case DUId, DBigId:
 				hasID = true;
 				if( dbName == "SQLite" )
-					throw "S"+Std.string(f.t).substr(1)+" is not supported by "+dbName+" : use SId instead";
+					throw "S" + Std.string(f.t).substr(1)+" is not supported by " + dbName + " : use SId instead";
 			default:
 			}
 			decls.push(quote(f.name)+" "+getTypeSQL(f.t,dbName)+(f.isNull ? "" : " NOT NULL"));
@@ -98,4 +98,15 @@ class TableCreate {
 		cnx.request(sql);
 	}
 
+	public static function exists( manager : sys.db.Manager<Dynamic> ) : Bool {
+		var cnx : Connection = untyped manager.getCnx();
+		if( cnx == null )
+			throw "SQL Connection not initialized on Manager";
+		try {
+			cnx.request("SELECT * FROM `"+manager.dbInfos().name+"` LIMIT 1");
+			return true;
+		} catch( e : Dynamic ) {
+			return false;
+		}
+	}
 }
