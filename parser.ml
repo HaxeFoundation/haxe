@@ -138,6 +138,10 @@ let rec psep sep f = parser
 let ident = parser
 	| [< '(Const (Ident i),p) >] -> i,p
 
+let dollar_ident = parser
+	| [< '(Const (Ident i),p) >] -> i,p
+	| [< '(Dollar i,p) >] -> ("$" ^ i),p
+
 let lower_ident = parser
 	| [< '(Const (Ident i),p) when is_lower_ident i >] -> i
 
@@ -355,7 +359,7 @@ and parse_complex_type_inner = parser
 and parse_type_path s = parse_type_path1 [] s
 
 and parse_type_path1 pack = parser
-	| [< '(Const (Ident name),p); s >] ->
+	| [< name, p = dollar_ident; s >] ->
 		if is_lower_ident name then
 			(match s with parser
 			| [< '(Dot,p) >] ->
@@ -597,7 +601,7 @@ and parse_array_decl = parser
 		[]
 
 and parse_var_decl = parser
-	| [< name, _ = ident; t = parse_type_opt; s >] ->
+	| [< name, _ = dollar_ident; t = parse_type_opt; s >] ->
 		match s with parser
 		| [< '(Binop OpAssign,_); e = expr >] -> (name,t,Some e)
 		| [< >] -> (name,t,None)
@@ -616,6 +620,7 @@ and expr = parser
 		(match Stream.npeek 1 s with
 		| [(_,p2)] when p2.pmin > p.pmax ->
 			(match s with parser
+			| [< '(Kwd Var,p1); vl = psep Comma parse_var_decl >] -> (EMacro (EVars vl,p1),punion p p1)
 			| [< e = expr >] -> (EMacro e,punion p (pos e))
 			| [< >] -> expr_next (EConst (Ident "macro"),p) s)
 		| _ ->
