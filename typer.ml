@@ -46,7 +46,7 @@ type access_kind =
 	| AKUsing of texpr * tclass * tclass_field * texpr
 
 let mk_infos ctx p params =
-	let file = if ctx.in_macro then p.pfile else Filename.basename p.pfile in
+	let file = if ctx.in_macro then p.pfile else if Common.defined ctx.com "absolute_path" then Common.get_full_path p.pfile else Filename.basename p.pfile in
 	(EObjectDecl (
 		("fileName" , (EConst (String file) , p)) ::
 		("lineNumber" , (EConst (Int (string_of_int (Lexer.get_error_line p))),p)) ::
