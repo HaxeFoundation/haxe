@@ -277,12 +277,18 @@ let unify_min ctx el =
 let rec unify_call_params ctx cf el args r p inline =
 	let next() =
 		match cf with
-		| Some (c,pl,{ cf_overloads = o :: l }) ->
+		| Some (TInst(c,pl),{ cf_overloads = o :: l }) ->
 			let args, ret = (match field_type ctx c pl o p with
 				| TFun (tl,t) -> tl, t
 				| _ -> assert false
 			) in
-			Some (unify_call_params ctx (Some (c,pl,{ o with cf_overloads = l })) el args ret p inline)
+			Some (unify_call_params ctx (Some (TInst(c,pl),{ o with cf_overloads = l })) el args ret p inline)
+		| Some (t,{ cf_overloads = o :: l }) ->
+			let args, ret = (match Type.field_type o with
+				| TFun (tl,t) -> tl, t
+				| _ -> assert false
+			) in		
+			Some (unify_call_params ctx (Some (t, { o with cf_overloads = l })) el args ret p inline)
 		| _ ->
 			None
 	in
@@ -291,7 +297,7 @@ let rec unify_call_params ctx cf el args r p inline =
 		| Some l -> l
 		| None ->
 		let format_arg = (fun (name,opt,_) -> (if opt then "?" else "") ^ name) in
-		let argstr = "Function " ^ (match cf with None -> "" | Some (_,_,f) -> "'" ^ f.cf_name ^ "' ") ^ "requires " ^ (if args = [] then "no arguments" else "arguments : " ^ String.concat ", " (List.map format_arg args)) in
+		let argstr = "Function " ^ (match cf with None -> "" | Some (_,f) -> "'" ^ f.cf_name ^ "' ") ^ "requires " ^ (if args = [] then "no arguments" else "arguments : " ^ String.concat ", " (List.map format_arg args)) in
 		display_error ctx (txt ^ " arguments\n" ^ argstr) p;
 		List.rev (List.map fst acc), (TFun(args,r))
 	in
@@ -1942,7 +1948,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			let el = (match follow ct with
 			| TFun (args,r) ->
 				(try
-					fst (unify_call_params ctx (Some (c,params,f)) el args r p false)
+					fst (unify_call_params ctx (Some (TInst(c,params),f)) el args r p false)
 				with Error (e,p) ->
 					display_error ctx (error_msg e) p; 
 					[])
@@ -2186,7 +2192,7 @@ and type_call ctx e el twith p =
 			Typeload.mark_used_field ctx f;
 			let el, _ = (match follow ct with
 			| TFun (args,r) ->
-				unify_call_params ctx (Some (c,params,f)) el args r p false
+				unify_call_params ctx (Some (TInst(c,params),f)) el args r p false
 			| _ ->
 				error "Constructor is not a function" p
 			) in
@@ -2200,10 +2206,15 @@ and type_call ctx e el twith p =
 		build_call ctx (type_access ctx (fst e) (snd e) MCall) el twith p
 
 and build_call ctx acc el twith p =
+	let fopts t f = match follow t with
+		| (TInst (c,pl) as t) -> Some (t,f)
+		| (TAnon a) as t -> (match !(a.a_status) with Statics c -> Some (TInst(c,[]),f) | _ -> Some (t,f))
+		| _ -> None
+	in
 	match acc with
 	| AKInline (ethis,f,t) ->
 		let params, tfunc = (match follow t with
-			| TFun (args,r) -> unify_call_params ctx (match follow ethis.etype with TInst (c,pl) -> Some (c,pl,f) | TAnon a -> (match !(a.a_status) with Statics c -> Some (c,[],f) | _ -> None) | _ -> None) el args r p true
+			| TFun (args,r) -> unify_call_params ctx (fopts ethis.etype f) el args r p true
 			| _ -> error (s_type (print_context()) t ^ " cannot be called") p
 		) in
 		make_call ctx (mk (TField (ethis,f.cf_name)) t p) params (match tfunc with TFun(_,r) -> r | _ -> assert false) p
@@ -2216,7 +2227,7 @@ and build_call ctx acc el twith p =
 				build_call ctx acc (Interp.make_ast eparam :: el) twith p
 			| AKExpr _ | AKField _ | AKInline _ ->
 				let params, tfunc = (match follow et.etype with
-					| TFun ( _ :: args,r) -> unify_call_params ctx (Some (cl,[],ef)) el args r p (ef.cf_kind = Method MethInline)
+					| TFun ( _ :: args,r) -> unify_call_params ctx (Some (TInst(cl,[]),ef)) el args r p (ef.cf_kind = Method MethInline)
 					| _ -> assert false
 				) in
 				let args,r = match tfunc with TFun(args,r) -> args,r | _ -> assert false in
@@ -2259,7 +2270,7 @@ and build_call ctx acc el twith p =
 			let fopts = (match acc with 
 				| AKField (e,f) ->
 					(match e.eexpr with 
-					| TField (e,_) -> (match follow e.etype with TInst (c,pl) -> Some (c,pl,f) | TAnon a -> (match !(a.a_status) with Statics c -> Some (c,[],f) | _ -> None) | _ -> None) 
+					| TField (e,_) -> fopts e.etype f
 					| _ -> None)
 				| _ ->
 					None
@@ -2936,7 +2947,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 			incr index;
 			(EArray ((EArrayDecl [e],p),(EConst (Int (string_of_int (!index))),p)),p)
 		) el in
-		let elt, _ = unify_call_params ctx2 (Some (mclass,[],mfield)) constants (List.map fst eargs) t_dynamic p false in
+		let elt, _ = unify_call_params ctx2 (Some (TInst(mclass,[]),mfield)) constants (List.map fst eargs) t_dynamic p false in
 		List.map2 (fun (_,ise) e ->
 			let e, et = (match e.eexpr with
 				(* get back our index and real expression *)
@@ -3008,7 +3019,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 
 let call_macro ctx path meth args p =
 	let ctx2, (margs,_,mclass,mfield), call = load_macro ctx path meth p in
-	let el, _ = unify_call_params ctx2 (Some (mclass,[],mfield)) args margs t_dynamic p false in
+	let el, _ = unify_call_params ctx2 (Some (TInst(mclass,[]),mfield)) args margs t_dynamic p false in
 	call (List.map (fun e -> try Interp.make_const e with Exit -> error "Parameter should be a constant" e.epos) el)
 
 let call_init_macro ctx e =
