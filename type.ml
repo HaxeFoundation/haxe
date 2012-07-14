@@ -633,6 +633,7 @@ type unify_error =
 	| Cant_force_optional
 	| Invariant_parameter of t * t
 	| Constraint_failure of string
+	| Missing_overload of tclass_field * t
 	| Unify_custom of string
 
 exception Unify_error of unify_error list
@@ -891,6 +892,10 @@ let rec unify a b =
 					unify_with_access (apply_params c.cl_types tl ft) f2
 				with
 					Unify_error l -> error (invalid_field n :: l));
+				List.iter (fun f2o ->
+					if not (List.exists (fun f1o -> type_iseq f1o.cf_type f2o.cf_type) (f1 :: f1.cf_overloads))
+					then error [Missing_overload (f1, f2o.cf_type)]
+				) f2.cf_overloads;
 				(match f1.cf_kind with
 				| Method MethInline ->
 					if (c.cl_extern || has_meta ":extern" f1.cf_meta) && not (has_meta ":runtime" f1.cf_meta) then error [Has_no_runtime_field (a,n)];

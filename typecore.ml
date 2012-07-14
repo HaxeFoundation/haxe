@@ -141,6 +141,8 @@ let unify_error_msg ctx = function
 		"Type parameters are invariant"
 	| Constraint_failure name ->
 		"Constraint check failure for " ^ name
+	| Missing_overload (cf, t) ->
+		cf.cf_name ^ " has no overload for " ^ s_type ctx t
 	| Unify_custom msg ->
 		msg
 
