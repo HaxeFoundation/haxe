@@ -368,9 +368,32 @@ let valid_redefinition ctx f1 t1 f2 t2 =
 	let t1, t2 = (match f1.cf_params, f2.cf_params with
 		| [], [] -> t1, t2
 		| l1, l2 when List.length l1 = List.length l2 ->
-			let monos = List.map (fun _ -> mk_mono()) l1 in
-			apply_params l1 monos t1, apply_params l2 monos t2
-		| _  -> t1, t2
+			let monos = List.map2 (fun (_,p1) (_,p2) -> 
+				match follow p1, follow p2 with
+				| TInst (c1,_), TInst (c2,_) ->
+					(match c1.cl_implements, c2.cl_implements with
+					| [], [] -> 
+						let m = mk_mono() in
+						m,m
+					| l1, l2 when List.length l1 = List.length l2 ->
+						(* if same constraints, they are the same type *)
+						List.iter2 (fun (i1,tl1) (i2,tl2) ->
+							try 
+								type_eq EqStrict (TInst(i1,tl1)) (TInst(i2,tl2))
+							with Unify_error l ->
+								raise (Unify_error (Unify_custom "Constraints differ" :: l))
+						) c1.cl_implements c2.cl_implements;
+						let m = mk_mono() in
+						m,m
+					| _ ->
+						raise (Unify_error [Unify_custom "Different number of constraints"]))
+				| _ ->
+					p1, p2
+			) l1 l2 in
+			apply_params l1 (List.map fst monos) t1, apply_params l2 (List.map snd monos) t2
+		| _  ->
+			(* ignore type params, will create other errors later *)
+			t1, t2
 	) in
 	match follow t1, follow t2 with
 	| TFun (args1,r1) , TFun (args2,r2) when List.length args1 = List.length args2 ->
