@@ -533,11 +533,9 @@ class SpodMacros {
 		}
 		var sql;
 		// use some different operators if there is a possibility for comparing two NULLs
-		if( r1.n || r2.n ) {
-			sql = makeOp(" <=> ", r1.sql, r2.sql, pos);
-			if( !eq )
-				sql = sqlAdd(makeString("NOT(", pos), sqlAddString(sql, ")"), pos);
-		} else
+		if( r1.n || r2.n )
+			sql = { expr : ECall({ expr : EField(manager,"nullCompare"), pos : pos },[r1.sql,r2.sql,{ expr : EConst(CIdent(eq?"true":"false")), pos : pos }]), pos : pos };
+		else
 			sql = makeOp(eq?" = ":" != ", r1.sql, r2.sql, pos);
 		return { sql : sql, t : DBool, n : r1.n || r2.n };
 	}
@@ -691,7 +689,7 @@ class SpodMacros {
 			case CString(s): return { sql : sqlQuoteValue(cond, DText), t : DString(s.length), n : false };
 			case CRegexp(_): error("Unsupported", p);
 			#if haxe3
-			case CIdent(n): 
+			case CIdent(n):
 			#else
 			case CIdent(n), CType(n):
 			#end

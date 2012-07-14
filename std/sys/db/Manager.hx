@@ -387,6 +387,15 @@ class Manager<T : Object> {
 		return o == null ? null : Reflect.field(o, table_keys[0]);
 	}
 
+	public static function nullCompare( a : String, b : String, eq : Bool ) {
+		// we can't use a null-safe operator here
+		if( cnx.dbName() != "MySQL" )
+			return a + (eq ? " = " : " != ") + b;
+		var sql = a+" <=> "+b;
+		if( !eq ) sql = "NOT("+sql+")";
+		return sql;
+	}
+
 	function addCondition(s : StringBuf,x) {
 		var first = true;
 		if( x != null )
