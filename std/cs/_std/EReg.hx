@@ -77,7 +77,7 @@ import system.text.regularExpressions.Regex;
 
 	public function split( s : String ) : Array<String> {
 		if (isGlobal)
-			return Array.ofNative(regex.Split(s));
+			return cs.Lib.array(regex.Split(s));
 		var m = regex.Match(s);
 		return untyped [s.Substring(0, m.Index), s.Substring(m.Index + m.Length)];
 	}

@@ -1,12 +1,8 @@
 package;
 import haxe.Int64;
 
-/**
- * ...
- * @author waneck
- */
 @:SuppressWarnings("deprecation")
-class Date 
+@:core_api class Date 
 {
 	private var date:java.util.Date;
 	

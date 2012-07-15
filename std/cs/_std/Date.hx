@@ -2,12 +2,7 @@ package;
 import system.DateTime;
 import haxe.Int64;
 
-/**
- * ...
- * @author waneck
- */
-
-class Date 
+@:core_api class Date 
 {
 	private var date:DateTime;
 	

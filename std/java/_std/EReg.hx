@@ -147,7 +147,7 @@ class EReg {
 	{
 		if (isGlobal)
 		{
-			return Array.ofNative(matcher.pattern().split(s));
+			return java.Lib.array(matcher.pattern().split(s));
 		} else {
 			var m = matcher;
 			m.reset(s);

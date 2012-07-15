@@ -1495,7 +1495,7 @@ let configure gen =
   let rcf_static_find = mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) "findHash" Ast.null_pos [] in
   (*let rcf_static_lookup = mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) "lookupHash" Ast.null_pos [] in*)
   
-  let can_be_float t = match follow t with
+  let can_be_float t = match follow (real_type t) with
     | TInst({ cl_path = (["haxe"], "Int32")}, [] )
     | TInst({ cl_path = ([], "Int") }, []) 
     | TInst({ cl_path = ([], "Float") }, []) -> true

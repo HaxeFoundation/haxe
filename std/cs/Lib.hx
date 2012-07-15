@@ -3,9 +3,8 @@ import system.Type;
 
 /**
 	Platform-specific C# Library. Provides some platform-specific functions for the C# target,
-	such as conversion from haxe types to native types.
+	such as conversion from haxe types to native types and vice-versa.
 **/
-
 class Lib 
 {
 	@:keep private static var decimalSeparator:String;
@@ -101,8 +100,21 @@ class Lib
 		return untyped obj.GetType();
 	}
 	
+	/**
+		Returns a Haxe Array of a native Array.
+		It won't copy the contents of the native array, so unless any operation triggers an array resize,
+		all changes made to the Haxe array will affect the native array argument.
+	**/
 	public static function array<T>(native:cs.NativeArray<T>):Array<T>
 	{
 		return untyped Array.ofNative(native);
+	}
+	
+	/**
+		Allocates a new Haxe Array with a predetermined size
+	**/
+	public static function arrayAlloc<T>(size:Int):Array<T>
+	{
+		return untyped Array.alloc(size);
 	}
 }

@@ -23,14 +23,18 @@
  * DAMAGE.
  */
 
-enum XmlType {
-	Element;
-	PCData;
-	CData;
-	Comment;
-	DocType;
-	Prolog;
-	Document;
+@:native("_Xml.RealXmlType")
+extern enum XmlType {
+}
+
+private enum RealXmlType {
+        Element;
+        PCData;
+        CData;
+        Comment;
+        DocType;
+        Prolog;
+        Document;
 }
 
 @:core_api class Xml {
@@ -333,13 +337,13 @@ enum XmlType {
 	}
 
 	static function __init__() : Void untyped {
-		Xml.Element = XmlType.Element;
-		Xml.PCData = XmlType.PCData;
-		Xml.CData = XmlType.CData;
-		Xml.Comment = XmlType.Comment;
-		Xml.DocType = XmlType.DocType;
-		Xml.Prolog = XmlType.Prolog;
-		Xml.Document = XmlType.Document;
+		Xml.Element = cast RealXmlType.Element;
+		Xml.PCData = cast RealXmlType.PCData;
+		Xml.CData = cast RealXmlType.CData;
+		Xml.Comment = cast RealXmlType.Comment;
+		Xml.DocType = cast RealXmlType.DocType;
+		Xml.Prolog = cast RealXmlType.Prolog;
+		Xml.Document = cast RealXmlType.Document;
 	}
 
 }
