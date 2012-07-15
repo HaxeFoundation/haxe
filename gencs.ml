@@ -1509,7 +1509,7 @@ let configure gen =
   in
   
   let rcf_on_getset_field main_expr field_expr field may_hash may_set is_unsafe =
-    let is_float = can_be_float main_expr.etype in
+    let is_float = can_be_float (real_type main_expr.etype) in
     let fn_name = if is_some may_set then "setField" else "getField" in
     let fn_name = if is_float then fn_name ^ "_f" else fn_name in
     let pos = field_expr.epos in
