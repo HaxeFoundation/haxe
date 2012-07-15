@@ -715,7 +715,10 @@ let init_core_api ctx c =
 	let ctx2 = (match ctx.g.core_api with
 		| None ->
 			let com2 = Common.clone ctx.com in
+			com2.defines <- PMap.empty;
 			Common.define com2 "core_api";
+			Common.define com2 "sys";
+			if ctx.in_macro then Common.define com2 "macro";
 			com2.class_path <- ctx.com.std_path;
 			let ctx2 = ctx.g.do_create com2 in
 			ctx.g.core_api <- Some ctx2;
@@ -744,7 +747,7 @@ let init_core_api ctx c =
 				match f2.cf_kind, f.cf_kind with
 				| Method MethInline, Method MethNormal -> () (* allow to add 'inline' *)
 				| Method MethNormal, Method MethInline -> () (* allow to disable 'inline' *)
-				| _ ->
+				| _ ->					
 					error ("Field " ^ f.cf_name ^ " has different property access than core type") p;
 			end;
 			(match follow f.cf_type, follow f2.cf_type with

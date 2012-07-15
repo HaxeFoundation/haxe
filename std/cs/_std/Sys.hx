@@ -29,10 +29,11 @@ import system.threading.Thread;
 /**
 	This class gives you access to many base functionalities of system platforms. Looks in [sys] sub packages for more system APIs.
 **/
+@:core_api
 class Sys {
 	private static var _env:Hash<String>;
 	private static var _args:Array<String>;
-	
+
 	/**
 		Print any value on the standard output.
 	**/
@@ -95,7 +96,7 @@ class Sys {
 				e.set(nenv.Key, nenv.Value);
 			}
 		}
-		
+
 		return _env;
 	}
 
@@ -140,7 +141,7 @@ class Sys {
 	public static function systemName() : String
 	{
 		//doing a switch with strings since MacOS might not be available
-		switch(Environment.OSVersion.Platform + "") 
+		switch(Environment.OSVersion.Platform + "")
 		{
 			case "Unix": return "Linux";
 			case "Xbox": return "Xbox";
@@ -163,7 +164,7 @@ class Sys {
 		var proc:Process = new Process(cmd, args == null ? [] : args);
 		var ret = proc.exitCode();
 		proc.close();
-		
+
 		return ret;
 	}
 
