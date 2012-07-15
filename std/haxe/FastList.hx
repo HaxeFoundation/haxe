@@ -31,7 +31,7 @@ class FastCell<T> #if (flash9 || cpp) implements haxe.rtti.Generic #end {
 }
 
 #if cpp
-class FastListIterator<T> extends cpp.FastIterator<T>, implements haxe.rtti.Generic {
+private class FastListIterator<T> extends cpp.FastIterator<T>, implements haxe.rtti.Generic {
 	public var current : FastCell<T>;
 	override public function hasNext():Bool { return current!=null; }
 	override public function next():T { var result = current.elt; current = current.next; return result; }
@@ -113,10 +113,16 @@ class FastList<T> #if (flash9 || cpp) implements haxe.rtti.Generic #end {
 	}
 
 	#if cpp
+
+	/**
+		Returns an iterator on the elements of the list.
+	**/
 	public function iterator() : Iterator<T> {
 		return new FastListIterator<T>(head);
 	}
-   #else
+
+	#else
+
 	/**
 		Returns an iterator on the elements of the list.
 	**/
