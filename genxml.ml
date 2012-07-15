@@ -41,6 +41,9 @@ let gen_string s =
 	if String.contains s '<' || String.contains s '>' || String.contains s '&' then	cdata s else pcdata s
 
 let gen_doc s =
+	(* remove trailing space and convert newlines *)
+	let s = ExtString.String.strip s in
+	let s = String.concat "\n" (ExtString.String.nsplit (String.concat "\n" (ExtString.String.nsplit s "\r\n")) "\r") in
 	node "haxe_doc" [] [gen_string s]
 
 let gen_doc_opt d =
@@ -211,7 +214,7 @@ let rec write_xml ch tabs x =
 
 let generate com file =
 	let t = Common.timer "construct xml" in
-	let x = node "haxe" [] (List.map (gen_type_decl com true) com.types) in
+	let x = node "haxe" [] (List.map (gen_type_decl com true) (List.filter (fun t -> not (has_meta ":noDoc" (t_infos t).mt_meta)) com.types)) in
 	t();
 	let t = Common.timer "write xml" in
 	let ch = IO.output_channel (open_out_bin file) in
