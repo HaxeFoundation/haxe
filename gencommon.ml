@@ -5041,6 +5041,9 @@ struct
             aggregate true [e]
           | _ -> trace (debug_expr expr); assert false (* should have been read as Statement by shallow_expr_type *)
   
+  let is_side_effects_free e =
+    match expr_kind e with | KNoSideEffects -> true | _ -> false
+  
   let get_kinds (statement:texpr) =
     let kinds = ref [] in
     ignore (expr_stat_map (fun e ->
@@ -6012,6 +6015,36 @@ struct
   
   (* WARNING: this will only work if overloading contructors is possible on target language *)
   let implement_dynamic_object_ctor ctx cl =
+    let rec is_side_effects_free e =
+      match e.eexpr with
+        | TConst _
+        | TLocal _
+        | TFunction _
+        | TEnumField _
+        | TTypeExpr _ -> 
+          true
+        | TNew(clnew,[],params) when clnew == cl ->
+          List.for_all is_side_effects_free params
+        | TUnop(Increment,_,_)
+        | TUnop(Decrement,_,_)
+        | TBinop(OpAssign,_,_)
+        | TBinop(OpAssignOp _,_,_) ->
+          false
+        | TUnop(_,_,e) ->
+          is_side_effects_free e
+        | TArray(e1,e2)
+        | TBinop(_,e1,e2) ->
+          is_side_effects_free e1 && is_side_effects_free e2
+        | TIf(cond,e1,Some e2) ->
+          is_side_effects_free cond && is_side_effects_free e1 && is_side_effects_free e2
+        | TField(e,_)
+        | TClosure(e,_)
+        | TParenthesis e -> is_side_effects_free e
+        | TArrayDecl el -> List.for_all is_side_effects_free el
+        | TCast(e,_) -> is_side_effects_free e
+        | _ -> false
+    in
+    
     let pos = cl.cl_pos in
     let gen = ctx.rcf_gen in
     let basic = gen.gcon.basic in
@@ -6077,6 +6110,20 @@ struct
     in
     
     let do_objdecl e objdecl =
+      let exprs_before = ref [] in
+      let rec change_exprs decl acc = match decl with
+        | (name,expr) :: tl ->
+          if is_side_effects_free expr then 
+            change_exprs tl ((name,expr) :: acc)
+          else begin
+            let var = mk_temp gen "odecl" expr.etype in
+            exprs_before := { eexpr = TVars([var,Some expr]); etype = basic.tvoid; epos = expr.epos } :: !exprs_before;
+            change_exprs tl ((name,mk_local var expr.epos) :: acc)
+          end
+        | [] -> acc
+      in
+      let objdecl = change_exprs objdecl [] in
+      
       let odecl, odecl_f = loop objdecl [] [] in
       let changed_expr = List.map (fun (s,e) -> (may_hash_field s,e)) in
       let odecl, odecl_f = changed_expr odecl, changed_expr odecl_f in
@@ -6090,7 +6137,7 @@ struct
       let odecl, odecl_f = List.sort sort_fn odecl, List.sort sort_fn odecl_f in
       
       let mk_arrdecl el t = { eexpr = TArrayDecl(el); etype = t; epos = pos } in
-      { 
+      let ret = { 
         e with eexpr = TNew(cl,[],
           [ 
             mk_arrdecl (List.map fst odecl) (basic.tarray hasht); 
@@ -6098,7 +6145,15 @@ struct
             mk_arrdecl (List.map fst odecl_f) (basic.tarray hasht);
             mk_arrdecl (List.map snd odecl_f) (basic.tarray basic.tfloat)
           ]);
-      }
+      } in
+      match !exprs_before with
+        | [] -> ret
+        | block ->
+          {
+            eexpr = TBlock(List.rev block @ [ret]);
+            etype = ret.etype;
+            epos = ret.epos;
+          }
     in
     do_objdecl
   
