@@ -619,9 +619,15 @@ and expr = parser
 		| _ -> e)
 	| [< '(Const (Ident "macro"),p); s >] ->
 		(match Stream.npeek 1 s with
+		| [(DblDot,_)] ->
+			(match s with parser
+			| [< '(DblDot,_); t = parse_complex_type >] -> 
+				let t = snd (reify !in_macro) t p in
+				(ECheckType (t,(CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = Some "ComplexType"; tparams = [] })),p)
+			| [< >] -> serror())
 		| [(_,p2)] when p2.pmin > p.pmax ->
 			let reify e =
-				let e = expr_to_value !in_macro e in
+				let e = fst (reify !in_macro) e in
 				(ECheckType (e,(CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = None; tparams = [] })),pos e)
 			in
 			(match s with parser

@@ -519,7 +519,7 @@ let map_expr loop (e,p) =
 	) in
 	(e,p)
 
-let expr_to_value in_macro e =
+let reify in_macro =
 	let mk_enum ename n vl p =
 		let constr = (EConst (Ident n),p) in
 		match vl with
@@ -601,6 +601,8 @@ let expr_to_value in_macro e =
 	and to_ctype t p =
 		let ct n vl = mk_enum "ComplexType" n vl p in
 		match t with
+		| CTPath { tpackage = []; tparams = []; tsub = None; tname = n } when n.[0] = '$' ->
+			to_string n p
 		| CTPath t -> ct "TPath" [to_tpath t p]
 		| CTFunction (args,ret) -> ct "TFunction" [to_array to_ctype args p; to_ctype ret p]
 		| CTAnonymous fields -> ct "TAnonymous" [to_array to_cfield fields p]
@@ -767,4 +769,4 @@ let expr_to_value in_macro e =
 		| ECheckType (e1,ct) ->
 			expr "ECheckType" [loop e1; to_ctype ct p]
 	in
-	to_expr e (snd e)
+	(fun e -> to_expr e (snd e)), to_ctype
