@@ -704,6 +704,8 @@ let reify in_macro =
 			expr "EObjectDecl" [to_array (fun (f,e) -> to_obj [("field",to_string f p);("expr",loop e)]) fl p]
 		| EArrayDecl el ->
 			expr "EArrayDecl" [to_array to_expr el p]
+		| ECall ((EConst(Ident("$")),_),[e]) ->
+			(ECall ((EField ((EField ((EField ((EConst (Ident "haxe"),p),"macro"),p),"Context"),p),"makeExpr"),p),[e; to_pos (pos e)]),p)
 		| ECall (e,el) ->
 			expr "ECall" [loop e;to_array to_expr el p]
 		| ENew (t,el) ->
