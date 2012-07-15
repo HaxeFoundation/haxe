@@ -604,6 +604,25 @@ import system.Type;
 		return false;
 	}
 	
+	
+	@:functionBody('
+		if (obj is To)
+			return (To) obj;
+		else if (obj == null)
+			return default(To);
+		if (typeof(To) == typeof(double))
+			return (To)(object) toDouble(obj);
+		else if (typeof(To) == typeof(int))
+			return (To)(object) toInt(obj);
+		else
+			return (To) obj;
+	')
+	public static function genericCast<To>(obj:Dynamic):To
+	{
+		return null;
+	}
+	
+	//TODO: change from genericCast to getConverter, so we don't need to handle extra boxing associated with it
 	/*@:functionBody('
 		if (typeof(To).TypeHandle == typeof(double).TypeHandle)
 			return (System.Converter<object,To>) new System.Converter<object,double>(toDouble);

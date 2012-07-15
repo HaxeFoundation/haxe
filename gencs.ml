@@ -237,6 +237,11 @@ struct
       | TInst(cl,_) -> cl
       | _ -> assert false
   
+  let is_tparam t =
+    match follow t with
+      | TInst( { cl_kind = KTypeParameter }, _ ) -> true
+      | _ -> false
+  
   let traverse gen runtime_cl =
     let basic = gen.gcon.basic in
     let tchar = match ( get_type gen (["cs"], "Char16") ) with | TTypeDecl t -> t | _ -> assert false in
@@ -319,6 +324,10 @@ struct
               epos = e1.epos
             }, [ run e1; run e2 ])
           }
+        
+        | TCast(expr, _) when is_tparam e.etype ->
+          let static = mk_static_field_access_infer (runtime_cl) "genericCast" e.epos [e.etype] in
+          { e with eexpr = TCall(static, [mk_local (alloc_var "$type_param" e.etype) expr.epos; run expr]); }
         
         | TBinop( (Ast.OpNotEq as op), e1, e2)
         | TBinop( (Ast.OpEq as op), e1, e2) when is_struct e1.etype || is_struct e2.etype ->
