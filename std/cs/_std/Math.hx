@@ -69,9 +69,17 @@ import system.Random;
 		return system.Math.Sqrt(v);
 	}
 	
-	public static inline function round(v:Float):Int
+	public static function round(v:Float):Int
 	{
-		return Std.int(system.Math.Round(v));
+		var vint = Std.int(v);
+		var dec = v - vint;
+		if (dec >= 1 || dec <= -1)
+			return vint; //overflow
+		if (dec >= .5)
+			return vint + 1;
+		if (dec < -.5)
+			return vint - 1;
+		return vint;
 	}
 	
 	public static inline function floor(v:Float):Int
