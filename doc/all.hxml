@@ -51,7 +51,7 @@
 --macro ImportAll.run()
 
 --next
--java all_cs
+-cs all_cs
 --no-output
 -xml cs.xml
 -D xmldoc
