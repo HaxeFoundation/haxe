@@ -61,6 +61,13 @@ class XmlParser {
 			}
 	}
 
+	function simplifyDoc(d:String) {
+		if( d == null ) return null;
+		// don't take newline differences or extra spaces into account
+		d = d.split("\r\n").join("\n").split("\r").join("\n");
+		return StringTools.trim(d);
+	}
+
 	function sortFields(fl) {
 		var a = Lambda.array(fl);
 		a.sort(function(f1 : ClassField,f2 : ClassField) {
@@ -204,6 +211,10 @@ class XmlParser {
 						inf.doc = tinf.doc;
 					else
 						tinf.doc = inf.doc;
+				}
+				if( tinf.doc != inf.doc ) {
+					tinf.doc = simplifyDoc(tinf.doc);
+					inf.doc = simplifyDoc(inf.doc);
 				}
 				if( tinf.module == inf.module && tinf.doc == inf.doc && tinf.isPrivate == inf.isPrivate )
 					switch( ct ) {
