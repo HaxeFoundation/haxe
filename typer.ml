@@ -1990,8 +1990,14 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let ft = TFun (fun_args args,rt) in
 		let inline, v = (match name with
 			| None -> false, None
-			| Some v when ExtString.String.starts_with v "inline_" -> true, Some (add_local ctx (String.sub v 7 (String.length v - 7)) ft)
-			| Some v -> false, Some (add_local ctx v ft)
+			| Some v when ExtString.String.starts_with v "inline_" -> true, Some (String.sub v 7 (String.length v - 7))
+			| Some v -> false, Some v
+		) in
+		let v = (match v with
+			| None -> None
+			| Some v ->
+				if v.[0] = '$' then display_error ctx "Variables names starting with a dollar are not allowed" p;
+				Some (add_local ctx v ft)
 		) in
 		let e , fargs = Typeload.type_function ctx args rt (match ctx.curfun with FStatic -> FStatic | _ -> FMemberLocal) f p in
 		ctx.type_params <- old;
