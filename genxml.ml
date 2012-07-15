@@ -51,13 +51,19 @@ let gen_doc_opt d =
 let gen_arg_name (name,opt,_) =
 	(if opt then "?" else "") ^ name
 
-let cpath c =
+let real_path path meta =
 	let rec loop = function
-		| [] -> c.cl_path
+		| [] -> path
 		| (":realPath",[(Ast.EConst (Ast.String s),_)],_) :: _ -> parse_path s
 		| _ :: l -> loop l
 	in
-	loop c.cl_meta
+	loop meta
+
+let cpath c =
+	real_path c.cl_path c.cl_meta
+
+let epath e =
+	real_path e.e_path e.e_meta
 
 let rec follow_param t =
 	match t with
@@ -91,7 +97,7 @@ let gen_meta meta = match meta with
 let rec gen_type t =
 	match t with
 	| TMono m -> (match !m with None -> tag "unknown" | Some t -> gen_type t)
-	| TEnum (e,params) -> node "e" [gen_path e.e_path e.e_private] (List.map gen_type params)
+	| TEnum (e,params) -> node "e" [gen_path (epath e) e.e_private] (List.map gen_type params)
 	| TInst (c,params) -> node "c" [gen_path (cpath c) c.cl_private] (List.map gen_type params)
 	| TType (t,params) -> node "t" [gen_path t.t_path t.t_private] (List.map gen_type params)
 	| TFun (args,r) -> node "f" ["a",String.concat ":" (List.map gen_arg_name args)] (List.map gen_type (List.map (fun (_,opt,t) -> if opt then follow_param t else t) args @ [r]))
@@ -173,7 +179,7 @@ let gen_type_decl com pos t =
 	| TEnumDecl e ->
 		let doc = gen_doc_opt e.e_doc in
 		let meta = gen_meta e.e_meta in
-		node "enum" (gen_type_params pos e.e_private e.e_path e.e_types e.e_pos m) (pmap gen_constr e.e_constrs @ doc @ meta)
+		node "enum" (gen_type_params pos e.e_private (epath e) e.e_types e.e_pos m) (pmap gen_constr e.e_constrs @ doc @ meta)
 	| TTypeDecl t ->
 		let doc = gen_doc_opt t.t_doc in
 		let meta = gen_meta t.t_meta in
