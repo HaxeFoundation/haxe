@@ -62,6 +62,7 @@ let cache = ref (DynArray.create())
 let doc = ref None
 let use_doc = ref false
 let resume_display = ref null_pos
+let in_macro = ref false
 
 let last_token s =
 	let n = Stream.count s in
@@ -619,9 +620,13 @@ and expr = parser
 	| [< '(Const (Ident "macro"),p); s >] ->
 		(match Stream.npeek 1 s with
 		| [(_,p2)] when p2.pmin > p.pmax ->
+			let reify e =
+				let e = expr_to_value !in_macro e in
+				(ECheckType (e,(CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = None; tparams = [] })),pos e)
+			in
 			(match s with parser
-			| [< '(Kwd Var,p1); vl = psep Comma parse_var_decl >] -> (EMacro (EVars vl,p1),punion p p1)
-			| [< e = expr >] -> (EMacro e,punion p (pos e))
+			| [< '(Kwd Var,p1); vl = psep Comma parse_var_decl >] -> reify (EVars vl,p1)
+			| [< e = expr >] -> reify e
 			| [< >] -> expr_next (EConst (Ident "macro"),p) s)
 		| _ ->
 			expr_next (EConst (Ident "macro"),p) s)
@@ -849,6 +854,7 @@ let parse ctx code =
 	let mstack = ref [] in
 	cache := DynArray.create();
 	doc := None;
+	in_macro := Common.defined ctx "macro";
 	Lexer.skip_header code;
 	let sraw = Stream.from (fun _ -> Some (Lexer.token code)) in
 	let rec next_token() = process_token (Lexer.token code)

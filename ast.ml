@@ -193,7 +193,6 @@ and expr_def =
 	| EDisplayNew of type_path
 	| ETernary of expr * expr * expr
 	| ECheckType of expr * complex_type
-	| EMacro of expr
 
 and expr = expr_def * pos
 
@@ -517,7 +516,6 @@ let map_expr loop (e,p) =
 	| EDisplayNew t -> EDisplayNew (tpath t)
 	| ETernary (e1,e2,e3) -> ETernary (loop e1,loop e2,loop e3)
 	| ECheckType (e,t) -> ECheckType (loop e, ctype t)
-	| EMacro e -> EMacro (loop e)
 	) in
 	(e,p)
 
@@ -768,7 +766,5 @@ let expr_to_value in_macro e =
 			expr "ETernary" [loop e1;loop e2;loop e3]
 		| ECheckType (e1,ct) ->
 			expr "ECheckType" [loop e1; to_ctype ct p]
-		| EMacro e ->
-			expr "EMacro" [loop e]
 	in
 	to_expr e (snd e)

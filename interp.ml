@@ -3511,8 +3511,6 @@ and encode_expr e =
 				27, [loop econd;loop e1;loop e2]
 			| ECheckType (e,t) ->
 				28, [loop e; encode_type t]
-			| EMacro e ->
-				29, [loop e]
 		in
 		enc_obj [
 			"pos", encode_pos p;
@@ -3761,9 +3759,7 @@ let decode_expr v =
 			ETernary (loop e1,loop e2,loop e3)
 		| 28, [e;t] ->
 			ECheckType (loop e, decode_ctype t)
-		| 29, [e] ->
-			EMacro (loop e)
-		| 30, [e;f] ->
+		| 29, [e;f] ->
 			EField (loop e, dec_string f) (*** deprecated EType, keep until haxe 3 **)
 		| _ ->
 			raise Invalid_expr
