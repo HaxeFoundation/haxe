@@ -71,7 +71,7 @@ import system.Random;
 	
 	public static inline function round(v:Float):Int
 	{
-		return Std.int(v < 0 ? system.Math.Floor(v) : system.Math.Round(v)) ;
+		return Std.int(system.Math.Round(v));
 	}
 	
 	public static inline function floor(v:Float):Int

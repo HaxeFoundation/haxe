@@ -1906,8 +1906,9 @@ struct
   
   let priority_as_synf = 100.0 (*solve_deps name [DBefore ExpressionUnwrap.priority]*)
   
-  let abstract_implementation gen (should_change:texpr->bool) (equals_handler:texpr->texpr->texpr) (dyn_plus_handler:texpr->texpr->texpr->texpr) (compare_handler:texpr->texpr->texpr) =
-    
+  let abstract_implementation gen ?(handle_strings = true) (should_change:texpr->bool) (equals_handler:texpr->texpr->texpr) (dyn_plus_handler:texpr->texpr->texpr->texpr) (compare_handler:texpr->texpr->texpr) =
+  
+  
     let get_etype_one e =
       match follow e.etype with
         | TInst({cl_path = ([],"Int")},[]) -> (gen.gcon.basic.tint, { eexpr = TConst(TInt(Int32.one)); etype = gen.gcon.basic.tint; epos = e.epos })
@@ -1949,7 +1950,7 @@ struct
             | OpNotEq -> (* != -> !equals() *)
               mk_paren { eexpr = TUnop(Ast.Not, Prefix, (equals_handler (run e1) (run e2))); etype = gen.gcon.basic.tbool; epos = e.epos }
             | OpAdd  ->
-              if is_string e.etype or is_string e1.etype or is_string e2.etype then 
+              if handle_strings && (is_string e.etype or is_string e1.etype or is_string e2.etype) then 
                 { e with eexpr = TBinop(op, mk_cast gen.gcon.basic.tstring (run e1), mk_cast gen.gcon.basic.tstring (run e2)) }
               else
                 dyn_plus_handler e (run e1) (run e2)
@@ -4596,7 +4597,8 @@ struct
     
     let in_value = ref false in
             
-    let rec run e =
+    let rec run ?(just_type = false) e =
+      let handle = if not just_type then handle else fun e t1 t2 -> { e with etype = gen.greal_type t2 } in
       let was_in_value = !in_value in
       in_value := true;
       match e.eexpr with 
@@ -4605,12 +4607,17 @@ struct
           (match field_access gen (gen.greal_type tf.etype) f with
             | FClassField(cl,params,_,is_static,actual_t) -> 
               let actual_t = if is_static then actual_t else apply_params cl.cl_types params actual_t in
-              { e with eexpr = TBinop(op, Type.map_expr run e1, handle (run e2) actual_t e2.etype) }
-            | _ -> { e with eexpr = TBinop(op, Type.map_expr run e1, handle (run e2) e1.etype e2.etype) }
+              
+              let e1 = run e1 ~just_type:true in
+              { e with eexpr = TBinop(op, e1, handle (run e2) actual_t e2.etype); etype = e1.etype }
+            | _ -> 
+              let e1 = run e1 ~just_type:true in
+              { e with eexpr = TBinop(op, e1, handle (run e2) e1.etype e2.etype); etype = e1.etype }
           )
         | TBinop ( (Ast.OpAssign as op),e1,e2)
         | TBinop ( (Ast.OpAssignOp _ as op),e1,e2) ->
-          { e with eexpr = TBinop(op, Type.map_expr run e1, handle (run e2) e1.etype e2.etype) }
+          let e1 = run e1 ~just_type:true in
+          { e with eexpr = TBinop(op, e1, handle (run e2) e1.etype e2.etype); etype = e1.etype }
         (* this is an exception so we can avoid infinite loop on Std.String and haxe.lang.Runtime.toString(). It also takes off unnecessary casts to string *)
         | TBinop ( Ast.OpAdd, ( { eexpr = TCast(e1, _) } as e1c), e2 ) when native_string_cast && is_string e1c.etype && is_string e2.etype ->
           { e with eexpr = TBinop( Ast.OpAdd, run e1, run e2 ) }
@@ -5259,7 +5266,7 @@ struct
     
     let handle_assign op left right =
       let left = check_left left in
-      Some (apply_assign (fun e -> { e with eexpr = TBinop(op, left, e) }) right )
+      Some (apply_assign (fun e -> { e with eexpr = TBinop(op, left, if is_void left.etype then e else gen.ghandle_cast left.etype e.etype e) }) right )
     in
     
     let is_problematic_if right =

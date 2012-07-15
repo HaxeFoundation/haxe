@@ -211,7 +211,7 @@ import system.Type;
 	
 	@:functionBody('
 			if (v1 is string || v2 is string)
-				return (v1 + "") + (v2 + "");
+				return Std.@string(v1) + Std.@string(v2);
 			
 			System.IConvertible cv1 = v1 as System.IConvertible;
 			if (cv1 != null)
@@ -618,6 +618,14 @@ import system.Type;
 			return (To) obj;
 	')
 	public static function genericCast<To>(obj:Dynamic):To
+	{
+		return null;
+	}
+	
+	@:functionBody('
+		return (s1 == null ? "null" : s1) + (s2 == null ? "null" : s2);
+	')
+	public static function concat(s1:String, s2:String):String
 	{
 		return null;
 	}

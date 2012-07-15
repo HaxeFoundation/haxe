@@ -120,6 +120,11 @@ struct
         (* Std.is() *)
         | TCall(
             { eexpr = TField( { eexpr = TTypeExpr ( TClassDecl { cl_path = ([], "Std") } ) }, "is") },
+            [ obj; { eexpr = TTypeExpr(TClassDecl { cl_path = [], "Dynamic" }) }]
+          ) ->
+            Type.map_expr run e
+        | TCall(
+            { eexpr = TField( { eexpr = TTypeExpr ( TClassDecl { cl_path = ([], "Std") } ) }, "is") },
             [ obj; { eexpr = TTypeExpr(md) }]
           ) ->
           let mk_is obj md =
@@ -166,7 +171,7 @@ struct
               mk_is obj md
           )
         (* end Std.is() *)
-                  
+        
         | TBinop( Ast.OpUShr, e1, e2 ) ->
           mk_cast e.etype { e with eexpr = TBinop( Ast.OpShr, mk_cast (TType(uint,[])) (run e1), run e2 ) }
         
@@ -1645,7 +1650,9 @@ let configure gen =
     (DynamicOperators.abstract_implementation gen (fun e -> match e.eexpr with
       | TBinop (Ast.OpEq, e1, e2)
       | TBinop (Ast.OpNotEq, e1, e2) -> should_handle_opeq e1.etype or should_handle_opeq e2.etype
-      | TBinop (Ast.OpAdd, e1, e2) -> is_dynamic e1.etype or is_dynamic e2.etype or is_type_param e1.etype or is_type_param e2.etype
+      | TBinop (Ast.OpAssignOp Ast.OpAdd, e1, e2) ->
+        is_dynamic_expr e1 || is_null_expr e1 || is_string e.etype
+      | TBinop (Ast.OpAdd, e1, e2) -> is_dynamic e1.etype or is_dynamic e2.etype or is_type_param e1.etype or is_type_param e2.etype or is_string e1.etype or is_string e2.etype or is_string e.etype
       | TBinop (Ast.OpLt, e1, e2)
       | TBinop (Ast.OpLte, e1, e2)
       | TBinop (Ast.OpGte, e1, e2)
@@ -1685,6 +1692,15 @@ let configure gen =
             basic.tint, basic.tint
           else t1, t2 in
           { eexpr = TBinop(Ast.OpAdd, mk_cast t1 e1, mk_cast t2 e2); etype = e.etype; epos = e1.epos }
+        | _ when is_string e.etype || is_string e1.etype || is_string e2.etype ->
+          {
+            eexpr = TCall(
+              mk_static_field_access_infer runtime_cl "concat" e.epos [],
+              [ e1; e2 ]
+            );
+            etype = basic.tstring;
+            epos = e.epos
+          }
         | _ ->
           let static = mk_static_field_access_infer (runtime_cl) "plus"  e1.epos [] in
           mk_cast e.etype { eexpr = TCall(static, [e1; e2]); etype = t_dynamic; epos=e1.epos })
@@ -1694,7 +1710,7 @@ let configure gen =
       end else begin
         let static = mk_static_field_access_infer (runtime_cl) "compare" e1.epos [] in
         { eexpr = TCall(static, [e1; e2]); etype = gen.gcon.basic.tint; epos=e1.epos } 
-      end));
+      end) ~handle_strings:false);
   
   FilterClosures.configure gen (FilterClosures.traverse gen (fun e1 s -> true) closure_func);
     
@@ -1742,7 +1758,7 @@ let configure gen =
     get_typeof e
   ));
   
-  CastDetect.configure gen (CastDetect.default_implementation gen (Some (TEnum(empty_e, []))) false~native_string_cast:false);
+  CastDetect.configure gen (CastDetect.default_implementation gen (Some (TEnum(empty_e, []))) false ~native_string_cast:false);
   
   (*FollowAll.configure gen;*)
   

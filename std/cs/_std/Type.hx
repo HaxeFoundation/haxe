@@ -85,6 +85,8 @@ enum ValueType {
 			case "System.Int32": "Int";
 			case "System.Double": "Float";
 			case "System.String": "String";
+			case "System.Object": "Dynamic";
+			case "System.Type": "Class";
 			default: ret.split("`")[0];
 		}
 	}
@@ -116,6 +118,7 @@ enum ValueType {
 				case #if no-root "haxe.root.Float" #else "Float" #end: return Float;
 				case #if no-root "haxe.root.Class" #else "Class" #end: return Class;
 				case #if no-root "haxe.root.String" #else "String" #end: return String;
+				case #if no-root "haxe.root.Dynamic" #else "Dynamic" #end: return Dynamic;
 				default: return null;
 			}
 		} else if (t.IsInterface && cast(untyped __typeof__(IGenericObject), system.Type).IsAssignableFrom(t)) { 
