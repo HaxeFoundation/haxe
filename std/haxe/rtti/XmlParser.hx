@@ -61,13 +61,6 @@ class XmlParser {
 			}
 	}
 
-	function simplifyDoc(d:String) {
-		if( d == null ) return null;
-		// don't take newline differences or extra spaces into account
-		d = d.split("\r\n").join("\n").split("\r").join("\n");
-		return StringTools.trim(d);
-	}
-
 	function sortFields(fl) {
 		var a = Lambda.array(fl);
 		a.sort(function(f1 : ClassField,f2 : ClassField) {
@@ -103,8 +96,19 @@ class XmlParser {
 		return false;
 	}
 
+	function mergeDoc( f1 : ClassField, f2 : ClassField ) {
+		if( f1.doc == null )
+			f2.doc = f2.doc;
+		else if( f2.doc == null )
+			f2.doc = f1.doc;
+		return true;
+	}
+
 	function mergeFields( f : ClassField, f2 : ClassField ) {
-		return TypeApi.fieldEq(f,f2) || (f.name == f2.name && (mergeRights(f,f2) || mergeRights(f2,f)) && TypeApi.fieldEq(f,f2));
+		return TypeApi.fieldEq(f,f2) || (f.name == f2.name && (mergeRights(f,f2) || mergeRights(f2,f)) && mergeDoc(f,f2) && TypeApi.fieldEq(f,f2));
+	}
+
+	public dynamic function newField( c : Classdef, f : ClassField ) {
 	}
 
 	function mergeClasses( c : Classdef, c2 : Classdef ) {
@@ -123,9 +127,10 @@ class XmlParser {
 					found = f;
 					break;
 				}
-			if( found == null )
+			if( found == null ) {
+				newField(c,f2);
 				c.fields.add(f2);
-			else if( curplatform != null )
+			} else if( curplatform != null )
 				found.platforms.add(curplatform);
 		}
 		for( f2 in c2.statics ) {
@@ -135,9 +140,10 @@ class XmlParser {
 					found = f;
 					break;
 				}
-			if( found == null )
+			if( found == null ) {
+				newField(c,f2);
 				c.statics.add(f2);
-			else if( curplatform != null )
+			} else if( curplatform != null )
 				found.platforms.add(curplatform);
 		}
 		return true;
@@ -211,10 +217,6 @@ class XmlParser {
 						inf.doc = tinf.doc;
 					else
 						tinf.doc = inf.doc;
-				}
-				if( tinf.doc != inf.doc ) {
-					tinf.doc = simplifyDoc(tinf.doc);
-					inf.doc = simplifyDoc(inf.doc);
 				}
 				if( tinf.module == inf.module && tinf.doc == inf.doc && tinf.isPrivate == inf.isPrivate )
 					switch( ct ) {

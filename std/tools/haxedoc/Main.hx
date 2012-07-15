@@ -125,14 +125,21 @@ class Main {
 		} else {
 			var filter = false;
 			var filters = new List();
+			var pf = null;
 			for( x in neko.Sys.args() ) {
 				if( x == "-f" )
 					filter = true;
+				else if( x == "-v" )
+					parser.newField = function(c,f) {
+						if( f.isPublic && !f.isOverride && !c.isPrivate )
+							Sys.println("[API INCOMPATIBILITY] "+c.path+"."+f.name+" ["+pf+"]");
+					};
 				else if( filter ) {
 					filters.add(x);
 					filter = false;
 				} else {
 					var f = x.split(";");
+					pf = f[1];
 					loadFile(f[0],f[1],f[2]);
 				}
 			}

@@ -23,10 +23,10 @@
  * DAMAGE.
  */
 
-/**
+/*
  * Static methods that override calls to built-in JS methods.
- * @private
  */
+@:noDoc
 class HxOverrides {
 
 	static function dateStr( date :Date ) : String {
