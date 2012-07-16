@@ -118,22 +118,54 @@ class Lib
 		return untyped Array.alloc(size);
 	}
 	
+	/**
+		Creates a "checked" block, which throws exceptions for overflows.
+		
+		Usage:
+			cs.Lib.checked({
+				var x = 1000;
+				while(true)
+				{
+					x *= x;
+				}
+			});
+		This method only exists at compile-time, so it can't be called via reflection.
+	**/
+	@:extern public static inline function checked(block:Dynamic):Void
+	{
+		untyped __checked__(block);
+	}
+	
+	/**
+		Ensures that one thread does not enter a critical section of code while another thread
+		is in the critical section. If another thread attempts to enter a locked code, it 
+		will wait, block, until the object is released.
+		
+		This method only exists at compile-time, so it can't be called via reflection.
+	**/
+	@:extern public static inline function lock(obj:Dynamic, block:Dynamic):Void
+	{
+		untyped __lock__(obj, block);
+	}
 	
 	//Unsafe code manipulation
 	#if unsafe
 	/**
 		Marks its parameters as fixed objects inside the defined block.
+		The first variable declarations that use cs.Lib.pointerOfArray() will be the fixed definitions.
 		Usage:
-			cs.Lib.fixed(obj1, obj2, obj3, 
-			{
-				//inside here obj1, obj2 and obj3 are fixed
+			cs.Lib.fixed({
+				var obj1 = cs.Lib.pointerOfArray(someArray);
+				var obj2 = cs.Lib.pointerOfArray(someArray2);
+				var obj3 = cs.Lib.pointerOfArray(someArray3);
+				//from now on, obj1, obj2 and obj3 are fixed
 			});
 		
 		This method only exists at compile-time, so it can't be called via reflection.
 	**/
-	@:extern public static inline function fixed(?p1:Dynamic, ?p2:Dynamic, ?p3:Dynamic, ?p4:Dynamic, ?p5:Dynamic, ?p6:Dynamic, ?p7:Dynamic, ?p8:Dynamic, ?p9:Dynamic, ?p10:Dynamic):Void
+	@:extern public static inline function fixed(block:Dynamic):Void
 	{
-		untyped __fixed__(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10);
+		untyped __fixed__(block);
 	}
 	
 	/**
@@ -175,7 +207,7 @@ class Lib
 			cs.Lib.unsafe({
 				var addr = cs.Lib.addressOf(x);
 				trace(cs.Lib.valueOf(addr)); //0
-				x[0] = 42;
+				addr[0] = 42;
 				trace(cs.Lib.valueOf(addr)); //42
 			});
 			trace(x); //42
@@ -184,18 +216,20 @@ class Lib
 	**/
 	@:extern public static inline function valueOf<T>(pointer:cs.Pointer<T>):T
 	{
-		return untyped __valueOf__(pointer, idx);
+		return untyped __valueOf__(pointer);
 	}
 	
 	/**
-		Transforms a managed native array into a Pointer.
+		Transforms a managed native array into a Pointer. Must be inside a fixed statement
 		Usage:
 			var x:cs.NativeArray<Int> = new cs.NativeArray(1);
 			cs.Lib.unsafe({
-				var addr = cs.Lib.pointerOfArray(x);
-				trace(cs.Lib.valueOf(addr)); //0
-				x[0] = 42;
-				trace(cs.Lib.valueOf(addr)); //42
+				cs.Lib.fixed({
+					var addr = cs.Lib.pointerOfArray(x);
+					trace(cs.Lib.valueOf(addr)); //0
+					addr[0] = 42;
+					trace(cs.Lib.valueOf(addr)); //42
+				});
 			});
 			trace(x[0]); //42
 		
@@ -204,6 +238,14 @@ class Lib
 	@:extern public static inline function pointerOfArray<T>(array:cs.NativeArray<T>):cs.Pointer<T>
 	{
 		return cast array;
+	}
+	
+	/**
+		Returns the byte size of the given struct. Only works with structs and basic types.
+	**/
+	@:extern public static inline function sizeof(struct:Class<Dynamic>):Int
+	{
+		return untyped __sizeof__(struct);
 	}
 	#end
 }

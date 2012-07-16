@@ -490,6 +490,7 @@ let rec get_class_modifiers meta cl_type cl_access cl_modifiers =
     (* no abstract for now | (":abstract",[],_) :: meta -> get_class_modifiers meta cl_type cl_access ("abstract" :: cl_modifiers) 
     | (":static",[],_) :: meta -> get_class_modifiers meta cl_type cl_access ("static" :: cl_modifiers) TODO: support those types *)
     | (":final",[],_) :: meta -> get_class_modifiers meta cl_type cl_access ("sealed" :: cl_modifiers)
+    | (":unsafe",[],_) :: meta -> get_class_modifiers meta cl_type cl_access ("unsafe" :: cl_modifiers)
     | _ :: meta -> get_class_modifiers meta cl_type cl_access cl_modifiers
 
 let rec get_fun_modifiers meta access modifiers =
@@ -670,6 +671,8 @@ let configure gen =
             | _ -> t_s (run_follow gen t)
         in
         (check_t_s param) ^ "[]"
+      | TInst({ cl_path = (["cs"], "Pointer") }, [ t ]) ->
+        t_s t ^ "*"
       (* end of basic types *)
       | TInst ({ cl_kind = KTypeParameter; cl_path=p }, []) -> snd p
       | TMono r -> (match !r with | None -> "object" | Some t -> t_s (run_follow gen t))
@@ -756,6 +759,16 @@ let configure gen =
         t_s (TType(t, List.map (fun t -> t_dynamic) t.t_types))
   in
   
+  let rec ensure_local e explain =
+    match e.eexpr with 
+      | TLocal _ -> e
+      | TCast(e,_)
+      | TParenthesis e -> ensure_local e explain
+      | _ -> gen.gcon.error ("This function argument " ^ explain ^ " must be a local variable.") e.epos; e
+  in
+  
+  let is_pointer t = match follow t with | TInst({ cl_path = (["cs"], "Pointer") }, _) -> true | _ -> false in
+  
   let expr_s w e =
     in_value := false;
     let rec expr_s w e =
@@ -793,6 +806,7 @@ let configure gen =
           write w (t_s (TInst(runtime_cl, List.map (fun _ -> t_dynamic) runtime_cl.cl_types)));
           write w ".undefined";
         | TLocal { v_name = "__typeof__" } -> write w "typeof"
+        | TLocal { v_name = "__sizeof__" } -> write w "sizeof"
         | TLocal var ->
           write_id w var.v_name
         | TEnumField (e, s) ->
@@ -840,6 +854,47 @@ let configure gen =
           write w " )"
         | TCall ({ eexpr = TLocal( { v_name = "__cs__" } ) }, [ { eexpr = TConst(TString(s)) } ] ) ->
           write w s
+        | TCall ({ eexpr = TLocal( { v_name = "__unsafe__" } ) }, [ e ] ) ->
+          write w "unsafe";
+          expr_s w (mk_block e)
+        | TCall ({ eexpr = TLocal( { v_name = "__checked__" } ) }, [ e ] ) ->
+          write w "checked";
+          expr_s w (mk_block e)
+        | TCall ({ eexpr = TLocal( { v_name = "__lock__" } ) }, [ eobj; eblock ] ) ->
+          write w "lock(";
+          expr_s w eobj;
+          write w ")";
+          expr_s w (mk_block eblock)
+        | TCall ({ eexpr = TLocal( { v_name = "__fixed__" } ) }, [ e ] ) ->
+          write w "fixed(";
+          let first = ref true in
+          let rec loop = function
+            | ({ eexpr = TVars([v, Some({ eexpr = TCast( { eexpr = TCast(e, _) }, _) }) ]) } as expr) :: tl when is_pointer v.v_type ->
+              (if !first then first := false else write w ", ");
+              expr_s w { expr with eexpr = TVars([v, Some e]) };
+              loop tl
+            | el when not !first ->
+              write w ")";
+              expr_s w { e with eexpr = TBlock el }
+            | _ -> 
+              trace (debug_expr e);
+              gen.gcon.error "Invalid 'fixed' keyword format" e.epos
+          in
+          (match e.eexpr with
+            | TBlock bl -> loop bl
+            | _ -> 
+              trace "not block";
+              trace (debug_expr e);
+              gen.gcon.error "Invalid 'fixed' keyword format" e.epos
+          )
+        | TCall ({ eexpr = TLocal( { v_name = "__addressOf__" } ) }, [ e ] ) ->
+          let e = ensure_local e "for addressOf" in
+          write w "&";
+          expr_s w e
+        | TCall ({ eexpr = TLocal( { v_name = "__valueOf__" } ) }, [ e ] ) ->
+          write w "*(";
+          expr_s w e;
+          write w ")"
         | TCall ({ eexpr = TLocal( { v_name = "__goto__" } ) }, [ { eexpr = TConst(TInt v) } ] ) ->
           print w "goto label%ld" v
         | TCall ({ eexpr = TLocal( { v_name = "__label__" } ) }, [ { eexpr = TConst(TInt v) } ] ) ->
@@ -874,25 +929,17 @@ let configure gen =
               write w ">"
           );
           
-          let rec ensure_local e explain =
-            match e.eexpr with 
-              | TLocal _ -> e
-              | TCast(e,_)
-              | TParenthesis e -> ensure_local e explain
-              | _ -> gen.gcon.error ("The function argument of type " ^ explain ^ " must be a local variable.") e.epos; e
-          in
-          
           let rec loop acc elist tlist =
             match elist, tlist with
               | e :: etl, (_,_,t) :: ttl ->
                 (if acc <> 0 then write w ", ");
                 (match real_type t with
                   | TType({ t_path = (["cs"], "Ref") }, _) ->
-                    let e = ensure_local e "cs.Ref" in
+                    let e = ensure_local e "of type cs.Ref" in
                     write w "ref ";
                     expr_s w e
                   | TType({ t_path = (["cs"], "Out") }, _) ->
-                    let e = ensure_local e "cs.Out" in
+                    let e = ensure_local e "of type cs.Out" in
                     write w "out ";
                     expr_s w e
                   | _ ->
@@ -1445,6 +1492,14 @@ let configure gen =
   Hashtbl.add gen.gspecial_vars "__is__" true;
   Hashtbl.add gen.gspecial_vars "__as__" true;
   Hashtbl.add gen.gspecial_vars "__cs__" true;
+  
+  Hashtbl.add gen.gspecial_vars "__checked__" true;
+  Hashtbl.add gen.gspecial_vars "__lock__" true;
+  Hashtbl.add gen.gspecial_vars "__fixed__" true;
+  Hashtbl.add gen.gspecial_vars "__unsafe__" true;
+  Hashtbl.add gen.gspecial_vars "__addressOf__" true;
+  Hashtbl.add gen.gspecial_vars "__valueOf__" true;
+  Hashtbl.add gen.gspecial_vars "__sizeof__" true;
   
   Hashtbl.add gen.gsupported_conversions (["haxe"; "lang"], "Null") (fun t1 t2 -> true);
   let last_needs_box = gen.gneeds_box in

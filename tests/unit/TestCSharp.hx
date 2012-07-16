@@ -36,9 +36,9 @@ class TestCSharp extends Test
 	@:unsafe public function testUnsafe()
 	{
 		var x:cs.NativeArray<Int> = new cs.NativeArray(10);
-		var p;
-		cs.Lib.fixed(p = cs.Lib.pointerOfArray(x),
-		{
+		cs.Lib.fixed({
+			var p = cs.Lib.pointerOfArray(x);
+			var p = p;
 			for (i in 0...10)
 			{
 				p[0] = i;
@@ -46,8 +46,8 @@ class TestCSharp extends Test
 			}
 		});
 		
-		cs.Lib.fixed(p = cs.Lib.pointerOfArray(x),
-		{
+		cs.Lib.fixed( {
+			var p = cs.Lib.pointerOfArray(x);
 			for (i in 0...10)
 			{
 				eq(p[i], i);
@@ -58,7 +58,7 @@ class TestCSharp extends Test
 		var addr = cs.Lib.addressOf(x);
 		eq(cs.Lib.valueOf(addr), 0);
 		eq(addr[0], 0);
-		x[0] = 42;
+		addr[0] = 42;
 		eq(cs.Lib.valueOf(addr), 42);
 		eq(addr[0], 42);
 		eq(x, 42);

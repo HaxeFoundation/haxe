@@ -5361,6 +5361,12 @@ struct
             match e.eexpr, shallow_expr_type e with
               | TVars( (hd1 :: hd2 :: _) as vars ), _ ->
                 List.iter (fun v -> process_statement { e with eexpr = TVars([v]) }) vars
+              | TCall( { eexpr = TLocal v } as elocal, elist ), _ when String.get v.v_name 0 = '_' && Hashtbl.mem gen.gspecial_vars v.v_name ->
+                new_block := { e with eexpr = TCall( elocal, List.map (fun e ->
+                  match e.eexpr with 
+                    | TBlock _ -> traverse e
+                    | _ -> e
+                ) elist ) } :: !new_block
               | _, Statement | _, Both _ ->
                 let e = match e.eexpr with | TReturn (Some ({ eexpr = TThrow _ } as ethrow)) -> ethrow | _ -> e in
                 let kinds = get_kinds e in
