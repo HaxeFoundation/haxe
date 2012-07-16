@@ -1,6 +1,7 @@
 package java.internal;
 
 @:native('haxe.lang.FieldLookup')
+@:keep
 @:static private class FieldLookup 
 {
 	

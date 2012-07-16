@@ -26,7 +26,7 @@ import cs.internal.Runtime;
  * DAMAGE.
  */
 
-enum ValueType {
+@:keep enum ValueType {
 	TNull;
 	TInt;
 	TFloat;

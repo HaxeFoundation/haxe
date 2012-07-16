@@ -23,7 +23,7 @@
  * DAMAGE.
  */
 
-enum ValueType {
+@:keep enum ValueType {
 	TNull;
 	TInt;
 	TFloat;
@@ -35,7 +35,7 @@ enum ValueType {
 	TUnknown;
 }
 
-@:core_api class Type {
+@:keep @:core_api class Type {
 	
 	@:functionBody('
 		if (o instanceof haxe.lang.DynamicObject || o instanceof java.lang.Class)

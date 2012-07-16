@@ -1,6 +1,7 @@
 package java.internal;
 
 @:native('haxe.lang.Iterator')
+@:keep
 interface Iterator<T>
 {
 	
@@ -11,6 +12,7 @@ interface Iterator<T>
 }
 
 @:native('haxe.lang.Iterable')
+@:keep
 interface Iterable<T>
 {
 	

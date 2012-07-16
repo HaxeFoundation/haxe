@@ -1,6 +1,7 @@
 package java.internal;
 
 @:native('haxe.lang.IEquatable')
+@:keep
 interface IEquatable 
 {
 	
