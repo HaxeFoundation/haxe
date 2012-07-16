@@ -951,9 +951,7 @@ let dump_descriptor gen name path_s =
   (* dump all resources *)
   SourceWriter.write w "begin resources";
   SourceWriter.newline w;
-  Hashtbl.iter (fun name path -> 
-    SourceWriter.write w path;
-    SourceWriter.write w "@";
+  Hashtbl.iter (fun name _ -> 
     SourceWriter.write w name;
     SourceWriter.newline w
   ) gen.gcon.resources;
