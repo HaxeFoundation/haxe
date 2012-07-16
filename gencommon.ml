@@ -949,6 +949,16 @@ let dump_descriptor gen name path_s =
   SourceWriter.write w "end modules";
   SourceWriter.newline w;
   (* dump all resources *)
+  (match gen.gcon.main_class with
+    | Some path -> 
+      SourceWriter.write w "begin main";
+      SourceWriter.newline w;
+      SourceWriter.write w (path_s path);
+      SourceWriter.newline w;
+      SourceWriter.write w "end main";
+      SourceWriter.newline w
+	| _ -> ()
+  );
   SourceWriter.write w "begin resources";
   SourceWriter.newline w;
   Hashtbl.iter (fun name _ -> 
