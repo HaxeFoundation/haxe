@@ -14,7 +14,7 @@ package java;
 		
 		If equalLengthRequired is true, the result might be a copy of an array with the correct size.
 	**/
-	public static function toNativeReadOnlyArray<T>(arr:Array<T>, equalLengthRequired:Bool):NativeArray<T>
+	public static function nativeArray<T>(arr:Array<T>, equalLengthRequired:Bool):NativeArray<T>
 	{
 		var native:NativeArray<T> = untyped arr.__a;
 		if (native.length == arr.length)
@@ -24,17 +24,6 @@ package java;
 			return null;
 		}
 	}
-	
-	/**
-		Returns a System.Type equivalent to the Haxe Class<> type.
-		
-		Currently Haxe's Class<> is equivalent to System.Type, but this is an implementation detail.
-		This may change in the future, so use this function whenever you need to perform such conversion.
-	**/
-	public static function toNativeType<T>(cl:Class<T>):java.lang.Class<T>
-	{
-		return untyped cl;
-	}	
 	
 	/**
 		Gets the native System.Type from the supplied object. Will throw an exception in case of null being passed.
@@ -63,5 +52,18 @@ package java;
 	public static function arrayAlloc<T>(size:Int):Array<T>
 	{
 		return untyped Array.alloc(size);
+	}
+	
+	/**
+		Ensures that one thread does not enter a critical section of code while another thread
+		is in the critical section. If another thread attempts to enter a locked code, it 
+		will wait, block, until the object is released.
+		This is the equivalent to "synchronized" in java code.
+		
+		This method only exists at compile-time, so it can't be called via reflection.
+	**/
+	@:extern public static inline function lock(obj:Dynamic, block:Dynamic):Void
+	{
+		untyped __lock__(obj, block);
 	}
 }

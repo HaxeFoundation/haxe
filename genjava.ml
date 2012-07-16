@@ -622,6 +622,7 @@ let rec get_fun_modifiers meta access modifiers =
     (*| (":readonly",[],_) :: meta -> get_fun_modifiers meta access ("readonly" :: modifiers)*)
     (*| (":unsafe",[],_) :: meta -> get_fun_modifiers meta access ("unsafe" :: modifiers)*)
     | (":volatile",[],_) :: meta -> get_fun_modifiers meta access ("volatile" :: modifiers)
+    | (":transient",[],_) :: meta -> get_fun_modifiers meta access ("transient" :: modifiers)
     | _ :: meta -> get_fun_modifiers meta access modifiers
     
 (* this was the way I found to pass the generator context to be accessible across all functions here *)
@@ -974,6 +975,11 @@ let configure gen =
           write w " )"
         | TCall ({ eexpr = TLocal( { v_name = "__java__" } ) }, [ { eexpr = TConst(TString(s)) } ] ) ->
           write w s
+        | TCall ({ eexpr = TLocal( { v_name = "__lock__" } ) }, [ eobj; eblock ] ) ->
+          write w "synchronized(";
+          expr_s w eobj;
+          write w ")";
+          expr_s w (mk_block eblock)
         | TCall ({ eexpr = TLocal( { v_name = "__goto__" } ) }, [ { eexpr = TConst(TInt v) } ] ) ->
           print w "break label%ld" v
         | TCall ({ eexpr = TLocal( { v_name = "__label__" } ) }, [ { eexpr = TConst(TInt v) } ] ) ->
@@ -1456,6 +1462,7 @@ let configure gen =
   Hashtbl.add gen.gspecial_vars "__is__" true;
   Hashtbl.add gen.gspecial_vars "__typeof__" true;
   Hashtbl.add gen.gspecial_vars "__java__" true;
+  Hashtbl.add gen.gspecial_vars "__lock__" true;
   
   gen.greal_type <- real_type;
   gen.greal_type_param <- change_param_type;
