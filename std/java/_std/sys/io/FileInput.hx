@@ -92,7 +92,7 @@ class FileInput extends Input {
 		}
 	}
 	
-	function tell() : Int
+	public function tell() : Int
 	{
 		try
 		{
@@ -104,7 +104,7 @@ class FileInput extends Input {
 		}
 	}
 	
-	function eof() : Bool
+	public function eof() : Bool
 	{
 		try
 		{

@@ -96,7 +96,7 @@ class FileOutput extends Output {
 		}
 	}
 	
-	function tell() : Int
+	public function tell() : Int
 	{
 		try
 		{

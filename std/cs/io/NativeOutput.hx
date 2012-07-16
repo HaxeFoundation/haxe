@@ -5,8 +5,7 @@ import haxe.io.Output;
 
 class NativeOutput extends Output
 {
-	public var canSeek(get_canSeek, null):Bool;
-	
+	var canSeek(get_canSeek, null):Bool;
 	var stream:cs.system.io.Stream;
 	public function new(stream)
 	{
