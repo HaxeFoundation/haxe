@@ -202,6 +202,9 @@ package unit;
 			#if cs
 			new TestCSharp(),
 			#end
+			#if java
+			new TestJava(),
+			#end
 			//new TestUnspecified(),
 			//new TestRemoting(),
 		];

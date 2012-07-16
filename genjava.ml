@@ -1576,7 +1576,12 @@ let configure gen =
   
   ReflectionCFs.implement_varargs_cl rcf_ctx ( get_cl (get_type gen (["haxe";"lang"], "VarArgsBase")) );
   
-  ReflectionCFs.configure rcf_ctx;
+  let slow_invoke = mk_static_field_access_infer (runtime_cl) "slowCallField" Ast.null_pos [] in
+  ReflectionCFs.configure rcf_ctx ~slow_invoke:(fun ethis efield eargs -> {
+    eexpr = TCall(slow_invoke, [ethis; efield; eargs]);
+    etype = t_dynamic;
+    epos = ethis.epos;
+  } );
   
   let objdecl_fn = ReflectionCFs.implement_dynamic_object_ctor rcf_ctx dynamic_object in
   

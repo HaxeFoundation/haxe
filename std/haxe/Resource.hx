@@ -66,7 +66,7 @@ class Resource {
 
 	public static function getString( name : String ) : String {
 		#if java
-		var stream = java.Lib.toNativeType(Resource).getResourceAsStream("/" + name);
+		var stream = cast(Resource, java.lang.Class<Dynamic>).getResourceAsStream("/" + name);
 		if (stream == null)
 			return null;
 		var stream = new java.io.NativeInput(stream);
@@ -93,7 +93,7 @@ class Resource {
 
 	public static function getBytes( name : String ) : haxe.io.Bytes {
 		#if java
-		var stream = java.Lib.toNativeType(Resource).getResourceAsStream("/" + name);
+		var stream = cast(Resource, java.lang.Class<Dynamic>).getResourceAsStream("/" + name);
 		if (stream == null)
 			return null;
 		var stream = new java.io.NativeInput(stream);

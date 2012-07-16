@@ -22,6 +22,10 @@ class TestCSharp extends Test
 		var i = 10;
 		refTest(i);
 		eq(i, 20);
+		
+		var cl = new HxClass();
+		cl.refTest(i);
+		eq(i, 80);
 	}
 	
 	public function testOut()
@@ -29,6 +33,10 @@ class TestCSharp extends Test
 		var i = 0;
 		outTest(i, 10);
 		eq(i, 20);
+		
+		var cl = new HxClass();
+		cl.outTest(i, 10);
+		eq(i, 40);
 	}
 	
 	public function testChecked()
@@ -82,4 +90,37 @@ class TestCSharp extends Test
 	#end
 	
 	#end
+}
+
+@:nativegen private class NativeClass
+{
+	public function outTest(out:cs.Out<Int>, x:Int):Void
+	{
+		out = x * 2;
+	}
+	
+	public function refTest(i:cs.Ref<Int>):Void
+	{
+		i *= 2;
+	}
+}
+
+private class HxClass extends NativeClass
+{
+	public function new()
+	{
+		
+	}
+	
+	//here it would normally fail due to the added fast reflection field
+	override public function outTest(out:cs.Out<Int>, x:Int):Void 
+	{
+		out = x * 4;
+	}
+	
+	override public function refTest(i:cs.Ref<Int>):Void 
+	{
+		super.refTest(i);
+		i *= 2;
+	}
 }

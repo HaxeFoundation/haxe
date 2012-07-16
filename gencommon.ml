@@ -7075,7 +7075,7 @@ struct
     
     if is_override cl then cl.cl_overrides <- get_cl.cf_name :: cl.cl_overrides
   
-  let implement_invokeField ctx cl =
+  let implement_invokeField ctx ~slow_invoke cl =
     (* 
       There are two ways to implement an haxe reflection-enabled class:
       When we extend a non-hxgen class, and when we extend the base HxObject class.
@@ -7147,7 +7147,7 @@ struct
     
     let dyn_fun = mk_class_field (ctx.rcf_gen.gmk_internal_name "hx" "invokeField") fun_t false cl.cl_pos (Method MethNormal) [] in
     
-    let mk_switch_dyn cfs static = 
+    let mk_switch_dyn cfs static old = 
       (* mk_class_field name t public pos kind params = *)
       
       let get_case (names,cf) =
@@ -7173,6 +7173,13 @@ struct
       in
       
       let cases = List.map get_case cfs in
+      let cases = match old with
+        | [] -> cases
+        | _ -> 
+          let ncases = List.map (fun cf -> switch_case ctx pos cf.cf_name) old in
+          ( ncases, mk_return ((get slow_invoke) this (mk_local (fst (List.hd field_args)) pos) (mk_local dynamic_arg pos)) ) :: cases
+      in
+      
       let default = if !is_override && not(static) then 
         (* let call_super ctx fn_args ret_t fn_name this_t pos = *)
         { eexpr = TReturn(Some (call_super ctx all_args t_dynamic dyn_fun.cf_name this_t pos) ); etype = basic.tvoid; epos = pos }
@@ -7207,13 +7214,25 @@ struct
       let statics = collect_fields cl (Some true) (Some true) in
       let nonstatics = collect_fields cl (Some true) (Some false) in
       
+      let old_nonstatics = ref [] in
+      
+      let nonstatics = match slow_invoke with
+        | None -> nonstatics
+        | Some _ ->
+          List.filter (fun (n,cf) ->
+            let is_old = not (PMap.mem cf.cf_name cl.cl_fields) || List.mem cf.cf_name cl.cl_overrides in
+            (if is_old then old_nonstatics := cf :: !old_nonstatics);
+            not is_old
+          ) nonstatics
+      in
+      
       if ctx.rcf_handle_statics then 
       {
-        eexpr = TIf(mk_local is_static pos, mk_switch_dyn statics true, Some(mk_switch_dyn nonstatics false));
+        eexpr = TIf(mk_local is_static pos, mk_switch_dyn statics true [], Some(mk_switch_dyn nonstatics false !old_nonstatics));
         etype = basic.tvoid;
         epos = pos;
       } else
-        mk_switch_dyn nonstatics false
+        mk_switch_dyn nonstatics false !old_nonstatics
     in
     
     dyn_fun.cf_expr <- Some 
@@ -7556,13 +7575,13 @@ struct
   *)
   let priority = solve_deps name [DAfter UniversalBaseClass.priority]
   
-  let configure ctx =
+  let configure ?slow_invoke ctx =
     let gen = ctx.rcf_gen in
     let run = (fun md -> match md with
       | TClassDecl cl when is_hxgen md && ( not cl.cl_interface || has_meta ":$baseinterface" cl.cl_meta ) ->
         (if has_meta ":replaceReflection" cl.cl_meta then replace_reflection ctx cl);
         (if not (PMap.mem (gen.gmk_internal_name "hx" "getField") cl.cl_fields) then implement_get_set ctx cl);
-        (if not (PMap.mem (gen.gmk_internal_name "hx" "invokeField") cl.cl_fields) then implement_invokeField ctx cl);
+        (if not (PMap.mem (gen.gmk_internal_name "hx" "invokeField") cl.cl_fields) then implement_invokeField ctx ~slow_invoke:slow_invoke cl);
         (implement_dynamics ctx cl);
         (if not (PMap.mem (gen.gmk_internal_name "hx" "lookupField") cl.cl_fields) then implement_final_lookup ctx cl);
         (if not (PMap.mem (gen.gmk_internal_name "hx" "classFields") cl.cl_fields) then implement_fields ctx cl);

@@ -1,11 +1,6 @@
 package java.lang;
 import java.NativeArray;
 
-/**
- * ...
- * @author waneck
- */
-
 extern class Throwable 
 {
 	
