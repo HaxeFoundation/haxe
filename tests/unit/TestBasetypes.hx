@@ -84,14 +84,6 @@ class TestBasetypes extends Test {
 			eq(arr[0], "hellonull");
 		}
 		
-		{
-			//testing correct substitution of += on dynamically-typed string transformations
-			var arr:Array<Dynamic> = ["hello"];
-			var i = 0;
-			eq( cast(arr[i++] += arr[i], String), "hellonull");
-			eq(arr[0], "hellonull");
-		}
-		
 		var x = { hello:"world", val:5 };
 		var xs = "" + x;
 		// Output should contain hello followed by world, and val followed by 5.
