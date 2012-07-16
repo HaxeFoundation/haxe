@@ -217,7 +217,7 @@ let rec build_generic ctx c p tl =
 		let path = (match follow t with
 			| TInst (c,_) -> c.cl_path
 			| TEnum (e,_) -> e.e_path
-			| TMono _ -> error "Type parameter must be explicit when creating a haxe.rtti.Generic instance" p
+			| TMono _ -> error "Type parameter must be explicit when creating a generic instance" p
 			| _ -> error "Type parameter must be a class or enum instance" p
 		) in
 		match path with
@@ -291,7 +291,7 @@ let rec build_generic ctx c p tl =
 		cg.cl_constructor <- (match c.cl_constructor, c.cl_super with
 			| None, None -> None
 			| Some c, _ -> Some (build_field c)
-			| _ -> error "Please define a constructor for this class in order to use haxe.rtti.Generic" c.cl_pos
+			| _ -> error "Please define a constructor for this class in order to use it as generic" c.cl_pos
 		);
 		cg.cl_implements <- List.map (fun (i,tl) ->
 			(match follow (build_type (TInst (i, List.map build_type tl))) with
@@ -468,6 +468,7 @@ let on_inherit ctx c p h =
 		extend_remoting ctx c t p true false;
 		false
 	| HImplements { tpackage = ["haxe";"rtti"]; tname = "Generic"; tparams = [] } ->
+		if Common.defined ctx.com "haxe3" then error ("Implementing haxe.rtti.Generic is deprecated in haxe 3, please use @:generic instead") c.cl_pos;
 		if c.cl_types <> [] then c.cl_kind <- KGeneric;
 		false
 	| HExtends { tpackage = ["haxe";"xml"]; tname = "Proxy"; tparams = [TPExpr(EConst (String file),p);TPType t] } ->
@@ -558,12 +559,22 @@ let add_field_inits com c =
 			| _ ->
 				assert false
 
-let rec has_rtti c =
-	List.exists (function (t,pl) ->
-		match t, pl with
-		| { cl_path = ["haxe";"rtti"],"Infos" },[] -> true
-		| _ -> false
-	) c.cl_implements || (match c.cl_super with None -> false | Some (c,_) -> has_rtti c)
+let has_rtti ctx c =
+	let rec has_rtti_new c = 
+		has_meta ":rttiInfos" c.cl_meta || match c.cl_super with None -> false | Some (csup,_) -> has_rtti_new csup
+	in
+	let rec has_rtti_old c =
+		List.exists (function (t,pl) ->
+			match t, pl with
+			| { cl_path = ["haxe";"rtti"],"Infos" },[] -> true
+			| _ -> false
+		) c.cl_implements || (match c.cl_super with None -> false | Some (c,_) -> has_rtti_old c)
+	in
+	if Common.defined ctx.com "haxe3" then begin
+		if has_rtti_old c then error ("Implementing haxe.rtti.Infos is deprecated in haxe 3, please use @:rttiInfos instead") c.cl_pos;
+		has_rtti_new c
+	end else
+		has_rtti_old c || has_rtti_new c
 
 let restore c =
 	let meta = c.cl_meta and path = c.cl_path and ext = c.cl_extern in
@@ -593,7 +604,7 @@ let on_generate ctx t =
 				c.cl_path <- parse_path name;
 			| _ -> ()
 		) c.cl_meta;
-		if has_rtti c && not (PMap.mem "__rtti" c.cl_statics) then begin
+		if has_rtti ctx c && not (PMap.mem "__rtti" c.cl_statics) then begin
 			let f = mk_field "__rtti" ctx.t.tstring c.cl_pos in
 			let str = Genxml.gen_type_string ctx.com t in
 			f.cf_expr <- Some (mk (TConst (TString str)) f.cf_type c.cl_pos);

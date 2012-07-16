@@ -853,6 +853,7 @@ let init_class ctx c p herits fields =
 	let ctx = { ctx with type_params = c.cl_types } in
 	c.cl_extern <- List.mem HExtern herits;
 	c.cl_interface <- List.mem HInterface herits;
+	if has_meta ":generic" c.cl_meta && c.cl_types <> [] then c.cl_kind <- KGeneric;
 	if c.cl_path = (["haxe";"macro"],"MacroType") then c.cl_kind <- KMacroType;
 	set_heritance ctx c herits p;
 	let fields = ref fields in
