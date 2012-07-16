@@ -24,7 +24,10 @@
  */
 package haxe;
 
-class FastCell<T> #if (flash9 || cpp) implements haxe.rtti.Generic #end {
+#if (haxe3 && (flash9 || cpp))
+@:generic
+#end
+class FastCell<T> #if (!haxe3 && (flash9 || cpp)) implements haxe.rtti.Generic #end {
 	public var elt : T;
 	public var next : FastCell<T>;
 	public function new(elt,next) { this.elt = elt; this.next = next; }
