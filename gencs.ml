@@ -866,15 +866,20 @@ let configure gen =
           write w ")";
           expr_s w (mk_block eblock)
         | TCall ({ eexpr = TLocal( { v_name = "__fixed__" } ) }, [ e ] ) ->
-          write w "fixed(";
           let first = ref true in
           let rec loop = function
             | ({ eexpr = TVars([v, Some({ eexpr = TCast( { eexpr = TCast(e, _) }, _) }) ]) } as expr) :: tl when is_pointer v.v_type ->
-              (if !first then first := false else write w ", ");
-              expr_s w { expr with eexpr = TVars([v, Some e]) };
-              loop tl
-            | el when not !first ->
+              (if !first then first := false);
+              write w "fixed(";
+              let vf = mk_temp gen "fixed" v.v_type in
+              expr_s w { expr with eexpr = TVars([vf, Some e]) };
               write w ")";
+              begin_block w;
+              expr_s w { expr with eexpr = TVars([v, Some (mk_local vf expr.epos)]) };
+              write w ";";
+              loop tl;
+              end_block w
+            | el when not !first ->
               expr_s w { e with eexpr = TBlock el }
             | _ -> 
               trace (debug_expr e);

@@ -31,6 +31,20 @@ class TestCSharp extends Test
 		eq(i, 20);
 	}
 	
+	public function testChecked()
+	{
+		exc(function()
+		{
+			cs.Lib.checked({
+				var x = 1000;
+				while(true)
+				{
+					x *= x;
+				}
+			});
+		});
+	}
+	
 	#if unsafe
 	
 	@:unsafe public function testUnsafe()
@@ -38,7 +52,6 @@ class TestCSharp extends Test
 		var x:cs.NativeArray<Int> = new cs.NativeArray(10);
 		cs.Lib.fixed({
 			var p = cs.Lib.pointerOfArray(x);
-			var p = p;
 			for (i in 0...10)
 			{
 				p[0] = i;

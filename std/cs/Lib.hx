@@ -159,6 +159,8 @@ class Lib
 				var obj2 = cs.Lib.pointerOfArray(someArray2);
 				var obj3 = cs.Lib.pointerOfArray(someArray3);
 				//from now on, obj1, obj2 and obj3 are fixed
+				//we cannot change obj1, obj2 or obj3 variables like this:
+				//obj1++;
 			});
 		
 		This method only exists at compile-time, so it can't be called via reflection.
