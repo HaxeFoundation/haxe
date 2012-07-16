@@ -28,7 +28,7 @@ package sys.io;
 	Use [sys.io.File.read] to create a [FileInput]
 **/
 class FileInput extends cs.io.NativeInput {
-	public function new(stream:system.io.FileStream)
+	public function new(stream:cs.system.io.FileStream)
 	{
 		super(stream);
 	}

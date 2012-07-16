@@ -1,5 +1,5 @@
 package cs.internal;
-import system.Exception;
+import cs.system.Exception;
 
 //should NOT be usable inside haxe code
 @:nativegen @:keep @:native("haxe.lang.HaxeException") private class HaxeException extends Exception

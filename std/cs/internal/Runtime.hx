@@ -2,11 +2,11 @@ package cs.internal;
 import cs.Lib;
 import cs.NativeArray;
 import cs.NativeArray;
-import system.Activator;
-import system.IConvertible;
-import system.reflection.MethodBase;
-import system.reflection.MethodInfo;
-import system.Type;
+import cs.system.Activator;
+import cs.system.IConvertible;
+import cs.system.reflection.MethodBase;
+import cs.system.reflection.MethodInfo;
+import cs.system.Type;
 
 /**
  This class is meant for internal compiler use only. It provides the Haxe runtime
@@ -364,7 +364,7 @@ import system.Type;
 	{
 		var length = args.length;
 		var oargs:NativeArray<Dynamic> = new NativeArray(length);
-		var ts:NativeArray<system.Type> = new NativeArray(length);
+		var ts:NativeArray<cs.system.Type> = new NativeArray(length);
 		
 		for (i in 0...length)
 		{
@@ -434,7 +434,7 @@ import system.Type;
 			}
 		}
 		
-		if (methods[0].ContainsGenericParameters && Std.is(methods[0], system.reflection.MethodInfo))
+		if (methods[0].ContainsGenericParameters && Std.is(methods[0], cs.system.reflection.MethodInfo))
 		{
 			var m:MethodInfo = cast methods[0];
 			var tgs = m.GetGenericArguments();
@@ -448,9 +448,9 @@ import system.Type;
 		}
 		
 		var m = methods[0];
-		if (obj == null && Std.is(m, system.reflection.ConstructorInfo))
+		if (obj == null && Std.is(m, cs.system.reflection.ConstructorInfo))
 		{
-			var ret = cast(m, system.reflection.ConstructorInfo).Invoke(oargs);
+			var ret = cast(m, cs.system.reflection.ConstructorInfo).Invoke(oargs);
 			return unbox(ret);
 		}
 		
@@ -473,7 +473,7 @@ import system.Type;
 			return haxe.lang.Null<object>.ofDynamic<object>(obj);
 		return nullableType.GetMethod("_ofDynamic").Invoke(null, new object[] { obj });
 	')
-	public static function mkNullable(obj:Dynamic, nullableType:system.Type):Dynamic
+	public static function mkNullable(obj:Dynamic, nullableType:cs.system.Type):Dynamic
 	{
 		return null;
 	}
@@ -599,7 +599,7 @@ import system.Type;
 				return t1 == t2;
 			return t1.Name.Equals(t2.Name);
 	')
-	public static function typeEq(t1:system.Type, t2:system.Type):Bool
+	public static function typeEq(t1:cs.system.Type, t2:cs.system.Type):Bool
 	{
 		return false;
 	}
@@ -639,7 +639,7 @@ import system.Type;
 		else
 			return (System.Converter<object, To>) delegate(object obj) { return (To) obj; };
 	')
-	public static function getConverter<To>():system.Converter<Dynamic,To>
+	public static function getConverter<To>():cs.system.Converter<Dynamic,To>
 	{
 		return null;
 	}*/

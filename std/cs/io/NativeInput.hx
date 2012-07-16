@@ -9,7 +9,7 @@ class NativeInput extends Input
 {
 	public var canSeek(get_canSeek, null):Bool;
 	
-	var stream:system.io.Stream;
+	var stream:cs.system.io.Stream;
 	public function new(stream)
 	{
 		this.stream = stream;
@@ -47,9 +47,9 @@ class NativeInput extends Input
 	{
 		var p = switch(pos)
 		{
-			case SeekBegin: system.io.SeekOrigin.Begin;
-			case SeekCur: system.io.SeekOrigin.Current;
-			case SeekEnd: system.io.SeekOrigin.End;
+			case SeekBegin: cs.system.io.SeekOrigin.Begin;
+			case SeekCur: cs.system.io.SeekOrigin.Current;
+			case SeekEnd: cs.system.io.SeekOrigin.End;
 		};
 		
 		stream.Seek(cast(p, Int64), p);

@@ -63,7 +63,7 @@ enum ValueType {
 
 	public static function getSuperClass( c : Class<Dynamic> ) : Class<Dynamic> 
 	{
-		var t:system.Type = Lib.toNativeType(c);
+		var t:cs.system.Type = Lib.toNativeType(c);
 		var base = t.BaseType;
 		if (base == null || (base + "") == ("haxe.lang.HxObject") || (base + "") == ("System.Object"))
 		{
@@ -109,7 +109,7 @@ enum ValueType {
 		if (name.indexOf(".") == -1)
 			name = "haxe.root." + name;
 #end
-		var t:system.Type = system.Type.GetType(name);
+		var t:cs.system.Type = cs.system.Type.GetType(name);
 		if (t == null)
 		{
 			switch(name)
@@ -121,7 +121,7 @@ enum ValueType {
 				case #if no-root "haxe.root.Dynamic" #else "Dynamic" #end: return Dynamic;
 				default: return null;
 			}
-		} else if (t.IsInterface && cast(untyped __typeof__(IGenericObject), system.Type).IsAssignableFrom(t)) { 
+		} else if (t.IsInterface && cast(untyped __typeof__(IGenericObject), cs.system.Type).IsAssignableFrom(t)) { 
 			t = null;
 			var i = 0;
 			var ts = "";
@@ -129,7 +129,7 @@ enum ValueType {
 			{
 				i++;
 				ts += (i == 1 ? "" : ",") + "System.Object";
-				t = system.Type.GetType(name + "`" + i + "[" + ts + "]");
+				t = cs.system.Type.GetType(name + "`" + i + "[" + ts + "]");
 			}
 			
 			return Lib.fromNativeType(t);
@@ -147,7 +147,7 @@ enum ValueType {
 
 	public static function createInstance<T>( cl : Class<T>, args : Array<Dynamic> ) : T
 	{
-		var t:system.Type = Lib.toNativeType(cl);
+		var t:cs.system.Type = Lib.toNativeType(cl);
 		var ctors = t.GetConstructors();
 		return Runtime.callMethod(null, cast ctors, ctors.Length, args);
 	}

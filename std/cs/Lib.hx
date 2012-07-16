@@ -1,5 +1,5 @@
 package cs;
-import system.Type;
+import cs.system.Type;
 
 /**
 	Platform-specific C# Library. Provides some platform-specific functions for the C# target,
@@ -51,7 +51,7 @@ class Lib
 			return native;
 		} else {
 			var ret = new NativeArray<T>(len);
-			system.Array.Copy(native, 0, ret, 0, len);
+			cs.system.Array.Copy(native, 0, ret, 0, len);
 			return ret;
 		}
 	}
@@ -76,7 +76,7 @@ class Lib
 		Currently Haxe's Class<> is equivalent to System.Type, but this is an implementation detail.
 		This may change in the future, so use this function whenever you need to perform such conversion.
 	**/
-	public static inline function fromNativeType(t:system.Type):Class<Dynamic>
+	public static inline function fromNativeType(t:cs.system.Type):Class<Dynamic>
 	{
 		return untyped t;
 	}

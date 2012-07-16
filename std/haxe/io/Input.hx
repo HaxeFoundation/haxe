@@ -117,7 +117,7 @@ class Input {
 				var len = buf.getData().Length;
 				if (len > tlen)
 					len = tlen;
-				system.Array.Copy(buf.getData(), 0, ret, idx, len);
+				cs.system.Array.Copy(buf.getData(), 0, ret, idx, len);
 				idx += len;
 				tlen -= len;
 			}
@@ -210,7 +210,7 @@ class Input {
 			if (helper == null) helper = new cs.NativeArray(8);
 			
 			var helper = helper;
-			if (bigEndian == !system.BitConverter.IsLittleEndian)
+			if (bigEndian == !cs.system.BitConverter.IsLittleEndian)
 			{
 				helper[0] = readByte();
 				helper[1] = readByte();
@@ -223,7 +223,7 @@ class Input {
 				helper[0] = readByte();
 			}
 			
-			return system.BitConverter.ToSingle(helper, 0);
+			return cs.system.BitConverter.ToSingle(helper, 0);
 		#elseif java
 			if (helper == null) helper = java.nio.ByteBuffer.allocateDirect(8);
 			var helper = helper;
@@ -283,7 +283,7 @@ class Input {
 		if (helper == null) helper = new cs.NativeArray(8);
 		
 		var helper = helper;
-		if (bigEndian == !system.BitConverter.IsLittleEndian)
+		if (bigEndian == !cs.system.BitConverter.IsLittleEndian)
 		{
 			helper[0] = readByte();
 			helper[1] = readByte();
@@ -304,7 +304,7 @@ class Input {
 			helper[0] = readByte();
 		}
 		
-		return system.BitConverter.ToDouble(helper, 0);
+		return cs.system.BitConverter.ToDouble(helper, 0);
 		#elseif java
 		if (helper == null) helper = java.nio.ByteBuffer.allocateDirect(8);
 		var helper = helper;

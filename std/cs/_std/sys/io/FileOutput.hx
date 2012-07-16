@@ -28,7 +28,7 @@ package sys.io;
 	Use [sys.io.File.write] to create a [FileOutput]
 **/
 class FileOutput extends cs.io.NativeOutput {
-	public function new(stream:system.io.FileStream)
+	public function new(stream:cs.system.io.FileStream)
 	{
 		super(stream);
 	}

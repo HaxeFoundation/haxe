@@ -24,8 +24,8 @@
  */
 package sys.io;
 import haxe.io.BytesInput;
-import system.io.StreamReader;
-import system.io.StreamWriter;
+import cs.system.io.StreamReader;
+import cs.system.io.StreamWriter;
 
 class Process {
 

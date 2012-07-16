@@ -35,7 +35,7 @@ class BytesBuffer {
 	#elseif cpp
 	var b : BytesData;
 	#elseif cs
-	var b : system.io.MemoryStream;
+	var b : cs.system.io.MemoryStream;
 	#elseif java
 	var b : java.io.ByteArrayOutputStream;
 	#else
@@ -52,7 +52,7 @@ class BytesBuffer {
 		#elseif cpp
 		b = new BytesData();
 		#elseif cs
-		b = new system.io.MemoryStream();
+		b = new cs.system.io.MemoryStream();
 		#elseif java
 		b = new java.io.ByteArrayOutputStream();
 		#else

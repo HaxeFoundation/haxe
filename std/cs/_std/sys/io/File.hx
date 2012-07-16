@@ -62,9 +62,9 @@ class File {
 	public static function read( path : String, binary : Bool = true ) : FileInput
 	{
 		#if std-buffer //standardize 4kb buffers
-		var stream = new system.io.FileStream(path, Open, Read, ReadWrite, 4096);
+		var stream = new cs.system.io.FileStream(path, Open, Read, ReadWrite, 4096);
 		#else
-		var stream = new system.io.FileStream(path, Open, Read, ReadWrite);
+		var stream = new cs.system.io.FileStream(path, Open, Read, ReadWrite);
 		#end
 		return new FileInput(stream);
 	}
@@ -72,9 +72,9 @@ class File {
 	public static function write( path : String, binary : Bool = true ) : FileOutput
 	{
 		#if std-buffer //standardize 4kb buffers
-		var stream = new system.io.FileStream(path, Create, Write, ReadWrite, 4096);
+		var stream = new cs.system.io.FileStream(path, Create, Write, ReadWrite, 4096);
 		#else
-		var stream = new system.io.FileStream(path, Create, Write, ReadWrite);
+		var stream = new cs.system.io.FileStream(path, Create, Write, ReadWrite);
 		#end
 		return new FileOutput(stream);
 	}
@@ -82,15 +82,15 @@ class File {
 	public static function append( path : String, binary : Bool = true ) : FileOutput
 	{
 		#if std-buffer //standardize 4kb buffers
-		var stream = new system.io.FileStream(path, Append, Write, ReadWrite, 4096);
+		var stream = new cs.system.io.FileStream(path, Append, Write, ReadWrite, 4096);
 		#else
-		var stream = new system.io.FileStream(path, Append, Write, ReadWrite);
+		var stream = new cs.system.io.FileStream(path, Append, Write, ReadWrite);
 		#end
 		return new FileOutput(stream);
 	}
 	
 	public static function copy( src : String, dst : String ) : Void
 	{
-		system.io.File.Copy(src, dst);
+		cs.system.io.File.Copy(src, dst);
 	}
 }

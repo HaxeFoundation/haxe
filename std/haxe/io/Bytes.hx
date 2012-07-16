@@ -83,7 +83,7 @@ class Bytes {
 		#elseif java
 		java.lang.System.arraycopy(src.b, srcpos, b, pos, len);
 		#elseif cs
-		system.Array.Copy(src.b, srcpos, b, pos, len);
+		cs.system.Array.Copy(src.b, srcpos, b, pos, len);
 		#else
 		var b1 = b;
 		var b2 = src.b;
@@ -120,7 +120,7 @@ class Bytes {
 		return new Bytes(len, newarr);
 		#elseif cs
 		var newarr = new cs.NativeArray(len);
-		system.Array.Copy(b, pos, newarr, 0, len);
+		cs.system.Array.Copy(b, pos, newarr, 0, len);
 		return new Bytes(len, newarr);
 		#else
 		return new Bytes(len,b.slice(pos,pos+len));
@@ -183,7 +183,7 @@ class Bytes {
 		untyped __global__.__hxcpp_string_of_bytes(b,result,pos,len);
 		return result;
 		#elseif cs
-		return system.text.Encoding.UTF8.GetString(b, pos, len);
+		return cs.system.text.Encoding.UTF8.GetString(b, pos, len);
 		#elseif java
 		try
 			return new String(b, pos, len, "UTF-8")
@@ -226,7 +226,7 @@ class Bytes {
 		return cast b;
 //		return untyped __call__("call_user_func_array", "pack", __call__("array_merge", __call__("array", "C*"), b.»a));
 		#elseif cs
-		return system.text.Encoding.UTF8.GetString(b, 0, length);
+		return cs.system.text.Encoding.UTF8.GetString(b, 0, length);
 		#elseif java
 		try
 		{
@@ -303,7 +303,7 @@ class Bytes {
 		untyped __global__.__hxcpp_bytes_of_string(a,s);
 		return new Bytes(a.length, a);
 		#elseif cs
-		var b = system.text.Encoding.UTF8.GetBytes(s);
+		var b = cs.system.text.Encoding.UTF8.GetBytes(s);
 		return new Bytes(b.Length, b);
 		#elseif java
 		try

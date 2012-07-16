@@ -1,6 +1,6 @@
 import sys.io.Process;
-import system.Environment;
-import system.threading.Thread;
+import cs.system.Environment;
+import cs.system.threading.Thread;
 /*
  * Copyright (c) 2005-2012, The haXe Project Contributors
  * All rights reserved.
@@ -39,7 +39,7 @@ class Sys {
 	**/
 	public static function print( v : Dynamic ) : Void
 	{
-		system.Console.Write(v);
+		cs.system.Console.Write(v);
 	}
 
 	/**
@@ -47,7 +47,7 @@ class Sys {
 	**/
 	public static function println( v : Dynamic ) : Void
 	{
-		system.Console.WriteLine(v);
+		cs.system.Console.WriteLine(v);
 	}
 
 	/**
@@ -123,7 +123,7 @@ class Sys {
 	**/
 	public static function getCwd() : String
 	{
-		return system.io.Directory.GetCurrentDirectory();
+		return cs.system.io.Directory.GetCurrentDirectory();
 	}
 
 	/**
@@ -131,7 +131,7 @@ class Sys {
 	**/
 	public static function setCwd( s : String ) : Void
 	{
-		system.io.Directory.SetCurrentDirectory(s);
+		cs.system.io.Directory.SetCurrentDirectory(s);
 	}
 
 	/**
@@ -219,7 +219,7 @@ class Sys {
 	public static function stdin() : haxe.io.Input
 	{
 #if !(Xbox || CF || MF)
-		return new cs.io.NativeInput(system.Console.OpenStandardInput());
+		return new cs.io.NativeInput(cs.system.Console.OpenStandardInput());
 #else
 		return null;
 #end
@@ -231,7 +231,7 @@ class Sys {
 	public static function stdout() : haxe.io.Output
 	{
 #if !(Xbox || CF || MF)
-		return new cs.io.NativeOutput(system.Console.OpenStandardOutput());
+		return new cs.io.NativeOutput(cs.system.Console.OpenStandardOutput());
 #else
 		return null;
 #end
@@ -243,7 +243,7 @@ class Sys {
 	public static function stderr() : haxe.io.Output
 	{
 #if !(Xbox || CF || MF)
-		return new cs.io.NativeOutput(system.Console.OpenStandardError());
+		return new cs.io.NativeOutput(cs.system.Console.OpenStandardError());
 #else
 		return null;
 #end

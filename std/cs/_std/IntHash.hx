@@ -408,8 +408,8 @@ import cs.NativeArray;
 
 	private static inline function defaultK():Int return 0
 
-	private static inline function arrayCopy(sourceArray:system.Array, sourceIndex:Int, destinationArray:system.Array, destinationIndex:Int, length:Int):Void
-		system.Array.Copy(sourceArray, sourceIndex, destinationArray, destinationIndex, length)
+	private static inline function arrayCopy(sourceArray:cs.system.Array, sourceIndex:Int, destinationArray:cs.system.Array, destinationIndex:Int, length:Int):Void
+		cs.system.Array.Copy(sourceArray, sourceIndex, destinationArray, destinationIndex, length)
 
 	private static inline function getInc(k:Int, mask:Int):Int
 		return (((k) >> 3 ^ (k) << 3) | 1) & (mask)

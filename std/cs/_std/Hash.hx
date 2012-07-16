@@ -475,8 +475,8 @@ import cs.NativeArray;
 		return ret;
 	}
 	
-	@:extern private static inline function arrayCopy(sourceArray:system.Array, sourceIndex:Int, destinationArray:system.Array, destinationIndex:Int, length:Int):Void
-		system.Array.Copy(sourceArray, sourceIndex, destinationArray, destinationIndex, length)
+	@:extern private static inline function arrayCopy(sourceArray:cs.system.Array, sourceIndex:Int, destinationArray:cs.system.Array, destinationIndex:Int, length:Int):Void
+		cs.system.Array.Copy(sourceArray, sourceIndex, destinationArray, destinationIndex, length)
 	
 	@:extern private static inline function assert(x:Bool):Void
 	{

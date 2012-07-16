@@ -1,7 +1,7 @@
 package cs;
 
 //FIXME this class is here due to seemingly a bug in type resolution inside _std packages.
-//Once this bug is fixed, it will be moved back to the system.text package
+//Once this bug is fixed, it will be moved back to the cs.system.text package
 @:native('System.Text.StringBuilder') extern class StringBuilder 
 {
 

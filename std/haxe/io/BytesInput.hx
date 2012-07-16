@@ -95,7 +95,7 @@ class BytesInput extends Input {
 			if ( len > avail ) len = avail;
 			if (len == 0)
 				throw new Eof();
-			system.Array.Copy(this.b,this.pos, buf.getData(), pos, len);
+			cs.system.Array.Copy(this.b,this.pos, buf.getData(), pos, len);
 			this.pos += len;
 			this.len -= len;
 		#else

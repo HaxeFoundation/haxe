@@ -105,8 +105,8 @@ class Output {
 		#elseif php
 		write(untyped Bytes.ofString(__call__('pack', 'f', x)));
 		#elseif cs
-		var bytes = system.BitConverter.GetBytes(cast(x, Single));
-		if (bigEndian == system.BitConverter.IsLittleEndian)
+		var bytes = cs.system.BitConverter.GetBytes(cast(x, Single));
+		if (bigEndian == cs.system.BitConverter.IsLittleEndian)
 		{
 			writeByte(bytes[3]);
 			writeByte(bytes[2]);
@@ -159,8 +159,8 @@ class Output {
 		#elseif php
 		write(untyped Bytes.ofString(__call__('pack', 'd', x)));
 		#elseif cs
-		var bytes = system.BitConverter.GetBytes(x);
-		if (bigEndian == system.BitConverter.IsLittleEndian)
+		var bytes = cs.system.BitConverter.GetBytes(x);
+		if (bigEndian == cs.system.BitConverter.IsLittleEndian)
 		{
 			writeByte(bytes[7]);
 			writeByte(bytes[6]);

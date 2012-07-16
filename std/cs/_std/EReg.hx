@@ -23,7 +23,7 @@
  * DAMAGE.
  */
 
-import system.text.regularExpressions.Regex;
+import cs.system.text.regularExpressions.Regex;
 
 @:core_api class EReg {
 

@@ -23,10 +23,10 @@
  * DAMAGE.
  */
 package sys;
-import system.io.DirectoryInfo;
-import system.io.File;
-import system.io.Directory;
-import system.io.FileInfo;
+import cs.system.io.DirectoryInfo;
+import cs.system.io.File;
+import cs.system.io.Directory;
+import cs.system.io.FileInfo;
 
 /**
 	This class allows you to get informations about the files and directories.

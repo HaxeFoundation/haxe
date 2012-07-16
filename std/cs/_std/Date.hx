@@ -1,5 +1,5 @@
 package;
-import system.DateTime;
+import cs.system.DateTime;
 import haxe.Int64;
 
 @:core_api class Date 
@@ -149,7 +149,7 @@ import haxe.Int64;
 		}
 	}
 	
-	private static function fromNative( d : system.DateTime ) : Date
+	private static function fromNative( d : cs.system.DateTime ) : Date
 	{
 		var date = new Date(0, 0, 0, 0, 0, 0);
 		date.date = d;
