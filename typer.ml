@@ -1797,7 +1797,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 						unify ctx e.etype t p;
 						Some e
 				) in
-				if v.[0] = '$' then error "Variables names starting with a dollar are not allowed" p;
+				if v.[0] = '$' && not ctx.com.display then error "Variables names starting with a dollar are not allowed" p;
 				add_local ctx v t, e
 			with
 				Error (e,p) ->
