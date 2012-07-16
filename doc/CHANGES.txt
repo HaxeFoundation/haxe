@@ -1,10 +1,5 @@
-2012-xx-xx: 2.10
-	as3 : many small fixes
-	as3 : support for metadata and resources
-	all : allow function calls as field variable initialization if a constant expression is returned
-	all : many DCE fixes
-
-2012-06-20: 2.10 RC
+2012-07-16: 2.10
+	java/cs : added two new targets (beta)
 	all : fixed List and Null<T> for first, last, pop
 	js : added js.Lib.debug()
 	flash : fixed Xml.parent() when no parent
@@ -50,8 +45,9 @@
 	all : ensure that Std.string of arrays and enums are now consistent across platforms
 	all : allow to inline functions containing other functions
 	xml : added metadata output to xml generator
-	macro : added macro <expr> reification
+	macro : added macro <expr> and macro : <type> reification
 	all : renamed type(e) to $type(e)
+	as3 : support for metadata and resources, and other fixes
 
 2012-04-14: 2.09
 	all : optimized const == const and const != const (with different const types)
