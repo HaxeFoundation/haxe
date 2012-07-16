@@ -52,6 +52,7 @@
 
 --next
 -cs all_cs
+-D unsafe
 --no-output
 -xml cs.xml
 -D xmldoc
