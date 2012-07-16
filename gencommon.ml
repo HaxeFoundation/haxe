@@ -911,7 +911,60 @@ let write_file gen w source_dir path extension =
     close_out f
   end;
   t()
-
+  
+let dump_descriptor gen name path_s =
+  let w = SourceWriter.new_source_writer () in
+  (* dump called path *)
+  SourceWriter.write w (Sys.getcwd());
+  SourceWriter.newline w;
+  (* dump all defines *)
+  SourceWriter.write w "begin defines";
+  SourceWriter.newline w;
+  PMap.iter (fun name _ ->
+    SourceWriter.write w name;
+    SourceWriter.newline w
+  ) gen.gcon.defines;
+  SourceWriter.write w "end defines";
+  SourceWriter.newline w;
+  (* dump all generated types *)
+  SourceWriter.write w "begin modules";
+  SourceWriter.newline w;
+  List.iter (fun md_def ->
+    SourceWriter.write w "M ";
+    SourceWriter.write w (path_s md_def.m_path);
+    SourceWriter.newline w;
+    List.iter (fun m ->
+      match m with
+        | TClassDecl cl when not cl.cl_extern ->
+          SourceWriter.write w "C ";
+          SourceWriter.write w (path_s cl.cl_path);
+          SourceWriter.newline w
+        | TEnumDecl e when not e.e_extern ->
+          SourceWriter.write w "E ";
+          SourceWriter.write w (path_s e.e_path);
+          SourceWriter.newline w
+        | _ -> () (* still no typedef is generated *)
+    ) md_def.m_types
+  ) gen.gcon.modules;
+  SourceWriter.write w "end modules";
+  SourceWriter.newline w;
+  (* dump all resources *)
+  SourceWriter.write w "begin resources";
+  SourceWriter.newline w;
+  Hashtbl.iter (fun name path -> 
+    SourceWriter.write w path;
+    SourceWriter.write w "@";
+    SourceWriter.write w name;
+    SourceWriter.newline w
+  ) gen.gcon.resources;
+  SourceWriter.write w "end resources";
+  SourceWriter.newline w;
+  
+  let contents = SourceWriter.contents w in
+  let f = open_out (gen.gcon.file ^ "/" ^ name) in
+  output_string f contents;
+  close_out f
+  
 (*
   helper function to create the source structure. Will send each module_def to the function passed.
   If received true, it means that module_gen has generated this content, so the file must be saved.
