@@ -24,7 +24,10 @@
  */
 package haxe;
 
-class FastCell<T> #if (flash9 || cpp) implements haxe.rtti.Generic #end {
+#if (haxe3 && (flash9 || cpp))
+@:generic
+#end
+class FastCell<T> #if (!haxe3 && (flash9 || cpp)) implements haxe.rtti.Generic #end {
 	public var elt : T;
 	public var next : FastCell<T>;
 	public function new(elt,next) { this.elt = elt; this.next = next; }
@@ -47,10 +50,10 @@ private class FastListIterator<T> extends cpp.FastIterator<T>#if !haxe3 , implem
 /**
 	A linked-list of elements. A different class is created for each container used in platforms where it matters
 **/
-#if haxe3 && (flash9 || cpp)
+#if (haxe3 && (flash9 || cpp))
 @:generic
 #end
-class FastList<T> #if !haxe3 && (flash9 || cpp) implements haxe.rtti.Generic #end {
+class FastList<T> #if (!haxe3 && (flash9 || cpp)) implements haxe.rtti.Generic #end {
 
 	public var head : FastCell<T>;
 
