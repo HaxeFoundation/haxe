@@ -42,7 +42,7 @@ class Lib
 		
 		If equalLengthRequired is true, the result might be a copy of an array with the correct size.
 	**/
-	public static function toNativeReadOnlyArray<T>(arr:Array<T>, equalLengthRequired:Bool):NativeArray<T>
+	public static function nativeArray<T>(arr:Array<T>, equalLengthRequired:Bool):NativeArray<T>
 	{
 		var native:NativeArray<T> = untyped arr.__a;
 		var len = arr.length;
@@ -117,4 +117,93 @@ class Lib
 	{
 		return untyped Array.alloc(size);
 	}
+	
+	
+	//Unsafe code manipulation
+	#if unsafe
+	/**
+		Marks its parameters as fixed objects inside the defined block.
+		Usage:
+			cs.Lib.fixed(obj1, obj2, obj3, 
+			{
+				//inside here obj1, obj2 and obj3 are fixed
+			});
+		
+		This method only exists at compile-time, so it can't be called via reflection.
+	**/
+	@:extern public static inline function fixed(?p1:Dynamic, ?p2:Dynamic, ?p3:Dynamic, ?p4:Dynamic, ?p5:Dynamic, ?p6:Dynamic, ?p7:Dynamic, ?p8:Dynamic, ?p9:Dynamic, ?p10:Dynamic):Void
+	{
+		untyped __fixed__(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10);
+	}
+	
+	/**
+		Marks the contained block as an unsafe block, meaning that it can contain unsafe code.
+		Usage:
+			cs.Lib.unsafe({
+				//unsafe code is allowed inside here
+			});
+		
+		This method only exists at compile-time, so it can't be called via reflection.
+	**/
+	@:extern public static inline function unsafe(block:Dynamic):Void
+	{
+		untyped __unsafe__(block);
+	}
+	
+	/**
+		Gets the pointer to the address of current local. Equivalent to the "&" operator in C#
+		Usage:
+			var x:Int = 0;
+			cs.Lib.unsafe({
+				var addr = cs.Lib.addressOf(x);
+				x[0] = 42;
+			});
+			trace(x); //42
+		
+		This method only exists at compile-time, so it can't be called via reflection.
+		Warning: This method will only work if a local variable is passed as an argument.
+	**/
+	@:extern public static inline function addressOf<T>(variable:T):cs.Pointer<T>
+	{
+		return untyped __addressOf__(variable);
+	}
+	
+	/**
+		Gets the value of the pointer address.
+		Usage:
+			var x:Int = 0;
+			cs.Lib.unsafe({
+				var addr = cs.Lib.addressOf(x);
+				trace(cs.Lib.valueOf(addr)); //0
+				x[0] = 42;
+				trace(cs.Lib.valueOf(addr)); //42
+			});
+			trace(x); //42
+		
+		This method only exists at compile-time, so it can't be called via reflection.
+	**/
+	@:extern public static inline function valueOf<T>(pointer:cs.Pointer<T>):T
+	{
+		return untyped __valueOf__(pointer, idx);
+	}
+	
+	/**
+		Transforms a managed native array into a Pointer.
+		Usage:
+			var x:cs.NativeArray<Int> = new cs.NativeArray(1);
+			cs.Lib.unsafe({
+				var addr = cs.Lib.pointerOfArray(x);
+				trace(cs.Lib.valueOf(addr)); //0
+				x[0] = 42;
+				trace(cs.Lib.valueOf(addr)); //42
+			});
+			trace(x[0]); //42
+		
+		This method only exists at compile-time, so it can't be called via reflection.
+	**/
+	@:extern public static inline function pointerOfArray<T>(array:cs.NativeArray<T>):cs.Pointer<T>
+	{
+		return cast array;
+	}
+	#end
 }

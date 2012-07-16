@@ -545,6 +545,8 @@ let configure gen =
       | TType ({ t_path = ["cs"],"Int16" },[])
       | TType ({ t_path = ["cs"],"UInt16" },[]) 
       | TType ({ t_path = ["cs"],"Char16" },[])
+      | TType ({ t_path = ["cs"],"Ref" },_)
+      | TType ({ t_path = ["cs"],"Out" },_)
       | TType ({ t_path = [],"Single" },[]) -> Some t
 			| TInst( { cl_path = ([], "EnumValue") }, _  ) -> Some t_dynamic
       | _ -> None);
@@ -658,6 +660,8 @@ let configure gen =
       | TInst ({ cl_path = ["haxe"],"Int32" },[]) -> "int"
       | TInst ({ cl_path = ["haxe"],"Int64" },[]) -> "long"
       | TInst ({ cl_path = ([], "Dynamic") }, _) -> "object"
+      | TType ({ t_path = ["cs"],"Out" },[t])
+      | TType ({ t_path = ["cs"],"Ref" },[t]) -> t_s t
       | TInst({ cl_path = (["cs"], "NativeArray") }, [param]) ->
         let rec check_t_s t =
           match real_type t with
@@ -690,6 +694,13 @@ let configure gen =
   let rett_s t =
     match t with
       | TEnum ({e_path = ([], "Void")}, []) -> "void"
+      | _ -> t_s t
+  in
+  
+  let argt_s t =
+    match t with
+      | TType ({ t_path = (["cs"], "Ref") }, [t]) -> "ref " ^ t_s t
+      | TType ({ t_path = (["cs"], "Out") }, [t]) -> "out " ^ t_s t
       | _ -> t_s t
   in
 
@@ -863,12 +874,45 @@ let configure gen =
               write w ">"
           );
           
+          let rec ensure_local e explain =
+            match e.eexpr with 
+              | TLocal _ -> e
+              | TCast(e,_)
+              | TParenthesis e -> ensure_local e explain
+              | _ -> gen.gcon.error ("The function argument of type " ^ explain ^ " must be a local variable.") e.epos; e
+          in
+          
+          let rec loop acc elist tlist =
+            match elist, tlist with
+              | e :: etl, (_,_,t) :: ttl ->
+                (if acc <> 0 then write w ", ");
+                (match real_type t with
+                  | TType({ t_path = (["cs"], "Ref") }, _) ->
+                    let e = ensure_local e "cs.Ref" in
+                    write w "ref ";
+                    expr_s w e
+                  | TType({ t_path = (["cs"], "Out") }, _) ->
+                    let e = ensure_local e "cs.Out" in
+                    write w "out ";
+                    expr_s w e
+                  | _ ->
+                    expr_s w e
+                );
+                loop (acc + 1) etl ttl
+              | e :: etl, [] ->
+                (if acc <> 0 then write w ", ");
+                expr_s w e;
+                loop (acc + 1) etl []
+              | _ -> ()
+          in
           write w "(";
-          ignore (List.fold_left (fun acc e ->
-            (if acc <> 0 then write w ", ");
-            expr_s w e;
-            acc + 1
-          ) 0 el);
+          let ft = match follow e.etype with
+            | TFun(args,_) -> args
+            | _ -> []
+          in
+          
+          loop 0 el ft;
+          
           write w ")"
         | TNew (({ cl_path = (["cs"], "NativeArray") } as cl), params, [ size ]) ->
           let rec check_t_s t times =
@@ -1121,7 +1165,7 @@ let configure gen =
         print w "%s %s %s %s %s" (visibility) v_n (String.concat " " modifiers) (if is_new then "" else rett_s (run_follow gen ret_type)) (change_field name);
         let params, params_ext = get_string_params cf.cf_params in
         (* <T>(string arg1, object arg2) with T : object *)
-        print w "%s(%s)%s" (params) (String.concat ", " (List.map (fun (name, _, t) -> sprintf "%s %s" (t_s (run_follow gen t)) (change_id name)) args)) (params_ext);
+        print w "%s(%s)%s" (params) (String.concat ", " (List.map (fun (name, _, t) -> sprintf "%s %s" (argt_s (run_follow gen t)) (change_id name)) args)) (params_ext);
         if is_interface then
           write w ";"
         else begin

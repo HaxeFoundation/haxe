@@ -199,6 +199,9 @@ package unit;
 			new TestReflect(),
 			new TestSerialize(),
 			new TestMeta(),
+			#if cs
+			new TestCSharp(),
+			#end
 			//new TestUnspecified(),
 			//new TestRemoting(),
 		];

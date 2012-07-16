@@ -4,11 +4,6 @@ import java.StdTypes;
 
 private typedef StdFloat = Float;
 
-/**
- * ...
- * @author waneck
- */
-
 @:abstract extern class Number 
 {
 	
