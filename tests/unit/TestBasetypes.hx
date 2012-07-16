@@ -76,14 +76,6 @@ class TestBasetypes extends Test {
 		eq("hello" +x, "hellonull");
 		eq(x + "hello", "nullhello");
 		
-		{
-			//testing correct substitution of += on string transformations
-			var arr = ["hello"];
-			var i = 0;
-			eq(arr[i++] += arr[i], "hellonull");
-			eq(arr[0], "hellonull");
-		}
-		
 		var x = { hello:"world", val:5 };
 		var xs = "" + x;
 		// Output should contain hello followed by world, and val followed by 5.
