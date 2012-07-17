@@ -588,14 +588,22 @@ class Main {
 		print(getRepository());
 	}
 
+	function getCurrent( dir ) {
+		return StringTools.trim(sys.io.File.getContent(dir + "/.current"));
+	}
+
+	function getDev( dir ) {
+		return StringTools.trim(sys.io.File.getContent(dir + "/.dev"));
+	}
+
 	function list() {
 		var rep = getRepository();
 		for( p in sys.FileSystem.readDirectory(rep) ) {
 			if( p.charAt(0) == "." )
 				continue;
 			var versions = new Array();
-			var current = sys.io.File.getContent(rep+p+"/.current");
-			var dev = try sys.io.File.getContent(rep+p+"/.dev") catch( e : Dynamic ) null;
+			var current = getCurrent(rep + p);
+			var dev = try StringTools.trim(sys.io.File.getContent(rep+p+"/.dev")) catch( e : Dynamic ) null;
 			for( v in sys.FileSystem.readDirectory(rep+p) ) {
 				if( v.charAt(0) == "." )
 					continue;
@@ -677,7 +685,7 @@ class Main {
 		if( !sys.FileSystem.exists(vdir) )
 			throw "Library "+prj+" does not have version "+version+" installed";
 
-		var cur = sys.io.File.getContent(pdir+"/.current");
+		var cur = getCurrent(pdir);
 		if( cur == version )
 			throw "Can't remove current version of library "+prj;
 		deleteRec(vdir);
@@ -695,12 +703,11 @@ class Main {
 		var vdir = pdir + "/" + Datas.safe(version);
 		if( !sys.FileSystem.exists(vdir) )
 			throw "Library "+prj+" version "+version+" is not installed";
-		var current = pdir+"/.current";
-		if( sys.io.File.getContent(current) == version )
+		if( getCurrent(pdir) == version )
 			return;
 		if( doAsk && ask("Set "+prj+" to version "+version) == No )
 			return;
-		sys.io.File.saveContent(current,version);
+		sys.io.File.saveContent(pdir+"/.current",version);
 		print("Library "+prj+" current version is now "+version);
 	}
 
@@ -708,10 +715,10 @@ class Main {
 		var pdir = getRepository() + Datas.safe(prj);
 		if( !sys.FileSystem.exists(pdir) )
 			throw "Library "+prj+" is not installed : run 'haxelib install "+prj+"'";
-		var version = if( version != null ) version else sys.io.File.getContent(pdir+"/.current");
+		var version = if( version != null ) version else getCurrent(pdir);
 		var vdir = pdir + "/" + Datas.safe(version);
-		if (StringTools.endsWith(vdir, "dev"))
-			vdir = sys.io.File.getContent(pdir + "/.dev");
+		if( StringTools.endsWith(vdir, "dev") )
+			vdir = getDev(pdir);
 		if( !sys.FileSystem.exists(vdir) )
 			throw "Library "+prj+" version "+version+" is not installed";
 		for( p in l )
@@ -738,7 +745,7 @@ class Main {
 			var pdir = Datas.safe(d.project)+"/"+Datas.safe(d.version)+"/";
 			var dir = rep + pdir;
 			try {
-				dir = sys.io.File.getContent(rep+Datas.safe(d.project)+"/.dev");
+				dir = getDev(rep+Datas.safe(d.project));
 				if( dir.length == 0 || (dir.charAt(dir.length-1) != '/' && dir.charAt(dir.length-1) != '\\') )
 					dir += "/";
 				pdir = dir;
@@ -873,8 +880,8 @@ class Main {
 		if( !sys.FileSystem.exists(pdir) )
 			throw "Library "+project+" is not installed";
 		pdir += "/";
-		var version = temp[1] != null ? temp[1] : sys.io.File.getContent(pdir+".current");
-		var dev = try sys.io.File.getContent(pdir + ".dev") catch ( e : Dynamic ) null;
+		var version = temp[1] != null ? temp[1] : getCurrent(pdir);
+		var dev = try getDev(pdir) catch ( e : Dynamic ) null;
 		var vdir = dev!=null ? dev : pdir + Datas.safe(version);
 		var rdir = vdir + "/run.n";
 		if( !sys.FileSystem.exists(rdir) )
