@@ -1,6 +1,6 @@
 -debug
--swf-lib library113.swf
--swf9 test.swf
--swf-version 11.3
+-swf-lib library114.swf
+-swf test.swf
+-swf-version 11.4
 --macro patchTypes("../doc/extract.patch")
 --gen-hx-classes

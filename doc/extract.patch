@@ -1069,10 +1069,6 @@ enum flash.display.BitmapCompressColorSpace;
 
 @:require(flash11_2) flash.display.BitmapData.compress;
 @:require(flash11_2) flash.media.Camera.position;
-@:require(flash11_2) flash.media.Camera.copyToByteArray;
-@:require(flash11_2) flash.media.Camera.copyToVector;
-@:require(flash11_2) flash.media.Camera.drawToBitmapData;
-@:require(flash11_2) flash.media.StageVideo.attachCamera;
 @:require(flash11_2) flash.net.NetStream.dispose;
 
 @:require(flash11_2) flash.display.StageWorker;
@@ -1118,7 +1114,6 @@ flash.ui.GameInputControl.type : flash.ui.GameInputControlType;
 
 // 11.3
 
-@:require(flash11_3) flash.display3D.Context3D.createRectangleTexture
 @:require(flash11_3) flash.display.BitmapData.drawWithQuality
 
 flash.display.BitmapData.$quality : StageQuality;
@@ -1149,7 +1144,58 @@ flash.display.JPEGXREncoderOptions.colorSpace : BitmapEncodingColorSpace;
 @:require(flash11_3) flash.system.AuthorizedFeatures;
 @:require(flash11_3) flash.system.AuthorizedFeaturesLoader;
 
-@:require(flash11_3) flash.events.Event.TEXTURE_READY;
+@:require(flash11_3) static flash.events.Event.TEXTURE_READY;
 
 
+// 11.4
+
+@:require(flash11_4) flash.display3D.Context3D.createRectangleTexture
+@:require(flash11_4) flash.display.BitmapData.copyPixelsToByteArray;
+
+@:require(flash11_4) flash.concurrent.Mutex;
+@:require(flash11_4) flash.concurrent.Condition;
+
+enum flash.display3D.Context3DProfile;
+
+flash.display.Stage3D.$profile : flash.display3D.Context3DProfile;
+
+@:require(flash11_4) flash.display.LoaderInfo.childSandboxBridge;
+@:require(flash11_4) flash.display.LoaderInfo.parentSandboxBridge;
+
+@:require(flash11_4) flash.display.Stage.contentsScaleFactor;
+
+
+@:require(flash11_4) flash.media.Camera.copyToByteArray;
+@:require(flash11_4) flash.media.Camera.copyToVector;
+@:require(flash11_4) flash.media.Camera.drawToBitmapData;
+@:require(flash11_4) flash.media.StageVideo.attachCamera;
+
+@:require(flash11_4) flash.net.URLStream.diskCacheEnabled;
+@:require(flash11_4) flash.net.URLStream.length;
+@:require(flash11_4) flash.net.URLStream.position;
+@:require(flash11_4) flash.net.URLStream.stop;
+
+@:require(flash11_4) flash.system.AuthorizedFeatures.enableDiskCache;
+@:require(flash11_4) flash.system.AuthorizedFeatures.isFeatureEnabled;
+@:require(flash11_4) flash.system.AuthorizedFeatures.isNegativeToken;
+@:require(flash11_4) flash.system.AuthorizedFeaturesLoader.makeGlobal;
+
+@:require(flash11_4) flash.utils.ByteArray.shareable;
+@:require(flash11_4) flash.utils.ByteArray.atomicCompareAndSwapIntAt;
+@:require(flash11_4) flash.utils.ByteArray.atomicCompareAndSwapLength;
+
+//not supported @:require(flash11_4) flash.utils.CompressionAlgorithm.LZMA;
+
+@:require(flash11_4) flash.system.Worker;
+@:require(flash11_4) flash.system.WorkerDomain;
+
+@:require(flash11_4) flash.system.MessageChannel;
+
+-flash.system.Worker.new;
+-flash.system.MessageChannel.new;
+
+flash.system.Worker.state : WorkerState;
+flash.system.MessageChannel.state : MessageChannelState;
+
+enum flash.system.WorkerState;
 

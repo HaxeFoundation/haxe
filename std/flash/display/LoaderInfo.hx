@@ -7,6 +7,7 @@ extern class LoaderInfo extends flash.events.EventDispatcher {
 	var bytesLoaded(default,null) : UInt;
 	var bytesTotal(default,null) : UInt;
 	var childAllowsParent(default,null) : Bool;
+	@:require(flash11_4) var childSandboxBridge : Dynamic;
 	var content(default,null) : DisplayObject;
 	var contentType(default,null) : String;
 	var frameRate(default,null) : Float;
@@ -16,6 +17,7 @@ extern class LoaderInfo extends flash.events.EventDispatcher {
 	var loaderURL(default,null) : String;
 	var parameters(default,null) : Dynamic<String>;
 	var parentAllowsChild(default,null) : Bool;
+	@:require(flash11_4) var parentSandboxBridge : Dynamic;
 	var sameDomain(default,null) : Bool;
 	var sharedEvents(default,null) : flash.events.EventDispatcher;
 	var swfVersion(default,null) : UInt;

@@ -24,7 +24,7 @@
 -swf all9.swf
 --no-output
 -xml flash9.xml
--swf-version 11.3
+-swf-version 11.4
 --macro ImportAll.run()
 
 --next

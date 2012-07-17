@@ -6,7 +6,10 @@ extern class ByteArray implements IDataOutput, implements IDataInput, implements
 	var length : UInt;
 	var objectEncoding : UInt;
 	var position : UInt;
+	@:require(flash11_4) var shareable : Bool;
 	function new() : Void;
+	@:require(flash11_4) function atomicCompareAndSwapIntAt(byteIndex : Int, expectedValue : Int, newValue : Int) : Int;
+	@:require(flash11_4) function atomicCompareAndSwapLength(expectedLength : Int, newLength : Int) : Int;
 	@:require(flash10) function clear() : Void;
 	function compress(#if flash11 ?algorithm : CompressionAlgorithm #end) : Void;
 	@:require(flash10) function deflate() : Void;

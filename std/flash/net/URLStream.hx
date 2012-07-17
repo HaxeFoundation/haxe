@@ -3,8 +3,11 @@ package flash.net;
 extern class URLStream extends flash.events.EventDispatcher, implements flash.utils.IDataInput {
 	var bytesAvailable(default,null) : UInt;
 	var connected(default,null) : Bool;
+	@:require(flash11_4) var diskCacheEnabled(default,null) : Bool;
 	var endian : flash.utils.Endian;
+	@:require(flash11_4) var length(default,null) : Float;
 	var objectEncoding : UInt;
+	@:require(flash11_4) var position : Float;
 	function new() : Void;
 	function close() : Void;
 	function load(request : URLRequest) : Void;
@@ -22,4 +25,5 @@ extern class URLStream extends flash.events.EventDispatcher, implements flash.ut
 	function readUnsignedByte() : UInt;
 	function readUnsignedInt() : UInt;
 	function readUnsignedShort() : UInt;
+	@:require(flash11_4) function stop() : Void;
 }

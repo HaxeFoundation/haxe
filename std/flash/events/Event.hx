@@ -20,6 +20,8 @@ extern class Event {
 	static var ADDED_TO_STAGE : String;
 	static var CANCEL : String;
 	static var CHANGE : String;
+	static var CHANNEL_MESSAGE : String;
+	static var CHANNEL_STATE : String;
 	@:require(flash10) static var CLEAR : String;
 	static var CLOSE : String;
 	static var COMPLETE : String;
@@ -53,4 +55,6 @@ extern class Event {
 	@:require(flash11_3) static var TEXTURE_READY : String;
 	@:require(flash11) static var TEXT_INTERACTION_MODE_CHANGE : String;
 	static var UNLOAD : String;
+	static var VIDEO_FRAME : String;
+	static var WORKER_STATE : String;
 }

@@ -7,6 +7,7 @@ extern class Stage extends DisplayObjectContainer {
 	@:require(flash10_2) var color : UInt;
 	@:require(flash10) var colorCorrection : ColorCorrection;
 	@:require(flash10) var colorCorrectionSupport(default,null) : ColorCorrectionSupport;
+	@:require(flash11_4) var contentsScaleFactor(default,null) : Float;
 	@:require(flash11) var displayContextInfo(default,null) : String;
 	var displayState : StageDisplayState;
 	var focus : InteractiveObject;
