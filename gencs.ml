@@ -1914,6 +1914,7 @@ let configure gen =
   CSharpSpecificESynf.configure gen (CSharpSpecificESynf.traverse gen runtime_cl);
   
   let mkdir dir = if not (Sys.file_exists dir) then Unix.mkdir dir 0o755 in
+  mkdir gen.gcon.file;
   mkdir (gen.gcon.file ^ "/src");
   
   (* add resources array *)
