@@ -614,18 +614,18 @@ let on_generate ctx t =
 		let do_remove f =
 			(not ctx.in_macro && f.cf_kind = Method MethMacro) || has_meta ":extern" f.cf_meta
 		in
-		List.iter (fun f ->
-			if do_remove f then begin
-				c.cl_statics <- PMap.remove f.cf_name c.cl_statics;
-				c.cl_ordered_statics <- List.filter (fun f2 -> f != f2) c.cl_ordered_statics;
-			end
-		) c.cl_ordered_statics;
-		List.iter (fun f ->
-			if do_remove f then begin
-				c.cl_fields <- PMap.remove f.cf_name c.cl_fields;
-				c.cl_ordered_fields <- List.filter (fun f2 -> f != f2) c.cl_ordered_fields;
-			end
-		) c.cl_ordered_fields;
+		if not (Common.defined ctx.com "doc_gen") then begin
+			c.cl_ordered_fields <- List.filter (fun f ->
+				let b = do_remove f in
+				if b then c.cl_fields <- PMap.remove f.cf_name c.cl_fields;
+				not b
+			) c.cl_ordered_fields;
+			c.cl_ordered_statics <- List.filter (fun f ->
+				let b = do_remove f in
+				if b then c.cl_statics <- PMap.remove f.cf_name c.cl_statics;
+				not b
+			) c.cl_ordered_statics;
+		end;
 		add_field_inits ctx.com c;
 		(match build_metadata ctx.com t with
 		| None -> ()
