@@ -67,7 +67,7 @@ class Boot extends flash.display.MovieClip {
 			}
 			if( c.stage == null )
 				c.addEventListener(flash.events.Event.ADDED_TO_STAGE, doInitDelay);
-			else if( c.stage.stageWidth == 0 )
+			else if( c.stage.stageWidth == 0 || c.stage.stageHeight == 0 )
 				untyped __global__["flash.utils.setTimeout"](start,1);
 			else
 				init();
