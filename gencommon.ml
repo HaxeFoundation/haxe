@@ -755,8 +755,12 @@ let reorder_modules gen =
   
   let con = gen.gcon in
   con.modules <- [];
+  let processed = Hashtbl.create 20 in
   Hashtbl.iter (fun md_path _ ->
-    con.modules <- { m_id = alloc_mid(); m_path = md_path; m_types = List.rev ( Hashtbl.find_all modules md_path ); m_extra = module_extra "" "" 0. MFake } :: con.modules
+    if not (Hashtbl.mem processed md_path) then begin
+      Hashtbl.add processed md_path true;
+      con.modules <- { m_id = alloc_mid(); m_path = md_path; m_types = List.rev ( Hashtbl.find_all modules md_path ); m_extra = module_extra "" "" 0. MFake } :: con.modules
+    end
   ) modules
 
 let run_filters_from gen t filters =
