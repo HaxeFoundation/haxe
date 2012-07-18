@@ -39,7 +39,7 @@ type cache = {
 exception Abort
 exception Completion of string
 
-let version = 210
+let version = 211
 
 let measure_times = ref false
 let prompt = ref false
@@ -315,7 +315,7 @@ let add_libs com libs =
 		let lines = List.fold_left (fun acc l ->
 			let l = ExtString.String.strip l in
 			if l = "" then acc else
-			if l.[0] <> '-' then l :: acc else 
+			if l.[0] <> '-' then l :: acc else
 			match (try ExtString.String.split l " " with _ -> l, "") with
 			| ("-L",dir) ->
 				com.neko_libs <- String.sub l 3 (String.length l - 3) :: com.neko_libs;
@@ -328,7 +328,7 @@ let add_libs com libs =
 		com.class_path <- lines @ com.class_path;
 		List.rev !extra_args
 
-let run_command ctx cmd =	
+let run_command ctx cmd =
 	let h = Hashtbl.create 0 in
 	Hashtbl.add h "__file__" ctx.com.file;
 	Hashtbl.add h "__platform__" (platform_name ctx.com.platform);
@@ -947,7 +947,7 @@ try
 		cp_libs := [];
 		match !extra_args with
 		| [] -> ()
-		| l -> 
+		| l ->
 			extra_args := [];
 			process l;
 			loop()
