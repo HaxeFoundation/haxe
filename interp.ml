@@ -2062,6 +2062,13 @@ let macro_lib =
 					| VBool b -> (Ast.EConst (Ast.Ident (if b then "true" else "false")),p)
 					| VInt i -> (Ast.EConst (Ast.Int (string_of_int i)),p)
 					| VFloat f -> (Ast.EConst (Ast.Float (string_of_float f)),p)
+					| VAbstract (APos p) ->
+						(Ast.EObjectDecl (
+							("fileName" , (Ast.EConst (Ast.String p.Ast.pfile) , p)) ::
+							("lineNumber" , (Ast.EConst (Ast.Int (string_of_int (Lexer.get_error_line p))),p)) ::
+							("className" , (Ast.EConst (Ast.String ("")),p)) ::
+							[]
+						), p)
 					| VString _ | VArray _ | VAbstract _ | VFunction _ | VClosure _ as v -> error v
 					| VObject o as v ->
 						match o.oproto with
