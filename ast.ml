@@ -667,7 +667,7 @@ let reify in_macro =
 		to_array (fun (m,el,p) _ -> 
 			let fields = [
 				"name", to_string m p;
-				"params", to_array to_expr el p;
+				"params", to_expr_array el p;
 				"pos", to_pos p;
 			] in
 			to_obj fields p
@@ -680,6 +680,9 @@ let reify in_macro =
 			(EUntyped (ECall ((EConst (Ident "$mk_pos"),p),[file;pmin;pmax]),p),p)
 		else
 			to_obj [("file",file);("min",pmin);("max",pmax)] p
+	and to_expr_array a p = match a with
+		| [EArray ((EConst(Ident("$")),_),e),p] -> e
+		| _ -> to_array to_expr a p		
 	and to_expr e _ =
 		let p = snd e in
 		let expr n vl = 
@@ -692,6 +695,8 @@ let reify in_macro =
 			to_string n p
 		| EConst c ->
 			expr "EConst" [to_const c p]
+		| EArray ((EConst(Ident("$")),_),e) ->
+			expr "EArrayDecl" [e]
 		| EArray (e1,e2) ->
 			expr "EArray" [loop e1;loop e2]
 		| EBinop (op,e1,e2) ->
@@ -703,13 +708,13 @@ let reify in_macro =
 		| EObjectDecl fl -> 
 			expr "EObjectDecl" [to_array (fun (f,e) -> to_obj [("field",to_string f p);("expr",loop e)]) fl p]
 		| EArrayDecl el ->
-			expr "EArrayDecl" [to_array to_expr el p]
+			expr "EArrayDecl" [to_expr_array el p]
 		| ECall ((EConst(Ident("$")),_),[e]) ->
 			(ECall ((EField ((EField ((EField ((EConst (Ident "haxe"),p),"macro"),p),"Context"),p),"makeExpr"),p),[e; to_pos (pos e)]),p)
 		| ECall (e,el) ->
-			expr "ECall" [loop e;to_array to_expr el p]
+			expr "ECall" [loop e;to_expr_array el p]
 		| ENew (t,el) ->
-			expr "ENew" [to_tpath t p;to_array to_expr el p]
+			expr "ENew" [to_tpath t p;to_expr_array el p]
 		| EUnop (op,flag,e) ->
 			let op = mk_enum "Unop" (match op with
 				| Increment -> "OpIncrement"
@@ -731,7 +736,7 @@ let reify in_macro =
 		| EFunction (name,f) ->
 			expr "EFunction" [to_opt to_string name p; to_fun f p]
 		| EBlock el ->
-			expr "EBlock" [to_array to_expr el p]
+			expr "EBlock" [to_expr_array el p]
 		| EFor (e1,e2) ->
 			expr "EFor" [loop e1;loop e2]
 		| EIn (e1,e2) ->
@@ -742,7 +747,7 @@ let reify in_macro =
 			expr "EWhile" [loop e1;loop e2;to_bool (flag = NormalWhile) p]
 		| ESwitch (e1,cases,def) ->
 			let scase (el,e) p =
-				to_obj [("values",to_array to_expr el p);"expr",loop e] p
+				to_obj [("values",to_expr_array el p);"expr",loop e] p
 			in
 			expr "ESwitch" [loop e1;to_array scase cases p;to_opt to_expr def p]
 		| ETry (e1,catches) ->
