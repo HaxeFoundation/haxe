@@ -89,6 +89,11 @@ let htmlescape s =
 	let s = String.concat "&gt;" (ExtString.String.nsplit s ">") in
 	s
 
+let reserved_flags = [
+	"cross";"flash8";"js";"neko";"flash";"php";"cpp";"cs";"java";
+	"as3";"swc";"macro";"sys"
+	]
+
 let complete_fields fields =
 	let b = Buffer.create 0 in
 	Buffer.add_string b "<list>\n";
@@ -790,6 +795,7 @@ try
 			| "use_rtti_doc" -> Parser.use_doc := true
 			| "no_opt" -> com.foptimize <- false
 			| _ -> ());
+			if List.mem var reserved_flags then raise (Arg.Bad (var ^ " is a reserved compiler flag and cannot be defined from command line"));
 			Common.define com var
 		),"<var> : define a conditional compilation flag");
 		("-v",Arg.Unit (fun () ->
