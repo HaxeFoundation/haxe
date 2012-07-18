@@ -706,7 +706,7 @@ try
 	let force_typing = ref false in
 	let pre_compilation = ref [] in
 	let interp = ref false in
-	for i = 0 to 2 do
+	for i = 0 to 4 do
 		let v = version - i in
 		if v / 100 = version / 100 then Common.define com ("haxe_" ^ string_of_int v);
 	done;
