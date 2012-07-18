@@ -1,3 +1,7 @@
+2012-??-??: 2.11
+	flash : updated player 11.4 api
+	all : allowed named functions as r-value
+	
 2012-07-16: 2.10
 	java/cs : added two new targets (beta)
 	all : fixed List and Null<T> for first, last, pop
