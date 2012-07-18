@@ -2364,7 +2364,7 @@ let generate_enum_files common_ctx enum_def super_deps meta file_info =
 
 	output_cpp ("void " ^ class_name ^ "::__register()\n{\n");
 	let text_name = str (join_class_path class_path ".") in
-	output_cpp ("\nStatic(__mClass) = hx::RegisterClass(" ^ text_name ^
+	output_cpp ("\nhx::Static(__mClass) = hx::RegisterClass(" ^ text_name ^
 					", hx::TCanCast< " ^ class_name ^ " >,sStaticFields,sMemberFields,\n");
 	output_cpp ("	&__Create_" ^ class_name ^ ", &__Create,\n");
 	output_cpp ("	&super::__SGetClass(), &Create" ^ class_name ^ ", sMarkStatics, sVisitStatic);\n");
@@ -2384,7 +2384,7 @@ let generate_enum_files common_ctx enum_def super_deps meta file_info =
 		match constructor.ef_type with
 		| TFun (_,_) -> ()
 		| _ ->
-			output_cpp ( "Static(" ^ (keyword_remap name) ^ ") = hx::CreateEnum< " ^ class_name ^ " >(" ^ (str name) ^  "," ^
+			output_cpp ( "hx::Static(" ^ (keyword_remap name) ^ ") = hx::CreateEnum< " ^ class_name ^ " >(" ^ (str name) ^  "," ^
 				(string_of_int constructor.ef_index) ^ ");\n" )
 	) enum_def.e_constrs;
 	output_cpp ("}\n\n");
@@ -2785,7 +2785,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 		output_cpp ("Class " ^ class_name ^ "::__mClass;\n\n");
 
 		output_cpp ("void " ^ class_name ^ "::__register()\n{\n");
-		output_cpp ("	Static(__mClass) = hx::RegisterClass(" ^ (str class_name_text)  ^
+		output_cpp ("	hx::Static(__mClass) = hx::RegisterClass(" ^ (str class_name_text)  ^
 				", hx::TCanCast< " ^ class_name ^ "> ,sStaticFields,sMemberFields,\n");
 		output_cpp ("	&__CreateEmpty, &__Create,\n");
 		output_cpp ("	&super::__SGetClass(), 0, sMarkStatics, sVisitStatics);\n");
@@ -2797,7 +2797,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 		output_cpp ("Class " ^ class_name ^ "::__mClass;\n\n");
 
 		output_cpp ("void " ^ class_name ^ "::__register()\n{\n");
-		output_cpp ("	Static(__mClass) = hx::RegisterClass(" ^ (str class_name_text)  ^
+		output_cpp ("	hx::Static(__mClass) = hx::RegisterClass(" ^ (str class_name_text)  ^
 				", hx::TCanCast< " ^ class_name ^ "> ,0,0,\n");
 		output_cpp ("	0, 0,\n");
 		output_cpp ("	&super::__SGetClass(), 0, sMarkStatics, sVisitStatics);\n");
