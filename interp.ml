@@ -169,19 +169,23 @@ exception Return of value
 (* UTILS *)
 
 let get_ctx_ref = ref (fun() -> assert false)
+let encode_complex_type_ref = ref (fun t -> assert false)
 let encode_type_ref = ref (fun t -> assert false)
 let decode_type_ref = ref (fun t -> assert false)
 let encode_expr_ref = ref (fun e -> assert false)
 let decode_expr_ref = ref (fun e -> assert false)
 let enc_array_ref = ref (fun l -> assert false)
 let make_ast_ref = ref (fun _ -> assert false)
+let make_complex_type_ref = ref (fun _ -> assert false)
 let get_ctx() = (!get_ctx_ref)()
 let enc_array (l:value list) : value = (!enc_array_ref) l
+let encode_complex_type (t:Ast.complex_type) : value = (!encode_complex_type_ref) t
 let encode_type (t:Type.t) : value = (!encode_type_ref) t
 let decode_type (v:value) : Type.t = (!decode_type_ref) v
 let encode_expr (e:Ast.expr) : value = (!encode_expr_ref) e
 let decode_expr (e:value) : Ast.expr = (!decode_expr_ref) e
 let make_ast (e:texpr) : Ast.expr = (!make_ast_ref) e
+let make_complex_type (t:Type.t) : Ast.complex_type = (!make_complex_type_ref) t
 
 let to_int f = int_of_float (mod_float f 2147483648.0)
 
@@ -2154,6 +2158,9 @@ let macro_lib =
 			let v = loop v in
 			VString (Digest.to_hex (Digest.string (Marshal.to_string v [Marshal.Closures])))
 		);
+		"to_complex", Fun1 (fun v ->
+			encode_complex_type (make_complex_type (decode_type v))
+		);
 		"typeof", Fun1 (fun v ->
 			encode_type ((get_ctx()).curapi.typeof (decode_expr v))
 		);
@@ -3518,6 +3525,9 @@ and encode_expr e =
 		]
 	in
 	loop e
+;;
+
+encode_complex_type_ref := encode_type;
 
 (* ---------------------------------------------------------------------- *)
 (* EXPR DECODING *)
@@ -4089,6 +4099,48 @@ let rec make_const e =
 
 open Ast
 
+let tpath p pl =
+	CTPath {
+		tpackage = fst p;
+		tname = snd p;
+		tparams = List.map (fun t -> TPType t) pl;
+		tsub = None;
+	}
+
+let rec make_type = function
+	| TMono r ->
+		(match !r with
+		| None -> tpath ([],"Unknown") []
+		| Some t -> make_type t)
+	| TEnum (e,pl) ->
+		tpath e.e_path (List.map make_type pl)
+	| TInst (c,pl) ->
+		tpath c.cl_path (List.map make_type pl)
+	| TType (t,pl) ->
+		tpath t.t_path (List.map make_type pl)
+	| TFun (args,ret) ->
+		CTFunction (List.map (fun (_,_,t) -> make_type t) args, make_type ret)
+	| TAnon a ->
+		CTAnonymous (PMap.foldi (fun _ f acc ->
+			{
+				cff_name = f.cf_name;
+				cff_kind = FVar (mk_ot f.cf_type,None);
+				cff_pos = f.cf_pos;
+				cff_doc = f.cf_doc;
+				cff_meta = f.cf_meta;
+				cff_access = [];
+			} :: acc
+		) a.a_fields [])
+	| (TDynamic t2) as t ->
+		tpath ([],"Dynamic") (if t == t_dynamic then [] else [make_type t2])
+	| TLazy f ->
+		make_type ((!f)())
+
+and mk_ot t =
+	match follow t with
+	| TMono _ -> None
+	| _ -> Some (make_type t)
+
 let rec make_ast e =
 	let mk_path (pack,name) p =
 		match List.rev pack with
@@ -4110,47 +4162,7 @@ let rec make_ast e =
 		| TThis -> Ident "this"
 		| TSuper -> Ident "super"
 	in
-	let tpath p pl =
-		CTPath {
-			tpackage = fst p;
-			tname = snd p;
-			tparams = List.map (fun t -> TPType t) pl;
-			tsub = None;
-		}
-	in
-	let rec mk_type = function
-		| TMono r ->
-			(match !r with
-			| None -> tpath ([],"Unknown") []
-			| Some t -> mk_type t)
-		| TEnum (e,pl) ->
-			tpath e.e_path (List.map mk_type pl)
-		| TInst (c,pl) ->
-			tpath c.cl_path (List.map mk_type pl)
-		| TType (t,pl) ->
-			tpath t.t_path (List.map mk_type pl)
-		| TFun (args,ret) ->
-			CTFunction (List.map (fun (_,_,t) -> mk_type t) args, mk_type ret)
-		| TAnon a ->
-			CTAnonymous (PMap.foldi (fun _ f acc ->
-				{
-					cff_name = f.cf_name;
-					cff_kind = FVar (mk_ot f.cf_type,None);
-					cff_pos = e.epos;
-					cff_doc = f.cf_doc;
-					cff_meta = f.cf_meta;
-					cff_access = [];
-				} :: acc
-			) a.a_fields [])
-		| (TDynamic t2) as t ->
-			tpath ([],"Dynamic") (if t == t_dynamic then [] else [mk_type t2])
-		| TLazy f ->
-			mk_type ((!f)())
-	and mk_ot t =
-		match follow t with
-		| TMono _ -> None
-		| _ -> Some (mk_type t)
-	in
+
 	let eopt = function None -> None | Some e -> Some (make_ast e) in
 	((match e.eexpr with
 	| TConst c ->
@@ -4165,7 +4177,7 @@ let rec make_ast e =
 	| TObjectDecl fl -> EObjectDecl (List.map (fun (f,e) -> f, make_ast e) fl)
 	| TArrayDecl el -> EArrayDecl (List.map make_ast el)
 	| TCall (e,el) -> ECall (make_ast e,List.map make_ast el)
-	| TNew (c,pl,el) -> ENew ((match mk_type (TInst (c,pl)) with CTPath p -> p | _ -> assert false),List.map make_ast el)
+	| TNew (c,pl,el) -> ENew ((match make_type (TInst (c,pl)) with CTPath p -> p | _ -> assert false),List.map make_ast el)
 	| TUnop (op,p,e) -> EUnop (op,p,make_ast e)
 	| TFunction f ->
 		let arg (v,c) = v.v_name, false, mk_ot v.v_type, (match c with None -> None | Some c -> Some (EConst (mk_const c),e.epos)) in
@@ -4201,16 +4213,17 @@ let rec make_ast e =
 			) idx, make_ast e
 		in
 		ESwitch (make_ast e,List.map scases cases,eopt def)
-	| TTry (e,catches) -> ETry (make_ast e,List.map (fun (v,e) -> v.v_name, mk_type v.v_type, make_ast e) catches)
+	| TTry (e,catches) -> ETry (make_ast e,List.map (fun (v,e) -> v.v_name, make_type v.v_type, make_ast e) catches)
 	| TReturn e -> EReturn (eopt e)
 	| TBreak -> EBreak
 	| TContinue -> EContinue
 	| TThrow e -> EThrow (make_ast e)
-	| TCast (e,t) -> ECast (make_ast e,(match t with None -> None | Some t -> Some (mk_type (match t with TClassDecl c -> TInst (c,[]) | TEnumDecl e -> TEnum (e,[]) | TTypeDecl t -> TType (t,[]))))))
+	| TCast (e,t) -> ECast (make_ast e,(match t with None -> None | Some t -> Some (make_type (match t with TClassDecl c -> TInst (c,[]) | TEnumDecl e -> TEnum (e,[]) | TTypeDecl t -> TType (t,[]))))))
 	,e.epos)
 
 ;;
 make_ast_ref := make_ast;
+make_complex_type_ref := make_type;
 enc_array_ref := enc_array;
 encode_type_ref := encode_type;
 decode_type_ref := decode_type;

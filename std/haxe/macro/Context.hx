@@ -165,6 +165,14 @@ class Context {
 	}
 
 	/**
+		Returns the ComplexType corresponding to the given Type.
+	**/
+	public static function toComplexType( t : Type ) : ComplexType {
+		// TODO: handle TMono -> Unknown somehow
+		return load("to_complex", 1)(t);
+	}
+	
+	/**
 		Follow all typedefs to reach the actual real type
 	**/
 	public static function follow( t : Type, ?once : Bool ) : Type {
