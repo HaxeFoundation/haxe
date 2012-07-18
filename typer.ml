@@ -2017,7 +2017,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 				| Codegen.Use _ | Codegen.Declare _ -> ()
 			in
 			let is_rec = (try Codegen.local_usage loop e; false with Exit -> true) in
-			if is_rec then begin
+			let decl = (if is_rec then begin
 				if inline then display_error ctx "Inline function cannot be recursive" e.epos;
 				let vnew = add_local ctx v.v_name ft in
 				mk (TVars [vnew,Some (mk (TBlock [
@@ -2028,7 +2028,9 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			end else if inline then
 				mk (TBlock []) ctx.t.tvoid p (* do not add variable since it will be inlined *)
 			else
-				mk (TVars [v,Some e]) ctx.t.tvoid p)
+				mk (TVars [v,Some e]) ctx.t.tvoid p
+			) in
+			if need_val && not inline then mk (TBlock [decl;mk (TLocal v) v.v_type p]) v.v_type p else decl)
 	| EUntyped e ->
 		let old = ctx.untyped in
 		ctx.untyped <- true;
