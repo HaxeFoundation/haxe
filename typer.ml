@@ -1965,8 +1965,11 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		type_unop ctx op flag e p
 	| EFunction (name,f) ->
 		let params = Typeload.type_function_params ctx f "localfun" p in
-		if params <> [] && name = None then display_error ctx "Type parameters not supported in unnamed local functions" p;
-		List.iter (fun (_,c) -> if c <> [] then display_error ctx "Type parameters constraints are not supported for local functions" p) f.f_params;
+		if params <> [] then begin
+			if name = None then display_error ctx "Type parameters not supported in unnamed local functions" p;
+			if need_val then error "Type parameters are not supported for rvalue functions" p
+		end else
+			List.iter (fun (_,c) -> if c <> [] then display_error ctx "Type parameters constraints are not supported for local functions" p) f.f_params;
 		let old = ctx.type_params in
 		ctx.type_params <- params @ ctx.type_params;
 		let rt = Typeload.load_type_opt ctx p f.f_type in
