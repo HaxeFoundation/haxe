@@ -1,6 +1,7 @@
 include Makefile
 
 OUTPUT=haxe.exe
+EXTENSION=.exe
 
 OCAMLOPT=ocamlopt.opt
 

@@ -11,7 +11,7 @@
 .SUFFIXES : .ml .mli .cmo .cmi .cmx .mll .mly
 
 OUTPUT=haxe
-
+EXTENSION=
 OCAMLOPT=ocamlopt
 
 CFLAGS= -g -I libs/extlib -I libs/extc -I libs/neko -I libs/swflib -I libs/xml-light
@@ -32,6 +32,8 @@ MODULES=ast type lexer common genxml parser typecore optimizer typeload \
 	codegen genas3 gencommon gencpp genjs genneko genphp genswf8 \
 	gencs genjava genswf9 interp genswf typer main
 
+HAXE_LIBRARY_PATH=$(CURDIR)/std
+
 all: libs haxe tools
 
 libs:
@@ -45,10 +47,12 @@ haxe: $(MODULES:=.cmx)
 	$(OCAMLOPT) -o $(OUTPUT) $(NATIVE_LIBS) $(LIBS) $(MODULES:=.cmx)
 
 haxelib:
-	(cd std/tools/haxelib && HAXE_LIBRARY_PATH=$(RELDIR)/std $(RELDIR)/$(OUTPUT) haxelib.hxml && cp haxelib $(RELDIR))
+	$(OUTPUT) --cwd $(CURDIR)/std/tools/haxelib haxelib.hxml
+	cp $(CURDIR)/std/tools/haxelib/haxelib$(EXTENSION) haxelib$(EXTENSION)
 
 haxedoc:
-	(cd std/tools/haxedoc && HAXE_LIBRARY_PATH=$(RELDIR)/std $(RELDIR)/$(OUTPUT) haxedoc.hxml && cp haxedoc $(RELDIR))
+	$(OUTPUT) --cwd $(CURDIR)/std/tools/haxedoc haxedoc.hxml
+	cp $(CURDIR)/std/tools/haxedoc/haxedoc$(EXTENSION) haxedoc$(EXTENSION)
 
 tools: haxelib haxedoc
 
@@ -109,12 +113,11 @@ lexer.cmx: ast.cmx
 clean: clean_libs clean_haxe
 
 clean_libs:
-	(cd libs/extlib; make clean)
-	(cd libs/extc; make clean)
-	(cd libs/neko; make clean)
-	(cd libs/swflib; make clean)
-	(cd libs/xml-light; make clean)
-
+	make -C libs/extlib clean
+	make -C libs/extc clean
+	make -C libs/neko clean
+	make -C libs/swflib clean
+	make -C libs/xml-light clean
 
 clean_haxe:
 	rm -f $(MODULES:=.obj) $(MODULES:=.o) $(MODULES:=.cmx) $(MODULES:=.cmi) lexer.ml
