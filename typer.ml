@@ -156,6 +156,13 @@ let can_access cs ct cf stat =
 	in
 	cf.cf_public || loop ct
 
+let remove_first_arg cf =
+	let remove t = match t with
+		| TFun(_ :: args,ret) -> TFun(args,ret)
+		| _ -> t
+	in
+	{ cf with cf_overloads = List.map (fun cf -> { cf with cf_type = remove cf.cf_type}) cf.cf_overloads; cf_type = remove cf.cf_type}
+
 (* ---------------------------------------------------------------------- *)
 (* PASS 3 : type expression & check structure *)
 
@@ -2125,7 +2132,8 @@ and type_expr ctx ?(need_val=true) (e,p) =
 							if not (can_access ctx.curclass c f true) || follow e.etype == t_dynamic && follow t != t_dynamic then
 								()
 							else begin
-								let f = { f with cf_type = TFun (args, ret); cf_params = []; cf_public = true } in
+								let f = remove_first_arg f in
+								let f = { f with cf_params = []; cf_public = true } in
 								acc := PMap.add f.cf_name f (!acc)
 							end
 						| _ -> ()
@@ -2228,6 +2236,7 @@ and build_call ctx acc el twith p =
 		) in
 		make_call ctx (mk (TField (ethis,f.cf_name)) t p) params (match tfunc with TFun(_,r) -> r | _ -> assert false) p
 	| AKUsing (et,cl,ef,eparam) ->
+		let ef = remove_first_arg ef in
 		(match et.eexpr with
 		| TField (ec,_) ->
 			let acc = type_field ctx ec ef.cf_name p MCall in
