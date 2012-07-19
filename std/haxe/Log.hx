@@ -30,7 +30,7 @@ class Log {
 		#if flash
 			#if (fdb || nativeTrace)
 		var pstr = infos == null ? "(null)" : infos.fileName+":"+infos.lineNumber;
-		untyped __global__["trace"](pstr+": "+flash.Boot.__string_rec(v,""));
+		untyped #if flash9 __global__["trace"] #else __trace__ #end(pstr+": "+flash.Boot.__string_rec(v,""));
 			#else
 		untyped flash.Boot.__trace(v,infos);
 			#end
