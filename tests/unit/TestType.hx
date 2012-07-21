@@ -443,6 +443,10 @@ class TestType extends Test {
 		
 		eq(pcc.memberBasic("foo", ["bar"]), "bar");
 		
+		eq(pcc.memberAnon( { x : 1, y : 3. } ), 4);
+		//typeError(pcc.memberAnon( { x : 1 } ));
+		//typeError(pcc.memberAnon( { y : 3. } ));
+		
 		#if !(java || cs)
 		pcc.memberOverload("foo", "bar");
 		#end

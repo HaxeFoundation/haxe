@@ -46,14 +46,14 @@ let unboxed_type gen t tbyte tshort tchar tfloat = match follow t with
   | _ -> assert false
 
 let rec t_has_type_param t = match follow t with
-  | TInst({ cl_kind = KTypeParameter }, []) -> true
+  | TInst({ cl_kind = KTypeParameter _ }, []) -> true
   | TEnum(_, params)
   | TInst(_, params) -> List.exists t_has_type_param params
   | TFun(f,ret) -> t_has_type_param ret || List.exists (fun (_,_,t) -> t_has_type_param t) f
   | _ -> false
 
 let rec t_has_type_param_shallow last t = match follow t with
-  | TInst({ cl_kind = KTypeParameter }, []) -> true
+  | TInst({ cl_kind = KTypeParameter _ }, []) -> true
   | TEnum(_, params)
   | TInst(_, params) when not last -> List.exists (t_has_type_param_shallow true) params
   | TFun(f,ret) when not last -> t_has_type_param_shallow true ret  || List.exists (fun (_,_,t) -> t_has_type_param_shallow true t) f
@@ -726,7 +726,7 @@ let configure gen =
       | TType({ t_path = ([], "Null") }, [t]) when is_java_basic_type t -> t_dynamic
       | TType({ t_path = ([], "Null") }, [t]) ->
         (match follow t with
-          | TInst( { cl_kind = KTypeParameter }, []) -> t_dynamic
+          | TInst( { cl_kind = KTypeParameter _ }, []) -> t_dynamic
           | _ -> real_type t
         )
       | TType _ -> t
@@ -770,7 +770,7 @@ let configure gen =
         in
         (check_t_s param) ^ "[]"
       (* end of basic types *)
-      | TInst ({ cl_kind = KTypeParameter; cl_path=p }, []) -> snd p
+      | TInst ({ cl_kind = KTypeParameter _; cl_path=p }, []) -> snd p
       | TMono r -> (match !r with | None -> "java.lang.Object" | Some t -> t_s (run_follow gen t))
       | TInst ({ cl_path = [], "String" }, []) -> "java.lang.String"
       | TInst ({ cl_path = [], "Class" }, _) | TInst ({ cl_path = [], "Enum" }, _) -> assert false (* should have been converted earlier *)
@@ -1607,7 +1607,7 @@ let configure gen =
   in
 
   let is_type_param e = match follow e with
-    | TInst( { cl_kind = KTypeParameter },[]) -> true
+    | TInst( { cl_kind = KTypeParameter _ },[]) -> true
     | _ -> false
   in
 
@@ -1667,8 +1667,8 @@ let configure gen =
           | _, TInst( { cl_path = (["haxe"], "Int32") }, [] )
           | _, TInst( { cl_path = (["haxe"], "Int64") }, [] )
           | _, TEnum({ e_path = ([], "Bool") },[])
-          | TInst( { cl_kind = KTypeParameter }, [] ), _
-          | _, TInst( { cl_kind = KTypeParameter }, [] ) -> false
+          | TInst( { cl_kind = KTypeParameter _ }, [] ), _
+          | _, TInst( { cl_kind = KTypeParameter _ }, [] ) -> false
           | _, _ -> true
         in
 

@@ -2648,7 +2648,7 @@ struct
   
   let rec get_type_params acc t = 
     match follow t with
-      | TInst(( { cl_kind = KTypeParameter } as cl), []) -> 
+      | TInst(( { cl_kind = KTypeParameter _ } as cl), []) -> 
         if List.exists (fun c -> c == cl) acc then acc else cl :: acc
       | TFun _
       | TDynamic _
@@ -3559,7 +3559,7 @@ struct
     
     let rec get_arg original applied = 
       match (original, applied) with
-        | TInst( ({ cl_kind = KTypeParameter } as cl ), []), _ ->
+        | TInst( ({ cl_kind = KTypeParameter _ } as cl ), []), _ ->
           Hashtbl.replace params_tbl cl.cl_path applied
         | TInst(cl, params), TInst(cl2, params2) ->
           let rec loop cl2 params2 =
@@ -3667,7 +3667,7 @@ struct
     
     let rec has_type_params t =
       match follow t with
-        | TInst( { cl_kind = KTypeParameter }, _) -> true
+        | TInst( { cl_kind = KTypeParameter _ }, _) -> true
         | TEnum (_, params)
         | TInst(_, params) -> List.fold_left (fun acc t -> acc || has_type_params t) false params
         | _ -> false
@@ -3733,7 +3733,7 @@ struct
                           | cf :: cfs -> 
                             let t = follow (gen.greal_type cf.cf_type) in
                             match t with
-                              | TInst( { cl_kind = KTypeParameter }, _ ) -> loop cfs
+                              | TInst( { cl_kind = KTypeParameter _ }, _ ) -> loop cfs
                               | TInst(cl,p) when has_type_params t && is_false (set_hxgeneric gen mds isfirst (TClassDecl cl)) ->
                                 if not (Hashtbl.mem gen.gtparam_cast cl.cl_path) then true else loop cfs
                               | TEnum(e,p) when has_type_params t && is_false (set_hxgeneric gen mds isfirst (TEnumDecl e)) ->
@@ -3775,7 +3775,7 @@ struct
                             if List.exists (fun (n,o,t) -> 
                               let t = follow t in
                               match t with
-                                | TInst( { cl_kind = KTypeParameter }, _ ) -> 
+                                | TInst( { cl_kind = KTypeParameter _ }, _ ) -> 
                                   false
                                 | TInst(cl,p) when has_type_params t && is_false (set_hxgeneric gen mds isfirst (TClassDecl cl)) ->
                                   not (Hashtbl.mem gen.gtparam_cast cl.cl_path)
@@ -4279,7 +4279,7 @@ struct
   (* Helpers for cast handling *)
   (* will return true if 'super' is a superclass of 'cl' or if cl implements super or if they are the same class *)
   let can_be_converted gen cl tl super_t super_tl = 
-    map_cls gen (gen.guse_tp_constraints || (not (cl.cl_kind = KTypeParameter || super_t.cl_kind = KTypeParameter))) (fun _ tl ->
+    map_cls gen (gen.guse_tp_constraints || (match cl.cl_kind,super_t.cl_kind with KTypeParameter _, _ | _,KTypeParameter _ -> false | _ -> true)) (fun _ tl ->
       try
         List.iter2 (type_eq gen (if gen.gallow_tp_dynamic_conversion then EqRightDynamic else EqStrict)) tl super_tl;
         true
@@ -4288,7 +4288,7 @@ struct
   
   (* will return true if both arguments are compatible. If it's not the case, a runtime error is very likely *)
   let is_cl_related gen cl tl super superl =
-    let is_cl_related cl tl super superl = map_cls gen (gen.guse_tp_constraints || (not (cl.cl_kind = KTypeParameter || super.cl_kind = KTypeParameter))) (fun _ _ -> true) super cl tl in
+    let is_cl_related cl tl super superl = map_cls gen (gen.guse_tp_constraints || (match cl.cl_kind,super.cl_kind with KTypeParameter _, _ | _,KTypeParameter _ -> false | _ -> true)) (fun _ _ -> true) super cl tl in
     is_cl_related cl tl super superl || is_cl_related super superl cl tl
   
   
@@ -4377,7 +4377,7 @@ struct
           If a class is found - meaning that the cl_from can be converted without a cast into cl_to,
           we still need to check their type parameters.
         *)
-        ignore (map_cls gen (gen.guse_tp_constraints || (not (cl_from.cl_kind = KTypeParameter || cl_to.cl_kind = KTypeParameter))) (fun _ tl ->
+        ignore (map_cls gen (gen.guse_tp_constraints || (match cl_from.cl_kind,cl_to.cl_kind with KTypeParameter _, _ | _,KTypeParameter _ -> false | _ -> true)) (fun _ tl ->
           try
             (* type found, checking type parameters *)
             List.iter2 (type_eq gen EqStrict) tl params_to;
@@ -6634,7 +6634,7 @@ struct
         let do_field cf cf_type static = 
           let this = if static then mk_classtype_access cl pos else { eexpr = TConst(TThis); etype = t; epos = pos } in
           match is_float, follow cf_type with
-            | true, TInst( { cl_kind = KTypeParameter }, [] ) -> 
+            | true, TInst( { cl_kind = KTypeParameter _ }, [] ) -> 
               mk_return (mk_cast basic.tfloat (mk_cast t_dynamic (get_field cf cf_type this cf.cf_name)))
             | _ ->
               mk_return (maybe_cast (get_field cf cf_type this cf.cf_name ))
@@ -6649,7 +6649,7 @@ struct
           List.filter (fun (_,cf) -> (* TODO: maybe really apply_params in cf.cf_type. The benefits would be limited, though *)
             match follow (ctx.rcf_gen.greal_type (ctx.rcf_gen.gfollow#run_f cf.cf_type)) with
               | TDynamic _ | TMono _
-              | TInst ({ cl_kind = KTypeParameter }, _)
+              | TInst ({ cl_kind = KTypeParameter _ }, _)
               | TInst ({ cl_path = ([], "Float") }, [])
               | TInst ({ cl_path = ([], "Int") }, []) -> true
               | _ -> false

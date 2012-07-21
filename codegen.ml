@@ -207,7 +207,7 @@ let rec build_generic ctx c p tl =
 	let rec check_recursive t =
 		match follow t with
 		| TInst (c,tl) ->
-			if c.cl_kind = KTypeParameter then recurse := true;
+			(match c.cl_kind with KTypeParameter _ -> recurse := true | _ -> ());
 			List.iter check_recursive tl;
 		| _ ->
 			()

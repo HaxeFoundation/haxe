@@ -344,7 +344,7 @@ let rec class_string klass suffix params =
 	(* FastIterator class *)
 	|  (["cpp"],"FastIterator") -> "::cpp::FastIterator" ^ suffix ^ "< " ^ (String.concat ","
 					 (List.map type_string  params) ) ^ " >"
-	| _ when klass.cl_kind=KTypeParameter -> "Dynamic"
+	| _ when (match klass.cl_kind with KTypeParameter _ -> true | _ -> false) -> "Dynamic"
 	|  ([],"#Int") -> "/* # */int"
 	|  (["haxe";"io"],"Unsigned_char__") -> "unsigned char"
 	|  ([],"Class") -> "::Class"
@@ -413,7 +413,7 @@ and is_dynamic_array_param haxe_type =
 	| TInst (klass,params) ->
 			(match klass.cl_path with
          | ([],"Array") | ([],"Class") | (["cpp"],"FastIterator") -> false
-			| _ -> klass.cl_kind = KTypeParameter
+			| _ -> (match klass.cl_kind with KTypeParameter _ -> true | _ -> false)
 			)
    | _ -> false
 	)
@@ -2030,7 +2030,7 @@ let find_referenced_types ctx obj super_deps constructor_deps header_only =
          | ([],"Array") | ([],"Class") | (["cpp"],"FastIterator") -> List.iter visit_type params
          | (["cpp"],"CppInt32__") -> add_type klass.cl_path;
          | _ when klass.cl_extern -> ()
-			| _ -> if (klass.cl_kind <> KTypeParameter ) then add_type klass.cl_path;
+			| _ -> (match klass.cl_kind with KTypeParameter _ -> () | _ -> add_type klass.cl_path);
 			)
 		| TFun (args,haxe_type) -> visit_type haxe_type;
 				List.iter (fun (_,_,t) -> visit_type t; ) args;
@@ -2960,7 +2960,7 @@ let add_class_to_makefile makefile add_obj class_def =
 
 let kind_string = function
 	| KNormal -> "KNormal"
-	| KTypeParameter -> "KTypeParameter"
+	| KTypeParameter _ -> "KTypeParameter"
 	| KExtension _ -> "KExtension"
 	| KExpr _ -> "KExpr"
 	| KGeneric -> "KGeneric"

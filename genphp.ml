@@ -86,7 +86,7 @@ let rec class_string klass suffix params =
 	(* Array class *)
 	|  ([],"Array") -> (snd klass.cl_path) ^ suffix ^ "<" ^ (String.concat ","
 					 (List.map type_string  params) ) ^ " >"
-	| _ when klass.cl_kind=KTypeParameter -> "Dynamic"
+	| _ when (match klass.cl_kind with KTypeParameter _ -> true | _ -> false) -> "Dynamic"
 	|  ([],"#Int") -> "/* # */int"
 	|  (["haxe";"io"],"Unsigned_char__") -> "unsigned char"
 	|  ([],"Class") -> "Class"

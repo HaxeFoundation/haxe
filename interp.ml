@@ -3915,7 +3915,7 @@ and encode_method_kind m =
 and encode_class_kind k =
 	let tag, pl = (match k with
 		| KNormal -> 0, []
-		| KTypeParameter -> 1, []
+		| KTypeParameter pl -> 1, [encode_tparams pl]
 		| KExtension (cl, params) -> 2, [encode_clref cl; encode_tparams params]
 		| KExpr e -> 3, [encode_expr e]
 		| KGeneric -> 4, []

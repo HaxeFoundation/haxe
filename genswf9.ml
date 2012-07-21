@@ -201,9 +201,9 @@ let rec type_id ctx t =
 		HMParams (type_path ctx c.cl_path,List.map (type_id ctx) pl)
 	| TInst (c,_) ->
 		(match c.cl_kind with
-		| KTypeParameter ->
-			(match c.cl_implements with
-			| [csup,_] -> type_path ctx csup.cl_path
+		| KTypeParameter l ->
+			(match l with
+			| [t] -> type_id ctx t
 			| _ -> type_path ctx ([],"Object"))
 		| KExtension (c,params) ->
 			type_id ctx (TInst (c,params))

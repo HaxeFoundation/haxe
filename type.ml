@@ -144,7 +144,7 @@ and tclass_field = {
 
 and tclass_kind =
 	| KNormal
-	| KTypeParameter
+	| KTypeParameter of t list
 	| KExtension of tclass * tparams
 	| KExpr of Ast.expr
 	| KGeneric
@@ -798,17 +798,31 @@ let rec raw_class_field build_type c i =
 			let t , f = raw_class_field build_type c i in
 			apply_params c.cl_types tl t , f
 	with Not_found ->
-		let rec loop = function
-			| [] ->
-				raise Not_found
-			| (c,tl) :: l ->
-				try
-					let t , f = raw_class_field build_type c i in
-					apply_params c.cl_types tl t, f
-				with
-					Not_found -> loop l
-		in
-		loop c.cl_implements
+		match c.cl_kind with
+		| KTypeParameter tl ->
+			let rec loop = function
+				| [] ->
+					raise Not_found
+				| t :: ctl ->
+					match follow t with
+					| TAnon a ->
+						(try
+							let f = PMap.find i a.a_fields in
+							build_type f, f
+						with
+							Not_found -> loop ctl)
+					| TInst (c,pl) ->
+						(try
+							let t , f = raw_class_field build_type c i in
+							apply_params c.cl_types pl t, f
+						with
+							Not_found -> loop ctl)
+					| _ ->
+						loop ctl
+			in
+			loop tl
+		| _ ->
+			raise Not_found
 
 let class_field = raw_class_field field_type
 
@@ -870,7 +884,10 @@ let rec unify a b =
 					loop cs (List.map (apply_params c.cl_types tl) tls)
 			) || List.exists (fun (cs,tls) ->
 				loop cs (List.map (apply_params c.cl_types tl) tls)
-			) c.cl_implements
+			) c.cl_implements 
+			|| (match c.cl_kind with
+			| KTypeParameter pl -> List.exists (fun t -> match follow t with TInst (cs,tls) -> loop cs (List.map (apply_params c.cl_types tl) tls) | _ -> false) pl
+			| _ -> false)
 		in
 		if not (loop c1 tl1) then error [cannot_unify a b]
 	| TFun (l1,r1) , TFun (l2,r2) when List.length l1 = List.length l2 ->

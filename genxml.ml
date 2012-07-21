@@ -279,7 +279,7 @@ let generate_type com t =
 			(match !r with
 			| None -> "Unknown"
 			| Some t -> stype t)
-		| TInst ({ cl_kind = KTypeParameter } as c,tl) ->
+		| TInst ({ cl_kind = KTypeParameter _ } as c,tl) ->
 			path ([],snd c.cl_path) tl
 		| TInst (c,tl) ->
 			path c.cl_path tl

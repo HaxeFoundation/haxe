@@ -124,11 +124,15 @@ let check_param_constraints ctx types t pl c p =
  	match follow t with
 	| TMono _ -> ()
 	| _ ->
-		List.iter (fun (i,tl) ->
-			let ti = try snd (List.find (fun (_,t) -> match follow t with TInst(i2,[]) -> i == i2 | _ -> false) types) with Not_found -> TInst (i,tl) in
+		let ctl = (match c.cl_kind with KTypeParameter l -> l | _ -> []) in
+		List.iter (fun ti ->
+			(*
+				what was that used for ?
+				let ti = try snd (List.find (fun (_,t) -> match follow t with TInst(i2,[]) -> i == i2 | _ -> false) types) with Not_found -> TInst (i,tl) in
+			*)
 			let ti = apply_params types pl ti in
 			unify ctx t ti p
-		) c.cl_implements
+		) ctl
 
 (* build an instance from a full type *)
 let rec load_instance ctx t p allow_no_params =
@@ -145,7 +149,7 @@ let rec load_instance ctx t p allow_no_params =
 				match follow t with
 				| TInst (c,_) ->
 					let t = mk_mono() in
-					if c.cl_implements <> [] then delay_late ctx (fun() -> check_param_constraints ctx types t (!pl) c p);
+					if c.cl_kind <> KTypeParameter [] then delay_late ctx (fun() -> check_param_constraints ctx types t (!pl) c p);
 					t;
 				| _ -> assert false
 			) types;
@@ -175,7 +179,7 @@ let rec load_instance ctx t p allow_no_params =
 				let isconst = (match t with TInst ({ cl_kind = KExpr _ },_) -> true | _ -> false) in
 				if isconst <> (name = "Const") && t != t_dynamic then error (if isconst then "Constant value unexpected here" else "Constant value excepted as type parameter") p;
 				match follow t2 with
-				| TInst ({ cl_implements = [] }, []) ->
+				| TInst ({ cl_kind = KTypeParameter [] }, []) ->
 					t
 				| TInst (c,[]) ->
 					let r = exc_protect ctx (fun r ->
@@ -370,19 +374,19 @@ let valid_redefinition ctx f1 t1 f2 t2 =
 		| l1, l2 when List.length l1 = List.length l2 ->
 			let monos = List.map2 (fun (_,p1) (_,p2) -> 
 				match follow p1, follow p2 with
-				| TInst (c1,_), TInst (c2,_) ->
-					(match c1.cl_implements, c2.cl_implements with
+				| TInst ({ cl_kind = KTypeParameter ct1 } as c1,pl1), TInst ({ cl_kind = KTypeParameter ct2 } as c2,pl2) ->
+					(match ct1, ct2 with
 					| [], [] -> 
 						let m = mk_mono() in
 						m,m
-					| l1, l2 when List.length l1 = List.length l2 ->
+					| _, _ when List.length ct1 = List.length ct2 ->
 						(* if same constraints, they are the same type *)
-						List.iter2 (fun (i1,tl1) (i2,tl2) ->
+						List.iter2 (fun t1 t2  ->
 							try 
-								type_eq EqStrict (TInst(i1,tl1)) (TInst(i2,tl2))
+								type_eq EqStrict (apply_params c1.cl_types pl1 t1) (apply_params c2.cl_types pl2 t2)
 							with Unify_error l ->
 								raise (Unify_error (Unify_custom "Constraints differ" :: l))
-						) c1.cl_implements c2.cl_implements;
+						) ct1 ct2;
 						let m = mk_mono() in
 						m,m
 					| _ ->
@@ -562,7 +566,7 @@ let set_heritance ctx c herits p =
 	let process_meta csup =
 		List.iter (fun m ->
 			match m with
-			| ":final", _, _ -> if not (Type.has_meta ":hack" c.cl_meta || c.cl_kind = KTypeParameter) then error "Cannot extend a final class" p;
+			| ":final", _, _ -> if not (Type.has_meta ":hack" c.cl_meta || (match c.cl_kind with KTypeParameter _ -> true | _ -> false)) then error "Cannot extend a final class" p;
 			| ":autoBuild", el, p -> c.cl_meta <- (":build",el,p) :: m :: c.cl_meta;
 			| _ -> ()
 		) csup.cl_meta
@@ -624,15 +628,16 @@ let set_heritance ctx c herits p =
 
 let type_type_params ctx path get_params p (n,flags) =
 	let c = mk_class ctx.current (fst path @ [snd path],n) p in
-	c.cl_kind <- KTypeParameter;
 	let t = TInst (c,[]) in
 	match flags with
-	| [] -> n, t
+	| [] -> 
+		c.cl_kind <- KTypeParameter [];
+		n, t
 	| _ ->
 		let r = exc_protect ctx (fun r ->
 			r := (fun _ -> t);
 			let ctx = { ctx with type_params = ctx.type_params @ get_params() } in
-			set_heritance ctx c (List.map (fun t -> match t with CTPath t -> HImplements t | _ -> error "Unsupported type constraint" p) flags) p;
+			c.cl_kind <- KTypeParameter (List.map (load_complex_type ctx p) flags);
 			t
 		) in
 		delay ctx (fun () -> ignore(!r()));

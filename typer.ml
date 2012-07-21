@@ -86,13 +86,12 @@ type type_class =
 	| KOther
 	| KParam of t
 
-let classify t =
+let rec classify t =
 	match follow t with
 	| TInst ({ cl_path = ([],"Int") },[]) -> KInt
 	| TInst ({ cl_path = ([],"Float") },[]) -> KFloat
 	| TInst ({ cl_path = ([],"String") },[]) -> KString
-	| TInst ({ cl_kind = KTypeParameter; cl_implements = [{ cl_path = ([],"Float")},[]] },[]) -> KParam t
-	| TInst ({ cl_kind = KTypeParameter; cl_implements = [{ cl_path = ([],"Int")},[]] },[]) -> KParam t
+	| TInst ({ cl_kind = KTypeParameter ctl },_) when List.exists (fun t -> match classify t with KInt | KFloat -> true | _ -> false) ctl -> KParam t
 	| TMono r when !r = None -> KUnk
 	| TDynamic _ -> KDyn
 	| _ -> KOther
@@ -125,11 +124,11 @@ let field_type ctx c pl f p =
 		let monos = List.map (fun _ -> mk_mono()) l in
 		List.iter2 (fun m (name,t) -> 
 			match follow t with
-			| TInst ({ cl_implements = constr },_) when constr <> [] ->
-				let constr = List.map (fun (i,ipl) ->
-					let ipl = if pl = [] then ipl else List.map (apply_params c.cl_types pl) ipl in
-					let ipl = List.map (apply_params f.cf_params monos) ipl in
-					TInst (i,ipl)
+			| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] ->
+				let constr = List.map (fun t -> 
+					let t = apply_params f.cf_params monos t in
+					let t = apply_params c.cl_types pl t in
+					t
 				) constr in
 				delay_late ctx (fun() ->
 					List.iter (fun ct ->
@@ -179,6 +178,9 @@ let rec base_types t =
 	let tl = ref [] in
 	let rec loop t = (match t with
 	| TInst(cl, params) ->
+		(match cl.cl_kind with
+		| KTypeParameter tl -> List.iter loop tl
+		| _ -> ());
 		List.iter (fun (ic, ip) ->
 			let t = apply_params cl.cl_types params (TInst (ic,ip)) in
 			loop t
@@ -2084,7 +2086,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			) params;
 			(match follow t with
 			| TInst (c,_) ->
-				if c.cl_kind = KTypeParameter then error "Can't cast to a type parameter" p;
+				(match c.cl_kind with KTypeParameter _ -> error "Can't cast to a type parameter" p | _ -> ());
 				TClassDecl c
 			| TEnum (e,_) -> TEnumDecl e
 			| _ -> assert false);
@@ -2107,7 +2109,8 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			| _ ->
 				t
 		in
-		let fields = (match follow e.etype with
+		let rec get_fields t = 
+			match follow t with
 			| TInst (c,params) ->
 				let priv = is_parent c ctx.curclass in
 				let merge ?(cond=(fun _ -> true)) a b =
@@ -2122,6 +2125,10 @@ and type_expr ctx ?(need_val=true) (e,p) =
 						| Some (csup,cparams) -> merge m (loop csup cparams)
 					) in
 					let m = merge ~cond:(fun f -> priv || f.cf_public) c.cl_fields m in
+					let m = (match c.cl_kind with
+						| KTypeParameter pl -> List.fold_left (fun acc t -> merge acc (get_fields t)) m pl
+						| _ -> m
+					) in
 					PMap.map (fun f -> { f with cf_type = apply_params c.cl_types params (opt_type f.cf_type); cf_public = true; }) m
 				in
 				loop c params
@@ -2133,7 +2140,8 @@ and type_expr ctx ?(need_val=true) (e,p) =
 					a.a_fields)
 			| _ ->
 				PMap.empty
-		) in
+		in
+		let fields = get_fields e.etype in
 		(*
 			add 'using' methods compatible with this type
 		*)

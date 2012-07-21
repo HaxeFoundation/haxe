@@ -3,6 +3,7 @@
 	all : allowed named functions as r-value
 	macro : added $[expr-list] support in reification
 	all : fixed using + overload usage
+	all : allow any type constraint for type parameters
 	
 2012-07-16: 2.10
 	java/cs : added two new targets (beta)

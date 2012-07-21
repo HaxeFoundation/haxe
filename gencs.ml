@@ -40,7 +40,7 @@ let is_cs_basic_type t =
 
 let is_tparam t = 
   match follow t with
-    | TInst( { cl_kind = KTypeParameter }, [] ) -> true
+    | TInst( { cl_kind = KTypeParameter _ }, [] ) -> true
     | _ -> false
     
 let rec is_int_float t =
@@ -244,7 +244,7 @@ struct
   
   let is_tparam t =
     match follow t with
-      | TInst( { cl_kind = KTypeParameter }, _ ) -> true
+      | TInst( { cl_kind = KTypeParameter _ }, _ ) -> true
       | _ -> false
   
   let traverse gen runtime_cl =
@@ -591,7 +591,7 @@ let configure gen =
           Null<T>, which will then return the type haxe.lang.Null<>
         *)
         (match real_type t with
-          | TInst( { cl_kind = KTypeParameter }, _ ) -> TInst(null_t, [t])
+          | TInst( { cl_kind = KTypeParameter _ }, _ ) -> TInst(null_t, [t])
           | _ when is_cs_basic_type t -> TInst(null_t, [t])
           | _ -> real_type t)
       | TType _ -> t
@@ -620,7 +620,7 @@ let configure gen =
         Null<> type parameters will be transformed into Dynamic.
       *)
       | true, TInst ( { cl_path = (["haxe";"lang"], "Null") }, _ ) -> dynamic_anon
-      | true, TInst ( { cl_kind = KTypeParameter }, _ ) -> t
+      | true, TInst ( { cl_kind = KTypeParameter _ }, _ ) -> t
       | true, TInst _ | true, TEnum _ when is_cs_basic_type t -> t
       | true, TDynamic _ -> t
       | true, _ -> dynamic_anon
@@ -674,7 +674,7 @@ let configure gen =
       | TInst({ cl_path = (["cs"], "Pointer") }, [ t ]) ->
         t_s t ^ "*"
       (* end of basic types *)
-      | TInst ({ cl_kind = KTypeParameter; cl_path=p }, []) -> snd p
+      | TInst ({ cl_kind = KTypeParameter _; cl_path=p }, []) -> snd p
       | TMono r -> (match !r with | None -> "object" | Some t -> t_s (run_follow gen t))
       | TInst ({ cl_path = [], "String" }, []) -> "string"
       | TEnum ({ e_path = p }, params) -> (path_s p)
@@ -1698,7 +1698,7 @@ let configure gen =
       | TArray(e1, e2) -> 
         ( match follow e1.etype with 
           | TDynamic _ | TAnon _ | TMono _ -> true 
-          | TInst({ cl_kind = KTypeParameter }, _) -> true
+          | TInst({ cl_kind = KTypeParameter _ }, _) -> true
           | _ -> false ) 
       | _ -> assert false
   ) "__get" "__set" );
@@ -1710,7 +1710,7 @@ let configure gen =
   in
   
   let is_type_param e = match follow e with
-    | TInst( { cl_kind = KTypeParameter },[]) -> true
+    | TInst( { cl_kind = KTypeParameter _ },[]) -> true
     | _ -> false
   in
   
@@ -1750,7 +1750,7 @@ let configure gen =
   let should_handle_opeq t = 
     match real_type t with
       | TDynamic _ | TAnon _ | TMono _
-      | TInst( { cl_kind = KTypeParameter }, _ )
+      | TInst( { cl_kind = KTypeParameter _ }, _ )
       | TInst( { cl_path = (["haxe";"lang"], "Null") }, _ ) -> true
       | _ -> false
   in
@@ -1781,8 +1781,8 @@ let configure gen =
           | _, TDynamic _
           | TInst( { cl_path = ([], "String") }, [] ), _
           | _, TInst( { cl_path = ([], "String") }, [] )
-          | TInst( { cl_kind = KTypeParameter }, [] ), _
-          | _, TInst( { cl_kind = KTypeParameter }, [] ) -> false
+          | TInst( { cl_kind = KTypeParameter _ }, [] ), _
+          | _, TInst( { cl_kind = KTypeParameter _ }, [] ) -> false
           | _, _ -> true
         in
             
