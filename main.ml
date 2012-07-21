@@ -711,9 +711,10 @@ try
 	let force_typing = ref false in
 	let pre_compilation = ref [] in
 	let interp = ref false in
-	for i = 0 to 4 do
+	if version >= 300 then Common.define com "haxe3";
+	for i = 0 to (if version < 300 then 4 else version - 300) do
 		let v = version - i in
-		if v / 100 = version / 100 then Common.define com ("haxe_" ^ string_of_int v);
+		Common.define com ("haxe_" ^ string_of_int v);
 	done;
 	com.warning <- (fun msg p -> message ctx ("Warning : " ^ msg) p);
 	com.error <- error ctx;
