@@ -636,6 +636,7 @@ and expr = parser
 			| [< >] -> expr_next (EConst (Ident "macro"),p) s)
 		| _ ->
 			expr_next (EConst (Ident "macro"),p) s)
+	| [< '(Kwd Var,p1); v = parse_var_decl >] -> (EVars [v],p1)
 	| [< '(Const c,p); s >] -> expr_next (EConst c,p) s
 	| [< '(Kwd This,p); s >] -> expr_next (EConst (Ident "this"),p) s
 	| [< '(Kwd True,p); s >] -> expr_next (EConst (Ident "true"),p) s

@@ -1499,6 +1499,9 @@ and type_expr_with_type_raise ?(print_error=true) ctx e t =
 		let locals = save_locals ctx in
 		let rec loop = function
 			| [] -> []
+			| (EVars vl,p) :: l ->
+				let e = type_vars ctx vl p true in
+				e :: loop l
 			| [e] ->
 				(try
 					[type_expr_with_type_raise ~print_error ctx e t]
@@ -1739,6 +1742,28 @@ and type_access ctx e p mode =
 	| _ ->
 		AKExpr (type_expr ctx (e,p))
 
+and type_vars ctx vl p in_block =
+	let save = if in_block then (fun() -> ()) else save_locals ctx in
+	let vl = List.map (fun (v,t,e) ->
+		try
+			let t = Typeload.load_type_opt ctx p t in
+			let e = (match e with
+				| None -> None
+				| Some e ->
+					let e = type_expr_with_type ctx e (Some t) in
+					unify ctx e.etype t p;
+					Some e
+			) in
+			if v.[0] = '$' && not ctx.com.display then error "Variables names starting with a dollar are not allowed" p;
+			add_local ctx v t, e
+		with
+			Error (e,p) ->
+				display_error ctx (error_msg e) p;
+				add_local ctx v t_dynamic, None
+	) vl in
+	save();
+	mk (TVars vl) ctx.t.tvoid p
+
 and type_expr ctx ?(need_val=true) (e,p) =
 	match e with
 	| EField ((EConst (String s),p),"code") ->
@@ -1763,6 +1788,9 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let locals = save_locals ctx in
 		let rec loop = function
 			| [] -> []
+			| (EVars vl,p) :: l ->
+				let e = type_vars ctx vl p true in
+				e :: loop l
 			| [e] ->
 				(try
 					[type_expr ctx ~need_val e]
@@ -1803,24 +1831,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let t = try unify_min_raise ctx el with Error (Unify l,p) -> if Common.defined ctx.com "haxe3" then raise (Error (Unify l, p)) else t_dynamic in
 		mk (TArrayDecl el) (ctx.t.tarray t) p
 	| EVars vl ->
-		let vl = List.map (fun (v,t,e) ->
-			try
-				let t = Typeload.load_type_opt ctx p t in
-				let e = (match e with
-					| None -> None
-					| Some e ->
-						let e = type_expr_with_type ctx e (Some t) in
-						unify ctx e.etype t p;
-						Some e
-				) in
-				if v.[0] = '$' && not ctx.com.display then error "Variables names starting with a dollar are not allowed" p;
-				add_local ctx v t, e
-			with
-				Error (e,p) ->
-					display_error ctx (error_msg e) p;
-					add_local ctx v t_dynamic, None
-		) vl in
-		mk (TVars vl) ctx.t.tvoid p
+		type_vars ctx vl p false
 	| EFor (it,e2) ->
 		let i, e1 = (match it with
 			| (EIn ((EConst (Ident i),_),e),_) -> i, e
