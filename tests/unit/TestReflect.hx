@@ -2,28 +2,28 @@ package unit;
 import Type;
 
 interface InterfWithProp {
-	public var x(getX, setX) : Int;
+	public var x(get_x, set_x) : Int;
 }
 
 class ClassWithProp implements InterfWithProp {
-	public var x(getX, setX) : Int;
+	public var x(get_x, set_x) : Int;
 	var _x : Int;
 
 	public function new() {
 		_x = 5;
 	}
 
-	function getX() {
+	function get_x() {
 		return _x;
 	}
-	function setX(v) {
+	function set_x(v) {
 		_x = v;
 		return v;
 	}
 
-	public static var STAT_X(default, setStatX) : Int;
+	public static var STAT_X(default, set_STAT_X) : Int;
 
-	static function setStatX(v) {
+	static function set_STAT_X(v) {
 		STAT_X = v * 2;
 		return v;
 	}
@@ -43,11 +43,11 @@ class SubClassWithProp extends ClassWithProp {
 		y = 10;
 	}
 
-	override function getX() {
+	override function get_x() {
 		return _x + 1;
 	}
 
-	function getY() {
+	function get_y() {
 		return y;
 	}
 
@@ -255,6 +255,10 @@ class TestReflect extends Test {
 		eq( c.x, 5);
 
 		eq( Reflect.getProperty(c, "x"), 5);
+		// Note: in its current state my DCE algorithm will cause a runtime error on the Reflect.setProperty line after this.
+		// This seems to be correct though because we never actually call the setter for x in tracable code. I add the
+		// next line to make sure the setter is kept for now
+		c.x = 0;
 		Reflect.setProperty(c, "x", 10);
 		eq( c.x, 10);
 		eq( Reflect.getProperty(c, "x"), 10);
