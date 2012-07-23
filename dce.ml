@@ -1,7 +1,7 @@
 (*
  * Haxe DCE:
  * With this new approach the typer is almost not aware of DCE at all. It instead types what
- * it needs to types (and usually some more) and DCE then takes care of cleaning up. It does
+ * it needs to type (and usually some more) and DCE then takes care of cleaning up. It does
  * so by following the typed AST expressions and mark accessed classes and fields as used.
  *
  * The algorithm works as follows:
@@ -39,7 +39,6 @@ type dce = {
 	ctx : typer;
 	all_types : module_type list;
 	debug : bool;
-	expr : dce -> texpr -> unit;
 	mutable added_fields : (tclass * tclass_field * bool) list;
 }
 
@@ -209,7 +208,6 @@ let run ctx main types modules =
 		ctx = ctx;
 		all_types = types;
 		debug = Common.defined ctx.com "dce_debug";
-		expr = expr;
 		added_fields = [];
 	} in
 	(* first step: get all entry points, which is the main method and all class methods which are marked with @:keep *)
