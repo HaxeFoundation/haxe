@@ -127,7 +127,8 @@ let field_type ctx c pl f p =
 			| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] ->
 				let constr = List.map (fun t -> 
 					let t = apply_params f.cf_params monos t in
-					let t = apply_params c.cl_types pl t in
+					(* only apply params if not static : in that case no param is passed *)
+					let t = (if pl = [] then t else apply_params c.cl_types pl t) in
 					t
 				) constr in
 				delay_late ctx (fun() ->
