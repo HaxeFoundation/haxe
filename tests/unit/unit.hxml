@@ -61,11 +61,19 @@ params.hxml
 
 #java
 --next
--main RunJava
--neko runjava.n
-
---next
 params.hxml
 -main unit.Test
 -java java
--cmd javac -sourcepath java/src java/src/unit/Test.java
+
+#cs
+--next
+params.hxml
+-main unit.Test
+-cs cs
+
+#cs-unsafe
+--next
+params.hxml
+-main unit.Test
+-D unsafe
+-cs cs_unsafe
