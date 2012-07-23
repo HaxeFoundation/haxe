@@ -111,6 +111,7 @@ class Main {
 		addCommand("install",install,"install a given library");
 		addCommand("list",list,"list all installed libraries",false);
 		addCommand("upgrade",upgrade,"upgrade all installed libraries");
+		addCommand("update",update,"update a single library");
 		addCommand("remove",remove,"remove a given library/version",false);
 		addCommand("set",set,"set the current version for a library",false);
 		addCommand("search",search,"list libraries matching a word");
@@ -619,42 +620,51 @@ class Main {
 	}
 
 	function upgrade() {
-		var rep = getRepository();
-		var prompt = true;
-		var update = false;
-		for( p in sys.FileSystem.readDirectory(rep) ) {
-			if( p.charAt(0) == "." || !sys.FileSystem.isDirectory(rep+"/"+p) )
+		var state = { rep : getRepository(), prompt : true, updated : false };
+		for( p in sys.FileSystem.readDirectory(state.rep) ) {
+			if( p.charAt(0) == "." || !sys.FileSystem.isDirectory(state.rep+"/"+p) )
 				continue;
 			var p = Datas.unsafe(p);
 			print("Checking " + p);
-			if (sys.FileSystem.exists(rep + "/" + p + "/git") && sys.FileSystem.isDirectory(rep + "/" + p + "/git"))
-			{
-				var oldCwd = Sys.getCwd();
-				Sys.setCwd(rep + "/" + p + "/git");
-				Sys.command("git pull");
-				// TODO: update haxelib.xml version?
-				Sys.setCwd(oldCwd);
-			}
-			else
-			{
-				var inf = try site.infos(p) catch( e : Dynamic ) { Sys.println(e); continue; };
-				if( !sys.FileSystem.exists(rep+Datas.safe(p)+"/"+Datas.safe(inf.curversion)) ) {
-					if( prompt )
-						switch ask("Upgrade "+p+" to "+inf.curversion) {
-						case Yes:
-						case Always: prompt = false;
-						case No: continue;
-						}
-					doInstall(p,inf.curversion,true);
-					update = true;
-				} else
-					setCurrent(p, inf.curversion, true);
-			}
+			doUpdate(p,state);
 		}
-		if( update )
+		if( state.updated )
 			print("Done");
 		else
 			print("All libraries are up-to-date");
+	}
+
+	function doUpdate( p : String, state ) {
+		var rep = state.rep;
+		if( sys.FileSystem.exists(rep + "/" + p + "/git") && sys.FileSystem.isDirectory(rep + "/" + p + "/git") ) {
+			var oldCwd = Sys.getCwd();
+			Sys.setCwd(rep + "/" + p + "/git");
+			Sys.command("git pull");
+			// TODO: update haxelib.xml version?
+			Sys.setCwd(oldCwd);
+		} else {
+			var inf = try site.infos(p) catch( e : Dynamic ) { Sys.println(e); return; };
+			if( !sys.FileSystem.exists(rep+Datas.safe(p)+"/"+Datas.safe(inf.curversion)) ) {
+				if( state.prompt )
+					switch ask("Upgrade "+p+" to "+inf.curversion) {
+					case Yes:
+					case Always: state.prompt = false;
+					case No:
+						return;
+					}
+				doInstall(p,inf.curversion,true);
+				state.updated = true;
+			} else
+				setCurrent(p, inf.curversion, true);
+		}
+	}
+
+	function update() {
+		var prj = param("Library");
+		var state = { rep : getRepository(), prompt : false, updated : false };
+		doUpdate(prj,state);
+		if( !state.updated )
+			print(prj + " is up to date");
 	}
 
 	function deleteRec(dir) {
