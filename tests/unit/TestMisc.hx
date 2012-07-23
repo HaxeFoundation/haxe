@@ -374,9 +374,9 @@ class TestMisc extends Test {
 		var e = new ExtDefArgs();
 		eq( e.get(), 7 );
 		var b : BaseDefArgs = e;
-		eq( e.get(), 7 );
+		eq( b.get(), 7 );
 		var i : IDefArgs = e;
-		eq( e.get(), 7 );
+		eq( i.get(), 7 );
 	}
 
 	function testStringBuf() {
