@@ -22,11 +22,11 @@
  * 6. Filter the types by keeping those that are used explicitly or have a used field.
  *
  * Notes:
- *	- the only influence of the typer is @:?used marking on structural subtyping
+ *  - the only influence of the typer is @:?used marking on structural subtyping
  *  - properties are currently tricky to handle on some targets
  *  - cpp target does not like removing unused overridden fields
  *  - most targets seem to require keeping a property field even if it is used only through its accessor methods
- *	- I did not consider inlining at all because I'm pretty sure I don't have to at this compilation stage
+ *  - I did not consider inlining at all because I'm pretty sure I don't have to at this compilation stage
  * 
  *)
 
@@ -69,7 +69,6 @@ let keep_field dce cf =
 	|| has_meta ":used" cf.cf_meta
 	|| cf.cf_name = "__init__"
 
-
 (* marking *)
 
 (* mark a field as kept *)
@@ -109,8 +108,9 @@ let rec mark_dependent_fields dce csup n stat =
 			let rec loop c =
 				(try
 					let cf = PMap.find n (if stat then c.cl_statics else c.cl_fields) in
-					(* if it's clear that the class is kept, the field has to be kept as well *)
-					if has_meta ":used" c.cl_meta then mark_field dce c cf stat
+					(* if it's clear that the class is kept, the field has to be kept as well. This is also true for
+					   extern interfaces because we cannot remove fields from them *)
+					if has_meta ":used" c.cl_meta || (csup.cl_interface && csup.cl_extern) then mark_field dce c cf stat
 					(* otherwise it might be kept if the class is kept later, so mark it as :?used *)
 					else if not (has_meta ":?used" cf.cf_meta) then cf.cf_meta <- (":?used",[],cf.cf_pos) :: cf.cf_meta;
 					(* Cpp currently requires all base methods to be marked too *)
@@ -189,6 +189,12 @@ and expr dce e =
 		) vl;
 	| TTypeExpr (TClassDecl c) ->
 		mark_class dce c;
+	| TCast(e, Some (TEnumDecl en)) ->
+		mark_t dce (TEnum(en,[]));
+		expr dce e;
+	| TTypeExpr (TEnumDecl e)
+	| TEnumField(e,_) ->
+		mark_t dce (TEnum(e,[]));		
 	| TCall ({eexpr = TConst TSuper} as e,el) ->
 		mark_t dce e.etype;
 		List.iter (expr dce) el;
@@ -221,7 +227,7 @@ let run ctx main types modules =
 			let keep_class = keep_whole_class dce c in
 			if keep_class then mark_class dce c;
 			(* extern classes should never serve as entry point *)
-			let keep_class = keep_class && not c.cl_extern in
+			let keep_class = keep_class && (not c.cl_extern || c.cl_interface) in
 			let rec loop2 acc cfl stat = match cfl with
 				| cf :: l when keep_class || keep_field dce cf ->
 					loop2 ((c,cf,stat) :: acc) l stat
@@ -295,13 +301,14 @@ let run ctx main types modules =
 				end;
 				b
 			) c.cl_ordered_fields;
-			(match c.cl_constructor with Some cf when not (keep_field dce cf) -> c.cl_constructor <- None | _ -> ());
+			if c.cl_path <> ([],"EReg") then
+				(match c.cl_constructor with Some cf when not (keep_field dce cf) -> c.cl_constructor <- None | _ -> ());
 			(* we keep a class if it was used or has a used field *)
 			if has_meta ":used" c.cl_meta || c.cl_ordered_statics <> [] || c.cl_ordered_fields <> [] then loop (mt :: acc) l else begin
 				if dce.debug then print_endline ("[DCE] Removed class " ^ (s_type_path c.cl_path));
 				loop acc l
 			end
-		| (TEnumDecl e) as mt :: l when has_meta ":used" e.e_meta || has_meta ":keep" e.e_meta || e.e_extern ->
+ 		| (TEnumDecl e) as mt :: l when has_meta ":used" e.e_meta || has_meta ":keep" e.e_meta || e.e_extern ->
 			loop (mt :: acc) l
 		| TEnumDecl _ :: l ->
 			loop acc l
