@@ -96,6 +96,7 @@ let rec mark_t dce t = match follow t with
 	| TInst({cl_kind = KTypeParameter tl},pl) -> List.iter (mark_t dce) tl; List.iter (mark_t dce) pl
 	| TInst(c,pl) -> mark_class dce c; List.iter (mark_t dce) pl
 	| TFun(args,ret) -> List.iter (fun (_,_,t) -> mark_t dce t) args; mark_t dce ret
+	| TEnum(e,pl) -> if not (has_meta ":used" e.e_meta) then e.e_meta <- (":used",[],e.e_pos) :: e.e_meta; List.iter (mark_t dce) pl
 	| _ -> ()
 
 (* find all dependent fields by checking implementing/subclassing types *)
@@ -215,6 +216,8 @@ let run ctx main types modules =
 		| (TClassDecl c) :: l ->
 			let keep_class = keep_whole_class dce c in
 			if keep_class then mark_class dce c;
+			(* extern classes should never serve as entry point *)
+			let keep_class = keep_class && not c.cl_extern in
 			let rec loop2 acc cfl stat = match cfl with
 				| cf :: l when keep_class || keep_field dce cf ->
 					loop2 ((c,cf,stat) :: acc) l stat
@@ -295,6 +298,10 @@ let run ctx main types modules =
 				if dce.debug then print_endline ("[DCE] Removed class " ^ (s_type_path c.cl_path));
 				loop acc l
 			end
+		| (TEnumDecl e) as mt :: l when has_meta ":used" e.e_meta || has_meta ":keep" e.e_meta || e.e_extern ->
+			loop (mt :: acc) l
+		| TEnumDecl _ :: l ->
+			loop acc l
 		| mt :: l ->
 			loop (mt :: acc) l
 		| [] ->
