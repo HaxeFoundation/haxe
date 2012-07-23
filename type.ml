@@ -820,9 +820,24 @@ let rec raw_class_field build_type c i =
 					| _ ->
 						loop ctl
 			in
-			loop tl
+			loop tl		
 		| _ ->
-			raise Not_found
+			if not c.cl_interface then raise Not_found;
+			(* 
+				an interface can implements other interfaces without
+				having to redeclare its fields
+			*)
+			let rec loop = function
+				| [] ->
+					raise Not_found
+				| (c,tl) :: l ->
+					try
+						let t , f = raw_class_field build_type c i in
+						apply_params c.cl_types tl t, f
+					with
+						Not_found -> loop l
+			in
+			loop c.cl_implements
 
 let class_field = raw_class_field field_type
 
