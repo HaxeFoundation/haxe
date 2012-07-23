@@ -42,8 +42,8 @@ class Meta {
 	}
 
 	/**
-		Returns the metadata that were declared for the given class fields or enum constructors
-	**/
+		Returns the metadata that were declared for the given class static fields
+	**/	
 	public static function getStatics( t : Dynamic ) : Dynamic<Dynamic<Array<Dynamic>>> {
 		#if (java || cs)
 		var meta : Dynamic = Reflect.field(t, "__meta__");
@@ -54,7 +54,7 @@ class Meta {
 	}
 
 	/**
-		Returns the metadata that were declared for the given class static fields
+		Returns the metadata that were declared for the given class fields or enum constructors
 	**/
 	public static function getFields( t : Dynamic ) : Dynamic<Dynamic<Array<Dynamic>>> {
 		#if (java || cs)
