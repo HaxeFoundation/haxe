@@ -30,7 +30,7 @@ EXPORT=../../../projects/motionTools/haxe
 
 MODULES=ast type lexer common genxml parser typecore optimizer typeload \
 	codegen genas3 gencommon gencpp genjs genneko genphp genswf8 \
-	gencs genjava genswf9 interp genswf typer main
+	gencs genjava genswf9 interp genswf typer dce main
 
 HAXE_LIBRARY_PATH=$(CURDIR)/std
 
@@ -64,6 +64,8 @@ codegen.cmx: typeload.cmx typecore.cmx type.cmx genxml.cmx common.cmx ast.cmx
 
 common.cmx: type.cmx ast.cmx
 
+dce.cmx: type.cmx typer.cmx
+
 genas3.cmx: type.cmx common.cmx codegen.cmx ast.cmx
 
 gencommon.cmx: type.cmx common.cmx codegen.cmx ast.cmx
@@ -90,7 +92,7 @@ genxml.cmx: type.cmx lexer.cmx common.cmx ast.cmx
 
 interp.cmx: typecore.cmx type.cmx lexer.cmx genneko.cmx common.cmx codegen.cmx ast.cmx
 
-main.cmx: typer.cmx typeload.cmx typecore.cmx type.cmx parser.cmx optimizer.cmx lexer.cmx interp.cmx genxml.cmx genswf.cmx genphp.cmx genneko.cmx genjs.cmx genjava.cmx gencs.cmx gencpp.cmx genas3.cmx common.cmx codegen.cmx ast.cmx
+main.cmx: dce.cmx typer.cmx typeload.cmx typecore.cmx type.cmx parser.cmx optimizer.cmx lexer.cmx interp.cmx genxml.cmx genswf.cmx genphp.cmx genneko.cmx genjs.cmx genjava.cmx gencs.cmx gencpp.cmx genas3.cmx common.cmx codegen.cmx ast.cmx
 
 optimizer.cmx: typecore.cmx type.cmx parser.cmx common.cmx ast.cmx
 

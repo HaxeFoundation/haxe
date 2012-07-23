@@ -26,9 +26,9 @@ class MyDynamicClass {
 		return Z + x + y;
 	}
 
-	public static var W(getW, setW) : Int = 55;
-	static function getW() return W + 2
-	static function setW(v) { W = v; return v; }
+	public static var W(get_w, set_w) : Int = 55;
+	static function get_w() return W + 2
+	static function set_w(v) { W = v; return v; }
 	
 }
 

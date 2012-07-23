@@ -66,17 +66,6 @@ let check_assign ctx e =
 	| _ ->
 		error "Invalid assign" e.epos
 
-let rec mark_used_class ctx c =
-	if ctx.com.dead_code_elimination && not (has_meta ":?used" c.cl_meta) then begin
-		c.cl_meta <- (":?used",[],c.cl_pos) :: c.cl_meta;
-		match c.cl_super with
-		| Some (csup,_) -> mark_used_class ctx csup
-		| _ -> ()
-	end
-
-let mark_used_enum ctx e  =
-	if ctx.com.dead_code_elimination && not (has_meta ":?used" e.e_meta) then e.e_meta <- (":?used",[],e.e_pos) :: e.e_meta
-
 type type_class =
 	| KInt
 	| KFloat
@@ -384,7 +373,6 @@ let rec type_module_type ctx t tparams p =
 			t_types = [];
 			t_meta = no_meta;
 		} in
-		mark_used_class ctx c;
 		mk (TTypeExpr (TClassDecl c)) (TType (t_tmp,[])) p
 	| TEnumDecl e ->
 		let types = (match tparams with None -> List.map (fun _ -> mk_mono()) e.e_types | Some l -> l) in
@@ -418,7 +406,6 @@ let rec type_module_type ctx t tparams p =
 			t_types = e.e_types;
 			t_meta = no_meta;
 		} in
-		mark_used_enum ctx e;
 		mk (TTypeExpr (TEnumDecl e)) (TType (t_tmp,types)) p
 	| TTypeDecl s ->
 		let t = apply_params s.t_types (List.map (fun _ -> mk_mono()) s.t_types) s.t_type in
@@ -452,8 +439,7 @@ let make_call ctx e params t p =
 			| _ -> false
 		) in
 		(* we have to make sure that we mark the field as used here so DCE does not remove it *)
-		let exit () = Typeload.mark_used_field ctx f; raise Exit in
-		if not ctx.g.doinline && not is_extern then exit();
+		if not ctx.g.doinline && not is_extern then raise Exit;
 		ignore(follow f.cf_type); (* force evaluation *)
 		let params = List.map (ctx.g.do_optimize ctx) params in
 		(match f.cf_expr with
@@ -461,7 +447,7 @@ let make_call ctx e params t p =
 			(match Optimizer.type_inline ctx f fd ethis params t p is_extern with
 			| None ->
 				if is_extern then error "Inline could not be done" p;
-				exit()
+				raise Exit;
 			| Some e -> e)
 		| _ ->
 			error "Recursive inline is not supported" p)
@@ -508,7 +494,6 @@ let rec acc_get ctx g p =
 			| TInst (c,_) -> chk_class c
 			| TAnon a -> (match !(a.a_status) with Statics c -> chk_class c | _ -> ())
 			| _ -> ());
-			Typeload.mark_used_field ctx f;
 			mk (TClosure (e,f.cf_name)) t p
 		| Some e ->
 			let rec loop e = Type.map_expr loop { e with epos = p } in
@@ -535,7 +520,6 @@ let field_access ctx mode f t e p =
 		| TAnon a -> 
 			(match !(a.a_status) with
 			| EnumStatics e -> 
-				mark_used_enum ctx e;
 				AKField ((mk (TEnumField (e,f.cf_name)) t p),f)
 			| _ -> fnormal())
 		| _ -> fnormal()
@@ -548,7 +532,6 @@ let field_access ctx mode f t e p =
 		| MethMacro, MGet -> display_error ctx "Macro functions must be called immediatly" p; normal()
 		| MethMacro, MCall -> AKMacro (e,f)
 		| _ , MGet ->
-			Typeload.mark_used_field ctx f;
 			AKExpr (mk (TClosure (e,f.cf_name)) t p)
 		| _ -> normal())
 	| Var v ->
@@ -739,7 +722,6 @@ let type_ident_raise ?(imported_enums=true) ctx i p mode =
 				| TEnumDecl e ->
 					try
 						let ef = PMap.find i e.e_constrs in
-						mark_used_enum ctx e;
 						mk (TEnumField (e,i)) (monomorphs e.e_types ef.ef_type) p
 					with
 						Not_found -> loop l
@@ -1474,7 +1456,6 @@ and type_expr_with_type_raise ?(print_error=true) ctx e t =
 				raise Exit
 			with Not_found -> try
 				let ef = PMap.find s e.e_constrs in
-				mark_used_enum ctx e;
 				let constr = mk (TEnumField (e,s)) (apply_params e.e_types pl ef.ef_type) p in
 				build_call ctx (AKExpr constr) el (Some t) p
 			with Not_found ->
@@ -1536,7 +1517,6 @@ and type_expr_with_type_raise ?(print_error=true) ctx e t =
 				| TEnum (e,pl) ->
 					(try
 						let ef = PMap.find s e.e_constrs in
-						mark_used_enum ctx e;
 						mk (TEnumField (e,s)) (apply_params e.e_types pl ef.ef_type) p
 					with Not_found ->
 						error ("Identifier '" ^ s ^ "' is not part of enum " ^ s_type_path e.e_path) p;
@@ -1967,12 +1947,10 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let t = Typeload.load_instance ctx t p true in
 		let el, c , params = (match follow t with
 		| TInst (c,params) ->
-			mark_used_class ctx c;
 			let name = (match c.cl_path with [], name -> name | x :: _ , _ -> x) in
 			if PMap.mem name ctx.locals then error ("Local variable " ^ name ^ " is preventing usage of this class here") p;
 			let ct, f = get_constructor ctx c params p in
 			if not f.cf_public && not (is_parent c ctx.curclass) && not ctx.untyped then display_error ctx "Cannot access private constructor" p;
-			Typeload.mark_used_field ctx f;
 			(match f.cf_kind with
 			| Var { v_read = AccRequire r } -> error_require r p
 			| _ -> ());
@@ -2235,7 +2213,6 @@ and type_call ctx e el twith p =
 		| None -> error "Current class does not have a super" p
 		| Some (c,params) ->
 			let ct, f = get_constructor ctx c params p in
-			Typeload.mark_used_field ctx f;
 			let el, _ = (match follow ct with
 			| TFun (args,r) ->
 				unify_call_params ctx (Some (TInst(c,params),f)) el args r p false
@@ -2338,10 +2315,6 @@ and build_call ctx acc el twith p =
 			else
 				error (s_type (print_context()) e.etype ^ " cannot be called") e.epos), e
 		) in
-		if ctx.com.dead_code_elimination then
-			(match e.eexpr, el with
-			| TField ({ eexpr = TTypeExpr (TClassDecl { cl_path = [],"Std"  }) },"string"), [ep] -> check_to_string ctx ep.etype
-			| _ -> ());
 		mk (TCall (e,el)) t p
 
 and check_to_string ctx t =
@@ -2353,111 +2326,6 @@ and check_to_string ctx t =
 		with Not_found ->
 			())
 	| _ -> ()
-
-(* ---------------------------------------------------------------------- *)
-(* DEAD CODE ELIMINATION *)
-
-let dce_check_metadata ctx meta =
-	List.exists (fun (m,e,_) ->
-		match m,e with
-		| ":?used",_
-		| ":keep",_ ->
-			true
- 		| ":feature",el ->
-			List.exists (fun e -> match e with (EConst(String s),_) -> has_feature ctx.com s | _ -> false) el
-		| _ -> false
-	) meta
-
-let dce_check_class ctx c =
-	let rec super_forces_keep c =
-		has_meta ":keepSub" c.cl_meta || match c.cl_super with
-		| Some (csup,_) -> super_forces_keep csup
-		| _ -> false
-	in
-	let keep_whole_class = c.cl_interface
-		|| has_meta ":keep" c.cl_meta
-		|| (match c.cl_path with [],"Array" | [],"String" -> not (platform ctx.com Js) | _ -> false)
-		|| super_forces_keep c
-	in
-	let keep stat f =
-		keep_whole_class
-		|| (c.cl_extern && (match f.cf_kind with Method MethInline -> false | _ -> true))
-		|| dce_check_metadata ctx f.cf_meta
-		|| (stat && f.cf_name = "__init__")
-		|| (not stat && f.cf_name = "resolve" && (match c.cl_dynamic with Some _ -> true | None -> false))
-		|| (f.cf_name = "new" && has_meta ":?used" c.cl_meta)
-		|| match String.concat "." (fst c.cl_path @ [snd c.cl_path;f.cf_name]) with
-		| "EReg.new" -> true
-		| _ -> false
-	in
-	keep
-
-(*
-	make sure that all things we are supposed to keep are correctly typed
-*)
-let dce_finalize ctx =
-	let feature_changed = ref false in
-	let add_feature f =
-		if not (has_feature ctx.com f) then begin
-			add_feature ctx.com f;
-			feature_changed := true;
-		end
-	in
-	let check_class c =
-		let keep = dce_check_class ctx c in
-		let check stat f = if keep stat f then ignore(follow f.cf_type) in
-		(match c.cl_constructor with Some f -> check false f | _ -> ());
-		List.iter (check false) c.cl_ordered_fields;
-		List.iter (check true) c.cl_ordered_statics;
-	in
-	Hashtbl.iter (fun _ m ->
-		List.iter (fun t ->
-			match t with
-			| TClassDecl c -> check_class c
-			| TEnumDecl e when not e.e_extern && dce_check_metadata ctx e.e_meta ->
-				add_feature "has_enum"
-			| _ -> ()
-		) m.m_types
-	) ctx.g.modules;
-	not !feature_changed
-
-(*
-	remove unused fields and mark unused classes as extern
-*)
-let dce_optimize ctx =
-	let check_class c =
-		let keep = dce_check_class ctx c in
-		let keep stat f = if not (keep stat f) then begin if ctx.com.verbose then Common.log ctx.com ("Removing " ^ s_type_path c.cl_path ^ "." ^ f.cf_name); false; end else true in
-		c.cl_constructor <- (match c.cl_constructor with Some f when not (keep false f) -> None | x -> x);
-		c.cl_ordered_fields <- List.filter (keep false) c.cl_ordered_fields;
-		c.cl_ordered_statics <- List.filter (keep true) c.cl_ordered_statics;
-		c.cl_fields <- List.fold_left (fun acc f -> PMap.add f.cf_name f acc) PMap.empty c.cl_ordered_fields;
-		c.cl_statics <- List.fold_left (fun acc f -> PMap.add f.cf_name f acc) PMap.empty c.cl_ordered_statics;
-		if c.cl_ordered_statics = [] && c.cl_ordered_fields = [] then
-			match c with
-			| { cl_extern = true }
-			| { cl_interface = true }
-			| { cl_path = ["flash";"_Boot"],"RealBoot" }
-				-> ()
-			| _ when has_meta ":?used" c.cl_meta || has_meta ":keep" c.cl_meta || (match c.cl_constructor with Some f -> has_meta ":?used" f.cf_meta | _ -> false)
-				-> ()
-			| _ ->
-				Common.log ctx.com ("Removing " ^ s_type_path c.cl_path);
-				c.cl_extern <- true;
-				(match c.cl_path with [],"Std"|["js"],"Boot" -> () | _ -> c.cl_init <- None);
-				c.cl_meta <- [":native",[(EConst (String "Dynamic"),c.cl_pos)],c.cl_pos]; (* make sure the type will not be referenced *)
-	in
-	Common.log ctx.com "Performing dead code optimization";
-	Hashtbl.iter (fun _ m ->
-		List.iter (fun t ->
-			match t with
-			| TClassDecl c -> check_class c
-			| TEnumDecl e when not e.e_extern && not (dce_check_metadata ctx e.e_meta) ->
-				e.e_extern <- true;
-				Common.log ctx.com ("Removing " ^ s_type_path e.e_path);
-			| _ -> ()
-		) m.m_types
-	) ctx.g.modules
 
 (* ---------------------------------------------------------------------- *)
 (* FINALIZATION *)
@@ -2485,9 +2353,6 @@ let get_main ctx =
 
 let rec finalize ctx =
 	match ctx.g.delayed.df_normal,ctx.g.delayed.df_late with
-	| [],[] when ctx.com.dead_code_elimination ->
-		ignore(get_main ctx);
-		if dce_finalize ctx && ctx.g.delayed.df_normal = [] && ctx.g.delayed.df_late = [] then dce_optimize ctx else finalize ctx
 	| [],[] ->
 		(* at last done *)
 		()

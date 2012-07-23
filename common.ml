@@ -231,7 +231,9 @@ let add_feature com f =
 	Hashtbl.replace com.features f true
 
 let rec has_feature com f =
-	try
+	(* disabled for now because of problems with new DCE *)
+	true
+(* 	try
 		Hashtbl.find com.features f
 	with Not_found ->
 		if com.types = [] then defined com "all_features" else
@@ -242,7 +244,7 @@ let rec has_feature com f =
 			let r = (try
 				let path = List.rev pack, cl in
 				(match List.find (fun t -> t_path t = path && not (has_meta ":realPath" (t_infos t).mt_meta)) com.types with
-				| t when meth = "*" -> (not com.dead_code_elimination) || has_meta ":?used" (t_infos t).mt_meta
+				| t when meth = "*" -> (not com.dead_code_elimination) || has_meta ":used" (t_infos t).mt_meta
 				| TClassDecl c -> PMap.exists meth c.cl_statics || PMap.exists meth c.cl_fields
 				| _ -> false)
 			with Not_found ->
@@ -250,7 +252,7 @@ let rec has_feature com f =
 			) in
 			let r = r || defined com "all_features" in
 			Hashtbl.add com.features f r;
-			r
+			r *)
 
 let error msg p = raise (Abort (msg,p))
 

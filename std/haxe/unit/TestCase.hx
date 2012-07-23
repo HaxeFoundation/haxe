@@ -25,6 +25,7 @@
 package haxe.unit;
 import haxe.PosInfos;
 
+@:keepSub
 class TestCase #if mt_build implements mt.Protect, #end implements haxe.Public  {
 	public var currentTest : TestStatus;
 

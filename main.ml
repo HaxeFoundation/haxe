@@ -1047,6 +1047,7 @@ try
 		end;
 		let t = Common.timer "filters" in
 		let main, types, modules = Typer.generate tctx in
+		let types,modules = if ctx.com.dead_code_elimination then Dce.run tctx main types modules else types,modules in
 		com.main <- main;
 		com.types <- types;
 		com.modules <- modules;

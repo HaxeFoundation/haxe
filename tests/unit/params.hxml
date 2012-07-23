@@ -3,4 +3,4 @@
 -resource res1.txt
 -resource res2.bin
 --no-opt
-#--dead-code-elimination
+--dead-code-elimination

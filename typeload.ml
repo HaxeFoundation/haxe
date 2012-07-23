@@ -59,9 +59,6 @@ let apply_macro ctx mode path el p =
 	) in
 	ctx.g.do_macro ctx mode cpath meth el p
 
-let mark_used_field ctx f =
-	if ctx.com.dead_code_elimination && not (has_meta ":?used" f.cf_meta) then f.cf_meta <- (":?used",[],f.cf_pos) :: f.cf_meta
-
 (** since load_type_def and load_instance are used in PASS2, they should not access the structure of a type **)
 
 (*
@@ -476,18 +473,6 @@ let rec check_interface ctx c p intf params =
 		try
 			let t2, f2 = class_field_no_interf c i in
 			ignore(follow f2.cf_type); (* force evaluation *)
-			(* we have to make sure that the field is mark as used, which might not be the case for inline fields *)
-			mark_used_field ctx f2;
-			(* this is also true for property accessors *)
-			(match f2.cf_kind with
-			| Var v ->
-				let rec mark c s =
-					(try mark_used_field ctx (PMap.find s c.cl_fields) with Not_found -> ());
-					(match c.cl_super with None -> () | Some (c,_) -> mark c s)
-				in
-				(match v.v_read with AccCall s -> mark c s | _ -> ());
-				(match v.v_write with AccCall s -> mark c s | _ -> ())
-			| Method m -> ());
 			let p = (match f2.cf_expr with None -> p | Some e -> e.epos) in
 			let mkind = function
 				| MethNormal | MethInline -> 0
@@ -925,8 +910,6 @@ let init_class ctx c p herits fields =
 
 	let fields = if not display_file || Common.defined ctx.com "no-copt" then fields else Optimizer.optimize_completion c fields in
 
-	let mark_used cf = if ctx.com.dead_code_elimination then cf.cf_meta <- (":?used",[],p) :: cf.cf_meta in
-
 	let rec is_full_type t =
 		match t with
 		| TFun (args,ret) -> is_full_type ret && List.for_all (fun (_,_,t) -> is_full_type t) args
@@ -952,7 +935,7 @@ let init_class ctx c p herits fields =
 			(fun () -> ())
 		else begin
 			cf.cf_type <- TLazy r;
-			if ctx.com.dead_code_elimination && cf.cf_name <> "__init__" then (fun() -> ()) else (fun () -> ignore(!r()))
+			(fun () -> ignore(!r()))
 		end
 	in
 
@@ -961,14 +944,6 @@ let init_class ctx c p herits fields =
 		if not stat && has_field cf.cf_name c.cl_super then error ("Redefinition of variable " ^ cf.cf_name ^ " in subclass is not allowed") p;
 		let t = cf.cf_type in
 		match e with
-		| None when ctx.com.dead_code_elimination && not ctx.com.display ->
-			let r = exc_protect ctx (fun r ->
-				r := (fun() -> t);
-				mark_used cf;
-				t
-			) in
-			cf.cf_type <- TLazy r;
-			(fun() -> ())
 		| None ->
 			(fun() -> ())
 		| Some e ->
@@ -976,7 +951,6 @@ let init_class ctx c p herits fields =
 				if not !return_partial_type then begin
 					r := (fun() -> t);
 					if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.in_macro then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ cf.cf_name);
-					if not inline then mark_used cf;
 					let e = type_var_field ctx t e stat p in
 					let e = (match cf.cf_kind with
 					| Var v when not stat || (v.v_read = AccInline && Common.defined ctx.com "haxe3") ->
@@ -1140,7 +1114,6 @@ let init_class ctx c p herits fields =
 						(match e.eexpr with
 						| TBlock [] | TBlock [{ eexpr = TConst _ }] | TConst _ | TObjectDecl [] -> ()
 						| _ -> c.cl_init <- Some e);
-					if not (constr || inline) then mark_used cf;
 					if has_meta ":defineFeature" cf.cf_meta then add_feature ctx.com (s_type_path c.cl_path ^ "." ^ cf.cf_name);
 					cf.cf_expr <- Some (mk (TFunction f) t p);
 					cf.cf_type <- t;
