@@ -164,6 +164,7 @@ exception Abort
 exception Continue
 exception Break of value
 exception Return of value
+exception Invalid_expr
 
 (* ---------------------------------------------------------------------- *)
 (* UTILS *)
@@ -3001,6 +3002,7 @@ and call ctx vthis vfun pl p =
 		| Stack_overflow -> exc (VString "Compiler Stack overflow")
 		| Sys_error msg | Failure msg -> exc (VString msg)
 		| Unix.Unix_error (_,cmd,msg) -> exc (VString ("Error " ^ cmd ^ " " ^ msg))
+		| Invalid_expr -> exc (VString "Invalid input value")
 		| Builtin_error | Invalid_argument _ -> exc (VString "Invalid call")) in
 	ctx.vthis <- oldthis;
 	ctx.venv <- oldenv;
@@ -3369,7 +3371,7 @@ let rec encode_path t =
 	]
 
 and encode_tparam = function
-	| TPType t -> enc_enum ITParam 0 [encode_type t]
+	| TPType t -> enc_enum ITParam 0 [encode_ctype t]
 	| TPExpr e -> enc_enum ITParam 1 [encode_expr e]
 
 and encode_access a =
@@ -3394,9 +3396,9 @@ and encode_meta_content m =
 
 and encode_field (f:class_field) =
 	let tag, pl = match f.cff_kind with
-		| FVar (t,e) -> 0, [null encode_type t; null encode_expr e]
+		| FVar (t,e) -> 0, [null encode_ctype t; null encode_expr e]
 		| FFun f -> 1, [encode_fun f]
-		| FProp (get,set, t, e) -> 2, [enc_string get; enc_string set; encode_type t; null encode_expr e]
+		| FProp (get,set, t, e) -> 2, [enc_string get; enc_string set; encode_ctype t; null encode_expr e]
 	in
 	enc_obj [
 		"name",enc_string f.cff_name;
@@ -3407,20 +3409,20 @@ and encode_field (f:class_field) =
 		"access", enc_array (List.map encode_access f.cff_access);
 	]
 
-and encode_type t =
+and encode_ctype t =
 	let tag, pl = match t with
 	| CTPath p ->
 		0, [encode_path p]
 	| CTFunction (pl,r) ->
-		1, [enc_array (List.map encode_type pl);encode_type r]
+		1, [enc_array (List.map encode_ctype pl);encode_ctype r]
 	| CTAnonymous fl ->
 		2, [enc_array (List.map encode_field fl)]
 	| CTParent t ->
-		3, [encode_type t]
+		3, [encode_ctype t]
 	| CTExtend (t,fields) ->
 		4, [encode_path t; enc_array (List.map encode_field fields)]
 	| CTOptional t ->
-		5, [encode_type t]
+		5, [encode_ctype t]
 	in
 	enc_enum ICType tag pl
 
@@ -3429,18 +3431,18 @@ and encode_fun f =
 		"params", enc_array (List.map (fun (n,cl) ->
 			enc_obj [
 				"name", enc_string n;
-				"constraints", enc_array (List.map encode_type cl);
+				"constraints", enc_array (List.map encode_ctype cl);
 			]
 		) f.f_params);
 		"args", enc_array (List.map (fun (n,opt,t,e) ->
 			enc_obj [
 				"name", enc_string n;
 				"opt", VBool opt;
-				"type", null encode_type t;
+				"type", null encode_ctype t;
 				"value", null encode_expr e;
 			]
 		) f.f_args);
-		"ret", null encode_type f.f_type;
+		"ret", null encode_ctype f.f_type;
 		"expr", null encode_expr f.f_expr
 	]
 
@@ -3474,7 +3476,7 @@ and encode_expr e =
 				10, [enc_array (List.map (fun (v,t,eo) ->
 					enc_obj [
 						"name",enc_string v;
-						"type",null encode_type t;
+						"type",null encode_ctype t;
 						"expr",null loop eo;
 					]
 				) vl)]
@@ -3501,7 +3503,7 @@ and encode_expr e =
 				18, [loop e;enc_array (List.map (fun (v,t,e) ->
 					enc_obj [
 						"name",enc_string v;
-						"type",encode_type t;
+						"type",encode_ctype t;
 						"expr",loop e
 					]
 				) catches)]
@@ -3516,7 +3518,7 @@ and encode_expr e =
 			| EThrow e ->
 				23, [loop e]
 			| ECast (e,t) ->
-				24, [loop e; null encode_type t]
+				24, [loop e; null encode_ctype t]
 			| EDisplay (e,flag) ->
 				25, [loop e; VBool flag]
 			| EDisplayNew t ->
@@ -3524,7 +3526,7 @@ and encode_expr e =
 			| ETernary (econd,e1,e2) ->
 				27, [loop econd;loop e1;loop e2]
 			| ECheckType (e,t) ->
-				28, [loop e; encode_type t]
+				28, [loop e; encode_ctype t]
 		in
 		enc_obj [
 			"pos", encode_pos p;
@@ -3532,14 +3534,9 @@ and encode_expr e =
 		]
 	in
 	loop e
-;;
-
-encode_complex_type_ref := encode_type;
 
 (* ---------------------------------------------------------------------- *)
 (* EXPR DECODING *)
-
-exception Invalid_expr
 
 let opt f v =
 	match v with
@@ -4231,6 +4228,7 @@ let rec make_ast e =
 ;;
 make_ast_ref := make_ast;
 make_complex_type_ref := make_type;
+encode_complex_type_ref := encode_ctype;
 enc_array_ref := enc_array;
 encode_type_ref := encode_type;
 decode_type_ref := decode_type;
