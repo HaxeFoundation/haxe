@@ -39,6 +39,7 @@ type dce = {
 	ctx : typer;
 	all_types : module_type list;
 	debug : bool;
+	follow_expr : dce -> texpr -> unit;
 	mutable added_fields : (tclass * tclass_field * bool) list;
 }
 
@@ -55,6 +56,7 @@ let keep_whole_class dce c =
 	has_meta ":keep" c.cl_meta
 	|| super_forces_keep c
 	|| (match c with
+		| { cl_extern = true; cl_path = ([],"Math")} when dce.ctx.com.platform = Js -> false
 		| { cl_extern = true }
 		| { cl_path = ["flash";"_Boot"],"RealBoot" } -> true
 		| { cl_path = [],"String" }
@@ -87,6 +89,7 @@ let rec mark_class dce c = if not (has_meta ":used" c.cl_meta) then begin
 	) c.cl_ordered_fields;
 	c.cl_meta <- (":used",[],c.cl_pos) :: c.cl_meta;
 	(* we always have to keep super classes and implemented interfaces *)
+	(match c.cl_init with None -> () | Some init -> dce.follow_expr dce init);
 	List.iter (fun (c,_) -> mark_class dce c) c.cl_implements;
 	match c.cl_super with None -> () | Some (csup,pl) -> mark_class dce csup;
 end
@@ -210,6 +213,7 @@ let run ctx main types modules =
 		all_types = types;
 		debug = Common.defined ctx.com "dce_debug";
 		added_fields = [];
+		follow_expr = expr;
 	} in
 	(* first step: get all entry points, which is the main method and all class methods which are marked with @:keep *)
 	let rec loop acc types = match types with
@@ -228,7 +232,6 @@ let run ctx main types modules =
 			in
 			let acc = loop2 acc c.cl_ordered_statics true in
 			let acc = loop2 acc c.cl_ordered_fields false in
-			(match c.cl_init with None -> () | Some init -> expr dce init);
 			loop acc l
 		| _ :: l ->
 			loop acc l
