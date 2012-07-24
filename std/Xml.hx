@@ -127,16 +127,16 @@ extern class Xml {
 	/**
 		Returns the node name of an Element.
 	**/
-	var nodeName(getNodeName,setNodeName) : String;
-	private function getNodeName() : String;
-	private function setNodeName( name : String ) : String;
+	var nodeName(get_nodeName,set_nodeName) : String;
+	private function get_nodeName() : String;
+	private function set_nodeName( name : String ) : String;
 
 	/**
 		Returns the node value. Only works if the Xml node is not an Element or a Document.
 	**/
-	var nodeValue(getNodeValue,setNodeValue) : String;
-	private function getNodeValue() : String;
-	private function setNodeValue( name : String ) : String;
+	var nodeValue(get_nodeValue,set_nodeValue) : String;
+	private function get_nodeValue() : String;
+	private function set_nodeValue( name : String ) : String;
 
 	/**
 		Get the given attribute of an Element node. Returns [null] if not found.

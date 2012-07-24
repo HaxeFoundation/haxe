@@ -40,8 +40,8 @@ enum XmlType {
 	public static var Document(default,null) : XmlType;
 
 	public var nodeType(default,null) : XmlType;
-	public var nodeName(getNodeName,setNodeName) : String;
-	public var nodeValue(getNodeValue,setNodeValue) : String;
+	public var nodeName(get_nodeName,set_nodeName) : String;
+	public var nodeValue(get_nodeValue,set_nodeValue) : String;
 	public var parent(getParent,null) : Xml;
 
 	var _node : flash.xml.XML;
@@ -121,14 +121,14 @@ enum XmlType {
 		return null;
 	}
 
-	private function getNodeName() : String {
+	private function get_nodeName() : String {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
 		var ns = _node.namespace();
 		return (ns.prefix == "") ? _node.localName() : ns.prefix+":"+_node.localName();
 	}
 
-	private function setNodeName( n : String ) : String {
+	private function set_nodeName( n : String ) : String {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
 		var ns = n.split(":");
@@ -141,7 +141,7 @@ enum XmlType {
 		return n;
 	}
 
-	private function getNodeValue() : String {
+	private function get_nodeValue() : String {
 		var nodeType = nodeType;
 		if( nodeType == Xml.Element || nodeType == Xml.Document )
 			throw "bad nodeType";
@@ -150,7 +150,7 @@ enum XmlType {
 		return _node.toString();
 	}
 
-	private function setNodeValue( v : String ) : String {
+	private function set_nodeValue( v : String ) : String {
 		var nodeType = nodeType;
 		var x = null;
 		if( nodeType == Xml.Element || nodeType == Xml.Document )

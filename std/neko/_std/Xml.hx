@@ -37,8 +37,8 @@ enum XmlType {
 	public static var Document(default,null) : XmlType;
 
 
-	public var nodeName(getNodeName,setNodeName) : String;
-	public var nodeValue(getNodeValue,setNodeValue) : String;
+	public var nodeName(get_nodeName,set_nodeName) : String;
+	public var nodeValue(get_nodeValue,set_nodeValue) : String;
 	public var parent(getParent,null) : Xml;
 	public var nodeType(default,null) : XmlType;
 
@@ -174,25 +174,25 @@ enum XmlType {
 		return r;
 	}
 
-	private function getNodeName() : String {
+	private function get_nodeName() : String {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
 		return _nodeName;
 	}
 
-	private function setNodeName( n : String ) : String {
+	private function set_nodeName( n : String ) : String {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
 		return _nodeName = n;
 	}
 
-	private function getNodeValue() : String {
+	private function get_nodeValue() : String {
 		if( nodeType == Xml.Element || nodeType == Xml.Document )
 			throw "bad nodeType";
 		return _nodeValue;
 	}
 
-	private function setNodeValue( v : String ) : String {
+	private function set_nodeValue( v : String ) : String {
 		if( nodeType == Xml.Element || nodeType == Xml.Document )
 			throw "bad nodeType";
 		return _nodeValue = v;
