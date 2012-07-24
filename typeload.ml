@@ -120,7 +120,7 @@ let rec load_type_def ctx p t =
 let check_param_constraints ctx types t pl c p =
  	match follow t with
 	| TMono _ -> ()
-	| _ ->
+	| mt ->
 		let ctl = (match c.cl_kind with KTypeParameter l -> l | _ -> []) in
 		List.iter (fun ti ->
 			(*
@@ -128,7 +128,12 @@ let check_param_constraints ctx types t pl c p =
 				let ti = try snd (List.find (fun (_,t) -> match follow t with TInst(i2,[]) -> i == i2 | _ -> false) types) with Not_found -> TInst (i,tl) in
 			*)
 			let ti = apply_params types pl ti in
-			unify ctx t ti p
+			try
+				unify_raise ctx t ti p
+			with Error (Unify l,p) ->
+				display_error ctx (error_msg (Unify (Constraint_failure (s_type (print_context()) mt) :: l))) p;
+				let pc = pos_t ti in
+				if pc <> Ast.null_pos then display_error ctx "Constraint was defined here" pc;
 		) ctl
 
 (* build an instance from a full type *)

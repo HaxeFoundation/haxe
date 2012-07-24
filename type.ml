@@ -349,6 +349,14 @@ let print_context() = ref []
 
 let is_closed a = !(a.a_status) <> Opened
 
+let pos_t t = match t with
+	| TInst (c,_) -> c.cl_pos
+	| TEnum (e,_) -> e.e_pos
+	| TType (t,_) -> t.t_pos
+	| TAnon a when not (PMap.is_empty a.a_fields) ->
+		PMap.fold (fun cf pu -> if pu = Ast.null_pos then cf.cf_pos else punion pu cf.cf_pos) a.a_fields Ast.null_pos;
+	| _ -> Ast.null_pos
+
 let rec s_type ctx t =
 	match t with
 	| TMono r ->

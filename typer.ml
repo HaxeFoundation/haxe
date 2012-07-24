@@ -126,6 +126,8 @@ let field_type ctx c pl f p =
 							Type.unify m ct
 						with Unify_error l ->
 							display_error ctx (error_msg (Unify (Constraint_failure (f.cf_name ^ "." ^ name) :: l))) p;
+							let pc = pos_t ct in
+							if pc <> Ast.null_pos then display_error ctx "Constraint was defined here" pc;
 					) constr
 				);
 			| _ -> ()
