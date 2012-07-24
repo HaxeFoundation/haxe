@@ -274,7 +274,6 @@ let rec build_generic ctx c p tl =
 			{ f with cf_type = t; cf_expr = (match f.cf_expr with None -> None | Some e -> Some (build_expr e)) }
 		in
 		if c.cl_init <> None || c.cl_dynamic <> None then error "This class can't be generic" p;
-		if c.cl_ordered_statics <> [] then error "A generic class can't have static fields" p;
 		cg.cl_super <- (match c.cl_super with
 			| None -> None
 			| Some (cs,pl) ->
@@ -596,7 +595,10 @@ let on_generate ctx t =
 			let rpath = (fst c.cl_module.m_path,"_" ^ snd c.cl_module.m_path) in
 			if Hashtbl.mem ctx.g.types_module rpath then error ("This private class name will clash with " ^ s_type_path rpath) c.cl_pos;
 		end;
-		if c.cl_kind = KGeneric then c.cl_extern <- true;
+		if c.cl_kind = KGeneric then begin
+			if c.cl_ordered_statics <> [] then error "A generic class can't have static fields" c.cl_pos;
+			c.cl_extern <- true
+		end;
 		c.cl_restore <- restore c;
 		List.iter (fun m ->
 			match m with
