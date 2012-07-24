@@ -64,7 +64,7 @@ codegen.cmx: typeload.cmx typecore.cmx type.cmx genxml.cmx common.cmx ast.cmx
 
 common.cmx: type.cmx ast.cmx
 
-dce.cmx: type.cmx typer.cmx
+dce.cmx: type.cmx
 
 genas3.cmx: type.cmx common.cmx codegen.cmx ast.cmx
 

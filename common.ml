@@ -231,9 +231,7 @@ let add_feature com f =
 	Hashtbl.replace com.features f true
 
 let rec has_feature com f =
-	(* disabled for now because of problems with new DCE *)
-	true
-(* 	try
+	try
 		Hashtbl.find com.features f
 	with Not_found ->
 		if com.types = [] then defined com "all_features" else
@@ -252,7 +250,7 @@ let rec has_feature com f =
 			) in
 			let r = r || defined com "all_features" in
 			Hashtbl.add com.features f r;
-			r *)
+			r
 
 let error msg p = raise (Abort (msg,p))
 
