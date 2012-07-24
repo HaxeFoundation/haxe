@@ -181,7 +181,7 @@ let rec load_instance ctx t p allow_no_params =
 				| TInst (c,[]) ->
 					let r = exc_protect ctx (fun r ->
 						r := (fun() -> t);
-						check_param_constraints ctx types t tparams c p;
+						delay_late ctx (fun() -> check_param_constraints ctx types t tparams c p);
 						t
 					) in
 					delay ctx (fun () -> ignore(!r()));

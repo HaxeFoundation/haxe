@@ -790,6 +790,9 @@ let rec raw_class_field build_type c i =
 	try
 		let f = PMap.find i c.cl_fields in
 		build_type f , f
+	with Not_found -> try (match c.cl_constructor with
+		| Some ctor when i = "new" -> build_type ctor,ctor
+		| _ -> raise Not_found)
 	with Not_found -> try
 		match c.cl_super with
 		| None ->

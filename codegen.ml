@@ -596,6 +596,7 @@ let on_generate ctx t =
 			let rpath = (fst c.cl_module.m_path,"_" ^ snd c.cl_module.m_path) in
 			if Hashtbl.mem ctx.g.types_module rpath then error ("This private class name will clash with " ^ s_type_path rpath) c.cl_pos;
 		end;
+		if c.cl_kind = KGeneric then c.cl_extern <- true;
 		c.cl_restore <- restore c;
 		List.iter (fun m ->
 			match m with
