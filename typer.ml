@@ -1948,6 +1948,11 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let el, c , params = (match follow t with
 		| TInst ({cl_kind = KTypeParameter tl} as c,params) ->
 			if not (ctx.curclass.cl_kind = KGeneric) then display_error ctx "Type parameters can only be constructed in generic instances" p;
+			(try
+				let tt = List.assoc (snd c.cl_path) ctx.curclass.cl_types in
+				if not (type_iseq tt t) then raise Not_found;
+			with Not_found ->
+				display_error ctx "Only class type parameters can be constructed in generic instances" p);
 			let el = List.map (type_expr ctx) el in
 			let ctor = mk_field "new" (tfun (List.map (fun e -> e.etype) el) ctx.t.tvoid) p in
   			(match c.cl_constructor with
