@@ -407,6 +407,14 @@ class TestMisc extends Test {
 	}
 	#end
 	
+	function testRandom() {
+		var x = Std.random(2);
+		t( x == 0 || x == 1);
+		eq(Std.random(1), 0);
+		eq(Std.random(0), 0);
+		eq(Std.random(-100), 0);
+	}
+	
 	function testJSon() {
 		var str = haxe.Json.stringify( { x : -4500, y : 1.456, a : ["hello", "wor'\"\n\t\rd"] } );
 		str = str.substr(1, str.length - 2); // remove {}
