@@ -899,6 +899,10 @@ let rec unify a b =
 	| TEnum (ea,tl1) , TEnum (eb,tl2) ->
 		if ea != eb then error [cannot_unify a b];
 		unify_types a b tl1 tl2
+	| TInst({cl_kind = KGenericInstance (c1,pl1)},_), TInst({cl_kind = KGenericInstance (c2,pl2)},_) ->
+		(* unify generic instances by unifying their base classes and type parameters *)
+		unify (TInst(c1,[])) (TInst(c2,[]));
+		unify_types (TInst(c1,pl1)) (TInst(c2,pl2)) pl1 pl2
 	| TInst (c1,tl1) , TInst (c2,tl2) ->
 		let rec loop c tl =
 			if c == c2 then begin

@@ -500,4 +500,33 @@ class TestType extends Test {
 	inline function inlineTest2(map:Array<Dynamic>) {
 		map[0];
 	}
+	
+	public function testGeneric() {
+		var l = new haxe.FastList();
+		var l2 = new haxe.FastList<Int>();
+		var l3 = new haxe.FastList();
+		l.add(1);
+		l2 = l;
+		l3.remove("foo");
+		
+		eq(Type.getClassName(Type.getClass(l)), "haxe.FastList_Int");
+		eq(Type.getClassName(Type.getClass(l2)), "haxe.FastList_Int");
+		eq(Type.getClassName(Type.getClass(l3)), "haxe.FastList_String");
+		
+		var mg = new MyGeneric("foo");
+		eq(mg.clone(), "foo");
+		mg.bindT(1);
+		eq(Type.getClassName(Type.getClass(mg)), "unit.MyGeneric_String_Int");
+		
+		var mg2 = new MyGeneric(new haxe.Template("bar"));
+		t(Std.is(mg2.clone(), haxe.Template));
+		mg2.bindT(true);
+		eq(Type.getClassName(Type.getClass(mg2)), "unit.MyGeneric_haxe_Template_Bool");
+		
+		// error cases
+		//var missingT = new MyGeneric("foo"); // Could not determine type for parameter T
+		//var invalidS = new MyGeneric( { foo: 1 } ).bindT("foo"); // Type parameter must be a class or enum instance
+		//var invalidCtor = new MyGeneric(1).bindT("foo"); // Int should be { new : String -> Void }
+		//new MyGenericClass2().bindS(new ClassWithBar()); // unit.ClassWithBar should be { foo : Int }
+	}		
 }

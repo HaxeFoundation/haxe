@@ -458,7 +458,8 @@ let optimize_for_loop ctx i e1 e2 p =
 				NormalWhile
 			)) t_void p;
 		]
-	| _ , TInst ({ cl_kind = KGenericInstance ({ cl_path = ["haxe"],"FastList" },[t]) } as c,[]) ->
+		(* disabled for now due to problems with new generic implementation *)
+(* 	| _ , TInst ({ cl_kind = KGenericInstance ({ cl_path = ["haxe"],"FastList" },[t]) } as c,[]) ->
 		let tcell = (try (PMap.find "head" c.cl_fields).cf_type with Not_found -> assert false) in
 		let i = add_local ctx i t in
 		let cell = gen_local ctx tcell in
@@ -477,7 +478,7 @@ let optimize_for_loop ctx i e1 e2 p =
 				block,
 				NormalWhile
 			)) t_void p
-		]
+		] *)
 	| _ ->
 		None
 
@@ -541,7 +542,8 @@ let rec add_final_return e t =
 	| _ ->
 		{ e with eexpr = TBlock [e;def_return e.epos] }
 
-let sanitize_expr com e =
+let sanitize_expr ctx e =
+	let com = ctx.com in
 	let parent e =
 		match e.eexpr with
 		| TParenthesis _ -> e
@@ -626,6 +628,22 @@ let sanitize_expr com e =
 			| _ -> { f with tf_expr = block f.tf_expr }
 		) in
 		{ e with eexpr = TFunction f }
+	(* we skipped inline on generic instances, so let's try to do it now *)
+	| TCall({eexpr = TField(ethis,fname)} as e2,args) ->
+		let def () = if need_parent e2 then { e with eexpr = TCall(parent e2,args) } else e in
+		(match follow ethis.etype with
+		| TInst({cl_kind = KGenericInstance _ } as c,[]) ->
+			(try
+				let f = snd (Type.class_field c fname) in
+				(match f.cf_expr with
+					| Some { eexpr = TFunction fd } ->
+						(match type_inline ctx f fd ethis args e.etype e.epos false	with
+						| None -> def()
+						| Some e -> e)
+					| _ -> def())
+			with Not_found ->
+				def())
+		| _ -> def())
 	| TCall (e2,args) ->
 		if need_parent e2 then { e with eexpr = TCall(parent e2,args) } else e
 	| TField (e2,f) ->
@@ -676,7 +694,7 @@ let reduce_expr ctx e =
 		e
 
 let rec sanitize ctx e =
-	sanitize_expr ctx.com (reduce_expr ctx (Type.map_expr (sanitize ctx) e))
+	sanitize_expr ctx (reduce_expr ctx (Type.map_expr (sanitize ctx) e))
 
 (* ---------------------------------------------------------------------- *)
 (* REDUCE *)
@@ -698,7 +716,7 @@ let rec reduce_loop ctx e =
 		let fstr = string_of_float f in
 		if (match classify_float f with FP_nan | FP_infinite -> false | _ -> float_of_string fstr = f) then { e with eexpr = TConst (TFloat fstr) } else e
 	in
-	sanitize_expr ctx.com (match e.eexpr with
+	sanitize_expr ctx (match e.eexpr with
 	| TIf ({ eexpr = TConst (TBool t) },e1,e2) ->
 		(if t then e1 else match e2 with None -> { e with eexpr = TBlock [] } | Some e -> e)
 	| TWhile ({ eexpr = TConst (TBool false) },sub,flag) ->
