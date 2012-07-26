@@ -194,12 +194,22 @@ and expr dce e =
 		expr dce e;
 	| TTypeExpr (TEnumDecl e)
 	| TEnumField(e,_) ->
-		mark_t dce (TEnum(e,[]));		
+		mark_t dce (TEnum(e,[]));
+	(* keep toString method when the class is argument to Std.string or haxe.Log.trace *)
+	| TCall ({eexpr = TField({eexpr = TTypeExpr (TClassDecl ({cl_path = (["haxe"],"Log")} as c))},"trace")} as ef, ([e2;_] as args))
+	| TCall ({eexpr = TField({eexpr = TTypeExpr (TClassDecl ({cl_path = ([],"Std")} as c))},"string")} as ef, ([e2] as args)) ->
+		mark_class dce c;
+		(match follow e2.etype with
+			| TInst(c,_) ->	field dce c "toString" false
+			| _ -> ());
+		expr dce ef;
+		List.iter (expr dce) args;
 	| TCall ({eexpr = TConst TSuper} as e,el) ->
 		mark_t dce e.etype;
 		List.iter (expr dce) el;
 	| TClosure(e,n)
-	| TField(e,n) -> (match follow e.etype with
+	| TField(e,n) ->
+		(match follow e.etype with
 		| TInst(c,_) ->
 			mark_class dce c;
 			field dce c n false;
