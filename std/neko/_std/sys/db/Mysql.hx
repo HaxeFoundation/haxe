@@ -190,10 +190,10 @@ private class MysqlConnection implements sys.db.Connection {
 
 	public static function connect( params : {
 		host : String,
-		port : Null<Int>,
+		?port : Int,
 		user : String,
 		pass : String,
-		socket : Null<String>,
+		?socket : String,
 		database : String
 	} ) : sys.db.Connection {
 		var o = untyped {
