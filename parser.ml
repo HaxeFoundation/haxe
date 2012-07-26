@@ -536,13 +536,22 @@ and parse_constraint_params = parser
 
 and parse_constraint_param = parser
 	| [< name = type_name; s >] ->
-		match s with parser
-		| [< '(DblDot,_); s >] ->
-			(match s with parser
-			| [< '(POpen,_); l = psep Comma parse_complex_type; '(PClose,_) >] -> (name,l)
-			| [< t = parse_complex_type >] -> (name,[t])
-			| [< >] -> serror())
-		| [< >] -> (name,[])
+		let params = (match s with parser
+			| [< >] -> []
+		) in
+		let ctl = (match s with parser
+			| [< '(DblDot,_); s >] ->
+				(match s with parser
+				| [< '(POpen,_); l = psep Comma parse_complex_type; '(PClose,_) >] -> l
+				| [< t = parse_complex_type >] -> [t]
+				| [< >] -> serror())
+			| [< >] -> []
+		) in
+		{
+			tp_name = name;
+			tp_params = params;
+			tp_constraints = ctl;
+		}
 
 and parse_class_herit = parser
 	| [< '(Kwd Extends,_); t = parse_type_path >] -> HExtends t

@@ -3426,14 +3426,16 @@ and encode_ctype t =
 	in
 	enc_enum ICType tag pl
 
+and encode_tparam_decl tp =
+	enc_obj [
+		"name", enc_string tp.tp_name;
+		"params", enc_array (List.map encode_tparam_decl tp.tp_params);
+		"constraints", enc_array (List.map encode_ctype tp.tp_constraints);
+	]
+
 and encode_fun f =
 	enc_obj [
-		"params", enc_array (List.map (fun (n,cl) ->
-			enc_obj [
-				"name", enc_string n;
-				"constraints", enc_array (List.map encode_ctype cl);
-			]
-		) f.f_params);
+		"params", enc_array (List.map encode_tparam_decl f.f_params);
 		"args", enc_array (List.map (fun (n,opt,t,e) ->
 			enc_obj [
 				"name", enc_string n;
@@ -3636,11 +3638,16 @@ and decode_tparam v =
 	| 1,[e] -> TPExpr (decode_expr e)
 	| _ -> raise Invalid_expr
 
+and decode_tparam_decl v =
+	{
+		tp_name = dec_string (field v "name");
+		tp_constraints = (match field v "constraints" with VNull -> [] | a -> List.map decode_ctype (dec_array a));
+		tp_params = (match field v "params" with VNull -> [] | a -> List.map decode_tparam_decl (dec_array a));
+	}
+
 and decode_fun v =
 	{
-		f_params = List.map (fun v ->
-			(dec_string (field v "name"), List.map decode_ctype (dec_array (field v "constraints")))
-		) (dec_array (field v "params"));
+		f_params = List.map decode_tparam_decl (dec_array (field v "params"));
 		f_args = List.map (fun o ->
 			(dec_string (field o "name"),dec_bool (field o "opt"),opt decode_ctype (field o "type"),opt decode_expr (field o "value"))
 		) (dec_array (field v "args"));
@@ -4038,15 +4045,12 @@ let decode_type_def v =
 	let meta = decode_meta_content (field v "meta") in
 	let pos = decode_pos (field v "pos") in
 	let isExtern = dec_bool (field v "isExtern") in
-	let params = List.map (fun v ->
-		(dec_string (field v "name"), List.map decode_ctype (dec_array (field v "constraints")))
-	) (dec_array (field v "params")) in
 	let fields = List.map decode_field (dec_array (field v "fields")) in
 	let mk fl dl =
 		{
 			d_name = name;
 			d_doc = None;
-			d_params = params;
+			d_params = List.map decode_tparam_decl (dec_array (field v "params"));
 			d_meta = meta;
 			d_flags = fl;
 			d_data = dl;

@@ -147,11 +147,17 @@ enum TypeParam {
 	TPExpr( e : Expr );
 }
 
+typedef TypeParamDecl = {
+	var name : String;
+	@:optional var constraints : Array<ComplexType>;
+	@:optional var params : Array<TypeParamDecl>;
+}
+
 typedef Function = {
 	var args : Array<FunctionArg>;
 	var ret : Null<ComplexType>;
 	var expr : Null<Expr>;
-	var params : Array<{ name : String, constraints : Array<ComplexType> }>;
+	var params : Array<TypeParamDecl>;
 }
 
 typedef FunctionArg = {
@@ -192,7 +198,7 @@ typedef TypeDefinition = {
 	var name : String;
 	var pos : Position;
 	var meta : Metadata;
-	var params : Array<{ name : String, constraints : Array<ComplexType> }>;
+	var params : Array<TypeParamDecl>;
 	var isExtern : Bool;
 	var kind : TypeDefKind;
 	var fields : Array<Field>;

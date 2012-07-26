@@ -196,7 +196,11 @@ and expr_def =
 
 and expr = expr_def * pos
 
-and type_param = string * complex_type list
+and type_param = {
+	tp_name : string;
+	tp_params :	type_param list;
+	tp_constraints : complex_type list;
+}
 
 and documentation = string option
 
@@ -477,9 +481,11 @@ let map_expr loop (e,p) =
 		| CTParent t -> CTParent (ctype t)
 		| CTExtend (t,fl) -> CTExtend (tpath t, List.map cfield fl)
 		| CTOptional t -> CTOptional (ctype t)
+	and tparamdecl t =
+		{ tp_name = t.tp_name; tp_constraints = List.map ctype t.tp_constraints; tp_params = List.map tparamdecl t.tp_params }
 	and func f =
 		{	
-			f_params = List.map (fun (n,tl) -> n,List.map ctype tl)  f.f_params;
+			f_params = List.map tparamdecl f.f_params;
 			f_args = List.map (fun (n,o,t,e) -> n,o,opt ctype t,opt loop e) f.f_args;
 			f_type = opt ctype f.f_type;
 			f_expr = opt loop f.f_expr;
@@ -618,10 +624,11 @@ let reify in_macro =
 			] in
 			to_obj (match e with None -> fields | Some e -> fields @ ["value",to_expr e p]) p
 		in
-		let fparam (n,tl) p =
+		let rec fparam t p =
 			let fields = [
-				"name", to_string n p;
-				"constraints", to_array to_ctype tl p;
+				"name", to_string t.tp_name p;
+				"constraints", to_array to_ctype t.tp_constraints p;
+				"params", to_array fparam t.tp_params p;
 			] in
 			to_obj fields p
 		in

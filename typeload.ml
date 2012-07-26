@@ -616,10 +616,12 @@ let set_heritance ctx c herits p =
 	) herits in
 	List.iter loop (List.filter (ctx.g.do_inherit ctx c p) herits)
 
-let type_type_params ctx path get_params p (n,flags) =
+let rec type_type_params ctx path get_params p tp =
+	let n = tp.tp_name in
 	let c = mk_class ctx.current (fst path @ [snd path],n) p in
-	let t = TInst (c,[]) in
-	match flags with
+	c.cl_types <- List.map (type_type_params ctx c.cl_path get_params p) tp.tp_params;
+	let t = TInst (c,List.map snd c.cl_types) in	
+	match tp.tp_constraints with
 	| [] -> 
 		c.cl_kind <- KTypeParameter [];
 		n, t
@@ -627,7 +629,7 @@ let type_type_params ctx path get_params p (n,flags) =
 		let r = exc_protect ctx (fun r ->
 			r := (fun _ -> t);
 			let ctx = { ctx with type_params = ctx.type_params @ get_params() } in
-			c.cl_kind <- KTypeParameter (List.map (load_complex_type ctx p) flags);
+			c.cl_kind <- KTypeParameter (List.map (load_complex_type ctx p) tp.tp_constraints);
 			t
 		) in
 		delay ctx (fun () -> ignore(!r()));
@@ -635,8 +637,8 @@ let type_type_params ctx path get_params p (n,flags) =
 
 let type_function_params ctx fd fname p =
 	let params = ref [] in
-	params := List.map (fun (n,flags) ->
-		type_type_params ctx ([],fname) (fun() -> !params) p (n,flags)
+	params := List.map (fun tp ->
+		type_type_params ctx ([],fname) (fun() -> !params) p tp
 	) fd.f_params;
 	!params
 
@@ -1569,8 +1571,8 @@ let parse_module ctx m p =
 						{
 							tpackage = !remap;
 							tname = d.d_name;
-							tparams = List.map (fun (s,_) ->
-								TPType (CTPath { tpackage = []; tname = s; tparams = []; tsub = None; })
+							tparams = List.map (fun tp ->
+								TPType (CTPath { tpackage = []; tname = tp.tp_name; tparams = []; tsub = None; })
 							) d.d_params;
 							tsub = None;
 						});
