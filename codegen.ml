@@ -201,9 +201,47 @@ let extend_remoting ctx c t p async prot =
 (* -------------------------------------------------------------------------- *)
 (* HAXE.RTTI.GENERIC *)
 
-(* updates class ct(arget) from cs(ource) by sustituting types from ps to pt *)
-let rec build_generic ctx cs ct ps pt p =
-	let rec copy_class ctx cs ct ps pt p =
+let rec build_generic ctx c p tl =
+	let pack = fst c.cl_path in
+	let recurse = ref false in
+	let rec check_recursive t =
+		match follow t with
+		| TInst (c,tl) ->
+			(match c.cl_kind with KTypeParameter _ -> recurse := true | _ -> ());
+			List.iter check_recursive tl;
+		| _ ->
+			()
+	in
+	let name = String.concat "_" (snd c.cl_path :: (List.map (fun t ->
+		check_recursive t;
+		let path = (match follow t with
+			| TInst (c,_) -> c.cl_path
+			| TEnum (e,_) -> e.e_path
+			| TMono _ -> error "Type parameter must be explicit when creating a generic instance" p
+			| _ -> error "Type parameter must be a class or enum instance" p
+		) in
+		match path with
+		| [] , name -> name
+		| l , name -> String.concat "_" l ^ "_" ^ name
+	) tl)) in
+	if !recurse then
+		TInst (c,tl) (* build a normal instance *)
+	else try
+		Typeload.load_instance ctx { tpackage = pack; tname = name; tparams = []; tsub = None } p false
+	with Error(Module_not_found path,_) when path = (pack,name) ->
+		let m = (try Hashtbl.find ctx.g.modules (Hashtbl.find ctx.g.types_module c.cl_path) with Not_found -> assert false) in
+		let ctx = { ctx with local_types = m.m_types @ ctx.local_types } in
+		let mg = {
+			m_id = alloc_mid();
+			m_path = (pack,name);
+			m_types = [];
+			m_extra = module_extra (s_type_path (pack,name)) m.m_extra.m_sign 0. MFake;
+		} in
+		let cg = mk_class mg (pack,name) c.cl_pos in
+		mg.m_types <- [TClassDecl cg];
+		Hashtbl.add ctx.g.modules mg.m_path mg;
+		add_dependency mg m;
+		add_dependency ctx.current mg;
 		let rec loop l1 l2 =
 			match l1, l2 with
 			| [] , [] -> []
@@ -211,7 +249,7 @@ let rec build_generic ctx cs ct ps pt p =
 			| (_,t1) :: l1 , t2 :: l2 -> (t1,t2) :: loop l1 l2
 			| _ -> assert false
 		in
-		let subst = loop ps pt in
+		let subst = loop c.cl_types tl in
 		let rec build_type t =
 			match t with
 			| TInst ({ cl_kind = KGeneric } as c2,tl2) ->
@@ -235,73 +273,37 @@ let rec build_generic ctx cs ct ps pt p =
 			let t = build_type f.cf_type in
 			{ f with cf_type = t; cf_expr = (match f.cf_expr with None -> None | Some e -> Some (build_expr e)) }
 		in
-		ct.cl_path <- cs.cl_path;
-		ct.cl_module <- cs.cl_module;
-		(* TODO: find a way to deal with this *)
-	(* 	ct.cl_super <- (match cs.cl_super with
+		if c.cl_init <> None || c.cl_dynamic <> None then error "This class can't be generic" p;
+		if c.cl_ordered_statics <> [] then error "A generic class can't have static fields" p;
+		cg.cl_super <- (match c.cl_super with
 			| None -> None
-			| Some (cs,params) ->
-				(match apply_params cs.cl_types pt (TInst (cs,params)) with
-				| TInst ({cl_kind = KGeneric },params) ->
-					build_generic ctx cs ps params p;
-					Some (cs,params)
-				| TInst (cs,params) -> Some (cs,params)
+			| Some (cs,pl) ->
+				(match apply_params c.cl_types tl (TInst (cs,pl)) with
+				| TInst (cs,pl) when cs.cl_kind = KGeneric ->
+					(match build_generic ctx cs p pl with
+					| TInst (cs,pl) -> Some (cs,pl)
+					| _ -> assert false)
+				| TInst (cs,pl) -> Some (cs,pl)
 				| _ -> assert false)
-		); *)
-		ct.cl_interface <- cs.cl_interface;
-		ct.cl_constructor <- (match cs.cl_constructor, cs.cl_super with
-			| None, None -> None
-			| Some cs, _ -> Some (build_field cs)
-			| _ -> error "Please define a constructor for this class in order to use it as generic" cs.cl_pos
 		);
-		ct.cl_implements <- List.map (fun (i,tl) ->
+		cg.cl_kind <- KGenericInstance (c,tl);
+		cg.cl_interface <- c.cl_interface;
+		cg.cl_constructor <- (match c.cl_constructor, c.cl_super with
+			| None, None -> None
+			| Some c, _ -> Some (build_field c)
+			| _ -> error "Please define a constructor for this class in order to use it as generic" c.cl_pos
+		);
+		cg.cl_implements <- List.map (fun (i,tl) ->
 			(match follow (build_type (TInst (i, List.map build_type tl))) with
 			| TInst (i,tl) -> i, tl
 			| _ -> assert false)
-		) cs.cl_implements;
-		ct.cl_ordered_fields <- List.map (fun f ->
+		) c.cl_implements;
+		cg.cl_ordered_fields <- List.map (fun f ->
 			let f = build_field f in
-			ct.cl_fields <- PMap.add f.cf_name f ct.cl_fields;
+			cg.cl_fields <- PMap.add f.cf_name f cg.cl_fields;
 			f
-		) cs.cl_ordered_fields;
-		ct.cl_extern <- false;
-		ct.cl_kind <- KNormal;
-		(* this is currently necessary *)
-		ct.cl_meta <- (":keep",[],p) :: ct.cl_meta
-	in
-	let pack = fst ct.cl_path in
-	let name = String.concat "_" (snd ct.cl_path :: (List.map2 (fun (s,_) t ->
-		let path = (match follow t with
-			| TInst({ cl_kind = KGenericInstance _} as c2,[]) ->
-				error ("Generic instance " ^ (s_type_path c2.cl_path) ^ " cannot be used as type parameter") p;			
-			| TInst (ct,_) -> ct.cl_path
-			| TEnum (e,_) -> e.e_path
-			| TMono _ -> error ("Could not determine type for parameter " ^ s) p
-			| _ -> error "Type parameter must be a class or enum instance" p
-		) in
-		match path with
-		| [] , name -> name
-		| l , name -> String.concat "_" l ^ "_" ^ name
-	) ps pt)) in
-	try
-		(match Typeload.load_instance ctx { tpackage = pack; tname = name; tparams = []; tsub = None } p false with
-		| TInst(cs,[]) -> copy_class ctx cs ct ps pt p
-		| _ -> assert false)
-	with Error(Module_not_found path,_) when path = (pack,name) ->
-		let m = (try Hashtbl.find ctx.g.modules (Hashtbl.find ctx.g.types_module cs.cl_path) with Not_found -> assert false) in
-		let ctx = { ctx with local_types = m.m_types @ ctx.local_types } in
-		let mg = {
-			m_id = alloc_mid();
-			m_path = (pack,name);
-			m_types = [];
-			m_extra = module_extra (s_type_path (pack,name)) m.m_extra.m_sign 0. MFake;
-		} in
- 		mg.m_types <- [TClassDecl ct];
-		Hashtbl.add ctx.g.modules mg.m_path mg;
-		copy_class ctx cs ct ps pt p;
-		ct.cl_path <- (pack,name);
-		ct.cl_module <- mg;
-		ctx.com.types <- TClassDecl ct :: ctx.com.types
+		) c.cl_ordered_fields;
+		TInst (cg,[])
 
 (* -------------------------------------------------------------------------- *)
 (* HAXE.XML.PROXY *)
@@ -431,38 +433,7 @@ let build_instance ctx mtype p =
 				let r = exc_protect ctx (fun r ->
 					let t = mk_mono() in
 					r := (fun() -> t);
-	 				if List.exists (fun t -> match t with
-						| TInst({cl_kind = KTypeParameter _},[]) -> true
-						| _ -> false
-					) pl then
-						(* we can't use generic if there's a type parameter involved *)
-						unify_raise ctx (TInst(c,pl)) t p
-					else begin
-						(* create the new generic instance *)
-						let c2 = mk_class c.cl_module c.cl_path p in
-						c2.cl_kind <- KGenericInstance (c,pl);
-						(* apply the class type parameters with all currently known types to all class fields *)
-						(* the remaining monos should be unified through calls, otherwise generic build fails *)
-	 					let apply_field cf =
-							{cf with cf_type = apply_params c.cl_types pl cf.cf_type; cf_expr = None }
-						in
- 						(match c.cl_constructor with None -> () | Some ctor -> c2.cl_constructor <- Some (apply_field ctor));
-						List.iter (fun cf ->
-							let cf = apply_field cf in
-							c2.cl_ordered_statics <- cf :: c2.cl_ordered_statics;
-							c2.cl_statics <- PMap.add cf.cf_name cf c2.cl_statics;
-						) c.cl_ordered_statics;
-						List.iter (fun cf ->
-							let cf = apply_field cf in
-							c2.cl_ordered_fields <- cf :: c2.cl_ordered_fields;
-							c2.cl_fields <- PMap.add cf.cf_name cf c2.cl_fields;
-						) c.cl_ordered_fields;
-						(* at some point in the future the instance will actually be built *)
-						delay_late ctx (fun () ->
-							build_generic ctx c c2 c.cl_types pl p;
-						);
-						unify_raise ctx (TInst(c2,[])) t p;
-					end;
+					unify_raise ctx (build_generic ctx c p pl) t p;
 					t
 				) in
 				delay ctx (fun() -> ignore ((!r)()));
@@ -625,10 +596,7 @@ let on_generate ctx t =
 			let rpath = (fst c.cl_module.m_path,"_" ^ snd c.cl_module.m_path) in
 			if Hashtbl.mem ctx.g.types_module rpath then error ("This private class name will clash with " ^ s_type_path rpath) c.cl_pos;
 		end;
-		if c.cl_kind = KGeneric then begin
-			if c.cl_ordered_statics <> [] then error "A generic class can't have static fields" c.cl_pos;
-			c.cl_extern <- true
-		end;
+		if c.cl_kind = KGeneric then c.cl_extern <- true;
 		c.cl_restore <- restore c;
 		List.iter (fun m ->
 			match m with

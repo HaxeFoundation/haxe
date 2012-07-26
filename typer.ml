@@ -126,8 +126,6 @@ let field_type ctx c pl f p =
 							Type.unify m ct
 						with Unify_error l ->
 							display_error ctx (error_msg (Unify (Constraint_failure (f.cf_name ^ "." ^ name) :: l))) p;
-							let pc = pos_t ct in
-							if pc <> Ast.null_pos then display_error ctx "Constraint was defined here" pc;
 					) constr
 				);
 			| _ -> ()
@@ -440,8 +438,7 @@ let make_call ctx e params t p =
 			| _ when has_meta ":extern" f.cf_meta -> true
 			| _ -> false
 		) in
-		(* can not inline generic instance calls here *)
-		(match cl with Some {cl_kind = KGenericInstance _} -> raise Exit | _ -> ());
+		(* we have to make sure that we mark the field as used here so DCE does not remove it *)
 		if not ctx.g.doinline && not is_extern then raise Exit;
 		ignore(follow f.cf_type); (* force evaluation *)
 		let params = List.map (ctx.g.do_optimize ctx) params in

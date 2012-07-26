@@ -194,16 +194,3 @@ class UsingUnrelated {
 		return "foo".pupFunc() + "foo".siblingFunc();
 	}
 }
-
-class ClassWithBar {
-	public function new() { }
-	public var bar:Int;
-}
-
-@:generic class MyGeneric < S, T > {
-	public function new(s:S) { }
-	public function clone() {
-		return new S("foo");
-	}
-	public function bindT(t:T) { }
-}
