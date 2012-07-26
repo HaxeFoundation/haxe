@@ -139,14 +139,16 @@ let rec load_instance ctx t p allow_no_params =
 		if t.tparams <> [] then error ("Class type parameter " ^ t.tname ^ " can't have parameters") p;
 		pt
 	with Not_found ->
-		let types , path , f = ctx.g.do_build_instance ctx (load_type_def ctx p t) p in
+		let mt = (load_type_def ctx p t) in
+		let is_generic = match mt with TClassDecl {cl_kind = KGeneric} -> true | _ -> false in
+		let types , path , f = ctx.g.do_build_instance ctx mt p in
 		if allow_no_params && t.tparams = [] then begin
 			let pl = ref [] in
 			pl := List.map (fun (name,t) ->
 				match follow t with
 				| TInst (c,_) ->
 					let t = mk_mono() in
-					delay_late ctx (fun() -> check_param_constraints ctx types t (!pl) c p);
+					if c.cl_kind <> KTypeParameter [] || is_generic then delay_late ctx (fun() -> check_param_constraints ctx types t (!pl) c p);
 					t;
 				| _ -> assert false
 			) types;
@@ -176,7 +178,7 @@ let rec load_instance ctx t p allow_no_params =
 				let isconst = (match t with TInst ({ cl_kind = KExpr _ },_) -> true | _ -> false) in
 				if isconst <> (name = "Const") && t != t_dynamic then error (if isconst then "Constant value unexpected here" else "Constant value excepted as type parameter") p;
 				match follow t2 with
-				| TInst ({ cl_kind = KTypeParameter [] }, []) ->
+				| TInst ({ cl_kind = KTypeParameter [] }, []) when not is_generic ->
 					t
 				| TInst (c,[]) ->
 					let r = exc_protect ctx (fun r ->
