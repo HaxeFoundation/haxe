@@ -90,8 +90,6 @@ let object_field f =
 	let pflen = String.length pf in
 	if String.length f >= pflen && String.sub f 0 pflen = pf then String.sub f pflen (String.length f - pflen), false else f, true
 
-let type_field_rec = ref (fun _ _ _ _ _ -> assert false)
-
 let rec is_pos_infos = function
 	| TMono r ->
 		(match !r with
@@ -438,7 +436,6 @@ let make_call ctx e params t p =
 			| _ when has_meta ":extern" f.cf_meta -> true
 			| _ -> false
 		) in
-		(* we have to make sure that we mark the field as used here so DCE does not remove it *)
 		if not ctx.g.doinline && not is_extern then raise Exit;
 		ignore(follow f.cf_type); (* force evaluation *)
 		let params = List.map (ctx.g.do_optimize ctx) params in
@@ -2584,11 +2581,6 @@ let make_macro_api ctx p =
 		| TEnumDecl e -> TEnum (e,List.map snd e.e_types)
 		| TTypeDecl t -> TType (t,List.map snd t.t_types)
 	in
-(* 	let add_types () =
-		finalize ctx;
-		let l = Hashtbl.fold (fun v m l -> l @ m.m_types) ctx.g.modules ctx.com.types in
-		Interp.add_types (Interp.get_ctx()) l;
-	in *)
 	{
 		Interp.pos = p;
 		Interp.get_com = (fun() -> ctx.com);
@@ -3070,6 +3062,5 @@ let rec create com =
 	ctx
 
 ;;
-type_field_rec := type_field;
 unify_min_ref := unify_min;
 type_expr_with_type_ref := (fun ctx e t do_raise -> if do_raise then type_expr_with_type_raise ~print_error:false ctx e t else type_expr_with_type ctx e t);
