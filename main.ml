@@ -85,6 +85,7 @@ let error ctx msg p =
 	ctx.has_error <- true
 
 let htmlescape s =
+	let s = String.concat "&amp;" (ExtString.String.nsplit s "&") in
 	let s = String.concat "&lt;" (ExtString.String.nsplit s "<") in
 	let s = String.concat "&gt;" (ExtString.String.nsplit s ">") in
 	s
