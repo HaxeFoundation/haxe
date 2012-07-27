@@ -68,6 +68,10 @@ let keep_field dce cf =
 	has_meta ":keep" cf.cf_meta
 	|| has_meta ":used" cf.cf_meta
 	|| cf.cf_name = "__init__"
+	|| dce.ctx.com.platform = Js && (try (match get_meta ":feature" cf.cf_meta with
+			| (_,[EConst(String s),_],_) -> Common.has_feature dce.ctx.com s
+			| _ -> raise Not_found)
+		with Not_found -> false)
 
 (* marking *)
 
