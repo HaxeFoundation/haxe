@@ -77,8 +77,7 @@ let mark_field dce c cf stat = if not (has_meta ":used" cf.cf_meta) then begin
 	dce.added_fields <- (c,cf,stat) :: dce.added_fields;
 end
 
-(* mark a class as kept. If the class has fields marked as @:?keep, make sure to keep them *)
-let rec mark_class dce c = if not (has_meta ":used" c.cl_meta) then begin
+let rec update_marked_class_fields dce c =
 	(* mark all :?used fields as surely :used now *)
 	List.iter (fun cf ->
 		if has_meta ":?used" cf.cf_meta then mark_field dce c cf true
@@ -86,11 +85,15 @@ let rec mark_class dce c = if not (has_meta ":used" c.cl_meta) then begin
 	List.iter (fun cf ->
 		if has_meta ":?used" cf.cf_meta then mark_field dce c cf false
 	) c.cl_ordered_fields;
-	c.cl_meta <- (":used",[],c.cl_pos) :: c.cl_meta;
 	(* we always have to keep super classes and implemented interfaces *)
 	(match c.cl_init with None -> () | Some init -> dce.follow_expr dce init);
 	List.iter (fun (c,_) -> mark_class dce c) c.cl_implements;
-	match c.cl_super with None -> () | Some (csup,pl) -> mark_class dce csup;
+	(match c.cl_super with None -> () | Some (csup,pl) -> mark_class dce csup)
+
+(* mark a class as kept. If the class has fields marked as @:?keep, make sure to keep them *)
+and mark_class dce c = if not (has_meta ":used" c.cl_meta) then begin
+	c.cl_meta <- (":used",[],c.cl_pos) :: c.cl_meta;
+	update_marked_class_fields dce c;
 end
 
 (* mark a type as kept *)
@@ -195,6 +198,9 @@ and expr dce e =
 	| TTypeExpr (TEnumDecl e)
 	| TEnumField(e,_) ->
 		mark_t dce (TEnum(e,[]));
+	| TCall ({eexpr = TLocal ({v_name = "__define_feature__"})},[{eexpr = TConst (TString ft)};e]) ->
+		Common.add_feature dce.ctx.com ft;
+		expr dce e
 	(* keep toString method when the class is argument to Std.string or haxe.Log.trace *)
 	| TCall ({eexpr = TField({eexpr = TTypeExpr (TClassDecl ({cl_path = (["haxe"],"Log")} as c))},"trace")} as ef, ([e2;_] as args))
 	| TCall ({eexpr = TField({eexpr = TTypeExpr (TClassDecl ({cl_path = ([],"Std")} as c))},"string")} as ef, ([e2] as args)) ->
@@ -235,7 +241,7 @@ let run ctx main types modules =
 	let rec loop acc types = match types with
 		| (TClassDecl c) :: l ->
 			let keep_class = keep_whole_class dce c in
-			if keep_class then mark_class dce c;
+			if keep_class then (if c.cl_extern then update_marked_class_fields dce c else mark_class dce c);
 			(* extern classes should never serve as entry point *)
 			let keep_class = keep_class && (not c.cl_extern || c.cl_interface) in
 			let rec loop2 acc cfl stat = match cfl with

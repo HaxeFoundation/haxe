@@ -59,16 +59,16 @@ class Boot {
 		}
 	}
 
-	@:defineFeature static inline function isClass(o:Dynamic) : Bool {
-		return o.__name__;
+	static inline function isClass(o:Dynamic) : Bool {
+		return untyped __define_feature__("js.Boot.isClass", o.__name__);
 	}
 
-	@:defineFeature static inline function isEnum(e:Dynamic) : Bool {
-		return e.__ename__;
+	static inline function isEnum(e:Dynamic) : Bool {
+		return untyped __define_feature__("js.Boot.isEnum", e.__ename__);
 	}
 
-	@:defineFeature static inline function getClass(o:Dynamic) : Dynamic {
-		return o.__class__;
+	static inline function getClass(o:Dynamic) : Dynamic {
+		return untyped __define_feature__("js.Boot.getClass", o.__class__);
 	}
 
 	@:feature("has_enum")
