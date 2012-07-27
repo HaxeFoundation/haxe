@@ -112,10 +112,17 @@ let field_type ctx c pl f p =
 		List.iter2 (fun m (name,t) -> 
 			match follow t with
 			| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] ->
+				let rec loop c pl t =
+					let t = (match c.cl_super with
+						| None -> t
+						| Some (cs,tl) -> loop cs tl t
+					) in
+					apply_params c.cl_types pl t
+				in
 				let constr = List.map (fun t -> 
 					let t = apply_params f.cf_params monos t in
 					(* only apply params if not static : in that case no param is passed *)
-					let t = (if pl = [] then t else apply_params c.cl_types pl t) in
+					let t = (if pl = [] then t else loop c pl t) in
 					t
 				) constr in
 				delay_late ctx (fun() ->
