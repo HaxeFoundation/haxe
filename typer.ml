@@ -117,13 +117,12 @@ let field_type ctx c pl f p =
 						| None -> t
 						| Some (cs,tl) -> loop cs tl t
 					) in
-					apply_params c.cl_types pl t
+					(* only apply params if not static : in that case no param is passed *)
+					if pl = [] then t else apply_params c.cl_types pl t
 				in
 				let constr = List.map (fun t -> 
 					let t = apply_params f.cf_params monos t in
-					(* only apply params if not static : in that case no param is passed *)
-					let t = (if pl = [] then t else loop c pl t) in
-					t
+					loop c pl t
 				) constr in
 				delay_late ctx (fun() ->
 					List.iter (fun ct ->
