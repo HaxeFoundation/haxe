@@ -269,7 +269,7 @@ let build_class com c file =
 		match f.hlf_kind with
 		| HFVar v ->
 			if v.hlv_const then
-				cf.cff_kind <- FProp ("default","never",make_type v.hlv_type,None)
+				cf.cff_kind <- FProp ("default","never",Some (make_type v.hlv_type),None)
 			else
 				cf.cff_kind <- FVar (Some (make_type v.hlv_type),None);
 			cf :: acc
@@ -372,7 +372,7 @@ let build_class com c file =
 			cff_doc = None;
 			cff_access = flags;
 			cff_meta = [];
-			cff_kind = if get && set then FVar (Some (make_type t), None) else FProp ((if get then "default" else "never"),(if set then "default" else "never"),make_type t,None);
+			cff_kind = if get && set then FVar (Some (make_type t), None) else FProp ((if get then "default" else "never"),(if set then "default" else "never"),Some (make_type t),None);
 		}
 	in
 	let fields = Hashtbl.fold (fun (name,stat) t acc ->

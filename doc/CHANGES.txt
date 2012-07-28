@@ -4,6 +4,8 @@
 	macro : added $[expr-list] support in reification
 	all : fixed using + overload usage
 	all : allow any type constraint for type parameters
+	all : make property type optional (when a initial value is set)
+	all : new post-compilation DCE
 	
 2012-07-16: 2.10
 	java/cs : added two new targets (beta)

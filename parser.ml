@@ -466,7 +466,11 @@ and parse_class_field s =
 		let name, pos, k = (match s with parser
 		| [< '(Kwd Var,p1); name, _ = ident; s >] ->
 			(match s with parser
-			| [< '(POpen,_); i1 = property_ident; '(Comma,_); i2 = property_ident; '(PClose,_); '(DblDot,_); t = parse_complex_type >] ->
+			| [< '(POpen,_); i1 = property_ident; '(Comma,_); i2 = property_ident; '(PClose,_) >] ->
+				let t = (match s with parser
+					| [< '(DblDot,_); t = parse_complex_type >] -> Some t
+					| [< >] -> None
+				) in
 				let e , p2 = (match s with parser
 				| [< '(Binop OpAssign,_); e = toplevel_expr; p2 = semicolon >] -> Some e , p2
 				| [< '(Semicolon,p2) >] -> None , p2

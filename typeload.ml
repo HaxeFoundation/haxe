@@ -272,6 +272,7 @@ and load_complex_type ctx p t =
 						| "dynamic" -> AccCall ((if get then "get_"  else "set_") ^ n)
 						| _ -> AccCall m
 					in
+					let t = (match t with None -> error "Type required for structure property" p | Some t -> t) in
 					load_complex_type ctx p t, Var { v_read = access i1 true; v_write = access i2 false }
 			) in
 			let cf = {
@@ -805,7 +806,7 @@ let patch_class ctx c fields =
 					| Some t ->
 						f.cff_kind <- match f.cff_kind with
 						| FVar (_,e) -> FVar (Some t,e)
-						| FProp (get,set,_,eo) -> FProp (get,set,t,eo)
+						| FProp (get,set,_,eo) -> FProp (get,set,Some t,eo)
 						| FFun f -> FFun { f with f_type = Some t });
 					loop (f :: acc) l
 		in
@@ -1132,7 +1133,11 @@ let init_class ctx c p herits fields =
 			f, constr, cf, delay
 		| FProp (get,set,t,eo) ->
 			if override then error "You cannot override properties" p;
-			let ret = load_complex_type ctx p t in
+			let ret = (match t, eo with
+				| None, None -> error "Property must either define a type or a default value" p;
+				| None, _ -> mk_mono()
+				| Some t, _ -> load_complex_type ctx p t
+			) in
 			let check_get = ref (fun() -> ()) in
 			let check_set = ref (fun() -> ()) in
 			let check_method m t () =

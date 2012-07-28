@@ -190,7 +190,7 @@ enum Access {
 enum FieldType {
 	FVar( t : Null<ComplexType>, ?e : Null<Expr> );
 	FFun( f : Function );
-	FProp( get : String, set : String, t : ComplexType, ?e : Null<Expr> );
+	FProp( get : String, set : String, ?t : Null<ComplexType>, ?e : Null<Expr> );
 }
 
 typedef TypeDefinition = {

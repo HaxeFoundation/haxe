@@ -217,7 +217,7 @@ and access =
 and class_field_kind =
 	| FVar of complex_type option * expr option
 	| FFun of func
-	| FProp of string * string * complex_type * expr option
+	| FProp of string * string * complex_type option * expr option
 
 and class_field = {
 	cff_name : string;
@@ -472,7 +472,7 @@ let map_expr loop (e,p) =
 		{ f with cff_kind = (match f.cff_kind with
 			| FVar (t,e) -> FVar (opt ctype t, opt loop e)
 			| FFun f -> FFun (func f)
-			| FProp (get,set,t,e) -> FProp (get,set,ctype t,opt loop e))
+			| FProp (get,set,t,e) -> FProp (get,set,opt ctype t,opt loop e))
 		}
 	and ctype = function
 		| CTPath t -> CTPath (tpath t)
@@ -656,7 +656,7 @@ let reify in_macro =
 			let n, vl = (match k with
 				| FVar (ct,e) -> "FVar", [to_opt to_ctype ct p;to_opt to_expr e p]
 				| FFun f -> "FFun", [to_fun f p]
-				| FProp (get,set,t,e) -> "FProp", [to_string get p; to_string set p; to_ctype t p; to_opt to_expr e p]
+				| FProp (get,set,t,e) -> "FProp", [to_string get p; to_string set p; to_opt to_ctype t p; to_opt to_expr e p]
 			) in
 			mk_enum "FieldType" n vl p
 		in
