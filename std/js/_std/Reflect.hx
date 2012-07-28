@@ -26,7 +26,7 @@
 @:core_api class Reflect {
 
 	public static function hasField( o : Dynamic, field : String ) : Bool {
-		return untyped Object.prototype.hasOwnProperty.call(o, field);
+		return untyped __js__('Object').prototype.hasOwnProperty.call(o, field);
 	}
 
 	public inline static function field( o : Dynamic, field : String ) : Dynamic untyped {
@@ -61,7 +61,7 @@
 	public static function fields( o : Dynamic ) : Array<String> {
 		var a = [];
 		if (o != null) untyped {
-			var hasOwnProperty = Object.prototype.hasOwnProperty;
+			var hasOwnProperty = __js__('Object').prototype.hasOwnProperty;
 			__js__("for( var f in o ) {");
 			if( hasOwnProperty.call(o, f) ) a.push(f);
 			__js__("}");
