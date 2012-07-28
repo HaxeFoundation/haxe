@@ -412,12 +412,16 @@ let optimize_for_loop ctx i e1 e2 p =
 		(*
 			force locals to be of Int type (to prevent Int/UInt issues)
 		*)
+		let i2 = match i2.etype with
+			| TInst({ cl_path = ([],"Int") }, []) -> i2
+			| _ -> { i2 with eexpr = TCast(i2, None); etype = t_int }
+		in
 		(match max with
 		| None ->
 			lblock [
 				mk (TVars [tmp,Some i1]) t_void p;
 				mk (TWhile (
-					mk (TBinop (OpLt, etmp, { i2 with etype = t_int })) ctx.t.tbool p,
+					mk (TBinop (OpLt, etmp, i2)) ctx.t.tbool p,
 					block,
 					NormalWhile
 				)) t_void p;
