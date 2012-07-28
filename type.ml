@@ -605,7 +605,7 @@ let rec fast_eq a b =
 	if a == b then
 		true
 	else match a , b with
-	| TFun (l1,r1) , TFun (l2,r2) ->
+	| TFun (l1,r1) , TFun (l2,r2) when List.length l1 = List.length l2 ->
 		List.for_all2 (fun (_,_,t1) (_,_,t2) -> fast_eq t1 t2) l1 l2 && fast_eq r1 r2
 	| TType (t1,l1), TType (t2,l2) ->
 		t1 == t2 && List.for_all2 fast_eq l1 l2
