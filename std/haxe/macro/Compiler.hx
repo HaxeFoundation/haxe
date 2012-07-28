@@ -70,6 +70,13 @@ class Compiler {
 	}
 
 	/**
+		Adds a native library depending on the platform (eg : -swf-lib for Flash)
+	**/
+	public static function addNativeLib( name : String ) {
+		return untyped load("add_native_lib",1)(name.__s);
+	}
+
+	/**
 		Include for compilation all classes defined in the given package excluding the ones referenced in the ignore list.
 	**/
 	public static function include( pack : String, ?rec = true, ?ignore : Array<String>, ?classPaths : Array<String> ) {

@@ -2258,6 +2258,17 @@ let macro_lib =
 			| _ ->
 				error()
 		);
+		"add_native_lib", Fun1 (fun v ->
+			match v with
+			| VString file ->
+				let com = ccom() in
+				(match com.platform with
+				| Flash -> Genswf.add_swf_lib com file
+				| _ -> failwith "Unsupported platform");
+				VNull
+			| _ ->
+				error()
+		);
 		"module_dependency", Fun2 (fun m file ->
 			match m, file with
 			| VString m, VString file ->

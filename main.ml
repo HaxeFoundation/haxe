@@ -264,33 +264,6 @@ let lookup_classes com spath =
 	in
 	loop com.class_path
 
-let add_swf_lib com file =
-	let swf_data = ref None in
-	let swf_classes = ref None in
-	let getSWF = (fun() ->
-		match !swf_data with
-		| None ->
-			let d = Genswf.parse_swf com file in
-			swf_data := Some d;
-			d
-		| Some d -> d
-	) in
-	let extract = (fun() ->
-		match !swf_classes with
-		| None ->
-			let d = Genswf.extract_data (getSWF()) in
-			swf_classes := Some d;
-			d
-		| Some d -> d
-	) in
-	let build cl p =
-		match (try Some (Hashtbl.find (extract()) cl) with Not_found -> None) with
-		| None -> None
-		| Some c -> Some (file, Genswf.build_class com c file)
-	in
-	com.load_extern_type <- com.load_extern_type @ [build];
-	com.swf_libs <- (file,getSWF,extract) :: com.swf_libs
-
 let add_libs com libs =
 	let call_haxelib() =
 		let t = Common.timer "haxelib" in
@@ -823,7 +796,7 @@ try
 				_ -> raise (Arg.Bad "Invalid SWF header format")
 		),"<header> : define SWF header (width:height:fps:color)");
 		("-swf-lib",Arg.String (fun file ->
-			add_swf_lib com file
+			Genswf.add_swf_lib com file
 		),"<file> : add the SWF library to the compiled SWF");
 		("-x", Arg.String (fun file ->
 			let neko_file = file ^ ".n" in

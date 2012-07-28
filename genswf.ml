@@ -530,6 +530,33 @@ let parse_swf com file =
 	t();
 	(h,tags)
 
+let add_swf_lib com file =
+	let swf_data = ref None in
+	let swf_classes = ref None in
+	let getSWF = (fun() ->
+		match !swf_data with
+		| None ->
+			let d = parse_swf com file in
+			swf_data := Some d;
+			d
+		| Some d -> d
+	) in
+	let extract = (fun() ->
+		match !swf_classes with
+		| None ->
+			let d = extract_data (getSWF()) in
+			swf_classes := Some d;
+			d
+		| Some d -> d
+	) in
+	let build cl p =
+		match (try Some (Hashtbl.find (extract()) cl) with Not_found -> None) with
+		| None -> None
+		| Some c -> Some (file, build_class com c file)
+	in
+	com.load_extern_type <- com.load_extern_type @ [build];
+	com.swf_libs <- (file,getSWF,extract) :: com.swf_libs
+
 (* ------------------------------- *)
 
 let tag ?(ext=false) d = {
