@@ -120,8 +120,6 @@ let rec mark_dependent_fields dce csup n stat =
 					if has_meta ":used" c.cl_meta || (csup.cl_interface && csup.cl_extern) then mark_field dce c cf stat
 					(* otherwise it might be kept if the class is kept later, so mark it as :?used *)
 					else if not (has_meta ":?used" cf.cf_meta) then cf.cf_meta <- (":?used",[],cf.cf_pos) :: cf.cf_meta;
-					(* Cpp currently requires all base methods to be marked too *)
-					if dce.ctx.com.platform = Cpp then match c.cl_super with None -> () | Some (csup,_) -> loop csup;
 				with Not_found ->
 					(* if the field is not present on current class, it might come from a base class *)
 					(match c.cl_super with None -> () | Some (csup,_) -> loop csup))
@@ -360,4 +358,20 @@ let run ctx main types modules =
 			List.iter (check_prop false) c.cl_ordered_fields;
 		| _ -> ()
 	) types;
+
+	(* remove "override" from fields that do not override anything anymore *)
+	List.iter (fun mt -> match mt with
+		| TClassDecl c ->
+			c.cl_overrides <- List.filter (fun s ->
+				let rec loop c =
+					match c.cl_super with
+					| Some (csup,_) when PMap.mem s csup.cl_fields -> true
+					| Some (csup,_) -> loop csup
+					| None -> false
+				in
+				loop c
+			) c.cl_overrides;
+		| _ -> ()
+	) types;
+
 	types,modules
