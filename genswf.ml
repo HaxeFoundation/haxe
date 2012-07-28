@@ -172,6 +172,12 @@ let rec make_tpath = function
 		{
 			tpackage = (match ns with
 				| HNInternal (Some ns) -> ExtString.String.nsplit ns "."
+				| HNPrivate (Some ns) ->
+					(try
+						let file, line = ExtString.String.split ns ".as$" in
+						[file ^ "_" ^ line]
+					with _ ->
+						[])
 				| _ -> []);
 			tname = id;
 			tparams = [];
@@ -752,12 +758,10 @@ let make_as3_public data =
 	(* set all protected+private fields to public - this will enable overriding/reflection in Haxe classes *)
 	let ns = Array.mapi (fun i ns ->
 		match ns with
-		| A3NPrivate _
-		| A3NInternal _
-		| A3NProtected _
-		| A3NPublic None
-			->
-			A3NPublic None
+		| A3NInternal n | A3NPrivate n ->
+			A3NPublic n
+		| A3NProtected n ->
+			A3NPublic (Some n)
 		| A3NPublic _
 		| A3NNamespace _
 		| A3NExplicit _
