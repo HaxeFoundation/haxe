@@ -2282,7 +2282,7 @@ let generate_type ctx t =
 				hlf_name = type_path ctx c.cl_path;
 				hlf_slot = 0;
 				hlf_kind = HFClass hlc;
-				hlf_metas = None;
+				hlf_metas = extract_meta c.cl_meta;
 			})
 	| TEnumDecl e ->
 		if e.e_extern && e.e_path <> ([],"Void") then
@@ -2297,7 +2297,7 @@ let generate_type ctx t =
 				hlf_name = type_path ctx e.e_path;
 				hlf_slot = 0;
 				hlf_kind = HFClass hlc;
-				hlf_metas = None;
+				hlf_metas = extract_meta e.e_meta;
 			})
 	| TTypeDecl _ ->
 		None
