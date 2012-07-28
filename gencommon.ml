@@ -4589,7 +4589,7 @@ struct
                   handle_cast gen ({ ecall with eexpr = TCall({ e1 with eexpr = TField(ef, f) }, elist )  }) (gen.greal_type ecall.etype) (gen.greal_type ret)
                 )
               | _ ->
-                let params = TypeParams.infer_params gen ecall.epos (get_fun cf.cf_type) (get_fun e1.etype) cf.cf_params impossible_tparam_is_dynamic in
+                let _params = TypeParams.infer_params gen ecall.epos (get_fun cf.cf_type) (get_fun e1.etype) cf.cf_params impossible_tparam_is_dynamic in
                 let args, ret = get_args actual_t in
                 let actual_t = TFun(List.map (fun (n,o,t) -> (n,o,gen.greal_type t)) args, gen.greal_type ret) in
                 
@@ -4597,7 +4597,7 @@ struct
                   because of differences on how <Dynamic> is handled on the platforms, this is a hack to be able to 
                   correctly use class field type parameters with RealTypeParams
                 *)
-                let cf_params = List.map (fun t -> match follow t with | TDynamic _ -> t_empty | _ -> t) params in
+                let cf_params = List.map (fun t -> match follow t with | TDynamic _ -> t_empty | _ -> t) _params in
                 let t = apply_params cl.cl_types (gen.greal_type_param (TClassDecl cl) params) actual_t in
                 let t = apply_params cf.cf_params (gen.greal_type_param (TClassDecl cl) cf_params) t in
                 
