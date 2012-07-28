@@ -23,7 +23,7 @@ class TestCSharp extends Test
 		refTest(i);
 		eq(i, 20);
 		
-		var cl = new HxClass();
+		var cl:NativeClass = new HxClass();
 		cl.refTest(i);
 		eq(i, 80);
 	}
@@ -34,7 +34,7 @@ class TestCSharp extends Test
 		outTest(i, 10);
 		eq(i, 20);
 		
-		var cl = new HxClass();
+		var cl:NativeClass = new HxClass();
 		cl.outTest(i, 10);
 		eq(i, 40);
 	}

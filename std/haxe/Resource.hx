@@ -35,7 +35,7 @@ class Resource {
 	#if cs
 	static var paths : Hash<String>;
 	
-	private static function getPaths():Hash<String>
+	#if cs @:keep #end private static function getPaths():Hash<String>
 	{
 		if (paths != null)
 			return paths;

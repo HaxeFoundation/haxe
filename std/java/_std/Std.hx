@@ -241,6 +241,7 @@ import java.internal.Exceptions;
 	}
 
 	public static function random( x : Int ) : Int {
+		if (x <= 0) return 0;
 		return Std.int(Math.random() * x);
 	}
 

@@ -9280,6 +9280,54 @@ struct
   
 end;;
 
+(* ******************************************* *)
+(* OverrideFix *)
+(* ******************************************* *)
+
+(*
+  
+  When DCE is on, sometimes a field is marked as override when it 
+  really doesn't override anything. This module filter will take care of this.
+  
+  dependencies:
+    No dependencies
+  
+*)
+
+module OverrideFix =
+struct
+
+  let name = "override_fix"
+  
+  let priority = solve_deps name []
+  
+  let default_implementation gen =
+    let rec run e =
+      match e.eexpr with 
+        | _ -> Type.map_expr run e
+    in
+    run
+  
+  let configure gen =
+    let map md =  
+      match md with
+        | TClassDecl cl ->
+          cl.cl_overrides <- List.filter (fun s ->
+            let rec loop cl =
+              match cl.cl_super with
+                | Some (cl,_) when PMap.mem s cl.cl_fields -> true
+                | Some (cl,_) -> loop cl
+                | None -> false
+            in
+            loop cl
+          ) cl.cl_overrides;
+          Some md
+        | _ -> Some md
+    in
+    gen.gmodule_filters#add ~name:name ~priority:(PCustom priority) map
+  
+end;;
+
 (*
 (* ******************************************* *)
 (* Example *)
