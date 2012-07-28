@@ -185,7 +185,7 @@ import sys.io.Process;
 	**/
 	public static function cpuTime() : Float
 	{
-		return cast(System.nanoTime(), Float) / 1000;
+		return cast(System.nanoTime(), Float) / 1000000000;
 	}
 
 	/**

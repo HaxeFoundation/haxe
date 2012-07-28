@@ -1393,7 +1393,14 @@ let configure gen =
       | Some path when path = cl.cl_path ->
         write w "public static void main(String[] args)";
         begin_block w;
-        (if Hashtbl.mem gen.gtypes ([], "Sys") then write w "Sys._args = args;"; newline w);
+        (try
+          let t = Hashtbl.find gen.gtypes ([], "Sys") in
+              match t with 
+                | TClassDecl(cl) when PMap.mem "_args" cl.cl_statics -> 
+                  write w "Sys._args = args;"; newline w
+                | _ -> ()
+        with | Not_found -> ()
+        );
         write w "main();";
         end_block w
       | _ -> ()
