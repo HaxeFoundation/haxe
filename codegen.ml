@@ -201,10 +201,6 @@ let extend_remoting ctx c t p async prot =
 (* -------------------------------------------------------------------------- *)
 (* HAXE.RTTI.GENERIC *)
 
-let recursive_usage_error ctx p p2 =
-	display_error ctx "Recursive generics may not use their type parameters as values" p;
-	error "Class was used recursively here" p2
-
 let rec build_generic ctx c p tl =
 	let pack = fst c.cl_path in
 	let recurse = ref false in
@@ -229,12 +225,7 @@ let rec build_generic ctx c p tl =
 		| l , name -> String.concat "_" l ^ "_" ^ name
 	) tl)) in
 	if !recurse then
-		(try
-			let (_,_,p2) = get_meta ":genericT" c.cl_meta in
-			recursive_usage_error ctx p2 p;
-		with Not_found ->
-			if not (has_meta ":usedRecursively" c.cl_meta) then c.cl_meta <- (":usedRecursively",[],p) :: c.cl_meta;
-			TInst (c,tl)) (* build a normal instance *)
+		TInst (c,tl) (* build a normal instance *)
 	else try
 		Typeload.load_instance ctx { tpackage = pack; tname = name; tparams = []; tsub = None } p false
 	with Error(Module_not_found path,_) when path = (pack,name) ->
