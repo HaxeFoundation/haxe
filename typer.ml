@@ -1956,11 +1956,6 @@ and type_expr ctx ?(need_val=true) (e,p) =
 				if not (type_iseq tt t) then raise Not_found;
 			with Not_found ->
 				display_error ctx "Only class type parameters can be constructed in generic instances" p);
-			(try
-				let (_,_,p2) = get_meta ":usedRecursively" ctx.curclass.cl_meta in
-				Codegen.recursive_usage_error ctx p2 p;
-			with Not_found -> ());
-			if not (has_meta ":genericT" ctx.curclass.cl_meta) then ctx.curclass.cl_meta <- (":genericT",[],p) :: ctx.curclass.cl_meta;
 			let el = List.map (type_expr ctx) el in
 			let ctor = mk_field "new" (tfun (List.map (fun e -> e.etype) el) ctx.t.tvoid) p in
   			(match c.cl_constructor with
