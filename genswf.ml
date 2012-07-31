@@ -151,8 +151,9 @@ let rec make_tpath = function
 			| [], "uint" -> [], "UInt"
 			| [], "Number" -> [], "Float"
 			| [], "Boolean" -> [], "Bool"
-			| [], "Object" | [], "Function" -> [], "Dynamic"
-			| [],"Class" | [],"Array" -> pdyn := true; pack, name
+			| [], "Object" -> ["flash";"utils"], "Object"
+			| [], "Function" -> ["flash";"utils"], "Function"
+			| [], "Class" | [],"Array" -> pdyn := true; pack, name
 			| [], "Error" -> ["flash";"errors"], "Error"
 			| [] , "XML" -> ["flash";"xml"], "XML"
 			| [] , "XMLList" -> ["flash";"xml"], "XMLList"
@@ -208,8 +209,26 @@ let make_topt = function
 
 let make_type t = CTPath (make_topt t)
 
+let make_dyn_type t =
+	match make_topt t with
+	| { tpackage = ["flash";"utils"]; tname = ("Object"|"Function") } -> make_type None
+	| o -> CTPath o
+
 let build_class com c file =
 	let path = make_tpath c.hlc_name in
+	let pos = { pfile = file ^ "@" ^ s_type_path (path.tpackage,path.tname); pmin = 0; pmax = 0 } in
+	match path with
+	| { tpackage = ["flash";"utils"]; tname = ("Object"|"Function") } ->
+		let inf = {
+			d_name = path.tname;
+			d_doc = None;
+			d_params = [];
+			d_meta = [];
+			d_flags = [];
+			d_data = CTPath { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None; };
+		} in
+		(path.tpackage, [(ETypedef inf,pos)])
+	| _ ->
   (* make flags *)
 	let flags = [HExtern] in
 	let flags = if c.hlc_interface then HInterface :: flags else flags in
@@ -232,7 +251,6 @@ let build_class com c file =
 	) (Array.to_list c.hlc_implements) @ flags in
 	let flags = if c.hlc_sealed || Common.defined com "flash_strict" then flags else HImplements (make_tpath (HMPath ([],"Dynamic"))) :: flags in
   (* make fields *)
-	let pos = { pfile = file ^ "@" ^ s_type_path (path.tpackage,path.tname); pmin = 0; pmax = 0 } in
 	let getters = Hashtbl.create 0 in
 	let setters = Hashtbl.create 0 in
 	let override = Hashtbl.create 0 in
@@ -277,7 +295,7 @@ let build_class com c file =
 			if v.hlv_const then
 				cf.cff_kind <- FProp ("default","never",Some (make_type v.hlv_type),None)
 			else
-				cf.cff_kind <- FVar (Some (make_type v.hlv_type),None);
+				cf.cff_kind <- FVar (Some (make_dyn_type v.hlv_type),None);
 			cf :: acc
 		| HFMethod m when m.hlm_override ->
 			Hashtbl.add override (name,stat) ();
@@ -287,6 +305,7 @@ let build_class com c file =
 			| MK3Normal ->
 				let t = m.hlm_type in
 				let p = ref 0 and pn = ref 0 in
+				let make_type = if stat || name = "new" then make_dyn_type else make_type in
 				let args = List.map (fun at ->
 					let aname = (match t.hlmt_pnames with
 						| None -> incr pn; "p" ^ string_of_int !pn
@@ -378,7 +397,7 @@ let build_class com c file =
 			cff_doc = None;
 			cff_access = flags;
 			cff_meta = [];
-			cff_kind = if get && set then FVar (Some (make_type t), None) else FProp ((if get then "default" else "never"),(if set then "default" else "never"),Some (make_type t),None);
+			cff_kind = if get && set then FVar (Some (make_dyn_type t), None) else FProp ((if get then "default" else "never"),(if set then "default" else "never"),Some (make_dyn_type t),None);
 		}
 	in
 	let fields = Hashtbl.fold (fun (name,stat) t acc ->
@@ -438,7 +457,8 @@ let extract_data (_,tags) =
 		| HFClass c ->
 			let path = make_tpath f.hlf_name in
 			(match path with
-			| { tpackage = []; tname = "Float" | "Bool" | "MethodClosure" | "Int" | "UInt" | "Dynamic" } -> ()
+			| { tpackage = []; tname = "Float" | "Bool" | "Int" | "UInt" | "Dynamic" } -> ()
+			| { tpackage = _; tname = "MethodClosure" } -> ()
 			| _ -> Hashtbl.add h (path.tpackage,path.tname) c)
 		| _ -> ()
 	in

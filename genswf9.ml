@@ -160,6 +160,8 @@ let real_path = function
 	| ["flash";"xml"], "XMLList" -> [], "XMLList"
 	| ["flash";"utils"], "QName" -> [] , "QName"
 	| ["flash";"utils"], "Namespace" -> [] , "Namespace"
+	| ["flash";"utils"], "Object" -> [] , "Object"
+	| ["flash";"utils"], "Function" -> [] , "Function"
 	| ["flash"] , "FlashXml__" -> [] , "Xml"
 	| ["flash";"errors"] , "Error" -> [], "Error"
 	| ["flash"] , "Vector" -> ["__AS3__";"vec"], "Vector"
@@ -187,6 +189,8 @@ let rec follow_basic t =
 		| TType ({ t_path = [],"UInt" },[])
 		| TEnum ({ e_path = ([],"Bool") },[]) -> t
 		| t -> t)
+	| TType ({ t_path = ["flash";"utils"],"Object" },[])
+	| TType ({ t_path = ["flash";"utils"],"Function" },[])
 	| TType ({ t_path = [],"UInt" },[]) ->
 		t
 	| TType (t,tl) ->
@@ -209,7 +213,7 @@ let rec type_id ctx t =
 			type_id ctx (TInst (c,params))
 		| _ ->
 			type_path ctx c.cl_path)
-	| TFun _ ->
+	| TFun _ | TType ({ t_path = ["flash";"utils"],"Function" },[]) ->
 		type_path ctx ([],"Function")
 	| TType ({ t_path = ([],"UInt") as path },_) ->
 		type_path ctx path
@@ -226,7 +230,7 @@ let rec type_id ctx t =
 		HMPath ([],"Object")
 
 let type_opt ctx t =
-	match follow t with
+	match follow_basic t with
 	| TDynamic _ | TMono _ -> None
 	| _ -> Some (type_id ctx t)
 
@@ -263,12 +267,14 @@ let classify ctx t =
 		KType (type_id ctx t)
 	| TType ({ t_path = [],"UInt" },_) ->
 		KUInt
-	| TFun _ ->
+	| TFun _ | TType ({ t_path = ["flash";"utils"],"Function" },[]) ->
 		KType (HMPath ([],"Function"))
 	| TAnon a ->
 		(match !(a.a_status) with
 		| Statics _ -> KNone
 		| _ -> KDynamic)
+	| TType ({ t_path = ["flash";"utils"],"Object" },[]) ->
+		KType (HMPath ([],"Object"))
 	| TMono _
 	| TType _
 	| TDynamic _ ->

@@ -16,11 +16,11 @@ package flash.net;
 	function close() : Void;
 	function convertPeerIDToGroupAddress(peerID : String) : String;
 	function denyRequestedObject(requestID : Int) : Void;
-	function post(message : Dynamic) : String;
+	function post(message : flash.utils.Object) : String;
 	function removeHaveObjects(startIndex : Float, endIndex : Float) : Void;
 	function removeWantObjects(startIndex : Float, endIndex : Float) : Void;
-	function sendToAllNeighbors(message : Dynamic) : String;
-	function sendToNearest(message : Dynamic, groupAddress : String) : String;
-	function sendToNeighbor(message : Dynamic, sendMode : String) : String;
-	function writeRequestedObject(requestID : Int, object : Dynamic) : Void;
+	function sendToAllNeighbors(message : flash.utils.Object) : String;
+	function sendToNearest(message : flash.utils.Object, groupAddress : String) : String;
+	function sendToNeighbor(message : flash.utils.Object, sendMode : String) : String;
+	function writeRequestedObject(requestID : Int, object : flash.utils.Object) : Void;
 }

@@ -13,7 +13,7 @@ extern class SharedObject extends flash.events.EventDispatcher {
 	function flush(minDiskSpace : Int = 0) : String;
 	function send(?p1 : Dynamic, ?p2 : Dynamic, ?p3 : Dynamic, ?p4 : Dynamic, ?p5 : Dynamic) : Void;
 	function setDirty(propertyName : String) : Void;
-	function setProperty(propertyName : String, ?value : Dynamic) : Void;
+	function setProperty(propertyName : String, ?value : flash.utils.Object) : Void;
 	static var defaultObjectEncoding : UInt;
 	static function deleteAll(url : String) : Int;
 	static function getDiskUsage(url : String) : Int;
