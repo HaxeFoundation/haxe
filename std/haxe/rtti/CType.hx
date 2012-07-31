@@ -69,6 +69,7 @@ typedef ClassField = {
 typedef TypeInfos = {
 	var path : Path;
 	var module : Path;
+	var file : Null<String>;
 	var params : TypeParams;
 	var doc : String;
 	var isPrivate : Bool;

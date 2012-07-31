@@ -331,6 +331,7 @@ class XmlParser {
 					fields.add(xclassfield(c));
 			}
 		return {
+			file : if(x.has.file) x.att.file else null,
 			path : mkPath(x.att.path),
 			module : if( x.has.module ) mkPath(x.att.module) else null,
 			doc : doc,
@@ -380,6 +381,7 @@ class XmlParser {
 			else
 				cl.add(xenumfield(c));
 		return {
+			file : if(x.has.file) x.att.file else null,
 			path : mkPath(x.att.path),
 			module : if( x.has.module ) mkPath(x.att.module) else null,
 			doc : doc,
@@ -432,6 +434,7 @@ class XmlParser {
 		if( curplatform != null )
 			types.set(curplatform,t);
 		return {
+			file : if(x.has.file) x.att.file else null,
 			path : mkPath(x.att.path),
 			module : if( x.has.module ) mkPath(x.att.module) else null,
 			doc : doc,
