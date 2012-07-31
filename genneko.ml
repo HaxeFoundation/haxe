@@ -307,6 +307,9 @@ and gen_expr ctx e =
 			,NormalWhile),p)]
 		,p)
 	| TIf (cond,e1,e2) ->
+		(* if(e)-1 is parsed as if( e - 1 ) *)
+		let parent e = mk (TParenthesis e) e.etype e.epos in
+		let e1 = (match e1.eexpr with TConst (TInt n) when n < 0l -> parent e1 | TConst (TFloat f) when f.[0] = '-' -> parent e1 | _ -> e1) in
 		(EIf (gen_expr ctx cond,gen_expr ctx e1,(match e2 with None -> None | Some e -> Some (gen_expr ctx e))),p)
 	| TWhile (econd,e,flag) ->
 		(EWhile (gen_expr ctx econd, gen_expr ctx e, match flag with Ast.NormalWhile -> NormalWhile | Ast.DoWhile -> DoWhile),p)
