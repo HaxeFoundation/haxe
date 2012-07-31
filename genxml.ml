@@ -81,7 +81,6 @@ let rec follow_param t =
 
 let rec sexpr (e,_) =
 	match e with
-	| EConst (String s) -> s
 	| EConst c -> s_constant c
 	| EParenthesis e -> "(" ^ (sexpr e) ^ ")"
 	| EArrayDecl el -> "[" ^ (String.concat "," (List.map sexpr el)) ^ "]"
@@ -436,7 +435,7 @@ let generate_type com t =
 		p "}\n"
 	| TTypeDecl t ->
 		print_meta t.t_meta;
-		p "extern typedef %s = " (stype (TType (t,List.map snd t.t_types)));
+		p "typedef %s = " (stype (TType (t,List.map snd t.t_types)));
 		p "%s" (stype t.t_type);
 		p "\n";
 	);
