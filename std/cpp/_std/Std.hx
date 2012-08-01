@@ -45,6 +45,7 @@
 	}
 
 	public static function random( x : Int ) : Int {
+		if (x <= 0) return 0;
 		return untyped __global__.__hxcpp_irand(x);
 	}
 
