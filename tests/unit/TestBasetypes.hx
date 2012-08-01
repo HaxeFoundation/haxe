@@ -127,6 +127,11 @@ class TestBasetypes extends Test {
 		eq( Std.string(e), "C(0,h)");
 		
 		eq(Std.string([e]), "[C(0,h)]");
+		
+		var tester:String = "show me the (show me!) index of show me";
+		eq(tester.lastIndexOf("show me"), 32);
+		eq(tester.lastIndexOf("show me", 1), 0);
+		eq(tester.lastIndexOf("show me",28), 13);
 	}
 
 	function testMath() {

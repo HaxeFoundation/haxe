@@ -398,7 +398,7 @@ function _hx_is_numeric($v)
 }
 
 function _hx_last_index_of($s, $value, $startIndex = null) {
-	$x = strrpos($s, $value, $startIndex === null ? null : strlen($s) - $startIndex);
+	$x = strrpos($s, $value, $startIndex === null ? 0 : $startIndex-strlen($s));
 	if($x === false)
 		return -1;
 	else
