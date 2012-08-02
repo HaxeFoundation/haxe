@@ -606,6 +606,7 @@ let using_field ctx mode e i p =
 					with Not_found ->
 						(try unify_raise ctx e.etype t0 p with Error (Unify _,_) -> raise Not_found); t0) in
 					if follow e.etype == t_dynamic && follow t0 != t_dynamic then raise Not_found;
+					if has_meta ":noUsing" f.cf_meta then raise Not_found;
 					let et = type_module_type ctx (TClassDecl c) None p in
 					AKUsing (mk (TField (et,i)) t p,c,f,e)
 				| _ -> raise Not_found)
@@ -2156,6 +2157,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 				| TClassDecl c ->
 					let rec dup t = Type.map dup t in
 					List.iter (fun f ->
+						if not (has_meta ":noUsing" f.cf_meta) then
 						let f = { f with cf_type = opt_type f.cf_type } in
 						match follow (field_type ctx c [] f p) with
 						| TFun((_,_,TType({t_path=["haxe";"macro"], ("ExprOf"|"ExprRequire")}, [t])) :: args, ret)
