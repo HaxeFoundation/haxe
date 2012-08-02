@@ -1805,6 +1805,13 @@ let generate_self_method ctx rights m static setter =
 	);
 	newline ctx
 
+let gen_assigned_value ctx eo =	match eo with
+	| Some ({eexpr = TConst _} as e) ->
+		print ctx " = ";
+		gen_value ctx e
+	| _ ->
+		()
+	
 let generate_field ctx static f =
 	newline ctx;
 	ctx.locals <- PMap.empty;
@@ -1851,10 +1858,12 @@ let generate_field ctx static f =
 				| AccCall m, _ ->
 					if not (is_method_defined ctx m static) then generate_self_method ctx rights m static false;
 					print ctx "%s $%s" rights (s_ident f.cf_name);
+					gen_assigned_value ctx f.cf_expr;
 					true
 				| _, AccCall m ->
 					if not (is_method_defined ctx m static) then generate_self_method ctx rights m static true;
 					print ctx "%s $%s" rights (s_ident f.cf_name);
+					gen_assigned_value ctx f.cf_expr;
 					true
 				| _ ->
 					false)
@@ -1877,14 +1886,7 @@ let generate_field ctx static f =
 					()
 				);
 			print ctx "%s $%s" rights name;
-			match f.cf_expr with
-			| None -> ()
-			| Some e ->
-				match e.eexpr with
-				| TConst _ ->
-					print ctx " = ";
-					gen_value ctx e
-				| _ -> ()
+			gen_assigned_value ctx f.cf_expr
 		end
 
 let generate_static_field_assign ctx path f =
