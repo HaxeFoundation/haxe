@@ -254,7 +254,6 @@ let build_class com c file =
 	let getters = Hashtbl.create 0 in
 	let setters = Hashtbl.create 0 in
 	let override = Hashtbl.create 0 in
-	let as3_native = Common.defined com "as3_native" in
 	let is_xml = (match path.tpackage, path.tname with
 		| ["flash";"xml"], ("XML" | "XMLList") -> true
 		| _ -> false
@@ -272,7 +271,7 @@ let build_class com c file =
 				| HNExplicit _ | HNInternal _ | HNPublic _ ->
 					[APublic]
 				| HNStaticProtected _ | HNProtected _ ->
-					if as3_native then meta := (":protected",[]) :: !meta;
+					meta := (":protected",[]) :: !meta;
 					[APrivate])
 			| _ -> []
 		) in
@@ -774,22 +773,6 @@ let build_swc_catalog com types =
 	] in
 	"<?xml version=\"1.0\" encoding =\"utf-8\"?>\n" ^ Xml.to_string_fmt x
 
-let make_as3_public data =
-	(* set all protected+private fields to public - this will enable overriding/reflection in Haxe classes *)
-	let ns = Array.mapi (fun i ns ->
-		match ns with
-		| A3NInternal n | A3NPrivate n ->
-			A3NPublic n
-		| A3NProtected n ->
-			A3NPublic (Some n)
-		| A3NPublic _
-		| A3NNamespace _
-		| A3NExplicit _
-		| A3NStaticProtected _ -> ns
-	) data.as3_namespaces in
-	let cl = Array.map (fun c -> { c with cl3_namespace = None }) data.as3_classes in
-	{ data with as3_namespaces = ns; as3_classes = cl }
-
 let remove_classes toremove lib hcl =
 	let lib = lib() in
 	match !toremove with
@@ -1031,7 +1014,6 @@ let merge com file priority (h1,tags1) (h2,tags2) =
 	let tags1 = if priority then List.filter (function { tdata = TSetBgColor _ } -> false | _ -> true) tags1 else tags1 in
   (* remove unused tags *)
 	let use_stage = priority && Common.defined com "flash_use_stage" in
-	let as3_native = Common.defined com "as3_native" in
 	let classes = ref [] in
 	let nframe = ref 0 in
 	let tags2 = List.filter (fun t ->
@@ -1041,8 +1023,6 @@ let merge com file priority (h1,tags1) (h2,tags2) =
 		| TRemoveObject2 _
 		| TRemoveObject _ -> use_stage
 		| TShowFrame -> incr nframe; use_stage
-		(* patch : this class has a public method which redefines a private one ! *)
-		| TActionScript3 (Some (_,"org/papervision3d/render/QuadrantRenderEngine"),_) when not as3_native -> false
 		| TFilesAttributes _ | TEnableDebugger2 _ | TScenes _ -> false
 		| TSetBgColor _ -> priority
 		| TExport el when !nframe = 0 && com.flash_version >= 9. ->
@@ -1074,12 +1054,6 @@ let merge com file priority (h1,tags1) (h2,tags2) =
 	in
 	List.iter loop tags2;
 	let classes = List.map (fun e -> match e.f9_cid with None -> e | Some id -> { e with f9_cid = Some (id + !max_id) }) !classes in
-  (* do additional transforms *)
-	let tags2 = List.map (fun t ->
-		match t.tdata with
-		| TActionScript3 (id,data) when not as3_native -> { t with tdata = TActionScript3 (id,make_as3_public data) }
-		| _ -> t
-	) tags2 in
   (* merge timelines *)
 	let rec loop l1 l2 =
 		match l1, l2 with
