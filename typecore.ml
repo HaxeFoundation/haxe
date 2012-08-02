@@ -107,17 +107,21 @@ let type_expr_ref : (typer -> Ast.expr -> bool -> texpr) ref = ref (fun _ _ _ ->
 let unify_min_ref : (typer -> texpr list -> t) ref = ref (fun _ _ -> assert false)
 let type_expr_with_type_ref : (typer -> Ast.expr -> t option -> bool -> texpr) ref = ref (fun _ _ _ -> assert false)
 
+let short_type ctx t =
+	let tstr = s_type ctx t in
+	if String.length tstr > 150 then String.sub tstr 0 147 ^ "..." else tstr
+
 let unify_error_msg ctx = function
 	| Cannot_unify (t1,t2) ->
 		s_type ctx t1 ^ " should be " ^ s_type ctx t2
 	| Invalid_field_type s ->
 		"Invalid type for field " ^ s ^ " :"
 	| Has_no_field (t,n) ->
-		s_type ctx t ^ " has no field " ^ n
+		short_type ctx t ^ " has no field " ^ n
 	| Has_no_runtime_field (t,n) ->
 		s_type ctx t ^ "." ^ n ^ " is not accessible at runtime"
 	| Has_extra_field (t,n) ->
-		s_type ctx t ^ " has extra field " ^ n
+		short_type ctx t ^ " has extra field " ^ n
 	| Invalid_kind (f,a,b) ->
 		(match a, b with
 		| Var va, Var vb ->
@@ -188,7 +192,7 @@ let exc_protect ctx f =
 		try
 			f r
 		with
-			| Error (m,p) -> 
+			| Error (m,p) ->
 				display_error ctx (error_msg m) p;
 				raise Fatal_error
 	) in
