@@ -2738,6 +2738,14 @@ let make_macro_api ctx p =
 		);
 	}
 
+let flush_macro_context mctx ctx = 
+	finalize ctx;
+	let _, types, modules = generate ctx in
+	ctx.com.types <- types;
+	ctx.com.Common.modules <- modules;
+	(* we should maybe ensure that all filters in Main are applied. Not urgent atm *)
+	Interp.add_types mctx types (fun t -> Codegen.post_process [t] [Codegen.captured_vars ctx.com; Codegen.rename_local_vars ctx.com])
+
 let get_macro_context ctx p =
 	let api = make_macro_api ctx p in
 	match ctx.g.macros with
@@ -2773,9 +2781,7 @@ let get_macro_context ctx p =
 		(* ctx2.g.core_api <- ctx.g.core_api; // causes some issues because of optional args and Null type in Flash9 *)
 		ignore(Typeload.load_module ctx2 (["haxe";"macro"],"Expr") p);
 		ignore(Typeload.load_module ctx2 (["haxe";"macro"],"Type") p);
-		finalize ctx2;
-		let _, types, _ = generate ctx2 in
-		Interp.add_types mctx types;
+		flush_macro_context mctx ctx2;
 		Interp.init mctx;
 		api, ctx2
 
@@ -2798,13 +2804,7 @@ let load_macro ctx cpath f p =
 	) in
 	let meth = (match follow meth.cf_type with TFun (args,ret) -> args,ret,cl,meth | _ -> error "Macro call should be a method" p) in
 	let in_macro = ctx.in_macro in
-	if not in_macro then begin
-		finalize ctx2;
-		let _, types, modules = generate ctx2 in
-		ctx2.com.types <- types;
-		ctx2.com.Common.modules <- modules;
-		Interp.add_types mctx types;
-	end;
+	if not in_macro then flush_macro_context mctx ctx2;
 	t();
 	let call args =
 		let t = macro_timer ctx (s_type_path cpath ^ "." ^ f) in

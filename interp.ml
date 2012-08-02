@@ -3174,7 +3174,7 @@ let create com api =
 	List.iter (fun e -> ignore((eval ctx e)())) (Genneko.header());
 	ctx
 
-let add_types ctx types =
+let add_types ctx types ready =
 	let types = List.filter (fun t ->
 		let path = Type.t_path t in
 		if Hashtbl.mem ctx.types path then false else begin
@@ -3182,7 +3182,7 @@ let add_types ctx types =
 			true;
 		end
 	) types in
-	Codegen.post_process types [Codegen.captured_vars ctx.com];
+	List.iter ready types;
 	let e = (EBlock (Genneko.build ctx.gen types), null_pos) in
 	ignore(catch_errors ctx (fun() -> ignore((eval ctx e)())))
 

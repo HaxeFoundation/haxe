@@ -1049,7 +1049,7 @@ try
 		| _ when !no_output ->
 			if !interp then begin
 				let ctx = Interp.create com (Typer.make_macro_api tctx Ast.null_pos) in
-				Interp.add_types ctx com.types;
+				Interp.add_types ctx com.types (fun t -> ());
 				(match com.main with
 				| None -> ()
 				| Some e -> ignore(Interp.eval_expr ctx e));
