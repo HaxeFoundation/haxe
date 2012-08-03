@@ -334,7 +334,7 @@ let rec unify_call_params ctx cf el args r p inline =
 	let rec loop acc l l2 skip =
 		match l , l2 with
 		| [] , [] ->
-			if not (inline && ctx.g.doinline) && (match ctx.com.platform with Flash8 | Flash | Js -> true | _ -> false) then
+			if not (inline && ctx.g.doinline) && not ctx.com.config.pf_pad_nulls then
 				List.rev (no_opt acc), (TFun(args,r))
 			else
 				List.rev (List.map fst acc), (TFun(args,r))
@@ -853,12 +853,13 @@ let type_callback ctx e params p =
 		| [], [] -> given_args,missing_args,ordered_args
 		| [], _ -> error "Too many callback arguments" p
 		| (n,o,t) :: args , [] when o ->
-			let a = match ctx.com.platform with
-				| _ when is_pos_infos t ->
+			let a = if is_pos_infos t then
 					let infos = mk_infos ctx p [] in
 					ordered_args @ [type_expr ctx infos true]
-				| Neko | Php -> (ordered_args @ [(mk (TConst TNull) t_dynamic p)])
-				| _ -> ordered_args
+				else if ctx.com.config.pf_pad_nulls then
+					(ordered_args @ [(mk (TConst TNull) t_dynamic p)])
+				else 
+					ordered_args
 			in
 			loop args [] given_args missing_args a
 		| (n,o,t) :: _ , (EConst(Ident "_"),p) :: _ when ctx.com.platform = Flash && o && not (is_nullable t) ->

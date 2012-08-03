@@ -1258,7 +1258,7 @@ let init_class ctx c p herits fields =
 								into the inherited constructor when it's not necessary for the platform
 							*)
 							match ctx.com.platform, def with
-							| (Php | Js | Neko | Flash8), Some _ -> v, (Some TNull)
+							| _, Some _ when not ctx.com.config.pf_static -> v, (Some TNull)
 							| Flash, Some (TString _) -> v, (Some TNull)
 							| Cpp, Some (TString _) -> v, def
 							| Cpp, Some _ -> { v with v_type = ctx.t.tnull v.v_type }, (Some TNull)

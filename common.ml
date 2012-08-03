@@ -82,6 +82,8 @@ type platform_config = {
 	pf_can_init_member : tclass_field -> bool;
 	(** captured variables handling (see before) *)
 	pf_capture_policy : capture_policy;
+	(** when calling a method with optional args, do we replace the missing args with "null" constants *)
+	pf_pad_nulls : bool;
 }
 
 type context = {
@@ -146,6 +148,7 @@ let default_config =
 		pf_unique_locals = false;
 		pf_can_init_member = (fun _ -> true);
 		pf_capture_policy = CPNone;
+		pf_pad_nulls = false;
 	}
 
 let get_config com =
@@ -162,6 +165,7 @@ let get_config com =
 			pf_unique_locals = false;
 			pf_can_init_member = (fun _ -> true);
 			pf_capture_policy = CPLoopVars;
+			pf_pad_nulls = false;
 		}
 	| Js ->
 		{
@@ -172,6 +176,7 @@ let get_config com =
 			pf_unique_locals = false;
 			pf_can_init_member = (fun _ -> false);
 			pf_capture_policy = CPLoopVars;
+			pf_pad_nulls = false;
 		}
 	| Neko ->
 		{
@@ -182,6 +187,7 @@ let get_config com =
 			pf_unique_locals = false;
 			pf_can_init_member = (fun _ -> false);
 			pf_capture_policy = CPNone;
+			pf_pad_nulls = true;
 		}
 	| Flash when defined "as3" ->
 		{
@@ -192,6 +198,7 @@ let get_config com =
 			pf_unique_locals = true;
 			pf_can_init_member = (fun _ -> true);
 			pf_capture_policy = CPLoopVars;
+			pf_pad_nulls = false;
 		}
 	| Flash ->
 		{
@@ -202,6 +209,7 @@ let get_config com =
 			pf_unique_locals = false;
 			pf_can_init_member = (fun _ -> false);
 			pf_capture_policy = CPLoopVars;
+			pf_pad_nulls = false;
 		}
 	| Php ->
 		{
@@ -217,6 +225,7 @@ let get_config com =
 				| _ -> true 
 			);
 			pf_capture_policy = CPNone;
+			pf_pad_nulls = true;
 		}
 	| Cpp ->
 		{
@@ -227,6 +236,7 @@ let get_config com =
 			pf_unique_locals = false;
 			pf_can_init_member = (fun _ -> false);
 			pf_capture_policy = CPWrapRef;
+			pf_pad_nulls = true;
 		}
 	| Cs ->
 		{
@@ -237,6 +247,7 @@ let get_config com =
 			pf_unique_locals = true;
 			pf_can_init_member = (fun _ -> false);
 			pf_capture_policy = CPWrapRef;
+			pf_pad_nulls = true;
 		}
 	| Java ->
 		{
@@ -247,6 +258,7 @@ let get_config com =
 			pf_unique_locals = false;
 			pf_can_init_member = (fun _ -> false);
 			pf_capture_policy = CPWrapRef;
+			pf_pad_nulls = true;
 		}
 
 let create v args =
