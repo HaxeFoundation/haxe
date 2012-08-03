@@ -619,11 +619,10 @@ let sanitize_expr com e =
 		let e2 = complex e2 in
 		{ e with eexpr = TFor (v,e1,e2) }
 	| TFunction f ->
-		let f = (match com.platform, follow f.tf_type with
-			| _, TEnum ({ e_path = [],"Void" },[]) -> f
-			| Flash , t when Common.defined com "as3" -> { f with tf_expr = add_final_return f.tf_expr t }
-			| Cpp, t -> { f with tf_expr = add_final_return f.tf_expr t }
-			| _ -> f
+		let f = (match follow f.tf_type with
+			| TEnum ({ e_path = [],"Void" },[]) -> f
+			| t ->
+				if com.config.pf_add_final_return then { f with tf_expr = add_final_return f.tf_expr t } else f
 		) in
 		let f = (match f.tf_expr.eexpr with
 			| TBlock _ -> f
