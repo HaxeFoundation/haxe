@@ -58,6 +58,12 @@ type platform_config = {
 	pf_static : bool;
 	(** has access to the "sys" package *)
 	pf_sys : bool;
+	(** local variables are block-scoped *)
+	pf_locals_scope : bool;
+	(** captured local variables are scoped *)
+	pf_captured_scope : bool;
+	(** generated locals must be absolutely unique wrt the current function *)
+	pf_unique_locals : bool;
 }
 
 type context = {
@@ -117,6 +123,9 @@ let default_config =
 	{
 		pf_static = true;
 		pf_sys = true;
+		pf_locals_scope = true;
+		pf_captured_scope = true;
+		pf_unique_locals = false;
 	}
 
 let get_config com =
@@ -128,46 +137,73 @@ let get_config com =
 		{
 			pf_static = false;
 			pf_sys = false;
+			pf_locals_scope = com.flash_version > 6.;
+			pf_captured_scope = false;
+			pf_unique_locals = false;
 		}
 	| Js ->
 		{
 			pf_static = false;
 			pf_sys = false;
+			pf_locals_scope = false;		
+			pf_captured_scope = false;
+			pf_unique_locals = false;
 		}
 	| Neko ->
 		{
 			pf_static = false;
 			pf_sys = true;
+			pf_locals_scope = true;
+			pf_captured_scope = true;
+			pf_unique_locals = false;
 		}
 	| Flash when defined "as3" ->
 		{
 			pf_static = true;
 			pf_sys = false;
+			pf_locals_scope = false;
+			pf_captured_scope = true;
+			pf_unique_locals = true;
 		}
 	| Flash ->
 		{
 			pf_static = true;
 			pf_sys = false;
+			pf_locals_scope = true;
+			pf_captured_scope = true; (* handled by genSwf9 *)
+			pf_unique_locals = false;
 		}
 	| Php ->
 		{
 			pf_static = false;
 			pf_sys = true;
+			pf_locals_scope = false; (* some duplicate work is done in genPhp *)
+			pf_captured_scope = false;
+			pf_unique_locals = false;
 		}
 	| Cpp ->
 		{
 			pf_static = true;
 			pf_sys = true;
+			pf_locals_scope = true;
+			pf_captured_scope = true;
+			pf_unique_locals = false;
 		}
 	| Cs ->
 		{
 			pf_static = true;
 			pf_sys = true;
+			pf_locals_scope = false;
+			pf_captured_scope = true;
+			pf_unique_locals = true;
 		}
 	| Java ->
 		{
 			pf_static = true;
 			pf_sys = true;
+			pf_locals_scope = false;
+			pf_captured_scope = true;
+			pf_unique_locals = false;
 		}
 
 let create v args =

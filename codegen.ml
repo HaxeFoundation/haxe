@@ -920,35 +920,8 @@ let captured_vars com e =
 (* RENAME LOCAL VARS *)
 
 let rename_local_vars com e =
-	(*
-		Tells if we have proper {} scoping. In that case we can assume two variables
-		in separate blocks will never conflict.
-
-		We will also make sure that a variable is declared before its init value is set.
-	*)
-	let has_scope = (match com.platform with
-		| Js | Java | Cs | Php -> false
-		| Flash -> not (Common.defined com "as3") (* VM is naturally scoped *)
-		| Flash8 -> com.flash_version > 6. (* depends on VM version *)
-		| Neko | Cross | Cpp -> true
-	) in
-	(*
-		Some compiler might require an unique local name for the whole function,
-		whatever the scoping rules
-	*)
-	let unique_var = (match com.platform with
-		| Cs -> true
-		| Flash -> Common.defined com "as3"
-		| _ -> false
-	) in
-	(*
-		Tells if captured variables are also scoped (or are global names)
-	*)
-	let capture_scope = (match com.platform with
-		| Js | Flash8 | Php -> false
-		| _ -> true
-	) in
-	let all_scope = not capture_scope || not has_scope in
+	let cfg = com.config in
+	let all_scope = (not cfg.pf_captured_scope) || (not cfg.pf_locals_scope) in
 	let vars = ref PMap.empty in
 	let all_vars = ref PMap.empty in
 	let vtemp = alloc_var "~" t_dynamic in
@@ -958,7 +931,7 @@ let rename_local_vars com e =
 	in
 	let save() = 
 		let old = !vars in 
-		if unique_var then (fun() -> ()) else (fun() -> vars := if !rebuild_vars then rebuild old else old)
+		if cfg.pf_unique_locals then (fun() -> ()) else (fun() -> vars := if !rebuild_vars then rebuild old else old)
 	in
 	let rename vars v =
 		let count = ref 1 in
@@ -970,7 +943,7 @@ let rename_local_vars com e =
 	let declare v =
 		(* chop escape char for all local variables generated *)
 		if String.unsafe_get v.v_name 0 = String.unsafe_get gen_local_prefix 0 then v.v_name <- "_g" ^ String.sub v.v_name 1 (String.length v.v_name - 1);
-		let look_vars = (if not capture_scope && v.v_capture then !all_vars else !vars) in
+		let look_vars = (if not cfg.pf_captured_scope && v.v_capture then !all_vars else !vars) in
 		(try
 			let v2 = PMap.find v.v_name look_vars in
 			(*
@@ -992,7 +965,7 @@ let rename_local_vars com e =
 	let check t =
 		match (t_infos t).mt_path with
 		| [], name | name :: _, _ ->
-			let vars = if has_scope then vars else all_vars in
+			let vars = if cfg.pf_locals_scope then vars else all_vars in
 			(try
 				let v = PMap.find name !vars in
 				if v == vtemp then raise Not_found; (* ignore *)
@@ -1014,9 +987,9 @@ let rename_local_vars com e =
 		match e.eexpr with
 		| TVars l ->
 			List.iter (fun (v,e) ->
-				if not has_scope then declare v;
+				if not cfg.pf_locals_scope then declare v;
 				(match e with None -> () | Some e -> loop e);
-				if has_scope then declare v;
+				if cfg.pf_locals_scope then declare v;
 			) l
 		| TFunction tf ->
 			let old = save() in
