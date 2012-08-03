@@ -184,6 +184,21 @@ class TestMisc extends Test {
 		eq( std.haxe.Md5.encode(""), "d41d8cd98f00b204e9800998ecf8427e");
 		eq( std.Std.int(45.3), 45);
 	}
+	
+	function testHiddenTypeCapture() {
+		var flag = true;
+		var foo = null, bar = null;
+		if( flag ) {
+			var haxe = 20;
+			var Std = 50;
+			foo = function() return haxe;
+			bar = function() return Std;
+		}
+		eq( std.haxe.Md5.encode(""), "d41d8cd98f00b204e9800998ecf8427e");
+		eq( std.Std.int(45.3), 45);
+		eq( foo(), 20);
+		eq( bar(), 50);
+	}
 
 	function id(x) {
 		return x;
