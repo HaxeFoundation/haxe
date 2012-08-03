@@ -158,9 +158,6 @@ let close ctx =
 	output_string ctx.ch (Buffer.contents ctx.buf);
 	close_out ctx.ch
 
-let save_locals ctx =
-	(fun() -> ())
-
 let gen_local ctx l =
 	ctx.gen_uid <- ctx.gen_uid + 1;
 	if ctx.gen_uid = 1 then l else l ^ string_of_int ctx.gen_uid
@@ -335,7 +332,6 @@ let gen_constant ctx p = function
 
 let gen_function_header ctx name f params p =
 	let old = ctx.in_value in
-	let locals = save_locals ctx in
 	let old_t = ctx.local_types in
 	let old_bi = ctx.block_inits in
 	ctx.in_value <- None;
@@ -373,7 +369,6 @@ let gen_function_header ctx name f params p =
 	print ctx ") : %s " (type_str ctx f.tf_type p);
 	(fun () ->
 		ctx.in_value <- old;
-		locals();
 		ctx.local_types <- old_t;
 		ctx.block_inits <- old_bi;
 	)
@@ -410,32 +405,26 @@ let rec gen_call ctx e el r =
 		let ret = (match ctx.in_value with None -> assert false | Some r -> r) in
 		print ctx "%s = new Array()" ret.v_name;
 		newline ctx;
-		let b = save_locals ctx in
 		let tmp = gen_local ctx "$k" in
 		print ctx "for(var %s : String in " tmp;
 		gen_value ctx e;
 		print ctx ") %s.push(%s)" ret.v_name tmp;
-		b();
 	| TLocal { v_name = "__hkeys__" }, [e] ->
 		let ret = (match ctx.in_value with None -> assert false | Some r -> r) in
 		print ctx "%s = new Array()" ret.v_name;
 		newline ctx;
-		let b = save_locals ctx in
 		let tmp = gen_local ctx "$k" in
 		print ctx "for(var %s : String in " tmp;
 		gen_value ctx e;
 		print ctx ") %s.push(%s.substr(1))" ret.v_name tmp;
-		b();
 	| TLocal { v_name = "__foreach__" }, [e] ->
 		let ret = (match ctx.in_value with None -> assert false | Some r -> r) in
 		print ctx "%s = new Array()" ret.v_name;
 		newline ctx;
-		let b = save_locals ctx in
 		let tmp = gen_local ctx "$k" in
 		print ctx "for each(var %s : * in " tmp;
 		gen_value ctx e;
 		print ctx ") %s.push(%s)" ret.v_name tmp;
-		b();
 	| TLocal { v_name = "__new__" }, e :: args ->
 		spr ctx "new ";
 		gen_value ctx e;
@@ -588,7 +577,6 @@ and gen_expr ctx e =
 		if ctx.in_value <> None then unsupported e.epos;
 		spr ctx "continue"
 	| TBlock el ->
-		let b = save_locals ctx in
 		print ctx "{";
 		let bend = open_block ctx in
 		let cb = (if not ctx.constructor_block then
@@ -607,7 +595,6 @@ and gen_expr ctx e =
 		newline ctx;
 		cb();
 		print ctx "}";
-		b();
 	| TFunction f ->
 		let h = gen_function_header ctx None f [] e.epos in
 		let old = ctx.in_static in
@@ -680,7 +667,6 @@ and gen_expr ctx e =
 		spr ctx "}"
 	| TFor (v,it,e) ->
 		let handle_break = handle_break ctx e in
-		let b = save_locals ctx in
 		let tmp = gen_local ctx "$it" in
 		print ctx "{ var %s : * = " tmp;
 		gen_value ctx it;
@@ -690,7 +676,6 @@ and gen_expr ctx e =
 		gen_expr ctx e;
 		newline ctx;
 		spr ctx "}}";
-		b();
 		handle_break();
 	| TTry (e,catchs) ->
 		spr ctx "try ";
@@ -704,7 +689,6 @@ and gen_expr ctx e =
 		print ctx "{";
 		let bend = open_block ctx in
 		newline ctx;
-		let b = save_locals ctx in
 		let tmp = gen_local ctx "$e" in
 		print ctx "var %s : enum = " tmp;
 		gen_value ctx e;
@@ -715,7 +699,6 @@ and gen_expr ctx e =
 				newline ctx;
 				print ctx "case %d:" c;
 			) cl;
-			let b = save_locals ctx in
 			(match params with
 			| None | Some [] -> ()
 			| Some l ->
@@ -731,7 +714,6 @@ and gen_expr ctx e =
 					) l);
 			gen_block ctx e;
 			print ctx "break";
-			b()
 		) cases;
 		(match def with
 		| None -> ()
@@ -746,7 +728,6 @@ and gen_expr ctx e =
 		bend();
 		newline ctx;
 		spr ctx "}";
-		b()
 	| TSwitch (e,cases,def) ->
 		spr ctx "switch";
 		gen_value ctx (parent e);
@@ -799,7 +780,6 @@ and gen_value ctx e =
 	let value block =
 		let old = ctx.in_value in
 		let t = type_str ctx e.etype e.epos in
-		let locs = save_locals ctx in
 		let r = alloc_var (gen_local ctx "$r") e.etype in
 		ctx.in_value <- Some r;
 		if ctx.in_static then
@@ -825,7 +805,6 @@ and gen_value ctx e =
 				spr ctx "}";
 			end;
 			ctx.in_value <- old;
-			locs();
 			if ctx.in_static then
 				print ctx "()"
 			else
