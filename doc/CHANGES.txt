@@ -6,7 +6,8 @@
 	all : allow any type constraint for type parameters
 	all : make property type optional (when a initial value is set)
 	all : new post-compilation DCE
-	
+	all : Std.random(x) when x <= 0 is now always 0
+
 2012-07-16: 2.10
 	java/cs : added two new targets (beta)
 	all : fixed List and Null<T> for first, last, pop

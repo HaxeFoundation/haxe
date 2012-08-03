@@ -50,7 +50,7 @@ import flash.Boot;
 	}
 
 	public static function random( x : Int ) : Int {
-		return untyped Math.floor(Math.random()*x);
+		return untyped x <= 0 ? 0 : Math.floor(Math.random()*x);
 	}
 
 	@:macro public static function format( fmt : haxe.macro.Expr.ExprOf<String> ) : haxe.macro.Expr.ExprOf<String> {
