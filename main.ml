@@ -996,6 +996,7 @@ try
 	) in
 	(* if we are at the last compilation step, allow all packages accesses - in case of macros or opening another project file *)
 	if com.display && not ctx.has_next then com.package_rules <- PMap.foldi (fun p r acc -> match r with Forbidden -> acc | _ -> PMap.add p r acc) com.package_rules PMap.empty;
+	com.config <- get_config com; (* make sure to adapt all flags changes defined after platform *)
 
 	(* check file extension. In case of wrong commandline, we don't want
 		to accidentaly delete a source file. *)
