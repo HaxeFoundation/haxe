@@ -902,37 +902,53 @@ let captured_vars com e =
 		local_usage collect_vars e;
 		!used
 	in
+	(* mark all capture variables - also used in rename_local_vars at later stage *)
+	let captured = all_vars e in
+	PMap.iter (fun _ v -> v.v_capture <- true) captured;
 	match com.platform with
-	| Php | Cross ->
+	| Cross | Neko | Php ->
 		e
-	| Neko ->
-		(*
-			this could be optimized to take into account only vars
-			that are actually modified in closures or *after* closure
-			declaration.
-		*)
-		let used = all_vars e in
-		PMap.iter (fun _ v -> v.v_capture <- true) used;
-		e
-	| Cs | Java ->
-		let used = all_vars e in
-		PMap.iter (fun _ v -> v.v_capture <- true) used;
-		do_wrap used e
-	| Cpp ->
-		do_wrap (all_vars e) e
-	| Flash8 | Flash ->
-		let used = all_vars e in
-		PMap.iter (fun _ v -> v.v_capture <- true) used;
-		out_loop e
-	| Js ->
+	| Cs | Java | Cpp ->
+		(* create temp vars for all captured variables *)
+		do_wrap captured e
+	| Flash8 | Flash | Js ->
+		(* only create temp vars for captured loop variables *)
+
 		out_loop e
 
 (* -------------------------------------------------------------------------- *)
 (* RENAME LOCAL VARS *)
 
 let rename_local_vars com e =
-	let as3 = Common.defined com "as3" || com.platform = Cs in (* C# demands a similar behavior than AS3 *)
-	let no_scope = com.platform = Js || com.platform = Java || as3 in
+	(*
+		Tells if we have proper {} scoping. In that case we can assume two variables
+		in separate blocks will never conflict.
+
+		We will also make sure that a variable is declared before its init value is set.
+	*)
+	let has_scope = (match com.platform with
+		| Js | Java | Cs | Php -> false
+		| Flash -> not (Common.defined com "as3") (* VM is naturally scoped *)
+		| Flash8 -> com.flash_version > 6. (* depends on VM version *)
+		| Neko | Cross | Cpp -> true
+	) in
+	(*
+		Some compiler might require an unique local name for the whole function,
+		whatever the scoping rules
+	*)
+	let unique_var = (match com.platform with
+		| Cs -> true
+		| Flash -> Common.defined com "as3"
+		| _ -> false
+	) in
+	(*
+		Tells if captured variables are also scoped (or are global names)
+	*)
+	let capture_scope = (match com.platform with
+		| Js | Flash8 | Php -> false
+		| _ -> true
+	) in
+	let all_scope = not capture_scope || not has_scope in
 	let vars = ref PMap.empty in
 	let all_vars = ref PMap.empty in
 	let vtemp = alloc_var "~" t_dynamic in
@@ -942,11 +958,11 @@ let rename_local_vars com e =
 	in
 	let save() = 
 		let old = !vars in 
-		if as3 then (fun() -> ()) else (fun() -> vars := if !rebuild_vars then rebuild old else old)
+		if unique_var then (fun() -> ()) else (fun() -> vars := if !rebuild_vars then rebuild old else old)
 	in
-	let rename v =
+	let rename vars v =
 		let count = ref 1 in
-		while PMap.mem (v.v_name ^ string_of_int !count) (!vars) do
+		while PMap.mem (v.v_name ^ string_of_int !count) vars do
 			incr count;
 		done;
 		v.v_name <- v.v_name ^ string_of_int !count;
@@ -954,28 +970,33 @@ let rename_local_vars com e =
 	let declare v =
 		(* chop escape char for all local variables generated *)
 		if String.unsafe_get v.v_name 0 = String.unsafe_get gen_local_prefix 0 then v.v_name <- "_g" ^ String.sub v.v_name 1 (String.length v.v_name - 1);
+		let look_vars = (if not capture_scope && v.v_capture then !all_vars else !vars) in
 		(try
-			let v2 = PMap.find v.v_name (!vars) in
+			let v2 = PMap.find v.v_name look_vars in
 			(*
 				block_vars will create some wrapper-functions that are declaring
 				the same variable twice. In that case do not perform a rename since
 				we are sure it's actually the same variable
 			*)
 			if v == v2 then raise Not_found;
-			rename v;
+			rename look_vars v;
 		with Not_found ->
 			());
 		vars := PMap.add v.v_name v !vars;
-		if no_scope then all_vars := PMap.add v.v_name v !all_vars;
+		if all_scope then all_vars := PMap.add v.v_name v !all_vars;
 	in
+	(*
+		This is quite a rare case, when a local variable would otherwise prevent
+		accessing a type because it masks the type value or the package name.
+	*)
 	let check t =
 		match (t_infos t).mt_path with
 		| [], name | name :: _, _ ->
-			let vars = if no_scope then all_vars else vars in
+			let vars = if has_scope then vars else all_vars in
 			(try
 				let v = PMap.find name !vars in
 				if v == vtemp then raise Not_found; (* ignore *)
-				rename v;
+				rename (!vars) v;
 				rebuild_vars := true;
 				vars := PMap.add v.v_name v !vars
 			with Not_found ->
@@ -993,9 +1014,9 @@ let rename_local_vars com e =
 		match e.eexpr with
 		| TVars l ->
 			List.iter (fun (v,e) ->
-				if no_scope then declare v;
+				if not has_scope then declare v;
 				(match e with None -> () | Some e -> loop e);
-				if not no_scope then declare v;
+				if has_scope then declare v;
 			) l
 		| TFunction tf ->
 			let old = save() in

@@ -133,6 +133,66 @@ class TestMisc extends Test {
 		t( Type.enumEq(MyEnum.C(1,"hello"), c(1,"hello")) );
 	}
 	
+	// make sure that captured variables does not overlap each others even if in different scopes
+	function testCaptureUnique() {
+		var foo = null, bar = null;
+		var flag = true;
+		if( flag ) {
+			var x = 1;
+			foo = function() return x;
+		}
+		if( flag ) {
+			var x = 2;
+			bar = function() return x;
+		}
+		eq( foo(), 1);
+		eq( bar(), 2);
+	}
+	
+	function testCaptureUnique2() {
+		// another more specialized test (was actually the original broken code - but not reproducible when optimization is off)
+		var foo = callback(id, 3);
+		var bar = callback(sq, 5);
+		eq( foo(), 3 );
+		eq( bar(), 25 );
+	}
+	
+	function testSelfRef() {
+		// check for self-name binding
+		var bla = 55;
+		var bla = function() return bla;
+		eq( bla(), 55);
+	}
+	
+	function testHiddenType() {
+		var haxe = 20;
+		eq( std.haxe.Md5.encode(""), "d41d8cd98f00b204e9800998ecf8427e");
+		eq( haxe, 20);
+		var Std = 50;
+		eq( std.Std.int(45.3), 45);
+		eq( Std, 50);
+	}
+
+	function testHiddenTypeScope() {
+		var flag = true;
+		if( flag ) {
+			var haxe = 20;
+			var Std = 50;
+			eq( haxe, 20);
+			eq( Std, 50);
+		}
+		eq( std.haxe.Md5.encode(""), "d41d8cd98f00b204e9800998ecf8427e");
+		eq( std.Std.int(45.3), 45);
+	}
+
+	function id(x) {
+		return x;
+	}
+	
+	function sq(x) {
+		return x * x;
+	}
+	
 	function testPropertyInit() {
 		eq(MyDynamicClass.W, 57);
 	}
