@@ -3374,12 +3374,14 @@ let encode_unop op =
 	enc_enum IUnop tag []
 
 let rec encode_path t =
-	enc_obj [
+	let fields = [
 		"pack", enc_array (List.map enc_string t.tpackage);
 		"name", enc_string t.tname;
 		"params", enc_array (List.map encode_tparam t.tparams);
-		"sub", null enc_string t.tsub;
-	]
+	] in
+	enc_obj (match t.tsub with
+		| None ->  fields
+		| Some s -> ("sub", enc_string s) :: fields)
 
 and encode_tparam = function
 	| TPType t -> enc_enum ITParam 0 [encode_ctype t]
