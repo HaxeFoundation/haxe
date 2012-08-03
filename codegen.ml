@@ -806,9 +806,11 @@ let captured_vars com e =
 					v, o
 			) f.tf_args in
 			let e = { e with eexpr = TFunction { f with tf_args = fargs; tf_expr = !fexpr } } in
-			(match com.platform with
-			| Cpp | Java | Cs -> e
-			| _ ->
+			(*
+				Create a new function scope to make sure that the captured loop variable
+				will not be overwritten in next loop iteration
+			*)
+			if com.config.pf_capture_policy = CPLoopVars then
 				mk (TCall (
 					mk_parent (mk (TFunction {
 						tf_args = List.map (fun v -> v, None) vars;
@@ -816,7 +818,9 @@ let captured_vars com e =
 						tf_expr = mk_block (mk (TReturn (Some e)) e.etype e.epos);
 					}) (TFun (List.map (fun v -> v.v_name,false,v.v_type) vars,e.etype)) e.epos),
 					List.map (fun v -> mk (TLocal v) v.v_type e.epos) vars)
-				) e.etype e.epos)
+				) e.etype e.epos
+			else
+				e
 		| _ ->
 			map_expr (wrap used) e
 
@@ -898,16 +902,10 @@ let captured_vars com e =
 	(* mark all capture variables - also used in rename_local_vars at later stage *)
 	let captured = all_vars e in
 	PMap.iter (fun _ v -> v.v_capture <- true) captured;
-	match com.platform with
-	| Cross | Neko | Php ->
-		e
-	| Cs | Java | Cpp ->
-		(* create temp vars for all captured variables *)
-		do_wrap captured e
-	| Flash8 | Flash | Js ->
-		(* only create temp vars for captured loop variables *)
-
-		out_loop e
+	match com.config.pf_capture_policy with
+	| CPNone -> e
+	| CPWrapRef -> do_wrap captured e
+	| CPLoopVars -> out_loop e
 
 (* -------------------------------------------------------------------------- *)
 (* RENAME LOCAL VARS *)

@@ -53,6 +53,20 @@ type stats = {
 	s_macros_called : int ref;
 }
 
+(**
+	The capture policy tells which handling we make of captured locals
+	(the locals which are referenced in local functions)
+
+	See details/implementation in Codegen.captured_vars
+*)
+type capture_policy =
+	(** do nothing, let the platform handle it *)
+	| CPNone 
+	(** wrap all captured variables into a single-element array to allow modifications *)
+	| CPWrapRef
+	(** similar to wrap ref, but will only apply to the locals that are declared in loops *)
+	| CPLoopVars
+
 type platform_config = {
 	(** has a static type system, with not-nullable basic types (Int/Float/Bool) *)
 	pf_static : bool;
@@ -66,6 +80,8 @@ type platform_config = {
 	pf_unique_locals : bool;
 	(** which expressions can be generated to initialize member variables (or will be moved into the constructor *)
 	pf_can_init_member : tclass_field -> bool;
+	(** captured variables handling (see before) *)
+	pf_capture_policy : capture_policy;
 }
 
 type context = {
@@ -129,6 +145,7 @@ let default_config =
 		pf_captured_scope = true;
 		pf_unique_locals = false;
 		pf_can_init_member = (fun _ -> true);
+		pf_capture_policy = CPNone;
 	}
 
 let get_config com =
@@ -144,6 +161,7 @@ let get_config com =
 			pf_captured_scope = false;
 			pf_unique_locals = false;
 			pf_can_init_member = (fun _ -> true);
+			pf_capture_policy = CPLoopVars;
 		}
 	| Js ->
 		{
@@ -153,6 +171,7 @@ let get_config com =
 			pf_captured_scope = false;
 			pf_unique_locals = false;
 			pf_can_init_member = (fun _ -> false);
+			pf_capture_policy = CPLoopVars;
 		}
 	| Neko ->
 		{
@@ -162,6 +181,7 @@ let get_config com =
 			pf_captured_scope = true;
 			pf_unique_locals = false;
 			pf_can_init_member = (fun _ -> false);
+			pf_capture_policy = CPNone;
 		}
 	| Flash when defined "as3" ->
 		{
@@ -171,6 +191,7 @@ let get_config com =
 			pf_captured_scope = true;
 			pf_unique_locals = true;
 			pf_can_init_member = (fun _ -> true);
+			pf_capture_policy = CPLoopVars;
 		}
 	| Flash ->
 		{
@@ -180,6 +201,7 @@ let get_config com =
 			pf_captured_scope = true; (* handled by genSwf9 *)
 			pf_unique_locals = false;
 			pf_can_init_member = (fun _ -> false);
+			pf_capture_policy = CPLoopVars;
 		}
 	| Php ->
 		{
@@ -194,6 +216,7 @@ let get_config com =
 				| _, Some { eexpr = TTypeExpr _ } -> false
 				| _ -> true 
 			);
+			pf_capture_policy = CPNone;
 		}
 	| Cpp ->
 		{
@@ -203,6 +226,7 @@ let get_config com =
 			pf_captured_scope = true;
 			pf_unique_locals = false;
 			pf_can_init_member = (fun _ -> false);
+			pf_capture_policy = CPWrapRef;
 		}
 	| Cs ->
 		{
@@ -212,6 +236,7 @@ let get_config com =
 			pf_captured_scope = true;
 			pf_unique_locals = true;
 			pf_can_init_member = (fun _ -> false);
+			pf_capture_policy = CPWrapRef;
 		}
 	| Java ->
 		{
@@ -221,6 +246,7 @@ let get_config com =
 			pf_captured_scope = true;
 			pf_unique_locals = false;
 			pf_can_init_member = (fun _ -> false);
+			pf_capture_policy = CPWrapRef;
 		}
 
 let create v args =
