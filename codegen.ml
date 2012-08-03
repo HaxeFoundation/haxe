@@ -487,20 +487,13 @@ let add_field_inits com c =
 	let ethis = mk (TConst TThis) (TInst (c,List.map snd c.cl_types)) c.cl_pos in
 	(* TODO: we have to find a variable name which is not used in any of the functions *)
 	let v = alloc_var "_g" ethis.etype in
-	let rec can_init_inline cf e = match com.platform,e.eexpr with
-		| Flash8,_ -> true
-		| Flash,_ when Common.defined com "as3" && (match cf.cf_kind with Var _ -> true | Method _ -> false) -> true
-		| Php, TTypeExpr _ -> false
-		| Php,_ ->
-			(match cf.cf_kind with Var({v_write = AccCall _}) -> false | _ -> true)
-		| _ -> false
-	in
 	let need_this = ref false in
 	let inits,fields = List.fold_left (fun (inits,fields) cf ->
 		match cf.cf_kind,cf.cf_expr with
-		| Var _, Some e when can_init_inline cf e -> (inits, cf :: fields)
-		| Var _, Some _ -> (cf :: inits, cf :: fields)
+		| Var _, Some _ ->
+			if com.config.pf_can_init_member cf then (inits, cf :: fields) else (cf :: inits, cf :: fields)
 		| Method MethDynamic, Some e when Common.defined com "as3" ->
+			(* TODO : this would have a better place in genSWF9 I think - NC *)
 			(* we move the initialization of dynamic functions to the constructor and also solve the
 			   'this' problem along the way *)
 			let rec use_this v e = match e.eexpr with

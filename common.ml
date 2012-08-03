@@ -64,6 +64,8 @@ type platform_config = {
 	pf_captured_scope : bool;
 	(** generated locals must be absolutely unique wrt the current function *)
 	pf_unique_locals : bool;
+	(** which expressions can be generated to initialize member variables (or will be moved into the constructor *)
+	pf_can_init_member : tclass_field -> bool;
 }
 
 type context = {
@@ -126,6 +128,7 @@ let default_config =
 		pf_locals_scope = true;
 		pf_captured_scope = true;
 		pf_unique_locals = false;
+		pf_can_init_member = (fun _ -> true);
 	}
 
 let get_config com =
@@ -140,6 +143,7 @@ let get_config com =
 			pf_locals_scope = com.flash_version > 6.;
 			pf_captured_scope = false;
 			pf_unique_locals = false;
+			pf_can_init_member = (fun _ -> true);
 		}
 	| Js ->
 		{
@@ -148,6 +152,7 @@ let get_config com =
 			pf_locals_scope = false;		
 			pf_captured_scope = false;
 			pf_unique_locals = false;
+			pf_can_init_member = (fun _ -> false);
 		}
 	| Neko ->
 		{
@@ -156,6 +161,7 @@ let get_config com =
 			pf_locals_scope = true;
 			pf_captured_scope = true;
 			pf_unique_locals = false;
+			pf_can_init_member = (fun _ -> false);
 		}
 	| Flash when defined "as3" ->
 		{
@@ -164,6 +170,7 @@ let get_config com =
 			pf_locals_scope = false;
 			pf_captured_scope = true;
 			pf_unique_locals = true;
+			pf_can_init_member = (fun _ -> true);
 		}
 	| Flash ->
 		{
@@ -172,6 +179,7 @@ let get_config com =
 			pf_locals_scope = true;
 			pf_captured_scope = true; (* handled by genSwf9 *)
 			pf_unique_locals = false;
+			pf_can_init_member = (fun _ -> false);
 		}
 	| Php ->
 		{
@@ -180,6 +188,12 @@ let get_config com =
 			pf_locals_scope = false; (* some duplicate work is done in genPhp *)
 			pf_captured_scope = false;
 			pf_unique_locals = false;
+			pf_can_init_member = (fun cf ->
+				match cf.cf_kind, cf.cf_expr with
+				| Var { v_write = AccCall _ },  _ -> false
+				| _, Some { eexpr = TTypeExpr _ } -> false
+				| _ -> true 
+			);
 		}
 	| Cpp ->
 		{
@@ -188,6 +202,7 @@ let get_config com =
 			pf_locals_scope = true;
 			pf_captured_scope = true;
 			pf_unique_locals = false;
+			pf_can_init_member = (fun _ -> false);
 		}
 	| Cs ->
 		{
@@ -196,6 +211,7 @@ let get_config com =
 			pf_locals_scope = false;
 			pf_captured_scope = true;
 			pf_unique_locals = true;
+			pf_can_init_member = (fun _ -> false);
 		}
 	| Java ->
 		{
@@ -204,6 +220,7 @@ let get_config com =
 			pf_locals_scope = false;
 			pf_captured_scope = true;
 			pf_unique_locals = false;
+			pf_can_init_member = (fun _ -> false);
 		}
 
 let create v args =
