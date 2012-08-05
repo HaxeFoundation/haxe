@@ -2838,7 +2838,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 	(*
 		if the function's last argument is of Array<Expr>, split the argument list and use [] for unify_call_params
 	*)
-	let el,el2 = if has_meta ":rest" mfield.cf_meta then match List.rev margs with
+	let el,el2 = match List.rev margs with
 		| (_,_,TInst({cl_path=([], "Array")},[e])) :: rest when (try Type.type_eq EqStrict e expr; true with Unify_error _ -> false) ->
 			let rec loop (acc1,acc2) el1 el2 = match el1,el2 with
 				| [],[] ->
@@ -2857,9 +2857,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 			in
 			loop ([],[]) el margs
 		| _ ->
-			error "Last argument of a @:rest macro must be of Array<Expr>" p
-	else
-		el,[]
+			el,[]
 	in
 	let args =
 		(*
