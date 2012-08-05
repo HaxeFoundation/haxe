@@ -102,6 +102,13 @@ class Context {
 	}
 
 	/**
+		Returns classes which are available for "using" where the macro was called
+	**/	
+	public static function getLocalUsing() :  Null<Type.Ref<Type.ClassType>> {
+		return load("local_using", 0)();
+	}
+
+	/**
 		Tells is the given compiler directive has been defined with -D
 	**/
 	public static function defined( s : String ) : Bool {
