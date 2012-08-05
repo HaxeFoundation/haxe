@@ -2838,22 +2838,28 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 	(*
 		if the function's last argument is of Array<Expr>, split the argument list and use [] for unify_call_params
 	*)
-	let el,el2 = match List.rev margs with
+	let el,el2 = if has_meta ":rest" mfield.cf_meta then match List.rev margs with
 		| (_,_,TInst({cl_path=([], "Array")},[e])) :: rest when (try Type.type_eq EqStrict e expr; true with Unify_error _ -> false) ->
-			let rec loop el1 el2 margs el = match margs,el with
-				| _,[] ->
-					el1,el2
-				| _ :: [], (EArrayDecl e,_) :: [] ->
-					(el1 @ [EArrayDecl [],p]),e
-				| [], e :: el ->
-					loop el1 (el2 @ [e]) [] el
-				| _ :: [], e :: el ->
-					loop (el1 @ [EArrayDecl [],p]) el2 [] (e :: el)
-				| _ :: margs, e :: el ->
-					loop (el1 @ [e]) el2 margs el
+			let rec loop (acc1,acc2) el1 el2 = match el1,el2 with
+				| [],[] ->
+					List.rev acc1, List.rev acc2
+				| [], e2 :: [] ->
+					(List.rev ((EArrayDecl [],p) :: acc1), [])
+				| [], _ ->
+					(* not enough arguments, will be handled by unify_call_params *)
+					List.rev acc1, List.rev acc2
+				| e1 :: l1, e2 :: [] ->
+					loop (((EArrayDecl [],p) :: acc1), [e1]) l1 []
+				| e1 :: l1, [] ->
+					loop (acc1, e1 :: acc2) l1 []
+				| e1 :: l1, e2 :: l2 ->
+					loop (e1 :: acc1, acc2) l1 l2
 			in
-			loop [] [] margs el
-		| _ -> el,[]
+			loop ([],[]) el margs
+		| _ ->
+			error "Last argument of a @:rest macro must be of Array<Expr>" p
+	else
+		el,[]
 	in
 	let args =
 		(*
@@ -2899,7 +2905,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 	in
 	let args = match el2 with
 		| [] -> args
-		| _ -> (match List.rev args with _::args -> args | [] -> []) @ [Interp.enc_array (List.map Interp.encode_expr el2)]
+		| _ -> (match List.rev args with _::args -> List.rev args | [] -> []) @ [Interp.enc_array (List.map Interp.encode_expr el2)]
 	in
 	let call() =
 		match call_macro args with

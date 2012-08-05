@@ -500,4 +500,42 @@ class TestType extends Test {
 	inline function inlineTest2(map:Array<Dynamic>) {
 		map[0];
 	}
+	
+	public function testMacroRest() {
+		#if !macro
+		var r = MyMacro.MyRestMacro.testRest1(1, 2, 3);
+		eq(r.length, 3);
+		eq(r[0], 1);
+		eq(r[1], 2);
+		eq(r[2], 3);
+		
+		var r = MyMacro.MyRestMacro.testRest1(1, [2, 3]);
+		eq(r.length, 2);
+		eq(r[0], 1);
+		eq(r[1][0], 2);
+		eq(r[1][1], 3);
+		
+		var r = MyMacro.MyRestMacro.testRest1(1);
+		eq(r.length, 1);
+		eq(r[0], 1);
+		
+		var r = MyMacro.MyRestMacro.testRest2(1, 2, 3, 4);
+		eq(r.length, 4);
+		eq(r[0], 1);
+		eq(r[1], 2);
+		eq(r[2], 3);
+		eq(r[3], 4);
+		
+		var r = MyMacro.MyRestMacro.testRest2(1, 2);
+		eq(r.length, 2);
+		eq(r[0], 1);
+		eq(r[1], 2);
+		
+		var r = MyMacro.MyRestMacro.testRest2(1, 2, [3]);
+		eq(r.length, 3);
+		eq(r[0], 1);
+		eq(r[1], 2);	
+		eq(r[2][0], 3);
+		#end
+	}	
 }
