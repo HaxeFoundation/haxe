@@ -589,29 +589,27 @@ let field_access ctx mode f t e p =
 let using_field ctx mode e i p =
 	if mode = MSet then raise Not_found;
 	let rec loop = function
-		| [] ->
-			raise Not_found
-		| TEnumDecl _ :: l | TTypeDecl _ :: l ->
+	| [] ->
+		raise Not_found
+	| c :: l ->
+		try
+			let f = PMap.find i c.cl_statics in
+			let t = field_type ctx c [] f p in
+			(match follow t with
+			| TFun ((_,_,t0) :: args,r) ->
+				let t0 = (try match t0 with
+				| TType({t_path=["haxe";"macro"], ("ExprOf"|"ExprRequire")}, [t]) ->
+					(try unify_raise ctx e.etype t p with Error (Unify _,_) -> raise Not_found); t;
+				| _ -> raise Not_found
+				with Not_found ->
+					(try unify_raise ctx e.etype t0 p with Error (Unify _,_) -> raise Not_found); t0) in
+				if follow e.etype == t_dynamic && follow t0 != t_dynamic then raise Not_found;
+				if has_meta ":noUsing" f.cf_meta then raise Not_found;
+				let et = type_module_type ctx (TClassDecl c) None p in
+				AKUsing (mk (TField (et,i)) t p,c,f,e)
+			| _ -> raise Not_found)
+		with Not_found ->
 			loop l
-		| TClassDecl c :: l ->
-			try
-				let f = PMap.find i c.cl_statics in
-				let t = field_type ctx c [] f p in
-				(match follow t with
-				| TFun ((_,_,t0) :: args,r) ->
-					let t0 = (try match t0 with
-					| TType({t_path=["haxe";"macro"], ("ExprOf"|"ExprRequire")}, [t]) ->
-						(try unify_raise ctx e.etype t p with Error (Unify _,_) -> raise Not_found); t;
-					| _ -> raise Not_found
-					with Not_found ->
-						(try unify_raise ctx e.etype t0 p with Error (Unify _,_) -> raise Not_found); t0) in
-					if follow e.etype == t_dynamic && follow t0 != t_dynamic then raise Not_found;
-					if has_meta ":noUsing" f.cf_meta then raise Not_found;
-					let et = type_module_type ctx (TClassDecl c) None p in
-					AKUsing (mk (TField (et,i)) t p,c,f,e)
-				| _ -> raise Not_found)
-			with Not_found ->
-				loop l
 	in
 	loop ctx.local_using
 
@@ -2152,27 +2150,24 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		*)
 		let rec loop acc = function
 			| [] -> acc
-			| x :: l ->
+			| c :: l ->
 				let acc = ref (loop acc l) in
-				(match x with
-				| TClassDecl c ->
-					let rec dup t = Type.map dup t in
-					List.iter (fun f ->
-						if not (has_meta ":noUsing" f.cf_meta) then
-						let f = { f with cf_type = opt_type f.cf_type } in
-						match follow (field_type ctx c [] f p) with
-						| TFun((_,_,TType({t_path=["haxe";"macro"], ("ExprOf"|"ExprRequire")}, [t])) :: args, ret)
-						| TFun ((_,_,t) :: args, ret) when (try unify_raise ctx (dup e.etype) t e.epos; true with Error (Unify _,_) -> false) ->
-							if not (can_access ctx.curclass c f true) || follow e.etype == t_dynamic && follow t != t_dynamic then
-								()
-							else begin
-								let f = prepare_using_field f in
-								let f = { f with cf_params = []; cf_public = true } in
-								acc := PMap.add f.cf_name f (!acc)
-							end
-						| _ -> ()
-					) c.cl_ordered_statics
-				| _ -> ());
+				let rec dup t = Type.map dup t in
+				List.iter (fun f ->
+					if not (has_meta ":noUsing" f.cf_meta) then
+					let f = { f with cf_type = opt_type f.cf_type } in
+					match follow (field_type ctx c [] f p) with
+					| TFun((_,_,TType({t_path=["haxe";"macro"], ("ExprOf"|"ExprRequire")}, [t])) :: args, ret)
+					| TFun ((_,_,t) :: args, ret) when (try unify_raise ctx (dup e.etype) t e.epos; true with Error (Unify _,_) -> false) ->
+						if not (can_access ctx.curclass c f true) || follow e.etype == t_dynamic && follow t != t_dynamic then
+							()
+						else begin
+							let f = prepare_using_field f in
+							let f = { f with cf_params = []; cf_public = true } in
+							acc := PMap.add f.cf_name f (!acc)
+						end
+					| _ -> ()
+				) c.cl_ordered_statics;
 				!acc
 		in
 		let use_methods = loop PMap.empty ctx.local_using in

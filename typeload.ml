@@ -1285,7 +1285,7 @@ let init_class ctx c p herits fields =
 	delay ctx (fun() -> add_constructor c);
 	List.rev fl
 
-let resolve_typedef ctx t =
+let resolve_typedef t =
 	match t with
 	| TClassDecl _ | TEnumDecl _ -> t
 	| TTypeDecl td ->
@@ -1404,6 +1404,15 @@ let type_module ctx m file tdecls loadp =
 		let s = List.find (fun d -> match d with TTypeDecl { t_path = _ , n } -> n = name | _ -> false) m.m_types in
 		match s with TTypeDecl s -> s | _ -> assert false
 	in
+	let filter_classes types =
+		let rec loop acc types = match List.rev types with
+			| t :: l ->
+				(match resolve_typedef t with TClassDecl c -> loop (c :: acc) l | _ -> loop acc l)
+			| [] ->
+				acc
+		in
+		loop [] types
+	in
 	(* here is an additional PASS 1 phase, which handle the type parameters declaration, with lazy contraints *)
 	List.iter (fun (d,p) ->
 		match d with
@@ -1436,11 +1445,11 @@ let type_module ctx m file tdecls loadp =
 			| None ->
 				let md = ctx.g.do_load_module ctx (t.tpackage,t.tname) p in
 				let types = List.filter (fun t -> not (t_infos t).mt_private) md.m_types in
-				ctx.local_using <- ctx.local_using @ (List.map (resolve_typedef ctx) types);
+				ctx.local_using <- ctx.local_using @ (filter_classes types);
 				ctx.local_types <- ctx.local_types @ types
 			| Some _ ->
 				let t = load_type_def ctx p t in
-				ctx.local_using<- ctx.local_using @ [resolve_typedef ctx t];
+				ctx.local_using <- ctx.local_using @ (filter_classes [t]);
 				ctx.local_types <- ctx.local_types @ [t])
 		| EClass d ->
 			let c = get_class d.d_name in

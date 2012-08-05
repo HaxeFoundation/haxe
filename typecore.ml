@@ -71,7 +71,7 @@ and typer = {
 	(* per-module *)
 	current : module_def;
 	mutable local_types : module_type list;
-	mutable local_using : module_type list;
+	mutable local_using : tclass list;
 	(* per-class *)
 	mutable curclass : tclass;
 	mutable tthis : t;
