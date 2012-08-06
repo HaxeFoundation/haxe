@@ -195,7 +195,7 @@ package unit;
 			new TestXML(),
 			new TestMisc(),
 			new TestResource(),
-			new TestInt64(),			
+			new TestInt64(),
 			new TestReflect(),
 			new TestSerialize(),
 			new TestMeta(),
@@ -211,7 +211,7 @@ package unit;
 		];
 		var current = null;
 		#if (!fail_eager)
-		try 
+		try
 		#end
 		{
 			asyncWaits.push(null);

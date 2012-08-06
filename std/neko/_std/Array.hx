@@ -287,7 +287,7 @@
 		return a;
 	}
 
-	#if !macro
+	#if !(macro || interp)
 	static function __init__() : Void {
 		try {
 			var msort : Dynamic = neko.Lib.load("std","merge_sort",3);

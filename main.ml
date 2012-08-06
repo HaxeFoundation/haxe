@@ -895,7 +895,7 @@ try
 			com.package_rules <- PMap.add pack (Remap target) com.package_rules;
 		),"<package:target> : remap a package to another one");
 		("--interp", Arg.Unit (fun() ->
-			Common.define com "macro";
+			Common.define com "interp";
 			set_platform Neko "";
 			no_output := true;
 			interp := true;
