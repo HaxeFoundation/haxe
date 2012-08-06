@@ -242,6 +242,22 @@ let rec build_generic ctx c p tl =
 		Hashtbl.add ctx.g.modules mg.m_path mg;
 		add_dependency mg m;
 		add_dependency ctx.current mg;
+		(* ensure that type parameters are set in dependencies *)
+		let rec loop t =
+			match t with
+			| TInst (c,tl) -> add_dependency mg c.cl_module; List.iter loop tl
+			| TEnum (e,tl) -> add_dependency mg e.e_module; List.iter loop tl
+			| TType (t,tl) -> add_dependency mg t.t_module; List.iter loop tl
+			| TMono r ->
+				(match !r with
+				| None -> ()
+				| Some t -> loop t)
+			| TLazy f ->
+				loop ((!f)());
+			| TAnon _ | TDynamic _ | TFun _ ->
+				assert false
+		in
+		List.iter loop tl;
 		let rec loop l1 l2 =
 			match l1, l2 with
 			| [] , [] -> []
