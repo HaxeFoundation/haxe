@@ -1,5 +1,24 @@
+#remoting
+-cp ..
+-main unit.RemotingServer
+-neko remoting.n
+
+#cpp-runner
+--next
+-main RunCpp
+-neko runcpp.n
+
+#each
+--next
+-debug
+-cp ..
+-resource res1.txt
+-resource res2.bin
+--no-opt
+--dead-code-elimination
+--each
+
 #flash8
-params.hxml
 -main unit.Test
 -swf-header 300:300:30:FFFFFF
 -swf-version 8
@@ -7,74 +26,55 @@ params.hxml
 
 #flash9
 --next
-params.hxml
 -main unit.Test
 -swf-version 11
 -swf unit9.swf
 
 #js
 --next
-params.hxml
 unit.Test
 -js unit.js
 
 #neko
 --next
-params.hxml
 -main unit.Test
 -neko unit.n
 
 #macro
 --next
-params.hxml
 -main unit.Test
 --interp
 
-#remoting
---next
--cp ..
--main unit.RemotingServer
--neko remoting.n
-
 #php
 --next
-params.hxml
 -main unit.Test
 -php php
 
 #as3
 #--next
-#params.hxml
 #-main unit.Test
 #-as3 as3
 #-cmd mxmlc -static-link-runtime-shared-libraries=true -debug as3/__main__.as --output unit9_as3.swf
 
 #cpp
---next
--main RunCpp
--neko runcpp.n
 
 --next
-params.hxml
 -main unit.Test
 -cpp cpp
 -D NO_PRECOMPILED_HEADERS
 
 #java
 --next
-params.hxml
 -main unit.Test
 -java java
 
 #cs
 --next
-params.hxml
 -main unit.Test
 -cs cs
 
 #cs-unsafe
 --next
-params.hxml
 -main unit.Test
 -D unsafe
 -cs cs_unsafe
