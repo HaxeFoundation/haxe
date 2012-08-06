@@ -4137,7 +4137,7 @@ let tpath p pl =
 let rec make_type = function
 	| TMono r ->
 		(match !r with
-		| None -> tpath ([],"Unknown") []
+		| None -> raise Exit
 		| Some t -> make_type t)
 	| TEnum (e,pl) ->
 		tpath e.e_path (List.map make_type pl)
@@ -4166,7 +4166,7 @@ let rec make_type = function
 and mk_ot t =
 	match follow t with
 	| TMono _ -> None
-	| _ -> Some (make_type t)
+	| _ -> (try Some (make_type t) with Exit -> None)
 
 let rec make_ast e =
 	let mk_path (pack,name) p =
@@ -4204,7 +4204,7 @@ let rec make_ast e =
 	| TObjectDecl fl -> EObjectDecl (List.map (fun (f,e) -> f, make_ast e) fl)
 	| TArrayDecl el -> EArrayDecl (List.map make_ast el)
 	| TCall (e,el) -> ECall (make_ast e,List.map make_ast el)
-	| TNew (c,pl,el) -> ENew ((match make_type (TInst (c,pl)) with CTPath p -> p | _ -> assert false),List.map make_ast el)
+	| TNew (c,pl,el) -> ENew ((match (try make_type (TInst (c,pl)) with Exit -> make_type (TInst (c,[]))) with CTPath p -> p | _ -> assert false),List.map make_ast el)
 	| TUnop (op,p,e) -> EUnop (op,p,make_ast e)
 	| TFunction f ->
 		let arg (v,c) = v.v_name, false, mk_ot v.v_type, (match c with None -> None | Some c -> Some (EConst (mk_const c),e.epos)) in
@@ -4240,12 +4240,19 @@ let rec make_ast e =
 			) idx, make_ast e
 		in
 		ESwitch (make_ast e,List.map scases cases,eopt def)
-	| TTry (e,catches) -> ETry (make_ast e,List.map (fun (v,e) -> v.v_name, make_type v.v_type, make_ast e) catches)
+	| TTry (e,catches) -> ETry (make_ast e,List.map (fun (v,e) -> v.v_name, (try make_type v.v_type with Exit -> assert false), make_ast e) catches)
 	| TReturn e -> EReturn (eopt e)
 	| TBreak -> EBreak
 	| TContinue -> EContinue
 	| TThrow e -> EThrow (make_ast e)
-	| TCast (e,t) -> ECast (make_ast e,(match t with None -> None | Some t -> Some (make_type (match t with TClassDecl c -> TInst (c,[]) | TEnumDecl e -> TEnum (e,[]) | TTypeDecl t -> TType (t,[]))))))
+	| TCast (e,t) ->
+		let t = (match t with 
+			| None -> None 
+			| Some t -> 
+				let t = (match t with TClassDecl c -> TInst (c,[]) | TEnumDecl e -> TEnum (e,[]) | TTypeDecl t -> TType (t,[])) in
+				Some (try make_type t with Exit -> assert false)
+		) in
+		ECast (make_ast e,t))
 	,e.epos)
 
 ;;
