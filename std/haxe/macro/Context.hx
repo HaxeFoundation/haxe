@@ -174,7 +174,7 @@ class Context {
 	/**
 		Returns the ComplexType corresponding to the given Type.
 	**/
-	public static function toComplexType( t : Type ) : ComplexType {
+	public static function toComplexType( t : Type ) : Null<ComplexType> {
 		// TODO: handle TMono -> Unknown somehow
 		return load("to_complex", 1)(t);
 	}

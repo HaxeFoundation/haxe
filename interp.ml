@@ -2170,7 +2170,8 @@ let macro_lib =
 			VString (Digest.to_hex (Digest.string (Marshal.to_string v [Marshal.Closures])))
 		);
 		"to_complex", Fun1 (fun v ->
-			encode_complex_type (make_complex_type (decode_type v))
+			try	encode_complex_type (make_complex_type (decode_type v))
+			with Exit -> VNull
 		);
 		"typeof", Fun1 (fun v ->
 			encode_type ((get_ctx()).curapi.typeof (decode_expr v))
