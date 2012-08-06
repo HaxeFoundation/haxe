@@ -664,7 +664,7 @@ and gen_expr ctx e =
 		handle_break();
 	| TObjectDecl fields ->
 		spr ctx "{ ";
-		let quote s = if Hashtbl.mem reserved s then "\"" ^ s ^ "\"" else s in 
+		let quote s = if Hashtbl.mem reserved s then "\"_" ^ s ^ "\"" else s in 
 		concat ctx ", " (fun (f,e) -> print ctx "%s : " (quote f); gen_value ctx e) fields;
 		spr ctx "}"
 	| TFor (v,it,e) ->
