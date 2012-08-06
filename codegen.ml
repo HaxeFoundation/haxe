@@ -243,19 +243,31 @@ let rec build_generic ctx c p tl =
 		add_dependency mg m;
 		add_dependency ctx.current mg;
 		(* ensure that type parameters are set in dependencies *)
+		let dep_stack = ref [] in
 		let rec loop t =
+			if not (List.memq t !dep_stack) then begin
+			dep_stack := t :: !dep_stack;
 			match t with
-			| TInst (c,tl) -> add_dependency mg c.cl_module; List.iter loop tl
-			| TEnum (e,tl) -> add_dependency mg e.e_module; List.iter loop tl
-			| TType (t,tl) -> add_dependency mg t.t_module; List.iter loop tl
+			| TInst (c,tl) -> add_dep c.cl_module tl
+			| TEnum (e,tl) -> add_dep e.e_module tl
+			| TType (t,tl) -> add_dep t.t_module tl
 			| TMono r ->
 				(match !r with
 				| None -> ()
 				| Some t -> loop t)
 			| TLazy f ->
 				loop ((!f)());
-			| TAnon _ | TDynamic _ | TFun _ ->
-				assert false
+			| TDynamic t2 ->
+				if t == t2 then () else loop t2
+			| TAnon a ->
+				PMap.iter (fun _ f -> loop f.cf_type) a.a_fields
+			| TFun (args,ret) ->
+				List.iter (fun (_,_,t) -> loop t) args;
+				loop ret
+			end
+		and add_dep m tl =
+			add_dependency mg m;
+			List.iter loop tl
 		in
 		List.iter loop tl;
 		let rec loop l1 l2 =
@@ -569,7 +581,7 @@ let add_field_inits com c =
 				assert false
 
 let has_rtti ctx c =
-	let rec has_rtti_new c = 
+	let rec has_rtti_new c =
 		has_meta ":rttiInfos" c.cl_meta || match c.cl_super with None -> false | Some (csup,_) -> has_rtti_new csup
 	in
 	let rec has_rtti_old c =
@@ -936,8 +948,8 @@ let rename_local_vars com e =
 	let rebuild m =
 		PMap.fold (fun v acc -> PMap.add v.v_name v acc) m PMap.empty
 	in
-	let save() = 
-		let old = !vars in 
+	let save() =
+		let old = !vars in
 		if cfg.pf_unique_locals then (fun() -> ()) else (fun() -> vars := if !rebuild_vars then rebuild old else old)
 	in
 	let rename vars v =
@@ -1385,10 +1397,10 @@ let fix_overrides com t =
 	| _ ->
 		()
 
-(*	
+(*
 	PHP does not allow abstract classes extending other abstract classes to override any fields, so these duplicates
 	must be removed from the child interface
-*)	
+*)
 let fix_abstract_inheritance com t =
 	match t with
 	| TClassDecl c when c.cl_interface ->
