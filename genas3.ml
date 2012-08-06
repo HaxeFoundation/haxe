@@ -103,7 +103,7 @@ let reserved =
 	(* these ones are defined in order to prevent recursion in some Std functions *)
 	["is";"as";"int";"uint";"const";"getTimer";"typeof";"parseInt";"parseFloat";
 	(* AS3 keywords which are not Haxe ones *)
-	"each";"label";"finally";"with";"final";"internal";"native";"const";"namespace";"include";"delete";
+	"finally";"with";"final";"internal";"native";"namespace";"include";"delete";
 	(* some globals give some errors with Flex SDK as well *)
 	"print";"trace";
 	(* we don't include get+set since they are not 'real' keywords, but they can't be used as method names *)
@@ -112,6 +112,8 @@ let reserved =
 	"override";"package";"null";"true";"false"
 	];
 	h
+
+	(* "each", "label" : removed (actually allowed in locals and fields accesses) *)
 
 let s_ident n =
 	if Hashtbl.mem reserved n then "_" ^ n else n
