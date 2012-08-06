@@ -387,16 +387,20 @@ let create_context params =
 	ctx
 
 let rec process_params create pl =
+	let each_params = ref [] in
 	let rec loop acc = function
 		| [] ->
 			let ctx = create (List.rev acc) in
 			init ctx;
 			ctx.flush()
 		| "--next" :: l ->
-			let ctx = create (List.rev acc) in
+			let ctx = create (!each_params @ (List.rev acc)) in
 			ctx.has_next <- true;
 			init ctx;
 			ctx.flush();
+			loop [] l
+		| "--each" :: l ->
+			each_params := List.rev acc;
 			loop [] l
 		| "--cwd" :: dir :: l ->
 			(* we need to change it immediately since it will affect hxml loading *)
