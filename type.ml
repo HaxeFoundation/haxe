@@ -1271,7 +1271,7 @@ let rec s_expr s_type e =
 		| TThis -> "this"
 		| TSuper -> "super"
 	in
-	let s_var v = v.v_name ^ ":" ^ string_of_int v.v_id in
+	let s_var v = v.v_name ^ ":" ^ string_of_int v.v_id ^ if v.v_capture then "[c]" else "" in
 	let str = (match e.eexpr with
 	| TConst c ->
 		"Const " ^ s_const c
