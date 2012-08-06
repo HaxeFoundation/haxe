@@ -2745,7 +2745,8 @@ let flush_macro_context mctx ctx =
 	ctx.com.types <- types;
 	ctx.com.Common.modules <- modules;
 	(* we should maybe ensure that all filters in Main are applied. Not urgent atm *)
-	Interp.add_types mctx types (fun t -> Codegen.post_process [t] [Codegen.captured_vars ctx.com; Codegen.rename_local_vars ctx.com])
+	Interp.add_types mctx types (Codegen.post_process [Codegen.captured_vars ctx.com; Codegen.rename_local_vars ctx.com]);
+	Codegen.post_process_end()
 
 let get_macro_context ctx p =
 	let api = make_macro_api ctx p in

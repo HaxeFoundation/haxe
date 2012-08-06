@@ -1032,7 +1032,8 @@ try
 			Codegen.captured_vars com;
 			Codegen.rename_local_vars com;
 		] in
-		Codegen.post_process com.types filters;
+		List.iter (Codegen.post_process filters) com.types;
+		Codegen.post_process_end();
 		Common.add_filter com (fun() -> List.iter (Codegen.on_generate tctx) com.types);
 		List.iter (fun f -> f()) (List.rev com.filters);
 		if ctx.has_error then raise Abort;
