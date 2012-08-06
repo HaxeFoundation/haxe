@@ -304,13 +304,15 @@ let rec unify_call_params ctx cf el args r p inline =
 		| _ ->
 			None
 	in
+	let fun_details() =
+		let format_arg = (fun (name,opt,_) -> (if opt then "?" else "") ^ name) in
+		"Function " ^ (match cf with None -> "" | Some (_,f) -> "'" ^ f.cf_name ^ "' ") ^ "requires " ^ (if args = [] then "no arguments" else "arguments : " ^ String.concat ", " (List.map format_arg args))
+	in
 	let error acc txt =
 		match next() with
 		| Some l -> l
 		| None ->
-		let format_arg = (fun (name,opt,_) -> (if opt then "?" else "") ^ name) in
-		let argstr = "Function " ^ (match cf with None -> "" | Some (_,f) -> "'" ^ f.cf_name ^ "' ") ^ "requires " ^ (if args = [] then "no arguments" else "arguments : " ^ String.concat ", " (List.map format_arg args)) in
-		display_error ctx (txt ^ " arguments\n" ^ argstr) p;
+		display_error ctx (txt ^ " arguments\n" ^ (fun_details())) p;
 		List.rev (List.map fst acc), (TFun(args,r))
 	in
 	let arg_error ul name opt p =
@@ -346,7 +348,7 @@ let rec unify_call_params ctx cf el args r p inline =
 			(match List.rev skip with
 			| [] -> error acc "Too many"
 			| [name,ul] -> arg_error ul name true p
-			| _ -> error acc "Invalid")
+			| (name,ul) :: _ -> arg_error (Unify_custom ("Invalid arguments\n" ^ fun_details()) :: ul) name true p)
 		| ee :: l, (name,opt,t) :: l2 ->
 			try
 				let e = type_expr_with_type ctx ee (Some t) true in
