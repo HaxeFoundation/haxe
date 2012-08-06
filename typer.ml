@@ -2535,14 +2535,17 @@ let parse_string ctx s p inlined =
 	let old = Lexer.save() in
 	let old_file = (try Some (Hashtbl.find Lexer.all_files p.pfile) with Not_found -> None) in
 	let old_display = !Parser.resume_display in
+	let old_de = !Parser.display_error in
 	let restore() =
 		(match old_file with
 		| None -> ()
 		| Some f -> Hashtbl.replace Lexer.all_files p.pfile f);
 		if not inlined then Parser.resume_display := old_display;
 		Lexer.restore old;
+		Parser.display_error := old_de
 	in
 	Lexer.init p.pfile;
+	Parser.display_error := (fun e p -> raise (Parser.Error (e,p)));
 	if not inlined then Parser.resume_display := null_pos;
 	let _, decls = try
 		Parser.parse ctx.com (Lexing.from_string s)
