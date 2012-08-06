@@ -83,6 +83,10 @@ let valid_js_ident s =
 let field s = if Hashtbl.mem kwds s then "[\"" ^ s ^ "\"]" else "." ^ s
 let ident s = if Hashtbl.mem kwds s then "$" ^ s else s
 let anon_field s = if Hashtbl.mem kwds s || not (valid_js_ident s) then "'" ^ s ^ "'" else s
+let static_field s =
+	match s with
+	| "length" -> ".$" ^ s
+	| s -> field s
 
 let has_feature ctx = Common.has_feature ctx.com
 let add_feature ctx = Common.add_feature ctx.com
@@ -424,23 +428,24 @@ and gen_expr ctx e =
 		print ctx ")";
 	| TField (x,s) ->
 		gen_value ctx x;
-		spr ctx (field s)
+		spr ctx (match follow x.etype with TAnon { a_status = { contents = (Statics _ | EnumStatics _) } } -> static_field s | _ -> field s)
 	| TClosure ({ eexpr = TTypeExpr _ } as x,s) ->
 		gen_value ctx x;
-		spr ctx (field s)
+		spr ctx (static_field s)
 	| TClosure (x,s) ->
 		add_feature ctx "use.$bind";
+		let field = (match follow x.etype with TAnon { a_status = { contents = (Statics _ | EnumStatics _) } } -> static_field s | _ -> field s) in
 		(match x.eexpr with
 		| TConst _ | TLocal _ ->
 			print ctx "$bind(";
 			gen_value ctx x;
 			print ctx ",";
 			gen_value ctx x;
-			print ctx ".%s)" s
+			print ctx "%s)" field
 		| _ ->
 			print ctx "($_=";
 			gen_value ctx x;
-			print ctx ",$bind($_,$_.%s))" s)
+			print ctx ",$bind($_,$_%s))" field)
 	| TTypeExpr t ->
 		spr ctx (ctx.type_accessor t)
 	| TParenthesis e ->
@@ -881,26 +886,23 @@ let generate_package_create ctx (p,_) =
 	| [] -> print ctx "var "
 	| _ -> loop [] p
 
-let check_field_name c f stat =
+let check_field_name c f =
 	match f.cf_name with
 	| "prototype" | "__proto__" | "constructor" ->
 		error ("The field name '" ^ f.cf_name ^ "'  is not allowed in JS") (match f.cf_expr with None -> c.cl_pos | Some e -> e.epos);
-	| "length" when stat ->
-		error ("The field name '" ^ f.cf_name ^ "'  is not allowed for statics in JS") (match f.cf_expr with None -> c.cl_pos | Some e -> e.epos);
 	| _ -> ()
 
 let gen_class_static_field ctx c f =
-	check_field_name c f true;
 	match f.cf_expr with
 	| None | Some { eexpr = TConst TNull } when not (has_feature ctx "Type.getClassFields") ->
 		()
 	| None ->
-		print ctx "%s%s = null" (s_path ctx c.cl_path) (field f.cf_name);
+		print ctx "%s%s = null" (s_path ctx c.cl_path) (static_field f.cf_name);
 		newline ctx
 	| Some e ->
 		match e.eexpr with
 		| TFunction _ ->
-			let path = (s_path ctx c.cl_path) ^ (field f.cf_name) in
+			let path = (s_path ctx c.cl_path) ^ (static_field f.cf_name) in
 			ctx.id_counter <- 0;
 			print ctx "%s = " path;
 			gen_value ctx e;
@@ -918,7 +920,7 @@ let can_gen_class_field ctx = function
 		true
 
 let gen_class_field ctx c f =
-	check_field_name c f false;
+	check_field_name c f;
 	match f.cf_expr with
 	| None ->
 		newprop ctx;
@@ -1055,7 +1057,7 @@ let generate_enum ctx e =
 		newline ctx
 
 let generate_static ctx (c,f,e) =
-	print ctx "%s%s = " (s_path ctx c.cl_path) (field f);
+	print ctx "%s%s = " (s_path ctx c.cl_path) (static_field f);
 	gen_value ctx e;
 	newline ctx
 
