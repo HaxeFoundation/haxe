@@ -3814,7 +3814,11 @@ let decode_expr v =
 		| _ ->
 			raise Invalid_expr
 	in
-	loop v
+	try
+		loop v
+	with Stack_overflow ->
+		raise Invalid_expr
+		
 
 (* ---------------------------------------------------------------------- *)
 (* TYPE ENCODING *)
