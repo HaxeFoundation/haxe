@@ -2290,6 +2290,7 @@ and build_call ctx acc el twith p =
 		| TTypeExpr (TClassDecl c) ->
 			(match ctx.g.do_macro ctx MExpr c.cl_path f.cf_name el p with
 			| None -> type_expr ctx (EConst (Ident "null"),p)
+			| Some (EVars vl,p) -> type_vars ctx vl p true
 			| Some e -> type_expr_with_type ctx e twith)
 		| _ ->
 			(* member-macro call : since we will make a static call, let's found the actual class and not its subclass *)
