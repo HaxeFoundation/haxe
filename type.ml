@@ -933,7 +933,7 @@ let rec unify a b =
 					then error [Missing_overload (f1, f2o.cf_type)]
 				) f2.cf_overloads;
 				(* we mark the field as :?used because it might be used through the structure *)
-				if not (has_meta ":?used" f1.cf_meta) then f1.cf_meta <- (":?used",[],f1.cf_pos) :: f1.cf_meta;				
+				if not (has_meta ":?used" f1.cf_meta) then f1.cf_meta <- (":?used",[],f1.cf_pos) :: f1.cf_meta;
 				(match f1.cf_kind with
 				| Method MethInline ->
 					if (c.cl_extern || has_meta ":extern" f1.cf_meta) && not (has_meta ":runtime" f1.cf_meta) then error [Has_no_runtime_field (a,n)];
@@ -955,6 +955,9 @@ let rec unify a b =
 				if f2.cf_public && not f1.cf_public then error [invalid_visibility n];
 				try
 					unify_with_access f1.cf_type f2;
+					(match !(a1.a_status) with
+					| Statics c when not (has_meta ":?used" f1.cf_meta) -> f1.cf_meta <- (":?used",[],f1.cf_pos) :: f1.cf_meta
+					| _ -> ());
 				with
 					Unify_error l -> error (invalid_field n :: l)
 			with
