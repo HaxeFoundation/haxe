@@ -535,7 +535,7 @@ and wait_loop boot_com host port =
 		in
 		try
 			let m = Hashtbl.find cache.c_modules (mpath,sign) in
-			if com2.dead_code_elimination then raise Not_found;
+			if Common.defined com2 "dce" then raise Not_found;
 			if not (check m) then begin
 				if verbose then print_endline ("Skipping cached module " ^ Ast.s_type_path mpath ^ (match !dep with None -> "" | Some m -> "(" ^ Ast.s_type_path m.m_path ^ ")"));
 				raise Not_found;
@@ -566,7 +566,7 @@ and wait_loop boot_com host port =
 				read_loop()
 		in
 		let rec cache_context com =
-			if not com.dead_code_elimination && not com.display then begin
+			if not (Common.defined com "dce") && not com.display then begin
 				List.iter cache_module com.modules;
 				if verbose then print_endline ("Cached " ^ string_of_int (List.length com.modules) ^ " modules");
 			end;
@@ -740,6 +740,7 @@ try
 			gen_as3 := true;
 			Common.define com "as3";
 			Common.define com "no_inline";
+			if defined com "dce" then com.defines <- PMap.remove "dce" com.defines;		
 		),"<directory> : generate AS3 code into target directory");
 		("-neko",Arg.String (set_platform Neko),"<file> : compile code to Neko Binary");
 		("-php",Arg.String (fun dir ->
@@ -905,7 +906,7 @@ try
 			config_macros := e :: !config_macros
 		)," : call the given macro before typing anything else");
 		("--dead-code-elimination", Arg.Unit (fun () ->
-			com.dead_code_elimination <- true;
+			if not (Common.defined com "as3") then Common.define com "dce"
 		)," : remove unused methods");
 		("--wait", Arg.String (fun hp ->
 			let host, port = (try ExtString.String.split hp ":" with _ -> "127.0.0.1", hp) in
@@ -1026,7 +1027,7 @@ try
 		end;
 		let t = Common.timer "filters" in
 		let main, types, modules = Typer.generate tctx in
-		let types,modules = if ctx.com.dead_code_elimination then Dce.run tctx main types modules else types,modules in
+		let types,modules = if Common.defined ctx.com "dce" then Dce.run tctx main types modules else types,modules in
 		com.main <- main;
 		com.types <- types;
 		com.modules <- modules;

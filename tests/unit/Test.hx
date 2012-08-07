@@ -205,7 +205,9 @@ package unit;
 			#if java
 			new TestJava(),
 			#end
+			#if dce
 			new TestDCE(),
+			#end
 			//new TestUnspecified(),
 			//new TestRemoting(),
 		];

@@ -2769,13 +2769,13 @@ let get_macro_context ctx p =
 		com2.package_rules <- PMap.empty;
 		com2.main_class <- None;
 		com2.display <- false;
-		com2.dead_code_elimination <- false;
 		List.iter (fun p -> com2.defines <- PMap.remove (platform_name p) com2.defines) platforms;
 		com2.defines_signature <- None;
 		com2.class_path <- List.filter (fun s -> not (ExtString.String.exists s "/_std/")) com2.class_path;
 		com2.class_path <- List.map (fun p -> p ^ "neko" ^ "/_std/") com2.std_path @ com2.class_path;
 		com2.defines <- PMap.foldi (fun k _ acc ->
 			match k with
+			| "dce"
 			| "no_traces" -> acc
 			| _ when List.exists (fun (_,d) -> "flash" ^ d = k) Common.flash_versions -> acc
 			| _ -> PMap.add k () acc

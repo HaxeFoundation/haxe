@@ -96,7 +96,6 @@ type context = {
 	mutable debug : bool;
 	mutable verbose : bool;
 	mutable foptimize : bool;
-	mutable dead_code_elimination : bool;
 	mutable platform : platform;
 	mutable config : platform_config;
 	mutable std_path : string list;
@@ -283,7 +282,6 @@ let create v args =
 		verbose = false;
 		foptimize = true;
 		features = Hashtbl.create 0;
-		dead_code_elimination = false;
 		platform = Cross;
 		config = default_config;
 		print = print_string;
@@ -411,7 +409,7 @@ let rec has_feature com f =
 			let r = (try
 				let path = List.rev pack, cl in
 				(match List.find (fun t -> t_path t = path && not (has_meta ":realPath" (t_infos t).mt_meta)) com.types with
-				| t when meth = "*" -> (not com.dead_code_elimination) || has_meta ":used" (t_infos t).mt_meta
+				| t when meth = "*" -> not (defined com "dce") || has_meta ":used" (t_infos t).mt_meta
 				| TClassDecl c -> PMap.exists meth c.cl_statics || PMap.exists meth c.cl_fields
 				| _ -> false)
 			with Not_found ->

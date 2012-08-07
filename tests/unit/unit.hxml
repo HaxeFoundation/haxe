@@ -51,13 +51,12 @@ unit.Test
 -php php
 
 #as3
-#--next
-#-main unit.Test
-#-as3 as3
-#-cmd mxmlc -static-link-runtime-shared-libraries=true -debug as3/__main__.as --output unit9_as3.swf
+--next
+-main unit.Test
+-as3 as3
+-cmd mxmlc -static-link-runtime-shared-libraries=true -debug as3/__main__.as --output unit9_as3.swf
 
 #cpp
-
 --next
 -main unit.Test
 -cpp cpp

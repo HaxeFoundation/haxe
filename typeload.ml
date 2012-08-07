@@ -865,7 +865,7 @@ let init_class ctx c p herits fields =
 		c.cl_extern <- true;
 		List.filter (fun f -> List.mem AStatic f.cff_access) fields, []
 	end else fields, herits in
-	if core_api && not (ctx.com.display || ctx.com.dead_code_elimination) then delay ctx (fun() -> init_core_api ctx c);
+	if core_api && not (ctx.com.display || Common.defined ctx.com "dce") then delay ctx (fun() -> init_core_api ctx c);
 	let tthis = TInst (c,List.map snd c.cl_types) in
 	let rec extends_public c =
 		List.exists (fun (c,_) -> c.cl_path = (["haxe"],"Public") || extends_public c) c.cl_implements ||
