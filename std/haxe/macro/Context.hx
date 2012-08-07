@@ -104,8 +104,15 @@ class Context {
 	/**
 		Returns classes which are available for "using" where the macro was called
 	**/	
-	public static function getLocalUsing() :  Null<Type.Ref<Type.ClassType>> {
+	public static function getLocalUsing() :  Array<Type.Ref<Type.ClassType>> {
 		return load("local_using", 0)();
+	}
+	
+	/**
+		Returns local variables accessible where the macro was called
+	**/
+	public static function getLocalVars() : Hash<Type> {
+		return load("local_vars", 0)();
 	}
 
 	/**
@@ -175,7 +182,6 @@ class Context {
 		Returns the ComplexType corresponding to the given Type.
 	**/
 	public static function toComplexType( t : Type ) : Null<ComplexType> {
-		// TODO: handle TMono -> Unknown somehow
 		return load("to_complex", 1)(t);
 	}
 	

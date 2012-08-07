@@ -102,6 +102,7 @@ type extern_api = {
 	get_local_type : unit -> t option;
 	get_local_method : unit -> string;
 	get_local_using : unit -> tclass list;
+	get_local_vars : unit -> (string, Type.tvar) PMap.t;
 	get_build_fields : unit -> value;
 	define_type : value -> unit;
 	module_dependency : string -> string -> bool -> unit;
@@ -177,6 +178,7 @@ let decode_type_ref = ref (fun t -> assert false)
 let encode_expr_ref = ref (fun e -> assert false)
 let decode_expr_ref = ref (fun e -> assert false)
 let encode_clref_ref = ref (fun c -> assert false)
+let enc_hash_ref = ref (fun h -> assert false)
 let enc_array_ref = ref (fun l -> assert false)
 let make_ast_ref = ref (fun _ -> assert false)
 let make_complex_type_ref = ref (fun _ -> assert false)
@@ -188,6 +190,7 @@ let decode_type (v:value) : Type.t = (!decode_type_ref) v
 let encode_expr (e:Ast.expr) : value = (!encode_expr_ref) e
 let decode_expr (e:value) : Ast.expr = (!decode_expr_ref) e
 let encode_clref (c:tclass) : value = (!encode_clref_ref) c
+let enc_hash (h:('a,'b) Hashtbl.t) : value = (!enc_hash_ref) h
 let make_ast (e:texpr) : Ast.expr = (!make_ast_ref) e
 let make_complex_type (t:Type.t) : Ast.complex_type = (!make_complex_type_ref) t
 
@@ -2232,6 +2235,12 @@ let macro_lib =
 		"local_using", Fun0 (fun() ->
 			enc_array (List.map encode_clref ((get_ctx()).curapi.get_local_using()))
 		);
+		"local_vars", Fun0 (fun() ->
+			let vars = (get_ctx()).curapi.get_local_vars() in
+			let h = Hashtbl.create 0 in
+			PMap.iter (fun n v -> Hashtbl.replace h (VString n) (encode_type v.v_type)) vars;
+			enc_hash h
+		);
 		"follow", Fun2 (fun v once ->
 			let t = decode_type v in
 			let follow_once t =
@@ -4265,4 +4274,5 @@ encode_type_ref := encode_type;
 decode_type_ref := decode_type;
 encode_expr_ref := encode_expr;
 decode_expr_ref := decode_expr;
-encode_clref_ref := encode_clref
+encode_clref_ref := encode_clref;
+enc_hash_ref := enc_hash

@@ -2721,6 +2721,9 @@ let make_macro_api ctx p =
 		Interp.get_local_using = (fun() ->
 			ctx.local_using;
 		);
+		Interp.get_local_vars = (fun () ->
+			ctx.locals;
+		);
 		Interp.get_build_fields = (fun() ->
 			match ctx.g.get_build_infos() with
 			| None -> Interp.VNull
