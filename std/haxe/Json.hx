@@ -35,16 +35,38 @@ package haxe;
 class Json {
 
 #if (haxeJSON || !flash11)
-	var buf : StringBuf;
+	var buf : #if flash9 flash.utils.ByteArray #else StringBuf #end;
 	var str : String;
 	var pos : Int;
-	var reg_float : EReg;
 
 	function new() {
 	}
 
+	@:extern inline function addChar(c:Int) {
+		#if flash9
+		buf.writeByte(c);
+		#else
+		buf.addChar(c);
+		#end
+	}
+
+	@:extern inline function add(v:String) {
+		#if flash9
+		// argument is not always a string but will be automatically casted
+		buf.writeUTFBytes(v);
+		#else
+		buf.add(v);
+		#end
+	}
+
 	function toString(v:Dynamic) {
+		#if flash9
+		buf = new flash.utils.ByteArray();
+		buf.endian = flash.utils.Endian.BIG_ENDIAN;
+		buf.position = 0;
+		#else
 		buf = new StringBuf();
+		#end
 		toStringRec(v);
 		return buf.toString();
 	}
@@ -52,24 +74,24 @@ class Json {
 	function fieldsString( v : Dynamic, fields : Array<String> )
 	{
 		var first = true;
-		buf.add('{');		
+		addChar('{'.code);
 		for( f in fields ) {
 			var value = Reflect.field(v,f);
 			if( Reflect.isFunction(value) ) continue;
-			if( first ) first = false else buf.add(',');
+			if( first ) first = false else addChar(','.code);
 			quote(f);
-			buf.add(':');
+			addChar(':'.code);
 			toStringRec(value);
 		}
-		buf.add('}');
+		addChar('}'.code);
 	}
-	
+
 	#if flash9
 	function classString ( v : Dynamic ) {
 		fieldsString(v,Type.getInstanceFields(Type.getClass(v)));
 	}
 	#end
-	
+
 	function objString( v : Dynamic ) {
 		fieldsString(v,Reflect.fields(v));
 	}
@@ -77,29 +99,29 @@ class Json {
 	function toStringRec(v:Dynamic) {
 		switch( Type.typeof(v) ) {
 		case TUnknown:
-			buf.add('"???"');
+			add('"???"');
 		case TObject:
 			objString(v);
 		case TInt,TFloat:
-			buf.add(v);
+			add(v);
 		case TFunction:
-			buf.add('"<fun>"');
+			add('"<fun>"');
 		case TClass(c):
 			if( c == String )
 				quote(v);
 			else if( c == Array ) {
 				var v : Array<Dynamic> = v;
-				buf.add('[');
+				addChar('['.code);
 				var len = v.length;
 				if( len > 0 ) {
 					toStringRec(v[0]);
 					var i = 1;
 					while( i < len ) {
-						buf.add(',');
+						addChar(','.code);
 						toStringRec(v[i++]);
 					}
 				}
-				buf.add(']');
+				addChar(']'.code);
 			} else if( c == Hash ) {
 				var v : Hash<Dynamic> = v;
 				var o = {};
@@ -113,11 +135,11 @@ class Json {
 				objString(v);
 				#end
 		case TEnum(e):
-			buf.add(Type.enumIndex(v));
+			add(cast Type.enumIndex(v));
 		case TBool:
-			buf.add(v ? 'true' : 'false');
+			add(#if php (v ? 'true' : 'false') #else v #end);
 		case TNull:
-			buf.add('null');
+			add('null');
 		}
 	}
 
@@ -128,23 +150,23 @@ class Json {
 			return;
 		}
 		#end
-		buf.add('"');
+		addChar('"'.code);
 		var i = 0;
 		while( true ) {
 			var c = StringTools.fastCodeAt(s,i++);
 			if( StringTools.isEOF(c) ) break;
 			switch( c ) {
-			case '"'.code: buf.add('\\"');
-			case '\\'.code: buf.add('\\\\');
-			case '\n'.code: buf.add('\\n');
-			case '\r'.code: buf.add('\\r');
-			case '\t'.code: buf.add('\\t');
-			case 8: buf.add('\\b');
-			case 12: buf.add('\\f');
-			default: buf.addChar(c);
+			case '"'.code: add('\\"');
+			case '\\'.code: add('\\\\');
+			case '\n'.code: add('\\n');
+			case '\r'.code: add('\\r');
+			case '\t'.code: add('\\t');
+			case 8: add('\\b');
+			case 12: add('\\f');
+			default: addChar(c);
 			}
 		}
-		buf.add('"');
+		addChar('"'.code);
 	}
 
 	#if (neko || php || cpp)
@@ -168,7 +190,6 @@ class Json {
 	#end
 
 	function doParse( str : String ) {
-		reg_float = ~/^-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?/;
 		this.str = str;
 		this.pos = 0;
 		return parseRec();
@@ -258,14 +279,7 @@ class Json {
 			case '"'.code:
 				return parseString();
 			case '0'.code, '1'.code,'2'.code,'3'.code,'4'.code,'5'.code,'6'.code,'7'.code,'8'.code,'9'.code,'-'.code:
-				pos--;
-				if( !reg_float.match(str.substr(pos)) )
-					throw "Invalid float at position "+pos;
-				var v = reg_float.matched(0);
-				pos += v.length;
-				var f = Std.parseFloat(v);
-				var i = Std.int(f);
-				return if( i == f ) i else f;
+				return parseNumber(c);
 			default:
 				invalidChar();
 			}
@@ -330,12 +344,53 @@ class Json {
 		return buf.toString();
 	}
 
+	function invalidNumber( start : Int ) {
+		throw "Invalid number at position "+start+": " + str.substr(start, pos - start);
+	}
+
+	inline function parseNumber( c : Int ) {
+		var start = pos - 1;
+		var minus = c == '-'.code, digit = !minus, zero = c == '0'.code;
+		var point = false, e = false, pm = false, end = false;
+		while( true ) {
+			c = nextChar();
+			switch( c ) {
+				case '0'.code :
+					if (zero && !point) invalidNumber(start);
+					if (minus) {
+						minus = false; zero = true;
+					}
+					digit = true;
+				case '1'.code,'2'.code,'3'.code,'4'.code,'5'.code,'6'.code,'7'.code,'8'.code,'9'.code :
+					if (zero && !point) invalidNumber(start);
+					if (minus) minus = false;
+					digit = true; zero = false;
+				case '.'.code :
+					if (minus || point) invalidNumber(start);
+					digit = false; point = true;
+				case 'e'.code, 'E'.code :
+					if (minus || zero || e) invalidNumber(start);
+					digit = false; e = true;
+				case '+'.code, '-'.code :
+					if (!e || pm) invalidNumber(start);
+					digit = false; pm = true;
+				default :
+					if (!digit) invalidNumber(start);
+					pos--;
+					end = true;
+			}
+			if (end) break;
+		}
+		var f = Std.parseFloat(str.substr(start, pos - start));
+		var i = Std.int(f);
+		return if( i == f ) i else f;
+	}
+
 #end
 
 	public static function parse( text : String ) : Dynamic {
-		#if (__php && !haxeJSON)
-		// don't use because of arrays wrappers
-		return untyped __call__("json_decode", value);
+		#if (php && !haxeJSON)
+		return phpJsonDecode(text);
 		#elseif (flash11 && !haxeJSON)
 		return null;
 		#else
@@ -344,13 +399,8 @@ class Json {
 	}
 
 	public static function stringify( value : Dynamic ) : String {
-		#if (__php && !haxeJSON)
-		// slash behavior is incosistent with other platforms
-		var r = untyped __call__("json_encode", value);
-		if (untyped __physeq__(r, false))
-			return throw "invalid json";
-		else
-			return r;
+		#if (php && !haxeJSON)
+		return phpJsonEncode(value);
 		#elseif (flash11 && !haxeJSON)
 		return null;
 		#else
@@ -365,6 +415,60 @@ class Json {
 				Json = __js__('JSON');
 		}
 		#end
+	#end
+
+	#if php
+	public static function phpJsonDecode(json:String):Dynamic {
+		var val = untyped __call__("json_decode", json);
+		return convertAfterDecode(val);
+	}
+
+	static function convertAfterDecode(val:Dynamic):Dynamic {
+		var arr:php.NativeArray;
+		if (untyped __call__("is_object", val)) {
+			arr = phpMapArray(php.Lib.associativeArrayOfObject(val), convertAfterDecode);
+			return untyped __call__("_hx_anonymous", arr);
+		}
+		else if (untyped __call__("is_array", val)) {
+			arr = phpMapArray(val, convertAfterDecode);
+			return php.Lib.toHaxeArray(arr);
+		}
+		else
+			return val;
+	}
+
+	public static function phpJsonEncode(val:Dynamic):String {
+		var json = untyped __call__("json_encode", convertBeforeEncode(val));
+		if (untyped __physeq__(json, false))
+			return throw "invalid json";
+		else
+			return json;
+	}
+
+	static function convertBeforeEncode(val:Dynamic):Dynamic {
+		var arr:php.NativeArray;
+		if (untyped __call__("is_object", val)) {
+			switch (untyped __call__("get_class", val)) {
+				case "_hx_anonymous", "stdClass" : arr = php.Lib.associativeArrayOfObject(val);
+				case "_hx_array" : arr = php.Lib.toPhpArray(val);
+				case "Date" : return Std.string(val); //.split(" ").join("T"); //better with "T"?
+				case "HList" : arr = php.Lib.toPhpArray(Lambda.array(val)); //convert List to array?
+				case "_hx_enum" : return Type.enumIndex(val);
+				case "Hash", "IntHash" : arr = php.Lib.associativeArrayOfHash(val);
+				default : arr = php.Lib.associativeArrayOfObject(val);
+			}
+		}
+		else if (untyped __call__("is_array", val)) arr = val;
+		else
+			return val;
+		return phpMapArray(arr, convertBeforeEncode);
+	}
+
+	inline static function phpMapArray(arr:php.NativeArray
+	, func:Dynamic->Dynamic):php.NativeArray {
+		return untyped __call__("array_map", func, arr);
+	}
+
 	#end
 
 }
