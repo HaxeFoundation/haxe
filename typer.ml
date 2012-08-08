@@ -876,7 +876,7 @@ let type_callback ctx e params p =
 	in
 	let given_args,missing_args,ordered_args = loop args params [] [] [] in
 	let rec gen_loc_name n =
-		let name = "f" ^ (string_of_int n) in
+		let name = if n = 0 then "f" else "f" ^ (string_of_int n) in
 		if List.exists (fun (n,_,_) -> name = n) args then gen_loc_name (n + 1) else name
 	in
 	let loc = alloc_var (gen_loc_name 0) e.etype in
