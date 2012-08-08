@@ -390,7 +390,7 @@ let init_platform com pf =
 	let forbid acc p = if p = name || PMap.mem p acc then acc else PMap.add p Forbidden acc in
 	com.package_rules <- List.fold_left forbid com.package_rules (List.map platform_name platforms);
 	com.config <- get_config com;
-	if com.config.pf_static then define com "static";
+(*	if com.config.pf_static then define com "static"; *)
 	if com.config.pf_sys then define com "sys" else com.package_rules <- PMap.add "sys" Forbidden com.package_rules;
 	define com name
 
