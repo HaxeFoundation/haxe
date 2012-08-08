@@ -1,7 +1,7 @@
 class RunJava {
 
 	static function main() {
-		var p = new neko.io.Process("java",["-cp",neko.Web.getCwd()+"/java/src", "unit.Test"]);
+		var p = new neko.io.Process("java",["-jar",neko.Web.getCwd()+"/java/java.jar"]);
 		try {
 			while( true ) {
 				var c = p.stdout.readByte();
