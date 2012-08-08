@@ -47,6 +47,18 @@ let api_inline ctx c field params p =
 		Some (mk (TConst (TInt (Int32.of_int c.ef_index))) ctx.t.tint p)
 	| ([],"Std"),"int",[{ eexpr = TConst (TInt _) } as e] ->
 		Some { e with epos = p }
+	| ([],"String"),"fromCharCode",[{ eexpr = TConst (TInt i) }] when i > 0l && i < 128l ->
+		Some (mk (TConst (TString (String.make 1 (char_of_int (Int32.to_int i))))) ctx.t.tstring p)
+	| ([],"Std"),"string",[{ eexpr = TConst c } as e] ->
+		(match c with
+		| TString s ->
+			Some { e with epos = p }
+		| TInt i ->
+			Some { eexpr = TConst (TString (Int32.to_string i)); epos = p; etype = ctx.t.tstring }
+		| TBool b ->
+			Some { eexpr = TConst (TString (if b then "true" else "false")); epos = p; etype = ctx.t.tstring }
+		| _ ->
+			None)
 	| ([],"Std"),"int",[{ eexpr = TConst (TFloat f) }] ->
 		let f = float_of_string f in
 		(match classify_float f with
