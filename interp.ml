@@ -2176,6 +2176,10 @@ let macro_lib =
 			try	encode_complex_type (make_complex_type (decode_type v))
 			with Exit -> VNull
 		);
+		"unify", Fun2 (fun t1 t2 ->
+			try Type.unify (decode_type t1) (decode_type t2); VBool true
+			with Unify_error _ -> VBool false
+		);
 		"typeof", Fun1 (fun v ->
 			encode_type ((get_ctx()).curapi.typeof (decode_expr v))
 		);

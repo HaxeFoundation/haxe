@@ -186,6 +186,13 @@ class Context {
 	}
 	
 	/**
+		Returns true if t1 and t2 unify, false otherwise
+	**/
+	public static function unify( t1 : Type, t2 : Type) : Bool {
+		return load("unify", 2)(t1, t2);
+	}
+	
+	/**
 		Follow all typedefs to reach the actual real type
 	**/
 	public static function follow( t : Type, ?once : Bool ) : Type {
