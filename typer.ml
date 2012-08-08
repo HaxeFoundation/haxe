@@ -1007,8 +1007,15 @@ let rec type_binop ctx op e1 e2 p =
 	let tint = ctx.t.tint in
 	let tfloat = ctx.t.tfloat in
 	let tstring = ctx.t.tstring in
+	let use_native_add() =
+		match ctx.curclass.cl_path with
+		| ([],"StringBuf") -> true
+		| _ -> false
+	in
 	let to_string e =
 		match classify e.etype with
+		| KDyn when use_native_add() ->
+			e
 		| KUnk | KDyn | KParam _ | KOther ->
 			let std = type_type ctx ([],"Std") e.epos in
 			let acc = acc_get ctx (type_field ctx std "string" e.epos MCall) e.epos in
