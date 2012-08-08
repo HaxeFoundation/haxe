@@ -875,7 +875,11 @@ let type_callback ctx e params p =
 			loop args params (given_args @ [v,o,Some e]) missing_args (ordered_args @ [vexpr v])
 	in
 	let given_args,missing_args,ordered_args = loop args params [] [] [] in
-	let loc = alloc_var "f" e.etype in
+	let rec gen_loc_name n =
+		let name = "f" ^ (string_of_int n) in
+		if List.exists (fun (n,_,_) -> name = n) args then gen_loc_name (n + 1) else name
+	in
+	let loc = alloc_var (gen_loc_name 0) e.etype in
 	let given_args = (loc,false,Some e) :: given_args in
 	let inner_fun_args l = List.map (fun (v,o) -> v.v_name, o, v.v_type) l in
 	let t_inner = TFun(inner_fun_args missing_args, ret) in
