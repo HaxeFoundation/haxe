@@ -470,8 +470,8 @@ class TestType extends Test {
 	
 	function testInline()
 	{
-		typedAs(inlineTest1([1]), Void);
-		typedAs(inlineTest2([1]), Void);
+		typedAs(inlineTest1([1]), var void:Void);
+		typedAs(inlineTest2([1]), var void:Void);
 	}
 	
 	inline function inlineTest1<T>(map:Array<T>) {

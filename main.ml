@@ -1027,7 +1027,7 @@ try
 		end;
 		let t = Common.timer "filters" in
 		let main, types, modules = Typer.generate tctx in
-		let types,modules = if Common.defined ctx.com "dce" then Dce.run tctx main types modules else types,modules in
+		let types,modules = if Common.defined ctx.com "dce" && not !interp then Dce.run tctx main types modules else types,modules in
 		com.main <- main;
 		com.types <- types;
 		com.modules <- modules;

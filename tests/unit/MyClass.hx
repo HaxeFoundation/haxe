@@ -17,7 +17,7 @@ class MyClass {
 		return val;
 	}
 
-	public function set(v) {
+	@:keep public function set(v) {
 		val = v;
 	}
 

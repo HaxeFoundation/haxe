@@ -206,7 +206,7 @@ package unit;
 			#if java
 			new TestJava(),
 			#end
-			#if dce
+			#if (dce && !interp)
 			new TestDCE(),
 			#end
 			//new TestUnspecified(),
