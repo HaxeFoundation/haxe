@@ -179,6 +179,7 @@ let rec type_inline ctx cf f ethis params tret p force =
 	let in_loop = ref false in
 	let in_local_fun = ref false in
 	let cancel_inlining = ref false in
+	let has_return_value = ref false in
 	let ret_val = (match follow f.tf_type with TEnum ({ e_path = ([],"Void") },[]) -> false | _ -> true) in
 	let rec map term e =
 		let po = e.epos in
@@ -206,7 +207,7 @@ let rec type_inline ctx cf f ethis params tret p force =
 			if not term then error "Cannot inline a not final return" po;
 			(match eo with
 			| None -> mk (TConst TNull) f.tf_type p
-			| Some e -> map term e)
+			| Some e -> has_return_value := true; map term e)
 		| TFor (v,e1,e2) ->
 			let i = local v in
 			let e1 = map false e1 in
@@ -356,13 +357,13 @@ let rec type_inline ctx cf f ethis params tret p force =
 			with Unify_error _ ->
 				mk (TCast (e,None)) tret e.epos)
 		in
-		let e = (match e.eexpr, init, tret with
-			| _, None, TEnum ({ e_path = [],"Void" },_) ->
+		let e = (match e.eexpr, init with
+			| _, None when not !has_return_value ->
 				{e with etype = tret}
-			| TBlock [e] , None, _ -> wrap e
-			| _ , None, _ -> wrap e
-			| TBlock l, Some init, _ -> mk (TBlock (init :: l)) tret e.epos
-			| _, Some init, _ -> mk (TBlock [init;e]) tret e.epos
+			| TBlock [e] , None -> wrap e
+			| _ , None -> wrap e
+			| TBlock l, Some init -> mk (TBlock (init :: l)) tret e.epos
+			| _, Some init -> mk (TBlock [init;e]) tret e.epos
 		) in
 		(* we need to replace type-parameters that were used in the expression *)
 		if not has_params then
