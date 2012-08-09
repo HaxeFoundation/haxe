@@ -154,7 +154,7 @@ enum ValueType {
 		a.remove("__properties__");
 		a.remove("prototype");
 		a.remove("new");
-		#if macro
+		#if (macro || interp)
 		a.remove("__ct__");
 		#end
 		return a;
