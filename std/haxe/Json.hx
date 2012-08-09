@@ -135,7 +135,8 @@ class Json {
 				objString(v);
 				#end
 		case TEnum(e):
-			add(cast Type.enumIndex(v));
+			var i : Dynamic = Type.enumIndex(v);
+			add(i);
 		case TBool:
 			add(#if php (v ? 'true' : 'false') #else v #end);
 		case TNull:
