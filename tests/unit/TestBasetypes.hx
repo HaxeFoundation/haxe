@@ -202,7 +202,7 @@ class TestBasetypes extends Test {
 		eq( Std.parseInt("0xFF"), 255 );
 		eq( Std.parseInt("0x123"), 291 );
 		eq( Std.parseInt("0XFF"), 255 );
-		eq( Std.parseInt("0X123"), 291 );		
+		eq( Std.parseInt("0X123"), 291 );
 		unspec(function() Std.parseInt("0xFG"));
 
 		eq( Std.parseFloat("0"), 0. );
@@ -307,8 +307,16 @@ class TestBasetypes extends Test {
 		f( h.remove(1) );
 	}
 	
-	function testObject() {
+	function testObjectKeyword() {
+		// new is a keyword in Haxe
 		var l = { "new": "test" };
-		eq(Reflect.field(l, "new"), "test");
+		var prefix = #if as3 "_" #else "" #end;
+		eq(Reflect.field(l, prefix + "new"), "test");
+		// const is a keyword on some platforms but not in Haxe
+		// check that with can still access it normally
+		var o = { const : 6 }
+		eq(o.const, 6);
+		eq(Reflect.field(o, prefix+"const"), 6);
 	}
+
 }
