@@ -199,6 +199,7 @@ package unit;
 			new TestReflect(),
 			new TestSerialize(),
 			new TestMeta(),
+			new TestType(),
 			#if cs
 			new TestCSharp(),
 			#end
