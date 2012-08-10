@@ -31,13 +31,13 @@ class MyParent {
 	function a() return 11
 	function b() return 20
 }
-#if !as3
+
 class MyChild1 extends MyParent {
 	public override function a() { return 12; }
 	override function b() return 21
 	function c() return 19
 }
-
+#if !as3
 class MyChild2 extends MyParent {
 	public function test1(mc1:MyChild1) return mc1.b()
 }

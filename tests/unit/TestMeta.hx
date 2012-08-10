@@ -38,7 +38,7 @@ package unit;
 
 		var m = haxe.rtti.Meta.getFields(TestMeta);
 		eq( fields(m), "_" );
-		eq( fields(m._), "new" );
+		eq( fields(m._), #if as3 "_"+#end "new" );
 
 		var m = haxe.rtti.Meta.getStatics(TestMeta);
 		eq( fields(m), "foo" );

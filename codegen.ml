@@ -1370,6 +1370,8 @@ let fix_override com c f fd =
 						{ e with eexpr = TBlock (v :: el) }
 				);
 			} in
+			(* as3 does not allow wider visibility, so the base method has to be made public *)
+			if Common.defined com "as3" && f.cf_public then f2.cf_public <- true;
 			let targs = List.map (fun(v,c) -> (v.v_name, Option.is_some c, v.v_type)) nargs in
 			let fde = (match f.cf_expr with None -> assert false | Some e -> e) in
 			{ f with cf_expr = Some { fde with eexpr = TFunction fd2 }; cf_type = TFun(targs,tret) }
@@ -1390,7 +1392,6 @@ let fix_overrides com t =
 			c.cl_ordered_fields <- List.filter (fun f ->
 				try
 					if find_field c f == f then raise Not_found;
-					print_endline ("Filter " ^ f.cf_name ^ " from class " ^ (s_type_path c.cl_path));
 					c.cl_fields <- PMap.remove f.cf_name c.cl_fields;
 					false;
 				with Not_found ->

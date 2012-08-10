@@ -90,11 +90,11 @@ class TestType extends Test {
 	}
 	
 	function testWiderVisibility() {
-		// TODO: get this working for As3
-		#if !as3
 		var c = new MyClass.MyChild1();
 		eq(12, c.a());
 		
+		// TODO: this is also a problem
+		#if !as3
 		var mc2 = new MyChild2();
 		eq(21, mc2.test1(new MyChild1()));
 		#end
