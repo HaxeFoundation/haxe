@@ -1370,7 +1370,7 @@ let fix_override com c f fd =
 						{ e with eexpr = TBlock (v :: el) }
 				);
 			} in
-      let targs = List.map (fun(v,c) -> (v.v_name, Option.is_some c, v.v_type)) nargs in
+			let targs = List.map (fun(v,c) -> (v.v_name, Option.is_some c, v.v_type)) nargs in
 			let fde = (match f.cf_expr with None -> assert false | Some e -> e) in
 			{ f with cf_expr = Some { fde with eexpr = TFunction fd2 }; cf_type = TFun(targs,tret) }
 		| Some(f2), None when c.cl_interface ->

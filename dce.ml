@@ -152,10 +152,7 @@ let rec field dce c n stat =
 		if not (has_meta ":used" cf.cf_meta) then begin
 			let keep () =
 				mark_dependent_fields dce c n stat;
- 				match dce.ctx.com.platform with
-					(* these platforms currently need the real property field apparently *)
-					| Js | Neko | Php | Flash8 | Cpp | Java -> field dce c pn stat
-					| _ -> ()
+				field dce c pn stat
 			in
 			(match prefix,cf.cf_kind with
 				| "get_",Var {v_read = AccCall s} when s = n -> keep()
