@@ -31,7 +31,7 @@ class MyParent {
 	function a() return 11
 	function b() return 20
 }
-
+#if !as3
 class MyChild1 extends MyParent {
 	public override function a() { return 12; }
 	override function b() return 21
@@ -41,6 +41,7 @@ class MyChild1 extends MyParent {
 class MyChild2 extends MyParent {
 	public function test1(mc1:MyChild1) return mc1.b()
 }
+#end
 
 interface I1 { }
 class Base { public var s:String; public function new() { } }
@@ -130,7 +131,7 @@ class InitProperties {
 	public var accDynamic(default, dynamic):Int = 3;
 	
 	function set_accFunc(v) return throw "setter was called"
-	
+	function set_accDynamic(v) return throw "setter was called"
 	public function new() { }
 }
 

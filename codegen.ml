@@ -1385,6 +1385,17 @@ let fix_override com c f fd =
 let fix_overrides com t =
 	match t with
 	| TClassDecl c ->
+		(* overrides can be removed from interfaces *)
+		if c.cl_interface then
+			c.cl_ordered_fields <- List.filter (fun f ->
+				try
+					if find_field c f == f then raise Not_found;
+					print_endline ("Filter " ^ f.cf_name ^ " from class " ^ (s_type_path c.cl_path));
+					c.cl_fields <- PMap.remove f.cf_name c.cl_fields;
+					false;
+				with Not_found ->
+					true
+			) c.cl_ordered_fields;
 		c.cl_ordered_fields <- List.map (fun f ->
 			match f.cf_expr, f.cf_kind with
 			| Some { eexpr = TFunction fd }, Method (MethNormal | MethInline) ->
