@@ -299,6 +299,17 @@ class XmlParser {
 		}
 	}
 
+	function xmeta( x : Fast ) : MetaData {
+		var ml = [];
+		for( m in x.nodes.m ) {
+			var pl = [];
+			for( p in m.nodes.e )
+				pl.push(p.innerHTML);
+			ml.push({ name : m.att.n, params : pl });
+		}
+		return ml;
+	}
+
 	function xpath( x : Fast ) : PathParams {
 		var path = mkPath(x.att.path);
 		var params = new List();
@@ -317,13 +328,14 @@ class XmlParser {
 		var interfaces = new List();
 		var fields = new List();
 		var statics = new List();
+		var meta = [];
 		for( c in x.elements )
 			switch( c.name ) {
 			case "haxe_doc": doc = c.innerData;
 			case "extends": csuper = xpath(c);
 			case "implements": interfaces.add(xpath(c));
 			case "haxe_dynamic": tdynamic = xtype(new Fast(c.x.firstElement()));
-			case "meta":
+			case "meta": meta = xmeta(c);
 			default:
 				if( c.x.exists("static") )
 					statics.add(xclassfield(c));
@@ -345,6 +357,7 @@ class XmlParser {
 			statics : statics,
 			tdynamic : tdynamic,
 			platforms : defplat(),
+			meta : meta,
 		};
 	}
 
@@ -352,10 +365,11 @@ class XmlParser {
 		var e = x.elements;
 		var t = xtype(e.next());
 		var doc = null;
+		var meta = [];
 		for( c in e )
 			switch( c.name ) {
 			case "haxe_doc": doc = c.innerData;
-			case "meta":
+			case "meta": meta = xmeta(c);
 			default: xerror(c);
 			}
 		return {
@@ -363,21 +377,25 @@ class XmlParser {
 			type : t,
 			isPublic : x.x.exists("public"),
 			isOverride : x.x.exists("override"),
+			line : if( x.has.line ) Std.parseInt(x.att.line) else null,
 			doc : doc,
 			get : if( x.has.get ) mkRights(x.att.get) else RNormal,
 			set : if( x.has.set ) mkRights(x.att.set) else RNormal,
 			params : if( x.has.params ) mkTypeParams(x.att.params) else null,
 			platforms : defplat(),
+			meta : meta,
 		};
 	}
 
 	function xenum( x : Fast ) : Enumdef {
 		var cl = new List();
 		var doc = null;
+		var meta = [];
 		for( c in x.elements )
 			if( c.name == "haxe_doc" )
 				doc = c.innerData;
-			else if ( c.name == "meta" ) { }
+			else if ( c.name == "meta" )
+				meta = xmeta(c);
 			else
 				cl.add(xenumfield(c));
 		return {
@@ -390,12 +408,14 @@ class XmlParser {
 			params : mkTypeParams(x.att.params),
 			constructors : cl,
 			platforms : defplat(),
+			meta : meta,
 		};
 	}
 
 	function xenumfield( x : Fast ) : EnumField {
 		var args = null;
 		var xdoc = x.x.elementsNamed("haxe_doc").next();
+		var meta = if( x.hasNode.meta ) xmeta(x.node.meta) else [];
 		if( x.has.a ) {
 			var names = x.att.a.split(":");
 			var elts = x.elements;
@@ -417,6 +437,7 @@ class XmlParser {
 			name : x.name,
 			args : args,
 			doc : if( xdoc == null ) null else new Fast(xdoc).innerData,
+			meta : meta,
 			platforms : defplat(),
 		};
 	}
@@ -424,10 +445,12 @@ class XmlParser {
 	function xtypedef( x : Fast ) : Typedef {
 		var doc = null;
 		var t = null;
+		var meta = [];
 		for( c in x.elements )
 			if( c.name == "haxe_doc" )
 				doc = c.innerData;
-			else if ( c.name == "meta" ) { }
+			else if ( c.name == "meta" )
+				meta = xmeta(c);
 			else
 				t = xtype(c);
 		var types = new Hash();
@@ -443,6 +466,7 @@ class XmlParser {
 			type : t,
 			types : types,
 			platforms : defplat(),
+			meta : meta,
 		};
 	}
 

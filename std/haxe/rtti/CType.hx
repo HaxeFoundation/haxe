@@ -54,6 +54,8 @@ enum Rights {
 	RInline;
 }
 
+typedef MetaData = Array<{ name : String, params : Array<String> }>;
+
 typedef ClassField = {
 	var name : String;
 	var type : CType;
@@ -64,6 +66,8 @@ typedef ClassField = {
 	var set : Rights;
 	var params : TypeParams;
 	var platforms : Platforms;
+	var meta : MetaData;
+	var line : Null<Int>;
 }
 
 typedef TypeInfos = {
@@ -74,6 +78,7 @@ typedef TypeInfos = {
 	var doc : String;
 	var isPrivate : Bool;
 	var platforms : Platforms;
+	var meta : MetaData;
 }
 
 typedef Classdef = {> TypeInfos,
@@ -91,6 +96,7 @@ typedef EnumField = {
 	var args : Null<List<{ name : String, opt : Bool, t : CType }>>;
 	var doc : String;
 	var platforms : Platforms;
+	var meta : MetaData;
 }
 
 typedef Enumdef = {> TypeInfos,
