@@ -536,7 +536,7 @@ let neko =
 
 	let on_abstract_gc = Extc.dlcaml_callback 1 in
 	let root_index = ref 0 in
-	let roots = Hashtbl.create 0 in	
+	let roots = Hashtbl.create 0 in
 	Callback.register "dlcallb1" (fun a ->
 		let index : int = Obj.magic (Extc.dlptr (val_field a 1)) in
 		Hashtbl.remove roots index;
@@ -565,14 +565,14 @@ let neko =
 			buffers := (buf,v) :: !buffers;
 			v
 		| VString s ->
-			let v = alloc_string s in (* make a copy *)			
+			let v = alloc_string s in (* make a copy *)
 			ignore(copy_string v);
 			v
 		| VObject o as obj ->
 			let vo = Extc.dlcall1 alloc_object null in
 			Array.iter (fun (id,v) ->
 				ignore(Extc.dlcall3 alloc_field vo (Extc.dlint id) (value_neko ~obj v))
-			) o.ofields;			
+			) o.ofields;
 			vo
 		| VClosure _ ->
 			failwith "Closure not supported"
@@ -597,6 +597,8 @@ let neko =
 		| VAbstract _ ->
 			failwith "Abstract not supported"
 	in
+	let obj_r = ref [] in
+	let obj_fun = (fun v id -> obj_r := (v,id) :: !obj_r; val_null) in
 	let rec neko_value (v:Extc.value) =
 		if Obj.is_int (Obj.magic v) then
 			VInt (Obj.magic v)
@@ -607,8 +609,9 @@ let neko =
 			| 2 -> VBool (v == val_true)
 			| 3 -> VString (copy_string v)
 			| 4 ->
-				let r = ref [] in
-				ignore(Extc.dlcall3 val_iter_fields v (Extc.dlcallback 2) (Obj.magic (fun v id -> r := (v,id) :: !r; val_null)));
+				ignore(Extc.dlcall3 val_iter_fields v (Extc.dlcallback 2) (Obj.magic obj_fun));
+				let r = !obj_r in
+				obj_r := [];
 				let ctx = get_ctx() in
 				let fields = List.rev_map (fun (v,id) ->
 					let iid = Extc.dltoint id in
@@ -617,7 +620,7 @@ let neko =
 						ignore(hash_field ctx name);
 					end;
 					iid, neko_value v
-				) !r in
+				) r in
 				VObject { ofields = Array.of_list fields; oproto = None }
 			| 5 ->
 				VArray (Array.init (head lsr 3) (fun i -> neko_value (Extc.dlptr (val_field v i))))
@@ -632,7 +635,7 @@ let neko =
 
 	Callback.register "dlcallb2" (fun args nargs ->
 		(* get back the VM env, which was set in value_neko *)
-		let env = Extc.dlptr (Extc.dladdr vm (2 * ptr_size)) in		
+		let env = Extc.dlptr (Extc.dladdr vm (2 * ptr_size)) in
 		(* extract the index stored in abstract data *)
 		let index : int = Obj.magic (Extc.dlptr (val_field env 1)) in
 		let f, obj = (try Hashtbl.find roots index with Not_found -> assert false) in
@@ -1762,10 +1765,10 @@ let std_lib =
 			| _ -> error())
 		| Some neko ->
 			let parse_xml = neko.load "std@parse_xml" 2 in
-			Fun2 (fun str o -> neko.call parse_xml [str;o])			
+			Fun2 (fun str o -> neko.call parse_xml [str;o])
 		);
 	(* memory, module, thread : not planned *)
-	] 
+	]
 	(* process *)
 	@ (match neko with
 	| None -> []
@@ -3822,7 +3825,7 @@ let decode_expr v =
 		loop v
 	with Stack_overflow ->
 		raise Invalid_expr
-		
+
 
 (* ---------------------------------------------------------------------- *)
 (* TYPE ENCODING *)
@@ -4264,9 +4267,9 @@ let rec make_ast e =
 	| TContinue -> EContinue
 	| TThrow e -> EThrow (make_ast e)
 	| TCast (e,t) ->
-		let t = (match t with 
-			| None -> None 
-			| Some t -> 
+		let t = (match t with
+			| None -> None
+			| Some t ->
 				let t = (match t with TClassDecl c -> TInst (c,[]) | TEnumDecl e -> TEnum (e,[]) | TTypeDecl t -> TType (t,[])) in
 				Some (try make_type t with Exit -> assert false)
 		) in
