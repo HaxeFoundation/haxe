@@ -47,11 +47,11 @@ haxe: $(MODULES:=.cmx)
 	$(OCAMLOPT) -o $(OUTPUT) $(NATIVE_LIBS) $(LIBS) $(MODULES:=.cmx)
 
 haxelib:
-	$(OUTPUT) --cwd "$(CURDIR)/std/tools/haxelib" haxelib.hxml
+	$(CURDIR)/$(OUTPUT) --cwd "$(CURDIR)/std/tools/haxelib" haxelib.hxml
 	cp std/tools/haxelib/haxelib$(EXTENSION) haxelib$(EXTENSION)
 
 haxedoc:
-	$(OUTPUT) --cwd "$(CURDIR)/std/tools/haxedoc" haxedoc.hxml
+	$(CURDIR)/$(OUTPUT) --cwd "$(CURDIR)/std/tools/haxedoc" haxedoc.hxml
 	cp std/tools/haxedoc/haxedoc$(EXTENSION) haxedoc$(EXTENSION)
 
 tools: haxelib haxedoc
