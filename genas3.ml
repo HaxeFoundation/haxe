@@ -566,9 +566,15 @@ and gen_expr ctx e =
 		| None ->
 			spr ctx "return"
 		| Some e when (match follow e.etype with TEnum({ e_path = [],"Void" },[]) -> true | _ -> false) ->
+			print ctx "{";
+			let bend = open_block ctx in
+			newline ctx;
 			gen_value ctx e;
 			newline ctx;
-			spr ctx "return"
+			spr ctx "return";
+			bend();
+			newline ctx;
+			print ctx "}";			
 		| Some e ->
 			spr ctx "return ";
 			gen_value ctx e);
