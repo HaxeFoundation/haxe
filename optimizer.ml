@@ -681,7 +681,14 @@ let reduce_expr ctx e =
 		| [] -> e
 		| ec :: l ->
 			(* remove all no-ops : not-final constants in blocks *)
-			match List.filter (fun e -> match e.eexpr with TConst _ -> false | _ -> true) l with
+			match List.filter (fun e -> match e.eexpr with
+				| TConst _
+				| TBlock []
+				| TObjectDecl [] ->
+					false
+				| _ ->
+					true
+			) l with
 			| [] -> { ec with epos = e.epos }
 			| l -> { e with eexpr = TBlock (List.rev (ec :: l)) })
 	| TParenthesis ec ->
