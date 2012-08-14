@@ -405,6 +405,8 @@ class HtmlPrinter {
 					set : RNormal,
 					params : null,
 					platforms : platforms,
+					meta : [],
+					line : null,
 				},false);
 			}
 			print('</dl>');
