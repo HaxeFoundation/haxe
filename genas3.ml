@@ -592,7 +592,11 @@ and gen_expr ctx e =
             (fun() -> print ctx "}")
 		end) in
 		(match ctx.block_inits with None -> () | Some i -> i());
-		List.iter (fun e -> newline ctx; gen_expr ctx e) el;
+		List.iter (fun e ->
+			match e.eexpr with
+			| TBlock [] | TObjectDecl [] -> ()
+			| _ -> newline ctx; gen_expr ctx e
+		) el;
 		bend();
 		newline ctx;
 		cb();
