@@ -227,7 +227,7 @@ and load_complex_type ctx p t =
 						if PMap.mem f a2.a_fields then error ("Cannot redefine field " ^ f) p
 					) a.a_fields;
 					mk_anon (PMap.foldi PMap.add a.a_fields a2.a_fields)
-				| _ -> error "Cannot only extend classes and anonymous" p
+				| _ -> error "Can only extend classes and structures" p
 			in
 			loop (load_instance ctx t p false)
 		| _ -> assert false)

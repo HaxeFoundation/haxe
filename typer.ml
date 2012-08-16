@@ -516,7 +516,7 @@ let error_require r p =
 	with _ ->
 		"'" ^ r ^ "' to be enabled"
 	in
-	error ("Accessing this field require " ^ r) p
+	error ("Accessing this field requires " ^ r) p
 
 let field_access ctx mode f t e p =
 	let fnormal() = AKField ((mk (TField (e,f.cf_name)) t p),f) in
@@ -534,7 +534,7 @@ let field_access ctx mode f t e p =
 		if mode = MSet && m <> MethDynamic && not ctx.untyped then error "Cannot rebind this method : please use 'dynamic' before method declaration" p;
 		(match m, mode with
 		| MethInline, _ -> AKInline (e,f,t)
-		| MethMacro, MGet -> display_error ctx "Macro functions must be called immediatly" p; normal()
+		| MethMacro, MGet -> display_error ctx "Macro functions must be called immediately" p; normal()
 		| MethMacro, MCall -> AKMacro (e,f)
 		| _ , MGet ->
 			AKExpr (mk (TClosure (e,f.cf_name)) t p)
@@ -759,7 +759,7 @@ let rec type_field ctx e i p mode =
 		(try
 			let t , f = class_field ctx c params i p in
 			if e.eexpr = TConst TSuper && (match f.cf_kind with Var _ -> true | _ -> false) && Common.platform ctx.com Flash then error "Cannot access superclass variable for calling : needs to be a proper method" p;
-			if not (can_access ctx.curclass c f false) && not ctx.untyped then display_error ctx ("Cannot access to private field " ^ i) p;
+			if not (can_access ctx.curclass c f false) && not ctx.untyped then display_error ctx ("Cannot access private field " ^ i) p;
 			field_access ctx mode f (apply_params c.cl_types params t) e p
 		with Not_found -> try
 			using_field ctx mode e i p
@@ -791,7 +791,7 @@ let rec type_field ctx e i p mode =
 				match !(a.a_status) with
 				| Closed -> () (* always allow anon private fields access *)
 				| Statics c when is_parent c ctx.curclass -> ()
-				| _ -> display_error ctx ("Cannot access to private field " ^ i) p
+				| _ -> display_error ctx ("Cannot access private field " ^ i) p
 			end;
 			field_access ctx mode f (match !(a.a_status) with Statics c -> field_type ctx c [] f p | _ -> Type.field_type f) e p
 		with Not_found ->
@@ -2236,7 +2236,7 @@ and type_call ctx e el twith p =
 		else
 			e
 	| (EConst (Ident "super"),sp) , el ->
-		if ctx.curfun <> FConstructor then error "Cannot call superconstructor outside class constructor" p;
+		if ctx.curfun <> FConstructor then error "Cannot call super constructor outside class constructor" p;
 		let el, t = (match ctx.curclass.cl_super with
 		| None -> error "Current class does not have a super" p
 		| Some (c,params) ->
