@@ -57,9 +57,10 @@ class FileInput extends Input {
 	
 	override public function readBytes(s:Bytes, pos:Int, len:Int):Int 
 	{
+		var ret = 0;
 		try
 		{
-			return f.read(s.getData(), pos, len);
+			ret = f.read(s.getData(), pos, len);
 		}
 		
 		catch (e:EOFException) {
@@ -69,6 +70,11 @@ class FileInput extends Input {
 		catch (e:IOException) {
 			throw haxe.io.Error.Custom(e);
 		}
+
+		if (ret == -1)
+			throw new Eof();
+		
+		return ret;
 	}
 	
 	public function seek( p : Int, pos : FileSeek ) : Void
