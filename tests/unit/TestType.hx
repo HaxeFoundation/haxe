@@ -106,7 +106,7 @@ class TestType extends Test {
 		var ti1:Array<I1>;
 		var tbase:Array<Base>;
 		var tpbase:Array<PClassBase<Float>>;
-		#if (flash9 || cpp)
+		#if (flash9 || cpp || java || cs)
 		var tnullbool:Array<Null<Bool>>;
 		var tnullbase:Array<Null<Base>>;
 		#else
@@ -143,7 +143,7 @@ class TestType extends Test {
 		
 		var tbase:Base;
 		var ti1:I1;
-		#if (flash9 || cpp)
+		#if (flash9 || cpp || java || cs)
 		var tnullbool:Null<Bool>;
 		#else
 		var tnullbool:Bool;

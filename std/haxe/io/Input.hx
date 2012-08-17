@@ -85,59 +85,6 @@ class Input {
 			bufsize = (1 << 14); // 16 Ko
 		#end
 		
-		#if (cs || java)
-		var buf = null;
-		var total = [];
-		var tlen = 0;
-		var pos = 0;
-		try
-		{
-			while (true)
-			{
-				if (buf == null || pos >= bufsize)
-				{
-					pos = 0;
-					buf = Bytes.alloc(bufsize);
-					total.push(buf);
-				}
-				
-				var len = readBytes(buf, pos, bufsize - pos);
-				tlen += len;
-				pos += len;
-				if (len == 0)
-					throw Error.Blocked;
-			}
-		} catch (e:Eof) {
-		}
-			#if cs
-			var ret = new cs.NativeArray(tlen);
-			var idx = 0;
-			for (buf in total)
-			{
-				var len = buf.getData().Length;
-				if (len > tlen)
-					len = tlen;
-				cs.system.Array.Copy(buf.getData(), 0, ret, idx, len);
-				idx += len;
-				tlen -= len;
-			}
-			return Bytes.ofData(ret);
-			#else
-			var ret = new java.NativeArray(tlen);
-			var idx = 0;
-			for (buf in total)
-			{
-				var len = buf.getData().length;
-				if (len > tlen)
-					len = tlen;
-				java.lang.System.arraycopy(buf.getData(), 0, ret, idx, len);
-				idx += len;
-				tlen -= len;
-			}
-			return Bytes.ofData(ret);
-			#end
-		#else
-		
 		var buf = Bytes.alloc(bufsize);
 		var total = new haxe.io.BytesBuffer();
 		try {
@@ -150,7 +97,6 @@ class Input {
 		} catch( e : Eof ) {
 		}
 		return total.getBytes();
-		#end
 	}
 
 	public function readFullBytes( s : Bytes, pos : Int, len : Int ) {

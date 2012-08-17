@@ -111,4 +111,10 @@ class TestBytes extends Test {
 			eq( b.get(i), str.charCodeAt(i) );
 	}
 
+	function testInput() {
+		var bs = haxe.io.Bytes.ofString("One é accent");
+		var input = new haxe.io.BytesInput(bs);
+		//readAll
+		eq(input.readAll().toString(), "One é accent");
+	}
 }

@@ -406,7 +406,16 @@
 
 	public static function allEnums<T>( e : Enum<T> ) : Array<T> 
 	{
-		return null;
+		var ctors = getEnumConstructs(e);
+		var ret = [];
+		for (ctor in ctors)
+		{
+			var v = Reflect.field(e, ctor);
+			if (Std.is(v, e))
+				ret.push(v);
+		}
+
+		return ret;
 	}
 
 }
