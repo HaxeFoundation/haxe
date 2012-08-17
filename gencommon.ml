@@ -4605,7 +4605,7 @@ struct
                 
                 let elist = List.map2 (fun param (_,_,t) -> handle_cast gen (param) (gen.greal_type t) (gen.greal_type param.etype)) elist args in
                 let e1 = { e1 with eexpr = TField(ef, f) } in
-                let new_ecall = gen.gparam_func_call ecall e1 params elist in
+                let new_ecall = gen.gparam_func_call ecall e1 _params elist in
                 
                 handle_cast gen new_ecall (gen.greal_type ecall.etype) (gen.greal_type ret)
         )
@@ -4616,14 +4616,14 @@ struct
             let args, ret = get_args (efield.ef_type) in
             handle_cast gen { ecall with eexpr = TCall({ e1 with eexpr = TEnumField(en, f) }, List.map2 (fun param (_,_,t) -> handle_cast gen param (gen.greal_type t) (gen.greal_type param.etype)) elist args) } (gen.greal_type ecall.etype) (gen.greal_type ret)
           | _ ->
-            let params = TypeParams.infer_params gen ecall.epos (get_fun efield.ef_type) (get_fun e1.etype) en.e_types impossible_tparam_is_dynamic in
+            let _params = TypeParams.infer_params gen ecall.epos (get_fun efield.ef_type) (get_fun e1.etype) en.e_types impossible_tparam_is_dynamic in
             let args, ret = get_args efield.ef_type in
             let actual_t = TFun(List.map (fun (n,o,t) -> (n,o,gen.greal_type t)) args, gen.greal_type ret) in
             (* 
               because of differences on how <Dynamic> is handled on the platforms, this is a hack to be able to 
               correctly use class field type parameters with RealTypeParams
             *)
-            let cf_params = List.map (fun t -> match follow t with | TDynamic _ -> t_empty | _ -> t) params in
+            let cf_params = List.map (fun t -> match follow t with | TDynamic _ -> t_empty | _ -> t) _params in
             (* params are inverted *)
             let cf_params = List.rev cf_params in
             let t = apply_params en.e_types (gen.greal_type_param (TEnumDecl en) cf_params) actual_t in
@@ -4632,7 +4632,7 @@ struct
             
             let elist = List.map2 (fun param (_,_,t) -> handle_cast gen (param) (gen.greal_type t) (gen.greal_type param.etype)) elist args in
             let e1 = { e1 with eexpr = TEnumField(en, f) } in
-            let new_ecall = gen.gparam_func_call ecall e1 params elist in
+            let new_ecall = gen.gparam_func_call ecall e1 _params elist in
             
             handle_cast gen new_ecall (gen.greal_type ecall.etype) (gen.greal_type ret)
         )
