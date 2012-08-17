@@ -300,6 +300,8 @@ let run ctx main types modules =
 		| (TClassDecl c) as mt :: l when keep_whole_class dce c ->
 			loop (mt :: acc) l
 		| (TClassDecl c) as mt :: l ->
+			(* add :keep so subsequent filter calls do not process class fields again *)
+			c.cl_meta <- (":keep",[],c.cl_pos) :: c.cl_meta;
  			c.cl_ordered_statics <- List.filter (fun cf ->
 				let b = keep_field dce cf in
 				if not b then begin
@@ -333,6 +335,10 @@ let run ctx main types modules =
 			acc
 	in
 	let types = loop [] (List.rev types) in
+	let modules = List.filter (fun m ->
+		m.m_types <- loop [] m.m_types;
+		m.m_types <> []
+	) modules in
 
 	(* extra step to adjust properties that had accessors removed (required for Php and Cpp) *)
 	List.iter (fun mt -> match mt with
