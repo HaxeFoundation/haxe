@@ -3618,10 +3618,12 @@ struct
     
     List.map (fun (_,t) ->
       match follow t with
-        | TInst(cl,_) when impossible_tparam_is_dynamic ->
-          (try Hashtbl.find params_tbl cl.cl_path with | Not_found -> t_empty)
+        | TInst(cl,_) when !debug_mode ->
+          (try Hashtbl.find params_tbl cl.cl_path with | Not_found -> 
+            (gen.gcon.warning ("Error: function argument " ^ (snd cl.cl_path) ^ " not applied.") pos); 
+            t_empty)
         | TInst(cl,_) ->
-          (try Hashtbl.find params_tbl cl.cl_path with | Not_found -> (gen.gcon.error ("Error: function argument " ^ (snd cl.cl_path) ^ " not applied.") pos); assert false)
+          (try Hashtbl.find params_tbl cl.cl_path with | Not_found -> t_empty)
         | _ -> 
           assert false
     ) params
