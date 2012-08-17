@@ -104,6 +104,23 @@ class SubConstrOpt3 extends BaseConstrOpt {
 
 class TestMisc extends Test {
 
+	function testDate() {
+		var d = new Date(2012, 07, 17, 01, 02, 03);
+		eq( d.getDay(), 5 );
+
+		eq( d.getDate(), 17 );
+		eq( d.getMonth(), 7 );
+		eq( d.getFullYear(), 2012 );
+
+		eq( d.getHours(), 1 );
+		eq( d.getMinutes(), 2 );
+		eq( d.getSeconds(), 3 );
+
+		//seems to be system-dependent?
+		//eq( d.getTime(), 1345158123000 );
+		eq( d.toString(), "2012-08-17 01:02:03" );
+	}
+
 	function testClosure() {
 		var c = new MyClass(100);
 		var add = c.add;

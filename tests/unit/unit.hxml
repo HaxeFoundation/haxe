@@ -80,5 +80,5 @@ unit.Test
 #cs-unsafe
 --next
 -main unit.Test
--D unsafe
 -cs cs_unsafe
+-D unsafe

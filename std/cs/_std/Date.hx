@@ -11,8 +11,9 @@ import haxe.Int64;
 	**/
 	public function new(year : Int, month : Int, day : Int, hour : Int, min : Int, sec : Int ) : Void
 	{
+		if (day <= 0) day = 1;
 		if (year <= 0) year = 1;
-		date = new DateTime(year, month + 1, day + 1, hour, min, sec);
+		date = new DateTime(year, month + 1, day, hour, min, sec);
 	}
 
 	/**
@@ -70,15 +71,18 @@ import haxe.Int64;
 	**/
 	public inline function getDate() : Int
 	{
-		return cast date.DayOfWeek;
+		return date.Day;
 	}
 
 	/**
 		Returns the week day of the date (0-6 range).
 	**/
-	public inline function getDay() : Int
+	public function getDay() : Int
 	{
-		return date.Day;
+		var ret = cast(date.DayOfWeek, Int) - 1;
+		if (ret == -1)
+			ret = 6;
+		return ret;
 	}
 
 	/**
