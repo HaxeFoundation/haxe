@@ -6558,11 +6558,18 @@ struct
           let get_field ethis name = { eexpr = TField (ethis, name); etype = cf_type; epos = pos } in
           let this = if is_static then mk_classtype_access cl pos else { eexpr = TConst(TThis); etype = t; epos = pos } in
           
-          let ret = mk_return 
-          { 
-            eexpr = TBinop(Ast.OpAssign, 
-              get_field this cf.cf_name,
-              mk_cast cf_type value_local);
+          let ret =
+          {
+            eexpr = TBlock([
+              { 
+                eexpr = TBinop(Ast.OpAssign, 
+                  get_field this cf.cf_name,
+                  mk_cast cf_type value_local);
+                etype = cf_type;
+                epos = pos;
+              };
+              mk_return value_local
+            ]);
             etype = cf_type;
             epos = pos;
           } in
