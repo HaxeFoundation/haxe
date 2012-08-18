@@ -58,10 +58,8 @@ let type_constant com c p =
 	match c with
 	| Int s ->
 		if String.length s > 10 && String.sub s 0 2 = "0x" then error "Invalid hexadecimal integer" p;
-		(try
-			mk (TConst (TInt (Int32.of_string s))) t.tint p
-		with
-			_ -> mk (TConst (TFloat s)) t.tfloat p)
+		(try mk (TConst (TInt (Int32.of_string s))) t.tint p
+		with _ -> mk (TConst (TFloat s)) t.tfloat p)
 	| Float f -> mk (TConst (TFloat f)) t.tfloat p
 	| String s -> mk (TConst (TString s)) t.tstring p
 	| Ident "true" -> mk (TConst (TBool true)) t.tbool p
@@ -1476,22 +1474,25 @@ let rec constructor_side_effects e =
 (*
 	Make a dump of the full typed AST of all types
 *)
+let rec create_dumpfile acc = function
+	| [] -> assert false
+	| d :: [] ->
+		let ch = open_out (String.concat "/" (List.rev (d :: acc)) ^ ".dump") in
+		let buf = Buffer.create 0 in		
+		buf, (fun () ->
+			output_string ch (Buffer.contents buf);
+			close_out ch)		
+	| d :: l ->
+		let dir = String.concat "/" (List.rev (d :: acc)) in
+		if not (Sys.file_exists dir) then Unix.mkdir dir 0o755;
+		create_dumpfile (d :: acc) l
+
 let dump_types com =
 	let s_type = s_type (Type.print_context()) in
 	let params = function [] -> "" | l -> Printf.sprintf "<%s>" (String.concat "," (List.map (fun (n,t) -> n ^ " : " ^ s_type t) l)) in
-	let rec create acc = function
-		| [] -> ()
-		| d :: l ->
-			let dir = String.concat "/" (List.rev (d :: acc)) in
-			if not (Sys.file_exists dir) then Unix.mkdir dir 0o755;
-			create (d :: acc) l
-	in
 	List.iter (fun mt ->
 		let path = Type.t_path mt in
-		let dir = "dump" :: fst path in
-		create [] dir;
-		let ch = open_out (String.concat "/" dir ^ "/" ^ snd path ^ ".dump") in
-		let buf = Buffer.create 0 in
+		let buf,close = create_dumpfile [] ("dump" :: fst path @ [snd path]) in
 		let print fmt = Printf.kprintf (fun s -> Buffer.add_string buf s) fmt in
 		(match mt with
 		| Type.TClassDecl c ->
@@ -1525,9 +1526,31 @@ let dump_types com =
 		| Type.TTypeDecl t ->
 			print "%stype %s%s = %s" (if t.t_private then "private " else "") (s_type_path path) (params t.t_types) (s_type t.t_type);
 		);
-		output_string ch (Buffer.contents buf);
-		close_out ch
+		close();
 	) com.types
+
+let dump_dependencies com =
+	let buf,close = create_dumpfile [] ["dump";".dependencies"] in
+	let print fmt = Printf.kprintf (fun s -> Buffer.add_string buf s) fmt in
+	let dep = Hashtbl.create 0 in
+	List.iter (fun m ->
+		print "%s:\n" m.m_extra.m_file;
+		PMap.iter (fun _ m2 ->
+			print "\t%s\n" (m2.m_extra.m_file);
+			let l = try Hashtbl.find dep m2.m_extra.m_file with Not_found -> [] in
+			Hashtbl.replace dep m2.m_extra.m_file (m :: l)
+		) m.m_extra.m_deps;
+	) com.Common.modules;
+	close();
+	let buf,close = create_dumpfile [] ["dump";".dependants"] in
+	let print fmt = Printf.kprintf (fun s -> Buffer.add_string buf s) fmt in
+	Hashtbl.iter (fun n ml ->
+		print "%s:\n" n;
+		List.iter (fun m ->
+			print "\t%s\n" (m.m_extra.m_file);
+		) ml;
+	) dep;
+	close()
 
 (*
 	Build a default safe-cast expression :

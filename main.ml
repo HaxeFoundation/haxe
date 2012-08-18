@@ -1051,6 +1051,7 @@ try
 			Genxml.generate com file);
 		if com.platform = Flash || com.platform = Cpp || com.platform = Cs then List.iter (Codegen.fix_overrides com) com.types;
 		if Common.defined com "dump" then Codegen.dump_types com;
+		if Common.defined com "dump_dependencies" then Codegen.dump_dependencies com;
 		t();
 		(match com.platform with
 		| _ when !no_output ->
