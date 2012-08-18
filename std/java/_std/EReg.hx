@@ -147,7 +147,14 @@ class EReg {
 	{
 		if (isGlobal)
 		{
-			return java.Lib.array(matcher.pattern().split(s));
+			var ret = [];
+			while(this.match(s))
+			{
+				ret.push(matchedLeft());
+				s = matchedRight();
+			}
+			ret.push(s);
+			return ret;
 		} else {
 			var m = matcher;
 			m.reset(s);

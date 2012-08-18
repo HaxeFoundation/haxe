@@ -53,6 +53,12 @@ class TestEReg extends Test {
 		
 		eq( ~/a+/.replace("aabbccaa", "x"), "xbbccaa" );
 		eq( ~/a+/g.replace("aabbccaa", "x"), "xbbccx" );
+
+		//testing split
+		var test:String = "{ test } .blah  { something:someval } ";
+		var block:EReg = ~/\s*\{\s*|\s*\}\s*/gm;
+		eq( block.split(test).length, 5 );
+		eq( '"' + block.split(test).join('","') + '"', '"","test",".blah","something:someval",""' );
 		
 		#end
 	}
