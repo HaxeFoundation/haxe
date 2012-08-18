@@ -108,7 +108,7 @@ class Timer {
 		#elseif cpp
 			return untyped __global__.__time_stamp();
 		#elseif sys
-			return Sys.cpuTime();
+			return Sys.time();
 		#else
 			return 0;
 		#end
