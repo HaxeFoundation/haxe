@@ -107,6 +107,8 @@ class Timer {
 			return Date.now().getTime() / 1000;
 		#elseif cpp
 			return untyped __global__.__time_stamp();
+		#elseif sys
+			return Sys.cpuTime();
 		#else
 			return 0;
 		#end
