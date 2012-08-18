@@ -33,7 +33,12 @@ class StringBuf {
 	}
 
 	public function add( x : Dynamic ) : Void {
-		b.append(x);
+		if (Std.is(x, Int))
+		{
+			b.append(cast(x, Int));
+		} else {
+			b.append(x);
+		}
 	}
 
 	public function addSub( s : String, pos : Int, ?len : Int ) : Void {

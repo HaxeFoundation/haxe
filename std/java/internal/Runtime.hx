@@ -534,6 +534,9 @@ package java.internal;
 	{
 		if (obj == null)
 			return null;
+		
+		if (isInt(obj))
+			return (cast(obj, Int)) + "";
 		return untyped obj.toString();
 	}
 }
