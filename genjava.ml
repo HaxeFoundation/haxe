@@ -720,7 +720,7 @@ let configure gen =
       | TInst( { cl_path = (["haxe"], "Int32") }, [] ) -> gen.gcon.basic.tint
       | TInst( { cl_path = (["haxe"], "Int64") }, [] ) -> ti64
       | TInst( { cl_path = ([], "Class") }, p  )
-      | TInst( { cl_path = ([], "Enum") }, p  ) -> TInst(cl_cl,p)
+      | TInst( { cl_path = ([], "Enum") }, p  ) -> TInst(cl_cl,[t_dynamic])
       | TEnum _
       | TInst _ -> t
       | TType({ t_path = ([], "Null") }, [t]) when is_java_basic_type t -> t_dynamic
