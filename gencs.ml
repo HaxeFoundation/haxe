@@ -1377,7 +1377,7 @@ let configure gen =
     
     let is_main = 
       match gen.gcon.main_class with
-        | Some ( (_,"Main") as path) when path = cl.cl_path ->
+        | Some ( (_,"Main") as path) when path = cl.cl_path && not cl.cl_interface ->
           (* 
             for cases where the main class is called Main, there will be a problem with creating the entry point there. 
             In this special case, a special entry point class will be created 
@@ -1387,11 +1387,13 @@ let configure gen =
           write w "public static void Main()";
           begin_block w;
           (if Hashtbl.mem gen.gtypes (["cs"], "Boot") then write w "cs.Boot.init();"; newline w);
-          print w "global::%s.main();" (path_s path);
+          write w "global::";
+          expr_s w { eexpr = TTypeExpr(TClassDecl cl); etype = t_dynamic; epos = Ast.null_pos };
+          write w ".main();";
           end_block w;
           end_block w;
           false
-        | Some path when path = cl.cl_path -> true
+        | Some path when path = cl.cl_path && not cl.cl_interface -> true
         | _ -> false
     in
     

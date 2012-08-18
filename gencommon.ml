@@ -3559,8 +3559,15 @@ struct
     
     let rec get_arg original applied = 
       match (original, applied) with
-        | TInst( ({ cl_kind = KTypeParameter _ } as cl ), []), _ ->
-          Hashtbl.replace params_tbl cl.cl_path applied
+        | TInst( ({ cl_kind = KTypeParameter tlist } as cl ), []), _ ->
+          (match tlist, follow applied with
+            | [hd], TDynamic _
+            | [hd], TMono _ ->
+              Hashtbl.replace params_tbl cl.cl_path hd
+            | _ -> 
+              Hashtbl.replace params_tbl cl.cl_path applied
+          )
+          
         | TInst(cl, params), TInst(cl2, params2) ->
           let rec loop cl2 params2 =
             if cl == cl2 then begin
@@ -7196,7 +7203,18 @@ struct
     
     let mk_this_call cf params = 
       let t = apply_object cf in
-      mk_this_call_raw cf.cf_name t params
+      (* the return type transformation into Dynamic *)
+      (* is meant to avoid return-type casting after functions with *)
+      (* type parameters are properly inferred at TypeParams.infer_params *)
+      (* e.g. function getArray<T : SomeType>(t:T):Array<T>; after infer_params, *)
+      (* T will be inferred as SomeType, but the returned type will still be typed *)
+      (* as Array<Dynamic> *)
+      let args, ret = get_args t in
+      let ret = match follow ret with
+        | TEnum({ e_path = ([], "Void") }, []) -> ret
+        | _ -> t_dynamic
+      in
+      mk_this_call_raw cf.cf_name (TFun(args, ret)) params
     in
     
     let mk_static_call cf params =
