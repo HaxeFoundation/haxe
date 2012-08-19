@@ -3,10 +3,10 @@
 -main unit.RemotingServer
 -neko remoting.n
 
-#cpp-runner
+#exe-runner
 --next
--main RunCpp
--neko runcpp.n
+-main RunExe
+-neko runexe.n
 
 #java-runner
 --next

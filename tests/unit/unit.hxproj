@@ -56,12 +56,12 @@
     <hidden path="unit.js.map" />
   </hiddenPaths>
   <!-- Executed before build -->
-  <preBuildCommand>haxe unit.hxml</preBuildCommand>
+  <preBuildCommand>$(CompilerPath)/haxe unit.hxml</preBuildCommand>
   <!-- Executed after build -->
   <postBuildCommand alwaysRun="False" />
   <!-- Other project options -->
   <options>
-    <option showHiddenPaths="False" />
+    <option showHiddenPaths="True" />
     <option testMovie="OpenDocument" />
     <option testMovieCommand="http://dev.unit-tests/unit.html" />
   </options>
