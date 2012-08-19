@@ -390,7 +390,7 @@ let rec process_params create pl =
 	let each_params = ref [] in
 	let rec loop acc = function
 		| [] ->
-			let ctx = create (List.rev acc) in
+			let ctx = create (!each_params @ (List.rev acc)) in
 			init ctx;
 			ctx.flush()
 		| "--next" :: l ->
