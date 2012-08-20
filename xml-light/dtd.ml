@@ -20,7 +20,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
  * MA 02110-1301 USA
  *)
-  
+
 open Xml
 open Printf
 
@@ -102,16 +102,18 @@ exception Prove_error of prove_error
 
 type dtd = dtd_item list
 
-type ('a,'b) hash = ('a,'b) Hashtbl.t
+module StringMap = Map.Make(String)
+
+type 'a map = 'a StringMap.t ref
 
 type checked = {
-	c_elements : (string,dtd_element_type) hash;
-	c_attribs : (string,(string,(dtd_attr_type * dtd_attr_default)) hash) hash;
+	c_elements : dtd_element_type map;
+	c_attribs : (dtd_attr_type * dtd_attr_default) map map;
 }
 
 type dtd_state = {
-	elements : (string,dtd_element_type) hash;
-	attribs : (string,(string,(dtd_attr_type * dtd_attr_default)) hash) hash;
+	elements : dtd_element_type map;
+	attribs : (dtd_attr_type * dtd_attr_default) map map;
 	mutable current : dtd_element_type;
 	mutable curtag : string;
 	state : (string * dtd_element_type) Stack.t;
@@ -122,7 +124,21 @@ let file_not_found = ref (fun _ -> assert false)
 let _raises e =
 	file_not_found := e
 
-let empty_hash = Hashtbl.create 0
+let create_map() = ref StringMap.empty
+
+let empty_map = create_map()
+
+let find_map m k = StringMap.find k (!m)
+
+let set_map m k v = m := StringMap.add k v (!m)
+
+let unset_map m k = m := StringMap.remove k (!m)
+
+let iter_map f m = StringMap.iter f (!m)
+
+let fold_map f m = StringMap.fold f (!m)
+
+let mem_map m k = StringMap.mem k (!m)
 
 let pos source =
 	let line, lstart, min, max = Xml_lexer.pos source in
@@ -167,30 +183,30 @@ let parse_file fname =
 			raise e
 
 let check dtd =
-	let attribs = Hashtbl.create 0 in
-	let hdone = Hashtbl.create 0 in
-	let htodo = Hashtbl.create 0 in
+	let attribs = create_map() in
+	let hdone = create_map() in
+	let htodo = create_map() in
 	let ftodo tag from =
 		try
-			ignore(Hashtbl.find hdone tag);
+			ignore(find_map hdone tag);
 		with
 			Not_found ->
 				try
-					match Hashtbl.find htodo tag with
-					| None -> Hashtbl.replace htodo tag from
+					match find_map htodo tag with
+					| None -> set_map htodo tag from
 					| Some _ -> ()
 				with
 					Not_found ->
-						Hashtbl.add htodo tag from
+						set_map htodo tag from
 	in
 	let fdone tag edata =
-		try 
-			ignore(Hashtbl.find hdone tag);
+		try
+			ignore(find_map hdone tag);
 			raise (Check_error (ElementDefinedTwice tag));
 		with
 			Not_found ->
-				Hashtbl.remove htodo tag;
-				Hashtbl.add hdone tag edata
+				unset_map htodo tag;
+				set_map hdone tag edata
 	in
 	let fattrib tag aname adata =
 		(match adata with
@@ -199,18 +215,18 @@ let check dtd =
 	    | DTDID,_ -> raise (Check_error (WrongImplicitValueForID (tag,aname)))
 	    | _ -> ());
 		let h = (try
-				Hashtbl.find attribs tag
+				find_map attribs tag
 			with
 				Not_found ->
-					let h = Hashtbl.create 1 in
-					Hashtbl.add attribs tag h;
+					let h = create_map() in
+					set_map attribs tag h;
 					h) in
 		try
-			ignore(Hashtbl.find h aname);
+			ignore(find_map h aname);
 			raise (Check_error (AttributeDefinedTwice (tag,aname)));
 		with
 			Not_found ->
-				Hashtbl.add h aname adata
+				set_map h aname adata
 	in
 	let check_item = function
 		| DTDAttribute (tag,aname,atype,adef) ->
@@ -243,7 +259,7 @@ let check dtd =
 			check_type etype
 	in
 	List.iter check_item dtd;
-	Hashtbl.iter (fun t from ->
+	iter_map (fun t from ->
 		match from with
 		| None -> raise (Check_error (ElementNotDeclared t))
 		| Some tag -> raise (Check_error (ElementReferenced (t,tag)))
@@ -262,7 +278,7 @@ let start_prove dtd root =
 		curtag = "_root";
 	} in
 	try
-		ignore(Hashtbl.find d.elements (String.uppercase root));
+		ignore(find_map d.elements (String.uppercase root));
 		d
 	with
 		Not_found -> raise (Check_error (ElementNotDeclared root))
@@ -280,7 +296,7 @@ let trace dtd tag =
 
 exception TmpResult of dtd_result
 
-let prove_child dtd tag = 
+let prove_child dtd tag =
 	match dtd.current with
 	| DTDEmpty -> raise (Prove_error EmptyExpected)
 	| DTDAny -> ()
@@ -323,7 +339,7 @@ let prove_child dtd tag =
 				| true -> DTDMatched
 				| false -> DTDNotMatched)
 			with
-				TmpResult r -> r)	
+				TmpResult r -> r)
 		| DTDChildren [] -> assert false (* DTD is checked ! *)
 		| DTDChildren (h :: t) ->
 			(match update h with
@@ -367,11 +383,11 @@ let prove_attrib dtd hid hidref attr aname (atype,adef) accu =
 		if not (List.exists ((=) v) l) then raise (Prove_error (InvalidAttributeValue aname))
 	| DTDID, None -> ()
 	| DTDID, Some id ->
-		if Hashtbl.mem hid id then raise (Prove_error (DuplicateID id));
-		Hashtbl.add hid id ()
+		if mem_map hid id then raise (Prove_error (DuplicateID id));
+		set_map hid id ()
 	| DTDIDRef, None -> ()
-	| DTDIDRef, Some idref -> 
-		Hashtbl.add hidref idref ());
+	| DTDIDRef, Some idref ->
+		set_map hidref idref ());
 	match adef, aval with
 	| DTDRequired, None -> raise (Prove_error (RequiredAttribute aname))
 	| DTDFixed v, Some av when v <> av -> raise (Prove_error (InvalidAttributeValue aname))
@@ -385,7 +401,7 @@ let prove_attrib dtd hid hidref attr aname (atype,adef) accu =
 
 let check_attrib ahash (aname,_) =
 	try
-		ignore(Hashtbl.find ahash aname);
+		ignore(find_map ahash aname);
 	with
 		Not_found -> raise (Prove_error (UnexpectedAttribute aname))
 
@@ -398,12 +414,12 @@ let rec do_prove hid hidref dtd = function
 		let uattr = List.map (fun (aname,aval) -> String.uppercase aname , aval) attr in
 		prove_child dtd (Some utag);
 		Stack.push (dtd.curtag,dtd.current) dtd.state;
-		let elt = (try Hashtbl.find dtd.elements utag with Not_found -> raise (Prove_error (UnexpectedTag tag))) in
-		let ahash = (try Hashtbl.find dtd.attribs utag with Not_found -> empty_hash) in
+		let elt = (try find_map dtd.elements utag with Not_found -> raise (Prove_error (UnexpectedTag tag))) in
+		let ahash = (try find_map dtd.attribs utag with Not_found -> empty_map) in
 		dtd.curtag <- tag;
 		dtd.current <- elt;
 		List.iter (check_attrib ahash) uattr;
-		let attr = Hashtbl.fold (prove_attrib dtd hid hidref uattr) ahash [] in
+		let attr = fold_map (prove_attrib dtd hid hidref uattr) ahash [] in
 		let childs = ref (List.map (do_prove hid hidref dtd) childs) in
 		(match dtd.current with
 		| DTDAny
@@ -411,7 +427,7 @@ let rec do_prove hid hidref dtd = function
 		| DTDChild elt ->
 			let name = ref "" in
 			let rec check = function
-				| DTDTag t -> 
+				| DTDTag t ->
 					name := t;
 					false
 				| DTDPCData when !childs = [] ->
@@ -437,11 +453,11 @@ let rec do_prove hid hidref dtd = function
 		Element (tag,attr,!childs)
 
 let prove dtd root xml =
-	let hid = Hashtbl.create 0 in
-	let hidref = Hashtbl.create 0 in
+	let hid = create_map() in
+	let hidref = create_map() in
 	let x = do_prove hid hidref (start_prove dtd root) xml in
-	Hashtbl.iter (fun id () ->
-		if not (Hashtbl.mem hid id) then raise (Prove_error (MissingID id))
+	iter_map (fun id () ->
+		if not (mem_map hid id) then raise (Prove_error (MissingID id))
 	) hidref;
 	x
 
@@ -518,7 +534,7 @@ let to_string = function
 				in
 				let rec root = function
 					| DTDOptional c
-					| DTDZeroOrMore c 
+					| DTDZeroOrMore c
 					| DTDOneOrMore c ->
 						root c
 					| DTDChoice [_]
