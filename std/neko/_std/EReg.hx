@@ -142,16 +142,29 @@
 	}
 
 	public function customReplace( s : String, f : EReg -> String ) : String {
-		var buf = new StringBuf();
-		while( true ) {
-			if( !match(s) )
+		var b = new StringBuf();
+		var pos = 0;
+		var len = s.length;
+		var first = true;
+		last = s;
+		do {
+			if( !regexp_match(r,untyped s.__s,pos,len) )
 				break;
-			buf.add(matchedLeft());
-			buf.add(f(this));
-			s = matchedRight();
-		}
-		buf.add(s);
-		return buf.toString();
+			var p = regexp_matched_pos(r,0);
+			if( p.len == 0 && !first ) {
+				if( p.pos == s.length )
+					break;
+				p.pos += 1;
+			}
+			b.addSub(s,pos,p.pos-pos);
+			b.add(f(this));
+			var tot = p.pos + p.len - pos;
+			pos += tot;
+			len -= tot;
+			first = false;
+		} while( true );
+		b.addSub(s,pos,len);
+		return b.toString();
 	}
 
 	static var regexp_new_options = neko.Lib.load("regexp","regexp_new_options",2);
