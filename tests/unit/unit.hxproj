@@ -54,14 +54,18 @@
     <hidden path="unit9.swf" />
     <hidden path="unit9_as3.swf" />
     <hidden path="unit.js.map" />
+    <hidden path="java" />
+    <hidden path="runexe.n" />
+    <hidden path="runjava.n" />
+    <hidden path="server.bat" />
   </hiddenPaths>
   <!-- Executed before build -->
-  <preBuildCommand>$(CompilerPath)/haxe unit.hxml</preBuildCommand>
+  <preBuildCommand>$(CompilerPath)/haxe compile.hxml</preBuildCommand>
   <!-- Executed after build -->
   <postBuildCommand alwaysRun="False" />
   <!-- Other project options -->
   <options>
-    <option showHiddenPaths="True" />
+    <option showHiddenPaths="False" />
     <option testMovie="OpenDocument" />
     <option testMovieCommand="http://dev.unit-tests/unit.html" />
   </options>
