@@ -71,6 +71,9 @@ class TestEReg extends Test {
 		// the best is to add a matchSub(s,pos,len)
 		eq( ~/a+/g.customReplace("aaabacx", function(r) return "[" + r.matchedLeft() + "]") , "[]b[aaab]cx" );
 		
+		// this one creates infinite loops on too most of the platforms ! TOFIX !
+		// eq( ~/x?/g.customReplace("aaabacx", function(r) return "[" + r.matched(0)+ "]") , "[]a[]a[]a[]b[]a[]c[][x]" );
+		
 		
 		#end
 	}
