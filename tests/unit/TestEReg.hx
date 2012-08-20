@@ -60,6 +60,18 @@ class TestEReg extends Test {
 		eq( block.split(test).length, 5 );
 		eq( '"' + block.split(test).join('","') + '"', '"","test",".blah","something:someval",""' );
 		
+		// test custom replace
+		eq( ~/a+/g.customReplace("aaabacx", function(r) return "[" + r.matched(0).substr(1) + "]") , "[aa]b[]cx" );
+		eq( ~/a+/.customReplace("aaabacx", function(r) return "[" + r.matched(0).substr(1) + "]") , "[aa]b[]cx" ); // same without 'g'
+		
+		eq( ~/a+(b*)/g.customReplace("aaabacx", function(r) return "[" + r.matched(1) + "]") , "[b][]cx" );
+		eq( ~/a+/g.customReplace("aaabacx", function(r) return "[" + r.matchedRight() + "]") , "[bacx]b[cx]cx" );
+		
+		// we need to change our default customReplace implementation to fix that case
+		// the best is to add a matchSub(s,pos,len)
+		eq( ~/a+/g.customReplace("aaabacx", function(r) return "[" + r.matchedLeft() + "]") , "[]b[aaab]cx" );
+		
+		
 		#end
 	}
 
