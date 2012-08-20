@@ -1145,6 +1145,10 @@ let std_lib =
 			| VNull ->
 				let t = Unix.localtime (date d) in
 				VString (Printf.sprintf "%.4d-%.2d-%.2d %.2d:%.2d:%.2d" (t.tm_year + 1900) (t.tm_mon + 1) t.tm_mday t.tm_hour t.tm_min t.tm_sec)
+			| VString "%w" ->
+				(* week day *)
+				let t = Unix.localtime (date d) in
+				VString (string_of_int t.tm_wday)
 			| VString _ ->
 				exc (VString "Custom date format is not supported") (* use native Haxe implementation *)
 			| _ ->
