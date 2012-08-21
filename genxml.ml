@@ -87,10 +87,11 @@ let rec sexpr (e,_) =
 	| EObjectDecl fl -> "{" ^ (String.concat "," (List.map (fun (n,e) -> n ^ ":" ^ (sexpr e)) fl)) ^ "}"
 	| _ -> "'???'"
 
-let gen_meta meta = match meta with
+let gen_meta meta = 
+	let meta = List.filter (fun (m,_,_) -> match m with ":?used" | ":realPath" -> false | _ -> true) meta in 
+	match meta with
 	| [] -> []
 	| _ ->
-		let meta = List.filter (fun (m,_,_) -> match m with ":?used" | ":realPath" -> false | _ -> true) meta in
 		let nodes = List.map (fun (m,el,_) ->
 			node "m" ["n",m] (List.map (fun e -> node "e" [] [gen_string (sexpr e)]) el)
 		) meta in
