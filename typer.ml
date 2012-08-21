@@ -959,7 +959,8 @@ let rec type_binop ctx op e1 e2 p =
 	match op with
 	| OpAssign ->
 		let e1 = type_access ctx (fst e1) (snd e1) MSet in
-		let e2 = type_expr_with_type ctx e2 (match e1 with AKNo _ | AKInline _ | AKUsing _ | AKMacro _ -> None | AKExpr e | AKField (e,_) | AKSet(e,_,_,_) -> Some e.etype) in
+		let tt = (match e1 with AKNo _ | AKInline _ | AKUsing _ | AKMacro _ -> None | AKSet(_,_,t,_) -> Some t | AKExpr e | AKField (e,_) -> Some e.etype) in
+		let e2 = type_expr_with_type ctx e2 tt in
 		(match e1 with
 		| AKNo s -> error ("Cannot access field or identifier " ^ s ^ " for writing") p
 		| AKExpr e1 | AKField (e1,_) ->
