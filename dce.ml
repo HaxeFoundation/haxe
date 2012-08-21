@@ -37,7 +37,6 @@ open Typecore
 
 type dce = {
 	ctx : typer;
-	all_types : module_type list;
 	debug : bool;
 	follow_expr : dce -> texpr -> unit;
 	mutable added_fields : (tclass * tclass_field * bool) list;
@@ -126,7 +125,7 @@ let rec mark_dependent_fields dce csup n stat =
 			in
 			loop c
 		| _ -> ()
-	) dce.all_types
+	) dce.ctx.com.types
 
 (* expr and field evaluation *)
 
@@ -228,10 +227,9 @@ and expr dce e =
 		expr dce e;
 	| _ -> Type.iter (expr dce) e
 
-let run ctx main types modules =
+let run ctx main =
 	let dce = {
 		ctx = ctx;
-		all_types = types;
 		debug = Common.defined ctx.com "dce_debug";
 		added_fields = [];
 		follow_expr = expr;
@@ -266,10 +264,10 @@ let run ctx main types modules =
 				(match !(a.a_status) with
 				| Statics c ->
 					let cf = PMap.find "main" c.cl_statics in
-					loop [c,cf,true] types
+					loop [c,cf,true] ctx.com.types
 				| _ -> assert false)
 			| _ -> assert false)
-		| _ -> loop [] types
+		| _ -> loop [] ctx.com.types
 	in	
 	if dce.debug then begin
 		List.iter (fun (c,cf,_) -> match cf.cf_expr with
@@ -334,11 +332,7 @@ let run ctx main types modules =
 		| [] ->
 			acc
 	in
-	let types = loop [] (List.rev types) in
-	let modules = List.filter (fun m ->
-		m.m_types <- loop [] m.m_types;
-		m.m_types <> []
-	) modules in
+	ctx.com.types <- loop [] (List.rev ctx.com.types);
 
 	(* extra step to adjust properties that had accessors removed (required for Php and Cpp) *)
 	List.iter (fun mt -> match mt with
@@ -360,7 +354,7 @@ let run ctx main types modules =
 			List.iter (check_prop true) c.cl_ordered_statics;
 			List.iter (check_prop false) c.cl_ordered_fields;
 		| _ -> ()
-	) types;
+	) ctx.com.types;
 
 	(* remove "override" from fields that do not override anything anymore *)
 	List.iter (fun mt -> match mt with
@@ -375,6 +369,4 @@ let run ctx main types modules =
 				loop c
 			) c.cl_overrides;
 		| _ -> ()
-	) types;
-
-	types,modules
+	) ctx.com.types

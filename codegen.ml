@@ -595,18 +595,21 @@ let has_rtti ctx c =
 	end else
 		has_rtti_old c || has_rtti_new c
 
-let restore c =
-	let meta = c.cl_meta and path = c.cl_path and ext = c.cl_extern in
-	let fl = c.cl_fields and ofl = c.cl_ordered_fields and st = c.cl_statics and ost = c.cl_ordered_statics in
-	(fun() ->
-		c.cl_meta <- meta;
-		c.cl_extern <- ext;
-		c.cl_path <- path;
-		c.cl_fields <- fl;
-		c.cl_ordered_fields <- ofl;
-		c.cl_statics <- st;
-		c.cl_ordered_statics <- ost;
-	)
+let save_class_state ctx t = match t with
+	| TClassDecl c ->
+		let meta = c.cl_meta and path = c.cl_path and ext = c.cl_extern in
+		let fl = c.cl_fields and ofl = c.cl_ordered_fields and st = c.cl_statics and ost = c.cl_ordered_statics in
+		c.cl_restore <- (fun() ->
+			c.cl_meta <- meta;
+			c.cl_extern <- ext;
+			c.cl_path <- path;
+			c.cl_fields <- fl;
+			c.cl_ordered_fields <- ofl;
+			c.cl_statics <- st;
+			c.cl_ordered_statics <- ost;
+		)
+	| _ ->
+		()
 
 let on_generate ctx t =
 	match t with
@@ -616,7 +619,6 @@ let on_generate ctx t =
 			if Hashtbl.mem ctx.g.types_module rpath then error ("This private class name will clash with " ^ s_type_path rpath) c.cl_pos;
 		end;
 		if c.cl_kind = KGeneric && not (has_meta ":usedRecursively" c.cl_meta) then c.cl_extern <- true;
-		c.cl_restore <- restore c;
 		List.iter (fun m ->
 			match m with
 			| ":native",[Ast.EConst (Ast.String name),p],mp ->
