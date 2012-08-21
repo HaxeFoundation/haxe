@@ -194,7 +194,7 @@ class ProxyDetect {
 
 	public static function detect() {
 		if( save == null )
-			save = { r : detectAll() };
+			save = { r : try detectAll() catch( e : Dynamic ) null };
 		return save.r;
 	}
 
