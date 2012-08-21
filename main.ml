@@ -1040,12 +1040,18 @@ try
 		Codegen.post_process_end();
 		List.iter (Codegen.save_class_state tctx) com.types;
 		if Common.defined ctx.com "dce" && not !interp then Dce.run tctx main;
-		let type_filters = [
-			Codegen.on_generate;
-			(* TODO: fill me *)
-		] in
-		List.iter (fun f -> Common.add_filter com (fun() -> List.iter (f tctx) com.types)) type_filters;
 		List.iter (fun f -> f()) (List.rev com.filters);
+		let type_filters = [
+			Codegen.check_private_path;
+			Codegen.remove_generic_base;
+			Codegen.apply_native_paths;
+			Codegen.add_rtti;
+			Codegen.remove_extern_fields;
+			Codegen.add_field_inits;
+			Codegen.add_meta_field;
+			Codegen.check_remove_metadata;
+		] in
+		List.iter (fun f -> List.iter (f tctx) com.types) type_filters;
 		if ctx.has_error then raise Abort;
 		(match !xml_out with
 		| None -> ()

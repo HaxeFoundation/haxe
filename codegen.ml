@@ -506,95 +506,7 @@ let on_inherit ctx c p h =
 (* -------------------------------------------------------------------------- *)
 (* FINAL GENERATION *)
 
-(*
-	Adds member field initializations as assignments to the constructor
-*)
-let add_field_inits com c =
-	let ethis = mk (TConst TThis) (TInst (c,List.map snd c.cl_types)) c.cl_pos in
-	(* TODO: we have to find a variable name which is not used in any of the functions *)
-	let v = alloc_var "_g" ethis.etype in
-	let need_this = ref false in
-	let inits,fields = List.fold_left (fun (inits,fields) cf ->
-		match cf.cf_kind,cf.cf_expr with
-		| Var _, Some _ ->
-			if com.config.pf_can_init_member cf then (inits, cf :: fields) else (cf :: inits, cf :: fields)
-		| Method MethDynamic, Some e when Common.defined com "as3" ->
-			(* TODO : this would have a better place in genSWF9 I think - NC *)
-			(* we move the initialization of dynamic functions to the constructor and also solve the
-			   'this' problem along the way *)
-			let rec use_this v e = match e.eexpr with
-				| TConst TThis ->
-					need_this := true;
-					mk (TLocal v) v.v_type e.epos
-				| _ -> Type.map_expr (use_this v) e
-			in
-			let e = Type.map_expr (use_this v) e in
-			let cf = {cf with cf_expr = Some e} in
-			(* if the method is an override, we have to remove the class field to not get invalid overrides *)
-			let fields = if List.mem cf.cf_name c.cl_overrides then begin
-				c.cl_fields <- PMap.remove cf.cf_name c.cl_fields;
-				fields
-			end else
-				cf :: fields
-			in
-			(cf :: inits, fields)
-		| _ -> (inits, cf :: fields)
-	) ([],[]) c.cl_ordered_fields in
-	c.cl_ordered_fields <- fields;
-	match inits with
-	| [] -> ()
-	| _ ->
-		let el = List.map (fun cf ->
-			match cf.cf_expr with
-			| None -> assert false
-			| Some e ->
-				let lhs = mk (TField(ethis,cf.cf_name)) e.etype e.epos in
-				cf.cf_expr <- None;
-				let eassign = mk (TBinop(OpAssign,lhs,e)) lhs.etype e.epos in
-				if Common.defined com "as3" then begin
-					let echeck = mk (TBinop(OpEq,lhs,(mk (TConst TNull) lhs.etype e.epos))) com.basic.tbool e.epos in
-					mk (TIf(echeck,eassign,None)) eassign.etype e.epos
-				end else
-					eassign;
-		) inits in
-		let el = if !need_this then (mk (TVars([v, Some ethis])) ethis.etype ethis.epos) :: el else el in
-		match c.cl_constructor with
-		| None ->
-			let ct = TFun([],com.basic.tvoid) in
-			let ce = mk (TFunction {
-				tf_args = [];
-				tf_type = com.basic.tvoid;
-				tf_expr = mk (TBlock el) com.basic.tvoid c.cl_pos;
-			}) ct c.cl_pos in
-			let ctor = mk_field "new" ct c.cl_pos in
-			ctor.cf_kind <- Method MethNormal;
-			c.cl_constructor <- Some { ctor with cf_expr = Some ce };
-		| Some cf ->
-			match cf.cf_expr with
-			| Some { eexpr = TFunction f } ->
-				let bl = match f.tf_expr with {eexpr = TBlock b } -> b | x -> [x] in
-				let ce = mk (TFunction {f with tf_expr = mk (TBlock (el @ bl)) com.basic.tvoid c.cl_pos }) cf.cf_type cf.cf_pos in
-				c.cl_constructor <- Some {cf with cf_expr = Some ce }
-			| _ ->
-				assert false
-
-let has_rtti ctx c =
-	let rec has_rtti_new c =
-		has_meta ":rttiInfos" c.cl_meta || match c.cl_super with None -> false | Some (csup,_) -> has_rtti_new csup
-	in
-	let rec has_rtti_old c =
-		List.exists (function (t,pl) ->
-			match t, pl with
-			| { cl_path = ["haxe";"rtti"],"Infos" },[] -> true
-			| _ -> false
-		) c.cl_implements || (match c.cl_super with None -> false | Some (c,_) -> has_rtti_old c)
-	in
-	if Common.defined ctx.com "haxe3" then begin
-		if has_rtti_old c then error ("Implementing haxe.rtti.Infos is deprecated in haxe 3, please use @:rttiInfos instead") c.cl_pos;
-		has_rtti_new c
-	end else
-		has_rtti_old c || has_rtti_new c
-
+(* Saves a class state so it can be restored later, e.g. after DCE or native path rewrite *)
 let save_class_state ctx t = match t with
 	| TClassDecl c ->
 		let meta = c.cl_meta and path = c.cl_path and ext = c.cl_extern in
@@ -611,28 +523,78 @@ let save_class_state ctx t = match t with
 	| _ ->
 		()
 
-let on_generate ctx t =
+(* Checks if a private class' path clashes with another path *)
+let check_private_path ctx t = match t with
+	| TClassDecl c when c.cl_private ->
+		let rpath = (fst c.cl_module.m_path,"_" ^ snd c.cl_module.m_path) in
+		if Hashtbl.mem ctx.g.types_module rpath then error ("This private class name will clash with " ^ s_type_path rpath) c.cl_pos;
+	| _ ->
+		()
+
+(* Removes generic base classes *)
+let remove_generic_base ctx t = match t with
+	| TClassDecl c when c.cl_kind = KGeneric ->
+		c.cl_extern <- true;
+	| _ ->
+		()
+
+(* Rewrites class or enum paths if @:native metadata is set *)
+let apply_native_paths ctx t =
+	let get_real_path meta path =
+		let (_,e,mp) = get_meta ":native" meta in
+		match e with
+		| [Ast.EConst (Ast.String name),p] ->
+			(":realPath",[Ast.EConst (Ast.String (s_type_path path)),p],mp),parse_path name
+		| _ ->
+			error "String expected" mp
+	in
+	try
+		(match t with
+		| TClassDecl c ->
+			let meta,path = get_real_path c.cl_meta c.cl_path in
+			c.cl_meta <- meta :: c.cl_meta;
+			c.cl_path <- path;
+		| TEnumDecl e ->
+			let meta,path = get_real_path e.e_meta e.e_path in
+			e.e_meta <- meta :: e.e_meta;
+			e.e_path <- path;
+		| _ ->
+			())
+	with Not_found ->
+		()
+
+(* Adds the __rtti field if required *)
+let add_rtti ctx t = 
+	let has_rtti c =
+		let rec has_rtti_new c =
+			has_meta ":rttiInfos" c.cl_meta || match c.cl_super with None -> false | Some (csup,_) -> has_rtti_new csup
+		in
+		let rec has_rtti_old c =
+			List.exists (function (t,pl) ->
+				match t, pl with
+				| { cl_path = ["haxe";"rtti"],"Infos" },[] -> true
+				| _ -> false
+			) c.cl_implements || (match c.cl_super with None -> false | Some (c,_) -> has_rtti_old c)
+		in
+		if Common.defined ctx.com "haxe3" then begin
+			if has_rtti_old c then error ("Implementing haxe.rtti.Infos is deprecated in haxe 3, please use @:rttiInfos instead") c.cl_pos;
+			has_rtti_new c
+		end else
+			has_rtti_old c || has_rtti_new c
+	in
 	match t with
+	| TClassDecl c when has_rtti c && not (PMap.mem "__rtti" c.cl_statics) ->
+		let f = mk_field "__rtti" ctx.t.tstring c.cl_pos in
+		let str = Genxml.gen_type_string ctx.com t in
+		f.cf_expr <- Some (mk (TConst (TString str)) f.cf_type c.cl_pos);
+		c.cl_ordered_statics <- f :: c.cl_ordered_statics;
+		c.cl_statics <- PMap.add f.cf_name f c.cl_statics;
+	| _ ->
+		()
+
+(* Removes extern and macro fields *)
+let remove_extern_fields ctx t = match t with
 	| TClassDecl c ->
-		if c.cl_private then begin
-			let rpath = (fst c.cl_module.m_path,"_" ^ snd c.cl_module.m_path) in
-			if Hashtbl.mem ctx.g.types_module rpath then error ("This private class name will clash with " ^ s_type_path rpath) c.cl_pos;
-		end;
-		if c.cl_kind = KGeneric && not (has_meta ":usedRecursively" c.cl_meta) then c.cl_extern <- true;
-		List.iter (fun m ->
-			match m with
-			| ":native",[Ast.EConst (Ast.String name),p],mp ->
-				c.cl_meta <- (":realPath",[Ast.EConst (Ast.String (s_type_path c.cl_path)),p],mp) :: c.cl_meta;
-				c.cl_path <- parse_path name;
-			| _ -> ()
-		) c.cl_meta;
-		if has_rtti ctx c && not (PMap.mem "__rtti" c.cl_statics) then begin
-			let f = mk_field "__rtti" ctx.t.tstring c.cl_pos in
-			let str = Genxml.gen_type_string ctx.com t in
-			f.cf_expr <- Some (mk (TConst (TString str)) f.cf_type c.cl_pos);
-			c.cl_ordered_statics <- f :: c.cl_ordered_statics;
-			c.cl_statics <- PMap.add f.cf_name f c.cl_statics;
-		end;
 		let do_remove f =
 			(not ctx.in_macro && f.cf_kind = Method MethMacro) || has_meta ":extern" f.cf_meta
 		in
@@ -647,24 +609,104 @@ let on_generate ctx t =
 				if b then c.cl_statics <- PMap.remove f.cf_name c.cl_statics;
 				not b
 			) c.cl_ordered_statics;
-		end;
-		add_field_inits ctx.com c;
+		end
+	| _ ->
+		()
+
+(* Adds member field initializations as assignments to the constructor *)
+let add_field_inits ctx t =
+	let apply c =
+		let ethis = mk (TConst TThis) (TInst (c,List.map snd c.cl_types)) c.cl_pos in
+		(* TODO: we have to find a variable name which is not used in any of the functions *)
+		let v = alloc_var "_g" ethis.etype in
+		let need_this = ref false in
+		let inits,fields = List.fold_left (fun (inits,fields) cf ->
+			match cf.cf_kind,cf.cf_expr with
+			| Var _, Some _ ->
+				if ctx.com.config.pf_can_init_member cf then (inits, cf :: fields) else (cf :: inits, cf :: fields)
+			| Method MethDynamic, Some e when Common.defined ctx.com "as3" ->
+				(* TODO : this would have a better place in genSWF9 I think - NC *)
+				(* we move the initialization of dynamic functions to the constructor and also solve the
+				   'this' problem along the way *)
+				let rec use_this v e = match e.eexpr with
+					| TConst TThis ->
+						need_this := true;
+						mk (TLocal v) v.v_type e.epos
+					| _ -> Type.map_expr (use_this v) e
+				in
+				let e = Type.map_expr (use_this v) e in
+				let cf = {cf with cf_expr = Some e} in
+				(* if the method is an override, we have to remove the class field to not get invalid overrides *)
+				let fields = if List.mem cf.cf_name c.cl_overrides then begin
+					c.cl_fields <- PMap.remove cf.cf_name c.cl_fields;
+					fields
+				end else
+					cf :: fields
+				in
+				(cf :: inits, fields)
+			| _ -> (inits, cf :: fields)
+		) ([],[]) c.cl_ordered_fields in
+		c.cl_ordered_fields <- fields;
+		match inits with
+		| [] -> ()
+		| _ ->
+			let el = List.map (fun cf ->
+				match cf.cf_expr with
+				| None -> assert false
+				| Some e ->
+					let lhs = mk (TField(ethis,cf.cf_name)) e.etype e.epos in
+					cf.cf_expr <- None;
+					let eassign = mk (TBinop(OpAssign,lhs,e)) lhs.etype e.epos in
+					if Common.defined ctx.com "as3" then begin
+						let echeck = mk (TBinop(OpEq,lhs,(mk (TConst TNull) lhs.etype e.epos))) ctx.com.basic.tbool e.epos in
+						mk (TIf(echeck,eassign,None)) eassign.etype e.epos
+					end else
+						eassign;
+			) inits in
+			let el = if !need_this then (mk (TVars([v, Some ethis])) ethis.etype ethis.epos) :: el else el in
+			match c.cl_constructor with
+			| None ->
+				let ct = TFun([],ctx.com.basic.tvoid) in
+				let ce = mk (TFunction {
+					tf_args = [];
+					tf_type = ctx.com.basic.tvoid;
+					tf_expr = mk (TBlock el) ctx.com.basic.tvoid c.cl_pos;
+				}) ct c.cl_pos in
+				let ctor = mk_field "new" ct c.cl_pos in
+				ctor.cf_kind <- Method MethNormal;
+				c.cl_constructor <- Some { ctor with cf_expr = Some ce };
+			| Some cf ->
+				match cf.cf_expr with
+				| Some { eexpr = TFunction f } ->
+					let bl = match f.tf_expr with {eexpr = TBlock b } -> b | x -> [x] in
+					let ce = mk (TFunction {f with tf_expr = mk (TBlock (el @ bl)) ctx.com.basic.tvoid c.cl_pos }) cf.cf_type cf.cf_pos in
+					c.cl_constructor <- Some {cf with cf_expr = Some ce }
+				| _ ->
+					assert false
+	in
+	match t with
+	| TClassDecl c ->
+		apply c
+	| _ ->
+		()
+
+(* Adds the __meta__ field if required *)
+let add_meta_field ctx t = match t with
+	| TClassDecl c ->
 		(match build_metadata ctx.com t with
 		| None -> ()
 		| Some e ->
 			let f = mk_field "__meta__" t_dynamic c.cl_pos in
 			f.cf_expr <- Some e;
 			c.cl_ordered_statics <- f :: c.cl_ordered_statics;
-			c.cl_statics <- PMap.add f.cf_name f c.cl_statics);
+			c.cl_statics <- PMap.add f.cf_name f c.cl_statics)
+	| _ ->
+		()
+
+(* Removes interfaces tagged with @:remove metadata *)
+let check_remove_metadata ctx t = match t with
+	| TClassDecl c ->
 		c.cl_implements <- List.filter (fun (c,_) -> not (has_meta ":remove" c.cl_meta)) c.cl_implements;
-	| TEnumDecl e ->
-		List.iter (fun m ->
-			match m with
-			| ":native",[Ast.EConst (Ast.String name),p],mp ->
-				e.e_meta <- (":realPath",[Ast.EConst (Ast.String (s_type_path e.e_path)),p],mp) :: e.e_meta;
-				e.e_path <- parse_path name;
-			| _ -> ()
-		) e.e_meta;
 	| _ ->
 		()
 
