@@ -189,7 +189,7 @@ enum ValueType {
 	}
 
 	public static function enumParameters( e : EnumValue ) : Array<Dynamic> {
-		return untyped e.slice(2);
+		return untyped e["slice"](2);
 	}
 
 	public inline static function enumIndex( e : EnumValue ) : Int {
