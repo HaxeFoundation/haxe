@@ -120,10 +120,10 @@ class Manager<T : Object> {
 	/* -------------------------- SPODOBJECT API -------------------------- */
 
 	function doUpdateCache( x : T, name : String ) {
-		var cache : { v : Dynamic, m : Bool } = Reflect.field(x, "cache_" + name);
+		var cache : { v : Dynamic } = Reflect.field(x, "cache_" + name);
 		var v = doSerialize(name, cache.v);
-		Reflect.setField(x, name, v);
-		cache.m = false;
+		// don't set it since the value might change again later
+		// Reflect.setField(x, name, v);
 		return v;
 	}
 	

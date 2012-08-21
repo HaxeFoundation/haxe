@@ -1219,16 +1219,16 @@ class SpodMacros {
 								args : [],
 								params : [],
 								ret : t,
-								expr : macro { if( $ecache == null ) $ecache = { v : untyped manager.doUnserialize($fname,cast $efield), m : false }; return $ecache.v; },
+								// we set efield to an empty object to make sure it will be != from previous value when insert/update is triggered
+								expr : macro { if( $ecache == null ) { $ecache = { v : untyped manager.doUnserialize($fname, cast $efield) }; Reflect.setField(this, $fname, { } ); }; return $ecache.v; },
 							};
 							var set = {
 								args : [{ name : "_v", opt : false, type : t, value : null }],
 								params : [],
 								ret : t,
-								// set efield to an empty object to make sure it will be != from previous value when insert/update is triggered
-								expr : macro { if( $ecache == null || !$ecache.m ) { $ecache = { v : _v, m : true }; $efield = cast { }; } else $ecache.v = _v; return _v; },
+								expr : macro { if( $ecache == null ) { $ecache = { v : _v }; $efield = cast {}; } else $ecache.v = _v; return _v; },
 							};
-							fields.push( { name : cache, pos : pos, meta : [meta[0], { name:":skip", params:[], pos:pos } ], access : [APrivate], doc : null, kind : FVar(macro : { v : $t, m : Bool }, null) } );
+							fields.push( { name : cache, pos : pos, meta : [meta[0], { name:":skip", params:[], pos:pos } ], access : [APrivate], doc : null, kind : FVar(macro : { v : $t }, null) } );
 							fields.push( { name : "get_" + f.name, pos : pos, meta : meta, access : [APrivate], doc : null, kind : FFun(get) } );
 							fields.push( { name : "set_" + f.name, pos : pos, meta : meta, access : [APrivate], doc : null, kind : FFun(set) } );
 						}
