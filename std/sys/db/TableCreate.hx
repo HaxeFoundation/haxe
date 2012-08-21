@@ -55,7 +55,7 @@ class TableCreate {
 		case DSmallText: "TEXT";
 		case DText, DSerialized: "MEDIUMTEXT";
 		case DSmallBinary: "BLOB";
-		case DBinary, DNekoSerialized: "MEDIUMBLOB";
+		case DBinary, DNekoSerialized, DData: "MEDIUMBLOB";
 		case DLongBinary: "LONGBLOB";
 		case DBigInt: "BIGINT";
 		case DBigId: "BIGINT "+autoInc(dbName);
