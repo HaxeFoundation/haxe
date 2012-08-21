@@ -122,6 +122,15 @@ class SpodMacros {
 		return null;
 		#end
 	}
+	
+	public dynamic function resolveType( name : String ) : haxe.macro.Type {
+		#if macro
+		return Context.getType(name);
+		#else
+		throw "not implemented";
+		return null;
+		#end
+	}
 
 	function makeInt( t : haxe.macro.Type ) {
 		switch( t ) {
@@ -225,7 +234,7 @@ class SpodMacros {
 							throw "You can't use SEnum if the enum have parameters, try SData instead";
 						if( count >= 256 )
 							throw "Too many enum constructors";
-						return DTinyUInt;
+						return DEnum(en.toString());
 					default:
 						// should cause another error
 					}
@@ -453,12 +462,14 @@ class SpodMacros {
 		case DSmallBinary, DLongBinary, DBinary, DBytes(_), DNekoSerialized, DData: 5;
 		case DInterval: 6;
 		case DNull: 7;
+		case DEnum(_): -1;
 		};
 	}
 
 	function tryUnify( t, rt ) {
 		if( t == rt ) return true;
 		var c = unifyClass(t);
+		if( c < 0 ) return Type.enumEq(t, rt);
 		var rc = unifyClass(rt);
 		return c == rc || (c == 0 && rc == 1); // allow Int-to-Float expansion
 	}
@@ -539,6 +550,35 @@ class SpodMacros {
 					var f = getField(tmp);
 					r1 = { sql : makeString(quoteField(tmp.field), e1.pos), t : f.t, n : f.isNull };
 					e2 = tmp.expr;
+					switch( f.t ) {
+					case DEnum(e):
+						var ok = false;
+						switch( e2.expr ) {
+						case EConst(c):
+							switch( c ) {
+							case CIdent(n):
+								if( n.charCodeAt(0) == '$'.code )
+									ok = true;
+								else switch( resolveType(e) ) {
+								case TEnum(e, _):
+									var c = e.get().constructs.get(n);
+									if( c == null ) {
+										if( n == "null" )
+											return { sql : sqlAddString(r1.sql, eq ? " IS NULL" : " IS NOT NULL"), t : DBool, n : false };
+										error("Unknown constructor " + n, e2.pos);
+									} else {
+										return { sql : makeOp(eq?" = ":" != ", r1.sql, { expr : EConst(CInt(Std.string(c.index))), pos : e2.pos }, pos), t : DBool, n : r1.n };
+									}
+								default:
+								}
+							default:
+							}
+						default:
+						}
+						if( !ok )
+							error("Should be a constant constructor", e2.pos);
+					default:
+					}
 				}
 			default:
 			}

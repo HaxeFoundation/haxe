@@ -39,7 +39,7 @@ class TableCreate {
 		case DInt, DEncoded: "INTEGER";
 		case DUInt: "INTEGER UNSIGNED";
 		case DTinyInt: "TINYINT";
-		case DTinyUInt: "TINYINT UNSIGNED";
+		case DTinyUInt, DEnum(_): "TINYINT UNSIGNED";
 		case DSmallInt: "SMALLINT";
 		case DSmallUInt: "SMALLINT UNSIGNED";
 		case DMediumInt: "MEDIUMINT";

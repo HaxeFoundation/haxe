@@ -56,6 +56,7 @@ enum SpodType {
 	DMediumInt;
 	DMediumUInt;
 	DData;
+	DEnum( name : String );
 	// specific for intermediate calculus
 	DInterval;
 	DNull;
