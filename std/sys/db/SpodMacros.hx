@@ -1128,6 +1128,79 @@ class SpodMacros {
 
 	static var isNeko = Context.defined("neko");
 
+	static function buildField( f : Field, fields : Array<Field>, ft : ComplexType ) {
+		var p = switch( ft ) {
+		case TPath(p): p;
+		default: return;
+		}
+		if( p.params.length != 1 )
+			return;
+		var t = switch( p.params[0] ) {
+		case TPExpr(_): return;
+		case TPType(t): t;
+		};
+		var pos = f.pos;
+		switch( p.name ) {
+		case "SData":
+			f.kind = FProp("dynamic", "dynamic", ft, null);
+			f.meta.push( { name : ":data", params : [], pos : f.pos } );
+			var meta = [ { name : ":hide", params : [], pos : pos } ];
+			var cache = "cache_" + f.name;
+			var ecache = { expr : EConst(CIdent(cache)), pos : pos };
+			var efield = { expr : EConst(CIdent(f.name)), pos : pos };
+			var fname = { expr : EConst(CString(f.name)), pos : pos };
+			// note : we need to store the data in the same field, which is typed as t while it is actually a haxe.io.Bytes
+			// this might cause some issues with static platforms.
+			// In that case maybe a special handling of SData field compilation to haxe.io.Bytes will be necessary
+			var get = {
+				args : [],
+				params : [],
+				ret : t,
+				// we set efield to an empty object to make sure it will be != from previous value when insert/update is triggered
+				expr : macro { if( $ecache == null ) { $ecache = { v : untyped manager.doUnserialize($fname, cast $efield) }; Reflect.setField(this, $fname, { } ); }; return $ecache.v; },
+			};
+			var set = {
+				args : [{ name : "_v", opt : false, type : t, value : null }],
+				params : [],
+				ret : t,
+				expr : macro { if( $ecache == null ) { $ecache = { v : _v }; $efield = cast {}; } else $ecache.v = _v; return _v; },
+			};
+			fields.push( { name : cache, pos : pos, meta : [meta[0], { name:":skip", params:[], pos:pos } ], access : [APrivate], doc : null, kind : FVar(macro : { v : $t }, null) } );
+			fields.push( { name : "get_" + f.name, pos : pos, meta : meta, access : [APrivate], doc : null, kind : FFun(get) } );
+			fields.push( { name : "set_" + f.name, pos : pos, meta : meta, access : [APrivate], doc : null, kind : FFun(set) } );
+		case "SEnum":
+			f.kind = FProp("dynamic", "dynamic", ft, null);
+			f.meta.push( { name : ":data", params : [], pos : f.pos } );
+			var meta = [ { name : ":hide", params : [], pos : pos } ];
+			var efield = { expr : EConst(CIdent(f.name)), pos : pos };
+			var eval = switch( t ) {
+			case TPath(p):
+				var pack = p.pack.copy();
+				pack.push(p.name);
+				if( p.sub != null ) pack.push(p.sub);
+				Context.parse(pack.join("."), f.pos);
+			default:
+				Context.error("Enum parameter expected", f.pos);
+			}
+			var get = {
+				args : [],
+				params : [],
+				ret : t,
+				expr : macro return $efield == null ? null : Type.createEnumIndex($eval,cast $efield),
+			};
+			var set = {
+				args : [{ name : "_v", opt : false, type : t, value : null }],
+				params : [],
+				ret : t,
+				expr : macro { $efield = _v == null ? null : cast Type.enumIndex(_v); return _v; },
+			};
+			fields.push( { name : "get_" + f.name, pos : pos, meta : meta, access : [APrivate], doc : null, kind : FFun(get) } );
+			fields.push( { name : "set_" + f.name, pos : pos, meta : meta, access : [APrivate], doc : null, kind : FFun(set) } );
+		case "SNull", "Null":
+			buildField(f, fields, t);
+		}
+	}
+	
 	public static function macroBuild() {
 		var fields = Context.getBuildFields();
 		var hasManager = false;
@@ -1217,77 +1290,7 @@ class SpodMacros {
 			switch( f.kind ) {
 			case FVar(t, _):
 				if( t != null )
-					switch( t ) {
-					case TPath(p):
-						if( p.name == "SData" && p.params.length == 1 ) {
-							f.kind = FProp("dynamic", "dynamic", t, null);
-
-							var t = switch( p.params[0] ) {
-							case TPExpr(_): continue;
-							case TPType(t): t;
-							};
-							var pos = f.pos;
-							f.meta.push( { name : ":data", params : [], pos : f.pos } );
-							var meta = [ { name : ":hide", params : [], pos : pos } ];
-							var cache = "cache_" + f.name;
-							var ecache = { expr : EConst(CIdent(cache)), pos : pos };
-							var efield = { expr : EConst(CIdent(f.name)), pos : pos };
-							var fname = { expr : EConst(CString(f.name)), pos : pos };
-							// note : we need to store the data in the same field, which is typed as t while it is actually a haxe.io.Bytes
-							// this might cause some issues with static platforms.
-							// In that case maybe a special handling of SData field compilation to haxe.io.Bytes will be necessary
-							var get = {
-								args : [],
-								params : [],
-								ret : t,
-								// we set efield to an empty object to make sure it will be != from previous value when insert/update is triggered
-								expr : macro { if( $ecache == null ) { $ecache = { v : untyped manager.doUnserialize($fname, cast $efield) }; Reflect.setField(this, $fname, { } ); }; return $ecache.v; },
-							};
-							var set = {
-								args : [{ name : "_v", opt : false, type : t, value : null }],
-								params : [],
-								ret : t,
-								expr : macro { if( $ecache == null ) { $ecache = { v : _v }; $efield = cast {}; } else $ecache.v = _v; return _v; },
-							};
-							fields.push( { name : cache, pos : pos, meta : [meta[0], { name:":skip", params:[], pos:pos } ], access : [APrivate], doc : null, kind : FVar(macro : { v : $t }, null) } );
-							fields.push( { name : "get_" + f.name, pos : pos, meta : meta, access : [APrivate], doc : null, kind : FFun(get) } );
-							fields.push( { name : "set_" + f.name, pos : pos, meta : meta, access : [APrivate], doc : null, kind : FFun(set) } );
-						} else if( p.name == "SEnum" && p.params.length == 1 ) {
-							f.kind = FProp("dynamic", "dynamic", t, null);
-							var t = switch( p.params[0] ) {
-							case TPExpr(_): continue;
-							case TPType(t): t;
-							};
-							var pos = f.pos;
-							f.meta.push( { name : ":data", params : [], pos : f.pos } );
-							var meta = [ { name : ":hide", params : [], pos : pos } ];
-							var efield = { expr : EConst(CIdent(f.name)), pos : pos };
-							var eval = switch( t ) {
-							case TPath(p):
-								var pack = p.pack.copy();
-								pack.push(p.name);
-								if( p.sub != null ) pack.push(p.sub);
-								Context.parse(pack.join("."), f.pos);
-							default:
-								Context.error("Enum parameter expected", f.pos);
-							}
-							var get = {
-								args : [],
-								params : [],
-								ret : t,
-								expr : macro return Type.createEnumIndex($eval,cast $efield),
-							};
-							var set = {
-								args : [{ name : "_v", opt : false, type : t, value : null }],
-								params : [],
-								ret : t,
-								expr : macro { $efield = cast Type.enumIndex(_v); return _v; },
-							};
-							fields.push( { name : "get_" + f.name, pos : pos, meta : meta, access : [APrivate], doc : null, kind : FFun(get) } );
-							fields.push( { name : "set_" + f.name, pos : pos, meta : meta, access : [APrivate], doc : null, kind : FFun(set) } );
-						}
-					default:
-					}
+					buildField(f,fields,t);
 			default:
 			}
 		}
