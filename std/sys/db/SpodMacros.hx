@@ -192,7 +192,7 @@ class SpodMacros {
 			return switch( name ) {
 			case "Bool": DBool;
 			default:
-				throw "Unsupported SPOD Type " + name + " (enums must be wrapped with SData<E>)";
+				throw "Unsupported SPOD Type " + name + " (enums must be wrapped with SData or SEnum)";
 			}
 		case TType(td, p):
 			var name = td.toString();
@@ -208,6 +208,27 @@ class SpodMacros {
 				case "SFlags": return DFlags(getFlags(p[0]),false);
 				case "SSmallFlags": return DFlags(getFlags(p[0]),true);
 				case "SData": return DData;
+				case "SEnum":
+					switch( p[0] ) {
+					case TEnum(en, _):
+						var e = en.get();
+						var count = 0, hasParam = false;
+						for( c in e.constructs ) {
+							count++;
+							switch( c.type ) {
+							case TFun(_):
+								hasParam = true;
+							default:
+							}
+						}
+						if( hasParam )
+							throw "You can't use SEnum if the enum have parameters, try SData instead";
+						if( count >= 256 )
+							throw "Too many enum constructors";
+						return DTinyUInt;
+					default:
+						// should cause another error
+					}
 				default:
 				}
 			return makeType(follow(t, true));
@@ -1229,6 +1250,39 @@ class SpodMacros {
 								expr : macro { if( $ecache == null ) { $ecache = { v : _v }; $efield = cast {}; } else $ecache.v = _v; return _v; },
 							};
 							fields.push( { name : cache, pos : pos, meta : [meta[0], { name:":skip", params:[], pos:pos } ], access : [APrivate], doc : null, kind : FVar(macro : { v : $t }, null) } );
+							fields.push( { name : "get_" + f.name, pos : pos, meta : meta, access : [APrivate], doc : null, kind : FFun(get) } );
+							fields.push( { name : "set_" + f.name, pos : pos, meta : meta, access : [APrivate], doc : null, kind : FFun(set) } );
+						} else if( p.name == "SEnum" && p.params.length == 1 ) {
+							f.kind = FProp("dynamic", "dynamic", t, null);
+							var t = switch( p.params[0] ) {
+							case TPExpr(_): continue;
+							case TPType(t): t;
+							};
+							var pos = f.pos;
+							f.meta.push( { name : ":data", params : [], pos : f.pos } );
+							var meta = [ { name : ":hide", params : [], pos : pos } ];
+							var efield = { expr : EConst(CIdent(f.name)), pos : pos };
+							var eval = switch( t ) {
+							case TPath(p):
+								var pack = p.pack.copy();
+								pack.push(p.name);
+								if( p.sub != null ) pack.push(p.sub);
+								Context.parse(pack.join("."), f.pos);
+							default:
+								Context.error("Enum parameter expected", f.pos);
+							}
+							var get = {
+								args : [],
+								params : [],
+								ret : t,
+								expr : macro return Type.createEnumIndex($eval,cast $efield),
+							};
+							var set = {
+								args : [{ name : "_v", opt : false, type : t, value : null }],
+								params : [],
+								ret : t,
+								expr : macro { $efield = cast Type.enumIndex(_v); return _v; },
+							};
 							fields.push( { name : "get_" + f.name, pos : pos, meta : meta, access : [APrivate], doc : null, kind : FFun(get) } );
 							fields.push( { name : "set_" + f.name, pos : pos, meta : meta, access : [APrivate], doc : null, kind : FFun(set) } );
 						}

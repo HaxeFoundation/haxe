@@ -123,3 +123,7 @@ typedef SSmallFlags<T:EnumValue> = SFlags<T>;
 
 /** allow to store any value in serialized form **/
 typedef SData<T> = T
+
+/** allow to store an enum value that does not have parameters as a simple int **/
+typedef SEnum<E:EnumValue> = E
+
