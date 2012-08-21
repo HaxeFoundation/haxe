@@ -55,6 +55,7 @@ enum SpodType {
 	DSmallUInt;
 	DMediumInt;
 	DMediumUInt;
+	DData;
 	// specific for intermediate calculus
 	DInterval;
 	DNull;

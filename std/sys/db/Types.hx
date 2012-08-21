@@ -121,3 +121,5 @@ typedef SFlags<T:EnumValue> = haxe.EnumFlags<T>
 /** same as [SFlags] but will adapt the storage size to the number of flags **/
 typedef SSmallFlags<T:EnumValue> = SFlags<T>;
 
+/** allow to store any value in serialized form **/
+typedef SData<T> = T

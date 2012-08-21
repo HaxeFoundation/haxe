@@ -105,9 +105,9 @@ class SpodMacros {
 		#end
 	}
 
-	public dynamic function follow( t : haxe.macro.Type ) : haxe.macro.Type {
+	public dynamic function follow( t : haxe.macro.Type, ?once ) : haxe.macro.Type {
 		#if macro
-		return Context.follow(t);
+		return Context.follow(t,once);
 		#else
 		throw "not implemented";
 		return null;
@@ -185,16 +185,17 @@ class SpodMacros {
 			case "String": DText;
 			case "Date": DDateTime;
 			case "haxe.io.Bytes": DBinary;
-			default: throw "Unsupported " + name;
+			default: throw "Unsupported SPOD Type " + name;
 			}
 		case TEnum(e, p):
 			var name = e.toString();
 			return switch( name ) {
 			case "Bool": DBool;
-			default: throw "Unsupported " + name;
+			default:
+				throw "Unsupported SPOD Type " + name + " (enums must be wrapped with SData<E>)";
 			}
-		case TType(t, p):
-			var name = t.toString();
+		case TType(td, p):
+			var name = td.toString();
 			if( StringTools.startsWith(name, "sys.db.") )
 				name = name.substr(7);
 			var k = g.types.get(name);
@@ -206,12 +207,13 @@ class SpodMacros {
 				case "SNull", "Null": isNull = true; return makeType(p[0]);
 				case "SFlags": return DFlags(getFlags(p[0]),false);
 				case "SSmallFlags": return DFlags(getFlags(p[0]),true);
+				case "SData": return DData;
 				default:
 				}
-			throw "Unsupported " + name;
+			return makeType(follow(t, true));
 		default:
 		}
-		throw "Unsupported " + Std.string(t);
+		throw "Unsupported SPOD Type " + Std.string(t);
 	}
 
 	function makeIdent( e : Expr ) {
@@ -295,7 +297,8 @@ class SpodMacros {
 				}
 				switch( g ) {
 				case AccCall(_):
-					error("Relation should be defined with @:relation(key)", f.pos);
+					if( !f.meta.has(":data") )
+						error("Relation should be defined with @:relation(key)", f.pos);
 				default:
 				}
 			}
@@ -426,7 +429,7 @@ class SpodMacros {
 		case DBool: 2;
 		case DString(_), DTinyText, DSmallText, DText, DSerialized: 3;
 		case DDate, DDateTime, DTimeStamp: 4;
-		case DSmallBinary, DLongBinary, DBinary, DBytes(_), DNekoSerialized: 5;
+		case DSmallBinary, DLongBinary, DBinary, DBytes(_), DNekoSerialized, DData: 5;
 		case DInterval: 6;
 		case DNull: 7;
 		};
@@ -1108,14 +1111,19 @@ class SpodMacros {
 		var fields = Context.getBuildFields();
 		var hasManager = false;
 		for( f in fields ) {
+			var skip = false;
 			if( f.name == "manager") hasManager = true;
 			for( m in f.meta )
-				if( m.name == ":relation" ) {
+				switch( m.name ) {
+				case ":skip":
+					skip = true;
+				case ":relation":
 					switch( f.kind ) {
 					case FVar(t, _):
 						f.kind = FProp("dynamic", "dynamic", t);
 						if( isNeko )
 							continue;
+						// create compile-time getter/setter for other platforms
 						var relKey = null;
 						var relParams = [];
 						var lock = false;
@@ -1181,7 +1189,53 @@ class SpodMacros {
 						Context.error("Invalid relation field type", f.pos);
 					}
 					break;
+				default:
 				}
+			if( skip )
+				continue;
+			switch( f.kind ) {
+			case FVar(t, _):
+				if( t != null )
+					switch( t ) {
+					case TPath(p):
+						if( p.name == "SData" && p.params.length == 1 ) {
+							f.kind = FProp("dynamic", "dynamic", t, null);
+
+							var t = switch( p.params[0] ) {
+							case TPExpr(_): continue;
+							case TPType(t): t;
+							};
+							var pos = f.pos;
+							f.meta.push( { name : ":data", params : [], pos : f.pos } );
+							var meta = [ { name : ":hide", params : [], pos : pos } ];
+							var cache = "cache_" + f.name;
+							var ecache = { expr : EConst(CIdent(cache)), pos : pos };
+							var efield = { expr : EConst(CIdent(f.name)), pos : pos };
+							var fname = { expr : EConst(CString(f.name)), pos : pos };
+							// note : we need to store the data in the same field, which is typed as t while it is actually a haxe.io.Bytes
+							// this might cause some issues with static platforms.
+							// In that case maybe a special handling of SData field compilation to haxe.io.Bytes will be necessary
+							var get = {
+								args : [],
+								params : [],
+								ret : t,
+								expr : macro { if( $ecache == null ) $ecache = { v : untyped manager.doUnserialize($fname,cast $efield), m : false }; return $ecache.v; },
+							};
+							var set = {
+								args : [{ name : "_v", opt : false, type : t, value : null }],
+								params : [],
+								ret : t,
+								// set efield to an empty object to make sure it will be != from previous value when insert/update is triggered
+								expr : macro { if( $ecache == null || !$ecache.m ) { $ecache = { v : _v, m : true }; $efield = cast { }; } else $ecache.v = _v; return _v; },
+							};
+							fields.push( { name : cache, pos : pos, meta : [meta[0], { name:":skip", params:[], pos:pos } ], access : [APrivate], doc : null, kind : FVar(macro : { v : $t, m : Bool }, null) } );
+							fields.push( { name : "get_" + f.name, pos : pos, meta : meta, access : [APrivate], doc : null, kind : FFun(get) } );
+							fields.push( { name : "set_" + f.name, pos : pos, meta : meta, access : [APrivate], doc : null, kind : FFun(set) } );
+						}
+					default:
+					}
+			default:
+			}
 		}
 		if( !hasManager ) {
 			var inst = Context.getLocalClass().get();

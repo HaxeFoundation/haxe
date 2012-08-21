@@ -119,6 +119,14 @@ class Manager<T : Object> {
 
 	/* -------------------------- SPODOBJECT API -------------------------- */
 
+	function doUpdateCache( x : T, name : String ) {
+		var cache : { v : Dynamic, m : Bool } = Reflect.field(x, "cache_" + name);
+		var v = doSerialize(name, cache.v);
+		Reflect.setField(x, name, v);
+		cache.m = false;
+		return v;
+	}
+	
 	function doInsert( x : T ) {
 		unmake(x);
 		var s = new StringBuf();
@@ -129,6 +137,10 @@ class Manager<T : Object> {
 			var v = Reflect.field(x,name);
 			if( v != null ) {
 				fields.add(quoteField(name));
+				switch( f.t ) {
+				case DData: v = doUpdateCache(x, name);
+				default:
+				}
 				values.add(v);
 			} else if( !f.isNull ) {
 				// if the field is not defined, give it a default value on insert
@@ -143,7 +155,7 @@ class Manager<T : Object> {
 					Reflect.setField(x, name, haxe.io.Bytes.alloc(0));
 				case DDate, DDateTime, DTimeStamp:
 					// default date might depend on database
-				case DId, DUId, DBigId, DNull, DInterval, DEncoded:
+				case DId, DUId, DBigId, DNull, DInterval, DEncoded, DData:
 					// no default value for these
 				}
 			}
@@ -173,6 +185,7 @@ class Manager<T : Object> {
 	inline function isBinary( t : SpodInfos.SpodType ) {
 		return switch( t ) {
 			case DSmallBinary, DNekoSerialized, DLongBinary, DBytes(_), DBinary: true;
+			//case DData: true // -- disabled for implementation purposes
 			default: false;
 		};
 	}
@@ -196,6 +209,13 @@ class Manager<T : Object> {
 			var v : Dynamic = Reflect.field(x,name);
 			var vc : Dynamic = Reflect.field(cache,name);
 			if( v != vc && (!isBinary(f.t) || hasBinaryChanged(v,vc)) ) {
+				switch( f.t ) {
+				case DData:
+					v = doUpdateCache(x, name);
+					if( !hasBinaryChanged(v,vc) )
+						continue;
+				default:
+				}
 				if( mod )
 					s.add(", ");
 				else
@@ -259,6 +279,32 @@ class Manager<T : Object> {
 		return s.toString();
 	}
 
+	function doSerialize( field : String, v : Dynamic ) : haxe.io.Bytes {
+		var s = new haxe.Serializer();
+		s.useEnumIndex = true;
+		s.serialize(v);
+		var str = s.toString();
+		#if neko
+		return neko.Lib.bytesReference(str);
+		#else
+		return haxe.io.Bytes.ofString(str);
+		#end
+	}
+	
+	function doUnserialize( field : String, b : haxe.io.Bytes ) : Dynamic {
+		if( b == null )
+			return null;
+		var str;
+		#if neko
+		str = neko.Lib.stringReference(b);
+		#else
+		str = b.toString();
+		#end
+		if( str == "" )
+			return null;
+		return haxe.Unserializer.run(str);
+	}
+	
 	/* ---------------------------- INTERNAL API -------------------------- */
 
 	function cacheObject( x : T, lock : Bool ) {

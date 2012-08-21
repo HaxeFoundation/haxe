@@ -7,6 +7,7 @@
 	all : make property type optional (when a initial value is set)
 	all : new post-compilation DCE
 	all : Std.random(x) when x <= 0 is now always 0
+	spod : added serialized data with SData<T>
 
 2012-07-16: 2.10
 	java/cs : added two new targets (beta)
