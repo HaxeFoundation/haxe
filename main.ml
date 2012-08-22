@@ -393,6 +393,8 @@ let rec process_params create pl =
 			let ctx = create (!each_params @ (List.rev acc)) in
 			init ctx;
 			ctx.flush()
+		| "--next" :: l when acc = [] -> (* skip empty --next *)
+			loop [] l
 		| "--next" :: l ->
 			let ctx = create (!each_params @ (List.rev acc)) in
 			ctx.has_next <- true;
