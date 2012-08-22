@@ -340,9 +340,10 @@ let get_class consts ch =
   | _ -> error "Invalid class index"
   
 let get_string consts ch =
-  match get_constant consts (read_ui16 ch) with
+  let i = read_ui16 ch in
+  match get_constant consts i with
   | ConstUtf8 s -> s
-  | _ -> error "Invalid string index"
+  | _ -> error ("Invalid string index " ^ string_of_int i)
 
 let rec parse_element_value consts ch =
   let tag = read_ui16 ch in
@@ -447,7 +448,7 @@ let parse_field kind consts ch =
       jsig := parse_signature s;
       None
     | JKMethod, "Code" -> (* TODO *)
-      None
+      do_default()
     | JKMethod, "Exceptions" ->
       let num = read_ui16 ch in
       throws := List.init num (fun _ -> TObject(get_class consts ch,[]));
@@ -510,6 +511,7 @@ let parse_class ch =
   let super = ref super in
   let interfaces = ref interfaces in
 
+  let attribs = read_ui16 ch in
   let attribs = parse_attributes ~on_special:(fun _ _ aname alen do_default ->
     match aname with
     | "InnerClasses" ->
@@ -545,7 +547,7 @@ let parse_class ch =
       super := sup;
       None
     | _ -> do_default()
-  ) consts ch (read_ui16 ch) in
+  ) consts ch attribs in
   {
     cversion = majorv, minorv;
     cpath = this;
