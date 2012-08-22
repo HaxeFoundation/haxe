@@ -107,6 +107,13 @@ let compile_libs() =
 	if native then command ("ocamlopt -a -o neko.cmxa " ^ files);
 	Sys.chdir "..";
 
+	(* JAVALIB *)
+	Sys.chdir "javalib";
+	let files = "-I .. jData.mli jReader.ml" in
+	if bytecode then command ("ocamlc -a -o java.cma " ^ files);
+	if native then command ("ocamlopt -a -o java.cmxa " ^ files);
+	Sys.chdir "..";
+
 	(* XML-LIGHT *)
 	Sys.chdir "xml-light";
 	command ("ocamlyacc	xml_parser.mly");
@@ -133,6 +140,7 @@ let compile() =
 		"libs/swflib/swflib";
 		"libs/xml-light/xml-light";
 		"libs/neko/neko";
+		"libs/javalib/java";
 		"unix";
 		"str"
 	] in
@@ -142,6 +150,7 @@ let compile() =
 		"libs/xml-light";
 		"libs/extc";
 		"libs/neko"
+		"libs/javalib"
 	] in
 	let mlist = [
 		"ast";"lexer";"type";"common";"parser";"typecore";

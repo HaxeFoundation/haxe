@@ -803,6 +803,9 @@ try
 		("-swf-lib",Arg.String (fun file ->
 			Genswf.add_swf_lib com file
 		),"<file> : add the SWF library to the compiled SWF");
+		("-java-lib",Arg.String (fun file ->
+			Genjava.add_java_lib com file
+		),"<file> : add an external JAR or class directory library");
 		("-x", Arg.String (fun file ->
 			let neko_file = file ^ ".n" in
 			set_platform Neko neko_file;

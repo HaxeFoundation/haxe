@@ -14,13 +14,13 @@ OUTPUT=haxe
 EXTENSION=
 OCAMLOPT=ocamlopt
 
-CFLAGS= -g -I libs/extlib -I libs/extc -I libs/neko -I libs/swflib -I libs/xml-light
+CFLAGS= -g -I libs/extlib -I libs/extc -I libs/neko -I libs/javalib -I libs/swflib -I libs/xml-light
 
 CC_CMD = $(OCAMLOPT) $(CFLAGS) -c $<
 CC_PARSER_CMD = $(OCAMLOPT) -pp camlp4o $(CFLAGS) -c parser.ml
 
 LIBS=unix.cmxa str.cmxa libs/extlib/extLib.cmxa libs/xml-light/xml-light.cmxa libs/swflib/swflib.cmxa \
-	libs/extc/extc.cmxa libs/neko/neko.cmxa
+	libs/extc/extc.cmxa libs/neko/neko.cmxa libs/javalib/java.cmxa
 
 NATIVE_LIBS=-cclib libs/extc/extc_stubs.o -cclib -lz
 
@@ -40,6 +40,7 @@ libs:
 	make -C libs/extlib opt
 	make -C libs/extc native
 	make -C libs/neko
+	make -C libs/javalib
 	make -C libs/swflib
 	make -C libs/xml-light xml-light.cmxa
 
@@ -118,6 +119,7 @@ clean_libs:
 	make -C libs/extlib clean
 	make -C libs/extc clean
 	make -C libs/neko clean
+	make -C libs/javalib clean
 	make -C libs/swflib clean
 	make -C libs/xml-light clean
 

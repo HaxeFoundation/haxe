@@ -123,6 +123,7 @@ type context = {
 	mutable php_lib : string option;
 	mutable php_prefix : string option;
 	mutable swf_libs : (string * (unit -> Swf.swf) * (unit -> ((string list * string),As3hl.hl_class) Hashtbl.t)) list;
+	mutable java_libs : (string * (unit -> unit)) list;
 	mutable js_gen : (unit -> unit) option;
 	(* typing *)
 	mutable basic : basic_types;
@@ -300,6 +301,7 @@ let create v args =
 		php_front = None;
 		php_lib = None;
 		swf_libs = [];
+		java_libs = [];
 		neko_libs = [];
 		php_prefix = None;
 		js_gen = None;
