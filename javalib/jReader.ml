@@ -116,7 +116,8 @@ let rec parse_type_parameter_part s =
     (TType (wildcard, jsig), l + i)
 
 and parse_signature_part s =
-  if String.length s = 0 then raise Exit;
+  let len = String.length s in
+  if len = 0 then raise Exit;
   match s.[0] with
   | 'B' -> TByte, 1
   | 'C' -> TChar, 1
@@ -128,26 +129,27 @@ and parse_signature_part s =
   | 'Z' -> TBool, 1
   | 'L' -> 
     (try
-      let s1 , _ = String.split s ";" in
-      let len = String.length s1 in
-      let path = expand_path (String.sub s1 1 (len - 1)) in
-      let path, params = match path with
-        | pack, name when name.[String.length name - 1] = '>' ->
-          (* parse type parameters *)
-          let name, params = String.split name "<" in
-          let len2 = String.length params in
-          let rec loop i acc =
-            let s = String.sub params i (len2 - i) in
+      let rec loop start i acc =
+        match s.[i] with
+        | '/' -> loop (i + 1) (i + 1) (String.sub s start (i - start) :: acc)
+        | ';' -> acc, (String.sub s start (i - start)), [], (i + 1)
+        | '<' ->
+          let name = String.sub s start (i - start) in
+          let rec loop_params i acc =
+            let s = String.sub s i (len - i) in
             match s.[0] with
-            | '>' -> acc
-            | _ -> 
+            | '>' -> acc, i + 1
+            | _ ->
               let tp, l = parse_type_parameter_part s in
-              loop (l + i) (tp :: acc)
+              loop_params (l + i) (tp :: acc)
           in
-          ((pack, name), loop 0 [])
-        | _ -> path, []
+          let params, _end = loop_params (i + 1) [] in
+          if s.[_end] <> ';' then error ("End of complex type signature expected after type parameter. Got '" ^ Char.escaped s.[_end] ^ "'");
+          acc, name, params, (_end + 1)
+        | _ -> loop start (i+ 1) acc
       in
-      TObject (path, params) , len + 1
+      let pack, name, params, l = loop 0 0 [] in
+      TObject ((pack,name), params), l
     with
       Invalid_string -> raise Exit)
   | '[' ->
@@ -208,8 +210,14 @@ let parse_formal_type_params s =
     let rec parse_params idx acc =
       let idi = read_id (idx + 1) in
       let id = String.sub s (idx + 1) (idi - idx - 1) in
-      let exti = read_id (idi + 1) in
-      let ext = if exti = idi + 1 then None else Some ( parse_signature (String.sub s (idi + 1) (exti - idi - 1)) ) in
+      (* next must be a : *)
+      (match s.[idi] with | ':' -> () | _ -> error ("Invalid formal type signature character: " ^ Char.escaped s.[idi]));
+      let ext, l = match s.[idi + 1] with
+        | ':' | '>' -> None, idi + 1
+        | _ ->
+          let sgn, l = parse_signature_part (String.sub s (idi + 1) (len - idi - 1)) in
+          Some sgn, l + idi + 1
+      in
       let rec loop idx acc =
         match s.[idx] with
         | ':' -> 
@@ -217,23 +225,23 @@ let parse_formal_type_params s =
           loop ifacei (ifacesig :: acc)
         | _ -> acc, idx
       in
-      let ifaces, idx = loop (exti + 1) [] in
+      let ifaces, idx = loop l [] in
       let acc = (id, ext, ifaces) :: acc in
       if s.[idx] = '>' then acc, idx + 1 else parse_params idx acc
     in
-    parse_params 1 []
+    parse_params 0 []
   | _ -> [], 0
 
 let parse_throws s =
   let len = String.length s in
   let rec loop idx acc =
     if idx > len then raise Exit 
-    else if idx = len then acc
+    else if idx = len then acc, idx
     else match s.[idx] with
     | '^' -> 
       let tsig, l = parse_signature_part (String.sub s idx (len - idx)) in
       loop (idx + l) (tsig :: acc)
-    | _ -> raise Exit
+    | _ -> acc, idx
   in
   loop 0 []
 
@@ -242,8 +250,8 @@ let parse_complete_method_signature s =
     let len = String.length s in
     let tparams, i = parse_formal_type_params s in
     let sign, l = parse_signature_part (String.sub s i (len - i)) in
-    let throws = parse_throws (String.sub s l (len - l)) in
-    if l <> len then raise Exit;
+    let throws, l2 = parse_throws (String.sub s l (len - l)) in
+    if (i + l + l2) <> len then raise Exit;
 
     match sign with
     | TMethod msig -> tparams, msig, throws
@@ -454,7 +462,7 @@ let parse_field kind consts ch =
       throws := List.init num (fun _ -> TObject(get_class consts ch,[]));
       None
     | JKMethod, "Signature" ->
-      let s = IO.nread ch alen in
+      let s = get_string consts ch in
       let tp, sgn, thr = parse_complete_method_signature s in
       if thr <> [] then throws := thr;
       types := tp;
@@ -528,7 +536,7 @@ let parse_class ch =
       inner := classes;
       None
     | "Signature" ->
-      let s = IO.nread ch alen in
+      let s = get_string consts ch in
       let formal, idx = parse_formal_type_params s in
       types := formal;
       let s = String.sub s idx (String.length s - idx) in
