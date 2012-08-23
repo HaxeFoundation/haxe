@@ -1967,11 +1967,14 @@ let convert_java_class p jc =
     
     (match jc.csuper with
       | TObject( (["java";"lang"], "Object"), _ ) -> ()
+      | TObject( (["haxe";"lang"], "HxObject"), _ ) -> meta := (":hxgen",[],p) :: !meta
       | _ -> flags := HExtends (get_type_path (convert_signature p jc.csuper)) :: !flags
     );
 
     List.iter (fun i ->
-      flags := HImplements (get_type_path (convert_signature p i)) :: !flags
+      match i with
+      | TObject ( (["haxe";"lang"], "IHxObject"), _ ) -> meta := (":hxgen",[],p) :: !meta
+      | _ -> flags := HImplements (get_type_path (convert_signature p i)) :: !flags
     ) jc.cinterfaces;
 
     EClass {
