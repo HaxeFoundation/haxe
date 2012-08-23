@@ -337,7 +337,7 @@ let parse_access_flags ch all_flags =
   !flags
 
 let get_constant c n =
-  if n < 0 || n >= Array.length c then error ("Invalid constant index " ^ string_of_int n);
+  if n < 1 || n >= Array.length c then error ("Invalid constant index " ^ string_of_int n);
   match c.(n) with
   | ConstUnusable -> error "Unusable constant index";
   | x -> x
@@ -399,13 +399,9 @@ let parse_attribute on_special consts ch =
     if alen <> 0 then error();
     Some (AttrDeprecated)
   | "RuntimeVisibleAnnotations" ->
-    let annlen = read_ui16 ch in
-    ignore annlen;
     let anncount = read_ui16 ch in
     Some (AttrVisibleAnnotations (List.init anncount (fun _ -> parse_annotation consts ch)))
   | "RuntimeInvisibleAnnotations" ->
-    let annlen = read_ui16 ch in
-    ignore annlen;
     let anncount = read_ui16 ch in
     Some (AttrInvisibleAnnotations (List.init anncount (fun _ -> parse_annotation consts ch)))
   | _ ->
@@ -527,6 +523,7 @@ let parse_class ch =
       let classes = List.init count (fun _ -> 
         let inner_ci = get_class consts ch in
         let outeri = read_ui16 ch in
+        (* TODO: take off indirection here *)
         let outer_ci = if outeri = 0 then None else Some (get_class consts ch) in
         let inner_namei = read_ui16 ch in
         let inner_name = if inner_namei = 0 then None else Some (get_string consts ch) in
