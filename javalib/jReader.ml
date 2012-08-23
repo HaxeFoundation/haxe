@@ -444,7 +444,7 @@ let parse_field kind consts ch =
       if not (List.mem JSynthetic !acc) then acc := !acc @ [JSynthetic];
       None
     | JKField, "Signature" ->
-      let s = IO.nread ch alen in
+      let s = get_string consts ch in
       jsig := parse_signature s;
       None
     | JKMethod, "Code" -> (* TODO *)
