@@ -1990,7 +1990,6 @@ let convert_java_field p jc field =
     | AttrVisibleAnnotations ann ->
       List.iter (function 
         | { ann_type = TObject( (["java";"lang"], "Override"), [] ) } ->
-          print_endline "Override FOUND!";
           cff_access := AOverride :: !cff_access
         | _ -> ()
       ) ann
