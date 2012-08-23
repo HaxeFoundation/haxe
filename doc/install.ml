@@ -149,7 +149,7 @@ let compile() =
 		"libs/swflib";
 		"libs/xml-light";
 		"libs/extc";
-		"libs/neko"
+		"libs/neko";
 		"libs/javalib"
 	] in
 	let mlist = [
