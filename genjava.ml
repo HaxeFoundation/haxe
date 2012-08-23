@@ -1991,7 +1991,7 @@ let add_java_lib com file =
     else if Sys.file_exists (file ^ ".jar") then
       file ^ ".jar"
     else
-      failwith "JAR lib " ^ file ^ " not found"
+      failwith "Java lib " ^ file ^ " not found"
     in
 
     (* check if it is a directory or jar file *)
@@ -2005,7 +2005,20 @@ let add_java_lib com file =
         with 
           | _ -> None, real_path, real_path), (fun () -> ())
     | false -> (* open zip file *)
-      (fun (pack, name) -> None, file, file ^ "@" ^ (String.concat "." pack) ^ "/" ^ name ^ ".class" (* TODO *)), (fun () -> ())
+      let zip = Zip.open_in file in
+      let closed = ref false in
+      (fun (pack, name) -> 
+        if !closed then failwith "JAR file already closed";
+        try
+          let location = (String.concat "/" (pack @ [name]) ^ ".class") in
+          let entry = Zip.find_entry zip location in
+          print_endline location;
+          let data = Zip.read_entry zip entry in
+          Some (IO.input_string data), file, file ^ "@" ^ location
+        with
+          | Not_found -> 
+            None, file, file),
+      (fun () -> closed := true; Zip.close_in zip)
   in
   let rec build path p =
     match get_raw_class path, path with

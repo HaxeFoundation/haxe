@@ -107,6 +107,13 @@ let compile_libs() =
 	if native then command ("ocamlopt -a -o neko.cmxa " ^ files);
 	Sys.chdir "..";
 
+	(* ZIPLIB *)
+	Sys.chdir "ziplib";
+	let files = "-I .. zlib.mli zlib.ml zip.mli zip.ml" in
+	if bytecode then command ("ocamlc -a -o zip.cma " ^ files);
+	if native then command ("ocamlopt -a -o zip.cmxa " ^ files);
+	Sys.chdir "..";
+
 	(* JAVALIB *)
 	Sys.chdir "javalib";
 	let files = "-I .. jData.mli jReader.ml" in
@@ -140,6 +147,7 @@ let compile() =
 		"libs/swflib/swflib";
 		"libs/xml-light/xml-light";
 		"libs/neko/neko";
+		"libs/ziplib/zib";
 		"libs/javalib/java";
 		"unix";
 		"str"
@@ -150,6 +158,7 @@ let compile() =
 		"libs/xml-light";
 		"libs/extc";
 		"libs/neko";
+		"libs/ziplib";
 		"libs/javalib"
 	] in
 	let mlist = [
