@@ -132,23 +132,23 @@ and parse_signature_part s =
       let rec loop start i acc =
         match s.[i] with
         | '/' -> loop (i + 1) (i + 1) (String.sub s start (i - start) :: acc)
-        | ';' -> acc, (String.sub s start (i - start)), [], (i + 1)
+        | ';' -> List.rev acc, (String.sub s start (i - start)), [], (i + 1)
         | '<' ->
           let name = String.sub s start (i - start) in
           let rec loop_params i acc =
             let s = String.sub s i (len - i) in
             match s.[0] with
-            | '>' -> acc, i + 1
+            | '>' -> List.rev acc, i + 1
             | _ ->
               let tp, l = parse_type_parameter_part s in
               loop_params (l + i) (tp :: acc)
           in
           let params, _end = loop_params (i + 1) [] in
           if s.[_end] <> ';' then error ("End of complex type signature expected after type parameter. Got '" ^ Char.escaped s.[_end] ^ "'");
-          acc, name, params, (_end + 1)
+          List.rev acc, name, params, (_end + 1)
         | _ -> loop start (i+ 1) acc
       in
-      let pack, name, params, l = loop 0 0 [] in
+      let pack, name, params, l = loop 1 1 [] in
       TObject ((pack,name), params), l
     with
       Invalid_string -> raise Exit)
