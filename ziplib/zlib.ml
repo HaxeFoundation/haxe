@@ -16,14 +16,21 @@
 
 open Extc;;
 
-exception Error of string * string
-
-let _ =
-  Callback.register_exception "Zlib.Error" (Error("",""))
-
 let buffer_size = 1024
 
-let max_wbits = 16
+let polynom = 0xedb88320l
+
+let crc_table = Array.init 256 (fun n ->
+  let crc = ref (Int32.of_int n) in
+  for j = 0 to 7 do
+    crc := if Int32.to_int (Int32.logand (!crc) 1l) <> 0 then
+      Int32.logxor (Int32.shift_right_logical (!crc) 1) polynom
+    else
+      Int32.shift_right_logical (!crc) 1;
+  done;
+  !crc) 
+
+let max_wbits = 15
 
 let compress ?(level = 6) ?(header = true) refill flush =
   let inbuf = String.create buffer_size
@@ -94,25 +101,11 @@ let uncompress ?(header = true) refill flush =
     uncompr 0 0;
     Extc.zlib_inflate_end zs
 
-let make_crc32 data i len =
-  let init = 0xFFFFFFFFl in
-  let polynom = 0xEDB88320l in
-  let crc = ref init in
-  for i = i to (i + len) do
-    let b = Int32.of_int (int_of_char (String.unsafe_get data i)) in
-    let tmp = ref (Int32.logand (Int32.logxor (!crc) b) 0xFFl) in
-    for j = 0 to 7 do
-      tmp := if Int32.to_int (Int32.logand (!tmp) 1l) == 1 then
-        Int32.logxor (Int32.shift_right_logical (!tmp) 1) polynom
-      else
-        Int32.shift_right_logical (!tmp) 1;
-    done;
-    crc := Int32.logxor (Int32.shift_right_logical (!crc) 8) (!tmp);
-  done;
-  Int32.logxor (!crc) init
-
 let update_crc crc buf pos len =
-  if len = 0 || buf = "" || pos + len > String.length buf then
-    crc
-  else
-    make_crc32 buf pos len
+  let c = ref (Int32.lognot crc) in
+  for i = pos to (len + pos - 1) do
+    let b = Int32.of_int (int_of_char (String.get buf i)) in
+    c := Int32.logxor (Array.get crc_table (Int32.to_int (Int32.logand (Int32.logxor !c b) 0xFFl))) (Int32.shift_right_logical !c 8);
+  done;
+  let ret = Int32.lognot !c in
+  ret

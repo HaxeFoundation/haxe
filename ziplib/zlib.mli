@@ -14,8 +14,6 @@
 
 (* $Id: zlib.mli,v 1.2 2008/12/07 09:23:08 xleroy Exp $ *)
 
-exception Error of string * string
-
 val compress:
   ?level: int -> ?header: bool -> 
   (string -> int) -> (string -> int -> unit) -> unit
