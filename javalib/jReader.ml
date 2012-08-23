@@ -227,7 +227,7 @@ let parse_formal_type_params s =
       in
       let ifaces, idx = loop l [] in
       let acc = (id, ext, ifaces) :: acc in
-      if s.[idx] = '>' then acc, idx + 1 else parse_params idx acc
+      if s.[idx] = '>' then acc, idx + 1 else parse_params (idx - 1) acc
     in
     parse_params 0 []
   | _ -> [], 0
