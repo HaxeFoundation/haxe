@@ -1968,6 +1968,7 @@ let convert_java_field p jc field =
   let cff_name = match field.jf_name with
     | "<init>" -> "new"
     | "<clinit>" -> cff_access := [AStatic]; "__init__"
+    | name when String.sub name 0 5 = "__hx_" -> raise Exit
     | name -> name
   in
 
@@ -2072,13 +2073,22 @@ let convert_java_class p jc =
       | _ -> flags := HImplements (get_type_path (convert_signature p i)) :: !flags
     ) jc.cinterfaces;
 
+    let fields = ref [] in
+
+    List.iter (fun f ->
+      try
+        fields := convert_java_field p jc f :: !fields
+      with
+        | Exit -> ()
+    ) (jc.cfields @ jc.cmethods);
+
     EClass {
       d_name = snd jc.cpath;
       d_doc = None;
       d_params = List.map (convert_param p) jc.ctypes;
       d_meta = !meta;
       d_flags = !flags;
-      d_data = List.map (convert_java_field p jc) jc.cfields @ List.map (convert_java_field p jc) jc.cmethods;
+      d_data = !fields;
     }
 
 
