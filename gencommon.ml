@@ -971,6 +971,14 @@ let dump_descriptor gen name path_s =
   ) gen.gcon.resources;
   SourceWriter.write w "end resources";
   SourceWriter.newline w;
+  SourceWriter.write w "begin libs";
+  SourceWriter.newline w;
+  if Common.defined gen.gcon "java" then
+    List.iter (fun (s,_) ->
+      SourceWriter.write w s;
+      SourceWriter.newline w
+    ) gen.gcon.java_libs;
+  SourceWriter.write w "end libs";
   
   let contents = SourceWriter.contents w in
   let f = open_out (gen.gcon.file ^ "/" ^ name) in

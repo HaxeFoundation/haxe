@@ -2012,7 +2012,6 @@ let add_java_lib com file =
         try
           let location = (String.concat "/" (pack @ [name]) ^ ".class") in
           let entry = Zip.find_entry zip location in
-          print_endline location;
           let data = Zip.read_entry zip entry in
           Some (IO.input_string data), file, file ^ "@" ^ location
         with
