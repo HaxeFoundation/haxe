@@ -26,7 +26,7 @@ package haxe.macro;
 
 /**
 	This type is meant to be used to generate custom types using a macro.
-	For instance by doing MacroType<"my.Class.myMacro(55)">
+	For instance by doing MacroType<[my.Class.myMacro(55)]>
 **/
 extern class MacroType<Const> {
 }
