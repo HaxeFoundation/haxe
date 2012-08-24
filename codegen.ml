@@ -222,9 +222,10 @@ let rec build_generic ctx c p tl =
 		| [] , name -> name
 		| l , name -> String.concat "_" l ^ "_" ^ name
 	) tl)) in
-	if !recurse then
+	if !recurse then begin
+		if not (has_meta ":?genericRec" c.cl_meta) then c.cl_meta <- (":?genericRec",[],p) :: c.cl_meta;
 		TInst (c,tl) (* build a normal instance *)
-	else try
+	end else try
 		Typeload.load_instance ctx { tpackage = pack; tname = name; tparams = []; tsub = None } p false
 	with Error(Module_not_found path,_) when path = (pack,name) ->
 		let m = (try Hashtbl.find ctx.g.modules (Hashtbl.find ctx.g.types_module c.cl_path) with Not_found -> assert false) in
@@ -534,7 +535,16 @@ let check_private_path ctx t = match t with
 (* Removes generic base classes *)
 let remove_generic_base ctx t = match t with
 	| TClassDecl c when c.cl_kind = KGeneric ->
-		c.cl_extern <- true;
+		(try
+			let (_,_,prec) = get_meta ":?genericRec" c.cl_meta in
+			(try
+				let (_,_,pnew) = get_meta ":?genericT" c.cl_meta in			
+				display_error ctx ("Class " ^ (s_type_path c.cl_path) ^ " was used recursively and cannot use its type parameter") prec;
+				error "Type parameter usage was here" pnew
+			with Not_found _ ->
+				());
+		with Not_found ->
+			c.cl_extern <- true);
 	| _ ->
 		()
 

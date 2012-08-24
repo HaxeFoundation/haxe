@@ -1958,6 +1958,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let el, c , params = (match follow t with
 		| TInst ({cl_kind = KTypeParameter tl} as c,params) ->
 			if not (ctx.curclass.cl_kind = KGeneric) then display_error ctx "Type parameters can only be constructed in generic instances" p;
+			if not (has_meta ":?genericT" ctx.curclass.cl_meta) then ctx.curclass.cl_meta <- (":?genericT",[],p) :: ctx.curclass.cl_meta;
 			(try
 				let tt = List.assoc (snd c.cl_path) ctx.curclass.cl_types in
 				if not (type_iseq tt t) then raise Not_found;
