@@ -109,7 +109,7 @@ let compile_libs() =
 
 	(* ZIPLIB *)
 	Sys.chdir "ziplib";
-	let files = "-I .. zlib.mli zlib.ml zip.mli zip.ml" in
+	let files = "-I .. -I ../extc zlib.mli zlib.ml zip.mli zip.ml" in
 	if bytecode then command ("ocamlc -a -o zip.cma " ^ files);
 	if native then command ("ocamlopt -a -o zip.cmxa " ^ files);
 	Sys.chdir "..";
@@ -147,9 +147,9 @@ let compile() =
 		"libs/swflib/swflib";
 		"libs/xml-light/xml-light";
 		"libs/neko/neko";
-		"libs/ziplib/zib";
 		"libs/javalib/java";
 		"unix";
+		"libs/ziplib/zib";
 		"str"
 	] in
 	let paths = [
