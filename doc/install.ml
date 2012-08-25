@@ -149,7 +149,7 @@ let compile() =
 		"libs/neko/neko";
 		"libs/javalib/java";
 		"unix";
-		"libs/ziplib/zib";
+		"libs/ziplib/zip";
 		"str"
 	] in
 	let paths = [
