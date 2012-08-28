@@ -1570,7 +1570,7 @@ and type_expr_with_type_raise ?(print_error=true) ctx e t =
 						let t = (PMap.find n a.a_fields).cf_type in
 						let e = type_expr_with_type_raise ~print_error ctx e (Some t) in
 						unify ctx e.etype t e.epos;
-						{e with etype = t}
+						(try type_eq EqStrict e.etype t; e with Unify_error _ -> mk (TCast (e,None)) t e.epos)
 					with Not_found ->
 						extra_fields := n :: !extra_fields;
 						type_expr ctx e
