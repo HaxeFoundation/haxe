@@ -523,10 +523,20 @@ let parse_class ch =
       let classes = List.init count (fun _ -> 
         let inner_ci = get_class consts ch in
         let outeri = read_ui16 ch in
-        (* TODO: take off indirection here *)
-        let outer_ci = if outeri = 0 then None else Some (get_class consts ch) in
+        let outer_ci = match outeri with
+          | 0 -> None
+          | _ -> match get_constant consts outeri with
+          | ConstClass n -> Some n
+          | _ -> error "Invalid class index" 
+        in
+
         let inner_namei = read_ui16 ch in
-        let inner_name = if inner_namei = 0 then None else Some (get_string consts ch) in
+        let inner_name = match inner_namei with
+          | 0 -> None
+          | _ -> match get_constant consts inner_namei with
+          | ConstUtf8 s -> Some s
+          | _ -> error ("Invalid string index " ^ string_of_int inner_namei)
+        in
         let flags = parse_access_flags ch [JPublic; JPrivate; JProtected; JStatic; JFinal; JUnusable; JUnusable; JUnusable; JUnusable; JInterface; JAbstract; JSynthetic; JAnnotation; JEnum] in
         inner_ci, outer_ci, inner_name, flags
       ) in
