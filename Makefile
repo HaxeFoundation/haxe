@@ -114,7 +114,7 @@ lexer.cmx: lexer.ml
 lexer.cmx: ast.cmx
 
 
-clean: clean_libs clean_haxe
+clean: clean_libs clean_haxe clean_tools
 
 clean_libs:
 	make -C libs/extlib clean
@@ -127,6 +127,8 @@ clean_libs:
 
 clean_haxe:
 	rm -f $(MODULES:=.obj) $(MODULES:=.o) $(MODULES:=.cmx) $(MODULES:=.cmi) lexer.ml
+
+clean_tools:
 	rm -f $(OUTPUT) haxelib haxedoc
 
 # SUFFIXES
