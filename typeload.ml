@@ -1611,10 +1611,6 @@ let load_module ctx m p =
 			with Not_found ->
 				let rec loop = function
 					| [] ->
-						if s_type_path m = "neko.db._Mysql.D" then begin
-							prerr_endline (String.concat ";" (fst m));
-							assert false;
-						end;
 						raise (Error (Module_not_found m,p))
 					| load :: l ->
 						match load m p with
