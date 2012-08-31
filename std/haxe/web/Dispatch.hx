@@ -59,6 +59,7 @@ enum DispatchError {
 	DEInvalidValue;
 	DEMissing;
 	DEMissingParam( p : String );
+	DETooManyValues;
 }
 
 private class Redirect {
@@ -72,6 +73,7 @@ class Dispatch {
 	public var params : Hash<String>;
 	public var name : String;
 	public var cfg : DispatchConfig;
+	var subDispatch : Bool;
 
 	public function new(url:String, params) {
 		parts = url.split("/");
@@ -122,7 +124,11 @@ class Dispatch {
 		}
 		name = "do" + name.charAt(0).toUpperCase() + name.substr(1);
 		var args = [];
+		subDispatch = false;
 		loop(args, r);
+		if( parts.length > 0 && !subDispatch ) {
+			if( parts.length == 1 && parts[parts.length - 1] == "" ) parts.pop() else throw DETooManyValues;
+		}
 		try {
 			Reflect.callMethod(cfg.obj, Reflect.field(cfg.obj, name), args);
 		} catch( e : Redirect ) {
@@ -166,6 +172,7 @@ class Dispatch {
 		case MRDispatch:
 			if( v != null )
 				parts.unshift(v);
+			subDispatch = true;
 			return this;
 		case MRSpod(c, lock):
 			if( v == null ) throw DEMissing;
