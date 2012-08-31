@@ -415,7 +415,7 @@ let is_member ctx name =
 	in
 	loop ctx.cur_class
 
-let rename_block_var ctx v = 
+let rename_block_var ctx v =
 	(* we need to rename it since slots are accessed on a by-name basis *)
 	let rec loop i =
 		let name = v.v_name ^ string_of_int i in
@@ -678,7 +678,7 @@ let begin_fun ctx args tret el stat p =
 			(match follow t with
 			| TInst ({ cl_path = ([],"Array") },_) -> List.rev l, Some (v,true)
 			| _ -> List.rev l, Some(v,false))
-		| _ ->			
+		| _ ->
 			args, None
 	) in
 
@@ -1994,7 +1994,7 @@ let generate_class ctx c =
 			| _ -> assert false
 	) in
 	let has_protected = ref None in
-	let make_name f = 
+	let make_name f =
 		let rec find_meta c =
 			try
 				let f = PMap.find f.cf_name c.cl_fields in
@@ -2055,7 +2055,7 @@ let generate_class ctx c =
 						};
 						hlf_metas = None;
 					} :: acc
-				| _ -> 
+				| _ ->
 					acc
 			) in
 			let acc = (match v.v_write with
@@ -2100,7 +2100,7 @@ let generate_class ctx c =
 		{
 			hlf_name = make_name {
 				cf_name = "init";
-				cf_public = ctx.swc && ctx.swf_protected; 
+				cf_public = ctx.swc && ctx.swf_protected;
 				cf_meta = [];
 				cf_doc = None;
 				cf_pos = c.cl_pos;
@@ -2280,10 +2280,12 @@ let generate_type ctx t =
 		if c.cl_extern && (c.cl_path <> ([],"Dynamic") || has_meta ":realPath" c.cl_meta) then
 			None
 		else
+			let debug = do_debug ctx c.cl_meta in
 			let hlc = generate_class ctx c in
 			let init = begin_fun ctx [] ctx.com.basic.tvoid [ethis] false c.cl_pos in
 			generate_class_init ctx c hlc;
 			write ctx HRetVoid;
+			debug();
 			Some (init(), {
 				hlf_name = type_path ctx c.cl_path;
 				hlf_slot = 0;
@@ -2308,10 +2310,10 @@ let generate_type ctx t =
 	| TTypeDecl _ ->
 		None
 
-let resource_path name = 
+let resource_path name =
 	(["_res"],"_" ^ String.concat "_" (ExtString.String.nsplit name "."))
 
-let generate_resource ctx name =	
+let generate_resource ctx name =
 	let c = mk_class null_module (resource_path name) null_pos in
 	c.cl_super <- Some (mk_class null_module (["flash";"utils"],"ByteArray") null_pos,[]);
 	let t = TClassDecl c in
