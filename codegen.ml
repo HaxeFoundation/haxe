@@ -199,6 +199,65 @@ let extend_remoting ctx c t p async prot =
 (* -------------------------------------------------------------------------- *)
 (* HAXE.RTTI.GENERIC *)
 
+exception Generic_Exception of string * Ast.pos
+
+type generic_context = {
+	ctx : typer;
+	subst : (t * t) list;
+	name : string;
+	p : pos;
+}
+
+let make_generic ctx ps pt p =
+	let rec loop l1 l2 =
+		match l1, l2 with
+		| [] , [] -> []
+		| (x,TLazy f) :: l1, _ -> loop ((x,(!f)()) :: l1) l2
+		| (_,t1) :: l1 , t2 :: l2 -> (t1,t2) :: loop l1 l2
+		| _ -> assert false
+	in
+	let name =
+		String.concat "_" (List.map2 (fun (s,_) t ->
+			let path = (match follow t with		
+				| TInst (ct,_) -> ct.cl_path
+				| TEnum (e,_) -> e.e_path
+				| TMono _ -> raise (Generic_Exception (("Could not determine type for parameter " ^ s), p))
+				| t -> raise (Generic_Exception (("Type parameter must be a class or enum instance (found " ^ (s_type (print_context()) t) ^ ")"), p))
+			) in
+			match path with
+			| [] , name -> name
+			| l , name -> String.concat "_" l ^ "_" ^ name
+		) ps pt)
+	in
+	{
+		ctx = ctx;
+		subst = loop ps pt;
+		name = name;
+		p = p;
+	}
+
+let rec generic_substitute_type gctx t =
+	match t with
+	| TInst ({ cl_kind = KGeneric } as c2,tl2) ->
+		(* maybe loop, or generate cascading generics *)
+		let _, _, f = gctx.ctx.g.do_build_instance gctx.ctx (TClassDecl c2) gctx.p in
+		f (List.map (generic_substitute_type gctx) tl2)
+	| _ ->
+		try List.assq t gctx.subst with Not_found -> Type.map (generic_substitute_type gctx) t
+
+let generic_substitute_expr gctx e =
+	let vars = Hashtbl.create 0 in
+	let build_var v =
+		try
+			Hashtbl.find vars v.v_id
+		with Not_found ->
+			let v2 = alloc_var v.v_name (generic_substitute_type gctx v.v_type) in
+			Hashtbl.add vars v.v_id v2;
+			v2
+	in
+	let rec build_expr e = map_expr_type build_expr (generic_substitute_type gctx) build_var e in
+	build_expr e
+
 let rec build_generic ctx c p tl =
 	let pack = fst c.cl_path in
 	let recurse = ref false in
@@ -210,18 +269,9 @@ let rec build_generic ctx c p tl =
 		| _ ->
 			()
 	in
-	let name = String.concat "_" (snd c.cl_path :: (List.map (fun t ->
-		check_recursive t;
-		let path = (match follow t with
-			| TInst (c,_) -> c.cl_path
-			| TEnum (e,_) -> e.e_path
-			| TMono _ -> error "Type parameter must be explicit when creating a generic instance" p
-			| _ -> error "Type parameter must be a class or enum instance" p
-		) in
-		match path with
-		| [] , name -> name
-		| l , name -> String.concat "_" l ^ "_" ^ name
-	) tl)) in
+	List.iter check_recursive tl;
+	let gctx = make_generic ctx c.cl_types tl p in
+	let name = (snd c.cl_path) ^ "_" ^ gctx.name in
 	if !recurse then begin
 		if not (has_meta ":?genericRec" c.cl_meta) then c.cl_meta <- (":?genericRec",[],p) :: c.cl_meta;
 		TInst (c,tl) (* build a normal instance *)
@@ -269,36 +319,9 @@ let rec build_generic ctx c p tl =
 			List.iter loop tl
 		in
 		List.iter loop tl;
-		let rec loop l1 l2 =
-			match l1, l2 with
-			| [] , [] -> []
-			| (x,TLazy f) :: l1, _ -> loop ((x,(!f)()) :: l1) l2
-			| (_,t1) :: l1 , t2 :: l2 -> (t1,t2) :: loop l1 l2
-			| _ -> assert false
-		in
-		let subst = loop c.cl_types tl in
-		let rec build_type t =
-			match t with
-			| TInst ({ cl_kind = KGeneric } as c2,tl2) ->
-				(* maybe loop, or generate cascading generics *)
-				let _, _, f = ctx.g.do_build_instance ctx (TClassDecl c2) p in
-				f (List.map build_type tl2)
-			| _ ->
-				try List.assq t subst with Not_found -> Type.map build_type t
-		in
-		let vars = Hashtbl.create 0 in
-		let build_var v =
-			try
-				Hashtbl.find vars v.v_id
-			with Not_found ->
-				let v2 = alloc_var v.v_name (build_type v.v_type) in
-				Hashtbl.add vars v.v_id v2;
-				v2
-		in
-		let rec build_expr e = map_expr_type build_expr build_type build_var e in
 		let build_field f =
-			let t = build_type f.cf_type in
-			{ f with cf_type = t; cf_expr = (match f.cf_expr with None -> None | Some e -> Some (build_expr e)) }
+			let t = generic_substitute_type gctx f.cf_type in
+			{ f with cf_type = t; cf_expr = (match f.cf_expr with None -> None | Some e -> Some (generic_substitute_expr gctx e)) }
 		in
 		if c.cl_init <> None || c.cl_dynamic <> None then error "This class can't be generic" p;
 		if c.cl_ordered_statics <> [] then error "A generic class can't have static fields" p;
@@ -321,7 +344,7 @@ let rec build_generic ctx c p tl =
 			| _ -> error "Please define a constructor for this class in order to use it as generic" c.cl_pos
 		);
 		cg.cl_implements <- List.map (fun (i,tl) ->
-			(match follow (build_type (TInst (i, List.map build_type tl))) with
+			(match follow (generic_substitute_type gctx (TInst (i, List.map (generic_substitute_type gctx) tl))) with
 			| TInst (i,tl) -> i, tl
 			| _ -> assert false)
 		) c.cl_implements;
@@ -606,7 +629,7 @@ let add_rtti ctx t =
 let remove_extern_fields ctx t = match t with
 	| TClassDecl c ->
 		let do_remove f =
-			(not ctx.in_macro && f.cf_kind = Method MethMacro) || has_meta ":extern" f.cf_meta
+			(not ctx.in_macro && f.cf_kind = Method MethMacro) || has_meta ":extern" f.cf_meta || has_meta ":generic" f.cf_meta
 		in
 		if not (Common.defined ctx.com "doc_gen") then begin
 			c.cl_ordered_fields <- List.filter (fun f ->

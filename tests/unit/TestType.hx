@@ -521,5 +521,49 @@ class TestType extends Test {
 		eq(r[1], 2);	
 		eq(r[2][0], 3);
 		#end
+	}
+	
+	public function testGenericFunction() {
+		gf1(2);
+		gf1("foo");
+		gf1(true);
+		gf1(new haxe.Template("foo"));
+		gf1(new haxe.FastList<Int>());
+		hsf(TestType, "gf1_Int");
+		hsf(TestType, "gf1_String");
+		hsf(TestType, "gf1_Bool");
+		hsf(TestType, "gf1_haxe_Template");
+		hsf(TestType, #if (flash9 || cpp) "gf1_haxe_FastList_Int" #else "gf1_haxe_FastList" #end);
+		t(typeError(gf1(null))); // monos don't work
+		t(typeError(gf1( { foo:1 } ))); // structures don't work
+		
+		eq("foo[1,2]", gf2("foo", [1, 2]));
+		eq("foo[[1,2]]", gf2("foo", [[1, 2]]));
+		hsf(TestType, "gf2_String_Int");
+		hsf(TestType, "gf2_String_Array");
+		
+		var a = gf3("foo", ["bar", "baz"]);
+		eq(a[0], "bar");
+		eq(a[1], "baz");
+		eq(a[2], "foo");
+		hsf(TestType, "gf3_String_Array");
+		var t = new haxe.Template("foo");
+		var ta = gf3(t, [])[0];
+		f(t == ta);
+		hsf(TestType, "gf3_haxe_Template_Array");
+	}
+	
+	@:generic static function gf1<T>(a:T) {
+		return a;
+	}
+	
+	@:generic static function gf2<A,B>(a:A, b:Array<B>) {
+		return Std.string(a) + Std.string(b);
+	}
+	
+	@:generic static function gf3 < A, B:Array<A> > (a:A, b:B) {
+		var clone = new A("foo");
+		b.push(clone);
+		return b;
 	}	
 }

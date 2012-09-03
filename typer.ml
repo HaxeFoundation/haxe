@@ -104,36 +104,33 @@ let rec is_pos_infos = function
 	| _ ->
 		false
 
+let add_constraint_checks ctx c pl f tl p =
+	List.iter2 (fun m (name,t) -> 
+		match follow t with
+		| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] ->
+			let constr = List.map (fun t -> 
+				let t = apply_params f.cf_params tl t in
+				(* only apply params if not static : in that case no param is passed *)
+				let t = (if pl = [] then t else apply_params c.cl_types pl t) in
+				t
+			) constr in
+			delay_late ctx (fun() ->
+				List.iter (fun ct ->
+					try
+						Type.unify m ct
+					with Unify_error l ->
+						display_error ctx (error_msg (Unify (Constraint_failure (f.cf_name ^ "." ^ name) :: l))) p;
+				) constr
+			);
+		| _ -> ()
+	) tl f.cf_params
+
 let field_type ctx c pl f p =
 	match f.cf_params with
 	| [] -> f.cf_type
 	| l ->
 		let monos = List.map (fun _ -> mk_mono()) l in
-		List.iter2 (fun m (name,t) -> 
-			match follow t with
-			| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] ->
-				let rec loop c pl t =
-					let t = (match c.cl_super with
-						| None -> t
-						| Some (cs,tl) -> loop cs tl t
-					) in
-					(* only apply params if not static : in that case no param is passed *)
-					if pl = [] then t else apply_params c.cl_types pl t
-				in
-				let constr = List.map (fun t -> 
-					let t = apply_params f.cf_params monos t in
-					loop c pl t
-				) constr in
-				delay_late ctx (fun() ->
-					List.iter (fun ct ->
-						try
-							Type.unify m ct
-						with Unify_error l ->
-							display_error ctx (error_msg (Unify (Constraint_failure (f.cf_name ^ "." ^ name) :: l))) p;
-					) constr
-				);
-			| _ -> ()
-		) monos l;
+		if not (has_meta ":generic" f.cf_meta) then add_constraint_checks ctx c pl f monos p;
 		apply_params l monos f.cf_type
 
 let class_field ctx c pl name p =
@@ -955,6 +952,44 @@ let unify_int ctx e k =
 		unify ctx e.etype ctx.t.tint e.epos;
 		true
 
+let type_generic_function ctx (e,cf) el p =
+	if cf.cf_params = [] then error "Function has no type parameters and cannot be generic" p;
+	let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
+	let c,stat = match follow e.etype with
+		| (TInst (c,_)) -> c,false
+		| (TAnon a) -> (match !(a.a_status) with Statics c -> c,true | _ -> assert false)
+		| _ -> assert false
+	in
+	let t = apply_params cf.cf_params monos cf.cf_type in
+	add_constraint_checks ctx c [] cf monos p;
+	let args,ret = match t with
+		| TFun(args,ret) -> args,ret
+		| _ ->  error "Invalid field type for generic call" p
+	in
+	let el,tfunc = unify_call_params ctx None el args ret p false in
+	(try
+		let gctx = Codegen.make_generic ctx cf.cf_params monos p in
+		let name = cf.cf_name ^ "_" ^ gctx.Codegen.name in
+		let cf2 = mk_field name t cf.cf_pos in
+		if stat then begin
+			c.cl_statics <- PMap.add name cf2 c.cl_statics;
+			c.cl_ordered_statics <- cf2 :: c.cl_ordered_statics
+		end else begin
+			c.cl_fields <- PMap.add name cf2 c.cl_fields;
+			c.cl_ordered_fields <- cf2 :: c.cl_ordered_fields
+		end;
+		ignore(follow cf.cf_type);
+		cf2.cf_expr <- (match cf.cf_expr with
+			| None -> None
+			| Some e -> Some (Codegen.generic_substitute_expr gctx e));
+		cf2.cf_kind <- cf.cf_kind;
+		cf2.cf_public <- cf.cf_public;
+		let e = if stat then type_type ctx c.cl_path p else e in
+		let e = acc_get ctx (field_access ctx MCall cf2 cf2.cf_type e p) p in
+		(el,ret,e)
+	with Codegen.Generic_Exception (msg,p) ->
+		error msg p)
+	
 let rec type_binop ctx op e1 e2 p =
 	match op with
 	| OpAssign ->
@@ -1963,13 +1998,17 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let t = Typeload.load_instance ctx t p true in
 		let el, c , params = (match follow t with
 		| TInst ({cl_kind = KTypeParameter tl} as c,params) ->
-			if not (ctx.curclass.cl_kind = KGeneric) then display_error ctx "Type parameters can only be constructed in generic instances" p;
-			if not (has_meta ":?genericT" ctx.curclass.cl_meta) then ctx.curclass.cl_meta <- (":?genericT",[],p) :: ctx.curclass.cl_meta;
+			(* first check field parameters, then class parameters *)
+			let cf = PMap.find ctx.curmethod (match ctx.curfun with FStatic -> ctx.curclass.cl_statics | _ -> ctx.curclass.cl_fields) in
 			(try
-				let tt = List.assoc (snd c.cl_path) ctx.curclass.cl_types in
+				let tt = List.assoc (snd c.cl_path) cf.cf_params in
 				if not (type_iseq tt t) then raise Not_found;
-			with Not_found ->
-				display_error ctx "Only class type parameters can be constructed in generic instances" p);
+			with Not_found -> try
+				let tt = List.assoc (snd c.cl_path) ctx.type_params in
+				if not (type_iseq tt t) then raise Not_found;
+				if not (has_meta ":?genericT" ctx.curclass.cl_meta) then ctx.curclass.cl_meta <- (":?genericT",[],p) :: ctx.curclass.cl_meta;
+			with Not_found ->			
+				error "Only generic type parameters can be constructed" p);
 			let el = List.map (type_expr ctx) el in
 			let ctor = mk_field "new" (tfun (List.map (fun e -> e.etype) el) ctx.t.tvoid) p in
   			(match c.cl_constructor with
@@ -2336,8 +2375,12 @@ and build_call ctx acc el twith p =
 				| _ ->
 					None
 			) in
-			let el, tfunc = unify_call_params ctx fopts el args r p false in
-			el,(match tfunc with TFun(_,r) -> r | _ -> assert false), {e with etype = tfunc}
+			(match fopts,acc with
+				| Some (_,cf),AKField({eexpr = TField(e,_)},_) when has_meta ":generic" cf.cf_meta -> 
+					type_generic_function ctx (e,cf) el p
+				| _ ->
+					let el, tfunc = unify_call_params ctx fopts el args r p false in
+					el,(match tfunc with TFun(_,r) -> r | _ -> assert false), {e with etype = tfunc})
 		| TMono _ ->
 			let t = mk_mono() in
 			let el = List.map (type_expr ctx) el in

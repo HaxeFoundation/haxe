@@ -131,30 +131,6 @@ class TestDCE extends Test {
 		t(Type.resolveClass("unit.UsedConstructedChild") == null);
 		t(Type.resolveClass("unit.UsedReferencedChild") == null);	
 	}
-	
-	function hf(c:Class<Dynamic>, n:String, ?pos:haxe.PosInfos) {
-		Test.count++;
-		if (!Lambda.has(Type.getInstanceFields(c), n))
-			Test.report(Type.getClassName(c) + " should have member field " +n, pos);
-	}
-	
-	function nhf(c:Class<Dynamic>, n:String, ?pos:haxe.PosInfos) {
-		Test.count++;
-		if (Lambda.has(Type.getInstanceFields(c), n))
-			Test.report(Type.getClassName(c) + " should not have member field " +n, pos);
-	}
-	
-	function hsf(c:Class<Dynamic> , n:String, ?pos:haxe.PosInfos) {
-		Test.count++;
-		if (!Lambda.has(Type.getClassFields(c), n))
-			Test.report(Type.getClassName(c) + " should have static field " +n, pos);
-	}	
-	
-	function nhsf(c:Class<Dynamic> , n:String, ?pos:haxe.PosInfos) {
-		Test.count++;
-		if (Lambda.has(Type.getClassFields(c), n))
-			Test.report(Type.getClassName(c) + " should not have static field " +n, pos);
-	}
 }
 
 class UsedConstructed {
