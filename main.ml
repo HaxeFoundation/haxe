@@ -1117,8 +1117,13 @@ with
 		error ctx (Lexer.error_msg m) p
 	| Parser.Error (m,p) ->
 		error ctx (Parser.error_msg m) p
-	| Typecore.Error (Typecore.Forbid_package _,_) when !Common.display_default && ctx.has_next ->
-		()
+	| Typecore.Forbid_package ((pack,m,p),pl)  ->
+		if !Common.display_default && ctx.has_next then
+			()
+		else begin
+			error ctx ("You can't access the " ^ pack ^ " package with current compilation flags (for " ^ Ast.s_type_path m ^ ")") p;
+			List.iter (error ctx "    referenced here") (List.rev pl);
+		end
 	| Typecore.Error (m,p) ->
 		error ctx (Typecore.error_msg m) p
 	| Interp.Error (msg,p :: l) ->
