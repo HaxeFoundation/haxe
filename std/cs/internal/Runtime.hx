@@ -21,32 +21,32 @@ import cs.system.Type;
 		if (obj == null && !throwErrors) return null;
 		return obj.__hx_getField(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, throwErrors, false, false);
 	}
-	
+
 	public static double getField_f(haxe.lang.HxObject obj, string field, int fieldHash, bool throwErrors)
 	{
 		if (obj == null && !throwErrors) return 0.0;
 		return obj.__hx_getField_f(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, throwErrors, false);
 	}
-	
+
 	public static object setField(haxe.lang.HxObject obj, string field, int fieldHash, object value)
 	{
 		return obj.__hx_setField(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, value, false);
 	}
-	
+
 	public static double setField_f(haxe.lang.HxObject obj, string field, int fieldHash, double value)
 	{
 		return obj.__hx_setField_f(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, value, false);
 	}
-	
+
 	public static object callField(haxe.lang.HxObject obj, string field, int fieldHash, Array args)
 	{
 		return obj.__hx_invokeField(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, args);
 	}
 ')
-@:keep class Runtime 
+@:keep class Runtime
 {
 	public static var undefined(default, never):Dynamic = { };
-	
+
 	@:functionBody('
 		return new haxe.lang.Closure(obj, field, hash);
 	')
@@ -54,29 +54,29 @@ import cs.system.Type;
 	{
 		return null;
 	}
-	
+
 	@:functionBody('
 			if (System.Object.ReferenceEquals(v1, v2))
 				return true;
 			if (v1 == null || v2 == null)
 				return false;
-			
+
 			System.IConvertible v1c = v1 as System.IConvertible;
-			
+
 			if (v1c != null)
 			{
 				System.IConvertible v2c = v2 as System.IConvertible;
-				
+
 				if (v2c == null)
 				{
 					return false;
 				}
-				
+
 				System.TypeCode t1 = v1c.GetTypeCode();
 				System.TypeCode t2 = v2c.GetTypeCode();
 				if (t1 == t2)
 					return v1c.Equals(v2c);
-				
+
 				switch(t1)
 				{
 					case System.TypeCode.Int64:
@@ -86,7 +86,7 @@ import cs.system.Type;
 						return v1c.ToDouble(null) == v2c.ToDouble(null);
 				}
 			}
-			
+
 			System.ValueType v1v = v1 as System.ValueType;
 			if (v1v != null)
 			{
@@ -101,14 +101,14 @@ import cs.system.Type;
 					return false;
 				}
 			}
-			
+
 			return false;
 	')
 	public static function eq(v1:Dynamic, v2:Dynamic):Bool
 	{
 		return false;
 	}
-	
+
 	@:functionBody('
 			return System.Object.ReferenceEquals(v1, v2);
 	')
@@ -116,7 +116,7 @@ import cs.system.Type;
 	{
 		return false;
 	}
-	
+
 	@:functionBody('
 		return (obj == null) ? 0.0 : (obj is double) ? (double)obj : ((System.IConvertible) obj).ToDouble(null);
 	')
@@ -124,7 +124,7 @@ import cs.system.Type;
 	{
 		return 0.0;
 	}
-	
+
 	@:functionBody('
 		return (obj == null) ? 0 : (obj is int) ? (int)obj : ((System.IConvertible) obj).ToInt32(null);
 	')
@@ -132,7 +132,7 @@ import cs.system.Type;
 	{
 		return 0;
 	}
-	
+
 	@:functionBody('
 			System.IConvertible cv1 = obj as System.IConvertible;
 			if (cv1 != null)
@@ -149,7 +149,7 @@ import cs.system.Type;
                     default:
                         return false;
                 }
-				
+
 			}
 			return false;
 	')
@@ -157,18 +157,18 @@ import cs.system.Type;
 	{
 		return false;
 	}
-	
+
 	@:functionBody('
 			System.IConvertible cv1 = v1 as System.IConvertible;
 			if (cv1 != null)
 			{
 				System.IConvertible cv2 = v2 as System.IConvertible;
-				
+
 				if (cv2 == null)
 				{
 					throw new System.ArgumentException("Cannot compare " + v1.GetType().ToString() + " and " + v2.GetType().ToString());
 				}
-				
+
 				switch(cv1.GetTypeCode())
 				{
 					case System.TypeCode.String:
@@ -181,7 +181,7 @@ import cs.system.Type;
 					case System.TypeCode.Double:
 					double d1 = (double) v1;
 					double d2 = cv2.ToDouble(null);
-					
+
 					if (double.IsInfinity(d1) || double.IsInfinity(d2))
 						return (d1 < d2) ? -1 : (d1 > d2) ? 1 : 0;
 					else
@@ -190,57 +190,57 @@ import cs.system.Type;
 						return ((int) (cv1.ToDouble(null) - cv2.ToDouble(null)));
 				}
 			}
-			
+
 			System.IComparable c1 = v1 as System.IComparable;
 			System.IComparable c2 = v2 as System.IComparable;
-			
+
 			if (c1 == null || c2 == null)
 			{
 				if (c1 == c2)
 					return 0;
-				
+
 				throw new System.ArgumentException("Cannot compare " + v1.GetType().ToString() + " and " + v2.GetType().ToString());
 			}
-			
+
 			return c1.CompareTo(c2);
 	')
 	public static function compare(v1:Dynamic, v2:Dynamic):Int
 	{
 		return 0;
 	}
-	
+
 	@:functionBody('
 			if (v1 is string || v2 is string)
 				return Std.@string(v1) + Std.@string(v2);
-			
+
 			System.IConvertible cv1 = v1 as System.IConvertible;
 			if (cv1 != null)
 			{
 				System.IConvertible cv2 = v2 as System.IConvertible;
-				
+
 				if (cv2 == null)
 				{
 					throw new System.ArgumentException("Cannot dynamically add " + v1.GetType().ToString() + " and " + v2.GetType().ToString());
 				}
-				
+
 				return cv1.ToDouble(null) + cv2.ToDouble(null);
 			}
-			
+
 			throw new System.ArgumentException("Cannot dynamically add " + v1 + " and " + v2);
 	')
 	public static function plus(v1:Dynamic, v2:Dynamic):Dynamic
 	{
 		return null;
 	}
-	
+
 	@:functionBody('
-	
+
 		if (obj == null)
-			if (throwErrors) 
+			if (throwErrors)
 				throw new System.NullReferenceException("Cannot access field \'" + field + "\' of null.");
 			else
 				return null;
-		
+
 		System.Type t = obj as System.Type;
 		System.Reflection.BindingFlags bf;
         if (t == null)
@@ -253,7 +253,7 @@ import cs.system.Type;
 		} else {
 			if (obj == typeof(string) && field.Equals("fromCharCode"))
 				return new haxe.lang.Closure(typeof(haxe.lang.StringExt), field, 0);
-			
+
 			obj = null;
 			bf = System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public;
 		}
@@ -271,7 +271,7 @@ import cs.system.Type;
 				{
 					return new haxe.lang.Closure(obj != null ? obj : t, field, 0);
 				} else {
-					if (throwErrors) 
+					if (throwErrors)
 						throw HaxeException.wrap("Cannot access field \'" + field + "\'.");
 					else
 						return null;
@@ -279,13 +279,13 @@ import cs.system.Type;
 			}
 			return haxe.lang.Runtime.unbox(prop.GetValue(obj, null));
 		}
-	
+
 	')
 	public static function slowGetField(obj:Dynamic, field:String, throwErrors:Bool):Dynamic
 	{
 		return null;
 	}
-	
+
 	@:functionBody('
 		if (obj == null) return false;
 		System.Type t = obj as System.Type;
@@ -311,11 +311,11 @@ import cs.system.Type;
 	{
 		return false;
 	}
-	
+
 	@:functionBody('
 		if (obj == null)
 			throw new System.NullReferenceException("Cannot access field \'" + field + "\' of null.");
-		
+
 		System.Type t = obj as System.Type;
 		System.Reflection.BindingFlags bf;
         if (t == null)
@@ -334,7 +334,7 @@ import cs.system.Type;
 			{
 				@value = haxe.lang.Runtime.mkNullable(@value, f.FieldType);
 			}
-			
+
 			f.SetValue(obj, @value);
 			return @value;
 		} else {
@@ -343,7 +343,7 @@ import cs.system.Type;
 			{
 				throw haxe.lang.HaxeException.wrap("Field \'" + field + "\' not found for writing from Class " + t);
 			}
-			
+
 			if (prop.PropertyType.ToString().StartsWith("haxe.lang.Null"))
 			{
 				@value = haxe.lang.Runtime.mkNullable(@value, prop.PropertyType);
@@ -352,29 +352,30 @@ import cs.system.Type;
 
 			return @value;
 		}
-		
+
 	')
 	public static function slowSetField(obj:Dynamic, field:String, value:Dynamic):Dynamic
 	{
 		//not implemented yet;
 		throw "Not implemented";
+		return null;
 	}
-	
+
 	public static function callMethod(obj:Dynamic, methods:NativeArray<MethodBase>, methodLength:Int, args:Array<Dynamic>):Dynamic
 	{
 		var length = args.length;
 		var oargs:NativeArray<Dynamic> = new NativeArray(length);
 		var ts:NativeArray<cs.system.Type> = new NativeArray(length);
-		
+
 		for (i in 0...length)
 		{
 			oargs[i] = args[i];
 			if (args[i] != null)
 				ts[i] = Lib.nativeType(args[i]);
 		}
-		
+
 		var last = 0;
-		
+
 		//first filter by number of parameters and if it is assignable
 		if (methodLength > 1)
 		{
@@ -397,25 +398,25 @@ import cs.system.Type;
 							break;
 						}
 					}
-					
+
 					if (fits)
 					{
 						methods[last++] = methods[i];
 					}
 				}
 			}
-			
+
 			methodLength = last;
 		}
-		
+
 		//At this time, we should be left with only one method.
 		//Of course, realistically, we can be left with plenty of methods, if there are lots of variants with IConvertible
 		//But at this time we still aren't rating the best methods
 		//FIXME rate best methods
-		
+
 		if (methodLength == 0)
 			throw "Invalid calling parameters for method " + methods[0].Name;
-		
+
 		var params = methods[0].GetParameters();
 		for (i in 0...params.Length)
 		{
@@ -433,7 +434,7 @@ import cs.system.Type;
 				}
 			}
 		}
-		
+
 		if (methods[0].ContainsGenericParameters && Std.is(methods[0], cs.system.reflection.MethodInfo))
 		{
 			var m:MethodInfo = cast methods[0];
@@ -446,18 +447,18 @@ import cs.system.Type;
 			var retg = m.Invoke(obj, oargs);
 			return cs.internal.Runtime.unbox(retg);
 		}
-		
+
 		var m = methods[0];
 		if (obj == null && Std.is(m, cs.system.reflection.ConstructorInfo))
 		{
 			var ret = cast(m, cs.system.reflection.ConstructorInfo).Invoke(oargs);
 			return unbox(ret);
 		}
-		
+
 		var ret = m.Invoke(obj, oargs);
 		return unbox(ret);
 	}
-	
+
 	public static function unbox(dyn:Dynamic):Dynamic
 	{
 		if (dyn != null && untyped (Lib.nativeType(dyn) + "").StartsWith("haxe.lang.Null"))
@@ -467,7 +468,7 @@ import cs.system.Type;
 			return dyn;
 		}
 	}
-	
+
 	@:functionBody('
 		if (nullableType.ContainsGenericParameters)
 			return haxe.lang.Null<object>.ofDynamic<object>(obj);
@@ -477,10 +478,10 @@ import cs.system.Type;
 	{
 		return null;
 	}
-	
+
 	@:functionBody('
 		if (args == null) args = new Array<object>();
-		
+
 		System.Reflection.BindingFlags bf;
 		System.Type t = obj as System.Type;
 		if (t == null)
@@ -496,7 +497,7 @@ import cs.system.Type;
 			obj = null;
 			bf = System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public;
 		}
-		
+
 		System.Reflection.MethodInfo[] mis = t.GetMethods(bf);
 		int last = 0;
 		for (int i = 0; i < mis.Length; i++)
@@ -506,94 +507,95 @@ import cs.system.Type;
 				mis[last++] = mis[i];
 			}
 		}
-		
+
 		if (last == 0)
 		{
 			throw haxe.lang.HaxeException.wrap("Method \'" + field + "\' not found on type " + t);
 		}
-		
+
 		return haxe.lang.Runtime.callMethod(obj, mis, last, args);
 	')
 	public static function slowCallField(obj:Dynamic, field:String, args:Array<Dynamic>):Dynamic
 	{
 		throw "not implemented";
+		return null;
 	}
-	
+
 	@:functionBody('
 		haxe.lang.HxObject hxObj = obj as haxe.lang.HxObject;
 		if (hxObj != null)
 			return hxObj.__hx_invokeField(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, args);
-		
+
 		return slowCallField(obj, field, args);
 	')
 	public static function callField(obj:Dynamic, field:String, fieldHash:Int, args:Array<Dynamic>):Dynamic
 	{
 		return null;
 	}
-	
+
 	@:functionBody('
-	
+
 		haxe.lang.HxObject hxObj = obj as haxe.lang.HxObject;
 		if (hxObj != null)
 			return hxObj.__hx_getField(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, throwErrors, false, false);
-		
+
 		return slowGetField(obj, field, throwErrors);
-	
+
 	')
 	public static function getField(obj:Dynamic, field:String, fieldHash:Int, throwErrors:Bool):Dynamic
 	{
 		return null;
 	}
-	
+
 	@:functionBody('
-	
+
 		haxe.lang.HxObject hxObj = obj as haxe.lang.HxObject;
 		if (hxObj != null)
 			return hxObj.__hx_getField_f(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, throwErrors, false);
-		
+
 		return (double)slowGetField(obj, field, throwErrors);
-	
+
 	')
 	public static function getField_f(obj:Dynamic, field:String, fieldHash:Int, throwErrors:Bool):Float
 	{
 		return 0.0;
 	}
-	
+
 	@:functionBody('
-	
+
 		haxe.lang.HxObject hxObj = obj as haxe.lang.HxObject;
 		if (hxObj != null)
 			return hxObj.__hx_setField(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, value, false);
-		
+
 		return slowSetField(obj, field, value);
-	
+
 	')
 	public static function setField(obj:Dynamic, field:String, fieldHash:Int, value:Dynamic):Dynamic
 	{
 		return null;
 	}
-	
+
 	@:functionBody('
 
 		haxe.lang.HxObject hxObj = obj as haxe.lang.HxObject;
 		if (hxObj != null)
 			return hxObj.__hx_setField_f(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, value, false);
-		
+
 		return (double)slowSetField(obj, field, value);
-	
+
 	')
 	public static function setField_f(obj:Dynamic, field:String, fieldHash:Int, value:Float):Float
 	{
 		return 0.0;
 	}
-	
+
 	public static function toString(obj:Dynamic):String
 	{
-		if (obj == null) 
+		if (obj == null)
 			return null;
 		return untyped obj.ToString();
 	}
-	
+
 	@:functionBody('
 			if (t1 == null || t2 == null)
 				return t1 == t2;
@@ -603,8 +605,8 @@ import cs.system.Type;
 	{
 		return false;
 	}
-	
-	
+
+
 	@:functionBody('
 		if (obj is To)
 			return (To) obj;
@@ -621,7 +623,7 @@ import cs.system.Type;
 	{
 		return null;
 	}
-	
+
 	@:functionBody('
 		return (s1 == null ? "null" : s1) + (s2 == null ? "null" : s2);
 	')
@@ -629,7 +631,7 @@ import cs.system.Type;
 	{
 		return null;
 	}
-	
+
 	//TODO: change from genericCast to getConverter, so we don't need to handle extra boxing associated with it
 	/*@:functionBody('
 		if (typeof(To).TypeHandle == typeof(double).TypeHandle)

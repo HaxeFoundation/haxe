@@ -5,12 +5,12 @@ package cs.internal;
  here so there is an option for e.g. defining them as externs if you are compiling
  in modules (untested).
 **/
- 
-@:keep @:abstract @:nativegen @:native("haxe.lang.Function") private class Function 
+
+@:keep @:abstract @:nativegen @:native("haxe.lang.Function") private class Function
 {
 	function new(arity:Int, type:Int)
 	{
-		
+
 	}
 }
 
@@ -19,19 +19,20 @@ package cs.internal;
 	public function __hx_invokeDynamic(dynArgs:Array<Dynamic>):Dynamic
 	{
 		throw "Abstract implementation";
+		return null;
 	}
 }
 
 @:keep @:nativegen @:native('haxe.lang.VarArgsFunction') class VarArgsFunction extends VarArgsBase
 {
 	private var fun:Array<Dynamic>->Dynamic;
-	
+
 	public function new(fun)
 	{
 		super(-1, -1);
 		this.fun = fun;
 	}
-	
+
 	override public function __hx_invokeDynamic(dynArgs:Array<Dynamic>):Dynamic
 	{
 		return fun(dynArgs);
@@ -43,7 +44,7 @@ package cs.internal;
 	private var obj:Dynamic;
 	private var field:String;
 	private var hash:Int;
-	
+
 	public function new(obj:Dynamic, field, hash)
 	{
 		super(-1, -1);
@@ -51,8 +52,8 @@ package cs.internal;
 		this.field = field;
 		this.hash = hash;
 	}
-	
-	override public function __hx_invokeDynamic(dynArgs:Array<Dynamic>):Dynamic 
+
+	override public function __hx_invokeDynamic(dynArgs:Array<Dynamic>):Dynamic
 	{
 		return Runtime.callField(obj, field, hash, dynArgs);
 	}
