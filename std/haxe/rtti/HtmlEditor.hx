@@ -127,7 +127,7 @@ class HtmlEditor {
 				buf.add("<tr><th>");
 				buf.add(f.name);
 				buf.add("</th><td>");
-				buildHTMLRec(Reflect.field(v,f.name),f.t,false);
+				buildHTMLRec(Reflect.field(v,f.name),f.type,false);
 				buf.add("</td></tr>");
 			}
 			close("table");
@@ -244,7 +244,7 @@ class HtmlEditor {
 		case CAnonymous(fl):
 			var o = {};
 			for( f in fl )
-				Reflect.setField(o,f.name,buildObjectRec(params,f.t,false));
+				Reflect.setField(o,f.name,buildObjectRec(params,f.type,false));
 			o;
 		case CClass(name,_):
 			var v = params.get(genFieldName());
@@ -312,7 +312,7 @@ class HtmlEditor {
 			skipObjectRec(followTypeDef(name,pl),nullable || name == "Null");
 		case CAnonymous(fl):
 			for( f in fl )
-				skipObjectRec(f.t,false);
+				skipObjectRec(f.type,false);
 		case CEnum(name,_):
 			if( name == "Bool" ) {
 				skipObjectRec(CClass("Bool",new List()),nullable);

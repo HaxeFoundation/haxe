@@ -279,15 +279,14 @@ class HtmlPrinter {
 				if( f.params != null )
 					print("&lt;"+f.params.join(", ")+"&gt;");
 				print("(");
-				var me = this;
 				display(args,function(a) {
 					if( a.opt )
-						me.print("?");
+						print("?");
 					if( a.name != null && a.name != "" ) {
-						me.print(a.name);
-						me.print(" : ");
+						print(a.name);
+						print(" : ");
 					}
-					me.processType(a.t);
+					processType(a.t);
 				},", ");
 				print(") : ");
 				processType(ret);
@@ -338,13 +337,12 @@ class HtmlPrinter {
 			print(c.name);
 			if( c.args != null ) {
 				print("(");
-				var me = this;
 				display(c.args,function(a) {
 					if( a.opt )
-						me.print("?");
-					me.print(a.name);
-					me.print(" : ");
-					me.processType(a.t);
+						print("?");
+					print(a.name);
+					print(" : ");
+					processType(a.t);
 				},",");
 				print(")");
 			}
@@ -394,21 +392,8 @@ class HtmlPrinter {
 		switch( t ) {
 		case CAnonymous(fields):
 			print('<dl>');
-			for( f in fields ) {
-				processClassField(all,{
-					name : f.name,
-					type : f.t,
-					isPublic : true,
-					isOverride : false,
-					doc : null,
-					get : RNormal,
-					set : RNormal,
-					params : null,
-					platforms : platforms,
-					meta : [],
-					line : null,
-				},false);
-			}
+			for( f in fields )
+				processClassField(all,f);
 			print('</dl>');
 		default:
 			if( all.length != platforms.length ) {
@@ -461,10 +446,9 @@ class HtmlPrinter {
 			processTypeFun(ret,false);
 		case CAnonymous(fields):
 			print("{ ");
-			var me = this;
 			display(fields,function(f) {
-				me.print(f.name+" : ");
-				me.processType(f.t);
+				print(f.name+" : ");
+				processType(f.type);
 			},", ");
 			print("}");
 		case CDynamic(t):

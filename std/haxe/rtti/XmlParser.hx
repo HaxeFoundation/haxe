@@ -505,10 +505,7 @@ class XmlParser {
 		case "a":
 			var fields = new List();
 			for( f in x.elements )
-				fields.add({
-					name : f.name,
-					t : xtype(new Fast(f.x.firstElement())),
-				});
+				fields.add(xclassfield(f));
 			CAnonymous(fields);
 		case "d":
 			var t = null;

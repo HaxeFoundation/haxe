@@ -34,7 +34,7 @@ enum CType {
 	CClass( name : Path, params : List<CType> );
 	CTypedef( name : Path, params : List<CType> );
 	CFunction( args : List<{ name : String, opt : Bool, t : CType }>, ret : CType );
-	CAnonymous( fields : List<{ name : String, t : CType  }> );
+	CAnonymous( fields : List<ClassField> );
 	CDynamic( ?t : CType );
 }
 
@@ -199,9 +199,7 @@ class TypeApi {
 		case CAnonymous(fields):
 			switch( t2 ) {
 			case CAnonymous(fields2):
-				return leq(function(a,b) {
-					return a.name == b.name && typeEq(a.t,b.t);
-				},fields,fields2);
+				return leq(function(a,b) return fieldEq(a,b),fields,fields2);
 			default:
 			}
 		case CDynamic(t):
