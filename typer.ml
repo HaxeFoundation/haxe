@@ -1064,6 +1064,12 @@ let rec type_binop ctx op e1 e2 p =
 			t
 		| KParam _, KFloat | KFloat, KParam _ | KParam _, KParam _ ->
 			tfloat
+		| KParam t, KUnk ->
+			unify ctx e2.etype tfloat e2.epos;
+			tfloat
+		| KUnk, KParam t ->
+			unify ctx e1.etype tfloat e1.epos;
+			tfloat
 		| KParam _, _
 		| _, KParam _
 		| KOther, _
