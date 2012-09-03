@@ -62,11 +62,9 @@ let real_path path meta =
 	in
 	loop meta
 
-let cpath c =
-	real_path c.cl_path c.cl_meta
-
-let epath e =
-	real_path e.e_path e.e_meta
+let tpath t =
+	let i = t_infos t in
+	real_path i.mt_path i.mt_meta
 
 let rec follow_param t =
 	match t with
@@ -100,13 +98,18 @@ let gen_meta meta =
 let rec gen_type t =
 	match t with
 	| TMono m -> (match !m with None -> tag "unknown" | Some t -> gen_type t)
-	| TEnum (e,params) -> node "e" [gen_path (epath e) e.e_private] (List.map gen_type params)
-	| TInst (c,params) -> node "c" [gen_path (cpath c) c.cl_private] (List.map gen_type params)
-	| TType (t,params) -> node "t" [gen_path t.t_path t.t_private] (List.map gen_type params)
+	| TEnum (e,params) -> gen_type_decl "e" (TEnumDecl e) params
+	| TInst (c,params) -> gen_type_decl "c" (TClassDecl c) params
+	| TAbstract (a,params) -> gen_type_decl "x" (TAbstractDecl a) params
+	| TType (t,params) -> gen_type_decl "t" (TTypeDecl t) params
 	| TFun (args,r) -> node "f" ["a",String.concat ":" (List.map gen_arg_name args)] (List.map gen_type (List.map (fun (_,opt,t) -> if opt then follow_param t else t) args @ [r]))
 	| TAnon a -> node "a" [] (pmap (fun f -> gen_field [] { f with cf_public = false }) a.a_fields)
 	| TDynamic t2 -> node "d" [] (if t == t2 then [] else [gen_type t2])
 	| TLazy f -> gen_type (!f())
+
+and gen_type_decl n t pl =
+	let i = t_infos t in
+	node n [gen_path (tpath t) i.mt_private] (List.map gen_type pl)
 
 and gen_field att f =
 	let add_get_set acc name att =
@@ -146,7 +149,7 @@ let gen_type_params ipos priv path params pos m =
 	gen_path path priv :: ("params", String.concat ":" (List.map fst params)) :: (file @ mpriv @ mpath)
 
 let gen_class_path name (c,pl) =
-	node name [("path",s_type_path (cpath c))] (List.map gen_type pl)
+	node name [("path",s_type_path (tpath (TClassDecl c)))] (List.map gen_type pl)
 
 let rec exists f c =
 	PMap.exists f.cf_name c.cl_fields ||
@@ -178,16 +181,20 @@ let gen_type_decl com pos t =
 			| None -> []
 			| Some t -> [node "haxe_dynamic" [] [gen_type t]]
 		) in
-		node "class" (gen_type_params pos c.cl_private (cpath c) c.cl_types c.cl_pos m @ ext @ interf) (tree @ stats @ fields @ constr @ doc @ meta @ dynamic)
+		node "class" (gen_type_params pos c.cl_private (tpath t) c.cl_types c.cl_pos m @ ext @ interf) (tree @ stats @ fields @ constr @ doc @ meta @ dynamic)
 	| TEnumDecl e ->
 		let doc = gen_doc_opt e.e_doc in
 		let meta = gen_meta e.e_meta in
-		node "enum" (gen_type_params pos e.e_private (epath e) e.e_types e.e_pos m) (pmap gen_constr e.e_constrs @ doc @ meta)
+		node "enum" (gen_type_params pos e.e_private (tpath t) e.e_types e.e_pos m) (pmap gen_constr e.e_constrs @ doc @ meta)
 	| TTypeDecl t ->
 		let doc = gen_doc_opt t.t_doc in
 		let meta = gen_meta t.t_meta in
 		let tt = gen_type t.t_type in
 		node "typedef" (gen_type_params pos t.t_private t.t_path t.t_types t.t_pos m) (tt :: doc @ meta)
+	| TAbstractDecl a ->
+		let doc = gen_doc_opt a.a_doc in
+		let meta = gen_meta a.a_meta in
+		node "abstract" (gen_type_params pos a.a_private (tpath t) a.a_types a.a_pos m) ([] @ doc @ meta)
 
 let att_str att =
 	String.concat "" (List.map (fun (a,v) -> Printf.sprintf " %s=\"%s\"" a v) att)
@@ -287,6 +294,8 @@ let generate_type com t =
 			path e.e_path tl
 		| TType (t,tl) ->
 			path t.t_path tl
+		| TAbstract (a,tl) ->
+			path a.a_path tl
 		| TAnon a ->
 			let fields = PMap.fold (fun f acc -> (f.cf_name ^ " : " ^ stype f.cf_type) :: acc) a.a_fields [] in
 			"{" ^ String.concat ", " fields ^ "}"
@@ -439,6 +448,9 @@ let generate_type com t =
 		p "typedef %s = " (stype (TType (t,List.map snd t.t_types)));
 		p "%s" (stype t.t_type);
 		p "\n";
+	| TAbstractDecl a ->
+		print_meta a.a_meta;
+		p "abstract %s {}" (stype (TAbstract (a,List.map snd a.a_types)));
 	);
 	IO.close_out ch
 

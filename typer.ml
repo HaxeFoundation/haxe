@@ -80,6 +80,8 @@ let rec classify t =
 	| TInst ({ cl_path = ([],"Int") },[]) -> KInt
 	| TInst ({ cl_path = ([],"Float") },[]) -> KFloat
 	| TInst ({ cl_path = ([],"String") },[]) -> KString
+	| TAbstract ({ a_path = [],"Int" },[]) -> KInt
+	| TAbstract ({ a_path = [],"Float" },[]) -> KFloat	
 	| TInst ({ cl_kind = KTypeParameter ctl },_) when List.exists (fun t -> match classify t with KInt | KFloat -> true | _ -> false) ctl -> KParam t
 	| TMono r when !r = None -> KUnk
 	| TDynamic _ -> KDyn
@@ -412,13 +414,31 @@ let rec type_module_type ctx t tparams p =
 		mk (TTypeExpr (TEnumDecl e)) (TType (t_tmp,types)) p
 	| TTypeDecl s ->
 		let t = apply_params s.t_types (List.map (fun _ -> mk_mono()) s.t_types) s.t_type in
-		match follow t with
+		(match follow t with
 		| TEnum (e,params) ->
 			type_module_type ctx (TEnumDecl e) (Some params) p
 		| TInst (c,params) ->
 			type_module_type ctx (TClassDecl c) (Some params) p
+		| TAbstract (a,params) ->
+			type_module_type ctx (TAbstractDecl a) (Some params) p
 		| _ ->
-			error (s_type_path s.t_path ^ " is not a value") p
+			error (s_type_path s.t_path ^ " is not a value") p)
+	| TAbstractDecl a ->
+		if not (has_meta ":runtime_value" a.a_meta) then error (s_type_path a.a_path ^ " is not a value") p;
+		let t_tmp = {
+			t_path = fst a.a_path, "#" ^ snd a.a_path;
+			t_module = a.a_module;
+			t_doc = None;
+			t_pos = a.a_pos;
+			t_type = TAnon {
+				a_fields = PMap.empty;
+				a_status = ref (AbstractStatics a);
+			};
+			t_private = true;
+			t_types = [];
+			t_meta = no_meta;
+		} in
+		mk (TTypeExpr (TAbstractDecl a)) (TType (t_tmp,[])) p		
 
 let type_type ctx tpath p =
 	type_module_type ctx (Typeload.load_type_def ctx p { tpackage = fst tpath; tname = snd tpath; tparams = []; tsub = None }) None p
@@ -714,7 +734,7 @@ let type_ident_raise ?(imported_enums=true) ctx i p mode =
 			| [] -> raise Not_found
 			| t :: l ->
 				match t with
-				| TClassDecl _ ->
+				| TClassDecl _ | TAbstractDecl _ ->
 					loop l
 				| TTypeDecl t ->
 					(match follow t.t_type with
@@ -2421,7 +2441,7 @@ let get_main ctx =
 	| Some cl ->
 		let t = Typeload.load_type_def ctx null_pos { tpackage = fst cl; tname = snd cl; tparams = []; tsub = None } in
 		let ft, r = (match t with
-		| TEnumDecl _ | TTypeDecl _ ->
+		| TEnumDecl _ | TTypeDecl _ | TAbstractDecl _ ->
 			error ("Invalid -main : " ^ s_type_path cl ^ " is not a class") null_pos
 		| TClassDecl c ->
 			try
@@ -2474,7 +2494,7 @@ let generate ctx =
 			| TClassDecl c ->
 				walk_class p c;
 				t
-			| TEnumDecl _ | TTypeDecl _ ->
+			| TEnumDecl _ | TTypeDecl _ | TAbstractDecl _ ->
 				t
 			) in
 			Hashtbl.replace states p Done;
@@ -2485,6 +2505,9 @@ let generate ctx =
 
 	and loop_enum p e =
 		if e.e_path <> p then loop (TEnumDecl e)
+
+	and loop_abstract p a =
+		if a.a_path <> p then loop (TAbstractDecl a)
 
 	and walk_static_call p c name =
 		try
@@ -2507,6 +2530,7 @@ let generate ctx =
 			(match t with
 			| TClassDecl c -> loop_class p c
 			| TEnumDecl e -> loop_enum p e
+			| TAbstractDecl a -> loop_abstract p a
 			| TTypeDecl _ -> assert false)
 		| TEnumField (e,_) ->
 			loop_enum p e
@@ -2538,6 +2562,7 @@ let generate ctx =
 				| TField ({ eexpr = TTypeExpr t },name) ->
 					(match t with
 					| TEnumDecl _ -> ()
+					| TAbstractDecl _ -> assert false
 					| TTypeDecl _ -> assert false
 					| TClassDecl c -> walk_static_call p c name)
 				| _ -> ()
@@ -2650,6 +2675,7 @@ let make_macro_api ctx p =
 		| TClassDecl c -> TInst (c,List.map snd c.cl_types)
 		| TEnumDecl e -> TEnum (e,List.map snd e.e_types)
 		| TTypeDecl t -> TType (t,List.map snd t.t_types)
+		| TAbstractDecl a -> TAbstract (a,List.map snd a.a_types)
 	in
 	{
 		Interp.pos = p;
@@ -2768,7 +2794,8 @@ let make_macro_api ctx p =
 				Some (match mt with
 					| TClassDecl c -> TInst (c,[])
 					| TEnumDecl e -> TEnum (e,[])
-					| TTypeDecl t -> TType (t,[]))
+					| TTypeDecl t -> TType (t,[])
+					| TAbstractDecl a -> TAbstract(a,[]))
 			| None ->
 				if ctx.curclass == null_class then
 					None
@@ -3103,6 +3130,13 @@ let rec create com =
 	);
 	List.iter (fun t ->
 		match t with
+		| TAbstractDecl a ->
+			(match snd a.a_path with
+			| "Void" -> ctx.t.tvoid <- TAbstract (a,[]);
+			| "Float" -> ctx.t.tfloat <- TAbstract (a,[]);
+			| "Int" -> ctx.t.tint <- TAbstract (a,[])
+			| "Bool" -> ctx.t.tbool <- TAbstract (a,[])
+			| _ -> ());
 		| TEnumDecl e ->
 			(match snd e.e_path with
 			| "Void" -> ctx.t.tvoid <- TEnum (e,[])

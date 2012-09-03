@@ -221,6 +221,7 @@ let make_generic ctx ps pt p =
 			let path = (match follow t with		
 				| TInst (ct,_) -> ct.cl_path
 				| TEnum (e,_) -> e.e_path
+				| TAbstract (a,_) when has_meta ":runtime_value" a.a_meta -> a.a_path
 				| TMono _ -> raise (Generic_Exception (("Could not determine type for parameter " ^ s), p))
 				| t -> raise (Generic_Exception (("Type parameter must be a class or enum instance (found " ^ (s_type (print_context()) t) ^ ")"), p))
 			) in
@@ -300,6 +301,7 @@ let rec build_generic ctx c p tl =
 			| TInst (c,tl) -> add_dep c.cl_module tl
 			| TEnum (e,tl) -> add_dep e.e_module tl
 			| TType (t,tl) -> add_dep t.t_module tl
+			| TAbstract (a,tl) -> add_dep a.a_module tl
 			| TMono r ->
 				(match !r with
 				| None -> ()
@@ -418,6 +420,8 @@ let build_metadata com t =
 			(e.e_pos, ["",e.e_meta],List.map (fun n -> n, (PMap.find n e.e_constrs).ef_meta) e.e_names, [])
 		| TTypeDecl t ->
 			(t.t_pos, ["",t.t_meta],(match follow t.t_type with TAnon a -> PMap.fold (fun f acc -> (f.cf_name,f.cf_meta) :: acc) a.a_fields [] | _ -> []),[])
+		| TAbstractDecl a ->
+			(a.a_pos, ["",a.a_meta],[],[])
 	) in
 	let filter l =
 		let l = List.map (fun (n,ml) -> n, List.filter (fun (m,_,_) -> m.[0] <> ':') ml) l in
@@ -505,6 +509,8 @@ let build_instance ctx mtype p =
 		e.e_types , e.e_path , (fun t -> TEnum (e,t))
 	| TTypeDecl t ->
 		t.t_types , t.t_path , (fun tl -> TType(t,tl))
+	| TAbstractDecl a ->
+		a.a_types, a.a_path, (fun tl -> TAbstract(a,tl))
 
 let on_inherit ctx c p h =
 	match h with
@@ -1075,6 +1081,7 @@ let rename_local_vars com e =
 		| TInst (c,_) -> check (TClassDecl c)
 		| TEnum (e,_) -> check (TEnumDecl e)
 		| TType (t,_) -> check (TTypeDecl t)
+		| TAbstract (a,_) -> check (TAbstractDecl a)
 		| TMono _ | TLazy _ | TAnon _ | TDynamic _ | TFun _ -> ()
 	in
 	let rec loop e =
@@ -1276,6 +1283,7 @@ let post_process filters t =
 			c.cl_init <- Some (List.fold_left (fun e f -> f e) e filters));
 	| TEnumDecl _ -> ()
 	| TTypeDecl _ -> ()
+	| TAbstractDecl _ -> ()
 
 let post_process_end() =
 	incr pp_counter
@@ -1602,6 +1610,8 @@ let dump_types com =
 			print "}"
 		| Type.TTypeDecl t ->
 			print "%stype %s%s = %s" (if t.t_private then "private " else "") (s_type_path path) (params t.t_types) (s_type t.t_type);
+		| Type.TAbstractDecl a ->
+			print "%sabstract %s%s {}" (if a.a_private then "private " else "") (s_type_path path) (params a.a_types);
 		);
 		close();
 	) com.types
@@ -1638,6 +1648,7 @@ let default_cast ?(vtmp="$t") com e texpr t p =
 	let mk_texpr = function
 		| TClassDecl c -> TAnon { a_fields = PMap.empty; a_status = ref (Statics c) }
 		| TEnumDecl e -> TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics e) }
+		| TAbstractDecl a -> TAnon { a_fields = PMap.empty; a_status = ref (AbstractStatics a) }
 		| TTypeDecl _ -> assert false
 	in
 	let vtmp = alloc_var vtmp e.etype in

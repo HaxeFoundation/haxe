@@ -72,7 +72,6 @@
 		Dynamic = { __name__ : ["Dynamic"] };
 		Class = { __name__ : ["Class"] };
 		Enum = {};
-		Void = { __ename__ : ["Void"] };
 		var cl = neko.Boot.__classes;
 		cl.Int = Int;
 		cl.Float = Float;
@@ -80,7 +79,6 @@
 		cl.Dynamic = Dynamic;
 		cl.Class = Class;
 		cl.Enum = Enum;
-		cl.Void = Void;
 	}
 
 }

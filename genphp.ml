@@ -104,12 +104,17 @@ let rec class_string klass suffix params =
 and type_string_suff suffix haxe_type =
 	(match haxe_type with
 	| TMono r -> (match !r with None -> "Dynamic" | Some t -> type_string_suff suffix t)
+	| TAbstract ({ a_path = [],"Int" },[]) -> "int"
+	| TAbstract ({ a_path = [],"Float" },[]) -> "double"
+	| TAbstract ({ a_path = [],"Bool" },[]) -> "bool"
+	| TAbstract ({ a_path = [],"Void" },[]) -> "Void"
 	| TEnum ({ e_path = ([],"Void") },[]) -> "Void"
 	| TEnum ({ e_path = ([],"Bool") },[]) -> "bool"
 	| TInst ({ cl_path = ([],"Float") },[]) -> "double"
 	| TInst ({ cl_path = ([],"Int") },[]) -> "int"
 	| TEnum (enum,params) ->  (join_class_path enum.e_path "::") ^ suffix
 	| TInst (klass,params) ->  (class_string klass suffix params)
+	| TAbstract (abs,params) ->  (join_class_path abs.a_path "::") ^ suffix
 	| TType (type_def,params) ->
 		(match type_def.t_path with
 		| [] , "Null" ->
@@ -1497,20 +1502,26 @@ and gen_expr ctx e =
 			let b = save_locals ctx in
 			if not !first then spr ctx "else ";
 			(match follow v.v_type with
-			| TEnum (te,_) -> (match snd te.e_path with
-				| "Bool"   -> print ctx "if(is_bool($%s = $%s))" ev evar
+			| TEnum (te,_) -> (match te.e_path with
+				| [], "Bool"   -> print ctx "if(is_bool($%s = $%s))" ev evar
 				| _ -> print ctx "if(($%s = $%s) instanceof %s)" ev evar (s_path ctx te.e_path te.e_extern e.epos));
 				restore_in_block ctx in_block;
 				gen_expr ctx (mk_block e);
-			| TInst (tc,_) -> (match snd tc.cl_path with
-				| "Int"	-> print ctx "if(is_int($%s = $%s))"		ev evar
-				| "Float"  -> print ctx "if(is_numeric($%s = $%s))"	ev evar
-				| "String" -> print ctx "if(is_string($%s = $%s))"	ev evar
-				| "Array"  -> print ctx "if(($%s = $%s) instanceof _hx_array)"	ev evar
+			| TInst (tc,_) -> (match tc.cl_path with
+				| [], "Int"	-> print ctx "if(is_int($%s = $%s))"		ev evar
+				| [], "Float"  -> print ctx "if(is_numeric($%s = $%s))"	ev evar
+				| [], "String" -> print ctx "if(is_string($%s = $%s))"	ev evar
+				| [], "Array"  -> print ctx "if(($%s = $%s) instanceof _hx_array)"	ev evar
 				| _ -> print ctx "if(($%s = $%s) instanceof %s)"    ev evar (s_path ctx tc.cl_path tc.cl_extern e.epos));
 				restore_in_block ctx in_block;
 				gen_expr ctx (mk_block e);
-
+			| TAbstract (ta,_) -> (match ta.a_path with
+				| [], "Int"	-> print ctx "if(is_int($%s = $%s))"		ev evar
+				| [], "Float"  -> print ctx "if(is_numeric($%s = $%s))"	ev evar
+				| [], "Bool"   -> print ctx "if(is_bool($%s = $%s))" ev evar
+				| _ -> print ctx "if(($%s = $%s) instanceof %s)"    ev evar (s_path ctx ta.a_path false e.epos));
+				restore_in_block ctx in_block;
+				gen_expr ctx (mk_block e);
 			| TFun _
 			| TLazy _
 			| TType _
@@ -1622,6 +1633,7 @@ and gen_expr ctx e =
 		let mk_texpr = function
 			| TClassDecl c -> TAnon { a_fields = PMap.empty; a_status = ref (Statics c) }
 			| TEnumDecl e -> TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics e) }
+			| TAbstractDecl a -> TAnon { a_fields = PMap.empty; a_status = ref (AbstractStatics a) }
 			| TTypeDecl _ -> assert false
 		in
 		spr ctx "_hx_cast(";
@@ -2324,7 +2336,7 @@ let generate com =
 				let ctx = init com php_lib_path e.e_path 1 in
 			generate_enum ctx e;
 			close ctx
-		| TTypeDecl t ->
+		| TTypeDecl _ | TAbstractDecl _ ->
 			());
 	) com.types;
 	(match com.main with

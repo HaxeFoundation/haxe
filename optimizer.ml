@@ -180,7 +180,7 @@ let rec type_inline ctx cf f ethis params tret p force =
 	let in_local_fun = ref false in
 	let cancel_inlining = ref false in
 	let has_return_value = ref false in
-	let ret_val = (match follow f.tf_type with TEnum ({ e_path = ([],"Void") },[]) -> false | _ -> true) in
+	let ret_val = (match follow f.tf_type with TEnum ({ e_path = ([],"Void") },[]) | TAbstract ({ a_path = ([],"Void") },[]) -> false | _ -> true) in
 	let rec map term e =
 		let po = e.epos in
 		let e = { e with epos = p } in
@@ -349,7 +349,7 @@ let rec type_inline ctx cf f ethis params tret p force =
 				(match follow e.etype with 
 				| TMono _ -> 
 					(match follow tret with
-					| TEnum ({ e_path = [],"Void" },_) -> e
+					| TEnum ({ e_path = [],"Void" },_) | TAbstract ({ a_path = [],"Void" },_) -> e
 					| _ -> raise (Unify_error []))
 				| _ -> 
 					type_eq EqStrict (if has_params then map_type e.etype else e.etype) tret;
@@ -541,6 +541,9 @@ let rec add_final_return e t =
 			| TInst ({ cl_path = [],"Int" },_) -> TInt 0l
 			| TInst ({ cl_path = [],"Float" },_) -> TFloat "0."
 			| TEnum ({ e_path = [],"Bool" },_) -> TBool false
+			| TAbstract ({ a_path = [],"Int" },_) -> TInt 0l
+			| TAbstract ({ a_path = [],"Float" },_) -> TFloat "0."
+			| TAbstract ({ a_path = [],"Bool" },_) -> TBool false
 			| _ -> TNull
 		) in
 		{ eexpr = TReturn (Some { eexpr = TConst c; epos = p; etype = t }); etype = t; epos = p }
@@ -633,7 +636,7 @@ let sanitize_expr com e =
 		{ e with eexpr = TFor (v,e1,e2) }
 	| TFunction f ->
 		let f = (match follow f.tf_type with
-			| TEnum ({ e_path = [],"Void" },[]) -> f
+			| TEnum ({ e_path = [],"Void" },[]) | TAbstract ({ a_path = [],"Void" },[]) -> f
 			| t ->
 				if com.config.pf_add_final_return then { f with tf_expr = add_final_return f.tf_expr t } else f
 		) in

@@ -63,7 +63,7 @@ class TestReflect extends Test {
 		null,Int,String,Bool,Float,
 		Array,Hash,List,Date,Xml,Math,
 		unit.MyEnum,unit.MyClass,unit.MySubClass,
-		Class,Enum,#if !(java || cs)Void,#end Dynamic,unit.MyInterface
+		Class,Enum,Dynamic,unit.MyInterface
 	];
 
 	static inline function u( s : String ) : String {
@@ -87,7 +87,7 @@ class TestReflect extends Test {
 		"null","Int","String","Bool","Float",
 		"Array",u("Hash"),u("List"),"Date","Xml","Math",
 		u2("unit","MyEnum"),u2("unit","MyClass"),u2("unit","MySubClass"),
-		#if !flash9 u #end("Class"), u("Enum"), #if !(java || cs) u("Void"), #end u("Dynamic"),
+		#if !flash9 u #end("Class"), u("Enum"), u("Dynamic"),
 		u2("unit","MyInterface")
 	];
 
@@ -99,7 +99,7 @@ class TestReflect extends Test {
 			f( t == null );
 			if( name == u("Enum") ) {
 				// neither an enum or a class
-			} else if( t == MyEnum || #if !(java || cs) t == Void || #end t == Bool ) {
+			} else if( t == MyEnum || t == Bool ) {
 				eq( Type.getEnumName(t), name );
 				eq( Type.resolveEnum(name), t );
 			} else {
@@ -108,9 +108,6 @@ class TestReflect extends Test {
 			}
 		}
 		infos(null);
-		// these are very specific cases since we can't allow reflection on core type
-		unspec( function() Type.getEnumConstructs(Void) );
-		unspec( function() Type.getEnumConstructs(Bool) );
 	}
 
 	public function testIs() {
@@ -143,7 +140,6 @@ class TestReflect extends Test {
 		is(function() { },null);
 		is(MyClass,Class);
 		is(MyEnum,Enum);
-		is(Void,Enum);
 		is(Class,Class);
 	}
 
@@ -184,7 +180,6 @@ class TestReflect extends Test {
 		typeof(function() {},TFunction);
 		typeof(MyClass,TObject);
 		typeof(MyEnum,TObject);
-		typeof(Void,TObject);
 		#if !flash9
 		// on flash9, Type.typeof(Class) is crashing the player
 		typeof(Class,TObject);

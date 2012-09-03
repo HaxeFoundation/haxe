@@ -183,6 +183,10 @@ let rec follow_basic t =
 		(match follow_basic tp with
 		| TMono _
 		| TFun _
+		| TAbstract ({ a_path = ([],"Int") },[])
+		| TAbstract ({ a_path = ([],"Float") },[])
+		| TAbstract ({ a_path = [],"UInt" },[])
+		| TAbstract ({ a_path = ([],"Bool") },[])
 		| TInst ({ cl_path = (["haxe"],"Int32") },[])
 		| TInst ({ cl_path = ([],"Int") },[])
 		| TInst ({ cl_path = ([],"Float") },[])
@@ -241,13 +245,13 @@ let type_void ctx t =
 
 let classify ctx t =
 	match follow_basic t with
-	| TInst ({ cl_path = [],"Int" },_) | TInst ({ cl_path = ["haxe"],"Int32" },_) ->
+	| TAbstract ({ a_path = [],"Int" },_) | TInst ({ cl_path = [],"Int" },_) | TInst ({ cl_path = ["haxe"],"Int32" },_) ->
 		KInt
-	| TInst ({ cl_path = [],"Float" },_) ->
+	| TAbstract ({ a_path = [],"Float" },_) | TInst ({ cl_path = [],"Float" },_) ->
 		KFloat
-	| TEnum ({ e_path = [],"Bool" },_) ->
+	| TAbstract ({ a_path = [],"Bool" },_) | TEnum ({ e_path = [],"Bool" },_) ->
 		KBool
-	| TEnum ({ e_path = [],"Void" },_) ->
+	| TAbstract ({ a_path = [],"Void" },_) | TEnum ({ e_path = [],"Void" },_) ->
 		KDynamic
 	| TEnum ({ e_path = [],"XmlType"; e_extern = true },_) ->
 		KType (HMPath ([],"String"))
@@ -263,9 +267,7 @@ let classify ctx t =
 			| _ :: l -> loop l
 		in
 		loop e.e_meta
-	| TInst _ ->
-		KType (type_id ctx t)
-	| TType ({ t_path = [],"UInt" },_) ->
+	| TAbstract ({ a_path = [],"UInt" },_) | TType ({ t_path = [],"UInt" },_) ->
 		KUInt
 	| TFun _ | TType ({ t_path = ["flash";"utils"],"Function" },[]) ->
 		KType (HMPath ([],"Function"))
@@ -275,6 +277,8 @@ let classify ctx t =
 		| _ -> KDynamic)
 	| TType ({ t_path = ["flash";"utils"],"Object" },[]) ->
 		KType (HMPath ([],"Object"))
+	| TInst _ | TAbstract _ ->
+		KType (type_id ctx t)
 	| TMono _
 	| TType _
 	| TDynamic _ ->
@@ -2307,7 +2311,7 @@ let generate_type ctx t =
 				hlf_kind = HFClass hlc;
 				hlf_metas = extract_meta e.e_meta;
 			})
-	| TTypeDecl _ ->
+	| TTypeDecl _ | TAbstractDecl _ ->
 		None
 
 let resource_path name =

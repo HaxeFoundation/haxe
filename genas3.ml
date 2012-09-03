@@ -207,6 +207,14 @@ let rec type_str ctx t p =
 	match t with
 	| TEnum _ | TInst _ when List.memq t ctx.local_types ->
 		"*"
+	| TAbstract (a,_) ->
+		(match a.a_path with
+		| [], "Void" -> "void"
+		| [], "UInt" -> "uint"
+		| [], "Int" -> "int"
+		| [], "Float" -> "Number"
+		| [], "Bool" -> "Boolean"
+		| _ -> s_path ctx true a.a_path p)
 	| TEnum (e,_) ->
 		if e.e_extern then (match e.e_path with
 			| [], "Void" -> "void"
@@ -243,6 +251,10 @@ let rec type_str ctx t p =
 			(match args with
 			| [t] ->
 				(match follow t with
+				| TAbstract ({ a_path = [],"UInt" },_)
+				| TAbstract ({ a_path = [],"Int" },_)
+				| TAbstract ({ a_path = [],"Float" },_)
+				| TAbstract ({ a_path = [],"Bool" },_)
 				| TInst ({ cl_path = [],"Int" },_)
 				| TInst ({ cl_path = [],"Float" },_)
 				| TEnum ({ e_path = [],"Bool" },_) -> "*"
@@ -1204,7 +1216,7 @@ let generate com =
 				let ctx = init infos e.e_path in
 				generate_enum ctx e;
 				close ctx
-		| TTypeDecl t ->
+		| TTypeDecl _ | TAbstractDecl _ ->
 			()
 	) com.types;
 	(match com.main with

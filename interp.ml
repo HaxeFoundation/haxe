@@ -2260,7 +2260,7 @@ let macro_lib =
 					(match !r with
 					| None -> t
 					| Some t -> t)
-				| TEnum _ | TInst _ | TFun _ | TAnon _ | TDynamic _ ->
+				| TAbstract _ | TEnum _ | TInst _ | TFun _ | TAnon _ | TDynamic _ ->
 					t
 				| TType (t,tl) ->
 					apply_params t.t_types tl t.t_type
@@ -3897,6 +3897,7 @@ let rec encode_mtype t fields =
 		"module", enc_string (s_type_path i.mt_module.m_path);
 		"isPrivate", VBool i.mt_private;
 		"meta", encode_meta i.mt_meta (fun m -> i.mt_meta <- m);
+		"doc", null enc_string i.mt_doc;
 	] @ fields)
 
 and encode_tenum e =
@@ -3906,7 +3907,11 @@ and encode_tenum e =
 		"params", enc_array (List.map (fun (n,t) -> enc_obj ["name",enc_string n;"t",encode_type t]) e.e_types);
 		"constructs", encode_pmap encode_efield e.e_constrs;
 		"names", enc_array (List.map enc_string e.e_names);
-		"doc", null enc_string e.e_doc;
+	]
+
+and encode_tabstract a =
+	encode_mtype (TAbstractDecl a) [
+		"params", enc_array (List.map (fun (n,t) -> enc_obj ["name",enc_string n;"t",encode_type t]) a.a_types);
 	]
 
 and encode_efield f =
@@ -4039,6 +4044,8 @@ and encode_type t =
 				6, [encode_type tsub]
 		| TLazy f ->
 			loop (!f())
+		| TAbstract (a, pl) ->
+			7, [encode_ref a encode_tabstract (fun() -> s_type_path a.a_path); encode_tparams pl]
 	in
 	let tag, pl = loop t in
 	enc_enum IType tag pl
@@ -4170,6 +4177,8 @@ let rec make_type = function
 		tpath c.cl_path (List.map make_type pl)
 	| TType (t,pl) ->
 		tpath t.t_path (List.map make_type pl)
+	| TAbstract (a,pl) ->
+		tpath a.a_path (List.map make_type pl)
 	| TFun (args,ret) ->
 		CTFunction (List.map (fun (_,_,t) -> make_type t) args, make_type ret)
 	| TAnon a ->
@@ -4274,7 +4283,7 @@ let rec make_ast e =
 		let t = (match t with
 			| None -> None
 			| Some t ->
-				let t = (match t with TClassDecl c -> TInst (c,[]) | TEnumDecl e -> TEnum (e,[]) | TTypeDecl t -> TType (t,[])) in
+				let t = (match t with TClassDecl c -> TInst (c,[]) | TEnumDecl e -> TEnum (e,[]) | TTypeDecl t -> TType (t,[]) | TAbstractDecl a -> TAbstract (a,[])) in
 				Some (try make_type t with Exit -> assert false)
 		) in
 		ECast (make_ast e,t))

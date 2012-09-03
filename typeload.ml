@@ -918,7 +918,7 @@ let init_class ctx c p herits fields =
 		match t with
 		| TFun (args,ret) -> is_full_type ret && List.for_all (fun (_,_,t) -> is_full_type t) args
 		| TMono r -> (match !r with None -> false | Some t -> is_full_type t)
-		| TInst _ | TEnum _ | TLazy _ | TDynamic _ | TAnon _ | TType _ -> true
+		| TAbstract _ | TInst _ | TEnum _ | TLazy _ | TDynamic _ | TAnon _ | TType _ -> true
 	in
 	let bind_type cf r p macro =
 		if ctx.com.display then begin
@@ -1286,11 +1286,12 @@ let init_class ctx c p herits fields =
 
 let resolve_typedef t =
 	match t with
-	| TClassDecl _ | TEnumDecl _ -> t
+	| TClassDecl _ | TEnumDecl _ | TAbstractDecl _ -> t
 	| TTypeDecl td ->
 		match follow td.t_type with
 		| TEnum (e,_) -> TEnumDecl e
 		| TInst (c,_) -> TClassDecl c
+		| TAbstract (a,_) -> TAbstractDecl a
 		| _ -> t
 
 let add_module ctx m p =
@@ -1362,6 +1363,21 @@ let type_module ctx m file tdecls loadp =
 				t_meta = d.d_meta;
 			} in
 			decls := TTypeDecl t :: !decls
+	   | EAbstract d ->
+			let priv = List.mem APrivAbstract d.d_flags in
+			let path = make_path d.d_name priv in
+			let a = {
+				a_path = path;
+				a_private = priv;
+				a_module = m;
+				a_pos = p;
+				a_doc = d.d_doc;
+				a_types = [];
+				a_meta = d.d_meta;
+				a_sub = [];
+				a_super = [];
+			} in
+			decls := TAbstractDecl a :: !decls
 	) tdecls;
 	m.m_types <- List.rev !decls;
 	add_module ctx m loadp;
@@ -1403,6 +1419,10 @@ let type_module ctx m file tdecls loadp =
 		let s = List.find (fun d -> match d with TTypeDecl { t_path = _ , n } -> n = name | _ -> false) m.m_types in
 		match s with TTypeDecl s -> s | _ -> assert false
 	in
+	let get_abstract name =
+		let s = List.find (fun d -> match d with TAbstractDecl { a_path = _ , n } -> n = name | _ -> false) m.m_types in
+		match s with TAbstractDecl a -> a | _ -> assert false
+	in
 	let filter_classes types =
 		let rec loop acc types = match List.rev types with
 			| t :: l ->
@@ -1425,6 +1445,9 @@ let type_module ctx m file tdecls loadp =
 		| ETypedef d ->
 			let t = get_tdef d.d_name in
 			t.t_types <- List.map (type_type_params ctx t.t_path (fun() -> t.t_types) p) d.d_params;
+		| EAbstract d ->
+			let a = get_abstract d.d_name in
+			a.a_types <- List.map (type_type_params ctx a.a_path (fun() -> a.a_types) p) d.d_params;
 	) tdecls;
 	(* back to PASS2 *)
 	List.iter (fun (d,p) ->
@@ -1530,6 +1553,14 @@ let type_module ctx m file tdecls loadp =
 				| None -> r := Some tt;
 				| Some _ -> assert false);
 			| _ -> assert false);
+		| EAbstract d ->
+			let a = get_abstract d.d_name in
+			let ctx = { ctx with type_params = a.a_types } in
+			List.iter (function
+				| APrivAbstract -> ()
+				| ASubType t -> a.a_sub <- load_complex_type ctx p t :: a.a_sub
+				| ASuperType t -> a.a_super <- load_complex_type ctx p t :: a.a_super
+			) d.d_flags
 	) tdecls;
 	(* PASS 3 : type checking, delayed until all modules and types are built *)
 	List.iter (delay ctx) (List.rev (!delays));
@@ -1592,6 +1623,7 @@ let parse_module ctx m p =
 			| EClass d -> build HPrivate d
 			| EEnum d -> build EPrivate d
 			| ETypedef d -> build EPrivate d
+			| EAbstract d -> build APrivAbstract d
 			| EImport _ | EUsing _ -> acc
 		) [(EImport { tpackage = !remap; tname = snd m; tparams = []; tsub = None; },null_pos)] decls)
 	else

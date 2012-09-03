@@ -403,6 +403,8 @@ and type_string_suff suffix haxe_type =
       *)
 	| TDynamic haxe_type -> "Dynamic" ^ suffix
 	| TLazy func -> type_string_suff suffix ((!func)())
+	| TAbstract (abs,pl) ->
+		"::" ^ (join_class_path abs.a_path "::") ^ suffix
 	)
 and type_string haxe_type =
 	type_string_suff "" haxe_type
@@ -2119,7 +2121,7 @@ let find_referenced_types ctx obj super_deps constructor_deps header_only =
 	| TClassDecl class_def -> visit_class class_def;
 		(match class_def.cl_init with Some expression -> visit_types expression | _ -> ())
 	| TEnumDecl enum_def -> visit_enum enum_def
-	| TTypeDecl _ -> (* These are expanded *) ());
+	| TTypeDecl _ | TAbstractDecl _ -> (* These are expanded *) ());
 
 	List.sort inc_cmp (List.filter (fun path -> (include_class_header path) ) (pmap_keys !types))
 	;;
@@ -3146,7 +3148,7 @@ let generate common_ctx =
 				let deps = generate_enum_files common_ctx enum_def super_deps meta file_info in
 				exe_classes := (enum_def.e_path, deps) :: !exe_classes;
 			end
-		| TTypeDecl _ -> (* already done *) ()
+		| TTypeDecl _ | TAbstractDecl _ -> (* already done *) ()
 		);
 	) common_ctx.types;
 

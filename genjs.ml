@@ -586,6 +586,7 @@ and gen_expr ctx e =
 			let t = (match follow v.v_type with
 			| TEnum (e,_) -> Some (TEnumDecl e)
 			| TInst (c,_) -> Some (TClassDecl c)
+			| TAbstract (a,_) -> Some (TAbstractDecl a)
 			| TFun _
 			| TLazy _
 			| TType _
@@ -1071,7 +1072,7 @@ let generate_type ctx = function
 	| TEnumDecl e when e.e_extern ->
 		()
 	| TEnumDecl e -> generate_enum ctx e
-	| TTypeDecl _ -> ()
+	| TTypeDecl _ | TAbstractDecl _ -> ()
 
 let set_current_class ctx c =
 	ctx.current <- c

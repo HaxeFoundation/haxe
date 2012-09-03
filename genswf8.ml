@@ -629,6 +629,7 @@ let rec gen_access ?(read_write=false) ctx forcall e =
 		(match t with
 		| TClassDecl c -> gen_path ctx c.cl_path c.cl_extern
 		| TEnumDecl e -> gen_path ctx e.e_path false
+		| TAbstractDecl a -> gen_path ctx a.a_path false
 		| TTypeDecl _ -> assert false)
 	| _ ->
 		if not forcall then invalid_expr e.epos;
@@ -658,6 +659,7 @@ and gen_try_catch ctx retval e catchs =
 		else let t = (match follow v.v_type with
 			| TEnum (e,_) -> Some (TEnumDecl e)
 			| TInst (c,_) -> Some (TClassDecl c)
+			| TAbstract (a,_) -> Some (TAbstractDecl a)
 			| TFun _
 			| TLazy _
 			| TType _
@@ -1438,7 +1440,7 @@ let gen_type_def ctx t =
 			write ctx AObjSet;
 		);
 		PMap.iter (fun _ f -> gen_enum_field ctx e f) e.e_constrs
-	| TTypeDecl _ ->
+	| TTypeDecl _ | TAbstractDecl _ ->
 		()
 
 let gen_boot ctx =

@@ -610,12 +610,12 @@ let gen_type ctx t acc =
 			acc
 		else
 			gen_enum ctx e :: acc
-	| TTypeDecl t ->
+	| TTypeDecl _ | TAbstractDecl _ ->
 		acc
 
 let gen_static_vars ctx t =
 	match t with
-	| TEnumDecl _ | TTypeDecl _ -> []
+	| TEnumDecl _ | TTypeDecl _ | TAbstractDecl _ -> []
 	| TClassDecl c ->
 		if c.cl_extern then
 			[]
@@ -643,7 +643,7 @@ let gen_package ctx t =
 		| x :: l ->
 			let path = acc @ [x] in
 			if not (Hashtbl.mem ctx.packages path) then begin
-				let p = pos ctx (match t with TClassDecl c -> c.cl_pos | TEnumDecl e -> e.e_pos | TTypeDecl t -> t.t_pos) in
+				let p = pos ctx (t_infos t).mt_pos in
 				let e = (EBinop ("=",gen_type_path p (acc,x),call p (builtin p "new") [null p]),p) in
 				Hashtbl.add ctx.packages path ();
 				(match acc with
@@ -698,7 +698,7 @@ let gen_name ctx acc t =
 			| l ->
 				let interf = field p (gen_type_path p c.cl_path) "__interfaces__" in
 				(EBinop ("=",interf, call p (field p (ident p "Array") "new1") [interf; int p (List.length l)]),p) :: acc)
-	| TTypeDecl _ ->
+	| TTypeDecl _ | TAbstractDecl _ ->
 		acc
 
 let generate_libs_init = function

@@ -38,6 +38,7 @@ enum Type {
 	TAnonymous( a : Ref<AnonType> );
 	TDynamic( t : Null<Type> );
 	TLazy( f : Void -> Type );
+	TAbstract( t : Ref<AbstractType>, params : Array<Type> );
 }
 
 typedef AnonType = {
@@ -110,6 +111,9 @@ typedef EnumType = {> BaseType,
 typedef DefType = {> BaseType,
 	var type : Type;
 }
+
+
+typedef AbstractType = BaseType;
 
 typedef MetaAccess = {
 	function get() : Expr.Metadata;

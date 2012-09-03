@@ -65,6 +65,7 @@ type keyword =
 	| Null
 	| True
 	| False
+	| Abstract
 
 type binop =
 	| OpAdd
@@ -239,6 +240,11 @@ type class_flag =
 	| HExtends of type_path
 	| HImplements of type_path
 
+type abstract_flag =
+	| APrivAbstract
+	| ASubType of complex_type
+	| ASuperType of complex_type
+
 type enum_constructor = string * documentation * metadata * (string * bool * complex_type) list * pos
 
 type ('a,'b) definition = {
@@ -254,6 +260,7 @@ type type_def =
 	| EClass of (class_flag, class_field list) definition
 	| EEnum of (enum_flag, enum_constructor list) definition
 	| ETypedef of (enum_flag, complex_type) definition
+	| EAbstract of (abstract_flag, unit) definition
 	| EImport of type_path
 	| EUsing of type_path
 
@@ -368,6 +375,7 @@ let s_keyword = function
 	| Null -> "null"
 	| True -> "true"
 	| False -> "false"
+	| Abstract -> "abstract"
 
 let rec s_binop = function
 	| OpAdd -> "+"

@@ -647,6 +647,9 @@ let build_dependencies t =
 		| TInst (c,pl) ->
 			add_path c.cl_path DKType;
 			List.iter (add_type_rec (t::l)) pl;
+		| TAbstract (a,pl) ->
+			add_path a.a_path DKType;
+			List.iter (add_type_rec (t::l)) pl;
 		| TFun (pl,t2) ->
 			List.iter (fun (_,_,t2) -> add_type_rec (t::l) t2) pl;
 			add_type_rec (t::l) t2;
@@ -1101,6 +1104,7 @@ let generate com swf_header =
 						let extern = (match t with
 							| TClassDecl c -> c.cl_extern
 							| TEnumDecl e -> e.e_extern
+							| TAbstractDecl a -> false
 							| TTypeDecl t -> false
 						) in
 						if not extern && s_type_path (t_path t) = e.f9_classname then

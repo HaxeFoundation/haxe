@@ -53,6 +53,7 @@ type t =
 	| TAnon of tanon
 	| TDynamic of t
 	| TLazy of (unit -> t) ref
+	| TAbstract of tabstract * tparams
 
 and tparams = t list
 
@@ -87,6 +88,7 @@ and anon_status =
 	| Const
 	| Statics of tclass
 	| EnumStatics of tenum
+	| AbstractStatics of tabstract
 
 and tanon = {
 	mutable a_fields : (string, tclass_field) PMap.t;
@@ -223,10 +225,23 @@ and tdef = {
 	mutable t_type : t;
 }
 
+and tabstract = {
+	a_path : path;
+	a_module : module_def;
+	a_pos : Ast.pos;
+	a_private : bool;
+	a_doc : Ast.documentation;
+	mutable a_meta : metadata;
+	mutable a_types : type_params;
+	mutable a_sub : t list;
+	mutable a_super : t list;
+}
+
 and module_type =
 	| TClassDecl of tclass
 	| TEnumDecl of tenum
 	| TTypeDecl of tdef
+	| TAbstractDecl of tabstract
 
 and module_def = {
 	m_id : int;
@@ -342,6 +357,7 @@ let t_infos t : tinfos =
 	| TClassDecl c -> Obj.magic c
 	| TEnumDecl e -> Obj.magic e
 	| TTypeDecl t -> Obj.magic t
+	| TAbstractDecl a -> Obj.magic a
 
 let t_path t = (t_infos t).mt_path
 
@@ -361,6 +377,8 @@ let rec s_type ctx t =
 		Ast.s_type_path c.cl_path ^ s_type_params ctx tl
 	| TType (t,tl) ->
 		Ast.s_type_path t.t_path ^ s_type_params ctx tl
+	| TAbstract (a,tl) ->
+		Ast.s_type_path a.a_path ^ s_type_params ctx tl
 	| TFun ([],t) ->
 		"Void -> " ^ s_fun ctx t false
 	| TFun (l,t) ->
@@ -380,6 +398,8 @@ and s_fun ctx t void =
 	| TFun _ ->
 		"(" ^ s_type ctx t ^ ")"
 	| TEnum ({ e_path = ([],"Void") },[]) when void ->
+		"(" ^ s_type ctx t ^ ")"
+	| TAbstract ({ a_path = ([],"Void") },[]) when void ->
 		"(" ^ s_type ctx t ^ ")"
 	| TMono r ->
 		(match !r with
@@ -434,6 +454,8 @@ let map loop t =
 		TInst (c, List.map loop tl)
 	| TType (t2,tl) ->
 		TType (t2,List.map loop tl)
+	| TAbstract (a,tl) ->
+		TAbstract (a,List.map loop tl)
 	| TFun (tl,r) ->
 		TFun (List.map (fun (s,o,t) -> s, o, loop t) tl,loop r)
 	| TAnon a ->
@@ -478,6 +500,10 @@ let apply_params cparams params t =
 			(match tl with
 			| [] -> t
 			| _ -> TType (t2,List.map loop tl))
+		| TAbstract (a,tl) ->
+			(match tl with
+			| [] -> t
+			| _ -> TAbstract (a,List.map loop tl))
 		| TInst (c,tl) ->
 			(match tl with
 			| [] ->
@@ -551,6 +577,7 @@ let rec is_nullable ?(no_lazy=false) = function
 	| TInst ({ cl_path = ([],"Int") },[])
 	| TInst ({ cl_path = ([],"Float") },[])
 	| TEnum ({ e_path = ([],"Bool") },[]) -> false
+	| TAbstract (a,_) -> not (List.exists (fun (m2,_,_) -> m2 = ":notNull") a.a_meta)
 	| _ ->
 		true
 
@@ -574,7 +601,7 @@ let rec link e a b =
 		else match t with
 		| TMono t -> (match !t with None -> false | Some t -> loop t)
 		| TEnum (_,tl) -> List.exists loop tl
-		| TInst (_,tl) | TType (_,tl) -> List.exists loop tl
+		| TInst (_,tl) | TType (_,tl) | TAbstract (_,tl) -> List.exists loop tl
 		| TFun (tl,t) -> List.exists (fun (_,_,t) -> loop t) tl || loop t
 		| TDynamic t2 ->
 			if t == t2 then
@@ -740,6 +767,9 @@ let rec type_eq param a b =
 			Unify_error l -> error (cannot_unify a b :: l))
 	| TDynamic a , TDynamic b ->
 		type_eq param a b
+	| TAbstract (a1,tl1) , TAbstract (a2,tl2) ->
+		if a1 != a2 && not (param = EqCoreType && a1.a_path = a2.a_path) then error [cannot_unify a b];
+		List.iter2 (type_eq param) tl1 tl2
 	| TAnon a1, TAnon a2 ->
 		(try
 			PMap.iter (fun n f1 ->
@@ -892,6 +922,16 @@ let rec unify a b =
 	| TEnum (ea,tl1) , TEnum (eb,tl2) ->
 		if ea != eb then error [cannot_unify a b];
 		unify_types a b tl1 tl2
+	| TAbstract (a1,tl1) , TAbstract (a2,tl2) when a1 == a2 ->
+		unify_types a b tl1 tl2
+	| TAbstract (a1,tl1) , TAbstract (a2,tl2) ->		
+		if not (List.exists (fun t ->
+			let t = apply_params a1.a_types tl1 t in
+			try unify t b; true with Unify_error _ -> false
+		) a1.a_super) && not (List.exists (fun t ->
+			let t = apply_params a2.a_types tl2 t in
+			try unify a t; true with Unify_error _ -> false
+		) a2.a_sub) then error [cannot_unify a b]		
 	| TInst (c1,tl1) , TInst (c2,tl2) ->
 		let rec loop c tl =
 			if c == c2 then begin
@@ -1032,6 +1072,16 @@ let rec unify a b =
 				error (cannot_unify a b :: l))
 		| _ ->
 			error [cannot_unify a b])
+	| TAbstract (aa,tl), _  ->
+		if not (List.exists (fun t ->
+			let t = apply_params aa.a_types tl t in
+			try unify t b; true with Unify_error _ -> false
+		) aa.a_super) then error [cannot_unify a b];
+	| _, TAbstract (bb,tl) ->
+		if not (List.exists (fun t ->
+			let t = apply_params bb.a_types tl t in
+			try unify a t; true with Unify_error _ -> false
+		) bb.a_sub) then error [cannot_unify a b];
 	| _ , _ ->
 		error [cannot_unify a b]
 

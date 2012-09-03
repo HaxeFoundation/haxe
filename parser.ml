@@ -232,6 +232,21 @@ and parse_type_decl s =
 				d_flags = List.map snd c;
 				d_data = t;
 			}, punion p1 p2)
+		| [< '(Kwd Abstract,p1); doc = get_doc; name = type_name; tl = parse_constraint_params; sl = psep Comma parse_abstract_relations; '(BrOpen,_); '(BrClose,p2) >] ->
+			let flags = List.map (fun (_,c) -> match c with EPrivate -> APrivAbstract | EExtern -> error (Custom "extern abstract not allowed") p1) c in
+			(EAbstract {
+				d_name = name;
+				d_doc = doc;
+				d_meta = meta;
+				d_params = tl;
+				d_flags = flags @ sl;
+				d_data = ();
+			},punion p1 p2)
+
+and parse_abstract_relations s =
+	match s with parser
+	| [< '(Binop OpLte,_); t = parse_complex_type >] -> ASuperType t
+	| [< '(Binop OpAssign,p1); '(Binop OpGt,p2) when p1.pmax = p2.pmin; t = parse_complex_type >] -> ASubType t
 
 and parse_package s = psep Dot lower_ident s
 
@@ -298,7 +313,7 @@ and parse_class_field_resume tdecl s =
 				junk_tokens (k - 1);
 				[]
 			(* type declaration *)
-			| Eof :: _ | Kwd Import :: _ | Kwd Using :: _ | Kwd Extern :: _ | Kwd Class :: _ | Kwd Interface :: _ | Kwd Enum :: _ | Kwd Typedef :: _ ->
+			| Eof :: _ | Kwd Import :: _ | Kwd Using :: _ | Kwd Extern :: _ | Kwd Class :: _ | Kwd Interface :: _ | Kwd Enum :: _ | Kwd Typedef :: _ | Kwd Abstract :: _->
 				junk_tokens (k - 1);
 				[]
 			| [] ->
