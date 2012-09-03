@@ -92,7 +92,14 @@ class Md5 {
 	function str2blks( str : String ){
 		var nblk = ((str.length + 8) >> 6) + 1;
 		var blks = new Array();
-		for( i in 0...(nblk * 16) ) blks[i] = 0;
+		
+		//preallocate size
+		var blksSize = nblk * 16;
+		blks[blksSize - 1] = 0;
+		
+		#if !(cpp || cs) //C++ and C# will already initialize them with zeroes.
+		for( i in 0...blksSize ) blks[i] = 0;
+		#end
 
 		var i = 0;
 		while( i < str.length ) {
