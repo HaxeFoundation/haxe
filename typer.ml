@@ -970,20 +970,25 @@ let type_generic_function ctx (e,cf) el p =
 	(try
 		let gctx = Codegen.make_generic ctx cf.cf_params monos p in
 		let name = cf.cf_name ^ "_" ^ gctx.Codegen.name in
-		let cf2 = mk_field name t cf.cf_pos in
-		if stat then begin
-			c.cl_statics <- PMap.add name cf2 c.cl_statics;
-			c.cl_ordered_statics <- cf2 :: c.cl_ordered_statics
-		end else begin
-			c.cl_fields <- PMap.add name cf2 c.cl_fields;
-			c.cl_ordered_fields <- cf2 :: c.cl_ordered_fields
-		end;
-		ignore(follow cf.cf_type);
-		cf2.cf_expr <- (match cf.cf_expr with
-			| None -> None
-			| Some e -> Some (Codegen.generic_substitute_expr gctx e));
-		cf2.cf_kind <- cf.cf_kind;
-		cf2.cf_public <- cf.cf_public;
+		let cf2 = try
+			PMap.find name (if stat then c.cl_statics else c.cl_fields)
+		with Not_found ->
+			let cf2 = mk_field name t cf.cf_pos in
+			if stat then begin
+				c.cl_statics <- PMap.add name cf2 c.cl_statics;
+				c.cl_ordered_statics <- cf2 :: c.cl_ordered_statics
+			end else begin
+				c.cl_fields <- PMap.add name cf2 c.cl_fields;
+				c.cl_ordered_fields <- cf2 :: c.cl_ordered_fields
+			end;
+			ignore(follow cf.cf_type);
+			cf2.cf_expr <- (match cf.cf_expr with
+				| None -> None
+				| Some e -> Some (Codegen.generic_substitute_expr gctx e));
+			cf2.cf_kind <- cf.cf_kind;
+			cf2.cf_public <- cf.cf_public;
+			cf2
+		in
 		let e = if stat then type_type ctx c.cl_path p else e in
 		let e = acc_get ctx (field_access ctx MCall cf2 cf2.cf_type e p) p in
 		(el,ret,e)
