@@ -240,7 +240,7 @@ let type_opt ctx t =
 
 let type_void ctx t =
 	match follow t with
-	| TEnum ({ e_path = [],"Void" },_) -> Some (HMPath ([],"void"))
+	| TEnum ({ e_path = [],"Void" },_) | TAbstract ({ a_path = [],"Void" },_) -> Some (HMPath ([],"void"))
 	| _ -> type_opt ctx t
 
 let classify ctx t =
@@ -1648,7 +1648,7 @@ and generate_function ctx fdata stat =
 	let f = begin_fun ctx fdata.tf_args fdata.tf_type [fdata.tf_expr] stat fdata.tf_expr.epos in
 	gen_expr ctx false fdata.tf_expr;
 	(match follow fdata.tf_type with
-	| TEnum ({ e_path = [],"Void" },[]) ->
+	| TEnum ({ e_path = [],"Void" },[]) | TAbstract ({ a_path = [],"Void" },[]) ->
 		debug_infos ctx ~is_min:false fdata.tf_expr.epos;
 		write ctx HRetVoid
 	| _ ->
@@ -2297,7 +2297,7 @@ let generate_type ctx t =
 				hlf_metas = extract_meta c.cl_meta;
 			})
 	| TEnumDecl e ->
-		if e.e_extern && e.e_path <> ([],"Void") then
+		if e.e_extern then
 			None
 		else
 			let meta = Codegen.build_metadata ctx.com t in

@@ -365,6 +365,10 @@ let rec class_string klass suffix params =
 and type_string_suff suffix haxe_type =
 	(match haxe_type with
 	| TMono r -> (match !r with None -> "Dynamic" ^ suffix | Some t -> type_string_suff suffix t)
+	| TAbstract ({ a_path = ([],"Void") },[]) -> "Void"
+	| TAbstract ({ a_path = ([],"Bool") },[]) -> "bool"
+	| TAbstract ({ a_path = ([],"Float") },[]) -> "Float"
+	| TAbstract ({ a_path = ([],"Int") },[]) -> "int"
 	| TEnum ({ e_path = ([],"Void") },[]) -> "Void"
 	| TEnum ({ e_path = ([],"Bool") },[]) -> "bool"
 	| TInst ({ cl_path = ([],"Float") },[]) -> "Float"

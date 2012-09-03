@@ -1199,7 +1199,7 @@ and gen_expr ctx e =
 		(match eo with
 		| None ->
 			spr ctx "return"
-		| Some e when (match follow e.etype with TEnum({ e_path = [],"Void" },[]) -> true | _ -> false) ->
+		| Some e when (match follow e.etype with TEnum({ e_path = [],"Void" },[]) | TAbstract ({ a_path = [],"Void" },[]) -> true | _ -> false) ->
 			gen_value ctx e;
 			newline ctx;
 			spr ctx "return"

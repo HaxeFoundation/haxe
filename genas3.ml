@@ -577,7 +577,7 @@ and gen_expr ctx e =
 		(match eo with
 		| None ->
 			spr ctx "return"
-		| Some e when (match follow e.etype with TEnum({ e_path = [],"Void" },[]) -> true | _ -> false) ->
+		| Some e when (match follow e.etype with TEnum({ e_path = [],"Void" },[]) | TAbstract ({ a_path = [],"Void" },[]) -> true | _ -> false) ->
 			print ctx "{";
 			let bend = open_block ctx in
 			newline ctx;
@@ -1210,7 +1210,7 @@ let generate com =
 		| TEnumDecl e ->
 			let pack,name = e.e_path in
 			let e = { e with e_path = (pack,protect name) } in
-			if e.e_extern && e.e_path <> ([],"Void") then
+			if e.e_extern then
 				()
 			else
 				let ctx = init infos e.e_path in
