@@ -352,6 +352,9 @@ let rec class_string klass suffix params =
 	|  ([],"Null") -> (match params with
 			| [t] ->
 				(match follow t with
+				| TAbstract ({ a_path = [],"Int" },_)
+				| TAbstract ({ a_path = [],"Float" },_)
+				| TAbstract ({ a_path = [],"Bool" },_)
 				| TInst ({ cl_path = [],"Int" },_)
 				| TInst ({ cl_path = [],"Float" },_)
 				| TEnum ({ e_path = [],"Bool" },_) -> "Dynamic"
@@ -381,6 +384,9 @@ and type_string_suff suffix haxe_type =
 			(match params with
 			| [t] ->
 				(match follow t with
+				| TAbstract ({ a_path = [],"Int" },_)
+				| TAbstract ({ a_path = [],"Float" },_)
+				| TAbstract ({ a_path = [],"Bool" },_)
 				| TInst ({ cl_path = [],"Int" },_)
 				| TInst ({ cl_path = [],"Float" },_)
 				| TEnum ({ e_path = [],"Bool" },_) -> "Dynamic" ^ suffix

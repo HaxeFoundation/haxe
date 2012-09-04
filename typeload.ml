@@ -49,7 +49,7 @@ let type_var_field ctx t e stat p =
 	let e = type_expr_with_type ctx e (Some t) false in
 	unify ctx e.etype t p;
 	match t with
-	| TType ({ t_path = ([],"UInt") },[]) when stat -> { e with etype = t }
+	| TType ({ t_path = ([],"UInt") },[]) | TAbstract ({ a_path = ([],"UInt") },[]) when stat -> { e with etype = t }
 	| _ -> e
 
 let apply_macro ctx mode path el p =

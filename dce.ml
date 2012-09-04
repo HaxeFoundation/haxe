@@ -105,7 +105,8 @@ let rec mark_t dce t = match follow t with
 	| TInst(c,pl) -> mark_class dce c; List.iter (mark_t dce) pl
 	| TFun(args,ret) -> List.iter (fun (_,_,t) -> mark_t dce t) args; mark_t dce ret
 	| TEnum(e,pl) -> if not (has_meta ":used" e.e_meta) then e.e_meta <- (":used",[],e.e_pos) :: e.e_meta; List.iter (mark_t dce) pl
-	| _ -> ()
+	| TAbstract(a,pl) -> if not (has_meta ":used" a.a_meta) then a.a_meta <- (":used",[],a.a_pos) :: a.a_meta; List.iter (mark_t dce) pl
+	| TLazy _ | TDynamic _ | TAnon _ | TType _ | TMono _ -> ()
 
 (* find all dependent fields by checking implementing/subclassing types *)
 let rec mark_dependent_fields dce csup n stat =
@@ -190,6 +191,8 @@ and expr dce e =
 		) vl;
 	| TTypeExpr (TClassDecl c) ->
 		mark_class dce c;
+	| TTypeExpr (TAbstractDecl a) ->
+		mark_t dce (TAbstract (a,[]))
 	| TCast(e, Some (TEnumDecl en)) ->
 		mark_t dce (TEnum(en,[]));
 		expr dce e;

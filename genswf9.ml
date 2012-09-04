@@ -217,6 +217,8 @@ let rec type_id ctx t =
 			type_id ctx (TInst (c,params))
 		| _ ->
 			type_path ctx c.cl_path)
+	| TAbstract (a,_) ->
+		type_path ctx a.a_path
 	| TFun _ | TType ({ t_path = ["flash";"utils"],"Function" },[]) ->
 		type_path ctx ([],"Function")
 	| TType ({ t_path = ([],"UInt") as path },_) ->
@@ -2277,7 +2279,7 @@ let generate_enum ctx e meta =
 		} :: constrs);
 	}
 
-let generate_type ctx t =
+let rec generate_type ctx t =
 	match t with
 	| TClassDecl c ->
 		if c.cl_path = (["flash";"_Boot"],"RealBoot") then c.cl_path <- ctx.boot;
@@ -2311,6 +2313,8 @@ let generate_type ctx t =
 				hlf_kind = HFClass hlc;
 				hlf_metas = extract_meta e.e_meta;
 			})
+	| TAbstractDecl ({ a_path = [],"Dynamic" } as a) ->
+		generate_type ctx (TClassDecl (mk_class a.a_module a.a_path a.a_pos))
 	| TTypeDecl _ | TAbstractDecl _ ->
 		None
 

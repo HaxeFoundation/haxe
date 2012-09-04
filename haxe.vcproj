@@ -114,6 +114,9 @@
 			RelativePath=".\common.ml">
 		</File>
 		<File
+			RelativePath=".\dce.ml">
+		</File>
+		<File
 			RelativePath=".\interp.ml">
 		</File>
 		<File

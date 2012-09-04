@@ -426,7 +426,7 @@ let optimize_for_loop ctx i e1 e2 p =
 			force locals to be of Int type (to prevent Int/UInt issues)
 		*)
 		let i2 = match i2.etype with
-			| TInst({ cl_path = ([],"Int") }, []) -> i2
+			| TInst({ cl_path = ([],"Int") }, []) | TAbstract ({ a_path = ([],"Int") }, []) -> i2
 			| _ -> { i2 with eexpr = TCast(i2, None); etype = t_int }
 		in
 		(match max with
@@ -710,11 +710,13 @@ let rec sanitize ctx e =
 let rec reduce_loop ctx e =
 	let is_float t =
 		match follow t with
+		| TAbstract({ a_path = [],"Float" },_) -> true
 		| TInst ({ cl_path = ([],"Float") },_) -> true
 		| _ -> false
 	in
 	let is_numeric t =
 		match follow t with
+		| TAbstract({ a_path = [],("Float"|"Int") },_) -> true
 		| TInst ({ cl_path = ([],("Float" | "Int")) },_) -> true
 		| _ -> false
 	in

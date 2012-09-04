@@ -4045,7 +4045,7 @@ and encode_type t =
 		| TLazy f ->
 			loop (!f())
 		| TAbstract (a, pl) ->
-			7, [encode_ref a encode_tabstract (fun() -> s_type_path a.a_path); encode_tparams pl]
+			8, [encode_ref a encode_tabstract (fun() -> s_type_path a.a_path); encode_tparams pl]
 	in
 	let tag, pl = loop t in
 	enc_enum IType tag pl
@@ -4074,6 +4074,7 @@ and decode_type t =
 	| 6, [VNull] -> t_dynamic
 	| 6, [t] -> TDynamic (decode_type t)
 	| 7, [VAbstract (ALazyType f)] -> TLazy f
+	| 8, [a; pl] -> TAbstract (decode_ref a, List.map decode_type (dec_array pl))
 	| _ -> raise Invalid_expr
 
 and encode_texpr e =
