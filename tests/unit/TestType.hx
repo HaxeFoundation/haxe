@@ -518,7 +518,7 @@ class TestType extends Test {
 		var r = MyMacro.MyRestMacro.testRest2(1, 2, [3]);
 		eq(r.length, 3);
 		eq(r[0], 1);
-		eq(r[1], 2);	
+		eq(r[1], 2);
 		eq(r[2][0], 3);
 		#end
 	}
@@ -527,12 +527,21 @@ class TestType extends Test {
 		gf1(2);
 		gf1("foo");
 		gf1(true);
+		
+		#if !flash8
+		// no support for flash8
 		gf1(new haxe.Template("foo"));
+		#end
+		
 		gf1(new haxe.FastList<Int>());
 		hsf(TestType, "gf1_Int");
 		hsf(TestType, "gf1_String");
 		hsf(TestType, "gf1_Bool");
+		
+		#if !flash8
 		hsf(TestType, "gf1_haxe_Template");
+		#end
+		
 		hsf(TestType, #if (flash9 || cpp) "gf1_haxe_FastList_Int" #else "gf1_haxe_FastList" #end);
 		t(typeError(gf1(null))); // monos don't work
 		t(typeError(gf1( { foo:1 } ))); // structures don't work
@@ -547,10 +556,13 @@ class TestType extends Test {
 		eq(a[1], "baz");
 		eq(a[2], "foo");
 		hsf(TestType, "gf3_String_Array");
+		
+		#if !flash8
 		var t = new haxe.Template("foo");
 		var ta = gf3(t, [])[0];
 		f(t == ta);
 		hsf(TestType, "gf3_haxe_Template_Array");
+		#end
 		
 		eq(overloadFake(1), 1);
 		eq(overloadFake("bar"), "barfoo");
