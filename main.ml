@@ -1043,9 +1043,9 @@ try
 		] in
 		List.iter (Codegen.post_process filters) com.types;
 		Codegen.post_process_end();
+		List.iter (fun f -> f()) (List.rev com.filters);
 		List.iter (Codegen.save_class_state tctx) com.types;
 		if Common.defined ctx.com "dce" && not !interp then Dce.run tctx main;
-		List.iter (fun f -> f()) (List.rev com.filters);
 		let type_filters = [
 			Codegen.check_private_path;
 			Codegen.remove_generic_base;
