@@ -25,6 +25,11 @@ class TestType extends Test {
 		} catch (e:Dynamic) "true";
 		return { pos: haxe.macro.Context.currentPos(), expr: haxe.macro.Expr.ExprDef.EConst(haxe.macro.Expr.Constant.CIdent(result)) };
 	}
+	
+	@:macro static public function complete(e:String) : haxe.macro.Expr.ExprOf<String> {
+		var str = new String(untyped haxe.macro.Context.load("display", 1)(e.__s));
+		return { expr : EConst(CString(str)), pos : haxe.macro.Context.currentPos() };
+	}
 
 	public function testType() {
 		var name = u("unit")+"."+u("MyClass");
@@ -589,4 +594,34 @@ class TestType extends Test {
 	static function overloadFake_String(a:String) {
 		return a + "foo";
 	}
+	
+	function testCompletion() {
+		#if !macro
+		var s = { foo: 1 };
+		eq(complete("s.|"), "foo:Int");
+		eq(complete("var x : haxe.|"), "path(haxe)");
+		eq(complete("var x : haxe.macro.Expr.|"), "path(haxe.macro:Expr)");
+		
+		// could be improved by listing sub types
+		eq(complete("haxe.macro.Expr.|"), "error(haxe.macro.Expr is not a value)");
+		
+		// know issue : the expr optimization will prevent inferring the array content
+		eq(complete('{
+			var a = [];
+			a.push("");
+			a[0].|
+		}'),"Unknown<0>");
+		
+		// could be improved : expr optimization assume that variable not in scope is a member
+		// so it will eliminate the assignement that would have forced it into the local context
+		// that would be useful when you want to write some code and add the member variable afterwards
+		eq(complete('{
+			unknownVar = "";
+			unknownVar.|
+		}'),"path(unknownVar)");
+		
+		
+		#end
+	}
+	
 }

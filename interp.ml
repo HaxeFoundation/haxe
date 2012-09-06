@@ -96,6 +96,7 @@ type extern_api = {
 	on_generate : (Type.t list -> unit) -> unit;
 	parse_string : string -> Ast.pos -> bool -> Ast.expr;
 	typeof : Ast.expr -> Type.t;
+	get_display : string -> string;
 	type_patch : string -> string -> bool -> string option -> unit;
 	meta_patch : string -> string -> string option -> bool -> unit;
 	set_js_generator : (value -> unit) -> unit;
@@ -2189,6 +2190,13 @@ let macro_lib =
 		);
 		"typeof", Fun1 (fun v ->
 			encode_type ((get_ctx()).curapi.typeof (decode_expr v))
+		);
+		"display", Fun1 (fun v ->
+			match v with
+			| VString s ->
+				VString ((get_ctx()).curapi.get_display s)
+			| _ ->
+				error()
 		);
 		"type_patch", Fun4 (fun t f s v ->
 			let p = (get_ctx()).curapi.type_patch in

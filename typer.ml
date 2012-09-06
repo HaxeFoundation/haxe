@@ -2677,6 +2677,16 @@ let make_macro_api ctx p =
 		| TTypeDecl t -> TType (t,List.map snd t.t_types)
 		| TAbstractDecl a -> TAbstract (a,List.map snd a.a_types)
 	in
+	let parse_expr_string s p inl =
+		typing_timer ctx (fun() ->
+			let head = "class X{static function main() " in
+			let head = (if p.pmin > String.length head then head ^ String.make (p.pmin - String.length head) ' ' else head) in
+			let rec loop e = let e = Ast.map_expr loop e in (fst e,p) in
+			match parse_string ctx (head ^ s ^ "}") p inl with
+			| EClass { d_data = [{ cff_name = "main"; cff_kind = FFun { f_expr = Some e } }]} -> if inl then e else loop e
+			| _ -> assert false
+		)
+	in
 	{
 		Interp.pos = p;
 		Interp.get_com = (fun() -> ctx.com);
@@ -2704,18 +2714,52 @@ let make_macro_api ctx p =
 				t()
 			)
 		);
-		Interp.parse_string = (fun s p inl ->
-			typing_timer ctx (fun() ->
-				let head = "class X{static function main() " in
-				let head = (if p.pmin > String.length head then head ^ String.make (p.pmin - String.length head) ' ' else head) in
-				let rec loop e = let e = Ast.map_expr loop e in (fst e,p) in
-				match parse_string ctx (head ^ s ^ "}") p inl with
-				| EClass { d_data = [{ cff_name = "main"; cff_kind = FFun { f_expr = Some e } }]} -> if inl then e else loop e
-				| _ -> assert false
-			)
-		);
+		Interp.parse_string = parse_expr_string;
 		Interp.typeof = (fun e ->
 			typing_timer ctx (fun() -> (type_expr ctx ~need_val:true e).etype)
+		);
+		Interp.get_display = (fun s ->
+			let is_displaying = ctx.com.display in
+			let old_resume = !Parser.resume_display in
+			let restore () =
+				if not is_displaying then begin
+					ctx.com.defines <- PMap.remove "display" ctx.com.defines;
+					ctx.com.display <- false;
+				end;
+				Parser.resume_display := old_resume
+			in
+			(* temporarily enter display mode with a fake position *)
+			if not is_displaying then begin
+				Common.define ctx.com "display";
+				ctx.com.display <- true;
+			end;
+			Parser.resume_display := {
+				Ast.pfile = "macro";
+				Ast.pmin = 0;
+				Ast.pmax = 0;
+			};
+			let str = try
+				let e = parse_expr_string s Ast.null_pos true in
+				let e = Optimizer.optimize_completion_expr e in
+				ignore (type_expr ctx ~need_val:true e);
+				"NO COMPLETION"
+			with DisplayFields fields ->
+				let pctx = print_context() in
+				String.concat "," (List.map (fun (f,t,_) -> f ^ ":" ^ s_type pctx t) fields)				
+			| DisplayTypes tl ->
+				let pctx = print_context() in
+				String.concat "," (List.map (s_type pctx) tl)
+			| Parser.TypePath (p,sub) ->
+				(match sub with
+				| None ->
+					"path(" ^ String.concat "." p ^ ")"
+				| Some (c,_) ->
+					"path(" ^ String.concat "." p ^ ":" ^ c ^ ")")
+			| Typecore.Error (msg,p) ->
+				"error(" ^ error_msg msg ^ ")"
+			in
+			restore();
+			str
 		);
 		Interp.type_patch = (fun t f s v ->
 			typing_timer ctx (fun() ->
