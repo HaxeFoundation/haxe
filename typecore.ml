@@ -68,6 +68,7 @@ and typer = {
 	g : typer_globals;
 	mutable in_macro : bool;
 	mutable macro_depth : int;
+	mutable on_error : typer -> string -> pos -> unit;
 	(* per-module *)
 	current : module_def;
 	mutable local_types : module_type list;
@@ -161,7 +162,7 @@ let rec error_msg = function
 	| Custom s -> s
 	| Stack (m1,m2) -> error_msg m1 ^ "\n" ^ error_msg m2
 
-let display_error ctx msg p = ctx.com.error msg p
+let display_error ctx msg p = ctx.on_error ctx msg p
 
 let error msg p = raise (Error (Custom msg,p))
 

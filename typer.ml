@@ -2362,12 +2362,12 @@ and build_call ctx acc el twith p =
 	| AKMacro (ethis,f) ->
 		if ctx.macro_depth > 300 then error "Stack overflow" p;
 		ctx.macro_depth <- ctx.macro_depth + 1;
-		let e = (match ethis.eexpr with
+		let f = (match ethis.eexpr with
 		| TTypeExpr (TClassDecl c) ->
 			(match ctx.g.do_macro ctx MExpr c.cl_path f.cf_name el p with
-			| None -> type_expr ctx (EConst (Ident "null"),p)
-			| Some (EVars vl,p) -> type_vars ctx vl p true
-			| Some e -> type_expr_with_type ctx e twith)
+			| None -> (fun() -> type_expr ctx (EConst (Ident "null"),p))
+			| Some (EVars vl,p) -> (fun() -> type_vars ctx vl p true)
+			| Some e -> (fun() -> type_expr_with_type ctx e twith))
 		| _ ->
 			(* member-macro call : since we will make a static call, let's found the actual class and not its subclass *)
 			(match follow ethis.etype with
@@ -2375,8 +2375,8 @@ and build_call ctx acc el twith p =
 				let rec loop c =
 					if PMap.mem f.cf_name c.cl_fields then
 						match ctx.g.do_macro ctx MExpr c.cl_path f.cf_name (Interp.make_ast ethis :: el) p with
-						| None -> type_expr ctx (EConst (Ident "null"),p)
-						| Some e -> type_expr ctx e
+						| None -> (fun() -> type_expr ctx (EConst (Ident "null"),p))
+						| Some e -> (fun() -> type_expr ctx e)
 					else
 						match c.cl_super with
 						| None -> assert false
@@ -2385,7 +2385,15 @@ and build_call ctx acc el twith p =
 				loop c
 			| _ -> assert false)) in
 		ctx.macro_depth <- ctx.macro_depth - 1;
-		e;
+		let old = ctx.on_error in
+		ctx.on_error <- (fun ctx msg ep ->
+			old ctx msg ep;
+			(* display additional info in the case the error is not part of our original call *)
+			if ep.pfile <> p.pfile || ep.pmax < p.pmin || ep.pmin > p.pmax then old ctx "Called from macro here" p
+		);
+		let e = try f() with Error (m,p) -> display_error ctx (error_msg m) p; ctx.on_error <- old; raise Fatal_error in
+		ctx.on_error <- old;
+		e
 	| AKNo _ | AKSet _ ->
 		ignore(acc_get ctx acc p);
 		assert false
@@ -3166,6 +3174,7 @@ let rec create com =
 		opened = [];
 		param_type = None;
 		vthis = None;
+		on_error = (fun ctx msg p -> ctx.com.error msg p);
 	} in
 	ctx.g.std <- (try
 		Typeload.load_module ctx ([],"StdTypes") null_pos

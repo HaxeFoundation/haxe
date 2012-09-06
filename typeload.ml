@@ -1001,7 +1001,15 @@ let init_class ctx c p herits fields =
 		let stat = List.mem AStatic f.cff_access in
 		let inline = List.mem AInline f.cff_access in
 		let override = List.mem AOverride f.cff_access in
-		let ctx = { ctx with curclass = c; tthis = tthis } in
+		let ctx = { ctx with 
+			curclass = c;
+			tthis = tthis;
+			on_error = (fun ctx msg ep ->
+				ctx.com.error msg ep;
+				(* macros expressions might reference other code, let's recall which class we are actually compiling *)
+				if ep.pfile <> c.cl_pos.pfile then ctx.com.error "Defined in this class" c.cl_pos
+			);
+		} in
 		match f.cff_kind with
 		| FVar (t,e) ->
 			if inline && not stat then error "Inline variable must be static" p;
@@ -1386,6 +1394,7 @@ let type_module ctx m file tdecls loadp =
 		com = ctx.com;
 		g = ctx.g;
 		t = ctx.t;
+		on_error = (fun ctx msg p -> ctx.com.error msg p);
 		macro_depth = ctx.macro_depth;
 		curclass = ctx.curclass;
 		tthis = ctx.tthis;
