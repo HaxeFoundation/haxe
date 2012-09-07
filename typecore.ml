@@ -36,15 +36,23 @@ type macro_mode =
 	| MBuild
 	| MMacroType
 
-type delayed_functions = {
-	mutable df_normal : (unit -> unit) list;
-	mutable df_late : (unit -> unit) list;
-}
+
+type typer_pass =
+	| PBuildModule			(* build the module structure and setup module type parameters *)
+	| PInitModuleTypes		(* resolve imports and typedefs : dont follow types ! *)
+	| PResolveTypedefs		(* using and other functions that need to follow typededs *)
+	| PBuildClass			(* build the class structure *)
+	| PDefineConstructor	(* add an inherited constructor *)
+	| PTypeField			(* type the class field, allow access to types structures *)
+	| PCheckConstraint		(* perform late constraint checks with inferred types *)
+	| PForce				(* usually ensure that lazy have been evaluated *)
+	| PFinal				(* not used, only mark for finalize *)
 
 type typer_globals = {
 	types_module : (path, path) Hashtbl.t;
 	modules : (path , module_def) Hashtbl.t;
-	mutable delayed : delayed_functions;
+	mutable delayed : (typer_pass * (unit -> unit) list) list;
+	mutable debug_delayed : (typer_pass * ((unit -> unit) * string * typer) list) list;
 	doinline : bool;
 	mutable core_api : typer option;
 	mutable macros : ((unit -> unit) * typer) option;
@@ -64,6 +72,7 @@ type typer_globals = {
 and typer = {
 	(* shared *)
 	com : context;
+	mutable pass : typer_pass;
 	mutable t : basic_types;
 	g : typer_globals;
 	mutable in_macro : bool;
@@ -78,7 +87,7 @@ and typer = {
 	mutable tthis : t;
 	mutable type_params : (string * t) list;
 	(* per-function *)
-	mutable curmethod : string;
+	mutable curfield : tclass_field;
 	mutable untyped : bool;
 	mutable in_super_call : bool;
 	mutable in_loop : bool;
@@ -162,6 +171,17 @@ let rec error_msg = function
 	| Custom s -> s
 	| Stack (m1,m2) -> error_msg m1 ^ "\n" ^ error_msg m2
 
+let pass_name = function
+	| PBuildModule -> "build-module"
+	| PInitModuleTypes -> "init-types"
+	| PResolveTypedefs -> "resolve-types"
+	| PBuildClass -> "build-class"
+	| PDefineConstructor -> "define-constructor"
+	| PTypeField -> "type-field"
+	| PCheckConstraint -> "check-constraint"
+	| PForce -> "force"
+	| PFinal -> "final"
+
 let display_error ctx msg p = ctx.on_error ctx msg p
 
 let error msg p = raise (Error (Custom msg,p))
@@ -187,7 +207,7 @@ let unify_raise ctx t1 t2 p =
 			(* no untyped check *)
 			raise (Error (Unify l,p))
 
-let exc_protect ctx f =
+let exc_protect ctx f (where:string) =
 	let rec r = ref (fun() ->
 		try
 			f r
@@ -223,24 +243,31 @@ let gen_local ctx t =
 let not_opened = ref Closed
 let mk_anon fl = TAnon { a_fields = fl; a_status = not_opened; }
 
-let delay ctx f =
-	ctx.g.delayed.df_normal <- f :: ctx.g.delayed.df_normal
+let delay ctx p f =
+	let rec loop = function
+		| [] -> [p,[f]]
+		| (p2,l) :: rest ->
+			if p2 = p then
+				(p, f :: l) :: rest
+			else if p2 < p then
+				(p2,l) :: loop rest
+			else
+				(p,[f]) :: (p2,l) :: rest
+	in
+	ctx.g.delayed <- loop ctx.g.delayed
 
-let delay_late ctx f =
-	ctx.g.delayed.df_late <- f :: ctx.g.delayed.df_late
-
-let mk_field name t p = {
-	cf_name = name;
-	cf_type = t;
-	cf_pos = p;
-	cf_doc = None;
-	cf_meta = no_meta;
-	cf_public = true;
-	cf_kind = Var { v_read = AccNormal; v_write = AccNormal };
-	cf_expr = None;
-	cf_params = [];
-	cf_overloads = [];
-}
+let rec flush_pass ctx p (where:string) =
+	match ctx.g.delayed with
+	| (p2,l) :: rest when p2 <= p ->
+		(match l with
+		| [] ->
+			ctx.g.delayed <- rest;
+		| f :: l ->
+			ctx.g.delayed <- (p2,l) :: rest;
+			f());
+		flush_pass ctx p where
+	| _ ->
+		()
 
 let fake_modules = Hashtbl.create 0
 let create_fake_module ctx file =
@@ -257,4 +284,104 @@ let create_fake_module ctx file =
 	) in
 	Hashtbl.replace ctx.g.modules mdep.m_path mdep;
 	mdep
+
+(* -------------- debug functions to activate when debugging typer passes ------------------------------- *)
+(*/*
+
+let delay_tabs = ref ""
+
+let context_ident ctx =
+	if Common.defined ctx.com "core_api" then
+		" core "
+	else if Common.defined ctx.com "macro" then
+		"macro "
+	else
+		"  out "
+
+let debug ctx str =
+	if Common.defined ctx.com "cdebug" then prerr_endline (context_ident ctx ^ !delay_tabs ^ str)
+
+let pass_infos ctx p =
+	let inf = Ast.s_type_path ctx.current.m_path in
+	let inf = (match snd ctx.curclass.cl_path with "" -> inf | n when n = snd ctx.current.m_path -> inf | n -> inf ^ "." ^ n) in
+	let inf = (match ctx.curfield.cf_name with "" -> inf | n -> inf ^ ":" ^ n) in
+	let inf = pass_name p ^ " ("  ^ inf ^ ")" in
+	let inf = if ctx.pass > p then inf ^ " ??CURPASS=" ^ pass_name ctx.pass else inf in
+	inf
+
+let delay ctx p f =
+	let inf = pass_infos ctx p in
+	let rec loop = function
+		| [] -> [p,[f,inf,ctx]]
+		| (p2,l) :: rest ->
+			if p2 = p then
+				(p, (f,inf,ctx) :: l) :: rest
+			else if p2 < p then
+				(p2,l) :: loop rest
+			else
+				(p,[f,inf,ctx]) :: (p2,l) :: rest
+	in
+	ctx.g.debug_delayed <- loop ctx.g.debug_delayed;
+	if p <> PForce then debug ctx ("add " ^ inf)
+
+let pending_passes ctx =
+	let rec loop acc = function
+		| (PDefineConstructor,_) :: pl -> loop acc pl (* SKIP SINCE HAVE SPECIAL BEHAVIOR *)
+		| (p,l) :: pl when p < ctx.pass -> loop (acc @ l) pl
+		| _ -> acc
+	in
+	match loop [] ctx.g.debug_delayed with
+	| [] -> ""
+	| l -> " ??PENDING[" ^ String.concat ";" (List.map (fun (_,i,_) -> i) l) ^ "]"
+
+let display_error ctx msg p =
+	debug ctx ("ERROR " ^ msg);
+	display_error ctx msg p
+
+let rec flush_pass ctx p where =
+	let rec loop() =
+		match ctx.g.debug_delayed with
+		| (p2,l) :: rest when p2 <= p ->
+			(match l with
+			| [] ->
+				ctx.g.debug_delayed <- rest
+			| (f,inf,ctx2) :: l ->
+				ctx.g.debug_delayed <- (p2,l) :: rest;
+				let old = !delay_tabs in
+				(match p2 with
+				| PForce | PTypeField -> ()
+				| _ ->
+					debug ctx ("run " ^ inf ^ pending_passes ctx2);
+					delay_tabs := !delay_tabs ^ "\t");
+				(try f() with Fatal_error -> delay_tabs := old; raise Fatal_error | exc when not (Common.defined ctx.com "stack") -> debug ctx ("FATAL " ^ Printexc.to_string exc); delay_tabs := old; raise exc);
+				delay_tabs := old);
+			loop()
+		| _ ->
+			()
+	in
+	match ctx.g.debug_delayed with
+	| (p2,_) :: _ when p2 <= p ->
+		let old = !delay_tabs in
+		debug ctx ("flush " ^ pass_name p ^ "(" ^ where ^ ")");
+		delay_tabs := !delay_tabs ^ "\t";
+		loop();
+		delay_tabs := old;
+		debug ctx "flush-done";
+	| _ ->
+		()
+
+let exc_protect ctx f where =
+	let inf = pass_infos ctx ctx.pass in
+	exc_protect ctx (fun r ->
+		flush_pass ctx PBuildClass where;
+		debug ctx ("run " ^ inf ^ pending_passes ctx);
+		let old = !delay_tabs in
+		delay_tabs := !delay_tabs ^ "\t";
+		let t = f r in
+		delay_tabs := old;
+		t
+	) where
+
+*/*)
+(* --------------------------------------------------- *)
 

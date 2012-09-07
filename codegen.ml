@@ -218,7 +218,7 @@ let make_generic ctx ps pt p =
 	in
 	let name =
 		String.concat "_" (List.map2 (fun (s,_) t ->
-			let path = (match follow t with		
+			let path = (match follow t with
 				| TInst (ct,_) -> ct.cl_path
 				| TEnum (e,_) -> e.e_path
 				| TAbstract (a,_) when has_meta ":runtime_value" a.a_meta -> a.a_path
@@ -489,8 +489,8 @@ let build_instance ctx mtype p =
 					r := (fun() -> t);
 					unify_raise ctx (build_generic ctx c p pl) t p;
 					t
-				) in
-				delay ctx (fun() -> ignore ((!r)()));
+				) "build_generic" in
+				delay ctx PForce (fun() -> ignore ((!r)()));
 				TLazy r
 			| KMacroType ->
 				let r = exc_protect ctx (fun r ->
@@ -498,8 +498,8 @@ let build_instance ctx mtype p =
 					r := (fun() -> t);
 					unify_raise ctx (build_macro_type ctx pl p) t p;
 					t
-				) in
-				delay ctx (fun() -> ignore ((!r)()));
+				) "macro_type" in
+				delay ctx PForce (fun() -> ignore ((!r)()));
 				TLazy r
 			| _ ->
 				TInst (c,pl)
@@ -567,7 +567,7 @@ let remove_generic_base ctx t = match t with
 		(try
 			let (_,_,prec) = get_meta ":?genericRec" c.cl_meta in
 			(try
-				let (_,_,pnew) = get_meta ":?genericT" c.cl_meta in			
+				let (_,_,pnew) = get_meta ":?genericT" c.cl_meta in
 				display_error ctx ("Class " ^ (s_type_path c.cl_path) ^ " was used recursively and cannot use its type parameter") prec;
 				error "Type parameter usage was here" pnew
 			with Not_found _ ->
@@ -603,7 +603,7 @@ let apply_native_paths ctx t =
 		()
 
 (* Adds the __rtti field if required *)
-let add_rtti ctx t = 
+let add_rtti ctx t =
 	let has_rtti c =
 		let rec has_rtti_new c =
 			has_meta ":rttiInfos" c.cl_meta || match c.cl_super with None -> false | Some (csup,_) -> has_rtti_new csup
@@ -1563,10 +1563,10 @@ let rec create_dumpfile acc = function
 	| [] -> assert false
 	| d :: [] ->
 		let ch = open_out (String.concat "/" (List.rev (d :: acc)) ^ ".dump") in
-		let buf = Buffer.create 0 in		
+		let buf = Buffer.create 0 in
 		buf, (fun () ->
 			output_string ch (Buffer.contents buf);
-			close_out ch)		
+			close_out ch)
 	| d :: l ->
 		let dir = String.concat "/" (List.rev (d :: acc)) in
 		if not (Sys.file_exists dir) then Unix.mkdir dir 0o755;

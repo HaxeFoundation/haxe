@@ -273,7 +273,7 @@ let alloc_var =
 	let uid = ref 0 in
 	(fun n t -> incr uid; { v_name = n; v_type = t; v_id = !uid; v_capture = false; v_extra = None })
 
-let alloc_mid = 
+let alloc_mid =
 	let mid = ref 0 in
 	(fun() -> incr mid; !mid)
 
@@ -320,7 +320,7 @@ let mk_class m path pos =
 		cl_restore = (fun() -> ());
 	}
 
-let module_extra file sign time kind = 
+let module_extra file sign time kind =
 	{
 		m_file = file;
 		m_sign = sign;
@@ -335,6 +335,20 @@ let module_extra file sign time kind =
 		m_macro_calls = [];
 	}
 
+
+let mk_field name t p = {
+	cf_name = name;
+	cf_type = t;
+	cf_pos = p;
+	cf_doc = None;
+	cf_meta = [];
+	cf_public = true;
+	cf_kind = Var { v_read = AccNormal; v_write = AccNormal };
+	cf_expr = None;
+	cf_params = [];
+	cf_overloads = [];
+}
+
 let null_module = {
 		m_id = alloc_mid();
 		m_path = [] , "";
@@ -346,6 +360,8 @@ let null_class =
 	let c = mk_class null_module ([],"") Ast.null_pos in
 	c.cl_private <- true;
 	c
+
+let null_field = mk_field "" t_dynamic Ast.null_pos
 
 let add_dependency m mdep =
 	if m != null_module && m != mdep then m.m_extra.m_deps <- PMap.add mdep.m_id mdep m.m_extra.m_deps
@@ -567,7 +583,7 @@ let rec is_nullable ?(no_lazy=false) = function
 (*
 	Type parameters will most of the time be nullable objects, so we don't want to make it hard for users
 	to have to specify Null<T> all over the place, so while they could be a basic type, let's assume they will not.
-	
+
 	This will still cause issues with inlining and haxe.rtti.Generic. In that case proper explicit Null<T> is required to
 	work correctly with basic types. This could still be fixed by redoing a nullability inference on the typed AST.
 
@@ -854,10 +870,10 @@ let rec raw_class_field build_type c i =
 					| _ ->
 						loop ctl
 			in
-			loop tl		
+			loop tl
 		| _ ->
 			if not c.cl_interface then raise Not_found;
-			(* 
+			(*
 				an interface can implements other interfaces without
 				having to redeclare its fields
 			*)
@@ -924,14 +940,14 @@ let rec unify a b =
 		unify_types a b tl1 tl2
 	| TAbstract (a1,tl1) , TAbstract (a2,tl2) when a1 == a2 ->
 		unify_types a b tl1 tl2
-	| TAbstract (a1,tl1) , TAbstract (a2,tl2) ->		
+	| TAbstract (a1,tl1) , TAbstract (a2,tl2) ->
 		if not (List.exists (fun t ->
 			let t = apply_params a1.a_types tl1 t in
 			try unify t b; true with Unify_error _ -> false
 		) a1.a_super) && not (List.exists (fun t ->
 			let t = apply_params a2.a_types tl2 t in
 			try unify a t; true with Unify_error _ -> false
-		) a2.a_sub) then error [cannot_unify a b]		
+		) a2.a_sub) then error [cannot_unify a b]
 	| TInst (c1,tl1) , TInst (c2,tl2) ->
 		let rec loop c tl =
 			if c == c2 then begin
@@ -943,7 +959,7 @@ let rec unify a b =
 					loop cs (List.map (apply_params c.cl_types tl) tls)
 			) || List.exists (fun (cs,tls) ->
 				loop cs (List.map (apply_params c.cl_types tl) tls)
-			) c.cl_implements 
+			) c.cl_implements
 			|| (match c.cl_kind with
 			| KTypeParameter pl -> List.exists (fun t -> match follow t with TInst (cs,tls) -> loop cs (List.map (apply_params c.cl_types tl) tls) | _ -> false) pl
 			| _ -> false)
@@ -987,7 +1003,7 @@ let rec unify a b =
 			PMap.iter (fun n f2 ->
 			try
 				let f1 = PMap.find n a1.a_fields in
-				if not (unify_kind f1.cf_kind f2.cf_kind) then 
+				if not (unify_kind f1.cf_kind f2.cf_kind) then
 					(match !(a1.a_status), f1.cf_kind, f2.cf_kind with
 					| Opened, Var { v_read = AccNormal; v_write = AccNo }, Var { v_read = AccNormal; v_write = AccNormal } ->
 						f1.cf_kind <- f2.cf_kind;
@@ -1088,7 +1104,7 @@ let rec unify a b =
 and unify_types a b tl1 tl2 =
 	List.iter2 (fun t1 t2 ->
 		try
-			type_eq EqRightDynamic t1 t2 
+			type_eq EqRightDynamic t1 t2
 		with Unify_error l ->
 			let err = cannot_unify a b in
 			error (try unify t1 t2; (err :: (Invariant_parameter (t1,t2)) :: l) with _ -> err :: l)
