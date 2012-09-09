@@ -256,23 +256,23 @@ let keyword_remap name =
 	| "asm" -> "_asm_"
 	| x -> x
 
-(*
- While #include "Math.h" sould be different from "#include <math.h>", and it may be possible
-  to use include paths to get this right, I think it is easier just to chnage the name *)
-let include_remap = function | ([],"Math") -> ([],"hxMath") | x -> x;;
-
-let get_code meta key =
+let get_meta_string meta key =
 	let rec loop = function
 		| [] -> ""
-		| (k,[Ast.EConst (Ast.String name),_],_) :: _  when k=key-> name ^ "\n"
+		| (k,[Ast.EConst (Ast.String name),_],_) :: _  when k=key-> name
 		| _ :: l -> loop l
 		in
 	loop meta
 ;;
 
+let get_code meta key =
+	let code = get_meta_string meta key in
+	if (code<>"") then code ^ "\n" else code
+;;
+
 (* Add include to source code *)
 let add_include writer class_path =
-	writer#add_include (include_remap class_path);;
+	writer#add_include class_path;;
 
 
 (* This gets the class include order correct.  In the header files, we forward declare
@@ -2013,13 +2013,20 @@ let gen_member_def ctx class_def is_static is_interface field =
    end
 	;;
 
-
+let path_of_string verbatim path =
+   if verbatim then ( ["@verbatim"], path ) else
+   match List.rev (Str.split_delim (Str.regexp "/") path ) with
+   | [] -> ([],"")
+   | [single] -> ([],single)
+   | head :: rest -> (List.rev rest, head)
+;;
 
 (*
   Get a list of all classes referred to by the class/enum definition
-  These are used for "#include"ing the appropriate header files.
+  These are used for "#include"ing the appropriate header files,
+   or for building the dependencies in the Build.xml file
 *)
-let find_referenced_types ctx obj super_deps constructor_deps header_only =
+let find_referenced_types ctx obj super_deps constructor_deps header_only for_depends =
 	let types = ref PMap.empty in
 	let rec add_type in_path =
 		if ( not (PMap.mem in_path !types)) then begin
@@ -2029,6 +2036,11 @@ let find_referenced_types ctx obj super_deps constructor_deps header_only =
 			with Not_found -> ()
 		end
 	in
+	let add_extern_class klass =
+      let include_file = get_meta_string klass.cl_meta (if for_depends then ":depend" else ":include") in
+      if (include_file<>"") then
+         add_type ( path_of_string for_depends include_file )
+   in
 	let rec visit_type in_type =
 		match (follow in_type) with
 		| TMono r -> (match !r with None -> () | Some t -> visit_type t)
@@ -2041,7 +2053,7 @@ let find_referenced_types ctx obj super_deps constructor_deps header_only =
 			(match klass.cl_path with
          | ([],"Array") | ([],"Class") | (["cpp"],"FastIterator") -> List.iter visit_type params
          | (["cpp"],"CppInt32__") -> add_type klass.cl_path;
-         | _ when klass.cl_extern -> ()
+         | _ when klass.cl_extern -> add_extern_class klass
 			| _ -> (match klass.cl_kind with KTypeParameter _ -> () | _ -> add_type klass.cl_path);
 			)
 		| TFun (args,haxe_type) -> visit_type haxe_type;
@@ -2051,9 +2063,13 @@ let find_referenced_types ctx obj super_deps constructor_deps header_only =
 	let rec visit_types expression =
 		begin
 		let rec visit_expression = fun expression ->
-			(* Expand out TTypeExpr ... *)
+			(* Expand out TTypeExpr (ie, the name of a class, as used for static access etc ... *)
 			(match expression.eexpr with
-				| TTypeExpr type_def -> add_type (t_path type_def)
+				| TTypeExpr type_def -> ( match type_def with
+               | TClassDecl class_def when class_def.cl_extern -> add_extern_class class_def
+	            | _ -> add_type (t_path type_def)
+               )
+					
 				(* Must visit the types, Type.iter will visit the expressions ... *)
 				| TTry (e,catches) ->
 					List.iter (fun (v,_) -> visit_type v.v_type) catches
@@ -2145,7 +2161,8 @@ let generate_main common_ctx member_types super_deps class_def file_info =
 		(match class_def.cl_ordered_statics with
 		| [{ cf_expr = Some expression }] -> expression;
 		| _ -> assert false ) in
-   let referenced = find_referenced_types common_ctx (TClassDecl class_def) super_deps (Hashtbl.create 0) false in
+   let referenced = find_referenced_types common_ctx (TClassDecl class_def) super_deps (Hashtbl.create 0) false false in
+   let depend_referenced = find_referenced_types common_ctx (TClassDecl class_def) super_deps (Hashtbl.create 0) false true in
 	let generate_startup filename is_main =
 		(*make_class_directories base_dir ( "src" :: []);*)
 		let cpp_file = new_cpp_file common_ctx.file ([],filename) in
@@ -2154,7 +2171,7 @@ let generate_main common_ctx member_types super_deps class_def file_info =
 		output_main "#include <hxcpp.h>\n\n";
 		output_main "#include <stdio.h>\n\n";
 
-		List.iter ( add_include cpp_file ) referenced;
+		List.iter ( add_include cpp_file ) depend_referenced;
 		output_main "\n\n";
 
 		output_main ( if is_main then "HX_BEGIN_MAIN\n\n" else "HX_BEGIN_LIB_MAIN\n\n" );
@@ -2189,7 +2206,7 @@ let generate_boot common_ctx boot_classes init_classes =
 	output_boot "#include <hxcpp.h>\n\n";
 	List.iter ( fun class_path ->
 		output_boot ("#include <" ^
-			( join_class_path (include_remap class_path) "/" ) ^ ".h>\n")
+			( join_class_path class_path "/" ) ^ ".h>\n")
 			) boot_classes;
 
 	output_boot "\nvoid __boot_all()\n{\n";
@@ -2267,8 +2284,9 @@ let generate_enum_files common_ctx enum_def super_deps meta file_info =
 
 	output_cpp "#include <hxcpp.h>\n\n";
 
-	let referenced = find_referenced_types common_ctx (TEnumDecl enum_def) super_deps (Hashtbl.create 0) false in
+	let referenced = find_referenced_types common_ctx (TEnumDecl enum_def) super_deps (Hashtbl.create 0) false false in
 	List.iter (add_include cpp_file) referenced;
+	let depend_referenced = find_referenced_types common_ctx (TEnumDecl enum_def) super_deps (Hashtbl.create 0) false true in
 
 	gen_open_namespace output_cpp class_path;
 	output_cpp "\n";
@@ -2454,7 +2472,7 @@ let generate_enum_files common_ctx enum_def super_deps meta file_info =
 
 	end_header_file output_h def_string;
 	h_file#close;
-	referenced;;
+	depend_referenced;;
 
 let has_init_field class_def =
 	match class_def.cl_init with
@@ -2505,8 +2523,10 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 	let field_integer_dynamic = has_field_integer_lookup class_def in
 	let field_integer_numeric = has_field_integer_numeric_lookup class_def in
 
-	let all_referenced = find_referenced_types ctx.ctx_common (TClassDecl class_def) super_deps constructor_deps false in
+	let all_referenced = find_referenced_types ctx.ctx_common (TClassDecl class_def) super_deps constructor_deps false false in
 	List.iter ( add_include cpp_file  ) all_referenced;
+
+	let depend_referenced = find_referenced_types ctx.ctx_common (TClassDecl class_def) super_deps constructor_deps false true in
 
 	(* All interfaces (and sub-interfaces) implemented *)
 	let implemented_hash = Hashtbl.create 0 in
@@ -2852,7 +2872,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 
    (* Only need to foreward-declare classes that are mentioned in the header file
 	   (ie, not the implementation)  *)
-   let referenced = find_referenced_types ctx.ctx_common (TClassDecl class_def) super_deps (Hashtbl.create 0) true in
+   let referenced = find_referenced_types ctx.ctx_common (TClassDecl class_def) super_deps (Hashtbl.create 0) true false in
 	List.iter ( gen_forward_decl h_file ) referenced;
 
 	output_h ( get_code class_def.cl_meta ":headerCode" );
@@ -2952,33 +2972,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 
 	end_header_file output_h def_string;
 	h_file#close;
-	all_referenced;;
-
-
-let gen_deps deps =
-	let project_deps = List.filter (fun path -> not (is_internal_class path) ) deps in
-	String.concat " " (List.map (fun class_path ->
-		"include/" ^ (join_class_path class_path "/") ^ ".h") project_deps );;
-
-let add_class_to_makefile makefile add_obj class_def =
-	let class_path = fst class_def in
-	let deps = snd class_def in
-	let obj_file =  "obj/" ^ (join_class_path class_path "-") ^ "$(OBJ)" in
-	let cpp = (join_class_path class_path "/") ^ ".cpp" in
-	output_string makefile ( obj_file ^ " : src/" ^ cpp ^ " " ^ (gen_deps deps) ^ "\n");
-	output_string makefile ("\t$(COMPILE) src/" ^ cpp ^ " $(OUT_FLAGS)$@\n\n");
-	output_string makefile (add_obj ^ " " ^ obj_file ^ "\n\n" );;
-
-
-let kind_string = function
-	| KNormal -> "KNormal"
-	| KTypeParameter _ -> "KTypeParameter"
-	| KExtension _ -> "KExtension"
-	| KExpr _ -> "KExpr"
-	| KGeneric -> "KGeneric"
-	| KMacroType -> "KMacroType"
-	| KGenericInstance _ -> "KGenericInstance";;
-
+	depend_referenced;;
 
 let write_resources common_ctx =
 	let resource_file = new_cpp_file common_ctx.file ([],"__resources__") in
@@ -3013,35 +3007,38 @@ let write_resources common_ctx =
 	resource_file#close;;
 
 
-let add_class_to_buildfile buildfile class_def =
-	let class_path = fst class_def in
-	let deps = snd class_def in
-	let cpp = (join_class_path class_path "/") ^ ".cpp" in
-	output_string buildfile ( "  <file name=\"src/" ^ cpp ^ "\">\n" );
-
-	let project_deps = List.filter (fun path -> not (is_internal_class path) ) deps in
-	List.iter (fun path-> output_string buildfile ("   <depend name=\"" ^
-		"include/" ^ (join_class_path path "/") ^ ".h\"/>\n") ) project_deps;
-
-	output_string buildfile ( "  </file>\n" );;
 
 let write_build_data filename classes main_deps build_extra exe_name =
 	let buildfile = open_out filename in
+	let add_class_to_buildfile class_def =
+		let class_path = fst class_def in
+		let deps = snd class_def in
+		let cpp = (join_class_path class_path "/") ^ ".cpp" in
+		output_string buildfile ( "  <file name=\"src/" ^ cpp ^ "\">\n" );
+		let project_deps = List.filter (fun path -> not (is_internal_class path) ) deps in
+		List.iter (fun path-> output_string buildfile ("   <depend name=\"" ^
+        ( match path with
+         | (["@verbatim"],file) -> file
+         | _ -> "include/" ^ (join_class_path path "/") ^ ".h" )
+       ^ "\"/>\n") ) project_deps;
+		output_string buildfile ( "  </file>\n" )
+	in
+
 	output_string buildfile "<xml>\n";
 	output_string buildfile "<files id=\"haxe\">\n";
 	output_string buildfile "<compilerflag value=\"-Iinclude\"/>\n";
-	List.iter (add_class_to_buildfile buildfile) classes;
-	add_class_to_buildfile buildfile  (  ( [] , "__boot__") , [] );
-	add_class_to_buildfile buildfile  (  ( [] , "__files__") , [] );
-	add_class_to_buildfile buildfile  (  ( [] , "__resources__") , [] );
+	List.iter add_class_to_buildfile classes;
+	add_class_to_buildfile (  ( [] , "__boot__") , [] );
+	add_class_to_buildfile (  ( [] , "__files__") , [] );
+	add_class_to_buildfile (  ( [] , "__resources__") , [] );
 	output_string buildfile "</files>\n";
 	output_string buildfile "<files id=\"__lib__\">\n";
 	output_string buildfile "<compilerflag value=\"-Iinclude\"/>\n";
-	add_class_to_buildfile buildfile  (  ( [] , "__lib__") , main_deps );
+	add_class_to_buildfile (  ( [] , "__lib__") , main_deps );
 	output_string buildfile "</files>\n";
 	output_string buildfile "<files id=\"__main__\">\n";
 	output_string buildfile "<compilerflag value=\"-Iinclude\"/>\n";
-	add_class_to_buildfile buildfile  (  ( [] , "__main__") , main_deps );
+	add_class_to_buildfile (  ( [] , "__main__") , main_deps );
 	output_string buildfile "</files>\n";
 	output_string buildfile ("<set name=\"HAXE_OUTPUT\" value=\"" ^ exe_name ^ "\" />\n");
 	output_string buildfile "<include name=\"${HXCPP}/build-tool/BuildCommon.xml\"/>\n";
@@ -3168,7 +3165,7 @@ let generate common_ctx =
 	| Some e ->
 		let main_field = { cf_name = "__main__"; cf_type = t_dynamic; cf_expr = Some e; cf_pos = e.epos; cf_public = true; cf_meta = []; cf_overloads = []; cf_doc = None; cf_kind = Var { v_read = AccNormal; v_write = AccNormal; }; cf_params = [] } in
 		let class_def = { null_class with cl_path = ([],"@Main"); cl_ordered_statics = [main_field] } in
-		main_deps := find_referenced_types common_ctx (TClassDecl class_def) super_deps constructor_deps false;
+		main_deps := find_referenced_types common_ctx (TClassDecl class_def) super_deps constructor_deps false true;
 		generate_main common_ctx member_types super_deps class_def file_info
 	);
 
