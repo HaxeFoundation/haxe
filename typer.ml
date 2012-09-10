@@ -2021,6 +2021,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		type_call ctx e el None p
 	| ENew (t,el) ->
 		let t = Typeload.load_instance ctx t p true in
+		flush_pass ctx PDefineConstructor "new";
 		let el, c , params = (match follow t with
 		| TInst ({cl_kind = KTypeParameter tl} as c,params) ->
 			(* first check field parameters, then class parameters *)

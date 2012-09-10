@@ -39,8 +39,9 @@ type macro_mode =
 
 type typer_pass =
 	| PBuildModule			(* build the module structure and setup module type parameters *)
-	| PInitModuleTypes		(* resolve imports and typedefs : dont follow types ! *)
+	| PInitModuleTypes		(* load imports and set typedefs : dont follow types ! *)
 	| PResolveTypedefs		(* using and other functions that need to follow typededs *)
+	| PSetInherit			(* build the class extends/implements *)
 	| PBuildClass			(* build the class structure *)
 	| PDefineConstructor	(* add an inherited constructor *)
 	| PTypeField			(* type the class field, allow access to types structures *)
@@ -175,6 +176,7 @@ let pass_name = function
 	| PBuildModule -> "build-module"
 	| PInitModuleTypes -> "init-types"
 	| PResolveTypedefs -> "resolve-types"
+	| PSetInherit -> "set-inherit"
 	| PBuildClass -> "build-class"
 	| PDefineConstructor -> "define-constructor"
 	| PTypeField -> "type-field"
@@ -206,17 +208,6 @@ let unify_raise ctx t1 t2 p =
 		Unify_error l ->
 			(* no untyped check *)
 			raise (Error (Unify l,p))
-
-let exc_protect ctx f (where:string) =
-	let rec r = ref (fun() ->
-		try
-			f r
-		with
-			| Error (m,p) ->
-				display_error ctx (error_msg m) p;
-				raise Fatal_error
-	) in
-	r
 
 let save_locals ctx =
 	let locals = ctx.locals in
@@ -268,6 +259,8 @@ let rec flush_pass ctx p (where:string) =
 		flush_pass ctx p where
 	| _ ->
 		()
+
+let make_pass ctx f = f
 
 let fake_modules = Hashtbl.create 0
 let create_fake_module ctx file =
@@ -326,7 +319,6 @@ let delay ctx p f =
 
 let pending_passes ctx =
 	let rec loop acc = function
-		| (PDefineConstructor,_) :: pl -> loop acc pl (* SKIP SINCE HAVE SPECIAL BEHAVIOR *)
 		| (p,l) :: pl when p < ctx.pass -> loop (acc @ l) pl
 		| _ -> acc
 	in
@@ -337,6 +329,17 @@ let pending_passes ctx =
 let display_error ctx msg p =
 	debug ctx ("ERROR " ^ msg);
 	display_error ctx msg p
+
+let make_pass ctx f =
+	let inf = pass_infos ctx ctx.pass in
+	(fun v ->
+		debug ctx ("run " ^ inf ^ pending_passes ctx);
+		let old = !delay_tabs in
+		delay_tabs := !delay_tabs ^ "\t";
+		let t = f v in
+		delay_tabs := old;
+		t
+	)
 
 let rec flush_pass ctx p where =
 	let rec loop() =
@@ -349,7 +352,7 @@ let rec flush_pass ctx p where =
 				ctx.g.debug_delayed <- (p2,l) :: rest;
 				let old = !delay_tabs in
 				(match p2 with
-				| PForce | PTypeField -> ()
+				| PForce | PTypeField | PBuildClass -> ()
 				| _ ->
 					debug ctx ("run " ^ inf ^ pending_passes ctx2);
 					delay_tabs := !delay_tabs ^ "\t");
@@ -369,19 +372,18 @@ let rec flush_pass ctx p where =
 		debug ctx "flush-done";
 	| _ ->
 		()
-
-let exc_protect ctx f where =
-	let inf = pass_infos ctx ctx.pass in
-	exc_protect ctx (fun r ->
-		flush_pass ctx PBuildClass where;
-		debug ctx ("run " ^ inf ^ pending_passes ctx);
-		let old = !delay_tabs in
-		delay_tabs := !delay_tabs ^ "\t";
-		let t = f r in
-		delay_tabs := old;
-		t
-	) where
-
 */*)
 (* --------------------------------------------------- *)
 
+
+let exc_protect ctx f (where:string) =
+	let f = make_pass ctx f in
+	let rec r = ref (fun() ->
+		try
+			f r
+		with
+			| Error (m,p) ->
+				display_error ctx (error_msg m) p;
+				raise Fatal_error
+	) in
+	r

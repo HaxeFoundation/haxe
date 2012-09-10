@@ -229,7 +229,9 @@ and load_complex_type ctx p t =
 					mk_anon (PMap.foldi PMap.add a.a_fields a2.a_fields)
 				| _ -> error "Can only extend classes and structures" p
 			in
-			loop (load_instance ctx t p false)
+			let i = load_instance ctx t p false in
+			flush_pass ctx PBuildClass "ct_extend";
+			loop i
 		| _ -> assert false)
 	| CTAnonymous l ->
 		let rec loop acc f =
@@ -551,11 +553,11 @@ let rec return_flow ctx e =
 (* PASS 1 & 2 : Module and Class Structure *)
 
 let set_heritance ctx c herits p =
+	let ctx = { ctx with curclass = c; type_params = c.cl_types; pass = PSetInherit } in
 	let process_meta csup =
 		List.iter (fun m ->
 			match m with
 			| ":final", _, _ -> if not (Type.has_meta ":hack" c.cl_meta || (match c.cl_kind with KTypeParameter _ -> true | _ -> false)) then error "Cannot extend a final class" p;
-			| ":autoBuild", el, p -> c.cl_meta <- (":build",el,p) :: m :: c.cl_meta;
 			| _ -> ()
 		) csup.cl_meta
 	in
@@ -612,7 +614,6 @@ let set_heritance ctx c herits p =
 		| HImplements t -> HImplements (resolve_imports t)
 		| h -> h
 	) herits in
-	flush_pass ctx PBuildClass "init_class"; (* make sure super classes are fully initialized *)
 	List.iter loop (List.filter (ctx.g.do_inherit ctx c p) herits)
 
 let rec type_type_params ctx path get_params p tp =
@@ -846,10 +847,16 @@ let build_module_def ctx mt meta fvars fbuild =
 let init_class ctx c p herits fields =
 	let ctx = { ctx with curclass = c; type_params = c.cl_types; pass = PBuildClass } in
 	incr stats.s_classes_built;
+	(* make sure super classes/interfaces are built and propagate transitive properties *)
+	List.iter (fun (csup,_) ->
+		csup.cl_build();
+		List.iter (fun m ->
+			match m with
+			| ":autoBuild", el, p -> c.cl_meta <- (":build",el,p) :: m :: c.cl_meta;
+			| _ -> ()
+		) csup.cl_meta
+	) (match c.cl_super with None -> c.cl_implements | Some cs -> cs :: c.cl_implements);
 	let fields = patch_class ctx c fields in
-	c.cl_extern <- List.mem HExtern herits;
-	c.cl_interface <- List.mem HInterface herits;
-	set_heritance ctx c herits p;
 	let fields = ref fields in
 	let get_fields() = !fields in
 	build_module_def ctx (TClassDecl c) c.cl_meta get_fields (fun (e,p) ->
@@ -1003,7 +1010,6 @@ let init_class ctx c p herits fields =
 		let override = List.mem AOverride f.cff_access in
 		let ctx = { ctx with
 			tthis = tthis;
-			pass = PTypeField;
 			on_error = (fun ctx msg ep ->
 				ctx.com.error msg ep;
 				(* macros expressions might reference other code, let's recall which class we are actually compiling *)
@@ -1041,6 +1047,7 @@ let init_class ctx c p herits fields =
 				cf_overloads = [];
 			} in
 			ctx.curfield <- cf;
+			ctx.pass <- PTypeField;
 			bind_var ctx cf e stat inline;
 			f, false, cf
 		| FFun fd ->
@@ -1110,8 +1117,9 @@ let init_class ctx c p herits fields =
 				cf_params = params;
 				cf_overloads = [];
 			} in
-			ctx.curfield <- cf;
 			init_meta_overloads ctx cf;
+			ctx.curfield <- cf;
+			ctx.pass <- PTypeField;
 			let r = exc_protect ctx (fun r ->
 				if not !return_partial_type then begin
 					r := (fun() -> t);
@@ -1190,6 +1198,7 @@ let init_class ctx c p herits fields =
 				cf_overloads = [];
 			} in
 			ctx.curfield <- cf;
+			ctx.pass <- PTypeField;
 			bind_var ctx cf eo stat inline;
 			delay ctx PForce (fun() -> (!check_get)());
 			delay ctx PForce (fun() -> (!check_set)());
@@ -1362,13 +1371,26 @@ let init_module_type ctx usings (decl,p) =
 		) :: !usings
 	| EClass d ->
 		let c = (match get_type d.d_name with TClassDecl c -> c | _ -> assert false) in
+		let herits = d.d_flags in
 		if has_meta ":generic" c.cl_meta && c.cl_types <> [] then c.cl_kind <- KGeneric;
 		if c.cl_path = (["haxe";"macro"],"MacroType") then c.cl_kind <- KMacroType;
 		(* for debug only - we can't shadow ctx since it will get injected 'using' *)
 		ctx.curclass <- c;
+		c.cl_extern <- List.mem HExtern herits;
+		c.cl_interface <- List.mem HInterface herits;
 		delay ctx PForce (fun() -> check_overriding ctx c p);
 		delay ctx PForce (fun() -> check_interfaces ctx c p);
-		delay ctx PBuildClass (fun() -> init_class ctx c p d.d_flags d.d_data);
+		delay ctx PSetInherit (fun() -> set_heritance ctx c herits p);
+		let build() = 
+			c.cl_build <- (fun()->());
+			flush_pass ctx PSetInherit "build";
+			init_class ctx c p d.d_flags d.d_data
+		in
+		let old = ctx.pass in
+		ctx.pass <- PBuildClass;
+		c.cl_build <- make_pass ctx build;
+		delay ctx PBuildClass (fun() -> c.cl_build());
+		ctx.pass <- old;
 		ctx.curclass <- null_class;
 	| EEnum d ->
 		let e = (match get_type d.d_name with TEnumDecl e -> e | _ -> assert false) in
@@ -1577,7 +1599,6 @@ let type_module ctx m file tdecls loadp =
 	(* enter the next pass *)
 	let usings = ref [] in
 	delay ctx PInitModuleTypes (fun() -> List.iter (init_module_type ctx usings) tdecls);
-	flush_pass ctx (if ctx.pass < PBuildClass then ctx.pass else PBuildClass) "type_module";
 	m
 
 let resolve_module_file com m remap p =
@@ -1670,7 +1691,7 @@ let load_module ctx m p =
 				raise (Forbid_package (inf,p::pl))
 	) in
 	add_dependency ctx.current m2;
-	flush_pass ctx (if ctx.pass < PBuildClass then ctx.pass else PBuildClass) "load_module";
+	if ctx.pass = PTypeField then flush_pass ctx PBuildClass "load_module";
 	m2
 
 ;;

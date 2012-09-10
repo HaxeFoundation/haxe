@@ -481,6 +481,7 @@ let build_macro_type ctx pl p =
 let build_instance ctx mtype p =
 	match mtype with
 	| TClassDecl c ->
+		if ctx.pass > PBuildClass then c.cl_build();
 		let ft = (fun pl ->
 			match c.cl_kind with
 			| KGeneric ->
