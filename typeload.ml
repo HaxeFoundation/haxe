@@ -230,8 +230,16 @@ and load_complex_type ctx p t =
 				| _ -> error "Can only extend classes and structures" p
 			in
 			let i = load_instance ctx t p false in
-			flush_pass ctx PBuildClass "ct_extend";
-			loop i
+			let tr = ref None in
+			let t = TMono tr in
+			let r = exc_protect ctx (fun r ->
+				r := (fun _ -> t);
+				flush_pass ctx PInitModuleTypes "ct_extend";
+				tr := Some (loop i);
+				t
+			) "constraint" in
+			delay ctx PForce (fun () -> ignore(!r()));
+			TLazy r
 		| _ -> assert false)
 	| CTAnonymous l ->
 		let rec loop acc f =
@@ -1691,7 +1699,10 @@ let load_module ctx m p =
 				raise (Forbid_package (inf,p::pl))
 	) in
 	add_dependency ctx.current m2;
-	if ctx.pass = PTypeField then flush_pass ctx PBuildClass "load_module";
+	(match ctx.pass with
+	| PTypeField -> flush_pass ctx PBuildClass "load_module"
+	| PSetInherit -> flush_pass ctx PInitModuleTypes "load_module"
+	| _ -> ());
 	m2
 
 ;;
