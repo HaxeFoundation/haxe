@@ -393,7 +393,7 @@ class HtmlPrinter {
 		case CAnonymous(fields):
 			print('<dl>');
 			for( f in fields )
-				processClassField(all,f);
+				processClassField(all,f,false);
 			print('</dl>');
 		default:
 			if( all.length != platforms.length ) {
