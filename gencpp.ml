@@ -1819,6 +1819,8 @@ let gen_field ctx class_def class_name ptr_name is_static is_interface field =
 	let output = ctx.ctx_output in
 	ctx.ctx_real_this_ptr <- not is_static;
 	let remap_name = keyword_remap field.cf_name in
+	let decl = get_meta_string field.cf_meta ":decl" in
+	let has_decl = decl <> "" in
 	if (is_interface) then begin
 		(* Just the dynamic glue ... *)
 		match follow field.cf_type, field.cf_kind  with
@@ -1912,6 +1914,11 @@ let gen_field ctx class_def class_name ptr_name is_static is_interface field =
 		end
 
 	(* Data field *)
+	| _ when has_decl ->
+		if is_static then begin
+			output ( class_name ^ "::" ^ remap_name ^ "_decl ");
+			output ( " " ^ class_name ^ "::" ^ remap_name ^ ";\n\n");
+		end
 	| _ ->
 		if is_static then begin
 			gen_type ctx field.cf_type;
@@ -1965,6 +1972,10 @@ let gen_member_def ctx class_def is_static is_interface field =
 			output ("Dynamic " ^ remap_name ^ "_dyn();\n" );
 		| _  ->  ( )
 	end else begin
+	let decl = get_meta_string field.cf_meta ":decl" in
+	let has_decl = decl <> "" in
+   if (has_decl) then
+		output ( "      typedef " ^ decl ^ ";\n" );
 	output (if is_static then "		static " else "		");
    (match  field.cf_expr with
 	| Some { eexpr = TFunction function_def } ->
@@ -1987,10 +1998,13 @@ let gen_member_def ctx class_def is_static is_interface field =
 			end;
 		end;
 		output "\n";
+	| _ when has_decl ->
+		output ( remap_name ^ "_decl " ^ remap_name ^ ";\n" );
+		(* Variable access *)
 	| _ ->
 		(* Variable access *)
 		gen_type ctx field.cf_type;
-		output (" " ^ remap_name ^ "; /* REM */ \n" );
+		output (" " ^ remap_name ^ ";\n" );
 
 		(* Add a "dyn" function for variable to unify variable/function access *)
 		(match follow field.cf_type with
@@ -2672,8 +2686,9 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 			| _ -> true)
 		in
 
-		let all_fields = statics_except_meta @ class_def.cl_ordered_fields in
-		let all_variables = List.filter variable_field all_fields in
+      let reflective field = not (Type.has_meta ":unreflective" field.cf_meta) in
+		let reflect_fields = List.filter reflective (statics_except_meta @ class_def.cl_ordered_fields) in
+		let reflect_variables = List.filter variable_field reflect_fields in
 
 		let dump_quick_field_test fields =
 			if ( (List.length fields) > 0) then begin
@@ -2705,7 +2720,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 				) ^ ";"
 			) )
 		in
-		dump_quick_field_test (get_field_dat all_fields);
+		dump_quick_field_test (get_field_dat reflect_fields);
 		if (implement_dynamic) then
 			output_cpp "	HX_CHECK_DYNAMIC_GET_FIELD(inName);\n";
 		output_cpp ("	return super::__Field(inName,inCallProp);\n}\n\n");
@@ -2718,7 +2733,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 				output_cpp ("static int __id_" ^ remap_name ^ " = __hxcpp_field_to_id(\"" ^
 								  	(field.cf_name) ^ "\");\n");
 				) in
-			List.iter dump_static_ids all_fields;
+			List.iter dump_static_ids reflect_fields;
 			output_cpp "\n\n";
 
 
@@ -2733,7 +2748,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 					| _ -> ((keyword_remap f.cf_name) ^ if ( variable_field f) then "" else "_dyn()")
 					) ^ ( if (return_type="Float") then " ) " else "" ) ^ ";\n");
 				) in
-			List.iter dump_field_test all_fields;
+			List.iter dump_field_test reflect_fields;
 			if (implement_dynamic) then
 				output_cpp "	HX_CHECK_DYNAMIC_GET_INT_FIELD(inFieldID);\n";
 			output_cpp ("	return super::" ^ function_name ^ "(inFieldID);\n}\n\n");
@@ -2756,7 +2771,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
          )
 		) in
 
-		dump_quick_field_test (set_field_dat all_variables);
+		dump_quick_field_test (set_field_dat reflect_variables);
 		if (implement_dynamic) then begin
 			output_cpp ("	try { return super::__SetField(inName,inValue,inCallProp); }\n");
 			output_cpp ("	catch(Dynamic e) { HX_DYNAMIC_SET_FIELD(inName,inValue); }\n");
