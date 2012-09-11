@@ -38,6 +38,13 @@ class Lib {
 	}
 
 	/**
+		Load and return a Cpp primitive from a DLL library.
+	**/
+	@:extern public static inline function getProcAddress( lib : String, prim : String ) : Dynamic {
+		return untyped __global__.__hxcpp_cast_get_proc_address(lib,prim);
+	}
+
+	/**
 		Tries to load, and always returns a valid function, but the function may throw
 		if called.
 	**/
