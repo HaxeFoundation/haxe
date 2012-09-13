@@ -186,7 +186,7 @@ let extend_remoting ctx c t p async prot =
 		| _ -> d
 	) decls in
 	let m = Typeload.type_module ctx (t.tpackage,new_name) file decls p in
-	add_dependency ctx.current m;
+	add_dependency ctx.m.curmod m;
 	try
 		List.find (fun tdecl -> snd (t_path tdecl) = new_name) m.m_types
 	with Not_found ->
@@ -271,7 +271,7 @@ let rec build_generic ctx c p tl =
 			()
 	in
 	List.iter check_recursive tl;
-	let gctx = make_generic ctx c.cl_types tl p in
+	let gctx = try make_generic ctx c.cl_types tl p with Generic_Exception (msg,p) -> error msg p in
 	let name = (snd c.cl_path) ^ "_" ^ gctx.name in
 	if !recurse then begin
 		if not (has_meta ":?genericRec" c.cl_meta) then c.cl_meta <- (":?genericRec",[],p) :: c.cl_meta;
@@ -280,7 +280,7 @@ let rec build_generic ctx c p tl =
 		Typeload.load_instance ctx { tpackage = pack; tname = name; tparams = []; tsub = None } p false
 	with Error(Module_not_found path,_) when path = (pack,name) ->
 		let m = (try Hashtbl.find ctx.g.modules (Hashtbl.find ctx.g.types_module c.cl_path) with Not_found -> assert false) in
-		let ctx = { ctx with local_types = m.m_types @ ctx.local_types } in
+		let ctx = { ctx with m = { ctx.m with module_types = m.m_types @ ctx.m.module_types } } in
 		let mg = {
 			m_id = alloc_mid();
 			m_path = (pack,name);
@@ -291,7 +291,7 @@ let rec build_generic ctx c p tl =
 		mg.m_types <- [TClassDecl cg];
 		Hashtbl.add ctx.g.modules mg.m_path mg;
 		add_dependency mg m;
-		add_dependency ctx.current mg;
+		add_dependency ctx.m.curmod mg;
 		(* ensure that type parameters are set in dependencies *)
 		let dep_stack = ref [] in
 		let rec loop t =

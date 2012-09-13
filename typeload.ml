@@ -21,6 +21,84 @@ open Type
 open Common
 open Typecore
 
+(*
+	Build module structure : should be atomic - no type loading is possible
+*)
+let make_module ctx mpath file tdecls loadp =
+	let decls = ref [] in
+	let make_path name priv =
+		if List.exists (fun (t,_) -> snd (t_path t) = name) !decls then error ("Type name " ^ name ^ " is already defined in this module") loadp;
+		if priv then (fst mpath @ ["_" ^ snd mpath], name) else (fst mpath, name)
+	in
+	let m = {
+		m_id = alloc_mid();
+		m_path = mpath;
+		m_types = [];
+		m_extra = module_extra (Common.unique_full_path file) (Common.get_signature ctx.com) (file_time file) (if ctx.in_macro then MMacro else MCode);
+	} in
+	List.iter (fun decl ->
+		let p = snd decl in
+		match fst decl with
+		| EImport _ | EUsing _ -> ()
+		| EClass d ->
+			let priv = List.mem HPrivate d.d_flags in
+			let path = make_path d.d_name priv in
+			let c = mk_class m path p in
+			c.cl_module <- m;
+			c.cl_private <- priv;
+			c.cl_doc <- d.d_doc;
+			c.cl_meta <- d.d_meta;
+			decls := (TClassDecl c, decl) :: !decls
+		| EEnum d ->
+			let priv = List.mem EPrivate d.d_flags in
+			let path = make_path d.d_name priv in
+			let e = {
+				e_path = path;
+				e_module = m;
+				e_pos = p;
+				e_doc = d.d_doc;
+				e_meta = d.d_meta;
+				e_types = [];
+				e_private = priv;
+				e_extern = List.mem EExtern d.d_flags;
+				e_constrs = PMap.empty;
+				e_names = [];
+			} in
+			decls := (TEnumDecl e, decl) :: !decls
+		| ETypedef d ->
+			let priv = List.mem EPrivate d.d_flags in
+			let path = make_path d.d_name priv in
+			let t = {
+				t_path = path;
+				t_module = m;
+				t_pos = p;
+				t_doc = d.d_doc;
+				t_private = priv;
+				t_types = [];
+				t_type = mk_mono();
+				t_meta = d.d_meta;
+			} in
+			decls := (TTypeDecl t, decl) :: !decls
+	   | EAbstract d ->
+			let priv = List.mem APrivAbstract d.d_flags in
+			let path = make_path d.d_name priv in
+			let a = {
+				a_path = path;
+				a_private = priv;
+				a_module = m;
+				a_pos = p;
+				a_doc = d.d_doc;
+				a_types = [];
+				a_meta = d.d_meta;
+				a_sub = [];
+				a_super = [];
+			} in
+			decls := (TAbstractDecl a, decl) :: !decls
+	) tdecls;
+	let decls = List.rev !decls in
+	m.m_types <- List.map fst decls;
+	m, decls
+
 let parse_file com file p =
 	let ch = (try open_in_bin file with _ -> error ("Could not open " ^ file) p) in
 	let t = Common.timer "parsing" in
@@ -72,7 +150,7 @@ let rec load_type_def ctx p t =
 		List.find (fun t2 ->
 			let tp = t_path t2 in
 			tp = (t.tpackage,tname) || (no_pack && snd tp = tname)
-		) ctx.local_types
+		) ctx.m.module_types
 	with
 		Not_found ->
 			let next() =
@@ -102,7 +180,7 @@ let rec load_type_def ctx p t =
 			in
 			try
 				if not no_pack then raise Exit;
-				(match fst ctx.current.m_path with
+				(match fst ctx.m.curmod.m_path with
 				| [] -> raise Exit
 				| x :: _ ->
 					(* this can occur due to haxe remoting : a module can be
@@ -113,7 +191,7 @@ let rec load_type_def ctx p t =
 						| Forbidden -> raise Exit
 						| _ -> ())
 					with Not_found -> ());
-				loop (List.rev (fst ctx.current.m_path));
+				loop (List.rev (fst ctx.m.curmod.m_path));
 			with
 				Exit -> next()
 
@@ -234,7 +312,6 @@ and load_complex_type ctx p t =
 			let t = TMono tr in
 			let r = exc_protect ctx (fun r ->
 				r := (fun _ -> t);
-				flush_pass ctx PInitModuleTypes "ct_extend";
 				tr := Some (loop i);
 				t
 			) "constraint" in
@@ -335,12 +412,12 @@ and init_meta_overloads ctx cf =
 	cf.cf_overloads <- List.map (fun (args,ret,params) -> { cf with cf_type = TFun (args,ret); cf_params = params }) (List.rev !overloads)
 
 let hide_types ctx =
-	let old_locals = ctx.local_types in
+	let old_m = ctx.m in
 	let old_type_params = ctx.type_params in
-	ctx.local_types <- ctx.g.std.m_types;
+	ctx.m <- { curmod = ctx.g.std; module_types = ctx.g.std.m_types; module_using = [] };
 	ctx.type_params <- [];
 	(fun() ->
-		ctx.local_types <- old_locals;
+		ctx.m <- old_m;
 		ctx.type_params <- old_type_params;
 	)
 
@@ -428,7 +505,8 @@ let copy_meta meta_src meta_target sl =
 	) meta_src;
 	!meta
 
-let check_overriding ctx c p =
+let check_overriding ctx c =
+	let p = c.cl_pos in
 	match c.cl_super with
 	| None ->
 		(match c.cl_overrides with
@@ -481,7 +559,8 @@ let class_field_no_interf c i =
 			let t , f = raw_class_field (fun f -> f.cf_type) c i in
 			apply_params c.cl_types tl t , f
 
-let rec check_interface ctx c p intf params =
+let rec check_interface ctx c intf params =
+	let p = c.cl_pos in
 	PMap.iter (fun i f ->
 		try
 			let t2, f2 = class_field_no_interf c i in
@@ -507,14 +586,14 @@ let rec check_interface ctx c p intf params =
 				if not c.cl_interface then display_error ctx ("Field " ^ i ^ " needed by " ^ s_type_path intf.cl_path ^ " is missing") p
 	) intf.cl_fields;
 	List.iter (fun (i2,p2) ->
-		check_interface ctx c p i2 (List.map (apply_params intf.cl_types params) p2)
+		check_interface ctx c i2 (List.map (apply_params intf.cl_types params) p2)
 	) intf.cl_implements
 
-let check_interfaces ctx c p =
+let check_interfaces ctx c =
 	match c.cl_path with
 	| "Proxy" :: _ , _ -> ()
 	| _ ->
-	List.iter (fun (intf,params) -> check_interface ctx c p intf params) c.cl_implements
+	List.iter (fun (intf,params) -> check_interface ctx c intf params) c.cl_implements
 
 let rec return_flow ctx e =
 	let error() = display_error ctx "A return is missing here" e.epos; raise Exit in
@@ -561,14 +640,16 @@ let rec return_flow ctx e =
 (* PASS 1 & 2 : Module and Class Structure *)
 
 let set_heritance ctx c herits p =
-	let ctx = { ctx with curclass = c; type_params = c.cl_types; pass = PSetInherit } in
+	let ctx = { ctx with curclass = c; type_params = c.cl_types; } in
 	let process_meta csup =
 		List.iter (fun m ->
 			match m with
 			| ":final", _, _ -> if not (Type.has_meta ":hack" c.cl_meta || (match c.cl_kind with KTypeParameter _ -> true | _ -> false)) then error "Cannot extend a final class" p;
+			| ":autoBuild", el, p -> c.cl_meta <- (":build",el,p) :: m :: c.cl_meta
 			| _ -> ()
 		) csup.cl_meta
 	in
+	let has_interf = ref false in
 	let rec loop = function
 		| HPrivate | HExtern | HInterface ->
 			()
@@ -582,6 +663,7 @@ let set_heritance ctx c herits p =
 			| TInst ({ cl_path = [],"Xml" },_) when ((not (platform ctx.com Cpp)) && (match c.cl_path with "mt" :: _ , _ -> false | _ -> true)) ->
 				error "Cannot extend basic class" p;
 			| TInst (csup,params) ->
+				csup.cl_build();
 				if is_parent c csup then error "Recursive class" p;
 				if c.cl_interface then error "Cannot extend an interface" p;
 				if csup.cl_interface then error "Cannot extend by using an interface" p;
@@ -595,9 +677,14 @@ let set_heritance ctx c herits p =
 				if c.cl_array_access <> None then error "Duplicate array access" p;
 				c.cl_array_access <- Some t
 			| TInst (intf,params) ->
+				intf.cl_build();
 				if is_parent c intf then error "Recursive class" p;
 				process_meta intf;
-				c.cl_implements <- (intf, params) :: c.cl_implements
+				c.cl_implements <- (intf, params) :: c.cl_implements;
+				if not !has_interf then begin
+					delay ctx PForce (fun() -> check_interfaces ctx c);
+					has_interf := true;
+				end
 			| TDynamic t ->
 				if c.cl_dynamic <> None then error "Cannot have several dynamics" p;
 				c.cl_dynamic <- Some t
@@ -612,7 +699,7 @@ let set_heritance ctx c herits p =
 		| _ :: _ -> t
 		| [] ->
 			try
-				let lt = List.find (fun lt -> snd (t_path lt) = t.tname) ctx.local_types in
+				let lt = List.find (fun lt -> snd (t_path lt) = t.tname) ctx.m.module_types in
 				{ t with tpackage = fst (t_path lt) }
 			with
 				Not_found -> t
@@ -626,7 +713,7 @@ let set_heritance ctx c herits p =
 
 let rec type_type_params ctx path get_params p tp =
 	let n = tp.tp_name in
-	let c = mk_class ctx.current (fst path @ [snd path],n) p in
+	let c = mk_class ctx.m.curmod (fst path @ [snd path],n) p in
 	c.cl_types <- List.map (type_type_params ctx c.cl_path get_params p) tp.tp_params;
 	let t = TInst (c,List.map snd c.cl_types) in
 	match tp.tp_constraints with
@@ -852,18 +939,20 @@ let build_module_def ctx mt meta fvars fbuild =
 	with Error (Custom msg,p) ->
 		display_error ctx msg p
 
-let init_class ctx c p herits fields =
-	let ctx = { ctx with curclass = c; type_params = c.cl_types; pass = PBuildClass } in
+let init_class ctx c p context_init herits fields =
+	let ctx = {
+		ctx with
+		curclass = c;
+		type_params = c.cl_types;
+		pass = PBuildClass;
+		tthis = TInst (c,List.map snd c.cl_types);
+		on_error = (fun ctx msg ep ->
+			ctx.com.error msg ep;
+			(* macros expressions might reference other code, let's recall which class we are actually compiling *)
+			if ep.pfile <> c.cl_pos.pfile then ctx.com.error "Defined in this class" c.cl_pos
+		);
+	} in
 	incr stats.s_classes_built;
-	(* make sure super classes/interfaces are built and propagate transitive properties *)
-	List.iter (fun (csup,_) ->
-		csup.cl_build();
-		List.iter (fun m ->
-			match m with
-			| ":autoBuild", el, p -> c.cl_meta <- (":build",el,p) :: m :: c.cl_meta;
-			| _ -> ()
-		) csup.cl_meta
-	) (match c.cl_super with None -> c.cl_implements | Some cs -> cs :: c.cl_implements);
 	let fields = patch_class ctx c fields in
 	let fields = ref fields in
 	let get_fields() = !fields in
@@ -880,7 +969,6 @@ let init_class ctx c p herits fields =
 		List.filter (fun f -> List.mem AStatic f.cff_access) fields, []
 	end else fields, herits in
 	if core_api && not (ctx.com.display || Common.defined ctx.com "dce") then delay ctx PForce (fun() -> init_core_api ctx c);
-	let tthis = TInst (c,List.map snd c.cl_types) in
 	let rec extends_public c =
 		List.exists (fun (c,_) -> c.cl_path = (["haxe"],"Public") || extends_public c) c.cl_implements ||
 		match c.cl_super with
@@ -969,6 +1057,7 @@ let init_class ctx c p herits fields =
 			let r = exc_protect ctx (fun r ->
 				if not !return_partial_type then begin
 					r := (fun() -> t);
+					context_init();
 					if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.in_macro then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ cf.cf_name);
 					let e = type_var_field ctx t e stat p in
 					let e = (match cf.cf_kind with
@@ -1010,19 +1099,22 @@ let init_class ctx c p herits fields =
 
 	(* ----------------------- FIELD INIT ----------------------------- *)
 
+	let has_override = ref false in
+
 	let loop_cf f =
 		let name = f.cff_name in
 		let p = f.cff_pos in
 		let stat = List.mem AStatic f.cff_access in
 		let inline = List.mem AInline f.cff_access in
 		let override = List.mem AOverride f.cff_access in
-		let ctx = { ctx with
-			tthis = tthis;
-			on_error = (fun ctx msg ep ->
-				ctx.com.error msg ep;
-				(* macros expressions might reference other code, let's recall which class we are actually compiling *)
-				if ep.pfile <> c.cl_pos.pfile then ctx.com.error "Defined in this class" c.cl_pos
-			);
+		if override && not !has_override then begin
+			has_override := true;
+			delay ctx PForce (fun() -> check_overriding ctx c);
+		end;
+		(* build the per-field context *)
+		let ctx = {
+			ctx with
+			pass = PBuildClass; (* will be set later to PTypeExpr *)
 		} in
 		match f.cff_kind with
 		| FVar (t,e) ->
@@ -1055,7 +1147,6 @@ let init_class ctx c p herits fields =
 				cf_overloads = [];
 			} in
 			ctx.curfield <- cf;
-			ctx.pass <- PTypeField;
 			bind_var ctx cf e stat inline;
 			f, false, cf
 		| FFun fd ->
@@ -1127,10 +1218,10 @@ let init_class ctx c p herits fields =
 			} in
 			init_meta_overloads ctx cf;
 			ctx.curfield <- cf;
-			ctx.pass <- PTypeField;
 			let r = exc_protect ctx (fun r ->
 				if not !return_partial_type then begin
 					r := (fun() -> t);
+					context_init();
 					incr stats.s_methods_typed;
 					if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.in_macro then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ name);
 					let e , fargs = type_function ctx args ret (if constr then FConstructor else if stat then FStatic else FMember) fd p in
@@ -1206,7 +1297,6 @@ let init_class ctx c p herits fields =
 				cf_overloads = [];
 			} in
 			ctx.curfield <- cf;
-			ctx.pass <- PTypeField;
 			bind_var ctx cf eo stat inline;
 			delay ctx PForce (fun() -> (!check_get)());
 			delay ctx PForce (fun() -> (!check_set)());
@@ -1266,13 +1356,23 @@ let init_class ctx c p herits fields =
 	*)
 	let rec add_constructor c =
 		match c.cl_constructor, c.cl_super with
-		| None, Some (csup,cparams) when not c.cl_extern ->
-			add_constructor csup;
-			(match csup.cl_constructor with
-			| None -> ()
-			| Some cf ->
-				ignore (follow cf.cf_type); (* make sure it's typed *)
-				let args = (match cf.cf_expr with
+		| None, Some ({ cl_constructor = Some cfsup } as csup,cparams) when not c.cl_extern ->
+			let cf = {
+				cfsup with
+				cf_pos = p;
+				cf_meta = [];
+				cf_doc = None;
+				cf_expr = None;
+			} in
+			let r = exc_protect ctx (fun r ->
+				let t = mk_mono() in
+				r := (fun() -> t);
+				let ctx = { ctx with
+					curfield = cf;
+					pass = PTypeField;
+				} in
+				ignore (follow cfsup.cf_type); (* make sure it's typed *)
+				let args = (match cfsup.cf_expr with
 					| Some { eexpr = TFunction f } ->
 						List.map (fun (v,def) ->
 							(*
@@ -1287,7 +1387,7 @@ let init_class ctx c p herits fields =
 							| _ -> v, def
 						) f.tf_args
 					| _ ->
-						match follow cf.cf_type with
+						match follow cfsup.cf_type with
 						| TFun (args,_) -> List.map (fun (n,o,t) -> alloc_var n (if o then ctx.t.tnull t else t), if o then Some TNull else None) args
 						| _ -> assert false
 				) in
@@ -1299,14 +1399,24 @@ let init_class ctx c p herits fields =
 					tf_type = ctx.t.tvoid;
 					tf_expr = super_call;
 				}) (TFun (List.map (fun (v,c) -> v.v_name, c <> None, v.v_type) vars,ctx.t.tvoid)) p in
-				c.cl_constructor <- Some { cf with cf_pos = p; cf_type = constr.etype; cf_meta = []; cf_doc = None; cf_expr = Some constr })
+				cf.cf_expr <- Some constr;
+				cf.cf_type <- t;
+				unify ctx t constr.etype p;
+				t
+			) "add_constructor" in
+			cf.cf_type <- TLazy r;
+			c.cl_constructor <- Some cf;
+			delay ctx PForce (fun() -> ignore((!r)()));
 		| _ ->
 			(* nothing to do *)
 			()
 	in
-	if c.cl_constructor = None & c.cl_super <> None then delay ctx PDefineConstructor (fun() -> add_constructor c);
+	add_constructor c;
 	(* push delays in reverse order so they will be run in correct order *)
-	List.iter (fun (ctx,r) -> delay ctx PTypeField (fun() -> ignore((!r)()))) !delayed_expr
+	List.iter (fun (ctx,r) ->
+		ctx.pass <- PTypeField;
+		delay ctx PTypeField (fun() -> ignore((!r)()))
+	) !delayed_expr
 
 let resolve_typedef t =
 	match t with
@@ -1332,9 +1442,14 @@ let add_module ctx m p =
 	List.iter decl_type m.m_types;
 	Hashtbl.add ctx.g.modules m.m_path m
 
-let init_module_type ctx usings (decl,p) =
+(*
+	In this pass, we can access load and access other modules types, but we cannot follow them or access their structure
+	since they have not been setup. We also build a context_init list that will be evaluated the first time we evaluate
+	an expression into the context
+*)
+let init_module_type ctx context_init do_init (decl,p) =
 	let get_type name =
-		try List.find (fun t -> snd (t_infos t).mt_path = name) ctx.current.m_types with Not_found -> assert false
+		try List.find (fun t -> snd (t_infos t).mt_path = name) ctx.m.curmod.m_types with Not_found -> assert false
 	in
 	match decl with
 	| EImport t ->
@@ -1342,11 +1457,10 @@ let init_module_type ctx usings (decl,p) =
 		| None ->
 			let md = ctx.g.do_load_module ctx (t.tpackage,t.tname) p in
 			let types = List.filter (fun t -> not (t_infos t).mt_private) md.m_types in
-			ctx.local_types <- ctx.local_types @ types
+			ctx.m.module_types <- ctx.m.module_types @ types
 		| Some _ ->
 			let t = load_type_def ctx p t in
-			ctx.local_types <- ctx.local_types @ [t]
-		)
+			ctx.m.module_types <- ctx.m.module_types @ [t])
 	| EUsing t ->
 		let filter_classes types =
 			let rec loop acc types = match List.rev types with
@@ -1361,45 +1475,49 @@ let init_module_type ctx usings (decl,p) =
 			in
 			loop [] types
 		in
-		(* make sure using are processed in the declaration order *)
-		if !usings = [] then delay ctx PResolveTypedefs (fun() -> List.iter (fun f -> f()) (List.rev !usings));
-		usings := (fun() ->
+		context_init := (fun() ->
 			match t.tsub with
 			| None ->
 				let md = ctx.g.do_load_module ctx (t.tpackage,t.tname) p in
 				let types = List.filter (fun t -> not (t_infos t).mt_private) md.m_types in
-				flush_pass ctx PInitModuleTypes "using";
-				ctx.local_using <- ctx.local_using @ (filter_classes types);
-				ctx.local_types <- ctx.local_types @ types
+				ctx.m.module_using <- filter_classes types @ ctx.m.module_using;
+				ctx.m.module_types <- types @ ctx.m.module_types
 			| Some _ ->
 				let t = load_type_def ctx p t in
-				flush_pass ctx PInitModuleTypes "using";
-				ctx.local_using <- ctx.local_using @ (filter_classes [t]);
-				ctx.local_types <- ctx.local_types @ [t]
-		) :: !usings
+				ctx.m.module_using <- filter_classes [t] @ ctx.m.module_using;
+				ctx.m.module_types <- t :: ctx.m.module_types
+		) :: !context_init
 	| EClass d ->
 		let c = (match get_type d.d_name with TClassDecl c -> c | _ -> assert false) in
 		let herits = d.d_flags in
-		if has_meta ":generic" c.cl_meta && c.cl_types <> [] then c.cl_kind <- KGeneric;
+		(*
+			we need to check rtti has early as class declaration, but we can't resolve imports,
+			so let's have a quick heuristic for backward compatibility
+		*)
+		let implements_rtti() =
+			let rtti = List.exists (function
+				| HImplements { tpackage = ["haxe";"rtti"]; tname = "Generic" } -> true
+				| HImplements { tpackage = []; tname = "Generic" } -> List.exists (fun t -> t_path t = (["haxe";"rtti"],"Generic")) ctx.m.module_types
+				| _ -> false
+			) herits in
+			if rtti && Common.defined ctx.com "haxe3" then error ("Implementing haxe.rtti.Generic is deprecated in haxe 3, please use @:generic instead") c.cl_pos;
+			has_meta ":generic" c.cl_meta || rtti
+		in
+		if implements_rtti() && c.cl_types <> [] then c.cl_kind <- KGeneric;
 		if c.cl_path = (["haxe";"macro"],"MacroType") then c.cl_kind <- KMacroType;
-		(* for debug only - we can't shadow ctx since it will get injected 'using' *)
-		ctx.curclass <- c;
 		c.cl_extern <- List.mem HExtern herits;
 		c.cl_interface <- List.mem HInterface herits;
-		delay ctx PForce (fun() -> check_overriding ctx c p);
-		delay ctx PForce (fun() -> check_interfaces ctx c p);
-		delay ctx PSetInherit (fun() -> set_heritance ctx c herits p);
-		let build() = 
+		let build() =
 			c.cl_build <- (fun()->());
-			flush_pass ctx PSetInherit "build";
-			init_class ctx c p d.d_flags d.d_data
+			set_heritance ctx c herits p;
+			init_class ctx c p do_init d.d_flags d.d_data
 		in
-		let old = ctx.pass in
 		ctx.pass <- PBuildClass;
+		ctx.curclass <- c;
 		c.cl_build <- make_pass ctx build;
-		delay ctx PBuildClass (fun() -> c.cl_build());
-		ctx.pass <- old;
+		ctx.pass <- PBuildModule;
 		ctx.curclass <- null_class;
+		delay ctx PBuildClass (fun() -> c.cl_build());
 	| EEnum d ->
 		let e = (match get_type d.d_name with TEnumDecl e -> e | _ -> assert false) in
 		let ctx = { ctx with type_params = e.e_types } in
@@ -1487,97 +1605,27 @@ let init_module_type ctx usings (decl,p) =
 			| ASuperType t -> a.a_super <- load_complex_type ctx p t :: a.a_super
 		) d.d_flags
 
-let type_module ctx m file tdecls loadp =
-	(* PASS 1 : build module structure - does not load any module or type - should be atomic ! *)
-	let decls = ref [] in
-	let make_path name priv =
-		if List.exists (fun (t,_) -> snd (t_path t) = name) !decls then error ("Type name " ^ name ^ " is already defined in this module") loadp;
-		if priv then (fst m @ ["_" ^ snd m], name) else (fst m, name)
-	in
-	let m = {
-		m_id = alloc_mid();
-		m_path = m;
-		m_types = [];
-		m_extra = module_extra (Common.unique_full_path file) (Common.get_signature ctx.com) (file_time file) (if ctx.in_macro then MMacro else MCode);
-	} in
-	List.iter (fun decl ->
-		let p = snd decl in
-		match fst decl with
-		| EImport _ | EUsing _ -> ()
-		| EClass d ->
-			let priv = List.mem HPrivate d.d_flags in
-			let path = make_path d.d_name priv in
-			let c = mk_class m path p in
-			c.cl_module <- m;
-			c.cl_private <- priv;
-			c.cl_doc <- d.d_doc;
-			c.cl_meta <- d.d_meta;
-			decls := (TClassDecl c, decl) :: !decls
-		| EEnum d ->
-			let priv = List.mem EPrivate d.d_flags in
-			let path = make_path d.d_name priv in
-			let e = {
-				e_path = path;
-				e_module = m;
-				e_pos = p;
-				e_doc = d.d_doc;
-				e_meta = d.d_meta;
-				e_types = [];
-				e_private = priv;
-				e_extern = List.mem EExtern d.d_flags;
-				e_constrs = PMap.empty;
-				e_names = [];
-			} in
-			decls := (TEnumDecl e, decl) :: !decls
-		| ETypedef d ->
-			let priv = List.mem EPrivate d.d_flags in
-			let path = make_path d.d_name priv in
-			let t = {
-				t_path = path;
-				t_module = m;
-				t_pos = p;
-				t_doc = d.d_doc;
-				t_private = priv;
-				t_types = [];
-				t_type = mk_mono();
-				t_meta = d.d_meta;
-			} in
-			decls := (TTypeDecl t, decl) :: !decls
-	   | EAbstract d ->
-			let priv = List.mem APrivAbstract d.d_flags in
-			let path = make_path d.d_name priv in
-			let a = {
-				a_path = path;
-				a_private = priv;
-				a_module = m;
-				a_pos = p;
-				a_doc = d.d_doc;
-				a_types = [];
-				a_meta = d.d_meta;
-				a_sub = [];
-				a_super = [];
-			} in
-			decls := (TAbstractDecl a, decl) :: !decls
-	) tdecls;
-	let decls = List.rev !decls in
-	m.m_types <- List.map fst decls;
-	add_module ctx m loadp;
+let type_module ctx m file tdecls p =
+	let m, decls = make_module ctx m file tdecls p in
+	add_module ctx m p;
 	(* define the per-module context for the next pass *)
 	let ctx = {
 		com = ctx.com;
 		g = ctx.g;
 		t = ctx.t;
-		pass = PInitModuleTypes;
+		m = {
+			curmod = m;
+			module_types = ctx.g.std.m_types @ m.m_types;
+			module_using = [];
+		};
+		pass = PBuildModule;
 		on_error = (fun ctx msg p -> ctx.com.error msg p);
 		macro_depth = ctx.macro_depth;
 		curclass = null_class;
 		curfield = null_field;
 		tthis = ctx.tthis;
 		ret = ctx.ret;
-		current = m;
 		locals = PMap.empty;
-		local_types = ctx.g.std.m_types @ m.m_types;
-		local_using = [];
 		type_params = [];
 		curfun = FStatic;
 		untyped = false;
@@ -1604,10 +1652,16 @@ let type_module ctx m file tdecls loadp =
 		| _ ->
 			assert false
 	) decls;
-	(* enter the next pass *)
-	let usings = ref [] in
-	delay ctx PInitModuleTypes (fun() -> List.iter (init_module_type ctx usings) tdecls);
+	(* setup module types *)
+	let context_init = ref [] in
+	let do_init() =
+		match !context_init with
+		| [] -> ()
+		| l -> context_init := []; List.iter (fun f -> f()) (List.rev l)
+	in
+	List.iter (init_module_type ctx context_init do_init) tdecls;
 	m
+
 
 let resolve_module_file com m remap p =
 	let file = (match m with
@@ -1698,11 +1752,8 @@ let load_module ctx m p =
 			with Forbid_package (inf,pl) when p <> Ast.null_pos ->
 				raise (Forbid_package (inf,p::pl))
 	) in
-	add_dependency ctx.current m2;
-	(match ctx.pass with
-	| PTypeField -> flush_pass ctx PBuildClass "load_module"
-	| PSetInherit -> flush_pass ctx PInitModuleTypes "load_module"
-	| _ -> ());
+	add_dependency ctx.m.curmod m2;
+	if ctx.pass = PTypeField then flush_pass ctx PBuildClass "load_module";
 	m2
 
 ;;

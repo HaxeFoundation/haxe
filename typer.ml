@@ -630,7 +630,7 @@ let using_field ctx mode e i p =
 		with Not_found ->
 			loop l
 	in
-	loop ctx.local_using
+	loop ctx.m.module_using
 
 let get_this ctx p =
 	match ctx.curfun with
@@ -700,7 +700,7 @@ let type_ident_raise ?(imported_enums=true) ctx i p mode =
 			(match e with
 			| Some ({ eexpr = TFunction f } as e) ->
 				(* create a fake class with a fake field to emulate inlining *)
-				let c = mk_class ctx.current (["local"],v.v_name) e.epos in
+				let c = mk_class ctx.m.curmod (["local"],v.v_name) e.epos in
 				let cf = { (mk_field v.v_name v.v_type e.epos) with cf_params = params; cf_expr = Some e; cf_kind = Method MethInline } in
 				c.cl_extern <- true;
 				c.cl_fields <- PMap.add cf.cf_name cf PMap.empty;
@@ -747,7 +747,7 @@ let type_ident_raise ?(imported_enums=true) ctx i p mode =
 					with
 						Not_found -> loop l
 		in
-		let e = loop ctx.local_types in
+		let e = loop ctx.m.module_types in
 		if mode = MSet then
 			AKNo i
 		else
@@ -1289,7 +1289,7 @@ and type_unop ctx op flag e p =
 
 and type_switch ctx e cases def need_val with_type p =
 	let eval = type_expr ctx e in
-	let old = ctx.local_types in
+	let old_m = ctx.m in
 	let enum = ref None in
 	let used_cases = Hashtbl.create 0 in
 	let is_fake_enum e =
@@ -1299,7 +1299,8 @@ and type_switch ctx e cases def need_val with_type p =
 	| TEnum (e,_) when is_fake_enum e -> ()
 	| TEnum (e,params) ->
 		enum := Some (Some (e,params));
-		ctx.local_types <- TEnumDecl e :: ctx.local_types
+		(* hack to prioritize enum lookup *)
+		ctx.m <- { ctx.m with module_types = TEnumDecl e :: ctx.m.module_types }
 	| TMono _ ->
 		enum := Some None;
 	| t ->
@@ -1374,7 +1375,7 @@ and type_switch ctx e cases def need_val with_type p =
 		) el in
 		el, e2
 	) cases in
-	ctx.local_types <- old;
+	ctx.m <- old_m;
 	let el = ref [] in
 	let type_case_code e =
 		let e = (match e with
@@ -1753,7 +1754,7 @@ and type_access ctx e p mode =
 								| _ :: l -> loop (List.rev l)
 						in
 						(match pack with
-						| [] -> loop (fst ctx.current.m_path)
+						| [] -> loop (fst ctx.m.curmod.m_path)
 						| _ ->
 							match check_module (pack,name) sname with
 							| Some r -> r
@@ -2021,7 +2022,6 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		type_call ctx e el None p
 	| ENew (t,el) ->
 		let t = Typeload.load_instance ctx t p true in
-		flush_pass ctx PDefineConstructor "new";
 		let el, c , params = (match follow t with
 		| TInst ({cl_kind = KTypeParameter tl} as c,params) ->
 			(* first check field parameters, then class parameters *)
@@ -2249,7 +2249,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 				) c.cl_ordered_statics;
 				!acc
 		in
-		let use_methods = loop PMap.empty ctx.local_using in
+		let use_methods = loop PMap.empty ctx.m.module_using in
 		let fields = PMap.fold (fun f acc -> PMap.add f.cf_name f acc) fields use_methods in
 		let fields = PMap.fold (fun f acc -> f :: acc) fields [] in
 		let t = (if iscall then
@@ -2850,7 +2850,7 @@ let make_macro_api ctx p =
 			ctx.curfield.cf_name;
 		);
 		Interp.get_local_using = (fun() ->
-			ctx.local_using;
+			ctx.m.module_using;
 		);
 		Interp.get_local_vars = (fun () ->
 			ctx.locals;
@@ -2862,10 +2862,10 @@ let make_macro_api ctx p =
 		);
 		Interp.define_type = (fun v ->
 			let m, tdef, pos = (try Interp.decode_type_def v with Interp.Invalid_expr -> Interp.exc (Interp.VString "Invalid type definition")) in
-			let mdep = Typeload.type_module ctx m ctx.current.m_extra.m_file [tdef,pos] pos in
+			let mdep = Typeload.type_module ctx m ctx.m.curmod.m_extra.m_file [tdef,pos] pos in
 			mdep.m_extra.m_kind <- MFake;
 			mdep.m_extra.m_time <- -1.;
-			add_dependency ctx.current mdep;
+			add_dependency ctx.m.curmod mdep;
 		);
 		Interp.module_dependency = (fun mpath file ismacro ->
 			let m = typing_timer ctx (fun() -> Typeload.load_module ctx (parse_path mpath) p) in
@@ -2875,7 +2875,7 @@ let make_macro_api ctx p =
 				add_dependency m (create_fake_module ctx file);
 		);
 		Interp.current_module = (fun() ->
-			ctx.current
+			ctx.m.curmod
 		);
 	}
 
@@ -2938,8 +2938,8 @@ let load_macro ctx cpath f p =
 	let mctx = Interp.get_ctx() in
 	let m = (try Hashtbl.find ctx.g.types_module cpath with Not_found -> cpath) in
 	let mloaded = Typeload.load_module ctx2 m p in
-	ctx2.local_types <- mloaded.m_types;
-	add_dependency ctx.current mloaded;
+	ctx2.m <- { curmod = mloaded; module_types = mloaded.m_types; module_using = [] };
+	add_dependency ctx.m.curmod mloaded;
 	let cl, meth = (match Typeload.load_instance ctx2 { tpackage = fst cpath; tname = snd cpath; tparams = []; tsub = None } p true with
 		| TInst (c,_) ->
 			finalize ctx2;
@@ -3088,7 +3088,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 			| None -> (fun() -> raise Interp.Abort)
 			| Some e -> Interp.eval mctx (Genneko.gen_expr mctx.Interp.gen (type_expr ctx e))
 		) in
-		ctx.current.m_extra.m_time <- -1.; (* disable caching for modules having macro-in-macro *)
+		ctx.m.curmod.m_extra.m_time <- -1.; (* disable caching for modules having macro-in-macro *)
 		let e = (EConst (Ident "__dollar__delay_call"),p) in
 		Some (EUntyped (ECall (e,[EConst (Int (string_of_int pos)),p]),p),p)
 	end else
@@ -3147,6 +3147,11 @@ let rec create com =
 			do_optimize = Optimizer.reduce_expression;
 			do_build_instance = Codegen.build_instance;
 		};
+		m = {
+			curmod = null_module;
+			module_types = [];
+			module_using = [];
+		};
 		pass = PBuildModule;
 		macro_depth = 0;
 		untyped = false;
@@ -3157,13 +3162,10 @@ let rec create com =
 		in_macro = Common.defined com "macro";
 		ret = mk_mono();
 		locals = PMap.empty;
-		local_types = [];
-		local_using = [];
 		type_params = [];
 		curclass = null_class;
 		curfield = null_field;
 		tthis = mk_mono();
-		current = null_module;
 		opened = [];
 		param_type = None;
 		vthis = None;

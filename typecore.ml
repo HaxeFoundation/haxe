@@ -39,11 +39,7 @@ type macro_mode =
 
 type typer_pass =
 	| PBuildModule			(* build the module structure and setup module type parameters *)
-	| PInitModuleTypes		(* load imports and set typedefs : dont follow types ! *)
-	| PResolveTypedefs		(* using and other functions that need to follow typededs *)
-	| PSetInherit			(* build the class extends/implements *)
 	| PBuildClass			(* build the class structure *)
-	| PDefineConstructor	(* add an inherited constructor *)
 	| PTypeField			(* type the class field, allow access to types structures *)
 	| PCheckConstraint		(* perform late constraint checks with inferred types *)
 	| PForce				(* usually ensure that lazy have been evaluated *)
@@ -70,19 +66,21 @@ type typer_globals = {
 	do_build_instance : typer -> module_type -> pos -> ((string * t) list * path * (t list -> t));
 }
 
+and typer_module = {
+	curmod : module_def;
+	mutable module_types : module_type list;
+	mutable module_using : tclass list;
+}
+
 and typer = {
 	(* shared *)
 	com : context;
-	mutable pass : typer_pass;
-	mutable t : basic_types;
+	t : basic_types;
 	g : typer_globals;
-	mutable in_macro : bool;
-	mutable macro_depth : int;
-	mutable on_error : typer -> string -> pos -> unit;
+	(* variable *)
+	mutable pass : typer_pass;
 	(* per-module *)
-	current : module_def;
-	mutable local_types : module_type list;
-	mutable local_using : tclass list;
+	mutable m : typer_module;
 	(* per-class *)
 	mutable curclass : tclass;
 	mutable tthis : t;
@@ -93,12 +91,16 @@ and typer = {
 	mutable in_super_call : bool;
 	mutable in_loop : bool;
 	mutable in_display : bool;
+	mutable in_macro : bool;
+	mutable macro_depth : int;
 	mutable curfun : current_fun;
 	mutable ret : t;
 	mutable locals : (string, tvar) PMap.t;
 	mutable opened : anon_status ref list;
 	mutable param_type : t option;
 	mutable vthis : tvar option;
+	(* events *)
+	mutable on_error : typer -> string -> pos -> unit;
 }
 
 type error_msg =
@@ -174,11 +176,7 @@ let rec error_msg = function
 
 let pass_name = function
 	| PBuildModule -> "build-module"
-	| PInitModuleTypes -> "init-types"
-	| PResolveTypedefs -> "resolve-types"
-	| PSetInherit -> "set-inherit"
 	| PBuildClass -> "build-class"
-	| PDefineConstructor -> "define-constructor"
 	| PTypeField -> "type-field"
 	| PCheckConstraint -> "check-constraint"
 	| PForce -> "force"
@@ -262,6 +260,17 @@ let rec flush_pass ctx p (where:string) =
 
 let make_pass ctx f = f
 
+let exc_protect ctx f (where:string) =
+	let rec r = ref (fun() ->
+		try
+			f r
+		with
+			| Error (m,p) ->
+				display_error ctx (error_msg m) p;
+				raise Fatal_error
+	) in
+	r
+
 let fake_modules = Hashtbl.create 0
 let create_fake_module ctx file =
 	let file = Common.unique_full_path file in
@@ -294,11 +303,14 @@ let context_ident ctx =
 let debug ctx str =
 	if Common.defined ctx.com "cdebug" then prerr_endline (context_ident ctx ^ !delay_tabs ^ str)
 
-let pass_infos ctx p =
-	let inf = Ast.s_type_path ctx.current.m_path in
-	let inf = (match snd ctx.curclass.cl_path with "" -> inf | n when n = snd ctx.current.m_path -> inf | n -> inf ^ "." ^ n) in
+let ctx_pos ctx =
+	let inf = Ast.s_type_path ctx.m.curmod.m_path in
+	let inf = (match snd ctx.curclass.cl_path with "" -> inf | n when n = snd ctx.m.curmod.m_path -> inf | n -> inf ^ "." ^ n) in
 	let inf = (match ctx.curfield.cf_name with "" -> inf | n -> inf ^ ":" ^ n) in
-	let inf = pass_name p ^ " ("  ^ inf ^ ")" in
+	inf
+
+let pass_infos ctx p =
+	let inf = pass_name p ^ " ("  ^ ctx_pos ctx ^ ")" in
 	let inf = if ctx.pass > p then inf ^ " ??CURPASS=" ^ pass_name ctx.pass else inf in
 	inf
 
@@ -315,7 +327,7 @@ let delay ctx p f =
 				(p,[f,inf,ctx]) :: (p2,l) :: rest
 	in
 	ctx.g.debug_delayed <- loop ctx.g.debug_delayed;
-	if p <> PForce then debug ctx ("add " ^ inf)
+	debug ctx ("add " ^ inf)
 
 let pending_passes ctx =
 	let rec loop acc = function
@@ -330,13 +342,23 @@ let display_error ctx msg p =
 	debug ctx ("ERROR " ^ msg);
 	display_error ctx msg p
 
-let make_pass ctx f =
-	let inf = pass_infos ctx ctx.pass in
+let make_pass ?inf ctx f =
+	let inf = (match inf with None -> pass_infos ctx ctx.pass | Some inf -> inf) in
 	(fun v ->
 		debug ctx ("run " ^ inf ^ pending_passes ctx);
 		let old = !delay_tabs in
 		delay_tabs := !delay_tabs ^ "\t";
-		let t = f v in
+		let t = (try
+			f v
+		with
+			| Fatal_error ->
+				delay_tabs := old;
+				raise Fatal_error
+			| exc when not (Common.defined ctx.com "stack") ->
+				debug ctx ("FATAL " ^ Printexc.to_string exc);
+				delay_tabs := old;
+				raise exc
+		) in
 		delay_tabs := old;
 		t
 	)
@@ -350,14 +372,9 @@ let rec flush_pass ctx p where =
 				ctx.g.debug_delayed <- rest
 			| (f,inf,ctx2) :: l ->
 				ctx.g.debug_delayed <- (p2,l) :: rest;
-				let old = !delay_tabs in
-				(match p2 with
-				| PForce | PTypeField | PBuildClass -> ()
-				| _ ->
-					debug ctx ("run " ^ inf ^ pending_passes ctx2);
-					delay_tabs := !delay_tabs ^ "\t");
-				(try f() with Fatal_error -> delay_tabs := old; raise Fatal_error | exc when not (Common.defined ctx.com "stack") -> debug ctx ("FATAL " ^ Printexc.to_string exc); delay_tabs := old; raise exc);
-				delay_tabs := old);
+				match p2 with
+				| PTypeField | PBuildClass -> f()
+				| _ -> (make_pass ~inf ctx f)());
 			loop()
 		| _ ->
 			()
@@ -372,12 +389,12 @@ let rec flush_pass ctx p where =
 		debug ctx "flush-done";
 	| _ ->
 		()
-*/*)
-(* --------------------------------------------------- *)
 
+let make_where ctx where =
+	where ^ " (" ^ ctx_pos ctx ^ ")"
 
 let exc_protect ctx f (where:string) =
-	let f = make_pass ctx f in
+	let f = make_pass ~inf:(make_where ctx where) ctx f in
 	let rec r = ref (fun() ->
 		try
 			f r
@@ -387,3 +404,8 @@ let exc_protect ctx f (where:string) =
 				raise Fatal_error
 	) in
 	r
+
+*/*)
+(* --------------------------------------------------- *)
+
+
