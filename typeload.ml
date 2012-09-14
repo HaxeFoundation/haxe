@@ -1462,6 +1462,19 @@ let init_module_type ctx context_init do_init (decl,p) =
 			let t = load_type_def ctx p t in
 			ctx.m.module_types <- ctx.m.module_types @ [t])
 	| EUsing t ->
+		(* do the import first *)
+		let types = (match t.tsub with
+			| None ->
+				let md = ctx.g.do_load_module ctx (t.tpackage,t.tname) p in
+				let types = List.filter (fun t -> not (t_infos t).mt_private) md.m_types in
+				ctx.m.module_types <- types @ ctx.m.module_types;
+				types
+			| Some _ ->
+				let t = load_type_def ctx p t in
+				ctx.m.module_types <- t :: ctx.m.module_types;
+				[t]
+		) in
+		(* delay the using since we need to resolve typedefs *)
 		let filter_classes types =
 			let rec loop acc types = match List.rev types with
 				| td :: l ->
@@ -1475,18 +1488,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 			in
 			loop [] types
 		in
-		context_init := (fun() ->
-			match t.tsub with
-			| None ->
-				let md = ctx.g.do_load_module ctx (t.tpackage,t.tname) p in
-				let types = List.filter (fun t -> not (t_infos t).mt_private) md.m_types in
-				ctx.m.module_using <- filter_classes types @ ctx.m.module_using;
-				ctx.m.module_types <- types @ ctx.m.module_types
-			| Some _ ->
-				let t = load_type_def ctx p t in
-				ctx.m.module_using <- filter_classes [t] @ ctx.m.module_using;
-				ctx.m.module_types <- t :: ctx.m.module_types
-		) :: !context_init
+		context_init := (fun() -> ctx.m.module_using <- filter_classes types @ ctx.m.module_using) :: !context_init
 	| EClass d ->
 		let c = (match get_type d.d_name with TClassDecl c -> c | _ -> assert false) in
 		let herits = d.d_flags in
