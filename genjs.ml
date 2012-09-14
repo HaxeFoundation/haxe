@@ -549,7 +549,7 @@ and gen_expr ctx e =
 		ctx.separator <- true
 	| TFor (v,it,e) ->
 		let handle_break = handle_break ctx e in
-		let it = (match it.eexpr with
+		let it = ident (match it.eexpr with
 			| TLocal v -> v.v_name
 			| _ ->
 				let id = ctx.id_counter in
