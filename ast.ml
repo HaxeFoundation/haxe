@@ -256,12 +256,17 @@ type ('a,'b) definition = {
 	d_data : 'b;
 }
 
+type import_mode =
+	| INormal
+	| IAsName of string
+	| IAll
+
 type type_def =
 	| EClass of (class_flag, class_field list) definition
 	| EEnum of (enum_flag, enum_constructor list) definition
 	| ETypedef of (enum_flag, complex_type) definition
 	| EAbstract of (abstract_flag, unit) definition
-	| EImport of type_path
+	| EImport of (string * pos) list * import_mode
 	| EUsing of type_path
 
 type type_decl = type_def * pos

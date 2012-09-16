@@ -70,6 +70,8 @@ and typer_module = {
 	curmod : module_def;
 	mutable module_types : module_type list;
 	mutable module_using : tclass list;
+	mutable module_globals : (string, (module_type * string)) PMap.t;
+	mutable wildcard_packages : string list list;
 }
 
 and typer = {

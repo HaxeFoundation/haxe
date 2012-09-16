@@ -148,7 +148,7 @@ let lower_ident = parser
 
 let any_enum_ident = parser
 	| [< i = ident >] -> i
-	| [< '(Kwd k,p) when Filename.basename p.pfile = "StdTypes.hx" >] -> s_keyword k, p 
+	| [< '(Kwd k,p) when Filename.basename p.pfile = "StdTypes.hx" >] -> s_keyword k, p
 
 let property_ident = parser
 	| [< i, _ = ident >] -> i
@@ -191,14 +191,17 @@ and parse_type_decls pack acc s =
 		(* resolve imports *)
 		List.iter (fun d ->
 			match fst d with
-			| EImport t when (t.tsub = None && t.tname = name) -> raise (TypePath (t.tpackage,Some (name,false)))
+			| EImport (t,_) ->
+				(match List.rev t with
+				| (n,_) :: path when n = name && List.for_all (fun (i,_) -> is_lower_ident i) path -> raise (TypePath (List.map fst (List.rev path),Some (name,false)))
+				| _ -> ())
 			| _ -> ()
 		) acc;
 		raise (TypePath (pack,Some(name,true)))
 
 and parse_type_decl s =
 	match s with parser
-	| [< '(Kwd Import,p1); t = parse_type_path; p2 = semicolon >] -> EImport t, punion p1 p2
+	| [< '(Kwd Import,p1) >] -> parse_import s p1
 	| [< '(Kwd Using,p1); t = parse_type_path; p2 = semicolon >] -> EUsing t, punion p1 p2
 	| [< meta = parse_meta; c = parse_common_flags; s >] ->
 		match s with parser
@@ -242,6 +245,33 @@ and parse_type_decl s =
 				d_flags = flags @ sl;
 				d_data = ();
 			},punion p1 p2)
+
+and parse_import s p1 =
+	let rec loop acc =
+		match s with parser
+		| [< '(Dot,p) >] ->
+			if is_resuming p then raise (TypePath (List.rev (List.map fst acc),None));
+			(match s with parser
+			| [< '(Const (Ident k),p) >] ->
+				loop ((k,p) :: acc)
+			| [< '(Binop OpMult,_); '(Semicolon,p2) >] ->
+				p2, List.rev acc, IAll
+			| [< '(Binop OpOr,_) when do_resume() >] ->
+				raise (TypePath (List.rev (List.map fst acc),None))
+			| [< >] ->
+				serror());
+		| [< '(Semicolon,p2) >] ->
+			p2, List.rev acc, INormal
+		| [< '(Binop OpAssign,_); '(Const (Ident name),_); '(Semicolon,p2) >] ->
+			p2, List.rev acc, IAsName name
+		| [< >] ->
+			serror()
+	in
+	let p2, path, mode = (match s with parser
+		| [< '(Const (Ident name),p) >] -> loop [name,p]
+		| [< >] -> serror()
+	) in
+	(EImport (path,mode),punion p1 p2)
 
 and parse_abstract_relations s =
 	match s with parser
@@ -649,7 +679,7 @@ and expr = parser
 		(match Stream.npeek 1 s with
 		| [(DblDot,_)] ->
 			(match s with parser
-			| [< '(DblDot,_); t = parse_complex_type >] -> 
+			| [< '(DblDot,_); t = parse_complex_type >] ->
 				let t = snd (reify !in_macro) t p in
 				(ECheckType (t,(CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = Some "ComplexType"; tparams = [] })),p)
 			| [< >] -> serror())
@@ -851,7 +881,7 @@ and parse_macro_cond allow_op s =
 	| [< '(Kwd k,p) >] ->
 		parse_macro_ident allow_op (s_keyword k) p s
 	| [< '(POpen, p1); _,e = parse_macro_cond true; '(PClose, p2) >] ->
-		let e = (EParenthesis e,punion p1 p2) in 
+		let e = (EParenthesis e,punion p1 p2) in
 		if allow_op then parse_macro_op e s else None, e
 	| [< '(Unop op,p); tk, e = parse_macro_cond allow_op >] ->
 		tk, make_unop op e p
@@ -860,7 +890,7 @@ and parse_macro_ident allow_op t p s =
 	let e = (EConst (Ident t),p) in
 	if not allow_op then
 		None, e
-	else 
+	else
 		parse_macro_op e s
 
 and parse_macro_op e s =

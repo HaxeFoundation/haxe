@@ -651,7 +651,7 @@ let get_this ctx p =
 	| FConstructor | FMember ->
 		mk (TConst TThis) ctx.tthis p
 
-let type_ident_raise ?(imported_enums=true) ctx i p mode =
+let rec type_ident_raise ?(imported_enums=true) ctx i p mode =
 	match i with
 	| "true" ->
 		if mode = MGet then
@@ -726,7 +726,7 @@ let type_ident_raise ?(imported_enums=true) ctx i p mode =
 		let e = type_type ctx ctx.curclass.cl_path p in
 		(* check_locals_masking already done in type_type *)
 		field_access ctx mode f (field_type ctx ctx.curclass [] f p) e p
-	with Not_found ->
+	with Not_found -> try
 		if not imported_enums then raise Not_found;
 		(* lookup imported enums *)
 		let rec loop l =
@@ -752,8 +752,13 @@ let type_ident_raise ?(imported_enums=true) ctx i p mode =
 			AKNo i
 		else
 			AKExpr e
+	with Not_found ->
+		(* lookup imported globals *)
+		let t, name = PMap.find i ctx.m.module_globals in
+		let e = type_module_type ctx t None p in
+		type_field ctx e name p mode
 
-let rec type_field ctx e i p mode =
+and type_field ctx e i p mode =
 	let no_field() =
 		if not ctx.untyped then display_error ctx (s_type (print_context()) e.etype ^ " has no field " ^ i) p;
 		AKExpr (mk (TField (e,i)) (mk_mono()) p)
@@ -2938,7 +2943,13 @@ let load_macro ctx cpath f p =
 	let mctx = Interp.get_ctx() in
 	let m = (try Hashtbl.find ctx.g.types_module cpath with Not_found -> cpath) in
 	let mloaded = Typeload.load_module ctx2 m p in
-	ctx2.m <- { curmod = mloaded; module_types = mloaded.m_types; module_using = [] };
+	ctx2.m <- {
+		curmod = mloaded;
+		module_types = mloaded.m_types;
+		module_using = [];
+		module_globals = PMap.empty;
+		wildcard_packages = [];
+	};
 	add_dependency ctx.m.curmod mloaded;
 	let cl, meth = (match Typeload.load_instance ctx2 { tpackage = fst cpath; tname = snd cpath; tparams = []; tsub = None } p true with
 		| TInst (c,_) ->
@@ -3151,6 +3162,8 @@ let rec create com =
 			curmod = null_module;
 			module_types = [];
 			module_using = [];
+			module_globals = PMap.empty;
+			wildcard_packages = [];
 		};
 		pass = PBuildModule;
 		macro_depth = 0;
