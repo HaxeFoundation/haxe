@@ -571,7 +571,7 @@ let remove_generic_base ctx t = match t with
 				let (_,_,pnew) = get_meta ":?genericT" c.cl_meta in
 				display_error ctx ("Class " ^ (s_type_path c.cl_path) ^ " was used recursively and cannot use its type parameter") prec;
 				error "Type parameter usage was here" pnew
-			with Not_found _ ->
+			with Not_found ->
 				());
 		with Not_found ->
 			c.cl_extern <- true);
