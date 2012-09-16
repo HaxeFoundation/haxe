@@ -164,8 +164,8 @@ class UsingBase {
 }
 
 using MyClass.UsingBase;
-using MyClass.UsingChild2;
 using MyClass.UsingChild1;
+using MyClass.UsingChild2;
 
 class UsingChild1 extends UsingBase {
 	static public function test() {
