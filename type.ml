@@ -162,6 +162,7 @@ and tinfos = {
 	mt_private : bool;
 	mt_doc : Ast.documentation;
 	mutable mt_meta : metadata;
+	mt_types : type_params;
 }
 
 and tclass = {
@@ -171,11 +172,11 @@ and tclass = {
 	mutable cl_private : bool;
 	mutable cl_doc : Ast.documentation;
 	mutable cl_meta : metadata;
+	mutable cl_types : type_params;
 
 	mutable cl_kind : tclass_kind;
 	mutable cl_extern : bool;
 	mutable cl_interface : bool;
-	mutable cl_types : type_params;
 	mutable cl_super : (tclass * tparams) option;
 	mutable cl_implements : (tclass * tparams) list;
 	mutable cl_fields : (string , tclass_field) PMap.t;
@@ -208,9 +209,9 @@ and tenum = {
 	e_private : bool;
 	e_doc : Ast.documentation;
 	mutable e_meta : metadata;
+	mutable e_types : type_params;
 
 	mutable e_extern : bool;
-	mutable e_types : type_params;
 	mutable e_constrs : (string , tenum_field) PMap.t;
 	mutable e_names : string list;
 }
@@ -223,6 +224,7 @@ and tdef = {
 	t_doc : Ast.documentation;
 	mutable t_meta : metadata;
 	mutable t_types : type_params;
+
 	mutable t_type : t;
 }
 
@@ -234,6 +236,7 @@ and tabstract = {
 	a_doc : Ast.documentation;
 	mutable a_meta : metadata;
 	mutable a_types : type_params;
+
 	mutable a_sub : t list;
 	mutable a_super : t list;
 }
