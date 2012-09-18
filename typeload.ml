@@ -150,7 +150,7 @@ let rec load_type_def ctx p t =
 		List.find (fun t2 ->
 			let tp = t_path t2 in
 			tp = (t.tpackage,tname) || (no_pack && snd tp = tname)
-		) ctx.m.module_types
+		) (ctx.m.curmod.m_types @ ctx.m.module_types)
 	with
 		Not_found ->
 			let next() =
@@ -431,7 +431,7 @@ let hide_types ctx =
 	let old_type_params = ctx.type_params in
 	ctx.m <- {
 		curmod = ctx.g.std;
-		module_types = ctx.g.std.m_types;
+		module_types = [];
 		module_using = [];
 		module_globals = PMap.empty;
 		wildcard_packages = [];
@@ -720,7 +720,8 @@ let set_heritance ctx c herits p =
 		| _ :: _ -> t
 		| [] ->
 			try
-				let lt = List.find (fun lt -> snd (t_path lt) = t.tname) ctx.m.module_types in
+				let find = List.find (fun lt -> snd (t_path lt) = t.tname) in
+				let lt = try find ctx.m.curmod.m_types with Not_found -> find ctx.m.module_types in
 				{ t with tpackage = fst (t_path lt) }
 			with
 				Not_found -> t
@@ -1738,7 +1739,7 @@ let type_module ctx m file tdecls p =
 		t = ctx.t;
 		m = {
 			curmod = m;
-			module_types = m.m_types @ ctx.g.std.m_types;
+			module_types = ctx.g.std.m_types;
 			module_using = [];
 			module_globals = PMap.empty;
 			wildcard_packages = [];

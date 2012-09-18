@@ -747,7 +747,7 @@ let rec type_ident_raise ?(imported_enums=true) ctx i p mode =
 					with
 						Not_found -> loop l
 		in
-		let e = loop ctx.m.module_types in
+		let e = (try loop ctx.m.curmod.m_types with Not_found -> loop ctx.m.module_types) in
 		if mode = MSet then
 			AKNo i
 		else
@@ -2945,7 +2945,7 @@ let load_macro ctx cpath f p =
 	let mloaded = Typeload.load_module ctx2 m p in
 	ctx2.m <- {
 		curmod = mloaded;
-		module_types = mloaded.m_types;
+		module_types = [];
 		module_using = [];
 		module_globals = PMap.empty;
 		wildcard_packages = [];
