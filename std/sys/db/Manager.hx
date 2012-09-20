@@ -119,14 +119,18 @@ class Manager<T : Object> {
 
 	/* -------------------------- SPODOBJECT API -------------------------- */
 
-	function doUpdateCache( x : T, name : String ) {
+	function doUpdateCache( x : T, name : String, v : Dynamic ) {
 		var cache : { v : Dynamic } = Reflect.field(x, "cache_" + name);
+		// if the cache has not been fetched (for instance if the field was set by reflection)
+		// then we directly use the new value
+		if( cache == null )
+			return v;
 		var v = doSerialize(name, cache.v);
 		// don't set it since the value might change again later
 		// Reflect.setField(x, name, v);
 		return v;
 	}
-	
+
 	function doInsert( x : T ) {
 		unmake(x);
 		var s = new StringBuf();
@@ -138,7 +142,7 @@ class Manager<T : Object> {
 			if( v != null ) {
 				fields.add(quoteField(name));
 				switch( f.t ) {
-				case DData: v = doUpdateCache(x, name);
+				case DData: v = doUpdateCache(x, name, v);
 				default:
 				}
 				values.add(v);
@@ -211,7 +215,7 @@ class Manager<T : Object> {
 			if( v != vc && (!isBinary(f.t) || hasBinaryChanged(v,vc)) ) {
 				switch( f.t ) {
 				case DData:
-					v = doUpdateCache(x, name);
+					v = doUpdateCache(x, name, v);
 					if( !hasBinaryChanged(v,vc) )
 						continue;
 				default:
@@ -290,7 +294,7 @@ class Manager<T : Object> {
 		return haxe.io.Bytes.ofString(str);
 		#end
 	}
-	
+
 	function doUnserialize( field : String, b : haxe.io.Bytes ) : Dynamic {
 		if( b == null )
 			return null;
@@ -304,7 +308,7 @@ class Manager<T : Object> {
 			return null;
 		return haxe.Unserializer.run(str);
 	}
-	
+
 	/* ---------------------------- INTERNAL API -------------------------- */
 
 	function cacheObject( x : T, lock : Bool ) {
