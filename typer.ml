@@ -472,7 +472,12 @@ let make_call ctx e params t p =
 				raise Exit;
 			| Some e -> e)
 		| _ ->
-			error "Recursive inline is not supported" p)
+			(*
+				we can't inline because there is most likely a loop in the typing.
+				this can be caused by mutually recursive vars/functions, some of them
+				being inlined or not. In that case simply ignore inlining.
+			*)
+			raise Exit)
 	with Exit ->
 		mk (TCall (e,params)) t p
 
