@@ -138,15 +138,52 @@ let field_type ctx c pl f p =
 let class_field ctx c pl name p =
 	raw_class_field (fun f -> field_type ctx c pl f p) c name
 
-(* checks if class cs(ource) can access field cf of class ct(arget) *)
-let can_access cs ct cf stat =
-	let rec loop ct =
-		((is_parent ct cs) && (PMap.mem cf.cf_name (if stat then ct.cl_statics else ct.cl_fields)))
-	 	|| match ct.cl_super with
-	 	   | Some (ct,_) -> loop ct
-	 	   | None -> false
+(* checks if we can access to a given class field using current context *)
+let can_access ctx c cf stat =
+	if cf.cf_public then
+		true
+	else
+	(* has metadata path *)
+	let make_path c f =
+		fst c.cl_path @ [snd c.cl_path; f.cf_name]
 	in
-	cf.cf_public || loop ct
+	let rec expr_path acc e =
+		match fst e with
+		| EField (e,f) -> expr_path (f :: acc) e
+		| EConst (Ident n) -> n :: acc
+		| _ -> []
+	in
+	let rec chk_path psub pfull =
+		match psub, pfull with
+		| [], _ -> true
+		| a :: l1, b :: l2 when a = b -> chk_path l1 l2
+		| _ -> false
+	in
+	let has m c f path =
+		let rec loop = function
+			| (m2,[e],_) :: l when m = m2 -> 
+				let p = expr_path [] e in
+				(p <> [] && chk_path p path) || loop l
+			| _ :: l -> loop l
+			| [] -> false
+		in
+		loop c.cl_meta || loop f.cf_meta
+	in
+	let cur_path = make_path ctx.curclass ctx.curfield in
+	let rec loop c =
+		(try
+			(* if our common ancestor declare/override the field, then we can access it *)
+			let f = PMap.find cf.cf_name (if stat then c.cl_statics else c.cl_fields) in
+			is_parent c ctx.curclass || has ":allow" c f cur_path
+		with Not_found ->
+			false
+		)
+		|| (match c.cl_super with
+		| Some (csup,_) -> loop csup
+		| None -> false)
+		|| has ":access" ctx.curclass ctx.curfield (make_path c cf)
+	in
+	loop c
 
 (* removes the first argument of the class field's function type and all its overloads *)
 let prepare_using_field cf = match cf.cf_type with
@@ -786,7 +823,7 @@ and type_field ctx e i p mode =
 		(try
 			let t , f = class_field ctx c params i p in
 			if e.eexpr = TConst TSuper && (match f.cf_kind with Var _ -> true | _ -> false) && Common.platform ctx.com Flash then error "Cannot access superclass variable for calling : needs to be a proper method" p;
-			if not (can_access ctx.curclass c f false) && not ctx.untyped then display_error ctx ("Cannot access private field " ^ i) p;
+			if not (can_access ctx c f false) && not ctx.untyped then display_error ctx ("Cannot access private field " ^ i) p;
 			field_access ctx mode f (apply_params c.cl_types params t) e p
 		with Not_found -> try
 			using_field ctx mode e i p
@@ -817,7 +854,7 @@ and type_field ctx e i p mode =
 			if not f.cf_public && not ctx.untyped then begin
 				match !(a.a_status) with
 				| Closed -> () (* always allow anon private fields access *)
-				| Statics c when is_parent c ctx.curclass -> ()
+				| Statics c when can_access ctx c f true -> ()
 				| _ -> display_error ctx ("Cannot access private field " ^ i) p
 			end;
 			field_access ctx mode f (match !(a.a_status) with Statics c -> field_type ctx c [] f p | _ -> Type.field_type f) e p
@@ -2063,7 +2100,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			let name = (match c.cl_path with [], name -> name | x :: _ , _ -> x) in
 			if PMap.mem name ctx.locals then error ("Local variable " ^ name ^ " is preventing usage of this class here") p;
 			let ct, f = get_constructor ctx c params p in
-			if not f.cf_public && not (is_parent c ctx.curclass) && not ctx.untyped then display_error ctx "Cannot access private constructor" p;
+			if not (can_access ctx c f true || is_parent c ctx.curclass) && not ctx.untyped then display_error ctx "Cannot access private constructor" p;
 			(match f.cf_kind with
 			| Var { v_read = AccRequire r } -> error_require r p
 			| _ -> ());
@@ -2216,7 +2253,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 						| None -> m
 						| Some (csup,cparams) -> merge m (loop csup cparams)
 					) in
-					let m = merge ~cond:(fun f -> priv || f.cf_public) c.cl_fields m in
+					let m = merge ~cond:(fun f -> priv || can_access ctx c f false) c.cl_fields m in
 					let m = (match c.cl_kind with
 						| KTypeParameter pl -> List.fold_left (fun acc t -> merge acc (get_fields t)) m pl
 						| _ -> m
@@ -2226,8 +2263,8 @@ and type_expr ctx ?(need_val=true) (e,p) =
 				loop c params
 			| TAnon a ->
 				(match !(a.a_status) with
-				| Statics c when is_parent c ctx.curclass ->
-					PMap.map (fun f -> { f with cf_public = true; cf_type = opt_type f.cf_type }) a.a_fields
+				| Statics c ->
+					PMap.fold (fun f acc -> if can_access ctx c f true then PMap.add f.cf_name { f with cf_public = true; cf_type = opt_type f.cf_type } acc else acc) a.a_fields PMap.empty 
 				| _ ->
 					a.a_fields)
 			| _ ->
@@ -2248,7 +2285,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 					match follow (field_type ctx c [] f p) with
 					| TFun((_,_,TType({t_path=["haxe";"macro"], ("ExprOf"|"ExprRequire")}, [t])) :: args, ret)
 					| TFun ((_,_,t) :: args, ret) when (try unify_raise ctx (dup e.etype) t e.epos; true with Error (Unify _,_) -> false) ->
-						if not (can_access ctx.curclass c f true) || follow e.etype == t_dynamic && follow t != t_dynamic then
+						if not (can_access ctx c f true) || follow e.etype == t_dynamic && follow t != t_dynamic then
 							()
 						else begin
 							let f = prepare_using_field f in
