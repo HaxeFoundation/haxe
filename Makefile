@@ -60,7 +60,7 @@ tools: haxelib haxedoc
 
 export:
 	cp haxe*.exe doc/CHANGES.txt $(EXPORT)
-	rsync -a --exclude .svn --exclude *.n --exclude std/mt --exclude std/mtwin --delete std $(EXPORT)
+	rsync -a --exclude .svn --exclude *.n --exclude std/libs --delete std $(EXPORT)
 
 codegen.cmx: typeload.cmx typecore.cmx type.cmx genxml.cmx common.cmx ast.cmx
 
