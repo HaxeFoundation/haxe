@@ -1183,9 +1183,10 @@ let generate com =
 	| None -> ()
 	| Some e -> gen_expr ctx e; newline ctx);
 	if ctx.found_expose then begin
+        (* TODO(bruno): Remove runtime branching when standard node haxelib is available *)
 		print ctx
 "function $hxExpose(src, path) {
-	var o = window;
+	var o = typeof window != \"undefined\" ? window : exports;
 	var parts = path.split(\".\");
 	for(var ii = 0; ii < parts.length-1; ++ii) {
 		var p = parts[ii];
