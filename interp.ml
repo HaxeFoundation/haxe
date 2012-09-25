@@ -61,6 +61,7 @@ and vabstract =
 	| ALazyType of (unit -> Type.t) ref
 	| ANekoAbstract of Extc.value
 	| ANekoBuffer of value
+	| ACacheRef of value
 
 and vfunction =
 	| Fun0 of (unit -> value)
@@ -2119,6 +2120,7 @@ let macro_lib =
 		);
 		"signature", Fun1 (fun v ->
 			let cache = ref [] in
+			let cache_count = ref 0 in
 			let hfiles = Hashtbl.create 0 in
 			let get_file f =
 				try
@@ -2128,20 +2130,28 @@ let macro_lib =
 					Hashtbl.add hfiles f ff;
 					ff
 			in
+			let do_cache (v:value) (v2:value) =
+				(*
+					tricky : we need to have a quick not-linear cache based on objects address
+					but we can't use address since the GC might be triggered here.
+					Instead let's mutate the object temporary.
+				*)
+				let vt = Obj.repr v in
+				let old = Obj.tag vt in
+				let old_val = Obj.field vt 0 in
+				let abstract_tag = 7 in
+				Obj.set_tag vt abstract_tag;
+				Obj.set_field vt 0 (Obj.repr (ACacheRef v2));
+				cache := (vt,old,old_val) :: !cache;
+				incr cache_count
+			in
 			let rec loop v =
 				match v with
 				| VNull | VBool _ | VInt _ | VFloat _ | VString _ -> v
-				| VAbstract (AInt32 _) -> v
-				| VAbstract (APos p) -> VAbstract (APos { p with Ast.pfile = get_file p.Ast.pfile })
-				| _ ->
-					try
-						List.assq v !cache
-					with Not_found ->
-				match v with
 				| VObject o ->
 					let o2 = { ofields = [||]; oproto = None } in
 					let v2 = VObject o2 in
-					cache := (v,v2) :: !cache;
+					do_cache v v2;
 					Array.iter (fun (f,v) -> if f <> h_class then set_field o2 f (loop v)) o.ofields;
 					(match o.oproto with
 					| None -> ()
@@ -2150,34 +2160,41 @@ let macro_lib =
 				| VArray a ->
 					let a2 = Array.create (Array.length a) VNull in
 					let v2 = VArray a2 in
-					cache := (v,v2) :: !cache;
+					do_cache v v2;
 					for i = 0 to Array.length a - 1 do
 						a2.(i) <- loop a.(i);
 					done;
 					v2
 				| VFunction f ->
-					let v2 = VFunction (Obj.magic (List.length !cache)) in
-					cache := (v,v2) :: !cache;
+					let v2 = VFunction (Obj.magic !cache_count) in
+					do_cache v v2;
 					v2
 				| VClosure (vl,f) ->
 					let rl = ref [] in
-					let v2 = VClosure (Obj.magic rl, Obj.magic (List.length !cache)) in
-					cache := (v,v2) :: !cache;
+					let v2 = VClosure (Obj.magic rl, Obj.magic !cache_count) in
+					do_cache v v2;
 					rl := List.map loop vl;
 					v2
+				| VAbstract (AInt32 _) -> v
+				| VAbstract (APos p) -> VAbstract (APos { p with Ast.pfile = get_file p.Ast.pfile })
+				| VAbstract (ACacheRef v) -> v
 				| VAbstract (AHash h) ->
 					let h2 = Hashtbl.create 0 in
 					let v2 = VAbstract (AHash h2) in
-					cache := (v, v2) :: !cache;
+					do_cache v v2;
 					Hashtbl.iter (fun k v -> Hashtbl.add h2 k (loop v)) h2;
 					v2
 				| VAbstract _ ->
-					let v2 = VAbstract (Obj.magic (List.length !cache)) in
-					cache := (v, v2) :: !cache;
+					let v2 = VAbstract (Obj.magic !cache_count) in
+					do_cache v v2;
 					v2
-				| _ -> assert false
 			in
 			let v = loop v in
+			(* restore *)
+			List.iter (fun (vt,tag,field) ->
+				Obj.set_tag vt tag;
+				Obj.set_field vt 0 field;
+			) !cache;
 			VString (Digest.to_hex (Digest.string (Marshal.to_string v [Marshal.Closures])))
 		);
 		"to_complex", Fun1 (fun v ->
