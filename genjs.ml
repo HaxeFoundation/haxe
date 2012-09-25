@@ -40,7 +40,7 @@ type ctx = {
 	buf : Buffer.t;
 	packages : (string list,unit) Hashtbl.t;
 	smap : sourcemap;
-	js_modern : bool;	
+	js_modern : bool;
 	mutable current : tclass;
 	mutable statics : (tclass * string * texpr) list;
 	mutable inits : texpr list;
@@ -358,7 +358,7 @@ let rec gen_call ctx e el in_value =
 	| TLocal { v_name = "__js__" }, [{ eexpr = TConst (TString code) }] ->
 		spr ctx (String.concat "\n" (ExtString.String.nsplit code "\r\n"))
 	| TLocal ({v_name = "__define_feature__"}), [_;e] ->
-		gen_expr ctx e		
+		gen_expr ctx e
 	| TLocal { v_name = "__feature__" }, { eexpr = TConst (TString f) } :: eif :: eelse ->
 		(if has_feature ctx f then
 			gen_value ctx eif
@@ -415,7 +415,7 @@ and gen_expr ctx e =
 		gen_value ctx x;
 		spr ctx (field "iterator");
 		print ctx " %s " (Ast.s_binop op);
-		gen_value ctx e2;		
+		gen_value ctx e2;
 	| TBinop (op,e1,e2) ->
 		gen_value ctx e1;
 		print ctx " %s " (Ast.s_binop op);
