@@ -644,8 +644,10 @@ let field_access ctx mode f t e p =
 			if ctx.untyped then normal() else AKNo f.cf_name
 		| AccInline ->
 			AKInline (e,f,t)
-		| AccRequire r ->
-			error_require r p
+		| AccRequire (r,msg) ->
+			match msg with
+			| None -> error_require r p
+			| Some msg -> error msg p
 
 let using_field ctx mode e i p =
 	if mode = MSet then raise Not_found;
@@ -2102,7 +2104,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			let ct, f = get_constructor ctx c params p in
 			if not (can_access ctx c f true || is_parent c ctx.curclass) && not ctx.untyped then display_error ctx "Cannot access private constructor" p;
 			(match f.cf_kind with
-			| Var { v_read = AccRequire r } -> error_require r p
+			| Var { v_read = AccRequire (r,msg) } -> (match msg with Some msg -> error msg p | None -> error_require r p)
 			| _ -> ());
 			let el = (match follow ct with
 			| TFun (args,r) ->

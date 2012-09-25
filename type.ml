@@ -36,7 +36,7 @@ and var_access =
 	| AccResolve		(* call resolve("field") when accessed *)
 	| AccCall of string (* perform a method call when accessed *)
 	| AccInline			(* similar to Normal but inline when accessed *)
-	| AccRequire of string (* set when @:require(cond) fails *)
+	| AccRequire of string * string option (* set when @:require(cond) fails *)
 
 and method_kind =
 	| MethNormal
@@ -442,7 +442,7 @@ let s_access = function
 	| AccResolve -> "resolve"
 	| AccCall m -> m
 	| AccInline	-> "inline"
-	| AccRequire n -> "require " ^ n
+	| AccRequire (n,_) -> "require " ^ n
 
 let s_kind = function
 	| Var { v_read = AccNormal; v_write = AccNormal } -> "var"

@@ -3960,7 +3960,7 @@ and encode_var_access a =
 		| AccResolve -> 3, []
 		| AccCall s -> 4, [enc_string s]
 		| AccInline	-> 5, []
-		| AccRequire s -> 6, [enc_string s]
+		| AccRequire (s,msg) -> 6, [enc_string s; null enc_string msg]
 	) in
 	enc_enum IVarAccess tag pl
 

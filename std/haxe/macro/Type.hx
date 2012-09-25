@@ -134,7 +134,7 @@ enum VarAccess {
 	AccResolve;
 	AccCall( m : String );
 	AccInline;
-	AccRequire( r : String );
+	AccRequire( r : String, ?msg : String );
 }
 
 enum MethodKind {

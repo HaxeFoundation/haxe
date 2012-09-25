@@ -1329,11 +1329,12 @@ let init_class ctx c p context_init herits fields =
 		| (":require",conds,_) :: l ->
 			let rec loop = function
 				| [] -> check_require l
+				| [EConst (String _),_] -> check_require l
 				| (EConst (Ident i),_) :: l ->
 					if not (Common.defined ctx.com i) then
-						Some i
+						Some (i,(match List.rev l with (EConst (String msg),_) :: _ -> Some msg | _ -> None))
 					else
-						loop l
+						loop l				
 				| _ -> error "Invalid require identifier" p
 			in
 			loop conds
@@ -1352,7 +1353,7 @@ let init_class ctx c p context_init herits fields =
 			let req = (match req with None -> if is_static || constr then cl_req else None | _ -> req) in
 			(match req with
 			| None -> ()
-			| Some r -> f.cf_kind <- Var { v_read = AccRequire r; v_write = AccRequire r });
+			| Some r -> f.cf_kind <- Var { v_read = AccRequire (fst r, snd r); v_write = AccRequire (fst r, snd r) });
 			if constr then begin
 				if c.cl_constructor <> None then error "Duplicate constructor" p;
 				c.cl_constructor <- Some f;
