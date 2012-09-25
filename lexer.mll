@@ -45,7 +45,7 @@ type lexer_file = {
 	mutable lline : int;
 	mutable lmaxline : int;
 	mutable llines : (int * int) list;
-	mutable lrlines : (int * int) list;
+	mutable lalines : (int * int) array;
 }
 
 let make_file file =
@@ -53,8 +53,8 @@ let make_file file =
 		lfile = file;
 		lline = 1;
 		lmaxline = 1;
-		llines = [];
-		lrlines = [];		
+		llines = [0,0];
+		lalines = [|0,0|];
 	}
 
 
@@ -86,25 +86,31 @@ let init file =
 let save() =
 	!cur
 
-let restore c =	
+let restore c =
 	cur := c
 
 let newline lexbuf =
 	let cur = !cur in
-	cur.llines <- (lexeme_end lexbuf,cur.lline) :: cur.llines;	
-	cur.lline <- cur.lline + 1
+	cur.lline <- cur.lline + 1;
+	cur.llines <- (lexeme_end lexbuf,cur.lline) :: cur.llines
 
 let find_line p f =
-	let rec loop delta = function
-		| [] -> f.lmaxline, p - delta
-		| (lp,line) :: l when lp > p -> line, p - delta
-		| (lp,_) :: l -> loop lp l
-	in
+	(* rebuild cache if we have a new line *)
 	if f.lmaxline <> f.lline then begin
 		f.lmaxline <- f.lline;
-		f.lrlines <- List.rev f.llines;
+		f.lalines <- Array.of_list (List.rev f.llines);
 	end;
-	loop 0 f.lrlines
+	let rec loop min max =
+		let med = (min + max) lsr 1 in
+		let lp, line = Array.unsafe_get f.lalines med in
+		if med = min then
+			line, p - lp
+		else if lp > p then
+			loop min med
+		else
+			loop med max
+	in
+	loop 0 (Array.length f.lalines)
 
 let find_pos p =
 	let file = (try Hashtbl.find all_files p.pfile with Not_found -> make_file p.pfile) in
