@@ -716,10 +716,10 @@ try
 	with
 		Not_found ->
 			if Sys.os_type = "Unix" then
-				com.class_path <- ["/usr/lib/haxe/std/";"/usr/local/lib/haxe/std/";"";"/"]
+				com.class_path <- ["/usr/lib/haxe/std/";"/usr/local/lib/haxe/std/";"/usr/lib/haxe/std/libs/";"/usr/local/lib/haxe/std/libs/";"";"/"]
 			else
 				let base_path = normalize_path (Extc.get_real_path (try executable_path() with _ -> "./")) in
-				com.class_path <- [base_path ^ "std/";""]);
+				com.class_path <- [base_path ^ "std/";base_path ^ "std/libs/";""]);
 	com.std_path <- List.filter (fun p -> ExtString.String.ends_with p "std/" || ExtString.String.ends_with p "std\\") com.class_path;
 	let set_platform pf file =
 		if com.platform <> Cross then failwith "Multiple targets";
