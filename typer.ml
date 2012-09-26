@@ -139,7 +139,7 @@ let class_field ctx c pl name p =
 	raw_class_field (fun f -> field_type ctx c pl f p) c name
 
 (* checks if we can access to a given class field using current context *)
-let can_access ctx c cf stat =
+let rec can_access ctx c cf stat =
 	if cf.cf_public then
 		true
 	else
@@ -184,6 +184,11 @@ let can_access ctx c cf stat =
 		|| has ":access" ctx.curclass ctx.curfield (make_path c cf)
 	in
 	loop c
+	(* access is also allowed of we access a type parameter which is constrained to our (base) class *)
+	|| (match c.cl_kind with
+		| KTypeParameter tl ->
+			List.exists (fun t -> match follow t with TInst(c,_) -> loop c | _ -> false) tl
+		| _ -> false)
 
 (* removes the first argument of the class field's function type and all its overloads *)
 let prepare_using_field cf = match cf.cf_type with
