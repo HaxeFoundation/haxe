@@ -3125,6 +3125,51 @@ let create_constructor_dependencies common_ctx =
 		) common_ctx.types;
 	result;;
 
+
+let gen_extern_class common_ctx class_def =
+   let file = new_source_file common_ctx.file  "script" ".hx" class_def.cl_path in
+   let path = class_def.cl_path in
+   let prefix = (fst path) @ [(snd path)] in
+   let rec remove_prefix  =  function
+      | TInst ({cl_path=prefix} as cval ,tl) ->  TInst ( { cval with cl_path = ([],snd cval.cl_path) }, List.map remove_prefix tl)
+      | t -> Type.map remove_prefix t
+      in
+   let s_type t = s_type (Type.print_context()) (remove_prefix t) in
+   let output = file#write in
+   let params = function [] -> "" | l ->  "<" ^ (String.concat "," (List.map (fun (n,t) -> n) l) ^ ">")  in
+   let args  = function  TFun (args,_) ->
+       String.concat "," (List.map (fun (name,opt,t) -> (if opt then "?" else "") ^ name ^":"^ (s_type t)) args) | _ -> "" in
+   let ret  = function  TFun (_,ret) -> s_type ret | _ -> "Dynamic" in
+
+   let print_field stat f =
+		output ("\t" ^ (if stat then "static " else "") ^ (if f.cf_public then "public " else "") );
+      (match f.cf_kind, f.cf_name with
+	   | Var { v_read = AccNormal; v_write = AccNormal },_ -> output ("var " ^ f.cf_name ^ ":" ^ (s_type f.cf_type))
+	   | Var v,_ -> output ("var " ^ f.cf_name ^ "(" ^ (s_access v.v_read) ^ "," ^ (s_access v.v_write) ^ "):" ^ (s_type f.cf_type))
+	   | Method _, "new" -> output ("function new(" ^ (args f.cf_type) ^ "):Void")
+	   | Method MethDynamic, _  -> output ("dynamic function " ^ f.cf_name ^ (params f.cf_params) ^ "(" ^ (args f.cf_type) ^ "):" ^ (ret f.cf_type) )
+	   | Method _, _  -> output ("function " ^ f.cf_name ^ (params f.cf_params) ^ "(" ^ (args f.cf_type) ^ "):" ^ (ret f.cf_type) )
+      );
+		output ";\n\n";
+	in
+   let c = class_def in
+	output ( "extern " ^ (if c.cl_private then "private " else "") ^ (if c.cl_interface then "interface" else "class")
+              ^ " " ^ (s_type_path path) ^ (params c.cl_types) );
+	(match c.cl_super with None -> () | Some (c,pl) -> output (" extends " ^  (s_type (TInst (c,pl)))));
+	List.iter (fun (c,pl) -> output ( " implements " ^ (s_type (TInst (c,pl))))) c.cl_implements;
+	(match c.cl_dynamic with None -> () | Some t -> output (" implements Dynamic<" ^ (s_type t) ^ ">"));
+	(match c.cl_array_access with None -> () | Some t -> output (" implements ArrayAccess<" ^ (s_type t) ^ ">"));
+	output "{\n";
+	(match c.cl_constructor with
+	| None -> ()
+	| Some f -> print_field false f);
+	List.iter (print_field false) c.cl_ordered_fields;
+	List.iter (print_field true) c.cl_ordered_statics;
+	output "}";
+   output "\n";
+	file#close
+;;
+
 (* The common_ctx contains the haxe AST in the "types" field and the resources *)
 let generate common_ctx =
 	make_base_directory common_ctx.file;
@@ -3140,12 +3185,18 @@ let generate common_ctx =
 	let constructor_deps = create_constructor_dependencies common_ctx in
 	let main_deps = ref [] in
 	let build_xml = ref "" in
+   let gen_externs = Common.defined common_ctx "scriptable" in
+   if (gen_externs) then begin
+     make_base_directory (common_ctx.file ^ "/script");
+   end;
 
 	List.iter (fun object_def ->
 		(match object_def with
-		| TClassDecl class_def when class_def.cl_extern -> ()
+		| TClassDecl class_def when class_def.cl_extern ->
+         if (gen_externs) then gen_extern_class common_ctx class_def;
 		| TClassDecl class_def ->
 			let name =  class_text class_def.cl_path in
+         if (gen_externs) then gen_extern_class common_ctx class_def;
 			let is_internal = is_internal_class class_def.cl_path in
 			if (is_internal || (is_macro class_def.cl_meta) ) then
 				( if debug then print_endline (" internal class " ^ name ))
