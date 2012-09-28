@@ -179,6 +179,7 @@ let op_param x =
 
 let code_tables ops =
 	let ids = Hashtbl.create 0 in
+	let fids = DynArray.create() in
 	Array.iter (fun x ->
 		match x with
 		| AccField s
@@ -188,7 +189,10 @@ let code_tables ops =
 			(try
 				let f = Hashtbl.find ids id in
 				if f <> s then error("Field hashing conflict " ^ s ^ " and " ^ f);
-			with Not_found -> Hashtbl.add ids id s)
+			with Not_found ->
+				Hashtbl.add ids id s;
+				DynArray.add fids s
+			)
 		| _ -> ()
 	) ops;
 	let p = ref 0 in
@@ -198,7 +202,7 @@ let code_tables ops =
 		p := !p + (if op_param op then 2 else 1);
 	) ops;
 	pos.(Array.length ops) <- !p;
-	(ids , pos , !p)
+	(DynArray.to_array fids , pos , !p)
 
 let write_debug_infos ch files inf =
 	let nfiles = Array.length files in
@@ -266,7 +270,7 @@ let write ch (globals,ops) =
 	IO.nwrite ch "NEKO";
 	let ids , pos , csize = code_tables ops in
 	IO.write_i32 ch (Array.length globals);
-	IO.write_i32 ch (Hashtbl.length ids);
+	IO.write_i32 ch (Array.length ids);
 	IO.write_i32 ch csize;
 	Array.iter (fun x ->
 		match x with
@@ -277,7 +281,7 @@ let write ch (globals,ops) =
 		| GlobalDebug (files,inf) -> IO.write_byte ch 5; write_debug_infos ch files inf;
 		| GlobalVersion v -> IO.write_byte ch 6; IO.write_byte ch v
 	) globals;
-	Hashtbl.iter (fun _ s ->
+	Array.iter (fun s ->
 		IO.write_string ch s;
 	) ids;
 	Array.iteri (fun i op ->
