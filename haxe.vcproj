@@ -48,6 +48,12 @@
 				RelativePath=".\libs\neko\nast.ml">
 			</File>
 			<File
+				RelativePath=".\libs\neko\nbytecode.ml">
+			</File>
+			<File
+				RelativePath=".\libs\neko\ncompile.ml">
+			</File>
+			<File
 				RelativePath=".\libs\neko\nxml.ml">
 			</File>
 		</Filter>
