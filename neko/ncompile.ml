@@ -1018,7 +1018,11 @@ let compile version ast =
 			DynArray.append fpos pos;
 		) (List.rev g.functions);
 		DynArray.set ops 0 (Jump (DynArray.length ops));
-		Hashtbl.iter (fun fl g ->
+		let objects = DynArray.create() in
+		Hashtbl.iter (fun fl g -> DynArray.add objects (fl,g)) g.gobjects;
+		let objects = DynArray.to_array objects in
+		Array.sort (fun (_,g1) (_,g2) -> g1 - g2) objects;
+		Array.iter (fun (fl,g) ->
 			write ctx AccNull;
 			write ctx New;
 			write ctx (SetGlobal g);
@@ -1027,7 +1031,7 @@ let compile version ast =
 				write ctx Push;
 				write ctx (SetField f);
 			) fl
-		) g.gobjects;
+		) objects;
 		DynArray.append ctxpos pos;
 		DynArray.append ctxops ops;
 	end;
