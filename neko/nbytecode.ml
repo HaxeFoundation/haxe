@@ -216,7 +216,7 @@ let write_debug_infos ch files inf =
 		IO.write_byte ch (nfiles land 0xFF);
 	end else
 		assert false;
-	Array.iter (fun s -> IO.write_string ch s; IO.write_byte ch 0) files;
+	Array.iter (fun s -> IO.write_string ch s) files;
     IO.write_i32 ch (Array.length inf);
 	let curfile = ref 0 in
 	let curpos = ref 0 in
@@ -263,23 +263,22 @@ let write_debug_infos ch files inf =
 	flush_repeat(!curpos)
 
 let write ch (globals,ops) =
-	IO.write_string ch "NEKO";
+	IO.nwrite ch "NEKO";
 	let ids , pos , csize = code_tables ops in
 	IO.write_i32 ch (Array.length globals);
 	IO.write_i32 ch (Hashtbl.length ids);
 	IO.write_i32 ch csize;
 	Array.iter (fun x ->
 		match x with
-		| GlobalVar s -> IO.write_byte ch 1; IO.write_string ch s; IO.write_byte ch 0;
+		| GlobalVar s -> IO.write_byte ch 1; IO.write_string ch s
 		| GlobalFunction (p,nargs) -> IO.write_byte ch 2; IO.write_i32 ch (pos.(p) lor (nargs lsl 24))
-		| GlobalString s -> IO.write_byte ch 3; IO.write_ui16 ch (String.length s); IO.write_string ch s
-		| GlobalFloat s -> IO.write_byte ch 4; IO.write_string ch s; IO.write_byte ch 0
+		| GlobalString s -> IO.write_byte ch 3; IO.write_ui16 ch (String.length s); IO.nwrite ch s
+		| GlobalFloat s -> IO.write_byte ch 4; IO.write_string ch s
 		| GlobalDebug (files,inf) -> IO.write_byte ch 5; write_debug_infos ch files inf;
 		| GlobalVersion v -> IO.write_byte ch 6; IO.write_byte ch v
 	) globals;
 	Hashtbl.iter (fun _ s ->
 		IO.write_string ch s;
-		IO.write_byte ch 0;
 	) ids;
 	Array.iteri (fun i op ->
 		let pop = ref None in
