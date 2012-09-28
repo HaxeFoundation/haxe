@@ -141,10 +141,13 @@ let check_stack ctx stack p =
 let pos ctx =
 	DynArray.length ctx.ops
 
+let real_null_pos =
+	{ pline = 0; psource = "<null>" }
+
 let set_pos ctx p =
 	if p.psource = ctx.curfile then begin
 		if p.pline <> snd ctx.curpos then ctx.curpos <- (fst ctx.curpos, p.pline);
-	end else if p = null_pos then
+	end else if p = real_null_pos then
 		()
 	else
 		let fid = (try
