@@ -2498,7 +2498,7 @@ let is_macro meta =
 ;;
 
 
-let generate_class_files common_ctx member_types super_deps constructor_deps class_def file_info =
+let generate_class_files common_ctx member_types super_deps constructor_deps class_def file_info scriptable =
 	let class_path = class_def.cl_path in
 	let class_name = (snd class_def.cl_path) ^ "_obj" in
 	let smart_class_name =  (snd class_def.cl_path)  in
@@ -2534,8 +2534,8 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 
 	output_cpp "#include <hxcpp.h>\n\n";
 
-	let field_integer_dynamic = has_field_integer_lookup class_def in
-	let field_integer_numeric = has_field_integer_numeric_lookup class_def in
+	let field_integer_dynamic = scriptable || (has_field_integer_lookup class_def) in
+	let field_integer_numeric = scriptable || (has_field_integer_numeric_lookup class_def) in
 
 	let all_referenced = find_referenced_types ctx.ctx_common (TClassDecl class_def) super_deps constructor_deps false false in
 	List.iter ( add_include cpp_file  ) all_referenced;
@@ -2755,7 +2755,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 			in
 
 			if (field_integer_dynamic) then output_ifield "Dynamic" "__IField";
-			if (field_integer_numeric) then output_ifield "double" "__INumField";
+			if (field_integer_numeric) then output_ifield "Float" "__INumField";
 		end;
 
 
@@ -3205,7 +3205,8 @@ let generate common_ctx =
 				boot_classes := class_def.cl_path ::  !boot_classes;
 				if (has_init_field class_def) then
 					init_classes := class_def.cl_path ::  !init_classes;
-				let deps = generate_class_files common_ctx member_types super_deps constructor_deps class_def file_info in
+				let deps = generate_class_files common_ctx
+               member_types super_deps constructor_deps class_def file_info gen_externs in
 				exe_classes := (class_def.cl_path, deps)  ::  !exe_classes;
 			end
 		| TEnumDecl enum_def ->
