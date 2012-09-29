@@ -36,6 +36,8 @@ module Hashtbl =
 	external h_conv : ('a, 'b) t -> ('a, 'b) h_t = "%identity"
 	external h_make : ('a, 'b) h_t -> ('a, 'b) t = "%identity"
 
+	let create (size:int) = create size
+	
 	let exists = mem
 
 	let enum h =
