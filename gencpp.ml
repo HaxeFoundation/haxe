@@ -304,6 +304,12 @@ let rec is_function_expr expr =
    | TFunction _ -> true
    | _ -> false;;
 
+let is_virtual_field field =
+   match field.cf_kind with
+   | Var _ -> false
+	| Method MethDynamic -> false
+	| _ -> true
+;;
 
 let rec has_rtti_interface c interface =
 	List.exists (function (t,pl) ->
@@ -518,6 +524,10 @@ let gen_interface_arg_type_name name opt typ =
    else
       type_str )
    ^ " " ^ (keyword_remap name)
+;;
+
+let gen_tfun_interface_arg_list args =
+   String.concat "," (List.map (fun (name,opt,typ) -> gen_interface_arg_type_name name opt typ) args)
 ;;
 
 (* Generate prototype text, including allowing default values to be null *)
@@ -1813,6 +1823,16 @@ let is_override class_def field =
    List.mem field class_def.cl_overrides
 ;;
 
+let rec all_virtual_functions clazz = 
+   (List.fold_left (fun result elem -> match follow elem.cf_type, elem.cf_kind  with
+		| TFun (args,return_type), Method _  when not (is_override clazz elem.cf_name ) -> (elem,args,return_type) :: result
+      | _,_ -> result ) [] clazz.cl_ordered_fields)
+  @ (match clazz.cl_super with
+   | Some def -> all_virtual_functions (fst def)
+   | _ -> [] )
+;;
+ 
+
 			   (* external mem  Dynamic & *)
 
 let gen_field ctx class_def class_name ptr_name is_static is_interface field =
@@ -1966,7 +1986,7 @@ let gen_member_def ctx class_def is_static is_interface field =
 		| TFun (args,return_type), Method _  ->
 			output ( (if (not is_static) then "virtual " else "" ) ^ type_string return_type);
 			output (" " ^ remap_name ^ "( " );
-			output (String.concat "," (List.map (fun (name,opt,typ) -> gen_interface_arg_type_name name opt typ) args));
+			output (gen_tfun_interface_arg_list args);
 			output (if (not is_static) then ")=0;\n" else ");\n");
 			output (if is_static then "		static " else "		");
 			output ("Dynamic " ^ remap_name ^ "_dyn();\n" );
@@ -2040,7 +2060,7 @@ let path_of_string verbatim path =
   These are used for "#include"ing the appropriate header files,
    or for building the dependencies in the Build.xml file
 *)
-let find_referenced_types ctx obj super_deps constructor_deps header_only for_depends =
+let find_referenced_types ctx obj super_deps constructor_deps header_only for_depends include_super_args =
 	let types = ref PMap.empty in
 	let rec add_type in_path =
 		if ( not (PMap.mem in_path !types)) then begin
@@ -2136,6 +2156,9 @@ let find_referenced_types ctx obj super_deps constructor_deps header_only for_de
 		let fields_and_constructor = List.append fields
 			(match class_def.cl_constructor with | Some expr -> [expr] | _ -> [] ) in
 		List.iter visit_field fields_and_constructor;
+		if (include_super_args) then
+         List.iter visit_field (List.map (fun (a,_,_) -> a ) (all_virtual_functions class_def ));
+
 		(* Add super & interfaces *)
 		add_type class_def.cl_path;
 	in
@@ -2175,8 +2198,8 @@ let generate_main common_ctx member_types super_deps class_def file_info =
 		(match class_def.cl_ordered_statics with
 		| [{ cf_expr = Some expression }] -> expression;
 		| _ -> assert false ) in
-   let referenced = find_referenced_types common_ctx (TClassDecl class_def) super_deps (Hashtbl.create 0) false false in
-   let depend_referenced = find_referenced_types common_ctx (TClassDecl class_def) super_deps (Hashtbl.create 0) false true in
+   let referenced = find_referenced_types common_ctx (TClassDecl class_def) super_deps (Hashtbl.create 0) false false false in
+   let depend_referenced = find_referenced_types common_ctx (TClassDecl class_def) super_deps (Hashtbl.create 0) false true false in
 	let generate_startup filename is_main =
 		(*make_class_directories base_dir ( "src" :: []);*)
 		let cpp_file = new_cpp_file common_ctx.file ([],filename) in
@@ -2298,9 +2321,8 @@ let generate_enum_files common_ctx enum_def super_deps meta file_info =
 
 	output_cpp "#include <hxcpp.h>\n\n";
 
-	let referenced = find_referenced_types common_ctx (TEnumDecl enum_def) super_deps (Hashtbl.create 0) false false in
+	let referenced = find_referenced_types common_ctx (TEnumDecl enum_def) super_deps (Hashtbl.create 0) false false false in
 	List.iter (add_include cpp_file) referenced;
-	let depend_referenced = find_referenced_types common_ctx (TEnumDecl enum_def) super_deps (Hashtbl.create 0) false true in
 
 	gen_open_namespace output_cpp class_path;
 	output_cpp "\n";
@@ -2486,7 +2508,15 @@ let generate_enum_files common_ctx enum_def super_deps meta file_info =
 
 	end_header_file output_h def_string;
 	h_file#close;
+	let depend_referenced = find_referenced_types common_ctx (TEnumDecl enum_def) super_deps (Hashtbl.create 0) false true false in
 	depend_referenced;;
+
+
+let list_iteri func in_list =
+   let idx = ref 0 in
+   List.iter (fun elem -> func !idx elem; idx := !idx + 1 ) in_list
+;;
+
 
 let has_init_field class_def =
 	match class_def.cl_init with
@@ -2537,10 +2567,9 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 	let field_integer_dynamic = scriptable || (has_field_integer_lookup class_def) in
 	let field_integer_numeric = scriptable || (has_field_integer_numeric_lookup class_def) in
 
-	let all_referenced = find_referenced_types ctx.ctx_common (TClassDecl class_def) super_deps constructor_deps false false in
+	let all_referenced = find_referenced_types ctx.ctx_common (TClassDecl class_def) super_deps constructor_deps false false scriptable in
 	List.iter ( add_include cpp_file  ) all_referenced;
 
-	let depend_referenced = find_referenced_types ctx.ctx_common (TClassDecl class_def) super_deps constructor_deps false true in
 
 	(* All interfaces (and sub-interfaces) implemented *)
 	let implemented_hash = Hashtbl.create 0 in
@@ -2555,6 +2584,9 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 		in descend_interface imp
 	) (real_interfaces class_def.cl_implements);
 	let implemented = hash_keys implemented_hash in
+
+   if (scriptable) then
+      output_cpp "#include <hx/Scriptable.h>\n";
 
 	output_cpp ( get_code class_def.cl_meta ":cppFileCode" );
 
@@ -2821,6 +2853,58 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 			statics_except_meta;
 		output_cpp "};\n\n";
 
+   if (scriptable ) then begin
+      let dump_script_field idx (field,f_args,return_t) =
+        let args = if (class_def.cl_interface) then
+              gen_tfun_interface_arg_list f_args
+           else
+              gen_tfun_arg_list f_args in
+        let names = List.map (fun (n,_,_) -> keyword_remap n) f_args in
+        let return_type = type_string return_t in
+        let ret = if (return_type="Void") then " " else "return " in
+        let name = keyword_remap field.cf_name in
+        let vtable =  "__scriptVTable[" ^ (string_of_int idx) ^ "] " in
+        let args_varray = (List.fold_left (fun l n -> l ^ ".Add(" ^ n ^ ")") "Array<Dynamic>()" names)  in
+        let args_comma = List.fold_left (fun l n -> l ^ "," ^ n) "" names in
+        output_cpp ("   " ^ return_type ^ " " ^ name ^ "( " ^ args ^ " ) { ");
+        if (class_def.cl_interface) then begin
+           output_cpp (" " ^ ret ^ "mDelegate->__Field(HX_CSTRING(\"" ^ field.cf_name ^ "\"),false)");
+           if (List.length names <= 5) then
+              output_cpp ("->__run(" ^ (String.concat "," names) ^ ")")
+           else
+              output_cpp ("->__Run(" ^ args_varray ^ ")");
+           output_cpp ";return null(); }\n";
+        end else begin
+           output_cpp (" if (" ^ vtable ^ ") " ^ ret);
+           if (List.length names <= 5) then
+               output_cpp("hx::ScriptableCall" ^ (string_of_int (List.length names)) ^
+                  "("^ vtable ^ ",this" ^ args_comma ^ ");")
+           else
+               output_cpp("hx::ScriptableCallMult("^ vtable ^ ",this," ^ args_varray^ "->Pointer());");
+           output_cpp (" else " ^ ret ^ class_name ^ "::" ^ name ^ "(" ^ (String.concat "," names)^ "); return null(); }\n");
+        end
+      in
+      let sctipt_name = class_name ^ "__scriptable" in
+      output_cpp ("class " ^ sctipt_name ^ " : public " ^ class_name ^ " {\n" );
+      output_cpp ("   typedef "^sctipt_name ^" __ME;\n");
+      if (class_def.cl_interface) then
+         output_cpp ("   HX_DEFINE_SCRIPTABLE_INTERFACE\n")
+      else begin
+         output_cpp ("   HX_DEFINE_SCRIPTABLE(HX_ARR_LIST" ^ (string_of_int (List.length constructor_var_list) ) ^ ")\n");
+	      if (not implement_dynamic) then
+			   output_cpp "	HX_DEFINE_SCRIPTABLE_DYNAMIC;\n";
+      end;
+      let functions = all_virtual_functions class_def in
+	   list_iteri dump_script_field functions;
+      output_cpp ("};\n\n");
+
+      if (not class_def.cl_interface) then begin
+         output_cpp "static String __scriptableFunctionNames[] = {\n";
+         List.iter (fun (f,_,_) -> output_cpp ("  HX_CSTRING(\"" ^ f.cf_name ^ "\"),\n" ) ) functions;
+         output_cpp "  String(null()) };\n";
+      end;
+   end;
+
 
 
 	(* Initialise static in boot function ... *)
@@ -2836,6 +2920,8 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 				", hx::TCanCast< " ^ class_name ^ "> ,sStaticFields,sMemberFields,\n");
 		output_cpp ("	&__CreateEmpty, &__Create,\n");
 		output_cpp ("	&super::__SGetClass(), 0, sMarkStatics, sVisitStatics);\n");
+      if (scriptable) then
+            output_cpp ("  HX_SCRIPTABLE_REGISTER_CLASS(\""^class_name_text^"\"," ^ class_name ^ ");\n");
 		output_cpp ("}\n\n");
 
 	end else begin
@@ -2848,6 +2934,8 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 				", hx::TCanCast< " ^ class_name ^ "> ,0,0,\n");
 		output_cpp ("	0, 0,\n");
 		output_cpp ("	&super::__SGetClass(), 0, sMarkStatics, sVisitStatics);\n");
+      if (scriptable) then
+         output_cpp ("  HX_SCRIPTABLE_REGISTER_INTERFACE(\""^class_name_text^"\"," ^ class_name ^ ");\n");
 		output_cpp ("}\n\n");
 	end;
 
@@ -2887,7 +2975,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 
    (* Only need to foreward-declare classes that are mentioned in the header file
 	   (ie, not the implementation)  *)
-   let referenced = find_referenced_types ctx.ctx_common (TClassDecl class_def) super_deps (Hashtbl.create 0) true false in
+   let referenced = find_referenced_types ctx.ctx_common (TClassDecl class_def) super_deps (Hashtbl.create 0) true false scriptable in
 	List.iter ( gen_forward_decl h_file ) referenced;
 
 	output_h ( get_code class_def.cl_meta ":headerCode" );
@@ -2957,7 +3045,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 			(* TODO : virtual ? *)
 			let remap_name = keyword_remap field.cf_name in
 			output_h ( "virtual "  ^ (type_string return_type) ^ " " ^ remap_name ^ "( " );
-			output_h (String.concat "," (List.map (fun (name,opt,typ) -> gen_interface_arg_type_name name opt typ )args));
+			output_h (gen_tfun_interface_arg_list args);
 			output_h (") { return mDelegate->" ^ remap_name^ "(");
 			output_h (String.concat "," (List.map (fun (name,opt,typ) -> (keyword_remap name)) args));
 			output_h ");}  \\\n";
@@ -2987,6 +3075,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 
 	end_header_file output_h def_string;
 	h_file#close;
+	let depend_referenced = find_referenced_types ctx.ctx_common (TClassDecl class_def) super_deps constructor_deps false true false in
 	depend_referenced;;
 
 let write_resources common_ctx =
@@ -3153,8 +3242,9 @@ let gen_extern_class common_ctx class_def =
 		output ";\n\n";
 	in
    let c = class_def in
+	output ( "package " ^ (String.concat "." (fst path)) ^ ";\n" );
 	output ( "extern " ^ (if c.cl_private then "private " else "") ^ (if c.cl_interface then "interface" else "class")
-              ^ " " ^ (s_type_path path) ^ (params c.cl_types) );
+              ^ " " ^ (snd path) ^ (params c.cl_types) );
 	(match c.cl_super with None -> () | Some (c,pl) -> output (" extends " ^  (s_type (TInst (c,pl)))));
 	List.iter (fun (c,pl) -> output ( " implements " ^ (s_type (TInst (c,pl))))) c.cl_implements;
 	(match c.cl_dynamic with None -> () | Some t -> output (" implements Dynamic<" ^ (s_type t) ^ ">"));
@@ -3232,7 +3322,7 @@ let generate common_ctx =
 	| Some e ->
 		let main_field = { cf_name = "__main__"; cf_type = t_dynamic; cf_expr = Some e; cf_pos = e.epos; cf_public = true; cf_meta = []; cf_overloads = []; cf_doc = None; cf_kind = Var { v_read = AccNormal; v_write = AccNormal; }; cf_params = [] } in
 		let class_def = { null_class with cl_path = ([],"@Main"); cl_ordered_statics = [main_field] } in
-		main_deps := find_referenced_types common_ctx (TClassDecl class_def) super_deps constructor_deps false true;
+		main_deps := find_referenced_types common_ctx (TClassDecl class_def) super_deps constructor_deps false true false;
 		generate_main common_ctx member_types super_deps class_def file_info
 	);
 
