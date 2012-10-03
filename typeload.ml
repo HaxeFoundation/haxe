@@ -1347,7 +1347,6 @@ let init_class ctx c p context_init herits fields =
 			let p = f.cff_pos in
 			let fd , constr, f = loop_cf f in
 			let is_static = List.mem AStatic fd.cff_access in
-			if is_static && f.cf_name = "name" && Common.defined ctx.com "js" then error "This identifier cannot be used in Javascript for statics" p;
 			if (is_static || constr) && c.cl_interface && f.cf_name <> "__init__" then error "You can't declare static fields in interfaces" p;
 			let req = check_require fd.cff_meta in
 			let req = (match req with None -> if is_static || constr then cl_req else None | _ -> req) in

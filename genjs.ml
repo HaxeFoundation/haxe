@@ -85,7 +85,7 @@ let ident s = if Hashtbl.mem kwds s then "$" ^ s else s
 let anon_field s = if Hashtbl.mem kwds s || not (valid_js_ident s) then "'" ^ s ^ "'" else s
 let static_field s =
 	match s with
-	| "length" -> ".$" ^ s
+	| "length" | "name" -> ".$" ^ s
 	| s -> field s
 
 let has_feature ctx = Common.has_feature ctx.com
