@@ -24,124 +24,6 @@ open Type
 open Common
 open Ast
 
-(* --- MINI ZIP IMPLEMENTATION --- *)
-
-
-type zfile = {
-	fname : string;
-	fcompressed : bool;
-	fclen : int;
-	fsize : int;
-	fcrc : int32;
-	fdate : float;
-}
-
-type t = {
-	ch : unit IO.output;
-	mutable files : zfile list;
-	mutable cdr_size : int;
-	mutable cdr_offset : int;
-}
-
-let zip_create o = {
-	ch = IO.cast_output o;
-	files = [];
-	cdr_size = 0;
-	cdr_offset = 0;
-}
-
-let make_crc32 data =
-	let init = 0xFFFFFFFFl in
-	let polynom = 0xEDB88320l in
-	let crc = ref init in
-	for i = 0 to String.length data - 1 do
-		let b = Int32.of_int (int_of_char (String.unsafe_get data i)) in
-		let tmp = ref (Int32.logand (Int32.logxor (!crc) b) 0xFFl) in
-		for j = 0 to 7 do
-			tmp := if Int32.to_int (Int32.logand (!tmp) 1l) == 1 then
-				Int32.logxor (Int32.shift_right_logical (!tmp) 1) polynom
-			else
-				Int32.shift_right_logical (!tmp) 1;
-		done;
-		crc := Int32.logxor (Int32.shift_right_logical (!crc) 8) (!tmp);
-	done;
-	Int32.logxor (!crc) init
-
-let zip_write_date z d =
-	let t = Unix.localtime d in
-	let hour = t.Unix.tm_hour in
-	let min = t.Unix.tm_min in
-	let sec = t.Unix.tm_sec lsr 1 in
-	IO.write_ui16 z.ch ((hour lsl 11) lor (min lsl 5) lor sec);
-	let year = t.Unix.tm_year - 80 in
-	let month = t.Unix.tm_mon + 1 in
-	let day = t.Unix.tm_mday in
-	IO.write_ui16 z.ch ((year lsl 9) lor (month lsl 5) lor day)
-
-let zip_write_file z name data date compress =
-	IO.write_i32 z.ch 0x04034B50;
-	IO.write_ui16 z.ch 0x0014; (* version *)
-	IO.write_ui16 z.ch 0;
-	let crc32 = make_crc32 data in
-	let cdata = if compress then
-		let d = Extc.zip data in
-		String.sub d 2 (String.length d - 4)
-	else
-		data
-	in
-	IO.write_ui16 z.ch (if compress then 0x08 else 0x00);
-	zip_write_date z date;
-	IO.write_real_i32 z.ch crc32;
-	IO.write_i32 z.ch (String.length cdata);
-	IO.write_i32 z.ch (String.length data);
-	IO.write_ui16 z.ch (String.length name);
-	IO.write_ui16 z.ch 0;
-	IO.nwrite z.ch name;
-	IO.nwrite z.ch cdata;
-	z.files <- {
-		fname = name;
-		fcompressed = compress;
-		fclen = String.length cdata;
-		fsize = String.length data;
-		fcrc = crc32;
-		fdate = date;
-	} :: z.files
-
-let zip_write_cdr_file z f =
-	let namelen = String.length f.fname in
-	IO.write_i32 z.ch 0x02014B50;
-	IO.write_ui16 z.ch 0x0014;
-	IO.write_ui16 z.ch 0x0014;
-	IO.write_ui16 z.ch 0;
-	IO.write_ui16 z.ch (if f.fcompressed then 0x08 else 0);
-	zip_write_date z f.fdate;
-	IO.write_real_i32 z.ch f.fcrc;
-	IO.write_i32 z.ch f.fclen;
-	IO.write_i32 z.ch f.fsize;
-	IO.write_ui16 z.ch namelen;
-	IO.write_ui16 z.ch 0;
-	IO.write_ui16 z.ch 0;
-	IO.write_ui16 z.ch 0;
-	IO.write_ui16 z.ch 0;
-	IO.write_i32 z.ch 0;
-	IO.write_i32 z.ch z.cdr_offset;
-	IO.nwrite z.ch f.fname;
-	z.cdr_size <- z.cdr_size + 46 + namelen;
-	z.cdr_offset <- z.cdr_offset + 30 + namelen + f.fclen
-
-let zip_write_cdr z =
-	List.iter (zip_write_cdr_file z) (List.rev z.files);
-	IO.write_i32 z.ch 0x06054B50;
-	IO.write_ui16 z.ch 0;
-	IO.write_ui16 z.ch 0;
-	IO.write_ui16 z.ch (List.length z.files);
-	IO.write_ui16 z.ch (List.length z.files);
-	IO.write_i32 z.ch z.cdr_size;
-	IO.write_i32 z.ch z.cdr_offset;
-	IO.write_ui16 z.ch 0
-
-(* ------------------------------- *)
-
 let rec make_tpath = function
 	| HMPath (pack,name) ->
 		let pdyn = ref false in
@@ -1151,12 +1033,10 @@ let generate com swf_header =
 		let ch = IO.output_strings() in
 		Swf.write ch swf;
 		let swf = IO.close_out ch in
-		let ch = IO.output_channel (open_out_bin file) in
-		let z = zip_create ch in
-		zip_write_file z "catalog.xml" (!cat) (Unix.time()) true;
-		zip_write_file z "library.swf" (match swf with [s] -> s | _ -> failwith "SWF too big for SWC") (Unix.time()) false;
-		zip_write_cdr z;
-		IO.close_out ch;
+		let z = Zip.open_out file in
+		Zip.add_entry (!cat) z "catalog.xml";
+		Zip.add_entry (match swf with [s] -> s | _ -> failwith "SWF too big for SWC") z ~level:0 "library.swf";
+		Zip.close_out z
 	| None ->
 		let ch = IO.output_channel (open_out_bin file) in
 		Swf.write ch swf;
