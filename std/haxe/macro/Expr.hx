@@ -208,6 +208,7 @@ enum TypeDefKind {
 	TDEnum;
 	TDStructure;
 	TDClass( ?extend : TypePath, ?implement : Array<TypePath>, ?isInterface : Bool );
+	TDAlias( t : ComplexType ); // ignore TypeDefinition.fields
 }
 
 /**

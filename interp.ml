@@ -4153,6 +4153,8 @@ let decode_type_def v =
 		let flags = (match opt decode_path ext with None -> flags | Some t -> HExtends t :: flags) in
 		let flags = (match opt (fun v -> List.map decode_path (dec_array v)) impl with None -> flags | Some l -> List.map (fun t -> HImplements t) l @ flags) in
 		EClass (mk flags fields)
+	| 3, [t] ->
+		ETypedef (mk (if isExtern then [EExtern] else []) (decode_ctype t))
 	| _ ->
 		raise Invalid_expr
 	) in
