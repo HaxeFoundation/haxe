@@ -2349,6 +2349,13 @@ let macro_lib =
 			| VString s -> (ccom()).file <- s; VNull
 			| _ -> error()
 		);
+		"get_display_pos", Fun0 (fun() ->
+			let p = !Parser.resume_display in
+			if p = Ast.null_pos then
+				VNull
+			else
+				VObject (obj (hash_field (get_ctx())) ["file",VString p.Ast.pfile;"pos",VInt p.Ast.pmin])
+		);
 	]
 
 (* ---------------------------------------------------------------------- *)

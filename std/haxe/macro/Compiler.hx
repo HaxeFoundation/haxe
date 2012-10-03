@@ -69,11 +69,18 @@ class Compiler {
 		untyped load("set_output",1)(untyped fileOrDir.__s);
 	}
 
+	public static function getDisplayPos() : Null<{ file : String, pos : Int }> {
+		var o = untyped load("get_display_pos",0)();
+		if( o != null )
+			o.file = new String(o.file);
+		return o;
+	}
+
 	/**
 		Adds a native library depending on the platform (eg : -swf-lib for Flash)
 	**/
 	public static function addNativeLib( name : String ) {
-		return untyped load("add_native_lib",1)(name.__s);
+		untyped load("add_native_lib",1)(name.__s);
 	}
 
 	/**
