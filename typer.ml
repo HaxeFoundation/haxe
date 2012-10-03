@@ -2078,16 +2078,12 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let t = Typeload.load_instance ctx t p true in
 		let el, c , params = (match follow t with
 		| TInst ({cl_kind = KTypeParameter tl} as c,params) ->
-			(* first check field parameters, then class parameters *)
-			let cf = ctx.curfield in
-			(try
-				let tt = List.assoc (snd c.cl_path) cf.cf_params in
-				if not (type_iseq tt t) then raise Not_found;
-			with Not_found -> try
-				let tt = List.assoc (snd c.cl_path) ctx.type_params in
-				if not (type_iseq tt t) then raise Not_found;
-				if not (has_meta ":?genericT" ctx.curclass.cl_meta) then ctx.curclass.cl_meta <- (":?genericT",[],p) :: ctx.curclass.cl_meta;
-			with Not_found ->
+			(match Typeload.get_generic_parameter_kind ctx c with
+			| GPClass c ->
+				if not (has_meta ":?genericT" c.cl_meta) then c.cl_meta <- (":?genericT",[],p) :: c.cl_meta;
+			| GPField cf ->
+				()
+			| GPNone ->
 				error "Only generic type parameters can be constructed" p);
 			let el = List.map (type_expr ctx) el in
 			let ctor = mk_field "new" (tfun (List.map (fun e -> e.etype) el) ctx.t.tvoid) p in

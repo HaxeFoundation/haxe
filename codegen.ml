@@ -274,7 +274,6 @@ let rec build_generic ctx c p tl =
 	let gctx = try make_generic ctx c.cl_types tl p with Generic_Exception (msg,p) -> error msg p in
 	let name = (snd c.cl_path) ^ "_" ^ gctx.name in
 	if !recurse then begin
-		if not (has_meta ":?genericRec" c.cl_meta) then c.cl_meta <- (":?genericRec",[],p) :: c.cl_meta;
 		TInst (c,tl) (* build a normal instance *)
 	end else try
 		Typeload.load_instance ctx { tpackage = pack; tname = name; tparams = []; tsub = None } p false

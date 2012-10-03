@@ -224,6 +224,17 @@ let check_param_constraints ctx types t pl c p =
 			unify ctx t ti p
 		) ctl
 
+let get_generic_parameter_kind ctx c =
+	(* first check field parameters, then class parameters *)
+	try
+		ignore (List.assoc (snd c.cl_path) ctx.curfield.cf_params);
+		if has_meta ":generic" ctx.curfield.cf_meta then GPField ctx.curfield else GPNone;
+	with Not_found -> try
+		ignore(List.assoc (snd c.cl_path) ctx.type_params);
+		(match ctx.curclass.cl_kind with | KGeneric -> GPClass ctx.curclass | _ -> GPNone);
+	with Not_found ->
+		GPNone
+
 (* build an instance from a full type *)
 let rec load_instance ctx t p allow_no_params =
 	try
@@ -233,7 +244,8 @@ let rec load_instance ctx t p allow_no_params =
 		pt
 	with Not_found ->
 		let mt = load_type_def ctx p t in
-		let is_generic = match mt with TClassDecl {cl_kind = KGeneric} -> true | _ -> false in
+		let cg = match mt with TClassDecl ({cl_kind = KGeneric} as c) -> Some c | _ -> None in
+		let is_generic = cg <> None in
 		let types , path , f = ctx.g.do_build_instance ctx mt p in
 		if allow_no_params && t.tparams = [] then begin
 			let pl = ref [] in
@@ -274,6 +286,12 @@ let rec load_instance ctx t p allow_no_params =
 				| TInst ({ cl_kind = KTypeParameter [] }, []) when not is_generic ->
 					t
 				| TInst (c,[]) ->
+					(* mark a generic class as recursively used if it is used with an "unresolved" non-generic type parameter *)
+					(match get_generic_parameter_kind ctx c,cg with
+					| (GPField _ | GPNone), Some c -> 
+						if not (has_meta ":?genericRec" c.cl_meta) then c.cl_meta <- (":?genericRec",[],p) :: c.cl_meta
+					| _ ->
+						());
 					let r = exc_protect ctx (fun r ->
 						r := (fun() -> t);
 						delay ctx PCheckConstraint (fun() -> check_param_constraints ctx types t tparams c p);
