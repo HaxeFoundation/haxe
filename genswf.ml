@@ -721,6 +721,22 @@ let build_swf8 com codeclip exports =
 	) in
 	clips @ code
 
+type bitmap_format =
+	| BJPG
+	| BPNG
+
+let detect_format file p =
+	let ch = (try open_in_bin file with _ -> error "Could not open file" p) in
+	let fmt = (match (try let a = input_byte ch in a, input_byte ch with _ -> 0,0) with
+		| 0xFF, 0xD8 -> BJPG
+		| 0x89, 0x50 -> BPNG
+		| x,y -> 
+			close_in ch;
+			error "Unknown image file format" p
+	) in
+	close_in ch;
+	fmt
+
 let build_swf9 com file swc =
 	let boot_name = if swc <> None || Common.defined com "haxe-boot" then "haxe" else "boot_" ^ (String.sub (Digest.to_hex (Digest.string (Filename.basename file))) 0 4) in
 	let code = Genswf9.generate com boot_name in
@@ -767,8 +783,8 @@ let build_swf9 com file swc =
 					let raw() =
 						tag (TBitsJPEG2 { bd_id = !cid; bd_data = data; bd_table = None; bd_alpha = None; bd_deblock = Some 0 })
 					in
-					let t = (match file_extension file with
-						| "png" ->
+					let t = (match detect_format file p with
+						| BPNG ->
 							(*
 								There is a bug in Flash PNG decoder for 24-bits PNGs : Color such has 0xFF00FF is decoded as 0xFE00FE.
 								In that particular case, we will then embed the decoded PNG bytes instead.
@@ -788,6 +804,33 @@ let build_swf9 com file swc =
 						| _ -> raw()
 					) in
 					t :: loop l
+				| (":bitmap",[EConst (String dfile),p1;EConst (String afile),p2],_) :: l ->
+					let dfile = try Common.find_file com dfile with Not_found -> dfile in
+					let afile = try Common.find_file com afile with Not_found -> afile in
+					(match detect_format dfile p1 with
+					| BJPG -> ()
+					| _ -> error "RGB channel must be a JPG file" p1);
+					(match detect_format afile p2 with
+					| BPNG -> ()
+					| _ -> error "Alpha channel must be a PNG file" p2);
+					let ddata = Std.input_file ~bin:true dfile in
+					let adata = Std.input_file ~bin:true afile in
+					let png = Png.parse (IO.input_string adata) in
+					let h = Png.header png in
+					let amask = (match h.Png.png_color with
+						| Png.ClTrueColor (Png.TBits8,Png.HaveAlpha) ->
+							let data = Extc.unzip (Png.data png) in
+							let raw_data = Png.filter png data in
+							let alpha = String.make (h.Png.png_width * h.Png.png_height) '\000' in
+							for i = 0 to String.length alpha do
+								String.unsafe_set alpha i (String.unsafe_get raw_data (i lsl 2));
+							done;
+							Extc.zip alpha
+						| _ -> error "PNG file must contain 8 bit alpha channel" p2
+					) in
+					incr cid;
+					classes := { f9_cid = Some !cid; f9_classname = s_type_path c.cl_path } :: !classes;
+					tag (TBitsJPEG3 { bd_id = !cid; bd_data = ddata; bd_table = None; bd_alpha = Some amask; bd_deblock = Some 0 }) :: loop l
 				| (":file",[EConst (String file),p],_) :: l ->
 					let file = try Common.find_file com file with Not_found -> file in
 					let data = (try Std.input_file ~bin:true file with _  -> error "File not found" p) in
