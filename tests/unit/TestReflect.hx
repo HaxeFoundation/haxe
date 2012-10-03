@@ -241,7 +241,20 @@ class TestReflect extends Test {
 		f( Reflect.compareMethods(a.add,b.add) );
 		f( Reflect.compareMethods(a.add,a.get) );
 		f( Reflect.compareMethods(a.add,null) );
-		f( Reflect.compareMethods(null,a.add) );
+		f( Reflect.compareMethods(null, a.add) );
+		/*
+			Comparison between a method and a closure :
+			Not widely supported atm to justify officiel support
+			
+			var fadd : Dynamic = Reflect.field(a, "add");
+			var fget : Dynamic = Reflect.field(a, "get");
+			t( Reflect.compareMethods(fadd, fadd) );
+			t( Reflect.compareMethods(a.add, fadd) );
+			t( Reflect.compareMethods(fadd, a.add) );
+			f( Reflect.compareMethods(fadd, fget) );
+			f( Reflect.compareMethods(fadd, a.get) );
+			f( Reflect.compareMethods(fadd, null) );
+		*/
 	}
 
 	function testGetProp() {
