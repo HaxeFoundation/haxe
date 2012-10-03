@@ -40,6 +40,8 @@ type dce = {
 	debug : bool;
 	follow_expr : dce -> texpr -> unit;
 	mutable added_fields : (tclass * tclass_field * bool) list;
+	mutable marked_fields : tclass_field list;
+	mutable marked_maybe_fields : tclass_field list;
 }
 
 (* checking *)
@@ -78,6 +80,7 @@ let keep_field dce cf =
 let mark_field dce c cf stat = if not (has_meta ":used" cf.cf_meta) then begin
 	cf.cf_meta <- (":used",[],cf.cf_pos) :: cf.cf_meta;
 	dce.added_fields <- (c,cf,stat) :: dce.added_fields;
+	dce.marked_fields <- cf :: dce.marked_fields
 end
 
 let rec update_marked_class_fields dce c =
@@ -119,7 +122,10 @@ let rec mark_dependent_fields dce csup n stat =
 					   extern interfaces because we cannot remove fields from them *)
 					if has_meta ":used" c.cl_meta || (csup.cl_interface && csup.cl_extern) then mark_field dce c cf stat
 					(* otherwise it might be kept if the class is kept later, so mark it as :?used *)
-					else if not (has_meta ":?used" cf.cf_meta) then cf.cf_meta <- (":?used",[],cf.cf_pos) :: cf.cf_meta;
+					else if not (has_meta ":?used" cf.cf_meta) then begin
+						cf.cf_meta <- (":?used",[],cf.cf_pos) :: cf.cf_meta;
+						dce.marked_maybe_fields <- cf :: dce.marked_maybe_fields;
+					end
 				with Not_found ->
 					(* if the field is not present on current class, it might come from a base class *)
 					(match c.cl_super with None -> () | Some (csup,_) -> loop csup))
@@ -236,6 +242,8 @@ let run ctx main =
 		debug = Common.defined ctx.com "dce_debug";
 		added_fields = [];
 		follow_expr = expr;
+		marked_fields = [];
+		marked_maybe_fields = [];
 	} in
 	(* first step: get all entry points, which is the main method and all class methods which are marked with @:keep *)
 	let rec loop acc types = match types with
@@ -372,4 +380,15 @@ let run ctx main =
 				loop c
 			) c.cl_overrides;
 		| _ -> ()
-	) ctx.com.types
+	) ctx.com.types;
+
+	(* cleanup added fields metadata - compatibility with compilation server *)
+	let rec remove_meta m = function
+		| [] -> []
+		| (m2,_,_) :: l when m = m2 -> l
+		| x :: l -> x :: remove_meta m l
+	in
+	List.iter (fun cf -> cf.cf_meta <- remove_meta ":used" cf.cf_meta) dce.marked_fields;
+	List.iter (fun cf -> cf.cf_meta <- remove_meta ":?used" cf.cf_meta) dce.marked_maybe_fields;
+
+
