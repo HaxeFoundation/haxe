@@ -95,6 +95,7 @@ type extern_api = {
 	get_type : string -> Type.t option;
 	get_module : string -> Type.t list;
 	on_generate : (Type.t list -> unit) -> unit;
+	on_type_not_found : (string -> value) -> unit;
 	parse_string : string -> Ast.pos -> bool -> Ast.expr;
 	typeof : Ast.expr -> Type.t;
 	get_display : string -> string;
@@ -182,6 +183,7 @@ let decode_expr_ref = ref (fun e -> assert false)
 let encode_clref_ref = ref (fun c -> assert false)
 let enc_hash_ref = ref (fun h -> assert false)
 let enc_array_ref = ref (fun l -> assert false)
+let enc_string_ref = ref (fun s -> assert false)
 let make_ast_ref = ref (fun _ -> assert false)
 let make_complex_type_ref = ref (fun _ -> assert false)
 let get_ctx() = (!get_ctx_ref)()
@@ -194,6 +196,7 @@ let decode_expr (e:value) : Ast.expr = (!decode_expr_ref) e
 let encode_clref (c:tclass) : value = (!encode_clref_ref) c
 let enc_hash (h:('a,'b) Hashtbl.t) : value = (!enc_hash_ref) h
 let make_ast (e:texpr) : Ast.expr = (!make_ast_ref) e
+let enc_string (s:string) : value = (!enc_string_ref) s
 let make_complex_type (t:Type.t) : Ast.complex_type = (!make_complex_type_ref) t
 
 let to_int f = int_of_float (mod_float f 2147483648.0)
@@ -2052,6 +2055,16 @@ let macro_lib =
 				VNull
 			| _ -> error()
 		);
+		"on_type_not_found", Fun1 (fun f ->
+			match f with
+			| VFunction (Fun1 _) ->
+				let ctx = get_ctx() in
+				ctx.curapi.on_type_not_found (fun path ->
+					ctx.do_call VNull f [enc_string path] null_pos
+				);
+				VNull
+			| _ -> error()
+		);		
 		"parse", Fun3 (fun s p b ->
 			match s, p, b with
 			| VString s, VAbstract (APos p), VBool b -> encode_expr ((get_ctx()).curapi.parse_string s p b)
@@ -4335,4 +4348,5 @@ decode_type_ref := decode_type;
 encode_expr_ref := encode_expr;
 decode_expr_ref := decode_expr;
 encode_clref_ref := encode_clref;
+enc_string_ref := enc_string;
 enc_hash_ref := enc_hash

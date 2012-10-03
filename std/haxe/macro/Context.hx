@@ -170,6 +170,13 @@ class Context {
 	public static function onGenerate( callb : Array<Type> -> Void ) {
 		load("on_generate",1)(callb);
 	}
+	
+	/**
+		Set a callback function that will be called when a type cannot be found.
+	**/
+	public static function onTypeNotFound ( callb : String -> TypeDefinition ) {
+		load("on_type_not_found",1)(callb);
+	}
 
 	/**
 		Evaluate the type a given expression would have in the context of the current macro call.
