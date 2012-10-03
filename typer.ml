@@ -2079,7 +2079,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let el, c , params = (match follow t with
 		| TInst ({cl_kind = KTypeParameter tl} as c,params) ->
 			(* first check field parameters, then class parameters *)
-			let cf = PMap.find ctx.curfield.cf_name (match ctx.curfun with FStatic -> ctx.curclass.cl_statics | _ -> ctx.curclass.cl_fields) in
+			let cf = ctx.curfield in
 			(try
 				let tt = List.assoc (snd c.cl_path) cf.cf_params in
 				if not (type_iseq tt t) then raise Not_found;
