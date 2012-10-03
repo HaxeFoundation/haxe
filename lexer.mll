@@ -53,8 +53,8 @@ let make_file file =
 		lfile = file;
 		lline = 1;
 		lmaxline = 1;
-		llines = [0,0];
-		lalines = [|0,0|];
+		llines = [0,1];
+		lalines = [|0,1|];
 	}
 
 
