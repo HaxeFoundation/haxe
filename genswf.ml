@@ -527,7 +527,7 @@ let build_dependencies t =
 			add_path e.e_path DKType;
 			List.iter (add_type_rec (t::l)) pl;
 		| TInst (c,pl) ->
-			add_path c.cl_path DKType;
+			(match c.cl_kind with KTypeParameter _ -> () | _ -> add_path c.cl_path DKType);
 			List.iter (add_type_rec (t::l)) pl;
 		| TAbstract (a,pl) ->
 			add_path a.a_path DKType;
