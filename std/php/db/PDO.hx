@@ -26,6 +26,11 @@ package php.db;
 
 import php.NativeArray;
 
+#if spod_macros
+import sys.db.Connection;
+import sys.db.ResultSet;
+#end
+
 /**
  * PDO::FETCH_COLUMN = 7
  * PDO::FETCH_CLASS = 8
@@ -107,7 +112,7 @@ private class PDOConnection implements Connection {
 		untyped __call__("unset", pdo);
 	}
 
-	public function request( s : String ) : php.db.ResultSet {
+	public function request( s : String ) : ResultSet {
 		var result = pdo.query(s, untyped __php__("PDO::PARAM_STR"));
 		if(untyped __physeq__(result, false))
 		{
@@ -254,7 +259,7 @@ private class DBNativeStrategy extends PHPNativeStrategy {
 	}
 }
 
-private class BaseResultSet implements php.db.ResultSet {
+private class BaseResultSet implements ResultSet {
 	var pdo : PDOStatement;
 	var typeStrategy : TypeStrategy;
 	var _fields : Int;
