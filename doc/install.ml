@@ -102,7 +102,7 @@ let compile_libs() =
 
 	(* NEKO *)
 	Sys.chdir "neko";
-	let files = "-I .. nast.ml nxml.ml binast.ml" in
+	let files = "-I .. nast.ml nxml.ml binast.ml nbytecode.ml ncompile.ml" in
 	if bytecode then command ("ocamlc -a -o neko.cma " ^ files);
 	if native then command ("ocamlopt -a -o neko.cmxa " ^ files);
 	Sys.chdir "..";
