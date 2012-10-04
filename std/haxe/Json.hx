@@ -102,8 +102,10 @@ class Json {
 			add('"???"');
 		case TObject:
 			objString(v);
-		case TInt,TFloat:
+		case TInt:
 			add(v);
+		case TFloat:
+			add(!Math.isFinite(v) || Math.isNaN(v) ? "null" : v);
 		case TFunction:
 			add('"<fun>"');
 		case TClass(c):
