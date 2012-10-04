@@ -554,15 +554,24 @@ and gen_expr ctx e =
 	| TBinop (Ast.OpEq,e1,e2) when (match is_special_compare e1 e2 with Some c -> true | None -> false) ->
 		let c = match is_special_compare e1 e2 with Some c -> c | None -> assert false in
 		gen_expr ctx (mk (TCall (mk (TField (mk (TTypeExpr (TClassDecl c)) t_dynamic e.epos,"compare")) t_dynamic e.epos,[e1;e2])) ctx.inf.com.basic.tbool e.epos);
-	| TBinop (op,{ eexpr = TField (e1,s) },e2) ->
+	(* what is this used for? *)
+(* 	| TBinop (op,{ eexpr = TField (e1,s) },e2) ->
 		gen_value_op ctx e1;
 		gen_field_access ctx e1.etype s;
 		print ctx " %s " (Ast.s_binop op);
-		gen_value_op ctx e2;
+		gen_value_op ctx e2; *)
 	| TBinop (op,e1,e2) ->
 		gen_value_op ctx e1;
 		print ctx " %s " (Ast.s_binop op);
 		gen_value_op ctx e2;
+	(* variable fields on interfaces are generated as (class["field"] as class) *)
+	| TField ({etype = TInst({cl_interface = true} as c,_)} as e,s)
+	| TClosure ({etype = TInst({cl_interface = true} as c,_)} as e,s)
+		when (try (match (PMap.find s c.cl_fields).cf_kind with Var _ -> true | _ -> false) with Not_found -> false) ->
+		spr ctx "(";
+		gen_value ctx e;
+		print ctx "[\"%s\"]" s;
+		print ctx " as %s)" (type_str ctx e.etype e.epos);		
 	| TField (e,s) | TClosure (e,s) ->
    		gen_value ctx e;
 		gen_field_access ctx e.etype s
