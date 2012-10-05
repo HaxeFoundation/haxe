@@ -424,8 +424,21 @@ let remove_debug_infos as3 =
 
 let parse_swf com file =
 	let t = Common.timer "read swf" in
-	let file = (try Common.find_file com file with Not_found -> failwith ("SWF Library not found : " ^ file)) in
-	let ch = IO.input_channel (open_in_bin file) in
+	let is_swc = file_extension file = "swc" in
+	let file = (try Common.find_file com file with Not_found -> failwith ((if is_swc then "SWC" else "SWF") ^ " Library not found : " ^ file)) in
+	let ch = if is_swc then begin
+		let zip = Zip.open_in file in
+		try
+			let entry = Zip.find_entry zip "library.swf" in
+			let ch = IO.input_string (Zip.read_entry zip entry) in
+			Zip.close_in zip;
+			ch
+		with _ ->
+			Zip.close_in zip;
+			failwith ("The input swc " ^ file ^ " is corrupted")
+	end else 
+		IO.input_channel (open_in_bin file)
+	in
 	let h, tags = (try Swf.parse ch with _ -> failwith ("The input swf " ^ file ^ " is corrupted")) in
 	IO.close_in ch;
 	List.iter (fun t ->
