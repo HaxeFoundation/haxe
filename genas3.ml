@@ -233,7 +233,9 @@ let rec type_str ctx t p =
 		) else
 			s_path ctx true e.e_path p
 	| TInst ({ cl_path = ["flash"],"Vector" },[pt]) ->
-		"Vector.<" ^ type_str ctx pt p ^ ">"
+		(match pt with
+		| TInst({cl_kind = KTypeParameter _},_) -> "*"
+		| _ -> "Vector.<" ^ type_str ctx pt p ^ ">")
 	| TInst (c,_) ->
 		(match c.cl_kind with
 		| KNormal | KGeneric | KGenericInstance _ -> s_path ctx false c.cl_path p
