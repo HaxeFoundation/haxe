@@ -2301,7 +2301,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		in
 		let use_methods = loop PMap.empty ctx.m.module_using in
 		let fields = PMap.fold (fun f acc -> PMap.add f.cf_name f acc) fields use_methods in
-		let fields = PMap.fold (fun f acc -> f :: acc) fields [] in
+		let fields = PMap.fold (fun f acc -> if has_meta ":noComplete" f.cf_meta then acc else f :: acc) fields [] in
 		let t = (if iscall then
 			match follow e.etype with
 			| TFun _ -> e.etype
