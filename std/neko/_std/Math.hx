@@ -57,7 +57,7 @@ import neko.Lib;
 	public static function random() : Float { return _rand_float(__rnd); }
 
 	public static function isNaN(f:Float) : Bool { return untyped __dollar__isnan(f); }
-	public static function isFinite(f:Float) : Bool { return !untyped __dollar__isinfinite(f); }
+	public static function isFinite(f:Float) : Bool { return !untyped (__dollar__isinfinite(f) || __dollar__isnan(f)); }
 
 	static function __init__() : Void {
 	 	__rnd = Lib.load("std","random_new",0)();
