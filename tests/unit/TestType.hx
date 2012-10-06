@@ -621,6 +621,9 @@ class TestType extends Test {
 		}'),"path(unknownVar)");
 		
 		
+		for (k in [s].iterator()) {
+			eq(complete("k.|"), "foo:Int");
+		}
 		#end
 	}
 	
