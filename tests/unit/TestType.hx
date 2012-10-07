@@ -624,6 +624,11 @@ class TestType extends Test {
 		for (k in [s].iterator()) {
 			eq(complete("k.|"), "foo:Int");
 		}
+		
+		var f = function():Iterator<{foo:Int}> {
+			return [s].iterator();
+		};
+		eq(complete("for (k in f()) k.|"), "foo:Int");
 		#end
 	}
 	
