@@ -564,8 +564,10 @@ let check_private_path ctx t = match t with
 
 (* Removes generic base classes *)
 let remove_generic_base ctx t = match t with
-	| TClassDecl c when c.cl_kind = KGeneric ->
-		(try
+	| TClassDecl c when c.cl_kind = KGeneric && has_meta ":?genericT" c.cl_meta ->
+		(* TODO: we have to get the detection right eventually *)
+		c.cl_extern <- true
+(* 		(try
 			let (_,_,prec) = get_meta ":?genericRec" c.cl_meta in
 			(try
 				let (_,_,pnew) = get_meta ":?genericT" c.cl_meta in
@@ -574,7 +576,7 @@ let remove_generic_base ctx t = match t with
 			with Not_found ->
 				());
 		with Not_found ->
-			c.cl_extern <- true);
+			c.cl_extern <- true); *)
 	| _ ->
 		()
 
