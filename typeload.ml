@@ -1813,7 +1813,7 @@ let resolve_module_file com m remap p =
 		| x :: l , name ->
 			let x = (try
 				match PMap.find x com.package_rules with
-				| Forbidden -> raise (Forbid_package ((x,m,p),[]));
+				| Forbidden -> raise (Forbid_package ((x,m,p),[],platform_name com.platform));
 				| Directory d -> d
 				| Remap d -> remap := d :: l; d
 				with Not_found -> x
@@ -1893,8 +1893,8 @@ let load_module ctx m p =
 			) in
 			try
 				type_module ctx m file decls p
-			with Forbid_package (inf,pl) when p <> Ast.null_pos ->
-				raise (Forbid_package (inf,p::pl))
+			with Forbid_package (inf,pl,pf) when p <> Ast.null_pos ->
+				raise (Forbid_package (inf,p::pl,if ctx.in_macro then "macro" else pf))
 	) in
 	add_dependency ctx.m.curmod m2;
 	if ctx.pass = PTypeField then flush_pass ctx PBuildClass "load_module";

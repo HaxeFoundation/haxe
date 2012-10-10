@@ -115,7 +115,7 @@ type error_msg =
 
 exception Fatal_error
 
-exception Forbid_package of (string * path * pos) * pos list
+exception Forbid_package of (string * path * pos) * pos list * string
 
 exception Error of error_msg * pos
 
