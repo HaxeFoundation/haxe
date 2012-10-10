@@ -1616,7 +1616,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 		) in
 		(* delay the using since we need to resolve typedefs *)
 		let filter_classes types =
-			let rec loop acc types = match List.rev types with
+			let rec loop acc types = match types with
 				| td :: l ->
 					(match resolve_typedef td with
 					| TClassDecl c ->
@@ -1626,7 +1626,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 				| [] ->
 					acc
 			in
-			loop [] types
+			loop [] (List.rev types)
 		in
 		context_init := (fun() -> ctx.m.module_using <- filter_classes types @ ctx.m.module_using) :: !context_init
 	| EClass d ->
