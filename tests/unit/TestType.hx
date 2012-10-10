@@ -12,7 +12,7 @@ class TestType extends Test {
 		#end
 	}
 	
-	@:macro static function typedAs(actual:haxe.macro.Expr, expected:haxe.macro.Expr) {
+	@:macro static public function typedAs(actual:haxe.macro.Expr, expected:haxe.macro.Expr) {
 		var tExpected = haxe.macro.Context.typeof(expected);
 		var tActual = haxe.macro.Context.typeof(actual);
 		return haxe.macro.Context.parse("{Test.count++; eq('" +Std.string(tActual) + "', '" +Std.string(tExpected) + "');}", haxe.macro.Context.currentPos());

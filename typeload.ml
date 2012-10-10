@@ -1626,7 +1626,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 				| [] ->
 					acc
 			in
-			loop [] (List.rev types)
+			loop [] types
 		in
 		context_init := (fun() -> ctx.m.module_using <- filter_classes types @ ctx.m.module_using) :: !context_init
 	| EClass d ->

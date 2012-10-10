@@ -224,6 +224,7 @@ package unit;
 			new TestSerialize(),
 			new TestMeta(),
 			new TestType(),
+			new TestOrder(),
 			#if cs
 			new TestCSharp(),
 			#end
