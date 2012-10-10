@@ -519,6 +519,9 @@ let neko =
 	let val_null = call_raw_prim unser [|alloc_string "N";loader|] in
 
 	let is_64 = call_raw_prim (loadprim "std@sys_is64" 0) [||] == val_true in
+	let is_v2 = (try ignore(load "neko_alloc_int32"); true with _ -> false) in
+	let tag_bits = if is_v2 then 4 else 3 in
+	let tag_mask = (1 lsl tag_bits) - 1 in
 	let ptr_size = if is_64 then 8 else 4 in
 	let val_field v i = Extc.dladdr v ((i + 1) * ptr_size) in
 	let val_str v = Extc.dladdr v 4 in
@@ -552,7 +555,7 @@ let neko =
 
 	let copy_string v =
 		let head = Extc.dltoint (Extc.dlptr v) in
-		let size = head lsr 3 in
+		let size = head asr tag_bits in
 		let s = String.create size in
 		Extc.dlmemcpy (Extc.dlstring s) (val_str v) size;
 		s
@@ -609,7 +612,7 @@ let neko =
 			VInt (Obj.magic v)
 		else
 			let head = Extc.dltoint (Extc.dlptr v) in
-			match head land 7 with
+			match head land tag_mask with
 			| 0 -> VNull
 			| 2 -> VBool (v == val_true)
 			| 3 -> VString (copy_string v)
@@ -628,7 +631,7 @@ let neko =
 				) r in
 				VObject { ofields = Array.of_list fields; oproto = None }
 			| 5 ->
-				VArray (Array.init (head lsr 3) (fun i -> neko_value (Extc.dlptr (val_field v i))))
+				VArray (Array.init (head asr tag_bits) (fun i -> neko_value (Extc.dlptr (val_field v i))))
 			| 7 ->
 				let r = alloc_root v in
 				let a = ANekoAbstract v in
