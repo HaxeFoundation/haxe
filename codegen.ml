@@ -206,6 +206,7 @@ type generic_context = {
 	subst : (t * t) list;
 	name : string;
 	p : pos;
+	mutable mg : module_def option;
 }
 
 let make_generic ctx ps pt p =
@@ -235,6 +236,7 @@ let make_generic ctx ps pt p =
 		subst = loop ps pt;
 		name = name;
 		p = p;
+		mg = None;
 	}
 
 let rec generic_substitute_type gctx t =
@@ -242,7 +244,9 @@ let rec generic_substitute_type gctx t =
 	| TInst ({ cl_kind = KGeneric } as c2,tl2) ->
 		(* maybe loop, or generate cascading generics *)
 		let _, _, f = gctx.ctx.g.do_build_instance gctx.ctx (TClassDecl c2) gctx.p in
-		f (List.map (generic_substitute_type gctx) tl2)
+		let t = f (List.map (generic_substitute_type gctx) tl2) in
+		(match follow t,gctx.mg with TInst(c,_), Some m -> add_dependency m c.cl_module | _ -> ());
+		t
 	| _ ->
 		try List.assq t gctx.subst with Not_found -> Type.map (generic_substitute_type gctx) t
 
@@ -287,6 +291,7 @@ let rec build_generic ctx c p tl =
 			m_types = [];
 			m_extra = module_extra (s_type_path (pack,name)) m.m_extra.m_sign 0. MFake;
 		} in
+		gctx.mg <- Some mg;
 		let cg = mk_class mg (pack,name) c.cl_pos in
 		mg.m_types <- [TClassDecl cg];
 		Hashtbl.add ctx.g.modules mg.m_path mg;
