@@ -22,6 +22,7 @@ open Nast
 open Common
 
 type context = {
+	version : int;
 	com : Common.context;
 	packages : (string list, unit) Hashtbl.t;
 	globals : (string list * string, string) Hashtbl.t;
@@ -161,7 +162,8 @@ let gen_constant ctx pe c =
 			if (h land 128 = 0) <> (h land 64 = 0) then raise Exit;
 			int p (Int32.to_int i)
 		with _ ->
-			error "This integer is too big to be compiled to a Neko 31-bit integer. Please use a Float instead" pe)
+			if ctx.version < 2 then error "This integer is too big to be compiled to a Neko 31-bit integer. Please use a Float instead" pe;
+			(EConst (Int32 i),p))
 	| TFloat f -> (EConst (Float f),p)
 	| TString s -> call p (field p (ident p "String") "new") [gen_big_string ctx p s]
 	| TBool b -> (EConst (if b then True else False),p)
@@ -749,8 +751,9 @@ let generate_libs_init = function
 			op "=" lpath (call p (builtin p "array") [op "+" (if full_path then dstr else op "+" (ident p "@b") dstr) (ident p "@s"); lpath])
 		) libs
 
-let new_context com macros =
+let new_context com ver macros =
 	{
+		version = ver;
 		com = com;
 		globals = Hashtbl.create 0;
 		curglobal = 0;
@@ -813,7 +816,7 @@ let build ctx types =
 	packs @ methods @ boot :: names @ inits @ vars
 
 let generate com =
-	let ctx = new_context com false in
+	let ctx = new_context com (if Common.defined com "neko_v2" then 2 else 1) false in
 	let t = Common.timer "neko generation" in
 	let libs = (EBlock (generate_libs_init com.neko_libs) , { psource = "<header>"; pline = 1; }) in
 	let el = build ctx com.types in
@@ -821,10 +824,9 @@ let generate com =
 	let e = (EBlock ((header()) @ libs :: el @ emain), null_pos) in
 	let source = Common.defined com "neko-source" in
 	let use_nekoc = Common.defined com "use-nekoc" in
-	let version = if Common.defined com "neko_v2" then 2 else 1 in
 	if not use_nekoc then begin
 		let ch = IO.output_channel (open_out_bin com.file) in
-		Nbytecode.write ch (Ncompile.compile version e);
+		Nbytecode.write ch (Ncompile.compile ctx.version e);
 		IO.close_out ch;
 	end;
 	let command cmd = try Sys.command cmd with _ -> -1 in
@@ -834,7 +836,7 @@ let generate com =
 		Binast.write ch e;
 		IO.close_out ch;
 	end;
-	if use_nekoc && command ("nekoc" ^ (if version > 1 then " -version " ^ string_of_int version else "") ^ " \"" ^ neko_file ^ "\"") <> 0 then failwith "Neko compilation failure";
+	if use_nekoc && command ("nekoc" ^ (if ctx.version > 1 then " -version " ^ string_of_int ctx.version else "") ^ " \"" ^ neko_file ^ "\"") <> 0 then failwith "Neko compilation failure";
 	if source then begin
 		if command ("nekoc -p \"" ^ neko_file ^ "\"") <> 0 then failwith "Failed to print neko code";
 		Sys.remove neko_file;
