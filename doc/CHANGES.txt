@@ -10,6 +10,10 @@
 	spod : added serialized data with SData<T>
 	all : Dispatcher will now throw DETooManyValues
 	all : speed up neko compilation by using native compiler
+	all : allow @:generic on functions
+	all : allow constructing generic type parameters
+	swf : added support for SWC files in -swf-lib
+	macro : added Context.onTypeNotFound callback for unresolved types
 
 2012-07-16: 2.10
 	java/cs : added two new targets (beta)
