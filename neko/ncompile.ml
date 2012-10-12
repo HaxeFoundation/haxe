@@ -77,6 +77,7 @@ let stack_delta o =
 	| AccFalse
 	| AccThis
 	| AccInt _
+	| AccInt32 _
 	| AccStack _
 	| AccGlobal _
 	| AccEnv _
@@ -371,6 +372,7 @@ let compile_constant ctx c p =
 	| Null -> write ctx AccNull
 	| This -> write ctx AccThis
 	| Int n -> write ctx (AccInt n)
+	| Int32 n -> write ctx (AccInt32 n)
 	| Float f -> write ctx (AccGlobal (global ctx (GlobalFloat f)))
 	| String s -> write ctx (AccGlobal (global ctx (GlobalString s)))
 	| Builtin s ->

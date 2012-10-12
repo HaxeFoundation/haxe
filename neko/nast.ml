@@ -32,6 +32,7 @@ type constant =
 	| String of string
 	| Builtin of string
 	| Ident of string
+	| Int32 of int32
 
 type while_flag =
 	| NormalWhile
@@ -149,3 +150,5 @@ let s_constant = function
 	| String s -> "\"" ^ escape s ^ "\""
 	| Builtin s -> "$" ^ s
 	| Ident s -> s
+	| Int32 i -> Int32.to_string i
+

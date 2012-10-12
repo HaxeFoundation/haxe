@@ -49,6 +49,9 @@ let rec to_xml_rec p2 ast =
 		| String s ->
 			name := "s";
 			aval := Some s;
+		| Int32 i ->
+			name := "i";
+			aval := Some (Int32.to_string i);
 		)
 	| EBlock el ->
 		name := "b";

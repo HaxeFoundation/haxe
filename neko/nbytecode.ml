@@ -84,6 +84,8 @@ type opcode =
 	| PhysCompare
 	| TailCall of int * int
 	| Loop
+	(* ocaml-specific *)
+	| AccInt32 of int32
 
 type global =
 	| GlobalVar of string
@@ -110,6 +112,7 @@ let hash_field f =
 let op_param x =
 	match x with
 	| AccInt _
+	| AccInt32 _
 	| AccStack _
 	| AccGlobal _
 	| AccEnv _
@@ -292,6 +295,11 @@ let write ch (globals,ops) =
 			| AccFalse -> 2
 			| AccThis -> 3
 			| AccInt n -> pop := Some n; 4
+			| AccInt32 n ->
+				let opid = 4 in
+				IO.write_byte ch ((opid lsl 2) lor 3);
+				IO.write_real_i32 ch n;
+				-1
 			| AccStack n -> pop := Some (n - 2); 5
 			| AccGlobal n -> pop := Some n; 6
 			| AccEnv n -> pop := Some n; 7
@@ -355,7 +363,7 @@ let write ch (globals,ops) =
 		) in
 		match !pop with
 		| None ->
-			IO.write_byte ch (opid lsl 2)
+			if opid >= 0 then IO.write_byte ch (opid lsl 2)
 		| Some n ->
 			if opid < 32 && (n = 0 || n = 1) then
 				IO.write_byte ch ((opid lsl 3) lor (n lsl 2) lor 1)
