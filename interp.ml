@@ -2424,6 +2424,7 @@ let rec eval ctx (e,p) =
 		| Null -> (fun() -> VNull)
 		| This -> (fun() -> ctx.vthis)
 		| Int i -> (fun() -> VInt i)
+		| Int32 i -> (fun() -> assert false)
 		| Float f ->
 			let f = float_of_string f in
 			(fun() -> VFloat f)
@@ -3210,7 +3211,7 @@ let create com api =
 	] in
 	let ctx = {
 		com = com;
-		gen = Genneko.new_context com true;
+		gen = Genneko.new_context com 2 true;
 		types = Hashtbl.create 0;
 		error = false;
 		error_proto = { ofields = [||]; oproto = None };
