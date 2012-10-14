@@ -2198,7 +2198,7 @@ let generate_main common_ctx member_types super_deps class_def file_info =
 		(match class_def.cl_ordered_statics with
 		| [{ cf_expr = Some expression }] -> expression;
 		| _ -> assert false ) in
-   let referenced = find_referenced_types common_ctx (TClassDecl class_def) super_deps (Hashtbl.create 0) false false false in
+   ignore(find_referenced_types common_ctx (TClassDecl class_def) super_deps (Hashtbl.create 0) false false false);
    let depend_referenced = find_referenced_types common_ctx (TClassDecl class_def) super_deps (Hashtbl.create 0) false true false in
 	let generate_startup filename is_main =
 		(*make_class_directories base_dir ( "src" :: []);*)
@@ -3218,7 +3218,6 @@ let create_constructor_dependencies common_ctx =
 let gen_extern_class common_ctx class_def =
    let file = new_source_file common_ctx.file  "script" ".hx" class_def.cl_path in
    let path = class_def.cl_path in
-   let prefix = (fst path) @ [(snd path)] in
    let rec remove_prefix  =  function
       | TInst ({cl_path=prefix} as cval ,tl) ->  TInst ( { cval with cl_path = ([],snd cval.cl_path) }, List.map remove_prefix tl)
       | t -> Type.map remove_prefix t
