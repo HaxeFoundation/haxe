@@ -356,7 +356,7 @@ let run_command ctx cmd =
 			Buffer.add_substring (if s == iout then bout else berr) tmp 0 n;
 			loop (if n = 0 then List.filter ((!=) s) ins else ins)
 	in
-	loop [iout;ierr];
+	(try loop [iout;ierr] with Unix.Unix_error _ -> ());
 	let serr = binary_string (Buffer.contents berr) in
 	let sout = binary_string (Buffer.contents bout) in
 	if serr <> "" then ctx.messages <- (if serr.[String.length serr - 1] = '\n' then String.sub serr 0 (String.length serr - 1) else serr) :: ctx.messages;
