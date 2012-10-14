@@ -1,0 +1,138 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<project version="2">
+  <!-- Output SWF options -->
+  <output>
+    <movie outputType="CustomBuild" />
+    <movie input="" />
+    <movie path="" />
+    <movie fps="30" />
+    <movie width="800" />
+    <movie height="600" />
+    <movie version="10" />
+    <movie minorVersion="3" />
+    <movie platform="Flash Player" />
+    <movie background="#FFFFFF" />
+  </output>
+  <!-- Other classes to be compiled into your SWF -->
+  <classpaths>
+    <!-- example: <class path="..." /> -->
+  </classpaths>
+  <!-- Build options -->
+  <build>
+    <option directives="" />
+    <option flashStrict="False" />
+    <option mainClass="" />
+    <option enabledebug="False" />
+    <option additional="" />
+  </build>
+  <!-- haxelib libraries -->
+  <haxelib>
+    <!-- example: <library name="..." /> -->
+  </haxelib>
+  <!-- Class files to compile (other referenced classes will automatically be included) -->
+  <compileTargets>
+    <!-- example: <compile path="..." /> -->
+  </compileTargets>
+  <!-- Assets to embed into the output SWF -->
+  <library>
+    <!-- example: <asset path="..." id="..." update="..." glyphs="..." mode="..." place="..." sharepoint="..." /> -->
+  </library>
+  <!-- Paths to exclude from the Project Explorer tree -->
+  <hiddenPaths>
+    <hidden path="ast.cmi" />
+    <hidden path="ast.cmx" />
+    <hidden path="typer.cmi" />
+    <hidden path="haxe.vcxproj.user" />
+    <hidden path="haxesetup.exe" />
+    <hidden path="interp.cmi" />
+    <hidden path="interp.cmx" />
+    <hidden path="interp.obj" />
+    <hidden path="lexer.cmi" />
+    <hidden path="lexer.cmx" />
+    <hidden path="lexer.ml" />
+    <hidden path="lexer.obj" />
+    <hidden path="main.cmi" />
+    <hidden path="main.cmx" />
+    <hidden path="main.obj" />
+    <hidden path="optimizer.cmi" />
+    <hidden path="optimizer.cmx" />
+    <hidden path="optimizer.obj" />
+    <hidden path="parser.cmi" />
+    <hidden path="parser.cmx" />
+    <hidden path="parser.obj" />
+    <hidden path="tmp.cmi" />
+    <hidden path="type.cmi" />
+    <hidden path="type.cmx" />
+    <hidden path="type.obj" />
+    <hidden path="typecore.cmi" />
+    <hidden path="typecore.cmx" />
+    <hidden path="typecore.obj" />
+    <hidden path="typeload.cmi" />
+    <hidden path="typeload.cmx" />
+    <hidden path="typeload.obj" />
+    <hidden path="haxe.vcproj" />
+    <hidden path="typer.obj" />
+    <hidden path="gencpp.cmi" />
+    <hidden path="gencpp.cmx" />
+    <hidden path="gencpp.obj" />
+    <hidden path="gencs.cmi" />
+    <hidden path="gencs.cmx" />
+    <hidden path="gencs.obj" />
+    <hidden path="genjava.cmi" />
+    <hidden path="genjava.cmx" />
+    <hidden path="genjava.obj" />
+    <hidden path="genjs.cmi" />
+    <hidden path="genjs.cmx" />
+    <hidden path="genjs.obj" />
+    <hidden path="genneko.cmi" />
+    <hidden path="genneko.cmx" />
+    <hidden path="genneko.obj" />
+    <hidden path="genphp.cmi" />
+    <hidden path="genphp.cmx" />
+    <hidden path="genphp.obj" />
+    <hidden path="genswf.cmi" />
+    <hidden path="genswf.cmx" />
+    <hidden path="genswf.obj" />
+    <hidden path="genswf8.cmi" />
+    <hidden path="genswf8.cmx" />
+    <hidden path="genswf8.obj" />
+    <hidden path="genswf9.cmi" />
+    <hidden path="genswf9.cmx" />
+    <hidden path="genswf9.obj" />
+    <hidden path="genxml.cmi" />
+    <hidden path="genxml.cmx" />
+    <hidden path="genxml.obj" />
+    <hidden path="haxe.exe" />
+    <hidden path="haxe.sdf" />
+    <hidden path="haxe.sln" />
+    <hidden path="haxe.suo" />
+    <hidden path="typer.cmx" />
+    <hidden path="gencommon.obj" />
+    <hidden path="codegen.cmi" />
+    <hidden path="codegen.cmx" />
+    <hidden path="codegen.obj" />
+    <hidden path="common.cmi" />
+    <hidden path="common.cmx" />
+    <hidden path="common.obj" />
+    <hidden path="dce.cmi" />
+    <hidden path="dce.cmx" />
+    <hidden path="dce.obj" />
+    <hidden path="genas3.cmi" />
+    <hidden path="genas3.cmx" />
+    <hidden path="genas3.obj" />
+    <hidden path="gencommon.cmi" />
+    <hidden path="gencommon.cmx" />
+    <hidden path="ast.obj" />
+  </hiddenPaths>
+  <!-- Executed before build -->
+  <preBuildCommand>make -j4 MSVC=1 FD_OUTPUT=1 -f Makefile.win haxe</preBuildCommand>
+  <!-- Executed after build -->
+  <postBuildCommand alwaysRun="False" />
+  <!-- Other project options -->
+  <options>
+    <option showHiddenPaths="False" />
+    <option testMovie="Default" />
+  </options>
+  <!-- Plugin storage -->
+  <storage />
+</project>
