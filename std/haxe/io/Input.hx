@@ -84,7 +84,7 @@ class Input {
 		#else
 			bufsize = (1 << 14); // 16 Ko
 		#end
-		
+
 		var buf = Bytes.alloc(bufsize);
 		var total = new haxe.io.BytesBuffer();
 		try {
@@ -154,7 +154,7 @@ class Input {
 			return a[1];
 		#elseif cs
 			if (helper == null) helper = new cs.NativeArray(8);
-			
+
 			var helper = helper;
 			if (bigEndian == !cs.system.BitConverter.IsLittleEndian)
 			{
@@ -168,18 +168,18 @@ class Input {
 				helper[1] = readByte();
 				helper[0] = readByte();
 			}
-			
+
 			return cs.system.BitConverter.ToSingle(helper, 0);
 		#elseif java
 			if (helper == null) helper = java.nio.ByteBuffer.allocateDirect(8);
 			var helper = helper;
 			helper.order(bigEndian ? java.nio.ByteOrder.BIG_ENDIAN : java.nio.ByteOrder.LITTLE_ENDIAN);
-			
+
 			helper.put(0, readByte());
 			helper.put(1, readByte());
 			helper.put(2, readByte());
 			helper.put(3, readByte());
-			
+
 			return helper.getFloat(0);
 		#else
 			var bytes = [];
@@ -218,7 +218,7 @@ class Input {
 		bytes.push(readByte());
 		if (bigEndian)
 			bytes.reverse();
-			
+
 		var sign = 1 - ((bytes[0] >> 7) << 1); // sign = bit 0
 		var exp = (((bytes[0] << 4) & 0x7FF) | (bytes[1] >> 4)) - 1023; // exponent = bits 1..11
 		var sig = getDoubleSig(bytes);
@@ -227,7 +227,7 @@ class Input {
 		return sign * (1.0 + Math.pow(2, -52) * sig) * Math.pow(2, exp);
 		#elseif cs
 		if (helper == null) helper = new cs.NativeArray(8);
-		
+
 		var helper = helper;
 		if (bigEndian == !cs.system.BitConverter.IsLittleEndian)
 		{
@@ -249,13 +249,13 @@ class Input {
 			helper[1] = readByte();
 			helper[0] = readByte();
 		}
-		
+
 		return cs.system.BitConverter.ToDouble(helper, 0);
 		#elseif java
 		if (helper == null) helper = java.nio.ByteBuffer.allocateDirect(8);
 		var helper = helper;
 		helper.order(bigEndian ? java.nio.ByteOrder.BIG_ENDIAN : java.nio.ByteOrder.LITTLE_ENDIAN);
-		
+
 		helper.put(0, readByte());
 		helper.put(1, readByte());
 		helper.put(2, readByte());
@@ -264,7 +264,7 @@ class Input {
 		helper.put(5, readByte());
 		helper.put(6, readByte());
 		helper.put(7, readByte());
-		
+
 		return helper.getDouble(0);
 		#else
 		return throw "not implemented";
@@ -310,6 +310,18 @@ class Input {
 		return bigEndian ? ch3 | (ch2 << 8) | (ch1 << 16) : ch1 | (ch2 << 8) | (ch3 << 16);
 	}
 
+	#if haxe3
+
+	public function readInt32() {
+		var ch1 = readByte();
+		var ch2 = readByte();
+		var ch3 = readByte();
+		var ch4 = readByte();
+		return bigEndian ? ch4 | (ch3 << 8) | (ch2 << 16) | (ch1 << 24) : ch1 | (ch2 << 8) | (ch3 << 16) | (ch4 << 24);
+	}
+
+	#else
+
 	public function readInt31() {
 		var ch1,ch2,ch3,ch4;
 		if( bigEndian ) {
@@ -351,6 +363,8 @@ class Input {
 #end
 	}
 
+	#end
+
 	public function readString( len : Int ) : String {
 		var b = Bytes.alloc(len);
 		readFullBytes(b,0,len);
@@ -375,7 +389,7 @@ class Input {
 #if flash
 	function getDoubleSig(bytes:Array<Int>) : Int
     {
-        return untyped 
+        return untyped
         {
             Std.int(((((bytes[1]&0xF) << 16) | (bytes[2] << 8) | bytes[3] ) * Math.pow(2, 32))) +
             Std.int(((bytes[4] >> 7) * Math.pow(2,31))) +
@@ -385,12 +399,12 @@ class Input {
 #elseif js
 	function getDoubleSig(bytes:Array<Int>) : Int
     {
-        return untyped 
+        return untyped
         {
             Std.parseInt(((((bytes[1]&0xF) << 16) | (bytes[2] << 8) | bytes[3] ) * Math.pow(2, 32)).toString()) +
             Std.parseInt(((bytes[4] >> 7) * Math.pow(2,31)).toString()) +
             Std.parseInt((((bytes[4]&0x7F) << 24) | (bytes[5] << 16) | (bytes[6] << 8) | bytes[7]).toString());
         };
-    }	
+    }
 #end
 }

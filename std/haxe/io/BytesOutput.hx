@@ -92,6 +92,14 @@ class BytesOutput extends Output {
 		b.writeShort(x);
 	}
 
+	#if haxe3
+
+	override function writeInt32( x : Int ) {
+		b.writeInt(x);
+	}
+
+	#else
+
 	override function writeInt31( x : Int ) {
 		#if !neko
 		if( x < -0x40000000 || x >= 0x40000000 ) throw Error.Overflow;
@@ -107,6 +115,8 @@ class BytesOutput extends Output {
 	override function writeInt32( x : haxe.Int32 ) {
 		b.writeInt(cast x);
 	}
+
+	#end
 
 	override function prepare( size : Int ) {
 		if( size > 0 )

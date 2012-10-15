@@ -33,7 +33,7 @@ package haxe.io;
 class Output {
 	private static var LN2 = Math.log(2);
 	public var bigEndian(default, setEndian) : Bool;
-	
+
 	#if java
 	private var helper:java.nio.ByteBuffer;
 	#end
@@ -122,7 +122,7 @@ class Output {
 		if (helper == null) helper = java.nio.ByteBuffer.allocateDirect(8);
 		var helper = helper;
 		helper.order(bigEndian ? java.nio.ByteOrder.BIG_ENDIAN : java.nio.ByteOrder.LITTLE_ENDIAN);
-		
+
 		helper.putFloat(0, x);
 		writeByte(helper.get(0));
 		writeByte(helper.get(1));
@@ -184,9 +184,9 @@ class Output {
 		if (helper == null) helper = java.nio.ByteBuffer.allocateDirect(8);
 		var helper = helper;
 		helper.order(bigEndian ? java.nio.ByteOrder.BIG_ENDIAN : java.nio.ByteOrder.LITTLE_ENDIAN);
-		
+
 		helper.putDouble(0, x);
-	
+
 		writeByte(helper.get(0));
 		writeByte(helper.get(1));
 		writeByte(helper.get(2));
@@ -196,13 +196,13 @@ class Output {
 		writeByte(helper.get(6));
 		writeByte(helper.get(7));
 		#else
-		if (x == 0.0) 
+		if (x == 0.0)
 		{
 			writeByte(0); writeByte(0); writeByte(0); writeByte(0);
 			writeByte(0); writeByte(0); writeByte(0); writeByte(0);
 			return;
 		}
-        
+
 		var exp = Math.floor(Math.log(Math.abs(x)) / LN2);
 		var sig : Int = Math.floor(Math.abs(x) / Math.pow(2, exp) * Math.pow(2, 52));
 		var sig_h = (sig & cast 34359738367);
@@ -268,6 +268,24 @@ class Output {
 		}
 	}
 
+	#if haxe3
+
+	public function writeInt32( x : haxe.Int32 ) {
+		if( bigEndian ) {
+			writeByte( x >>> 24 );
+			writeByte( (x >> 16) & 0xFF );
+			writeByte( (x >> 8) & 0xFF );
+			writeByte( x & 0xFF );
+		} else {
+			writeByte( x & 0xFF );
+			writeByte( (x >> 8) & 0xFF );
+			writeByte( (x >> 16) & 0xFF );
+			writeByte( x >>> 24 );
+		}
+	}
+
+	#else
+
 	public function writeInt31( x : Int ) {
 		#if !neko
 		if( x < -0x40000000 || x >= 0x40000000 ) throw Error.Overflow;
@@ -313,6 +331,8 @@ class Output {
 			writeByte( haxe.Int32.toInt(haxe.Int32.ushr(x,24)) );
 		}
 	}
+
+	#end
 
 	/**
 		Inform that we are about to write at least a specified number of bytes.
