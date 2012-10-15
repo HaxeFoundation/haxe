@@ -35,6 +35,7 @@ type value =
 	| VAbstract of vabstract
 	| VFunction of vfunction
 	| VClosure of value list * (value list -> value list -> value)
+	| VInt32 of int32
 
 and vobject = {
 	mutable ofields : (int * value) array;
@@ -43,7 +44,6 @@ and vobject = {
 
 and vabstract =
 	| AKind of vabstract
-	| AInt32 of int32
 	| AHash of (value, value) Hashtbl.t
 	| ARandom of Random.State.t ref
 	| ABuffer of Buffer.t
@@ -62,6 +62,7 @@ and vabstract =
 	| ANekoAbstract of Extc.value
 	| ANekoBuffer of value
 	| ACacheRef of value
+	| AInt32Kind
 
 and vfunction =
 	| Fun0 of (unit -> value)
@@ -199,7 +200,9 @@ let make_ast (e:texpr) : Ast.expr = (!make_ast_ref) e
 let enc_string (s:string) : value = (!enc_string_ref) s
 let make_complex_type (t:Type.t) : Ast.complex_type = (!make_complex_type_ref) t
 
-let to_int f = int_of_float (mod_float f 2147483648.0)
+let to_int f = Int32.of_float (mod_float f 2147483648.0)
+let need_32_bits i = Int32.compare (Int32.logand (Int32.add i 0x40000000l) 0x80000000l) Int32.zero <> 0
+let best_int i = if need_32_bits i then VInt32 i else VInt (Int32.to_int i)
 
 let make_pos p =
 	let low = p.pline land 0xFFFFF in
@@ -297,7 +300,7 @@ let parse_int s =
 		| ('x' | 'X') when i = 1 && String.get s 0 = '0' -> loop_hex (i + 1)
 		| _ -> String.sub s sp (i - sp)
 	in
-	int_of_string (loop 0 0)
+	best_int (Int32.of_string (loop 0 0))
 
 let parse_float s =
 	let rec loop sp i =
@@ -519,7 +522,12 @@ let neko =
 	let val_null = call_raw_prim unser [|alloc_string "N";loader|] in
 
 	let is_64 = call_raw_prim (loadprim "std@sys_is64" 0) [||] == val_true in
-	let is_v2 = (try ignore(load "neko_alloc_int32"); true with _ -> false) in
+	let alloc_i32, is_v2 = (try load "neko_alloc_int32", true with _ -> Obj.magic 0, false) in
+	let alloc_i32 = if is_v2 then
+		(fun i -> Extc.dlcall1 alloc_i32 (Extc.dlint32 i))
+	else
+		(fun i -> alloc_int (Int32.to_int (if Int32.compare i Int32.zero < 0 then Int32.logand i 0x7FFFFFFFl else Int32.logor i 0x80000000l)))
+	in
 	let tag_bits = if is_v2 then 4 else 3 in
 	let tag_mask = (1 lsl tag_bits) - 1 in
 	let ptr_size = if is_64 then 8 else 4 in
@@ -604,6 +612,8 @@ let neko =
 			Extc.dlcall1 alloc_float (Obj.magic f)
 		| VAbstract _ ->
 			failwith "Abstract not supported"
+		| VInt32 i ->
+			alloc_i32 i
 	in
 	let obj_r = ref [] in
 	let obj_fun = (fun v id -> obj_r := (v,id) :: !obj_r; val_null) in
@@ -858,14 +868,15 @@ let builtins =
 		);
 		"int", Fun1 (fun v ->
 			match v with
-			| VInt i -> v
-			| VFloat f -> VInt (to_int f)
-			| VString s -> (try VInt (parse_int s) with _ -> VNull)
+			| VInt _ | VInt32 _ -> v
+			| VFloat f -> best_int (to_int f)
+			| VString s -> (try parse_int s with _ -> VNull)
 			| _ -> VNull
 		);
 		"float", Fun1 (fun v ->
 			match v with
 			| VInt i -> VFloat (float_of_int i)
+			| VInt32 i -> VFloat (Int32.to_float i)
 			| VFloat _ -> v
 			| VString s -> (try VFloat (parse_float s) with _ -> VNull)
 			| _ -> VNull
@@ -874,11 +885,13 @@ let builtins =
 		"getkind", Fun1 (fun v ->
 			match v with
 			| VAbstract a -> VAbstract (AKind a)
+			| VInt32 _ -> VAbstract (AKind AInt32Kind)
 			| _ -> error()
 		);
 		"iskind", Fun2 (fun v k ->
 			match v, k with
 			| VAbstract a, VAbstract (AKind k) -> VBool (Obj.tag (Obj.repr a) = Obj.tag (Obj.repr k))
+			| VInt32 _, VAbstract (AKind AInt32Kind) -> VBool true
 			| _, VAbstract (AKind _) -> VBool false
 			| _ -> error()
 		);
@@ -937,18 +950,18 @@ let builtins =
 		);
 		"istrue", Fun1 (fun v ->
 			match v with
-			| VNull | VInt 0 | VBool false -> VBool false
+			| VNull | VInt 0 | VBool false | VInt32 0l -> VBool false
 			| _ -> VBool true
 		);
 		"not", Fun1 (fun v ->
 			match v with
-			| VNull | VInt 0 | VBool false -> VBool true
+			| VNull | VInt 0 | VBool false | VInt32 0l -> VBool true
 			| _ -> VBool false
 		);
 		"typeof", Fun1 (fun v ->
 			VInt (match v with
 			| VNull -> 0
-			| VInt _ -> 1
+			| VInt _ | VInt32 _ -> 1
 			| VFloat _ -> 2
 			| VBool _ -> 3
 			| VString _ -> 4
@@ -974,7 +987,7 @@ let builtins =
 	 		build_stack (List.map (fun s -> s.cpos) (get_ctx()).callstack)
 	 	);
 	 	"version", Fun0 (fun() ->
-	 		VInt 0
+	 		VInt 200
 	 	);
 	(* extra *)
 		"use_neko_dll", Fun0 (fun() ->
@@ -1014,23 +1027,24 @@ let std_lib =
 	in
 	let num = function
 		| VInt i -> float_of_int i
+		| VInt32 i -> Int32.to_float i
 		| VFloat f -> f
 		| _ -> error()
 	in
 	let make_date f =
-		VAbstract (AInt32 (Int32.of_float f))
+		VInt32 (Int32.of_float f)
 	in
 	let date = function
-		| VAbstract (AInt32 i) -> Int32.to_float i
+		| VInt32 i -> Int32.to_float i
 		| VInt i -> float_of_int i
 		| _ -> error()
 	in
 	let make_i32 i =
-		VAbstract (AInt32 i)
+		VInt32 i
 	in
 	let int32 = function
 		| VInt i -> Int32.of_int i
-		| VAbstract (AInt32 i) -> i
+		| VInt32 i -> i
 		| _ -> error()
 	in
 	let vint = function
@@ -1054,12 +1068,13 @@ let std_lib =
 		"math_abs", Fun1 (fun v ->
 			match v with
 			| VInt i -> VInt (abs i)
+			| VInt32 i -> VInt32 (Int32.abs i)
 			| VFloat f -> VFloat (abs_float f)
 			| _ -> error()
 		);
-		"math_ceil", Fun1 (fun v -> VInt (to_int (ceil (num v))));
-		"math_floor", Fun1 (fun v -> VInt (to_int (floor (num v))));
-		"math_round", Fun1 (fun v -> VInt (to_int (floor (num v +. 0.5))));
+		"math_ceil", Fun1 (fun v -> match v with VInt _ | VInt32 _ -> v | _ -> best_int (to_int (ceil (num v))));
+		"math_floor", Fun1 (fun v -> match v with VInt _ | VInt32 _ -> v | _ -> best_int (to_int (floor (num v))));
+		"math_round", Fun1 (fun v -> match v with VInt _ | VInt32 _ -> v | _ -> best_int (to_int (floor (num v +. 0.5))));
 		"math_pi", Fun0 (fun() -> VFloat (4.0 *. atan 1.0));
 		"math_sqrt", Fun1 (fun v -> VFloat (sqrt (num v)));
 		"math_atan", Fun1 (fun v -> VFloat (atan (num v)));
@@ -1075,8 +1090,8 @@ let std_lib =
 		"math_fround", Fun1 (fun v -> VFloat (floor (num v +. 0.5)));
 		"math_int", Fun1 (fun v ->
 			match v with
-			| VInt n -> v
-			| VFloat f -> VInt (to_int (if f < 0. then ceil f else floor f))
+			| VInt _ | VInt32 _ -> v
+			| VFloat f -> best_int (to_int (if f < 0. then ceil f else floor f))
 			| _ -> error()
 		);
 	(* buffer *)
@@ -1262,7 +1277,7 @@ let std_lib =
 	(* int32 *)
 		"int32_new", Fun1 (fun v ->
 			match v with
-			| VAbstract (AInt32 i) -> v
+			| VInt32 _ -> v
 			| VInt i -> make_i32 (Int32.of_int i)
 			| VFloat f -> make_i32 (Int32.of_float f)
 			| _ -> error()
@@ -1340,6 +1355,7 @@ let std_lib =
 		"random_set_seed", Fun2 (fun r s ->
 			match r, s with
 			| VAbstract (ARandom r), VInt seed -> r := Random.State.make [|seed|]; VNull
+			| VAbstract (ARandom r), VInt32 seed -> r := Random.State.make [|Int32.to_int seed|]; VNull
 			| _ -> error()
 		);
 		"random_int", Fun2 (fun r s ->
@@ -1511,16 +1527,16 @@ let std_lib =
 			let h = (try Unix.gethostbyname (vstring s) with Not_found -> error()) in
 			let addr = Unix.string_of_inet_addr h.h_addr_list.(0) in
 			let a, b, c, d = Scanf.sscanf addr "%d.%d.%d.%d" (fun a b c d -> a,b,c,d) in
-			VAbstract (AInt32 (Int32.logor (Int32.shift_left (Int32.of_int a) 24) (Int32.of_int (d lor (c lsl 8) lor (b lsl 16)))))
+			VInt32 (Int32.logor (Int32.shift_left (Int32.of_int a) 24) (Int32.of_int (d lor (c lsl 8) lor (b lsl 16))))
 		);
 		"host_to_string", Fun1 (fun h ->
 			match h with
-			| VAbstract (AInt32 h) -> VString (Unix.string_of_inet_addr (int32_addr h));
+			| VInt32 h -> VString (Unix.string_of_inet_addr (int32_addr h));
 			| _ -> error()
 		);
 		"host_reverse", Fun1 (fun h ->
 			match h with
-			| VAbstract (AInt32 h) -> VString (gethostbyaddr (int32_addr h)).h_name
+			| VInt32 h -> VString (gethostbyaddr (int32_addr h)).h_name
 			| _ -> error()
 		);
 		"host_local", Fun0 (fun() ->
@@ -1528,7 +1544,7 @@ let std_lib =
 		);
 		"socket_connect", Fun3 (fun s h p ->
 			match s, h, p with
-			| VAbstract (ASocket s), VAbstract (AInt32 h), VInt p ->
+			| VAbstract (ASocket s), VInt32 h, VInt p ->
 				Unix.connect s (ADDR_INET (int32_addr h,p));
 				VNull
 			| _ -> error()
@@ -1616,9 +1632,9 @@ let std_lib =
 			VObject (obj (hash_field (get_ctx())) [
 				"gid", VInt s.st_gid;
 				"uid", VInt s.st_uid;
-				"atime", VAbstract (AInt32 (Int32.of_float s.st_atime));
-				"mtime", VAbstract (AInt32 (Int32.of_float s.st_mtime));
-				"ctime", VAbstract (AInt32 (Int32.of_float s.st_ctime));
+				"atime", VInt32 (Int32.of_float s.st_atime);
+				"mtime", VInt32 (Int32.of_float s.st_mtime);
+				"ctime", VInt32 (Int32.of_float s.st_ctime);
 				"dev", VInt s.st_dev;
 				"ino", VInt s.st_ino;
 				"nlink", VInt s.st_nlink;
@@ -2067,7 +2083,7 @@ let macro_lib =
 				);
 				VNull
 			| _ -> error()
-		);		
+		);
 		"parse", Fun3 (fun s p b ->
 			match s, p, b with
 			| VString s, VAbstract (APos p), VBool b -> encode_expr ((get_ctx()).curapi.parse_string s p b)
@@ -2093,6 +2109,7 @@ let macro_lib =
 					| VNull -> (Ast.EConst (Ast.Ident "null"),p)
 					| VBool b -> (Ast.EConst (Ast.Ident (if b then "true" else "false")),p)
 					| VInt i -> (Ast.EConst (Ast.Int (string_of_int i)),p)
+					| VInt32 i -> (Ast.EConst (Ast.Int (Int32.to_string i)),p)
 					| VFloat f -> (Ast.EConst (Ast.Float (string_of_float f)),p)
 					| VAbstract (APos p) ->
 						(Ast.EObjectDecl (
@@ -2163,7 +2180,7 @@ let macro_lib =
 			in
 			let rec loop v =
 				match v with
-				| VNull | VBool _ | VInt _ | VFloat _ | VString _ -> v
+				| VNull | VBool _ | VInt _ | VFloat _ | VString _ | VInt32 _ -> v
 				| VObject o ->
 					let o2 = { ofields = [||]; oproto = None } in
 					let v2 = VObject o2 in
@@ -2191,7 +2208,6 @@ let macro_lib =
 					do_cache v v2;
 					rl := List.map loop vl;
 					v2
-				| VAbstract (AInt32 _) -> v
 				| VAbstract (APos p) -> VAbstract (APos { p with Ast.pfile = get_file p.Ast.pfile })
 				| VAbstract (ACacheRef v) -> v
 				| VAbstract (AHash h) ->
@@ -2424,7 +2440,7 @@ let rec eval ctx (e,p) =
 		| Null -> (fun() -> VNull)
 		| This -> (fun() -> ctx.vthis)
 		| Int i -> (fun() -> VInt i)
-		| Int32 i -> (fun() -> assert false)
+		| Int32 i -> (fun() -> VInt32 i)
 		| Float f ->
 			let f = float_of_string f in
 			(fun() -> VFloat f)
@@ -2826,6 +2842,7 @@ and acc_get ctx p = function
 			let index = index() in
 			(match index, e with
 			| VInt i, VArray a -> (try Array.get a i with _ -> VNull)
+			| VInt32 _, VArray _ -> VNull
 			| _, VObject o ->
 				(match eval_oop ctx p o h_get [index] with
 				| None -> throw ctx p "Invalid array access"
@@ -2856,7 +2873,8 @@ and acc_set ctx p acc value =
 			let index = index() in
 			let value = value() in
 			(match index, e with
-			| VInt i, VArray a -> (try Array.set a i value; value with _ -> throw ctx p "Invalid array access")
+			| VInt i, VArray a -> (try Array.set a i value; value with _ -> value)
+			| VInt32 _, VArray _ -> value
 			| _, VObject o ->
 				(match eval_oop ctx p o h_set [index;value] with
 				| None -> throw ctx p "Invalid array access"
@@ -2891,10 +2909,15 @@ and number_op ctx p sop iop fop oop rop v1 v2 =
 
 and exc_number_op ctx p sop iop fop oop rop v1 v2 =
 	match v1, v2 with
-	| VInt a, VInt b -> VInt (iop a b)
+	| VInt a, VInt b -> best_int (iop (Int32.of_int a) (Int32.of_int b))
+	| VInt32 a, VInt b -> best_int (iop a (Int32.of_int b))
+	| VInt a, VInt32 b -> best_int (iop (Int32.of_int a) b)
 	| VFloat a, VInt b -> VFloat (fop a (float_of_int b))
+	| VFloat a, VInt32 b -> VFloat (fop a (Int32.to_float b))
 	| VInt a, VFloat b -> VFloat (fop (float_of_int a) b)
+	| VInt32 a, VFloat b -> VFloat (fop (Int32.to_float a) b)
 	| VFloat a, VFloat b -> VFloat (fop a b)
+	| VInt32 a, VInt32 b -> best_int (iop a b)
 	| VObject o, _ ->
 		(match eval_oop ctx p o oop [v2] with
 		| Some v -> v
@@ -2918,7 +2941,10 @@ and int_op ctx p op iop v1 v2 =
 		let v1 = v1() in
 		let v2 = v2() in
 		match v1, v2 with
-		| VInt a, VInt b -> VInt (iop a b)
+		| VInt a, VInt b -> best_int (iop (Int32.of_int a) (Int32.of_int b))
+		| VInt32 a, VInt b -> best_int (iop a (Int32.of_int b))
+		| VInt a, VInt32 b -> best_int (iop (Int32.of_int a) b)
+		| VInt32 a, VInt32 b -> best_int (iop a b)
 		| _ -> throw ctx p op)
 
 and base_op ctx op v1 v2 p =
@@ -2928,37 +2954,38 @@ and base_op ctx op v1 v2 p =
 			let v1 = v1() in
 			let v2 = v2() in
 			match v1, v2 with
-			| VInt _, VInt _ | VInt _ , VFloat _ | VFloat _ , VInt _ | VFloat _ , VFloat _ | VObject _ , _ | _ , VObject _ -> exc_number_op ctx p op (+) (+.) h_add h_radd v1 v2
+			| (VInt _ | VInt32 _), (VInt _ | VInt32 _) | (VInt _ | VInt32 _), VFloat _ | VFloat _ , (VInt _ | VInt32 _) | VFloat _ , VFloat _ | VObject _ , _ | _ , VObject _ -> exc_number_op ctx p op Int32.add (+.) h_add h_radd v1 v2
 			| VString a, _ -> VString (a ^ ctx.do_string v2)
 			| _, VString b -> VString (ctx.do_string v1 ^ b)
 			| _ -> throw ctx p op)
 	| "-" ->
-		number_op ctx p op (-) (-.) h_sub h_rsub v1 v2
+		number_op ctx p op Int32.sub (-.) h_sub h_rsub v1 v2
 	| "*" ->
-		number_op ctx p op ( * ) ( *. ) h_mult h_rmult v1 v2
+		number_op ctx p op Int32.mul ( *. ) h_mult h_rmult v1 v2
 	| "/" ->
 		(fun() ->
 			let v1 = v1() in
 			let v2 = v2() in
 			match v1, v2 with
 			| VInt i, VInt j -> VFloat ((float_of_int i) /. (float_of_int j))
-			| _ -> exc_number_op ctx p op (/) (/.) h_div h_rdiv v1 v2)
+			| VInt i, VInt32 j -> VFloat ((float_of_int i) /. (Int32.to_float j))
+			| VInt32 i, VInt j -> VFloat ((Int32.to_float i) /. (float_of_int j))
+			| VInt32 i, VInt32 j -> VFloat ((Int32.to_float i) /. (Int32.to_float j))
+			| _ -> exc_number_op ctx p op Int32.div (/.) h_div h_rdiv v1 v2)
 	| "%" ->
-		number_op ctx p op (fun x y -> if y = 0 then throw ctx p op; x mod y) mod_float h_mod h_rmod v1 v2
+		number_op ctx p op (fun x y -> if y = 0l then throw ctx p op; Int32.rem x y) mod_float h_mod h_rmod v1 v2
 	| "&" ->
-		int_op ctx p op (fun x y -> x land y) v1 v2
+		int_op ctx p op Int32.logand v1 v2
 	| "|" ->
-		int_op ctx p op (fun x y -> x lor y) v1 v2
+		int_op ctx p op Int32.logor v1 v2
 	| "^" ->
-		int_op ctx p op (fun x y -> x lxor y) v1 v2
+		int_op ctx p op Int32.logxor v1 v2
 	| "<<" ->
-		int_op ctx p op (fun x y -> x lsl y) v1 v2
+		int_op ctx p op (fun x y -> Int32.shift_left x (Int32.to_int y)) v1 v2
 	| ">>" ->
-		int_op ctx p op (fun x y -> x asr y) v1 v2
+		int_op ctx p op (fun x y -> Int32.shift_right x (Int32.to_int y)) v1 v2
 	| ">>>" ->
-		int_op ctx p op (fun x y ->
-			if x >= 0 then x lsr y else Int32.to_int (Int32.shift_right_logical (Int32.of_int x) y)
-		) v1 v2
+		int_op ctx p op (fun x y -> Int32.shift_right_logical x (Int32.to_int y)) v1 v2
 	| _ ->
 		throw ctx p op
 
@@ -3110,6 +3137,7 @@ let rec to_string ctx n v =
 	| VBool true -> "true"
 	| VBool false -> "false"
 	| VInt i -> string_of_int i
+	| VInt32 i -> Int32.to_string i
 	| VFloat f ->
 		let s = string_of_float f in
 		let len = String.length s in
@@ -3119,7 +3147,6 @@ let rec to_string ctx n v =
 	| VAbstract a ->
 		(match a with
 		| APos p -> "#pos(" ^ Lexer.get_error_pos (Printf.sprintf "%s:%d:") p ^ ")"
-		| AInt32 i -> Int32.to_string i
 		| _ -> "#abstract")
 	| VFunction f -> "#function:"  ^ string_of_int (nargs f)
 	| VClosure _ -> "#function:-1"
@@ -3146,18 +3173,26 @@ let rec to_string ctx n v =
 let rec compare ctx a b =
 	let fcmp (a:float) b = if a = b then CEq else if a < b then CInf else CSup in
 	let scmp (a:string) b = if a = b then CEq else if a < b then CInf else CSup in
+	let icmp (a:int32) b = let l = Int32.compare a b in if l = 0 then CEq else if l < 0 then CInf else CSup in
 	match a, b with
 	| VNull, VNull -> CEq
 	| VInt a, VInt b -> if a = b then CEq else if a < b then CInf else CSup
+	| VInt32 a, VInt32 b -> icmp a b
+	| VInt a, VInt32 b -> icmp (Int32.of_int a) b
+	| VInt32 a, VInt b -> icmp a (Int32.of_int b)
 	| VFloat a, VFloat b -> fcmp a b
 	| VFloat a, VInt b -> fcmp a (float_of_int b)
+	| VFloat a, VInt32 b -> fcmp a (Int32.to_float b)
 	| VInt a, VFloat b -> fcmp (float_of_int a) b
+	| VInt32 a, VFloat b -> fcmp (Int32.to_float a) b
 	| VBool a, VBool b -> if a = b then CEq else if a then CSup else CInf
 	| VString a, VString b -> scmp a b
 	| VInt _ , VString s
+	| VInt32 _, VString s
 	| VFloat _ , VString s
 	| VBool _ , VString s -> scmp (to_string ctx 0 a) s
 	| VString s, VInt _
+	| VString s, VInt32 _
 	| VString s, VFloat _
 	| VString s, VBool _ -> scmp s (to_string ctx 0 b)
 	| VObject oa, VObject ob ->
@@ -4191,7 +4226,7 @@ let rec make_const e =
 	match e.eexpr with
 	| TConst c ->
 		(match c with
-		| TInt i -> (try VInt (Int32.to_int i) with _ -> raise Exit)
+		| TInt i -> best_int i
 		| TFloat s -> VFloat (float_of_string s)
 		| TString s -> enc_string s
 		| TBool b -> VBool b
