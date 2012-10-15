@@ -29,7 +29,7 @@ package sys.net;
 class Host {
 
 	private var _ip : String;
-	public var ip(default,null) : haxe.Int32;
+	public var ip(default,null) : Int;
 
 	public function new( name : String ) : Void {
 		if(~/^(\d{1,3}\.){3}\d{1,3}$/.match(name)) {
@@ -37,12 +37,12 @@ class Host {
 		} else {
 			_ip = untyped __call__('gethostbyname', name);
 			if(_ip == name) {
-				ip = haxe.Int32.ofInt(0);
+				ip = 0;
 				return;
 			}
 		}
 		var p = _ip.split('.');
-		ip = haxe.Int32.ofInt(untyped __call__('intval', __call__('sprintf', '%02X%02X%02X%02X', p[3], p[2], p[1], p[0]), 16));
+		ip = untyped __call__('intval', __call__('sprintf', '%02X%02X%02X%02X', p[3], p[2], p[1], p[0]), 16);
 	}
 
 	public function toString() : String {

@@ -28,7 +28,7 @@ package sys.net;
 @:core_api
 class Host {
 
-	public var ip(default,null) : haxe.Int32;
+	public var ip(default,null) : Int;
 
 	public function new( name : String ) : Void {
 		ip = host_resolve(name);

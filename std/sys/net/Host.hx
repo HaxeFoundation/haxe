@@ -33,7 +33,7 @@ extern class Host {
 	/**
 		The actual IP corresponding to the host.
 	**/
-	var ip(default,null) : haxe.Int32;
+	var ip(default,null) : Int;
 
 	/**
 		Creates a new Host : the name can be an IP in the form "127.0.0.1" or an host name such as "google.com", in which case
