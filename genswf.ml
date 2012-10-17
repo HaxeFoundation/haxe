@@ -1073,6 +1073,7 @@ let generate com swf_header =
 			fa_direct_blt = false;
 		})]
 	) in
+	let fattr = if Common.defined com "advanced-telemetry" then fattr @ [tag (TUnknown (0x5D,"\x00\x00"))] else fattr in
 	let swf = header, fattr @ bg :: debug @ tags @ [tag TShowFrame] in
   (* merge swf libraries *)
 	let priority = ref (swf_header = None) in
