@@ -270,7 +270,7 @@ class Output {
 
 	#if haxe3
 
-	public function writeInt32( x : haxe.Int32 ) {
+	public function writeInt32( x : Int ) {
 		if( bigEndian ) {
 			writeByte( x >>> 24 );
 			writeByte( (x >> 16) & 0xFF );
