@@ -1,64 +1,52 @@
--neko all.n
 --no-output
--xml neko.xml
 --macro ImportAll.run()
+-D haxe3
+--each
+
+-neko all.n
+-xml neko.xml
 
 --next
 
 -swf all.swf
 -swf-version 8
---no-output
 -xml flash8.xml
 -D flash_lite
---macro ImportAll.run()
 
 --next
 
 -js all.js
---no-output
 -xml js.xml
---macro ImportAll.run()
 
 --next
 
 -swf all9.swf
---no-output
 -xml flash9.xml
 -swf-version 11.4
---macro ImportAll.run()
 
 --next
 
 -php all_php
---no-output
 -xml php.xml
---macro ImportAll.run()
 
 --next
 
 -cpp all_cpp
---no-output
 -xml cpp.xml
 -D xmldoc
 -D HXCPP_MULTI_THREADED
---macro ImportAll.run()
 
 --next
 -java all_java
---no-output
 -xml java.xml
 -D xmldoc
---macro ImportAll.run()
 
 --next
 -cs all_cs
 -D unsafe
---no-output
 -xml cs.xml
 -D xmldoc
---macro ImportAll.run()
 
 --next
 
 -xml cross.xml
---macro ImportAll.run()
