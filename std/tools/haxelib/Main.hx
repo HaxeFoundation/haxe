@@ -1,4 +1,9 @@
 package tools.haxelib;
+#if haxe3
+import haxe.zip.Reader;
+#else
+import neko.zip.Reader;
+#end
 
 enum Answer {
 	Yes;
@@ -301,7 +306,7 @@ class Main {
 	function submit() {
 		var file = param("Package");
 		var data = sys.io.File.getBytes(file);
-		var zip = neko.zip.Reader.readZip(new haxe.io.BytesInput(data));
+		var zip = Reader.readZip(new haxe.io.BytesInput(data));
 		var infos = Datas.readInfos(zip,true);
 		var user = infos.developers.first();
 		var password;
@@ -415,7 +420,7 @@ class Main {
 
 		// read zip content
 		var f = sys.io.File.read(filepath,true);
-		var zip = neko.zip.Reader.readZip(f);
+		var zip = Reader.readZip(f);
 		f.close();
 		var infos = Datas.readInfos(zip,false);
 
@@ -460,7 +465,7 @@ class Main {
 				}
 				path += file;
 				print("  Install "+path);
-				var data = neko.zip.Reader.unzip(zipfile);
+				var data = Reader.unzip(zipfile);
 				sys.io.File.saveBytes(target+path,data);
 			}
 		}
@@ -500,25 +505,18 @@ class Main {
 	}
 
 	function safeDelete( file ) {
-		try
-		{
+		try {
 			sys.FileSystem.deleteFile(file);
 			return true;
-		}
-		catch (e:Dynamic)
-		{
-			if (neko.Sys.systemName() == "Windows")
-			{
-				try
-				{
-					neko.Sys.command("attrib -R \"" +file+ "\"");
+		} catch (e:Dynamic) {
+			if( Sys.systemName() == "Windows") {
+				try {
+					Sys.command("attrib -R \"" +file+ "\"");
 					sys.FileSystem.deleteFile(file);
 					return true;
-				} catch (e:Dynamic)
-				{
+				} catch (e:Dynamic) {
 				}
 			}
-
 			return false;
 		}
 	}
@@ -847,14 +845,12 @@ class Main {
 			null;
 
 		print("Installing " +libName + " from " +gitPath);
-		if (neko.Sys.command("git clone \"" +gitPath + "\" \"" +libPath + "\"") != 0)
-		{
+		if( Sys.command("git clone \"" +gitPath + "\" \"" +libPath + "\"") != 0 ) {
 			print("Could not clone git repository");
 			return;
 		}
 		Sys.setCwd(libPath);
-		if (rev != null)
-		{
+		if (rev != null) {
 			var ret = command("git", ["checkout", rev]);
 			if (ret.code != 0)
 			{
@@ -916,7 +912,7 @@ class Main {
 	}
 
 	function command( cmd:String, args:Array<String> ) {
-		var p = new neko.io.Process(cmd, args);
+		var p = new sys.io.Process(cmd, args);
 		var code = p.exitCode();
 		return { code:code, out: code == 0 ? p.stdout.readAll().toString() : p.stderr.readAll().toString() };
 	}

@@ -313,7 +313,22 @@ class Main {
 
 	function unzip( file ) {
 		var ch = sys.io.File.read(file,true);
-		var entries = if( haxe.io.Path.extension(file) == "zip" ) neko.zip.Reader.readZip(ch) else neko.zip.Reader.readTar(ch,true);
+		var entries;
+		if( haxe.io.Path.extension(file) == "zip" )
+			entries = haxe.zip.Reader.readZip(ch);
+		else {
+			entries = new List();
+			for( f in new format.tgz.Reader(ch).read() )
+				entries.add({
+					fileName : f.fileName,
+					fileTime : f.fileTime,
+					fileSize : f.fileSize,
+					data : f.data,
+					dataSize : f.data.length,
+					compressed : false,
+					crc32 : null,
+				});
+		}
 		ch.close();
 		return entries;
 	}
@@ -344,7 +359,7 @@ class Main {
 			}
 			var filename = dir + "/" + path.join("/");
 			var ch = sys.io.File.write(filename,true);
-			ch.write(neko.zip.Reader.unzip(f));
+			ch.write(haxe.zip.Reader.unzip(f));
 			ch.close();
 			if( SYS != "Windows" ) {
 				var exe = haxe.io.Path.extension(filename) == "";

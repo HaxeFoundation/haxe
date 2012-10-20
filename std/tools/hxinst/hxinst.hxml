@@ -1,4 +1,6 @@
 # Neko
+-D haxe3
+-lib format
 -neko hxinst.n
 -main tools.hxinst.Main
 -lib xcross

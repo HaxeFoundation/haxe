@@ -6,12 +6,12 @@ class HtmlPrinter {
 	static function loadTemplate() {
 		var hdata = try
 			// load in current local/web directory
-			neko.io.File.getContent(neko.Web.getCwd()+"template.xml")
+			sys.io.File.getContent(neko.Web.getCwd()+"template.xml")
 		catch( e : Dynamic ) try {
 			// load in haxe subdirectory (TODO : make it work on linux/osx)
-			var p = ~/[\/\\]/g.split(neko.Sys.executablePath());
+			var p = ~/[\/\\]/g.split(Sys.executablePath());
 			p.pop();
-			neko.io.File.getContent(p.join("/")+"/std/tools/template.xml");
+			sys.io.File.getContent(p.join("/")+"/std/tools/template.xml");
 		} catch( e : Dynamic )
 			default_template;
 		return Xml.parse(hdata);

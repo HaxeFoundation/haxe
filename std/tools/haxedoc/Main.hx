@@ -30,7 +30,7 @@ class Main {
 	static var parser = new haxe.rtti.XmlParser();
 
 	static function loadFile(file,platform,?remap) {
-		var data = neko.io.File.getContent(neko.Web.getCwd()+file);
+		var data = sys.io.File.getContent(neko.Web.getCwd()+file);
 		var x = Xml.parse(data).firstElement();
 		if( remap != null )
 			transformPackage(x,remap,platform);
@@ -50,7 +50,7 @@ class Main {
 	}
 
 	static function save(html : HtmlPrinter,x,file) {
-		var f = neko.io.File.write(file,true);
+		var f = sys.io.File.write(file,true);
 		html.output = f.writeString;
 		html.process(x);
 		f.close();
@@ -65,7 +65,7 @@ class Main {
 			var old = html.baseUrl;
 			html.baseUrl = "../"+html.baseUrl;
 			path += name + "/";
-			try neko.FileSystem.createDirectory(path) catch( e : Dynamic ) { }
+			try sys.FileSystem.createDirectory(path) catch( e : Dynamic ) { }
 			for( e in entries )
 				generateEntry(html,e,path);
 			html.baseUrl = old;
@@ -85,7 +85,7 @@ class Main {
 			html.addFilter(f);
 		save(html,TPackage("root","root",parser.root),"index.html");
 		html.baseUrl = "";
-		try neko.FileSystem.createDirectory("content") catch( e : Dynamic ) { }
+		try sys.FileSystem.createDirectory("content") catch( e : Dynamic ) { }
 		for( e in parser.root )
 			generateEntry(html,e,"content/");
 	}
@@ -94,7 +94,7 @@ class Main {
 		if( neko.Web.isModNeko ) {
 			var h = neko.Web.getParams();
 			var dataFile = neko.Web.getCwd()+".data";
-			var data : TypeRoot = try neko.Lib.unserialize(neko.io.File.getBytes(dataFile)) catch( e : Dynamic ) null;
+			var data : TypeRoot = try neko.Lib.unserialize(sys.io.File.getBytes(dataFile)) catch( e : Dynamic ) null;
 			if( h.get("reload") != null || data == null ) {
 				var baseDir = "../data/media/";
 				loadFile(baseDir+"flash.xml","flash");
@@ -105,7 +105,7 @@ class Main {
 				parser.sort();
 				data = parser.root;
 				var bytes = neko.Lib.serialize(data);
-				var f = neko.io.File.write(dataFile,true);
+				var f = sys.io.File.write(dataFile,true);
 				f.write(bytes);
 				f.close();
 			}
@@ -126,7 +126,7 @@ class Main {
 			var filter = false;
 			var filters = new List();
 			var pf = null;
-			for( x in neko.Sys.args() ) {
+			for( x in Sys.args() ) {
 				if( x == "-f" )
 					filter = true;
 				else if( x == "-v" )
@@ -145,9 +145,9 @@ class Main {
 			}
 			parser.sort();
 			if( parser.root.length == 0 ) {
-				neko.Lib.println("Haxe Doc Generator 2.0 - (c)2006 Motion-Twin");
-				neko.Lib.println(" Usage : haxedoc [xml files] [-f filter]");
-				neko.Sys.exit(1);
+				Sys.println("Haxe Doc Generator 2.0 - (c)2006 Motion-Twin");
+				Sys.println(" Usage : haxedoc [xml files] [-f filter]");
+				Sys.exit(1);
 			}
 			generateAll(filters);
 		}

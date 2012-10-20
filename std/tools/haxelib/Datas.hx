@@ -1,6 +1,12 @@
 package tools.haxelib;
-
+#if haxe3
+import haxe.zip.Reader;
+import haxe.zip.Entry;
+#else
 import neko.zip.Reader;
+private typedef Entry = ZipEntry;
+#end
+
 import haxe.xml.Check;
 
 typedef UserInfos = {
@@ -82,18 +88,18 @@ class Datas {
 		return safe(lib)+"-"+safe(ver)+".zip";
 	}
 
-	public static function readDoc( zip : List<ZipEntry> ) : String {
+	public static function readDoc( zip : List<Entry> ) : String {
 		for( f in zip )
 			if( StringTools.endsWith(f.fileName,DOCXML) )
-				return neko.zip.Reader.unzip(f).toString();
+				return Reader.unzip(f).toString();
 		return null;
 	}
 
-	public static function readInfos( zip : List<ZipEntry>, check : Bool ) : XmlInfos {
+	public static function readInfos( zip : List<Entry>, check : Bool ) : XmlInfos {
 		var xmldata = null;
 		for( f in zip )
 			if( StringTools.endsWith(f.fileName,XML) ) {
-				xmldata = neko.zip.Reader.unzip(f).toString();
+				xmldata = Reader.unzip(f).toString();
 				break;
 			}
 		if( xmldata == null )

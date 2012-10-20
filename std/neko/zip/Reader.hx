@@ -24,6 +24,8 @@
  */
 package neko.zip;
 
+#if !haxe3
+
 typedef ZipEntry = {
 	var fileName : String;
 	var fileSize : Int;
@@ -281,3 +283,5 @@ class Reader {
 	}
 
 }
+
+#end

@@ -24,6 +24,8 @@
  */
 package neko.zip;
 
+#if !haxe3
+
 class Writer {
 
 	/*
@@ -132,3 +134,5 @@ class Writer {
 
 
 }
+
+#end

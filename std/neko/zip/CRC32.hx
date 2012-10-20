@@ -23,6 +23,9 @@
  * DAMAGE.
  */
 package neko.zip;
+
+#if !haxe3
+
 import haxe.Int32;
 
 class CRC32 {
@@ -50,3 +53,5 @@ class CRC32 {
 		return Int32.xor(crc, init);
 	}
 }
+
+#end
