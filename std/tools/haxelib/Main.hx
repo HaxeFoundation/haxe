@@ -307,7 +307,7 @@ class Main {
 		var file = param("Package");
 		var data = sys.io.File.getBytes(file);
 		var zip = Reader.readZip(new haxe.io.BytesInput(data));
-		var infos = Datas.readInfos(zip,true);
+		var infos = Data.readInfos(zip,true);
 		var user = infos.developers.first();
 		var password;
 		if( site.isNewUser(user) ) {
@@ -392,18 +392,18 @@ class Main {
 		var rep = getRepository();
 
 		// check if exists already
-		if( sys.FileSystem.exists(rep+Datas.safe(project)+"/"+Datas.safe(version)) ) {
+		if( sys.FileSystem.exists(rep+Data.safe(project)+"/"+Data.safe(version)) ) {
 			print("You already have "+project+" version "+version+" installed");
 			setCurrent(project,version,true);
 			return;
 		}
 
 		// download to temporary file
-		var filename = Datas.fileName(project,version);
+		var filename = Data.fileName(project,version);
 		var filepath = rep+filename;
 		var out = sys.io.File.write(filepath,true);
 		var progress = new Progress(out);
-		var h = new haxe.Http(siteUrl+Datas.REPOSITORY+"/"+filename);
+		var h = new haxe.Http(siteUrl+Data.REPOSITORY+"/"+filename);
 		h.onError = function(e) {
 			progress.close();
 			sys.FileSystem.deleteFile(filepath);
@@ -422,26 +422,26 @@ class Main {
 		var f = sys.io.File.read(filepath,true);
 		var zip = Reader.readZip(f);
 		f.close();
-		var infos = Datas.readInfos(zip,false);
+		var infos = Data.readInfos(zip,false);
 
 		// create directories
-		var pdir = getRepository() + Datas.safe(infos.project);
+		var pdir = getRepository() + Data.safe(infos.project);
 		safeDir(pdir);
 		pdir += "/";
-		var target = pdir + Datas.safe(infos.version);
+		var target = pdir + Data.safe(infos.version);
 		safeDir(target);
 		target += "/";
 
 		// locate haxelib.xml base path
 		var basepath = null;
 		for( f in zip ) {
-			if( StringTools.endsWith(f.fileName,Datas.XML) ) {
-				basepath = f.fileName.substr(0,f.fileName.length - Datas.XML.length);
+			if( StringTools.endsWith(f.fileName,Data.XML) ) {
+				basepath = f.fileName.substr(0,f.fileName.length - Data.XML.length);
 				break;
 			}
 		}
 		if( basepath == null )
-			throw "No "+Datas.XML+" found";
+			throw "No "+Data.XML+" found";
 
 		// unzip content
 		for( zipfile in zip ) {
@@ -606,14 +606,14 @@ class Main {
 			for( v in sys.FileSystem.readDirectory(rep+p) ) {
 				if( v.charAt(0) == "." )
 					continue;
-				v = Datas.unsafe(v);
+				v = Data.unsafe(v);
 				if( dev == null && v == current )
 					v = "["+v+"]";
 				versions.push(v);
 			}
 			if( dev != null )
 				versions.push("[dev:"+dev+"]");
-			print(Datas.unsafe(p) + ": "+versions.join(" "));
+			print(Data.unsafe(p) + ": "+versions.join(" "));
 		}
 	}
 
@@ -622,7 +622,7 @@ class Main {
 		for( p in sys.FileSystem.readDirectory(state.rep) ) {
 			if( p.charAt(0) == "." || !sys.FileSystem.isDirectory(state.rep+"/"+p) )
 				continue;
-			var p = Datas.unsafe(p);
+			var p = Data.unsafe(p);
 			print("Checking " + p);
 			doUpdate(p,state);
 		}
@@ -642,7 +642,7 @@ class Main {
 			Sys.setCwd(oldCwd);
 		} else {
 			var inf = try site.infos(p) catch( e : Dynamic ) { Sys.println(e); return; };
-			if( !sys.FileSystem.exists(rep+Datas.safe(p)+"/"+Datas.safe(inf.curversion)) ) {
+			if( !sys.FileSystem.exists(rep+Data.safe(p)+"/"+Data.safe(inf.curversion)) ) {
 				if( state.prompt )
 					switch ask("Upgrade "+p+" to "+inf.curversion) {
 					case Yes:
@@ -680,7 +680,7 @@ class Main {
 		var prj = param("Library");
 		var version = paramOpt();
 		var rep = getRepository();
-		var pdir = rep + Datas.safe(prj);
+		var pdir = rep + Data.safe(prj);
 		if( version == null ) {
 			if( !sys.FileSystem.exists(pdir) )
 				throw "Library "+prj+" is not installed";
@@ -689,7 +689,7 @@ class Main {
 			return;
 		}
 
-		var vdir = pdir + "/" + Datas.safe(version);
+		var vdir = pdir + "/" + Data.safe(version);
 		if( !sys.FileSystem.exists(vdir) )
 			throw "Library "+prj+" does not have version "+version+" installed";
 
@@ -707,8 +707,8 @@ class Main {
 	}
 
 	function setCurrent( prj : String, version : String, doAsk : Bool ) {
-		var pdir = getRepository() + Datas.safe(prj);
-		var vdir = pdir + "/" + Datas.safe(version);
+		var pdir = getRepository() + Data.safe(prj);
+		var vdir = pdir + "/" + Data.safe(version);
 		if( !sys.FileSystem.exists(vdir) )
 			throw "Library "+prj+" version "+version+" is not installed";
 		if( getCurrent(pdir) == version )
@@ -720,11 +720,11 @@ class Main {
 	}
 
 	function checkRec( prj : String, version : String, l : List<{ project : String, version : String }> ) {
-		var pdir = getRepository() + Datas.safe(prj);
+		var pdir = getRepository() + Data.safe(prj);
 		if( !sys.FileSystem.exists(pdir) )
 			throw "Library "+prj+" is not installed : run 'haxelib install "+prj+"'";
 		var version = if( version != null ) version else getCurrent(pdir);
-		var vdir = pdir + "/" + Datas.safe(version);
+		var vdir = pdir + "/" + Data.safe(version);
 		if( StringTools.endsWith(vdir, "dev") )
 			vdir = getDev(pdir);
 		if( !sys.FileSystem.exists(vdir) )
@@ -737,7 +737,7 @@ class Main {
 			}
 		l.add({ project : prj, version : version });
 		var xml = sys.io.File.getContent(vdir+"/haxelib.xml");
-		var inf = Datas.readData(xml,false);
+		var inf = Data.readData(xml,false);
 		for( d in inf.dependencies )
 			checkRec(d.project,if( d.version == "" ) null else d.version,l);
 	}
@@ -750,10 +750,10 @@ class Main {
 		}
 		var rep = getRepository();
 		for( d in list ) {
-			var pdir = Datas.safe(d.project)+"/"+Datas.safe(d.version)+"/";
+			var pdir = Data.safe(d.project)+"/"+Data.safe(d.version)+"/";
 			var dir = rep + pdir;
 			try {
-				dir = getDev(rep+Datas.safe(d.project));
+				dir = getDev(rep+Data.safe(d.project));
 				if( dir.length == 0 || (dir.charAt(dir.length-1) != '/' && dir.charAt(dir.length-1) != '\\') )
 					dir += "/";
 				pdir = dir;
@@ -782,7 +782,7 @@ class Main {
 		var rep = getRepository();
 		var project = param("Library");
 		var dir = paramOpt();
-		var proj = rep + Datas.safe(project);
+		var proj = rep + Data.safe(project);
 		if( !sys.FileSystem.exists(proj) ) {
 			sys.FileSystem.createDirectory(proj);
 			sys.io.File.saveContent(proj + "/.current", "dev");
@@ -825,7 +825,7 @@ class Main {
 		}
 		var libName = param("Library name");
 		var rep = getRepository();
-		var libPath = rep + Datas.safe(libName) + "/git";
+		var libPath = rep + Data.safe(libName) + "/git";
 
 		if( sys.FileSystem.exists(libPath) ) {
 			print("You already have a git version of "+libName+" installed");
@@ -882,13 +882,13 @@ class Main {
 		var project = param("Library");
 		var temp = project.split(":");
 		project = temp[0];
-		var pdir = rep + Datas.safe(project);
+		var pdir = rep + Data.safe(project);
 		if( !sys.FileSystem.exists(pdir) )
 			throw "Library "+project+" is not installed";
 		pdir += "/";
 		var version = temp[1] != null ? temp[1] : getCurrent(pdir);
 		var dev = try getDev(pdir) catch ( e : Dynamic ) null;
-		var vdir = dev!=null ? dev : pdir + Datas.safe(version);
+		var vdir = dev!=null ? dev : pdir + Data.safe(version);
 		var rdir = vdir + "/run.n";
 		if( !sys.FileSystem.exists(rdir) )
 			throw "Library "+project+" version "+version+" does not have a run script";

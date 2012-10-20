@@ -1,5 +1,5 @@
 package tools.haxelib;
-import tools.haxelib.Datas;
+import tools.haxelib.Data;
 import tools.haxelib.SiteDb;
 
 class SiteApi {
@@ -51,7 +51,7 @@ class SiteApi {
 	}
 
 	public function register( name : String, pass : String, mail : String, fullname : String ) : Bool {
-		if( !Datas.alphanum.match(name) )
+		if( !Data.alphanum.match(name) )
 			throw "Invalid user name, please use alphanumeric characters";
 		if( name.length < 3 )
 			throw "User name must be at least 3 characters";
@@ -94,7 +94,7 @@ class SiteApi {
 		var zip = try haxe.zip.Reader.readZip(file) catch( e : Dynamic ) { file.close(); neko.Lib.rethrow(e); };
 		file.close();
 
-		var infos = Datas.readInfos(zip,true);
+		var infos = Data.readInfos(zip,true);
 		var u = User.manager.search({ name : user }).first();
 		if( u == null || u.pass != pass )
 			throw "Invalid username or password";
@@ -188,7 +188,7 @@ class SiteApi {
 
 		// update documentation
 		var doc = null;
-		var docXML = Datas.readDoc(zip);
+		var docXML = Data.readDoc(zip);
 		if( docXML != null ) {
 			var p = new haxe.rtti.XmlParser();
 			p.process(Xml.parse(docXML).firstElement(),null);
@@ -212,7 +212,7 @@ class SiteApi {
 		}
 
 		// update file
-		var target = Site.REP_DIR+"/"+Datas.fileName(p.name,infos.version);
+		var target = Site.REP_DIR+"/"+Data.fileName(p.name,infos.version);
 		if( current != null ) sys.FileSystem.deleteFile(target);
 		sys.FileSystem.rename(path,target);
 

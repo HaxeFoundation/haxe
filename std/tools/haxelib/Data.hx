@@ -45,7 +45,7 @@ typedef XmlInfos = {
 	var dependencies : List<{ project : String, version : String }>;
 }
 
-class Datas {
+class Data {
 
 	public static var XML = "haxelib.xml";
 	public static var DOCXML = "haxedoc.xml";

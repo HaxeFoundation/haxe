@@ -9,7 +9,7 @@ class Site {
 	static var CWD = neko.Web.getCwd();
 	static var DB_FILE = CWD+"haxelib.db";
 	public static var TMP_DIR = CWD+"tmp";
-	public static var REP_DIR = CWD+Datas.REPOSITORY;
+	public static var REP_DIR = CWD+Data.REPOSITORY;
 
 	static function setup() {
 		SiteDb.create(db);
@@ -63,7 +63,7 @@ class Site {
 		var ctx : Dynamic = {};
 		var macros = {
 			download : function( res, p, v ) {
-				return "/"+Datas.REPOSITORY+"/"+Datas.fileName(res(p).name,res(v).name);
+				return "/"+Data.REPOSITORY+"/"+Data.fileName(res(p).name,res(v).name);
 			}
 		};
 		if( fillContent(ctx) )
