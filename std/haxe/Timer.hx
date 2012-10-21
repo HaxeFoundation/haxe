@@ -45,7 +45,7 @@ class Timer {
 			id = untyped _global["setInterval"](function() { me.run(); },time_ms);
 		#elseif js
 			var me = this;
-			id = untyped window.setInterval(function() me.run(),time_ms);
+			id = untyped setInterval(function() me.run(),time_ms);
 		#end
 	}
 
@@ -60,7 +60,7 @@ class Timer {
 		#elseif flash
 			untyped _global["clearInterval"](id);
 		#elseif js
-			untyped window.clearInterval(id);
+			untyped clearInterval(id);
 		#end
 		id = null;
 	}
