@@ -27,23 +27,33 @@ package haxe.crypto;
 class Sha1 {
 
 	public static function encode( s:String ) : String {
+		#if php
+		return untyped __call__("sha1", s);
+		#else
 		var sh = new Sha1();
 		var h = sh.doEncode(str2blks(s));
 		return sh.hex(h);
+		#end
 	}
 
 	public static function make( b : haxe.io.Bytes ) : haxe.io.Bytes {
+		#if php
+		return haxe.io.Bytes.ofData(untyped __call__("sha1", b.getData(), true));
+		#else
 		var h = new Sha1().doEncode(bytes2blks(b));
-		var out = haxe.io.Bytes.alloc(16);
+		var out = haxe.io.Bytes.alloc(20);
 		var p = 0;
-		for( i in 0...4 ) {
-			out.set(p++,h[i]&0xFF);
-			out.set(p++,(h[i]>>8)&0xFF);
-			out.set(p++,(h[i]>>16)&0xFF);
+		for( i in 0...5 ) {
 			out.set(p++,h[i]>>>24);
+			out.set(p++,(h[i]>>16)&0xFF);
+			out.set(p++,(h[i]>>8)&0xFF);
+			out.set(p++,h[i]&0xFF);
 		}
 		return out;
+		#end
 	}
+
+	#if !php
 
 	function new() {
 	}
@@ -170,5 +180,7 @@ class Sha1 {
 		}
 		return str;
 	}
+
+	#end
 
 }

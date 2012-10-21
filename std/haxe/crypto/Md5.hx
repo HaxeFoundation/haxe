@@ -45,8 +45,7 @@ class Md5 {
 		#if neko
 			return haxe.io.Bytes.ofData(make_md5(b.getData()));
 		#elseif php
-			throw "Not implemented";
-			return null;
+			return haxe.io.Bytes.ofData(untyped __call__("md5", b.getData(), true));
 		#else
 			var h = new Md5().doEncode(bytes2blks(b));
 			var out = haxe.io.Bytes.alloc(16);

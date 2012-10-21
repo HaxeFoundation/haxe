@@ -281,14 +281,19 @@ class TestMisc extends Test {
 		eq( haxe.crypto.Md5.encode(""), "d41d8cd98f00b204e9800998ecf8427e" );
 		eq( haxe.crypto.Md5.encode("hello"), "5d41402abc4b2a76b9719d911017c592" );
 		// depending of ISO/UTF8 native
-		allow( haxe.crypto.Md5.encode("héllo"), ["1a722f7e6c801d9e470a10cb91ba406d","be50e8478cf24ff3595bc7307fb91b50"] );
+		allow( haxe.crypto.Md5.encode("héllo"), ["1a722f7e6c801d9e470a10cb91ba406d", "be50e8478cf24ff3595bc7307fb91b50"] );
+		
+		eq( haxe.io.Bytes.ofString("héllo").toHex(), "68c3a96c6c6f");
+		eq( haxe.crypto.Md5.make(haxe.io.Bytes.ofString("héllo")).toHex(), "be50e8478cf24ff3595bc7307fb91b50" );
 	}
 
 	function testSHA1() {
 		eq( haxe.crypto.Sha1.encode(""), "da39a3ee5e6b4b0d3255bfef95601890afd80709" );
 		eq( haxe.crypto.Sha1.encode("hello"), "aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d" );
 		// depending of ISO/UTF8 native
-		allow( haxe.crypto.Sha1.encode("héllo"), ["35b5ea45c5e41f78b46a937cc74d41dfea920890","028db752c14604d624e8b1c121d600c427b8a3ba"] );
+		allow( haxe.crypto.Sha1.encode("héllo"), ["028db752c14604d624e8b1c121d600c427b8a3ba","35b5ea45c5e41f78b46a937cc74d41dfea920890"] );
+		
+		eq( haxe.crypto.Sha1.make(haxe.io.Bytes.ofString("héllo")).toHex(), "35b5ea45c5e41f78b46a937cc74d41dfea920890" );
 	}
 	
 	function testBaseCode() {
