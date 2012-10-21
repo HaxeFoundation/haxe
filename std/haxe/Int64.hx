@@ -32,8 +32,16 @@ class Int64 {
 	var low : Int;
 
 	function new(high, low) {
-		this.high = high;
-		this.low = low;
+		this.high = i32(high);
+		this.low = i32(low);
+	}
+	
+	@:extern inline function i32(i) {
+		#if (php || js || flash8)
+		return i | 0;
+		#else
+		return i;
+		#end
 	}
 
 	#if as3 public #end function toString() {
