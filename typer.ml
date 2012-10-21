@@ -497,13 +497,12 @@ let make_call ctx e params t p =
 			| TAnon a -> (try PMap.find fname a.a_fields with Not_found -> raise Exit), (match !(a.a_status) with Statics c -> Some c | _ -> None)
 			| _ -> raise Exit
 		) in
-		if ctx.com.display || f.cf_kind <> Method MethInline then raise Exit;
+		if f.cf_kind <> Method MethInline then raise Exit;
 		let is_extern = (match cl with
 			| Some { cl_extern = true } -> true
 			| _ when has_meta ":extern" f.cf_meta -> true
 			| _ -> false
 		) in
-		if not ctx.g.doinline && not is_extern then raise Exit;
 		ignore(follow f.cf_type); (* force evaluation *)
 		let params = List.map (ctx.g.do_optimize ctx) params in
 		(match f.cf_expr with
