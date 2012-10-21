@@ -345,7 +345,7 @@ extern class JQuery implements ArrayAccess<Dom.HtmlDom> {
 	}
 
 	private static function __init__() : Void untyped {
-		#if !noEmbedJS
+		#if !embedJs
 		if( untyped __js__("typeof($) == 'undefined'") )
 			haxe.macro.Tools.includeFile("js/jquery-latest.min.js");
 		#end
