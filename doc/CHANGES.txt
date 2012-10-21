@@ -14,7 +14,7 @@
 	all : allow constructing generic type parameters
 	swf : added support for SWC files in -swf-lib
 	macro : added Context.onTypeNotFound callback for unresolved types
-	js : no JS embed as default (use -D embedJs instead)
+	js : no JS embed as default (use -D embed-js instead)
 
 2012-07-16: 2.10
 	java/cs : added two new targets (beta)
