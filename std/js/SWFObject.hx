@@ -11,7 +11,7 @@ extern class SWFObject {
 	function setAttribute( id : String, value : String ) : Void;
 
 	private static function __init__() : Void untyped {
-		#if !embedJs
+		#if embedJs
 		haxe.macro.Tools.includeFile("js/swfobject-1.5.js");
 		#end
 		js.SWFObject = deconcept.SWFObject;
