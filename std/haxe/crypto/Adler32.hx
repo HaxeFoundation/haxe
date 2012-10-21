@@ -36,6 +36,10 @@ class Adler32 {
 		a2 = 0;
 	}
 
+	public function get() {
+		return (a2 << 16) | a1;
+	}
+
 	public function update( b : haxe.io.Bytes, pos, len ) {
 		var a1 = a1, a2 = a2;
 		for( p in pos...pos + len ) {
@@ -60,6 +64,12 @@ class Adler32 {
 		a.a1 = (a1a << 8) | a1b;
 		a.a2 = (a2a << 8) | a2b;
 		return a;
+	}
+
+	public static function make( b : haxe.io.Bytes ) {
+		var a = new Adler32();
+		a.update(b,0,b.length);
+		return a.get();
 	}
 
 }

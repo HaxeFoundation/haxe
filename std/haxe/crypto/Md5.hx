@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  */
-package haxe;
+package haxe.crypto;
 
 /**
 	Creates a MD5 of a String.
@@ -35,7 +35,29 @@ class Md5 {
 		#elseif php
 			return untyped __call__("md5", s);
 		#else
-			return new Md5().doEncode(s);
+			var m = new Md5();
+			var h = m.doEncode(str2blks(s));
+			return m.hex(h);
+		#end
+	}
+
+	public static function make( b : haxe.io.Bytes ) : haxe.io.Bytes {
+		#if neko
+			return haxe.io.Bytes.ofData(make_md5(b.getData()));
+		#elseif php
+			throw "Not implemented";
+			return null;
+		#else
+			var h = new Md5().doEncode(bytes2blks(b));
+			var out = haxe.io.Bytes.alloc(16);
+			var p = 0;
+			for( i in 0...4 ) {
+				out.set(p++,h[i]&0xFF);
+				out.set(p++,(h[i]>>8)&0xFF);
+				out.set(p++,(h[i]>>16)&0xFF);
+				out.set(p++,h[i]>>>24);
+			}
+			return out;
 		#end
 	}
 
@@ -79,26 +101,55 @@ class Md5 {
 		return (msw << 16) | (lsw & 0xFFFF);
 	}
 
-	function rhex( num ){
+	function hex( a : Array<Int> ){
 		var str = "";
 		var hex_chr = "0123456789abcdef";
-		for( j in 0...4 ){
-			str += hex_chr.charAt((num >> (j * 8 + 4)) & 0x0F) +
-						 hex_chr.charAt((num >> (j * 8)) & 0x0F);
-		}
+		for( num in a )
+			for( j in 0...4 )
+				str += hex_chr.charAt((num >> (j * 8 + 4)) & 0x0F) +
+							 hex_chr.charAt((num >> (j * 8)) & 0x0F);
 		return str;
 	}
 
-	function str2blks( str : String ){
-		var nblk = ((str.length + 8) >> 6) + 1;
+	static function bytes2blks( b : haxe.io.Bytes ){
+		var nblk = ((b.length + 8) >> 6) + 1;
 		var blks = new Array();
-		
+
 		//preallocate size
 		var blksSize = nblk * 16;
 		#if (neko || cs || cpp || java)
 		blks[blksSize - 1] = 0;
 		#end
-		
+
+		#if !(cpp || cs) //C++ and C# will already initialize them with zeroes.
+		for( i in 0...blksSize ) blks[i] = 0;
+		#end
+
+		var i = 0;
+		while( i < b.length ) {
+			blks[i >> 2] |= b.get(i) << ((((b.length << 3) + i) & 3) << 3);
+			i++;
+		}
+		blks[i >> 2] |= 0x80 << (((b.length * 8 + i) % 4) * 8);
+		var l = b.length * 8;
+		var k = nblk * 16 - 2;
+		blks[k] = (l & 0xFF);
+		blks[k] |= ((l >>> 8) & 0xFF) << 8;
+		blks[k] |= ((l >>> 16) & 0xFF) << 16;
+		blks[k] |= ((l >>> 24) & 0xFF) << 24;
+		return blks;
+	}
+
+	static function str2blks( str : String ){
+		var nblk = ((str.length + 8) >> 6) + 1;
+		var blks = new Array();
+
+		//preallocate size
+		var blksSize = nblk * 16;
+		#if (neko || cs || cpp || java)
+		blks[blksSize - 1] = 0;
+		#end
+
 		#if !(cpp || cs) //C++ and C# will already initialize them with zeroes.
 		for( i in 0...blksSize ) blks[i] = 0;
 		#end
@@ -142,9 +193,8 @@ class Md5 {
 		return cmn(bitXOR(c, bitOR(b, (~d))), a, b, x, s, t);
 	}
 
-	function doEncode( str:String ) : String {
+	function doEncode( x : Array<Int> ) : Array<Int> {
 
-		var x = str2blks(str);
 		var a =  1732584193;
 		var b = -271733879;
 		var c = -1732584194;
@@ -232,7 +282,7 @@ class Md5 {
 
 			i += 16;
 		}
-		return rhex(a) + rhex(b) + rhex(c) + rhex(d);
+		return [a,b,c,d];
 	}
 
 	#end
