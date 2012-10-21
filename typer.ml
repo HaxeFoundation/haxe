@@ -1401,18 +1401,25 @@ and type_switch ctx e cases def need_val with_type p =
 	in
 	let type_case efull e pl p =
 		try
-			(match !enum, e with
+			let e = (match !enum, e with
 			| None, _ -> raise Exit
 			| Some (Some (en,params)), (EConst (Ident i),p) ->
-				if not (PMap.mem i en.e_constrs) then error ("This constructor is not part of the enum " ^ s_type_path en.e_path) p;
-			| _ -> ());
+				let ef = (try
+					PMap.find i en.e_constrs
+				with Not_found ->
+					display_error ctx ("This constructor is not part of the enum " ^ s_type_path en.e_path) p;
+					raise Exit
+				) in
+				mk (TEnumField (en,i)) (apply_params en.e_types params ef.ef_type) (snd e)
+			| _ ->
+				type_expr ctx e
+			) in
 			let pl = List.map (fun e ->
 				match fst e with
 				| EConst (Ident "_") -> None
 				| EConst (Ident i) -> Some i
 				| _ -> raise Exit
-			) pl in
-			let e = type_expr ctx e in
+			) pl in			
 			(match e.eexpr with
 			| TEnumField (en,s) | TClosure ({ eexpr = TTypeExpr (TEnumDecl en) },s) -> type_match e en s pl
 			| _ -> if pl = [] then case_expr e else raise Exit)
