@@ -150,8 +150,8 @@ package unit;
 	static function checkDone() {
 		if( asyncWaits.length != 0 ) return;
 		if( asyncCache.length == 0 ) {
-			return;
 			report("DONE ["+count+" tests]");
+			return;
 		}
 		resetTimer();
 		while( asyncCache.length > 0 && asyncWaits.length < AMAX )
