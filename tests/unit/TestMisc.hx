@@ -288,7 +288,7 @@ class TestMisc extends Test {
 		eq( haxe.crypto.Sha1.encode(""), "da39a3ee5e6b4b0d3255bfef95601890afd80709" );
 		eq( haxe.crypto.Sha1.encode("hello"), "aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d" );
 		// depending of ISO/UTF8 native
-		allow( haxe.crypto.Sha1.encode("héllo"), ["35b5ea45c5e41f78b46a937cc74d41dfea920890"] );
+		allow( haxe.crypto.Sha1.encode("héllo"), ["35b5ea45c5e41f78b46a937cc74d41dfea920890","028db752c14604d624e8b1c121d600c427b8a3ba"] );
 	}
 	
 	function testBaseCode() {
