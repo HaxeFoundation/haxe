@@ -27,46 +27,67 @@ using haxe.Int64;
 private typedef NativeInt64 = Int;
 private typedef NativeUInt64 = Int;
 
-@:nativegen class Int64 
+@:nativegen class Int64
 {
 	@:extern private static inline function asNative(i:haxe.Int64):NativeInt64 return untyped i
 	@:extern private static inline function ofNative(i:NativeInt64):haxe.Int64 return untyped i
 	@:extern private static inline function mkNative(i:Dynamic):NativeInt64 return i
-	
-	public static inline function make( high : Int32, low : Int32 ) : haxe.Int64 
+
+	#if haxe3
+
+	public static inline function make( high : Int, low : Int ) : haxe.Int64
 	{
 		return ((cast(high, NativeInt64) << 32 ) | (cast(low, NativeInt64))).ofNative();
 	}
 
-	public static inline function ofInt( x : Int ) : haxe.Int64 {
-		return cast x;
+	public static inline function getLow( x : haxe.Int64 ) : Int
+	{
+		return cast (x.asNative() & 0xFFFFFFFF.mkNative());
+	}
+
+	public static inline function getHigh( x : haxe.Int64 ) : Int32 {
+		return cast(x,NativeUInt64) >> 32;
+	}
+
+	#else
+
+	public static inline function make( high : Int32, low : Int32 ) : haxe.Int64
+	{
+		return ((cast(high, NativeInt64) << 32 ) | (cast(low, NativeInt64))).ofNative();
 	}
 
 	public static inline function ofInt32( x : Int32 ) : haxe.Int64 {
 		return cast x;
 	}
 
-	public static inline function toInt( x : haxe.Int64 ) : Int 
-	{
-		return cast x;
-	}
-
-	public static inline function getLow( x : haxe.Int64 ) : Int32 
+	public static inline function getLow( x : haxe.Int64 ) : Int32
 	{
 		return cast (x.asNative() & 0xFFFFFFFF.mkNative());
 	}
 
-	public static inline function getHigh( x : haxe.Int64 ) : Int32 
+	public static inline function getHigh( x : haxe.Int64 ) : Int32
 	{
-		return cast(cast(x,NativeUInt64) >> 32, Int32);
+		return cast(cast(x,NativeUInt64) >> 32,Int32);
 	}
 
-	public static inline function add( a : haxe.Int64, b : haxe.Int64 ) : haxe.Int64 
+
+	#end
+
+	public static inline function ofInt( x : Int ) : haxe.Int64 {
+		return cast x;
+	}
+
+	public static inline function toInt( x : haxe.Int64 ) : Int
+	{
+		return cast x;
+	}
+
+	public static inline function add( a : haxe.Int64, b : haxe.Int64 ) : haxe.Int64
 	{
 		return (a.asNative() + b.asNative()).ofNative();
 	}
 
-	public static inline function sub( a : haxe.Int64, b : haxe.Int64 ) : haxe.Int64 
+	public static inline function sub( a : haxe.Int64, b : haxe.Int64 ) : haxe.Int64
 	{
 		return (a.asNative() - b.asNative()).ofNative();
 	}
@@ -75,7 +96,7 @@ private typedef NativeUInt64 = Int;
 		return (a.asNative() * b.asNative()).ofNative();
 	}
 
-	static function divMod( modulus : haxe.Int64, divisor : haxe.Int64 ) 
+	static function divMod( modulus : haxe.Int64, divisor : haxe.Int64 )
 	{
 		var q:Int64 = (modulus.asNative() / divisor.asNative()).mkNative().ofNative();
 		var m:Int64 = (modulus.asNative() % divisor.asNative()).mkNative().ofNative();
@@ -102,37 +123,37 @@ private typedef NativeUInt64 = Int;
 		return ( cast(a, NativeUInt64) >> b).ofNative();
 	}
 
-	public static inline function and( a : haxe.Int64, b : haxe.Int64 ) : haxe.Int64 
+	public static inline function and( a : haxe.Int64, b : haxe.Int64 ) : haxe.Int64
 	{
 		return (a.asNative() & b.asNative()).ofNative();
 	}
 
-	public static inline function or( a : haxe.Int64, b : haxe.Int64 ) : haxe.Int64 
+	public static inline function or( a : haxe.Int64, b : haxe.Int64 ) : haxe.Int64
 	{
 		return (a.asNative() | b.asNative()).ofNative();
 	}
 
-	public static inline function xor( a : haxe.Int64, b : haxe.Int64 ) : haxe.Int64 
+	public static inline function xor( a : haxe.Int64, b : haxe.Int64 ) : haxe.Int64
 	{
 		return (a.asNative() ^ b.asNative()).ofNative();
 	}
 
-	public static inline function neg( a : haxe.Int64 ) : haxe.Int64 
+	public static inline function neg( a : haxe.Int64 ) : haxe.Int64
 	{
 		return (~a.asNative()).ofNative();
 	}
 
-	public static inline function isNeg( a : haxe.Int64 ) : Bool 
+	public static inline function isNeg( a : haxe.Int64 ) : Bool
 	{
 		return (a.asNative() < 0.mkNative());
 	}
 
-	public static inline function isZero( a : haxe.Int64 ) : Bool 
+	public static inline function isZero( a : haxe.Int64 ) : Bool
 	{
 		return (a.asNative() == 0.mkNative());
 	}
 
-	public static inline function compare( a : haxe.Int64, b : haxe.Int64 ) : Int 
+	public static inline function compare( a : haxe.Int64, b : haxe.Int64 ) : Int
 	{
 		return cast (a.asNative() - b.asNative());
 	}
@@ -140,7 +161,7 @@ private typedef NativeUInt64 = Int;
 	/**
 		Compare two Int64 in unsigned mode.
 	**/
-	public static function ucompare( a : haxe.Int64, b : haxe.Int64 ) : Int 
+	public static function ucompare( a : haxe.Int64, b : haxe.Int64 ) : Int
 	{
 		if (a.asNative() < 0.mkNative())
 			return (b.asNative() < 0.mkNative()) ? compare( (~a.asNative()).ofNative(), (~b.asNative()).ofNative()) : 1;
