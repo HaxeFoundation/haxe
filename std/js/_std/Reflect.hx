@@ -23,7 +23,7 @@
  * DAMAGE.
  */
 
-@:core_api class Reflect {
+@:coreApi class Reflect {
 
 	public static function hasField( o : Dynamic, field : String ) : Bool {
 		return untyped __js__('Object').prototype.hasOwnProperty.call(o, field);

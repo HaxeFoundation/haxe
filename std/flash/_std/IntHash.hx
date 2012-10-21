@@ -23,7 +23,7 @@
  * DAMAGE.
  */
 
-@:core_api class IntHash<T> {
+@:coreApi class IntHash<T> {
 
 	private var h : flash.utils.Dictionary;
 

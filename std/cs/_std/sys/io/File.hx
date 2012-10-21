@@ -27,6 +27,7 @@ package sys.io;
 /**
 	API for reading and writing to files.
 **/
+@:coreApi
 class File {
 
 	public static function getContent( path : String ) : String
@@ -36,14 +37,14 @@ class File {
 		f.close();
 		return ret;
 	}
-	
+
 	public static function saveContent( path : String, content : String ) : Void
 	{
 		var f = write(path, false);
 		f.writeString(content);
 		f.close();
 	}
-	
+
 	public static function getBytes( path : String ) : haxe.io.Bytes
 	{
 		var f = read(path, true);
@@ -51,14 +52,14 @@ class File {
 		f.close();
 		return ret;
 	}
-	
+
 	public static function saveBytes( path : String, bytes : haxe.io.Bytes ) : Void
 	{
 		var f = write(path, true);
 		f.writeBytes(bytes, 0, bytes.length);
 		f.close();
 	}
-	
+
 	public static function read( path : String, binary : Bool = true ) : FileInput
 	{
 		#if std-buffer //standardize 4kb buffers
@@ -68,7 +69,7 @@ class File {
 		#end
 		return new FileInput(stream);
 	}
-	
+
 	public static function write( path : String, binary : Bool = true ) : FileOutput
 	{
 		#if std-buffer //standardize 4kb buffers
@@ -78,7 +79,7 @@ class File {
 		#end
 		return new FileOutput(stream);
 	}
-	
+
 	public static function append( path : String, binary : Bool = true ) : FileOutput
 	{
 		#if std-buffer //standardize 4kb buffers
@@ -88,7 +89,7 @@ class File {
 		#end
 		return new FileOutput(stream);
 	}
-	
+
 	public static function copy( src : String, dst : String ) : Void
 	{
 		cs.system.io.File.Copy(src, dst);

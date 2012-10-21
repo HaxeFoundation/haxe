@@ -201,7 +201,7 @@ private class MysqlResultSet implements ResultSet {
 
 }
 
-@:core_api class Mysql {
+@:coreApi class Mysql {
 
 	public static function connect( params : {
 		host : String,

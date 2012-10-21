@@ -92,7 +92,7 @@ private class Stdout extends haxe.io.Input {
 
 }
 
-@:core_api
+@:coreApi
 class Process {
 
 	var p : Dynamic;

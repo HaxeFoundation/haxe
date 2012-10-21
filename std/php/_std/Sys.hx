@@ -23,7 +23,7 @@
  * DAMAGE.
  */
 
-@:core_api class Sys {
+@:coreApi class Sys {
 
 	public static function print( v : Dynamic ) : Void {
 		untyped __call__("echo", Std.string(v));

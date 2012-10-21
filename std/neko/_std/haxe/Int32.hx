@@ -24,7 +24,7 @@
  */
 package haxe;
 
-@:core_api class Int32 {
+@:coreApi class Int32 {
 
 	public static inline function make( a : Int, b : Int ) : Int32 {
 		return add(shl(cast a,16),cast b);

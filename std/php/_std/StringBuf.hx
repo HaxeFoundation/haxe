@@ -23,7 +23,7 @@
  * DAMAGE.
  */
 
-@:core_api class StringBuf {
+@:coreApi class StringBuf {
 	private var b : String;
 
 	public function new() : Void {

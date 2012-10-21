@@ -29,7 +29,7 @@ import java.Boot;
 	The Reflect API is a way to manipulate values dynamicly through an
 	abstract interface in an untyped manner. Use with care.
 **/
-@:keep @:core_api class Reflect {
+@:keep @:coreApi class Reflect {
 
 	/**
 		Tells if an object has a field set. This doesn't take into account the object prototype (class methods).
@@ -37,7 +37,7 @@ import java.Boot;
 	@:functionBody('
 		if (o instanceof haxe.lang.IHxObject)
 		return ((haxe.lang.IHxObject) o).__hx_getField(field, false, true, false) != haxe.lang.Runtime.undefined;
-		
+
 		return haxe.lang.Runtime.slowHasField(o, field);
 	')
 	public static function hasField( o : Dynamic, field : String ) : Bool
@@ -51,7 +51,7 @@ import java.Boot;
 	@:functionBody('
 		if (o instanceof haxe.lang.IHxObject)
 			return ((haxe.lang.IHxObject) o).__hx_getField(field, false, false, false);
-		
+
 		return haxe.lang.Runtime.slowGetField(o, field, false);
 	')
 	public static function field( o : Dynamic, field : String ) : Dynamic
@@ -71,16 +71,16 @@ import java.Boot;
 	')
 	public static function setField( o : Dynamic, field : String, value : Dynamic ) : Void
 	{
-		
+
 	}
-	
+
 	/**
 		Similar to field but also supports property (might be slower).
 	**/
 	@:functionBody('
 		if (o instanceof haxe.lang.IHxObject)
 			return ((haxe.lang.IHxObject) o).__hx_getField(field, false, false, true);
-		
+
 		return haxe.lang.Runtime.slowGetField(o, field, false);
 	')
 	public static function getProperty( o : Dynamic, field : String ) : Dynamic
@@ -99,7 +99,7 @@ import java.Boot;
 	')
 	public static function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void
 	{
-		
+
 	}
 
 	/**
@@ -159,18 +159,18 @@ import java.Boot;
 		Compare two methods closures. Returns true if it's the same method of the same instance.
 	**/
 	@:functionBody('
-		if (f1 == f2) 
+		if (f1 == f2)
 			return true;
-		
+
 		if (f1 instanceof haxe.lang.Closure && f2 instanceof haxe.lang.Closure)
 		{
 			haxe.lang.Closure f1c = (haxe.lang.Closure) f1;
 			haxe.lang.Closure f2c = (haxe.lang.Closure) f2;
-			
+
 			return haxe.lang.Runtime.refEq(f1c.obj, f2c.obj) && f1c.field.equals(f2c.field);
 		}
-		
-		
+
+
 		return false;
 	')
 	public static function compareMethods( f1 : Dynamic, f2 : Dynamic ) : Bool
@@ -220,6 +220,6 @@ import java.Boot;
 	{
 		return new VarArgsFunction(f);
 	}
-	
-	
+
+
 }

@@ -38,30 +38,30 @@ import cs.internal.Runtime;
 	TUnknown;
 }
 
-@:keep @:core_api class Type {
-	
+@:keep @:coreApi class Type {
+
 	@:functionBody('
 		if (o is haxe.lang.DynamicObject || o is System.Type)
 			return null;
-		
+
 		return o.GetType();
 	')
-	public static function getClass<T>( o : T ) : Class<T> untyped 
+	public static function getClass<T>( o : T ) : Class<T> untyped
 	{
 		return null;
 	}
-	
+
 	@:functionBody('
 		if (o is System.Enum || o is haxe.lang.Enum)
 			return o.GetType();
 		return null;
 	')
-	public static function getEnum( o : EnumValue ) : Enum<Dynamic> untyped 
+	public static function getEnum( o : EnumValue ) : Enum<Dynamic> untyped
 	{
 		return null;
 	}
 
-	public static function getSuperClass( c : Class<Dynamic> ) : Class<Dynamic> 
+	public static function getSuperClass( c : Class<Dynamic> ) : Class<Dynamic>
 	{
 		var t:cs.system.Type = Lib.toNativeType(c);
 		var base = t.BaseType;
@@ -69,7 +69,7 @@ import cs.internal.Runtime;
 		{
 			return null;
 		}
-		
+
 		return Lib.fromNativeType(base);
 	}
 
@@ -79,7 +79,7 @@ import cs.internal.Runtime;
 		if (ret.length > 10 && StringTools.startsWith(ret, "haxe.root."))
 			ret = ret.substr(10);
 #end
-		
+
 		return switch(ret)
 		{
 			case "System.Int32": "Int";
@@ -91,19 +91,19 @@ import cs.internal.Runtime;
 		}
 	}
 
-	public static function getEnumName( e : Enum<Dynamic> ) : String 
+	public static function getEnumName( e : Enum<Dynamic> ) : String
 	{
 		var ret:String = cast Lib.toNativeType(untyped e);
 #if no-root
 		if (ret.length > 10 && StringTools.startsWith(ret, "haxe.root."))
 			ret = ret.substr(10);
 #end
-		if (ret.length == 14 && ret == "System.Boolean") 
+		if (ret.length == 14 && ret == "System.Boolean")
 			return "Bool";
 		return ret;
 	}
-	
-	public static function resolveClass( name : String ) : Class<Dynamic> 
+
+	public static function resolveClass( name : String ) : Class<Dynamic>
 	{
 #if no-root
 		if (name.indexOf(".") == -1)
@@ -121,7 +121,7 @@ import cs.internal.Runtime;
 				case #if no-root "haxe.root.Dynamic" #else "Dynamic" #end: return Dynamic;
 				default: return null;
 			}
-		} else if (t.IsInterface && cast(untyped __typeof__(IGenericObject), cs.system.Type).IsAssignableFrom(t)) { 
+		} else if (t.IsInterface && cast(untyped __typeof__(IGenericObject), cs.system.Type).IsAssignableFrom(t)) {
 			t = null;
 			var i = 0;
 			var ts = "";
@@ -131,7 +131,7 @@ import cs.internal.Runtime;
 				ts += (i == 1 ? "" : ",") + "System.Object";
 				t = cs.system.Type.GetType(name + "`" + i + "[" + ts + "]");
 			}
-			
+
 			return Lib.fromNativeType(t);
 		} else {
 			return Lib.fromNativeType(t);
@@ -152,15 +152,15 @@ import cs.internal.Runtime;
 		return Runtime.callMethod(null, cast ctors, ctors.Length, args);
 	}
 
-	public static function createEmptyInstance<T>( cl : Class<T> ) : T 
+	public static function createEmptyInstance<T>( cl : Class<T> ) : T
 	{
 		if (Reflect.hasField(cl, "__hx_createEmpty"))
 			return untyped cl.__hx_createEmpty();
 		return createInstance(cl, []);
 	}
-	
+
 	@:functionBody('
-		if (@params == null) 
+		if (@params == null)
 		{
 			object ret = haxe.lang.Runtime.slowGetField(e, constr, false);
 			if (ret is haxe.lang.Function)
@@ -170,7 +170,7 @@ import cs.internal.Runtime;
 			return (T) haxe.lang.Runtime.slowCallField(e, constr, @params);
 		}
 	')
-	public static function createEnum<T>( e : Enum<T>, constr : String, ?params : Array<Dynamic> ) : T 
+	public static function createEnum<T>( e : Enum<T>, constr : String, ?params : Array<Dynamic> ) : T
 	{
 		return null;
 	}
@@ -179,13 +179,13 @@ import cs.internal.Runtime;
 		var constr = getEnumConstructs(e);
 		return createEnum(e, constr[index], params);
 	}
-	
+
 	@:functionBody('
 		if (c == typeof(string))
 		{
 			return haxe.lang.StringRefl.fields;
 		}
-		
+
 		Array<object> ret = new Array<object>();
 
         System.Reflection.MemberInfo[] mis = c.GetMembers(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.DeclaredOnly | System.Reflection.BindingFlags.Instance);
@@ -203,10 +203,10 @@ import cs.internal.Runtime;
 	public static function getInstanceFields( c : Class<Dynamic> ) : Array<String> {
 		return null;
 	}
-	
+
 	@:functionBody('
 		Array<object> ret = new Array<object>();
-		
+
 		if (c == typeof(string))
 		{
 			ret.push("fromCharCode");
@@ -232,7 +232,7 @@ import cs.internal.Runtime;
 			return untyped e.constructs;
 		return untyped __cs__("new Array<object>(System.Enum.GetNames(e))");
 	}
-	
+
 	@:functionBody('
 		if (v == null) return ValueType.TNull;
 
@@ -244,7 +244,7 @@ import cs.internal.Runtime;
         }
 
         t = v.GetType();
-        if (t.IsEnum) 
+        if (t.IsEnum)
             return ValueType.TEnum(t);
         if (t.IsValueType)
         {
@@ -283,22 +283,22 @@ import cs.internal.Runtime;
             return ValueType.TClass(t);
         }
 	')
-	public static function typeof( v : Dynamic ) : ValueType 
+	public static function typeof( v : Dynamic ) : ValueType
 	{
 		return null;
 	}
-	
+
 	@:functionBody('
 			if (a is haxe.lang.Enum)
 				return a.Equals(b);
 			else
 				return haxe.lang.Runtime.eq(a, b);
 	')
-	public static function enumEq<T>( a : T, b : T ) : Bool 
+	public static function enumEq<T>( a : T, b : T ) : Bool
 	{
 		return untyped a.Equals(b);
 	}
-	
+
 	@:functionBody('
 		if (e is System.Enum)
 			return e + "";
@@ -309,7 +309,7 @@ import cs.internal.Runtime;
 	{
 		return e.tag;
 	}
-	
+
 	@:functionBody('
 		return ( e is System.Enum ) ? new Array<object>() : ((haxe.lang.Enum) e).@params;
 	')
@@ -317,7 +317,7 @@ import cs.internal.Runtime;
 	{
 		return null;
 	}
-	
+
 	@:functionBody('
 		if (e is System.Enum)
 			return ((System.IConvertible) e).ToInt32(null);
@@ -329,7 +329,7 @@ import cs.internal.Runtime;
 		return e.index;
 	}
 
-	public static function allEnums<T>( e : Enum<T> ) : Array<T> 
+	public static function allEnums<T>( e : Enum<T> ) : Array<T>
 	{
 		var ctors = getEnumConstructs(e);
 		var ret = [];

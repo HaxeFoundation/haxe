@@ -28,7 +28,7 @@ import cs.internal.Function;
 	The Reflect API is a way to manipulate values dynamicly through an
 	abstract interface in an untyped manner. Use with care.
 **/
-@:keep @:core_api class Reflect {
+@:keep @:coreApi class Reflect {
 
 	/**
 		Tells if an object has a field set. This doesn't take into account the object prototype (class methods).
@@ -36,7 +36,7 @@ import cs.internal.Function;
 	@:functionBody('
 		if (o is haxe.lang.IHxObject)
 			return ((haxe.lang.IHxObject) o).__hx_getField(field, haxe.lang.FieldLookup.hash(field), false, true, false) != haxe.lang.Runtime.undefined;
-		
+
 		return haxe.lang.Runtime.slowHasField(o, field);
 	')
 	public static function hasField( o : Dynamic, field : String ) : Bool
@@ -50,7 +50,7 @@ import cs.internal.Function;
 	@:functionBody('
 		if (o is haxe.lang.IHxObject)
 			return ((haxe.lang.IHxObject) o).__hx_getField(field, haxe.lang.FieldLookup.hash(field), false, false, false);
-		
+
 		return haxe.lang.Runtime.slowGetField(o, field, false);
 	')
 	public static function field( o : Dynamic, field : String ) : Dynamic
@@ -70,16 +70,16 @@ import cs.internal.Function;
 	')
 	public static function setField( o : Dynamic, field : String, value : Dynamic ) : Void
 	{
-		
+
 	}
-	
+
 	/**
 		Similar to field but also supports property (might be slower).
 	**/
 	@:functionBody('
 		if (o is haxe.lang.IHxObject)
 			return ((haxe.lang.IHxObject) o).__hx_getField(field, haxe.lang.FieldLookup.hash(field), false, false, true);
-		
+
 		return haxe.lang.Runtime.slowGetField(o, field, false);
 	')
 	public static function getProperty( o : Dynamic, field : String ) : Dynamic
@@ -98,7 +98,7 @@ import cs.internal.Function;
 	')
 	public static function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void
 	{
-		
+
 	}
 
 	/**
@@ -158,17 +158,17 @@ import cs.internal.Function;
 		Compare two methods closures. Returns true if it's the same method of the same instance.
 	**/
 	@:functionBody('
-		if (f1 == f2) 
+		if (f1 == f2)
 			return true;
-		
+
 		if (f1 is haxe.lang.Closure && f2 is haxe.lang.Closure)
 		{
 			haxe.lang.Closure f1c = (haxe.lang.Closure) f1;
 			haxe.lang.Closure f2c = (haxe.lang.Closure) f2;
-			
+
 			return haxe.lang.Runtime.refEq(f1c.obj, f2c.obj) && f1c.field.Equals(f2c.field);
 		}
-		
+
 		return false;
 	')
 	public static function compareMethods( f1 : Dynamic, f2 : Dynamic ) : Bool

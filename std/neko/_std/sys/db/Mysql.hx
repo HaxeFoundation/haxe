@@ -186,7 +186,7 @@ private class MysqlConnection implements sys.db.Connection {
 	private static var __use_date = Date;
 }
 
-@:core_api class Mysql {
+@:coreApi class Mysql {
 
 	public static function connect( params : {
 		host : String,

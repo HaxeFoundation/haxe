@@ -30,7 +30,7 @@ private enum FileKind {
 	kother( k : String );
 }
 
-@:core_api
+@:coreApi
 class FileSystem {
 
 	public static function exists( path : String ) : Bool {

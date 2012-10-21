@@ -35,7 +35,7 @@ enum ValueType {
 	TUnknown;
 }
 
-@:core_api class Type {
+@:coreApi class Type {
 
 	public static function getClass<T>( o : T ) : Class<T> untyped {
 		if( __dollar__typeof(o) != __dollar__tobject )

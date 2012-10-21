@@ -25,7 +25,7 @@
 package sys.io;
 import sys.io.FileSeek;
 
-@:core_api
+@:coreApi
 class FileInput extends haxe.io.Input {
 
 	private var __f : Dynamic;

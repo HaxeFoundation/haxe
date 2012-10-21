@@ -23,7 +23,7 @@
  * DAMAGE.
  */
 
-@:core_api @:final class Date
+@:coreApi @:final class Date
 {
 	private var __t : Float;
 

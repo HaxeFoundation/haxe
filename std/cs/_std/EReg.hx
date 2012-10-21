@@ -25,13 +25,13 @@
 
 import cs.system.text.regularExpressions.Regex;
 
-@:core_api class EReg {
+@:coreApi class EReg {
 
 	private var regex : Regex;
 	private var m : Match;
 	private var isGlobal : Bool;
 	private var cur : String;
-	
+
 	public function new( r : String, opt : String ) : Void {
 		var opts:Int = cast CultureInvariant;
 		for (i in 0...opt.length) untyped {
@@ -47,7 +47,7 @@ import cs.system.text.regularExpressions.Regex;
 					opts |= cast(Compiled, Int);
 			}
 		}
-		
+
 		this.regex = new Regex(r, cast(opts, RegexOptions));
 	}
 

@@ -25,7 +25,7 @@
  */
 package sys.net;
 
-@:core_api
+@:coreApi
 class Host {
 
 	private var _ip : String;

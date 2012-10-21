@@ -23,7 +23,7 @@
  * DAMAGE.
  */
 
-@:core_api extern class String {
+@:coreApi extern class String {
 	var length(default,null) : Int;
 
 	function new(string:String) : Void;

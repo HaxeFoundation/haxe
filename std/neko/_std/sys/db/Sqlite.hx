@@ -193,7 +193,7 @@ private class SqliteResultSet implements ResultSet {
 
 }
 
-@:core_api class Sqlite {
+@:coreApi class Sqlite {
 
 	public static function open( file : String ) : Connection {
 		return new SqliteConnection(file);

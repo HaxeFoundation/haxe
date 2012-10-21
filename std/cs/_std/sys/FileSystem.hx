@@ -31,6 +31,7 @@ import cs.system.io.FileInfo;
 /**
 	This class allows you to get informations about the files and directories.
 **/
+@:coreApi
 class FileSystem {
 
 	/**
@@ -88,7 +89,7 @@ class FileSystem {
 		} else {
 			throw "Path '" + path + "' doesn't exist";
 		}
-		
+
 	}
 
 	/**
@@ -125,7 +126,7 @@ class FileSystem {
 	{
 		File.Delete(path);
 	}
-	
+
 	/**
 		Delete a given directory.
 	**/
@@ -152,7 +153,7 @@ class FileSystem {
 				ret[i] = path.substr(path.lastIndexOf(sep) + 1);
 			}
 		}
-		
+
 		return cs.Lib.array( ret );
 	}
 

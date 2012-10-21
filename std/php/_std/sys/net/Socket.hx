@@ -27,7 +27,7 @@ package sys.net;
 
 import sys.io.File;
 
-@:core_api
+@:coreApi
 class Socket {
 
 	private var __s : FileHandle;

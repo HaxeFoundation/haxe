@@ -24,7 +24,7 @@
  */
 package sys.io;
 
-@:core_api class FileInput extends haxe.io.Input {
+@:coreApi class FileInput extends haxe.io.Input {
 
 	private var __f : File.FileHandle;
 

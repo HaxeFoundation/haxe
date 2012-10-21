@@ -23,7 +23,7 @@
  * DAMAGE.
  */
 
-@:core_api @:final class String {
+@:coreApi @:final class String {
 
 	static var __is_String;
 	private static var __split : Dynamic = neko.Lib.load("std","string_split",2);
@@ -135,19 +135,19 @@
 		} else if ( endIndex > length ) {
 			endIndex = length;
 		}
-		
+
 		if ( startIndex < 0 ) {
 			startIndex = 0;
 		} else if ( startIndex > length ) {
 			startIndex = length;
 		}
-		
+
 		if ( startIndex > endIndex ) {
 			var tmp = startIndex;
 			startIndex = endIndex;
 			endIndex = tmp;
 		}
-		
+
 		return substr( startIndex, endIndex - startIndex );
 	}
 

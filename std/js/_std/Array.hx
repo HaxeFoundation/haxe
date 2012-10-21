@@ -23,7 +23,7 @@
  * DAMAGE.
  */
 
-@:core_api
+@:coreApi
 extern class Array<T> {
 
 	var length(default,null) : Int;

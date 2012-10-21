@@ -24,7 +24,7 @@
  */
 package haxe;
 
-@:core_api
+@:coreApi
 class Resource {
 
 	public static function listNames() : Array<String> {

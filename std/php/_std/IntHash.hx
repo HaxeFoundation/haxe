@@ -23,7 +23,7 @@
  * DAMAGE.
  */
 
-@:core_api class IntHash<T> implements php.IteratorAggregate<T> {
+@:coreApi class IntHash<T> implements php.IteratorAggregate<T> {
 	private var h : ArrayAccess<Int>;
 	public function new() : Void {
 		h = untyped __call__('array');
@@ -72,7 +72,7 @@
 		}
 		return s + "}";
 	}
-	
+
 	/**
 		Implement IteratorAggregate for native php iteration
 	**/

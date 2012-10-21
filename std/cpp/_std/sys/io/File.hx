@@ -24,7 +24,7 @@
  */
 package sys.io;
 
-@:core_api
+@:coreApi
 class File {
 
 	public static function getContent( path : String ) : String {

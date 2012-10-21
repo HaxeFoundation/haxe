@@ -25,9 +25,9 @@
 import java.Boot;
 import java.Lib;
 import java.internal.Exceptions;
- 
-@:core_api @:nativegen class Std {
-	public static function is( v : Dynamic, t : Dynamic ) : Bool 
+
+@:coreApi @:nativegen class Std {
+	public static function is( v : Dynamic, t : Dynamic ) : Bool
 	{
 		if (v == null)
 			return t == Dynamic;
@@ -37,7 +37,7 @@ import java.internal.Exceptions;
 		if (clt == null)
 			return false;
 		var name:String = untyped __java__("clt.getName()");
-		
+
 		switch(name)
 		{
 			case "double", "java.lang.Double":
@@ -49,9 +49,9 @@ import java.internal.Exceptions;
 			case "java.lang.Object":
 				return true;
 		}
-		
+
 		var clv:Class<Dynamic> = untyped __java__('v.getClass()');
-		
+
 		return untyped clt.isAssignableFrom(clv);
 	}
 
@@ -62,15 +62,15 @@ import java.internal.Exceptions;
 	public static inline function int( x : Float ) : Int {
 		return cast x;
 	}
-	
+
 	@:functionBody('
 		if (x == null) return null;
-		
+
 		int ret = 0;
 		int base = 10;
 		int i = 0;
 		int len = x.length();
-		
+
 		if (x.startsWith("0") && len > 2)
 		{
 			char c = x.charAt(1);
@@ -80,28 +80,28 @@ import java.internal.Exceptions;
 				base = 16;
 			}
 		}
-		
+
 		boolean foundAny = false;
 		boolean isNeg = false;
 		for (; i < len; i++)
 		{
 			char c = x.charAt(i);
-			if (!foundAny) 
+			if (!foundAny)
 			{
 				switch(c)
 				{
 					case \'-\':
 						isNeg = true;
 						continue;
-					case \'\\n\': 
-					case \'\\t\': 
-					case \'\\r\': 
-					case \' \': 
+					case \'\\n\':
+					case \'\\t\':
+					case \'\\r\':
+					case \' \':
 						if (isNeg) return null;
 						continue;
 				}
 			}
-			
+
 			if (c >= \'0\' && c <= \'9\')
 			{
 				if (!foundAny && c == \'0\')
@@ -110,7 +110,7 @@ import java.internal.Exceptions;
 					continue;
 				}
 				ret *= base; foundAny = true;
-				
+
 				ret += ((int) (c - \'0\'));
 			} else if (base == 16) {
 				if (c >= \'a\' && c <= \'f\') {
@@ -126,7 +126,7 @@ import java.internal.Exceptions;
 				break;
 			}
 		}
-		
+
 		if (foundAny)
 			return isNeg ? -ret : ret;
 		else
@@ -135,45 +135,45 @@ import java.internal.Exceptions;
 	public static function parseInt( x : String ) : Null<Int> {
 		return null;
 	}
-	
+
 	@:functionBody('
 		if (x == null) return java.lang.Double.NaN;
-		
+
 		x = x.trim();
 		double ret = 0.0;
 		double div = 0.0;
 		double e = 0.0;
-		
+
 		int len = x.length();
 		boolean foundAny = false;
 		boolean isNeg = false;
 		for (int i = 0; i < len; i++)
 		{
 			char c = x.charAt(i);
-			if (!foundAny) 
+			if (!foundAny)
 			{
 				switch(c)
 				{
 					case \'-\':
 						isNeg = true;
 						continue;
-					case \'\\n\': 
-					case \'\\t\': 
-					case \'\\r\': 
-					case \' \': 
+					case \'\\n\':
+					case \'\\t\':
+					case \'\\r\':
+					case \' \':
 					if (isNeg) return java.lang.Double.NaN;
 						continue;
 				}
 			}
-			
+
 			if (c == \'.\') {
-				if (div != 0.0) 
+				if (div != 0.0)
 					break;
 				div = 1.0;
-				
+
 				continue;
 			}
-			
+
 			if (c >= \'0\' && c <= \'9\')
 			{
 				if (!foundAny && c == \'0\')
@@ -182,12 +182,12 @@ import java.internal.Exceptions;
 					continue;
 				}
 				ret *= 10.0; foundAny = true; div *= 10.0;
-				
+
 				ret += ((int) (c - \'0\'));
 			} else if (foundAny && c == \'E\' || c == \'e\') {
 				boolean eNeg = false;
 				boolean eFoundAny = false;
-				
+
 				char next = x.charAt(i + 1);
 				if (i + 1 < len)
 				{
@@ -199,7 +199,7 @@ import java.internal.Exceptions;
 						i++;
 					}
 				}
-				
+
 				while (++i < len)
 				{
 					c = x.charAt(i);
@@ -214,15 +214,15 @@ import java.internal.Exceptions;
 						break;
 					}
 				}
-				
+
 				if (eNeg) e = -e;
 			} else {
 				break;
 			}
 		}
-		
+
 		if (div == 0.0) div = 1.0;
-		
+
 		if (foundAny)
 		{
 			ret = isNeg ? -(ret / div) : (ret / div);
@@ -250,4 +250,3 @@ import java.internal.Exceptions;
 	}
 
 }
-	

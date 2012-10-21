@@ -23,7 +23,7 @@
  * DAMAGE.
  */
 
-@:core_api class Std {
+@:coreApi class Std {
 
 	@:feature("typed_cast")
 	public static function is( v : Dynamic, t : Dynamic ) : Bool {

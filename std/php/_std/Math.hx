@@ -23,7 +23,7 @@
  * DAMAGE.
  */
 
-@:core_api class Math
+@:coreApi class Math
 {
 	public static var PI(default,null) : Float;
 	public static var NaN(default,null) : Float;

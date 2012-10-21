@@ -27,14 +27,15 @@ import haxe.io.BytesInput;
 import cs.system.io.StreamReader;
 import cs.system.io.StreamWriter;
 
+@:coreApi
 class Process {
 
 	public var stdout(default,null) : haxe.io.Input;
 	public var stderr(default,null) : haxe.io.Input;
 	public var stdin(default, null) : haxe.io.Output;
-	
+
 	private var native:NativeProcess;
-	
+
 
 	public function new( cmd : String, args : Array<String> ) : Void
 	{
@@ -50,30 +51,30 @@ class Process {
 		native.StartInfo.Arguments = buf.toString();
 		native.StartInfo.RedirectStandardError = native.StartInfo.RedirectStandardInput = native.StartInfo.RedirectStandardOutput = true;
 		native.StartInfo.UseShellExecute = false;
-		
+
 		native.Start();
-		
+
 		this.stdout = new cs.io.NativeInput(native.StandardOutput.BaseStream);
 		this.stderr = new cs.io.NativeInput(native.StandardError.BaseStream);
 		this.stdin = new cs.io.NativeOutput(native.StandardInput.BaseStream);
 	}
-	
+
 	public function getPid() : Int
 	{
 		return native.Id;
 	}
-	
+
 	public function exitCode() : Int
 	{
 		native.WaitForExit();
 		return native.ExitCode;
 	}
-	
+
 	public function close() : Void
 	{
 		native.Close();
 	}
-	
+
 	public function kill() : Void
 	{
 		native.Kill();
@@ -92,7 +93,7 @@ FIXME: The actual process class is much more complex than this, so here it is in
 	var StandardError(default, null):StreamReader;
 	var StandardInput(default, null):StreamWriter;
 	var StandardOutput(default, null):StreamReader;
-	
+
 	function new():Void;
 	function Close():Void;
 	function Kill():Void;
@@ -109,5 +110,5 @@ FIXME: The actual process class is much more complex than this, so here it is in
 	var RedirectStandardOutput:Bool;
 	var UseShellExecute:Bool;
 	function new(filename:String, args:String):Void;
-	
+
 }

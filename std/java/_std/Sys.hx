@@ -28,11 +28,11 @@ import sys.io.Process;
 /**
 	This class gives you access to many base functionalities of system platforms. Looks in [sys] sub packages for more system APIs.
 **/
-@:core_api class Sys {
+@:coreApi class Sys {
 	private static var _args:java.NativeArray<String>;
 	private static var _env:Hash<String>;
 	private static var _sysName:String;
-	
+
 	/**
 		Print any value on the standard output.
 	**/
@@ -89,7 +89,7 @@ import sys.io.Process;
 		{
 			_env.set(mv.getKey(), mv.getValue());
 		}
-		
+
 		return _env;
 	}
 
@@ -100,7 +100,7 @@ import sys.io.Process;
 	{
 		try
 			java.lang.Thread.sleep(cast seconds * 1000)
-		catch (e:Dynamic) 
+		catch (e:Dynamic)
 			throw e;
 	}
 
@@ -146,7 +146,7 @@ import sys.io.Process;
 			return _sysName = "Linux";
 		if (sname.indexOf("nix") >= 0)
 			return _sysName = "BSD";
-		
+
 		return _sysName = System.getProperty("os.name");
 	}
 
@@ -160,7 +160,7 @@ import sys.io.Process;
 		var proc:Process = new Process(cmd, args == null ? [] : args);
 		var ret = proc.exitCode();
 		proc.close();
-		
+
 		return ret;
 	}
 

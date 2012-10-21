@@ -30,7 +30,7 @@ enum FileHandle {
 /**
 	API for reading and writing to files.
 **/
-@:core_api class File {
+@:coreApi class File {
 
 	public static function getContent( path : String ) : String {
 		return new String(file_contents(untyped path.__s));

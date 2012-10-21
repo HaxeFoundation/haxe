@@ -26,14 +26,15 @@ package haxe;
 using haxe.Int64;
 private typedef NativeInt64 = Int;
 
+@:coreApi
 @:nativegen class Int64
 {
 	@:extern private static inline function asNative(i:haxe.Int64):NativeInt64 return untyped i
 	@:extern private static inline function ofNative(i:NativeInt64):haxe.Int64 return untyped i
 	@:extern private static inline function mkNative(i:Dynamic):NativeInt64 return i
-	
+
 	#if haxe3
-	
+
 	public static inline function make( high : Int, low : Int ) : haxe.Int64
 	{
 		return ((cast(high, NativeInt64) << 32 ) | (cast(low, NativeInt64))).ofNative();
@@ -48,9 +49,9 @@ private typedef NativeInt64 = Int;
 	{
 		return cast(x,NativeInt64) >>> 32;
 	}
-	
+
 	#else
-	
+
 	public static inline function make( high : Int32, low : Int32 ) : haxe.Int64
 	{
 		return ((cast(high, NativeInt64) << 32 ) | (cast(low, NativeInt64))).ofNative();
@@ -59,7 +60,7 @@ private typedef NativeInt64 = Int;
 	public static inline function ofInt32( x : Int32 ) : haxe.Int64 {
 		return cast x;
 	}
-	
+
 	public static inline function getLow( x : haxe.Int64 ) : Int32
 	{
 		return cast (x.asNative() & 0xFFFFFFFF.mkNative());

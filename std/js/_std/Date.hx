@@ -23,7 +23,7 @@
  * DAMAGE.
  */
 
-@:core_api extern class Date {
+@:coreApi extern class Date {
 
 	function new(year : Int, month : Int, day : Int, hour : Int, min : Int, sec : Int ) : Void;
 	function getTime() : Float;

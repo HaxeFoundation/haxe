@@ -29,7 +29,7 @@ import flash.xml.XMLList;
 enum XmlType {
 }
 
-@:core_api class Xml {
+@:coreApi class Xml {
 
 	public static var Element(default,null) : XmlType;
 	public static var PCData(default,null) : XmlType;
@@ -67,7 +67,7 @@ enum XmlType {
 		}
 		return wrap( root, Xml.Document );
 	}
-	
+
 	@:keep #if as3 @:hack public #end static function compare( a : Xml, b : Xml ) : Bool {
 		return a == null ? b == null : (b == null ? false : a._node == b._node);
 	}
@@ -285,7 +285,7 @@ enum XmlType {
 
 	public function iterator() : Iterator<Xml> {
 		if( nodeType != Xml.Element && nodeType != Xml.Document )
-			throw "bad nodeType";		
+			throw "bad nodeType";
 		var children:XMLList = _node.children();
 		var wrappers :Array<Xml> = wraps(children);
 		var cur = 0;
@@ -301,7 +301,7 @@ enum XmlType {
 
 	public function elements() : Iterator<Xml> {
 		if( nodeType != Xml.Element && nodeType != Xml.Document )
-			throw "bad nodeType";		
+			throw "bad nodeType";
 		var elements:XMLList = _node.elements();
 		var wrappers :Array<Xml> = wraps(elements);
 		var cur = 0;
@@ -317,7 +317,7 @@ enum XmlType {
 
 	public function elementsNamed( name : String ) : Iterator<Xml> {
 		if( nodeType != Xml.Element && nodeType != Xml.Document )
-			throw "bad nodeType";	
+			throw "bad nodeType";
 		var ns = name.split(":");
 		var elements:XMLList;
 		if( ns.length == 1 )
@@ -360,14 +360,14 @@ enum XmlType {
 
 	public function addChild( x : Xml ) : Void {
 		if( nodeType != Xml.Element && nodeType != Xml.Document )
-			throw "bad nodeType";		
+			throw "bad nodeType";
 		var children:XMLList = _node.children();
 		_node.appendChild(x._node);
 	}
 
 	public function removeChild( x : Xml ) : Bool {
 		if( nodeType != Xml.Element && nodeType != Xml.Document )
-			throw "bad nodeType";		
+			throw "bad nodeType";
 		var children:XMLList = _node.children();
 		if( _node != x._node.parent() )
 			return false;

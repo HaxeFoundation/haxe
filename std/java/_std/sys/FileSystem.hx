@@ -29,6 +29,7 @@ import java.Lib;
 /**
 	This class allows you to get informations about the files and directories.
 **/
+@:coreApi
 class FileSystem {
 
 	/**
@@ -109,7 +110,7 @@ class FileSystem {
 		if (!new File(path).delete())
 			throw "Cannot delete file " + path;
 	}
-	
+
 	/**
 		Delete a given directory.
 	**/

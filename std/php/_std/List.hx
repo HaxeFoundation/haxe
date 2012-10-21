@@ -23,7 +23,7 @@
  * DAMAGE.
  */
 
-@:core_api class List<T> implements php.IteratorAggregate<T> {
+@:coreApi class List<T> implements php.IteratorAggregate<T> {
 
 	private var h : ArrayAccess<Dynamic>;
 	private var q : ArrayAccess<Dynamic>;

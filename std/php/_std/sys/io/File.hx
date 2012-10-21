@@ -27,7 +27,7 @@ package sys.io;
 enum FileHandle {
 }
 
-@:core_api class File {
+@:coreApi class File {
 
 	public static function getContent( path : String ) : String {
 		return untyped __call__("file_get_contents", path);

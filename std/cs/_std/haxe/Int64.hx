@@ -27,6 +27,7 @@ using haxe.Int64;
 private typedef NativeInt64 = Int;
 private typedef NativeUInt64 = Int;
 
+@:coreApi
 @:nativegen class Int64
 {
 	@:extern private static inline function asNative(i:haxe.Int64):NativeInt64 return untyped i

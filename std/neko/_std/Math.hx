@@ -24,7 +24,7 @@
  */
 import neko.Lib;
 
-@:core_api @:final class Math {
+@:coreApi @:final class Math {
 
 	public static var PI(default,null) : Float;
 	public static var NaN(default,null) : Float;

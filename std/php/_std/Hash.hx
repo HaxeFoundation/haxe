@@ -23,7 +23,7 @@
  * DAMAGE.
  */
 
-@:core_api class Hash<T> implements php.IteratorAggregate<T> {
+@:coreApi class Hash<T> implements php.IteratorAggregate<T> {
 	private var h : ArrayAccess<T>;
 
 	public function new() : Void {
@@ -73,7 +73,7 @@
 		}
 		return s + "}";
 	}
-	
+
 	/**
 		Implement IteratorAggregate for native php iteration
 	**/

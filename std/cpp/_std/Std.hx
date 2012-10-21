@@ -23,7 +23,7 @@
  * DAMAGE.
  */
 
-@:core_api class Std {
+@:coreApi class Std {
 	public static function is( v : Dynamic, t : Dynamic ) : Bool {
 		return untyped __global__.__instanceof(v,t);
 	}

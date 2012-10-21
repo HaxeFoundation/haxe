@@ -26,6 +26,7 @@
 /**
 	This class defines mathematical functions and constants.
 **/
+@:coreApi
 @:native("java.lang.Math") extern class Math
 {
 	static var PI(default,null) : Float;

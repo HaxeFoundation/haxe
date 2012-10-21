@@ -25,6 +25,7 @@
 package haxe;
 
 #if as3
+@:coreApi
 class Resource {
 	public static function listNames() : Array<String> untyped {
 		return __keys__(__resources__.list);
@@ -39,18 +40,19 @@ class Resource {
 		var b = resolve(name);
 		return b == null ? null : haxe.io.Bytes.ofData(b);
 	}
-	
+
 	static function resolve( name : String) :flash.utils.ByteArray untyped {
 		var n = __resources__.list[name];
 		if (n == null) return null;
 		return untyped __new__(n);
 	}
-	
+
 	static function __init__() {
 		untyped __resources__.__init__();
-	}	
+	}
 }
 #else
+@:coreApi
 class Resource {
 
 	static var content : Array<{ name : String }>;

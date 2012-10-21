@@ -23,7 +23,7 @@
  * DAMAGE.
  */
 
-@:core_api @:final class Array<T> {
+@:coreApi @:final class Array<T> {
 
 	private var __a : neko.NativeArray<T>;
 	public var length(default,null) : Int;

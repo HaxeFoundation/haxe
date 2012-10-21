@@ -29,13 +29,14 @@ import java.util.regex.Regex;
 	Strings. Have a look at the tutorial on haXe website to learn
 	how to use them.
 **/
+@:coreApi
 class EReg {
 
 	private var pattern:String;
 	private var matcher:Matcher;
 	private var cur:String;
 	private var isGlobal:Bool;
-	
+
 	/**
 		Creates a new regular expression with pattern [r] and
 		options [opt].
@@ -56,11 +57,11 @@ class EReg {
 					isGlobal = true;
 			}
 		}
-		
+
 		matcher = Pattern.compile(convert(r), flags).matcher("");
 		pattern = r;
 	}
-	
+
 	private static function convert(r:String):String
 	{
 		//some references of the implementation:
@@ -82,7 +83,7 @@ class EReg {
 			switch(c)
 			{
 				case '\\'.code: //escape-sequence
-					
+
 			}
 		}
 		*/
@@ -104,7 +105,7 @@ class EReg {
 		is no such group. If [n = 0], the whole matched substring
 		is returned.
 	**/
-	public function matched( n : Int ) : String 
+	public function matched( n : Int ) : String
 	{
 		if (n == 0)
 			return matcher.group();
@@ -116,7 +117,7 @@ class EReg {
 		Returns the part of the string that was as the left of
 		of the matched substring.
 	**/
-	public function matchedLeft() : String 
+	public function matchedLeft() : String
 	{
 		return untyped cur.substring(0, matcher.start());
 	}
@@ -125,7 +126,7 @@ class EReg {
 		Returns the part of the string that was at the right of
 		of the matched substring.
 	**/
-	public function matchedRight() : String 
+	public function matchedRight() : String
 	{
 		return untyped cur.substring(matcher.end(), cur.length);
 	}
@@ -143,7 +144,7 @@ class EReg {
 		Split a string by using the regular expression to match
 		the separators.
 	**/
-	public function split( s : String ) : Array<String> 
+	public function split( s : String ) : Array<String>
 	{
 		if (isGlobal)
 		{

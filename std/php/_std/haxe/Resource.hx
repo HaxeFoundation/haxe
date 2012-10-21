@@ -24,7 +24,7 @@
  */
 package haxe;
 
-@:core_api
+@:coreApi
 class Resource {
 
 	static function cleanName(name : String) : String {

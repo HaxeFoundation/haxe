@@ -25,7 +25,7 @@
  */
 package sys.net;
 
-@:core_api
+@:coreApi
 class Host {
 
 	public var ip(default,null) : Int;

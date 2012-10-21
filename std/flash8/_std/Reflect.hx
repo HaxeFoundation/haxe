@@ -23,7 +23,7 @@
  * DAMAGE.
  */
 
-@:core_api class Reflect {
+@:coreApi class Reflect {
 
 	public inline static function hasField( o : Dynamic, field : String ) : Bool untyped {
 		return __this__["hasOwnProperty"]["call"](o,field);
@@ -46,7 +46,7 @@
 		} while (c != null);
 		return null;
 	}
-	
+
 	public static function getProperty( o : Dynamic, field : String ) : Dynamic untyped {
 		var getter = findAccessor( Std.is(o,Class) ? o : o.__class__, "get_" +field);
 		return if (getter != null)
@@ -60,7 +60,7 @@
 		return if (setter != null)
 			o[setter]["apply"](o, [value]);
 		else
-			Reflect.setField(o, field, value);	
+			Reflect.setField(o, field, value);
 	}
 
 	public inline static function callMethod( o : Dynamic, func : Dynamic, args : Array<Dynamic> ) : Dynamic untyped {

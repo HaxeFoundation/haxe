@@ -2,10 +2,10 @@ package;
 import haxe.Int64;
 
 @:SuppressWarnings("deprecation")
-@:core_api class Date 
+@:coreApi class Date
 {
 	private var date:java.util.Date;
-	
+
 	/**
 		Creates a new date object.
 	**/
@@ -128,7 +128,7 @@ import haxe.Int64;
 	**/
 	static public function fromString( s : String ) : Date
 	{
-		switch( s.length ) 
+		switch( s.length )
 		{
 			case 8: // hh:mm:ss
 				var k = s.split(":");

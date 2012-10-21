@@ -1002,7 +1002,7 @@ let init_class ctx c p context_init herits fields =
 		| _ -> error "Class build macro must return a single variable with anonymous fields" p
 	);
 	let fields = !fields in
-	let core_api = has_meta ":core_api" c.cl_meta in
+	let core_api = has_meta ":coreApi" c.cl_meta in
 	let is_macro = has_meta ":macro" c.cl_meta in
 	let fields, herits = if is_macro && not ctx.in_macro then begin
 		c.cl_extern <- true;

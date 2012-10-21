@@ -23,7 +23,7 @@
  * DAMAGE.
  */
 
-@:core_api class Reflect {
+@:coreApi class Reflect {
 
 	public static function hasField( o : Dynamic, field : String ) : Bool untyped {
 		return $typeof(o) == $tobject && $objfield(o,$fasthash(field.__s));

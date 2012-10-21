@@ -32,7 +32,7 @@ import cs.NativeArray;
  * Thanks also to Jonas Malaco Filho for his Haxe-written IntHash code inspired by Python tables.
  * (https://jonasmalaco.com/fossil/test/jonas-haxe/artifact/887b53126e237d6c68951111d594033403889304)
  */
-@:core_api class IntHash<T>
+@:coreApi class IntHash<T>
 {
 	private static inline var HASH_UPPER = 0.7;
 

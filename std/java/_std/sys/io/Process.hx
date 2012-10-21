@@ -29,12 +29,13 @@ import haxe.io.Eof;
 import java.io.Exceptions;
 import java.NativeArray;
 
+@:coreApi
 class Process {
 
 	public var stdout(default,null) : haxe.io.Input;
 	public var stderr(default,null) : haxe.io.Input;
 	public var stdin(default, null) : haxe.io.Output;
-	
+
 	private var proc:java.lang.Process;
 
 	public function new( cmd : String, args : Array<String> ) : Void
@@ -45,26 +46,26 @@ class Process {
 		{
 			pargs[i + 1] = args[i];
 		}
-		
+
 		try
 		{
 			proc = new java.lang.ProcessBuilder(pargs).start();
 		}
 		catch (e:Dynamic) { throw e; } //wrapping typed exceptions
-		
+
 		var p = proc;
 		stderr = new ProcessInput(p.getErrorStream());
 		stdout = new ProcessInput(p.getInputStream());
 		stdin = new java.io.NativeOutput(p.getOutputStream());
 	}
-	
+
 	public function getPid() : Int
 	{
 		if (Reflect.hasField(proc, "pid"))
 			return Reflect.field(proc, "pid");
 		return -1;
 	}
-	
+
 	public function exitCode() : Int
 	{
 		cast(stdout, ProcessInput).bufferContents();
@@ -76,12 +77,12 @@ class Process {
 		catch (e:Dynamic) { throw e; }
 		return proc.exitValue();
 	}
-	
+
 	public function close() : Void
 	{
 		proc.destroy();
 	}
-	
+
 	public function kill() : Void
 	{
 		proc.destroy();
@@ -93,55 +94,55 @@ class Process {
 private class ProcessInput extends java.io.NativeInput
 {
 	private var chained:BytesInput;
-	
+
 	public function bufferContents():Void
 	{
 		if (chained != null) return;
 		var b = this.readAll();
 		chained = new BytesInput(b);
 	}
-	
-	override public function readByte():Int 
+
+	override public function readByte():Int
 	{
 		if (chained != null)
 			return chained.readByte();
 		try
 		{
 			return stream.read();
-		} 
+		}
 		catch (e:EOFException) {
 			throw new Eof();
 		}
-		
+
 		catch (e:IOException) {
 			throw haxe.io.Error.Custom(e);
 		}
 	}
-	
-	override public function readBytes(s:Bytes, pos:Int, len:Int):Int 
+
+	override public function readBytes(s:Bytes, pos:Int, len:Int):Int
 	{
 		if (chained != null)
 			return chained.readBytes(s, pos, len);
-		
+
 		var ret = -1;
 		try
 		{
 			ret = stream.read(s.getData(), pos, len);
 		}
-		
+
 		catch (e:EOFException) {
 			throw new Eof();
 		}
-		
+
 		catch (e:IOException) {
 			throw haxe.io.Error.Custom(e);
 		}
-		
+
 		if (ret == -1)
 			throw new Eof();
 		return ret;
 	}
-	
+
 	override public function close():Void
 	{
 		if (chained != null)
@@ -150,7 +151,7 @@ private class ProcessInput extends java.io.NativeInput
 		{
 			stream.close();
 		}
-		
+
 		catch (e:IOException) {
 			throw haxe.io.Error.Custom(e);
 		}

@@ -23,7 +23,7 @@
  * DAMAGE.
  */
 
-@:core_api class EReg {
+@:coreApi class EReg {
 
 	var r : Dynamic;
 

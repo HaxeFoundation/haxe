@@ -88,7 +88,7 @@ private class Stdout extends haxe.io.Input {
 
 }
 
-@:core_api class Process {
+@:coreApi class Process {
 
 	var p : Void;
 	public var stdout(default,null) : haxe.io.Input;

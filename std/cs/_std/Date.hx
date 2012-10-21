@@ -2,10 +2,10 @@ package;
 import cs.system.DateTime;
 import haxe.Int64;
 
-@:core_api class Date 
+@:coreApi class Date
 {
 	private var date:DateTime;
-	
+
 	/**
 		Creates a new date object.
 	**/
@@ -125,7 +125,7 @@ import haxe.Int64;
 		d.date = new DateTime(cast(t, Int64));
 		return d;
 	}
-	
+
 
 	/**
 		Returns a Date from a formated string of one of the following formats :
@@ -134,7 +134,7 @@ import haxe.Int64;
 	**/
 	static public function fromString( s : String ) : Date
 	{
-		switch( s.length ) 
+		switch( s.length )
 		{
 			case 8: // hh:mm:ss
 				var k = s.split(":");
@@ -152,7 +152,7 @@ import haxe.Int64;
 				throw "Invalid date format : " + s;
 		}
 	}
-	
+
 	private static function fromNative( d : cs.system.DateTime ) : Date
 	{
 		var date = new Date(0, 0, 0, 0, 0, 0);

@@ -24,7 +24,7 @@
  */
 package sys.io;
 
-@:core_api
+@:coreApi
 class FileOutput extends haxe.io.Output {
 	private var __f : File.FileHandle;
 

@@ -35,47 +35,47 @@
 	TUnknown;
 }
 
-@:keep @:core_api class Type {
-	
+@:keep @:coreApi class Type {
+
 	@:functionBody('
 		if (o instanceof haxe.lang.DynamicObject || o instanceof java.lang.Class)
 			return null;
-			
+
 		return (java.lang.Class<T>) o.getClass();
 	')
-	public static function getClass<T>( o : T ) : Class<T> untyped 
+	public static function getClass<T>( o : T ) : Class<T> untyped
 	{
 		return null;
 	}
-	
+
 	@:functionBody('
 		if (o instanceof java.lang.Enum || o instanceof haxe.lang.Enum)
 			return o.getClass();
 		return null;
 	')
-	public static function getEnum( o : EnumValue ) : Enum<Dynamic> untyped 
+	public static function getEnum( o : EnumValue ) : Enum<Dynamic> untyped
 	{
 		return null;
 	}
-	
+
 	@:functionBody('
 		java.lang.Class cl = (c == null) ? null : c.getSuperclass();
 		if (cl != null && !cl.getName().equals("haxe.lang.HxObject") && !cl.getName().equals("java.lang.Object") )
 			return cl;
 		return null;
 	')
-	public static function getSuperClass( c : Class<Dynamic> ) : Class<Dynamic> untyped 
+	public static function getSuperClass( c : Class<Dynamic> ) : Class<Dynamic> untyped
 	{
 		return null;
 	}
-	
+
 	public static function getClassName( c : Class<Dynamic> ) : String untyped {
 		var name:String = c.getName();
 		if (name.startsWith("haxe.root."))
 			return name.substr(10);
 		if (name.startsWith("java.lang"))
 			name = name.substr(10);
-			
+
 		return switch(name)
 		{
 			case "int", "Integer": "Int";
@@ -91,7 +91,7 @@
 			return ret.substr(10);
 		else if (ret == "boolean" || ret == "java.lang.Boolean")
 			return "Bool";
-		
+
 		return ret;
 	}
 
@@ -112,13 +112,13 @@
 			return null;
 		}
 	')
-	public static function resolveClass( name : String ) : Class<Dynamic> untyped 
+	public static function resolveClass( name : String ) : Class<Dynamic> untyped
 	{
 		return null;
 	}
 
 
-	public static function resolveEnum( name : String ) : Enum<Dynamic> untyped 
+	public static function resolveEnum( name : String ) : Enum<Dynamic> untyped
 	{
 		if (name.equals("Bool")) return Bool;
 		return resolveClass(name);
@@ -128,7 +128,7 @@
 			int len = args.length;
 			java.lang.Class[] cls = new java.lang.Class[len];
 			java.lang.Object[] objs = new java.lang.Object[len];
-			
+
 			java.lang.reflect.Constructor[] ms = cl.getConstructors();
 			int msl = ms.length;
 			int realMsl = 0;
@@ -144,25 +144,25 @@
 					realMsl++;
 				}
 			}
-			
+
 			boolean hasNumber = false;
-			
+
 			for (int i = 0; i < len; i++)
 			{
 				Object o = args.__get(i);
 				objs[i]= o;
 				cls[i] = o.getClass();
 				boolean isNum = false;
-				
+
 				if (o instanceof java.lang.Number)
 				{
 					cls[i] = java.lang.Number.class;
 					isNum = hasNumber = true;
 				}
-				
+
 				msl = realMsl;
 				realMsl = 0;
-				
+
 				for (int j = 0; j < msl; j++)
 				{
 					java.lang.Class[] allcls = ms[j].getParameterTypes();
@@ -179,15 +179,15 @@
 						}
 					}
 				}
-				
+
 			}
-			
+
 			java.lang.reflect.Constructor found = ms[0];
-			
+
 			if (hasNumber)
 			{
 				java.lang.Class[] allcls = found.getParameterTypes();
-				
+
 				for (int i = 0; i < len; i++)
 				{
 					java.lang.Object o = objs[i];
@@ -221,35 +221,35 @@
 					}
 				}
 			}
-			
+
 		try {
 			found.setAccessible(true);
 			return (T) found.newInstance(objs);
 		}
-		catch (java.lang.reflect.InvocationTargetException e) 
+		catch (java.lang.reflect.InvocationTargetException e)
 		{
 			throw haxe.lang.HaxeException.wrap(e.getCause());
 		}
-		
-		catch (Throwable t) 
+
+		catch (Throwable t)
 		{
 			throw haxe.lang.HaxeException.wrap(t);
 		}
 	')
-	public static function createInstance<T>( cl : Class<T>, args : Array<Dynamic> ) : T untyped 
+	public static function createInstance<T>( cl : Class<T>, args : Array<Dynamic> ) : T untyped
 	{
 		return null;
 	}
-	
-	public static function createEmptyInstance<T>( cl : Class<T> ) : T untyped 
+
+	public static function createEmptyInstance<T>( cl : Class<T> ) : T untyped
 	{
 		if (Reflect.hasField(cl, "__hx_createEmpty"))
 			return cl.__hx_createEmpty();
 		return createInstance(cl, []);
 	}
-	
+
 	@:functionBody('
-		if (params == null) 
+		if (params == null)
 		{
 			java.lang.Object ret = haxe.lang.Runtime.slowGetField(e, constr, false);
 			if (ret instanceof haxe.lang.Function)
@@ -259,22 +259,22 @@
 			return (T) haxe.lang.Runtime.slowCallField(e, constr, params);
 		}
 	')
-	public static function createEnum<T>( e : Enum<T>, constr : String, ?params : Array<Dynamic> ) : T 
+	public static function createEnum<T>( e : Enum<T>, constr : String, ?params : Array<Dynamic> ) : T
 	{
 		return null;
 	}
-	
+
 	public static function createEnumIndex<T>( e : Enum<T>, index : Int, ?params : Array<Dynamic> ) : T {
 		var constr = getEnumConstructs(e);
 		return createEnum(e, constr[index], params);
 	}
-	
+
 	@:functionBody('
 		if (c == java.lang.String.class)
 		{
 			return haxe.lang.StringRefl.fields;
 		}
-		
+
 		Array<String> ret = new Array<String>();
 		for (java.lang.reflect.Field f : c.getDeclaredFields())
 		{
@@ -282,20 +282,20 @@
 			if (!java.lang.reflect.Modifier.isStatic(f.getModifiers()) && !fname.startsWith("__hx_"))
 				ret.push(fname);
 		}
-		
+
 		for (java.lang.reflect.Method m : c.getDeclaredMethods())
 		{
 			java.lang.String mname = m.getName();
 			if (!java.lang.reflect.Modifier.isStatic(m.getModifiers()) && !mname.startsWith("__hx_"))
 				ret.push(mname);
 		}
-		
+
 		return ret;
 	')
 	public static function getInstanceFields( c : Class<Dynamic> ) : Array<String> {
 		return null;
 	}
-	
+
 	@:functionBody('
 		Array<String> ret = new Array<String>();
 		if (c == java.lang.String.class)
@@ -303,36 +303,36 @@
 			ret.push("fromCharCode");
 			return ret;
 		}
-		
+
 		for (java.lang.reflect.Field f : c.getDeclaredFields())
 		{
 			java.lang.String fname = f.getName();
 			if (java.lang.reflect.Modifier.isStatic(f.getModifiers()) && !fname.startsWith("__hx_"))
 			ret.push(fname);
 		}
-		
+
 		for (java.lang.reflect.Method m : c.getDeclaredMethods())
 		{
 			java.lang.String mname = m.getName();
 			if (java.lang.reflect.Modifier.isStatic(m.getModifiers()) && !mname.startsWith("__hx_"))
 				ret.push(mname);
 		}
-		
+
 		return ret;
 	')
 	public static function getClassFields( c : Class<Dynamic> ) : Array<String> {
 		return null;
 	}
-	
+
 	public static function getEnumConstructs( e : Enum<Dynamic> ) : Array<String> {
 		if (Reflect.hasField(e, "constructs"))
 			return untyped e.constructs;
 		return getClassFields(cast e);
 	}
-	
+
 	@:functionBody('
 		if (v == null) return ValueType.TNull;
-		
+
 		if (v instanceof haxe.lang.IHxObject) {
 			haxe.lang.IHxObject vobj = (haxe.lang.IHxObject) v;
 			java.lang.Class cl = vobj.getClass();
@@ -358,7 +358,7 @@
 			return ValueType.TClass(v.getClass());
 		}
 	')
-	public static function typeof( v : Dynamic ) : ValueType untyped 
+	public static function typeof( v : Dynamic ) : ValueType untyped
 	{
 		return null;
 	}
@@ -369,7 +369,7 @@
 			else
 				return haxe.lang.Runtime.eq(a, b);
 	')
-	public static function enumEq<T>( a : T, b : T ) : Bool untyped 
+	public static function enumEq<T>( a : T, b : T ) : Bool untyped
 	{
 		return a.equals(b);
 	}
@@ -392,7 +392,7 @@
 	{
 		return null;
 	}
-	
+
 	@:functionBody('
 		if (e instanceof java.lang.Enum)
 			return ((java.lang.Enum) e).ordinal();
@@ -404,7 +404,7 @@
 		return e.index;
 	}
 
-	public static function allEnums<T>( e : Enum<T> ) : Array<T> 
+	public static function allEnums<T>( e : Enum<T> ) : Array<T>
 	{
 		var ctors = getEnumConstructs(e);
 		var ret = [];

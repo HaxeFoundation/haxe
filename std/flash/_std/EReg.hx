@@ -23,7 +23,7 @@
  * DAMAGE.
  */
 
-@:core_api class EReg {
+@:coreApi class EReg {
 
 	var r : flash.utils.RegExp;
 	var result : {> Array<String>, index : Int, input : String };

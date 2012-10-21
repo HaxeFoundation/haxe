@@ -121,7 +121,7 @@ private class SocketOutput extends haxe.io.Output {
 }
 
 
-@:core_api
+@:coreApi
 class Socket {
 
 	private var __s : Dynamic;

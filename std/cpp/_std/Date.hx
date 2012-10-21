@@ -24,7 +24,7 @@
  */
 
 
-@:core_api  class Date {
+@:coreApi  class Date {
 
 	private var mSeconds:Float;
 

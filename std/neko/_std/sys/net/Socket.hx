@@ -117,7 +117,7 @@ private class SocketInput extends haxe.io.Input {
 
 }
 
-@:core_api
+@:coreApi
 class Socket {
 
 	private var __s : SocketHandle;

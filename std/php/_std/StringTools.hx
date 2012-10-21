@@ -23,7 +23,7 @@
  * DAMAGE.
  */
 
-@:core_api class StringTools {
+@:coreApi class StringTools {
 
 	public inline static function urlEncode( s : String ) : String untyped {
 		return __call__("rawurlencode", s);

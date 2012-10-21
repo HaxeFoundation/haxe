@@ -24,7 +24,7 @@
  */
 package haxe;
 
-@:core_api
+@:coreApi
 class Utf8 {
 
 	var __b : String;

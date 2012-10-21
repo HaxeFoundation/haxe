@@ -29,7 +29,7 @@ import cs.system.threading.Thread;
 /**
 	This class gives you access to many base functionalities of system platforms. Looks in [sys] sub packages for more system APIs.
 **/
-@:core_api
+@:coreApi
 class Sys {
 	private static var _env:Hash<String>;
 	private static var _args:Array<String>;

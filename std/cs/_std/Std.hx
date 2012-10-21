@@ -25,9 +25,9 @@
 import cs.Boot;
 import cs.Lib;
 import cs.internal.Exceptions;
- 
-@:core_api @:nativegen class Std {
-	public static function is( v : Dynamic, t : Dynamic ) : Bool 
+
+@:coreApi @:nativegen class Std {
+	public static function is( v : Dynamic, t : Dynamic ) : Bool
 	{
 		if (v == null)
 			return t == Dynamic;
@@ -37,7 +37,7 @@ import cs.internal.Exceptions;
 		if (clt == null)
 			return false;
 		var name:String = cast clt;
-		
+
 		switch(name)
 		{
 			case "System.Double":
@@ -49,9 +49,9 @@ import cs.internal.Exceptions;
 			case "System.Object":
 				return true;
 		}
-		
+
 		var clv:Class<Dynamic> = untyped __cs__('v.GetType()');
-		
+
 		return untyped clt.IsAssignableFrom(clv);
 	}
 
@@ -60,22 +60,22 @@ import cs.internal.Exceptions;
 			return "null";
 		if (Std.is(s, Bool))
 			return cast(s, Bool) ? "true" : "false";
-		
+
 		return s.ToString();
 	}
 
 	public static inline function int( x : Float ) : Int {
 		return cast x;
 	}
-	
+
 	public static function parseInt( x : String ) : Null<Int> {
 		if (x == null) return null;
-		
+
 		var ret = 0;
 		var base = 10;
 		var i = -1;
 		var len = x.length;
-		
+
 		if (StringTools.startsWith(x, "0") && len > 2)
 		{
 			var c:Int = cast untyped x[1];
@@ -85,13 +85,13 @@ import cs.internal.Exceptions;
 				base = 16;
 			}
 		}
-		
+
 		var foundAny = false;
 		var isNeg = false;
 		while (++i < len)
 		{
 			var c = cast(untyped x[i], Int); //fastCodeAt
-			if (!foundAny) 
+			if (!foundAny)
 			{
 				switch(c)
 				{
@@ -104,7 +104,7 @@ import cs.internal.Exceptions;
 						continue;
 				}
 			}
-			
+
 			if (c >= '0'.code && c <= '9'.code)
 			{
 				if (!foundAny && c == '0'.code)
@@ -113,7 +113,7 @@ import cs.internal.Exceptions;
 					continue;
 				}
 				ret *= base; foundAny = true;
-				
+
 				ret += c - '0'.code;
 			} else if (base == 16) {
 				if (c >= 'a'.code && c <= 'f'.code) {
@@ -129,7 +129,7 @@ import cs.internal.Exceptions;
 				break;
 			}
 		}
-		
+
 		if (foundAny)
 			return isNeg ? -ret : ret;
 		else
@@ -139,11 +139,11 @@ import cs.internal.Exceptions;
 	public static function parseFloat( x : String ) : Float {
 		if (x == null) return Math.NaN;
 		x = StringTools.ltrim(x);
-		
+
 		var ret = 0.0;
 		var div = 0.0;
 		var e = 0.0;
-		
+
 		var len = x.length;
 		var foundAny = false;
 		var isNeg = false;
@@ -151,7 +151,7 @@ import cs.internal.Exceptions;
 		while (++i < len)
 		{
 			var c = cast(untyped x[i], Int); //fastCodeAt
-			if (!foundAny) 
+			if (!foundAny)
 			{
 				switch(c)
 				{
@@ -164,16 +164,16 @@ import cs.internal.Exceptions;
 						continue;
 				}
 			}
-			
+
 			if (c == '.'.code)
 			{
 				if (div != 0.0)
 					break;
 				div = 1.0;
-				
+
 				continue;
 			}
-			
+
 			if (c >= '0'.code && c <= '9'.code)
 			{
 				if (!foundAny && c == '0'.code)
@@ -181,9 +181,9 @@ import cs.internal.Exceptions;
 					foundAny = true;
 					continue;
 				}
-				
+
 				ret *= 10; foundAny = true; div *= 10;
-				
+
 				ret += c - '0'.code;
 			} else if (foundAny && (c == 'e'.code || c == 'E'.code)) {
 				var eNeg = false;
@@ -199,7 +199,7 @@ import cs.internal.Exceptions;
 						i++;
 					}
 				}
-				
+
 				while (++i < len)
 				{
 					c = untyped cast(x[i], Int);
@@ -214,15 +214,15 @@ import cs.internal.Exceptions;
 						break;
 					}
 				}
-				
+
 				if (eNeg) e = -e;
 			} else {
 				break;
 			}
 		}
-		
+
 		if (div == 0.0) div = 1.0;
-		
+
 		if (foundAny)
 		{
 			ret = isNeg ? -(ret / div) : (ret / div);
@@ -247,4 +247,3 @@ import cs.internal.Exceptions;
 	}
 
 }
-	

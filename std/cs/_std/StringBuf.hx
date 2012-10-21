@@ -23,7 +23,7 @@
  * DAMAGE.
  */
 
-@:core_api
+@:coreApi
 class StringBuf {
 
 	private var b : cs.StringBuilder;

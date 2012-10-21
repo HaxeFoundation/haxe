@@ -23,7 +23,7 @@
  * DAMAGE.
  */
 
-@:core_api class Reflect {
+@:coreApi class Reflect {
 
 	public inline static function hasField( o : Dynamic, field : String ) : Bool {
 		return untyped __call__("_hx_has_field", o, field);

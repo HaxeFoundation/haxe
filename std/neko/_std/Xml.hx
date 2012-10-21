@@ -26,7 +26,7 @@
 enum XmlType {
 }
 
-@:core_api class Xml {
+@:coreApi class Xml {
 
 	public static var Element(default,null) : XmlType;
 	public static var PCData(default,null) : XmlType;

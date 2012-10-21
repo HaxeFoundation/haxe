@@ -23,7 +23,7 @@
  * DAMAGE.
  */
 
-@:core_api @:final class EReg {
+@:coreApi @:final class EReg {
 
 	var r : Dynamic;
 	var last : String;
