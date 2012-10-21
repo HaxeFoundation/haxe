@@ -460,7 +460,7 @@ let s_kind = function
 		| MethMacro -> "macro method"
 
 let rec is_parent csup c =
-	if c == csup || List.exists (fun (i,_) -> i == csup) c.cl_implements then
+	if c == csup || List.exists (fun (i,_) -> is_parent csup i) c.cl_implements then
 		true
 	else match c.cl_super with
 		| None -> false
