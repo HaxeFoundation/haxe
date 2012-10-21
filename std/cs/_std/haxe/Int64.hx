@@ -45,7 +45,7 @@ private typedef NativeUInt64 = Int;
 		return cast (x.asNative() & 0xFFFFFFFF.mkNative());
 	}
 
-	public static inline function getHigh( x : haxe.Int64 ) : Int32 {
+	public static inline function getHigh( x : haxe.Int64 ) : Int {
 		return cast(x,NativeUInt64) >> 32;
 	}
 
