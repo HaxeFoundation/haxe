@@ -28,7 +28,7 @@ class Log {
 
 	public static dynamic function trace( v : Dynamic, ?infos : PosInfos ) : Void {
 		#if flash
-			#if (fdb || nativeTrace)
+			#if (fdb || native_trace)
 		var pstr = infos == null ? "(null)" : infos.fileName+":"+infos.lineNumber;
 		untyped #if flash9 __global__["trace"] #else __trace__ #end(pstr+": "+flash.Boot.__string_rec(v,""));
 			#else
