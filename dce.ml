@@ -33,10 +33,9 @@
 open Ast
 open Common
 open Type
-open Typecore
 
 type dce = {
-	ctx : typer;
+	com : context;
 	debug : bool;
 	follow_expr : dce -> texpr -> unit;
 	mutable added_fields : (tclass * tclass_field * bool) list;
@@ -57,11 +56,11 @@ let keep_whole_class dce c =
 	has_meta ":keep" c.cl_meta
 	|| super_forces_keep c
 	|| (match c with
-		| { cl_extern = true; cl_path = ([],"Math")} when dce.ctx.com.platform = Js -> false
+		| { cl_extern = true; cl_path = ([],"Math")} when dce.com.platform = Js -> false
 		| { cl_extern = true }
 		| { cl_path = ["flash";"_Boot"],"RealBoot" } -> true
 		| { cl_path = [],"String" }
-		| { cl_path = [],"Array" } -> not (dce.ctx.com.platform = Js)
+		| { cl_path = [],"Array" } -> not (dce.com.platform = Js)
 		| _ -> false)
 
 (* check if a field is kept *)
@@ -69,8 +68,8 @@ let keep_field dce cf =
 	has_meta ":keep" cf.cf_meta
 	|| has_meta ":used" cf.cf_meta
 	|| cf.cf_name = "__init__"
-	|| dce.ctx.com.platform = Js && (try (match get_meta ":feature" cf.cf_meta with
-			| (_,[EConst(String s),_],_) -> Common.has_feature dce.ctx.com s
+	|| dce.com.platform = Js && (try (match get_meta ":feature" cf.cf_meta with
+			| (_,[EConst(String s),_],_) -> Common.has_feature dce.com s
 			| _ -> raise Not_found)
 		with Not_found -> false)
 
@@ -132,7 +131,7 @@ let rec mark_dependent_fields dce csup n stat =
 			in
 			loop c
 		| _ -> ()
-	) dce.ctx.com.types
+	) dce.com.types
 
 (* expr and field evaluation *)
 
@@ -206,7 +205,7 @@ and expr dce e =
 	| TEnumField(e,_) ->
 		mark_t dce (TEnum(e,[]));
 	| TCall ({eexpr = TLocal ({v_name = "__define_feature__"})},[{eexpr = TConst (TString ft)};e]) ->
-		Common.add_feature dce.ctx.com ft;
+		Common.add_feature dce.com ft;
 		expr dce e
 	(* keep toString method when the class is argument to Std.string or haxe.Log.trace *)
 	| TCall ({eexpr = TField({eexpr = TTypeExpr (TClassDecl ({cl_path = (["haxe"],"Log")} as c))},"trace")} as ef, ([e2;_] as args))
@@ -236,10 +235,10 @@ and expr dce e =
 		expr dce e;
 	| _ -> Type.iter (expr dce) e
 
-let run ctx main =
+let run com main =
 	let dce = {
-		ctx = ctx;
-		debug = Common.defined ctx.com "dce_debug";
+		com = com;
+		debug = Common.defined com "dce_debug";
 		added_fields = [];
 		follow_expr = expr;
 		marked_fields = [];
@@ -275,10 +274,10 @@ let run ctx main =
 				(match !(a.a_status) with
 				| Statics c ->
 					let cf = PMap.find "main" c.cl_statics in
-					loop [c,cf,true] ctx.com.types
+					loop [c,cf,true] com.types
 				| _ -> assert false)
 			| _ -> assert false)
-		| _ -> loop [] ctx.com.types
+		| _ -> loop [] com.types
 	in	
 	if dce.debug then begin
 		List.iter (fun (c,cf,_) -> match cf.cf_expr with
@@ -343,7 +342,7 @@ let run ctx main =
 		| [] ->
 			acc
 	in
-	ctx.com.types <- loop [] (List.rev ctx.com.types);
+	com.types <- loop [] (List.rev com.types);
 
 	(* extra step to adjust properties that had accessors removed (required for Php and Cpp) *)
 	List.iter (fun mt -> match mt with
@@ -365,7 +364,7 @@ let run ctx main =
 			List.iter (check_prop true) c.cl_ordered_statics;
 			List.iter (check_prop false) c.cl_ordered_fields;
 		| _ -> ()
-	) ctx.com.types;
+	) com.types;
 
 	(* remove "override" from fields that do not override anything anymore *)
 	List.iter (fun mt -> match mt with
@@ -380,7 +379,7 @@ let run ctx main =
 				loop c
 			) c.cl_overrides;
 		| _ -> ()
-	) ctx.com.types;
+	) com.types;
 
 	(* cleanup added fields metadata - compatibility with compilation server *)
 	let rec remove_meta m = function
