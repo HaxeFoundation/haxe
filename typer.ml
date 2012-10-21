@@ -466,7 +466,7 @@ let rec type_module_type ctx t tparams p =
 		| _ ->
 			error (s_type_path s.t_path ^ " is not a value") p)
 	| TAbstractDecl a ->
-		if not (has_meta ":runtime_value" a.a_meta) then error (s_type_path a.a_path ^ " is not a value") p;
+		if not (has_meta ":runtimeValue" a.a_meta) then error (s_type_path a.a_path ^ " is not a value") p;
 		let t_tmp = {
 			t_path = fst a.a_path, "#" ^ snd a.a_path;
 			t_module = a.a_module;
