@@ -1709,7 +1709,7 @@ and jump_expr ctx e jif =
 
 let do_debug ctx meta =
 	let old = ctx.debug in
-	ctx.debug <- (old || has_meta ":debug" meta) && not (has_meta ":nodebug" meta);
+	ctx.debug <- (old || has_meta ":debug" meta) && not (has_meta ":noDebug" meta);
 	(fun() -> ctx.debug <- old)
 
 let generate_method ctx fdata stat fmeta =
