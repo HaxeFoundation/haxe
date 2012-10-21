@@ -498,7 +498,7 @@ class TestType extends Test {
 		eq(r[1], 2);
 		eq(r[2], 3);
 		
-		var r = MyMacro.MyRestMacro.testRest1(1, [2, 3]);
+		var r : Array<Dynamic> = MyMacro.MyRestMacro.testRest1(1, [2, 3]);
 		eq(r.length, 2);
 		eq(r[0], 1);
 		eq(r[1][0], 2);
@@ -520,7 +520,7 @@ class TestType extends Test {
 		eq(r[0], 1);
 		eq(r[1], 2);
 		
-		var r = MyMacro.MyRestMacro.testRest2(1, 2, [3]);
+		var r : Array<Dynamic> = MyMacro.MyRestMacro.testRest2(1, 2, [3]);
 		eq(r.length, 3);
 		eq(r[0], 1);
 		eq(r[1], 2);

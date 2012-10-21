@@ -15,6 +15,7 @@
 
 #each
 --next
+-D haxe3
 -debug
 -cp ..
 -resource res1.txt
@@ -42,6 +43,7 @@ unit.Test
 
 #neko
 --next
+-D neko_v2
 -main unit.Test
 -neko unit.n
 

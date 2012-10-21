@@ -68,13 +68,13 @@ package unit;
 		Test.count++;
 		if (!Lambda.has(Type.getClassFields(c), n))
 			Test.report(Type.getClassName(c) + " should have static field " +n, pos);
-	}	
+	}
 	
 	function nhsf(c:Class<Dynamic> , n:String, ?pos:haxe.PosInfos) {
 		Test.count++;
 		if (Lambda.has(Type.getClassFields(c), n))
 			Test.report(Type.getClassName(c) + " should not have static field " +n, pos);
-	}	
+	}
 
 	function infos( m : String ) {
 		reportInfos = m;
@@ -150,8 +150,8 @@ package unit;
 	static function checkDone() {
 		if( asyncWaits.length != 0 ) return;
 		if( asyncCache.length == 0 ) {
-			report("DONE ["+count+" tests]");
 			return;
+			report("DONE ["+count+" tests]");
 		}
 		resetTimer();
 		while( asyncCache.length > 0 && asyncWaits.length < AMAX )
@@ -212,7 +212,7 @@ package unit;
 			new TestOps(),
 			new TestBasetypes(),
 			new TestBytes(),
-			new TestInt32(),
+			#if !haxe3 new TestInt32(), #end
 			new TestIO(),
 			new TestLocals(),
 			new TestEReg(),

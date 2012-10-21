@@ -33,14 +33,14 @@ class TestResource extends Test {
 
 	#if neko
 	static function main() {
-		var ch = neko.io.File.write("res1.txt",true);
+		var ch = sys.io.File.write("res1.txt",true);
 		ch.writeString(STR);
 		ch.close();
-		var ch = neko.io.File.write("res2.bin",true);
+		var ch = sys.io.File.write("res2.bin",true);
 		ch.writeString("Héllo");
 		ch.writeByte(0);
 		ch.writeString("World");
-		ch.writeInt31(0);
+		ch.writeInt32(0);
 		ch.writeString("!");
 		ch.close();
 	}
