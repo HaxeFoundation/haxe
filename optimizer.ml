@@ -953,11 +953,12 @@ let optimize_completion_expr e =
 		| EFor ((EIn ((EConst (Ident n),_) as id,it),p),efor) ->
 			let it = loop it in
 			let old = save() in
-			let itfield = match fst it with
-				| ECall ((EField(_,"iterator"),_),[])-> it
-				| _ -> (ECall ((EField (it,"iterator"),p),[]),p)
-			in
-			decl n None (Some (ECall ((EField (itfield,"next"),p),[]),p));
+			let etmp = (EConst (Ident "$tmp"),p) in
+			decl n None (Some (EBlock [
+				(EVars ["$tmp",None,None],p);
+				(EFor ((EIn (id,it),p),(EBinop (OpAssign,etmp,(EConst (Ident n),p)),p)),p);
+				etmp
+			],p));
 			let efor = loop efor in
 			old();
 			(EFor ((EIn (id,it),p),efor),p)
