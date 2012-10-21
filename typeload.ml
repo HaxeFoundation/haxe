@@ -1008,7 +1008,7 @@ let init_class ctx c p context_init herits fields =
 		c.cl_extern <- true;
 		List.filter (fun f -> List.mem AStatic f.cff_access) fields, []
 	end else fields, herits in
-	if core_api && not (ctx.com.display || Common.defined ctx.com "dce") then delay ctx PForce (fun() -> init_core_api ctx c);
+	if core_api && not ctx.com.display then delay ctx PForce (fun() -> init_core_api ctx c);
 	let rec extends_public c =
 		List.exists (fun (c,_) -> c.cl_path = (["haxe"],"Public") || extends_public c) c.cl_implements ||
 		match c.cl_super with

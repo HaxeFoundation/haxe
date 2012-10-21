@@ -36,6 +36,8 @@ open Type
 
 type dce = {
 	com : context;
+	full : bool;
+	std_dirs : string list;
 	debug : bool;
 	follow_expr : dce -> texpr -> unit;
 	mutable added_fields : (tclass * tclass_field * bool) list;
@@ -51,9 +53,14 @@ let rec super_forces_keep c =
 	| Some (csup,_) -> super_forces_keep csup
 	| _ -> false
 
+let is_std_class dce c =
+	let file = c.cl_module.m_extra.m_file in
+	List.exists (ExtString.String.starts_with file) dce.std_dirs
+
 (* check if a class is kept entirely *)
 let keep_whole_class dce c =
 	has_meta ":keep" c.cl_meta
+	|| not (dce.full || is_std_class dce c)
 	|| super_forces_keep c
 	|| (match c with
 		| { cl_extern = true; cl_path = ([],"Math")} when dce.com.platform = Js -> false
@@ -235,9 +242,11 @@ and expr dce e =
 		expr dce e;
 	| _ -> Type.iter (expr dce) e
 
-let run com main =
+let run com main full =
 	let dce = {
 		com = com;
+		full = full;
+		std_dirs = if full then [] else List.map Common.unique_full_path com.std_path;
 		debug = Common.defined com "dce_debug";
 		added_fields = [];
 		follow_expr = expr;

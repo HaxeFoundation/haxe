@@ -2982,7 +2982,6 @@ let get_macro_context ctx p =
 		com2.class_path <- List.map (fun p -> p ^ "neko" ^ "/_std/") com2.std_path @ com2.class_path;
 		com2.defines <- PMap.foldi (fun k _ acc ->
 			match k with
-			| "dce"
 			| "no_traces" -> acc
 			| _ when List.exists (fun (_,d) -> "flash" ^ d = k) Common.flash_versions -> acc
 			| _ -> PMap.add k () acc

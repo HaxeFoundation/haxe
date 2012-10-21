@@ -690,6 +690,7 @@ try
 	let force_typing = ref false in
 	let pre_compilation = ref [] in
 	let interp = ref false in
+	let full_dce = ref false in
 	if version >= 300 then Common.define com "haxe3";
 	for i = 0 to (if version < 300 then 4 else version - 300) do
 		let v = version - i in
@@ -909,7 +910,7 @@ try
 			config_macros := e :: !config_macros
 		)," : call the given macro before typing anything else");
 		("--dead-code-elimination", Arg.Unit (fun () ->
-			Common.define com "dce"
+			full_dce := true
 		)," : remove unused methods");
 		("--wait", Arg.String (fun hp ->
 			let host, port = (try ExtString.String.split hp ":" with _ -> "127.0.0.1", hp) in
@@ -982,7 +983,6 @@ try
 				com.platform <- Flash8;
 				add_std "flash8";
 			end;
-			if !gen_as3 && defined com "dce" then com.defines <- PMap.remove "dce" com.defines;
 			"swf"
 		| Neko ->
 			add_std "neko";
@@ -1044,7 +1044,7 @@ try
 		Codegen.post_process_end();
 		List.iter (fun f -> f()) (List.rev com.filters);
 		List.iter (Codegen.save_class_state tctx) com.types;
-		if Common.defined ctx.com "dce" && not !interp then Dce.run com main;
+		Dce.run com main (!full_dce && not !interp);
 		let type_filters = [
 			Codegen.check_private_path;
 			Codegen.remove_generic_base;
