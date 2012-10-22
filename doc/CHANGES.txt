@@ -19,7 +19,7 @@
 	all : added --help-defines
 	all : DCE always run on standard library files
 	all : Haxe3 packages changes (see http://haxe.org/manual/haxe3)
-	all : Removed haxe.Int32
+	all : Removed haxe.Int32, haxe.Firebug, haxe.TimerQueue
 	
 2012-07-16: 2.10
 	java/cs : added two new targets (beta)
