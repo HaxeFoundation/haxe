@@ -179,6 +179,7 @@ module Define = struct
 		| PhpPrefix
 		| Dump
 		| DumpDependencies
+		| NoDce
 
 		| Last (* must be last *)
 
@@ -226,6 +227,7 @@ module Define = struct
 		| PhpPrefix -> ("php_prefix","Compiled with --php-prefix")
 		| Dump -> ("dump","Dump the complete typed AST for internal debugging")
 		| DumpDependencies -> ("dump_dependencies","Dump the classes dependencies")
+		| NoDce -> ("no_dce","Entirely disable dead code elimination")
 		| Last -> assert false
 
 end

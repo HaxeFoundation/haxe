@@ -1054,7 +1054,7 @@ try
 		Codegen.post_process_end();
 		List.iter (fun f -> f()) (List.rev com.filters);
 		List.iter (Codegen.save_class_state tctx) com.types;
-		if not !gen_as3 then Dce.run com main (!full_dce && not !interp);
+		if not (!gen_as3 || Common.defined com Define.NoDce || Common.defined com Define.DocGen) then Dce.run com main (!full_dce && not !interp);
 		let type_filters = [
 			Codegen.check_private_path;
 			Codegen.remove_generic_base;
