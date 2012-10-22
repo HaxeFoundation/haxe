@@ -1093,7 +1093,7 @@ let alloc_ctx com =
 			sources_hash = Hashtbl.create 0;
 			mappings = Buffer.create 16;
 		};
-		js_modern = Common.defined com "js_modern";
+		js_modern = Common.defined com Define.JsModern || (Common.defined com Define.Haxe3 && not (Common.defined com Define.JsClassic));
 		statics = [];
 		inits = [];
 		current = null_class;

@@ -1494,7 +1494,7 @@ let convert_header ctx ver (w,h,fps,bg) =
 		};
 		h_frame_count = 1;
 		h_fps = to_float16 (if fps > 127.0 then 127.0 else fps);
-		h_compressed = not (Common.defined ctx "no-swf-compress");
+		h_compressed = not (Common.defined ctx Define.NoSwfCompress);
 	} , bg
 
 let default_header ctx ver =
@@ -1532,7 +1532,7 @@ let generate com =
 		extern_boot = true;
 	} in
 	write ctx (AStringPool []);
-	protect_all := not (Common.defined com "swf-mark");
+	protect_all := not (Common.defined com Define.SwfMark);
 	if com.debug then begin
 		push ctx [VStr (ctx.stack.Codegen.stack_var,false); VInt 0];
 		write ctx AInitArray;
@@ -1575,7 +1575,7 @@ let generate com =
 	end_try();
 	let segs = List.rev ((ctx.opcodes,ctx.idents) :: ctx.segs) in
 	let tags = List.map build_tag segs in
-	if Common.defined com "swf-mark" then begin
+	if Common.defined com Define.SwfMark then begin
 		if List.length segs > 1 then assert false;
 		let pidents = snd (List.hd tags) in
 		let ch = IO.output_channel (open_out_bin (Filename.chop_extension com.file ^ ".mark")) in

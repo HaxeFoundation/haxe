@@ -131,7 +131,7 @@ let build_class com c file =
 		) in
 		HImplements (make_tpath i)
 	) (Array.to_list c.hlc_implements) @ flags in
-	let flags = if c.hlc_sealed || Common.defined com "flash_strict" then flags else HImplements (make_tpath (HMPath ([],"Dynamic"))) :: flags in
+	let flags = if c.hlc_sealed || Common.defined com Define.FlashStrict then flags else HImplements (make_tpath (HMPath ([],"Dynamic"))) :: flags in
   (* make fields *)
 	let getters = Hashtbl.create 0 in
 	let setters = Hashtbl.create 0 in
@@ -309,7 +309,7 @@ let build_class com c file =
 		List.iter (function HExtends _ | HImplements _ -> raise Exit | _ -> ()) flags;
 		let constr = loop fields in
 		let name = "fakeEnum:" ^ String.concat "." (path.tpackage @ [path.tname]) in
-		if not (Common.defined com name) then raise Exit;
+		if not (Common.raw_defined com name) then raise Exit;
 		let enum_data = {
 			d_name = path.tname;
 			d_doc = None;
@@ -517,7 +517,7 @@ let convert_header com (w,h,fps,bg) =
 		};
 		h_frame_count = 1;
 		h_fps = to_float16 (if fps > 127.0 then 127.0 else fps);
-		h_compressed = not (Common.defined com "no-swf-compress");
+		h_compressed = not (Common.defined com Define.NoSwfCompress);
 	} , bg
 
 let default_header com =
@@ -751,7 +751,7 @@ let detect_format file p =
 	fmt
 
 let build_swf9 com file swc =
-	let boot_name = if swc <> None || Common.defined com "haxe-boot" then "haxe" else "boot_" ^ (String.sub (Digest.to_hex (Digest.string (Filename.basename file))) 0 4) in
+	let boot_name = if swc <> None || Common.defined com Define.HaxeBoot then "haxe" else "boot_" ^ (String.sub (Digest.to_hex (Digest.string (Filename.basename file))) 0 4) in
 	let code = Genswf9.generate com boot_name in
 	let code = (match swc with
 	| Some cat ->
@@ -954,7 +954,7 @@ let merge com file priority (h1,tags1) (h2,tags2) =
 	let header = if priority then { h2 with h_version = max h2.h_version (swf_ver com.flash_version) } else h1 in
 	let tags1 = if priority then List.filter (function { tdata = TSetBgColor _ } -> false | _ -> true) tags1 else tags1 in
   (* remove unused tags *)
-	let use_stage = priority && Common.defined com "flash_use_stage" in
+	let use_stage = priority && Common.defined com Define.FlashUseStage in
 	let classes = ref [] in
 	let nframe = ref 0 in
 	let tags2 = List.filter (fun t ->
@@ -1025,7 +1025,7 @@ let merge com file priority (h1,tags1) (h2,tags2) =
 let generate com swf_header =
 	let t = Common.timer "generate swf" in
 	let isf9 = com.flash_version >= 9. in
-	let swc = if Common.defined com "swc" then Some (ref "") else None in
+	let swc = if Common.defined com Define.Swc then Some (ref "") else None in
 	if swc <> None && not isf9 then failwith "SWC support is only available for Flash9+";
 	let file , codeclip = (try let f , c = ExtString.String.split com.file "@" in f, Some c with _ -> com.file , None) in
   (* list exports *)
@@ -1063,17 +1063,17 @@ let generate com swf_header =
 	let tags = if isf9 then build_swf9 com file swc else build_swf8 com codeclip exports in
 	let header, bg = (match swf_header with None -> default_header com | Some h -> convert_header com h) in
 	let bg = tag (TSetBgColor { cr = bg lsr 16; cg = (bg lsr 8) land 0xFF; cb = bg land 0xFF }) in
-	let debug = (if isf9 && Common.defined com "fdb" then [tag (TEnableDebugger2 (0,""))] else []) in
+	let debug = (if isf9 && Common.defined com Define.Fdb then [tag (TEnableDebugger2 (0,""))] else []) in
 	let fattr = (if com.flash_version < 8. then [] else
 		[tag (TFilesAttributes {
-			fa_network = Common.defined com "network-sandbox";
+			fa_network = Common.defined com Define.NetworkSandbox;
 			fa_as3 = isf9;
 			fa_metadata = false;
 			fa_gpu = false;
 			fa_direct_blt = false;
 		})]
 	) in
-	let fattr = if Common.defined com "advanced-telemetry" then fattr @ [tag (TUnknown (0x5D,"\x00\x00"))] else fattr in
+	let fattr = if Common.defined com Define.AdvancedTelemetry then fattr @ [tag (TUnknown (0x5D,"\x00\x00"))] else fattr in
 	let swf = header, fattr @ bg :: debug @ tags @ [tag TShowFrame] in
   (* merge swf libraries *)
 	let priority = ref (swf_header = None) in

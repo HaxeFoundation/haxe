@@ -514,7 +514,7 @@ let configure gen =
   
   let runtime_cl = get_cl (get_type gen (["haxe";"lang"],"Runtime")) in
   
-  let no_root = Common.defined gen.gcon "no-root" in
+  let no_root = Common.defined gen.gcon Define.NoRoot in
   
   let change_ns = if no_root then 
     function 
@@ -1981,7 +1981,7 @@ let configure gen =
 	generate_modules gen "cs" "src" module_gen;
   
   dump_descriptor gen ("hxcs_build.txt") path_s;
-	if ( not (Common.defined gen.gcon "no-compilation") ) then begin
+	if ( not (Common.defined gen.gcon Define.NoCompilation) ) then begin
 		let old_dir = Sys.getcwd() in
 		Sys.chdir gen.gcon.file;
 		let cmd = "haxelib run hxcs hxcs_build.txt --haxe-version " ^ (string_of_int gen.gcon.version) in

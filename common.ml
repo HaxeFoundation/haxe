@@ -133,6 +133,103 @@ exception Abort of string * Ast.pos
 
 let display_default = ref false
 
+module Define = struct
+
+	type strict_defined =
+		| As3
+		| Sys
+		| AllFeatures
+		| DceDebug
+		| Macro
+		| CoreApi
+		| NoCOpt
+		| Haxe3
+		| CheckXmlProxy
+		| DocGen
+		| Vcproj
+		| Scriptable
+		| NoCompilation
+		| GencommonDebug
+		| ReplaceFiles
+		| NekoV2
+		| NoSwfCompress
+		| NoRoot
+		| NekoSource
+		| UseNekoc
+		| SwfMark
+		| Fdb
+		| Swc
+		| SwfProtected
+		| JsModern
+		| JsClassic
+		| FlashStrict
+		| HaxeBoot
+		| FlashUseStage
+		| NetworkSandbox
+		| AdvancedTelemetry
+		| AbsolutePath
+		| NoTraces
+		| MacroTimes
+		| Display
+		| NoInline
+		| UseRttiDoc
+		| NoOpt
+		| Debug
+		| Interp
+		| PhpPrefix
+		| Dump
+		| DumpDependencies
+
+		| Last (* must be last *)
+
+	let infos = function
+		| As3 -> ("as3","Defined when outputing flash9 as3 source code")
+		| Sys -> ("sys","Defined for all system platforms")
+		| AllFeatures -> ("all_features","Used by DCE")
+		| DceDebug -> ("dce_debug","Show DCE log")
+		| Macro -> ("macro","Defined when we compile code in the macro context")
+		| CoreApi -> ("core_api","Defined in the core api context")
+		| NoCOpt -> ("no_copt","Disable completion optimization (for debug purposes)")
+		| Haxe3 -> ("haxe3","Enable Haxe3 transition mode")
+		| CheckXmlProxy -> ("check_xml_proxy","Check the used fields of the xml proxy")
+		| DocGen -> ("doc_gen","Do not perform any removal/change in order to correctly generate documentation")
+		| Vcproj -> ("vcproj","GenCPP internal")
+		| Scriptable -> ("scriptable","GenCPP internal")
+		| NoCompilation -> ("no-compilation","Disable CPP final compilation")
+		| GencommonDebug -> ("gencommon_debug","GenCommon internal")
+		| ReplaceFiles -> ("replace_files","GenCommon internal")
+		| NekoV2 -> ("neko_v2","Activate Neko 2.0 compatibility")
+		| NoSwfCompress -> ("no_swf_compress","Disable SWF output compression")
+		| NoRoot -> ("no_root","GenCS internal")
+		| NekoSource -> ("neko_source","Output neko source instead of bytecode")
+		| UseNekoc -> ("use_nekoc","Use nekoc compiler instead of internal one")
+		| SwfMark -> ("swf_mark","GenSWF8 internal")
+		| Fdb -> ("fdb","Enable full flash debug infos for FDB interactive debugging")
+		| Swc -> ("swc","Output a SWC instead of a SWF")
+		| SwfProtected -> ("swf_protected","Compile Haxe private as protected in the SWF instead of public")
+		| JsModern -> ("js_modern","Use function wrapper and strict mode in JS output")
+		| JsClassic -> ("js_classic","Don't use a function wrapper and strict mode in JS output")
+		| FlashStrict -> ("flash_strict","More strict typing for flash target")
+		| HaxeBoot -> ("haxe_boot","Given the name 'haxe' to the flash boot class instead of a generated name")
+		| FlashUseStage -> ("flash_use_stage","Keep the SWF library initial stage")
+		| NetworkSandbox -> ("network-sandbox","Use local network sandbox instead of local file access one")
+		| AdvancedTelemetry -> ("advanced-telemetry","Allow the SWF to be measured with Monocle tool")
+		| AbsolutePath -> ("absolute_path","Print absoluate file path in trace output")
+		| NoTraces -> ("no_traces","Disable all trace calls")
+		| MacroTimes -> ("macro_times","Display per-macro timing when used with --times")
+		| Display -> ("display","Activated during completion")
+		| NoInline -> ("no_inline","Disable inlining")
+		| UseRttiDoc -> ("use_rtti_doc","Allows access to documentation during compilation")
+		| NoOpt -> ("no_opt","Disable optimizations")
+		| Debug -> ("debug","Activated when compiling with -debug")
+		| Interp -> ("interp","The code is compiled to be run with --interp")
+		| PhpPrefix -> ("php_prefix","Compiled with --php-prefix")
+		| Dump -> ("dump","Dump the complete typed AST for internal debugging")
+		| DumpDependencies -> ("dump_dependencies","Dump the classes dependencies")
+		| Last -> assert false
+
+end
+
 let stats =
 	{
 		s_files_parsed = ref 0;
@@ -155,7 +252,7 @@ let default_config =
 	}
 
 let get_config com =
-	let defined f = PMap.mem f com.defines in
+	let defined f = PMap.mem (fst (Define.infos f)) com.defines in
 	match com.platform with
 	| Cross ->
 		default_config
@@ -195,7 +292,7 @@ let get_config com =
 			pf_pad_nulls = true;
 			pf_add_final_return = false;
 		}
-	| Flash when defined "as3" ->
+	| Flash when defined Define.As3 ->
 		{
 			pf_static = true;
 			pf_sys = false;
@@ -378,13 +475,20 @@ let flash_versions = List.map (fun v ->
 	v, string_of_int maj ^ (if min = 0 then "" else "_" ^ string_of_int min)
 ) [9.;10.;10.1;10.2;10.3;11.;11.1;11.2;11.3;11.4]
 
-let defined ctx v = PMap.mem v ctx.defines
+let raw_defined ctx v =
+	PMap.mem v ctx.defines
 
-let define ctx v =
+let defined ctx v = 
+	raw_defined ctx (fst (Define.infos v))
+
+let raw_define ctx v =
 	ctx.defines <- PMap.add v () ctx.defines;
 	let v = String.concat "_" (ExtString.String.nsplit v "-") in
 	ctx.defines <- PMap.add v () ctx.defines;
 	ctx.defines_signature <- None
+
+let define ctx v =
+	raw_define ctx (fst (Define.infos v))
 
 let init_platform com pf =
 	com.platform <- pf;
@@ -393,8 +497,8 @@ let init_platform com pf =
 	com.package_rules <- List.fold_left forbid com.package_rules (List.map platform_name platforms);
 	com.config <- get_config com;
 (*	if com.config.pf_static then define com "static"; *)
-	if com.config.pf_sys then define com "sys" else com.package_rules <- PMap.add "sys" Forbidden com.package_rules;
-	define com name
+	if com.config.pf_sys then define com Define.Sys else com.package_rules <- PMap.add "sys" Forbidden com.package_rules;
+	raw_define com name
 
 let add_feature com f =
 	Hashtbl.replace com.features f true
@@ -403,7 +507,7 @@ let rec has_feature com f =
 	try
 		Hashtbl.find com.features f
 	with Not_found ->
-		if com.types = [] then defined com "all_features" else
+		if com.types = [] then defined com Define.AllFeatures else
 		match List.rev (ExtString.String.nsplit f ".") with
 		| [] -> assert false
 		| [cl] -> has_feature com (cl ^ ".*") 
@@ -417,7 +521,7 @@ let rec has_feature com f =
 			with Not_found ->
 				false
 			) in
-			let r = r || defined com "all_features" in
+			let r = r || defined com Define.AllFeatures in
 			Hashtbl.add com.features f r;
 			r
 

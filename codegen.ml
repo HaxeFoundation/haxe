@@ -375,7 +375,7 @@ let extend_xml_proxy ctx c t file p =
 			if not used then ctx.com.warning (id ^ " is not used") p;
 		) (!used)
 	in
-	let check_used = Common.defined ctx.com "check-xml-proxy" in
+	let check_used = Common.defined ctx.com Define.CheckXmlProxy in
 	if check_used then ctx.g.hook_generate <- print_results :: ctx.g.hook_generate;
 	try
 		let rec loop = function
@@ -530,7 +530,7 @@ let on_inherit ctx c p h =
 		extend_remoting ctx c t p true false;
 		false
 	| HImplements { tpackage = ["haxe";"rtti"]; tname = "Generic"; tparams = [] } ->
-		if Common.defined ctx.com "haxe3" then error ("Implementing haxe.rtti.Generic is deprecated in haxe 3, please use @:generic instead") c.cl_pos;
+		if Common.defined ctx.com Define.Haxe3 then error ("Implementing haxe.rtti.Generic is deprecated in haxe 3, please use @:generic instead") c.cl_pos;
 		if c.cl_types <> [] then c.cl_kind <- KGeneric;
 		false
 	| HExtends { tpackage = ["haxe";"xml"]; tname = "Proxy"; tparams = [TPExpr(EConst (String file),p);TPType t] } ->
@@ -623,7 +623,7 @@ let add_rtti ctx t =
 				| _ -> false
 			) c.cl_implements || (match c.cl_super with None -> false | Some (c,_) -> has_rtti_old c)
 		in
-		if Common.defined ctx.com "haxe3" then begin
+		if Common.defined ctx.com Define.Haxe3 then begin
 			if has_rtti_old c then error ("Implementing haxe.rtti.Infos is deprecated in haxe 3, please use @:rttiInfos instead") c.cl_pos;
 			has_rtti_new c
 		end else
@@ -645,7 +645,7 @@ let remove_extern_fields ctx t = match t with
 		let do_remove f =
 			(not ctx.in_macro && f.cf_kind = Method MethMacro) || has_meta ":extern" f.cf_meta || has_meta ":generic" f.cf_meta
 		in
-		if not (Common.defined ctx.com "doc_gen") then begin
+		if not (Common.defined ctx.com Define.DocGen) then begin
 			c.cl_ordered_fields <- List.filter (fun f ->
 				let b = do_remove f in
 				if b then c.cl_fields <- PMap.remove f.cf_name c.cl_fields;
@@ -671,7 +671,7 @@ let add_field_inits ctx t =
 			match cf.cf_kind,cf.cf_expr with
 			| Var _, Some _ ->
 				if ctx.com.config.pf_can_init_member cf then (inits, cf :: fields) else (cf :: inits, cf :: fields)
-			| Method MethDynamic, Some e when Common.defined ctx.com "as3" ->
+			| Method MethDynamic, Some e when Common.defined ctx.com Define.As3 ->
 				(* TODO : this would have a better place in genSWF9 I think - NC *)
 				(* we move the initialization of dynamic functions to the constructor and also solve the
 				   'this' problem along the way *)
@@ -704,7 +704,7 @@ let add_field_inits ctx t =
 					let lhs = mk (TField(ethis,cf.cf_name)) e.etype e.epos in
 					cf.cf_expr <- None;
 					let eassign = mk (TBinop(OpAssign,lhs,e)) lhs.etype e.epos in
-					if Common.defined ctx.com "as3" then begin
+					if Common.defined ctx.com Define.As3 then begin
 						let echeck = mk (TBinop(OpEq,lhs,(mk (TConst TNull) lhs.etype e.epos))) ctx.com.basic.tbool e.epos in
 						mk (TIf(echeck,eassign,None)) eassign.etype e.epos
 					end else
@@ -1462,7 +1462,7 @@ let fix_override com c f fd =
 				);
 			} in
 			(* as3 does not allow wider visibility, so the base method has to be made public *)
-			if Common.defined com "as3" && f.cf_public then f2.cf_public <- true;
+			if Common.defined com Define.As3 && f.cf_public then f2.cf_public <- true;
 			let targs = List.map (fun(v,c) -> (v.v_name, Option.is_some c, v.v_type)) nargs in
 			let fde = (match f.cf_expr with None -> assert false | Some e -> e) in
 			{ f with cf_expr = Some { fde with eexpr = TFunction fd2 }; cf_type = TFun(targs,tret) }

@@ -800,7 +800,7 @@ let run_filters_from gen t filters =
 let run_filters gen =
   (* first of all, we have to make sure that the filters won't trigger a major Gc collection *)
   let t = Common.timer "gencommon_filters" in
-  (if Common.defined gen.gcon "gencommon_debug" then debug_mode := true);
+  (if Common.defined gen.gcon Define.GencommonDebug then debug_mode := true);
   let run_filters filter = 
     let rec loop acc mds =
       match mds with
@@ -902,7 +902,7 @@ let write_file gen w source_dir path extension =
   create [] p;
   
   let contents = SourceWriter.contents w in
-  let should_write = if not (Common.defined gen.gcon "replace_files") && Sys.file_exists s_path then begin
+  let should_write = if not (Common.defined gen.gcon Define.ReplaceFiles) && Sys.file_exists s_path then begin
     let in_file = open_in s_path in
     let old_contents = Std.input_all in_file in
     close_in in_file;
@@ -973,7 +973,7 @@ let dump_descriptor gen name path_s =
   SourceWriter.newline w;
   SourceWriter.write w "begin libs";
   SourceWriter.newline w;
-  if Common.defined gen.gcon "java" then
+  if Common.platform gen.gcon Java then
     List.iter (fun (s,_) ->
       SourceWriter.write w s;
       SourceWriter.newline w

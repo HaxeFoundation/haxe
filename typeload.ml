@@ -847,9 +847,9 @@ let init_core_api ctx c =
 		| None ->
 			let com2 = Common.clone ctx.com in
 			com2.defines <- PMap.empty;
-			Common.define com2 "core_api";
-			Common.define com2 "sys";
-			if ctx.in_macro then Common.define com2 "macro";
+			Common.define com2 Define.CoreApi;
+			Common.define com2 Define.Sys;
+			if ctx.in_macro then Common.define com2 Define.Macro;
 			com2.class_path <- ctx.com.std_path;
 			let ctx2 = ctx.g.do_create com2 in
 			ctx.g.core_api <- Some ctx2;
@@ -1055,7 +1055,7 @@ let init_class ctx c p context_init herits fields =
 
 	let display_file = if ctx.com.display then Common.unique_full_path p.pfile = (!Parser.resume_display).pfile else false in
 
-	let fields = if not display_file || Common.defined ctx.com "no-copt" then fields else Optimizer.optimize_completion c fields in
+	let fields = if not display_file || Common.defined ctx.com Define.NoCOpt then fields else Optimizer.optimize_completion c fields in
 
 	let delayed_expr = ref [] in
 
@@ -1101,7 +1101,7 @@ let init_class ctx c p context_init herits fields =
 					if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.in_macro then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ cf.cf_name);
 					let e = type_var_field ctx t e stat p in
 					let e = (match cf.cf_kind with
-					| Var v when not stat || (v.v_read = AccInline && Common.defined ctx.com "haxe3") ->
+					| Var v when not stat || (v.v_read = AccInline && Common.defined ctx.com Define.Haxe3) ->
 						let rec make_const e =
 							let e = ctx.g.do_optimize ctx e in
 							match e.eexpr with
@@ -1313,7 +1313,7 @@ let init_class ctx c p context_init herits fields =
 			let set = (match set with
 				| "null" ->
 					(* standard flash library read-only variables can't be accessed for writing, even in subclasses *)
-					if c.cl_extern && (match c.cl_path with "flash" :: _  , _ -> true | _ -> false) && Common.defined ctx.com "flash9" then
+					if c.cl_extern && (match c.cl_path with "flash" :: _  , _ -> true | _ -> false) && ctx.com.platform = Flash then
 						AccNever
 					else
 						AccNo
@@ -1350,7 +1350,7 @@ let init_class ctx c p context_init herits fields =
 				| [] -> check_require l
 				| [EConst (String _),_] -> check_require l
 				| (EConst (Ident i),_) :: l ->
-					if not (Common.defined ctx.com i) then
+					if not (Common.raw_defined ctx.com i) then
 						Some (i,(match List.rev l with (EConst (String msg),_) :: _ -> Some msg | _ -> None))
 					else
 						loop l				
@@ -1643,7 +1643,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 				| HImplements { tpackage = []; tname = "Generic" } -> List.exists (fun t -> t_path t = (["haxe";"rtti"],"Generic")) ctx.m.module_types
 				| _ -> false
 			) herits in
-			if rtti && Common.defined ctx.com "haxe3" then error ("Implementing haxe.rtti.Generic is deprecated in haxe 3, please use @:generic instead") c.cl_pos;
+			if rtti && Common.defined ctx.com Define.Haxe3 then error ("Implementing haxe.rtti.Generic is deprecated in haxe 3, please use @:generic instead") c.cl_pos;
 			has_meta ":generic" c.cl_meta || rtti
 		in
 		if implements_rtti() && c.cl_types <> [] then c.cl_kind <- KGeneric;

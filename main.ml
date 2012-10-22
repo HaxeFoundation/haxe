@@ -691,10 +691,10 @@ try
 	let pre_compilation = ref [] in
 	let interp = ref false in
 	let full_dce = ref false in
-	if version >= 300 then Common.define com "haxe3";
+	if version >= 300 then Common.define com Define.Haxe3;
 	for i = 0 to (if version < 300 then 4 else version - 300) do
 		let v = version - i in
-		Common.define com ("haxe_" ^ string_of_int v);
+		Common.raw_define com ("haxe_" ^ string_of_int v);
 	done;
 	com.warning <- (fun msg p -> message ctx ("Warning : " ^ msg) p);
 	com.error <- error ctx;
@@ -725,7 +725,7 @@ try
 		if com.platform <> Cross then failwith "Multiple targets";
 		Common.init_platform com pf;
 		com.file <- file;
-		if (pf = Flash8 || pf = Flash) && file_extension file = "swc" then Common.define com "swc";
+		if (pf = Flash8 || pf = Flash) && file_extension file = "swc" then Common.define com Define.Swc;
 	in
 	let define f = Arg.Unit (fun () -> Common.define com f) in
 	let extra_args = ref [] in
@@ -740,8 +740,8 @@ try
 		("-as3",Arg.String (fun dir ->
 			set_platform Flash dir;
 			gen_as3 := true;
-			Common.define com "as3";
-			Common.define com "no_inline";
+			Common.define com Define.As3;
+			Common.define com Define.NoInline;
 		),"<directory> : generate AS3 code into target directory");
 		("-neko",Arg.String (set_platform Neko),"<file> : compile code to Neko Binary");
 		("-php",Arg.String (fun dir ->
@@ -769,21 +769,20 @@ try
 		),"<class> : select startup class");
 		("-lib",Arg.String (fun l ->
 			cp_libs := l :: !cp_libs;
-			Common.define com l;
+			Common.raw_define com l;
 		),"<library[:version]> : use a haxelib library");
 		("-D",Arg.String (fun var ->
-			(match var with
-			| "use_rtti_doc" -> Parser.use_doc := true
-			| "no_opt" -> com.foptimize <- false
-			| _ -> ());
+			if var = fst (Define.infos Define.UseRttiDoc) then Parser.use_doc := true;
+			if var = fst (Define.infos Define.NoOpt) then com.foptimize <- false;			
 			if List.mem var reserved_flags then raise (Arg.Bad (var ^ " is a reserved compiler flag and cannot be defined from command line"));
-			Common.define com var
+			Common.raw_define com var
 		),"<var> : define a conditional compilation flag");
 		("-v",Arg.Unit (fun () ->
 			com.verbose <- true
 		),": turn on verbose mode");
 		("-debug", Arg.Unit (fun() ->
-			Common.define com "debug"; com.debug <- true
+			Common.define com Define.Debug;
+			com.debug <- true;
 		), ": add debug informations to the compiled code");
 	] in
 	let adv_args_spec = [
@@ -839,9 +838,8 @@ try
 		("-cmd", Arg.String (fun cmd ->
 			cmds := unquote cmd :: !cmds
 		),": run the specified command after successful compilation");
-		("--flash-strict", define "flash_strict", ": more type strict flash API");
-		("--no-traces", define "no_traces", ": don't compile trace calls in the program");
-		("--flash-use-stage", define "flash_use_stage", ": place objects found on the stage of the SWF lib");
+		("--flash-strict", define Define.FlashStrict, ": more type strict flash API");
+		("--no-traces", define Define.NoTraces, ": don't compile trace calls in the program");
 		("--gen-hx-classes", Arg.Unit (fun() ->
 			force_typing := true;
 			pre_compilation := (fun() ->
@@ -864,7 +862,7 @@ try
 				let pos = try int_of_string pos with _ -> failwith ("Invalid format : "  ^ pos) in
 				com.display <- true;
 				Common.display_default := true;
-				Common.define com "display";
+				Common.define com Define.Display;
 				Parser.use_doc := true;
 				Parser.resume_display := {
 					Ast.pfile = Common.unique_full_path file;
@@ -874,13 +872,13 @@ try
 		),": display code tips");
 		("--no-output", Arg.Unit (fun() -> no_output := true),": compiles but does not generate any file");
 		("--times", Arg.Unit (fun() -> measure_times := true),": measure compilation times");
-		("--no-inline", define "no_inline", ": disable inlining");
+		("--no-inline", define Define.NoInline, ": disable inlining");
 		("--no-opt", Arg.Unit (fun() ->
 			com.foptimize <- false;
-			Common.define com "no_opt";
+			Common.define com Define.NoOpt;
 		), ": disable code optimizations");
 		("--js-modern", Arg.Unit (fun() ->
-			Common.define com "js_modern";
+			Common.define com Define.JsModern;
 		), ": wrap JS output in a closure, strict mode, and other upcoming features");
 		("--php-front",Arg.String (fun f ->
 			if com.php_front <> None then raise (Arg.Bad "Multiple --php-front");
@@ -893,14 +891,14 @@ try
 		("--php-prefix", Arg.String (fun f ->
 			if com.php_prefix <> None then raise (Arg.Bad "Multiple --php-prefix");
 			com.php_prefix <- Some f;
-			Common.define com "php_prefix";
+			Common.define com Define.PhpPrefix;
 		),"<name> : prefix all classes with given name");
 		("--remap", Arg.String (fun s ->
 			let pack, target = (try ExtString.String.split s ":" with _ -> raise (Arg.Bad "Invalid format")) in
 			com.package_rules <- PMap.add pack (Remap target) com.package_rules;
 		),"<package:target> : remap a package to another one");
 		("--interp", Arg.Unit (fun() ->
-			Common.define com "interp";
+			Common.define com Define.Interp;
 			set_platform Neko "";
 			no_output := true;
 			interp := true;
@@ -922,6 +920,18 @@ try
 		("--cwd", Arg.String (fun dir ->
 			(try Unix.chdir dir with _ -> raise (Arg.Bad "Invalid directory"))
 		),"<dir> : set current working directory");
+		("--help-defines", Arg.Unit (fun() ->
+			let rec loop i =
+				let d = Obj.magic i in
+				if d <> Define.Last then begin
+					let t, doc = Define.infos d in
+					message ctx (String.concat "-" (ExtString.String.nsplit t "_") ^ " : " ^ doc) Ast.null_pos;
+					loop (i + 1)
+				end
+			in
+			loop 0;
+			did_something := true
+		),": print help for all compiler specific defines");
 		("-swf9",Arg.String (fun file ->
 			set_platform Flash file;
 		),"<file> : [deprecated] compile code to Flash9 SWF file");
@@ -943,7 +953,7 @@ try
 			loop()
 	in
 	loop();
-	(try ignore(Common.find_file com "mt/Include.hx"); Common.define com "mt"; with Not_found -> ());
+	(try ignore(Common.find_file com "mt/Include.hx"); Common.raw_define com "mt"; with Not_found -> ());
 	if com.display then begin
 		com.warning <- message ctx;
 		com.error <- error ctx;
@@ -967,19 +977,19 @@ try
 					| [] -> ()
 					| (v,_) :: _ when v > com.flash_version -> ()
 					| (v,def) :: l ->
-						Common.define com ("flash" ^ def);
+						Common.raw_define com ("flash" ^ def);
 						loop l
 				in
 				loop Common.flash_versions;
-				Common.define com "flash";
+				Common.raw_define com "flash";
 				com.defines <- PMap.remove "flash8" com.defines;
 				com.package_rules <- PMap.remove "flash" com.package_rules;
 				add_std "flash";
 			end else begin
 				com.package_rules <- PMap.add "flash" (Directory "flash8") com.package_rules;
 				com.package_rules <- PMap.add "flash8" Forbidden com.package_rules;
-				Common.define com "flash";
-				Common.define com ("flash" ^ string_of_int (int_of_float com.flash_version));
+				Common.raw_define com "flash";
+				Common.raw_define com ("flash" ^ string_of_int (int_of_float com.flash_version));
 				com.platform <- Flash8;
 				add_std "flash8";
 			end;
@@ -1065,8 +1075,8 @@ try
 			Common.log com ("Generating xml : " ^ file);
 			Genxml.generate com file);
 		if com.platform = Flash || com.platform = Cpp || com.platform = Cs then List.iter (Codegen.fix_overrides com) com.types;
-		if Common.defined com "dump" then Codegen.dump_types com;
-		if Common.defined com "dump_dependencies" then Codegen.dump_dependencies com;
+		if Common.defined com Define.Dump then Codegen.dump_types com;
+		if Common.defined com Define.DumpDependencies then Codegen.dump_dependencies com;
 		t();
 		(match com.platform with
 		| _ when !no_output ->
@@ -1132,7 +1142,7 @@ with
 	| Failure msg | Arg.Bad msg ->
 		error ctx ("Error : " ^ msg) Ast.null_pos
 	| Arg.Help msg ->
-		print_string msg
+		message ctx msg Ast.null_pos
 	| Typer.DisplayFields fields ->
 		let ctx = print_context() in
 		let fields = List.map (fun (name,t,doc) -> name, s_type ctx t, (match doc with None -> "" | Some d -> d)) fields in

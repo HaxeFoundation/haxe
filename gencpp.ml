@@ -2295,7 +2295,7 @@ let end_header_file output_h def_string =
 
 let new_placed_cpp_file common_ctx class_path =
 	let base_dir = common_ctx.file in
-	if (Common.defined common_ctx "vcproj" ) then begin
+	if (Common.defined common_ctx Define.Vcproj ) then begin
 		make_class_directories base_dir ("src"::[]);
 		cached_source_writer
 			( base_dir ^ "/src/" ^ ( String.concat "-" (fst class_path) ) ^ "-" ^
@@ -3274,7 +3274,7 @@ let generate common_ctx =
 	let constructor_deps = create_constructor_dependencies common_ctx in
 	let main_deps = ref [] in
 	let build_xml = ref "" in
-   let gen_externs = Common.defined common_ctx "scriptable" in
+   let gen_externs = Common.defined common_ctx Define.Scriptable in
    if (gen_externs) then begin
      make_base_directory (common_ctx.file ^ "/script");
    end;
@@ -3338,7 +3338,7 @@ let generate common_ctx =
 
 	write_build_data (common_ctx.file ^ "/Build.xml") !exe_classes !main_deps !build_xml output_name;
 	write_build_options (common_ctx.file ^ "/Options.txt") common_ctx.defines;
-	if ( not (Common.defined common_ctx "no-compilation") ) then begin
+	if ( not (Common.defined common_ctx Define.NoCompilation) ) then begin
 		let old_dir = Sys.getcwd() in
 		Sys.chdir common_ctx.file;
 		let cmd = ref "haxelib run hxcpp Build.xml haxe" in

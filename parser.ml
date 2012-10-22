@@ -919,7 +919,7 @@ let parse ctx code =
 	let mstack = ref [] in
 	cache := DynArray.create();
 	doc := None;
-	in_macro := Common.defined ctx "macro";
+	in_macro := Common.defined ctx Common.Define.Macro;
 	Lexer.skip_header code;
 	let sraw = Stream.from (fun _ -> Some (Lexer.token code)) in
 	let rec next_token() = process_token (Lexer.token code)
@@ -965,7 +965,7 @@ let parse ctx code =
 	and enter_macro p =
 		let rec loop (e,p) =
 			match e with
-			| EConst (Ident i) -> Common.defined ctx i
+			| EConst (Ident i) -> Common.raw_defined ctx i
 			| EBinop (OpBoolAnd, e1, e2) -> loop e1 && loop e2
 			| EBinop (OpBoolOr, e1, e2) -> loop e1 || loop e2
 			| EUnop (Not, _, e) -> not (loop e)

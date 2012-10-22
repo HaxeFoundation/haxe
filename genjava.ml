@@ -1834,7 +1834,7 @@ let configure gen =
 	generate_modules_t gen "java" "src" change_path module_gen;
 
   dump_descriptor gen ("hxjava_build.txt") path_s;
-	if ( not (Common.defined gen.gcon "no-compilation") ) then begin
+	if ( not (Common.defined gen.gcon Define.NoCompilation) ) then begin
 		let old_dir = Sys.getcwd() in
 		Sys.chdir gen.gcon.file;
 		let cmd = "haxelib run hxjava hxjava_build.txt --haxe-version " ^ (string_of_int gen.gcon.version) in

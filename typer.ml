@@ -46,7 +46,7 @@ type access_kind =
 	| AKUsing of texpr * tclass * tclass_field * texpr
 
 let mk_infos ctx p params =
-	let file = if ctx.in_macro then p.pfile else if Common.defined ctx.com "absolute_path" then Common.get_full_path p.pfile else Filename.basename p.pfile in
+	let file = if ctx.in_macro then p.pfile else if Common.defined ctx.com Define.AbsolutePath then Common.get_full_path p.pfile else Filename.basename p.pfile in
 	(EObjectDecl (
 		("fileName" , (EConst (String file) , p)) ::
 		("lineNumber" , (EConst (Int (string_of_int (Lexer.get_error_line p))),p)) ::
@@ -634,7 +634,7 @@ let field_access ctx mode f t e p =
 				normal()
 		| AccCall m ->
 			if m = ctx.curfield.cf_name && (match e.eexpr with TConst TThis -> true | TTypeExpr (TClassDecl c) when c == ctx.curclass -> true | _ -> false) then
-				let prefix = (match ctx.com.platform with Flash when Common.defined ctx.com "as3" -> "$" | _ -> "") in
+				let prefix = (match ctx.com.platform with Flash when Common.defined ctx.com Define.As3 -> "$" | _ -> "") in
 				AKExpr (mk (TField (e,prefix ^ f.cf_name)) t p)
 			else if mode = MSet then
 				AKSet (e,m,t,f.cf_name)
@@ -886,7 +886,7 @@ and type_field ctx e i p mode =
 			field_access ctx mode f (Type.field_type f) e p
 		)
 	| TMono r ->
-		if ctx.untyped && (match ctx.com.platform with Flash8 -> Common.defined ctx.com "swf-mark" | _ -> false) then ctx.com.warning "Mark" p;
+		if ctx.untyped && (match ctx.com.platform with Flash8 -> Common.defined ctx.com Define.SwfMark | _ -> false) then ctx.com.warning "Mark" p;
 		let f = {
 			cf_name = i;
 			cf_type = mk_mono();
@@ -1948,7 +1948,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		mk (TObjectDecl (List.rev fields)) (TAnon { a_fields = types; a_status = x }) p
 	| EArrayDecl el ->
 		let el = List.map (type_expr ctx) el in
-		let t = try unify_min_raise ctx el with Error (Unify l,p) -> if Common.defined ctx.com "haxe3" then raise (Error (Unify l, p)) else t_dynamic in
+		let t = try unify_min_raise ctx el with Error (Unify l,p) -> if Common.defined ctx.com Define.Haxe3 then raise (Error (Unify l, p)) else t_dynamic in
 		mk (TArrayDecl el) (ctx.t.tarray t) p
 	| EVars vl ->
 		type_vars ctx vl p false
@@ -2358,12 +2358,12 @@ and type_expr ctx ?(need_val=true) (e,p) =
 and type_call ctx e el twith p =
 	match e, el with
 	| (EConst (Ident "trace"),p) , e :: el ->
-		if Common.defined ctx.com "no_traces" then
+		if Common.defined ctx.com Define.NoTraces then
 			null ctx.t.tvoid p
 		else
 		let params = (match el with [] -> [] | _ -> ["customParams",(EArrayDecl el , p)]) in
 		let infos = mk_infos ctx p params in
-		if platform ctx.com Js && el = [] && not (defined ctx.com "all_features") then
+		if platform ctx.com Js && el = [] && not (defined ctx.com Define.AllFeatures) then
 			let e = type_expr ctx e in
 			let infos = type_expr ctx infos in
 			mk (TCall (mk (TLocal (alloc_var "`trace" t_dynamic)) t_dynamic p,[e;infos])) ctx.t.tvoid p
@@ -2377,7 +2377,7 @@ and type_call ctx e el twith p =
 		e
 	| (EConst (Ident "__unprotect__"),_) , [(EConst (String _),_) as e] ->
 		let e = type_expr ctx e in
-		if Common.defined ctx.com "flash" then
+		if Common.platform ctx.com Flash then
 			let t = tfun [e.etype] e.etype in
 			mk (TCall (mk (TLocal (alloc_var "__unprotect__" t)) t p,[e])) e.etype e.epos
 		else
@@ -2719,7 +2719,7 @@ let parse_string ctx s p inlined =
 	| _ -> assert false
 
 let macro_timer ctx path =
-	Common.timer (if Common.defined ctx.com "macrotimes" then "macro " ^ path else "macro execution")
+	Common.timer (if Common.defined ctx.com Define.MacroTimes then "macro " ^ path else "macro execution")
 
 let typing_timer ctx f =
 	let t = Common.timer "typing" in
@@ -2804,7 +2804,7 @@ let make_macro_api ctx p =
 			let old_error = ctx.on_error in
 			let restore () =
 				if not is_displaying then begin
-					ctx.com.defines <- PMap.remove "display" ctx.com.defines;
+					ctx.com.defines <- PMap.remove (fst (Define.infos Define.Display)) ctx.com.defines;
 					ctx.com.display <- false
 				end;
 				Parser.resume_display := old_resume;
@@ -2812,7 +2812,7 @@ let make_macro_api ctx p =
 			in
 			(* temporarily enter display mode with a fake position *)
 			if not is_displaying then begin
-				Common.define ctx.com "display";
+				Common.define ctx.com Define.Display;
 				ctx.com.display <- true;
 			end;
 			Parser.resume_display := {
@@ -2987,13 +2987,10 @@ let get_macro_context ctx p =
 		com2.defines_signature <- None;
 		com2.class_path <- List.filter (fun s -> not (ExtString.String.exists s "/_std/")) com2.class_path;
 		com2.class_path <- List.map (fun p -> p ^ "neko" ^ "/_std/") com2.std_path @ com2.class_path;
-		com2.defines <- PMap.foldi (fun k _ acc ->
-			match k with
-			| "no_traces" -> acc
-			| _ when List.exists (fun (_,d) -> "flash" ^ d = k) Common.flash_versions -> acc
-			| _ -> PMap.add k () acc
-		) com2.defines PMap.empty;
-		Common.define com2 "macro";
+		let to_remove = List.map (fun d -> fst (Define.infos d)) [Define.NoTraces] in
+		let to_remove = to_remove @ List.map (fun (_,d) -> "flash" ^ d) Common.flash_versions in
+		com2.defines <- PMap.foldi (fun k _ acc -> if List.mem k to_remove then acc else PMap.add k () acc) com2.defines PMap.empty;
+		Common.define com2 Define.Macro;
 		Common.init_platform com2 Neko;
 		let ctx2 = ctx.g.do_create com2 in
 		let mctx = Interp.create com2 api in
@@ -3224,7 +3221,7 @@ let rec create com =
 			type_patches = Hashtbl.create 0;
 			delayed = [];
 			debug_delayed = [];
-			doinline = not (Common.defined com "no_inline" || com.display);
+			doinline = not (Common.defined com Define.NoInline || com.display);
 			hook_generate = [];
 			get_build_infos = (fun() -> None);
 			std = null_module;
@@ -3249,7 +3246,7 @@ let rec create com =
 		in_loop = false;
 		in_super_call = false;
 		in_display = false;
-		in_macro = Common.defined com "macro";
+		in_macro = Common.defined com Define.Macro;
 		ret = mk_mono();
 		locals = PMap.empty;
 		type_params = [];

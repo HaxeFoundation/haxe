@@ -2042,12 +2042,12 @@ let macro_lib =
 		);
 		"define", Fun1 (fun s ->
 			match s with
-			| VString s -> Common.define (ccom()) s; VNull
+			| VString s -> Common.raw_define (ccom()) s; VNull
 			| _ -> error();
 		);
 		"defined", Fun1 (fun s ->
 			match s with
-			| VString s -> VBool (Common.defined (ccom()) s)
+			| VString s -> VBool (Common.raw_defined (ccom()) s)
 			| _ -> error();
 		);
 		"get_type", Fun1 (fun s ->

@@ -816,14 +816,14 @@ let build ctx types =
 	packs @ methods @ boot :: names @ inits @ vars
 
 let generate com =
-	let ctx = new_context com (if Common.defined com "neko_v2" then 2 else 1) false in
+	let ctx = new_context com (if Common.defined com Define.Haxe3 || Common.defined com Define.NekoV2 then 2 else 1) false in
 	let t = Common.timer "neko generation" in
 	let libs = (EBlock (generate_libs_init com.neko_libs) , { psource = "<header>"; pline = 1; }) in
 	let el = build ctx com.types in
 	let emain = (match com.main with None -> [] | Some e -> [gen_expr ctx e]) in
 	let e = (EBlock ((header()) @ libs :: el @ emain), null_pos) in
-	let source = Common.defined com "neko-source" in
-	let use_nekoc = Common.defined com "use-nekoc" in
+	let source = Common.defined com Define.NekoSource in
+	let use_nekoc = Common.defined com Define.UseNekoc in
 	if not use_nekoc then begin
 		let ch = IO.output_channel (open_out_bin com.file) in
 		Nbytecode.write ch (Ncompile.compile ctx.version e);
