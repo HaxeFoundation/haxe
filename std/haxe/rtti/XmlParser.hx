@@ -56,7 +56,8 @@ class XmlParser {
 			case TClassdecl(c):
 				c.fields = sortFields(c.fields);
 				c.statics = sortFields(c.statics);
-			case TEnumdecl(e):
+			case TEnumdecl(_):
+			case TAbstractdecl(_):
 			case TTypedecl(_):
 			}
 	}
@@ -177,6 +178,21 @@ class XmlParser {
 		return true;
 	}
 
+	function mergeAbstracts( a : Abstractdef, a2 : Abstractdef ) {
+		if( curplatform == null )
+			return false;
+		if( a.subs.length != a2.subs.length || a.supers.length != a2.supers.length )
+			return false;
+		for( i in 0...a.subs.length )
+			if( !TypeApi.typeEq(a.subs[i],a2.subs[i]) )
+				return false;
+		for( i in 0...a.supers.length )
+			if( !TypeApi.typeEq(a.supers[i],a2.supers[i]) )
+				return false;
+		a.platforms.add(curplatform);
+		return true;
+	}
+
 	function merge( t : TypeTree ) {
 		var inf = TypeApi.typeInfos(t);
 		var pack = inf.path.split(".");
@@ -243,6 +259,14 @@ class XmlParser {
 								return;
 						default:
 						}
+					case TAbstractdecl(a):
+						switch( t ) {
+						case TAbstractdecl(a2):
+							if( mergeAbstracts(a,a2) )
+								return;
+						default:
+							sameType = false;
+						}
 					case TPackage(_,_,_):
 						sameType = false;
 					}
@@ -295,6 +319,7 @@ class XmlParser {
 		case "class": TClassdecl(xclass(c));
 		case "enum": TEnumdecl(xenum(c));
 		case "typedef": TTypedecl(xtypedef(c));
+		case "abstract": TAbstractdecl(xabstract(c));
 		default: xerror(c);
 		}
 	}
@@ -442,6 +467,39 @@ class XmlParser {
 		};
 	}
 
+	function xabstract( x : Fast ) : Abstractdef {
+		var doc = null;
+		var meta = [], subs = [], supers = [];
+		for( c in x.elements )
+			switch( c.name ) {
+			case "haxe_doc":
+				doc = c.innerData;
+			case "meta":
+				meta = xmeta(c);
+			case "sub":
+				for( t in c.elements )
+					subs.push(xtype(t));
+			case "super":
+				for( t in c.elements )
+					supers.push(xtype(t));
+			default:
+				xerror(c);
+			}
+		return {
+			file : if(x.has.file) x.att.file else null,
+			path : mkPath(x.att.path),
+			module : if( x.has.module ) mkPath(x.att.module) else null,
+			doc : doc,
+			isPrivate : x.x.exists("private"),
+			params : mkTypeParams(x.att.params),
+			platforms : defplat(),
+			meta : meta,
+			subs : subs,
+			supers : supers,
+		};
+	}
+
+
 	function xtypedef( x : Fast ) : Typedef {
 		var doc = null;
 		var t = null;
@@ -480,6 +538,8 @@ class XmlParser {
 			CClass(mkPath(x.att.path),xtypeparams(x));
 		case "t":
 			CTypedef(mkPath(x.att.path),xtypeparams(x));
+		case "x":
+			CAbstract(mkPath(x.att.path),xtypeparams(x));
 		case "f":
 			var args = new List();
 			var aname = x.att.a.split(":");

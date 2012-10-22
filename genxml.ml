@@ -194,7 +194,9 @@ let gen_type_decl com pos t =
 	| TAbstractDecl a ->
 		let doc = gen_doc_opt a.a_doc in
 		let meta = gen_meta a.a_meta in
-		node "abstract" (gen_type_params pos a.a_private (tpath t) a.a_types a.a_pos m) ([] @ doc @ meta)
+		let sub = (match a.a_sub with [] -> [] | l -> node "sub" [] [List.map gen_type l]) in
+		let super = (match a.a_super with [] -> [] | l -> node "super" [] [List.map gen_type l]) in		
+		node "abstract" (gen_type_params pos a.a_private (tpath t) a.a_types a.a_pos m) (sub @ super @ doc @ meta)
 
 let att_str att =
 	String.concat "" (List.map (fun (a,v) -> Printf.sprintf " %s=\"%s\"" a v) att)

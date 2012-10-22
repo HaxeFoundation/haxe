@@ -36,6 +36,7 @@ enum CType {
 	CFunction( args : List<{ name : String, opt : Bool, t : CType }>, ret : CType );
 	CAnonymous( fields : List<ClassField> );
 	CDynamic( ?t : CType );
+	CAbstract( name : Path, params : List<CType> );
 }
 
 typedef PathParams = {
@@ -109,11 +110,17 @@ typedef Typedef = {> TypeInfos,
 	var types : Hash<CType>; // by platform
 }
 
+typedef Abstractdef = {> TypeInfos,
+	var subs : Array<CType>;
+	var supers : Array<CType>;
+}
+
 enum TypeTree {
 	TPackage( name : String, full : String, subs : Array<TypeTree> );
 	TClassdecl( c : Classdef );
 	TEnumdecl( e : Enumdef );
 	TTypedecl( t : Typedef );
+	TAbstractdecl( a : Abstractdef );
 }
 
 typedef TypeRoot = Array<TypeTree>
@@ -126,6 +133,7 @@ class TypeApi {
 		case TClassdecl(c): inf = c;
 		case TEnumdecl(e): inf = e;
 		case TTypedecl(t): inf = t;
+		case TAbstractdecl(a): inf = a;
 		case TPackage(_,_,_): throw "Unexpected Package";
 		}
 		return inf;
@@ -179,6 +187,12 @@ class TypeApi {
 		case CClass(name,params):
 			switch( t2 ) {
 			case CClass(name2,params2):
+				return name == name2 && leq(typeEq,params,params2);
+			default:
+			}
+		case CAbstract(name,params):
+			switch( t2 ) {
+			case CAbstract(name2,params2):
 				return name == name2 && leq(typeEq,params,params2);
 			default:
 			}

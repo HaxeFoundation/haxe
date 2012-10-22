@@ -1,5 +1,4 @@
-# haxedoc
 -neko haxedoc.n
 -main tools.haxedoc.Main
--cmd nekotools boot haxedoc.n
 -D haxe3
+-cmd "nekotools boot haxedoc.n"

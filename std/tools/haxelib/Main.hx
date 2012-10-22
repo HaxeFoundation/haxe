@@ -298,7 +298,7 @@ class Main {
 		var pass2 = param("Confirm",true);
 		if( pass != pass2 )
 			throw "Password does not match";
-		pass = haxe.Md5.encode(pass);
+		pass = haxe.crypto.Md5.encode(pass);
 		site.register(name,pass,email,fullname);
 		return pass;
 	}
@@ -317,7 +317,7 @@ class Main {
 		} else {
 			if( infos.developers.length > 1 )
 				user = param("User");
-			password = haxe.Md5.encode(param("Password",true));
+			password = haxe.crypto.Md5.encode(param("Password",true));
 			if( !site.checkPassword(user,password) )
 				throw "Invalid password for "+user;
 		}

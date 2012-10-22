@@ -1,9 +1,0 @@
-﻿<haxe selected="0">
-  <output name="haxedoc" mode="neko" out="haxedoc.n" class="tools.haxedoc.Main" lib="" cmd="" main="True" debug="False">-cmd nekotools boot haxedoc.n</output>
-  <files path="/">
-    <file path="HtmlPrinter.hx" />
-    <file path="Main.hx" />
-    <file path="..\..\haxe\rtti\Type.hx" />
-    <file path="..\..\haxe\rtti\XmlParser.hx" />
-  </files>
-</haxe>

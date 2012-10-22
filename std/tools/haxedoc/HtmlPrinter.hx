@@ -166,6 +166,7 @@ class HtmlPrinter {
 			case TClassdecl(c): processClass(c);
 			case TEnumdecl(e): processEnum(e);
 			case TTypedecl(t): processTypedef(t);
+			case TAbstractdecl(a): processAbstract(a);
 			case TPackage(_,_,_): throw "ASSERT";
 			}
 			print(head);
@@ -354,6 +355,21 @@ class HtmlPrinter {
 		print('</dl>');
 	}
 
+	function processAbstract( a : Abstractdef ) {
+		print('<div class="classname">');
+		if( a.isPrivate )
+			keyword("private");
+		keyword("abstract");
+		print(fmtpath(a.path));
+		if( a.params.length != 0 ) {
+			print("&lt;");
+			print(a.params.join(", "));
+			print("&gt;");
+		}
+		print('</div>');
+		processInfos(a);
+	}
+	
 	function processTypedef(t : Typedef) {
 		print('<div class="classname">');
 		if( t.isPrivate )
@@ -429,6 +445,8 @@ class HtmlPrinter {
 		case CClass(path,params):
 			processPath(path,params);
 		case CTypedef(path,params):
+			processPath(path,params);
+		case CAbstract(path,params):
 			processPath(path,params);
 		case CFunction(args,ret):
 			if( args.isEmpty() ) {
