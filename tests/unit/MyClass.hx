@@ -1,5 +1,9 @@
 package unit;
 
+using MyClass.UsingBase;
+using MyClass.UsingChild1;
+using MyClass.UsingChild2;
+
 class MyClass {
 
 	#if as3 public #end var val : Int;
@@ -162,10 +166,6 @@ class UsingBase {
 	static function privFunc(s:String) return s.toUpperCase()
 	static public function pupFunc(s:String) return s.toUpperCase()
 }
-
-using MyClass.UsingBase;
-using MyClass.UsingChild1;
-using MyClass.UsingChild2;
 
 class UsingChild1 extends UsingBase {
 	static public function test() {

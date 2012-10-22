@@ -36,11 +36,19 @@ let make_module ctx mpath file tdecls loadp =
 		m_types = [];
 		m_extra = module_extra (Common.unique_full_path file) (Common.get_signature ctx.com) (file_time file) (if ctx.in_macro then MMacro else MCode);
 	} in
+	let pt = ref None in
 	List.iter (fun decl ->
 		let p = snd decl in
 		match fst decl with
+		| EImport _ | EUsing _ when Common.defined ctx.com Define.Haxe3 ->
+			(match !pt with
+			| None -> ()
+			| Some pt ->
+				display_error ctx "import and using may not appear after a type declaration" p;
+				error "Previous type declaration found here" pt)
 		| EImport _ | EUsing _ -> ()
 		| EClass d ->
+			pt := Some p;
 			let priv = List.mem HPrivate d.d_flags in
 			let path = make_path d.d_name priv in
 			let c = mk_class m path p in
@@ -50,6 +58,7 @@ let make_module ctx mpath file tdecls loadp =
 			c.cl_meta <- d.d_meta;
 			decls := (TClassDecl c, decl) :: !decls
 		| EEnum d ->
+			pt := Some p;
 			let priv = List.mem EPrivate d.d_flags in
 			let path = make_path d.d_name priv in
 			let e = {
@@ -66,6 +75,7 @@ let make_module ctx mpath file tdecls loadp =
 			} in
 			decls := (TEnumDecl e, decl) :: !decls
 		| ETypedef d ->
+			pt := Some p;
 			let priv = List.mem EPrivate d.d_flags in
 			let path = make_path d.d_name priv in
 			let t = {
