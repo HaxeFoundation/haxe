@@ -1,4 +1,4 @@
-2012-??-??: 2.11
+2012-??-??: 3.0.0
 	flash : updated player 11.4 api
 	all : allowed named functions as r-value
 	macro : added $[expr-list] support in reification
@@ -15,7 +15,12 @@
 	swf : added support for SWC files in -swf-lib
 	macro : added Context.onTypeNotFound callback for unresolved types
 	js : no JS embed as default (use -D embed-js instead)
-
+	all : added abstract types (Int/Float/Bool/Void/Class/Enum/EnumValue)
+	all : added --help-defines
+	all : DCE always run on standard library files
+	all : Haxe3 packages changes (see http://haxe.org/manual/haxe3)
+	all : Removed haxe.Int32
+	
 2012-07-16: 2.10
 	java/cs : added two new targets (beta)
 	all : fixed List and Null<T> for first, last, pop
