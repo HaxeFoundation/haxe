@@ -27,5 +27,5 @@
 	An abstract type that represents a Class.
 	See [Type] for the haXe Reflection API.
 **/
-extern class Class<T> {
+@:runtimeValue abstract Class<T> {
 }

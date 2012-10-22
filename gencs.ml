@@ -549,7 +549,8 @@ let configure gen =
       | TType ({ t_path = ["cs"],"Ref" },_)
       | TType ({ t_path = ["cs"],"Out" },_)
       | TType ({ t_path = [],"Single" },[]) -> Some t
-			| TInst( { cl_path = ([], "EnumValue") }, _  ) -> Some t_dynamic
+	  | TAbstract( { a_path = ([], "EnumValue") }, _  ) -> Some t_dynamic
+      | TInst( { cl_path = ([], "EnumValue") }, _  ) -> Some t_dynamic
       | _ -> None);
   
   let path_s path = match path with
@@ -569,6 +570,8 @@ let configure gen =
     let ret = match t with
       | TInst( { cl_path = (["haxe"], "Int32") }, [] ) -> gen.gcon.basic.tint
       | TInst( { cl_path = (["haxe"], "Int64") }, [] ) -> ti64
+	  | TAbstract( { a_path = [],"Class" }, _ )
+	  | TAbstract( { a_path = [],"Enum" }, _ ) -> TInst(ttype,[])
       | TInst( { cl_path = ([], "Class") }, _ )
       | TInst( { cl_path = ([], "Enum") }, _ ) -> TInst(ttype,[])
       | TEnum(_, [])

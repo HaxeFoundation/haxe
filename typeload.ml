@@ -850,6 +850,7 @@ let init_core_api ctx c =
 			Common.define com2 Define.CoreApi;
 			Common.define com2 Define.Sys;
 			if ctx.in_macro then Common.define com2 Define.Macro;
+			if Common.defined ctx.com Define.Haxe3 then Common.define com2 Define.Haxe3;
 			com2.class_path <- ctx.com.std_path;
 			let ctx2 = ctx.g.do_create com2 in
 			ctx.g.core_api <- Some ctx2;
@@ -905,6 +906,7 @@ let init_core_api ctx c =
 		check_fields ccore.cl_statics c.cl_statics;
 		(match ccore.cl_constructor, c.cl_constructor with
 		| None, None -> ()
+		| Some { cf_public = false }, _ -> ()
 		| Some f, Some f2 -> compare_fields f f2
 		| None, Some { cf_public = false } -> ()
 		| _ -> error "Constructor differs from core type" c.cl_pos)

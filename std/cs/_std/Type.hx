@@ -114,11 +114,11 @@ import cs.internal.Runtime;
 		{
 			switch(name)
 			{
-				case #if no-root "haxe.root.Int" #else "Int" #end: return Int;
-				case #if no-root "haxe.root.Float" #else "Float" #end: return Float;
-				case #if no-root "haxe.root.Class" #else "Class" #end: return Class;
+				//case #if no-root "haxe.root.Int" #else "Int" #end: return Int;
+				//case #if no-root "haxe.root.Float" #else "Float" #end: return Float;
+				//case #if no-root "haxe.root.Class" #else "Class" #end: return Class;
+				//case #if no-root "haxe.root.Dynamic" #else "Dynamic" #end: return Dynamic;
 				case #if no-root "haxe.root.String" #else "String" #end: return String;
-				case #if no-root "haxe.root.Dynamic" #else "Dynamic" #end: return Dynamic;
 				default: return null;
 			}
 		} else if (t.IsInterface && cast(untyped __typeof__(IGenericObject), cs.system.Type).IsAssignableFrom(t)) {

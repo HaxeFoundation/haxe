@@ -28,28 +28,28 @@
 /**
 	The standard Void type. Only [null] values can be of the type [Void].
 **/
-extern enum Void { }
+abstract Void { }
 
 /**
 	The standard Float type, this is a double-precision IEEE 64bit float.
 **/
-extern class Float { }
+@:notNull @:runtimeValue abstract Float { }
 
 /**
 	The standard Int type. Its precision depends on the platform.
 **/
-extern class Int extends Float { }
+@:notNull @:runtimeValue abstract Int <= Float { }
 
 #if (flash9 || flash9doc || cs)
 /**
 	The unsigned Int type is only defined for Flash9. It's currently
 	handled the same as a normal Int.
 **/
-typedef UInt = Int
+@:notNull @:runtimeValue abstract UInt => Int, <= Int { }
 #end
 
 #if (java || cs)
-typedef Single = Float;
+@:notNull @:runtimeValue abstract Single => Float, <= Float {}
 #end
 
 /**
@@ -63,16 +63,14 @@ typedef Null<T> = T
 /**
 	The standard Boolean type is represented as an enum with two choices.
 **/
-extern enum Bool {
-	true;
-	false;
+@:notNull @:runtimeValue abstract Bool {
 }
 
 /**
 	Dynamic is an internal compiler type which has special behavior.
 	See the haXe language reference for more informations.
 **/
-extern class Dynamic<T> {
+@:runtimeValue abstract Dynamic<T> {
 }
 
 /**

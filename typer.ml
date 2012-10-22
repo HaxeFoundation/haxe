@@ -82,6 +82,7 @@ let rec classify t =
 	| TInst ({ cl_path = ([],"String") },[]) -> KString
 	| TAbstract ({ a_path = [],"Int" },[]) -> KInt
 	| TAbstract ({ a_path = [],"Float" },[]) -> KFloat
+	| TAbstract (a,[]) when List.exists (fun t -> match classify t with KInt | KFloat -> true | _ -> false) a.a_super -> KParam t
 	| TInst ({ cl_kind = KTypeParameter ctl },_) when List.exists (fun t -> match classify t with KInt | KFloat -> true | _ -> false) ctl -> KParam t
 	| TMono r when !r = None -> KUnk
 	| TDynamic _ -> KDyn
@@ -2246,6 +2247,11 @@ and type_expr ctx ?(need_val=true) (e,p) =
 				TClassDecl c
 			| TEnum (e,_) -> TEnumDecl e
 			| _ -> assert false);
+		| TAbstract (a,params) when has_meta ":runtimeValue" a.a_meta ->
+			List.iter (fun pt ->
+				if follow pt != t_dynamic then error "Cast type parameters must be Dynamic" p;
+			) params;
+			TAbstractDecl a
 		| _ ->
 			error "Cast type must be a class or an enum" p
 		) in

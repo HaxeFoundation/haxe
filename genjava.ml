@@ -704,7 +704,8 @@ let configure gen =
       | TType ({ t_path = ["java"],"Char16" },[])
       | TType ({ t_path = [],"Single" },[])
       | TType ({ t_path = [],"Null" },[_]) -> Some t
-			| TInst( { cl_path = ([], "EnumValue") }, _  ) -> Some t_dynamic
+	  | TAbstract( { a_path = ([], "EnumValue") }, _  ) -> Some t_dynamic
+      | TInst( { cl_path = ([], "EnumValue") }, _  ) -> Some t_dynamic
       | _ -> None);
 
   let change_path path = (change_ns (fst path), change_clname (snd path)) in
@@ -720,6 +721,8 @@ let configure gen =
     match t with
       | TInst( { cl_path = (["haxe"], "Int32") }, [] ) -> gen.gcon.basic.tint
       | TInst( { cl_path = (["haxe"], "Int64") }, [] ) -> ti64
+      | TAbstract( { a_path = ([], "Class") }, p  )
+      | TAbstract( { a_path = ([], "Enum") }, p  ) -> TInst(cl_cl,[t_dynamic])
       | TInst( { cl_path = ([], "Class") }, p  )
       | TInst( { cl_path = ([], "Enum") }, p  ) -> TInst(cl_cl,[t_dynamic])
       | TEnum _
@@ -774,6 +777,7 @@ let configure gen =
       | TInst ({ cl_kind = KTypeParameter _; cl_path=p }, []) -> snd p
       | TMono r -> (match !r with | None -> "java.lang.Object" | Some t -> t_s (run_follow gen t))
       | TInst ({ cl_path = [], "String" }, []) -> "java.lang.String"
+	  | TAbstract ({ a_path = [], "Class" }, _) | TAbstract ({ a_path = [], "Enum" }, _) -> assert false (* should have been converted earlier *)
       | TInst ({ cl_path = [], "Class" }, _) | TInst ({ cl_path = [], "Enum" }, _) -> assert false (* should have been converted earlier *)
       | TEnum (({e_path = p;} as e), params) -> (path_param_s (TEnumDecl e) p params)
       | TInst (({cl_path = p;} as cl), params) -> (path_param_s (TClassDecl cl) p params)

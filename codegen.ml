@@ -222,7 +222,7 @@ let make_generic ctx ps pt p =
 			let path = (match follow t with
 				| TInst (ct,_) -> ct.cl_path
 				| TEnum (e,_) -> e.e_path
-				| TAbstract (a,_) when has_meta ":runtime_value" a.a_meta -> a.a_path
+				| TAbstract (a,_) when has_meta ":runtimeValue" a.a_meta -> a.a_path
 				| TMono _ -> raise (Generic_Exception (("Could not determine type for parameter " ^ s), p))
 				| t -> raise (Generic_Exception (("Type parameter must be a class or enum instance (found " ^ (s_type (print_context()) t) ^ ")"), p))
 			) in

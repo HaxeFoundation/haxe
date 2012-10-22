@@ -1050,15 +1050,15 @@ let rec unify a b =
 			| _ -> ())
 		with
 			Unify_error l -> error (cannot_unify a b :: l))
-	| TAnon an, TInst ({ cl_path = [],"Class" },[pt]) ->
+	| TAnon an, TAbstract ({ a_path = [],"Class" },[pt]) ->
 		(match !(an.a_status) with
 		| Statics cl -> unify (TInst (cl,List.map snd cl.cl_types)) pt
 		| _ -> error [cannot_unify a b])
-	| TAnon an, TInst ({ cl_path = [],"Enum" },[pt]) ->
+	| TAnon an, TAbstract ({ a_path = [],"Enum" },[pt]) ->
 		(match !(an.a_status) with
 		| EnumStatics e -> unify (TEnum (e,List.map snd e.e_types)) pt
 		| _ -> error [cannot_unify a b])
-	| TEnum _, TInst ({ cl_path = [],"EnumValue" },[]) ->
+	| TEnum _, TAbstract ({ a_path = [],"EnumValue" },[]) ->
 		()
 	| TDynamic t , _ ->
 		if t == a then
@@ -1103,6 +1103,12 @@ let rec unify a b =
 			let t = apply_params aa.a_types tl t in
 			try unify t b; true with Unify_error _ -> false
 		) aa.a_super) then error [cannot_unify a b];
+	| TInst ({ cl_kind = KTypeParameter ctl } as c,pl), TAbstract _ ->
+		(* one of the constraints must satisfy the abstract *)
+		if not (List.exists (fun t ->
+			let t = apply_params c.cl_types pl t in
+			try unify t b; true with Unify_error _ -> false
+		) ctl) then error [cannot_unify a b];
 	| _, TAbstract (bb,tl) ->
 		if not (List.exists (fun t ->
 			let t = apply_params bb.a_types tl t in

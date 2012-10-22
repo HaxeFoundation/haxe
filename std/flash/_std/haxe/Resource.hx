@@ -47,7 +47,7 @@ class Resource {
 		return untyped __new__(n);
 	}
 
-	static function __init__() {
+	static function __init__() : Void {
 		untyped __resources__.__init__();
 	}
 }
@@ -83,7 +83,7 @@ class Resource {
 		}
 	}
 
-	static function __init__() {
+	static function __init__() : Void {
 		content = untyped __resources__();
 	}
 }

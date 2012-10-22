@@ -16,7 +16,7 @@ private typedef StdFloat = Float;
 
 }
 
-@:final extern class Byte extends Number, implements Int
+@:final extern class Byte extends Number/*, implements Int */
 {
 	static var MAX_VALUE(default, null):Int8;
 	static var MIN_VALUE(default, null):Int8;
@@ -27,7 +27,7 @@ private typedef StdFloat = Float;
 	static function parseByte(s:String, radix:Int):Int8;
 }
 
-@:hack @:final extern class Double extends Number, implements StdFloat
+@:hack @:final extern class Double extends Number/* , implements StdFloat */
 {
 	static var MAX_VALUE(default, null):StdFloat;
 	static var MIN_VALUE(default, null):StdFloat;
@@ -56,7 +56,7 @@ private typedef StdFloat = Float;
 	function new(value:Single):Void;
 }
 
-@:final extern class Integer extends Number, implements Int
+@:final extern class Integer extends Number/*, implements Int */
 {
 	static var MAX_VALUE(default, null):Int;
 	static var MIN_VALUE(default, null):Int;
@@ -80,7 +80,7 @@ private typedef StdFloat = Float;
 	static function parseLong(s:String, radix:Int):Int64;
 }
 
-@:final extern class Short extends Number, implements Int
+@:final extern class Short extends Number/*, implements Int */
 {
 	static var MAX_VALUE(default, null):Int16;
 	static var MIN_VALUE(default, null):Int16;

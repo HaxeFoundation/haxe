@@ -1,5 +1,6 @@
 package unit;
 
+@:expose
 @:keepSub class Test #if swf_mark implements mt.Protect #end #if as3 implements haxe.Public #end {
 
 	public function new() {
