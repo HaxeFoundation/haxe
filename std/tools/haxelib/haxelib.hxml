@@ -5,4 +5,3 @@
 -neko haxelib.n
 -main tools.haxelib.Main
 -cmd "nekotools boot haxelib.n"
--D haxe3
