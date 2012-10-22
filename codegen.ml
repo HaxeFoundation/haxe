@@ -547,6 +547,7 @@ let save_class_state ctx t = match t with
 	| TClassDecl c ->
 		let meta = c.cl_meta and path = c.cl_path and ext = c.cl_extern in
 		let fl = c.cl_fields and ofl = c.cl_ordered_fields and st = c.cl_statics and ost = c.cl_ordered_statics in
+		let cst = c.cl_constructor in
 		c.cl_restore <- (fun() ->
 			c.cl_meta <- meta;
 			c.cl_extern <- ext;
@@ -555,6 +556,7 @@ let save_class_state ctx t = match t with
 			c.cl_ordered_fields <- ofl;
 			c.cl_statics <- st;
 			c.cl_ordered_statics <- ost;
+			c.cl_constructor <- cst;
 		)
 	| _ ->
 		()
