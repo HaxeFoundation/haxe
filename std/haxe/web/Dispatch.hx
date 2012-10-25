@@ -273,7 +273,7 @@ class Dispatch {
 				Context.error("Unsupported dispatch type "+e.toString(),p);
 			}
 		case TAbstract(a,_):
-			switch( i.toString() ) {
+			switch( a.toString() ) {
 			case "Int":
 				return MRInt;
 			case "Float":
@@ -281,7 +281,7 @@ class Dispatch {
 			case "Bool":
 				return MRBool;
 			default:
-				Context.error("Unsupported dispatch type "+i.toString(),p);
+				Context.error("Unsupported dispatch type "+a.toString(),p);
 			}
 		default:
 			Context.error("Unsupported dispatch type "+Std.string(t),p);
