@@ -35,7 +35,8 @@ class SocketConnection implements AsyncConnection, implements Dynamic<AsyncConne
 		error : Dynamic -> Void,
 		#if !flash9
 		#if (flash || js)
-		queue : haxe.TimerQueue,
+		queue : Array<Void -> Void>,
+		timer : haxe.Timer,
 		#end
 		#end
 	};
@@ -131,7 +132,8 @@ class SocketConnection implements AsyncConnection, implements Dynamic<AsyncConne
 			log : null,
 			#if !flash9
 			#if (flash || js)
-			queue : new haxe.TimerQueue(),
+			queue : [],
+			timer : null,
 			#end
 			#end
 		};
@@ -154,7 +156,7 @@ class SocketConnection implements AsyncConnection, implements Dynamic<AsyncConne
 		// where a new onData is called is a parallel thread
 		// ...with the buffer of the previous onData (!)
 		s.onData = function( data : String ) {
-			sc.__data.queue.add(function() {
+			sc.__data.queue.push(function() {
 				var msgLen = sc.__data.protocol.messageLength(data.charCodeAt(0),data.charCodeAt(1));
 				if( msgLen == null || data.length != msgLen - 1 ) {
 					sc.__data.error("Invalid message header");
@@ -162,6 +164,18 @@ class SocketConnection implements AsyncConnection, implements Dynamic<AsyncConne
 				}
 				sc.processMessage(data.substr(2,data.length-2));
 			});
+			if( sc.__data.timer == null ) {
+				sc.__data.timer = new haxe.Timer(1);
+				sc.__data.timer.run = function() {
+					var q = sc.__data.queue.shift();
+					if( q == null ) {
+						sc.__data.timer.stop();
+						sc.__data.timer = null;
+						return;
+					}
+					q();
+				};
+			}
 		};
 		#end
 		return sc;

@@ -34,7 +34,8 @@ class FlashJsConnection #if flash implements AsyncConnection, implements Dynamic
 		name : String,
 		ctx : Context,
 		error : Dynamic -> Void,
-		queue : haxe.TimerQueue,
+		timer : haxe.Timer,
+		queue : Array<Void -> Void>,
 	};
 
 	function new( data, path ) {
@@ -61,9 +62,8 @@ class FlashJsConnection #if flash implements AsyncConnection, implements Dynamic
 		s.serialize(params);
 		var params = escapeString(s.toString());
 		var error = __data.error;
-		var me = this;
-		__data.queue.add(function() {
-			var data = flash.external.ExternalInterface.call("haxe.remoting.FlashJsConnection.flashCall",me.__data.id,me.__data.name,me.__path.join("."),params);
+		__data.queue.push(function() {
+			var data = flash.external.ExternalInterface.call("haxe.remoting.FlashJsConnection.flashCall",__data.id,__data.name,__path.join("."),params);
 			var v : Dynamic;
 			try {
 				if( data == null )
@@ -76,6 +76,18 @@ class FlashJsConnection #if flash implements AsyncConnection, implements Dynamic
 			if( onResult != null )
 				onResult(v);
 		});
+		if( __data.timer == null ) {
+			__data.timer = new haxe.Timer(1);
+			__data.timer.run = function() {
+				var q = __data.queue.shift();
+				if( q == null ) {
+					__data.timer.stop();
+					__data.timer = null;
+					return;
+				}
+				q();
+			};
+		}
 	}
 
 	static var connections = new Hash<FlashJsConnection>();
@@ -121,7 +133,8 @@ class FlashJsConnection #if flash implements AsyncConnection, implements Dynamic
 			name : name,
 			ctx : ctx,
 			error : function(e) throw e,
-			queue : new haxe.TimerQueue(),
+			queue : [],
+			timer : null,
 		},[]);
 		connections.set(name,cnx);
 		return cnx;
