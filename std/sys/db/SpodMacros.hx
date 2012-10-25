@@ -196,6 +196,14 @@ class SpodMacros {
 			case "haxe.io.Bytes": DBinary;
 			default: throw "Unsupported SPOD Type " + name;
 			}
+		case TAbstract(a, _):
+			var name = a.toString();
+			return switch( name ) {
+			case "Int": DInt;
+			case "Float": DFloat;
+			case "Bool": DBool;
+			default: throw "Unsupported SPOD Type " + name;
+			}
 		case TEnum(e, p):
 			var name = e.toString();
 			return switch( name ) {
