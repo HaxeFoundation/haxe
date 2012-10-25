@@ -68,7 +68,7 @@ class Boot {
 		return __interfLoop(cc.__super__,cl);
 	}
 
-	@:feature("typed_catch")
+	@:ifFeature("typed_catch")
 	private static function __instanceof(o,cl) {
 		untyped {
 			if( cl == Dynamic )

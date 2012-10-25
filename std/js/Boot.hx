@@ -71,7 +71,7 @@ class Boot {
 		return untyped __define_feature__("js.Boot.getClass", o.__class__);
 	}
 
-	@:feature("has_enum")
+	@:ifFeature("has_enum")
 	private static function __string_rec(o,s:String) {
 		untyped {
 			if( o == null )
@@ -159,7 +159,7 @@ class Boot {
 		return __interfLoop(cc.__super__,cl);
 	}
 
-	@:feature("typed_catch") private static function __instanceof(o : Dynamic,cl) {
+	@:ifFeature("typed_catch") private static function __instanceof(o : Dynamic,cl) {
 		untyped {
 			try {
 				if( __js__("o instanceof cl") ) {
@@ -195,7 +195,7 @@ class Boot {
 		}
 	}
 
-	@:feature("typed_cast") private static function __cast(o : Dynamic, t : Dynamic) {
+	@:ifFeature("typed_cast") private static function __cast(o : Dynamic, t : Dynamic) {
 		if (__instanceof(o, t)) return o;
 		else throw "Cannot cast " +Std.string(o) + " to " +Std.string(t);
 	}

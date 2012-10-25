@@ -25,7 +25,7 @@
 
 @:coreApi class Std {
 
-	@:feature("typed_cast")
+	@:ifFeature("typed_cast")
 	public static function is( v : Dynamic, t : Dynamic ) : Bool {
 		return untyped neko.Boot.__instanceof(v,t);
 	}

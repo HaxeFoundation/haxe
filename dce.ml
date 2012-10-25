@@ -70,15 +70,23 @@ let keep_whole_class dce c =
 		| { cl_path = [],"Array" } -> not (dce.com.platform = Js)
 		| _ -> false)
 
+(* check if a metadata contains @:ifFeature with a used feature argument *)
+let has_used_feature com meta =
+	try
+		let _,el,_ = get_meta ":ifFeature" meta in
+		List.exists (fun e -> match fst e with
+			| EConst(String s) when Common.has_feature com s -> true
+			| _ -> false
+		) el
+	with Not_found ->
+		false
+
 (* check if a field is kept *)
 let keep_field dce cf =
 	has_meta ":keep" cf.cf_meta
 	|| has_meta ":used" cf.cf_meta
 	|| cf.cf_name = "__init__"
-	|| dce.com.platform = Js && (try (match get_meta ":feature" cf.cf_meta with
-			| (_,[EConst(String s),_],_) -> Common.has_feature dce.com s
-			| _ -> raise Not_found)
-		with Not_found -> false)
+	|| has_used_feature dce.com cf.cf_meta
 
 (* marking *)
 

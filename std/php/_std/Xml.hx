@@ -221,6 +221,7 @@ enum XmlType {
 	}
 
 	// TODO: check correct transform function
+	@:ifFeature("Xml.parse")
 	public function set( att : String, value : String ) : Void {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
