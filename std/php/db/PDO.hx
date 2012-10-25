@@ -31,6 +31,8 @@ import sys.db.Connection;
 import sys.db.ResultSet;
 #end
 
+import php.Lib;
+
 /**
  * PDO::FETCH_COLUMN = 7
  * PDO::FETCH_CLASS = 8
@@ -86,8 +88,6 @@ extern class PDOStatement
 	public function setAttribute(attribute : Int, value : Dynamic) : Bool;
 	public function setFetchMode(mode : Int, ?fetch : Dynamic, ?ctorargs : NativeArray) : Bool;
 }
-
-import php.Lib;
 
 private class PDOConnection implements Connection {
 
