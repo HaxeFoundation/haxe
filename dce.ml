@@ -270,6 +270,7 @@ let run com main full =
 			in
 			let acc = loop2 acc c.cl_ordered_statics true in
 			let acc = loop2 acc c.cl_ordered_fields false in
+			let acc = match c.cl_constructor with None -> acc | Some cf -> loop2 acc [cf] false in
 			loop acc l
 		| _ :: l ->
 			loop acc l
