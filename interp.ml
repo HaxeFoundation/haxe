@@ -1828,6 +1828,12 @@ let reg_lib =
 	let error() =
 		raise Builtin_error
 	in
+	(* try to load regexp first : we might fail if pcre is not installed *)
+	let neko = (match neko with 
+		| None -> None 
+		| Some neko ->
+			(try ignore(neko.load "regexp@regexp_new_options" 2); Some neko with _ -> None)
+	) in
 	match neko with
 	| None ->
 	make_library [
