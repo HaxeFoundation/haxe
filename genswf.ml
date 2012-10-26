@@ -436,7 +436,7 @@ let parse_swf com file =
 		with _ ->
 			Zip.close_in zip;
 			failwith ("The input swc " ^ file ^ " is corrupted")
-	end else 
+	end else
 		IO.input_channel (open_in_bin file)
 	in
 	let h, tags = (try Swf.parse ch with _ -> failwith ("The input swf " ^ file ^ " is corrupted")) in
@@ -498,11 +498,12 @@ let swf_ver = function
 	| 11.2 -> 15
 	| 11.3 -> 16
 	| 11.4 -> 17
+	| 11.5 -> 18
 	| _ -> assert false
 
 let convert_header com (w,h,fps,bg) =
 	let high = (max w h) * 20 in
-	let rec loop b =		
+	let rec loop b =
 		if 1 lsl b > high then b else loop (b + 1)
 	in
 	let bits = loop 0 in
@@ -743,7 +744,7 @@ let detect_format file p =
 	let fmt = (match (try let a = input_byte ch in a, input_byte ch with _ -> 0,0) with
 		| 0xFF, 0xD8 -> BJPG
 		| 0x89, 0x50 -> BPNG
-		| x,y -> 
+		| x,y ->
 			close_in ch;
 			error "Unknown image file format" p
 	) in

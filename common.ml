@@ -61,7 +61,7 @@ type stats = {
 *)
 type capture_policy =
 	(** do nothing, let the platform handle it *)
-	| CPNone 
+	| CPNone
 	(** wrap all captured variables into a single-element array to allow modifications *)
 	| CPWrapRef
 	(** similar to wrap ref, but will only apply to the locals that are declared in loops *)
@@ -240,7 +240,7 @@ let stats =
 		s_macros_called = ref 0;
 	}
 
-let default_config = 
+let default_config =
 	{
 		pf_static = true;
 		pf_sys = true;
@@ -274,7 +274,7 @@ let get_config com =
 		{
 			pf_static = false;
 			pf_sys = false;
-			pf_locals_scope = false;		
+			pf_locals_scope = false;
 			pf_captured_scope = false;
 			pf_unique_locals = false;
 			pf_can_init_member = (fun _ -> false);
@@ -329,7 +329,7 @@ let get_config com =
 				match cf.cf_kind, cf.cf_expr with
 				| Var { v_write = AccCall _ },  _ -> false
 				| _, Some { eexpr = TTypeExpr _ } -> false
-				| _ -> true 
+				| _ -> true
 			);
 			pf_capture_policy = CPNone;
 			pf_pad_nulls = true;
@@ -475,12 +475,12 @@ let flash_versions = List.map (fun v ->
 	let maj = int_of_float v in
 	let min = int_of_float (mod_float (v *. 10.) 10.) in
 	v, string_of_int maj ^ (if min = 0 then "" else "_" ^ string_of_int min)
-) [9.;10.;10.1;10.2;10.3;11.;11.1;11.2;11.3;11.4]
+) [9.;10.;10.1;10.2;10.3;11.;11.1;11.2;11.3;11.4;11.5]
 
 let raw_defined ctx v =
 	PMap.mem v ctx.defines
 
-let defined ctx v = 
+let defined ctx v =
 	raw_defined ctx (fst (Define.infos v))
 
 let raw_define ctx v =
@@ -512,7 +512,7 @@ let rec has_feature com f =
 		if com.types = [] then defined com Define.AllFeatures else
 		match List.rev (ExtString.String.nsplit f ".") with
 		| [] -> assert false
-		| [cl] -> has_feature com (cl ^ ".*") 
+		| [cl] -> has_feature com (cl ^ ".*")
 		| meth :: cl :: pack ->
 			let r = (try
 				let path = List.rev pack, cl in
