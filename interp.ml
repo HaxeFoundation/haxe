@@ -507,7 +507,7 @@ let neko =
 		let exc = ref null in
 		let vargs = [|alloc_string n;alloc_int args|] in
 		let p = Extc.dlcall5 callEx loader loadprim (Obj.magic vargs) (Extc.dlint 2) (Obj.magic exc) in
-		if !exc != null then failwith ("Failed ot load " ^ n ^ ":" ^ string_of_int args);
+		if !exc != null then failwith ("Failed to load " ^ n ^ ":" ^ string_of_int args);
 		ignore(alloc_root p);
 		(n,p,args)
 	in
