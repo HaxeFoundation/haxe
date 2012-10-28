@@ -2056,6 +2056,11 @@ let macro_lib =
 			| VString s -> VBool (Common.raw_defined (ccom()) s)
 			| _ -> error();
 		);
+		"defined_value", Fun1 (fun s ->
+			match s with
+			| VString s -> (try VString (Common.defined_value (ccom()) s) with Not_found -> VNull)
+			| _ -> error();
+		);
 		"get_type", Fun1 (fun s ->
 			match s with
 			| VString s ->

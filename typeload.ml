@@ -298,7 +298,7 @@ let rec load_instance ctx t p allow_no_params =
 				| TInst (c,[]) ->
 					(* mark a generic class as recursively used if it is used with an "unresolved" non-generic type parameter *)
 					(match get_generic_parameter_kind ctx c,cg with
-					| (GPField _ | GPNone), Some c -> 
+					| (GPField _ | GPNone), Some c ->
 						if not (has_meta ":?genericRec" c.cl_meta) then c.cl_meta <- (":?genericRec",[],p) :: c.cl_meta
 					| _ ->
 						());
@@ -1365,7 +1365,7 @@ let init_class ctx c p context_init herits fields =
 					if not (Common.raw_defined ctx.com i) then
 						Some (i,(match List.rev l with (EConst (String msg),_) :: _ -> Some msg | _ -> None))
 					else
-						loop l				
+						loop l
 				| _ -> error "Invalid require identifier" p
 			in
 			loop conds

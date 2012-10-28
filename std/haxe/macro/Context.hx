@@ -121,6 +121,13 @@ class Context {
 	public static function defined( s : String ) : Bool {
 		return load("defined", 1)(untyped s.__s);
 	}
+	
+	/**
+		Returns the value defined through -D key=value
+	**/
+	public static function definedValue( key : String ) : String {
+		return load("defined_value", 1)(untyped key.__s);
+	}	
 
 	/**
 		Resolve a type from its name.

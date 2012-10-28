@@ -162,7 +162,7 @@ let rec can_access ctx c cf stat =
 	in
 	let has m c f path =
 		let rec loop = function
-			| (m2,[e],_) :: l when m = m2 -> 
+			| (m2,[e],_) :: l when m = m2 ->
 				let p = expr_path [] e in
 				(p <> [] && chk_path p path) || loop l
 			| _ :: l -> loop l
@@ -1420,7 +1420,7 @@ and type_switch ctx e cases def need_val with_type p =
 				| EConst (Ident "_") -> None
 				| EConst (Ident i) -> Some i
 				| _ -> raise Exit
-			) pl in			
+			) pl in
 			(match e.eexpr with
 			| TEnumField (en,s) | TClosure ({ eexpr = TTypeExpr (TEnumDecl en) },s) -> type_match e en s pl
 			| _ -> if pl = [] then case_expr e else raise Exit)
@@ -2297,7 +2297,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			| TAnon a ->
 				(match !(a.a_status) with
 				| Statics c ->
-					PMap.fold (fun f acc -> if can_access ctx c f true then PMap.add f.cf_name { f with cf_public = true; cf_type = opt_type f.cf_type } acc else acc) a.a_fields PMap.empty 
+					PMap.fold (fun f acc -> if can_access ctx c f true then PMap.add f.cf_name { f with cf_public = true; cf_type = opt_type f.cf_type } acc else acc) a.a_fields PMap.empty
 				| _ ->
 					a.a_fields)
 			| _ ->
@@ -2995,7 +2995,7 @@ let get_macro_context ctx p =
 		com2.class_path <- List.map (fun p -> p ^ "neko" ^ "/_std/") com2.std_path @ com2.class_path;
 		let to_remove = List.map (fun d -> fst (Define.infos d)) [Define.NoTraces] in
 		let to_remove = to_remove @ List.map (fun (_,d) -> "flash" ^ d) Common.flash_versions in
-		com2.defines <- PMap.foldi (fun k _ acc -> if List.mem k to_remove then acc else PMap.add k () acc) com2.defines PMap.empty;
+		com2.defines <- PMap.foldi (fun k v acc -> if List.mem k to_remove then acc else PMap.add k v acc) com2.defines PMap.empty;
 		Common.define com2 Define.Macro;
 		Common.init_platform com2 Neko;
 		let ctx2 = ctx.g.do_create com2 in

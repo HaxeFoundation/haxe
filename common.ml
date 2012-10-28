@@ -101,7 +101,7 @@ type context = {
 	mutable std_path : string list;
 	mutable class_path : string list;
 	mutable main_class : Type.path option;
-	mutable defines : (string,unit) PMap.t;
+	mutable defines : (string,string) PMap.t;
 	mutable package_rules : (string,package_rule) PMap.t;
 	mutable error : string -> pos -> unit;
 	mutable warning : string -> pos -> unit;
@@ -388,7 +388,7 @@ let create v args =
 		std_path = [];
 		class_path = [];
 		main_class = None;
-		defines = PMap.add "true" () (if !display_default then PMap.add "display" () PMap.empty else PMap.empty);
+		defines = PMap.add "true" "1" (if !display_default then PMap.add "display" "1" PMap.empty else PMap.empty);
 		package_rules = PMap.empty;
 		file = "";
 		types = [];
@@ -434,11 +434,11 @@ let get_signature com =
 	match com.defines_signature with
 	| Some s -> s
 	| None ->
-		let str = String.concat "@" (PMap.foldi (fun k _ acc ->
+		let str = String.concat "@" (PMap.foldi (fun k v acc ->
 			(* don't make much difference between these special compilation flags *)
 			match k with
 			| "display" | "use_rtti_doc" | "macrotimes" -> acc
-			| _ -> k :: acc
+			| _ -> k :: v :: acc
 		) com.defines []) in
 		let s = Digest.string str in
 		com.defines_signature <- Some s;
@@ -483,10 +483,14 @@ let raw_defined ctx v =
 let defined ctx v =
 	raw_defined ctx (fst (Define.infos v))
 
+let defined_value ctx k =
+	PMap.find k ctx.defines
+
 let raw_define ctx v =
-	ctx.defines <- PMap.add v () ctx.defines;
-	let v = String.concat "_" (ExtString.String.nsplit v "-") in
-	ctx.defines <- PMap.add v () ctx.defines;
+	let k,v = try ExtString.String.split v "=" with _ -> v,"1" in
+	ctx.defines <- PMap.add k v ctx.defines;
+	let k = String.concat "_" (ExtString.String.nsplit k "-") in
+	ctx.defines <- PMap.add k v ctx.defines;
 	ctx.defines_signature <- None
 
 let define ctx v =
