@@ -17,7 +17,7 @@
 	js : no JS embed as default (use -D embed-js instead)
 	all : added abstract types (Int/Float/Bool/Void/Class/Enum/EnumValue)
 	all : added --help-defines
-	all : DCE always run on standard library files
+	all : changed DCE with three modes : std(default), no and full
 	all : Haxe3 packages changes (see http://haxe.org/manual/haxe3)
 	all : Removed haxe.Int32, haxe.Firebug, haxe.TimerQueue
 	all : added -D key=value and #if (key >= value) operations
