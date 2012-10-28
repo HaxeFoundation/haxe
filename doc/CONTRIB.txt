@@ -8,7 +8,7 @@ You accept and agree to the following terms and conditions for Your present and 
 
   "Submitted" means any form or electronic, verbal or written communication, including but not limited to communication on electronic mailing lists, source code controle systems and issue tracking system that are managed by, or on behalkf of, the Haxe Foundation for the purpose of improving Haxe.
 
-2) Grang of Copyright License. Subject to the terms and conditions of this Grant, You hereby grant to the Haxe Foundation and to recipients of software distributed by the Haxe Foundation a perpetual, worldwide, non-exclusive, no-charge, royalty-free, irrevocable copyright license to reproduce, prepare derivative works of, publicly display, publicly perform, sublicense, and distribute Your Contributions and such derivative works.
+2) Grant of Copyright License. Subject to the terms and conditions of this Grant, You hereby grant to the Haxe Foundation and to recipients of software distributed by the Haxe Foundation a perpetual, worldwide, non-exclusive, no-charge, royalty-free, irrevocable copyright license to reproduce, prepare derivative works of, publicly display, publicly perform, sublicense, and distribute Your Contributions and such derivative works.
 
 3) You represent that you are legally entitled to grant the above license. If your employer(s) has rights to intellectual property that you create that includes your Contributions, you represent that you have received permission to make Contributions on behalf of that employer, that your employer has waived such rights for your Contributions to the Haxe Foundation, or that your employer has executed a separate Corporate Contributor License Grant with the Haxe Foundation.
 
