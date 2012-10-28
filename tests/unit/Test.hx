@@ -232,7 +232,7 @@ package unit;
 			#if java
 			new TestJava(),
 			#end
-			#if (dce && !interp)
+			#if ((dce == "full") && !interp && !as3)
 			new TestDCE(),
 			#end
 			//new TestUnspecified(),
