@@ -690,12 +690,16 @@ try
 	let force_typing = ref false in
 	let pre_compilation = ref [] in
 	let interp = ref false in
-	let full_dce = ref false in
-	if version >= 300 then Common.define com Define.Haxe3;
-	for i = 0 to (if version < 300 then 4 else version - 300) do
-		let v = version - i in
-		Common.raw_define com ("haxe_" ^ string_of_int v);
-	done;
+	if version < 300 then begin
+		for i = 0 to 4 do
+			let v = version - i in
+			Common.raw_define com ("haxe_" ^ string_of_int v);
+		done;
+	end else begin
+		Common.define com Define.Haxe3;
+		Common.define_value com Define.HaxeVer (string_of_float (float_of_int version /. 100.));
+	end;
+	Common.define_value com Define.Dce "std";
 	com.warning <- (fun msg p -> message ctx ("Warning : " ^ msg) p);
 	com.error <- error ctx;
 	Parser.display_error := (fun e p -> com.error (Parser.error_msg e) p);
@@ -773,7 +777,7 @@ try
 		),"<library[:version]> : use a haxelib library");
 		("-D",Arg.String (fun var ->
 			if var = fst (Define.infos Define.UseRttiDoc) then Parser.use_doc := true;
-			if var = fst (Define.infos Define.NoOpt) then com.foptimize <- false;			
+			if var = fst (Define.infos Define.NoOpt) then com.foptimize <- false;
 			if List.mem var reserved_flags then raise (Arg.Bad (var ^ " is a reserved compiler flag and cannot be defined from command line"));
 			Common.raw_define com var
 		),"<var> : define a conditional compilation flag");
@@ -907,9 +911,12 @@ try
 			force_typing := true;
 			config_macros := e :: !config_macros
 		)," : call the given macro before typing anything else");
-		("--dead-code-elimination", Arg.Unit (fun () ->
-			full_dce := true
-		)," : remove unused methods");
+		("--dce", Arg.String (fun mode ->
+			(match mode with
+			| "std" | "full" | "no" -> ()
+			| _ -> raise (Arg.Bad "Invalid DCE mode"));
+			Common.define_value com Define.Dce mode
+		),"[std|full|no] : set the dead code elimination mode");
 		("--wait", Arg.String (fun hp ->
 			let host, port = (try ExtString.String.split hp ":" with _ -> "127.0.0.1", hp) in
 			wait_loop com host (try int_of_string port with _ -> raise (Arg.Bad "Invalid port"))
@@ -1054,7 +1061,8 @@ try
 		Codegen.post_process_end();
 		List.iter (fun f -> f()) (List.rev com.filters);
 		List.iter (Codegen.save_class_state tctx) com.types;
-		if not (!gen_as3 || Common.defined com Define.NoDce || Common.defined com Define.DocGen) then Dce.run com main (!full_dce && not !interp);
+		let dce_mode = (try Common.defined_value com Define.Dce with _ -> "no") in
+		if not (!gen_as3 || dce_mode = "no" || Common.defined com Define.DocGen) then Dce.run com main (dce_mode = "full" && not !interp);
 		let type_filters = [
 			Codegen.check_private_path;
 			Codegen.remove_generic_base;

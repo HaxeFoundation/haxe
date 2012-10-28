@@ -144,6 +144,7 @@ module Define = struct
 		| CoreApi
 		| NoCOpt
 		| Haxe3
+		| HaxeVer
 		| CheckXmlProxy
 		| DocGen
 		| Vcproj
@@ -179,7 +180,7 @@ module Define = struct
 		| PhpPrefix
 		| Dump
 		| DumpDependencies
-		| NoDce
+		| Dce
 
 		| Last (* must be last *)
 
@@ -192,6 +193,7 @@ module Define = struct
 		| CoreApi -> ("core_api","Defined in the core api context")
 		| NoCOpt -> ("no_copt","Disable completion optimization (for debug purposes)")
 		| Haxe3 -> ("haxe3","Enable Haxe3 transition mode")
+		| HaxeVer -> ("haxe_ver","The current Haxe version value")
 		| CheckXmlProxy -> ("check_xml_proxy","Check the used fields of the xml proxy")
 		| DocGen -> ("doc_gen","Do not perform any removal/change in order to correctly generate documentation")
 		| Vcproj -> ("vcproj","GenCPP internal")
@@ -227,7 +229,7 @@ module Define = struct
 		| PhpPrefix -> ("php_prefix","Compiled with --php-prefix")
 		| Dump -> ("dump","Dump the complete typed AST for internal debugging")
 		| DumpDependencies -> ("dump_dependencies","Dump the classes dependencies")
-		| NoDce -> ("no_dce","Entirely disable dead code elimination")
+		| Dce -> ("dce","The current DCE mode")
 		| Last -> assert false
 
 end
@@ -483,8 +485,11 @@ let raw_defined ctx v =
 let defined ctx v =
 	raw_defined ctx (fst (Define.infos v))
 
-let defined_value ctx k =
+let raw_defined_value ctx k =
 	PMap.find k ctx.defines
+
+let defined_value ctx v =
+	raw_defined_value ctx (fst (Define.infos v))
 
 let raw_define ctx v =
 	let k,v = try ExtString.String.split v "=" with _ -> v,"1" in
@@ -493,6 +498,9 @@ let raw_define ctx v =
 	ctx.defines <- PMap.add k v ctx.defines;
 	ctx.defines_signature <- None
 
+let define_value ctx k v =
+	raw_define ctx (fst (Define.infos k) ^ "=" ^ v)
+	
 let define ctx v =
 	raw_define ctx (fst (Define.infos v))
 

@@ -991,7 +991,7 @@ let parse ctx code =
 		in
 		let rec loop (e,p) =
 			match e with
-			| EConst (Ident i) -> (try TString (Common.defined_value ctx i) with Not_found -> TNull)
+			| EConst (Ident i) -> (try TString (Common.raw_defined_value ctx i) with Not_found -> TNull)
 			| EConst (String s) -> TString s
 			| EConst (Int i) -> TFloat (float_of_string i)
 			| EConst (Float f) -> TFloat (float_of_string f)

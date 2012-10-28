@@ -1829,8 +1829,8 @@ let reg_lib =
 		raise Builtin_error
 	in
 	(* try to load regexp first : we might fail if pcre is not installed *)
-	let neko = (match neko with 
-		| None -> None 
+	let neko = (match neko with
+		| None -> None
 		| Some neko ->
 			(try ignore(neko.load "regexp@regexp_new_options" 2); Some neko with _ -> None)
 	) in
@@ -2058,7 +2058,7 @@ let macro_lib =
 		);
 		"defined_value", Fun1 (fun s ->
 			match s with
-			| VString s -> (try VString (Common.defined_value (ccom()) s) with Not_found -> VNull)
+			| VString s -> (try VString (Common.raw_defined_value (ccom()) s) with Not_found -> VNull)
 			| _ -> error();
 		);
 		"get_type", Fun1 (fun s ->
