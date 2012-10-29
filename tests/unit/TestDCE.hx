@@ -5,7 +5,7 @@ class DCEClass {
 	static function staticUsed() { }
 	@:keep static function staticKeep() { }
 	static var staticVarUsed = "foo";
-	static var staticPropUsed(get_staticPropUsed, set_staticPropUsed):Int = 1;
+	@:isVar static var staticPropUsed(get, set):Int = 1;
 	static function get_staticPropUsed() return staticPropUsed
 	static function set_staticPropUsed(i:Int) return 0
 	
@@ -13,23 +13,23 @@ class DCEClass {
 	function memberUsed() { }
 	@:keep function memberKeep() { }
 	var memberVarUsed = 0;
-	var memberPropUsed(get_memberPropUsed, set_memberPropUsed):Int = 1;
+	@:isVar var memberPropUsed(get, set):Int = 1;
 	function get_memberPropUsed() return memberPropUsed
 	function set_memberPropUsed(i:Int) return 0
 	
 	// unused statics
 	static function staticUnused() { }
 	static var staticVarUnused = "bar";
-	static var staticPropUnused(get_staticPropUnused, set_staticPropUnused):Int = 1;
+	static var staticPropUnused(get, set):Int = 1;
 	static function get_staticPropUnused() return 0
 	static function set_staticPropUnused(i:Int) return 0
 	
 	// unused members
 	function memberUnused() { }
 	var memberVarUnused = 1;
-	var memberPropUnused(get_memberPropUnused, set_memberPropUnused):Int = 1;
+	var memberPropUnused(get, set):Int = 1;
 	function get_memberPropUnused() return 0
-	function set_memberPropUnused(i:Int) return 0	
+	function set_memberPropUnused(i:Int) return 0
 	
 	static var c :Array<Dynamic> = [null, unit.UsedReferenced2];
 	
@@ -82,7 +82,7 @@ class TestDCE extends Test {
 		nhsf(c, "staticVarUnused");
 		nhsf(c, "staticPropUnused");
 		nhsf(c, "get_staticPropUnused");
-		nhsf(c, "set_staticPropUnused");	
+		nhsf(c, "set_staticPropUnused");
 	}
 	
 	public function testInterface() {
@@ -98,7 +98,7 @@ class TestDCE extends Test {
 		hf(bc, "usedInterfaceFunc");
 		nhf(ic, "unusedInterfaceFunc");
 		nhf(c, "unusedInterfaceFunc");
-		nhf(bc, "unusedInterfaceFunc");	
+		nhf(bc, "unusedInterfaceFunc");
 	}
 	
 	public function testProperty() {
@@ -126,10 +126,10 @@ class TestDCE extends Test {
 		t(Type.resolveClass("unit.UsedAsBaseChild") != null);
 		
 		t(Type.resolveClass("unit.Unused") == null);
-		t(Type.resolveClass("unit.UnusedChild") == null);		
+		t(Type.resolveClass("unit.UnusedChild") == null);
 		t(Type.resolveClass("unit.UnusedImplements") == null);
 		t(Type.resolveClass("unit.UsedConstructedChild") == null);
-		t(Type.resolveClass("unit.UsedReferencedChild") == null);	
+		t(Type.resolveClass("unit.UsedReferencedChild") == null);
 	}
 }
 

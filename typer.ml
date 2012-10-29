@@ -636,6 +636,7 @@ let field_access ctx mode f t e p =
 		| AccCall m ->
 			if m = ctx.curfield.cf_name && (match e.eexpr with TConst TThis -> true | TTypeExpr (TClassDecl c) when c == ctx.curclass -> true | _ -> false) then
 				let prefix = (match ctx.com.platform with Flash when Common.defined ctx.com Define.As3 -> "$" | _ -> "") in
+				if is_extern_field f then display_error ctx "This field cannot be accessed since it is not an actual var, add @:isVar to enable it" p;
 				AKExpr (mk (TField (e,prefix ^ f.cf_name)) t p)
 			else if mode = MSet then
 				AKSet (e,m,t,f.cf_name)

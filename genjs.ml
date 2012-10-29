@@ -897,6 +897,8 @@ let gen_class_static_field ctx c f =
 	match f.cf_expr with
 	| None | Some { eexpr = TConst TNull } when not (has_feature ctx "Type.getClassFields") ->
 		()
+	| None when is_extern_field f ->
+		()
 	| None ->
 		print ctx "%s%s = null" (s_path ctx c.cl_path) (static_field f.cf_name);
 		newline ctx
@@ -914,11 +916,10 @@ let gen_class_static_field ctx c f =
 			ctx.statics <- (c,f.cf_name,e) :: ctx.statics
 
 let can_gen_class_field ctx = function
-	| { cf_kind = Var { v_read = AccResolve } } -> false
 	| { cf_expr = (None | Some { eexpr = TConst TNull }) } when not (has_feature ctx "Type.getInstanceFields") ->
 		false
-	| _ ->
-		true
+	| f ->
+		not (is_extern_field f)
 
 let gen_class_field ctx c f =
 	check_field_name c f;

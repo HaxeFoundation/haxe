@@ -129,6 +129,7 @@ enum ValueType {
 		a.remove(__unprotect__("__name__"));
 		a.remove(__unprotect__("__interfaces__"));
 		a.remove(__unprotect__("__super__"));
+		a.remove(__unprotect__("__properties__"));
 		return a;
 	}
 

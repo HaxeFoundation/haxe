@@ -448,11 +448,10 @@ and gen_expr ctx e =
 
 let gen_method ctx p c acc =
 	ctx.curmethod <- c.cf_name;
+	if is_extern_field c then acc else
 	match c.cf_expr with
 	| None ->
-		(match c.cf_kind with
-		| Var { v_read = AccResolve } -> acc
-		| _ -> (c.cf_name, null p) :: acc)
+		((c.cf_name, null p) :: acc)
 	| Some e ->
 		match e.eexpr with
 		| TCall ({ eexpr = TField ({ eexpr = TTypeExpr (TClassDecl { cl_path = (["neko"],"Lib") }) }, load)},[{ eexpr = TConst (TString m) };{ eexpr = TConst (TString f) };{ eexpr = TConst (TInt n) }]) when load = "load" || load = "loadLazy" ->

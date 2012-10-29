@@ -50,6 +50,23 @@ class TestType extends Test {
 		var fl = Type.getInstanceFields(unit.MySubClass);
 		fl.sort(Reflect.compare);
 		eq( fl.join("|"), fields.join("|") );
+		
+		// AS3 generator will create native properties
+		#if !as3
+		
+		// x should not be listed since it's not a variable
+		var fl = Type.getInstanceFields(VarProps);
+		var fields = ["get_x","get_y","set_x","set_y","set_z","y","z"];
+		fl.sort(Reflect.compare);
+		eq( fl.join("|"), fields.join("|"));
+		
+		// same for statics
+		var fl = Type.getClassFields(VarProps);
+		var fields = ["SY", "get_SX", "get_SY", "set_SX", "set_SY"];
+		fl.sort(Reflect.compare);
+		eq( fl.join("|"), fields.join("|"));
+		
+		#end
 	}
 
 	public function testEnumEq() {

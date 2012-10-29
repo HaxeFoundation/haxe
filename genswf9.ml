@@ -1921,6 +1921,7 @@ let generate_field_kind ctx f c stat =
 		in
 		loop f.cf_meta
 	in
+	if is_extern_field f then None else
 	match f.cf_expr with
 	| Some { eexpr = TFunction fdata } ->
 		let rec loop c name =
@@ -1966,8 +1967,6 @@ let generate_field_kind ctx f c stat =
 			})
 		| _ ->
 			None)
-	| _ when (match f.cf_kind with Var { v_read = AccResolve } -> true | _ -> false) ->
-		None
 	| _ ->
 		Some (HFVar {
 			hlv_type = if Codegen.is_volatile f.cf_type then Some (type_path ctx ([],"Array")) else type_opt ctx f.cf_type;
@@ -2132,15 +2131,17 @@ let generate_class ctx c =
 	let st_meth_count = ref 0 in
 	let statics = List.rev (List.fold_left (fun acc f ->
 		let acc = generate_prop f acc (fun() -> incr st_meth_count; !st_meth_count) in
-		let k = (match generate_field_kind ctx f c true with None -> assert false | Some k -> k) in
-		let count = (match k with HFMethod _ -> st_meth_count | HFVar _ -> st_field_count | _ -> assert false) in
-		incr count;
-		{
-			hlf_name = make_name f;
-			hlf_slot = !count;
-			hlf_kind = k;
-			hlf_metas = extract_meta f.cf_meta;
-		} :: acc
+		match generate_field_kind ctx f c true with 
+		| None -> acc
+		| Some k ->
+			let count = (match k with HFMethod _ -> st_meth_count | HFVar _ -> st_field_count | _ -> assert false) in
+			incr count;
+			{
+				hlf_name = make_name f;
+				hlf_slot = !count;
+				hlf_kind = k;
+				hlf_metas = extract_meta f.cf_meta;
+			} :: acc
 	) [] c.cl_ordered_statics) in
 	let statics = if not (need_init ctx c) then statics else
 		{

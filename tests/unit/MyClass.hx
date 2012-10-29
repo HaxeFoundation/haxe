@@ -195,3 +195,60 @@ class UsingUnrelated {
 		return "foo".pupFunc() + "foo".siblingFunc();
 	}
 }
+
+@:keep class VarProps {
+	
+	static var SX(get, set) : Int;
+	@:isVar static var SY(get, set) : Int;
+	
+	static function get_SX() {
+		return 1;
+	}
+	
+	static function set_SX(v) {
+		return v;
+	}
+	
+	static function get_SY() {
+		return SY;
+	}
+
+	static function set_SY(v) {
+		SY = v;
+		return v;
+	}
+		
+
+	public var x(get, set) : Int;
+	@:isVar public var y(get, set) : Int;
+	public var z(default, set) : Int;
+	
+	public function new() {
+		x = 1;
+		y = 2;
+		z = 3;
+	}
+	
+	function get_x() {
+		return 1;
+	}
+	
+	function set_x(v) {
+		return v;
+	}
+	
+	function get_y() {
+		return y;
+	}
+
+	function set_y(v) {
+		y = v;
+		return v;
+	}
+	
+	function set_z(v) {
+		z = v + 1;
+		return z;
+	}
+
+}
