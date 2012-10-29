@@ -378,6 +378,7 @@ and type_string_suff suffix haxe_type =
 	| TAbstract ({ a_path = ([],"Bool") },[]) -> "bool"
 	| TAbstract ({ a_path = ([],"Float") },[]) -> "Float"
 	| TAbstract ({ a_path = ([],"Int") },[]) -> "int"
+	| TAbstract( { a_path = ([], "EnumValue") }, _  ) -> "Dynamic"
 	| TEnum ({ e_path = ([],"Void") },[]) -> "Void"
 	| TEnum ({ e_path = ([],"Bool") },[]) -> "bool"
 	| TInst ({ cl_path = ([],"Float") },[]) -> "Float"
