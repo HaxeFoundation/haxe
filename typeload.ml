@@ -1063,6 +1063,8 @@ let init_class ctx c p context_init herits fields =
 			PMap.exists f c.cl_fields || has_field f c.cl_super || List.exists (fun i -> has_field f (Some i)) c.cl_implements
 	in
 
+	(match c.cl_super with None -> () | Some _ -> delay ctx PForce (fun() -> check_overriding ctx c));
+
 	(* ----------------------- COMPLETION ----------------------------- *)
 
 	let display_file = if ctx.com.display then Common.unique_full_path p.pfile = (!Parser.resume_display).pfile else false in
@@ -1151,7 +1153,6 @@ let init_class ctx c p context_init herits fields =
 
 	(* ----------------------- FIELD INIT ----------------------------- *)
 
-	let has_override = ref false in
 
 	let loop_cf f =
 		let name = f.cff_name in
@@ -1160,10 +1161,6 @@ let init_class ctx c p context_init herits fields =
 		let extern = has_meta ":extern" f.cff_meta || c.cl_extern in
 		let inline = List.mem AInline f.cff_access && (match f.cff_kind with FFun _ -> not ctx.com.display && (ctx.g.doinline || extern) | _ -> true) in
 		let override = List.mem AOverride f.cff_access in
-		if override && not !has_override then begin
-			has_override := true;
-			delay ctx PForce (fun() -> check_overriding ctx c);
-		end;
 		(* build the per-field context *)
 		let ctx = {
 			ctx with
