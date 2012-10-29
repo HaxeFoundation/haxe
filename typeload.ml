@@ -1161,6 +1161,7 @@ let init_class ctx c p context_init herits fields =
 		let extern = has_meta ":extern" f.cff_meta || c.cl_extern in
 		let inline = List.mem AInline f.cff_access && (match f.cff_kind with FFun _ -> not ctx.com.display && (ctx.g.doinline || extern) | _ -> true) in
 		let override = List.mem AOverride f.cff_access in
+		if override then (match c.cl_super with None -> error "Invalid override: class has no super class" p | _ -> ());
 		(* build the per-field context *)
 		let ctx = {
 			ctx with
