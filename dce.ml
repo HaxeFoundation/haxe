@@ -159,6 +159,7 @@ let rec field dce c n stat =
 			| Some cf -> cf
 		else PMap.find n (if stat then c.cl_statics else c.cl_fields)
 	in
+	let not_found () = if dce.debug then prerr_endline ("[DCE] Field " ^ n ^ " not found on " ^ (s_type_path c.cl_path)) else () in
 	(try
 		let cf = find_field n in
 		mark_field dce c cf stat;
@@ -182,7 +183,14 @@ let rec field dce c n stat =
 		end;
 		raise Not_found
 	with Not_found ->
-		match c.cl_super with Some (csup,_) -> field dce csup n stat | None -> ());
+		if c.cl_interface then begin
+			let rec loop cl = match cl with
+				| [] -> not_found()
+				| (c,_) :: cl ->
+					try field dce c n stat with Not_found -> loop cl
+			in
+			loop c.cl_implements
+		end else match c.cl_super with Some (csup,_) -> field dce csup n stat | None -> not_found())
 
 and expr dce e =
 	match e.eexpr with
