@@ -33,9 +33,9 @@ enum XmlType {
 	public static var Document(default,null) : XmlType;
 
 
-	public var nodeName(get_nodeName,set_nodeName) : String;
-	public var nodeValue(get_nodeValue,set_nodeValue) : String;
-	public var parent(getParent,null) : Xml;
+	public var nodeName(get,set) : String;
+	public var nodeValue(get,set) : String;
+	public var parent(get,null) : Xml;
 	public var nodeType(default,null) : XmlType;
 
 	private var __x : Dynamic;
@@ -157,7 +157,7 @@ enum XmlType {
 		return __x[untyped "nodeValue"];
 	}
 
-	private function getParent() : Xml {
+	private function get_parent() : Xml {
 		return convert(__x[untyped "parentNode"]);
 	}
 

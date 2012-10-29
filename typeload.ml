@@ -400,7 +400,13 @@ and load_complex_type ctx p t =
 						| "never" -> AccNever
 						| "default" -> AccNormal
 						| "dynamic" -> AccCall ((if get then "get_"  else "set_") ^ n)
-						| _ -> AccCall m
+						| "get" when get -> AccCall ("get_" ^ n)
+						| "set" when not get -> AccCall ("set_" ^ n)
+						| x when get && x = "get_" ^ n -> AccCall x
+						| x when not get && x = "set_" ^ n -> AccCall x
+						| _ ->	
+							(if Common.defined ctx.com Define.Haxe3 then error else ctx.com.warning) "Property custom access is no longer supported in Haxe3+" f.cff_pos;
+							AccCall m
 					in
 					let t = (match t with None -> error "Type required for structure property" p | Some t -> t) in
 					load_complex_type ctx p t, Var { v_read = access i1 true; v_write = access i2 false }
@@ -1300,24 +1306,26 @@ let init_class ctx c p context_init herits fields =
 				| None, _ -> mk_mono()
 				| Some t, _ -> load_complex_type ctx p t
 			) in
-			let check_get = ref (fun() -> ()) in
-			let check_set = ref (fun() -> ()) in
-			let check_method m t () =
+			let check_method m t req_name =
 				if ctx.com.display then () else
 				try
-					let t2 = (if stat then (PMap.find m c.cl_statics).cf_type else fst (class_field c m)) in
+					let t2, f = (if stat then let f = PMap.find m c.cl_statics in f.cf_type, f else class_field c m) in
 					unify_raise ctx t2 t p;
+					(match req_name with None -> () | Some n -> display_error ctx ("Please use " ^ n ^ " to name your property access method") f.cf_pos);
 				with
 					| Error (Unify l,_) -> raise (Error (Stack (Custom ("In method " ^ m ^ " required by property " ^ name),Unify l),p))
-					| Not_found -> if not (c.cl_interface || c.cl_extern) then display_error ctx ("Method " ^ m ^ " required by property " ^ name ^ " is missing") p
+					| Not_found -> 
+						if req_name <> None then display_error ctx "Custom property accessor is no longer supported, please use get/set" p else
+						if not (c.cl_interface || c.cl_extern) then display_error ctx ("Method " ^ m ^ " required by property " ^ name ^ " is missing") p
 			in
 			let get = (match get with
 				| "null" -> AccNo
 				| "dynamic" -> AccCall ("get_" ^ name)
 				| "never" -> AccNever
-				| "default" -> AccNormal
+				| "default" -> AccNormal				
 				| _ ->
-					check_get := check_method get (TFun ([],ret));
+					let get = if get = "get" then "get_" ^ name else get in
+					delay ctx PForce (fun() -> check_method get (TFun ([],ret)) (if get <> "get" && get <> "get_" ^ name && Common.defined ctx.com Define.Haxe3 then Some ("get_" ^ name) else None));
 					AccCall get
 			) in
 			let set = (match set with
@@ -1331,7 +1339,8 @@ let init_class ctx c p context_init herits fields =
 				| "dynamic" -> AccCall ("set_" ^ name)
 				| "default" -> AccNormal
 				| _ ->
-					check_set := check_method set (TFun (["",false,ret],ret));
+					let set = if set = "set" then "set_" ^ name else set in
+					delay ctx PForce (fun() -> check_method set (TFun (["",false,ret],ret)) (if set <> "set" && set <> "set_" ^ name && Common.defined ctx.com Define.Haxe3 then Some ("set_" ^ name) else None));
 					AccCall set
 			) in
 			if set = AccNormal && (match get with AccCall _ -> true | _ -> false) then error "Unsupported property combination" p;
@@ -1349,8 +1358,6 @@ let init_class ctx c p context_init herits fields =
 			} in
 			ctx.curfield <- cf;
 			bind_var ctx cf eo stat inline;
-			delay ctx PForce (fun() -> (!check_get)());
-			delay ctx PForce (fun() -> (!check_set)());
 			f, false, cf
 	in
 	let rec check_require = function

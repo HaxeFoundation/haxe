@@ -37,7 +37,7 @@ class Module {
 		The abstract handle.
 	**/
 	public var m : ModuleHandle;
-	public var name(getName,setName) : String;
+	public var name(get,set) : String;
 
 	public function new( m ) {
 		this.m = m;
@@ -52,11 +52,11 @@ class Module {
 		return _module_exec(m);
 	}
 
-	function getName() {
+	function get_name() {
 		return new String(_module_name(m));
 	}
 
-	function setName( n : String ) {
+	function set_name( n : String ) {
 		_module_set_name(m,untyped n.__s);
 		return n;
 	}

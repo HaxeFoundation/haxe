@@ -263,8 +263,8 @@ private class BaseResultSet implements ResultSet {
 	var _columnNames : Array<String>;
 	var _columnTypes : Array<String>;
 
-	public var length(getLength, null) : Int;
-	public var nfields(getNFields, null) : Int;
+	public var length(get, null) : Int;
+	public var nfields(get, null) : Int;
 
 	public function new(pdo : PDOStatement, typeStrategy : TypeStrategy)
 	{
@@ -300,7 +300,7 @@ private class BaseResultSet implements ResultSet {
 		return throw "must override";
 	}
 
-	function getLength() : Int {
+	function get_length() : Int {
 		return throw "must override";
 	}
 
@@ -316,7 +316,7 @@ private class BaseResultSet implements ResultSet {
 		return o;
 	}
 
-	function getNFields() : Int {
+	function get_nfields() : Int {
 		return _fields;
 	}
 
@@ -357,7 +357,7 @@ private class AllResultSet extends BaseResultSet {
 		return pos < _length;
 	}
 
-	override function getLength() : Int {
+	override function get_length() : Int {
 		return _length;
 	}
 
@@ -385,7 +385,7 @@ private class PDOResultSet extends BaseResultSet {
 		return (untyped cache);
 	}
 
-	override function getLength() {
+	override function get_length() {
 		if (untyped __physeq__(pdo, false))
 			return 0;
 		return pdo.rowCount();

@@ -40,7 +40,7 @@ import neko.db.Connection;
 class Manager<T : Object> {
 
 	/* ----------------------------- STATICS ------------------------------ */
-	public static var cnx(default,setConnection) : Connection;
+	public static var cnx(default,set) : Connection;
 	private static var object_cache : Hash<Object> = new Hash();
 	private static var init_list : List<Manager<Object>> = new List();
 	private static var cache_field = "__cache__";
@@ -55,7 +55,7 @@ class Manager<T : Object> {
 		h;
 	}
 
-	private static function setConnection( c : Connection ) {
+	private static function set_cnx( c : Connection ) {
 		Reflect.setField(Manager,"cnx",c);
 		if( c != null ) {
 			if( c.dbName() == "MySQL" ) {

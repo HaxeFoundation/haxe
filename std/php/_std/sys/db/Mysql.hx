@@ -83,8 +83,8 @@ private class MysqlConnection implements Connection {
 
 
 private class MysqlResultSet implements ResultSet {
-	public var length(getLength,null) : Int;
-	public var nfields(getNFields,null) : Int;
+	public var length(get,null) : Int;
+	public var nfields(get,null) : Int;
 	private var __r : Void;
 	private var __c : Void;
 	private var cache : Dynamic;
@@ -94,7 +94,7 @@ private class MysqlResultSet implements ResultSet {
 		__c = c;
 	}
 
-	private function getLength() {
+	private function get_length() {
 		if(untyped __physeq__(__r, true))
 			return untyped __call__("mysql_affected_rows", __c);
 		else if (untyped __physeq__(__r, false))
@@ -103,7 +103,7 @@ private class MysqlResultSet implements ResultSet {
 	}
 
 	private var _nfields : Int;
-	private function getNFields() {
+	private function get_nfields() {
 		if(_nfields == null)
 			_nfields = untyped __call__("mysql_num_fields", __r);
 		return _nfields;

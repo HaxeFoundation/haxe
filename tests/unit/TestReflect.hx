@@ -36,7 +36,7 @@ class ClassWithProp implements InterfWithProp {
 }
 
 class SubClassWithProp extends ClassWithProp {
-	public var y(default, setY) : Int;
+	public var y(default, set) : Int;
 
 	public function new() {
 		super();
@@ -51,7 +51,7 @@ class SubClassWithProp extends ClassWithProp {
 		return y;
 	}
 
-	function setY(v) {
+	function set_y(v) {
 		y = v;
 		return v;
 	}

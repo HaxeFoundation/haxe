@@ -46,20 +46,20 @@ private class D {
 
 private class MysqlResultSet implements sys.db.ResultSet {
 
-	public var length(getLength,null) : Int;
-	public var nfields(getNFields,null) : Int;
-	private var __r : Void;
+	public var length(get,null) : Int;
+	public var nfields(get,null) : Int;
+	private var __r : Dynamic;
 	private var cache : Dynamic;
 
 	public function new(r) {
 		__r = r;
 	}
 
-	private function getLength() {
+	private function get_length() {
 		return D.result_get_length(__r);
 	}
 
-	private function getNFields() {
+	private function get_nfields() {
 		return D.result_get_nfields(__r);
 	}
 

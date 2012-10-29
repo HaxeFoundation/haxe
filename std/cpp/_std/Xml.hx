@@ -160,9 +160,9 @@ enum XmlType {
 
 	public var nodeType(default,null) : XmlType;
 
-	public var nodeName(get_nodeName,set_nodeName) : String;
+	public var nodeName(get,set) : String;
 
-	public var nodeValue(get_nodeValue,set_nodeValue) : String;
+	public var nodeValue(get,set) : String;
 
 
 	private function get_nodeName() : String {
@@ -189,8 +189,8 @@ enum XmlType {
 		return _nodeValue = v;
 	}
 
-	public var parent(getParent,null) : Xml;
-	private function getParent() : Xml {
+	public var parent(get,null) : Xml;
+	private function get_parent() : Xml {
 		return _parent;
 	}
 

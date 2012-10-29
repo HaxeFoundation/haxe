@@ -345,7 +345,7 @@ extern class JQuery implements ArrayAccess<Dom.HtmlDom> {
 	/**
 		Return the current JQuery element (in a callback), similar to $(this) in JS.
 	**/
-	static var cur(getCurrent, null) : JQuery;
+	static var cur(get, null) : JQuery;
 
 	static var fx(default, null) : { off : Bool, interval : Int };
 	static var browser(default, null) : { webkit : Bool, opera : Bool, msie : Bool, mozilla : Bool, version : String };
@@ -361,7 +361,7 @@ extern class JQuery implements ArrayAccess<Dom.HtmlDom> {
 	//static function getJSON, getScript, grep
 	//static function is*, makeArray, map, merge, noop, now, param, proxy, sub, trim, type, unique
 
-	private static inline function getCurrent() : JQuery {
+	private static inline function get_current() : JQuery {
 		return untyped __js__("$(this)");
 	}
 

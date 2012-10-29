@@ -31,14 +31,14 @@ import php.db.Connection;
 class Manager<T : Object> {
 
 	/* ----------------------------- STATICS ------------------------------ */
-	public static var cnx(default,setConnection) : Connection;
+	public static var cnx(default,set) : Connection;
 	private static var object_cache : Hash<Object> = new Hash();
 	private static var cache_field = "__cache__";
 	private static var FOR_UPDATE = "";
 
 	public static var managers = new Hash<Manager<Dynamic>>();
 
-	private static dynamic function setConnection( c : Connection ) {
+	private static dynamic function set_cnx( c : Connection ) {
 		Reflect.setField(Manager,"cnx",c);
 		if( c != null )
 			FOR_UPDATE = if( c.dbName() == "MySQL" ) " FOR UPDATE" else "";

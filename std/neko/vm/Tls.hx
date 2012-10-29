@@ -24,17 +24,17 @@ package neko.vm;
 class Tls<T> {
 
 	var t : Dynamic;
-	public var value(getValue,setValue) : T;
+	public var value(get,set) : T;
 
 	public function new() {
 		t = tls_create();
 	}
 
-	function getValue() : T {
+	function get_value() : T {
 		return tls_get(t);
 	}
 
-	function setValue( v : T ) {
+	function set_value( v : T ) {
 		tls_set(t,v);
 		return v;
 	}

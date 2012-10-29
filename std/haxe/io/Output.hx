@@ -29,7 +29,7 @@ package haxe.io;
 **/
 class Output {
 	private static var LN2 = Math.log(2);
-	public var bigEndian(default, setEndian) : Bool;
+	public var bigEndian(default, set) : Bool;
 
 	#if java
 	private var helper:java.nio.ByteBuffer;
@@ -68,7 +68,7 @@ class Output {
 	public function close() {
 	}
 
-	function setEndian( b ) {
+	function set_bigEndian( b ) {
 		bigEndian = b;
 		return b;
 	}

@@ -23,8 +23,8 @@ package sys.db;
 
 interface ResultSet {
 
-	var length(getLength,null) : Int;
-	var nfields(getNFields,null) : Int;
+	var length(get,null) : Int;
+	var nfields(get,null) : Int;
 
 
 	function hasNext() : Bool;

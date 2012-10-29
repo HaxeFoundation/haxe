@@ -23,7 +23,7 @@ package haxe.remoting;
 
 class DelayedConnection implements AsyncConnection, implements Dynamic<AsyncConnection> {
 
-	public var connection(getConnection,setConnection) : AsyncConnection;
+	public var connection(get,set) : AsyncConnection;
 
 	var __path : Array<String>;
 	var __data : {
@@ -52,11 +52,11 @@ class DelayedConnection implements AsyncConnection, implements Dynamic<AsyncConn
 		return d;
 	}
 
-	function getConnection() {
+	function get_connection() {
 		return __data.cnx;
 	}
 
-	function setConnection(cnx) {
+	function set_connection(cnx) {
 		__data.cnx = cnx;
 		process(this);
 		return cnx;

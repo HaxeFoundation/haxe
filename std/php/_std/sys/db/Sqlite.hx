@@ -93,8 +93,8 @@ private class SqliteConnection implements Connection {
 
 private class SqliteResultSet implements ResultSet {
 
-	public var length(getLength,null) : Int;
-	public var nfields(getNFields,null) : Int;
+	public var length(get,null) : Int;
+	public var nfields(get,null) : Int;
 	var r : Void;
 	var cache : Dynamic;
 
@@ -102,7 +102,7 @@ private class SqliteResultSet implements ResultSet {
 		this.r = r;
 	}
 
-	private function getLength() {
+	private function get_length() {
 		if(untyped __physeq__(r, true))
 			return untyped __call__("sqlite_changes", r);
 		else if (untyped __physeq__(r, false))
@@ -111,7 +111,7 @@ private class SqliteResultSet implements ResultSet {
 	}
 
 	private var _nfields : Int;
-	private function getNFields() {
+	private function get_nfields() {
 		if(_nfields == null)
 			_nfields = untyped __call__("sqlite_num_fields", r);
 		return _nfields;

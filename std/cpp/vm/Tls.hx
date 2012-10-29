@@ -25,17 +25,17 @@ class Tls<T> {
 
 	static var sFreeSlot = 0;
 	var mTLSID : Int;
-	public var value(getValue,setValue) : T;
+	public var value(get,set) : T;
 
 	public function new() {
 		mTLSID = sFreeSlot++;
 	}
 
-	function getValue() : T {
+	function get_value() : T {
 		return untyped __global__.__hxcpp_tls_get(mTLSID);
 	}
 
-	function setValue( v : T ) {
+	function set_value( v : T ) {
 		untyped __global__.__hxcpp_tls_set(mTLSID,v);
 		return v;
 	}

@@ -35,7 +35,7 @@ import sys.db.Connection;
 class Manager<T : Object> {
 
 	/* ----------------------------- STATICS ------------------------------ */
-	public static var cnx(default, setConnection) : Connection;
+	public static var cnx(default, set) : Connection;
 	public static var lockMode : String;
 
 	private static inline var cache_field = "__cache__";
@@ -50,7 +50,7 @@ class Manager<T : Object> {
 		h;
 	}
 
-	private static function setConnection( c : Connection ) {
+	private static function set_cnx( c : Connection ) {
 		cnx = c;
 		lockMode = (c != null && c.dbName() == "MySQL") ? " FOR UPDATE" : "";
 		return c;

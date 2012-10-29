@@ -27,7 +27,7 @@ package haxe.io;
 **/
 class Input {
 
-	public var bigEndian(default,setEndian) : Bool;
+	public var bigEndian(default,set) : Bool;
 	#if cs
 	private var helper:BytesData;
 	#elseif java
@@ -67,7 +67,7 @@ class Input {
 	public function close() {
 	}
 
-	function setEndian(b) {
+	function set_bigEndian(b) {
 		bigEndian = b;
 		return b;
 	}

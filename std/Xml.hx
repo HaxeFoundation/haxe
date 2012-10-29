@@ -123,16 +123,12 @@ extern class Xml {
 	/**
 		Returns the node name of an Element.
 	**/
-	var nodeName(get_nodeName,set_nodeName) : String;
-	private function get_nodeName() : String;
-	private function set_nodeName( name : String ) : String;
+	var nodeName(get,set) : String;
 
 	/**
 		Returns the node value. Only works if the Xml node is not an Element or a Document.
 	**/
-	var nodeValue(get_nodeValue,set_nodeValue) : String;
-	private function get_nodeValue() : String;
-	private function set_nodeValue( name : String ) : String;
+	var nodeValue(get,set) : String;
 
 	/**
 		Get the given attribute of an Element node. Returns [null] if not found.
@@ -167,8 +163,7 @@ extern class Xml {
 		Returns the parent object in the Xml hierarchy.
 		The parent can be [null], an Element or a Document.
 	**/
-	var parent(getParent,null) : Xml;
-	private function getParent() : Xml;
+	var parent(get,null) : Xml;
 
 	/**
 		Returns an iterator of all child nodes.

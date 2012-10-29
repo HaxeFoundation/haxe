@@ -44,9 +44,9 @@ private enum RealXmlType {
 	public static var Document(default,null) : XmlType;
 
 	public var nodeType(default,null) : XmlType;
-	public var nodeName(get_nodeName,set_nodeName) : String;
-	public var nodeValue(get_nodeValue,set_nodeValue) : String;
-	public var parent(getParent,null) : Xml;
+	public var nodeName(get,set) : String;
+	public var nodeValue(get,set) : String;
+	public var parent(get,null) : Xml;
 
 	var _nodeName : String;
 	var _nodeValue : String;
@@ -136,7 +136,7 @@ private enum RealXmlType {
 		return _nodeValue = v;
 	}
 
-	private function getParent() : Xml {
+	private function get_parent() : Xml {
 		return _parent;
 	}
 

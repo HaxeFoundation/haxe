@@ -117,7 +117,7 @@ class BytesInput extends Input {
 	}
 
 	#if flash9
-	override function setEndian(e) {
+	override function set_bigEndian(e) {
 		bigEndian = e;
 		b.endian = e ? flash.utils.Endian.BIG_ENDIAN : flash.utils.Endian.LITTLE_ENDIAN;
 		return e;

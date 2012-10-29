@@ -23,7 +23,7 @@ package sys.db;
 
 private class SqliteConnection implements Connection {
 
-	var c : Void;
+	var c : Dynamic;
 
 	public function new( file : String ) {
 		c = _connect(untyped file.__s);
@@ -93,8 +93,8 @@ private class SqliteConnection implements Connection {
 
 private class SqliteResultSet implements ResultSet {
 
-	public var length(getLength,null) : Int;
-	public var nfields(getNFields,null) : Int;
+	public var length(get,null) : Int;
+	public var nfields(get,null) : Int;
 	var r : Void;
 	var cache : List<Dynamic>;
 
@@ -104,7 +104,7 @@ private class SqliteResultSet implements ResultSet {
 		hasNext(); // execute the request
 	}
 
-	function getLength() {
+	function get_length() {
 		if( nfields != 0 ) {
 			while( true ) {
 				var c = doNext();
@@ -117,7 +117,7 @@ private class SqliteResultSet implements ResultSet {
 		return result_get_length(r);
 	}
 
-	function getNFields() {
+	function get_nfields() {
 		return result_get_nfields(r);
 	}
 
