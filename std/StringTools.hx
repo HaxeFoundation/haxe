@@ -88,7 +88,7 @@ class StringTools {
 		Escape HTML special characters of the string.
 	**/
 	public static function htmlEscape( s : String ) : String {
-		return s.split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;");
+		return s.split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;").split('"').join("&quot;").split("'").join("&#039;");
 	}
 
 	/**
@@ -98,7 +98,7 @@ class StringTools {
 		#if php
 		return untyped __call__("htmlspecialchars_decode", s);
 		#else
-		return s.split("&gt;").join(">").split("&lt;").join("<").split("&amp;").join("&");
+		return s.split("&gt;").join(">").split("&lt;").join("<").split("&quot;").join('"').split("&#039;").join("'").split("&amp;").join("&");
 		#end
 	}
 
@@ -307,7 +307,7 @@ class StringTools {
 		return s.cca(index);
 		#end
 	}
-	
+
 	#if java
 	private static inline function _charAt(str:String, idx:Int):java.StdTypes.Char16 return untyped str._charAt(idx)
 	#end

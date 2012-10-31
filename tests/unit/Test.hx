@@ -226,6 +226,7 @@ package unit;
 			new TestMeta(),
 			new TestType(),
 			new TestOrder(),
+			new TestStringTools(),
 			#if cs
 			new TestCSharp(),
 			#end
