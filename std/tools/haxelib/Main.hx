@@ -116,7 +116,7 @@ class ProgressIn extends haxe.io.Input {
 
 class Main {
 
-	static var VERSION = 103;
+	static var VERSION = 104;
 	static var REPNAME = "lib";
 	static var SERVER = {
 		host : "lib.haxe.org",
@@ -200,7 +200,7 @@ class Main {
 	function usage() {
 		var vmin = Std.string(VERSION % 100);
 		var ver = Std.int(VERSION/100) + "." + if( vmin.length == 1 ) "0"+vmin else vmin;
-		print("Haxe Library Manager "+ver+" - (c)2006 Motion-Twin");
+		print("Haxe Library Manager "+ver+" - (c)2006-2012 Haxe Foundation");
 		print(" Usage : haxelib [command] [options]");
 		print(" Commands :");
 		for( c in commands )

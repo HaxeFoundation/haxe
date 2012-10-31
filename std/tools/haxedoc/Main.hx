@@ -142,7 +142,7 @@ class Main {
 			}
 			parser.sort();
 			if( parser.root.length == 0 ) {
-				Sys.println("Haxe Doc Generator 2.0 - (c)2006 Motion-Twin");
+				Sys.println("Haxe Doc Generator 2.0 - (c)2006-2012 Haxe Foundation");
 				Sys.println(" Usage : haxedoc [xml files] [-f filter]");
 				Sys.exit(1);
 			}
