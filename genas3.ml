@@ -1019,27 +1019,20 @@ let generate_field ctx static f =
 			let t = type_str ctx f.cf_type p in
 			let id = s_ident f.cf_name in
 			let v = (match f.cf_kind with Var v -> v | _ -> assert false) in
-			(match v.v_read with
-			| AccNormal ->
+ 			(match v.v_read with
+			| AccNormal | AccNo | AccNever ->
 				print ctx "%s function get %s() : %s { return $%s; }" rights id t id;
 				newline ctx
 			| AccCall m ->
 				print ctx "%s function get %s() : %s { return %s(); }" rights id t m;
 				newline ctx
-			| AccNo | AccNever ->
-				print ctx "%s function get %s() : %s { return $%s; }" (if v.v_read = AccNo then "protected" else "private") id t id;
-				newline ctx
-			| _ ->
-				());
+			| _ -> ());
 			(match v.v_write with
-			| AccNormal ->
+			| AccNormal | AccNo | AccNever ->
 				print ctx "%s function set %s( __v : %s ) : void { $%s = __v; }" rights id t id;
 				newline ctx
 			| AccCall m ->
 				print ctx "%s function set %s( __v : %s ) : void { %s(__v); }" rights id t m;
-				newline ctx
-			| AccNo | AccNever ->
-				print ctx "%s function set %s( __v : %s ) : void { $%s = __v; }" (if v.v_write = AccNo then "protected" else "private") id t id;
 				newline ctx
 			| _ -> ());
 			print ctx "%sprotected var $%s : %s" (if static then "static " else "") (s_ident f.cf_name) (type_str ctx f.cf_type p);
