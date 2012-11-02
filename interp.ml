@@ -2348,7 +2348,7 @@ let macro_lib =
 			match v with
 			| VString cp ->
 				let com = ccom() in
-				com.class_path <- cp :: com.class_path;
+				com.class_path <- (Common.normalize_path cp) :: com.class_path;
 				VNull
 			| _ ->
 				error()

@@ -562,6 +562,14 @@ let get_full_path f = try Extc.get_full_path f with _ -> f
 
 let unique_full_path = if Sys.os_type = "Win32" || Sys.os_type = "Cygwin" then (fun f -> String.lowercase (get_full_path f)) else get_full_path
 
+let normalize_path p =
+	let l = String.length p in
+	if l = 0 then
+		"./"
+	else match p.[l-1] with
+		| '\\' | '/' -> p
+		| _ -> p ^ "/"
+
 (* ------------------------- TIMERS ----------------------------- *)
 
 type timer_infos = {

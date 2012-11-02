@@ -49,14 +49,6 @@ let global_cache = ref None
 let executable_path() =
 	Extc.executable_path()
 
-let normalize_path p =
-	let l = String.length p in
-	if l = 0 then
-		"./"
-	else match p.[l-1] with
-		| '\\' | '/' -> p
-		| _ -> p ^ "/"
-
 let format msg p =
 	if p = Ast.null_pos then
 		msg
