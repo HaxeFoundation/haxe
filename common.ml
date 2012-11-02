@@ -138,7 +138,6 @@ module Define = struct
 	type strict_defined =
 		| As3
 		| Sys
-		| AllFeatures
 		| DceDebug
 		| Macro
 		| CoreApi
@@ -187,7 +186,6 @@ module Define = struct
 	let infos = function
 		| As3 -> ("as3","Defined when outputing flash9 as3 source code")
 		| Sys -> ("sys","Defined for all system platforms")
-		| AllFeatures -> ("all_features","Used by DCE")
 		| DceDebug -> ("dce_debug","Show DCE log")
 		| Macro -> ("macro","Defined when we compile code in the macro context")
 		| CoreApi -> ("core_api","Defined in the core api context")
@@ -517,11 +515,14 @@ let init_platform com pf =
 let add_feature com f =
 	Hashtbl.replace com.features f true
 
+let has_dce com =
+	(try defined_value com Define.Dce <> "no" with Not_found -> false)
+
 let rec has_feature com f =
 	try
 		Hashtbl.find com.features f
 	with Not_found ->
-		if com.types = [] then defined com Define.AllFeatures else
+		if com.types = [] then not (has_dce com) else
 		match List.rev (ExtString.String.nsplit f ".") with
 		| [] -> assert false
 		| [cl] -> has_feature com (cl ^ ".*")
@@ -535,9 +536,9 @@ let rec has_feature com f =
 			with Not_found ->
 				false
 			) in
-			let r = r || defined com Define.AllFeatures in
+			let r = r || not (has_dce com) in
 			Hashtbl.add com.features f r;
-			r
+			r			
 
 let error msg p = raise (Abort (msg,p))
 
