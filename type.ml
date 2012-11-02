@@ -841,7 +841,7 @@ let unify_stack = ref []
 let is_extern_field f =
 	match f.cf_kind with
 	| Method _ -> false
-	| Var { v_read = AccNormal } | Var { v_write = AccNormal } -> false
+	| Var { v_read = AccNormal | AccNo } | Var { v_write = AccNormal | AccNo } -> false
 	| _ -> not (has_meta ":isVar" f.cf_meta)
 
 let field_type f =
