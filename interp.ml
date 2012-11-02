@@ -3520,14 +3520,15 @@ and encode_access a =
 	in
 	enc_enum IAccess tag []
 
+and encode_meta_entry (m,ml,p) =
+	enc_obj [
+		"name", enc_string m;
+		"params", enc_array (List.map encode_expr ml);
+		"pos", encode_pos p;
+	]
+
 and encode_meta_content m =
-	enc_array (List.map (fun (m,ml,p) ->
-		enc_obj [
-			"name", enc_string m;
-			"params", enc_array (List.map encode_expr ml);
-			"pos", encode_pos p;
-		]
-	) m)
+	enc_array (List.map encode_meta_entry m)
 
 and encode_field (f:class_field) =
 	let tag, pl = match f.cff_kind with
@@ -3664,6 +3665,8 @@ and encode_expr e =
 				27, [loop econd;loop e1;loop e2]
 			| ECheckType (e,t) ->
 				28, [loop e; encode_ctype t]
+			| EMeta (m,e) ->
+				29, [encode_meta_entry m;loop e]
 		in
 		enc_obj [
 			"pos", encode_pos p;
@@ -3800,10 +3803,11 @@ and decode_access v =
 	| 5, [] -> AInline
 	| _ -> raise Invalid_expr
 
+and decode_meta_entry v =
+	(dec_string (field v "name"), List.map decode_expr (dec_array (field v "params")), decode_pos (field v "pos"))
+
 and decode_meta_content v =
-	List.map (fun v ->
-		(dec_string (field v "name"), List.map decode_expr (dec_array (field v "params")), decode_pos (field v "pos"))
-	) (dec_array v)
+	List.map decode_meta_entry (dec_array v)
 
 and decode_field v =
 	let fkind = match decode_enum (field v "kind") with
@@ -3915,7 +3919,9 @@ let decode_expr v =
 			ETernary (loop e1,loop e2,loop e3)
 		| 28, [e;t] ->
 			ECheckType (loop e, decode_ctype t)
-		| 29, [e;f] ->
+		| 29, [m;e] ->
+			EMeta (decode_meta_entry m,loop e)
+		| 30, [e;f] ->
 			EField (loop e, dec_string f) (*** deprecated EType, keep until haxe 3 **)
 		| _ ->
 			raise Invalid_expr

@@ -118,6 +118,7 @@ enum ExprDef {
 	EDisplayNew( t : TypePath );
 	ETernary( econd : Expr, eif : Expr, eelse : Expr );
 	ECheckType( e : Expr, t : ComplexType );
+	EMeta( s : MetadataEntry, e : Expr );
 	#if !haxe3
 	EType( e : Expr, field : String );
 	#end
@@ -164,7 +165,13 @@ typedef FunctionArg = {
 	@:optional var value : Null<Expr>;
 }
 
-typedef Metadata = Array<{ name : String, params : Array<Expr>, pos : Position }>;
+typedef MetadataEntry = {
+	name : String,
+	params : Array<Expr>,
+	pos : Position
+}
+
+typedef Metadata = Array<MetadataEntry>;
 
 typedef Field = {
 	var name : String;

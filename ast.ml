@@ -194,6 +194,7 @@ and expr_def =
 	| EDisplayNew of type_path
 	| ETernary of expr * expr * expr
 	| ECheckType of expr * complex_type
+	| EMeta of metadata_entry * expr
 
 and expr = expr_def * pos
 
@@ -205,7 +206,8 @@ and type_param = {
 
 and documentation = string option
 
-and metadata = (string * expr list * pos) list
+and metadata_entry = (string * expr list * pos)
+and metadata = metadata_entry list
 
 and access =
 	| APublic
@@ -535,6 +537,7 @@ let map_expr loop (e,p) =
 	| EDisplayNew t -> EDisplayNew (tpath t)
 	| ETernary (e1,e2,e3) -> ETernary (loop e1,loop e2,loop e3)
 	| ECheckType (e,t) -> ECheckType (loop e, ctype t)
+	| EMeta (m,e) -> EMeta(m, loop e)
 	) in
 	(e,p)
 
@@ -795,5 +798,7 @@ let reify in_macro =
 			expr "ETernary" [loop e1;loop e2;loop e3]
 		| ECheckType (e1,ct) ->
 			expr "ECheckType" [loop e1; to_ctype ct p]
+		| EMeta ((m,ml,p),e1) ->
+			expr "EMeta" [to_obj [("name",to_string m p);("params",to_expr_array ml p);("pos",to_pos p)] p;loop e1]
 	in
 	(fun e -> to_expr e (snd e)), to_ctype

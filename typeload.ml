@@ -1783,6 +1783,7 @@ let type_module ctx m file tdecls p =
 			module_globals = PMap.empty;
 			wildcard_packages = [];
 		};
+		meta = [];
 		pass = PBuildModule;
 		on_error = (fun ctx msg p -> ctx.com.error msg p);
 		macro_depth = ctx.macro_depth;

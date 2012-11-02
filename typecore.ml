@@ -79,6 +79,7 @@ and typer = {
 	com : context;
 	t : basic_types;
 	g : typer_globals;
+	mutable meta : metadata;
 	(* variable *)
 	mutable pass : typer_pass;
 	(* per-module *)

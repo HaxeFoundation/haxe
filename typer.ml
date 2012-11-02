@@ -191,6 +191,7 @@ let rec can_access ctx c cf stat =
 		| KTypeParameter tl ->
 			List.exists (fun t -> match follow t with TInst(c,_) -> loop c | _ -> false) tl
 		| _ -> false)
+	|| (has_meta ":privateAccess" ctx.meta)
 
 (* removes the first argument of the class field's function type and all its overloads *)
 let prepare_using_field cf = match cf.cf_type with
@@ -1729,6 +1730,12 @@ and type_expr_with_type_raise ?(print_error=true) ctx e t =
 				type_expr ctx e)
 	| ESwitch (e,cases,def) ->
 		type_switch ctx e cases def true t p
+	| EMeta(m,e) ->
+		let old = ctx.meta in
+		ctx.meta <- m :: ctx.meta;
+		let e = type_expr_with_type_raise ~print_error ctx e t in
+		ctx.meta <- old;
+		e
 	| _ ->
 		type_expr ctx e
 
@@ -2365,6 +2372,8 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let e = type_expr_with_type ctx e (Some t) in
 		unify ctx e.etype t e.epos;
 		if e.etype == t then e else mk (TCast (e,None)) t p
+	| EMeta _ ->
+		type_expr_with_type ctx (e,p) None
 
 and type_call ctx e el twith p =
 	match e, el with
@@ -2453,7 +2462,7 @@ and build_call ctx acc el twith p =
 			(match ctx.g.do_macro ctx MExpr c.cl_path f.cf_name el p with
 			| None -> (fun() -> type_expr ctx (EConst (Ident "null"),p))
 			| Some (EVars vl,p) -> (fun() -> type_vars ctx vl p true)
-			| Some e -> (fun() -> type_expr_with_type ctx e twith))
+			| Some e -> (fun() -> type_expr_with_type ctx (EMeta((":privateAccess",[],snd e),e),snd e) twith))
 		| _ ->
 			(* member-macro call : since we will make a static call, let's found the actual class and not its subclass *)
 			(match follow ethis.etype with
@@ -3250,6 +3259,7 @@ let rec create com =
 			module_globals = PMap.empty;
 			wildcard_packages = [];
 		};
+		meta = [];
 		pass = PBuildModule;
 		macro_depth = 0;
 		untyped = false;
