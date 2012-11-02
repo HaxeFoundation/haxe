@@ -171,10 +171,11 @@ let rec can_access ctx c cf stat =
 		loop c.cl_meta || loop f.cf_meta
 	in
 	let cur_path = make_path ctx.curclass ctx.curfield in
+	let is_constr = cf.cf_name = "new" in
 	let rec loop c =
 		(try
 			(* if our common ancestor declare/override the field, then we can access it *)
-			let f = PMap.find cf.cf_name (if stat then c.cl_statics else c.cl_fields) in
+			let f = if is_constr then (match c.cl_constructor with None -> raise Not_found | Some c -> c) else PMap.find cf.cf_name (if stat then c.cl_statics else c.cl_fields) in
 			is_parent c ctx.curclass || has ":allow" c f cur_path
 		with Not_found ->
 			false
