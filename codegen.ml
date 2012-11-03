@@ -548,8 +548,8 @@ let save_class_state ctx t = match t with
 		let meta = c.cl_meta and path = c.cl_path and ext = c.cl_extern in
 		let fl = c.cl_fields and ofl = c.cl_ordered_fields and st = c.cl_statics and ost = c.cl_ordered_statics in
 		let cst = c.cl_constructor and over = c.cl_overrides in
-		let oflk = List.map (fun f -> f.cf_kind) ofl in
-		let ostk = List.map (fun f -> f.cf_kind) ost in
+		let oflk = List.map (fun f -> f.cf_kind,f.cf_expr) ofl in
+		let ostk = List.map (fun f -> f.cf_kind,f.cf_expr) ost in
 		c.cl_restore <- (fun() ->
 			c.cl_meta <- meta;
 			c.cl_extern <- ext;
@@ -561,8 +561,8 @@ let save_class_state ctx t = match t with
 			c.cl_constructor <- cst;
 			c.cl_overrides <- over;
 			(* DCE might modify the cf_kind, so let's restore it as well *)
-			List.iter2 (fun f k -> f.cf_kind <- k) ofl oflk;
-			List.iter2 (fun f k -> f.cf_kind <- k) ost ostk;
+			List.iter2 (fun f (k,e) -> f.cf_kind <- k; f.cf_expr <- e) ofl oflk;
+			List.iter2 (fun f (k,e) -> f.cf_kind <- k; f.cf_expr <- e) ost ostk;
 		)
 	| _ ->
 		()
