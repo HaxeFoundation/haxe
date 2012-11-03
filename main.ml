@@ -1065,7 +1065,7 @@ try
 			Codegen.add_meta_field;
 			Codegen.check_remove_metadata;
 		] in
-		List.iter (fun f -> List.iter (f tctx) com.types) type_filters;
+		List.iter (fun t -> List.iter (fun f -> f tctx t) type_filters) com.types;
 		if ctx.has_error then raise Abort;
 		(match !xml_out with
 		| None -> ()
