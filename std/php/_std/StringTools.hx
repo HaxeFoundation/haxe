@@ -29,8 +29,9 @@
 		return __call__("urldecode", s);
 	}
 
-	public static function htmlEscape( s : String ) : String {
-		return s.split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;");
+	public static function htmlEscape( s : String, ?quotes : Bool ) : String {
+		s = s.split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;");
+		return quotes ? s.split('"').join("&quot;").split("'").join("&#039;") : s;
 	}
 
 	public inline static function htmlUnescape( s : String ) : String {

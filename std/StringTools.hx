@@ -33,7 +33,7 @@ class StringTools {
 	/**
 		Encode an URL by using the standard format.
 	**/
-	public #if php inline #end static function urlEncode( s : String ) : String untyped {
+	public static function urlEncode( s : String ) : String untyped {
 		#if flash9
 			return __global__["encodeURIComponent"](s);
 		#elseif flash
@@ -42,8 +42,6 @@ class StringTools {
 			return new String(_urlEncode(s.__s));
 		#elseif js
 			return encodeURIComponent(s);
-		#elseif php
-			return __call__("rawurlencode", s);
 		#elseif cpp
 			return s.__URLEncode();
 		#elseif java
@@ -60,7 +58,7 @@ class StringTools {
 	/**
 		Decode an URL using the standard format.
 	**/
-	public #if php inline #end static function urlDecode( s : String ) : String untyped {
+	public static function urlDecode( s : String ) : String untyped {
 		#if flash9
 			return __global__["decodeURIComponent"](s.split("+").join(" "));
 		#elseif flash
@@ -69,8 +67,6 @@ class StringTools {
 			return new String(_urlDecode(s.__s));
 		#elseif js
 			return decodeURIComponent(s.split("+").join(" "));
-		#elseif php
-			return __call__("urldecode", s);
 		#elseif cpp
 			return s.__URLDecode();
 		#elseif java
@@ -87,19 +83,16 @@ class StringTools {
 	/**
 		Escape HTML special characters of the string.
 	**/
-	public static function htmlEscape( s : String ) : String {
-		return s.split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;").split('"').join("&quot;").split("'").join("&#039;");
+	public static function htmlEscape( s : String, ?quotes : Bool ) : String {
+		s = s.split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;");
+		return quotes ? s.split('"').join("&quot;").split("'").join("&#039;") : s;
 	}
 
 	/**
 		Unescape HTML special characters of the string.
 	**/
-	public #if php inline #end static function htmlUnescape( s : String ) : String {
-		#if php
-		return untyped __call__("htmlspecialchars_decode", s);
-		#else
+	public static function htmlUnescape( s : String ) : String {
 		return s.split("&gt;").join(">").split("&lt;").join("<").split("&quot;").join('"').split("&#039;").join("'").split("&amp;").join("&");
-		#end
 	}
 
 	/**
@@ -141,10 +134,8 @@ class StringTools {
 	/**
 		Removes spaces at the left of the String [s].
 	**/
-	public #if (php || cs) inline #end static function ltrim( s : String ) : String {
-		#if php
-		return untyped __call__("ltrim", s);
-		#elseif cs
+	public #if cs inline #end static function ltrim( s : String ) : String {
+		#if cs
 		return untyped s.TrimStart();
 		#else
 		var l = s.length;
@@ -162,10 +153,8 @@ class StringTools {
 	/**
 		Removes spaces at the right of the String [s].
 	**/
-	public #if (php || cs) inline #end static function rtrim( s : String ) : String {
-		#if php
-		return untyped __call__("rtrim", s);
-		#elseif cs
+	public #if cs inline #end static function rtrim( s : String ) : String {
+		#if cs
 		return untyped s.TrimEnd();
 		#else
 		var l = s.length;
@@ -184,10 +173,8 @@ class StringTools {
 	/**
 		Removes spaces at the beginning and the end of the String [s].
 	**/
-	public #if (php || cs || java) inline #end static function trim( s : String ) : String {
-		#if php
-		return untyped __call__("trim", s);
-		#elseif cs
+	public #if (cs || java) inline #end static function trim( s : String ) : String {
+		#if cs
 		return untyped s.Trim();
 		#elseif java
 		return untyped s.trim();
@@ -199,10 +186,7 @@ class StringTools {
 	/**
 		Pad the string [s] by appending [c] at its right until it reach [l] characters.
 	**/
-	public #if php inline #end static function rpad( s : String, c : String, l : Int ) : String {
-		#if php
-		return untyped __call__("str_pad", s, l, c, __php__("STR_PAD_RIGHT"));
-		#else
+	public static function rpad( s : String, c : String, l : Int ) : String {
 		var sl = s.length;
 		var cl = c.length;
 		while( sl < l ){
@@ -215,16 +199,12 @@ class StringTools {
 			}
 		}
 		return s;
-		#end
 	}
 
 	/**
 		Pad the string [s] by appending [c] at its left until it reach [l] characters.
 	**/
-	public #if php inline #end static function lpad( s : String, c : String, l : Int ) : String {
-		#if php
-		return untyped __call__("str_pad", s, l, c, __php__("STR_PAD_LEFT"));
-		#else
+	public static function lpad( s : String, c : String, l : Int ) : String {
 		var ns = "";
 		var sl = s.length;
 		if( sl >= l ) return s;
@@ -240,16 +220,13 @@ class StringTools {
 			}
 		}
 		return ns+s;
-		#end
 	}
 
 	/**
 		Replace all occurences of the string [sub] in the string [s] by the string [by].
 	**/
-	public #if (php || java || cs) inline #end static function replace( s : String, sub : String, by : String ) : String {
-		#if php
-		return untyped __call__("str_replace", sub, by, s);
-		#elseif java
+	public #if (java || cs) inline #end static function replace( s : String, sub : String, by : String ) : String {
+		#if java
 		return untyped s.replace(sub, by);
 		#elseif cs
 		return untyped s.Replace(sub, by);

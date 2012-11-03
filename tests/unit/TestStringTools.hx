@@ -4,7 +4,8 @@ class TestStringTools extends Test
 {
 
 	function testHtmlEscape() {
-		eq( StringTools.htmlEscape("<>&\"'"), "&lt;&gt;&amp;&quot;&#039;");
+		eq( StringTools.htmlEscape("<>&\"'"), "&lt;&gt;&amp;\"'");
+		eq( StringTools.htmlEscape("<>&\"'", true), "&lt;&gt;&amp;&quot;&#039;" );
 		eq( StringTools.htmlUnescape("&lt;&gt;&amp;&quot;&#039;"), "<>&\"'" );
 	}
 	
