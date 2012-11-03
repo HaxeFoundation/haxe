@@ -1051,7 +1051,9 @@ let type_generic_function ctx (e,cf) el p =
 		let gctx = Codegen.make_generic ctx cf.cf_params monos p in
 		let name = cf.cf_name ^ "_" ^ gctx.Codegen.name in
 		let cf2 = try
-			PMap.find name (if stat then c.cl_statics else c.cl_fields)
+			let cf2 = PMap.find name (if stat then c.cl_statics else c.cl_fields) in
+			unify ctx cf2.cf_type t cf2.cf_pos;
+			cf2
 		with Not_found ->
 			let cf2 = mk_field name t cf.cf_pos in
 			if stat then begin
