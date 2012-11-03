@@ -2436,6 +2436,12 @@ and build_call ctx acc el twith p =
 			| _ -> error (s_type (print_context()) t ^ " cannot be called") p
 		) in
 		make_call ctx (mk (TField (ethis,f.cf_name)) t p) params (match tfunc with TFun(_,r) -> r | _ -> assert false) p
+	| AKUsing (et,cl,ef,eparam) when has_meta ":generic" ef.cf_meta ->
+		(match et.eexpr with
+		| TField(ec,_) ->
+			let el,t,e = type_generic_function ctx (ec,ef) (Interp.make_ast eparam :: el) p in
+			make_call ctx e el t p
+		| _ -> assert false)
 	| AKUsing (et,cl,ef,eparam) ->
 		let ef = prepare_using_field ef in
 		(match et.eexpr with
