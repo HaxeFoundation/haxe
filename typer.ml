@@ -1069,6 +1069,7 @@ let type_generic_function ctx (e,cf) el p =
 				| Some e -> Some (Codegen.generic_substitute_expr gctx e));
 			cf2.cf_kind <- cf.cf_kind;
 			cf2.cf_public <- cf.cf_public;
+			cf2.cf_meta <- [":noComplete",[],p];
 			cf2
 		in
 		let e = if stat then type_type ctx c.cl_path p else e in
