@@ -239,7 +239,7 @@ import cs.internal.Exceptions;
 		return untyped Math.rand.Next(x);
 	}
 
-	@:macro public static function format( fmt : haxe.macro.Expr.ExprRequire<String> ) : haxe.macro.Expr.ExprRequire<String> {
+	@:macro public static function format( fmt : haxe.macro.Expr.ExprOf<String> ) : haxe.macro.Expr.ExprRequire<String> {
 		return haxe.macro.Format.format(fmt);
 	}
 

@@ -78,7 +78,7 @@ class Dispatch {
 		this.params = params;
 	}
 
-	@:macro public function dispatch( ethis : Expr, obj : ExprRequire<{}> ) : ExprRequire<Void> {
+	@:macro public function dispatch( ethis : Expr, obj : ExprOf<{}> ) : ExprOf<Void> {
 		var p = Context.currentPos();
 		var cfg = makeConfig(obj);
 		return { expr : ECall({ expr : EField(ethis, "runtimeDispatch"), pos : p }, [cfg]), pos : p };
@@ -424,11 +424,11 @@ class Dispatch {
 
 	#end
 
-	@:macro public static function make( obj : ExprRequire<{}> ) : ExprRequire<DispatchConfig> {
+	@:macro public static function make( obj : ExprOf<{}> ) : ExprOf<DispatchConfig> {
 		return makeConfig(obj);
 	}
 
-	@:macro public static function run( url : ExprRequire<String>, params : ExprRequire<Hash<String>>, obj : ExprRequire<{}> ) : ExprRequire<Void> {
+	@:macro public static function run( url : ExprOf<String>, params : ExprOf<Hash<String>>, obj : ExprOf<{}> ) : ExprOf<Void> {
 		var p = Context.currentPos();
 		var cfg = makeConfig(obj);
 		return { expr : ECall({ expr : EField({ expr : ENew({ name : "Dispatch", pack : ["haxe","web"], params : [], sub : null },[url,params]), pos : p },"runtimeDispatch"), pos : p },[cfg]), pos : p };
