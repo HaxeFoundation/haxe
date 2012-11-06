@@ -192,6 +192,7 @@ class Manager<T : Object> {
 	}
 
 	inline function hasBinaryChanged( a : haxe.io.Bytes, b : haxe.io.Bytes ) {
+		var a = a; // tmp fix for issue #1268
 		return a != b && (a == null || b == null || a.compare(b) != 0);
 	}
 
