@@ -53,14 +53,13 @@ let rec super_forces_keep c =
 	| Some (csup,_) -> super_forces_keep csup
 	| _ -> false
 
-let is_std_class dce c =
-	let file = c.cl_module.m_extra.m_file in
+let is_std_file dce file =
 	List.exists (ExtString.String.starts_with file) dce.std_dirs
 
 (* check if a class is kept entirely *)
 let keep_whole_class dce c =
 	has_meta ":keep" c.cl_meta
-	|| not (dce.full || is_std_class dce c)
+	|| not (dce.full || is_std_file dce c.cl_module.m_extra.m_file)
 	|| super_forces_keep c
 	|| (match c with
 		| { cl_extern = true; cl_path = ([],"Math")} when dce.com.platform = Js -> false
@@ -359,9 +358,10 @@ let run com main full =
 				if dce.debug then print_endline ("[DCE] Removed class " ^ (s_type_path c.cl_path));
 				loop acc l
 			end
- 		| (TEnumDecl e) as mt :: l when has_meta ":used" e.e_meta || has_meta ":keep" e.e_meta || e.e_extern ->
+ 		| (TEnumDecl e) as mt :: l when has_meta ":used" e.e_meta || has_meta ":keep" e.e_meta || e.e_extern || not (dce.full || is_std_file dce e.e_module.m_extra.m_file) ->
 			loop (mt :: acc) l
-		| TEnumDecl _ :: l ->
+		| TEnumDecl e :: l ->
+			if dce.debug then print_endline ("[DCE] Removed enum " ^ (s_type_path e.e_path));
 			loop acc l
 		| mt :: l ->
 			loop (mt :: acc) l
