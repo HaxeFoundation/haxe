@@ -119,7 +119,7 @@ class SpodMacros {
 		return null;
 		#end
 	}
-	
+
 	public dynamic function resolveType( name : String ) : haxe.macro.Type {
 		#if macro
 		return Context.getType(name);
@@ -1189,6 +1189,7 @@ class SpodMacros {
 		case "SData":
 			f.kind = FProp("dynamic", "dynamic", ft, null);
 			f.meta.push( { name : ":data", params : [], pos : f.pos } );
+			f.meta.push( { name : ":isVar", params : [], pos : f.pos } );
 			var meta = [ { name : ":hide", params : [], pos : pos } ];
 			var cache = "cache_" + f.name;
 			var ecache = { expr : EConst(CIdent(cache)), pos : pos };
@@ -1215,6 +1216,7 @@ class SpodMacros {
 			fields.push( { name : "set_" + f.name, pos : pos, meta : meta, access : [APrivate], doc : null, kind : FFun(set) } );
 		case "SEnum":
 			f.kind = FProp("dynamic", "dynamic", ft, null);
+			f.meta.push( { name : ":isVar", params : [], pos : f.pos } );
 			f.meta.push( { name : ":data", params : [], pos : f.pos } );
 			var meta = [ { name : ":hide", params : [], pos : pos } ];
 			var efield = { expr : EConst(CIdent(f.name)), pos : pos };
@@ -1245,7 +1247,7 @@ class SpodMacros {
 			buildField(f, fields, t);
 		}
 	}
-	
+
 	public static function macroBuild() {
 		var fields = Context.getBuildFields();
 		var hasManager = false;
