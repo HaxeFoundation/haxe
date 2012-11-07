@@ -334,7 +334,7 @@ let generate_type com t =
 	let print_meta ml =
 		List.iter (fun (m,pl,_) ->
 			match m with
-			| ":defparam" | ":core_api" -> ()
+			| ":defparam" | ":coreApi" -> ()
 			| _ ->
 			match pl with
 			| [] -> p "@%s " m
