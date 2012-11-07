@@ -1127,7 +1127,7 @@ let rec type_binop ctx op e1 e2 p =
 			assert false)
 	| _ ->
 	let e1 = type_expr ctx e1 in
-	let e2 = type_expr ctx e2 in
+	let e2 = (if op == OpEq || op == OpNotEq then type_expr_with_type ctx e2 (Some e1.etype) else type_expr ctx e2) in
 	let tint = ctx.t.tint in
 	let tfloat = ctx.t.tfloat in
 	let tstring = ctx.t.tstring in
