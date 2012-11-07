@@ -1181,7 +1181,7 @@ let rec type_binop ctx op e1 e2 p =
 			let ok1 = unify_int ctx e1 KUnk in
 			let ok2 = unify_int ctx e2 KUnk in
 			if ok1 && ok2 then tint else tfloat
-		| KParam t1, KParam t2 when t1 == t2 ->
+		| KParam t1, KParam t2 when Type.type_iseq t1 t2 ->
 			t1
 		| KParam t, KInt | KInt, KParam t ->
 			t
@@ -1218,7 +1218,7 @@ let rec type_binop ctx op e1 e2 p =
 		(match classify e1.etype, classify e2.etype with
 		| KFloat, KFloat ->
 			result := tfloat
-		| KParam t1, KParam t2 when t1 == t2 ->
+		| KParam t1, KParam t2 when Type.type_iseq t1 t2 ->
 			if op <> OpDiv then result := t1
 		| KParam _, KParam _ ->
 			result := tfloat
