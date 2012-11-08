@@ -361,7 +361,7 @@ extern class JQuery implements ArrayAccess<Dom.HtmlDom> {
 	//static function getJSON, getScript, grep
 	//static function is*, makeArray, map, merge, noop, now, param, proxy, sub, trim, type, unique
 
-	private static inline function get_current() : JQuery {
+	private static inline function get_cur() : JQuery {
 		return untyped __js__("$(this)");
 	}
 
