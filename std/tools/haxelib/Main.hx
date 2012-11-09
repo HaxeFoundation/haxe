@@ -659,11 +659,13 @@ class Main {
 	function doUpdate( p : String, state ) {
 		var rep = state.rep;
 		if( sys.FileSystem.exists(rep + "/" + p + "/git") && sys.FileSystem.isDirectory(rep + "/" + p + "/git") ) {
+			checkGit();
 			var oldCwd = Sys.getCwd();
 			Sys.setCwd(rep + "/" + p + "/git");
 			Sys.command("git pull");
 			// TODO: update haxelib.xml version?
 			Sys.setCwd(oldCwd);
+			state.updated = true;
 		} else {
 			var inf = try site.infos(p) catch( e : Dynamic ) { Sys.println(e); return; };
 			if( !sys.FileSystem.exists(rep+Data.safe(p)+"/"+Data.safe(inf.curversion)) ) {
@@ -827,7 +829,7 @@ class Main {
 		}
 	}
 
-	function git() {
+	function checkGit() {
 		var gitExists = function()
 			try { command("git", []); return true; } catch (e:Dynamic) return false;
 		if (!gitExists())
@@ -847,12 +849,18 @@ class Main {
 				return;
 			}
 		}
+	}
+
+	function git() {
 		var libName = param("Library name");
 		var rep = getRepository();
 		var libPath = rep + Data.safe(libName) + "/git";
 
 		if( sys.FileSystem.exists(libPath) ) {
-			print("You already have a git version of "+libName+" installed");
+			var state = { rep : rep, prompt : false, updated : false };
+			doUpdate(libName,state);
+			if( !state.updated )
+				print("You already have a git version of "+libName+" installed");
 			return;
 		}
 
@@ -869,6 +877,8 @@ class Main {
 			null;
 
 		print("Installing " +libName + " from " +gitPath);
+		checkGit();
+
 		if( Sys.command("git clone \"" +gitPath + "\" \"" +libPath + "\"") != 0 ) {
 			print("Could not clone git repository");
 			return;
