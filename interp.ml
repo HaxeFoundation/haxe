@@ -1809,6 +1809,7 @@ let std_lib =
 		let p_exit = neko.load "std@process_exit" 1 in
 		let p_pid = neko.load "std@process_pid" 1 in
 		let p_close = neko.load "std@process_close" 1 in
+		let win_ec = (try Some (neko.load "std@win_env_changed" 0) with _ -> None) in
 	[
 		"process_run", (Fun2 (fun a b -> neko.call p_run [a;b]));
 		"process_stdout_read", (Fun4 (fun a b c d -> neko.call p_stdout_read [a;VAbstract (ANekoBuffer b);c;d]));
@@ -1818,6 +1819,7 @@ let std_lib =
 		"process_exit", (Fun1 (fun p -> neko.call p_exit [p]));
 		"process_pid", (Fun1 (fun p -> neko.call p_pid [p]));
 		"process_close", (Fun1 (fun p -> neko.call p_close [p]));
+		"win_env_changed", (Fun0 (fun() -> match win_ec with None -> error() | Some f -> neko.call f []));
 	]))
 
 
