@@ -25,7 +25,8 @@ typedef JqEvent = {
 	var target : Dom.HtmlDom;
 	var currentTarget : Dom.HtmlDom;
 	var relatedTarget : Dom.HtmlDom;
-
+	var delegateTarget : Dom.HtmlDom;
+	
 	var type : String;
 	var timeStamp : Int;
 
