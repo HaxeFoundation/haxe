@@ -579,8 +579,10 @@ class Main {
 		}
 		rep = StringTools.trim(rep);
 		if( setup ) {
-			print("Please enter haxelib repository path with write access");
-			print("Hit enter for default (" + rep + ")");
+			if( args.length <= argcur ) {
+				print("Please enter haxelib repository path with write access");
+				print("Hit enter for default (" + rep + ")");
+			}
 			var line = param("Path");
 			if( line != "" )
 				rep = line;
@@ -593,6 +595,7 @@ class Main {
 					Sys.exit(1);
 				}
 			}
+			rep = try sys.FileSystem.fullPath(rep) catch( e : Dynamic ) rep;
 			sys.io.File.saveContent(config_file, rep);
 		} else if( !sys.FileSystem.exists(rep) )
 			throw "haxelib Repository "+rep+" does not exists. Please run haxelib setup again";
