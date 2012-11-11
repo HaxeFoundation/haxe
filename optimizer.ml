@@ -152,6 +152,11 @@ let rec type_inline ctx cf f ethis params tret p force =
 				we need to force a local var to be created on some platforms.
 			*)
 			if ctx.com.config.pf_static && not (is_nullable v.v_type) && is_null e.etype then (local v).i_write <- true;
+			(*
+				if we cast from Dynamic, create a local var as well to do the cast
+				once and allow DCE to perform properly.
+			*)
+			if v.v_type != t_dynamic && follow e.etype == t_dynamic then (local v).i_write <- true;
 			(match e.eexpr, opt with
 			| TConst TNull , Some c -> mk (TConst c) v.v_type e.epos
 			| _ -> e) :: loop pl al
@@ -346,12 +351,12 @@ let rec type_inline ctx cf f ethis params tret p force =
 			(* we can't mute the type of the expression because it is not correct to do so *)
 			(try
 				(* if the expression is "untyped" and we don't want to unify it accidentally ! *)
-				(match follow e.etype with 
-				| TMono _ -> 
+				(match follow e.etype with
+				| TMono _ ->
 					(match follow tret with
 					| TEnum ({ e_path = [],"Void" },_) | TAbstract ({ a_path = [],"Void" },_) -> e
 					| _ -> raise (Unify_error []))
-				| _ -> 
+				| _ ->
 					type_eq EqStrict (if has_params then map_type e.etype else e.etype) tret;
 					e)
 			with Unify_error _ ->
