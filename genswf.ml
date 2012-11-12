@@ -735,21 +735,21 @@ let build_swf8 com codeclip exports =
 	) in
 	clips @ code
 
-type bitmap_format =
+type file_format =
 	| BJPG
 	| BPNG
+	| SWAV
+	| SMP3
 
-let detect_format file p =
-	let ch = (try open_in_bin file with _ -> error "Could not open file" p) in
-	let fmt = (match (try let a = input_byte ch in a, input_byte ch with _ -> 0,0) with
-		| 0xFF, 0xD8 -> BJPG
-		| 0x89, 0x50 -> BPNG
-		| x,y ->
-			close_in ch;
-			error "Unknown image file format" p
-	) in
-	close_in ch;
-	fmt
+let detect_format data p =
+	match (try data.[0],data.[1],data.[2] with _ -> '\x00','\x00','\x00') with
+	| '\xFF', '\xD8', _ -> BJPG
+	| '\x89', 'P', 'N' -> BPNG
+	| 'R', 'I', 'F' -> SWAV
+	| 'I', 'D', '3' -> SMP3
+	| '\xFF', '\xFB', _ -> SMP3
+	| _ ->
+		error "Unknown file format" p
 
 let build_swf9 com file swc =
 	let boot_name = if swc <> None || Common.defined com Define.HaxeBoot then "haxe" else "boot_" ^ (String.sub (Digest.to_hex (Digest.string (Filename.basename file))) 0 4) in
@@ -784,20 +784,26 @@ let build_swf9 com file swc =
 		classes := { f9_cid = Some !cid; f9_classname = s_type_path (Genswf9.resource_path name) } :: !classes;
 		tag (TBinaryData (!cid,data)) :: acc
 	) com.resources [] in
+	let load_file_data file p =
+		let file = try Common.find_file com file with Not_found -> file in
+		if String.length file > 5 && String.sub file 0 5 = "data:" then
+			String.sub file 5 (String.length file - 5)
+		else
+			(try Std.input_file ~bin:true file with _  -> error "File not found" p)
+	in
 	let bmp = List.fold_left (fun acc t ->
 		match t with
 		| TClassDecl c ->
 			let rec loop = function
 				| [] -> acc
 				| (":bitmap",[EConst (String file),p],_) :: l ->
-					let file = try Common.find_file com file with Not_found -> file in
-					let data = (try Std.input_file ~bin:true file with _  -> error "File not found" p) in
+					let data = load_file_data file p in
 					incr cid;
 					classes := { f9_cid = Some !cid; f9_classname = s_type_path c.cl_path } :: !classes;
 					let raw() =
 						tag (TBitsJPEG2 { bd_id = !cid; bd_data = data; bd_table = None; bd_alpha = None; bd_deblock = Some 0 })
 					in
-					let t = (match detect_format file p with
+					let t = (match detect_format data p with
 						| BPNG ->
 							(*
 								There is a bug in Flash PNG decoder for 24-bits PNGs : Color such has 0xFF00FF is decoded as 0xFE00FE.
@@ -819,16 +825,14 @@ let build_swf9 com file swc =
 					) in
 					t :: loop l
 				| (":bitmap",[EConst (String dfile),p1;EConst (String afile),p2],_) :: l ->
-					let dfile = try Common.find_file com dfile with Not_found -> dfile in
-					let afile = try Common.find_file com afile with Not_found -> afile in
-					(match detect_format dfile p1 with
+					let ddata = load_file_data dfile p1 in
+					let adata = load_file_data afile p2 in
+					(match detect_format ddata p1 with
 					| BJPG -> ()
 					| _ -> error "RGB channel must be a JPG file" p1);
-					(match detect_format afile p2 with
+					(match detect_format adata p2 with
 					| BPNG -> ()
 					| _ -> error "Alpha channel must be a PNG file" p2);
-					let ddata = Std.input_file ~bin:true dfile in
-					let adata = Std.input_file ~bin:true afile in
 					let png = Png.parse (IO.input_string adata) in
 					let h = Png.header png in
 					let amask = (match h.Png.png_color with
@@ -846,21 +850,19 @@ let build_swf9 com file swc =
 					classes := { f9_cid = Some !cid; f9_classname = s_type_path c.cl_path } :: !classes;
 					tag (TBitsJPEG3 { bd_id = !cid; bd_data = ddata; bd_table = None; bd_alpha = Some amask; bd_deblock = Some 0 }) :: loop l
 				| (":file",[EConst (String file),p],_) :: l ->
-					let file = try Common.find_file com file with Not_found -> file in
-					let data = (try Std.input_file ~bin:true file with _  -> error "File not found" p) in
+					let data = load_file_data file p in
 					incr cid;
 					classes := { f9_cid = Some !cid; f9_classname = s_type_path c.cl_path } :: !classes;
 					tag (TBinaryData (!cid,data)) :: loop l
 				| (":sound",[EConst (String file),p],_) :: l ->
-					let file = try Common.find_file com file with Not_found -> file in
-					let data = (try Std.input_file ~bin:true file with _  -> error "File not found" p) in
+					let data = load_file_data file p in
 					let make_flags fmt mono freq bits =
 						let fbits = (match freq with 5512 when fmt <> 2 -> 0 | 11025 -> 1 | 22050 -> 2 | 44100 -> 3 | _ -> failwith ("Unsupported frequency " ^ string_of_int freq)) in
 						let bbits = (match bits with 8 -> 0 | 16 -> 1 | _ -> failwith ("Unsupported bits " ^ string_of_int bits)) in
 						(fmt lsl 4) lor (fbits lsl 2) lor (bbits lsl 1) lor (if mono then 0 else 1)
 					in
-					let flags, samples, data = (match file_extension file with
-						| "wav" ->
+					let flags, samples, data = (match detect_format data p with
+						| SWAV ->
 							(try
 								let i = IO.input_string data in
 								if IO.nread i 4 <> "RIFF" then raise Exit;
@@ -882,7 +884,7 @@ let build_swf9 com file swc =
 							| Failure msg ->
 								error ("Invalid WAV file (" ^ msg ^ ")") p
 							)
-						| "mp3" ->
+						| SMP3 ->
 							(try
 								let i = IO.input_string data in
 								if IO.read_byte i <> 0xFF then raise Exit;
