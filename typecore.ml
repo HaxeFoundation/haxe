@@ -296,15 +296,15 @@ let create_fake_module ctx file =
 let delay_tabs = ref ""
 
 let context_ident ctx =
-	if Common.defined ctx.com "core_api" then
+	if Common.defined ctx.com Common.Define.CoreApi then
 		" core "
-	else if Common.defined ctx.com "macro" then
+	else if Common.defined ctx.com Common.Define.Macro then
 		"macro "
 	else
 		"  out "
 
 let debug ctx str =
-	if Common.defined ctx.com "cdebug" then prerr_endline (context_ident ctx ^ !delay_tabs ^ str)
+	if Common.raw_defined ctx.com "cdebug" then prerr_endline (context_ident ctx ^ !delay_tabs ^ str)
 
 let ctx_pos ctx =
 	let inf = Ast.s_type_path ctx.m.curmod.m_path in
@@ -357,7 +357,7 @@ let make_pass ?inf ctx f =
 			| Fatal_error ->
 				delay_tabs := old;
 				raise Fatal_error
-			| exc when not (Common.defined ctx.com "stack") ->
+			| exc when not (Common.raw_defined ctx.com "stack") ->
 				debug ctx ("FATAL " ^ Printexc.to_string exc);
 				delay_tabs := old;
 				raise exc
