@@ -37,7 +37,7 @@ class TypedDictionary<K,T> extends Dictionary {
 		untyped this[k] = v;
 	}
 
-	public inline function exists( k : K ) {
+	public inline function exists( k : K ) : Bool {
 		return untyped this[k] != null;
 	}
 
