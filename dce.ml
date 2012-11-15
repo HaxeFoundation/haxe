@@ -117,7 +117,12 @@ end
 
 (* mark a type as kept *)
 let rec mark_t dce t = match follow t with
-	| TInst({cl_kind = KTypeParameter tl},pl) -> List.iter (mark_t dce) tl; List.iter (mark_t dce) pl
+	| TInst({cl_kind = KTypeParameter tl} as c,pl) ->
+		if not (has_meta ":used" c.cl_meta) then begin
+			c.cl_meta <- (":used",[],c.cl_pos) :: c.cl_meta;
+			List.iter (mark_t dce) tl;
+		end;
+		List.iter (mark_t dce) pl
 	| TInst(c,pl) -> mark_class dce c; List.iter (mark_t dce) pl
 	| TFun(args,ret) -> List.iter (fun (_,_,t) -> mark_t dce t) args; mark_t dce ret
 	| TEnum(e,pl) -> if not (has_meta ":used" e.e_meta) then e.e_meta <- (":used",[],e.e_pos) :: e.e_meta; List.iter (mark_t dce) pl
