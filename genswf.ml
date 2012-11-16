@@ -738,6 +738,7 @@ let build_swf8 com codeclip exports =
 type file_format =
 	| BJPG
 	| BPNG
+	| BGIF
 	| SWAV
 	| SMP3
 
@@ -748,6 +749,7 @@ let detect_format data p =
 	| 'R', 'I', 'F' -> SWAV
 	| 'I', 'D', '3' -> SMP3
 	| '\xFF', '\xFB', _ -> SMP3
+	| 'G', 'I', 'F' -> BGIF
 	| _ ->
 		error "Unknown file format" p
 
