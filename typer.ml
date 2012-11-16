@@ -185,13 +185,15 @@ let rec can_access ctx c cf stat =
 		| None -> false)
 		|| has ":access" ctx.curclass ctx.curfield (make_path c cf)
 	in
-	loop c
+	let b = loop c
 	(* access is also allowed of we access a type parameter which is constrained to our (base) class *)
 	|| (match c.cl_kind with
 		| KTypeParameter tl ->
 			List.exists (fun t -> match follow t with TInst(c,_) -> loop c | _ -> false) tl
 		| _ -> false)
-	|| (has_meta ":privateAccess" ctx.meta)
+	|| (has_meta ":privateAccess" ctx.meta) in
+	if b && Common.defined ctx.com Common.Define.As3 && not (has_meta ":public" cf.cf_meta) then cf.cf_meta <- (":public",[],cf.cf_pos) :: cf.cf_meta;
+	b
 
 (* removes the first argument of the class field's function type and all its overloads *)
 let prepare_using_field cf = match cf.cf_type with
