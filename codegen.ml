@@ -710,9 +710,9 @@ let add_field_inits ctx t =
 				match cf.cf_expr with
 				| None -> assert false
 				| Some e ->
-					let lhs = mk (TField(ethis,cf.cf_name)) e.etype e.epos in
+					let lhs = mk (TField(ethis,cf.cf_name)) cf.cf_type e.epos in
 					cf.cf_expr <- None;
-					let eassign = mk (TBinop(OpAssign,lhs,e)) lhs.etype e.epos in
+					let eassign = mk (TBinop(OpAssign,lhs,e)) e.etype e.epos in
 					if Common.defined ctx.com Define.As3 then begin
 						let echeck = mk (TBinop(OpEq,lhs,(mk (TConst TNull) lhs.etype e.epos))) ctx.com.basic.tbool e.epos in
 						mk (TIf(echeck,eassign,None)) eassign.etype e.epos
