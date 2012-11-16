@@ -22,7 +22,15 @@
 	all : Removed haxe.Int32, haxe.Firebug, haxe.TimerQueue
 	all : added -D key=value and #if (key >= value) operations
 	all : StringTools.htmlEscape/unescape nows handle "/&quot; and '/&#039;
-	
+	all : using and import must now appear before any type declaration in a file
+	all : no longer create variable fields for pure getter/setter properties (unless @:isVar is used)
+	all : use default get_prop/set_prop instead of custom getter/setter names for properties
+	js : added JQuery.delegateTarget
+	macro : removed EType and CType, added EMeta
+	all : replaced haxe.rtti.Generic interface with @:generic metadata
+	all : no longer infer arrays of mixed types as Array<Dynamic>
+	all : all type/import/enum constructor resolution now follows the shadowing principle (latest has priority)
+
 2012-07-16: 2.10
 	java/cs : added two new targets (beta)
 	all : fixed List and Null<T> for first, last, pop
