@@ -260,10 +260,14 @@ let add_libs com libs =
 	let call_haxelib() =
 		let t = Common.timer "haxelib" in
 		let cmd = "haxelib path " ^ String.concat " " libs in
-		let p = Unix.open_process_in cmd in
-		let lines = Std.input_list p in
-		let ret = Unix.close_process_in p in
-		if ret <> Unix.WEXITED 0 then failwith (String.concat "\n" lines);
+		let pin, pout, perr = Unix.open_process_full cmd (Unix.environment()) in
+		let lines = Std.input_list pin in
+		let err = Std.input_list perr in
+		let ret = Unix.close_process_full (pin,pout,perr) in
+		if ret <> Unix.WEXITED 0 then failwith (match lines, err with
+			| [], [] -> "Failed to call haxelib (command not found ?)"
+			| [], [s] when ExtString.String.ends_with (ExtString.String.strip s) "Module not found : path" -> "The haxelib command has been strip'ed, please install it again"
+			| _ -> String.concat "\n" (lines@err));
 		t();
 		lines
 	in
