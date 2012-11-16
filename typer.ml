@@ -2129,6 +2129,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 				error "Only generic type parameters can be constructed" p);
 			let el = List.map (type_expr ctx) el in
 			let ctor = mk_field "new" (tfun (List.map (fun e -> e.etype) el) ctx.t.tvoid) p in
+			ctor.cf_public <- false;
   			(match c.cl_constructor with
  				| Some ctor2 ->
  					unify ctx ctor.cf_type ctor2.cf_type p
