@@ -251,6 +251,7 @@ let filters_length l =
 let button_record_length r =
 	1 + 2 + 2 + matrix_length r.btr_mpos + (match r.btr_color with None -> 0 | Some c -> cxa_length c)
 	+ opt_len filters_length r.btr_filters
+	+ (match r.btr_blendmode with None -> 0 | Some c -> 1)
 
 let button_action_length r =
 	2 + 2 + actions_length r.bta_actions
@@ -1053,6 +1054,7 @@ let rec parse_button_records ch color =
 		let mpos = read_matrix ch in
 		let cxa = (if color then Some (read_cxa ch) else None) in
 		let filters = (if flags land 16 = 0 then None else Some (parse_filters ch)) in
+		let blendmode = (if flags land 32 = 0 then None else Some (read_byte ch)) in
 		let r = {
 			btr_flags = flags;
 			btr_cid = cid;
@@ -1060,6 +1062,7 @@ let rec parse_button_records ch color =
 			btr_mpos = mpos;
 			btr_color = cxa;
 			btr_filters = filters;
+			btr_blendmode = blendmode;
 		} in
 		r :: parse_button_records ch color
 
@@ -1752,7 +1755,11 @@ let write_button_record ch r =
 	opt (fun l ->
 		write_byte ch (List.length l);
 		List.iter (write_filter ch) l
-	) r.btr_filters
+	) r.btr_filters;
+	(match r.btr_blendmode with
+	| None -> ()
+	| Some c ->
+		write_byte ch c)
 
 let rec write_button_actions ch = function
 	| [] -> assert false

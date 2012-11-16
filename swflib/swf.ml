@@ -444,6 +444,7 @@ type button_record = {
 	btr_mpos : matrix;
 	btr_color : color_transform_alpha option;
 	btr_filters : filter list option;
+	btr_blendmode : int option;
 }
 
 type button_action = {
