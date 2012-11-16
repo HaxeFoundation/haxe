@@ -1057,7 +1057,10 @@ let rename_local_vars com e =
 		done;
 		v.v_name <- v.v_name ^ string_of_int !count;
 	in
-	let declare v =
+	let declare v p =
+		(match follow v.v_type with
+			| TAbstract ({a_path = [],"Void"},_) -> error "Arguments and variables of type Void are not allowed" p
+			| _ -> ());
 		(* chop escape char for all local variables generated *)
 		if String.unsafe_get v.v_name 0 = String.unsafe_get gen_local_prefix 0 then v.v_name <- "_g" ^ String.sub v.v_name 1 (String.length v.v_name - 1);
 		let look_vars = (if not cfg.pf_captured_scope && v.v_capture then !all_vars else !vars) in
@@ -1104,31 +1107,31 @@ let rename_local_vars com e =
 	let rec loop e =
 		match e.eexpr with
 		| TVars l ->
-			List.iter (fun (v,e) ->
-				if not cfg.pf_locals_scope then declare v;
-				(match e with None -> () | Some e -> loop e);
-				if cfg.pf_locals_scope then declare v;
+			List.iter (fun (v,eo) ->
+				if not cfg.pf_locals_scope then declare v e.epos;
+				(match eo with None -> () | Some e -> loop e);
+				if cfg.pf_locals_scope then declare v e.epos;
 			) l
 		| TFunction tf ->
 			let old = save() in
-			List.iter (fun (v,_) -> declare v) tf.tf_args;
+			List.iter (fun (v,_) -> declare v e.epos) tf.tf_args;
 			loop tf.tf_expr;
 			old()
 		| TBlock el ->
 			let old = save() in
 			List.iter loop el;
 			old()
-		| TFor (v,it,e) ->
+		| TFor (v,it,e1) ->
 			loop it;
 			let old = save() in
-			declare v;
-			loop e;
+			declare v e.epos;
+			loop e1;
 			old()
 		| TTry (e,catchs) ->
 			loop e;
 			List.iter (fun (v,e) ->
 				let old = save() in
-				declare v;
+				declare v e.epos;
 				check_type v.v_type;
 				loop e;
 				old()
@@ -1139,7 +1142,7 @@ let rename_local_vars com e =
 				let old = save() in
 				(match vars with
 				| None -> ()
-				| Some l ->	List.iter (function None -> () | Some v -> declare v) l);
+				| Some l ->	List.iter (function None -> () | Some v -> declare v e.epos) l);
 				loop e;
 				old();
 			) cases;

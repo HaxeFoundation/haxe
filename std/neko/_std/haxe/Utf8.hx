@@ -41,7 +41,7 @@ class Utf8 {
 	public static function encode( s : String ) : String {
 		s = untyped s.__s;
 		var sl = untyped __dollar__ssize(s);
-		var buf = utf8_buf_alloc( sl );
+		var buf:Dynamic = utf8_buf_alloc( sl );
 		var i = 0;
 		while( i < sl ) {
 			utf8_buf_add(buf,untyped __dollar__sget(s,i));

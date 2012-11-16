@@ -23,7 +23,7 @@ package sys.io;
 
 private class Stdin extends haxe.io.Output {
 
-	var p : Void;
+	var p : Dynamic;
 	var buf : haxe.io.Bytes;
 
 	public function new(p) {
@@ -56,7 +56,7 @@ private class Stdin extends haxe.io.Output {
 
 private class Stdout extends haxe.io.Input {
 
-	var p : Void;
+	var p : Dynamic;
 	var out : Bool;
 	var buf : haxe.io.Bytes;
 
@@ -87,7 +87,7 @@ private class Stdout extends haxe.io.Input {
 
 @:coreApi class Process {
 
-	var p : Void;
+	var p : Dynamic;
 	public var stdout(default,null) : haxe.io.Input;
 	public var stderr(default,null) : haxe.io.Input;
 	public var stdin(default,null) : haxe.io.Output;
