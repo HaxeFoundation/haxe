@@ -55,6 +55,15 @@
 		return { pos : r.m.index, len : r.m[0].length };
 	}
 
+	public function matchSub( s : String, pos : Int, len : Int = -1):Bool {
+		var b = match( len < 0 ? s.substr(pos) : s.substr(pos,len) );
+		if (b) {
+			r.s = s;
+			r.m.index += pos;
+		}
+		return b;
+	}
+	
 	public function split( s : String ) : Array<String> {
 		// we can't use directly s.split because it's ignoring the 'g' flag
 		var d = "#__delim__#";
@@ -65,17 +74,23 @@
 		return untyped s.replace(r,by);
 	}
 
-	public function customReplace( s : String, f : EReg -> String ) : String {
+	public function map( s : String, f : EReg -> String ) : String {
+		var offset = 0;
 		var buf = new StringBuf();
-		while( true ) {
-			if( !match(s) )
+		do {
+			if (!matchSub(s, offset))
 				break;
-			buf.add(matchedLeft());
+			var p = matchedPos();
+			buf.add(s.substr(offset, cast(p.pos,Int) - offset));
 			buf.add(f(this));
-			s = matchedRight();
-		}
-		buf.add(s);
+			var p = matchedPos();
+			offset = p.pos + p.len;
+		} while (r.global);
+		buf.add(s.substr(offset));
 		return buf.toString();
 	}
 
+	#if !haxe3
+	public inline function customReplace( s : String, f : EReg -> String ) : String return map(s, f)
+	#end	
 }

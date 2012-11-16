@@ -161,6 +161,10 @@ class EReg {
 		return { pos : start, len : matcher.end() - start };
 	}
 
+	public function matchSub( s : String, pos : Int, len : Int = -1):Bool {
+		return throw "not implemented yet";
+	}	
+	
 	/**
 		Split a string by using the regular expression to match
 		the separators.
@@ -207,7 +211,7 @@ class EReg {
 		can return the string that needs to be replaced. All occurences are matched anyway,
 		and setting the [g] flag might cause some incorrect behavior on some platforms.
 	**/
-	public function customReplace( s : String, f : EReg -> String ) : String {
+	public function map( s : String, f : EReg -> String ) : String {
 		var buf = new StringBuf();
 		while( true ) {
 			if( !match(s) )
@@ -220,4 +224,7 @@ class EReg {
 		return buf.toString();
 	}
 
+	#if !haxe3
+	public inline function customReplace( s : String, f : EReg -> String ) : String return map(s, f)
+	#end	
 }

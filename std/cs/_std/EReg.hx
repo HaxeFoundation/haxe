@@ -71,6 +71,10 @@ import cs.system.text.regularExpressions.Regex;
 		return { pos : m.Index, len : m.Length };
 	}
 
+	public function matchSub( s : String, pos : Int, len : Int = -1):Bool {
+		return throw "not implemented yet";
+	}	
+	
 	public function split( s : String ) : Array<String> {
 		if (isGlobal)
 			return cs.Lib.array(regex.Split(s));
@@ -85,7 +89,7 @@ import cs.system.text.regularExpressions.Regex;
 		return untyped (s.Substring(0, m.Index) + by + s.Substring(m.Index + m.Length));
 	}
 
-	public function customReplace( s : String, f : EReg -> String ) : String {
+	public function map( s : String, f : EReg -> String ) : String {
 		var buf = new StringBuf();
 		while (true)
 		{
@@ -99,4 +103,7 @@ import cs.system.text.regularExpressions.Regex;
 		return buf.toString();
 	}
 
+	#if !haxe3
+	public inline function customReplace( s : String, f : EReg -> String ) : String return map(s, f)
+	#end	
 }

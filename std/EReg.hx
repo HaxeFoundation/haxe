@@ -74,6 +74,14 @@ class EReg {
 	public function matchedPos() : { pos : Int, len : Int } {
 		return null;
 	}
+	
+	/**
+		Tells if the regular expression matches the String between pos and pos + len.
+		Updates the internal state accordingly.		
+	**/
+	public function matchSub( s : String, pos : Int, len : Int = 0):Bool {
+		return false;
+	}
 
 	/**
 		Split a string by using the regular expression to match
@@ -97,7 +105,7 @@ class EReg {
 		can return the string that needs to be replaced. All occurences are matched anyway,
 		and setting the [g] flag might cause some incorrect behavior on some platforms.
 	**/
-	public function customReplace( s : String, f : EReg -> String ) : String {
+	public function map( s : String, f : EReg -> String ) : String {
 		var buf = new StringBuf();
 		while( true ) {
 			if( !match(s) )
@@ -110,4 +118,7 @@ class EReg {
 		return buf.toString();
 	}
 
+	#if !haxe3
+	public inline function customReplace( s : String, f : EReg -> String ) : String return map(s, f)
+	#end	
 }
