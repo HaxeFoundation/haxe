@@ -132,7 +132,7 @@ private class MysqlResultSet implements ResultSet {
 
 private class MysqlConnection implements Connection {
 
-	private var __c : Void;
+	private var __c : Dynamic;
 
 	public function new(c) {
 		__c = c;

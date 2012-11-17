@@ -95,7 +95,7 @@ private class SqliteResultSet implements ResultSet {
 
 	public var length(get,null) : Int;
 	public var nfields(get,null) : Int;
-	var r : Void;
+	var r : Dynamic;
 	var cache : List<Dynamic>;
 
 	public function new( r ) {

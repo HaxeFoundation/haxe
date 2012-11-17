@@ -25,9 +25,9 @@ import sys.db.Connection;
 
 private class MysqlConnection implements Connection {
 
-	var c : Void;
+	var c : Dynamic;
 
-	public function new( c : Void) {
+	public function new( c ) {
 		this.c = c;
 	}
 
@@ -85,8 +85,8 @@ private class MysqlConnection implements Connection {
 private class MysqlResultSet implements ResultSet {
 	public var length(get,null) : Int;
 	public var nfields(get,null) : Int;
-	private var __r : Void;
-	private var __c : Void;
+	private var __r : Dynamic;
+	private var __c : Dynamic;
 	private var cache : Dynamic;
 
 	public function new(r, c) {

@@ -116,7 +116,7 @@ private class MysqlResultSet implements sys.db.ResultSet {
 
 private class MysqlConnection implements sys.db.Connection {
 
-	private var __c : Void;
+	private var __c : Dynamic;
 
 	public function new(c) {
 		__c = c;
