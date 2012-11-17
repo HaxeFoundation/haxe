@@ -39,9 +39,7 @@ class FileSystem {
 	}
 
 	public static function stat( path : String ) : FileStat {
-		untyped __php__('$fp = fopen($path, "r");
-		$fstat = fstat($fp);
-		fclose($fp);');
+		untyped __php__("$fp = fopen($path, \"r\"); $fstat = fstat($fp); fclose($fp);");
 		return untyped {
 			gid   : __php__("$fstat['gid']"),
 			uid   : __php__("$fstat['uid']"),
@@ -92,9 +90,9 @@ class FileSystem {
 
 	public static function readDirectory( path : String ) : Array<String> {
 		var l = untyped __call__("array");
-		untyped __php__('$dh = opendir($path);
-        while (($file = readdir($dh)) !== false) if("." != $file && ".." != $file) $l[] = $file;
-        closedir($dh);');
+		untyped __php__("$dh = opendir($path);
+        while (($file = readdir($dh)) !== false) if(\".\" != $file && \"..\" != $file) $l[] = $file;
+        closedir($dh);");
 		return untyped __call__("new _hx_array", l);
 	}
 }

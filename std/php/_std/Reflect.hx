@@ -62,7 +62,7 @@
 
 	public static function fields( o : Dynamic ) : Array<String> {
 		if( o == null ) return new Array();
-		return untyped __php__('$o instanceof _hx_array')
+		return untyped __php__("$o instanceof _hx_array")
 				? __php__("new _hx_array(array('concat','copy','insert','iterator','length','join','pop','push','remove','reverse','shift','slice','sort','splice','toString','unshift'))")
 				: (__call__('is_string', o)
 					? __php__("new _hx_array(array('charAt','charCodeAt','indexOf','lastIndexOf','length','split','substr','toLowerCase','toString','toUpperCase'))")

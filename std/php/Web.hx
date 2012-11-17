@@ -286,7 +286,7 @@ class Web {
 		Get the current script directory in the local filesystem.
 	**/
 	public static inline function getCwd() : String {
-		return untyped __php__('dirname($_SERVER["SCRIPT_FILENAME"])') + "/";
+		return untyped __php__("dirname($_SERVER[\"SCRIPT_FILENAME\"])") + "/";
 	}
 
 	/**

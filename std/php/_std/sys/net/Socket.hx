@@ -55,7 +55,7 @@ class Socket {
 
 	public function read() : String {
 		var b = '';
-		untyped __php__('while (!feof($this->__s)) $b .= fgets($this->__s)');
+		untyped __php__("while (!feof($this->__s)) $b .= fgets($this->__s)");
 		return b;
 	}
 
