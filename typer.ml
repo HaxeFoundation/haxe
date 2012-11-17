@@ -2120,27 +2120,17 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let t = Typeload.load_instance ctx t p true in
 		let el, c , params = (match follow t with
 		| TInst ({cl_kind = KTypeParameter tl} as c,params) ->
-			(match Typeload.get_generic_parameter_kind ctx c with
-			| GPClass c ->
-				if not (has_meta ":?genericT" c.cl_meta) then c.cl_meta <- (":?genericT",[],p) :: c.cl_meta;
-			| GPField cf ->
-				()
-			| GPNone ->
-				error "Only generic type parameters can be constructed" p);
+			if not (Codegen.is_generic_parameter ctx c) then error "Only generic type parameters can be constructed" p;
 			let el = List.map (type_expr ctx) el in
-			let ctor = mk_field "new" (tfun (List.map (fun e -> e.etype) el) ctx.t.tvoid) p in
-			ctor.cf_public <- false;
-  			(match c.cl_constructor with
- 				| Some ctor2 ->
- 					unify ctx ctor.cf_type ctor2.cf_type p
- 				| None ->
-					ctor.cf_kind <- Method MethNormal;
- 					c.cl_constructor <- Some ctor;
-					List.iter (fun t -> match follow t with
-						| TAnon a -> (try unify ctx (PMap.find "new" a.a_fields).cf_type ctor.cf_type p; with Not_found -> ())
-						| _ -> ()
-					) tl;
-					c.cl_kind <- KTypeParameter ((mk_anon (PMap.add "new" ctor PMap.empty)) :: tl));
+			let ct = (tfun (List.map (fun e -> e.etype) el) ctx.t.tvoid) in
+			List.iter (fun t -> match follow t with
+				| TAnon a ->
+					(try
+						unify ctx (PMap.find "new" a.a_fields).cf_type ct p;
+					with Not_found ->
+						())
+				| _ -> ()
+			) tl;
 			el,c,params
 		| TInst (c,params) ->
 			let name = (match c.cl_path with [], name -> name | x :: _ , _ -> x) in

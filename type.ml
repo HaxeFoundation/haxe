@@ -273,11 +273,6 @@ and module_kind =
 	| MMacro
 	| MFake
 
-type generic_parameter_kind =
-	| GPNone
-	| GPField of tclass_field
-	| GPClass of tclass
-
 let alloc_var =
 	let uid = ref 0 in
 	(fun n t -> incr uid; { v_name = n; v_type = t; v_id = !uid; v_capture = false; v_extra = None })

@@ -263,13 +263,36 @@ let generic_substitute_expr gctx e =
 	let rec build_expr e = map_expr_type build_expr (generic_substitute_type gctx) build_var e in
 	build_expr e
 
+let is_generic_parameter ctx c =
+	(* first check field parameters, then class parameters *)
+	try
+		ignore (List.assoc (snd c.cl_path) ctx.curfield.cf_params);
+		has_meta ":generic" ctx.curfield.cf_meta
+	with Not_found -> try
+		ignore(List.assoc (snd c.cl_path) ctx.type_params);
+		(match ctx.curclass.cl_kind with | KGeneric -> true | _ -> false);
+	with Not_found ->
+		false
+
 let rec build_generic ctx c p tl =
 	let pack = fst c.cl_path in
 	let recurse = ref false in
 	let rec check_recursive t =
 		match follow t with
-		| TInst (c,tl) ->
-			(match c.cl_kind with KTypeParameter _ -> recurse := true | _ -> ());
+		| TInst (c2,tl) ->
+			(match c2.cl_kind with
+			| KTypeParameter tl ->
+				List.iter (fun t -> match follow t with
+					| TAnon a when PMap.mem "new" a.a_fields ->
+						error "Type parameters with a constructor cannot be used non-generically" p
+					| _ -> ()
+				) tl;
+				if not (is_generic_parameter ctx c2) && not (has_meta ":?keepGenericBase" c.cl_meta) then begin
+					print_endline ("Keep " ^ (s_type_path c.cl_path));
+					c.cl_meta <- (":?keepGenericBase",[],p) :: c.cl_meta;
+				end;
+				recurse := true
+			| _ -> ());
 			List.iter check_recursive tl;
 		| _ ->
 			()
@@ -578,19 +601,8 @@ let check_private_path ctx t = match t with
 
 (* Removes generic base classes *)
 let remove_generic_base ctx t = match t with
-	| TClassDecl c when c.cl_kind = KGeneric && has_meta ":?genericT" c.cl_meta ->
-		(* TODO: we have to get the detection right eventually *)
+	| TClassDecl c when c.cl_kind = KGeneric && not (has_meta ":?keepGenericBase" c.cl_meta) ->
 		c.cl_extern <- true
-(* 		(try
-			let (_,_,prec) = get_meta ":?genericRec" c.cl_meta in
-			(try
-				let (_,_,pnew) = get_meta ":?genericT" c.cl_meta in
-				display_error ctx ("Class " ^ (s_type_path c.cl_path) ^ " was used recursively and cannot use its type parameter") prec;
-				error "Type parameter usage was here" pnew
-			with Not_found ->
-				());
-		with Not_found ->
-			c.cl_extern <- true); *)
 	| _ ->
 		()
 
