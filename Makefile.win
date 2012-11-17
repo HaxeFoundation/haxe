@@ -14,18 +14,20 @@ NATIVE_LIBS += -I "c:/program files/mingw/lib/"
 LINEMERGE_FILTER=sed -n "/^File/!{H; bp; b; }; /^File/ bp; :p; { x; s/\n/ /g; p; }"
 
 # use make MSVC=1 -f Makefile.win to build for OCaml/MSVC
-# this will also convert the error messages to Visual Studio output format
 
 ifeq (${MSVC}, 1)
 NATIVE_LIBS = shell32.lib libs/extc/extc_stubs.obj libs/extc/zlib/zlib.lib
-MSVC_OUTPUT=1
 endif
+
+# this will also convert the error messages to Visual Studio output format
 
 ifeq (${MSVC_OUTPUT}, 1)
 FILTER=sed "s/File \"\(.*\?\)\", line \([0-9]\+\), \(.*\)/\1(\2): \3/"
 CC_CMD=$(OCAMLOPT) $(CFLAGS) -c $< 2>&1 | $(LINEMERGE_FILTER) | $(FILTER) 1>&2
 CC_PARSER_CMD=$(OCAMLOPT) -pp camlp4o $(CFLAGS) -c parser.ml 2>&1 | $(LINEMERGE_FILTER) | $(FILTER) 1>&2
 endif
+
+# this will also convert the error messages to Haxe/FlashDevelop output format
 
 ifeq (${FD_OUTPUT}, 1)
 FILTER=sed "s/File \"\(.*\?\)\", line \([0-9]\+\), characters \([0-9-]\+\):\(.*\)/\1:\2: characters \3 : \4/"
