@@ -1992,29 +1992,9 @@ and type_expr ctx ?(need_val=true) (e,p) =
 				add_sub start pos;
 				parse (pos + 1) (pos + 1)
 			| '{' ->
-				add_sub start (pos - 1);
-				let rec loop braces i =
-					if i = len then
-						match braces with
-						| [] -> assert false
-						| b :: _ -> error "Unclosed brace" { p with pmin = !pmin + b + 1; pmax = !pmin + b + 2 }
-					else
-						match String.unsafe_get s i with
-						| '{' -> loop (i :: braces) (i + 1)
-						| '}' ->
-							let braces = List.tl braces in
-							if braces = [] then i else loop braces (i + 1)
-						| _ ->
-							loop braces (i + 1)
-				in
-				let send = loop [pos] (pos + 1) in
-				let slen = send - pos - 1 in
-				let scode = String.sub s (pos + 1) slen in
-				if warn_escape then warn (pos + 1) slen;
-				min := !min + 2;
-				add (fst (parse_expr_string ctx scode { p with pmin = !pmin + pos + 2; pmax = !pmin + send + 1 } true)) slen;
-				min := !min + 1;
-				parse (send + 1) (send + 1)
+				parse_group start pos '{' '}' "brace"
+			| '(' ->
+				parse_group start pos '(' ')' "parenthesis"
 			| 'a'..'z' | 'A'..'Z' | '_' ->
 				add_sub start (pos - 1);
 				incr min;
@@ -2033,6 +2013,31 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			| _ ->
 				(* keep as-it *)
 				parse start pos
+		and parse_group start pos gopen gclose gname =
+			add_sub start (pos - 1);
+			let rec loop groups i =
+				if i = len then
+					match groups with
+					| [] -> assert false
+					| g :: _ -> error ("Unclosed " ^ gname) { p with pmin = !pmin + g + 1; pmax = !pmin + g + 2 }
+				else
+					let c = String.unsafe_get s i in
+					if c = gopen then
+						loop (i :: groups) (i + 1)
+					else if c = gclose then begin
+						let groups = List.tl groups in
+						if groups = [] then i else loop groups (i + 1)
+					end else
+						loop groups (i + 1)
+			in
+			let send = loop [pos] (pos + 1) in
+			let slen = send - pos - 1 in
+			let scode = String.sub s (pos + 1) slen in
+			if warn_escape then warn (pos + 1) slen;
+			min := !min + 2;
+			add (fst (parse_expr_string ctx scode { p with pmin = !pmin + pos + 2; pmax = !pmin + send + 1 } true)) slen;
+			min := !min + 1;
+			parse (send + 1) (send + 1)
 		in
 		parse 0 0;
 		(match !e with
