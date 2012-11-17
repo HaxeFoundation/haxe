@@ -123,6 +123,7 @@
     <hidden path="gencommon.cmi" />
     <hidden path="gencommon.cmx" />
     <hidden path="ast.obj" />
+    <hidden path="haxelib.exe" />
   </hiddenPaths>
   <!-- Executed before build -->
   <preBuildCommand>make -j4 MSVC=1 FD_OUTPUT=1 -f Makefile.win haxe</preBuildCommand>
