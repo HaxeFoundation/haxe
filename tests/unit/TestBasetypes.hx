@@ -299,5 +299,21 @@ class TestBasetypes extends Test {
 		eq(o.const, 6);
 		eq(Reflect.field(o, prefix+"const"), 6);
 	}
+	
+	function testFormat() {
+		eq('', "");
+		eq('$', "$");
+		eq('$$', "$");
+		eq('x$*', "x$*");
+		
+		var x = 5, y = [];
+		eq('$x', "5");
+		eq('a$x$', "a5$");
+		
+		eq('${5}', "5");
+		eq('${5}${2}', "52");
+		eq('a${x}b', "a5b");
+		eq('${x}${y}', "5[]");
+	}
 
 }

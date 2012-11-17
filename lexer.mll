@@ -46,6 +46,7 @@ type lexer_file = {
 	mutable lmaxline : int;
 	mutable llines : (int * int) list;
 	mutable lalines : (int * int) array;
+	mutable lstrings : int list;
 }
 
 let make_file file =
@@ -55,6 +56,7 @@ let make_file file =
 		lmaxline = 1;
 		llines = [0,1];
 		lalines = [|0,1|];
+		lstrings = [];
 	}
 
 
@@ -94,6 +96,17 @@ let newline lexbuf =
 	cur.lline <- cur.lline + 1;
 	cur.llines <- (lexeme_end lexbuf,cur.lline) :: cur.llines
 
+let add_fmt_string pmin =
+	let cur = !cur in
+	cur.lstrings <- pmin :: cur.lstrings
+	
+let is_fmt_string p =
+	try
+		let file = Hashtbl.find all_files p.pfile in
+		List.mem p.pmin file.lstrings
+	with Not_found ->
+		false
+	
 let find_line p f =
 	(* rebuild cache if we have a new line *)
 	if f.lmaxline <> f.lline then begin
@@ -245,6 +258,7 @@ and token = parse
 			let pmin = lexeme_start lexbuf in
 			let pmax = (try string2 lexbuf with Exit -> error Unterminated_string pmin) in
 			let str = (try unescape (contents()) with Exit -> error Invalid_escape pmin) in
+			add_fmt_string pmin;
 			mk_tok (Const (String str)) pmin pmax;
 		}
 	| "~/" {

@@ -180,6 +180,7 @@ module Define = struct
 		| Dump
 		| DumpDependencies
 		| Dce
+		| FormatWarning
 
 		| Last (* must be last *)
 
@@ -228,6 +229,7 @@ module Define = struct
 		| Dump -> ("dump","Dump the complete typed AST for internal debugging")
 		| DumpDependencies -> ("dump_dependencies","Dump the classes dependencies")
 		| Dce -> ("dce","The current DCE mode")
+		| FormatWarning -> ("format_warning","Print a warning for each formated string, for 2.x compatibility")
 		| Last -> assert false
 
 end
@@ -538,7 +540,7 @@ let rec has_feature com f =
 			) in
 			let r = r || not (has_dce com) in
 			Hashtbl.add com.features f r;
-			r			
+			r
 
 let error msg p = raise (Abort (msg,p))
 

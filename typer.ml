@@ -211,6 +211,45 @@ let prepare_using_field cf = match cf.cf_type with
 		{cf with cf_overloads = loop [] cf.cf_overloads; cf_type = TFun(args,ret)}
 	| _ -> cf
 
+
+let parse_string ctx s p inlined =
+	let old = Lexer.save() in
+	let old_file = (try Some (Hashtbl.find Lexer.all_files p.pfile) with Not_found -> None) in
+	let old_display = !Parser.resume_display in
+	let old_de = !Parser.display_error in
+	let restore() =
+		(match old_file with
+		| None -> ()
+		| Some f -> Hashtbl.replace Lexer.all_files p.pfile f);
+		if not inlined then Parser.resume_display := old_display;
+		Lexer.restore old;
+		Parser.display_error := old_de
+	in
+	Lexer.init p.pfile;
+	Parser.display_error := (fun e p -> raise (Parser.Error (e,p)));
+	if not inlined then Parser.resume_display := null_pos;
+	let _, decls = try
+		Parser.parse ctx.com (Lexing.from_string s)
+	with Parser.Error (e,pe) ->
+		restore();
+		error (Parser.error_msg e) (if inlined then pe else p)
+	| Lexer.Error (e,pe) ->
+		restore();
+		error (Lexer.error_msg e) (if inlined then pe else p)
+	in
+	restore();
+	match decls with
+	| [(d,_)] -> d
+	| _ -> assert false
+
+let parse_expr_string ctx s p inl =
+	let head = "class X{static function main() " in
+	let head = (if p.pmin > String.length head then head ^ String.make (p.pmin - String.length head) ' ' else head) in
+	let rec loop e = let e = Ast.map_expr loop e in (fst e,p) in
+	match parse_string ctx (head ^ s ^ "}") p inl with
+	| EClass { d_data = [{ cff_name = "main"; cff_kind = FFun { f_expr = Some e } }]} -> if inl then e else loop e
+	| _ -> assert false
+
 (* ---------------------------------------------------------------------- *)
 (* PASS 3 : type expression & check structure *)
 
@@ -1916,6 +1955,89 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let opt = mk (TConst (TString opt)) ctx.t.tstring p in
 		let t = Typeload.load_core_type ctx "EReg" in
 		mk (TNew ((match t with TInst (c,[]) -> c | _ -> assert false),[],[str;opt])) t p
+	| EConst (String s) when Lexer.is_fmt_string p ->
+		let e = ref None in
+		let pmin = ref p.pmin in
+		let min = ref (p.pmin + 1) in
+		let add enext len =
+			let p = { p with pmin = !min; pmax = !min + len } in
+			min := !min + len;
+			match !e with
+			| None -> e := Some (enext,p)
+			| Some prev ->
+				e := Some (EBinop (OpAdd,prev,(enext,p)),punion (pos prev) p)
+		in
+		let add_sub start pos =
+			let len = pos - start in
+			if len > 0 || !e = None then add (EConst (String (String.sub s start len))) len
+		in
+		let warn_escape = Common.defined ctx.com Define.FormatWarning in
+		let warn pos len =
+			ctx.com.warning "This string is formated" { p with pmin = !pmin + 1 + pos; pmax = !pmin + 1 + pos + len }
+		in
+		let len = String.length s in
+		let rec parse start pos =
+			if pos = len then add_sub start pos else
+			let c = String.unsafe_get s pos in
+			let pos = pos + 1 in
+			if c = '\'' then begin
+				incr pmin;
+				incr min;
+			end;
+			if c <> '$' || pos = len then parse start pos else
+			match String.unsafe_get s pos with
+			| '$' ->
+				if warn_escape then warn pos 1;
+				(* double $ *)
+				add_sub start pos;
+				parse (pos + 1) (pos + 1)
+			| '{' ->
+				add_sub start (pos - 1);
+				let rec loop braces i =
+					if i = len then
+						match braces with
+						| [] -> assert false
+						| b :: _ -> error "Unclosed brace" { p with pmin = !pmin + b + 1; pmax = !pmin + b + 2 }
+					else
+						match String.unsafe_get s i with
+						| '{' -> loop (i :: braces) (i + 1)
+						| '}' ->
+							let braces = List.tl braces in
+							if braces = [] then i else loop braces (i + 1)
+						| _ ->
+							loop braces (i + 1)
+				in
+				let send = loop [pos] (pos + 1) in
+				let slen = send - pos - 1 in
+				let scode = String.sub s (pos + 1) slen in
+				if warn_escape then warn (pos + 1) slen;
+				min := !min + 2;
+				add (fst (parse_expr_string ctx scode { p with pmin = !pmin + pos + 2; pmax = !pmin + send + 1 } true)) slen;
+				min := !min + 1;
+				parse (send + 1) (send + 1)
+			| 'a'..'z' | 'A'..'Z' | '_' ->
+				add_sub start (pos - 1);
+				incr min;
+				let rec loop i =
+					if i = len then i else
+					let c = String.unsafe_get s i in
+					match c with
+					| 'a'..'z' | 'A'..'Z' | '0'..'9' | '_' -> loop (i+1)
+					| _ -> i
+				in
+				let iend = loop (pos + 1) in
+				let len = iend - pos in
+				if warn_escape then warn pos len;
+				add (EConst (Ident (String.sub s pos len))) len;
+				parse (pos + len) (pos + len)
+			| _ ->
+				(* keep as-it *)
+				parse start pos
+		in
+		parse 0 0;
+		(match !e with
+		| None -> assert false
+		| Some e -> type_expr ctx ~need_val e);
 	| EConst c ->
 		Codegen.type_constant ctx.com c p
     | EBinop (op,e1,e2) ->
@@ -2709,37 +2831,7 @@ let get_type_patch ctx t sub =
 			let tp = new_patch() in
 			Hashtbl.add h k tp;
 			tp
-
-let parse_string ctx s p inlined =
-	let old = Lexer.save() in
-	let old_file = (try Some (Hashtbl.find Lexer.all_files p.pfile) with Not_found -> None) in
-	let old_display = !Parser.resume_display in
-	let old_de = !Parser.display_error in
-	let restore() =
-		(match old_file with
-		| None -> ()
-		| Some f -> Hashtbl.replace Lexer.all_files p.pfile f);
-		if not inlined then Parser.resume_display := old_display;
-		Lexer.restore old;
-		Parser.display_error := old_de
-	in
-	Lexer.init p.pfile;
-	Parser.display_error := (fun e p -> raise (Parser.Error (e,p)));
-	if not inlined then Parser.resume_display := null_pos;
-	let _, decls = try
-		Parser.parse ctx.com (Lexing.from_string s)
-	with Parser.Error (e,pe) ->
-		restore();
-		error (Parser.error_msg e) (if inlined then pe else p)
-	| Lexer.Error (e,pe) ->
-		restore();
-		error (Lexer.error_msg e) (if inlined then pe else p)
-	in
-	restore();
-	match decls with
-	| [(d,_)] -> d
-	| _ -> assert false
-
+	
 let macro_timer ctx path =
 	Common.timer (if Common.defined ctx.com Define.MacroTimes then "macro " ^ path else "macro execution")
 
@@ -2771,14 +2863,7 @@ let make_macro_api ctx p =
 		| TAbstractDecl a -> TAbstract (a,List.map snd a.a_types)
 	in
 	let parse_expr_string s p inl =
-		typing_timer ctx (fun() ->
-			let head = "class X{static function main() " in
-			let head = (if p.pmin > String.length head then head ^ String.make (p.pmin - String.length head) ' ' else head) in
-			let rec loop e = let e = Ast.map_expr loop e in (fst e,p) in
-			match parse_string ctx (head ^ s ^ "}") p inl with
-			| EClass { d_data = [{ cff_name = "main"; cff_kind = FFun { f_expr = Some e } }]} -> if inl then e else loop e
-			| _ -> assert false
-		)
+		typing_timer ctx (fun() -> parse_expr_string ctx s p inl)
 	in
 	{
 		Interp.pos = p;
