@@ -21,6 +21,8 @@ open Genswf
 open Common
 open Type
 
+let _ = 0 = ""
+
 type context = {
 	com : Common.context;
 	mutable flush : unit -> unit;
