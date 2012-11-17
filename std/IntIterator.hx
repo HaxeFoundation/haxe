@@ -22,7 +22,7 @@
 /**
 	Integer iterator. Used for interval implementation.
 **/
-class IntIter {
+class IntIterator {
 
 	var min : Int;
 	var max : Int;

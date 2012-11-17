@@ -1324,7 +1324,7 @@ let rec type_binop ctx op e1 e2 p =
 		unify ctx e2.etype b p;
 		mk_op b
 	| OpInterval ->
-		let t = Typeload.load_core_type ctx "IntIter" in
+		let t = Typeload.load_core_type ctx "IntIterator" in
 		unify ctx e1.etype tint e1.epos;
 		unify ctx e2.etype tint e2.epos;
 		mk (TNew ((match t with TInst (c,[]) -> c | _ -> assert false),[],[e1;e2])) t p

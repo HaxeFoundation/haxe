@@ -400,7 +400,7 @@ let optimize_for_loop ctx i e1 e2 p =
 	let t_int = ctx.t.tint in
 	let lblock el = Some (mk (TBlock el) t_void p) in
 	match e1.eexpr, follow e1.etype with
-	| TNew ({ cl_path = ([],"IntIter") },[],[i1;i2]) , _ ->
+	| TNew ({ cl_path = ([],"IntIterator") },[],[i1;i2]) , _ ->
 		let max = (match i1.eexpr , i2.eexpr with
 			| TConst (TInt a), TConst (TInt b) when Int32.compare b a < 0 -> error "Range operate can't iterate backwards" p
 			| _, TConst _ | _ , TLocal _ -> None
