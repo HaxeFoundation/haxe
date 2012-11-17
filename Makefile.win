@@ -36,6 +36,7 @@ endif
 # this pipes OCaml stdout/stderr through sed
 
 ifeq (${OUTPUT_REWRITE},1)
-CC_CMD=$(OCAMLOPT) $(CFLAGS) -c $< 2>&1 | $(LINEMERGE_FILTER) | $(FILTER) 1>&2
-CC_PARSER_CMD=$(OCAMLOPT) -pp camlp4o $(CFLAGS) -c parser.ml 2>&1 | $(LINEMERGE_FILTER) | $(FILTER) 1>&2
+OUTPUT_PROCESS=2> tmp.cmi && $(LINEMERGE_FILTER) tmp.cmi | $(FILTER) 1>&2 || $(LINEMERGE_FILTER) tmp.cmi | $(FILTER) 1>&2 && exit 1
+CC_CMD=$(OCAMLOPT) $(CFLAGS) -c $< $(OUTPUT_PROCESS)
+CC_PARSER_CMD=$(OCAMLOPT) -pp camlp4o $(CFLAGS) -c parser.ml $(OUTPUT_PROCESS)
 endif
