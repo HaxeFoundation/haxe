@@ -358,11 +358,16 @@ and parse_common_flags = parser
 	| [< '(Kwd Extern,_); l = parse_common_flags >] -> (HExtern, EExtern) :: l
 	| [< >] -> []
 
+and parse_meta_params pname s = match s with parser
+	| [< '(POpen,p) when p.pmin = pname.pmax; params = psep Comma expr; '(PClose,_); >] -> params
+	| [< >] -> []
+
+and parse_meta_entry = parser
+	[< '(At,_); name,p = meta_name; params = parse_meta_params p; s >] -> (name,params,p)
+
 and parse_meta = parser
-	| [< '(At,_); name,p = meta_name; s >] ->
-		(match s with parser
-		| [< '(POpen,_); params = psep Comma expr; '(PClose,_); s >] -> (name,params,p) :: parse_meta s
-		| [< >] -> (name,[],p) :: parse_meta s)
+	| [< entry = parse_meta_entry; s >] ->
+		entry :: parse_meta s
 	| [< >] -> []
 
 and meta_name = parser
@@ -670,6 +675,8 @@ and inline_function = parser
 	| [< '(Kwd Function,p1) >] -> false, p1
 
 and expr = parser
+	| [< (name,params,p) = parse_meta_entry; s >] ->
+		(EMeta((name,params,p), expr s),p)
 	| [< '(BrOpen,p1); b = block1; '(BrClose,p2); s >] ->
 		let e = (b,punion p1 p2) in
 		(match b with
@@ -790,6 +797,8 @@ and expr = parser
 	| [< '(Dollar v,p); s >] -> expr_next (EConst (Ident ("$"^v)),p) s
 
 and expr_next e1 = parser
+	| [< (name,params,p) = parse_meta_entry; s >] ->
+		(EMeta((name,params,p), expr_next e1 s),p)
 	| [< '(Dot,p); s >] ->
 		if is_resuming p then display (EDisplay (e1,false),p);
 		(match s with parser
