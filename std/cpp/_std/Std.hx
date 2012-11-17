@@ -45,8 +45,10 @@
 		return untyped __global__.__hxcpp_irand(x);
 	}
 
+	#if !haxe3
 	@:macro public static function format( fmt : haxe.macro.Expr.ExprOf<String> ) : haxe.macro.Expr.ExprOf<String> {
 		return haxe.macro.Format.format(fmt);
 	}
+	#end
 
 }

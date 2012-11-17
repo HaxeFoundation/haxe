@@ -59,6 +59,8 @@ extern class Std {
 	public static function random( x : Int ) : Int;
 
 
+	#if !haxe3
 	@:macro public static function format( fmt : haxe.macro.Expr.ExprOf<String> ) : haxe.macro.Expr.ExprOf<String>;
+	#end
 
 }
