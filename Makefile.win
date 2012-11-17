@@ -22,13 +22,20 @@ endif
 # this will also convert the error messages to Visual Studio output format
 
 ifeq (${MSVC_OUTPUT}, 1)
+OUTPUT_REWRITE=1
 FILTER=sed "s/File \"\(.*\?\)\", line \([0-9]\+\), \(.*\)/\1(\2): \3/"
-CC_CMD=$(OCAMLOPT) $(CFLAGS) -c $< 2>&1 | $(LINEMERGE_FILTER) | $(FILTER) 1>&2
-CC_PARSER_CMD=$(OCAMLOPT) -pp camlp4o $(CFLAGS) -c parser.ml 2>&1 | $(LINEMERGE_FILTER) | $(FILTER) 1>&2
 endif
 
 # this will also convert the error messages to Haxe/FlashDevelop output format
 
 ifeq (${FD_OUTPUT}, 1)
+OUTPUT_REWRITE=1
 FILTER=sed "s/File \"\(.*\?\)\", line \([0-9]\+\), characters \([0-9-]\+\):\(.*\)/\1:\2: characters \3 : \4/"
+endif
+
+# this pipes OCaml stdout/stderr through sed
+
+ifeq (${OUTPUT_REWRITE},1)
+CC_CMD=$(OCAMLOPT) $(CFLAGS) -c $< 2>&1 | $(LINEMERGE_FILTER) | $(FILTER) 1>&2
+CC_PARSER_CMD=$(OCAMLOPT) -pp camlp4o $(CFLAGS) -c parser.ml 2>&1 | $(LINEMERGE_FILTER) | $(FILTER) 1>&2
 endif
