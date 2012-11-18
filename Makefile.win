@@ -11,32 +11,21 @@ kill:
 # allow Ocaml/Mingw as well
 NATIVE_LIBS += -I "c:/program files/mingw/lib/"
 
-LINEMERGE_FILTER=sed -n "/^File/!{H; bp; b; }; /^File/ bp; :p; { x; s/\n/ /g; p; }"
-
 # use make MSVC=1 -f Makefile.win to build for OCaml/MSVC
 
 ifeq (${MSVC}, 1)
 NATIVE_LIBS = shell32.lib libs/extc/extc_stubs.obj libs/extc/zlib/zlib.lib
 endif
 
-# this will also convert the error messages to Visual Studio output format
-
 ifeq (${MSVC_OUTPUT}, 1)
-OUTPUT_REWRITE=1
-FILTER=sed "s/File \"\(.*\?\)\", line \([0-9]\+\), \(.*\)/\1(\2): \3/"
+FILTER=sed 's/File "\([^"]\+\)", line \([0-9]\+\), \(.*\)/\1(\2): \3/' tmp.cmi
 endif
-
-# this will also convert the error messages to Haxe/FlashDevelop output format
 
 ifeq (${FD_OUTPUT}, 1)
-OUTPUT_REWRITE=1
-FILTER=sed "s/File \"\(.*\?\)\", line \([0-9]\+\), characters \([0-9-]\+\):\(.*\)/\1:\2: characters \3 : \4/"
+FILTER=sed '/File/{ N; s/File "\([^"]\+\)", line \([0-9]\+\), characters \([0-9-]\+\):[\r\n]*\(.*\)/\1:\2: characters \3 : \4/ }' tmp.cmi
 endif
 
-# this pipes OCaml stdout/stderr through sed
-
-ifeq (${OUTPUT_REWRITE},1)
-OUTPUT_PROCESS=2> tmp.cmi && $(LINEMERGE_FILTER) tmp.cmi | $(FILTER) 1>&2 || $(LINEMERGE_FILTER) tmp.cmi | $(FILTER) 1>&2 && exit 1
-CC_CMD=$(OCAMLOPT) $(CFLAGS) -c $< $(OUTPUT_PROCESS)
-CC_PARSER_CMD=$(OCAMLOPT) -pp camlp4o $(CFLAGS) -c parser.ml $(OUTPUT_PROCESS)
+ifdef ${FILTER}
+CC_CMD=($(OCAMLOPT) $(CFLAGS) -c $< 2>tmp.cmi && $(FILTER)) || ($(FILTER) && exit 1)
+CC_PARSER_CMD=($(OCAMLOPT) -pp camlp4o $(CFLAGS) -c parser.ml 2>tmp.cmi && $(FILTER)) || ($(FILTER) && exit 1)
 endif

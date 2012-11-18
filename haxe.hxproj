@@ -124,9 +124,10 @@
     <hidden path="gencommon.cmx" />
     <hidden path="ast.obj" />
     <hidden path="haxelib.exe" />
+    <hidden path="haxe.hxml" />
   </hiddenPaths>
   <!-- Executed before build -->
-  <preBuildCommand>make -j4 MSVC=1 FD_OUTPUT=1 -f Makefile.win haxe</preBuildCommand>
+  <preBuildCommand>make -j4 MSVC=1 FD_OUTPUT=1 -f Makefile.win kill haxe</preBuildCommand>
   <!-- Executed after build -->
   <postBuildCommand alwaysRun="False" />
   <!-- Other project options -->
