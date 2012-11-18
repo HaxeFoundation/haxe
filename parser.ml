@@ -262,7 +262,7 @@ and parse_import s p1 =
 				serror());
 		| [< '(Semicolon,p2) >] ->
 			p2, List.rev acc, INormal
-		| [< '(Binop OpAssign,_); '(Const (Ident name),_); '(Semicolon,p2) >] ->
+		| [< '(Kwd In,_); '(Const (Ident name),_); '(Semicolon,p2) >] ->
 			p2, List.rev acc, IAsName name
 		| [< >] ->
 			serror()
