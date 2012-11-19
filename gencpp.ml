@@ -2824,14 +2824,14 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 		output_cpp "	super::__GetFields(outFields);\n";
 		output_cpp "};\n\n";
 
-		let filter_extern_fields = List.filter (fun field -> not (Type.is_extern_field field)) in
+
 		let dump_field_name = (fun field -> output_cpp ("	" ^  (str field.cf_name) ^ ",\n")) in
 		output_cpp "static ::String sStaticFields[] = {\n";
-		List.iter dump_field_name  (filter_extern_fields statics_except_meta);
+		List.iter dump_field_name  statics_except_meta;
 		output_cpp "	String(null()) };\n\n";
 
 		output_cpp "static ::String sMemberFields[] = {\n";
-		List.iter dump_field_name  (filter_extern_fields class_def.cl_ordered_fields);
+		List.iter dump_field_name  class_def.cl_ordered_fields;
 		output_cpp "	String(null()) };\n\n";
 
      end; (* cl_interface *)
