@@ -507,7 +507,7 @@ class TestMisc extends Test {
 	{
 		var x = 5;
 		var y = 6;
-		eq(Std.format("$x${x+y}"), "511");
+		eq('$x${x+y}', "511");
 	}
 	#end
 	
