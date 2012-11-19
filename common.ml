@@ -427,7 +427,7 @@ let log com str =
 
 let clone com =
 	let t = com.basic in
-	{ com with basic = { t with tvoid = t.tvoid }; main_class = None; }
+	{ com with basic = { t with tvoid = t.tvoid }; main_class = None; features = Hashtbl.create 0; }
 
 let file_time file =
 	try (Unix.stat file).Unix.st_mtime with _ -> 0.
