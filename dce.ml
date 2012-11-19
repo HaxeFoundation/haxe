@@ -304,7 +304,11 @@ let run com main full =
 				(match !(a.a_status) with
 				| Statics c ->
 					let cf = PMap.find "main" c.cl_statics in
-					loop [c,cf,true] com.types
+					if not ((keep_whole_class dce c) || (keep_field dce cf)) then
+						loop [c,cf,true] com.types
+					else
+						(* field will be added by loop *)
+						loop [] com.types
 				| _ -> assert false)
 			| _ -> assert false)
 		| _ -> loop [] com.types
