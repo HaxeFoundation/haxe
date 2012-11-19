@@ -1316,8 +1316,9 @@ let std_lib =
 			| _ -> false)
 		);
 		"double_bytes", Fun2 (fun f big ->
-			match f, big with
-			| VFloat f, VBool big ->
+			let f = (match f with VFloat f -> f | VInt i -> float_of_int i | _ -> error()) in
+			match big with
+			| VBool big ->
 				let ch = IO.output_string() in
 				if big then IO.BigEndian.write_double ch f else IO.write_double ch f;
 				VString (IO.close_out ch)
@@ -1325,8 +1326,9 @@ let std_lib =
 				error()
 		);
 		"float_bytes", Fun2 (fun f big ->
-			match f, big with
-			| VFloat f, VBool big ->
+			let f = (match f with VFloat f -> f | VInt i -> float_of_int i | _ -> error()) in
+			match big with
+			| VBool big ->
 				let ch = IO.output_string() in
 				let i = Int32.bits_of_float f in
 				if big then IO.BigEndian.write_real_i32 ch i else IO.write_real_i32 ch i;
