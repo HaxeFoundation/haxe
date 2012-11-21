@@ -439,7 +439,13 @@ let parse_swf com file =
 	end else
 		IO.input_channel (open_in_bin file)
 	in
-	let h, tags = (try Swf.parse ch with _ -> failwith ("The input swf " ^ file ^ " is corrupted")) in
+	let h, tags = try
+		Swf.parse ch
+	with Out_of_memory ->
+		failwith ("Out of memory while parsing " ^ file)
+	| _ ->
+		failwith ("The input swf " ^ file ^ " is corrupted")
+	in
 	IO.close_in ch;
 	List.iter (fun t ->
 		match t.tdata with
