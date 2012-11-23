@@ -301,10 +301,6 @@ CAMLprim value sys_dltoint( value i ) {
 	return Val_int((int)i);
 }
 
-CAMLprim value sys_dlint32( value i ) {
-	return (value)Int32_val(i);
-}
-
 typedef value (*c_prim0)();
 typedef value (*c_prim1)(value);
 typedef value (*c_prim2)(value,value);

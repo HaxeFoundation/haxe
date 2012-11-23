@@ -72,9 +72,6 @@ let write_constant ctx = function
 	| Ident s ->
 		b ctx 9;
 		write_string ctx s
-	| Int32 n ->
-		b ctx 10;
-		IO.write_real_i32 ctx.ch n
 
 let write_op ctx op =
 	b ctx (match op with
