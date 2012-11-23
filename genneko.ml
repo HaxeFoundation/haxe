@@ -286,7 +286,7 @@ and gen_expr ctx e =
 			in
 			match c with
 			| None | Some TNull -> acc
-			| Some c ->	gen_expr ctx (Codegen.set_default ctx.com a c e.epos) :: acc			
+			| Some c ->	gen_expr ctx (Codegen.set_default ctx.com a c e.epos) :: acc
 		) [] f.tf_args in
 		let e = gen_expr ctx f.tf_expr in
 		let e = (match inits with [] -> e | _ -> EBlock (List.rev (e :: inits)),p) in
@@ -530,7 +530,7 @@ let gen_class ctx c =
 						call p (builtin p "objsetproto") [ident p "@tmp";field p (field p (gen_type_path p csup.cl_path) "prototype") "__properties__"];
 						ident p "@tmp"
 					],p)
-				| _ -> props					
+				| _ -> props
 			) in
 			[EBinop ("=",field p clpath "__properties__",props),p])
 		@ match c.cl_path with
@@ -712,6 +712,7 @@ let generate_libs_init = function
 				else try $loader.loadprim("std@file_contents",1)(@env("HOME")+"/.haxelib") + "/"
 				catch e if( @s == "Linux" ) "/usr/lib/haxe/lib/" else "/usr/local/lib/haxe/lib/";
 			if( $loader.loadprim("std@sys_is64",0)() ) @s = @s + 64;
+			@s = @s + "/"
 		*)
 		let p = null_pos in
 		let es = ident p "@s" in
@@ -738,6 +739,7 @@ let generate_libs_init = function
 				),p);
 			],p);
 			(EIf (call p (loadp "sys_is64" 0) [],op "=" es (op "+" es (int p 64)),None),p);
+			op "=" es (op "+" es (str p "/"));
 		] in
 		let lpath = field p (builtin p "loader") "path" in
 		boot @ List.map (fun dir ->
