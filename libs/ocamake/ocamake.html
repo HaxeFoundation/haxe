@@ -1,0 +1,94 @@
+<html>
+<body bgcolor="#ffffff" link="Black" vlink="Black">
+<center><b><font color="#000099" size="+2">OCamake</font></b></center>
+<br>
+<font color="#777777">
+	OCamake - Copyright (c)2002-2003 Nicolas Cannasse & Motion Twin.<br>
+	The last version of this software can be found at : <a href="http://tech.motion-twin.com">http://tech.motion-twin.com</a><br><br>
+	This software is provided "AS IS" without any warranty of any kind, merchantability or fitness for a particular purpose. You should use it at your own risks, as the author and his company won't be responsible for any problem that the usage of this software could raise.
+</font>
+<br>
+<br>
+
+<ul>
+
+<li><b><font color="#000099">Introduction:</font></b><br>
+<br>
+OCamake is an automatic compiler for the Objective Caml language. It removes pain from the user which does not need anymore to write a Makefile. OCamake can work either as an application which compile your program or as a Makefile generator (using the <code>-mak</code> flag). OCamake has also special features for integration under Microsoft Visual Studio.
+<br>
+<br>
+<li><b><font color="#000099">Installation:</font></b><br>
+<br>
+OCamake is a source-only distribution, so you need to compile it first. Type the following command-line:<br>
+&nbsp;&nbsp;<code>ocamlc unix.cma str.cma ocamake.ml -o ocamake.exe</code><br>
+This should produce a file "<code>ocamake.exe</code>". Copy this file in your <code>ocaml/bin</code> directory.<br>
+<br>
+<li><b><font color="#000099">Usage:</font></b><br>
+<br>
+To compile your project, simply call OCamake with the files you want to compile:<br>
+&nbsp;&nbsp;<code>ocamake *.ml *.mli</code><br>
+<br>
+To remove all intermediate files that have been produced by the compiler :<br>
+&nbsp;&nbsp;<code>ocamake -clean *.ml *.mli</code><br>
+<br>
+To generate a Makefile:<br>
+&nbsp;&nbsp;<code>ocamake -mak *.ml *.mli</code><br>
+&nbsp;&nbsp;<code>make all</code><br>
+&nbsp;&nbsp;<code>...</code><br>
+&nbsp;&nbsp;<code>make clean</code><br>
+<br>
+(Windows users can use <code>nmake</code> instead of make and should use <code>nmake wclean</code> to remove intermediate files)
+<br>
+<br>
+<li><b><font color="#000099">Features:</font></b><br>
+<br>
+OCamake works with the following files :
+<ul>
+	<li><code>ml, mli</code> : theses files are added to the list of files to build
+	<li><code>cmo, cmx, cma, cmxa, dll, so, lib, a, o, obj</code> : theses files are added to the library list
+	<li><code>mll, mly</code> : theses files are compiled using <code>ocamllex</code> and <code>ocamlyacc</code>, and their result are added to the list of files to build.
+	<li><code>dsp, vcproj</code> (Visual Studio Project) : all the files included in the project are added to the ocamake file list.
+</ul>
+<br>
+Once the final file list is made, OCamake run <code>ocamldep</code> to build module dependencies tree, and then build and link the tree in the good order (for more informations on the algorithm used, see sources).
+Only modified sources files or files with one dependency modified are rebuilt.<br>
+<br>
+If one <code>dsp</code> file has been found or if the <code>-epp</code> flag has been set, then all compilation errors are processed by OCamake to transform them into a Visual Studio compatible format.<br>
+If one <code>dsp</code> file has been found or if the <code>-cpp</code> flag has been set, the character ranges in Ocaml errors are replaced by the corresponding expression found in the source file.
+<br>
+<br>
+<li><b><font color="#000099">Options:</font></b><br>
+<br>
+The following command-line options are available :
+<ul>
+	<li><code>-clean</code> : delete all the intermediate and ouput files for the target build.
+	<li><code>-mak</code> : generate a <code>Makefile</code> for this project (<i>still experimental</i>).
+	<li><code>-opt</code> : turn on native compilation.
+	<li><code>-a</code> : build a library (<code>cma or cmxa</code>).
+	<li><code>-o &lt;output&gt;</code> : set the output file for the project.
+	<li><code>-all</code> : rebuild the entire project.
+	<li><code>-cpp</code> : convert characters range in errors to file expression.
+	<li><code>-epp</code> : use MSVC error messages format.
+	<li><code>-g</code> : compile and link in debug mode.
+	<li><code>-pp &lt;command&gt;</code> : pipe source through preprocessor.
+	<li><code>-cp &lt;flag&gt;</code> : add this flag to the compiler command line paramaters.
+	<li><code>-lp &lt;flag&gt;</code> : add this flag to the linker command line paramaters.
+	<li><code>-I &lt;path&gt;</code> : add the path to the list of include directories.
+	<li><code>-n &lt;file&gt;</code> : remove that file from the file list : this can be useful when you want to have all the files but one (<code>ocamake -n myfile.ml *.ml *.mli</code>).
+	<li><code>-v</code> : verbose mode - this print all the commands that ocamake is running in order to build the project.
+	<li><code>-P &lt;file&gt;</code> : add priority to a given file when having cycle between modules.
+</ul>
+<br>
+<li><b><font color="#000099">Licence:</font></b><br>
+<br>
+The full source code of OCamake is included, so you can modify, use, and redistribute it as you want for any usage conform to the licence. This code is under the LGPL (GNU Lesser General Public Licence), you can get more informations on www.gnu.org.<br>
+<br>
+<li><b><font color="#000099">Author:</font></b><br>
+<br>
+Nicolas Cannasse <a href="mailto:ncannasse@motion-twin.com">ncannasse@motion-twin.com</a><br>
+Website : <a href="http://tech.motion-twin.com">http://tech.motion-twin.com</a><br>
+Thanks to <a href="http://www.lexifi.com">Lexifi</a>.
+<br>
+<br>
+</body>
+</html>
