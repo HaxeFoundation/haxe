@@ -439,13 +439,13 @@ let opcode ch =
 let parse ch len =
 	let data = nread ch len in
 	let ch = input_string data in
-	let a = DynArray.create() in
+	let a = MultiArray.create() in
 	let rec loop() =
-		DynArray.add a (opcode ch);
+		MultiArray.add a (opcode ch);
 		loop();
 	in
 	(try loop() with Exit -> ());
-	DynArray.to_array a
+	a
 
 let write ch = function
 	| A3BreakPoint ->

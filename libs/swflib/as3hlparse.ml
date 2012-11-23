@@ -257,29 +257,29 @@ let parse_opcode ctx i = function
 let parse_code ctx f trys =
 	let code = f.fun3_code in
 	let old = ctx.pos , ctx.jumps in
-	let indexes = DynArray.create() in
+	let indexes = MultiArray.create() in
 	ctx.pos <- 0;
 	ctx.jumps <- [];
 	let codepos pos delta =
-		let id = (try DynArray.get indexes (pos + delta) with _ -> -1) in
+		let id = (try MultiArray.get indexes (pos + delta) with _ -> -1) in
 		if id = -1 then begin
 			(*Printf.eprintf "MISALIGNED JUMP AT %d %c %d IN #%d\n" pos (if delta < 0 then '-' else '+') (if delta < 0 then -delta else delta) (idx (no_nz f.fun3_id));*)
-			DynArray.get indexes pos; (* jump 0 *)
+			MultiArray.get indexes pos; (* jump 0 *)
 		end else
 			id
 	in
-	let hcode = Array.mapi (fun i op ->
+	let hcode = MultiArray.mapi (fun i op ->
 		let len = As3code.length op in
-		DynArray.add indexes i;
-		for k = 2 to len do DynArray.add indexes (-1); done;
+		MultiArray.add indexes i;
+		for k = 2 to len do MultiArray.add indexes (-1); done;
 		ctx.pos <- ctx.pos + len;
 		parse_opcode ctx i op
 	) code in
 	(* in case we have a dead-jump at the end of code *)
-	DynArray.add indexes (Array.length code);
+	MultiArray.add indexes (MultiArray.length code);
 	(* patch jumps *)
 	List.iter (fun (j,pos) ->
-		Array.set hcode j (match Array.get hcode j with
+		MultiArray.set hcode j (match MultiArray.get hcode j with
 			| HJump (jc,n) ->
 				HJump (jc,codepos pos n - j)
 			| HSwitch (n,infos) ->
@@ -399,7 +399,7 @@ let parse_function ctx f =
 		hlf_nregs = f.fun3_nregs;
 		hlf_init_scope = f.fun3_init_scope;
 		hlf_max_scope = f.fun3_max_scope;
-		hlf_code = [||]; (* keep for later *)
+		hlf_code = MultiArray.create(); (* keep for later *)
 		hlf_trys = Array.map (parse_try_catch ctx) f.fun3_trys;
 		hlf_locals = Array.map (fun f ->
 			if f.f3_metas <> None then assert false;
@@ -763,31 +763,31 @@ let flatten_opcode ctx i = function
 	| HUnk c -> A3Unk c
 
 let flatten_code ctx hcode trys =
-	let positions = Array.create (Array.length hcode + 1) 0 in
+	let positions = MultiArray.make (MultiArray.length hcode + 1) 0 in
 	let pos = ref 0 in
 	let old = ctx.fjumps in
 	ctx.fjumps <- [];
-	let code = Array.mapi (fun i op ->
+	let code = MultiArray.mapi (fun i op ->
 		let op = flatten_opcode ctx i op in
 		pos := !pos + As3code.length op;
-		Array.set positions (i + 1) !pos;
+		MultiArray.set positions (i + 1) !pos;
 		op
 	) hcode in
 	(* patch jumps *)
 	List.iter (fun j ->
-		Array.set code j (match Array.get code j with
+		MultiArray.set code j (match MultiArray.get code j with
 			| A3Jump (jc,n) ->
-				A3Jump (jc,positions.(j+n) - positions.(j+1))
+				A3Jump (jc,MultiArray.get positions (j+n) - MultiArray.get positions (j+1))
 			| A3Switch (n,infos) ->
-				A3Switch (positions.(j+n) - positions.(j),List.map (fun n -> positions.(j+n) - positions.(j)) infos)
+				A3Switch (MultiArray.get positions (j+n) - MultiArray.get positions (j),List.map (fun n -> MultiArray.get positions (j+n) - MultiArray.get positions (j)) infos)
 			| _ -> assert false);
 	) ctx.fjumps;
 	(* patch trys *)
 	let trys = Array.mapi (fun i t ->
 		{
-			tc3_start = positions.(t.hltc_start);
-			tc3_end = positions.(t.hltc_end);
-			tc3_handle = positions.(t.hltc_handle);
+			tc3_start = MultiArray.get positions t.hltc_start;
+			tc3_end = MultiArray.get positions t.hltc_end;
+			tc3_handle = MultiArray.get positions t.hltc_handle;
 			tc3_type = opt lookup_name ctx t.hltc_type;
 			tc3_name = opt lookup_name ctx t.hltc_name;
 		}
@@ -847,7 +847,7 @@ let rec browse_method ctx m =
 		match m.hlmt_function with
 		| None -> ()
 		| Some f ->
-			Array.iter (function
+			MultiArray.iter (function
 				| HFunction f | HCallStatic (f,_) -> browse_method ctx f
 				| HClassDef _ -> () (* ignore, should be in fields list anyway *)
 				| _ -> ()

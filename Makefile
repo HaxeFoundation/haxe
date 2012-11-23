@@ -35,11 +35,11 @@ MODULES=ast type lexer common genxml parser typecore optimizer typeload \
 all: libs haxe tools
 
 libs:
-	(cd libs/extlib; make opt)
-	(cd libs/extc; make native)
-	(cd libs/neko; make)
-	(cd libs/swflib; make)
-	(cd libs/xml-light; make xml-light.cmxa)
+	make -C libs/extlib opt
+	make -C libs/extc native
+	make -C libs/neko
+	make -C libs/swflib
+	make -C libs/xml-light xml-light.cmxa
 
 haxe: $(MODULES:=.cmx)
 	$(OCAMLOPT) -o $(OUTPUT) $(NATIVE_LIBS) $(LIBS) $(MODULES:=.cmx)

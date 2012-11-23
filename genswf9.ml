@@ -739,7 +739,7 @@ let begin_fun ctx args tret el stat p =
 			hlf_nregs = DynArray.length ctx.infos.iregs + 1;
 			hlf_init_scope = 1;
 			hlf_max_scope = ctx.infos.imaxscopes + 1 + (if hasblock then 2 else if this_reg then 1 else 0);
-			hlf_code = Array.of_list (extra @ code);
+			hlf_code = MultiArray.of_list (extra @ code);
 			hlf_trys = Array.of_list (List.map (fun t ->
 				{
 					hltc_start = t.tr_pos + delta;

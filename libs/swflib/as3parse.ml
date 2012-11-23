@@ -213,7 +213,7 @@ let as3_try_catch_length t =
 	idx_opt_length t.tc3_name
 
 let as3_function_length f =
-	let clen = Array.fold_left (fun acc op -> acc + As3code.length op) 0 f.fun3_code in
+	let clen = MultiArray.fold_left (fun acc op -> acc + As3code.length op) 0 f.fun3_code in
 	idx_length_nz f.fun3_id +
 	int_length f.fun3_stack_size +
 	int_length f.fun3_nregs +
@@ -551,7 +551,7 @@ let read_function ctx ch =
 	let init_scope = read_int ch in
 	let max_scope = read_int ch in
 	let size = read_int ch in
-	let code = if parse_bytecode then As3code.parse ch size else Array.init size (fun _ -> A3Unk (IO.read ch)) in
+	let code = if parse_bytecode then As3code.parse ch size else MultiArray.init size (fun _ -> A3Unk (IO.read ch)) in
 	let trys = read_list2 ch (read_try_catch ctx) in
 	let local_funs = read_list2 ch (read_field ctx) in
 	{
@@ -857,9 +857,9 @@ let write_function ch f =
 	write_int ch f.fun3_nregs;
 	write_int ch f.fun3_init_scope;
 	write_int ch f.fun3_max_scope;
-	let clen = Array.fold_left (fun acc op -> acc + As3code.length op) 0 f.fun3_code in
+	let clen = MultiArray.fold_left (fun acc op -> acc + As3code.length op) 0 f.fun3_code in
 	write_int ch clen;
-	Array.iter (As3code.write ch) f.fun3_code;
+	MultiArray.iter (As3code.write ch) f.fun3_code;
 	write_list2 ch write_try_catch f.fun3_trys;
 	write_list2 ch write_field f.fun3_locals
 
@@ -1043,7 +1043,7 @@ let dump_function ctx ch idx f =
 	Array.iter (dump_field ctx ch false) f.fun3_locals;
 	Array.iter (dump_try_catch ctx ch) f.fun3_trys;
 	let pos = ref 0 in
-	Array.iter (fun op ->
+	MultiArray.iter (fun op ->
 		IO.printf ch "%4d    %s\n" !pos (As3code.dump ctx op);
 		if !dump_code_size then pos := !pos + As3code.length op else incr pos;
 	) f.fun3_code;
