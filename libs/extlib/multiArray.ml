@@ -29,6 +29,7 @@ external iset : 'a intern -> int -> 'a -> unit = "%obj_set_field"
 type 'a t = {
 	mutable arr : 'a intern intern;
 	mutable len : int;
+	mutable darr : 'a intern option;
 }
 
 exception Invalid_arg of int * string * string
@@ -47,76 +48,128 @@ let create() =
 	{
 		len = 0;
 		arr = imake 0 0;
+		darr = Some (imake 0 0);
 	}
 
 let init len f =
-	let count = (len + size - 1) lsr nbits in
-	let d = {
-		len = len;
-		arr = imake 0 count;
-	} in
-	let max = count - 1 in
-	for i = 0 to max do
-		let arr = imake 0 size in
-		iset d.arr i arr;
-		for j = 0 to (if i = max then len land mask else size) - 1 do
-			iset arr j (f ((i lsl nbits) + j))
+	if len > Sys.max_array_length then begin
+		let count = (len + size - 1) lsr nbits in
+		let d = {
+			len = len;
+			arr = imake 0 count;
+			darr = None;
+		} in
+		let max = count - 1 in
+		for i = 0 to max do
+			let arr = imake 0 size in
+			iset d.arr i arr;
+			for j = 0 to (if i = max then len land mask else size) - 1 do
+				iset arr j (f ((i lsl nbits) + j))
+			done;
 		done;
-	done;
-	d
+		d
+	end else begin
+		let arr = imake 0 len in
+		for i = 0 to len - 1 do
+			iset arr i (f i)
+		done;
+		{
+			len = len;
+			arr = imake 0 0;
+			darr = Some (imake 0 len);
+		}		
+	end
 
 let make len e =
-	let count = (len + size - 1) lsr nbits in
-	let d = {
-		len = len;
-		arr = imake 0 count;
-	} in
-	let max = count - 1 in
-	for i = 0 to max do
-		let arr = imake 0 size in
-		iset d.arr i arr;
-		for j = 0 to (if i = max then len land mask else size) - 1 do
-			iset arr j e
+	if len > Sys.max_array_length then begin
+		let count = (len + size - 1) lsr nbits in
+		let d = {
+			len = len;
+			arr = imake 0 count;
+			darr = None;
+		} in
+		let max = count - 1 in
+		for i = 0 to max do
+			let arr = imake 0 size in
+			iset d.arr i arr;
+			for j = 0 to (if i = max then len land mask else size) - 1 do
+				iset arr j e
+			done;
 		done;
-	done;
-	d
+		d
+	end else begin
+		let arr = imake 0 len in
+		for i = 0 to len - 1 do
+			iset arr i e
+		done;
+		{
+			len = len;
+			arr = imake 0 0;
+			darr = Some (imake 0 len);
+		}
+	end
 
 let empty d =
 	d.len = 0
 
-let unsafe_get d idx =
-	iget (iget d.arr (idx lsr nbits)) (idx land mask)
-
-let unsafe_set d idx v =
-	iset (iget d.arr (idx lsr nbits)) (idx land mask) v
-
 let get d idx =
 	if idx < 0 || idx >= d.len then invalid_arg idx "get" "index";
-	iget (iget d.arr (idx lsr nbits)) (idx land mask)
+	match d.darr with
+	| None -> iget (iget d.arr (idx lsr nbits)) (idx land mask)
+	| Some arr -> iget arr idx
 
 let set d idx v =
 	if idx < 0 || idx >= d.len then invalid_arg idx "set" "index";
-	iset (iget d.arr (idx lsr nbits)) (idx land mask) v
+	match d.darr with
+	| None -> iset (iget d.arr (idx lsr nbits)) (idx land mask) v
+	| Some arr -> iset arr idx v
 
-let add d v =
-	let asize = ilen d.arr in
-	if d.len >= asize lsl nbits then begin
-		let narr = imake 0 (asize + 1) in
-		for i = 0 to asize-1 do
-			iset narr i (iget d.arr i);
-		done;
-		iset narr asize (imake 0 size);
-		d.arr <- narr;
-	end;
-	iset (iget d.arr (d.len lsr nbits)) (d.len land mask) v;
+let rec add d v =
+	(match d.darr with
+	| None ->
+		let asize = ilen d.arr in
+		if d.len >= asize lsl nbits then begin
+			let narr = imake 0 (asize + 1) in
+			for i = 0 to asize-1 do
+				iset narr i (iget d.arr i);
+			done;
+			iset narr asize (imake 0 size);
+			d.arr <- narr;
+		end;
+		iset (iget d.arr (d.len lsr nbits)) (d.len land mask) v;
+	| Some arr ->
+		if d.len < ilen arr then begin
+			(* set *)
+			iset arr d.len v;			
+		end else if d.len lsl 1 >= Sys.max_array_length then begin
+			(* promote *)
+			let count = (d.len + size) lsr nbits in
+			d.darr <- None;
+			d.arr <- imake 0 count;
+			let max = count - 1 in
+			for i = 0 to max do
+				let arr2 = imake 0 size in
+				iset d.arr i arr2;
+				for j = 0 to (if i = max then d.len land mask else size) - 1 do
+					iset arr2 j (iget arr ((i lsl nbits) + j))
+				done;
+			done;
+			iset (iget d.arr (d.len lsr nbits)) (d.len land mask) v;
+		end else begin
+			(* resize *)
+			let arr2 = imake 0 (if d.len = 0 then 1 else d.len lsl 1) in
+			for i = 0 to d.len - 1 do
+				iset arr2 i (iget arr i)
+			done;
+			iset arr2 d.len v;
+			d.darr <- Some arr2;
+		end);
 	d.len <- d.len + 1
 
 let clear d =
 	d.len <- 0;
-	d.arr <- imake 0 0
-
-let reset_pos d =
-	d.len <- 0
+	d.arr <- imake 0 0;
+	d.darr <- Some (imake 0 0)
 
 let of_array src =
 	let c = create() in
@@ -128,64 +181,104 @@ let of_list src =
 	List.iter (add c) src;
 	c
 	
-let iter f d =
- 	let max = ilen d.arr - 1 in
-	for i = 0 to max do
-		let arr = iget d.arr i in
-		for j = 0 to (if i = max then (d.len land mask) else size) - 1 do
-			f (iget arr j)
-		done;
-	done
+let iter f d = match d.darr with
+	| None ->
+	 	let max = ilen d.arr - 1 in
+		for i = 0 to max do
+			let arr = iget d.arr i in
+			for j = 0 to (if i = max then (d.len land mask) else size) - 1 do
+				f (iget arr j)
+			done;
+		done
+	| Some arr ->
+		for i = 0 to d.len - 1 do
+			f (iget arr i)
+		done
 
-let iteri f d =
-	let max = ilen d.arr - 1 in
-	for i = 0 to max do
-		let arr = iget d.arr i in
-		for j = 0 to (if i = max then (d.len land mask) else size) - 1 do
-			f ((i lsl nbits) + j) (iget arr j)
-		done;
-	done
+let iteri f d = match d.darr with
+	| None ->
+		let max = ilen d.arr - 1 in
+		for i = 0 to max do
+			let arr = iget d.arr i in
+			for j = 0 to (if i = max then (d.len land mask) else size) - 1 do
+				f ((i lsl nbits) + j) (iget arr j)
+			done;
+		done
+	| Some arr ->
+		for i = 0 to d.len - 1 do
+			f i (iget arr i)
+		done
 
-let map f d =
-	let max = ilen d.arr - 1 in
-	let d2 = {
-		len = d.len;
-		arr = imake 0 (max + 1);
-	} in
-	for i = 0 to max do
-		let arr = iget d.arr i in
-		let narr = imake 0 size in
-		iset d2.arr i narr;
-		for j = 0 to (if i = max then (d.len land mask) else size) - 1 do
-			iset narr j (f (iget arr j))
+let map f d = match d.darr with
+	| None ->
+		let max = ilen d.arr - 1 in
+		let d2 = {
+			len = d.len;
+			arr = imake 0 (max + 1);
+			darr = None;
+		} in
+		for i = 0 to max do
+			let arr = iget d.arr i in
+			let narr = imake 0 size in
+			iset d2.arr i narr;
+			for j = 0 to (if i = max then (d.len land mask) else size) - 1 do
+				iset narr j (f (iget arr j))
+			done;
 		done;
-	done;
-	d2
-
-let mapi f d =
-	let max = ilen d.arr - 1 in
-	let d2 = {
-		len = d.len;
-		arr = imake 0 (max + 1);
-	} in
-	for i = 0 to max do
-		let arr = iget d.arr i in
-		let narr = imake 0 size in
-		iset d2.arr i narr;
-		for j = 0 to (if i = max then (d.len land mask) else size) - 1 do
-			iset narr j (f ((i lsl nbits) + j) (iget arr j))
+		d2
+	| Some arr ->
+		let arr2 = imake 0 d.len in
+		for i = 0 to d.len - 1 do
+			iset arr2 i (f (iget arr i))
 		done;
-	done;
-	d2
+		{
+			len = d.len;
+			arr = imake 0 0;
+			darr = Some (arr2);
+		}
 
-let fold_left f acc d =
-	let acc = ref acc in
-	let max = ilen d.arr - 1 in
-	for i = 0 to max do
-		let arr = iget d.arr i in
-		for j = 0 to (if i = max then (d.len land mask) else size) - 1 do
-			acc := f !acc (iget arr j)
+let mapi f d = match d.darr with
+	| None ->
+		let max = ilen d.arr - 1 in
+		let d2 = {
+			len = d.len;
+			arr = imake 0 (max + 1);
+			darr = None;
+		} in
+		for i = 0 to max do
+			let arr = iget d.arr i in
+			let narr = imake 0 size in
+			iset d2.arr i narr;
+			for j = 0 to (if i = max then (d.len land mask) else size) - 1 do
+				iset narr j (f ((i lsl nbits) + j) (iget arr j))
+			done;
 		done;
-	done;
-	!acc
+		d2
+	| Some arr ->
+		let arr2 = imake 0 d.len in
+		for i = 0 to d.len - 1 do
+			iset arr2 i (f i (iget arr i))
+		done;
+		{
+			len = d.len;
+			arr = imake 0 0;
+			darr = Some (arr2);
+		}
 
+let fold_left f acc d = match d.darr with
+	| None ->
+		let acc = ref acc in
+		let max = ilen d.arr - 1 in
+		for i = 0 to max do
+			let arr = iget d.arr i in
+			for j = 0 to (if i = max then (d.len land mask) else size) - 1 do
+				acc := f !acc (iget arr j)
+			done;
+		done;
+		!acc
+	| Some arr ->
+		let acc = ref acc in
+		for i = 0 to d.len - 1 do
+			acc := f !acc (iget arr i)
+		done;
+		!acc

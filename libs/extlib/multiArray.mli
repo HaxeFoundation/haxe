@@ -43,8 +43,6 @@ val set : 'a t -> int -> 'a -> unit
 val add : 'a t -> 'a -> unit
 val clear : 'a t -> unit
 
-val reset_pos : 'a t -> unit
-
 val of_array : 'a array -> 'a t
 val of_list : 'a list -> 'a t
 
@@ -55,6 +53,3 @@ val map : ('a -> 'b) -> 'a t -> 'b t
 val mapi : (int -> 'a -> 'b) -> 'a t -> 'b t
 
 val fold_left : ('b -> 'a -> 'b) -> 'b -> 'a t -> 'b
-
-val unsafe_get : 'a t -> int -> 'a
-val unsafe_set : 'a t -> int -> 'a -> unit
