@@ -30,5 +30,5 @@ uninstall:
 	ocamlfind remove extlib
 
 clean:
-	rm -f *.cmo *.cmx *.o *.cmi *.cma *.cmxa *.a *.lib *.obj
+	rm -f  $(wilcard *.cmo)  $(wilcard *.cmx)  $(wilcard *.o)  $(wilcard *.cmi)  $(wilcard *.cma)  $(wilcard *.cmxa)  $(wilcard *.a)  $(wilcard *.lib)  $(wilcard *.obj)
 	rm -Rf doc

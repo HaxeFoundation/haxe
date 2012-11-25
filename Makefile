@@ -109,11 +109,11 @@ lexer.cmx: ast.cmx
 clean: clean_libs clean_haxe
 
 clean_libs:
-	(cd libs/extlib; make clean)
-	(cd libs/extc; make clean)
-	(cd libs/neko; make clean)
-	(cd libs/swflib; make clean)
-	(cd libs/xml-light; make clean)
+	make -C libs/extlib clean
+	make -C libs/extc clean
+	make -C libs/neko clean
+	make -C libs/swflib clean
+	make -C libs/xml-light clean
 
 
 clean_haxe:
