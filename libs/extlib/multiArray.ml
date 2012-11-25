@@ -76,7 +76,7 @@ let init len f =
 		{
 			len = len;
 			arr = imake 0 0;
-			darr = Some (imake 0 len);
+			darr = Some arr;
 		}		
 	end
 
@@ -105,7 +105,7 @@ let make len e =
 		{
 			len = len;
 			arr = imake 0 0;
-			darr = Some (imake 0 len);
+			darr = Some arr;
 		}
 	end
 
