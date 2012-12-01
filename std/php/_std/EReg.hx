@@ -112,8 +112,11 @@
 	
 	#if !haxe3
 	public inline function customReplace( s : String, f : EReg -> String ) : String {
+		var old = global;
 		global = true;
-		return map(s, f);
+		var ret = map(s, f);
+		global = old;
+		return ret;
 	}
 	#end
 }
