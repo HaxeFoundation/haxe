@@ -964,6 +964,13 @@ try
 		com.main_class <- None;
 		let real = Extc.get_real_path (!Parser.resume_display).Ast.pfile in
 		classes := lookup_classes com real;
+		if !classes = [] then begin
+			if not (Sys.file_exists real) then failwith "Display file not does exists";
+			(match List.rev (ExtString.String.nsplit real "\\") with
+			| file :: _ when file.[0] >= 'a' && file.[1] <= 'z' -> failwith ("Display file '" ^ file ^ "' should not start with a lowercase letter")
+			| _ -> ());
+			failwith "Display file was not found in class path";
+		end;
 		Common.log com ("Display file : " ^ real);
 		Common.log com ("Classes found : ["  ^ (String.concat "," (List.map Ast.s_type_path !classes)) ^ "]");
 	end;
