@@ -92,11 +92,17 @@
 
 	#if !haxe3
 	public inline function customReplace( s : String, f : EReg -> String ) : String {
-		var old = r.global;
-		untyped r["global"] = true;
-		var ret = map(s, f);
-		untyped r["global"] = old;
-		return ret;
+		var offset = 0;
+		var buf = new StringBuf();
+		do {
+			if (!matchSub(s, offset))
+				break;
+			buf.add(s.substr(offset, result.index - offset));
+			buf.add(f(this));
+			offset = result.index + result[0].length;
+		} while (true);
+		buf.add(s.substr(offset));
+		return buf.toString();
 	}
 	#end
 }
