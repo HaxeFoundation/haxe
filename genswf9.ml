@@ -753,7 +753,7 @@ let begin_fun ctx args tret el stat p =
 			hlf_nregs = DynArray.length ctx.infos.iregs + 1;
 			hlf_init_scope = 1;
 			hlf_max_scope = ctx.infos.imaxscopes + 1 + (if hasblock then 2 else if this_reg then 1 else 0);
-			hlf_code = Array.of_list (extra @ code);
+			hlf_code = MultiArray.of_array (Array.of_list (extra @ code));
 			hlf_trys = Array.of_list (List.map (fun t ->
 				{
 					hltc_start = t.tr_pos + delta;
@@ -2131,7 +2131,7 @@ let generate_class ctx c =
 	let st_meth_count = ref 0 in
 	let statics = List.rev (List.fold_left (fun acc f ->
 		let acc = generate_prop f acc (fun() -> incr st_meth_count; !st_meth_count) in
-		match generate_field_kind ctx f c true with 
+		match generate_field_kind ctx f c true with
 		| None -> acc
 		| Some k ->
 			let count = (match k with HFMethod _ -> st_meth_count | HFVar _ -> st_field_count | _ -> assert false) in

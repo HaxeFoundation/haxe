@@ -384,21 +384,21 @@ let remove_debug_infos as3 =
 			m2
 	and loop_function f =
 		let cur = ref 0 in
-		let positions = Array.map (fun op ->
+		let positions = MultiArray.map (fun op ->
 			let p = !cur in
 			(match op with
 			| HDebugReg _ | HDebugLine _ | HDebugFile _ | HBreakPointLine _ | HTimestamp -> ()
 			| _ -> incr cur);
 			p
 		) f.hlf_code in
-		let positions = Array.concat [positions;[|!cur|]] in
-		let code = DynArray.create() in
-		Array.iteri (fun pos op ->
+		MultiArray.add positions (!cur);
+		let code = MultiArray.create() in
+		MultiArray.iteri (fun pos op ->
 			match op with
 			| HDebugReg _ | HDebugLine _ | HDebugFile _ | HBreakPointLine _ | HTimestamp -> ()
 			| _ ->
 				let p delta =
-					positions.(pos + delta) - DynArray.length code
+					MultiArray.get positions (pos + delta) - MultiArray.length code
 				in
 				let op = (match op with
 				| HJump (j,delta) -> HJump (j, p delta)
@@ -407,15 +407,15 @@ let remove_debug_infos as3 =
 				| HCallStatic (m,args) -> HCallStatic (loop_method m,args)
 				| HClassDef c -> HClassDef c (* mutated *)
 				| _ -> op) in
-				DynArray.add code op
+				MultiArray.add code op
 		) f.hlf_code;
-		f.hlf_code <- DynArray.to_array code;
+		f.hlf_code <- code;
 		f.hlf_trys <- Array.map (fun t ->
 			{
 				t with
-				hltc_start = positions.(t.hltc_start);
-				hltc_end = positions.(t.hltc_end);
-				hltc_handle = positions.(t.hltc_handle);
+				hltc_start = MultiArray.get positions t.hltc_start;
+				hltc_end = MultiArray.get positions t.hltc_end;
+				hltc_handle = MultiArray.get positions t.hltc_handle;
 			}
 		) f.hlf_trys;
 		f
