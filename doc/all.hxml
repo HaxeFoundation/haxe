@@ -37,16 +37,16 @@
 -D xmldoc
 -D HXCPP_MULTI_THREADED
 
---next
--java all_java
--xml java.xml
--D xmldoc
+#--next
+#-java all_java
+#-xml java.xml
+#-D xmldoc
 
---next
--cs all_cs
--D unsafe
--xml cs.xml
--D xmldoc
+#--next
+#-cs all_cs
+#-D unsafe
+#-xml cs.xml
+#-D xmldoc
 
 --next
 
