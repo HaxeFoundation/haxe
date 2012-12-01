@@ -3197,6 +3197,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 		| _ ->
 			el,[]
 	in
+	let todo = ref [] in
 	let args =
 		(*
 			force default parameter types to haxe.macro.Expr, and if success allow to pass any value type since it will be encoded
@@ -3210,7 +3211,11 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 		let constants = List.map (fun e ->
 			let p = snd e in
 			let e = (try
-				ignore(Codegen.type_constant_value ctx.com e);
+				(match Codegen.type_constant_value ctx.com e with
+				| { eexpr = TConst (TString _); epos = p } when Lexer.is_fmt_string p ->
+					Lexer.remove_fmt_string p;
+					todo := (fun() -> Lexer.add_fmt_string p) :: !todo;
+				| _ -> ());
 				e
 			with Error (Custom _,_) ->
 				(* if it's not a constant, let's make something that is typed as haxe.macro.Expr - for nice error reporting *)
@@ -3224,6 +3229,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 			(EArray ((EArrayDecl [e],p),(EConst (Int (string_of_int (!index))),p)),p)
 		) el in
 		let elt, _ = unify_call_params ctx2 (Some (TInst(mclass,[]),mfield)) constants (List.map fst eargs) t_dynamic p false in
+		List.iter (fun f -> f()) (!todo);
 		List.map2 (fun (_,ise) e ->
 			let e, et = (match e.eexpr with
 				(* get back our index and real expression *)

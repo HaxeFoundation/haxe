@@ -96,17 +96,37 @@ let newline lexbuf =
 	cur.lline <- cur.lline + 1;
 	cur.llines <- (lexeme_end lexbuf,cur.lline) :: cur.llines
 
-let add_fmt_string pmin =
+let fmt_pos p =
+	p.pmin + (p.pmax - p.pmin) * 1000000
+
+let add_fmt_string p =
+	let file = (try
+		Hashtbl.find all_files p.pfile
+	with Not_found ->
+		let f = make_file p.pfile in
+		Hashtbl.replace all_files p.pfile f;
+		f
+	) in
+	file.lstrings <- (fmt_pos p) :: file.lstrings
+
+let fast_add_fmt_string p =
 	let cur = !cur in
-	cur.lstrings <- pmin :: cur.lstrings
+	cur.lstrings <- (fmt_pos p) :: cur.lstrings
 	
 let is_fmt_string p =
 	try
 		let file = Hashtbl.find all_files p.pfile in
-		List.mem p.pmin file.lstrings
+		List.mem (fmt_pos p) file.lstrings
 	with Not_found ->
 		false
-	
+
+let remove_fmt_string p =
+	try
+		let file = Hashtbl.find all_files p.pfile in
+		file.lstrings <- List.filter ((<>) (fmt_pos p)) file.lstrings
+	with Not_found ->
+		()
+
 let find_line p f =
 	(* rebuild cache if we have a new line *)
 	if f.lmaxline <> f.lline then begin
@@ -258,8 +278,9 @@ and token = parse
 			let pmin = lexeme_start lexbuf in
 			let pmax = (try string2 lexbuf with Exit -> error Unterminated_string pmin) in
 			let str = (try unescape (contents()) with Exit -> error Invalid_escape pmin) in
-			add_fmt_string pmin;
-			mk_tok (Const (String str)) pmin pmax;
+			let t = mk_tok (Const (String str)) pmin pmax in
+			fast_add_fmt_string (snd t);
+			t
 		}
 	| "~/" {
 			reset();
