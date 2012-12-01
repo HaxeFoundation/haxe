@@ -167,6 +167,9 @@
 	static var regexp_matched_pos : Dynamic -> Int -> { pos : Int, len : Int } = cpp.Lib.load("regexp","regexp_matched_pos",2);
 
 	#if !haxe3
-	public inline function customReplace( s : String, f : EReg -> String ) : String return map(s, f)
+	public inline function customReplace( s : String, f : EReg -> String ) : String {
+		global = true;
+		return map(s, f);
+	}
 	#end	
 }
