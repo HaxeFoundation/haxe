@@ -830,7 +830,7 @@ let generate com =
 		Nbytecode.write ch (Ncompile.compile ctx.version e);
 		IO.close_out ch;
 	end;
-	let command cmd = try Sys.command cmd with _ -> -1 in
+	let command cmd = try com.run_command cmd with _ -> -1 in
 	let neko_file = (try Filename.chop_extension com.file with _ -> com.file) ^ ".neko" in
 	if source || use_nekoc then begin
 		let ch = IO.output_channel (open_out_bin neko_file) in

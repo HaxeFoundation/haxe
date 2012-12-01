@@ -110,6 +110,7 @@ type context = {
 	mutable defines_signature : string option;
 	mutable print : string -> unit;
 	mutable get_macros : unit -> context option;
+	mutable run_command : string -> int;
 	(* output *)
 	mutable file : string;
 	mutable flash_version : float;
@@ -387,6 +388,7 @@ let create v args =
 		platform = Cross;
 		config = default_config;
 		print = print_string;
+		run_command = Sys.command;
 		std_path = [];
 		class_path = [];
 		main_class = None;

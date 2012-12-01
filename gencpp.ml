@@ -209,7 +209,7 @@ let include_class_header = function
 	| path -> not ( is_internal_class path )
 
 
-let is_cpp_class = function 
+let is_cpp_class = function
 	| ("cpp"::_ , _)  -> true
 	| ( [] , "Xml" )  -> true
 	| ( [] , "EReg" )  -> true
@@ -1824,7 +1824,7 @@ let is_override class_def field =
    List.mem field class_def.cl_overrides
 ;;
 
-let rec all_virtual_functions clazz = 
+let rec all_virtual_functions clazz =
    (List.fold_left (fun result elem -> match follow elem.cf_type, elem.cf_kind  with
 		| TFun (args,return_type), Method _  when not (is_override clazz elem.cf_name ) -> (elem,args,return_type) :: result
       | _,_ -> result ) [] clazz.cl_ordered_fields)
@@ -1832,7 +1832,7 @@ let rec all_virtual_functions clazz =
    | Some def -> all_virtual_functions (fst def)
    | _ -> [] )
 ;;
- 
+
 
 			   (* external mem  Dynamic & *)
 
@@ -2253,7 +2253,7 @@ let generate_boot common_ctx boot_classes init_classes =
 		output_boot ("::" ^ ( join_class_path class_path "::" ) ^ "_obj::__register();\n") ) boot_classes;
 	List.iter ( fun class_path ->
 		output_boot ("::" ^ ( join_class_path class_path "::" ) ^ "_obj::__init__();\n") ) (List.rev init_classes);
-   let dump_boot = 
+   let dump_boot =
 	List.iter ( fun class_path ->
 		output_boot ("::" ^ ( join_class_path class_path "::" ) ^ "_obj::__boot();\n") ) in
    dump_boot (List.filter  (fun path -> is_cpp_class path )  (List.rev boot_classes));
@@ -2550,7 +2550,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 						| Some { eexpr = TFunction function_def } ->
 							List.map (fun (v,o) -> gen_arg_type_name v.v_name o v.v_type "__o_")
 									function_def.tf_args;
-						| _ -> 
+						| _ ->
 							(match follow definition.cf_type with
 								| TFun (args,_) -> List.map (fun (a,_,t) -> (type_string t,a) )  args
 								| _ -> [])
@@ -2747,7 +2747,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 		let get_field_dat = List.map (fun f ->
 			(f.cf_name, String.length f.cf_name, "return " ^
 				(match f.cf_kind with
-				| Var { v_read = AccCall prop } -> "inCallProp ? " ^ (keyword_remap prop) ^ "() : " ^ 
+				| Var { v_read = AccCall prop } -> "inCallProp ? " ^ (keyword_remap prop) ^ "() : " ^
 				        ((keyword_remap f.cf_name) ^ if (variable_field f) then "" else "_dyn()")
 				| _ -> ((keyword_remap f.cf_name) ^ if (variable_field f) then "" else "_dyn()")
 				) ^ ";"
@@ -3316,7 +3316,7 @@ let generate common_ctx =
 		);
 	) common_ctx.types;
 
-   
+
 	(match common_ctx.main with
 	| None -> generate_dummy_main common_ctx
 	| Some e ->
@@ -3346,7 +3346,7 @@ let generate common_ctx =
 		if (common_ctx.debug) then cmd := !cmd ^ " -Ddebug";
 		PMap.iter ( fun name _ -> cmd := !cmd ^ " -D" ^ name ^ "" ) common_ctx.defines;
 		print_endline !cmd;
-		if Sys.command !cmd <> 0 then failwith "Build failed";
+		if common_ctx.run_command !cmd <> 0 then failwith "Build failed";
 		Sys.chdir old_dir;
 	end
 	;;

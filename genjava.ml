@@ -1400,8 +1400,8 @@ let configure gen =
         begin_block w;
         (try
           let t = Hashtbl.find gen.gtypes ([], "Sys") in
-              match t with 
-                | TClassDecl(cl) when PMap.mem "_args" cl.cl_statics -> 
+              match t with
+                | TClassDecl(cl) when PMap.mem "_args" cl.cl_statics ->
                   write w "Sys._args = args;"; newline w
                 | _ -> ()
         with | Not_found -> ()
@@ -1843,7 +1843,7 @@ let configure gen =
 		Sys.chdir gen.gcon.file;
 		let cmd = "haxelib run hxjava hxjava_build.txt --haxe-version " ^ (string_of_int gen.gcon.version) in
 		print_endline cmd;
-		if Sys.command cmd <> 0 then failwith "Build failed";
+		if gen.gcon.run_command cmd <> 0 then failwith "Build failed";
 		Sys.chdir old_dir;
 	end;
 
@@ -1993,7 +1993,7 @@ let convert_java_field p jc field =
     | AttrDeprecated -> cff_meta := (":deprecated", [], p) :: !cff_meta
     (* TODO: pass anotations as @:meta *)
     | AttrVisibleAnnotations ann ->
-      List.iter (function 
+      List.iter (function
         | { ann_type = TObject( (["java";"lang"], "Override"), [] ) } ->
           cff_access := AOverride :: !cff_access
         | _ -> ()
@@ -2002,7 +2002,7 @@ let convert_java_field p jc field =
   ) field.jf_attributes;
 
   let kind = match field.jf_kind with
-    | JKField -> 
+    | JKField ->
       FVar (Some (convert_signature p field.jf_signature), convert_constant p field.jf_constant)
     | JKMethod ->
       match field.jf_signature with
@@ -2029,7 +2029,7 @@ let convert_java_field p jc field =
               tp_constraints = List.map (convert_signature p) (impl);
             }
         ) field.jf_types in
-        
+
         FFun ({
           f_params = types;
           f_args = args;
@@ -2064,7 +2064,7 @@ let convert_java_class p jc =
       | JAnnotation -> meta := (":annotation", [], p) :: !meta
       | _ -> ()
     ) jc.cflags;
-    
+
     (match jc.csuper with
       | TObject( (["java";"lang"], "Object"), _ ) -> ()
       | TObject( (["haxe";"lang"], "HxObject"), _ ) -> meta := (":hxgen",[],p) :: !meta
@@ -2097,7 +2097,7 @@ let convert_java_class p jc =
 
 
 let add_java_lib com file =
-  let get_raw_class, close = 
+  let get_raw_class, close =
     let file = if Sys.file_exists file then
       file
     else if Sys.file_exists (file ^ ".jar") then
@@ -2114,12 +2114,12 @@ let add_java_lib com file =
         try
           let data = Std.input_file ~bin:true real_path in
           Some (IO.input_string data), real_path, real_path
-        with 
+        with
           | _ -> None, real_path, real_path), (fun () -> ())
     | false -> (* open zip file *)
       let zip = Zip.open_in file in
       let closed = ref false in
-      (fun (pack, name) -> 
+      (fun (pack, name) ->
         if !closed then failwith "JAR file already closed";
         try
           let location = (String.concat "/" (pack @ [name]) ^ ".class") in
@@ -2127,7 +2127,7 @@ let add_java_lib com file =
           let data = Zip.read_entry zip entry in
           Some (IO.input_string data), file, file ^ "@" ^ location
         with
-          | Not_found -> 
+          | Not_found ->
             None, file, file),
       (fun () -> closed := true; Zip.close_in zip)
   in

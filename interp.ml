@@ -1613,7 +1613,7 @@ let std_lib =
 			VBool (Sys.word_size = 64)
 		);
 		"sys_command", Fun1 (fun cmd ->
-			VInt (Sys.command (vstring cmd))
+			VInt ((get_ctx()).com.run_command (vstring cmd))
 		);
 		"sys_exit", Fun1 (fun code ->
 			exit (vint code);

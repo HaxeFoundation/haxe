@@ -310,9 +310,10 @@ let run_command ctx cmd =
 	let t = Common.timer "command" in
 	let cmd = expand_env ~h:(Some h) cmd in
 	let len = String.length cmd in
-	if len > 3 && String.sub cmd 0 3 = "cd " then
-		Sys.chdir (String.sub cmd 3 (len - 3))
-	else
+	if len > 3 && String.sub cmd 0 3 = "cd " then begin
+		Sys.chdir (String.sub cmd 3 (len - 3));
+		0
+	end else
 	let binary_string s =
 		if Sys.os_type <> "Win32" && Sys.os_type <> "Cygwin" then s else String.concat "\n" (Str.split (Str.regexp "\r\n") s)
 	in
@@ -357,10 +358,12 @@ let run_command ctx cmd =
 	let sout = binary_string (Buffer.contents bout) in
 	if serr <> "" then ctx.messages <- (if serr.[String.length serr - 1] = '\n' then String.sub serr 0 (String.length serr - 1) else serr) :: ctx.messages;
 	if sout <> "" then ctx.com.print sout;
-	(match (try Unix.close_process_full (pout,pin,perr) with Unix.Unix_error (Unix.ECHILD,_,_) -> (match !result with None -> assert false | Some r -> r)) with
-	| Unix.WEXITED e -> if e <> 0 then failwith ("Command failed with error " ^ string_of_int e)
-	| Unix.WSIGNALED s | Unix.WSTOPPED s -> failwith ("Command stopped with signal " ^ string_of_int s));
-	t()
+	let r = (match (try Unix.close_process_full (pout,pin,perr) with Unix.Unix_error (Unix.ECHILD,_,_) -> (match !result with None -> assert false | Some r -> r)) with
+		| Unix.WEXITED e -> e
+		| Unix.WSIGNALED s | Unix.WSTOPPED s -> if s = 0 then -1 else s
+	) in
+	t();
+	r
 
 let default_flush ctx =
 	List.iter prerr_endline (List.rev ctx.messages);
@@ -712,6 +715,7 @@ try
 	Common.define_value com Define.Dce "std";
 	com.warning <- (fun msg p -> message ctx ("Warning : " ^ msg) p);
 	com.error <- error ctx;
+	if !global_cache <> None then com.run_command <- run_command ctx;
 	Parser.display_error := (fun e p -> com.error (Parser.error_msg e) p);
 	Parser.use_doc := !Common.display_default || (!global_cache <> None);
 	(try
@@ -1142,7 +1146,10 @@ try
 		);
 	end;
 	Sys.catch_break false;
-	if not !no_output then List.iter (run_command ctx) (List.rev !cmds)
+	if not !no_output then List.iter (fun c ->
+		let r = run_command ctx c in
+		if r <> 0 then failwith ("Command failed with error " ^ string_of_int r)
+	) (List.rev !cmds)
 with
 	| Abort | Typecore.Fatal_error ->
 		()

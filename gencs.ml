@@ -32,23 +32,23 @@ let is_cs_basic_type t =
     | TInst( { cl_path = (["haxe"], "Int64") }, [] )
     | TInst( { cl_path = ([], "Int") }, [] )
     | TInst( { cl_path = ([], "Float") }, [] )
-    | TEnum( { e_path = ([], "Bool") }, [] ) -> 
+    | TEnum( { e_path = ([], "Bool") }, [] ) ->
       true
     | TEnum(e, _) when not (has_meta ":$class" e.e_meta) -> true
     | TInst(cl, _) when has_meta ":struct" cl.cl_meta -> true
     | _ -> false
 
-let is_tparam t = 
+let is_tparam t =
   match follow t with
     | TInst( { cl_kind = KTypeParameter _ }, [] ) -> true
     | _ -> false
-    
+
 let rec is_int_float t =
   match follow t with
     | TInst( { cl_path = (["haxe"], "Int32") }, [] )
     | TInst( { cl_path = (["haxe"], "Int64") }, [] )
     | TInst( { cl_path = ([], "Int") }, [] )
-    | TInst( { cl_path = ([], "Float") }, [] ) -> 
+    | TInst( { cl_path = ([], "Float") }, [] ) ->
       true
     | TInst( { cl_path = (["haxe"; "lang"], "Null") }, [t] ) -> is_int_float t
     | _ -> false
@@ -65,7 +65,7 @@ let rec is_null t =
     | TLazy f ->
       is_null (!f())
     | _ -> false
-    
+
 let parse_explicit_iface =
   let regex = Str.regexp "\\." in
   let parse_explicit_iface str =
@@ -83,40 +83,40 @@ let is_string t =
   match follow t with
     | TInst( { cl_path = ([], "String") }, [] ) -> true
     | _ -> false
-    
+
 (* ******************************************* *)
 (* CSharpSpecificESynf *)
 (* ******************************************* *)
 
 (*
-  
+
   Some CSharp-specific syntax filters that must run before ExpressionUnwrap
-  
+
   dependencies:
     It must run before ExprUnwrap, as it may not return valid Expr/Statement expressions
     It must run before ClassInstance, as it will detect expressions that need unchanged TTypeExpr
-  
+
 *)
 module CSharpSpecificESynf =
 struct
 
   let name = "csharp_specific_e"
-  
+
   let priority = solve_deps name [DBefore ExpressionUnwrap.priority; DBefore ClassInstance.priority; DAfter TryCatchWrapper.priority]
-  
+
   let get_cl_from_t t =
     match follow t with
       | TInst(cl,_) -> cl
       | _ -> assert false
-  
+
   let traverse gen runtime_cl =
     let basic = gen.gcon.basic in
     let uint = match ( get_type gen ([], "UInt") ) with | TTypeDecl t -> t | _ -> assert false in
-    
+
     let is_var = alloc_var "__is__" t_dynamic in
-    
+
     let rec run e =
-      match e.eexpr with 
+      match e.eexpr with
         (* Std.is() *)
         | TCall(
             { eexpr = TField( { eexpr = TTypeExpr ( TClassDecl { cl_path = ([], "Std") } ) }, "is") },
@@ -128,7 +128,7 @@ struct
             [ obj; { eexpr = TTypeExpr(md) }]
           ) ->
           let mk_is obj md =
-            { e with eexpr = TCall( { eexpr = TLocal is_var; etype = t_dynamic; epos = e.epos }, [ 
+            { e with eexpr = TCall( { eexpr = TLocal is_var; etype = t_dynamic; epos = e.epos }, [
               obj;
               { eexpr = TTypeExpr md; etype = t_dynamic (* this is after all a syntax filter *); epos = e.epos }
             ] ) }
@@ -144,7 +144,7 @@ struct
                   epos = e.epos
                 }
               in
-              
+
               let ret = match obj.eexpr with
                 | TLocal(v) -> mk_is obj
                 | _ ->
@@ -171,29 +171,29 @@ struct
               mk_is obj md
           )
         (* end Std.is() *)
-        
+
         | TBinop( Ast.OpUShr, e1, e2 ) ->
           mk_cast e.etype { e with eexpr = TBinop( Ast.OpShr, mk_cast (TType(uint,[])) (run e1), run e2 ) }
-        
+
         | TBinop( Ast.OpAssignOp Ast.OpUShr, e1, e2 ) ->
-          let mk_ushr local = 
+          let mk_ushr local =
             { e with eexpr = TBinop(Ast.OpAssign, local, run { e with eexpr = TBinop(Ast.OpUShr, local, run e2) }) }
           in
-          
+
           let mk_local obj =
             let var = mk_temp gen "opUshr" obj.etype in
             let added = { obj with eexpr = TVars([var, Some(obj)]); etype = basic.tvoid } in
             let local = mk_local var obj.epos in
             local, added
           in
-          
+
           let e1 = run e1 in
-          
+
           let ret = match e1.eexpr with
             | TField({ eexpr = TLocal _ }, _)
             | TField({ eexpr = TTypeExpr _ }, _)
             | TArray({ eexpr = TLocal _ }, _)
-            | TLocal(_) -> 
+            | TLocal(_) ->
               mk_ushr e1
             | TField(fexpr, field) ->
               let local, added = mk_local fexpr in
@@ -204,17 +204,17 @@ struct
             | _ -> (* invalid left-side expression *)
               assert false
           in
-          
+
           ret
-        
+
         | _ -> Type.map_expr run e
     in
     run
-  
+
   let configure gen (mapping_func:texpr->texpr) =
     let map e = Some(mapping_func e) in
     gen.gsyntax_filters#add ~name:name ~priority:(PCustom priority) map
-  
+
 end;;
 
 (* ******************************************* *)
@@ -222,52 +222,52 @@ end;;
 (* ******************************************* *)
 
 (*
-  
+
   Some CSharp-specific syntax filters  that can run after ExprUnwrap
-  
+
   dependencies:
     Runs after ExprUnwrap
-  
+
 *)
 
 module CSharpSpecificSynf =
 struct
 
   let name = "csharp_specific"
-  
+
   let priority = solve_deps name [ DAfter ExpressionUnwrap.priority; DAfter ObjectDeclMap.priority; DAfter ArrayDeclSynf.priority; DBefore IntDivisionSynf.priority; DAfter HardNullableSynf.priority ]
-  
+
   let get_cl_from_t t =
     match follow t with
       | TInst(cl,_) -> cl
       | _ -> assert false
-  
+
   let is_tparam t =
     match follow t with
       | TInst( { cl_kind = KTypeParameter _ }, _ ) -> true
       | _ -> false
-  
+
   let traverse gen runtime_cl =
     let basic = gen.gcon.basic in
     let tchar = match ( get_type gen (["cs"], "Char16") ) with | TTypeDecl t -> t | _ -> assert false in
     let tchar = TType(tchar,[]) in
     let string_ext = get_cl ( get_type gen (["haxe";"lang"], "StringExt")) in
-    
+
     let is_string t = match follow t with | TInst({ cl_path = ([], "String") }, []) -> true | _ -> false in
-    
+
     let clstring = match basic.tstring with | TInst(cl,_) -> cl | _ -> assert false in
-    
+
     let is_struct t = (* not basic type *)
       match follow t with
         | TInst(cl, _) when has_meta ":struct" cl.cl_meta -> true
         | _ -> false
     in
-    
+
     let is_cl t = match gen.greal_type t with | TInst ( { cl_path = (["System"], "Type") }, [] ) -> true | _ -> false in
-    
+
     let rec run e =
-      match e.eexpr with 
-        
+      match e.eexpr with
+
         (* Std.int() *)
         | TCall(
             { eexpr = TField( { eexpr = TTypeExpr ( TClassDecl ({ cl_path = ([], "Std") }) ) }, "int") },
@@ -275,14 +275,14 @@ struct
           ) ->
           run (mk_cast basic.tint obj)
         (* end Std.int() *)
-        
+
         | TField(ef, "length") when is_string ef.etype ->
           { e with eexpr = TField(run ef, "Length") }
         | TField(ef, ("toLowerCase")) when is_string ef.etype ->
           { e with eexpr = TField(run ef, "ToLower") }
         | TField(ef, ("toUpperCase")) when is_string ef.etype ->
           { e with eexpr = TField(run ef, "ToUpper") }
-        
+
         | TCall( ( { eexpr = TField({ eexpr = TTypeExpr (TClassDecl cl) }, "fromCharCode") } ), [cc] ) ->
           { e with eexpr = TNew(get_cl_from_t basic.tstring, [], [mk_cast tchar (run cc); mk_int gen 1 cc.epos]) }
         | TCall( ( { eexpr = TField({ eexpr = TTypeExpr (TTypeDecl t) }, "fromCharCode") } ), [cc] ) when is_string (follow (TType(t,List.map snd t.t_types))) ->
@@ -295,18 +295,18 @@ struct
         | TCall( ( { eexpr = TField(ef, ("substring" as field)) } ), args )
         | TCall( ( { eexpr = TField(ef, ("substr" as field)) } ), args ) when is_string ef.etype ->
           { e with eexpr = TCall(mk_static_field_access_infer string_ext field e.epos [], [run ef] @ (List.map run args)) }
-        
+
         | TCast(expr, _) when is_int_float e.etype && not (is_int_float expr.etype) && not (is_null e.etype) ->
           let needs_cast = match gen.gfollow#run_f e.etype with
             | TInst _ -> false
             | _ -> true
           in
-          
+
           let fun_name = match follow e.etype with
             | TInst ({ cl_path = ([], "Float") },[]) -> "toDouble"
             | _ -> "toInt"
           in
-          
+
           let ret = {
             eexpr = TCall(
               mk_static_field_access_infer runtime_cl fun_name expr.epos [],
@@ -315,36 +315,36 @@ struct
             etype = basic.tint;
             epos = expr.epos
           } in
-          
+
           if needs_cast then mk_cast e.etype ret else ret
         | TCast(expr, _) when is_string e.etype ->
           { e with eexpr = TCall( mk_static_field_access_infer runtime_cl "toString" expr.epos [], [run expr] ) }
         | TBinop( (Ast.OpNotEq as op), e1, e2)
         | TBinop( (Ast.OpEq as op), e1, e2) when is_string e1.etype || is_string e2.etype ->
           let mk_ret e = match op with | Ast.OpNotEq -> { e with eexpr = TUnop(Ast.Not, Ast.Prefix, e) } | _ -> e in
-          mk_ret { e with 
+          mk_ret { e with
             eexpr = TCall({
               eexpr = TField(mk_classtype_access clstring e.epos, "Equals");
               etype = TFun(["obj1",false,basic.tstring; "obj2",false,basic.tstring], basic.tbool);
               epos = e1.epos
             }, [ run e1; run e2 ])
           }
-        
+
         | TCast(expr, _) when is_tparam e.etype ->
           let static = mk_static_field_access_infer (runtime_cl) "genericCast" e.epos [e.etype] in
           { e with eexpr = TCall(static, [mk_local (alloc_var "$type_param" e.etype) expr.epos; run expr]); }
-        
+
         | TBinop( (Ast.OpNotEq as op), e1, e2)
         | TBinop( (Ast.OpEq as op), e1, e2) when is_struct e1.etype || is_struct e2.etype ->
           let mk_ret e = match op with | Ast.OpNotEq -> { e with eexpr = TUnop(Ast.Not, Ast.Prefix, e) } | _ -> e in
-          mk_ret { e with 
+          mk_ret { e with
             eexpr = TCall({
               eexpr = TField(run e1, "Equals");
               etype = TFun(["obj1",false,t_dynamic;], basic.tbool);
               epos = e1.epos
             }, [ run e2 ])
           }
-        
+
         | TBinop ( (Ast.OpEq as op), e1, e2 )
         | TBinop ( (Ast.OpNotEq as op), e1, e2 ) when is_cl e1.etype ->
           let static = mk_static_field_access_infer (runtime_cl) "typeEq" e.epos [] in
@@ -353,15 +353,15 @@ struct
             { ret with eexpr = TUnop(Ast.Not, Ast.Prefix, ret) }
           else
             ret
-        
+
         | _ -> Type.map_expr run e
     in
     run
-  
+
   let configure gen (mapping_func:texpr->texpr) =
     let map e = Some(mapping_func e) in
     gen.gsyntax_filters#add ~name:name ~priority:(PCustom priority) map
-  
+
 end;;
 
 (* Type Parameters Handling *)
@@ -370,9 +370,9 @@ let handle_type_params gen ifaces base_generic =
     (*
       starting to set gtparam_cast.
     *)
-    
+
     (* NativeArray: the most important. *)
-    
+
     (*
       var new_arr = new NativeArray<TO_T>(old_arr.Length);
       var i = -1;
@@ -381,40 +381,40 @@ let handle_type_params gen ifaces base_generic =
         new_arr[i] = (TO_T) old_arr[i];
       }
     *)
-    
+
     let native_arr_cl = get_cl ( get_type gen (["cs"], "NativeArray") ) in
-    
+
     let get_narr_param t = match follow t with
       | TInst({ cl_path = (["cs"], "NativeArray") }, [param]) -> param
       | _ -> assert false
     in
-    
+
     let gtparam_cast_native_array e to_t =
       let old_param = get_narr_param e.etype in
       let new_param = get_narr_param to_t in
-      
+
       let new_v = mk_temp gen "new_arr" to_t in
       let i = mk_temp gen "i" basic.tint in
       let old_len = { eexpr = TField(e, "Length"); etype = basic.tint; epos = e.epos } in
       let obj_v = mk_temp gen "obj" t_dynamic in
       let block = [
-        { 
+        {
           eexpr = TVars(
-          [ 
+          [
             new_v, Some( {
               eexpr = TNew(native_arr_cl, [new_param], [old_len] );
               etype = to_t;
               epos = e.epos
             } );
             i, Some( mk_int gen (-1) e.epos )
-          ]); 
-          etype = basic.tvoid; 
+          ]);
+          etype = basic.tvoid;
           epos = e.epos };
-        { 
+        {
           eexpr = TWhile(
-            { 
+            {
               eexpr = TBinop(
-                Ast.OpLt, 
+                Ast.OpLt,
                 { eexpr = TUnop(Ast.Increment, Ast.Prefix, mk_local i e.epos); etype = basic.tint; epos = e.epos },
                 old_len
               );
@@ -432,7 +432,7 @@ let handle_type_params gen ifaces base_generic =
                   eexpr = TBinop(Ast.OpNotEq, mk_local obj_v e.epos, null e.etype e.epos);
                   etype = basic.tbool;
                   epos = e.epos
-                }, 
+                },
                 {
                   eexpr = TBinop(
                     Ast.OpAssign,
@@ -456,12 +456,12 @@ let handle_type_params gen ifaces base_generic =
       ] in
       { eexpr = TBlock(block); etype = to_t; epos = e.epos }
     in
-    
+
     Hashtbl.add gen.gtparam_cast (["cs"], "NativeArray") gtparam_cast_native_array;
     (* end set gtparam_cast *)
-  
+
   TypeParams.RealTypeParams.default_config gen (fun e t -> gen.gcon.warning ("Cannot cast to " ^ (debug_type t)) e.epos; mk_cast t e) ifaces base_generic
- 
+
 let connecting_string = "?" (* ? see list here http://www.fileformat.info/info/unicode/category/index.htm and here for C# http://msdn.microsoft.com/en-us/library/aa664670.aspx *)
 let default_package = "cs" (* I'm having this separated as I'm still not happy with having a cs package. Maybe dotnet would be better? *)
 let strict_mode = ref false (* strict mode is so we can check for unexpected information *)
@@ -478,16 +478,16 @@ let reserved = let res = Hashtbl.create 120 in
     "dynamic"; "equals"; "from"; "get"; "global"; "group"; "into"; "join"; "let"; "on"; "orderby"; "partial";
     "remove"; "select"; "set"; "value"; "var"; "where"; "yield"];
   res
-  
+
 let dynamic_anon = TAnon( { a_fields = PMap.empty; a_status = ref Closed } )
-  
+
 let rec get_class_modifiers meta cl_type cl_access cl_modifiers =
   match meta with
     | [] -> cl_type,cl_access,cl_modifiers
     | (":struct",[],_) :: meta -> get_class_modifiers meta "struct" cl_access cl_modifiers
     | (":protected",[],_) :: meta -> get_class_modifiers meta cl_type "protected" cl_modifiers
     | (":internal",[],_) :: meta -> get_class_modifiers meta cl_type "internal" cl_modifiers
-    (* no abstract for now | (":abstract",[],_) :: meta -> get_class_modifiers meta cl_type cl_access ("abstract" :: cl_modifiers) 
+    (* no abstract for now | (":abstract",[],_) :: meta -> get_class_modifiers meta cl_type cl_access ("abstract" :: cl_modifiers)
     | (":static",[],_) :: meta -> get_class_modifiers meta cl_type cl_access ("static" :: cl_modifiers) TODO: support those types *)
     | (":final",[],_) :: meta -> get_class_modifiers meta cl_type cl_access ("sealed" :: cl_modifiers)
     | (":unsafe",[],_) :: meta -> get_class_modifiers meta cl_type cl_access ("unsafe" :: cl_modifiers)
@@ -502,41 +502,41 @@ let rec get_fun_modifiers meta access modifiers =
     | (":unsafe",[],_) :: meta -> get_fun_modifiers meta access ("unsafe" :: modifiers)
     | (":volatile",[],_) :: meta -> get_fun_modifiers meta access ("volatile" :: modifiers)
     | _ :: meta -> get_fun_modifiers meta access modifiers
-    
+
 (* this was the way I found to pass the generator context to be accessible across all functions here *)
 (* so 'configure' is almost 'top-level' and will have all functions needed to make this work *)
 let configure gen =
   let basic = gen.gcon.basic in
 
   let fn_cl = get_cl (get_type gen (["haxe";"lang"],"Function")) in
-  
+
   let null_t = (get_cl (get_type gen (["haxe";"lang"],"Null")) ) in
-  
+
   let runtime_cl = get_cl (get_type gen (["haxe";"lang"],"Runtime")) in
-  
+
   let no_root = Common.defined gen.gcon Define.NoRoot in
-  
-  let change_ns = if no_root then 
-    function 
-      | [] -> ["haxe";"root"] 
+
+  let change_ns = if no_root then
+    function
+      | [] -> ["haxe";"root"]
       | ns -> ns
   else fun ns -> ns in
-  
+
   let change_clname n = n in
-  
+
   let change_id name = try Hashtbl.find reserved name with | Not_found -> name in
-  
+
   let change_field = change_id in
-  
+
   let write_id w name = write w (change_id name) in
-  
+
   let write_field w name = write w (change_field name) in
-  
-  gen.gfollow#add ~name:"follow_basic" (fun t -> match t with 
+
+  gen.gfollow#add ~name:"follow_basic" (fun t -> match t with
       | TEnum ({ e_path = ([], "Bool") }, [])
       | TEnum ({ e_path = ([], "Void") }, [])
       | TInst ({ cl_path = ([],"Float") },[])
-      | TInst ({ cl_path = ([],"Int") },[]) 
+      | TInst ({ cl_path = ([],"Int") },[])
       | TType ({ t_path = [],"UInt" },[])
       | TType ({ t_path = ["haxe";"_Int64"], "NativeInt64" },[])
       | TType ({ t_path = ["haxe";"_Int64"], "NativeUInt64" },[])
@@ -544,7 +544,7 @@ let configure gen =
       | TType ({ t_path = ["cs"],"UInt8" },[])
       | TType ({ t_path = ["cs"],"Int8" },[])
       | TType ({ t_path = ["cs"],"Int16" },[])
-      | TType ({ t_path = ["cs"],"UInt16" },[]) 
+      | TType ({ t_path = ["cs"],"UInt16" },[])
       | TType ({ t_path = ["cs"],"Char16" },[])
       | TType ({ t_path = ["cs"],"Ref" },_)
       | TType ({ t_path = ["cs"],"Out" },_)
@@ -552,19 +552,19 @@ let configure gen =
 	  | TAbstract( { a_path = ([], "EnumValue") }, _  ) -> Some t_dynamic
       | TInst( { cl_path = ([], "EnumValue") }, _  ) -> Some t_dynamic
       | _ -> None);
-  
+
   let path_s path = match path with
     | ([], "String") -> "string"
     | ([], "Null") -> path_s (change_ns ["haxe"; "lang"], change_clname "Null")
     | (ns,clname) -> path_s (change_ns ns, change_clname clname)
   in
-  
+
   let ifaces = Hashtbl.create 1 in
-  
+
   let ti64 = match ( get_type gen (["haxe";"_Int64"], "NativeInt64") ) with | TTypeDecl t -> TType(t,[]) | _ -> assert false in
-  
+
   let ttype = get_cl ( get_type gen (["System"], "Type") ) in
-  
+
   let rec real_type t =
     let t = gen.gfollow#run_f t in
     let ret = match t with
@@ -576,18 +576,18 @@ let configure gen =
       | TInst( { cl_path = ([], "Enum") }, _ ) -> TInst(ttype,[])
       | TEnum(_, [])
       | TInst(_, []) -> t
-      | TInst(cl, params) when 
+      | TInst(cl, params) when
         List.exists (fun t -> match follow t with | TDynamic _ -> true | _ -> false) params &&
-        Hashtbl.mem ifaces cl.cl_path -> 
+        Hashtbl.mem ifaces cl.cl_path ->
           TInst(Hashtbl.find ifaces cl.cl_path, [])
       | TEnum(e, params) when
         List.exists (fun t -> match follow t with | TDynamic _ -> true | _ -> false) params &&
-        Hashtbl.mem ifaces e.e_path -> 
+        Hashtbl.mem ifaces e.e_path ->
           TInst(Hashtbl.find ifaces e.e_path, [])
       | TInst(cl, params) -> TInst(cl, change_param_type (TClassDecl cl) params)
       | TEnum(e, params) -> TEnum(e, change_param_type (TEnumDecl e) params)
-      | TType({ t_path = ([], "Null") }, [t]) -> 
-        (* 
+      | TType({ t_path = ([], "Null") }, [t]) ->
+        (*
           Null<> handling is a little tricky.
           It will only change to haxe.lang.Null<> when the actual type is non-nullable or a type parameter
           It works on cases such as Hash<T> returning Null<T> since cast_detect will invoke real_type at the original type,
@@ -605,13 +605,13 @@ let configure gen =
     in
     ret
   and
-  
-  (* 
+
+  (*
     On hxcs, the only type parameters allowed to be declared are the basic c# types.
     That's made like this to avoid casting problems when type parameters in this case
     add nothing to performance, since the memory layout is always the same.
-    
-    To avoid confusion between Generic<Dynamic> (which has a different meaning in hxcs AST), 
+
+    To avoid confusion between Generic<Dynamic> (which has a different meaning in hxcs AST),
     all those references are using dynamic_anon, which means Generic<{}>
   *)
   change_param_type md tl =
@@ -628,12 +628,12 @@ let configure gen =
       | true, TDynamic _ -> t
       | true, _ -> dynamic_anon
     in
-    if is_hxgeneric && List.exists (fun t -> match follow t with | TDynamic _ -> true | _ -> false) tl then 
-      List.map (fun _ -> t_dynamic) tl 
-    else 
-      List.map ret tl 
+    if is_hxgeneric && List.exists (fun t -> match follow t with | TDynamic _ -> true | _ -> false) tl then
+      List.map (fun _ -> t_dynamic) tl
+    else
+      List.map ret tl
   in
-  
+
   let is_dynamic t = match real_type t with
     | TMono _ | TDynamic _ -> true
     | TAnon anon ->
@@ -643,7 +643,7 @@ let configure gen =
       )
     | _ -> false
   in
-  
+
   let rec t_s t =
     match real_type t with
       (* basic types *)
@@ -690,19 +690,19 @@ let configure gen =
       | TDynamic _ -> "object"
       (* No Lazy type nor Function type made. That's because function types will be at this point be converted into other types *)
       | _ -> if !strict_mode then begin trace ("[ !TypeError " ^ (Type.s_type (Type.print_context()) t) ^ " ]"); assert false end else "[ !TypeError " ^ (Type.s_type (Type.print_context()) t) ^ " ]"
-      
+
   and path_param_s md path params =
       match params with
         | [] -> path_s path
         | _ -> sprintf "%s<%s>" (path_s path) (String.concat ", " (List.map (fun t -> t_s t) (change_param_type md params)))
   in
-   
+
   let rett_s t =
     match t with
       | TEnum ({e_path = ([], "Void")}, []) -> "void"
       | _ -> t_s t
   in
-  
+
   let argt_s t =
     match t with
       | TType ({ t_path = (["cs"], "Ref") }, [t]) -> "ref " ^ t_s t
@@ -721,10 +721,10 @@ let configure gen =
       | c when c < 32 || c >= 127 -> Buffer.add_string b (Printf.sprintf "\\u%.4x" c)
       | c -> Buffer.add_char b (Char.chr c)
   in
-  
+
   let escape s =
     let b = Buffer.create 0 in
-    (try 
+    (try
       UTF8.validate s;
       UTF8.iter (fun c -> escape (UChar.code c) b) s
     with
@@ -733,17 +733,17 @@ let configure gen =
     );
     Buffer.contents b
   in
-  
+
   let has_semicolon e =
     match e.eexpr with
       | TBlock _ | TFor _ | TSwitch _ | TMatch _ | TTry _ | TIf _ -> false
       | TWhile (_,_,flag) when flag = Ast.NormalWhile -> false
       | _ -> true
   in
-  
+
   let in_value = ref false in
-  
-  let rec md_s md = 
+
+  let rec md_s md =
     let md = follow_module (gen.gfollow#run_f) md in
     match md with
       | TClassDecl ({ cl_types = [] } as cl) ->
@@ -761,17 +761,17 @@ let configure gen =
       | TTypeDecl t ->
         t_s (TType(t, List.map (fun t -> t_dynamic) t.t_types))
   in
-  
+
   let rec ensure_local e explain =
-    match e.eexpr with 
+    match e.eexpr with
       | TLocal _ -> e
       | TCast(e,_)
       | TParenthesis e -> ensure_local e explain
       | _ -> gen.gcon.error ("This function argument " ^ explain ^ " must be a local variable.") e.epos; e
   in
-  
+
   let is_pointer t = match follow t with | TInst({ cl_path = (["cs"], "Pointer") }, _) -> true | _ -> false in
-  
+
   let expr_s w e =
     in_value := false;
     let rec expr_s w e =
@@ -780,25 +780,25 @@ let configure gen =
       (match e.eexpr with
         | TConst c ->
           (match c with
-            | TInt i32 -> 
+            | TInt i32 ->
               write w (Int32.to_string i32);
               (*match real_type e.etype with
                 | TType( { t_path = (["haxe";"_Int64"], "NativeInt64") }, [] ) -> write w "L";
                 | _ -> ()
               *)
-            | TFloat s -> 
+            | TFloat s ->
               write w s;
               (if String.get s (String.length s - 1) = '.' then write w "0");
               (*match real_type e.etype with
                 | TType( { t_path = ([], "Single") }, [] ) -> write w "f"
                 | _ -> ()
               *)
-            | TString s -> 
+            | TString s ->
               write w "\"";
               write w (escape s);
               write w "\""
             | TBool b -> write w (if b then "true" else "false")
-            | TNull -> 
+            | TNull ->
               write w "default(";
               write w (t_s e.etype);
               write w ")"
@@ -884,13 +884,13 @@ let configure gen =
               end_block w
             | el when not !first ->
               expr_s w { e with eexpr = TBlock el }
-            | _ -> 
+            | _ ->
               trace (debug_expr e);
               gen.gcon.error "Invalid 'fixed' keyword format" e.epos
           in
           (match e.eexpr with
             | TBlock bl -> loop bl
-            | _ -> 
+            | _ ->
               trace "not block";
               trace (debug_expr e);
               gen.gcon.error "Invalid 'fixed' keyword format" e.epos
@@ -918,9 +918,9 @@ let configure gen =
           in
           let params, el = extract_tparams [] el in
           let params = List.rev params in
-          
+
           expr_s w e;
-          
+
           (match params with
             | [] -> ()
             | params ->
@@ -936,7 +936,7 @@ let configure gen =
               ) 0 (change_param_type md params));
               write w ">"
           );
-          
+
           let rec loop acc elist tlist =
             match elist, tlist with
               | e :: etl, (_,_,t) :: ttl ->
@@ -965,16 +965,16 @@ let configure gen =
             | TFun(args,_) -> args
             | _ -> []
           in
-          
+
           loop 0 el ft;
-          
+
           write w ")"
         | TNew (({ cl_path = (["cs"], "NativeArray") } as cl), params, [ size ]) ->
           let rec check_t_s t times =
             match real_type t with
               | TInst({ cl_path = (["cs"], "NativeArray") }, [param]) ->
                 (check_t_s param (times+1))
-              | _ -> 
+              | _ ->
                 print w "new %s[" (t_s (run_follow gen t));
                 expr_s w size;
                 print w "]";
@@ -983,7 +983,7 @@ let configure gen =
                 in
                 loop (times - 1)
           in
-          check_t_s (TInst(cl, params)) 0 
+          check_t_s (TInst(cl, params)) 0
         | TNew ({ cl_path = ([], "String") } as cl, [], el) ->
           write w "new ";
           write w (t_s (TInst(cl, [])));
@@ -994,7 +994,7 @@ let configure gen =
             acc + 1
           ) 0 el);
           write w ")"
-        | TNew (cl, params, el) -> 
+        | TNew (cl, params, el) ->
           write w "new ";
           write w (path_param_s (TClassDecl cl) cl.cl_path params);
           write w "(";
@@ -1040,9 +1040,9 @@ let configure gen =
             let is_relative_path = (String.sub p.pfile 0 1) = "." in
             let file = if is_relative_path then "../" ^ p.pfile else p.pfile in
             if cur_line <> ((!last_line)+1) then begin print w "//#line %d \"%s\"" cur_line (Ast.s_escape file); newline w end;
-            last_line := cur_line 
+            last_line := cur_line
           in *)
-          List.iter (fun e -> 
+          List.iter (fun e ->
             (*line_directive e.epos;*)
             in_value := false;
             expr_s w e;
@@ -1142,8 +1142,8 @@ let configure gen =
               expr_s w e1;
               write w ") )"
           )
-        | TFor (_,_,content) -> 
-          write w "[ for not supported "; 
+        | TFor (_,_,content) ->
+          write w "[ for not supported ";
           expr_s w content;
           write w " ]";
           if !strict_mode then assert false
@@ -1154,7 +1154,7 @@ let configure gen =
     in
     expr_s w e
   in
-   
+
   let get_string_params cl_types =
     match cl_types with
       | [] ->
@@ -1172,20 +1172,20 @@ let configure gen =
         ) [] cl_types in
         (params, String.concat " " params_extends)
   in
-   
+
   let gen_class_field w is_static cl is_final cf =
     let is_interface = cl.cl_interface in
     let name, is_new, is_explicit_iface = match cf.cf_name with
       | "new" -> snd cl.cl_path, true, false
-      | name when String.contains name '.' -> 
+      | name when String.contains name '.' ->
         let fn_name, path = parse_explicit_iface name in
         (path_s path) ^ "." ^ fn_name, false, true
       | name -> name, false, false
     in
     (match cf.cf_kind with
       | Var _
-      | Method (MethDynamic) -> 
-        if not is_interface then begin 
+      | Method (MethDynamic) ->
+        if not is_interface then begin
           let access, modifiers = get_fun_modifiers cf.cf_meta "public" [] in
           (match cf.cf_expr with
             | Some e ->
@@ -1196,26 +1196,26 @@ let configure gen =
               print w "%s %s%s %s %s;" access (if is_static then "static " else "") (String.concat " " modifiers) (t_s (run_follow gen cf.cf_type)) (change_field name)
           )
         end (* TODO see how (get,set) variable handle when they are interfaces *)
-      | Method mkind -> 
+      | Method mkind ->
         let is_virtual = not is_final && match mkind with | MethInline -> false | _ when not is_new -> true | _ -> false in
         let is_virtual = if not is_virtual || has_meta ":final" cf.cf_meta then false else is_virtual in
         let is_override = List.mem cf.cf_name cl.cl_overrides in
         let is_override = is_override || match cf.cf_name, follow cf.cf_type with
           | "Equals", TFun([_,_,targ], tret) ->
-            (match follow targ, follow tret with 
+            (match follow targ, follow tret with
               | TDynamic _, TEnum({ e_path = ([], "Bool") }, []) -> true
               | _ -> false)
           | _ -> false
         in
-        
+
         let is_virtual = is_virtual && not (has_meta ":final" cl.cl_meta) && not (is_interface) in
         let visibility = if is_interface then "" else "public" in
-        
+
         let visibility, modifiers = get_fun_modifiers cf.cf_meta visibility [] in
         let visibility, is_virtual = if is_explicit_iface then "",false else visibility, is_virtual in
         let v_n = if is_static then "static " else if is_override && not is_interface then "override " else if is_virtual then "virtual " else "" in
         let ret_type, args = match cf.cf_type with | TFun (strbtl, t) -> (t, strbtl) | _ -> assert false in
-        
+
         (* public static void funcName *)
         print w "%s %s %s %s %s" (visibility) v_n (String.concat " " modifiers) (if is_new then "" else rett_s (run_follow gen ret_type)) (change_field name);
         let params, params_ext = get_string_params cf.cf_params in
@@ -1226,11 +1226,11 @@ let configure gen =
         else begin
           let rec loop meta =
             match meta with
-              | [] -> 
+              | [] ->
                 let expr = match cf.cf_expr with
                   | None -> mk (TBlock([])) t_dynamic Ast.null_pos
-                  | Some s -> 
-                    match s.eexpr with 
+                  | Some s ->
+                    match s.eexpr with
                       | TFunction tf ->
                         mk_block (tf.tf_expr)
                       | _ -> assert false (* FIXME *)
@@ -1279,21 +1279,21 @@ let configure gen =
               | _ :: tl -> loop tl
           in
           loop cf.cf_meta
-          
+
         end);
       newline w;
       newline w;
   in
-  
+
   let check_special_behaviors w cl =
-    (if PMap.mem "__get" cl.cl_fields then begin 
+    (if PMap.mem "__get" cl.cl_fields then begin
       let get = PMap.find "__get" cl.cl_fields in
       let idx_t, v_t = match follow get.cf_type with
         | TFun([_,_,arg_t],ret_t) ->
           t_s (run_follow gen arg_t), t_s (run_follow gen ret_t)
         | _ -> gen.gcon.error "The __get function must be a function with one argument. " get.cf_pos; assert false
       in
-      List.iter (fun (cl,args) -> 
+      List.iter (fun (cl,args) ->
         match cl.cl_array_access with
           | None -> ()
           | Some t ->
@@ -1361,7 +1361,7 @@ let configure gen =
               end_block w;
               newline w;
               newline w
-            | _ -> 
+            | _ ->
               gen.gcon.error "A toString() function should return a String!" cf.cf_pos
           )
         | _ -> ()
@@ -1372,18 +1372,18 @@ let configure gen =
   let gen_class w cl =
     let should_close = match change_ns (fst (cl.cl_path)) with
       | [] -> false
-      | ns -> 
+      | ns ->
         print w "namespace %s" (String.concat "." (change_ns ns));
         begin_block w;
         true
     in
-    
-    let is_main = 
+
+    let is_main =
       match gen.gcon.main_class with
         | Some ( (_,"Main") as path) when path = cl.cl_path && not cl.cl_interface ->
-          (* 
-            for cases where the main class is called Main, there will be a problem with creating the entry point there. 
-            In this special case, a special entry point class will be created 
+          (*
+            for cases where the main class is called Main, there will be a problem with creating the entry point there.
+            In this special case, a special entry point class will be created
           *)
           write w "public class EntryPoint__Main";
           begin_block w;
@@ -1399,10 +1399,10 @@ let configure gen =
         | Some path when path = cl.cl_path && not cl.cl_interface -> true
         | _ -> false
     in
-    
+
     let clt, access, modifiers = get_class_modifiers cl.cl_meta (if cl.cl_interface then "interface" else "class") "public" [] in
     let is_final = clt = "struct" || has_meta ":final" cl.cl_meta in
-    
+
     print w "%s %s %s %s" access (String.concat " " modifiers) clt (change_clname (snd cl.cl_path));
     (* type parameters *)
     let params, params_ext = get_string_params cl.cl_types in
@@ -1415,7 +1415,7 @@ let configure gen =
     begin_block w;
     (* our constructor is expected to be a normal "new" function *
     if !strict_mode && is_some cl.cl_constructor then assert false;*)
-    
+
     let rec loop meta =
       match meta with
         | [] ->  ()
@@ -1424,7 +1424,7 @@ let configure gen =
         | _ :: tl -> loop tl
     in
     loop cl.cl_meta;
-    
+
     if is_main then begin
       write w "public static void Main()";
       begin_block w;
@@ -1432,40 +1432,40 @@ let configure gen =
       write w "main();";
       end_block w
     end;
-    
+
     (match cl.cl_init with
       | None -> ()
       | Some init ->
         print w "static %s() " (snd cl.cl_path);
         expr_s w (mk_block init));
     (if is_some cl.cl_constructor then gen_class_field w false cl is_final (get cl.cl_constructor));
-    (if not cl.cl_interface then 
+    (if not cl.cl_interface then
       List.iter (gen_class_field w true cl is_final) cl.cl_ordered_statics);
     List.iter (gen_class_field w false cl is_final) cl.cl_ordered_fields;
     check_special_behaviors w cl;
     end_block w;
-    
+
     if should_close then end_block w
   in
-    
+
 
   let gen_enum w e =
     let should_close = match change_ns (fst e.e_path) with
       | [] -> false
-      | ns -> 
+      | ns ->
         print w "namespace %s" (String.concat "." ns);
         begin_block w;
         true
     in
-    
+
     print w "public enum %s" (change_clname (snd e.e_path));
     begin_block w;
     write w (String.concat ", " e.e_names);
     end_block w;
-    
+
     if should_close then end_block w
   in
-    
+
   let module_type_gen w md_tp =
     match md_tp with
       | TClassDecl cl ->
@@ -1484,17 +1484,17 @@ let configure gen =
           newline w
         end;
         (not e.e_extern)
-      | TTypeDecl e -> 
+      | TTypeDecl e ->
         false
   in
 
   let module_gen w md_def =
     List.fold_left (fun should md -> module_type_gen w md or should) false md_def.m_types
   in
-  
+
   (* generate source code *)
   init_ctx gen;
-  
+
   Hashtbl.add gen.gspecial_vars "__rethrow__" true;
   Hashtbl.add gen.gspecial_vars "__typeof__" true;
   Hashtbl.add gen.gspecial_vars "__label__" true;
@@ -1502,7 +1502,7 @@ let configure gen =
   Hashtbl.add gen.gspecial_vars "__is__" true;
   Hashtbl.add gen.gspecial_vars "__as__" true;
   Hashtbl.add gen.gspecial_vars "__cs__" true;
-  
+
   Hashtbl.add gen.gspecial_vars "__checked__" true;
   Hashtbl.add gen.gspecial_vars "__lock__" true;
   Hashtbl.add gen.gspecial_vars "__fixed__" true;
@@ -1510,42 +1510,42 @@ let configure gen =
   Hashtbl.add gen.gspecial_vars "__addressOf__" true;
   Hashtbl.add gen.gspecial_vars "__valueOf__" true;
   Hashtbl.add gen.gspecial_vars "__sizeof__" true;
-  
+
   Hashtbl.add gen.gsupported_conversions (["haxe"; "lang"], "Null") (fun t1 t2 -> true);
   let last_needs_box = gen.gneeds_box in
   gen.gneeds_box <- (fun t -> match t with | TInst( { cl_path = (["haxe"; "lang"], "Null") }, _ ) -> true | _ -> last_needs_box t);
-  
+
   gen.greal_type <- real_type;
   gen.greal_type_param <- change_param_type;
-  
+
   SetHXGen.run_filter gen SetHXGen.default_hxgen_func;
-  
+
   let closure_t = ClosuresToClass.DoubleAndDynamicClosureImpl.get_ctx gen 6 in
-  
-  (*let closure_t = ClosuresToClass.create gen 10 float_cl 
+
+  (*let closure_t = ClosuresToClass.create gen 10 float_cl
     (fun l -> l)
     (fun l -> l)
     (fun args -> args)
     (fun args -> [])
   in
   ClosuresToClass.configure gen (ClosuresToClass.default_implementation closure_t (fun e _ _ -> e));
-  
+
   StubClosureImpl.configure gen (StubClosureImpl.default_implementation gen float_cl 10 (fun e _ _ -> e));*)
-  
+
   let tp_v = alloc_var "$type_param" t_dynamic in
   let mk_tp t pos = { eexpr = TLocal(tp_v); etype = t; epos = pos } in
   TypeParams.configure gen (fun ecall efield params elist ->
     { ecall with eexpr = TCall(efield, (List.map (fun t -> mk_tp t ecall.epos ) params) @ elist) }
   );
-  
-  HardNullableSynf.configure gen (HardNullableSynf.traverse gen 
+
+  HardNullableSynf.configure gen (HardNullableSynf.traverse gen
     (fun e ->
       match real_type e.etype with
         | TInst({ cl_path = (["haxe";"lang"], "Null") }, [t]) ->
           { eexpr = TField(e, "value"); etype = t; epos = e.epos }
-        | _ -> 
+        | _ ->
           trace (debug_type e.etype); gen.gcon.error "This expression is not a Nullable expression" e.epos; assert false
-    ) 
+    )
     (fun v t has_value ->
       match has_value, real_type v.etype with
         | true, TDynamic _ | true, TAnon _ | true, TMono _ ->
@@ -1554,9 +1554,9 @@ let configure gen =
             etype = TInst(null_t, [t]);
             epos = v.epos
           }
-        | _ -> 
+        | _ ->
           { eexpr = TNew(null_t, [t], [gen.ghandle_cast t v.etype v; { eexpr = TConst(TBool has_value); etype = gen.gcon.basic.tbool; epos = v.epos } ]); etype = TInst(null_t, [t]); epos = v.epos }
-    ) 
+    )
     (fun e ->
       {
         eexpr = TCall({
@@ -1589,48 +1589,48 @@ let configure gen =
     true
     true
   );
-  
+
   IteratorsInterface.configure gen (fun e -> e);
 
   OverrideFix.configure gen;
-  
+
   ClosuresToClass.configure gen (ClosuresToClass.default_implementation closure_t (get_cl (get_type gen (["haxe";"lang"],"Function")) ));
-  
+
   EnumToClass.configure gen (Some (fun e -> mk_cast gen.gcon.basic.tint e)) false true (get_cl (get_type gen (["haxe";"lang"],"Enum")) ) true false;
-  
+
   InterfaceVarsDeleteModf.configure gen;
-  
+
   let dynamic_object = (get_cl (get_type gen (["haxe";"lang"],"DynamicObject")) ) in
-  
+
   let object_iface = get_cl (get_type gen (["haxe";"lang"],"IHxObject")) in
-  
+
   (*fixme: THIS IS A HACK. take this off *)
   let empty_e = match (get_type gen (["haxe";"lang"], "EmptyObject")) with | TEnumDecl e -> e | _ -> assert false in
   (*OverloadingCtor.set_new_create_empty gen ({eexpr=TEnumField(empty_e, "EMPTY"); etype=TEnum(empty_e,[]); epos=null_pos;});*)
-  
+
   OverloadingConstructor.configure gen (TEnum(empty_e, [])) ({eexpr=TEnumField(empty_e, "EMPTY"); etype=TEnum(empty_e,[]); epos=null_pos;}) false;
-  
+
   let rcf_static_find = mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) "findHash" Ast.null_pos [] in
   let rcf_static_lookup = mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) "lookupHash" Ast.null_pos [] in
-  
+
   let can_be_float t = match follow t with
-    | TInst({ cl_path = ([], "Int") }, []) 
+    | TInst({ cl_path = ([], "Int") }, [])
     | TInst({ cl_path = ([], "Float") }, []) -> true
     | _ -> false
   in
-  
+
   let rcf_on_getset_field main_expr field_expr field may_hash may_set is_unsafe =
     let is_float = can_be_float (real_type main_expr.etype) in
     let fn_name = if is_some may_set then "setField" else "getField" in
     let fn_name = if is_float then fn_name ^ "_f" else fn_name in
     let pos = field_expr.epos in
-    
+
     let is_unsafe = { eexpr = TConst(TBool is_unsafe); etype = basic.tbool; epos = pos } in
-    
+
     let should_cast = match main_expr.etype with | TInst({ cl_path = ([], "Float") }, []) -> false | _ -> true in
     let infer = mk_static_field_access_infer runtime_cl fn_name field_expr.epos [] in
-    let first_args = 
-      [ field_expr; { eexpr = TConst(TString field); etype = basic.tstring; epos = pos } ] 
+    let first_args =
+      [ field_expr; { eexpr = TConst(TString field); etype = basic.tstring; epos = pos } ]
       @ if is_some may_hash then [ { eexpr = TConst(TInt (get may_hash)); etype = basic.tint; epos = pos } ] else []
     in
     let args = first_args @ match is_float, may_set with
@@ -1641,93 +1641,93 @@ let configure gen =
       | _ ->
         [ is_unsafe ]
     in
-    
+
     let call = { main_expr with eexpr = TCall(infer,args) } in
     let call = if is_float && should_cast then mk_cast main_expr.etype call else call in
     call
   in
-  
+
   let rcf_on_call_field ecall field_expr field may_hash args =
     let infer = mk_static_field_access_infer runtime_cl "callField" field_expr.epos [] in
-    
+
     let hash_arg = match may_hash with
       | None -> []
       | Some h -> [ { eexpr = TConst(TInt h); etype = basic.tint; epos = field_expr.epos } ]
     in
-    
-    let arr_call = if args <> [] then 
-      { eexpr = TArrayDecl args; etype = basic.tarray t_dynamic; epos = ecall.epos } 
+
+    let arr_call = if args <> [] then
+      { eexpr = TArrayDecl args; etype = basic.tarray t_dynamic; epos = ecall.epos }
     else
       null (basic.tarray t_dynamic) ecall.epos
     in
-    
-    let call_args = 
-      [field_expr; { field_expr with eexpr = TConst(TString field); etype = basic.tstring } ] 
-        @ hash_arg 
+
+    let call_args =
+      [field_expr; { field_expr with eexpr = TConst(TString field); etype = basic.tstring } ]
+        @ hash_arg
         @ [ arr_call ]
     in
-    
+
     mk_cast ecall.etype { ecall with eexpr = TCall(infer, call_args) }
   in
-  
+
   handle_type_params gen ifaces (get_cl (get_type gen (["haxe";"lang"], "IGenericObject")));
-  
+
   let rcf_ctx = ReflectionCFs.new_ctx gen closure_t object_iface true rcf_on_getset_field rcf_on_call_field (fun hash hash_array ->
     { hash with eexpr = TCall(rcf_static_find, [hash; hash_array]); etype=basic.tint }
   ) (fun hash -> { hash with eexpr = TCall(rcf_static_lookup, [hash]); etype = gen.gcon.basic.tstring } ) false in
-  
+
   ReflectionCFs.UniversalBaseClass.default_config gen (get_cl (get_type gen (["haxe";"lang"],"HxObject")) ) object_iface dynamic_object;
-  
+
   ReflectionCFs.configure_dynamic_field_access rcf_ctx false;
-  
+
   (* let closure_func = ReflectionCFs.implement_closure_cl rcf_ctx ( get_cl (get_type gen (["haxe";"lang"],"Closure")) ) in *)
   let closure_cl = get_cl (get_type gen (["haxe";"lang"],"Closure")) in
-  
+
   let closure_func = ReflectionCFs.get_closure_func rcf_ctx closure_cl in
-  
+
   ReflectionCFs.implement_varargs_cl rcf_ctx ( get_cl (get_type gen (["haxe";"lang"], "VarArgsBase")) );
-  
+
   let slow_invoke = mk_static_field_access_infer (runtime_cl) "slowCallField" Ast.null_pos [] in
   ReflectionCFs.configure rcf_ctx ~slow_invoke:(fun ethis efield eargs -> {
     eexpr = TCall(slow_invoke, [ethis; efield; eargs]);
     etype = t_dynamic;
     epos = ethis.epos;
   } );
-  
+
   let objdecl_fn = ReflectionCFs.implement_dynamic_object_ctor rcf_ctx dynamic_object in
-  
+
   ObjectDeclMap.configure gen (ObjectDeclMap.traverse gen objdecl_fn);
-  
+
   InitFunction.configure gen true;
   TArrayTransform.configure gen (TArrayTransform.default_implementation gen (
-  fun e -> 
-    match e.eexpr with 
-      | TArray(e1, e2) -> 
-        ( match follow e1.etype with 
-          | TDynamic _ | TAnon _ | TMono _ -> true 
+  fun e ->
+    match e.eexpr with
+      | TArray(e1, e2) ->
+        ( match follow e1.etype with
+          | TDynamic _ | TAnon _ | TMono _ -> true
           | TInst({ cl_kind = KTypeParameter _ }, _) -> true
-          | _ -> false ) 
+          | _ -> false )
       | _ -> assert false
   ) "__get" "__set" );
-  
+
   let field_is_dynamic t field =
     match field_access gen (gen.greal_type t) field with
       | FClassField _ -> false
       | _ -> true
   in
-  
+
   let is_type_param e = match follow e with
     | TInst( { cl_kind = KTypeParameter _ },[]) -> true
     | _ -> false
   in
-  
+
   let is_dynamic_expr e = is_dynamic e.etype || match e.eexpr with
     | TField(tf, f) -> field_is_dynamic tf.etype f
     | _ -> false
   in
-  
+
   let may_nullable t = match gen.gfollow#run_f t with
-    | TType({ t_path = ([], "Null") }, [t]) -> 
+    | TType({ t_path = ([], "Null") }, [t]) ->
       (match follow t with
         | TInst({ cl_path = ([], "String") }, [])
         | TInst({ cl_path = ([], "Float") }, [])
@@ -1738,31 +1738,31 @@ let configure gen =
         | _ -> None )
     | _ -> None
   in
-  
+
   let is_double t = match follow t with | TInst({ cl_path = ([], "Float") }, []) -> true | _ -> false in
   let is_int t = match follow t with | TInst({ cl_path = ([], "Int") }, []) -> true | _ -> false in
-  
+
   let is_null t = match real_type t with
     | TInst( { cl_path = (["haxe";"lang"], "Null") }, _ ) -> true
     | _ -> false
   in
-  
+
   let is_null_expr e = is_null e.etype || match e.eexpr with
     | TField(tf, f) -> (match field_access gen (real_type tf.etype) f with
       | FClassField(_,_,_,_,actual_t) -> is_null actual_t
       | _ -> false)
     | _ -> false
   in
-  
-  let should_handle_opeq t = 
+
+  let should_handle_opeq t =
     match real_type t with
       | TDynamic _ | TAnon _ | TMono _
       | TInst( { cl_kind = KTypeParameter _ }, _ )
       | TInst( { cl_path = (["haxe";"lang"], "Null") }, _ ) -> true
       | _ -> false
   in
-  
-  DynamicOperators.configure gen 
+
+  DynamicOperators.configure gen
     (DynamicOperators.abstract_implementation gen (fun e -> match e.eexpr with
       | TBinop (Ast.OpEq, e1, e2)
       | TBinop (Ast.OpNotEq, e1, e2) -> should_handle_opeq e1.etype or should_handle_opeq e2.etype
@@ -1776,10 +1776,10 @@ let configure gen =
       | TBinop (_, e1, e2) -> is_dynamic e.etype or is_dynamic_expr e1 or is_dynamic_expr e2
       | TUnop (_, _, e1) -> is_dynamic_expr e1 || is_null_expr e1 (* we will see if the expression is Null<T> also, as the unwrap from Unop will be the same *)
       | _ -> false)
-    (fun e1 e2 -> 
+    (fun e1 e2 ->
       let is_null e = match e.eexpr with | TConst(TNull) | TLocal({ v_name = "__undefined__" }) -> true | _ -> false in
-      
-      if is_null e1 || is_null e2 then 
+
+      if is_null e1 || is_null e2 then
         { e1 with eexpr = TBinop(Ast.OpEq, e1, e2); etype = basic.tbool }
       else begin
         let is_basic = is_cs_basic_type (follow e1.etype) || is_cs_basic_type (follow e2.etype) in
@@ -1792,16 +1792,16 @@ let configure gen =
           | _, TInst( { cl_kind = KTypeParameter _ }, [] ) -> false
           | _, _ -> true
         in
-            
+
         let static = mk_static_field_access_infer (runtime_cl) (if is_ref then "refEq" else "eq") e1.epos [] in
         { eexpr = TCall(static, [e1; e2]); etype = gen.gcon.basic.tbool; epos=e1.epos }
       end
     )
-    (fun e e1 e2 -> 
+    (fun e e1 e2 ->
       match may_nullable e1.etype, may_nullable e2.etype with
         | Some t1, Some t2 ->
-          let t1, t2 = if is_string t1 || is_string t2 then 
-            basic.tstring, basic.tstring 
+          let t1, t2 = if is_string t1 || is_string t2 then
+            basic.tstring, basic.tstring
           else if is_double t1 || is_double t2 then
             basic.tfloat, basic.tfloat
           else if is_int t1 || is_int t2 then
@@ -1820,139 +1820,139 @@ let configure gen =
         | _ ->
           let static = mk_static_field_access_infer (runtime_cl) "plus"  e1.epos [] in
           mk_cast e.etype { eexpr = TCall(static, [e1; e2]); etype = t_dynamic; epos=e1.epos })
-    (fun e1 e2 -> 
+    (fun e1 e2 ->
       if is_string e1.etype then begin
         { e1 with eexpr = TCall({ e1 with eexpr = TField(e1, "CompareTo"); etype = TFun(["anotherString",false,gen.gcon.basic.tstring], gen.gcon.basic.tint) }, [ e2 ]); etype = gen.gcon.basic.tint }
       end else begin
         let static = mk_static_field_access_infer (runtime_cl) "compare" e1.epos [] in
-        { eexpr = TCall(static, [e1; e2]); etype = gen.gcon.basic.tint; epos=e1.epos } 
+        { eexpr = TCall(static, [e1; e2]); etype = gen.gcon.basic.tint; epos=e1.epos }
       end) ~handle_strings:false);
-  
+
   FilterClosures.configure gen (FilterClosures.traverse gen (fun e1 s -> true) closure_func);
-    
+
   let base_exception = get_cl (get_type gen (["System"], "Exception")) in
   let base_exception_t = TInst(base_exception, []) in
-  
+
   let hx_exception = get_cl (get_type gen (["haxe";"lang"], "HaxeException")) in
   let hx_exception_t = TInst(hx_exception, []) in
-  
+
   let rec is_exception t =
     match follow t with
-      | TInst(cl,_) -> 
+      | TInst(cl,_) ->
         if cl == base_exception then
           true
         else
           (match cl.cl_super with | None -> false | Some (cl,arg) -> is_exception (TInst(cl,arg)))
       | _ -> false
   in
-  
-  TryCatchWrapper.configure gen 
+
+  TryCatchWrapper.configure gen
   (
-    TryCatchWrapper.traverse gen 
+    TryCatchWrapper.traverse gen
       (fun t -> not (is_exception (real_type t)))
       (fun throwexpr expr ->
         let wrap_static = mk_static_field_access (hx_exception) "wrap" (TFun([("obj",false,t_dynamic)], base_exception_t)) expr.epos in
         { throwexpr with eexpr = TThrow { expr with eexpr = TCall(wrap_static, [expr]) }; etype = gen.gcon.basic.tvoid }
-      ) 
+      )
       (fun v_to_unwrap pos ->
         let local = mk_cast hx_exception_t { eexpr = TLocal(v_to_unwrap); etype = v_to_unwrap.v_type; epos = pos } in
         { eexpr = TField(local, "obj"); epos = pos; etype = t_dynamic }
-      ) 
+      )
       (fun rethrow ->
         { rethrow with eexpr = TCall(mk_local (alloc_var "__rethrow__" t_dynamic) rethrow.epos, [rethrow]) }
-      ) 
-      (base_exception_t) 
-      (hx_exception_t) 
+      )
+      (base_exception_t)
+      (hx_exception_t)
       (fun v e -> e)
   );
-  
+
   let get_typeof e =
     { e with eexpr = TCall( { eexpr = TLocal( alloc_var "__typeof__" t_dynamic ); etype = t_dynamic; epos = e.epos }, [e] ) }
   in
-  
+
   ClassInstance.configure gen (ClassInstance.traverse gen (fun e mt ->
     get_typeof e
   ));
-  
+
   CastDetect.configure gen (CastDetect.default_implementation gen (Some (TEnum(empty_e, []))) false ~native_string_cast:false);
-  
+
   (*FollowAll.configure gen;*)
-  
+
   SwitchToIf.configure gen (SwitchToIf.traverse gen (fun e ->
     match e.eexpr with
       | TSwitch(cond, cases, def) ->
         (match gen.gfollow#run_f cond.etype with
           | TInst({ cl_path = ([], "Int") },[])
           | TInst({ cl_path = ([], "String") },[]) ->
-            (List.exists (fun (c,_) -> 
+            (List.exists (fun (c,_) ->
               List.exists (fun expr -> match expr.eexpr with | TConst _ -> false | _ -> true ) c
             ) cases)
           | _ -> true
         )
       | _ -> assert false
   ) true ) ;
-  
+
   ExpressionUnwrap.configure gen (ExpressionUnwrap.traverse gen (fun e -> Some { eexpr = TVars([mk_temp gen "expr" e.etype, Some e]); etype = gen.gcon.basic.tvoid; epos = e.epos }));
-  
+
   UnnecessaryCastsRemoval.configure gen;
-  
+
   IntDivisionSynf.configure gen (IntDivisionSynf.default_implementation gen true);
-  
+
   UnreachableCodeEliminationSynf.configure gen (UnreachableCodeEliminationSynf.traverse gen true true true false);
-  
+
   let native_arr_cl = get_cl ( get_type gen (["cs"], "NativeArray") ) in
   ArrayDeclSynf.configure gen (ArrayDeclSynf.default_implementation gen native_arr_cl);
-  
+
   let goto_special = alloc_var "__goto__" t_dynamic in
   let label_special = alloc_var "__label__" t_dynamic in
-  SwitchBreakSynf.configure gen (SwitchBreakSynf.traverse gen 
+  SwitchBreakSynf.configure gen (SwitchBreakSynf.traverse gen
     (fun e_loop n api ->
       api ({ eexpr = TCall( mk_local label_special e_loop.epos, [ mk_int gen n e_loop.epos ] ); etype = t_dynamic; epos = e_loop.epos }) false;
       e_loop
-    ) 
+    )
     (fun e_break n api ->
       { eexpr = TCall( mk_local goto_special e_break.epos, [ mk_int gen n e_break.epos ] ); etype = t_dynamic; epos = e_break.epos }
     )
   );
-  
+
   DefaultArguments.configure gen (DefaultArguments.traverse gen);
-  
+
   CSharpSpecificSynf.configure gen (CSharpSpecificSynf.traverse gen runtime_cl);
   CSharpSpecificESynf.configure gen (CSharpSpecificESynf.traverse gen runtime_cl);
-  
+
   let mkdir dir = if not (Sys.file_exists dir) then Unix.mkdir dir 0o755 in
   mkdir gen.gcon.file;
   mkdir (gen.gcon.file ^ "/src");
-  
+
   (* add resources array *)
   (try
     let res = get_cl (Hashtbl.find gen.gtypes (["haxe"], "Resource")) in
     mkdir (gen.gcon.file ^ "/src/Resources");
     let cf = PMap.find "content" res.cl_statics in
     let res = ref [] in
-    Hashtbl.iter (fun name v -> 
+    Hashtbl.iter (fun name v ->
       res := { eexpr = TConst(TString name); etype = gen.gcon.basic.tstring; epos = Ast.null_pos } :: !res;
-      
+
       let f = open_out (gen.gcon.file ^ "/src/Resources/" ^ name) in
       output_string f v;
       close_out f
     ) gen.gcon.resources;
     cf.cf_expr <- Some ({ eexpr = TArrayDecl(!res); etype = gen.gcon.basic.tarray gen.gcon.basic.tstring; epos = Ast.null_pos })
   with | Not_found -> ());
-  
+
   run_filters gen;
   (* after the filters have been run, add all hashed fields to FieldLookup *)
-  
+
   let normalize_i i =
     let i = Int32.of_int (i) in
     if i < Int32.zero then
       Int32.logor (Int32.logand i (Int32.of_int 0x3FFFFFFF)) (Int32.shift_left Int32.one 30)
     else i
   in
-  
+
   let hashes = Hashtbl.fold (fun i s acc -> (normalize_i i,s) :: acc) rcf_ctx.rcf_hash_fields [] in
   let hashes = List.sort (fun (i,s) (i2,s2) -> compare i i2) hashes in
-  
+
   let flookup_cl = get_cl (get_type gen (["haxe";"lang"], "FieldLookup")) in
   (try
     let basic = gen.gcon.basic in
@@ -1960,54 +1960,54 @@ let configure gen =
     let cl = flookup_cl in
     let field_ids = PMap.find "fieldIds" cl.cl_statics in
     let fields = PMap.find "fields" cl.cl_statics in
-    
-    field_ids.cf_expr <- Some (change_array { 
+
+    field_ids.cf_expr <- Some (change_array {
       eexpr = TArrayDecl(List.map (fun (i,s) -> { eexpr = TConst(TInt (i)); etype = basic.tint; epos = field_ids.cf_pos }) hashes);
       etype = basic.tarray basic.tint;
       epos = field_ids.cf_pos
     });
-    
+
     fields.cf_expr <- Some (change_array {
       eexpr = TArrayDecl(List.map (fun (i,s) -> { eexpr = TConst(TString s); etype = basic.tstring; epos = fields.cf_pos }) hashes);
       etype = basic.tarray basic.tstring;
       epos = fields.cf_pos
     })
-    
-  with | Not_found -> 
+
+  with | Not_found ->
     gen.gcon.error "Fields 'fieldIds' and 'fields' were not found in class haxe.lang.FieldLookup" flookup_cl.cl_pos
   );
-  
+
   TypeParams.RenameTypeParameters.run gen;
-  
+
   let t = Common.timer "code generation" in
-  
+
 	generate_modules gen "cs" "src" module_gen;
-  
+
   dump_descriptor gen ("hxcs_build.txt") path_s;
 	if ( not (Common.defined gen.gcon Define.NoCompilation) ) then begin
 		let old_dir = Sys.getcwd() in
 		Sys.chdir gen.gcon.file;
 		let cmd = "haxelib run hxcs hxcs_build.txt --haxe-version " ^ (string_of_int gen.gcon.version) in
 		print_endline cmd;
-		if Sys.command cmd <> 0 then failwith "Build failed";
+		if gen.gcon.run_command cmd <> 0 then failwith "Build failed";
 		Sys.chdir old_dir;
 	end;
-  
+
   t()
 
 (* end of configure function *)
 	
-let before_generate con = 
+let before_generate con =
   ()
 
 let generate con =
   (try
     let gen = new_ctx con in
     let basic = con.basic in
-    
+
     (* make the basic functions in C# *)
     let type_cl = get_cl ( get_type gen (["System"], "Type")) in
-    let basic_fns = 
+    let basic_fns =
     [
       mk_class_field "Equals" (TFun(["obj",false,t_dynamic], basic.tbool)) true Ast.null_pos (Method MethNormal) [];
       mk_class_field "ToString" (TFun([], basic.tstring)) true Ast.null_pos (Method MethNormal) [];
@@ -2016,7 +2016,7 @@ let generate con =
     ] in
     List.iter (fun cf -> gen.gbase_class_fields <- PMap.add cf.cf_name cf gen.gbase_class_fields) basic_fns;
     configure gen
-  with | TypeNotFound path -> 
+  with | TypeNotFound path ->
     con.error ("Error. Module '" ^ (path_s path) ^ "' is required and was not included in build.")  Ast.null_pos);
   debug_mode := false
-  
+
