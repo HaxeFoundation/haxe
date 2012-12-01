@@ -669,7 +669,7 @@ and do_connect host port args =
 
 and init ctx =
 	let usage = Printf.sprintf
-		"Haxe Compiler %d.%.2d - (c)2005-2012 Haxe Foundation\n Usage : haxe%s -main <class> [-swf|-js|-neko|-php|-cpp|-cs|-java|-as3] <output> [options]\n Options :"
+		"Haxe Compiler %d.%.2d - (c)2005-2012 Haxe Foundation\n Usage : haxe%s -main <class> [-swf|-js|-neko|-php|-cpp|-as3] <output> [options]\n Options :"
 		(version / 100) (version mod 100) (if Sys.os_type = "Win32" then ".exe" else "")
 	in
 	let com = ctx.com in
@@ -751,12 +751,12 @@ try
 		("-cpp",Arg.String (fun dir ->
 			set_platform Cpp dir;
 		),"<directory> : generate C++ code into target directory");
-		("-cs",Arg.String (fun dir ->
+(* 		("-cs",Arg.String (fun dir ->
 			set_platform Cs dir;
 		),"<directory> : generate C# code into target directory");
 		("-java",Arg.String (fun dir ->
 			set_platform Java dir;
-		),"<directory> : generate Java code into target directory");
+		),"<directory> : generate Java code into target directory"); *)
 		("-xml",Arg.String (fun file ->
 			Parser.use_doc := true;
 			xml_out := Some file
@@ -804,7 +804,8 @@ try
 			Genswf.add_swf_lib com file
 		),"<file> : add the SWF library to the compiled SWF");
 		("-java-lib",Arg.String (fun file ->
-			Genjava.add_java_lib com file
+			()
+			(* Genjava.add_java_lib com file *)
 		),"<file> : add an external JAR or class directory library");
 		("-x", Arg.String (fun file ->
 			let neko_file = file ^ ".n" in
@@ -1010,10 +1011,10 @@ try
 			add_std "cpp";
 			"cpp"
 		| Cs ->
-			Gencs.before_generate com;
+			(* Gencs.before_generate com; *)
 			add_std "cs"; "cs"
 		| Java ->
-			Genjava.before_generate com;
+			(* Genjava.before_generate com; *)
 			add_std "java"; "java"
 	) in
 	(* if we are at the last compilation step, allow all packages accesses - in case of macros or opening another project file *)
@@ -1113,10 +1114,10 @@ try
 			Gencpp.generate com;
 		| Cs ->
 			if com.verbose then print_endline ("Generating C# in : " ^ com.file);
-			Gencs.generate com;
+			(* Gencs.generate com; *)
 		| Java ->
 			if com.verbose then print_endline ("Generating Java in : " ^ com.file);
-			Genjava.generate com;
+			(* Genjava.generate com; *)
 		);
 	end;
 	Sys.catch_break false;
