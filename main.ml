@@ -809,10 +809,10 @@ try
 				| [width; height; fps] ->
 					(int_of_string width,int_of_string height,float_of_string fps,0xFFFFFF)
 				| [width; height; fps; color] ->
-					(int_of_string width, int_of_string height, float_of_string fps, int_of_string ("0x" ^ color))
+					(int_of_string width, int_of_string height, float_of_string fps, try int_of_string color with _ -> int_of_string ("0x" ^ color))
 				| _ -> raise Exit)
 			with
-				_ -> raise (Arg.Bad "Invalid SWF header format")
+				_ -> raise (Arg.Bad "Invalid SWF header format, expected width:height:fps[:color]")
 		),"<header> : define SWF header (width:height:fps:color)");
 		("-swf-lib",Arg.String (fun file ->
 			Genswf.add_swf_lib com file
@@ -835,7 +835,7 @@ try
 			let file, name = (match ExtString.String.nsplit res "@" with
 				| [file; name] -> file, name
 				| [file] -> file, file
-				| _ -> raise (Arg.Bad "Invalid Resource format : should be file@name")
+				| _ -> raise (Arg.Bad "Invalid Resource format, expected file@name")
 			) in
 			let file = (try Common.find_file com file with Not_found -> file) in
 			let data = (try
@@ -909,7 +909,7 @@ try
 			Common.define com Define.PhpPrefix;
 		),"<name> : prefix all classes with given name");
 		("--remap", Arg.String (fun s ->
-			let pack, target = (try ExtString.String.split s ":" with _ -> raise (Arg.Bad "Invalid format")) in
+			let pack, target = (try ExtString.String.split s ":" with _ -> raise (Arg.Bad "Invalid remap format, expected source:target")) in
 			com.package_rules <- PMap.add pack (Remap target) com.package_rules;
 		),"<package:target> : remap a package to another one");
 		("--interp", Arg.Unit (fun() ->
@@ -925,7 +925,7 @@ try
 		("--dce", Arg.String (fun mode ->
 			(match mode with
 			| "std" | "full" | "no" -> ()
-			| _ -> raise (Arg.Bad "Invalid DCE mode"));
+			| _ -> raise (Arg.Bad "Invalid DCE mode, expected std | full | no"));
 			Common.define_value com Define.Dce mode
 		),"[std|full|no] : set the dead code elimination mode");
 		("--wait", Arg.String (fun hp ->
