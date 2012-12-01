@@ -399,6 +399,33 @@ let optimize_for_loop ctx i e1 e2 p =
 	let t_void = ctx.t.tvoid in
 	let t_int = ctx.t.tint in
 	let lblock el = Some (mk (TBlock el) t_void p) in
+	let gen_int_iter pt =
+		let i = add_local ctx i pt in
+		let index = gen_local ctx t_int in
+		let arr, avars = (match e1.eexpr with
+			| TLocal _ -> e1, []
+			| _ ->
+				let atmp = gen_local ctx e1.etype in
+				mk (TLocal atmp) e1.etype e1.epos, [atmp,Some e1]
+		) in
+		let iexpr = mk (TLocal index) t_int p in
+		let e2 = type_expr ctx e2 false in
+		let aget = mk (TVars [i,Some (mk (TArray (arr,iexpr)) pt p)]) t_void p in
+		let incr = mk (TUnop (Increment,Prefix,iexpr)) t_int p in
+		let block = match e2.eexpr with
+			| TBlock el -> mk (TBlock (aget :: incr :: el)) t_void e2.epos
+			| _ -> mk (TBlock [aget;incr;e2]) t_void p
+		in
+		let ivar = index, Some (mk (TConst (TInt 0l)) t_int p) in
+		lblock [
+			mk (TVars (ivar :: avars)) t_void p;
+			mk (TWhile (
+				mk (TBinop (OpLt, iexpr, mk (TField (arr,"length")) t_int p)) ctx.t.tbool p,
+				block,
+				NormalWhile
+			)) t_void p;
+		]
+	in
 	match e1.eexpr, follow e1.etype with
 	| TNew ({ cl_path = ([],"IntIterator") },[],[i1;i2]) , _ ->
 		let max = (match i1.eexpr , i2.eexpr with
@@ -455,31 +482,9 @@ let optimize_for_loop ctx i e1 e2 p =
 			])
 	| _ , TInst({ cl_path = [],"Array" },[pt])
 	| _ , TInst({ cl_path = ["flash"],"Vector" },[pt]) ->
-		let i = add_local ctx i pt in
-		let index = gen_local ctx t_int in
-		let arr, avars = (match e1.eexpr with
-			| TLocal _ -> e1, []
-			| _ ->
-				let atmp = gen_local ctx e1.etype in
-				mk (TLocal atmp) e1.etype e1.epos, [atmp,Some e1]
-		) in
-		let iexpr = mk (TLocal index) t_int p in
-		let e2 = type_expr ctx e2 false in
-		let aget = mk (TVars [i,Some (mk (TArray (arr,iexpr)) pt p)]) t_void p in
-		let incr = mk (TUnop (Increment,Prefix,iexpr)) t_int p in
-		let block = match e2.eexpr with
-			| TBlock el -> mk (TBlock (aget :: incr :: el)) t_void e2.epos
-			| _ -> mk (TBlock [aget;incr;e2]) t_void p
-		in
-		let ivar = index, Some (mk (TConst (TInt 0l)) t_int p) in
-		lblock [
-			mk (TVars (ivar :: avars)) t_void p;
-			mk (TWhile (
-				mk (TBinop (OpLt, iexpr, mk (TField (arr,"length")) t_int p)) ctx.t.tbool p,
-				block,
-				NormalWhile
-			)) t_void p;
-		]
+		gen_int_iter pt
+	| _ , TInst({ cl_array_access = Some pt } as c,pl) when (try match follow (PMap.find "length" c.cl_fields).cf_type with TAbstract ({ a_path = [],"Int" },[]) -> true | _ -> false with Not_found -> false) ->
+		gen_int_iter (apply_params c.cl_types pl pt)
 	| _ , TInst ({ cl_kind = KGenericInstance ({ cl_path = ["haxe"],"FastList" },[t]) } as c,[]) ->
 		let tcell = (try (PMap.find "head" c.cl_fields).cf_type with Not_found -> assert false) in
 		let i = add_local ctx i t in
