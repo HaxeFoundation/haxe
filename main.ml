@@ -551,16 +551,25 @@ and wait_loop boot_com host port =
 		Unix.set_nonblock sin;
 		if verbose then print_endline "Client connected";
 		let b = Buffer.create 0 in
-		let rec read_loop() =
-			try
-				let r = Unix.recv sin tmp 0 bufsize [] in
-				if verbose then Printf.printf "Reading %d bytes\n" r;
-				Buffer.add_substring b tmp 0 r;
-				if r > 0 && tmp.[r-1] = '\000' then Buffer.sub b 0 (Buffer.length b - 1) else read_loop();
+		let rec read_loop count =
+			let r = try
+				Unix.recv sin tmp 0 bufsize []
 			with Unix.Unix_error((Unix.EWOULDBLOCK|Unix.EAGAIN),_,_) ->
-				if verbose then print_endline "Waiting for data...";
-				ignore(Unix.select [] [] [] 0.1);
-				read_loop()
+				0
+			in
+			if verbose then begin
+				if r > 0 then Printf.printf "Reading %d bytes\n" r else print_endline "Waiting for data...";
+			end;
+			Buffer.add_substring b tmp 0 r;
+			if r > 0 && tmp.[r-1] = '\000' then
+				Buffer.sub b 0 (Buffer.length b - 1)
+			else begin
+				if r = 0 then ignore(Unix.select [] [] [] 0.05); (* wait a bit *)
+				if count = 100 then
+					failwith "Aborting unactive connection"
+				else
+					read_loop (count + 1);
+			end;
 		in
 		let rec cache_context com =
 			if not com.display then begin
@@ -594,7 +603,7 @@ and wait_loop boot_com host port =
 			ctx
 		in
 		(try
-			let data = parse_hxml_data (read_loop()) in
+			let data = parse_hxml_data (read_loop 0) in
 			Unix.clear_nonblock sin;
 			if verbose then print_endline ("Processing Arguments [" ^ String.concat "," data ^ "]");
 			(try
@@ -624,7 +633,12 @@ and wait_loop boot_com host port =
 				print_endline (Printf.sprintf "Time spent : %.3fs" (get_time() -. t0));
 			end
 		with Unix.Unix_error _ ->
-			if verbose then print_endline "Connection Aborted");
+			if verbose then print_endline "Connection Aborted"
+		| e ->
+			let estr = Printexc.to_string e in
+			if verbose then print_endline ("Uncaught Error : " ^ estr);
+			(try ssend sin estr with _ -> ());
+		);
 		Unix.close sin;
 		(* prevent too much fragmentation by doing some compactions every X run *)
 		incr run_count;
@@ -965,7 +979,7 @@ try
 		let real = Extc.get_real_path (!Parser.resume_display).Ast.pfile in
 		classes := lookup_classes com real;
 		if !classes = [] then begin
-			if not (Sys.file_exists real) then failwith "Display file not does exists";
+			if not (Sys.file_exists real) then failwith "Display file does not exists";
 			(match List.rev (ExtString.String.nsplit real "\\") with
 			| file :: _ when file.[0] >= 'a' && file.[1] <= 'z' -> failwith ("Display file '" ^ file ^ "' should not start with a lowercase letter")
 			| _ -> ());
