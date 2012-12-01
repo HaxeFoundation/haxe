@@ -182,7 +182,7 @@ package unit;
 		var stack :String = #if js
 			e.stack;
 		#else
-			haxe.Stack.toString(haxe.Stack.exceptionStack());
+			haxe.CallStack.toString(haxe.CallStack.exceptionStack());
 		#end
 		try msg = Std.string(e) catch( e : Dynamic ) {};
 		reportCount = 0;

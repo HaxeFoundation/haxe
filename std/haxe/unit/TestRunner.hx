@@ -131,7 +131,7 @@ class TestRunner {
 					}
 				}catch ( e : TestStatus ){
 					print("F");
-					t.currentTest.backtrace = haxe.Stack.toString(haxe.Stack.exceptionStack());
+					t.currentTest.backtrace = haxe.CallStack.toString(haxe.CallStack.exceptionStack());
 				}catch ( e : Dynamic ){
 					print("E");
 					#if js
@@ -143,7 +143,7 @@ class TestRunner {
 					#else
 					t.currentTest.error = "exception thrown : "+e;
 					#end
-					t.currentTest.backtrace = haxe.Stack.toString(haxe.Stack.exceptionStack());
+					t.currentTest.backtrace = haxe.CallStack.toString(haxe.CallStack.exceptionStack());
 				}
 				result.add(t.currentTest);
 				t.tearDown();

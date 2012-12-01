@@ -21,7 +21,7 @@
  */
 package cpp.vm;
 
-import haxe.Stack;
+import haxe.CallStack;
 
 class Debugger
 {

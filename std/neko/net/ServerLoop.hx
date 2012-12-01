@@ -141,7 +141,7 @@ class ServerLoop<ClientData> {
 		By default the error is displayed using [trace].
 	**/
 	public function onError( e : Dynamic ) {
-		trace(Std.string(e)+"\n"+haxe.Stack.toString(haxe.Stack.exceptionStack()));
+		trace(Std.string(e)+"\n"+haxe.CallStack.toString(haxe.CallStack.exceptionStack()));
 	}
 
 	function readData( cl : ServerClient<ClientData> ) {

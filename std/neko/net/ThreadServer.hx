@@ -157,7 +157,7 @@ class ThreadServer<Client,Message> {
 	}
 
 	function logError( e : Dynamic ) {
-		var stack = haxe.Stack.exceptionStack();
+		var stack = haxe.CallStack.exceptionStack();
 		if( neko.vm.Thread.current() == worker )
 			onError(e,stack);
 		else
@@ -249,7 +249,7 @@ class ThreadServer<Client,Message> {
 
 	public dynamic function onError( e : Dynamic, stack ) {
 		var estr = try Std.string(e) catch( e2 : Dynamic ) "???" + try "["+Std.string(e2)+"]" catch( e : Dynamic ) "";
-		errorOutput.writeString( estr + "\n" + haxe.Stack.toString(stack) );
+		errorOutput.writeString( estr + "\n" + haxe.CallStack.toString(stack) );
 		errorOutput.flush();
 	}
 

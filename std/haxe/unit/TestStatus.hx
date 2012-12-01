@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 package haxe.unit;
-import haxe.Stack;
+import haxe.CallStack;
 
 import haxe.PosInfos;
 

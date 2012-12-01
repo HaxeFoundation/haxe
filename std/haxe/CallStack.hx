@@ -35,7 +35,7 @@ enum StackItem {
 /**
 	Get informations about the call stack.
 **/
-class Stack {
+class CallStack {
 
 	/**
 		Return the call stack elements, or an empty array if not available.
