@@ -93,9 +93,9 @@
 	#if !haxe3
 	public inline function customReplace( s : String, f : EReg -> String ) : String {
 		var old = r.global;
-		r.global = true;
+		untyped r["global"] = true;
 		var ret = map(s, f);
-		r.global = old;
+		untyped r["global"] = old;
 		return ret;
 	}
 	#end
