@@ -23,7 +23,7 @@ package neko.zip;
 
 class Uncompress {
 
-	var s : Void;
+	var s : Dynamic;
 
 	public function new( windowBits : Int ) {
 		s = _inflate_init(windowBits);
