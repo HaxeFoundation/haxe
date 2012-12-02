@@ -226,11 +226,14 @@ let check_param_constraints ctx types t pl c p =
 	| _ ->
 		let ctl = (match c.cl_kind with KTypeParameter l -> l | _ -> []) in
 		List.iter (fun ti ->
-			(*
-				what was that used for ?
-				let ti = try snd (List.find (fun (_,t) -> match follow t with TInst(i2,[]) -> i == i2 | _ -> false) types) with Not_found -> TInst (i,tl) in
-			*)
 			let ti = apply_params types pl ti in
+			let ti = (match follow ti with
+				| TInst ({ cl_kind = KGeneric }as c,pl) ->
+					(* if we solve a generic contraint, let's substitute with the actual generic instance before unifying *)
+					let _,_, f = ctx.g.do_build_instance ctx (TClassDecl c) p in
+					f pl
+				| _ -> ti
+			) in
 			unify ctx t ti p
 		) ctl
 
