@@ -1586,7 +1586,7 @@ let std_lib =
 		);
 		"sys_sleep", Fun1 (fun f ->
 			match f with
-			| VFloat f -> Unix.sleep (int_of_float (ceil f)); VNull
+			| VFloat f -> ignore(Unix.select [] [] [] f); VNull
 			| _ -> error()
 		);
 		"set_time_locale", Fun1 (fun l ->
