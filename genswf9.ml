@@ -325,6 +325,8 @@ let property ctx p t =
 		| Statics { cl_path = [], "Math" } ->
 			(match p with
 			| "POSITIVE_INFINITY" | "NEGATIVE_INFINITY" | "NaN" -> ident p, Some KFloat, false
+			| "floor" | "ceil" | "round" -> ident p, Some KInt, false
+			| "ffloor" | "fceil" | "fround" -> ident (String.sub p 1 (String.length p - 1)), None, false
 			| _ -> ident p, None, false)
 		| _ -> ident p, None, false)
 	| TInst ({ cl_kind = KExtension _ } as c,params) ->

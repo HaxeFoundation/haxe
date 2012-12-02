@@ -48,6 +48,29 @@ extern class Math
 	static function acos(v:Float):Float;
 	static function pow(v:Float,exp:Float):Float;
 	static function random() : Float;
+	
+	#if flash9
+	
+	static function ffloor( v : Float ) : Float;
+	static function fceil( v : Float ) : Float;
+	static function fround( v : Float ) : Float;
+	
+	#else
+	
+	static inline function ffloor( v : Float ) : Float {
+		return floor(v);
+	}
+
+	static inline function fceil( v : Float ) : Float {
+		return ceil(v);
+	}
+
+	static inline function fround( v : Float ) : Float {
+		return round(v);
+	}
+	
+	#end
+	
 
 	static function isFinite( f : Float ) : Bool;
 	static function isNaN( f : Float ) : Bool;

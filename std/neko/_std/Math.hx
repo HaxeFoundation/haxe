@@ -47,6 +47,10 @@ import neko.Lib;
 	public static function acos( v : Float ) : Float return 0.
 	public static function pow( v : Float, exp : Float ) : Float return 0.
 
+	public static function fround( v : Float ) : Float return 0.
+	public static function ffloor( v : Float ) : Float return 0.
+	public static function fceil( v : Float ) : Float return 0.
+
 	static var __rnd;
 	static var _rand_float = Lib.load("std","random_float",1);
 	static var _rand_int = Lib.load("std","random_int",2);
@@ -77,7 +81,10 @@ import neko.Lib;
 		M.atan = Lib.load("std","math_atan",1);
 		M.asin = Lib.load("std","math_asin",1);
 		M.acos = Lib.load("std","math_acos",1);
-		M.pow = Lib.load("std","math_pow",2);
+		M.pow = Lib.load("std", "math_pow", 2);
+		M.fceil = try Lib.load("std", "math_fceil", 1) catch( e : Dynamic ) M.ceil;
+		M.ffloor = try Lib.load("std", "math_ffloor", 1) catch( e : Dynamic ) M.floor;
+		M.fround = try Lib.load("std", "math_fround", 1) catch( e : Dynamic ) M.round;
 	}
 
 }

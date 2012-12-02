@@ -163,28 +163,28 @@ class TestBasetypes extends Test {
 		eq( Math.round(1.5), 2 );
 		eq( Math.round(1.2), 1 );
 
-		// overflows might occurs depending on the platform
-		unspec(function() Std.int(-10000000000.7));
-		unspec( function() Math.floor(-10000000000.7) );
-		unspec( function() Math.ceil(-10000000000.7) );
-		unspec( function() Math.round(-10000000000.7) );
-		// should still give a proper result for lower bits
-		#if java
-		eq( Std.int(-10000000000.7) & 0xFFFFFF, 0 );
-		eq( Math.floor(-10000000000.7) & 0xFFFFFF, 0 );
-		eq( Math.ceil( -10000000000.7) & 0xFFFFFF, 0 );
-		eq( Math.round(-10000000000.7) & 0xFFFFFF, 15997951 );
-		#elseif cs
-		eq( Std.int(-10000000000.7) & 0xFFFFFF, 15997952 );
-		eq( Math.floor(-10000000000.7) & 0xFFFFFF, 0 );
-		eq( Math.ceil( -10000000000.7) & 0xFFFFFF, 0 );
-		eq( Math.round(-10000000000.7) & 0xFFFFFF, 0 );
+		
+		eq( Std.int( -10000000000.7), 0xABF41C00 );
+		
+		#if (js || flash8)
+		
+		// higher Int resolution : should we fix this or not ?
+		eq( Math.floor( -10000000000.7)*1.0, -10000000001. );
+		eq( Math.ceil( -10000000000.7)*1.0, -10000000000. );
+		eq( Math.round( -10000000000.7)*1.0, -10000000001. );
+		
 		#else
-		eq( Std.int(-10000000000.7) & 0xFFFFFF, 15997952 );
-		eq( Math.floor(-10000000000.7) & 0xFFFFFF, 15997951 );
-		eq( Math.ceil( -10000000000.7) & 0xFFFFFF, 15997952 );
-		eq( Math.round(-10000000000.7) & 0xFFFFFF, 15997951 );
+		
+		eq( Math.floor( -10000000000.7), 0xABF41BFF);
+		eq( Math.ceil( -10000000000.7), 0xABF41C00);
+		eq( Math.round( -10000000000.7), 0xABF41BFF);
+	
 		#end
+
+		eq( Math.ffloor( -10000000000.7), -10000000001. );
+		eq( Math.fceil( -10000000000.7), -10000000000. );
+		eq( Math.fround( -10000000000.7), -10000000001. );
+
 	}
 
 	function testParse() {
