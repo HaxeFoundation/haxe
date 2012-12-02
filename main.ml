@@ -668,7 +668,8 @@ and do_connect host port args =
 	let rec print line =
 		match (if line = "" then '\x00' else line.[0]) with
 		| '\x01' ->
-			print_string (String.concat "\n" (List.tl (ExtString.String.nsplit line "\x01")))
+			print_string (String.concat "\n" (List.tl (ExtString.String.nsplit line "\x01")));
+			flush stdout
 		| '\x02' ->
 			has_error := true;
 		| _ ->
@@ -686,7 +687,6 @@ and do_connect host port args =
 		let b = Unix.recv sock tmp 0 1024 [] in
 		Buffer.add_substring buf tmp 0 b;
 		if b > 0 then begin
-			prerr_endline (string_of_int (int_of_char (String.get tmp (b - 1))));
 			if String.get tmp (b - 1) = '\n' then begin
 				process();
 				Buffer.reset buf;
