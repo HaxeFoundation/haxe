@@ -44,6 +44,7 @@ let modules = [
 	"refList";
 	"optParse";
     "dllist";
+    "multiArray";
 ]
 
 let m_list suffix =
