@@ -24,7 +24,7 @@ package haxe;
 @:coreApi
 class Utf8 {
 
-	var __b : Void;
+	var __b : Dynamic;
 
 	public function new( ?size : Int ) : Void {
 		__b = utf8_buf_alloc(if( size == null ) 1 else size);

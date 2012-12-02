@@ -951,6 +951,9 @@ let rec unify a b =
 		unify_types a b tl1 tl2
 	| TAbstract (a1,tl1) , TAbstract (a2,tl2) when a1 == a2 ->
 		unify_types a b tl1 tl2
+	| TAbstract ({a_path=[],"Void"},_) , _
+	| _ , TAbstract ({a_path=[],"Void"},_) ->
+		error [cannot_unify a b]
 	| TAbstract (a1,tl1) , TAbstract (a2,tl2) ->
 		if not (List.exists (fun t ->
 			let t = apply_params a1.a_types tl1 t in

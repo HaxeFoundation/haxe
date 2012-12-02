@@ -267,7 +267,7 @@ class Compiler {
 		#if macro
 		return neko.Lib.load("macro", f, nargs);
 		#else
-		return Reflect.makeVarArgs(function(_) throw "Can't be called outside of macro");
+		return Reflect.makeVarArgs(function(_) return throw "Can't be called outside of macro");
 		#end
 	}
 
