@@ -822,6 +822,10 @@ let build_swf9 com file swc =
 								let h = Png.header png in
 								(match h.Png.png_color with
 								| Png.ClTrueColor (Png.TBits8,Png.NoAlpha) ->
+									if h.Png.png_width * h.Png.png_height * 4 > Sys.max_string_length then begin
+										com.warning "Flash will loose some color information for this file, add alpha channel to preserve it" p;
+										raise Exit;
+									end;
 									let data = Extc.unzip (Png.data png) in
 									let raw_data = Png.filter png data in
 									let cmp_data = Extc.zip raw_data in
