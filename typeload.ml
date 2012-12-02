@@ -386,7 +386,7 @@ and load_complex_type ctx p t =
 						| "set" when not get -> AccCall ("set_" ^ n)
 						| x when get && x = "get_" ^ n -> AccCall x
 						| x when not get && x = "set_" ^ n -> AccCall x
-						| _ ->	
+						| _ ->
 							(if Common.defined ctx.com Define.Haxe3 then error else ctx.com.warning) "Property custom access is no longer supported in Haxe3+" f.cff_pos;
 							AccCall m
 					in
@@ -1308,7 +1308,7 @@ let init_class ctx c p context_init herits fields =
 					(match req_name with None -> () | Some n -> display_error ctx ("Please use " ^ n ^ " to name your property access method") f.cf_pos);
 				with
 					| Error (Unify l,_) -> raise (Error (Stack (Custom ("In method " ^ m ^ " required by property " ^ name),Unify l),p))
-					| Not_found -> 
+					| Not_found ->
 						if req_name <> None then display_error ctx "Custom property accessor is no longer supported, please use get/set" p else
 						if not (c.cl_interface || c.cl_extern) then display_error ctx ("Method " ^ m ^ " required by property " ^ name ^ " is missing") p
 			in
@@ -1316,7 +1316,7 @@ let init_class ctx c p context_init herits fields =
 				| "null" -> AccNo
 				| "dynamic" -> AccCall ("get_" ^ name)
 				| "never" -> AccNever
-				| "default" -> AccNormal				
+				| "default" -> AccNormal
 				| _ ->
 					let get = if get = "get" then "get_" ^ name else get in
 					delay ctx PForce (fun() -> check_method get (TFun ([],ret)) (if get <> "get" && get <> "get_" ^ name && Common.defined ctx.com Define.Haxe3 then Some ("get_" ^ name) else None));
@@ -1826,7 +1826,7 @@ let resolve_module_file com m remap p =
 		| x :: l , name ->
 			let x = (try
 				match PMap.find x com.package_rules with
-				| Forbidden -> raise (Forbid_package ((x,m,p),[],platform_name com.platform));
+				| Forbidden -> raise (Forbid_package ((x,m,p),[],if Common.defined com Define.Macro then "macro" else platform_name com.platform));
 				| Directory d -> d
 				| Remap d -> remap := d :: l; d
 				with Not_found -> x
@@ -1907,7 +1907,7 @@ let load_module ctx m p =
 			try
 				type_module ctx m file decls p
 			with Forbid_package (inf,pl,pf) when p <> Ast.null_pos ->
-				raise (Forbid_package (inf,p::pl,if ctx.in_macro then "macro" else pf))
+				raise (Forbid_package (inf,p::pl,pf))
 	) in
 	add_dependency ctx.m.curmod m2;
 	if ctx.pass = PTypeField then flush_pass ctx PBuildClass "load_module";
