@@ -1282,7 +1282,9 @@ let rec type_binop ctx op e1 e2 p =
 	| OpEq
 	| OpNotEq ->
 		(try
-			unify_raise ctx e1.etype e2.etype p
+			unify_raise ctx e1.etype e2.etype p;
+			(* we only have to check one type here, because unification fails if one is Void and the other is not *)
+			(match follow e2.etype with TAbstract({a_path=[],"Void"},_) -> error "Cannot compare Void" p | _ -> ())
 		with
 			Error (Unify _,_) -> unify ctx e2.etype e1.etype p);
 		mk_op ctx.t.tbool
