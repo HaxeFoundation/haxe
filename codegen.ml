@@ -661,7 +661,6 @@ let add_rtti ctx t =
 let remove_extern_fields ctx t = match t with
 	| TClassDecl c ->
 		let do_remove f =
-			(match follow f.cf_type with TAbstract({a_path=[],"Void"},_) -> error "Fields of type Void are not allowed" f.cf_pos | _ -> ());
 			(not ctx.in_macro && f.cf_kind = Method MethMacro) || has_meta ":extern" f.cf_meta || has_meta ":generic" f.cf_meta
 		in
 		if not (Common.defined ctx.com Define.DocGen) then begin
@@ -773,6 +772,17 @@ let add_meta_field ctx t = match t with
 let check_remove_metadata ctx t = match t with
 	| TClassDecl c ->
 		c.cl_implements <- List.filter (fun (c,_) -> not (has_meta ":remove" c.cl_meta)) c.cl_implements;
+	| _ ->
+		()
+
+(* Checks for Void class fields *)
+let check_void_field ctx t = match t with
+	| TClassDecl c ->
+		let check f =
+			match follow f.cf_type with TAbstract({a_path=[],"Void"},_) -> error "Fields of type Void are not allowed" f.cf_pos | _ -> ();
+		in
+		List.iter check c.cl_ordered_fields;
+		List.iter check c.cl_ordered_statics;
 	| _ ->
 		()
 

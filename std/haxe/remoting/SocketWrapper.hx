@@ -71,12 +71,13 @@ class SocketWrapper {
 	}
 
 	static function init() {
-		if( !flash.external.ExternalInterface.available ) return;
+		if( !flash.external.ExternalInterface.available ) return null;
 		var ctx = new Context();
 		var o = {};
 		Reflect.setField(o,"create",create);
 		ctx.addObject("api",o);
-		haxe.remoting.ExternalConnection.jsConnect("SocketWrapper",ctx);
+		haxe.remoting.ExternalConnection.jsConnect("SocketWrapper", ctx);
+		return null;
 	}
 
 	static var _ = init();

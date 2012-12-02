@@ -23,7 +23,7 @@ package neko.zip;
 
 class Compress {
 
-	var s : Void;
+	var s : Dynamic;
 
 	public function new( level : Int ) {
 		s = _deflate_init(level);

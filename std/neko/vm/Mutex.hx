@@ -22,7 +22,7 @@
 package neko.vm;
 
 class Mutex {
-	var m : Void;
+	var m : Dynamic;
 	public function new() {
 		m = mutex_create();
 	}

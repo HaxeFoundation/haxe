@@ -78,7 +78,7 @@ private class Stdout extends haxe.io.Input {
 
 @:coreApi
 class Process {
-	var p : Void;
+	var p : Dynamic;
 	var st : NativeArray;
 	var cl : Int;
 	public var stdout(default,null) : haxe.io.Input;

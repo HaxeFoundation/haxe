@@ -23,8 +23,8 @@ package sys.db;
 
 private class SqliteConnection implements Connection {
 
-	var c : Void;
-	var e : Void;
+	var c : Dynamic;
+	var e : Dynamic;
 
 	public function new( file : String ) {
 		c = untyped __call__("sqlite_open", file, 0666, e);

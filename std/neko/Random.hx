@@ -23,7 +23,7 @@ package neko;
 
 class Random {
 
-	var r : Void;
+	var r : Dynamic;
 
 	public function new() {
 		r = random_new();

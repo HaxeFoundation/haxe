@@ -1108,6 +1108,7 @@ try
 			Codegen.add_field_inits;
 			Codegen.add_meta_field;
 			Codegen.check_remove_metadata;
+			Codegen.check_void_field;
 		] in
 		List.iter (fun t -> List.iter (fun f -> f tctx t) type_filters) com.types;
 		if ctx.has_error then raise Abort;

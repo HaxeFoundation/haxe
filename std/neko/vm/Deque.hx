@@ -22,7 +22,7 @@
 package neko.vm;
 
 class Deque<T> {
-	var q : Void;
+	var q : Dynamic;
 	public function new() {
 		q = deque_create();
 	}
