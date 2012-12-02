@@ -30,9 +30,8 @@
 		return untyped flash.Boot.__string_rec(s,"");
 	}
 
-	public static function int( x : Float ) : Int {
-		if( x < 0 ) return Math.ceil(x);
-		return Math.floor(x);
+	public static inline function int( x : Float ) : Int {
+		return (cast x) | 0;
 	}
 
 	public static function parseInt( x : String ) : Null<Int> untyped {
