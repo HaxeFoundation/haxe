@@ -336,6 +336,9 @@ let property ctx p t =
 			ident p, Some (classify ctx (apply_params c.cl_types params f.cf_type)), false
 		with Not_found ->
 			ident p, None, false)
+	| TInst ({ cl_interface = true } as c,_) ->
+		let ns = HMName (reserved p, HNNamespace (match c.cl_path with [],n -> n | l,n -> String.concat "." l ^ ":" ^ n)) in
+		ns, None, false
 	| _ ->
 		ident p, None, false
 
