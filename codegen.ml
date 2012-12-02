@@ -287,10 +287,7 @@ let rec build_generic ctx c p tl =
 						error "Type parameters with a constructor cannot be used non-generically" p
 					| _ -> ()
 				) tl;
-				if not (is_generic_parameter ctx c2) && not (has_meta ":?keepGenericBase" c.cl_meta) then begin
-					print_endline ("Keep " ^ (s_type_path c.cl_path));
-					c.cl_meta <- (":?keepGenericBase",[],p) :: c.cl_meta;
-				end;
+				if not (is_generic_parameter ctx c2) && not (has_meta ":?keepGenericBase" c.cl_meta) then c.cl_meta <- (":?keepGenericBase",[],p) :: c.cl_meta;
 				recurse := true
 			| _ -> ());
 			List.iter check_recursive tl;
