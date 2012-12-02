@@ -98,6 +98,7 @@ typedef EnumField = {
 	var meta : MetaAccess;
 	var index : Int;
 	var doc : Null<String>;
+	var params : Array<{ name : String, t : Type }>;
 }
 
 typedef EnumType = {> BaseType,

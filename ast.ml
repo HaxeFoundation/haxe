@@ -247,7 +247,15 @@ type abstract_flag =
 	| ASubType of complex_type
 	| ASuperType of complex_type
 
-type enum_constructor = string * documentation * metadata * (string * bool * complex_type) list * pos
+type enum_constructor = {
+	ec_name : string;
+	ec_doc : documentation;
+	ec_meta : metadata;
+	ec_args : (string * bool * complex_type) list;
+	ec_pos : pos;
+	ec_params : type_param list;
+	ec_type : complex_type option;
+}
 
 type ('a,'b) definition = {
 	d_name : string;
@@ -483,7 +491,7 @@ let map_expr loop (e,p) =
 	let rec tparam = function
 		| TPType t -> TPType (ctype t)
 		| TPExpr e -> TPExpr (loop e)
-	and cfield f = 
+	and cfield f =
 		{ f with cff_kind = (match f.cff_kind with
 			| FVar (t,e) -> FVar (opt ctype t, opt loop e)
 			| FFun f -> FFun (func f)
@@ -499,7 +507,7 @@ let map_expr loop (e,p) =
 	and tparamdecl t =
 		{ tp_name = t.tp_name; tp_constraints = List.map ctype t.tp_constraints; tp_params = List.map tparamdecl t.tp_params }
 	and func f =
-		{	
+		{
 			f_params = List.map tparamdecl f.f_params;
 			f_args = List.map (fun (n,o,t,e) -> n,o,opt ctype t,opt loop e) f.f_args;
 			f_type = opt ctype f.f_type;
@@ -562,7 +570,7 @@ let reify in_macro =
 		match o with
 		| OpAdd -> op "OpAdd"
 		| OpMult -> op "OpMult"
-		| OpDiv -> op "OpDiv" 
+		| OpDiv -> op "OpDiv"
 		| OpSub -> op "OpSub"
 		| OpAssign -> op "OpAssign"
 		| OpEq -> op "OpEq"
@@ -636,7 +644,7 @@ let reify in_macro =
 			let fields = [
 				"name", to_string n p;
 				"opt", to_bool o p;
-				"type", to_opt to_ctype t p;					
+				"type", to_opt to_ctype t p;
 			] in
 			to_obj (match e with None -> fields | Some e -> fields @ ["value",to_expr e p]) p
 		in
@@ -657,7 +665,7 @@ let reify in_macro =
 		to_obj fields p
 	and to_cfield f p =
 		let p = f.cff_pos in
-		let to_access a p = 
+		let to_access a p =
 			let n = (match a with
 			| APublic -> "APublic"
 			| APrivate -> "APrivate"
@@ -687,7 +695,7 @@ let reify in_macro =
 		let fields = List.rev (List.fold_left (fun acc v -> match v with None -> acc | Some e -> e :: acc) [] fields) in
 		to_obj fields p
 	and to_meta m p =
-		to_array (fun (m,el,p) _ -> 
+		to_array (fun (m,el,p) _ ->
 			let fields = [
 				"name", to_string m p;
 				"params", to_expr_array el p;
@@ -705,10 +713,10 @@ let reify in_macro =
 			to_obj [("file",file);("min",pmin);("max",pmax)] p
 	and to_expr_array a p = match a with
 		| [EArray ((EConst(Ident("$")),_),e),p] -> e
-		| _ -> to_array to_expr a p		
+		| _ -> to_array to_expr a p
 	and to_expr e _ =
 		let p = snd e in
-		let expr n vl = 
+		let expr n vl =
 			let e = mk_enum "ExprDef" n vl p in
 			to_obj [("expr",e);("pos",to_pos p)] p
 		in
@@ -728,7 +736,7 @@ let reify in_macro =
 			expr "EField" [loop e; to_string s p]
 		| EParenthesis e ->
 			expr "EParenthesis" [loop e]
-		| EObjectDecl fl -> 
+		| EObjectDecl fl ->
 			expr "EObjectDecl" [to_array (fun (f,e) -> to_obj [("field",to_string f p);("expr",loop e)]) fl p]
 		| EArrayDecl el ->
 			expr "EArrayDecl" [to_expr_array el p]

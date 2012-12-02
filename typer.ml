@@ -839,7 +839,7 @@ let rec type_ident_raise ?(imported_enums=true) ctx i p mode =
 				| TEnumDecl e ->
 					try
 						let ef = PMap.find i e.e_constrs in
-						mk (TEnumField (e,i)) (monomorphs e.e_types ef.ef_type) p
+						mk (TEnumField (e,i)) (monomorphs ef.ef_params (monomorphs e.e_types ef.ef_type)) p
 					with
 						Not_found -> loop l
 		in
@@ -1444,7 +1444,7 @@ and type_switch ctx e cases def need_val with_type p =
 				| [None] -> List.map (fun _ -> None) l
 				| _ -> error ("This constructor requires " ^ string_of_int (List.length l) ^ " arguments") p
 			) in
-			Some (List.map2 (fun p (_,_,t) -> match p with None -> None | Some p -> Some (p, apply_params en.e_types params t)) pl l)
+			Some (List.map2 (fun p (_,_,t) -> match p with None -> None | Some p -> Some (p, monomorphs cst.ef_params (apply_params en.e_types params t))) pl l)
 		| TEnum _ ->
 			if pl <> [] then error "This constructor does not require any argument" p;
 			None

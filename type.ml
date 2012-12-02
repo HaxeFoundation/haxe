@@ -199,6 +199,7 @@ and tenum_field = {
 	ef_pos : Ast.pos;
 	ef_doc : Ast.documentation;
 	ef_index : int;
+	ef_params : type_params;
 	mutable ef_meta : metadata;
 }
 

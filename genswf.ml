@@ -302,7 +302,15 @@ let build_class com c file =
 				match f.cff_kind with
 				| FVar (Some (CTPath { tpackage = []; tname = ("String" | "Int" | "UInt") as tname }),None) when List.mem AStatic f.cff_access ->
 					if !real_type = "" then real_type := tname else if !real_type <> tname then raise Exit;
-					(f.cff_name,None,[],[],pos) :: loop l
+					{
+						ec_name = f.cff_name;
+						ec_pos = pos;
+						ec_args = [];
+						ec_params = [];
+						ec_meta = [];
+						ec_doc = None;
+						ec_type = None;
+					} :: loop l
 				| FFun { f_args = [] } when f.cff_name = "new" -> loop l
 				| _ -> raise Exit
 		in

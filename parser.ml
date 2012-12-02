@@ -499,11 +499,28 @@ and parse_enum s =
 	doc := None;
 	let meta = parse_meta s in
 	match s with parser
-	| [< name, p1 = any_enum_ident; doc = get_doc; s >] ->
-		match s with parser
-		| [< '(POpen,_); l = psep Comma parse_enum_param; '(PClose,_); p = semicolon; >] -> (name,doc,meta,l,punion p1 p)
-		| [< '(Semicolon,p) >] -> (name,doc,meta,[],punion p1 p)
-		| [< >] -> serror()
+	| [< name, p1 = any_enum_ident; doc = get_doc; params = parse_constraint_params; s >] ->
+		let args = (match s with parser
+		| [< '(POpen,_); l = psep Comma parse_enum_param; '(PClose,_) >] -> l
+		| [< >] -> []
+		) in
+		let t = (match s with parser
+		| [< '(DblDot,_); t = parse_complex_type >] -> Some t
+		| [< >] -> None
+		) in
+		let p2 = (match s with parser
+			| [< p = semicolon >] -> p
+			| [< >] -> serror()
+		) in
+		{
+			ec_name = name;
+			ec_doc = doc;
+			ec_meta = meta;
+			ec_args = args;
+			ec_params = params;
+			ec_type = t;
+			ec_pos = punion p1 p2;
+		}
 
 and parse_enum_param = parser
 	| [< '(Question,_); name, _ = ident; '(DblDot,_); t = parse_complex_type >] -> (name,true,t)

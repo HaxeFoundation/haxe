@@ -1683,16 +1683,16 @@ let init_module_type ctx context_init do_init (decl,p) =
 			e.e_meta <- e.e_meta @ hcl.tp_meta);
 		let constructs = ref d.d_data in
 		let get_constructs() =
-			List.map (fun (c,doc,meta,pl,p) ->
+			List.map (fun c ->
 				{
-					cff_name = c;
-					cff_doc = doc;
-					cff_meta = meta;
-					cff_pos = p;
+					cff_name = c.ec_name;
+					cff_doc = c.ec_doc;
+					cff_meta = c.ec_meta;
+					cff_pos = c.ec_pos;
 					cff_access = [];
-					cff_kind = (match pl with
-						| [] -> FVar (None,None)
-						| _ -> FFun { f_params = []; f_type = None; f_expr = None; f_args = List.map (fun (n,o,t) -> n,o,Some t,None) pl });
+					cff_kind = (match c.ec_args, c.ec_params with
+						| [], [] -> FVar (c.ec_type,None)
+						| _ -> FFun { f_params = c.ec_params; f_type = c.ec_type; f_expr = None; f_args = List.map (fun (n,o,t) -> n,o,Some t,None) c.ec_args });
 				}
 			) (!constructs)
 		in
@@ -1700,39 +1700,68 @@ let init_module_type ctx context_init do_init (decl,p) =
 			match e with
 			| EVars [_,Some (CTAnonymous fields),None] ->
 				constructs := List.map (fun f ->
-					(f.cff_name,f.cff_doc,f.cff_meta,(match f.cff_kind with
-					| FVar (None,None) -> []
-					| FFun { f_params = []; f_type = None; f_expr = (None|Some (EBlock [],_)); f_args = pl } -> List.map (fun (n,o,t,_) -> match t with None -> error "Missing function parameter type" f.cff_pos | Some t -> n,o,t) pl
-					| _ -> error "Invalid enum constructor in @:build result" p
-					),f.cff_pos)
+					let args, params, t = (match f.cff_kind with
+					| FVar (t,None) -> [], [], t
+					| FFun { f_params = pl; f_type = t; f_expr = (None|Some (EBlock [],_)); f_args = al } ->
+						let al = List.map (fun (n,o,t,_) -> match t with None -> error "Missing function parameter type" f.cff_pos | Some t -> n,o,t) al in
+						al, pl, t
+					| _ ->
+						error "Invalid enum constructor in @:build result" p
+					) in
+					{
+						ec_name = f.cff_name;
+						ec_doc = f.cff_doc;
+						ec_meta = f.cff_meta;
+						ec_pos = f.cff_pos;
+						ec_args = args;
+						ec_params = params;
+						ec_type = t;
+					}
 				) fields
 			| _ -> error "Enum build macro must return a single variable with anonymous object fields" p
 		);
 		let et = TEnum (e,List.map snd e.e_types) in
 		let names = ref [] in
 		let index = ref 0 in
-		List.iter (fun (c,doc,meta,t,p) ->
-			let t = (match t with
-				| [] -> et
+		List.iter (fun c ->
+			let p = c.ec_pos in
+			let params = ref [] in
+			params := List.map (fun tp -> type_type_params ctx ([],c.ec_name) (fun() -> !params) c.ec_pos tp) c.ec_params;
+			let params = !params in
+			let ctx = { ctx with type_params = params @ ctx.type_params } in
+			let rt = (match c.ec_type with
+				| None -> et
+				| Some t ->
+					let t = load_complex_type ctx p t in
+					(match follow t with
+					| TEnum (te,_) when te == e ->
+						()
+					| _ ->
+						error "Explicit enum type must be of the same enum type" p);
+					t
+			) in
+			let t = (match c.ec_args with
+				| [] -> rt
 				| l ->
 					let pnames = ref PMap.empty in
 					TFun (List.map (fun (s,opt,t) ->
-						if PMap.mem s (!pnames) then error ("Duplicate parameter '" ^ s ^ "' in enum constructor " ^ c) p;
+						if PMap.mem s (!pnames) then error ("Duplicate parameter '" ^ s ^ "' in enum constructor " ^ c.ec_name) p;
 						pnames := PMap.add s () (!pnames);
 						s, opt, load_type_opt ~opt ctx p (Some t)
-					) l, et)
+					) l, rt)
 			) in
-			if PMap.mem c e.e_constrs then error ("Duplicate constructor " ^ c) p;
-			e.e_constrs <- PMap.add c {
-				ef_name = c;
+			if PMap.mem c.ec_name e.e_constrs then error ("Duplicate constructor " ^ c.ec_name) p;
+			e.e_constrs <- PMap.add c.ec_name {
+				ef_name = c.ec_name;
 				ef_type = t;
 				ef_pos = p;
-				ef_doc = doc;
+				ef_doc = c.ec_doc;
 				ef_index = !index;
-				ef_meta = meta;
+				ef_params = params;
+				ef_meta = c.ec_meta;
 			} e.e_constrs;
 			incr index;
-			names := c :: !names;
+			names := c.ec_name :: !names;
 		) (!constructs);
 		e.e_names <- List.rev !names;
 		e.e_extern <- e.e_extern || e.e_names = [];

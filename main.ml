@@ -350,7 +350,10 @@ let run_command ctx cmd =
 			end
 		| s :: _ ->
 			let n = Unix.read s tmp 0 (String.length tmp) in
-			Buffer.add_substring (if s == iout then bout else berr) tmp 0 n;
+			if s == iout && n > 0 then
+				ctx.com.print (String.sub tmp 0 n)
+			else
+				Buffer.add_substring (if s == iout then bout else berr) tmp 0 n;
 			loop (if n = 0 then List.filter ((!=) s) ins else ins)
 	in
 	(try loop [iout;ierr] with Unix.Unix_error _ -> ());
@@ -661,14 +664,6 @@ and do_connect host port args =
 	(try Unix.connect sock (Unix.ADDR_INET (Unix.inet_addr_of_string host,port)) with _ -> failwith ("Couldn't connect on " ^ host ^ ":" ^ string_of_int port));
 	let args = ("--cwd " ^ Unix.getcwd()) :: args in
 	ssend sock (String.concat "" (List.map (fun a -> a ^ "\n") args) ^ "\000");
-	let buf = Buffer.create 0 in
-	let tmp = String.create 100 in
-	let rec loop() =
-		let b = Unix.recv sock tmp 0 100 [] in
-		Buffer.add_substring buf tmp 0 b;
-		if b > 0 then loop()
-	in
-	loop();
 	let has_error = ref false in
 	let rec print line =
 		match (if line = "" then '\x00' else line.[0]) with
@@ -679,9 +674,28 @@ and do_connect host port args =
 		| _ ->
 			prerr_endline line;
 	in
-	let lines = ExtString.String.nsplit (Buffer.contents buf) "\n" in
-	let lines = (match List.rev lines with "" :: l -> List.rev l | _ -> lines) in
-	List.iter print lines;
+	let buf = Buffer.create 0 in
+	let process() =
+		let lines = ExtString.String.nsplit (Buffer.contents buf) "\n" in
+		(* the last line ends with \n *)
+		let lines = (match List.rev lines with "" :: l -> List.rev l | _ -> lines) in
+		List.iter print lines;
+	in
+	let tmp = String.create 1024 in
+	let rec loop() =
+		let b = Unix.recv sock tmp 0 1024 [] in
+		Buffer.add_substring buf tmp 0 b;
+		if b > 0 then begin
+			prerr_endline (string_of_int (int_of_char (String.get tmp (b - 1))));
+			if String.get tmp (b - 1) = '\n' then begin
+				process();
+				Buffer.reset buf;
+			end;
+			loop();
+		end
+	in
+	loop();
+	process();
 	if !has_error then exit 1
 
 and init ctx =

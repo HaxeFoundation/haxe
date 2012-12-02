@@ -4003,20 +4003,22 @@ let rec encode_mtype t fields =
 		"isPrivate", VBool i.mt_private;
 		"meta", encode_meta i.mt_meta (fun m -> i.mt_meta <- m);
 		"doc", null enc_string i.mt_doc;
+		"params", encode_type_params i.mt_types;
 	] @ fields)
 
+and encode_type_params tl =
+	enc_array (List.map (fun (n,t) -> enc_obj ["name",enc_string n;"t",encode_type t]) tl)
+	
 and encode_tenum e =
 	encode_mtype (TEnumDecl e) [
 		"isExtern", VBool e.e_extern;
 		"exclude", VFunction (Fun0 (fun() -> e.e_extern <- true; VNull));
-		"params", enc_array (List.map (fun (n,t) -> enc_obj ["name",enc_string n;"t",encode_type t]) e.e_types);
 		"constructs", encode_pmap encode_efield e.e_constrs;
 		"names", enc_array (List.map enc_string e.e_names);
 	]
 
 and encode_tabstract a =
 	encode_mtype (TAbstractDecl a) [
-		"params", enc_array (List.map (fun (n,t) -> enc_obj ["name",enc_string n;"t",encode_type t]) a.a_types);
 	]
 
 and encode_efield f =
@@ -4027,6 +4029,7 @@ and encode_efield f =
 		"index", VInt f.ef_index;
 		"meta", encode_meta f.ef_meta (fun m -> f.ef_meta <- m);
 		"doc", null enc_string f.ef_doc;
+		"params", encode_type_params f.ef_params;
 	]
 
 and encode_cfield f =
@@ -4034,7 +4037,7 @@ and encode_cfield f =
 		"name", enc_string f.cf_name;
 		"type", (match f.cf_kind with Method _ -> encode_lazy_type f.cf_type | _ -> encode_type f.cf_type);
 		"isPublic", VBool f.cf_public;
-		"params", enc_array (List.map (fun (n,t) -> enc_obj ["name",enc_string n;"t",encode_type t]) f.cf_params);
+		"params", encode_type_params f.cf_params;
 		"meta", encode_meta f.cf_meta (fun m -> f.cf_meta <- m);
 		"expr", (VFunction (Fun0 (fun() -> ignore(follow f.cf_type); (match f.cf_expr with None -> VNull | Some e -> encode_texpr e))));
 		"kind", encode_field_kind f.cf_kind;
@@ -4088,7 +4091,6 @@ and encode_tclass c =
 		"kind", encode_class_kind c.cl_kind;
 		"isExtern", VBool c.cl_extern;
 		"exclude", VFunction (Fun0 (fun() -> c.cl_extern <- true; c.cl_init <- None; VNull));
-		"params", enc_array (List.map (fun (n,t) -> enc_obj ["name",enc_string n;"t",encode_type t]) c.cl_types);
 		"isInterface", VBool c.cl_interface;
 		"superClass", (match c.cl_super with
 			| None -> VNull
@@ -4105,7 +4107,6 @@ and encode_ttype t =
 	encode_mtype (TTypeDecl t) [
 		"isExtern", VBool false;
 		"exclude", VFunction (Fun0 (fun() -> VNull));
-		"params", enc_array (List.map (fun (n,t) -> enc_obj ["name",enc_string n;"t",encode_type t]) t.t_types);
 		"type", encode_type t.t_type;
 	]
 
@@ -4222,7 +4223,20 @@ let decode_type_def v =
 				| None -> raise Invalid_expr
 				| Some t -> n, opt, t
 			in
-			f.cff_name, f.cff_doc, f.cff_meta, (match f.cff_kind with FVar (None,None) -> [] | FFun f -> List.map loop f.f_args | _ -> raise Invalid_expr), f.cff_pos
+			let args, params, t = (match f.cff_kind with
+				| FVar (t,None) -> [], [], t
+				| FFun f -> List.map loop f.f_args, f.f_params, f.f_type
+				| _ -> raise Invalid_expr
+			) in
+			{
+				ec_name = f.cff_name;
+				ec_doc = f.cff_doc;
+				ec_meta = f.cff_meta;
+				ec_pos = f.cff_pos;
+				ec_args = args;
+				ec_params = params;
+				ec_type = t;
+			}
 		in
 		EEnum (mk (if isExtern then [EExtern] else []) (List.map conv fields))
 	| 1, [] ->
