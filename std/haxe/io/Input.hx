@@ -383,25 +383,13 @@ class Input {
 	static var _double_of_bytes = cpp.Lib.load("std","double_of_bytes",2);
 #end
 
-#if flash
-	function getDoubleSig(bytes:Array<Int>) : Int
+#if (flash || js)
+	function getDoubleSig(bytes:Array<Int>)
     {
-        return untyped
-        {
-            Std.int(((((bytes[1]&0xF) << 16) | (bytes[2] << 8) | bytes[3] ) * Math.pow(2, 32))) +
-            Std.int(((bytes[4] >> 7) * Math.pow(2,31))) +
-            Std.int((((bytes[4]&0x7F) << 24) | (bytes[5] << 16) | (bytes[6] << 8) | bytes[7]));
-        };
-    }
-#elseif js
-	function getDoubleSig(bytes:Array<Int>) : Int
-    {
-        return untyped
-        {
-            Std.parseInt(((((bytes[1]&0xF) << 16) | (bytes[2] << 8) | bytes[3] ) * Math.pow(2, 32)).toString()) +
-            Std.parseInt(((bytes[4] >> 7) * Math.pow(2,31)).toString()) +
-            Std.parseInt((((bytes[4]&0x7F) << 24) | (bytes[5] << 16) | (bytes[6] << 8) | bytes[7]).toString());
-        };
+        return (((bytes[1]&0xF) << 16) | (bytes[2] << 8) | bytes[3] ) * 4294967296. +
+            (bytes[4] >> 7) * 2147483648 +
+            (((bytes[4]&0x7F) << 24) | (bytes[5] << 16) | (bytes[6] << 8) | bytes[7]);
     }
 #end
+
 }
