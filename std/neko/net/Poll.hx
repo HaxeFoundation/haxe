@@ -24,7 +24,7 @@ import sys.net.Socket;
 
 class Poll {
 
-	var d : Void;
+	var d : Dynamic;
 	public var readIndexes : ArrayAccess<Int>;
 	public var writeIndexes : ArrayAccess<Int>;
 

@@ -22,7 +22,7 @@
 package neko.vm;
 
 class Lock {
-	var l : Void;
+	var l : Dynamic;
 	public function new() {
 		l = lock_create();
 	}

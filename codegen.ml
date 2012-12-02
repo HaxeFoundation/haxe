@@ -657,10 +657,11 @@ let add_rtti ctx t =
 	| _ ->
 		()
 
-(* Removes extern and macro fields *)
+(* Removes extern and macro fields, also checks for Void fields *)
 let remove_extern_fields ctx t = match t with
 	| TClassDecl c ->
 		let do_remove f =
+			(match follow f.cf_type with TAbstract({a_path=[],"Void"},_) -> error "Fields of type Void are not allowed" f.cf_pos | _ -> ());
 			(not ctx.in_macro && f.cf_kind = Method MethMacro) || has_meta ":extern" f.cf_meta || has_meta ":generic" f.cf_meta
 		in
 		if not (Common.defined ctx.com Define.DocGen) then begin

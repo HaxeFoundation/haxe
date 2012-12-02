@@ -369,6 +369,8 @@ and load_complex_type ctx p t =
 				| AStatic | AOverride | AInline | ADynamic -> error ("Invalid access " ^ Ast.s_access a) p
 			) f.cff_access;
 			let t , access = (match f.cff_kind with
+				| FVar (Some (CTPath({tpackage=[];tname="Void"})), _)  | FProp (_,_,Some (CTPath({tpackage=[];tname="Void"})),_) ->
+					error "Fields of type Void are not allowed in structures" p
 				| FVar (t, e) ->
 					no_expr e;
 					topt t, Var { v_read = AccNormal; v_write = AccNormal }
@@ -1749,6 +1751,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 				| l ->
 					let pnames = ref PMap.empty in
 					TFun (List.map (fun (s,opt,t) ->
+						(match t with CTPath({tpackage=[];tname="Void"}) -> error "Arguments of type Void are not allowed in enum constructors" c.ec_pos | _ -> ());
 						if PMap.mem s (!pnames) then error ("Duplicate parameter '" ^ s ^ "' in enum constructor " ^ c.ec_name) p;
 						pnames := PMap.add s () (!pnames);
 						s, opt, load_type_opt ~opt ctx p (Some t)

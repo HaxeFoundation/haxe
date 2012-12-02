@@ -2086,6 +2086,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			let f,add = object_field f in
 			if PMap.mem f acc then error ("Duplicate field in object declaration : " ^ f) p;
 			let e = type_expr ctx e in
+			(match follow e.etype with TAbstract({a_path=[],"Void"},_) -> error "Fields of type Void are not allowed in structures" e.epos | _ -> ());
 			let cf = mk_field f e.etype e.epos in
 			((f,e) :: l, if add then PMap.add f cf acc else acc)
 		in
