@@ -69,7 +69,7 @@ class TestEReg extends Test {
 		
 		// we need to change our default customReplace implementation to fix that case
 		// the best is to add a matchSub(s,pos,len)
-		eq( ~/a+/g.map("aaabacx", function(r) return "[" + r.matchedLeft() + "]") , "[]b[aaab]cx" );
+		eq( ~/a+/g.map("aaabacxa", function(r) return "[" + r.matchedLeft() + "]") , "[]b[aaab]cx[aaabacx]" );
 		
 		// subsequent tests
 		var r = ~/a+/g;
@@ -88,19 +88,39 @@ class TestEReg extends Test {
 		eq(r.matchedRight(), "bab");
 		t(r.matchSub("abab", 1));
 		eq(r.matchedRight(), "b");
-		eq(r.matchedLeft(), "ab");		
+		eq(r.matchedLeft(), "ab");
 		// length
-		f(r.matchSub("bbaa", 0, 1)); 
-		f(r.matchSub("bbaa", 0, 2)); 
+		f(r.matchSub("bbaa", 0, 1));
+		f(r.matchSub("bbaa", 0, 2));
 		f(r.matchSub("bbaa", 1, 1)); 
 		t(r.matchSub("bbaa", 2, 1));
 		eq(r.matchedLeft(), "bb");
 		eq(r.matchedRight(), "a");
+
+		eq( ~/x?/g.map("aaabacx", function(r) return "[" + r.matched(0)+ "]") , "[]a[]a[]a[]b[]a[]c[x]" );
 		
-		// this one creates infinite loops on too most of the platforms ! TOFIX !
-		// eq( ~/x?/g.customReplace("aaabacx", function(r) return "[" + r.matched(0)+ "]") , "[]a[]a[]a[]b[]a[]c[][x]" );
+		var f = function(x) return "([" +x.matchedLeft() + "]" + "[" +x.matched(0) + "]" + "[" +x.matchedRight() + "])b";
+		var r = ~/$/mg;
+		eq(r.map("\n", f), "([][][\n])b\n");
+		eq(r.map("a", f), "a([a][][])b");
+		eq(r.map("aa\na", f), "aa([aa][][\na])b\na([aa\na][][])b");
+		//eq(r.map("", f, "")); // let's ignore this case
 		
+		var r = ~/^/mg;
+		eq(r.map("\n", f), "([][][\n])b\n");
+		eq(r.map("a", f), "([][][a])ba");
+		eq(r.map("aa\na", f), "([][][aa\na])baa\n([aa\n][][a])ba");
 		
+		var r = ~/$/m;
+		eq(r.map("\n", f), "([][][\n])b\n");
+		eq(r.map("a", f), "a([a][][])b");
+		eq(r.map("aa\na", f), "aa([aa][][\na])b\na");
+		//eq(r.map("", f, "")); // let's ignore this case
+		
+		var r = ~/^/m;
+		eq(r.map("\n", f), "([][][\n])b\n");
+		eq(r.map("a", f), "([][][a])ba");
+		eq(r.map("aa\na", f), "([][][aa\na])baa\na");		
 		#end
 	}
 

@@ -150,14 +150,24 @@
 		var offset = 0;
 		var buf = new StringBuf();
 		do {
-			if (!matchSub(s, offset))
+			if (offset >= s.length)
 				break;
-			var p = matchedPos();
+			else if (!matchSub(s, offset)) {
+				buf.add(s.substr(offset));
+				break;
+			}
+			var p = regexp_matched_pos(r,0);
 			buf.add(s.substr(offset, p.pos - offset));
 			buf.add(f(this));
-			offset = p.pos + p.len;
+			if (p.len == 0) {
+				buf.add(s.substr(p.pos, 1));
+				offset = p.pos + 1;
+			}
+			else
+				offset = p.pos + p.len;
 		} while (global);
-		buf.add(s.substr(offset));
+		if (!global && offset < s.length)
+			buf.add(s.substr(offset));		
 		return buf.toString();
 	}
 

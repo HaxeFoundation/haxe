@@ -57,12 +57,22 @@
 	}
 	
 	public function matchSub( s : String, pos : Int, len : Int = -1):Bool {
-		var b = match( len < 0 ? s.substr(pos) : s.substr(pos,len) );
-		if (b) {
-			result.input = s;
-			result.index += pos;
+		return if (r.global) {
+			r.lastIndex = pos;
+			result = r.exec(len < 0 ? s : s.substr(0, pos + len));
+			var b = result != null;
+			if (b) {
+				result.input = s;
+			}
+			b;
+		} else {
+			var b = match( len < 0 ? s.substr(pos) : s.substr(pos,len) );
+			if (b) {
+				result.input = s;
+				result.index += pos;
+			}
+			b;
 		}
-		return b;
 	}
 
 	public function split( s : String ) : Array<String> {
@@ -79,14 +89,27 @@
 	public function map( s : String, f : EReg -> String ) : String {
 		var offset = 0;
 		var buf = new StringBuf();
+		var first = true;
 		do {
-			if (!matchSub(s, offset))
+			if (offset >= s.length)
 				break;
-			buf.add(s.substr(offset, result.index - offset));
+			else if (!matchSub(s, offset)) {
+				buf.add(s.substr(offset));
+				break;
+			}
+			var p = matchedPos();
+			buf.add(s.substr(offset, p.pos - offset));
 			buf.add(f(this));
-			offset = result.index + result[0].length;
+			if (p.len == 0) {
+				buf.add(s.substr(p.pos, 1));
+				offset = p.pos + 1;
+			}
+			else
+				offset = p.pos + p.len;
+			first = false;
 		} while (r.global);
-		buf.add(s.substr(offset));
+		if (!r.global && offset < s.length)
+			buf.add(s.substr(offset));
 		return buf.toString();
 	}
 
@@ -95,13 +118,22 @@
 		var offset = 0;
 		var buf = new StringBuf();
 		do {
-			if (!matchSub(s, offset))
+			if (offset >= s.length)
 				break;
-			buf.add(s.substr(offset, result.index - offset));
+			else if (!matchSub(s, offset)) {
+				buf.add(s.substr(offset));
+				break;
+			}
+			var p = matchedPos();
+			buf.add(s.substr(offset, p.pos - offset));
 			buf.add(f(this));
-			offset = result.index + result[0].length;
+			if (p.len == 0) {
+				buf.add(s.substr(p.pos, 1));
+				offset = p.pos + 1;
+			}
+			else
+				offset = p.pos + p.len;
 		} while (true);
-		buf.add(s.substr(offset));
 		return buf.toString();
 	}
 	#end

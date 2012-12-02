@@ -56,13 +56,24 @@
 	}
 
 	public function matchSub( s : String, pos : Int, len : Int = -1):Bool {
-		var b = match( len < 0 ? s.substr(pos) : s.substr(pos,len) );
-		if (b) {
-			r.s = s;
-			r.m.index += pos;
+		return if (r.global) {
+			r.lastIndex = pos;
+			r.m = r.exec(len < 0 ? s : s.substr(0, pos + len));
+			var b = r.m != null;
+			if (b) {
+				r.s = s;
+			}
+			b;
+		} else {
+			// TODO: check some ^/$ related corner cases
+			var b = match( len < 0 ? s.substr(pos) : s.substr(pos,len) );
+			if (b) {
+				r.s = s;
+				r.m.index += pos;
+			}
+			b;
 		}
-		return b;
-	}
+	}	
 	
 	public function split( s : String ) : Array<String> {
 		// we can't use directly s.split because it's ignoring the 'g' flag
@@ -78,15 +89,24 @@
 		var offset = 0;
 		var buf = new StringBuf();
 		do {
-			if (!matchSub(s, offset))
+			if (offset >= s.length)
 				break;
+			else if (!matchSub(s, offset)) {
+				buf.add(s.substr(offset));
+				break;
+			}
 			var p = matchedPos();
-			buf.add(s.substr(offset, cast(p.pos,Int) - offset));
+			buf.add(s.substr(offset, p.pos - offset));
 			buf.add(f(this));
-			var p = matchedPos();
-			offset = p.pos + p.len;
+			if (p.len == 0) {
+				buf.add(s.substr(p.pos, 1));
+				offset = p.pos + 1;
+			}
+			else
+				offset = p.pos + p.len;
 		} while (r.global);
-		buf.add(s.substr(offset));
+		if (!r.global && offset < s.length)
+			buf.add(s.substr(offset));
 		return buf.toString();
 	}
 

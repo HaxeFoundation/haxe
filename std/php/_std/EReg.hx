@@ -74,9 +74,8 @@
 	}
 	
 	public function matchSub( s : String, pos : Int, len : Int = -1):Bool {
-		var p : Int = untyped __call__("preg_match", re, len < 0 ? s.substr(pos) : s.substr(pos,len), matches, __php__("PREG_OFFSET_CAPTURE"));
+		var p : Int = untyped __call__("preg_match", re, len < 0 ? s : s.substr(0,pos + len), matches, __php__("PREG_OFFSET_CAPTURE"), pos);
 		if(p > 0) {
-			untyped __php__("$this->matches[0][1] += $pos");
 			last = s;
 		}
 		else
@@ -99,14 +98,24 @@
 		var offset = 0;
 		var buf = new StringBuf();
 		do {
-			if (!matchSub(s, offset))
+			if (offset >= s.length)
 				break;
+			else if (!matchSub(s, offset)) {
+				buf.add(s.substr(offset));
+				break;
+			}
 			var p = matchedPos();
 			buf.add(s.substr(offset, p.pos - offset));
 			buf.add(f(this));
-			offset = p.pos + p.len;
+			if (p.len == 0) {
+				buf.add(s.substr(p.pos, 1));
+				offset = p.pos + 1;
+			}
+			else
+				offset = p.pos + p.len;
 		} while (global);
-		buf.add(s.substr(offset));
+		if (!global && offset < s.length)
+			buf.add(s.substr(offset));		
 		return buf.toString();
 	}
 	
