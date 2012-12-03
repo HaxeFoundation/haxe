@@ -959,6 +959,7 @@ let parse ctx code =
 	doc := None;
 	in_macro := Common.defined ctx Common.Define.Macro;
 	Lexer.skip_header code;
+
 	let sraw = Stream.from (fun _ -> Some (Lexer.token code)) in
 	let rec next_token() = process_token (Lexer.token code)
 
@@ -1017,7 +1018,14 @@ let parse ctx code =
 		in
 		let rec loop (e,p) =
 			match e with
-			| EConst (Ident i) -> (try TString (Common.raw_defined_value ctx i) with Not_found -> TNull)
+			| EConst (Ident i) ->
+				(try
+					TString (Common.raw_defined_value ctx i)
+				with Not_found ->
+					if i = "macro" && Common.unique_full_path p.pfile = (!resume_display).pfile then
+						TString "1"
+					else
+						TNull)
 			| EConst (String s) -> TString s
 			| EConst (Int i) -> TFloat (float_of_string i)
 			| EConst (Float f) -> TFloat (float_of_string f)
