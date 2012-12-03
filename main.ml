@@ -827,7 +827,8 @@ try
 				| [width; height; fps] ->
 					(int_of_string width,int_of_string height,float_of_string fps,0xFFFFFF)
 				| [width; height; fps; color] ->
-					(int_of_string width, int_of_string height, float_of_string fps, try int_of_string color with _ -> int_of_string ("0x" ^ color))
+					let color = if ExtString.String.starts_with color "0x" then color else "0x" ^ color in
+					(int_of_string width, int_of_string height, float_of_string fps, int_of_string color)
 				| _ -> raise Exit)
 			with
 				_ -> raise (Arg.Bad "Invalid SWF header format, expected width:height:fps[:color]")
