@@ -1097,7 +1097,19 @@ let generate com swf_header =
 		})]
 	) in
 	let fattr = if Common.defined com Define.AdvancedTelemetry then fattr @ [tag (TUnknown (0x5D,"\x00\x00"))] else fattr in
-	let swf = header, fattr @ bg :: debug @ tags @ [tag TShowFrame] in
+	let preframe, header = 
+		if Common.defined com Define.SwfPreloaderFrame then 
+			[tag TShowFrame], {h_version=header.h_version; h_size=header.h_size; h_frame_count=header.h_frame_count+1; h_fps=header.h_fps; h_compressed=header.h_compressed; } 
+		else 
+			[], header in
+	let swf_script_limits = try
+		let s = Common.defined_value com Define.SwfScriptTimeout in
+		let i = try int_of_string s with _ -> error "Argument to swf_script_timeout must be an integer" Ast.null_pos in
+		[tag(TScriptLimits (256, if i < 0 then 0 else if i > 65535 then 65535 else i))]
+	with Not_found ->
+		[]
+	in
+	let swf = header, fattr @ bg :: debug @ swf_script_limits @ preframe @ tags @ [tag TShowFrame] in
   (* merge swf libraries *)
 	let priority = ref (swf_header = None) in
 	let swf = List.fold_left (fun swf (file,lib,cl) ->

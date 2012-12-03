@@ -182,6 +182,8 @@ module Define = struct
 		| DumpDependencies
 		| Dce
 		| FormatWarning
+		| SwfPreloaderFrame
+		| SwfScriptTimeout
 
 		| Last (* must be last *)
 
@@ -210,6 +212,8 @@ module Define = struct
 		| Fdb -> ("fdb","Enable full flash debug infos for FDB interactive debugging")
 		| Swc -> ("swc","Output a SWC instead of a SWF")
 		| SwfProtected -> ("swf_protected","Compile Haxe private as protected in the SWF instead of public")
+		| SwfPreloaderFrame -> ("swf_preloader_frame", "Insert empty first frame in swf")
+		| SwfScriptTimeout -> ("swf_script_timeout", "Maximum ActionScript processing time before script stuck dialog box displays (in seconds)")
 		| JsModern -> ("js_modern","Use function wrapper and strict mode in JS output")
 		| JsClassic -> ("js_classic","Don't use a function wrapper and strict mode in JS output")
 		| FlashStrict -> ("flash_strict","More strict typing for flash target")
