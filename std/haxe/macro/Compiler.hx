@@ -84,19 +84,25 @@ class Compiler {
 		Include for compilation all classes defined in the given package excluding the ones referenced in the ignore list.
 	**/
 	public static function include( pack : String, ?rec = true, ?ignore : Array<String>, ?classPaths : Array<String> ) {
-		var skip = if(null == ignore) {
+		var skip = if( ignore == null ) {
 			function(c) return false;
 		} else {
 			function(c) return Lambda.has(ignore, c);
 		}
-		if(null == classPaths)
+		if( classPaths == null ) {
 			classPaths = Context.getClassPath();
-		// normalize class path
-		for( i in 0...classPaths.length ) {
-			var cp = StringTools.replace(classPaths[i], "\\", "/");
-			if(StringTools.endsWith(cp, "/"))
-				cp = cp.substr(0, -1);
-			classPaths[i] = cp;
+			// do not force inclusion when using completion
+			if( Context.defined("display") )
+				return;
+			// normalize class path
+			for( i in 0...classPaths.length ) {
+				var cp = StringTools.replace(classPaths[i], "\\", "/");
+				if(StringTools.endsWith(cp, "/"))
+					cp = cp.substr(0, -1);
+				if( cp == "" )
+					cp = ".";
+				classPaths[i] = cp;
+			}
 		}
 		var prefix = pack == '' ? '' : pack + '.';
 		for( cp in classPaths ) {
