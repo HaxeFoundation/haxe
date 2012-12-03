@@ -27,7 +27,7 @@ package flash;
 	public function new() {
 		super();
 	}
-	public static function init(mc) {
+	public static function initSwc(mc) {
 		flash.Lib.current = mc;
 		new RealBoot().init();
 	}
