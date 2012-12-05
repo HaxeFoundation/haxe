@@ -125,7 +125,10 @@ let rec mark_t dce t = match follow t with
 		List.iter (mark_t dce) pl
 	| TInst(c,pl) -> mark_class dce c; List.iter (mark_t dce) pl
 	| TFun(args,ret) -> List.iter (fun (_,_,t) -> mark_t dce t) args; mark_t dce ret
-	| TEnum(e,pl) -> if not (has_meta ":used" e.e_meta) then e.e_meta <- (":used",[],e.e_pos) :: e.e_meta; List.iter (mark_t dce) pl
+	| TEnum(e,pl) -> if not (has_meta ":used" e.e_meta) then begin
+		e.e_meta <- (":used",[],e.e_pos) :: e.e_meta; List.iter (mark_t dce) pl;
+		PMap.iter (fun _ ef -> mark_t dce ef.ef_type) e.e_constrs;
+	end
 	| TAbstract(a,pl) -> if not (has_meta ":used" a.a_meta) then a.a_meta <- (":used",[],a.a_pos) :: a.a_meta; List.iter (mark_t dce) pl
 	| TLazy _ | TDynamic _ | TAnon _ | TType _ | TMono _ -> ()
 
