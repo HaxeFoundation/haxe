@@ -6,6 +6,12 @@ enum Tree<T> {
 	Node(l:Tree<T>, r:Tree<T>);
 }
 
+enum A<T> {	
+	TA<Q>(q : Q) : A<Q>;
+	TB(v : Bool) : A<Bool>;
+	TC(v : Bool) : A<String>;
+}
+
 class TestMatch extends Test {
 	@:macro static function getErrorMessage(e:Expr) {
 		var result = try {
@@ -156,7 +162,14 @@ class TestMatch extends Test {
 			case [true, 1, "foo"]: "0";
 			case [true, 1, _]: "1";
 			case _: "_";
-		});		
+		});
+		
+		var t = TA("foo");
+		eq("0", switch(t) {
+			case TA("foo"): "0";
+			case TA(_): "1";
+			case TC(_): "2";
+		});
 	}
 	
 	function testSubtyping() {
@@ -216,7 +229,7 @@ class TestMatch extends Test {
 	}
 	
 	#if false
-	// all lines marked as // unused should give a warning
+	 //all lines marked as // unused should give a warning
 	function testRedundance() {
 		switch(true) {
 			case false:

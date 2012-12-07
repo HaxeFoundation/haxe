@@ -151,7 +151,7 @@ let rec s_pattern_vec pl =
 let s_outcome out = (match out.o_bindings with
 	| [] -> ""
 	| _ -> "var " ^ String.concat ", " (List.map (fun (v,st) -> v.v_name ^ ":" ^ (s_type (print_context()) v.v_type) ^ " = " ^ (s_subterm st)) out.o_bindings))
-		^ "id: " ^ (string_of_int out.o_id)
+		(* ^ "id: " ^ (string_of_int out.o_id) *)
 	(* ^ (s_expr (s_type (print_context())) out.o_expr) *)
 
 let rec s_pattern_matrix pmat =
@@ -222,6 +222,14 @@ let mk_any t p = {
 	ppos = p;
 }
 
+let unify_enum_field en pl ef t =
+	let t2 = match follow ef.ef_type with
+		| TFun(_,r) -> r
+		| t2 -> t2
+	in
+	let monos = List.map (fun _ -> mk_mono()) ef.ef_params in
+	Type.unify (apply_params en.e_types pl (apply_params ef.ef_params monos t2)) t
+
 (* Transform an expression to a pattern *)
 (* TODO: sanity check this *)
 let to_pattern ctx e t =
@@ -239,7 +247,8 @@ let to_pattern ctx e t =
 			| TEnumField(en2,s)
 			| TClosure ({ eexpr = TTypeExpr (TEnumDecl en2) },s) when en == en2 -> PMap.find s en.e_constrs
 			| _ -> error ("Expected constructor for enum " ^ (s_type_path en.e_path)) p
-		in		
+		in
+		(try unify_enum_field en pl ef t with Unify_error l -> error (error_msg (Unify l)) p);
 		let tl = match ef.ef_type with
 			| TFun(args,_) -> List.map (fun (_,_,t) -> t) args
 			| _ -> error "Arguments expected" p
@@ -249,7 +258,7 @@ let to_pattern ctx e t =
 				let pat = loop tctx e t_dynamic in
 				(ExtList.List.make ((List.length tl) + 1) pat) @ acc
 			| e :: el, t :: tl ->
-				let pat = loop tctx e (apply_params en.e_types pl t) in
+				let pat = loop tctx e (apply_params en.e_types pl (apply_params ef.ef_params (List.map (fun _ -> mk_mono()) ef.ef_params) t)) in
 				loop2 (pat :: acc) el tl
 			| e :: _, [] ->
 				error "Too many arguments" (pos e);
@@ -289,6 +298,7 @@ let to_pattern ctx e t =
 			| TEnumField(en,s)
 			| TField ({ eexpr = TTypeExpr (TEnumDecl en) },s) ->
 				let ef = PMap.find s en.e_constrs in
+				(* TODO: do we have to call unify_enum_field here? *)
 				mk_con_pat (CEnum(en,ef)) [] t p
 			| TTypeExpr mt ->
 				mk_con_pat (CType mt) [] t p
@@ -521,8 +531,13 @@ let all_ctors t =
 	| TInst({cl_path=[],"Array"},_)
 	| TAbstract _ ->
 		true
-	| TEnum(en,_) ->
-		PMap.iter (fun _ ef -> h := PMap.add (CEnum(en,ef)) ef.ef_pos !h) en.e_constrs;
+	| TEnum(en,pl) ->
+		PMap.iter (fun _ ef ->
+				try unify_enum_field en pl ef t;
+					h := PMap.add (CEnum(en,ef)) ef.ef_pos !h
+				with Unify_error _ ->
+					()
+		) en.e_constrs;
 		false
 	| TAnon {a_fields = fields}
 	| TInst({cl_fields = fields},_) ->
