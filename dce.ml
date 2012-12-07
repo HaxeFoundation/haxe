@@ -123,13 +123,21 @@ let rec mark_t dce t = match follow t with
 			List.iter (mark_t dce) tl;
 		end;
 		List.iter (mark_t dce) pl
-	| TInst(c,pl) -> mark_class dce c; List.iter (mark_t dce) pl
-	| TFun(args,ret) -> List.iter (fun (_,_,t) -> mark_t dce t) args; mark_t dce ret
-	| TEnum(e,pl) -> if not (has_meta ":used" e.e_meta) then begin
-		e.e_meta <- (":used",[],e.e_pos) :: e.e_meta; List.iter (mark_t dce) pl;
-		PMap.iter (fun _ ef -> mark_t dce ef.ef_type) e.e_constrs;
-	end
-	| TAbstract(a,pl) -> if not (has_meta ":used" a.a_meta) then a.a_meta <- (":used",[],a.a_pos) :: a.a_meta; List.iter (mark_t dce) pl
+	| TInst(c,pl) ->
+		mark_class dce c;
+		List.iter (mark_t dce) pl
+	| TFun(args,ret) ->
+		List.iter (fun (_,_,t) -> mark_t dce t) args;
+		mark_t dce ret
+	| TEnum(e,pl) ->
+		if not (has_meta ":used" e.e_meta) then begin
+			e.e_meta <- (":used",[],e.e_pos) :: e.e_meta;
+			PMap.iter (fun _ ef -> mark_t dce ef.ef_type) e.e_constrs;
+		end;
+		List.iter (mark_t dce) pl
+	| TAbstract(a,pl) ->
+		if not (has_meta ":used" a.a_meta) then a.a_meta <- (":used",[],a.a_pos) :: a.a_meta;
+		List.iter (mark_t dce) pl
 	| TLazy _ | TDynamic _ | TAnon _ | TType _ | TMono _ -> ()
 
 (* find all dependent fields by checking implementing/subclassing types *)
@@ -166,7 +174,6 @@ let rec field dce c n stat =
 			| Some cf -> cf
 		else PMap.find n (if stat then c.cl_statics else c.cl_fields)
 	in
-	let not_found () = if dce.debug then prerr_endline ("[DCE] Field " ^ n ^ " not found on " ^ (s_type_path c.cl_path)) else () in
 	(try
 		let cf = find_field n in
 		mark_field dce c cf stat;
@@ -189,15 +196,29 @@ let rec field dce c n stat =
 			);
 		end;
 		raise Not_found
-	with Not_found ->
+	with Not_found -> try
 		if c.cl_interface then begin
 			let rec loop cl = match cl with
-				| [] -> not_found()
+				| [] -> raise Not_found
 				| (c,_) :: cl ->
 					try field dce c n stat with Not_found -> loop cl
 			in
 			loop c.cl_implements
-		end else match c.cl_super with Some (csup,_) -> field dce csup n stat | None -> not_found())
+		end else match c.cl_super with Some (csup,_) -> field dce csup n stat | None -> raise Not_found
+	with Not_found -> try
+		match c.cl_kind with
+		| KTypeParameter tl ->
+			let rec loop tl = match tl with
+				| [] -> raise Not_found
+				| TInst(c,_) :: cl ->
+					(try field dce c n stat with Not_found -> loop cl)
+				| t :: tl ->
+					loop tl
+			in
+			loop tl
+		| _ -> raise Not_found
+	with Not_found ->
+		if dce.debug then prerr_endline ("[DCE] Field " ^ n ^ " not found on " ^ (s_type_path c.cl_path)) else ())
 
 and expr dce e =
 	match e.eexpr with
