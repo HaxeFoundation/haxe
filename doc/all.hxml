@@ -2,6 +2,7 @@
 --macro ImportAll.run()
 -D haxe3
 -D doc-gen
+-D pattern_matching
 --each
 
 -neko all.n

@@ -106,9 +106,9 @@ class Http {
 				me.onStatus(s);
 			if( s != null && s >= 200 && s < 400 )
 				me.onData(r.responseText);
+			else if ( s == null )
+				me.onError("Failed to connect or resolve host")
 			else switch( s ) {
-			case null:
-				me.onError("Failed to connect or resolve host");
 			case 12029:
 				me.onError("Failed to connect to host");
 			case 12007:

@@ -227,6 +227,9 @@ package unit;
 			new TestType(),
 			new TestOrder(),
 			new TestStringTools(),
+			#if pattern_matching
+			new TestMatch(),
+			#end
 			#if cs
 			new TestCSharp(),
 			#end

@@ -1393,7 +1393,7 @@ and type_unop ctx op flag e p =
 				ev2
 			]) t p
 
-and type_switch ctx e cases def need_val with_type p =
+and type_switch_old ctx e cases def need_val with_type p =
 	let eval = type_expr ctx e in
 	let old_m = ctx.m in
 	let enum = ref None in
@@ -1590,6 +1590,13 @@ and type_switch ctx e cases def need_val with_type p =
 		let def = def() in
 		let t = if not need_val then (mk_mono()) else unify_min ctx (List.rev !el) in
 		mk (TSwitch (eval,cases,def)) t p
+
+and type_switch ctx e cases def need_val with_type p =
+	try
+		if not (Common.defined ctx.com Common.Define.PatternMatching) then raise Exit;
+		match_expr ctx e cases def need_val with_type p
+	with Exit ->
+		type_switch_old ctx e cases def need_val with_type p
 
 and type_ident ctx i p mode =
 	try

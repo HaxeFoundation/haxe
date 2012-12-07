@@ -140,6 +140,7 @@ module Define = struct
 		| As3
 		| Sys
 		| DceDebug
+		| MatchDebug
 		| Macro
 		| CoreApi
 		| NoCOpt
@@ -184,13 +185,14 @@ module Define = struct
 		| FormatWarning
 		| SwfPreloaderFrame
 		| SwfScriptTimeout
-
+		| PatternMatching
 		| Last (* must be last *)
 
 	let infos = function
 		| As3 -> ("as3","Defined when outputing flash9 as3 source code")
 		| Sys -> ("sys","Defined for all system platforms")
 		| DceDebug -> ("dce_debug","Show DCE log")
+		| MatchDebug -> ("match_debug","Show Pattern Matcher log")
 		| Macro -> ("macro","Defined when we compile code in the macro context")
 		| CoreApi -> ("core_api","Defined in the core api context")
 		| NoCOpt -> ("no_copt","Disable completion optimization (for debug purposes)")
@@ -235,6 +237,7 @@ module Define = struct
 		| DumpDependencies -> ("dump_dependencies","Dump the classes dependencies")
 		| Dce -> ("dce","The current DCE mode")
 		| FormatWarning -> ("format_warning","Print a warning for each formated string, for 2.x compatibility")
+		| PatternMatching -> ("pattern_matching","Allow pattern matching")
 		| Last -> assert false
 
 end
