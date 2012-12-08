@@ -516,7 +516,11 @@ let neko =
 	in
 
 	(* a bit tricky since load "val_true" does not work as expected on Windows *)
-	let unser = loadprim "std@unserialize" 2 in
+	let unser = try loadprim "std@unserialize" 2 with _ -> ("",null,0) in
+	
+	(* did we fail to load std.ndll ? *)
+	if (match unser with ("",_,_) -> true | _ -> false) then None else
+
 	let val_true = call_raw_prim unser [|alloc_string "T";loader|] in
 	let val_false = call_raw_prim unser [|alloc_string "F";loader|] in
 	let val_null = call_raw_prim unser [|alloc_string "N";loader|] in
