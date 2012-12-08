@@ -233,78 +233,136 @@ let unify_enum_field en pl ef t =
 (* Transform an expression to a pattern *)
 (* TODO: sanity check this *)
 let to_pattern ctx e t =
+	let perror p = error "Unrecognized pattern" p in
 	let verror n p = error ("Variable " ^ n ^ " must appear exactly once in each sub-pattern") p in
-	let rec loop tctx e t = match e,follow t with
-	| (EParenthesis(e),_),t ->
-		loop tctx e t
-	| ((EField ((EConst (String s),_),"code"),p),t) ->
-		if UTF8.length s <> 1 then error "String must be a single UTF8 char" p;
-		let c = TInt (Int32.of_int (UChar.code (UTF8.get s 0))) in
-		mk_con_pat (CConst c) [] t p
-	| (ECall(ec,el),p),(TEnum(en,pl) as t) ->
-		let ec = type_expr_with_type ctx ec (Some t) false in
-		let ef = match ec.eexpr with
-			| TEnumField(en2,s)
-			| TClosure ({ eexpr = TTypeExpr (TEnumDecl en2) },s) when en == en2 -> PMap.find s en.e_constrs
-			| _ -> error ("Expected constructor for enum " ^ (s_type_path en.e_path)) p
-		in
-		(try unify_enum_field en pl ef t with Unify_error l -> error (error_msg (Unify l)) p);
-		let tl = match ef.ef_type with
-			| TFun(args,_) -> List.map (fun (_,_,t) -> t) args
-			| _ -> error "Arguments expected" p
-		in
-		let rec loop2 acc el tl = match el,tl with
-			| (EConst(Ident "_"),_) as e :: [], t :: tl ->
-				let pat = loop tctx e t_dynamic in
-				(ExtList.List.make ((List.length tl) + 1) pat) @ acc
-			| e :: el, t :: tl ->
-				let pat = loop tctx e (apply_params en.e_types pl (apply_params ef.ef_params (List.map (fun _ -> mk_mono()) ef.ef_params) t)) in
-				loop2 (pat :: acc) el tl
-			| e :: _, [] ->
-				error "Too many arguments" (pos e);
-			| [],_ :: _ ->
-				error "Not enough arguments" p;
-			| [],[] ->
-				acc
-		in
-		mk_con_pat (CEnum(en,ef)) (List.rev (loop2 [] el tl)) t p
-	| (EConst(Ident "null"),p),_ ->
-		error "null-patterns are not allowed" p
-	| (EConst((Ident ("false" | "true") | Int _ | String _ | Float _) as c),p),t ->
-		let e = Codegen.type_constant ctx.com c p in
-		unify ctx e.etype t p;
-		let c = match e.eexpr with TConst c -> c | _ -> assert false in
-		mk_con_pat (CConst c) [] t p
-	| (EConst(Ident "_"),p),t ->
-		{
-			pdef = PatAny;
-			ptype = t;
-			ppos = p;
-		}
-	| (EField _,p),t ->
-		let e = type_expr_with_type ctx e (Some t) false in
-		(match e.eexpr with
-		| TConst c -> mk_con_pat (CConst c) [] t p
-		| TTypeExpr mt -> mk_con_pat (CType mt) [] t p
-		| _ -> error "Constant expression expected" p)
-	| ((EConst(Ident s),p) as ec),t -> (try
-		(* HACK so type_ident via type_field does not cause display errors *)
-		ctx.untyped <- true;
-		let ec = try type_expr_with_type ctx ec (Some t) true with _ -> raise Not_found in
-		ctx.untyped <- false;
-		(* we might have found the wrong thing entirely *)
-		(try unify_raise ctx t ec.etype ec.epos with Error (Unify _,_) -> raise Not_found);
-		(match ec.eexpr with
-			| TEnumField(en,s)
-			| TField ({ eexpr = TTypeExpr (TEnumDecl en) },s) ->
-				let ef = PMap.find s en.e_constrs in
-				(* TODO: do we have to call unify_enum_field here? *)
-				mk_con_pat (CEnum(en,ef)) [] t p
-			| TTypeExpr mt ->
-				mk_con_pat (CType mt) [] t p
+	let rec loop tctx e t = match e with
+		| EParenthesis(e),_ ->
+			loop tctx e t
+		| ECall(ec,el),p ->
+			let ec = type_expr_with_type ctx ec (Some t) false in
+			(match follow ec.etype with
+			| TAnon a -> (match !(a.a_status) with
+				| Statics c when has_meta ":extractor" c.cl_meta ->
+					let cf = try PMap.find "unapply" c.cl_statics with Not_found -> error "Missing extractor method unapply" c.cl_pos in
+					let tcf = apply_params cf.cf_params (List.map (fun _ -> mk_mono()) cf.cf_params) (follow cf.cf_type) in
+					(match tcf,el with
+					| TFun([(_,_,ta)],r),[e] ->
+						unify ctx t ta p;
+						error ("Extractors are not supported yet") p;
+					| TFun (_),[e] ->
+						error "Method unapply must accept exactly 1 argument." cf.cf_pos;
+					| TFun _,_ ->
+						error "Invalid number of arguments to extractor, must be exactly 1" p
+					| _ ->
+						error "Invalid type for method unapply" cf.cf_pos)			
+				| _ -> perror p)				
+			| TEnum(en,pl)
+			| TFun(_,TEnum(en,pl)) ->
+				let ef = match ec.eexpr with
+					| TEnumField(_,s)
+					| TClosure ({ eexpr = TTypeExpr (TEnumDecl _) },s) -> PMap.find s en.e_constrs
+					| _ -> error ("Expected constructor for enum " ^ (s_type_path en.e_path)) p
+				in
+				(try unify_enum_field en pl ef t with Unify_error l -> error (error_msg (Unify l)) p);
+				let tl = match ef.ef_type with
+					| TFun(args,_) -> List.map (fun (_,_,t) -> t) args
+					| _ -> error "Arguments expected" p
+				in
+				let rec loop2 acc el tl = match el,tl with
+					| (EConst(Ident "_"),_) as e :: [], t :: tl ->
+						let pat = loop tctx e t_dynamic in
+						(ExtList.List.make ((List.length tl) + 1) pat) @ acc
+					| e :: el, t :: tl ->
+						let pat = loop tctx e (apply_params en.e_types pl (apply_params ef.ef_params (List.map (fun _ -> mk_mono()) ef.ef_params) t)) in
+						loop2 (pat :: acc) el tl
+					| e :: _, [] ->
+						error "Too many arguments" (pos e);
+					| [],_ :: _ ->
+						error "Not enough arguments" p;
+					| [],[] ->
+						acc
+				in
+				mk_con_pat (CEnum(en,ef)) (List.rev (loop2 [] el tl)) t p
+			| _ -> perror p)
+		| (EConst(Ident "null"),p) ->
+			error "null-patterns are not allowed" p
+		| (EConst((Ident ("false" | "true") | Int _ | String _ | Float _) as c),p) ->
+			let e = Codegen.type_constant ctx.com c p in
+			unify ctx e.etype t p;
+			let c = match e.eexpr with TConst c -> c | _ -> assert false in
+			mk_con_pat (CConst c) [] t p
+		| (EConst(Ident "_"),p) ->
+			{
+				pdef = PatAny;
+				ptype = t;
+				ppos = p;
+			}
+		| (EField _,p) ->
+			let e = type_expr_with_type ctx e (Some t) false in
+			(match e.eexpr with
+			| TConst c -> mk_con_pat (CConst c) [] t p
+			| TTypeExpr mt -> mk_con_pat (CType mt) [] t p
+			| _ -> error "Constant expression expected" p)
+		| ((EConst(Ident s),p) as ec) -> (try
+				(* HACK so type_ident via type_field does not cause display errors *)
+				ctx.untyped <- true;
+				let ec = try type_expr_with_type ctx ec (Some t) true with _ -> raise Not_found in
+				ctx.untyped <- false;
+				(* we might have found the wrong thing entirely *)
+				(try unify_raise ctx t ec.etype ec.epos with Error (Unify _,_) -> raise Not_found);
+				(match ec.eexpr with
+					| TEnumField(en,s)
+					| TField ({ eexpr = TTypeExpr (TEnumDecl en) },s) ->
+						let ef = PMap.find s en.e_constrs in
+						unify_enum_field en (List.map (fun _ -> mk_mono()) en.e_types) ef t;
+						mk_con_pat (CEnum(en,ef)) [] t p
+					| TTypeExpr mt ->
+						mk_con_pat (CType mt) [] t p
+					| _ ->
+						raise Not_found);
+			with Not_found ->
+				let v = match tctx.pc_sub_vars with
+					| Some vmap -> (try PMap.find s vmap with Not_found -> verror s p)
+					| None -> alloc_var s t
+				in
+				unify ctx t v.v_type p;
+				if PMap.mem s tctx.pc_locals then verror s p;
+				tctx.pc_locals <- PMap.add s v tctx.pc_locals;
+				{
+					pdef = PatVar(SVar v,p);
+					ptype = t;
+					ppos = p;
+				})
+		| ((EObjectDecl fl),p) ->
+			(match follow t with
+			| TAnon {a_fields = fields}
+			| TInst({cl_fields = fields},_) ->
+				List.iter (fun (n,(_,p)) -> if not (PMap.mem n fields) then error (unify_error_msg (print_context()) (has_extra_field t n)) p) fl;
+				let fl,pl,i = PMap.foldi (fun n cf (sl,pl,i) ->
+					let pat = try loop tctx (List.assoc n fl) cf.cf_type with Not_found -> (mk_any cf.cf_type p) in
+					(n,cf) :: sl,pat :: pl,i + 1
+				) fields ([],[],0) in
+				mk_con_pat (CAnon (i,fl)) pl t p;
+			| t ->
+				error ("Invalid pattern, expected something matching " ^ (s_type (print_context()) t)) p)
+		| (ECast(e1,Some t2),p) ->
+			let t2 = Typeload.load_complex_type ctx p t2 in
+			unify ctx t t2 p;
+			loop tctx e1 t2
+		| (ECast(e1,None),p) ->
+			loop tctx e1 t_dynamic
+		| (EArrayDecl [],p) ->
+			mk_con_pat (CArray 0) [] t p
+		| (EArrayDecl el,p) ->
+			(match t with
+			| TInst({cl_path=[],"Array"},[t2]) ->
+				let pl = List.map (fun e -> loop tctx e t2) el in
+				mk_con_pat (CArray (List.length el)) pl t p
 			| _ ->
-				raise Not_found);
-		with Not_found ->
+				error ((s_type (print_context()) t) ^ " should be Array") p)
+		| (EBinop(OpOr,(EBinop(OpOr,e1,e2),p2),e3),p1) ->
+			loop tctx (EBinop(OpOr,e1,(EBinop(OpOr,e2,e3),p2)),p1) t
+		| (EBinop(OpAssign,(EConst(Ident s),_),e1),p) ->
 			let v = match tctx.pc_sub_vars with
 				| Some vmap -> (try PMap.find s vmap with Not_found -> verror s p)
 				| None -> alloc_var s t
@@ -312,74 +370,30 @@ let to_pattern ctx e t =
 			unify ctx t v.v_type p;
 			if PMap.mem s tctx.pc_locals then verror s p;
 			tctx.pc_locals <- PMap.add s v tctx.pc_locals;
+			let pat1 = loop tctx e1 t in
 			{
-				pdef = PatVar(SVar v,p);
+				pdef = PatBind(v,pat1);
 				ptype = t;
 				ppos = p;
-			})
-	| ((EObjectDecl fl),p),t ->
-		(match t with
-		| TAnon {a_fields = fields}
-		| TInst({cl_fields = fields},_) ->
-			List.iter (fun (n,(_,p)) -> if not (PMap.mem n fields) then error (unify_error_msg (print_context()) (has_extra_field t n)) p) fl;
-			let fl,pl,i = PMap.foldi (fun n cf (sl,pl,i) ->
-				try
-					let e = List.assoc n fl in
-					(n,cf) :: sl,(loop tctx e cf.cf_type) :: pl,i + 1
-				with Not_found ->
-					(n,cf) :: sl,(mk_any cf.cf_type p) :: pl,i + 1
-			) fields ([],[],0) in
-			mk_con_pat (CAnon (i,fl)) pl t p;
-		| t ->
-			error ("Invalid pattern, expected something matching " ^ (s_type (print_context()) t)) p)
-	| (EBinop(OpOr,(EBinop(OpOr,e1,e2),p2),e3),p1),t ->
-		loop tctx (EBinop(OpOr,e1,(EBinop(OpOr,e2,e3),p2)),p1) t
-	| (EBinop(OpAssign,(EConst(Ident s),_),e1),p),t ->
-		let v = match tctx.pc_sub_vars with
-			| Some vmap -> (try PMap.find s vmap with Not_found -> verror s p)
-			| None -> alloc_var s t
-		in
-		unify ctx t v.v_type p;
-		if PMap.mem s tctx.pc_locals then verror s p;
-		tctx.pc_locals <- PMap.add s v tctx.pc_locals;
-		let pat1 = loop tctx e1 t in
-		{
-			pdef = PatBind(v,pat1);
-			ptype = t;
-			ppos = p;
-		};
-	| (EBinop(OpOr,e1,e2),p),t ->
-		let old = tctx.pc_locals in
-		let pat1 = loop tctx e1 t in
-		let tctx2 = {
-			pc_sub_vars = Some tctx.pc_locals;
-			pc_locals = old;
-		} in
-		let pat2 = loop tctx2 e2 t in
-		PMap.iter (fun s _ -> if not (PMap.mem s tctx2.pc_locals) then verror s p) tctx.pc_locals;
-		unify ctx pat1.ptype pat2.ptype pat1.ppos;
-		{
-			pdef = PatOr(pat1,pat2);
-			ptype = pat2.ptype;
-			ppos = punion pat1.ppos pat2.ppos;
-		}
-
-	| (ECast(e1,Some t2),p),t ->
-		let t2 = Typeload.load_complex_type ctx p t2 in
-		unify ctx t t2 p;
-		loop tctx e1 t2
-	| (EArrayDecl [],p),t ->
-		mk_con_pat (CArray 0) [] t p
-	| (EArrayDecl el,p),t ->
-		(match t with
-		| TInst({cl_path=[],"Array"},[t2]) ->
-			let pl = List.map (fun e -> loop tctx e t2) el in
-			mk_con_pat (CArray (List.length el)) pl t p
-		| _ ->
-			error ((s_type (print_context()) t) ^ " should be Array") p)
-	| (_,p),_ ->
-		ctx.com.warning "Unrecognized pattern, falling back to normal switch" p;
-		raise Exit
+			};
+		| (EBinop(OpOr,e1,e2),p) ->
+			let old = tctx.pc_locals in
+			let pat1 = loop tctx e1 t in
+			let tctx2 = {
+				pc_sub_vars = Some tctx.pc_locals;
+				pc_locals = old;
+			} in
+			let pat2 = loop tctx2 e2 t in
+			PMap.iter (fun s _ -> if not (PMap.mem s tctx2.pc_locals) then verror s p) tctx.pc_locals;
+			unify ctx pat1.ptype pat2.ptype pat1.ppos;
+			{
+				pdef = PatOr(pat1,pat2);
+				ptype = pat2.ptype;
+				ppos = punion pat1.ppos pat2.ppos;
+			}
+		| (_,p) ->
+			ctx.com.warning "Unrecognized pattern, falling back to normal switch" p;
+			raise Exit
 	in
 	let tctx = {
 		pc_locals = PMap.empty;
@@ -533,10 +547,10 @@ let all_ctors t =
 		true
 	| TEnum(en,pl) ->
 		PMap.iter (fun _ ef ->
-				try unify_enum_field en pl ef t;
-					h := PMap.add (CEnum(en,ef)) ef.ef_pos !h
-				with Unify_error _ ->
-					()
+			try unify_enum_field en pl ef t;
+				h := PMap.add (CEnum(en,ef)) ef.ef_pos !h
+			with Unify_error _ ->
+				()
 		) en.e_constrs;
 		false
 	| TAnon {a_fields = fields}
@@ -573,7 +587,7 @@ let rec compile mctx (stl : subterm list) (n : int) (pmat : pattern_matrix) = ma
 			let st_head,st_tail = match stl with st :: stl -> st,stl | _ -> assert false in
 			let sigma,t = column_sigma mctx st_head pmat in
 			let c_all,inf = all_ctors t in
-			let cases = List.map (fun (c,g) ->
+			let cases = List.rev_map (fun (c,g) ->
 				let a = arity c in
 				if not g then c_all := PMap.remove (fst c) !c_all;
 				let pmat_spec = spec mctx c pmat in
@@ -756,7 +770,7 @@ and to_typed_ast ctx need_val (dt : decision_tree) : texpr =
 		mk (TBlock [
 			mk (TVars vl) t_dynamic p;
 			e;
-		]) e.etype p		
+		]) e.etype p
 	| Switch(st,t,cases) ->
 		match follow t with
 		| TEnum(en,pl) ->
@@ -796,7 +810,7 @@ let match_expr ctx e cases def need_val with_type p =
 					raise Exit
 				| TDynamic _
 				| TMono _ ->
-					raise Exit
+					true
 				| TAbstract({a_path=[],"Bool"},_) ->
 					false
 				| TInst({cl_path=[],"String"},_)
