@@ -227,8 +227,8 @@ let unify_enum_field en pl ef t =
 		| TFun(_,r) -> r
 		| t2 -> t2
 	in
-	let monos = List.map (fun _ -> mk_mono()) ef.ef_params in
-	Type.unify (apply_params en.e_types pl (apply_params ef.ef_params monos t2)) t
+	let t2 = (apply_params en.e_types pl (monomorphs ef.ef_params t2)) in
+	Type.unify t2 t
 
 (* Transform an expression to a pattern *)
 (* TODO: sanity check this *)
@@ -244,7 +244,7 @@ let to_pattern ctx e t =
 			| TAnon a -> (match !(a.a_status) with
 				| Statics c when has_meta ":extractor" c.cl_meta ->
 					let cf = try PMap.find "unapply" c.cl_statics with Not_found -> error "Missing extractor method unapply" c.cl_pos in
-					let tcf = apply_params cf.cf_params (List.map (fun _ -> mk_mono()) cf.cf_params) (follow cf.cf_type) in
+					let tcf = monomorphs cf.cf_params (follow cf.cf_type) in
 					(match tcf,el with
 					| TFun([(_,_,ta)],r),[e] ->
 						unify ctx t ta p;
@@ -263,9 +263,18 @@ let to_pattern ctx e t =
 					| TClosure ({ eexpr = TTypeExpr (TEnumDecl _) },s) -> PMap.find s en.e_constrs
 					| _ -> error ("Expected constructor for enum " ^ (s_type_path en.e_path)) p
 				in
-				(try unify_enum_field en pl ef t with Unify_error l -> error (error_msg (Unify l)) p);
-				let tl = match ef.ef_type with
-					| TFun(args,_) -> List.map (fun (_,_,t) -> t) args
+				(* collect the data structures we need to reverse apply_params *)
+				let mono_map,monos,tpl = List.fold_left (fun (mm,ml,tpl) (n,t) ->
+					let mono = mk_mono() in
+					(n,mono) :: mm, mono :: ml, t :: tpl) ([],[],[]) ef.ef_params
+				in
+				(* turn type parameters to monomorphs as usual *)
+				let tl = match apply_params en.e_types pl (apply_params ef.ef_params monos ef.ef_type) with
+					| TFun(args,r) ->
+						(* unify the return type, which might cause some monomorphs to be bound *)
+						unify ctx r t p;
+						(* reverse application of apply_params will replace free monomorphs with their original type parameters *)
+						List.map (fun (n,_,t) -> apply_params mono_map tpl (follow t)) args
 					| _ -> error "Arguments expected" p
 				in
 				let rec loop2 acc el tl = match el,tl with
@@ -273,7 +282,7 @@ let to_pattern ctx e t =
 						let pat = loop tctx e t_dynamic in
 						(ExtList.List.make ((List.length tl) + 1) pat) @ acc
 					| e :: el, t :: tl ->
-						let pat = loop tctx e (apply_params en.e_types pl (apply_params ef.ef_params (List.map (fun _ -> mk_mono()) ef.ef_params) t)) in
+						let pat = loop tctx e t in
 						loop2 (pat :: acc) el tl
 					| e :: _, [] ->
 						error "Too many arguments" (pos e);
