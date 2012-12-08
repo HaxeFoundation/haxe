@@ -125,6 +125,9 @@
     <hidden path="ast.obj" />
     <hidden path="haxelib.exe" />
     <hidden path="haxe.hxml" />
+    <hidden path="matcher.obj" />
+    <hidden path="matcher.cmx" />
+    <hidden path="matcher.cmi" />
   </hiddenPaths>
   <!-- Executed before build -->
   <preBuildCommand>make -j4 MSVC=1 FD_OUTPUT=1 -f Makefile.win kill haxe</preBuildCommand>
