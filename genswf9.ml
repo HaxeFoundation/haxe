@@ -337,8 +337,27 @@ let property ctx p t =
 		with Not_found ->
 			ident p, None, false)
 	| TInst ({ cl_interface = true } as c,_) ->
-		let ns = HMName (reserved p, HNNamespace (match c.cl_path with [],n -> n | l,n -> String.concat "." l ^ ":" ^ n)) in
-		ns, None, false
+		(* lookup the interface in which the field was actually declared *)
+		let rec loop c =
+			try
+				(match PMap.find p c.cl_fields with
+				| { cf_kind = Var _ } -> raise Exit (* no vars in interfaces in swf9 *)
+				| _ -> c)
+			with Not_found ->
+				let rec loop2 = function
+					| [] -> raise Not_found
+					| (i,_) :: l ->
+						try loop i with Not_found -> loop2 l
+				in
+				loop2 c.cl_implements
+		in
+		(try
+			let c = loop c in
+			let ns = HMName (reserved p, HNNamespace (match c.cl_path with [],n -> n | l,n -> String.concat "." l ^ ":" ^ n)) in
+			ns, None, false
+		with Not_found | Exit ->
+			ident p, None, false)
+			
 	| _ ->
 		ident p, None, false
 
