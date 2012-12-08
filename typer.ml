@@ -1655,7 +1655,8 @@ and type_expr_with_type_raise ?(print_error=true) ctx e t =
 				raise Exit
 			with Not_found -> try
 				let ef = PMap.find s e.e_constrs in
-				let constr = mk (TEnumField (e,s)) (apply_params e.e_types pl ef.ef_type) p in
+				let et = apply_params e.e_types pl (monomorphs ef.ef_params ef.ef_type) in
+				let constr = mk (TEnumField (e,s)) et p in
 				build_call ctx (AKExpr constr) el (Some t) p
 			with Not_found ->
 				if ctx.untyped then raise Exit; (* __js__, etc. *)
