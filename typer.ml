@@ -1437,19 +1437,21 @@ and type_switch_old ctx e cases def need_val with_type p =
 		if Hashtbl.mem used_cases s then error "This constructor has already been used" p;
 		Hashtbl.add used_cases s ();
 		let cst = (try PMap.find s en.e_constrs with Not_found -> assert false) in
-		let pl = (match cst.ef_type with
-		| TFun (l,_) ->
+		let et = apply_params en.e_types params (monomorphs cst.ef_params cst.ef_type) in
+		let pl, rt = (match et with
+		| TFun (l,rt) ->
 			let pl = (if List.length l = List.length pl then pl else
 				match pl with
 				| [None] -> List.map (fun _ -> None) l
 				| _ -> error ("This constructor requires " ^ string_of_int (List.length l) ^ " arguments") p
 			) in
-			Some (List.map2 (fun p (_,_,t) -> match p with None -> None | Some p -> Some (p, monomorphs cst.ef_params (apply_params en.e_types params t))) pl l)
+			Some (List.map2 (fun p (_,_,t) -> match p with None -> None | Some p -> Some (p, t)) pl l), rt
 		| TEnum _ ->
 			if pl <> [] then error "This constructor does not require any argument" p;
-			None
+			None, et
 		| _ -> assert false
 		) in
+		unify ctx rt eval.etype p;
 		CMatch (cst,pl,p)
 	in
 	let type_case efull e pl p =
