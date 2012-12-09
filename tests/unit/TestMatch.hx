@@ -12,6 +12,11 @@ enum A<T> {
 	TC(v : Bool) : A<String>;
 }
 
+enum X<A> {
+	U1(x:Int):X<Int>;
+	U2:X<String>;
+}
+
 class TestMatch extends Test {
 	@:macro static function getErrorMessage(e:Expr) {
 		var result = try {
@@ -187,6 +192,21 @@ class TestMatch extends Test {
 		eq("2", switchStructure( { foo:"val2", bar:"val2" } ));
 		eq("val1", switchStructure( { foo:"val2", bar:"val1" } ));
 	}
+	
+	public static function toStringX<Z>(x1:X<Z>) {
+		return switch (x1) {
+			case U1(x) in x > 1: ">1";
+			case U1(x) in x <= 1: "<=1";
+			case U1(x): throw "this is impossible to reach actually";
+			case U2: "U2";
+		}
+	}
+	
+	function testGadt () {
+		eq("<=1", toStringX(U1(1)));
+		eq(">1", toStringX(U1(2)));
+		eq("U2", toStringX(U2));
+	}	
 		
 	function testNonExhaustiveness() {
 		eq("This match is not exhaustive, these patterns are not matched: false", getErrorMessage(switch(true) {

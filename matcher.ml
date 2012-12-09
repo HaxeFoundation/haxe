@@ -239,7 +239,8 @@ let to_pattern ctx e t =
 		| EParenthesis(e),_ ->
 			loop tctx e t
 		| ECall(ec,el),p ->
-			let ec = type_expr_with_type ctx ec (Some t) false in
+			let tc = monomorphs ctx.type_params t in
+			let ec = type_expr_with_type ctx ec (Some tc) false in
 			(match follow ec.etype with
 			| TAnon a -> (match !(a.a_status) with
 				| Statics c when has_meta ":extractor" c.cl_meta ->
@@ -247,7 +248,7 @@ let to_pattern ctx e t =
 					let tcf = monomorphs cf.cf_params (follow cf.cf_type) in
 					(match tcf,el with
 					| TFun([(_,_,ta)],r),[e] ->
-						unify ctx t ta p;
+						unify ctx tc ta p;
 						error ("Extractors are not supported yet") p;
 					| TFun (_),[e] ->
 						error "Method unapply must accept exactly 1 argument." cf.cf_pos;
@@ -272,7 +273,7 @@ let to_pattern ctx e t =
 				let tl = match apply_params en.e_types pl (apply_params ef.ef_params monos ef.ef_type) with
 					| TFun(args,r) ->
 						(* unify the return type, which might cause some monomorphs to be bound *)
-						unify ctx r t p;
+						unify ctx r tc p;
 						(* reverse application of apply_params will replace free monomorphs with their original type parameters *)
 						List.map (fun (n,_,t) -> apply_params mono_map tpl (follow t)) args
 					| _ -> error "Arguments expected" p
@@ -315,15 +316,16 @@ let to_pattern ctx e t =
 		| ((EConst(Ident s),p) as ec) -> (try
 				(* HACK so type_ident via type_field does not cause display errors *)
 				ctx.untyped <- true;
-				let ec = try type_expr_with_type ctx ec (Some t) true with _ -> raise Not_found in
+				let tc = monomorphs ctx.type_params t in
+				let ec = try type_expr_with_type ctx ec (Some tc) true with _ -> raise Not_found in
 				ctx.untyped <- false;
 				(* we might have found the wrong thing entirely *)
-				(try unify_raise ctx t ec.etype ec.epos with Error (Unify _,_) -> raise Not_found);
+				(try unify_raise ctx tc ec.etype ec.epos with Error (Unify _,_) -> raise Not_found);
 				(match ec.eexpr with
 					| TEnumField(en,s)
 					| TField ({ eexpr = TTypeExpr (TEnumDecl en) },s) ->
 						let ef = PMap.find s en.e_constrs in
-						unify_enum_field en (List.map (fun _ -> mk_mono()) en.e_types) ef t;
+						unify_enum_field en (List.map (fun _ -> mk_mono()) en.e_types) ef tc;
 						mk_con_pat (CEnum(en,ef)) [] t p
 					| TTypeExpr mt ->
 						mk_con_pat (CType mt) [] t p
@@ -543,7 +545,7 @@ let bind_remaining (out : outcome) (stl : subterm list) (row : pattern list) =
 
 (* Returns an exhaustive list of all constructors for a given type *)
 (* TODO: cache this? *)
-let all_ctors t =
+let all_ctors ctx t =
 	let h = ref PMap.empty in
 	let inf = match follow t with
 	| TAbstract({a_path = [],"Bool"},_) ->
@@ -556,7 +558,8 @@ let all_ctors t =
 		true
 	| TEnum(en,pl) ->
 		PMap.iter (fun _ ef ->
-			try unify_enum_field en pl ef t;
+			let tc = monomorphs ctx.type_params t in
+			try unify_enum_field en pl ef tc;
 				h := PMap.add (CEnum(en,ef)) ef.ef_pos !h
 			with Unify_error _ ->
 				()
@@ -595,7 +598,7 @@ let rec compile mctx (stl : subterm list) (n : int) (pmat : pattern_matrix) = ma
 			(* Get column sigma and derive cases *)
 			let st_head,st_tail = match stl with st :: stl -> st,stl | _ -> assert false in
 			let sigma,t = column_sigma mctx st_head pmat in
-			let c_all,inf = all_ctors t in
+			let c_all,inf = all_ctors mctx.ctx t in
 			let cases = List.rev_map (fun (c,g) ->
 				let a = arity c in
 				if not g then c_all := PMap.remove (fst c) !c_all;
