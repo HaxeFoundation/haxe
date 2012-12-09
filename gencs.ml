@@ -760,6 +760,8 @@ let configure gen =
         t_s (TEnum(e,[]))
       | TTypeDecl t ->
         t_s (TType(t, List.map (fun t -> t_dynamic) t.t_types))
+      | TAbstractDecl a ->
+        t_s (TAbstract(a, List.map(fun t -> t_dynamic) a.a_types))
   in
 
   let rec ensure_local e explain =

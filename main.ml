@@ -783,12 +783,12 @@ try
 		("-cpp",Arg.String (fun dir ->
 			set_platform Cpp dir;
 		),"<directory> : generate C++ code into target directory");
-(* 		("-cs",Arg.String (fun dir ->
+ 		("-cs",Arg.String (fun dir ->
 			set_platform Cs dir;
 		),"<directory> : generate C# code into target directory");
 		("-java",Arg.String (fun dir ->
 			set_platform Java dir;
-		),"<directory> : generate Java code into target directory"); *)
+		),"<directory> : generate Java code into target directory");
 		("-xml",Arg.String (fun file ->
 			Parser.use_doc := true;
 			xml_out := Some file
@@ -837,8 +837,7 @@ try
 			Genswf.add_swf_lib com file
 		),"<file> : add the SWF library to the compiled SWF");
 		("-java-lib",Arg.String (fun file ->
-			()
-			(* Genjava.add_java_lib com file *)
+			Genjava.add_java_lib com file 
 		),"<file> : add an external JAR or class directory library");
 		("-x", Arg.String (fun file ->
 			let neko_file = file ^ ".n" in
@@ -1051,10 +1050,10 @@ try
 			add_std "cpp";
 			"cpp"
 		| Cs ->
-			(* Gencs.before_generate com; *)
+			Gencs.before_generate com;
 			add_std "cs"; "cs"
 		| Java ->
-			(* Genjava.before_generate com; *)
+			Genjava.before_generate com;
 			add_std "java"; "java"
 	) in
 	(* if we are at the last compilation step, allow all packages accesses - in case of macros or opening another project file *)
@@ -1154,11 +1153,11 @@ try
 			Common.log com ("Generating Cpp in : " ^ com.file);
 			Gencpp.generate com;
 		| Cs ->
-			if com.verbose then print_endline ("Generating C# in : " ^ com.file);
-			(* Gencs.generate com; *)
+      Common.log com ("Generating Cs in : " ^ com.file);
+			Gencs.generate com;
 		| Java ->
-			if com.verbose then print_endline ("Generating Java in : " ^ com.file);
-			(* Genjava.generate com; *)
+      Common.log com ("Generating Cs in : " ^ com.file);
+			Genjava.generate com; 
 		);
 	end;
 	Sys.catch_break false;

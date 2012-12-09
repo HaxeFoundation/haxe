@@ -57,9 +57,9 @@ class Bytes {
 		#elseif cpp
 		untyped b[pos] = v;
 		#elseif java
-		b[pos] = v;
+		b[pos] = cast v;
 		#elseif cs
-		b[pos] = v;
+		b[pos] = cast v;
 		#else
 		b[pos] = v & 0xFF;
 		#end

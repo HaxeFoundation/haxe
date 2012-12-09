@@ -44,6 +44,9 @@
 	static function floor(v:Float):Int;
 	static function ceil(v:Float):Int;
 	static function atan(v:Float):Float;
+	static function fround(v:Float):Float;
+	static function ffloor(v:Float):Float;
+	static function fceil(v:Float):Float;
 	static function asin(v:Float):Float;
 	static function acos(v:Float):Float;
 	static function pow(v:Float,exp:Float):Float;

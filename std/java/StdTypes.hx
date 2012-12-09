@@ -26,6 +26,6 @@ package java;
  * @author waneck
  */
 
-typedef Int8 = Int;
-typedef Int16 = Int;
-typedef Char16 = Int;
+@:notNull @:runtimeValue abstract Int8 <= Int {}
+@:notNull @:runtimeValue abstract Int16 <= Int {}
+@:notNull @:runtimeValue abstract Char16 <= Int {}

@@ -57,10 +57,25 @@ let debug_type_ctor = function
   | TAnon _ -> "TAnon"
   | TDynamic _ -> "TDynamic"
   | TLazy _ -> "TLazy"
+  | TAbstract _ -> "TAbstract"
   
 let debug_type = (s_type (print_context()))
 
 let debug_expr = s_expr debug_type
+
+let rec like_float t =
+  match follow t with
+    | TAbstract({ a_path = ([], "Float") },[])
+    | TAbstract({ a_path = ([], "Int") },[]) -> true
+    | TAbstract(a, _) -> List.exists like_float a.a_super || List.exists like_float a.a_sub
+    | _ -> false
+
+let rec like_int t =
+  match follow t with
+    | TAbstract({ a_path = ([], "Int") },[]) -> true
+    | TAbstract(a, _) -> List.exists like_int a.a_super || List.exists like_float a.a_sub
+    | _ -> false
+
 
 let follow_once t =
   match t with
@@ -97,7 +112,7 @@ struct
   
   let mk_heetype = function
     | TMono _ -> 0 | TEnum _ -> 1 | TInst _ -> 2 | TType _ -> 3 | TFun _ -> 4
-    | TAnon _ -> 5 | TDynamic _ -> 6 | TLazy _ -> 7
+    | TAnon _ -> 5 | TDynamic _ -> 6 | TLazy _ -> 7 | TAbstract _ -> 8
   
   let mk_type e =
     {
@@ -180,9 +195,16 @@ let anon_of_enum e =
     a_status = ref (EnumStatics e)
   }
 
+let anon_of_abstract a =
+  TAnon {
+    a_fields = PMap.empty;
+    a_status = ref (AbstractStatics a)
+  }
+
 let anon_of_mt mt = match mt with
   | TClassDecl cl -> anon_of_classtype cl
   | TEnumDecl e -> anon_of_enum e
+  | TAbstractDecl a -> anon_of_abstract a
   | _ -> assert false
   
 let anon_class t =
@@ -191,6 +213,7 @@ let anon_class t =
         (match !(anon.a_status) with
           | Statics (cl) -> Some(TClassDecl(cl))
           | EnumStatics (e) -> Some(TEnumDecl(e))
+          | AbstractStatics (a) -> Some(TAbstractDecl(a))
           | _ -> None)
       | _ -> None
 
@@ -201,10 +224,12 @@ let path_s path =
   | TInst (cl,_) -> TClassDecl cl
   | TEnum (e,_) -> TEnumDecl e
   | TType (t,_) -> TTypeDecl t
+  | TAbstract (a,_) -> TAbstractDecl a
   | TAnon anon ->
     (match !(anon.a_status) with
       | EnumStatics e -> TEnumDecl e
       | Statics cl -> TClassDecl cl
+      | AbstractStatics a -> TAbstractDecl a
       | _ -> assert false)
   | TLazy f -> t_to_md (!f())
   | TMono r -> (match !r with | Some t -> t_to_md t | None -> assert false)
@@ -216,7 +241,11 @@ let get_tdef mt = match mt with | TTypeDecl t -> t | _ -> assert false
       
 let mk_mt_access mt pos = { eexpr = TTypeExpr(mt); etype = anon_of_mt mt; epos = pos }
 
-let is_void t = match follow t with | TEnum({ e_path = ([], "Void") }, []) -> true | _ -> false
+let is_void t = match follow t with 
+  | TEnum({ e_path = ([], "Void") }, [])
+  | TAbstract ({ a_path = ([], "Void") },[]) -> 
+      true 
+  | _ -> false
 
 let mk_local var pos = { eexpr = TLocal(var); etype = var.v_type; epos = pos }
 
@@ -576,8 +605,6 @@ and gen_classes =
 {
   cl_reflect : tclass;
   cl_type : tclass;
-  cl_class : tclass;
-  cl_enum : tclass;
   cl_dyn : tclass;
   
   t_iterator : tdef;
@@ -588,8 +615,6 @@ and gen_tools =
 {
   (* (klass : texpr, t : t) : texpr *)
   mutable r_create_empty : texpr->t->texpr;
-  (* (expr : texpr) -> texpr *)
-  mutable r_get_class : texpr->texpr;
   (* Reflect.fields(). The bool is if we are iterating in a read-only manner. If it is read-only we might not need to allocate a new array *)
   mutable r_fields : bool->texpr->texpr;
   (* (first argument = return type. should be void in most cases) Reflect.setField(obj, field, val) *)
@@ -610,6 +635,7 @@ let get_type types path =
     | TClassDecl cl when cl.cl_path = path -> true
     | TEnumDecl e when e.e_path = path -> true
     | TTypeDecl t when t.t_path = path -> true
+    | TAbstractDecl a when a.a_path = path -> true
     | _ -> false
   ) types
 
@@ -620,16 +646,22 @@ let new_ctx con =
       | TClassDecl cl -> Hashtbl.add types cl.cl_path mt
       | TEnumDecl e -> Hashtbl.add types e.e_path mt
       | TTypeDecl t -> Hashtbl.add types t.t_path mt
+      | TAbstractDecl a -> Hashtbl.add types a.a_path mt
   ) con.types;
+
+  let cl_dyn = match get_type con.types ([], "Dynamic") with
+    | TClassDecl c -> c
+    | TAbstractDecl a ->
+        mk_class a.a_module ([], "Dynamic") a.a_pos
+    | _ -> assert false
+  in
   
   let rec gen = {
     gcon = con;
     gclasses = {
       cl_reflect = get_cl (get_type con.types ([], "Reflect"));
       cl_type = get_cl (get_type con.types ([], "Type"));
-      cl_class = get_cl (get_type con.types ([], "Class"));
-      cl_enum = get_cl (get_type con.types ([], "Enum"));
-      cl_dyn = get_cl (get_type con.types ([], "Dynamic"));
+      cl_dyn = cl_dyn; 
       
       t_iterator = get_tdef (get_type con.types ([], "Iterator"));
     };
@@ -637,11 +669,6 @@ let new_ctx con =
       r_create_empty = (fun eclass t ->
         let fieldcall = mk_static_field_access_infer gen.gclasses.cl_type "createEmptyInstance" eclass.epos [t] in
         { eexpr = TCall(fieldcall, [eclass]); etype = t; epos = eclass.epos }
-      );
-      r_get_class = (fun expr ->
-        let fieldcall = mk_static_field_access_infer gen.gclasses.cl_type "getClass" expr.epos [expr.etype] in
-        let t = TInst(gen.gclasses.cl_class, [expr.etype]) in
-        { eexpr = TCall(fieldcall, [expr]); etype = t; epos = expr.epos }
       );
       r_fields = (fun is_used_only_by_iteration expr ->
         let fieldcall = mk_static_field_access_infer gen.gclasses.cl_reflect "fields" expr.epos [] in
@@ -660,7 +687,7 @@ let new_ctx con =
       );
       
       rf_create_empty = (fun cl p pos -> 
-        gen.gtools.r_create_empty { eexpr = TTypeExpr(TClassDecl cl); epos = pos; etype = TInst(gen.gclasses.cl_class,[TInst(cl,List.map (fun _ -> t_dynamic) p)]) } (TInst(cl,p))
+        gen.gtools.r_create_empty { eexpr = TTypeExpr(TClassDecl cl); epos = pos; etype = t_dynamic } (TInst(cl,p))
       ); (* TODO: Maybe implement using normal reflection? Type.createEmpty(MyClass) *)
     };
     gmk_internal_name = (fun ns s -> sprintf "__%s_%s" ns s);
@@ -701,15 +728,7 @@ let new_ctx con =
     greal_type = (fun t -> t);
     greal_type_param = (fun _ t -> t);
     
-    (*gis_value_type = (fun t -> match follow t with
-      | TInst({ cl_path = ([],"Int") },[]) 
-      | TInst({ cl_path = "Float" },[]) 
-      | TInst({ cl_path = "Bool" },[]) -> true
-      | TInst(cl,[]) when has_meta ":struct" cl.cl_meta -> true
-      | TEnum(e,[]) when has_meta ":struct" e.e_meta -> true
-      | _ -> false);*)
-	
-    gallow_tp_dynamic_conversion = false;
+   gallow_tp_dynamic_conversion = false;
     
     guse_tp_constraints = false;
     
@@ -796,6 +815,7 @@ let run_filters_from gen t filters =
           c.cl_init <- Some (List.fold_left (fun e f -> f e) e filters));
       | TEnumDecl _ -> ()
       | TTypeDecl _ -> ()
+      | TAbstractDecl _ -> ()
 
 let run_filters gen =
   (* first of all, we have to make sure that the filters won't trigger a major Gc collection *)
@@ -827,7 +847,7 @@ let run_filters gen =
                   match t with
                     | TClassDecl cl -> cl.cl_path <- new_p
                     | TEnumDecl e -> e.e_path <- new_p
-                    | TTypeDecl t -> ()
+                    | TTypeDecl _ | TAbstractDecl _ -> ()
               in
               loop 0
             end;
@@ -947,7 +967,7 @@ let dump_descriptor gen name path_s =
           SourceWriter.write w "E ";
           SourceWriter.write w (path_s e.e_path);
           SourceWriter.newline w
-        | _ -> () (* still no typedef is generated *)
+        | _ -> () (* still no typedef or abstract is generated *)
     ) md_def.m_types
   ) gen.gcon.modules;
   SourceWriter.write w "end modules";
@@ -1045,11 +1065,13 @@ let reset_temps () = tmp_count := 0
   
 let follow_module follow_func md = match md with
   | TClassDecl _
-  | TEnumDecl _ -> md
+  | TEnumDecl _
+  | TAbstractDecl _ -> md
   | TTypeDecl tdecl -> match (follow_func (TType(tdecl, List.map snd tdecl.t_types))) with
     | TInst(cl,_) -> TClassDecl cl
     | TEnum(e,_) -> TEnumDecl e
     | TType(t,_) -> TTypeDecl t
+    | TAbstract(a,_) -> TAbstractDecl a
     | _ -> assert false
  
 (* 
@@ -1063,24 +1085,35 @@ let rec is_hxgen md =
     | TClassDecl cl -> has_meta ":hxgen" cl.cl_meta
     | TEnumDecl e -> has_meta ":hxgen" e.e_meta
     | TTypeDecl t -> has_meta ":hxgen" t.t_meta || ( match follow t.t_type with | TInst(cl,_) -> is_hxgen (TClassDecl cl) | TEnum(e,_) -> is_hxgen (TEnumDecl e) | _ -> false )
+    | TAbstractDecl a -> has_meta ":hxgen" a.a_meta
 
 let is_hxgen_t t =
   match t with
     | TInst (cl, _) -> has_meta ":hxgen" cl.cl_meta
     | TEnum (e, _) -> has_meta ":hxgen" e.e_meta
+    | TAbstract (a, _) -> has_meta ":hxgen" a.a_meta
     | TType (t, _) -> has_meta ":hxgen" t.t_meta
     | _ -> false
+
+let mt_to_t_dyn md =
+  match md with
+    | TClassDecl cl -> TInst(cl, List.map (fun _ -> t_dynamic) cl.cl_types)
+    | TEnumDecl e -> TEnum(e, List.map (fun _ -> t_dynamic) e.e_types)
+    | TAbstractDecl a -> TAbstract(a, List.map (fun _ -> t_dynamic) a.a_types)
+    | TTypeDecl t -> TType(t, List.map (fun _ -> t_dynamic) t.t_types)
 
 let mt_to_t mt params =
   match mt with
     | TClassDecl (cl) -> TInst(cl, params)
     | TEnumDecl (e) -> TEnum(e, params)
+    | TAbstractDecl a -> TAbstract(a, params)
     | _ -> assert false
 
 let t_to_mt t =
   match follow t with
     | TInst(cl, _) -> TClassDecl(cl)
     | TEnum(e, _) -> TEnumDecl(e)
+    | TAbstract(a, _) -> TAbstractDecl a
     | _ -> assert false
 
 let mk_paren e =
@@ -1207,7 +1240,7 @@ let field_access gen (t:t) (field:string) : (tfield_access) =
         in
         loop_find_cf hierarchy
       )
-    | TEnum(e, params) ->
+    | TEnum _ | TAbstract _ ->
       (* enums have no field *) FNotFound
     | TAnon anon ->
       (try match !(anon.a_status) with
@@ -1322,6 +1355,7 @@ struct
         
         is_hxgen_class cl
       | TEnumDecl e -> if e.e_extern then has_meta ":hxgen" e.e_meta else not (has_meta ":nativegen" e.e_meta)
+      | TAbstractDecl a -> not (has_meta ":nativegen" a.a_meta)
       | TTypeDecl t -> (* TODO see when would we use this *)
         false
   
@@ -1336,6 +1370,7 @@ struct
           | TClassDecl cl -> cl.cl_meta <- (":hxgen", [], cl.cl_pos) :: cl.cl_meta
           | TEnumDecl e -> e.e_meta <- (":hxgen", [], e.e_pos) :: e.e_meta
           | TTypeDecl t -> t.t_meta <- (":hxgen", [], t.t_pos) :: t.t_meta
+          | TAbstractDecl a -> a.a_meta <- (":hxgen", [], a.a_pos) :: a.a_meta
       end
     in
     List.iter filter gen.gcon.types
@@ -1983,9 +2018,10 @@ struct
   
   
     let get_etype_one e =
-      match follow e.etype with
-        | TInst({cl_path = ([],"Int")},[]) -> (gen.gcon.basic.tint, { eexpr = TConst(TInt(Int32.one)); etype = gen.gcon.basic.tint; epos = e.epos })
-        | _ -> (gen.gcon.basic.tfloat, { eexpr = TConst(TFloat("1.0")); etype = gen.gcon.basic.tfloat; epos = e.epos })
+      if like_int e.etype then
+        (gen.gcon.basic.tint, { eexpr = TConst(TInt(Int32.one)); etype = gen.gcon.basic.tint; epos = e.epos })
+      else
+        (gen.gcon.basic.tfloat, { eexpr = TConst(TFloat("1.0")); etype = gen.gcon.basic.tfloat; epos = e.epos })
     in
     
     let basic = gen.gcon.basic in
@@ -2343,7 +2379,7 @@ struct
             
             let actual_t = match op with 
               | Ast.Increment | Ast.Decrement -> (match follow earray.etype with
-                | TInst _ | TEnum _ -> earray.etype
+                | TInst _ | TAbstract _ | TEnum _ -> earray.etype
                 | _ -> basic.tfloat) 
               | Ast.Not -> basic.tbool 
               | _ -> basic.tint 
@@ -2662,8 +2698,10 @@ struct
       | TDynamic _
       | TAnon _
       | TMono _
+      | TAbstract(_, [])
       | TInst(_, [])
       | TEnum(_, []) -> acc
+      | TAbstract(_, params)
       | TEnum(_, params)
       | TInst(_, params) -> 
         List.fold_left get_type_params acc params
@@ -2938,11 +2976,11 @@ struct
       
       in
       
-      let rettype_real_to_func t = match follow t with
-        | TInst({ cl_path = ([], "Float") },[])
-        | TInst({ cl_path = ([], "Int") },[]) -> 
+      let rettype_real_to_func t = 
+        if like_float t then
           (1, basic.tfloat)
-        | _ -> (0, t_dynamic)
+        else
+          (0, t_dynamic)
       in
       
       let args_real_to_func_call el (pos:Ast.pos) = 
@@ -2950,12 +2988,10 @@ struct
           [{ eexpr = TArrayDecl el; etype = basic.tarray t_dynamic; epos = pos }]
         else begin
           let acc1,acc2 = List.fold_left (fun (acc_f,acc_d) e ->
-            match follow (gen.greal_type e.etype) with (* seeing if it's a basic type *)
-              | TInst({ cl_path = ([], "Int") },[])
-              | TInst({ cl_path = ([], "Float") },[]) -> 
-                ( e :: acc_f, undefined e.epos :: acc_d )
-              | _ ->
-                (null basic.tfloat e.epos :: acc_f, e :: acc_d)
+                                            if like_float (gen.greal_type e.etype) then 
+                                              ( e :: acc_f, undefined e.epos :: acc_d )
+                                            else
+                                              ( null basic.tfloat e.epos :: acc_f, e :: acc_d )
           ) ([],[]) (List.rev el) in
           acc1 @ acc2
         end
@@ -3102,10 +3138,11 @@ struct
           | TCall(tc, params) -> (tc, params)
           | _ -> assert false
         in
-          let postfix, ret_t = match follow (gen.greal_type call_expr.etype) with
-            | TInst({ cl_path = ([], "Float") },[])
-            | TInst({ cl_path = ([], "Int") },[]) -> "_f", gen.gcon.basic.tfloat
-            | _ -> "_o", t_dynamic
+          let postfix, ret_t = 
+            if like_float (gen.greal_type call_expr.etype) then
+                "_f", gen.gcon.basic.tfloat
+            else
+              "_o", t_dynamic
           in
           let params_len = List.length params in
           let ret_t = if params_len >= max_arity then t_dynamic else ret_t in
@@ -3122,7 +3159,8 @@ struct
           in
           
           let may_cast = match follow call_expr.etype with
-            | TEnum({ e_path = ([], "Void")}, []) -> fun e -> e
+            | TEnum({ e_path = ([], "Void")}, [])
+            | TAbstract ({ a_path = ([], "Void") },[]) -> (fun e -> e)
             | _ -> mk_cast call_expr.etype
           in
           
@@ -3175,10 +3213,10 @@ struct
             let vf, _ = List.nth args i in
             let vo, _ = List.nth args (i + arity) in
             
-            let needs_cast, is_float = match t, follow t with
-              | TInst({ cl_path = ([], "Float") }, []), _ -> false, true
-              | _, TInst({ cl_path = ([], "Int") }, [])
-              | _, TInst({ cl_path = ([], "Float") }, []) -> true,true
+            let needs_cast, is_float = match t, like_float t with
+              | TInst({ cl_path = ([], "Float") }, []), _
+              | TAbstract({ a_path = ([], "Float") },[]), _ -> false, true
+              | _, true -> true, true
               | _ -> false,false
             in
             
@@ -3433,7 +3471,7 @@ struct
         in
         (* let rec loop goes here *)
         let map_fn cur_arity fun_ret_type vars (api:(int->t->tconstant option->texpr)) =
-          let is_float = match follow fun_ret_type with | TInst({ cl_path = ([], "Float") },[]) -> true | _ -> false in
+          let is_float = like_float fun_ret_type in
           match cur_arity with
             | -1 ->
               let dynargs = api (-1) (t_dynamic) None in
@@ -3576,6 +3614,20 @@ struct
               Hashtbl.replace params_tbl cl.cl_path applied
           )
           
+        | TAbstract(a, params), TAbstract(a2, params2) ->
+          if a == a2 then
+            List.iter2 (get_arg) params params2
+          else begin
+            List.iter (fun t ->
+              let t = apply_params a2.a_types params2 t in
+              get_arg original t
+            ) a2.a_super;
+            List.iter (fun t ->
+              let t = apply_params a.a_types params t in
+              get_arg t applied
+            ) a.a_sub
+          end
+
         | TInst(cl, params), TInst(cl2, params2) ->
           let rec loop cl2 params2 =
             if cl == cl2 then begin
@@ -3595,6 +3647,17 @@ struct
           in
           ignore (loop cl2 params2)
           
+        | TAbstract(a, params), _ ->
+          List.iter (fun t ->
+            let t = apply_params a.a_types params t in
+            get_arg t applied
+          ) a.a_sub
+        | _, TAbstract(a2, params2) ->
+          List.iter (fun t ->
+            let t = apply_params a2.a_types params2 t in
+            get_arg original t
+          ) a2.a_super
+
         | TEnum(e, params), TEnum(e2, params2) ->
           List.iter2 (get_arg) params params2
         | TFun(params, ret), TFun(params2, ret2) ->
@@ -3685,7 +3748,8 @@ struct
     let rec has_type_params t =
       match follow t with
         | TInst( { cl_kind = KTypeParameter _ }, _) -> true
-        | TEnum (_, params)
+        | TAbstract(_, params)
+        | TEnum(_, params)
         | TInst(_, params) -> List.fold_left (fun acc t -> acc || has_type_params t) false params
         | _ -> false
     
@@ -3696,6 +3760,8 @@ struct
         not (has_meta ":$nativegeneric" e.e_meta)
       | TTypeDecl(t) ->
         not (has_meta ":$nativegeneric" t.t_meta)
+      | TAbstractDecl a ->
+        not (has_meta ":$nativegeneric" a.a_meta)
     
     let rec set_hxgeneric gen mds isfirst md = 
       let path = t_path md in
@@ -3755,7 +3821,7 @@ struct
                                 if not (Hashtbl.mem gen.gtparam_cast cl.cl_path) then true else loop cfs
                               | TEnum(e,p) when has_type_params t && is_false (set_hxgeneric gen mds isfirst (TEnumDecl e)) ->
                                 if not (Hashtbl.mem gen.gtparam_cast e.e_path) then true else loop cfs
-                              | _ -> loop cfs
+                              | _ -> loop cfs (* TAbstracts / Dynamics can't be generic *)
                       in
                       if loop cl.cl_ordered_fields then begin
                         cl.cl_meta <- (":$nativegeneric", [], cl.cl_pos) :: cl.cl_meta;
@@ -3915,6 +3981,7 @@ struct
           match follow t with
             | TInst(cl,_) -> cl.cl_path
             | TEnum(e,_) -> e.e_path
+            | TAbstract(a,_) -> a.a_path
             | TMono _
             | TDynamic _ -> ([], "Dynamic")
             | _ -> assert false
@@ -3939,7 +4006,7 @@ struct
         
         let thandle = alloc_var "__typeof__" t_dynamic in
         let mk_typehandle cl =
-          { eexpr = TCall(mk_local thandle pos, [ mk_classtype_access cl pos ]); etype = TInst(gen.gclasses.cl_class, [t_dynamic]); epos = pos }
+          { eexpr = TCall(mk_local thandle pos, [ mk_classtype_access cl pos ]); etype = t_dynamic; epos = pos }
         in
         
         let mk_eq cl1 cl2 =
@@ -4042,7 +4109,7 @@ struct
               
               add_iface iface;
               md
-            | TTypeDecl _ -> md
+            | TTypeDecl _ | TAbstractDecl _ -> md
             | TEnumDecl _ -> 
               ignore (set_hxgeneric gen md);
               md
@@ -4153,7 +4220,12 @@ struct
           i := 0;
           Hashtbl.clear found_types;
           List.iter iter_types (hd :: tl)
-        
+       
+        | TAbstractDecl { a_types = hd :: tl } ->
+          i := 0;
+          Hashtbl.clear found_types;
+          List.iter iter_types (hd :: tl)
+
         | _ -> ()
           
       ) gen.gcon.types
@@ -4238,6 +4310,9 @@ struct
     else match follow_dyn (gen.greal_type a) , follow_dyn (gen.greal_type b) with
     | TEnum (e1,tl1) , TEnum (e2,tl2) ->
       if e1 != e2 && not (param = EqCoreType && e1.e_path = e2.e_path) then Type.error [cannot_unify a b];
+      List.iter2 (type_eq gen param) tl1 tl2
+    | TAbstract (a1,tl1) , TAbstract (a2,tl2) ->
+      if a1 != a2 && not (param = EqCoreType && a1.a_path = a2.a_path) then Type.error [cannot_unify a b];
       List.iter2 (type_eq gen param) tl1 tl2
     | TInst (c1,tl1) , TInst (c2,tl2) ->
       if c1 != c2 && not (param = EqCoreType && c1.cl_path = c2.cl_path) && (match c1.cl_kind, c2.cl_kind with KExpr _, KExpr _ -> false | _ -> true) then Type.error [cannot_unify a b];
@@ -4329,6 +4404,17 @@ struct
         (* anonymous are never unsafe also. *)
         (* Though they will generate a cast, so if this cast is unneeded it's better to avoid them by tweaking gen.greal_type *)
         false
+      | TAbstract _, _
+      | _, TAbstract _ ->
+        (try
+          unify from_t to_t;
+          false
+        with | Unify_error _ -> 
+          try
+            unify to_t from_t; (* still not unsafe *)
+            false
+          with | Unify_error _ ->
+            true)
       | _ -> true
   
   let do_unsafe_cast gen from_t to_t e  =
@@ -4337,6 +4423,7 @@ struct
         | TInst(cl, _) -> cl.cl_path
         | TEnum(e, _) -> e.e_path
         | TType(t, _) -> t.t_path
+        | TAbstract(a, _) -> a.a_path
         | TDynamic _ -> ([], "Dynamic")
         | _ -> raise Not_found
     in
@@ -4411,7 +4498,8 @@ struct
               true
             end else 
               (*
-                if not, we're going to check if we only need a simple cast, or if we need to first cast into the dynamic version of it
+                if not, we're going to check if we only need a simple cast, 
+                or if we need to first cast into the dynamic version of it
               *)
               try
                 List.iter2 (type_eq gen EqRightDynamic) tl params_to;
@@ -4441,6 +4529,19 @@ struct
       | TDynamic _, _ -> e
       | _, TMono _
       | _, TDynamic _ -> mk_cast to_t e
+      | TAbstract (a_to, _), TAbstract(a_from, _) when a_to == a_from ->
+        e
+      | TAbstract _, _
+      | _, TAbstract _ ->
+        (try
+          unify from_t to_t;
+          mk_cast to_t e
+        with | Unify_error _ ->
+          try
+            unify to_t from_t;
+            mk_cast to_t e
+          with | Unify_error _ ->
+            do_unsafe_cast())
       | TEnum(e_to, []), TEnum(e_from, []) ->
         if e_to == e_from then
           e
@@ -5175,7 +5276,8 @@ struct
   
   let add_assign gen add_statement expr =
     match follow expr.etype with
-      | TEnum({ e_path = ([],"Void") },[]) ->
+      | TEnum({ e_path = ([],"Void") },[])
+      | TAbstract ({ a_path = ([],"Void") },[]) ->
         add_statement expr;
         null expr.etype expr.epos
       | _ ->
@@ -5208,7 +5310,8 @@ struct
         apply_assign assign_fun p
       | _ -> 
         match follow right.etype with
-          | TEnum( { e_path = ([], "Void") }, [] ) ->
+          | TEnum( { e_path = ([], "Void") }, [] )
+          | TAbstract ({ a_path = ([], "Void") },[]) ->
             right
           | _ -> trace (debug_expr right); assert false (* a statement is required *)
   
@@ -6181,11 +6284,10 @@ struct
             | TInst ( { cl_path = ["haxe"], "Int64" }, [] ) ->
               loop tl ((name, gen.ghandle_cast t_dynamic real_t expr) :: acc) acc_f
             | _ ->
-              match follow real_t with
-                | TInst( { cl_path = [], "Float" }, [] )
-                | TInst( { cl_path = [], "Int" }, [] ) ->
-                  loop tl acc ((name, gen.ghandle_cast basic.tfloat real_t expr) :: acc_f)
-                | _ -> loop tl ((name, gen.ghandle_cast t_dynamic real_t expr) :: acc) acc_f
+              if like_float real_t then
+                loop tl acc ((name, gen.ghandle_cast basic.tfloat real_t expr) :: acc_f)
+              else
+                loop tl ((name, gen.ghandle_cast t_dynamic real_t expr) :: acc) acc_f
     in
     
     let may_hash_field s =
@@ -6527,13 +6629,6 @@ struct
       let fun_type = ref (TFun([], basic.tvoid)) in
       let fun_name = ctx.rcf_gen.gmk_internal_name "hx" ( (if is_set then "setField" else "getField") ^ (if is_float then "_f" else "") ) in
       
-      (*let maybe_cast e = if is_float then match ctx.rcf_gen.greal_type (ctx.rcf_gen.gfollow#run_f e.etype) with
-          | TInst({ cl_path = ([],"Float") }, []) -> e
-          | TInst({ cl_kind = KTypeParameter }, _) ->
-            mk_cast basic.tfloat (mk_cast t_dynamic e)
-          | _ -> mk_cast basic.tfloat e
-        else e
-      in*) (* the cast module will run after this transformation, so there's no problem here *)
       let maybe_cast e = e in
       
       let t = TInst(cl, List.map snd cl.cl_types) in
@@ -6673,9 +6768,8 @@ struct
           List.filter (fun (_,cf) -> (* TODO: maybe really apply_params in cf.cf_type. The benefits would be limited, though *)
             match follow (ctx.rcf_gen.greal_type (ctx.rcf_gen.gfollow#run_f cf.cf_type)) with
               | TDynamic _ | TMono _
-              | TInst ({ cl_kind = KTypeParameter _ }, _)
-              | TInst ({ cl_path = ([], "Float") }, [])
-              | TInst ({ cl_path = ([], "Int") }, []) -> true
+              | TInst ({ cl_kind = KTypeParameter _ }, _) -> true
+              | t when like_float t -> true
               | _ -> false
           ) ret 
         else
@@ -7029,7 +7123,7 @@ struct
       let field = gen.gmk_internal_name "hx" field in
       let t = TFun(fun_args tf_args, ret) in
       let cf = mk_class_field field t false pos (Method MethNormal) [] in
-      let is_void = match follow ret with | TEnum({ e_path = ([], "Void") },[]) -> true | _ -> false in
+      let is_void = is_void ret in
       let may_return e = if is_void then mk_block e else mk_block (mk_return e) in
       let i = ref 0 in
       cf.cf_expr <- Some({
@@ -7219,7 +7313,8 @@ struct
       (* as Array<Dynamic> *)
       let args, ret = get_args t in
       let ret = match follow ret with
-        | TEnum({ e_path = ([], "Void") }, []) -> ret
+        | TEnum({ e_path = ([], "Void") }, [])
+        | TAbstract ({ a_path = ([], "Void") },[]) -> ret
         | _ -> t_dynamic
       in
       mk_this_call_raw cf.cf_name (TFun(args, ret)) params
@@ -7391,11 +7486,8 @@ struct
         etype = t_dynamic;
         epos = pos
       } in
-      
-      let expr = match follow ret with
-        | TInst({ cl_path = ([], "Float") }, []) -> mk_cast ret expr
-        | _ -> expr
-      in
+     
+      let expr = if like_float ret && not (like_int ret) then mk_cast ret expr else expr in
       
       [], mk_return expr
     in
@@ -7467,10 +7559,7 @@ struct
         epos = pos
       } in
       
-      let expr = match follow ret with
-        | TInst({ cl_path = ([], "Float") }, []) -> mk_cast ret expr
-        | _ -> expr
-      in
+      let expr = if like_float ret && not (like_int ret) then mk_cast ret expr else expr in
       
       [], mk_return expr
     in
@@ -7581,7 +7670,7 @@ struct
           let fn_args, ret = get_fun (follow cf.cf_type) in
           
           let tf_args = List.map (fun (name,_,t) -> alloc_var name t, None) fn_args in
-          let is_void = match follow ret with | TEnum({ e_path = ([], "Void") },[]) -> true | _ -> false in
+          let is_void = is_void ret in
           let expr = {
             eexpr = TCall({
               eexpr = TField( (if static then mk_classtype_access cl pos else this), cf.cf_name);
@@ -9226,10 +9315,8 @@ struct
   let name = "int_division_synf"
   
   let priority = solve_deps name [ DAfter ExpressionUnwrap.priority; DAfter ObjectDeclMap.priority; DAfter ArrayDeclSynf.priority ]
-  
-  let is_int t = match follow t with 
-    | TInst( { cl_path = ([], "Int") }, [] ) -> true
-    | _ -> false
+ 
+  let is_int = like_int
   
   let default_implementation gen catch_int_div =
     let basic = gen.gcon.basic in

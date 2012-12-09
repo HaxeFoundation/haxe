@@ -64,15 +64,16 @@ let is_java_basic_type t =
   match follow t with
     | TInst( { cl_path = (["haxe"], "Int32") }, [] )
     | TInst( { cl_path = (["haxe"], "Int64") }, [] )
-    | TInst( { cl_path = ([], "Int") }, [] )
-    | TInst( { cl_path = ([], "Float") }, [] )
-    | TEnum( { e_path = ([], "Bool") }, [] ) ->
+    | TInst( { cl_path = ([], "Int") }, [] ) | TAbstract( { a_path =  ([], "Int") }, [] )
+    | TInst( { cl_path = ([], "Float") }, [] ) | TAbstract( { a_path =  ([], "Float") }, [] )
+    | TEnum( { e_path = ([], "Bool") }, [] ) | TAbstract( { a_path =  ([], "Bool") }, [] ) ->
       true
     | _ -> false
 
 let is_bool t =
   match follow t with
-    | TEnum( { e_path = ([], "Bool") }, [] ) ->
+    | TEnum( { e_path = ([], "Bool") }, [] )
+    | TAbstract ({ a_path = ([], "Bool") },[]) ->
       true
     | _ -> false
 
@@ -80,9 +81,10 @@ let is_int_float gen t =
   match follow (gen.greal_type t) with
     | TInst( { cl_path = (["haxe"], "Int64") }, [] )
     | TInst( { cl_path = (["haxe"], "Int32") }, [] )
-    | TInst( { cl_path = ([], "Int") }, [] )
-    | TInst( { cl_path = ([], "Float") }, [] ) ->
+    | TInst( { cl_path = ([], "Int") }, [] ) | TAbstract( { a_path =  ([], "Int") }, [] )
+    | TInst( { cl_path = ([], "Float") }, [] ) | TAbstract( { a_path =  ([], "Float") }, [] ) ->
       true
+    | (TAbstract _ as t) when like_float t -> true
     | _ -> false
 
 let parse_explicit_iface =
@@ -148,6 +150,10 @@ struct
           mk_static_field_access_infer float_cl "POSITIVE_INFINITY" e.epos []
         | TField( { eexpr = TTypeExpr( TClassDecl( { cl_path = (["java";"lang"], "Math") }) ) }, "isNaN" ) ->
           mk_static_field_access_infer float_cl "isNaN" e.epos []
+        | TCall( ({ eexpr = TField( ({ eexpr = TTypeExpr( TClassDecl( { cl_path = (["java";"lang"], "Math") }) ) } as ef), ("ffloor" as f) ) } as fe), p)
+        | TCall( ({ eexpr = TField( ({ eexpr = TTypeExpr( TClassDecl( { cl_path = (["java";"lang"], "Math") }) ) } as ef), ("fround" as f) ) } as fe), p)
+        | TCall( ({ eexpr = TField( ({ eexpr = TTypeExpr( TClassDecl( { cl_path = (["java";"lang"], "Math") }) ) } as ef), ("fceil" as f) ) } as fe), p) ->
+            Type.map_expr run { e with eexpr = TCall({ fe with eexpr = TField(ef, String.sub f 1 (String.length f - 1))  }, p) }
         | TCall( { eexpr = TField( { eexpr = TTypeExpr( TClassDecl( { cl_path = (["java";"lang"], "Math") }) ) }, "floor" ) }, _)
         | TCall( { eexpr = TField( { eexpr = TTypeExpr( TClassDecl( { cl_path = (["java";"lang"], "Math") }) ) }, "round" ) }, _)
         | TCall( { eexpr = TField( { eexpr = TTypeExpr( TClassDecl( { cl_path = (["java";"lang"], "Math") }) ) }, "ceil" ) }, _) ->
@@ -172,7 +178,8 @@ struct
             ] ) }
           in
           (match follow_module follow md with
-            | TClassDecl({ cl_path = ([], "Float") }) ->
+            | TClassDecl({ cl_path = ([], "Float") })
+            | TAbstractDecl({ a_path = ([], "Float") }) ->
               {
                 eexpr = TCall(
                   mk_static_field_access_infer runtime_cl "isDouble" e.epos [],
@@ -181,7 +188,8 @@ struct
                 etype = basic.tbool;
                 epos = e.epos
               }
-            | TClassDecl{ cl_path = ([], "Int") } ->
+            | TClassDecl{ cl_path = ([], "Int") }
+            | TAbstractDecl{ a_path = ([], "Int") } ->
               {
                 eexpr = TCall(
                   mk_static_field_access_infer runtime_cl "isInt" e.epos [],
@@ -190,8 +198,10 @@ struct
                 etype = basic.tbool;
                 epos = e.epos
               }
+            | TAbstractDecl{ a_path = ([], "Bool") }
             | TEnumDecl{ e_path = ([], "Bool") } ->
               mk_is obj bool_md
+            | TAbstractDecl{ a_path = ([], "Dynamic") }
             | TClassDecl{ cl_path = ([], "Dynamic") } ->
               (match obj.eexpr with
                 | TLocal _ | TConst _ -> { e with eexpr = TConst(TBool true) }
@@ -484,10 +494,10 @@ struct
 
   let traverse gen runtime_cl =
     let basic = gen.gcon.basic in
-    let tchar = match ( get_type gen (["java"], "Char16") ) with | TTypeDecl t -> TType(t,[]) | _ -> assert false in
-    let tbyte = match ( get_type gen (["java"], "Int8") ) with | TTypeDecl t -> TType(t,[]) | _ -> assert false in
-    let tshort = match ( get_type gen (["java"], "Int16") ) with | TTypeDecl t -> TType(t,[]) | _ -> assert false in
-    let tsingle = match ( get_type gen ([], "Single") ) with | TTypeDecl t -> TType(t,[]) | _ -> assert false in
+    let tchar = mt_to_t_dyn ( get_type gen (["java"], "Char16") ) in
+    let tbyte = mt_to_t_dyn ( get_type gen (["java"], "Int8") ) in
+    let tshort = mt_to_t_dyn ( get_type gen (["java"], "Int16") ) in
+    let tsingle = mt_to_t_dyn ( get_type gen ([], "Single") ) in
     let string_ext = get_cl ( get_type gen (["haxe";"lang"], "StringExt")) in
 
     let is_string t = match follow t with | TInst({ cl_path = ([], "String") }, []) -> true | _ -> false in
@@ -541,10 +551,7 @@ struct
             | _ -> true
           in
 
-          let fun_name = match follow e.etype with
-            | TInst ({ cl_path = ([], "Float") },[]) -> "toDouble"
-            | _ -> "toInt"
-          in
+          let fun_name = if like_int e.etype then "toInt" else "toDouble" in
 
           let ret = {
             eexpr = TCall(
@@ -658,15 +665,23 @@ let configure gen =
                 let f_t = gen.gfollow#run_f t in
                 match gen.gfollow#run_f t with
                   | TEnum ({ e_path = ([], "Bool") }, [])
+                  | TAbstract ({ a_path = ([], "Bool") },[]) 
                   | TInst ({ cl_path = ([],"Float") },[])
+                  | TAbstract ({ a_path = ([],"Float") },[]) 
                   | TInst ({ cl_path = ["haxe"],"Int32" },[])
+                  | TInst ({ cl_path = ["haxe"],"Int64" },[])
                   | TInst ({ cl_path = ([],"Int") },[])
+                  | TAbstract ({ a_path = ([],"Int") },[]) 
                   | TType ({ t_path = ["haxe";"_Int64"], "NativeInt64" },[])
-                  | TType ({ t_path = ["haxe"],"Int64" },[])
+                  | TAbstract ({ a_path = ["haxe";"_Int64"], "NativeInt64" },[]) 
                   | TType ({ t_path = ["java"],"Int8" },[])
+                  | TAbstract ({ a_path = ["java"],"Int8" },[]) 
                   | TType ({ t_path = ["java"],"Int16" },[])
+                  | TAbstract ({ a_path = ["java"],"Int16" },[]) 
                   | TType ({ t_path = ["java"],"Char16" },[])
-                  | TType ({ t_path = [],"Single" },[]) -> basic.tnull f_t
+                  | TAbstract ({ a_path = ["java"],"Char16" },[]) 
+                  | TType ({ t_path = [],"Single" },[])
+                  | TAbstract ({ a_path = [],"Single" },[]) -> basic.tnull f_t
                   (*| TType ({ t_path = [], "Null"*)
                   | TInst (cl, ((_ :: _) as p)) ->
                     TInst(cl, List.map (fun _ -> t_dynamic) p)
@@ -693,18 +708,27 @@ let configure gen =
 
   gen.gfollow#add ~name:"follow_basic" (fun t -> match t with
       | TEnum ({ e_path = ([], "Bool") }, [])
+      | TAbstract ({ a_path = ([], "Bool") },[]) 
       | TEnum ({ e_path = ([], "Void") }, [])
+      | TAbstract ({ a_path = ([], "Void") },[]) 
       | TInst ({ cl_path = ([],"Float") },[])
+      | TAbstract ({ a_path = ([],"Float") },[]) 
       | TInst ({ cl_path = ([],"Int") },[])
+      | TAbstract ({ a_path = ([],"Int") },[]) 
       | TInst( { cl_path = (["haxe"], "Int32") }, [] )
       | TInst( { cl_path = (["haxe"], "Int64") }, [] )
       | TType ({ t_path = ["haxe";"_Int64"], "NativeInt64" },[])
+      | TAbstract ({ a_path = ["haxe";"_Int64"], "NativeInt64" },[]) 
       | TType ({ t_path = ["java"],"Int8" },[])
+      | TAbstract ({ a_path = ["java"],"Int8" },[]) 
       | TType ({ t_path = ["java"],"Int16" },[])
+      | TAbstract ({ a_path = ["java"],"Int16" },[]) 
       | TType ({ t_path = ["java"],"Char16" },[])
+      | TAbstract ({ a_path = ["java"],"Char16" },[]) 
       | TType ({ t_path = [],"Single" },[])
+      | TAbstract ({ a_path = [],"Single" },[]) 
       | TType ({ t_path = [],"Null" },[_]) -> Some t
-	  | TAbstract( { a_path = ([], "EnumValue") }, _  ) -> Some t_dynamic
+	    | TAbstract( { a_path = ([], "EnumValue") }, _ ) 
       | TInst( { cl_path = ([], "EnumValue") }, _  ) -> Some t_dynamic
       | _ -> None);
 
@@ -722,7 +746,7 @@ let configure gen =
       | TInst( { cl_path = (["haxe"], "Int32") }, [] ) -> gen.gcon.basic.tint
       | TInst( { cl_path = (["haxe"], "Int64") }, [] ) -> ti64
       | TAbstract( { a_path = ([], "Class") }, p  )
-      | TAbstract( { a_path = ([], "Enum") }, p  ) -> TInst(cl_cl,[t_dynamic])
+      | TAbstract( { a_path = ([], "Enum") }, p  )
       | TInst( { cl_path = ([], "Class") }, p  )
       | TInst( { cl_path = ([], "Enum") }, p  ) -> TInst(cl_cl,[t_dynamic])
       | TEnum _
@@ -733,8 +757,8 @@ let configure gen =
           | TInst( { cl_kind = KTypeParameter _ }, []) -> t_dynamic
           | _ -> real_type t
         )
-      | TType _ -> t
-      | TAnon (anon) when (match !(anon.a_status) with | Statics _ | EnumStatics _ -> true | _ -> false) -> t
+      | TType _ | TAbstract _ -> t
+      | TAnon (anon) when (match !(anon.a_status) with | Statics _ | EnumStatics _ | AbstractStatics _ -> true | _ -> false) -> t
       | TAnon _ -> dynamic_anon
       | TFun _ -> TInst(fn_cl,[])
       | _ -> t_dynamic
@@ -753,18 +777,28 @@ let configure gen =
   let rec t_s t =
     match real_type t with
       (* basic types *)
-      | TEnum ({ e_path = ([], "Bool") }, []) -> "boolean"
-      | TEnum ({ e_path = ([], "Void") }, []) -> "java.lang.Object"
-      | TInst ({ cl_path = ([],"Float") },[]) -> "double"
-      | TInst ({ cl_path = ([],"Int") },[]) -> "int"
-      | TType ({ t_path = ["haxe";"_Int64"], "NativeInt64" },[]) -> "long"
-      | TType ({ t_path = ["java"],"Int8" },[]) -> "byte"
-      | TType ({ t_path = ["java"],"Int16" },[]) -> "short"
-      | TType ({ t_path = ["java"],"Char16" },[]) -> "char"
-      | TType ({ t_path = [],"Single" },[]) -> "float"
-      | TInst ({ cl_path = ["haxe"],"Int32" },[]) -> "int"
-      | TInst ({ cl_path = ["haxe"],"Int64" },[]) -> "long"
-      | TInst ({ cl_path = ([], "Dynamic") }, _) -> "java.lang.Object"
+      | TEnum ({ e_path = ([], "Bool") }, [])
+      | TAbstract ({ a_path = ([], "Bool") },[]) -> "boolean"
+      | TEnum ({ e_path = ([], "Void") }, [])
+      | TAbstract ({ a_path = ([], "Void") },[]) -> "java.lang.Object"
+      | TInst ({ cl_path = ([],"Float") },[])
+      | TAbstract ({ a_path = ([],"Float") },[]) -> "double"
+      | TInst ({ cl_path = ([],"Int") },[])
+      | TAbstract ({ a_path = ([],"Int") },[]) -> "int"
+      | TType ({ t_path = ["haxe";"_Int64"], "NativeInt64" },[])
+      | TAbstract ({ a_path = ["haxe";"_Int64"], "NativeInt64" },[]) -> "long"
+      | TType ({ t_path = ["java"],"Int8" },[])
+      | TAbstract ({ a_path = ["java"],"Int8" },[]) -> "byte"
+      | TType ({ t_path = ["java"],"Int16" },[])
+      | TAbstract ({ a_path = ["java"],"Int16" },[]) -> "short"
+      | TType ({ t_path = ["java"],"Char16" },[])
+      | TAbstract ({ a_path = ["java"],"Char16" },[]) -> "char"
+      | TType ({ t_path = [],"Single" },[])
+      | TAbstract ({ a_path = [],"Single" },[]) -> "float"
+      | TInst ({ cl_path = ["haxe"],"Int32" },[])
+      | TAbstract ({ a_path = ["haxe"],"Int32" },[]) -> "int"
+      | TInst ({ cl_path = ["haxe"],"Int64" },[])
+      | TAbstract ({ a_path = ["haxe"],"Int64" },[]) -> "long"
       | TInst({ cl_path = (["java"], "NativeArray") }, [param]) ->
         let rec check_t_s t =
           match real_type t with
@@ -775,16 +809,17 @@ let configure gen =
         (check_t_s param) ^ "[]"
       (* end of basic types *)
       | TInst ({ cl_kind = KTypeParameter _; cl_path=p }, []) -> snd p
+      | TAbstract ({ a_path = [], "Dynamic" },[]) -> "java.lang.Object"
       | TMono r -> (match !r with | None -> "java.lang.Object" | Some t -> t_s (run_follow gen t))
       | TInst ({ cl_path = [], "String" }, []) -> "java.lang.String"
-	  | TAbstract ({ a_path = [], "Class" }, _) | TAbstract ({ a_path = [], "Enum" }, _) -> assert false (* should have been converted earlier *)
+	    | TAbstract ({ a_path = [], "Class" }, _) | TAbstract ({ a_path = [], "Enum" }, _)
       | TInst ({ cl_path = [], "Class" }, _) | TInst ({ cl_path = [], "Enum" }, _) -> assert false (* should have been converted earlier *)
       | TEnum (({e_path = p;} as e), params) -> (path_param_s (TEnumDecl e) p params)
       | TInst (({cl_path = p;} as cl), params) -> (path_param_s (TClassDecl cl) p params)
       | TType (({t_path = p;} as t), params) -> (path_param_s (TTypeDecl t) p params)
       | TAnon (anon) ->
         (match !(anon.a_status) with
-          | Statics _ | EnumStatics _ -> "java.lang.Class"
+          | Statics _ | EnumStatics _ | AbstractStatics _ -> "java.lang.Class"
           | _ -> "java.lang.Object")
       | TDynamic _ -> "java.lang.Object"
       (* No Lazy type nor Function type made. That's because function types will be at this point be converted into other types *)
@@ -792,16 +827,26 @@ let configure gen =
 
   and param_t_s t =
     match run_follow gen t with
-      | TEnum ({ e_path = ([], "Bool") }, []) -> "java.lang.Boolean"
-      | TInst ({ cl_path = ([],"Float") },[]) -> "java.lang.Double"
-      | TInst ({ cl_path = ([],"Int") },[]) -> "java.lang.Integer"
-      | TType ({ t_path = ["haxe";"_Int64"], "NativeInt64" },[]) -> "java.lang.Long"
-      | TInst ({ cl_path = ["haxe"],"Int64" },[]) -> "java.lang.Long"
-      | TInst ({ cl_path = ["haxe"],"Int32" },[]) -> "java.lang.Integer"
-      | TType ({ t_path = ["java"],"Int8" },[]) -> "java.lang.Byte"
-      | TType ({ t_path = ["java"],"Int16" },[]) -> "java.lang.Short"
-      | TType ({ t_path = ["java"],"Char16" },[]) -> "java.lang.Character"
-      | TType ({ t_path = [],"Single" },[]) -> "java.lang.Float"
+      | TEnum ({ e_path = ([], "Bool") }, [])
+      | TAbstract ({ a_path = ([], "Bool") },[]) -> "java.lang.Boolean"
+      | TInst ({ cl_path = ([],"Float") },[])
+      | TAbstract ({ a_path = ([],"Float") },[]) -> "java.lang.Double"
+      | TInst ({ cl_path = ([],"Int") },[])
+      | TAbstract ({ a_path = ([],"Int") },[]) -> "java.lang.Integer"
+      | TType ({ t_path = ["haxe";"_Int64"], "NativeInt64" },[])
+      | TAbstract ({ a_path = ["haxe";"_Int64"], "NativeInt64" },[]) -> "java.lang.Long"
+      | TInst ({ cl_path = ["haxe"],"Int64" },[])
+      | TAbstract ({ a_path = ["haxe"],"Int64" },[]) -> "java.lang.Long"
+      | TInst ({ cl_path = ["haxe"],"Int32" },[])
+      | TAbstract ({ a_path = ["haxe"],"Int32" },[]) -> "java.lang.Integer"
+      | TType ({ t_path = ["java"],"Int8" },[])
+      | TAbstract ({ a_path = ["java"],"Int8" },[]) -> "java.lang.Byte"
+      | TType ({ t_path = ["java"],"Int16" },[])
+      | TAbstract ({ a_path = ["java"],"Int16" },[]) -> "java.lang.Short"
+      | TType ({ t_path = ["java"],"Char16" },[])
+      | TAbstract ({ a_path = ["java"],"Char16" },[]) -> "java.lang.Character"
+      | TType ({ t_path = [],"Single" },[])
+      | TAbstract ({ a_path = [],"Single" },[]) -> "java.lang.Float"
       | TDynamic _ -> "?"
       | TInst (cl, params) -> t_s (TInst(cl, change_param_type (TClassDecl cl) params))
       | TType (cl, params) -> t_s (TType(cl, change_param_type (TTypeDecl cl) params))
@@ -817,7 +862,8 @@ let configure gen =
 
   let rett_s t =
     match t with
-      | TEnum ({e_path = ([], "Void")}, []) -> "void"
+      | TEnum ({e_path = ([], "Void")}, [])
+      | TAbstract ({ a_path = ([], "Void") },[]) -> "void"
       | _ -> t_s t
   in
 
@@ -865,6 +911,8 @@ let configure gen =
         t_s (TEnum(e,[]))
       | TTypeDecl t ->
         t_s (TType(t, []))
+      | TAbstractDecl a ->
+        t_s (TAbstract(a, []))
   in
 
   (*
@@ -909,9 +957,16 @@ let configure gen =
                 | TType( { t_path = (["haxe";"_Int64"], "NativeInt64") }, [] )
                 | TInst( { cl_path = (["haxe"], "Int64") }, [] ) -> write w "0L"
                 | TInst( { cl_path = (["haxe"], "Int32") }, [] )
-                | TInst({ cl_path = ([], "Int") },[]) -> expr_s w ({ e with eexpr = TConst(TInt Int32.zero) })
-                | TInst({ cl_path = ([], "Float") },[]) -> expr_s w ({ e with eexpr = TConst(TFloat "0.0") })
-                | TEnum({ e_path = ([], "Bool") }, []) -> write w "false"
+                | TInst({ cl_path = ([], "Int") },[])
+                | TAbstract ({ a_path = ([], "Int") },[]) -> expr_s w ({ e with eexpr = TConst(TInt Int32.zero) })
+                | TInst({ cl_path = ([], "Float") },[])
+                | TAbstract ({ a_path = ([], "Float") },[]) -> expr_s w ({ e with eexpr = TConst(TFloat "0.0") })
+                | TEnum({ e_path = ([], "Bool") }, [])
+                | TAbstract ({ a_path = ([], "Bool") },[]) -> write w "false"
+                | TAbstract _ when like_int e.etype ->
+                  expr_s w { e with eexpr = TConst(TInt Int32.zero) }
+                | TAbstract _ when like_float e.etype ->
+                  expr_s w { e with eexpr = TConst(TFloat "0.0") }
                 | _ -> write w "null")
             | TThis -> write w "this"
             | TSuper -> write w "super")
@@ -954,7 +1009,7 @@ let configure gen =
         | TArrayDecl el ->
           print w "new %s" (param_t_s (transform_nativearray_t e.etype));
           let is_double = match follow e.etype with
-           | TInst(_,[ t ]) -> ( match follow t with | TInst({ cl_path=([],"Float") },[]) -> Some t | _ -> None )
+           | TInst(_,[ t ]) -> if like_float t && not (like_int t) then Some t else None
            | _ -> None
           in
 
@@ -1250,7 +1305,9 @@ let configure gen =
               | TFun([_,_,t], ret) ->
                 (match (real_type t, real_type ret) with
                   | TDynamic _, TEnum( { e_path = ([], "Bool") }, [])
-                  | TAnon _, TEnum( { e_path = ([], "Bool") }, []) -> true
+                  | TDynamic _, TAbstract ({ a_path = ([], "Bool") },[]) 
+                  | TAnon _, TEnum( { e_path = ([], "Bool") }, [])
+                  | TAnon _, TAbstract ({ a_path = ([], "Bool") },[]) -> true
                   | _ -> List.mem cf.cf_name cl.cl_overrides
                 )
               | _ -> List.mem cf.cf_name cl.cl_overrides)
@@ -1267,7 +1324,8 @@ let configure gen =
             (match cf.cf_type with
               | TFun([], ret) ->
                 (match real_type ret with
-                  | TInst( { cl_path = ([], "Int") }, []) ->
+                  | TInst( { cl_path = ([], "Int") }, [])
+                  | TAbstract ({ a_path = ([], "Int") },[]) ->
                     true
                   | _ -> gen.gcon.error "A hashCode() function should return an Int!" cf.cf_pos; false
                 )
@@ -1283,7 +1341,11 @@ let configure gen =
         let cf_type = if is_override then match field_access gen (TInst(cl, List.map snd cl.cl_types)) cf.cf_name with | FClassField(_,_,_,_,actual_t) -> actual_t | _ -> assert false else cf.cf_type in
 
         let params = List.map snd cl.cl_types in
-        let ret_type, args = match cf_type, cf.cf_type with | TFun (strbtl, t), TFun(rargs, _) -> (apply_params cl.cl_types params (real_type t), List.map2 (fun(_,_,t) (n,o,_) -> (n,o,apply_params cl.cl_types params (real_type t))) strbtl rargs) | _ -> assert false in
+        let ret_type, args = match follow cf_type, follow cf.cf_type with 
+          | TFun (strbtl, t), TFun(rargs, _) -> 
+              (apply_params cl.cl_types params (real_type t), List.map2 (fun(_,_,t) (n,o,_) -> (n,o,apply_params cl.cl_types params (real_type t))) strbtl rargs) 
+          | _ -> assert false
+        in
 
         (if is_override && not is_interface then write w "@Override ");
         (* public static void funcName *)
@@ -1460,6 +1522,8 @@ let configure gen =
         (not e.e_extern)
       | TTypeDecl e ->
         false
+      | TAbstractDecl a ->
+        false
   in
 
   let module_gen w md =
@@ -1514,12 +1578,7 @@ let configure gen =
   let rcf_static_find = mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) "findHash" Ast.null_pos [] in
   (*let rcf_static_lookup = mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) "lookupHash" Ast.null_pos [] in*)
 
-  let can_be_float t = match follow (real_type t) with
-    | TInst({ cl_path = (["haxe"], "Int32")}, [] )
-    | TInst({ cl_path = ([], "Int") }, [])
-    | TInst({ cl_path = ([], "Float") }, []) -> true
-    | _ -> false
-  in
+  let can_be_float t = like_float (real_type t) in
 
   let rcf_on_getset_field main_expr field_expr field may_hash may_set is_unsafe =
     let is_float = can_be_float (if is_none may_set then main_expr.etype else (get may_set).etype) in
@@ -1633,16 +1692,19 @@ let configure gen =
       (match follow t with
         | TInst({ cl_path = ([], "String") }, [])
         | TInst({ cl_path = ([], "Float") }, [])
+        | TAbstract ({ a_path = ([], "Float") },[]) 
         | TInst({ cl_path = (["haxe"], "Int32")}, [] )
         | TInst({ cl_path = (["haxe"], "Int64")}, [] )
         | TInst({ cl_path = ([], "Int") }, [])
-        | TEnum({ e_path = ([], "Bool") }, []) -> Some t
+        | TAbstract ({ a_path = ([], "Int") },[]) 
+        | TEnum({ e_path = ([], "Bool") }, [])
+        | TAbstract ({ a_path = ([], "Bool") },[]) -> Some t
         | _ -> None )
     | _ -> None
   in
-
-  let is_double t = match follow t with | TInst({ cl_path = ([], "Float") }, []) -> true | _ -> false in
-  let is_int t = match follow t with | TInst({ cl_path = ([], "Int") }, []) -> true | _ -> false in
+  
+  let is_double t = like_float t && not (like_int t) in
+  let is_int t = like_int t in
 
   DynamicOperators.configure gen
     (DynamicOperators.abstract_implementation gen (fun e -> match e.eexpr with
@@ -1670,15 +1732,21 @@ let configure gen =
           | TDynamic _, _
           | _, TDynamic _
           | TInst({ cl_path = ([], "Float") },[]), _
+          | TAbstract ({ a_path = ([], "Float") },[]) , _
           | TInst( { cl_path = (["haxe"], "Int32") }, [] ), _
           | TInst( { cl_path = (["haxe"], "Int64") }, [] ), _
           | TInst({ cl_path = ([], "Int") },[]), _
+          | TAbstract ({ a_path = ([], "Int") },[]) , _
           | TEnum({ e_path = ([], "Bool") },[]), _
+          | TAbstract ({ a_path = ([], "Bool") },[]) , _
           | _, TInst({ cl_path = ([], "Float") },[])
+          | _, TAbstract ({ a_path = ([], "Float") },[]) 
           | _, TInst({ cl_path = ([], "Int") },[])
+          | _, TAbstract ({ a_path = ([], "Int") },[]) 
           | _, TInst( { cl_path = (["haxe"], "Int32") }, [] )
           | _, TInst( { cl_path = (["haxe"], "Int64") }, [] )
           | _, TEnum({ e_path = ([], "Bool") },[])
+          | _, TAbstract ({ a_path = ([], "Bool") },[]) 
           | TInst( { cl_kind = KTypeParameter _ }, [] ), _
           | _, TInst( { cl_kind = KTypeParameter _ }, [] ) -> false
           | _, _ -> true
@@ -1770,6 +1838,7 @@ let configure gen =
         (match gen.gfollow#run_f cond.etype with
           | TInst( { cl_path = (["haxe"], "Int32") }, [] )
           | TInst({ cl_path = ([], "Int") },[])
+          | TAbstract ({ a_path = ([], "Int") },[]) 
           | TInst({ cl_path = ([], "String") },[]) ->
             (List.exists (fun (c,_) ->
               List.exists (fun expr -> match expr.eexpr with | TConst _ -> false | _ -> true ) c
@@ -1832,6 +1901,8 @@ let configure gen =
   run_filters gen;
 
   TypeParams.RenameTypeParameters.run gen;
+
+  Codegen.dump_types gen.gcon;
 
   let t = Common.timer "code generation" in
 
@@ -1952,7 +2023,7 @@ let convert_java_enum p pe =
   let data = ref [] in
   List.iter (fun f ->
     if List.mem JEnum f.jf_flags then
-      data := (f.jf_name, None, [], [], p) :: !data
+      data := { ec_name = f.jf_name; ec_doc = None; ec_meta = []; ec_args = []; ec_pos = p; ec_params = []; ec_type = None; } :: !data;
   ) pe.cfields;
 
   EEnum {

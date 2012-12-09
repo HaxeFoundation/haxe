@@ -56,7 +56,7 @@ class Input {
 			#elseif cpp
 				b[pos] = untyped readByte();
 			#else
-				b[pos] = readByte();
+				b[pos] = cast readByte();
 			#end
 			pos++;
 			k--;
@@ -172,18 +172,18 @@ class Input {
 			var helper = helper;
 			helper.order(bigEndian ? java.nio.ByteOrder.BIG_ENDIAN : java.nio.ByteOrder.LITTLE_ENDIAN);
 
-			helper.put(0, readByte());
-			helper.put(1, readByte());
-			helper.put(2, readByte());
-			helper.put(3, readByte());
+			helper.put(0, cast readByte());
+			helper.put(1, cast readByte());
+			helper.put(2, cast readByte());
+			helper.put(3, cast readByte());
 
 			return helper.getFloat(0);
 		#else
 			var bytes = [];
-			bytes.push(readByte());
-			bytes.push(readByte());
-			bytes.push(readByte());
-			bytes.push(readByte());
+			bytes.push(cast readByte());
+			bytes.push(cast readByte());
+			bytes.push(cast readByte());
+			bytes.push(cast readByte());
 			if (bigEndian)
 				bytes.reverse();
 			var sign = 1 - ((bytes[0] >> 7) << 1);
@@ -253,14 +253,14 @@ class Input {
 		var helper = helper;
 		helper.order(bigEndian ? java.nio.ByteOrder.BIG_ENDIAN : java.nio.ByteOrder.LITTLE_ENDIAN);
 
-		helper.put(0, readByte());
-		helper.put(1, readByte());
-		helper.put(2, readByte());
-		helper.put(3, readByte());
-		helper.put(4, readByte());
-		helper.put(5, readByte());
-		helper.put(6, readByte());
-		helper.put(7, readByte());
+		helper.put(0, cast readByte());
+		helper.put(1, cast readByte());
+		helper.put(2, cast readByte());
+		helper.put(3, cast readByte());
+		helper.put(4, cast readByte());
+		helper.put(5, cast readByte());
+		helper.put(6, cast readByte());
+		helper.put(7, cast readByte());
 
 		return helper.getDouble(0);
 		#else
