@@ -1564,7 +1564,7 @@ and type_switch_old ctx e cases def need_val with_type p =
 		| None ->
 			let tenum = TEnum(enum,enparams) in
 			let l = PMap.fold (fun c acc ->
-				let t = monomorphs enum.e_types (monomorphs c.ef_params c.ef_type) in
+				let t = monomorphs enum.e_types (monomorphs c.ef_params (match c.ef_type with TFun (_,t) -> t | t -> t)) in
 				if Hashtbl.mem used_cases c.ef_name || not (try unify_raise ctx t tenum c.ef_pos; true with Error (Unify _,_) -> false) then acc else c.ef_name :: acc
 			) enum.e_constrs [] in
 			match l with
