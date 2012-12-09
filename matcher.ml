@@ -643,6 +643,20 @@ let rec compile mctx (stl : subterm list) (n : int) (pmat : pattern_matrix) = ma
 let subterm_to_varname st =
 	String.concat "_s" (ExtString.String.nsplit (s_subterm st) ".")
 
+let replace_locals ctx out e =
+	let subst = List.map (fun (v,st) ->
+		let vt = PMap.find (subterm_to_varname st) ctx.locals in
+		v, vt
+	) out.o_bindings in
+	let rec loop e = match e.eexpr with
+		| TLocal v ->
+			let v = try List.assq v subst with Not_found -> v in
+			{ e with eexpr = TLocal v}
+		| _ ->
+			Type.map_expr loop e
+	in
+	loop e
+
 let mk_const ctx p = function
 	| TString s -> mk (TConst (TString s)) ctx.com.basic.tstring p
 	| TInt i -> mk (TConst (TInt i)) ctx.com.basic.tint p
@@ -763,11 +777,6 @@ and to_array_switch ctx need_val st t cases =
 and to_typed_ast ctx need_val (dt : decision_tree) : texpr =
 	match dt with
 	| Bind (out,dt) ->
-		let p = out.o_expr.epos in
-		let vl = List.map (fun (v,st) ->
-			let vt = PMap.find (subterm_to_varname st) ctx.locals in
-			v, Some (mk (TLocal (vt)) vt.v_type p)
-		) out.o_bindings in	
 		let e = match out.o_guard,dt with
 			| Some econd,Some dt ->
 				let eif = out.o_expr in
@@ -779,10 +788,7 @@ and to_typed_ast ctx need_val (dt : decision_tree) : texpr =
 			| None, Some _ ->
 				assert false
 		in
-		mk (TBlock [
-			mk (TVars vl) t_dynamic p;
-			e;
-		]) e.etype p
+		replace_locals ctx out e;
 	| Switch(st,t,cases) ->
 		match follow t with
 		| TEnum(en,pl) ->
