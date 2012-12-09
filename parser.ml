@@ -1019,13 +1019,7 @@ let parse ctx code =
 		let rec loop (e,p) =
 			match e with
 			| EConst (Ident i) ->
-				(try
-					TString (Common.raw_defined_value ctx i)
-				with Not_found ->
-					if i = "macro" && Common.unique_full_path p.pfile = (!resume_display).pfile then
-						TString "1"
-					else
-						TNull)
+				(try TString (Common.raw_defined_value ctx i) with Not_found -> TNull)
 			| EConst (String s) -> TString s
 			| EConst (Int i) -> TFloat (float_of_string i)
 			| EConst (Float f) -> TFloat (float_of_string f)
@@ -1052,7 +1046,7 @@ let parse ctx code =
 		in
 		let tk, e = parse_macro_cond false sraw in
 		let tk = (match tk with None -> Lexer.token code | Some tk -> tk) in
-		if is_true (loop e) then begin
+		if is_true (loop e) || (match fst e with EConst (Ident "macro") when Common.unique_full_path p.pfile = (!resume_display).pfile -> true | _ -> false) then begin
 			mstack := p :: !mstack;
 			tk
 		end else
