@@ -142,7 +142,7 @@ class SpodMacros {
 
 	function makeSpod( t : haxe.macro.Type ) {
 		switch( t ) {
-		case TInst(c, p):
+		case TInst(c, _):
 			var name = c.toString();
 			var cl = c.get();
 			var csup = cl.superClass;
@@ -183,7 +183,7 @@ class SpodMacros {
 
 	function makeType( t : haxe.macro.Type ) {
 		switch( t ) {
-		case TInst(c, p):
+		case TInst(c, _):
 			var name = c.toString();
 			return switch( name ) {
 			case "Int": DInt;
@@ -201,7 +201,7 @@ class SpodMacros {
 			case "Bool": DBool;
 			default: throw "Unsupported SPOD Type " + name;
 			}
-		case TEnum(e, p):
+		case TEnum(e, _):
 			var name = e.toString();
 			return switch( name ) {
 			case "Bool": DBool;
@@ -727,7 +727,7 @@ class SpodMacros {
 			case OpUShr, OpInterval, OpAssignOp(_), OpAssign:
 				error("Unsupported operation", p);
 			}
-		case EUnop(op, post, e):
+		case EUnop(op, _, e):
 			var r = buildCond(e);
 			switch( op ) {
 			case OpNot:

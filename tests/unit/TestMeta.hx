@@ -70,7 +70,7 @@ package unit;
 
 	@:macro static function getMeta(e) {
 		switch(e.expr) {
-			case haxe.macro.Expr.ExprDef.EMeta(m, e):
+			case haxe.macro.Expr.ExprDef.EMeta(m, _):
 				return macro { name: $(m.name), args: $[m.params] };
 			default:
 				return macro report("Metadata expected");

@@ -377,13 +377,13 @@ let to_pattern ctx e t =
 				error ((s_type (print_context()) t) ^ " should be Array") p)
 		| (EBinop(OpOr,(EBinop(OpOr,e1,e2),p2),e3),p1) ->
 			loop tctx (EBinop(OpOr,e1,(EBinop(OpOr,e2,e3),p2)),p1) t
-		| (EBinop(OpAssign,(EConst(Ident s),_),e1),p) ->
+		| (EBinop(OpAssign,(EConst(Ident s),p2),e1),p) ->
 			let v = mk_var tctx s t p in
 			let pat1 = loop tctx e1 t in
 			{
 				pdef = PatBind(v,pat1);
 				ptype = t;
-				ppos = p;
+				ppos = p2;
 			};
 		| (EBinop(OpOr,e1,e2),p) ->
 			let old = tctx.pc_locals in
@@ -510,11 +510,11 @@ let rec column_sigma mctx (st : subterm) (pmat : pattern_matrix) : ((con * bool)
 			| ({pdef=PatOr(pat1,pat2)} :: _),out ->
 				let acc1 = loop acc [[pat1],out] in
 				loop acc1 [[pat2],out]
-			| ({pdef=PatVar(SVar v,_)} :: _),out ->
-				bind_subterm out v st;
+			| ({pdef=PatVar(SVar v,_)} as pat :: _),out ->
+				bind_subterm out v (fst st,pat.ppos);
 				acc
-			| (({pdef=PatBind(v,pat)}) :: pl,out) ->
-				bind_subterm out v st;
+			| (({pdef=PatBind(v,pat)} as pat2) :: pl,out) ->
+				bind_subterm out v (fst st,pat2.ppos);
 				loop2 acc ((pat :: pl),out)
 			| _ ->
 				acc
@@ -529,11 +529,11 @@ let bind_remaining (out : outcome) (stl : subterm list) (row : pattern list) =
 	let rec loop st pat = match st,pat with
 		| st :: stl,{pdef = PatAny} :: pl ->
 			loop stl pl
-		| st :: stl,{pdef = PatVar(SVar v,_)} :: pl ->
-			bind_subterm out v st;
+		| st :: stl,({pdef = PatVar(SVar v,_)} as pat) :: pl ->
+			bind_subterm out v (fst st, pat.ppos);
 			loop stl pl
-		| st :: stl,pat :: pl ->
-			loop ([st] @ stl) pl
+		| _ :: _,_ :: pl ->
+			loop st pl
 		| st :: stl,[] ->
 			()
 		| [],_ ->
@@ -643,18 +643,30 @@ let subterm_to_varname st =
 	String.concat "_s" (ExtString.String.nsplit (s_subterm st) ".")
 
 let replace_locals ctx out e =
+	let all_subterms = Hashtbl.create 0 in
 	let subst = List.map (fun (v,st) ->
 		let vt = PMap.find (subterm_to_varname st) ctx.locals in
+		Hashtbl.add all_subterms vt st;
 		v, vt
 	) out.o_bindings in
+	let replace v =
+		try
+			let v2 = List.assq v subst in
+			Hashtbl.remove all_subterms v2;
+			v2
+		with Not_found ->
+			v
+	in 
 	let rec loop e = match e.eexpr with
 		| TLocal v ->
-			let v = try List.assq v subst with Not_found -> v in
+			let v = replace v in
 			{ e with eexpr = TLocal v}
 		| _ ->
 			Type.map_expr loop e
 	in
-	loop e
+	let e = loop e in
+	Hashtbl.iter (fun _ st -> ctx.com.warning "This variable is unused" (pos st)) all_subterms;
+	e
 
 let mk_const ctx p = function
 	| TString s -> mk (TConst (TString s)) ctx.com.basic.tstring p

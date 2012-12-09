@@ -291,10 +291,10 @@ class Check {
 		case CMissingAttrib(att,x):
 			path.push(x);
 			return makeWhere(path)+"missing required attribute "+att;
-		case CInvalidAttrib(att,x,f):
+		case CInvalidAttrib(att,x,_):
 			path.push(x);
 			return makeWhere(path)+"invalid attribute value for "+att;
-		case CInvalidData(x,f):
+		case CInvalidData(x,_):
 			return makeWhere(path)+"invalid data format for "+makeString(x);
 		case CInElement(x,m):
 			path.push(x);

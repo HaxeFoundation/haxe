@@ -133,7 +133,7 @@ class Json {
 				#else
 				objString(v);
 				#end
-		case TEnum(e):
+		case TEnum(_):
 			var i : Dynamic = Type.enumIndex(v);
 			add(i);
 		case TBool:

@@ -36,7 +36,7 @@ class TestMatch extends Test {
 				s;
 			case EArray(_, { expr : EConst(CInt(i) | CFloat(i)) } ):
 				Std.string(i);
-			case EIn(_, { expr : e, pos : p }) :
+			case EIn(_, { expr : e, pos : _ }) :
 				Std.string(e);
 			case _:
 				"not_found";
@@ -74,7 +74,7 @@ class TestMatch extends Test {
 			case [a, b]: "4:" + a + "," +b;
 			case a in a.length == 3: "5:" + a.length;
 			case []: "6";
-			case a: "7";
+			case _: "7";
 		}		
 	}
 	
@@ -197,7 +197,7 @@ class TestMatch extends Test {
 		return switch (x1) {
 			case U1(x) in x > 1: ">1";
 			case U1(x) in x <= 1: "<=1";
-			case U1(x): throw "this is impossible to reach actually";
+			case U1(_): throw "this is impossible to reach actually";
 			case U2: "U2";
 		}
 	}
