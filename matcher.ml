@@ -235,6 +235,16 @@ let unify_enum_field en pl ef t =
 let to_pattern ctx e t =
 	let perror p = error "Unrecognized pattern" p in
 	let verror n p = error ("Variable " ^ n ^ " must appear exactly once in each sub-pattern") p in
+	let mk_var tctx s t p =
+		let v = match tctx.pc_sub_vars with
+			| Some vmap -> (try PMap.find s vmap with Not_found -> verror s p)
+			| None -> alloc_var s t
+		in
+		unify ctx t v.v_type p;
+		if PMap.mem s tctx.pc_locals then verror s p;
+		tctx.pc_locals <- PMap.add s v tctx.pc_locals;
+		v
+	in	
 	let rec loop tctx e t = match e with
 		| EParenthesis(e),_ ->
 			loop tctx e t
@@ -332,13 +342,7 @@ let to_pattern ctx e t =
 					| _ ->
 						raise Not_found);
 			with Not_found ->
-				let v = match tctx.pc_sub_vars with
-					| Some vmap -> (try PMap.find s vmap with Not_found -> verror s p)
-					| None -> alloc_var s t
-				in
-				unify ctx t v.v_type p;
-				if PMap.mem s tctx.pc_locals then verror s p;
-				tctx.pc_locals <- PMap.add s v tctx.pc_locals;
+				let v = mk_var tctx s t p in 
 				{
 					pdef = PatVar(SVar v,p);
 					ptype = t;
@@ -374,13 +378,7 @@ let to_pattern ctx e t =
 		| (EBinop(OpOr,(EBinop(OpOr,e1,e2),p2),e3),p1) ->
 			loop tctx (EBinop(OpOr,e1,(EBinop(OpOr,e2,e3),p2)),p1) t
 		| (EBinop(OpAssign,(EConst(Ident s),_),e1),p) ->
-			let v = match tctx.pc_sub_vars with
-				| Some vmap -> (try PMap.find s vmap with Not_found -> verror s p)
-				| None -> alloc_var s t
-			in
-			unify ctx t v.v_type p;
-			if PMap.mem s tctx.pc_locals then verror s p;
-			tctx.pc_locals <- PMap.add s v tctx.pc_locals;
+			let v = mk_var tctx s t p in
 			let pat1 = loop tctx e1 t in
 			{
 				pdef = PatBind(v,pat1);
@@ -486,7 +484,7 @@ let pick_column (pmat : pattern_matrix) =
 		| ({pdef = PatVar _ | PatAny}) :: rl ->
 			loop (i + 1) rl
 		| [] ->
-			0
+			-1
 		| _ ->
 			i
 	in
@@ -577,19 +575,20 @@ let all_ctors ctx t =
 let rec compile mctx (stl : subterm list) (n : int) (pmat : pattern_matrix) = match pmat with
 	| [] ->
 		assert false
-	| (row,out) :: rl when List.for_all (fun pat -> match pat.pdef with PatVar _ -> true | _ -> false) row ->
-		(* The first row has only variables or wildcards (or nothing at all). *)
-		bind_remaining out stl row;
-		out.o_paths <- out.o_paths + 1;
-		if out.o_guard = None || match rl with [] -> true | _ -> false then
-			(* Not guarded, yield outcome *)
-			Bind(out,None)
-		else
-			(* Guarded, yield outcome and continue *)
-			Bind(out,Some (compile mctx stl 0 rl))
-	| (row,out) :: _ ->
+	| (row,out) :: rl ->
 		let i = pick_column pmat in
-		if i > 0 then begin
+		if i = -1 then begin
+			(* The first row has only variables or wildcards (or nothing at all). *)
+			bind_remaining out stl row;
+			out.o_paths <- out.o_paths + 1;
+			if out.o_guard = None || match rl with [] -> true | _ -> false then
+				(* Not guarded, yield outcome *)
+				Bind(out,None)
+			else
+				(* Guarded, yield outcome and continue *)
+				Bind(out,Some (compile mctx stl 0 rl))
+		end
+		else if i > 0 then begin
 			(* Some column is better than the first, swap them and loop *)
 			let pat_swap = List.map (fun (row,out) -> (swap_columns i row),out) pmat in
 			let stl_swap = swap_columns i stl in
