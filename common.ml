@@ -137,111 +137,110 @@ let display_default = ref false
 module Define = struct
 
 	type strict_defined =
-		| As3
-		| Sys
-		| DceDebug
-		| MatchDebug
-		| Macro
-		| CoreApi
-		| NoCOpt
-		| Haxe3
-		| HaxeVer
-		| CheckXmlProxy
-		| DocGen
-		| Vcproj
-		| Scriptable
-		| NoCompilation
-		| GencommonDebug
-		| ReplaceFiles
-		| NekoV2
-		| NoSwfCompress
-		| NoRoot
-		| NekoSource
-		| UseNekoc
-		| SwfMark
-		| Fdb
-		| Swc
-		| SwfProtected
-		| JsModern
-		| JsClassic
-		| FlashStrict
-		| HaxeBoot
-		| FlashUseStage
-		| NetworkSandbox
+		| AbsolutePath	
 		| AdvancedTelemetry
-		| AbsolutePath
-		| NoTraces
-		| MacroTimes
-		| Display
-		| NoInline
-		| UseRttiDoc
-		| NoOpt
+		| As3
+		| CheckXmlProxy
+		| CoreApi
+		| Dce
+		| DceDebug
 		| Debug
-		| Interp
-		| PhpPrefix
+		| Display
+		| DocGen
 		| Dump
 		| DumpDependencies
-		| Dce
+		| Fdb
+		| FlashStrict
+		| FlashUseStage
 		| FormatWarning
-		| SwfPreloaderFrame
-		| SwfScriptTimeout
+		| GencommonDebug
+		| Haxe3
+		| HaxeBoot
+		| HaxeVer
+		| Interp
+		| JsClassic
+		| JsModern
+		| Macro
+		| MacroTimes
+		| MatchDebug
+		| NekoSource
+		| NekoV2
+		| NetworkSandbox
+		| NoCompilation
+		| NoCOpt
+		| NoInline
+		| NoOpt
+		| NoRoot
+		| NoSwfCompress
+		| NoTraces
 		| PatternMatching
+		| PhpPrefix
+		| ReplaceFiles
+		| Scriptable
+		| Swc
 		| SwfDebugPassword
+		| SwfMark
+		| SwfPreloaderFrame
+		| SwfProtected
+		| SwfScriptTimeout
+		| Sys
+		| UseNekoc
+		| UseRttiDoc
+		| Vcproj
 		| Last (* must be last *)
 
 	let infos = function
-		| As3 -> ("as3","Defined when outputing flash9 as3 source code")
-		| Sys -> ("sys","Defined for all system platforms")
-		| DceDebug -> ("dce_debug","Show DCE log")
-		| MatchDebug -> ("match_debug","Show Pattern Matcher log")
-		| Macro -> ("macro","Defined when we compile code in the macro context")
-		| CoreApi -> ("core_api","Defined in the core api context")
-		| NoCOpt -> ("no_copt","Disable completion optimization (for debug purposes)")
-		| Haxe3 -> ("haxe3","Enable Haxe3 transition mode")
-		| HaxeVer -> ("haxe_ver","The current Haxe version value")
-		| CheckXmlProxy -> ("check_xml_proxy","Check the used fields of the xml proxy")
-		| DocGen -> ("doc_gen","Do not perform any removal/change in order to correctly generate documentation")
-		| Vcproj -> ("vcproj","GenCPP internal")
-		| Scriptable -> ("scriptable","GenCPP internal")
-		| NoCompilation -> ("no-compilation","Disable CPP final compilation")
-		| GencommonDebug -> ("gencommon_debug","GenCommon internal")
-		| ReplaceFiles -> ("replace_files","GenCommon internal")
-		| NekoV2 -> ("neko_v2","Activate Neko 2.0 compatibility")
-		| NoSwfCompress -> ("no_swf_compress","Disable SWF output compression")
-		| NoRoot -> ("no_root","GenCS internal")
-		| NekoSource -> ("neko_source","Output neko source instead of bytecode")
-		| UseNekoc -> ("use_nekoc","Use nekoc compiler instead of internal one")
-		| SwfMark -> ("swf_mark","GenSWF8 internal")
-		| Fdb -> ("fdb","Enable full flash debug infos for FDB interactive debugging")
-		| Swc -> ("swc","Output a SWC instead of a SWF")
-		| SwfProtected -> ("swf_protected","Compile Haxe private as protected in the SWF instead of public")
-		| SwfPreloaderFrame -> ("swf_preloader_frame", "Insert empty first frame in swf")
-		| SwfScriptTimeout -> ("swf_script_timeout", "Maximum ActionScript processing time before script stuck dialog box displays (in seconds)")
-		| JsModern -> ("js_modern","Use function wrapper and strict mode in JS output")
-		| JsClassic -> ("js_classic","Don't use a function wrapper and strict mode in JS output")
-		| FlashStrict -> ("flash_strict","More strict typing for flash target")
-		| HaxeBoot -> ("haxe_boot","Given the name 'haxe' to the flash boot class instead of a generated name")
-		| FlashUseStage -> ("flash_use_stage","Keep the SWF library initial stage")
-		| NetworkSandbox -> ("network-sandbox","Use local network sandbox instead of local file access one")
-		| AdvancedTelemetry -> ("advanced-telemetry","Allow the SWF to be measured with Monocle tool")
 		| AbsolutePath -> ("absolute_path","Print absoluate file path in trace output")
-		| NoTraces -> ("no_traces","Disable all trace calls")
-		| MacroTimes -> ("macro_times","Display per-macro timing when used with --times")
-		| Display -> ("display","Activated during completion")
-		| NoInline -> ("no_inline","Disable inlining")
-		| UseRttiDoc -> ("use_rtti_doc","Allows access to documentation during compilation")
-		| NoOpt -> ("no_opt","Disable optimizations")
+		| AdvancedTelemetry -> ("advanced-telemetry","Allow the SWF to be measured with Monocle tool")
+		| As3 -> ("as3","Defined when outputing flash9 as3 source code")
+		| CheckXmlProxy -> ("check_xml_proxy","Check the used fields of the xml proxy")
+		| CoreApi -> ("core_api","Defined in the core api context")
+		| Dce -> ("dce","The current DCE mode")
+		| DceDebug -> ("dce_debug","Show DCE log")
 		| Debug -> ("debug","Activated when compiling with -debug")
-		| Interp -> ("interp","The code is compiled to be run with --interp")
-		| PhpPrefix -> ("php_prefix","Compiled with --php-prefix")
+		| Display -> ("display","Activated during completion")
+		| DocGen -> ("doc_gen","Do not perform any removal/change in order to correctly generate documentation")
 		| Dump -> ("dump","Dump the complete typed AST for internal debugging")
 		| DumpDependencies -> ("dump_dependencies","Dump the classes dependencies")
-		| Dce -> ("dce","The current DCE mode")
+		| Fdb -> ("fdb","Enable full flash debug infos for FDB interactive debugging")
+		| FlashStrict -> ("flash_strict","More strict typing for flash target")
+		| FlashUseStage -> ("flash_use_stage","Keep the SWF library initial stage")
 		| FormatWarning -> ("format_warning","Print a warning for each formated string, for 2.x compatibility")
+		| GencommonDebug -> ("gencommon_debug","GenCommon internal")
+		| Haxe3 -> ("haxe3","Enable Haxe3 transition mode")
+		| HaxeBoot -> ("haxe_boot","Given the name 'haxe' to the flash boot class instead of a generated name")
+		| HaxeVer -> ("haxe_ver","The current Haxe version value")
+		| Interp -> ("interp","The code is compiled to be run with --interp")
+		| JsClassic -> ("js_classic","Don't use a function wrapper and strict mode in JS output")
+		| JsModern -> ("js_modern","Use function wrapper and strict mode in JS output")		
+		| Macro -> ("macro","Defined when we compile code in the macro context")
+		| MacroTimes -> ("macro_times","Display per-macro timing when used with --times")
+		| MatchDebug -> ("match_debug","Show Pattern Matcher log")
+		| NekoSource -> ("neko_source","Output neko source instead of bytecode")
+		| NekoV2 -> ("neko_v2","Activate Neko 2.0 compatibility")
+		| NetworkSandbox -> ("network-sandbox","Use local network sandbox instead of local file access one")
+		| NoCompilation -> ("no-compilation","Disable CPP final compilation")
+		| NoCOpt -> ("no_copt","Disable completion optimization (for debug purposes)")
+		| NoOpt -> ("no_opt","Disable optimizations")
+		| NoInline -> ("no_inline","Disable inlining")
+		| NoRoot -> ("no_root","GenCS internal")
+		| NoSwfCompress -> ("no_swf_compress","Disable SWF output compression")
+		| NoTraces -> ("no_traces","Disable all trace calls")
 		| PatternMatching -> ("pattern_matching","Allow pattern matching")
+		| PhpPrefix -> ("php_prefix","Compiled with --php-prefix")
+		| ReplaceFiles -> ("replace_files","GenCommon internal")
+		| Scriptable -> ("scriptable","GenCPP internal")
+		| Swc -> ("swc","Output a SWC instead of a SWF")
 		| SwfDebugPassword -> ("swf_debug_password", "Set a password for debugging.")
+		| SwfMark -> ("swf_mark","GenSWF8 internal")
+		| SwfPreloaderFrame -> ("swf_preloader_frame", "Insert empty first frame in swf")
+		| SwfProtected -> ("swf_protected","Compile Haxe private as protected in the SWF instead of public")
+		| SwfScriptTimeout -> ("swf_script_timeout", "Maximum ActionScript processing time before script stuck dialog box displays (in seconds)")
+		| Sys -> ("sys","Defined for all system platforms")
+		| UseNekoc -> ("use_nekoc","Use nekoc compiler instead of internal one")
+		| UseRttiDoc -> ("use_rtti_doc","Allows access to documentation during compilation")
+		| Vcproj -> ("vcproj","GenCPP internal")
 		| Last -> assert false
-
 end
 
 let stats =
