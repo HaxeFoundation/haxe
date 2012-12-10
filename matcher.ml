@@ -711,13 +711,15 @@ let rec to_value_switch ctx need_val st t cases =
 (* Translates enum constructors to a TMatch *)
 and to_enum_switch ctx need_val st en pl cases =
 	let v,e_var,p = switch_infos ctx st in
+	let et = monomorphs ctx.type_params (TEnum(en,pl)) in
 	let def = ref None in
 	let cases = ExtList.List.filter_map (fun ((c,p),dt) ->
 		match c with
 		| CEnum(en,ef) ->
 			let save = save_locals ctx in
-			let vl = match follow ef.ef_type with
-			| TFun(args,_) ->
+			let vl = match follow (monomorphs ef.ef_params ef.ef_type) with
+			| TFun(args,r) ->
+				unify ctx r et p;
 				let vl = ExtList.List.mapi (fun i (_,_,t) ->
 					let n = subterm_to_varname (SSub(st,i),p) in
 					let v = add_local ctx n t in
