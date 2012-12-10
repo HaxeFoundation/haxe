@@ -1,0 +1,69 @@
+/*
+ * Copyright (C)2005-2012 Haxe Foundation
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ */
+
+// This file is generated, do not edit!
+package js.html.audio;
+
+@:native("PannerNode")
+extern class PannerNode extends AudioNode
+{
+    static inline var EQUALPOWER :Int = 0;
+
+    static inline var EXPONENTIAL_DISTANCE :Int = 2;
+
+    static inline var HRTF :Int = 1;
+
+    static inline var INVERSE_DISTANCE :Int = 1;
+
+    static inline var LINEAR_DISTANCE :Int = 0;
+
+    static inline var SOUNDFIELD :Int = 2;
+
+    var coneGain (default,null) :AudioGain;
+
+    var coneInnerAngle :Float;
+
+    var coneOuterAngle :Float;
+
+    var coneOuterGain :Float;
+
+    var distanceGain (default,null) :AudioGain;
+
+    /** Setter throws DOMException. */
+    var distanceModel :Int;
+
+    var maxDistance :Float;
+
+    /** Setter throws DOMException. */
+    var panningModel :Int;
+
+    var refDistance :Float;
+
+    var rolloffFactor :Float;
+
+    function setOrientation (x :Float, y :Float, z :Float) :Void;
+
+    function setPosition (x :Float, y :Float, z :Float) :Void;
+
+    function setVelocity (x :Float, y :Float, z :Float) :Void;
+
+}
