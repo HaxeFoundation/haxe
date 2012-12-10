@@ -325,12 +325,15 @@ let to_pattern ctx e t =
 			| _ -> error "Constant expression expected" p)
 		| ((EConst(Ident s),p) as ec) -> (try
 				(* HACK so type_ident via type_field does not cause display errors *)
+				let old = ctx.untyped in
 				ctx.untyped <- true;
 				let tc = monomorphs ctx.type_params t in
 				let ec = try type_expr_with_type ctx ec (Some tc) true with _ -> raise Not_found in
-				ctx.untyped <- false;
+				ctx.untyped <- old;
 				(* we might have found the wrong thing entirely *)
-				(try unify_raise ctx tc ec.etype ec.epos with Error (Unify _,_) -> raise Not_found);
+				(match tc with
+					| TMono _ -> ()
+					| _ -> try unify_raise ctx ec.etype tc ec.epos with Error (Unify _,_) -> raise Not_found);
 				(match ec.eexpr with
 					| TEnumField(en,s)
 					| TField ({ eexpr = TTypeExpr (TEnumDecl en) },s) ->
@@ -338,7 +341,9 @@ let to_pattern ctx e t =
 						unify_enum_field en (List.map (fun _ -> mk_mono()) en.e_types) ef tc;
 						mk_con_pat (CEnum(en,ef)) [] t p
 					| TTypeExpr mt ->
-						mk_con_pat (CType mt) [] t p
+						let tcl = Typeload.load_instance ctx {tname="Class";tpackage=[];tsub=None;tparams=[]} p true in
+						let t2 = match tcl with TAbstract(a,_) -> TAbstract(a,[mk_mono()]) | _ -> assert false in
+						mk_con_pat (CType mt) [] t2 p
 					| _ ->
 						raise Not_found);
 			with Not_found ->
@@ -817,7 +822,6 @@ and to_typed_ast ctx need_val (dt : decision_tree) : texpr =
 
 (* Main match function *)
 let match_expr ctx e cases def need_val with_type p =
-	if ctx.untyped then raise Exit;
 	let cases = match cases,def with
 		| [],None -> error "Empty switch" p
 		| cases,Some def -> cases @ [[(EConst(Ident "_")),pos def],def]

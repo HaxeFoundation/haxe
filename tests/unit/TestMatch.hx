@@ -109,7 +109,15 @@ class TestMatch extends Test {
 			case _:
 				"5";
 		}
-	}	
+	}
+	
+	static function switchClass<T>(cl:Class<T>) {
+		return switch(cl) {
+			case String: "String";
+			case haxe.Template: "haxe.Template";
+			case a: "other: " +Type.getClassName(a);
+		}
+	}
 	
 	function testBasic() {
 		eq("bar", switchNormal(macro "bar"));
@@ -202,11 +210,17 @@ class TestMatch extends Test {
 		}
 	}
 	
-	function testGadt () {
+	function testGadt() {
 		eq("<=1", toStringX(U1(1)));
 		eq(">1", toStringX(U1(2)));
 		eq("U2", toStringX(U2));
-	}	
+	}
+	
+	function testClassSwitch() {
+		eq("String", switchClass(String));
+		eq("haxe.Template", switchClass(haxe.Template));
+		eq("other: unit.TestMatch", switchClass(TestMatch));
+	}
 		
 	function testNonExhaustiveness() {
 		eq("This match is not exhaustive, these patterns are not matched: false", getErrorMessage(switch(true) {

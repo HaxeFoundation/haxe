@@ -70,11 +70,11 @@ class Boot {
 		untyped {
 			if( cl == Dynamic )
 				return true;
-			switch __dollar__typeof(o) {
-			case __dollar__tint: return (cl == Int || cl == Float);
-			case __dollar__tfloat: return cl == Float || (cl == Int && __dollar__int(o) == o);
-			case __dollar__tbool: return cl == Bool;
-			case __dollar__tobject:
+			switch( __dollar__typeof(o) ) {
+			case 1: return (cl == Int || cl == Float);
+			case 2: return cl == Float || (cl == Int && __dollar__int(o) == o);
+			case 3: return cl == Bool;
+			case 5:
 				if( cl == null )
 					return false;
 				return __interfLoop(o.__class__,cl) || ( o.__enum__ == cl ) || (cl == Class && o.__name__ != null) || (cl == Enum && o.__ename__ != null );

@@ -163,12 +163,12 @@ enum ValueType {
 
 	public static function typeof( v : Dynamic ) : ValueType untyped {
 		return switch( __dollar__typeof(v) ) {
-		case __dollar__tnull: TNull;
-		case __dollar__tint: TInt;
-		case __dollar__tfloat: TFloat;
-		case __dollar__tbool: TBool;
-		case __dollar__tfunction: TFunction;
-		case __dollar__tobject:
+		case 0: TNull;
+		case 1: TInt;
+		case 2: TFloat;
+		case 3: TBool;
+		case 7: TFunction;
+		case 5:
 			var c = v.__class__;
 			if( c != null )
 				TClass(c);

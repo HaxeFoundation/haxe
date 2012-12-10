@@ -94,17 +94,17 @@ class Lib {
 	**/
 	public static function nekoToHaxe( v : Dynamic ) : Dynamic untyped {
 		switch( __dollar__typeof(v) ) {
-		case __dollar__tnull: return v;
-		case __dollar__tint: return v;
-		case __dollar__tfloat: return v;
-		case __dollar__tbool: return v;
-		case __dollar__tstring: return new String(v);
-		case __dollar__tarray:
+		case 0: return v;
+		case 1: return v;
+		case 2: return v;
+		case 3: return v;
+		case 4: return new String(v);
+		case 6:
 			var a = Array.new1(v,__dollar__asize(v));
 			for( i in 0...a.length )
 				a[i] = nekoToHaxe(a[i]);
 			return a;
-		case __dollar__tobject:
+		case 5:
 			var f = __dollar__objfields(v);
 			var i = 0;
 			var l = __dollar__asize(f);
@@ -126,11 +126,11 @@ class Lib {
 	**/
 	public static function haxeToNeko( v : Dynamic ) : Dynamic untyped {
 		switch( __dollar__typeof(v) ) {
-		case __dollar__tnull: return v;
-		case __dollar__tint: return v;
-		case __dollar__tfloat: return v;
-		case __dollar__tbool: return v;
-		case __dollar__tobject:
+		case 0: return v;
+		case 1: return v;
+		case 2: return v;
+		case 3: return v;
+		case 5:
 			var cl = v.__class__;
 			if( cl == String )
 				return v.__s;

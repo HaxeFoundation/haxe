@@ -111,7 +111,7 @@ class Check {
 				var found = false;
 				for( att in attribs )
 					switch( att ) {
-					case Att(name,filter,defvalue):
+					case Att(name,filter,_):
 						if( xatt != name )
 							continue;
 						if( filter != null && !filterMatch(x.get(xatt),filter) )
