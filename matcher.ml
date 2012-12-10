@@ -655,17 +655,18 @@ let replace_locals ctx out e =
 		v, vt
 	) out.o_bindings in
 	let replace v =
-		try
-			let v2 = List.assq v subst in
-			Hashtbl.remove all_subterms v2;
-			v2
-		with Not_found ->
-			v
+		let v2 = List.assq v subst in
+		Hashtbl.remove all_subterms v2;
+		v2
 	in 
 	let rec loop e = match e.eexpr with
 		| TLocal v ->
-			let v = replace v in
-			{ e with eexpr = TLocal v}
+			(try
+				let v = replace v in
+				unify ctx e.etype v.v_type e.epos;
+				{ e with eexpr = TLocal v; }
+			with Not_found ->
+				e)
 		| _ ->
 			Type.map_expr loop e
 	in
