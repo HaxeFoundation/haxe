@@ -116,12 +116,12 @@ enum ValueType {
 			var t:Int = untyped v.__GetType();
 			switch(t)
 			{
-				case untyped __global__.vtBool : return TBool;
-				case untyped __global__.vtInt : return TInt;
-				case untyped __global__.vtFloat : return TFloat;
-				case untyped __global__.vtFunction : return TFunction;
-				case untyped __global__.vtObject : return TObject;
-				case untyped __global__.vtEnum : return TEnum(v.__GetClass());
+				case 2 : return TBool;
+				case 0xFF : return TInt;
+				case 1 : return TFloat;
+				case 6 : return TFunction;
+				case 4 : return TObject;
+				case 7 : return TEnum(v.__GetClass());
 				default:
 					return untyped TClass(v.__GetClass());
 			}
