@@ -74,6 +74,7 @@ unit.Test
 --next
 -main unit.Test
 -java java
+-D dump
 
 #cs
 #--next

@@ -7942,15 +7942,15 @@ struct
             in
             
             let ef_type = 
-              if handle_type_params then
-                apply_params en.e_types (List.map snd dup_types) ef.ef_type 
-              else
-                apply_params en.e_types (List.map (fun _ -> t_dynamic) en.e_types) ef.ef_type
+              let fn, types = if handle_type_params then snd, dup_types else (fun _ -> t_dynamic), en.e_types in
+              let t = apply_params en.e_types (List.map fn types) ef.ef_type in
+              apply_params ef.ef_params (List.map fn ef.ef_params) t
             in
             
             let params, ret = get_fun ef_type in
+            let cf_params = if handle_type_params then dup_types @ ef.ef_params else [] in
             
-            let cf = mk_class_field name ef_type true pos (Method MethNormal) dup_types in
+            let cf = mk_class_field name ef_type true pos (Method MethNormal) cf_params in
             cf.cf_meta <- [];
             
             let tf_args = List.map (fun (name,opt,t) ->  (alloc_var name t, if opt then Some TNull else None) ) params in
@@ -8108,8 +8108,11 @@ struct
       let tvars = List.map (fun (v, n) -> 
         (v, Some({ eexpr = TArray(cond_array, mk_int gen n cond_array.epos); etype = t_dynamic; epos = cond_array.epos }))
       ) vars in
-      if List.length vars = 0 then [] else
-      [ { eexpr = TVars(tvars); etype = gen.gcon.basic.tvoid; epos = cond_local.epos } ]
+      match vars with
+        | [] -> 
+            []
+        | _ -> 
+            [ { eexpr = TVars(tvars); etype = gen.gcon.basic.tvoid; epos = cond_local.epos } ]
     
     let traverse gen t opt_get_native_enum_tag =
       let rec run e =
@@ -8117,8 +8120,6 @@ struct
           | TMatch(cond,(en,eparams),cases,default) ->
             let cond = run cond in (* being safe *)
             (* check if en was converted to class *)
-            
-            
             (* if it was, switch on tag field and change cond type *)
             let exprs_before, cond_local, cond = try
               let cl = Hashtbl.find t.ec_tbl en.e_path in

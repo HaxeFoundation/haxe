@@ -1902,7 +1902,7 @@ let configure gen =
 
   TypeParams.RenameTypeParameters.run gen;
 
-  Codegen.dump_types gen.gcon;
+  (*Codegen.dump_types gen.gcon;*)
 
   let t = Common.timer "code generation" in
 
