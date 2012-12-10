@@ -186,6 +186,7 @@ module Define = struct
 		| SwfPreloaderFrame
 		| SwfScriptTimeout
 		| PatternMatching
+		| SwfDebugPassword
 		| Last (* must be last *)
 
 	let infos = function
@@ -238,6 +239,7 @@ module Define = struct
 		| Dce -> ("dce","The current DCE mode")
 		| FormatWarning -> ("format_warning","Print a warning for each formated string, for 2.x compatibility")
 		| PatternMatching -> ("pattern_matching","Allow pattern matching")
+		| SwfDebugPassword -> ("swf_debug_password", "Set a password for debugging.")
 		| Last -> assert false
 
 end

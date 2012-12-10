@@ -1068,10 +1068,10 @@ let generate com swf_header =
 							| TAbstractDecl a -> false
 							| TTypeDecl t -> false
 						) in
-						if not extern && s_type_path (t_path t) = e.f9_classname then
-							match t with
+						if s_type_path (t_path t) = e.f9_classname then match t with
 							| TClassDecl c ->
-								if has_meta ":bind" c.cl_meta then
+								if extern && not ((has_meta ":used" c.cl_meta) || (has_meta ":keep" c.cl_meta))
+								|| has_meta ":bind" c.cl_meta then
 									toremove := (t_path t) :: !toremove
 								else
 									error ("Class already exists in '" ^ file ^ "', use @:bind to redefine it") (t_infos t).mt_pos
