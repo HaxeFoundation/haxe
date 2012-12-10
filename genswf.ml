@@ -1092,7 +1092,7 @@ let generate com swf_header =
 			fa_network = Common.defined com Define.NetworkSandbox;
 			fa_as3 = isf9;
 			fa_metadata = false;
-			fa_gpu = false;
+			fa_gpu = com.flash_version > 9. && Common.defined com Define.SwfGpu;
 			fa_direct_blt = false;
 		})]
 	) in

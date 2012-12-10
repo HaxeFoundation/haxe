@@ -179,6 +179,7 @@ module Define = struct
 		| Scriptable
 		| Swc
 		| SwfDebugPassword
+		| SwfGpu
 		| SwfMark
 		| SwfPreloaderFrame
 		| SwfProtected
@@ -232,6 +233,7 @@ module Define = struct
 		| Scriptable -> ("scriptable","GenCPP internal")
 		| Swc -> ("swc","Output a SWC instead of a SWF")
 		| SwfDebugPassword -> ("swf_debug_password", "Set a password for debugging.")
+		| SwfGpu -> ("swf_gpu", "Use GPU compositing features when drawing graphics")
 		| SwfMark -> ("swf_mark","GenSWF8 internal")
 		| SwfPreloaderFrame -> ("swf_preloader_frame", "Insert empty first frame in swf")
 		| SwfProtected -> ("swf_protected","Compile Haxe private as protected in the SWF instead of public")
