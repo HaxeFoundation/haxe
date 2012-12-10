@@ -464,7 +464,7 @@ let parse_swf com file =
 	t();
 	(h,tags)
 
-let add_swf_lib com file =
+let add_swf_lib com file extern =
 	let swf_data = ref None in
 	let swf_classes = ref None in
 	let getSWF = (fun() ->
@@ -489,7 +489,7 @@ let add_swf_lib com file =
 		| Some c -> Some (file, build_class com c file)
 	in
 	com.load_extern_type <- com.load_extern_type @ [build];
-	com.swf_libs <- (file,getSWF,extract) :: com.swf_libs
+	if not extern then com.swf_libs <- (file,getSWF,extract) :: com.swf_libs
 
 (* ------------------------------- *)
 

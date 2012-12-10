@@ -2366,7 +2366,7 @@ let macro_lib =
 			| VString file ->
 				let com = ccom() in
 				(match com.platform with
-				| Flash -> Genswf.add_swf_lib com file
+				| Flash -> Genswf.add_swf_lib com file false
 				| _ -> failwith "Unsupported platform");
 				VNull
 			| _ ->

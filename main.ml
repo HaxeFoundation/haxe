@@ -834,8 +834,11 @@ try
 				_ -> raise (Arg.Bad "Invalid SWF header format, expected width:height:fps[:color]")
 		),"<header> : define SWF header (width:height:fps:color)");
 		("-swf-lib",Arg.String (fun file ->
-			Genswf.add_swf_lib com file
+			Genswf.add_swf_lib com file false
 		),"<file> : add the SWF library to the compiled SWF");
+		("-swf-lib-extern",Arg.String (fun file ->
+			Genswf.add_swf_lib com file true
+		),"<file> : use the SWF library for type checking");
 		("-java-lib",Arg.String (fun file ->
 			Genjava.add_java_lib com file 
 		),"<file> : add an external JAR or class directory library");
