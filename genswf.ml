@@ -1093,7 +1093,7 @@ let generate com swf_header =
 			fa_as3 = isf9;
 			fa_metadata = false;
 			fa_gpu = com.flash_version > 9. && Common.defined com Define.SwfGpu;
-			fa_direct_blt = false;
+			fa_direct_blt = com.flash_version > 9. && Common.defined com Define.SwfDirectBlit;
 		})]
 	) in
 	let fattr = if Common.defined com Define.AdvancedTelemetry then fattr @ [tag (TUnknown (0x5D,"\x00\x00"))] else fattr in
