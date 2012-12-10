@@ -20,13 +20,14 @@
  * DEALINGS IN THE SOFTWARE.
  */
 package js;
-import js.Dom.Textarea;
+
+import js.html.TextAreaElement;
 
 class Selection {
 
 	var doc : Dynamic;
 
-	public function new( doc : Textarea ) {
+	public function new( doc : TextAreaElement ) {
 		this.doc = doc;
 	}
 

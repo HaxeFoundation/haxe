@@ -21,12 +21,15 @@
  */
 package js;
 
+import js.html.DOMWindow;
+import js.html.Element;
+
 typedef JqEvent = {
-	var target : Dom.HtmlDom;
-	var currentTarget : Dom.HtmlDom;
-	var relatedTarget : Dom.HtmlDom;
-	var delegateTarget : Dom.HtmlDom;
-	
+	var target : Element;
+	var currentTarget : Element;
+	var relatedTarget : Element;
+	var delegateTarget : Element;
+
 	var type : String;
 	var timeStamp : Int;
 
@@ -60,14 +63,14 @@ typedef JqEvent = {
 }
 
 @:initPackage
-extern class JQuery implements ArrayAccess<Dom.HtmlDom> {
+extern class JQuery implements ArrayAccess<Element> {
 
-	var context(default,null) : Dom.HtmlDom;
+	var context(default,null) : Element;
 	var length(default, null) : Int;
 
-	@:overload(function(j:js.JQuery):Void{})
-	@:overload(function(j:js.Dom.Window):Void{})
-	@:overload(function(j:js.Dom.HtmlDom):Void{})
+	@:overload(function(j:JQuery):Void{})
+	@:overload(function(j:DOMWindow):Void{})
+	@:overload(function(j:Element):Void{})
 	function new( html : String ) : Void;
 
 	// attributes
@@ -76,59 +79,59 @@ extern class JQuery implements ArrayAccess<Dom.HtmlDom> {
 	function hasClass( className : String ) : Bool;
 	function toggleClass( className : String, ?addRemove : Bool ) : JQuery;
 
-	@:overload(function(name:String,value:String):js.JQuery{})
+	@:overload(function(name:String,value:String):JQuery{})
 	function attr( name : String ) : String;
 
 	function removeAttr( attr : String ) : JQuery;
 
-	@:overload(function(name:String,value:Dynamic):js.JQuery{})
+	@:overload(function(name:String,value:Dynamic):JQuery{})
 	function prop( name : String ) : Dynamic;
 
-	@:overload(function(prop:String,value:String):js.JQuery{})
-	@:overload(function(map:{}):js.JQuery{})
+	@:overload(function(prop:String,value:String):JQuery{})
+	@:overload(function(map:{}):JQuery{})
 	function css( prop : String ) : String;
 
-	@:overload(function(html:String):js.JQuery{})
-	@:overload(function(html:js.JQuery):js.JQuery{})
+	@:overload(function(html:String):JQuery{})
+	@:overload(function(html:JQuery):JQuery{})
 	function html() : String;
 
-	@:overload(function(value:String):js.JQuery{})
+	@:overload(function(value:String):JQuery{})
 	function val() : String;
 
-	@:overload(function(text:String):js.JQuery{})
+	@:overload(function(text:String):JQuery{})
 	function text() : String;
 
 	// Size & Position
-	@:overload(function(value:Int):js.JQuery{})
+	@:overload(function(value:Int):JQuery{})
 	function width() : Int;
-	@:overload(function(value:Int):js.JQuery{})
+	@:overload(function(value:Int):JQuery{})
 	function height() : Int;
-	@:overload(function(value:Int):js.JQuery{})
+	@:overload(function(value:Int):JQuery{})
 	function innerWidth() : Int;
-	@:overload(function(value:Int):js.JQuery{})
+	@:overload(function(value:Int):JQuery{})
 	function innerHeight() : Int;
 
 	function outerWidth( ?includeMargin : Bool ) : Int;
 	function outerHeight( ?includeMargin : Bool ) : Int;
 
-	@:overload(function(value:Int):js.JQuery{})
+	@:overload(function(value:Int):JQuery{})
 	function scrollLeft() : Int;
 
-	@:overload(function(value:Int):js.JQuery{})
+	@:overload(function(value:Int):JQuery{})
 	function scrollTop() : Int;
 
-	@:overload(function(value: { left : Int, top : Int }):js.JQuery{})
+	@:overload(function(value: { left : Int, top : Int }):JQuery{})
 	function offset() : { left : Int, top : Int };
 
 	function offsetParent() : JQuery;
 
-	@:overload(function(value: { left : Int, top : Int }):js.JQuery{})
+	@:overload(function(value: { left : Int, top : Int }):JQuery{})
 	function position() : { left : Int, top : Int };
 
 	// current group manipulation
-	@:overload(function(value:js.JQuery):js.JQuery{})
-	@:overload(function(value:js.Dom.HtmlDom):js.JQuery{})
-	@:overload(function(value:Array<js.Dom.HtmlDom>):js.JQuery{})
+	@:overload(function(value:JQuery):JQuery{})
+	@:overload(function(value:Element):JQuery{})
+	@:overload(function(value:Array<Element>):JQuery{})
 	function add( selector : String, ?context : JQuery ) : JQuery;
 	function andSelf() : JQuery;
 	function children( ?selector : String ) : JQuery;
@@ -136,7 +139,7 @@ extern class JQuery implements ArrayAccess<Dom.HtmlDom> {
 	function closest( selector : String, ?context : JQuery ) : JQuery;
 	function contents() : JQuery;
 
-	@:overload(function( f : Int -> js.Dom.HtmlDom -> Void ):js.JQuery{})
+	@:overload(function( f : Int -> Element -> Void ):JQuery{})
 	function each( f : Void -> Void ) : JQuery;
 	function end() : JQuery;
 	function eq( index : Int ) : JQuery;
@@ -152,119 +155,119 @@ extern class JQuery implements ArrayAccess<Dom.HtmlDom> {
 	function parent( ?selector : String ) : JQuery;
 	function parents( ?selector : String ) : JQuery;
 	function parentsUntil( ?selector : String ) : JQuery;
-	@:overload(function(value:js.Dom.HtmlDom):js.JQuery{})
+	@:overload(function(value:Element):JQuery{})
 	function not( selector : String ) : JQuery;
 	function prev( ?selector : String ) : JQuery;
 	function prevAll( ?selector : String ) : JQuery;
 	function prevUntil( ?selector : String ) : JQuery;
-	function pushStack( elements : Array<Dom.HtmlDom> ) : JQuery;
+	function pushStack( elements : Array<Element> ) : JQuery;
 	function siblings( ?selector : String ) : JQuery;
 	function size() : Int;
 	function slice( start : Int, ?end : Int ) : JQuery;
-	function toArray() : Array<Dom.HtmlDom>;
+	function toArray() : Array<Element>;
 
 	// DOM changes
-	@:overload(function(value:js.JQuery):js.JQuery{})
-	@:overload(function(value:js.Dom.HtmlDom):js.JQuery{})
+	@:overload(function(value:JQuery):JQuery{})
+	@:overload(function(value:Element):JQuery{})
 	function before( html : String ) : JQuery;
 
-	@:overload(function(value:js.JQuery):js.JQuery{})
-	@:overload(function(value:js.Dom.HtmlDom):js.JQuery{})
+	@:overload(function(value:JQuery):JQuery{})
+	@:overload(function(value:Element):JQuery{})
 	function after( html : String ) : JQuery;
 
-	@:overload(function(value:js.JQuery):js.JQuery{})
-	@:overload(function(value:js.Dom.HtmlDom):js.JQuery{})
+	@:overload(function(value:JQuery):JQuery{})
+	@:overload(function(value:Element):JQuery{})
 	function append( html : String ) : JQuery;
 
-	@:overload(function(value:js.JQuery):js.JQuery{})
-	@:overload(function(value:js.Dom.HtmlDom):js.JQuery{})
+	@:overload(function(value:JQuery):JQuery{})
+	@:overload(function(value:Element):JQuery{})
 	function appendTo( html : String ) : JQuery;
 
 	function detach( ?selector : String ) : JQuery;
 	function empty() : JQuery; // remove all texts
 
-	@:overload(function(value:js.JQuery):js.JQuery{})
-	@:overload(function(value:js.Dom.HtmlDom):js.JQuery{})
+	@:overload(function(value:JQuery):JQuery{})
+	@:overload(function(value:Element):JQuery{})
 	function insertBefore( html : String ) : JQuery;
 
-	@:overload(function(value:js.JQuery):js.JQuery{})
-	@:overload(function(value:js.Dom.HtmlDom):js.JQuery{})
+	@:overload(function(value:JQuery):JQuery{})
+	@:overload(function(value:Element):JQuery{})
 	function insertAfter( html : String ) : JQuery;
 
-	@:overload(function(value:js.JQuery):js.JQuery{})
-	@:overload(function(value:js.Dom.HtmlDom):js.JQuery{})
+	@:overload(function(value:JQuery):JQuery{})
+	@:overload(function(value:Element):JQuery{})
 	function prepend( html : String ) : JQuery;
 
-	@:overload(function(value:js.JQuery):js.JQuery{})
-	@:overload(function(value:js.Dom.HtmlDom):js.JQuery{})
+	@:overload(function(value:JQuery):JQuery{})
+	@:overload(function(value:Element):JQuery{})
 	function prependTo( html : String ) : JQuery;
 
 	function remove( ?selector : String ) : JQuery;
 	function replaceAll( selector : String ) : JQuery;
 
-	@:overload(function(value:js.JQuery):js.JQuery{})
-	@:overload(function(value:js.Dom.HtmlDom):js.JQuery{})
+	@:overload(function(value:JQuery):JQuery{})
+	@:overload(function(value:Element):JQuery{})
 	function replaceWith( html : String ) : JQuery;
 
 	function unwrap() : JQuery;
 
-	@:overload(function(value:js.JQuery):js.JQuery{})
-	@:overload(function(value:js.Dom.HtmlDom):js.JQuery{})
+	@:overload(function(value:JQuery):JQuery{})
+	@:overload(function(value:Element):JQuery{})
 	function wrap( html : String ) : JQuery;
 
-	@:overload(function(value:js.JQuery):js.JQuery{})
-	@:overload(function(value:js.Dom.HtmlDom):js.JQuery{})
+	@:overload(function(value:JQuery):JQuery{})
+	@:overload(function(value:Element):JQuery{})
 	function wrapAll( html : String ) : JQuery;
 
-	@:overload(function(value:js.JQuery):js.JQuery{})
-	@:overload(function(value:js.Dom.HtmlDom):js.JQuery{})
+	@:overload(function(value:JQuery):JQuery{})
+	@:overload(function(value:Element):JQuery{})
 	function wrapInner( html : String ) : JQuery;
 
 	// animation
-	@:overload(function(properties:{},?duration:Int,?easing:String,?call:Void->Void) : js.JQuery{})
+	@:overload(function(properties:{},?duration:Int,?easing:String,?call:Void->Void) : JQuery{})
 	function animate( properties : { }, ?duration : Int, ?callb : Void -> Void ) : JQuery;
 
 	function delay( duration : Int, ?queueName : String ) : JQuery;
 
-	@:overload(function(?duration:Int,?easing:String,?call:Void->Void) : js.JQuery{})
+	@:overload(function(?duration:Int,?easing:String,?call:Void->Void) : JQuery{})
 	function hide( ?duration : Int, ?call : Void -> Void ) : JQuery;
 
-	@:overload(function(?duration:Int,?easing:String,?call:Void->Void) : js.JQuery{})
+	@:overload(function(?duration:Int,?easing:String,?call:Void->Void) : JQuery{})
 	function fadeIn( ?duration : Int, ?call : Void -> Void ) : JQuery;
 
-	@:overload(function(?duration:Int,?easing:String,?call:Void->Void) : js.JQuery{})
+	@:overload(function(?duration:Int,?easing:String,?call:Void->Void) : JQuery{})
 	function fadeOut( ?duration : Int, ?call : Void -> Void ) : JQuery;
 
-	@:overload(function(duration:Int,opacity:Float,?easing:String,?call:Void->Void) : js.JQuery{})
+	@:overload(function(duration:Int,opacity:Float,?easing:String,?call:Void->Void) : JQuery{})
 	function fadeTo( duration : Int, opacity : Float, ?call : Void -> Void ) : JQuery;
 
-	@:overload(function(?duration:Int,?easing:String,?call:Void->Void) : js.JQuery{})
+	@:overload(function(?duration:Int,?easing:String,?call:Void->Void) : JQuery{})
 	function fadeToggle( ?duration : Int, ?call : Void -> Void ) : JQuery;
 
-	@:overload(function(?duration:Int,?easing:String,?call:Void->Void) : js.JQuery{})
+	@:overload(function(?duration:Int,?easing:String,?call:Void->Void) : JQuery{})
 	function show( ?duration : Int, ?call : Void -> Void ) : JQuery;
 
-	@:overload(function(?duration:Int,?easing:String,?call:Void->Void) : js.JQuery{})
+	@:overload(function(?duration:Int,?easing:String,?call:Void->Void) : JQuery{})
 	function slideDown( ?duration : Int, ?call : Void -> Void ) : JQuery;
 
-	@:overload(function(?duration:Int,?easing:String,?call:Void->Void) : js.JQuery{})
+	@:overload(function(?duration:Int,?easing:String,?call:Void->Void) : JQuery{})
 	function slideToggle( ?duration : Int, ?call : Void -> Void ) : JQuery;
 
-	@:overload(function(?duration:Int,?easing:String,?call:Void->Void) : js.JQuery{})
+	@:overload(function(?duration:Int,?easing:String,?call:Void->Void) : JQuery{})
 	function slideUp( ?duration : Int, ?call : Void -> Void ) : JQuery;
 
 	function stop( ?clearQueue : Bool, ?jumpToEnd : Bool ) : JQuery;
 
-	@:overload(function(?duration:Int,?easing:String,?call:Void->Void) : js.JQuery{})
+	@:overload(function(?duration:Int,?easing:String,?call:Void->Void) : JQuery{})
 	function toggle( ?duration : Int, ?call : Void -> Void ) : JQuery;
 
 	// Events
 	function blur( ?callb : JqEvent -> Void ) : JQuery;
 	function change( ?callb : JqEvent -> Void ) : JQuery;
 
-	@:overload(function(callb:Void->Void):js.JQuery { } )
-	@:overload(function(callb:js.JQuery.JqEvent->Void):js.JQuery{})
-	@:overload(function(callb:Void->Bool):js.JQuery{})
+	@:overload(function(callb:Void->Void):JQuery { } )
+	@:overload(function(callb:JQuery.JqEvent->Void):JQuery{})
+	@:overload(function(callb:Void->Bool):JQuery{})
 	function click( ?callb : JqEvent -> Void ) : JQuery;
 	function dblclick( ?callb : JqEvent -> Void ) : JQuery;
 	function error( ?callb : JqEvent -> Void ) : JQuery;
@@ -273,13 +276,13 @@ extern class JQuery implements ArrayAccess<Dom.HtmlDom> {
 	function focusout( ?callb : JqEvent -> Void ) : JQuery;
 	function hover( onOver : JqEvent -> Void, ?onOut : Void -> Void ) : JQuery;
 
-	@:overload(function( callb : js.JQuery.JqEvent -> Bool ) : js.JQuery {})
+	@:overload(function( callb : JQuery.JqEvent -> Bool ) : JQuery {})
 	function keydown( ?callb : JqEvent -> Void ) : JQuery;
 
-	@:overload(function( callb : js.JQuery.JqEvent -> Bool ) : js.JQuery {})
+	@:overload(function( callb : JQuery.JqEvent -> Bool ) : JQuery {})
 	function keypress( ?callb : JqEvent -> Void ) : JQuery;
 
-	@:overload(function( callb : js.JQuery.JqEvent -> Bool ) : js.JQuery {})
+	@:overload(function( callb : JQuery.JqEvent -> Bool ) : JQuery {})
 	function keyup( ?callb : JqEvent -> Void ) : JQuery;
 
 	function mousedown( ?callb : JqEvent -> Void ) : JQuery;
@@ -291,9 +294,9 @@ extern class JQuery implements ArrayAccess<Dom.HtmlDom> {
 	function mouseup( ?callb : JqEvent -> Void ) : JQuery;
 
 	// AJAX overloads
-	@:overload(function( url:String, ?data : {}, ?callb : String -> String -> Void ) : js.JQuery {})
-	@:overload(function( url:String, ?data : {}, ?callb : String -> Void ) : js.JQuery {})
-	@:overload(function( url:String, ?data : {}, ?callb : Void -> Void ) : js.JQuery {})
+	@:overload(function( url:String, ?data : {}, ?callb : String -> String -> Void ) : JQuery {})
+	@:overload(function( url:String, ?data : {}, ?callb : String -> Void ) : JQuery {})
+	@:overload(function( url:String, ?data : {}, ?callb : Void -> Void ) : JQuery {})
 	function load( ?callb : JqEvent -> Void ) : JQuery;
 	function ready( callb : JqEvent -> Void ) : JQuery;
 	function resize( ?callb : JqEvent -> Void ) : JQuery;
@@ -324,10 +327,10 @@ extern class JQuery implements ArrayAccess<Dom.HtmlDom> {
 	// TODO
 
 	// other tools
-	@:overload(function(index:Int):js.Dom.HtmlDom{})
-	function get() : Array<Dom.HtmlDom>;
+	@:overload(function(index:Int):Element{})
+	function get() : Array<Element>;
 
-	@:overload(function(j:js.JQuery):Bool{})
+	@:overload(function(j:JQuery):Bool{})
 	function is( selector : String ) : Bool;
 
 	function data<T>( key : String, ?value : T ) : T;
@@ -351,7 +354,7 @@ extern class JQuery implements ArrayAccess<Dom.HtmlDom> {
 	static var fx(default, null) : { off : Bool, interval : Int };
 	static var browser(default, null) : { webkit : Bool, opera : Bool, msie : Bool, mozilla : Bool, version : String };
 
-	static function contains( parent : Dom.HtmlDom, child : Dom.HtmlDom ) : Bool;
+	static function contains( parent : Element, child : Element ) : Bool;
 	static function noConflict( ?removeAll : Bool ) : Void;
 	static function parseJSON( json : String ) : Dynamic;
 	static function globalEval( js : String ) : Void;
