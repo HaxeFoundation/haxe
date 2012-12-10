@@ -182,6 +182,7 @@ module Define = struct
 		| SwfDirectBlit
 		| SwfGpu
 		| SwfMark
+		| SwfMetadata
 		| SwfPreloaderFrame
 		| SwfProtected
 		| SwfScriptTimeout
@@ -237,6 +238,7 @@ module Define = struct
 		| SwfDirectBlit -> ("swf_direct_blit", "Use hardware acceleration to blit graphics")
 		| SwfGpu -> ("swf_gpu", "Use GPU compositing features when drawing graphics")
 		| SwfMark -> ("swf_mark","GenSWF8 internal")
+		| SwfMetadata -> ("swf_metadata", "=<file> Include contents of <file> as metadata in the swf.")
 		| SwfPreloaderFrame -> ("swf_preloader_frame", "Insert empty first frame in swf")
 		| SwfProtected -> ("swf_protected","Compile Haxe private as protected in the SWF instead of public")
 		| SwfScriptTimeout -> ("swf_script_timeout", "Maximum ActionScript processing time before script stuck dialog box displays (in seconds)")

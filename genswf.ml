@@ -988,6 +988,7 @@ let merge com file priority (h1,tags1) (h2,tags2) =
 		| TRemoveObject _ -> use_stage
 		| TShowFrame -> incr nframe; use_stage
 		| TFilesAttributes _ | TEnableDebugger2 _ | TScenes _ -> false
+		| TMetaData _ -> not (Common.defined com Define.SwfMetadata)
 		| TSetBgColor _ -> priority
 		| TExport el when !nframe = 0 && com.flash_version >= 9. ->
 			let el = List.filter (fun e ->
@@ -1087,11 +1088,24 @@ let generate com swf_header =
 	let header, bg = (match swf_header with None -> default_header com | Some h -> convert_header com h) in
 	let bg = tag (TSetBgColor { cr = bg lsr 16; cg = (bg lsr 8) land 0xFF; cb = bg land 0xFF }) in
 	let debug = (if isf9 && Common.defined com Define.Fdb then [tag (TEnableDebugger2 (0,""))] else []) in
+	let meta_data = try
+		let file = Common.defined_value com Define.SwfMetadata in
+		let file = try Common.find_file com file with Not_found -> file in
+			let data = (try
+				let s = Std.input_file ~bin:true file in
+				s;
+			with
+				| Sys_error _ -> failwith ("Resource file not found : " ^ file)
+			) in
+			[tag(TMetaData (data))]
+		with Not_found -> 
+			[]
+		in
 	let fattr = (if com.flash_version < 8. then [] else
 		[tag (TFilesAttributes {
 			fa_network = Common.defined com Define.NetworkSandbox;
 			fa_as3 = isf9;
-			fa_metadata = false;
+			fa_metadata = meta_data <> [];
 			fa_gpu = com.flash_version > 9. && Common.defined com Define.SwfGpu;
 			fa_direct_blt = com.flash_version > 9. && Common.defined com Define.SwfDirectBlit;
 		})]
@@ -1109,7 +1123,7 @@ let generate com swf_header =
 	with Not_found ->
 		[]
 	in
-	let swf = header, fattr @ bg :: debug @ swf_script_limits @ preframe @ tags @ [tag TShowFrame] in
+	let swf = header, fattr @ bg :: debug @ swf_script_limits @ meta_data @ preframe @ tags @ [tag TShowFrame] in
   (* merge swf libraries *)
 	let priority = ref (swf_header = None) in
 	let swf = List.fold_left (fun swf (file,lib,cl) ->
