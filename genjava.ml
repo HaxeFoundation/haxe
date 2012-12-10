@@ -17,6 +17,7 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *)
+open Unix
 open Ast
 open Common
 open Gencommon
@@ -2178,8 +2179,8 @@ let add_java_lib com file =
     in
 
     (* check if it is a directory or jar file *)
-    match Sys.is_directory file with
-    | true -> (* open classes directly from directory *)
+    match (Unix.stat file).st_kind with
+    | S_DIR -> (* open classes directly from directory *)
       (fun (pack, name) ->
         let real_path = file ^ "/" ^ (String.concat "." pack) ^ "/" ^ name ^ ".class" in
         try
@@ -2187,7 +2188,7 @@ let add_java_lib com file =
           Some (IO.input_string data), real_path, real_path
         with
           | _ -> None, real_path, real_path), (fun () -> ())
-    | false -> (* open zip file *)
+    | _ -> (* open zip file *)
       let zip = Zip.open_in file in
       let closed = ref false in
       (fun (pack, name) ->
