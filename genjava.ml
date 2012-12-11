@@ -666,21 +666,21 @@ let configure gen =
                 let f_t = gen.gfollow#run_f t in
                 match gen.gfollow#run_f t with
                   | TEnum ({ e_path = ([], "Bool") }, [])
-                  | TAbstract ({ a_path = ([], "Bool") },[]) 
+                  | TAbstract ({ a_path = ([], "Bool") },[])
                   | TInst ({ cl_path = ([],"Float") },[])
-                  | TAbstract ({ a_path = ([],"Float") },[]) 
+                  | TAbstract ({ a_path = ([],"Float") },[])
                   | TInst ({ cl_path = ["haxe"],"Int32" },[])
                   | TInst ({ cl_path = ["haxe"],"Int64" },[])
                   | TInst ({ cl_path = ([],"Int") },[])
-                  | TAbstract ({ a_path = ([],"Int") },[]) 
+                  | TAbstract ({ a_path = ([],"Int") },[])
                   | TType ({ t_path = ["haxe";"_Int64"], "NativeInt64" },[])
-                  | TAbstract ({ a_path = ["haxe";"_Int64"], "NativeInt64" },[]) 
+                  | TAbstract ({ a_path = ["haxe";"_Int64"], "NativeInt64" },[])
                   | TType ({ t_path = ["java"],"Int8" },[])
-                  | TAbstract ({ a_path = ["java"],"Int8" },[]) 
+                  | TAbstract ({ a_path = ["java"],"Int8" },[])
                   | TType ({ t_path = ["java"],"Int16" },[])
-                  | TAbstract ({ a_path = ["java"],"Int16" },[]) 
+                  | TAbstract ({ a_path = ["java"],"Int16" },[])
                   | TType ({ t_path = ["java"],"Char16" },[])
-                  | TAbstract ({ a_path = ["java"],"Char16" },[]) 
+                  | TAbstract ({ a_path = ["java"],"Char16" },[])
                   | TType ({ t_path = [],"Single" },[])
                   | TAbstract ({ a_path = [],"Single" },[]) -> basic.tnull f_t
                   (*| TType ({ t_path = [], "Null"*)
@@ -709,27 +709,27 @@ let configure gen =
 
   gen.gfollow#add ~name:"follow_basic" (fun t -> match t with
       | TEnum ({ e_path = ([], "Bool") }, [])
-      | TAbstract ({ a_path = ([], "Bool") },[]) 
+      | TAbstract ({ a_path = ([], "Bool") },[])
       | TEnum ({ e_path = ([], "Void") }, [])
-      | TAbstract ({ a_path = ([], "Void") },[]) 
+      | TAbstract ({ a_path = ([], "Void") },[])
       | TInst ({ cl_path = ([],"Float") },[])
-      | TAbstract ({ a_path = ([],"Float") },[]) 
+      | TAbstract ({ a_path = ([],"Float") },[])
       | TInst ({ cl_path = ([],"Int") },[])
-      | TAbstract ({ a_path = ([],"Int") },[]) 
+      | TAbstract ({ a_path = ([],"Int") },[])
       | TInst( { cl_path = (["haxe"], "Int32") }, [] )
       | TInst( { cl_path = (["haxe"], "Int64") }, [] )
       | TType ({ t_path = ["haxe";"_Int64"], "NativeInt64" },[])
-      | TAbstract ({ a_path = ["haxe";"_Int64"], "NativeInt64" },[]) 
+      | TAbstract ({ a_path = ["haxe";"_Int64"], "NativeInt64" },[])
       | TType ({ t_path = ["java"],"Int8" },[])
-      | TAbstract ({ a_path = ["java"],"Int8" },[]) 
+      | TAbstract ({ a_path = ["java"],"Int8" },[])
       | TType ({ t_path = ["java"],"Int16" },[])
-      | TAbstract ({ a_path = ["java"],"Int16" },[]) 
+      | TAbstract ({ a_path = ["java"],"Int16" },[])
       | TType ({ t_path = ["java"],"Char16" },[])
-      | TAbstract ({ a_path = ["java"],"Char16" },[]) 
+      | TAbstract ({ a_path = ["java"],"Char16" },[])
       | TType ({ t_path = [],"Single" },[])
-      | TAbstract ({ a_path = [],"Single" },[]) 
+      | TAbstract ({ a_path = [],"Single" },[])
       | TType ({ t_path = [],"Null" },[_]) -> Some t
-	    | TAbstract( { a_path = ([], "EnumValue") }, _ ) 
+	    | TAbstract( { a_path = ([], "EnumValue") }, _ )
       | TInst( { cl_path = ([], "EnumValue") }, _  ) -> Some t_dynamic
       | _ -> None);
 
@@ -1306,7 +1306,7 @@ let configure gen =
               | TFun([_,_,t], ret) ->
                 (match (real_type t, real_type ret) with
                   | TDynamic _, TEnum( { e_path = ([], "Bool") }, [])
-                  | TDynamic _, TAbstract ({ a_path = ([], "Bool") },[]) 
+                  | TDynamic _, TAbstract ({ a_path = ([], "Bool") },[])
                   | TAnon _, TEnum( { e_path = ([], "Bool") }, [])
                   | TAnon _, TAbstract ({ a_path = ([], "Bool") },[]) -> true
                   | _ -> List.mem cf.cf_name cl.cl_overrides
@@ -1342,9 +1342,9 @@ let configure gen =
         let cf_type = if is_override then match field_access gen (TInst(cl, List.map snd cl.cl_types)) cf.cf_name with | FClassField(_,_,_,_,actual_t) -> actual_t | _ -> assert false else cf.cf_type in
 
         let params = List.map snd cl.cl_types in
-        let ret_type, args = match follow cf_type, follow cf.cf_type with 
-          | TFun (strbtl, t), TFun(rargs, _) -> 
-              (apply_params cl.cl_types params (real_type t), List.map2 (fun(_,_,t) (n,o,_) -> (n,o,apply_params cl.cl_types params (real_type t))) strbtl rargs) 
+        let ret_type, args = match follow cf_type, follow cf.cf_type with
+          | TFun (strbtl, t), TFun(rargs, _) ->
+              (apply_params cl.cl_types params (real_type t), List.map2 (fun(_,_,t) (n,o,_) -> (n,o,apply_params cl.cl_types params (real_type t))) strbtl rargs)
           | _ -> assert false
         in
 
@@ -1370,7 +1370,7 @@ let configure gen =
                       | _ -> assert false (* FIXME *)
                 in
                 (if is_new then begin
-                  let rec get_super_call el =
+                  (*let rec get_super_call el =
                     match el with
                       | ( { eexpr = TCall( { eexpr = TConst(TSuper) }, _) } as call) :: rest ->
                         Some call, rest
@@ -1379,7 +1379,7 @@ let configure gen =
                         ret, ( { block with eexpr = TBlock(mapped) } :: rest )
                       | _ ->
                         None, el
-                  in
+                  in*)
                   expr_s w expr
                 end else begin
                   expr_s w expr;
@@ -1693,17 +1693,17 @@ let configure gen =
       (match follow t with
         | TInst({ cl_path = ([], "String") }, [])
         | TInst({ cl_path = ([], "Float") }, [])
-        | TAbstract ({ a_path = ([], "Float") },[]) 
+        | TAbstract ({ a_path = ([], "Float") },[])
         | TInst({ cl_path = (["haxe"], "Int32")}, [] )
         | TInst({ cl_path = (["haxe"], "Int64")}, [] )
         | TInst({ cl_path = ([], "Int") }, [])
-        | TAbstract ({ a_path = ([], "Int") },[]) 
+        | TAbstract ({ a_path = ([], "Int") },[])
         | TEnum({ e_path = ([], "Bool") }, [])
         | TAbstract ({ a_path = ([], "Bool") },[]) -> Some t
         | _ -> None )
     | _ -> None
   in
-  
+
   let is_double t = like_float t && not (like_int t) in
   let is_int t = like_int t in
 
@@ -1741,13 +1741,13 @@ let configure gen =
           | TEnum({ e_path = ([], "Bool") },[]), _
           | TAbstract ({ a_path = ([], "Bool") },[]) , _
           | _, TInst({ cl_path = ([], "Float") },[])
-          | _, TAbstract ({ a_path = ([], "Float") },[]) 
+          | _, TAbstract ({ a_path = ([], "Float") },[])
           | _, TInst({ cl_path = ([], "Int") },[])
-          | _, TAbstract ({ a_path = ([], "Int") },[]) 
+          | _, TAbstract ({ a_path = ([], "Int") },[])
           | _, TInst( { cl_path = (["haxe"], "Int32") }, [] )
           | _, TInst( { cl_path = (["haxe"], "Int64") }, [] )
           | _, TEnum({ e_path = ([], "Bool") },[])
-          | _, TAbstract ({ a_path = ([], "Bool") },[]) 
+          | _, TAbstract ({ a_path = ([], "Bool") },[])
           | TInst( { cl_kind = KTypeParameter _ }, [] ), _
           | _, TInst( { cl_kind = KTypeParameter _ }, [] ) -> false
           | _, _ -> true
@@ -1839,7 +1839,7 @@ let configure gen =
         (match gen.gfollow#run_f cond.etype with
           | TInst( { cl_path = (["haxe"], "Int32") }, [] )
           | TInst({ cl_path = ([], "Int") },[])
-          | TAbstract ({ a_path = ([], "Int") },[]) 
+          | TAbstract ({ a_path = ([], "Int") },[])
           | TInst({ cl_path = ([], "String") },[]) ->
             (List.exists (fun (c,_) ->
               List.exists (fun expr -> match expr.eexpr with | TConst _ -> false | _ -> true ) c
