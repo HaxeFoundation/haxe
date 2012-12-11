@@ -544,7 +544,7 @@ let bind_remaining (out : outcome) (stl : subterm list) (row : pattern list) =
 		| [],_ ->
 			()
 	in
-	loop stl row
+	loop (List.rev stl) (List.rev row)
 
 (* Returns an exhaustive list of all constructors for a given type *)
 (* TODO: cache this? *)
@@ -717,7 +717,7 @@ and to_enum_switch ctx need_val st en pl cases =
 		match c with
 		| CEnum(en,ef) ->
 			let save = save_locals ctx in
-			let vl = match follow (monomorphs ef.ef_params ef.ef_type) with
+			let vl = match follow (monomorphs en.e_types (monomorphs ef.ef_params ef.ef_type)) with
 			| TFun(args,r) ->
 				unify ctx r et p;
 				let vl = ExtList.List.mapi (fun i (_,_,t) ->
