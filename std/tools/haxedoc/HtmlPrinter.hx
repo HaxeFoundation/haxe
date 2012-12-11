@@ -173,7 +173,7 @@ class HtmlPrinter {
 
 	public function processPage(t) {
 		switch(t) {
-		case TPackage(p,full,list):
+		case TPackage(p,_,list):
 			processPackage(p,list);
 		default:
 			var head = '<a href="#" onclick="javascript:history.back(-1); return false" class="index">Back</a> | '+makeUrl(indexUrl,"Index","index");
