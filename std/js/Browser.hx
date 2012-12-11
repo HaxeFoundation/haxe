@@ -21,6 +21,7 @@
  */
 package js;
 
+import js.html.Storage;
 import js.html.XMLHttpRequest;
 
 class Browser {
@@ -29,6 +30,36 @@ class Browser {
 	public static var document(default,null) : js.html.Document = untyped __js__("typeof window != \"undefined\" ? window.document : null");
 	public static var location(default,null) : js.html.Location = untyped __js__("typeof window != \"undefined\" ? window.location : null");
 	public static var navigator(default,null) : js.html.Navigator = untyped __js__("typeof window != \"undefined\" ? window.navigator : null");
+
+	/**
+	 * Safely gets the browser's local storage, or returns null if localStorage is unsupported or
+	 * disabled.
+	 */
+	public static function getLocalStorage() : Storage
+	{
+		try {
+			var s = window.localStorage;
+			s.getItem("");
+			return s;
+		} catch( e : Dynamic ) {
+			return null;
+		}
+	}
+
+	/**
+	 * Safely gets the browser's session storage, or returns null if sessionStorage is unsupported
+	 * or disabled.
+	 */
+	public static function getSessionStorage() : Storage
+	{
+		try {
+			var s = window.sessionStorage;
+			s.getItem("");
+			return s;
+		} catch( e : Dynamic ) {
+			return null;
+		}
+	}
 
 	/**
 	 * Creates an XMLHttpRequest, with a fallback to ActiveXObject for ancient versions of Internet
