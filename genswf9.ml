@@ -81,6 +81,7 @@ type context = {
 	swc : bool;
 	boot : path;
 	swf_protected : bool;
+	need_ctor_skip : bool;
 	mutable cur_class : tclass;
 	mutable debug : bool;
 	mutable last_line : int;
@@ -1744,7 +1745,7 @@ let generate_method ctx fdata stat fmeta =
 
 let generate_construct ctx fdata c =
 	(* make all args optional to allow no-param constructor *)
-	let cargs = List.map (fun (v,c) ->
+	let cargs = if not ctx.need_ctor_skip then fdata.tf_args else List.map (fun (v,c) ->
 		let c = (match c with Some _ -> c | None ->
 			Some (match classify ctx v.v_type with
 			| KInt | KUInt -> TInt 0l
@@ -1756,7 +1757,7 @@ let generate_construct ctx fdata c =
 	) fdata.tf_args in
 	let f = begin_fun ctx cargs fdata.tf_type [ethis;fdata.tf_expr] false fdata.tf_expr.epos in
 	(* if skip_constructor, then returns immediatly *)
-	(match c.cl_kind with
+	if ctx.need_ctor_skip then (match c.cl_kind with
 	| KGenericInstance _ -> ()
 	| _ when not (Codegen.constructor_side_effects fdata.tf_expr) -> ()
 	| _ ->
@@ -2359,6 +2360,7 @@ let generate_resource ctx name =
 let generate com boot_name =
 	let ctx = {
 		com = com;
+		need_ctor_skip = Common.has_feature com "Type.createEmptyInstance";
 		debug = com.Common.debug;
 		cur_class = null_class;
 		boot = ([],boot_name);
