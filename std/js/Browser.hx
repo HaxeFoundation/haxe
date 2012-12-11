@@ -21,11 +21,28 @@
  */
 package js;
 
+import js.html.XMLHttpRequest;
+
 class Browser {
 
 	public static var window(default,null) : js.html.DOMWindow = untyped __js__("typeof window != \"undefined\" ? window : null");
 	public static var document(default,null) : js.html.Document = untyped __js__("typeof window != \"undefined\" ? window.document : null");
 	public static var location(default,null) : js.html.Location = untyped __js__("typeof window != \"undefined\" ? window.location : null");
 	public static var navigator(default,null) : js.html.Navigator = untyped __js__("typeof window != \"undefined\" ? window.navigator : null");
+
+	/**
+	 * Creates an XMLHttpRequest, with a fallback to ActiveXObject for ancient versions of Internet
+	 * Explorer.
+	 */
+	public static function createXMLHttpRequest() : XMLHttpRequest
+	{
+		if( __js__("typeof XMLHttpRequest") != "undefined" ) {
+			return new XMLHttpRequest();
+		}
+		if( __js__("typeof ActiveXObject") != "undefined" ) {
+			return __new__("ActiveXObject","Microsoft.XMLHTTP");
+		}
+		throw "Unable to create XMLHttpRequest object.";
+	}
 
 }

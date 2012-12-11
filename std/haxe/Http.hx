@@ -95,7 +95,7 @@ class Http {
 	public function request( post : Bool ) : Void {
 		var me = this;
 	#if js
-		var r = new js.XMLHttpRequest();
+		var r = new js.Browser.createXMLHttpRequest();
 		var onreadystatechange = function() {
 			if( r.readyState != 4 )
 				return;
