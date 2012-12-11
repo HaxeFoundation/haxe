@@ -22,7 +22,6 @@
 -resource res2.bin
 --no-opt
 --dce full
--D pattern_matching
 --each
 
 #flash8

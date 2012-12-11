@@ -1597,7 +1597,7 @@ and type_switch_old ctx e cases def need_val with_type p =
 
 and type_switch ctx e cases def need_val with_type p =
 	try
-		if not (Common.defined ctx.com Common.Define.PatternMatching) then raise Exit;
+		if (Common.defined ctx.com Common.Define.NoPatternMatching) then raise Exit;
 		match_expr ctx e cases def need_val with_type p
 	with Exit ->
 		type_switch_old ctx e cases def need_val with_type p

@@ -170,10 +170,10 @@ module Define = struct
 		| NoCOpt
 		| NoInline
 		| NoOpt
+		| NoPatternMatching
 		| NoRoot
 		| NoSwfCompress
 		| NoTraces
-		| PatternMatching
 		| PhpPrefix
 		| ReplaceFiles
 		| Scriptable
@@ -225,11 +225,11 @@ module Define = struct
 		| NoCompilation -> ("no-compilation","Disable CPP final compilation")
 		| NoCOpt -> ("no_copt","Disable completion optimization (for debug purposes)")
 		| NoOpt -> ("no_opt","Disable optimizations")
+		| NoPatternMatching -> ("no_pattern_matching","Disable pattern matching")
 		| NoInline -> ("no_inline","Disable inlining")
 		| NoRoot -> ("no_root","GenCS internal")
 		| NoSwfCompress -> ("no_swf_compress","Disable SWF output compression")
 		| NoTraces -> ("no_traces","Disable all trace calls")
-		| PatternMatching -> ("pattern_matching","Allow pattern matching")
 		| PhpPrefix -> ("php_prefix","Compiled with --php-prefix")
 		| ReplaceFiles -> ("replace_files","GenCommon internal")
 		| Scriptable -> ("scriptable","GenCPP internal")

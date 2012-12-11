@@ -324,16 +324,21 @@ let to_pattern ctx e t =
 			| TTypeExpr mt -> mk_con_pat (CType mt) [] t p
 			| _ -> error "Constant expression expected" p)
 		| ((EConst(Ident s),p) as ec) -> (try
-				(* HACK so type_ident via type_field does not cause display errors *)
-				let old = ctx.untyped in
-				ctx.untyped <- true;
 				let tc = monomorphs ctx.type_params t in
-				let ec = try type_expr_with_type ctx ec (Some tc) true with _ -> raise Not_found in
-				ctx.untyped <- old;
-				(* we might have found the wrong thing entirely *)
-				(match tc with
-					| TMono _ -> ()
-					| _ -> try unify_raise ctx ec.etype tc ec.epos with Error (Unify _,_) -> raise Not_found);
+				let ec = match tc with
+					| TEnum(en,pl) ->
+						let ef = PMap.find s en.e_constrs in
+						mk (TEnumField (en,s)) (apply_params en.e_types pl ef.ef_type) p
+					| _ ->
+						let old = ctx.untyped in
+						ctx.untyped <- true;
+						let e = try type_expr_with_type ctx ec (Some tc) true with _ -> ctx.untyped <- old; raise Not_found in
+						ctx.untyped <- old;
+						(match tc with
+							| TMono _ -> ()
+							| _ -> try unify_raise ctx e.etype tc e.epos with Error (Unify _,_) -> raise Not_found);
+						e 
+				in
 				(match ec.eexpr with
 					| TEnumField(en,s)
 					| TField ({ eexpr = TTypeExpr (TEnumDecl en) },s) ->
