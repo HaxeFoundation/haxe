@@ -1087,12 +1087,17 @@ let generate com swf_header =
 	let tags = if isf9 then build_swf9 com file swc else build_swf8 com codeclip exports in
 	let header, bg = (match swf_header with None -> default_header com | Some h -> convert_header com h) in
 	let bg = tag (TSetBgColor { cr = bg lsr 16; cg = (bg lsr 8) land 0xFF; cb = bg land 0xFF }) in
-	let debug = (if isf9 && Common.defined com Define.Fdb then [tag (TEnableDebugger2 (0,""))] else []) in
+	let swf_debug_password = try
+		Digest.to_hex(Digest.string (Common.defined_value com Define.SwfDebugPassword))
+	with Not_found -> 
+		""
+	in
+	let debug = (if isf9 && Common.defined com Define.Fdb then [tag (TEnableDebugger2 (0, swf_debug_password))] else []) in
 	let meta_data =
 		try
 			let file = Common.defined_value com Define.SwfMetadata in
 			let file = try Common.find_file com file with Not_found -> file in
-			let data = try Std.input_file ~bin:true file with Sys_error _ -> failwith ("Resource file not found : " ^ file) in
+			let data = try Std.input_file ~bin:true file with Sys_error _ -> failwith ("Metadata resource file not found : " ^ file) in
 			[tag(TMetaData (data))]
 		with Not_found -> 
 			[]
