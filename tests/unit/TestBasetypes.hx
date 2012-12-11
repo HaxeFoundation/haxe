@@ -181,9 +181,11 @@ class TestBasetypes extends Test {
 	
 		#end
 
+		#if !as3
 		eq( Math.ffloor( -10000000000.7), -10000000001. );
 		eq( Math.fceil( -10000000000.7), -10000000000. );
 		eq( Math.fround( -10000000000.7), -10000000001. );
+		#end
 
 	}
 
