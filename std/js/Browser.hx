@@ -21,41 +21,11 @@
  */
 package js;
 
-class Lib {
+class Browser {
 
-	static var onerror : String -> Array<String> -> Bool = null;
-
-	/**
-		Inserts a 'debugger' statement that will make a breakpoint if a debugger is available.
-	**/
-	public static inline function debug() {
-		untyped __js__("debugger");
-	}
-
-	/**
-		Display an alert message box containing the given message
-	**/
-	public static function alert( v : Dynamic ) {
-		untyped __js__("alert")(js.Boot.__string_rec(v,""));
-	}
-
-	public static inline function eval( code : String ) : Dynamic {
-		return untyped __js__("eval")(code);
-	}
-
-	public static inline function setErrorHandler( f ) {
-		onerror = f;
-	}
-
-	static function __init__() {
-		if( untyped __js__("typeof window") != "undefined" ) {
-			(untyped window).onerror = function( msg, url, line ) {
-				var f = Lib.onerror;
-				if( f == null )
-					return false;
-				return f(msg, [url+":"+line]);
-			};
-		}
-	}
+	public static var window(default,null) : js.html.DOMWindow = untyped __js__("typeof window != \"undefined\" ? window : null");
+	public static var document(default,null) : js.html.Document = untyped __js__("typeof window != \"undefined\" ? window.document : null");
+	public static var location(default,null) : js.html.Location = untyped __js__("typeof window != \"undefined\" ? window.location : null");
+	public static var navigator(default,null) : js.html.Navigator = untyped __js__("typeof window != \"undefined\" ? window.navigator : null");
 
 }
