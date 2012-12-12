@@ -2104,7 +2104,7 @@ let find_referenced_types ctx obj super_deps constructor_deps header_only for_de
                | TClassDecl class_def when class_def.cl_extern -> add_extern_class class_def
 	            | _ -> add_type (t_path type_def)
                )
-					
+
 				(* Must visit the types, Type.iter will visit the expressions ... *)
 				| TTry (e,catches) ->
 					List.iter (fun (v,_) -> visit_type v.v_type) catches

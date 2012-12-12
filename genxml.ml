@@ -85,8 +85,8 @@ let rec sexpr (e,_) =
 	| EObjectDecl fl -> "{" ^ (String.concat "," (List.map (fun (n,e) -> n ^ ":" ^ (sexpr e)) fl)) ^ "}"
 	| _ -> "'???'"
 
-let gen_meta meta = 
-	let meta = List.filter (fun (m,_,_) -> match m with ":?used" | ":realPath" -> false | _ -> true) meta in 
+let gen_meta meta =
+	let meta = List.filter (fun (m,_,_) -> match m with ":?used" | ":realPath" -> false | _ -> true) meta in
 	match meta with
 	| [] -> []
 	| _ ->
@@ -117,7 +117,7 @@ and gen_field att f =
 		| AccNormal | AccResolve | AccRequire _ -> att
 		| AccNo | AccNever -> (name, "null") :: att
 		| AccCall m -> (name,m) :: att
-		| AccInline -> (name,"inline") :: att		
+		| AccInline -> (name,"inline") :: att
 	in
 	let att = (match f.cf_expr with None -> att | Some e -> ("line",string_of_int (Lexer.get_error_line e.epos)) :: att) in
 	let att = (match f.cf_kind with
@@ -195,7 +195,7 @@ let gen_type_decl com pos t =
 		let doc = gen_doc_opt a.a_doc in
 		let meta = gen_meta a.a_meta in
 		let sub = (match a.a_sub with [] -> [] | l -> [node "sub" [] (List.map gen_type l)]) in
-		let super = (match a.a_super with [] -> [] | l -> [node "super" [] (List.map gen_type l)]) in		
+		let super = (match a.a_super with [] -> [] | l -> [node "super" [] (List.map gen_type l)]) in
 		node "abstract" (gen_type_params pos a.a_private (tpath t) a.a_types a.a_pos m) (sub @ super @ doc @ meta)
 
 let att_str att =

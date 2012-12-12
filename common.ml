@@ -137,7 +137,7 @@ let display_default = ref false
 module Define = struct
 
 	type strict_defined =
-		| AbsolutePath	
+		| AbsolutePath
 		| AdvancedTelemetry
 		| As3
 		| CheckXmlProxy
@@ -215,7 +215,7 @@ module Define = struct
 		| HaxeVer -> ("haxe_ver","The current Haxe version value")
 		| Interp -> ("interp","The code is compiled to be run with --interp")
 		| JsClassic -> ("js_classic","Don't use a function wrapper and strict mode in JS output")
-		| JsModern -> ("js_modern","Use function wrapper and strict mode in JS output")		
+		| JsModern -> ("js_modern","Use function wrapper and strict mode in JS output")
 		| Macro -> ("macro","Defined when we compile code in the macro context")
 		| MacroTimes -> ("macro_times","Display per-macro timing when used with --times")
 		| MatchDebug -> ("match_debug","Show Pattern Matcher log")
@@ -516,7 +516,7 @@ let raw_define ctx v =
 
 let define_value ctx k v =
 	raw_define ctx (fst (Define.infos k) ^ "=" ^ v)
-	
+
 let define ctx v =
 	raw_define ctx (fst (Define.infos v))
 

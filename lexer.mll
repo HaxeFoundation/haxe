@@ -112,7 +112,7 @@ let add_fmt_string p =
 let fast_add_fmt_string p =
 	let cur = !cur in
 	cur.lstrings <- (fmt_pos p) :: cur.lstrings
-	
+
 let is_fmt_string p =
 	try
 		let file = Hashtbl.find all_files p.pfile in

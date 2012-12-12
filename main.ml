@@ -840,7 +840,7 @@ try
 			Genswf.add_swf_lib com file true
 		),"<file> : use the SWF library for type checking");
 		("-java-lib",Arg.String (fun file ->
-			Genjava.add_java_lib com file 
+			Genjava.add_java_lib com file
 		),"<file> : add an external JAR or class directory library");
 		("-x", Arg.String (fun file ->
 			let neko_file = file ^ ".n" in
@@ -1160,7 +1160,7 @@ try
 			Gencs.generate com;
 		| Java ->
       Common.log com ("Generating Cs in : " ^ com.file);
-			Genjava.generate com; 
+			Genjava.generate com;
 		);
 	end;
 	Sys.catch_break false;

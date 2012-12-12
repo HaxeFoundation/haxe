@@ -358,7 +358,7 @@ let property ctx p t =
 			ns, None, false
 		with Not_found | Exit ->
 			ident p, None, false)
-			
+
 	| _ ->
 		ident p, None, false
 

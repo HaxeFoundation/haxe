@@ -466,7 +466,7 @@ let define_var ctx v ef =
 let alloc_tmp ctx =
 	let r = alloc_reg ctx in
 	if ctx.flash6 then
-		let name = "$" ^ string_of_int r in		
+		let name = "$" ^ string_of_int r in
 		define_var ctx (alloc_var name t_dynamic) None;
 		TmpVar (name,r);
 	else

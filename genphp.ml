@@ -203,7 +203,7 @@ let rec is_string_type t =
 
 let is_string_expr e = is_string_type e.etype
 
-let to_string ctx e = 
+let to_string ctx e =
 	let v = alloc_var "__call__" t_dynamic in
 	let f = mk (TLocal v) t_dynamic e.epos in
 	mk (TCall (f, [ Codegen.string ctx.com "_hx_string_rec" e.epos; e; Codegen.string ctx.com "" e.epos])) ctx.com.basic.tstring e.epos
@@ -214,20 +214,20 @@ let as_string_expr ctx e =
 		to_string ctx e
 	| _ when not (is_string_expr e) ->
 		to_string ctx e
-	| _ -> e 
+	| _ -> e
 
 let spr ctx s = Buffer.add_string ctx.buf s
 let print ctx = Printf.kprintf (fun s -> Buffer.add_string ctx.buf s)
 
 (*--php-prefix - added by skial bainn*)
-let prefix_class com name = 
+let prefix_class com name =
 	match com.php_prefix with
-	| Some prefix_class (* when not (String.length name <= 2 || String.sub name 0 2 = "__") *) -> 
+	| Some prefix_class (* when not (String.length name <= 2 || String.sub name 0 2 = "__") *) ->
 		prefix_class ^ name
 	| _ ->
 		name
 
-let prefix_init_replace com code = 
+let prefix_init_replace com code =
 	let r = Str.regexp "php_Boot" in
 	Str.global_replace r ("php_" ^ (prefix_class com "Boot")) code
 
@@ -447,7 +447,7 @@ let arg_is_opt c =
 	match c with
 	| Some _ -> true
 	| None -> false
-	
+
 let s_funarg ctx arg t p o =
 	let byref = if (String.length arg > 7 && String.sub arg 0 7 = "byref__") then "&" else "" in
 	print ctx "%s$%s" byref (s_ident_local arg);
@@ -544,7 +544,7 @@ and gen_call ctx e el =
 		gen_array_args ctx el;
 	| TLocal { v_name = "__prefix__" }, [] ->
 		(match ctx.com.php_prefix with
-		| Some prefix -> 
+		| Some prefix ->
 			print ctx "\"%s\"" prefix
 		| None ->
 			spr ctx "null")
@@ -1115,14 +1115,14 @@ and gen_expr ctx e =
 				gen_field_op ctx e2;
 				spr ctx ")";
 			end else if
-				(  
+				(
 					   se1 == se2
 					|| (match e1.eexpr with | TConst _ | TLocal _ | TArray _  | TNew _ -> true | _ -> false)
 					|| (match e2.eexpr with | TConst _ | TLocal _ | TArray _  | TNew _ -> true | _ -> false)
 					|| is_string_expr e1
 					|| is_string_expr e2
 					|| is_anonym_expr e1
-					|| is_anonym_expr e2 
+					|| is_anonym_expr e2
 					|| is_unknown_expr e1
 					|| is_unknown_expr e2
 				)
@@ -1714,14 +1714,14 @@ and canbe_ternary_param e =
 		cangen_ternary e eelse
 	| _ ->
 		false
-		
+
 and cangen_ternary e eelse =
-	match eelse with 
+	match eelse with
 	| Some other ->
 		(canbe_ternary_param e) && (canbe_ternary_param other)
-	| _ -> 
+	| _ ->
 		false
-		
+
 and gen_value ctx e =
 	match e.eexpr with
 	| TTypeExpr _
@@ -1750,14 +1750,14 @@ and gen_value ctx e =
 		gen_value ctx cond;
 		spr ctx " ? ";
 		gen_value ctx e;
-		
+
 		(match eelse with
 		| Some e ->
 			spr ctx " : ";
 			gen_value ctx e
 		| _ ->());
 		spr ctx ")";
-	
+
 (*
 	| TIf (cond,e,eelse) ->
 		spr ctx "if";
@@ -1796,7 +1796,7 @@ let rec is_instance_method_defined cls m =
 			is_instance_method_defined scls m
 		| None ->
 			false
-		
+
 let is_method_defined ctx m static =
 	if static then
 		PMap.exists m ctx.curclass.cl_statics
@@ -1823,7 +1823,7 @@ let gen_assigned_value ctx eo =	match eo with
 		gen_value ctx e
 	| _ ->
 		()
-	
+
 let generate_field ctx static f =
 	newline ctx;
 	ctx.locals <- PMap.empty;
@@ -2054,8 +2054,8 @@ let generate_class ctx c =
 	);
 
 	List.iter (generate_field ctx true) c.cl_ordered_statics;
-	
-	let gen_props props = 
+
+	let gen_props props =
 		String.concat "," (List.map (fun (p,v) -> "\"" ^ p ^ "\" => \"" ^ v ^ "\"") props)
 	in
 
@@ -2067,7 +2067,7 @@ let generate_class ctx c =
 		| None ->
 			list
 	in
-	
+
 	if not c.cl_interface then (match fields c with
 		| [] ->
 			()
@@ -2075,8 +2075,8 @@ let generate_class ctx c =
 			newline ctx;
 			print ctx "static $__properties__ = array(%s)" (gen_props props);
 		);
-		
-		
+
+
 	cl();
 	newline ctx;
 

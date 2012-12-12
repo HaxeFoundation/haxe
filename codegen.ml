@@ -587,7 +587,7 @@ let save_class_state ctx t = match t with
 	| _ ->
 		()
 
-		
+
 (* Checks if a private class' path clashes with another path *)
 let check_private_path ctx t = match t with
 	| TClassDecl c when c.cl_private ->

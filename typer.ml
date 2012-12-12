@@ -2851,7 +2851,7 @@ let get_type_patch ctx t sub =
 			let tp = new_patch() in
 			Hashtbl.add h k tp;
 			tp
-	
+
 let macro_timer ctx path =
 	Common.timer (if Common.defined ctx.com Define.MacroTimes then "macro " ^ path else "macro execution")
 

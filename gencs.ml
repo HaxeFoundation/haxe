@@ -78,7 +78,7 @@ let parse_explicit_iface =
     in
     get_iface split []
   in parse_explicit_iface
-	
+
 let is_string t =
   match follow t with
     | TInst( { cl_path = ([], "String") }, [] ) -> true
@@ -833,7 +833,7 @@ let configure gen =
             | TClassDecl { cl_path = (["haxe"], "Int32") } -> write w (path_s (["haxe"], "Int32"))
             | TClassDecl cl -> write w (t_s (TInst(cl, List.map (fun _ -> t_empty) cl.cl_types)))
             | TEnumDecl en -> write w (t_s (TEnum(en, List.map (fun _ -> t_empty) en.e_types)))
-            | TTypeDecl td -> write w (t_s (gen.gfollow#run_f (TType(td, List.map (fun _ -> t_empty) td.t_types)))) 
+            | TTypeDecl td -> write w (t_s (gen.gfollow#run_f (TType(td, List.map (fun _ -> t_empty) td.t_types))))
             | TAbstractDecl a -> write w (t_s (TAbstract(a, List.map (fun _ -> t_empty) a.a_types)))
           )
         | TParenthesis e ->
@@ -2001,7 +2001,7 @@ let configure gen =
   t()
 
 (* end of configure function *)
-	
+
 let before_generate con =
   ()
 

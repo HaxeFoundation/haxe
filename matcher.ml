@@ -244,7 +244,7 @@ let to_pattern ctx e t =
 		if PMap.mem s tctx.pc_locals then verror s p;
 		tctx.pc_locals <- PMap.add s v tctx.pc_locals;
 		v
-	in	
+	in
 	let rec loop tctx e t = match e with
 		| EParenthesis(e),_ ->
 			loop tctx e t
@@ -265,8 +265,8 @@ let to_pattern ctx e t =
 					| TFun _,_ ->
 						error "Invalid number of arguments to extractor, must be exactly 1" p
 					| _ ->
-						error "Invalid type for method unapply" cf.cf_pos)			
-				| _ -> perror p)				
+						error "Invalid type for method unapply" cf.cf_pos)
+				| _ -> perror p)
 			| TEnum(en,pl)
 			| TFun(_,TEnum(en,pl)) ->
 				let ef = match ec.eexpr with
@@ -337,7 +337,7 @@ let to_pattern ctx e t =
 						(match tc with
 							| TMono _ -> ()
 							| _ -> try unify_raise ctx e.etype tc e.epos with Error (Unify _,_) -> raise Not_found);
-						e 
+						e
 				in
 				(match ec.eexpr with
 					| TEnumField(en,s)
@@ -352,7 +352,7 @@ let to_pattern ctx e t =
 					| _ ->
 						raise Not_found);
 			with Not_found ->
-				let v = mk_var tctx s t p in 
+				let v = mk_var tctx s t p in
 				{
 					pdef = PatVar(SVar v,p);
 					ptype = t;
@@ -444,7 +444,7 @@ let rec collapse_pattern pl = match pl with
 			ptype = pat.ptype
 		}
 	| [] ->
-		assert false	
+		assert false
 
 (* Calculates the specialization matrix of pmat for constructor c *)
 let spec mctx (c : con) (pmat : pattern_matrix) : pattern_matrix =
@@ -559,7 +559,7 @@ let all_ctors ctx t =
 	| TAbstract({a_path = [],"Bool"},_) ->
 		h := PMap.add (CConst(TBool true)) Ast.null_pos !h;
 		h := PMap.add (CConst(TBool false)) Ast.null_pos !h;
-		false	
+		false
 	| TInst({cl_path=[],"String"},_)
 	| TInst({cl_path=[],"Array"},_)
 	| TAbstract _ ->
@@ -620,7 +620,7 @@ let rec compile mctx (stl : subterm list) (n : int) (pmat : pattern_matrix) = ma
 					let a2 = a - i - 1 in
 					let args = (ExtList.List.make i any) @ [pat] @ (if a2 > 0 then (ExtList.List.make (a - i - 1) any) else []) in
 					let pattern = mk_con_pat (fst c) args t_dynamic (pos c) in
-					raise (Not_exhaustive(pattern,i))				
+					raise (Not_exhaustive(pattern,i))
 			) sigma in
 			if not inf && PMap.is_empty !c_all then Switch (st_head,t,cases) else begin
 				let pmat_def = default mctx pmat in
@@ -663,7 +663,7 @@ let replace_locals ctx out e =
 		let v2 = List.assq v subst in
 		Hashtbl.remove all_subterms v2;
 		v2
-	in 
+	in
 	let rec loop e = match e.eexpr with
 		| TLocal v ->
 			(try
@@ -737,7 +737,7 @@ and to_enum_switch ctx need_val st en pl cases =
 			Some ([ef.ef_index],vl,e)
 		| CConst TNull ->
 			def := Some (to_typed_ast ctx need_val dt);
-			None			
+			None
 		| c ->
 			error ("Unexpected "  ^ (s_con c)) p
 	) cases in
@@ -791,10 +791,10 @@ and to_array_switch ctx need_val st t cases =
 			def := Some (to_typed_ast ctx need_val dt);
 			None
 		| c ->
-			error ("Unexpected "  ^ (s_con c)) p			
+			error ("Unexpected "  ^ (s_con c)) p
 	) cases in
 	let el = (List.map (fun (_,e) -> e) cases) @ match !def with None -> [] | Some e -> [e] in
-	let t = if not need_val then (mk_mono()) else unify_min ctx (List.rev el) in	
+	let t = if not need_val then (mk_mono()) else unify_min ctx (List.rev el) in
 	let e_eval = mk (TField(e_var,"length")) ctx.com.basic.tint p in
 	mk (TSwitch(e_eval,cases,!def)) t p
 
@@ -821,7 +821,7 @@ and to_typed_ast ctx need_val (dt : decision_tree) : texpr =
 			to_array_switch ctx need_val st t cases;
 		| (TInst({cl_path=[],"String"},_) as t)
 		| (TAbstract _ as t) ->
-			to_value_switch ctx need_val st t cases			
+			to_value_switch ctx need_val st t cases
 		| TAnon {a_fields = fields}
 		| TInst({cl_fields = fields},_) ->
 			to_anon_switch ctx need_val st fields cases
@@ -876,7 +876,7 @@ let match_expr ctx e cases def need_val with_type p =
 			| EConst(Ident "_"),evals -> List.map (fun eval -> mk_any eval.etype (pos epat)) evals
 			| _,_ :: _ :: [] -> error "This kind of binding is not allowed because we do not have tuples" (pos epat);
 			| _,_ -> [to_pattern ctx epat (List.hd evals).etype]
-		in		
+		in
 		let e = type_expr ctx e need_val in
 		let eg = match eg with
 			| None -> None

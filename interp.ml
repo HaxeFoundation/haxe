@@ -517,7 +517,7 @@ let neko =
 
 	(* a bit tricky since load "val_true" does not work as expected on Windows *)
 	let unser = try loadprim "std@unserialize" 2 with _ -> ("",null,0) in
-	
+
 	(* did we fail to load std.ndll ? *)
 	if (match unser with ("",_,_) -> true | _ -> false) then None else
 
@@ -4013,7 +4013,7 @@ let rec encode_mtype t fields =
 
 and encode_type_params tl =
 	enc_array (List.map (fun (n,t) -> enc_obj ["name",enc_string n;"t",encode_type t]) tl)
-	
+
 and encode_tenum e =
 	encode_mtype (TEnumDecl e) [
 		"isExtern", VBool e.e_extern;

@@ -954,7 +954,7 @@ type small_type =
 	| TBool of bool
 	| TFloat of float
 	| TString of string
-	
+
 let parse ctx code =
 	let old = Lexer.save() in
 	let old_cache = !cache in

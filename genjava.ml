@@ -100,7 +100,7 @@ let parse_explicit_iface =
     in
     get_iface split []
   in parse_explicit_iface
-	
+
 let is_string t =
   match follow t with
     | TInst( { cl_path = ([], "String") }, [] ) -> true
@@ -1922,7 +1922,7 @@ let configure gen =
   t()
 
 (* end of configure function *)
-	
+
 let before_generate con =
   ()
 

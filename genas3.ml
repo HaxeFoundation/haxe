@@ -352,7 +352,7 @@ let gen_function_header ctx name f params p =
 	let old_bi = ctx.block_inits in
 	ctx.in_value <- None;
 	ctx.local_types <- List.map snd params @ ctx.local_types;
-	let init () = 
+	let init () =
  		List.iter (fun (v,o) -> match o with
 			| Some c when is_nullable v.v_type && c <> TNull ->
 				newline ctx;
@@ -488,7 +488,7 @@ let rec gen_call ctx e el r =
 		spr ctx ")";
 		spr ctx "(";
 		concat ctx "," (gen_value ctx) el;
-		spr ctx ")"	
+		spr ctx ")"
 	| _ ->
 		gen_value ctx e;
 		spr ctx "(";
@@ -573,7 +573,7 @@ and gen_expr ctx e =
 		spr ctx "(";
 		gen_value ctx e;
 		print ctx "[\"%s\"]" s;
-		print ctx " as %s)" (type_str ctx e.etype e.epos);		
+		print ctx " as %s)" (type_str ctx e.etype e.epos);
 	| TField (e,s) | TClosure (e,s) ->
    		gen_value ctx e;
 		gen_field_access ctx e.etype s
@@ -597,7 +597,7 @@ and gen_expr ctx e =
 			spr ctx "return";
 			bend();
 			newline ctx;
-			print ctx "}";			
+			print ctx "}";
 		| Some e ->
 			spr ctx "return ";
 			gen_value ctx e);
