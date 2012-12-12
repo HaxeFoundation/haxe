@@ -386,8 +386,6 @@ let to_pattern ctx e t =
 				mk_con_pat (CArray (List.length el)) pl t p
 			| _ ->
 				error ((s_type (print_context()) t) ^ " should be Array") p)
-		| (EBinop(OpOr,(EBinop(OpOr,e1,e2),p2),e3),p1) ->
-			loop tctx (EBinop(OpOr,e1,(EBinop(OpOr,e2,e3),p2)),p1) t
 		| (EBinop(OpAssign,(EConst(Ident s),p2),e1),p) ->
 			let v = mk_var tctx s t p in
 			let pat1 = loop tctx e1 t in
@@ -396,21 +394,28 @@ let to_pattern ctx e t =
 				ptype = t;
 				ppos = p2;
 			};
+		| (EBinop(OpOr,(EBinop(OpOr,e1,e2),p2),e3),p1) ->
+			loop tctx (EBinop(OpOr,e1,(EBinop(OpOr,e2,e3),p2)),p1) t
 		| (EBinop(OpOr,e1,e2),p) ->
 			let old = tctx.pc_locals in
 			let pat1 = loop tctx e1 t in
-			let tctx2 = {
-				pc_sub_vars = Some tctx.pc_locals;
-				pc_locals = old;
-			} in
-			let pat2 = loop tctx2 e2 t in
-			PMap.iter (fun s _ -> if not (PMap.mem s tctx2.pc_locals) then verror s p) tctx.pc_locals;
-			unify ctx pat1.ptype pat2.ptype pat1.ppos;
-			{
-				pdef = PatOr(pat1,pat2);
-				ptype = pat2.ptype;
-				ppos = punion pat1.ppos pat2.ppos;
-			}
+			(match pat1.pdef with
+			| PatAny | PatVar _ ->
+				ctx.com.warning "This pattern is unused" (pos e2);
+				pat1
+			| _ ->
+				let tctx2 = {
+					pc_sub_vars = Some tctx.pc_locals;
+					pc_locals = old;
+				} in
+				let pat2 = loop tctx2 e2 t in
+				PMap.iter (fun s _ -> if not (PMap.mem s tctx2.pc_locals) then verror s p) tctx.pc_locals;
+				unify ctx pat1.ptype pat2.ptype pat1.ppos;
+				{
+					pdef = PatOr(pat1,pat2);
+					ptype = pat2.ptype;
+					ppos = punion pat1.ppos pat2.ppos;
+				})
 		| (_,p) ->
 			ctx.com.warning "Unrecognized pattern, falling back to normal switch" p;
 			raise Exit
