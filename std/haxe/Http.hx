@@ -95,8 +95,8 @@ class Http {
 	public function request( post : Bool ) : Void {
 		var me = this;
 	#if js
-		var r = new js.Browser.createXMLHttpRequest();
-		var onreadystatechange = function() {
+		var r = js.Browser.createXMLHttpRequest();
+		var onreadystatechange = function(_) {
 			if( r.readyState != 4 )
 				return;
 			var s = try r.status catch( e : Dynamic ) null;
@@ -149,7 +149,7 @@ class Http {
 			r.setRequestHeader(h,headers.get(h));
 		r.send(uri);
 		if( !async )
-			onreadystatechange();
+			onreadystatechange(null);
 	#elseif flash9
 		var loader = new flash.net.URLLoader();
 		loader.addEventListener( "complete", function(e){

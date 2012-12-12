@@ -38,7 +38,7 @@ class Cookie {
 		if( domain != null ){
 			s += ";domain="+domain;
 		}
-		js.Lib.document.cookie = s;
+		Browser.document.cookie = s;
 	}
 
 	/**
@@ -46,7 +46,7 @@ class Cookie {
 	**/
 	public static function all(){
 		var h = new Hash();
-		var a = js.Lib.document.cookie.split(";");
+		var a = Browser.document.cookie.split(";");
 		for( e in a ){
 			e = StringTools.ltrim(e);
 			var t = e.split("=");

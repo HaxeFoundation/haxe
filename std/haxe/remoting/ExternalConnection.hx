@@ -78,7 +78,7 @@ class ExternalConnection implements Connection, implements Dynamic<Connection> {
 			try {
 				// check that swf in on the same domain
 				domain = fobj.src.split("/")[2];
-				pageDomain = js.Lib.window.location.host;
+				pageDomain = js.Browser.window.location.host;
 			} catch( e : Dynamic ) {
 				domain = null;
 				pageDomain = null;
