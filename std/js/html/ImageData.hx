@@ -29,6 +29,8 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("ImageData")
 extern class ImageData
 {
+    var data (default,null) :Uint8ClampedArray;
+
     var height (default,null) :Int;
 
     var width (default,null) :Int;
