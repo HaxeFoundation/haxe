@@ -379,7 +379,7 @@ let to_pattern ctx e t =
 		| (EArrayDecl [],p) ->
 			mk_con_pat (CArray 0) [] t p
 		| (EArrayDecl el,p) ->
-			(match t with
+			(match follow t with
 			| TInst({cl_path=[],"Array"},[t2]) ->
 				let pl = List.map (fun e -> loop tctx e t2) el in
 				mk_con_pat (CArray (List.length el)) pl t p
