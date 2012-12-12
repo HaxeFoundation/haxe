@@ -55,6 +55,7 @@ type matcher = {
 	mutable outcomes : (pattern list,outcome) PMap.t;
 	mutable value_only : bool;
 	mutable num_outcomes : int;
+	input_vars : (tvar * int) list;
 }
 
 type pattern_ctx = {
@@ -606,7 +607,6 @@ let rec compile mctx (stl : subterm list) (pmat : pattern_matrix) = match pmat w
 		end else begin
 			(* Get column sigma and derive cases *)
 			let st_head,st_tail = match stl with st :: stl -> st,stl | _ -> assert false in
-			let n = match fst st_head with SSub(_,i) -> i | _ -> 0 in
 			let sigma,t = column_sigma mctx st_head pmat in
 			let c_all,inf = all_ctors mctx.ctx t in
 			let cases = List.rev_map (fun (c,g) ->
@@ -619,9 +619,11 @@ let rec compile mctx (stl : subterm list) (pmat : pattern_matrix) = match pmat w
 					c,dt
 				with Not_exhaustive (pat,i) ->
 					if a = 0 then raise (Not_exhaustive(pat,i));
+
 					let a2 = a - i - 1 in
 					let args = (ExtList.List.make i any) @ [pat] @ (if a2 > 0 then (ExtList.List.make a2 any) else []) in
 					let pattern = mk_con_pat (fst c) args t_dynamic (pos c) in
+					let n = match fst st_head with SSub(_,i) -> i | SVar v -> List.assq v mctx.input_vars in
 					raise (Not_exhaustive(pattern,n))
 			) sigma in
 			if not inf && PMap.is_empty !c_all then Switch (st_head,t,cases) else begin
@@ -633,6 +635,7 @@ let rec compile mctx (stl : subterm list) (pmat : pattern_matrix) = match pmat w
 				| [],_ ->
 					(* non-exhaustive *)
 					let cl = PMap.foldi (fun c p acc -> (c,p) :: acc) !c_all [] in
+					let n = match fst st_head with SSub(_,i) -> i | SVar v -> List.assq v mctx.input_vars in
 					(match cl with
 					| [] ->
 						raise (Not_exhaustive(any,n))
@@ -843,10 +846,12 @@ let match_expr ctx e cases def need_val with_type p =
 		| _ ->
 			[type_expr_with_type ctx e with_type need_val]
 	in
+	let v_evals = List.map (fun e -> gen_local ctx e.etype) evals in
 	let mctx = {
 		ctx = ctx;
 		outcomes = PMap.empty;
 		num_outcomes = 0;
+		input_vars = ExtList.List.mapi (fun i v -> v,i) v_evals;
 		value_only = match evals with
 			| [e] -> (match follow e.etype with
 				| TEnum(en,_) when PMap.is_empty en.e_constrs ->
@@ -864,7 +869,6 @@ let match_expr ctx e cases def need_val with_type p =
 			| _ ->
 				false
 	} in
-	let v_evals = List.map (fun e -> gen_local ctx e.etype) evals in
 	(* 1. turn case expressions to patterns *)
 	let patterns = List.map (fun (el,eg,e) ->
 		let epat = collapse_case el in
@@ -895,9 +899,12 @@ let match_expr ctx e cases def need_val with_type p =
 	(* 2. compile patterns to decision tree *)
  	let dt = try
  		compile mctx (List.map2 (fun e v -> SVar v,e.epos) evals v_evals) patterns
- 	with Not_exhaustive (pat,_) ->
+ 	with Not_exhaustive (pat,i) ->
  		let l = List.length evals in
- 		if l = 1 then error ("This match is not exhaustive, these patterns are not matched: " ^ (s_pattern pat)) p
+ 		if l = 1 then error ("This match is not exhaustive, these patterns are not matched: " ^ (s_pattern pat)) p;
+		let a2 = l - i - 1 in
+		let args = (ExtList.List.make i any) @ [pat] @ (if a2 > 0 then (ExtList.List.make a2 any) else []) in
+		error ("This match is not exhaustive, these patterns are not matched: [" ^ (String.concat "," (List.map s_pattern args)) ^ "]") p
  	in
  	if Common.defined ctx.com Common.Define.MatchDebug then print_endline (s_decision_tree "" dt);
  	if not mctx.value_only then PMap.iter (fun pat out -> if out.o_paths = 0 then ctx.com.warning "This pattern is unused" out.o_pos) mctx.outcomes;

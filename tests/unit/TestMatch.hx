@@ -239,6 +239,9 @@ class TestMatch extends Test {
 			case Node(_, _):
 			case Leaf(_) if (false):
 		}));
+		eq("This match is not exhaustive, these patterns are not matched: [_,false,_]", getErrorMessage(switch [1, true, "foo"] {
+			case [_, true, _]:
+		}));
 	}
 	
 	function testInvalidBinding() {
