@@ -127,6 +127,7 @@ let build_class com c file =
 					| _ :: l -> loop l
 				in
 				loop (List.rev ns)
+			| HMPath _ -> i
 			| _ -> assert false
 		) in
 		HImplements (make_tpath i)
@@ -1089,7 +1090,7 @@ let generate com swf_header =
 	let bg = tag (TSetBgColor { cr = bg lsr 16; cg = (bg lsr 8) land 0xFF; cb = bg land 0xFF }) in
 	let swf_debug_password = try
 		Digest.to_hex(Digest.string (Common.defined_value com Define.SwfDebugPassword))
-	with Not_found -> 
+	with Not_found ->
 		""
 	in
 	let debug = (if isf9 && Common.defined com Define.Fdb then [tag (TEnableDebugger2 (0, swf_debug_password))] else []) in
@@ -1099,7 +1100,7 @@ let generate com swf_header =
 			let file = try Common.find_file com file with Not_found -> file in
 			let data = try Std.input_file ~bin:true file with Sys_error _ -> failwith ("Metadata resource file not found : " ^ file) in
 			[tag(TMetaData (data))]
-		with Not_found -> 
+		with Not_found ->
 			[]
 	in
 	let fattr = (if com.flash_version < 8. then [] else
@@ -1112,10 +1113,10 @@ let generate com swf_header =
 		})]
 	) in
 	let fattr = if Common.defined com Define.AdvancedTelemetry then fattr @ [tag (TUnknown (0x5D,"\x00\x00"))] else fattr in
-	let preframe, header = 
-		if Common.defined com Define.SwfPreloaderFrame then 
-			[tag TShowFrame], {h_version=header.h_version; h_size=header.h_size; h_frame_count=header.h_frame_count+1; h_fps=header.h_fps; h_compressed=header.h_compressed; } 
-		else 
+	let preframe, header =
+		if Common.defined com Define.SwfPreloaderFrame then
+			[tag TShowFrame], {h_version=header.h_version; h_size=header.h_size; h_frame_count=header.h_frame_count+1; h_fps=header.h_fps; h_compressed=header.h_compressed; }
+		else
 			[], header in
 	let swf_script_limits = try
 		let s = Common.defined_value com Define.SwfScriptTimeout in
