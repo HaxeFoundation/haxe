@@ -72,7 +72,7 @@ class TestMatch extends Test {
 			case ["b"]: "2";
 			case [a]: "3:" + a;
 			case [a, b]: "4:" + a + "," +b;
-			case a in a.length == 3: "5:" + a.length;
+			case a if (a.length == 3): "5:" + a.length;
 			case []: "6";
 			case _: "7";
 		}		
@@ -98,11 +98,11 @@ class TestMatch extends Test {
 	
 	static function switchGuard(e:Expr):String {
 		return switch(e.expr) {
-			case EConst(CString(s)) in StringTools.startsWith(s, "foo"):
+			case EConst(CString(s)) if (StringTools.startsWith(s, "foo")):
 				"1";
-			case EConst(CString(s)) in StringTools.startsWith(s, "bar"):
+			case EConst(CString(s)) if (StringTools.startsWith(s, "bar")):
 				"2";
-			case EConst(CInt(i)) in switch(Std.parseInt(i) * 2) { case 4: true; case _: false; } :
+			case EConst(CInt(i)) if (switch(Std.parseInt(i) * 2) { case 4: true; case _: false; }):
 				"3";
 			case EConst(_):
 				"4";
@@ -203,8 +203,8 @@ class TestMatch extends Test {
 	
 	public static function toStringX<Z>(x1:X<Z>) {
 		return switch (x1) {
-			case U1(x) in x > 1: ">1";
-			case U1(x) in x <= 1: "<=1";
+			case U1(x) if (x > 1): ">1";
+			case U1(x) if (x <= 1): "<=1";
 			case U1(_): throw "this is impossible to reach actually";
 			case U2: "U2";
 		}
@@ -237,7 +237,7 @@ class TestMatch extends Test {
 		}));
 		eq("This match is not exhaustive, these patterns are not matched: Leaf(_)", getErrorMessage(switch(Leaf("foo")) {
 			case Node(_, _):
-			case Leaf(_) in false:
+			case Leaf(_) if (false):
 		}));
 	}
 	

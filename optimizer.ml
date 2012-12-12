@@ -977,7 +977,7 @@ let optimize_completion_expr e =
 			map e
 		| ESwitch (e,cases,def) ->
 			let e = loop e in
-			let cases = List.map (fun (el,e) ->
+			let cases = List.map (fun (el,eg,e) ->
 				let el = List.map loop el in
 				let old = save() in
 				List.iter (fun e ->
@@ -992,7 +992,7 @@ let optimize_completion_expr e =
 				) el;
 				let e = loop e in
 				old();
-				el, e
+				el, eg, e
 			) cases in
 			let def = (match def with None -> None | Some e -> Some (loop e)) in
 			(ESwitch (e,cases,def),p)

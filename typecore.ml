@@ -123,7 +123,7 @@ exception Error of error_msg * pos
 let type_expr_ref : (typer -> Ast.expr -> bool -> texpr) ref = ref (fun _ _ _ -> assert false)
 let unify_min_ref : (typer -> texpr list -> t) ref = ref (fun _ _ -> assert false)
 let type_expr_with_type_ref : (typer -> Ast.expr -> t option -> bool -> texpr) ref = ref (fun _ _ _ -> assert false)
-let match_expr_ref : (typer -> Ast.expr -> (Ast.expr list * Ast.expr) list -> Ast.expr option -> bool -> t option -> Ast.pos -> texpr) ref = ref (fun _ _ _ _ _ _ _ -> assert false)
+let match_expr_ref : (typer -> Ast.expr -> (Ast.expr list * Ast.expr option * Ast.expr) list -> Ast.expr option -> bool -> t option -> Ast.pos -> texpr) ref = ref (fun _ _ _ _ _ _ _ -> assert false)
 
 let short_type ctx t =
 	let tstr = s_type ctx t in

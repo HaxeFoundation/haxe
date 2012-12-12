@@ -832,7 +832,7 @@ and to_typed_ast ctx need_val (dt : decision_tree) : texpr =
 let match_expr ctx e cases def need_val with_type p =
 	let cases = match cases,def with
 		| [],None -> error "Empty switch" p
-		| cases,Some def -> cases @ [[(EConst(Ident "_")),pos def],def]
+		| cases,Some def -> cases @ [[(EConst(Ident "_")),pos def],None,def]
 		| _ -> cases
 	in
 	let evals = match fst e with
@@ -864,12 +864,8 @@ let match_expr ctx e cases def need_val with_type p =
 	} in
 	let v_evals = List.map (fun e -> gen_local ctx e.etype) evals in
 	(* 1. turn case expressions to patterns *)
-	let patterns = List.map (fun (el,e) ->
+	let patterns = List.map (fun (el,eg,e) ->
 		let epat = collapse_case el in
-		let epat,guard = match fst epat with
-			| EIn(e1,e2) -> e1, Some e2
-			| _ -> epat,None
-		in
 		let save = save_locals ctx in
 		let pat = match fst epat,evals with
 			| EArrayDecl el,[eval] when (match follow eval.etype with TInst({cl_path=[],"Array"},[_]) -> true | _ -> false) ->
@@ -882,7 +878,7 @@ let match_expr ctx e cases def need_val with_type p =
 			| _,_ -> [to_pattern ctx epat (List.hd evals).etype]
 		in		
 		let e = type_expr ctx e need_val in
-		let guard = match guard with
+		let eg = match eg with
 			| None -> None
 			| Some e ->
 				let e = type_expr ctx e need_val in
@@ -890,7 +886,7 @@ let match_expr ctx e cases def need_val with_type p =
 				Some e
 		in
 		save();
-		let out = mk_outcome mctx e guard pat in
+		let out = mk_outcome mctx e eg pat in
 		(pat,out)
 	) cases in
 	if Common.defined ctx.com Common.Define.MatchDebug then print_endline (s_pattern_matrix patterns);

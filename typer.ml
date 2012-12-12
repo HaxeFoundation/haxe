@@ -1600,7 +1600,7 @@ and type_switch ctx e cases def need_val with_type p =
 		if (Common.defined ctx.com Common.Define.NoPatternMatching) then raise Exit;
 		match_expr ctx e cases def need_val with_type p
 	with Exit ->
-		type_switch_old ctx e cases def need_val with_type p
+		type_switch_old ctx e (List.map (fun (cl,_,e) -> cl,e) cases) def need_val with_type p
 
 and type_ident ctx i p mode =
 	try

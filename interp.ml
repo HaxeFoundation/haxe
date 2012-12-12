@@ -3639,9 +3639,10 @@ and encode_expr e =
 			| EWhile (econd,e,flag) ->
 				16, [loop econd;loop e;VBool (match flag with NormalWhile -> true | DoWhile -> false)]
 			| ESwitch (e,cases,eopt) ->
-				17, [loop e;enc_array (List.map (fun (ecl,e) ->
+				17, [loop e;enc_array (List.map (fun (ecl,eg,e) ->
 					enc_obj [
 						"values",enc_array (List.map loop ecl);
+						"guard",null loop eg;
 						"expr",loop e
 					]
 				) cases);null loop eopt]
@@ -3899,7 +3900,7 @@ let decode_expr v =
 			EWhile (loop e1,loop e2,if flag then NormalWhile else DoWhile)
 		| 17, [e;cases;eo] ->
 			let cases = List.map (fun c ->
-				(List.map loop (dec_array (field c "values")),loop (field c "expr"))
+				(List.map loop (dec_array (field c "values")),opt loop (field c "guard"),loop (field c "expr"))
 			) (dec_array cases) in
 			ESwitch (loop e,cases,opt loop eo)
 		| 18, [e;catches] ->
@@ -4378,7 +4379,7 @@ let rec make_ast e =
 		EFor (ein,make_ast e)
 	| TIf (e,e1,e2) -> EIf (make_ast e,make_ast e1,eopt e2)
 	| TWhile (e1,e2,flag) -> EWhile (make_ast e1, make_ast e2, flag)
-	| TSwitch (e,cases,def) -> ESwitch (make_ast e,List.map (fun (vl,e) -> List.map make_ast vl, make_ast e) cases,eopt def)
+	| TSwitch (e,cases,def) -> ESwitch (make_ast e,List.map (fun (vl,e) -> List.map make_ast vl, None,make_ast e) cases,eopt def)
 	| TMatch (e,(en,_),cases,def) ->
 		let scases (idx,args,e) =
 			let p = e.epos in
@@ -4398,7 +4399,7 @@ let rec make_ast e =
 				let cfield = (try PMap.find c en.e_constrs with Not_found -> assert false) in
 				let c = (EConst (Ident c),p) in
 				(match follow cfield.ef_type with TFun (eargs,_) -> (ECall (c,mk_args (List.length eargs)),p) | _ -> c)
-			) idx, make_ast e
+			) idx, None, make_ast e
 		in
 		ESwitch (make_ast e,List.map scases cases,eopt def)
 	| TTry (e,catches) -> ETry (make_ast e,List.map (fun (v,e) -> v.v_name, (try make_type v.v_type with Exit -> assert false), make_ast e) catches)

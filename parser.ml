@@ -858,15 +858,19 @@ and expr_next e1 = parser
 		(EIn (e1,e2), punion (pos e1) (pos e2))
 	| [< >] -> e1
 
+and parse_guard = parser
+	| [< '(Kwd If,p1); '(POpen,_); e = expr; '(PClose,_); >] ->
+		e
+
 and parse_switch_cases eswitch cases = parser
 	| [< '(Kwd Default,p1); '(DblDot,_); s >] ->
 		let b = EBlock (try block [] s with Display e -> display (ESwitch (eswitch,cases,Some e),punion (pos eswitch) (pos e))) in
 		let l , def = parse_switch_cases eswitch cases s in
 		(match def with None -> () | Some (e,p) -> error Duplicate_default p);
 		l , Some (b,p1)
-	| [< '(Kwd Case,p1); el = psep Comma expr; '(DblDot,_); s >] ->
-		let b = EBlock (try block [] s with Display e -> display (ESwitch (eswitch,List.rev ((el,e) :: cases),None),punion (pos eswitch) (pos e))) in
-		parse_switch_cases eswitch ((el,(b,p1)) :: cases) s
+	| [< '(Kwd Case,p1); el = psep Comma expr; eg = popt parse_guard; '(DblDot,_); s >] ->
+		let b = EBlock (try block [] s with Display e -> display (ESwitch (eswitch,List.rev ((el,eg,e) :: cases),None),punion (pos eswitch) (pos e))) in
+		parse_switch_cases eswitch ((el,eg,(b,p1)) :: cases) s
 	| [< >] ->
 		List.rev cases , None
 
