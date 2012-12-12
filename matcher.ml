@@ -582,7 +582,7 @@ let all_ctors ctx t =
 	h,inf
 
 (* Generates the decision tree for a given pattern matrix *)
-let rec compile mctx (stl : subterm list) (n : int) (pmat : pattern_matrix) = match pmat with
+let rec compile mctx (stl : subterm list) (pmat : pattern_matrix) = match pmat with
 	| [] ->
 		assert false
 	| (row,out) :: rl ->
@@ -596,16 +596,17 @@ let rec compile mctx (stl : subterm list) (n : int) (pmat : pattern_matrix) = ma
 				Bind(out,None)
 			else
 				(* Guarded, yield outcome and continue *)
-				Bind(out,Some (compile mctx stl 0 rl))
+				Bind(out,Some (compile mctx stl rl))
 		end
 		else if i > 0 then begin
 			(* Some column is better than the first, swap them and loop *)
 			let pat_swap = List.map (fun (row,out) -> (swap_columns i row),out) pmat in
 			let stl_swap = swap_columns i stl in
-			compile mctx stl_swap i pat_swap
+			compile mctx stl_swap pat_swap
 		end else begin
 			(* Get column sigma and derive cases *)
 			let st_head,st_tail = match stl with st :: stl -> st,stl | _ -> assert false in
+			let n = match fst st_head with SSub(_,i) -> i | _ -> 0 in
 			let sigma,t = column_sigma mctx st_head pmat in
 			let c_all,inf = all_ctors mctx.ctx t in
 			let cases = List.rev_map (fun (c,g) ->
@@ -614,13 +615,14 @@ let rec compile mctx (stl : subterm list) (n : int) (pmat : pattern_matrix) = ma
 				let pmat_spec = spec mctx c pmat in
 				let stl_sub = ExtList.List.init a (fun i -> SSub(st_head,i),pos c) in
 				try
-					let dt = compile mctx (stl_sub @ st_tail) 0 pmat_spec in
+					let dt = compile mctx (stl_sub @ st_tail) pmat_spec in
 					c,dt
 				with Not_exhaustive (pat,i) ->
+					if a = 0 then raise (Not_exhaustive(pat,i));
 					let a2 = a - i - 1 in
-					let args = (ExtList.List.make i any) @ [pat] @ (if a2 > 0 then (ExtList.List.make (a - i - 1) any) else []) in
+					let args = (ExtList.List.make i any) @ [pat] @ (if a2 > 0 then (ExtList.List.make a2 any) else []) in
 					let pattern = mk_con_pat (fst c) args t_dynamic (pos c) in
-					raise (Not_exhaustive(pattern,i))
+					raise (Not_exhaustive(pattern,n))
 			) sigma in
 			if not inf && PMap.is_empty !c_all then Switch (st_head,t,cases) else begin
 				let pmat_def = default mctx pmat in
@@ -633,16 +635,16 @@ let rec compile mctx (stl : subterm list) (n : int) (pmat : pattern_matrix) = ma
 					let cl = PMap.foldi (fun c p acc -> (c,p) :: acc) !c_all [] in
 					(match cl with
 					| [] ->
-						raise (Not_exhaustive(any,0))
+						raise (Not_exhaustive(any,n))
 					| _ ->
 						let pl = List.map (fun c -> (mk_con_pat (fst c) (ExtList.List.make (arity c) any) t_dynamic (pos c))) cl in
 						raise (Not_exhaustive (collapse_pattern pl,n)))
 				| _,[] ->
 					(* there is only the default case, so we don't have to switch on it *)
-					compile mctx st_tail 0 pmat_def
+					compile mctx st_tail pmat_def
 				| _ ->
 					(* normal switch case *)
-					let dt = compile mctx st_tail 0 pmat_def in
+					let dt = compile mctx st_tail pmat_def in
 					Switch (st_head,t,cases @ [(CConst TNull, pos st_head),dt])
 			end
 		end
@@ -892,9 +894,10 @@ let match_expr ctx e cases def need_val with_type p =
 	if Common.defined ctx.com Common.Define.MatchDebug then print_endline (s_pattern_matrix patterns);
 	(* 2. compile patterns to decision tree *)
  	let dt = try
- 		compile mctx (List.map2 (fun e v -> SVar v,e.epos) evals v_evals) 0 patterns
+ 		compile mctx (List.map2 (fun e v -> SVar v,e.epos) evals v_evals) patterns
  	with Not_exhaustive (pat,_) ->
- 		error ("This match is not exhaustive, these patterns are not matched: " ^ (s_pattern pat)) p
+ 		let l = List.length evals in
+ 		if l = 1 then error ("This match is not exhaustive, these patterns are not matched: " ^ (s_pattern pat)) p
  	in
  	if Common.defined ctx.com Common.Define.MatchDebug then print_endline (s_decision_tree "" dt);
  	if not mctx.value_only then PMap.iter (fun pat out -> if out.o_paths = 0 then ctx.com.warning "This pattern is unused" out.o_pos) mctx.outcomes;
