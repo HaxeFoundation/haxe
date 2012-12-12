@@ -274,6 +274,14 @@ let is_generic_parameter ctx c =
 	with Not_found ->
 		false
 
+let has_ctor_constraint c = match c.cl_kind with
+	| KTypeParameter tl ->
+		List.exists (fun t -> match follow t with
+			| TAnon a when PMap.mem "new" a.a_fields -> true
+			| _ -> false
+		) tl;
+	| _ -> false
+
 let rec build_generic ctx c p tl =
 	let pack = fst c.cl_path in
 	let recurse = ref false in
@@ -282,12 +290,8 @@ let rec build_generic ctx c p tl =
 		| TInst (c2,tl) ->
 			(match c2.cl_kind with
 			| KTypeParameter tl ->
-				List.iter (fun t -> match follow t with
-					| TAnon a when PMap.mem "new" a.a_fields ->
-						error "Type parameters with a constructor cannot be used non-generically" p
-					| _ -> ()
-				) tl;
-				if not (is_generic_parameter ctx c2) && not (has_meta ":?keepGenericBase" c.cl_meta) then c.cl_meta <- (":?keepGenericBase",[],p) :: c.cl_meta;
+				if not (is_generic_parameter ctx c2) && has_ctor_constraint c2 then
+					error "Type parameters with a constructor cannot be used non-generically" p;
 				recurse := true
 			| _ -> ());
 			List.iter check_recursive tl;
@@ -598,7 +602,7 @@ let check_private_path ctx t = match t with
 
 (* Removes generic base classes *)
 let remove_generic_base ctx t = match t with
-	| TClassDecl c when c.cl_kind = KGeneric && not (has_meta ":?keepGenericBase" c.cl_meta) ->
+	| TClassDecl c when c.cl_kind = KGeneric && has_ctor_constraint c ->
 		c.cl_extern <- true
 	| _ ->
 		()
