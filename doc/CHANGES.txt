@@ -26,10 +26,19 @@
 	all : no longer create variable fields for pure getter/setter properties (unless @:isVar is used)
 	all : use default get_prop/set_prop instead of custom getter/setter names for properties
 	js : added JQuery.delegateTarget
-	macro : removed EType and CType, added EMeta
+	macro : removed EType and CType, added EMeta, modified ESwitch
+	all : allow @metadata expr
 	all : replaced haxe.rtti.Generic interface with @:generic metadata
 	all : no longer infer arrays of mixed types as Array<Dynamic>
 	all : all type/import/enum constructor resolution now follows the shadowing principle (latest has priority)
+	all : added EReg.matchSub, renamed EReg.customReplace to map
+	all : no longer allow initialization of extern non-inline variables
+	swf : fixed out of memory errors on very large swf-lib files
+	swf : added -D swf_preloader_frame, swf_gpu, swf_direct_blit
+	swf : added -D swf_script_timeout=seconds, swf_debug_password=password, swf_metadata=file
+	swf : added -swf-lib-extern
+	all : added GADT support in enums
+	all : added pattern matching (beta)
 
 2012-07-16: 2.10
 	java/cs : added two new targets (beta)
