@@ -292,21 +292,21 @@ let to_pattern ctx e t =
 						) args
 					| _ -> error "Arguments expected" p
 				in
-				let rec loop2 acc el tl = match el,tl with
+				let rec loop2 el tl = match el,tl with
 					| (EConst(Ident "_"),_) as e :: [], t :: tl ->
 						let pat = loop tctx e t_dynamic in
-						(ExtList.List.make ((List.length tl) + 1) pat) @ acc
+						(ExtList.List.make ((List.length tl) + 1) pat)
 					| e :: el, t :: tl ->
 						let pat = loop tctx e t in
-						loop2 (pat :: acc) el tl
+						pat :: (loop2 el tl)
 					| e :: _, [] ->
 						error "Too many arguments" (pos e);
 					| [],_ :: _ ->
 						error "Not enough arguments" p;
 					| [],[] ->
-						acc
+						[]
 				in
-				mk_con_pat (CEnum(en,ef)) (List.rev (loop2 [] el tl)) t p
+				mk_con_pat (CEnum(en,ef)) (loop2 el tl) t p
 			| _ -> perror p)
 		| (EConst(Ident "null"),p) ->
 			error "null-patterns are not allowed" p
