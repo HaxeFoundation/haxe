@@ -286,7 +286,12 @@ let to_pattern ctx e t =
 						(* unify the return type, which might cause some monomorphs to be bound *)
 						unify ctx r tc p;
 						(* reverse application of apply_params will replace free monomorphs with their original type parameters *)
-						List.map (fun (n,_,t) -> apply_params mono_map tpl (follow t)) args
+						List.map (fun (n,_,t) ->
+							let tf = apply_params mono_map tpl (follow t) in
+							match t with
+							| TType ({ t_path = ([],"Null") },[_]) -> ctx.t.tnull tf
+							| _ -> tf
+						) args
 					| _ -> error "Arguments expected" p
 				in
 				let rec loop2 acc el tl = match el,tl with
