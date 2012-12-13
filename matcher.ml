@@ -288,9 +288,7 @@ let to_pattern ctx e t =
 						(* reverse application of apply_params will replace free monomorphs with their original type parameters *)
 						List.map (fun (n,_,t) ->
 							let tf = apply_params mono_map tpl (follow t) in
-							match t with
-							| TType ({ t_path = ([],"Null") },[_]) -> ctx.t.tnull tf
-							| _ -> tf
+							if is_null t then ctx.t.tnull tf else tf
 						) args
 					| _ -> error "Arguments expected" p
 				in
