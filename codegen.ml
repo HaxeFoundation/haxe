@@ -560,7 +560,7 @@ let add_field_inits com c =
 				assert false
 
 let has_rtti ctx c =
-	let rec has_rtti_new c = 
+	let rec has_rtti_new c =
 		has_meta ":rttiInfos" c.cl_meta || match c.cl_super with None -> false | Some (csup,_) -> has_rtti_new csup
 	in
 	let rec has_rtti_old c =
@@ -626,7 +626,7 @@ let on_generate ctx t =
 				c.cl_ordered_fields <- List.filter (fun f2 -> f != f2) c.cl_ordered_fields;
 			end
 		) c.cl_ordered_fields;
-		add_field_inits ctx.com c;
+		if not c.cl_extern then add_field_inits ctx.com c;
 		(match build_metadata ctx.com t with
 		| None -> ()
 		| Some e ->
@@ -939,8 +939,8 @@ let rename_local_vars com e =
 	let rebuild m =
 		PMap.fold (fun v acc -> PMap.add v.v_name v acc) m PMap.empty
 	in
-	let save() = 
-		let old = !vars in 
+	let save() =
+		let old = !vars in
 		if as3 then (fun() -> ()) else (fun() -> vars := if !rebuild_vars then rebuild old else old)
 	in
 	let rename v =
@@ -1383,10 +1383,10 @@ let fix_overrides com t =
 	| _ ->
 		()
 
-(*	
+(*
 	PHP does not allow abstract classes extending other abstract classes to override any fields, so these duplicates
 	must be removed from the child interface
-*)	
+*)
 let fix_abstract_inheritance com t =
 	match t with
 	| TClassDecl c when c.cl_interface ->
