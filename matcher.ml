@@ -894,7 +894,7 @@ let match_expr ctx e cases def need_val with_type p =
 			| _,_ :: _ :: [] -> error "This kind of binding is not allowed because we do not have tuples" (pos epat);
 			| _,_ -> [to_pattern ctx epat (List.hd evals).etype]
 		in
-		let e = type_expr_with_type ctx e with_type need_val in
+		let e = if need_val then type_expr_with_type ctx e with_type need_val else type_expr ctx e need_val in
 		let eg = match eg with
 			| None -> None
 			| Some e ->
