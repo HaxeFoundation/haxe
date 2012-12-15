@@ -760,7 +760,6 @@ let configure gen =
         )
       | TType _ | TAbstract _ -> t
       | TAnon (anon) when (match !(anon.a_status) with | Statics _ | EnumStatics _ | AbstractStatics _ -> true | _ -> false) -> t
-      | TAnon _ -> dynamic_anon
       | TFun _ -> TInst(fn_cl,[])
       | _ -> t_dynamic
   in
