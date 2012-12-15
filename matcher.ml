@@ -915,7 +915,7 @@ let match_expr ctx e cases def need_val with_type p =
 		error ("This match is not exhaustive, these patterns are not matched: [" ^ (String.concat "," (List.map s_pattern args)) ^ "]") p
  	in
  	if Common.defined ctx.com Common.Define.MatchDebug then print_endline (s_decision_tree "" dt);
- 	if not mctx.value_only then PMap.iter (fun pat out -> if out.o_paths = 0 then ctx.com.warning "This pattern is unused" out.o_pos) mctx.outcomes;
+ 	PMap.iter (fun pat out -> if out.o_paths = 0 then ctx.com.warning "This pattern is unused" out.o_pos) mctx.outcomes;
 	(* 3. transform decision tree to current AST *)
 	(* TODO: we could instead add a new tAST node holding the decision tree and optimize in the generators *)
 	let t = if not need_val then
