@@ -349,6 +349,9 @@ let to_pattern ctx e t =
 						let ef = PMap.find s en.e_constrs in
 						unify_enum_field en (List.map (fun _ -> mk_mono()) en.e_types) ef tc;
 						mk_con_pat (CEnum(en,ef)) [] t p
+					| TConst c ->
+						unify ctx ec.etype tc p;
+						mk_con_pat (CConst c) [] t p
 					| TTypeExpr mt ->
 						let tcl = Typeload.load_instance ctx {tname="Class";tpackage=[];tsub=None;tparams=[]} p true in
 						let t2 = match tcl with TAbstract(a,_) -> TAbstract(a,[mk_mono()]) | _ -> assert false in
