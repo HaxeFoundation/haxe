@@ -21,17 +21,17 @@
  */
 
 // This file is generated, do not edit!
-package js.html;
+package js.html.rtc;
 
-@:native("URL")
-extern class DOMURL
+@:native("RTCIceCandidate")
+extern class IceCandidate
 {
+    var candidate (default,null) :String;
+
+    var sdpMLineIndex (default,null) :Int;
+
+    var sdpMid (default,null) :String;
+
     function new () :Void;
-
-    @:overload(function (source :MediaSource) :String {})
-    @:overload(function (stream :js.html.rtc.MediaStream) :String {})
-    static function createObjectURL (blob :Blob) :String;
-
-    static function revokeObjectURL (url :String) :Void;
 
 }

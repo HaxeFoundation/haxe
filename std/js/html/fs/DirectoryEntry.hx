@@ -21,17 +21,21 @@
  */
 
 // This file is generated, do not edit!
-package js.html;
+package js.html.fs;
 
-@:native("URL")
-extern class DOMURL
+/** <div><strong>DRAFT</strong> <div>This page is not complete.</div>
+</div>
+<p>The <code>DirectoryEntry</code> interface of the <a title="en/DOM/File_API/File_System_API" rel="internal" href="https://developer.mozilla.org/en/DOM/File_API/File_System_API">FileSystem API</a> represents a directory in a file system.</p><br><br>
+Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/File_API/File_System_API/DirectoryEntry">MDN</a>. */
+@:native("DirectoryEntry")
+extern class DirectoryEntry extends Entry
 {
-    function new () :Void;
+    function createReader () :DirectoryReader;
 
-    @:overload(function (source :MediaSource) :String {})
-    @:overload(function (stream :js.html.rtc.MediaStream) :String {})
-    static function createObjectURL (blob :Blob) :String;
+    function getDirectory (path :String, ?options :Dynamic, ?successCallback :EntryCallback, ?errorCallback :ErrorCallback) :Void;
 
-    static function revokeObjectURL (url :String) :Void;
+    function getFile (path :String, ?options :Dynamic, ?successCallback :EntryCallback, ?errorCallback :ErrorCallback) :Void;
+
+    function removeRecursively (successCallback :js.html.VoidCallback, ?errorCallback :ErrorCallback) :Void;
 
 }

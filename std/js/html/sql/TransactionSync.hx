@@ -21,17 +21,11 @@
  */
 
 // This file is generated, do not edit!
-package js.html;
+package js.html.sql;
 
-@:native("URL")
-extern class DOMURL
+@:native("SQLTransactionSync")
+extern class TransactionSync
 {
-    function new () :Void;
-
-    @:overload(function (source :MediaSource) :String {})
-    @:overload(function (stream :js.html.rtc.MediaStream) :String {})
-    static function createObjectURL (blob :Blob) :String;
-
-    static function revokeObjectURL (url :String) :Void;
+    function executeSql (sqlStatement :String, arguments :Array<Dynamic>) :ResultSet;
 
 }

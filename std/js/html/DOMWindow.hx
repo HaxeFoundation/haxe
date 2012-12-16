@@ -404,7 +404,7 @@ extern class DOMWindow extends EventTarget
 
     function open (url :String, name :String, ?options :String) :DOMWindow;
 
-    function openDatabase (name :String, version :String, displayName :String, estimatedSize :Int, ?creationCallback :DatabaseCallback) :Database;
+    function openDatabase (name :String, version :String, displayName :String, estimatedSize :Int, ?creationCallback :js.html.sql.DatabaseCallback) :js.html.sql.Database;
 
     /** Provides a secure means for one window to send a string of data to another window, which need not be within the same domain as the first, in a secure manner. Throws DOMException. */
     @:overload(function (message :Dynamic, targetOrigin :String) :Void {})
@@ -419,13 +419,13 @@ extern class DOMWindow extends EventTarget
     @:overload(function (callback_ :RequestAnimationFrameCallback) :Int {})
     function requestAnimationFrame (callback_ :RequestAnimationFrameCallback) :Int;
 
-    function requestFileSystem (type :Int, size :Int, successCallback :FileSystemCallback, ?errorCallback :ErrorCallback) :Void;
+    function requestFileSystem (type :Int, size :Int, successCallback :js.html.fs.FileSystemCallback, ?errorCallback :js.html.fs.ErrorCallback) :Void;
 
     function resizeBy (x :Float, y :Float) :Void;
 
     function resizeTo (width :Float, height :Float) :Void;
 
-    function resolveLocalFileSystemURL (url :String, successCallback :EntryCallback, ?errorCallback :ErrorCallback) :Void;
+    function resolveLocalFileSystemURL (url :String, successCallback :js.html.fs.EntryCallback, ?errorCallback :js.html.fs.ErrorCallback) :Void;
 
     function scroll (x :Int, y :Int) :Void;
 

@@ -26,6 +26,6 @@ package js.html.audio;
 @:native("MediaStreamAudioSourceNode")
 extern class MediaStreamAudioSourceNode extends AudioSourceNode
 {
-    var mediaStream (default,null) :js.html.MediaStream;
+    var mediaStream (default,null) :js.html.rtc.MediaStream;
 
 }

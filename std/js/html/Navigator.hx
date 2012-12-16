@@ -78,7 +78,7 @@ extern class Navigator
 
     function getStorageUpdates () :Void;
 
-    function getUserMedia (options :Dynamic, successCallback :NavigatorUserMediaSuccessCallback, ?errorCallback :NavigatorUserMediaErrorCallback) :Void;
+    function getUserMedia (options :Dynamic, successCallback :js.html.rtc.NavigatorUserMediaSuccessCallback, ?errorCallback :js.html.rtc.NavigatorUserMediaErrorCallback) :Void;
 
     function javaEnabled () :Bool;
 

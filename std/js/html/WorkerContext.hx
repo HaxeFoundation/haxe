@@ -50,17 +50,17 @@ extern class WorkerContext extends EventTarget
 
     function importScripts () :Void;
 
-    function openDatabase (name :String, version :String, displayName :String, estimatedSize :Int, ?creationCallback :DatabaseCallback) :Database;
+    function openDatabase (name :String, version :String, displayName :String, estimatedSize :Int, ?creationCallback :js.html.sql.DatabaseCallback) :js.html.sql.Database;
 
-    function openDatabaseSync (name :String, version :String, displayName :String, estimatedSize :Int, ?creationCallback :DatabaseCallback) :DatabaseSync;
+    function openDatabaseSync (name :String, version :String, displayName :String, estimatedSize :Int, ?creationCallback :js.html.sql.DatabaseCallback) :js.html.sql.DatabaseSync;
 
-    function requestFileSystem (type :Int, size :Int, ?successCallback :FileSystemCallback, ?errorCallback :ErrorCallback) :Void;
+    function requestFileSystem (type :Int, size :Int, ?successCallback :js.html.fs.FileSystemCallback, ?errorCallback :js.html.fs.ErrorCallback) :Void;
 
-    function requestFileSystemSync (type :Int, size :Int) :DOMFileSystemSync;
+    function requestFileSystemSync (type :Int, size :Int) :js.html.fs.FileSystemSync;
 
-    function resolveLocalFileSystemSyncURL (url :String) :EntrySync;
+    function resolveLocalFileSystemSyncURL (url :String) :js.html.fs.EntrySync;
 
-    function resolveLocalFileSystemURL (url :String, successCallback :EntryCallback, ?errorCallback :ErrorCallback) :Void;
+    function resolveLocalFileSystemURL (url :String, successCallback :js.html.fs.EntryCallback, ?errorCallback :js.html.fs.ErrorCallback) :Void;
 
     function setInterval (handler :Void->Void, timeout :Int) :Int;
 

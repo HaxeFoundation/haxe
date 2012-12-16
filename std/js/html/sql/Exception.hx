@@ -21,17 +21,29 @@
  */
 
 // This file is generated, do not edit!
-package js.html;
+package js.html.sql;
 
-@:native("URL")
-extern class DOMURL
+@:native("SQLException")
+extern class Exception
 {
-    function new () :Void;
+    static inline var CONSTRAINT_ERR :Int = 6;
 
-    @:overload(function (source :MediaSource) :String {})
-    @:overload(function (stream :js.html.rtc.MediaStream) :String {})
-    static function createObjectURL (blob :Blob) :String;
+    static inline var DATABASE_ERR :Int = 1;
 
-    static function revokeObjectURL (url :String) :Void;
+    static inline var QUOTA_ERR :Int = 4;
+
+    static inline var SYNTAX_ERR :Int = 5;
+
+    static inline var TIMEOUT_ERR :Int = 7;
+
+    static inline var TOO_LARGE_ERR :Int = 3;
+
+    static inline var UNKNOWN_ERR :Int = 0;
+
+    static inline var VERSION_ERR :Int = 2;
+
+    var code (default,null) :Int;
+
+    var message (default,null) :String;
 
 }

@@ -21,17 +21,27 @@
  */
 
 // This file is generated, do not edit!
-package js.html;
+package js.html.sql;
 
-@:native("URL")
-extern class DOMURL
+/** <div><strong>DRAFT</strong>
+<div>This page is not complete.</div>
+</div>
+
+<p></p>
+<p>The <code>DatabaseSync</code> interface in the <a title="en/IndexedDB" rel="internal" href="https://developer.mozilla.org/en/IndexedDB">IndexedDB API</a> represents a synchronous <a title="en/IndexedDB#gloss database connection" rel="internal" href="https://developer.mozilla.org/en/IndexedDB#gloss_database_connection">connection to a database</a>.</p><br><br>
+Documentation for this class was provided by <a href="https://developer.mozilla.org/en/IndexedDB/IDBDatabaseSync">MDN</a>. */
+@:native("DatabaseSync")
+extern class DatabaseSync
 {
-    function new () :Void;
+    var lastErrorMessage (default,null) :String;
 
-    @:overload(function (source :MediaSource) :String {})
-    @:overload(function (stream :js.html.rtc.MediaStream) :String {})
-    static function createObjectURL (blob :Blob) :String;
+    /** The version of the connected database. Has the null value when the database is first created. */
+    var version (default,null) :String;
 
-    static function revokeObjectURL (url :String) :Void;
+    function changeVersion (oldVersion :String, newVersion :String, ?callback_ :TransactionSyncCallback) :Void;
+
+    function readTransaction (callback_ :TransactionSyncCallback) :Void;
+
+    function transaction (callback_ :TransactionSyncCallback) :Void;
 
 }

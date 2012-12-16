@@ -64,7 +64,7 @@ extern class AudioContext extends js.html.EventTarget
 
     function createMediaElementSource (mediaElement :js.html.MediaElement) :MediaElementAudioSourceNode;
 
-    function createMediaStreamSource (mediaStream :js.html.MediaStream) :MediaStreamAudioSourceNode;
+    function createMediaStreamSource (mediaStream :js.html.rtc.MediaStream) :MediaStreamAudioSourceNode;
 
     function createOscillator () :OscillatorNode;
 

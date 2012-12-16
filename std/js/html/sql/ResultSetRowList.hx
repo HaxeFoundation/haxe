@@ -21,17 +21,13 @@
  */
 
 // This file is generated, do not edit!
-package js.html;
+package js.html.sql;
 
-@:native("URL")
-extern class DOMURL
+@:native("SQLResultSetRowList")
+extern class ResultSetRowList
 {
-    function new () :Void;
+    var length (default,null) :Int;
 
-    @:overload(function (source :MediaSource) :String {})
-    @:overload(function (stream :js.html.rtc.MediaStream) :String {})
-    static function createObjectURL (blob :Blob) :String;
-
-    static function revokeObjectURL (url :String) :Void;
+    function item (index :Int) :Dynamic;
 
 }

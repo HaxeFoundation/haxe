@@ -21,17 +21,25 @@
  */
 
 // This file is generated, do not edit!
-package js.html;
+package js.html.rtc;
 
-@:native("URL")
-extern class DOMURL
+@:native("MediaStream")
+extern class MediaStream extends js.html.EventTarget
 {
+    static inline var ENDED :Int = 2;
+
+    static inline var LIVE :Int = 1;
+
+    var audioTracks (default,null) :MediaStreamTrackList;
+
+    var label (default,null) :String;
+
+    var onended :js.html.EventListener;
+
+    var readyState (default,null) :Int;
+
+    var videoTracks (default,null) :MediaStreamTrackList;
+
     function new () :Void;
-
-    @:overload(function (source :MediaSource) :String {})
-    @:overload(function (stream :js.html.rtc.MediaStream) :String {})
-    static function createObjectURL (blob :Blob) :String;
-
-    static function revokeObjectURL (url :String) :Void;
 
 }

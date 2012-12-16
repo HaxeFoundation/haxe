@@ -21,17 +21,16 @@
  */
 
 // This file is generated, do not edit!
-package js.html;
+package js.html.sql;
 
-@:native("URL")
-extern class DOMURL
+@:native("SQLResultSet")
+extern class ResultSet
 {
-    function new () :Void;
+    /** Getter throws DOMException. */
+    var insertId (default,null) :Int;
 
-    @:overload(function (source :MediaSource) :String {})
-    @:overload(function (stream :js.html.rtc.MediaStream) :String {})
-    static function createObjectURL (blob :Blob) :String;
+    var rows (default,null) :ResultSetRowList;
 
-    static function revokeObjectURL (url :String) :Void;
+    var rowsAffected (default,null) :Int;
 
 }

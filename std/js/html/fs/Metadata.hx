@@ -21,17 +21,15 @@
  */
 
 // This file is generated, do not edit!
-package js.html;
+package js.html.fs;
 
-@:native("URL")
-extern class DOMURL
+/** Metadata is structured data about data. Metadata which is included with SVG content should be specified within <code>metadata</code> elements. The contents of the <code>metadata</code> should be elements from other XML namespaces such as RDF, FOAF, etc.<br><br>
+Documentation for this class was provided by <a href="https://developer.mozilla.org/en/SVG/Element/metadata">MDN</a>. */
+@:native("Metadata")
+extern class Metadata
 {
-    function new () :Void;
+    var modificationTime (default,null) :Date;
 
-    @:overload(function (source :MediaSource) :String {})
-    @:overload(function (stream :js.html.rtc.MediaStream) :String {})
-    static function createObjectURL (blob :Blob) :String;
-
-    static function revokeObjectURL (url :String) :Void;
+    var size (default,null) :Int;
 
 }

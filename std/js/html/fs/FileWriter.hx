@@ -21,17 +21,43 @@
  */
 
 // This file is generated, do not edit!
-package js.html;
+package js.html.fs;
 
-@:native("URL")
-extern class DOMURL
+@:native("FileWriter")
+extern class FileWriter extends js.html.EventTarget
 {
-    function new () :Void;
+    static inline var DONE :Int = 2;
 
-    @:overload(function (source :MediaSource) :String {})
-    @:overload(function (stream :js.html.rtc.MediaStream) :String {})
-    static function createObjectURL (blob :Blob) :String;
+    static inline var INIT :Int = 0;
 
-    static function revokeObjectURL (url :String) :Void;
+    static inline var WRITING :Int = 1;
+
+    var error (default,null) :FileError;
+
+    var length (default,null) :Int;
+
+    var onabort :js.html.EventListener;
+
+    var onerror :js.html.EventListener;
+
+    var onprogress :js.html.EventListener;
+
+    var onwrite :js.html.EventListener;
+
+    var onwriteend :js.html.EventListener;
+
+    var onwritestart :js.html.EventListener;
+
+    var position (default,null) :Int;
+
+    var readyState (default,null) :Int;
+
+    function abort () :Void;
+
+    function seek (position :Int) :Void;
+
+    function truncate (size :Int) :Void;
+
+    function write (data :js.html.Blob) :Void;
 
 }

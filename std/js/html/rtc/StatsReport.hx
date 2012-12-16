@@ -21,17 +21,13 @@
  */
 
 // This file is generated, do not edit!
-package js.html;
+package js.html.rtc;
 
-@:native("URL")
-extern class DOMURL
+@:native("RTCStatsReport")
+extern class StatsReport
 {
-    function new () :Void;
+    var local (default,null) :StatsElement;
 
-    @:overload(function (source :MediaSource) :String {})
-    @:overload(function (stream :js.html.rtc.MediaStream) :String {})
-    static function createObjectURL (blob :Blob) :String;
-
-    static function revokeObjectURL (url :String) :Void;
+    var remote (default,null) :StatsElement;
 
 }

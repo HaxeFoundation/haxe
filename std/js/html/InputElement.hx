@@ -75,7 +75,7 @@ extern class InputElement extends Element
  HTML attribute, indicating that the control is not available for interaction. */
     var disabled :Bool;
 
-    var entries (default,null) :EntryArray;
+    var entries (default,null) :js.html.fs.EntryArray;
 
     /** A list of selected files. */
     var files :FileList;

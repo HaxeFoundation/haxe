@@ -21,17 +21,19 @@
  */
 
 // This file is generated, do not edit!
-package js.html;
+package js.html.fs;
 
-@:native("URL")
-extern class DOMURL
+@:native("FileWriterSync")
+extern class FileWriterSync
 {
-    function new () :Void;
+    var length (default,null) :Int;
 
-    @:overload(function (source :MediaSource) :String {})
-    @:overload(function (stream :js.html.rtc.MediaStream) :String {})
-    static function createObjectURL (blob :Blob) :String;
+    var position (default,null) :Int;
 
-    static function revokeObjectURL (url :String) :Void;
+    function seek (position :Int) :Void;
+
+    function truncate (size :Int) :Void;
+
+    function write (data :js.html.Blob) :Void;
 
 }

@@ -30,7 +30,7 @@ extern class DataTransferItem
 
     var type (default,null) :String;
 
-    function getAsEntry () :Entry;
+    function getAsEntry () :js.html.fs.Entry;
 
     function getAsFile () :Blob;
 

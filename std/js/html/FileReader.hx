@@ -46,7 +46,7 @@ extern class FileReader extends EventTarget
     static inline var LOADING :Int = 1;
 
     /** The error that occurred while reading the file. <strong>Read only.</strong> */
-    var error (default,null) :FileError;
+    var error (default,null) :js.html.fs.FileError;
 
     /** Called when the read operation is aborted. */
     var onabort :EventListener;

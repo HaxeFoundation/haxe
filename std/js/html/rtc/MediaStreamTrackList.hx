@@ -21,17 +21,21 @@
  */
 
 // This file is generated, do not edit!
-package js.html;
+package js.html.rtc;
 
-@:native("URL")
-extern class DOMURL
+@:native("MediaStreamTrackList")
+extern class MediaStreamTrackList extends js.html.EventTarget, implements ArrayAccess<MediaStreamTrack>
 {
-    function new () :Void;
+    var length (default,null) :Int;
 
-    @:overload(function (source :MediaSource) :String {})
-    @:overload(function (stream :js.html.rtc.MediaStream) :String {})
-    static function createObjectURL (blob :Blob) :String;
+    var onaddtrack :js.html.EventListener;
 
-    static function revokeObjectURL (url :String) :Void;
+    var onremovetrack :js.html.EventListener;
+
+    function add (track :MediaStreamTrack) :Void;
+
+    function item (index :Int) :MediaStreamTrack;
+
+    function remove (track :MediaStreamTrack) :Void;
 
 }
