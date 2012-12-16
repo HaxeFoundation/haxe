@@ -76,12 +76,12 @@ unit.Test
 -D dump
 
 #cs
-#--next
-#-main unit.Test
-#-cs cs
+--next
+-main unit.Test
+-cs cs
 
 #cs-unsafe
-#--next
-#-main unit.Test
-#-cs cs_unsafe
-#-D unsafe
+--next
+-main unit.Test
+-cs cs_unsafe
+-D unsafe

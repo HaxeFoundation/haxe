@@ -21,8 +21,8 @@
  */
 package haxe;
 using haxe.Int64;
-private typedef NativeInt64 = Int;
-private typedef NativeUInt64 = Int;
+@:notNull @:runtimeValue private abstract NativeInt64 => Int, <= Int {}
+@:notNull @:runtimeValue private abstract NativeUInt64 => Int, <= Int {}
 
 @:coreApi
 @:nativegen class Int64
@@ -44,7 +44,7 @@ private typedef NativeUInt64 = Int;
 	}
 
 	public static inline function getHigh( x : Int64 ) : Int {
-		return cast(x,NativeUInt64) >> 32;
+		return cast(cast(x,NativeUInt64) >> 32, Int);
 	}
 
 	#else

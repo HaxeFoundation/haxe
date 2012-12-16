@@ -90,6 +90,21 @@ import cs.system.Random;
 		return cs.system.Math.Sqrt(v);
 	}
 
+	public static inline function fround(v:Float):Float
+	{
+		return cs.system.Math.Round(v);
+	}
+
+	public static inline function ffloor(v:Float):Float
+	{
+		return cs.system.Math.Floor(v);
+	}
+
+	public static inline function fceil(v:Float):Float
+	{
+		return cs.system.Math.Ceiling(v);
+	}
+
 	public static function round(v:Float):Int
 	{
 		var vint = Std.int(v);

@@ -31,8 +31,13 @@ let is_cs_basic_type t =
     | TInst( { cl_path = (["haxe"], "Int32") }, [] )
     | TInst( { cl_path = (["haxe"], "Int64") }, [] )
     | TInst( { cl_path = ([], "Int") }, [] )
+    | TAbstract ({ a_path = ([], "Int") },[])
     | TInst( { cl_path = ([], "Float") }, [] )
-    | TEnum( { e_path = ([], "Bool") }, [] ) ->
+    | TAbstract ({ a_path = ([], "Float") },[])
+    | TEnum( { e_path = ([], "Bool") }, [] )
+    | TAbstract ({ a_path = ([], "Bool") },[]) ->
+      true
+    | TAbstract _ when like_float t ->
       true
     | TEnum(e, _) when not (has_meta ":$class" e.e_meta) -> true
     | TInst(cl, _) when has_meta ":struct" cl.cl_meta -> true
@@ -48,7 +53,11 @@ let rec is_int_float t =
     | TInst( { cl_path = (["haxe"], "Int32") }, [] )
     | TInst( { cl_path = (["haxe"], "Int64") }, [] )
     | TInst( { cl_path = ([], "Int") }, [] )
-    | TInst( { cl_path = ([], "Float") }, [] ) ->
+    | TAbstract ({ a_path = ([], "Int") },[])
+    | TInst( { cl_path = ([], "Float") }, [] )
+    | TAbstract ({ a_path = ([], "Float") },[]) ->
+      true
+    | TAbstract _ when like_float t ->
       true
     | TInst( { cl_path = (["haxe"; "lang"], "Null") }, [t] ) -> is_int_float t
     | _ -> false
@@ -111,7 +120,7 @@ struct
 
   let traverse gen runtime_cl =
     let basic = gen.gcon.basic in
-    let uint = match ( get_type gen ([], "UInt") ) with | TTypeDecl t -> t | _ -> assert false in
+    let uint = match get_type gen ([], "UInt") with | TTypeDecl t -> TType(t, []) | TAbstractDecl a -> TAbstract(a, []) | _ -> assert false in
 
     let is_var = alloc_var "__is__" t_dynamic in
 
@@ -173,7 +182,7 @@ struct
         (* end Std.is() *)
 
         | TBinop( Ast.OpUShr, e1, e2 ) ->
-          mk_cast e.etype { e with eexpr = TBinop( Ast.OpShr, mk_cast (TType(uint,[])) (run e1), run e2 ) }
+          mk_cast e.etype { e with eexpr = TBinop( Ast.OpShr, mk_cast uint (run e1), run e2 ) }
 
         | TBinop( Ast.OpAssignOp Ast.OpUShr, e1, e2 ) ->
           let mk_ushr local =
@@ -295,6 +304,7 @@ struct
         | TCall( ( { eexpr = TField(ef, ("substring" as field)) } ), args )
         | TCall( ( { eexpr = TField(ef, ("substr" as field)) } ), args ) when is_string ef.etype ->
           { e with eexpr = TCall(mk_static_field_access_infer string_ext field e.epos [], [run ef] @ (List.map run args)) }
+        | TNew( { cl_path = ([], "String") }, [], [p] ) -> run p (* new String(myString) -> myString *)
 
         | TCast(expr, _) when is_int_float e.etype && not (is_int_float expr.etype) && not (is_null e.etype) ->
           let needs_cast = match gen.gfollow#run_f e.etype with
@@ -534,22 +544,38 @@ let configure gen =
 
   gen.gfollow#add ~name:"follow_basic" (fun t -> match t with
       | TEnum ({ e_path = ([], "Bool") }, [])
+      | TAbstract ({ a_path = ([], "Bool") },[])
       | TEnum ({ e_path = ([], "Void") }, [])
+      | TAbstract ({ a_path = ([], "Void") },[])
       | TInst ({ cl_path = ([],"Float") },[])
+      | TAbstract ({ a_path = ([],"Float") },[])
       | TInst ({ cl_path = ([],"Int") },[])
+      | TAbstract ({ a_path = ([],"Int") },[])
       | TType ({ t_path = [],"UInt" },[])
+      | TAbstract ({ a_path = [],"UInt" },[])
       | TType ({ t_path = ["haxe";"_Int64"], "NativeInt64" },[])
+      | TAbstract ({ a_path = ["haxe";"_Int64"], "NativeInt64" },[])
       | TType ({ t_path = ["haxe";"_Int64"], "NativeUInt64" },[])
+      | TAbstract ({ a_path = ["haxe";"_Int64"], "NativeUInt64" },[])
       | TType ({ t_path = ["cs"],"UInt64" },[])
+      | TAbstract ({ a_path = ["cs"],"UInt64" },[])
       | TType ({ t_path = ["cs"],"UInt8" },[])
+      | TAbstract ({ a_path = ["cs"],"UInt8" },[])
       | TType ({ t_path = ["cs"],"Int8" },[])
+      | TAbstract ({ a_path = ["cs"],"Int8" },[])
       | TType ({ t_path = ["cs"],"Int16" },[])
+      | TAbstract ({ a_path = ["cs"],"Int16" },[])
       | TType ({ t_path = ["cs"],"UInt16" },[])
+      | TAbstract ({ a_path = ["cs"],"UInt16" },[])
       | TType ({ t_path = ["cs"],"Char16" },[])
+      | TAbstract ({ a_path = ["cs"],"Char16" },[])
       | TType ({ t_path = ["cs"],"Ref" },_)
+      | TAbstract ({ a_path = ["cs"],"Ref" },_)
       | TType ({ t_path = ["cs"],"Out" },_)
-      | TType ({ t_path = [],"Single" },[]) -> Some t
-	  | TAbstract( { a_path = ([], "EnumValue") }, _  ) -> Some t_dynamic
+      | TAbstract ({ a_path = ["cs"],"Out" },_)
+      | TType ({ t_path = [],"Single" },[])
+      | TAbstract ({ a_path = [],"Single" },[]) -> Some t
+      | TAbstract( { a_path = ([], "EnumValue") }, _  )
       | TInst( { cl_path = ([], "EnumValue") }, _  ) -> Some t_dynamic
       | _ -> None);
 
@@ -561,7 +587,7 @@ let configure gen =
 
   let ifaces = Hashtbl.create 1 in
 
-  let ti64 = match ( get_type gen (["haxe";"_Int64"], "NativeInt64") ) with | TTypeDecl t -> TType(t,[]) | _ -> assert false in
+  let ti64 = match ( get_type gen (["haxe";"_Int64"], "NativeInt64") ) with | TTypeDecl t -> TType(t,[]) | TAbstractDecl a -> TAbstract(a,[]) | _ -> assert false in
 
   let ttype = get_cl ( get_type gen (["System"], "Type") ) in
 
@@ -570,8 +596,8 @@ let configure gen =
     let ret = match t with
       | TInst( { cl_path = (["haxe"], "Int32") }, [] ) -> gen.gcon.basic.tint
       | TInst( { cl_path = (["haxe"], "Int64") }, [] ) -> ti64
-	  | TAbstract( { a_path = [],"Class" }, _ )
-	  | TAbstract( { a_path = [],"Enum" }, _ ) -> TInst(ttype,[])
+      | TAbstract( { a_path = [],"Class" }, _ )
+      | TAbstract( { a_path = [],"Enum" }, _ )
       | TInst( { cl_path = ([], "Class") }, _ )
       | TInst( { cl_path = ([], "Enum") }, _ ) -> TInst(ttype,[])
       | TEnum(_, [])
@@ -597,6 +623,7 @@ let configure gen =
           | TInst( { cl_kind = KTypeParameter _ }, _ ) -> TInst(null_t, [t])
           | _ when is_cs_basic_type t -> TInst(null_t, [t])
           | _ -> real_type t)
+      | TAbstract _
       | TType _ -> t
       | TAnon (anon) when (match !(anon.a_status) with | Statics _ | EnumStatics _ -> true | _ -> false) -> t
       | TAnon _ -> dynamic_anon
@@ -624,7 +651,9 @@ let configure gen =
       *)
       | true, TInst ( { cl_path = (["haxe";"lang"], "Null") }, _ ) -> dynamic_anon
       | true, TInst ( { cl_kind = KTypeParameter _ }, _ ) -> t
-      | true, TInst _ | true, TEnum _ when is_cs_basic_type t -> t
+      | true, TInst _
+      | true, TEnum _
+      | true, TAbstract _ when is_cs_basic_type t -> t
       | true, TDynamic _ -> t
       | true, _ -> dynamic_anon
     in
@@ -647,25 +676,44 @@ let configure gen =
   let rec t_s t =
     match real_type t with
       (* basic types *)
-      | TEnum ({ e_path = ([], "Bool") }, []) -> "bool"
-      | TEnum ({ e_path = ([], "Void") }, []) -> "object"
-      | TInst ({ cl_path = ([],"Float") },[]) -> "double"
-      | TInst ({ cl_path = ([],"Int") },[]) -> "int"
-      | TType ({ t_path = [],"UInt" },[]) -> "uint"
-      | TType ({ t_path = ["haxe";"_Int64"], "NativeInt64" },[]) -> "long"
-      | TType ({ t_path = ["haxe";"_Int64"], "NativeUInt64" },[]) -> "ulong"
-      | TType ({ t_path = ["cs"],"UInt64" },[]) -> "ulong"
-      | TType ({ t_path = ["cs"],"UInt8" },[]) -> "byte"
-      | TType ({ t_path = ["cs"],"Int8" },[]) -> "sbyte"
-      | TType ({ t_path = ["cs"],"Int16" },[]) -> "short"
-      | TType ({ t_path = ["cs"],"UInt16" },[]) -> "ushort"
-      | TType ({ t_path = ["cs"],"Char16" },[]) -> "char"
-      | TType ({ t_path = [],"Single" },[]) -> "float"
-      | TInst ({ cl_path = ["haxe"],"Int32" },[]) -> "int"
-      | TInst ({ cl_path = ["haxe"],"Int64" },[]) -> "long"
-      | TInst ({ cl_path = ([], "Dynamic") }, _) -> "object"
+      | TEnum ({ e_path = ([], "Bool") }, [])
+      | TAbstract ({ a_path = ([], "Bool") },[]) -> "bool"
+      | TEnum ({ e_path = ([], "Void") }, [])
+      | TAbstract ({ a_path = ([], "Void") },[]) -> "object"
+      | TInst ({ cl_path = ([],"Float") },[])
+      | TAbstract ({ a_path = ([],"Float") },[]) -> "double"
+      | TInst ({ cl_path = ([],"Int") },[])
+      | TAbstract ({ a_path = ([],"Int") },[]) -> "int"
+      | TType ({ t_path = [],"UInt" },[])
+      | TAbstract ({ a_path = [],"UInt" },[]) -> "uint"
+      | TType ({ t_path = ["haxe";"_Int64"], "NativeInt64" },[])
+      | TAbstract ({ a_path = ["haxe";"_Int64"], "NativeInt64" },[]) -> "long"
+      | TType ({ t_path = ["haxe";"_Int64"], "NativeUInt64" },[])
+      | TAbstract ({ a_path = ["haxe";"_Int64"], "NativeUInt64" },[]) -> "ulong"
+      | TType ({ t_path = ["cs"],"UInt64" },[])
+      | TAbstract ({ a_path = ["cs"],"UInt64" },[]) -> "ulong"
+      | TType ({ t_path = ["cs"],"UInt8" },[])
+      | TAbstract ({ a_path = ["cs"],"UInt8" },[]) -> "byte"
+      | TType ({ t_path = ["cs"],"Int8" },[])
+      | TAbstract ({ a_path = ["cs"],"Int8" },[]) -> "sbyte"
+      | TType ({ t_path = ["cs"],"Int16" },[])
+      | TAbstract ({ a_path = ["cs"],"Int16" },[]) -> "short"
+      | TType ({ t_path = ["cs"],"UInt16" },[])
+      | TAbstract ({ a_path = ["cs"],"UInt16" },[]) -> "ushort"
+      | TType ({ t_path = ["cs"],"Char16" },[])
+      | TAbstract ({ a_path = ["cs"],"Char16" },[]) -> "char"
+      | TType ({ t_path = [],"Single" },[])
+      | TAbstract ({ a_path = [],"Single" },[]) -> "float"
+      | TInst ({ cl_path = ["haxe"],"Int32" },[])
+      | TAbstract ({ a_path = ["haxe"],"Int32" },[]) -> "int"
+      | TInst ({ cl_path = ["haxe"],"Int64" },[])
+      | TAbstract ({ a_path = ["haxe"],"Int64" },[]) -> "long"
+      | TInst ({ cl_path = ([], "Dynamic") },_)
+      | TAbstract ({ a_path = ([], "Dynamic") },_) -> "object"
       | TType ({ t_path = ["cs"],"Out" },[t])
-      | TType ({ t_path = ["cs"],"Ref" },[t]) -> t_s t
+      | TAbstract ({ a_path = ["cs"],"Out" },[t])
+      | TType ({ t_path = ["cs"],"Ref" },[t])
+      | TAbstract ({ a_path = ["cs"],"Ref" },[t]) -> t_s t
       | TInst({ cl_path = (["cs"], "NativeArray") }, [param]) ->
         let rec check_t_s t =
           match real_type t with
@@ -674,13 +722,16 @@ let configure gen =
             | _ -> t_s (run_follow gen t)
         in
         (check_t_s param) ^ "[]"
-      | TInst({ cl_path = (["cs"], "Pointer") }, [ t ]) ->
+      | TInst({ cl_path = (["cs"], "Pointer") },[t])
+      | TAbstract({ a_path = (["cs"], "Pointer") },[t])->
         t_s t ^ "*"
       (* end of basic types *)
       | TInst ({ cl_kind = KTypeParameter _; cl_path=p }, []) -> snd p
       | TMono r -> (match !r with | None -> "object" | Some t -> t_s (run_follow gen t))
       | TInst ({ cl_path = [], "String" }, []) -> "string"
       | TEnum ({ e_path = p }, params) -> (path_s p)
+      | TInst (({ cl_path = p } as cl), _ :: _) when has_meta ":$enum" cl.cl_meta ->
+        path_s p
       | TInst (({ cl_path = p } as cl), params) -> (path_param_s (TClassDecl cl) p params)
       | TType (({ t_path = p } as t), params) -> (path_param_s (TTypeDecl t) p params)
       | TAnon (anon) ->
@@ -699,14 +750,17 @@ let configure gen =
 
   let rett_s t =
     match t with
-      | TEnum ({e_path = ([], "Void")}, []) -> "void"
+      | TEnum ({e_path = ([], "Void")}, [])
+      | TAbstract ({ a_path = ([], "Void") },[]) -> "void"
       | _ -> t_s t
   in
 
   let argt_s t =
     match t with
-      | TType ({ t_path = (["cs"], "Ref") }, [t]) -> "ref " ^ t_s t
-      | TType ({ t_path = (["cs"], "Out") }, [t]) -> "out " ^ t_s t
+      | TType ({ t_path = (["cs"], "Ref") }, [t])
+      | TAbstract ({ a_path = (["cs"], "Ref") },[t]) -> "ref " ^ t_s t
+      | TType ({ t_path = (["cs"], "Out") }, [t])
+      | TAbstract ({ a_path = (["cs"], "Out") },[t]) -> "out " ^ t_s t
       | _ -> t_s t
   in
 
@@ -772,7 +826,12 @@ let configure gen =
       | _ -> gen.gcon.error ("This function argument " ^ explain ^ " must be a local variable.") e.epos; e
   in
 
-  let is_pointer t = match follow t with | TInst({ cl_path = (["cs"], "Pointer") }, _) -> true | _ -> false in
+  let is_pointer t = match follow t with
+    | TInst({ cl_path = (["cs"], "Pointer") }, _)
+    | TAbstract ({ a_path = (["cs"], "Pointer") },_) ->
+        true
+    | _ ->
+        false in
 
   let expr_s w e =
     in_value := false;
@@ -946,11 +1005,13 @@ let configure gen =
               | e :: etl, (_,_,t) :: ttl ->
                 (if acc <> 0 then write w ", ");
                 (match real_type t with
-                  | TType({ t_path = (["cs"], "Ref") }, _) ->
+                  | TType({ t_path = (["cs"], "Ref") }, _)
+                  | TAbstract ({ a_path = (["cs"], "Ref") },_) ->
                     let e = ensure_local e "of type cs.Ref" in
                     write w "ref ";
                     expr_s w e
-                  | TType({ t_path = (["cs"], "Out") }, _) ->
+                  | TType({ t_path = (["cs"], "Out") }, _)
+                  | TAbstract ({ a_path = (["cs"], "Out") },_) ->
                     let e = ensure_local e "of type cs.Out" in
                     write w "out ";
                     expr_s w e
@@ -1207,7 +1268,8 @@ let configure gen =
         let is_override = is_override || match cf.cf_name, follow cf.cf_type with
           | "Equals", TFun([_,_,targ], tret) ->
             (match follow targ, follow tret with
-              | TDynamic _, TEnum({ e_path = ([], "Bool") }, []) -> true
+              | TDynamic _, TEnum({ e_path = ([], "Bool") }, [])
+              | TDynamic _, TAbstract({ a_path = ([], "Bool") }, []) -> true
               | _ -> false)
           | _ -> false
         in
@@ -1218,7 +1280,7 @@ let configure gen =
         let visibility, modifiers = get_fun_modifiers cf.cf_meta visibility [] in
         let visibility, is_virtual = if is_explicit_iface then "",false else visibility, is_virtual in
         let v_n = if is_static then "static " else if is_override && not is_interface then "override " else if is_virtual then "virtual " else "" in
-        let ret_type, args = match cf.cf_type with | TFun (strbtl, t) -> (t, strbtl) | _ -> assert false in
+        let ret_type, args = match follow cf.cf_type with | TFun (strbtl, t) -> (t, strbtl) | _ -> assert false in
 
         (* public static void funcName *)
         print w "%s %s %s %s %s" (visibility) v_n (String.concat " " modifiers) (if is_new then "" else rett_s (run_follow gen ret_type)) (change_field name);
@@ -1618,11 +1680,7 @@ let configure gen =
   let rcf_static_find = mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) "findHash" Ast.null_pos [] in
   let rcf_static_lookup = mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) "lookupHash" Ast.null_pos [] in
 
-  let can_be_float t = match follow t with
-    | TInst({ cl_path = ([], "Int") }, [])
-    | TInst({ cl_path = ([], "Float") }, []) -> true
-    | _ -> false
-  in
+  let can_be_float = like_float in
 
   let rcf_on_getset_field main_expr field_expr field may_hash may_set is_unsafe =
     let is_float = can_be_float (real_type main_expr.etype) in
@@ -1736,16 +1794,20 @@ let configure gen =
       (match follow t with
         | TInst({ cl_path = ([], "String") }, [])
         | TInst({ cl_path = ([], "Float") }, [])
+        | TAbstract ({ a_path = ([], "Float") },[])
         | TInst({ cl_path = (["haxe"], "Int32")}, [] )
         | TInst({ cl_path = (["haxe"], "Int64")}, [] )
         | TInst({ cl_path = ([], "Int") }, [])
-        | TEnum({ e_path = ([], "Bool") }, []) -> Some t
+        | TAbstract ({ a_path = ([], "Int") },[])
+        | TEnum({ e_path = ([], "Bool") }, [])
+        | TAbstract ({ a_path = ([], "Bool") },[]) -> Some t
+        | TAbstract _ when like_float t -> Some t
         | _ -> None )
     | _ -> None
   in
 
-  let is_double t = match follow t with | TInst({ cl_path = ([], "Float") }, []) -> true | _ -> false in
-  let is_int t = match follow t with | TInst({ cl_path = ([], "Int") }, []) -> true | _ -> false in
+  let is_double t = like_float t && not (like_int t) in
+  let is_int t = like_int t in
 
   let is_null t = match real_type t with
     | TInst( { cl_path = (["haxe";"lang"], "Null") }, _ ) -> true
@@ -1888,6 +1950,7 @@ let configure gen =
       | TSwitch(cond, cases, def) ->
         (match gen.gfollow#run_f cond.etype with
           | TInst({ cl_path = ([], "Int") },[])
+          | TAbstract ({ a_path = ([], "Int") },[])
           | TInst({ cl_path = ([], "String") },[]) ->
             (List.exists (fun (c,_) ->
               List.exists (fun expr -> match expr.eexpr with | TConst _ -> false | _ -> true ) c
