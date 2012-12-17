@@ -29,7 +29,7 @@ class MyDynamicClass {
 	@:isVar public static var W(get, set) : Int = 55;
 	static function get_W() return W + 2
 	static function set_W(v) { W = v; return v; }
-	
+
 }
 
 class MyDynamicSubClass extends MyDynamicClass {
@@ -37,7 +37,7 @@ class MyDynamicSubClass extends MyDynamicClass {
 	override function add(x,y) {
 		return (v + x + y) * 2;
 	}
-	
+
 }
 
 class MyDynamicSubClass2 extends MyDynamicClass {
@@ -149,7 +149,7 @@ class TestMisc extends Test {
 		var c = MyEnum.C;
 		t( Type.enumEq(MyEnum.C(1,"hello"), c(1,"hello")) );
 	}
-	
+
 	// make sure that captured variables does not overlap each others even if in different scopes
 	function testCaptureUnique() {
 		var foo = null, bar = null;
@@ -165,7 +165,7 @@ class TestMisc extends Test {
 		eq( foo(), 1);
 		eq( bar(), 2);
 	}
-	
+
 	function testCaptureUnique2() {
 		// another more specialized test (was actually the original broken code - but not reproducible when optimization is off)
 		var foo = callback(id, 3);
@@ -173,14 +173,14 @@ class TestMisc extends Test {
 		eq( foo(), 3 );
 		eq( bar(), 25 );
 	}
-	
+
 	function testSelfRef() {
 		// check for self-name binding
 		var bla = 55;
 		var bla = function() return bla;
 		eq( bla(), 55);
 	}
-	
+
 	function testHiddenType() {
 		var haxe = 20;
 		eq( std.haxe.crypto.Md5.encode(""), "d41d8cd98f00b204e9800998ecf8427e");
@@ -201,7 +201,7 @@ class TestMisc extends Test {
 		eq( std.haxe.crypto.Md5.encode(""), "d41d8cd98f00b204e9800998ecf8427e");
 		eq( std.Std.int(45.3), 45);
 	}
-	
+
 	function testHiddenTypeCapture() {
 		var flag = true;
 		var foo = null, bar = null;
@@ -220,11 +220,11 @@ class TestMisc extends Test {
 	function id(x) {
 		return x;
 	}
-	
+
 	function sq(x) {
 		return x * x;
 	}
-	
+
 	function testPropertyInit() {
 		eq(MyDynamicClass.W, 57);
 	}
@@ -256,7 +256,7 @@ class TestMisc extends Test {
 		eq( inst.add(1,2), 206 );
 		eq( callback(inst.add,1)(2), 206 );
 		eq( add(1,2), 206 );
-		
+
 		// check redefined dynamic method
 		inst.add = function(x,y) return inst.get() * 2 + x + y;
 		var add = inst.add;
@@ -282,7 +282,7 @@ class TestMisc extends Test {
 		eq( haxe.crypto.Md5.encode("hello"), "5d41402abc4b2a76b9719d911017c592" );
 		// depending of ISO/UTF8 native
 		allow( haxe.crypto.Md5.encode("héllo"), ["1a722f7e6c801d9e470a10cb91ba406d", "be50e8478cf24ff3595bc7307fb91b50"] );
-		
+
 		eq( haxe.io.Bytes.ofString("héllo").toHex(), "68c3a96c6c6f");
 		eq( haxe.crypto.Md5.make(haxe.io.Bytes.ofString("héllo")).toHex(), "be50e8478cf24ff3595bc7307fb91b50" );
 	}
@@ -292,10 +292,10 @@ class TestMisc extends Test {
 		eq( haxe.crypto.Sha1.encode("hello"), "aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d" );
 		// depending of ISO/UTF8 native
 		allow( haxe.crypto.Sha1.encode("héllo"), ["028db752c14604d624e8b1c121d600c427b8a3ba","35b5ea45c5e41f78b46a937cc74d41dfea920890"] );
-		
+
 		eq( haxe.crypto.Sha1.make(haxe.io.Bytes.ofString("héllo")).toHex(), "35b5ea45c5e41f78b46a937cc74d41dfea920890" );
 	}
-	
+
 	function testBaseCode() {
 		var b = new haxe.BaseCode(haxe.io.Bytes.ofString("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-"));
 		eq( b.encodeString("Héllow"), "iceFr6NLtM" );
@@ -314,11 +314,11 @@ class TestMisc extends Test {
 	function opt2( ?x = 5, ?y = "hello" ) {
 		return { x : x, y : y };
 	}
-	
+
 	function opt3( ?x : Null<Int> = 5, ?y : Null<Float> = 6 ) {
 		return { x : x, y : y };
 	}
-	
+
 	function opt4( x = 10 ) : Null<Int> {
 		return x + 1;
 	}
@@ -335,7 +335,7 @@ class TestMisc extends Test {
 
 		eq( opt2().x, 5 );
 		eq( opt2().y, "hello" );
-		
+
 		#if !(flash9 || cpp || cs || java)
 		eq( opt2(null, null).x, 5 );
 		#end
@@ -353,16 +353,16 @@ class TestMisc extends Test {
 		eq( opt3(null).y, 6 );
 		eq( opt3(null,7).x, 5 );
 		eq( opt3(null, 7).y, 7 );
-		
+
 		// skipping
 		eq( opt3(7.4).x, 5 );
 		eq( opt3(7.4).y, 7.4 );
-		
+
 		eq( opt4(), 11 );
 		#if !(flash9 || cpp || cs || java)
 		eq( opt4(null), 11 );
 		#end
-		
+
 		var opt4b : ?Int -> Null<Int> = opt4;
 		eq( opt4b(), 11 );
 		eq( opt4b(3), 4 );
@@ -373,7 +373,7 @@ class TestMisc extends Test {
 		// don't compile because we restrict nullability of function param or return type
 		// var opt4c : ?Null<Int> -> Null<Int> = opt4;
 		// var opt4c : ?Int -> Int = opt4;
-		
+
 		var opt5 = function(a:Int, ?b = 2) return a + b;
 		eq(3, opt5(1));
 		eq(3, opt5(1, 2));
@@ -407,13 +407,13 @@ class TestMisc extends Test {
 		eq( arr[x++].v++, 3 );
 		eq( x, 1 );
 		eq( arr[0].v, 4 );
-		
+
 		#if !as3
 		x = 0;
 		eq( arr[x++].v += 3, 7 );
 		eq( arr[0].v, 7 );
 		#end
-		
+
 		x = 0;
 		var arr:Dynamic = [{ v : 3 }];
 		eq( arr[x++].v++, 3 );
@@ -442,7 +442,7 @@ class TestMisc extends Test {
 	}
 
 	static inline function foo(x) return x + 5
-	
+
 	function testInline() {
 		// check that operations are correctly generated
 		var x = 3; // prevent optimization
@@ -473,7 +473,7 @@ class TestMisc extends Test {
 	function testStaticVarFun() {
 		eq( add(2,3), 5);
 	}
-	
+
 	function testDefArgs() {
 		var e = new ExtDefArgs();
 		eq( e.get(), 7 );
@@ -495,13 +495,13 @@ class TestMisc extends Test {
 		b.addChar("R".code);
 		eq(b.toString(), "-451.456nulltruefalseHello!laR");
 	}
-	
+
 	function testToString():Void
 	{
 		var x = { toString : function() return "foo" };
 		eq( Std.string(x), "foo" );
 	}
-	
+
 	#if !macro
 	function testFormat()
 	{
@@ -510,7 +510,7 @@ class TestMisc extends Test {
 		eq('$x${x+y}', "511");
 	}
 	#end
-	
+
 	function testRandom() {
 		var x = Std.random(2);
 		t( x == 0 || x == 1);
@@ -518,7 +518,7 @@ class TestMisc extends Test {
 		eq(Std.random(0), 0);
 		eq(Std.random(-100), 0);
 	}
-	
+
 	function testJSon() {
 		var str = haxe.Json.stringify( { x : -4500, y : 1.456, a : ["hello", "wor'\"\n\t\rd"] } );
 		str = str.substr(1, str.length - 2); // remove {}
@@ -528,18 +528,18 @@ class TestMisc extends Test {
 		t( parts.remove('"a":["hello"') );
 		t( parts.remove('"wor\'\\"\\n\\t\\rd"]') );
 		eq( parts.join("#"), "" );
-		
+
 		// no support for regexps
 		#if flash8
 		return;
 		#end
-		
+
 		function id(v:Dynamic,?pos:haxe.PosInfos) eq(haxe.Json.parse(haxe.Json.stringify(v)),v);
 		function deepId(v:Dynamic) {
 			var str = haxe.Json.stringify(v);
 			eq(haxe.Json.stringify(haxe.Json.parse(str)), str);
 		}
-		
+
 		id(true);
 		id(false);
 		id(null);
@@ -558,17 +558,17 @@ class TestMisc extends Test {
 		deepId( { test: { nested: null }} );
 		var mix : Array<Dynamic> = [1, 2, 3, "str"];
 		deepId( {array: mix} );
-		
+
 		eq( haxe.Json.parse('"\\u00E9"'), "é" );
-		
+
 	}
-	
+
 	function testConstructorsOpts() {
 		var b = new BaseConstrOpt();
 		eq(b.s, "test");
 		eq(b.i, -5);
 		eq(b.b, true);
-		
+
 		var b = new BaseConstrOpt(null, 99);
 		eq(b.s, "test");
 		eq(b.i, 99);
@@ -578,12 +578,12 @@ class TestMisc extends Test {
 		eq(b.s, "test");
 		eq(b.i, -5);
 		eq(b.b, true);
-		
+
 		var b = new SubConstrOpt2();
 		eq(b.s, "test");
 		eq(b.i, -5);
 		eq(b.b, true);
-		
+
 		var b = new SubConstrOpt3();
 		eq(b.s, "test2");
 		eq(b.i, -6);

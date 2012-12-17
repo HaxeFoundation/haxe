@@ -27,6 +27,7 @@ import cs.system.text.regularExpressions.Regex;
 	private var m : Match;
 	private var isGlobal : Bool;
 	private var cur : String;
+	private var sub : Int;
 
 	public function new( r : String, opt : String ) : Void {
 		var opts:Int = cast CultureInvariant;
@@ -48,6 +49,7 @@ import cs.system.text.regularExpressions.Regex;
 	}
 
 	public function match( s : String ) : Bool {
+		sub = 0;
 		m = regex.Match(s);
 		cur = s;
 		return m.Success;
@@ -60,21 +62,25 @@ import cs.system.text.regularExpressions.Regex;
 	}
 
 	public function matchedLeft() : String {
-		return untyped cur.Substring(0, m.Index);
+		return untyped cur.Substring(0, sub + m.Index);
 	}
 
 	public function matchedRight() : String {
-		return untyped cur.Substring(m.Index + m.Length);
+		return untyped cur.Substring(sub + m.Index + m.Length);
 	}
 
 	public function matchedPos() : { pos : Int, len : Int } {
-		return { pos : m.Index, len : m.Length };
+		return { pos : sub +  m.Index, len : m.Length };
 	}
 
 	public function matchSub( s : String, pos : Int, len : Int = -1):Bool {
-		return throw "not implemented yet";
-	}	
-	
+		var s2 = (len < 0 ? s.substr(pos) : s.substr(pos, len));
+		sub = pos;
+		m = regex.Match(s2);
+		cur = s;
+		return m.Success;
+	}
+
 	public function split( s : String ) : Array<String> {
 		if (isGlobal)
 			return cs.Lib.array(regex.Split(s));
@@ -90,20 +96,31 @@ import cs.system.text.regularExpressions.Regex;
 	}
 
 	public function map( s : String, f : EReg -> String ) : String {
+		var offset = 0;
 		var buf = new StringBuf();
-		while (true)
-		{
-			if (!match(s))
+		do {
+			if (offset >= s.length)
 				break;
-			buf.add(matchedLeft());
+			else if (!matchSub(s, offset)) {
+				buf.add(s.substr(offset));
+				break;
+			}
+			var p = matchedPos();
+			buf.add(s.substr(offset, p.pos - offset));
 			buf.add(f(this));
-			s = matchedRight();
-		}
-		buf.add(s);
+			if (p.len == 0) {
+				buf.add(s.substr(p.pos, 1));
+				offset = p.pos + 1;
+			}
+			else
+				offset = p.pos + p.len;
+		} while (isGlobal);
+		if (!isGlobal && offset < s.length)
+			buf.add(s.substr(offset));
 		return buf.toString();
 	}
 
 	#if !haxe3
 	public inline function customReplace( s : String, f : EReg -> String ) : String return map(s, f)
-	#end	
+	#end
 }

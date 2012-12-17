@@ -254,7 +254,7 @@ class Serializer {
 					var b1 = v.get(i++);
 					var b2 = v.get(i++);
 					var b3 = v.get(i++);
-					
+
 					charsBuf.add(b64.charAt(b1 >> 2));
 					charsBuf.add(b64.charAt(((b1 << 4) | (b2 >> 4)) & 63));
 					charsBuf.add(b64.charAt(((b2 << 2) | (b3 >> 6)) & 63));
@@ -383,7 +383,7 @@ class Serializer {
 			} else {
 				buf.add("0");
 			}
-			
+
 			#else
 			if( useEnumIndex ) {
 				buf.add(":");

@@ -312,10 +312,7 @@ struct
             | _ -> true
           in
 
-          let fun_name = match follow e.etype with
-            | TInst ({ cl_path = ([], "Float") },[]) -> "toDouble"
-            | _ -> "toInt"
-          in
+          let fun_name = if like_int e.etype then "toInt" else "toDouble" in
 
           let ret = {
             eexpr = TCall(
@@ -626,7 +623,6 @@ let configure gen =
       | TAbstract _
       | TType _ -> t
       | TAnon (anon) when (match !(anon.a_status) with | Statics _ | EnumStatics _ -> true | _ -> false) -> t
-      | TAnon _ -> dynamic_anon
       | TFun _ -> TInst(fn_cl,[])
       | _ -> t_dynamic
     in
@@ -884,9 +880,7 @@ let configure gen =
           write w "( ";
           expr_s w e1; write w ( " " ^ (Ast.s_binop op) ^ " " ); expr_s w e2;
           write w " )"
-        | TField (e, s) | TClosure (e, s) ->
-          expr_s w e; write w "."; write_field w s
-        | TTypeExpr mt ->
+        | TField ({ eexpr = TTypeExpr mt }, s) | TClosure ({ eexpr = TTypeExpr mt }, s) ->
           (match mt with
             | TClassDecl { cl_path = (["haxe"], "Int64") } -> write w (path_s (["haxe"], "Int64"))
             | TClassDecl { cl_path = (["haxe"], "Int32") } -> write w (path_s (["haxe"], "Int32"))
@@ -894,6 +888,19 @@ let configure gen =
             | TEnumDecl en -> write w (t_s (TEnum(en, List.map (fun _ -> t_empty) en.e_types)))
             | TTypeDecl td -> write w (t_s (gen.gfollow#run_f (TType(td, List.map (fun _ -> t_empty) td.t_types))))
             | TAbstractDecl a -> write w (t_s (TAbstract(a, List.map (fun _ -> t_empty) a.a_types)))
+          );
+          write w ".";
+          write_field w s
+        | TField (e, s) | TClosure (e, s) ->
+          expr_s w e; write w "."; write_field w s
+        | TTypeExpr mt ->
+          (match mt with
+            | TClassDecl { cl_path = (["haxe"], "Int64") } -> write w (path_s (["haxe"], "Int64"))
+            | TClassDecl { cl_path = (["haxe"], "Int32") } -> write w (path_s (["haxe"], "Int32"))
+            | TClassDecl cl -> write w (t_s (TInst(cl, List.map (fun _ -> t_dynamic) cl.cl_types)))
+            | TEnumDecl en -> write w (t_s (TEnum(en, List.map (fun _ -> t_dynamic) en.e_types)))
+            | TTypeDecl td -> write w (t_s (gen.gfollow#run_f (TType(td, List.map (fun _ -> t_dynamic) td.t_types))))
+            | TAbstractDecl a -> write w (t_s (TAbstract(a, List.map (fun _ -> t_dynamic) a.a_types)))
           )
         | TParenthesis e ->
           write w "("; expr_s w e; write w ")"
@@ -1247,11 +1254,28 @@ let configure gen =
         (path_s path) ^ "." ^ fn_name, false, true
       | name -> name, false, false
     in
+    let rec loop_static cl =
+      match is_static, cl.cl_super with
+        | false, _ -> []
+        | true, None -> []
+        | true, Some(cl,_) ->
+           (try
+              let cf2 = PMap.find cf.cf_name cl.cl_statics in
+              Gencommon.CastDetect.type_eq gen EqStrict cf.cf_type cf2.cf_type;
+              ["new"]
+            with
+              | Not_found | Unify_error _ ->
+                  loop_static cl
+            )
+    in
+    let modf = loop_static cl in
+
     (match cf.cf_kind with
       | Var _
       | Method (MethDynamic) ->
         if not is_interface then begin
           let access, modifiers = get_fun_modifiers cf.cf_meta "public" [] in
+          let modifiers = modifiers @ modf in
           (match cf.cf_expr with
             | Some e ->
               print w "%s %s%s %s %s = " access (if is_static then "static " else "") (String.concat " " modifiers) (t_s (run_follow gen cf.cf_type)) (change_field name);
@@ -1278,6 +1302,7 @@ let configure gen =
         let visibility = if is_interface then "" else "public" in
 
         let visibility, modifiers = get_fun_modifiers cf.cf_meta visibility [] in
+        let modifiers = modifiers @ modf in
         let visibility, is_virtual = if is_explicit_iface then "",false else visibility, is_virtual in
         let v_n = if is_static then "static " else if is_override && not is_interface then "override " else if is_virtual then "virtual " else "" in
         let ret_type, args = match follow cf.cf_type with | TFun (strbtl, t) -> (t, strbtl) | _ -> assert false in

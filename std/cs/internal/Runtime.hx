@@ -131,6 +131,8 @@ import cs.system.Type;
 	}
 
 	@:functionBody('
+			if (v1 is System.Type)
+				return typeEq(v1 as System.Type, v2 as System.Type);
 			return System.Object.ReferenceEquals(v1, v2);
 	')
 	public static function refEq(v1: { }, v2: { } ):Bool
@@ -428,6 +430,8 @@ import cs.system.Type;
 			}
 
 			methodLength = last;
+		} else if (methodLength == 1 && methods[0].GetParameters().Length != length) {
+			methodLength = 0;
 		}
 
 		//At this time, we should be left with only one method.
@@ -614,13 +618,21 @@ import cs.system.Type;
 	{
 		if (obj == null)
 			return null;
+		if (Std.is(obj, Bool))
+			if(obj)
+				return "true";
+			else
+				return "false";
+
 		return untyped obj.ToString();
 	}
 
 	@:functionBody('
 			if (t1 == null || t2 == null)
 				return t1 == t2;
-			return t1.Name.Equals(t2.Name);
+			string n1 = Type.getClassName(t1);
+			string n2 = Type.getClassName(t2);
+			return n1.Equals(n2);
 	')
 	public static function typeEq(t1:cs.system.Type, t2:cs.system.Type):Bool
 	{
