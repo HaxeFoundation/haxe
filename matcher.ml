@@ -849,8 +849,8 @@ let rec collapse_case el = match el with
 let match_expr ctx e cases def need_val with_type p =
 	let cases = match cases,def with
 		| [],None -> error "Empty switch" p
-		| cases,Some def -> ([(EConst(Ident "_")),pos def],None,def) :: List.rev cases
-		| _ -> List.rev cases
+		| cases,Some def -> cases @ [[(EConst(Ident "_")),pos def],None,def]
+		| _ -> cases
 	in
 	let evals = match fst e with
 		| EArrayDecl el ->
@@ -893,7 +893,7 @@ let match_expr ctx e cases def need_val with_type p =
 		subtree_index = Hashtbl.create 0;
 		num_subtrees = 0;
 	} in
-	let pl = List.rev_map (fun (el,eg,e) ->
+	let pl = List.map (fun (el,eg,e) ->
 		let ep = collapse_case el in
 		let save = save_locals ctx in
 		let pl = match fst ep,stl with
