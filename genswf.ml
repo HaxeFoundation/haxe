@@ -888,7 +888,9 @@ let build_swf9 com file swc =
 								let i = IO.input_string data in
 								if IO.nread i 4 <> "RIFF" then raise Exit;
 								ignore(IO.nread i 4); (* size *)
-								if IO.nread i 4 <> "WAVE" || IO.nread i 4 <> "fmt " || IO.read_i32 i <> 0x10 then raise Exit;
+								if IO.nread i 4 <> "WAVE" || IO.nread i 4 <> "fmt " then raise Exit;
+								let chunk_size = IO.read_i32 i in
+								if not (chunk_size = 0x10 || chunk_size = 0x12 || chunk_size = 0x40) then failwith ("Unsupported chunk size " ^ string_of_int chunk_size);
 								if IO.read_ui16 i <> 1 then failwith "Not a PCM file";
 								let chan = IO.read_ui16 i in
 								if chan > 2 then failwith "Too many channels";
@@ -896,6 +898,7 @@ let build_swf9 com file swc =
 								ignore(IO.read_i32 i);
 								ignore(IO.read_i16 i);
 								let bits = IO.read_ui16 i in
+								if chunk_size <> 0x10 then ignore(IO.nread i (chunk_size - 0x10));
 								if IO.nread i 4 <> "data" then raise Exit;
 								let data_size = IO.read_i32 i in
 								let data = IO.nread i data_size in
@@ -907,19 +910,15 @@ let build_swf9 com file swc =
 							)
 						| SMP3 ->
 							(try
-								let i = IO.input_string data in
-								if IO.read_byte i <> 0xFF then raise Exit;
-								let ver = ((IO.read_byte i) lsr 3) land 3 in
-								let sampling = [|11025;0;22050;44100|].(ver) in
-								ignore(IO.read_byte i);
-								let mono = (IO.read_byte i) lsr 6 = 3 in
+								let sampling = ref 0 in
+								let mono = ref false in
 								let samples = ref 0 in
 								let i = IO.input_string data in
 								let rec read_frame() =
 									match (try IO.read_byte i with IO.No_more_input -> -1) with
 									| -1 ->
 										()
-									| 73 ->
+									| 0x49 ->
 										(* ID3 *)
 										if IO.nread i 2 <> "D3" then raise Exit;
 										ignore(IO.read_ui16 i); (* version *)
@@ -930,9 +929,14 @@ let build_swf9 com file swc =
 										let size = size lsl 7 lor (IO.read_byte i land 0x7F) in
 										ignore(IO.nread i size); (* id3 data *)
 										read_frame()
+									| 0x54 ->
+										(* TAG and TAG+ *)
+										if IO.nread i 3 = "AG+" then ignore(IO.nread i 223) else ignore(IO.nread i 124);
+										read_frame()
 									| 0xFF ->
 										let infos = IO.read_byte i in
 										let ver = (infos lsr 3) land 3 in
+										sampling := [|11025;0;22050;44100|].(ver);
 										let layer = (infos lsr 1) land 3 in
 										let bits = IO.read_byte i in
 										let bitrate = (if ver = 3 then [|0;32;40;48;56;64;80;96;112;128;160;192;224;256;320;-1|] else [|0;8;16;24;32;40;48;56;64;80;96;112;128;144;160;-1|]).(bits lsr 4) in
@@ -943,7 +947,7 @@ let build_swf9 com file swc =
 											[|-1;-1;-1;-1|]
 										|].((bits lsr 2) land 2).(ver) in
 										let pad = (bits lsr 1) land 1 in
-										ignore(IO.read_byte i);
+										mono := (IO.read_byte i) lsr 6 = 3;
 										let bpp = (if ver = 3 then 144 else 72) in
 										let size = ((bpp * bitrate * 1000) / srate) + pad - 4 in
 										ignore(IO.nread i size);
@@ -953,7 +957,7 @@ let build_swf9 com file swc =
 										raise Exit
 								in
 								read_frame();
-								make_flags 2 mono sampling 16, (!samples), ("\x00\x00" ^ data)
+								make_flags 2 !mono !sampling 16, (!samples), ("\x00\x00" ^ data)
 							with Exit | IO.No_more_input | IO.Overflow _ ->
 								error "Invalid MP3 file" p
 							| Failure msg ->
