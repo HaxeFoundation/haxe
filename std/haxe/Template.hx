@@ -262,13 +262,13 @@ class Template {
 			return makeConst(p.p);
 		switch( p.p ) {
 		case "(":
-			var e1 = makeExpr(l);
+			var e1:Dynamic = makeExpr(l);
 			var p = l.pop();
 			if( p == null || p.s )
 				throw p.p;
 			if( p.p == ")" )
 				return e1;
-			var e2 = makeExpr(l);
+			var e2:Dynamic = makeExpr(l);
 			var p2 = l.pop();
 			if( p2 == null || p2.p != ")" )
 				throw p2.p;

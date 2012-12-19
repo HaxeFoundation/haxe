@@ -223,23 +223,27 @@ class TestMatch extends Test {
 	}
 		
 	function testNonExhaustiveness() {
-		eq("This match is not exhaustive, these patterns are not matched: false", getErrorMessage(switch(true) {
+		eq("Unmatched patterns: false", getErrorMessage(switch(true) {
 			case true:
 		}));
-		eq("This match is not exhaustive, these patterns are not matched: OpNegBits | OpNeg", getErrorMessage(switch(OpIncrement) {
+		eq("Unmatched patterns: OpNegBits | OpNeg", getErrorMessage(switch(OpIncrement) {
 			case OpIncrement:
 			case OpDecrement:
 			case OpNot:
 		}));
-		eq("This match is not exhaustive, these patterns are not matched: Node(Leaf(_),_)", getErrorMessage(switch(Leaf("foo")) {
+		eq("Unmatched patterns: Node(Leaf(_),_)", getErrorMessage(switch(Leaf("foo")) {
 			case Node(Leaf("foo"), _):
 			case Leaf(_):
 		}));
-		eq("This match is not exhaustive, these patterns are not matched: Leaf(_)", getErrorMessage(switch(Leaf("foo")) {
+		eq("Unmatched patterns: Leaf", getErrorMessage(switch(Leaf("foo")) {
 			case Node(_, _):
 			case Leaf(_) if (false):
 		}));
-		eq("This match is not exhaustive, these patterns are not matched: [_,false,_]", getErrorMessage(switch [1, true, "foo"] {
+		eq("Unmatched patterns: Leaf(_)", getErrorMessage(switch(Leaf("foo")) {
+			case Node(_, _):
+			case Leaf("foo"):
+		}));		
+		eq("Unmatched patterns: [_,false,_]", getErrorMessage(switch [1, true, "foo"] {
 			case [_, true, _]:
 		}));
 	}
@@ -266,7 +270,7 @@ class TestMatch extends Test {
 	}
 	
 	#if false
-	 //all lines marked as // unused should give a warning
+	 //all lines marked as // unused should give an error
 	function testRedundance() {
 		switch(true) {
 			case false:

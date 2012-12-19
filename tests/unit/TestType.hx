@@ -192,7 +192,6 @@ class TestType extends Test {
 		//switch
 		
 		typedAs(switch(false) { case true: new Child1(); case false: new Child2(); }, tbase);
-		typedAs(switch(1) { case 0: new Child1(); case 1: new Child2(); case 2: new Base(); }, tbase);
 		typedAs(switch(1) { case 0: new Child1(); case 1: new Child2_1(); default: new Base(); }, tbase);
 		typedAs(switch(false) { case true: new Child2(); case false: new Unrelated(); }, ti1);
 		typedAs(switch(false) { case true: new Child2_1(); case false: new Unrelated(); }, ti1);
