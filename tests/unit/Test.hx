@@ -230,6 +230,7 @@ package unit;
 			#if !no_pattern_matching
 			new TestMatch(),
 			#end
+			new TestSpecification(),
 			#if cs
 			//new TestCSharp(),
 			#end
