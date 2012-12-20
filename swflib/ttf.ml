@@ -329,7 +329,6 @@ let rdu16 = BigEndian.read_ui16
 let rd32 = BigEndian.read_i32
 let rd32r = BigEndian.read_real_i32
 let rdd = BigEndian.read_double
-let rbti ch = int_of_char (read ch)
 let ti32 = Int32.of_int
 let ti = Int32.to_int
 
@@ -615,7 +614,7 @@ let parse_glyf_table maxp loca cmap hmtx ctx =
 			let flags = DynArray.create () in
 			let rec loop index =
 				if index >= !num_points then () else begin
-					let v = rbti ch in
+					let v = read_byte ch in
 					let incr = if (v land 8) == 0 then begin
 						DynArray.add flags v;
 						1
@@ -628,25 +627,33 @@ let parse_glyf_table maxp loca cmap hmtx ctx =
 				end
 			in
 			loop 0;
+			let last = ref 0 in
 			let x_coordinates = Array.init !num_points (fun i ->
 				let flag = DynArray.get flags i in
-				if flag land 0x10 <> 0 then begin
-					if flag land 0x02 <> 0 then rbti ch
-					else 0
-				end else begin
-					if flag land 0x02 <> 0 then -rbti ch
-					else rd16 ch
-				end;
+				let v = if flag land 0x10 <> 0 then begin
+						if flag land 0x02 <> 0 then read_byte ch
+						else !last
+					end else begin
+						if flag land 0x02 <> 0 then -read_byte ch
+						else rd16 ch
+					end
+				in
+				last := v;
+				v
 			) in
+			last := 0;
 			let y_coordinates = Array.init !num_points (fun i ->
 				let flag = DynArray.get flags i in
-				if flag land 0x20 <> 0 then begin
-					if flag land 0x04 <> 0 then rbti ch
-					else 0
-				end else begin
-					if flag land 0x04 <> 0 then -rbti ch
-					else rd16 ch
-				end;
+				let v = if flag land 0x20 <> 0 then begin
+						if flag land 0x04 <> 0 then read_byte ch
+						else !last
+					end else begin
+						if flag land 0x04 <> 0 then -read_byte ch
+						else rd16 ch
+					end;
+				in
+				last := v;
+				v
 			) in
 			TglyfSimple {
 				gs_end_pts_of_contours = end_pts_of_contours;
@@ -666,8 +673,8 @@ let parse_glyf_table maxp loca cmap hmtx ctx =
 					let arg2 = rd16 ch in
 					arg1,arg2
 				end else begin
-					let arg1 = rbti ch in
-					let arg2 = rbti ch in
+					let arg1 = read_byte ch in
+					let arg2 = read_byte ch in
 					arg1,arg2
 				end in
 				let fmt214 i = (float_of_int i) /. (float_of_int 0x4000) in
@@ -827,16 +834,16 @@ let parse_os2_table ctx =
 	let y_strikeout_size = rd16 ch in
 	let y_strikeout_position = rd16 ch in
 	let s_family_class = rd16 ch in
-	let b_family_type = rbti ch in
-	let b_serif_style = rbti ch in
-	let b_weight = rbti ch in
-	let b_proportion = rbti ch in
-	let b_contrast = rbti ch in
-	let b_stroke_variation = rbti ch in
-	let b_arm_style = rbti ch in
-	let b_letterform = rbti ch in
-	let b_midline = rbti ch in
-	let b_x_height = rbti ch in
+	let b_family_type = read_byte ch in
+	let b_serif_style = read_byte ch in
+	let b_weight = read_byte ch in
+	let b_proportion = read_byte ch in
+	let b_contrast = read_byte ch in
+	let b_stroke_variation = read_byte ch in
+	let b_arm_style = read_byte ch in
+	let b_letterform = read_byte ch in
+	let b_midline = read_byte ch in
+	let b_x_height = read_byte ch in
 	let ul_unicode_range_1 = rd32r ch in
 	let ul_unicode_range_2 = rd32r ch in
 	let ul_unicode_range_3 = rd32r ch in
@@ -1222,6 +1229,20 @@ let write_font2 ch b f2 =
 	) f2.font_glyphs
 	(* TODO: rest *)
 
+let print_glyph g =
+	let hd = g.glyf_header in
+	print_endline "===== HEADER =====";
+	print_endline (Printf.sprintf "gh_num_contours = %i, gh_xmin = %i, gh_ymin = %i, gh_xmax = %i, gh_ymax = %i" hd.gh_num_contours hd.gh_xmin hd.gh_ymin hd.gh_xmax hd.gh_ymax);
+	match g.glyf_def with
+	| TglyfComposite _ ->
+		print_endline "===== COMPOSITE =====";
+	| TglyfSimple gs ->
+		print_endline "===== SIMPLE =====";
+		print_endline (Printf.sprintf "gs_end_pts_of_contours[%i]: %s" (Array.length gs.gs_end_pts_of_contours) (String.concat "," (Array.to_list (Array.map string_of_int gs.gs_end_pts_of_contours))));
+		print_endline (Printf.sprintf "gs_flags[%i]: %s" (Array.length gs.gs_flags) (String.concat "," (Array.to_list (Array.map string_of_int gs.gs_flags))));
+		print_endline (Printf.sprintf "gs_x_coordinates[%i]: %s" (Array.length gs.gs_x_coordinates) (String.concat "," (Array.to_list (Array.map string_of_int gs.gs_x_coordinates))));
+		print_endline (Printf.sprintf "gs_y_coordinates[%i]: %s" (Array.length gs.gs_y_coordinates) (String.concat "," (Array.to_list (Array.map string_of_int gs.gs_y_coordinates))))
+
 let write_swf ttf range_str =
 	let ctx = {
 		head = (match List.assoc "head" ttf.ttf_tables with THead head -> head | _ -> assert false);
@@ -1250,9 +1271,12 @@ let write_swf ttf range_str =
 		font_layout = None;
 	}
 ;;
-let f2 = write_swf (parse (open_in_bin "chopin.ttf")) "" in
+let ttf = parse (open_in_bin "chopin.ttf") in
+(match List.assoc "glyf" ttf.ttf_tables with TGlyf glyf -> Array.iter print_glyph glyf | _ -> assert false);
+
+(* let f2 = write_swf ( "" in
 let ch = (output_channel (open_out_bin "chopin_test.dat")) in
 let b = output_bits ch in
 write_font2 ch b f2
-
+ *)
 (* ocamlopt -I ../extlib -I ../extc enum.cmx extlist.cmx extstring.cmx dynarray.cmx multiarray.cmx swf.cmx io.cmx as3code.cmx as3parse.cmx actionscript.cmx swfparser.cmx ttf.ml -o run.exe *)
