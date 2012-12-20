@@ -1309,10 +1309,10 @@ let init_class ctx c p context_init herits fields =
 				if ctx.com.display then () else
 				try
 					let t2, f = (if stat then let f = PMap.find m c.cl_statics in f.cf_type, f else class_field c m) in
-					unify_raise ctx t2 t p;
+					unify_raise ctx t2 t f.cf_pos;
 					(match req_name with None -> () | Some n -> display_error ctx ("Please use " ^ n ^ " to name your property access method") f.cf_pos);
 				with
-					| Error (Unify l,_) -> raise (Error (Stack (Custom ("In method " ^ m ^ " required by property " ^ name),Unify l),p))
+					| Error (Unify l,p) -> raise (Error (Stack (Custom ("In method " ^ m ^ " required by property " ^ name),Unify l),p))
 					| Not_found ->
 						if req_name <> None then display_error ctx "Custom property accessor is no longer supported, please use get/set" p else
 						if not (c.cl_interface || c.cl_extern) then display_error ctx ("Method " ^ m ^ " required by property " ^ name ^ " is missing") p
