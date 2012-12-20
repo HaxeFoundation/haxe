@@ -204,7 +204,7 @@ let rec s_st st = (match st.st_def with
 	| SArray (st,i) -> s_st st ^ "[" ^ (string_of_int i) ^ "]"
 	| STuple (st,i,a) -> "(" ^ (st_args i (a - i - 1) (s_st st)) ^ ")"
 	| SField (st,n) -> s_st st ^ "." ^ n)
-	^ ":" ^ (s_type st.st_type)
+	(* ^ ":" ^ (s_type st.st_type) *)
 
 let rec s_pat_vec pl =
 	String.concat " " (Array.to_list (Array.map s_pat pl))
@@ -544,21 +544,19 @@ let column_sigma mctx st pmat =
 			let rec loop2 = function
 				| PCon (c,_) ->
 					add c (out.o_guard <> None);
-					true
 				| POr(pat1,pat2) ->
-					let b = loop2 pat1.p_def in
-					loop2 pat2.p_def && b
+					loop2 pat1.p_def;
+					loop2 pat2.p_def;
 				| PVar v ->
 					bind_st out st v;
-					out.o_guard <> None
 				| PBind(v,pat) ->
 					bind_st out st v;
 					loop2 pat.p_def
 				| PAny ->
-					out.o_guard <> None
+					()
 			in
-			let pat = pv.(0) in
-			if loop2 pat.p_def then loop pr
+			loop2 pv.(0).p_def;
+			loop pr
 		| [] ->
 			()
 	in
