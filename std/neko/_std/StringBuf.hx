@@ -40,13 +40,13 @@
 	}
 
 	public inline function toString() : String {
-		return new String(__string(b));
+		return new String(__to_string(b));
 	}
 
 	static var __make : Dynamic = neko.Lib.load("std","buffer_new",0);
 	static var __add : Dynamic = neko.Lib.load("std","buffer_add",2);
 	static var __add_char : Dynamic = neko.Lib.load("std","buffer_add_char",2);
 	static var __add_sub : Dynamic = neko.Lib.load("std","buffer_add_sub",4);
-	static var __string : Dynamic = neko.Lib.load("std","buffer_string",1);
+	static var __to_string : Dynamic = neko.Lib.load("std","buffer_string",1);
 
 }
