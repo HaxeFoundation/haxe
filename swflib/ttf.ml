@@ -51,14 +51,10 @@ type glyf_component = {
 	gc_transformations : transformation_option list;
 }
 
-type glyf_def =
-	| TglyfSimple of glyf_simple
-	| TglyfComposite of glyf_component list
-
-type glyf = {
-	glyf_header : glyf_header;
-	glyf_def : glyf_def;
-}
+type glyf =
+	| TglyfSimple of glyf_header * glyf_simple
+	| TglyfComposite of glyf_header * glyf_component list
+	| TGlyfNull
 
 (* HMTX *)
 
@@ -600,7 +596,7 @@ let parse_glyf_table maxp loca cmap hmtx ctx =
 			gh_xmax = xmax;
 			gh_ymax = ymax;
 		} in
-		let def = if num_contours >= 0 then begin
+		if num_contours >= 0 then begin
 			let num_points = ref 0 in
 			let end_pts_of_contours = Array.init num_contours (fun i ->
 				let v = rdu16 ch in
@@ -620,49 +616,42 @@ let parse_glyf_table maxp loca cmap hmtx ctx =
 						1
 					end else begin
 						let r = (int_of_char (read ch)) in
-						for i = 0 to r - 1 do DynArray.add flags v done;
-						r
+						for i = 0 to r do DynArray.add flags v done;
+						r + 1
 					end in
 					loop (index + incr)
 				end
 			in
 			loop 0;
-			let last = ref 0 in
+			assert (DynArray.length flags = !num_points);
 			let x_coordinates = Array.init !num_points (fun i ->
 				let flag = DynArray.get flags i in
-				let v = if flag land 0x10 <> 0 then begin
-						if flag land 0x02 <> 0 then read_byte ch
-						else !last
-					end else begin
-						if flag land 0x02 <> 0 then -read_byte ch
-						else rd16 ch
-					end
-				in
-				last := v;
-				v
+				if flag land 0x10 <> 0 then begin
+					if flag land 0x02 <> 0 then read_byte ch
+					else 0
+				end else begin
+					if flag land 0x02 <> 0 then -read_byte ch
+					else rd16 ch
+				end
 			) in
-			last := 0;
 			let y_coordinates = Array.init !num_points (fun i ->
 				let flag = DynArray.get flags i in
-				let v = if flag land 0x20 <> 0 then begin
-						if flag land 0x04 <> 0 then read_byte ch
-						else !last
-					end else begin
-						if flag land 0x04 <> 0 then -read_byte ch
-						else rd16 ch
-					end;
-				in
-				last := v;
-				v
+				if flag land 0x20 <> 0 then begin
+					if flag land 0x04 <> 0 then read_byte ch
+					else 0
+				end else begin
+					if flag land 0x04 <> 0 then -read_byte ch
+					else rd16 ch
+				end;
 			) in
-			TglyfSimple {
+			TglyfSimple (header, {
 				gs_end_pts_of_contours = end_pts_of_contours;
 				gs_instruction_length = instruction_length;
 				gs_instructions = instructions;
 				gs_flags = DynArray.to_array flags;
 				gs_x_coordinates = x_coordinates;
 				gs_y_coordinates = y_coordinates;
-			}
+			})
 		end else if num_contours = -1 then begin
 			let acc = DynArray.create () in
 			let rec loop () =
@@ -701,16 +690,14 @@ let parse_glyf_table maxp loca cmap hmtx ctx =
 				}
 			in
 			loop ();
-			TglyfComposite (DynArray.to_list acc)
+			TglyfComposite (header,(DynArray.to_list acc))
 		end else
 			failwith "Unknown Glyf"
-		in
-		{
-			glyf_header = header;
-			glyf_def = def;
-		}
 	in
-	Array.init maxp.maxp_num_glyphs (fun i -> parse_glyf i)
+	Array.init maxp.maxp_num_glyphs (fun i ->
+		let len = (ti loca.(i + 1)) - (ti loca.(i)) in
+		if len > 0 then parse_glyf i else TGlyfNull
+	)
 
 let parse_kern_table ctx =
 	let ch = ctx.ch in
@@ -1123,14 +1110,19 @@ let write_paths ctx paths =
 	}
 
 let write_glyph ctx key glyf =
-	match glyf.glyf_def with
-	| TglyfSimple g ->
+	match glyf with
+	| TglyfSimple (h,g) ->
 		let path = build_paths ctx g in
 		{
 			font_char_code = key;
 			font_shape = write_paths ctx path;
 		}
-	| TglyfComposite g ->
+	| TglyfComposite (h,g) ->
+		{
+			font_char_code = 0; (* TODO *)
+			font_shape = write_paths ctx []; (* TODO *)
+		}
+	| TGlyfNull ->
 		{
 			font_char_code = 0; (* TODO *)
 			font_shape = write_paths ctx []; (* TODO *)
@@ -1230,18 +1222,19 @@ let write_font2 ch b f2 =
 	(* TODO: rest *)
 
 let print_glyph g =
-	let hd = g.glyf_header in
-	print_endline "===== HEADER =====";
-	print_endline (Printf.sprintf "gh_num_contours = %i, gh_xmin = %i, gh_ymin = %i, gh_xmax = %i, gh_ymax = %i" hd.gh_num_contours hd.gh_xmin hd.gh_ymin hd.gh_xmax hd.gh_ymax);
-	match g.glyf_def with
-	| TglyfComposite _ ->
+	match g with
+	| TglyfComposite (hd,gc) ->
 		print_endline "===== COMPOSITE =====";
-	| TglyfSimple gs ->
+		print_endline (Printf.sprintf "gh_num_contours = %i, gh_xmin = %i, gh_ymin = %i, gh_xmax = %i, gh_ymax = %i" hd.gh_num_contours hd.gh_xmin hd.gh_ymin hd.gh_xmax hd.gh_ymax);
+	| TglyfSimple (hd,gs) ->
 		print_endline "===== SIMPLE =====";
+		print_endline (Printf.sprintf "gh_num_contours = %i, gh_xmin = %i, gh_ymin = %i, gh_xmax = %i, gh_ymax = %i" hd.gh_num_contours hd.gh_xmin hd.gh_ymin hd.gh_xmax hd.gh_ymax);
 		print_endline (Printf.sprintf "gs_end_pts_of_contours[%i]: %s" (Array.length gs.gs_end_pts_of_contours) (String.concat "," (Array.to_list (Array.map string_of_int gs.gs_end_pts_of_contours))));
 		print_endline (Printf.sprintf "gs_flags[%i]: %s" (Array.length gs.gs_flags) (String.concat "," (Array.to_list (Array.map string_of_int gs.gs_flags))));
 		print_endline (Printf.sprintf "gs_x_coordinates[%i]: %s" (Array.length gs.gs_x_coordinates) (String.concat "," (Array.to_list (Array.map string_of_int gs.gs_x_coordinates))));
 		print_endline (Printf.sprintf "gs_y_coordinates[%i]: %s" (Array.length gs.gs_y_coordinates) (String.concat "," (Array.to_list (Array.map string_of_int gs.gs_y_coordinates))))
+	| TGlyfNull ->
+		print_endline "===== NULL ====="
 
 let write_swf ttf range_str =
 	let ctx = {
