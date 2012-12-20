@@ -1053,6 +1053,15 @@ let _nbits x =
 		done;
 		!nbits
 
+let round x = int_of_float (floor (x +. 0.5))
+
+let twips_of_float v =
+	let temp1 = round(v *. 1000.) in
+	let diff = temp1 mod 50 in
+	let temp2 = if diff < 25 then temp1 - diff else temp1 + (50 - diff) in
+	let temp3 = (float_of_int temp2) /. 1000. in
+	round (temp3 *. 20.)
+
 let begin_fill ctx c a =
 	SRStyleChange {
 		scsr_move = None;
@@ -1064,7 +1073,7 @@ let begin_fill ctx c a =
 
 let move_to ctx x y =
 	SRStyleChange {
-		scsr_move = Some (0,int_of_float x, int_of_float y); (* TODO *)
+		scsr_move = Some (0,twips_of_float x, twips_of_float y); (* TODO *)
 		scsr_fs0 = None;
 		scsr_fs1 = None; (* TODO *)
 		scsr_ls = None;
@@ -1073,20 +1082,20 @@ let move_to ctx x y =
 
 let line_to ctx x y =
 	SRStraightEdge {
-		sser_nbits = max (_nbits (int_of_float x)) (_nbits (int_of_float y)); (* TODO ? *)
-		sser_line = Some (int_of_float x), Some (int_of_float y);
+		sser_nbits = max (_nbits (twips_of_float x)) (_nbits (twips_of_float y)); (* TODO ? *)
+		sser_line = Some (int_of_float x), Some (twips_of_float y);
 	}
 
 let curve_to ctx cx cy x y =
-	let m1 = max (_nbits (int_of_float x)) (_nbits (int_of_float y)) in
-	let m2 = max (_nbits (int_of_float cx)) (_nbits (int_of_float cy)) in
+	let m1 = max (_nbits (twips_of_float x)) (_nbits (twips_of_float y)) in
+	let m2 = max (_nbits (twips_of_float cx)) (_nbits (twips_of_float cy)) in
 	let m = max m1 m2 in
 	SRCurvedEdge {
 		scer_nbits = 2 + m; (* TODO ? *)
-		scer_cx = int_of_float cx;
-		scer_cy = int_of_float cy;
-		scer_ax = int_of_float x;
-		scer_ay = int_of_float y;
+		scer_cx = twips_of_float cx;
+		scer_cy = twips_of_float cy;
+		scer_ax = twips_of_float x;
+		scer_ay = twips_of_float y;
 	}
 
 let write_paths ctx paths =
@@ -1106,12 +1115,12 @@ let write_paths ctx paths =
 		srs_records = DynArray.to_list srl;
 	}
 
-let write_glyph ctx glyf =
+let write_glyph ctx key glyf =
 	match glyf.glyf_def with
 	| TglyfSimple g ->
 		let path = build_paths ctx g in
 		{
-			font_char_code = 0; (* TODO *)
+			font_char_code = key;
 			font_shape = write_paths ctx path;
 		}
 	| TglyfComposite g ->
@@ -1126,14 +1135,16 @@ let map_char_code cc c4 =
 
 let make_cmap4_map ctx c4 =
 	let lut = Hashtbl.create 0 in
+	let keys = DynArray.create () in
 	let seg_count = c4.c4_seg_count_x2 / 2 in
 	for i = 0 to seg_count - 1 do
 		for j = c4.c4_start_code.(i) to c4.c4_end_code.(i) do
-			let index = map_char_code j c4 in
-			Hashtbl.add lut j index
+			let index = i (* map_char_code j c4 *) in
+			Hashtbl.add lut j index;
+			DynArray.add keys j
 		done;
 	done;
-	lut
+	lut,DynArray.to_list keys
 
 let bi v = if v then 1 else 0
 
@@ -1162,9 +1173,14 @@ let write_font2 ch b f2 =
 
 	Array.iter (fun g ->
 		(* let b = output_bits ch in *)
-		print_string "==================== Glyph start =====================\n";
+		let records_length = SwfParser.shape_records_length g.font_shape in
 		let nlbits = ref g.font_shape.srs_nlbits in
 		let nfbits = ref g.font_shape.srs_nfbits in
+		let character = Char.chr(g.font_char_code) in
+		let s = String.make 1 character in
+		print_string "==================== Glyph start =====================\n";
+		print_string ("char code: " ^ string_of_int g.font_char_code ^ ", char: "^s^"\n");
+		print_string ("records_length bytes: " ^ string_of_int records_length ^ "\n");
 		List.iter (fun r ->
 			match r with
 			| SRStyleChange s ->
@@ -1219,7 +1235,7 @@ let write_swf ttf range_str =
 		| _ :: cl ->
 			loop cl
 	in
-	let glyph_lut = loop ctx.cmap.cmap_subtables in
+	let glyph_lut,keys = loop ctx.cmap.cmap_subtables in
 	ignore(glyph_lut);
 	(* TODO: check range, perform lookup *)
 	{
@@ -1230,7 +1246,7 @@ let write_swf ttf range_str =
 		font_is_bold = false;
 		font_language = LCNone;
 		font_name = "chopin"; (* ttf.ttf_name; *)
-		font_glyphs = Array.map (write_glyph ctx) ctx.glyf;
+		font_glyphs = Array.of_list (ExtList.List.mapi (fun i key -> write_glyph ctx key (ctx.glyf.(i))) keys);
 		font_layout = None;
 	}
 ;;
@@ -1239,4 +1255,4 @@ let ch = (output_channel (open_out_bin "chopin_test.dat")) in
 let b = output_bits ch in
 write_font2 ch b f2
 
-(* ocamlopt -I ../extlib -I ../extc enum.cmx extlist.cmx extstring.cmx cmx dynarray.cmx multiarray.cmx swf.cmx as3code.cmx as3parse.cmx actionscript.cmx swfparser.cmx ttf.ml -o run.exe *)
+(* ocamlopt -I ../extlib -I ../extc enum.cmx extlist.cmx extstring.cmx dynarray.cmx multiarray.cmx swf.cmx io.cmx as3code.cmx as3parse.cmx actionscript.cmx swfparser.cmx ttf.ml -o run.exe *)
