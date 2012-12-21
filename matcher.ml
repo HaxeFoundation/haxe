@@ -847,7 +847,7 @@ let rec collapse_case el = match el with
 let match_expr ctx e cases def need_val with_type p =
 	let cases = match cases,def with
 		| [],None -> error "Empty switch" p
-		| cases,Some def -> cases @ [[(EConst(Ident "_")),pos def],None,def]
+		| cases,Some def -> cases @ [[(EConst(Ident "_")),p],None,def]
 		| _ -> cases
 	in
 	let evals = match fst e with
@@ -910,7 +910,10 @@ let match_expr ctx e cases def need_val with_type p =
 			| _,_ ->
 				error "Unrecognized pattern" (pos ep);
 		in
-		let e = if need_val then type_expr_with_type ctx e with_type false else type_expr ctx e false in
+		let e = match e with
+			| None -> mk (TBlock []) ctx.com.basic.tvoid (punion_el el)
+			| Some e -> if need_val then type_expr_with_type ctx e with_type false else type_expr ctx e false
+		in
 		let eg = match eg with None -> None | Some e -> Some (type_expr ctx e true) in
 		save();
 		let out = mk_out mctx e eg pl (pos ep) in

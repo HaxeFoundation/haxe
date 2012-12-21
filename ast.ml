@@ -182,7 +182,7 @@ and expr_def =
 	| EIn of expr * expr
 	| EIf of expr * expr * expr option
 	| EWhile of expr * expr * while_flag
-	| ESwitch of expr * (expr list * expr option * expr) list * expr option
+	| ESwitch of expr * (expr list * expr option * expr option) list * expr option option
 	| ETry of expr * (string * complex_type * expr) list
 	| EReturn of expr option
 	| EBreak
@@ -312,6 +312,14 @@ let punion p p2 =
 		pmin = min p.pmin p2.pmin;
 		pmax = max p.pmax p2.pmax;
 	}
+
+let rec punion_el el = match el with
+	| [] ->
+		null_pos
+	| (_,p) :: [] ->
+		p
+	| (_,p) :: el ->
+		punion p (punion_el el)
 
 let s_type_path (p,s) = match p with [] -> s | _ -> String.concat "." p ^ "." ^ s
 
@@ -533,7 +541,7 @@ let map_expr loop (e,p) =
 	| EIn (e1,e2) -> EIn (loop e1, loop e2)
 	| EIf (e,e1,e2) -> EIf (loop e, loop e1, opt loop e2)
 	| EWhile (econd,e,f) -> EWhile (loop econd, loop e, f)
-	| ESwitch (e,cases,def) -> ESwitch (loop e, List.map (fun (el,eg,e) -> List.map loop el, opt loop eg, loop e) cases, opt loop def)
+	| ESwitch (e,cases,def) -> ESwitch (loop e, List.map (fun (el,eg,e) -> List.map loop el, opt loop eg, opt loop e) cases, opt (opt loop) def)
 	| ETry (e, catches) -> ETry (loop e, List.map (fun (n,t,e) -> n,ctype t,loop e) catches)
 	| EReturn e -> EReturn (opt loop e)
 	| EBreak -> EBreak
@@ -778,9 +786,9 @@ let reify in_macro =
 			expr "EWhile" [loop e1;loop e2;to_bool (flag = NormalWhile) p]
 		| ESwitch (e1,cases,def) ->
 			let scase (el,eg,e) p =
-				to_obj [("values",to_expr_array el p);"guard",to_opt to_expr eg p;"expr",loop e] p
+				to_obj [("values",to_expr_array el p);"guard",to_opt to_expr eg p;"expr",to_opt to_expr e p] p
 			in
-			expr "ESwitch" [loop e1;to_array scase cases p;to_opt to_expr def p]
+			expr "ESwitch" [loop e1;to_array scase cases p;to_opt (to_opt to_expr) def p]
 		| ETry (e1,catches) ->
 			let scatch (n,t,e) p =
 				to_obj [("name",to_string n p);("type",to_ctype t p);("expr",loop e)] p

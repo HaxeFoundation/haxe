@@ -1481,8 +1481,8 @@ and type_switch_old ctx e cases def need_val with_type p =
 		with Exit ->
 			case_expr (type_expr ctx efull)
 	in
-	let cases = List.map (fun (el,e2) ->
-		if el = [] then error "Case must match at least one expression" (pos e2);
+	let cases = List.map (fun (el,eg,e2) ->
+		if el = [] then error "Case must match at least one expression" (punion_el el);
 		let el = List.map (fun e ->
 			match e with
 			| (ECall (c,pl),p) -> type_case e c pl p
@@ -1494,10 +1494,9 @@ and type_switch_old ctx e cases def need_val with_type p =
 	let el = ref [] in
 	let type_case_code e =
 		let e = (match e with
-			| (EBlock [],p) when need_val -> (EConst (Ident "null"),p)
-			| _ -> e
+			| Some e -> if need_val then type_expr_with_type ctx e with_type else type_expr ~need_val ctx e
+			| None -> mk (TBlock []) ctx.com.basic.tvoid Ast.null_pos
 		) in
-		let e = if need_val then type_expr_with_type ctx e with_type else type_expr ~need_val ctx e in
 		el := e :: !el;
 		e
 	in
@@ -1600,7 +1599,7 @@ and type_switch ctx e cases def need_val with_type p =
 		if (Common.defined ctx.com Common.Define.NoPatternMatching) then raise Exit;
 		match_expr ctx e cases def need_val with_type p
 	with Exit ->
-		type_switch_old ctx e (List.map (fun (cl,_,e) -> cl,e) cases) def need_val with_type p
+		type_switch_old ctx e cases def need_val with_type p
 
 and type_ident ctx i p mode =
 	try

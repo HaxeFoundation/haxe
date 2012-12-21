@@ -3643,9 +3643,9 @@ and encode_expr e =
 					enc_obj [
 						"values",enc_array (List.map loop ecl);
 						"guard",null loop eg;
-						"expr",loop e
+						"expr",null loop e
 					]
-				) cases);null loop eopt]
+				) cases);null (null loop) eopt]
 			| ETry (e,catches) ->
 				18, [loop e;enc_array (List.map (fun (v,t,e) ->
 					enc_obj [
@@ -3900,9 +3900,9 @@ let decode_expr v =
 			EWhile (loop e1,loop e2,if flag then NormalWhile else DoWhile)
 		| 17, [e;cases;eo] ->
 			let cases = List.map (fun c ->
-				(List.map loop (dec_array (field c "values")),opt loop (field c "guard"),loop (field c "expr"))
+				(List.map loop (dec_array (field c "values")),opt loop (field c "guard"),opt loop (field c "expr"))
 			) (dec_array cases) in
-			ESwitch (loop e,cases,opt loop eo)
+			ESwitch (loop e,cases,opt (opt loop) eo)
 		| 18, [e;catches] ->
 			let catches = List.map (fun c ->
 				(dec_string (field c "name"),decode_ctype (field c "type"),loop (field c "expr"))
@@ -4379,7 +4379,12 @@ let rec make_ast e =
 		EFor (ein,make_ast e)
 	| TIf (e,e1,e2) -> EIf (make_ast e,make_ast e1,eopt e2)
 	| TWhile (e1,e2,flag) -> EWhile (make_ast e1, make_ast e2, flag)
-	| TSwitch (e,cases,def) -> ESwitch (make_ast e,List.map (fun (vl,e) -> List.map make_ast vl, None,make_ast e) cases,eopt def)
+	| TSwitch (e,cases,def) ->
+		let cases = List.map (fun (vl,e) ->
+			List.map make_ast vl,None,(match e.eexpr with TBlock [] -> None | _ -> Some (make_ast e))
+		) cases in
+		let def = match eopt def with None -> None | Some (EBlock [],_) -> Some None | e -> Some e in
+		ESwitch (make_ast e,cases,def)
 	| TMatch (e,(en,_),cases,def) ->
 		let scases (idx,args,e) =
 			let p = e.epos in
@@ -4399,9 +4404,10 @@ let rec make_ast e =
 				let cfield = (try PMap.find c en.e_constrs with Not_found -> assert false) in
 				let c = (EConst (Ident c),p) in
 				(match follow cfield.ef_type with TFun (eargs,_) -> (ECall (c,mk_args (List.length eargs)),p) | _ -> c)
-			) idx, None, make_ast e
+			) idx, None, (match e.eexpr with TBlock [] -> None | _ -> Some (make_ast e))
 		in
-		ESwitch (make_ast e,List.map scases cases,eopt def)
+		let def = match eopt def with None -> None | Some (EBlock [],_) -> Some None | e -> Some e in
+		ESwitch (make_ast e,List.map scases cases,def)
 	| TTry (e,catches) -> ETry (make_ast e,List.map (fun (v,e) -> v.v_name, (try make_type v.v_type with Exit -> assert false), make_ast e) catches)
 	| TReturn e -> EReturn (eopt e)
 	| TBreak -> EBreak

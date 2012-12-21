@@ -864,13 +864,21 @@ and parse_guard = parser
 
 and parse_switch_cases eswitch cases = parser
 	| [< '(Kwd Default,p1); '(DblDot,_); s >] ->
-		let b = EBlock (try block [] s with Display e -> display (ESwitch (eswitch,cases,Some e),punion (pos eswitch) (pos e))) in
+		let b = (try block [] s with Display e -> display (ESwitch (eswitch,cases,Some (Some e)),punion (pos eswitch) (pos e))) in
+		let b = match b with
+			| [] -> None
+			| _ -> Some ((EBlock b,p1))
+		in
 		let l , def = parse_switch_cases eswitch cases s in
-		(match def with None -> () | Some (e,p) -> error Duplicate_default p);
-		l , Some (b,p1)
+		(match def with None -> () | Some _ -> error Duplicate_default p1);
+		l , Some b
 	| [< '(Kwd Case,p1); el = psep Comma expr; eg = popt parse_guard; '(DblDot,_); s >] ->
-		let b = EBlock (try block [] s with Display e -> display (ESwitch (eswitch,List.rev ((el,eg,e) :: cases),None),punion (pos eswitch) (pos e))) in
-		parse_switch_cases eswitch ((el,eg,(b,p1)) :: cases) s
+		let b = (try block [] s with Display e -> display (ESwitch (eswitch,List.rev ((el,eg,Some e) :: cases),None),punion (pos eswitch) (pos e))) in
+		let b = match b with
+			| [] -> None
+			| _ -> Some ((EBlock b,p1))
+		in
+		parse_switch_cases eswitch ((el,eg,b) :: cases) s
 	| [< >] ->
 		List.rev cases , None
 

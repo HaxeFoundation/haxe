@@ -91,7 +91,7 @@ typedef ExprOf<T> = Expr;
 typedef Case = {
 	var values : Array<Expr>;
 	@:optional var guard : Null<Expr>;
-	var expr: Expr;
+	var expr: Null<Expr>;
 }
 
 enum ExprDef {
@@ -112,7 +112,7 @@ enum ExprDef {
 	EIn( e1 : Expr, e2 : Expr );
 	EIf( econd : Expr, eif : Expr, eelse : Null<Expr> );
 	EWhile( econd : Expr, e : Expr, normalWhile : Bool );
-	ESwitch( e : Expr, cases : Array<Case>, edef : Null<Expr> );
+	ESwitch( e : Expr, cases : Array<Case>, edef : Null<Null<Expr>> );
 	ETry( e : Expr, catches : Array<{ name : String, type : ComplexType, expr : Expr }> );
 	EReturn( ?e : Null<Expr> );
 	EBreak;

@@ -977,24 +977,31 @@ let optimize_completion_expr e =
 			map e
 		| ESwitch (e,cases,def) ->
 			let e = loop e in
-			let cases = List.map (fun (el,eg,e) ->
-				let el = List.map loop el in
-				let old = save() in
-				List.iter (fun e ->
-					match fst e with
-					| ECall (_,pl) ->
-						List.iter (fun p ->
-							match fst p with
-							| EConst (Ident i) -> decl i None None (* sadly *)
-							| _ -> ()
-						) pl
-					| _ -> ()
-				) el;
-				let e = loop e in
-				old();
-				el, eg, e
+			let cases = List.map (fun (el,eg,eo) -> match eo with
+				| None ->
+					el,eg,eo
+				| Some e ->
+					let el = List.map loop el in
+					let old = save() in
+					List.iter (fun e ->
+						match fst e with
+						| ECall (_,pl) ->
+							List.iter (fun p ->
+								match fst p with
+								| EConst (Ident i) -> decl i None None (* sadly *)
+								| _ -> ()
+							) pl
+						| _ -> ()
+					) el;
+					let e = loop e in
+					old();
+					el, eg, Some e
 			) cases in
-			let def = (match def with None -> None | Some e -> Some (loop e)) in
+			let def = match def with
+				| None -> None
+				| Some None -> Some None
+				| Some (Some e) -> Some (Some (loop e))
+			in
 			(ESwitch (e,cases,def),p)
 		| ETry (et,cl) ->
 			let et = loop et in
