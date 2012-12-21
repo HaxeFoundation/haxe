@@ -334,7 +334,10 @@ class Json {
 			// ensure utf8 chars are not cut
 			else if( c >= 0x80 ) {
 				pos++;
-				if( c >= 0xE0 ) pos += 1 + (c & 32);
+				if( c >= 0xFC ) pos += 4;
+				else if( c >= 0xF8 ) pos += 3;
+				else if( c >= 0xF0 ) pos += 2;
+				else if( c >= 0xE0 ) pos++;
 			}
 			#end
 			else if( StringTools.isEOF(c) )
