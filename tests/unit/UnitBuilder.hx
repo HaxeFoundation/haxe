@@ -12,7 +12,7 @@ class UnitBuilder {
 		var ret = Context.getBuildFields();
 		var numFiles = 0;
 		for (file in dir) {
-			if (file.endsWith(".hxunit")) {
+			if (file.endsWith(".unit.hx")) {
 				numFiles++;
 				var func = {
 					args: [],
@@ -21,7 +21,7 @@ class UnitBuilder {
 					expr: read(basePath + file)
 				}
 				ret.push( {
-					name: "test" + ~/\./.map(file, function(_) return "_"),
+					name: "test" + ~/\./g.map(file, function(_) return "_"),
 					kind: FFun(func),
 					pos: Context.makePosition( { min:0, max:0, file:basePath + file } ),
 					access: [APublic],
@@ -30,7 +30,7 @@ class UnitBuilder {
 				});
 			}
 		}
-		trace("Added " +numFiles + " .hxunit files");
+		trace("Added " +numFiles + " .unit.hx files");
 		return ret;
 	}
 	

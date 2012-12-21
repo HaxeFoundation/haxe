@@ -27,7 +27,7 @@
 extern class Array<T> {
 
 	/**
-		The length of the Array
+		The length of [this] Array.
 	**/
 	var length(default,null) : Int;
 
@@ -37,32 +37,76 @@ extern class Array<T> {
 	function new() : Void;
 
 	/**
-		Returns a new Array by appending [a] to [this].
+		Returns a new Array by appending the elements of [a] to the elements of
+		[this] Array.
+		
+		This function does not modify [this] Array in place.
+		
+		If [a] is the empty Array [], a copy of [this] Array is returned.
+		
+		The length of the returned Array is equal to the sum of [this].length
+		and [a].length.
+		
+		If [a] is null, the result is unspecified.
 	**/
 	function concat( a : Array<T> ) : Array<T>;
 
 	/**
-		Returns a representation of an array with [sep] for separating each element.
+		Returns a string representation of [this] Array, with [sep] separating
+		each element.
+		
+		The result of this operation is equal to Std.string(this[0]) + sep +
+		Std.string(this[1]) + sep + ... + sep + Std.string(this[this.length-1]).
+		
+		If [this] is the empty Array [], the result is the empty String "". If
+		[this] has exactly one element, the result is equal to a call to
+		Std.string(this[0]).
+		
+		If [a] is null, the result is unspecified.
 	**/
 	function join( sep : String ) : String;
 
 	/**
-		Removes the last element of the array and returns it.
+		Removes the last element of [this] Array and returns it.
+		
+		This operations modifies [this] Array in place.
+		
+		If [this] has at least one element, [this].length will decrease by 1.
+		
+		If [this] is the empty Array [], null is returned and the length remains
+		0.
 	**/
 	function pop() : Null<T>;
 
 	/**
-		Adds the element [x] at the end of the array.
+		Adds the element [x] at the end of [this] Array and returns the offset
+		it was added at.
+		
+		This operations modifies [this] Array in place.
+		
+		[this].length will increase by 1.
 	**/
 	function push(x : T) : Int;
 
 	/**
-		Reverse the order of elements of the Array.
+		Reverse the order of elements of [this] Array.
+		
+		This operations modifies [this] Array in place.
+		
+		If [this].length < 2, [this] remains unchanged.
 	**/
 	function reverse() : Void;
 
 	/**
-		Removes the first element and returns it.
+		Removes the first element of [this] Array and returns it.
+		
+		This operations modifies [this] Array in place.
+		
+		If [this] has at least one element, [this].length and the index of each
+		remaining element is decreased by 1.
+		
+		If [this] is the empty Array [], null is returned and the length remains
+		0.
 	**/
 	function shift() : Null<T>;
 
@@ -75,9 +119,15 @@ extern class Array<T> {
 	function slice( pos : Int, ?end : Int ) : Array<T>;
 
 	/**
-		Sort the Array according to the comparison function [f].
-		[f(x,y)] should return [0] if [x == y], [>0] if [x > y]
-		and [<0] if [x < y].
+		Sorts [this] Array according to the comparison function [f], where
+		[f(x,y)] returns 0 if x == y, a positive Int if x > y and a
+		negative Int if x < y.
+		
+		This operations modifies [this] Array in place.
+		
+		The sort operation is robust: Equal elements will retain their order.
+		
+		If [f] is null, the result is unspecified.
 	**/
 	function sort( f : T -> T -> Int ) : Void;
 
@@ -87,31 +137,65 @@ extern class Array<T> {
 	function splice( pos : Int, len : Int ) : Array<T>;
 
 	/**
-		Returns a displayable representation of the Array content.
+		Returns a string representation of [this] Array.
+		
+		The result will include the individual elements' String representations
+		separated by comma. The enclosing [ ] may be missing on some platforms,
+		use Std.string() to get a String representation that is consistent
+		across platforms.
 	**/
 	function toString() : String;
 
 	/**
-		Adds the element [x] at the start of the array.
+		Adds the element [x] at the start of [this] Array.
+		
+		This operations modifies [this] Array in place.
+		
+		[this].length and the index of each Array element increases by 1.
 	**/
 	function unshift( x : T ) : Void;
 
 	/**
 		Inserts the element [x] at the position [pos].
-		All elements after [pos] are moved one index ahead.
+		
+		This operations modifies [this] Array in place.
+		
+		The offset is calculated like so:
+			
+		- If [pos] exceeds [this].length, [this] Array is padded with the
+		default value until [this].length equals [pos]. The offset is then
+		[pos].
+		- If [pos] is negative, the offset is calculated from the end of [this]
+		Array, i.e. [this].length + [pos]. If this yields a negative value,
+		the offset is 0.
+		- Otherwise, the offset is [pos].
+		
+		If the resulting offset does not exceed [this].length, all elements from
+		and including that offset to the end of [this] Array are moved one index
+		ahead.
 	**/
 	function insert( pos : Int, x : T ) : Void;
 
 	/**
-		Removes the first occurence of [x].
-		Returns false if [x] was not present.
-		Elements are compared by using standard equality.
+		Removes the first occurence of [x] in [this] Array.
+		
+		This operations modifies [this] Array in place.
+		
+		If [x] is found by checking standard equality, it is removed from [this]
+		Array and all following elements are reindexed acoordingly. The function
+		then returns true.
+		
+		If [x] is not found, [this] Array is not changed and the function
+		returns false.
 	**/
 	function remove( x : T ) : Bool;
 
 	/**
-		Returns a copy of the Array. The values are not
-		copied, only the Array structure.
+		Returns a shallow copy of [this] Array.
+		
+		The elements are not copied and retain their identity, so
+		a[i] == a.copy()[i] is true for any valid i. However, a == a.copy() is
+		always false.
 	**/
 	function copy() : Array<T>;
 

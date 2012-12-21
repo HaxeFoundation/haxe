@@ -22,6 +22,20 @@ private enum SomeEnum<T> {
 	OneArgument(t:T);
 }
 
+private class IntWrap {
+	public var i(default, null):Int;
+	
+	public function new(i:Int) {
+		this.i == i;
+	}
+	
+	static public function compare(a:IntWrap, b:IntWrap) {
+		return if (a.i == b.i) 0;
+			else if (a.i > b.i) 1;
+			else -1;
+	}
+}
+
 #if !macro
 @:build(unit.UnitBuilder.build("unitstd"))
 #end
