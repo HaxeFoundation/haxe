@@ -73,25 +73,21 @@ class UnitBuilder {
 		var ret = [];
 		for (e in block) {
 			var e = switch(e.expr) {
-				case EBinop(OpEq, e, { expr: EConst(CIdent("false")) } )
-				| EBinop(OpEq, { expr: EConst(CIdent("false")) }, e):
-					macro f($e);					
-				case EBinop(OpEq, e, { expr: EConst(CIdent("true")) } )
-				| EBinop(OpEq, { expr: EConst(CIdent("true")) }, e):
-					macro t($e);
-				case EBinop(OpEq, e, { expr: EArrayDecl([]) } )
-				| EBinop(OpEq, { expr: EArrayDecl([]) }, e ):
-					var ef = { expr: EField(e, "length"), pos: e.pos };
-					macro eq($ef, 0);
-				case EBinop(OpEq, e, { expr: EArrayDecl(el) } )
-				| EBinop(OpEq, { expr: EArrayDecl(el) }, e ):
+				case EBinop(OpEq, e1, { expr: EConst(CIdent("false")) } )
+				| EBinop(OpEq, { expr: EConst(CIdent("false")) }, e1):
+					macro f($e1);					
+				case EBinop(OpEq, e1, { expr: EConst(CIdent("true")) } )
+				| EBinop(OpEq, { expr: EConst(CIdent("true")) }, e1):
+					macro t($e1);
+				case EBinop(OpEq, e1, { expr: EArrayDecl(el) } )
+				| EBinop(OpEq, { expr: EArrayDecl(el) }, e1 ):
 					var el2 = [];
 					for (i in 0...el.length) {
-						var e1 = el[i];
-						el2.push(mkEq((macro $e[$(i)]), e1, e1.pos));
+						var e2 = el[i];
+						el2.push(mkEq((macro $e1[$(i)]), e2, e.pos));
 					}
 					if (el2.length == 0)
-						macro eq($e.length, 0);
+						mkEq((macro $e1.length), (macro 0), e.pos);
 					else
 						macro { $[el2]; };
 				case EBinop(OpEq, e1, e2):
