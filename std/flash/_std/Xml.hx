@@ -22,7 +22,7 @@
 import flash.xml.XML;
 import flash.xml.XMLList;
 
-enum XmlType {
+extern enum XmlType {
 }
 
 @:coreApi class Xml {

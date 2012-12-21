@@ -1771,7 +1771,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 			names := c.ec_name :: !names;
 		) (!constructs);
 		e.e_names <- List.rev !names;
-		e.e_extern <- e.e_extern || e.e_names = [];
+		e.e_extern <- e.e_extern
 	| ETypedef d ->
 		let t = (match get_type d.d_name with TTypeDecl t -> t | _ -> assert false) in
 		let ctx = { ctx with type_params = t.t_types } in
