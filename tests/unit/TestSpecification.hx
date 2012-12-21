@@ -26,7 +26,7 @@ private class IntWrap {
 	public var i(default, null):Int;
 	
 	public function new(i:Int) {
-		this.i == i;
+		this.i = i;
 	}
 	
 	static public function compare(a:IntWrap, b:IntWrap) {

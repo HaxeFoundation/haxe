@@ -55,6 +55,13 @@ class UnitBuilder {
 		}
 	}	
 	
+	static function mkEq(e1, e2, p) {
+		var e = macro eq($e1, $e2);
+		return {
+			expr: e.expr,
+			pos: p
+		}
+	}
 	static public function read(path:String) {
 		var p = Context.makePosition( { min:0, max:0, file:path } );
 		var file = sys.io.File.getContent(path);
@@ -81,14 +88,14 @@ class UnitBuilder {
 					var el2 = [];
 					for (i in 0...el.length) {
 						var e1 = el[i];
-						el2.push(macro $e[$(i)] == $e1);
+						el2.push(mkEq((macro $e[$(i)]), e1, e1.pos));
 					}
 					if (el2.length == 0)
-						macro $e.length == 0;
+						macro eq($e.length, 0);
 					else
-						collapseToAndExpr(el2);
+						macro { $[el2]; };
 				case EBinop(OpEq, e1, e2):
-					macro eq($e1, $e2);
+					mkEq(e1, e2, e.pos);
 				case EThrow(e):
 					macro exc(function() $e);
 				case EIn(e1, {expr:EArrayDecl(el) }):

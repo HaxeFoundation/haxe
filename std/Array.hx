@@ -149,12 +149,12 @@ extern class Array<T> {
 		
 		This operation modifies [this] Array in place.
 		
-		If [pos] or [len] are negative, their values are calculated from the
-		end	of [this] Array by [this].length + [pos] and [this].length + [len]
-		respectively. If this yields a negative value, 0 is used instead.
+		If [len] is < 0 or [pos] exceeds [this].length, the result is the empty
+		Array [].
 		
-		If the resulting value for [len] is 0 or if the resulting value for
-		[pos] exceeds [this].length, the result is [].
+		If [pos] is negative, its values is calculated from the end	of [this]
+		Array by [this].length + [pos]. If this yields a negative value, 0 is
+		used instead.
 		
 		If the sum of the resulting values for [len] and [pos] exceed
 		[this].length, this operation will affect the elements from [pos] to the
@@ -193,9 +193,7 @@ extern class Array<T> {
 		
 		The offset is calculated like so:
 			
-		- If [pos] exceeds [this].length, [this] Array is padded with the
-		default value until [this].length equals [pos]. The offset is then
-		[pos].
+		- If [pos] exceeds [this].length, the offset is [this].length.
 		- If [pos] is negative, the offset is calculated from the end of [this]
 		Array, i.e. [this].length + [pos]. If this yields a negative value,
 		the offset is 0.
