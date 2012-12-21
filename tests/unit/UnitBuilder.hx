@@ -45,6 +45,16 @@ class UnitBuilder {
 		}
 	}
 	
+	static function collapseToAndExpr(el:Array<Expr>) {
+		return switch(el) {
+			case []: throw "";
+			case [e]: e;
+		case _:
+			var e = el.pop();
+			{ expr: EBinop(OpBoolAnd, e, collapseToAndExpr(el)), pos: e.pos }
+		}
+	}	
+	
 	static public function read(path:String) {
 		var p = Context.makePosition( { min:0, max:0, file:path } );
 		var file = sys.io.File.getContent(path);
@@ -62,8 +72,25 @@ class UnitBuilder {
 				case EBinop(OpEq, e, { expr: EConst(CIdent("true")) } )
 				| EBinop(OpEq, { expr: EConst(CIdent("true")) }, e):
 					macro t($e);
+				case EBinop(OpEq, e, { expr: EArrayDecl([]) } )
+				| EBinop(OpEq, { expr: EArrayDecl([]) }, e ):
+					var ef = { expr: EField(e, "length"), pos: e.pos };
+					macro eq($ef, 0);
+				case EBinop(OpEq, e, { expr: EArrayDecl(el) } )
+				| EBinop(OpEq, { expr: EArrayDecl(el) }, e ):
+					var el2 = [];
+					for (i in 0...el.length) {
+						var e1 = el[i];
+						el2.push(macro $e[$(i)] == $e1);
+					}
+					if (el2.length == 0)
+						macro $e.length == 0;
+					else
+						collapseToAndExpr(el2);
 				case EBinop(OpEq, e1, e2):
 					macro eq($e1, $e2);
+				case EThrow(e):
+					macro exc(function() $e);
 				case EIn(e1, {expr:EArrayDecl(el) }):
 					var el2 = [];
 					for (e in el)
