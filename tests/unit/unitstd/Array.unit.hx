@@ -82,7 +82,26 @@ a == [];
 a == b;
 
 // slice
-// TODO
+var i0 = new IntWrap(1);
+var i1 = new IntWrap(1);
+var i2 = new IntWrap(5);
+var i3 = new IntWrap(9);
+var i4 = new IntWrap(2);
+var a = [i4,i0,i1,i3,i0,i2];
+var b = a.slice(0);
+b != a;
+b == [i4, i0, i1, i3, i0, i2];
+b = b.slice(1);
+b == [i0, i1, i3, i0, i2];
+b = b.slice(1, 3);
+b == [i1, i3];
+b = b.slice( -1);
+b == [i3];
+b = b.slice(0, 4);
+b == [i3];
+b.slice( -3) == [i3];
+b.slice( -3, -3) == [];
+[1, 2, 3].slice(2, 1) == [];
 
 // sort
 var i0 = new IntWrap(1);
@@ -95,7 +114,33 @@ a.sort(IntWrap.compare);
 a == [i0, i1, i0, i4, i2, i3];
 
 // splice
-// TODO
+var i0 = new IntWrap(1);
+var i1 = new IntWrap(1);
+var i2 = new IntWrap(5);
+var i3 = new IntWrap(9);
+var i4 = new IntWrap(2);
+var a = [i4, i0, i1, i3, i0, i2];
+var b = a.splice(0, 0);
+b != a;
+a == [i4, i0, i1, i3, i0, i2];
+b == [i4, i0, i1, i3, i0, i2];
+a = b.splice(1, b.length - 1);
+b == [i4];
+a == [i0, i1, i3, i0, i2];
+b = a.splice(1, -1);
+a == [i0];
+b == [i1, i3, i0, i2];
+a = b.splice(0, 10);
+a == [i1, i3, i0, i2];
+b == [];
+b = a.splice(10, 10);
+b == [];
+a = [i1, i3, i0, i2];
+b = a.splice( -2, 2);
+a == [i1, i3];
+b == [i0, i2];
+b.splice(0, -3) == [];
+b == [i0, i2];
 
 // toString
 var a = [new ClassWithToString(), new ClassWithToStringChild(), new ClassWithToStringChild2()];

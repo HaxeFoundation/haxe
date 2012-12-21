@@ -40,7 +40,7 @@ extern class Array<T> {
 		Returns a new Array by appending the elements of [a] to the elements of
 		[this] Array.
 		
-		This function does not modify [this] Array in place.
+		This operation does not modify [this] Array.
 		
 		If [a] is the empty Array [], a copy of [this] Array is returned.
 		
@@ -69,7 +69,7 @@ extern class Array<T> {
 	/**
 		Removes the last element of [this] Array and returns it.
 		
-		This operations modifies [this] Array in place.
+		This operation modifies [this] Array in place.
 		
 		If [this] has at least one element, [this].length will decrease by 1.
 		
@@ -82,7 +82,7 @@ extern class Array<T> {
 		Adds the element [x] at the end of [this] Array and returns the offset
 		it was added at.
 		
-		This operations modifies [this] Array in place.
+		This operation modifies [this] Array in place.
 		
 		[this].length will increase by 1.
 	**/
@@ -91,7 +91,7 @@ extern class Array<T> {
 	/**
 		Reverse the order of elements of [this] Array.
 		
-		This operations modifies [this] Array in place.
+		This operation modifies [this] Array in place.
 		
 		If [this].length < 2, [this] remains unchanged.
 	**/
@@ -100,7 +100,7 @@ extern class Array<T> {
 	/**
 		Removes the first element of [this] Array and returns it.
 		
-		This operations modifies [this] Array in place.
+		This operation modifies [this] Array in place.
 		
 		If [this] has at least one element, [this].length and the index of each
 		remaining element is decreased by 1.
@@ -111,10 +111,22 @@ extern class Array<T> {
 	function shift() : Null<T>;
 
 	/**
-		Copies the range of the array starting at [pos] up to,
-		but not including, [end]. Both [pos] and [end] can be
-		negative to count from the end: -1 is the last item in
-		the array.
+		Creates a shallow copy of the range of [this] Array, starting at and
+		including [pos], up to but not including [end].
+		
+		This operation does not modify [this] Array.
+		
+		The elements are not copied and retain their identity.
+		
+		If [end] is omitted or exceeds [this].length, it defaults to the end of
+		[this] Array.
+		
+		If [pos] or [end] are negative, their offset is calculated from the end
+		of [this] Array by [this].length + [pos] and [this].length + [end]
+		respectively. If this yields a negative value, 0 is used instead.
+		
+		If [pos] exceeds [this].length or if [end} exceeds or equals [pos],
+		the result is [].
 	**/
 	function slice( pos : Int, ?end : Int ) : Array<T>;
 
@@ -123,7 +135,7 @@ extern class Array<T> {
 		[f(x,y)] returns 0 if x == y, a positive Int if x > y and a
 		negative Int if x < y.
 		
-		This operations modifies [this] Array in place.
+		This operation modifies [this] Array in place.
 		
 		The sort operation is robust: Equal elements will retain their order.
 		
@@ -132,7 +144,12 @@ extern class Array<T> {
 	function sort( f : T -> T -> Int ) : Void;
 
 	/**
-		Removes [len] elements starting from [pos] an returns them.
+		Removes [len] elements from [this] Array, starting at and including
+		[pos], an returns them.
+		
+		This operation modifies [this] Array in place.
+		
+		If [len] exceeds [this].length
 	**/
 	function splice( pos : Int, len : Int ) : Array<T>;
 
@@ -149,7 +166,7 @@ extern class Array<T> {
 	/**
 		Adds the element [x] at the start of [this] Array.
 		
-		This operations modifies [this] Array in place.
+		This operation modifies [this] Array in place.
 		
 		[this].length and the index of each Array element increases by 1.
 	**/
@@ -158,7 +175,7 @@ extern class Array<T> {
 	/**
 		Inserts the element [x] at the position [pos].
 		
-		This operations modifies [this] Array in place.
+		This operation modifies [this] Array in place.
 		
 		The offset is calculated like so:
 			
@@ -179,7 +196,7 @@ extern class Array<T> {
 	/**
 		Removes the first occurence of [x] in [this] Array.
 		
-		This operations modifies [this] Array in place.
+		This operation modifies [this] Array in place.
 		
 		If [x] is found by checking standard equality, it is removed from [this]
 		Array and all following elements are reindexed acoordingly. The function
