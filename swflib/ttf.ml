@@ -537,7 +537,7 @@ let parse_cmap_table ctx =
 				let id_range_offset = Array.init seg_count (fun _ -> rdu16 ch) in
 				let count = length - (8 * seg_count + 16) / 2 in
 				let glyph_index = Array.init count (fun _ -> rdu16 ch) in
-				(* TODO: whatever Reader.hx does here *)
+				(* TODO: whatever Reader.hx does here (Done in: map_char_code make_cmap4_map)*)
 				Cmap4 {
 					c4_format = format;
 					c4_length = length;
@@ -1001,16 +1001,36 @@ let make_path ctx pq p1 p2 arr g =
 	let p2_on_curve = g.gs_flags.(p2) land 0x01 <> 0 in
 	match p1_on_curve, p2_on_curve with
 	| true, true ->
-		let path = mk_path 1 (float_of_int g.gs_x_coordinates.(p2)) (float_of_int g.gs_y_coordinates.(p2)) 0.0 0.0 in
+		let x = (float_of_int g.gs_x_coordinates.(p2)) in
+		let y = (float_of_int g.gs_y_coordinates.(p2)) in
+		let cx = 0.0 in
+		let cy = 0.0 in
+		let path = mk_path 1 x y cx cy in
 		DynArray.add arr path;
 	| false, false ->
-		let path = mk_path 2 !pq.gp_x !pq.gp_y (float_of_int g.gs_x_coordinates.(p1)) (float_of_int g.gs_y_coordinates.(p1)) in
+		let x = (float_of_int (g.gs_x_coordinates.(p1) + g.gs_x_coordinates.(p2) - (g.gs_x_coordinates.(p1)))) /. 2. in
+		let y = (float_of_int (g.gs_y_coordinates.(p1) + g.gs_y_coordinates.(p2) - (g.gs_y_coordinates.(p1)))) /. 2. in
+		let cx = !pq.gp_x in
+		let cy = !pq.gp_y in
+		let path = mk_path 2 x y cx cy in
 		DynArray.add arr path;
-		pq := (mk_path (-1) (float_of_int g.gs_x_coordinates.(p2)) (float_of_int g.gs_y_coordinates.(p2)) 0.0 0.0)
+		let x = (float_of_int (g.gs_x_coordinates.(p2))) /. 2. in  
+		let y = (float_of_int (g.gs_y_coordinates.(p2))) /. 2. in
+		let cx = 0.0 in
+		let cy = 0.0 in
+		pq := (mk_path (-1) x y cx cy)
 	| true, false ->
-		pq := (mk_path (-1) (float_of_int g.gs_x_coordinates.(p2)) (float_of_int g.gs_y_coordinates.(p2)) 0.0 0.0)
+		let x = (float_of_int g.gs_x_coordinates.(p2)) in
+		let y = (float_of_int g.gs_y_coordinates.(p2)) in
+		let cx = 0.0 in
+		let cy = 0.0 in
+		pq := (mk_path (-1) x y cx cy)
 	| false, true ->
-		let path = mk_path 2 (float_of_int g.gs_x_coordinates.(p2)) (float_of_int g.gs_y_coordinates.(p2)) !pq.gp_x !pq.gp_y in
+		let x = (float_of_int g.gs_x_coordinates.(p2)) in
+		let y = (float_of_int g.gs_y_coordinates.(p2)) in
+		let cx = !pq.gp_x in
+		let cy = !pq.gp_y in
+		let path = mk_path 2 x y cx cy in
 		DynArray.add arr path
 
 let build_paths ctx g =
@@ -1077,7 +1097,7 @@ let move_to ctx x y =
 let line_to ctx x y =
 	SRStraightEdge {
 		sser_nbits = max (_nbits (twips_of_float x)) (_nbits (twips_of_float y)); (* TODO ? *)
-		sser_line = Some (int_of_float x), Some (twips_of_float y);
+		sser_line = Some (twips_of_float x), Some (twips_of_float y);
 	}
 
 let curve_to ctx cx cy x y =
@@ -1127,10 +1147,21 @@ let write_glyph ctx key glyf =
 			font_char_code = 0; (* TODO *)
 			font_shape = write_paths ctx []; (* TODO *)
 		}
-
+		
 let map_char_code cc c4 =
-	(* TODO: well yeah... *)
-	0
+	(* TODO: well yeah... Done*)
+	let index = ref 0 in
+	let seg_count = c4.c4_seg_count_x2 in
+	for i = 0 to seg_count - 1 do
+		if c4.c4_end_code.(i) >= cc && c4.c4_start_code.(i) <= cc then begin
+			if c4.c4_id_range_offset.(i) > 0 then
+				let v = c4.c4_id_range_offset.(i)/2 + cc - c4.c4_start_code.(i) - seg_count + i in
+				index := c4.c4_glyph_index_array.(v)
+			else
+				index := (c4.c4_id_delta.(i) + cc) mod 65536
+		end
+	done;
+	!index
 
 let make_cmap4_map ctx c4 =
 	let lut = Hashtbl.create 0 in
@@ -1138,7 +1169,7 @@ let make_cmap4_map ctx c4 =
 	let seg_count = c4.c4_seg_count_x2 / 2 in
 	for i = 0 to seg_count - 1 do
 		for j = c4.c4_start_code.(i) to c4.c4_end_code.(i) do
-			let index = i (* map_char_code j c4 *) in
+			let index = map_char_code j c4 in
 			Hashtbl.add lut j index;
 			DynArray.add keys j
 		done;
@@ -1150,7 +1181,9 @@ let bi v = if v then 1 else 0
 let write_font2 ch b f2 =
 	write_byte ch 255; (* 48 DefineFont 1/2 *)
 	write_byte ch 18; (* 48 DefineFont 2/2 *)
+	
 	write_i32 ch 16777215; (* TODO: tag body size/length *)
+	
 	write_ui16 ch 1; (*TODO: Char id *)
 
 	write_bits b 1 (bi (f2.font_layout <> None));
@@ -1164,22 +1197,25 @@ let write_font2 ch b f2 =
 
 	write_byte ch 0; (* TODO: f2.font_language; LCNone *)
 
-	write_byte ch (String.length f2.font_name);
-	nwrite ch f2.font_name;
+	write_byte ch (String.length f2.font_name); (* Font Name length*)
+	nwrite ch f2.font_name; (* Font Name *)
+	
 	write_ui16 ch (Array.length f2.font_glyphs); (* numglyps *)
-	Array.iter (fun _ -> write_ui16 ch 0) f2.font_glyphs; (* TODO: offsetTable *)
-	write_ui16 ch (2 * Array.length f2.font_glyphs); (* TODO: offset to codeTable depends on 16 or 32 bit *)
-
+	
+	(* Glyphs Offset Table *)
+	let glyph_offset = ref ((Array.length f2.font_glyphs) * 2) in
+	Array.iter (fun g -> glyph_offset := !glyph_offset + SwfParser.shape_records_length g.font_shape;)f2.font_glyphs;
+	
+	(* CodeTable Offset depends on 16 or 32 bit (wide codes) TODO *)
+	write_i32 ch !glyph_offset; 
+	
 	Array.iter (fun g ->
-		(* let b = output_bits ch in *)
-		let records_length = SwfParser.shape_records_length g.font_shape in
 		let nlbits = ref g.font_shape.srs_nlbits in
 		let nfbits = ref g.font_shape.srs_nfbits in
 		let character = Char.chr(g.font_char_code) in
 		let s = String.make 1 character in
 		print_string "==================== Glyph start =====================\n";
-		print_string ("char code: " ^ string_of_int g.font_char_code ^ ", char: "^s^"\n");
-		print_string ("records_length bytes: " ^ string_of_int records_length ^ "\n");
+		print_string ("char code: " ^ string_of_int g.font_char_code ^ ", char: " ^ s ^ "\n");
 		List.iter (fun r ->
 			match r with
 			| SRStyleChange s ->
@@ -1218,8 +1254,13 @@ let write_font2 ch b f2 =
 			with _ -> print_string "----------^^ FAILURE!"; print_string "\n\n";
 
 		) g.font_shape.srs_records
-	) f2.font_glyphs
-	(* TODO: rest *)
+	) f2.font_glyphs;
+	
+	(* Code table *)
+	Array.iter (fun g -> write_ui16 ch g.font_char_code;)f2.font_glyphs
+	(* TODO: rest: FontAscent, FontDescent, FontLeading, FontAdvanceTable, KerningTable etc (depends on hasLayout *)
+	
+let string_of_char x = string_of_int (Char.code x)
 
 let print_glyph g =
 	match g with
@@ -1230,6 +1271,7 @@ let print_glyph g =
 		print_endline "===== SIMPLE =====";
 		print_endline (Printf.sprintf "gh_num_contours = %i, gh_xmin = %i, gh_ymin = %i, gh_xmax = %i, gh_ymax = %i" hd.gh_num_contours hd.gh_xmin hd.gh_ymin hd.gh_xmax hd.gh_ymax);
 		print_endline (Printf.sprintf "gs_end_pts_of_contours[%i]: %s" (Array.length gs.gs_end_pts_of_contours) (String.concat "," (Array.to_list (Array.map string_of_int gs.gs_end_pts_of_contours))));
+		print_endline (Printf.sprintf "gs_instructions[%i]: %s" (Array.length gs.gs_instructions) (String.concat "," (Array.to_list (Array.map string_of_char gs.gs_instructions))));
 		print_endline (Printf.sprintf "gs_flags[%i]: %s" (Array.length gs.gs_flags) (String.concat "," (Array.to_list (Array.map string_of_int gs.gs_flags))));
 		print_endline (Printf.sprintf "gs_x_coordinates[%i]: %s" (Array.length gs.gs_x_coordinates) (String.concat "," (Array.to_list (Array.map string_of_int gs.gs_x_coordinates))));
 		print_endline (Printf.sprintf "gs_y_coordinates[%i]: %s" (Array.length gs.gs_y_coordinates) (String.concat "," (Array.to_list (Array.map string_of_int gs.gs_y_coordinates))))
@@ -1264,12 +1306,14 @@ let write_swf ttf range_str =
 		font_layout = None;
 	}
 ;;
+(*
 let ttf = parse (open_in_bin "chopin.ttf") in
-(match List.assoc "glyf" ttf.ttf_tables with TGlyf glyf -> Array.iter print_glyph glyf | _ -> assert false);
+(match List.assoc "glyf" ttf.ttf_tables with TGlyf glyf -> Array.iter print_glyph glyf | _ -> assert false); 
+*)
 
-(* let f2 = write_swf ( "" in
+let f2 = write_swf (parse (open_in_bin "chopin.ttf")) "" in
 let ch = (output_channel (open_out_bin "chopin_test.dat")) in
 let b = output_bits ch in
 write_font2 ch b f2
- *)
+
 (* ocamlopt -I ../extlib -I ../extc enum.cmx extlist.cmx extstring.cmx dynarray.cmx multiarray.cmx swf.cmx io.cmx as3code.cmx as3parse.cmx actionscript.cmx swfparser.cmx ttf.ml -o run.exe *)
