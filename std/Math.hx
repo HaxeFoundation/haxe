@@ -49,7 +49,7 @@ extern class Math
 	static function pow(v:Float,exp:Float):Float;
 	static function random() : Float;
 	
-	#if (flash9 || cpp)
+	#if ((flash9 && !as3) || cpp)
 	
 	static function ffloor( v : Float ) : Float;
 	static function fceil( v : Float ) : Float;

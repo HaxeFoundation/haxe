@@ -157,7 +157,7 @@ class TestBasetypes extends Test {
 
 		eq( Std.int( -10000000000.7), 0xABF41C00 );
 
-		#if (js || flash8)
+		#if (js || flash8 || as3)
 
 		// higher Int resolution : should we fix this or not ?
 		eq( Math.floor( -10000000000.7)*1.0, -10000000001. );
@@ -172,12 +172,9 @@ class TestBasetypes extends Test {
 
 		#end
 
-		#if !as3
 		eq( Math.ffloor( -10000000000.7), -10000000001. );
 		eq( Math.fceil( -10000000000.7), -10000000000. );
 		eq( Math.fround( -10000000000.7), -10000000001. );
-		#end
-
 	}
 
 	function testHash() {
