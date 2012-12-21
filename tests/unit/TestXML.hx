@@ -217,4 +217,13 @@ class TestXML extends Test {
 			eq( Xml.parse(entities[i]).firstChild().nodeValue, values[i] );
 		}
 	}
+	
+	function testMore() {
+		var doc = Xml.parse("<a>A</a><i>I</i>"); 
+		var aElement = doc.elementsNamed('a').next();
+		var iElement = doc.elementsNamed('i').next();
+		iElement.addChild(aElement);
+		
+		eq(doc.toString(), "<i>I<a>A</a></i>");		
+	}
 }

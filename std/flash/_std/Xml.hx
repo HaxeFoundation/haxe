@@ -357,6 +357,8 @@ extern enum XmlType {
 	public function addChild( x : Xml ) : Void {
 		if( nodeType != Xml.Element && nodeType != Xml.Document )
 			throw "bad nodeType";
+		if (x.parent != null)
+			x.parent.removeChild(x);
 		var children:XMLList = _node.children();
 		_node.appendChild(x._node);
 	}
@@ -375,6 +377,8 @@ extern enum XmlType {
 	public function insertChild( x : Xml, pos : Int ) : Void {
 		if( nodeType != Xml.Element && nodeType != Xml.Document )
 			throw "bad nodeType";
+		if (x.parent != null)
+			x.parent.removeChild(x);			
 		var children:XMLList = _node.children();
 		if( pos < children.length() )
 			_node.insertChildBefore(children[pos], x._node);
