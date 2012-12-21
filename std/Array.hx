@@ -121,8 +121,8 @@ extern class Array<T> {
 		If [end] is omitted or exceeds [this].length, it defaults to the end of
 		[this] Array.
 		
-		If [pos] or [end] are negative, their offset is calculated from the end
-		of [this] Array by [this].length + [pos] and [this].length + [end]
+		If [pos] or [end] are negative, their offsets are calculated from the
+		end	of [this] Array by [this].length + [pos] and [this].length + [end]
 		respectively. If this yields a negative value, 0 is used instead.
 		
 		If [pos] exceeds [this].length or if [end} exceeds or equals [pos],
@@ -149,7 +149,21 @@ extern class Array<T> {
 		
 		This operation modifies [this] Array in place.
 		
-		If [len] exceeds [this].length
+		If [pos] or [len] are negative, their values are calculated from the
+		end	of [this] Array by [this].length + [pos] and [this].length + [len]
+		respectively. If this yields a negative value, 0 is used instead.
+		
+		If the resulting value for [len] is 0 or if the resulting value for
+		[pos] exceeds [this].length, the result is [].
+		
+		If the sum of the resulting values for [len] and [pos] exceed
+		[this].length, this operation will affect the elements from [pos] to the
+		end of [this] Array.
+		
+		The length of the returned Array is equal to the new length of [this]
+		Array subtracted from the original length of [this] Array. In other
+		words, each element of the original [this] Array either remains in
+		[this] Array or becomes an element of the returned Array.
 	**/
 	function splice( pos : Int, len : Int ) : Array<T>;
 
