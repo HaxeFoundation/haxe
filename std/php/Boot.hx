@@ -80,7 +80,7 @@ class _hx_array implements ArrayAccess, IteratorAggregate {
 	}
 
 	function join($sep) {
-		return implode($sep, $this->»a);
+		return implode($sep, array_map('_hx_string_rec',$this->»a,array()));
 	}
 
 	function pop() {

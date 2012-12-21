@@ -574,6 +574,11 @@ and gen_expr ctx e =
 		gen_value ctx e;
 		print ctx "[\"%s\"]" s;
 		print ctx " as %s)" (type_str ctx e.etype e.epos);
+	| TField({eexpr = TArrayDecl _} as e1,s) | TClosure({eexpr = TArrayDecl _} as e1,s) ->
+		spr ctx "(";
+		gen_expr ctx e1;
+		spr ctx ")";
+		gen_field_access ctx e1.etype s
 	| TField (e,s) | TClosure (e,s) ->
    		gen_value ctx e;
 		gen_field_access ctx e.etype s
