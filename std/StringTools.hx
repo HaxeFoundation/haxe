@@ -20,10 +20,11 @@
  * DEALINGS IN THE SOFTWARE.
  */
 /**
-	The StringTools class contains some extra functionalities for [String]
-	manipulation. It's stored in a different class in order to prevent
-	the standard [String] of being bloated and thus increasing the size of
-	each application using it.
+	This class provides advanced methods on Strings. It is ideally used with
+	'using StringTools' and then acts as an extension to the String class.
+	
+	If the first argument to any of the methods is null, the result is
+	unspecified.
 **/
 #if cs
 @:keep
@@ -81,7 +82,15 @@ class StringTools {
 	}
 
 	/**
-		Escape HTML special characters of the string.
+		Escapes HTML special characters of the string [s].
+		
+		The following replacements are made:
+			- & becomes &amp;
+			- < becomes &lt;
+			- > becomes &gt;
+		If [quotes] is true, the following characters are also replaced:
+			- " becomes &quot;
+			- ' becomes &#039;
 	**/
 	public static function htmlEscape( s : String, ?quotes : Bool ) : String {
 		s = s.split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;");
@@ -89,7 +98,17 @@ class StringTools {
 	}
 
 	/**
-		Unescape HTML special characters of the string.
+		Unescapes HTML special characters of the string [s].
+		
+		This is the inverse operation to htmlEscape, i.e. the following always
+		holds: htmlUnescape(htmlEscape(s)) == s
+		
+		The replacements follow:
+			- &amp; becomes &
+			- &lt; becomes <
+			- &gt; becomes >
+			- &quot; becomes "
+			- &#039; becomes '
 	**/
 	public static function htmlUnescape( s : String ) : String {
 		return s.split("&gt;").join(">").split("&lt;").join("<").split("&quot;").join('"').split("&#039;").join("'").split("&amp;").join("&");
@@ -97,6 +116,10 @@ class StringTools {
 
 	/**
 		Tells if the string [s] starts with the string [start].
+		
+		If [start] is null, the result is unspecified.
+		
+		If [start] is the empty String "", the result is true.
 	**/
 	public static #if (cs || java) inline #end function startsWith( s : String, start : String ) : Bool {
 		#if java
@@ -110,6 +133,10 @@ class StringTools {
 
 	/**
 		Tells if the string [s] ends with the string [end].
+		
+		If [end] is null, the result is unspecified.
+		
+		If [end] is the empty String "", the result is true.		
 	**/
 	public static #if (cs || java) inline #end function endsWith( s : String, end : String ) : Bool {
 		#if java
@@ -125,6 +152,12 @@ class StringTools {
 
 	/**
 		Tells if the character in the string [s] at position [pos] is a space.
+		
+		A character is considered to be a space character if its character code
+		is 9,10,11,12,13 or 32.
+		
+		If [s] is the empty String "", or if pos is not a valid position within
+		[s], the result is false.
 	**/
 	public static function isSpace( s : String, pos : Int ) : Bool {
 		var c = s.charCodeAt( pos );
@@ -132,7 +165,13 @@ class StringTools {
 	}
 
 	/**
-		Removes spaces at the left of the String [s].
+		Removes leading space characters of [s].
+		
+		This function internally calls isSpace() to decide which characters to
+		remove.
+		
+		If [s] is the empty String "" or consists only of space characters, the
+		result is the empty String "".
 	**/
 	public #if cs inline #end static function ltrim( s : String ) : String {
 		#if cs
@@ -151,7 +190,13 @@ class StringTools {
 	}
 
 	/**
-		Removes spaces at the right of the String [s].
+		Removes trailing space characters of [s].
+		
+		This function internally calls isSpace() to decide which characters to
+		remove.
+		
+		If [s] is the empty String "" or consists only of space characters, the
+		result is the empty String "".
 	**/
 	public #if cs inline #end static function rtrim( s : String ) : String {
 		#if cs
@@ -171,7 +216,9 @@ class StringTools {
 	}
 
 	/**
-		Removes spaces at the beginning and the end of the String [s].
+		Removes leading and trailing space characters of [s].
+		
+		This is a convenience function for ltrim(rtrim(s)).
 	**/
 	public #if (cs || java) inline #end static function trim( s : String ) : String {
 		#if cs
@@ -182,48 +229,61 @@ class StringTools {
 		return ltrim(rtrim(s));
 		#end
 	}
+	
+	/**
+		Concatenates [c] to [s] until [s].length is at least [l].
+		
+		If [c] is the empty String "" or if [l] does not exceed [s].length,
+		[s] is returned unchanged.
+		
+		If [c].length is 1, the resulting String length is exactly [l].
+		
+		Otherwise the length may exceed [l].
+		
+		If [c] is null, the result is unspecified.
+	**/
+	public static function lpad( s : String, c : String, l : Int ) : String {
+		if (c.length <= 0)
+			return s;
+			
+		while (s.length < l) {
+			s = c + s;
+		}
+		return s;
+	}	
 
 	/**
-		Pad the string [s] by appending [c] at its right until it reach [l] characters.
+		Appends [c] to [s] until [s].length is at least [l].
+		
+		If [c] is the empty String "" or if [l] does not exceed [s].length,
+		[s] is returned unchanged.
+		
+		If [c].length is 1, the resulting String length is exactly [l].
+		
+		Otherwise the length may exceed [l].
+		
+		If [c] is null, the result is unspecified.
 	**/
 	public static function rpad( s : String, c : String, l : Int ) : String {
-		var sl = s.length;
-		var cl = c.length;
-		while( sl < l ){
-			if( l - sl < cl ){
-				s += c.substr(0,l-sl);
-				sl = l;
-			}else{
-				s += c;
-				sl += cl;
-			}
+		if (c.length <= 0)
+			return s;
+			
+		while (s.length < l) {
+			s = s + c;
 		}
 		return s;
 	}
 
 	/**
-		Pad the string [s] by appending [c] at its left until it reach [l] characters.
-	**/
-	public static function lpad( s : String, c : String, l : Int ) : String {
-		var ns = "";
-		var sl = s.length;
-		if( sl >= l ) return s;
-
-		var cl = c.length;
-		while( sl < l ){
-			if( l - sl < cl ){
-				ns += c.substr(0,l-sl);
-				sl = l;
-			}else{
-				ns += c;
-				sl += cl;
-			}
-		}
-		return ns+s;
-	}
-
-	/**
-		Replace all occurences of the string [sub] in the string [s] by the string [by].
+		Replace all occurences of the String [sub] in the String [s] by the
+		String [by].
+		
+		If [sub] is the empty String "", [by] is inserted after each character
+		of [s]. If [by] is also the empty String "", [s] remains unchanged.
+		
+		This is a convenience function for [s].split([sub]).join([by]).
+		
+		If [sub] or [by] are null, the result is unspecified.
 	**/
 	public #if (java || cs) inline #end static function replace( s : String, sub : String, by : String ) : String {
 		#if java
@@ -236,7 +296,10 @@ class StringTools {
 	}
 
 	/**
-		Encode a number into a hexadecimal representation, with an optional number of zeros for left padding.
+		Encodes [n] into a hexadecimal representation.
+		
+		If [digits] is specified, the resulting String is padded with "0" until
+		its length equals [digits].
 	**/
 	public static function hex( n : Int, ?digits : Int ) {
 		#if flash9
@@ -258,8 +321,14 @@ class StringTools {
 	}
 
 	/**
-		Provides a fast native string charCodeAt access. Since the EOF value might vary depending on the platforms, always test with StringTools.isEOF.
-		Only guaranteed to work if index in [0,s.length] range. Might not work with strings containing \0 char.
+		Returns the character code at position [index] of String [s].
+		
+		This method is faster than String.charCodeAt() on most platforms.
+		However, unlike String.charCodeAt(), the result is unspecified if
+		[index] is negative or exceeds [s].length.
+		
+		This operation is not guaranteed to work if [s] contains the \0
+		character. The method isEOF() can be used to check for that.
 	**/
 	public static inline function fastCodeAt( s : String, index : Int ) : Int untyped {
 		#if neko
@@ -285,11 +354,8 @@ class StringTools {
 		#end
 	}
 
-	#if java
-	private static inline function _charAt(str:String, idx:Int):java.StdTypes.Char16 return untyped str._charAt(idx)
-	#end
 	/*
-		Only to use together with fastCodeAt.
+		Tells if [c] represents the end-of-file (EOF) character.
 	*/
 	public static inline function isEOF( c : Int ) : Bool {
 		#if (flash9 || cpp)
@@ -309,6 +375,10 @@ class StringTools {
 		#end
 	}
 
+	#if java
+	private static inline function _charAt(str:String, idx:Int):java.StdTypes.Char16 return untyped str._charAt(idx)
+	#end
+	
 	#if neko
 	private static var _urlEncode = neko.Lib.load("std","url_encode",1);
 	private static var _urlDecode = neko.Lib.load("std","url_decode",1);

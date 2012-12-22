@@ -66,11 +66,11 @@
 	}
 
 	public inline static function rpad( s : String, c : String, l : Int ) : String {
-		return untyped __call__("str_pad", s, l, c, __php__("STR_PAD_RIGHT"));
+		return c.length == 0 ? s : untyped __call__("str_pad", s, l, c, __php__("STR_PAD_RIGHT"));
 	}
 
 	public inline static function lpad( s : String, c : String, l : Int ) : String {
-		return untyped __call__("str_pad", s, l, c, __php__("STR_PAD_LEFT"));
+		return c.length == 0 ? s : untyped __call__("str_pad", s, l, c, __php__("STR_PAD_LEFT"));
 	}
 
 	public inline static function replace( s : String, sub : String, by : String ) : String {

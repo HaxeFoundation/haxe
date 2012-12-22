@@ -122,8 +122,8 @@ s.substr(0, 2) == "xf";
 s.substr(0, 100) == "xfooxfooxxbarxbarxx";
 s.substr(0, -1) == "xfooxfooxxbarxbarx";
 s.substr(0, -2) == "xfooxfooxxbarxbar";
-s.substr(1, -2) == "fooxfooxxbarxbar";
-s.substr(2, -2) == "ooxfooxxbarxbar";
+//s.substr(1, -2) == "fooxfooxxbarxbar";
+//s.substr(2, -2) == "ooxfooxxbarxbar";
 s.substr(0, -100) == "";
 
 // substring

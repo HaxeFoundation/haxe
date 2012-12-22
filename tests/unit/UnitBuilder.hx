@@ -75,10 +75,16 @@ class UnitBuilder {
 			var e = switch(e.expr) {
 				case EBinop(OpEq, e1, { expr: EConst(CIdent("false")) } )
 				| EBinop(OpEq, { expr: EConst(CIdent("false")) }, e1):
-					macro f($e1);					
+					{
+						expr: (macro f($e1)).expr,
+						pos: e.pos
+					}
 				case EBinop(OpEq, e1, { expr: EConst(CIdent("true")) } )
 				| EBinop(OpEq, { expr: EConst(CIdent("true")) }, e1):
-					macro t($e1);
+					{
+						expr: (macro t($e1)).expr,
+						pos: e.pos
+					}
 				case EBinop(OpEq, e1, { expr: EArrayDecl(el) } )
 				| EBinop(OpEq, { expr: EArrayDecl(el) }, e1 ):
 					var el2 = [];
