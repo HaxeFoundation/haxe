@@ -725,9 +725,9 @@ let configure gen =
       | TInst ({ cl_kind = KTypeParameter _; cl_path=p }, []) -> snd p
       | TMono r -> (match !r with | None -> "object" | Some t -> t_s (run_follow gen t))
       | TInst ({ cl_path = [], "String" }, []) -> "string"
-      | TEnum ({ e_path = p }, params) -> (path_s p)
+      | TEnum ({ e_path = p }, params) -> ("global::" ^ path_s p)
       | TInst (({ cl_path = p } as cl), _ :: _) when has_meta ":$enum" cl.cl_meta ->
-        path_s p
+        "global::" ^ path_s p
       | TInst (({ cl_path = p } as cl), params) -> (path_param_s (TClassDecl cl) p params)
       | TType (({ t_path = p } as t), params) -> (path_param_s (TTypeDecl t) p params)
       | TAnon (anon) ->
@@ -740,8 +740,8 @@ let configure gen =
 
   and path_param_s md path params =
       match params with
-        | [] -> path_s path
-        | _ -> sprintf "%s<%s>" (path_s path) (String.concat ", " (List.map (fun t -> t_s t) (change_param_type md params)))
+        | [] -> "global::" ^ path_s path
+        | _ -> sprintf "%s<%s>" ("global::" ^ path_s path) (String.concat ", " (List.map (fun t -> t_s t) (change_param_type md params)))
   in
 
   let rett_s t =
@@ -870,7 +870,7 @@ let configure gen =
         | TLocal var ->
           write_id w var.v_name
         | TEnumField (e, s) ->
-          print w "%s." (path_s e.e_path); write_field w s
+          print w "%s." ("global::" ^ path_s e.e_path); write_field w s
         | TArray (e1, e2) ->
           expr_s w e1; write w "["; expr_s w e2; write w "]"
         | TBinop ((Ast.OpAssign as op), e1, e2)
@@ -882,8 +882,8 @@ let configure gen =
           write w " )"
         | TField ({ eexpr = TTypeExpr mt }, s) | TClosure ({ eexpr = TTypeExpr mt }, s) ->
           (match mt with
-            | TClassDecl { cl_path = (["haxe"], "Int64") } -> write w (path_s (["haxe"], "Int64"))
-            | TClassDecl { cl_path = (["haxe"], "Int32") } -> write w (path_s (["haxe"], "Int32"))
+            | TClassDecl { cl_path = (["haxe"], "Int64") } -> write w ("global::" ^ path_s (["haxe"], "Int64"))
+            | TClassDecl { cl_path = (["haxe"], "Int32") } -> write w ("global::" ^ path_s (["haxe"], "Int32"))
             | TClassDecl cl -> write w (t_s (TInst(cl, List.map (fun _ -> t_empty) cl.cl_types)))
             | TEnumDecl en -> write w (t_s (TEnum(en, List.map (fun _ -> t_empty) en.e_types)))
             | TTypeDecl td -> write w (t_s (gen.gfollow#run_f (TType(td, List.map (fun _ -> t_empty) td.t_types))))
@@ -895,8 +895,8 @@ let configure gen =
           expr_s w e; write w "."; write_field w s
         | TTypeExpr mt ->
           (match mt with
-            | TClassDecl { cl_path = (["haxe"], "Int64") } -> write w (path_s (["haxe"], "Int64"))
-            | TClassDecl { cl_path = (["haxe"], "Int32") } -> write w (path_s (["haxe"], "Int32"))
+            | TClassDecl { cl_path = (["haxe"], "Int64") } -> write w ("global::" ^ path_s (["haxe"], "Int64"))
+            | TClassDecl { cl_path = (["haxe"], "Int32") } -> write w ("global::" ^ path_s (["haxe"], "Int32"))
             | TClassDecl cl -> write w (t_s (TInst(cl, List.map (fun _ -> t_dynamic) cl.cl_types)))
             | TEnumDecl en -> write w (t_s (TEnum(en, List.map (fun _ -> t_dynamic) en.e_types)))
             | TTypeDecl td -> write w (t_s (gen.gfollow#run_f (TType(td, List.map (fun _ -> t_dynamic) td.t_types))))

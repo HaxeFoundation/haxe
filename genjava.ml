@@ -764,6 +764,46 @@ let configure gen =
       | _ -> t_dynamic
   in
 
+  let scope = ref PMap.empty in
+  let imports = ref [] in
+
+  let clear_scope () =
+    scope := PMap.empty;
+    imports := [];
+  in
+
+  let add_scope name =
+    scope := PMap.add name () !scope
+  in
+
+  let add_import pos path =
+    let name = snd path in
+    let rec loop = function
+      | (pack, n) :: _ when name = n ->
+          if path <> (pack,n) then
+            gen.gcon.error ("This expression cannot be generated because " ^ path_s path ^ " is shadowed by the current scope and ") pos
+      | _ :: tl ->
+          loop tl
+      | [] ->
+          (* add import *)
+          imports := path :: !imports
+    in
+    loop !imports
+  in
+
+  let path_s_import pos path = match path with
+    | [], name when PMap.mem name !scope ->
+        gen.gcon.error ("This expression cannot be generated because " ^ name ^ " is shadowed by the current scope") pos;
+        name
+    | pack1 :: _, name when PMap.mem pack1 !scope -> (* exists in scope *)
+        add_import pos path;
+        (* check if name exists in scope *)
+        if PMap.mem name !scope then
+          gen.gcon.error ("This expression cannot be generated because " ^ pack1 ^ " and " ^ name ^ " are both shadowed by the current scope") pos;
+        name
+    | _ -> path_s path
+  in
+
   let is_dynamic t = match real_type t with
     | TMono _ | TDynamic _ -> true
     | TAnon anon ->
@@ -774,13 +814,14 @@ let configure gen =
     | _ -> false
   in
 
-  let rec t_s t =
+  let rec t_s pos t =
     match real_type t with
       (* basic types *)
       | TEnum ({ e_path = ([], "Bool") }, [])
       | TAbstract ({ a_path = ([], "Bool") },[]) -> "boolean"
       | TEnum ({ e_path = ([], "Void") }, [])
-      | TAbstract ({ a_path = ([], "Void") },[]) -> "java.lang.Object"
+      | TAbstract ({ a_path = ([], "Void") },[]) ->
+          path_s_import pos (["java";"lang"], "Object")
       | TInst ({ cl_path = ([],"Float") },[])
       | TAbstract ({ a_path = ([],"Float") },[]) -> "double"
       | TInst ({ cl_path = ([],"Int") },[])
@@ -804,67 +845,83 @@ let configure gen =
           match real_type t with
             | TInst({ cl_path = (["java"], "NativeArray") }, [param]) ->
               (check_t_s param) ^ "[]"
-            | _ -> t_s (run_follow gen t)
+            | _ -> t_s pos (run_follow gen t)
         in
         (check_t_s param) ^ "[]"
+
       (* end of basic types *)
       | TInst ({ cl_kind = KTypeParameter _; cl_path=p }, []) -> snd p
-      | TAbstract ({ a_path = [], "Dynamic" },[]) -> "java.lang.Object"
-      | TMono r -> (match !r with | None -> "java.lang.Object" | Some t -> t_s (run_follow gen t))
-      | TInst ({ cl_path = [], "String" }, []) -> "java.lang.String"
+      | TAbstract ({ a_path = [], "Dynamic" },[]) ->
+          path_s_import pos (["java";"lang"], "Object")
+      | TMono r -> (match !r with | None -> "java.lang.Object" | Some t -> t_s pos (run_follow gen t))
+      | TInst ({ cl_path = [], "String" }, []) ->
+          path_s_import pos (["java";"lang"], "String")
 	    | TAbstract ({ a_path = [], "Class" }, _) | TAbstract ({ a_path = [], "Enum" }, _)
       | TInst ({ cl_path = [], "Class" }, _) | TInst ({ cl_path = [], "Enum" }, _) -> assert false (* should have been converted earlier *)
-      | TEnum (({e_path = p;} as e), params) -> (path_param_s (TEnumDecl e) p params)
-      | TInst (({cl_path = p;} as cl), params) -> (path_param_s (TClassDecl cl) p params)
-      | TType (({t_path = p;} as t), params) -> (path_param_s (TTypeDecl t) p params)
+      | TEnum (({e_path = p;} as e), params) -> (path_param_s pos (TEnumDecl e) p params)
+      | TInst (({cl_path = p;} as cl), params) -> (path_param_s pos (TClassDecl cl) p params)
+      | TType (({t_path = p;} as t), params) -> (path_param_s pos (TTypeDecl t) p params)
       | TAnon (anon) ->
         (match !(anon.a_status) with
-          | Statics _ | EnumStatics _ | AbstractStatics _ -> "java.lang.Class"
-          | _ -> "java.lang.Object")
-      | TDynamic _ -> "java.lang.Object"
+          | Statics _ | EnumStatics _ | AbstractStatics _ ->
+              path_s_import pos (["java";"lang"], "Class")
+          | _ ->
+              path_s_import pos (["java";"lang"], "Object"))
+        | TDynamic _ ->
+            path_s_import pos (["java";"lang"], "Object")
       (* No Lazy type nor Function type made. That's because function types will be at this point be converted into other types *)
       | _ -> if !strict_mode then begin trace ("[ !TypeError " ^ (Type.s_type (Type.print_context()) t) ^ " ]"); assert false end else "[ !TypeError " ^ (Type.s_type (Type.print_context()) t) ^ " ]"
 
-  and param_t_s t =
+  and param_t_s pos t =
     match run_follow gen t with
       | TEnum ({ e_path = ([], "Bool") }, [])
-      | TAbstract ({ a_path = ([], "Bool") },[]) -> "java.lang.Boolean"
+      | TAbstract ({ a_path = ([], "Bool") },[]) ->
+          path_s_import pos (["java";"lang"], "Boolean")
       | TInst ({ cl_path = ([],"Float") },[])
-      | TAbstract ({ a_path = ([],"Float") },[]) -> "java.lang.Double"
+      | TAbstract ({ a_path = ([],"Float") },[]) ->
+          path_s_import pos (["java";"lang"], "Double")
       | TInst ({ cl_path = ([],"Int") },[])
-      | TAbstract ({ a_path = ([],"Int") },[]) -> "java.lang.Integer"
+      | TAbstract ({ a_path = ([],"Int") },[]) ->
+          path_s_import pos (["java";"lang"], "Integer")
       | TType ({ t_path = ["haxe";"_Int64"], "NativeInt64" },[])
-      | TAbstract ({ a_path = ["haxe";"_Int64"], "NativeInt64" },[]) -> "java.lang.Long"
+      | TAbstract ({ a_path = ["haxe";"_Int64"], "NativeInt64" },[]) ->
+          path_s_import pos (["java";"lang"], "Long")
       | TInst ({ cl_path = ["haxe"],"Int64" },[])
-      | TAbstract ({ a_path = ["haxe"],"Int64" },[]) -> "java.lang.Long"
+      | TAbstract ({ a_path = ["haxe"],"Int64" },[]) ->
+          path_s_import pos (["java";"lang"], "Long")
       | TInst ({ cl_path = ["haxe"],"Int32" },[])
-      | TAbstract ({ a_path = ["haxe"],"Int32" },[]) -> "java.lang.Integer"
+      | TAbstract ({ a_path = ["haxe"],"Int32" },[]) ->
+          path_s_import pos (["java";"lang"], "Integer")
       | TType ({ t_path = ["java"],"Int8" },[])
-      | TAbstract ({ a_path = ["java"],"Int8" },[]) -> "java.lang.Byte"
+      | TAbstract ({ a_path = ["java"],"Int8" },[]) ->
+          path_s_import pos (["java";"lang"], "Byte")
       | TType ({ t_path = ["java"],"Int16" },[])
-      | TAbstract ({ a_path = ["java"],"Int16" },[]) -> "java.lang.Short"
+      | TAbstract ({ a_path = ["java"],"Int16" },[]) ->
+          path_s_import pos (["java";"lang"], "Short")
       | TType ({ t_path = ["java"],"Char16" },[])
-      | TAbstract ({ a_path = ["java"],"Char16" },[]) -> "java.lang.Character"
+      | TAbstract ({ a_path = ["java"],"Char16" },[]) ->
+          path_s_import pos (["java";"lang"], "Character")
       | TType ({ t_path = [],"Single" },[])
-      | TAbstract ({ a_path = [],"Single" },[]) -> "java.lang.Float"
+      | TAbstract ({ a_path = [],"Single" },[]) ->
+          path_s_import pos (["java";"lang"], "Float")
       | TDynamic _ -> "?"
-      | TInst (cl, params) -> t_s (TInst(cl, change_param_type (TClassDecl cl) params))
-      | TType (cl, params) -> t_s (TType(cl, change_param_type (TTypeDecl cl) params))
-      | TEnum (e, params) -> t_s (TEnum(e, change_param_type (TEnumDecl e) params))
-      | _ -> t_s t
+      | TInst (cl, params) -> t_s pos (TInst(cl, change_param_type (TClassDecl cl) params))
+      | TType (cl, params) -> t_s pos (TType(cl, change_param_type (TTypeDecl cl) params))
+      | TEnum (e, params) -> t_s pos (TEnum(e, change_param_type (TEnumDecl e) params))
+      | _ -> t_s pos t
 
-  and path_param_s md path params =
+  and path_param_s pos md path params =
       match params with
-        | [] -> path_s path
-        | _ when has_tdynamic params -> path_s path
-        | _ -> sprintf "%s<%s>" (path_s path) (String.concat ", " (List.map (fun t -> param_t_s t) (change_param_type md params)))
+        | [] -> path_s_import pos path
+        | _ when has_tdynamic params -> path_s_import pos path
+        | _ -> sprintf "%s<%s>" (path_s_import pos path) (String.concat ", " (List.map (fun t -> param_t_s pos t) (change_param_type md params)))
   in
 
-  let rett_s t =
+  let rett_s pos t =
     match t with
       | TEnum ({e_path = ([], "Void")}, [])
       | TAbstract ({ a_path = ([], "Void") },[]) -> "void"
-      | _ -> t_s t
+      | _ -> t_s pos t
   in
 
   let escape ichar b =
@@ -902,17 +959,17 @@ let configure gen =
 
   let in_value = ref false in
 
-  let rec md_s md =
+  let rec md_s pos md =
     let md = follow_module (gen.gfollow#run_f) md in
     match md with
       | TClassDecl (cl) ->
-        t_s (TInst(cl,[]))
+        t_s pos (TInst(cl,[]))
       | TEnumDecl (e) ->
-        t_s (TEnum(e,[]))
+        t_s pos (TEnum(e,[]))
       | TTypeDecl t ->
-        t_s (TType(t, []))
+        t_s pos (TType(t, []))
       | TAbstractDecl a ->
-        t_s (TAbstract(a, []))
+        t_s pos (TAbstract(a, []))
   in
 
   (*
@@ -973,12 +1030,12 @@ let configure gen =
         | TLocal { v_name = "__fallback__" } -> ()
         | TLocal { v_name = "__sbreak__" } -> write w "break"
         | TLocal { v_name = "__undefined__" } ->
-          write w (t_s (TInst(runtime_cl, List.map (fun _ -> t_dynamic) runtime_cl.cl_types)));
+          write w (t_s e.epos (TInst(runtime_cl, List.map (fun _ -> t_dynamic) runtime_cl.cl_types)));
           write w ".undefined";
         | TLocal var ->
           write_id w var.v_name
-        | TEnumField (e, s) ->
-          print w "%s." (path_s e.e_path); write_field w s
+        | TEnumField (en, s) ->
+          print w "%s." (path_s_import e.epos en.e_path); write_field w s
         | TArray (e1, e2) ->
           expr_s w e1; write w "["; expr_s w e2; write w "]"
         | TBinop ((Ast.OpAssign as op), e1, e2)
@@ -991,14 +1048,14 @@ let configure gen =
         | TField (e, s) | TClosure (e, s) ->
           expr_s w e; write w "."; write_field w s
         | TTypeExpr (TClassDecl { cl_path = (["haxe"], "Int32") }) ->
-          write w (path_s (["haxe"], "Int32"))
+          write w (path_s_import e.epos (["haxe"], "Int32"))
         | TTypeExpr (TClassDecl { cl_path = (["haxe"], "Int64") }) ->
-          write w (path_s (["haxe"], "Int64"))
-        | TTypeExpr mt -> write w (md_s mt)
+          write w (path_s_import e.epos (["haxe"], "Int64"))
+        | TTypeExpr mt -> write w (md_s e.epos mt)
         | TParenthesis e ->
           write w "("; expr_s w e; write w ")"
         | TArrayDecl el when t_has_type_param_shallow false e.etype ->
-          print w "( (%s) (new java.lang.Object[] " (t_s e.etype);
+          print w "( (%s) (new java.lang.Object[] " (t_s e.epos e.etype);
           write w "{";
           ignore (List.fold_left (fun acc e ->
             (if acc <> 0 then write w ", ");
@@ -1007,7 +1064,7 @@ let configure gen =
           ) 0 el);
           write w "}) )"
         | TArrayDecl el ->
-          print w "new %s" (param_t_s (transform_nativearray_t e.etype));
+          print w "new %s" (param_t_s e.epos (transform_nativearray_t e.etype));
           let is_double = match follow e.etype with
            | TInst(_,[ t ]) -> if like_float t && not (like_int t) then Some t else None
            | _ -> None
@@ -1031,7 +1088,7 @@ let configure gen =
           write w "( ";
           expr_s w expr;
           write w " instanceof ";
-          write w (md_s md);
+          write w (md_s e.epos md);
           write w " )"
         | TCall ({ eexpr = TLocal( { v_name = "__java__" } ) }, [ { eexpr = TConst(TString(s)) } ] ) ->
           write w s
@@ -1087,7 +1144,7 @@ let configure gen =
               | TInst({ cl_path = (["java"], "NativeArray") }, [param]) ->
                 (check_t_s param (times+1))
               | _ ->
-                print w "new %s[" (t_s (transform_nativearray_t t));
+                print w "new %s[" (t_s e.epos (transform_nativearray_t t));
                 expr_s w size;
                 print w "]";
                 let rec loop i =
@@ -1098,7 +1155,7 @@ let configure gen =
           check_t_s (TInst(cl, params)) 0
         | TNew ({ cl_path = ([], "String") } as cl, [], el) ->
           write w "new ";
-          write w (t_s (TInst(cl, [])));
+          write w (t_s e.epos (TInst(cl, [])));
           write w "(";
           ignore (List.fold_left (fun acc e ->
             (if acc <> 0 then write w ", ");
@@ -1108,7 +1165,7 @@ let configure gen =
           write w ")"
         | TNew (cl, params, el) ->
           write w "new ";
-          write w (path_param_s (TClassDecl cl) cl.cl_path params);
+          write w (path_param_s e.epos (TClassDecl cl) cl.cl_path params);
           write w "(";
           ignore (List.fold_left (fun acc e ->
             (if acc <> 0 then write w ", ");
@@ -1128,7 +1185,7 @@ let configure gen =
         | TVars (v_eop_l) ->
           ignore (List.fold_left (fun acc (var, eopt) ->
             (if acc <> 0 then write w "; ");
-            print w "%s " (t_s var.v_type);
+            print w "%s " (t_s e.epos var.v_type);
             write_id w var.v_name;
             (match eopt with
               | None ->
@@ -1225,8 +1282,9 @@ let configure gen =
           write w "try ";
           in_value := false;
           expr_s w (mk_block tryexpr);
+          let pos = e.epos in
           List.iter (fun (var, e) ->
-            print w "catch (%s %s)" (t_s var.v_type) (var.v_name);
+            print w "catch (%s %s)" (t_s pos var.v_type) (var.v_name);
             in_value := false;
             expr_s w (mk_block e);
             newline w
@@ -1247,7 +1305,7 @@ let configure gen =
               write w ") )"
             | _ ->*)
               (* FIXME I'm ignoring module type *)
-              print w "((%s) (" (t_s e.etype);
+              print w "((%s) (" (t_s e.epos e.etype);
               expr_s w e1;
               write w ") )"
           )
@@ -1276,7 +1334,7 @@ let configure gen =
                 | [] -> acc
                 | _ -> acc) (* TODO
                 | _ -> (sprintf " where %s : %s" name (String.concat ", " (List.map (fun (cl,p) -> path_param_s (TClassDecl cl) cl.cl_path p) cl.cl_implements))) :: acc ) *)
-            | _ -> trace (t_s t); assert false (* FIXME it seems that a cl_types will never be anything other than cl.cl_types. I'll take the risk and fail if not, just to see if that confirms *)
+            | _ -> trace (t_s Ast.null_pos t); assert false (* FIXME it seems that a cl_types will never be anything other than cl.cl_types. I'll take the risk and fail if not, just to see if that confirms *)
         ) [] cl_types in
         (params, String.concat " " params_extends)
   in
@@ -1295,7 +1353,7 @@ let configure gen =
       | Method (MethDynamic) ->
         if not is_interface then begin
           let access, modifiers = get_fun_modifiers cf.cf_meta "public" [] in
-          print w "%s %s%s %s %s;" access (if is_static then "static " else "") (String.concat " " modifiers) (t_s (run_follow gen cf.cf_type)) (change_field name)
+          print w "%s %s%s %s %s;" access (if is_static then "static " else "") (String.concat " " modifiers) (t_s cf.cf_pos (run_follow gen cf.cf_type)) (change_field name)
         end (* TODO see how (get,set) variable handle when they are interfaces *)
       | Method mkind ->
         let is_virtual = is_new || (not is_final && match mkind with | MethInline -> false | _ when not is_new -> true | _ -> false) in
@@ -1350,10 +1408,10 @@ let configure gen =
         (if is_override && not is_interface then write w "@Override ");
         (* public static void funcName *)
         let params, _ = get_string_params cf.cf_params in
-        print w "%s %s%s %s %s %s" (visibility) v_n (String.concat " " modifiers) params (if is_new then "" else rett_s (run_follow gen ret_type)) (change_field name);
+        print w "%s %s%s %s %s %s" (visibility) v_n (String.concat " " modifiers) params (if is_new then "" else rett_s cf.cf_pos (run_follow gen ret_type)) (change_field name);
 
         (* <T>(string arg1, object arg2) with T : object *)
-        print w "(%s)" (String.concat ", " (List.map (fun (name, _, t) -> sprintf "%s %s" (t_s (run_follow gen t)) (change_id name)) args));
+        print w "(%s)" (String.concat ", " (List.map (fun (name, _, t) -> sprintf "%s %s" (t_s cf.cf_pos (run_follow gen t)) (change_id name)) args));
         if is_interface then
           write w ";"
         else begin
@@ -1419,6 +1477,22 @@ let configure gen =
 
     write w "import haxe.root.*;";
     newline w;
+    let w_header = w in
+    let w = new_source_writer () in
+    clear_scope();
+
+    (* add all haxe.root.* to imports *)
+    List.iter (function
+      | TClassDecl { cl_path = ([],c) } ->
+          imports := ([],c) :: !imports
+      | TEnumDecl { e_path = ([],c) } ->
+          imports := ([],c) :: !imports
+      | TAbstractDecl { a_path = ([],c) } ->
+          imports := ([],c) :: !imports
+      | _ -> ()
+    ) gen.gcon.types;
+
+    newline w;
     write w "@SuppressWarnings(value={";
     let first = ref true in
     List.iter (fun s ->
@@ -1434,7 +1508,7 @@ let configure gen =
     print w "%s %s %s %s" access (String.concat " " modifiers) clt (change_clname (snd cl.cl_path));
     (* type parameters *)
     let params, _ = get_string_params cl.cl_types in
-    let cl_p_to_string (cl,p) = path_param_s (TClassDecl cl) cl.cl_path p in
+    let cl_p_to_string (c,p) = path_param_s cl.cl_pos (TClassDecl c) c.cl_path p in
     print w "%s" params;
     (if is_some cl.cl_super then print w " extends %s" (cl_p_to_string (get cl.cl_super)));
     (match cl.cl_implements with
@@ -1446,6 +1520,15 @@ let configure gen =
     begin_block w;
     (* our constructor is expected to be a normal "new" function *
     if !strict_mode && is_some cl.cl_constructor then assert false;*)
+
+    let rec loop cl =
+      List.iter (fun cf -> add_scope cf.cf_name) cl.cl_ordered_fields;
+      List.iter (fun cf -> add_scope cf.cf_name) cl.cl_ordered_statics;
+      match cl.cl_super with
+        | Some(c,_) -> loop c
+        | None -> ()
+    in
+    loop cl;
 
     let rec loop meta =
       match meta with
@@ -1483,7 +1566,17 @@ let configure gen =
       List.iter (gen_class_field w true cl is_final) cl.cl_ordered_statics);
     List.iter (gen_class_field w false cl is_final) cl.cl_ordered_fields;
     end_block w;
-    if should_close then end_block w
+    if should_close then end_block w;
+
+    (* add imports *)
+    List.iter (function
+      | ["haxe";"root"], _ | [], _ -> ()
+      | path ->
+          write w_header "import ";
+          write w_header (path_s path);
+          write w_header ";\n"
+    ) !imports;
+    add_writer w w_header
   in
 
 

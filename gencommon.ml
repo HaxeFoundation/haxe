@@ -292,6 +292,8 @@ struct
       sw_indents = [];
     }
 
+  let add_writer w_write w_read = Buffer.add_buffer w_read.sw_buf w_write.sw_buf
+
   let contents w = Buffer.contents w.sw_buf
 
   let len w = Buffer.length w.sw_buf
