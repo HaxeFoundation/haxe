@@ -328,7 +328,7 @@ class StringTools {
 		[index] is negative or exceeds [s].length.
 		
 		This operation is not guaranteed to work if [s] contains the \0
-		character. The method isEOF() can be used to check for that.
+		character. The method isEof() can be used to check for that.
 	**/
 	public static inline function fastCodeAt( s : String, index : Int ) : Int untyped {
 		#if neko
@@ -357,7 +357,7 @@ class StringTools {
 	/*
 		Tells if [c] represents the end-of-file (EOF) character.
 	*/
-	public static inline function isEOF( c : Int ) : Bool {
+	public static inline function isEof( c : Int ) : Bool {
 		#if (flash9 || cpp)
 		return c == 0;
 		#elseif flash8
