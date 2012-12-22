@@ -119,7 +119,7 @@ StringTools.fastCodeAt(s, 6) == 114;
 // isEOF
 #if neko
 StringTools.isEOF(null) == true;
-#elseif (cs || java))
+#elseif (cs || java)
 StringTools.isEOF( -1) == true;
 #elseif js
 // how do I test this here?
