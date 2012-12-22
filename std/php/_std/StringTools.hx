@@ -88,7 +88,7 @@
 		return untyped s.cca(index);
 	}
 
-	public static inline function isEOF( c : Int ) : Bool {
+	public static inline function isEof( c : Int ) : Bool {
 		return untyped __physeq__(c, 0);
 	}
 

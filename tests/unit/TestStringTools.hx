@@ -22,10 +22,10 @@ class TestStringTools extends Test
 		eq( StringTools.fastCodeAt(str, 2), "c".code );
 		eq(StringTools.fastCodeAt(String.fromCharCode(128), 0), 128);
 		eq(StringTools.fastCodeAt(String.fromCharCode(255), 0), 255);
-		f( StringTools.isEOF(StringTools.fastCodeAt(str, 2)) );
-		t( StringTools.isEOF(StringTools.fastCodeAt(str, 3)) );
+		f( StringTools.isEof(StringTools.fastCodeAt(str, 2)) );
+		t( StringTools.isEof(StringTools.fastCodeAt(str, 3)) );
 		
-		t( StringTools.isEOF(StringTools.fastCodeAt("", 0)) );
+		t( StringTools.isEof(StringTools.fastCodeAt("", 0)) );
 	}
 		
 	

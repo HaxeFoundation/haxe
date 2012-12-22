@@ -99,7 +99,7 @@ class Unserializer {
  		var fpos = pos;
  		while( true ) {
  			var c = get(pos);
-			if( StringTools.isEOF(c) )
+			if( StringTools.isEof(c) )
 				break;
  			if( c == "-".code ) {
  				if( pos != fpos )

@@ -1,5 +1,28 @@
 package unit;
 
+typedef T = {
+	function func():Void;
+	var v:String;
+	public var prop(default, null):String;
+}
+
+@:keep class C {
+	public function func() { }
+	public var v:String;
+	public var prop(default, null):String;
+	
+	static function staticFunc() { }
+	static var staticVar:String;
+	static var staticProp(default, null):String;
+	
+	public function new() {
+		v = "var";
+		prop = "prop";
+		staticVar = "staticVar";
+		staticProp = "staticProp";
+	}
+}
+
 private class EmptyClass {
 	public function new() { }
 }
