@@ -633,6 +633,28 @@ function _hx_substr($s, $pos, $len) {
 		return $s;
 }
 
+function _hx_substring($s, $startIndex, $endIndex) {
+	$len = strlen($s);
+	if ($endIndex === null)
+		$endIndex = $len;
+	else if ($endIndex < 0)
+		$endIndex = 0;
+	else if ($endIndex > $len)
+		$endIndex  = $len;
+		
+	if ($startIndex < 0)
+		$startIndex = 0;
+	else if ($startIndex > $len)
+		$startIndex = $len;
+		
+	if ($startIndex > $endIndex) {
+		$tmp = $startIndex;
+		$startIndex = $endIndex;
+		$endIndex = $tmp;
+	}
+	return _hx_substr($s, $startIndex, $endIndex - $startIndex);
+}
+
 function _hx_trace($v, $i) {
 	$msg = $i !== null ? $i->fileName.':'.$i->lineNumber.': ' : '';
 	echo $msg._hx_string_rec($v, '').\"\n\";

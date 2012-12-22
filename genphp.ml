@@ -641,13 +641,19 @@ and gen_string_static_call ctx s e el =
 	| _ -> unsupported "gen_string_static_call " e.epos;
 
 and could_be_string_call s =
-	s = "substr" || s = "charAt" || s = "charCodeAt" || s = "indexOf" ||
+	s = "substr" || s = "substring" || s = "charAt" || s = "charCodeAt" || s = "indexOf" ||
 	s = "lastIndexOf" || s = "split" || s = "toLowerCase" || s = "toString" || s = "toUpperCase"
 
 and gen_string_call ctx s e el =
 	match s with
 	| "substr" ->
 		spr ctx "_hx_substr(";
+		gen_value ctx e;
+		spr ctx ", ";
+		concat ctx ", " (gen_value ctx) el;
+		spr ctx ")"
+	| "substring" ->
+		spr ctx "_hx_substring(";
 		gen_value ctx e;
 		spr ctx ", ";
 		concat ctx ", " (gen_value ctx) el;
