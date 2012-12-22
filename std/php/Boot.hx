@@ -233,7 +233,12 @@ function _hx_cast($v, $type) {
 	}
 }
 
-function _hx_char_at($o, $i) { $c = substr($o, $i, 1); return FALSE === $c ? '' : $c; }
+function _hx_char_at($o, $i) {
+	if ($i < 0)
+		return '';
+	$c = substr($o, $i, 1);
+	return FALSE === $c ? '' : $c;
+}
 
 function _hx_char_code_at($s, $pos) {
 	if($pos < 0 || $pos >= strlen($s)) return null;
@@ -265,7 +270,7 @@ function _hx_mod($x, $y) {
 	}
 	if (!is_nan($x) && !is_nan($y) && !is_finite($y) && is_finite($x)) {
 		return $x;
-	} 
+	}
 	return fmod($x, $y);
 }
 
@@ -641,12 +646,12 @@ function _hx_substring($s, $startIndex, $endIndex) {
 		$endIndex = 0;
 	else if ($endIndex > $len)
 		$endIndex  = $len;
-		
+
 	if ($startIndex < 0)
 		$startIndex = 0;
 	else if ($startIndex > $len)
 		$startIndex = $len;
-		
+
 	if ($startIndex > $endIndex) {
 		$tmp = $startIndex;
 		$startIndex = $endIndex;
