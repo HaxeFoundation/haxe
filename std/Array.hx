@@ -152,7 +152,7 @@ extern class Array<T> {
 		If [len] is < 0 or [pos] exceeds [this].length, the result is the empty
 		Array [].
 		
-		If [pos] is negative, its values is calculated from the end	of [this]
+		If [pos] is negative, its value is calculated from the end	of [this]
 		Array by [this].length + [pos]. If this yields a negative value, 0 is
 		used instead.
 		
