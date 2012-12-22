@@ -104,6 +104,15 @@ class SubConstrOpt3 extends BaseConstrOpt {
 
 class TestMisc extends Test {
 
+	static var unit = "testing package conflict";
+
+	function testPackageConflict()
+	{
+		eq( unit, "testing package conflict" );
+		var unit = unit;
+		eq( unit, TestMisc.unit );
+	}
+
 	function testDate() {
 		var d = new Date(2012, 07, 17, 01, 02, 03);
 		eq( d.getDay(), 5 );
