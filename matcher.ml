@@ -865,7 +865,7 @@ let match_expr ctx e cases def need_val with_type p =
 	let a = List.length evals in
 	let stl = ExtList.List.mapi (fun i e ->
 		let rec loop e = match e.eexpr with
-			| TField (ef,s) ->
+			| TField (ef,s) when (match s with FEnum _ -> false | _ -> true) ->
 				mk_st (SField(loop ef,field_name s)) e.etype e.epos
 			| TParenthesis e ->
 				loop e
