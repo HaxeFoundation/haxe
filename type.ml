@@ -1396,7 +1396,15 @@ let rec s_expr s_type e =
 	| TBinop (op,e1,e2) ->
 		sprintf "(%s %s %s)" (loop e1) (s_binop op) (loop e2)
 	| TField (e,f) ->
-		sprintf "%s.%s" (loop e) (field_name f)
+		let fstr = (match f with
+			| FStatic (c,f) -> "static(" ^ s_type_path c.cl_path ^ "." ^ f.cf_name ^ ")"
+			| FInstance (c,f) -> "inst(" ^ s_type_path c.cl_path ^ "." ^ f.cf_name ^ ")"
+			| FClosure (c,f) -> "closure(" ^ (match c with None -> f.cf_name | Some c -> s_type_path c.cl_path ^ "." ^ f.cf_name)  ^ ")"
+			| FAnon f -> "anon(" ^ f.cf_name ^ ")"
+			| FEnum (en,f) -> "enum(" ^ s_type_path en.e_path ^ "." ^ f.ef_name ^ ")"
+			| FDynamic f -> "dynamic(" ^ f ^ ")"
+		) in
+		sprintf "%s.%s" (loop e) fstr
 	| TTypeExpr m ->
 		sprintf "TypeExpr %s" (s_type_path (t_path m))
 	| TParenthesis e ->
