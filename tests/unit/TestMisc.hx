@@ -134,7 +134,7 @@ class TestMisc extends Test {
 		var c = new MyClass(100);
 		var add = c.add;
 		eq( c.add(1,2), 103 );
-		eq( callback(c.add,1)(2), 103 );
+		eq( c.add.callback(1)(2), 103 );
 		eq( add(1,2), 103 );
 
 		var x = 4;
@@ -177,8 +177,8 @@ class TestMisc extends Test {
 
 	function testCaptureUnique2() {
 		// another more specialized test (was actually the original broken code - but not reproducible when optimization is off)
-		var foo = callback(id, 3);
-		var bar = callback(sq, 5);
+		var foo = id.callback(3);
+		var bar = sq.callback(5);
 		eq( foo(), 3 );
 		eq( bar(), 25 );
 	}
@@ -249,35 +249,35 @@ class TestMisc extends Test {
 		var inst = new MyDynamicClass(100);
 		var add = inst.add;
 		eq( inst.add(1,2), 103 );
-		eq( callback(inst.add,1)(2), 103 );
+		eq( inst.add.callback(1)(2), 103 );
 		eq( add(1,2), 103 );
 
 		// check overriden dynamic method
 		var inst = new MyDynamicSubClass(100);
 		var add = inst.add;
 		eq( inst.add(1,2), 206 );
-		eq( callback(inst.add,1)(2), 206 );
+		eq( inst.add.callback(1)(2), 206 );
 		eq( add(1,2), 206 );
 
 		// check overriden dynamic method
 		var inst = new MyDynamicSubClass2(100);
 		var add = inst.add;
 		eq( inst.add(1,2), 206 );
-		eq( callback(inst.add,1)(2), 206 );
+		eq( inst.add.callback(1)(2), 206 );
 		eq( add(1,2), 206 );
 
 		// check redefined dynamic method
 		inst.add = function(x,y) return inst.get() * 2 + x + y;
 		var add = inst.add;
 		eq( inst.add(1,2), 203 );
-		eq( callback(inst.add,1)(2), 203 );
+		eq( inst.add.callback(1)(2), 203 );
 		eq( add(1,2), 203 );
 
 		// check inherited dynamic method
 		var inst = new MyOtherDynamicClass(0);
 		var add = inst.add;
 		eq( inst.add(1,2), 13 );
-		eq( callback(inst.add,1)(2), 13 );
+		eq( inst.add.callback(1)(2), 13 );
 		eq( add(1,2), 13 );
 
 		// check static dynamic

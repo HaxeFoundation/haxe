@@ -59,7 +59,6 @@ type keyword =
 	| Typedef
 	| Dynamic
 	| Package
-	| Callback
 	| Inline
 	| Using
 	| Null
@@ -392,7 +391,6 @@ let s_keyword = function
 	| Typedef -> "typedef"
 	| Dynamic -> "dynamic"
 	| Package -> "package"
-	| Callback -> "callback"
 	| Inline -> "inline"
 	| Using -> "using"
 	| Null -> "null"

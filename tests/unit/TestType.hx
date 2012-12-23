@@ -222,81 +222,81 @@ class TestType extends Test {
 
 		// all missing
 
-		typedAs(callback(func), func);
-		typedAs(callback(func, _), func);
-		typedAs(callback(func, _, _), func);
-		typedAs(callback(func, _, _, _), func);
+		typedAs(func.callback(), func);
+		typedAs(func.callback(_), func);
+		typedAs(func.callback(_, _), func);
+		typedAs(func.callback(_, _, _), func);
 
 		// all given
 
-		typedAs(callback(func, 22, "2", 13), tvoid);
+		typedAs(func.callback(22, "2", 13), tvoid);
 
 		// last missing
 
-		typedAs(callback(func, 22, "2"), tfloat);
-		typedAs(callback(func, 22, "2", _), tfloat);
+		typedAs(func.callback(22, "2"), tfloat);
+		typedAs(func.callback(22, "2", _), tfloat);
 
 		// first given
 
-		typedAs(callback(func, 22), tstringfloat);
-		typedAs(callback(func, 22, _), tstringfloat);
-		typedAs(callback(func, 22, _, _), tstringfloat);
+		typedAs(func.callback(22), tstringfloat);
+		typedAs(func.callback(22, _), tstringfloat);
+		typedAs(func.callback(22, _, _), tstringfloat);
 
 		// mixed
 
-		typedAs(callback(func, _, _, 12), tintstring);
-		typedAs(callback(func, _, "22", _), tintfloat);
-		typedAs(callback(func, _, "22", 12), tint);
-		typedAs(callback(func, 12, _, 12), tstring);
+		typedAs(func.callback(_, _, 12), tintstring);
+		typedAs(func.callback(_, "22", _), tintfloat);
+		typedAs(func.callback(_, "22", 12), tint);
+		typedAs(func.callback(12, _, 12), tstring);
 
 		// values
 
-		eq(1, callback(func)(1, "2", 3));
-		eq(2, callback(func, 2)("2", 3));
-		eq(2, callback(func, 2, "3")(3));
-		eq(2, callback(func, 2, "3", 4)());
+		eq(1, func.callback()(1, "2", 3));
+		eq(2, func.callback(2)("2", 3));
+		eq(2, func.callback(2, "3")(3));
+		eq(2, func.callback(2, "3", 4)());
 
-		eq(1, callback(func, _, "2", 3)(1));
-		eq(1, callback(func, _, "2")(1, 3));
-		eq(1, callback(func, _)(1, "2", 3));
+		eq(1, func.callback(_, "2", 3)(1));
+		eq(1, func.callback(_, "2")(1, 3));
+		eq(1, func.callback(_)(1, "2", 3));
 
-		eq(1, callback(func, _, "2", _)(1, 2));
+		eq(1, func.callback(_, "2", _)(1, 2));
 
-		eq(1, callback(callback(func), _, "2", 3)(1));
-		eq(1, callback(callback(func, 1), "2", 3)());
-		eq(1, callback(callback(func, 1, _), "2")(3));
-		eq(1, callback(callback(func, _, "2"), 1)(3));
+		eq(1, func.callback().callback(_, "2", 3)(1));
+		eq(1, func.callback(1).callback("2", 3)());
+		eq(1, func.callback(1, _).callback("2")(3));
+		eq(1, func.callback(_, "2").callback(1)(3));
 
 		var a = 5;
 		var b = "foo";
-		var cb = callback(func, a);
+		var cb = func.callback(a);
 		a = 6;
 		func = function(a,b,c):Int return throw "error";
 		eq(5, cb(b, 0));
 
 		var optfunc = function(a:Int, b:Int, ?c:Int = 2) return a + b + c;
-		eq(6, callback(optfunc, 1)(3));
-		eq(6, callback(optfunc, 1, 3)());
+		eq(6, optfunc.callback(1)(3));
+		eq(6, optfunc.callback(1, 3)());
 
-		eq(7, callback(optfunc, _, _, _)(1, 2, 4));
-		eq(7, callback(optfunc, _, 2, _)(1, 4));
+		eq(7, optfunc.callback(_, _, _)(1, 2, 4));
+		eq(7, optfunc.callback(_, 2, _)(1, 4));
 
 		var foo = function ( x : Int, ?p : haxe.PosInfos ) { return "foo" + x; }
-		var f : Void -> String = callback(foo, 0);
+		var f : Void -> String = foo.callback(0);
  		eq("foo0", f());
 
 		// TODO: this fails on flash 9
 		var foo = function(bar = 2) { return bar; };
 		#if (flash9)
-		t(typeError(callback(foo, _)));
+		t(typeError(foo.callback(_)));
 		#else
-		var l = callback(foo, _);
+		var l = foo.callback(_);
 		eq(2, l());
 		#end
 
 		// note that this does not
 		var foo = function(bar:Null<Int> = 2) { return bar; };
-		var l = callback(foo, _);
+		var l = foo.callback(_);
 		eq(2, l());
 	}
 

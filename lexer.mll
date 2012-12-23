@@ -76,7 +76,7 @@ let keywords =
 		Break;Return;Continue;Extends;Implements;Import;
 		Switch;Case;Default;Public;Private;Try;Untyped;
 		Catch;New;This;Throw;Extern;Enum;In;Interface;
-		Cast;Override;Dynamic;Typedef;Package;Callback;
+		Cast;Override;Dynamic;Typedef;Package;
 		Inline;Using;Null;True;False;Abstract];
 	h
 

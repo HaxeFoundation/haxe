@@ -164,12 +164,12 @@ class TestXML extends Test {
 		h.nodeName = "em";
 		eq( h.nodeName, "em" );
 
-		eq( Lambda.count({ iterator : callback(x.elementsNamed,"em") }), 1 );
+		eq( Lambda.count({ iterator : x.elementsNamed.callback("em") }), 1 );
 
 		h.nodeName = "xhtml:em";
 
-		eq( Lambda.count({ iterator : callback(x.elementsNamed,"xhtml:em") }), 1 );
-		eq( Lambda.count({ iterator : callback(x.elementsNamed,"em") }), 0 );
+		eq( Lambda.count({ iterator : x.elementsNamed.callback("xhtml:em") }), 1 );
+		eq( Lambda.count({ iterator : x.elementsNamed.callback("em") }), 0 );
 
 		eq( h.nodeName, "xhtml:em" );
 	}

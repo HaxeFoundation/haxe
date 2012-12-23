@@ -724,7 +724,6 @@ and expr = parser
 	| [< '(Kwd True,p); s >] -> expr_next (EConst (Ident "true"),p) s
 	| [< '(Kwd False,p); s >] -> expr_next (EConst (Ident "false"),p) s
 	| [< '(Kwd Null,p); s >] -> expr_next (EConst (Ident "null"),p) s
-	| [< '(Kwd Callback,p); s >] -> expr_next (EConst (Ident "callback"),p) s
 	| [< '(Kwd Cast,p1); s >] ->
 		(match s with parser
 		| [< '(POpen,_); e = expr; s >] ->

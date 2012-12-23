@@ -122,8 +122,8 @@ class LocalConnection implements AsyncConnection, implements Dynamic<AsyncConnec
 		},[]);
 		#if flash9
 			l.client = {
-				remotingCall : callback(remotingCall,c),
-				remotingResult : callback(remotingResult,c),
+				remotingCall : remotingCall.callback(c),
+				remotingResult : remotingResult.callback(c),
 			};
 			l.addEventListener(flash.events.StatusEvent.STATUS, function(s:flash.events.StatusEvent) {
 				if( s.level != "status" )
@@ -139,8 +139,8 @@ class LocalConnection implements AsyncConnection, implements Dynamic<AsyncConnec
 				for( d in allowDomains )
 					l.allowDomain(d);
 		#else
-			Reflect.setField(l,"remotingCall",callback(remotingCall,c));
-			Reflect.setField(l,"remotingResult",callback(remotingResult,c));
+			Reflect.setField(l,"remotingCall",remotingCall.callback(c));
+			Reflect.setField(l,"remotingResult",remotingResult.callback(c));
 			l.onStatus = function(s:Dynamic) {
 				if( s[untyped "level"] != "status" )
 					c.__data.error("Failed to send data on LocalConnection");

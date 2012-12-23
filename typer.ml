@@ -2407,8 +2407,16 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		mk (TCast (type_expr ctx e,Some texpr)) t p
 	| EDisplay (e,iscall) ->
 		let old = ctx.in_display in
+		let opt_args args ret = TFun(List.map(fun (n,o,t) -> n,true,t) args,ret) in
 		ctx.in_display <- true;
 		let e = (try type_expr ctx e with Error (Unknown_ident n,_) -> raise (Parser.TypePath ([n],None))) in
+		let e = match e.eexpr with
+			| TField (e,"callback") ->
+				(match follow e.etype with
+					| TFun(args,ret) -> {e with etype = opt_args args ret}
+					| _ -> e)
+			| _ -> e
+		in
 		ctx.in_display <- old;
 		let opt_type t =
 			match t with
@@ -2449,6 +2457,10 @@ and type_expr ctx ?(need_val=true) (e,p) =
 					PMap.fold (fun f acc -> if can_access ctx c f true then PMap.add f.cf_name { f with cf_public = true; cf_type = opt_type f.cf_type } acc else acc) a.a_fields PMap.empty
 				| _ ->
 					a.a_fields)
+			| TFun (args,ret) ->
+				let t = opt_args args ret in
+				let cf = mk_field "callback" (tfun [t] t) p in
+				PMap.add "callback" cf PMap.empty
 			| _ ->
 				PMap.empty
 		in
@@ -2526,7 +2538,10 @@ and type_call ctx e el twith p =
 			mk (TCall (mk (TLocal (alloc_var "`trace" t_dynamic)) t_dynamic p,[e;infos])) ctx.t.tvoid p
 		else
 			type_expr ctx (ECall ((EField ((EField ((EConst (Ident "haxe"),p),"Log"),p),"trace"),p),[e;EUntyped infos,p]),p)
-	| (EConst (Ident "callback"),p) , e :: params ->
+	| (EConst(Ident "callback"),p1),args ->
+		let ecb = try type_ident_raise ctx "callback" p1 MCall with Not_found -> error "callback syntax has changed to func.callback(args)" p in
+		build_call ctx ecb args twith p
+	| (EField (e,"callback"),p), params ->
 		type_callback ctx e params p
 	| (EConst (Ident "$type"),_) , [e] ->
 		let e = type_expr ctx e in
