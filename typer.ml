@@ -2538,11 +2538,13 @@ and type_call ctx e el twith p =
 			mk (TCall (mk (TLocal (alloc_var "`trace" t_dynamic)) t_dynamic p,[e;infos])) ctx.t.tvoid p
 		else
 			type_expr ctx (ECall ((EField ((EField ((EConst (Ident "haxe"),p),"Log"),p),"trace"),p),[e;EUntyped infos,p]),p)
+	| (EConst (Ident "callback"),p) , e :: args when not (Common.defined ctx.com Define.Haxe3) ->
+		type_callback ctx e args p
 	| (EConst(Ident "callback"),p1),args ->
 		let ecb = try type_ident_raise ctx "callback" p1 MCall with Not_found -> error "callback syntax has changed to func.callback(args)" p in
 		build_call ctx ecb args twith p
-	| (EField (e,"callback"),p), params ->
-		type_callback ctx e params p
+	| (EField (e,"callback"),p), args ->
+		type_callback ctx e args p
 	| (EConst (Ident "$type"),_) , [e] ->
 		let e = type_expr ctx e in
 		ctx.com.warning (s_type (print_context()) e.etype) e.epos;
