@@ -579,6 +579,11 @@ let rec gen_access ?(read_write=false) ctx forcall e =
 		VarStr
 	| TLocal v ->
 		access_local ctx v.v_name
+	| TField (e,FClosure (_,{ cf_name = f })) ->
+		gen_expr ctx true e;
+		if read_write then assert false;
+		push ctx [VStr (f,is_protected ctx e.etype f)];
+		VarClosure
 	| TField (e2,f) ->
 		gen_expr ctx true e2;
 		if read_write then write ctx ADup;
@@ -593,11 +598,6 @@ let rec gen_access ?(read_write=false) ctx forcall e =
 			VarVolatile
 		else
 			VarObj
-	| TClosure (e,f) ->
-		gen_expr ctx true e;
-		if read_write then assert false;
-		push ctx [VStr (f,is_protected ctx e.etype f)];
-		VarClosure
 	| TArray (ea,eb) ->
 		if read_write then
 			try
@@ -973,7 +973,6 @@ and gen_expr_2 ctx retval e =
 	| TConst TSuper
 	| TConst TThis
 	| TField _
-	| TClosure _
 	| TArray _
 	| TLocal _
 	| TTypeExpr _

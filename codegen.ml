@@ -1588,7 +1588,7 @@ let rec constructor_side_effects e =
 	match e.eexpr with
 	| TBinop (op,_,_) when op <> OpAssign ->
 		true
-	| TUnop _ | TArray _ | TField _ | TCall _ | TNew _ | TFor _ | TWhile _ | TSwitch _ | TMatch _ | TReturn _ | TThrow _ | TClosure _ ->
+	| TUnop _ | TArray _ | TField _ | TCall _ | TNew _ | TFor _ | TWhile _ | TSwitch _ | TMatch _ | TReturn _ | TThrow _ ->
 		true
 	| TBinop _ | TTry _ | TIf _ | TBlock _ | TVars _
 	| TFunction _ | TArrayDecl _ | TObjectDecl _

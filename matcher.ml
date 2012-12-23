@@ -285,7 +285,7 @@ let to_pattern mctx e st =
 			| TFun(_,TEnum(en,pl)) ->
 				let ef = match ec.eexpr with
 					| TEnumField(_,s)
-					| TClosure ({ eexpr = TTypeExpr (TEnumDecl _) },s) -> PMap.find s en.e_constrs
+					| TField({ eexpr = TTypeExpr (TEnumDecl _) },FClosure (_,{ cf_name = s })) -> PMap.find s en.e_constrs
 					| _ -> error ("Expected constructor for enum " ^ (s_type_path en.e_path)) p
 				in
 				let mono_map,monos,tpl = List.fold_left (fun (mm,ml,tpl) (n,t) ->

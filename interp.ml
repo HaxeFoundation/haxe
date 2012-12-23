@@ -4361,7 +4361,6 @@ let rec make_ast e =
 	| TArray (e1,e2) -> EArray (make_ast e1,make_ast e2)
 	| TBinop (op,e1,e2) -> EBinop (op, make_ast e1, make_ast e2)
 	| TField (e,f) -> EField (make_ast e, Type.field_name f)
-	| TClosure (e,f) -> EField (make_ast e, f)
 	| TTypeExpr t -> fst (mk_path (t_path t) e.epos)
 	| TParenthesis e -> EParenthesis (make_ast e)
 	| TObjectDecl fl -> EObjectDecl (List.map (fun (f,e) -> f, make_ast e) fl)

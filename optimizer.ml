@@ -28,7 +28,7 @@ let has_side_effect e =
 	let rec loop e =
 		match e.eexpr with
 		| TConst _ | TLocal _ | TEnumField _ | TTypeExpr _ | TFunction _ -> ()
-		| TMatch _ | TNew _ | TCall _ | TClosure _ | TField _ | TArray _ | TBinop ((OpAssignOp _ | OpAssign),_,_) | TUnop ((Increment|Decrement),_,_) -> raise Exit
+		| TMatch _ | TNew _ | TCall _ | TField _ | TArray _ | TBinop ((OpAssignOp _ | OpAssign),_,_) | TUnop ((Increment|Decrement),_,_) -> raise Exit
 		| TReturn _ | TBreak | TContinue | TThrow _ | TCast (_,Some _) -> raise Exit
 		| TCast (_,None) | TBinop _ | TUnop _ | TParenthesis _ | TWhile _ | TFor _ | TIf _ | TTry _ | TSwitch _ | TArrayDecl _ | TVars _ | TBlock _ | TObjectDecl _ -> Type.iter loop e
 	in
@@ -543,7 +543,7 @@ let standard_precedence op =
 
 let rec need_parent e =
 	match e.eexpr with
-	| TConst _ | TLocal _ | TEnumField _ | TArray _ | TField _ | TParenthesis _ | TCall _ | TClosure _ | TNew _ | TTypeExpr _ | TObjectDecl _ | TArrayDecl _ -> false
+	| TConst _ | TLocal _ | TEnumField _ | TArray _ | TField _ | TParenthesis _ | TCall _ | TNew _ | TTypeExpr _ | TObjectDecl _ | TArrayDecl _ -> false
 	| TCast (e,None) -> need_parent e
 	| TCast _ | TThrow _ | TReturn _ | TTry _ | TMatch _ | TSwitch _ | TFor _ | TIf _ | TWhile _ | TBinop _ | TContinue | TBreak
 	| TBlock _ | TVars _ | TFunction _ | TUnop _ -> true
@@ -884,8 +884,9 @@ let rec reduce_loop ctx e =
 		(match inl with
 		| None -> reduce_expr ctx e
 		| Some e -> reduce_loop ctx e)
-	| TCall ({ eexpr = TClosure (o,name) } as f,el) ->
-		{ e with eexpr = TCall ({ f with eexpr = TField (o,try quick_field o.etype name with Not_found -> assert false) },el) }
+	| TCall ({ eexpr = TField (o,FClosure (c,cf)) } as f,el) ->
+		let fmode = (match c with None -> FAnon cf | Some c -> FInstance (c,cf)) in
+		{ e with eexpr = TCall ({ f with eexpr = TField (o,fmode) },el) }
 	| _ ->
 		reduce_expr ctx e)
 

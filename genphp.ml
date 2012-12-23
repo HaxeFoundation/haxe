@@ -1189,8 +1189,6 @@ and gen_expr ctx e =
 		));
 	| TField (e1,s) ->
 		gen_tfield ctx e e1 (field_name s)
-	| TClosure (e1,s) ->
-		gen_tfield ctx e e1 s
 	| TTypeExpr t ->
 		print ctx "_hx_qtype(\"%s\")" (s_path_haxe (t_path t))
 	| TParenthesis e ->
@@ -1739,7 +1737,6 @@ and gen_value ctx e =
 	| TArray _
 	| TBinop _
 	| TField _
-	| TClosure _
 	| TParenthesis _
 	| TObjectDecl _
 	| TArrayDecl _

@@ -592,12 +592,14 @@ let rec acc_get ctx g p =
 			}) twrap p in
 			make_call ctx ewrap [e] tcallb p
 		| _ -> assert false)
-	| AKInline (e,f,_,t) ->
+	| AKInline (e,f,fmode,t) ->
+		(* do not create a closure for static calls *)
+		let cmode = (match fmode with FStatic _ -> fmode | FInstance (c,f) -> FClosure (Some c,f) | _ -> assert false) in
 		ignore(follow f.cf_type); (* force computing *)
 		(match f.cf_expr with
 		| None ->
 			if ctx.com.display then
-				mk (TClosure (e,f.cf_name)) t p
+				mk (TField (e,cmode)) t p
 			else
 				error "Recursive inline is not supported" p
 		| Some { eexpr = TFunction _ } ->
@@ -606,7 +608,7 @@ let rec acc_get ctx g p =
 			| TInst (c,_) -> chk_class c
 			| TAnon a -> (match !(a.a_status) with Statics c -> chk_class c | _ -> ())
 			| _ -> ());
-			mk (TClosure (e,f.cf_name)) t p
+			mk (TField (e,cmode)) t p
 		| Some e ->
 			let rec loop e = Type.map_expr loop { e with epos = p } in
 			loop e)
@@ -644,7 +646,13 @@ let field_access ctx mode f fmode t e p =
 		| MethMacro, MGet -> display_error ctx "Macro functions must be called immediately" p; normal()
 		| MethMacro, MCall -> AKMacro (e,f)
 		| _ , MGet ->
-			AKExpr (mk (TClosure (e,f.cf_name)) t p)
+			let cmode = (match fmode with
+				| FInstance (c,cf) -> FClosure (Some c,cf)
+				| FStatic _ -> fmode
+				| FAnon f -> FClosure (None, f)
+				| FDynamic _ | FClosure _ -> assert false
+			) in
+			AKExpr (mk (TField (e,cmode)) t p)
 		| _ -> normal())
 	| Var v ->
 		match (match mode with MGet | MCall -> v.v_read | MSet -> v.v_write) with
@@ -673,7 +681,7 @@ let field_access ctx mode f fmode t e p =
 				| _ -> false
 			in
 			if mode = MGet && is_maybe_method() then
-				AKExpr (mk (TClosure (e,f.cf_name)) t p)
+				AKExpr (mk (TField (e,FClosure (None,f))) t p)
 			else
 				normal()
 		| AccCall m ->
@@ -1183,7 +1191,7 @@ let rec type_binop ctx op e1 e2 p =
 			let std = type_type ctx ([],"Std") e.epos in
 			let acc = acc_get ctx (type_field ctx std "string" e.epos MCall) e.epos in
 			ignore(follow acc.etype);
-			let acc = (match acc.eexpr with TClosure (e,f) -> { acc with eexpr = TField (e,FDynamic f) } | _ -> acc) in
+			let acc = (match acc.eexpr with TField (e,FClosure (Some c,f)) -> { acc with eexpr = TField (e,FInstance (c,f)) } | _ -> acc) in
 			make_call ctx acc [e] ctx.t.tstring e.epos
 		| KInt | KFloat | KString -> e
 	in
@@ -1481,7 +1489,7 @@ and type_switch_old ctx e cases def need_val with_type p =
 				| _ -> raise Exit
 			) pl in
 			(match e.eexpr with
-			| TEnumField (en,s) | TClosure ({ eexpr = TTypeExpr (TEnumDecl en) },s) -> type_match e en s pl
+			| TEnumField (en,s) -> type_match e en s pl
 			| _ -> if pl = [] then case_expr e else raise Exit)
 		with Exit ->
 			case_expr (type_expr ctx efull)
@@ -2143,7 +2151,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 						e1
 					with Error (Unify _,_) ->
 						let acc = acc_get ctx (type_field ctx e1 "iterator" e1.epos MCall) e1.epos in
-						let acc = (match acc.eexpr with TClosure (e,f) -> { acc with eexpr = TField (e,FDynamic f) } | _ -> acc) in
+						let acc = (match acc.eexpr with TField (e,FClosure (c,f)) -> { acc with eexpr = TField (e,match c with None -> FAnon f | Some c -> FInstance (c,f)) } | _ -> acc) in
 						match follow acc.etype with
 						| TFun ([],it) ->
 							unify ctx it t e1.epos;

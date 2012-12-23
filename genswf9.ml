@@ -846,8 +846,7 @@ let rec gen_access ctx e (forset : 'a) : 'a access =
 	| TLocal v ->
 		gen_local_access ctx v e.epos forset
 	| TField (e1,f) ->
-		gen_access ctx { e with eexpr = TClosure (e1,field_name f) } forset
-	| TClosure (e1,f) ->
+		let f = field_name f in
 		let id, k, closure = property ctx f e1.etype in
 		if closure && not ctx.for_call then error "In Flash9, this method cannot be accessed this way : please define a local function" e1.epos;
 		(match e1.eexpr with
@@ -1021,7 +1020,6 @@ let rec gen_expr_content ctx retval e =
 		ctx.infos.icond <- true;
 		no_value ctx retval
 	| TField _
-	| TClosure _
 	| TLocal _
 	| TTypeExpr _ ->
 		getvar ctx (gen_access ctx e Read)

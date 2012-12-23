@@ -270,19 +270,6 @@ and expr dce e =
 	| TCall ({eexpr = TConst TSuper} as e,el) ->
 		mark_t dce e.etype;
 		List.iter (expr dce) el;
-	| TClosure(e,n) ->
-		(match follow e.etype with
-		| TInst(c,_) ->
-			mark_class dce c;
-			field dce c n false;
-		| TAnon a ->
-			(match !(a.a_status) with
-			| Statics c ->
-				mark_class dce c;
-				field dce c n true;
-			| _ -> ())
-		| _ -> ());
-		expr dce e;
 	| TField(e,n) ->
 		let n = field_name n in
 		(match follow e.etype with

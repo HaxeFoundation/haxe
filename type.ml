@@ -102,7 +102,6 @@ and texpr_expr =
 	| TArray of texpr * texpr
 	| TBinop of Ast.binop * texpr * texpr
 	| TField of texpr * tfield_access
-	| TClosure of texpr * string
 	| TTypeExpr of module_type
 	| TParenthesis of texpr
 	| TObjectDecl of (string * texpr) list
@@ -130,6 +129,7 @@ and tfield_access =
 	| FStatic of tclass * tclass_field
 	| FAnon of tclass_field
 	| FDynamic of string
+	| FClosure of tclass option * tclass_field (* None class = TAnon *)
 
 and texpr = {
 	eexpr : texpr_expr;
@@ -307,7 +307,7 @@ let fun_args l = List.map (fun (a,c,t) -> a, c <> None, t) l
 
 let field_name f =
 	match f with
-	| FAnon f | FInstance (_,f) | FStatic (_,f) -> f.cf_name
+	| FAnon f | FInstance (_,f) | FStatic (_,f) | FClosure (_,f) -> f.cf_name
 	| FDynamic n -> n
 
 let mk_class m path pos =
@@ -1190,7 +1190,6 @@ let iter f e =
 		f e2;
 	| TThrow e
 	| TField (e,_)
-	| TClosure (e,_)
 	| TParenthesis e
 	| TCast (e,_)
 	| TUnop (_,_,e) ->
@@ -1247,8 +1246,6 @@ let map_expr f e =
 		{ e with eexpr = TThrow (f e1) }
 	| TField (e1,v) ->
 		{ e with eexpr = TField (f e1,v) }
-	| TClosure (e1,v) ->
-		{ e with eexpr = TClosure (f e1,v) }
 	| TParenthesis e1 ->
 		{ e with eexpr = TParenthesis (f e1) }
 	| TUnop (op,pre,e1) ->
@@ -1302,8 +1299,6 @@ let map_expr_type f ft fv e =
 		{ e with eexpr = TThrow (f e1); etype = ft e.etype }
 	| TField (e1,v) ->
 		{ e with eexpr = TField (f e1,v); etype = ft e.etype }
-	| TClosure (e1,v) ->
-		{ e with eexpr = TClosure (f e1,v); etype = ft e.etype }
 	| TParenthesis e1 ->
 		{ e with eexpr = TParenthesis (f e1); etype = ft e.etype }
 	| TUnop (op,pre,e1) ->
@@ -1358,7 +1353,6 @@ let s_expr_kind e =
 	| TArray (_,_) -> "Array"
 	| TBinop (_,_,_) -> "Binop"
 	| TField (_,_) -> "Field"
-	| TClosure _ -> "Closure"
 	| TTypeExpr _ -> "TypeExpr"
 	| TParenthesis _ -> "Parenthesis"
 	| TObjectDecl _ -> "ObjectDecl"
@@ -1408,8 +1402,6 @@ let rec s_expr s_type e =
 		sprintf "(%s %s %s)" (loop e1) (s_binop op) (loop e2)
 	| TField (e,f) ->
 		sprintf "%s.%s" (loop e) (field_name f)
-	| TClosure (e,s) ->
-		sprintf "Closure (%s,%s)" (loop e) s
 	| TTypeExpr m ->
 		sprintf "TypeExpr %s" (s_type_path (t_path m))
 	| TParenthesis e ->

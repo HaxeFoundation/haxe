@@ -686,7 +686,6 @@ let rec iter_retval f retval e =
 		f false e2;
 	| TThrow e
 	| TField (e,_)
-	| TClosure (e,_)
 	| TUnop (_,_,e) ->
 		f true e
 	| TParenthesis e ->
@@ -1488,8 +1487,6 @@ and gen_expression ctx retval expression =
 	| TBinop (op,expr1,expr2) -> gen_bin_op op expr1 expr2
 	| TField (expr,name) when (is_null expr) -> output "Dynamic()"
 
-	| TClosure (field_object,member) ->
-		gen_field field_object member
 	| TField (field_object,field) ->
 		gen_field field_object (field_name field)
 

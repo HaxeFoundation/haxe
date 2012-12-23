@@ -307,7 +307,6 @@ let is_dynamic_iterator ctx e =
 		has_feature ctx "HxOverrides.iter" && (match follow x.etype with TInst ({ cl_path = [],"Array" },_) | TAnon _ | TDynamic _ | TMono _ -> true | _ -> false)
 	in
 	match e.eexpr with
-	| TClosure (x,"iterator") -> check x
 	| TField (x,f) when field_name f = "iterator" -> check x
 	| _ ->
 		false
@@ -424,37 +423,28 @@ and gen_expr ctx e =
 		gen_value ctx e1;
 		print ctx " %s " (Ast.s_binop op);
 		gen_value ctx e2;
-	| TClosure (x,"iterator") ->
-		add_feature ctx "use.$iterator";
-		print ctx "$iterator(";
-		gen_value ctx x;
-		print ctx ")";
 	| TField (x,f) when field_name f = "iterator" && is_dynamic_iterator ctx e ->
 		add_feature ctx "use.$iterator";
 		print ctx "$iterator(";
 		gen_value ctx x;
 		print ctx ")";
-	| TField (x,f) ->
-		gen_value ctx x;
-		let name = field_name f in
-		spr ctx (match f with FStatic _ -> static_field name | FInstance _ | FAnon _ | FDynamic _ -> field name)
-	| TClosure ({ eexpr = TTypeExpr _ } as x,s) ->
-		gen_value ctx x;
-		spr ctx (static_field s)
-	| TClosure (x,s) ->
+	| TField (x,FClosure (_,f)) ->
 		add_feature ctx "use.$bind";
-		let field = (match follow x.etype with TAnon { a_status = { contents = (Statics _ | EnumStatics _) } } -> static_field s | _ -> field s) in
 		(match x.eexpr with
 		| TConst _ | TLocal _ ->
 			print ctx "$bind(";
 			gen_value ctx x;
 			print ctx ",";
 			gen_value ctx x;
-			print ctx "%s)" field
+			print ctx "%s)" (field f.cf_name)
 		| _ ->
 			print ctx "($_=";
 			gen_value ctx x;
-			print ctx ",$bind($_,$_%s))" field)
+			print ctx ",$bind($_,$_%s))" (field f.cf_name))
+	| TField (x,f) ->
+		gen_value ctx x;
+		let name = field_name f in
+		spr ctx (match f with FStatic _ -> static_field name | FInstance _ | FAnon _ | FDynamic _ | FClosure _ -> field name)
 	| TTypeExpr t ->
 		spr ctx (ctx.type_accessor t)
 	| TParenthesis e ->
@@ -787,7 +777,6 @@ and gen_value ctx e =
 	| TArray _
 	| TBinop _
 	| TField _
-	| TClosure _
 	| TTypeExpr _
 	| TParenthesis _
 	| TObjectDecl _
@@ -1167,7 +1156,7 @@ let generate com =
 	let rec chk_features e =
 		if is_dynamic_iterator ctx e then add_feature ctx "use.$iterator";
 		match e.eexpr with
-		| TClosure _ ->
+		| TField (_,FClosure _) ->
 			add_feature ctx "use.$bind"
 		| _ ->
 			Type.iter chk_features e
