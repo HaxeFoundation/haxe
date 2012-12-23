@@ -22,5 +22,6 @@
 package haxe;
 
 #if !haxe3
+typedef StackItem = CallStack.StackItem;
 typedef Stack = CallStack;
 #end
