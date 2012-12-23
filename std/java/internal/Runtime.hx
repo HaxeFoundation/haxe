@@ -34,32 +34,32 @@ package java.internal;
 		if (obj == null && !throwErrors) return null;
 		return obj.__hx_getField(field, throwErrors, false, false);
 	}
-	
+
 	public static double getField_f(haxe.lang.IHxObject obj, java.lang.String field, boolean throwErrors)
 	{
 		if (obj == null && !throwErrors) return 0.0;
 		return obj.__hx_getField_f(field, throwErrors, false);
 	}
-	
+
 	public static java.lang.Object setField(haxe.lang.IHxObject obj, java.lang.String field, java.lang.Object value)
 	{
 		return obj.__hx_setField(field, value, false);
 	}
-	
+
 	public static double setField_f(haxe.lang.IHxObject obj, java.lang.String field, double value)
 	{
 		return obj.__hx_setField_f(field, value, false);
 	}
-	
+
 	public static java.lang.Object callField(haxe.lang.IHxObject obj, java.lang.String field, Array<?> args)
 	{
 		return obj.__hx_invokeField(field, args);
 	}
 ')
-@:keep class Runtime 
+@:keep class Runtime
 {
 	public static var undefined:Dynamic = { };
-	
+
 	@:functionBody('
 	return new haxe.lang.Closure(obj, field);
 	')
@@ -67,18 +67,18 @@ package java.internal;
 	{
 		return null;
 	}
-	
+
 	@:functionBody('
 			if (v1 == v2)
 				return true;
 			if (v1 == null || v2 == null)
 				return false;
-			
+
 			if (v1 instanceof java.lang.Number)
 			{
 				if (!(v2 instanceof java.lang.Number))
 					return false;
-				
+
 				java.lang.Number v1c = (java.lang.Number) v1;
 				java.lang.Number v2c = (java.lang.Number) v2;
 				if (v1 instanceof java.lang.Long || v2 instanceof java.lang.Long)
@@ -87,19 +87,19 @@ package java.internal;
 			} else if (v1 instanceof java.lang.String || v1 instanceof haxe.lang.IEquatable) { //TODO see what happens with Boolean cases
 				return v1.equals(v2);
 			}
-			
+
 			return false;
 	')
 	public static function eq(v1:Dynamic, v2:Dynamic):Bool
 	{
 		return false;
 	}
-	
+
 	@:functionBody('
 		if (v1 == v2)
 			return true;
-		
-		if (v1 instanceof java.lang.String || v1 instanceof haxe.lang.IEquatable) 
+
+		if (v1 instanceof java.lang.String || v1 instanceof haxe.lang.IEquatable)
 		{
 			return v1 != null && v1.equals(v2);
 		} else {
@@ -110,7 +110,7 @@ package java.internal;
 	{
 		return false;
 	}
-	
+
 	@:functionBody('
 		return v1 == v2 || (v1 != null && v1.equals(v2));
 	')
@@ -118,7 +118,7 @@ package java.internal;
 	{
 		return false;
 	}
-	
+
 	@:functionBody('
 		return (obj == null) ? 0.0 : ((java.lang.Number) obj).doubleValue();
 	')
@@ -126,7 +126,7 @@ package java.internal;
 	{
 		return 0.0;
 	}
-	
+
 	@:functionBody('
 		return (obj == null) ? false : ((java.lang.Boolean) obj).booleanValue();
 	')
@@ -134,7 +134,7 @@ package java.internal;
 	{
 		return false;
 	}
-	
+
 	@:functionBody('
 		return (obj == null) ? 0 : ((java.lang.Number) obj).intValue();
 	')
@@ -142,7 +142,7 @@ package java.internal;
 	{
 		return 0;
 	}
-	
+
 	@:functionBody('
 		if (obj != null && obj instanceof java.lang.Number)
 		{
@@ -155,7 +155,7 @@ package java.internal;
 	{
 		return false;
 	}
-	
+
 	@:functionBody('
 		if (obj != null && obj instanceof java.lang.Number)
 		{
@@ -169,21 +169,21 @@ package java.internal;
 	{
 		return false;
 	}
-	
+
 	@:functionBody('
 		java.lang.Class cl = null;
 		if (o instanceof java.lang.Class)
 		{
 			if (o == java.lang.String.class)
 				return field.equals("fromCharCode");
-			
+
 			cl = (java.lang.Class) o;
 		} else if (o instanceof java.lang.String) {
 			return haxe.lang.StringRefl.handleGetField( (java.lang.String) o, field, false) != null;
 		} else {
 			cl = o.getClass();
 		}
-		
+
 		try
 		{
 			java.lang.reflect.Field f = cl.getField(field);
@@ -207,16 +207,16 @@ package java.internal;
 	{
 		return false;
 	}
-	
+
 	@:functionBody('
 			if (v1 == v2)
 				return 0;
-			
-			if (v1 instanceof java.lang.Number)
+
+			if (v1 instanceof java.lang.Number || v2 instanceof java.lang.Number)
 			{
 				java.lang.Number v1c = (java.lang.Number) v1;
 				java.lang.Number v2c = (java.lang.Number) v2;
-				
+
 				if (v1 instanceof java.lang.Long || v2 instanceof java.lang.Long)
 				{
 					long l1 = (v1 == null) ? 0L : v1c.longValue();
@@ -225,7 +225,7 @@ package java.internal;
 				} else {
 					double d1 = (v1 == null) ? 0.0 : v1c.doubleValue();
 					double d2 = (v2 == null) ? 0.0 : v2c.doubleValue();
-					
+
 					return (int) (d1 - d2);
 				}
 			}
@@ -236,37 +236,37 @@ package java.internal;
 	{
 		return 0;
 	}
-	
+
 	@:functionBody('
 			if (v1 instanceof java.lang.String || v2 instanceof java.lang.String)
 				return (v1 + "") + (v2 + "");
-			
+
 			if (v1 instanceof java.lang.Number || v2 instanceof java.lang.Number)
 			{
 				java.lang.Number v1c = (java.lang.Number) v1;
 				java.lang.Number v2c = (java.lang.Number) v2;
-				
+
 				double d1 = (v1 == null) ? 0.0 : v1c.doubleValue();
 				double d2 = (v2 == null) ? 0.0 : v2c.doubleValue();
-				
+
 				return d1 + d2;
 			}
-			
+
 			throw new java.lang.IllegalArgumentException("Cannot dynamically add " + v1 + " and " + v2);
 	')
 	public static function plus(v1:Dynamic, v2:Dynamic):Dynamic
 	{
 		return null;
 	}
-	
+
 	@:functionBody('
-	
+
 	if (obj == null)
-		if (throwErrors) 
+		if (throwErrors)
 			throw new java.lang.NullPointerException("Cannot access field \'" + field + "\' of null.");
 		else
 			return null;
-	
+
 	java.lang.Class cl = null;
 	try
 	{
@@ -274,7 +274,7 @@ package java.internal;
 		{
 			if (obj == java.lang.String.class && field.equals("fromCharCode"))
 				return new haxe.lang.Closure(haxe.lang.StringExt.class, field);
-			
+
 			cl = (java.lang.Class) obj;
 			obj = null;
 		} else if (obj instanceof java.lang.String) {
@@ -282,7 +282,7 @@ package java.internal;
 		} else {
 			cl = obj.getClass();
 		}
-		
+
 		java.lang.reflect.Field f = cl.getField(field);
 		f.setAccessible(true);
 		return f.get(obj);
@@ -300,21 +300,21 @@ package java.internal;
 			}
 		} catch (Throwable t2)
 		{
-			
+
 		}
-		
+
 		if (throwErrors)
 			throw HaxeException.wrap(t);
-		
+
 		return null;
 	}
-	
+
 	')
 	public static function slowGetField(obj:Dynamic, field:String, throwErrors:Bool):Dynamic
 	{
 		return null;
 	}
-	
+
 	@:functionBody('
 		java.lang.Class cl = null;
 		if (obj instanceof java.lang.Class)
@@ -324,11 +324,11 @@ package java.internal;
 		} else {
 			cl = obj.getClass();
 		}
-		
+
 		try {
 			java.lang.reflect.Field f = cl.getField(field);
 			f.setAccessible(true);
-			
+
 			//FIXME we must evaluate if field to be set receives either int or double
 			if (isInt(value))
 			{
@@ -349,14 +349,14 @@ package java.internal;
 	{
 		return null;
 	}
-	
+
 	@:functionBody('
 		java.lang.Class cl = null;
 		if (obj instanceof java.lang.Class)
 		{
 			if (obj == java.lang.String.class && field.equals("fromCharCode"))
 				return haxe.lang.StringExt.fromCharCode(toInt(args.__get(0)));
-			
+
 			cl = (java.lang.Class) obj;
 			obj = null;
 		} else if (obj instanceof java.lang.String) {
@@ -364,13 +364,13 @@ package java.internal;
 		} else {
 			cl = obj.getClass();
 		}
-		
+
 		if (args == null) args = new Array();
-	
+
 		int len = args.length;
 		java.lang.Class[] cls = new java.lang.Class[len];
 		java.lang.Object[] objs = new java.lang.Object[len];
-		
+
 		java.lang.reflect.Method[] ms = cl.getDeclaredMethods();
 		int msl = ms.length;
 		int realMsl = 0;
@@ -386,25 +386,25 @@ package java.internal;
 				realMsl++;
 			}
 		}
-		
+
 		boolean hasNumber = false;
-		
+
 		for (int i = 0; i < len; i++)
 		{
 			Object o = args.__get(i);
 			objs[i]= o;
 			cls[i] = o.getClass();
 			boolean isNum = false;
-			
+
 			if (o instanceof java.lang.Number)
 			{
 				cls[i] = java.lang.Number.class;
 				isNum = hasNumber = true;
 			}
-			
+
 			msl = realMsl;
 			realMsl = 0;
-			
+
 			for (int j = 0; j < msl; j++)
 			{
 				java.lang.Class[] allcls = ms[j].getParameterTypes();
@@ -421,17 +421,17 @@ package java.internal;
 					}
 				}
 			}
-			
+
 		}
-		
+
 		java.lang.reflect.Method found;
 		if (ms.length == 0 || (found = ms[0]) == null)
 			throw haxe.lang.HaxeException.wrap("No compatible method found for: " + field);
-		
+
 		if (hasNumber)
 		{
 			java.lang.Class[] allcls = found.getParameterTypes();
-			
+
 			for (int i = 0; i < len; i++)
 			{
 				java.lang.Object o = objs[i];
@@ -465,18 +465,18 @@ package java.internal;
 				}
 			}
 		}
-		
+
 		try {
 			found.setAccessible(true);
 			return found.invoke(obj, objs);
-		} 
-		
-		catch (java.lang.reflect.InvocationTargetException e) 
+		}
+
+		catch (java.lang.reflect.InvocationTargetException e)
 		{
 			throw haxe.lang.HaxeException.wrap(e.getCause());
 		}
-		
-		catch (Throwable t) 
+
+		catch (Throwable t)
 		{
 			throw haxe.lang.HaxeException.wrap(t);
 		}
@@ -485,77 +485,77 @@ package java.internal;
 	{
 		return null;
 	}
-	
+
 	@:functionBody('
 		if (obj instanceof haxe.lang.IHxObject)
 		{
 			return ((haxe.lang.IHxObject) obj).__hx_invokeField(field, args);
 		}
-		
+
 		return slowCallField(obj, field, args);
 	')
 	public static function callField(obj:Dynamic, field:String, args:Array<Dynamic>):Dynamic
 	{
 		return null;
 	}
-	
+
 	@:functionBody('
-	
+
 		if (obj instanceof haxe.lang.IHxObject)
 			return ((haxe.lang.IHxObject) obj).__hx_getField(field, throwErrors, false, false);
-		
+
 		return slowGetField(obj, field, throwErrors);
-	
+
 	')
 	public static function getField(obj:Dynamic, field:String, throwErrors:Bool):Dynamic
 	{
 		return null;
 	}
-	
+
 	@:functionBody('
-	
+
 		if (obj instanceof haxe.lang.IHxObject)
 			return ((haxe.lang.IHxObject) obj).__hx_getField_f(field, throwErrors, false);
-		
+
 		return toDouble(slowGetField(obj, field, throwErrors));
-	
+
 	')
 	public static function getField_f(obj:Dynamic, field:String, throwErrors:Bool):Float
 	{
 		return 0.0;
 	}
-	
+
 	@:functionBody('
-	
+
 		if (obj instanceof haxe.lang.IHxObject)
 			return ((haxe.lang.IHxObject) obj).__hx_setField(field, value, false);
-		
+
 		return slowSetField(obj, field, value);
-	
+
 	')
 	public static function setField(obj:Dynamic, field:String, value:Dynamic):Dynamic
 	{
 		return null;
 	}
-	
+
 	@:functionBody('
-	
+
 		if (obj instanceof haxe.lang.IHxObject)
 			return ((haxe.lang.IHxObject) obj).__hx_setField_f(field, value, false);
-		
+
 		return toDouble(slowSetField(obj, field, value));
-	
+
 	')
 	public static function setField_f(obj:Dynamic, field:String, value:Float):Float
 	{
 		return 0.0;
 	}
-	
+
 	public static function toString(obj:Dynamic):String
 	{
 		if (obj == null)
 			return null;
-		
+
 		if (isInt(obj))
 			return (cast(obj, Int)) + "";
 		return untyped obj.toString();

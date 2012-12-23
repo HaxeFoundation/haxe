@@ -56,6 +56,7 @@ class EReg {
 	private var pattern:String;
 	private var matcher:Matcher;
 	private var cur:String;
+	private var sub:Int;
 	private var isGlobal:Bool;
 
 	/**
@@ -116,6 +117,7 @@ class EReg {
 		Updates the internal state accordingly.
 	**/
 	public function match( s : String ) : Bool {
+		sub = 0;
 		cur = s;
 		matcher = matcher.reset(s);
 		return matcher.find();
@@ -140,7 +142,7 @@ class EReg {
 	**/
 	public function matchedLeft() : String
 	{
-		return untyped cur.substring(0, matcher.start());
+		return untyped cur.substring(0, sub + matcher.start());
 	}
 
 	/**
@@ -149,7 +151,7 @@ class EReg {
 	**/
 	public function matchedRight() : String
 	{
-		return untyped cur.substring(matcher.end(), cur.length);
+		return untyped cur.substring(sub + matcher.end(), cur.length);
 	}
 
 	/**
@@ -158,13 +160,17 @@ class EReg {
 	**/
 	public function matchedPos() : { pos : Int, len : Int } {
 		var start = matcher.start();
-		return { pos : start, len : matcher.end() - start };
+		return { pos : sub + start, len : matcher.end() - start };
 	}
 
 	public function matchSub( s : String, pos : Int, len : Int = -1):Bool {
-		return throw "not implemented yet";
-	}	
-	
+		var s2 = (len < 0 ? s.substr(pos) : s.substr(pos, len));
+		sub = pos;
+		matcher = matcher.reset(s2);
+		cur = s;
+		return matcher.find();
+	}
+
 	/**
 		Split a string by using the regular expression to match
 		the separators.
@@ -212,19 +218,31 @@ class EReg {
 		and setting the [g] flag might cause some incorrect behavior on some platforms.
 	**/
 	public function map( s : String, f : EReg -> String ) : String {
+		var offset = 0;
 		var buf = new StringBuf();
-		while( true ) {
-			if( !match(s) )
+		do {
+			if (offset >= s.length)
 				break;
-			buf.add(matchedLeft());
+			else if (!matchSub(s, offset)) {
+				buf.add(s.substr(offset));
+				break;
+			}
+			var p = matchedPos();
+			buf.add(s.substr(offset, p.pos - offset));
 			buf.add(f(this));
-			s = matchedRight();
-		}
-		buf.add(s);
+			if (p.len == 0) {
+				buf.add(s.substr(p.pos, 1));
+				offset = p.pos + 1;
+			}
+			else
+				offset = p.pos + p.len;
+		} while (isGlobal);
+		if (!isGlobal && offset < s.length)
+			buf.add(s.substr(offset));
 		return buf.toString();
 	}
 
 	#if !haxe3
 	public inline function customReplace( s : String, f : EReg -> String ) : String return map(s, f)
-	#end	
+	#end
 }

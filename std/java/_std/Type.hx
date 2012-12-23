@@ -322,7 +322,7 @@
 
 	public static function getEnumConstructs( e : Enum<Dynamic> ) : Array<String> {
 		if (Reflect.hasField(e, "constructs"))
-			return untyped e.constructs;
+			return untyped e.constructs.copy();
 		return getClassFields(cast e);
 	}
 
