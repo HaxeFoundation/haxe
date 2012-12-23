@@ -41,15 +41,12 @@ type context = {
 	mutable block_inits : (unit -> unit) option;
 }
 
-let is_var_field e v =
-	match e.eexpr, follow e.etype with
-	| TTypeExpr (TClassDecl c),_
-	| _,TInst(c,_) ->
-		(try
-			let f = try PMap.find v c.cl_fields	with Not_found -> PMap.find v c.cl_statics in
-			(match f.cf_kind with Var _ -> true | _ -> false)
-		with Not_found -> false)
-	| _ -> false
+let is_var_field f =
+	match f with
+	| FStatic (_,f) | FInstance (_,f) ->
+		(match f.cf_kind with Var _ -> true | _ -> false)
+	| _ ->
+		false
 
 let is_special_compare e1 e2 =
 	match e1.eexpr, e2.eexpr with
@@ -461,19 +458,12 @@ let rec gen_call ctx e el r =
 		spr ctx "(";
 		gen_value ctx e;
 		spr ctx ")"
-	| TField ({ eexpr = TTypeExpr (TClassDecl { cl_path = (["flash"],"Lib") }) },f), args ->
-		(match f, args with
-		| "as", [e1;e2] ->
-			gen_value ctx e1;
-			spr ctx " as ";
-			gen_value ctx e2
-		| _ ->
-			gen_value ctx e;
-			spr ctx "(";
-			concat ctx "," (gen_value ctx) el;
-			spr ctx ")")
-	| TField ({ eexpr = TTypeExpr (TClassDecl { cl_path = (["flash"],"Vector") }) },f), args ->
-		(match f, args with
+	| TField (_, FStatic( { cl_path = (["flash"],"Lib") }, { cf_name = "as" })), [e1;e2] ->
+		gen_value ctx e1;
+		spr ctx " as ";
+		gen_value ctx e2
+	| TField (_, FStatic ({ cl_path = (["flash"],"Vector") }, cf)), args ->
+		(match cf.cf_name, args with
 		| "ofArray", [e] | "convert", [e] ->
 			(match follow r with
 			| TInst ({ cl_path = (["flash"],"Vector") },[t]) ->
@@ -482,7 +472,7 @@ let rec gen_call ctx e el r =
 				print ctx ")";
 			| _ -> assert false)
 		| _ -> assert false)
-	| TField(ee,v),args when is_var_field ee v ->
+	| TField (ee,f), args when is_var_field f ->
 		spr ctx "(";
 		gen_value ctx e;
 		spr ctx ")";
@@ -555,7 +545,7 @@ and gen_expr ctx e =
 		spr ctx "]";
 	| TBinop (Ast.OpEq,e1,e2) when (match is_special_compare e1 e2 with Some c -> true | None -> false) ->
 		let c = match is_special_compare e1 e2 with Some c -> c | None -> assert false in
-		gen_expr ctx (mk (TCall (mk (TField (mk (TTypeExpr (TClassDecl c)) t_dynamic e.epos,"compare")) t_dynamic e.epos,[e1;e2])) ctx.inf.com.basic.tbool e.epos);
+		gen_expr ctx (mk (TCall (mk (TField (mk (TTypeExpr (TClassDecl c)) t_dynamic e.epos,FDynamic "compare")) t_dynamic e.epos,[e1;e2])) ctx.inf.com.basic.tbool e.epos);
 	(* what is this used for? *)
 (* 	| TBinop (op,{ eexpr = TField (e1,s) },e2) ->
 		gen_value_op ctx e1;
@@ -567,19 +557,27 @@ and gen_expr ctx e =
 		print ctx " %s " (Ast.s_binop op);
 		gen_value_op ctx e2;
 	(* variable fields on interfaces are generated as (class["field"] as class) *)
-	| TField ({etype = TInst({cl_interface = true} as c,_)} as e,s)
+	| TField ({etype = TInst({cl_interface = true} as c,_)} as e,FInstance (_,{ cf_name = s }))
 	| TClosure ({etype = TInst({cl_interface = true} as c,_)} as e,s)
 		when (try (match (PMap.find s c.cl_fields).cf_kind with Var _ -> true | _ -> false) with Not_found -> false) ->
 		spr ctx "(";
 		gen_value ctx e;
 		print ctx "[\"%s\"]" s;
 		print ctx " as %s)" (type_str ctx e.etype e.epos);
-	| TField({eexpr = TArrayDecl _} as e1,s) | TClosure({eexpr = TArrayDecl _} as e1,s) ->
+	| TField({eexpr = TArrayDecl _} as e1,s) ->
+		spr ctx "(";
+		gen_expr ctx e1;
+		spr ctx ")";
+		gen_field_access ctx e1.etype (field_name s)
+	| TClosure({eexpr = TArrayDecl _} as e1,s) ->
 		spr ctx "(";
 		gen_expr ctx e1;
 		spr ctx ")";
 		gen_field_access ctx e1.etype s
-	| TField (e,s) | TClosure (e,s) ->
+	| TField (e,s) ->
+   		gen_value ctx e;
+		gen_field_access ctx e.etype (field_name s)
+	| TClosure (e,s) ->
    		gen_value ctx e;
 		gen_field_access ctx e.etype s
 	| TTypeExpr t ->

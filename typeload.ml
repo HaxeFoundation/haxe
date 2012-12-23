@@ -133,7 +133,7 @@ let type_function_param ctx t e opt p =
 		t, e
 
 let type_var_field ctx t e stat p =
-	if stat then ctx.curfun <- FStatic;
+	if stat then ctx.curfun <- FunStatic;
 	let e = type_expr_with_type ctx e (Some t) false in
 	unify ctx e.etype t p;
 	match t with
@@ -827,7 +827,7 @@ let type_function ctx args ret fmode f p =
 		| Some (csup,_) ->
 			try ignore(get_constructor (fun f->f.cf_type) csup); true with Not_found -> false
 	in
-	if fmode = FConstructor && has_super_constr() then
+	if fmode = FunConstructor && has_super_constr() then
 		(try
 			loop e;
 			display_error ctx "Missing super constructor call" p
@@ -835,7 +835,7 @@ let type_function ctx args ret fmode f p =
 			Exit -> ());
 	locals();
 	let e = match ctx.curfun, ctx.vthis with
-		| (FMember|FConstructor), Some v ->
+		| (FunMember|FunConstructor), Some v ->
 			let ev = mk (TVars [v,Some (mk (TConst TThis) ctx.tthis p)]) ctx.t.tvoid p in
 			(match e.eexpr with
 			| TBlock l -> { e with eexpr = TBlock (ev::l) }
@@ -1111,9 +1111,8 @@ let init_class ctx c p context_init herits fields =
 			| TParenthesis e -> Some e
 			| TTypeExpr _ -> Some e
 			(* try to inline static function calls *)
-			| TCall ({ etype = TFun(_,ret); eexpr = TField ({ eexpr = TTypeExpr (TClassDecl c) },n) },el) ->
+			| TCall ({ etype = TFun(_,ret); eexpr = TField (_,FStatic (c,cf)) },el) ->
 				(try
-					let cf = PMap.find n c.cl_statics in
 					let func = match cf.cf_expr with Some ({eexpr = TFunction func}) -> func | _ -> raise Not_found in
 					let ethis = mk (TConst TThis) t_dynamic e.epos in
 					let inl = (try Optimizer.type_inline ctx cf func ethis el ret e.epos false with Error (Custom _,_) -> None) in
@@ -1283,7 +1282,7 @@ let init_class ctx c p context_init herits fields =
 					context_init();
 					incr stats.s_methods_typed;
 					if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.in_macro then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ name);
-					let e , fargs = type_function ctx args ret (if constr then FConstructor else if stat then FStatic else FMember) fd p in
+					let e , fargs = type_function ctx args ret (if constr then FunConstructor else if stat then FunStatic else FunMember) fd p in
 					let f = {
 						tf_args = fargs;
 						tf_type = ret;
@@ -1823,7 +1822,7 @@ let type_module ctx m file tdecls p =
 		ret = ctx.ret;
 		locals = PMap.empty;
 		type_params = [];
-		curfun = FStatic;
+		curfun = FunStatic;
 		untyped = false;
 		in_super_call = false;
 		in_macro = ctx.in_macro;

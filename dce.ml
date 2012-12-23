@@ -259,8 +259,8 @@ and expr dce e =
 		Common.add_feature dce.com ft;
 		expr dce e
 	(* keep toString method when the class is argument to Std.string or haxe.Log.trace *)
-	| TCall ({eexpr = TField({eexpr = TTypeExpr (TClassDecl ({cl_path = (["haxe"],"Log")} as c))},"trace")} as ef, ([e2;_] as args))
-	| TCall ({eexpr = TField({eexpr = TTypeExpr (TClassDecl ({cl_path = ([],"Std")} as c))},"string")} as ef, ([e2] as args)) ->
+	| TCall ({eexpr = TField({eexpr = TTypeExpr (TClassDecl ({cl_path = (["haxe"],"Log")} as c))},FStatic (_,{cf_name="trace"}))} as ef, ([e2;_] as args))
+	| TCall ({eexpr = TField({eexpr = TTypeExpr (TClassDecl ({cl_path = ([],"Std")} as c))},FStatic (_,{cf_name="string"}))} as ef, ([e2] as args)) ->
 		mark_class dce c;
 		(match follow e2.etype with
 			| TInst(c,_) ->	field dce c "toString" false
@@ -270,8 +270,21 @@ and expr dce e =
 	| TCall ({eexpr = TConst TSuper} as e,el) ->
 		mark_t dce e.etype;
 		List.iter (expr dce) el;
-	| TClosure(e,n)
+	| TClosure(e,n) ->
+		(match follow e.etype with
+		| TInst(c,_) ->
+			mark_class dce c;
+			field dce c n false;
+		| TAnon a ->
+			(match !(a.a_status) with
+			| Statics c ->
+				mark_class dce c;
+				field dce c n true;
+			| _ -> ())
+		| _ -> ());
+		expr dce e;
 	| TField(e,n) ->
+		let n = field_name n in
 		(match follow e.etype with
 		| TInst(c,_) ->
 			mark_class dce c;

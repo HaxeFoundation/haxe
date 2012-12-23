@@ -870,7 +870,9 @@ let rec is_dynamic_in_cpp ctx expr =
 	else begin
 		let result = (
 		match expr.eexpr with
-		| TField( obj, name ) -> ctx.ctx_dbgout ("/* ?tfield "^name^" */");
+		| TField( obj, field ) ->
+			let name = field_name field in
+			ctx.ctx_dbgout ("/* ?tfield "^name^" */");
 				if (is_dynamic_member_lookup_in_cpp ctx obj name) then
             (
                ctx.ctx_dbgout "/* tf=dynobj */";
@@ -1308,6 +1310,48 @@ and gen_expression ctx retval expression =
 		| _ ->  gen_bin_op_string expr1 (Ast.s_binop op) expr2
 		in
 
+	let rec gen_field field_object member =
+		let remap_name = keyword_remap member in
+		let already_dynamic = ref false in
+		(match field_object.eexpr with
+		(* static access ... *)
+		| TTypeExpr type_def ->
+			let class_name = "::" ^ (join_class_path (t_path type_def) "::" ) in
+			if (class_name="::String") then
+				output ("::String::" ^ remap_name)
+			else
+				output (class_name ^ "_obj::" ^ remap_name);
+		(* Special internal access *)
+		| TLocal { v_name = "__global__" } ->
+			output ("::" ^ member )
+		| TConst TSuper -> output (if ctx.ctx_real_this_ptr then "this" else "__this");
+						output ("->super::" ^ remap_name)
+		| TConst TThis when ctx.ctx_real_this_ptr -> output ( "this->" ^ remap_name )
+		| TConst TNull -> output "null()"
+		| _ ->
+			gen_expression ctx true field_object;
+         ctx.ctx_dbgout "/* TField */";
+         if (is_internal_member member) then begin
+				output ( "->" ^ member );
+         end else if (is_dynamic_member_lookup_in_cpp ctx field_object member) then begin
+            if assigning then
+				    output ( "->__FieldRef(" ^ (str member) ^ ")" )
+            else
+				    output ( "->__Field(" ^ (str member) ^ ",true)" );
+            already_dynamic := true;
+         end else begin
+            if ((type_string field_object.etype)="::String" ) then
+				   output ( "." ^ remap_name )
+            else begin
+               cast_if_required ctx field_object (type_string field_object.etype);
+				   output ( "->" ^ remap_name )
+            end;
+         end;
+      );
+		if ( (not !already_dynamic) && (not calling) && (not assigning) && (is_function_member expression) ) then
+         output "_dyn()";
+	in
+
 	(match expression.eexpr with
 	| TConst TNull when not retval ->
 		output "Dynamic()";
@@ -1444,48 +1488,10 @@ and gen_expression ctx retval expression =
 	| TBinop (op,expr1,expr2) -> gen_bin_op op expr1 expr2
 	| TField (expr,name) when (is_null expr) -> output "Dynamic()"
 
-	| TClosure (field_object,member)
-	| TField (field_object,member) ->
-		let remap_name = keyword_remap member in
-		let already_dynamic = ref false in
-		(match field_object.eexpr with
-		(* static access ... *)
-		| TTypeExpr type_def ->
-			let class_name = "::" ^ (join_class_path (t_path type_def) "::" ) in
-			if (class_name="::String") then
-				output ("::String::" ^ remap_name)
-			else
-				output (class_name ^ "_obj::" ^ remap_name);
-		(* Special internal access *)
-		| TLocal { v_name = "__global__" } ->
-			output ("::" ^ member )
-		| TConst TSuper -> output (if ctx.ctx_real_this_ptr then "this" else "__this");
-						output ("->super::" ^ remap_name)
-		| TConst TThis when ctx.ctx_real_this_ptr -> output ( "this->" ^ remap_name )
-		| TConst TNull -> output "null()"
-		| _ ->
-			gen_expression ctx true field_object;
-         ctx.ctx_dbgout "/* TField */";
-         if (is_internal_member member) then begin
-				output ( "->" ^ member );
-         end else if (is_dynamic_member_lookup_in_cpp ctx field_object member) then begin
-            if assigning then
-				    output ( "->__FieldRef(" ^ (str member) ^ ")" )
-            else
-				    output ( "->__Field(" ^ (str member) ^ ",true)" );
-            already_dynamic := true;
-         end else begin
-            if ((type_string field_object.etype)="::String" ) then
-				   output ( "." ^ remap_name )
-            else begin
-               cast_if_required ctx field_object (type_string field_object.etype);
-				   output ( "->" ^ remap_name )
-            end;
-         end;
-      );
-		if ( (not !already_dynamic) && (not calling) && (not assigning) && (is_function_member expression) ) then
-         output "_dyn()";
-
+	| TClosure (field_object,member) ->
+		gen_field field_object member
+	| TField (field_object,field) ->
+		gen_field field_object (field_name field)
 
 	| TParenthesis expr when not retval ->
 			gen_expression ctx retval expr;

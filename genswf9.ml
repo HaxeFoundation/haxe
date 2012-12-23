@@ -841,11 +841,13 @@ let pop_value ctx retval =
 let gen_expr_ref = ref (fun _ _ _ -> assert false)
 let gen_expr ctx e retval = (!gen_expr_ref) ctx e retval
 
-let gen_access ctx e (forset : 'a) : 'a access =
+let rec gen_access ctx e (forset : 'a) : 'a access =
 	match e.eexpr with
 	| TLocal v ->
 		gen_local_access ctx v e.epos forset
-	| TField (e1,f) | TClosure (e1,f) ->
+	| TField (e1,f) ->
+		gen_access ctx { e with eexpr = TClosure (e1,field_name f) } forset
+	| TClosure (e1,f) ->
 		let id, k, closure = property ctx f e1.etype in
 		if closure && not ctx.for_call then error "In Flash9, this method cannot be accessed this way : please define a local function" e1.epos;
 		(match e1.eexpr with
@@ -1478,13 +1480,13 @@ and gen_call ctx retval e el r =
 		List.iter (gen_expr ctx true) el;
 		write ctx (HConstructSuper (List.length el));
 	| TField ({ eexpr = TConst TSuper },f) , _ ->
-		let id = ident f in
+		let id = ident (field_name f) in
 		write ctx (HFindPropStrict id);
 		List.iter (gen_expr ctx true) el;
 		write ctx (HCallSuper (id,List.length el));
 		coerce ctx (classify ctx r);
 	| TField ({ eexpr = TConst TThis },f) , _ when not ctx.in_static ->
-		let id = ident f in
+		let id = ident (field_name f) in
 		write ctx (HFindProp id);
 		List.iter (gen_expr ctx true) el;
 		if retval then begin
@@ -1498,7 +1500,7 @@ and gen_call ctx retval e el r =
 		gen_expr ctx true e1;
 		ctx.for_call <- old;
 		List.iter (gen_expr ctx true) el;
-		let id , _, _ = property ctx f e1.etype in
+		let id , _, _ = property ctx (field_name f) e1.etype in
 		if retval then begin
 			write ctx (HCallProperty (id,List.length el));
 			coerce ctx (classify ctx r);
@@ -1613,7 +1615,8 @@ and gen_binop ctx retval op e1 e2 t p =
 		| None ->
 			gen_op A3OEq
 		| Some c ->
-			gen_expr ctx true (mk (TCall (mk (TField (mk (TTypeExpr (TClassDecl c)) t_dynamic p,"compare")) t_dynamic p,[e1;e2])) ctx.com.basic.tbool p);
+			let f = FStatic (c,try PMap.find "compare" c.cl_statics with Not_found -> assert false) in
+			gen_expr ctx true (mk (TCall (mk (TField (mk (TTypeExpr (TClassDecl c)) t_dynamic p,f)) t_dynamic p,[e1;e2])) ctx.com.basic.tbool p);
 	in
 	match op with
 	| OpAssign ->
@@ -2073,7 +2076,7 @@ let generate_class ctx c =
 						end_fun ctx [] None f.cf_type
 					else
 						let fk = begin_fun ctx [] f.cf_type [ethis] false p in
-						gen_expr ctx false (mk (TReturn (Some (mk (TCall (mk (TField (ethis,n)) t_dynamic p,[])) f.cf_type p))) t_dynamic p);
+						gen_expr ctx false (mk (TReturn (Some (mk (TCall (mk (TField (ethis,FDynamic n)) t_dynamic p,[])) f.cf_type p))) t_dynamic p);
 						fk()
 					in
 					{
@@ -2098,7 +2101,7 @@ let generate_class ctx c =
 						end_fun ctx [v,None] None f.cf_type
 					else
 						let fk = begin_fun ctx [v,None] f.cf_type [ethis] false p in
-						gen_expr ctx false (mk (TReturn (Some (mk (TCall (mk (TField (ethis,n)) t_dynamic p,[mk (TLocal v) v.v_type p])) f.cf_type p))) t_dynamic p);
+						gen_expr ctx false (mk (TReturn (Some (mk (TCall (mk (TField (ethis,FDynamic n)) t_dynamic p,[mk (TLocal v) v.v_type p])) f.cf_type p))) t_dynamic p);
 						fk()
 					in
 					{

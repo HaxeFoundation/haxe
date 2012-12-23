@@ -26,7 +26,7 @@ open Typecore
 (* TOOLS *)
 
 let field e name t p =
-	mk (TField (e,name)) t p
+	mk (TField (e,try quick_field e.etype name with Not_found -> assert false)) t p
 
 let fcall e name el ret p =
 	let ft = tfun (List.map (fun e -> e.etype) el) ret in
@@ -723,7 +723,7 @@ let add_field_inits ctx t =
 				match cf.cf_expr with
 				| None -> assert false
 				| Some e ->
-					let lhs = mk (TField(ethis,cf.cf_name)) cf.cf_type e.epos in
+					let lhs = mk (TField(ethis,FInstance (c,cf))) cf.cf_type e.epos in
 					cf.cf_expr <- None;
 					let eassign = mk (TBinop(OpAssign,lhs,e)) e.etype e.epos in
 					if Common.defined ctx.com Define.As3 then begin
@@ -1700,8 +1700,14 @@ let default_cast ?(vtmp="$t") com e texpr t p =
 	let vexpr = mk (TLocal vtmp) e.etype p in
 	let texpr = mk (TTypeExpr texpr) (mk_texpr texpr) p in
 	let std = (try List.find (fun t -> t_path t = ([],"Std")) com.types with Not_found -> assert false) in
+	let fis = (try
+			let c = (match std with TClassDecl c -> c | _ -> assert false) in
+			FStatic (c, PMap.find "is" c.cl_statics)
+		with Not_found ->
+			assert false
+	) in
 	let std = mk (TTypeExpr std) (mk_texpr std) p in
-	let is = mk (TField (std,"is")) (tfun [t_dynamic;t_dynamic] api.tbool) p in
+	let is = mk (TField (std,fis)) (tfun [t_dynamic;t_dynamic] api.tbool) p in
 	let is = mk (TCall (is,[vexpr;texpr])) api.tbool p in
 	let exc = mk (TThrow (mk (TConst (TString "Class cast error")) api.tstring p)) t p in
 	let check = mk (TIf (mk_parent is,mk (TCast (vexpr,None)) t p,Some exc)) t p in

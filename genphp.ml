@@ -512,11 +512,11 @@ and gen_call ctx e el =
 			concat ctx "," (gen_value ctx) params;
 			spr ctx ")";
 		);
-	| TField ({ eexpr = TConst TSuper },name) , params ->
+	| TField ({ eexpr = TConst TSuper },f) , params ->
 		(match ctx.curclass.cl_super with
 		| None -> assert false
 		| Some (c,_) ->
-			print ctx "parent::%s(" (s_ident name);
+			print ctx "parent::%s(" (s_ident (field_name f));
 			concat ctx "," (gen_value ctx) params;
 			spr ctx ")";
 		);
@@ -719,7 +719,7 @@ and gen_field_op ctx e =
 	| TField (f,s) ->
 		(match follow e.etype with
 		| TFun _ ->
-			gen_field_access ctx true f s
+			gen_field_access ctx true f (field_name s)
 		| _ ->
 			gen_value_op ctx e)
 	| _ ->
@@ -910,6 +910,45 @@ and gen_while_expr ctx e =
 	ctx.nested_loops <- old_nested_loops;
 	ctx.in_loop <- old_loop
 
+and gen_tfield ctx e e1 s =
+	match follow e.etype with
+	| TFun (args, _) ->
+		(if ctx.is_call then begin
+			gen_field_access ctx false e1 s
+	  	end else if is_in_dynamic_methods ctx e1 s then begin
+	  		gen_field_access ctx true e1 s;
+	  	end else begin
+			let ob ex =
+				(match ex with
+				| TTypeExpr t ->
+					print ctx "\"";
+					spr ctx (s_path ctx (t_path t) false e1.epos);
+					print ctx "\""
+				| _ ->
+					gen_expr ctx e1) in
+
+			spr ctx "(isset(";
+			gen_field_access ctx true e1 s;
+			spr ctx ") ? ";
+			gen_field_access ctx true e1 s;
+			spr ctx ": array(";
+			ob e1.eexpr;
+			print ctx ", \"%s\"))" (s_ident s);
+
+		end)
+	| TMono _ ->
+		if ctx.is_call then
+			gen_field_access ctx false e1 s
+		else
+			gen_uncertain_string_var ctx s e1
+	| _ ->
+		if is_string_expr e1 then
+			gen_string_var ctx s e1
+		else if is_uncertain_expr e1 then
+			gen_uncertain_string_var ctx s e1
+		else
+			gen_field_access ctx true e1 s
+
 and gen_expr ctx e =
 	let in_block = ctx.in_block in
 	ctx.in_block <- false;
@@ -974,13 +1013,13 @@ and gen_expr ctx e =
 				gen_value ctx te2;
 				spr ctx "]";
 			| TField (e1,s) ->
-				gen_field_access ctx true e1 s
+				gen_field_access ctx true e1 (field_name s)
 			| _ ->
 				gen_field_op ctx e1;) in
 		let leftsidef e =
 			(match e.eexpr with
 			| TField (e1,s) ->
-				gen_field_access ctx true e1 s;
+				gen_field_access ctx true e1 (field_name s)
 			| _ ->
 				gen_field_op ctx e1;
 				) in
@@ -1087,7 +1126,7 @@ and gen_expr ctx e =
 				| TField (f, s) when is_anonym_expr e1 || is_unknown_expr e1 ->
 					spr ctx "_hx_field(";
 					gen_value ctx f;
-					print ctx ", \"%s\")" s;
+					print ctx ", \"%s\")" (field_name s);
 				| _ ->
 					gen_field_op ctx e1;
 				);
@@ -1097,7 +1136,7 @@ and gen_expr ctx e =
 				| TField (f, s) when is_anonym_expr e2 || is_unknown_expr e2 ->
 					spr ctx "_hx_field(";
 					gen_value ctx f;
-					print ctx ", \"%s\")" s;
+					print ctx ", \"%s\")" (field_name s);
 				| _ ->
 					gen_field_op ctx e2);
 			end else if
@@ -1148,47 +1187,10 @@ and gen_expr ctx e =
 			print ctx " %s " (Ast.s_binop op);
 			gen_value_op ctx e2;
 		));
-	| TField (e1,s)
+	| TField (e1,s) ->
+		gen_tfield ctx e e1 (field_name s)
 	| TClosure (e1,s) ->
-		(match follow e.etype with
-		| TFun (args, _) ->
-			(if ctx.is_call then begin
-				gen_field_access ctx false e1 s
-	  		end else if is_in_dynamic_methods ctx e1 s then begin
-	  			gen_field_access ctx true e1 s;
-	  		end else begin
-				let ob ex =
-					(match ex with
-					| TTypeExpr t ->
-						print ctx "\"";
-						spr ctx (s_path ctx (t_path t) false e1.epos);
-						print ctx "\""
-					| _ ->
-						gen_expr ctx e1) in
-
-				spr ctx "(isset(";
-				gen_field_access ctx true e1 s;
-				spr ctx ") ? ";
-				gen_field_access ctx true e1 s;
-				spr ctx ": array(";
-				ob e1.eexpr;
-				print ctx ", \"%s\"))" (s_ident s);
-
-			end)
-		| TMono _ ->
-			if ctx.is_call then
-				gen_field_access ctx false e1 s
-			else
-				gen_uncertain_string_var ctx s e1
-		| _ ->
-			if is_string_expr e1 then
-				gen_string_var ctx s e1
-			else if is_uncertain_expr e1 then
-				gen_uncertain_string_var ctx s e1
-			else
-				gen_field_access ctx true e1 s
-		)
-
+		gen_tfield ctx e e1 s
 	| TTypeExpr t ->
 		print ctx "_hx_qtype(\"%s\")" (s_path_haxe (t_path t))
 	| TParenthesis e ->
@@ -1319,11 +1321,11 @@ and gen_expr ctx e =
 			concat ctx ", " (gen_value ctx) el;
 			spr ctx "))";
 		| TField (ef,s) when is_static ef.etype && is_string_expr ef ->
-			gen_string_static_call ctx s ef el
+			gen_string_static_call ctx (field_name s) ef el
 		| TField (ef,s) when is_string_expr ef ->
-			gen_string_call ctx s ef el
-		| TField (ef,s) when is_anonym_expr ef && could_be_string_call s ->
-			gen_uncertain_string_call ctx s ef el
+			gen_string_call ctx (field_name s) ef el
+		| TField (ef,s) when is_anonym_expr ef && could_be_string_call (field_name s) ->
+			gen_uncertain_string_call ctx (field_name s) ef el
 		| _ ->
 			gen_call ctx ec el);
 	| TArrayDecl el ->
@@ -1418,7 +1420,7 @@ and gen_expr ctx e =
 			);
 		| TField (e1,s) ->
 			spr ctx (Ast.s_unop op);
-			gen_field_access ctx true e1 s
+			gen_field_access ctx true e1 (field_name s)
 		| _ ->
 			spr ctx (Ast.s_unop op);
 			gen_value ctx e)
@@ -1430,7 +1432,7 @@ and gen_expr ctx e =
 			gen_value ctx te2;
 			spr ctx "]";
 		| TField (e1,s) ->
-			gen_field_access ctx true e1 s
+			gen_field_access ctx true e1 (field_name s)
 		| _ ->
 			gen_value ctx e);
 		spr ctx (Ast.s_unop op)

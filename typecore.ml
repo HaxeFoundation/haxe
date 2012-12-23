@@ -26,10 +26,10 @@ type type_patch = {
 }
 
 type current_fun =
-	| FMember
-	| FStatic
-	| FConstructor
-	| FMemberLocal
+	| FunMember
+	| FunStatic
+	| FunConstructor
+	| FunMemberLocal
 
 type macro_mode =
 	| MExpr

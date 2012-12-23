@@ -303,9 +303,12 @@ let handle_expose ctx path meta =
 let this ctx = match ctx.in_value with None -> "this" | Some _ -> "$this"
 
 let is_dynamic_iterator ctx e =
-	match e.eexpr with
-	| TClosure (x,"iterator") | TField (x,"iterator") ->
+	let check x =
 		has_feature ctx "HxOverrides.iter" && (match follow x.etype with TInst ({ cl_path = [],"Array" },_) | TAnon _ | TDynamic _ | TMono _ -> true | _ -> false)
+	in
+	match e.eexpr with
+	| TClosure (x,"iterator") -> check x
+	| TField (x,f) when field_name f = "iterator" -> check x
 	| _ ->
 		false
 
@@ -330,10 +333,11 @@ let rec gen_call ctx e el in_value =
 			List.iter (fun p -> print ctx ","; gen_value ctx p) params;
 			spr ctx ")";
 		);
-	| TField ({ eexpr = TConst TSuper },name) , params ->
+	| TField ({ eexpr = TConst TSuper },f) , params ->
 		(match ctx.current.cl_super with
 		| None -> error "Missing api.setCurrentClass" e.epos
 		| Some (c,_) ->
+			let name = field_name f in
 			print ctx "%s.prototype%s.call(%s" (ctx.type_accessor (TClassDecl c)) (field name) (this ctx);
 			List.iter (fun p -> print ctx ","; gen_value ctx p) params;
 			spr ctx ")";
@@ -411,7 +415,7 @@ and gen_expr ctx e =
 		spr ctx "[";
 		gen_value ctx e2;
 		spr ctx "]";
-	| TBinop (op,{ eexpr = TField (x,"iterator") },e2) ->
+	| TBinop (op,{ eexpr = TField (x,f) },e2) when field_name f = "iterator" ->
 		gen_value ctx x;
 		spr ctx (field "iterator");
 		print ctx " %s " (Ast.s_binop op);
@@ -420,15 +424,20 @@ and gen_expr ctx e =
 		gen_value ctx e1;
 		print ctx " %s " (Ast.s_binop op);
 		gen_value ctx e2;
-	| TClosure (x,"iterator")
-	| TField (x,"iterator") when is_dynamic_iterator ctx e ->
+	| TClosure (x,"iterator") ->
 		add_feature ctx "use.$iterator";
 		print ctx "$iterator(";
 		gen_value ctx x;
 		print ctx ")";
-	| TField (x,s) ->
+	| TField (x,f) when field_name f = "iterator" && is_dynamic_iterator ctx e ->
+		add_feature ctx "use.$iterator";
+		print ctx "$iterator(";
 		gen_value ctx x;
-		spr ctx (match follow x.etype with TAnon { a_status = { contents = (Statics _ | EnumStatics _) } } -> static_field s | _ -> field s)
+		print ctx ")";
+	| TField (x,f) ->
+		gen_value ctx x;
+		let name = field_name f in
+		spr ctx (match f with FStatic _ -> static_field name | FInstance _ | FAnon _ | FDynamic _ -> field name)
 	| TClosure ({ eexpr = TTypeExpr _ } as x,s) ->
 		gen_value ctx x;
 		spr ctx (static_field s)

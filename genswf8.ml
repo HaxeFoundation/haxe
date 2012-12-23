@@ -582,6 +582,7 @@ let rec gen_access ?(read_write=false) ctx forcall e =
 	| TField (e2,f) ->
 		gen_expr ctx true e2;
 		if read_write then write ctx ADup;
+		let f = field_name f in
 		let p = VStr (f,is_protected ctx e2.etype f) in
 		push ctx [p];
 		if read_write then begin

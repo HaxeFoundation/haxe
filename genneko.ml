@@ -198,7 +198,7 @@ and gen_call ctx p e el =
 	| TField ({ eexpr = TConst TSuper; etype = t },f) , _ ->
 		let c = (match follow t with TInst (c,_) -> c | _ -> assert false) in
 		call p (builtin p "call") [
-			field p (gen_type_path p (fst c.cl_path,"@" ^ snd c.cl_path)) f;
+			field p (gen_type_path p (fst c.cl_path,"@" ^ snd c.cl_path)) (field_name f);
 			this p;
 			array p (List.map (gen_expr ctx) el)
 		]
@@ -223,11 +223,11 @@ and gen_expr ctx e =
 	| TArray (e1,e2) ->
 		(EArray (gen_expr ctx e1,gen_expr ctx e2),p)
 	| TBinop (OpAssign,{ eexpr = TField (e1,f) },e2) ->
-		(EBinop ("=",field p (gen_expr ctx e1) f,gen_expr ctx e2),p)
+		(EBinop ("=",field p (gen_expr ctx e1) (field_name f),gen_expr ctx e2),p)
 	| TBinop (op,e1,e2) ->
 		gen_binop ctx p op e1 e2
 	| TField (e,f) ->
-		field p (gen_expr ctx e) f
+		field p (gen_expr ctx e) (field_name f)
 	| TClosure (({ eexpr = TTypeExpr _ } as e),f) ->
 		field p (gen_expr ctx e) f
 	| TClosure (e2,f) ->
@@ -454,7 +454,7 @@ let gen_method ctx p c acc =
 		((c.cf_name, null p) :: acc)
 	| Some e ->
 		match e.eexpr with
-		| TCall ({ eexpr = TField ({ eexpr = TTypeExpr (TClassDecl { cl_path = (["neko"],"Lib") }) }, load)},[{ eexpr = TConst (TString m) };{ eexpr = TConst (TString f) };{ eexpr = TConst (TInt n) }]) when load = "load" || load = "loadLazy" ->
+		| TCall ({ eexpr = TField (_,FStatic ({cl_path=["neko"],"Lib"},{cf_name="load" | "loadLazy" as load})) },[{ eexpr = TConst (TString m) };{ eexpr = TConst (TString f) };{ eexpr = TConst (TInt n) }]) ->
 			let p = pos ctx e.epos in
 			let e = call p (EField (builtin p "loader","loadprim"),p) [(EBinop ("+",(EBinop ("+",str p m,str p "@"),p),str p f),p); (EConst (Int (Int32.to_int n)),p)] in
 			let e = (if load = "load" then e else (ETry (e,"@e",call p (ident p "@lazy_error") [ident p "@e"]),p)) in

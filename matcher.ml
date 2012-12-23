@@ -164,7 +164,7 @@ let s_type = s_type (print_context())
 
 let rec s_expr_small e = match e.eexpr with
 	| TLocal v -> v.v_name
-	| TField (e,s) -> s_expr_small e ^ "." ^ s
+	| TField (e,s) -> s_expr_small e ^ "." ^ field_name s
 	| TBlock [] -> "{}"
 	| _ -> s_expr (s_type) e
 
@@ -338,8 +338,12 @@ let to_pattern mctx e st =
 						e
 				in
 				(match ec.eexpr with
-					| TEnumField(en,s)
-					| TField ({ eexpr = TTypeExpr (TEnumDecl en) },s) ->
+					| TEnumField(en,s) ->
+						let ef = PMap.find s en.e_constrs in
+						unify_enum_field en (List.map (fun _ -> mk_mono()) en.e_types) ef tc;
+						mk_con_pat (CEnum(en,ef)) [] st.st_type p
+					| TField ({ eexpr = TTypeExpr (TEnumDecl en) },f) ->
+						let s = field_name f in
 						let ef = PMap.find s en.e_constrs in
 						unify_enum_field en (List.map (fun _ -> mk_mono()) en.e_types) ef tc;
 						mk_con_pat (CEnum(en,ef)) [] st.st_type p
@@ -697,7 +701,7 @@ let rec st_to_unique_name ctx st = match st.st_def with
 
 let rec st_to_texpr mctx st = match st.st_def with
 	| SVar v -> mk (TLocal v) v.v_type st.st_pos
-	| SField (sts,f) -> mk (TField(st_to_texpr mctx sts,f)) st.st_type st.st_pos
+	| SField (sts,f) -> mk (TField(st_to_texpr mctx sts,FDynamic f)) st.st_type st.st_pos
 	| SArray (sts,i) -> mk (TArray(st_to_texpr mctx sts,mk_const mctx.ctx st.st_pos (TInt (Int32.of_int i)))) st.st_type st.st_pos
 	| STuple (st,_,_) -> st_to_texpr mctx st
 	| SEnum _ ->
@@ -829,7 +833,7 @@ and to_array_switch mctx need_val t st cases =
 			error ("Unexpected "  ^ (s_con con)) con.c_pos
 	in
 	let cases = loop [] cases in
-	let eval = mk (TField(st_to_texpr mctx st,"length")) mctx.ctx.com.basic.tint st.st_pos in
+	let eval = mk (TField(st_to_texpr mctx st,FDynamic "length")) mctx.ctx.com.basic.tint st.st_pos in
 	let t = if not need_val then (mk_mono()) else unify_min mctx.ctx !el in
 	mk (TSwitch(eval,cases,!def)) t eval.epos
 
@@ -868,7 +872,7 @@ let match_expr ctx e cases def need_val with_type p =
 	let stl = ExtList.List.mapi (fun i e ->
 		let rec loop e = match e.eexpr with
 			| TField (ef,s) ->
-				mk_st (SField(loop ef,s)) e.etype e.epos
+				mk_st (SField(loop ef,field_name s)) e.etype e.epos
 			| TParenthesis e ->
 				loop e
 			| TLocal v ->

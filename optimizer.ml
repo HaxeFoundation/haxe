@@ -399,6 +399,9 @@ let optimize_for_loop ctx i e1 e2 p =
 	let t_void = ctx.t.tvoid in
 	let t_int = ctx.t.tint in
 	let lblock el = Some (mk (TBlock el) t_void p) in
+	let mk_field e n =
+		TField (e,try quick_field e.etype n with Not_found -> assert false)
+	in
 	let gen_int_iter pt =
 		let i = add_local ctx i pt in
 		let index = gen_local ctx t_int in
@@ -420,7 +423,7 @@ let optimize_for_loop ctx i e1 e2 p =
 		lblock [
 			mk (TVars (ivar :: avars)) t_void p;
 			mk (TWhile (
-				mk (TBinop (OpLt, iexpr, mk (TField (arr,"length")) t_int p)) ctx.t.tbool p,
+				mk (TBinop (OpLt, iexpr, mk (mk_field arr "length") t_int p)) ctx.t.tbool p,
 				block,
 				NormalWhile
 			)) t_void p;
@@ -491,14 +494,14 @@ let optimize_for_loop ctx i e1 e2 p =
 		let cell = gen_local ctx tcell in
 		let cexpr = mk (TLocal cell) tcell p in
 		let e2 = type_expr ctx e2 false in
-		let evar = mk (TVars [i,Some (mk (TField (cexpr,"elt")) t p)]) t_void p in
-		let enext = mk (TBinop (OpAssign,cexpr,mk (TField (cexpr,"next")) tcell p)) tcell p in
+		let evar = mk (TVars [i,Some (mk (mk_field cexpr "elt") t p)]) t_void p in
+		let enext = mk (TBinop (OpAssign,cexpr,mk (mk_field cexpr "next") tcell p)) tcell p in
 		let block = match e2.eexpr with
 			| TBlock el -> mk (TBlock (evar :: enext :: el)) t_void e2.epos
 			| _ -> mk (TBlock [evar;enext;e2]) t_void p
 		in
 		lblock [
-			mk (TVars [cell,Some (mk (TField (e1,"head")) tcell p)]) t_void p;
+			mk (TVars [cell,Some (mk (mk_field e1 "head") tcell p)]) t_void p;
 			mk (TWhile (
 				mk (TBinop (OpNotEq, cexpr, mk (TConst TNull) tcell p)) ctx.t.tbool p,
 				block,
@@ -870,7 +873,7 @@ let rec reduce_loop ctx e =
 		| _ -> e
 		)
 	| TCall ({ eexpr = TField ({ eexpr = TTypeExpr (TClassDecl c) },field) },params) ->
-		(match api_inline ctx c field params e.epos with
+		(match api_inline ctx c (field_name field) params e.epos with
 		| None -> reduce_expr ctx e
 		| Some e -> reduce_loop ctx e)
 	| TCall ({ eexpr = TFunction func } as ef,el) ->
@@ -882,7 +885,7 @@ let rec reduce_loop ctx e =
 		| None -> reduce_expr ctx e
 		| Some e -> reduce_loop ctx e)
 	| TCall ({ eexpr = TClosure (o,name) } as f,el) ->
-		{ e with eexpr = TCall ({ f with eexpr = TField (o,name) },el) }
+		{ e with eexpr = TCall ({ f with eexpr = TField (o,try quick_field o.etype name with Not_found -> assert false) },el) }
 	| _ ->
 		reduce_expr ctx e)
 

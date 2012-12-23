@@ -101,7 +101,7 @@ and texpr_expr =
 	| TEnumField of tenum * string
 	| TArray of texpr * texpr
 	| TBinop of Ast.binop * texpr * texpr
-	| TField of texpr * string
+	| TField of texpr * tfield_access
 	| TClosure of texpr * string
 	| TTypeExpr of module_type
 	| TParenthesis of texpr
@@ -124,6 +124,12 @@ and texpr_expr =
 	| TContinue
 	| TThrow of texpr
 	| TCast of texpr * module_type option
+
+and tfield_access =
+	| FInstance of tclass * tclass_field
+	| FStatic of tclass * tclass_field
+	| FAnon of tclass_field
+	| FDynamic of string
 
 and texpr = {
 	eexpr : texpr_expr;
@@ -298,6 +304,11 @@ let rec t_dynamic = TDynamic t_dynamic
 let tfun pl r = TFun (List.map (fun t -> "",false,t) pl,r)
 
 let fun_args l = List.map (fun (a,c,t) -> a, c <> None, t) l
+
+let field_name f =
+	match f with
+	| FAnon f | FInstance (_,f) | FStatic (_,f) -> f.cf_name
+	| FDynamic n -> n
 
 let mk_class m path pos =
 	{
@@ -903,6 +914,28 @@ let rec raw_class_field build_type c i =
 
 let class_field = raw_class_field field_type
 
+let quick_field t n =
+	match follow t with
+	| TInst (c,_) ->
+		let _, f = raw_class_field (fun f -> f.cf_type) c n in
+		FInstance (c,f)
+	| TAnon a ->
+		(match !(a.a_status) with
+		| EnumStatics e ->
+			assert false (* to replace with FEnum later *)
+		| Statics c ->
+			FStatic (c,PMap.find n c.cl_statics)
+		| AbstractStatics _ ->
+			assert false
+		| _ ->
+			FAnon (PMap.find n a.a_fields))
+	| TDynamic _ ->
+		FDynamic n
+	| TEnum _  | TMono _ | TAbstract _ | TFun _ ->
+		raise Not_found
+	| TLazy _ | TType _ ->
+		assert false
+
 let rec get_constructor build_type c =
 	match c.cl_constructor, c.cl_super with
 	| Some c, _ -> build_type c, c
@@ -1374,7 +1407,7 @@ let rec s_expr s_type e =
 	| TBinop (op,e1,e2) ->
 		sprintf "(%s %s %s)" (loop e1) (s_binop op) (loop e2)
 	| TField (e,f) ->
-		sprintf "%s.%s" (loop e) f
+		sprintf "%s.%s" (loop e) (field_name f)
 	| TClosure (e,s) ->
 		sprintf "Closure (%s,%s)" (loop e) s
 	| TTypeExpr m ->
