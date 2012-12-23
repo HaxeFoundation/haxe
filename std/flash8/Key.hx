@@ -9,25 +9,25 @@ typedef KeyListener = {
 
 extern class Key
 {
-	static var ALT : Int = 18;
-	static var ENTER : Int = 13;
-	static var SPACE : Int = 32;
-	static var UP : Int = 38;
-	static var DOWN : Int = 40;
-	static var LEFT : Int = 37;
-	static var RIGHT : Int = 39;
-	static var PGUP : Int = 33;
-	static var PGDN : Int = 34;
-	static var HOME : Int = 36;
-	static var END : Int = 35;
-	static var TAB : Int = 9;
-	static var CONTROL : Int = 17;
-	static var SHIFT : Int = 16;
-	static var ESCAPE : Int = 27;
-	static var INSERT : Int = 45;
-	static var DELETEKEY : Int = 46;
-	static var BACKSPACE : Int = 8;
-	static var CAPSLOCK : Int = 20;
+	static inline var ALT : Int = 18;
+	static inline var ENTER : Int = 13;
+	static inline var SPACE : Int = 32;
+	static inline var UP : Int = 38;
+	static inline var DOWN : Int = 40;
+	static inline var LEFT : Int = 37;
+	static inline var RIGHT : Int = 39;
+	static inline var PGUP : Int = 33;
+	static inline var PGDN : Int = 34;
+	static inline var HOME : Int = 36;
+	static inline var END : Int = 35;
+	static inline var TAB : Int = 9;
+	static inline var CONTROL : Int = 17;
+	static inline var SHIFT : Int = 16;
+	static inline var ESCAPE : Int = 27;
+	static inline var INSERT : Int = 45;
+	static inline var DELETEKEY : Int = 46;
+	static inline var BACKSPACE : Int = 8;
+	static inline var CAPSLOCK : Int = 20;
 
 	// hide : static property _listeners(default,null) : Array<Dynamic>;
 
