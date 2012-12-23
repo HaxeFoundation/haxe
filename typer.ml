@@ -929,6 +929,7 @@ and type_field ctx e i p mode =
 			end;
 			let fmode, ft = (match !(a.a_status) with
 				| Statics c -> FStatic (c,f), field_type ctx c [] f p
+				| EnumStatics e -> FEnum (e,try PMap.find f.cf_name e.e_constrs with Not_found -> assert false), Type.field_type f
 				| _ -> FAnon f, Type.field_type f
 			) in
 			field_access ctx mode f fmode ft e p
