@@ -5459,6 +5459,17 @@ struct
       Some (apply_assign (fun e -> { e with eexpr = TBinop(op, left, if is_void left.etype then e else gen.ghandle_cast left.etype e.etype e) }) right )
     in
 
+    let handle_return e =
+      Some( apply_assign (fun e ->
+        match e.eexpr with
+          | TThrow _ -> e
+          | _ when is_void e.etype ->
+              { e with eexpr = TBlock([e; { e with eexpr = TReturn None }]) }
+          | _ ->
+              { e with eexpr = TReturn( Some e ) }
+      ) e )
+    in
+
     let is_problematic_if right =
       match expr_kind right with
         | KStatement | KExprWithStatement -> true
@@ -5469,6 +5480,8 @@ struct
       | TBinop((Ast.OpAssign as op),left,right)
       | TBinop((Ast.OpAssignOp _ as op),left,right) when shallow_expr_type right = Statement ->
         handle_assign op left right
+      | TReturn( Some right ) when shallow_expr_type right = Statement ->
+        handle_return right
       | TBinop((Ast.OpAssign as op),left, ({ eexpr = TBinop(Ast.OpBoolAnd,_,_) } as right) )
       | TBinop((Ast.OpAssign as op),left,({ eexpr = TBinop(Ast.OpBoolOr,_,_) } as right))
       | TBinop((Ast.OpAssignOp _ as op),left,({ eexpr = TBinop(Ast.OpBoolAnd,_,_) } as right) )
