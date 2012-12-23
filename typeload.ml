@@ -1137,6 +1137,9 @@ let init_class ctx c p context_init herits fields =
 						if not stat then begin
 							display_error ctx "Extern non-static variables may not be initialized" p;
 							e
+						end else if v.v_read <> AccInline then begin
+							display_error ctx "Extern non-inline variables may not be initialized" p;
+							e
 						end else begin
 							match make_const e with
 							| Some e -> e
