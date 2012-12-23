@@ -448,6 +448,10 @@ let rec unify_call_params ctx cf el args r p inline =
 	in
 	loop [] el args []
 
+let fast_enum_field e ef p =
+	let et = mk (TTypeExpr (TEnumDecl e)) (TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics e) }) p in
+	TField (et,FEnum (e,ef))
+	
 let rec type_module_type ctx t tparams p =
 	match t with
 	| TClassDecl c ->
@@ -633,8 +637,10 @@ let field_access ctx mode f fmode t e p =
 		match follow e.etype with
 		| TAnon a ->
 			(match !(a.a_status) with
-			| EnumStatics e ->
-				AKField ((mk (TEnumField (e,f.cf_name)) t p),f, fmode)
+			| EnumStatics en ->
+				let c = (try PMap.find f.cf_name en.e_constrs with Not_found -> assert false) in
+				let fmode = FEnum (en,c) in
+				AKField ((mk (TField (e,fmode)) t p),f, fmode)
 			| _ -> fnormal())
 		| _ -> fnormal()
 	in
@@ -648,7 +654,7 @@ let field_access ctx mode f fmode t e p =
 		| _ , MGet ->
 			let cmode = (match fmode with
 				| FInstance (c,cf) -> FClosure (Some c,cf)
-				| FStatic _ -> fmode
+				| FStatic _ | FEnum _ -> fmode
 				| FAnon f -> FClosure (None, f)
 				| FDynamic _ | FClosure _ -> assert false
 			) in
@@ -847,7 +853,8 @@ let rec type_ident_raise ?(imported_enums=true) ctx i p mode =
 				| TEnumDecl e ->
 					try
 						let ef = PMap.find i e.e_constrs in
-						mk (TEnumField (e,i)) (monomorphs ef.ef_params (monomorphs e.e_types ef.ef_type)) p
+						let et = type_module_type ctx t None p in
+						mk (TField (et,FEnum (e,ef))) (monomorphs ef.ef_params (monomorphs e.e_types ef.ef_type)) p
 					with
 						Not_found -> loop l
 		in
@@ -1478,7 +1485,7 @@ and type_switch_old ctx e cases def need_val with_type p =
 					display_error ctx ("This constructor is not part of the enum " ^ s_type_path en.e_path) p;
 					raise Exit
 				) in
-				mk (TEnumField (en,i)) (apply_params en.e_types params ef.ef_type) (snd e)
+				mk (fast_enum_field en ef p) (apply_params en.e_types params ef.ef_type) (snd e)
 			| _ ->
 				type_expr ctx e
 			) in
@@ -1489,7 +1496,7 @@ and type_switch_old ctx e cases def need_val with_type p =
 				| _ -> raise Exit
 			) pl in
 			(match e.eexpr with
-			| TEnumField (en,s) -> type_match e en s pl
+			| TField (_,FEnum (en,c)) -> type_match e en c.ef_name pl
 			| _ -> if pl = [] then case_expr e else raise Exit)
 		with Exit ->
 			case_expr (type_expr ctx efull)
@@ -1670,7 +1677,7 @@ and type_expr_with_type_raise ?(print_error=true) ctx e t =
 			with Not_found -> try
 				let ef = PMap.find s e.e_constrs in
 				let et = apply_params e.e_types pl (monomorphs ef.ef_params ef.ef_type) in
-				let constr = mk (TEnumField (e,s)) et p in
+				let constr = mk (fast_enum_field e ef p) et p in
 				build_call ctx (AKExpr constr) el (Some t) p
 			with Not_found ->
 				if ctx.untyped then raise Exit; (* __js__, etc. *)
@@ -1731,7 +1738,7 @@ and type_expr_with_type_raise ?(print_error=true) ctx e t =
 				| TEnum (e,pl) ->
 					(try
 						let ef = PMap.find s e.e_constrs in
-						mk (TEnumField (e,s)) (apply_params e.e_types pl ef.ef_type) p
+						mk (fast_enum_field e ef p) (apply_params e.e_types pl ef.ef_type) p
 					with Not_found ->
 						error ("Identifier '" ^ s ^ "' is not part of enum " ^ s_type_path e.e_path) p;
 						mk (TConst TNull) t p)
@@ -2796,8 +2803,6 @@ let generate ctx =
 			| TEnumDecl e -> loop_enum p e
 			| TAbstractDecl a -> loop_abstract p a
 			| TTypeDecl _ -> assert false)
-		| TEnumField (e,_) ->
-			loop_enum p e
 		| TNew (c,_,_) ->
 			iter (walk_expr p) e;
 			loop_class p c;

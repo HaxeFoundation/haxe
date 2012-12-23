@@ -4357,7 +4357,6 @@ let rec make_ast e =
 	| TConst c ->
 		EConst (mk_const c)
 	| TLocal v -> EConst (Ident v.v_name)
-	| TEnumField (en,f) -> EField (mk_path en.e_path e.epos,f)
 	| TArray (e1,e2) -> EArray (make_ast e1,make_ast e2)
 	| TBinop (op,e1,e2) -> EBinop (op, make_ast e1, make_ast e2)
 	| TField (e,f) -> EField (make_ast e, Type.field_name f)

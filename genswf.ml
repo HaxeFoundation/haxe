@@ -582,7 +582,6 @@ let build_dependencies t =
 	and add_expr e =
 		match e.eexpr with
 		| TTypeExpr t -> add_path (Type.t_path t) DKExpr
-		| TEnumField (e,_) -> add_path e.e_path DKExpr
 		| TNew (c,pl,el) ->
 			add_path c.cl_path DKExpr;
 			List.iter add_type pl;

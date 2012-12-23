@@ -533,8 +533,6 @@ and gen_expr ctx e =
 		gen_constant ctx e.epos c
 	| TLocal v ->
 		spr ctx (s_ident v.v_name)
-	| TEnumField (en,s) ->
-		print ctx "%s.%s" (s_path ctx true en.e_path e.epos) (s_ident s)
 	| TArray ({ eexpr = TLocal { v_name = "__global__" } },{ eexpr = TConst (TString s) }) ->
 		let path = Ast.parse_path s in
 		spr ctx (s_path ctx false path e.epos)
@@ -842,7 +840,6 @@ and gen_value ctx e =
 		v()
 	| TConst _
 	| TLocal _
-	| TEnumField _
 	| TArray _
 	| TBinop _
 	| TField _

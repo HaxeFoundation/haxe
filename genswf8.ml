@@ -620,12 +620,6 @@ let rec gen_access ?(read_write=false) ctx forcall e =
 			gen_expr ctx true eb;
 		end;
 		VarObj
-	| TEnumField (en,f) ->
-		getvar ctx (gen_path ctx en.e_path false);
-		push ctx [VStr (f,false)];
-		(match follow e.etype with
-		| TFun _ -> VarClosure
-		| _ -> VarObj)
 	| TTypeExpr t ->
 		(match t with
 		| TClassDecl c -> gen_path ctx c.cl_path c.cl_extern
@@ -975,8 +969,7 @@ and gen_expr_2 ctx retval e =
 	| TField _
 	| TArray _
 	| TLocal _
-	| TTypeExpr _
-	| TEnumField _ ->
+	| TTypeExpr _ ->
 		getvar ctx (gen_access ctx false e)
 	| TConst c ->
 		gen_constant ctx c e.epos

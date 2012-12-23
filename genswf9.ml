@@ -974,10 +974,6 @@ let rec gen_expr_content ctx retval e =
 		no_value ctx retval;
 	| TParenthesis e ->
 		gen_expr ctx retval e
-	| TEnumField (e,s) ->
-		let id = type_path ctx e.e_path in
-		write ctx (HGetLex id);
-		write ctx (HGetProp (ident s));
 	| TObjectDecl fl ->
 		List.iter (fun (name,e) ->
 			write ctx (HString name);
@@ -1504,11 +1500,6 @@ and gen_call ctx retval e el r =
 			coerce ctx (classify ctx r);
 		end else
 			write ctx (HCallPropVoid (id,List.length el))
-	| TEnumField (e,f) , _ ->
-		let id = type_path ctx e.e_path in
-		write ctx (HGetLex id);
-		List.iter (gen_expr ctx true) el;
-		write ctx (HCallProperty (ident f,List.length el));
 	| _ ->
 		gen_expr ctx true e;
 		write ctx HGetGlobalScope;

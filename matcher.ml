@@ -284,8 +284,7 @@ let to_pattern mctx e st =
 			| TEnum(en,pl)
 			| TFun(_,TEnum(en,pl)) ->
 				let ef = match ec.eexpr with
-					| TEnumField(_,s)
-					| TField({ eexpr = TTypeExpr (TEnumDecl _) },FClosure (_,{ cf_name = s })) -> PMap.find s en.e_constrs
+					| TField (_,FEnum (_,f)) -> f
 					| _ -> error ("Expected constructor for enum " ^ (s_type_path en.e_path)) p
 				in
 				let mono_map,monos,tpl = List.fold_left (fun (mm,ml,tpl) (n,t) ->
@@ -326,7 +325,8 @@ let to_pattern mctx e st =
 				let ec = match tc with
 					| TEnum(en,pl) ->
 						let ef = PMap.find s en.e_constrs in
-						mk (TEnumField (en,s)) (apply_params en.e_types pl ef.ef_type) p
+						let et = mk (TTypeExpr (TEnumDecl en)) (TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics en) }) p in
+						mk (TField (et,FEnum (en,ef))) (apply_params en.e_types pl ef.ef_type) p
 					| _ ->
 						let old = ctx.untyped in
 						ctx.untyped <- true;
@@ -338,13 +338,7 @@ let to_pattern mctx e st =
 						e
 				in
 				(match ec.eexpr with
-					| TEnumField(en,s) ->
-						let ef = PMap.find s en.e_constrs in
-						unify_enum_field en (List.map (fun _ -> mk_mono()) en.e_types) ef tc;
-						mk_con_pat (CEnum(en,ef)) [] st.st_type p
-					| TField ({ eexpr = TTypeExpr (TEnumDecl en) },f) ->
-						let s = field_name f in
-						let ef = PMap.find s en.e_constrs in
+					| TField (_,FEnum (en,ef)) ->
 						unify_enum_field en (List.map (fun _ -> mk_mono()) en.e_types) ef tc;
 						mk_con_pat (CEnum(en,ef)) [] st.st_type p
                     | TConst c ->

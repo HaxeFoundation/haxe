@@ -252,8 +252,7 @@ and expr dce e =
 	| TCast(e, Some (TEnumDecl en)) ->
 		mark_t dce (TEnum(en,[]));
 		expr dce e;
-	| TTypeExpr (TEnumDecl e)
-	| TEnumField(e,_) ->
+	| TTypeExpr (TEnumDecl e) ->
 		mark_t dce (TEnum(e,[]));
 	| TCall ({eexpr = TLocal ({v_name = "__define_feature__"})},[{eexpr = TConst (TString ft)};e]) ->
 		Common.add_feature dce.com ft;

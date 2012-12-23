@@ -27,7 +27,7 @@ open Typecore
 let has_side_effect e =
 	let rec loop e =
 		match e.eexpr with
-		| TConst _ | TLocal _ | TEnumField _ | TTypeExpr _ | TFunction _ -> ()
+		| TConst _ | TLocal _ | TField (_,FEnum _) | TTypeExpr _ | TFunction _ -> ()
 		| TMatch _ | TNew _ | TCall _ | TField _ | TArray _ | TBinop ((OpAssignOp _ | OpAssign),_,_) | TUnop ((Increment|Decrement),_,_) -> raise Exit
 		| TReturn _ | TBreak | TContinue | TThrow _ | TCast (_,Some _) -> raise Exit
 		| TCast (_,None) | TBinop _ | TUnop _ | TParenthesis _ | TWhile _ | TFor _ | TIf _ | TTry _ | TSwitch _ | TArrayDecl _ | TVars _ | TBlock _ | TObjectDecl _ -> Type.iter loop e
@@ -39,12 +39,10 @@ let has_side_effect e =
 
 let api_inline ctx c field params p =
 	match c.cl_path, field, params with
-	| ([],"Type"),"enumIndex",[{ eexpr = TEnumField (en,f) }] ->
-		let c = (try PMap.find f en.e_constrs with Not_found -> assert false) in
-		Some (mk (TConst (TInt (Int32.of_int c.ef_index))) ctx.t.tint p)
-	| ([],"Type"),"enumIndex",[{ eexpr = TCall({ eexpr = TEnumField (en,f) },pl) }] when List.for_all (fun e -> not (has_side_effect e)) pl ->
-		let c = (try PMap.find f en.e_constrs with Not_found -> assert false) in
-		Some (mk (TConst (TInt (Int32.of_int c.ef_index))) ctx.t.tint p)
+	| ([],"Type"),"enumIndex",[{ eexpr = TField (_,FEnum (en,f)) }] ->
+		Some (mk (TConst (TInt (Int32.of_int f.ef_index))) ctx.t.tint p)
+	| ([],"Type"),"enumIndex",[{ eexpr = TCall({ eexpr = TField (_,FEnum (en,f)) },pl) }] when List.for_all (fun e -> not (has_side_effect e)) pl ->
+		Some (mk (TConst (TInt (Int32.of_int f.ef_index))) ctx.t.tint p)
 	| ([],"Std"),"int",[{ eexpr = TConst (TInt _) } as e] ->
 		Some { e with epos = p }
 	| ([],"String"),"fromCharCode",[{ eexpr = TConst (TInt i) }] when i > 0l && i < 128l ->
@@ -309,7 +307,7 @@ let rec type_inline ctx cf f ethis params tret p force =
 			| TLocal _
 			| TConst TThis (* not really, but should not be move inside a function body *)
 				-> raise Exit
-			| TEnumField _
+			| TField (_,FEnum _)
 			| TTypeExpr _
 			| TConst _ -> ()
 			| _ ->
@@ -543,7 +541,7 @@ let standard_precedence op =
 
 let rec need_parent e =
 	match e.eexpr with
-	| TConst _ | TLocal _ | TEnumField _ | TArray _ | TField _ | TParenthesis _ | TCall _ | TNew _ | TTypeExpr _ | TObjectDecl _ | TArrayDecl _ -> false
+	| TConst _ | TLocal _ | TArray _ | TField _ | TParenthesis _ | TCall _ | TNew _ | TTypeExpr _ | TObjectDecl _ | TArrayDecl _ -> false
 	| TCast (e,None) -> need_parent e
 	| TCast _ | TThrow _ | TReturn _ | TTry _ | TMatch _ | TSwitch _ | TFor _ | TIf _ | TWhile _ | TBinop _ | TContinue | TBreak
 	| TBlock _ | TVars _ | TFunction _ | TUnop _ -> true
@@ -687,7 +685,7 @@ let reduce_expr ctx e =
 		List.iter (fun (cl,_) ->
 			List.iter (fun e ->
 				match e.eexpr with
-				| TCall ({ eexpr = TEnumField _ },_) -> error "Not-constant enum in switch cannot be matched" e.epos
+				| TCall ({ eexpr = TField (_,FEnum _) },_) -> error "Not-constant enum in switch cannot be matched" e.epos
 				| _ -> ()
 			) cl
 		) cases;
@@ -846,12 +844,12 @@ let rec reduce_loop ctx e =
 			| OpBoolAnd when a  -> e1
 			| OpBoolOr when not a -> e1
 			| _ -> e)
-		| TEnumField (e1,f1), TEnumField (e2,f2) when e1 == e2 ->
+		| TField (_,FEnum (e1,f1)), TField (_,FEnum (e2,f2)) when e1 == e2 ->
 			(match op with
-			| OpEq -> { e with eexpr = TConst (TBool (f1 = f2)) }
-			| OpNotEq -> { e with eexpr = TConst (TBool (f1 <> f2)) }
+			| OpEq -> { e with eexpr = TConst (TBool (f1 == f2)) }
+			| OpNotEq -> { e with eexpr = TConst (TBool (f1 != f2)) }
 			| _ -> e)
-		| _, TCall ({ eexpr = TEnumField _ },_) | TCall ({ eexpr = TEnumField _ },_), _ ->
+		| _, TCall ({ eexpr = TField (_,FEnum _) },_) | TCall ({ eexpr = TField (_,FEnum _) },_), _ ->
 			(match op with
 			| OpAssign -> e
 			| _ ->

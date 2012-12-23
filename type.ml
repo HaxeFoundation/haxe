@@ -98,7 +98,6 @@ and tanon = {
 and texpr_expr =
 	| TConst of tconstant
 	| TLocal of tvar
-	| TEnumField of tenum * string
 	| TArray of texpr * texpr
 	| TBinop of Ast.binop * texpr * texpr
 	| TField of texpr * tfield_access
@@ -130,6 +129,7 @@ and tfield_access =
 	| FAnon of tclass_field
 	| FDynamic of string
 	| FClosure of tclass option * tclass_field (* None class = TAnon *)
+	| FEnum of tenum * tenum_field
 
 and texpr = {
 	eexpr : texpr_expr;
@@ -308,6 +308,7 @@ let fun_args l = List.map (fun (a,c,t) -> a, c <> None, t) l
 let field_name f =
 	match f with
 	| FAnon f | FInstance (_,f) | FStatic (_,f) | FClosure (_,f) -> f.cf_name
+	| FEnum (_,f) -> f.ef_name
 	| FDynamic n -> n
 
 let mk_class m path pos =
@@ -1177,7 +1178,6 @@ let iter f e =
 	match e.eexpr with
 	| TConst _
 	| TLocal _
-	| TEnumField _
 	| TBreak
 	| TContinue
 	| TTypeExpr _ ->
@@ -1229,7 +1229,6 @@ let map_expr f e =
 	match e.eexpr with
 	| TConst _
 	| TLocal _
-	| TEnumField _
 	| TBreak
 	| TContinue
 	| TTypeExpr _ ->
@@ -1280,7 +1279,6 @@ let map_expr f e =
 let map_expr_type f ft fv e =
 	match e.eexpr with
 	| TConst _
-	| TEnumField _
 	| TBreak
 	| TContinue
 	| TTypeExpr _ ->
@@ -1349,7 +1347,6 @@ let s_expr_kind e =
 	match e.eexpr with
 	| TConst _ -> "Const"
 	| TLocal _ -> "Local"
-	| TEnumField _ -> "EnumField"
 	| TArray (_,_) -> "Array"
 	| TBinop (_,_,_) -> "Binop"
 	| TField (_,_) -> "Field"
@@ -1394,8 +1391,6 @@ let rec s_expr s_type e =
 		"Const " ^ s_const c
 	| TLocal v ->
 		"Local " ^ s_var v
-	| TEnumField (e,f) ->
-		sprintf "EnumField %s.%s" (s_type_path e.e_path) f
 	| TArray (e1,e2) ->
 		sprintf "%s[%s]" (loop e1) (loop e2)
 	| TBinop (op,e1,e2) ->

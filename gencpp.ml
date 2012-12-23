@@ -669,7 +669,6 @@ let rec iter_retval f retval e =
 	match e.eexpr with
 	| TConst _
 	| TLocal _
-	| TEnumField _
 	| TBreak
 	| TContinue
 	| TTypeExpr _ ->
@@ -1368,7 +1367,6 @@ and gen_expression ctx retval expression =
 	| TCall (func, arg_list) ->
 		let rec is_variable e = match e.eexpr with
 		| TField _ -> false
-		| TEnumField _ -> false
 		| TLocal { v_name = "__global__" } -> false
 		| TParenthesis p -> is_variable p
 		| TCast (e,None) -> is_variable e
@@ -1446,9 +1444,6 @@ and gen_expression ctx retval expression =
 
 
 	| TLocal v -> output (keyword_remap v.v_name);
-	| TEnumField (enum, name) ->
-			output ("::" ^ (join_class_path enum.e_path "::") ^ "_obj::" ^ name);
-		   if ( not calling ) then output "_dyn()";
 	| TArray (array_expr,_) when (is_null array_expr) -> output "Dynamic()"
 	| TArray (array_expr,index) ->
 		let dynamic =  is_dynamic_in_cpp ctx array_expr in

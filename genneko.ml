@@ -218,8 +218,6 @@ and gen_expr ctx e =
 			(EArray (ident p v.v_name,int p 0),p)
 		else
 			ident p v.v_name
-	| TEnumField (e,f) ->
-		field p (gen_type_path p e.e_path) f
 	| TArray (e1,e2) ->
 		(EArray (gen_expr ctx e1,gen_expr ctx e2),p)
 	| TBinop (OpAssign,{ eexpr = TField (e1,f) },e2) ->

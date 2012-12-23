@@ -960,10 +960,6 @@ and gen_expr ctx e =
 		gen_constant ctx e.epos c
 	| TLocal v ->
 		spr ctx ("$" ^ (try PMap.find v.v_name ctx.locals with Not_found -> (s_ident_local v.v_name)))
-	| TEnumField (en,s) ->
-		(match (try PMap.find s en.e_constrs with Not_found -> error ("Unknown local " ^ s) e.epos).ef_type with
-		| TFun (args,_) -> print ctx "%s::%s" (s_path ctx en.e_path en.e_extern e.epos) (s_ident s)
-		| _ -> print ctx "%s::$%s" (s_path ctx en.e_path en.e_extern e.epos) (s_ident s))
 	| TArray (e1,e2) ->
 		(match e1.eexpr with
 		| TCall _
@@ -1706,7 +1702,7 @@ and canbe_ternary_param e =
 	| TTypeExpr _
 	| TConst _
 	| TLocal _
-	| TEnumField _
+	| TField (_,FEnum _)
 	| TParenthesis _
 	| TObjectDecl _
 	| TArrayDecl _
@@ -1733,7 +1729,6 @@ and gen_value ctx e =
 	| TTypeExpr _
 	| TConst _
 	| TLocal _
-	| TEnumField _
 	| TArray _
 	| TBinop _
 	| TField _
