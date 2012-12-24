@@ -164,7 +164,7 @@ let compile() =
 	let mlist = [
 		"ast";"lexer";"type";"common";"parser";"typecore";
 		"genxml";"optimizer";"typeload";"codegen";
-    "gencommon"; "genneko";"genas3";"genjs";"genswf8";"genswf9";"genswf";"genphp";"gencpp"; "gencs";"genjava";
+    	"genneko";"genas3";"genjs";"genswf8";"genswf9";"genswf";"genphp";"gencpp";
 		"interp";"typer";"matcher";"dce";"main";
 	] in
 	let path_str = String.concat " " (List.map (fun s -> "-I " ^ s) paths) in
