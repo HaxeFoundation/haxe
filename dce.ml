@@ -383,8 +383,7 @@ let run com main full =
 				end;
 				b
 			) c.cl_ordered_fields;
-			if c.cl_path <> ([],"EReg") then
-				(match c.cl_constructor with Some cf when not (keep_field dce cf) -> c.cl_constructor <- None | _ -> ());
+			(match c.cl_constructor with Some cf when not (keep_field dce cf) -> c.cl_constructor <- None | _ -> ());
 			(* we keep a class if it was used or has a used field *)
 			if has_meta ":used" c.cl_meta || c.cl_ordered_statics <> [] || c.cl_ordered_fields <> [] then loop (mt :: acc) l else begin
 				if dce.debug then print_endline ("[DCE] Removed class " ^ (s_type_path c.cl_path));
