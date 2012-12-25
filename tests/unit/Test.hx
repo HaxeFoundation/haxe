@@ -13,7 +13,10 @@ package unit;
 
 	function feq( v : Float, v2 : Float, ?pos ) {
 		count++;
-		if( Math.abs(v - v2) > 1e-18 ) report(v+" should be "+v2,pos);
+		if (!Math.isFinite(v) || !Math.isFinite(v2))
+			eq(v, v2, pos);
+		else if ( Math.abs(v - v2) > 1e-15 )
+			report(v+" should be "+v2,pos);
 	}
 
 	function t( v, ?pos ) {

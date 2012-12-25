@@ -2,6 +2,7 @@ package unit;
 
 import haxe.macro.Context;
 import haxe.macro.Expr;
+import haxe.macro.Type;
 using StringTools;
 
 class UnitBuilder {
@@ -45,18 +46,26 @@ class UnitBuilder {
 		}
 	}
 	
-	static function collapseToAndExpr(el:Array<Expr>) {
-		return switch(el) {
-			case []: throw "";
-			case [e]: e;
-		case _:
-			var e = el.pop();
-			{ expr: EBinop(OpBoolAnd, e, collapseToAndExpr(el)), pos: e.pos }
-		}
-	}	
-	
 	static function mkEq(e1, e2, p) {
-		var e = macro eq($e1, $e2);
+		function isFloat(e) {
+			try return switch(Context.typeof(e)) {
+				case TAbstract(tr, _):
+					tr.get().name == "Float";
+				case _:
+					false;
+			} catch (e:Dynamic) {
+				return false;
+			}
+		}
+		var e = switch [isFloat(e1) || isFloat(e2), e2.expr] {
+			// hell yeah
+			case [true, EField( { expr:EConst(CIdent("Math")) }, "POSITIVE_INFINITY" | "NEGATIVE_INFINITY")] if (Context.defined("cpp") || Context.defined("php")):
+				macro Math.isFinite($e1);
+			case [true, _]:
+				macro feq($e1, $e2);
+			case _:
+				macro eq($e1, $e2);
+		}
 		return {
 			expr: e.expr,
 			pos: p
