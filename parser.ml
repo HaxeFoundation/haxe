@@ -813,8 +813,6 @@ and expr = parser
 	| [< '(Dollar v,p); s >] -> expr_next (EConst (Ident ("$"^v)),p) s
 
 and expr_next e1 = parser
-	| [< (name,params,p) = parse_meta_entry; s >] ->
-		(EMeta((name,params,p), expr_next e1 s),p)
 	| [< '(Dot,p); s >] ->
 		if is_resuming p then display (EDisplay (e1,false),p);
 		(match s with parser
