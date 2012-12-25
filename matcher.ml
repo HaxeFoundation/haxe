@@ -9,6 +9,7 @@ type con_def =
 	| CType of module_type
 	| CArray of int
 	| CFields of int * (string * tclass_field) list
+	| CExpr of texpr
 
 and con = {
 	c_def : con_def;
@@ -85,6 +86,7 @@ let arity con = match con.c_def with
 	| CType mt -> 0
 	| CArray i -> i
 	| CFields (i,_) -> i
+	| CExpr _ -> 0
 
 let mk_st def t p = {
 	st_def = def;
@@ -155,7 +157,7 @@ let mk_subs st con = match con.c_def with
 	| CArray i ->
 		let t = match follow con.c_type with TInst({cl_path=[],"Array"},[t]) -> t | _ -> assert false in
 		ExtList.List.init i (fun i -> mk_st (SArray(st,i)) t st.st_pos)
-	| CEnum _ | CConst _ | CType _ ->
+	| CEnum _ | CConst _ | CType _ | CExpr _ ->
 		[]
 
 (* Printing *)
@@ -184,6 +186,7 @@ let s_con con = match con.c_def with
 	| CType mt -> s_type_path (t_path mt)
 	| CArray i -> "[" ^(string_of_int i) ^ "]"
 	| CFields (_,fl) -> String.concat "," (List.map (fun (s,_) -> s) fl)
+	| CExpr e -> s_expr s_type e
 
 let rec s_pat pat = match pat.p_def with
 	| PVar v -> v.v_name
@@ -276,6 +279,7 @@ let to_pattern mctx e st =
 			(match e.eexpr with
 			| TConst c -> mk_con_pat (CConst c) [] st.st_type p
 			| TTypeExpr mt -> mk_con_pat (CType mt) [] st.st_type p
+			| TField(_, FStatic({cl_extern = true},cf)) -> mk_con_pat (CExpr e) [] cf.cf_type p
 			| _ -> error "Constant expression expected" p)
 		| ECall(ec,el) ->
 			let tc = monomorphs ctx.type_params (st.st_type) in
@@ -419,6 +423,8 @@ let to_pattern mctx e st =
 (* Match compilation *)
 
 let unify_con con1 con2 = match con1.c_def,con2.c_def with
+	| CExpr e1, CExpr e2 ->
+		e1 == e2
 	| CConst c1,CConst c2 ->
 		c1 = c2
 	| CEnum(e1,ef1),CEnum(e2,ef2) ->
@@ -802,6 +808,9 @@ and to_value_switch mctx need_val t st cases =
 		| ({c_def = CType mt } as con,dt) :: cases ->
 			let e = to_typed_ast mctx need_val dt in
 			([Typer.type_module_type mctx.ctx mt None con.c_pos],e) :: loop (e :: acc) cases
+		| ({c_def = CExpr e1},dt) :: cases ->
+			let e = to_typed_ast mctx need_val dt in
+			([e1],e) :: loop (e :: acc) cases
 		| (con,_) :: _ ->
 			error ("Unexpected "  ^ (s_con con)) con.c_pos
 	in
