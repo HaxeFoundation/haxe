@@ -8,29 +8,36 @@ using StringTools;
 class UnitBuilder {
 	
 	@:macro static public function build(basePath:String):Array<Field> {
-		basePath = basePath.endsWith("\\") || basePath.endsWith("/") ? basePath : basePath + "/";
-		var dir = sys.FileSystem.readDirectory(basePath);
 		var ret = Context.getBuildFields();
 		var numFiles = 0;
-		for (file in dir) {
-			if (file.endsWith(".unit.hx")) {
-				numFiles++;
-				var func = {
-					args: [],
-					ret: null,
-					params: [],
-					expr: read(basePath + file)
+			
+		function readDir(path) {
+			var dir = sys.FileSystem.readDirectory(path);
+			path = path.endsWith("\\") || path.endsWith("/") ? path : path + "/";
+			for (file in dir) {
+				var filePath = path + file;
+				if (file.endsWith(".unit.hx")) {
+					numFiles++;
+					var func = {
+						args: [],
+						ret: null,
+						params: [],
+						expr: read(filePath)
+					}
+					ret.push( {
+						name: "test" + ~/\./g.map(file, function(_) return "_"),
+						kind: FFun(func),
+						pos: Context.makePosition( { min:0, max:0, file:filePath + file } ),
+						access: [APublic],
+						doc: null,
+						meta: []
+					});
+				} else if (sys.FileSystem.isDirectory(filePath)) {
+					readDir(filePath);
 				}
-				ret.push( {
-					name: "test" + ~/\./g.map(file, function(_) return "_"),
-					kind: FFun(func),
-					pos: Context.makePosition( { min:0, max:0, file:basePath + file } ),
-					access: [APublic],
-					doc: null,
-					meta: []
-				});
 			}
 		}
+		readDir(basePath);
 		trace("Added " +numFiles + " .unit.hx files");
 		return ret;
 	}
