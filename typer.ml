@@ -451,7 +451,7 @@ let rec unify_call_params ctx cf el args r p inline =
 let fast_enum_field e ef p =
 	let et = mk (TTypeExpr (TEnumDecl e)) (TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics e) }) p in
 	TField (et,FEnum (e,ef))
-	
+
 let rec type_module_type ctx t tparams p =
 	match t with
 	| TClassDecl c ->
@@ -1131,7 +1131,11 @@ let type_generic_function ctx (e,cf) el p =
 				| Some e -> Some (Codegen.generic_substitute_expr gctx e));
 			cf2.cf_kind <- cf.cf_kind;
 			cf2.cf_public <- cf.cf_public;
-			cf2.cf_meta <- [":noComplete",[],p];
+			let metadata = List.filter (fun (m,_,_) -> match m with
+				| ":generic" -> false
+				| _ -> true
+			) cf.cf_meta in
+			cf2.cf_meta <- (":noComplete",[],p) :: ("noUsing",[],p) :: metadata;
 			cf2
 		in
 		let e = if stat then type_type ctx c.cl_path p else e in
