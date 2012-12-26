@@ -21,13 +21,57 @@
  */
 package haxe.io;
 
+/**
+	This class provides a convenient way of working with paths. It supports the
+	common path formats:
+		directory1/directory2/filename.extension
+		directory1\directory2\filename.excention
+**/
 class Path {
 
-	public var ext : String;
-	public var dir : String;
-	public var file : String;
+	/**
+		The directory.
+		
+		This is the leading part of the path that is not part of the file name
+		and the extension.
+		
+		Does not end with a / or \ separator.
+		
+		If the path has no directory, the value is null.
+	**/
+	public var dir(default, null) : String;
+	
+	/**
+		The file name.
+		
+		This is the part of the part between the directory and the extension.
+		
+		If there is no file name, e.g. for ".htaccess" or "/dir/", the value
+		is the empty String "".
+	**/
+	public var file(default, null) : String;	
+	
+	/**
+		The file extension.
+		
+		It is separated from the file name by a dot. This dot is not part of
+		the extension.
+		
+		If the path has no extension, the value is null.
+	**/
+	public var ext(default, null) : String;
+		
+	/**
+		True if the last directory separator is a backslash, false otherwise.
+	**/
 	public var backslash : Bool;
 
+	/**
+		Creates a new Path instance by parsing [path].
+		
+		Path information can be retrieved by accessing the dir, file and ext
+		properties.
+	**/
 	public function new( path : String ) {
 		var c1 = path.lastIndexOf("/");
 		var c2 = path.lastIndexOf("\\");
@@ -50,22 +94,49 @@ class Path {
 		}
 	}
 
+	/**
+		Returns a String representation of [this] path.
+		
+		If [this].backslash is true, backslash is used as directory separator,
+		otherwise slash is used. This only affects the separator between
+		[this].dir and [this].file.
+		
+		If [this].directory or [this].extension is null, their representation
+		is the empty String "".
+	**/
 	public function toString() {
 		return (if( dir == null ) "" else dir + if( backslash ) "\\" else "/") + file + (if( ext == null ) "" else "." + ext);
 	}
 
+	/**
+		Returns the String representation of [path] without the file extension.
+		
+		If [path] is null, the result is unspecified.
+	**/
 	public static function withoutExtension( path : String ) {
 		var s = new Path(path);
 		s.ext = null;
 		return s.toString();
 	}
 
+	/**
+		Returns the String representation of [path] without the directory.
+		
+		If [path] is null, the result is unspecified.
+	**/	
 	public static function withoutDirectory( path ) {
 		var s = new Path(path);
 		s.dir = null;
 		return s.toString();
 	}
 
+	/**
+		Returns the directory of [path].
+		
+		If the directory is null, the empty String "" is returned.
+		
+		If [path] is null, the result is unspecified.
+	**/
 	public static function directory( path ) {
 		var s = new Path(path);
 		if( s.dir == null )
@@ -73,6 +144,13 @@ class Path {
 		return s.dir;
 	}
 
+	/**
+		Returns the extension of [path].
+		
+		If the extension is null, the empty String "" is returned.
+		
+		If [path] is null, the result is unspecified.
+	**/
 	public static function extension( path ) {
 		var s = new Path(path);
 		if( s.ext == null )
@@ -80,6 +158,13 @@ class Path {
 		return s.ext;
 	}
 
+	/**
+		Returns a String representation of [path] where the extension is [ext].
+		
+		If [path] has no extension, [ext] is added as extension.
+		
+		If [path] or [ext] are null, the result is unspecified.
+	**/
 	public static function withExtension( path, ext ) {
 		var s = new Path(path);
 		s.ext = ext;
