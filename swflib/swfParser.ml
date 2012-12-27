@@ -179,6 +179,31 @@ let shape_new_styles_length s =
 	shape_array_length shape_line_style_length s.sns_line_styles +
 	1
 
+let font_shape_records_length records =
+	let nbits = ref 8 in
+	let nfbits = ref records.srs_nfbits in
+	let nlbits = ref records.srs_nlbits in
+	List.iter (fun r ->
+		nbits := !nbits + 6;
+		match r with
+		| SRStyleChange s ->
+			nbits := !nbits +
+				opt_len (fun (n,_,_) -> 5 + n * 2) s.scsr_move +
+				opt_len (const !nfbits) s.scsr_fs0 +
+				opt_len (const !nfbits) s.scsr_fs1 +
+				opt_len (const !nlbits) s.scsr_ls;
+		| SRCurvedEdge s ->
+			nbits := !nbits + s.scer_nbits * 4
+		| SRStraightEdge s ->
+			nbits := !nbits + 1 + (match s.sser_line with
+								| None , None -> assert false
+								| Some _ , None
+								| None, Some _ -> 1 + s.sser_nbits
+								| Some _ , Some _ -> 2 * s.sser_nbits)
+	) records.srs_records;
+	(* nbits := !nbits + 6; *)
+	(!nbits + 7) / 8
+	
 let shape_records_length records =
 	let nbits = ref 8 in
 	let nfbits = ref records.srs_nfbits in
@@ -1626,6 +1651,19 @@ let write_shape_record ch b nlbits nfbits = function
 			write_bits b 1 1;
 			write_bits b s.sser_nbits dx;
 			write_bits b s.sser_nbits dy
+
+let write_shape_without_style ch s =
+	(* write_shape_array ch write_shape_fill_style s.sws_fill_styles; *)
+	(* write_shape_array ch write_shape_line_style s.sws_line_styles; *)
+	let r = s in (* s.sws_records in *)
+	let b = output_bits ch in
+	write_bits b 4 r.srs_nfbits;
+	write_bits b 4 r.srs_nlbits;
+	let nlbits = ref r.srs_nlbits in
+	let nfbits = ref r.srs_nfbits in
+	List.iter (write_shape_record ch b nlbits nfbits) r.srs_records;
+	(* write_bits b 6 0; *)
+	flush_bits b			
 
 let write_shape_with_style ch s =
 	write_shape_array ch write_shape_fill_style s.sws_fill_styles;

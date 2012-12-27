@@ -598,6 +598,52 @@ and clip = {
 	c_tags : tag list;
 }
 
+type font_language_code =
+	| LCNone (*0*)
+	| LCLatin (*1*)
+	| LCJapanese (*2*)
+	| LCKorean (*3*)
+	| LCSimplifiedChinese (*4*)
+	| LCTraditionalChinese (*5*)
+
+type font_glyph_data = {
+	font_char_code: int;
+	font_shape: shape_records;
+}
+
+type font_layout_glyph_data = {
+	font_advance: int;
+	font_bounds: rect;
+}
+
+type font_kerning_data = {
+	font_char_code1: int;
+	font_char_code2: int;
+	font_adjust: int;
+}
+
+type font_layout_data = {
+	font_ascent: int;
+	font_descent: int;
+	font_leading: int;
+	font_glyphs_layout: font_layout_glyph_data array;
+	font_kerning: font_kerning_data list;
+}
+
+type font2_data = {
+	font_shift_jis: bool;
+	font_is_small: bool;
+	font_is_ansi: bool;
+	font_wide_codes: bool;
+	font_wide_offsets: bool;
+	font_is_italic: bool;
+	font_is_bold: bool;
+	font_language: font_language_code;
+	font_name: string;
+	font_glyphs: font_glyph_data array;
+	font_layout: font_layout_data;
+}
+
 type swf = header * tag list
 
 let __deflate = ref (fun (_:unit IO.output) -> assert false)
