@@ -812,6 +812,21 @@ let build_swf9 com file swc =
 		| TClassDecl c ->
 			let rec loop = function
 				| [] -> acc
+				| (":font",[EConst (String file),p],_) :: l ->
+					let ch = try open_in_bin file with _ -> error "File not found" p in
+					let ttf = Ttf.parse ch in
+					close_in ch;
+					let ttf_swf = Ttf.write_swf ttf "" in
+					let ch = IO.output_string () in
+					let b = IO.output_bits ch in
+					Ttf.write_font2 ch b ttf_swf;
+					let data = IO.close_out ch in
+					incr cid;
+					classes := { f9_cid = Some !cid; f9_classname = s_type_path c.cl_path } :: !classes;
+					tag (TFont3 {
+						cd_id = !cid;
+						cd_data = data;
+					}) :: loop l
 				| (":bitmap",[EConst (String file),p],_) :: l ->
 					let data = load_file_data file p in
 					incr cid;
