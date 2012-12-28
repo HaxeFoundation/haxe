@@ -1433,7 +1433,7 @@ let write_swf ttf range_str =
 		font_layout = glyfs_font_layout;
 	}
 ;;
-if Array.length Sys.argv < 2 then failwith "Usage: ttf [font name]";
+(* if Array.length Sys.argv < 2 then failwith "Usage: ttf [font name]";
 let fontname = Sys.argv.(1) in
 let f2 = write_swf (parse (open_in_bin (fontname ^ ".ttf"))) "" in
 let ch = (output_channel (open_out_bin (fontname ^ ".dat"))) in
@@ -1453,4 +1453,4 @@ let ch = open_out_bin (fontname ^ ".xml") in
 Pervasives.output_string ch xml;
 Pervasives.close_out ch;
 if Sys.command "haxe -main Main -swf main.swf" <> 0 then failwith "Could not execute haxe";
-if Sys.command ("hxswfml xml2swf " ^ fontname ^ ".xml " ^ fontname ^ ".swf -no-strict") <> 0 then failwith "Could not execute hxswfml";;
+if Sys.command ("hxswfml xml2swf " ^ fontname ^ ".xml " ^ fontname ^ ".swf -no-strict") <> 0 then failwith "Could not execute hxswfml";; *)
