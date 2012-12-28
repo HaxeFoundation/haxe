@@ -203,7 +203,7 @@ let font_shape_records_length records =
 	) records.srs_records;
 	(* nbits := !nbits + 6; *)
 	(!nbits + 7) / 8
-	
+
 let shape_records_length records =
 	let nbits = ref 8 in
 	let nfbits = ref records.srs_nfbits in
@@ -1663,7 +1663,7 @@ let write_shape_without_style ch s =
 	let nfbits = ref r.srs_nfbits in
 	List.iter (write_shape_record ch b nlbits nfbits) r.srs_records;
 	(* write_bits b 6 0; *)
-	flush_bits b			
+	flush_bits b
 
 let write_shape_with_style ch s =
 	write_shape_array ch write_shape_fill_style s.sws_fill_styles;

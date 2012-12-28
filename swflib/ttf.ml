@@ -103,10 +103,25 @@ type cmap_format_6 = {
 	c6_glyph_index_array : int array;
 }
 
+type cmap_format_12_group = {
+	c12g_start_char_code : int32;
+	c12g_end_char_code : int32;
+	c12g_start_glyph_code : int32;
+}
+
+type cmap_format_12 = {
+	c12_format : int32;
+	c12_length : int32;
+	c12_language : int32;
+	c12_num_groups : int32;
+	c12_groups : cmap_format_12_group list;
+}
+
 type cmap_subtable_def =
 	| Cmap0 of cmap_format_0
 	| Cmap4 of cmap_format_4
 	| Cmap6 of cmap_format_6
+	| Cmap12 of cmap_format_12
 	| CmapUnk of string
 
 type cmap_subtable = {
@@ -129,9 +144,9 @@ type kern_subtable_header = {
 }
 
 type kern_pair = {
-	left : int;
-	right : int;
-	value : int;
+	kern_left : int;
+	kern_right : int;
+	kern_value : int;
 }
 
 type kern_format_0 = {
@@ -290,28 +305,25 @@ type os2 = {
 	os2_us_last_char_index : int;
 	os2_s_typo_ascender : int;
 	os2_s_typo_descender : int;
+	os2_s_typo_line_gap : int;
 	os2_us_win_ascent : int;
 	os2_us_win_descent : int;
 }
 
-type table =
-	| TGlyf of glyf array
-	| THmtx of hmtx list
-	| TCmap of cmap
-	| TKern of kern
-	| TName of name
-	| THead of head
-	| THhea of hhea
-	| TLoca of loca
-	| TMaxp of maxp
-	| TOS2 of os2
-	| TUnk of string
-
 type ttf = {
 	ttf_header : header;
-	ttf_name : string;
+	ttf_font_name : string;
 	ttf_directory: (string,entry) Hashtbl.t;
-	ttf_tables : (string * table) list;
+	ttf_glyfs : glyf array;
+	ttf_hmtx : hmtx list;
+	ttf_cmap : cmap;
+	ttf_head : head;
+	ttf_loca : loca;
+	ttf_hhea : hhea;
+	ttf_maxp : maxp;
+	ttf_name : name;
+	ttf_os2 : os2;
+	ttf_kern : kern option;
 }
 
 type ctx = {
@@ -480,9 +492,9 @@ let parse_loca_table head maxp ctx =
 
 let parse_hmtx_table maxp hhea ctx =
 	let ch = ctx.ch in
-	let last_advance_width = ref 0 in
+	let last_advance_width = ref 0 in (* check me 1/2*)
 	ExtList.List.init maxp.maxp_num_glyphs (fun i ->
-		let advance_width = if i > hhea.hhea_number_of_hmetrics then
+		let advance_width = if i > hhea.hhea_number_of_hmetrics-1 then (* check me 2/2*)
 			!last_advance_width
 		else
 			rdu16 ch
@@ -512,10 +524,12 @@ let parse_cmap_table ctx =
 	let parse_sub entry =
 		seek_in ctx.file ((ti ctx.entry.entry_offset) + (ti entry.csh_offset));
 		let format = rdu16 ch in
-		let length = rdu16 ch in
-		let language = rdu16 ch in
+
+
 		let def = match format with
 			| 0 ->
+				let length = rdu16 ch in
+				let language = rdu16 ch in
 				let glyph_index = Array.init 256 (fun _ -> read ch) in
 				Cmap0 {
 					c0_format = 0;
@@ -524,6 +538,8 @@ let parse_cmap_table ctx =
 					c0_glyph_index_array = glyph_index;
 				}
 			| 4 ->
+				let length = rdu16 ch in
+				let language = rdu16 ch in
 				let seg_count_x2 = rdu16 ch in
 				let seg_count = seg_count_x2 / 2 in
 				let search_range = rdu16 ch in
@@ -537,12 +553,11 @@ let parse_cmap_table ctx =
 				let id_range_offset = Array.init seg_count (fun _ -> rdu16 ch) in
 				let count = length - (8 * seg_count + 16) / 2 in
 				let glyph_index = Array.init count (fun _ -> rdu16 ch) in
-				(* TODO: whatever Reader.hx does here (Done in: map_char_code make_cmap4_map)*)
 				Cmap4 {
 					c4_format = format;
 					c4_length = length;
 					c4_language = language;
-					c4_seg_count_x2 = seg_count;
+					c4_seg_count_x2 = seg_count_x2;
 					c4_search_range = search_range;
 					c4_entry_selector = entry_selector;
 					c4_range_shift = range_shift;
@@ -554,6 +569,8 @@ let parse_cmap_table ctx =
 					c4_glyph_index_array = glyph_index;
 				}
 			| 6 ->
+				let length = rdu16 ch in
+				let language = rdu16 ch in
 				let first_code = rdu16 ch in
 				let entry_count = rdu16 ch in
 				let glyph_index = Array.init entry_count (fun _ -> rdu16 ch) in
@@ -565,6 +582,28 @@ let parse_cmap_table ctx =
 					c6_entry_count = entry_count;
 					c6_glyph_index_array = glyph_index;
 				}
+(*  			| 12 ->
+				let format = rd32r ch in
+				let length = rd32r ch in
+				let language = rd32r ch in
+				let num_groups = rd32r ch in
+				let groups = ExtList.List.init num_groups (fun _ ->
+					let start = rd32r ch in
+					let stop = rd32r ch in
+					let start_glyph = rd32r ch in
+					{
+						c12g_start_char_code = start;
+						c12g_end_char_code = stop;
+						c12g_start_glyph_code = start_glyph;
+					}
+				) in
+				Cmap12 {
+					c12_format = format;
+					c12_length = length;
+					c12_language = language;
+					c12_num_groups = num_groups;
+					c12_groups = groups;
+				} *)
 			| x ->
 				failwith ("Not implemented format: " ^ (string_of_int x));
 		in
@@ -624,24 +663,26 @@ let parse_glyf_table maxp loca cmap hmtx ctx =
 			in
 			loop 0;
 			assert (DynArray.length flags = !num_points);
+			let x = ref 0 in
+			let y = ref 0 in
 			let x_coordinates = Array.init !num_points (fun i ->
 				let flag = DynArray.get flags i in
 				if flag land 0x10 <> 0 then begin
-					if flag land 0x02 <> 0 then read_byte ch
-					else 0
+					if flag land 0x02 <> 0 then begin x:= !x + read_byte ch; !x end
+					else !x
 				end else begin
-					if flag land 0x02 <> 0 then -read_byte ch
-					else rd16 ch
+					if flag land 0x02 <> 0 then begin x:= !x -read_byte ch; !x end
+					else begin x := !x + rd16 ch; !x end
 				end
 			) in
 			let y_coordinates = Array.init !num_points (fun i ->
 				let flag = DynArray.get flags i in
 				if flag land 0x20 <> 0 then begin
-					if flag land 0x04 <> 0 then read_byte ch
-					else 0
+					if flag land 0x04 <> 0 then begin y:= !y + read_byte ch; !y end
+					else !y
 				end else begin
-					if flag land 0x04 <> 0 then -read_byte ch
-					else rd16 ch
+					if flag land 0x04 <> 0 then begin y:= !y -read_byte ch; !y end
+					else begin y := !y + rd16 ch; !y end
 				end;
 			) in
 			TglyfSimple (header, {
@@ -718,9 +759,9 @@ let parse_kern_table ctx =
 				let right = rdu16 ch in
 				let value = rd16 ch in
 				{
-					left = left;
-					right = right;
-					value = value;
+					kern_left = left;
+					kern_right = right;
+					kern_value = value;
 				}
 			) in
 			Kern0 {
@@ -821,6 +862,7 @@ let parse_os2_table ctx =
 	let y_strikeout_size = rd16 ch in
 	let y_strikeout_position = rd16 ch in
 	let s_family_class = rd16 ch in
+
 	let b_family_type = read_byte ch in
 	let b_serif_style = read_byte ch in
 	let b_weight = read_byte ch in
@@ -831,6 +873,7 @@ let parse_os2_table ctx =
 	let b_letterform = read_byte ch in
 	let b_midline = read_byte ch in
 	let b_x_height = read_byte ch in
+
 	let ul_unicode_range_1 = rd32r ch in
 	let ul_unicode_range_2 = rd32r ch in
 	let ul_unicode_range_3 = rd32r ch in
@@ -841,6 +884,7 @@ let parse_os2_table ctx =
 	let us_last_char_index = rdu16 ch in
 	let s_typo_ascender = rd16 ch in
 	let s_typo_descender = rd16 ch in
+	let s_typo_line_gap = rd16 ch in
 	let us_win_ascent = rdu16 ch in
 	let us_win_descent = rdu16 ch in
 	{
@@ -880,6 +924,7 @@ let parse_os2_table ctx =
 		os2_us_last_char_index = us_last_char_index;
 		os2_s_typo_ascender = s_typo_ascender;
 		os2_s_typo_descender = s_typo_descender;
+		os2_s_typo_line_gap = s_typo_line_gap;
 		os2_us_win_ascent = us_win_ascent;
 		os2_us_win_descent = us_win_descent;
 	}
@@ -902,82 +947,68 @@ let parse file : ttf =
 		ctx.entry <- entry;
 		f ctx
 	in
-	let head = parse_table (Hashtbl.find directory "head") parse_head_table in
-	let hhea = parse_table (Hashtbl.find directory "hhea") parse_hhea_table in
-	let maxp = parse_table (Hashtbl.find directory "maxp") parse_maxp_table in
-	let loca = parse_table (Hashtbl.find directory "loca") (parse_loca_table head maxp) in
-	let hmtx = parse_table (Hashtbl.find directory "hmtx") (parse_hmtx_table maxp hhea) in
-	let cmap = parse_table (Hashtbl.find directory "cmap") (parse_cmap_table) in
-	let glyf = parse_table (Hashtbl.find directory "glyf") (parse_glyf_table maxp loca cmap hmtx) in
-	(* let kern = parse_table (Hashtbl.find directory "kern") (parse_kern_table) in *)
-	let name,ttf_name = parse_table (Hashtbl.find directory "name") (parse_name_table) in
-	let os2 = parse_table (Hashtbl.find directory "OS/2") (parse_os2_table) in
-	let tables = ("head", (THead head)) :: ("hhea", (THhea hhea)) :: ("maxp", (TMaxp maxp))
-			  :: ("loca", (TLoca loca)) :: ("hmtx", (THmtx hmtx)) :: ("cmap", (TCmap cmap))
-			  :: ("glyf", (TGlyf glyf)) :: ("name", (TName name))
-			  :: ("OS/2", (TOS2 os2)) :: []
+	let parse_req_table name f =
+		try
+			let entry = Hashtbl.find directory name in
+			parse_table entry f
+		with Not_found ->
+			failwith (Printf.sprintf "Required table %s could not be found" name)
 	in
+	let parse_opt_table name f =
+		try
+			let entry = Hashtbl.find directory name in
+			Some (parse_table entry f)
+		with Not_found ->
+			None
+	in
+	let head = parse_req_table "head" parse_head_table in
+	let hhea = parse_req_table "hhea" parse_hhea_table in
+	let maxp = parse_req_table "maxp" parse_maxp_table in
+	let loca = parse_req_table "loca" (parse_loca_table head maxp) in
+	let hmtx = parse_req_table "hmtx" (parse_hmtx_table maxp hhea) in
+	let cmap = parse_req_table "cmap" (parse_cmap_table) in
+	let glyfs = parse_req_table "glyf" (parse_glyf_table maxp loca cmap hmtx) in
+	let kern = parse_opt_table "kern" (parse_kern_table) in
+	let name,ttf_name = parse_req_table "name" (parse_name_table) in
+	let os2 = parse_req_table "OS/2" (parse_os2_table) in
 	{
 		ttf_header = header;
-		ttf_name = ttf_name;
+		ttf_font_name = ttf_name;
 		ttf_directory = directory;
-		ttf_tables = tables;
+		ttf_head = head;
+		ttf_hhea = hhea;
+		ttf_maxp = maxp;
+		ttf_loca = loca;
+		ttf_hmtx = hmtx;
+		ttf_cmap = cmap;
+		ttf_glyfs = glyfs;
+		ttf_name = name;
+		ttf_os2 = os2;
+		ttf_kern = kern;
 	}
 
 (* WRITING *)
 
-(* TODO: move this to swf.ml *)
-
-type font_language_code =
-	| LCNone (*0*)
-	| LCLatin (*1*)
-	| LCJapanese (*2*)
-	| LCKorean (*3*)
-	| LCSimplifiedChinese (*4*)
-	| LCTraditionalChinese (*5*)
-
-type font_glyph_data = {
-	font_char_code: int;
-	font_shape: shape_records;
-}
-
-type font_layout_glyph_data = {
-	font_advance: int;
-	font_bounds: rect;
-}
-
-type font_kerning_data = {
-	font_char_code1: int;
-	font_char_code2: int;
-	font_adjust: int;
-}
-
-type font_layout_data = {
-	font_ascent: int;
-	font_descent: int;
-	font_leading: int;
-	font_glyphs: font_layout_glyph_data list;
-	font_kerning: font_kerning_data list;
-}
-
-type font2_data = {
-	font_shift_jis: bool;
-	font_is_small: bool;
-	font_is_ansi: bool;
-	font_is_italic: bool;
-	font_is_bold: bool;
-	font_language: font_language_code;
-	font_name: string;
-	font_glyphs: font_glyph_data array;
-	font_layout: font_layout_data option;
-}
 
 (* This can stay *)
 
+let _nbits x =
+	if x = 0 then
+		0
+	else
+		let x = ref x in
+		if !x < 0 then x := -1 * !x;
+		let nbits = ref 0 in
+		while !x > 0 do
+			x := !x lsr 1;
+			incr nbits;
+		done;
+		!nbits + 1
+
+let round x = int_of_float (floor (x +. 0.5))
+
 type write_ctx = {
-	head : head;
-	cmap : cmap;
-	glyf : glyf array;
+	ttf : ttf;
 }
 
 type glyf_path = {
@@ -996,136 +1027,182 @@ let mk_path t x y cx cy = {
 	gp_cy = cy;
 }
 
-let make_path ctx pq p1 p2 arr g =
-	let p1_on_curve = g.gs_flags.(p1) land 0x01 <> 0 in
-	let p2_on_curve = g.gs_flags.(p2) land 0x01 <> 0 in
-	match p1_on_curve, p2_on_curve with
-	| true, true ->
-		let x = (float_of_int g.gs_x_coordinates.(p2)) in
-		let y = (float_of_int g.gs_y_coordinates.(p2)) in
-		let cx = 0.0 in
-		let cy = 0.0 in
-		let path = mk_path 1 x y cx cy in
-		DynArray.add arr path;
-	| false, false ->
-		let x = (float_of_int (g.gs_x_coordinates.(p1) + g.gs_x_coordinates.(p2) - (g.gs_x_coordinates.(p1)))) /. 2. in
-		let y = (float_of_int (g.gs_y_coordinates.(p1) + g.gs_y_coordinates.(p2) - (g.gs_y_coordinates.(p1)))) /. 2. in
-		let cx = !pq.gp_x in
-		let cy = !pq.gp_y in
-		let path = mk_path 2 x y cx cy in
-		DynArray.add arr path;
-		let x = (float_of_int (g.gs_x_coordinates.(p2))) /. 2. in  
-		let y = (float_of_int (g.gs_y_coordinates.(p2))) /. 2. in
-		let cx = 0.0 in
-		let cy = 0.0 in
-		pq := (mk_path (-1) x y cx cy)
-	| true, false ->
-		let x = (float_of_int g.gs_x_coordinates.(p2)) in
-		let y = (float_of_int g.gs_y_coordinates.(p2)) in
-		let cx = 0.0 in
-		let cy = 0.0 in
-		pq := (mk_path (-1) x y cx cy)
-	| false, true ->
-		let x = (float_of_int g.gs_x_coordinates.(p2)) in
-		let y = (float_of_int g.gs_y_coordinates.(p2)) in
-		let cx = !pq.gp_x in
-		let cy = !pq.gp_y in
-		let path = mk_path 2 x y cx cy in
-		DynArray.add arr path
+type simple_point = {
+	x : float;
+	y : float;
+	on_curve : bool;
+	end_point : bool;
+}
 
 let build_paths ctx g =
-	let len = Array.length g.gs_end_pts_of_contours in
+	let len = Array.length g.gs_x_coordinates in
+	let init_points () =
+		let current_end = ref 0 in
+		Array.init len (fun i -> {
+			x = float_of_int g.gs_x_coordinates.(i);
+			y = float_of_int g.gs_y_coordinates.(i);
+			on_curve = g.gs_flags.(i) land 0x01 <> 0;
+			end_point =
+				if g.gs_end_pts_of_contours.(!current_end) = i then begin
+					incr current_end;
+					true
+				end else
+					false;
+		})
+	in
+	let points = init_points () in
 	let arr = DynArray.create () in
-	let cp = ref 0 in
-	let start = ref 0 in
-	let stop = ref 0 in
-	let pq = ref (mk_path (-1) 0.0 0.0 0.0 0.0) in
-	for i = 0 to len - 1 do
-		start := !cp;
-		stop := g.gs_end_pts_of_contours.(i);
-		let path = mk_path 0 (float_of_int g.gs_x_coordinates.(!start)) (float_of_int g.gs_y_coordinates.(!start)) 0.0 0.0 in
-		DynArray.add arr path;
-		for j = 0 to !stop - !start - 1 do
-			make_path ctx pq !cp (!cp + 1) arr g;
-			incr cp;
-		done;
-		make_path ctx pq !stop !start arr g;
-		incr cp;
-	done;
+	let add t x y cx cy = DynArray.add arr (mk_path t x y cx cy) in
+	let flush pl =
+		let rec flush pl = match pl with
+		| c :: a :: [] ->
+			add 2 a.x a.y c.x c.y;
+		| a :: [] ->
+			add 1 a.x a.y 0.0 0.0;
+		| c1 :: c2 :: pl ->
+			let mid = {
+				x = c1.x +. (c2.x -. c1.x) /. 2.0;
+				y = c1.y +. (c2.y -. c1.y) /. 2.0;
+				on_curve = true;
+				end_point = false;
+			} in
+			add 2 mid.x mid.y c1.x c1.y;
+			flush (c2 :: pl)
+		| _ ->
+			Printf.printf "Fail, len: %i\n" (List.length pl);
+		in
+		flush (List.rev pl)
+	in
+	let last = ref None in
+	let rec loop new_contour pl index =
+		let p = points.(index) in
+		let loop pl =
+			if p.end_point || index + 1 = len then begin
+				match !last with
+					| None -> assert false
+					| Some p -> flush (p :: pl);
+			end;
+			if index + 1 = len then
+				()
+			else
+				loop p.end_point pl (index + 1);
+		in
+		if new_contour then begin
+			last := Some p;
+			add 0 p.x p.y 0.0 0.0;
+			if p.on_curve then begin
+				loop []
+			end else begin
+				Printf.printf "Found off-curve starting point, not sure what to do\n";
+				loop [p]
+			end
+		end else begin
+			if not p.on_curve then
+				loop (p :: pl)
+			else begin
+				flush (p :: pl);
+				loop []
+			end
+		end
+	in
+	loop true [] 0;
 	DynArray.to_list arr
 
-let _nbits x =
-	if x = 0 then
-		0
-	else
-		let x = ref x in
-		if !x < 0 then x := -1 * !x;
-		let nbits = ref 0 in
-		while !x > 0 do
-			x := !x lsr 1;
-			incr nbits;
-		done;
-		!nbits
-
-let round x = int_of_float (floor (x +. 0.5))
-
-let twips_of_float v =
+let to_float5 v =
 	let temp1 = round(v *. 1000.) in
 	let diff = temp1 mod 50 in
 	let temp2 = if diff < 25 then temp1 - diff else temp1 + (50 - diff) in
-	let temp3 = (float_of_int temp2) /. 1000. in
-	round (temp3 *. 20.)
+	(float_of_int temp2) /. 1000.
 
-let begin_fill ctx c a =
+let begin_fill =
 	SRStyleChange {
 		scsr_move = None;
-		scsr_fs0 = None;
-		scsr_fs1 = Some(1); (* Some (c lor (a lsl 24));*) (* CHECK *)
-		scsr_ls = None; (* CHECK *)
-		scsr_new_styles = None;
-	}
-
-let move_to ctx x y =
-	SRStyleChange {
-		scsr_move = Some (0,twips_of_float x, twips_of_float y); (* TODO *)
-		scsr_fs0 = None;
-		scsr_fs1 = None; (* TODO *)
+		scsr_fs0 = Some(1);
+		scsr_fs1 = None;
 		scsr_ls = None;
 		scsr_new_styles = None;
 	}
 
-let line_to ctx x y =
-	SRStraightEdge {
-		sser_nbits = max (_nbits (twips_of_float x)) (_nbits (twips_of_float y)); (* TODO ? *)
-		sser_line = Some (twips_of_float x), Some (twips_of_float y);
+let end_fill =
+	SRStyleChange {
+		scsr_move = None;
+		scsr_fs0 = None;
+		scsr_fs1 = None;
+		scsr_ls = None;
+		scsr_new_styles = None;
 	}
 
-let curve_to ctx cx cy x y =
-	let m1 = max (_nbits (twips_of_float x)) (_nbits (twips_of_float y)) in
-	let m2 = max (_nbits (twips_of_float cx)) (_nbits (twips_of_float cy)) in
-	let m = max m1 m2 in
+let align_bits x nbits = x land ((1 lsl nbits ) - 1)
+
+let move_to ctx x y last_x last_y =
+	let x = to_float5 x in
+	let y = to_float5 y in
+	last_x := x;
+	last_y := y;
+	let x = round(x *. 20.) in
+	let y = round(y *. 20.) in
+	let nbits = max (_nbits x) (_nbits y) in
+	SRStyleChange {
+		scsr_move = Some (nbits, align_bits x nbits, align_bits y nbits);
+		scsr_fs0 = Some(1);
+		scsr_fs1 = None;
+		scsr_ls = None;
+		scsr_new_styles = None;
+	}
+
+let line_to ctx x y last_x last_y =
+	let x = to_float5 x in
+	let y = to_float5 y in
+	let dx = round((x -. !last_x) *. 20.) in
+	let dy = round((y -. !last_y) *. 20.) in
+	if dx = 0 && dy = 0 then raise Exit;
+	last_x := x;
+	last_y := y;
+	let nbits = max (_nbits dx) (_nbits dy) in
+	SRStraightEdge {
+		sser_nbits = nbits;
+		sser_line = (if dx = 0 then None else Some(align_bits dx nbits)), (if dy = 0 then None else Some(align_bits dy nbits));
+	}
+
+let curve_to ctx cx cy ax ay last_x last_y =
+	let cx = to_float5 cx in
+	let cy = to_float5 cy in
+	let ax = to_float5 ax in
+	let ay = to_float5 ay in
+	let dcx = round ((cx -. !last_x) *. 20.) in
+	let dcy = round ((cy -. !last_y) *. 20.) in
+	let dax = round ((ax -. cx) *. 20.) in
+	let day = round ((ay -. cy) *. 20.) in
+	last_x := ax;
+	last_y := ay;
+	let nbits = max (max (_nbits dcx) (_nbits dcy)) (max (_nbits dax) (_nbits day)) in
 	SRCurvedEdge {
-		scer_nbits = 2 + m; (* TODO ? *)
-		scer_cx = twips_of_float cx;
-		scer_cy = twips_of_float cy;
-		scer_ax = twips_of_float x;
-		scer_ay = twips_of_float y;
+		scer_nbits = nbits;
+		scer_cx = align_bits dcx nbits;
+		scer_cy = align_bits dcy nbits;
+		scer_ax = align_bits dax nbits;
+		scer_ay = align_bits day nbits;
 	}
 
 let write_paths ctx paths =
-	let scale = 1024. /. (float_of_int ctx.head.hd_units_per_em) in
+	let scale = 1024. /. (float_of_int ctx.ttf.ttf_head.hd_units_per_em) in
+	let last_x = ref 0.0 in
+	let last_y = ref 0.0 in
 	let srl = DynArray.create () in
-	DynArray.add srl (begin_fill ctx 0 1);
 	List.iter (fun path ->
-		DynArray.add srl (match path.gp_type with
-		| 0 -> move_to ctx (path.gp_x *. scale) ((-1.) *. path.gp_y *. scale);
-		| 1 -> line_to ctx (path.gp_x *. scale) ((-1.) *. path.gp_y *. scale);
-		| 2 -> curve_to ctx (path.gp_cx *. scale) ((-1.) *. path.gp_cy *. scale) (path.gp_x *. scale) ((-1.) *. path.gp_y *. scale);
-		| _ -> assert false)
+		try
+			DynArray.add srl (match path.gp_type with
+			| 0 -> move_to ctx (path.gp_x *. scale) ((-1.) *. path.gp_y *. scale) last_x last_y;
+			| 1 -> line_to ctx (path.gp_x *. scale) ((-1.) *. path.gp_y *. scale) last_x last_y;
+			| 2 -> curve_to ctx (path.gp_cx *. scale) ((-1.) *. path.gp_cy *. scale) (path.gp_x *. scale) ((-1.) *. path.gp_y *. scale) last_x last_y;
+			| _ -> assert false)
+		with Exit ->
+			()
 	) paths;
+	DynArray.add srl (end_fill);
 	{
-		srs_nfbits = 2; (* TODO *)
-		srs_nlbits = 0; (* TODO *)
+		srs_nfbits = 1;
+		srs_nlbits = 0;
 		srs_records = DynArray.to_list srl;
 	}
 
@@ -1139,93 +1216,118 @@ let write_glyph ctx key glyf =
 		}
 	| TglyfComposite (h,g) ->
 		{
-			font_char_code = 0; (* TODO *)
-			font_shape = write_paths ctx []; (* TODO *)
+			font_char_code = key;
+			font_shape = write_paths ctx [];
 		}
 	| TGlyfNull ->
 		{
-			font_char_code = 0; (* TODO *)
-			font_shape = write_paths ctx []; (* TODO *)
+			font_char_code = key;
+			font_shape = write_paths ctx [];
 		}
-		
-let map_char_code cc c4 =
-	(* TODO: well yeah... Done*)
-	let index = ref 0 in
-	let seg_count = c4.c4_seg_count_x2 in
-	for i = 0 to seg_count - 1 do
-		if c4.c4_end_code.(i) >= cc && c4.c4_start_code.(i) <= cc then begin
-			if c4.c4_id_range_offset.(i) > 0 then
-				let v = c4.c4_id_range_offset.(i)/2 + cc - c4.c4_start_code.(i) - seg_count + i in
-				index := c4.c4_glyph_index_array.(v)
-			else
-				index := (c4.c4_id_delta.(i) + cc) mod 65536
-		end
-	done;
-	!index
 
-let make_cmap4_map ctx c4 =
-	let lut = Hashtbl.create 0 in
-	let keys = DynArray.create () in
+let write_font_layout ctx lut =
+	let scale = 1024. /. (float_of_int ctx.ttf.ttf_head.hd_units_per_em) in
+	(* check for shorter ocaml *)
+	let hmtx = Array.of_list ctx.ttf.ttf_hmtx in
+	let hmtx = Hashtbl.fold (fun k v acc -> (k,hmtx.(v)) :: acc) lut [] in
+	let hmtx = List.stable_sort (fun a b -> compare (fst a) (fst b)) hmtx in
+	let hmtx = List.map (fun (k,g) -> g) hmtx in
+	{
+			font_ascent = round((float_of_int ctx.ttf.ttf_os2.os2_us_win_ascent) *. scale *. 20.);
+			font_descent = round((float_of_int ctx.ttf.ttf_os2.os2_us_win_descent) *. scale *. 20.);
+			font_leading = round(((float_of_int(ctx.ttf.ttf_os2.os2_us_win_ascent + ctx.ttf.ttf_os2.os2_us_win_descent - ctx.ttf.ttf_head.hd_units_per_em)) *. scale) *. 20.);
+			font_glyphs_layout = Array.of_list( ExtList.List.mapi (fun i h ->
+			{
+				font_advance = round((float_of_int h.advance_width) *. scale *. 20.);
+				font_bounds = {rect_nbits=0; left=0; right=0; top=0; bottom=0};
+			}) hmtx );
+			font_kerning = [];
+	}
+
+let map_char_code cc c4 =
+	let index = ref 0 in
+	let seg_count = c4.c4_seg_count_x2 / 2 in
+	if cc >= 0xFFFF then 0 else begin
+		for i = 0 to seg_count - 1 do
+			if c4.c4_end_code.(i) >= cc && c4.c4_start_code.(i) <= cc then begin
+				if c4.c4_id_range_offset.(i) > 0 then
+					let v = c4.c4_id_range_offset.(i)/2 + cc - c4.c4_start_code.(i) - seg_count + i in
+					index := c4.c4_glyph_index_array.(v)
+				else
+					index := (c4.c4_id_delta.(i) + cc) mod 65536
+			end
+		done;
+		!index
+	end
+
+let make_cmap4_map ctx acc c4 =
 	let seg_count = c4.c4_seg_count_x2 / 2 in
 	for i = 0 to seg_count - 1 do
 		for j = c4.c4_start_code.(i) to c4.c4_end_code.(i) do
 			let index = map_char_code j c4 in
-			Hashtbl.add lut j index;
-			DynArray.add keys j
+			Hashtbl.replace acc j index
 		done;
-	done;
-	lut,DynArray.to_list keys
+	done
 
 let bi v = if v then 1 else 0
 
-let write_font2 ch b f2 =
-	write_byte ch 255; (* 48 DefineFont 1/2 *)
-	write_byte ch 18; (* 48 DefineFont 2/2 *)
-	
-	write_i32 ch 16777215; (* TODO: tag body size/length *)
-	
-	write_ui16 ch 1; (*TODO: Char id *)
+let int_from_langcode lc =
+	match lc with
+	| LCNone -> 0
+	| LCLatin -> 1
+	| LCJapanese -> 2
+	| LCKorean -> 3
+	| LCSimplifiedChinese -> 4
+	| LCTraditionalChinese -> 5
 
-	write_bits b 1 (bi (f2.font_layout <> None));
-	write_bits b 1 (bi f2.font_shift_jis);
-	write_bits b 1 (bi f2.font_is_small);
-	write_bits b 1 (bi f2.font_is_ansi);
-	write_bits b 1 (bi false); (* TODO: wide offsets *)
-	write_bits b 1 (bi true); (* TODO: wide codes *)
-	write_bits b 1 (bi f2.font_is_italic);
-	write_bits b 1 (bi f2.font_is_bold);
+let calculate_tag_size f2 =
+	let size = ref(
+	2 + (* char id *)
+	1 + (* 8 bit flags *)
+	1 + (* langcode *)
+	1 + (* font name length *)
+	(String.length f2.font_name) + (* font name string*)
+	2 + (* num glyphs *)
+	((Array.length f2.font_glyphs) * 4) + (* offsets table *)
+	4 + (* codetable offset *)
+	(* glyps shape records : calculated below *)
+	((Array.length f2.font_glyphs) * 2) + (* codes table *)
+	2 + (* font_ascent *)
+	2 + (* font_descent *)
+	2 + (* font_leading *)
+	((Array.length f2.font_glyphs) * 2) + (* FontAdvanceTable *)
+	2 (* kerning count *)
+	) in
+	Array.iter (fun g -> size := !size + SwfParser.font_shape_records_length g.font_shape;)f2.font_glyphs;(* glyphs shape records *)
+	Array.iter (fun g -> size := !size + SwfParser.rect_length {rect_nbits=0; left=0; right=0; top=0; bottom=0};)f2.font_glyphs;(* FontBoundsTable *)
+	!size
 
-	write_byte ch 0; (* TODO: f2.font_language; LCNone *)
-
-	write_byte ch (String.length f2.font_name); (* Font Name length*)
-	nwrite ch f2.font_name; (* Font Name *)
-	
-	write_ui16 ch (Array.length f2.font_glyphs); (* numglyps *)
-	
-	(* Glyphs Offset Table *)
-	let glyph_offset = ref ((Array.length f2.font_glyphs) * 2) in
-	Array.iter (fun g -> glyph_offset := !glyph_offset + SwfParser.shape_records_length g.font_shape;)f2.font_glyphs;
-	
-	(* CodeTable Offset depends on 16 or 32 bit (wide codes) TODO *)
-	write_i32 ch !glyph_offset; 
-	
+let print_records f2 =
+	let glyph_offset = ref (((Array.length f2.font_glyphs) * 4)+4) in
+	print_string ("numglyps: " ^ string_of_int (Array.length f2.font_glyphs) ^ "\n");
 	Array.iter (fun g ->
-		let nlbits = ref g.font_shape.srs_nlbits in
-		let nfbits = ref g.font_shape.srs_nfbits in
-		let character = Char.chr(g.font_char_code) in
+		let character =  if g.font_char_code > 255 then Char.chr(255) else Char.chr(g.font_char_code) in
 		let s = String.make 1 character in
 		print_string "==================== Glyph start =====================\n";
 		print_string ("char code: " ^ string_of_int g.font_char_code ^ ", char: " ^ s ^ "\n");
+		print_string ("glyph_offset: " ^ string_of_int !glyph_offset ^ "\n");
+		glyph_offset := !glyph_offset + SwfParser.font_shape_records_length g.font_shape;
+		print_string ("records: " ^ string_of_int (List.length g.font_shape.srs_records) ^ "\n");
+		print_string ("bytes: " ^ string_of_int (SwfParser.font_shape_records_length g.font_shape) ^ "\n\n");
 		List.iter (fun r ->
 			match r with
 			| SRStyleChange s ->
 				print_string "SRStyleChange\n";
-				(match s.scsr_move with
-				|None -> ();
-					print_string "s.scsr_move 0,x,y: None\n\n";
-				|Some (w , x, y) ->
+				(match s.scsr_move, s.scsr_fs0 with
+				|None, None -> ();
+					print_string "end_fill\n\n";
+				|None, Some(v) -> ();
+					print_string "begin_fill\n\n";
+				|Some(m , x, y), Some(v)  ->
+					print_string ("s.mbits: " ^ string_of_int m ^ "\n");
 					print_string ("s.scsr_move x: " ^ string_of_int x ^ "\n");
 					print_string ("s.scsr_move y: " ^ string_of_int y ^ "\n\n");
+				| _,_-> ();
 				);
 			| SRStraightEdge s->
 				print_string "SRStraightEdge\n";
@@ -1249,71 +1351,106 @@ let write_font2 ch b f2 =
 				print_string ("s.scer_ax: " ^ string_of_int s.scer_ax ^ "\n");
 				print_string ("s.scer_ay: " ^ string_of_int s.scer_ay ^ "\n\n");
 
-			try
-				SwfParser.write_shape_record ch b nlbits nfbits r;
-			with _ -> print_string "----------^^ FAILURE!"; print_string "\n\n";
+		) g.font_shape.srs_records;
+	)f2.font_glyphs
 
-		) g.font_shape.srs_records
-	) f2.font_glyphs;
-	
-	(* Code table *)
-	Array.iter (fun g -> write_ui16 ch g.font_char_code;)f2.font_glyphs
-	(* TODO: rest: FontAscent, FontDescent, FontLeading, FontAdvanceTable, KerningTable etc (depends on hasLayout *)
-	
-let string_of_char x = string_of_int (Char.code x)
-
-let print_glyph g =
-	match g with
-	| TglyfComposite (hd,gc) ->
-		print_endline "===== COMPOSITE =====";
-		print_endline (Printf.sprintf "gh_num_contours = %i, gh_xmin = %i, gh_ymin = %i, gh_xmax = %i, gh_ymax = %i" hd.gh_num_contours hd.gh_xmin hd.gh_ymin hd.gh_xmax hd.gh_ymax);
-	| TglyfSimple (hd,gs) ->
-		print_endline "===== SIMPLE =====";
-		print_endline (Printf.sprintf "gh_num_contours = %i, gh_xmin = %i, gh_ymin = %i, gh_xmax = %i, gh_ymax = %i" hd.gh_num_contours hd.gh_xmin hd.gh_ymin hd.gh_xmax hd.gh_ymax);
-		print_endline (Printf.sprintf "gs_end_pts_of_contours[%i]: %s" (Array.length gs.gs_end_pts_of_contours) (String.concat "," (Array.to_list (Array.map string_of_int gs.gs_end_pts_of_contours))));
-		print_endline (Printf.sprintf "gs_instructions[%i]: %s" (Array.length gs.gs_instructions) (String.concat "," (Array.to_list (Array.map string_of_char gs.gs_instructions))));
-		print_endline (Printf.sprintf "gs_flags[%i]: %s" (Array.length gs.gs_flags) (String.concat "," (Array.to_list (Array.map string_of_int gs.gs_flags))));
-		print_endline (Printf.sprintf "gs_x_coordinates[%i]: %s" (Array.length gs.gs_x_coordinates) (String.concat "," (Array.to_list (Array.map string_of_int gs.gs_x_coordinates))));
-		print_endline (Printf.sprintf "gs_y_coordinates[%i]: %s" (Array.length gs.gs_y_coordinates) (String.concat "," (Array.to_list (Array.map string_of_int gs.gs_y_coordinates))))
-	| TGlyfNull ->
-		print_endline "===== NULL ====="
+let write_font2 ch b f2 =
+	(* print_records f2; *)
+	(* write_byte ch 255; *) (* 48 DefineFont 1/2 *)
+	(* write_byte ch 18; *)  (* 48 DefineFont 2/2 *)
+	(* write_i32 ch calculate_tag_size f2; *)
+	write_ui16 ch 1; (* TODO: Char id *)
+	write_bits b 1 (bi true);
+	write_bits b 1 (bi f2.font_shift_jis);
+	write_bits b 1 (bi f2.font_is_small);
+	write_bits b 1 (bi f2.font_is_ansi);
+	write_bits b 1 (bi f2.font_wide_offsets);
+	write_bits b 1 (bi f2.font_wide_codes);
+	write_bits b 1 (bi f2.font_is_italic);
+	write_bits b 1 (bi f2.font_is_bold);
+	write_byte ch (int_from_langcode f2.font_language);
+	write_byte ch (String.length f2.font_name);
+	nwrite ch f2.font_name;
+	write_ui16 ch (Array.length f2.font_glyphs);
+	let glyph_offset = ref (((Array.length f2.font_glyphs) * 4)+4) in
+	Array.iter (fun g ->
+		write_i32 ch !glyph_offset;
+		glyph_offset := !glyph_offset + SwfParser.font_shape_records_length g.font_shape;
+	)f2.font_glyphs;
+	write_i32 ch !glyph_offset;
+	Array.iter (fun g -> SwfParser.write_shape_without_style ch g.font_shape;) f2.font_glyphs;
+	Array.iter (fun g -> write_ui16 ch g.font_char_code; )f2.font_glyphs;
+	write_i16 ch f2.font_layout.font_ascent;
+	write_i16 ch f2.font_layout.font_descent;
+	write_i16 ch f2.font_layout.font_leading;
+	Array.iter (fun g ->
+		let fa = ref g.font_advance in
+		if (!fa) <  -32767 then fa := -32768;(* fix or check *)
+		if (!fa) > 32766 then fa := 32767;
+		write_i16 ch !fa;) f2.font_layout.font_glyphs_layout;
+	Array.iter (fun g -> SwfParser.write_rect ch g.font_bounds;) f2.font_layout.font_glyphs_layout;
+	write_ui16 ch 0 (* TODO: optional FontKerningTable *)
 
 let write_swf ttf range_str =
 	let ctx = {
-		head = (match List.assoc "head" ttf.ttf_tables with THead head -> head | _ -> assert false);
-		cmap = (match List.assoc "cmap" ttf.ttf_tables with TCmap cmap -> cmap | _ -> assert false);
-		glyf = (match List.assoc "glyf" ttf.ttf_tables with TGlyf glyf -> glyf | _ -> assert false);
+		ttf = ttf;
 	} in
+
+	let lut = Hashtbl.create 0 in
+	Hashtbl.add lut 0 0;
+	Hashtbl.add lut 1 1;
+	Hashtbl.add lut 2 2;
 	let rec loop cl = match cl with
-		| [] -> failwith "Cmap4 table not found"
-		| {cs_def = Cmap4 c4} :: _ ->
-			make_cmap4_map ctx c4
+		| [] ->
+			()
+		| {cs_def = Cmap0 c0} :: cl ->
+			Array.iteri (fun i c -> Hashtbl.add lut i (int_of_char c)) c0.c0_glyph_index_array;
+			loop cl
+		| {cs_def = Cmap4 c4} :: cl ->
+			make_cmap4_map ctx lut c4;
+			loop cl
 		| _ :: cl ->
 			loop cl
 	in
-	let glyph_lut,keys = loop ctx.cmap.cmap_subtables in
-	ignore(glyph_lut);
-	(* TODO: check range, perform lookup *)
+	loop ctx.ttf.ttf_cmap.cmap_subtables;
+
+	let glyfs = Hashtbl.fold (fun k v acc -> (k,ctx.ttf.ttf_glyfs.(v)) :: acc) lut [] in
+	let glyfs = List.stable_sort (fun a b -> compare (fst a) (fst b)) glyfs in
+	let glyfs = List.map (fun (k,g) -> write_glyph ctx k g) glyfs in
+	let glyfs_font_layout = write_font_layout ctx lut in
+	let glyfs = Array.of_list glyfs in
 	{
 		font_shift_jis = false;
 		font_is_small = false;
 		font_is_ansi = false;
+		font_wide_offsets = true;
+		font_wide_codes = true;
 		font_is_italic = false;
 		font_is_bold = false;
 		font_language = LCNone;
 		font_name = "chopin"; (* ttf.ttf_name; *)
-		font_glyphs = Array.of_list (ExtList.List.mapi (fun i key -> write_glyph ctx key (ctx.glyf.(i))) keys);
-		font_layout = None;
+		font_glyphs = glyfs;
+		font_layout = glyfs_font_layout;
 	}
 ;;
-(*
-let ttf = parse (open_in_bin "chopin.ttf") in
-(match List.assoc "glyf" ttf.ttf_tables with TGlyf glyf -> Array.iter print_glyph glyf | _ -> assert false); 
-*)
-
-let f2 = write_swf (parse (open_in_bin "chopin.ttf")) "" in
-let ch = (output_channel (open_out_bin "chopin_test.dat")) in
+if Array.length Sys.argv < 2 then failwith "Usage: ttf [font name]";
+let fontname = Sys.argv.(1) in
+let f2 = write_swf (parse (open_in_bin (fontname ^ ".ttf"))) "" in
+let ch = (output_channel (open_out_bin (fontname ^ ".dat"))) in
 let b = output_bits ch in
-write_font2 ch b f2
-
-(* ocamlopt -I ../extlib -I ../extc enum.cmx extlist.cmx extstring.cmx dynarray.cmx multiarray.cmx swf.cmx io.cmx as3code.cmx as3parse.cmx actionscript.cmx swfparser.cmx ttf.ml -o run.exe *)
+write_font2 ch b f2;
+close_out ch;
+let xml = "<?xml version=\"1.0\" ?>
+<swf>
+	<FileAttributes/>
+	<Custom tagId=\"75\" file=\"" ^ fontname ^ ".dat\" comment=\"DefineFont3\"/>
+	<SymbolClass id=\"1\" class=\"TestFont\" base=\"flash.text.Font\"/>
+	<DefineABC file=\"Main.swf\" isBoot=\"true\"/>
+	<ShowFrame/>
+</swf>"
+in
+let ch = open_out_bin (fontname ^ ".xml") in
+Pervasives.output_string ch xml;
+Pervasives.close_out ch;
+if Sys.command "haxe -main Main -swf main.swf" <> 0 then failwith "Could not execute haxe";
+if Sys.command ("hxswfml xml2swf " ^ fontname ^ ".xml " ^ fontname ^ ".swf -no-strict") <> 0 then failwith "Could not execute hxswfml";;
