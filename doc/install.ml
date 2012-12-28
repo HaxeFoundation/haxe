@@ -95,7 +95,7 @@ let compile_libs() =
 
 	(* SWFLIB *)
 	Sys.chdir "swflib";
-	let files = "-I .. -I ../extc as3.mli as3hl.mli as3code.ml as3parse.ml as3hlparse.ml swf.ml actionScript.ml swfParser.ml png.mli png.ml" in
+	let files = "-I .. -I ../extc as3.mli as3hl.mli as3code.ml as3parse.ml as3hlparse.ml swf.ml actionScript.ml swfParser.ml png.mli png.ml ttf.ml" in
 	if bytecode then command ("ocamlc -a -o swflib.cma " ^ files);
 	if native then command ("ocamlopt -a -o swflib.cmxa " ^ files);
 	Sys.chdir "..";
