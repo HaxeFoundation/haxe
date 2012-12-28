@@ -831,10 +831,15 @@ let parse_name_table ctx =
 		}
 	) in
 	let ttf_name = ref "" in
+	(* TODO: use real utf16 conversion *)
+	let set_name n =
+		let l = ExtList.List.init (String.length n / 2) (fun i -> String.make 1 n.[i * 2 + 1]) in
+		ttf_name := String.concat "" l
+	in
 	let records = Array.map (fun r ->
 		seek_in ctx.file ((ti ctx.entry.entry_offset) + offset + r.nr_offset);
 		r.nr_value <- nread ch r.nr_length;
-		if r.nr_name_id = 4 && r.nr_platform_id = 3 || r.nr_platform_id = 0 then ttf_name := r.nr_value;
+		if r.nr_name_id = 4 && r.nr_platform_id = 3 || r.nr_platform_id = 0 then set_name r.nr_value;
 		r
 	) records in
 	{
@@ -1280,86 +1285,7 @@ let int_from_langcode lc =
 	| LCSimplifiedChinese -> 4
 	| LCTraditionalChinese -> 5
 
-let calculate_tag_size f2 =
-	let size = ref(
-	2 + (* char id *)
-	1 + (* 8 bit flags *)
-	1 + (* langcode *)
-	1 + (* font name length *)
-	(String.length f2.font_name) + (* font name string*)
-	2 + (* num glyphs *)
-	((Array.length f2.font_glyphs) * 4) + (* offsets table *)
-	4 + (* codetable offset *)
-	(* glyps shape records : calculated below *)
-	((Array.length f2.font_glyphs) * 2) + (* codes table *)
-	2 + (* font_ascent *)
-	2 + (* font_descent *)
-	2 + (* font_leading *)
-	((Array.length f2.font_glyphs) * 2) + (* FontAdvanceTable *)
-	2 (* kerning count *)
-	) in
-	Array.iter (fun g -> size := !size + SwfParser.font_shape_records_length g.font_shape;)f2.font_glyphs;(* glyphs shape records *)
-	Array.iter (fun g -> size := !size + SwfParser.rect_length {rect_nbits=0; left=0; right=0; top=0; bottom=0};)f2.font_glyphs;(* FontBoundsTable *)
-	!size
-
-let print_records f2 =
-	let glyph_offset = ref (((Array.length f2.font_glyphs) * 4)+4) in
-	print_string ("numglyps: " ^ string_of_int (Array.length f2.font_glyphs) ^ "\n");
-	Array.iter (fun g ->
-		let character =  if g.font_char_code > 255 then Char.chr(255) else Char.chr(g.font_char_code) in
-		let s = String.make 1 character in
-		print_string "==================== Glyph start =====================\n";
-		print_string ("char code: " ^ string_of_int g.font_char_code ^ ", char: " ^ s ^ "\n");
-		print_string ("glyph_offset: " ^ string_of_int !glyph_offset ^ "\n");
-		glyph_offset := !glyph_offset + SwfParser.font_shape_records_length g.font_shape;
-		print_string ("records: " ^ string_of_int (List.length g.font_shape.srs_records) ^ "\n");
-		print_string ("bytes: " ^ string_of_int (SwfParser.font_shape_records_length g.font_shape) ^ "\n\n");
-		List.iter (fun r ->
-			match r with
-			| SRStyleChange s ->
-				print_string "SRStyleChange\n";
-				(match s.scsr_move, s.scsr_fs0 with
-				|None, None -> ();
-					print_string "end_fill\n\n";
-				|None, Some(v) -> ();
-					print_string "begin_fill\n\n";
-				|Some(m , x, y), Some(v)  ->
-					print_string ("s.mbits: " ^ string_of_int m ^ "\n");
-					print_string ("s.scsr_move x: " ^ string_of_int x ^ "\n");
-					print_string ("s.scsr_move y: " ^ string_of_int y ^ "\n\n");
-				| _,_-> ();
-				);
-			| SRStraightEdge s->
-				print_string "SRStraightEdge\n";
-				print_string ("s.sser_nbits: " ^ string_of_int s.sser_nbits ^ "\n");
-				(match s.sser_line with
-				|None, None ->
-					print_string ("s.sser_line x,y: None\n\n");
-				|Some (x), None ->
-					print_string ("s.sser_line x: " ^ string_of_int x ^"\n\n");
-				|None, Some (y) ->
-					print_string ("s.sser_line y: " ^ string_of_int y ^"\n\n");
-				|Some (x), Some (y) ->
-					print_string ("s.sser_line x: " ^ string_of_int x ^ "\n");
-					print_string ("s.sser_line y: " ^ string_of_int y ^ "\n\n");
-				);
-			| SRCurvedEdge s ->
-				print_string "SRCurvedEdge\n";
-				print_string ("s.scer_nbits: " ^ string_of_int s.scer_nbits ^ "\n");
-				print_string ("s.scer_cx: " ^ string_of_int s.scer_cx ^ "\n");
-				print_string ("s.scer_cy: " ^ string_of_int s.scer_cy ^ "\n");
-				print_string ("s.scer_ax: " ^ string_of_int s.scer_ax ^ "\n");
-				print_string ("s.scer_ay: " ^ string_of_int s.scer_ay ^ "\n\n");
-
-		) g.font_shape.srs_records;
-	)f2.font_glyphs
-
 let write_font2 ch b f2 =
-	(* print_records f2; *)
-	(* write_byte ch 255; *) (* 48 DefineFont 1/2 *)
-	(* write_byte ch 18; *)  (* 48 DefineFont 2/2 *)
-	(* write_i32 ch calculate_tag_size f2; *)
-	write_ui16 ch 1; (* TODO: Char id *)
 	write_bits b 1 (bi true);
 	write_bits b 1 (bi f2.font_shift_jis);
 	write_bits b 1 (bi f2.font_is_small);
@@ -1395,7 +1321,6 @@ let write_swf ttf range_str =
 	let ctx = {
 		ttf = ttf;
 	} in
-
 	let lut = Hashtbl.create 0 in
 	Hashtbl.add lut 0 0;
 	Hashtbl.add lut 1 1;
@@ -1428,29 +1353,8 @@ let write_swf ttf range_str =
 		font_is_italic = false;
 		font_is_bold = false;
 		font_language = LCNone;
-		font_name = "chopin"; (* ttf.ttf_name; *)
+		font_name = ttf.ttf_font_name;
 		font_glyphs = glyfs;
 		font_layout = glyfs_font_layout;
 	}
 ;;
-(* if Array.length Sys.argv < 2 then failwith "Usage: ttf [font name]";
-let fontname = Sys.argv.(1) in
-let f2 = write_swf (parse (open_in_bin (fontname ^ ".ttf"))) "" in
-let ch = (output_channel (open_out_bin (fontname ^ ".dat"))) in
-let b = output_bits ch in
-write_font2 ch b f2;
-close_out ch;
-let xml = "<?xml version=\"1.0\" ?>
-<swf>
-	<FileAttributes/>
-	<Custom tagId=\"75\" file=\"" ^ fontname ^ ".dat\" comment=\"DefineFont3\"/>
-	<SymbolClass id=\"1\" class=\"TestFont\" base=\"flash.text.Font\"/>
-	<DefineABC file=\"Main.swf\" isBoot=\"true\"/>
-	<ShowFrame/>
-</swf>"
-in
-let ch = open_out_bin (fontname ^ ".xml") in
-Pervasives.output_string ch xml;
-Pervasives.close_out ch;
-if Sys.command "haxe -main Main -swf main.swf" <> 0 then failwith "Could not execute haxe";
-if Sys.command ("hxswfml xml2swf " ^ fontname ^ ".xml " ^ fontname ^ ".swf -no-strict") <> 0 then failwith "Could not execute hxswfml";; *)
