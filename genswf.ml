@@ -812,11 +812,15 @@ let build_swf9 com file swc =
 		| TClassDecl c ->
 			let rec loop = function
 				| [] -> acc
-				| (":font",[EConst (String file),p],_) :: l ->
+				| (":font",(EConst (String file),p) :: args,_) :: l ->
 					let ch = try open_in_bin file with _ -> error "File not found" p in
 					let ttf = Ttf.parse ch in
 					close_in ch;
-					let ttf_swf = Ttf.write_swf ttf "" in
+					let range_str = match args with
+						| [EConst (String str),_] -> str
+						| _ -> ""
+					in
+					let ttf_swf = Ttf.write_swf ttf range_str in
 					let ch = IO.output_string () in
 					let b = IO.output_bits ch in
 					Ttf.write_font2 ch b ttf_swf;
