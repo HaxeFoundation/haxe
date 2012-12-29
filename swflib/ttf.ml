@@ -582,12 +582,12 @@ let parse_cmap_table ctx =
 					c6_entry_count = entry_count;
 					c6_glyph_index_array = glyph_index;
 				}
-(*  			| 12 ->
-				let format = rd32r ch in
+  			| 12 ->
+				ignore (rd16 ch);
 				let length = rd32r ch in
 				let language = rd32r ch in
 				let num_groups = rd32r ch in
-				let groups = ExtList.List.init num_groups (fun _ ->
+				let groups = ExtList.List.init (ti num_groups) (fun _ ->
 					let start = rd32r ch in
 					let stop = rd32r ch in
 					let start_glyph = rd32r ch in
@@ -598,12 +598,12 @@ let parse_cmap_table ctx =
 					}
 				) in
 				Cmap12 {
-					c12_format = format;
+					c12_format = ti32 12;
 					c12_length = length;
 					c12_language = language;
 					c12_num_groups = num_groups;
 					c12_groups = groups;
-				} *)
+				}
 			| x ->
 				failwith ("Not implemented format: " ^ (string_of_int x));
 		in
@@ -663,26 +663,24 @@ let parse_glyf_table maxp loca cmap hmtx ctx =
 			in
 			loop 0;
 			assert (DynArray.length flags = !num_points);
-			let x = ref 0 in
-			let y = ref 0 in
 			let x_coordinates = Array.init !num_points (fun i ->
 				let flag = DynArray.get flags i in
 				if flag land 0x10 <> 0 then begin
-					if flag land 0x02 <> 0 then begin x:= !x + read_byte ch; !x end
-					else !x
+					if flag land 0x02 <> 0 then read_byte ch
+					else 0
 				end else begin
-					if flag land 0x02 <> 0 then begin x:= !x -read_byte ch; !x end
-					else begin x := !x + rd16 ch; !x end
+					if flag land 0x02 <> 0 then -read_byte ch
+					else rd16 ch
 				end
 			) in
 			let y_coordinates = Array.init !num_points (fun i ->
 				let flag = DynArray.get flags i in
 				if flag land 0x20 <> 0 then begin
-					if flag land 0x04 <> 0 then begin y:= !y + read_byte ch; !y end
-					else !y
+					if flag land 0x04 <> 0 then read_byte ch
+					else 0
 				end else begin
-					if flag land 0x04 <> 0 then begin y:= !y -read_byte ch; !y end
-					else begin y := !y + rd16 ch; !y end
+					if flag land 0x04 <> 0 then -read_byte ch
+					else rd16 ch
 				end;
 			) in
 			TglyfSimple (header, {
@@ -1012,8 +1010,11 @@ let _nbits x =
 
 let round x = int_of_float (floor (x +. 0.5))
 
+let to_twips v = round (v *. 20.)
+
 type write_ctx = {
 	ttf : ttf;
+	add_character : int -> int -> unit;
 }
 
 type glyf_path = {
@@ -1035,29 +1036,39 @@ let mk_path t x y cx cy = {
 type simple_point = {
 	x : float;
 	y : float;
-	on_curve : bool;
-	end_point : bool;
 }
 
 let build_paths ctx g =
 	let len = Array.length g.gs_x_coordinates in
-	let init_points () =
-		let current_end = ref 0 in
-		Array.init len (fun i -> {
-			x = float_of_int g.gs_x_coordinates.(i);
-			y = float_of_int g.gs_y_coordinates.(i);
-			on_curve = g.gs_flags.(i) land 0x01 <> 0;
-			end_point =
-				if g.gs_end_pts_of_contours.(!current_end) = i then begin
-					incr current_end;
-					true
-				end else
-					false;
-		})
-	in
-	let points = init_points () in
+	let current_end = ref 0 in
+	let end_pts = Array.init len (fun i ->
+		if g.gs_end_pts_of_contours.(!current_end) = i then begin
+			incr current_end;
+			true
+		end else
+			false
+	) in
+	let is_on i = g.gs_flags.(i) land 0x01 <> 0 in
+	let is_end i = end_pts.(i) in
 	let arr = DynArray.create () in
-	let add t x y cx cy = DynArray.add arr (mk_path t x y cx cy) in
+	let last_added = ref {
+		x = 0.0;
+		y = 0.0;
+	} in
+	let add t x y cx cy =
+		let p = match t with
+			| 0 ->
+				mk_path t x y cx cy
+			| 1 ->
+				mk_path t (x -. !last_added.x) (y -. !last_added.y) cx cy
+			| 2 ->
+				mk_path t (x -. cx) (y -. cy) (cx -. !last_added.x) (cy -. !last_added.y)
+			| _ ->
+				assert false
+		in
+		last_added := { x = x; y = y; };
+		DynArray.add arr p
+	in
 	let flush pl =
 		let rec flush pl = match pl with
 		| c :: a :: [] ->
@@ -1065,44 +1076,39 @@ let build_paths ctx g =
 		| a :: [] ->
 			add 1 a.x a.y 0.0 0.0;
 		| c1 :: c2 :: pl ->
-			let mid = {
-				x = c1.x +. (c2.x -. c1.x) /. 2.0;
-				y = c1.y +. (c2.y -. c1.y) /. 2.0;
-				on_curve = true;
-				end_point = false;
-			} in
-			add 2 mid.x mid.y c1.x c1.y;
+			add 2 (c1.x +. (c2.x -. c1.x) /. 2.0) (c1.y +. (c2.y -. c1.y) /. 2.0) c1.x c1.y;
 			flush (c2 :: pl)
 		| _ ->
 			Printf.printf "Fail, len: %i\n" (List.length pl);
 		in
 		flush (List.rev pl)
 	in
-	let last = ref None in
-	let rec loop new_contour pl index =
-		let p = points.(index) in
+	let last = ref { x = 0.0; y = 0.0; } in
+	let rec loop new_contour pl index p =
+		let p = {
+			x = p.x +. float_of_int g.gs_x_coordinates.(index);
+			y = p.y +. float_of_int g.gs_y_coordinates.(index);
+		} in
+		let is_on = is_on index in
+		let is_end = is_end index in
 		let loop pl =
-			if p.end_point || index + 1 = len then begin
-				match !last with
-					| None -> assert false
-					| Some p -> flush (p :: pl);
+			if is_end then begin
+				flush (!last :: pl);
 			end;
-			if index + 1 = len then
-				()
-			else
-				loop p.end_point pl (index + 1);
+			if index + 1 < len then
+				loop is_end pl (index + 1) p;
 		in
 		if new_contour then begin
-			last := Some p;
+			last := p;
 			add 0 p.x p.y 0.0 0.0;
-			if p.on_curve then begin
+			if is_on then begin
 				loop []
 			end else begin
 				Printf.printf "Found off-curve starting point, not sure what to do\n";
 				loop [p]
 			end
 		end else begin
-			if not p.on_curve then
+			if not is_on then
 				loop (p :: pl)
 			else begin
 				flush (p :: pl);
@@ -1110,14 +1116,8 @@ let build_paths ctx g =
 			end
 		end
 	in
-	loop true [] 0;
+	loop true [] 0 !last;
 	DynArray.to_list arr
-
-let to_float5 v =
-	let temp1 = round(v *. 1000.) in
-	let diff = temp1 mod 50 in
-	let temp2 = if diff < 25 then temp1 - diff else temp1 + (50 - diff) in
-	(float_of_int temp2) /. 1000.
 
 let begin_fill =
 	SRStyleChange {
@@ -1139,13 +1139,9 @@ let end_fill =
 
 let align_bits x nbits = x land ((1 lsl nbits ) - 1)
 
-let move_to ctx x y last_x last_y =
-	let x = to_float5 x in
-	let y = to_float5 y in
-	last_x := x;
-	last_y := y;
-	let x = round(x *. 20.) in
-	let y = round(y *. 20.) in
+let move_to ctx x y =
+	let x = to_twips x in
+	let y = to_twips y in
 	let nbits = max (_nbits x) (_nbits y) in
 	SRStyleChange {
 		scsr_move = Some (nbits, align_bits x nbits, align_bits y nbits);
@@ -1155,51 +1151,38 @@ let move_to ctx x y last_x last_y =
 		scsr_new_styles = None;
 	}
 
-let line_to ctx x y last_x last_y =
-	let x = to_float5 x in
-	let y = to_float5 y in
-	let dx = round((x -. !last_x) *. 20.) in
-	let dy = round((y -. !last_y) *. 20.) in
-	if dx = 0 && dy = 0 then raise Exit;
-	last_x := x;
-	last_y := y;
-	let nbits = max (_nbits dx) (_nbits dy) in
+let line_to ctx x y =
+	let x = to_twips x in
+	let y = to_twips y in
+	let nbits = max (_nbits x) (_nbits y) in
 	SRStraightEdge {
 		sser_nbits = nbits;
-		sser_line = (if dx = 0 then None else Some(align_bits dx nbits)), (if dy = 0 then None else Some(align_bits dy nbits));
+		sser_line = (if x = 0 then None else Some(align_bits x nbits)), (if y = 0 then None else Some(align_bits y nbits));
 	}
 
-let curve_to ctx cx cy ax ay last_x last_y =
-	let cx = to_float5 cx in
-	let cy = to_float5 cy in
-	let ax = to_float5 ax in
-	let ay = to_float5 ay in
-	let dcx = round ((cx -. !last_x) *. 20.) in
-	let dcy = round ((cy -. !last_y) *. 20.) in
-	let dax = round ((ax -. cx) *. 20.) in
-	let day = round ((ay -. cy) *. 20.) in
-	last_x := ax;
-	last_y := ay;
-	let nbits = max (max (_nbits dcx) (_nbits dcy)) (max (_nbits dax) (_nbits day)) in
+let curve_to ctx cx cy ax ay =
+	let cx = to_twips cx in
+	let cy = to_twips cy in
+	let ax = to_twips ax in
+	let ay = to_twips ay in
+	let nbits = max (max (_nbits cx) (_nbits cy)) (max (_nbits ax) (_nbits ay)) in
 	SRCurvedEdge {
 		scer_nbits = nbits;
-		scer_cx = align_bits dcx nbits;
-		scer_cy = align_bits dcy nbits;
-		scer_ax = align_bits dax nbits;
-		scer_ay = align_bits day nbits;
+		scer_cx = align_bits cx nbits;
+		scer_cy = align_bits cy nbits;
+		scer_ax = align_bits ax nbits;
+		scer_ay = align_bits ay nbits;
 	}
 
 let write_paths ctx paths =
 	let scale = 1024. /. (float_of_int ctx.ttf.ttf_head.hd_units_per_em) in
-	let last_x = ref 0.0 in
-	let last_y = ref 0.0 in
 	let srl = DynArray.create () in
 	List.iter (fun path ->
 		try
 			DynArray.add srl (match path.gp_type with
-			| 0 -> move_to ctx (path.gp_x *. scale) ((-1.) *. path.gp_y *. scale) last_x last_y;
-			| 1 -> line_to ctx (path.gp_x *. scale) ((-1.) *. path.gp_y *. scale) last_x last_y;
-			| 2 -> curve_to ctx (path.gp_cx *. scale) ((-1.) *. path.gp_cy *. scale) (path.gp_x *. scale) ((-1.) *. path.gp_y *. scale) last_x last_y;
+			| 0 -> move_to ctx (path.gp_x *. scale) ((-1.) *. path.gp_y *. scale);
+			| 1 -> line_to ctx (path.gp_x *. scale) ((-1.) *. path.gp_y *. scale);
+			| 2 -> curve_to ctx (path.gp_cx *. scale) ((-1.) *. path.gp_cy *. scale) (path.gp_x *. scale) ((-1.) *. path.gp_y *. scale);
 			| _ -> assert false)
 		with Exit ->
 			()
@@ -1265,14 +1248,23 @@ let map_char_code cc c4 =
 		!index
 	end
 
-let make_cmap4_map ctx acc c4 =
+let make_cmap4_map ctx c4 =
 	let seg_count = c4.c4_seg_count_x2 / 2 in
 	for i = 0 to seg_count - 1 do
 		for j = c4.c4_start_code.(i) to c4.c4_end_code.(i) do
 			let index = map_char_code j c4 in
-			Hashtbl.replace acc j index
+			ctx.add_character j index;
 		done;
 	done
+
+let make_cmap12_map ctx acc c12 =
+	List.iter (fun group ->
+		let rec loop cc gi =
+			Hashtbl.replace acc cc gi;
+			if cc < (ti group.c12g_end_char_code) then loop (cc + 1) (gi + 1)
+		in
+		loop (ti group.c12g_start_char_code) (ti group.c12g_start_glyph_code)
+	) c12.c12_groups
 
 let bi v = if v then 1 else 0
 
@@ -1317,31 +1309,72 @@ let write_font2 ch b f2 =
 	Array.iter (fun g -> SwfParser.write_rect ch g.font_bounds;) f2.font_layout.font_glyphs_layout;
 	write_ui16 ch 0 (* TODO: optional FontKerningTable *)
 
+let parse_range_str str =
+	let len = String.length str in
+	let last = ref str.[0] in
+	let offset = ref 1 in
+	let lut = Hashtbl.create 0 in
+	while !offset < len do
+		let cur = str.[!offset] in
+		begin match cur with
+		| '-' when !last = '\\' ->
+			Hashtbl.replace lut (Char.code '-') true;
+			incr offset;
+		| c when !offset = len - 1 ->
+			Hashtbl.replace lut (Char.code !last) true;
+			Hashtbl.replace lut (Char.code cur) true;
+			incr offset
+		| '-' ->
+			let first, last = match Char.code !last, Char.code str.[!offset + 1] with
+				| first,last when first > last -> last,first
+				| first,last -> first,last
+			in
+			for i = first to last do
+				Hashtbl.add lut i true
+			done;
+			offset := !offset + 2;
+		| c ->
+			Hashtbl.replace lut (Char.code !last) true;
+			incr offset;
+		end;
+		last := cur;
+	done;
+	lut
+
 let write_swf ttf range_str =
-	let ctx = {
-		ttf = ttf;
-	} in
 	let lut = Hashtbl.create 0 in
 	Hashtbl.add lut 0 0;
 	Hashtbl.add lut 1 1;
 	Hashtbl.add lut 2 2;
-	let rec loop cl = match cl with
-		| [] ->
+	let ctx = {
+		ttf = ttf;
+		add_character = if range_str = "" then
+			fun k v -> Hashtbl.replace lut k v
+		else begin
+			let range = parse_range_str range_str in
+			fun k v -> if Hashtbl.mem range k then Hashtbl.replace lut k v
+		end;
+	} in
+	List.iter (fun st -> match st.cs_def with
+		| Cmap0 c0 ->
+			Array.iteri (fun i c -> ctx.add_character i (int_of_char c)) c0.c0_glyph_index_array;
+		| Cmap4 c4 ->
+			make_cmap4_map ctx c4;
+		| Cmap12 c12 ->
+			(*
+				TODO: this causes an exception with some fonts:
+				Fatal error: exception IO.Overflow("write_ui16")
+			*)
+			(* make_cmap12_map ctx lut c12; *)
 			()
-		| {cs_def = Cmap0 c0} :: cl ->
-			Array.iteri (fun i c -> Hashtbl.add lut i (int_of_char c)) c0.c0_glyph_index_array;
-			loop cl
-		| {cs_def = Cmap4 c4} :: cl ->
-			make_cmap4_map ctx lut c4;
-			loop cl
-		| _ :: cl ->
-			loop cl
-	in
-	loop ctx.ttf.ttf_cmap.cmap_subtables;
+		| _ ->
+			(* TODO *)
+			()
+	) ctx.ttf.ttf_cmap.cmap_subtables;
 
 	let glyfs = Hashtbl.fold (fun k v acc -> (k,ctx.ttf.ttf_glyfs.(v)) :: acc) lut [] in
 	let glyfs = List.stable_sort (fun a b -> compare (fst a) (fst b)) glyfs in
-	let glyfs = List.map (fun (k,g) -> write_glyph ctx k g) glyfs in
+	let glyfs = List.map (fun (k,g) -> Printf.printf "Char id: %i\n" k; write_glyph ctx k g) glyfs in
 	let glyfs_font_layout = write_font_layout ctx lut in
 	let glyfs = Array.of_list glyfs in
 	{
