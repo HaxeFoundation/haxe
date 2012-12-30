@@ -296,69 +296,53 @@ let run com main full =
 		marked_fields = [];
 		marked_maybe_fields = [];
 	} in
+	begin match main with
+		| Some {eexpr = TCall({eexpr = TField(e,(FStatic(c,cf)))},_)} ->
+			cf.cf_meta <- (":keep",[],cf.cf_pos) :: cf.cf_meta
+		| _ ->
+			()
+	end;
 	(* first step: get all entry points, which is the main method and all class methods which are marked with @:keep *)
-	let rec loop acc types = match types with
-		| (TClassDecl c) :: l ->
-			let keep_class = keep_whole_class dce c in
-			if keep_class then (if c.cl_extern then update_marked_class_fields dce c else mark_class dce c);
-			(* extern classes should never serve as entry point *)
-			let keep_class = keep_class && (not c.cl_extern || c.cl_interface) in
-			let rec loop2 acc cfl stat = match cfl with
-				| cf :: l when keep_class || keep_field dce cf ->
-					loop2 ((c,cf,stat) :: acc) l stat
-				| cf :: l ->
-					loop2 acc l stat
-				| [] ->
-					acc
+	List.iter (fun t -> match t with
+		| TClassDecl c ->
+			let keep_class = keep_whole_class dce c && (not c.cl_extern || c.cl_interface) in
+			let loop stat cf =
+				if keep_class || keep_field dce cf then mark_field dce c cf stat
 			in
-			let acc = loop2 acc c.cl_ordered_statics true in
-			let acc = loop2 acc c.cl_ordered_fields false in
-			let acc = match c.cl_constructor with None -> acc | Some cf -> loop2 acc [cf] false in
-			loop acc l
-		| _ :: l ->
-			loop acc l
-		| [] ->
-			acc
-	in
-	let entry_points = match main with
-		| Some {eexpr = TCall({eexpr = TField(e,_)},_)} ->
-			(match follow e.etype with
-			| TAnon a ->
-				(match !(a.a_status) with
-				| Statics c ->
-					let cf = PMap.find "main" c.cl_statics in
-					if not ((keep_whole_class dce c) || (keep_field dce cf)) then
-						loop [c,cf,true] com.types
-					else
-						(* field will be added by loop *)
-						loop [] com.types
-				| _ -> assert false)
-			| _ -> assert false)
-		| _ -> loop [] com.types
-	in
+			List.iter (loop true) c.cl_ordered_statics;
+			List.iter (loop false) c.cl_ordered_fields;
+			begin match c.cl_constructor with
+				| Some cf -> loop false cf
+				| None -> ()
+			end
+		| _ ->
+			()
+	) com.types;
 	if dce.debug then begin
 		List.iter (fun (c,cf,_) -> match cf.cf_expr with
 			| None -> ()
 			| Some _ -> print_endline ("[DCE] Entry point: " ^ (s_type_path c.cl_path) ^ "." ^ cf.cf_name)
-		) entry_points;
+		) dce.added_fields;
 	end;
-
 	(* second step: initiate DCE passes and keep going until no new fields were added *)
-	let rec loop cfl =
-		(* extend to dependent (= overriding/implementing) class fields *)
-		List.iter (fun (c,cf,stat) -> mark_dependent_fields dce c cf.cf_name stat) cfl;
-		(* mark fields as used *)
-		List.iter (fun (c,cf,stat) -> mark_field dce c cf stat; mark_t dce cf.cf_type) cfl;
-		(* follow expressions to new types/fields *)
-		List.iter (fun (_,cf,_) -> opt (expr dce) cf.cf_expr) cfl;
+	let rec loop () =
 		match dce.added_fields with
 		| [] -> ()
 		| cfl ->
 			dce.added_fields <- [];
-			loop cfl
+			(* extend to dependent (= overriding/implementing) class fields *)
+			List.iter (fun (c,cf,stat) -> mark_dependent_fields dce c cf.cf_name stat) cfl;
+			(* mark fields as used *)
+			List.iter (fun (c,cf,stat) ->
+				mark_class dce c;
+				mark_field dce c cf stat;
+				mark_t dce cf.cf_type
+			) cfl;
+			(* follow expressions to new types/fields *)
+			List.iter (fun (_,cf,_) -> opt (expr dce) cf.cf_expr) cfl;
+			loop ()
 	in
-	loop entry_points;
-
+	loop ();
 	(* third step: filter types *)
 	let rec loop acc types =
 		match types with
