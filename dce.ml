@@ -115,8 +115,16 @@ and mark_class dce c = if not (has_meta ":used" c.cl_meta) then begin
 	update_marked_class_fields dce c;
 end
 
+let rec mark_enum dce e = if not (has_meta ":used" e.e_meta) then begin
+	e.e_meta <- (":used",[],e.e_pos) :: e.e_meta;
+	PMap.iter (fun _ ef -> mark_t dce ef.ef_type) e.e_constrs;
+end
+
+and mark_abstract dce a = if not (has_meta ":used" a.a_meta) then
+	a.a_meta <- (":used",[],a.a_pos) :: a.a_meta
+
 (* mark a type as kept *)
-let rec mark_t dce t = match follow t with
+and mark_t dce t = match follow t with
 	| TInst({cl_kind = KTypeParameter tl} as c,pl) ->
 		if not (has_meta ":used" c.cl_meta) then begin
 			c.cl_meta <- (":used",[],c.cl_pos) :: c.cl_meta;
@@ -130,15 +138,22 @@ let rec mark_t dce t = match follow t with
 		List.iter (fun (_,_,t) -> mark_t dce t) args;
 		mark_t dce ret
 	| TEnum(e,pl) ->
-		if not (has_meta ":used" e.e_meta) then begin
-			e.e_meta <- (":used",[],e.e_pos) :: e.e_meta;
-			PMap.iter (fun _ ef -> mark_t dce ef.ef_type) e.e_constrs;
-		end;
+		mark_enum dce e;
 		List.iter (mark_t dce) pl
 	| TAbstract(a,pl) ->
-		if not (has_meta ":used" a.a_meta) then a.a_meta <- (":used",[],a.a_pos) :: a.a_meta;
+		mark_abstract dce a;
 		List.iter (mark_t dce) pl
 	| TLazy _ | TDynamic _ | TAnon _ | TType _ | TMono _ -> ()
+
+let mark_mt dce mt = match mt with
+	| TClassDecl c ->
+		mark_class dce c;
+	| TEnumDecl e ->
+		mark_enum dce e
+	| TAbstractDecl a ->
+		mark_abstract dce a
+	| TTypeDecl _ ->
+		()
 
 (* find all dependent fields by checking implementing/subclassing types *)
 let rec mark_dependent_fields dce csup n stat =
@@ -221,6 +236,7 @@ let rec field dce c n stat =
 		if dce.debug then prerr_endline ("[DCE] Field " ^ n ^ " not found on " ^ (s_type_path c.cl_path)) else ())
 
 and expr dce e =
+	mark_t dce e.etype;
 	match e.eexpr with
 	| TNew(c,pl,el) ->
 		mark_class dce c;
@@ -236,24 +252,17 @@ and expr dce e =
 			opt (expr dce) e;
 			mark_t dce v.v_type;
 		) vl;
-	| TCast(e, Some (TClassDecl c)) ->
-		mark_class dce c;
+	| TCast(e, Some mt) ->
+		mark_mt dce mt;
 		expr dce e;
+	| TTypeExpr mt ->
+		mark_mt dce mt
 	| TTry(e, vl) ->
 		expr dce e;
 		List.iter (fun (v,e) ->
 			expr dce e;
 			mark_t dce v.v_type;
 		) vl;
-	| TTypeExpr (TClassDecl c) ->
-		mark_class dce c;
-	| TTypeExpr (TAbstractDecl a) ->
-		mark_t dce (TAbstract (a,[]))
-	| TCast(e, Some (TEnumDecl en)) ->
-		mark_t dce (TEnum(en,[]));
-		expr dce e;
-	| TTypeExpr (TEnumDecl e) ->
-		mark_t dce (TEnum(e,[]));
 	| TCall ({eexpr = TLocal ({v_name = "__define_feature__"})},[{eexpr = TConst (TString ft)};e]) ->
 		Common.add_feature dce.com ft;
 		expr dce e
@@ -269,21 +278,32 @@ and expr dce e =
 	| TCall ({eexpr = TConst TSuper} as e,el) ->
 		mark_t dce e.etype;
 		List.iter (expr dce) el;
-	| TField(e,n) ->
-		let n = field_name n in
-		(match follow e.etype with
-		| TInst(c,_) ->
-			mark_class dce c;
-			field dce c n false;
-		| TAnon a ->
-			(match !(a.a_status) with
-			| Statics c ->
+	| TField(e,fa) ->
+		begin match fa with
+			| FStatic(c,cf) ->
 				mark_class dce c;
-				field dce c n true;
-			| _ -> ())
-		| _ -> ());
+				mark_field dce c cf true;
+			| FInstance(c,cf) ->
+				mark_class dce c;
+				mark_field dce c cf false;
+			| _ ->
+				let n = field_name fa in
+				begin match follow e.etype with
+					| TInst(c,_) ->
+						mark_class dce c;
+						field dce c n false;
+					| TAnon a ->
+						(match !(a.a_status) with
+						| Statics c ->
+							mark_class dce c;
+							field dce c n true;
+						| _ -> ())
+					| _ -> ()
+				end;
+		end;
 		expr dce e;
-	| _ -> Type.iter (expr dce) e
+	| _ ->
+		Type.iter (expr dce) e
 
 let run com main full =
 	let dce = {
