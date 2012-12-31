@@ -128,12 +128,12 @@ struct
       match e.eexpr with
         (* Std.is() *)
         | TCall(
-            { eexpr = TField( { eexpr = TTypeExpr ( TClassDecl { cl_path = ([], "Std") } ) }, "is") },
+            { eexpr = TField( _, FStatic({ cl_path = ([], "Std") }, { cf_name = "is" })) },
             [ obj; { eexpr = TTypeExpr(TClassDecl { cl_path = [], "Dynamic" }) }]
           ) ->
             Type.map_expr run e
         | TCall(
-            { eexpr = TField( { eexpr = TTypeExpr ( TClassDecl { cl_path = ([], "Std") } ) }, "is") },
+            { eexpr = TField( _, FStatic({ cl_path = ([], "Std") }, { cf_name = "is"}) ) },
             [ obj; { eexpr = TTypeExpr(md) }]
           ) ->
           let mk_is obj md =
@@ -279,30 +279,29 @@ struct
 
         (* Std.int() *)
         | TCall(
-            { eexpr = TField( { eexpr = TTypeExpr ( TClassDecl ({ cl_path = ([], "Std") }) ) }, "int") },
+            { eexpr = TField( _, FStatic({ cl_path = ([], "Std") }, { cf_name = "int" }) ) },
             [obj]
           ) ->
           run (mk_cast basic.tint obj)
         (* end Std.int() *)
 
-        | TField(ef, "length") when is_string ef.etype ->
-          { e with eexpr = TField(run ef, "Length") }
-        | TField(ef, ("toLowerCase")) when is_string ef.etype ->
-          { e with eexpr = TField(run ef, "ToLower") }
-        | TField(ef, ("toUpperCase")) when is_string ef.etype ->
-          { e with eexpr = TField(run ef, "ToUpper") }
+        (* TODO: change cf_name *)
+        | TField(ef, FInstance({ cl_path = [], "String" }, { cf_name = "length" })) ->
+          { e with eexpr = TField(run ef, FDynamic "Length") }
+        | TField(ef, FInstance({ cl_path = [], "String" }, { cf_name = "toLowerCase" })) ->
+          { e with eexpr = TField(run ef, FDynamic "ToLower") }
+        | TField(ef, FInstance({ cl_path = [], "String" }, { cf_name = "toUpperCase" })) ->
+          { e with eexpr = TField(run ef, FDynamic "ToUpper") }
 
-        | TCall( ( { eexpr = TField({ eexpr = TTypeExpr (TClassDecl cl) }, "fromCharCode") } ), [cc] ) ->
+        | TCall( { eexpr = TField(_, FStatic({ cl_path = [], "String" }, { cf_name = "fromCharCode" })) }, [cc] ) ->
           { e with eexpr = TNew(get_cl_from_t basic.tstring, [], [mk_cast tchar (run cc); mk_int gen 1 cc.epos]) }
-        | TCall( ( { eexpr = TField({ eexpr = TTypeExpr (TTypeDecl t) }, "fromCharCode") } ), [cc] ) when is_string (follow (TType(t,List.map snd t.t_types))) ->
-          { e with eexpr = TNew(get_cl_from_t basic.tstring, [], [mk_cast tchar (run cc); mk_int gen 1 cc.epos]) }
-        | TCall( ( { eexpr = TField(ef, ("charAt" as field)) } ), args )
-        | TCall( ( { eexpr = TField(ef, ("charCodeAt" as field)) } ), args )
-        | TCall( ( { eexpr = TField(ef, ("indexOf" as field)) } ), args )
-        | TCall( ( { eexpr = TField(ef, ("lastIndexOf" as field)) } ), args )
-        | TCall( ( { eexpr = TField(ef, ("split" as field)) } ), args )
-        | TCall( ( { eexpr = TField(ef, ("substring" as field)) } ), args )
-        | TCall( ( { eexpr = TField(ef, ("substr" as field)) } ), args ) when is_string ef.etype ->
+        | TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, { cf_name = ("charAt" as field) })) }, args )
+        | TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, { cf_name = ("charCodeAt" as field) })) }, args )
+        | TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, { cf_name = ("indexOf" as field) })) }, args )
+        | TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, { cf_name = ("lastIndexOf" as field) })) }, args )
+        | TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, { cf_name = ("split" as field) })) }, args )
+        | TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, { cf_name = ("substring" as field) })) }, args )
+        | TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, { cf_name = ("substr" as field) })) }, args ) ->
           { e with eexpr = TCall(mk_static_field_access_infer string_ext field e.epos [], [run ef] @ (List.map run args)) }
         | TNew( { cl_path = ([], "String") }, [], [p] ) -> run p (* new String(myString) -> myString *)
 
@@ -331,7 +330,7 @@ struct
           let mk_ret e = match op with | Ast.OpNotEq -> { e with eexpr = TUnop(Ast.Not, Ast.Prefix, e) } | _ -> e in
           mk_ret { e with
             eexpr = TCall({
-              eexpr = TField(mk_classtype_access clstring e.epos, "Equals");
+              eexpr = TField(mk_classtype_access clstring e.epos, FDynamic "Equals");
               etype = TFun(["obj1",false,basic.tstring; "obj2",false,basic.tstring], basic.tbool);
               epos = e1.epos
             }, [ run e1; run e2 ])
@@ -346,7 +345,7 @@ struct
           let mk_ret e = match op with | Ast.OpNotEq -> { e with eexpr = TUnop(Ast.Not, Ast.Prefix, e) } | _ -> e in
           mk_ret { e with
             eexpr = TCall({
-              eexpr = TField(run e1, "Equals");
+              eexpr = TField(run e1, FDynamic "Equals");
               etype = TFun(["obj1",false,t_dynamic;], basic.tbool);
               epos = e1.epos
             }, [ run e2 ])
@@ -402,7 +401,7 @@ let handle_type_params gen ifaces base_generic =
 
       let new_v = mk_temp gen "new_arr" to_t in
       let i = mk_temp gen "i" basic.tint in
-      let old_len = { eexpr = TField(e, "Length"); etype = basic.tint; epos = e.epos } in
+      let old_len = mk_field_access gen e "Length" e.epos in
       let obj_v = mk_temp gen "obj" t_dynamic in
       let block = [
         {
@@ -622,7 +621,7 @@ let configure gen =
           | _ -> real_type t)
       | TAbstract _
       | TType _ -> t
-      | TAnon (anon) when (match !(anon.a_status) with | Statics _ | EnumStatics _ -> true | _ -> false) -> t
+      | TAnon (anon) when (match !(anon.a_status) with | Statics _ | EnumStatics _ | AbstractStatics _ -> true | _ -> false) -> t
       | TFun _ -> TInst(fn_cl,[])
       | _ -> t_dynamic
     in
@@ -869,7 +868,8 @@ let configure gen =
         | TLocal { v_name = "__sizeof__" } -> write w "sizeof"
         | TLocal var ->
           write_id w var.v_name
-        | TEnumField (e, s) ->
+        | TField (_, FEnum(e, ef)) ->
+          let s = ef.ef_name in
           print w "%s." ("global::" ^ path_s e.e_path); write_field w s
         | TArray (e1, e2) ->
           expr_s w e1; write w "["; expr_s w e2; write w "]"
@@ -880,7 +880,7 @@ let configure gen =
           write w "( ";
           expr_s w e1; write w ( " " ^ (Ast.s_binop op) ^ " " ); expr_s w e2;
           write w " )"
-        | TField ({ eexpr = TTypeExpr mt }, s) | TClosure ({ eexpr = TTypeExpr mt }, s) ->
+        | TField ({ eexpr = TTypeExpr mt }, s) ->
           (match mt with
             | TClassDecl { cl_path = (["haxe"], "Int64") } -> write w ("global::" ^ path_s (["haxe"], "Int64"))
             | TClassDecl { cl_path = (["haxe"], "Int32") } -> write w ("global::" ^ path_s (["haxe"], "Int32"))
@@ -890,9 +890,9 @@ let configure gen =
             | TAbstractDecl a -> write w (t_s (TAbstract(a, List.map (fun _ -> t_empty) a.a_types)))
           );
           write w ".";
-          write_field w s
-        | TField (e, s) | TClosure (e, s) ->
-          expr_s w e; write w "."; write_field w s
+          write_field w (field_name s)
+        | TField (e, s) ->
+          expr_s w e; write w "."; write_field w (field_name s)
         | TTypeExpr mt ->
           (match mt with
             | TClassDecl { cl_path = (["haxe"], "Int64") } -> write w ("global::" ^ path_s (["haxe"], "Int64"))
@@ -1634,7 +1634,7 @@ let configure gen =
     (fun e ->
       match real_type e.etype with
         | TInst({ cl_path = (["haxe";"lang"], "Null") }, [t]) ->
-          { eexpr = TField(e, "value"); etype = t; epos = e.epos }
+            { (mk_field_access gen e "value" e.epos) with etype = t }
         | _ ->
           trace (debug_type e.etype); gen.gcon.error "This expression is not a Nullable expression" e.epos; assert false
     )
@@ -1651,29 +1651,21 @@ let configure gen =
     )
     (fun e ->
       {
-        eexpr = TCall({
-            eexpr = TField(mk_paren e, "toDynamic");
-            etype = TFun([], t_dynamic);
-            epos = e.epos
-          }, []);
+        eexpr = TCall(
+          { (mk_field_access gen { (mk_paren e) with etype = real_type e.etype } "toDynamic" e.epos) with etype = TFun([], t_dynamic) },
+          []);
         etype = t_dynamic;
         epos = e.epos
       }
     )
     (fun e ->
-      {
-        eexpr = TField(e, "hasValue");
-        etype = basic.tbool;
-        epos = e.epos
-      }
+      mk_field_access gen { e with etype = real_type e.etype } "hasValue" e.epos
     )
     (fun e1 e2 ->
       {
-        eexpr = TCall({
-          eexpr = TField(e1, "Equals");
-          etype = TFun(["obj",false,t_dynamic],basic.tbool);
-          epos = e1.epos
-        }, [e2]);
+        eexpr = TCall(
+          mk_field_access gen e1 "Equals" e1.epos,
+          [e2]);
         etype = basic.tbool;
         epos = e1.epos;
       }
@@ -1700,7 +1692,13 @@ let configure gen =
   let empty_e = match (get_type gen (["haxe";"lang"], "EmptyObject")) with | TEnumDecl e -> e | _ -> assert false in
   (*OverloadingCtor.set_new_create_empty gen ({eexpr=TEnumField(empty_e, "EMPTY"); etype=TEnum(empty_e,[]); epos=null_pos;});*)
 
-  OverloadingConstructor.configure gen (TEnum(empty_e, [])) ({eexpr=TEnumField(empty_e, "EMPTY"); etype=TEnum(empty_e,[]); epos=null_pos;}) false;
+  let empty_expr = { eexpr = (TTypeExpr (TEnumDecl empty_e)); etype = (TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics empty_e) }); epos = null_pos } in
+  let empty_ef =
+    try
+      PMap.find "EMPTY" empty_e.e_constrs
+    with Not_found -> gen.gcon.error "Required enum field EMPTY was not found" empty_e.e_pos; assert false
+  in
+  OverloadingConstructor.configure gen (TEnum(empty_e, [])) ({ eexpr=TField(empty_expr, FEnum(empty_e, empty_ef)); etype=TEnum(empty_e,[]); epos=null_pos; }) false;
 
   let rcf_static_find = mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) "findHash" Ast.null_pos [] in
   let rcf_static_lookup = mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) "lookupHash" Ast.null_pos [] in
@@ -1800,6 +1798,7 @@ let configure gen =
 
   let field_is_dynamic t field =
     match field_access gen (gen.greal_type t) field with
+      | FEnumField _
       | FClassField _ -> false
       | _ -> true
   in
@@ -1810,7 +1809,7 @@ let configure gen =
   in
 
   let is_dynamic_expr e = is_dynamic e.etype || match e.eexpr with
-    | TField(tf, f) -> field_is_dynamic tf.etype f
+    | TField(tf, f) -> field_is_dynamic tf.etype (field_name f)
     | _ -> false
   in
 
@@ -1840,8 +1839,8 @@ let configure gen =
   in
 
   let is_null_expr e = is_null e.etype || match e.eexpr with
-    | TField(tf, f) -> (match field_access gen (real_type tf.etype) f with
-      | FClassField(_,_,_,_,actual_t) -> is_null actual_t
+    | TField(tf, f) -> (match field_access gen (real_type tf.etype) (field_name f) with
+      | FClassField(_,_,_,_,_,actual_t) -> is_null actual_t
       | _ -> false)
     | _ -> false
   in
@@ -1914,7 +1913,7 @@ let configure gen =
           mk_cast e.etype { eexpr = TCall(static, [e1; e2]); etype = t_dynamic; epos=e1.epos })
     (fun e1 e2 ->
       if is_string e1.etype then begin
-        { e1 with eexpr = TCall({ e1 with eexpr = TField(e1, "CompareTo"); etype = TFun(["anotherString",false,gen.gcon.basic.tstring], gen.gcon.basic.tint) }, [ e2 ]); etype = gen.gcon.basic.tint }
+        { e1 with eexpr = TCall(mk_field_access gen e1 "compareTo" e1.epos, [ e2 ]); etype = gen.gcon.basic.tint }
       end else begin
         let static = mk_static_field_access_infer (runtime_cl) "compare" e1.epos [] in
         { eexpr = TCall(static, [e1; e2]); etype = gen.gcon.basic.tint; epos=e1.epos }
@@ -1948,7 +1947,7 @@ let configure gen =
       )
       (fun v_to_unwrap pos ->
         let local = mk_cast hx_exception_t { eexpr = TLocal(v_to_unwrap); etype = v_to_unwrap.v_type; epos = pos } in
-        { eexpr = TField(local, "obj"); epos = pos; etype = t_dynamic }
+        mk_field_access gen local "obj" pos
       )
       (fun rethrow ->
         { rethrow with eexpr = TCall(mk_local (alloc_var "__rethrow__" t_dynamic) rethrow.epos, [rethrow]) }
