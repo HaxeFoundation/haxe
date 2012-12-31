@@ -178,6 +178,7 @@ module Define = struct
 		| ReplaceFiles
 		| Scriptable
 		| Swc
+		| SwfCompressLevel
 		| SwfDebugPassword
 		| SwfDirectBlit
 		| SwfGpu
@@ -234,6 +235,7 @@ module Define = struct
 		| ReplaceFiles -> ("replace_files","GenCommon internal")
 		| Scriptable -> ("scriptable","GenCPP internal")
 		| Swc -> ("swc","Output a SWC instead of a SWF")
+		| SwfCompressLevel -> ("swf_compress_level","<level:1-9> Set the amount of compression for the SWF output")
 		| SwfDebugPassword -> ("swf_debug_password", "Set a password for debugging.")
 		| SwfDirectBlit -> ("swf_direct_blit", "Use hardware acceleration to blit graphics")
 		| SwfGpu -> ("swf_gpu", "Use GPU compositing features when drawing graphics")

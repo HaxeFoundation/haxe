@@ -1158,6 +1158,8 @@ let generate com swf_header =
 	t();
   (* write swf/swc *)
 	let t = Common.timer "write swf" in
+	let level = (try int_of_string (Common.defined_value com Define.SwfCompressLevel) with Not_found -> 9) in
+	SwfParser.init Extc.input_zip (Extc.output_zip ~level);
 	(match swc with
 	| Some cat ->
 		let ch = IO.output_strings() in
