@@ -742,10 +742,13 @@ let rec to_typed_ast mctx need_val dt =
 		error "Not implemented yet" Ast.null_pos
 	| Bind(out,dt) ->
 		replace_locals mctx out begin match out.o_guard,dt with
-			| _,None -> out.o_expr
+			| Some eg,None ->
+				mk (TIf(eg,out.o_expr,None)) t_dynamic out.o_expr.epos
 			| Some eg,Some dt ->
 				let eelse = to_typed_ast mctx need_val dt in
 				mk (TIf(eg,out.o_expr,Some eelse)) eelse.etype (punion out.o_expr.epos eelse.epos)
+			| _,None ->
+				out.o_expr
 			| _ -> assert false
 		end
 	| Switch(st,cases) ->
