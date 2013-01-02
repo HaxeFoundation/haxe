@@ -627,6 +627,18 @@ let rec is_null = function
 	| _ ->
 		false
 
+let rec is_value_type = function
+	| TMono r ->
+		(match !r with None -> false | Some t -> is_value_type t)
+	| TType (t,tl) ->
+		is_value_type (apply_params t.t_types tl t.t_type)
+	| TInst({cl_path=[],"String"},[]) ->
+		true
+	| TAbstract _ ->
+		true
+	| _ ->
+		false
+
 let rec link e a b =
 	(* tell if setting a == b will create a type-loop *)
 	let rec loop t =
