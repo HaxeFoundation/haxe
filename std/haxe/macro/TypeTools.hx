@@ -74,13 +74,13 @@ class TypeTools {
 		
 		If [t] is a class instance TInst(c,pl), c is returned.
 		
-		If [t] is of a different type, an exception of type TypeError is thrown.
+		If [t] is of a different type, an exception of type String is thrown.
 
-		If [t] is null, an internal exception is thrown.
+		If [t] is null, the result is null.
 	**/
-	static public function getClass( t : Type ) return switch(follow(t)) {
+	static public function getClass( t : Type ) return t == null ? null : switch(follow(t)) {
 		case TInst(c, _): c.get();
-		case _: throw InvalidType(t, "Class instance expected");
+		case _: throw "Class instance expected";
 	}
 	
 	/**
@@ -88,13 +88,13 @@ class TypeTools {
 		
 		If [t] is an enum instance TEnum(e,pl), e is returned.
 		
-		If [t] is of a different type, an exception of type TypeError is thrown.
+		If [t] is of a different type, an exception of type String is thrown.
 
-		If [t] is null, an internal exception is thrown.
+		If [t] is null, the result is null.
 	**/	
-	static public function getEnum( t : Type ) return switch(follow(t)) {
+	static public function getEnum( t : Type ) return t == null ? null : switch(follow(t)) {
 		case TEnum(e, _): e.get();
-		case _: throw InvalidType(t, "Enum instance expected");
+		case _: throw "Enum instance expected";
 	}	
 
 	/**

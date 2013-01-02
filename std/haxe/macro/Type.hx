@@ -143,7 +143,3 @@ enum MethodKind {
 }
 
 extern enum TypedExpr {}
-
-enum TypeError {
-	InvalidType(t:Type, msg:String);
-}
