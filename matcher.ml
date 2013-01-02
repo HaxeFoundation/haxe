@@ -276,10 +276,16 @@ let to_pattern mctx e st =
 			mk_con_pat (CConst c) [] st.st_type p
 		| EField _ ->
 			let e = type_expr_with_type ctx e (Some st.st_type) false in
+			let e = match Optimizer.make_constant_expression ctx e with Some e -> e | None -> e in
 			(match e.eexpr with
 			| TConst c -> mk_con_pat (CConst c) [] st.st_type p
 			| TTypeExpr mt -> mk_con_pat (CType mt) [] st.st_type p
-			| TField(_, FStatic({cl_extern = true},cf)) -> mk_con_pat (CExpr e) [] cf.cf_type p
+			| TField(_, FStatic(_,cf)) when is_value_type cf.cf_type ->
+				mk_con_pat (CExpr e) [] cf.cf_type p
+			| TField(_, FEnum(en,ef)) ->
+				let tc = monomorphs ctx.type_params (st.st_type) in
+				unify_enum_field en (List.map (fun _ -> mk_mono()) en.e_types) ef tc;
+				mk_con_pat (CEnum(en,ef)) [] st.st_type p
 			| _ -> error "Constant expression expected" p)
 		| ECall(ec,el) ->
 			let tc = monomorphs ctx.type_params (st.st_type) in
