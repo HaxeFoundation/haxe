@@ -94,6 +94,18 @@ typedef Case = {
 	var expr: Null<Expr>;
 }
 
+typedef Var = {
+	name : String,
+	type : Null<ComplexType>,
+	expr : Null<Expr>
+}
+
+typedef Catch = {
+	name : String,
+	type : ComplexType,
+	expr : Expr
+}
+
 enum ExprDef {
 	EConst( c : Constant );
 	EArray( e1 : Expr, e2 : Expr );
@@ -105,7 +117,7 @@ enum ExprDef {
 	ECall( e : Expr, params : Array<Expr> );
 	ENew( t : TypePath, params : Array<Expr> );
 	EUnop( op : Unop, postFix : Bool, e : Expr );
-	EVars( vars : Array<{ name : String, type : Null<ComplexType>, expr : Null<Expr> }> );
+	EVars( vars : Array<Var> );
 	EFunction( name : Null<String>, f : Function );
 	EBlock( exprs : Array<Expr> );
 	EFor( it : Expr, expr : Expr );
@@ -113,7 +125,7 @@ enum ExprDef {
 	EIf( econd : Expr, eif : Expr, eelse : Null<Expr> );
 	EWhile( econd : Expr, e : Expr, normalWhile : Bool );
 	ESwitch( e : Expr, cases : Array<Case>, edef : Null<Null<Expr>> );
-	ETry( e : Expr, catches : Array<{ name : String, type : ComplexType, expr : Expr }> );
+	ETry( e : Expr, catches : Array<Catch> );
 	EReturn( ?e : Null<Expr> );
 	EBreak;
 	EContinue;

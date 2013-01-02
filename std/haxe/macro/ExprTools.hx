@@ -12,6 +12,15 @@ import haxe.macro.Expr;
 class ExprTools {
 	
 	/**
+		Converts expression [e] to a human-readable String representation.
+		
+		The result is guaranteed to be valid haxe code, but there may be
+		differences from the original lexical syntax.
+	**/
+	static public function toString( e : Expr ) : String
+		return new Printer().printExpr(e)
+		
+	/**
 		Calls function [f] on each sub-expression of [e].
 		
 		If [e] has no sub-expressions, this operation has no effect.
