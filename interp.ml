@@ -2259,6 +2259,9 @@ let macro_lib =
 		"typeof", Fun1 (fun v ->
 			encode_type ((get_ctx()).curapi.typeof (decode_expr v))
 		);
+		"s_type", Fun1 (fun v ->
+			VString (Type.s_type (print_context()) (decode_type v))
+		);
 		"display", Fun1 (fun v ->
 			match v with
 			| VString s ->

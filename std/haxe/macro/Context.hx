@@ -270,6 +270,7 @@ class Context {
 		load("module_reuse_call", 2)(untyped modulePath.__s,untyped macroCall.__s);
 	}
 
+	@:allow(haxe.macro.TypeTools)
 	static function load( f, nargs ) : Dynamic {
 		#if macro
 		return neko.Lib.load("macro", f, nargs);
