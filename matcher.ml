@@ -246,6 +246,18 @@ let unify_enum_field en pl ef t =
 let unify ctx a b p =
 	try unify_raise ctx a b p with Error (Unify l,p) -> error (error_msg (Unify l)) p
 
+let rec is_value_type = function
+	| TMono r ->
+		(match !r with None -> false | Some t -> is_value_type t)
+	| TType (t,tl) ->
+		is_value_type (apply_params t.t_types tl t.t_type)
+	| TInst({cl_path=[],"String"},[]) ->
+		true
+	| TAbstract _ ->
+		true
+	| _ ->
+		false
+
 let to_pattern mctx e st =
 	let ctx = mctx.ctx in
 	let perror p = error "Unrecognized pattern" p in
