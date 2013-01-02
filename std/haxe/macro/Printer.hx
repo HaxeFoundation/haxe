@@ -58,8 +58,7 @@ class Printer {
 	
 	public function printTypeParam(param:TypeParam) return switch(param) {
 		case TPType(ct): printComplexType(ct);
-		//case TPExpr(e): printExpr(e);
-		case _: "";
+		case TPExpr(e): printExpr(e);
 	}
 	
 	public function printTypePath(tp:TypePath) return
