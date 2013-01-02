@@ -1,9 +1,10 @@
 package haxe.macro;
+
 import haxe.macro.Expr;
 
 /**
 	This class provides some utility methods to work with expressions. It is
-	best used through 'using haxe.macro.exprTools' syntax and then provides
+	best used through 'using haxe.macro.ExprTools' syntax and then provides
 	additional methods on haxe.macro.Expr instances.
 	
 	While mainly intended to be used in macros, it works in non-macro code as

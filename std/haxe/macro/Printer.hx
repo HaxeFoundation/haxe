@@ -73,7 +73,7 @@ class Printer {
 		case TPath(tp): printTypePath(tp);
 		case TFunction(args, ret): args.map(printComplexType).array().join("->") + "->" + printComplexType(ret);
 		case TAnonymous(fields): "{" + fields.map(printField).array().join(",") + "}";
-		case TParent(ct): printComplexType(ct);
+		case TParent(ct): "(" + printComplexType(ct) + ")";
 		case TOptional(ct): "?" + printComplexType(ct);
 		case TExtend(tp, fields): '{${printTypePath(tp)} >, ${fields.map(printField).array().join(",")}}';
 	}
