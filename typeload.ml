@@ -1101,27 +1101,7 @@ let init_class ctx c p context_init herits fields =
 		let p = cf.cf_pos in
 		if not stat && has_field cf.cf_name c.cl_super then error ("Redefinition of variable " ^ cf.cf_name ^ " in subclass is not allowed") p;
 		let t = cf.cf_type in
-		let rec make_const e =
-			let e = ctx.g.do_optimize ctx e in
-			match e.eexpr with
-			| TConst _ -> Some e
-			| TBinop ((OpAdd|OpSub|OpMult|OpDiv|OpMod) as op,e1,e2) -> (match make_const e1,make_const e2 with
-				| Some e1, Some e2 -> Some (mk (TBinop(op, e1, e2)) e.etype e.epos)
-				| _ -> None)
-			| TParenthesis e -> Some e
-			| TTypeExpr _ -> Some e
-			(* try to inline static function calls *)
-			| TCall ({ etype = TFun(_,ret); eexpr = TField (_,FStatic (c,cf)) },el) ->
-				(try
-					let func = match cf.cf_expr with Some ({eexpr = TFunction func}) -> func | _ -> raise Not_found in
-					let ethis = mk (TConst TThis) t_dynamic e.epos in
-					let inl = (try Optimizer.type_inline ctx cf func ethis el ret e.epos false with Error (Custom _,_) -> None) in
-					(match inl with
-					| None -> None
-					| Some e -> make_const e)
-				with Not_found -> None)
-			| _ -> None
-		in
+
 		match e with
 		| None -> ()
 		| Some e ->
@@ -1140,12 +1120,12 @@ let init_class ctx c p context_init herits fields =
 							display_error ctx "Extern non-inline variables may not be initialized" p;
 							e
 						end else begin
-							match make_const e with
+							match Optimizer.make_constant_expression ctx e with
 							| Some e -> e
 							| None -> display_error ctx "Extern variable initialization must be a constant value" p; e
 						end
 					| Var v when not stat || (v.v_read = AccInline && Common.defined ctx.com Define.Haxe3) ->
-						let e = match make_const e with Some e -> e | None -> display_error ctx "Variable initialization must be a constant value" p; e in
+						let e = match Optimizer.make_constant_expression ctx e with Some e -> e | None -> display_error ctx "Variable initialization must be a constant value" p; e in
 						e
 					| _ ->
 						e

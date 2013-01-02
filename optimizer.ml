@@ -891,6 +891,27 @@ let rec reduce_loop ctx e =
 let reduce_expression ctx e =
 	if ctx.com.foptimize then reduce_loop ctx e else e
 
+let rec make_constant_expression ctx e =
+	let e = ctx.g.do_optimize ctx e in
+	match e.eexpr with
+	| TConst _ -> Some e
+	| TBinop ((OpAdd|OpSub|OpMult|OpDiv|OpMod) as op,e1,e2) -> (match make_constant_expression ctx e1,make_constant_expression ctx e2 with
+		| Some e1, Some e2 -> Some (mk (TBinop(op, e1, e2)) e.etype e.epos)
+		| _ -> None)
+	| TParenthesis e -> Some e
+	| TTypeExpr _ -> Some e
+	(* try to inline static function calls *)
+	| TCall ({ etype = TFun(_,ret); eexpr = TField (_,FStatic (c,cf)) },el) ->
+		(try
+			let func = match cf.cf_expr with Some ({eexpr = TFunction func}) -> func | _ -> raise Not_found in
+			let ethis = mk (TConst TThis) t_dynamic e.epos in
+			let inl = (try type_inline ctx cf func ethis el ret e.epos false with Error (Custom _,_) -> None) in
+			(match inl with
+			| None -> None
+			| Some e -> make_constant_expression ctx e)
+		with Not_found -> None)
+	| _ -> None
+
 (* ---------------------------------------------------------------------- *)
 (* COMPLETION *)
 
