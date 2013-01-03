@@ -344,7 +344,7 @@ let to_pattern ctx e t =
 				let tc = monomorphs ctx.type_params (t) in
 				let ec = match tc with
 					| TEnum(en,pl) ->
-						let ef = PMap.find s en.e_constrs in
+						let ef = try PMap.find s en.e_constrs with Not_found when not (is_lower_ident s) -> error ("Expected constructor for enum " ^ (s_type_path en.e_path)) p in
 						let et = mk (TTypeExpr (TEnumDecl en)) (TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics en) }) p in
 						mk (TField (et,FEnum (en,ef))) (apply_params en.e_types pl ef.ef_type) p
 					| _ ->
