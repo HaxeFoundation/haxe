@@ -1984,6 +1984,8 @@ and type_expr ctx ?(need_val=true) (e,p) =
 	| EField ((EConst (String s),p),"code") ->
 		if UTF8.length s <> 1 then error "String must be a single UTF8 char" p;
 		mk (TConst (TInt (Int32.of_int (UChar.code (UTF8.get s 0))))) ctx.t.tint p
+	| EField(_,n) when n.[0] = '$' ->
+		error "Field names starting with $ are not allowed" p
 	| EField _
 	| EArray _
 	| EConst (Ident _) ->

@@ -827,7 +827,6 @@ and expr_next e1 = parser
 		if is_resuming p then display (EDisplay (e1,false),p);
 		(match s with parser
 		| [< '(Const (Ident f),p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,f) , punion (pos e1) p2) s
-		(* TODO: we have to limit this to the reification case *)
 		| [< '(Dollar v,p2); s >] -> expr_next (EField (e1,"$"^v) , punion (pos e1) p2) s
 		| [< '(Binop OpOr,p2) when do_resume() >] -> display (EDisplay (e1,false),p) (* help for debug display mode *)
 		| [< >] ->
