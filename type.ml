@@ -1372,19 +1372,19 @@ let s_expr_kind e =
 	| TThrow _ -> "Throw"
 	| TCast _ -> "Cast"
 
+let s_const = function
+	| TInt i -> Int32.to_string i
+	| TFloat s -> s ^ "f"
+	| TString s -> Printf.sprintf "\"%s\"" (Ast.s_escape s)
+	| TBool b -> if b then "true" else "false"
+	| TNull -> "null"
+	| TThis -> "this"
+	| TSuper -> "super"
+
 let rec s_expr s_type e =
 	let sprintf = Printf.sprintf in
 	let slist f l = String.concat "," (List.map f l) in
 	let loop = s_expr s_type in
-	let s_const = function
-		| TInt i -> Int32.to_string i
-		| TFloat s -> s ^ "f"
-		| TString s -> sprintf "\"%s\"" (Ast.s_escape s)
-		| TBool b -> if b then "true" else "false"
-		| TNull -> "null"
-		| TThis -> "this"
-		| TSuper -> "super"
-	in
 	let s_var v = v.v_name ^ ":" ^ string_of_int v.v_id ^ if v.v_capture then "[c]" else "" in
 	let str = (match e.eexpr with
 	| TConst c ->
@@ -1458,3 +1458,74 @@ let rec s_expr s_type e =
 		sprintf "Cast %s%s" (match t with None -> "" | Some t -> s_type_path (t_path t) ^ ": ") (loop e)
 	) in
 	sprintf "(%s : %s)" str (s_type e.etype)
+
+let rec s_expr_pretty tabs s_type e =
+	let sprintf = Printf.sprintf in
+	let tabs = ref "" in
+	let loop = s_expr_pretty !tabs s_type in
+	let slist f l = String.concat "," (List.map f l) in
+	match e.eexpr with
+	| TConst c -> s_const c
+	| TLocal v -> v.v_name
+	| TArray (e1,e2) -> sprintf "%s[%s]" (loop e1) (loop e2)
+	| TBinop (op,e1,e2) -> sprintf "%s %s %s" (loop e1) (s_binop op) (loop e2)
+	| TField (e1,s) -> sprintf "%s.%s" (loop e1) (field_name s)
+	| TTypeExpr mt -> (s_type_path (t_path mt))
+	| TParenthesis e1 -> sprintf "(%s)" (loop e1)
+	| TObjectDecl fl -> sprintf "{%s}" (slist (fun (f,e) -> sprintf "%s : %s" f (loop e)) fl)
+	| TArrayDecl el -> sprintf "[%s]" (slist loop el)
+	| TCall (e1,el) -> sprintf "%s(%s)" (loop e1) (slist loop el)
+	| TNew (c,pl,el) ->
+		sprintf "new %s(%s)" (s_type_path c.cl_path) (slist loop el)
+	| TUnop (op,f,e) ->
+		(match f with
+		| Prefix -> sprintf "%s %s" (s_unop op) (loop e)
+		| Postfix -> sprintf "%s %s" (loop e) (s_unop op))
+	| TFunction f ->
+		let args = slist (fun (v,o) -> sprintf "%s:%s%s" v.v_name (s_type v.v_type) (match o with None -> "" | Some c -> " = " ^ s_const c)) f.tf_args in
+		sprintf "function(%s) = %s" args (loop f.tf_expr)
+	| TVars vl ->
+		sprintf "var %s" (slist (fun (v,eo) -> sprintf "%s%s" v.v_name (match eo with None -> "" | Some e -> " = " ^ loop e)) vl)
+	| TBlock el ->
+		let old = !tabs in
+		tabs := !tabs ^ "\t";
+		let s = sprintf "{\n%s%s" !tabs (String.concat "" (List.map (fun e -> sprintf "%s%s;\n" !tabs (loop e)) el)) in
+		tabs := old;
+		s ^ !tabs ^ "}"
+	| TFor (v,econd,e) ->
+		sprintf "for (%s in %s) %s" v.v_name (loop econd) (loop e)
+	| TIf (e,e1,e2) ->
+		sprintf "if (%s)%s%s)" (loop e) (loop e1) (match e2 with None -> "" | Some e -> " else " ^ loop e)
+	| TWhile (econd,e,flag) ->
+		(match flag with
+		| NormalWhile -> sprintf "while (%s) %s" (loop econd) (loop e)
+		| DoWhile -> sprintf "do (%s) while(%s)" (loop e) (loop econd))
+	| TSwitch (e,cases,def) ->
+		sprintf "switch (%s) {%s%s}" (loop e) (slist (fun (cl,e) -> sprintf "case %s: %s" (slist loop cl) (loop e)) cases) (match def with None -> "" | Some e -> "," ^ loop e)
+	| TMatch (e,(en,tparams),cases,def) ->
+		let cases = slist (fun (il,vl,e) ->
+			let ctor = PMap.find (List.nth en.e_names (List.nth il 0)) en.e_constrs in
+			begin match vl with
+				| None ->
+					sprintf "case %s:%s" ctor.ef_name (loop e)
+				| Some vl ->
+					sprintf "case %s(%s):%s" ctor.ef_name (String.concat "," (List.map (fun v -> match v with None -> "_" | Some v -> v.v_name) vl)) (loop e)
+			end
+		) cases in
+		sprintf "switch (%s) {%s%s}" (loop e) cases (match def with None -> "" | Some e -> "," ^ loop e)
+	| TTry (e,cl) ->
+		sprintf "try %s%s" (loop e) (slist (fun (v,e) -> sprintf "catch( %s : %s ) %s" v.v_name (s_type v.v_type) (loop e)) cl)
+	| TReturn None ->
+		"return"
+	| TReturn (Some e) ->
+		sprintf "return %s" (loop e)
+	| TBreak ->
+		"break"
+	| TContinue ->
+		"continue"
+	| TThrow e ->
+		"throw " ^ (loop e)
+	| TCast (e,None) ->
+		sprintf "cast %s" (loop e)
+	| TCast (e,Some mt) ->
+		sprintf "cast (%s,%s)" (loop e) (s_type_path (t_path mt))

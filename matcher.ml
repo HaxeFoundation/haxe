@@ -967,6 +967,7 @@ let match_expr ctx e cases def need_val with_type p =
 		if Common.defined ctx.com Define.MatchDebug then print_endline (s_dt "" dt);
 		PMap.iter (fun _ out -> if out.o_num_paths = 0 then display_error ctx "This pattern is unused" out.o_pos) mctx.outcomes;
 		let e = to_typed_ast mctx need_val dt in
+		let e = { e with epos = p} in
 		let t = if not need_val then
 			mk_mono()
 		else
@@ -981,23 +982,30 @@ let match_expr ctx e cases def need_val with_type p =
 			]) t e.epos
 		end
 	with Not_exhaustive(pat,st) ->
-		let rec s_st_r nv v st = match st.st_def with
-			| SVar v1 ->
-				(if nv then v1.v_name else "") ^ v
-			| STuple(st,i,a)->
-				let r = a - i - 1 in
-				"[" ^ (st_args i r (s_st_r nv v st)) ^ "]"
-			| SArray (st,i) -> s_st_r true ("[" ^ (string_of_int i) ^ "] = " ^ v) st
-			| SField (st,f) -> s_st_r true ("." ^ f ^ " = " ^ v) st
-			| SEnum(sts,n,i) ->
-				let ef = match follow sts.st_type with
-					| TEnum(en,_) -> PMap.find n en.e_constrs
-					| _ -> raise Not_found
-				in
-				let len = match follow ef.ef_type with TFun(args,_) -> List.length args | _ -> 0 in
-				s_st_r false (ef.ef_name ^ "(" ^ (st_args i (len - 1 - i) v) ^ ")") sts
+ 		let rec s_st_r top pre st v = match st.st_def with
+ 			| SVar v1 ->
+ 				if not pre then v else begin try
+ 					let e = match List.assoc v1 !var_inits with Some e -> e | None -> assert false in
+ 					(Type.s_expr_pretty "" (Type.s_type (print_context())) e) ^ v
+ 				with Not_found ->
+ 					v1.v_name ^ v
+ 				end
+ 			| STuple(st,i,a) ->
+ 				let r = a - i - 1 in
+ 				Printf.sprintf "[%s]" (st_args i r (s_st_r top false st v))
+ 			| SArray(st,i) ->
+ 				s_st_r false true st (Printf.sprintf "[%i]%s" i (if top then " = " ^ v else v))
+  			| SField(st,f) ->
+ 				s_st_r false true st (Printf.sprintf ".%s%s" f (if top then " = " ^ v else v))
+ 			| SEnum(st,n,i) ->
+				let ef = match follow st.st_type with
+ 					| TEnum(en,_) -> PMap.find n en.e_constrs
+ 					| _ -> raise Not_found
+ 				in
+ 				let len = match follow ef.ef_type with TFun(args,_) -> List.length args | _ -> 0 in
+				s_st_r false false st (Printf.sprintf "%s(%s)" ef.ef_name (st_args i (len - 1 - i) v))
 		in
-		error ("Unmatched patterns: " ^ (s_st_r false (s_pat pat) st)) p
+		error ("Unmatched patterns: " ^ (s_st_r true false st (s_pat pat))) st.st_pos
 	end;
 ;;
 match_expr_ref := match_expr;
