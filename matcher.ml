@@ -170,15 +170,6 @@ let rec s_expr_small e = match e.eexpr with
 	| TBlock [] -> "{}"
 	| _ -> s_expr (s_type) e
 
-let s_const = function
-	| TInt i -> Int32.to_string i
-	| TFloat s -> s ^ "f"
-	| TString s -> Printf.sprintf "\"%s\"" (Ast.s_escape s)
-	| TBool b -> if b then "true" else "false"
-	| TNull -> "null"
-	| TThis -> "this"
-	| TSuper -> "super"
-
 let s_con con = match con.c_def with
 	| CEnum(_,ef) -> ef.ef_name
 	| CConst TNull -> "_"
