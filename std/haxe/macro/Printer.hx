@@ -63,8 +63,8 @@ class Printer {
 		case OpMod: "%";
 		case OpInterval: "...";
 		case OpAssignOp(op):
-			printBinop(op);
-			"=";
+			printBinop(op)
+			+ "=";
 	}
 		
 	public function printConstant(c:Constant) return switch(c) {
