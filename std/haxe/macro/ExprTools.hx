@@ -34,6 +34,9 @@ import haxe.macro.Expr;
 **/
 class ExprTools {
 	
+	static public function asIdent( s : String, p:Position ) : Expr
+		return { expr : EConst(CIdent(s)), pos : p }
+		
 	/**
 		Converts expression [e] to a human-readable String representation.
 		

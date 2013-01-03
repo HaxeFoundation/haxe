@@ -71,7 +71,7 @@ package unit;
 	@:macro static function getMeta(e) {
 		switch(e.expr) {
 			case EMeta(m, _):
-				return macro { name: $(m.name), args: $[m.params] };
+				return macro { name: $v{m.name}, args: $a{m.params} };
 			default:
 				return macro report("Metadata expected");
 		}

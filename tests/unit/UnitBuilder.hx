@@ -128,12 +128,12 @@ class UnitBuilder {
 					var el2 = [];
 					for (i in 0...el.length) {
 						var e2 = el[i];
-						el2.push(mkEq((macro $e1[$(i)]), e2, e.pos));
+						el2.push(mkEq((macro $e1[$v{i}]), e2, e.pos));
 					}
 					if (el2.length == 0)
 						mkEq((macro $e1.length), (macro 0), e.pos);
 					else
-						macro { $[el2]; };
+						macro { $a{el2}; };
 				case EBinop(OpEq, e1, e2):
 					mkEq(e1, e2, e.pos);
 				case EThrow(e):
@@ -148,7 +148,7 @@ class UnitBuilder {
 			}
 			ret.push(e);
 		}
-		return macro { $[ret]; };
+		return macro { $a{ret}; };
 	}
 	#end
 }

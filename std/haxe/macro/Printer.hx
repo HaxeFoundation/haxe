@@ -26,10 +26,10 @@ import haxe.macro.Expr;
 using Lambda;
 
 class Printer {
-	var tabs = "";
+	var tabs:String;
 
 	public function new() {
-
+		tabs = "";
 	}
 	
 	public function printUnop(op:Unop) return switch(op) {

@@ -23,7 +23,7 @@ class TestMatch extends Test {
 			haxe.macro.Context.typeof(e);
 			"no error";
 		} catch (e:Dynamic) Std.string(e.message);
-		return macro $(result);
+		return macro $v{result};
 	}
 	
 	static function switchNormal(e:Expr):String {

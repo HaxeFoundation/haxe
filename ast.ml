@@ -718,7 +718,7 @@ let reify in_macro =
 		else
 			to_obj [("file",file);("min",pmin);("max",pmax)] p
 	and to_expr_array a p = match a with
-		| [EArray ((EConst(Ident("$")),_),e),p] -> e
+		| [EMeta (("$a",[],_),e1),_] -> (match fst e1 with EArrayDecl el -> to_expr_array el p | _ -> e1)
 		| _ -> to_array to_expr a p
 	and to_expr e _ =
 		let p = snd e in
@@ -732,8 +732,6 @@ let reify in_macro =
 			to_string n p
 		| EConst c ->
 			expr "EConst" [to_const c p]
-		| EArray ((EConst(Ident("$")),_),e) ->
-			expr "EArrayDecl" [e]
 		| EArray (e1,e2) ->
 			expr "EArray" [loop e1;loop e2]
 		| EBinop (op,e1,e2) ->
@@ -746,8 +744,6 @@ let reify in_macro =
 			expr "EObjectDecl" [to_array (fun (f,e) -> to_obj [("field",to_string f p);("expr",loop e)]) fl p]
 		| EArrayDecl el ->
 			expr "EArrayDecl" [to_expr_array el p]
-		| ECall ((EConst(Ident("$")),_),[e]) ->
-			(ECall ((EField ((EField ((EField ((EConst (Ident "haxe"),p),"macro"),p),"Context"),p),"makeExpr"),p),[e; to_pos (pos e)]),p)
 		| ECall (e,el) ->
 			expr "ECall" [loop e;to_expr_array el p]
 		| ENew (t,el) ->
@@ -813,6 +809,17 @@ let reify in_macro =
 		| ECheckType (e1,ct) ->
 			expr "ECheckType" [loop e1; to_ctype ct p]
 		| EMeta ((m,ml,p),e1) ->
-			expr "EMeta" [to_obj [("name",to_string m p);("params",to_expr_array ml p);("pos",to_pos p)] p;loop e1]
+			match m with
+			| "$" | "$e" ->
+				e1
+			| "$a" ->
+				expr "EArrayDecl" (match fst e1 with EArrayDecl el -> [to_expr_array el p] | _ -> [e1])
+			(* TODO: can $v and $i be implemented better? *)
+			| "$v" ->
+				(ECall ((EField ((EField ((EField ((EConst (Ident "haxe"),p),"macro"),p),"Context"),p),"makeExpr"),p),[e; to_pos (pos e)]),p)
+			| "$i" ->
+				(ECall ((EField ((EField ((EField ((EConst (Ident "haxe"),p),"macro"),p),"ExprTools"),p),"asIdent"),p),[e; to_pos (pos e)]),p)
+			| _ ->
+				expr "EMeta" [to_obj [("name",to_string m p);("params",to_expr_array ml p);("pos",to_pos p)] p;loop e1]
 	in
 	(fun e -> to_expr e (snd e)), to_ctype

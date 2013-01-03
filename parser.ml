@@ -96,6 +96,12 @@ let is_not_assign = function
 	| OpAssign | OpAssignOp _ -> false
 	| _ -> true
 
+let is_dollar_ident e = match fst e with
+	| EConst (Ident n) when n.[0] = '$' ->
+		true
+	| _ ->
+		false
+
 let swap op1 op2 =
 	let p1, left1 = precedence op1 in
 	let p2, _ = precedence op2 in
@@ -813,10 +819,16 @@ and expr = parser
 	| [< '(Dollar v,p); s >] -> expr_next (EConst (Ident ("$"^v)),p) s
 
 and expr_next e1 = parser
+	| [< '(BrOpen,p1) when is_dollar_ident e1; eparam = expr; '(BrClose,p2) >] ->
+		(match fst e1 with
+		| EConst(Ident s) -> (EMeta((s,[],snd e1),eparam), punion p1 p2)
+		| _ -> assert false)
 	| [< '(Dot,p); s >] ->
 		if is_resuming p then display (EDisplay (e1,false),p);
 		(match s with parser
 		| [< '(Const (Ident f),p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,f) , punion (pos e1) p2) s
+		(* TODO: we have to limit this to the reification case *)
+		| [< '(Dollar v,p2); s >] -> expr_next (EField (e1,"$"^v) , punion (pos e1) p2) s
 		| [< '(Binop OpOr,p2) when do_resume() >] -> display (EDisplay (e1,false),p) (* help for debug display mode *)
 		| [< >] ->
 			(* turn an integer followed by a dot into a float *)
