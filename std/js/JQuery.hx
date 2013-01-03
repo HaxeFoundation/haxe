@@ -372,7 +372,7 @@ extern class JQuery implements ArrayAccess<Element> {
 	private static function __init__() : Void untyped {
 		#if embed_js
 		if( untyped __js__("typeof($) == 'undefined'") )
-			haxe.macro.Tools.includeFile("js/jquery-latest.min.js");
+			haxe.macro.Compiler.includeFile("js/jquery-latest.min.js");
 		#end
 		var q : Dynamic = window.jQuery;
 		js.JQuery = q;

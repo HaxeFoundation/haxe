@@ -33,7 +33,7 @@ extern class SWFObject {
 
 	private static function __init__() : Void untyped {
 		#if embed_js
-		haxe.macro.Tools.includeFile("js/swfobject-1.5.js");
+		haxe.macro.Compiler.includeFile("js/swfobject-1.5.js");
 		#end
 		js.SWFObject = deconcept.SWFObject;
 	}
