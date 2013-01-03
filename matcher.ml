@@ -655,7 +655,13 @@ let rec compile mctx stl pmat = match pmat with
 		| st :: stl ->
 			let all,inf = all_ctors mctx st in
 			let pl = PMap.foldi (fun cd p acc -> (mk_con_pat cd [] t_dynamic p) :: acc) !all [] in
-			raise (Not_exhaustive(collapse_pattern pl,st))
+			begin match pl,inf with
+				| _,true
+				| [],_ ->
+					raise (Not_exhaustive(any,st))
+				| _ ->
+					raise (Not_exhaustive(collapse_pattern pl,st))
+			end
 		| _ ->
 			assert false)
 	| (pv,out) :: pl ->
