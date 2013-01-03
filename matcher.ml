@@ -286,7 +286,11 @@ let to_pattern ctx e t =
 				mk_con_pat (CExpr e) [] cf.cf_type p
 			| TField(_, FEnum(en,ef)) ->
 				let tc = monomorphs ctx.type_params (t) in
-				unify_enum_field en (List.map (fun _ -> mk_mono()) en.e_types) ef tc;
+				begin try
+					unify_enum_field en (List.map (fun _ -> mk_mono()) en.e_types) ef tc
+				with Unify_error l ->
+					error (error_msg (Unify l)) p
+				end;
 				mk_con_pat (CEnum(en,ef)) [] t p
 			| _ -> error "Constant expression expected" p)
 		| ECall(ec,el) ->
@@ -350,7 +354,11 @@ let to_pattern ctx e t =
 				in
 				(match ec.eexpr with
 					| TField (_,FEnum (en,ef)) ->
-						unify_enum_field en (List.map (fun _ -> mk_mono()) en.e_types) ef tc;
+						begin try
+							unify_enum_field en (List.map (fun _ -> mk_mono()) en.e_types) ef tc;
+						with Unify_error l ->
+							error (error_msg (Unify l)) p
+						end;
 						mk_con_pat (CEnum(en,ef)) [] t p
                     | TConst c ->
                         unify ctx ec.etype tc p;
