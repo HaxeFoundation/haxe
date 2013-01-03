@@ -36,58 +36,134 @@ enum ValueType {
 }
 
 /**
-	The haXe Reflection API enables you to retreive informations about any value,
-	Classes and Enums at runtime.
+	The haxe Reflection API allows retrieval of type information at runtime.
+	
+	This class complements the more lightweight Reflect class, with a focus on
+	class and enum instances.
 **/
 extern class Type {
 
 	/**
-		Returns the class of a value or [null] if this value is not a Class instance.
+		Returns the class of [o], if [o] is a class instance.
+		
+		If [o] is null or of a different type, null is returned.
+		
+		In general, type parameter information cannot be obtained at runtime.
 	**/
 	public static function getClass<T>( o : T ) : Class<T>;
 
 	/**
-		Returns the enum of a value or [null] if this value is not an Enum instance.
+		Returns the enum of enum instance [o].
+		
+		An enum instance is the result of using an enum constructor. Given an
+		enum Color { Red; }, getEnum(Red) returns Enum<Color>.
+		
+		If [o] is null, null is returned.
+		
+		In general, type parameter information cannot be obtained at runtime.
 	**/
 	public static function getEnum( o : EnumValue ) : Enum<Dynamic>;
 
 
 	/**
-		Returns the super-class of a class, or null if no super class.
+		Returns the super-class of class [c].
+		
+		If [c] has no super class, null is returned.
+		
+		If [c] is null, the result is unspecified.
+		
+		In general, type parameter information cannot be obtained at runtime.
 	**/
 	public static function getSuperClass( c : Class<Dynamic> ) : Class<Dynamic>;
 
 
 	/**
-		Returns the complete name of a class.
+		Returns the name of class [c], including its path.
+		
+		If [c] is inside a package, the package structure is returned dot-
+		separated, with another dot separating the class name:
+			pack1.pack2.(...).packN.ClassName
+		If [c] is a sub-type of a haxe module, that module is not part of the
+		package structure.
+			
+		If [c] has no package, the class name is returned.
+		
+		If [c] is null, the result is unspecified.
+		
+		The class name does not include any type parameters.
 	**/
 	public static function getClassName( c : Class<Dynamic> ) : String;
 
 	/**
-		Returns the complete name of an enum.
+		Returns the name of enum [e], including its path.
+		
+		If [e] is inside a package, the package structure is returned dot-
+		separated, with another dot separating the enum name:
+			pack1.pack2.(...).packN.EnumName
+		If [e] is a sub-type of a haxe module, that module is not part of the
+		package structure.
+			
+		If [e] has no package, the enum name is returned.
+		
+		If [e] is null, the result is unspecified.
+		
+		The enum name does not include any type parameters.
 	**/
 	public static function getEnumName( e : Enum<Dynamic> ) : String;
 
 	/**
-		Evaluates a class from a name. The class must have been compiled
-		to be accessible.
+		Resolves a class by name.
+		
+		If [name] is the path of an existing class, that class is returned.
+		
+		Otherwise null is returned.
+		
+		If [name] is null or the path to a different type, the result is
+		unspecified.
+		
+		The class name must not include any type parameters.
 	**/
 	public static function resolveClass( name : String ) : Class<Dynamic>;
 
-
 	/**
-		Evaluates an enum from a name. The enum must have been compiled
-		to be accessible.
+		Resolves an enum by name.
+		
+		If [name] is the path of an existing enum, that enum is returned.
+		
+		Otherwise null is returned.
+		
+		If [name] is null the result is unspecified.
+		
+		If [name] is the path to a different type, null is returned.
+		
+		The enum name must not include any type parameters.
 	**/
 	public static function resolveEnum( name : String ) : Enum<Dynamic>;
 
 	/**
-		Creates an instance of the given class with the list of constructor arguments.
+		Creates an instance of class [cl], using [args] as arguments to the
+		class constructor.
+		
+		This function guarantees that the class constructor is called.
+		
+		Default values of constructors arguments are not guaranteed to be
+		taken into account.
+		
+		If [cl] or [args] are null, or if the number of elements in [args] does
+		not match the expected number of constructor arguments, or if [cl] has
+		no own constructor, the result is unspecified.
+		
+		In particular, default values of constructor arguments are not
+		guaranteed to be taken into account.
 	**/
 	public static function createInstance<T>( cl : Class<T>, args : Array<Dynamic> ) : T;
+	
 	/**
-		Similar to [Reflect.createInstance] excepts that the constructor is not called.
-		This enables you to create an instance without any side-effect.
+		Creates an instance of class [cl].
+		
+		This function guarantees that the class constructor is not called.
+		
+		If [cl] is null, the result is unspecified.
 	**/
 	public static function createEmptyInstance<T>( cl : Class<T> ) : T;
 

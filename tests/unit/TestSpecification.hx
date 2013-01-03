@@ -40,6 +40,19 @@ private class ClassWithToStringChild2 extends ClassWithToString {
 	public override function toString() return "ClassWithToStringChild2.toString()"
 }
 
+@:keep private class ClassWithCtorDefaultValues {
+	public var a : Null<Int>;
+	public var b : String;
+	public function new(a = 1, b = "foo") {
+		this.a = a;
+		this.b = b;
+	}
+}
+
+private class ClassWithCtorDefaultValuesChild extends ClassWithCtorDefaultValues {
+	
+}
+
 private enum SomeEnum<T> {
 	NoArguments;
 	OneArgument(t:T);
