@@ -651,7 +651,13 @@ let bind_remaining out pv stl =
 
 let rec compile mctx stl pmat = match pmat with
 	| [] ->
-		assert false
+		(match stl with
+		| st :: stl ->
+			let all,inf = all_ctors mctx st in
+			let pl = PMap.foldi (fun cd p acc -> (mk_con_pat cd [] t_dynamic p) :: acc) !all [] in
+			raise (Not_exhaustive(collapse_pattern pl,st))
+		| _ ->
+			assert false)
 	| (pv,out) :: pl ->
 		let i = pick_column pmat in
 		if i = -1 then begin
@@ -872,7 +878,7 @@ let rec collapse_case el = match el with
 
 let match_expr ctx e cases def need_val with_type p =
 	let cases = match cases,def with
-		| [],None -> error "Empty switch" p
+		| [],None -> []
 		| cases,Some def -> cases @ [[(EConst(Ident "_")),p],None,def]
 		| _ -> cases
 	in
