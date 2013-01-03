@@ -819,9 +819,9 @@ and expr = parser
 	| [< '(Dollar v,p); s >] -> expr_next (EConst (Ident ("$"^v)),p) s
 
 and expr_next e1 = parser
-	| [< '(BrOpen,p1) when is_dollar_ident e1; eparam = expr; '(BrClose,p2) >] ->
+	| [< '(BrOpen,p1) when is_dollar_ident e1; eparam = expr; '(BrClose,p2); s >] ->
 		(match fst e1 with
-		| EConst(Ident s) -> (EMeta((s,[],snd e1),eparam), punion p1 p2)
+		| EConst(Ident n) -> expr_next (EMeta((n,[],snd e1),eparam), punion p1 p2) s
 		| _ -> assert false)
 	| [< '(Dot,p); s >] ->
 		if is_resuming p then display (EDisplay (e1,false),p);
