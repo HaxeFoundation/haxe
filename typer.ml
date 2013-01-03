@@ -3111,6 +3111,9 @@ let make_macro_api ctx p =
 			| None -> Interp.VNull
 			| Some (_,fields) -> Interp.enc_array (List.map Interp.encode_field fields)
 		);
+		Interp.get_pattern_locals = (fun e t ->
+			!get_pattern_locals_ref ctx e t
+		);
 		Interp.define_type = (fun v ->
 			let m, tdef, pos = (try Interp.decode_type_def v with Interp.Invalid_expr -> Interp.exc (Interp.VString "Invalid type definition")) in
 			let mdep = Typeload.type_module ctx m ctx.m.curmod.m_extra.m_file [tdef,pos] pos in

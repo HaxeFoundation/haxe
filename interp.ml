@@ -108,6 +108,7 @@ type extern_api = {
 	get_local_using : unit -> tclass list;
 	get_local_vars : unit -> (string, Type.tvar) PMap.t;
 	get_build_fields : unit -> value;
+	get_pattern_locals : Ast.expr -> Type.t -> (string,Type.tvar) PMap.t;
 	define_type : value -> unit;
 	module_dependency : string -> string -> bool -> unit;
 	current_module : unit -> module_def;
@@ -2409,6 +2410,12 @@ let macro_lib =
 				VNull
 			else
 				VObject (obj (hash_field (get_ctx())) ["file",VString p.Ast.pfile;"pos",VInt p.Ast.pmin])
+		);
+		"pattern_locals", Fun2 (fun e t ->
+			let loc = (get_ctx()).curapi.get_pattern_locals (decode_expr e) (decode_type t) in
+			let h = Hashtbl.create 0 in
+			PMap.iter (fun n v -> Hashtbl.replace h (VString n) (encode_type v.v_type)) loc;
+			enc_hash h
 		);
 	]
 
