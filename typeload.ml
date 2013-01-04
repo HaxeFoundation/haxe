@@ -980,10 +980,6 @@ let build_module_def ctx mt meta fvars context_init fbuild =
 			(match r with
 			| None -> error "Build failure" p
 			| Some e -> fbuild e; loop l)
-		| (":deprecated",args,p) :: l ->
-			let msg = Printf.sprintf "%s is deprecated%s" (s_type_path (t_path mt)) (match args with [EConst(String s),_] -> ": " ^ s | _ -> "") in
-			ctx.com.warning msg p;
-			loop l
 		| _ :: l -> loop l
 		| [] -> ()
 	in
