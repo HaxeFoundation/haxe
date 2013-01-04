@@ -143,6 +143,11 @@ class UnitBuilder {
 					for (e in el)
 						el2.push(macro $e1 == $e);
 					collapseToOrExpr(el2);
+				case EVars(vl):
+					for (v in vl)
+						if (v.name == "t" || v.name == "f" || v.name == "eq" || v.name == "neq")
+							Context.error('${v.name} is reserved for unit testing', e.pos);
+						e;
 				case _:
 					e;
 			}
