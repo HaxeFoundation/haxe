@@ -150,8 +150,9 @@ extern class Type {
 		taken into account.
 		
 		If [cl] or [args] are null, or if the number of elements in [args] does
-		not match the expected number of constructor arguments, or if [cl] has
-		no own constructor, the result is unspecified.
+		not match the expected number of constructor arguments, or if any
+		argument has an invalid type,  or if [cl] has no own constructor, the
+		result is unspecified.
 		
 		In particular, default values of constructor arguments are not
 		guaranteed to be taken into account.
@@ -168,57 +169,126 @@ extern class Type {
 	public static function createEmptyInstance<T>( cl : Class<T> ) : T;
 
 	/**
-		Create an instance of an enum by using a constructor name and parameters.
+		Creates an instance of enum [e] by calling its constructor [constr] with
+		arguments [params].
+		
+		If [e] or [constr] is null, or if enum [e] has no constructor named
+		[constr], or if the number of elements in [params] does not match the
+		expected number of constructor arguments, or if any argument has an
+		invalid type, the result is unspecified.
 	**/
 	public static function createEnum<T>( e : Enum<T>, constr : String, ?params : Array<Dynamic> ) : T;
 
 	/**
-		Create an instance of an enum by using a constructor index and parameters.
+		Creates an instance of enum [e] by calling its constructor number
+		[index] with arguments [params].
+		
+		The constructor indices are preserved from haxe syntax, so the first
+		declared is index 0, the next index 1 etc.
+		
+		If [e] or [constr] is null, or if enum [e] has no constructor named
+		[constr], or if the number of elements in [params] does not match the
+		expected number of constructor arguments, or if any argument has an
+		invalid type, the result is unspecified.
 	**/
 	public static function createEnumIndex<T>( e : Enum<T>, index : Int, ?params : Array<Dynamic> ) : T;
 
 	/**
-		Returns the list of instance fields.
+		Returns a list of the instance fields of class [c].
+		
+		This only includes fields which are known at compile-time. In
+		particular, using getInstanceFields(getClass(obj)) will not include
+		any fields which were added to obj at runtime.
+		
+		The order of the fields in the returned Array is unspecified.
+		
+		If [c] is null, the result is unspecified.
 	**/
 	public static function getInstanceFields( c : Class<Dynamic> ) : Array<String>;
 
 	/**
-		Returns the list of a class static fields.
+		Returns a list of static fields of class [c].
+		
+		This does not include static fields of parent classes.
+		
+		The order of the fields in the returned Array is unspecified.
+		
+		If [c] is null, the result is unspecified.
 	**/
 	public static function getClassFields( c : Class<Dynamic> ) : Array<String>;
 
 	/**
-		Returns all the available constructor names for an enum.
+		Returns a list of the names of all constructors of enum [e].
+		
+		The order of the constructor names in the returned Array is preserved
+		from the original syntax.
+		
+		If [c] is null, the result is unspecified.
 	**/
 	public static function getEnumConstructs( e : Enum<Dynamic> ) : Array<String>;
 
 	/**
-		Returns the runtime type of a value.
+		Returns the runtime type of value [v].
+		
+		The result corresponds to the type [v] has at runtime, which may vary
+		per platform. Assumptions regarding this should be minimized to avoid
+		surprises.
 	**/
 	public static function typeof( v : Dynamic ) : ValueType;
 
 	/**
-		Recursively compare two enums constructors and parameters.
+		Recursively compares two enum instances [a] and [b] by value.
+		
+		Unlike [a] == [b], this function performs a deep equality check on the
+		arguments of the constructors, if exists.
+		
+		If [a] or [b] are null, the result is unspecified.
 	**/
-	public static function enumEq<T>( a : T, b : T ) : Bool;
+	public static function enumEq<T:EnumValue>( a : T, b : T ) : Bool;
 
 	/**
-		Returns the constructor of an enum
+		Returns the constructor name of enum instance [e].
+		
+		The result String does not contain any constructor arguments.
+		
+		If [e] is null, the result is unspecified.
 	**/
 	public static function enumConstructor( e : EnumValue ) : String;
 
 	/**
-		Returns the parameters of an enum
+		Returns a list of the constructor arguments of enum instance [e].
+		
+		If [e] has no arguments, the result is [].
+		
+		Otherwise the result are the values that were used as arguments to [e],
+		in the order of their declaration.
+		
+		If [e] is null, the result is unspecified.
 	**/
 	public static function enumParameters( e : EnumValue ) : Array<Dynamic>;
 
 	/**
-		Returns the index of the constructor of an enum
+		Returns the index of enum instance [e].
+		
+		This corresponds to the original syntactic position of [e]. The index of
+		the first declared constructor is 0, the next one is 1 etc.
+		
+		If [e] is null, the result is unspecified.
 	**/
 	public static function enumIndex( e : EnumValue ) : Int;
 
 	/**
-		Returns the list of all enum values that don't take any parameter.
+		Returns a list of all constructors of enum [e] that require no
+		arguments.
+		
+		This may return the empty Array [] if all constructors of [e] require
+		arguments.
+		
+		Otherwise an instance of [e] constructed through each of its non-
+		argument constructors is returned, in the order of the constructor
+		declaration.
+		
+		If [e] is null, the result is unspecified.
 	**/
 	public static function allEnums<T>( e : Enum<T> ) : Array<T>;
 

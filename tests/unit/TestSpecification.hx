@@ -23,6 +23,10 @@ typedef T = {
 	}
 }
 
+class CChild extends C { }
+
+class CDyn extends C, implements Dynamic { }
+
 private class EmptyClass {
 	public function new() { }
 }
@@ -72,10 +76,17 @@ private class IntWrap {
 	}
 }
 
+private enum E {
+	NoArgs;
+	OneArg(i:Int);
+	RecArg(e:E);
+	MultipleArgs(i:Int, s:String);
+}
+
 #if !macro
 @:build(unit.UnitBuilder.build("unitstd"))
 #end
-class TestSpecification extends Test 
+class TestSpecification extends Test
 {
 
 }
