@@ -135,7 +135,7 @@ class Printer {
 		+ opt(v.expr, printExpr, "=")
 	
 	
-	public function printExpr(e:Expr) return switch(e.expr) {
+	public function printExpr(e:Expr) return e == null ? "#NULL" : switch(e.expr) {
 		case EConst(c): printConstant(c);
 		case EArray(e1, e2): '${printExpr(e1)}[${printExpr(e2)}]';
 		case EBinop(op, e1, e2): '${printExpr(e1)}${printBinop(op)}${printExpr(e2)}';
