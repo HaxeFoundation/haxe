@@ -267,6 +267,8 @@ let to_pattern ctx e t =
 		match fst e with
 		| EConst(Ident "null") ->
 			error "null-patterns are not allowed" p
+		| ECheckType(e, CTPath({tpackage=["haxe";"macro"]; tname="Expr"})) ->
+			loop pctx e t
 		| EParenthesis e ->
 			loop pctx e t
 		| ECast(e1,None) ->
@@ -378,10 +380,15 @@ let to_pattern ctx e t =
 			begin match follow t with
 			| TAnon {a_fields = fields}
 			| TInst({cl_fields = fields},_) ->
+				let ctexpr = { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = None } in
+				let texpr = Typeload.load_instance ctx ctexpr p false in
 				List.iter (fun (n,(_,p)) -> if not (PMap.mem n fields) then error (unify_error_msg (print_context()) (has_extra_field t n)) p) fl;
 				let sl,pl,i = PMap.foldi (fun n cf (sl,pl,i) ->
-					let pat = try loop pctx (List.assoc n fl) cf.cf_type with Not_found -> (mk_any cf.cf_type p) in
-					(n,cf) :: sl,pat :: pl,i + 1
+					if n = "pos" && Type.type_iseq t texpr then
+						sl,pl,i
+					else
+						let pat = try loop pctx (List.assoc n fl) cf.cf_type with Not_found -> (mk_any cf.cf_type p) in
+						(n,cf) :: sl,pat :: pl,i + 1
 				) fields ([],[],0) in
 				mk_con_pat (CFields(i,sl)) pl t p
 			| _ ->
