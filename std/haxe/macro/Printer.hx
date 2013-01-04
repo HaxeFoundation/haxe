@@ -88,16 +88,16 @@ class Printer {
 		(tp.pack.length > 0 ? tp.pack.join(".") + "." : "")
 		+ tp.name
 		+ (tp.sub != null ? '.$tp.sub' : "")
-		+ (tp.params.length > 0 ? "<" + tp.params.map(printTypeParam).array().join(",") + ">" : "")
+		+ (tp.params.length > 0 ? "<" + tp.params.map(printTypeParam).join(",") + ">" : "")
 	
 	// TODO: check if this can cause loops
 	public function printComplexType(ct:ComplexType) return switch(ct) {
 		case TPath(tp): printTypePath(tp);
-		case TFunction(args, ret): args.map(printComplexType).array().join("->") + "->" + printComplexType(ret);
-		case TAnonymous(fields): "{" + fields.map(printField).array().join(",") + "}";
+		case TFunction(args, ret): args.map(printComplexType).join("->") + "->" + printComplexType(ret);
+		case TAnonymous(fields): "{" + fields.map(printField).join(",") + "}";
 		case TParent(ct): "(" + printComplexType(ct) + ")";
 		case TOptional(ct): "?" + printComplexType(ct);
-		case TExtend(tp, fields): '{${printTypePath(tp)} >, ${fields.map(printField).array().join(",")}}';
+		case TExtend(tp, fields): '{${printTypePath(tp)} >, ${fields.map(printField).join(",")}}';
 	}
 	
 	public function printMetadata(meta:MetadataEntry) return
@@ -105,7 +105,7 @@ class Printer {
 		+ (meta.params.length > 0 ? '(${printExprs(meta.params,",")})' : "")
 
 	public function printField(field:Field) return
-		(field.meta != null && field.meta.length > 0 ? field.meta.map(printMetadata).array().join(" ") : "")
+		(field.meta != null && field.meta.length > 0 ? field.meta.map(printMetadata).join(" ") : "")
 		+ switch(field.kind) {
 			case FVar(t, eo): 'var $field.name:${printComplexType(t)}' + opt(eo, printExpr, "=");
 			case FProp(get, set, to, eo): 'var $field.name($get,$set)';
@@ -114,8 +114,8 @@ class Printer {
 	
 	public function printTypeParamDecl(tpd:TypeParamDecl) return
 		tpd.name
-		+ (tpd.params.length > 0 ? "<" + tpd.params.map(printTypeParamDecl).array().join(",") + ">" : "")
-		+ (tpd.constraints.length > 0 ? ":(" + tpd.constraints.map(printComplexType).array().join(",") + ")" : "")
+		+ (tpd.params.length > 0 ? "<" + tpd.params.map(printTypeParamDecl).join(",") + ">" : "")
+		+ (tpd.constraints.length > 0 ? ":(" + tpd.constraints.map(printComplexType).join(",") + ")" : "")
 	
 	public function printFunctionArg(arg:FunctionArg) return
 		(arg.opt ? "?" : "")
@@ -124,8 +124,8 @@ class Printer {
 		+ opt(arg.value, printExpr, "=")
 	
 	public function printFunction(func:Function) return
-		(func.params.length > 0 ? "<" + func.params.map(printTypeParamDecl).array().join(",") + ">" : "")
-		+ "(" + func.args.map(printFunctionArg).array().join(",") + ")"
+		(func.params.length > 0 ? "<" + func.params.map(printTypeParamDecl).join(",") + ">" : "")
+		+ "(" + func.args.map(printFunctionArg).join(",") + ")"
 		+ opt(func.ret, printComplexType, ":")
 		+ opt(func.expr, printExpr, " ")
 	
@@ -145,15 +145,15 @@ class Printer {
 			#end : '${printExpr(e1)}.$n';
 		case EParenthesis(e1): '(${printExpr(e1)})';
 		case EObjectDecl(fl):
-			"{" + fl.map(function(fld) return '${fld.field}:${printExpr(fld.expr)}').array().join(",") + "}";
+			"{" + fl.map(function(fld) return '${fld.field}:${printExpr(fld.expr)}').join(",") + "}";
 		case EArrayDecl(el): '[${printExprs(el, ",")}]';
 		case ECall(e1, el): '${printExpr(e1)}(${printExprs(el,",")})';
 		case ENew(tp, el): 'new ${printTypePath(tp)}(${printExprs(el,",")})';
-		case EUnop(op, true, e1): printExpr(e1) + printUnop(op); 
+		case EUnop(op, true, e1): printExpr(e1) + printUnop(op);
 		case EUnop(op, false, e1): printUnop(op) + printExpr(e1);
 		case EFunction(no, func) if (no != null): 'function $no' + printFunction(func);
 		case EFunction(_, func): "function " +printFunction(func);
-		case EVars(vl): "var " +vl.map(printVar).array().join(",");
+		case EVars(vl): "var " +vl.map(printVar).join(",");
 		case EBlock([]): '{\n$tabs}';
 		case EBlock(el):
 			var old = tabs;
@@ -175,14 +175,14 @@ class Printer {
 					return 'case ${printExprs(c.values, ",")}'
 						+ (c.guard != null ? 'if(${printExpr(c.guard)}):' : ":")
 						+ (opt(c.expr, printExpr)))
-				.array().join(';\n$tabs');
+				.join(';\n$tabs');
 			if (edef != null)
 				s += ';\n${tabs}default:${printExpr(edef)}';
 			tabs = old;
 			s + ';\n$tabs}';
 		case ETry(e1, cl):
 			'try ${printExpr(e1)}'
-			+ cl.map(function(c) return ' catch(${c.name}:${printComplexType(c.type)}) ${printExpr(c.expr)}').array().join("");
+			+ cl.map(function(c) return ' catch(${c.name}:${printComplexType(c.type)}) ${printExpr(c.expr)}').join("");
 		case EReturn(eo): "return" + opt(eo, printExpr, " ");
 		case EBreak: "break";
 		case EContinue: "continue";
@@ -198,7 +198,7 @@ class Printer {
 	}
 	
 	public function printExprs(el:Array<Expr>, sep:String) {
-		return el.map(printExpr).array().join(sep);
+		return el.map(printExpr).join(sep);
 	}
 	
 	function opt<T>(v:T, f:T->String, prefix = "") return v == null ? "" : (prefix + f(v))
