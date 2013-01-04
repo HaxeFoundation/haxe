@@ -72,7 +72,14 @@ let ssend sock str =
 let message ctx msg p =
 	ctx.messages <- format msg p :: ctx.messages
 
+let deprecated = [
+	"Class not found : IntIter","IntIter was renamed to IntIterator";
+	"EReg has no field customReplace","EReg.customReplace was renamed to EReg.map";
+	"#StringTools has no field isEOF","StringTools.isEOF was renamed to StringTools.isEof";
+]
+
 let error ctx msg p =
+	let msg = try "(deprecated) " ^ List.assoc msg deprecated with Not_found -> msg in
 	message ctx msg p;
 	ctx.has_error <- true
 
