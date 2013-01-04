@@ -23,6 +23,7 @@
 package haxe.macro;
 
 import haxe.macro.Expr;
+using Lambda;
 
 /**
 	This class provides some utility methods to work with expressions. It is
@@ -37,6 +38,9 @@ class ExprTools {
 	static public function asIdent( s : String, p:Position ) : Expr
 		return { expr : EConst(CIdent(s)), pos : p }
 		
+	static public function toFieldExpr ( sl : Array<String> ) : Expr
+		return sl.fold(function(s, e) return e == null ? (macro $i{s}) : (macro $e.$s), null)
+	
 	/**
 		Converts expression [e] to a human-readable String representation.
 		
@@ -219,7 +223,7 @@ class ExprTools {
 		return e == null ? null : f(e)
 		
 	static inline function opt2(e:Null<Expr>, f : Expr -> Void):Void
-		if (e != null) f(e)		
+		if (e != null) f(e)
 }
 
 /**

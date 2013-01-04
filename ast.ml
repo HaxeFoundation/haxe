@@ -819,6 +819,8 @@ let reify in_macro =
 				(ECall ((EField ((EField ((EField ((EConst (Ident "haxe"),p),"macro"),p),"Context"),p),"makeExpr"),p),[e; to_pos (pos e)]),p)
 			| "$i" ->
 				(ECall ((EField ((EField ((EField ((EConst (Ident "haxe"),p),"macro"),p),"ExprTools"),p),"asIdent"),p),[e; to_pos (pos e)]),p)
+			| "$p" ->
+				(ECall ((EField ((EField ((EField ((EConst (Ident "haxe"),p),"macro"),p),"ExprTools"),p),"toFieldExpr"),p),[e]),p)
 			| _ ->
 				expr "EMeta" [to_obj [("name",to_string m p);("params",to_expr_array ml p);("pos",to_pos p)] p;loop e1]
 	in
