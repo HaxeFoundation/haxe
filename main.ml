@@ -825,6 +825,12 @@ try
 		), ": add debug informations to the compiled code");
 	] in
 	let adv_args_spec = [
+		("-dce", Arg.String (fun mode ->
+			(match mode with
+			| "std" | "full" | "no" -> ()
+			| _ -> raise (Arg.Bad "Invalid DCE mode, expected std | full | no"));
+			Common.define_value com Define.Dce mode
+		),"[std|full|no] : set the dead code elimination mode");
 		("-swf-version",Arg.Float (fun v ->
 			com.flash_version <- v;
 		),"<version> : change the SWF version (6 to 10)");
@@ -950,12 +956,6 @@ try
 			force_typing := true;
 			config_macros := e :: !config_macros
 		)," : call the given macro before typing anything else");
-		("--dce", Arg.String (fun mode ->
-			(match mode with
-			| "std" | "full" | "no" -> ()
-			| _ -> raise (Arg.Bad "Invalid DCE mode, expected std | full | no"));
-			Common.define_value com Define.Dce mode
-		),"[std|full|no] : set the dead code elimination mode");
 		("--wait", Arg.String (fun hp ->
 			let host, port = (try ExtString.String.split hp ":" with _ -> "127.0.0.1", hp) in
 			wait_loop com host (try int_of_string port with _ -> raise (Arg.Bad "Invalid port"))
