@@ -75,6 +75,7 @@ type matcher = {
 	mutable subtree_index : (st list * pat_matrix,int) Hashtbl.t;
 	mutable subtrees : (int,dt) Hashtbl.t;
 	mutable num_subtrees : int;
+	mutable out_type : Type.t;
 }
 
 exception Not_exhaustive of pat * st
@@ -795,10 +796,8 @@ and to_enum_switch mctx need_val en pl st cases =
 	let eval = st_to_texpr mctx st in
 	let et = monomorphs mctx.ctx.type_params (TEnum(en,pl)) in
 	let def = ref None in
-	let el = ref [] in
-	let rec loop acc cases = match cases with
+	let rec loop cases = match cases with
 		| [] ->
-			el := acc;
 			[]
 		| (({c_def = CEnum(en,ef) }) as con,dt) :: cases ->
 			let save = save_locals mctx.ctx in
@@ -815,67 +814,60 @@ and to_enum_switch mctx need_val en pl st cases =
 			in
 			let e = to_typed_ast mctx need_val dt in
 			save();
-			([ef.ef_index],vl,e) :: loop (e :: acc) cases
+			([ef.ef_index],vl,e) :: loop cases
 		| (({c_def = CConst TNull }),dt) :: cases ->
 			let e = to_typed_ast mctx need_val dt in
 			def := Some e;
-			loop (e :: acc) cases
+			loop cases
 		| (con,_) :: _ ->
 			error ("Unexpected") con.c_pos
 	in
-	let cases = loop [] cases in
-	let t = if not need_val then (mk_mono()) else unify_min mctx.ctx !el in
-	mk (TMatch(eval,(en,pl),cases,!def)) t eval.epos
+	let cases = loop cases in
+	mk (TMatch(eval,(en,pl),cases,!def)) mctx.out_type eval.epos
 
 and to_value_switch mctx need_val t st cases =
 	let eval = st_to_texpr mctx st in
 	let def = ref None in
-	let el = ref [] in
-	let rec loop acc cases = match cases with
+	let rec loop cases = match cases with
 		| [] ->
-			el := acc;
 			[]
 		| ({c_def = CConst TNull},dt) :: cases ->
 			let e = to_typed_ast mctx need_val dt in
 			def := Some e;
-			loop (e :: acc) cases
+			loop cases
 		| ({c_def = CConst c } as con,dt) :: cases ->
 			let e = to_typed_ast mctx need_val dt in
-			([mk_const mctx.ctx con.c_pos c],e) :: loop (e :: acc) cases
+			([mk_const mctx.ctx con.c_pos c],e) :: loop cases
 		| ({c_def = CType mt } as con,dt) :: cases ->
 			let e = to_typed_ast mctx need_val dt in
-			([Typer.type_module_type mctx.ctx mt None con.c_pos],e) :: loop (e :: acc) cases
+			([Typer.type_module_type mctx.ctx mt None con.c_pos],e) :: loop cases
 		| ({c_def = CExpr e1},dt) :: cases ->
 			let e = to_typed_ast mctx need_val dt in
-			([e1],e) :: loop (e :: acc) cases
+			([e1],e) :: loop cases
 		| (con,_) :: _ ->
 			error ("Unexpected "  ^ (s_con con)) con.c_pos
 	in
-	let cases = loop [] cases in
-	let t = if not need_val then (mk_mono()) else unify_min mctx.ctx !el in
-	mk (TSwitch(eval,cases,!def)) t eval.epos
+	let cases = loop cases in
+	mk (TSwitch(eval,cases,!def)) mctx.out_type eval.epos
 
 and to_array_switch mctx need_val t st cases =
 	let def = ref None in
-	let el = ref [] in
-	let rec loop acc cases = match cases with
+	let rec loop cases = match cases with
 		| [] ->
-			el := acc;
 			[]
 		| ({c_def = CArray i} as con,dt) :: cases ->
 			let e = to_typed_ast mctx need_val dt in
-			([mk_const mctx.ctx con.c_pos (TInt (Int32.of_int i))],e) :: loop (e :: acc) cases
+			([mk_const mctx.ctx con.c_pos (TInt (Int32.of_int i))],e) :: loop cases
 		| ({c_def = CConst TNull},dt) :: cases ->
 			let e = to_typed_ast mctx need_val dt in
 			def := Some e;
-			loop (e :: acc) cases
+			loop cases
 		| (con,_) :: _ ->
 			error ("Unexpected "  ^ (s_con con)) con.c_pos
 	in
-	let cases = loop [] cases in
+	let cases = loop cases in
 	let eval = mk (TField(st_to_texpr mctx st,FDynamic "length")) mctx.ctx.com.basic.tint st.st_pos in
-	let t = if not need_val then (mk_mono()) else unify_min mctx.ctx !el in
-	mk (TSwitch(eval,cases,!def)) t eval.epos
+	mk (TSwitch(eval,cases,!def)) mctx.out_type eval.epos
 
 (* Main *)
 
@@ -934,6 +926,7 @@ let match_expr ctx e cases def need_val with_type p =
 		subtrees = Hashtbl.create 0;
 		subtree_index = Hashtbl.create 0;
 		num_subtrees = 0;
+		out_type = mk_mono();
 	} in
 	let add_pattern_locals (pat,locals) =
 		PMap.iter (fun n (v,p) -> ctx.locals <- PMap.add n v ctx.locals) locals;
@@ -972,13 +965,14 @@ let match_expr ctx e cases def need_val with_type p =
 		let dt = compile mctx stl pl in
 		if Common.defined ctx.com Define.MatchDebug then print_endline (s_dt "" dt);
 		PMap.iter (fun _ out -> if out.o_num_paths = 0 then display_error ctx "This pattern is unused" out.o_pos) mctx.outcomes;
-		let e = to_typed_ast mctx need_val dt in
-		let e = { e with epos = p} in
 		let t = if not need_val then
 			mk_mono()
 		else
-			try Typer.unify_min_raise ctx (List.rev_map (fun (_,out) -> out.o_expr) pl) with Error (Unify l,p) -> error (error_msg (Unify l)) p
+			try Typer.unify_min_raise ctx (List.rev_map (fun (_,out) -> out.o_expr) (List.rev pl)) with Error (Unify l,p) -> error (error_msg (Unify l)) p
 		in
+		unify ctx t mctx.out_type p;
+		let e = to_typed_ast mctx need_val dt in
+		let e = { e with epos = p} in
 		if !var_inits = [] then
 			e
 		else begin
