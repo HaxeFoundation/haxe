@@ -639,9 +639,15 @@ and block1 = parser
 	| [< '(Const (String name),p); s >] -> block2 (quote_ident name) (String name) p s
 	| [< b = block [] >] -> EBlock b
 
-and block2 name ident p = parser
+and block2 name ident p s =
+	match s with parser
 	| [< '(DblDot,_); e = expr; l = parse_obj_decl >] -> EObjectDecl ((name,e) :: l)
-	| [< e = expr_next (EConst ident,p); s >] ->
+	| [< >] ->
+		match ident with
+		| Ident "macro" ->
+			fst (parse_macro_expr p s)
+		| _ ->
+		let e = expr_next (EConst ident,p) s in
 		try
 			let _ = semicolon s in
 			let b = block [e] s in
@@ -697,6 +703,26 @@ and inline_function = parser
 	| [< '(Kwd Inline,_); '(Kwd Function,p1) >] -> true, p1
 	| [< '(Kwd Function,p1) >] -> false, p1
 
+and parse_macro_expr p s =
+	match Stream.npeek 1 s with
+	| [(DblDot,_)] ->
+		(match s with parser
+		| [< '(DblDot,_); t = parse_complex_type >] ->
+			let t = snd (reify !in_macro) t p in
+			(ECheckType (t,(CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = Some "ComplexType"; tparams = [] })),p)
+		| [< >] -> serror())
+	| [(_,p2)] when p2.pmin > p.pmax ->
+		let reify e =
+			let e = fst (reify !in_macro) e in
+			(ECheckType (e,(CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = None; tparams = [] })),pos e)
+		in
+		(match s with parser
+		| [< '(Kwd Var,p1); vl = psep Comma parse_var_decl >] -> reify (EVars vl,p1)
+		| [< e = expr >] -> reify e
+		| [< >] -> expr_next (EConst (Ident "macro"),p) s)
+	| _ ->
+		expr_next (EConst (Ident "macro"),p) s
+	
 and expr = parser
 	| [< (name,params,p) = parse_meta_entry; s >] ->
 		(EMeta((name,params,p), expr s),p)
@@ -706,24 +732,7 @@ and expr = parser
 		| EObjectDecl _ -> expr_next e s
 		| _ -> e)
 	| [< '(Const (Ident "macro"),p); s >] ->
-		(match Stream.npeek 1 s with
-		| [(DblDot,_)] ->
-			(match s with parser
-			| [< '(DblDot,_); t = parse_complex_type >] ->
-				let t = snd (reify !in_macro) t p in
-				(ECheckType (t,(CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = Some "ComplexType"; tparams = [] })),p)
-			| [< >] -> serror())
-		| [(_,p2)] when p2.pmin > p.pmax ->
-			let reify e =
-				let e = fst (reify !in_macro) e in
-				(ECheckType (e,(CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = None; tparams = [] })),pos e)
-			in
-			(match s with parser
-			| [< '(Kwd Var,p1); vl = psep Comma parse_var_decl >] -> reify (EVars vl,p1)
-			| [< e = expr >] -> reify e
-			| [< >] -> expr_next (EConst (Ident "macro"),p) s)
-		| _ ->
-			expr_next (EConst (Ident "macro"),p) s)
+		parse_macro_expr p s
 	| [< '(Kwd Var,p1); v = parse_var_decl >] -> (EVars [v],p1)
 	| [< '(Const c,p); s >] -> expr_next (EConst c,p) s
 	| [< '(Kwd This,p); s >] -> expr_next (EConst (Ident "this"),p) s
