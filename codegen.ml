@@ -1619,6 +1619,7 @@ let rec create_dumpfile acc = function
 let dump_types com =
 	let s_type = s_type (Type.print_context()) in
 	let params = function [] -> "" | l -> Printf.sprintf "<%s>" (String.concat "," (List.map (fun (n,t) -> n ^ " : " ^ s_type t) l)) in
+	let s_expr = try if Common.defined_value com Define.Dump = "pretty" then Type.s_expr_pretty "\t" else Type.s_expr with Not_found -> Type.s_expr in
 	List.iter (fun mt ->
 		let path = Type.t_path mt in
 		let buf,close = create_dumpfile [] ("dump" :: fst path @ [snd path]) in
@@ -1630,7 +1631,7 @@ let dump_types com =
 				print "(%s) : %s" (s_kind f.cf_kind) (s_type f.cf_type);
 				(match f.cf_expr with
 				| None -> ()
-				| Some e -> print "\n\n\t = %s" (Type.s_expr s_type e));
+				| Some e -> print "\n\n\t = %s" (s_expr s_type e));
 				print ";\n\n";
 			in
 			print "%s%s%s %s%s" (if c.cl_private then "private " else "") (if c.cl_extern then "extern " else "") (if c.cl_interface then "interface" else "class") (s_type_path path) (params c.cl_types);
