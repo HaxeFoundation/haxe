@@ -252,3 +252,31 @@ class UsingUnrelated {
 	}
 
 }
+
+class BaseSuperProp {
+	public var prop(get, set):Int;
+	public var fProp(get, null):Int->String;
+	
+	public function new() {
+		
+	}
+	
+	function get_prop() return 1
+	function set_prop(v) return v
+	
+	function get_fProp() return function(i:Int) return "test" +i
+}
+
+class ChildSuperProp extends BaseSuperProp {
+	public override function get_prop() return super.prop + 1
+	public override function set_prop(v) return (super.prop = v) + 1
+	
+	public override function get_fProp() {
+		var s = super.fProp(0);
+		return function(i:Int) return s + i;
+	}
+	
+	public function test() {
+		return super.fProp(2);
+	}	
+}

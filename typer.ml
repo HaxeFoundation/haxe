@@ -787,15 +787,8 @@ let rec type_ident_raise ?(imported_enums=true) ctx i p mode =
 		| FunMember | FunConstructor -> ()
 		| FunStatic -> error "Cannot access super inside a static function" p;
 		| FunMemberLocal -> error "Cannot access super inside a local function" p);
-		if mode = MSet || not ctx.in_super_call then
-			if mode = MGet && ctx.com.display then
-				AKExpr (mk (TConst TSuper) t p)
-			else
-				AKNo i
-		else begin
-			ctx.in_super_call <- false;
-			AKExpr (mk (TConst TSuper) t p)
-		end
+		if mode <> MSet && ctx.in_super_call then ctx.in_super_call <- false;
+		AKExpr (mk (TConst TSuper) t p)
 	| "null" ->
 		if mode = MGet then
 			AKExpr (null (mk_mono()) p)
@@ -892,7 +885,19 @@ and type_field ctx e i p mode =
 		in
 		(try
 			let t , f = class_field ctx c params i p in
-			if e.eexpr = TConst TSuper && (match f.cf_kind with Var _ -> true | _ -> false) && Common.platform ctx.com Flash then error "Cannot access superclass variable for calling : needs to be a proper method" p;
+			if e.eexpr = TConst TSuper then (match mode,f.cf_kind with
+				| MGet,Var {v_read = AccCall _}
+				| MSet,Var {v_write = AccCall _}
+				| MCall,Var {v_read = AccCall _} ->
+					()
+				| MCall, Var _ ->
+					error "Cannot access superclass variable for calling: needs to be a proper method" p
+				| MCall, _ ->
+					()
+				| MGet,Var _
+				| MSet,Var _ when c.cl_extern && (match c.cl_path with "flash" :: _  , _ -> true | _ -> false) ->
+					()
+				| _ -> error "Normal variables cannot be accessed with 'super', use 'this' instead" p);
 			if not (can_access ctx c f false) && not ctx.untyped then display_error ctx ("Cannot access private field " ^ i) p;
 			field_access ctx mode f (FInstance (c,f)) (apply_params c.cl_types params t) e p
 		with Not_found -> try

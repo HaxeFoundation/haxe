@@ -648,4 +648,11 @@ class TestType extends Test {
 		#end
 	}
 
+	function testSuperPropAccess() {
+		var c = new ChildSuperProp();
+		eq(c.prop, 2);
+		eq(c.prop = 4, 5);
+		eq(c.test(), "test2");
+		eq(c.fProp(9), "test09");
+	}
 }
