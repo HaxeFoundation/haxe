@@ -655,4 +655,13 @@ class TestType extends Test {
 		eq(c.test(), "test2");
 		eq(c.fProp(9), "test09");
 	}
+	
+	function testVoidFunc() {
+		exc(function() { throw null; return 1; } );
+		exc(function() { throw null; return "foo"; } );
+		exc(function() { throw null; return MyEnum.A; } );
+		exc(function() { throw null; return new haxe.Template("foo"); } );
+		exc(function() { throw null; return null; } );
+		exc(function() { throw null; return { foo: 1}; } );
+	}
 }

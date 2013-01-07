@@ -1016,7 +1016,9 @@ let rec unify a b =
 		if not (loop c1 tl1) then error [cannot_unify a b]
 	| TFun (l1,r1) , TFun (l2,r2) when List.length l1 = List.length l2 ->
 		(try
-			unify r1 r2;
+			(match r2 with
+			| TAbstract ({a_path=[],"Void"},_) -> ()
+			| _ -> unify r1 r2);
 			List.iter2 (fun (_,o1,t1) (_,o2,t2) ->
 				if o1 && not o2 then error [Cant_force_optional];
 				unify t1 t2
