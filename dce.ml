@@ -90,11 +90,16 @@ let keep_field dce cf =
 (* marking *)
 
 (* mark a field as kept *)
-let mark_field dce c cf stat = if not (has_meta ":used" cf.cf_meta) then begin
-	cf.cf_meta <- (":used",[],cf.cf_pos) :: cf.cf_meta;
-	dce.added_fields <- (c,cf,stat) :: dce.added_fields;
-	dce.marked_fields <- cf :: dce.marked_fields
-end
+let rec mark_field dce c cf stat =
+	if not (PMap.mem cf.cf_name (if stat then c.cl_statics else c.cl_fields)) then begin
+		match c.cl_super with
+		| None -> (* error? *) ()
+		| Some (c,_) -> mark_field dce c cf stat
+	end else if not (has_meta ":used" cf.cf_meta) then begin
+		cf.cf_meta <- (":used",[],cf.cf_pos) :: cf.cf_meta;
+		dce.added_fields <- (c,cf,stat) :: dce.added_fields;
+		dce.marked_fields <- cf :: dce.marked_fields
+	end
 
 let rec update_marked_class_fields dce c =
 	(* mark all :?used fields as surely :used now *)
