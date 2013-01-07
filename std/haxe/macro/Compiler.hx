@@ -269,6 +269,16 @@ class Compiler {
 		load("custom_js",1)(callb);
 	}
 	
+	static function load( f, nargs ) : Dynamic {
+		#if macro
+		return neko.Lib.load("macro", f, nargs);
+		#else
+		return Reflect.makeVarArgs(function(_) return throw "Can't be called outside of macro");
+		#end
+	}
+
+#end
+
 	#if (js || macro)
 	/**
 		Embed an on-disk javascript file (can be called into an __init__ method)
@@ -288,16 +298,5 @@ class Compiler {
 		return { expr : EUntyped( { expr : ECall( { expr : EConst(CIdent("__js__")), pos : p }, [ { expr : EConst(CString(f)), pos : p } ]), pos : p } ), pos : p };
 	}
 	#end
-	
-
-	static function load( f, nargs ) : Dynamic {
-		#if macro
-		return neko.Lib.load("macro", f, nargs);
-		#else
-		return Reflect.makeVarArgs(function(_) return throw "Can't be called outside of macro");
-		#end
-	}
-
-#end
 
 }
