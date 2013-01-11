@@ -887,7 +887,7 @@ let match_expr ctx e cases def need_val with_type p =
 		| _ -> cases
 	in
 	let evals = match fst e with
-		| EArrayDecl el ->
+		| EArrayDecl el | EParenthesis(EArrayDecl el,_) ->
 			List.map (fun e -> type_expr ctx e true) el
 		| _ ->
 			let e = type_expr ctx e need_val in
@@ -936,9 +936,9 @@ let match_expr ctx e cases def need_val with_type p =
 		let ep = collapse_case el in
 		let save = save_locals ctx in
 		let pl = match fst ep,stl with
-			| EArrayDecl el,[st] when (match follow st.st_type with TInst({cl_path=[],"Array"},[_]) -> true | _ -> false) ->
+			| (EArrayDecl el | (EParenthesis(EArrayDecl el,_))),[st] when (match follow st.st_type with TInst({cl_path=[],"Array"},[_]) -> true | _ -> false) ->
 				[add_pattern_locals (to_pattern ctx ep st.st_type)]
-			| EArrayDecl el,stl ->
+			| (EArrayDecl el | (EParenthesis(EArrayDecl el,_))),stl ->
 				begin try
 					List.map2 (fun e st -> add_pattern_locals (to_pattern ctx e st.st_type)) el stl
 				with Invalid_argument _ ->

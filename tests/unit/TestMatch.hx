@@ -6,7 +6,7 @@ enum Tree<T> {
 	Node(l:Tree<T>, r:Tree<T>);
 }
 
-enum A<T> {	
+enum A<T> {
 	TA<Q>(q : Q) : A<Q>;
 	TB(v : Bool) : A<Bool>;
 	TC(v : Bool) : A<String>;
@@ -59,7 +59,7 @@ class TestMatch extends Test {
 			case EArrayDecl([a]):
 				"[" + Std.string(a.expr) + "]";
 			case EArrayDecl([a,b]):
-				"[" + Std.string(a.expr) + "," + Std.string(b.expr) + "]";				
+				"[" + Std.string(a.expr) + "," + Std.string(b.expr) + "]";
 			case _:
 				"_";
 		}
@@ -75,7 +75,7 @@ class TestMatch extends Test {
 			case a if (a.length == 3): "5:" + a.length;
 			case []: "6";
 			case _: "7";
-		}		
+		}
 	}
 	
 	static function switchStructure(a: { foo:String, bar:String } ) {
@@ -84,7 +84,7 @@ class TestMatch extends Test {
 			case { foo: "val1" } : "1";
 			case { bar: "val2" } : "2";
 			case { bar: a } : a;
-		}		
+		}
 	}
 	
 	static function switchCrazy(e:Expr) {
@@ -158,6 +158,12 @@ class TestMatch extends Test {
 		eq("4", switchGuard(macro 5));
 		eq("4", switchGuard(macro "bazfoo"));
 		eq("5", switchGuard(macro []));
+		
+		eq("0", switch ([true, 1, "foo"]) {
+			case [true, 1, "foo"]: "0";
+			case [true, 1, _]: "1";
+			case _: "_";
+		});
 		
 		eq("0", switch [true, 1, "foo"] {
 			case [true, 1, "foo"]: "0";
@@ -242,7 +248,7 @@ class TestMatch extends Test {
 		eq("Unmatched patterns: Leaf(_)", getErrorMessage(switch(Leaf("foo")) {
 			case Node(_, _):
 			case Leaf("foo"):
-		}));		
+		}));
 		eq("Unmatched patterns: [_,false,_]", getErrorMessage(switch [1, true, "foo"] {
 			case [_, true, _]:
 		}));
@@ -308,7 +314,7 @@ class TestMatch extends Test {
 			case { t : "bar" }:
 			case { s : "foo", t:"bar" }: // unused
 			case _:
-		}			
+		}
 	}
 	#end
 }
