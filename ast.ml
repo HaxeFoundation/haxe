@@ -603,7 +603,7 @@ let reify in_macro =
 	in
 	let to_string s p =
 		let len = String.length s in
-		if len > 0 && s.[0] = '$' then
+		if len > 1 && s.[0] = '$' then
 			(EConst (Ident (String.sub s 1 (len - 1))),p)
 		else
 			(EConst (String s),p)
