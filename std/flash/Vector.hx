@@ -26,7 +26,7 @@ package flash;
 **/
 @:require(flash10) extern class Vector<T> implements ArrayAccess<T> {
 
-	var length : UInt;
+	var length : Int;
 	var fixed : Bool;
 
 	function new( ?length : UInt, ?fixed : Bool ) : Void;
