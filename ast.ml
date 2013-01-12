@@ -733,7 +733,7 @@ let reify in_macro =
 		in
 		let loop e = to_expr e (snd e) in
 		match fst e with
-		| EConst (Ident n) when n.[0] = '$' ->
+		| EConst (Ident n) when n.[0] = '$' && String.length n > 1 ->
 			to_string n p
 		| EConst c ->
 			expr "EConst" [to_const c p]
