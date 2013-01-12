@@ -2042,6 +2042,19 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			end;
 			a.a_status := Closed;
 			mk (TObjectDecl fl) t p)
+	| EArrayDecl [(EFor(it,e2),fp)] ->
+		let ea = type_expr ctx (EArrayDecl [],p) Value in
+		let v = gen_local ctx ea.etype in
+		let push e =
+			let p = snd e in
+			(ECall ((EField ((EConst (Ident v.v_name),p),"push"),p),[e]),p)
+		in
+		let efor = type_expr ctx (EFor (it,(match e2 with (EIf (cond,e1,None),p) -> (EIf (cond,push e1,None),p) | _ -> push e2)),fp) NoValue in
+		mk (TBlock [
+			mk (TVars [v,Some ea]) ctx.t.tvoid p;
+			efor;
+			mk (TLocal v) v.v_type p;
+		]) v.v_type p
 	| EArrayDecl el ->
 		let tp = (match with_type with
 		| WithType t ->

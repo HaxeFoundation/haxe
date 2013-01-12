@@ -43,7 +43,7 @@
 	all : changed callback(func, args) to func.callback(args)
 	macro : added haxe.macro.ExprTools/ComplexTypeTools/TypeTools
 	macro : changed reification syntax
-
+	all : added array comprehension
 
 2012-07-16: 2.10
 	java/cs : added two new targets (beta)
