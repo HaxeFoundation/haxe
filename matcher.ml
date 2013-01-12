@@ -280,7 +280,7 @@ let to_pattern ctx e t =
 			let c = match e.eexpr with TConst c -> c | _ -> assert false in
 			mk_con_pat (CConst c) [] t p
 		| EField _ ->
-			let e = type_expr_with_type ctx e (Some t) false in
+			let e = type_expr ctx e (WithType t) in
 			let e = match Optimizer.make_constant_expression ctx e with Some e -> e | None -> e in
 			(match e.eexpr with
 			| TConst c -> mk_con_pat (CConst c) [] t p
@@ -298,7 +298,7 @@ let to_pattern ctx e t =
 			| _ -> error "Constant expression expected" p)
 		| ECall(ec,el) ->
 			let tc = monomorphs ctx.type_params (t) in
-			let ec = type_expr_with_type ctx ec (Some tc) false in
+			let ec = type_expr ctx ec (WithType tc) in
 			(match follow ec.etype with
 			| TEnum(en,pl)
 			| TFun(_,TEnum(en,pl)) ->
@@ -348,7 +348,7 @@ let to_pattern ctx e t =
 					| _ ->
 						let old = ctx.untyped in
 						ctx.untyped <- true;
-						let e = try type_expr_with_type ctx e (Some tc) true with _ -> ctx.untyped <- old; raise Not_found in
+						let e = try type_expr ctx e (WithType tc) with _ -> ctx.untyped <- old; raise Not_found in
 						ctx.untyped <- old;
 						(match tc with
 							| TMono _ -> ()
@@ -880,7 +880,8 @@ let rec collapse_case el = match el with
 	| [] ->
 		assert false
 
-let match_expr ctx e cases def need_val with_type p =
+let match_expr ctx e cases def with_type p =
+	let need_val, wtype = (match with_type with NoValue -> false, None | Value -> true, None | WithType t -> true, Some t) in
 	let cases = match cases,def with
 		| [],None -> []
 		| cases,Some def -> cases @ [[(EConst(Ident "_")),p],None,def]
@@ -888,9 +889,9 @@ let match_expr ctx e cases def need_val with_type p =
 	in
 	let evals = match fst e with
 		| EArrayDecl el | EParenthesis(EArrayDecl el,_) ->
-			List.map (fun e -> type_expr ctx e true) el
+			List.map (fun e -> type_expr ctx e Value) el
 		| _ ->
-			let e = type_expr ctx e need_val in
+			let e = type_expr ctx e Value in
 			begin match e.etype with
 			| TEnum(en,_) when PMap.is_empty en.e_constrs ->
 				raise Exit
@@ -953,9 +954,9 @@ let match_expr ctx e cases def need_val with_type p =
 		in
 		let e = match e with
 			| None -> mk (TBlock []) ctx.com.basic.tvoid (punion_el el)
-			| Some e -> if need_val then type_expr_with_type ctx e with_type false else type_expr ctx e false
+			| Some e -> type_expr ctx e with_type
 		in
-		let eg = match eg with None -> None | Some e -> Some (type_expr ctx e true) in
+		let eg = match eg with None -> None | Some e -> Some (type_expr ctx e Value) in
 		save();
 		let out = mk_out mctx e eg pl (pos ep) in
 		Array.of_list pl,out

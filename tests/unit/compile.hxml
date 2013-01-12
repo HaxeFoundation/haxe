@@ -21,7 +21,7 @@
 -resource res1.txt
 -resource res2.bin
 --no-opt
---dce full
+-dce full
 --each
 
 #flash8

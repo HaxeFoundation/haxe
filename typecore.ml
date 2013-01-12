@@ -19,6 +19,11 @@
 open Common
 open Type
 
+type with_type =
+	| NoValue
+	| Value
+	| WithType of t
+
 type type_patch = {
 	mutable tp_type : Ast.complex_type option;
 	mutable tp_remove : bool;
@@ -100,7 +105,6 @@ and typer = {
 	mutable ret : t;
 	mutable locals : (string, tvar) PMap.t;
 	mutable opened : anon_status ref list;
-	mutable param_type : t option;
 	mutable vthis : tvar option;
 	(* events *)
 	mutable on_error : typer -> string -> pos -> unit;
@@ -120,10 +124,9 @@ exception Forbid_package of (string * path * pos) * pos list * string
 
 exception Error of error_msg * pos
 
-let type_expr_ref : (typer -> Ast.expr -> bool -> texpr) ref = ref (fun _ _ _ -> assert false)
+let type_expr_ref : (typer -> Ast.expr -> with_type -> texpr) ref = ref (fun _ _ _ -> assert false)
 let unify_min_ref : (typer -> texpr list -> t) ref = ref (fun _ _ -> assert false)
-let type_expr_with_type_ref : (typer -> Ast.expr -> t option -> bool -> texpr) ref = ref (fun _ _ _ -> assert false)
-let match_expr_ref : (typer -> Ast.expr -> (Ast.expr list * Ast.expr option * Ast.expr option) list -> Ast.expr option option -> bool -> t option -> Ast.pos -> texpr) ref = ref (fun _ _ _ _ _ _ _ -> assert false)
+let match_expr_ref : (typer -> Ast.expr -> (Ast.expr list * Ast.expr option * Ast.expr option) list -> Ast.expr option option -> with_type -> Ast.pos -> texpr) ref = ref (fun _ _ _ _ _ _ -> assert false)
 let get_pattern_locals_ref : (typer -> Ast.expr -> Type.t -> (string, tvar) PMap.t) ref = ref (fun _ _ _ -> assert false)
 
 let short_type ctx t =
@@ -191,13 +194,23 @@ let display_error ctx msg p = ctx.on_error ctx msg p
 
 let error msg p = raise (Error (Custom msg,p))
 
-let type_expr ctx e need_val = (!type_expr_ref) ctx e need_val
+let type_expr ctx e with_type = (!type_expr_ref) ctx e with_type
+
+let type_expr_raise ctx e with_type =
+	let old = ctx.on_error in
+	ctx.on_error <- (fun _ msg p -> raise (Error (Unify [Unify_custom msg],p)));
+	try
+		let e = type_expr ctx e with_type in
+		ctx.on_error <- old;
+		e
+	with
+		Error _ as e ->
+			ctx.on_error <- old;
+			raise e
 
 let unify_min ctx el = (!unify_min_ref) ctx el
 
-let type_expr_with_type ctx e t do_raise = (!type_expr_with_type_ref) ctx e t do_raise
-
-let match_expr ctx e cases def need_val with_type p = !match_expr_ref ctx e cases def need_val with_type p
+let match_expr ctx e cases def with_type p = !match_expr_ref ctx e cases def with_type p
 
 let unify ctx t1 t2 p =
 	try

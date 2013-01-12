@@ -134,7 +134,7 @@ let type_function_param ctx t e opt p =
 
 let type_var_field ctx t e stat p =
 	if stat then ctx.curfun <- FunStatic;
-	let e = type_expr_with_type ctx e (Some t) false in
+	let e = type_expr ctx e (WithType t) in
 	unify ctx e.etype t p;
 	match t with
 	| TType ({ t_path = ([],"UInt") },[]) | TAbstract ({ a_path = ([],"UInt") },[]) when stat -> { e with etype = t }
@@ -790,7 +790,7 @@ let type_function ctx args ret fmode f p =
 			| None -> None
 			| Some e ->
 				let p = pos e in
-				let e = ctx.g.do_optimize ctx (type_expr ctx e true) in
+				let e = ctx.g.do_optimize ctx (type_expr ctx e (WithType t)) in
 				unify ctx e.etype t p;
 				match e.eexpr with
 				| TConst c -> Some c
@@ -804,7 +804,7 @@ let type_function ctx args ret fmode f p =
 	ctx.curfun <- fmode;
 	ctx.ret <- ret;
 	ctx.opened <- [];
-	let e = type_expr ctx (match f.f_expr with None -> error "Function body required" p | Some e -> e) false in
+	let e = type_expr ctx (match f.f_expr with None -> error "Function body required" p | Some e -> e) NoValue in
 	let rec loop e =
 		match e.eexpr with
 		| TReturn (Some _) -> raise Exit
@@ -1811,7 +1811,6 @@ let type_module ctx m file tdecls p =
 		in_display = false;
 		in_loop = false;
 		opened = [];
-		param_type = None;
 		vthis = None;
 	} in
 	(* here is an additional PASS 1 phase, which define the type parameters for all module types.

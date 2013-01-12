@@ -410,7 +410,7 @@ let optimize_for_loop ctx i e1 e2 p =
 				mk (TLocal atmp) e1.etype e1.epos, [atmp,Some e1]
 		) in
 		let iexpr = mk (TLocal index) t_int p in
-		let e2 = type_expr ctx e2 false in
+		let e2 = type_expr ctx e2 NoValue in
 		let aget = mk (TVars [i,Some (mk (TArray (arr,iexpr)) pt p)]) t_void p in
 		let incr = mk (TUnop (Increment,Prefix,iexpr)) t_int p in
 		let block = match e2.eexpr with
@@ -446,7 +446,7 @@ let optimize_for_loop ctx i e1 e2 p =
 			| _ ->
 				Type.iter check e
 		in
-		let e2 = type_expr ctx e2 false in
+		let e2 = type_expr ctx e2 NoValue in
 		check e2;
 		let etmp = mk (TLocal tmp) t_int p in
 		let incr = mk (TUnop (Increment,Postfix,etmp)) t_int p in
@@ -491,7 +491,7 @@ let optimize_for_loop ctx i e1 e2 p =
 		let i = add_local ctx i t in
 		let cell = gen_local ctx tcell in
 		let cexpr = mk (TLocal cell) tcell p in
-		let e2 = type_expr ctx e2 false in
+		let e2 = type_expr ctx e2 NoValue in
 		let evar = mk (TVars [i,Some (mk (mk_field cexpr "elt") t p)]) t_void p in
 		let enext = mk (TBinop (OpAssign,cexpr,mk (mk_field cexpr "next") tcell p)) tcell p in
 		let block = match e2.eexpr with
