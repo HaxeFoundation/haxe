@@ -724,7 +724,10 @@ and parse_macro_expr p = parser
 	
 and expr = parser
 	| [< (name,params,p) = parse_meta_entry; s >] ->
-		(EMeta((name,params,p), expr s),p)
+		(try
+			(EMeta((name,params,p), secure_expr s),p)
+		with Display e ->
+			display (EMeta((name,params,p), e),punion p (pos e)))
 	| [< '(BrOpen,p1); b = block1; '(BrClose,p2); s >] ->
 		let e = (b,punion p1 p2) in
 		(match b with
