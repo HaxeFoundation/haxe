@@ -1902,8 +1902,6 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				parse (pos + 1) (pos + 1)
 			| '{' ->
 				parse_group start pos '{' '}' "brace"
-			| '(' ->
-				parse_group start pos '(' ')' "parenthesis"
 			| 'a'..'z' | 'A'..'Z' | '_' ->
 				add_sub start (pos - 1);
 				incr min;
