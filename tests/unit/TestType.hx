@@ -12,13 +12,13 @@ class TestType extends Test {
 		#end
 	}
 
-	@:macro static public function typedAs(actual:haxe.macro.Expr, expected:haxe.macro.Expr) {
+	static public macro function typedAs(actual:haxe.macro.Expr, expected:haxe.macro.Expr) {
 		var tExpected = haxe.macro.Context.typeof(expected);
 		var tActual = haxe.macro.Context.typeof(actual);
 		return haxe.macro.Context.parse("{Test.count++; eq('" +Std.string(tActual) + "', '" +Std.string(tExpected) + "');}", haxe.macro.Context.currentPos());
 	}
 
-	@:macro static public function typeError(e:haxe.macro.Expr) {
+	static public macro function typeError(e:haxe.macro.Expr) {
 		var result = try {
 			haxe.macro.Context.typeof(e);
 			"false";
@@ -26,7 +26,7 @@ class TestType extends Test {
 		return { pos: haxe.macro.Context.currentPos(), expr: haxe.macro.Expr.ExprDef.EConst(haxe.macro.Expr.Constant.CIdent(result)) };
 	}
 
-	@:macro static public function complete(e:String) : haxe.macro.Expr.ExprOf<String> {
+	static public macro function complete(e:String) : haxe.macro.Expr.ExprOf<String> {
 		var str = new String(untyped haxe.macro.Context.load("display", 1)(e.__s));
 		return { expr : EConst(CString(str)), pos : haxe.macro.Context.currentPos() };
 	}

@@ -1013,6 +1013,7 @@ let init_class ctx c p context_init herits fields =
 	let fields = !fields in
 	let core_api = has_meta ":coreApi" c.cl_meta in
 	let is_class_macro = has_meta ":macro" c.cl_meta in
+	if is_class_macro && Common.defined ctx.com Define.Haxe3 then display_error ctx "Macro-class is no longer allowed in haxe3" p;
 	let fields, herits = if is_class_macro && not ctx.in_macro then begin
 		c.cl_extern <- true;
 		List.filter (fun f -> List.mem AStatic f.cff_access) fields, []
@@ -1149,7 +1150,9 @@ let init_class ctx c p context_init herits fields =
 		let extern = has_meta ":extern" f.cff_meta || c.cl_extern in
 		let inline = List.mem AInline f.cff_access && (match f.cff_kind with FFun _ -> not ctx.com.display && (ctx.g.doinline || extern) | _ -> true) in
 		let override = List.mem AOverride f.cff_access in
-		let is_macro = List.mem AMacro f.cff_access || has_meta ":macro" f.cff_meta in
+		let is_macro = has_meta ":macro" f.cff_meta in
+		if is_macro && Common.defined ctx.com Define.Haxe3 then ctx.com.warning "@:macro should now be 'macro' accessor'" p;
+		let is_macro = is_macro || List.mem AMacro f.cff_access in
 		List.iter (fun acc ->
 			match (acc, f.cff_kind) with
 			| APublic, _ | APrivate, _ | AStatic, _ -> ()

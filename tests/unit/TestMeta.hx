@@ -68,7 +68,7 @@ package unit;
 		eq(getMeta(@foo("1") "2").args.length, 1);
 	}
 
-	@:macro static function getMeta(e) {
+	static macro function getMeta(e) {
 		switch(e.expr) {
 			case EMeta(m, _):
 				return macro { name: $v{m.name}, args: $a{m.params} };

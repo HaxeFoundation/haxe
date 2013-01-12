@@ -78,13 +78,13 @@ class Dispatch {
 		this.params = params;
 	}
 
-	@:macro public function dispatch( ethis : Expr, obj : ExprOf<{}> ) : ExprOf<Void> {
+	public macro function dispatch( ethis : Expr, obj : ExprOf<{}> ) : ExprOf<Void> {
 		var p = Context.currentPos();
 		var cfg = makeConfig(obj);
 		return { expr : ECall({ expr : EField(ethis, "runtimeDispatch"), pos : p }, [cfg]), pos : p };
 	}
 
-	@:macro public function getParams( ethis : Expr ) : Expr {
+	public macro function getParams( ethis : Expr ) : Expr {
 		var p = Context.currentPos();
 		if( PARAMS == null ) {
 			PARAMS = new Array();
@@ -424,11 +424,11 @@ class Dispatch {
 
 	#end
 
-	@:macro public static function make( obj : ExprOf<{}> ) : ExprOf<DispatchConfig> {
+	public static macro function make( obj : ExprOf<{}> ) : ExprOf<DispatchConfig> {
 		return makeConfig(obj);
 	}
 
-	@:macro public static function run( url : ExprOf<String>, params : ExprOf<Hash<String>>, obj : ExprOf<{}> ) : ExprOf<Void> {
+	public static macro function run( url : ExprOf<String>, params : ExprOf<Hash<String>>, obj : ExprOf<{}> ) : ExprOf<Void> {
 		var p = Context.currentPos();
 		var cfg = makeConfig(obj);
 		return { expr : ECall({ expr : EField({ expr : ENew({ name : "Dispatch", pack : ["haxe","web"], params : [], sub : null },[url,params]), pos : p },"runtimeDispatch"), pos : p },[cfg]), pos : p };

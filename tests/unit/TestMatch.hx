@@ -18,7 +18,7 @@ enum X<A> {
 }
 
 class TestMatch extends Test {
-	@:macro static function getErrorMessage(e:Expr) {
+	static macro function getErrorMessage(e:Expr) {
 		var result = try {
 			haxe.macro.Context.typeof(e);
 			"no error";

@@ -29,7 +29,7 @@ using StringTools;
 
 class UnitBuilder {
 	
-	@:macro static public function build(basePath:String):Array<Field> {
+	static public macro function build(basePath:String):Array<Field> {
 		var ret = Context.getBuildFields();
 		var numFiles = 0;
 			

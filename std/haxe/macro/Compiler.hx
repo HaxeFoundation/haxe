@@ -283,7 +283,7 @@ class Compiler {
 	/**
 		Embed an on-disk javascript file (can be called into an __init__ method)
 	**/
-	@:macro public static function includeFile( fileName : Expr ) {
+	public static macro function includeFile( fileName : Expr ) {
 		var str = switch( fileName.expr ) {
 		case EConst(c):
 			switch( c ) {
