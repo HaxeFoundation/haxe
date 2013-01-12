@@ -2049,7 +2049,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			let p = snd e in
 			(ECall ((EField ((EConst (Ident v.v_name),p),"push"),p),[e]),p)
 		in
-		let efor = type_expr ctx (EFor (it,(match e2 with (EIf (cond,e1,None),p) -> (EIf (cond,push e1,None),p) | _ -> push e2)),fp) NoValue in
+		let efor = type_expr ctx (EFor (it,(match e2 with (EIf (cond,e1,None),p) | (EBlock [(EIf (cond,e1,None),p)],_) -> (EIf (cond,push e1,None),p) | _ -> push e2)),fp) NoValue in
 		mk (TBlock [
 			mk (TVars [v,Some ea]) ctx.t.tvoid p;
 			efor;
