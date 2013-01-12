@@ -19,8 +19,11 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package haxe;
+package haxe.crypto;
 
+/**
+	Allows to encode/decode String and bytes using a power of two base dictionnary.
+**/
 class BaseCode {
 
 	var base : haxe.io.Bytes;

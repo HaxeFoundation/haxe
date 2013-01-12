@@ -45,6 +45,7 @@
 	macro : changed reification syntax
 	all : added array comprehension
 	flash : Vector.length is now Int instead of UInt
+	all : moved haxe.BaseCode to haxe.crypto.BaseCode
 
 2012-07-16: 2.10
 	java/cs : added two new targets (beta)
