@@ -473,6 +473,7 @@ and parse_type_path_or_const = parser
 	| [< t = parse_complex_type >] -> TPType t
 	| [< '(Const c,p) >] -> TPExpr (EConst c,p)
 	| [< e = expr >] -> TPExpr e
+	| [< >] -> serror()
 
 and parse_complex_type_next t = parser
 	| [< '(Arrow,_); t2 = parse_complex_type >] ->
@@ -718,7 +719,7 @@ and parse_macro_expr p = parser
 		(ECheckType (t,(CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = Some "ComplexType"; tparams = [] })),p)
 	| [< '(Kwd Var,p1); vl = psep Comma parse_var_decl >] ->
 		reify_expr (EVars vl,p1)
-	| [< e = expr >] ->
+	| [< e = secure_expr >] ->
 		reify_expr e
 	
 and expr = parser
