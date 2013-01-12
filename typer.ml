@@ -541,7 +541,7 @@ let make_call ctx e params t p =
 	try
 		let ethis, fname = (match e.eexpr with TField (ethis,f) -> ethis, field_name f | _ -> raise Exit) in
 		let f, cl = (match follow ethis.etype with
-			| TInst (c,params) -> snd (try Type.class_field c fname with Not_found -> raise Exit), Some c
+			| TInst (c,params) -> (try let _,_,f = Type.class_field c fname in f with Not_found -> raise Exit), Some c
 			| TAnon a -> (try PMap.find fname a.a_fields with Not_found -> raise Exit), (match !(a.a_status) with Statics c -> Some c | _ -> None)
 			| _ -> raise Exit
 		) in
@@ -815,8 +815,8 @@ let rec type_ident_raise ?(imported_enums=true) ctx i p mode =
 	with Not_found -> try
 		(* member variable lookup *)
 		if ctx.curfun = FunStatic then raise Not_found;
-		let t , f = class_field ctx ctx.curclass [] i p in
-		field_access ctx mode f (FInstance (ctx.curclass,f)) t (get_this ctx p) p
+		let c , t , f = class_field ctx ctx.curclass [] i p in
+		field_access ctx mode f (match c with None -> FAnon f | Some c -> FInstance (c,f)) t (get_this ctx p) p
 	with Not_found -> try
 		(* lookup using on 'this' *)
 		if ctx.curfun = FunStatic then raise Not_found;
@@ -884,7 +884,7 @@ and type_field ctx e i p mode =
 				| Some (c,params) -> loop_dyn c params
 		in
 		(try
-			let t , f = class_field ctx c params i p in
+			let c2, t , f = class_field ctx c params i p in
 			if e.eexpr = TConst TSuper then (match mode,f.cf_kind with
 				| MGet,Var {v_read = AccCall _}
 				| MSet,Var {v_write = AccCall _}
@@ -895,11 +895,11 @@ and type_field ctx e i p mode =
 				| MCall, _ ->
 					()
 				| MGet,Var _
-				| MSet,Var _ when c.cl_extern && (match c.cl_path with "flash" :: _  , _ -> true | _ -> false) ->
+				| MSet,Var _ when (match c2 with Some { cl_extern = true; cl_path = ("flash" :: _,_) } -> true | _ -> false) ->
 					()
 				| _ -> error "Normal variables cannot be accessed with 'super', use 'this' instead" p);
 			if not (can_access ctx c f false) && not ctx.untyped then display_error ctx ("Cannot access private field " ^ i) p;
-			field_access ctx mode f (FInstance (c,f)) (apply_params c.cl_types params t) e p
+			field_access ctx mode f (match c2 with None -> FAnon f | Some c -> FInstance (c,f)) (apply_params c.cl_types params t) e p
 		with Not_found -> try
 			using_field ctx mode e i p
 		with Not_found -> try
@@ -1063,7 +1063,7 @@ let unify_int ctx e k =
 		| TAnon a ->
 			(try is_dynamic (PMap.find f a.a_fields).cf_type with Not_found -> false)
 		| TInst (c,pl) ->
-			(try is_dynamic (apply_params c.cl_types pl (fst (Type.class_field c f))) with Not_found -> false)
+			(try is_dynamic (apply_params c.cl_types pl ((let _,t,_ = Type.class_field c f in t))) with Not_found -> false)
 		| _ ->
 			true
 	in
@@ -2110,7 +2110,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				(* can we inline hasNext() ? *)
 				(try
 					let c,pl = (match follow e1.etype with TInst (c,pl) -> c,pl | _ -> raise Exit) in
-					let ft, fhasnext = (try class_field ctx c pl "hasNext" p with Not_found -> raise Exit) in
+					let _, ft, fhasnext = (try class_field ctx c pl "hasNext" p with Not_found -> raise Exit) in
 					if fhasnext.cf_kind <> Method MethInline then raise Exit;
 					let tmp = gen_local ctx e1.etype in
 					let eit = mk (TLocal tmp) e1.etype p in
@@ -2674,7 +2674,7 @@ and check_to_string ctx t =
 	match follow t with
 	| TInst (c,_) ->
 		(try
-			let _, f = Type.class_field c "toString" in
+			let _, _, f = Type.class_field c "toString" in
 			ignore(follow f.cf_type);
 		with Not_found ->
 			())

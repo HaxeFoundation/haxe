@@ -562,7 +562,7 @@ let check_overriding ctx c =
 		PMap.iter (fun i f ->
 			let p = f.cf_pos in
 			try
-				let t , f2 = raw_class_field (fun f -> f.cf_type) csup i in
+				let _, t , f2 = raw_class_field (fun f -> f.cf_type) csup i in
 				(* allow to define fields that are not defined for this platform version in superclass *)
 				(match f2.cf_kind with
 				| Var { v_read = AccRequire _ } -> raise Not_found;
@@ -601,7 +601,7 @@ let class_field_no_interf c i =
 			raise Not_found
 		| Some (c,tl) ->
 			(* rec over class_field *)
-			let t , f = raw_class_field (fun f -> f.cf_type) c i in
+			let _, t , f = raw_class_field (fun f -> f.cf_type) c i in
 			apply_params c.cl_types tl t , f
 
 let rec check_interface ctx c intf params =
@@ -1291,7 +1291,7 @@ let init_class ctx c p context_init herits fields =
 			let check_method m t req_name =
 				if ctx.com.display then () else
 				try
-					let t2, f = (if stat then let f = PMap.find m c.cl_statics in f.cf_type, f else class_field c m) in
+					let _, t2, f = (if stat then let f = PMap.find m c.cl_statics in Some c, f.cf_type, f else class_field c m) in
 					unify_raise ctx t2 t f.cf_pos;
 					(match req_name with None -> () | Some n -> display_error ctx ("Please use " ^ n ^ " to name your property access method") f.cf_pos);
 				with
