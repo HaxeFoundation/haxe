@@ -6396,11 +6396,13 @@ struct
           mk_class_field (gen.gmk_internal_name "hx" "hashes_f") (basic.tarray hasht) false pos (Var { v_read = AccNormal; v_write = AccNormal }) [];
           mk_class_field (gen.gmk_internal_name "hx" "dynamics_f") (basic.tarray basic.tfloat) false pos (Var { v_read = AccNormal; v_write = AccNormal }) [];
         ] in
+		(*
         let rec last_ctor cl =
           match cl.cl_constructor with
             | None -> (match cl.cl_super with | None -> None | Some (cl,_) -> last_ctor cl)
             | Some c -> Some c
         in
+		*)
         (*
           in order for the next to work, we need to execute our script before InitFunction, so the expressions inside the variables are initialized by the constructor
         *)
@@ -6901,6 +6903,7 @@ struct
     let gen = ctx.rcf_gen in
     let basic = gen.gcon.basic in
     let pos = cl.cl_pos in
+	(*
     let rec has_no_dynamic cl =
       if is_some cl.cl_dynamic then
         false
@@ -6908,7 +6911,7 @@ struct
         | None -> true
         | Some(cl,_) -> has_no_dynamic cl
     in
-
+	*)
     (* Type.getClassFields() *)
     if ctx.rcf_handle_statics then begin
       let name = gen.gmk_internal_name "hx" "classFields" in
