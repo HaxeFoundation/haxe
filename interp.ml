@@ -3535,6 +3535,7 @@ and encode_access a =
 		| AOverride -> 3
 		| ADynamic -> 4
 		| AInline -> 5
+		| AMacro -> 6
 	in
 	enc_enum IAccess tag []
 
@@ -3820,6 +3821,7 @@ and decode_access v =
 	| 3, [] -> AOverride
 	| 4, [] -> ADynamic
 	| 5, [] -> AInline
+	| 6, [] -> AMacro
 	| _ -> raise Invalid_expr
 
 and decode_meta_entry v =

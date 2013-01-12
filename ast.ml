@@ -65,6 +65,7 @@ type keyword =
 	| True
 	| False
 	| Abstract
+	| Macro
 
 type binop =
 	| OpAdd
@@ -215,6 +216,7 @@ and access =
 	| AOverride
 	| ADynamic
 	| AInline
+	| AMacro
 
 and class_field_kind =
 	| FVar of complex_type option * expr option
@@ -354,6 +356,7 @@ let s_access = function
 	| AOverride -> "override"
 	| ADynamic -> "dynamic"
 	| AInline -> "inline"
+	| AMacro -> "macro"
 
 let s_keyword = function
 	| Function -> "function"
@@ -397,6 +400,7 @@ let s_keyword = function
 	| True -> "true"
 	| False -> "false"
 	| Abstract -> "abstract"
+	| Macro -> "macro"
 
 let rec s_binop = function
 	| OpAdd -> "+"
@@ -679,6 +683,7 @@ let reify in_macro =
 			| AOverride -> "AOverride"
 			| ADynamic -> "ADynamic"
 			| AInline -> "AInline"
+			| AMacro -> "AMacro"
 			) in
 			mk_enum "Access" n [] p
 		in

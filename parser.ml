@@ -149,8 +149,14 @@ let dollar_ident = parser
 	| [< '(Const (Ident i),p) >] -> i,p
 	| [< '(Dollar i,p) >] -> ("$" ^ i),p
 
-let lower_ident = parser
+let dollar_ident_macro pack = parser
+	| [< '(Const (Ident i),p) >] -> i,p
+	| [< '(Dollar i,p) >] -> ("$" ^ i),p
+	| [< '(Kwd Macro,p) when pack <> [] >] -> "macro", p
+
+let lower_ident_or_macro = parser
 	| [< '(Const (Ident i),p) when is_lower_ident i >] -> i
+	| [< '(Kwd Macro,_) >] -> "macro"
 
 let any_enum_ident = parser
 	| [< i = ident >] -> i
@@ -260,6 +266,8 @@ and parse_import s p1 =
 			(match s with parser
 			| [< '(Const (Ident k),p) >] ->
 				loop ((k,p) :: acc)
+			| [< '(Kwd Macro,p) >] ->
+				loop (("macro",p) :: acc)
 			| [< '(Binop OpMult,_); '(Semicolon,p2) >] ->
 				p2, List.rev acc, IAll
 			| [< '(Binop OpOr,_) when do_resume() >] ->
@@ -284,7 +292,7 @@ and parse_abstract_relations s =
 	| [< '(Binop OpLte,_); t = parse_complex_type >] -> ASuperType t
 	| [< '(Binop OpAssign,p1); '(Binop OpGt,p2) when p1.pmax = p2.pmin; t = parse_complex_type >] -> ASubType t
 
-and parse_package s = psep Dot lower_ident s
+and parse_package s = psep Dot lower_ident_or_macro s
 
 and parse_class_fields tdecl p1 s =
 	let l = parse_class_field_resume tdecl s in
@@ -342,7 +350,7 @@ and parse_class_field_resume tdecl s =
 			| Kwd New :: Kwd Function :: _ ->
 				junk_tokens (k - 2);
 				parse_class_field_resume tdecl s
-			| Kwd Public :: _ | Kwd Static :: _ | Kwd Var :: _ | Kwd Override :: _ | Kwd Dynamic :: _ | Kwd Inline :: _ ->
+			| Kwd Macro :: _ | Kwd Public :: _ | Kwd Static :: _ | Kwd Var :: _ | Kwd Override :: _ | Kwd Dynamic :: _ | Kwd Inline :: _ ->
 				junk_tokens (k - 1);
 				parse_class_field_resume tdecl s
 			| BrClose :: _ when tdecl ->
@@ -416,7 +424,7 @@ and parse_complex_type_inner = parser
 and parse_type_path s = parse_type_path1 [] s
 
 and parse_type_path1 pack = parser
-	| [< name, p = dollar_ident; s >] ->
+	| [< name, p = dollar_ident_macro pack; s >] ->
 		if is_lower_ident name then
 			(match s with parser
 			| [< '(Dot,p) >] ->
@@ -584,6 +592,7 @@ and parse_class_field s =
 
 and parse_cf_rights allow_static l = parser
 	| [< '(Kwd Static,_) when allow_static; l = parse_cf_rights false (AStatic :: l) >] -> l
+	| [< '(Kwd Macro,_) when not(List.mem AMacro l); l = parse_cf_rights allow_static (AMacro :: l) >] -> l
 	| [< '(Kwd Public,_) when not(List.mem APublic l || List.mem APrivate l); l = parse_cf_rights allow_static (APublic :: l) >] -> l
 	| [< '(Kwd Private,_) when not(List.mem APublic l || List.mem APrivate l); l = parse_cf_rights allow_static (APrivate :: l) >] -> l
 	| [< '(Kwd Override,_) when not (List.mem AOverride l); l = parse_cf_rights false (AOverride :: l) >] -> l
@@ -643,10 +652,6 @@ and block2 name ident p s =
 	match s with parser
 	| [< '(DblDot,_); e = expr; l = parse_obj_decl >] -> EObjectDecl ((name,e) :: l)
 	| [< >] ->
-		match ident with
-		| Ident "macro" ->
-			fst (parse_macro_expr p s)
-		| _ ->
 		let e = expr_next (EConst ident,p) s in
 		try
 			let _ = semicolon s in
@@ -703,25 +708,14 @@ and inline_function = parser
 	| [< '(Kwd Inline,_); '(Kwd Function,p1) >] -> true, p1
 	| [< '(Kwd Function,p1) >] -> false, p1
 
-and parse_macro_expr p s =
-	match Stream.npeek 1 s with
-	| [(DblDot,_)] ->
-		(match s with parser
-		| [< '(DblDot,_); t = parse_complex_type >] ->
-			let t = snd (reify !in_macro) t p in
-			(ECheckType (t,(CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = Some "ComplexType"; tparams = [] })),p)
-		| [< >] -> serror())
-	| [(_,p2)] when p2.pmin > p.pmax ->
-		let reify e =
-			let e = fst (reify !in_macro) e in
-			(ECheckType (e,(CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = None; tparams = [] })),pos e)
-		in
-		(match s with parser
-		| [< '(Kwd Var,p1); vl = psep Comma parse_var_decl >] -> reify (EVars vl,p1)
-		| [< e = expr >] -> reify e
-		| [< >] -> expr_next (EConst (Ident "macro"),p) s)
-	| _ ->
-		expr_next (EConst (Ident "macro"),p) s
+and parse_macro_expr p = parser
+	| [< '(DblDot,_); t = parse_complex_type >] ->
+		let t = snd (reify !in_macro) t p in
+		(ECheckType (t,(CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = Some "ComplexType"; tparams = [] })),p)
+	| [< '(Kwd Var,p1); vl = psep Comma parse_var_decl >] ->
+		reify (EVars vl,p1)
+	| [< e = expr >] ->
+		reify e
 	
 and expr = parser
 	| [< (name,params,p) = parse_meta_entry; s >] ->
@@ -731,7 +725,7 @@ and expr = parser
 		(match b with
 		| EObjectDecl _ -> expr_next e s
 		| _ -> e)
-	| [< '(Const (Ident "macro"),p); s >] ->
+	| [< '(Kwd Macro,p); s >] ->
 		parse_macro_expr p s
 	| [< '(Kwd Var,p1); v = parse_var_decl >] -> (EVars [v],p1)
 	| [< '(Const c,p); s >] -> expr_next (EConst c,p) s
@@ -835,6 +829,7 @@ and expr_next e1 = parser
 	| [< '(Dot,p); s >] ->
 		if is_resuming p then display (EDisplay (e1,false),p);
 		(match s with parser
+		| [< '(Kwd Macro,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,"macro") , punion (pos e1) p2) s
 		| [< '(Const (Ident f),p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,f) , punion (pos e1) p2) s
 		| [< '(Dollar v,p2); s >] -> expr_next (EField (e1,"$"^v) , punion (pos e1) p2) s
 		| [< '(Binop OpOr,p2) when do_resume() >] -> display (EDisplay (e1,false),p) (* help for debug display mode *)

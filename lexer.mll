@@ -77,7 +77,7 @@ let keywords =
 		Switch;Case;Default;Public;Private;Try;Untyped;
 		Catch;New;This;Throw;Extern;Enum;In;Interface;
 		Cast;Override;Dynamic;Typedef;Package;
-		Inline;Using;Null;True;False;Abstract];
+		Inline;Using;Null;True;False;Abstract;Macro];
 	h
 
 let init file =

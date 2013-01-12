@@ -366,7 +366,7 @@ and load_complex_type ctx p t =
 				| APublic -> ()
 				| APrivate -> pub := false;
 				| ADynamic when (match f.cff_kind with FFun _ -> true | _ -> false) -> dyn := true
-				| AStatic | AOverride | AInline | ADynamic -> error ("Invalid access " ^ Ast.s_access a) p
+				| AStatic | AOverride | AInline | ADynamic | AMacro -> error ("Invalid access " ^ Ast.s_access a) p
 			) f.cff_access;
 			let t , access = (match f.cff_kind with
 				| FVar (Some (CTPath({tpackage=[];tname="Void"})), _)  | FProp (_,_,Some (CTPath({tpackage=[];tname="Void"})),_) ->
@@ -1012,8 +1012,8 @@ let init_class ctx c p context_init herits fields =
 	);
 	let fields = !fields in
 	let core_api = has_meta ":coreApi" c.cl_meta in
-	let is_macro = has_meta ":macro" c.cl_meta in
-	let fields, herits = if is_macro && not ctx.in_macro then begin
+	let is_class_macro = has_meta ":macro" c.cl_meta in
+	let fields, herits = if is_class_macro && not ctx.in_macro then begin
 		c.cl_extern <- true;
 		List.filter (fun f -> List.mem AStatic f.cff_access) fields, []
 	end else fields, herits in
@@ -1149,6 +1149,14 @@ let init_class ctx c p context_init herits fields =
 		let extern = has_meta ":extern" f.cff_meta || c.cl_extern in
 		let inline = List.mem AInline f.cff_access && (match f.cff_kind with FFun _ -> not ctx.com.display && (ctx.g.doinline || extern) | _ -> true) in
 		let override = List.mem AOverride f.cff_access in
+		let is_macro = List.mem AMacro f.cff_access || has_meta ":macro" f.cff_meta in
+		List.iter (fun acc ->
+			match (acc, f.cff_kind) with
+			| APublic, _ | APrivate, _ | AStatic, _ -> ()
+			| ADynamic, FFun _ | AOverride, FFun _ | AMacro, FFun _ | AInline, FFun _ | AInline, FVar _ -> ()
+			| _, FVar _ -> error ("Invalid accessor '" ^ Ast.s_access acc ^ "' for variable " ^ name) p
+			| _, FProp _ -> error ("Invalid accessor '" ^ Ast.s_access acc ^ "' for property " ^ name) p
+		) f.cff_access;
 		if override then (match c.cl_super with None -> error "Invalid override: class has no super class" p | _ -> ());
 		(* build the per-field context *)
 		let ctx = {
@@ -1159,7 +1167,6 @@ let init_class ctx c p context_init herits fields =
 		| FVar (t,e) ->
 			if inline && not stat then error "Inline variable must be static" p;
 			if inline && e = None then error "Inline variable must be initialized" p;
-			if override then error "You cannot override variables" p;
 
 			let t = (match t with
 				| None when not stat && e = None ->
@@ -1191,7 +1198,7 @@ let init_class ctx c p context_init herits fields =
 		| FFun fd ->
 			let params = type_function_params ctx fd f.cff_name p in
 			if inline && c.cl_interface then error "You can't declare inline methods in interfaces" p;
-			let is_macro = (is_macro && stat) || has_meta ":macro" f.cff_meta in
+			let is_macro = is_macro || (is_class_macro && stat) in
 			let f, stat, fd = if not is_macro || stat then
 				f, stat, fd
 			else if ctx.in_macro then
@@ -1282,7 +1289,6 @@ let init_class ctx c p context_init herits fields =
 			if not (((c.cl_extern && not inline) || c.cl_interface) && cf.cf_name <> "__init__") then bind_type ctx cf r (match fd.f_expr with Some e -> snd e | None -> f.cff_pos) is_macro;
 			f, constr, cf
 		| FProp (get,set,t,eo) ->
-			if override then error "You cannot override properties" p;
 			let ret = (match t, eo with
 				| None, None -> error "Property must either define a type or a default value" p;
 				| None, _ -> mk_mono()

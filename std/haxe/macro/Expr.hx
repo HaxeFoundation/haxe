@@ -207,6 +207,7 @@ enum Access {
 	AOverride;
 	ADynamic;
 	AInline;
+	AMacro;
 }
 
 enum FieldType {
