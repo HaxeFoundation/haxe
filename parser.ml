@@ -708,14 +708,18 @@ and inline_function = parser
 	| [< '(Kwd Inline,_); '(Kwd Function,p1) >] -> true, p1
 	| [< '(Kwd Function,p1) >] -> false, p1
 
+and reify_expr e =
+	let e = fst (reify !in_macro) e in
+	(ECheckType (e,(CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = None; tparams = [] })),pos e)
+
 and parse_macro_expr p = parser
 	| [< '(DblDot,_); t = parse_complex_type >] ->
 		let t = snd (reify !in_macro) t p in
 		(ECheckType (t,(CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = Some "ComplexType"; tparams = [] })),p)
 	| [< '(Kwd Var,p1); vl = psep Comma parse_var_decl >] ->
-		reify (EVars vl,p1)
+		reify_expr (EVars vl,p1)
 	| [< e = expr >] ->
-		reify e
+		reify_expr e
 	
 and expr = parser
 	| [< (name,params,p) = parse_meta_entry; s >] ->
