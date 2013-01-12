@@ -1002,25 +1002,25 @@ let parse ctx code =
 			next_token()
 		| CommentLine s ->
 			next_token()
-		| Macro "end" ->
+		| Sharp "end" ->
 			(match !mstack with
 			| [] -> tk
 			| _ :: l ->
 				mstack := l;
 				next_token())
-		| Macro "else" | Macro "elseif" ->
+		| Sharp "else" | Sharp "elseif" ->
 			(match !mstack with
 			| [] -> tk
 			| _ :: l ->
 				mstack := l;
 				process_token (skip_tokens (snd tk) false))
-		| Macro "if" ->
+		| Sharp "if" ->
 			process_token (enter_macro (snd tk))
-		| Macro "error" ->
+		| Sharp "error" ->
 			(match Lexer.token code with
 			| (Const (String s),p) -> error (Custom s) p
 			| _ -> error Unimplemented (snd tk))
-		| Macro "line" ->
+		| Sharp "line" ->
 			let line = (match next_token() with
 				| (Const (Int s),_) -> int_of_string s
 				| (t,p) -> error (Unexpected t) p
@@ -1083,16 +1083,16 @@ let parse ctx code =
 
 	and skip_tokens_loop p test tk =
 		match fst tk with
-		| Macro "end" ->
+		| Sharp "end" ->
 			Lexer.token code
-		| Macro "elseif" | Macro "else" when not test ->
+		| Sharp "elseif" | Sharp "else" when not test ->
 			skip_tokens p test
-		| Macro "else" ->
+		| Sharp "else" ->
 			mstack := snd tk :: !mstack;
 			Lexer.token code
-		| Macro "elseif" ->
+		| Sharp "elseif" ->
 			enter_macro (snd tk)
-		| Macro "if" ->
+		| Sharp "if" ->
 			skip_tokens_loop p test (skip_tokens p false)
 		| Eof ->
 			if do_resume() then tk else error Unclosed_macro p

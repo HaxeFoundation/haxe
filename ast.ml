@@ -124,7 +124,7 @@ type token =
 	| DblDot
 	| Arrow
 	| IntInterval of string
-	| Macro of string
+	| Sharp of string
 	| Question
 	| At
 	| Dollar of string
@@ -449,7 +449,7 @@ let s_token = function
 	| DblDot -> ":"
 	| Arrow -> "->"
 	| IntInterval s -> s ^ "..."
-	| Macro s -> "#" ^ s
+	| Sharp s -> "#" ^ s
 	| Question -> "?"
 	| At -> "@"
 	| Dollar v -> "$" ^ v
