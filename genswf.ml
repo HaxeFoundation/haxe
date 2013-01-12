@@ -641,6 +641,7 @@ let build_dependencies t =
 	| _ -> ());
 	h := PMap.remove (([],"Int"),DKType) (!h);
 	h := PMap.remove (([],"Int"),DKExpr) (!h);
+	h := PMap.remove (([],"Void"),DKType) (!h);
 	PMap.foldi (fun (c,k) () acc -> (c,k) :: acc) (!h) []
 
 let build_swc_catalog com types =
