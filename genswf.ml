@@ -96,6 +96,17 @@ let make_dyn_type t =
 	| { tpackage = ["flash";"utils"]; tname = ("Object"|"Function") } -> make_type None
 	| o -> CTPath o
 
+let is_valid_path com pack name =
+	let rec loop = function
+		| [] ->
+			false
+		| load :: l ->
+			match load (pack,name) Ast.null_pos with
+			| None -> loop l
+			| Some (file,(_,a)) -> true
+	in
+	loop com.load_extern_type
+
 let build_class com c file =
 	let path = make_tpath c.hlc_name in
 	let pos = { pfile = file ^ "@" ^ s_type_path (path.tpackage,path.tname); pmin = 0; pmax = 0 } in
@@ -123,10 +134,10 @@ let build_class com c file =
 			| HMMultiName (Some id,ns) ->
 				let rec loop = function
 					| [] -> HMPath ([],id)
-					| HNPublic (Some ns) :: _ -> HMPath (ExtString.String.nsplit ns ".",id)
+					| HNPublic (Some ns) :: _ when is_valid_path com (ExtString.String.nsplit ns ".") id -> HMPath (ExtString.String.nsplit ns ".",id)
 					| _ :: l -> loop l
 				in
-				loop (List.rev ns)
+				loop ns
 			| HMPath _ -> i
 			| _ -> assert false
 		) in
