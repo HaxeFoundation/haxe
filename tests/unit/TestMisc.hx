@@ -306,7 +306,7 @@ class TestMisc extends Test {
 	}
 
 	function testBaseCode() {
-		var b = new haxe.BaseCode(haxe.io.Bytes.ofString("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-"));
+		var b = new haxe.crypto.BaseCode(haxe.io.Bytes.ofString("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-"));
 		eq( b.encodeString("Héllow"), "iceFr6NLtM" );
 		eq( b.decodeString("iceFr6NLtM"), "Héllow" );
 	}
