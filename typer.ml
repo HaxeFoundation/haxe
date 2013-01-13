@@ -2040,14 +2040,20 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			end;
 			a.a_status := Closed;
 			mk (TObjectDecl fl) t p)
-	| EArrayDecl [(EFor(it,e2),fp)] ->
+	| EArrayDecl [(EFor _,_) | (EWhile _,_) as e] ->
 		let ea = type_expr ctx (EArrayDecl [],p) Value in
 		let v = gen_local ctx ea.etype in
-		let push e =
-			let p = snd e in
-			(ECall ((EField ((EConst (Ident v.v_name),p),"push"),p),[e]),p)
+		let rec map_compr (e,p) =
+			match e with
+			| EFor(it,e2) -> (EFor (it, map_compr e2),p)
+			| EWhile(cond,e2,flag) -> (EWhile (cond,map_compr e2,flag),p)
+			| EIf (cond,e2,None) -> (EIf (cond,map_compr e2,None),p)
+			| EBlock [e] -> (EBlock [map_compr e],p)
+			| EParenthesis e2 -> (EParenthesis (map_compr e2),p)
+			| _ ->
+				(ECall ((EField ((EConst (Ident v.v_name),p),"push"),p),[(e,p)]),p)
 		in
-		let efor = type_expr ctx (EFor (it,(match e2 with (EIf (cond,e1,None),p) | (EBlock [(EIf (cond,e1,None),p)],_) -> (EIf (cond,push e1,None),p) | _ -> push e2)),fp) NoValue in
+		let efor = type_expr ctx (map_compr e) NoValue in
 		mk (TBlock [
 			mk (TVars [v,Some ea]) ctx.t.tvoid p;
 			efor;
