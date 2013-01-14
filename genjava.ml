@@ -519,16 +519,17 @@ struct
 
         | TField( ef, FInstance({ cl_path = ([], "String") }, { cf_name = "length" }) ) ->
           { e with eexpr = TCall(Type.map_expr run e, []) }
-        | TCall( ( { eexpr = TField(_, FStatic({ cl_path = [], "String" }, { cf_name = "fromCharCode" })) } ), [cc] ) ->
-          { e with eexpr = TNew(get_cl_from_t basic.tstring, [], [mk_cast tchar (run cc); mk_int gen 1 cc.epos]) }
+        | TField( ef, field ) when field_name field = "length" && is_string ef.etype ->
+          { e with eexpr = TCall(Type.map_expr run e, []) }
+        | TCall( ( { eexpr = TField(ef, field) } as efield ), args ) when is_string ef.etype && String.get (field_name field) 0 = '_' ->
+          let field = field_name field in
+          { e with eexpr = TCall({ efield with eexpr = TField(run ef, FDynamic (String.sub field 1 ( (String.length field) - 1)) )}, List.map run args) }
         | TCall( ( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, field )) } as efield ), args ) ->
           let field = field.cf_name in
           (match field with
             | "charAt" | "charCodeAt" | "split" | "indexOf"
             | "lastIndexOf" | "substring" | "substr" ->
               { e with eexpr = TCall(mk_static_field_access_infer string_ext field e.epos [], [run ef] @ (List.map run args)) }
-            | _ when String.get field 0 = '_' ->
-              { e with eexpr = TCall({ efield with eexpr = TField(run ef, FDynamic (String.sub field 1 ( (String.length field) - 1)) )}, List.map run args) }
             | _ ->
               { e with eexpr = TCall(run efield, List.map run args) }
           )

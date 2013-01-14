@@ -1211,7 +1211,6 @@ let field_access gen (t:t) (field:string) : (tfield_access) =
         let rec loop_find_cf acc =
           match acc with
             | [] ->
-              Hashtbl.add gen.greal_field_types (orig_cl.cl_path, hashtbl_field) None;
               not_found()
             | (cl,params) :: tl ->
               (try
@@ -4755,14 +4754,15 @@ struct
       | FEnumField (en, efield, true) ->
         let ecall = match e with | None -> trace (field_name f); trace efield.ef_name; gen.gcon.error "This field should be called immediately" ef.epos; assert false | Some ecall -> ecall in
         (match en.e_types with
+          (*
           | [] ->
             let args, ret = get_args (efield.ef_type) in
             let ef = { ef with eexpr = TTypeExpr( TEnumDecl en ); etype = TEnum(en, []) } in
             handle_cast gen { ecall with eexpr = TCall({ e1 with eexpr = TField(ef, FEnum(en, efield)) }, List.map2 (fun param (_,_,t) -> handle_cast gen param (gen.greal_type t) (gen.greal_type param.etype)) elist args) } (gen.greal_type ecall.etype) (gen.greal_type ret)
+        *)
           | _ ->
             let pt = match e with | None -> real_type | Some _ -> snd (get_fun e1.etype) in
             let _params = match follow pt with | TEnum(_, p) -> p | _ -> gen.gcon.warning (debug_expr e1) e1.epos; assert false in
-            let _params2 = TypeParams.infer_params gen ecall.epos (get_fun efield.ef_type) (get_fun e1.etype) efield.ef_params impossible_tparam_is_dynamic in
             let args, ret = get_args efield.ef_type in
             let actual_t = TFun(List.map (fun (n,o,t) -> (n,o,gen.greal_type t)) args, gen.greal_type ret) in
             (*
@@ -4773,6 +4773,7 @@ struct
             (* params are inverted *)
             let cf_params = List.rev cf_params in
             let t = apply_params en.e_types (gen.greal_type_param (TEnumDecl en) cf_params) actual_t in
+            let t = apply_params efield.ef_params (List.map (fun _ -> t_dynamic) efield.ef_params) t in
 
             let args, ret = get_args t in
 
@@ -6396,6 +6397,12 @@ struct
           mk_class_field (gen.gmk_internal_name "hx" "hashes_f") (basic.tarray hasht) false pos (Var { v_read = AccNormal; v_write = AccNormal }) [];
           mk_class_field (gen.gmk_internal_name "hx" "dynamics_f") (basic.tarray basic.tfloat) false pos (Var { v_read = AccNormal; v_write = AccNormal }) [];
         ] in
+
+        let delete = get_delete_field ctx cl true in
+        List.iter (fun cf ->
+          cl.cl_fields <- PMap.add cf.cf_name cf cl.cl_fields
+        ) (delete :: new_fields);
+
 		(*
         let rec last_ctor cl =
           match cl.cl_constructor with
@@ -6418,11 +6425,7 @@ struct
           cf.cf_expr <- Some({ eexpr = TArrayDecl([]); etype = cf.cf_type; epos = cf.cf_pos })
         ) new_fields;
 
-        let delete = get_delete_field ctx cl true in
         cl.cl_ordered_fields <- cl.cl_ordered_fields @ (delete :: new_fields);
-        List.iter (fun cf ->
-          cl.cl_fields <- PMap.add cf.cf_name cf cl.cl_fields
-        ) (delete :: new_fields);
         if is_override then cl.cl_overrides <- delete.cf_name :: cl.cl_overrides
       end
     end else if not is_override then begin
@@ -7791,10 +7794,10 @@ struct
     let run = (fun md -> match md with
       | TClassDecl cl when is_hxgen md && ( not cl.cl_interface || has_meta ":$baseinterface" cl.cl_meta ) ->
         (if has_meta ":replaceReflection" cl.cl_meta then replace_reflection ctx cl);
-        (if not (PMap.mem (gen.gmk_internal_name "hx" "getField") cl.cl_fields) then implement_get_set ctx cl);
-        (if not (PMap.mem (gen.gmk_internal_name "hx" "invokeField") cl.cl_fields) then implement_invokeField ctx ~slow_invoke:slow_invoke cl);
         (implement_dynamics ctx cl);
         (if not (PMap.mem (gen.gmk_internal_name "hx" "lookupField") cl.cl_fields) then implement_final_lookup ctx cl);
+        (if not (PMap.mem (gen.gmk_internal_name "hx" "getField") cl.cl_fields) then implement_get_set ctx cl);
+        (if not (PMap.mem (gen.gmk_internal_name "hx" "invokeField") cl.cl_fields) then implement_invokeField ctx ~slow_invoke:slow_invoke cl);
         (if not (PMap.mem (gen.gmk_internal_name "hx" "classFields") cl.cl_fields) then implement_fields ctx cl);
         (if ctx.rcf_handle_statics && not (PMap.mem (gen.gmk_internal_name "hx" "getClassStatic") cl.cl_statics) then implement_get_class ctx cl);
         (if not (PMap.mem (gen.gmk_internal_name "hx" "create") cl.cl_fields) then implement_create_empty ctx cl);
