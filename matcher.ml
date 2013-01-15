@@ -358,7 +358,7 @@ let to_pattern ctx e t =
 		| EConst(Ident s) ->
 			begin try
 				let tc = monomorphs ctx.type_params (t) in
-				let ec = match tc with
+				let ec = match follow tc with
 					| TEnum(en,pl) ->
 						let ef = try PMap.find s en.e_constrs with Not_found when not (is_lower_ident s) -> error ("Expected constructor for enum " ^ (s_type_path en.e_path)) p in
 						let et = mk (TTypeExpr (TEnumDecl en)) (TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics en) }) p in
@@ -368,8 +368,8 @@ let to_pattern ctx e t =
 						ctx.untyped <- true;
 						let e = try type_expr ctx e (WithType tc) with _ -> ctx.untyped <- old; raise Not_found in
 						ctx.untyped <- old;
-						(match tc with
-							| TMono _ -> ()
+						(match e.eexpr with
+							| TTypeExpr _ -> ()
 							| _ -> try unify_raise ctx e.etype tc e.epos with Error (Unify _,_) -> raise Not_found);
 						e
 				in
