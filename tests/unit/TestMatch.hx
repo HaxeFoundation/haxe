@@ -183,6 +183,12 @@ class TestMatch extends Test {
 			case _: "_";
 		});
 		
+		eq("1", switch [1, 2] {
+			case [0, 0] | [1, 2]: "1";
+			case [1, 1]: "2";
+			case _: "_";
+		});
+		
 		var t = TA("foo");
 		eq("0", switch(t) {
 			case TA("foo"): "0";

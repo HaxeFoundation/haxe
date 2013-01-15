@@ -23,6 +23,7 @@ type pat_def =
 	| PCon of con * pat list
 	| POr of pat * pat
 	| PBind of tvar * pat
+	| PTuple of pat array
 
 and pat = {
 	p_def : pat_def;
@@ -142,6 +143,8 @@ let mk_any t p = {
 
 let any = mk_any t_dynamic Ast.null_pos
 
+let fake_tuple_type = TInst(mk_class null_module ([],"-Tuple") null_pos, [])
+
 let mk_subs st con = match con.c_def with
 	| CFields (_,fl) -> List.map (fun (s,cf) -> mk_st (SField(st,s)) cf.cf_type st.st_pos) fl
 	| CEnum (en,({ef_type = TFun _} as ef)) ->
@@ -160,6 +163,10 @@ let mk_subs st con = match con.c_def with
 		ExtList.List.init i (fun i -> mk_st (SArray(st,i)) t st.st_pos)
 	| CEnum _ | CConst _ | CType _ | CExpr _ ->
 		[]
+
+let get_tuple_types t = match t with
+	| TFun(tl,tr) when tr == fake_tuple_type -> Some tl
+	| _ -> None
 
 (* Printing *)
 
@@ -187,6 +194,7 @@ let rec s_pat pat = match pat.p_def with
 	| POr (pat1,pat2) -> s_pat pat1 ^ " | " ^ s_pat pat2
 	| PAny -> "_"
 	| PBind(v,pat) -> v.v_name ^ "=" ^ s_pat pat
+	| PTuple pl -> String.concat " " (Array.to_list (Array.map s_pat pl))
 
 let st_args l r v =
 	(if l > 0 then (String.concat "," (ExtList.List.make l "_")) ^ "," else "")
@@ -336,7 +344,17 @@ let to_pattern ctx e t =
 				mk_con_pat (CEnum(en,ef)) (loop2 0 el tl) t p
 			| _ -> perror p)
 		| EConst(Ident "_") ->
-			mk_any t p
+			begin match get_tuple_types t with
+			| Some tl ->
+				let pl = List.map (fun (_,_,t) -> mk_any t p) tl in
+				{
+					p_def = PTuple (Array.of_list pl);
+					p_pos = p;
+					p_type = t_dynamic;
+				}
+			| None ->
+				mk_any t p
+			end
 		| EConst(Ident s) ->
 			begin try
 				let tc = monomorphs ctx.type_params (t) in
@@ -374,8 +392,13 @@ let to_pattern ctx e t =
 						raise Not_found);
 			with Not_found ->
 				if not (is_lower_ident s) then error "Capture variables must be lower-case" p;
-				let v = mk_var pctx s t p in
-				mk_pat (PVar v) v.v_type p
+				begin match get_tuple_types t with
+					| Some _ ->
+						error "Cannot bind tuple" p
+					| None ->
+						let v = mk_var pctx s t p in
+						mk_pat (PVar v) v.v_type p
+				end
 			end
 		| (EObjectDecl fl) ->
 			begin match follow t with
@@ -404,6 +427,17 @@ let to_pattern ctx e t =
 						loop pctx e t2
 					) el in
 					mk_con_pat (CArray (List.length el)) pl t p
+				| TFun(tl,tr) when tr == fake_tuple_type ->
+					let pl = try
+						List.map2 (fun e (_,_,t) -> loop pctx e t) el tl
+					with Invalid_argument _ ->
+						error ("Invalid number of arguments: expected " ^ (string_of_int (List.length tl)) ^ ", found " ^ (string_of_int (List.length el))) p
+					in
+					{
+						p_def = PTuple (Array.of_list pl);
+						p_pos = p;
+						p_type = t_dynamic;
+					}
 				| _ ->
 					error ((s_type t) ^ " should be Array") p
 			end
@@ -421,14 +455,14 @@ let to_pattern ctx e t =
 					ctx.com.warning "This pattern is unused" (pos e2);
 					pat1
 				| _ ->
-				let pctx2 = {
-					pc_sub_vars = Some pctx.pc_locals;
-					pc_locals = old;
-				} in
-				let pat2 = loop pctx2 e2 t in
-				PMap.iter (fun s (_,p) -> if not (PMap.mem s pctx2.pc_locals) then verror s p) pctx.pc_locals;
-				unify ctx pat1.p_type pat2.p_type pat1.p_pos;
-				mk_pat (POr(pat1,pat2)) pat2.p_type (punion pat1.p_pos pat2.p_pos);
+					let pctx2 = {
+						pc_sub_vars = Some pctx.pc_locals;
+						pc_locals = old;
+					} in
+					let pat2 = loop pctx2 e2 t in
+					PMap.iter (fun s (_,p) -> if not (PMap.mem s pctx2.pc_locals) then verror s p) pctx.pc_locals;
+					unify ctx pat1.p_type pat2.p_type pat1.p_pos;
+					mk_pat (POr(pat1,pat2)) pat2.p_type (punion pat1.p_pos pat2.p_pos);
 			end
 		| _ ->
 			error "Unrecognized pattern" p;
@@ -487,6 +521,8 @@ let spec mctx con pmat =
 			loop2 (Array.append [|pat2|] tl) out2;
 		| PBind(_,pat) ->
 			loop2 (Array.append [|pat|] (array_tl pv)) out
+		| PTuple tl ->
+			loop2 tl out
 	in
 	let rec loop pmat = match pmat with
 		| (pv,out) :: pl ->
@@ -514,6 +550,8 @@ let default mctx pmat =
 			loop2 (Array.append [|pat2|] tl) out;
 		| PBind(_,pat) ->
 			loop2 (Array.append [|pat|] (array_tl pv)) out
+		| PTuple tl ->
+			loop2 tl out
 	in
  	let rec loop pmat = match pmat with
 		| (pv,out) :: pl ->
@@ -581,6 +619,8 @@ let column_sigma mctx st pmat =
 					loop2 pat.p_def
 				| PAny ->
 					()
+				| PTuple tl ->
+					loop ((tl,out) :: pr)
 			in
 			loop2 pv.(0).p_def;
 			loop pr
@@ -671,6 +711,8 @@ let rec compile mctx stl pmat = match pmat with
 			end
 		| _ ->
 			assert false)
+	| ([|{p_def = PTuple pt}|],out) :: pl ->
+		compile mctx stl ((pt,out) :: pl)
 	| (pv,out) :: pl ->
 		let i = pick_column pmat in
 		if i = -1 then begin
@@ -918,6 +960,7 @@ let match_expr ctx e cases def with_type p =
 		let st = loop e in
 		if a = 1 then st else mk_st (STuple(st,i,a)) st.st_type st.st_pos
 	) evals in
+	let tl = List.map (fun st -> st.st_type) stl in
 	let mctx = {
 		ctx = ctx;
 		stl = stl;
@@ -936,21 +979,9 @@ let match_expr ctx e cases def with_type p =
 	let pl = List.map (fun (el,eg,e) ->
 		let ep = collapse_case el in
 		let save = save_locals ctx in
-		let pl = match fst ep,stl with
-			| (EArrayDecl el | (EParenthesis(EArrayDecl el,_))),[st] when (match follow st.st_type with TInst({cl_path=[],"Array"},[_]) -> true | _ -> false) ->
-				[add_pattern_locals (to_pattern ctx ep st.st_type)]
-			| (EArrayDecl el | (EParenthesis(EArrayDecl el,_))),stl ->
-				begin try
-					List.map2 (fun e st -> add_pattern_locals (to_pattern ctx e st.st_type)) el stl
-				with Invalid_argument _ ->
-					error ("Invalid number of arguments: expected " ^ (string_of_int (List.length stl)) ^ ", found " ^ (string_of_int (List.length el))) (pos ep)
-				end
-			| _,[st] ->
-				[add_pattern_locals (to_pattern ctx ep st.st_type)]
-			| EConst(Ident "_"),stl ->
-				List.map (fun st -> mk_any st.st_type st.st_pos) stl
-			| _,_ ->
-				error "Unrecognized pattern" (pos ep);
+		let pl = match tl with
+			| [t] -> [add_pattern_locals (to_pattern ctx ep t)]
+			| tl -> [add_pattern_locals (to_pattern ctx ep (tfun tl fake_tuple_type))]
 		in
 		let e = match e with
 			| None -> mk (TBlock []) ctx.com.basic.tvoid (punion_el el)
