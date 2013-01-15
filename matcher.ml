@@ -546,8 +546,9 @@ let default mctx pmat =
 			add (array_tl pv) out
  		| POr(pat1,pat2) ->
 			let tl = array_tl pv in
+			let out2 = clone_out mctx out [pat2] pat2.p_pos in
 			loop2 (Array.append [|pat1|] tl) out;
-			loop2 (Array.append [|pat2|] tl) out;
+			loop2 (Array.append [|pat2|] tl) out2;
 		| PBind(_,pat) ->
 			loop2 (Array.append [|pat|] (array_tl pv)) out
 		| PTuple tl ->
@@ -567,6 +568,8 @@ let pick_column pmat =
 	let rec loop i pv = if Array.length pv = 0 then -1 else match pv.(0).p_def with
 		| PVar _ | PAny ->
 			loop (i + 1) (array_tl pv)
+		| PTuple pl ->
+			loop i pl
 		| _ ->
 			i
 	in
@@ -606,23 +609,24 @@ let column_sigma mctx st pmat =
 	in
 	let rec loop pmat = match pmat with
 		| (pv,out) :: pr ->
-			let rec loop2 = function
+			let rec loop2 out = function
 				| PCon (c,_) ->
 					add c (out.o_guard <> None);
 				| POr(pat1,pat2) ->
-					loop2 pat1.p_def;
-					loop2 pat2.p_def;
+					let out2 = clone_out mctx out [pat2] pat2.p_pos in
+					loop2 out pat1.p_def;
+					loop2 out2 pat2.p_def;
 				| PVar v ->
 					bind_st out st v;
 				| PBind(v,pat) ->
 					bind_st out st v;
-					loop2 pat.p_def
+					loop2 out pat.p_def
 				| PAny ->
 					()
 				| PTuple tl ->
-					loop ((tl,out) :: pr)
+					loop2 out tl.(0).p_def
 			in
-			loop2 pv.(0).p_def;
+			loop2 out pv.(0).p_def;
 			loop pr
 		| [] ->
 			()
@@ -689,6 +693,8 @@ let bind_remaining out pv stl =
 			| st :: stl,PVar v ->
 				bind_st out st v;
 				loop stl (array_tl pv)
+			| stl,PTuple pl ->
+				loop stl pl
 			| _ :: _,_->
 				loop stl (array_tl pv)
 			| [],_ ->

@@ -197,6 +197,24 @@ class TestMatch extends Test {
 		});
 	}
 	
+	function testTuple() {
+		function test(a:Int, b:Int, c:Int) return switch [a, b, c] {
+			case [x, 1, 2] | [1, 2, x] | [1, x, 2]: '0|x:$x';
+			case [3, 4, z] | [z, 3, 4] | [3, z, 4]: '1|z:$z';
+			case [1, y, z] | [2, z, y]: '2|y:$y,z:$z';
+			case [x, y, z]: '_:x:$x,y:$y,z:$z';
+		}
+		eq("0|x:9", test(9, 1, 2));
+		eq("0|x:9", test(1, 2, 9));
+		eq("0|x:9", test(1, 9, 2));
+		eq("1|z:12", test(3, 4, 12));
+		eq("1|z:12", test(12, 3, 4));
+		eq("1|z:12", test(3, 12, 4));
+		eq("2|y:9,z:8", test(1, 9, 8));
+		eq("2|y:9,z:8", test(2, 8, 9));
+		eq("_:x:9,y:8,z:7", test(9, 8, 7));
+	}
+	
 	function testSubtyping() {
 		var c = new MyClass.InitBase();
 		var r = switch(c) {
