@@ -196,18 +196,6 @@ let error msg p = raise (Error (Custom msg,p))
 
 let type_expr ctx e with_type = (!type_expr_ref) ctx e with_type
 
-let type_expr_raise ctx e with_type =
-	let old = ctx.on_error in
-	ctx.on_error <- (fun _ msg p -> raise (Error (Unify [Unify_custom msg],p)));
-	try
-		let e = type_expr ctx e with_type in
-		ctx.on_error <- old;
-		e
-	with
-		Error _ as e ->
-			ctx.on_error <- old;
-			raise e
-
 let unify_min ctx el = (!unify_min_ref) ctx el
 
 let match_expr ctx e cases def with_type p = !match_expr_ref ctx e cases def with_type p

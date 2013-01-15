@@ -436,7 +436,7 @@ let rec unify_call_params ctx cf el args r p inline =
 			| (name,ul) :: _ -> arg_error (Unify_custom ("Invalid arguments\n" ^ fun_details()) :: ul) name true p)
 		| ee :: l, (name,opt,t) :: l2 ->
 			try
-				let e = type_expr_raise ctx ee (WithType t) in
+				let e = type_expr ctx ee (WithType t) in
 				unify_raise ctx e.etype t e.epos;
 				loop ((e,false) :: acc) l l2 skip
 			with
