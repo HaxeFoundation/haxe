@@ -3656,7 +3656,7 @@ and encode_expr e =
 						"guard",null loop eg;
 						"expr",null loop e
 					]
-				) cases);null (null loop) eopt]
+				) cases);null encode_null_expr eopt]
 			| ETry (e,catches) ->
 				18, [loop e;enc_array (List.map (fun (v,t,e) ->
 					enc_obj [
@@ -3694,6 +3694,13 @@ and encode_expr e =
 		]
 	in
 	loop e
+	
+and encode_null_expr e =
+	match e with
+	| None ->
+		enc_obj ["pos", VNull;"expr",VNull]
+	| Some e ->
+		encode_expr e
 
 (* ---------------------------------------------------------------------- *)
 (* EXPR DECODING *)
@@ -3867,7 +3874,7 @@ and decode_ctype t =
 	| _ ->
 		raise Invalid_expr
 
-let decode_expr v =
+let rec decode_expr v =
 	let rec loop v =
 		(decode (field v "expr"), decode_pos (field v "pos"))
 	and decode e =
@@ -3914,7 +3921,7 @@ let decode_expr v =
 			let cases = List.map (fun c ->
 				(List.map loop (dec_array (field c "values")),opt loop (field c "guard"),opt loop (field c "expr"))
 			) (dec_array cases) in
-			ESwitch (loop e,cases,opt (opt loop) eo)
+			ESwitch (loop e,cases,opt decode_null_expr eo)
 		| 18, [e;catches] ->
 			let catches = List.map (fun c ->
 				(dec_string (field c "name"),decode_ctype (field c "type"),loop (field c "expr"))
@@ -3952,6 +3959,11 @@ let decode_expr v =
 	with Stack_overflow ->
 		raise Invalid_expr
 
+and decode_null_expr v =
+	match field v "expr" with
+	| VNull -> None
+	| _ -> Some (decode_expr v)
+	
 
 (* ---------------------------------------------------------------------- *)
 (* TYPE ENCODING *)
