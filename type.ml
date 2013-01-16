@@ -1503,7 +1503,7 @@ let rec s_expr_pretty tabs s_type e =
 		| NormalWhile -> sprintf "while (%s) %s" (loop econd) (loop e)
 		| DoWhile -> sprintf "do (%s) while(%s)" (loop e) (loop econd))
 	| TSwitch (e,cases,def) ->
-		sprintf "switch (%s) {%s%s}" (loop e) (slist (fun (cl,e) -> sprintf "case %s: %s" (slist loop cl) (loop e)) cases) (match def with None -> "" | Some e -> "," ^ loop e)
+		sprintf "switch (%s) {%s%s}" (loop e) (slist (fun (cl,e) -> sprintf "case %s: %s" (slist loop cl) (loop e)) cases) (match def with None -> "" | Some e -> ",default: " ^ loop e)
 	| TMatch (e,(en,tparams),cases,def) ->
 		let cases = slist (fun (il,vl,e) ->
 			let ctor = PMap.find (List.nth en.e_names (List.nth il 0)) en.e_constrs in
@@ -1514,7 +1514,7 @@ let rec s_expr_pretty tabs s_type e =
 					sprintf "case %s(%s):%s" ctor.ef_name (String.concat "," (List.map (fun v -> match v with None -> "_" | Some v -> v.v_name) vl)) (loop e)
 			end
 		) cases in
-		sprintf "switch (%s) {%s%s}" (loop e) cases (match def with None -> "" | Some e -> "," ^ loop e)
+		sprintf "switch (%s) {%s%s}" (loop e) cases (match def with None -> "" | Some e -> ",default: " ^ loop e)
 	| TTry (e,cl) ->
 		sprintf "try %s%s" (loop e) (slist (fun (v,e) -> sprintf "catch( %s : %s ) %s" v.v_name (s_type v.v_type) (loop e)) cl)
 	| TReturn None ->
