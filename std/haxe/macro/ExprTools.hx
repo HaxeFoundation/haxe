@@ -134,6 +134,7 @@ class ExprTools {
 					opt2(c.guard, f);
 					opt2(c.expr, f);
 				}
+				opt2(edef, f);
 		}
 	}
 	

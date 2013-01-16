@@ -108,7 +108,7 @@ class Printer {
 		(field.meta != null && field.meta.length > 0 ? field.meta.map(printMetadata).join(" ") : "")
 		+ switch(field.kind) {
 			case FVar(t, eo): 'var $field.name:${printComplexType(t)}' + opt(eo, printExpr, "=");
-			case FProp(get, set, to, eo): 'var $field.name($get,$set)';
+			case FProp(get, set, _, _): 'var $field.name($get,$set)';
 			case FFun(func): "function " + printFunction(func);
 		}
 	
@@ -192,7 +192,7 @@ class Printer {
 		case ECast(e1, _): "cast " +printExpr(e1);
 		case EDisplay(e1, _): '#DISPLAY(${printExpr(e1)})';
 		case EDisplayNew(tp): '#DISPLAY(${printTypePath(tp)})';
-		case ETernary(econd, eif, eelse): '${printExpr(econd)} ? ${printExpr(eif)} : $ {printExpr(eelse) }';
+		case ETernary(econd, eif, eelse): '${printExpr(econd)} ? ${printExpr(eif)} : ${printExpr(eelse) }';
 		case ECheckType(e1, ct): '#CHECK_TYPE(${printExpr(e1)}, ${printComplexType(ct)})';
 		case EMeta(meta, e1): printMetadata(meta) + " " +printExpr(e1);
 	}

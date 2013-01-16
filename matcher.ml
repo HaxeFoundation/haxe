@@ -17,12 +17,14 @@ and con = {
 	c_pos : pos;
 }
 
+type pvar = tvar * pos
+
 type pat_def =
 	| PAny
-	| PVar of tvar
+	| PVar of pvar
 	| PCon of con * pat list
 	| POr of pat * pat
-	| PBind of tvar * pat
+	| PBind of pvar * pat
 	| PTuple of pat array
 
 and pat = {
@@ -49,13 +51,11 @@ type out = {
 	o_guard : texpr option;
 	o_pos : pos;
 	mutable o_num_paths : int;
-	mutable o_bindings : (tvar * st) list;
+	mutable o_bindings : (pvar * st) list;
 }
 
 type pat_vec = pat array * out
 type pat_matrix = pat_vec list
-
-type pvar = tvar * pos
 
 type pattern_ctx = {
 	mutable pc_locals : (string, pvar) PMap.t;
@@ -188,12 +188,12 @@ let s_con con = match con.c_def with
 	| CExpr e -> s_expr s_type e
 
 let rec s_pat pat = match pat.p_def with
-	| PVar v -> v.v_name
+	| PVar (v,_) -> v.v_name
 	| PCon (c,[]) -> s_con c
 	| PCon (c,pl) -> s_con c ^ "(" ^ (String.concat "," (List.map s_pat pl)) ^ ")"
 	| POr (pat1,pat2) -> s_pat pat1 ^ " | " ^ s_pat pat2
 	| PAny -> "_"
-	| PBind(v,pat) -> v.v_name ^ "=" ^ s_pat pat
+	| PBind((v,_),pat) -> v.v_name ^ "=" ^ s_pat pat
 	| PTuple pl -> String.concat " " (Array.to_list (Array.map s_pat pl))
 
 let st_args l r v =
@@ -213,7 +213,7 @@ let rec s_pat_vec pl =
 	String.concat " " (Array.to_list (Array.map s_pat pl))
 
 let s_out out =
-	"var " ^ (String.concat "," (List.map (fun (v,st) -> v.v_name ^ "=" ^ (s_st st)) out.o_bindings)) ^ ";"
+	"var " ^ (String.concat "," (List.map (fun ((v,_),st) -> v.v_name ^ "=" ^ (s_st st)) out.o_bindings)) ^ ";"
 	(* ^ s_expr_small out.o_expr *)
 
 let rec s_pat_matrix pmat =
@@ -397,7 +397,7 @@ let to_pattern ctx e t =
 						error "Cannot bind tuple" p
 					| None ->
 						let v = mk_var pctx s t p in
-						mk_pat (PVar v) v.v_type p
+						mk_pat (PVar (v,p)) v.v_type p
 				end
 			end
 		| (EObjectDecl fl) ->
@@ -444,7 +444,7 @@ let to_pattern ctx e t =
 		| EBinop(OpAssign,(EConst(Ident s),p2),e1) ->
 			let v = mk_var pctx s t p in
 			let pat1 = loop pctx e1 t in
-			mk_pat (PBind(v,pat1)) t p2
+			mk_pat (PBind((v,p),pat1)) t p2
 		| EBinop(OpOr,(EBinop(OpOr,e1,e2),p2),e3) ->
 			loop pctx (EBinop(OpOr,e1,(EBinop(OpOr,e2,e3),p2)),p) t
 		| EBinop(OpOr,e1,e2) ->
@@ -799,8 +799,9 @@ let rec st_to_texpr mctx st = match st.st_def with
 
 let replace_locals mctx out e =
 	let all_subterms = Hashtbl.create 0 in
+	let bindings = List.map (fun ((v,p),st) -> Hashtbl.add all_subterms st p; v,st) out.o_bindings in
 	let replace v =
-		let st = List.assq v out.o_bindings in
+		let st = List.assq v bindings in
 		Hashtbl.remove all_subterms st;
 		st
 	in
@@ -816,7 +817,7 @@ let replace_locals mctx out e =
 			Type.map_expr loop e
 	in
 	let e = loop e in
-	Hashtbl.iter (fun _ st -> mctx.ctx.com.warning "This variable is unused" (pos st)) all_subterms;
+	Hashtbl.iter (fun _ p -> mctx.ctx.com.warning "This variable is unused" p) all_subterms;
 	e
 
 let rec to_typed_ast mctx need_val dt =
