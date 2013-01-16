@@ -182,7 +182,7 @@ class ServerLoop<ClientData> {
 	**/
 	public function run( host : sys.net.Host, port : Int ) {
 		var serv = new Socket();
-		(serv.bind)(host,port);
+		serv.bind(host,port);
 		serv.listen(listenCount);
 		socks = [serv];
 		while( true ) {

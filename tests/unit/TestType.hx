@@ -467,7 +467,7 @@ class TestType extends Test {
 		//typeError(pcc2.check(["foo"]));
 
 		var pcc2 = new ParamConstraintsClass2();
-		(pcc2.bind)("foo");
+		pcc2.bind("foo");
 		//typeError(pcc2.check([1]));
 		pcc2.check(["foo"]);
 

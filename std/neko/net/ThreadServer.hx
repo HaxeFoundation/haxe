@@ -219,7 +219,7 @@ class ThreadServer<Client,Message> {
 
 	public function run( host, port ) {
 		sock = new sys.net.Socket();
-		(sock.bind)(new sys.net.Host(host),port);
+		sock.bind(new sys.net.Host(host),port);
 		sock.listen(listen);
 		init();
 		while( true ) {
