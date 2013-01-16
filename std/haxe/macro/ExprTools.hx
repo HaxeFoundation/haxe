@@ -134,7 +134,8 @@ class ExprTools {
 					opt2(c.guard, f);
 					opt2(c.expr, f);
 				}
-				opt2(edef, f);
+				if (edef != null && edef.expr != null)
+					f(edef);
 		}
 	}
 	
@@ -207,7 +208,7 @@ class ExprTools {
 				var ret = [];
 				for (c in cases)
 					ret.push( { expr: opt (c.expr, f), guard: opt(c.guard, f), values: ExprArrayTools.map(c.values, f) } );
-				ESwitch(f(e), ret, opt(edef, f));
+				ESwitch(f(e), ret, edef == null || edef.expr == null ? edef : f(edef));
 			case EFunction(name, func):
 				var ret = [];
 				for (arg in func.args)

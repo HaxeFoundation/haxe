@@ -166,7 +166,6 @@ class Printer {
 		case EIf(econd, eif, eelse): 'if(${printExpr(econd)}) ${printExpr(eif)} ${opt(eelse,printExpr,"else ")}';
 		case EWhile(econd, e1, true): 'while(${printExpr(econd)}) ${printExpr(e1)}';
 		case EWhile(econd, e1, false): 'do ${printExpr(e1)} while(${printExpr(econd)})';
-		// TODO: remove the implicit case block
 		case ESwitch(e1, cl, edef):
 			var old = tabs;
 			tabs += "\t";
@@ -175,11 +174,11 @@ class Printer {
 					return 'case ${printExprs(c.values, ",")}'
 						+ (c.guard != null ? 'if(${printExpr(c.guard)}):' : ":")
 						+ (opt(c.expr, printExpr)))
-				.join(';\n$tabs');
+				.join('\n$tabs');
 			if (edef != null)
-				s += ';\n${tabs}default:${printExpr(edef)}';
+				s += '\n${tabs}default:' + (edef.expr == null ? "" : printExpr(edef));
 			tabs = old;
-			s + ';\n$tabs}';
+			s + '\n$tabs}';
 		case ETry(e1, cl):
 			'try ${printExpr(e1)}'
 			+ cl.map(function(c) return ' catch(${c.name}:${printComplexType(c.type)}) ${printExpr(c.expr)}').join("");
