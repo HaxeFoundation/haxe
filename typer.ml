@@ -989,8 +989,7 @@ and type_field ctx e i p mode =
 	| _ ->
 		try using_field ctx mode e i p with Not_found -> no_field()
 
-let type_callback ctx e params p =
-	let e = type_expr ctx e Value in
+let type_bind ctx (e : texpr) params p =
 	let args,ret = match follow e.etype with TFun(args, ret) -> args, ret | _ -> error "First parameter of callback is not a function" p in
 	let vexpr v = mk (TLocal v) v.v_type p in
 	let acount = ref 0 in
@@ -1820,7 +1819,7 @@ and type_vars ctx vl p in_block =
 	) vl in
 	save();
 	mk (TVars vl) ctx.t.tvoid p
-	
+
 and with_type_error ctx msg p =
 	if ctx.with_type_resume then raise (WithTypeError ([Unify_custom msg],p)) else display_error ctx msg p
 
@@ -2525,6 +2524,11 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		e
 
 and type_call ctx e el (with_type:with_type) p =
+	let def () = (match e with
+		| EField ((EConst (Ident "super"),_),_) , _ -> ctx.in_super_call <- true
+		| _ -> ());
+		build_call ctx (type_access ctx (fst e) (snd e) MCall) el with_type p
+	in
 	match e, el with
 	| (EConst (Ident "trace"),p) , e :: el ->
 		if Common.defined ctx.com Define.NoTraces then
@@ -2539,7 +2543,8 @@ and type_call ctx e el (with_type:with_type) p =
 		else
 			type_expr ctx (ECall ((EField ((EField ((EConst (Ident "haxe"),p),"Log"),p),"trace"),p),[e;EUntyped infos,p]),p) NoValue
 	| (EConst (Ident "callback"),p) , e :: args when not (Common.defined ctx.com Define.Haxe3) ->
-		type_callback ctx e args p
+		let e = type_expr ctx e Value in
+		type_bind ctx e args p
 	| (EConst(Ident "callback"),p1),args ->
 		let ecb = try Some (type_ident_raise ctx "callback" p1 MCall) with Not_found -> None in
 		(match ecb with
@@ -2547,9 +2552,13 @@ and type_call ctx e el (with_type:with_type) p =
 			build_call ctx ecb args with_type p
 		| None ->
 			display_error ctx "callback syntax has changed to func.bind(args)" p;
-			type_callback ctx e args p)
+			let e = type_expr ctx e Value in
+			type_bind ctx e args p)
 	| (EField (e,"bind"),p), args ->
-		type_callback ctx e args p
+		let e = type_expr ctx e Value in
+		(match follow e.etype with
+			| TFun _ -> type_bind ctx e args p
+			| _ -> def ())
 	| (EConst (Ident "$type"),_) , [e] ->
 		let e = type_expr ctx e Value in
 		ctx.com.warning (s_type (print_context()) e.etype) e.epos;
@@ -2577,10 +2586,7 @@ and type_call ctx e el (with_type:with_type) p =
 		) in
 		mk (TCall (mk (TConst TSuper) t sp,el)) ctx.t.tvoid p
 	| _ ->
-		(match e with
-		| EField ((EConst (Ident "super"),_),_) , _ -> ctx.in_super_call <- true
-		| _ -> ());
-		build_call ctx (type_access ctx (fst e) (snd e) MCall) el with_type p
+		def ()
 
 and build_call ctx acc el (with_type:with_type) p =
 	let fopts t f = match follow t with
