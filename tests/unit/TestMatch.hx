@@ -215,6 +215,20 @@ class TestMatch extends Test {
 		eq("_:x:9,y:8,z:7", test(9, 8, 7));
 	}
 	
+	function testGrouping() {
+		function test(v) return switch(v) {
+			case 1, 2, 3: "0";
+			case val = (4 | 5 | 6) if (val == 5): "1";
+			case 4, 5, 6: "2";
+			case 8, 9: "3";
+			case x: '_:$x';
+		}
+		var results = ["_:0", "0", "0", "0", "2", "1", "2", "_:7", "3", "3", "_:10"];
+		for (i in 0...results.length) {
+			eq(results[i], test(i));
+		}
+	}
+	
 	function testSubtyping() {
 		var c = new MyClass.InitBase();
 		var r = switch(c) {
@@ -329,7 +343,7 @@ class TestMatch extends Test {
 		
 		switch({s:"foo"}) {
 			case { s : "foo" } :
-			case { s : a } :
+			case { s : a } : // Warning : This variable is unused
 			case _: // unused
 		}
 		

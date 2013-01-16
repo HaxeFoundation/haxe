@@ -50,6 +50,7 @@ type out = {
 	o_expr : texpr;
 	o_guard : texpr option;
 	o_pos : pos;
+	o_id : int;
 	mutable o_num_paths : int;
 	mutable o_bindings : (pvar * st) list;
 }
@@ -96,11 +97,12 @@ let mk_st def t p = {
 	st_pos = p;
 }
 
-let mk_out mctx e eg pl p =
+let mk_out mctx id e eg pl p =
 	let out = {
 		o_expr = e;
 		o_guard = eg;
 		o_pos = p;
+		o_id = id;
 		o_num_paths = 0;
 		o_bindings = [];
 	} in
@@ -820,7 +822,7 @@ let replace_locals mctx out e =
 	Hashtbl.iter (fun _ p -> mctx.ctx.com.warning "This variable is unused" p) all_subterms;
 	e
 
-let rec to_typed_ast mctx need_val dt =
+let rec to_typed_ast mctx dt =
 	match dt with
 	| Goto _ ->
 		error "Not implemented yet" Ast.null_pos
@@ -829,7 +831,7 @@ let rec to_typed_ast mctx need_val dt =
 			| Some eg,None ->
 				mk (TIf(eg,out.o_expr,None)) t_dynamic out.o_expr.epos
 			| Some eg,Some dt ->
-				let eelse = to_typed_ast mctx need_val dt in
+				let eelse = to_typed_ast mctx dt in
 				mk (TIf(eg,out.o_expr,Some eelse)) eelse.etype (punion out.o_expr.epos eelse.epos)
 			| _,None ->
 				out.o_expr
@@ -837,11 +839,11 @@ let rec to_typed_ast mctx need_val dt =
 		end
 	| Switch(st,cases) ->
 		match follow st.st_type with
-		| TEnum(en,pl) -> to_enum_switch mctx need_val en pl st cases
-		| TInst({cl_path = [],"Array"},[t]) -> to_array_switch mctx need_val t st cases
-		| t -> to_value_switch mctx need_val t st cases
+		| TEnum(en,pl) -> to_enum_switch mctx en pl st cases
+		| TInst({cl_path = [],"Array"},[t]) -> to_array_switch mctx t st cases
+		| t -> to_value_switch mctx t st cases
 
-and to_enum_switch mctx need_val en pl st cases =
+and to_enum_switch mctx en pl st cases =
 	let eval = st_to_texpr mctx st in
 	let et = monomorphs mctx.ctx.type_params (TEnum(en,pl)) in
 	let def = ref None in
@@ -861,11 +863,11 @@ and to_enum_switch mctx need_val en pl st cases =
 					Some vl
 				| _ -> None
 			in
-			let e = to_typed_ast mctx need_val dt in
+			let e = to_typed_ast mctx dt in
 			save();
 			([ef.ef_index],vl,e) :: loop cases
 		| (({c_def = CConst TNull }),dt) :: cases ->
-			let e = to_typed_ast mctx need_val dt in
+			let e = to_typed_ast mctx dt in
 			def := Some e;
 			loop cases
 		| (con,_) :: _ ->
@@ -874,41 +876,54 @@ and to_enum_switch mctx need_val en pl st cases =
 	let cases = loop cases in
 	mk (TMatch(eval,(en,pl),cases,!def)) mctx.out_type eval.epos
 
-and to_value_switch mctx need_val t st cases =
+and to_value_switch mctx t st cases =
 	let eval = st_to_texpr mctx st in
 	let def = ref None in
-	let rec loop cases = match cases with
-		| [] ->
-			[]
-		| ({c_def = CConst TNull},dt) :: cases ->
-			let e = to_typed_ast mctx need_val dt in
-			def := Some e;
-			loop cases
-		| ({c_def = CConst c } as con,dt) :: cases ->
-			let e = to_typed_ast mctx need_val dt in
-			([mk_const mctx.ctx con.c_pos c],e) :: loop cases
-		| ({c_def = CType mt } as con,dt) :: cases ->
-			let e = to_typed_ast mctx need_val dt in
-			([Typer.type_module_type mctx.ctx mt None con.c_pos],e) :: loop cases
-		| ({c_def = CExpr e1},dt) :: cases ->
-			let e = to_typed_ast mctx need_val dt in
-			([e1],e) :: loop cases
-		| (con,_) :: _ ->
+	let to_case con = match con.c_def with
+		| CConst c ->
+			mk_const mctx.ctx con.c_pos c
+		| CType mt ->
+			Typer.type_module_type mctx.ctx mt None con.c_pos
+		| CExpr e ->
+			e
+		| _ ->
 			error ("Unexpected "  ^ (s_con con)) con.c_pos
 	in
-	let cases = loop cases in
+	let group,cases,dto = List.fold_left (fun (group,cases,dto) (con,dt) -> match con.c_def with
+		| CConst TNull ->
+			let e = to_typed_ast mctx dt in
+			def := Some e;
+			(group,cases,dto)
+		| _ -> match dto with
+			| None -> ([to_case con],cases,Some dt)
+			| Some dt2 -> match dt,dt2 with
+				| Bind(out1,_),Bind(out2,_) when out1.o_id = out2.o_id && out1.o_guard = None ->
+					((to_case con) :: group,cases,dto)
+				| _ ->
+					let e = to_typed_ast mctx dt2 in
+					([to_case con],(List.rev group,e) :: cases, Some dt)
+	) ([],[],None) cases in
+	let cases = List.rev (match group,dto with
+		| [],None ->
+			cases
+		| group,Some dt ->
+			let e = to_typed_ast mctx dt in
+			(List.rev group,e) :: cases
+		| _ ->
+			assert false
+	) in
 	mk (TSwitch(eval,cases,!def)) mctx.out_type eval.epos
 
-and to_array_switch mctx need_val t st cases =
+and to_array_switch mctx t st cases =
 	let def = ref None in
 	let rec loop cases = match cases with
 		| [] ->
 			[]
 		| ({c_def = CArray i} as con,dt) :: cases ->
-			let e = to_typed_ast mctx need_val dt in
+			let e = to_typed_ast mctx dt in
 			([mk_const mctx.ctx con.c_pos (TInt (Int32.of_int i))],e) :: loop cases
 		| ({c_def = CConst TNull},dt) :: cases ->
-			let e = to_typed_ast mctx need_val dt in
+			let e = to_typed_ast mctx dt in
 			def := Some e;
 			loop cases
 		| (con,_) :: _ ->
@@ -983,7 +998,7 @@ let match_expr ctx e cases def with_type p =
 		PMap.iter (fun n (v,p) -> ctx.locals <- PMap.add n v ctx.locals) locals;
 		pat
 	in
-	let pl = List.map (fun (el,eg,e) ->
+	let pl = ExtList.List.mapi (fun i (el,eg,e) ->
 		let ep = collapse_case el in
 		let save = save_locals ctx in
 		let pl = match tl with
@@ -996,7 +1011,7 @@ let match_expr ctx e cases def with_type p =
 		in
 		let eg = match eg with None -> None | Some e -> Some (type_expr ctx e Value) in
 		save();
-		let out = mk_out mctx e eg pl (pos ep) in
+		let out = mk_out mctx i e eg pl (pos ep) in
 		Array.of_list pl,out
 	) cases in
 	if Common.defined ctx.com Define.MatchDebug then print_endline (s_pat_matrix pl);
@@ -1010,7 +1025,7 @@ let match_expr ctx e cases def with_type p =
 			try Typer.unify_min_raise ctx (List.rev_map (fun (_,out) -> out.o_expr) (List.rev pl)) with Error (Unify l,p) -> error (error_msg (Unify l)) p
 		in
 		unify ctx t mctx.out_type p;
-		let e = to_typed_ast mctx need_val dt in
+		let e = to_typed_ast mctx dt in
 		let e = { e with epos = p} in
 		if !var_inits = [] then
 			e
