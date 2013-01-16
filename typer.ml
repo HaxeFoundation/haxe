@@ -1671,22 +1671,6 @@ and type_ident ctx i p mode =
 			end
 		end
 
-(*
-and type_expr_with_type_raise ?(print_error=true) ctx e t =
-	let p = snd e in
-	let error msg p =
-		if print_error then display_error ctx msg p else raise (Error (Unify [Unify_custom msg],p))
-	in
-
-and type_expr_with_type ctx e t =
-	try
-		type_expr_with_type_raise ctx e t
-	with
-		Error(Unify l,p) ->
-			if not ctx.untyped then display_error ctx (error_msg (Unify l)) p;
-			mk (TConst TNull) t_dynamic p
-*)
-
 and type_access ctx e p mode =
 	match e with
 	| EConst (Ident s) ->
@@ -2042,12 +2026,15 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			) fl in
 			let t = (TAnon { a_fields = !fields; a_status = ref Const }) in
 			if not ctx.untyped then begin
+				let unify_error l p =
+					if ctx.with_type_resume then raise (WithTypeError (l,p)) else raise (Error (Unify l,p))
+				in
 				PMap.iter (fun n cf ->
-					if not (has_meta ":optional" cf.cf_meta) && not (PMap.mem n !fields) then raise (Error (Unify [has_no_field t n],p));
+					if not (has_meta ":optional" cf.cf_meta) && not (PMap.mem n !fields) then unify_error [has_no_field t n] p;
 				) a.a_fields;
 				(match !extra_fields with
 				| [] -> ()
-				| _ -> raise (Error (Unify (List.map (fun n -> has_extra_field t n) !extra_fields),p)));
+				| _ -> unify_error (List.map (fun n -> has_extra_field t n) !extra_fields) p);
 			end;
 			a.a_status := Closed;
 			mk (TObjectDecl fl) t p)
