@@ -164,12 +164,12 @@ class TestXML extends Test {
 		h.nodeName = "em";
 		eq( h.nodeName, "em" );
 
-		eq( Lambda.count({ iterator : x.elementsNamed.callback("em") }), 1 );
+		eq( Lambda.count({ iterator : x.elementsNamed.bind("em") }), 1 );
 
 		h.nodeName = "xhtml:em";
 
-		eq( Lambda.count({ iterator : x.elementsNamed.callback("xhtml:em") }), 1 );
-		eq( Lambda.count({ iterator : x.elementsNamed.callback("em") }), 0 );
+		eq( Lambda.count({ iterator : x.elementsNamed.bind("xhtml:em") }), 1 );
+		eq( Lambda.count({ iterator : x.elementsNamed.bind("em") }), 0 );
 
 		eq( h.nodeName, "xhtml:em" );
 	}
@@ -219,11 +219,11 @@ class TestXML extends Test {
 	}
 	
 	function testMore() {
-		var doc = Xml.parse("<a>A</a><i>I</i>"); 
+		var doc = Xml.parse("<a>A</a><i>I</i>");
 		var aElement = doc.elementsNamed('a').next();
 		var iElement = doc.elementsNamed('i').next();
 		iElement.addChild(aElement);
 		
-		eq(doc.toString(), "<i>I<a>A</a></i>");		
+		eq(doc.toString(), "<i>I<a>A</a></i>");
 	}
 }

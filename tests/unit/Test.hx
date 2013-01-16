@@ -86,7 +86,7 @@ package unit;
 
 	function async<Args,T>( f : Args -> (T -> Void) -> Void, args : Args, v : T, ?pos : haxe.PosInfos ) {
 		if( asyncWaits.length >= AMAX ) {
-			asyncCache.push(async.callback(f,args,v,pos));
+			asyncCache.push(async.bind(f,args,v,pos));
 			return;
 		}
 		asyncWaits.push(pos);
@@ -104,7 +104,7 @@ package unit;
 
 	function asyncExc<Args>( seterror : (Dynamic -> Void) -> Void, f : Args -> (Dynamic -> Void) -> Void, args : Args, ?pos : haxe.PosInfos ) {
 		if( asyncWaits.length >= AMAX ) {
-		asyncCache.push(asyncExc.callback(seterror,f,args,pos));
+		asyncCache.push(asyncExc.bind(seterror,f,args,pos));
 			return;
 		}
 		asyncWaits.push(pos);

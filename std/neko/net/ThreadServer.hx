@@ -98,7 +98,7 @@ class ThreadServer<Client,Message> {
 				break;
 			pos += m.bytes;
 			len -= m.bytes;
-			work(clientMessage.callback(c.client,m.msg));
+			work(clientMessage.bind(c.client,m.msg));
 		}
 		if( pos > 0 )
 			c.buf.blit(0,c.buf,pos,len);
@@ -115,7 +115,7 @@ class ThreadServer<Client,Message> {
 					t.socks.remove(s);
 					if( !Std.is(e,haxe.io.Eof) && !Std.is(e,haxe.io.Error) )
 						logError(e);
-					work(doClientDisconnected.callback(s,infos.client));
+					work(doClientDisconnected.bind(s,infos.client));
 				}
 			}
 		while( true ) {
@@ -126,7 +126,7 @@ class ThreadServer<Client,Message> {
 				t.socks.push(m.s);
 			else if( t.socks.remove(m.s) ) {
 				var infos : ClientInfos<Client> = m.s.custom;
-				work(doClientDisconnected.callback(m.s,infos.client));
+				work(doClientDisconnected.bind(m.s,infos.client));
 			}
 		}
 	}
@@ -161,7 +161,7 @@ class ThreadServer<Client,Message> {
 		if( neko.vm.Thread.current() == worker )
 			onError(e,stack);
 		else
-			work(onError.callback(e,stack));
+			work(onError.bind(e,stack));
 	}
 
 	function addClient( sock : sys.net.Socket ) {
@@ -208,18 +208,18 @@ class ThreadServer<Client,Message> {
 				p : new neko.net.Poll(maxSockPerThread),
 			};
 			threads.push(t);
-			t.t = neko.vm.Thread.create(runThread.callback(t));
+			t.t = neko.vm.Thread.create(runThread.bind(t));
 		}
 	}
 
 	public function addSocket( s : sys.net.Socket ) {
 		s.setBlocking(false);
-		work(addClient.callback(s));
+		work(addClient.bind(s));
 	}
 
 	public function run( host, port ) {
 		sock = new sys.net.Socket();
-		sock.bind(new sys.net.Host(host),port);
+		(sock.bind)(new sys.net.Host(host),port);
 		sock.listen(listen);
 		init();
 		while( true ) {
