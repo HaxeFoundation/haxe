@@ -106,6 +106,7 @@ and typer = {
 	mutable locals : (string, tvar) PMap.t;
 	mutable opened : anon_status ref list;
 	mutable vthis : tvar option;
+	mutable with_type_resume : bool;
 	(* events *)
 	mutable on_error : typer -> string -> pos -> unit;
 }

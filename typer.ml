@@ -35,6 +35,7 @@ type access_mode =
 
 exception DisplayTypes of t list
 exception DisplayFields of (string * t * documentation) list
+exception WithTypeError of unify_error list * pos
 
 type access_kind =
 	| AKNo of string
@@ -435,16 +436,23 @@ let rec unify_call_params ctx cf el args r p inline =
 			| [name,ul] -> arg_error ul name true p
 			| (name,ul) :: _ -> arg_error (Unify_custom ("Invalid arguments\n" ^ fun_details()) :: ul) name true p)
 		| ee :: l, (name,opt,t) :: l2 ->
+			let old = ctx.with_type_resume in
+			ctx.with_type_resume <- true;
 			try
 				let e = type_expr ctx ee (WithType t) in
-				unify_raise ctx e.etype t e.epos;
+				(try unify_raise ctx e.etype t e.epos with Error (Unify l,p) -> raise (WithTypeError (l,p)));
+				ctx.with_type_resume <- old;
 				loop ((e,false) :: acc) l l2 skip
 			with
-				Error (Unify ul,_) ->
+				WithTypeError (ul,p) ->
+					ctx.with_type_resume <- old;
 					if opt then
 						loop (default_value t :: acc) (ee :: l) l2 ((name,ul) :: skip)
 					else
-						arg_error ul name false (snd ee)
+						arg_error ul name false p
+			| _ as e ->
+				ctx.with_type_resume <- old;
+				raise e
 	in
 	loop [] el args []
 
@@ -1828,6 +1836,9 @@ and type_vars ctx vl p in_block =
 	) vl in
 	save();
 	mk (TVars vl) ctx.t.tvoid p
+	
+and with_type_error ctx msg p =
+	if ctx.with_type_resume then raise (WithTypeError ([Unify_custom msg],p)) else display_error ctx msg p
 
 and type_expr ctx (e,p) (with_type:with_type) =
 	match e with
@@ -1849,7 +1860,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 						mk (fast_enum_field e ef p) (apply_params e.e_types pl ef.ef_type) p
 					with Not_found ->
 						if ctx.untyped then raise Not_found;
-						display_error ctx ("Identifier '" ^ s ^ "' is not part of enum " ^ s_type_path e.e_path) p;
+						with_type_error ctx ("Identifier '" ^ s ^ "' is not part of enum " ^ s_type_path e.e_path) p;
 						mk (TConst TNull) t p)
 				| _ -> raise Not_found)
 			| _ ->
@@ -2080,7 +2091,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		| Some t ->
 			let el = List.map (fun e ->
 				let e = type_expr ctx e (WithType t) in
-				unify ctx e.etype t e.epos;
+				if ctx.with_type_resume then (try unify_raise ctx e.etype t e.epos with Error (Unify l,p) -> raise (WithTypeError (l,p))) else unify ctx e.etype t e.epos;
 				e
 			) el in
 			mk (TArrayDecl el) (ctx.t.tarray t) p)
@@ -2249,7 +2260,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				build_call ctx (AKExpr constr) el (WithType t) p
 			with Not_found ->
 				if ctx.untyped then raise Exit; (* __js__, etc. *)
-				display_error ctx ("Identifier '" ^ s ^ "' is not part of enum " ^ s_type_path e.e_path) p;
+				with_type_error ctx ("Identifier '" ^ s ^ "' is not part of enum " ^ s_type_path e.e_path) p;
 				mk (TConst TNull) t p
 		with Exit ->
 			type_call ctx e el with_type p)
@@ -3414,6 +3425,7 @@ let rec create com =
 		opened = [];
 		vthis = None;
 		on_error = (fun ctx msg p -> ctx.com.error msg p);
+		with_type_resume = false;
 	} in
 	ctx.g.std <- (try
 		Typeload.load_module ctx ([],"StdTypes") null_pos

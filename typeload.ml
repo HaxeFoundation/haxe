@@ -1821,6 +1821,7 @@ let type_module ctx m file tdecls p =
 		in_loop = false;
 		opened = [];
 		vthis = None;
+		with_type_resume = false;
 	} in
 	(* here is an additional PASS 1 phase, which define the type parameters for all module types.
 	   Constraints are handled lazily (no other type is loaded) because they might be recursive anyway *)
