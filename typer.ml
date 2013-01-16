@@ -2543,8 +2543,13 @@ and type_call ctx e el (with_type:with_type) p =
 	| (EConst (Ident "callback"),p) , e :: args when not (Common.defined ctx.com Define.Haxe3) ->
 		type_callback ctx e args p
 	| (EConst(Ident "callback"),p1),args ->
-		let ecb = try type_ident_raise ctx "callback" p1 MCall with Not_found -> error "callback syntax has changed to func.bind(args)" p in
-		build_call ctx ecb args with_type p
+		let ecb = try Some (type_ident_raise ctx "callback" p1 MCall) with Not_found -> None in
+		(match ecb with
+		| Some ecb ->
+			build_call ctx ecb args with_type p
+		| None ->
+			display_error ctx "callback syntax has changed to func.bind(args)" p;
+			type_callback ctx e args p)
 	| (EField (e,"bind"),p), args ->
 		type_callback ctx e args p
 	| (EConst (Ident "$type"),_) , [e] ->
