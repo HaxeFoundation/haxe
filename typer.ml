@@ -2895,6 +2895,10 @@ let typing_timer ctx f =
 			ctx.com.error <- old;
 			t();
 			Interp.compiler_error (Typecore.error_msg ekind) p
+		| WithTypeError (l,p) ->
+			ctx.com.error <- old;
+			t();
+			Interp.compiler_error (Typecore.error_msg (Unify l)) p
 		| e ->
 			ctx.com.error <- old;
 			t();
