@@ -23,7 +23,7 @@
     <option flashStrict="False" />
     <option mainClass="tools.haxelib.Site" />
     <option enabledebug="False" />
-    <option additional="-D haxe3&#xA;--next&#xA;-neko haxelib.n&#xA;-main tools.haxelib.Main&#xA;-cmd nekotools boot haxelib.n" />
+    <option additional="-D haxe3&#xA;--next&#xA;-neko haxelib.n&#xA;-main tools.haxelib.Main&#xA;-cmd nekotools boot haxelib.n&#xA;-D haxe3" />
   </build>
   <!-- haxelib libraries -->
   <haxelib>

@@ -832,23 +832,27 @@ class Main {
 	function checkGit() {
 		var gitExists = function()
 			try { command("git", []); return true; } catch (e:Dynamic) return false;
-		if (!gitExists())
-		{
-			var match = ~/(.*)git([\\|\/])cmd$/ ;
-			for (path in Sys.getEnv("PATH").split(";"))
+		if( gitExists() )
+			return;
+		// if we have already msys git/cmd in our PATH
+		var match = ~/(.*)git([\\|\/])cmd$/ ;
+		for (path in Sys.getEnv("PATH").split(";"))	{
+			if (match.match(path.toLowerCase()))
 			{
-				if (match.match(path.toLowerCase()))
-				{
-					var newPath = match.matched(1) + "git" +match.matched(2) + "bin";
-					Sys.putEnv("PATH", Sys.getEnv("PATH") + ";" +newPath);
-				}
-			}
-			if (!gitExists())
-			{
-				print("Could not execute git, please make sure it is installed and available in your PATH.");
-				return;
+				var newPath = match.matched(1) + "git" +match.matched(2) + "bin";
+				Sys.putEnv("PATH", Sys.getEnv("PATH") + ";" +newPath);
 			}
 		}
+		if( gitExists() )
+			return;
+		// look at a few default paths
+		for( path in ["C:\\Program Files (x86)\\Git\\bin","C:\\Progra~1\\Git\\bin"] )
+			if( sys.FileSystem.exists(path) ) {
+				Sys.putEnv("PATH", Sys.getEnv("PATH") + ";" +path);
+				if( gitExists() )
+					return;
+			}
+		print("Could not execute git, please make sure it is installed and available in your PATH.");
 	}
 
 	function git() {
