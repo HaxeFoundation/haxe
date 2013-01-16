@@ -2409,7 +2409,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		ctx.in_display <- true;
 		let e = (try type_expr ctx e Value with Error (Unknown_ident n,_) -> raise (Parser.TypePath ([n],None))) in
 		let e = match e.eexpr with
-			| TField (e,f) when field_name f = "callback" ->
+			| TField (e,f) when field_name f = "bind" ->
 				(match follow e.etype with
 				| TFun(args,ret) -> {e with etype = opt_args args ret}
 				| _ -> e)
@@ -2457,8 +2457,8 @@ and type_expr ctx (e,p) (with_type:with_type) =
 					a.a_fields)
 			| TFun (args,ret) ->
 				let t = opt_args args ret in
-				let cf = mk_field "callback" (tfun [t] t) p in
-				PMap.add "callback" cf PMap.empty
+				let cf = mk_field "bind" (tfun [t] t) p in
+				PMap.add "bind" cf PMap.empty
 			| _ ->
 				PMap.empty
 		in
@@ -2543,9 +2543,9 @@ and type_call ctx e el (with_type:with_type) p =
 	| (EConst (Ident "callback"),p) , e :: args when not (Common.defined ctx.com Define.Haxe3) ->
 		type_callback ctx e args p
 	| (EConst(Ident "callback"),p1),args ->
-		let ecb = try type_ident_raise ctx "callback" p1 MCall with Not_found -> error "callback syntax has changed to func.callback(args)" p in
+		let ecb = try type_ident_raise ctx "callback" p1 MCall with Not_found -> error "callback syntax has changed to func.bind(args)" p in
 		build_call ctx ecb args with_type p
-	| (EField (e,"callback"),p), args ->
+	| (EField (e,"bind"),p), args ->
 		type_callback ctx e args p
 	| (EConst (Ident "$type"),_) , [e] ->
 		let e = type_expr ctx e Value in
