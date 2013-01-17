@@ -2227,7 +2227,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 	| EThrow e ->
 		let e = type_expr ctx e Value in
 		mk (TThrow e) (mk_mono()) p
-	| ECall (((EConst (Ident s),p) as e),el) ->
+	| ECall (((EConst (Ident s),_) as e),el) ->
 		(try
 			let t, e, pl = (match with_type with
 				| WithType t ->
