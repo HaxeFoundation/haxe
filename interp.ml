@@ -112,6 +112,7 @@ type extern_api = {
 	define_type : value -> unit;
 	module_dependency : string -> string -> bool -> unit;
 	current_module : unit -> module_def;
+	delayed_macro : int -> (unit -> (unit -> value));
 }
 
 type callstack = {
@@ -144,7 +145,6 @@ type context = {
 	mutable venv : value array;
 	(* context *)
 	mutable curapi : extern_api;
-	mutable delayed : (unit -> (unit -> value)) DynArray.t;
 	(* eval *)
 	mutable locals_map : (string, int) PMap.t;
 	mutable locals_count : int;
@@ -2513,7 +2513,7 @@ let rec eval ctx (e,p) =
 	| ECall ((EConst (Builtin "typewrap"),_),[t]) ->
 		(fun() -> VAbstract (ATDecl (Obj.magic t)))
 	| ECall ((EConst (Builtin "delay_call"),_),[EConst (Int index),_]) ->
-		let f = DynArray.get ctx.delayed index in
+		let f = ctx.curapi.delayed_macro index in
 		let fbuild = ref None in
 		let old = { ctx with gen = ctx.gen } in
 		let compile_delayed_call() =
@@ -3261,11 +3261,6 @@ let load_prim ctx f n =
 	| _ ->
 		exc (VString "Invalid call")
 
-let alloc_delayed ctx f =
-	let pos = DynArray.length ctx.delayed in
-	DynArray.add ctx.delayed f;
-	pos
-
 let create com api =
 	let loader = obj hash [
 		"args",VArray (Array.of_list (List.map (fun s -> VString s) com.args));
@@ -3300,7 +3295,6 @@ let create com api =
 		do_compare = Obj.magic();
 		(* context *)
 		curapi = api;
-		delayed = DynArray.create();
 		loader = VObject loader;
 		exports = VObject { ofields = [||]; oproto = None };
 	} in

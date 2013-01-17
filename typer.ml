@@ -2854,6 +2854,10 @@ let generate ctx =
 (* ---------------------------------------------------------------------- *)
 (* MACROS *)
 
+let macro_enable_cache = ref false
+let macro_interp_cache = ref None
+let delayed_macro_result = ref ((fun() -> assert false) : unit -> unit -> Interp.value)
+
 let get_type_patch ctx t sub =
 	let new_patch() =
 		{ tp_type = None; tp_remove = false; tp_meta = [] }
@@ -3119,17 +3123,23 @@ let make_macro_api ctx p =
 		Interp.current_module = (fun() ->
 			ctx.m.curmod
 		);
+		Interp.delayed_macro = (fun i ->
+			let ctx2 = (match ctx.g.macros with None -> assert false | Some (_,ctx2) -> ctx2) in
+			let f = (try DynArray.get ctx2.g.delayed_macros i with _ -> failwith "Delayed macro retrieve failure") in
+			f();
+			let ret = !delayed_macro_result in
+			delayed_macro_result := (fun() -> assert false);
+			ret
+		);
 	}
-
-let macro_interp_cache = ref None
 
 let rec init_macro_interp ctx2 mctx =
 	let p = Ast.null_pos in
 	ignore(Typeload.load_module ctx2 (["haxe";"macro"],"Expr") p);
 	ignore(Typeload.load_module ctx2 (["haxe";"macro"],"Type") p);
-	if flush_macro_context mctx ctx2 != mctx then assert false;
+	flush_macro_context mctx ctx2;
 	Interp.init mctx;
-	if not (Common.defined ctx2.com Define.NoMacroCache) then macro_interp_cache := Some mctx
+	if !macro_enable_cache && not (Common.defined ctx2.com Define.NoMacroCache) then macro_interp_cache := Some mctx
 
 and flush_macro_context mctx ctx =
 	finalize ctx;
@@ -3149,8 +3159,7 @@ and flush_macro_context mctx ctx =
 	end else mctx in
 	(* we should maybe ensure that all filters in Main are applied. Not urgent atm *)
 	Interp.add_types mctx types (Codegen.post_process [Codegen.captured_vars ctx.com; Codegen.rename_local_vars ctx.com]);
-	Codegen.post_process_end();
-	mctx
+	Codegen.post_process_end()
 	
 let create_macro_interp ctx ctx2 =
 	let com2 = ctx2.com in
@@ -3224,13 +3233,12 @@ let load_macro ctx cpath f p =
 		| _ -> error "Macro should be called on a class" p
 	) in
 	let meth = (match follow meth.cf_type with TFun (args,ret) -> args,ret,cl,meth | _ -> error "Macro call should be a method" p) in
-	let in_macro = ctx.in_macro in
-	let mctx = if in_macro then mctx else flush_macro_context mctx ctx2 in
+	if not ctx.in_macro then flush_macro_context mctx ctx2;
 	t();
 	let call args =
 		let t = macro_timer ctx (s_type_path cpath ^ "." ^ f) in
 		incr stats.s_macros_called;
-		let r = Interp.call_path mctx ((fst cpath) @ [snd cpath]) f args api in
+		let r = Interp.call_path (Interp.get_ctx()) ((fst cpath) @ [snd cpath]) f args api in
 		t();
 		r
 	in
@@ -3365,12 +3373,15 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 		let ctx = {
 			ctx with locals = ctx.locals;
 		} in
-		let mctx = Interp.get_ctx() in
-		let pos = Interp.alloc_delayed mctx (fun() ->
-			match call() with
-			| None -> (fun() -> raise Interp.Abort)
-			| Some e -> Interp.eval mctx (Genneko.gen_expr mctx.Interp.gen (type_expr ctx e Value))
-		) in
+		let pos = DynArray.length ctx2.g.delayed_macros in
+		DynArray.add ctx2.g.delayed_macros (fun() ->
+			delayed_macro_result := (fun() ->
+				let mctx = Interp.get_ctx() in
+				match call() with
+				| None -> (fun() -> raise Interp.Abort)
+				| Some e -> Interp.eval mctx (Genneko.gen_expr mctx.Interp.gen (type_expr ctx e Value))
+			);
+		);
 		ctx.m.curmod.m_extra.m_time <- -1.; (* disable caching for modules having macro-in-macro *)
 		let e = (EConst (Ident "__dollar__delay_call"),p) in
 		Some (EUntyped (ECall (e,[EConst (Int (string_of_int pos)),p]),p),p)
@@ -3419,6 +3430,7 @@ let rec create com =
 			type_patches = Hashtbl.create 0;
 			delayed = [];
 			debug_delayed = [];
+			delayed_macros = DynArray.create();
 			doinline = not (Common.defined com Define.NoInline || com.display);
 			hook_generate = [];
 			get_build_infos = (fun() -> None);
