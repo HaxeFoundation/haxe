@@ -191,6 +191,7 @@ module Define = struct
 		| UseNekoc
 		| UseRttiDoc
 		| Vcproj
+		| NoMacroCache
 		| Last (* must be last *)
 
 	let infos = function
@@ -229,6 +230,7 @@ module Define = struct
 		| NoPatternMatching -> ("no_pattern_matching","Disable pattern matching")
 		| NoInline -> ("no_inline","Disable inlining")
 		| NoRoot -> ("no_root","GenCS internal")
+		| NoMacroCache -> ("no_macro_cache","Disable macro context caching")
 		| NoSwfCompress -> ("no_swf_compress","Disable SWF output compression")
 		| NoTraces -> ("no_traces","Disable all trace calls")
 		| PhpPrefix -> ("php_prefix","Compiled with --php-prefix")

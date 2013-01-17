@@ -3121,15 +3121,58 @@ let make_macro_api ctx p =
 		);
 	}
 
-let flush_macro_context mctx ctx =
+let macro_interp_cache = ref None
+
+let rec init_macro_interp ctx2 mctx =
+	let p = Ast.null_pos in
+	ignore(Typeload.load_module ctx2 (["haxe";"macro"],"Expr") p);
+	ignore(Typeload.load_module ctx2 (["haxe";"macro"],"Type") p);
+	if flush_macro_context mctx ctx2 != mctx then assert false;
+	Interp.init mctx;
+	if not (Common.defined ctx2.com Define.NoMacroCache) then macro_interp_cache := Some mctx
+
+and flush_macro_context mctx ctx =
 	finalize ctx;
 	let _, types, modules = generate ctx in
 	ctx.com.types <- types;
 	ctx.com.Common.modules <- modules;
+	(* if one of the type we are using has been modified, we need to create a new macro context from scratch *)
+	let mctx = if List.exists (Interp.has_old_version mctx) types then begin
+		let ctx2 = (match ctx.g.macros with None -> assert false | Some (_,ctx2) -> ctx2) in
+		let com2 = ctx2.com in
+		let mctx = Interp.create com2 (make_macro_api ctx Ast.null_pos) in
+		let macro = ((fun() -> Interp.select mctx), ctx2) in
+		ctx.g.macros <- Some macro;
+		ctx2.g.macros <- Some macro;
+		init_macro_interp ctx2 mctx;
+		mctx
+	end else mctx in
 	(* we should maybe ensure that all filters in Main are applied. Not urgent atm *)
 	Interp.add_types mctx types (Codegen.post_process [Codegen.captured_vars ctx.com; Codegen.rename_local_vars ctx.com]);
-	Codegen.post_process_end()
-
+	Codegen.post_process_end();
+	mctx
+	
+let create_macro_interp ctx ctx2 =
+	let com2 = ctx2.com in
+	let mctx, init = (match !macro_interp_cache with
+		| None ->
+			let mctx = Interp.create com2 (make_macro_api ctx Ast.null_pos) in
+			mctx, (fun() -> init_macro_interp ctx2 mctx)
+		| Some mctx ->
+			mctx, (fun() -> ())
+	) in
+	let on_error = com2.error in
+	com2.error <- (fun e p ->
+		Interp.set_error (Interp.get_ctx()) true;
+		macro_interp_cache := None;
+		on_error e p
+	);
+	let macro = ((fun() -> Interp.select mctx), ctx2) in
+	ctx.g.macros <- Some macro;
+	ctx2.g.macros <- Some macro;
+	(* ctx2.g.core_api <- ctx.g.core_api; // causes some issues because of optional args and Null type in Flash9 *)
+	init()
+	
 let get_macro_context ctx p =
 	let api = make_macro_api ctx p in
 	match ctx.g.macros with
@@ -3152,17 +3195,7 @@ let get_macro_context ctx p =
 		Common.define com2 Define.Macro;
 		Common.init_platform com2 Neko;
 		let ctx2 = ctx.g.do_create com2 in
-		let mctx = Interp.create com2 api in
-		let on_error = com2.error in
-		com2.error <- (fun e p -> Interp.set_error mctx true; on_error e p);
-		let macro = ((fun() -> Interp.select mctx), ctx2) in
-		ctx.g.macros <- Some macro;
-		ctx2.g.macros <- Some macro;
-		(* ctx2.g.core_api <- ctx.g.core_api; // causes some issues because of optional args and Null type in Flash9 *)
-		ignore(Typeload.load_module ctx2 (["haxe";"macro"],"Expr") p);
-		ignore(Typeload.load_module ctx2 (["haxe";"macro"],"Type") p);
-		flush_macro_context mctx ctx2;
-		Interp.init mctx;
+		create_macro_interp ctx ctx2;
 		api, ctx2
 
 let load_macro ctx cpath f p =
@@ -3192,7 +3225,7 @@ let load_macro ctx cpath f p =
 	) in
 	let meth = (match follow meth.cf_type with TFun (args,ret) -> args,ret,cl,meth | _ -> error "Macro call should be a method" p) in
 	let in_macro = ctx.in_macro in
-	if not in_macro then flush_macro_context mctx ctx2;
+	let mctx = if in_macro then mctx else flush_macro_context mctx ctx2 in
 	t();
 	let call args =
 		let t = macro_timer ctx (s_type_path cpath ^ "." ^ f) in

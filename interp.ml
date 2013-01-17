@@ -122,9 +122,8 @@ type callstack = {
 }
 
 type context = {
-	com : Common.context;
 	gen : Genneko.context;
-	types : (Type.path,bool) Hashtbl.t;
+	types : (Type.path,int) Hashtbl.t;
 	prototypes : (string list, vobject) Hashtbl.t;
 	fields_cache : (int,string) Hashtbl.t;
 	mutable error : bool;
@@ -214,7 +213,7 @@ let make_pos p =
 	}
 
 let warn ctx msg p =
-	ctx.com.Common.warning msg (make_pos p)
+	(ctx.curapi.get_com()).Common.warning msg (make_pos p)
 
 let rec pop ctx n =
 	if n > 0 then begin
@@ -1618,7 +1617,7 @@ let std_lib =
 			VBool (Sys.word_size = 64)
 		);
 		"sys_command", Fun1 (fun cmd ->
-			VInt ((get_ctx()).com.run_command (vstring cmd))
+			VInt (((get_ctx()).curapi.get_com()).run_command (vstring cmd))
 		);
 		"sys_exit", Fun1 (fun code ->
 			exit (vint code);
@@ -2516,7 +2515,7 @@ let rec eval ctx (e,p) =
 	| ECall ((EConst (Builtin "delay_call"),_),[EConst (Int index),_]) ->
 		let f = DynArray.get ctx.delayed index in
 		let fbuild = ref None in
-		let old = { ctx with com = ctx.com } in
+		let old = { ctx with gen = ctx.gen } in
 		let compile_delayed_call() =
 			let oldl, oldc, oldb, olde = ctx.locals_map, ctx.locals_count, ctx.locals_barrier, ctx.locals_env in
 			ctx.locals_map <- old.locals_map;
@@ -3274,7 +3273,6 @@ let create com api =
 		"loadmodule",VFunction (Fun2 (fun a b -> assert false));
 	] in
 	let ctx = {
-		com = com;
 		gen = Genneko.new_context com 2 true;
 		types = Hashtbl.create 0;
 		error = false;
@@ -3314,11 +3312,18 @@ let create com api =
 	List.iter (fun e -> ignore((eval ctx e)())) (Genneko.header());
 	ctx
 
+let has_old_version ctx t =
+	let inf = Type.t_infos t in
+	try
+		Hashtbl.find ctx.types inf.mt_path <> inf.mt_module.m_id
+	with Not_found ->
+		false
+
 let add_types ctx types ready =
 	let types = List.filter (fun t ->
 		let path = Type.t_path t in
 		if Hashtbl.mem ctx.types path then false else begin
-			Hashtbl.add ctx.types path true;
+			Hashtbl.add ctx.types path (Type.t_infos t).mt_module.m_id;
 			true;
 		end
 	) types in
