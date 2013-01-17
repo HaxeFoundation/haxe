@@ -950,7 +950,12 @@ let match_expr ctx e cases def with_type p =
 	let need_val, wtype = (match with_type with NoValue -> false, None | Value -> true, None | WithType t -> true, Some t) in
 	let cases = match cases,def with
 		| [],None -> []
-		| cases,Some def -> cases @ [[(EConst(Ident "_")),p],None,def]
+		| cases,Some def ->
+			let p = match def with
+				| None -> p
+				| Some (_,p) -> p
+			in
+			cases @ [[(EConst(Ident "_")),p],None,def]
 		| _ -> cases
 	in
 	let evals = match fst e with
