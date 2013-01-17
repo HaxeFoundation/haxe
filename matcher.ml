@@ -786,7 +786,9 @@ let rec st_to_unique_name ctx st = match st.st_def with
 
 let rec st_to_texpr mctx st = match st.st_def with
 	| SVar v -> mk (TLocal v) v.v_type st.st_pos
-	| SField (sts,f) -> mk (TField(st_to_texpr mctx sts,FDynamic f)) st.st_type st.st_pos
+	| SField (sts,f) ->
+		let e = st_to_texpr mctx sts in
+		mk (TField(e,quick_field e.etype f)) st.st_type st.st_pos
 	| SArray (sts,i) -> mk (TArray(st_to_texpr mctx sts,mk_const mctx.ctx st.st_pos (TInt (Int32.of_int i)))) st.st_type st.st_pos
 	| STuple (st,_,_) -> st_to_texpr mctx st
 	| SEnum _ ->
