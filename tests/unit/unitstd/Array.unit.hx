@@ -210,3 +210,24 @@ var a = [];
 var b = a.copy();
 a != b;
 b == [];
+
+#if (!cpp && !flash && !cs && !java)
+// map
+[1, 2, 3].map(function(i) return i * 2) == [2, 4, 6];
+var a = [new IntWrap(1), new IntWrap(2)];
+var b = a.map(function(x) return x);
+a != b;
+b.length == a.length;
+a[0] == b[0];
+a[1] == b[1];
+var func = function(s) return s.toUpperCase();
+["foo", "bar"].map(func) == ["FOO", "BAR"];
+[].map(func) == [];
+
+// filter
+[1, 2, 3, 4].filter(function(i) return i < 3) == [1, 2];
+[1, 2, 3, 4].filter(function(i) return true) == [1, 2, 3, 4];
+[1, 2, 3, 4].filter(function(i) return false) == [];
+[].filter(function(i) return true) == [];
+[].filter(function(i) return false) == [];
+#end

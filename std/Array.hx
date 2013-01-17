@@ -233,4 +233,6 @@ extern class Array<T> {
 	**/
 	function iterator() : Iterator<T>;
 
+	function map<S>( f : T -> S ) : Array<S>;
+	function filter( f : T -> Bool ) : Array<T>;
 }

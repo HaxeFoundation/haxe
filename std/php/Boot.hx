@@ -155,6 +155,14 @@ class _hx_array implements ArrayAccess, IteratorAggregate {
 		$this->length++;
 	}
 
+	function map($f) {
+		return new _hx_array(array_map($f, $this->»a));
+	}
+
+	function filter($f) {
+		return new _hx_array(array_filter($this->»a,$f));
+	}
+
 	// ArrayAccess methods:
 	function offsetExists($offset) {
 		return isset($this->»a[$offset]);

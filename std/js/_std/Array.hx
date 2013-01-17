@@ -49,6 +49,9 @@ extern class Array<T> {
 		return (untyped this).slice();
 	}
 
+	function map<S>(f:T->S):Array<S>;
+	function filter(f:T->Bool):Array<T>;
+
 	@:runtime inline function iterator() : Iterator<T> {
 		return untyped HxOverrides.iter(this);
 	}

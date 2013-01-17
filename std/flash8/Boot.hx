@@ -248,6 +248,27 @@ class Boot {
 					}
 				}
 			};
+			Array.prototype["map"] = function(f) {
+				var ret = [];
+				var i = 0;
+				var l = __this__["length"];
+				while( i < l ) {
+					ret.push(f(__this__[i]));
+					i++;
+				}
+				return ret;
+			};
+			Array.prototype["filter"] = function(f) {
+				var ret = [];
+				var i = 0;
+				var l = __this__["length"];
+				while ( i < l ) {
+					if (f(__this__[i]))
+						ret.push(__this__[i]);
+					i++;
+				}
+				return ret;
+			};
 			_global["ASSetPropFlags"](Array.prototype,null,7);
 			var cca = String.prototype["charCodeAt"];
 			String.prototype["cca"] = cca;

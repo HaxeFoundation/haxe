@@ -235,6 +235,20 @@
 		return ret;
 	}
 
+	public function map<S>( f : T -> S ) : Array<S> {
+		var ret = [];
+		for (elt in this)
+			ret.push(f(elt));
+		return ret;
+	}
+
+	public function filter( f : T -> Bool ) : Array<T> {
+		var ret = [];
+		for (elt in this)
+			if (f(elt))
+				ret.push(elt);
+		return ret;
+	}
 
 
 	/* NEKO INTERNAL */
