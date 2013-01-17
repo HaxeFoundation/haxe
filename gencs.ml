@@ -1627,7 +1627,11 @@ let configure gen =
   let tp_v = alloc_var "$type_param" t_dynamic in
   let mk_tp t pos = { eexpr = TLocal(tp_v); etype = t; epos = pos } in
   TypeParams.configure gen (fun ecall efield params elist ->
-    { ecall with eexpr = TCall(efield, (List.map (fun t -> mk_tp t ecall.epos ) params) @ elist) }
+    match efield.eexpr with
+    | TField(_, FEnum _) ->
+        { ecall with eexpr = TCall(efield, elist) }
+    | _ ->
+        { ecall with eexpr = TCall(efield, (List.map (fun t -> mk_tp t ecall.epos ) params) @ elist) }
   );
 
   HardNullableSynf.configure gen (HardNullableSynf.traverse gen
