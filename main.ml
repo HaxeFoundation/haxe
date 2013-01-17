@@ -455,6 +455,7 @@ and wait_loop boot_com host port =
 		c_modules = Hashtbl.create 0;
 	} in
 	global_cache := Some cache;
+	Typer.macro_enable_cache := true;
 	Typeload.parse_hook := (fun com2 file p ->
 		let sign = get_signature com2 in
 		let ffile = Common.unique_full_path file in
