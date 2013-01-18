@@ -1750,7 +1750,12 @@ and type_access ctx e p mode =
 								| _ :: l -> loop (List.rev l)
 						in
 						(match pack with
-						| [] -> loop (fst ctx.m.curmod.m_path)
+						| [] ->
+							(try
+								let t = List.find (fun t -> snd (t_infos t).mt_path = name) (ctx.m.curmod.m_types @ ctx.m.module_types) in
+								get_static t
+							with Not_found ->
+								loop (fst ctx.m.curmod.m_path))
 						| _ ->
 							match check_module (pack,name) sname with
 							| Some r -> r
