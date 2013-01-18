@@ -2,7 +2,7 @@ package unit;
 
 abstract MyAbstract(Int) {
 
-    public /*inline*/ function new(x) {
+    public inline function new(x) {
         this = x;
     }
 

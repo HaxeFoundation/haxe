@@ -34,18 +34,18 @@ abstract Void { }
 /**
 	The standard Int type. Its precision depends on the platform.
 **/
-@:notNull @:runtimeValue abstract Int <= Float { }
+@:coreType @:notNull @:runtimeValue abstract Int to Float { }
 
 #if (flash9 || flash9doc || cs)
 /**
 	The unsigned Int type is only defined for Flash9. It's currently
 	handled the same as a normal Int.
 **/
-@:notNull @:runtimeValue abstract UInt => Int, <= Int { }
+@:coreType @:notNull @:runtimeValue abstract UInt to Int from Int { }
 #end
 
 #if (java || cs)
-@:notNull @:runtimeValue abstract Single => Float, <= Float {}
+@:coreType @:notNull @:runtimeValue abstract Single to Float from Float {}
 #end
 
 /**

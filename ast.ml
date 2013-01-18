@@ -245,8 +245,8 @@ type class_flag =
 
 type abstract_flag =
 	| APrivAbstract
-	| ASubType of complex_type
-	| ASuperType of complex_type
+	| AFromType of complex_type
+	| AToType of complex_type
 	| AIsType of complex_type
 
 type enum_constructor = {

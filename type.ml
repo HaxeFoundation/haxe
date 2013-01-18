@@ -246,9 +246,9 @@ and tabstract = {
 	mutable a_types : type_params;
 
 	mutable a_impl : tclass option;
-	mutable a_this : t;	
-	mutable a_sub : t list;
-	mutable a_super : t list;
+	mutable a_this : t;
+	mutable a_from : t list;
+	mutable a_to : t list;
 }
 
 and module_type =
@@ -996,10 +996,10 @@ let rec unify a b =
 		if not (List.exists (fun t ->
 			let t = apply_params a1.a_types tl1 t in
 			try unify t b; true with Unify_error _ -> false
-		) a1.a_super) && not (List.exists (fun t ->
+		) a1.a_to) && not (List.exists (fun t ->
 			let t = apply_params a2.a_types tl2 t in
 			try unify a t; true with Unify_error _ -> false
-		) a2.a_sub) then error [cannot_unify a b]
+		) a2.a_from) then error [cannot_unify a b]
 	| TInst (c1,tl1) , TInst (c2,tl2) ->
 		let rec loop c tl =
 			if c == c2 then begin
@@ -1146,7 +1146,7 @@ let rec unify a b =
 		if not (List.exists (fun t ->
 			let t = apply_params aa.a_types tl t in
 			try unify t b; true with Unify_error _ -> false
-		) aa.a_super) then error [cannot_unify a b];
+		) aa.a_to) then error [cannot_unify a b];
 	| TInst ({ cl_kind = KTypeParameter ctl } as c,pl), TAbstract _ ->
 		(* one of the constraints must satisfy the abstract *)
 		if not (List.exists (fun t ->
@@ -1157,7 +1157,7 @@ let rec unify a b =
 		if not (List.exists (fun t ->
 			let t = apply_params bb.a_types tl t in
 			try unify a t; true with Unify_error _ -> false
-		) bb.a_sub) then error [cannot_unify a b];
+		) bb.a_from) then error [cannot_unify a b];
 	| _ , _ ->
 		error [cannot_unify a b]
 

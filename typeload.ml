@@ -103,8 +103,8 @@ let make_module ctx mpath file tdecls loadp =
 				a_doc = d.d_doc;
 				a_types = [];
 				a_meta = d.d_meta;
-				a_sub = [];
-				a_super = [];
+				a_from = [];
+				a_to = [];
 				a_impl = None;
 				a_this = mk_mono();
 			} in
@@ -134,6 +134,7 @@ let make_module ctx mpath file tdecls loadp =
 							fu with
 							f_expr = (match fu.f_expr with
 							| None -> None
+							| Some (EBlock [EBinop (OpAssign,(EConst (Ident "this"),_),e),_],_) -> Some (EReturn (Some e), pos e)
 							| Some (EBlock el,p) -> Some (EBlock (init p :: el @ [ret p]),p)
 							| Some e -> Some (EBlock [init p;e;ret p],p)
 							)
@@ -1851,14 +1852,24 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 	| EAbstract d ->
 		let a = (match get_type d.d_name with TAbstractDecl a -> a | _ -> assert false) in
 		let ctx = { ctx with type_params = a.a_types } in
+		let is_type = ref false in
+		let load_type t =
+			let t = load_complex_type ctx p t in
+			if not (has_meta ":coreType" a.a_meta) then begin
+				if !is_type then begin
+					(try type_eq EqStrict a.a_this t with Unify_error _ -> error "You can only declare from/to with your subtype" p);
+				end else
+					error "Missing subtype declaration or @:coreType declaration" p;
+			end;
+			t
+		in
 		List.iter (function
-			| APrivAbstract -> ()
-			| ASubType t -> a.a_sub <- load_complex_type ctx p t :: a.a_sub
-			| ASuperType t -> a.a_super <- load_complex_type ctx p t :: a.a_super
+			| AFromType t -> a.a_from <- load_type t :: a.a_from
+			| AToType t -> a.a_to <- load_type t :: a.a_to
 			| AIsType t ->
-				(match a.a_this with
-				| TMono _ -> a.a_this <- load_complex_type ctx p t
-				| _ -> error "Duplicate This-type definition" p)
+				a.a_this <- load_complex_type ctx p t;
+				is_type := true;
+			| APrivAbstract -> ()
 		) d.d_flags
 
 let type_module ctx m file tdecls p =

@@ -67,13 +67,13 @@ let rec like_float t =
   match follow t with
     | TAbstract({ a_path = ([], "Float") },[])
     | TAbstract({ a_path = ([], "Int") },[]) -> true
-    | TAbstract(a, _) -> List.exists like_float a.a_super || List.exists like_float a.a_sub
+    | TAbstract(a, _) -> List.exists like_float a.a_from || List.exists like_float a.a_to
     | _ -> false
 
 let rec like_int t =
   match follow t with
     | TAbstract({ a_path = ([], "Int") },[]) -> true
-    | TAbstract(a, _) -> List.exists like_int a.a_super || List.exists like_float a.a_sub
+    | TAbstract(a, _) -> List.exists like_int a.a_from || List.exists like_float a.a_to
     | _ -> false
 
 
@@ -3644,11 +3644,11 @@ struct
             List.iter (fun t ->
               let t = apply_params a2.a_types params2 t in
               get_arg original t
-            ) a2.a_super;
+            ) a2.a_to;
             List.iter (fun t ->
               let t = apply_params a.a_types params t in
               get_arg t applied
-            ) a.a_sub
+            ) a.a_from
           end
 
         | TInst(cl, params), TInst(cl2, params2) ->
@@ -3674,12 +3674,12 @@ struct
           List.iter (fun t ->
             let t = apply_params a.a_types params t in
             get_arg t applied
-          ) a.a_sub
+          ) a.a_from
         | _, TAbstract(a2, params2) ->
           List.iter (fun t ->
             let t = apply_params a2.a_types params2 t in
             get_arg original t
-          ) a2.a_super
+          ) a2.a_to
 
         | TEnum(e, params), TEnum(e2, params2) ->
           List.iter2 (get_arg) params params2
