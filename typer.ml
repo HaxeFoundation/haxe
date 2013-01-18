@@ -3124,8 +3124,8 @@ let make_macro_api ctx p =
 			ctx.m.curmod
 		);
 		Interp.delayed_macro = (fun i ->
-			let ctx2 = (match ctx.g.macros with None -> assert false | Some (_,ctx2) -> ctx2) in
-			let f = (try DynArray.get ctx2.g.delayed_macros i with _ -> failwith "Delayed macro retrieve failure") in
+			let mctx = (match ctx.g.macros with None -> assert false | Some (_,mctx) -> mctx) in
+			let f = (try DynArray.get mctx.g.delayed_macros i with _ -> failwith "Delayed macro retrieve failure") in
 			f();
 			let ret = !delayed_macro_result in
 			delayed_macro_result := (fun() -> assert false);
@@ -3133,42 +3133,42 @@ let make_macro_api ctx p =
 		);
 	}
 
-let rec init_macro_interp ctx ctx2 mctx =
+let rec init_macro_interp ctx mctx mint =
 	let p = Ast.null_pos in
-	ignore(Typeload.load_module ctx2 (["haxe";"macro"],"Expr") p);
-	ignore(Typeload.load_module ctx2 (["haxe";"macro"],"Type") p);
-	flush_macro_context mctx ctx;
-	Interp.init mctx;
-	if !macro_enable_cache && not (Common.defined ctx2.com Define.NoMacroCache) then macro_interp_cache := Some mctx
+	ignore(Typeload.load_module mctx (["haxe";"macro"],"Expr") p);
+	ignore(Typeload.load_module mctx (["haxe";"macro"],"Type") p);
+	flush_macro_context mint ctx;
+	Interp.init mint;
+	if !macro_enable_cache && not (Common.defined mctx.com Define.NoMacroCache) then macro_interp_cache := Some mint
 
-and flush_macro_context mctx ctx =
-	let ctx2 = (match ctx.g.macros with None -> assert false | Some (_,ctx2) -> ctx2) in
-	finalize ctx2;
-	let _, types, modules = generate ctx2 in
-	ctx2.com.types <- types;
-	ctx2.com.Common.modules <- modules;
+and flush_macro_context mint ctx =
+	let mctx = (match ctx.g.macros with None -> assert false | Some (_,mctx) -> mctx) in
+	finalize mctx;
+	let _, types, modules = generate mctx in
+	mctx.com.types <- types;
+	mctx.com.Common.modules <- modules;
 	(* if one of the type we are using has been modified, we need to create a new macro context from scratch *)
-	let mctx = if List.exists (Interp.has_old_version mctx) types then begin
-		let com2 = ctx2.com in
-		let mctx = Interp.create com2 (make_macro_api ctx Ast.null_pos) in
-		let macro = ((fun() -> Interp.select mctx), ctx2) in
+	let mint = if List.exists (Interp.has_old_version mint) types then begin
+		let com2 = mctx.com in
+		let mint = Interp.create com2 (make_macro_api ctx Ast.null_pos) in
+		let macro = ((fun() -> Interp.select mint), mctx) in
 		ctx.g.macros <- Some macro;
-		ctx2.g.macros <- Some macro;
-		init_macro_interp ctx ctx2 mctx;
-		mctx
-	end else mctx in
+		mctx.g.macros <- Some macro;
+		init_macro_interp ctx mctx mint;
+		mint
+	end else mint in
 	(* we should maybe ensure that all filters in Main are applied. Not urgent atm *)
-	Interp.add_types mctx types (Codegen.post_process [Codegen.captured_vars ctx2.com; Codegen.rename_local_vars ctx2.com]);
+	Interp.add_types mint types (Codegen.post_process [Codegen.captured_vars mctx.com; Codegen.rename_local_vars mctx.com]);
 	Codegen.post_process_end()
 	
-let create_macro_interp ctx ctx2 =
-	let com2 = ctx2.com in
-	let mctx, init = (match !macro_interp_cache with
+let create_macro_interp ctx mctx =
+	let com2 = mctx.com in
+	let mint, init = (match !macro_interp_cache with
 		| None ->
-			let mctx = Interp.create com2 (make_macro_api ctx Ast.null_pos) in
-			mctx, (fun() -> init_macro_interp ctx ctx2 mctx)
-		| Some mctx ->
-			mctx, (fun() -> ())
+			let mint = Interp.create com2 (make_macro_api ctx Ast.null_pos) in
+			mint, (fun() -> init_macro_interp ctx mctx mint)
+		| Some mint ->
+			mint, (fun() -> ())
 	) in
 	let on_error = com2.error in
 	com2.error <- (fun e p ->
@@ -3176,10 +3176,10 @@ let create_macro_interp ctx ctx2 =
 		macro_interp_cache := None;
 		on_error e p
 	);
-	let macro = ((fun() -> Interp.select mctx), ctx2) in
+	let macro = ((fun() -> Interp.select mint), mctx) in
 	ctx.g.macros <- Some macro;
-	ctx2.g.macros <- Some macro;
-	(* ctx2.g.core_api <- ctx.g.core_api; // causes some issues because of optional args and Null type in Flash9 *)
+	mctx.g.macros <- Some macro;
+	(* mctx.g.core_api <- ctx.g.core_api; // causes some issues because of optional args and Null type in Flash9 *)
 	init()
 	
 let get_macro_context ctx p =
@@ -3203,9 +3203,9 @@ let get_macro_context ctx p =
 		com2.defines <- PMap.foldi (fun k v acc -> if List.mem k to_remove then acc else PMap.add k v acc) com2.defines PMap.empty;
 		Common.define com2 Define.Macro;
 		Common.init_platform com2 Neko;
-		let ctx2 = ctx.g.do_create com2 in
-		create_macro_interp ctx ctx2;
-		api, ctx2
+		let mctx = ctx.g.do_create com2 in
+		create_macro_interp ctx mctx;
+		api, mctx
 
 let load_macro ctx cpath f p =
 	(*
@@ -3214,11 +3214,11 @@ let load_macro ctx cpath f p =
 		typing the classes needed for macro execution.
 	*)
 	let t = macro_timer ctx "typing (+init)" in
-	let api, ctx2 = get_macro_context ctx p in
-	let mctx = Interp.get_ctx() in
+	let api, mctx = get_macro_context ctx p in
+	let mint = Interp.get_ctx() in
 	let m = (try Hashtbl.find ctx.g.types_module cpath with Not_found -> cpath) in
-	let mloaded = Typeload.load_module ctx2 m p in
-	ctx2.m <- {
+	let mloaded = Typeload.load_module mctx m p in
+	mctx.m <- {
 		curmod = mloaded;
 		module_types = [];
 		module_using = [];
@@ -3226,14 +3226,14 @@ let load_macro ctx cpath f p =
 		wildcard_packages = [];
 	};
 	add_dependency ctx.m.curmod mloaded;
-	let cl, meth = (match Typeload.load_instance ctx2 { tpackage = fst cpath; tname = snd cpath; tparams = []; tsub = None } p true with
+	let cl, meth = (match Typeload.load_instance mctx { tpackage = fst cpath; tname = snd cpath; tparams = []; tsub = None } p true with
 		| TInst (c,_) ->
-			finalize ctx2;
+			finalize mctx;
 			c, (try PMap.find f c.cl_statics with Not_found -> error ("Method " ^ f ^ " not found on class " ^ s_type_path cpath) p)
 		| _ -> error "Macro should be called on a class" p
 	) in
 	let meth = (match follow meth.cf_type with TFun (args,ret) -> args,ret,cl,meth | _ -> error "Macro call should be a method" p) in
-	if not ctx.in_macro then flush_macro_context mctx ctx;
+	if not ctx.in_macro then flush_macro_context mint ctx;
 	t();
 	let call args =
 		let t = macro_timer ctx (s_type_path cpath ^ "." ^ f) in
@@ -3242,24 +3242,24 @@ let load_macro ctx cpath f p =
 		t();
 		r
 	in
-	ctx2, meth, call
+	mctx, meth, call
 
 let type_macro ctx mode cpath f (el:Ast.expr list) p =
-	let ctx2, (margs,mret,mclass,mfield), call_macro = load_macro ctx cpath f p in
+	let mctx, (margs,mret,mclass,mfield), call_macro = load_macro ctx cpath f p in
 	let mpos = mfield.cf_pos in
 	let ctexpr = { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = None } in
-	let expr = Typeload.load_instance ctx2 ctexpr p false in
+	let expr = Typeload.load_instance mctx ctexpr p false in
 	(match mode with
 	| MExpr ->
-		unify ctx2 mret expr mpos;
+		unify mctx mret expr mpos;
 	| MBuild ->
 		let ctfields = { tpackage = []; tname = "Array"; tparams = [TPType (CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = Some "Field" })]; tsub = None } in
-		let tfields = Typeload.load_instance ctx2 ctfields p false in
-		unify ctx2 mret tfields mpos
+		let tfields = Typeload.load_instance mctx ctfields p false in
+		unify mctx mret tfields mpos
 	| MMacroType ->
 		let cttype = { tpackage = ["haxe";"macro"]; tname = "Type"; tparams = []; tsub = None } in
-		let ttype = Typeload.load_instance ctx2 cttype p false in
-		unify ctx2 mret ttype mpos
+		let ttype = Typeload.load_instance mctx cttype p false in
+		unify mctx mret ttype mpos
 	);
 	(*
 		if the function's last argument is of Array<Expr>, split the argument list and use [] for unify_call_params
@@ -3290,7 +3290,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 		(*
 			force default parameter types to haxe.macro.Expr, and if success allow to pass any value type since it will be encoded
 		*)
-		let eargs = List.map (fun (n,o,t) -> try unify_raise ctx2 t expr p; (n, o, t_dynamic), true with Error (Unify _,_) -> (n,o,t), false) margs in
+		let eargs = List.map (fun (n,o,t) -> try unify_raise mctx t expr p; (n, o, t_dynamic), true with Error (Unify _,_) -> (n,o,t), false) margs in
 		(*
 			this is quite tricky here : we want to use unify_call_params which will type our AST expr
 			but we want to be able to get it back after it's been padded with nulls
@@ -3316,7 +3316,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 			incr index;
 			(EArray ((EArrayDecl [e],p),(EConst (Int (string_of_int (!index))),p)),p)
 		) el in
-		let elt, _ = unify_call_params ctx2 (Some (TInst(mclass,[]),mfield)) constants (List.map fst eargs) t_dynamic p false in
+		let elt, _ = unify_call_params mctx (Some (TInst(mclass,[]),mfield)) constants (List.map fst eargs) t_dynamic p false in
 		List.iter (fun f -> f()) (!todo);
 		List.map2 (fun (_,ise) e ->
 			let e, et = (match e.eexpr with
@@ -3373,13 +3373,13 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 		let ctx = {
 			ctx with locals = ctx.locals;
 		} in
-		let pos = DynArray.length ctx2.g.delayed_macros in
-		DynArray.add ctx2.g.delayed_macros (fun() ->
+		let pos = DynArray.length mctx.g.delayed_macros in
+		DynArray.add mctx.g.delayed_macros (fun() ->
 			delayed_macro_result := (fun() ->
-				let mctx = Interp.get_ctx() in
+				let mint = Interp.get_ctx() in
 				match call() with
 				| None -> (fun() -> raise Interp.Abort)
-				| Some e -> Interp.eval mctx (Genneko.gen_expr mctx.Interp.gen (type_expr ctx e Value))
+				| Some e -> Interp.eval mint (Genneko.gen_expr mint.Interp.gen (type_expr ctx e Value))
 			);
 		);
 		ctx.m.curmod.m_extra.m_time <- -1.; (* disable caching for modules having macro-in-macro *)
@@ -3391,8 +3391,8 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 	e
 
 let call_macro ctx path meth args p =
-	let ctx2, (margs,_,mclass,mfield), call = load_macro ctx path meth p in
-	let el, _ = unify_call_params ctx2 (Some (TInst(mclass,[]),mfield)) args margs t_dynamic p false in
+	let mctx, (margs,_,mclass,mfield), call = load_macro ctx path meth p in
+	let el, _ = unify_call_params mctx (Some (TInst(mclass,[]),mfield)) args margs t_dynamic p false in
 	call (List.map (fun e -> try Interp.make_const e with Exit -> error "Parameter should be a constant" e.epos) el)
 
 let call_init_macro ctx e =
