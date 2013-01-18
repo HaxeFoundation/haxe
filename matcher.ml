@@ -587,18 +587,14 @@ let swap_pmat_columns i pmat =
 let swap_columns i (row : 'a list) : 'a list =
 	match row with
 	| rh :: rt ->
-		let hd = ref rh in
 		let rec loop count acc col = match col with
 			| [] -> acc
 			| ch :: cl when i = count ->
-				let acc = acc @ [!hd] @ cl in
-				hd := ch;
-				acc
+				ch :: (List.rev acc) @ [rh] @ cl
 			| ch :: cl ->
 				loop (count + 1) (ch :: acc) cl
 		in
-		let tl = loop 1 [] rt in
-		(!hd :: tl)
+		loop 1 [] rt
 	| _ ->
 		[]
 
