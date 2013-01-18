@@ -819,6 +819,22 @@ let replace_locals mctx out e =
 	Hashtbl.iter (fun _ p -> mctx.ctx.com.warning "This variable is unused" p) all_subterms;
 	e
 
+let rec st_eq st1 st2 = match st1.st_def,st2.st_def with
+	| STuple (st1,i1,_), STuple(st2,i2,_) -> i1 = i2 && st_eq st1 st2
+	| SEnum(st1,_,i1), SEnum(st2,_,i2) -> i1 = i2 && st_eq st1 st2
+	| SField(st1,f1),SField(st2,f2) -> f1 = f2 && st_eq st1 st2
+	| SArray(st1,i1),SArray(st2,i2) -> i1 = i1 && st_eq st1 st2
+	| SVar _, SVar _ -> true
+	| _ -> false
+
+let is_compatible out1 out2 =
+	out1.o_id = out2.o_id
+	&& out1.o_guard = None
+	&& (out1.o_bindings = []
+		|| (List.length out1.o_bindings) = (List.length out2.o_bindings)
+		&& (ExtList.List.for_all2 (fun (_,st1) (_,st2) -> st_eq st1 st2) out1.o_bindings out2.o_bindings)
+	)
+
 let rec to_typed_ast mctx dt =
 	match dt with
 	| Goto _ ->
@@ -842,13 +858,6 @@ let rec to_typed_ast mctx dt =
 
 and group_cases mctx cases to_case =
 	let def = ref None in
-	let is_compatible out1 out2 =
-		out1.o_id = out2.o_id
-		&& out1.o_guard = None
-		&& (out1.o_bindings = []
-			|| (List.length out1.o_bindings) = (List.length out2.o_bindings)
-			&& (ExtList.List.for_all2 (fun ((v1,_),st1) ((v2,_),st2) -> v1.v_name = v2.v_name && (s_st st1) = (s_st st2)) out1.o_bindings out2.o_bindings))
-	in
 	let group,cases,dto = List.fold_left (fun (group,cases,dto) (con,dt) -> match con.c_def with
 		| CConst TNull ->
 			let e = to_typed_ast mctx dt in
@@ -877,34 +886,76 @@ and group_cases mctx cases to_case =
 and to_enum_switch mctx en pl st cases =
 	let eval = st_to_texpr mctx st in
 	let et = monomorphs mctx.ctx.type_params (TEnum(en,pl)) in
-	let def = ref None in
-	let rec loop cases = match cases with
-		| [] ->
-			[]
-		| (({c_def = CEnum(en,ef) }) as con,dt) :: cases ->
-			let save = save_locals mctx.ctx in
-			let etf = follow (monomorphs en.e_types (monomorphs ef.ef_params ef.ef_type)) in
-			let vl = match etf with
-				| TFun(args,r) ->
-					unify mctx.ctx r et con.c_pos;
-					let vl = ExtList.List.mapi (fun i (_,_,t) ->
-						let st = mk_st (SEnum(st,ef.ef_name,i)) t st.st_pos in
-						Some (match (st_to_texpr mctx st).eexpr with TLocal v -> v | _ -> assert false)
-					) args in
-					Some vl
-				| _ -> None
-			in
-			let e = to_typed_ast mctx dt in
-			save();
-			([ef.ef_index],vl,e) :: loop cases
-		| (({c_def = CConst TNull }),dt) :: cases ->
-			let e = to_typed_ast mctx dt in
-			def := Some e;
-			loop cases
-		| (con,_) :: _ ->
+	let to_case con = match con.c_def with
+		| CEnum(en,ef) -> en,ef
+		| _ ->
 			error ("Unexpected") con.c_pos
 	in
-	let cases = loop cases in
+	let type_case group dt p =
+		let group = List.rev group in
+		let en,ef = List.hd group in
+		let save = save_locals mctx.ctx in
+		let etf = follow (monomorphs en.e_types (monomorphs ef.ef_params ef.ef_type)) in
+		let capture_vars = match dt with
+			| Bind(out,None) ->
+				Some out.o_bindings
+			| _ ->
+				None
+		in
+		(* TODO: this is horrible *)
+		let vl = match etf with
+			| TFun(args,r) ->
+				unify mctx.ctx r et p;
+				let vl = ExtList.List.mapi (fun i (_,_,t) ->
+					let st = mk_st (SEnum(st,ef.ef_name,i)) t st.st_pos in
+					let mk_e () = Some (match (st_to_texpr mctx st).eexpr with TLocal v -> v | _ -> assert false) in
+					begin match capture_vars with
+						| Some cvl ->
+							let rec check st2 = st_eq st st2 || match st2.st_def with
+								| SEnum(st,_,_) | SArray(st,_) | STuple(st,_,_) | SField(st,_) -> check st
+								| SVar _ -> false
+							in
+							let rec loop cvl = match cvl with
+								| [] -> None
+								| (_,st2) :: cvl ->
+									if check st2 then mk_e() else loop cvl
+							in
+							loop cvl
+						| _ ->
+							mk_e()
+					end
+				) args in
+				if List.exists (fun e -> e <> None) vl then (Some vl) else None
+			| _ -> None
+		in
+		let e = to_typed_ast mctx dt in
+		save();
+		(List.map (fun (_,ef) -> ef.ef_index) group),vl,e
+	in
+	let def = ref None in
+	let group,cases,dto = List.fold_left (fun (group,cases,dto) (con,dt) -> match con.c_def with
+		| CConst TNull ->
+			let e = to_typed_ast mctx dt in
+			def := Some e;
+			(group,cases,dto)
+		| _ -> match dto with
+			| None -> ([to_case con],cases,Some dt)
+			| Some dt2 -> match dt,dt2 with
+				| Bind(out1,_),Bind(out2,_) when is_compatible out1 out2 ->
+					((to_case con) :: group,cases,dto)
+				| _ ->
+					let g = type_case group dt2 con.c_pos in
+					([to_case con],g :: cases, Some dt)
+	) ([],[],None) cases in
+	let cases = List.rev (match group,dto with
+		| [],None ->
+			cases
+		| group,Some dt ->
+			let g = type_case group dt eval.epos in
+			g :: cases
+		| _ ->
+			assert false
+	) in
 	mk (TMatch(eval,(en,pl),cases,!def)) mctx.out_type eval.epos
 
 and to_value_switch mctx t st cases =
