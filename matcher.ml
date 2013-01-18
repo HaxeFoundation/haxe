@@ -370,13 +370,11 @@ let to_pattern ctx e t =
 						ctx.untyped <- true;
 						let e = try type_expr ctx e (WithType tc) with _ -> ctx.untyped <- old; raise Not_found in
 						ctx.untyped <- old;
-						(match e.eexpr with
-							| TTypeExpr _ -> ()
-							| _ -> try unify_raise ctx e.etype tc e.epos with Error (Unify _,_) -> raise Not_found);
 						e
 				in
 				(match ec.eexpr with
 					| TField (_,FEnum (en,ef)) ->
+						begin try unify_raise ctx ec.etype tc ec.epos with Error (Unify _,_) -> raise Not_found end;
 						begin try
 							unify_enum_field en (List.map (fun _ -> mk_mono()) en.e_types) ef tc;
 						with Unify_error l ->
@@ -384,6 +382,7 @@ let to_pattern ctx e t =
 						end;
 						mk_con_pat (CEnum(en,ef)) [] t p
                     | TConst c ->
+                    	begin try unify_raise ctx ec.etype tc ec.epos with Error (Unify _,_) -> raise Not_found end;
                         unify ctx ec.etype tc p;
                         mk_con_pat (CConst c) [] tc p
 					| TTypeExpr mt ->
