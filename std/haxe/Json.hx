@@ -421,7 +421,7 @@ class Json {
 	#end
 
 	#if php
-	public static function phpJsonDecode(json:String):Dynamic {
+	static function phpJsonDecode(json:String):Dynamic {
 		var val = untyped __call__("json_decode", json);
 		return convertAfterDecode(val);
 	}
@@ -440,7 +440,7 @@ class Json {
 			return val;
 	}
 
-	public static function phpJsonEncode(val:Dynamic):String {
+	static function phpJsonEncode(val:Dynamic):String {
 		var json = untyped __call__("json_encode", convertBeforeEncode(val));
 		if (untyped __physeq__(json, false))
 			return throw "invalid json";
