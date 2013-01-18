@@ -3133,32 +3133,32 @@ let make_macro_api ctx p =
 		);
 	}
 
-let rec init_macro_interp ctx2 mctx =
+let rec init_macro_interp ctx ctx2 mctx =
 	let p = Ast.null_pos in
 	ignore(Typeload.load_module ctx2 (["haxe";"macro"],"Expr") p);
 	ignore(Typeload.load_module ctx2 (["haxe";"macro"],"Type") p);
-	flush_macro_context mctx ctx2;
+	flush_macro_context mctx ctx;
 	Interp.init mctx;
 	if !macro_enable_cache && not (Common.defined ctx2.com Define.NoMacroCache) then macro_interp_cache := Some mctx
 
 and flush_macro_context mctx ctx =
-	finalize ctx;
-	let _, types, modules = generate ctx in
-	ctx.com.types <- types;
-	ctx.com.Common.modules <- modules;
+	let ctx2 = (match ctx.g.macros with None -> assert false | Some (_,ctx2) -> ctx2) in
+	finalize ctx2;
+	let _, types, modules = generate ctx2 in
+	ctx2.com.types <- types;
+	ctx2.com.Common.modules <- modules;
 	(* if one of the type we are using has been modified, we need to create a new macro context from scratch *)
 	let mctx = if List.exists (Interp.has_old_version mctx) types then begin
-		let ctx2 = (match ctx.g.macros with None -> assert false | Some (_,ctx2) -> ctx2) in
 		let com2 = ctx2.com in
 		let mctx = Interp.create com2 (make_macro_api ctx Ast.null_pos) in
 		let macro = ((fun() -> Interp.select mctx), ctx2) in
 		ctx.g.macros <- Some macro;
 		ctx2.g.macros <- Some macro;
-		init_macro_interp ctx2 mctx;
+		init_macro_interp ctx ctx2 mctx;
 		mctx
 	end else mctx in
 	(* we should maybe ensure that all filters in Main are applied. Not urgent atm *)
-	Interp.add_types mctx types (Codegen.post_process [Codegen.captured_vars ctx.com; Codegen.rename_local_vars ctx.com]);
+	Interp.add_types mctx types (Codegen.post_process [Codegen.captured_vars ctx2.com; Codegen.rename_local_vars ctx2.com]);
 	Codegen.post_process_end()
 	
 let create_macro_interp ctx ctx2 =
@@ -3166,7 +3166,7 @@ let create_macro_interp ctx ctx2 =
 	let mctx, init = (match !macro_interp_cache with
 		| None ->
 			let mctx = Interp.create com2 (make_macro_api ctx Ast.null_pos) in
-			mctx, (fun() -> init_macro_interp ctx2 mctx)
+			mctx, (fun() -> init_macro_interp ctx ctx2 mctx)
 		| Some mctx ->
 			mctx, (fun() -> ())
 	) in
@@ -3233,7 +3233,7 @@ let load_macro ctx cpath f p =
 		| _ -> error "Macro should be called on a class" p
 	) in
 	let meth = (match follow meth.cf_type with TFun (args,ret) -> args,ret,cl,meth | _ -> error "Macro call should be a method" p) in
-	if not ctx.in_macro then flush_macro_context mctx ctx2;
+	if not ctx.in_macro then flush_macro_context mctx ctx;
 	t();
 	let call args =
 		let t = macro_timer ctx (s_type_path cpath ^ "." ^ f) in
