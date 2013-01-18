@@ -272,5 +272,15 @@ class TestBasetypes extends Test {
 		eq('a${x}b', "a5b");
 		eq('${x}${y}', "5[]");
 	}
+	
+	function testAbstract() {
+		var a = new MyAbstract(33);
+		t( Std.is(a, Int) );
+		eq( a.toInt(), 33 );
+		var b = a;
+		a.incr();
+		eq( a.toInt(), 34 );
+		eq( b.toInt(), 33 );
+	}
 
 }

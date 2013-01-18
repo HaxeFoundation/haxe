@@ -158,6 +158,7 @@ and tclass_kind =
 	| KGeneric
 	| KGenericInstance of tclass * tparams
 	| KMacroType
+	| KAbstractImpl of tabstract
 
 and metadata = Ast.metadata
 
@@ -244,6 +245,8 @@ and tabstract = {
 	mutable a_meta : metadata;
 	mutable a_types : type_params;
 
+	mutable a_impl : tclass option;
+	mutable a_this : t;	
 	mutable a_sub : t list;
 	mutable a_super : t list;
 }

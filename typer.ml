@@ -521,6 +521,8 @@ let rec type_module_type ctx t tparams p =
 			type_module_type ctx (TAbstractDecl a) (Some params) p
 		| _ ->
 			error (s_type_path s.t_path ^ " is not a value") p)
+	| TAbstractDecl { a_impl = Some c } ->
+		type_module_type ctx (TClassDecl c) tparams p
 	| TAbstractDecl a ->
 		if not (has_meta ":runtimeValue" a.a_meta) then error (s_type_path a.a_path ^ " is not a value") p;
 		let t_tmp = {
@@ -542,8 +544,14 @@ let type_type ctx tpath p =
 	type_module_type ctx (Typeload.load_type_def ctx p { tpackage = fst tpath; tname = snd tpath; tparams = []; tsub = None }) None p
 
 let get_constructor ctx c params p =
-	let ct, f = (try Type.get_constructor (fun f -> field_type ctx c params f p) c with Not_found -> error (s_type_path c.cl_path ^ " does not have a constructor") p) in
-	apply_params c.cl_types params ct, f
+	match c.cl_kind with
+	| KAbstractImpl a ->
+		let f = (try PMap.find "_new" c.cl_statics with Not_found -> error (s_type_path a.a_path ^ " does not have a constructor") p) in
+		let ct = field_type ctx c params f p in
+		apply_params c.cl_types params ct, f
+	| _ ->
+		let ct, f = (try Type.get_constructor (fun f -> field_type ctx c params f p) c with Not_found -> error (s_type_path c.cl_path ^ " does not have a constructor") p) in
+		apply_params c.cl_types params ct, f
 
 let make_call ctx e params t p =
 	try
@@ -556,6 +564,7 @@ let make_call ctx e params t p =
 		if f.cf_kind <> Method MethInline then raise Exit;
 		let is_extern = (match cl with
 			| Some { cl_extern = true } -> true
+			| Some { cl_kind = KAbstractImpl _ } -> true
 			| _ when has_meta ":extern" f.cf_meta -> true
 			| _ -> false
 		) in
@@ -755,7 +764,6 @@ let get_this ctx p =
 	| FunStatic ->
 		error "Cannot access this from a static function" p
 	| FunMemberLocal ->
-		if ctx.untyped then display_error ctx "Cannot access this in 'untyped' mode : use either '__this__' or var 'me = this' (transitional)" p;
 		let v = (match ctx.vthis with
 			| None ->
 				let v = gen_local ctx ctx.tthis in
@@ -766,6 +774,9 @@ let get_this ctx p =
 				v
 		) in
 		mk (TLocal v) ctx.tthis p
+	| FunMemberAbstract ->
+		let v = (try PMap.find "this" ctx.locals with Not_found -> assert false) in
+		mk (TLocal v) v.v_type p
 	| FunConstructor | FunMember ->
 		mk (TConst TThis) ctx.tthis p
 
@@ -782,10 +793,18 @@ let rec type_ident_raise ?(imported_enums=true) ctx i p mode =
 		else
 			AKNo i
 	| "this" ->
+		(match mode, ctx.curclass.cl_kind with
+		| MSet, KAbstractImpl _ ->
+			(match ctx.curfield.cf_kind with
+			| Method MethInline -> ()
+			| Method _ when ctx.curfield.cf_name = "_new" -> ()
+			| _ -> error "You can only modify 'this' inside an inline function" p);
+			AKExpr (get_this ctx p)
+		| _ ->
 		if mode = MGet then
 			AKExpr (get_this ctx p)
 		else
-			AKNo i
+			AKNo i)
 	| "super" ->
 		let t = (match ctx.curclass.cl_super with
 			| None -> error "Current class does not have a superclass" p
@@ -793,6 +812,7 @@ let rec type_ident_raise ?(imported_enums=true) ctx i p mode =
 		) in
 		(match ctx.curfun with
 		| FunMember | FunConstructor -> ()
+		| FunMemberAbstract -> error "Cannot access super inside an abstract function" p
 		| FunStatic -> error "Cannot access super inside a static function" p;
 		| FunMemberLocal -> error "Cannot access super inside a local function" p);
 		if mode <> MSet && ctx.in_super_call then ctx.in_super_call <- false;
@@ -986,6 +1006,17 @@ and type_field ctx e i p mode =
 		ctx.opened <- x :: ctx.opened;
 		r := Some t;
 		field_access ctx mode f (FAnon f) (Type.field_type f) e p
+	| TAbstract (a,pl) ->
+		(try
+			let c = (match a.a_impl with None -> raise Not_found | Some c -> c) in
+			let f = PMap.find i c.cl_statics in
+			let t = field_type ctx c [] f p in
+			let et = type_module_type ctx (TClassDecl c) None p in
+			AKUsing ((mk (TField (et,FStatic (c,f))) t p),c,f,e)
+		with Not_found -> try
+			using_field ctx mode e i p
+		with Not_found ->
+			no_field())
 	| _ ->
 		try using_field ctx mode e i p with Not_found -> no_field()
 
@@ -2259,7 +2290,14 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		type_call ctx e el with_type p
 	| ENew (t,el) ->
 		let t = Typeload.load_instance ctx t p true in
-		let el, c , params = (match follow t with
+		let ct = (match follow t with
+			| TAbstract (a,pl) ->
+				(match a.a_impl with
+				| None -> t
+				| Some c -> TInst (c,pl))
+			| _ -> t
+		) in
+		(match follow ct with
 		| TInst ({cl_kind = KTypeParameter tl} as c,params) ->
 			if not (Codegen.is_generic_parameter ctx c) then error "Only generic type parameters can be constructed" p;
 			let el = List.map (fun e -> type_expr ctx e Value) el in
@@ -2272,10 +2310,8 @@ and type_expr ctx (e,p) (with_type:with_type) =
 						())
 				| _ -> ()
 			) tl;
-			el,c,params
+			mk (TNew (c,params,el)) t p
 		| TInst (c,params) ->
-			let name = (match c.cl_path with [], name -> name | x :: _ , _ -> x) in
-			if PMap.mem name ctx.locals then error ("Local variable " ^ name ^ " is preventing usage of this class here") p;
 			let ct, f = get_constructor ctx c params p in
 			if not (can_access ctx c f true || is_parent c ctx.curclass) && not ctx.untyped then display_error ctx "Cannot access private constructor" p;
 			(match f.cf_kind with
@@ -2291,11 +2327,16 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			| _ ->
 				error "Constructor is not a function" p
 			) in
-			el , c , params
+			(match c.cl_kind with
+			| KAbstractImpl _ ->
+				let ta = TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) } in
+				let e = mk (TTypeExpr (TClassDecl c)) ta p in
+				let e = mk (TField (e,(FStatic (c,f)))) ct p in
+				make_call ctx e el t p
+			| _ ->
+				mk (TNew (c,params,el)) t p)
 		| _ ->
-			error (s_type (print_context()) t ^ " cannot be constructed") p
-		) in
-		mk (TNew (c,params,el)) t p
+			error (s_type (print_context()) t ^ " cannot be constructed") p)
 	| EUnop (op,flag,e) ->
 		type_unop ctx op flag e p
 	| EFunction (name,f) ->

@@ -420,6 +420,8 @@ and type_string_suff suffix haxe_type =
       *)
 	| TDynamic haxe_type -> "Dynamic" ^ suffix
 	| TLazy func -> type_string_suff suffix ((!func)())
+	| TAbstract (abs,pl) when abs.a_impl <> None ->
+		type_string_suff suffix (apply_params abs.a_types pl abs.a_this)
 	| TAbstract (abs,pl) ->
 		"::" ^ (join_class_path abs.a_path "::") ^ suffix
 	)

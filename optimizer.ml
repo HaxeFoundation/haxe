@@ -315,13 +315,27 @@ let rec type_inline ctx cf f ethis params tret p force =
 		in
 		try loop e; true with Exit -> false
 	in
+	let is_writable e =
+		match e.eexpr with
+		| TField _ | TLocal _ | TArray _ -> true
+		| _  -> false
+	in
+	let force = ref force in
 	let vars = List.fold_left (fun acc (i,e) ->
 		let flag = (match e.eexpr with
+			| TLocal { v_name = "this" } -> true
 			| TLocal _ | TConst _ -> not i.i_write
 			| TFunction _ -> if i.i_write then error "Cannot modify a closure parameter inside inline method" p; true
 			| _ -> not i.i_write && i.i_read <= 1
 		) in
 		let flag = flag && (not i.i_captured || is_constant e) in
+		(* force inlining if we modify 'this' *)
+		if i.i_write && i.i_var.v_name = "this" then force := true;
+		(* force inlining of 'this' variable if the expression is writable *)
+		let flag = if not flag && i.i_var.v_name = "this" then begin			
+			if i.i_write && not (is_writable e) then error "Cannot modify the abstract value, store it into a local first" p;
+			true
+		end else flag in
 		if flag then begin
 			subst := PMap.add i.i_subst.v_id e !subst;
 			acc
@@ -342,7 +356,7 @@ let rec type_inline ctx cf f ethis params tret p force =
 
 		This could be fixed with better post process code cleanup (planed)
 	*)
-	if !cancel_inlining || (Common.platform ctx.com Js && not force && (init <> None || !has_vars)) then
+	if !cancel_inlining || (Common.platform ctx.com Js && not !force && (init <> None || !has_vars)) then
 		None
 	else
 		let wrap e =

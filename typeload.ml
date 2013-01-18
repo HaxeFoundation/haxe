@@ -37,16 +37,16 @@ let make_module ctx mpath file tdecls loadp =
 		m_extra = module_extra (Common.unique_full_path file) (Common.get_signature ctx.com) (file_time file) (if ctx.in_macro then MMacro else MCode);
 	} in
 	let pt = ref None in
-	List.iter (fun decl ->
+	let rec make_decl acc decl =
 		let p = snd decl in
-		match fst decl with
+		let acc = (match fst decl with
 		| EImport _ | EUsing _ when Common.defined ctx.com Define.Haxe3 ->
 			(match !pt with
-			| None -> ()
+			| None -> acc
 			| Some pt ->
 				display_error ctx "import and using may not appear after a type declaration" p;
 				error "Previous type declaration found here" pt)
-		| EImport _ | EUsing _ -> ()
+		| EImport _ | EUsing _ -> acc
 		| EClass d ->
 			pt := Some p;
 			let priv = List.mem HPrivate d.d_flags in
@@ -56,7 +56,8 @@ let make_module ctx mpath file tdecls loadp =
 			c.cl_private <- priv;
 			c.cl_doc <- d.d_doc;
 			c.cl_meta <- d.d_meta;
-			decls := (TClassDecl c, decl) :: !decls
+			decls := (TClassDecl c, decl) :: !decls;
+			acc
 		| EEnum d ->
 			pt := Some p;
 			let priv = List.mem EPrivate d.d_flags in
@@ -73,7 +74,8 @@ let make_module ctx mpath file tdecls loadp =
 				e_constrs = PMap.empty;
 				e_names = [];
 			} in
-			decls := (TEnumDecl e, decl) :: !decls
+			decls := (TEnumDecl e, decl) :: !decls;
+			acc
 		| ETypedef d ->
 			pt := Some p;
 			let priv = List.mem EPrivate d.d_flags in
@@ -88,7 +90,8 @@ let make_module ctx mpath file tdecls loadp =
 				t_type = mk_mono();
 				t_meta = d.d_meta;
 			} in
-			decls := (TTypeDecl t, decl) :: !decls
+			decls := (TTypeDecl t, decl) :: !decls;
+			acc
 	   | EAbstract d ->
 			let priv = List.mem APrivAbstract d.d_flags in
 			let path = make_path d.d_name priv in
@@ -102,12 +105,60 @@ let make_module ctx mpath file tdecls loadp =
 				a_meta = d.d_meta;
 				a_sub = [];
 				a_super = [];
+				a_impl = None;
+				a_this = mk_mono();
 			} in
-			decls := (TAbstractDecl a, decl) :: !decls
-	) tdecls;
+			decls := (TAbstractDecl a, decl) :: !decls;
+			match d.d_data with
+			| [] -> acc
+			| fields ->
+				let rec loop = function
+					| [] ->
+						let params = List.map (fun t -> TPType (CTPath { tname = t.tp_name; tparams = []; tsub = None; tpackage = [] })) d.d_params in
+						CTPath { tpackage = []; tname = d.d_name; tparams = params; tsub = None }
+					| AIsType t :: _ -> t
+					| _ :: l -> loop l
+				in
+				let this_t = loop d.d_flags in
+				let fields = List.map (fun f ->
+					let stat = List.mem AStatic f.cff_access in
+					let p = f.cff_pos in
+					match f.cff_kind with
+					| FVar _ | FProp _ when not stat ->
+						display_error ctx "Cannot declare member variable or property in abstract" p;
+						f
+					| FFun fu when f.cff_name = "new" && not stat ->
+						let init p = (EVars ["this",Some this_t,None],p) in
+						let ret p = (EReturn (Some (EConst (Ident "this"),p)),p) in
+						let fu = {
+							fu with
+							f_expr = (match fu.f_expr with
+							| None -> None
+							| Some (EBlock el,p) -> Some (EBlock (init p :: el @ [ret p]),p)
+							| Some e -> Some (EBlock [init p;e;ret p],p)
+							)
+						} in
+						{ f with cff_name = "_new"; cff_access = AStatic :: f.cff_access; cff_kind = FFun fu }
+					| FFun fu when not stat ->
+						let fu = { fu with f_args = ("this",false,Some this_t,None) :: fu.f_args } in
+						{ f with cff_kind = FFun fu; cff_access = AStatic :: f.cff_access }
+					| _ ->
+						f
+				) fields in
+				let acc = make_decl acc (EClass { d_name = d.d_name ^ "Impl"; d_flags = [HPrivate]; d_data = fields; d_doc = None; d_params = d.d_params; d_meta = [] },p) in
+				(match !decls with
+				| (TClassDecl c,_) :: _ ->
+					a.a_impl <- Some c;
+					c.cl_kind <- KAbstractImpl a
+				| _ -> assert false);
+				acc
+		) in
+		decl :: acc
+	in
+	let tdecls = List.fold_left make_decl [] tdecls in
 	let decls = List.rev !decls in
 	m.m_types <- List.map fst decls;
-	m, decls
+	m, decls, List.rev tdecls
 
 let parse_file com file p =
 	let ch = (try open_in_bin file with _ -> error ("Could not open " ^ file) p) in
@@ -992,7 +1043,12 @@ let init_class ctx c p context_init herits fields =
 		curclass = c;
 		type_params = c.cl_types;
 		pass = PBuildClass;
-		tthis = TInst (c,List.map snd c.cl_types);
+		tthis = (match c.cl_kind with
+			| KAbstractImpl a ->
+				(match a.a_this with
+				| TMono r when !r = None -> TAbstract (a,List.map snd c.cl_types)
+				| t -> t)
+			| _ -> TInst (c,List.map snd c.cl_types));
 		on_error = (fun ctx msg ep ->
 			ctx.com.error msg ep;
 			(* macros expressions might reference other code, let's recall which class we are actually compiling *)
@@ -1146,7 +1202,13 @@ let init_class ctx c p context_init herits fields =
 		let p = f.cff_pos in
 		let stat = List.mem AStatic f.cff_access in
 		let extern = has_meta ":extern" f.cff_meta || c.cl_extern in
-		let inline = List.mem AInline f.cff_access && (match f.cff_kind with FFun _ -> not ctx.com.display && (ctx.g.doinline || extern) | _ -> true) in
+		let allow_inline() =
+			match c.cl_kind, f.cff_kind with
+			| KAbstractImpl _, _ -> true
+			|_, FFun _ -> ctx.g.doinline || extern
+			| _ -> true
+		in
+		let inline = List.mem AInline f.cff_access && allow_inline() in
 		let override = List.mem AOverride f.cff_access in
 		let is_macro = has_meta ":macro" f.cff_meta in
 		if is_macro && Common.defined ctx.com Define.Haxe3 then ctx.com.warning "@:macro should now be 'macro' accessor'" p;
@@ -1271,7 +1333,16 @@ let init_class ctx c p context_init herits fields =
 					context_init();
 					incr stats.s_methods_typed;
 					if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.in_macro then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ name);
-					let e , fargs = type_function ctx args ret (if constr then FunConstructor else if stat then FunStatic else FunMember) fd p in
+					let fmode = (match c.cl_kind with
+						| KAbstractImpl _ ->
+							(match args with
+							| ("this",_,_) :: _ -> FunMemberAbstract
+							| _ when name = "_new" -> FunMemberAbstract
+							| _ -> FunStatic)
+						| _ ->
+							if constr then FunConstructor else if stat then FunStatic else FunMember
+					) in
+					let e , fargs = type_function ctx args ret fmode fd p in
 					let f = {
 						tf_args = fargs;
 						tf_type = ret;
@@ -1495,7 +1566,7 @@ let add_module ctx m p =
 	since they have not been setup. We also build a context_init list that will be evaluated the first time we evaluate
 	an expression into the context
 *)
-let init_module_type ctx context_init do_init (decl,p) =
+let rec init_module_type ctx context_init do_init (decl,p) =
 	let get_type name =
 		try List.find (fun t -> snd (t_infos t).mt_path = name) ctx.m.curmod.m_types with Not_found -> assert false
 	in
@@ -1784,10 +1855,14 @@ let init_module_type ctx context_init do_init (decl,p) =
 			| APrivAbstract -> ()
 			| ASubType t -> a.a_sub <- load_complex_type ctx p t :: a.a_sub
 			| ASuperType t -> a.a_super <- load_complex_type ctx p t :: a.a_super
+			| AIsType t ->
+				(match a.a_this with
+				| TMono _ -> a.a_this <- load_complex_type ctx p t
+				| _ -> error "Duplicate This-type definition" p)
 		) d.d_flags
 
 let type_module ctx m file tdecls p =
-	let m, decls = make_module ctx m file tdecls p in
+	let m, decls, tdecls = make_module ctx m file tdecls p in
 	add_module ctx m p;
 	(* define the per-module context for the next pass *)
 	let ctx = {

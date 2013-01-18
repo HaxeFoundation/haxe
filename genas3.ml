@@ -235,7 +235,7 @@ let rec type_str ctx t p =
 		| _ -> "Vector.<" ^ type_str ctx pt p ^ ">")
 	| TInst (c,_) ->
 		(match c.cl_kind with
-		| KNormal | KGeneric | KGenericInstance _ -> s_path ctx false c.cl_path p
+		| KNormal | KGeneric | KGenericInstance _ | KAbstractImpl _ -> s_path ctx false c.cl_path p
 		| KTypeParameter _ | KExtension _ | KExpr _ | KMacroType -> "*")
 	| TFun _ ->
 		"Function"

@@ -76,6 +76,7 @@ enum ClassKind {
 	KGeneric;
 	KGenericInstance(cl:Ref<ClassType>, params:Array<Type>);
 	KMacroType;
+	KAbstractImpl(a:Ref<AbstractType>);
 }
 
 typedef ClassType = {> BaseType,

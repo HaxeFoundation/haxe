@@ -1182,6 +1182,7 @@ let rename_local_vars com e =
 		| _ ->
 			Type.iter loop e
 	in
+	declare (alloc_var "this" t_dynamic) Ast.null_pos; (* force renaming of 'this' vars in abstract *)
 	loop e;
 	e
 

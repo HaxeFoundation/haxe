@@ -35,6 +35,7 @@ type current_fun =
 	| FunStatic
 	| FunConstructor
 	| FunMemberLocal
+	| FunMemberAbstract
 
 type macro_mode =
 	| MExpr

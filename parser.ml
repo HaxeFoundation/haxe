@@ -247,7 +247,7 @@ and parse_type_decl s =
 				d_flags = List.map snd c;
 				d_data = t;
 			}, punion p1 p2)
-		| [< '(Kwd Abstract,p1); doc = get_doc; name = type_name; tl = parse_constraint_params; sl = psep Comma parse_abstract_relations; '(BrOpen,_); '(BrClose,p2) >] ->
+		| [< '(Kwd Abstract,p1); doc = get_doc; name = type_name; tl = parse_constraint_params; sl = psep Comma parse_abstract_relations; '(BrOpen,_); fl, p2 = parse_class_fields false p1 >] ->
 			let flags = List.map (fun (_,c) -> match c with EPrivate -> APrivAbstract | EExtern -> error (Custom "extern abstract not allowed") p1) c in
 			(EAbstract {
 				d_name = name;
@@ -255,7 +255,7 @@ and parse_type_decl s =
 				d_meta = meta;
 				d_params = tl;
 				d_flags = flags @ sl;
-				d_data = ();
+				d_data = fl;
 			},punion p1 p2)
 
 and parse_import s p1 =
@@ -291,6 +291,7 @@ and parse_abstract_relations s =
 	match s with parser
 	| [< '(Binop OpLte,_); t = parse_complex_type >] -> ASuperType t
 	| [< '(Binop OpAssign,p1); '(Binop OpGt,p2) when p1.pmax = p2.pmin; t = parse_complex_type >] -> ASubType t
+	| [< '(POpen, _); t = parse_complex_type; '(PClose,_) >] -> AIsType t
 
 and parse_package s = psep Dot lower_ident_or_macro s
 

@@ -247,6 +247,7 @@ type abstract_flag =
 	| APrivAbstract
 	| ASubType of complex_type
 	| ASuperType of complex_type
+	| AIsType of complex_type
 
 type enum_constructor = {
 	ec_name : string;
@@ -276,7 +277,7 @@ type type_def =
 	| EClass of (class_flag, class_field list) definition
 	| EEnum of (enum_flag, enum_constructor list) definition
 	| ETypedef of (enum_flag, complex_type) definition
-	| EAbstract of (abstract_flag, unit) definition
+	| EAbstract of (abstract_flag, class_field list) definition
 	| EImport of (string * pos) list * import_mode
 	| EUsing of type_path
 
