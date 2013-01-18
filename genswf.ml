@@ -105,7 +105,8 @@ let is_valid_path com pack name =
 			| None -> loop l
 			| Some (file,(_,a)) -> true
 	in
-	loop com.load_extern_type
+	let file = Printf.sprintf "%s/%s.hx" (String.concat "/" pack) name in
+	loop com.load_extern_type || (try ignore(Common.find_file com file); true with Not_found -> false)
 
 let build_class com c file =
 	let path = make_tpath c.hlc_name in
