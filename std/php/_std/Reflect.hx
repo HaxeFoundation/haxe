@@ -107,6 +107,7 @@
 		return o2;
 	}
 
+	@:overload(function( f : Array<Dynamic> -> Void ) : Dynamic {})
 	public static function makeVarArgs( f : Array<Dynamic> -> Dynamic ) : Dynamic {
 		return untyped __php__("array(new _hx_lambda(array(&$f), '_hx_make_var_args'), 'execute')");
 	}

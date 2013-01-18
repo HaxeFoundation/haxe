@@ -96,6 +96,7 @@
 		return o2;
 	}
 
+	@:overload(function( f : Array<Dynamic> -> Void ) : Dynamic {})
 	public static function makeVarArgs( f : Array<Dynamic> -> Dynamic ) : Dynamic {
 		return untyped __global__.__hxcpp_create_var_args(f);
 	}

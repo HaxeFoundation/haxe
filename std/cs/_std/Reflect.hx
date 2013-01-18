@@ -235,6 +235,7 @@ import cs.internal.Function;
 		Transform a function taking an array of arguments into a function that can
 		be called with any number of arguments.
 	**/
+	@:overload(function( f : Array<Dynamic> -> Void ) : Dynamic {})
 	public static function makeVarArgs( f : Array<Dynamic> -> Dynamic ) : Dynamic
 	{
 		return new VarArgsFunction(f);

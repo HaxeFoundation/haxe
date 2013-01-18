@@ -101,6 +101,7 @@
 		return o2;
 	}
 
+	@:overload(function( f : Array<Dynamic> -> Void ) : Dynamic {})
 	public static function makeVarArgs( f : Array<Dynamic> -> Dynamic ) : Dynamic {
 		return function() {
 			var a = untyped Array.prototype.slice.call(__js__("arguments"));

@@ -106,6 +106,7 @@
 		return o2;
 	}
 
+	@:overload(function( f : Array<Dynamic> -> Void ) : Dynamic {})
 	public static function makeVarArgs( f : Array<Dynamic> -> Dynamic ) : Dynamic {
 		return function() { return f(untyped __arguments__); };
 	}

@@ -89,12 +89,11 @@
 		return untyped $new(o);
 	}
 
+	@:overload(function( f : Array<Dynamic> -> Void ) : Dynamic {})
 	public static function makeVarArgs( f : Array<Dynamic> -> Dynamic ) : Dynamic {
 		return untyped $varargs(function(a) { return f(Array.new1(a,$asize(a))); });
 	}
 
-	#if neko
 	static var same_closure = try neko.Lib.load("std","same_closure",2) catch( e : Dynamic ) function(f1,f2) return f1 == f2;
-	#end
 
 }
