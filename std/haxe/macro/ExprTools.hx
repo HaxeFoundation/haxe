@@ -78,7 +78,7 @@ class ExprTools {
 			case EConst(_),
 				EContinue,
 				EBreak,
-				EDisplayNew:
+				EDisplayNew(_):
 			case EField(e, _),
 				EParenthesis(e),
 				EUntyped(e),

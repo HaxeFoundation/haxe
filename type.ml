@@ -1506,12 +1506,13 @@ let rec s_expr_pretty tabs s_type e =
 		sprintf "switch (%s) {%s%s}" (loop e) (slist (fun (cl,e) -> sprintf "case %s: %s" (slist loop cl) (loop e)) cases) (match def with None -> "" | Some e -> ",default: " ^ loop e)
 	| TMatch (e,(en,tparams),cases,def) ->
 		let cases = slist (fun (il,vl,e) ->
-			let ctor = PMap.find (List.nth en.e_names (List.nth il 0)) en.e_constrs in
+			let ctor i = (PMap.find (List.nth en.e_names i) en.e_constrs).ef_name in
+			let ctors = String.concat "," (List.map ctor il) in
 			begin match vl with
 				| None ->
-					sprintf "case %s:%s" ctor.ef_name (loop e)
+					sprintf "case %s:%s" ctors (loop e)
 				| Some vl ->
-					sprintf "case %s(%s):%s" ctor.ef_name (String.concat "," (List.map (fun v -> match v with None -> "_" | Some v -> v.v_name) vl)) (loop e)
+					sprintf "case %s(%s):%s" ctors (String.concat "," (List.map (fun v -> match v with None -> "_" | Some v -> v.v_name) vl)) (loop e)
 			end
 		) cases in
 		sprintf "switch (%s) {%s%s}" (loop e) cases (match def with None -> "" | Some e -> ",default: " ^ loop e)
