@@ -840,6 +840,40 @@ let rec to_typed_ast mctx dt =
 		| TInst({cl_path = [],"Array"},[t]) -> to_array_switch mctx t st cases
 		| t -> to_value_switch mctx t st cases
 
+and group_cases mctx cases to_case =
+	let def = ref None in
+	let is_compatible out1 out2 =
+		out1.o_id = out2.o_id
+		&& out1.o_guard = None
+		&& (out1.o_bindings = []
+			|| (List.length out1.o_bindings) = (List.length out2.o_bindings)
+			&& (ExtList.List.for_all2 (fun ((v1,_),st1) ((v2,_),st2) -> v1.v_name = v2.v_name && (s_st st1) = (s_st st2)) out1.o_bindings out2.o_bindings))
+	in
+	let group,cases,dto = List.fold_left (fun (group,cases,dto) (con,dt) -> match con.c_def with
+		| CConst TNull ->
+			let e = to_typed_ast mctx dt in
+			def := Some e;
+			(group,cases,dto)
+		| _ -> match dto with
+			| None -> ([to_case con],cases,Some dt)
+			| Some dt2 -> match dt,dt2 with
+				| Bind(out1,_),Bind(out2,_) when is_compatible out1 out2 ->
+					((to_case con) :: group,cases,dto)
+				| _ ->
+					let e = to_typed_ast mctx dt2 in
+					([to_case con],(List.rev group,e) :: cases, Some dt)
+	) ([],[],None) cases in
+	let cases = List.rev (match group,dto with
+		| [],None ->
+			cases
+		| group,Some dt ->
+			let e = to_typed_ast mctx dt in
+			(List.rev group,e) :: cases
+		| _ ->
+			assert false
+	) in
+	cases,def
+
 and to_enum_switch mctx en pl st cases =
 	let eval = st_to_texpr mctx st in
 	let et = monomorphs mctx.ctx.type_params (TEnum(en,pl)) in
@@ -875,7 +909,6 @@ and to_enum_switch mctx en pl st cases =
 
 and to_value_switch mctx t st cases =
 	let eval = st_to_texpr mctx st in
-	let def = ref None in
 	let to_case con = match con.c_def with
 		| CConst c ->
 			mk_const mctx.ctx con.c_pos c
@@ -886,48 +919,19 @@ and to_value_switch mctx t st cases =
 		| _ ->
 			error ("Unexpected "  ^ (s_con con)) con.c_pos
 	in
-	let group,cases,dto = List.fold_left (fun (group,cases,dto) (con,dt) -> match con.c_def with
-		| CConst TNull ->
-			let e = to_typed_ast mctx dt in
-			def := Some e;
-			(group,cases,dto)
-		| _ -> match dto with
-			| None -> ([to_case con],cases,Some dt)
-			| Some dt2 -> match dt,dt2 with
-				| Bind(out1,_),Bind(out2,_) when out1.o_id = out2.o_id && out1.o_guard = None ->
-					((to_case con) :: group,cases,dto)
-				| _ ->
-					let e = to_typed_ast mctx dt2 in
-					([to_case con],(List.rev group,e) :: cases, Some dt)
-	) ([],[],None) cases in
-	let cases = List.rev (match group,dto with
-		| [],None ->
-			cases
-		| group,Some dt ->
-			let e = to_typed_ast mctx dt in
-			(List.rev group,e) :: cases
-		| _ ->
-			assert false
-	) in
+	let cases,def = group_cases mctx cases to_case in
 	mk (TSwitch(eval,cases,!def)) mctx.out_type eval.epos
 
 and to_array_switch mctx t st cases =
-	let def = ref None in
-	let rec loop cases = match cases with
-		| [] ->
-			[]
-		| ({c_def = CArray i} as con,dt) :: cases ->
-			let e = to_typed_ast mctx dt in
-			([mk_const mctx.ctx con.c_pos (TInt (Int32.of_int i))],e) :: loop cases
-		| ({c_def = CConst TNull},dt) :: cases ->
-			let e = to_typed_ast mctx dt in
-			def := Some e;
-			loop cases
-		| (con,_) :: _ ->
+	let to_case con = match con.c_def with
+		| CArray i ->
+			mk_const mctx.ctx con.c_pos (TInt (Int32.of_int i))
+		| _ ->
 			error ("Unexpected "  ^ (s_con con)) con.c_pos
 	in
-	let cases = loop cases in
-	let eval = mk (TField(st_to_texpr mctx st,FDynamic "length")) mctx.ctx.com.basic.tint st.st_pos in
+	let cases,def = group_cases mctx cases to_case in
+	let eval = st_to_texpr mctx st in
+	let eval = mk (TField(eval,quick_field eval.etype "length")) mctx.ctx.com.basic.tint st.st_pos in
 	mk (TSwitch(eval,cases,!def)) mctx.out_type eval.epos
 
 (* Main *)
