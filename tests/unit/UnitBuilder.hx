@@ -60,7 +60,7 @@ class UnitBuilder {
 			}
 		}
 		readDir(basePath);
-		trace("Added " +numFiles + " .unit.hx files");
+		//trace("Added " +numFiles + " .unit.hx files");
 		return ret;
 	}
 	
