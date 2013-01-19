@@ -107,7 +107,7 @@ class Printer {
 		+ (meta.params.length > 0 ? '(${printExprs(meta.params,",")})' : "")
 
 	public function printField(field:Field) return
-		(field.meta != null && field.meta.length > 0 ? field.meta.map(printMetadata).join(" ") : "")
+		(field.meta != null && field.meta.length > 0 ? field.meta.map(printMetadata).join(" ") + " " : "")
 		+ switch(field.kind) {
 			case FVar(t, eo): 'var ${field.name}:${printComplexType(t)}' + opt(eo, printExpr, "=");
 			case FProp(get, set, _, _): 'var ${field.name}($get,$set)';
