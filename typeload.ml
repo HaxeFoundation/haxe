@@ -141,6 +141,7 @@ let make_module ctx mpath file tdecls loadp =
 						} in
 						{ f with cff_name = "_new"; cff_access = AStatic :: f.cff_access; cff_kind = FFun fu }
 					| FFun fu when not stat ->
+						if has_meta ":from" f.cff_meta then error "@:from cast functions must be static" f.cff_pos;
 						let fu = { fu with f_args = ("this",false,Some this_t,None) :: fu.f_args } in
 						{ f with cff_kind = FFun fu; cff_access = AStatic :: f.cff_access }
 					| _ ->
@@ -1308,6 +1309,19 @@ let init_class ctx c p context_init herits fields =
 				name, c, t
 			) fd.f_args in
 			let t = TFun (fun_args args,ret) in
+			(match c.cl_kind with
+				| KAbstractImpl a ->
+					let m = mk_mono() in
+					if has_meta ":from" f.cff_meta then begin
+						let t_abstract = TAbstract(a,(List.map (fun _ -> mk_mono()) a.a_types)) in
+						unify ctx t (tfun [m] t_abstract) f.cff_pos;
+						a.a_from <- (follow m) :: a.a_from
+					end else if has_meta ":to" f.cff_meta then begin
+						unify ctx t (tfun [a.a_this] m) f.cff_pos;
+						a.a_to <- (follow m) :: a.a_to
+					end
+				| _ ->
+					());
 			if constr && c.cl_interface then error "An interface cannot have a constructor" p;
 			if c.cl_interface && not stat && fd.f_expr <> None then error "An interface method cannot have a body" p;
 			if constr then (match fd.f_type with

@@ -1298,6 +1298,125 @@ let check_local_vars_init e =
 	e
 
 (* -------------------------------------------------------------------------- *)
+(* ABSTRACT CASTS *)
+
+let handle_abstract_casts ctx e =
+	let make_cast_call c cf earg t p =
+		let ta = TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) } in
+		let ethis = mk (TTypeExpr (TClassDecl c)) ta p in
+		(match cf.cf_expr with
+		| Some { eexpr = TFunction fd } ->
+			(match Optimizer.type_inline ctx cf fd ethis earg t p false with
+				| Some e -> e
+				| None ->
+					let e = mk (TField (ethis,(FStatic (c,cf)))) cf.cf_type p in
+					mk (TCall(e,earg)) t p)
+		| _ ->
+			assert false)
+	in
+	let find_from_cast c a t p =
+		let rec loop cfl = match cfl with
+			| [] ->
+				error (Printf.sprintf "Cannot cast %s to %s" (s_type_path a.a_path) (s_type (print_context()) t)) p;
+			| cf :: cfl when has_meta ":from" cf.cf_meta ->
+				begin match follow cf.cf_type with
+				| TFun([_,_,ta],_) when type_iseq ta t ->
+					cf
+				| _ ->
+					loop cfl
+				end
+			| _ :: cfl ->
+				loop cfl
+		in
+		loop c.cl_ordered_statics
+	in
+	let find_to_cast c a t p =
+		let rec loop cfl = match cfl with
+			| [] ->
+				error (Printf.sprintf "Cannot cast %s to %s" (s_type (print_context()) t) (s_type_path a.a_path)) p;
+			| cf :: cfl when has_meta ":to" cf.cf_meta ->
+				begin match follow cf.cf_type with
+				| TFun([ta],r) when type_iseq r t ->
+					cf
+				| _ ->
+					loop cfl
+				end
+			| _ :: cfl ->
+				loop cfl
+		in
+		loop c.cl_ordered_statics
+	in
+	let rec check_cast tleft eright p =
+		let eright = loop eright in
+		match follow tleft,follow eright.etype with
+		| TAbstract({a_impl = Some _} as a1,_),TAbstract({a_impl = Some _} as a2,_) ->
+			if a1 != a2 then
+				error "not implemented yet" p
+			else
+				eright
+		| TDynamic _,_ | _,TDynamic _ ->
+			eright
+		| TAbstract({a_impl = Some c} as a ,_),t ->
+			let cf = find_from_cast c a eright.etype p in
+			make_cast_call c cf [eright] tleft p
+		| t,TAbstract({a_impl = Some c} as a,_) ->
+			let cf = find_to_cast c a t p in
+			make_cast_call c cf [eright] tleft p
+		| _ ->
+			eright
+	and loop e = match e.eexpr with
+		| TBinop(OpAssign,e1,e2) ->
+			let e2 = check_cast e1.etype e2 e.epos in
+			{ e with eexpr = TBinop(OpAssign,loop e1,e2) }
+		| TVars vl ->
+			let vl = List.map (fun (v,eo) -> match eo with
+				| None -> (v,eo)
+				| Some e -> (v,Some (check_cast v.v_type e e.epos))
+			) vl in
+			{ e with eexpr = TVars vl }
+		| TCall(e1, el) ->
+			begin match follow e1.etype with
+				| TFun(args,_) ->
+					let rec loop2 el tl = match el,tl with
+						| [],_ -> []
+						| e :: el, [] -> (loop e) :: loop2 el []
+						| e :: el, (_,_,t) :: tl ->
+							(check_cast t e e.epos) :: loop2 el tl
+					in
+					let el = loop2 el args in
+					{ e with eexpr = TCall(loop e1,el)}
+				| _ ->
+					e
+			end
+		| TArrayDecl el ->
+			begin match e.etype with
+				| TInst(_,[t]) ->
+					let el = List.map (fun e -> check_cast t e e.epos) el in
+					{ e with eexpr = TArrayDecl el}
+				| _ ->
+					e
+			end
+		| TObjectDecl fl ->
+			begin match follow e.etype with
+			| TAnon a ->
+				let fl = List.map (fun (n,e) ->
+					try
+						let cf = PMap.find n a.a_fields in
+						let e = match e.eexpr with TCast(e1,None) -> e1 | _ -> e in
+						(n,check_cast cf.cf_type e e.epos)
+					with Not_found ->
+						(n,loop e)
+				) fl in
+				{ e with eexpr = TObjectDecl fl }
+			| _ ->
+				e
+			end
+		| _ ->
+			Type.map_expr loop e
+	in
+	loop e
+
+(* -------------------------------------------------------------------------- *)
 (* POST PROCESS *)
 
 let pp_counter = ref 1

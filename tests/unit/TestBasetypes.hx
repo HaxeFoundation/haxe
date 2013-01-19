@@ -283,4 +283,69 @@ class TestBasetypes extends Test {
 		eq( b.toInt(), 33 );
 	}
 
+	function testAbstractCast() {
+		var s = "Abstract casting ::t::";
+		// var from
+		var tpl:unit.MyAbstract.TemplateWrap = s;
+		t(Std.is(tpl, haxe.Template));
+		t(Std.is(tpl.get(), haxe.Template));
+		eq(tpl.get().execute( { t:"works!" } ), "Abstract casting works!");
+		
+		//var to
+		var str:String = tpl;
+		t(Std.is(str, String));
+		eq(str, "Abstract casting really works!");
+		
+		// assign from
+		var tpl:unit.MyAbstract.TemplateWrap;
+		tpl = s;
+		t(Std.is(tpl, haxe.Template));
+		t(Std.is(tpl.get(), haxe.Template));
+		eq(tpl.get().execute( { t:"works!" } ), "Abstract casting works!");
+		
+		//assign to
+		var str:String;
+		str = tpl;
+		t(Std.is(str, String));
+		eq(str, "Abstract casting really works!");
+		
+		// call arg from
+		function from(tpl:unit.MyAbstract.TemplateWrap) {
+			eq(tpl.get().execute( { t:"works!" } ), "Abstract casting works!");
+		}
+		from(s);
+		
+		// call arg to
+		function from(s:String) {
+			eq(s, "Abstract casting really works!");
+		}
+		from(tpl);
+		
+		// object decl from variant
+		var obj: { tpl:unit.MyAbstract.TemplateWrap } = { tpl:s };
+		eq(obj.tpl.get().execute( { t:"works!" } ), "Abstract casting works!");
+		
+		// object decl from
+		var obj: { tpl:unit.MyAbstract.TemplateWrap };
+		obj = { tpl:s };
+		eq(obj.tpl.get().execute( { t:"works!" } ), "Abstract casting works!");
+		
+		// object decl to variant
+		var obj: { s:String } = { s:tpl };
+		eq(obj.s, "Abstract casting really works!");
+		
+		// object decl to
+		var obj: { s:String };
+		obj = { s:tpl };
+		eq(obj.s, "Abstract casting really works!");
+		
+		// array from
+		var arr:Array<unit.MyAbstract.TemplateWrap> = [s, "foo"];
+		eq(arr[0].get().execute( { t:"works!" } ), "Abstract casting works!");
+		eq(arr[1].get().execute( { } ), "foo");
+		
+		// array to
+		var arr:Array<String> = [tpl];
+		eq(arr[0], "Abstract casting really works!");
+	}
 }
