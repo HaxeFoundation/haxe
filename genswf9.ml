@@ -310,7 +310,7 @@ let property ctx p t =
 	| TInst ({ cl_path = [],"Array" },_) ->
 		(match p with
 		| "length" -> ident p, Some KInt, false (* UInt in the spec *)
-		| "copy" | "insert" | "remove" | "iterator" | "toString" -> ident p , None, true
+		| "copy" | "insert" | "remove" | "iterator" | "toString" | "map" | "filter" -> ident p , None, true
 		| _ -> as3 p, None, false);
 	| TInst ({ cl_path = ["flash"],"Vector" },_) ->
 		(match p with
