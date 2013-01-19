@@ -27,9 +27,11 @@ using Lambda;
 
 class Printer {
 	var tabs:String;
-
-	public function new() {
+	var tabString:String;
+	
+	public function new(?tabString = "\t") {
 		tabs = "";
+		this.tabString = tabString;
 	}
 	
 	public function printUnop(op:Unop) return switch(op) {
@@ -107,8 +109,8 @@ class Printer {
 	public function printField(field:Field) return
 		(field.meta != null && field.meta.length > 0 ? field.meta.map(printMetadata).join(" ") : "")
 		+ switch(field.kind) {
-			case FVar(t, eo): 'var $field.name:${printComplexType(t)}' + opt(eo, printExpr, "=");
-			case FProp(get, set, _, _): 'var $field.name($get,$set)';
+			case FVar(t, eo): 'var ${field.name}:${printComplexType(t)}' + opt(eo, printExpr, "=");
+			case FProp(get, set, _, _): 'var ${field.name}($get,$set)';
 			case FFun(func): "function " + printFunction(func);
 		}
 	
@@ -157,7 +159,7 @@ class Printer {
 		case EBlock([]): '{\n$tabs}';
 		case EBlock(el):
 			var old = tabs;
-			tabs += "\t";
+			tabs += tabString;
 			var s = '{\n$tabs' + printExprs(el, ';\n$tabs');
 			tabs = old;
 			s + ';\n$tabs}';
@@ -168,7 +170,7 @@ class Printer {
 		case EWhile(econd, e1, false): 'do ${printExpr(e1)} while(${printExpr(econd)})';
 		case ESwitch(e1, cl, edef):
 			var old = tabs;
-			tabs += "\t";
+			tabs += tabString;
 			var s = 'switch ${printExpr(e1)} {\n$tabs' +
 				cl.map(function(c)
 					return 'case ${printExprs(c.values, ",")}'
