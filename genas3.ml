@@ -511,6 +511,10 @@ and gen_field_access ctx t s =
 			print ctx "[\"%s\"]" s
 		| [], "String", "charCodeAt" ->
 			spr ctx "[\"charCodeAtHX\"]"
+		| [], "Array", "map" ->
+			spr ctx "[\"mapHX\"]"
+		| [], "Array", "filter" ->
+			spr ctx "[\"filterHX\"]"
 		| [], "Date", "toString" ->
 			print ctx "[\"toStringHX\"]"
 		| [], "String", "cca" ->

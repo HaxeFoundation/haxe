@@ -231,6 +231,36 @@ class Boot extends flash.display.MovieClip {
 				}
 			}
 		};
+		aproto.setPropertyIsEnumerable("copy", false);
+		aproto.setPropertyIsEnumerable("insert", false);
+		aproto.setPropertyIsEnumerable("remove", false);
+		aproto.setPropertyIsEnumerable("iterator", false);
+		#if as3
+		aproto.filterHX = function(f) {
+			var ret = [];
+			var i = 0;
+			var l = __this__.length;
+			while ( i < l ) {
+				if (f(__this__[i]))
+					ret.push(__this__[i]);
+				i++;
+			}
+			return ret;
+		};
+		aproto.mapHX = function(f) {
+			var ret = [];
+			var i = 0;
+			var l = __this__.length;
+			while( i < l ) {
+				ret.push(f(__this__[i]));
+				i++;
+			}
+			return ret;
+		};
+		aproto.setPropertyIsEnumerable("mapHX", false);
+		aproto.setPropertyIsEnumerable("filterHX", false);
+		String.prototype.charCodeAtHX = function(i) : Null<Int> {
+		#else
 		aproto.filter = function(f) {
 			var ret = [];
 			var i = 0;
@@ -252,15 +282,8 @@ class Boot extends flash.display.MovieClip {
 			}
 			return ret;
 		};
-		aproto.setPropertyIsEnumerable("copy", false);
-		aproto.setPropertyIsEnumerable("insert", false);
-		aproto.setPropertyIsEnumerable("remove", false);
-		aproto.setPropertyIsEnumerable("iterator", false);
 		aproto.setPropertyIsEnumerable("map", false);
 		aproto.setPropertyIsEnumerable("filter", false);
-		#if as3
-		String.prototype.charCodeAtHX = function(i) : Null<Int> {
-		#else
 		String.prototype.charCodeAt = function(i) : Null<Int> {
 		#end
 			var s : String = __this__;
