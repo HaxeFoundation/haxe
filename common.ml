@@ -552,7 +552,7 @@ let rec has_feature com f =
 			let r = (try
 				let path = List.rev pack, cl in
 				(match List.find (fun t -> t_path t = path && not (has_meta ":realPath" (t_infos t).mt_meta)) com.types with
-				| t when meth = "*" -> has_meta ":used" (t_infos t).mt_meta
+				| t when meth = "*" -> (match t with TAbstractDecl a -> has_meta ":valueUsed" a.a_meta | _ -> has_meta ":used" (t_infos t).mt_meta)
 				| TClassDecl c -> PMap.exists meth c.cl_statics || PMap.exists meth c.cl_fields
 				| _ -> false)
 			with Not_found ->

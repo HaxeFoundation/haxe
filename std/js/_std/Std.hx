@@ -21,6 +21,7 @@
  */
 import js.Boot;
 
+@:keepInit
 @:coreApi class Std {
 
 	public static inline function is( v : Dynamic, t : Dynamic ) : Bool {
@@ -91,6 +92,26 @@ import js.Boot;
 		__feature__("Void.*",{
 			var Void = __feature__("Type.resolveEnum", $hxClasses["Void"] = { __ename__ : ["Void"] }, { __ename__ : ["Void"] });
 		});
+		__feature__("Array.map",
+			if( Array.prototype.map == null )
+				Array.prototype.map = function(f) {
+					var a = [];
+					for( i in 0...__this__.length )
+						a[i] = f(__this__[i]);
+					return a;
+				}
+		);
+		__feature__("Array.filter",
+			if( Array.prototype.filter == null )
+				Array.prototype.filter = function(f) {
+					var a = [];
+					for( i in 0...__this__.length ) {
+						var e = __this__[i];
+						if( f(e) ) a.push(e);
+					}
+					return a;
+				}
+		);
 	}
 
 }

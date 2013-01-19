@@ -538,6 +538,8 @@ and wait_loop boot_com host port =
 								| x :: l -> loop (x::acc) l
 							in
 							loop [] e.e_meta
+						| TAbstractDecl a ->
+							a.a_meta <- List.filter (fun (m,_,_) -> m <> ":valueUsed") a.a_meta
 						| _ -> ()
 					) m.m_types;
 					Typeload.add_module ctx m p;

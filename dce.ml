@@ -62,7 +62,7 @@ let keep_whole_class dce c =
 	|| not (dce.full || is_std_file dce c.cl_module.m_extra.m_file)
 	|| super_forces_keep c
 	|| (match c with
-		| { cl_extern = true; cl_path = ([],"Math")} when dce.com.platform = Js -> false
+		| { cl_extern = true; cl_path = ([],("Math"|"Array"))} when dce.com.platform = Js -> false
 		| { cl_extern = true }
 		| { cl_path = ["flash";"_Boot"],"RealBoot" } -> true
 		| { cl_path = [],"String" }
@@ -160,6 +160,8 @@ let mark_mt dce mt = match mt with
 	| TEnumDecl e ->
 		mark_enum dce e
 	| TAbstractDecl a ->
+		(* abstract 'feature' is defined as the abstract type beeing used as a value, not as a type *)
+		if not (has_meta ":valueUsed" a.a_meta) then a.a_meta <- (":valueUsed",[],a.a_pos) :: a.a_meta;
 		mark_abstract dce a
 	| TTypeDecl _ ->
 		()
@@ -399,8 +401,14 @@ let run com main full =
 			(match c.cl_constructor with Some cf when not (keep_field dce cf) -> c.cl_constructor <- None | _ -> ());
 			(* we keep a class if it was used or has a used field *)
 			if has_meta ":used" c.cl_meta || c.cl_ordered_statics <> [] || c.cl_ordered_fields <> [] then loop (mt :: acc) l else begin
-				if dce.debug then print_endline ("[DCE] Removed class " ^ (s_type_path c.cl_path));
-				loop acc l
+				(match c.cl_init with
+				| Some f when has_meta ":keepInit" c.cl_meta ->
+					(* it means that we only need the __init__ block *)
+					c.cl_extern <- true;
+					loop (mt :: acc) l
+				| _ ->
+					if dce.debug then print_endline ("[DCE] Removed class " ^ (s_type_path c.cl_path));
+					loop acc l)
 			end
  		| (TEnumDecl e) as mt :: l when has_meta ":used" e.e_meta || has_meta ":keep" e.e_meta || e.e_extern || not (dce.full || is_std_file dce e.e_module.m_extra.m_file) ->
 			loop (mt :: acc) l
