@@ -204,6 +204,8 @@ let rec type_str ctx t p =
 	match t with
 	| TEnum _ | TInst _ when List.memq t ctx.local_types ->
 		"*"
+	| TAbstract ({ a_impl = Some _ } as a,pl) ->
+		type_str ctx (apply_params a.a_types pl a.a_this) p
 	| TAbstract (a,_) ->
 		(match a.a_path with
 		| [], "Void" -> "void"
