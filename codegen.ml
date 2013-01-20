@@ -1348,29 +1348,29 @@ let handle_abstract_casts ctx e =
 	in
 	let rec check_cast tleft eright p =
 		let eright = loop eright in
-		match follow tleft,follow eright.etype with
-		| (TAbstract({a_impl = Some c1} as a1,_) as t1),(TAbstract({a_impl = Some c2} as a2,_) as t2) ->
-			if a1 == a2 then
+		try (match follow tleft,follow eright.etype with
+			| (TAbstract({a_impl = Some c1} as a1,_) as t1),(TAbstract({a_impl = Some c2} as a2,_) as t2) ->
+				if a1 == a2 then
+					eright
+				else begin
+					let c,cf = try
+						c1,find_from_cast c1 a1 t2 p
+					with Not_found ->
+						c2,find_to_cast c2 a2 t1 p
+					in
+					make_cast_call c cf [eright] tleft p
+				end
+			| TDynamic _,_ | _,TDynamic _ ->
 				eright
-			else begin
-				let c,cf = try
-					c1,find_from_cast c1 a1 t2 p
-				with Not_found -> try
-					c2,find_to_cast c2 a2 t1 p
-				with Not_found ->
-					error (Printf.sprintf "Cannot cast %s to %s" (s_type_path a2.a_path) (s_type_path a1.a_path)) p
-				in
+			| TAbstract({a_impl = Some c} as a ,_),t ->
+				let cf = find_from_cast c a eright.etype p in
 				make_cast_call c cf [eright] tleft p
-			end
-		| TDynamic _,_ | _,TDynamic _ ->
-			eright
-		| TAbstract({a_impl = Some c} as a ,_),t ->
-			let cf = try find_from_cast c a eright.etype p with Not_found -> error (Printf.sprintf "Cannot cast %s to %s" (s_type_path a.a_path) (s_type (print_context()) t)) p in
-			make_cast_call c cf [eright] tleft p
-		| t,TAbstract({a_impl = Some c} as a,_) ->
-			let cf = try find_to_cast c a t p with Not_found -> error (Printf.sprintf "Cannot cast %s to %s" (s_type (print_context()) t) (s_type_path a.a_path)) p in
-			make_cast_call c cf [eright] tleft p
-		| _ ->
+			| t,TAbstract({a_impl = Some c} as a,_) ->
+				let cf = find_to_cast c a t p in
+				make_cast_call c cf [eright] tleft p
+			| _ ->
+				eright)
+		with Not_found ->
 			eright
 	and loop e = match e.eexpr with
 		| TBinop(OpAssign,e1,e2) ->
