@@ -106,13 +106,24 @@ class Printer {
 		'@${meta.name}'
 		+ (meta.params.length > 0 ? '(${printExprs(meta.params,",")})' : "")
 
-	public function printField(field:Field) return
-		(field.meta != null && field.meta.length > 0 ? field.meta.map(printMetadata).join(" ") + " " : "")
+  public function printAccess(access:Access) return switch(access) {
+    case AStatic: "static";
+    case APublic: "public";
+    case APrivate: "private";
+    case AOverride: "override";
+    case AInline: "inline";
+    case ADynamic: "dynamic";
+    case AMacro: "macro";
+  }
+
+  public function printField(field:Field) return
+    (field.meta != null && field.meta.length > 0 ? field.meta.map(printMetadata).join(" ") + " " : "")
+    + (field.access.length > 0 ? field.access.map(printAccess).join(" ") + " " : "")
 		+ switch(field.kind) {
-			case FVar(t, eo): 'var ${field.name}:${printComplexType(t)}' + opt(eo, printExpr, "=");
-			case FProp(get, set, _, _): 'var ${field.name}($get,$set)';
-			case FFun(func): "function " + printFunction(func);
-		}
+      case FVar(t, eo): 'var ${field.name}:${printComplexType(t)}' + opt(eo, printExpr, "=");
+      case FProp(get, set, t, eo): 'var ${field.name}($get,$set):${printComplexType(t)}' + opt(eo, printExpr, "=");
+      case FFun(func): 'function ${field.name}' + printFunction(func);
+    }
 	
 	public function printTypeParamDecl(tpd:TypeParamDecl) return
 		tpd.name
