@@ -134,7 +134,8 @@ let make_module ctx mpath file tdecls loadp =
 							fu with
 							f_expr = (match fu.f_expr with
 							| None -> None
-							| Some (EBlock [EBinop (OpAssign,(EConst (Ident "this"),_),e),_],_) -> Some (EReturn (Some e), pos e)
+							| Some (EBlock [EBinop (OpAssign,(EConst (Ident "this"),_),e),_],_ | EBinop (OpAssign,(EConst (Ident "this"),_),e),_) ->
+								Some (EReturn (Some e), pos e)
 							| Some (EBlock el,p) -> Some (EBlock (init p :: el @ [ret p]),p)
 							| Some e -> Some (EBlock [init p;e;ret p],p)
 							)
