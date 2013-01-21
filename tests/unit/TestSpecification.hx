@@ -83,10 +83,15 @@ private enum E {
 	MultipleArgs(i:Int, s:String);
 }
 
+enum EnumFlagTest {
+	EA;
+	EB;
+	EC;
+}
+
 #if !macro
 @:build(unit.UnitBuilder.build("unitstd"))
 #end
-class TestSpecification extends Test
-{
+class TestSpecification extends Test {
 
 }

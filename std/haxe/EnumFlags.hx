@@ -22,50 +22,73 @@
 package haxe;
 
 /**
-	A typed interface for bit flags. This is not a real object, only a typed interface for an actual Int. Each flag can be tested/set with the corresponding enum value. Up to 32 flags can be stored that way.
+	A typed interface for bit flags. This is not a real object, only a typed
+	interface for an actual Int. Each flag can be tested/set with the
+	corresponding enum instance. Up to 32 flags can be stored that way.
+	
+	Enum constructor indices are preserved from haxe syntax, so the first
+	declared is index 0, the next index 1 etc. The methods are optimized if the
+	enum instance is passed directly, e.g. as has(EnumCtor). Otherwise
+	Type.enumIndex() reflection is used.
 **/
-@:native("Int")
-extern class EnumFlags<T:EnumValue> {
+abstract EnumFlags(Int)<T:EnumValue> {
 
 	/**
-		Initialize the bitflags (set it to 0)
+		Initializes the bitflags to [i].
 	**/
-	public inline function init() : Void {
-		untyped __this__ = 0;
+	public inline function new(i = 0) {
+		this = i;
 	}
 
 	/**
-		Check if the bitflag has the corresponding enum set. This will be compiled as a single bit & mask != 0 in case the enum value is directly passed to the method.
+		Checks if the index of enum instance [v] is set.
+		
+		This method is optimized if [v] is an enum instance expression such as
+		SomeEnum.SomeCtor.
+		
+		If [v] is null, the result is unspecified.
 	**/
 	public inline function has( v : T ) : Bool {
-		return (cast this) & (1 << Type.enumIndex(cast v)) != 0;
+		return this & (1 << Type.enumIndex(v)) != 0;
 	}
 
 	/**
-		Set the bitflag for the corresponding enum value.
+		Sets the index of enum instance [v].
+		
+		This method is optimized if [v] is an enum instance expression such as
+		SomeEnum.SomeCtor.
+		
+		If [v] is null, the result is unspecified.
 	**/
 	public inline function set( v : T ) : Void {
-		untyped __this__ |= 1 << Type.enumIndex(cast v);
+		this |= 1 << Type.enumIndex(v);
 	}
 
 	/**
-		Unset the bitflag for the corresponding enum value.
+		Unsets the index of enum instance [v].
+		
+		This method is optimized if [v] is an enum instance expression such as
+		SomeEnum.SomeCtor.
+		
+		If [v] is null, the result is unspecified.
 	**/
 	public inline function unset( v : T ) : Void {
-		untyped __this__ &= 0xFFFFFFF - (1 << Type.enumIndex(cast v));
+		this &= 0xFFFFFFF - (1 << Type.enumIndex(v));
 	}
 
 	/**
-		Convert a integer bitflag into a typed one (this is a no-op, it doesn't have any impact on speed).
+		Convert a integer bitflag into a typed one (this is a no-op, it does not
+		have any impact on speed).
 	**/
-	public inline static function ofInt<T:EnumValue>( i : Int ) : EnumFlags<T> {
-		return cast i;
+	@:from public inline static function ofInt<T:EnumValue>( i : Int ) : EnumFlags<T> {
+		return new EnumFlags(i);
 	}
 
 	/**
-		Convert the typed bitflag into the corresponding int value (this is a no-op, it doesn't have any impact on speed).
+		Convert the typed bitflag into the corresponding int value (this is a
+		no-op, it doesn't have any impact on speed).
 	**/
-	public inline function toInt() : Int {
-		return cast this;
+	@:to public inline function toInt() : Int {
+		return this;
 	}
 }
