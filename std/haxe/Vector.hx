@@ -25,13 +25,16 @@ package haxe;
 	A Vector is a storage of fixed size. It can be faster than Array on some
 	targets, and is never slower.
 **/
-abstract Vector(#if flash9
+	
+typedef VImpl<T> = #if flash9
 	flash.Vector<T>
 #elseif neko
 	neko.NativeArray<T>
 #else
 	Array<T>
-#end)<T> {
+#end
+
+abstract Vector(VImpl<T>)<T> {
 	/**
 		Creates a new Vector of length [length].
 		

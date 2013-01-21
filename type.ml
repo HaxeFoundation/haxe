@@ -993,14 +993,15 @@ let rec unify a b =
 	| _ , TAbstract ({a_path=[],"Void"},_) ->
 		error [cannot_unify a b]
 	| TAbstract (a1,tl1) , TAbstract (a2,tl2) ->
+		let has_impl = a1.a_impl <> None || a2.a_impl <> None in
 		if not (List.exists (fun (t,cfo) ->
 			let t = apply_params a1.a_types tl1 t in
 			let t = match cfo with None -> t | Some cf -> monomorphs cf.cf_params t in
-			try unify t b; true with Unify_error _ -> false
+			try if has_impl then type_eq EqStrict t b else unify t b; true with Unify_error _ -> false
 		) a1.a_to) && not (List.exists (fun (t,cfo) ->
 			let t = apply_params a2.a_types tl2 t in
 			let t = match cfo with None -> t | Some cf -> monomorphs cf.cf_params t in
-			try unify a t; true with Unify_error _ -> false
+			try if has_impl then type_eq EqStrict a t else unify a t; true with Unify_error _ -> false
 		) a2.a_from) then error [cannot_unify a b]
 	| TInst (c1,tl1) , TInst (c2,tl2) ->
 		let rec loop c tl =
@@ -1145,10 +1146,11 @@ let rec unify a b =
 		| _ ->
 			error [cannot_unify a b])
 	| TAbstract (aa,tl), _  ->
+		let has_impl = aa.a_impl <> None in
 		if not (List.exists (fun (t,cfo) ->
 			let t = apply_params aa.a_types tl t in
 			let t = match cfo with None -> t | Some cf -> monomorphs cf.cf_params t in
-			try unify t b; true with Unify_error _ -> false
+			try if has_impl then type_eq EqStrict t b else unify t b; true with Unify_error _ -> false
 		) aa.a_to) then error [cannot_unify a b];
 	| TInst ({ cl_kind = KTypeParameter ctl } as c,pl), TAbstract _ ->
 		(* one of the constraints must satisfy the abstract *)
@@ -1157,10 +1159,11 @@ let rec unify a b =
 			try unify t b; true with Unify_error _ -> false
 		) ctl) then error [cannot_unify a b];
 	| _, TAbstract (bb,tl) ->
+		let has_impl = bb.a_impl <> None in
 		if not (List.exists (fun (t,cfo) ->
 			let t = apply_params bb.a_types tl t in
 			let t = match cfo with None -> t | Some cf -> monomorphs cf.cf_params t in
-			try unify a t; true with Unify_error _ -> false
+			try if has_impl then type_eq EqStrict a t else unify a t; true with Unify_error _ -> false
 		) bb.a_from) then error [cannot_unify a b];
 	| _ , _ ->
 		error [cannot_unify a b]
