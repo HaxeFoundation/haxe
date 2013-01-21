@@ -363,6 +363,15 @@ let to_pattern ctx e t =
 				let ec = match follow tc with
 					| TEnum(en,pl) ->
 						let ef = try PMap.find s en.e_constrs with Not_found when not (is_lower_ident s) -> error ("Expected constructor for enum " ^ (s_type_path en.e_path)) p in
+						(match ef.ef_type with
+							| TFun (args,_) ->
+								let msg = Printf.sprintf "Enum constructor %s.%s requires parameters %s"
+									(s_type_path en.e_path)
+									ef.ef_name
+									(String.concat ", " (List.map (fun (n,_,t) -> n ^ ":" ^ (s_type t)) args))
+								in
+								error msg p
+							| _ -> ());
 						let et = mk (TTypeExpr (TEnumDecl en)) (TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics en) }) p in
 						mk (TField (et,FEnum (en,ef))) (apply_params en.e_types pl ef.ef_type) p
 					| _ ->
