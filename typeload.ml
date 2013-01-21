@@ -148,7 +148,7 @@ let make_module ctx mpath file tdecls loadp =
 					| _ ->
 						f
 				) fields in
-				let acc = make_decl acc (EClass { d_name = d.d_name ^ "Impl"; d_flags = [HPrivate]; d_data = fields; d_doc = None; d_params = d.d_params; d_meta = [] },p) in
+				let acc = make_decl acc (EClass { d_name = d.d_name ^ "Impl"; d_flags = [HPrivate]; d_data = fields; d_doc = None; d_params = []; d_meta = [] },p) in
 				(match !decls with
 				| (TClassDecl c,_) :: _ ->
 					a.a_impl <- Some c;
@@ -1302,7 +1302,11 @@ let init_class ctx c p context_init herits fields =
 			let parent = (if not stat then get_parent c name else None) in
 			let dynamic = List.mem ADynamic f.cff_access || (match parent with Some { cf_kind = Method MethDynamic } -> true | _ -> false) in
 			if inline && dynamic then error "You can't have both 'inline' and 'dynamic'" p;
-			ctx.type_params <- if stat then params else params @ ctx.type_params;
+			ctx.type_params <- (match c.cl_kind with
+				| KAbstractImpl a ->
+					params @ a.a_types
+				| _ ->
+					if stat then params else params @ ctx.type_params);
 			let constr = (name = "new") in
 			let ret = if constr then ctx.t.tvoid else type_opt ctx p fd.f_type in
 			let args = List.map (fun (name,opt,t,c) ->

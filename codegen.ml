@@ -1301,26 +1301,29 @@ let check_local_vars_init e =
 (* ABSTRACT CASTS *)
 
 let handle_abstract_casts ctx e =
-	let make_cast_call c cf earg t p =
+	let make_cast_call c cf a pl args t p =
 		let ta = TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) } in
 		let ethis = mk (TTypeExpr (TClassDecl c)) ta p in
+		let def () =
+			let e = mk (TField (ethis,(FStatic (c,cf)))) cf.cf_type p in
+			mk (TCall(e,args)) t p
+		in
 		(match cf.cf_expr with
-		| Some { eexpr = TFunction fd } ->
-			(match Optimizer.type_inline ctx cf fd ethis earg t p false with
+		| Some { eexpr = TFunction fd } when cf.cf_kind = Method MethInline ->
+			(match Optimizer.type_inline ctx cf fd ethis args t (Some (a.a_types <> [], apply_params a.a_types pl)) p true with
 				| Some e -> e
 				| None ->
-					let e = mk (TField (ethis,(FStatic (c,cf)))) cf.cf_type p in
-					mk (TCall(e,earg)) t p)
+					def())
 		| _ ->
-			assert false)
+			def())
 	in
-	let find_from_cast c a t p =
+	let find_from_cast c a pl t p =
 		let rec loop cfl = match cfl with
 			| [] ->
 				raise Not_found
 			| cf :: cfl when has_meta ":from" cf.cf_meta ->
 				begin match follow cf.cf_type with
-				| TFun([_,_,ta],_) when type_iseq ta t ->
+				| TFun([_,_,ta],_) when type_iseq (apply_params a.a_types pl ta) t ->
 					cf
 				| _ ->
 					loop cfl
@@ -1349,25 +1352,25 @@ let handle_abstract_casts ctx e =
 	let rec check_cast tleft eright p =
 		let eright = loop eright in
 		try (match follow tleft,follow eright.etype with
-			| (TAbstract({a_impl = Some c1} as a1,_) as t1),(TAbstract({a_impl = Some c2} as a2,_) as t2) ->
+			| (TAbstract({a_impl = Some c1} as a1,pl1) as t1),(TAbstract({a_impl = Some c2} as a2,pl2) as t2) ->
 				if a1 == a2 then
 					eright
 				else begin
-					let c,cf = try
-						c1,find_from_cast c1 a1 t2 p
+					let c,cf,a,pl = try
+						c1,find_from_cast c1 a1 pl1 t2 p,a1,pl1
 					with Not_found ->
-						c2,find_to_cast c2 a2 t1 p
+						c2,find_to_cast c2 a2 t1 p,a2,pl2
 					in
-					make_cast_call c cf [eright] tleft p
+					make_cast_call c cf a pl [eright] tleft p
 				end
 			| TDynamic _,_ | _,TDynamic _ ->
 				eright
-			| TAbstract({a_impl = Some c} as a ,_),t ->
-				let cf = find_from_cast c a eright.etype p in
-				make_cast_call c cf [eright] tleft p
-			| t,TAbstract({a_impl = Some c} as a,_) ->
+			| TAbstract({a_impl = Some c} as a,pl),t ->
+				let cf = find_from_cast c a pl eright.etype p in
+				make_cast_call c cf a pl [eright] tleft p
+			| t,TAbstract({a_impl = Some c} as a,pl) ->
 				let cf = find_to_cast c a t p in
-				make_cast_call c cf [eright] tleft p
+				make_cast_call c cf a pl [eright] tleft p
 			| _ ->
 				eright)
 		with Not_found ->

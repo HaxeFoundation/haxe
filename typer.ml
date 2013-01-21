@@ -548,7 +548,7 @@ let get_constructor ctx c params p =
 	| KAbstractImpl a ->
 		let f = (try PMap.find "_new" c.cl_statics with Not_found -> error (s_type_path a.a_path ^ " does not have a constructor") p) in
 		let ct = field_type ctx c params f p in
-		apply_params c.cl_types params ct, f
+		apply_params a.a_types params ct, f
 	| _ ->
 		let ct, f = (try Type.get_constructor (fun f -> field_type ctx c params f p) c with Not_found -> error (s_type_path c.cl_path ^ " does not have a constructor") p) in
 		apply_params c.cl_types params ct, f
@@ -568,11 +568,21 @@ let make_call ctx e params t p =
 			| _ when has_meta ":extern" f.cf_meta -> true
 			| _ -> false
 		) in
+		let config = match cl with
+			| Some ({cl_kind = KAbstractImpl _ }) ->
+				(match if fname = "_new" then t else follow (List.hd params).etype with
+					| TAbstract(a,pl) ->
+						Some (a.a_types <> [], apply_params a.a_types pl)
+					| _ ->
+						None);
+			| _ ->
+				None
+		in
 		ignore(follow f.cf_type); (* force evaluation *)
 		let params = List.map (ctx.g.do_optimize ctx) params in
 		(match f.cf_expr with
 		| Some { eexpr = TFunction fd } ->
-			(match Optimizer.type_inline ctx f fd ethis params t p is_extern with
+			(match Optimizer.type_inline ctx f fd ethis params t config p is_extern with
 			| None ->
 				if is_extern then error "Inline could not be done" p;
 				raise Exit;
@@ -1011,6 +1021,7 @@ and type_field ctx e i p mode =
 			let c = (match a.a_impl with None -> raise Not_found | Some c -> c) in
 			let f = PMap.find i c.cl_statics in
 			let t = field_type ctx c [] f p in
+			let t = apply_params a.a_types pl t in
 			let et = type_module_type ctx (TClassDecl c) None p in
 			AKUsing ((mk (TField (et,FStatic (c,f))) t p),c,f,e)
 		with Not_found -> try
@@ -3206,7 +3217,7 @@ and flush_macro_context mint ctx =
 	(* we should maybe ensure that all filters in Main are applied. Not urgent atm *)
 	Interp.add_types mint types (Codegen.post_process [Codegen.captured_vars mctx.com; Codegen.rename_local_vars mctx.com]);
 	Codegen.post_process_end()
-	
+
 let create_macro_interp ctx mctx =
 	let com2 = mctx.com in
 	let mint, init = (match !macro_interp_cache with
@@ -3227,7 +3238,7 @@ let create_macro_interp ctx mctx =
 	mctx.g.macros <- Some macro;
 	(* mctx.g.core_api <- ctx.g.core_api; // causes some issues because of optional args and Null type in Flash9 *)
 	init()
-	
+
 let get_macro_context ctx p =
 	let api = make_macro_api ctx p in
 	match ctx.g.macros with

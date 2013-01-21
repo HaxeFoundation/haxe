@@ -80,7 +80,29 @@ type in_local = {
 	mutable i_read : int;
 }
 
-let rec type_inline ctx cf f ethis params tret p force =
+let inline_default_config cf t =
+	(* type substitution on both class and function type parameters *)
+	let rec get_params c pl =
+		match c.cl_super with
+		| None -> c.cl_types, pl
+		| Some (csup,spl) ->
+			let spl = (match apply_params c.cl_types pl (TInst (csup,spl)) with
+			| TInst (_,pl) -> pl
+			| _ -> assert false
+			) in
+			let ct, cpl = get_params csup spl in
+			c.cl_types @ ct, pl @ cpl
+	in
+	let tparams = (match follow t with
+		| TInst (c,pl) -> get_params c pl
+		| _ -> ([],[]))
+	in
+	let pmonos = List.map (fun _ -> mk_mono()) cf.cf_params in
+	let tmonos = snd tparams @ pmonos in
+	let tparams = fst tparams @ cf.cf_params in
+	tparams <> [], apply_params tparams tmonos
+
+let rec type_inline ctx cf f ethis params tret config p force =
 	(* perform some specific optimization before we inline the call since it's not possible to detect at final optimization time *)
 	try
 		let cl = (match follow ethis.etype with
@@ -92,25 +114,7 @@ let rec type_inline ctx cf f ethis params tret p force =
 		| None -> raise Exit
 		| Some e -> Some e)
 	with Exit ->
-	(* type substitution on both class and function type parameters *)
-	let has_params, map_type =
-		let rec get_params c pl =
-			match c.cl_super with
-			| None -> c.cl_types, pl
-			| Some (csup,spl) ->
-				let spl = (match apply_params c.cl_types pl (TInst (csup,spl)) with
-				| TInst (_,pl) -> pl
-				| _ -> assert false
-				) in
-				let ct, cpl = get_params csup spl in
-				c.cl_types @ ct, pl @ cpl
-		in
-		let tparams = (match follow ethis.etype with TInst (c,pl) -> get_params c pl | _ -> ([],[])) in
-		let pmonos = List.map (fun _ -> mk_mono()) cf.cf_params in
-		let tmonos = snd tparams @ pmonos in
-		let tparams = fst tparams @ cf.cf_params in
-		tparams <> [], apply_params tparams tmonos
-	in
+	let has_params,map_type = match config with Some config -> config | None -> inline_default_config cf ethis.etype in
 	(* locals substitution *)
 	let locals = Hashtbl.create 0 in
 	let local v =
@@ -332,7 +336,7 @@ let rec type_inline ctx cf f ethis params tret p force =
 		(* force inlining if we modify 'this' *)
 		if i.i_write && i.i_var.v_name = "this" then force := true;
 		(* force inlining of 'this' variable if the expression is writable *)
-		let flag = if not flag && i.i_var.v_name = "this" then begin			
+		let flag = if not flag && i.i_var.v_name = "this" then begin
 			if i.i_write && not (is_writable e) then error "Cannot modify the abstract value, store it into a local first" p;
 			true
 		end else flag in
@@ -387,7 +391,14 @@ let rec type_inline ctx cf f ethis params tret p force =
 			Some e
 		else
 			let mt = map_type cf.cf_type in
-			unify_raise ctx mt (TFun (List.map (fun e -> "",false,e.etype) params,tret)) p;
+			let unify_func () = unify_raise ctx mt (TFun (List.map (fun e -> "",false,e.etype) params,tret)) p in
+			(match follow ethis.etype with
+			| TAnon a -> (match !(a.a_status) with
+				| Statics {cl_kind = KAbstractImpl a } ->
+					(* TODO: we might have to unify something here *)
+					()
+				| _ -> unify_func())
+			| _ -> unify_func());
 			(*
 				this is very expensive since we are building the substitution list for
 				every expression, but hopefully in such cases the expression size is small
@@ -892,7 +903,7 @@ let rec reduce_loop ctx e =
 		let cf = mk_field "" ef.etype e.epos in
 		let ethis = mk (TConst TThis) t_dynamic e.epos in
 		let rt = (match follow ef.etype with TFun (_,rt) -> rt | _ -> assert false) in
-		let inl = (try type_inline ctx cf func ethis el rt e.epos false with Error (Custom _,_) -> None) in
+		let inl = (try type_inline ctx cf func ethis el rt None e.epos false with Error (Custom _,_) -> None) in
 		(match inl with
 		| None -> reduce_expr ctx e
 		| Some e -> reduce_loop ctx e)
@@ -919,7 +930,7 @@ let rec make_constant_expression ctx e =
 		(try
 			let func = match cf.cf_expr with Some ({eexpr = TFunction func}) -> func | _ -> raise Not_found in
 			let ethis = mk (TConst TThis) t_dynamic e.epos in
-			let inl = (try type_inline ctx cf func ethis el ret e.epos false with Error (Custom _,_) -> None) in
+			let inl = (try type_inline ctx cf func ethis el ret None e.epos false with Error (Custom _,_) -> None) in
 			(match inl with
 			| None -> None
 			| Some e -> make_constant_expression ctx e)
