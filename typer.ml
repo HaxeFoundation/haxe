@@ -2535,7 +2535,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 							()
 						else begin
 							let f = prepare_using_field f in
-							let f = { f with cf_params = []; cf_public = true } in
+							let f = { f with cf_params = []; cf_public = true; cf_type = TFun(args,ret) } in
 							acc := PMap.add f.cf_name f (!acc)
 						end
 					| _ -> ()
