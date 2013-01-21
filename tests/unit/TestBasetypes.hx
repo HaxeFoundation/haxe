@@ -354,4 +354,13 @@ class TestBasetypes extends Test {
 		var km:unit.MyAbstract.Kilometer = m;
 		feq(km, 0.1222);
 	}
+	
+	function testAbstractTypeParameters() {
+		var hash1:unit.MyAbstract.MyHash<String> = ["k1", "v1", "k2", "v2"];
+		eq("v1", hash1.get("k1"));
+		eq("v2", hash1.get("k2"));
+		var hash1:unit.MyAbstract.MyHash<Int> = [1, 2, 3, 4];
+		eq(2, hash1.get("_s1"));
+		eq(4, hash1.get("_s3"));
+	}
 }

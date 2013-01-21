@@ -67,13 +67,13 @@ let rec like_float t =
   match follow t with
     | TAbstract({ a_path = ([], "Float") },[])
     | TAbstract({ a_path = ([], "Int") },[]) -> true
-    | TAbstract(a, _) -> List.exists like_float a.a_from || List.exists like_float a.a_to
+    | TAbstract(a, _) -> List.exists (fun (t,_) -> like_float t) a.a_from || List.exists (fun (t,_) -> like_float t) a.a_to
     | _ -> false
 
 let rec like_int t =
   match follow t with
     | TAbstract({ a_path = ([], "Int") },[]) -> true
-    | TAbstract(a, _) -> List.exists like_int a.a_from || List.exists like_float a.a_to
+    | TAbstract(a, _) -> List.exists (fun (t,_) -> like_int t) a.a_from || List.exists (fun (t,_) -> like_float t) a.a_to
     | _ -> false
 
 
@@ -3641,11 +3641,11 @@ struct
           if a == a2 then
             List.iter2 (get_arg) params params2
           else begin
-            List.iter (fun t ->
+            List.iter (fun (t,_) ->
               let t = apply_params a2.a_types params2 t in
               get_arg original t
             ) a2.a_to;
-            List.iter (fun t ->
+            List.iter (fun (t,_) ->
               let t = apply_params a.a_types params t in
               get_arg t applied
             ) a.a_from
@@ -3671,12 +3671,12 @@ struct
           ignore (loop cl2 params2)
 
         | TAbstract(a, params), _ ->
-          List.iter (fun t ->
+          List.iter (fun (t,_) ->
             let t = apply_params a.a_types params t in
             get_arg t applied
           ) a.a_from
         | _, TAbstract(a2, params2) ->
-          List.iter (fun t ->
+          List.iter (fun (t,_) ->
             let t = apply_params a2.a_types params2 t in
             get_arg original t
           ) a2.a_to

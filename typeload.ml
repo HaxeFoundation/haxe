@@ -1314,19 +1314,6 @@ let init_class ctx c p context_init herits fields =
 				name, c, t
 			) fd.f_args in
 			let t = TFun (fun_args args,ret) in
-			(match c.cl_kind with
-				| KAbstractImpl a ->
-					let m = mk_mono() in
-					if has_meta ":from" f.cff_meta then begin
-						let t_abstract = TAbstract(a,(List.map (fun _ -> mk_mono()) a.a_types)) in
-						unify ctx t (tfun [m] t_abstract) f.cff_pos;
-						a.a_from <- (follow m) :: a.a_from
-					end else if has_meta ":to" f.cff_meta then begin
-						unify ctx t (tfun [a.a_this] m) f.cff_pos;
-						a.a_to <- (follow m) :: a.a_to
-					end
-				| _ ->
-					());
 			if constr && c.cl_interface then error "An interface cannot have a constructor" p;
 			if c.cl_interface && not stat && fd.f_expr <> None then error "An interface method cannot have a body" p;
 			if constr then (match fd.f_type with
@@ -1345,6 +1332,19 @@ let init_class ctx c p context_init herits fields =
 				cf_params = params;
 				cf_overloads = [];
 			} in
+			(match c.cl_kind with
+				| KAbstractImpl a ->
+					let m = mk_mono() in
+					if has_meta ":from" f.cff_meta then begin
+						let t_abstract = TAbstract(a,(List.map (fun _ -> mk_mono()) a.a_types)) in
+						unify ctx t (tfun [m] t_abstract) f.cff_pos;
+						a.a_from <- (follow m, Some cf) :: a.a_from
+					end else if has_meta ":to" f.cff_meta then begin
+						unify ctx t (tfun [a.a_this] m) f.cff_pos;
+						a.a_to <- (follow m, Some cf) :: a.a_to
+					end
+				| _ ->
+					());
 			init_meta_overloads ctx cf;
 			ctx.curfield <- cf;
 			let r = exc_protect ctx (fun r ->
@@ -1883,8 +1883,8 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 			t
 		in
 		List.iter (function
-			| AFromType t -> a.a_from <- load_type t :: a.a_from
-			| AToType t -> a.a_to <- load_type t :: a.a_to
+			| AFromType t -> a.a_from <- (load_type t, None) :: a.a_from
+			| AToType t -> a.a_to <- (load_type t, None) :: a.a_to
 			| AIsType t ->
 				a.a_this <- load_complex_type ctx p t;
 				is_type := true;

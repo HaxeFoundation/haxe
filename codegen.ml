@@ -1317,37 +1317,13 @@ let handle_abstract_casts ctx e =
 		| _ ->
 			def())
 	in
-	let find_from_cast c a pl t p =
-		let rec loop cfl = match cfl with
-			| [] ->
-				raise Not_found
-			| cf :: cfl when has_meta ":from" cf.cf_meta ->
-				begin match follow cf.cf_type with
-				| TFun([_,_,ta],_) when type_iseq (apply_params a.a_types pl ta) t ->
-					cf
-				| _ ->
-					loop cfl
-				end
-			| _ :: cfl ->
-				loop cfl
+	let find_cast a pl t from =
+		let rec loop fl = match fl with
+			| [] -> raise Not_found
+			| (t2,Some cf) :: _ when type_iseq t (apply_params a.a_types pl (monomorphs cf.cf_params t2)) -> cf
+			| (t2,_) :: fl -> loop fl
 		in
-		loop c.cl_ordered_statics
-	in
-	let find_to_cast c a t p =
-		let rec loop cfl = match cfl with
-			| [] ->
-				raise Not_found
-			| cf :: cfl when has_meta ":to" cf.cf_meta ->
-				begin match follow cf.cf_type with
-				| TFun([ta],r) when type_iseq r t ->
-					cf
-				| _ ->
-					loop cfl
-				end
-			| _ :: cfl ->
-				loop cfl
-		in
-		loop c.cl_ordered_statics
+		loop (List.rev (if from then a.a_from else a.a_to))
 	in
 	let rec check_cast tleft eright p =
 		let eright = loop eright in
@@ -1357,19 +1333,19 @@ let handle_abstract_casts ctx e =
 					eright
 				else begin
 					let c,cf,a,pl = try
-						c1,find_from_cast c1 a1 pl1 t2 p,a1,pl1
+						c1,find_cast a1 pl1 t2 true,a1,pl1
 					with Not_found ->
-						c2,find_to_cast c2 a2 t1 p,a2,pl2
+						c2,find_cast a2 pl2 t1 false,a2,pl2
 					in
 					make_cast_call c cf a pl [eright] tleft p
 				end
 			| TDynamic _,_ | _,TDynamic _ ->
 				eright
 			| TAbstract({a_impl = Some c} as a,pl),t ->
-				let cf = find_from_cast c a pl eright.etype p in
+				let cf = find_cast a pl t true in
 				make_cast_call c cf a pl [eright] tleft p
 			| t,TAbstract({a_impl = Some c} as a,pl) ->
-				let cf = find_to_cast c a t p in
+				let cf = find_cast a pl t false in
 				make_cast_call c cf a pl [eright] tleft p
 			| _ ->
 				eright)

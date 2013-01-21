@@ -83,7 +83,7 @@ let rec classify t =
 	| TInst ({ cl_path = ([],"String") },[]) -> KString
 	| TAbstract ({ a_path = [],"Int" },[]) -> KInt
 	| TAbstract ({ a_path = [],"Float" },[]) -> KFloat
-	| TAbstract (a,[]) when List.exists (fun t -> match classify t with KInt | KFloat -> true | _ -> false) a.a_to -> KParam t
+	| TAbstract (a,[]) when List.exists (fun (t,_) -> match classify t with KInt | KFloat -> true | _ -> false) a.a_to -> KParam t
 	| TInst ({ cl_kind = KTypeParameter ctl },_) when List.exists (fun t -> match classify t with KInt | KFloat -> true | _ -> false) ctl -> KParam t
 	| TMono r when !r = None -> KUnk
 	| TDynamic _ -> KDyn
