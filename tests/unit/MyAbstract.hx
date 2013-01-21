@@ -33,26 +33,26 @@ abstract TemplateWrap(haxe.Template) {
 	}
 }
 
-abstract Meter(Float) {
+abstract Meter(Float) from Float to Float {
 	public inline function new(f)
 		this = f
 	
 	public inline function get()
 		return this
 		
-	@:from static public inline function fromFloat(f:Float)
-		return new Meter(f)
+	@:to public inline function toString()
+		return this + "m"
 }
 
-abstract Kilometer(Float) {
+abstract Kilometer(Float) from Float to Float {
 	public inline function new(f)
 		this = f
 		
+	@:to public inline function toString()
+		return this + "km"
+		
 	@:from static public inline function fromMeter(m:Meter)
 		return new Kilometer(m.get() / 1000.)
-		
-	@:to public inline function toFloat()
-		return this
 }
 
 abstract MyHash(Hash<V>)<V> {

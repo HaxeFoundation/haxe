@@ -75,12 +75,14 @@ type type_class =
 	| KDyn
 	| KOther
 	| KParam of t
+	| KAbstract of tabstract
 
 let rec classify t =
 	match follow t with
 	| TInst ({ cl_path = ([],"Int") },[]) -> KInt
 	| TInst ({ cl_path = ([],"Float") },[]) -> KFloat
 	| TInst ({ cl_path = ([],"String") },[]) -> KString
+	| TAbstract({a_impl = Some _} as a,_) -> KAbstract a
 	| TAbstract ({ a_path = [],"Int" },[]) -> KInt
 	| TAbstract ({ a_path = [],"Float" },[]) -> KFloat
 	| TAbstract (a,[]) when List.exists (fun (t,_) -> match classify t with KInt | KFloat -> true | _ -> false) a.a_to -> KParam t
@@ -1253,7 +1255,11 @@ let rec type_binop ctx op e1 e2 p =
 	let tstring = ctx.t.tstring in
 	let to_string e =
 		match classify e.etype with
-		| KUnk | KDyn | KParam _ | KOther ->
+		| KAbstract {a_impl = Some c} when PMap.mem "toString" c.cl_statics ->
+			let et = type_module_type ctx (TClassDecl c) None e.epos in
+			let cf = PMap.find "toString" c.cl_statics in
+			make_call ctx (mk (TField(et,FStatic(c,cf))) cf.cf_type e.epos) [e] ctx.t.tstring e.epos
+		| KUnk | KDyn | KParam _ | KOther | KAbstract _ ->
 			let std = type_type ctx ([],"Std") e.epos in
 			let acc = acc_get ctx (type_field ctx std "string" e.epos MCall) e.epos in
 			ignore(follow acc.etype);
@@ -1313,6 +1319,8 @@ let rec type_binop ctx op e1 e2 p =
 		| KUnk, KParam t ->
 			unify ctx e1.etype tfloat e1.epos;
 			tfloat
+		| KAbstract _,_
+		| _,KAbstract _
 		| KParam _, _
 		| _, KParam _
 		| KOther, _
@@ -1384,6 +1392,8 @@ let rec type_binop ctx op e1 e2 p =
 		| KInt , KDyn | KFloat , KDyn | KString , KDyn -> ()
 		| KDyn , KDyn -> ()
 		| KParam _ , x | x , KParam _ when x <> KString && x <> KOther -> ()
+		| KAbstract _,_
+		| _,KAbstract _
 		| KDyn , KUnk
 		| KUnk , KDyn
 		| KString , KInt

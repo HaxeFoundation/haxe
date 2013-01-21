@@ -363,4 +363,13 @@ class TestBasetypes extends Test {
 		eq(2, hash1.get("_s1"));
 		eq(4, hash1.get("_s3"));
 	}
+	
+	function testAbstractToString() {
+		var km:unit.MyAbstract.Kilometer = 12.5;
+		var m:unit.MyAbstract.Meter = 12.5;
+		eq("12.5km", km);
+		eq("12.5m", m);
+		eq("Distance: 12.5km", "Distance: " + km);
+		eq("Distance: 12.5m", "Distance: " + m);
+	}
 }
