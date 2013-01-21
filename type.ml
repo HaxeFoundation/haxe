@@ -1466,8 +1466,7 @@ let rec s_expr s_type e =
 
 let rec s_expr_pretty tabs s_type e =
 	let sprintf = Printf.sprintf in
-	let tabs = ref "" in
-	let loop = s_expr_pretty !tabs s_type in
+	let loop = s_expr_pretty tabs s_type in
 	let slist f l = String.concat "," (List.map f l) in
 	match e.eexpr with
 	| TConst c -> s_const c
@@ -1492,11 +1491,9 @@ let rec s_expr_pretty tabs s_type e =
 	| TVars vl ->
 		sprintf "var %s" (slist (fun (v,eo) -> sprintf "%s%s" v.v_name (match eo with None -> "" | Some e -> " = " ^ loop e)) vl)
 	| TBlock el ->
-		let old = !tabs in
-		tabs := !tabs ^ "\t";
-		let s = sprintf "{\n%s%s" !tabs (String.concat "" (List.map (fun e -> sprintf "%s%s;\n" !tabs (loop e)) el)) in
-		tabs := old;
-		s ^ !tabs ^ "}"
+		let ntabs = tabs ^ "\t" in
+		let s = sprintf "{\n%s" (String.concat "" (List.map (fun e -> sprintf "%s%s;\n" ntabs (s_expr_pretty ntabs s_type e)) el)) in
+		s ^ tabs ^ "}"
 	| TFor (v,econd,e) ->
 		sprintf "for (%s in %s) %s" v.v_name (loop econd) (loop e)
 	| TIf (e,e1,e2) ->
