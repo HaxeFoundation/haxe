@@ -138,7 +138,8 @@ let make_module ctx mpath file tdecls loadp =
 								Some (EReturn (Some e), pos e)
 							| Some (EBlock el,p) -> Some (EBlock (init p :: el @ [ret p]),p)
 							| Some e -> Some (EBlock [init p;e;ret p],p)
-							)
+							);
+							f_type = Some this_t;
 						} in
 						{ f with cff_name = "_new"; cff_access = AStatic :: f.cff_access; cff_kind = FFun fu; cff_meta = (":impl",[],p) :: f.cff_meta }
 					| FFun fu when not stat ->

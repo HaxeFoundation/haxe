@@ -2589,7 +2589,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 	| EDisplayNew t ->
 		let t = Typeload.load_instance ctx t p true in
 		(match follow t with
-		| TInst (c,params) ->
+		| TInst (c,params) | TAbstract({a_impl = Some c},params) ->
 			let ct, f = get_constructor ctx c params p in
 			raise (DisplayTypes (ct :: List.map (fun f -> f.cf_type) f.cf_overloads))
 		| _ ->
