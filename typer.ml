@@ -2520,6 +2520,15 @@ and type_expr ctx (e,p) (with_type:with_type) =
 					PMap.map (fun f -> { f with cf_type = apply_params c.cl_types params (opt_type f.cf_type); cf_public = true; }) m
 				in
 				loop c params
+			| TAbstract({a_impl = Some c} as a,pl) ->
+				PMap.fold (fun f acc ->
+					if f.cf_name <> "_new" && can_access ctx c f true then begin
+						let f = prepare_using_field f in
+						let t = apply_params a.a_types pl (follow f.cf_type) in
+						PMap.add f.cf_name { f with cf_public = true; cf_type = opt_type t } acc
+					end else
+						acc
+				) c.cl_statics PMap.empty
 			| TAnon a ->
 				(match !(a.a_status) with
 				| Statics c ->
