@@ -394,7 +394,7 @@ let rec type_inline ctx cf f ethis params tret config p force =
 			let unify_func () = unify_raise ctx mt (TFun (List.map (fun e -> "",false,e.etype) params,tret)) p in
 			(match follow ethis.etype with
 			| TAnon a -> (match !(a.a_status) with
-				| Statics {cl_kind = KAbstractImpl a } ->
+				| Statics {cl_kind = KAbstractImpl a } when has_meta ":impl" cf.cf_meta ->
 					(* TODO: we might have to unify something here *)
 					()
 				| _ -> unify_func())

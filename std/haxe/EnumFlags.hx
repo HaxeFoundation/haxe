@@ -81,7 +81,7 @@ abstract EnumFlags(Int)<T:EnumValue> {
 		have any impact on speed).
 	**/
 	@:from public inline static function ofInt<T:EnumValue>( i : Int ) : EnumFlags<T> {
-		return new EnumFlags(i);
+		return new EnumFlags<T>(i);
 	}
 
 	/**

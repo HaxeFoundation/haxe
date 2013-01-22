@@ -571,7 +571,7 @@ let make_call ctx e params t p =
 			| _ -> false
 		) in
 		let config = match cl with
-			| Some ({cl_kind = KAbstractImpl _ }) ->
+			| Some ({cl_kind = KAbstractImpl _ }) when has_meta ":impl" f.cf_meta ->
 				(match if fname = "_new" then t else follow (List.hd params).etype with
 					| TAbstract(a,pl) ->
 						Some (a.a_types <> [], apply_params a.a_types pl)
@@ -904,7 +904,14 @@ let rec type_ident_raise ?(imported_enums=true) ctx i p mode =
 
 and type_field ctx e i p mode =
 	let no_field() =
-		if not ctx.untyped then display_error ctx (s_type (print_context()) e.etype ^ " has no field " ^ i) p;
+		let t = match follow e.etype with
+			| TAnon a -> (match !(a.a_status) with
+				| Statics {cl_kind = KAbstractImpl a} -> TAbstract(a,[])
+				| _ -> e.etype)
+			| TInst({cl_kind = KAbstractImpl a},_) -> TAbstract(a,[])
+			| _ -> e.etype
+		in
+		if not ctx.untyped then display_error ctx (s_type (print_context()) t ^ " has no field " ^ i) p;
 		AKExpr (mk (TField (e,FDynamic i)) (mk_mono()) p)
 	in
 	match follow e.etype with

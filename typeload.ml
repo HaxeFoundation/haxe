@@ -140,11 +140,11 @@ let make_module ctx mpath file tdecls loadp =
 							| Some e -> Some (EBlock [init p;e;ret p],p)
 							)
 						} in
-						{ f with cff_name = "_new"; cff_access = AStatic :: f.cff_access; cff_kind = FFun fu }
+						{ f with cff_name = "_new"; cff_access = AStatic :: f.cff_access; cff_kind = FFun fu; cff_meta = (":impl",[],p) :: f.cff_meta }
 					| FFun fu when not stat ->
 						if has_meta ":from" f.cff_meta then error "@:from cast functions must be static" f.cff_pos;
 						let fu = { fu with f_args = ("this",false,Some this_t,None) :: fu.f_args } in
-						{ f with cff_kind = FFun fu; cff_access = AStatic :: f.cff_access }
+						{ f with cff_kind = FFun fu; cff_access = AStatic :: f.cff_access; cff_meta = (":impl",[],p) :: f.cff_meta }
 					| _ ->
 						f
 				) fields in

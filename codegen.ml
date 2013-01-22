@@ -1310,7 +1310,8 @@ let handle_abstract_casts ctx e =
 		in
 		(match cf.cf_expr with
 		| Some { eexpr = TFunction fd } when cf.cf_kind = Method MethInline ->
-			(match Optimizer.type_inline ctx cf fd ethis args t (Some (a.a_types <> [], apply_params a.a_types pl)) p true with
+			let config = if has_meta ":impl" cf.cf_meta then (Some (a.a_types <> [], apply_params a.a_types pl)) else None in
+			(match Optimizer.type_inline ctx cf fd ethis args t config p true with
 				| Some e -> e
 				| None ->
 					def())

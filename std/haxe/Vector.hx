@@ -20,13 +20,8 @@
  * DEALINGS IN THE SOFTWARE.
  */
 package haxe;
-
-/**
-	A Vector is a storage of fixed size. It can be faster than Array on some
-	targets, and is never slower.
-**/
 	
-typedef VImpl<T> = #if flash9
+private typedef VectorData<T> = #if flash9
 	flash.Vector<T>
 #elseif neko
 	neko.NativeArray<T>
@@ -34,7 +29,11 @@ typedef VImpl<T> = #if flash9
 	Array<T>
 #end
 
-abstract Vector(VImpl<T>)<T> {
+/**
+	A Vector is a storage of fixed size. It can be faster than Array on some
+	targets, and is never slower.
+**/
+abstract Vector(VectorData<T>)<T> {
 	/**
 		Creates a new Vector of length [length].
 		
@@ -44,11 +43,9 @@ abstract Vector(VImpl<T>)<T> {
 			targets
 			- null for other types on static targets
 			
-		If [length] is less than or equal to 0, an exception is thrown.
+		If [length] is less than or equal to 0, the result is unspecified.
 	**/
 	public inline function new(length:Int) {
-		if (length <= 0)
-			throw "Invalid length, must be >= 1";
 		#if flash9
 			this = new flash.Vector<T>(length, true);
 		#elseif neko
@@ -66,14 +63,11 @@ abstract Vector(VImpl<T>)<T> {
 	/**
 		Returns the value at index [index].
 		
-		If [index] is negative or exceeds [this].length, null is returned.
+		If [index] is negative or exceeds [this].length, the result is
+		unspecified.
 	**/
     public inline function get(index:Int):Null<T> {
-		#if (flash9 || cpp || js || java)
-		return index < 0 || index >= this.length ? null : this[index];
-		#else
 		return this[index];
-		#end
 	}
 	
 	/**
@@ -97,11 +91,40 @@ abstract Vector(VImpl<T>)<T> {
 		#end
 	}
 	
-	@:from static public inline function fromArray(arr:Array<T>) {
+	/**
+		Extracts the data of [this] Vector.
+		
+		This returns the internal representation type.
+	**/
+	public inline function toData():VectorData<T>
+		return cast this
+		
+	/**
+		Initializes a new Vector from [data].
+		
+		Since [data] is the internal representation of Vector, this is a no-op.
+		
+		If [data] is null, the corresponding Vector is also [null].
+	**/
+	static public inline function fromData<T>(data:VectorData<T>):Vector<T>
+		return cast data
+	
+	/**
+		Creates a new Vector by copying the elements of [array].
+		
+		This always creates a copy, even on platforms where the internal
+		representation is Array.
+		
+		The elements are not copied and retain their identity, so
+		a[i] == Vector.fromArrayCopy(a).get(i) is true for any valid i.
+		
+		If [array] is null, the result is unspecified.
+	**/
+	static public inline function fromArrayCopy<T>(array:Array<T>):Vector<T> {
 		// TODO: Optimize this for flash (and others?)
-		var vec = new Vector<T>(arr.length);
-		for (i in 0...arr.length)
-			vec.set(i, arr[i]);
+		var vec = new Vector<T>(array.length);
+		for (i in 0...array.length)
+			vec.set(i, array[i]);
 		return vec;
 	}
 }
