@@ -32,7 +32,7 @@ MODULES=ast type lexer common genxml parser typecore optimizer typeload \
 codegen gencommon genas3 gencpp genjs genneko genphp genswf8 \
 	genswf9 genswf genjava gencs interp typer matcher dce main
 
-HAXE_LIBRARY_PATH=$(CURDIR)/std
+export HAXE_LIBRARY_PATH=$(CURDIR)/std
 
 all: libs haxe tools
 
