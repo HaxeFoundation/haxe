@@ -1374,7 +1374,7 @@ let handle_abstract_casts ctx e =
 					let el = loop2 el args in
 					{ e with eexpr = TCall(loop e1,el)}
 				| _ ->
-					e
+					Type.map_expr loop e
 			end
 		| TArrayDecl el ->
 			begin match e.etype with
@@ -1382,7 +1382,7 @@ let handle_abstract_casts ctx e =
 					let el = List.map (fun e -> check_cast t e e.epos) el in
 					{ e with eexpr = TArrayDecl el}
 				| _ ->
-					e
+					Type.map_expr loop e
 			end
 		| TObjectDecl fl ->
 			begin match follow e.etype with
@@ -1397,7 +1397,7 @@ let handle_abstract_casts ctx e =
 				) fl in
 				{ e with eexpr = TObjectDecl fl }
 			| _ ->
-				e
+				Type.map_expr loop e
 			end
 		| _ ->
 			Type.map_expr loop e
