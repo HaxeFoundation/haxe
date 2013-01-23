@@ -52,7 +52,7 @@ class TypeTools {
 			var ts = Context.typeof(macro "foo"); //TInst(String,[])
 			Context.unify(t, ts);
 			trace(t); // TMono(<mono>)
-			trace(t.follow()); //TInst(String,[])		
+			trace(t.follow()); //TInst(String,[])
 	**/
 	static public inline function follow( t : Type, ?once : Bool ) : Type
 		return Context.follow(t, once)
@@ -91,16 +91,16 @@ class TypeTools {
 		If [t] is of a different type, an exception of type String is thrown.
 
 		If [t] is null, the result is null.
-	**/	
+	**/
 	static public function getEnum( t : Type ) return t == null ? null : switch(follow(t)) {
 		case TEnum(e, _): e.get();
 		case _: throw "Enum instance expected";
-	}	
+	}
 
 	/**
 		Converts type [t] to a human-readable String representation.
 	**/
-	static public function toString( t : Type ) : String return Context.load("s_type", 1)(t)
+	static public function toString( t : Type ) : String return new String(Context.load("s_type", 1)(t))
 	#end
 	
 }
