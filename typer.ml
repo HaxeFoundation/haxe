@@ -1201,7 +1201,7 @@ let type_generic_function ctx (e,cf) el p =
 				| ":generic" -> false
 				| _ -> true
 			) cf.cf_meta in
-			cf2.cf_meta <- (":noComplete",[],p) :: ("noUsing",[],p) :: metadata;
+			cf2.cf_meta <- (":noComplete",[],p) :: (":noUsing",[],p) :: metadata;
 			cf2
 		in
 		let e = if stat then type_type ctx c.cl_path p else e in
