@@ -1031,6 +1031,9 @@ and type_field ctx e i p mode =
 			let f = PMap.find i c.cl_statics in
 			let t = field_type ctx c [] f p in
 			let t = apply_params a.a_types pl t in
+			if not (has_meta ":impl" f.cf_meta) then (match follow t with
+				| TFun((_,_,ta) :: _,_) -> unify ctx e.etype ta p
+				| _ -> raise Not_found);
 			let et = type_module_type ctx (TClassDecl c) None p in
 			AKUsing ((mk (TField (et,FStatic (c,f))) t p),c,f,e)
 		with Not_found -> try
@@ -2521,8 +2524,9 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				in
 				loop c params
 			| TAbstract({a_impl = Some c} as a,pl) ->
+				ctx.m.module_using <- c :: ctx.m.module_using;
 				PMap.fold (fun f acc ->
-					if f.cf_name <> "_new" && can_access ctx c f true then begin
+					if f.cf_name <> "_new" && can_access ctx c f true && has_meta ":impl" f.cf_meta then begin
 						let f = prepare_using_field f in
 						let t = apply_params a.a_types pl (follow f.cf_type) in
 						PMap.add f.cf_name { f with cf_public = true; cf_type = opt_type t } acc
