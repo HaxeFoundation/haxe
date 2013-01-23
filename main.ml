@@ -1191,7 +1191,7 @@ with
 		error ctx (Parser.error_msg m) p
 	| Typecore.Forbid_package ((pack,m,p),pl,pf)  ->
 		if !Common.display_default && ctx.has_next then
-			()
+			ctx.has_error <- false
 		else begin
 			error ctx (Printf.sprintf "You cannot access the %s package while %s (for %s)" pack (if pf = "macro" then "in a macro" else "targeting " ^ pf) (Ast.s_type_path m) ) p;
 			List.iter (error ctx "    referenced here") (List.rev pl);
