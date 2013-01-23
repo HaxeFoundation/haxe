@@ -180,13 +180,14 @@ class Web {
 	/**
 		Set a Cookie value in the HTTP headers. Same remark as setHeader.
 	**/
-	public static function setCookie( key : String, value : String, ?expire: Date, ?domain: String, ?path: String, ?secure: Bool ) {
+	public static function setCookie( key : String, value : String, ?expire: Date, ?domain: String, ?path: String, ?secure: Bool, ?httpOnly: Bool ) {
 		var buf = new StringBuf();
 		buf.add(value);
 		if( expire != null ) addPair(buf, "expires=", DateTools.format(expire, "%a, %d-%b-%Y %H:%M:%S GMT"));
 		addPair(buf, "domain=", domain);
 		addPair(buf, "path=", path);
 		if( secure ) addPair(buf, "secure", "");
+		if( httpOnly ) addPair(buf, "HttpOnly", "");
 		var v = buf.toString();
 		_set_cookie(untyped key.__s, untyped v.__s);
 	}

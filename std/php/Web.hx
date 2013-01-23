@@ -260,17 +260,13 @@ class Web {
 	/**
 		Set a Cookie value in the HTTP headers. Same remark as setHeader.
 	**/
-	public static function setCookie( key : String, value : String, ?expire: Date, ?domain: String, ?path: String, ?secure: Bool ) {
+	public static function setCookie( key : String, value : String, ?expire: Date, ?domain: String, ?path: String, ?secure: Bool, ?httpOnly: Bool ) {
 		var t = expire == null ? 0 : Std.int(expire.getTime()/1000.0);
 		if(path == null) path = '/';
 		if(domain == null) domain = '';
 		if(secure == null) secure = false;
-		untyped __call__("setcookie", key, value, t, path, domain, secure);
-	}
-
-	static function addPair( name, value ) : String {
-		if( value == null ) return "";
-		return "; " + name + value;
+		if(httpOnly == null) httpOnly = false;
+		untyped __call__("setcookie", key, value, t, path, domain, secure, httpOnly);
 	}
 
 	/**
