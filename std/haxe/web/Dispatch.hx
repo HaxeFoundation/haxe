@@ -357,7 +357,7 @@ class Dispatch {
 				Context.error("No dispatch method found", p);
 			var rules = { expr : EObjectDecl(fields), pos : p };
 			return { expr : EObjectDecl([ { field : "obj", expr : obj }, { field : "rules", expr : rules } ]), pos : p };
-		case TInst(i, pl):
+		case TInst(i, _):
 			var i = i.get();
 			// store the config inside the class metadata (only once)
 			if( !i.meta.has("dispatchConfig") ) {
