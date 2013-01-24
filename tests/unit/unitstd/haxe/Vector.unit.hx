@@ -48,3 +48,12 @@ var vec2 = haxe.Vector.fromData(data);
 vec2.get(0) == "1";
 vec2.get(1) == "2";
 vec2.get(2) == "3";
+
+// []
+vec2[0] == "1";
+vec2[1] == "2";
+vec2[2] == "3";
+vec2[1] = "4";
+vec2[1] == "4";
+vec2[0] += "a";
+vec2[0] = "1a";

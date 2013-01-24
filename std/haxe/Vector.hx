@@ -33,6 +33,7 @@ private typedef VectorData<T> = #if flash9
 	A Vector is a storage of fixed size. It can be faster than Array on some
 	targets, and is never slower.
 **/
+@:arrayAccess
 abstract Vector(VectorData<T>)<T> {
 	/**
 		Creates a new Vector of length [length].

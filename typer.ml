@@ -1854,10 +1854,13 @@ and type_access ctx e p mode =
 				apply_params pl tl (loop (TInst (c,stl)))
 			| TInst ({ cl_path = [],"ArrayAccess" },[t]) ->
 				t
+			| TAbstract(a,tl) when has_meta ":arrayAccess" a.a_meta ->
+				loop (apply_params a.a_types tl a.a_this)
 			| _ ->
 				let pt = mk_mono() in
 				let t = ctx.t.tarray pt in
-				unify ctx e1.etype t e1.epos;
+				(try unify_raise ctx et t p
+				with Error(Unify _,_) -> if not ctx.untyped then error ("Array access is not allowed on " ^ (s_type (print_context()) e1.etype)) e1.epos);
 				pt
 		in
 		let pt = loop e1.etype in
