@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,6 +21,15 @@
  */
 package haxe;
 
+/**
+	Resource can be used to access resources that were added through the
+	-resource file@name command line parameter.
+	
+	Depending on their type they can be obtained as String through
+	getString(name), or as binary data through getBytes(name).
+	
+	A list of all available resource names can be obtained from listNames().
+**/
 class Resource {
 	
 	#if (java || cs)
@@ -49,6 +58,10 @@ class Resource {
 	}
 	#end
 
+	/**
+		Lists all available resource names. The resource name is the name part
+		of the -resource file@name command line parameter.
+	**/
 	public static function listNames() : Array<String> {
 		var names = new Array();
 		#if (java || cs)
@@ -61,6 +74,11 @@ class Resource {
 		return names;
 	}
 
+	/**
+		Retrieves the resource identified by [name] as a String.
+		
+		If [name] does not match any resource name, null is returned.
+	**/
 	public static function getString( name : String ) : String {
 		#if java
 		var stream = cast(Resource, java.lang.Class<Dynamic>).getResourceAsStream("/" + name);
@@ -88,6 +106,12 @@ class Resource {
 		#end
 	}
 
+	/**
+		Retrieves the resource identified by [name] as an instance of
+		haxe.io.Bytes.
+		
+		If [name] does not match any resource name, null is returned.
+	**/
 	public static function getBytes( name : String ) : haxe.io.Bytes {
 		#if java
 		var stream = cast(Resource, java.lang.Class<Dynamic>).getResourceAsStream("/" + name);
