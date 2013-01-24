@@ -1084,7 +1084,9 @@ let match_expr ctx e cases def with_type p =
 	begin try
 		let dt = compile mctx stl pl in
 		if Common.defined ctx.com Define.MatchDebug then print_endline (s_dt "" dt);
-		PMap.iter (fun _ out -> if out.o_num_paths = 0 then display_error ctx "This pattern is unused" out.o_pos) mctx.outcomes;
+		PMap.iter (fun _ out -> if out.o_num_paths = 0 then begin
+			if out.o_pos == p then display_error ctx "The default pattern is unused" p
+			else display_error ctx "This pattern is unused" out.o_pos end) mctx.outcomes;
 		let t = if not need_val then
 			mk_mono()
 		else
