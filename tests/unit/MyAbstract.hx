@@ -55,6 +55,7 @@ abstract Kilometer(Float) from Float to Float {
 		return new Kilometer(m.get() / 1000.)
 }
 
+#if !cpp
 abstract MyHash(Hash<V>)<V> {
 	private inline function new() {
 		this = new Hash<V>();
@@ -88,3 +89,4 @@ abstract MyHash(Hash<V>)<V> {
 		return hash;
 	}
 }
+#end

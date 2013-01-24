@@ -355,6 +355,7 @@ class TestBasetypes extends Test {
 		feq(km, 0.1222);
 	}
 	
+	#if !cpp
 	function testAbstractTypeParameters() {
 		var hash1:unit.MyAbstract.MyHash<String> = ["k1", "v1", "k2", "v2"];
 		eq("v1", hash1.get("k1"));
@@ -363,6 +364,7 @@ class TestBasetypes extends Test {
 		eq(2, hash1.get("_s1"));
 		eq(4, hash1.get("_s3"));
 	}
+	#end
 	
 	function testAbstractToString() {
 		var km:unit.MyAbstract.Kilometer = 12.5;
