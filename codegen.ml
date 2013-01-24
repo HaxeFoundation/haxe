@@ -1207,7 +1207,10 @@ let check_local_vars_init e =
 		match e.eexpr with
 		| TLocal v ->
 			let init = (try PMap.find v.v_id !vars with Not_found -> true) in
-			if not init then error ("Local variable " ^ v.v_name ^ " used without being initialized") e.epos;
+			if not init then begin
+				if v.v_name = "this" then error "Missing this = value" e.epos
+				else error ("Local variable " ^ v.v_name ^ " used without being initialized") e.epos
+			end
 		| TVars vl ->
 			List.iter (fun (v,eo) ->
 				match eo with
