@@ -21,8 +21,27 @@
  */
 package haxe;
 
+/**
+	Log primarily provides the trace() method, which is invoked upon a call to
+	trace() in haxe code.
+**/
 class Log {
 
+	/**
+		Outputs [v] in a platform-dependent way.
+		
+		The second parameter [infos] is injected by the compiler and contains
+		information about the position where the trace() call was made.
+		
+		This method can be rebound to a custom function:
+			var oldTrace = haxe.Log.trace; // store old function
+			haxe.Log.trace = function(v,infos) { // handle trace }
+			...
+			haxe.Log.trace = oldTrace;
+			
+		If it is bound to null, subsequent calls to trace() will cause an
+		exception.
+	**/
 	public static dynamic function trace( v : Dynamic, ?infos : PosInfos ) : Void {
 		#if flash
 			#if (fdb || native_trace)
@@ -48,6 +67,10 @@ class Log {
 		#end
 	}
 
+	#if (flash || js)
+	/**
+		Clears the trace output.
+	**/
 	public static dynamic function clear() : Void {
 		#if flash
 		untyped flash.Boot.__clear_trace();
@@ -55,8 +78,12 @@ class Log {
 		untyped js.Boot.__clear_trace();
 		#end
 	}
+	#end
 
 	#if flash
+	/**
+		Sets the color of the trace output to [rgb].
+	**/
 	public static dynamic function setColor( rgb : Int ) {
 		untyped flash.Boot.__set_trace_color(rgb);
 	}
