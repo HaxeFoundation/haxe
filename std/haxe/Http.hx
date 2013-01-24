@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -38,8 +38,21 @@ private typedef AbstractSocket = {
 
 #end
 
+/**
+	This class can be used to handle Http requests consistently across
+	platforms. There are two intended usages:
+	- call haxe.Http.requestUrl(url) and receive the result as a String (not
+		available on flash)
+	- create a new haxe.Http(url), register your callbacks for onData, onError
+		and onStatus, then call request().
+**/
 class Http {
 
+	/**
+		The url of [this] request. It is used only by the request() method and
+		can be changed in order to send the same request to different target
+		Urls.
+	**/
 	public var url : String;
 #if sys
 	public var noShutdown : Bool;
@@ -60,9 +73,16 @@ class Http {
 	#end
 
 	/**
-	 * In PHP Https (SSL) connections are allowed only if the OpenSSL extension is enabled.
-	 * @param	url
-	 */
+		Creates a new Http instance with [url] as parameter.
+		
+		This does not do a request until request() is called.
+		
+		If [url] is null, the field url must be set to a value before making the
+		call to request(), or the result is unspecified.
+		
+		(Php) Https (SSL) connections are allowed only if the OpenSSL extension
+		is enabled.
+	**/
 	public function new( url : String ) {
 		this.url = url;
 		headers = new Hash();
@@ -77,21 +97,64 @@ class Http {
 		#end
 	}
 
-	public function setHeader( header : String, value : String ) {
-		headers.set(header,value);
+	/**
+		Sets the header identified as [header] to value [value].
+		
+		If [header] or [value] are null, the result is unspecified.
+		
+		This method provides a fluent interface.
+	**/
+	public function setHeader( header : String, value : String ):Http {
+		headers.set(header, value);
+		return this;
 	}
 
-	public function setParameter( param : String, value : String ) {
-		params.set(param,value);
+	/**
+		Sets the parameter identified as [param] to value [value].
+		
+		If [header] or [value] are null, the result is unspecified.
+		
+		This method provides a fluent interface.
+	**/
+	public function setParameter( param : String, value : String ):Http {
+		params.set(param, value);
+		return this;
 	}
 
-	public function setPostData( data : String ) {
-		#if (flash && !flash9)
-		throw "Not available";
-		#end
+	#if !flash8
+	/**
+		Sets the post data of [this] Http request to [data].
+		
+		There can only be one post data per request. Subsequent calls overwrite
+		the previously set value.
+		
+		If [data] is null, the post data is considered to be absent.
+		
+		This method provides a fluent interface.
+	**/
+	public function setPostData( data : String ):Http {
 		postData = data;
+		return this;
 	}
+	#end
 
+	/**
+		Sends [this] Http request to the Url specified by [this].url.
+		
+		If [post] is true, the request is sent as POST request, otherwise it is
+		sent as GET request.
+		
+		Depending on the outcome of the request, this method calls the
+		onStatus(), onError() or onData() callback functions.
+		
+		If [this].url is null, the result is unspecified.
+		
+		If [this].url is an invalid or inaccessible Url, the onError() callback
+		function is called.
+		
+		(Js) If [this].async is false, the callback functions are called before
+		this method returns.
+	**/
 	public function request( post : Bool ) : Void {
 		var me = this;
 	#if js
@@ -627,6 +690,14 @@ class Http {
 	}
 
 #if !flash
+	/**
+		Makes a synchronous request to [url].
+		
+		This creates a new Http instance and makes a GET request by calling its
+		request(false) method.
+		
+		If [url] is null, the result is unspecified.
+	**/
 	public static function requestUrl( url : String ) : String {
 		var h = new Http(url);
 	#if js
