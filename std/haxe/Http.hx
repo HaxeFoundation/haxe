@@ -680,12 +680,33 @@ class Http {
 
 #end
 
+	/**
+		This method is called upon a successful request, with [data] containing
+		the result String.
+		
+		The intended usage is to bind it to a custom function:
+			httpInstance.onData = function(data) { // handle result }
+	**/
 	public dynamic function onData( data : String ) {
 	}
 
+	/**
+		This method is called upon a request error, with [msg] containing the
+		error description.
+		
+		The intended usage is to bind it to a custom function:
+			httpInstance.onError = function(msg) { // handle error }
+	**/
 	public dynamic function onError( msg : String ) {
 	}
 
+	/**
+		This method is called upon a Http status change, with [status] being the
+		new status.
+		
+		The intended usage is to bind it to a custom function:
+			httpInstance.onStatus = function(status) { // handle status }
+	**/
 	public dynamic function onStatus( status : Int ) {
 	}
 
