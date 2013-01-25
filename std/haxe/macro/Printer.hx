@@ -120,8 +120,8 @@ class Printer {
 		(field.meta != null && field.meta.length > 0 ? field.meta.map(printMetadata).join(" ") + " " : "")
 		+ (field.access.length > 0 ? field.access.map(printAccess).join(" ") + " " : "")
 		+ switch(field.kind) {
-		  case FVar(t, eo): 'var ${field.name}:${printComplexType(t)}' + opt(eo, printExpr, "=");
-		  case FProp(get, set, t, eo): 'var ${field.name}($get,$set):${printComplexType(t)}' + opt(eo, printExpr, "=");
+		  case FVar(t, eo): 'var ${field.name}' + opt(t, printComplexType, ":") + opt(eo, printExpr, "=");
+		  case FProp(get, set, t, eo): 'var ${field.name}($get,$set)' + opt(t, printComplexType, ":") + opt(eo, printExpr, "=");
 		  case FFun(func): 'function ${field.name}' + printFunction(func);
 		}
 	
