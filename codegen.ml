@@ -1321,36 +1321,28 @@ let handle_abstract_casts ctx e =
 		| _ ->
 			def())
 	in
-	let find_cast a pl t from =
-		let rec loop fl = match fl with
-			| [] -> raise Not_found
-			| (t2,Some cf) :: _ when type_iseq t (apply_params a.a_types pl (monomorphs cf.cf_params t2)) -> cf
-			| (t2,_) :: fl -> loop fl
-		in
-		loop (List.rev (if from then a.a_from else a.a_to))
-	in
+	let find_from ab pl a b = List.find (Type.unify_from_field ab pl a b) ab.a_from in
+	let find_to ab pl a b = List.find (Type.unify_to_field ab pl a b) ab.a_to in
 	let rec check_cast tleft eright p =
 		let eright = loop eright in
-		try (match follow tleft,follow eright.etype with
+		try (match follow eright.etype,follow tleft with
 			| (TAbstract({a_impl = Some c1} as a1,pl1) as t1),(TAbstract({a_impl = Some c2} as a2,pl2) as t2) ->
 				if a1 == a2 then
 					eright
 				else begin
-					let c,cf,a,pl = try
-						c1,find_cast a1 pl1 t2 true,a1,pl1
+					let c,cfo,a,pl = try
+						c1,snd (find_to a1 pl1 t1 t2),a1,pl1
 					with Not_found ->
-						c2,find_cast a2 pl2 t1 false,a2,pl2
+						c2,snd (find_from a2 pl2 t1 t2),a2,pl2
 					in
-					make_cast_call c cf a pl [eright] tleft p
+					match cfo with None -> eright | Some cf -> make_cast_call c cf a pl [eright] tleft p
 				end
 			| TDynamic _,_ | _,TDynamic _ ->
 				eright
-			| TAbstract({a_impl = Some c} as a,pl),t ->
-				let cf = find_cast a pl t true in
-				make_cast_call c cf a pl [eright] tleft p
-			| t,TAbstract({a_impl = Some c} as a,pl) ->
-				let cf = find_cast a pl t false in
-				make_cast_call c cf a pl [eright] tleft p
+			| TAbstract({a_impl = Some c} as a,pl) as t1,t2 ->
+				begin match snd (find_to a pl t1 t2) with None -> eright | Some cf -> make_cast_call c cf a pl [eright] tleft p end
+			| t1,(TAbstract({a_impl = Some c} as a,pl) as t2) ->
+				begin match snd (find_from a pl t1 t2) with None -> eright | Some cf -> make_cast_call c cf a pl [eright] tleft p end
 			| _ ->
 				eright)
 		with Not_found ->

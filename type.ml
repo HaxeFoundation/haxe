@@ -993,16 +993,7 @@ let rec unify a b =
 	| _ , TAbstract ({a_path=[],"Void"},_) ->
 		error [cannot_unify a b]
 	| TAbstract (a1,tl1) , TAbstract (a2,tl2) ->
-		let has_impl = a1.a_impl <> None || a2.a_impl <> None in
-		if not (List.exists (fun (t,cfo) ->
-			let t = apply_params a1.a_types tl1 t in
-			let t = match cfo with None -> t | Some cf -> monomorphs cf.cf_params t in
-			try if has_impl then type_eq EqStrict t b else unify t b; true with Unify_error _ -> false
-		) a1.a_to) && not (List.exists (fun (t,cfo) ->
-			let t = apply_params a2.a_types tl2 t in
-			let t = match cfo with None -> t | Some cf -> monomorphs cf.cf_params t in
-			try if has_impl then type_eq EqStrict a t else unify a t; true with Unify_error _ -> false
-		) a2.a_from) then error [cannot_unify a b]
+		if not (List.exists (unify_to_field a1 tl1 a b) a1.a_to) && not (List.exists (unify_from_field a2 tl2 a b) a2.a_from) then error [cannot_unify a b]
 	| TInst (c1,tl1) , TInst (c2,tl2) ->
 		let rec loop c tl =
 			if c == c2 then begin
@@ -1146,12 +1137,7 @@ let rec unify a b =
 		| _ ->
 			error [cannot_unify a b])
 	| TAbstract (aa,tl), _  ->
-		let has_impl = aa.a_impl <> None in
-		if not (List.exists (fun (t,cfo) ->
-			let t = apply_params aa.a_types tl t in
-			let t = match cfo with None -> t | Some cf -> monomorphs cf.cf_params t in
-			try if has_impl then type_eq EqStrict t b else unify t b; true with Unify_error _ -> false
-		) aa.a_to) then error [cannot_unify a b];
+		if not (List.exists (unify_to_field aa tl a b) aa.a_to) then error [cannot_unify a b];
 	| TInst ({ cl_kind = KTypeParameter ctl } as c,pl), TAbstract _ ->
 		(* one of the constraints must satisfy the abstract *)
 		if not (List.exists (fun t ->
@@ -1159,14 +1145,33 @@ let rec unify a b =
 			try unify t b; true with Unify_error _ -> false
 		) ctl) then error [cannot_unify a b];
 	| _, TAbstract (bb,tl) ->
-		let has_impl = bb.a_impl <> None in
-		if not (List.exists (fun (t,cfo) ->
-			let t = apply_params bb.a_types tl t in
-			let t = match cfo with None -> t | Some cf -> monomorphs cf.cf_params t in
-			try if has_impl then type_eq EqStrict a t else unify a t; true with Unify_error _ -> false
-		) bb.a_from) then error [cannot_unify a b];
+		if not (List.exists (unify_from_field bb tl a b) bb.a_from) then error [cannot_unify a b]
 	| _ , _ ->
 		error [cannot_unify a b]
+
+and unify_from_field ab tl a b (t,cfo) =
+	let loop a b = try (if ab.a_impl <> None then type_eq EqStrict a b else unify a b); true with Unify_error _ -> false in
+	match cfo with
+	| Some cf -> (match follow cf.cf_type with
+		| TFun(_,r) ->
+			let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
+			let map t = apply_params ab.a_types tl (apply_params cf.cf_params monos t) in
+			if loop a (map t) then try unify (map r) b; true with Unify_error _ -> false else false
+		| _ -> assert false)
+	| _ ->
+		loop a (apply_params ab.a_types tl t)
+
+and unify_to_field ab tl a b (t,cfo) =
+	let loop a b = try (if ab.a_impl <> None then type_eq EqStrict a b else unify a b); true with Unify_error _ -> false in
+	match cfo with
+	| Some cf -> (match follow cf.cf_type with
+		| TFun([_,_,ta],_) ->
+			let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
+			let map t = apply_params ab.a_types tl (apply_params cf.cf_params monos t) in
+			if loop (map t) b then try unify (map ab.a_this) (map ta); true with Unify_error _ -> false else false
+		| _ -> assert false)
+	| _ ->
+		loop (apply_params ab.a_types tl t) b
 
 and unify_types a b tl1 tl2 =
 	List.iter2 (fun t1 t2 ->

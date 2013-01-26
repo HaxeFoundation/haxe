@@ -664,4 +664,20 @@ class TestType extends Test {
 		exc(function() { throw null; return null; } );
 		exc(function() { throw null; return { foo: 1}; } );
 	}
+	
+	function testAbstractCastConstraints() {
+		var z:unit.MyAbstract.AbstractZ<String> = new unit.MyAbstract.AbstractBase("foo");
+		var s:String = z;
+		t(typeError( {
+			var i:Int = z;
+		}));
+		eq("foo", s);
+		
+		var z:unit.MyAbstract.AbstractZ<Int> = new unit.MyAbstract.AbstractBase(12);
+		var i:Int = z;
+		eq(12, i);
+		t(typeError( {
+			var s:String = z;
+		}));
+	}
 }

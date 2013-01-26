@@ -90,3 +90,20 @@ abstract MyHash(Hash<V>)<V> {
 	}
 }
 #end
+
+class AbstractBase<T> {
+	public var value:T;
+	public function new(value:T) {
+		this.value = value;
+	}
+}
+
+abstract AbstractZ(AbstractBase<T>)<T> from AbstractBase<T> {
+	@:to public static function toFoo(a:AbstractBase<Int>):Int {
+		return a.value;
+	}
+	
+	@:to public static function toString(a:AbstractBase<String>):String {
+		return a.value;
+	}
+}

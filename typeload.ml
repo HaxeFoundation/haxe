@@ -1337,11 +1337,12 @@ let init_class ctx c p context_init herits fields =
 				| KAbstractImpl a ->
 					let m = mk_mono() in
 					if Meta.has Meta.From f.cff_meta then begin
-						let t_abstract = TAbstract(a,(List.map (fun _ -> mk_mono()) a.a_types)) in
-						unify ctx t (tfun [m] t_abstract) f.cff_pos;
+						let ta = TAbstract(a, List.map (fun _ -> mk_mono()) a.a_types) in
+						unify ctx t (tfun [m] ta) f.cff_pos;
 						a.a_from <- (follow m, Some cf) :: a.a_from
 					end else if Meta.has Meta.To f.cff_meta then begin
-						unify ctx t (tfun [a.a_this] m) f.cff_pos;
+						let ta = monomorphs a.a_types (monomorphs params a.a_this) in
+						unify ctx t (tfun [ta] m) f.cff_pos;
 						a.a_to <- (follow m, Some cf) :: a.a_to
 					end
 				| _ ->
@@ -1491,6 +1492,11 @@ let init_class ctx c p context_init herits fields =
 		with Error (Custom str,p) ->
 			display_error ctx str p
 	) fields;
+	(match c.cl_kind with
+	| KAbstractImpl a ->
+		a.a_to <- List.rev a.a_to;
+		a.a_from <- List.rev a.a_from
+	| _ -> ());
 	c.cl_ordered_statics <- List.rev c.cl_ordered_statics;
 	c.cl_ordered_fields <- List.rev c.cl_ordered_fields;
 	(*
