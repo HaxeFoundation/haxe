@@ -21,7 +21,7 @@
  */
 package cs.system;
 
-@:native("System.Math") @:nativegen extern class Math
+@:native("System.Math") @:nativeGen extern class Math
 {
 	public static var PI(default, null) : Float;
 

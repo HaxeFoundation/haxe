@@ -222,7 +222,7 @@ let make_generic ctx ps pt p =
 			let path = (match follow t with
 				| TInst (ct,_) -> ct.cl_path
 				| TEnum (e,_) -> e.e_path
-				| TAbstract (a,_) when has_meta ":runtimeValue" a.a_meta -> a.a_path
+				| TAbstract (a,_) when Meta.has Meta.RuntimeValue a.a_meta -> a.a_path
 				| TMono _ -> raise (Generic_Exception (("Could not determine type for parameter " ^ s), p))
 				| t -> raise (Generic_Exception (("Type parameter must be a class or enum instance (found " ^ (s_type (print_context()) t) ^ ")"), p))
 			) in
@@ -267,7 +267,7 @@ let is_generic_parameter ctx c =
 	(* first check field parameters, then class parameters *)
 	try
 		ignore (List.assoc (snd c.cl_path) ctx.curfield.cf_params);
-		has_meta ":generic" ctx.curfield.cf_meta
+		Meta.has Meta.Generic ctx.curfield.cf_meta
 	with Not_found -> try
 		ignore(List.assoc (snd c.cl_path) ctx.type_params);
 		(match ctx.curclass.cl_kind with | KGeneric -> true | _ -> false);
@@ -453,7 +453,7 @@ let build_metadata com t =
 			(a.a_pos, ["",a.a_meta],[],[])
 	) in
 	let filter l =
-		let l = List.map (fun (n,ml) -> n, List.filter (fun (m,_,_) -> m.[0] <> ':') ml) l in
+		let l = List.map (fun (n,ml) -> n, ExtList.List.filter_map (fun (m,el,p) -> match m with Meta.Custom s -> Some (s,el,p) | _ -> None) ml) l in
 		List.filter (fun (_,ml) -> ml <> []) l
 	in
 	let meta, fields, statics = filter meta, filter fields, filter statics in
@@ -610,10 +610,10 @@ let remove_generic_base ctx t = match t with
 (* Rewrites class or enum paths if @:native metadata is set *)
 let apply_native_paths ctx t =
 	let get_real_path meta path =
-		let (_,e,mp) = get_meta ":native" meta in
+		let (_,e,mp) = Meta.get Meta.Native meta in
 		match e with
 		| [Ast.EConst (Ast.String name),p] ->
-			(":realPath",[Ast.EConst (Ast.String (s_type_path path)),p],mp),parse_path name
+			(Meta.RealPath,[Ast.EConst (Ast.String (s_type_path path)),p],mp),parse_path name
 		| _ ->
 			error "String expected" mp
 	in
@@ -636,7 +636,7 @@ let apply_native_paths ctx t =
 let add_rtti ctx t =
 	let has_rtti c =
 		let rec has_rtti_new c =
-			has_meta ":rttiInfos" c.cl_meta || match c.cl_super with None -> false | Some (csup,_) -> has_rtti_new csup
+			Meta.has Meta.RttiInfos c.cl_meta || match c.cl_super with None -> false | Some (csup,_) -> has_rtti_new csup
 		in
 		let rec has_rtti_old c =
 			List.exists (function (t,pl) ->
@@ -665,7 +665,7 @@ let add_rtti ctx t =
 let remove_extern_fields ctx t = match t with
 	| TClassDecl c ->
 		let do_remove f =
-			(not ctx.in_macro && f.cf_kind = Method MethMacro) || has_meta ":extern" f.cf_meta || has_meta ":generic" f.cf_meta
+			(not ctx.in_macro && f.cf_kind = Method MethMacro) || Meta.has Meta.Extern f.cf_meta || Meta.has Meta.Generic f.cf_meta
 		in
 		if not (Common.defined ctx.com Define.DocGen) then begin
 			c.cl_ordered_fields <- List.filter (fun f ->
@@ -775,7 +775,7 @@ let add_meta_field ctx t = match t with
 (* Removes interfaces tagged with @:remove metadata *)
 let check_remove_metadata ctx t = match t with
 	| TClassDecl c ->
-		c.cl_implements <- List.filter (fun (c,_) -> not (has_meta ":remove" c.cl_meta)) c.cl_implements;
+		c.cl_implements <- List.filter (fun (c,_) -> not (Meta.has Meta.Remove c.cl_meta)) c.cl_implements;
 	| _ ->
 		()
 
@@ -1313,7 +1313,7 @@ let handle_abstract_casts ctx e =
 		in
 		(match cf.cf_expr with
 		| Some { eexpr = TFunction fd } when cf.cf_kind = Method MethInline ->
-			let config = if has_meta ":impl" cf.cf_meta then (Some (a.a_types <> [], apply_params a.a_types pl)) else None in
+			let config = if Meta.has Meta.Impl cf.cf_meta then (Some (a.a_types <> [], apply_params a.a_types pl)) else None in
 			(match Optimizer.type_inline ctx cf fd ethis args t config p true with
 				| Some e -> e
 				| None ->

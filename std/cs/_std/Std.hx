@@ -23,7 +23,7 @@ import cs.Boot;
 import cs.Lib;
 import cs.internal.Exceptions;
 
-@:coreApi @:nativegen class Std {
+@:coreApi @:nativeGen class Std {
 	public static function is( v : Dynamic, t : Dynamic ) : Bool
 	{
 		if (v == null)

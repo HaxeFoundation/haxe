@@ -55,7 +55,7 @@ import java.Boot;
 	/**
 		Tells if an object has a field set. This doesn't take into account the object prototype (class methods).
 	**/
-	@:functionBody('
+	@:functionCode('
 		if (o instanceof haxe.lang.IHxObject)
 		return ((haxe.lang.IHxObject) o).__hx_getField(field, false, true, false) != haxe.lang.Runtime.undefined;
 
@@ -69,7 +69,7 @@ import java.Boot;
 	/**
 		Returns the field of an object, or null if [o] is not an object or doesn't have this field.
 	**/
-	@:functionBody('
+	@:functionCode('
 		if (o instanceof haxe.lang.IHxObject)
 			return ((haxe.lang.IHxObject) o).__hx_getField(field, false, false, false);
 
@@ -84,7 +84,7 @@ import java.Boot;
 	/**
 		Set an object field value.
 	**/
-	@:functionBody('
+	@:functionCode('
 		if (o instanceof haxe.lang.IHxObject)
 			((haxe.lang.IHxObject) o).__hx_setField(field, value, false);
 		else
@@ -98,7 +98,7 @@ import java.Boot;
 	/**
 		Similar to field but also supports property (might be slower).
 	**/
-	@:functionBody('
+	@:functionCode('
 		if (o instanceof haxe.lang.IHxObject)
 			return ((haxe.lang.IHxObject) o).__hx_getField(field, false, false, true);
 
@@ -112,7 +112,7 @@ import java.Boot;
 	/**
 		Similar to setField but also supports property (might be slower).
 	**/
-	@:functionBody('
+	@:functionCode('
 		if (o instanceof haxe.lang.IHxObject)
 			((haxe.lang.IHxObject) o).__hx_setField(field, value, true);
 		else
@@ -126,7 +126,7 @@ import java.Boot;
 	/**
 		Call a method with the given object and arguments.
 	**/
-	@:functionBody('
+	@:functionCode('
 		return ((haxe.lang.Function) func).__hx_invokeDynamic(args);
 	')
 	public static function callMethod( o : Dynamic, func : Dynamic, args : Array<Dynamic> ) : Dynamic
@@ -137,7 +137,7 @@ import java.Boot;
 	/**
 		Returns the list of fields of an object, excluding its prototype (class methods).
 	**/
-	@:functionBody('
+	@:functionCode('
 		if (o instanceof haxe.lang.IHxObject)
 		{
 			Array<String> ret = new Array<String>();
@@ -157,7 +157,7 @@ import java.Boot;
 	/**
 		Tells if a value is a function or not.
 	**/
-	@:functionBody('
+	@:functionCode('
 		return f instanceof haxe.lang.Function;
 	')
 	public static function isFunction( f : Dynamic ) : Bool
@@ -168,7 +168,7 @@ import java.Boot;
 	/**
 		Generic comparison function, does not work for methods, see [compareMethods]
 	**/
-	@:functionBody('
+	@:functionCode('
 		return haxe.lang.Runtime.compare(a, b);
 	')
 	public static function compare<T>( a : T, b : T ) : Int
@@ -179,7 +179,7 @@ import java.Boot;
 	/**
 		Compare two methods closures. Returns true if it's the same method of the same instance.
 	**/
-	@:functionBody('
+	@:functionCode('
 		if (f1 == f2)
 			return true;
 
@@ -203,7 +203,7 @@ import java.Boot;
 		Tells if a value is an object or not.
 
 	**/
-	@:functionBody('
+	@:functionCode('
 		return v instanceof haxe.lang.DynamicObject;
 	')
 	public static function isObject( v : Dynamic ) : Bool
@@ -214,7 +214,7 @@ import java.Boot;
 	/**
 		Delete an object field.
 	**/
-	@:functionBody('
+	@:functionCode('
 		return (o instanceof haxe.lang.DynamicObject && ((haxe.lang.DynamicObject) o).__hx_deleteField(f));
 	')
 	public static function deleteField( o : Dynamic, f : String ) : Bool

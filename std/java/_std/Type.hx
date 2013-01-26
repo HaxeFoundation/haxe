@@ -33,7 +33,7 @@
 
 @:keep @:coreApi class Type {
 
-	@:functionBody('
+	@:functionCode('
 		if (o instanceof haxe.lang.DynamicObject || o instanceof java.lang.Class)
 			return null;
 
@@ -44,7 +44,7 @@
 		return null;
 	}
 
-	@:functionBody('
+	@:functionCode('
 		if (o instanceof java.lang.Enum || o instanceof haxe.lang.Enum)
 			return o.getClass();
 		return null;
@@ -54,7 +54,7 @@
 		return null;
 	}
 
-	@:functionBody('
+	@:functionCode('
 		java.lang.Class cl = (c == null) ? null : c.getSuperclass();
 		if (cl != null && !cl.getName().equals("haxe.lang.HxObject") && !cl.getName().equals("java.lang.Object") )
 			return cl;
@@ -91,7 +91,7 @@
 		return ret;
 	}
 
-	@:functionBody('
+	@:functionCode('
 		try {
 			if (name.indexOf(".") == -1)
 				name = "haxe.root." + name;
@@ -120,7 +120,7 @@
 		return resolveClass(name);
 	}
 
-	@:functionBody('
+	@:functionCode('
 			int len = args.length;
 			java.lang.Class[] cls = new java.lang.Class[len];
 			java.lang.Object[] objs = new java.lang.Object[len];
@@ -244,7 +244,7 @@
 		return createInstance(cl, []);
 	}
 
-	@:functionBody('
+	@:functionCode('
 		if (params == null)
 		{
 			java.lang.Object ret = haxe.lang.Runtime.slowGetField(e, constr, false);
@@ -265,7 +265,7 @@
 		return createEnum(e, constr[index], params);
 	}
 
-	@:functionBody('
+	@:functionCode('
 		if (c == java.lang.String.class)
 		{
 			return haxe.lang.StringRefl.fields;
@@ -294,7 +294,7 @@
 		return null;
 	}
 
-	@:functionBody('
+	@:functionCode('
 		Array<String> ret = new Array<String>();
 		if (c == java.lang.String.class)
 		{
@@ -330,7 +330,7 @@
 		return getClassFields(cast e);
 	}
 
-	@:functionBody('
+	@:functionCode('
 		if (v == null) return ValueType.TNull;
 
 		if (v instanceof haxe.lang.IHxObject) {
@@ -363,7 +363,7 @@
 		return null;
 	}
 
-	@:functionBody('
+	@:functionCode('
 			if (a instanceof haxe.lang.Enum)
 				return a.equals(b);
 			else
@@ -374,7 +374,7 @@
 		return a.equals(b);
 	}
 
-	@:functionBody('
+	@:functionCode('
 		if (e instanceof java.lang.Enum)
 			return ((java.lang.Enum) e).name();
 		else
@@ -385,7 +385,7 @@
 		return null;
 	}
 
-	@:functionBody('
+	@:functionCode('
 		return ( e instanceof java.lang.Enum ) ? new haxe.root.Array() : ((haxe.lang.Enum) e).params;
 	')
 	public static function enumParameters( e : EnumValue ) : Array<Dynamic> untyped
@@ -393,7 +393,7 @@
 		return null;
 	}
 
-	@:functionBody('
+	@:functionCode('
 		if (e instanceof java.lang.Enum)
 			return ((java.lang.Enum) e).ordinal();
 		else

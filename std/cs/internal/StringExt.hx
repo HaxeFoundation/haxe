@@ -23,10 +23,10 @@ package cs.internal;
 import cs.internal.Function;
 private typedef NativeString = String;
 
-@:keep @:nativegen @:native("haxe.lang.StringExt") private class StringExt
+@:keep @:nativeGen @:native("haxe.lang.StringExt") private class StringExt
 {
 
-	@:functionBody('
+	@:functionCode('
 			if ( ((uint) index) >= me.Length)
 				return null;
 			else
@@ -37,7 +37,7 @@ private typedef NativeString = String;
 		return null;
 	}
 
-	@:functionBody('
+	@:functionCode('
 			if ( ((uint) index) >= me.Length)
 				return default(haxe.lang.Null<int>);
 			else
@@ -48,7 +48,7 @@ private typedef NativeString = String;
 		return null;
 	}
 
-	@:functionBody('
+	@:functionCode('
 			uint sIndex = (startIndex.hasValue) ? ((uint) startIndex.@value) : 0;
 			if (sIndex >= me.Length)
 				return -1;
@@ -59,7 +59,7 @@ private typedef NativeString = String;
 		return -1;
 	}
 
-	@:functionBody('
+	@:functionCode('
 			int sIndex = (startIndex.hasValue) ? (startIndex.@value) : (me.Length - 1);
 			if (sIndex >= me.Length)
 				sIndex = me.Length - 1;
@@ -95,7 +95,7 @@ private typedef NativeString = String;
 		return -1;
 	}
 
-	@:functionBody('
+	@:functionCode('
 			string[] native;
 			if (delimiter.Length == 0)
 			{
@@ -113,7 +113,7 @@ private typedef NativeString = String;
 		return null;
 	}
 
-	@:functionBody('
+	@:functionCode('
 			int meLen = me.Length;
 			int targetLen = meLen;
 			if (len.hasValue)
@@ -146,7 +146,7 @@ private typedef NativeString = String;
 		return null;
 	}
 
-	@:functionBody('
+	@:functionCode('
 		int endIdx;
 		int len = me.Length;
 		if ( !endIndex.hasValue ) {
@@ -176,7 +176,7 @@ private typedef NativeString = String;
 		return null;
 	}
 
-	@:functionBody('
+	@:functionCode('
 			return me.ToLower();
 	')
 	public static function toLowerCase(me:NativeString):NativeString
@@ -184,7 +184,7 @@ private typedef NativeString = String;
 		return null;
 	}
 
-	@:functionBody('
+	@:functionCode('
 			return me.ToUpper();
 	')
 	public static function toUpperCase(me:NativeString):NativeString
@@ -197,7 +197,7 @@ private typedef NativeString = String;
 		return me;
 	}
 
-	@:functionBody('
+	@:functionCode('
 			return new string( (char) code, 1 );
 	')
 	public static function fromCharCode(code:Int):NativeString
@@ -206,7 +206,7 @@ private typedef NativeString = String;
 	}
 }
 
-@:keep @:nativegen @:native('haxe.lang.StringRefl') private class StringRefl
+@:keep @:nativeGen @:native('haxe.lang.StringRefl') private class StringRefl
 {
 	public static var fields = ["length", "toUpperCase", "toLowerCase", "charAt", "charCodeAt", "indexOf", "lastIndexOf", "split", "substr", "substring"];
 

@@ -286,7 +286,7 @@ let handle_break ctx e =
 
 let handle_expose ctx path meta =
 	let rec loop = function
-		| (":expose", args, pos) :: l when ctx.js_modern ->
+		| (Meta.Expose, args, pos) :: l when ctx.js_modern ->
 			ctx.found_expose <- true;
 			let exposed_path = (match args with
 				| [EConst (String s), _] -> s
@@ -1064,7 +1064,7 @@ let generate_type ctx = function
 		| None -> ()
 		| Some e ->
 			ctx.inits <- e :: ctx.inits);
-		if not c.cl_extern then generate_class ctx c else if has_meta ":initPackage" c.cl_meta then generate_package_create ctx c.cl_path
+		if not c.cl_extern then generate_class ctx c else if Meta.has Meta.InitPackage c.cl_meta then generate_package_create ctx c.cl_path
 	| TEnumDecl e when e.e_extern ->
 		()
 	| TEnumDecl e -> generate_enum ctx e

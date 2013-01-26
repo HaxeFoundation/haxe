@@ -423,7 +423,7 @@ let rec s_type ctx t =
 			(if b then "?" else "") ^ (if s = "" then "" else s ^ " : ") ^ s_fun ctx t true
 		) l) ^ " -> " ^ s_fun ctx t false
 	| TAnon a ->
-	let fl = PMap.fold (fun f acc -> ((if List.exists (function ":optional",_,_ -> true | _ -> false) f.cf_meta then " ?" else " ") ^ f.cf_name ^ " : " ^ s_type ctx f.cf_type) :: acc) a.a_fields [] in
+	let fl = PMap.fold (fun f acc -> ((if Meta.has Meta.Optional f.cf_meta then " ?" else " ") ^ f.cf_name ^ " : " ^ s_type ctx f.cf_type) :: acc) a.a_fields [] in
 		"{" ^ (if not (is_closed a) then "+" else "") ^  String.concat "," fl ^ " }"
 	| TDynamic t2 ->
 		"Dynamic" ^ s_type_params ctx (if t == t2 then [] else [t2])
@@ -614,7 +614,7 @@ let rec is_nullable ?(no_lazy=false) = function
 	| TInst ({ cl_path = ([],"Int") },[])
 	| TInst ({ cl_path = ([],"Float") },[])
 	| TEnum ({ e_path = ([],"Bool") },[]) -> false
-	| TAbstract (a,_) -> not (List.exists (fun (m2,_,_) -> m2 = ":notNull") a.a_meta)
+	| TAbstract (a,_) -> not (Meta.has Meta.NotNull a.a_meta)
 	| _ ->
 		true
 
@@ -853,7 +853,7 @@ let is_extern_field f =
 	match f.cf_kind with
 	| Method _ -> false
 	| Var { v_read = AccNormal | AccNo } | Var { v_write = AccNormal | AccNo } -> false
-	| _ -> not (has_meta ":isVar" f.cf_meta)
+	| _ -> not (Meta.has Meta.IsVar f.cf_meta)
 
 let field_type f =
 	match f.cf_params with
@@ -1046,10 +1046,10 @@ let rec unify a b =
 					then error [Missing_overload (f1, f2o.cf_type)]
 				) f2.cf_overloads;
 				(* we mark the field as :?used because it might be used through the structure *)
-				if not (has_meta ":?used" f1.cf_meta) then f1.cf_meta <- (":?used",[],f1.cf_pos) :: f1.cf_meta;
+				if not (Meta.has Meta.MaybeUsed f1.cf_meta) then f1.cf_meta <- (Meta.MaybeUsed,[],f1.cf_pos) :: f1.cf_meta;
 				(match f1.cf_kind with
 				| Method MethInline ->
-					if (c.cl_extern || has_meta ":extern" f1.cf_meta) && not (has_meta ":runtime" f1.cf_meta) then error [Has_no_runtime_field (a,n)];
+					if (c.cl_extern || Meta.has Meta.Extern f1.cf_meta) && not (Meta.has Meta.Runtime f1.cf_meta) then error [Has_no_runtime_field (a,n)];
 				| _ -> ());
 			) an.a_fields;
 			if !(an.a_status) = Opened then an.a_status := Closed;
@@ -1069,7 +1069,7 @@ let rec unify a b =
 				try
 					unify_with_access f1.cf_type f2;
 					(match !(a1.a_status) with
-					| Statics c when not (has_meta ":?used" f1.cf_meta) -> f1.cf_meta <- (":?used",[],f1.cf_pos) :: f1.cf_meta
+					| Statics c when not (Meta.has Meta.MaybeUsed f1.cf_meta) -> f1.cf_meta <- (Meta.MaybeUsed,[],f1.cf_pos) :: f1.cf_meta
 					| _ -> ());
 				with
 					Unify_error l -> error (invalid_field n :: l)
@@ -1079,7 +1079,7 @@ let rec unify a b =
 					| Opened ->
 						if not (link (ref None) a f2.cf_type) then error [];
 						a1.a_fields <- PMap.add n f2 a1.a_fields
-					| Const when has_meta ":optional" f2.cf_meta ->
+					| Const when Meta.has Meta.Optional f2.cf_meta ->
 						()
 					| _ ->
 						error [has_no_field a n];

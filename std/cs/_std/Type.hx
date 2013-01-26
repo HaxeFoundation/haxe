@@ -61,7 +61,7 @@ import cs.internal.Runtime;
 
 @:keep @:coreApi class Type {
 
-	@:functionBody('
+	@:functionCode('
 		if (o is haxe.lang.DynamicObject || o is System.Type)
 			return null;
 
@@ -72,7 +72,7 @@ import cs.internal.Runtime;
 		return null;
 	}
 
-	@:functionBody('
+	@:functionCode('
 		if (o is System.Enum || o is haxe.lang.Enum)
 			return o.GetType();
 		return null;
@@ -180,7 +180,7 @@ import cs.internal.Runtime;
 		return createInstance(cl, []);
 	}
 
-	@:functionBody('
+	@:functionCode('
 		if (@params == null)
 		{
 			object ret = haxe.lang.Runtime.slowGetField(e, constr, false);
@@ -201,7 +201,7 @@ import cs.internal.Runtime;
 		return createEnum(e, constr[index], params);
 	}
 
-	@:functionBody('
+	@:functionCode('
 		if (c == typeof(string))
 		{
 			return haxe.lang.StringRefl.fields;
@@ -225,7 +225,7 @@ import cs.internal.Runtime;
 		return null;
 	}
 
-	@:functionBody('
+	@:functionCode('
 		Array<object> ret = new Array<object>();
 
 		if (c == typeof(string))
@@ -254,7 +254,7 @@ import cs.internal.Runtime;
 		return untyped __cs__("new Array<object>(System.Enum.GetNames(e))");
 	}
 
-	@:functionBody('
+	@:functionCode('
 		if (v == null) return ValueType.TNull;
 
         System.Type t = v as System.Type;
@@ -309,7 +309,7 @@ import cs.internal.Runtime;
 		return null;
 	}
 
-	@:functionBody('
+	@:functionCode('
 			if (a is haxe.lang.Enum)
 				return a.Equals(b);
 			else
@@ -320,7 +320,7 @@ import cs.internal.Runtime;
 		return untyped a.Equals(b);
 	}
 
-	@:functionBody('
+	@:functionCode('
 		if (e is System.Enum)
 			return e + "";
 		else
@@ -331,7 +331,7 @@ import cs.internal.Runtime;
 		return e.tag;
 	}
 
-	@:functionBody('
+	@:functionCode('
 		return ( e is System.Enum ) ? new Array<object>() : ((haxe.lang.Enum) e).@params;
 	')
 	public static function enumParameters( e : EnumValue ) : Array<Dynamic> untyped
@@ -339,7 +339,7 @@ import cs.internal.Runtime;
 		return null;
 	}
 
-	@:functionBody('
+	@:functionCode('
 		if (e is System.Enum)
 			return ((System.IConvertible) e).ToInt32(null);
 		else

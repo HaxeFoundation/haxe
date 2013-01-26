@@ -23,7 +23,7 @@ import java.Boot;
 import java.Lib;
 import java.internal.Exceptions;
 
-@:coreApi @:nativegen class Std {
+@:coreApi @:nativeGen class Std {
 	public static function is( v : Dynamic, t : Dynamic ) : Bool
 	{
 		if (v == null)
@@ -60,7 +60,7 @@ import java.internal.Exceptions;
 		return cast x;
 	}
 
-	@:functionBody('
+	@:functionCode('
 		if (x == null) return null;
 
 		int ret = 0;
@@ -133,7 +133,7 @@ import java.internal.Exceptions;
 		return null;
 	}
 
-	@:functionBody('
+	@:functionCode('
 		if (x == null) return java.lang.Double.NaN;
 
 		x = x.trim();

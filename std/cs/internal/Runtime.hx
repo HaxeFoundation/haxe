@@ -34,9 +34,9 @@ import cs.system.Type;
  compatibility to the host language.
 **/
 
-@:nativegen
+@:nativeGen
 @:native('haxe.lang.Runtime')
-@:classContents('
+@:classCode('
 	public static object getField(haxe.lang.HxObject obj, string field, int fieldHash, bool throwErrors)
 	{
 		if (obj == null && !throwErrors) return null;
@@ -68,7 +68,7 @@ import cs.system.Type;
 {
 	public static var undefined(default, never):Dynamic = { };
 
-	@:functionBody('
+	@:functionCode('
 		return new haxe.lang.Closure(obj, field, hash);
 	')
 	public static function closure(obj:Dynamic, hash:Int, field:String):Dynamic
@@ -76,7 +76,7 @@ import cs.system.Type;
 		return null;
 	}
 
-	@:functionBody('
+	@:functionCode('
 			if (System.Object.ReferenceEquals(v1, v2))
 				return true;
 			if (v1 == null || v2 == null)
@@ -130,7 +130,7 @@ import cs.system.Type;
 		return false;
 	}
 
-	@:functionBody('
+	@:functionCode('
 			if (v1 is System.Type)
 				return typeEq(v1 as System.Type, v2 as System.Type);
 			return System.Object.ReferenceEquals(v1, v2);
@@ -140,7 +140,7 @@ import cs.system.Type;
 		return false;
 	}
 
-	@:functionBody('
+	@:functionCode('
 		return (obj == null) ? 0.0 : (obj is double) ? (double)obj : ((System.IConvertible) obj).ToDouble(null);
 	')
 	public static function toDouble(obj:Dynamic):Float
@@ -148,7 +148,7 @@ import cs.system.Type;
 		return 0.0;
 	}
 
-	@:functionBody('
+	@:functionCode('
 		return (obj == null) ? 0 : (obj is int) ? (int)obj : ((System.IConvertible) obj).ToInt32(null);
 	')
 	public static function toInt(obj:Dynamic):Int
@@ -156,7 +156,7 @@ import cs.system.Type;
 		return 0;
 	}
 
-	@:functionBody('
+	@:functionCode('
 			System.IConvertible cv1 = obj as System.IConvertible;
 			if (cv1 != null)
 			{
@@ -181,7 +181,7 @@ import cs.system.Type;
 		return false;
 	}
 
-	@:functionBody('
+	@:functionCode('
 			System.IConvertible cv1 = v1 as System.IConvertible;
 			if (cv1 != null)
 			{
@@ -232,7 +232,7 @@ import cs.system.Type;
 		return 0;
 	}
 
-	@:functionBody('
+	@:functionCode('
 			if (v1 is string || v2 is string)
 				return Std.@string(v1) + Std.@string(v2);
 
@@ -256,7 +256,7 @@ import cs.system.Type;
 		return null;
 	}
 
-	@:functionBody('
+	@:functionCode('
 
 		if (obj == null)
 			if (throwErrors)
@@ -309,7 +309,7 @@ import cs.system.Type;
 		return null;
 	}
 
-	@:functionBody('
+	@:functionCode('
 		if (obj == null) return false;
 		System.Type t = obj as System.Type;
 		System.Reflection.BindingFlags bf;
@@ -335,7 +335,7 @@ import cs.system.Type;
 		return false;
 	}
 
-	@:functionBody('
+	@:functionCode('
 		if (obj == null)
 			throw new System.NullReferenceException("Cannot access field \'" + field + "\' of null.");
 
@@ -494,7 +494,7 @@ import cs.system.Type;
 		}
 	}
 
-	@:functionBody('
+	@:functionCode('
 		if (nullableType.ContainsGenericParameters)
 			return haxe.lang.Null<object>.ofDynamic<object>(obj);
 		return nullableType.GetMethod("_ofDynamic").Invoke(null, new object[] { obj });
@@ -504,7 +504,7 @@ import cs.system.Type;
 		return null;
 	}
 
-	@:functionBody('
+	@:functionCode('
 		if (args == null) args = new Array<object>();
 
 		System.Reflection.BindingFlags bf;
@@ -546,7 +546,7 @@ import cs.system.Type;
 		return null;
 	}
 
-	@:functionBody('
+	@:functionCode('
 		haxe.lang.HxObject hxObj = obj as haxe.lang.HxObject;
 		if (hxObj != null)
 			return hxObj.__hx_invokeField(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, args);
@@ -558,7 +558,7 @@ import cs.system.Type;
 		return null;
 	}
 
-	@:functionBody('
+	@:functionCode('
 
 		haxe.lang.HxObject hxObj = obj as haxe.lang.HxObject;
 		if (hxObj != null)
@@ -572,7 +572,7 @@ import cs.system.Type;
 		return null;
 	}
 
-	@:functionBody('
+	@:functionCode('
 
 		haxe.lang.HxObject hxObj = obj as haxe.lang.HxObject;
 		if (hxObj != null)
@@ -586,7 +586,7 @@ import cs.system.Type;
 		return 0.0;
 	}
 
-	@:functionBody('
+	@:functionCode('
 
 		haxe.lang.HxObject hxObj = obj as haxe.lang.HxObject;
 		if (hxObj != null)
@@ -600,7 +600,7 @@ import cs.system.Type;
 		return null;
 	}
 
-	@:functionBody('
+	@:functionCode('
 
 		haxe.lang.HxObject hxObj = obj as haxe.lang.HxObject;
 		if (hxObj != null)
@@ -627,7 +627,7 @@ import cs.system.Type;
 		return untyped obj.ToString();
 	}
 
-	@:functionBody('
+	@:functionCode('
 			if (t1 == null || t2 == null)
 				return t1 == t2;
 			string n1 = Type.getClassName(t1);
@@ -640,7 +640,7 @@ import cs.system.Type;
 	}
 
 
-	@:functionBody('
+	@:functionCode('
 		if (obj is To)
 			return (To) obj;
 		else if (obj == null)
@@ -657,7 +657,7 @@ import cs.system.Type;
 		return null;
 	}
 
-	@:functionBody('
+	@:functionCode('
 		return (s1 == null ? "null" : s1) + (s2 == null ? "null" : s2);
 	')
 	public static function concat(s1:String, s2:String):String
@@ -666,7 +666,7 @@ import cs.system.Type;
 	}
 
 	//TODO: change from genericCast to getConverter, so we don't need to handle extra boxing associated with it
-	/*@:functionBody('
+	/*@:functionCode('
 		if (typeof(To).TypeHandle == typeof(double).TypeHandle)
 			return (System.Converter<object,To>) new System.Converter<object,double>(toDouble);
 		else if (typeof(To).TypeHandle == typeof(double).TypeHandle)

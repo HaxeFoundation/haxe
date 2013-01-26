@@ -23,6 +23,307 @@ type pos = {
 	pmax : int;
 }
 
+module Meta = struct
+	type strict_meta =
+		| Abstract
+		| Access
+		| Alias
+		| Allow
+		| Annotation
+		| ArrayAccess
+		| AutoBuild
+		| BaseInterface
+		| Bind
+		| Bitmap
+		| Build
+		| BuildXml
+		| Class
+		| ClassCode
+		| CompilerGenerated
+		| CoreApi
+		| CoreType
+		| CppFileCode
+		| CppNamespaceCode
+		| Debug
+		| Decl
+		| DefineFeature
+		| DefParam
+		| Depend
+		| Deprecated
+		| DynamicObject
+		| Enum
+		| Expose
+		| Extern
+		| FakeEnum
+		| File
+		| Final
+		| Font
+		| From
+		| FunctionCode
+		| FunctionTailCode
+		| Generic
+		| Getter
+		| Hack
+		| HaxeGeneric
+		| HeaderClassCode
+		| HeaderCode
+		| HeaderNamespaceCode
+		| HxGen
+		| IfFeature
+		| Impl
+		| Include
+		| InitPackage
+		| Internal
+		| IsVar
+		| JavaNative
+		| Keep
+		| KeepInit
+		| KeepSub
+		| Meta
+		| Macro
+		| MaybeUsed
+		| Native
+		| NativeGen
+		| NativeGeneric
+		| NoCompletion
+		| NoDebug
+		| NoDoc
+		| NoStack
+		| NotNull
+		| NoUsing
+		| Ns
+		| Optional
+		| Overload
+		| Public
+		| PrivateAccess
+		| Protected
+		| ReadOnly
+		| RealPath
+		| Remove
+		| Require
+		| ReplaceReflection
+		| RttiInfos
+		| Runtime
+		| RuntimeValue
+		| Setter
+		| SkipCtor
+		| SkipReflection
+		| Sound
+		| Struct
+		| SuppressWarnings
+		| Synchronized
+		| Throws
+		| To
+		| Transient
+		| ValueUsed
+		| VarArgs
+		| Volatile
+		| UnifyMinDynamic
+		| Unreflective
+		| Unsafe
+		| Used
+		| Dollar of string
+		| Custom of string
+
+	let to_string = function
+		| Abstract -> ":abstract"
+		| Access -> ":access"
+		| Alias -> ":alias"
+		| Allow -> ":allow"
+		| Annotation -> ":annotation"
+		| ArrayAccess -> ":arrayAccess"
+		| AutoBuild -> ":autoBuild"
+		| BaseInterface -> ":baseInterface"
+		| Bind -> ":bind"
+		| Bitmap -> ":bitmap"
+		| Build -> ":build"
+		| BuildXml -> "buildXml"
+		| Class -> ":class"
+		| ClassCode -> ":classCode"
+		| CompilerGenerated -> ":compilerGenerated"
+		| CoreApi -> ":coreApi"
+		| CoreType -> ":coreType"
+		| CppFileCode -> ":cppFileCode"
+		| CppNamespaceCode -> ":cppNamespaceCode"
+		| Debug -> ":debug"
+		| Decl -> ":decl"
+		| DefineFeature -> ":defineFeature"
+		| DefParam -> ":defParam"
+		| Depend -> ":depend"
+		| Deprecated -> ":deprecated"
+		| DynamicObject -> ":dynamicObject"
+		| Enum -> ":enum"
+		| Expose -> ":expose"
+		| Extern -> ":extern"
+		| FakeEnum -> ":fakeEnum"
+		| File -> ":file"
+		| Final -> ":final"
+		| Font -> ":font"
+		| From -> ":from"
+		| FunctionCode -> ":functionCode"
+		| FunctionTailCode -> ":functionTailCode"
+		| Generic -> ":generic"
+		| Getter -> ":getter"
+		| Hack -> ":hack"
+		| HaxeGeneric -> ":haxeGeneric"
+		| HeaderClassCode -> ":headerClassCode"
+		| HeaderCode -> ":headerCode"
+		| HeaderNamespaceCode -> ":headerNamespaceCode"
+		| HxGen -> ":hxGen"
+		| IfFeature -> ":ifFeature"
+		| Impl -> ":impl"
+		| Include -> ":include"
+		| InitPackage -> ":initPackage"
+		| Internal -> ":internal"
+		| IsVar -> ":isVar"
+		| JavaNative -> ":javaNative"
+		| Keep -> ":keep"
+		| KeepInit -> ":keepInit"
+		| KeepSub -> ":keepSub"
+		| Meta -> ":meta"
+		| Macro -> ":macro"
+		| MaybeUsed -> ":maybeUsed"
+		| Native -> ":native"
+		| NativeGen -> ":nativeGen"
+		| NativeGeneric -> ":nativeGeneric"
+		| NoCompletion -> ":noCompletion"
+		| NoDebug -> ":noDebug"
+		| NoDoc -> ":noDoc"
+		| NoStack -> ":noStack"
+		| NotNull -> ":notNull"
+		| NoUsing -> ":noUsing"
+		| Ns -> ":ns"
+		| Optional -> ":optional"
+		| Overload -> ":overlord"
+		| Public -> ":public"
+		| PrivateAccess -> ":privateAccess"
+		| Protected -> ":protected"
+		| ReadOnly -> ":readOnly"
+		| RealPath -> ":realPath"
+		| Remove -> ":remove"
+		| Require -> ":require"
+		| ReplaceReflection -> ":replaceReflection"
+		| RttiInfos -> ":rttiInfos"
+		| Runtime -> ":runtime"
+		| RuntimeValue -> ":runtimeValue"
+		| Setter -> ":setter"
+		| SkipCtor -> ":skipCtor"
+		| SkipReflection -> ":skipReflection"
+		| Sound -> ":sound"
+		| Struct -> ":struct"
+		| SuppressWarnings -> ":suppressWarnings"
+		| Synchronized -> ":synchronized"
+		| Throws -> ":throws"
+		| To -> ":to"
+		| Transient -> ":transient"
+		| ValueUsed -> ":valueUsed"
+		| VarArgs -> ":varArgs"
+		| Volatile -> ":volatile"
+		| UnifyMinDynamic -> ":unifyMinDynamic"
+		| Unreflective -> ":unreflective"
+		| Unsafe -> ":unsafe"
+		| Used -> ":used"
+		| Dollar s -> "$" ^ s
+		| Custom s -> s
+
+	let parse = function
+		| "abstract" -> Abstract
+		| "access" -> Access
+		| "alias" -> Alias
+		| "allow" -> Allow
+		| "annotation" -> Annotation
+		| "arrayAccess" -> ArrayAccess
+		| "autoBuild" -> AutoBuild
+		| "bind" -> Bind
+		| "bitmap" -> Bitmap
+		| "build" -> Build
+		| "buildXml" -> BuildXml
+		| "classCode" -> ClassCode (* was classContents *)
+		| "coreApi" -> CoreApi
+		| "coreType" -> CoreType
+		| "cppFileCode" -> CppFileCode
+		| "cppNamespaceCode" -> CppNamespaceCode
+		| "debug" -> Debug
+		| "decl" -> Decl
+		| "defineFeature" -> DefineFeature
+		| "defParam" -> DefParam (* was defparam *)
+		| "depend" -> Depend
+		| "deprecated" -> Deprecated
+		| "expose" -> Expose
+		| "extern" -> Extern
+		| "fakeEnum" -> FakeEnum
+		| "file" -> File
+		| "final" -> Final
+		| "font" -> Font
+		| "from" -> From
+		| "functionCode" -> FunctionCode
+		| "functionTailCode" -> FunctionTailCode
+		| "generic" -> Generic
+		| "getter" -> Getter
+		| "hack" -> Hack
+		| "headerClassCode" -> HeaderClassCode
+		| "headerCode" -> HeaderCode
+		| "headerNamespaceCode" -> HeaderNamespaceCode
+		| "hxGen" -> HxGen (* was hxgen *)
+		| "ifFeature" -> IfFeature
+		| "include" -> Include
+		| "initPackage" -> InitPackage
+		| "internal" -> Internal
+		| "isVar" -> IsVar
+		| "keep" -> Keep
+		| "keepInit" -> KeepInit
+		| "keepSub" -> KeepSub
+		| "macro" -> Macro
+		| "native" -> Native
+		| "nativeGen" -> NativeGen (* was nativegen *)
+		| "noCompletion" -> NoCompletion
+		| "noDebug" -> NoDebug
+		| "noDoc" -> NoDoc
+		| "noStack" -> NoStack
+		| "notNull" -> NotNull
+		| "noUsing" -> NoUsing
+		| "ns" -> Ns
+		| "optional" -> Optional
+		| "overload" -> Overload
+		| "protected" -> Protected
+		| "public" -> Public
+		| "readOnly" -> ReadOnly (* was readonly *)
+		| "remove" -> Remove
+		| "require" -> Require
+		| "replaceReflection" -> ReplaceReflection
+		| "rttiInfos" -> RttiInfos
+		| "runtime" -> Runtime
+		| "runtimeValue" -> RuntimeValue
+		| "setter" -> Setter
+		| "skipCtor" -> SkipCtor (* was skip_ctor *)
+		| "skipReflection" -> SkipReflection
+		| "sound" -> Sound
+		| "struct" -> Struct
+		| "suppressWarnings" -> SuppressWarnings
+		| "synchronized" -> Synchronized
+		| "throws" -> Throws
+		| "to" -> To
+		| "transient" -> Transient
+		| "varArgs" -> VarArgs
+		| "volatile" -> Volatile
+		| "unifyMinDynamic" -> UnifyMinDynamic
+		| "unreflective" -> Unreflective
+		| "unsafe" -> Unsafe
+		| s -> Custom s
+
+	let from_string s =
+		if s = "" then Custom "" else match s.[0] with
+		| ':' -> parse (String.sub s 1 (String.length s - 1))
+		| '$' -> Dollar (String.sub s 1 (String.length s - 1))
+		| _ -> Custom s
+
+	(* removed
+	:functionBody -> :functionCode
+	*)
+	let has m ml = List.exists (fun (m2,_,_) -> m = m2) ml
+	let get m ml = List.find (fun (m2,_,_) -> m = m2) ml
+end
+
 type keyword =
 	| Function
 	| Class
@@ -206,7 +507,7 @@ and type_param = {
 
 and documentation = string option
 
-and metadata_entry = (string * expr list * pos)
+and metadata_entry = (Meta.strict_meta * expr list * pos)
 and metadata = metadata_entry list
 
 and access =
@@ -709,7 +1010,7 @@ let reify in_macro =
 	and to_meta m p =
 		to_array (fun (m,el,p) _ ->
 			let fields = [
-				"name", to_string m p;
+				"name", to_string (Meta.to_string m) p;
 				"params", to_expr_array el p;
 				"pos", to_pos p;
 			] in
@@ -724,7 +1025,7 @@ let reify in_macro =
 		else
 			to_obj [("file",file);("min",pmin);("max",pmax)] p
 	and to_expr_array a p = match a with
-		| [EMeta (("$a",[],_),e1),_] -> (match fst e1 with EArrayDecl el -> to_expr_array el p | _ -> e1)
+		| [EMeta ((Meta.Dollar "a",[],_),e1),_] -> (match fst e1 with EArrayDecl el -> to_expr_array el p | _ -> e1)
 		| _ -> to_array to_expr a p
 	and to_expr e _ =
 		let p = snd e in
@@ -816,18 +1117,18 @@ let reify in_macro =
 			expr "ECheckType" [loop e1; to_ctype ct p]
 		| EMeta ((m,ml,p),e1) ->
 			match m with
-			| "$" | "$e" ->
+			| Meta.Dollar ("" | "e") ->
 				e1
-			| "$a" ->
+			| Meta.Dollar "a" ->
 				expr "EArrayDecl" (match fst e1 with EArrayDecl el -> [to_expr_array el p] | _ -> [e1])
 			(* TODO: can $v and $i be implemented better? *)
-			| "$v" ->
+			| Meta.Dollar "v" ->
 				(ECall ((EField ((EField ((EField ((EConst (Ident "haxe"),p),"macro"),p),"Context"),p),"makeExpr"),p),[e; to_pos (pos e)]),p)
-			| "$i" ->
+			| Meta.Dollar "i" ->
 				(ECall ((EField ((EField ((EField ((EConst (Ident "haxe"),p),"macro"),p),"ExprTools"),p),"asIdent"),p),[e; to_pos (pos e)]),p)
-			| "$p" ->
+			| Meta.Dollar "p" ->
 				(ECall ((EField ((EField ((EField ((EConst (Ident "haxe"),p),"macro"),p),"ExprTools"),p),"toFieldExpr"),p),[e]),p)
 			| _ ->
-				expr "EMeta" [to_obj [("name",to_string m p);("params",to_expr_array ml p);("pos",to_pos p)] p;loop e1]
+				expr "EMeta" [to_obj [("name",to_string (Meta.to_string m) p);("params",to_expr_array ml p);("pos",to_pos p)] p;loop e1]
 	in
 	(fun e -> to_expr e (snd e)), to_ctype

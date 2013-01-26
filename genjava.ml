@@ -617,23 +617,23 @@ let dynamic_anon = TAnon( { a_fields = PMap.empty; a_status = ref Closed } )
 let rec get_class_modifiers meta cl_type cl_access cl_modifiers =
   match meta with
     | [] -> cl_type,cl_access,cl_modifiers
-    (*| (":struct",[],_) :: meta -> get_class_modifiers meta "struct" cl_access cl_modifiers*)
-    | (":protected",[],_) :: meta -> get_class_modifiers meta cl_type "protected" cl_modifiers
-    | (":internal",[],_) :: meta -> get_class_modifiers meta cl_type "" cl_modifiers
+    (*| (Meta.Struct,[],_) :: meta -> get_class_modifiers meta "struct" cl_access cl_modifiers*)
+    | (Meta.Protected,[],_) :: meta -> get_class_modifiers meta cl_type "protected" cl_modifiers
+    | (Meta.Internal,[],_) :: meta -> get_class_modifiers meta cl_type "" cl_modifiers
     (* no abstract for now | (":abstract",[],_) :: meta -> get_class_modifiers meta cl_type cl_access ("abstract" :: cl_modifiers)
-    | (":static",[],_) :: meta -> get_class_modifiers meta cl_type cl_access ("static" :: cl_modifiers) TODO: support those types *)
-    | (":final",[],_) :: meta -> get_class_modifiers meta cl_type cl_access ("final" :: cl_modifiers)
+    | (Meta.Static,[],_) :: meta -> get_class_modifiers meta cl_type cl_access ("static" :: cl_modifiers) TODO: support those types *)
+    | (Meta.Final,[],_) :: meta -> get_class_modifiers meta cl_type cl_access ("final" :: cl_modifiers)
     | _ :: meta -> get_class_modifiers meta cl_type cl_access cl_modifiers
 
 let rec get_fun_modifiers meta access modifiers =
   match meta with
     | [] -> access,modifiers
-    | (":protected",[],_) :: meta -> get_fun_modifiers meta "protected" modifiers
-    | (":internal",[],_) :: meta -> get_fun_modifiers meta "" modifiers
-    (*| (":readonly",[],_) :: meta -> get_fun_modifiers meta access ("readonly" :: modifiers)*)
-    (*| (":unsafe",[],_) :: meta -> get_fun_modifiers meta access ("unsafe" :: modifiers)*)
-    | (":volatile",[],_) :: meta -> get_fun_modifiers meta access ("volatile" :: modifiers)
-    | (":transient",[],_) :: meta -> get_fun_modifiers meta access ("transient" :: modifiers)
+    | (Meta.Protected,[],_) :: meta -> get_fun_modifiers meta "protected" modifiers
+    | (Meta.Internal,[],_) :: meta -> get_fun_modifiers meta "" modifiers
+    (*| (Meta.ReadOnly,[],_) :: meta -> get_fun_modifiers meta access ("readonly" :: modifiers)*)
+    (*| (Meta.Unsafe,[],_) :: meta -> get_fun_modifiers meta access ("unsafe" :: modifiers)*)
+    | (Meta.Volatile,[],_) :: meta -> get_fun_modifiers meta access ("volatile" :: modifiers)
+    | (Meta.Transient,[],_) :: meta -> get_fun_modifiers meta access ("transient" :: modifiers)
     | _ :: meta -> get_fun_modifiers meta access modifiers
 
 (* this was the way I found to pass the generator context to be accessible across all functions here *)
@@ -1444,10 +1444,10 @@ let configure gen =
                 end else begin
                   expr_s w expr;
                 end)
-              | (":throws", [Ast.EConst (Ast.String t), _], _) :: tl ->
+              | (Meta.Throws, [Ast.EConst (Ast.String t), _], _) :: tl ->
                 print w " throws %s" t;
                 loop tl
-              | (":functionBody", [Ast.EConst (Ast.String contents),_],_) :: tl ->
+              | (Meta.FunctionCode, [Ast.EConst (Ast.String contents),_],_) :: tl ->
                 begin_block w;
                 write w contents;
                 end_block w
@@ -1471,7 +1471,7 @@ let configure gen =
 
     let rec loop_meta meta acc =
       match meta with
-        | (":SuppressWarnings", [Ast.EConst (Ast.String w),_],_) :: meta -> loop_meta meta (w :: acc)
+        | (Meta.SuppressWarnings, [Ast.EConst (Ast.String w),_],_) :: meta -> loop_meta meta (w :: acc)
         | _ :: meta -> loop_meta meta acc
         | _ -> acc
     in
@@ -1506,7 +1506,7 @@ let configure gen =
     newline w;
 
     let clt, access, modifiers = get_class_modifiers cl.cl_meta (if cl.cl_interface then "interface" else "class") "public" [] in
-    let is_final = has_meta ":final" cl.cl_meta in
+    let is_final = Meta.has Meta.Final cl.cl_meta in
 
     print w "%s %s %s %s" access (String.concat " " modifiers) clt (change_clname (snd cl.cl_path));
     (* type parameters *)
@@ -1536,7 +1536,7 @@ let configure gen =
     let rec loop meta =
       match meta with
         | [] ->  ()
-        | (":classContents", [Ast.EConst (Ast.String contents),_],_) :: tl ->
+        | (Meta.ClassCode, [Ast.EConst (Ast.String contents),_],_) :: tl ->
           write w contents
         | _ :: tl -> loop tl
     in
@@ -2121,7 +2121,7 @@ let convert_param p param =
 let get_type_path ct = match ct with | CTPath p -> p | _ -> assert false
 
 let convert_java_enum p pe =
-  let meta = ref [":$javaNative", [], p] in
+  let meta = ref [Meta.JavaNative, [], p] in
   let data = ref [] in
   List.iter (fun f ->
     if List.mem JEnum f.jf_flags then
@@ -2154,16 +2154,16 @@ let convert_java_field p jc field =
     | JPrivate -> raise Exit (* private instances aren't useful on externs *)
     | JProtected -> cff_access := APrivate :: !cff_access
     | JStatic -> cff_access := AStatic :: !cff_access
-    | JFinal -> cff_meta := (":final", [], p) :: !cff_meta
-    | JSynchronized -> cff_meta := (":synchronized", [], p) :: !cff_meta
-    | JVolatile -> cff_meta := (":volatile", [], p) :: !cff_meta
-    | JTransient -> cff_meta := (":transient", [], p) :: !cff_meta
-    | JVarArgs -> cff_meta := (":varArgs", [], p) :: !cff_meta
+    | JFinal -> cff_meta := (Meta.Final, [], p) :: !cff_meta
+    | JSynchronized -> cff_meta := (Meta.Synchronized, [], p) :: !cff_meta
+    | JVolatile -> cff_meta := (Meta.Volatile, [], p) :: !cff_meta
+    | JTransient -> cff_meta := (Meta.Transient, [], p) :: !cff_meta
+    | JVarArgs -> cff_meta := (Meta.VarArgs, [], p) :: !cff_meta
     | _ -> ()
   ) field.jf_flags;
 
   List.iter (function
-    | AttrDeprecated -> cff_meta := (":deprecated", [], p) :: !cff_meta
+    | AttrDeprecated -> cff_meta := (Meta.Deprecated, [], p) :: !cff_meta
     (* TODO: pass anotations as @:meta *)
     | AttrVisibleAnnotations ann ->
       List.iter (function
@@ -2186,7 +2186,7 @@ let convert_java_field p jc field =
           "param" ^ string_of_int !i, false, Some(convert_signature p s), None
         ) args in
         let t = Option.map_default (convert_signature p) (mk_type_path ([], "Void") []) ret in
-        cff_meta := (":overload", [], p) :: !cff_meta;
+        cff_meta := (Meta.Overload, [], p) :: !cff_meta;
 
         let types = List.map (function
           | (name, Some ext, impl) ->
@@ -2228,25 +2228,25 @@ let convert_java_class p jc =
     convert_java_enum p jc
   | false ->
     let flags = ref [HExtern] in
-    let meta = ref [":$javaNative", [], p] in
+    let meta = ref [Meta.JavaNative, [], p] in
 
     List.iter (fun f -> match f with
-      | JFinal -> meta := (":final", [], p) :: !meta
+      | JFinal -> meta := (Meta.Final, [], p) :: !meta
       | JInterface -> flags := HInterface :: !flags
-      | JAbstract -> meta := (":abstract", [], p) :: !meta
-      | JAnnotation -> meta := (":annotation", [], p) :: !meta
+      | JAbstract -> meta := (Meta.Abstract, [], p) :: !meta
+      | JAnnotation -> meta := (Meta.Annotation, [], p) :: !meta
       | _ -> ()
     ) jc.cflags;
 
     (match jc.csuper with
       | TObject( (["java";"lang"], "Object"), _ ) -> ()
-      | TObject( (["haxe";"lang"], "HxObject"), _ ) -> meta := (":hxgen",[],p) :: !meta
+      | TObject( (["haxe";"lang"], "HxObject"), _ ) -> meta := (Meta.HxGen,[],p) :: !meta
       | _ -> flags := HExtends (get_type_path (convert_signature p jc.csuper)) :: !flags
     );
 
     List.iter (fun i ->
       match i with
-      | TObject ( (["haxe";"lang"], "IHxObject"), _ ) -> meta := (":hxgen",[],p) :: !meta
+      | TObject ( (["haxe";"lang"], "IHxObject"), _ ) -> meta := (Meta.HxGen,[],p) :: !meta
       | _ -> flags := HImplements (get_type_path (convert_signature p i)) :: !flags
     ) jc.cinterfaces;
 

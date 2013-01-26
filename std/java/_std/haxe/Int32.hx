@@ -23,7 +23,7 @@ package haxe;
 
 #if !haxe3
 
-@:nativegen
+@:nativeGen
 class Int32
 {
 	public static inline function make( a : Int, b : Int ) : Int32

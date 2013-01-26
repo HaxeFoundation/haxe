@@ -3540,7 +3540,7 @@ and encode_access a =
 
 and encode_meta_entry (m,ml,p) =
 	enc_obj [
-		"name", enc_string m;
+		"name", enc_string (Meta.to_string m);
 		"params", enc_array (List.map encode_expr ml);
 		"pos", encode_pos p;
 	]
@@ -3693,7 +3693,7 @@ and encode_expr e =
 		]
 	in
 	loop e
-	
+
 and encode_null_expr e =
 	match e with
 	| None ->
@@ -3831,7 +3831,7 @@ and decode_access v =
 	| _ -> raise Invalid_expr
 
 and decode_meta_entry v =
-	(dec_string (field v "name"), List.map decode_expr (dec_array (field v "params")), decode_pos (field v "pos"))
+	Meta.from_string (dec_string (field v "name")), List.map decode_expr (dec_array (field v "params")), decode_pos (field v "pos")
 
 and decode_meta_content v =
 	List.map decode_meta_entry (dec_array v)
@@ -3962,7 +3962,7 @@ and decode_null_expr v =
 	match field v "expr" with
 	| VNull -> None
 	| _ -> Some (decode_expr v)
-	
+
 
 (* ---------------------------------------------------------------------- *)
 (* TYPE ENCODING *)
@@ -4002,20 +4002,20 @@ let encode_meta m set =
 		"add", VFunction (Fun3 (fun k vl p ->
 			(try
 				let el = List.map decode_expr (dec_array vl) in
-				meta := (dec_string k, el, decode_pos p) :: !meta;
+				meta := (Meta.from_string (dec_string k), el, decode_pos p) :: !meta;
 				set (!meta)
 			with Invalid_expr ->
 				failwith "Invalid expression");
 			VNull
 		));
 		"remove", VFunction (Fun1 (fun k ->
-			let k = (try dec_string k with Invalid_expr -> raise Builtin_error) in
+			let k = Meta.from_string (try dec_string k with Invalid_expr -> raise Builtin_error) in
 			meta := List.filter (fun (m,_,_) -> m <> k) (!meta);
 			set (!meta);
 			VNull
 		));
 		"has", VFunction (Fun1 (fun k ->
-			let k = (try dec_string k with Invalid_expr -> raise Builtin_error) in
+			let k = Meta.from_string (try dec_string k with Invalid_expr -> raise Builtin_error) in
 			VBool (List.exists (fun (m,_,_) -> m = k) (!meta));
 		));
 	]

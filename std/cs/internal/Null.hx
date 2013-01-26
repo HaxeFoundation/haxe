@@ -21,7 +21,7 @@
  */
 package cs.internal;
 
-@:classContents('
+@:classCode('
 	//This function is here to be used with Reflection, when the haxe.lang.Null type is known
 	public static haxe.lang.Null<T> _ofDynamic(object obj)
 	{
@@ -37,18 +37,18 @@ package cs.internal;
 		}
 	}
 ')
-@:keep @:struct @:nativegen @:native("haxe.lang.Null") private class Nullable<T>
+@:keep @:struct @:nativeGen @:native("haxe.lang.Null") private class Nullable<T>
 {
-	
-	@:readonly public var value:T;
-	@:readonly public var hasValue:Bool;
-	
-	@:functionBody('
+
+	@:readOnly public var value:T;
+	@:readOnly public var hasValue:Bool;
+
+	@:functionCode('
 			if ( !(v is System.ValueType) && System.Object.ReferenceEquals(v, default(T)))
 			{
 				hasValue = false;
 			}
-			
+
 			this.@value = v;
 			this.hasValue = hasValue;
 	')
@@ -57,8 +57,8 @@ package cs.internal;
 		this.value = v;
 		this.hasValue = hasValue;
 	}
-	
-	@:functionBody('
+
+	@:functionCode('
 		if (obj == null)
 		{
 			return new haxe.lang.Null<D>(default(D), false);
@@ -74,8 +74,8 @@ package cs.internal;
 	{
 		return null;
 	}
-	
-	@:functionBody('
+
+	@:functionCode('
 		if (this.hasValue)
 			return value;
 		return null;

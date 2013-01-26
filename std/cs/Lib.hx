@@ -26,15 +26,15 @@ import cs.system.Type;
 	Platform-specific C# Library. Provides some platform-specific functions for the C# target,
 	such as conversion from haxe types to native types and vice-versa.
 **/
-class Lib 
+class Lib
 {
 	@:keep private static var decimalSeparator:String;
-	
+
 	/**
 		Changes the current culture settings to allow a consistent cross-target behavior.
 		Currently the only change made is in regard to the decimal separator, which is always set to "."
 	**/
-	@:functionBody('
+	@:functionCode('
 			System.Globalization.CultureInfo ci = new System.Globalization.CultureInfo(System.Threading.Thread.CurrentThread.CurrentCulture.Name, true);
 			decimalSeparator = ci.NumberFormat.NumberDecimalSeparator;
             ci.NumberFormat.NumberDecimalSeparator = ".";
@@ -42,25 +42,25 @@ class Lib
 	')
 	@:keep public static function applyCultureChanges():Void
 	{
-		
+
 	}
-	
+
 	/**
 		Reverts the culture changes to the default settings.
 	**/
-	@:functionBody('
+	@:functionCode('
 		System.Globalization.CultureInfo ci = new System.Globalization.CultureInfo(System.Threading.Thread.CurrentThread.CurrentCulture.Name, true);
 		System.Threading.Thread.CurrentThread.CurrentCulture = ci;
 	')
 	public static function revertDefaultCulture():Void
 	{
-		
+
 	}
-	
+
 	/**
 		Returns a native array from the supplied Array. This native array is unsafe to be written on,
 		as it may or may not be linked to the actual Array implementation.
-		
+
 		If equalLengthRequired is true, the result might be a copy of an array with the correct size.
 	**/
 	public static function nativeArray<T>(arr:Array<T>, equalLengthRequired:Bool):NativeArray<T>
@@ -76,24 +76,24 @@ class Lib
 			return ret;
 		}
 	}
-	
+
 	/**
 		Provides support for the "as" keyword in C#.
 		If the object is not of the supplied type "T", it will return null instead of rasing an exception.
-		
+
 		This function will not work with Value Types (such as Int, Float, Bool...)
 	**/
-	@:functionBody('
+	@:functionCode('
 			throw new haxe.lang.HaxeException("This function cannot be accessed at runtime");
 	')
 	@:extern public static inline function as<T>(obj:Dynamic, cl:Class<T>):T
 	{
 		return untyped __as__(obj, cl);
 	}
-	
+
 	/**
 		Returns a Class<> equivalent to the native System.Type type.
-		
+
 		Currently Haxe's Class<> is equivalent to System.Type, but this is an implementation detail.
 		This may change in the future, so use this function whenever you need to perform such conversion.
 	**/
@@ -101,10 +101,10 @@ class Lib
 	{
 		return untyped t;
 	}
-	
+
 	/**
 		Returns a System.Type equivalent to the Haxe Class<> type.
-		
+
 		Currently Haxe's Class<> is equivalent to System.Type, but this is an implementation detail.
 		This may change in the future, so use this function whenever you need to perform such conversion.
 	**/
@@ -112,7 +112,7 @@ class Lib
 	{
 		return untyped cl;
 	}
-	
+
 	/**
 		Gets the native System.Type from the supplied object. Will throw an exception in case of null being passed.
 	**/
@@ -120,7 +120,7 @@ class Lib
 	{
 		return untyped obj.GetType();
 	}
-	
+
 	/**
 		Returns a Haxe Array of a native Array.
 		It won't copy the contents of the native array, so unless any operation triggers an array resize,
@@ -130,7 +130,7 @@ class Lib
 	{
 		return untyped Array.ofNative(native);
 	}
-	
+
 	/**
 		Allocates a new Haxe Array with a predetermined size
 	**/
@@ -138,10 +138,10 @@ class Lib
 	{
 		return untyped Array.alloc(size);
 	}
-	
+
 	/**
 		Creates a "checked" block, which throws exceptions for overflows.
-		
+
 		Usage:
 			cs.Lib.checked({
 				var x = 1000;
@@ -156,19 +156,19 @@ class Lib
 	{
 		untyped __checked__(block);
 	}
-	
+
 	/**
 		Ensures that one thread does not enter a critical section of code while another thread
-		is in the critical section. If another thread attempts to enter a locked code, it 
+		is in the critical section. If another thread attempts to enter a locked code, it
 		will wait, block, until the object is released.
-		
+
 		This method only exists at compile-time, so it can't be called via reflection.
 	**/
 	@:extern public static inline function lock(obj:Dynamic, block:Dynamic):Void
 	{
 		untyped __lock__(obj, block);
 	}
-	
+
 	//Unsafe code manipulation
 	#if unsafe
 	/**
@@ -183,28 +183,28 @@ class Lib
 				//we cannot change obj1, obj2 or obj3 variables like this:
 				//obj1++;
 			});
-		
+
 		This method only exists at compile-time, so it can't be called via reflection.
 	**/
 	@:extern public static inline function fixed(block:Dynamic):Void
 	{
 		untyped __fixed__(block);
 	}
-	
+
 	/**
 		Marks the contained block as an unsafe block, meaning that it can contain unsafe code.
 		Usage:
 			cs.Lib.unsafe({
 				//unsafe code is allowed inside here
 			});
-		
+
 		This method only exists at compile-time, so it can't be called via reflection.
 	**/
 	@:extern public static inline function unsafe(block:Dynamic):Void
 	{
 		untyped __unsafe__(block);
 	}
-	
+
 	/**
 		Gets the pointer to the address of current local. Equivalent to the "&" operator in C#
 		Usage:
@@ -214,7 +214,7 @@ class Lib
 				x[0] = 42;
 			});
 			trace(x); //42
-		
+
 		This method only exists at compile-time, so it can't be called via reflection.
 		Warning: This method will only work if a local variable is passed as an argument.
 	**/
@@ -222,7 +222,7 @@ class Lib
 	{
 		return untyped __addressOf__(variable);
 	}
-	
+
 	/**
 		Gets the value of the pointer address.
 		Usage:
@@ -234,14 +234,14 @@ class Lib
 				trace(cs.Lib.valueOf(addr)); //42
 			});
 			trace(x); //42
-		
+
 		This method only exists at compile-time, so it can't be called via reflection.
 	**/
 	@:extern public static inline function valueOf<T>(pointer:cs.Pointer<T>):T
 	{
 		return untyped __valueOf__(pointer);
 	}
-	
+
 	/**
 		Transforms a managed native array into a Pointer. Must be inside a fixed statement
 		Usage:
@@ -255,14 +255,14 @@ class Lib
 				});
 			});
 			trace(x[0]); //42
-		
+
 		This method only exists at compile-time, so it can't be called via reflection.
 	**/
 	@:extern public static inline function pointerOfArray<T>(array:cs.NativeArray<T>):cs.Pointer<T>
 	{
 		return cast array;
 	}
-	
+
 	/**
 		Returns the byte size of the given struct. Only works with structs and basic types.
 	**/

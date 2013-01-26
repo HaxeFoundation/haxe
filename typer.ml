@@ -136,7 +136,7 @@ let field_type ctx c pl f p =
 	| [] -> f.cf_type
 	| l ->
 		let monos = List.map (fun _ -> mk_mono()) l in
-		if not (has_meta ":generic" f.cf_meta) then add_constraint_checks ctx c pl f monos p;
+		if not (Meta.has Meta.Generic f.cf_meta) then add_constraint_checks ctx c pl f monos p;
 		apply_params l monos f.cf_type
 
 let class_field ctx c pl name p =
@@ -179,14 +179,14 @@ let rec can_access ctx c cf stat =
 		(try
 			(* if our common ancestor declare/override the field, then we can access it *)
 			let f = if is_constr then (match c.cl_constructor with None -> raise Not_found | Some c -> c) else PMap.find cf.cf_name (if stat then c.cl_statics else c.cl_fields) in
-			is_parent c ctx.curclass || has ":allow" c f cur_path
+			is_parent c ctx.curclass || has Meta.Allow c f cur_path
 		with Not_found ->
 			false
 		)
 		|| (match c.cl_super with
 		| Some (csup,_) -> loop csup
 		| None -> false)
-		|| has ":access" ctx.curclass ctx.curfield (make_path c cf)
+		|| has Meta.Access ctx.curclass ctx.curfield (make_path c cf)
 	in
 	let b = loop c
 	(* access is also allowed of we access a type parameter which is constrained to our (base) class *)
@@ -194,8 +194,8 @@ let rec can_access ctx c cf stat =
 		| KTypeParameter tl ->
 			List.exists (fun t -> match follow t with TInst(c,_) -> loop c | _ -> false) tl
 		| _ -> false)
-	|| (has_meta ":privateAccess" ctx.meta) in
-	if b && Common.defined ctx.com Common.Define.As3 && not (has_meta ":public" cf.cf_meta) then cf.cf_meta <- (":public",[],cf.cf_pos) :: cf.cf_meta;
+	|| (Meta.has Meta.PrivateAccess ctx.meta) in
+	if b && Common.defined ctx.com Common.Define.As3 && not (Meta.has Meta.Public cf.cf_meta) then cf.cf_meta <- (Meta.Public,[],cf.cf_pos) :: cf.cf_meta;
 	b
 
 (* removes the first argument of the class field's function type and all its overloads *)
@@ -347,7 +347,7 @@ let rec unify_min_raise ctx (el:texpr list) : t =
 			let common_types = base_types t in
 			let dyn_types = List.fold_left (fun acc t ->
 				let rec loop c =
-					has_meta ":unifyMinDynamic" c.cl_meta || (match c.cl_super with None -> false | Some (c,_) -> loop c)
+					Meta.has Meta.UnifyMinDynamic c.cl_meta || (match c.cl_super with None -> false | Some (c,_) -> loop c)
 				in
 				match t with
 				| TInst (c,params) when params <> [] && loop c ->
@@ -526,7 +526,7 @@ let rec type_module_type ctx t tparams p =
 	| TAbstractDecl { a_impl = Some c } ->
 		type_module_type ctx (TClassDecl c) tparams p
 	| TAbstractDecl a ->
-		if not (has_meta ":runtimeValue" a.a_meta) then error (s_type_path a.a_path ^ " is not a value") p;
+		if not (Meta.has Meta.RuntimeValue a.a_meta) then error (s_type_path a.a_path ^ " is not a value") p;
 		let t_tmp = {
 			t_path = fst a.a_path, "#" ^ snd a.a_path;
 			t_module = a.a_module;
@@ -567,11 +567,11 @@ let make_call ctx e params t p =
 		let is_extern = (match cl with
 			| Some { cl_extern = true } -> true
 			| Some { cl_kind = KAbstractImpl _ } -> true
-			| _ when has_meta ":extern" f.cf_meta -> true
+			| _ when Meta.has Meta.Extern f.cf_meta -> true
 			| _ -> false
 		) in
 		let config = match cl with
-			| Some ({cl_kind = KAbstractImpl _ }) when has_meta ":impl" f.cf_meta ->
+			| Some ({cl_kind = KAbstractImpl _ }) when Meta.has Meta.Impl f.cf_meta ->
 				(match if fname = "_new" then t else follow (List.hd params).etype with
 					| TAbstract(a,pl) ->
 						Some (a.a_types <> [], apply_params a.a_types pl)
@@ -636,7 +636,7 @@ let rec acc_get ctx g p =
 			else
 				error "Recursive inline is not supported" p
 		| Some { eexpr = TFunction _ } ->
-			let chk_class c = if (c.cl_extern || has_meta ":extern" f.cf_meta) && not (has_meta ":runtime" f.cf_meta) then display_error ctx "Can't create closure on an inline extern method" p in
+			let chk_class c = if (c.cl_extern || Meta.has Meta.Extern f.cf_meta) && not (Meta.has Meta.Runtime f.cf_meta) then display_error ctx "Can't create closure on an inline extern method" p in
 			(match follow e.etype with
 			| TInst (c,_) -> chk_class c
 			| TAnon a -> (match !(a.a_status) with Statics c -> chk_class c | _ -> ())
@@ -762,7 +762,7 @@ let using_field ctx mode e i p =
 				with Not_found ->
 					(try unify_raise ctx e.etype t0 p with Error (Unify _,_) -> raise Not_found); t0) in
 				if follow e.etype == t_dynamic && follow t0 != t_dynamic then raise Not_found;
-				if has_meta ":noUsing" f.cf_meta then raise Not_found;
+				if Meta.has Meta.NoUsing f.cf_meta then raise Not_found;
 				let et = type_module_type ctx (TClassDecl c) None p in
 				AKUsing (mk (TField (et,FStatic (c,f))) t p,c,f,e)
 			| _ -> raise Not_found)
@@ -1031,7 +1031,7 @@ and type_field ctx e i p mode =
 			let f = PMap.find i c.cl_statics in
 			let t = field_type ctx c [] f p in
 			let t = apply_params a.a_types pl t in
-			if not (has_meta ":impl" f.cf_meta) then (match follow t with
+			if not (Meta.has Meta.Impl f.cf_meta) then (match follow t with
 				| TFun((_,_,ta) :: _,_) -> unify ctx e.etype ta p
 				| _ -> raise Not_found);
 			let et = type_module_type ctx (TClassDecl c) None p in
@@ -1202,10 +1202,10 @@ let type_generic_function ctx (e,cf) el p =
 			cf2.cf_kind <- cf.cf_kind;
 			cf2.cf_public <- cf.cf_public;
 			let metadata = List.filter (fun (m,_,_) -> match m with
-				| ":generic" -> false
+				| Meta.Generic -> false
 				| _ -> true
 			) cf.cf_meta in
-			cf2.cf_meta <- (":noComplete",[],p) :: (":noUsing",[],p) :: metadata;
+			cf2.cf_meta <- (Meta.NoCompletion,[],p) :: (Meta.NoUsing,[],p) :: metadata;
 			cf2
 		in
 		let e = if stat then type_type ctx c.cl_path p else e in
@@ -1502,7 +1502,7 @@ and type_switch_old ctx e cases def with_type p =
 	let enum = ref None in
 	let used_cases = Hashtbl.create 0 in
 	let is_fake_enum e =
-		e.e_path = ([],"Bool") || has_meta ":fakeEnum" e.e_meta
+		e.e_path = ([],"Bool") || Meta.has Meta.FakeEnum e.e_meta
 	in
 	(match follow eval.etype with
 	| TEnum (e,_) when is_fake_enum e -> ()
@@ -1858,7 +1858,7 @@ and type_access ctx e p mode =
 				apply_params pl tl (loop (TInst (c,stl)))
 			| TInst ({ cl_path = [],"ArrayAccess" },[t]) ->
 				t
-			| TAbstract(a,tl) when has_meta ":arrayAccess" a.a_meta ->
+			| TAbstract(a,tl) when Meta.has Meta.ArrayAccess a.a_meta ->
 				loop (apply_params a.a_types tl a.a_this)
 			| _ ->
 				let pt = mk_mono() in
@@ -2103,7 +2103,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 					if ctx.with_type_resume then raise (WithTypeError (l,p)) else raise (Error (Unify l,p))
 				in
 				PMap.iter (fun n cf ->
-					if not (has_meta ":optional" cf.cf_meta) && not (PMap.mem n !fields) then unify_error [has_no_field t n] p;
+					if not (Meta.has Meta.Optional cf.cf_meta) && not (PMap.mem n !fields) then unify_error [has_no_field t n] p;
 				) a.a_fields;
 				(match !extra_fields with
 				| [] -> ()
@@ -2475,7 +2475,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				TClassDecl c
 			| TEnum (e,_) -> TEnumDecl e
 			| _ -> assert false);
-		| TAbstract (a,params) when has_meta ":runtimeValue" a.a_meta ->
+		| TAbstract (a,params) when Meta.has Meta.RuntimeValue a.a_meta ->
 			List.iter (fun pt ->
 				if follow pt != t_dynamic then error "Cast type parameters must be Dynamic" p;
 			) params;
@@ -2533,7 +2533,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			| TAbstract({a_impl = Some c} as a,pl) ->
 				ctx.m.module_using <- c :: ctx.m.module_using;
 				PMap.fold (fun f acc ->
-					if f.cf_name <> "_new" && can_access ctx c f true && has_meta ":impl" f.cf_meta then begin
+					if f.cf_name <> "_new" && can_access ctx c f true && Meta.has Meta.Impl f.cf_meta then begin
 						let f = prepare_using_field f in
 						let t = apply_params a.a_types pl (follow f.cf_type) in
 						PMap.add f.cf_name { f with cf_public = true; cf_type = opt_type t } acc
@@ -2563,7 +2563,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				let acc = ref (loop acc l) in
 				let rec dup t = Type.map dup t in
 				List.iter (fun f ->
-					if not (has_meta ":noUsing" f.cf_meta) then
+					if not (Meta.has Meta.NoUsing f.cf_meta) then
 					let f = { f with cf_type = opt_type f.cf_type } in
 					match follow (field_type ctx c [] f p) with
 					| TFun((_,_,TType({t_path=["haxe";"macro"], ("ExprOf"|"ExprRequire")}, [t])) :: args, ret)
@@ -2581,7 +2581,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		in
 		let use_methods = loop PMap.empty ctx.m.module_using in
 		let fields = PMap.fold (fun f acc -> PMap.add f.cf_name f acc) fields use_methods in
-		let fields = PMap.fold (fun f acc -> if has_meta ":noComplete" f.cf_meta then acc else f :: acc) fields [] in
+		let fields = PMap.fold (fun f acc -> if Meta.has Meta.NoCompletion f.cf_meta then acc else f :: acc) fields [] in
 		let t = (if iscall then
 			match follow e.etype with
 			| TFun _ -> e.etype
@@ -2695,7 +2695,7 @@ and build_call ctx acc el (with_type:with_type) p =
 			| _ -> error (s_type (print_context()) t ^ " cannot be called") p
 		) in
 		make_call ctx (mk (TField (ethis,fmode)) t p) params (match tfunc with TFun(_,r) -> r | _ -> assert false) p
-	| AKUsing (et,cl,ef,eparam) when has_meta ":generic" ef.cf_meta ->
+	| AKUsing (et,cl,ef,eparam) when Meta.has Meta.Generic ef.cf_meta ->
 		(match et.eexpr with
 		| TField(ec,_) ->
 			let el,t,e = type_generic_function ctx (ec,ef) (Interp.make_ast eparam :: el) p in
@@ -2727,7 +2727,7 @@ and build_call ctx acc el (with_type:with_type) p =
 			(match ctx.g.do_macro ctx MExpr c.cl_path f.cf_name el p with
 			| None -> (fun() -> type_expr ctx (EConst (Ident "null"),p) Value)
 			| Some (EVars vl,p) -> (fun() -> type_vars ctx vl p true)
-			| Some e -> (fun() -> type_expr ctx (EMeta((":privateAccess",[],snd e),e),snd e) with_type))
+			| Some e -> (fun() -> type_expr ctx (EMeta((Meta.PrivateAccess,[],snd e),e),snd e) with_type))
 		| _ ->
 			(* member-macro call : since we will make a static call, let's found the actual class and not its subclass *)
 			(match follow ethis.etype with
@@ -2769,7 +2769,7 @@ and build_call ctx acc el (with_type:with_type) p =
 					None
 			) in
 			(match fopts,acc with
-				| Some (_,cf),AKField({eexpr = TField(e,_)},_,_) when has_meta ":generic" cf.cf_meta ->
+				| Some (_,cf),AKField({eexpr = TField(e,_)},_,_) when Meta.has Meta.Generic cf.cf_meta ->
 					type_generic_function ctx (e,cf) el p
 				| _ ->
 					let el, tfunc = unify_call_params ctx fopts el args r p false in

@@ -19,4 +19,22 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package java.internal;import java.internal.IEquatable;private typedef StdType = Type;@:native('haxe.lang.HxObject')@:keepprivate class HxObject implements IHxObject{	}@:native('haxe.lang.IHxObject')@:keepprivate interface IHxObject{	}@:native('haxe.lang.DynamicObject')@:replaceReflection@:keepprivate class DynamicObject extends HxObject, implements Dynamic{	@:skipReflection public function toString():String	{		var ts = Reflect.field(this, "toString");		if (ts != null)			return ts();				var ret = new StringBuf();		ret.add("{");		var first = true;		for (f in Reflect.fields(this))		{			if( first )				first = false;			else				ret.add(",");			ret.add(" "); ret.add(f);			ret.add(" : ");			ret.add(Reflect.field(this, f));		}		if (!first) ret.add(" ");		ret.add("}");				return ret.toString();	}}@:native('haxe.lang.Enum')//@:skip_ctor@:nativegen@:keepprivate class Enum{	@:readonly private var index:Int;	@:readonly private var params:Array<{}>;		public function new(index:Int, params:Array<{}>)	{		this.index = index;		this.params = params;	}		@:final public function getTag():String	{		var cl:Dynamic = StdType.getEnum(cast this);		return cl.constructs[index];	}		public function toString():String	{		if (params == null) return getTag();		var ret = new StringBuf();		ret.add(getTag()); ret.add("(");				var first = true;				for (p in params)		{			if (first)				first = false;			else				ret.add(",");			ret.add(p);		}				ret.add(")");		return ret.toString();	}		public function equals(obj:Dynamic)	{		if (obj == this) //we cannot use == as .Equals !			return true;				var obj:Enum = cast obj;		var ret = obj != null && Std.is(obj, StdType.getEnum(cast this)) && obj.index == this.index;		if (!ret) 			return false;		if (obj.params == this.params)			return true;		var len = 0;		if (obj.params == null || this.params == null || (len = this.params.length) != obj.params.length)			return false;				for (i in 0...len)		{			if (!StdType.enumEq(obj.params[i], this.params[i]))				return false;		}		return true;	}}
+package java.internal;import java.internal.IEquatable;private typedef StdType = Type;@:native('haxe.lang.HxObject')@:keepprivate class HxObject implements IHxObject{
+}@:native('haxe.lang.IHxObject')@:keepprivate interface IHxObject{
+}@:native('haxe.lang.DynamicObject')@:replaceReflection@:keepprivate class DynamicObject extends HxObject, implements Dynamic{	@:skipReflection public function toString():String	{		var ts = Reflect.field(this, "toString");		if (ts != null)			return ts();
+		var ret = new StringBuf();		ret.add("{");		var first = true;		for (f in Reflect.fields(this))		{			if( first )				first = false;			else				ret.add(",");			ret.add(" "); ret.add(f);			ret.add(" : ");			ret.add(Reflect.field(this, f));		}		if (!first) ret.add(" ");		ret.add("}");
+		return ret.toString();	}}@:native('haxe.lang.Enum')//@:skipCtor
+@:nativeGen
+@:keepprivate class Enum{	@:readOnly private var index:Int;
+	@:readOnly private var params:Array<{}>;
+
+	public function new(index:Int, params:Array<{}>)	{		this.index = index;		this.params = params;	}
+	@:final public function getTag():String	{		var cl:Dynamic = StdType.getEnum(cast this);		return cl.constructs[index];	}
+	public function toString():String	{		if (params == null) return getTag();		var ret = new StringBuf();		ret.add(getTag()); ret.add("(");
+		var first = true;
+		for (p in params)		{			if (first)				first = false;			else				ret.add(",");			ret.add(p);		}
+		ret.add(")");		return ret.toString();	}
+	public function equals(obj:Dynamic)	{		if (obj == this) //we cannot use == as .Equals !			return true;
+		var obj:Enum = cast obj;		var ret = obj != null && Std.is(obj, StdType.getEnum(cast this)) && obj.index == this.index;		if (!ret)
+			return false;		if (obj.params == this.params)			return true;		var len = 0;		if (obj.params == null || this.params == null || (len = this.params.length) != obj.params.length)			return false;
+		for (i in 0...len)		{			if (!StdType.enumEq(obj.params[i], this.params[i]))				return false;		}		return true;	}}

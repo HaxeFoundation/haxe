@@ -39,8 +39,8 @@ let is_cs_basic_type t =
       true
     | TAbstract _ when like_float t ->
       true
-    | TEnum(e, _) when not (has_meta ":$class" e.e_meta) -> true
-    | TInst(cl, _) when has_meta ":struct" cl.cl_meta -> true
+    | TEnum(e, _) when not (Meta.has Meta.Class e.e_meta) -> true
+    | TInst(cl, _) when Meta.has Meta.Struct cl.cl_meta -> true
     | _ -> false
 
 let is_tparam t =
@@ -268,7 +268,7 @@ struct
 
     let is_struct t = (* not basic type *)
       match follow t with
-        | TInst(cl, _) when has_meta ":struct" cl.cl_meta -> true
+        | TInst(cl, _) when Meta.has Meta.Struct cl.cl_meta -> true
         | _ -> false
     in
 
@@ -490,23 +490,23 @@ let dynamic_anon = TAnon( { a_fields = PMap.empty; a_status = ref Closed } )
 let rec get_class_modifiers meta cl_type cl_access cl_modifiers =
   match meta with
     | [] -> cl_type,cl_access,cl_modifiers
-    | (":struct",[],_) :: meta -> get_class_modifiers meta "struct" cl_access cl_modifiers
-    | (":protected",[],_) :: meta -> get_class_modifiers meta cl_type "protected" cl_modifiers
-    | (":internal",[],_) :: meta -> get_class_modifiers meta cl_type "internal" cl_modifiers
+    | (Meta.Struct,[],_) :: meta -> get_class_modifiers meta "struct" cl_access cl_modifiers
+    | (Meta.Protected,[],_) :: meta -> get_class_modifiers meta cl_type "protected" cl_modifiers
+    | (Meta.Internal,[],_) :: meta -> get_class_modifiers meta cl_type "internal" cl_modifiers
     (* no abstract for now | (":abstract",[],_) :: meta -> get_class_modifiers meta cl_type cl_access ("abstract" :: cl_modifiers)
     | (":static",[],_) :: meta -> get_class_modifiers meta cl_type cl_access ("static" :: cl_modifiers) TODO: support those types *)
-    | (":final",[],_) :: meta -> get_class_modifiers meta cl_type cl_access ("sealed" :: cl_modifiers)
-    | (":unsafe",[],_) :: meta -> get_class_modifiers meta cl_type cl_access ("unsafe" :: cl_modifiers)
+    | (Meta.Final,[],_) :: meta -> get_class_modifiers meta cl_type cl_access ("sealed" :: cl_modifiers)
+    | (Meta.Unsafe,[],_) :: meta -> get_class_modifiers meta cl_type cl_access ("unsafe" :: cl_modifiers)
     | _ :: meta -> get_class_modifiers meta cl_type cl_access cl_modifiers
 
 let rec get_fun_modifiers meta access modifiers =
   match meta with
     | [] -> access,modifiers
-    | (":protected",[],_) :: meta -> get_fun_modifiers meta "protected" modifiers
-    | (":internal",[],_) :: meta -> get_fun_modifiers meta "internal" modifiers
-    | (":readonly",[],_) :: meta -> get_fun_modifiers meta access ("readonly" :: modifiers)
-    | (":unsafe",[],_) :: meta -> get_fun_modifiers meta access ("unsafe" :: modifiers)
-    | (":volatile",[],_) :: meta -> get_fun_modifiers meta access ("volatile" :: modifiers)
+    | (Meta.Protected,[],_) :: meta -> get_fun_modifiers meta "protected" modifiers
+    | (Meta.Internal,[],_) :: meta -> get_fun_modifiers meta "internal" modifiers
+    | (Meta.ReadOnly,[],_) :: meta -> get_fun_modifiers meta access ("readonly" :: modifiers)
+    | (Meta.Unsafe,[],_) :: meta -> get_fun_modifiers meta access ("unsafe" :: modifiers)
+    | (Meta.Volatile,[],_) :: meta -> get_fun_modifiers meta access ("volatile" :: modifiers)
     | _ :: meta -> get_fun_modifiers meta access modifiers
 
 (* this was the way I found to pass the generator context to be accessible across all functions here *)
@@ -725,7 +725,7 @@ let configure gen =
       | TMono r -> (match !r with | None -> "object" | Some t -> t_s (run_follow gen t))
       | TInst ({ cl_path = [], "String" }, []) -> "string"
       | TEnum ({ e_path = p }, params) -> ("global::" ^ path_s p)
-      | TInst (({ cl_path = p } as cl), _ :: _) when has_meta ":$enum" cl.cl_meta ->
+      | TInst (({ cl_path = p } as cl), _ :: _) when Meta.has Meta.Enum cl.cl_meta ->
         "global::" ^ path_s p
       | TInst (({ cl_path = p } as cl), params) -> (path_param_s (TClassDecl cl) p params)
       | TType (({ t_path = p } as t), params) -> (path_param_s (TTypeDecl t) p params)
@@ -1287,7 +1287,7 @@ let configure gen =
         end (* TODO see how (get,set) variable handle when they are interfaces *)
       | Method mkind ->
         let is_virtual = not is_final && match mkind with | MethInline -> false | _ when not is_new -> true | _ -> false in
-        let is_virtual = if not is_virtual || has_meta ":final" cf.cf_meta then false else is_virtual in
+        let is_virtual = if not is_virtual || Meta.has Meta.Final cf.cf_meta then false else is_virtual in
         let is_override = List.mem cf.cf_name cl.cl_overrides in
         let is_override = is_override || match cf.cf_name, follow cf.cf_type with
           | "Equals", TFun([_,_,targ], tret) ->
@@ -1298,7 +1298,7 @@ let configure gen =
           | _ -> false
         in
 
-        let is_virtual = is_virtual && not (has_meta ":final" cl.cl_meta) && not (is_interface) in
+        let is_virtual = is_virtual && not (Meta.has Meta.Final cl.cl_meta) && not (is_interface) in
         let visibility = if is_interface then "" else "public" in
 
         let visibility, modifiers = get_fun_modifiers cf.cf_meta visibility [] in
@@ -1363,7 +1363,7 @@ let configure gen =
                   t();
                   end_block w
                 end)
-              | (":functionBody", [Ast.EConst (Ast.String contents),_],_) :: tl ->
+              | (Meta.FunctionCode, [Ast.EConst (Ast.String contents),_],_) :: tl ->
                 begin_block w;
                 write w contents;
                 end_block w
@@ -1492,7 +1492,7 @@ let configure gen =
     in
 
     let clt, access, modifiers = get_class_modifiers cl.cl_meta (if cl.cl_interface then "interface" else "class") "public" [] in
-    let is_final = clt = "struct" || has_meta ":final" cl.cl_meta in
+    let is_final = clt = "struct" || Meta.has Meta.Final cl.cl_meta in
 
     print w "%s %s %s %s" access (String.concat " " modifiers) clt (change_clname (snd cl.cl_path));
     (* type parameters *)
@@ -1510,7 +1510,7 @@ let configure gen =
     let rec loop meta =
       match meta with
         | [] ->  ()
-        | (":classContents", [Ast.EConst (Ast.String contents),_],_) :: tl ->
+        | (Meta.ClassCode, [Ast.EConst (Ast.String contents),_],_) :: tl ->
           write w contents
         | _ :: tl -> loop tl
     in

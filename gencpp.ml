@@ -1840,7 +1840,7 @@ let gen_field ctx class_def class_name ptr_name is_static is_interface field =
 	let output = ctx.ctx_output in
 	ctx.ctx_real_this_ptr <- not is_static;
 	let remap_name = keyword_remap field.cf_name in
-	let decl = get_meta_string field.cf_meta ":decl" in
+	let decl = get_meta_string field.cf_meta Meta.Decl in
 	let has_decl = decl <> "" in
 	if (is_interface) then begin
 		(* Just the dynamic glue ... *)
@@ -1859,7 +1859,7 @@ let gen_field ctx class_def class_name ptr_name is_static is_interface field =
 		let is_void = (type_string function_def.tf_type ) = "Void" in
 		let ret = if is_void  then "(void)" else "return " in
 		let output_i = ctx.ctx_writer#write_i in
-		let dump_src = if (Type.has_meta ":noStack" field.cf_meta) then begin
+		let dump_src = if (Meta.has Meta.NoStack field.cf_meta) then begin
 			ctx.ctx_dump_stack_line <- false;
 			(fun()->())
 		end else begin
@@ -1879,8 +1879,8 @@ let gen_field ctx class_def class_name ptr_name is_static is_interface field =
 			output ")";
 			ctx.ctx_real_this_ptr <- true;
 			ctx.ctx_dynamic_this_ptr <- false;
-         let code = (get_code field.cf_meta ":functionCode") in
-         let tail_code = (get_code field.cf_meta ":functionTailCode") in
+         let code = (get_code field.cf_meta Meta.FunctionCode) in
+         let tail_code = (get_code field.cf_meta Meta.FunctionTailCode) in
 			if (has_default_values function_def.tf_args) then begin
 				ctx.ctx_writer#begin_block;
 				generate_default_values ctx function_def.tf_args "__o_";
@@ -1993,7 +1993,7 @@ let gen_member_def ctx class_def is_static is_interface field =
 			output ("Dynamic " ^ remap_name ^ "_dyn();\n" );
 		| _  ->  ( )
 	end else begin
-	let decl = get_meta_string field.cf_meta ":decl" in
+	let decl = get_meta_string field.cf_meta Meta.Decl in
 	let has_decl = decl <> "" in
    if (has_decl) then
 		output ( "      typedef " ^ decl ^ ";\n" );
@@ -2072,7 +2072,7 @@ let find_referenced_types ctx obj super_deps constructor_deps header_only for_de
 		end
 	in
 	let add_extern_class klass =
-      let include_file = get_meta_string klass.cl_meta (if for_depends then ":depend" else ":include") in
+      let include_file = get_meta_string klass.cl_meta (if for_depends then Meta.Depend else Meta.Include) in
       if (include_file<>"") then
          add_type ( path_of_string for_depends include_file )
    in
@@ -2525,7 +2525,7 @@ let has_init_field class_def =
 	| _ -> false;;
 
 let is_macro meta =
-  Type.has_meta ":macro" meta
+  Meta.has Meta.Macro meta
 ;;
 
 
@@ -2589,12 +2589,12 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
    if (scriptable) then
       output_cpp "#include <hx/Scriptable.h>\n";
 
-	output_cpp ( get_code class_def.cl_meta ":cppFileCode" );
+	output_cpp ( get_code class_def.cl_meta Meta.CppFileCode );
 
 	gen_open_namespace output_cpp class_path;
 	output_cpp "\n";
 
-	output_cpp ( get_code class_def.cl_meta ":cppNamespaceCode" );
+	output_cpp ( get_code class_def.cl_meta Meta.CppNamespaceCode );
 
 	if (not class_def.cl_interface) then begin
 		output_cpp ("Void " ^ class_name ^ "::__construct(" ^ constructor_type_args ^ ")\n{\n");
@@ -2719,7 +2719,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 			| _ -> true)
 		in
 
-      let reflective field = not (Type.has_meta ":unreflective" field.cf_meta) in
+      let reflective field = not (Meta.has Meta.Unreflective field.cf_meta) in
 		let reflect_fields = List.filter reflective (statics_except_meta @ class_def.cl_ordered_fields) in
 		let reflect_variables = List.filter variable_field reflect_fields in
 
@@ -2979,11 +2979,11 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
    let referenced = find_referenced_types ctx.ctx_common (TClassDecl class_def) super_deps (Hashtbl.create 0) true false scriptable in
 	List.iter ( gen_forward_decl h_file ) referenced;
 
-	output_h ( get_code class_def.cl_meta ":headerCode" );
+	output_h ( get_code class_def.cl_meta Meta.HeaderCode );
 
 	gen_open_namespace output_h class_path;
 	output_h "\n\n";
-	output_h ( get_code class_def.cl_meta ":headerNamespaceCode" );
+	output_h ( get_code class_def.cl_meta Meta.HeaderNamespaceCode );
 
 	output_h ("class " ^ class_name ^ " : public " ^ super );
 	output_h "{\n	public:\n";
@@ -3034,7 +3034,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 	List.iter (gen_member_def ctx class_def false interface) class_def.cl_ordered_fields;
 	List.iter (gen_member_def ctx class_def true interface)  class_def.cl_ordered_statics;
 
-	output_h ( get_code class_def.cl_meta ":headerClassCode" );
+	output_h ( get_code class_def.cl_meta Meta.HeaderClassCode );
 
 	output_h "};\n\n";
 
@@ -3291,7 +3291,7 @@ let generate common_ctx =
 			if (is_internal || (is_macro class_def.cl_meta) ) then
 				( if debug then print_endline (" internal class " ^ name ))
 			else begin
-				build_xml := !build_xml ^ (get_code class_def.cl_meta ":buildXml");
+				build_xml := !build_xml ^ (get_code class_def.cl_meta Meta.BuildXml);
 				boot_classes := class_def.cl_path ::  !boot_classes;
 				if (has_init_field class_def) then
 					init_classes := class_def.cl_path ::  !init_classes;

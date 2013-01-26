@@ -391,9 +391,11 @@ and parse_meta = parser
 	| [< >] -> []
 
 and meta_name = parser
-	| [< '(Const (Ident i),p) >] -> i, p
-	| [< '(Kwd k,p) >] -> s_keyword k,p
-	| [< '(DblDot,_); s >] -> let n, p = meta_name s in ":" ^ n, p
+	| [< '(Const (Ident i),p) >] -> (Meta.Custom i), p
+	| [< '(Kwd k,p) >] -> (Meta.Custom (s_keyword k)),p
+	| [< '(DblDot,_); s >] -> match s with parser
+		| [< '(Const (Ident i),p) >] -> (Meta.parse i), p
+		| [< '(Kwd k,p) >] -> (Meta.parse (s_keyword k)),p
 
 and parse_enum_flags = parser
 	| [< '(Kwd Enum,p) >] -> [] , p
@@ -500,7 +502,7 @@ and parse_type_anonymous opt = parser
 			) in
 			{
 				cff_name = name;
-				cff_meta = if opt then [":optional",[],p1] else [];
+				cff_meta = if opt then [Meta.Optional,[],p1] else [];
 				cff_access = [];
 				cff_doc = None;
 				cff_kind = FVar (Some t,None);
@@ -727,7 +729,7 @@ and parse_macro_expr p = parser
 		reify_expr (EVars vl,p1)
 	| [< e = secure_expr >] ->
 		reify_expr e
-	
+
 and expr = parser
 	| [< (name,params,p) = parse_meta_entry; s >] ->
 		(try
@@ -836,9 +838,9 @@ and expr = parser
 	| [< '(Dollar v,p); s >] -> expr_next (EConst (Ident ("$"^v)),p) s
 
 and expr_next e1 = parser
-	| [< '(BrOpen,p1) when is_dollar_ident e1; eparam = expr; '(BrClose,p2); s >] ->
+ 	| [< '(BrOpen,p1) when is_dollar_ident e1; eparam = expr; '(BrClose,p2); s >] ->
 		(match fst e1 with
-		| EConst(Ident n) -> expr_next (EMeta((n,[],snd e1),eparam), punion p1 p2) s
+		| EConst(Ident n) -> expr_next (EMeta((Meta.from_string n,[],snd e1),eparam), punion p1 p2) s
 		| _ -> assert false)
 	| [< '(Dot,p); s >] ->
 		if is_resuming p then display (EDisplay (e1,false),p);

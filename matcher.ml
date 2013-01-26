@@ -1023,7 +1023,7 @@ let match_expr ctx e cases def with_type p =
 		| _ ->
 			let e = type_expr ctx e Value in
 			begin match follow e.etype with
-			| TEnum(en,_) when PMap.is_empty en.e_constrs || has_meta ":fakeEnum" en.e_meta ->
+			| TEnum(en,_) when PMap.is_empty en.e_constrs || Meta.has Meta.FakeEnum en.e_meta ->
 				raise Exit
 			| _ ->
 				()

@@ -54,7 +54,7 @@ import cs.internal.Function;
 	/**
 		Tells if an object has a field set. This doesn't take into account the object prototype (class methods).
 	**/
-	@:functionBody('
+	@:functionCode('
 		if (o is haxe.lang.IHxObject)
 			return ((haxe.lang.IHxObject) o).__hx_getField(field, haxe.lang.FieldLookup.hash(field), false, true, false) != haxe.lang.Runtime.undefined;
 
@@ -68,7 +68,7 @@ import cs.internal.Function;
 	/**
 		Returns the field of an object, or null if [o] is not an object or doesn't have this field.
 	**/
-	@:functionBody('
+	@:functionCode('
 		if (o is haxe.lang.IHxObject)
 			return ((haxe.lang.IHxObject) o).__hx_getField(field, haxe.lang.FieldLookup.hash(field), false, false, false);
 
@@ -83,7 +83,7 @@ import cs.internal.Function;
 	/**
 		Set an object field value.
 	**/
-	@:functionBody('
+	@:functionCode('
 		if (o is haxe.lang.IHxObject)
 			((haxe.lang.IHxObject) o).__hx_setField(field, haxe.lang.FieldLookup.hash(field), value, false);
 		else
@@ -97,7 +97,7 @@ import cs.internal.Function;
 	/**
 		Similar to field but also supports property (might be slower).
 	**/
-	@:functionBody('
+	@:functionCode('
 		if (o is haxe.lang.IHxObject)
 			return ((haxe.lang.IHxObject) o).__hx_getField(field, haxe.lang.FieldLookup.hash(field), false, false, true);
 
@@ -111,7 +111,7 @@ import cs.internal.Function;
 	/**
 		Similar to setField but also supports property (might be slower).
 	**/
-	@:functionBody('
+	@:functionCode('
 		if (o is haxe.lang.IHxObject)
 			((haxe.lang.IHxObject) o).__hx_setField(field, haxe.lang.FieldLookup.hash(field), value, true);
 		else
@@ -125,7 +125,7 @@ import cs.internal.Function;
 	/**
 		Call a method with the given object and arguments.
 	**/
-	@:functionBody('
+	@:functionCode('
 		return ((haxe.lang.Function) func).__hx_invokeDynamic(args);
 	')
 	public static function callMethod( o : Dynamic, func : Dynamic, args : Array<Dynamic> ) : Dynamic
@@ -136,7 +136,7 @@ import cs.internal.Function;
 	/**
 		Returns the list of fields of an object, excluding its prototype (class methods).
 	**/
-	@:functionBody('
+	@:functionCode('
 		if (o is haxe.lang.IHxObject)
 		{
 			Array<object> ret = new Array<object>();
@@ -156,7 +156,7 @@ import cs.internal.Function;
 	/**
 		Tells if a value is a function or not.
 	**/
-	@:functionBody('
+	@:functionCode('
 		return f is haxe.lang.Function;
 	')
 	public static function isFunction( f : Dynamic ) : Bool
@@ -167,7 +167,7 @@ import cs.internal.Function;
 	/**
 		Generic comparison function, does not work for methods, see [compareMethods]
 	**/
-	@:functionBody('
+	@:functionCode('
 		return haxe.lang.Runtime.compare(a, b);
 	')
 	public static function compare<T>( a : T, b : T ) : Int
@@ -178,7 +178,7 @@ import cs.internal.Function;
 	/**
 		Compare two methods closures. Returns true if it's the same method of the same instance.
 	**/
-	@:functionBody('
+	@:functionCode('
 		if (f1 == f2)
 			return true;
 
@@ -201,7 +201,7 @@ import cs.internal.Function;
 		Tells if a value is an object or not.
 
 	**/
-	@:functionBody('
+	@:functionCode('
 		return v is haxe.lang.DynamicObject;
 	')
 	public static function isObject( v : Dynamic ) : Bool
@@ -212,7 +212,7 @@ import cs.internal.Function;
 	/**
 		Delete an object field.
 	**/
-	@:functionBody('
+	@:functionCode('
 		return (o is haxe.lang.DynamicObject && ((haxe.lang.DynamicObject) o).__hx_deleteField(f, haxe.lang.FieldLookup.hash(f)));
 	')
 	public static function deleteField( o : Dynamic, f : String ) : Bool

@@ -141,11 +141,11 @@ let make_module ctx mpath file tdecls loadp =
 							);
 							f_type = Some this_t;
 						} in
-						{ f with cff_name = "_new"; cff_access = AStatic :: f.cff_access; cff_kind = FFun fu; cff_meta = (":impl",[],p) :: f.cff_meta }
+						{ f with cff_name = "_new"; cff_access = AStatic :: f.cff_access; cff_kind = FFun fu; cff_meta = (Meta.Impl,[],p) :: f.cff_meta }
 					| FFun fu when not stat ->
-						if has_meta ":from" f.cff_meta then error "@:from cast functions must be static" f.cff_pos;
+						if Meta.has Meta.From f.cff_meta then error "@:from cast functions must be static" f.cff_pos;
 						let fu = { fu with f_args = ("this",false,Some this_t,None) :: fu.f_args } in
-						{ f with cff_kind = FFun fu; cff_access = AStatic :: f.cff_access; cff_meta = (":impl",[],p) :: f.cff_meta }
+						{ f with cff_kind = FFun fu; cff_access = AStatic :: f.cff_access; cff_meta = (Meta.Impl,[],p) :: f.cff_meta }
 					| _ ->
 						f
 				) fields in
@@ -483,7 +483,7 @@ and init_meta_overloads ctx cf =
 	let overloads = ref [] in
 	cf.cf_meta <- List.filter (fun m ->
 		match m with
-		| (":overload",[(EFunction (fname,f),p)],_)  ->
+		| (Meta.Overload,[(EFunction (fname,f),p)],_)  ->
 			if fname <> None then error "Function name must not be part of @:overload" p;
 			(match f.f_expr with Some (EBlock [], _) -> () | _ -> error "Overload must only declare an empty method body {}" p);
 			let old = ctx.type_params in
@@ -744,8 +744,8 @@ let set_heritance ctx c herits p =
 	let process_meta csup =
 		List.iter (fun m ->
 			match m with
-			| ":final", _, _ -> if not (Type.has_meta ":hack" c.cl_meta || (match c.cl_kind with KTypeParameter _ -> true | _ -> false)) then error "Cannot extend a final class" p;
-			| ":autoBuild", el, p -> c.cl_meta <- (":build",el,p) :: m :: c.cl_meta
+			| Meta.Final, _, _ -> if not (Meta.has Meta.Hack c.cl_meta || (match c.cl_kind with KTypeParameter _ -> true | _ -> false)) then error "Cannot extend a final class" p;
+			| Meta.AutoBuild, el, p -> c.cl_meta <- (Meta.Build,el,p) :: m :: c.cl_meta
 			| _ -> ()
 		) csup.cl_meta
 	in
@@ -960,7 +960,7 @@ let init_core_api ctx c =
 			) fcore;
 			PMap.iter (fun i f ->
 				let p = (match f.cf_expr with None -> c.cl_pos | Some e -> e.epos) in
-				if f.cf_public && not (has_meta ":hack" f.cf_meta) && not (PMap.mem f.cf_name fcore) && not (List.mem f.cf_name c.cl_overrides) then error ("Public field " ^ i ^ " is not part of core type") p;
+				if f.cf_public && not (Meta.has Meta.Hack f.cf_meta) && not (PMap.mem f.cf_name fcore) && not (List.mem f.cf_name c.cl_overrides) then error ("Public field " ^ i ^ " is not part of core type") p;
 			) fl;
 		in
 		check_fields ccore.cl_fields c.cl_fields;
@@ -1020,7 +1020,7 @@ let rec string_list_of_expr_path (e,p) =
 
 let build_module_def ctx mt meta fvars context_init fbuild =
 	let rec loop = function
-		| (":build",args,p) :: l ->
+		| (Meta.Build,args,p) :: l ->
 			let epath, el = (match args with
 				| [ECall (epath,el),p] -> epath, el
 				| _ -> error "Invalid build parameters" p
@@ -1069,8 +1069,8 @@ let init_class ctx c p context_init herits fields =
 		| _ -> error "Class build macro must return a single variable with anonymous fields" p
 	);
 	let fields = !fields in
-	let core_api = has_meta ":coreApi" c.cl_meta in
-	let is_class_macro = has_meta ":macro" c.cl_meta in
+	let core_api = Meta.has Meta.CoreApi c.cl_meta in
+	let is_class_macro = Meta.has Meta.Macro c.cl_meta in
 	if is_class_macro && Common.defined ctx.com Define.Haxe3 then display_error ctx "Macro-class is no longer allowed in haxe3" p;
 	let fields, herits = if is_class_macro && not ctx.in_macro then begin
 		c.cl_extern <- true;
@@ -1172,7 +1172,7 @@ let init_class ctx c p context_init herits fields =
 					if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.in_macro then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ cf.cf_name);
 					let e = type_var_field ctx t e stat p in
 					let e = (match cf.cf_kind with
-					| Var v when c.cl_extern || has_meta ":extern" cf.cf_meta ->
+					| Var v when c.cl_extern || Meta.has Meta.Extern cf.cf_meta ->
 						if not stat then begin
 							display_error ctx "Extern non-static variables may not be initialized" p;
 							e
@@ -1205,7 +1205,7 @@ let init_class ctx c p context_init herits fields =
 		let name = f.cff_name in
 		let p = f.cff_pos in
 		let stat = List.mem AStatic f.cff_access in
-		let extern = has_meta ":extern" f.cff_meta || c.cl_extern in
+		let extern = Meta.has Meta.Extern f.cff_meta || c.cl_extern in
 		let allow_inline() =
 			match c.cl_kind, f.cff_kind with
 			| KAbstractImpl _, _ -> true
@@ -1214,7 +1214,7 @@ let init_class ctx c p context_init herits fields =
 		in
 		let inline = List.mem AInline f.cff_access && allow_inline() in
 		let override = List.mem AOverride f.cff_access in
-		let is_macro = has_meta ":macro" f.cff_meta in
+		let is_macro = Meta.has Meta.Macro f.cff_meta in
 		if is_macro && Common.defined ctx.com Define.Haxe3 then ctx.com.warning "@:macro should now be 'macro' accessor'" p;
 		let is_macro = is_macro || List.mem AMacro f.cff_access in
 		List.iter (fun acc ->
@@ -1336,11 +1336,11 @@ let init_class ctx c p context_init herits fields =
 			(match c.cl_kind with
 				| KAbstractImpl a ->
 					let m = mk_mono() in
-					if has_meta ":from" f.cff_meta then begin
+					if Meta.has Meta.From f.cff_meta then begin
 						let t_abstract = TAbstract(a,(List.map (fun _ -> mk_mono()) a.a_types)) in
 						unify ctx t (tfun [m] t_abstract) f.cff_pos;
 						a.a_from <- (follow m, Some cf) :: a.a_from
-					end else if has_meta ":to" f.cff_meta then begin
+					end else if Meta.has Meta.To f.cff_meta then begin
 						unify ctx t (tfun [a.a_this] m) f.cff_pos;
 						a.a_to <- (follow m, Some cf) :: a.a_to
 					end
@@ -1373,7 +1373,7 @@ let init_class ctx c p context_init herits fields =
 						(match e.eexpr with
 						| TBlock [] | TBlock [{ eexpr = TConst _ }] | TConst _ | TObjectDecl [] -> ()
 						| _ -> c.cl_init <- Some e);
-					if has_meta ":defineFeature" cf.cf_meta then add_feature ctx.com (s_type_path c.cl_path ^ "." ^ cf.cf_name);
+					if Meta.has Meta.DefineFeature cf.cf_meta then add_feature ctx.com (s_type_path c.cl_path ^ "." ^ cf.cf_name);
 					cf.cf_expr <- Some (mk (TFunction f) t p);
 					cf.cf_type <- t;
 				end;
@@ -1443,7 +1443,7 @@ let init_class ctx c p context_init herits fields =
 	in
 	let rec check_require = function
 		| [] -> None
-		| (":require",conds,_) :: l ->
+		| (Meta.Require,conds,_) :: l ->
 			let rec loop = function
 				| [] -> check_require l
 				| [EConst (String _),_] -> check_require l
@@ -1745,7 +1745,7 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 				| _ -> false
 			) herits in
 			if rtti && Common.defined ctx.com Define.Haxe3 then error ("Implementing haxe.rtti.Generic is deprecated in haxe 3, please use @:generic instead") c.cl_pos;
-			has_meta ":generic" c.cl_meta || rtti
+			Meta.has Meta.Generic c.cl_meta || rtti
 		in
 		if implements_rtti() && c.cl_types <> [] then c.cl_kind <- KGeneric;
 		if c.cl_path = (["haxe";"macro"],"MacroType") then c.cl_kind <- KMacroType;
@@ -1877,7 +1877,7 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 		let is_type = ref false in
 		let load_type t =
 			let t = load_complex_type ctx p t in
-			if not (has_meta ":coreType" a.a_meta) then begin
+			if not (Meta.has Meta.CoreType a.a_meta) then begin
 				if !is_type then begin
 					(try type_eq EqStrict a.a_this t with Unify_error _ -> error "You can only declare from/to with your subtype" p);
 				end else

@@ -161,12 +161,12 @@ let build_class com c file =
 				(match ns with
 				| HNPrivate _ | HNNamespace "http://www.adobe.com/2006/flex/mx/internal" -> []
 				| HNNamespace ns ->
-					if not (c.hlc_interface || is_xml) then meta := (":ns",[String ns]) :: !meta;
+					if not (c.hlc_interface || is_xml) then meta := (Meta.Ns,[String ns]) :: !meta;
 					[APublic]
 				| HNExplicit _ | HNInternal _ | HNPublic _ ->
 					[APublic]
 				| HNStaticProtected _ | HNProtected _ ->
-					meta := (":protected",[]) :: !meta;
+					meta := (Meta.Protected,[]) :: !meta;
 					[APrivate])
 			| _ -> []
 		) in
@@ -237,7 +237,7 @@ let build_class com c file =
 							| None -> None
 							| Some v ->
 								(* add for --gen-hx-classes generation *)
-								meta := (":defparam",[String aname;v]) :: !meta;
+								meta := (Meta.DefParam,[String aname;v]) :: !meta;
 								Some (EConst v,pos)
 					in
 					(aname,!is_opt,Some t,def_val)
@@ -335,7 +335,7 @@ let build_class com c file =
 			d_name = path.tname;
 			d_doc = None;
 			d_params = [];
-			d_meta = [(":fakeEnum",[EConst (Ident !real_type),pos],pos)];
+			d_meta = [(Meta.FakeEnum,[EConst (Ident !real_type),pos],pos)];
 			d_flags = [EExtern];
 			d_data = constr;
 		} in
@@ -345,7 +345,7 @@ let build_class com c file =
 		d_name = path.tname;
 		d_doc = None;
 		d_params = [];
-		d_meta = if c.hlc_final && List.exists (fun f -> f.cff_name <> "new" && not (List.mem AStatic f.cff_access)) fields then [":final",[],pos] else [];
+		d_meta = if c.hlc_final && List.exists (fun f -> f.cff_name <> "new" && not (List.mem AStatic f.cff_access)) fields then [Meta.Final,[],pos] else [];
 		d_flags = flags;
 		d_data = fields;
 	} in
@@ -825,7 +825,7 @@ let build_swf9 com file swc =
 		| TClassDecl c ->
 			let rec loop = function
 				| [] -> acc
-				| (":font",(EConst (String file),p) :: args,_) :: l ->
+				| (Meta.Font,(EConst (String file),p) :: args,_) :: l ->
 					let ch = try open_in_bin file with _ -> error "File not found" p in
 					let ttf = Ttf.parse ch in
 					close_in ch;
@@ -844,7 +844,7 @@ let build_swf9 com file swc =
 						cd_id = !cid;
 						cd_data = data;
 					}) :: loop l
-				| (":bitmap",[EConst (String file),p],_) :: l ->
+				| (Meta.Bitmap,[EConst (String file),p],_) :: l ->
 					let data = load_file_data file p in
 					incr cid;
 					classes := { f9_cid = Some !cid; f9_classname = s_type_path c.cl_path } :: !classes;
@@ -876,7 +876,7 @@ let build_swf9 com file swc =
 						| _ -> raw()
 					) in
 					t :: loop l
-				| (":bitmap",[EConst (String dfile),p1;EConst (String afile),p2],_) :: l ->
+				| (Meta.Bitmap,[EConst (String dfile),p1;EConst (String afile),p2],_) :: l ->
 					let ddata = load_file_data dfile p1 in
 					let adata = load_file_data afile p2 in
 					(match detect_format ddata p1 with
@@ -901,12 +901,12 @@ let build_swf9 com file swc =
 					incr cid;
 					classes := { f9_cid = Some !cid; f9_classname = s_type_path c.cl_path } :: !classes;
 					tag (TBitsJPEG3 { bd_id = !cid; bd_data = ddata; bd_table = None; bd_alpha = Some amask; bd_deblock = Some 0 }) :: loop l
-				| (":file",[EConst (String file),p],_) :: l ->
+				| (Meta.File,[EConst (String file),p],_) :: l ->
 					let data = load_file_data file p in
 					incr cid;
 					classes := { f9_cid = Some !cid; f9_classname = s_type_path c.cl_path } :: !classes;
 					tag (TBinaryData (!cid,data)) :: loop l
-				| (":sound",[EConst (String file),p],_) :: l ->
+				| (Meta.Sound,[EConst (String file),p],_) :: l ->
 					let data = load_file_data file p in
 					let make_flags fmt mono freq bits =
 						let fbits = (match freq with 5512 when fmt <> 2 -> 0 | 11025 -> 1 | 22050 -> 2 | 44100 -> 3 | _ -> failwith ("Unsupported frequency " ^ string_of_int freq)) in
@@ -1108,7 +1108,7 @@ let generate com swf_header =
 						if not extern && s_type_path (t_path t) = e.f9_classname then
 							match t with
 							| TClassDecl c ->
-								if has_meta ":bind" c.cl_meta then
+								if Meta.has Meta.Bind c.cl_meta then
 									toremove := (t_path t) :: !toremove
 								else
 									error ("Class already exists in '" ^ file ^ "', use @:bind to redefine it") (t_infos t).mt_pos

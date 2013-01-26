@@ -29,7 +29,7 @@ import java.internal.Runtime;
  *
  * @author waneck
  */
-@:abstract @:nativegen @:native("haxe.lang.Function") @:keep private class Function
+@:abstract @:nativeGen @:native("haxe.lang.Function") @:keep private class Function
 {
 	function new(arity:Int, type:Int)
 	{
@@ -37,7 +37,7 @@ import java.internal.Runtime;
 	}
 }
 
-@:nativegen @:native("haxe.lang.VarArgsBase") @:keep private class VarArgsBase extends Function
+@:nativeGen @:native("haxe.lang.VarArgsBase") @:keep private class VarArgsBase extends Function
 {
 	public function __hx_invokeDynamic(dynArgs:Array<Dynamic>):Dynamic
 	{
@@ -46,7 +46,7 @@ import java.internal.Runtime;
 	}
 }
 
-@:nativegen @:native('haxe.lang.VarArgsFunction') @:keep class VarArgsFunction extends VarArgsBase
+@:nativeGen @:native('haxe.lang.VarArgsFunction') @:keep class VarArgsFunction extends VarArgsBase
 {
 	private var fun:Array<Dynamic>->Dynamic;
 
@@ -62,7 +62,7 @@ import java.internal.Runtime;
 	}
 }
 
-@:nativegen @:native('haxe.lang.Closure') @:keep class Closure extends VarArgsBase
+@:nativeGen @:native('haxe.lang.Closure') @:keep class Closure extends VarArgsBase
 {
 	private var obj:Dynamic;
 	private var field:String;

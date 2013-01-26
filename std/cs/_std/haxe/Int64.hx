@@ -25,7 +25,7 @@ using haxe.Int64;
 @:notNull @:runtimeValue private abstract NativeUInt64 => Int, <= Int {}
 
 @:coreApi
-@:nativegen class Int64
+@:nativeGen class Int64
 {
 	@:extern private static inline function asNative(i:Int64):NativeInt64 return untyped i
 	@:extern private static inline function ofNative(i:NativeInt64):Int64 return untyped i

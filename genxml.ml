@@ -57,7 +57,7 @@ let gen_arg_name (name,opt,_) =
 let real_path path meta =
 	let rec loop = function
 		| [] -> path
-		| (":realPath",[(Ast.EConst (Ast.String s),_)],_) :: _ -> parse_path s
+		| (Meta.RealPath,[(Ast.EConst (Ast.String s),_)],_) :: _ -> parse_path s
 		| _ :: l -> loop l
 	in
 	loop meta
@@ -86,12 +86,12 @@ let rec sexpr (e,_) =
 	| _ -> "'???'"
 
 let gen_meta meta =
-	let meta = List.filter (fun (m,_,_) -> match m with ":?used" | ":realPath" -> false | _ -> true) meta in
+	let meta = List.filter (fun (m,_,_) -> match m with Meta.MaybeUsed | Meta.RealPath -> false | _ -> true) meta in
 	match meta with
 	| [] -> []
 	| _ ->
 		let nodes = List.map (fun (m,el,_) ->
-			node "m" ["n",m] (List.map (fun e -> node "e" [] [gen_string (sexpr e)]) el)
+			node "m" ["n",Meta.to_string m] (List.map (fun e -> node "e" [] [gen_string (sexpr e)]) el)
 		) meta in
 		[node "meta" [] nodes]
 
@@ -223,7 +223,7 @@ let rec write_xml ch tabs x =
 
 let generate com file =
 	let t = Common.timer "construct xml" in
-	let x = node "haxe" [] (List.map (gen_type_decl com true) (List.filter (fun t -> not (has_meta ":noDoc" (t_infos t).mt_meta)) com.types)) in
+	let x = node "haxe" [] (List.map (gen_type_decl com true) (List.filter (fun t -> not (Meta.has Meta.NoDoc (t_infos t).mt_meta)) com.types)) in
 	t();
 	let t = Common.timer "write xml" in
 	let ch = IO.output_channel (open_out_bin file) in
@@ -334,11 +334,11 @@ let generate_type com t =
 	let print_meta ml =
 		List.iter (fun (m,pl,_) ->
 			match m with
-			| ":defparam" | ":coreApi" -> ()
+			| Meta.DefParam | Meta.CoreApi -> ()
 			| _ ->
 			match pl with
-			| [] -> p "@%s " m
-			| l -> p "@%s(%s) " m (String.concat "," (List.map sexpr pl))
+			| [] -> p "@%s " (Meta.to_string m)
+			| l -> p "@%s(%s) " (Meta.to_string m) (String.concat "," (List.map sexpr pl))
 		) ml
 	in
 	let access a =
@@ -361,7 +361,7 @@ let generate_type com t =
 					List.map (fun (a,o,t) ->
 						let rec loop = function
 							| [] -> Ident "null"
-							| (":defparam",[(EConst (String p),_);(EConst v,_)],_) :: _ when p = a ->
+							| (Meta.DefParam,[(EConst (String p),_);(EConst v,_)],_) :: _ when p = a ->
 								(match v with
 								| Float "1.#QNAN" -> Float "0./*NaN*/"
 								| Float "4294967295." -> Int "0xFFFFFFFF"
@@ -443,7 +443,7 @@ let generate_type com t =
 			| TFun (args,_) -> p "(%s)" (String.concat ", " (List.map sparam (List.map (fun (a,o,t) -> a,(if o then Some (Ident "null") else None),t) args)))
 			| _ -> ());
 			p ";\n";
-		) (if has_meta ":fakeEnum" e.e_meta then sort e.e_names else e.e_names);
+		) (if Meta.has Meta.FakeEnum e.e_meta then sort e.e_names else e.e_names);
 		p "}\n"
 	| TTypeDecl t ->
 		print_meta t.t_meta;

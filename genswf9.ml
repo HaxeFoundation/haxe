@@ -233,7 +233,7 @@ let rec type_id ctx t =
 	| TEnum (e,_) ->
 		let rec loop = function
 			| [] -> type_path ctx e.e_path
-			| (":fakeEnum",[Ast.EConst (Ast.Ident n),_],_) :: _ -> type_path ctx ([],n)
+			| (Meta.FakeEnum,[Ast.EConst (Ast.Ident n),_],_) :: _ -> type_path ctx ([],n)
 			| _ :: l -> loop l
 		in
 		loop e.e_meta
@@ -265,7 +265,7 @@ let classify ctx t =
 	| TEnum (e,_) ->
 		let rec loop = function
 			| [] -> KType (type_id ctx t)
-			| (":fakeEnum",[Ast.EConst (Ident n),_],_) :: _ ->
+			| (Meta.FakeEnum,[Ast.EConst (Ident n),_],_) :: _ ->
 				(match n with
 				| "Int" -> KInt
 				| "UInt" -> KUInt
@@ -1729,7 +1729,7 @@ and jump_expr ctx e jif =
 
 let do_debug ctx meta =
 	let old = ctx.debug in
-	ctx.debug <- (old || has_meta ":debug" meta) && not (has_meta ":noDebug" meta);
+	ctx.debug <- (old || Meta.has Meta.Debug meta) && not (Meta.has Meta.NoDebug meta);
 	(fun() -> ctx.debug <- old)
 
 let generate_method ctx fdata stat fmeta =
@@ -1917,7 +1917,7 @@ let generate_enum_init ctx e hc meta =
 let extract_meta meta =
 	let rec loop = function
 		| [] -> []
-		| (":meta",[ECall ((EConst (Ident n),_),args),_],_) :: l ->
+		| (Meta.Meta,[ECall ((EConst (Ident n),_),args),_],_) :: l ->
 			let mk_arg (a,p) =
 				match a with
 				| EConst (String s) -> (None, s)
@@ -1935,8 +1935,8 @@ let generate_field_kind ctx f c stat =
 	let method_kind() =
 		let rec loop = function
 			| [] -> f.cf_name, MK3Normal
-			| (":getter",[EConst (Ident f),_],_) :: _ -> f, MK3Getter
-			| (":setter",[EConst (Ident f),_],_) :: _ -> f, MK3Setter
+			| (Meta.Getter,[EConst (Ident f),_],_) :: _ -> f, MK3Getter
+			| (Meta.Setter,[EConst (Ident f),_],_) :: _ -> f, MK3Setter
 			| _ :: l -> loop l
 		in
 		loop f.cf_meta
@@ -1964,7 +1964,7 @@ let generate_field_kind ctx f c stat =
 			let m = generate_method ctx fdata stat f.cf_meta in
 			Some (HFMethod {
 				hlm_type = m;
-				hlm_final = stat || (has_meta ":final" f.cf_meta);
+				hlm_final = stat || (Meta.has Meta.Final f.cf_meta);
 				hlm_override = not stat && loop c name;
 				hlm_kind = kind;
 			})
@@ -2045,9 +2045,9 @@ let generate_class ctx c =
 					ident f.cf_name
 			| x :: l ->
 				match x with
-				| ((":getter" | ":setter"),[EConst (Ident f),_],_) -> ident f
-				| (":ns",[EConst (String ns),_],_) -> HMName (f.cf_name,HNNamespace ns)
-				| (":protected",[],_) -> protect()
+				| ((Meta.Getter | Meta.Setter),[EConst (Ident f),_],_) -> ident f
+				| (Meta.Ns,[EConst (String ns),_],_) -> HMName (f.cf_name,HNNamespace ns)
+				| (Meta.Protected,[],_) -> protect()
 				| _ -> loop_meta l
 		in
 		if c.cl_interface then
@@ -2182,7 +2182,7 @@ let generate_class ctx c =
 		hlc_name = name;
 		hlc_super = (if c.cl_interface then None else Some (type_path ctx (match c.cl_super with None -> [],"Object" | Some (c,_) -> c.cl_path)));
 		hlc_sealed = not (is_dynamic c);
-		hlc_final = has_meta ":final" c.cl_meta;
+		hlc_final = Meta.has Meta.Final c.cl_meta;
 		hlc_interface = c.cl_interface;
 		hlc_namespace = (match !has_protected with None -> None | Some p -> Some (HNProtected p));
 		hlc_implements = Array.of_list (List.map (fun (c,_) ->
@@ -2306,7 +2306,7 @@ let rec generate_type ctx t =
 	match t with
 	| TClassDecl c ->
 		if c.cl_path = (["flash";"_Boot"],"RealBoot") then c.cl_path <- ctx.boot;
-		if c.cl_extern && (c.cl_path <> ([],"Dynamic") || has_meta ":realPath" c.cl_meta) then
+		if c.cl_extern && (c.cl_path <> ([],"Dynamic") || Meta.has Meta.RealPath c.cl_meta) then
 			None
 		else
 			let debug = do_debug ctx c.cl_meta in

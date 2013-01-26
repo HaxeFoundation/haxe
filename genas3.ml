@@ -221,7 +221,7 @@ let rec type_str ctx t p =
 			| _ ->
 				let rec loop = function
 					| [] -> "Object"
-					| (":fakeEnum",[Ast.EConst (Ast.Ident n),_],_) :: _ ->
+					| (Ast.Meta.FakeEnum,[Ast.EConst (Ast.Ident n),_],_) :: _ ->
 						(match n with
 						| "Int" -> "int"
 						| "UInt" -> "uint"
@@ -365,8 +365,8 @@ let gen_function_header ctx name f params p =
 	print ctx "function%s(" (match name with None -> "" | Some (n,meta) ->
 		let rec loop = function
 			| [] -> n
-			| (":getter",[Ast.EConst (Ast.Ident i),_],_) :: _ -> "get " ^ i
-			| (":setter",[Ast.EConst (Ast.Ident i),_],_) :: _ -> "set " ^ i
+			| (Ast.Meta.Getter,[Ast.EConst (Ast.Ident i),_],_) :: _ -> "get " ^ i
+			| (Ast.Meta.Setter,[Ast.EConst (Ast.Ident i),_],_) :: _ -> "set " ^ i
 			| _ :: l -> loop l
 		in
 		" " ^ loop meta
@@ -922,7 +922,7 @@ and gen_value ctx e =
 		v()
 
 let final m =
-	if has_meta ":final" m then "final " else ""
+	if Ast.Meta.has Ast.Meta.Final m then "final " else ""
 
 let generate_field ctx static f =
 	newline ctx;
@@ -930,7 +930,7 @@ let generate_field ctx static f =
 	ctx.gen_uid <- 0;
 	List.iter (fun(m,pl,_) ->
 		match m,pl with
-		| ":meta", [Ast.ECall ((Ast.EConst (Ast.Ident n),_),args),_] ->
+		| Ast.Meta.Meta, [Ast.ECall ((Ast.EConst (Ast.Ident n),_),args),_] ->
 			let mk_arg (a,p) =
 				match a with
 				| Ast.EConst (Ast.String s) -> (None, s)
@@ -951,7 +951,7 @@ let generate_field ctx static f =
 			print ctx "]";
 		| _ -> ()
 	) f.cf_meta;
-	let public = f.cf_public || Hashtbl.mem ctx.get_sets (f.cf_name,static) || (f.cf_name = "main" && static) || f.cf_name = "resolve" || has_meta ":public" f.cf_meta in
+	let public = f.cf_public || Hashtbl.mem ctx.get_sets (f.cf_name,static) || (f.cf_name = "main" && static) || f.cf_name = "resolve" || Ast.Meta.has Ast.Meta.Public f.cf_meta in
 	let rights = (if static then "static " else "") ^ (if public then "public" else "protected") in
 	let p = ctx.curclass.cl_pos in
 	match f.cf_expr, f.cf_kind with
@@ -978,8 +978,8 @@ let generate_field ctx static f =
 			| TFun (args,r) ->
 				let rec loop = function
 					| [] -> f.cf_name
-					| (":getter",[Ast.EConst (Ast.String name),_],_) :: _ -> "get " ^ name
-					| (":setter",[Ast.EConst (Ast.String name),_],_) :: _ -> "set " ^ name
+					| (Ast.Meta.Getter,[Ast.EConst (Ast.String name),_],_) :: _ -> "get " ^ name
+					| (Ast.Meta.Setter,[Ast.EConst (Ast.String name),_],_) :: _ -> "set " ^ name
 					| _ :: l -> loop l
 				in
 				print ctx "function %s(" (loop f.cf_meta);

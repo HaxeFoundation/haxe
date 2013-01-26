@@ -49,7 +49,7 @@ type dce = {
 
 (* check for @:keepSub metadata, which forces @:keep on child classes *)
 let rec super_forces_keep c =
-	has_meta ":keepSub" c.cl_meta || match c.cl_super with
+	Meta.has Meta.KeepSub c.cl_meta || match c.cl_super with
 	| Some (csup,_) -> super_forces_keep csup
 	| _ -> false
 
@@ -58,7 +58,7 @@ let is_std_file dce file =
 
 (* check if a class is kept entirely *)
 let keep_whole_class dce c =
-	has_meta ":keep" c.cl_meta
+	Meta.has Meta.Keep c.cl_meta
 	|| not (dce.full || is_std_file dce c.cl_module.m_extra.m_file)
 	|| super_forces_keep c
 	|| (match c with
@@ -72,7 +72,7 @@ let keep_whole_class dce c =
 (* check if a metadata contains @:ifFeature with a used feature argument *)
 let has_used_feature com meta =
 	try
-		let _,el,_ = get_meta ":ifFeature" meta in
+		let _,el,_ = Meta.get Meta.IfFeature meta in
 		List.exists (fun e -> match fst e with
 			| EConst(String s) when Common.has_feature com s -> true
 			| _ -> false
@@ -82,8 +82,8 @@ let has_used_feature com meta =
 
 (* check if a field is kept *)
 let keep_field dce cf =
-	has_meta ":keep" cf.cf_meta
-	|| has_meta ":used" cf.cf_meta
+	Meta.has Meta.Keep cf.cf_meta
+	|| Meta.has Meta.Used cf.cf_meta
 	|| cf.cf_name = "__init__"
 	|| has_used_feature dce.com cf.cf_meta
 
@@ -92,8 +92,8 @@ let keep_field dce cf =
 (* mark a field as kept *)
 let rec mark_field dce c cf stat =
 	let add () =
-		if not (has_meta ":used" cf.cf_meta) then begin
-			cf.cf_meta <- (":used",[],cf.cf_pos) :: cf.cf_meta;
+		if not (Meta.has Meta.Used cf.cf_meta) then begin
+			cf.cf_meta <- (Meta.Used,[],cf.cf_pos) :: cf.cf_meta;
 			dce.added_fields <- (c,cf,stat) :: dce.added_fields;
 			dce.marked_fields <- cf :: dce.marked_fields
 		end
@@ -108,10 +108,10 @@ let rec mark_field dce c cf stat =
 let rec update_marked_class_fields dce c =
 	(* mark all :?used fields as surely :used now *)
 	List.iter (fun cf ->
-		if has_meta ":?used" cf.cf_meta then mark_field dce c cf true
+		if Meta.has Meta.MaybeUsed cf.cf_meta then mark_field dce c cf true
 	) c.cl_ordered_statics;
 	List.iter (fun cf ->
-		if has_meta ":?used" cf.cf_meta then mark_field dce c cf false
+		if Meta.has Meta.MaybeUsed cf.cf_meta then mark_field dce c cf false
 	) c.cl_ordered_fields;
 	(* we always have to keep super classes and implemented interfaces *)
 	(match c.cl_init with None -> () | Some init -> dce.follow_expr dce init);
@@ -119,24 +119,24 @@ let rec update_marked_class_fields dce c =
 	(match c.cl_super with None -> () | Some (csup,pl) -> mark_class dce csup)
 
 (* mark a class as kept. If the class has fields marked as @:?keep, make sure to keep them *)
-and mark_class dce c = if not (has_meta ":used" c.cl_meta) then begin
-	c.cl_meta <- (":used",[],c.cl_pos) :: c.cl_meta;
+and mark_class dce c = if not (Meta.has Meta.Used c.cl_meta) then begin
+	c.cl_meta <- (Meta.Used,[],c.cl_pos) :: c.cl_meta;
 	update_marked_class_fields dce c;
 end
 
-let rec mark_enum dce e = if not (has_meta ":used" e.e_meta) then begin
-	e.e_meta <- (":used",[],e.e_pos) :: e.e_meta;
+let rec mark_enum dce e = if not (Meta.has Meta.Used e.e_meta) then begin
+	e.e_meta <- (Meta.Used,[],e.e_pos) :: e.e_meta;
 	PMap.iter (fun _ ef -> mark_t dce ef.ef_type) e.e_constrs;
 end
 
-and mark_abstract dce a = if not (has_meta ":used" a.a_meta) then
-	a.a_meta <- (":used",[],a.a_pos) :: a.a_meta
+and mark_abstract dce a = if not (Meta.has Meta.Used a.a_meta) then
+	a.a_meta <- (Meta.Used,[],a.a_pos) :: a.a_meta
 
 (* mark a type as kept *)
 and mark_t dce t = match follow t with
 	| TInst({cl_kind = KTypeParameter tl} as c,pl) ->
-		if not (has_meta ":used" c.cl_meta) then begin
-			c.cl_meta <- (":used",[],c.cl_pos) :: c.cl_meta;
+		if not (Meta.has Meta.Used c.cl_meta) then begin
+			c.cl_meta <- (Meta.Used,[],c.cl_pos) :: c.cl_meta;
 			List.iter (mark_t dce) tl;
 		end;
 		List.iter (mark_t dce) pl
@@ -161,7 +161,7 @@ let mark_mt dce mt = match mt with
 		mark_enum dce e
 	| TAbstractDecl a ->
 		(* abstract 'feature' is defined as the abstract type beeing used as a value, not as a type *)
-		if not (has_meta ":valueUsed" a.a_meta) then a.a_meta <- (":valueUsed",[],a.a_pos) :: a.a_meta;
+		if not (Meta.has Meta.ValueUsed a.a_meta) then a.a_meta <- (Meta.ValueUsed,[],a.a_pos) :: a.a_meta;
 		mark_abstract dce a
 	| TTypeDecl _ ->
 		()
@@ -175,10 +175,10 @@ let rec mark_dependent_fields dce csup n stat =
 					let cf = PMap.find n (if stat then c.cl_statics else c.cl_fields) in
 					(* if it's clear that the class is kept, the field has to be kept as well. This is also true for
 					   extern interfaces because we cannot remove fields from them *)
-					if has_meta ":used" c.cl_meta || (csup.cl_interface && csup.cl_extern) then mark_field dce c cf stat
+					if Meta.has Meta.Used c.cl_meta || (csup.cl_interface && csup.cl_extern) then mark_field dce c cf stat
 					(* otherwise it might be kept if the class is kept later, so mark it as :?used *)
-					else if not (has_meta ":?used" cf.cf_meta) then begin
-						cf.cf_meta <- (":?used",[],cf.cf_pos) :: cf.cf_meta;
+					else if not (Meta.has Meta.MaybeUsed cf.cf_meta) then begin
+						cf.cf_meta <- (Meta.MaybeUsed,[],cf.cf_pos) :: cf.cf_meta;
 						dce.marked_maybe_fields <- cf :: dce.marked_maybe_fields;
 					end
 				with Not_found ->
@@ -210,7 +210,7 @@ let rec field dce c n stat =
 		let prefix = String.sub n 0 4 in
 		let pn = String.sub n 4 l in
 		let cf = find_field pn in
-		if not (has_meta ":used" cf.cf_meta) then begin
+		if not (Meta.has Meta.Used cf.cf_meta) then begin
 			let keep () =
 				mark_dependent_fields dce c n stat;
 				field dce c pn stat
@@ -329,7 +329,7 @@ let run com main full =
 	} in
 	begin match main with
 		| Some {eexpr = TCall({eexpr = TField(e,(FStatic(c,cf)))},_)} ->
-			cf.cf_meta <- (":keep",[],cf.cf_pos) :: cf.cf_meta
+			cf.cf_meta <- (Meta.Keep,[],cf.cf_pos) :: cf.cf_meta
 		| _ ->
 			()
 	end;
@@ -381,7 +381,7 @@ let run com main full =
 			loop (mt :: acc) l
 		| (TClassDecl c) as mt :: l ->
 			(* add :keep so subsequent filter calls do not process class fields again *)
-			c.cl_meta <- (":keep",[],c.cl_pos) :: c.cl_meta;
+			c.cl_meta <- (Meta.Keep,[],c.cl_pos) :: c.cl_meta;
  			c.cl_ordered_statics <- List.filter (fun cf ->
 				let b = keep_field dce cf in
 				if not b then begin
@@ -400,9 +400,9 @@ let run com main full =
 			) c.cl_ordered_fields;
 			(match c.cl_constructor with Some cf when not (keep_field dce cf) -> c.cl_constructor <- None | _ -> ());
 			(* we keep a class if it was used or has a used field *)
-			if has_meta ":used" c.cl_meta || c.cl_ordered_statics <> [] || c.cl_ordered_fields <> [] then loop (mt :: acc) l else begin
+			if Meta.has Meta.Used c.cl_meta || c.cl_ordered_statics <> [] || c.cl_ordered_fields <> [] then loop (mt :: acc) l else begin
 				(match c.cl_init with
-				| Some f when has_meta ":keepInit" c.cl_meta ->
+				| Some f when Meta.has Meta.KeepInit c.cl_meta ->
 					(* it means that we only need the __init__ block *)
 					c.cl_extern <- true;
 					loop (mt :: acc) l
@@ -410,7 +410,7 @@ let run com main full =
 					if dce.debug then print_endline ("[DCE] Removed class " ^ (s_type_path c.cl_path));
 					loop acc l)
 			end
- 		| (TEnumDecl e) as mt :: l when has_meta ":used" e.e_meta || has_meta ":keep" e.e_meta || e.e_extern || not (dce.full || is_std_file dce e.e_module.m_extra.m_file) ->
+ 		| (TEnumDecl e) as mt :: l when Meta.has Meta.Used e.e_meta || Meta.has Meta.Keep e.e_meta || e.e_extern || not (dce.full || is_std_file dce e.e_module.m_extra.m_file) ->
 			loop (mt :: acc) l
 		| TEnumDecl e :: l ->
 			if dce.debug then print_endline ("[DCE] Removed enum " ^ (s_type_path e.e_path));
@@ -465,7 +465,7 @@ let run com main full =
 		| (m2,_,_) :: l when m = m2 -> l
 		| x :: l -> x :: remove_meta m l
 	in
-	List.iter (fun cf -> cf.cf_meta <- remove_meta ":used" cf.cf_meta) dce.marked_fields;
-	List.iter (fun cf -> cf.cf_meta <- remove_meta ":?used" cf.cf_meta) dce.marked_maybe_fields;
+	List.iter (fun cf -> cf.cf_meta <- remove_meta Meta.Used cf.cf_meta) dce.marked_fields;
+	List.iter (fun cf -> cf.cf_meta <- remove_meta Meta.MaybeUsed cf.cf_meta) dce.marked_maybe_fields;
 
 

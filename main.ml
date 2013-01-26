@@ -532,14 +532,14 @@ and wait_loop boot_com host port =
 						| TEnumDecl e ->
 							let rec loop acc = function
 								| [] -> ()
-								| (":realPath",[Ast.EConst (Ast.String path),_],_) :: l ->
+								| (Ast.Meta.RealPath,[Ast.EConst (Ast.String path),_],_) :: l ->
 									e.e_path <- Ast.parse_path path;
 									e.e_meta <- (List.rev acc) @ l;
 								| x :: l -> loop (x::acc) l
 							in
 							loop [] e.e_meta
 						| TAbstractDecl a ->
-							a.a_meta <- List.filter (fun (m,_,_) -> m <> ":valueUsed") a.a_meta
+							a.a_meta <- List.filter (fun (m,_,_) -> m <> Ast.Meta.ValueUsed) a.a_meta
 						| _ -> ()
 					) m.m_types;
 					Typeload.add_module ctx m p;

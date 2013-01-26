@@ -22,7 +22,7 @@
 package;
 import cs.system.Random;
 
-@:coreApi @:nativegen class Math
+@:coreApi @:nativeGen class Math
 {
 	public static inline function __init__():Void
 	{

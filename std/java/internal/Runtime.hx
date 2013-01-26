@@ -27,8 +27,8 @@ package java.internal;
 **/
 
 @:native('haxe.lang.Runtime')
-@:nativegen
-@:classContents('
+@:nativeGen
+@:classCode('
 	public static java.lang.Object getField(haxe.lang.IHxObject obj, java.lang.String field, boolean throwErrors)
 	{
 		if (obj == null && !throwErrors) return null;
@@ -60,7 +60,7 @@ package java.internal;
 {
 	public static var undefined:Dynamic = { };
 
-	@:functionBody('
+	@:functionCode('
 	return new haxe.lang.Closure(obj, field);
 	')
 	public static function closure(obj:Dynamic, field:String):Dynamic
@@ -68,7 +68,7 @@ package java.internal;
 		return null;
 	}
 
-	@:functionBody('
+	@:functionCode('
 			if (v1 == v2)
 				return true;
 			if (v1 == null || v2 == null)
@@ -95,7 +95,7 @@ package java.internal;
 		return false;
 	}
 
-	@:functionBody('
+	@:functionCode('
 		if (v1 == v2)
 			return true;
 
@@ -111,7 +111,7 @@ package java.internal;
 		return false;
 	}
 
-	@:functionBody('
+	@:functionCode('
 		return v1 == v2 || (v1 != null && v1.equals(v2));
 	')
 	public static function valEq(v1: { }, v2: { } ):Bool
@@ -119,7 +119,7 @@ package java.internal;
 		return false;
 	}
 
-	@:functionBody('
+	@:functionCode('
 		return (obj == null) ? 0.0 : ((java.lang.Number) obj).doubleValue();
 	')
 	public static function toDouble(obj:Dynamic):Float
@@ -127,7 +127,7 @@ package java.internal;
 		return 0.0;
 	}
 
-	@:functionBody('
+	@:functionCode('
 		return (obj == null) ? false : ((java.lang.Boolean) obj).booleanValue();
 	')
 	public static function toBool(obj:Dynamic):Bool
@@ -135,7 +135,7 @@ package java.internal;
 		return false;
 	}
 
-	@:functionBody('
+	@:functionCode('
 		return (obj == null) ? 0 : ((java.lang.Number) obj).intValue();
 	')
 	public static function toInt(obj:Dynamic):Int
@@ -143,7 +143,7 @@ package java.internal;
 		return 0;
 	}
 
-	@:functionBody('
+	@:functionCode('
 		if (obj != null && obj instanceof java.lang.Number)
 		{
 			return true;
@@ -156,7 +156,7 @@ package java.internal;
 		return false;
 	}
 
-	@:functionBody('
+	@:functionCode('
 		if (obj != null && obj instanceof java.lang.Number)
 		{
 			java.lang.Number n = (java.lang.Number) obj;
@@ -170,7 +170,7 @@ package java.internal;
 		return false;
 	}
 
-	@:functionBody('
+	@:functionCode('
 		java.lang.Class cl = null;
 		if (o instanceof java.lang.Class)
 		{
@@ -208,7 +208,7 @@ package java.internal;
 		return false;
 	}
 
-	@:functionBody('
+	@:functionCode('
 			if (v1 == v2)
 				return 0;
 
@@ -237,7 +237,7 @@ package java.internal;
 		return 0;
 	}
 
-	@:functionBody('
+	@:functionCode('
 			if (v1 instanceof java.lang.String || v2 instanceof java.lang.String)
 				return (v1 + "") + (v2 + "");
 
@@ -259,7 +259,7 @@ package java.internal;
 		return null;
 	}
 
-	@:functionBody('
+	@:functionCode('
 
 	if (obj == null)
 		if (throwErrors)
@@ -315,7 +315,7 @@ package java.internal;
 		return null;
 	}
 
-	@:functionBody('
+	@:functionCode('
 		java.lang.Class cl = null;
 		if (obj instanceof java.lang.Class)
 		{
@@ -350,7 +350,7 @@ package java.internal;
 		return null;
 	}
 
-	@:functionBody('
+	@:functionCode('
 		java.lang.Class cl = null;
 		if (obj instanceof java.lang.Class)
 		{
@@ -486,7 +486,7 @@ package java.internal;
 		return null;
 	}
 
-	@:functionBody('
+	@:functionCode('
 		if (obj instanceof haxe.lang.IHxObject)
 		{
 			return ((haxe.lang.IHxObject) obj).__hx_invokeField(field, args);
@@ -499,7 +499,7 @@ package java.internal;
 		return null;
 	}
 
-	@:functionBody('
+	@:functionCode('
 
 		if (obj instanceof haxe.lang.IHxObject)
 			return ((haxe.lang.IHxObject) obj).__hx_getField(field, throwErrors, false, false);
@@ -512,7 +512,7 @@ package java.internal;
 		return null;
 	}
 
-	@:functionBody('
+	@:functionCode('
 
 		if (obj instanceof haxe.lang.IHxObject)
 			return ((haxe.lang.IHxObject) obj).__hx_getField_f(field, throwErrors, false);
@@ -525,7 +525,7 @@ package java.internal;
 		return 0.0;
 	}
 
-	@:functionBody('
+	@:functionCode('
 
 		if (obj instanceof haxe.lang.IHxObject)
 			return ((haxe.lang.IHxObject) obj).__hx_setField(field, value, false);
@@ -538,7 +538,7 @@ package java.internal;
 		return null;
 	}
 
-	@:functionBody('
+	@:functionCode('
 
 		if (obj instanceof haxe.lang.IHxObject)
 			return ((haxe.lang.IHxObject) obj).__hx_setField_f(field, value, false);
