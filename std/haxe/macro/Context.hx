@@ -95,12 +95,12 @@ class Context {
 	public static function getLocalMethod() : Null<String> {
 		var l : String = load("local_method", 0)();
 		if (l == "") return null;
-		return l;
+		return new String(l);
 	}
 
 	/**
 		Returns classes which are available for "using" where the macro was called
-	**/	
+	**/
 	public static function getLocalUsing() :  Array<Type.Ref<Type.ClassType>> {
 		return load("local_using", 0)();
 	}
@@ -123,8 +123,8 @@ class Context {
 		Returns the value defined through -D key=value
 	**/
 	public static function definedValue( key : String ) : String {
-		return load("defined_value", 1)(untyped key.__s);
-	}	
+		return new String(load("defined_value", 1)(untyped key.__s));
+	}
 
 	/**
 		Resolve a type from its name.
