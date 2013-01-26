@@ -155,7 +155,7 @@ class Http {
 		(Js) If [this].async is false, the callback functions are called before
 		this method returns.
 	**/
-	public function request( post : Bool ) : Void {
+	public function request( ?post : Bool ) : Void {
 		var me = this;
 	#if js
 		var r = js.Browser.createXMLHttpRequest();
