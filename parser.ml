@@ -109,13 +109,14 @@ let swap op1 op2 =
 
 let rec make_binop op e ((v,p2) as e2) =
 	match v with
-	| EBinop (_op,_e,_e2)
-	| EMeta(_,(EBinop (_op,_e,_e2),_)) when swap op _op ->
+	| EBinop (_op,_e,_e2) when swap op _op ->
 		let _e = make_binop op e _e in
 		EBinop (_op,_e,_e2) , punion (pos _e) (pos _e2)
 	| ETernary (e1,e2,e3) when is_not_assign op ->
 		let e = make_binop op e e1 in
 		ETernary (e,e2,e3) , punion (pos e) (pos e3)
+	| EMeta(_,e2) ->
+		make_binop op e e2
 	| _ ->
 		EBinop (op,e,e2) , punion (pos e) (pos e2)
 
