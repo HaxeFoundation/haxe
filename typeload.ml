@@ -1343,6 +1343,7 @@ let init_class ctx c p context_init herits fields =
 					end else if Meta.has Meta.To f.cff_meta then begin
 						let ta = monomorphs a.a_types (monomorphs params a.a_this) in
 						unify ctx t (tfun [ta] m) f.cff_pos;
+						if not (Meta.has Meta.Impl cf.cf_meta) then cf.cf_meta <- (Meta.Impl,[],cf.cf_pos) :: cf.cf_meta;
 						a.a_to <- (follow m, Some cf) :: a.a_to
 					end
 				| _ ->

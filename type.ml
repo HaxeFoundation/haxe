@@ -1168,7 +1168,7 @@ and unify_to_field ab tl a b (t,cfo) =
 		| TFun([_,_,ta],_) ->
 			let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
 			let map t = apply_params ab.a_types tl (apply_params cf.cf_params monos t) in
-			if loop (map t) b then try unify (map ab.a_this) (map ta); true with Unify_error _ -> false else false
+			(try unify (map ab.a_this) (map ta); loop (map t) b with Unify_error _ -> false)
 		| _ -> assert false)
 	| _ ->
 		loop (apply_params ab.a_types tl t) b
