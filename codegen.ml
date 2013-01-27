@@ -790,6 +790,21 @@ let check_void_field ctx t = match t with
 	| _ ->
 		()
 
+(* Promotes type parameters of abstracts to their implementation fields *)
+let promote_abstract_parameters ctx t = match t with
+	| TClassDecl ({cl_kind = KAbstractImpl a} as c) when a.a_types <> [] ->
+		List.iter (fun f ->
+			List.iter (fun (n,t) -> match t with
+				| TInst({cl_kind = KTypeParameter _; cl_path=p,n} as cp,[]) when not (List.mem_assoc n f.cf_params) ->
+					let path = List.rev ((snd c.cl_path) :: List.rev (fst c.cl_path)),n in
+					f.cf_params <- (n,TInst({cp with cl_path = path},[])) :: f.cf_params
+				| _ ->
+					()
+			) a.a_types;
+		) c.cl_ordered_statics;
+	| _ ->
+		()
+
 (* -------------------------------------------------------------------------- *)
 (* LOCAL VARIABLES USAGE *)
 

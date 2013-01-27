@@ -1125,6 +1125,7 @@ try
 			Codegen.check_remove_metadata;
 			Codegen.check_void_field;
 		] in
+		let type_filters = if ctx.com.platform = Java then Codegen.promote_abstract_parameters :: type_filters else type_filters in
 		List.iter (fun t -> List.iter (fun f -> f tctx t) type_filters) com.types;
 		if ctx.has_error then raise Abort;
 		(match !xml_out with

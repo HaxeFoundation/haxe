@@ -145,7 +145,7 @@ and tclass_field = {
 	mutable cf_doc : Ast.documentation;
 	mutable cf_meta : metadata;
 	mutable cf_kind : field_kind;
-	cf_params : type_params;
+	mutable cf_params : type_params;
 	mutable cf_expr : texpr option;
 	mutable cf_overloads : tclass_field list;
 }
