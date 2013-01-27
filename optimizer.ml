@@ -395,9 +395,11 @@ let rec type_inline ctx cf f ethis params tret config p force =
 			(match follow ethis.etype with
 			| TAnon a -> (match !(a.a_status) with
 				| Statics {cl_kind = KAbstractImpl a } when Meta.has Meta.Impl cf.cf_meta ->
-					(* the first argument must unify with a_this for abstract implementation functions *)
-					let tb = (TFun(("",false,map_type a.a_this) :: List.map (fun e -> "",false,e.etype) (List.tl params),tret)) in
-					unify_raise ctx mt tb p
+					if cf.cf_name <> "_new" then begin
+						(* the first argument must unify with a_this for abstract implementation functions *)
+						let tb = (TFun(("",false,map_type a.a_this) :: List.map (fun e -> "",false,e.etype) (List.tl params),tret)) in
+						unify_raise ctx mt tb p
+					end
 				| _ -> unify_func())
 			| _ -> unify_func());
 			(*
