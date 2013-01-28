@@ -1899,7 +1899,9 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 			| AToType t -> a.a_to <- (load_type t, None) :: a.a_to
 			| AIsType t ->
 				if a.a_impl = None then error "Abstracts with subtypes must have an implementation" a.a_pos;
-				a.a_this <- load_complex_type ctx p t;
+				let at = load_complex_type ctx p t in
+				(match at with TAbstract(a2,_) when a == a2 -> error "Abstract subtype cannot be recursive" a.a_pos | _ -> ());
+				a.a_this <- at;
 				is_type := true;
 			| APrivAbstract -> ()
 		) d.d_flags
