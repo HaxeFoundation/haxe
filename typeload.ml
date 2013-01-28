@@ -550,7 +550,7 @@ let load_type_opt ?(opt=false) ctx p t =
 
 let valid_redefinition ctx f1 t1 f2 t2 =
 	let valid t1 t2 =
-		unify_raise ctx t1 t2 f1.cf_pos;
+		Type.unify t1 t2;
 		if is_null t1 <> is_null t2 then raise (Unify_error [Cannot_unify (t1,t2)]);
 	in
 	let t1, t2 = (match f1.cf_params, f2.cf_params with
@@ -587,12 +587,14 @@ let valid_redefinition ctx f1 t1 f2 t2 =
 			t1, t2
 	) in
 	match follow t1, follow t2 with
-	| TFun (args1,r1) , TFun (args2,r2) when List.length args1 = List.length args2 ->
-		List.iter2 (fun (n,o1,a1) (_,o2,a2) ->
-			if o1 <> o2 then raise (Unify_error [Not_matching_optional n]);
-			valid a2 a1;
-		) args1 args2;
-		valid r1 r2;
+	| TFun (args1,r1) , TFun (args2,r2) when List.length args1 = List.length args2 -> (try
+			List.iter2 (fun (n,o1,a1) (_,o2,a2) ->
+				if o1 <> o2 then raise (Unify_error [Not_matching_optional n]);
+				(try valid a2 a1 with Unify_error _ -> raise (Unify_error [Cannot_unify(a1,a2)]))
+			) args1 args2;
+			valid r1 r2
+		with Unify_error l ->
+			raise (Unify_error (Cannot_unify (t1,t2) :: l)))
 	| _ , _ ->
 		(* in case args differs, or if an interface var *)
 		type_eq EqStrict t1 t2;
@@ -639,7 +641,7 @@ let check_overriding ctx c =
 					valid_redefinition ctx f f.cf_type f2 t
 				with
 					Unify_error l ->
-						display_error ctx ("Field " ^ i ^ " overload parent class with different or incomplete type") p;
+						display_error ctx ("Field " ^ i ^ " overloads parent class with different or incomplete type") p;
 						display_error ctx (error_msg (Unify l)) p;
 			with
 				Not_found ->
