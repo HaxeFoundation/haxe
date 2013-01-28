@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,8 +26,34 @@ typedef TypeResolver = {
 	function resolveEnum( name : String ) : Enum<Dynamic>;
 }
 
+/**
+	The Unserializer class is the complement to the Serializer class. It parses
+	a serialization String and creates objects from the contained data.
+	
+	This class can be used in two ways:
+		- create a new Unserializer() instance with a given serialization
+		String, then call its unserialize() method until all values are
+		extracted
+		- call Unserializer.run() to unserialize a single value from a given
+		String
+**/
 class Unserializer {
 
+	/**
+		This value can be set to use custom type resolvers.
+		
+		A type resolver finds a Class or Enum instance from a given String. By
+		default, the haxe Type Api is used.
+		
+		A type resolver must provide two methods:
+			resolveClass(name:String):Class<Dynamic> is called to determine a
+				Class from a class name
+			resolveEnum(name:String):Enum<Dynamic> is called to determine an
+				Enum from an enum name
+		
+		This value is applied when a new Unserializer instance is created.
+		Changing it afterwards has no effect on previously created instances.
+	**/
 	public static var DEFAULT_RESOLVER : TypeResolver = Type;
 
 	static var BASE64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789%:";
@@ -58,6 +84,15 @@ class Unserializer {
  	var upos : Int;
  	#end
 
+	/**
+		Creates a new Unserializer instance, with its internal buffer
+		initialized to [buf].
+		
+		This does not parse [buf] immediately. It is parsed only when calls to
+		[this].unserialize are made.
+		
+		Each Unserializer instance maintains its own cache.
+	**/
  	public function new( buf : String ) {
  		this.buf = buf;
  		length = buf.length;
@@ -75,6 +110,14 @@ class Unserializer {
  		setResolver(r);
  	}
 
+	/**
+		Sets the type resolver of [this] Unserializer instance to [r].
+		
+		If [r] is null, a special resolver is used which returns null for all
+		input values.
+		
+		See DEFAULT_RESOLVER for more information on type resolvers.
+	**/
  	public function setResolver( r ) {
 		if( r == null )
 			resolver = {
@@ -85,6 +128,11 @@ class Unserializer {
 			resolver = r;
 	}
 
+	/**
+		Gets the type resolver of [this] Unserializer instance.
+		
+		See DEFAULT_RESOLVER for more information on type resolvers.
+	**/
  	public function getResolver() {
 		return resolver;
 	}
@@ -145,6 +193,26 @@ class Unserializer {
 		return Type.createEnum(edecl,tag,args);
 	}
 
+	/**
+		Unserializes the next part of [this] Unserializer instance and returns
+		the according value.
+		
+		This function may call [this].resolver.resolveClass to determine a
+		Class from a String, and [this].resolver.resolveEnum to determine an
+		Enum from a String.
+		
+		If [this] Unserializer instance contains no more or invalid data, an
+		exception is thrown.
+		
+		This operation may fail on structurally valid data if a type cannot be
+		resolved or if a field cannot be set. This can happen when unserializing
+		Strings that were serialized on a different haxe target, in which the
+		serialization side has to make sure not to include platform-specific
+		data.
+		
+		Classes are created from Type.createEmptyInstance, which means their
+		constructors are not called.
+	**/
  	public function unserialize() : Dynamic {
  		switch( get(pos++) ) {
  		case "n".code:
@@ -343,7 +411,11 @@ class Unserializer {
  	}
 
 	/**
-		Unserialize a single value and return it.
+		Unserializes [v] and returns the according value.
+		
+		This is a convenience function for creating a new instance of
+		Unserializer with [v] as buffer and calling its unserialize() method
+		once.
 	**/
 	public static function run( v : String ) : Dynamic {
 		return new Unserializer(v).unserialize();
