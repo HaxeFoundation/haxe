@@ -298,6 +298,55 @@ let create_fake_module ctx file =
 	Hashtbl.replace ctx.g.modules mdep.m_path mdep;
 	mdep
 
+(* Source: http://en.wikibooks.org/wiki/Algorithm_implementation/Strings/Levenshtein_distance#OCaml *)
+let levenshtein a b =
+	let x = Array.init (String.length a) (fun i -> a.[i]) in
+	let y = Array.init (String.length b) (fun i -> b.[i]) in
+	let minimum (x:int) y z =
+		let m' (a:int) b = if a < b then a else b in
+		m' (m' x y) z
+	in
+	let init_matrix n m =
+		let init_col = Array.init m in
+			Array.init n (function
+			| 0 -> init_col (function j -> j)
+			| i -> init_col (function 0 -> i | _ -> 0)
+		)
+	in
+	match Array.length x, Array.length y with
+		| 0, n -> n
+		| m, 0 -> m
+		| m, n ->
+			let matrix = init_matrix (m + 1) (n + 1) in
+			for i = 1 to m do
+				let s = matrix.(i) and t = matrix.(i - 1) in
+				for j = 1 to n do
+					let cost = abs (compare x.(i - 1) y.(j - 1)) in
+					s.(j) <- minimum (t.(j) + 1) (s.(j - 1) + 1) (t.(j - 1) + cost)
+				done
+			done;
+	matrix.(m).(n)
+
+let string_error ctx s sl msg =
+	let cl = List.map (fun s2 -> s2,levenshtein s s2) sl in
+	let cl = List.sort (fun (_,c1) (_,c2) -> compare c1 c2) cl in
+	let threshold = ref (try (int_of_string (Common.defined_value ctx.com Define.LevenshteinThreshold)) with
+		| Not_found -> 3
+		| _ -> error "Int expected for levenshtein-threshold=x" Ast.null_pos)
+	in
+	let last_threshold = ref 0 in
+	let rec loop sl = match sl with
+		| (s,i) :: sl when i <= !threshold || i = !last_threshold ->
+			last_threshold := i;
+			threshold := !threshold - 1;
+			s :: loop sl
+		| _ -> []
+	in
+	match loop cl with
+		| [] -> msg
+		| [s] -> Printf.sprintf "%s (Suggestion: %s)" msg s
+		| sl -> Printf.sprintf "%s (Suggestions: %s)" msg (String.concat ", " sl)
+
 (* -------------- debug functions to activate when debugging typer passes ------------------------------- *)
 (*/*
 

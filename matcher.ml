@@ -363,7 +363,11 @@ let to_pattern ctx e t =
 				let tc = monomorphs ctx.type_params (t) in
 				let ec = match follow tc with
 					| TEnum(en,pl) ->
-						let ef = try PMap.find s en.e_constrs with Not_found when not (is_lower_ident s) -> error ("Expected constructor for enum " ^ (s_type_path en.e_path)) p in
+						let ef = try
+							PMap.find s en.e_constrs
+						with Not_found when not (is_lower_ident s) ->
+							error (string_error ctx s en.e_names ("Expected constructor for enum " ^ (s_type_path en.e_path))) p
+						in
 						(match ef.ef_type with
 							| TFun (args,_) ->
 								let msg = Printf.sprintf "Enum constructor %s.%s requires parameters %s"

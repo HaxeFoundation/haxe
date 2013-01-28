@@ -1917,7 +1917,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 						mk (fast_enum_field e ef p) (apply_params e.e_types pl ef.ef_type) p
 					with Not_found ->
 						if ctx.untyped then raise Not_found;
-						with_type_error ctx ("Identifier '" ^ s ^ "' is not part of enum " ^ s_type_path e.e_path) p;
+						with_type_error ctx (string_error ctx s e.e_names ("Identifier '" ^ s ^ "' is not part of enum " ^ s_type_path e.e_path)) p;
 						mk (TConst TNull) t p)
 				| _ -> raise Not_found)
 			| _ ->
@@ -2320,7 +2320,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				build_call ctx (AKExpr constr) el (WithType t) p
 			with Not_found ->
 				if ctx.untyped then raise Exit; (* __js__, etc. *)
-				with_type_error ctx ("Identifier '" ^ s ^ "' is not part of enum " ^ s_type_path e.e_path) p;
+				with_type_error ctx (string_error ctx s e.e_names "Identifier '" ^ s ^ "' is not part of enum " ^ s_type_path e.e_path) p;
 				mk (TConst TNull) t p
 		with Exit ->
 			type_call ctx e el with_type p)
