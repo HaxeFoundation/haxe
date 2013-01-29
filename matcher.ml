@@ -812,7 +812,7 @@ let rec st_to_texpr mctx st = match st.st_def with
 
 let replace_locals mctx out e =
 	let all_subterms = Hashtbl.create 0 in
-	let bindings = List.map (fun ((v,p),st) -> Hashtbl.add all_subterms st p; v,st) out.o_bindings in
+	let bindings = List.map (fun ((v,p),st) -> Hashtbl.add all_subterms st (v,p); v,st) out.o_bindings in
 	let replace v =
 		let st = List.assq v bindings in
 		Hashtbl.remove all_subterms st;
@@ -831,7 +831,7 @@ let replace_locals mctx out e =
 	in
 	let e = loop e in
 	if not (Common.defined mctx.ctx.com Define.NoUnusedVarWarnings) then
-		Hashtbl.iter (fun _ p -> mctx.ctx.com.warning "This variable is unused" p) all_subterms;
+		Hashtbl.iter (fun _ (v,p) -> if (String.length v.v_name) > 0 && v.v_name.[0] <> '_' then mctx.ctx.com.warning "This variable is unused" p) all_subterms;
 	e
 
 let rec st_eq st1 st2 = match st1.st_def,st2.st_def with
