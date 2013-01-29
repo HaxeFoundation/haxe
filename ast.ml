@@ -194,7 +194,7 @@ module Meta = struct
 		| NoUsing -> ":noUsing"
 		| Ns -> ":ns"
 		| Optional -> ":optional"
-		| Overload -> ":overlord"
+		| Overload -> ":overload"
 		| Public -> ":public"
 		| PrivateAccess -> ":privateAccess"
 		| Protected -> ":protected"
