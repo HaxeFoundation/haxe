@@ -366,7 +366,7 @@ let to_pattern ctx e t =
 						let ef = try
 							PMap.find s en.e_constrs
 						with Not_found when not (is_lower_ident s) ->
-							error (string_error ctx s en.e_names ("Expected constructor for enum " ^ (s_type_path en.e_path))) p
+							error (string_error s en.e_names ("Expected constructor for enum " ^ (s_type_path en.e_path))) p
 						in
 						(match ef.ef_type with
 							| TFun (args,_) ->

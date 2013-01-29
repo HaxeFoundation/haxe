@@ -132,6 +132,55 @@ let unify_min_ref : (typer -> texpr list -> t) ref = ref (fun _ _ -> assert fals
 let match_expr_ref : (typer -> Ast.expr -> (Ast.expr list * Ast.expr option * Ast.expr option) list -> Ast.expr option option -> with_type -> Ast.pos -> texpr) ref = ref (fun _ _ _ _ _ _ -> assert false)
 let get_pattern_locals_ref : (typer -> Ast.expr -> Type.t -> (string, tvar) PMap.t) ref = ref (fun _ _ _ -> assert false)
 
+(* Source: http://en.wikibooks.org/wiki/Algorithm_implementation/Strings/Levenshtein_distance#OCaml *)
+let levenshtein a b =
+	let x = Array.init (String.length a) (fun i -> a.[i]) in
+	let y = Array.init (String.length b) (fun i -> b.[i]) in
+	let minimum (x:int) y z =
+		let m' (a:int) b = if a < b then a else b in
+		m' (m' x y) z
+	in
+	let init_matrix n m =
+		let init_col = Array.init m in
+			Array.init n (function
+			| 0 -> init_col (function j -> j)
+			| i -> init_col (function 0 -> i | _ -> 0)
+		)
+	in
+	match Array.length x, Array.length y with
+		| 0, n -> n
+		| m, 0 -> m
+		| m, n ->
+			let matrix = init_matrix (m + 1) (n + 1) in
+			for i = 1 to m do
+				let s = matrix.(i) and t = matrix.(i - 1) in
+				for j = 1 to n do
+					let cost = abs (compare x.(i - 1) y.(j - 1)) in
+					s.(j) <- minimum (t.(j) + 1) (s.(j - 1) + 1) (t.(j - 1) + cost)
+				done
+			done;
+			matrix.(m).(n)
+
+let string_error s sl msg =
+	if sl = [] then msg else
+	let cl = List.map (fun s2 -> s2,levenshtein s s2) sl in
+	let cl = List.sort (fun (_,c1) (_,c2) -> compare c1 c2) cl in
+	let rec loop sl = match sl with
+		| (s2,i) :: sl when i <= (min (String.length s) (String.length s2)) / 3 -> s2 :: loop sl
+		| _ -> []
+	in
+	match loop cl with
+		| [] -> msg
+		| [s] -> Printf.sprintf "%s (Suggestion: %s)" msg s
+		| sl -> Printf.sprintf "%s (Suggestions: %s)" msg (String.concat ", " sl)
+
+let string_source t = match follow t with
+	| TInst(c,_) -> List.map (fun cf -> cf.cf_name) c.cl_ordered_fields
+	| TEnum(en,_) -> en.e_names
+	| TAnon a -> PMap.fold (fun cf acc -> cf.cf_name :: acc) a.a_fields []
+	| TAbstract({a_impl = Some c},_) -> List.map (fun cf -> cf.cf_name) c.cl_ordered_statics
+	| _ -> []
+
 let short_type ctx t =
 	let tstr = s_type ctx t in
 	if String.length tstr > 150 then String.sub tstr 0 147 ^ "..." else tstr
@@ -142,7 +191,7 @@ let unify_error_msg ctx = function
 	| Invalid_field_type s ->
 		"Invalid type for field " ^ s ^ " :"
 	| Has_no_field (t,n) ->
-		short_type ctx t ^ " has no field " ^ n
+		string_error n (string_source t) (short_type ctx t ^ " has no field " ^ n)
 	| Has_no_runtime_field (t,n) ->
 		s_type ctx t ^ "." ^ n ^ " is not accessible at runtime"
 	| Has_extra_field (t,n) ->
@@ -297,55 +346,6 @@ let create_fake_module ctx file =
 	) in
 	Hashtbl.replace ctx.g.modules mdep.m_path mdep;
 	mdep
-
-(* Source: http://en.wikibooks.org/wiki/Algorithm_implementation/Strings/Levenshtein_distance#OCaml *)
-let levenshtein a b =
-	let x = Array.init (String.length a) (fun i -> a.[i]) in
-	let y = Array.init (String.length b) (fun i -> b.[i]) in
-	let minimum (x:int) y z =
-		let m' (a:int) b = if a < b then a else b in
-		m' (m' x y) z
-	in
-	let init_matrix n m =
-		let init_col = Array.init m in
-			Array.init n (function
-			| 0 -> init_col (function j -> j)
-			| i -> init_col (function 0 -> i | _ -> 0)
-		)
-	in
-	match Array.length x, Array.length y with
-		| 0, n -> n
-		| m, 0 -> m
-		| m, n ->
-			let matrix = init_matrix (m + 1) (n + 1) in
-			for i = 1 to m do
-				let s = matrix.(i) and t = matrix.(i - 1) in
-				for j = 1 to n do
-					let cost = abs (compare x.(i - 1) y.(j - 1)) in
-					s.(j) <- minimum (t.(j) + 1) (s.(j - 1) + 1) (t.(j - 1) + cost)
-				done
-			done;
-	matrix.(m).(n)
-
-let string_error ctx s sl msg =
-	let cl = List.map (fun s2 -> s2,levenshtein s s2) sl in
-	let cl = List.sort (fun (_,c1) (_,c2) -> compare c1 c2) cl in
-	let threshold = ref (try (int_of_string (Common.defined_value ctx.com Define.LevenshteinThreshold)) with
-		| Not_found -> 3
-		| _ -> error "Int expected for levenshtein-threshold=x" Ast.null_pos)
-	in
-	let last_threshold = ref 0 in
-	let rec loop sl = match sl with
-		| (s,i) :: sl when i <= !threshold || i = !last_threshold ->
-			last_threshold := i;
-			threshold := !threshold - 1;
-			s :: loop sl
-		| _ -> []
-	in
-	match loop cl with
-		| [] -> msg
-		| [s] -> Printf.sprintf "%s (Suggestion: %s)" msg s
-		| sl -> Printf.sprintf "%s (Suggestions: %s)" msg (String.concat ", " sl)
 
 (* -------------- debug functions to activate when debugging typer passes ------------------------------- *)
 (*/*

@@ -1627,7 +1627,7 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 			let chk_private t p = if (t_infos t).mt_private then error "You can't import a private type" p in
 			let has_name name t = snd (t_infos t).mt_path = name in
 			let get_type tname =
-				let t = (try List.find (has_name tname) types with Not_found -> error ("Module " ^ s_type_path md.m_path ^ " does not define type " ^ tname) p) in
+				let t = (try List.find (has_name tname) types with Not_found -> error (string_error tname (List.map (fun mt -> snd (t_infos mt).mt_path) types) ("Module " ^ s_type_path md.m_path ^ " does not define type " ^ tname)) p) in
 				chk_private t p;
 				t
 			in
