@@ -174,6 +174,7 @@ module Define = struct
 		| NoRoot
 		| NoSwfCompress
 		| NoTraces
+		| NoUnusedVarWarnings
 		| PhpPrefix
 		| ReplaceFiles
 		| Scriptable
@@ -233,6 +234,7 @@ module Define = struct
 		| NoMacroCache -> ("no_macro_cache","Disable macro context caching")
 		| NoSwfCompress -> ("no_swf_compress","Disable SWF output compression")
 		| NoTraces -> ("no_traces","Disable all trace calls")
+		| NoUnusedVarWarnings -> ("no_unused_var_warnings","Do not warn about unused catch-variables in patterns")
 		| PhpPrefix -> ("php_prefix","Compiled with --php-prefix")
 		| ReplaceFiles -> ("replace_files","GenCommon internal")
 		| Scriptable -> ("scriptable","GenCPP internal")

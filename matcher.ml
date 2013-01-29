@@ -830,7 +830,8 @@ let replace_locals mctx out e =
 			Type.map_expr loop e
 	in
 	let e = loop e in
-	Hashtbl.iter (fun _ p -> mctx.ctx.com.warning "This variable is unused" p) all_subterms;
+	if not (Common.defined mctx.ctx.com Define.NoUnusedVarWarnings) then
+		Hashtbl.iter (fun _ p -> mctx.ctx.com.warning "This variable is unused" p) all_subterms;
 	e
 
 let rec st_eq st1 st2 = match st1.st_def,st2.st_def with
