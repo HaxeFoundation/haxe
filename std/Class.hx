@@ -21,6 +21,7 @@
  */
 /**
 	An abstract type that represents a Class.
+	
 	See [Type] for the haXe Reflection API.
 **/
 @:runtimeValue abstract Class<T> {
