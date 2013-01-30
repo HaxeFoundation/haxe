@@ -46,13 +46,18 @@ class WeakRef<T>
 		return  untyped __global__.__hxcpp_weak_ref_get(ref);
 	}
 	
+	public function set(inObject:T):T
+	{
+		if (hardRef)
+			ref = inObject;
+		else
+			ref = untyped __global__.__hxcpp_weak_ref_create(inObject);
+		return inObject;
+	}
 	
 	public function toString():String
 	{
-		if (hardRef)
-			return "" + hardRef;
-		
-		return "WeakRef(" + ref + ")";
+		return "WeakRef(" + get() + ")";
 	}
 }
 
