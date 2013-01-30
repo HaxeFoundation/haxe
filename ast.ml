@@ -309,7 +309,7 @@ module Meta = struct
 		| "unifyMinDynamic" -> UnifyMinDynamic
 		| "unreflective" -> Unreflective
 		| "unsafe" -> Unsafe
-		| s -> Custom s
+		| s -> Custom (":" ^ s)
 
 	let from_string s =
 		if s = "" then Custom "" else match s.[0] with
