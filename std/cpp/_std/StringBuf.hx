@@ -22,22 +22,22 @@
 @:coreApi
 class StringBuf {
 
-	private var b : Array<Dynamic>;
+	private var b : Array<String>;
 
 	public function new() : Void {
 		b = new Array();
 	}
 
 	public inline function add( x : Dynamic ) : Void {
-		b[b.length] = x;
+		b.push(x);
 	}
 
 	public inline function addSub( s : String, pos : Int, ?len : Int ) : Void {
-		b[b.length] = s.substr(pos,len);
+		b.push(s.substr(pos,len));
 	}
 
 	public inline function addChar( c : Int ) : Void untyped {
-		b[b.length] = String.fromCharCode(c);
+		b.push(String.fromCharCode(c));
 	}
 
 	public inline function toString() : String {
