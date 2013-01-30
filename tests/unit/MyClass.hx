@@ -278,5 +278,27 @@ class ChildSuperProp extends BaseSuperProp {
 	
 	public function test() {
 		return super.fProp(2);
-	}	
+	}
+}
+
+class InlineCastA {
+	function self() : InlineCastA {
+		return this;
+	}
+}
+
+class InlineCastB extends InlineCastA {
+	public function new() { }
+
+	public inline function test() : InlineCastB {
+		#if as3
+		return cast (self(), InlineCastB);
+		#else
+		return cast self();
+		#end
+	}
+
+	public function quote() {
+		return "I am the greatest.";
+	}
 }

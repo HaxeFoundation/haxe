@@ -363,6 +363,11 @@ class TestType extends Test {
 		typedAs(c.contravariant, b);
 		typedAs(cast (c, Ctrv1).contravariant, c1);
 	}
+	
+	function testInlineCast() {
+		var s = new InlineCastB().test().quote();
+		eq(s, "I am the greatest.");
+	}
 
 	function testInitFields()
 	{

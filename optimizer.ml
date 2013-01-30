@@ -214,7 +214,11 @@ let rec type_inline ctx cf f ethis params tret config p force =
 			if not term then error "Cannot inline a not final return" po;
 			(match eo with
 			| None -> mk (TConst TNull) f.tf_type p
-			| Some e -> has_return_value := true; map term e)
+			| Some e -> has_return_value := true;
+				(* we can omit unsafe casts to retain the real type, the cast will be added back later anyway *)
+				(match e.eexpr with
+				| TCast(e1,None) -> map term e1
+				| _ -> map term e))
 		| TFor (v,e1,e2) ->
 			let i = local v in
 			let e1 = map false e1 in
@@ -366,15 +370,24 @@ let rec type_inline ctx cf f ethis params tret config p force =
 		let wrap e =
 			(* we can't mute the type of the expression because it is not correct to do so *)
 			(try
+				let etype = if has_params then map_type e.etype else e.etype in
 				(* if the expression is "untyped" and we don't want to unify it accidentally ! *)
 				(match follow e.etype with
 				| TMono _ ->
 					(match follow tret with
 					| TEnum ({ e_path = [],"Void" },_) | TAbstract ({ a_path = [],"Void" },_) -> e
 					| _ -> raise (Unify_error []))
-				| _ ->
-					type_eq EqStrict (if has_params then map_type e.etype else e.etype) tret;
-					e)
+				| _ -> try
+					type_eq EqStrict etype tret;
+					e
+				with Unify_error _ ->
+					(* try to detect upcasts: in that case we may use a safe cast *)
+					Type.unify tret etype;
+					let ct = match follow tret with
+						| TInst(c,_) -> Some (TClassDecl c)
+						| _ -> None
+					in
+					mk (TCast (e,ct)) tret e.epos)
 			with Unify_error _ ->
 				mk (TCast (e,None)) tret e.epos)
 		in
