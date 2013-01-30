@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -70,13 +70,32 @@ typedef Null<T> = T
 }
 
 /**
-	An Iterator is a structure that permits to list a given container
-	values. It can be used by your own data structures. See the haXe
-	documentation for more informations.
+	An Iterator is a structure that permits iteration over elements of type T.
+
+	Any class with matching hasNext and next fields is considered an Iterator
+	and can then be used e.g. in for-loops. This makes it easy to implement
+	custom iterators.
 **/
 typedef Iterator<T> = {
+	
+	/**
+		Returns false if the iteration is complete, true otherwise.
+		
+		Usually iteration is considered to be complete if all elements of the
+		underlying data structure were handled through calls to next(). However,
+		in custom iterators any logic may be used to determine the completion
+		state.
+	**/
 	function hasNext() : Bool;
+	
+	/**
+		Returns the current item of the Iterator and advances to the next one.
+		
+		This method is not required to check hasNext() first. A call to this
+		method while hasNext() is false yields unspecified behavior.
+	**/
 	function next() : T;
+	
 }
 
 /**

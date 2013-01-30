@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,8 +19,17 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-/**
-	Integer iterator. Used for interval implementation.
+
+ /**
+	IntIterator is used for implementing interval iterations.
+	
+	It is usually not used explicitly, but through it's special syntax:
+		min...max
+		
+	While it is possible to assign an instance of IntIterator to a variable or
+	field, it is worth noting that IntIterator does not reset after being used
+	in a for-loop. Subsequent uses of the same instance will then have no
+	effect.
 **/
 class IntIterator {
 
@@ -28,7 +37,8 @@ class IntIterator {
 	var max : Int;
 
 	/**
-		Iterate from [min] (inclusive) to [max] (exclusive).
+		Iterates from [min] (inclusive) to [max] (exclusive).
+		
 		If [max <= min], the iterator will not act as a countdown.
 	**/
 	public function new( min : Int, max : Int ) {
@@ -45,6 +55,8 @@ class IntIterator {
 
 	/**
 		Moves to the next item of the iterator.
+		
+		If this is called while hasNext() is false, the result is unspecified.
 	**/
 	public function next() {
 		return min++;
