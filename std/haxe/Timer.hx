@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,7 +22,15 @@
 package haxe;
 
 /**
-	The Timer class allows you to create asynchronous timers on platforms that support events.
+	The Timer class allows you to create asynchronous timers on platforms that
+	support events.
+	
+	The intended usage is to create an instance of the Timer class with a given
+	interval, set its run() method to a custom function to be invoked and
+	eventually call stop() to stop the Timer.
+	
+	It is also possible to extend this class and override its run() method in
+	the child class.
 **/
 class Timer {
 	#if (neko || php || cpp)
@@ -31,7 +39,15 @@ class Timer {
 	private var id : Null<Int>;
 
 	/**
-		Create a new timer that will run every [time_ms] (in milliseconds).
+		Creates a new timer that will run every [time_ms] milliseconds.
+		
+		After creating the Timer instance, it calls [this].run() repeatedly,
+		with delays of [time_ms] milliseconds, until [this].stop() is called.
+		
+		The first invocation occurs after [time_ms] milliseconds, not
+		immediately.
+		
+		The accuracy of this may be platform-dependent.
 	**/
 	public function new( time_ms : Int ){
 		#if flash9
@@ -47,7 +63,12 @@ class Timer {
 	}
 
 	/**
-		Stop the timer definitely.
+		Stops [this] Timer.
+		
+		After calling this method, no additional invocations of [this].run()
+		will occur.
+		
+		It is not possible to restart [this] Timer once stopped.
 	**/
 	public function stop() {
 		if( id == null )
@@ -63,13 +84,28 @@ class Timer {
 	}
 
 	/**
-		This is the [run()] method that is called when the Timer executes. It can be either overriden in subclasses or directly rebinded with another function-value.
+		This method is invoked repeatedly on [this] Timer.
+		
+		It can be overridden in a subclass, or rebound directly to a custom
+		function:
+			var timer = new haxe.Timer(1000); // 1000ms delay
+			timer.run = function() { ... }
+			
+		Once bound, it can still be rebound to different functions until [this]
+		Timer is stopped through a call to [this].stop().
 	**/
 	public dynamic function run() {
+		trace("run");
 	}
 
 	/**
-		This will delay the call to [f] for the given time. [f] will only be called once.
+		Invokes [f] after [time_ms] milliseconds.
+		
+		This is a convenience function for creating a new Timer instance with
+		[time_ms] as argument, binding its run() method to [f] and then stopping
+		[this] Timer upon the first invocation.
+		
+		If [f] is null, the result is unspecified.
 	**/
 	public static function delay( f : Void -> Void, time_ms : Int ) {
 		var t = new haxe.Timer(time_ms);
@@ -83,7 +119,15 @@ class Timer {
 	#end
 
 	/**
-		Measure the time it takes to execute the function [f] and trace it. Returns the value returned by [f].
+		Measures the time it takes to execute [f], in seconds with fractions.
+		
+		This is a convenience function for calculating the difference between
+		Timer.stamp() before and after the invocation of [f].
+		
+		The difference is passed as argument to Log.trace(), with "s" appended
+		to denote the unit. The optional [pos] argument is passed through.
+		
+		If [f] is null, the result is unspecified.
 	**/
 	public static function measure<T>( f : Void -> T, ?pos : PosInfos ) : T {
 		var t0 = stamp();
@@ -93,7 +137,10 @@ class Timer {
 	}
 
 	/**
-		Returns the most precise timestamp, in seconds. The value itself might differ depending on platforms, only differences between two values make sense.
+		Returns a timestamp, in seconds with fractions.
+		
+		The value itself might differ depending on platforms, only differences
+		between two values make sense.
 	**/
 	public static function stamp() : Float {
 		#if flash
