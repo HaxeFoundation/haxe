@@ -21,6 +21,7 @@ open Ast
 open Type
 open Common
 
+let unsupported p = error "This expression cannot be generated to Cpp" p
 
 (*
   Code for generating source files.
@@ -1419,6 +1420,8 @@ and gen_expression ctx retval expression =
 		let klass = "::" ^ (join_class_path (t_path type_expr) "::" ) in
 		let klass1 = if klass="::Array" then "Array<int>" else klass in
 		output ("hx::ClassOf< " ^ klass1 ^ " >()")
+	| TReturn _ when retval ->
+		unsupported expression.epos
 	| TReturn optional_expr ->
 		output "";
 		( match optional_expr with
