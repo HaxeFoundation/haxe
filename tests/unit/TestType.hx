@@ -685,4 +685,30 @@ class TestType extends Test {
 			var s:String = z;
 		}));
 	}
+	
+	function testAbstractGeneric() {
+		var map = new unit.MyAbstract.MyMap();
+		map.set("foo", 1);
+		t(Std.is(map, Hash));
+
+		var map = new unit.MyAbstract.MyMap();
+		_mapMe(map); // infer from function call
+		t(Std.is(map, IntHash));
+
+		var map = new unit.MyAbstract.MyMap();
+		map.set(new haxe.Template("foo"), 99);
+		t(Std.is(map, unit.MyAbstract.PseudoObjectHash));
+		
+		// all these cause a compilation error, but we cannot typeError test that because it happens
+		// during a post-process check
+		//var map = new Map(); // Could not determine type for IMap<Float, Int>
+		//map.set(1.1, 1);
+
+		//var map = new Map(); // Could not determine type for IMap<x : String -> String, Int>
+		//map.set(function(x:String) return x, 1);
+		
+		//var map = new Map(); // Could not determine type for IMap<Unknown<0>, Unknown<1>>
+	}
+	
+	static function _mapMe(map:unit.MyAbstract.MyMap < Int, String > ) { }
 }

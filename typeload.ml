@@ -130,10 +130,14 @@ let make_module ctx mpath file tdecls loadp =
 					| FFun fu when f.cff_name = "new" && not stat ->
 						let init p = (EVars ["this",Some this_t,None],p) in
 						let ret p = (EReturn (Some (EConst (Ident "this"),p)),p) in
+						if Meta.has Meta.Generic a.a_meta then begin
+							if List.mem AInline f.cff_access then error "Generic constructors cannot be inline" f.cff_pos;
+							if fu.f_expr <> None then error "Generic constructors cannot have a body" f.cff_pos;
+						end;
 						let fu = {
 							fu with
 							f_expr = (match fu.f_expr with
-							| None -> None
+							| None -> if Meta.has Meta.Generic a.a_meta then Some (EConst (Ident "null"),p) else None
 							| Some (EBlock [EBinop (OpAssign,(EConst (Ident "this"),_),e),_],_ | EBinop (OpAssign,(EConst (Ident "this"),_),e),_) ->
 								Some (EReturn (Some e), pos e)
 							| Some (EBlock el,p) -> Some (EBlock (init p :: el @ [ret p]),p)
@@ -1335,6 +1339,7 @@ let init_class ctx c p context_init herits fields =
 				cf_params = params;
 				cf_overloads = [];
 			} in
+			let do_bind = ref (not (cf.cf_name <> "__init__" && (c.cl_extern && not inline) || c.cl_interface)) in
 			(match c.cl_kind with
 				| KAbstractImpl a ->
 					let m = mk_mono() in
@@ -1347,7 +1352,8 @@ let init_class ctx c p context_init herits fields =
 						unify ctx t (tfun [ta] m) f.cff_pos;
 						if not (Meta.has Meta.Impl cf.cf_meta) then cf.cf_meta <- (Meta.Impl,[],cf.cf_pos) :: cf.cf_meta;
 						a.a_to <- (follow m, Some cf) :: a.a_to
-					end
+					end else if f.cff_name = "_new" && Meta.has Meta.Generic a.a_meta then
+						do_bind := false
 				| _ ->
 					());
 			init_meta_overloads ctx cf;
@@ -1383,7 +1389,7 @@ let init_class ctx c p context_init herits fields =
 				end;
 				t
 			) "type_fun" in
-			if not (((c.cl_extern && not inline) || c.cl_interface) && cf.cf_name <> "__init__") then bind_type ctx cf r (match fd.f_expr with Some e -> snd e | None -> f.cff_pos) is_macro;
+			if !do_bind then bind_type ctx cf r (match fd.f_expr with Some e -> snd e | None -> f.cff_pos) is_macro;
 			f, constr, cf
 		| FProp (get,set,t,eo) ->
 			let ret = (match t, eo with

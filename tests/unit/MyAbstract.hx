@@ -107,3 +107,35 @@ abstract AbstractZ(AbstractBase<T>)<T> from AbstractBase<T> {
 		return a.value;
 	}
 }
+
+typedef IMap < K, V > = {
+	public function keys():Iterator<K>;
+	public function set(k:K, v:V):Void;
+	public function get(k:K):V;
+}
+
+class PseudoObjectHash < K: { }, V > {
+	public function new() { }
+	public function get(k:K):V return null
+	public function set(k:K, v:V) { }
+}
+
+@:generic
+abstract MyMap(IMap < K, V > ) < K, V > {
+	public function new();
+	
+	@:to static inline public function toHash(t:IMap < String, V > ):Hash<V> {
+		return new Hash<V>();
+	}
+		
+	@:to static inline public function toObjectHash<K:{}>(t:IMap < K, V > ):PseudoObjectHash<K,V> {
+		return new PseudoObjectHash<K, V>();
+	}
+	
+	@:to static inline public function toIntHash(t:IMap < Int, V > ):IntHash<V> {
+		return new IntHash<V>();
+	}
+	
+	public inline function set(k:K, v:V) this.set(k, v)
+	public inline function get(k:K) return this.get(k)
+}

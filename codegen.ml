@@ -1369,9 +1369,39 @@ let handle_abstract_casts ctx e =
 		| TVars vl ->
 			let vl = List.map (fun (v,eo) -> match eo with
 				| None -> (v,eo)
-				| Some e -> (v,Some (check_cast v.v_type e e.epos))
+				| Some e ->
+					let is_generic_abstract = match e.etype with TAbstract ({a_impl = Some _} as a,_) -> Meta.has Meta.Generic a.a_meta | _ -> false in
+					let e = check_cast v.v_type e e.epos in
+					(* we can rewrite this for better field inference *)
+					if is_generic_abstract then v.v_type <- e.etype;
+					v, Some e
 			) vl in
 			{ e with eexpr = TVars vl }
+		| TNew({cl_kind = KAbstractImpl a} as c,pl,el) ->
+			(* a TNew of an abstract implementation is only generated if it is a generic abstract *)
+			let at = apply_params a.a_types pl a.a_this in
+			let m = mk_mono() in
+			let _,cfo =
+				try find_to a pl at m
+				with Not_found -> error ("Could not determine type for " ^ (s_type (print_context()) at)) e.epos
+			in
+			begin match cfo with
+			| None -> assert false
+			| Some cf ->
+				let m = follow m in
+				let e = make_cast_call c cf a pl ((mk (TConst TNull) at e.epos) :: el) m e.epos in
+				{e with etype = m}
+			end
+		| TField({etype = TAbstract({a_impl = Some _} as a,pl)} as e1,fa) when Meta.has Meta.Generic a.a_meta ->
+			let at = apply_params a.a_types pl a.a_this in
+			let m = mk_mono() in
+			begin try
+				let _ = find_to a pl at m in
+				(* we could inline this if we had access to Typer.make_call *)
+				{e with eexpr = TField({e1 with etype = m},quick_field m (field_name fa))}
+			with Not_found ->
+				e
+			end
 		| TCall(e1, el) ->
 			begin match follow e1.etype with
 				| TFun(args,_) ->

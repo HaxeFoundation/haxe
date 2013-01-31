@@ -2366,7 +2366,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				error "Constructor is not a function" p
 			) in
 			(match c.cl_kind with
-			| KAbstractImpl _ ->
+			| KAbstractImpl a when not (Meta.has Meta.Generic a.a_meta) ->
 				let ta = TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) } in
 				let e = mk (TTypeExpr (TClassDecl c)) ta p in
 				let e = mk (TField (e,(FStatic (c,f)))) ct p in
