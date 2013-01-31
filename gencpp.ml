@@ -980,6 +980,12 @@ let generate_default_values ctx args prefix =
 			(default_value_string const) ^ ");\n")
 	| _ -> () ) args;;
 
+let return_type_string t =
+   match t with
+   |  TFun (_,ret) -> type_string ret
+   | _ -> ""
+;;
+
 
 let has_default_values args =
 	List.exists ( fun (_,o) -> match o with
@@ -1376,12 +1382,28 @@ and gen_expression ctx retval expression =
 		| _ -> true
       in
 		let expr_type = type_string expression.etype in
+		let rec is_fixed_override e = match e.eexpr with
+		| TField(obj,FInstance(_,field) ) ->
+         let cpp_type = member_type ctx obj field.cf_name in
+         let fixed = (cpp_type<>"?") && (expr_type<>"Dynamic") && (cpp_type<>"Dynamic") &&
+            (cpp_type<>expr_type) && (expr_type<>"Void") in
+         if (fixed && ctx.ctx_debug_type) then begin
+            output ("/* " ^ (cpp_type) ^ " != " ^ expr_type ^ " -> cast */");
+            (*print_endline (cpp_type ^ " != " ^ expr_type ^ " -> cast");*)
+         end;
+         fixed
+		| TParenthesis p -> is_fixed_override p
+		| _ -> false
+      in
 		if (ctx.ctx_debug_type) then output ("/* TCALL ret=" ^ expr_type ^ "*/");
 		ctx.ctx_calling <- true;
+      let cast_result =  is_fixed_override func in
+      if (cast_result) then output ("hx::TCast<" ^ expr_type ^ ">::cast(");
 		gen_expression ctx true func;
 		output "(";
 		gen_expression_list arg_list;
 		output ")";
+      if (cast_result) then output (")");
       if ( (is_variable func) && (expr_type<>"Dynamic") ) then
          ctx.ctx_output (".Cast< " ^ expr_type ^ " >()" );
 	| TBlock expr_list ->
