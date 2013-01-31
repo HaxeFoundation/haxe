@@ -350,6 +350,8 @@ class Dispatch {
 			for( f in fl.get().fields ) {
 				if( f.name.substr(0, 2) != "do" )
 					continue;
+				if (!f.meta.has(':keep'))
+					f.meta.add(':keep', [], f.pos);
 				var r = makeRule(f);
 				fields.push( { field : f.name.charAt(2).toLowerCase() + f.name.substr(3), expr : Context.makeExpr(r,p) } );
 			}
@@ -367,6 +369,8 @@ class Dispatch {
 					for( f in tmp.fields.get() ) {
 						if( f.name.substr(0, 2) != "do" )
 							continue;
+						if (!f.meta.has(':keep'))
+							f.meta.add(':keep', [], f.pos);
 						var r = makeRule(f);
 						for( m in f.meta.get() )
 							if( m.name.charAt(0) != ":" ) {
