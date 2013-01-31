@@ -473,10 +473,10 @@ class XmlParser {
 				doc = c.innerData;
 			case "meta":
 				meta = xmeta(c);
-			case "sub":
+			case "to":
 				for( t in c.elements )
 					subs.push(xtype(t));
-			case "super":
+			case "from":
 				for( t in c.elements )
 					supers.push(xtype(t));
 			default:
