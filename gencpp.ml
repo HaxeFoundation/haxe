@@ -941,7 +941,7 @@ and is_dynamic_member_lookup_in_cpp ctx field_object member =
 				with Not_found -> true
    )
 and is_dynamic_member_return_in_cpp ctx field_object member =
-	if (is_array field_object.etype) then false else
+	if (is_array field_object.etype) then member="map" else
 	if (is_internal_member member) then false else
    match field_object.eexpr with
    | TTypeExpr t ->
