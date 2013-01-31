@@ -50,7 +50,7 @@ chdir(dir+"/std/tools");
 
 chdir("haxedoc");
 cmd("haxe haxedoc.hxml");
-cmd(curdir+"haxedoc -v \"../../../../flash8.xml;flash8;flash\" \"../../../../neko.xml;neko\" \"../../../../js.xml;js\" \"../../../../flash9.xml;flash\" \"../../../../php.xml;php\" \"../../../../cpp.xml;cpp\" \"../../../../cs.xml;cs\" \"../../../../java.xml;java\"");
+cmd(curdir+"haxedoc -v \"../../../../flash8.xml;flash8;flash\" \"../../../../neko.xml;neko\" \"../../../../js.xml;js\" \"../../../../flash9.xml;flash\" \"../../../../php.xml;php\" \"../../../../cpp.xml;cpp\"");
 cmd("mv index.html content ../../../doc");
 cmd("mv haxedoc"+binext+" ../../..");
 chdir("..");
