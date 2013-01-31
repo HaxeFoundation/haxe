@@ -217,6 +217,15 @@ let is_cpp_class = function
 	| ( ["haxe"] , "Log" )  -> true
    | _ -> false;;
 
+let is_scalar typename = match typename with
+  | "int" | "unsigned int" | "signed int"
+  | "char" | "unsigned char"
+  | "short" | "unsigned short"
+  | "float" | "double"
+  | "bool" -> true
+  | _ -> false
+;;
+
 let is_block exp = match exp.eexpr with | TBlock _ -> true | _ -> false ;;
 
 let to_block expression =
@@ -1382,16 +1391,18 @@ and gen_expression ctx retval expression =
 		| _ -> true
       in
 		let expr_type = type_string expression.etype in
-		let rec is_fixed_override e = match e.eexpr with
+		let rec is_fixed_override e = (not (is_scalar expr_type)) && match e.eexpr with
 		| TField(obj,FInstance(_,field) ) ->
          let cpp_type = member_type ctx obj field.cf_name in
-         let fixed = (cpp_type<>"?") && (expr_type<>"Dynamic") && (cpp_type<>"Dynamic") &&
-            (cpp_type<>expr_type) && (expr_type<>"Void") in
-         if (fixed && ctx.ctx_debug_type) then begin
-            output ("/* " ^ (cpp_type) ^ " != " ^ expr_type ^ " -> cast */");
-            (*print_endline (cpp_type ^ " != " ^ expr_type ^ " -> cast");*)
-         end;
-         fixed
+         (not (is_scalar cpp_type)) && (
+            let fixed = (cpp_type<>"?") && (expr_type<>"Dynamic") && (cpp_type<>"Dynamic") &&
+               (cpp_type<>expr_type) && (expr_type<>"Void") in
+            if (fixed && ctx.ctx_debug_type ) then begin
+               output ("/* " ^ (cpp_type) ^ " != " ^ expr_type ^ " -> cast */");
+               (* print_endline (cpp_type ^ " != " ^ expr_type ^ " -> cast"); *)
+            end;
+            fixed
+          )
 		| TParenthesis p -> is_fixed_override p
 		| _ -> false
       in
