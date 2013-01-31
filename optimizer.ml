@@ -387,6 +387,7 @@ let rec type_inline ctx cf f ethis params tret config p force =
 						| TInst(c,_) -> Some (TClassDecl c)
 						| _ -> None
 					in
+					add_feature ctx.com "typed_cast";
 					mk (TCast (e,ct)) tret e.epos)
 			with Unify_error _ ->
 				mk (TCast (e,None)) tret e.epos)
