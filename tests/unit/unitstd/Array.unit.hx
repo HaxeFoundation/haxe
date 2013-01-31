@@ -211,7 +211,6 @@ var b = a.copy();
 a != b;
 b == [];
 
-#if (!cpp && !cs && !java)
 // map
 [1, 2, 3].map(function(i) return i * 2) == [2, 4, 6];
 var a = [new IntWrap(1), new IntWrap(2)];
@@ -238,5 +237,4 @@ var b : Dynamic = a.filter(function(x) return x & 1 == 0).map(function(x) return
 b.length == 2;
 b[0] = 0;
 b[1] = 20;
-#end
 #end
