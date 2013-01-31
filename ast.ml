@@ -121,6 +121,7 @@ module Meta = struct
 		| UnifyMinDynamic
 		| Unreflective
 		| Unsafe
+		| Usage
 		| Used
 		| Dollar of string
 		| Custom of string
@@ -222,6 +223,7 @@ module Meta = struct
 		| UnifyMinDynamic -> ":unifyMinDynamic"
 		| Unreflective -> ":unreflective"
 		| Unsafe -> ":unsafe"
+		| Usage -> ":usage"
 		| Used -> ":used"
 		| Dollar s -> "$" ^ s
 		| Custom s -> s

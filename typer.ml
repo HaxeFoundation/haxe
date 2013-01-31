@@ -35,6 +35,7 @@ type access_mode =
 
 exception DisplayTypes of t list
 exception DisplayFields of (string * t * documentation) list
+exception DisplayMetadata of metadata_entry list
 exception WithTypeError of unify_error list * pos
 
 type access_kind =
@@ -2484,17 +2485,48 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			error "Cast type must be a class or an enum" p
 		) in
 		mk (TCast (type_expr ctx e Value,Some texpr)) t p
+	| EDisplay (e,iscall) when Common.defined_value ctx.com Define.DisplayMode = "usage" ->
+		let e = try type_expr ctx e Value with Error (Unknown_ident n,_) -> raise (Parser.TypePath ([n],None)) in
+		(match e.eexpr with
+		| TField(_,fa) -> (match extract_field fa with
+			| None -> e
+			| Some cf ->
+				cf.cf_meta <- (Meta.Usage,[],p) :: cf.cf_meta;
+				e)
+		| _ -> e)
 	| EDisplay (e,iscall) ->
 		let old = ctx.in_display in
 		let opt_args args ret = TFun(List.map(fun (n,o,t) -> n,true,t) args,ret) in
 		ctx.in_display <- true;
 		let e = (try type_expr ctx e Value with Error (Unknown_ident n,_) -> raise (Parser.TypePath ([n],None))) in
 		let e = match e.eexpr with
-			| TField (e,f) when field_name f = "bind" ->
-				(match follow e.etype with
-				| TFun(args,ret) -> {e with etype = opt_args args ret}
-				| _ -> e)
-			| _ -> e
+			| TField (e,fa) ->
+				let mode = Common.defined_value ctx.com Define.DisplayMode in
+				if field_name fa = "bind" then (match follow e.etype with
+					| TFun(args,ret) -> {e with etype = opt_args args ret}
+					| _ -> e)
+				else if mode = "position" then (match extract_field fa with
+					| None -> e
+					| Some cf -> raise (Typecore.DisplayPosition [cf.cf_pos]))
+				else if mode = "metadata" then (match fa with
+					| FStatic (c,cf) | FInstance (c,cf) | FClosure(Some c,cf) -> raise (DisplayMetadata (c.cl_meta @ cf.cf_meta))
+					| _ -> e)
+				else
+					e
+			| TTypeExpr mt when Common.defined_value ctx.com Define.DisplayMode = "position" ->
+				raise (DisplayPosition [match mt with
+					| TClassDecl c -> c.cl_pos
+					| TEnumDecl en -> en.e_pos
+					| TTypeDecl t -> t.t_pos
+					| TAbstractDecl a -> a.a_pos])
+			| TTypeExpr mt when Common.defined_value ctx.com Define.DisplayMode = "metadata" ->
+				raise (DisplayMetadata (match mt with
+					| TClassDecl c -> c.cl_meta
+					| TEnumDecl en -> en.e_meta
+					| TTypeDecl t -> t.t_meta
+					| TAbstractDecl a -> a.a_meta))
+			| _ ->
+				e
 		in
 		ctx.in_display <- old;
 		let opt_type t =

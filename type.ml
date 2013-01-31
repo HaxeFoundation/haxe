@@ -314,6 +314,10 @@ let field_name f =
 	| FEnum (_,f) -> f.ef_name
 	| FDynamic n -> n
 
+let extract_field = function
+	| FAnon f | FInstance (_,f) | FStatic (_,f) | FClosure (_,f) -> Some f
+	| _ -> None
+
 let mk_class m path pos =
 	{
 		cl_path = path;

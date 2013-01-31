@@ -127,6 +127,8 @@ exception Forbid_package of (string * path * pos) * pos list * string
 
 exception Error of error_msg * pos
 
+exception DisplayPosition of Ast.pos list
+
 let type_expr_ref : (typer -> Ast.expr -> with_type -> texpr) ref = ref (fun _ _ _ -> assert false)
 let unify_min_ref : (typer -> texpr list -> t) ref = ref (fun _ _ -> assert false)
 let match_expr_ref : (typer -> Ast.expr -> (Ast.expr list * Ast.expr option * Ast.expr option) list -> Ast.expr option option -> with_type -> Ast.pos -> texpr) ref = ref (fun _ _ _ _ _ _ -> assert false)

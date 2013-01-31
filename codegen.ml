@@ -1445,6 +1445,32 @@ let handle_abstract_casts ctx e =
 	loop e
 
 (* -------------------------------------------------------------------------- *)
+(* USAGE *)
+
+let detect_usage com =
+	let usage = ref [] in
+	List.iter (fun t -> match t with
+		| TClassDecl c ->
+			let rec expr e = match e.eexpr with
+				| TField(_,fa) ->
+					(match extract_field fa with
+						| Some cf when Meta.has Meta.Usage cf.cf_meta ->
+							usage := e.epos :: !usage;
+						| _ -> ());
+					Type.iter expr e
+				| _ -> Type.iter expr e
+			in
+			let field cf = match cf.cf_expr with None -> () | Some e -> expr e in
+			(match c.cl_constructor with None -> () | Some cf -> field cf);
+			(match c.cl_init with None -> () | Some e -> expr e);
+			List.iter field c.cl_ordered_statics;
+			List.iter field c.cl_ordered_fields;
+		| _ -> ()
+	) com.types;
+	let usage = List.sort (fun p1 p2 -> compare p1.pmin p2.pmin) !usage in
+	raise (Typecore.DisplayPosition usage)
+
+(* -------------------------------------------------------------------------- *)
 (* POST PROCESS *)
 
 let pp_counter = ref 1
