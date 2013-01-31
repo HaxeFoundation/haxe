@@ -574,7 +574,7 @@ let make_call ctx e params t p =
 			| Some ({cl_kind = KAbstractImpl _ }) when Meta.has Meta.Impl f.cf_meta ->
 				(match if fname = "_new" then t else follow (List.hd params).etype with
 					| TAbstract(a,pl) ->
-						Some (a.a_types <> [], apply_params a.a_types pl)
+						Some (a.a_types <> [] || f.cf_params <> [], fun t -> apply_params a.a_types pl (monomorphs f.cf_params t))
 					| _ ->
 						None);
 			| _ ->
