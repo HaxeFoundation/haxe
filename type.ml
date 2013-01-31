@@ -630,6 +630,20 @@ let rec is_null = function
 	| _ ->
 		false
 
+let rec has_mono t = match t with
+	| TMono r ->
+		(match !r with None -> true | Some t -> has_mono t)
+	| TInst(_,pl) | TEnum(_,pl) | TAbstract(_,pl) | TType(_,pl) ->
+		List.exists has_mono pl
+	| TDynamic _ ->
+		false
+	| TFun(args,r) ->
+		has_mono r || List.exists (fun (_,_,t) -> has_mono t) args
+	| TAnon a ->
+		PMap.fold (fun cf b -> has_mono cf.cf_type && b) a.a_fields true
+	| TLazy r ->
+		has_mono (!r())
+
 let rec link e a b =
 	(* tell if setting a == b will create a type-loop *)
 	let rec loop t =
@@ -1168,7 +1182,19 @@ and unify_to_field ab tl a b (t,cfo) =
 		| TFun([_,_,ta],_) ->
 			let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
 			let map t = apply_params ab.a_types tl (apply_params cf.cf_params monos t) in
-			(try unify (map ab.a_this) (map ta); loop (map t) b with Unify_error _ -> false)
+			let athis = map ab.a_this in
+			(try
+				(* we cannot allow implicit casts when the this type is not completely known yet *)
+				if has_mono athis then raise (Unify_error []);
+				type_eq EqStrict athis (map ta);
+				(* immediate constraints checking is ok here because we know there are no monomorphs *)
+				List.iter2 (fun m (name,t) -> match follow t with
+					| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] ->
+						List.iter (fun tc -> unify m (map tc) ) constr
+					| _ -> ()
+				) monos cf.cf_params;
+				loop (map t) b
+			with Unify_error _ -> false)
 		| _ -> assert false)
 	| _ ->
 		loop (apply_params ab.a_types tl t) b
