@@ -2140,7 +2140,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				| TMono _ -> None
 				| _ -> Some tp)
 			| _ ->
-				None)
+				if t == t_dynamic then Some t else None)
 		| _ ->
 			None
 		) in
