@@ -197,7 +197,7 @@ let rec s_pat pat = match pat.p_def with
 	| POr (pat1,pat2) -> s_pat pat1 ^ " | " ^ s_pat pat2
 	| PAny -> "_"
 	| PBind((v,_),pat) -> v.v_name ^ "=" ^ s_pat pat
-	| PTuple pl -> String.concat " " (Array.to_list (Array.map s_pat pl))
+	| PTuple pl -> "(" ^ (String.concat " " (Array.to_list (Array.map s_pat pl))) ^ ")"
 
 let st_args l r v =
 	(if l > 0 then (String.concat "," (ExtList.List.make l "_")) ^ "," else "")
@@ -591,10 +591,12 @@ let pick_column pmat =
 	loop 0 (fst (List.hd pmat))
 
 let swap_pmat_columns i pmat =
-	List.iter (fun (pv,out) ->
+	List.map (fun (pv,out) ->
+		let pv = match pv with [|{p_def = PTuple pt}|] -> pt | _ -> pv in
 		let tmp = pv.(i) in
 		Array.set pv i pv.(0);
 		Array.set pv 0 tmp;
+		pv,out
 	) pmat
 
 let swap_columns i (row : 'a list) : 'a list =
@@ -740,7 +742,7 @@ let rec compile mctx stl pmat = match pmat with
 			else
 				Bind(out,Some (compile mctx stl pl))
 		end else if i > 0 then begin
-			swap_pmat_columns i pmat;
+			let pmat = swap_pmat_columns i pmat in
 			let stls = swap_columns i stl in
 			compile mctx stls pmat
 		end else begin
@@ -1112,7 +1114,7 @@ let match_expr ctx e cases def with_type p =
 			e
 		else begin
 			mk (TBlock [
-				mk (TVars !var_inits) t_dynamic e.epos;
+				mk (TVars (List.rev !var_inits)) t_dynamic e.epos;
 				e;
 			]) t e.epos
 		end
