@@ -1005,14 +1005,11 @@ try
 	loop();
 	(try ignore(Common.find_file com "mt/Include.hx"); Common.raw_define com "mt"; with Not_found -> ());
 	if com.display then begin
-		(try
-			let mode = Common.defined_value com Define.DisplayMode in
-			if mode = "usage" then begin
-				com.display <- false;
-				Common.display_default := false;
-			end
-		with Not_found ->
-			Common.define_value com Define.DisplayMode "default");
+		let mode = Common.defined_value_safe com Define.DisplayMode in
+		if mode = "usage" then begin
+			com.display <- false;
+			Common.display_default := false;
+		end;
 		com.warning <- message ctx;
 		com.error <- error ctx;
 		com.main_class <- None;
