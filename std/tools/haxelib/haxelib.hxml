@@ -1,7 +1,9 @@
 -neko index.n
 -main tools.haxelib.Site
 -D haxe3
+-dce no
 --next
 -neko haxelib.n
 -main tools.haxelib.Main
 -cmd "nekotools boot haxelib.n"
+-D haxe3
