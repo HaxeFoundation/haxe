@@ -2500,10 +2500,10 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		ctx.in_display <- true;
 		let e = (try type_expr ctx e Value with Error (Unknown_ident n,_) -> raise (Parser.TypePath ([n],None))) in
 		let e = match e.eexpr with
-			| TField (e,fa) ->
+			| TField (e1,fa) ->
 				let mode = Common.defined_value_safe ctx.com Define.DisplayMode in
-				if field_name fa = "bind" then (match follow e.etype with
-					| TFun(args,ret) -> {e with etype = opt_args args ret}
+				if field_name fa = "bind" then (match follow e1.etype with
+					| TFun(args,ret) -> {e1 with etype = opt_args args ret}
 					| _ -> e)
 				else if mode = "position" then (match extract_field fa with
 					| None -> e
