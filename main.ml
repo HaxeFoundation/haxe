@@ -1109,7 +1109,7 @@ try
 		com.main <- main;
 		com.types <- types;
 		com.modules <- modules;
-		if Common.defined_value com Define.DisplayMode = "usage" then
+		if Common.defined_value_safe com Define.DisplayMode = "usage" then
 			Codegen.detect_usage com;
 		let filters = [
 			Codegen.handle_abstract_casts tctx;

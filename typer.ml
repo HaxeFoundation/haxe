@@ -2485,7 +2485,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			error "Cast type must be a class or an enum" p
 		) in
 		mk (TCast (type_expr ctx e Value,Some texpr)) t p
-	| EDisplay (e,iscall) when Common.defined_value ctx.com Define.DisplayMode = "usage" ->
+	| EDisplay (e,iscall) when Common.defined_value_safe ctx.com Define.DisplayMode = "usage" ->
 		let e = try type_expr ctx e Value with Error (Unknown_ident n,_) -> raise (Parser.TypePath ([n],None)) in
 		(match e.eexpr with
 		| TField(_,fa) -> (match extract_field fa with
@@ -2501,7 +2501,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		let e = (try type_expr ctx e Value with Error (Unknown_ident n,_) -> raise (Parser.TypePath ([n],None))) in
 		let e = match e.eexpr with
 			| TField (e,fa) ->
-				let mode = Common.defined_value ctx.com Define.DisplayMode in
+				let mode = Common.defined_value_safe ctx.com Define.DisplayMode in
 				if field_name fa = "bind" then (match follow e.etype with
 					| TFun(args,ret) -> {e with etype = opt_args args ret}
 					| _ -> e)
@@ -2513,13 +2513,13 @@ and type_expr ctx (e,p) (with_type:with_type) =
 					| _ -> e)
 				else
 					e
-			| TTypeExpr mt when Common.defined_value ctx.com Define.DisplayMode = "position" ->
+			| TTypeExpr mt when Common.defined_value_safe ctx.com Define.DisplayMode = "position" ->
 				raise (DisplayPosition [match mt with
 					| TClassDecl c -> c.cl_pos
 					| TEnumDecl en -> en.e_pos
 					| TTypeDecl t -> t.t_pos
 					| TAbstractDecl a -> a.a_pos])
-			| TTypeExpr mt when Common.defined_value ctx.com Define.DisplayMode = "metadata" ->
+			| TTypeExpr mt when Common.defined_value_safe ctx.com Define.DisplayMode = "metadata" ->
 				raise (DisplayMetadata (match mt with
 					| TClassDecl c -> c.cl_meta
 					| TEnumDecl en -> en.e_meta

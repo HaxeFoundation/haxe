@@ -515,6 +515,10 @@ let raw_defined_value ctx k =
 let defined_value ctx v =
 	raw_defined_value ctx (fst (Define.infos v))
 
+let defined_value_safe ctx v =
+	try defined_value ctx v
+	with Not_found -> ""
+
 let raw_define ctx v =
 	let k,v = try ExtString.String.split v "=" with _ -> v,"1" in
 	ctx.defines <- PMap.add k v ctx.defines;
