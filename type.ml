@@ -1168,26 +1168,29 @@ let rec unify a b =
 		error [cannot_unify a b]
 
 and unify_from_field ab tl a b (t,cfo) =
-	let loop a b = try (if ab.a_impl <> None then type_eq EqStrict a b else unify a b); true with Unify_error _ -> false in
-	match cfo with
-	| Some cf -> (match follow cf.cf_type with
-		| TFun(_,r) ->
-			let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
-			let map t = apply_params ab.a_types tl (apply_params cf.cf_params monos t) in
-			if loop a (map t) then try unify (map r) b; true with Unify_error _ -> false else false
-		| _ -> assert false)
-	| _ ->
-		loop a (apply_params ab.a_types tl t)
+	let unify_func = match follow a with TAbstract({a_impl = Some _},_) when ab.a_impl <> None -> type_eq EqStrict | _ -> unify in
+	try begin match cfo with
+		| Some cf -> (match follow cf.cf_type with
+			| TFun(_,r) ->
+				let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
+				let map t = apply_params ab.a_types tl (apply_params cf.cf_params monos t) in
+				unify_func a (map t);
+				unify (map r) b;
+			| _ -> assert false)
+		| _ ->
+			unify_func a (apply_params ab.a_types tl t)
+		end;
+		true
+	with Unify_error _ -> false
 
 and unify_to_field ab tl a b (t,cfo) =
-	let loop a b = try (if ab.a_impl <> None then type_eq EqStrict a b else unify a b); true with Unify_error _ -> false in
-	match cfo with
-	| Some cf -> (match follow cf.cf_type with
-		| TFun([_,_,ta],_) ->
-			let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
-			let map t = apply_params ab.a_types tl (apply_params cf.cf_params monos t) in
-			let athis = map ab.a_this in
-			(try
+	let unify_func = match follow b with TAbstract({a_impl = Some _},_) when ab.a_impl <> None -> type_eq EqStrict | _ -> unify in
+	try begin match cfo with
+		| Some cf -> (match follow cf.cf_type with
+			| TFun([_,_,ta],_) ->
+				let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
+				let map t = apply_params ab.a_types tl (apply_params cf.cf_params monos t) in
+				let athis = map ab.a_this in
 				(* we cannot allow implicit casts when the this type is not completely known yet *)
 				if has_mono athis then raise (Unify_error []);
 				type_eq EqStrict athis (map ta);
@@ -1197,11 +1200,13 @@ and unify_to_field ab tl a b (t,cfo) =
 						List.iter (fun tc -> unify m (map tc) ) constr
 					| _ -> ()
 				) monos cf.cf_params;
-				loop (map t) b
-			with Unify_error _ -> false)
-		| _ -> assert false)
-	| _ ->
-		loop (apply_params ab.a_types tl t) b
+				unify_func (map t) b;
+			| _ -> assert false)
+		| _ ->
+			unify_func (apply_params ab.a_types tl t) b;
+		end;
+		true
+	with Unify_error _ -> false
 
 and unify_types a b tl1 tl2 =
 	List.iter2 (fun t1 t2 ->
