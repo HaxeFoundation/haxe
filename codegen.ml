@@ -453,7 +453,7 @@ let build_metadata com t =
 			(a.a_pos, ["",a.a_meta],[],[])
 	) in
 	let filter l =
-		let l = List.map (fun (n,ml) -> n, ExtList.List.filter_map (fun (m,el,p) -> match m with Meta.Custom s -> Some (s,el,p) | _ -> None) ml) l in
+		let l = List.map (fun (n,ml) -> n, ExtList.List.filter_map (fun (m,el,p) -> match m with Meta.Custom s when String.length s > 0 && s.[0] <> ':' -> Some (s,el,p) | _ -> None) ml) l in
 		List.filter (fun (_,ml) -> ml <> []) l
 	in
 	let meta, fields, statics = filter meta, filter fields, filter statics in
