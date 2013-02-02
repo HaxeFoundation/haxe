@@ -3011,26 +3011,29 @@ let macro_timer ctx path =
 
 let typing_timer ctx f =
 	let t = Common.timer "typing" in
-	let old = ctx.com.error in
+	let old = ctx.com.error and oldp = ctx.pass in
 	(*
 		disable resumable errors... unless we are in display mode (we want to reach point of completion)
 	*)
 	if not ctx.com.display then ctx.com.error <- (fun e p -> raise (Error(Custom e,p)));
+	if ctx.pass < PTypeField then ctx.pass <- PTypeField;
+	let exit() =
+		t();
+		ctx.com.error <- old;
+		ctx.pass <- oldp;
+	in
 	try
 		let r = f() in
-		t();
+		exit();
 		r
 	with Error (ekind,p) ->
-			ctx.com.error <- old;
-			t();
+			exit();
 			Interp.compiler_error (Typecore.error_msg ekind) p
 		| WithTypeError (l,p) ->
-			ctx.com.error <- old;
-			t();
+			exit();
 			Interp.compiler_error (Typecore.error_msg (Unify l)) p
 		| e ->
-			ctx.com.error <- old;
-			t();
+			exit();
 			raise e
 
 let make_macro_api ctx p =
