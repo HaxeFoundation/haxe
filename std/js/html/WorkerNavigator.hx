@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,14 +26,14 @@ package js.html;
 @:native("WorkerNavigator")
 extern class WorkerNavigator
 {
-    var appName (default,null) :String;
+	var appName (default,null) : String;
 
-    var appVersion (default,null) :String;
+	var appVersion (default,null) : String;
 
-    var onLine (default,null) :Bool;
+	var onLine (default,null) : Bool;
 
-    var platform (default,null) :String;
+	var platform (default,null) : String;
 
-    var userAgent (default,null) :String;
+	var userAgent (default,null) : String;
 
 }

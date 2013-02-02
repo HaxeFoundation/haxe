@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,8 +26,8 @@ package js.html;
 @:native("DedicatedWorkerContext")
 extern class DedicatedWorkerContext extends WorkerContext
 {
-    var onmessage :EventListener;
+	var onmessage : EventListener;
 
-    function postMessage (message :Dynamic, ?messagePorts :Array<Dynamic>) :Void;
+	function postMessage( message : Dynamic, ?messagePorts : Array<Dynamic> ) : Void;
 
 }

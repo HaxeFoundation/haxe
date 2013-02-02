@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,12 +26,12 @@ package js.html;
 @:native("SpeechRecognitionEvent")
 extern class SpeechRecognitionEvent extends Event
 {
-    var result (default,null) :SpeechRecognitionResult;
+	var result (default,null) : SpeechRecognitionResult;
 
-    var resultHistory (default,null) :SpeechRecognitionResultList;
+	var resultHistory (default,null) : SpeechRecognitionResultList;
 
-    var resultIndex (default,null) :Int;
+	var resultIndex (default,null) : Int;
 
-    function new (type :String, canBubble :Bool = true, cancelable :Bool = true) :Void;
+	function new(type : String, canBubble : Bool = true, cancelable : Bool = true) : Void;
 
 }

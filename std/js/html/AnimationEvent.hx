@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -28,12 +28,12 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("AnimationEvent")
 extern class AnimationEvent extends Event
 {
-    /** The name of the animation on which the animation event occurred. */
-    var animationName (default,null) :String;
+	/** The name of the animation on which the animation event occurred. */
+	var animationName (default,null) : String;
 
-    /** The amount of time, in seconds, the animation had been running at the time the event occurred. */
-    var elapsedTime (default,null) :Float;
+	/** The amount of time, in seconds, the animation had been running at the time the event occurred. */
+	var elapsedTime (default,null) : Float;
 
-    function new (type :String, canBubble :Bool = true, cancelable :Bool = true) :Void;
+	function new(type : String, canBubble : Bool = true, cancelable : Bool = true) : Void;
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -29,28 +29,28 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("SVGUseElement")
 extern class UseElement extends Element
 {
-    /** If the 
+	/** If the 
 <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Attribute/xlink%3Ahref">xlink:href</a></code> attribute is being animated, contains the current animated root of the instance tree. If the 
 <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Attribute/xlink%3Ahref">xlink:href</a></code> attribute is not currently being animated, contains the same value as <code>instanceRoot</code>. See description of <code><a rel="internal" href="https://developer.mozilla.org/Article_not_found?uri=en/DOM/SVGElementInstance" class="new">SVGElementInstance</a></code>
  to learn more about the instance tree. */
-    var animatedInstanceRoot (default,null) :ElementInstance;
+	var animatedInstanceRoot (default,null) : ElementInstance;
 
-    /** Corresponds to attribute 
+	/** Corresponds to attribute 
 <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Attribute/height">height</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/use">&lt;use&gt;</a></code>
  element. */
-    var height (default,null) :AnimatedLength;
+	var height (default,null) : AnimatedLength;
 
-    /** The root of the instance tree. See description of <code><a rel="internal" href="https://developer.mozilla.org/Article_not_found?uri=en/DOM/SVGElementInstance" class="new">SVGElementInstance</a></code>
+	/** The root of the instance tree. See description of <code><a rel="internal" href="https://developer.mozilla.org/Article_not_found?uri=en/DOM/SVGElementInstance" class="new">SVGElementInstance</a></code>
  to learn more about the instance tree. */
-    var instanceRoot (default,null) :ElementInstance;
+	var instanceRoot (default,null) : ElementInstance;
 
-    /** Corresponds to attribute 
+	/** Corresponds to attribute 
 <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Attribute/width">width</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/use">&lt;use&gt;</a></code>
  element. */
-    var width (default,null) :AnimatedLength;
+	var width (default,null) : AnimatedLength;
 
-    var x (default,null) :AnimatedLength;
+	var x (default,null) : AnimatedLength;
 
-    var y (default,null) :AnimatedLength;
+	var y (default,null) : AnimatedLength;
 
 }

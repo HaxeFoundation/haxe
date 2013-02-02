@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,13 +26,13 @@ package js.html;
 @:native("DataTransferItemList")
 extern class DataTransferItemList implements ArrayAccess<DataTransferItem>
 {
-    var length (default,null) :Int;
+	var length (default,null) : Int;
 
-    @:overload(function (file :File) :Void {})
-    function add (data :String, type :String) :Void;
+	@:overload( function( file : File ) :Void {} )
+	function add( data : String, type : String ) : Void;
 
-    function clear () :Void;
+	function clear() : Void;
 
-    function item (index :Int) :DataTransferItem;
+	function item( index : Int ) : DataTransferItem;
 
 }

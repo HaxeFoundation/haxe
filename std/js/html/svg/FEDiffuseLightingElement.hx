@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -28,14 +28,14 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("SVGFEDiffuseLightingElement")
 extern class FEDiffuseLightingElement extends Element
 {
-    var diffuseConstant (default,null) :AnimatedNumber;
+	var diffuseConstant (default,null) : AnimatedNumber;
 
-    var in1 (default,null) :AnimatedString;
+	var in1 (default,null) : AnimatedString;
 
-    var kernelUnitLengthX (default,null) :AnimatedNumber;
+	var kernelUnitLengthX (default,null) : AnimatedNumber;
 
-    var kernelUnitLengthY (default,null) :AnimatedNumber;
+	var kernelUnitLengthY (default,null) : AnimatedNumber;
 
-    var surfaceScale (default,null) :AnimatedNumber;
+	var surfaceScale (default,null) : AnimatedNumber;
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,14 +26,14 @@ package js.html;
 @:native("DataTransferItem")
 extern class DataTransferItem
 {
-    var kind (default,null) :String;
+	var kind (default,null) : String;
 
-    var type (default,null) :String;
+	var type (default,null) : String;
 
-    function getAsEntry () :js.html.fs.Entry;
+	function getAsEntry() : js.html.fs.Entry;
 
-    function getAsFile () :Blob;
+	function getAsFile() : Blob;
 
-    function getAsString (callback_ :StringCallback) :Void;
+	function getAsString( callback_ : StringCallback ) : Void;
 
 }

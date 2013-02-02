@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -28,38 +28,38 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("IDBCursor")
 extern class Cursor
 {
-    /** The cursor shows all records, including duplicates. It starts at the lower bound of the key range and moves upwards (monotonically increasing in the order of keys). */
-    static inline var NEXT :Int = 0;
+	/** The cursor shows all records, including duplicates. It starts at the lower bound of the key range and moves upwards (monotonically increasing in the order of keys). */
+	static inline var NEXT : Int = 0;
 
-    /** The cursor shows all records, excluding duplicates. If multiple records exist with the same key, only the first one iterated is retrieved. It starts at the lower bound of the key range and moves upwards. */
-    static inline var NEXT_NO_DUPLICATE :Int = 1;
+	/** The cursor shows all records, excluding duplicates. If multiple records exist with the same key, only the first one iterated is retrieved. It starts at the lower bound of the key range and moves upwards. */
+	static inline var NEXT_NO_DUPLICATE : Int = 1;
 
-    /** The cursor shows all records, including duplicates. It starts at the upper bound of the key range and moves downwards (monotonically decreasing in the order of keys). */
-    static inline var PREV :Int = 2;
+	/** The cursor shows all records, including duplicates. It starts at the upper bound of the key range and moves downwards (monotonically decreasing in the order of keys). */
+	static inline var PREV : Int = 2;
 
-    /** The cursor shows all records, excluding duplicates. If multiple records exist with the same key, only the first one iterated is retrieved. It starts at the upper bound of the key range and moves downwards. */
-    static inline var PREV_NO_DUPLICATE :Int = 3;
+	/** The cursor shows all records, excluding duplicates. If multiple records exist with the same key, only the first one iterated is retrieved. It starts at the upper bound of the key range and moves downwards. */
+	static inline var PREV_NO_DUPLICATE : Int = 3;
 
-    /** On getting, returns the <a title="en/IndexedDB/Basic_Concepts_Behind_IndexedDB#gloss direction" rel="internal" href="https://developer.mozilla.org/en/IndexedDB/Basic_Concepts_Behind_IndexedDB#gloss_direction">direction</a> of traversal of the cursor. See Constants for possible values. */
-    var direction (default,null) :String;
+	/** On getting, returns the <a title="en/IndexedDB/Basic_Concepts_Behind_IndexedDB#gloss direction" rel="internal" href="https://developer.mozilla.org/en/IndexedDB/Basic_Concepts_Behind_IndexedDB#gloss_direction">direction</a> of traversal of the cursor. See Constants for possible values. */
+	var direction (default,null) : String;
 
-    /** Returns the key for the record at the cursor's position. If the cursor is outside its range, this is <code>undefined</code>. */
-    var key (default,null) :Dynamic;
+	/** Returns the key for the record at the cursor's position. If the cursor is outside its range, this is <code>undefined</code>. */
+	var key (default,null) : Dynamic;
 
-    /** Returns the cursor's current effective key. If the cursor is currently being iterated or has iterated outside its range, this is <code>undefined</code>. */
-    var primaryKey (default,null) :Dynamic;
+	/** Returns the cursor's current effective key. If the cursor is currently being iterated or has iterated outside its range, this is <code>undefined</code>. */
+	var primaryKey (default,null) : Dynamic;
 
-    /** On getting, returns the <code>IDBObjectStore</code> or <code>IDBIndex</code> that the cursor is iterating. This function never returns null or throws an exception, even if the cursor is currently being iterated, has iterated past its end, or its transaction is not active. */
-    var source (default,null) :Any;
+	/** On getting, returns the <code>IDBObjectStore</code> or <code>IDBIndex</code> that the cursor is iterating. This function never returns null or throws an exception, even if the cursor is currently being iterated, has iterated past its end, or its transaction is not active. */
+	var source (default,null) : Any;
 
-    function advance (count :Int) :Void;
+	function advance( count : Int ) : Void;
 
-    private inline function continue_ (?key :Key) :Void {
-        (untyped this["continue"])(key);
-    }
+	private inline function continue_( ?key : Key ) : Void {
+		(untyped this["continue"])(key);
+	}
 
-    function delete () :Request;
+	function delete() : Request;
 
-    function update (value :Dynamic) :Request;
+	function update( value : Dynamic ) : Request;
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -29,67 +29,67 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("HTMLTableElement")
 extern class TableElement extends Element
 {
-    /** <b>align</b> gets/sets the alignment of the table. */
-    var align :String;
+	/** <b>align</b> gets/sets the alignment of the table. */
+	var align : String;
 
-    /** <b>bgColor</b> gets/sets the background color of the table. */
-    var bgColor :String;
+	/** <b>bgColor</b> gets/sets the background color of the table. */
+	var bgColor : String;
 
-    /** <b>border</b> gets/sets the table border. */
-    var border :String;
+	/** <b>border</b> gets/sets the table border. */
+	var border : String;
 
-    /** <b>caption</b> returns the table caption.
+	/** <b>caption</b> returns the table caption.
  Setter throws DOMException. */
-    var caption :TableCaptionElement;
+	var caption : TableCaptionElement;
 
-    /** <b>cellPadding</b> gets/sets the cell padding. */
-    var cellPadding :String;
+	/** <b>cellPadding</b> gets/sets the cell padding. */
+	var cellPadding : String;
 
-    /** <b>cellSpacing</b> gets/sets the spacing around the table. */
-    var cellSpacing :String;
+	/** <b>cellSpacing</b> gets/sets the spacing around the table. */
+	var cellSpacing : String;
 
-    /** <b>frame</b> specifies which sides of the table have borders. */
-    var frame :String;
+	/** <b>frame</b> specifies which sides of the table have borders. */
+	var frame : String;
 
-    /** <b>rows</b> returns the rows in the table. */
-    var rows (default,null) :HTMLCollection;
+	/** <b>rows</b> returns the rows in the table. */
+	var rows (default,null) : HTMLCollection;
 
-    /** <b>rules</b> specifies which interior borders are visible. */
-    var rules :String;
+	/** <b>rules</b> specifies which interior borders are visible. */
+	var rules : String;
 
-    /** <b>summary</b> gets/sets the table summary. */
-    var summary :String;
+	/** <b>summary</b> gets/sets the table summary. */
+	var summary : String;
 
-    /** <b>tBodies</b> returns the table bodies. */
-    var tBodies (default,null) :HTMLCollection;
+	/** <b>tBodies</b> returns the table bodies. */
+	var tBodies (default,null) : HTMLCollection;
 
-    /** <b>tFoot</b> returns the table footer.
+	/** <b>tFoot</b> returns the table footer.
  Setter throws DOMException. */
-    var tFoot :TableSectionElement;
+	var tFoot : TableSectionElement;
 
-    /** <b>tHead</b> returns the table head.
+	/** <b>tHead</b> returns the table head.
  Setter throws DOMException. */
-    var tHead :TableSectionElement;
+	var tHead : TableSectionElement;
 
-    /** <b>width</b> gets/sets the width of the table. */
-    var width :String;
+	/** <b>width</b> gets/sets the width of the table. */
+	var width : String;
 
-    function createCaption () :Element;
+	function createCaption() : Element;
 
-    function createTBody () :Element;
+	function createTBody() : Element;
 
-    function createTFoot () :Element;
+	function createTFoot() : Element;
 
-    function createTHead () :Element;
+	function createTHead() : Element;
 
-    function deleteCaption () :Void;
+	function deleteCaption() : Void;
 
-    function deleteRow (index :Int) :Void;
+	function deleteRow( index : Int ) : Void;
 
-    function deleteTFoot () :Void;
+	function deleteTFoot() : Void;
 
-    function deleteTHead () :Void;
+	function deleteTHead() : Void;
 
-    function insertRow (index :Int) :Element;
+	function insertRow( index : Int ) : Element;
 
 }

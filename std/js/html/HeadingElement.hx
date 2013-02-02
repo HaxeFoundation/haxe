@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -28,7 +28,7 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("HTMLHeadingElement")
 extern class HeadingElement extends Element
 {
-    /** Enumerated attribute indicating alignment of the heading with respect to the surrounding context. */
-    var align :String;
+	/** Enumerated attribute indicating alignment of the heading with respect to the surrounding context. */
+	var align : String;
 
 }

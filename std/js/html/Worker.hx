@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -39,10 +39,10 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("Worker")
 extern class Worker extends AbstractWorker
 {
-    /** An event listener that is called whenever a <code>MessageEvent</code> with type <code>message</code> bubbles through the worker. The message is stored in the event's <code>data</code> member. */
-    var onmessage :EventListener;
+	/** An event listener that is called whenever a <code>MessageEvent</code> with type <code>message</code> bubbles through the worker. The message is stored in the event's <code>data</code> member. */
+	var onmessage : EventListener;
 
-    /** <p>The constructor creates a web worker that executes the script at the specified URL. This script must obey the <a title="Same origin policy for JavaScript" rel="internal" href="https://developer.mozilla.org/en/Same_origin_policy_for_JavaScript">same-origin policy</a>. Note that there is a disagreement among browser manufacturers about whether a data URI is of the same origin or not. Though Gecko 10.0 (Firefox 10.0 / Thunderbird 10.0)
+	/** <p>The constructor creates a web worker that executes the script at the specified URL. This script must obey the <a title="Same origin policy for JavaScript" rel="internal" href="https://developer.mozilla.org/en/Same_origin_policy_for_JavaScript">same-origin policy</a>. Note that there is a disagreement among browser manufacturers about whether a data URI is of the same origin or not. Though Gecko 10.0 (Firefox 10.0 / Thunderbird 10.0)
  and later accept data URIs, that's not the case in all other browsers.</p>
 <pre>Worker(
 &nbsp;&nbsp;in DOMString aStringURL
@@ -54,10 +54,10 @@ extern class Worker extends AbstractWorker
 <div id="section_7"><span id="Return_value"></span><h6 class="editable">Return value</h6>
 <p>A new <code>Worker</code>.</p>
 </div></div> */
-    function new () :Void;
+	function new() : Void;
 
-    function postMessage (message :Dynamic, ?messagePorts :Array<Dynamic>) :Void;
+	function postMessage( message : Dynamic, ?messagePorts : Array<Dynamic> ) : Void;
 
-    function terminate () :Void;
+	function terminate() : Void;
 
 }

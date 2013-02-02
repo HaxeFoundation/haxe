@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,34 +32,34 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("SVGMarkerElement")
 extern class MarkerElement extends Element
 {
-    static inline var SVG_MARKERUNITS_STROKEWIDTH :Int = 2;
+	static inline var SVG_MARKERUNITS_STROKEWIDTH : Int = 2;
 
-    static inline var SVG_MARKERUNITS_UNKNOWN :Int = 0;
+	static inline var SVG_MARKERUNITS_UNKNOWN : Int = 0;
 
-    static inline var SVG_MARKERUNITS_USERSPACEONUSE :Int = 1;
+	static inline var SVG_MARKERUNITS_USERSPACEONUSE : Int = 1;
 
-    static inline var SVG_MARKER_ORIENT_ANGLE :Int = 2;
+	static inline var SVG_MARKER_ORIENT_ANGLE : Int = 2;
 
-    static inline var SVG_MARKER_ORIENT_AUTO :Int = 1;
+	static inline var SVG_MARKER_ORIENT_AUTO : Int = 1;
 
-    static inline var SVG_MARKER_ORIENT_UNKNOWN :Int = 0;
+	static inline var SVG_MARKER_ORIENT_UNKNOWN : Int = 0;
 
-    var markerHeight (default,null) :AnimatedLength;
+	var markerHeight (default,null) : AnimatedLength;
 
-    var markerUnits (default,null) :AnimatedEnumeration;
+	var markerUnits (default,null) : AnimatedEnumeration;
 
-    var markerWidth (default,null) :AnimatedLength;
+	var markerWidth (default,null) : AnimatedLength;
 
-    var orientAngle (default,null) :AnimatedAngle;
+	var orientAngle (default,null) : AnimatedAngle;
 
-    var orientType (default,null) :AnimatedEnumeration;
+	var orientType (default,null) : AnimatedEnumeration;
 
-    var refX (default,null) :AnimatedLength;
+	var refX (default,null) : AnimatedLength;
 
-    var refY (default,null) :AnimatedLength;
+	var refY (default,null) : AnimatedLength;
 
-    function setOrientToAngle (angle :Angle) :Void;
+	function setOrientToAngle( angle : Angle ) : Void;
 
-    function setOrientToAuto () :Void;
+	function setOrientToAuto() : Void;
 
 }

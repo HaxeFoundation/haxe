@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -36,24 +36,24 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("SVGTransformList")
 extern class TransformList
 {
-    var numberOfItems (default,null) :Int;
+	var numberOfItems (default,null) : Int;
 
-    function appendItem (item :Transform) :Transform;
+	function appendItem( item : Transform ) : Transform;
 
-    function clear () :Void;
+	function clear() : Void;
 
-    function consolidate () :Transform;
+	function consolidate() : Transform;
 
-    function createSVGTransformFromMatrix (matrix :Matrix) :Transform;
+	function createSVGTransformFromMatrix( matrix : Matrix ) : Transform;
 
-    function getItem (index :Int) :Transform;
+	function getItem( index : Int ) : Transform;
 
-    function initialize (item :Transform) :Transform;
+	function initialize( item : Transform ) : Transform;
 
-    function insertItemBefore (item :Transform, index :Int) :Transform;
+	function insertItemBefore( item : Transform, index : Int ) : Transform;
 
-    function removeItem (index :Int) :Transform;
+	function removeItem( index : Int ) : Transform;
 
-    function replaceItem (item :Transform, index :Int) :Transform;
+	function replaceItem( item : Transform, index : Int ) : Transform;
 
 }

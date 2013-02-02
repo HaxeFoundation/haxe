@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,12 +26,12 @@ package js.html;
 @:native("ErrorEvent")
 extern class ErrorEvent extends Event
 {
-    var filename (default,null) :String;
+	var filename (default,null) : String;
 
-    var lineno (default,null) :Int;
+	var lineno (default,null) : Int;
 
-    var message (default,null) :String;
+	var message (default,null) : String;
 
-    function new (type :String, canBubble :Bool = true, cancelable :Bool = true) :Void;
+	function new(type : String, canBubble : Bool = true, cancelable : Bool = true) : Void;
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -36,38 +36,38 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("SVGMatrix")
 extern class Matrix
 {
-    var a :Float;
+	var a : Float;
 
-    var b :Float;
+	var b : Float;
 
-    var c :Float;
+	var c : Float;
 
-    var d :Float;
+	var d : Float;
 
-    var e :Float;
+	var e : Float;
 
-    var f :Float;
+	var f : Float;
 
-    function flipX () :Matrix;
+	function flipX() : Matrix;
 
-    function flipY () :Matrix;
+	function flipY() : Matrix;
 
-    function inverse () :Matrix;
+	function inverse() : Matrix;
 
-    function multiply (secondMatrix :Matrix) :Matrix;
+	function multiply( secondMatrix : Matrix ) : Matrix;
 
-    function rotate (angle :Float) :Matrix;
+	function rotate( angle : Float ) : Matrix;
 
-    function rotateFromVector (x :Float, y :Float) :Matrix;
+	function rotateFromVector( x : Float, y : Float ) : Matrix;
 
-    function scale (scaleFactor :Float) :Matrix;
+	function scale( scaleFactor : Float ) : Matrix;
 
-    function scaleNonUniform (scaleFactorX :Float, scaleFactorY :Float) :Matrix;
+	function scaleNonUniform( scaleFactorX : Float, scaleFactorY : Float ) : Matrix;
 
-    function skewX (angle :Float) :Matrix;
+	function skewX( angle : Float ) : Matrix;
 
-    function skewY (angle :Float) :Matrix;
+	function skewY( angle : Float ) : Matrix;
 
-    function translate (x :Float, y :Float) :Matrix;
+	function translate( x : Float, y : Float ) : Matrix;
 
 }

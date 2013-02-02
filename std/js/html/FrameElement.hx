@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -31,35 +31,35 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("HTMLFrameElement")
 extern class FrameElement extends Element
 {
-    var contentDocument (default,null) :Document;
+	var contentDocument (default,null) : Document;
 
-    var contentWindow (default,null) :DOMWindow;
+	var contentWindow (default,null) : DOMWindow;
 
-    var frameBorder :String;
+	var frameBorder : String;
 
-    var height (default,null) :Int;
+	var height (default,null) : Int;
 
-    var location :String;
+	var location : String;
 
-    var longDesc :String;
+	var longDesc : String;
 
-    var marginHeight :String;
+	var marginHeight : String;
 
-    var marginWidth :String;
+	var marginWidth : String;
 
-    /** This attribute is used to labeling frames. Without labeling all links will open in the frame that they are in. */
-    var name :String;
+	/** This attribute is used to labeling frames. Without labeling all links will open in the frame that they are in. */
+	var name : String;
 
-    var noResize :Bool;
+	var noResize : Bool;
 
-    /** This attribute defines existence of scrollbar. If this attribute is not used, browser put a scrollbar when necessary. There are two choices; "yes" for showing a scrollbar even when it is not necessary and "no" for do not showing a scrollbar even when it is necessary. */
-    var scrolling :String;
+	/** This attribute defines existence of scrollbar. If this attribute is not used, browser put a scrollbar when necessary. There are two choices; "yes" for showing a scrollbar even when it is not necessary and "no" for do not showing a scrollbar even when it is necessary. */
+	var scrolling : String;
 
-    /** This attribute is specify document which will be displayed by frame. */
-    var src :String;
+	/** This attribute is specify document which will be displayed by frame. */
+	var src : String;
 
-    var width (default,null) :Int;
+	var width (default,null) : Int;
 
-    function getSVGDocument () :js.html.svg.Document;
+	function getSVGDocument() : js.html.svg.Document;
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -29,34 +29,34 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("EventSource")
 extern class EventSource extends EventTarget
 {
-    /** The connection is not being established, has been closed or there was a fatal error. */
-    static inline var CLOSED :Int = 2;
+	/** The connection is not being established, has been closed or there was a fatal error. */
+	static inline var CLOSED : Int = 2;
 
-    /** The connection is being established. */
-    static inline var CONNECTING :Int = 0;
+	/** The connection is being established. */
+	static inline var CONNECTING : Int = 0;
 
-    /** The connection is open and dispatching events. */
-    static inline var OPEN :Int = 1;
+	/** The connection is open and dispatching events. */
+	static inline var OPEN : Int = 1;
 
-    var URL (default,null) :String;
+	var URL (default,null) : String;
 
-    /** A JavaScript function to call when an error occurs. */
-    var onerror :EventListener;
+	/** A JavaScript function to call when an error occurs. */
+	var onerror : EventListener;
 
-    /** A JavaScript function to call when an a message without an <code>event</code> field arrives. */
-    var onmessage :EventListener;
+	/** A JavaScript function to call when an a message without an <code>event</code> field arrives. */
+	var onmessage : EventListener;
 
-    /** A JavaScript function to call when the connection has opened. */
-    var onopen :EventListener;
+	/** A JavaScript function to call when the connection has opened. */
+	var onopen : EventListener;
 
-    /** The state of the connection, must be one of <code>CONNECTING</code>, <code>OPEN</code>, or <code>CLOSED</code>. <strong>Read only.</strong> */
-    var readyState (default,null) :Int;
+	/** The state of the connection, must be one of <code>CONNECTING</code>, <code>OPEN</code>, or <code>CLOSED</code>. <strong>Read only.</strong> */
+	var readyState (default,null) : Int;
 
-    /** Read only. */
-    var url (default,null) :String;
+	/** Read only. */
+	var url (default,null) : String;
 
-    function new () :Void;
+	function new() : Void;
 
-    function close () :Void;
+	function close() : Void;
 
 }

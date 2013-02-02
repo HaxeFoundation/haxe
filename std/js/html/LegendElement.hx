@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -30,7 +30,7 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("HTMLLegendElement")
 extern class LegendElement extends Element
 {
-    /** Alignment relative to the form set. 
+	/** Alignment relative to the form set. 
 
 <span title="">Obsolete</span> in 
 <span><a rel="custom" href="https://developer.mozilla.org/en/HTML/HTML5">HTML5</a></span>, 
@@ -39,9 +39,9 @@ extern class LegendElement extends Element
 
  in 
 <span>HTML 4.01</span> */
-    var align :String;
+	var align : String;
 
-    /** The form that this legend belongs to. If the legend has a fieldset element as its parent, then this attribute returns the same value as the <strong>form</strong> attribute on the parent fieldset element. Otherwise, it returns null. */
-    var form (default,null) :FormElement;
+	/** The form that this legend belongs to. If the legend has a fieldset element as its parent, then this attribute returns the same value as the <strong>form</strong> attribute on the parent fieldset element. Otherwise, it returns null. */
+	var form (default,null) : FormElement;
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,44 +26,44 @@ package js.html;
 @:native("WorkerContext")
 extern class WorkerContext extends EventTarget
 {
-    static inline var PERSISTENT :Int = 1;
+	static inline var PERSISTENT : Int = 1;
 
-    static inline var TEMPORARY :Int = 0;
+	static inline var TEMPORARY : Int = 0;
 
-    var indexedDB (default,null) :js.html.idb.Factory;
+	var indexedDB (default,null) : js.html.idb.Factory;
 
-    var location (default,null) :WorkerLocation;
+	var location (default,null) : WorkerLocation;
 
-    var navigator (default,null) :WorkerNavigator;
+	var navigator (default,null) : WorkerNavigator;
 
-    var onerror :EventListener;
+	var onerror : EventListener;
 
-    var self (default,null) :WorkerContext;
+	var self (default,null) : WorkerContext;
 
-    var notifications (default,null) :NotificationCenter;
+	var notifications (default,null) : NotificationCenter;
 
-    function clearInterval (handle :Int) :Void;
+	function clearInterval( handle : Int ) : Void;
 
-    function clearTimeout (handle :Int) :Void;
+	function clearTimeout( handle : Int ) : Void;
 
-    function close () :Void;
+	function close() : Void;
 
-    function importScripts () :Void;
+	function importScripts() : Void;
 
-    function openDatabase (name :String, version :String, displayName :String, estimatedSize :Int, ?creationCallback :js.html.sql.DatabaseCallback) :js.html.sql.Database;
+	function openDatabase( name : String, version : String, displayName : String, estimatedSize : Int, ?creationCallback : js.html.sql.DatabaseCallback ) : js.html.sql.Database;
 
-    function openDatabaseSync (name :String, version :String, displayName :String, estimatedSize :Int, ?creationCallback :js.html.sql.DatabaseCallback) :js.html.sql.DatabaseSync;
+	function openDatabaseSync( name : String, version : String, displayName : String, estimatedSize : Int, ?creationCallback : js.html.sql.DatabaseCallback ) : js.html.sql.DatabaseSync;
 
-    function requestFileSystem (type :Int, size :Int, ?successCallback :js.html.fs.FileSystemCallback, ?errorCallback :js.html.fs.ErrorCallback) :Void;
+	function requestFileSystem( type : Int, size : Int, ?successCallback : js.html.fs.FileSystemCallback, ?errorCallback : js.html.fs.ErrorCallback ) : Void;
 
-    function requestFileSystemSync (type :Int, size :Int) :js.html.fs.FileSystemSync;
+	function requestFileSystemSync( type : Int, size : Int ) : js.html.fs.FileSystemSync;
 
-    function resolveLocalFileSystemSyncURL (url :String) :js.html.fs.EntrySync;
+	function resolveLocalFileSystemSyncURL( url : String ) : js.html.fs.EntrySync;
 
-    function resolveLocalFileSystemURL (url :String, successCallback :js.html.fs.EntryCallback, ?errorCallback :js.html.fs.ErrorCallback) :Void;
+	function resolveLocalFileSystemURL( url : String, successCallback : js.html.fs.EntryCallback, ?errorCallback : js.html.fs.ErrorCallback ) : Void;
 
-    function setInterval (handler :Void->Void, timeout :Int) :Int;
+	function setInterval( handler : Void->Void, timeout : Int ) : Int;
 
-    function setTimeout (handler :Void->Void, timeout :Int) :Int;
+	function setTimeout( handler : Void->Void, timeout : Int ) : Int;
 
 }

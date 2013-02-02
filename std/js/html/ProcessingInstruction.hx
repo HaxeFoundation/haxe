@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -31,11 +31,11 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("ProcessingInstruction")
 extern class ProcessingInstruction extends Node
 {
-    /** Setter throws DOMException. */
-    var data :String;
+	/** Setter throws DOMException. */
+	var data : String;
 
-    var sheet (default,null) :StyleSheet;
+	var sheet (default,null) : StyleSheet;
 
-    var target (default,null) :String;
+	var target (default,null) : String;
 
 }

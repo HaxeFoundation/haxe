@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -28,20 +28,20 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("DeviceOrientationEvent")
 extern class DeviceOrientationEvent extends Event
 {
-    /** This attribute's value is <code>true</code> if the orientation is provided as a difference between the device coordinate frame and the Earth coordinate frame; if the device can't detect the Earth coordinate frame, this value is <code>false</code>. <strong>Read only.</strong> */
-    var absolute (default,null) :Bool;
+	/** This attribute's value is <code>true</code> if the orientation is provided as a difference between the device coordinate frame and the Earth coordinate frame; if the device can't detect the Earth coordinate frame, this value is <code>false</code>. <strong>Read only.</strong> */
+	var absolute (default,null) : Bool;
 
-    /** The current orientation of the device around the Z axis; that is, how far the device is rotated around a line perpendicular to the device. <strong>Read only.</strong> */
-    var alpha (default,null) :Float;
+	/** The current orientation of the device around the Z axis; that is, how far the device is rotated around a line perpendicular to the device. <strong>Read only.</strong> */
+	var alpha (default,null) : Float;
 
-    /** The current orientation of the device around the X axis; that is, how far the device is tipped forward or backward. <strong>Read only.</strong> */
-    var beta (default,null) :Float;
+	/** The current orientation of the device around the X axis; that is, how far the device is tipped forward or backward. <strong>Read only.</strong> */
+	var beta (default,null) : Float;
 
-    /** <dl><dd>The current orientation of the device around the Y axis; that is, how far the device is turned left or right. <strong>Read only.</strong></dd>
+	/** <dl><dd>The current orientation of the device around the Y axis; that is, how far the device is turned left or right. <strong>Read only.</strong></dd>
 </dl>
 <div class="note"><strong>Note:</strong> If the browser is not able to provide notification information, all values are 0.</div> */
-    var gamma (default,null) :Float;
+	var gamma (default,null) : Float;
 
-    function initDeviceOrientationEvent (type :String, bubbles :Bool, cancelable :Bool, alpha :Float, beta :Float, gamma :Float, absolute :Bool) :Void;
+	function initDeviceOrientationEvent( type : String, bubbles : Bool, cancelable : Bool, alpha : Float, beta : Float, gamma : Float, absolute : Bool ) : Void;
 
 }

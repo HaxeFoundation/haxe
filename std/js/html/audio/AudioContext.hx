@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,58 +26,58 @@ package js.html.audio;
 @:native("AudioContext")
 extern class AudioContext extends js.html.EventTarget
 {
-    var activeSourceCount (default,null) :Int;
+	var activeSourceCount (default,null) : Int;
 
-    var currentTime (default,null) :Float;
+	var currentTime (default,null) : Float;
 
-    var destination (default,null) :AudioDestinationNode;
+	var destination (default,null) : AudioDestinationNode;
 
-    var listener (default,null) :AudioListener;
+	var listener (default,null) : AudioListener;
 
-    var oncomplete :js.html.EventListener;
+	var oncomplete : js.html.EventListener;
 
-    var sampleRate (default,null) :Float;
+	var sampleRate (default,null) : Float;
 
-    function new () :Void;
+	function new() : Void;
 
-    function createAnalyser () :AnalyserNode;
+	function createAnalyser() : AnalyserNode;
 
-    function createBiquadFilter () :BiquadFilterNode;
+	function createBiquadFilter() : BiquadFilterNode;
 
-    /** Throws DOMException. */
-    @:overload(function (numberOfChannels :Int, numberOfFrames :Int, sampleRate :Float) :AudioBuffer {})
-    function createBuffer (buffer :js.html.ArrayBuffer, mixToMono :Bool) :AudioBuffer;
+	/** Throws DOMException. */
+	@:overload( function( numberOfChannels : Int, numberOfFrames : Int, sampleRate : Float ) :AudioBuffer {} )
+	function createBuffer( buffer : js.html.ArrayBuffer, mixToMono : Bool ) : AudioBuffer;
 
-    function createBufferSource () :AudioBufferSourceNode;
+	function createBufferSource() : AudioBufferSourceNode;
 
-    function createChannelMerger (?numberOfInputs :Int) :ChannelMergerNode;
+	function createChannelMerger( ?numberOfInputs : Int ) : ChannelMergerNode;
 
-    function createChannelSplitter (?numberOfOutputs :Int) :ChannelSplitterNode;
+	function createChannelSplitter( ?numberOfOutputs : Int ) : ChannelSplitterNode;
 
-    function createConvolver () :ConvolverNode;
+	function createConvolver() : ConvolverNode;
 
-    function createDelay (?maxDelayTime :Float) :DelayNode;
+	function createDelay( ?maxDelayTime : Float ) : DelayNode;
 
-    function createDynamicsCompressor () :DynamicsCompressorNode;
+	function createDynamicsCompressor() : DynamicsCompressorNode;
 
-    function createGain () :GainNode;
+	function createGain() : GainNode;
 
-    function createMediaElementSource (mediaElement :js.html.MediaElement) :MediaElementAudioSourceNode;
+	function createMediaElementSource( mediaElement : js.html.MediaElement ) : MediaElementAudioSourceNode;
 
-    function createMediaStreamSource (mediaStream :js.html.rtc.MediaStream) :MediaStreamAudioSourceNode;
+	function createMediaStreamSource( mediaStream : js.html.rtc.MediaStream ) : MediaStreamAudioSourceNode;
 
-    function createOscillator () :OscillatorNode;
+	function createOscillator() : OscillatorNode;
 
-    function createPanner () :PannerNode;
+	function createPanner() : PannerNode;
 
-    function createScriptProcessor (bufferSize :Int, ?numberOfInputChannels :Int, ?numberOfOutputChannels :Int) :ScriptProcessorNode;
+	function createScriptProcessor( bufferSize : Int, ?numberOfInputChannels : Int, ?numberOfOutputChannels : Int ) : ScriptProcessorNode;
 
-    function createWaveShaper () :WaveShaperNode;
+	function createWaveShaper() : WaveShaperNode;
 
-    function createWaveTable (real :js.html.Float32Array, imag :js.html.Float32Array) :WaveTable;
+	function createWaveTable( real : js.html.Float32Array, imag : js.html.Float32Array ) : WaveTable;
 
-    function decodeAudioData (audioData :js.html.ArrayBuffer, successCallback :AudioBufferCallback, ?errorCallback :AudioBufferCallback) :Void;
+	function decodeAudioData( audioData : js.html.ArrayBuffer, successCallback : AudioBufferCallback, ?errorCallback : AudioBufferCallback ) : Void;
 
-    function startRendering () :Void;
+	function startRendering() : Void;
 
 }

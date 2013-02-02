@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -31,7 +31,7 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("HTMLHeadElement")
 extern class HeadElement extends Element
 {
-    /** The URIs of one or more metadata profiles (white space separated). 
+	/** The URIs of one or more metadata profiles (white space separated). 
 
 <span class="deprecatedInlineTemplate" title="(Firefox 4 / Thunderbird 3.3 / SeaMonkey 2.1)
 ">Deprecated since Gecko 2.0</span>
@@ -40,6 +40,6 @@ extern class HeadElement extends Element
 
 <span title="(Firefox 7.0 / Thunderbird 7.0 / SeaMonkey 2.4)
 ">Obsolete since Gecko 7.0</span> */
-    var profile :String;
+	var profile : String;
 
 }

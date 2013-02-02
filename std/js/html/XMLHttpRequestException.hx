@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,16 +26,16 @@ package js.html;
 @:native("XMLHttpRequestException")
 extern class XMLHttpRequestException
 {
-    static inline var ABORT_ERR :Int = 102;
+	static inline var ABORT_ERR : Int = 102;
 
-    static inline var NETWORK_ERR :Int = 101;
+	static inline var NETWORK_ERR : Int = 101;
 
-    var code (default,null) :Int;
+	var code (default,null) : Int;
 
-    var message (default,null) :String;
+	var message (default,null) : String;
 
-    var name (default,null) :String;
+	var name (default,null) : String;
 
-    function toString () :String;
+	function toString() : String;
 
 }

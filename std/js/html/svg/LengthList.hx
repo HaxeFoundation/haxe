@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -38,20 +38,20 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("SVGLengthList")
 extern class LengthList
 {
-    var numberOfItems (default,null) :Int;
+	var numberOfItems (default,null) : Int;
 
-    function appendItem (item :Length) :Length;
+	function appendItem( item : Length ) : Length;
 
-    function clear () :Void;
+	function clear() : Void;
 
-    function getItem (index :Int) :Length;
+	function getItem( index : Int ) : Length;
 
-    function initialize (item :Length) :Length;
+	function initialize( item : Length ) : Length;
 
-    function insertItemBefore (item :Length, index :Int) :Length;
+	function insertItemBefore( item : Length, index : Int ) : Length;
 
-    function removeItem (index :Int) :Length;
+	function removeItem( index : Int ) : Length;
 
-    function replaceItem (item :Length, index :Int) :Length;
+	function replaceItem( item : Length, index : Int ) : Length;
 
 }

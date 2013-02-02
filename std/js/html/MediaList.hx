@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,15 +26,15 @@ package js.html;
 @:native("MediaList")
 extern class MediaList implements ArrayAccess<String>
 {
-    var length (default,null) :Int;
+	var length (default,null) : Int;
 
-    /** Setter throws DOMException. */
-    var mediaText :String;
+	/** Setter throws DOMException. */
+	var mediaText : String;
 
-    function appendMedium (newMedium :String) :Void;
+	function appendMedium( newMedium : String ) : Void;
 
-    function deleteMedium (oldMedium :String) :Void;
+	function deleteMedium( oldMedium : String ) : Void;
 
-    function item (index :Int) :String;
+	function item( index : Int ) : String;
 
 }

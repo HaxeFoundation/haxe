@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,22 +26,22 @@ package js.html;
 @:native("WorkerLocation")
 extern class WorkerLocation
 {
-    var hash (default,null) :String;
+	var hash (default,null) : String;
 
-    var host (default,null) :String;
+	var host (default,null) : String;
 
-    var hostname (default,null) :String;
+	var hostname (default,null) : String;
 
-    var href (default,null) :String;
+	var href (default,null) : String;
 
-    var pathname (default,null) :String;
+	var pathname (default,null) : String;
 
-    var port (default,null) :String;
+	var port (default,null) : String;
 
-    var protocol (default,null) :String;
+	var protocol (default,null) : String;
 
-    var search (default,null) :String;
+	var search (default,null) : String;
 
-    function toString () :String;
+	function toString() : String;
 
 }

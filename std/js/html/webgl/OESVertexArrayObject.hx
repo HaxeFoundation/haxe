@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,14 +26,14 @@ package js.html.webgl;
 @:native("OESVertexArrayObject")
 extern class OESVertexArrayObject
 {
-    static inline var VERTEX_ARRAY_BINDING_OES :Int = 0x85B5;
+	static inline var VERTEX_ARRAY_BINDING_OES : Int = 0x85B5;
 
-    function bindVertexArrayOES (arrayObject :VertexArrayObjectOES) :Void;
+	function bindVertexArrayOES( arrayObject : VertexArrayObjectOES ) : Void;
 
-    function createVertexArrayOES () :VertexArrayObjectOES;
+	function createVertexArrayOES() : VertexArrayObjectOES;
 
-    function deleteVertexArrayOES (arrayObject :VertexArrayObjectOES) :Void;
+	function deleteVertexArrayOES( arrayObject : VertexArrayObjectOES ) : Void;
 
-    function isVertexArrayOES (arrayObject :VertexArrayObjectOES) :Bool;
+	function isVertexArrayOES( arrayObject : VertexArrayObjectOES ) : Bool;
 
 }

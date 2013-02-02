@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -29,24 +29,24 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("SVGLinearGradientElement")
 extern class LinearGradientElement extends GradientElement
 {
-    /** Corresponds to attribute 
+	/** Corresponds to attribute 
 <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Attribute/x1">x1</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/linearGradient">&lt;linearGradient&gt;</a></code>
  element. */
-    var x1 (default,null) :AnimatedLength;
+	var x1 (default,null) : AnimatedLength;
 
-    /** Corresponds to attribute 
+	/** Corresponds to attribute 
 <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Attribute/x2">x2</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/linearGradient">&lt;linearGradient&gt;</a></code>
  element. */
-    var x2 (default,null) :AnimatedLength;
+	var x2 (default,null) : AnimatedLength;
 
-    /** Corresponds to attribute 
+	/** Corresponds to attribute 
 <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Attribute/y1">y1</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/linearGradient">&lt;linearGradient&gt;</a></code>
  element. */
-    var y1 (default,null) :AnimatedLength;
+	var y1 (default,null) : AnimatedLength;
 
-    /** Corresponds to attribute 
+	/** Corresponds to attribute 
 <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Attribute/y2">y2</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/linearGradient">&lt;linearGradient&gt;</a></code>
  element. */
-    var y2 (default,null) :AnimatedLength;
+	var y2 (default,null) : AnimatedLength;
 
 }

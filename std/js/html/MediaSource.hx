@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,21 +26,21 @@ package js.html;
 @:native("MediaSource")
 extern class MediaSource extends EventTarget
 {
-    var activeSourceBuffers (default,null) :SourceBufferList;
+	var activeSourceBuffers (default,null) : SourceBufferList;
 
-    /** Setter throws DOMException. */
-    var duration :Float;
+	/** Setter throws DOMException. */
+	var duration : Float;
 
-    var readyState (default,null) :String;
+	var readyState (default,null) : String;
 
-    var sourceBuffers (default,null) :SourceBufferList;
+	var sourceBuffers (default,null) : SourceBufferList;
 
-    function new () :Void;
+	function new() : Void;
 
-    function addSourceBuffer (type :String) :SourceBuffer;
+	function addSourceBuffer( type : String ) : SourceBuffer;
 
-    function endOfStream (error :String) :Void;
+	function endOfStream( error : String ) : Void;
 
-    function removeSourceBuffer (buffer :SourceBuffer) :Void;
+	function removeSourceBuffer( buffer : SourceBuffer ) : Void;
 
 }

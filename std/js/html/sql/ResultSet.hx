@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,11 +26,11 @@ package js.html.sql;
 @:native("SQLResultSet")
 extern class ResultSet
 {
-    /** Getter throws DOMException. */
-    var insertId (default,null) :Int;
+	/** Getter throws DOMException. */
+	var insertId (default,null) : Int;
 
-    var rows (default,null) :ResultSetRowList;
+	var rows (default,null) : ResultSetRowList;
 
-    var rowsAffected (default,null) :Int;
+	var rowsAffected (default,null) : Int;
 
 }

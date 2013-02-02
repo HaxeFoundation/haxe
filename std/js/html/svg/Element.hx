@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -28,16 +28,16 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("SVGElement")
 extern class Element extends js.html.Element
 {
-    /** The nearest ancestor <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/svg">&lt;svg&gt;</a></code>
+	/** The nearest ancestor <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/svg">&lt;svg&gt;</a></code>
  element. <code>Null</code> if the given element is the outermost svg element. */
-    var ownerSVGElement (default,null) :SVGElement;
+	var ownerSVGElement (default,null) : SVGElement;
 
-    /** The element which established the current viewport. Often, the nearest ancestor <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/svg">&lt;svg&gt;</a></code>
+	/** The element which established the current viewport. Often, the nearest ancestor <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/svg">&lt;svg&gt;</a></code>
  element. <code>Null</code> if the given element is the outermost svg element. */
-    var viewportElement (default,null) :Element;
+	var viewportElement (default,null) : Element;
 
-    /** Corresponds to attribute 
+	/** Corresponds to attribute 
 <code><a rel="internal" href="https://developer.mozilla.org/en/SVG/Attribute/xml%3Abase" class="new">xml:base</a></code> on the given element. Setter throws DOMException. */
-    var xmlbase :String;
+	var xmlbase : String;
 
 }

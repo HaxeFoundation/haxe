@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -28,20 +28,20 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("SVGFEMorphologyElement")
 extern class FEMorphologyElement extends Element
 {
-    static inline var SVG_MORPHOLOGY_OPERATOR_DILATE :Int = 2;
+	static inline var SVG_MORPHOLOGY_OPERATOR_DILATE : Int = 2;
 
-    static inline var SVG_MORPHOLOGY_OPERATOR_ERODE :Int = 1;
+	static inline var SVG_MORPHOLOGY_OPERATOR_ERODE : Int = 1;
 
-    static inline var SVG_MORPHOLOGY_OPERATOR_UNKNOWN :Int = 0;
+	static inline var SVG_MORPHOLOGY_OPERATOR_UNKNOWN : Int = 0;
 
-    var in1 (default,null) :AnimatedString;
+	var in1 (default,null) : AnimatedString;
 
-    var operator (default,null) :AnimatedEnumeration;
+	var operator (default,null) : AnimatedEnumeration;
 
-    var radiusX (default,null) :AnimatedNumber;
+	var radiusX (default,null) : AnimatedNumber;
 
-    var radiusY (default,null) :AnimatedNumber;
+	var radiusY (default,null) : AnimatedNumber;
 
-    function setRadius (radiusX :Float, radiusY :Float) :Void;
+	function setRadius( radiusX : Float, radiusY : Float ) : Void;
 
 }

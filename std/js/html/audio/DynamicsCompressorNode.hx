@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,16 +26,16 @@ package js.html.audio;
 @:native("DynamicsCompressorNode")
 extern class DynamicsCompressorNode extends AudioNode
 {
-    var attack (default,null) :AudioParam;
+	var attack (default,null) : AudioParam;
 
-    var knee (default,null) :AudioParam;
+	var knee (default,null) : AudioParam;
 
-    var ratio (default,null) :AudioParam;
+	var ratio (default,null) : AudioParam;
 
-    var reduction (default,null) :AudioParam;
+	var reduction (default,null) : AudioParam;
 
-    var release (default,null) :AudioParam;
+	var release (default,null) : AudioParam;
 
-    var threshold (default,null) :AudioParam;
+	var threshold (default,null) : AudioParam;
 
 }

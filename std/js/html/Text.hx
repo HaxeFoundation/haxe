@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -30,11 +30,11 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("Text")
 extern class Text extends CharacterData
 {
-    /** Returns all text of all Text nodes logically adjacent to this node, concatenated in document order. */
-    var wholeText (default,null) :String;
+	/** Returns all text of all Text nodes logically adjacent to this node, concatenated in document order. */
+	var wholeText (default,null) : String;
 
-    function replaceWholeText (content :String) :Text;
+	function replaceWholeText( content : String ) : Text;
 
-    function splitText (offset :Int) :Text;
+	function splitText( offset : Int ) : Text;
 
 }

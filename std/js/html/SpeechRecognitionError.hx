@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,28 +26,28 @@ package js.html;
 @:native("SpeechRecognitionError")
 extern class SpeechRecognitionError extends Event
 {
-    static inline var ABORTED :Int = 2;
+	static inline var ABORTED : Int = 2;
 
-    static inline var AUDIO_CAPTURE :Int = 3;
+	static inline var AUDIO_CAPTURE : Int = 3;
 
-    static inline var BAD_GRAMMAR :Int = 7;
+	static inline var BAD_GRAMMAR : Int = 7;
 
-    static inline var LANGUAGE_NOT_SUPPORTED :Int = 8;
+	static inline var LANGUAGE_NOT_SUPPORTED : Int = 8;
 
-    static inline var NETWORK :Int = 4;
+	static inline var NETWORK : Int = 4;
 
-    static inline var NOT_ALLOWED :Int = 5;
+	static inline var NOT_ALLOWED : Int = 5;
 
-    static inline var NO_SPEECH :Int = 1;
+	static inline var NO_SPEECH : Int = 1;
 
-    static inline var OTHER :Int = 0;
+	static inline var OTHER : Int = 0;
 
-    static inline var SERVICE_NOT_ALLOWED :Int = 6;
+	static inline var SERVICE_NOT_ALLOWED : Int = 6;
 
-    var code (default,null) :Int;
+	var code (default,null) : Int;
 
-    var message (default,null) :String;
+	var message (default,null) : String;
 
-    function new (type :String, canBubble :Bool = true, cancelable :Bool = true) :Void;
+	function new(type : String, canBubble : Bool = true, cancelable : Bool = true) : Void;
 
 }

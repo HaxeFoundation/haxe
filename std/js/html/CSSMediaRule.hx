@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -28,14 +28,14 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("CSSMediaRule")
 extern class CSSMediaRule extends CSSRule
 {
-    /** Returns a <code><a title="en/DOM/CSSRuleList" rel="internal" href="https://developer.mozilla.org/en/DOM/CSSRuleList">CSSRuleList</a></code> of the CSS rules in the media rule. */
-    var cssRules (default,null) :CSSRuleList;
+	/** Returns a <code><a title="en/DOM/CSSRuleList" rel="internal" href="https://developer.mozilla.org/en/DOM/CSSRuleList">CSSRuleList</a></code> of the CSS rules in the media rule. */
+	var cssRules (default,null) : CSSRuleList;
 
-    /** Specifies the intended destination medium for style information. */
-    var media (default,null) :MediaList;
+	/** Specifies the intended destination medium for style information. */
+	var media (default,null) : MediaList;
 
-    function deleteRule (index :Int) :Void;
+	function deleteRule( index : Int ) : Void;
 
-    function insertRule (rule :String, index :Int) :Int;
+	function insertRule( rule : String, index : Int ) : Int;
 
 }

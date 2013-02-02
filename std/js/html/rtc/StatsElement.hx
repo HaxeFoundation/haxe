@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,8 +26,8 @@ package js.html.rtc;
 @:native("RTCStatsElement")
 extern class StatsElement
 {
-    var timestamp (default,null) :Date;
+	var timestamp (default,null) : Date;
 
-    function stat (name :String) :String;
+	function stat( name : String ) : String;
 
 }

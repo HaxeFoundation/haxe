@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,14 +26,14 @@ package js.html.svg;
 @:native("SVGFilterPrimitiveStandardAttributes")
 extern class FilterPrimitiveStandardAttributes extends Stylable
 {
-    var height (default,null) :AnimatedLength;
+	var height (default,null) : AnimatedLength;
 
-    var result (default,null) :AnimatedString;
+	var result (default,null) : AnimatedString;
 
-    var width (default,null) :AnimatedLength;
+	var width (default,null) : AnimatedLength;
 
-    var x (default,null) :AnimatedLength;
+	var x (default,null) : AnimatedLength;
 
-    var y (default,null) :AnimatedLength;
+	var y (default,null) : AnimatedLength;
 
 }

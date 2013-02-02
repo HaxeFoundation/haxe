@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,8 +26,8 @@ package js.html.idb;
 @:native("IDBVersionChangeEvent")
 extern class UpgradeNeededEvent extends js.html.Event
 {
-    var newVersion (default,null) :Int;
+	var newVersion (default,null) : Int;
 
-    var oldVersion (default,null) :Int;
+	var oldVersion (default,null) : Int;
 
 }

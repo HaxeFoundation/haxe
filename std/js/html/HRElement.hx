@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -28,15 +28,15 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("HTMLHRElement")
 extern class HRElement extends Element
 {
-    /** Enumerated attribute indicating alignment of the rule with respect to the surrounding context. */
-    var align :String;
+	/** Enumerated attribute indicating alignment of the rule with respect to the surrounding context. */
+	var align : String;
 
-    var noShade :Bool;
+	var noShade : Bool;
 
-    /** The height of the rule. */
-    var size :String;
+	/** The height of the rule. */
+	var size : String;
 
-    /** The width of the rule on the page. */
-    var width :String;
+	/** The width of the rule on the page. */
+	var width : String;
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -35,12 +35,12 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("MessagePort")
 extern class MessagePort extends EventTarget
 {
-    var onmessage :EventListener;
+	var onmessage : EventListener;
 
-    function close () :Void;
+	function close() : Void;
 
-    function postMessage (message :Dynamic, ?messagePorts :Array<Dynamic>) :Void;
+	function postMessage( message : Dynamic, ?messagePorts : Array<Dynamic> ) : Void;
 
-    function start () :Void;
+	function start() : Void;
 
 }

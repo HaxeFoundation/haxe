@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -30,77 +30,77 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("HTMLBodyElement")
 extern class BodyElement extends Element
 {
-    /** Color of active hyperlinks. */
-    var aLink :String;
+	/** Color of active hyperlinks. */
+	var aLink : String;
 
-    /** <p>URI for a background image resource.</p> <div class="note"><strong>Note:</strong> Starting in Gecko 7.0 (Firefox 7.0 / Thunderbird 7.0 / SeaMonkey 2.4)
+	/** <p>URI for a background image resource.</p> <div class="note"><strong>Note:</strong> Starting in Gecko 7.0 (Firefox 7.0 / Thunderbird 7.0 / SeaMonkey 2.4)
 , this value is no longer resolved as a URI; instead, it's treated as a simple string.</div> */
-    var background :String;
+	var background : String;
 
-    /** Background color for the document. */
-    var bgColor :String;
+	/** Background color for the document. */
+	var bgColor : String;
 
-    /** Color of unvisited links. */
-    var link :String;
+	/** Color of unvisited links. */
+	var link : String;
 
-    /** Reflects the 
+	/** Reflects the 
 
 <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/body#attr-onbeforeunload">onbeforeunload</a></code>
  HTML&nbsp;attribute value for a function to call when the document is about to be unloaded. */
-    var onbeforeunload :EventListener;
+	var onbeforeunload : EventListener;
 
-    /** Reflects the 
+	/** Reflects the 
 
 <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/body#attr-onhashchange">onhashchange</a></code>
  HTML&nbsp;attribute value for a function to call when the fragment identifier in the address of the document changes. */
-    var onhashchange :EventListener;
+	var onhashchange : EventListener;
 
-    /** Reflects the 
+	/** Reflects the 
 
 <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/body#attr-onmessage">onmessage</a></code>
  HTML&nbsp;attribute value for a function to call when the document receives a message. */
-    var onmessage :EventListener;
+	var onmessage : EventListener;
 
-    /** Reflects the 
+	/** Reflects the 
 
 <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/body#attr-onoffline">onoffline</a></code>
  HTML&nbsp;attribute value for a function to call when network communication fails. */
-    var onoffline :EventListener;
+	var onoffline : EventListener;
 
-    /** Reflects the 
+	/** Reflects the 
 
 <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/body#attr-ononline">ononline</a></code>
  HTML&nbsp;attribute value for a function to call when network communication is restored. */
-    var ononline :EventListener;
+	var ononline : EventListener;
 
-    /** Reflects the 
+	/** Reflects the 
 
 <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/body#attr-onpopstate">onpopstate</a></code>
  HTML&nbsp;attribute value for a function to call when the user has navigated session history. */
-    var onpopstate :EventListener;
+	var onpopstate : EventListener;
 
-    /** Reflects the 
+	/** Reflects the 
 
 <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/body#attr-onresize">onresize</a></code>
  HTML&nbsp;attribute value for a function to call when the document has been resized. */
-    var onresize :EventListener;
+	var onresize : EventListener;
 
-    /** Reflects the 
+	/** Reflects the 
 
 <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/body#attr-onpopstate">onpopstate</a></code>
  HTML&nbsp;attribute value for a function to call when the storage area has changed. */
-    var onstorage :EventListener;
+	var onstorage : EventListener;
 
-    /** Reflects the 
+	/** Reflects the 
 
 <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/body#attr-onunload">onunload</a></code>
  HTML&nbsp;attribute value for a function to call when when the document is going away. */
-    var onunload :EventListener;
+	var onunload : EventListener;
 
-    /** Foreground color of text. */
-    var text :String;
+	/** Foreground color of text. */
+	var text : String;
 
-    /** Color of visited links. */
-    var vLink :String;
+	/** Color of visited links. */
+	var vLink : String;
 
 }

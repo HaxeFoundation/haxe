@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -30,45 +30,45 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("HTMLOptionElement")
 extern class OptionElement extends Element
 {
-    /** Reflects the value of the 
+	/** Reflects the value of the 
 
 <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/option#attr-selected">selected</a></code>
  HTML attribute. which indicates whether the option is selected by default. */
-    var defaultSelected :Bool;
+	var defaultSelected : Bool;
 
-    /** Reflects the value of the 
+	/** Reflects the value of the 
 
 <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/option#attr-disabled">disabled</a></code>
  HTML&nbsp;attribute, which indicates that the option is unavailable to be selected. An option can also be disabled if it is a child of an <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/optgroup">&lt;optgroup&gt;</a></code>
  element that is disabled. */
-    var disabled :Bool;
+	var disabled : Bool;
 
-    /** If the option is a descendent of a <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/select">&lt;select&gt;</a></code>
+	/** If the option is a descendent of a <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/select">&lt;select&gt;</a></code>
  element, then this property has the same value as the <code>form</code> property of the corresponding {{DomXref("HTMLSelectElement") object; otherwise, it is null. */
-    var form (default,null) :FormElement;
+	var form (default,null) : FormElement;
 
-    /** The position of the option within the list of options it belongs to, in tree-order. If the option is not part of a list of options, the value is 0. */
-    var index (default,null) :Int;
+	/** The position of the option within the list of options it belongs to, in tree-order. If the option is not part of a list of options, the value is 0. */
+	var index (default,null) : Int;
 
-    /** Reflects the value of the 
+	/** Reflects the value of the 
 
 <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/option#attr-label">label</a></code>
  HTML attribute, which provides a label for the option. If this attribute isn't specifically set, reading it returns the element's text content. */
-    var label :String;
+	var label : String;
 
-    /** Indicates whether the option is selected. */
-    var selected :Bool;
+	/** Indicates whether the option is selected. */
+	var selected : Bool;
 
-    /** Contains the text content of the element. Setter throws DOMException. */
-    var text :String;
+	/** Contains the text content of the element. Setter throws DOMException. */
+	var text : String;
 
-    /** Reflects the value of the 
+	/** Reflects the value of the 
 
 <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/option#attr-value">value</a></code>
  HTML attribute, if it exists; otherwise reflects value of the <code><a rel="internal" href="https://developer.mozilla.org/Article_not_found?uri=en/DOM/textContent" class="new">textContent</a></code>
 &nbsp;IDL&nbsp;attribute. */
-    var value :String;
+	var value : String;
 
-    function new () :Void;
+	function new() : Void;
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,12 +26,12 @@ package js.html;
 @:native("StorageInfo")
 extern class StorageInfo
 {
-    static inline var PERSISTENT :Int = 1;
+	static inline var PERSISTENT : Int = 1;
 
-    static inline var TEMPORARY :Int = 0;
+	static inline var TEMPORARY : Int = 0;
 
-    function queryUsageAndQuota (storageType :Int, ?usageCallback :StorageInfoUsageCallback, ?errorCallback :StorageInfoErrorCallback) :Void;
+	function queryUsageAndQuota( storageType : Int, ?usageCallback : StorageInfoUsageCallback, ?errorCallback : StorageInfoErrorCallback ) : Void;
 
-    function requestQuota (storageType :Int, newQuotaInBytes :Int, ?quotaCallback :StorageInfoQuotaCallback, ?errorCallback :StorageInfoErrorCallback) :Void;
+	function requestQuota( storageType : Int, newQuotaInBytes : Int, ?quotaCallback : StorageInfoQuotaCallback, ?errorCallback : StorageInfoErrorCallback ) : Void;
 
 }

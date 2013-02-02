@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,20 +26,20 @@ package js.html;
 @:native("BatteryManager")
 extern class BatteryManager extends EventTarget
 {
-    var charging (default,null) :Bool;
+	var charging (default,null) : Bool;
 
-    var chargingTime (default,null) :Float;
+	var chargingTime (default,null) : Float;
 
-    var dischargingTime (default,null) :Float;
+	var dischargingTime (default,null) : Float;
 
-    var level (default,null) :Float;
+	var level (default,null) : Float;
 
-    var onchargingchange :EventListener;
+	var onchargingchange : EventListener;
 
-    var onchargingtimechange :EventListener;
+	var onchargingtimechange : EventListener;
 
-    var ondischargingtimechange :EventListener;
+	var ondischargingtimechange : EventListener;
 
-    var onlevelchange :EventListener;
+	var onlevelchange : EventListener;
 
 }

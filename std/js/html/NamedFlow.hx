@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,16 +26,16 @@ package js.html;
 @:native("NamedFlow")
 extern class NamedFlow extends EventTarget
 {
-    var firstEmptyRegionIndex (default,null) :Int;
+	var firstEmptyRegionIndex (default,null) : Int;
 
-    var name (default,null) :String;
+	var name (default,null) : String;
 
-    var overset (default,null) :Bool;
+	var overset (default,null) : Bool;
 
-    function getContent () :NodeList;
+	function getContent() : NodeList;
 
-    function getRegions () :NodeList;
+	function getRegions() : NodeList;
 
-    function getRegionsByContent (contentNode :Node) :NodeList;
+	function getRegionsByContent( contentNode : Node ) : NodeList;
 
 }

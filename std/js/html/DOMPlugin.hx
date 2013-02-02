@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -28,19 +28,19 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("Plugin")
 extern class DOMPlugin implements ArrayAccess<DOMMimeType>
 {
-    /** A human readable description of the plugin. <strong>Read only.</strong> */
-    var description (default,null) :String;
+	/** A human readable description of the plugin. <strong>Read only.</strong> */
+	var description (default,null) : String;
 
-    /** The filename of the plugin file. <strong>Read only.</strong> */
-    var filename (default,null) :String;
+	/** The filename of the plugin file. <strong>Read only.</strong> */
+	var filename (default,null) : String;
 
-    var length (default,null) :Int;
+	var length (default,null) : Int;
 
-    /** The name of the plugin. <strong>Read only.</strong> */
-    var name (default,null) :String;
+	/** The name of the plugin. <strong>Read only.</strong> */
+	var name (default,null) : String;
 
-    function item (index :Int) :DOMMimeType;
+	function item( index : Int ) : DOMMimeType;
 
-    function namedItem (name :String) :DOMMimeType;
+	function namedItem( name : String ) : DOMMimeType;
 
 }

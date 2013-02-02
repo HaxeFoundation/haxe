@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -31,9 +31,9 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("HTMLHtmlElement")
 extern class HtmlElement extends Element
 {
-    var manifest :String;
+	var manifest : String;
 
-    /** Version of the HTML&nbsp;Document Type Definition that governs this document. */
-    var version :String;
+	/** Version of the HTML&nbsp;Document Type Definition that governs this document. */
+	var version : String;
 
 }

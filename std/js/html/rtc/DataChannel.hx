@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,31 +26,31 @@ package js.html.rtc;
 @:native("RTCDataChannel")
 extern class DataChannel extends js.html.EventTarget
 {
-    /** Setter throws DOMException. */
-    var binaryType :String;
+	/** Setter throws DOMException. */
+	var binaryType : String;
 
-    var bufferedAmount (default,null) :Int;
+	var bufferedAmount (default,null) : Int;
 
-    var label (default,null) :String;
+	var label (default,null) : String;
 
-    var onclose :js.html.EventListener;
+	var onclose : js.html.EventListener;
 
-    var onerror :js.html.EventListener;
+	var onerror : js.html.EventListener;
 
-    var onmessage :js.html.EventListener;
+	var onmessage : js.html.EventListener;
 
-    var onopen :js.html.EventListener;
+	var onopen : js.html.EventListener;
 
-    var readyState (default,null) :String;
+	var readyState (default,null) : String;
 
-    var reliable (default,null) :Bool;
+	var reliable (default,null) : Bool;
 
-    function close () :Void;
+	function close() : Void;
 
-    /** Throws DOMException. */
-    @:overload(function (data :js.html.ArrayBuffer) :Void {})
-    @:overload(function (data :js.html.ArrayBufferView) :Void {})
-    @:overload(function (data :js.html.Blob) :Void {})
-    function send (data :String) :Void;
+	/** Throws DOMException. */
+	@:overload( function( data : js.html.ArrayBuffer ) :Void {} )
+	@:overload( function( data : js.html.ArrayBufferView ) :Void {} )
+	@:overload( function( data : js.html.Blob ) :Void {} )
+	function send( data : String ) : Void;
 
 }

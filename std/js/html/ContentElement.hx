@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,10 +26,10 @@ package js.html;
 @:native("HTMLContentElement")
 extern class ContentElement extends Element
 {
-    var resetStyleInheritance :Bool;
+	var resetStyleInheritance : Bool;
 
-    var select :String;
+	var select : String;
 
-    function getDistributedNodes () :NodeList;
+	function getDistributedNodes() : NodeList;
 
 }

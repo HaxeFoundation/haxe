@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,8 +26,8 @@ package js.html;
 @:native("FormData")
 extern class DOMFormData
 {
-    function new (?arg0 :Dynamic) :Void;
+	function new(?arg0 : Dynamic) : Void;
 
-    function append (name :String, value :String, filename :String) :Void;
+	function append( name : String, value : String, filename : String ) : Void;
 
 }

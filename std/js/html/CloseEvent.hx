@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -28,15 +28,15 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("CloseEvent")
 extern class CloseEvent extends Event
 {
-    /** The WebSocket connection close code provided by the server. See <a title="en/XPCOM_Interface_Reference/nsIWebSocketChannel#Status_codes" rel="internal" href="https://developer.mozilla.org/en/XPCOM_Interface_Reference/nsIWebSocketChannel#Status_codes">Status codes</a> for possible values. */
-    var code (default,null) :Int;
+	/** The WebSocket connection close code provided by the server. See <a title="en/XPCOM_Interface_Reference/nsIWebSocketChannel#Status_codes" rel="internal" href="https://developer.mozilla.org/en/XPCOM_Interface_Reference/nsIWebSocketChannel#Status_codes">Status codes</a> for possible values. */
+	var code (default,null) : Int;
 
-    /** A string indicating the reason the server closed the connection. This is specific to the particular server and sub-protocol. */
-    var reason (default,null) :String;
+	/** A string indicating the reason the server closed the connection. This is specific to the particular server and sub-protocol. */
+	var reason (default,null) : String;
 
-    /** Indicates whether or not the connection was cleanly closed. */
-    var wasClean (default,null) :Bool;
+	/** Indicates whether or not the connection was cleanly closed. */
+	var wasClean (default,null) : Bool;
 
-    function new (type :String, canBubble :Bool = true, cancelable :Bool = true) :Void;
+	function new(type : String, canBubble : Bool = true, cancelable : Bool = true) : Void;
 
 }

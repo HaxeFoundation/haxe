@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,8 +26,8 @@ package js.html;
 @:native("SpeechRecognitionAlternative")
 extern class SpeechRecognitionAlternative
 {
-    var confidence (default,null) :Float;
+	var confidence (default,null) : Float;
 
-    var transcript (default,null) :String;
+	var transcript (default,null) : String;
 
 }

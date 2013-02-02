@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,19 +23,18 @@
 // This file is generated, do not edit!
 package js.html.webgl;
 
-@:native("WebGLContextAttributes")
-extern class ContextAttributes
+typedef ContextAttributes =
 {
-    var alpha :Bool;
+	@:optional var alpha : Bool;
 
-    var antialias :Bool;
+	@:optional var antialias : Bool;
 
-    var depth :Bool;
+	@:optional var depth : Bool;
 
-    var premultipliedAlpha :Bool;
+	@:optional var premultipliedAlpha : Bool;
 
-    var preserveDrawingBuffer :Bool;
+	@:optional var preserveDrawingBuffer : Bool;
 
-    var stencil :Bool;
+	@:optional var stencil : Bool;
 
 }

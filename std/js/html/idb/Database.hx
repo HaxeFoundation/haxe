@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -29,30 +29,30 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("IDBDatabase")
 extern class Database extends js.html.EventTarget
 {
-    /** Name of the connected database. */
-    var name (default,null) :String;
+	/** Name of the connected database. */
+	var name (default,null) : String;
 
-    /** A list of the names of the <a title="en/IndexedDB#gloss object store" rel="internal" href="https://developer.mozilla.org/en/IndexedDB#gloss_object_store">object stores</a> currently in the connected database. */
-    var objectStoreNames (default,null) :js.html.DOMStringList;
+	/** A list of the names of the <a title="en/IndexedDB#gloss object store" rel="internal" href="https://developer.mozilla.org/en/IndexedDB#gloss_object_store">object stores</a> currently in the connected database. */
+	var objectStoreNames (default,null) : js.html.DOMStringList;
 
-    var onabort :js.html.EventListener;
+	var onabort : js.html.EventListener;
 
-    var onerror :js.html.EventListener;
+	var onerror : js.html.EventListener;
 
-    var onversionchange :js.html.EventListener;
+	var onversionchange : js.html.EventListener;
 
-    /** The version of the connected database. When a database is first created, this attribute is the empty string. */
-    var version (default,null) :Any;
+	/** The version of the connected database. When a database is first created, this attribute is the empty string. */
+	var version (default,null) : Any;
 
-    function close () :Void;
+	function close() : Void;
 
-    function createObjectStore (name :String, ?options :Dynamic) :ObjectStore;
+	function createObjectStore( name : String, ?options : Dynamic ) : ObjectStore;
 
-    function deleteObjectStore (name :String) :Void;
+	function deleteObjectStore( name : String ) : Void;
 
-    function setVersion (version :String) :VersionChangeRequest;
+	function setVersion( version : String ) : VersionChangeRequest;
 
-    /** <p>Immediately returns an <a title="en/IndexedDB/IDBTransaction" rel="internal" href="https://developer.mozilla.org/en/IndexedDB/IDBTransaction">IDBTransaction</a> object, and starts a transaction in a separate thread. &nbsp;The method returns a transaction object (<a title="en/IndexedDB/IDBTransaction" rel="internal" href="https://developer.mozilla.org/en/IndexedDB/IDBTransaction"><code>IDBTransaction</code></a>) containing the <a title="en/IndexedDB/IDBTransaction#objectStore()" rel="internal" href="https://developer.mozilla.org/en/IndexedDB/IDBTransaction#objectStore()">objectStore()</a> method, which you can use to access your object store.&nbsp;</p>
+	/** <p>Immediately returns an <a title="en/IndexedDB/IDBTransaction" rel="internal" href="https://developer.mozilla.org/en/IndexedDB/IDBTransaction">IDBTransaction</a> object, and starts a transaction in a separate thread. &nbsp;The method returns a transaction object (<a title="en/IndexedDB/IDBTransaction" rel="internal" href="https://developer.mozilla.org/en/IndexedDB/IDBTransaction"><code>IDBTransaction</code></a>) containing the <a title="en/IndexedDB/IDBTransaction#objectStore()" rel="internal" href="https://developer.mozilla.org/en/IndexedDB/IDBTransaction#objectStore()">objectStore()</a> method, which you can use to access your object store.&nbsp;</p>
 
 <div id="section_22"><span id="Parameters_4"></span><h5 class="editable">Parameters</h5>
 <dl> <dt>storeNames</dt> <dd>The names of object stores and indexes that are in the scope of the new transaction. Specify only the object stores that you need to access.</dd> <dt>mode</dt> <dd><em>Optional</em>. The types of access that can be performed in the transaction. Transactions are opened in one of three modes: <code>READ_ONLY</code>, <code>READ_WRITE</code>, and <code>VERSION_CHANGE</code>. If you don't provide the parameter, the default access mode is <code>READ_ONLY</code>. To avoid slowing things down, don't open a <code>READ_WRITE</code> transaction, unless you actually need to write into the database.</dd>
@@ -71,8 +71,8 @@ extern class Database extends js.html.EventTarget
 <table class="standard-table"> <thead> <tr> <th scope="col" width="131">Exception</th> <th scope="col" width="698">Description</th> </tr> </thead> <tbody> <tr> <td><code><a title="en/IndexedDB/DatabaseException#NOT ALLOWED ERR" rel="internal" href="https://developer.mozilla.org/en/IndexedDB/IDBDatabaseException#NOT_ALLOWED_ERR">NOT_ALLOWED_ERR</a></code></td> <td>The error is thrown for one of two reasons: <ul> <li>The <code>close()</code> method has been called on this IDBDatabase instance.</li> <li>The object store has been deleted or removed.</li> </ul> </td> </tr> <tr> <td><code><a title="en/IndexedDB/IDBDatabaseException#NOT FOUND ERR" rel="internal" href="https://developer.mozilla.org/en/IndexedDB/IDBDatabaseException#NOT_FOUND_ERR">NOT_FOUND_ERR</a></code></td> <td>One of the object stores doesn't exist in the connected database.</td> </tr> </tbody>
 </table>
 </div> Throws DatabaseException. */
-    @:overload(function (storeNames :js.html.DOMStringList, mode :String) :Transaction {})
-    @:overload(function (storeNames :Array<String>, mode :String) :Transaction {})
-    function transaction (storeName :String, mode :String) :Transaction;
+	@:overload( function( storeNames : js.html.DOMStringList, mode : String ) :Transaction {} )
+	@:overload( function( storeNames : Array<String>, mode : String ) :Transaction {} )
+	function transaction( storeName : String, mode : String ) : Transaction;
 
 }

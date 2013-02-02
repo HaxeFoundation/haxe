@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -37,12 +37,12 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("XPathEvaluator")
 extern class XPathEvaluator
 {
-    function new () :Void;
+	function new() : Void;
 
-    function createExpression (expression :String, resolver :XPathNSResolver) :XPathExpression;
+	function createExpression( expression : String, resolver : XPathNSResolver ) : XPathExpression;
 
-    function createNSResolver (nodeResolver :Node) :XPathNSResolver;
+	function createNSResolver( nodeResolver : Node ) : XPathNSResolver;
 
-    function evaluate (expression :String, contextNode :Node, resolver :XPathNSResolver, type :Int, inResult :XPathResult) :XPathResult;
+	function evaluate( expression : String, contextNode : Node, resolver : XPathNSResolver, type : Int, inResult : XPathResult ) : XPathResult;
 
 }

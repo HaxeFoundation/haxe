@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,22 +26,22 @@ package js.html;
 @:native("NodeIterator")
 extern class NodeIterator
 {
-    var expandEntityReferences (default,null) :Bool;
+	var expandEntityReferences (default,null) : Bool;
 
-    var filter (default,null) :NodeFilter;
+	var filter (default,null) : NodeFilter;
 
-    var pointerBeforeReferenceNode (default,null) :Bool;
+	var pointerBeforeReferenceNode (default,null) : Bool;
 
-    var referenceNode (default,null) :Node;
+	var referenceNode (default,null) : Node;
 
-    var root (default,null) :Node;
+	var root (default,null) : Node;
 
-    var whatToShow (default,null) :Int;
+	var whatToShow (default,null) : Int;
 
-    function detach () :Void;
+	function detach() : Void;
 
-    function nextNode () :Node;
+	function nextNode() : Node;
 
-    function previousNode () :Node;
+	function previousNode() : Node;
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -29,61 +29,61 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("SVGPathElement")
 extern class PathElement extends Element
 {
-    var animatedNormalizedPathSegList (default,null) :PathSegList;
+	var animatedNormalizedPathSegList (default,null) : PathSegList;
 
-    var animatedPathSegList (default,null) :PathSegList;
+	var animatedPathSegList (default,null) : PathSegList;
 
-    var normalizedPathSegList (default,null) :PathSegList;
+	var normalizedPathSegList (default,null) : PathSegList;
 
-    /** Corresponds to attribute 
+	/** Corresponds to attribute 
 <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Attribute/pathLength">pathLength</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/path">&lt;path&gt;</a></code>
  element. */
-    var pathLength (default,null) :AnimatedNumber;
+	var pathLength (default,null) : AnimatedNumber;
 
-    var pathSegList (default,null) :PathSegList;
+	var pathSegList (default,null) : PathSegList;
 
-    function createSVGPathSegArcAbs (x :Float, y :Float, r1 :Float, r2 :Float, angle :Float, largeArcFlag :Bool, sweepFlag :Bool) :PathSegArcAbs;
+	function createSVGPathSegArcAbs( x : Float, y : Float, r1 : Float, r2 : Float, angle : Float, largeArcFlag : Bool, sweepFlag : Bool ) : PathSegArcAbs;
 
-    function createSVGPathSegArcRel (x :Float, y :Float, r1 :Float, r2 :Float, angle :Float, largeArcFlag :Bool, sweepFlag :Bool) :PathSegArcRel;
+	function createSVGPathSegArcRel( x : Float, y : Float, r1 : Float, r2 : Float, angle : Float, largeArcFlag : Bool, sweepFlag : Bool ) : PathSegArcRel;
 
-    function createSVGPathSegClosePath () :PathSegClosePath;
+	function createSVGPathSegClosePath() : PathSegClosePath;
 
-    function createSVGPathSegCurvetoCubicAbs (x :Float, y :Float, x1 :Float, y1 :Float, x2 :Float, y2 :Float) :PathSegCurvetoCubicAbs;
+	function createSVGPathSegCurvetoCubicAbs( x : Float, y : Float, x1 : Float, y1 : Float, x2 : Float, y2 : Float ) : PathSegCurvetoCubicAbs;
 
-    function createSVGPathSegCurvetoCubicRel (x :Float, y :Float, x1 :Float, y1 :Float, x2 :Float, y2 :Float) :PathSegCurvetoCubicRel;
+	function createSVGPathSegCurvetoCubicRel( x : Float, y : Float, x1 : Float, y1 : Float, x2 : Float, y2 : Float ) : PathSegCurvetoCubicRel;
 
-    function createSVGPathSegCurvetoCubicSmoothAbs (x :Float, y :Float, x2 :Float, y2 :Float) :PathSegCurvetoCubicSmoothAbs;
+	function createSVGPathSegCurvetoCubicSmoothAbs( x : Float, y : Float, x2 : Float, y2 : Float ) : PathSegCurvetoCubicSmoothAbs;
 
-    function createSVGPathSegCurvetoCubicSmoothRel (x :Float, y :Float, x2 :Float, y2 :Float) :PathSegCurvetoCubicSmoothRel;
+	function createSVGPathSegCurvetoCubicSmoothRel( x : Float, y : Float, x2 : Float, y2 : Float ) : PathSegCurvetoCubicSmoothRel;
 
-    function createSVGPathSegCurvetoQuadraticAbs (x :Float, y :Float, x1 :Float, y1 :Float) :PathSegCurvetoQuadraticAbs;
+	function createSVGPathSegCurvetoQuadraticAbs( x : Float, y : Float, x1 : Float, y1 : Float ) : PathSegCurvetoQuadraticAbs;
 
-    function createSVGPathSegCurvetoQuadraticRel (x :Float, y :Float, x1 :Float, y1 :Float) :PathSegCurvetoQuadraticRel;
+	function createSVGPathSegCurvetoQuadraticRel( x : Float, y : Float, x1 : Float, y1 : Float ) : PathSegCurvetoQuadraticRel;
 
-    function createSVGPathSegCurvetoQuadraticSmoothAbs (x :Float, y :Float) :PathSegCurvetoQuadraticSmoothAbs;
+	function createSVGPathSegCurvetoQuadraticSmoothAbs( x : Float, y : Float ) : PathSegCurvetoQuadraticSmoothAbs;
 
-    function createSVGPathSegCurvetoQuadraticSmoothRel (x :Float, y :Float) :PathSegCurvetoQuadraticSmoothRel;
+	function createSVGPathSegCurvetoQuadraticSmoothRel( x : Float, y : Float ) : PathSegCurvetoQuadraticSmoothRel;
 
-    function createSVGPathSegLinetoAbs (x :Float, y :Float) :PathSegLinetoAbs;
+	function createSVGPathSegLinetoAbs( x : Float, y : Float ) : PathSegLinetoAbs;
 
-    function createSVGPathSegLinetoHorizontalAbs (x :Float) :PathSegLinetoHorizontalAbs;
+	function createSVGPathSegLinetoHorizontalAbs( x : Float ) : PathSegLinetoHorizontalAbs;
 
-    function createSVGPathSegLinetoHorizontalRel (x :Float) :PathSegLinetoHorizontalRel;
+	function createSVGPathSegLinetoHorizontalRel( x : Float ) : PathSegLinetoHorizontalRel;
 
-    function createSVGPathSegLinetoRel (x :Float, y :Float) :PathSegLinetoRel;
+	function createSVGPathSegLinetoRel( x : Float, y : Float ) : PathSegLinetoRel;
 
-    function createSVGPathSegLinetoVerticalAbs (y :Float) :PathSegLinetoVerticalAbs;
+	function createSVGPathSegLinetoVerticalAbs( y : Float ) : PathSegLinetoVerticalAbs;
 
-    function createSVGPathSegLinetoVerticalRel (y :Float) :PathSegLinetoVerticalRel;
+	function createSVGPathSegLinetoVerticalRel( y : Float ) : PathSegLinetoVerticalRel;
 
-    function createSVGPathSegMovetoAbs (x :Float, y :Float) :PathSegMovetoAbs;
+	function createSVGPathSegMovetoAbs( x : Float, y : Float ) : PathSegMovetoAbs;
 
-    function createSVGPathSegMovetoRel (x :Float, y :Float) :PathSegMovetoRel;
+	function createSVGPathSegMovetoRel( x : Float, y : Float ) : PathSegMovetoRel;
 
-    function getPathSegAtLength (distance :Float) :Int;
+	function getPathSegAtLength( distance : Float ) : Int;
 
-    function getPointAtLength (distance :Float) :Point;
+	function getPointAtLength( distance : Float ) : Point;
 
-    function getTotalLength () :Float;
+	function getTotalLength() : Float;
 
 }

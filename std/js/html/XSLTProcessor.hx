@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -30,22 +30,22 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("XSLTProcessor")
 extern class XSLTProcessor
 {
-    function new () :Void;
+	function new() : Void;
 
-    function clearParameters () :Void;
+	function clearParameters() : Void;
 
-    function getParameter (namespaceURI :String, localName :String) :String;
+	function getParameter( namespaceURI : String, localName : String ) : String;
 
-    function importStylesheet (stylesheet :Node) :Void;
+	function importStylesheet( stylesheet : Node ) : Void;
 
-    function removeParameter (namespaceURI :String, localName :String) :Void;
+	function removeParameter( namespaceURI : String, localName : String ) : Void;
 
-    function reset () :Void;
+	function reset() : Void;
 
-    function setParameter (namespaceURI :String, localName :String, value :String) :Void;
+	function setParameter( namespaceURI : String, localName : String, value : String ) : Void;
 
-    function transformToDocument (source :Node) :Document;
+	function transformToDocument( source : Node ) : Document;
 
-    function transformToFragment (source :Node, docVal :Document) :DocumentFragment;
+	function transformToFragment( source : Node, docVal : Document ) : DocumentFragment;
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -35,7 +35,7 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("DataView")
 extern class DataView extends ArrayBufferView
 {
-    /** DataView DataView(<a title="en/JavaScript_typed_arrays/ArrayBuffer" rel="internal" href="https://developer.mozilla.org/en/JavaScript_typed_arrays/ArrayBuffer">ArrayBuffer</a> buffer, optional unsigned long byteOffset, optional unsigned long byteLength);<p>Returns a new <code>DataView</code> object using the passed <a title="en/JavaScript_typed_arrays/ArrayBuffer" rel="internal" href="https://developer.mozilla.org/en/JavaScript_typed_arrays/ArrayBuffer">ArrayBuffer</a> for its storage.</p>
+	/** DataView DataView(<a title="en/JavaScript_typed_arrays/ArrayBuffer" rel="internal" href="https://developer.mozilla.org/en/JavaScript_typed_arrays/ArrayBuffer">ArrayBuffer</a> buffer, optional unsigned long byteOffset, optional unsigned long byteLength);<p>Returns a new <code>DataView</code> object using the passed <a title="en/JavaScript_typed_arrays/ArrayBuffer" rel="internal" href="https://developer.mozilla.org/en/JavaScript_typed_arrays/ArrayBuffer">ArrayBuffer</a> for its storage.</p>
 <pre>DataView DataView(
 &nbsp; ArrayBuffer buffer,
 &nbsp; optional unsigned long byteOffset,
@@ -55,38 +55,38 @@ extern class DataView extends ArrayBufferView
 <dl> <dt><code>INDEX_SIZE_ERR</code></dt> <dd>The <code>byteOffset</code> and <code>byteLength</code> result in the specified view extending past the end of the buffer.</dd>
 </dl>
 </div> */
-    function new (?arg0 :Dynamic, ?arg1 :Dynamic, ?arg2 :Dynamic) :Void;
+	function new(?arg0 : Dynamic, ?arg1 : Dynamic, ?arg2 : Dynamic) : Void;
 
-    function getFloat32 (byteOffset :Int, ?littleEndian :Bool) :Float;
+	function getFloat32( byteOffset : Int, ?littleEndian : Bool ) : Float;
 
-    function getFloat64 (byteOffset :Int, ?littleEndian :Bool) :Float;
+	function getFloat64( byteOffset : Int, ?littleEndian : Bool ) : Float;
 
-    function getInt16 (byteOffset :Int, ?littleEndian :Bool) :Int;
+	function getInt16( byteOffset : Int, ?littleEndian : Bool ) : Int;
 
-    function getInt32 (byteOffset :Int, ?littleEndian :Bool) :Int;
+	function getInt32( byteOffset : Int, ?littleEndian : Bool ) : Int;
 
-    function getInt8 () :Dynamic;
+	function getInt8() : Dynamic;
 
-    function getUint16 (byteOffset :Int, ?littleEndian :Bool) :Int;
+	function getUint16( byteOffset : Int, ?littleEndian : Bool ) : Int;
 
-    function getUint32 (byteOffset :Int, ?littleEndian :Bool) :Int;
+	function getUint32( byteOffset : Int, ?littleEndian : Bool ) : Int;
 
-    function getUint8 () :Dynamic;
+	function getUint8() : Dynamic;
 
-    function setFloat32 (byteOffset :Int, value :Float, ?littleEndian :Bool) :Void;
+	function setFloat32( byteOffset : Int, value : Float, ?littleEndian : Bool ) : Void;
 
-    function setFloat64 (byteOffset :Int, value :Float, ?littleEndian :Bool) :Void;
+	function setFloat64( byteOffset : Int, value : Float, ?littleEndian : Bool ) : Void;
 
-    function setInt16 (byteOffset :Int, value :Int, ?littleEndian :Bool) :Void;
+	function setInt16( byteOffset : Int, value : Int, ?littleEndian : Bool ) : Void;
 
-    function setInt32 (byteOffset :Int, value :Int, ?littleEndian :Bool) :Void;
+	function setInt32( byteOffset : Int, value : Int, ?littleEndian : Bool ) : Void;
 
-    function setInt8 () :Void;
+	function setInt8() : Void;
 
-    function setUint16 (byteOffset :Int, value :Int, ?littleEndian :Bool) :Void;
+	function setUint16( byteOffset : Int, value : Int, ?littleEndian : Bool ) : Void;
 
-    function setUint32 (byteOffset :Int, value :Int, ?littleEndian :Bool) :Void;
+	function setUint32( byteOffset : Int, value : Int, ?littleEndian : Bool ) : Void;
 
-    function setUint8 () :Void;
+	function setUint8() : Void;
 
 }

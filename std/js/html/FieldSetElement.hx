@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -29,40 +29,40 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("HTMLFieldSetElement")
 extern class FieldSetElement extends Element
 {
-    /** Reflects the 
+	/** Reflects the 
 
 <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/fieldset#attr-disabled">disabled</a></code>
  HTML&nbsp;attribute, indicating whether the user can interact with the control. */
-    var disabled :Bool;
+	var disabled : Bool;
 
-    /** The elements belonging to this field set. */
-    var elements (default,null) :HTMLCollection;
+	/** The elements belonging to this field set. */
+	var elements (default,null) : HTMLCollection;
 
-    /** The containing form element, if this element is in a form. Otherwise, the element the <a title="en/HTML/Element/fieldset#attr-name" rel="internal" href="https://developer.mozilla.org/en/HTML/Element/fieldset#attr-name">name content attribute</a> points to 
+	/** The containing form element, if this element is in a form. Otherwise, the element the <a title="en/HTML/Element/fieldset#attr-name" rel="internal" href="https://developer.mozilla.org/en/HTML/Element/fieldset#attr-name">name content attribute</a> points to 
 <span><a rel="custom" href="https://developer.mozilla.org/en/HTML/HTML5">HTML5</a></span>. (<code>null</code> in 
 <span><a rel="custom" href="https://developer.mozilla.org/en/HTML">HTML 4</a></span>.) */
-    var form (default,null) :FormElement;
+	var form (default,null) : FormElement;
 
-    /** Reflects the 
+	/** Reflects the 
 
 <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/fieldset#attr-name">name</a></code>
  HTML&nbsp;attribute, containing the name of the field set, used for submitting the form. */
-    var name :String;
+	var name : String;
 
-    /** Must be the string <code>fieldset</code>. */
-    var type (default,null) :String;
+	/** Must be the string <code>fieldset</code>. */
+	var type (default,null) : String;
 
-    /** A localized message that describes the validation constraints that the element does not satisfy (if any). This is the empty string if the element&nbsp; is not a candidate for constraint validation (<strong>willValidate</strong> is false), or it satisfies its constraints. */
-    var validationMessage (default,null) :String;
+	/** A localized message that describes the validation constraints that the element does not satisfy (if any). This is the empty string if the element&nbsp; is not a candidate for constraint validation (<strong>willValidate</strong> is false), or it satisfies its constraints. */
+	var validationMessage (default,null) : String;
 
-    /** The validity states that this element is in. */
-    var validity (default,null) :ValidityState;
+	/** The validity states that this element is in. */
+	var validity (default,null) : ValidityState;
 
-    /** Always false because <code>fieldset</code> objects are never candidates for constraint validation. */
-    var willValidate (default,null) :Bool;
+	/** Always false because <code>fieldset</code> objects are never candidates for constraint validation. */
+	var willValidate (default,null) : Bool;
 
-    function checkValidity () :Bool;
+	function checkValidity() : Bool;
 
-    function setCustomValidity (error :String) :Void;
+	function setCustomValidity( error : String ) : Void;
 
 }

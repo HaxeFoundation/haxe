@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,28 +26,28 @@ package js.html.audio;
 @:native("AudioParam")
 extern class AudioParam
 {
-    var defaultValue (default,null) :Float;
+	var defaultValue (default,null) : Float;
 
-    var maxValue (default,null) :Float;
+	var maxValue (default,null) : Float;
 
-    var minValue (default,null) :Float;
+	var minValue (default,null) : Float;
 
-    var name (default,null) :String;
+	var name (default,null) : String;
 
-    var units (default,null) :Int;
+	var units (default,null) : Int;
 
-    var value :Float;
+	var value : Float;
 
-    function cancelScheduledValues (startTime :Float) :Void;
+	function cancelScheduledValues( startTime : Float ) : Void;
 
-    function exponentialRampToValueAtTime (value :Float, time :Float) :Void;
+	function exponentialRampToValueAtTime( value : Float, time : Float ) : Void;
 
-    function linearRampToValueAtTime (value :Float, time :Float) :Void;
+	function linearRampToValueAtTime( value : Float, time : Float ) : Void;
 
-    function setTargetAtTime (target :Float, time :Float, timeConstant :Float) :Void;
+	function setTargetAtTime( target : Float, time : Float, timeConstant : Float ) : Void;
 
-    function setValueAtTime (value :Float, time :Float) :Void;
+	function setValueAtTime( value : Float, time : Float ) : Void;
 
-    function setValueCurveAtTime (values :js.html.Float32Array, time :Float, duration :Float) :Void;
+	function setValueCurveAtTime( values : js.html.Float32Array, time : Float, duration : Float ) : Void;
 
 }

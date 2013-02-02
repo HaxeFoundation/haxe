@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -30,13 +30,13 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("ArrayBufferView")
 extern class ArrayBufferView
 {
-    /** The buffer this view references. <strong>Read only.</strong> */
-    var buffer (default,null) :ArrayBuffer;
+	/** The buffer this view references. <strong>Read only.</strong> */
+	var buffer (default,null) : ArrayBuffer;
 
-    /** The length, in bytes, of the view. <strong>Read only.</strong> */
-    var byteLength (default,null) :Int;
+	/** The length, in bytes, of the view. <strong>Read only.</strong> */
+	var byteLength (default,null) : Int;
 
-    /** The offset, in bytes, to the first byte of the view within the <a title="en/JavaScript typed arrays/ArrayBuffer" rel="internal" href="https://developer.mozilla.org/en/JavaScript_typed_arrays/ArrayBuffer"><code>ArrayBuffer</code></a>. */
-    var byteOffset (default,null) :Int;
+	/** The offset, in bytes, to the first byte of the view within the <a title="en/JavaScript typed arrays/ArrayBuffer" rel="internal" href="https://developer.mozilla.org/en/JavaScript_typed_arrays/ArrayBuffer"><code>ArrayBuffer</code></a>. */
+	var byteOffset (default,null) : Int;
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -30,32 +30,32 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("SVGFECompositeElement")
 extern class FECompositeElement extends Element
 {
-    static inline var SVG_FECOMPOSITE_OPERATOR_ARITHMETIC :Int = 6;
+	static inline var SVG_FECOMPOSITE_OPERATOR_ARITHMETIC : Int = 6;
 
-    static inline var SVG_FECOMPOSITE_OPERATOR_ATOP :Int = 4;
+	static inline var SVG_FECOMPOSITE_OPERATOR_ATOP : Int = 4;
 
-    static inline var SVG_FECOMPOSITE_OPERATOR_IN :Int = 2;
+	static inline var SVG_FECOMPOSITE_OPERATOR_IN : Int = 2;
 
-    static inline var SVG_FECOMPOSITE_OPERATOR_OUT :Int = 3;
+	static inline var SVG_FECOMPOSITE_OPERATOR_OUT : Int = 3;
 
-    static inline var SVG_FECOMPOSITE_OPERATOR_OVER :Int = 1;
+	static inline var SVG_FECOMPOSITE_OPERATOR_OVER : Int = 1;
 
-    static inline var SVG_FECOMPOSITE_OPERATOR_UNKNOWN :Int = 0;
+	static inline var SVG_FECOMPOSITE_OPERATOR_UNKNOWN : Int = 0;
 
-    static inline var SVG_FECOMPOSITE_OPERATOR_XOR :Int = 5;
+	static inline var SVG_FECOMPOSITE_OPERATOR_XOR : Int = 5;
 
-    var in1 (default,null) :AnimatedString;
+	var in1 (default,null) : AnimatedString;
 
-    var in2 (default,null) :AnimatedString;
+	var in2 (default,null) : AnimatedString;
 
-    var k1 (default,null) :AnimatedNumber;
+	var k1 (default,null) : AnimatedNumber;
 
-    var k2 (default,null) :AnimatedNumber;
+	var k2 (default,null) : AnimatedNumber;
 
-    var k3 (default,null) :AnimatedNumber;
+	var k3 (default,null) : AnimatedNumber;
 
-    var k4 (default,null) :AnimatedNumber;
+	var k4 (default,null) : AnimatedNumber;
 
-    var operator (default,null) :AnimatedEnumeration;
+	var operator (default,null) : AnimatedEnumeration;
 
 }

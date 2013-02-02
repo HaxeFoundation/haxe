@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -30,30 +30,30 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("Entry")
 extern class Entry
 {
-    /** The file system on which the entry resides. */
-    var filesystem (default,null) :FileSystem;
+	/** The file system on which the entry resides. */
+	var filesystem (default,null) : FileSystem;
 
-    var fullPath (default,null) :String;
+	var fullPath (default,null) : String;
 
-    /** The entry is a directory. */
-    var isDirectory (default,null) :Bool;
+	/** The entry is a directory. */
+	var isDirectory (default,null) : Bool;
 
-    /** The entry is a file. */
-    var isFile (default,null) :Bool;
+	/** The entry is a file. */
+	var isFile (default,null) : Bool;
 
-    /** The name of the entry, excluding the path leading to it. */
-    var name (default,null) :String;
+	/** The name of the entry, excluding the path leading to it. */
+	var name (default,null) : String;
 
-    function copyTo (parent :DirectoryEntry, ?name :String, ?successCallback :EntryCallback, ?errorCallback :ErrorCallback) :Void;
+	function copyTo( parent : DirectoryEntry, ?name : String, ?successCallback : EntryCallback, ?errorCallback : ErrorCallback ) : Void;
 
-    function getMetadata (successCallback :MetadataCallback, ?errorCallback :ErrorCallback) :Void;
+	function getMetadata( successCallback : MetadataCallback, ?errorCallback : ErrorCallback ) : Void;
 
-    function getParent (?successCallback :EntryCallback, ?errorCallback :ErrorCallback) :Void;
+	function getParent( ?successCallback : EntryCallback, ?errorCallback : ErrorCallback ) : Void;
 
-    function moveTo (parent :DirectoryEntry, ?name :String, ?successCallback :EntryCallback, ?errorCallback :ErrorCallback) :Void;
+	function moveTo( parent : DirectoryEntry, ?name : String, ?successCallback : EntryCallback, ?errorCallback : ErrorCallback ) : Void;
 
-    function remove (successCallback :js.html.VoidCallback, ?errorCallback :ErrorCallback) :Void;
+	function remove( successCallback : js.html.VoidCallback, ?errorCallback : ErrorCallback ) : Void;
 
-    function toURL () :String;
+	function toURL() : String;
 
 }

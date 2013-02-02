@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,32 +26,32 @@ package js.html.svg;
 @:native("SVGPaint")
 extern class Paint extends Color
 {
-    static inline var SVG_PAINTTYPE_CURRENTCOLOR :Int = 102;
+	static inline var SVG_PAINTTYPE_CURRENTCOLOR : Int = 102;
 
-    static inline var SVG_PAINTTYPE_NONE :Int = 101;
+	static inline var SVG_PAINTTYPE_NONE : Int = 101;
 
-    static inline var SVG_PAINTTYPE_RGBCOLOR :Int = 1;
+	static inline var SVG_PAINTTYPE_RGBCOLOR : Int = 1;
 
-    static inline var SVG_PAINTTYPE_RGBCOLOR_ICCCOLOR :Int = 2;
+	static inline var SVG_PAINTTYPE_RGBCOLOR_ICCCOLOR : Int = 2;
 
-    static inline var SVG_PAINTTYPE_UNKNOWN :Int = 0;
+	static inline var SVG_PAINTTYPE_UNKNOWN : Int = 0;
 
-    static inline var SVG_PAINTTYPE_URI :Int = 107;
+	static inline var SVG_PAINTTYPE_URI : Int = 107;
 
-    static inline var SVG_PAINTTYPE_URI_CURRENTCOLOR :Int = 104;
+	static inline var SVG_PAINTTYPE_URI_CURRENTCOLOR : Int = 104;
 
-    static inline var SVG_PAINTTYPE_URI_NONE :Int = 103;
+	static inline var SVG_PAINTTYPE_URI_NONE : Int = 103;
 
-    static inline var SVG_PAINTTYPE_URI_RGBCOLOR :Int = 105;
+	static inline var SVG_PAINTTYPE_URI_RGBCOLOR : Int = 105;
 
-    static inline var SVG_PAINTTYPE_URI_RGBCOLOR_ICCCOLOR :Int = 106;
+	static inline var SVG_PAINTTYPE_URI_RGBCOLOR_ICCCOLOR : Int = 106;
 
-    var paintType (default,null) :Int;
+	var paintType (default,null) : Int;
 
-    var uri (default,null) :String;
+	var uri (default,null) : String;
 
-    function setPaint (paintType :Int, uri :String, rgbColor :String, iccColor :String) :Void;
+	function setPaint( paintType : Int, uri : String, rgbColor : String, iccColor : String ) : Void;
 
-    function setUri (uri :String) :Void;
+	function setUri( uri : String ) : Void;
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,14 +26,14 @@ package js.html;
 @:native("CSSKeyframesRule")
 extern class CSSKeyframesRule extends CSSRule
 {
-    var cssRules (default,null) :CSSRuleList;
+	var cssRules (default,null) : CSSRuleList;
 
-    var name :String;
+	var name : String;
 
-    function deleteRule (key :String) :Void;
+	function deleteRule( key : String ) : Void;
 
-    function findRule (key :String) :CSSKeyframeRule;
+	function findRule( key : String ) : CSSKeyframeRule;
 
-    function insertRule (rule :String) :Void;
+	function insertRule( rule : String ) : Void;
 
 }

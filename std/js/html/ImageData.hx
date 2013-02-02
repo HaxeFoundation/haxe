@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -29,10 +29,10 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("ImageData")
 extern class ImageData
 {
-    var data (default,null) :Uint8ClampedArray;
+	var data (default,null) : Uint8ClampedArray;
 
-    var height (default,null) :Int;
+	var height (default,null) : Int;
 
-    var width (default,null) :Int;
+	var width (default,null) : Int;
 
 }

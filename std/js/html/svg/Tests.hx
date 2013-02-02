@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -31,18 +31,18 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("SVGTests")
 extern class Tests
 {
-    /** Corresponds to attribute 
+	/** Corresponds to attribute 
 <code><a rel="internal" href="https://developer.mozilla.org/en/SVG/Attribute/requiredExtensions" class="new">requiredExtensions</a></code> on the given element. */
-    var requiredExtensions (default,null) :StringList;
+	var requiredExtensions (default,null) : StringList;
 
-    /** Corresponds to attribute 
+	/** Corresponds to attribute 
 <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Attribute/requiredFeatures">requiredFeatures</a></code> on the given element. */
-    var requiredFeatures (default,null) :StringList;
+	var requiredFeatures (default,null) : StringList;
 
-    /** Corresponds to attribute 
+	/** Corresponds to attribute 
 <code><a rel="internal" href="https://developer.mozilla.org/en/SVG/Attribute/systemLanguage" class="new">systemLanguage</a></code> on the given element. */
-    var systemLanguage (default,null) :StringList;
+	var systemLanguage (default,null) : StringList;
 
-    function hasExtension (extension :String) :Bool;
+	function hasExtension( extension : String ) : Bool;
 
 }

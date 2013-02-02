@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -28,20 +28,20 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("NamedNodeMap")
 extern class NamedNodeMap implements ArrayAccess<Node>
 {
-    var length (default,null) :Int;
+	var length (default,null) : Int;
 
-    function getNamedItem (name :String) :Node;
+	function getNamedItem( name : String ) : Node;
 
-    function getNamedItemNS (namespaceURI :String, localName :String) :Node;
+	function getNamedItemNS( namespaceURI : String, localName : String ) : Node;
 
-    function item (index :Int) :Node;
+	function item( index : Int ) : Node;
 
-    function removeNamedItem (name :String) :Node;
+	function removeNamedItem( name : String ) : Node;
 
-    function removeNamedItemNS (namespaceURI :String, localName :String) :Node;
+	function removeNamedItemNS( namespaceURI : String, localName : String ) : Node;
 
-    function setNamedItem (node :Node) :Node;
+	function setNamedItem( node : Node ) : Node;
 
-    function setNamedItemNS (node :Node) :Node;
+	function setNamedItemNS( node : Node ) : Node;
 
 }

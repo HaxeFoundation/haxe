@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -29,26 +29,26 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("HTMLFrameSetElement")
 extern class FrameSetElement extends Element
 {
-    var cols :String;
+	var cols : String;
 
-    var onbeforeunload :EventListener;
+	var onbeforeunload : EventListener;
 
-    var onhashchange :EventListener;
+	var onhashchange : EventListener;
 
-    var onmessage :EventListener;
+	var onmessage : EventListener;
 
-    var onoffline :EventListener;
+	var onoffline : EventListener;
 
-    var ononline :EventListener;
+	var ononline : EventListener;
 
-    var onpopstate :EventListener;
+	var onpopstate : EventListener;
 
-    var onresize :EventListener;
+	var onresize : EventListener;
 
-    var onstorage :EventListener;
+	var onstorage : EventListener;
 
-    var onunload :EventListener;
+	var onunload : EventListener;
 
-    var rows :String;
+	var rows : String;
 
 }

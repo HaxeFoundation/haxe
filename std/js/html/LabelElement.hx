@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -29,16 +29,16 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("HTMLLabelElement")
 extern class LabelElement extends Element
 {
-    /** The labeled control. */
-    var control (default,null) :Element;
+	/** The labeled control. */
+	var control (default,null) : Element;
 
-    /** The form owner of this label. */
-    var form (default,null) :FormElement;
+	/** The form owner of this label. */
+	var form (default,null) : FormElement;
 
-    /** The ID of the labeled control. Reflects the 
+	/** The ID of the labeled control. Reflects the 
 
 <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/label#attr-for">for</a></code>
  attribute. */
-    var htmlFor :String;
+	var htmlFor : String;
 
 }

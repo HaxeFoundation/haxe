@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -30,81 +30,81 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("CanvasRenderingContext2D")
 extern class CanvasRenderingContext2D extends CanvasRenderingContext
 {
-    var backingStorePixelRatio (default,null) :Float;
+	var backingStorePixelRatio (default,null) : Float;
 
-    /** Color or style to use inside shapes. Default <code>#000</code> (black). */
-    var fillStyle :Dynamic;
+	/** Color or style to use inside shapes. Default <code>#000</code> (black). */
+	var fillStyle : Dynamic;
 
-    /** Default value <code>10px sans-serif</code>. */
-    var font :String;
+	/** Default value <code>10px sans-serif</code>. */
+	var font : String;
 
-    /** Alpha value that is applied to shapes and images before they are composited onto the canvas. Default <code>1.0</code> (opaque). */
-    var globalAlpha :Float;
+	/** Alpha value that is applied to shapes and images before they are composited onto the canvas. Default <code>1.0</code> (opaque). */
+	var globalAlpha : Float;
 
-    /** With <code>globalAplpha</code> applied this sets how shapes and images are drawn onto the existing bitmap. Possible values: <ul> <li><code>source-atop</code></li> <li><code>source-in</code></li> <li><code>source-out</code></li> <li><code>source-over</code> (default)</li> <li><code>destination-atop</code></li> <li><code>destination-in</code></li> <li><code>destination-out</code></li> <li><code>destination-over</code></li> <li><code>lighter</code></li> <li><code>xor</code></li> </ul> */
-    var globalCompositeOperation :String;
+	/** With <code>globalAplpha</code> applied this sets how shapes and images are drawn onto the existing bitmap. Possible values: <ul> <li><code>source-atop</code></li> <li><code>source-in</code></li> <li><code>source-out</code></li> <li><code>source-over</code> (default)</li> <li><code>destination-atop</code></li> <li><code>destination-in</code></li> <li><code>destination-out</code></li> <li><code>destination-over</code></li> <li><code>lighter</code></li> <li><code>xor</code></li> </ul> */
+	var globalCompositeOperation : String;
 
-    var imageSmoothingEnabled :Bool;
+	var imageSmoothingEnabled : Bool;
 
-    /** Type of endings on the end of lines. Possible values: <code>butt</code> (default), <code>round</code>, <code>square</code> */
-    var lineCap :String;
+	/** Type of endings on the end of lines. Possible values: <code>butt</code> (default), <code>round</code>, <code>square</code> */
+	var lineCap : String;
 
-    var lineDash :Array<Dynamic>;
+	var lineDash : Array<Dynamic>;
 
-    var lineDashOffset :Float;
+	var lineDashOffset : Float;
 
-    /** Defines the type of corners where two lines meet. Possible values: <code>round</code>, <code>bevel</code>, <code>miter</code> (default) */
-    var lineJoin :String;
+	/** Defines the type of corners where two lines meet. Possible values: <code>round</code>, <code>bevel</code>, <code>miter</code> (default) */
+	var lineJoin : String;
 
-    /** Width of lines. Default <code>1.0</code> */
-    var lineWidth :Float;
+	/** Width of lines. Default <code>1.0</code> */
+	var lineWidth : Float;
 
-    /** Default <code>10</code>. */
-    var miterLimit :Float;
+	/** Default <code>10</code>. */
+	var miterLimit : Float;
 
-    /** Specifies the blurring effect. Default <code>0</code> */
-    var shadowBlur :Float;
+	/** Specifies the blurring effect. Default <code>0</code> */
+	var shadowBlur : Float;
 
-    /** Color of the shadow. Default fully-transparent black. */
-    var shadowColor :String;
+	/** Color of the shadow. Default fully-transparent black. */
+	var shadowColor : String;
 
-    /** Horizontal distance the shadow will be offset. Default 0. */
-    var shadowOffsetX :Float;
+	/** Horizontal distance the shadow will be offset. Default 0. */
+	var shadowOffsetX : Float;
 
-    /** Vertical distance the shadow will be offset. Default 0. */
-    var shadowOffsetY :Float;
+	/** Vertical distance the shadow will be offset. Default 0. */
+	var shadowOffsetY : Float;
 
-    /** Color or style to use for the lines around shapes. Default <code>#000</code> (black). */
-    var strokeStyle :Dynamic;
+	/** Color or style to use for the lines around shapes. Default <code>#000</code> (black). */
+	var strokeStyle : Dynamic;
 
-    /** Possible values: <code>start</code> (default), <code>end</code>, <code>left</code>, <code>right</code> or <code>center</code>. */
-    var textAlign :String;
+	/** Possible values: <code>start</code> (default), <code>end</code>, <code>left</code>, <code>right</code> or <code>center</code>. */
+	var textAlign : String;
 
-    var textBaseline :String;
+	var textBaseline : String;
 
-    function arc (x :Float, y :Float, radius :Float, startAngle :Float, endAngle :Float, anticlockwise :Bool) :Void;
+	function arc( x : Float, y : Float, radius : Float, startAngle : Float, endAngle : Float, anticlockwise : Bool ) : Void;
 
-    function arcTo (x1 :Float, y1 :Float, x2 :Float, y2 :Float, radius :Float) :Void;
+	function arcTo( x1 : Float, y1 : Float, x2 : Float, y2 : Float, radius : Float ) : Void;
 
-    function beginPath () :Void;
+	function beginPath() : Void;
 
-    function bezierCurveTo (cp1x :Float, cp1y :Float, cp2x :Float, cp2y :Float, x :Float, y :Float) :Void;
+	function bezierCurveTo( cp1x : Float, cp1y : Float, cp2x : Float, cp2y : Float, x : Float, y : Float ) : Void;
 
-    function clearRect (x :Float, y :Float, width :Float, height :Float) :Void;
+	function clearRect( x : Float, y : Float, width : Float, height : Float ) : Void;
 
-    function clearShadow () :Void;
+	function clearShadow() : Void;
 
-    function clip () :Void;
+	function clip() : Void;
 
-    function closePath () :Void;
+	function closePath() : Void;
 
-    /** Throws DOMException. */
-    @:overload(function (imagedata :ImageData) :ImageData {})
-    function createImageData (sw :Float, sh :Float) :ImageData;
+	/** Throws DOMException. */
+	@:overload( function( imagedata : ImageData ) :ImageData {} )
+	function createImageData( sw : Float, sh : Float ) : ImageData;
 
-    function createLinearGradient (x0 :Float, y0 :Float, x1 :Float, y1 :Float) :CanvasGradient;
+	function createLinearGradient( x0 : Float, y0 : Float, x1 : Float, y1 : Float ) : CanvasGradient;
 
-    /** <div id="section_31"><span id="Parameters_10"></span><h6 class="editable">Parameters</h6>
+	/** <div id="section_31"><span id="Parameters_10"></span><h6 class="editable">Parameters</h6>
 <dl> <dt><code>image</code></dt> <dd>A DOM <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/element">element</a></code>
  to use as the source image for the pattern. This can be any element, although typically you'll use an <code><a rel="internal" href="https://developer.mozilla.org/Article_not_found?uri=en/DOM/Image" class="new">Image</a></code>
  or <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/canvas">&lt;canvas&gt;</a></code>
@@ -120,12 +120,12 @@ extern class CanvasRenderingContext2D extends CanvasRenderingContext
  element for the <code>image</code> parameter is zero-sized (that is, one or both of its dimensions are 0 pixels).</dd>
 </dl>
 </div> Throws DOMException. */
-    @:overload(function (canvas :CanvasElement, repetitionType :String) :CanvasPattern {})
-    function createPattern (image :ImageElement, repetitionType :String) :CanvasPattern;
+	@:overload( function( canvas : CanvasElement, repetitionType : String ) :CanvasPattern {} )
+	function createPattern( image : ImageElement, repetitionType : String ) : CanvasPattern;
 
-    function createRadialGradient (x0 :Float, y0 :Float, r0 :Float, x1 :Float, y1 :Float, r1 :Float) :CanvasGradient;
+	function createRadialGradient( x0 : Float, y0 : Float, r0 : Float, x1 : Float, y1 : Float, r1 : Float ) : CanvasGradient;
 
-    /** <p>Draws the specified image. This method is available in multiple formats, providing a great deal of flexibility in its use.</p>
+	/** <p>Draws the specified image. This method is available in multiple formats, providing a great deal of flexibility in its use.</p>
 
 <div id="section_41"><span id="Parameters_13"></span><h6 class="editable">Parameters</h6>
 <dl> <dt><code>image</code></dt> <dd>An element to draw into the context; the specification permits any image element (that is, <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/img">&lt;img&gt;</a></code>
@@ -145,100 +145,100 @@ extern class CanvasRenderingContext2D extends CanvasRenderingContext
  now correctly supports CORS for drawing images across domains without <a title="en/CORS_Enabled_Image#What_is_a_.22tainted.22_canvas.3F" rel="internal" href="https://developer.mozilla.org/en/CORS_Enabled_Image#What_is_a_.22tainted.22_canvas.3F">tainting the canvas</a>.</li>
 </ul>
 </div> Throws DOMException. */
-    @:overload(function (image :ImageElement, x :Float, y :Float) :Void {})
-    @:overload(function (image :ImageElement, x :Float, y :Float, width :Float, height :Float) :Void {})
-    @:overload(function (image :ImageElement, sx :Float, sy :Float, sw :Float, sh :Float, dx :Float, dy :Float, dw :Float, dh :Float) :Void {})
-    @:overload(function (canvas :CanvasElement, x :Float, y :Float) :Void {})
-    @:overload(function (canvas :CanvasElement, x :Float, y :Float, width :Float, height :Float) :Void {})
-    @:overload(function (canvas :CanvasElement, sx :Float, sy :Float, sw :Float, sh :Float, dx :Float, dy :Float, dw :Float, dh :Float) :Void {})
-    @:overload(function (video :VideoElement, x :Float, y :Float) :Void {})
-    @:overload(function (video :VideoElement, x :Float, y :Float, width :Float, height :Float) :Void {})
-    function drawImage (video :VideoElement, sx :Float, sy :Float, sw :Float, sh :Float, dx :Float, dy :Float, dw :Float, dh :Float) :Void;
+	@:overload( function( image : ImageElement, x : Float, y : Float ) :Void {} )
+	@:overload( function( image : ImageElement, x : Float, y : Float, width : Float, height : Float ) :Void {} )
+	@:overload( function( image : ImageElement, sx : Float, sy : Float, sw : Float, sh : Float, dx : Float, dy : Float, dw : Float, dh : Float ) :Void {} )
+	@:overload( function( canvas : CanvasElement, x : Float, y : Float ) :Void {} )
+	@:overload( function( canvas : CanvasElement, x : Float, y : Float, width : Float, height : Float ) :Void {} )
+	@:overload( function( canvas : CanvasElement, sx : Float, sy : Float, sw : Float, sh : Float, dx : Float, dy : Float, dw : Float, dh : Float ) :Void {} )
+	@:overload( function( video : VideoElement, x : Float, y : Float ) :Void {} )
+	@:overload( function( video : VideoElement, x : Float, y : Float, width : Float, height : Float ) :Void {} )
+	function drawImage( video : VideoElement, sx : Float, sy : Float, sw : Float, sh : Float, dx : Float, dy : Float, dw : Float, dh : Float ) : Void;
 
-    function drawImageFromRect (image :ImageElement, ?sx :Float, ?sy :Float, ?sw :Float, ?sh :Float, ?dx :Float, ?dy :Float, ?dw :Float, ?dh :Float, ?compositeOperation :String) :Void;
+	function drawImageFromRect( image : ImageElement, ?sx : Float, ?sy : Float, ?sw : Float, ?sh : Float, ?dx : Float, ?dy : Float, ?dw : Float, ?dh : Float, ?compositeOperation : String ) : Void;
 
-    function fill () :Void;
+	function fill() : Void;
 
-    function fillRect (x :Float, y :Float, width :Float, height :Float) :Void;
+	function fillRect( x : Float, y : Float, width : Float, height : Float ) : Void;
 
-    function fillText (text :String, x :Float, y :Float, ?maxWidth :Float) :Void;
+	function fillText( text : String, x : Float, y : Float, ?maxWidth : Float ) : Void;
 
-    function getImageData (sx :Float, sy :Float, sw :Float, sh :Float) :ImageData;
+	function getImageData( sx : Float, sy : Float, sw : Float, sh : Float ) : ImageData;
 
-    function getImageDataHD (sx :Float, sy :Float, sw :Float, sh :Float) :ImageData;
+	function getImageDataHD( sx : Float, sy : Float, sw : Float, sh : Float ) : ImageData;
 
-    function getLineDash () :Array<Float>;
+	function getLineDash() : Array<Float>;
 
-    function isPointInPath (x :Float, y :Float) :Bool;
+	function isPointInPath( x : Float, y : Float ) : Bool;
 
-    function lineTo (x :Float, y :Float) :Void;
+	function lineTo( x : Float, y : Float ) : Void;
 
-    function measureText (text :String) :TextMetrics;
+	function measureText( text : String ) : TextMetrics;
 
-    function moveTo (x :Float, y :Float) :Void;
+	function moveTo( x : Float, y : Float ) : Void;
 
-    /** <h6 class="editable">Compatibility notes</h6>
+	/** <h6 class="editable">Compatibility notes</h6>
 <ul> <li>Starting in Gecko 10.0 (Firefox 10.0 / Thunderbird 10.0)
 , non-finite values to any of these parameters causes the call to putImageData() to be silently ignored, rather than throwing an exception.</li>
 </ul> Throws DOMException. */
-    @:overload(function (imagedata :ImageData, dx :Float, dy :Float) :Void {})
-    function putImageData (imagedata :ImageData, dx :Float, dy :Float, dirtyX :Float, dirtyY :Float, dirtyWidth :Float, dirtyHeight :Float) :Void;
+	@:overload( function( imagedata : ImageData, dx : Float, dy : Float ) :Void {} )
+	function putImageData( imagedata : ImageData, dx : Float, dy : Float, dirtyX : Float, dirtyY : Float, dirtyWidth : Float, dirtyHeight : Float ) : Void;
 
-    /** Throws DOMException. */
-    @:overload(function (imagedata :ImageData, dx :Float, dy :Float) :Void {})
-    function putImageDataHD (imagedata :ImageData, dx :Float, dy :Float, dirtyX :Float, dirtyY :Float, dirtyWidth :Float, dirtyHeight :Float) :Void;
+	/** Throws DOMException. */
+	@:overload( function( imagedata : ImageData, dx : Float, dy : Float ) :Void {} )
+	function putImageDataHD( imagedata : ImageData, dx : Float, dy : Float, dirtyX : Float, dirtyY : Float, dirtyWidth : Float, dirtyHeight : Float ) : Void;
 
-    function quadraticCurveTo (cpx :Float, cpy :Float, x :Float, y :Float) :Void;
+	function quadraticCurveTo( cpx : Float, cpy : Float, x : Float, y : Float ) : Void;
 
-    function rect (x :Float, y :Float, width :Float, height :Float) :Void;
+	function rect( x : Float, y : Float, width : Float, height : Float ) : Void;
 
-    function restore () :Void;
+	function restore() : Void;
 
-    function rotate (angle :Float) :Void;
+	function rotate( angle : Float ) : Void;
 
-    function save () :Void;
+	function save() : Void;
 
-    function scale (sx :Float, sy :Float) :Void;
+	function scale( sx : Float, sy : Float ) : Void;
 
-    function setAlpha (alpha :Float) :Void;
+	function setAlpha( alpha : Float ) : Void;
 
-    function setCompositeOperation (compositeOperation :String) :Void;
+	function setCompositeOperation( compositeOperation : String ) : Void;
 
-    @:overload(function (color :String, ?alpha :Float) :Void {})
-    @:overload(function (grayLevel :Float, ?alpha :Float) :Void {})
-    @:overload(function (r :Float, g :Float, b :Float, a :Float) :Void {})
-    function setFillColor (c :Float, m :Float, y :Float, k :Float, a :Float) :Void;
+	@:overload( function( color : String, ?alpha : Float ) :Void {} )
+	@:overload( function( grayLevel : Float, ?alpha : Float ) :Void {} )
+	@:overload( function( r : Float, g : Float, b : Float, a : Float ) :Void {} )
+	function setFillColor( c : Float, m : Float, y : Float, k : Float, a : Float ) : Void;
 
-    function setLineCap (cap :String) :Void;
+	function setLineCap( cap : String ) : Void;
 
-    function setLineDash (dash :Array<Float>) :Void;
+	function setLineDash( dash : Array<Float> ) : Void;
 
-    function setLineJoin (join :String) :Void;
+	function setLineJoin( join : String ) : Void;
 
-    function setLineWidth (width :Float) :Void;
+	function setLineWidth( width : Float ) : Void;
 
-    function setMiterLimit (limit :Float) :Void;
+	function setMiterLimit( limit : Float ) : Void;
 
-    @:overload(function (width :Float, height :Float, blur :Float, ?color :String, ?alpha :Float) :Void {})
-    @:overload(function (width :Float, height :Float, blur :Float, grayLevel :Float, ?alpha :Float) :Void {})
-    @:overload(function (width :Float, height :Float, blur :Float, r :Float, g :Float, b :Float, a :Float) :Void {})
-    function setShadow (width :Float, height :Float, blur :Float, c :Float, m :Float, y :Float, k :Float, a :Float) :Void;
+	@:overload( function( width : Float, height : Float, blur : Float, ?color : String, ?alpha : Float ) :Void {} )
+	@:overload( function( width : Float, height : Float, blur : Float, grayLevel : Float, ?alpha : Float ) :Void {} )
+	@:overload( function( width : Float, height : Float, blur : Float, r : Float, g : Float, b : Float, a : Float ) :Void {} )
+	function setShadow( width : Float, height : Float, blur : Float, c : Float, m : Float, y : Float, k : Float, a : Float ) : Void;
 
-    @:overload(function (color :String, ?alpha :Float) :Void {})
-    @:overload(function (grayLevel :Float, ?alpha :Float) :Void {})
-    @:overload(function (r :Float, g :Float, b :Float, a :Float) :Void {})
-    function setStrokeColor (c :Float, m :Float, y :Float, k :Float, a :Float) :Void;
+	@:overload( function( color : String, ?alpha : Float ) :Void {} )
+	@:overload( function( grayLevel : Float, ?alpha : Float ) :Void {} )
+	@:overload( function( r : Float, g : Float, b : Float, a : Float ) :Void {} )
+	function setStrokeColor( c : Float, m : Float, y : Float, k : Float, a : Float ) : Void;
 
-    function setTransform (m11 :Float, m12 :Float, m21 :Float, m22 :Float, dx :Float, dy :Float) :Void;
+	function setTransform( m11 : Float, m12 : Float, m21 : Float, m22 : Float, dx : Float, dy : Float ) : Void;
 
-    function stroke () :Void;
+	function stroke() : Void;
 
-    function strokeRect (x :Float, y :Float, width :Float, height :Float, ?lineWidth :Float) :Void;
+	function strokeRect( x : Float, y : Float, width : Float, height : Float, ?lineWidth : Float ) : Void;
 
-    function strokeText (text :String, x :Float, y :Float, ?maxWidth :Float) :Void;
+	function strokeText( text : String, x : Float, y : Float, ?maxWidth : Float ) : Void;
 
-    function transform (m11 :Float, m12 :Float, m21 :Float, m22 :Float, dx :Float, dy :Float) :Void;
+	function transform( m11 : Float, m12 : Float, m21 : Float, m22 : Float, dx : Float, dy : Float ) : Void;
 
-    function translate (tx :Float, ty :Float) :Void;
+	function translate( tx : Float, ty : Float ) : Void;
 
 }

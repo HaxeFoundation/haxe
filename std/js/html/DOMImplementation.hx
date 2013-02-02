@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -28,14 +28,14 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("DOMImplementation")
 extern class DOMImplementation
 {
-    function createCSSStyleSheet (title :String, media :String) :CSSStyleSheet;
+	function createCSSStyleSheet( title : String, media : String ) : CSSStyleSheet;
 
-    function createDocument (namespaceURI :String, qualifiedName :String, doctype :DocumentType) :Document;
+	function createDocument( namespaceURI : String, qualifiedName : String, doctype : DocumentType ) : Document;
 
-    function createDocumentType (qualifiedName :String, publicId :String, systemId :String) :DocumentType;
+	function createDocumentType( qualifiedName : String, publicId : String, systemId : String ) : DocumentType;
 
-    function createHTMLDocument (title :String) :Document;
+	function createHTMLDocument( title : String ) : Document;
 
-    function hasFeature (feature :String, version :String) :Bool;
+	function hasFeature( feature : String, version : String ) : Bool;
 
 }

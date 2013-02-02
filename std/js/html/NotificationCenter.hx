@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,12 +26,12 @@ package js.html;
 @:native("NotificationCenter")
 extern class NotificationCenter
 {
-    function checkPermission () :Int;
+	function checkPermission() : Int;
 
-    function createHTMLNotification (url :String) :Notification;
+	function createHTMLNotification( url : String ) : Notification;
 
-    function createNotification (iconUrl :String, title :String, body :String) :Notification;
+	function createNotification( iconUrl : String, title : String, body : String ) : Notification;
 
-    function requestPermission (callback_ :VoidCallback) :Void;
+	function requestPermission( callback_ : VoidCallback ) : Void;
 
 }

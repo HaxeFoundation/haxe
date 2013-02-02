@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -30,26 +30,26 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("IDBRequest")
 extern class Request extends js.html.EventTarget
 {
-    /** Getter throws DatabaseException. */
-    var error (default,null) :js.html.DOMError;
+	/** Getter throws DatabaseException. */
+	var error (default,null) : js.html.DOMError;
 
-    /** Getter throws DatabaseException. */
-    var errorCode (default,null) :Int;
+	/** Getter throws DatabaseException. */
+	var errorCode (default,null) : Int;
 
-    /** Getter throws DatabaseException. */
-    var errorMessage (default,null) :String;
+	/** Getter throws DatabaseException. */
+	var errorMessage (default,null) : String;
 
-    var onerror :js.html.EventListener;
+	var onerror : js.html.EventListener;
 
-    var onsuccess :js.html.EventListener;
+	var onsuccess : js.html.EventListener;
 
-    var readyState (default,null) :String;
+	var readyState (default,null) : String;
 
-    /** Getter throws DatabaseException. */
-    var result (default,null) :Any;
+	/** Getter throws DatabaseException. */
+	var result (default,null) : Any;
 
-    var source (default,null) :Any;
+	var source (default,null) : Any;
 
-    var transaction (default,null) :Transaction;
+	var transaction (default,null) : Transaction;
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -28,24 +28,24 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("SVGFEDisplacementMapElement")
 extern class FEDisplacementMapElement extends Element
 {
-    static inline var SVG_CHANNEL_A :Int = 4;
+	static inline var SVG_CHANNEL_A : Int = 4;
 
-    static inline var SVG_CHANNEL_B :Int = 3;
+	static inline var SVG_CHANNEL_B : Int = 3;
 
-    static inline var SVG_CHANNEL_G :Int = 2;
+	static inline var SVG_CHANNEL_G : Int = 2;
 
-    static inline var SVG_CHANNEL_R :Int = 1;
+	static inline var SVG_CHANNEL_R : Int = 1;
 
-    static inline var SVG_CHANNEL_UNKNOWN :Int = 0;
+	static inline var SVG_CHANNEL_UNKNOWN : Int = 0;
 
-    var in1 (default,null) :AnimatedString;
+	var in1 (default,null) : AnimatedString;
 
-    var in2 (default,null) :AnimatedString;
+	var in2 (default,null) : AnimatedString;
 
-    var scale (default,null) :AnimatedNumber;
+	var scale (default,null) : AnimatedNumber;
 
-    var xChannelSelector (default,null) :AnimatedEnumeration;
+	var xChannelSelector (default,null) : AnimatedEnumeration;
 
-    var yChannelSelector (default,null) :AnimatedEnumeration;
+	var yChannelSelector (default,null) : AnimatedEnumeration;
 
 }

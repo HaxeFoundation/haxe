@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -28,40 +28,40 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("Location")
 extern class Location
 {
-    var ancestorOrigins (default,null) :DOMStringList;
+	var ancestorOrigins (default,null) : DOMStringList;
 
-    /** the part of the URL that follows the # symbol, including the # symbol.<br> You can listen for the <a title="en/DOM/window.onhashchange" rel="internal" href="https://developer.mozilla.org/en/DOM/window.onhashchange">hashchange event</a> to get notified of changes to the hash in supporting browsers. */
-    var hash :String;
+	/** the part of the URL that follows the # symbol, including the # symbol.<br> You can listen for the <a title="en/DOM/window.onhashchange" rel="internal" href="https://developer.mozilla.org/en/DOM/window.onhashchange">hashchange event</a> to get notified of changes to the hash in supporting browsers. */
+	var hash : String;
 
-    /** the host name and port number. */
-    var host :String;
+	/** the host name and port number. */
+	var host : String;
 
-    /** the host name (without the port number or square brackets). */
-    var hostname :String;
+	/** the host name (without the port number or square brackets). */
+	var hostname : String;
 
-    /** the entire URL. */
-    var href :String;
+	/** the entire URL. */
+	var href : String;
 
-    var origin (default,null) :String;
+	var origin (default,null) : String;
 
-    /** the path (relative to the host). */
-    var pathname :String;
+	/** the path (relative to the host). */
+	var pathname : String;
 
-    /** the port number of the URL. */
-    var port :String;
+	/** the port number of the URL. */
+	var port : String;
 
-    /** the protocol of the URL. */
-    var protocol :String;
+	/** the protocol of the URL. */
+	var protocol : String;
 
-    /** the part of the URL that follows the&nbsp;? symbol, including the&nbsp;? symbol. */
-    var search :String;
+	/** the part of the URL that follows the&nbsp;? symbol, including the&nbsp;? symbol. */
+	var search : String;
 
-    function assign (url :String) :Void;
+	function assign( url : String ) : Void;
 
-    function reload () :Void;
+	function reload() : Void;
 
-    function replace (url :String) :Void;
+	function replace( url : String ) : Void;
 
-    function toString () :String;
+	function toString() : String;
 
 }

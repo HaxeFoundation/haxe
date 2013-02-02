@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,22 +26,22 @@ package js.html;
 @:native("MutationEvent")
 extern class MutationEvent extends Event
 {
-    static inline var ADDITION :Int = 2;
+	static inline var ADDITION : Int = 2;
 
-    static inline var MODIFICATION :Int = 1;
+	static inline var MODIFICATION : Int = 1;
 
-    static inline var REMOVAL :Int = 3;
+	static inline var REMOVAL : Int = 3;
 
-    var attrChange (default,null) :Int;
+	var attrChange (default,null) : Int;
 
-    var attrName (default,null) :String;
+	var attrName (default,null) : String;
 
-    var newValue (default,null) :String;
+	var newValue (default,null) : String;
 
-    var prevValue (default,null) :String;
+	var prevValue (default,null) : String;
 
-    var relatedNode (default,null) :Node;
+	var relatedNode (default,null) : Node;
 
-    function initMutationEvent (type :String, canBubble :Bool, cancelable :Bool, relatedNode :Node, prevValue :String, newValue :String, attrName :String, attrChange :Int) :Void;
+	function initMutationEvent( type : String, canBubble : Bool, cancelable : Bool, relatedNode : Node, prevValue : String, newValue : String, attrName : String, attrChange : Int ) : Void;
 
 }

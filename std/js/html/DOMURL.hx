@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,12 +26,12 @@ package js.html;
 @:native("URL")
 extern class DOMURL
 {
-    function new () :Void;
+	function new() : Void;
 
-    @:overload(function (source :MediaSource) :String {})
-    @:overload(function (stream :js.html.rtc.MediaStream) :String {})
-    static function createObjectURL (blob :Blob) :String;
+	@:overload( function( source : MediaSource ) :String {} )
+	@:overload( function( stream : js.html.rtc.MediaStream ) :String {} )
+	static function createObjectURL( blob : Blob ) : String;
 
-    static function revokeObjectURL (url :String) :Void;
+	static function revokeObjectURL( url : String ) : Void;
 
 }

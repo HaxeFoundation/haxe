@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -39,15 +39,15 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("ProgressEvent")
 extern class ProgressEvent extends Event
 {
-    /** Specifies whether or not the total size of the transfer is known. <strong>Read only.</strong> */
-    var lengthComputable (default,null) :Bool;
+	/** Specifies whether or not the total size of the transfer is known. <strong>Read only.</strong> */
+	var lengthComputable (default,null) : Bool;
 
-    /** The number of bytes transferred since the beginning of the operation. This doesn't include headers and other overhead, but only the content itself. <strong>Read only.</strong> */
-    var loaded (default,null) :Int;
+	/** The number of bytes transferred since the beginning of the operation. This doesn't include headers and other overhead, but only the content itself. <strong>Read only.</strong> */
+	var loaded (default,null) : Int;
 
-    /** The total number of bytes of content that will be transferred during the operation. If the total size is unknown, this value is zero. <strong>Read only.</strong> */
-    var total (default,null) :Int;
+	/** The total number of bytes of content that will be transferred during the operation. If the total size is unknown, this value is zero. <strong>Read only.</strong> */
+	var total (default,null) : Int;
 
-    function new (type :String, canBubble :Bool = true, cancelable :Bool = true) :Void;
+	function new(type : String, canBubble : Bool = true, cancelable : Bool = true) : Void;
 
 }

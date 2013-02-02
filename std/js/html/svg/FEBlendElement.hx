@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -29,22 +29,22 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("SVGFEBlendElement")
 extern class FEBlendElement extends Element
 {
-    static inline var SVG_FEBLEND_MODE_DARKEN :Int = 4;
+	static inline var SVG_FEBLEND_MODE_DARKEN : Int = 4;
 
-    static inline var SVG_FEBLEND_MODE_LIGHTEN :Int = 5;
+	static inline var SVG_FEBLEND_MODE_LIGHTEN : Int = 5;
 
-    static inline var SVG_FEBLEND_MODE_MULTIPLY :Int = 2;
+	static inline var SVG_FEBLEND_MODE_MULTIPLY : Int = 2;
 
-    static inline var SVG_FEBLEND_MODE_NORMAL :Int = 1;
+	static inline var SVG_FEBLEND_MODE_NORMAL : Int = 1;
 
-    static inline var SVG_FEBLEND_MODE_SCREEN :Int = 3;
+	static inline var SVG_FEBLEND_MODE_SCREEN : Int = 3;
 
-    static inline var SVG_FEBLEND_MODE_UNKNOWN :Int = 0;
+	static inline var SVG_FEBLEND_MODE_UNKNOWN : Int = 0;
 
-    var in1 (default,null) :AnimatedString;
+	var in1 (default,null) : AnimatedString;
 
-    var in2 (default,null) :AnimatedString;
+	var in2 (default,null) : AnimatedString;
 
-    var mode (default,null) :AnimatedEnumeration;
+	var mode (default,null) : AnimatedEnumeration;
 
 }

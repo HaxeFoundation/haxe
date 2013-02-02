@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,22 +26,22 @@ package js.html;
 @:native("HTMLSourceElement")
 extern class SourceElement extends Element
 {
-    /** Reflects the 
+	/** Reflects the 
 
 <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/source#attr-media">media</a></code>
  HTML&nbsp;attribute, containing the intended type of the media resource. */
-    var media :String;
+	var media : String;
 
-    /** Reflects the 
+	/** Reflects the 
 
 <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/source#attr-src">src</a></code>
  HTML&nbsp;attribute, containing the URL&nbsp;for the media resource. */
-    var src :String;
+	var src : String;
 
-    /** Reflects the 
+	/** Reflects the 
 
 <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/source#attr-type">type</a></code>
  HTML&nbsp;attribute, containing the type of the media resource. */
-    var type :String;
+	var type : String;
 
 }

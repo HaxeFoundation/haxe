@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,12 +26,12 @@ package js.html;
 @:native("HashChangeEvent")
 extern class HashChangeEvent extends Event
 {
-    var newURL (default,null) :String;
+	var newURL (default,null) : String;
 
-    var oldURL (default,null) :String;
+	var oldURL (default,null) : String;
 
-    function new (type :String, canBubble :Bool = true, cancelable :Bool = true) :Void;
+	function new(type : String, canBubble : Bool = true, cancelable : Bool = true) : Void;
 
-    function initHashChangeEvent (type :String, canBubble :Bool, cancelable :Bool, oldURL :String, newURL :String) :Void;
+	function initHashChangeEvent( type : String, canBubble : Bool, cancelable : Bool, oldURL : String, newURL : String ) : Void;
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,16 +26,16 @@ package js.html.rtc;
 @:native("MediaStreamTrackList")
 extern class MediaStreamTrackList extends js.html.EventTarget, implements ArrayAccess<MediaStreamTrack>
 {
-    var length (default,null) :Int;
+	var length (default,null) : Int;
 
-    var onaddtrack :js.html.EventListener;
+	var onaddtrack : js.html.EventListener;
 
-    var onremovetrack :js.html.EventListener;
+	var onremovetrack : js.html.EventListener;
 
-    function add (track :MediaStreamTrack) :Void;
+	function add( track : MediaStreamTrack ) : Void;
 
-    function item (index :Int) :MediaStreamTrack;
+	function item( index : Int ) : MediaStreamTrack;
 
-    function remove (track :MediaStreamTrack) :Void;
+	function remove( track : MediaStreamTrack ) : Void;
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,36 +26,36 @@ package js.html;
 @:native("JavaScriptCallFrame")
 extern class JavaScriptCallFrame
 {
-    static inline var CATCH_SCOPE :Int = 4;
+	static inline var CATCH_SCOPE : Int = 4;
 
-    static inline var CLOSURE_SCOPE :Int = 3;
+	static inline var CLOSURE_SCOPE : Int = 3;
 
-    static inline var GLOBAL_SCOPE :Int = 0;
+	static inline var GLOBAL_SCOPE : Int = 0;
 
-    static inline var LOCAL_SCOPE :Int = 1;
+	static inline var LOCAL_SCOPE : Int = 1;
 
-    static inline var WITH_SCOPE :Int = 2;
+	static inline var WITH_SCOPE : Int = 2;
 
-    var caller (default,null) :JavaScriptCallFrame;
+	var caller (default,null) : JavaScriptCallFrame;
 
-    var column (default,null) :Int;
+	var column (default,null) : Int;
 
-    var functionName (default,null) :String;
+	var functionName (default,null) : String;
 
-    var line (default,null) :Int;
+	var line (default,null) : Int;
 
-    var scopeChain (default,null) :Array<Dynamic>;
+	var scopeChain (default,null) : Array<Dynamic>;
 
-    var sourceID (default,null) :Int;
+	var sourceID (default,null) : Int;
 
-    var thisObject (default,null) :Dynamic;
+	var thisObject (default,null) : Dynamic;
 
-    var type (default,null) :String;
+	var type (default,null) : String;
 
-    function evaluate (script :String) :Void;
+	function evaluate( script : String ) : Void;
 
-    function restart () :Dynamic;
+	function restart() : Dynamic;
 
-    function scopeType (scopeIndex :Int) :Int;
+	function scopeType( scopeIndex : Int ) : Int;
 
 }

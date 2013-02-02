@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -30,8 +30,8 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("FileEntrySync")
 extern class FileEntrySync extends EntrySync
 {
-    function createWriter () :FileWriterSync;
+	function createWriter() : FileWriterSync;
 
-    function file () :js.html.File;
+	function file() : js.html.File;
 
 }

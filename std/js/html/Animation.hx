@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -31,38 +31,38 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("Animation")
 extern class Animation
 {
-    static inline var DIRECTION_ALTERNATE :Int = 1;
+	static inline var DIRECTION_ALTERNATE : Int = 1;
 
-    static inline var DIRECTION_NORMAL :Int = 0;
+	static inline var DIRECTION_NORMAL : Int = 0;
 
-    static inline var FILL_BACKWARDS :Int = 1;
+	static inline var FILL_BACKWARDS : Int = 1;
 
-    static inline var FILL_BOTH :Int = 3;
+	static inline var FILL_BOTH : Int = 3;
 
-    static inline var FILL_FORWARDS :Int = 2;
+	static inline var FILL_FORWARDS : Int = 2;
 
-    static inline var FILL_NONE :Int = 0;
+	static inline var FILL_NONE : Int = 0;
 
-    var delay (default,null) :Float;
+	var delay (default,null) : Float;
 
-    var direction (default,null) :Int;
+	var direction (default,null) : Int;
 
-    var duration (default,null) :Float;
+	var duration (default,null) : Float;
 
-    var elapsedTime :Float;
+	var elapsedTime : Float;
 
-    var ended (default,null) :Bool;
+	var ended (default,null) : Bool;
 
-    var fillMode (default,null) :Int;
+	var fillMode (default,null) : Int;
 
-    var iterationCount (default,null) :Int;
+	var iterationCount (default,null) : Int;
 
-    var name (default,null) :String;
+	var name (default,null) : String;
 
-    var paused (default,null) :Bool;
+	var paused (default,null) : Bool;
 
-    function pause () :Void;
+	function pause() : Void;
 
-    function play () :Void;
+	function play() : Void;
 
 }

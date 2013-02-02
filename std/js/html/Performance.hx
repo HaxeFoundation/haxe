@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -28,12 +28,12 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("Performance")
 extern class Performance extends EventTarget
 {
-    var memory (default,null) :MemoryInfo;
+	var memory (default,null) : MemoryInfo;
 
-    var navigation (default,null) :PerformanceNavigation;
+	var navigation (default,null) : PerformanceNavigation;
 
-    var timing (default,null) :PerformanceTiming;
+	var timing (default,null) : PerformanceTiming;
 
-    function now () :Float;
+	function now() : Float;
 
 }

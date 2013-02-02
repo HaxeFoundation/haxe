@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -33,34 +33,34 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("Notification")
 extern class Notification extends EventTarget
 {
-    var dir :String;
+	var dir : String;
 
-    /** &nbsp;A function to call when the notification is clicked. */
-    var onclick :EventListener;
+	/** &nbsp;A function to call when the notification is clicked. */
+	var onclick : EventListener;
 
-    /** &nbsp;A function to call when the notification is dismissed. */
-    var onclose :EventListener;
+	/** &nbsp;A function to call when the notification is dismissed. */
+	var onclose : EventListener;
 
-    var ondisplay :EventListener;
+	var ondisplay : EventListener;
 
-    var onerror :EventListener;
+	var onerror : EventListener;
 
-    var onshow :EventListener;
+	var onshow : EventListener;
 
-    var permission (default,null) :String;
+	var permission (default,null) : String;
 
-    var replaceId :String;
+	var replaceId : String;
 
-    var tag :String;
+	var tag : String;
 
-    function new () :Void;
+	function new() : Void;
 
-    function cancel () :Void;
+	function cancel() : Void;
 
-    function close () :Void;
+	function close() : Void;
 
-    static function requestPermission (callback_ :NotificationPermissionCallback) :Void;
+	static function requestPermission( callback_ : NotificationPermissionCallback ) : Void;
 
-    function show () :Void;
+	function show() : Void;
 
 }

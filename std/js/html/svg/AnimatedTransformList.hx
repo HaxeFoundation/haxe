@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -28,12 +28,12 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("SVGAnimatedTransformList")
 extern class AnimatedTransformList
 {
-    /** A read only <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/SVGTransformList">SVGTransformList</a></code>
+	/** A read only <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/SVGTransformList">SVGTransformList</a></code>
  representing the current animated value of the given attribute. If the given attribute is not currently being animated, then the <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/SVGTransformList">SVGTransformList</a></code>
  will have the same contents as <code>baseVal</code>. The object referenced by <code>animVal</code> will always be distinct from the one referenced by <code>baseVal</code>, even when the attribute is not animated. */
-    var animVal (default,null) :TransformList;
+	var animVal (default,null) : TransformList;
 
-    /** The base value of the given attribute before applying any animations. */
-    var baseVal (default,null) :TransformList;
+	/** The base value of the given attribute before applying any animations. */
+	var baseVal (default,null) : TransformList;
 
 }

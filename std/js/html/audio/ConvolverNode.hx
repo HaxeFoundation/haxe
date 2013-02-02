@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,8 +26,8 @@ package js.html.audio;
 @:native("ConvolverNode")
 extern class ConvolverNode extends AudioNode
 {
-    var buffer :AudioBuffer;
+	var buffer : AudioBuffer;
 
-    var normalize :Bool;
+	var normalize : Bool;
 
 }

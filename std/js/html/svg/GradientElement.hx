@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -30,29 +30,29 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("SVGGradientElement")
 extern class GradientElement extends Element
 {
-    /** Corresponds to value <em>pad</em>. */
-    static inline var SVG_SPREADMETHOD_PAD :Int = 1;
+	/** Corresponds to value <em>pad</em>. */
+	static inline var SVG_SPREADMETHOD_PAD : Int = 1;
 
-    /** Corresponds to value <em>reflect</em>. */
-    static inline var SVG_SPREADMETHOD_REFLECT :Int = 2;
+	/** Corresponds to value <em>reflect</em>. */
+	static inline var SVG_SPREADMETHOD_REFLECT : Int = 2;
 
-    /** Corresponds to value <em>repeat</em>. */
-    static inline var SVG_SPREADMETHOD_REPEAT :Int = 3;
+	/** Corresponds to value <em>repeat</em>. */
+	static inline var SVG_SPREADMETHOD_REPEAT : Int = 3;
 
-    /** The type is not one of predefined types. It is invalid to attempt to define a new value of this type or to attempt to switch an existing value to this type. */
-    static inline var SVG_SPREADMETHOD_UNKNOWN :Int = 0;
+	/** The type is not one of predefined types. It is invalid to attempt to define a new value of this type or to attempt to switch an existing value to this type. */
+	static inline var SVG_SPREADMETHOD_UNKNOWN : Int = 0;
 
-    /** Corresponds to attribute 
+	/** Corresponds to attribute 
 <code><a rel="internal" href="https://developer.mozilla.org/en/SVG/Attribute/gradientTransform" class="new">gradientTransform</a></code> on the given element. */
-    var gradientTransform (default,null) :AnimatedTransformList;
+	var gradientTransform (default,null) : AnimatedTransformList;
 
-    /** Corresponds to attribute 
+	/** Corresponds to attribute 
 <code><a rel="internal" href="https://developer.mozilla.org/en/SVG/Attribute/gradientUnits" class="new">gradientUnits</a></code> on the given element. Takes one of the constants defined in <code><a rel="internal" href="https://developer.mozilla.org/Article_not_found?uri=en/DOM/SVGUnitTypes" class="new">SVGUnitTypes</a></code>
 . */
-    var gradientUnits (default,null) :AnimatedEnumeration;
+	var gradientUnits (default,null) : AnimatedEnumeration;
 
-    /** Corresponds to attribute 
+	/** Corresponds to attribute 
 <code><a rel="internal" href="https://developer.mozilla.org/en/SVG/Attribute/spreadMethod" class="new">spreadMethod</a></code> on the given element. One of the Spread Method Types defined on this interface. */
-    var spreadMethod (default,null) :AnimatedEnumeration;
+	var spreadMethod (default,null) : AnimatedEnumeration;
 
 }

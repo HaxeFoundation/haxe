@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,12 +26,12 @@ package js.html;
 @:native("HTMLAllCollection")
 extern class HTMLAllCollection implements ArrayAccess<Node>
 {
-    var length (default,null) :Int;
+	var length (default,null) : Int;
 
-    function item (index :Int) :Node;
+	function item( index : Int ) : Node;
 
-    function namedItem (name :String) :Node;
+	function namedItem( name : String ) : Node;
 
-    function tags (name :String) :NodeList;
+	function tags( name : String ) : NodeList;
 
 }

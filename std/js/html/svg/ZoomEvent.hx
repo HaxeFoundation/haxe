@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,14 +26,14 @@ package js.html.svg;
 @:native("SVGZoomEvent")
 extern class ZoomEvent extends js.html.UIEvent
 {
-    var newScale (default,null) :Float;
+	var newScale (default,null) : Float;
 
-    var newTranslate (default,null) :Point;
+	var newTranslate (default,null) : Point;
 
-    var previousScale (default,null) :Float;
+	var previousScale (default,null) : Float;
 
-    var previousTranslate (default,null) :Point;
+	var previousTranslate (default,null) : Point;
 
-    var zoomRectScreen (default,null) :Rect;
+	var zoomRectScreen (default,null) : Rect;
 
 }

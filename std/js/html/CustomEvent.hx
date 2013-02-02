@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -30,11 +30,11 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("CustomEvent")
 extern class CustomEvent extends Event
 {
-    /** The data passed when initializing the event. */
-    var detail (default,null) :Dynamic;
+	/** The data passed when initializing the event. */
+	var detail (default,null) : Dynamic;
 
-    function new (type :String, canBubble :Bool = true, cancelable :Bool = true) :Void;
+	function new(type : String, canBubble : Bool = true, cancelable : Bool = true) : Void;
 
-    function initCustomEvent (typeArg :String, canBubbleArg :Bool, cancelableArg :Bool, detailArg :Dynamic) :Void;
+	function initCustomEvent( typeArg : String, canBubbleArg : Bool, cancelableArg : Bool, detailArg : Dynamic ) : Void;
 
 }

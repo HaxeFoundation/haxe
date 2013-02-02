@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -30,11 +30,11 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("HTMLCollection")
 extern class HTMLCollection implements ArrayAccess<Node>
 {
-    /** The number of items in the collection. <strong>Read only</strong>. */
-    var length (default,null) :Int;
+	/** The number of items in the collection. <strong>Read only</strong>. */
+	var length (default,null) : Int;
 
-    function item (index :Int) :Node;
+	function item( index : Int ) : Node;
 
-    function namedItem (name :String) :Node;
+	function namedItem( name : String ) : Node;
 
 }

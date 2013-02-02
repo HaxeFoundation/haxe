@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,10 +26,10 @@ package js.html;
 @:native("RGBColor")
 extern class RGBColor
 {
-    var blue (default,null) :CSSPrimitiveValue;
+	var blue (default,null) : CSSPrimitiveValue;
 
-    var green (default,null) :CSSPrimitiveValue;
+	var green (default,null) : CSSPrimitiveValue;
 
-    var red (default,null) :CSSPrimitiveValue;
+	var red (default,null) : CSSPrimitiveValue;
 
 }

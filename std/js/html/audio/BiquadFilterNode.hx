@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,31 +26,31 @@ package js.html.audio;
 @:native("BiquadFilterNode")
 extern class BiquadFilterNode extends AudioNode
 {
-    static inline var ALLPASS :Int = 7;
+	static inline var ALLPASS : Int = 7;
 
-    static inline var BANDPASS :Int = 2;
+	static inline var BANDPASS : Int = 2;
 
-    static inline var HIGHPASS :Int = 1;
+	static inline var HIGHPASS : Int = 1;
 
-    static inline var HIGHSHELF :Int = 4;
+	static inline var HIGHSHELF : Int = 4;
 
-    static inline var LOWPASS :Int = 0;
+	static inline var LOWPASS : Int = 0;
 
-    static inline var LOWSHELF :Int = 3;
+	static inline var LOWSHELF : Int = 3;
 
-    static inline var NOTCH :Int = 6;
+	static inline var NOTCH : Int = 6;
 
-    static inline var PEAKING :Int = 5;
+	static inline var PEAKING : Int = 5;
 
-    var Q (default,null) :AudioParam;
+	var Q (default,null) : AudioParam;
 
-    var frequency (default,null) :AudioParam;
+	var frequency (default,null) : AudioParam;
 
-    var gain (default,null) :AudioParam;
+	var gain (default,null) : AudioParam;
 
-    /** Setter throws DOMException. */
-    var type :Int;
+	/** Setter throws DOMException. */
+	var type : Int;
 
-    function getFrequencyResponse (frequencyHz :js.html.Float32Array, magResponse :js.html.Float32Array, phaseResponse :js.html.Float32Array) :Void;
+	function getFrequencyResponse( frequencyHz : js.html.Float32Array, magResponse : js.html.Float32Array, phaseResponse : js.html.Float32Array ) : Void;
 
 }

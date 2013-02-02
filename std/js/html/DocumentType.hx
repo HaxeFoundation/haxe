@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -29,18 +29,18 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("DocumentType")
 extern class DocumentType extends Node
 {
-    var entities (default,null) :NamedNodeMap;
+	var entities (default,null) : NamedNodeMap;
 
-    var internalSubset (default,null) :String;
+	var internalSubset (default,null) : String;
 
-    var name (default,null) :String;
+	var name (default,null) : String;
 
-    var notations (default,null) :NamedNodeMap;
+	var notations (default,null) : NamedNodeMap;
 
-    var publicId (default,null) :String;
+	var publicId (default,null) : String;
 
-    var systemId (default,null) :String;
+	var systemId (default,null) : String;
 
-    function remove () :Void;
+	function remove() : Void;
 
 }

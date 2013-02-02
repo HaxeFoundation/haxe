@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -28,16 +28,16 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("HTMLMetaElement")
 extern class MetaElement extends Element
 {
-    /** Gets or sets the value of meta-data property. */
-    var content :String;
+	/** Gets or sets the value of meta-data property. */
+	var content : String;
 
-    /** Gets or sets the name of an HTTP&nbsp;response header to define for a document. */
-    var httpEquiv :String;
+	/** Gets or sets the name of an HTTP&nbsp;response header to define for a document. */
+	var httpEquiv : String;
 
-    /** Gets or sets the name of a meta-data property to define for a document. */
-    var name :String;
+	/** Gets or sets the name of a meta-data property to define for a document. */
+	var name : String;
 
-    /** Gets or sets the name of a scheme used to interpret the value of a meta-data property. */
-    var scheme :String;
+	/** Gets or sets the name of a scheme used to interpret the value of a meta-data property. */
+	var scheme : String;
 
 }

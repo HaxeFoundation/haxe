@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,16 +26,16 @@ package js.html.audio;
 @:native("AudioNode")
 extern class AudioNode
 {
-    var context (default,null) :AudioContext;
+	var context (default,null) : AudioContext;
 
-    var numberOfInputs (default,null) :Int;
+	var numberOfInputs (default,null) : Int;
 
-    var numberOfOutputs (default,null) :Int;
+	var numberOfOutputs (default,null) : Int;
 
-    /** Throws DOMException. */
-    @:overload(function (destination :AudioNode, output :Int, input :Int) :Void {})
-    function connect (destination :AudioParam, output :Int) :Void;
+	/** Throws DOMException. */
+	@:overload( function( destination : AudioNode, output : Int, input : Int ) :Void {} )
+	function connect( destination : AudioParam, output : Int ) : Void;
 
-    function disconnect (output :Int) :Void;
+	function disconnect( output : Int ) : Void;
 
 }

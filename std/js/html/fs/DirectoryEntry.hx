@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -30,12 +30,12 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("DirectoryEntry")
 extern class DirectoryEntry extends Entry
 {
-    function createReader () :DirectoryReader;
+	function createReader() : DirectoryReader;
 
-    function getDirectory (path :String, ?options :Dynamic, ?successCallback :EntryCallback, ?errorCallback :ErrorCallback) :Void;
+	function getDirectory( path : String, ?options : Dynamic, ?successCallback : EntryCallback, ?errorCallback : ErrorCallback ) : Void;
 
-    function getFile (path :String, ?options :Dynamic, ?successCallback :EntryCallback, ?errorCallback :ErrorCallback) :Void;
+	function getFile( path : String, ?options : Dynamic, ?successCallback : EntryCallback, ?errorCallback : ErrorCallback ) : Void;
 
-    function removeRecursively (successCallback :js.html.VoidCallback, ?errorCallback :ErrorCallback) :Void;
+	function removeRecursively( successCallback : js.html.VoidCallback, ?errorCallback : ErrorCallback ) : Void;
 
 }

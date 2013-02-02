@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,14 +26,14 @@ package js.html.audio;
 @:native("AudioListener")
 extern class AudioListener
 {
-    var dopplerFactor :Float;
+	var dopplerFactor : Float;
 
-    var speedOfSound :Float;
+	var speedOfSound : Float;
 
-    function setOrientation (x :Float, y :Float, z :Float, xUp :Float, yUp :Float, zUp :Float) :Void;
+	function setOrientation( x : Float, y : Float, z : Float, xUp : Float, yUp : Float, zUp : Float ) : Void;
 
-    function setPosition (x :Float, y :Float, z :Float) :Void;
+	function setPosition( x : Float, y : Float, z : Float ) : Void;
 
-    function setVelocity (x :Float, y :Float, z :Float) :Void;
+	function setVelocity( x : Float, y : Float, z : Float ) : Void;
 
 }

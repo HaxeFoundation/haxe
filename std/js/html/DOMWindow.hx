@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -33,412 +33,412 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("Window")
 extern class DOMWindow extends EventTarget
 {
-    static inline var PERSISTENT :Int = 1;
+	static inline var PERSISTENT : Int = 1;
 
-    static inline var TEMPORARY :Int = 0;
+	static inline var TEMPORARY : Int = 0;
 
-    /** An <code><a rel="custom" href="https://developer.mozilla.org/en/nsIDOMOfflineResourceList">nsIDOMOfflineResourceList</a></code>
+	/** An <code><a rel="custom" href="https://developer.mozilla.org/en/nsIDOMOfflineResourceList">nsIDOMOfflineResourceList</a></code>
  object providing access to the offline resources for the window. */
-    var applicationCache (default,null) :DOMApplicationCache;
+	var applicationCache (default,null) : DOMApplicationCache;
 
-    var clientInformation (default,null) :Navigator;
+	var clientInformation (default,null) : Navigator;
 
-    /** <dd>This property indicates whether the current window is closed or not.</dd> <dt><a title="en/Components_object" rel="internal" href="https://developer.mozilla.org/en/Components_object">window.Components</a></dt> <dd>The entry point to many <a title="en/XPCOM" rel="internal" href="https://developer.mozilla.org/en/XPCOM">XPCOM</a> features. Some properties, e.g. <a title="en/Components.classes" rel="internal" href="https://developer.mozilla.org/en/Components.classes">classes</a>, are only available to sufficiently privileged code.</dd> */
-    var closed (default,null) :Bool;
+	/** <dd>This property indicates whether the current window is closed or not.</dd> <dt><a title="en/Components_object" rel="internal" href="https://developer.mozilla.org/en/Components_object">window.Components</a></dt> <dd>The entry point to many <a title="en/XPCOM" rel="internal" href="https://developer.mozilla.org/en/XPCOM">XPCOM</a> features. Some properties, e.g. <a title="en/Components.classes" rel="internal" href="https://developer.mozilla.org/en/Components.classes">classes</a>, are only available to sufficiently privileged code.</dd> */
+	var closed (default,null) : Bool;
 
-    var console (default,null) :Console;
+	var console (default,null) : Console;
 
-    /** Returns the browser crypto object. */
-    var crypto (default,null) :Crypto;
+	/** Returns the browser crypto object. */
+	var crypto (default,null) : Crypto;
 
-    /** Gets/sets the status bar text for the given window. */
-    var defaultStatus :String;
+	/** Gets/sets the status bar text for the given window. */
+	var defaultStatus : String;
 
-    var defaultstatus :String;
+	var defaultstatus : String;
 
-    var devicePixelRatio (default,null) :Float;
+	var devicePixelRatio (default,null) : Float;
 
-    /** Returns a reference to the document that the window contains. */
-    var document (default,null) :Document;
+	/** Returns a reference to the document that the window contains. */
+	var document (default,null) : Document;
 
-    var event (default,null) :Event;
+	var event (default,null) : Event;
 
-    /** Returns the element in which the window is embedded, or null if the window is not embedded. */
-    var frameElement (default,null) :Element;
+	/** Returns the element in which the window is embedded, or null if the window is not embedded. */
+	var frameElement (default,null) : Element;
 
-    /** Returns an array of the subframes in the current window. */
-    var frames (default,null) :DOMWindow;
+	/** Returns an array of the subframes in the current window. */
+	var frames (default,null) : DOMWindow;
 
-    /** Returns a reference to the history object. */
-    var history (default,null) :History;
+	/** Returns a reference to the history object. */
+	var history (default,null) : History;
 
-    var indexedDB (default,null) :js.html.idb.Factory;
+	var indexedDB (default,null) : js.html.idb.Factory;
 
-    /** Gets the height of the content area of the browser window including, if rendered, the horizontal scrollbar. */
-    var innerHeight (default,null) :Int;
+	/** Gets the height of the content area of the browser window including, if rendered, the horizontal scrollbar. */
+	var innerHeight (default,null) : Int;
 
-    /** Gets the width of the content area of the browser window including, if rendered, the vertical scrollbar. */
-    var innerWidth (default,null) :Int;
+	/** Gets the width of the content area of the browser window including, if rendered, the vertical scrollbar. */
+	var innerWidth (default,null) : Int;
 
-    /** Returns the number of frames in the window. See also <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/window.frames">window.frames</a></code>
+	/** Returns the number of frames in the window. See also <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/window.frames">window.frames</a></code>
 . */
-    var length (default,null) :Int;
+	var length (default,null) : Int;
 
-    /** Returns a reference to the local storage object used to store data that may only be accessed by the origin that created it. Getter throws DOMException. */
-    var localStorage (default,null) :Storage;
+	/** Returns a reference to the local storage object used to store data that may only be accessed by the origin that created it. Getter throws DOMException. */
+	var localStorage (default,null) : Storage;
 
-    /** Gets/sets the location, or current URL, of the window object. */
-    var location :Location;
+	/** Gets/sets the location, or current URL, of the window object. */
+	var location : Location;
 
-    /** Returns the locationbar object, whose visibility can be toggled in the window. */
-    var locationbar (default,null) :BarInfo;
+	/** Returns the locationbar object, whose visibility can be toggled in the window. */
+	var locationbar (default,null) : BarInfo;
 
-    /** Returns the menubar object, whose visibility can be toggled in the window. */
-    var menubar (default,null) :BarInfo;
+	/** Returns the menubar object, whose visibility can be toggled in the window. */
+	var menubar (default,null) : BarInfo;
 
-    /** Gets/sets the name of the window. */
-    var name :String;
+	/** Gets/sets the name of the window. */
+	var name : String;
 
-    /** Returns a reference to the navigator object. */
-    var navigator (default,null) :Navigator;
+	/** Returns a reference to the navigator object. */
+	var navigator (default,null) : Navigator;
 
-    var notifications (default,null) :NotificationCenter;
+	var notifications (default,null) : NotificationCenter;
 
-    var offscreenBuffering (default,null) :Bool;
+	var offscreenBuffering (default,null) : Bool;
 
-    /** An event handler property for abort events on the window. */
-    var onabort :EventListener;
+	/** An event handler property for abort events on the window. */
+	var onabort : EventListener;
 
-    var onanimationend :EventListener;
+	var onanimationend : EventListener;
 
-    var onanimationiteration :EventListener;
+	var onanimationiteration : EventListener;
 
-    var onanimationstart :EventListener;
+	var onanimationstart : EventListener;
 
-    /** An event handler property for before-unload events on the window. */
-    var onbeforeunload :EventListener;
+	/** An event handler property for before-unload events on the window. */
+	var onbeforeunload : EventListener;
 
-    /** An event handler property for blur events on the window. */
-    var onblur :EventListener;
+	/** An event handler property for blur events on the window. */
+	var onblur : EventListener;
 
-    var oncanplay :EventListener;
+	var oncanplay : EventListener;
 
-    var oncanplaythrough :EventListener;
+	var oncanplaythrough : EventListener;
 
-    /** An event handler property for change events on the window. */
-    var onchange :EventListener;
+	/** An event handler property for change events on the window. */
+	var onchange : EventListener;
 
-    /** An event handler property for click events on the window. */
-    var onclick :EventListener;
+	/** An event handler property for click events on the window. */
+	var onclick : EventListener;
 
-    /** An event handler property for right-click events on the window. */
-    var oncontextmenu :EventListener;
+	/** An event handler property for right-click events on the window. */
+	var oncontextmenu : EventListener;
 
-    var ondblclick :EventListener;
+	var ondblclick : EventListener;
 
-    var ondevicemotion :EventListener;
+	var ondevicemotion : EventListener;
 
-    var ondeviceorientation :EventListener;
+	var ondeviceorientation : EventListener;
 
-    var ondrag :EventListener;
+	var ondrag : EventListener;
 
-    var ondragend :EventListener;
+	var ondragend : EventListener;
 
-    var ondragenter :EventListener;
+	var ondragenter : EventListener;
 
-    var ondragleave :EventListener;
+	var ondragleave : EventListener;
 
-    var ondragover :EventListener;
+	var ondragover : EventListener;
 
-    var ondragstart :EventListener;
+	var ondragstart : EventListener;
 
-    var ondrop :EventListener;
+	var ondrop : EventListener;
 
-    var ondurationchange :EventListener;
+	var ondurationchange : EventListener;
 
-    var onemptied :EventListener;
+	var onemptied : EventListener;
 
-    var onended :EventListener;
+	var onended : EventListener;
 
-    /** An event handler property for errors raised on the window. */
-    var onerror :EventListener;
+	/** An event handler property for errors raised on the window. */
+	var onerror : EventListener;
 
-    /** An event handler property for focus events on the window. */
-    var onfocus :EventListener;
+	/** An event handler property for focus events on the window. */
+	var onfocus : EventListener;
 
-    /** An event handler property for hash change events on the window; called when the part of the URL after the hash mark ("#") changes. */
-    var onhashchange :EventListener;
+	/** An event handler property for hash change events on the window; called when the part of the URL after the hash mark ("#") changes. */
+	var onhashchange : EventListener;
 
-    var oninput :EventListener;
+	var oninput : EventListener;
 
-    var oninvalid :EventListener;
+	var oninvalid : EventListener;
 
-    /** An event handler property for keydown events on the window. */
-    var onkeydown :EventListener;
+	/** An event handler property for keydown events on the window. */
+	var onkeydown : EventListener;
 
-    /** An event handler property for keypress events on the window. */
-    var onkeypress :EventListener;
+	/** An event handler property for keypress events on the window. */
+	var onkeypress : EventListener;
 
-    /** An event handler property for keyup events on the window. */
-    var onkeyup :EventListener;
+	/** An event handler property for keyup events on the window. */
+	var onkeyup : EventListener;
 
-    /** An event handler property for window loading. */
-    var onload :EventListener;
+	/** An event handler property for window loading. */
+	var onload : EventListener;
 
-    var onloadeddata :EventListener;
+	var onloadeddata : EventListener;
 
-    var onloadedmetadata :EventListener;
+	var onloadedmetadata : EventListener;
 
-    var onloadstart :EventListener;
+	var onloadstart : EventListener;
 
-    var onmessage :EventListener;
+	var onmessage : EventListener;
 
-    /** An event handler property for mousedown events on the window. */
-    var onmousedown :EventListener;
+	/** An event handler property for mousedown events on the window. */
+	var onmousedown : EventListener;
 
-    /** An event handler property for mousemove events on the window. */
-    var onmousemove :EventListener;
+	/** An event handler property for mousemove events on the window. */
+	var onmousemove : EventListener;
 
-    /** An event handler property for mouseout events on the window. */
-    var onmouseout :EventListener;
+	/** An event handler property for mouseout events on the window. */
+	var onmouseout : EventListener;
 
-    /** An event handler property for mouseover events on the window. */
-    var onmouseover :EventListener;
+	/** An event handler property for mouseover events on the window. */
+	var onmouseover : EventListener;
 
-    /** An event handler property for mouseup events on the window. */
-    var onmouseup :EventListener;
+	/** An event handler property for mouseup events on the window. */
+	var onmouseup : EventListener;
 
-    var onmousewheel :EventListener;
+	var onmousewheel : EventListener;
 
-    var onoffline :EventListener;
+	var onoffline : EventListener;
 
-    var ononline :EventListener;
+	var ononline : EventListener;
 
-    /** An event handler property for pagehide events on the window. */
-    var onpagehide :EventListener;
+	/** An event handler property for pagehide events on the window. */
+	var onpagehide : EventListener;
 
-    /** An event handler property for pageshow events on the window. */
-    var onpageshow :EventListener;
+	/** An event handler property for pageshow events on the window. */
+	var onpageshow : EventListener;
 
-    var onpause :EventListener;
+	var onpause : EventListener;
 
-    var onplay :EventListener;
+	var onplay : EventListener;
 
-    var onplaying :EventListener;
+	var onplaying : EventListener;
 
-    /** An event handler property for popstate events, which are fired when navigating to a session history entry representing a state object. */
-    var onpopstate :EventListener;
+	/** An event handler property for popstate events, which are fired when navigating to a session history entry representing a state object. */
+	var onpopstate : EventListener;
 
-    var onprogress :EventListener;
+	var onprogress : EventListener;
 
-    var onratechange :EventListener;
+	var onratechange : EventListener;
 
-    /** An event handler property for reset events on the window. */
-    var onreset :EventListener;
+	/** An event handler property for reset events on the window. */
+	var onreset : EventListener;
 
-    /** An event handler property for window resizing. */
-    var onresize :EventListener;
+	/** An event handler property for window resizing. */
+	var onresize : EventListener;
 
-    /** An event handler property for window scrolling. */
-    var onscroll :EventListener;
+	/** An event handler property for window scrolling. */
+	var onscroll : EventListener;
 
-    var onsearch :EventListener;
+	var onsearch : EventListener;
 
-    var onseeked :EventListener;
+	var onseeked : EventListener;
 
-    var onseeking :EventListener;
+	var onseeking : EventListener;
 
-    /** An event handler property for window selection. */
-    var onselect :EventListener;
+	/** An event handler property for window selection. */
+	var onselect : EventListener;
 
-    var onstalled :EventListener;
+	var onstalled : EventListener;
 
-    var onstorage :EventListener;
+	var onstorage : EventListener;
 
-    /** An event handler property for submits on window forms. */
-    var onsubmit :EventListener;
+	/** An event handler property for submits on window forms. */
+	var onsubmit : EventListener;
 
-    var onsuspend :EventListener;
+	var onsuspend : EventListener;
 
-    var ontimeupdate :EventListener;
+	var ontimeupdate : EventListener;
 
-    var ontouchcancel :EventListener;
+	var ontouchcancel : EventListener;
 
-    var ontouchend :EventListener;
+	var ontouchend : EventListener;
 
-    var ontouchmove :EventListener;
+	var ontouchmove : EventListener;
 
-    var ontouchstart :EventListener;
+	var ontouchstart : EventListener;
 
-    var ontransitionend :EventListener;
+	var ontransitionend : EventListener;
 
-    /** An event handler property for unload events on the window. */
-    var onunload :EventListener;
+	/** An event handler property for unload events on the window. */
+	var onunload : EventListener;
 
-    var onvolumechange :EventListener;
+	var onvolumechange : EventListener;
 
-    var onwaiting :EventListener;
+	var onwaiting : EventListener;
 
-    /** Returns a reference to the window that opened this current window. */
-    var opener (default,null) :DOMWindow;
+	/** Returns a reference to the window that opened this current window. */
+	var opener (default,null) : DOMWindow;
 
-    /** Gets the height of the outside of the browser window. */
-    var outerHeight (default,null) :Int;
+	/** Gets the height of the outside of the browser window. */
+	var outerHeight (default,null) : Int;
 
-    /** Gets the width of the outside of the browser window. */
-    var outerWidth (default,null) :Int;
+	/** Gets the width of the outside of the browser window. */
+	var outerWidth (default,null) : Int;
 
-    var pagePopupController (default,null) :PagePopupController;
+	var pagePopupController (default,null) : PagePopupController;
 
-    /** An alias for <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/window.scrollX">window.scrollX</a></code>
+	/** An alias for <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/window.scrollX">window.scrollX</a></code>
 . */
-    var pageXOffset (default,null) :Int;
+	var pageXOffset (default,null) : Int;
 
-    /** An alias for <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/window.scrollY">window.scrollY</a></code> */
-    var pageYOffset (default,null) :Int;
+	/** An alias for <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/window.scrollY">window.scrollY</a></code> */
+	var pageYOffset (default,null) : Int;
 
-    /** Returns a reference to the parent of the current window or subframe. */
-    var parent (default,null) :DOMWindow;
+	/** Returns a reference to the parent of the current window or subframe. */
+	var parent (default,null) : DOMWindow;
 
-    var performance (default,null) :Performance;
+	var performance (default,null) : Performance;
 
-    /** Returns the personalbar object, whose visibility can be toggled in the window. */
-    var personalbar (default,null) :BarInfo;
+	/** Returns the personalbar object, whose visibility can be toggled in the window. */
+	var personalbar (default,null) : BarInfo;
 
-    /** Returns a reference to the screen object associated with the window. */
-    var screen (default,null) :Screen;
+	/** Returns a reference to the screen object associated with the window. */
+	var screen (default,null) : Screen;
 
-    var screenLeft (default,null) :Int;
+	var screenLeft (default,null) : Int;
 
-    var screenTop (default,null) :Int;
+	var screenTop (default,null) : Int;
 
-    /** Returns the horizontal distance of the left border of the user's browser from the left side of the screen. */
-    var screenX (default,null) :Int;
+	/** Returns the horizontal distance of the left border of the user's browser from the left side of the screen. */
+	var screenX (default,null) : Int;
 
-    /** Returns the vertical distance of the top border of the user's browser from the top side of the screen. */
-    var screenY (default,null) :Int;
+	/** Returns the vertical distance of the top border of the user's browser from the top side of the screen. */
+	var screenY (default,null) : Int;
 
-    /** Returns the number of pixels that the document has already been scrolled horizontally. */
-    var scrollX (default,null) :Int;
+	/** Returns the number of pixels that the document has already been scrolled horizontally. */
+	var scrollX (default,null) : Int;
 
-    /** Returns the number of pixels that the document has already been scrolled vertically. */
-    var scrollY (default,null) :Int;
+	/** Returns the number of pixels that the document has already been scrolled vertically. */
+	var scrollY (default,null) : Int;
 
-    /** Returns the scrollbars object, whose visibility can be toggled in the window. */
-    var scrollbars (default,null) :BarInfo;
+	/** Returns the scrollbars object, whose visibility can be toggled in the window. */
+	var scrollbars (default,null) : BarInfo;
 
-    /** Returns an object reference to the window object itself. */
-    var self (default,null) :DOMWindow;
+	/** Returns an object reference to the window object itself. */
+	var self (default,null) : DOMWindow;
 
-    /** A storage object for storing data within a single page session. Getter throws DOMException. */
-    var sessionStorage (default,null) :Storage;
+	/** A storage object for storing data within a single page session. Getter throws DOMException. */
+	var sessionStorage (default,null) : Storage;
 
-    /** Gets/sets the text in the statusbar at the bottom of the browser. */
-    var status :String;
+	/** Gets/sets the text in the statusbar at the bottom of the browser. */
+	var status : String;
 
-    /** Returns the statusbar object, whose visibility can be toggled in the window. */
-    var statusbar (default,null) :BarInfo;
+	/** Returns the statusbar object, whose visibility can be toggled in the window. */
+	var statusbar (default,null) : BarInfo;
 
-    var storageInfo (default,null) :StorageInfo;
+	var storageInfo (default,null) : StorageInfo;
 
-    var styleMedia (default,null) :StyleMedia;
+	var styleMedia (default,null) : StyleMedia;
 
-    /** Returns the toolbar object, whose visibility can be toggled in the window. */
-    var toolbar (default,null) :BarInfo;
+	/** Returns the toolbar object, whose visibility can be toggled in the window. */
+	var toolbar (default,null) : BarInfo;
 
-    /** <dd>Returns a reference to the topmost window in the window hierarchy. This property is read only.</dd> <dt><code><a rel="custom" href="https://developer.mozilla.org/en/DOM/window.URL">window.URL</a></code>
+	/** <dd>Returns a reference to the topmost window in the window hierarchy. This property is read only.</dd> <dt><code><a rel="custom" href="https://developer.mozilla.org/en/DOM/window.URL">window.URL</a></code>
  
 <span title="(Firefox 4 / Thunderbird 3.3 / SeaMonkey 2.1)
 ">Requires Gecko 2.0</span>
 </dt> <dd>A DOM&nbsp;URL&nbsp;object, which provides the <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/window.URL.createObjectURL">window.URL.createObjectURL()</a></code>
  and <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/window.URL.revokeObjectURL">window.URL.revokeObjectURL()</a></code>
  methods.</dd> */
-    var top (default,null) :DOMWindow;
+	var top (default,null) : DOMWindow;
 
-    /** <dd>Returns a reference to the current window.</dd> <dt>window[0], window[1], etc.</dt> <dd>Returns a reference to the <code>window</code> object in the frames. See <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/window.frames">window.frames</a></code>
+	/** <dd>Returns a reference to the current window.</dd> <dt>window[0], window[1], etc.</dt> <dd>Returns a reference to the <code>window</code> object in the frames. See <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/window.frames">window.frames</a></code>
  for more details.</dd> */
-    var window (default,null) :DOMWindow;
+	var window (default,null) : DOMWindow;
 
-    function alert (message :String) :Void;
+	function alert( message : String ) : Void;
 
-    function atob (string :String) :String;
+	function atob( string : String ) : String;
 
-    function blur () :Void;
+	function blur() : Void;
 
-    function btoa (string :String) :String;
+	function btoa( string : String ) : String;
 
-    @:overload(function (id :Int) :Void {})
-    function cancelAnimationFrame (id :Int) :Void;
+	@:overload( function( id : Int ) :Void {} )
+	function cancelAnimationFrame( id : Int ) : Void;
 
-    function cancelRequestAnimationFrame (id :Int) :Void;
+	function cancelRequestAnimationFrame( id : Int ) : Void;
 
-    function captureEvents () :Void;
+	function captureEvents() : Void;
 
-    function clearInterval (handle :Int) :Void;
+	function clearInterval( handle : Int ) : Void;
 
-    function clearTimeout (handle :Int) :Void;
+	function clearTimeout( handle : Int ) : Void;
 
-    function close () :Void;
+	function close() : Void;
 
-    function confirm (message :String) :Bool;
+	function confirm( message : String ) : Bool;
 
-    function convertPointFromNodeToPage (node :Node, p :Point) :Point;
+	function convertPointFromNodeToPage( node : Node, p : Point ) : Point;
 
-    function convertPointFromPageToNode (node :Node, p :Point) :Point;
+	function convertPointFromPageToNode( node : Node, p : Point ) : Point;
 
-    function find (string :String, caseSensitive :Bool, backwards :Bool, wrap :Bool, wholeWord :Bool, searchInFrames :Bool, showDialog :Bool) :Bool;
+	function find( string : String, caseSensitive : Bool, backwards : Bool, wrap : Bool, wholeWord : Bool, searchInFrames : Bool, showDialog : Bool ) : Bool;
 
-    function focus () :Void;
+	function focus() : Void;
 
-    function getComputedStyle (element :Element, pseudoElement :String) :CSSStyleDeclaration;
+	function getComputedStyle( element : Element, pseudoElement : String ) : CSSStyleDeclaration;
 
-    function getMatchedCSSRules (element :Element, pseudoElement :String) :CSSRuleList;
+	function getMatchedCSSRules( element : Element, pseudoElement : String ) : CSSRuleList;
 
-    function getSelection () :DOMSelection;
+	function getSelection() : DOMSelection;
 
-    function matchMedia (query :String) :MediaQueryList;
+	function matchMedia( query : String ) : MediaQueryList;
 
-    function moveBy (x :Float, y :Float) :Void;
+	function moveBy( x : Float, y : Float ) : Void;
 
-    function moveTo (x :Float, y :Float) :Void;
+	function moveTo( x : Float, y : Float ) : Void;
 
-    function open (url :String, name :String, ?options :String) :DOMWindow;
+	function open( url : String, name : String, ?options : String ) : DOMWindow;
 
-    function openDatabase (name :String, version :String, displayName :String, estimatedSize :Int, ?creationCallback :js.html.sql.DatabaseCallback) :js.html.sql.Database;
+	function openDatabase( name : String, version : String, displayName : String, estimatedSize : Int, ?creationCallback : js.html.sql.DatabaseCallback ) : js.html.sql.Database;
 
-    /** Provides a secure means for one window to send a string of data to another window, which need not be within the same domain as the first, in a secure manner. Throws DOMException. */
-    @:overload(function (message :Dynamic, targetOrigin :String) :Void {})
-    function postMessage (message :Dynamic, targetOrigin :String, messagePorts :Array<Dynamic>) :Void;
+	/** Provides a secure means for one window to send a string of data to another window, which need not be within the same domain as the first, in a secure manner. Throws DOMException. */
+	@:overload( function( message : Dynamic, targetOrigin : String ) :Void {} )
+	function postMessage( message : Dynamic, targetOrigin : String, messagePorts : Array<Dynamic> ) : Void;
 
-    function print () :Void;
+	function print() : Void;
 
-    function prompt (message :String, defaultValue :String) :String;
+	function prompt( message : String, defaultValue : String ) : String;
 
-    function releaseEvents () :Void;
+	function releaseEvents() : Void;
 
-    @:overload(function (callback_ :RequestAnimationFrameCallback) :Int {})
-    function requestAnimationFrame (callback_ :RequestAnimationFrameCallback) :Int;
+	@:overload( function( callback_ : RequestAnimationFrameCallback ) :Int {} )
+	function requestAnimationFrame( callback_ : RequestAnimationFrameCallback ) : Int;
 
-    function requestFileSystem (type :Int, size :Int, successCallback :js.html.fs.FileSystemCallback, ?errorCallback :js.html.fs.ErrorCallback) :Void;
+	function requestFileSystem( type : Int, size : Int, successCallback : js.html.fs.FileSystemCallback, ?errorCallback : js.html.fs.ErrorCallback ) : Void;
 
-    function resizeBy (x :Float, y :Float) :Void;
+	function resizeBy( x : Float, y : Float ) : Void;
 
-    function resizeTo (width :Float, height :Float) :Void;
+	function resizeTo( width : Float, height : Float ) : Void;
 
-    function resolveLocalFileSystemURL (url :String, successCallback :js.html.fs.EntryCallback, ?errorCallback :js.html.fs.ErrorCallback) :Void;
+	function resolveLocalFileSystemURL( url : String, successCallback : js.html.fs.EntryCallback, ?errorCallback : js.html.fs.ErrorCallback ) : Void;
 
-    function scroll (x :Int, y :Int) :Void;
+	function scroll( x : Int, y : Int ) : Void;
 
-    function scrollBy (x :Int, y :Int) :Void;
+	function scrollBy( x : Int, y : Int ) : Void;
 
-    function scrollTo (x :Int, y :Int) :Void;
+	function scrollTo( x : Int, y : Int ) : Void;
 
-    function setInterval (handler :Void->Void, timeout :Int) :Int;
+	function setInterval( handler : Void->Void, timeout : Int ) : Int;
 
-    function setTimeout (handler :Void->Void, timeout :Int) :Int;
+	function setTimeout( handler : Void->Void, timeout : Int ) : Int;
 
-    function showModalDialog (url :String, ?dialogArgs :Dynamic, ?featureArgs :String) :Dynamic;
+	function showModalDialog( url : String, ?dialogArgs : Dynamic, ?featureArgs : String ) : Dynamic;
 
-    function stop () :Void;
+	function stop() : Void;
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,10 +26,10 @@ package js.html;
 @:native("TextTrackCueList")
 extern class TextTrackCueList implements ArrayAccess<TextTrackCue>
 {
-    var length (default,null) :Int;
+	var length (default,null) : Int;
 
-    function getCueById (id :String) :TextTrackCue;
+	function getCueById( id : String ) : TextTrackCue;
 
-    function item (index :Int) :TextTrackCue;
+	function item( index : Int ) : TextTrackCue;
 
 }

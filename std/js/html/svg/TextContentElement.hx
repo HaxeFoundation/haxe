@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,32 +26,32 @@ package js.html.svg;
 @:native("SVGTextContentElement")
 extern class TextContentElement extends Element
 {
-    static inline var LENGTHADJUST_SPACING :Int = 1;
+	static inline var LENGTHADJUST_SPACING : Int = 1;
 
-    static inline var LENGTHADJUST_SPACINGANDGLYPHS :Int = 2;
+	static inline var LENGTHADJUST_SPACINGANDGLYPHS : Int = 2;
 
-    static inline var LENGTHADJUST_UNKNOWN :Int = 0;
+	static inline var LENGTHADJUST_UNKNOWN : Int = 0;
 
-    var lengthAdjust (default,null) :AnimatedEnumeration;
+	var lengthAdjust (default,null) : AnimatedEnumeration;
 
-    var textLength (default,null) :AnimatedLength;
+	var textLength (default,null) : AnimatedLength;
 
-    function getCharNumAtPosition (point :Point) :Int;
+	function getCharNumAtPosition( point : Point ) : Int;
 
-    function getComputedTextLength () :Float;
+	function getComputedTextLength() : Float;
 
-    function getEndPositionOfChar (offset :Int) :Point;
+	function getEndPositionOfChar( offset : Int ) : Point;
 
-    function getExtentOfChar (offset :Int) :Rect;
+	function getExtentOfChar( offset : Int ) : Rect;
 
-    function getNumberOfChars () :Int;
+	function getNumberOfChars() : Int;
 
-    function getRotationOfChar (offset :Int) :Float;
+	function getRotationOfChar( offset : Int ) : Float;
 
-    function getStartPositionOfChar (offset :Int) :Point;
+	function getStartPositionOfChar( offset : Int ) : Point;
 
-    function getSubStringLength (offset :Int, length :Int) :Float;
+	function getSubStringLength( offset : Int, length : Int ) : Float;
 
-    function selectSubString (offset :Int, length :Int) :Void;
+	function selectSubString( offset : Int, length : Int ) : Void;
 
 }

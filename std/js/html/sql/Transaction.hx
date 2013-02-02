@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,6 +26,6 @@ package js.html.sql;
 @:native("SQLTransaction")
 extern class Transaction
 {
-    function executeSql (sqlStatement :String, arguments :Array<Dynamic>, ?callback_ :StatementCallback, ?errorCallback :StatementErrorCallback) :Void;
+	function executeSql( sqlStatement : String, arguments : Array<Dynamic>, ?callback_ : StatementCallback, ?errorCallback : StatementErrorCallback ) : Void;
 
 }

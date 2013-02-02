@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -36,20 +36,20 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("SVGNumberList")
 extern class NumberList
 {
-    var numberOfItems (default,null) :Int;
+	var numberOfItems (default,null) : Int;
 
-    function appendItem (item :Number) :Number;
+	function appendItem( item : Number ) : Number;
 
-    function clear () :Void;
+	function clear() : Void;
 
-    function getItem (index :Int) :Number;
+	function getItem( index : Int ) : Number;
 
-    function initialize (item :Number) :Number;
+	function initialize( item : Number ) : Number;
 
-    function insertItemBefore (item :Number, index :Int) :Number;
+	function insertItemBefore( item : Number, index : Int ) : Number;
 
-    function removeItem (index :Int) :Number;
+	function removeItem( index : Int ) : Number;
 
-    function replaceItem (item :Number, index :Int) :Number;
+	function replaceItem( item : Number, index : Int ) : Number;
 
 }

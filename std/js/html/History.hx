@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -28,20 +28,20 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("History")
 extern class History
 {
-    /** Read-only. Returns the number of elements in the session history, including the currently loaded page. For example, for a page loaded in a new tab this property returns <code>1</code>. */
-    var length (default,null) :Int;
+	/** Read-only. Returns the number of elements in the session history, including the currently loaded page. For example, for a page loaded in a new tab this property returns <code>1</code>. */
+	var length (default,null) : Int;
 
-    /** Returns the state at the top of the history stack. This is a way to look at the state without having to wait for a <code>popstate</code> event. <strong>Read only.</strong> */
-    var state (default,null) :Dynamic;
+	/** Returns the state at the top of the history stack. This is a way to look at the state without having to wait for a <code>popstate</code> event. <strong>Read only.</strong> */
+	var state (default,null) : Dynamic;
 
-    function back () :Void;
+	function back() : Void;
 
-    function forward () :Void;
+	function forward() : Void;
 
-    function go (distance :Int) :Void;
+	function go( distance : Int ) : Void;
 
-    function pushState (data :Dynamic, title :String, ?url :String) :Void;
+	function pushState( data : Dynamic, title : String, ?url : String ) : Void;
 
-    function replaceState (data :Dynamic, title :String, ?url :String) :Void;
+	function replaceState( data : Dynamic, title : String, ?url : String ) : Void;
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,16 +26,16 @@ package js.html;
 @:native("EventException")
 extern class EventException
 {
-    static inline var DISPATCH_REQUEST_ERR :Int = 1;
+	static inline var DISPATCH_REQUEST_ERR : Int = 1;
 
-    static inline var UNSPECIFIED_EVENT_TYPE_ERR :Int = 0;
+	static inline var UNSPECIFIED_EVENT_TYPE_ERR : Int = 0;
 
-    var code (default,null) :Int;
+	var code (default,null) : Int;
 
-    var message (default,null) :String;
+	var message (default,null) : String;
 
-    var name (default,null) :String;
+	var name (default,null) : String;
 
-    function toString () :String;
+	function toString() : String;
 
 }

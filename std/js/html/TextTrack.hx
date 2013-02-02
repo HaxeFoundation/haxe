@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,22 +26,22 @@ package js.html;
 @:native("TextTrack")
 extern class TextTrack extends EventTarget
 {
-    var activeCues (default,null) :TextTrackCueList;
+	var activeCues (default,null) : TextTrackCueList;
 
-    var cues (default,null) :TextTrackCueList;
+	var cues (default,null) : TextTrackCueList;
 
-    var kind (default,null) :String;
+	var kind (default,null) : String;
 
-    var label (default,null) :String;
+	var label (default,null) : String;
 
-    var language (default,null) :String;
+	var language (default,null) : String;
 
-    var mode :String;
+	var mode : String;
 
-    var oncuechange :EventListener;
+	var oncuechange : EventListener;
 
-    function addCue (cue :TextTrackCue) :Void;
+	function addCue( cue : TextTrackCue ) : Void;
 
-    function removeCue (cue :TextTrackCue) :Void;
+	function removeCue( cue : TextTrackCue ) : Void;
 
 }

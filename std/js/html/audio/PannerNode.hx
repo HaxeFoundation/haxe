@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,44 +26,44 @@ package js.html.audio;
 @:native("PannerNode")
 extern class PannerNode extends AudioNode
 {
-    static inline var EQUALPOWER :Int = 0;
+	static inline var EQUALPOWER : Int = 0;
 
-    static inline var EXPONENTIAL_DISTANCE :Int = 2;
+	static inline var EXPONENTIAL_DISTANCE : Int = 2;
 
-    static inline var HRTF :Int = 1;
+	static inline var HRTF : Int = 1;
 
-    static inline var INVERSE_DISTANCE :Int = 1;
+	static inline var INVERSE_DISTANCE : Int = 1;
 
-    static inline var LINEAR_DISTANCE :Int = 0;
+	static inline var LINEAR_DISTANCE : Int = 0;
 
-    static inline var SOUNDFIELD :Int = 2;
+	static inline var SOUNDFIELD : Int = 2;
 
-    var coneGain (default,null) :AudioGain;
+	var coneGain (default,null) : AudioGain;
 
-    var coneInnerAngle :Float;
+	var coneInnerAngle : Float;
 
-    var coneOuterAngle :Float;
+	var coneOuterAngle : Float;
 
-    var coneOuterGain :Float;
+	var coneOuterGain : Float;
 
-    var distanceGain (default,null) :AudioGain;
+	var distanceGain (default,null) : AudioGain;
 
-    /** Setter throws DOMException. */
-    var distanceModel :Int;
+	/** Setter throws DOMException. */
+	var distanceModel : Int;
 
-    var maxDistance :Float;
+	var maxDistance : Float;
 
-    /** Setter throws DOMException. */
-    var panningModel :Int;
+	/** Setter throws DOMException. */
+	var panningModel : Int;
 
-    var refDistance :Float;
+	var refDistance : Float;
 
-    var rolloffFactor :Float;
+	var rolloffFactor : Float;
 
-    function setOrientation (x :Float, y :Float, z :Float) :Void;
+	function setOrientation( x : Float, y : Float, z : Float ) : Void;
 
-    function setPosition (x :Float, y :Float, z :Float) :Void;
+	function setPosition( x : Float, y : Float, z : Float ) : Void;
 
-    function setVelocity (x :Float, y :Float, z :Float) :Void;
+	function setVelocity( x : Float, y : Float, z : Float ) : Void;
 
 }

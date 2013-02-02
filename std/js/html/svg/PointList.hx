@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,20 +26,20 @@ package js.html.svg;
 @:native("SVGPointList")
 extern class PointList
 {
-    var numberOfItems (default,null) :Int;
+	var numberOfItems (default,null) : Int;
 
-    function appendItem (item :Point) :Point;
+	function appendItem( item : Point ) : Point;
 
-    function clear () :Void;
+	function clear() : Void;
 
-    function getItem (index :Int) :Point;
+	function getItem( index : Int ) : Point;
 
-    function initialize (item :Point) :Point;
+	function initialize( item : Point ) : Point;
 
-    function insertItemBefore (item :Point, index :Int) :Point;
+	function insertItemBefore( item : Point, index : Int ) : Point;
 
-    function removeItem (index :Int) :Point;
+	function removeItem( index : Int ) : Point;
 
-    function replaceItem (item :Point, index :Int) :Point;
+	function replaceItem( item : Point, index : Int ) : Point;
 
 }

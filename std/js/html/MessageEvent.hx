@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -33,20 +33,20 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("MessageEvent")
 extern class MessageEvent extends Event
 {
-    /** The data from the server. */
-    var data (default,null) :Dynamic;
+	/** The data from the server. */
+	var data (default,null) : Dynamic;
 
-    var lastEventId (default,null) :String;
+	var lastEventId (default,null) : String;
 
-    var origin (default,null) :String;
+	var origin (default,null) : String;
 
-    var ports (default,null) :Array<Dynamic>;
+	var ports (default,null) : Array<Dynamic>;
 
-    var source (default,null) :DOMWindow;
+	var source (default,null) : DOMWindow;
 
-    function new (type :String, canBubble :Bool = true, cancelable :Bool = true) :Void;
+	function new(type : String, canBubble : Bool = true, cancelable : Bool = true) : Void;
 
-    @:overload(function (typeArg :String, canBubbleArg :Bool, cancelableArg :Bool, dataArg :Dynamic, originArg :String, lastEventIdArg :String, sourceArg :DOMWindow, messagePorts :Array<Dynamic>) :Void {})
-    function initMessageEvent (typeArg :String, canBubbleArg :Bool, cancelableArg :Bool, dataArg :Dynamic, originArg :String, lastEventIdArg :String, sourceArg :DOMWindow, transferables :Array<Dynamic>) :Void;
+	@:overload( function( typeArg : String, canBubbleArg : Bool, cancelableArg : Bool, dataArg : Dynamic, originArg : String, lastEventIdArg : String, sourceArg : DOMWindow, messagePorts : Array<Dynamic> ) :Void {} )
+	function initMessageEvent( typeArg : String, canBubbleArg : Bool, cancelableArg : Bool, dataArg : Dynamic, originArg : String, lastEventIdArg : String, sourceArg : DOMWindow, transferables : Array<Dynamic> ) : Void;
 
 }

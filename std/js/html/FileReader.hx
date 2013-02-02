@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -36,52 +36,52 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("FileReader")
 extern class FileReader extends EventTarget
 {
-    /** The entire read request has been completed. */
-    static inline var DONE :Int = 2;
+	/** The entire read request has been completed. */
+	static inline var DONE : Int = 2;
 
-    /** No data has been loaded yet. */
-    static inline var EMPTY :Int = 0;
+	/** No data has been loaded yet. */
+	static inline var EMPTY : Int = 0;
 
-    /** Data is currently being loaded. */
-    static inline var LOADING :Int = 1;
+	/** Data is currently being loaded. */
+	static inline var LOADING : Int = 1;
 
-    /** The error that occurred while reading the file. <strong>Read only.</strong> */
-    var error (default,null) :js.html.fs.FileError;
+	/** The error that occurred while reading the file. <strong>Read only.</strong> */
+	var error (default,null) : js.html.fs.FileError;
 
-    /** Called when the read operation is aborted. */
-    var onabort :EventListener;
+	/** Called when the read operation is aborted. */
+	var onabort : EventListener;
 
-    /** Called when an error occurs. */
-    var onerror :EventListener;
+	/** Called when an error occurs. */
+	var onerror : EventListener;
 
-    /** Called when the read operation is successfully completed. */
-    var onload :EventListener;
+	/** Called when the read operation is successfully completed. */
+	var onload : EventListener;
 
-    /** Called when the read is completed, whether successful or not. This is called after either <code>onload</code> or <code>onerror</code>. */
-    var onloadend :EventListener;
+	/** Called when the read is completed, whether successful or not. This is called after either <code>onload</code> or <code>onerror</code>. */
+	var onloadend : EventListener;
 
-    /** Called when reading the data is about to begin. */
-    var onloadstart :EventListener;
+	/** Called when reading the data is about to begin. */
+	var onloadstart : EventListener;
 
-    /** Called periodically while the data is being read. */
-    var onprogress :EventListener;
+	/** Called periodically while the data is being read. */
+	var onprogress : EventListener;
 
-    /** Indicates the state of the <code>FileReader</code>. This will be one of the <a rel="custom" href="https://developer.mozilla.org/en/DOM/FileReader#State_constants">State constants</a>. <strong>Read only.</strong> */
-    var readyState (default,null) :Int;
+	/** Indicates the state of the <code>FileReader</code>. This will be one of the <a rel="custom" href="https://developer.mozilla.org/en/DOM/FileReader#State_constants">State constants</a>. <strong>Read only.</strong> */
+	var readyState (default,null) : Int;
 
-    /** The file's contents. This property is only valid after the read operation is complete, and the format of the data depends on which of the methods was used to initiate the read operation. <strong>Read only.</strong> */
-    var result (default,null) :Dynamic;
+	/** The file's contents. This property is only valid after the read operation is complete, and the format of the data depends on which of the methods was used to initiate the read operation. <strong>Read only.</strong> */
+	var result (default,null) : Dynamic;
 
-    function new () :Void;
+	function new() : Void;
 
-    function abort () :Void;
+	function abort() : Void;
 
-    function readAsArrayBuffer (blob :Blob) :Void;
+	function readAsArrayBuffer( blob : Blob ) : Void;
 
-    function readAsBinaryString (blob :Blob) :Void;
+	function readAsBinaryString( blob : Blob ) : Void;
 
-    function readAsDataURL (blob :Blob) :Void;
+	function readAsDataURL( blob : Blob ) : Void;
 
-    function readAsText (blob :Blob, ?encoding :String) :Void;
+	function readAsText( blob : Blob, ?encoding : String ) : Void;
 
 }

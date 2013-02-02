@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -28,12 +28,12 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("HTMLModElement")
 extern class ModElement extends Element
 {
-    /** Reflects the 
+	/** Reflects the 
 
 <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/del#attr-cite">cite</a></code>
  HTML attribute, containing a URI of a resource explaining the change. */
-    var cite :String;
+	var cite : String;
 
-    var dateTime :String;
+	var dateTime : String;
 
 }

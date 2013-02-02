@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,10 +26,10 @@ package js.html;
 @:native("SpeechGrammar")
 extern class SpeechGrammar
 {
-    var src :String;
+	var src : String;
 
-    var weight :Float;
+	var weight : Float;
 
-    function new () :Void;
+	function new() : Void;
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -28,18 +28,18 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("HTMLProgressElement")
 extern class ProgressElement extends Element
 {
-    var labels (default,null) :NodeList;
+	var labels (default,null) : NodeList;
 
-    /** This attribute describes how much work the task indicated by the <code>progress</code> element requires. Setter throws DOMException. */
-    var max :Float;
+	/** This attribute describes how much work the task indicated by the <code>progress</code> element requires. Setter throws DOMException. */
+	var max : Float;
 
-    var position (default,null) :Float;
+	var position (default,null) : Float;
 
-    /** <dl><dd>This attribute specifies how much of the task that has been completed. If there is no <code>value</code> attribute, the progress bar is indeterminate; this indicates that an activity is ongoing with no indication of how long it is expected to take.</dd>
+	/** <dl><dd>This attribute specifies how much of the task that has been completed. If there is no <code>value</code> attribute, the progress bar is indeterminate; this indicates that an activity is ongoing with no indication of how long it is expected to take.</dd>
 </dl>
 <p>You can use the <code><a rel="custom" href="https://developer.mozilla.org/en/CSS/orient">orient</a></code>
  property to specify whether the progress bar should be rendered horizontally (the default) or vertically. The <code><a rel="custom" href="https://developer.mozilla.org/en/CSS/%3Aindeterminate">:indeterminate</a></code>
  pseudo-class can be used to match against indeterminate progress bars.</p> Setter throws DOMException. */
-    var value :Float;
+	var value : Float;
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -37,12 +37,12 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("CompositionEvent")
 extern class CompositionEvent extends UIEvent
 {
-    /** <p>For <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/DOM_event_reference/compositionstart">compositionstart</a></code>
+	/** <p>For <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/DOM_event_reference/compositionstart">compositionstart</a></code>
  events, this is the currently selected text that will be replaced by the string being composed. This value doesn't change even if content changes the selection range; rather, it indicates the string that was selected when composition started.</p> <p>For <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/DOM_event_reference/compositionupdate">compositionupdate</a></code>
 , this is the string as it stands currently as editing is ongoing.</p> <p>For <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/DOM_event_reference/compositionend">compositionend</a></code>
  events, this is the string as committed to the editor.</p> <p><strong>Read only</strong>.</p> */
-    var data (default,null) :String;
+	var data (default,null) : String;
 
-    function initCompositionEvent (typeArg :String, canBubbleArg :Bool, cancelableArg :Bool, viewArg :DOMWindow, dataArg :String) :Void;
+	function initCompositionEvent( typeArg : String, canBubbleArg : Bool, cancelableArg : Bool, viewArg : DOMWindow, dataArg : String ) : Void;
 
 }

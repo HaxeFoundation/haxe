@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -28,8 +28,8 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("SharedWorker")
 extern class SharedWorker extends AbstractWorker
 {
-    var port (default,null) :MessagePort;
+	var port (default,null) : MessagePort;
 
-    function new () :Void;
+	function new() : Void;
 
 }

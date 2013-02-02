@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,14 +26,14 @@ package js.html;
 @:native("WheelEvent")
 extern class WheelEvent extends MouseEvent
 {
-    var directionInvertedFromDevice (default,null) :Bool;
+	var directionInvertedFromDevice (default,null) : Bool;
 
-    var wheelDelta (default,null) :Int;
+	var wheelDelta (default,null) : Int;
 
-    var wheelDeltaX (default,null) :Int;
+	var wheelDeltaX (default,null) : Int;
 
-    var wheelDeltaY (default,null) :Int;
+	var wheelDeltaY (default,null) : Int;
 
-    function initWheelEvent (wheelDeltaX :Int, wheelDeltaY :Int, view :DOMWindow, screenX :Int, screenY :Int, clientX :Int, clientY :Int, ctrlKey :Bool, altKey :Bool, shiftKey :Bool, metaKey :Bool) :Void;
+	function initWheelEvent( wheelDeltaX : Int, wheelDeltaY : Int, view : DOMWindow, screenX : Int, screenY : Int, clientX : Int, clientY : Int, ctrlKey : Bool, altKey : Bool, shiftKey : Bool, metaKey : Bool ) : Void;
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,41 +26,41 @@ package js.html;
 @:native("TextTrackCue")
 extern class TextTrackCue extends EventTarget
 {
-    /** Setter throws DOMException. */
-    var align :String;
+	/** Setter throws DOMException. */
+	var align : String;
 
-    var endTime :Float;
+	var endTime : Float;
 
-    var id :String;
+	var id : String;
 
-    /** Setter throws DOMException. */
-    var line :Int;
+	/** Setter throws DOMException. */
+	var line : Int;
 
-    var onenter :EventListener;
+	var onenter : EventListener;
 
-    var onexit :EventListener;
+	var onexit : EventListener;
 
-    var pauseOnExit :Bool;
+	var pauseOnExit : Bool;
 
-    /** Setter throws DOMException. */
-    var position :Int;
+	/** Setter throws DOMException. */
+	var position : Int;
 
-    /** Setter throws DOMException. */
-    var size :Int;
+	/** Setter throws DOMException. */
+	var size : Int;
 
-    var snapToLines :Bool;
+	var snapToLines : Bool;
 
-    var startTime :Float;
+	var startTime : Float;
 
-    var text :String;
+	var text : String;
 
-    var track (default,null) :TextTrack;
+	var track (default,null) : TextTrack;
 
-    /** Setter throws DOMException. */
-    var vertical :String;
+	/** Setter throws DOMException. */
+	var vertical : String;
 
-    function new () :Void;
+	function new() : Void;
 
-    function getCueAsHTML () :DocumentFragment;
+	function getCueAsHTML() : DocumentFragment;
 
 }

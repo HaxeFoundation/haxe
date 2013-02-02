@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -29,67 +29,67 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("HTMLFormElement")
 extern class FormElement extends Element
 {
-    /** Reflects the 
+	/** Reflects the 
 
 <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/form#attr-accept-charset">accept-charset</a></code>
 &nbsp;HTML&nbsp;attribute, containing a list of character encodings that the server accepts. */
-    var acceptCharset :String;
+	var acceptCharset : String;
 
-    /** Reflects the 
+	/** Reflects the 
 
 <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/form#attr-action">action</a></code>
 &nbsp;HTML&nbsp;attribute, containing the URI&nbsp;of a program that processes the information submitted by the form. */
-    var action :String;
+	var action : String;
 
-    /** Reflects the 
+	/** Reflects the 
 
 <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/form#attr-autocomplete">autocomplete</a></code>
  HTML&nbsp;attribute, containing a string that indicates whether the controls in this form can have their values automatically populated by the browser. */
-    var autocomplete :String;
+	var autocomplete : String;
 
-    /** All the form controls belonging to this form element. */
-    var elements (default,null) :HTMLCollection;
+	/** All the form controls belonging to this form element. */
+	var elements (default,null) : HTMLCollection;
 
-    /** Synonym for <strong>enctype</strong>. */
-    var encoding :String;
+	/** Synonym for <strong>enctype</strong>. */
+	var encoding : String;
 
-    /** Reflects the 
+	/** Reflects the 
 
 <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/form#attr-enctype">enctype</a></code>
 &nbsp;HTML&nbsp;attribute, indicating the type of content that is used to transmit the form to the server. Only specified values can be set. */
-    var enctype :String;
+	var enctype : String;
 
-    /** The number of controls in the form. */
-    var length (default,null) :Int;
+	/** The number of controls in the form. */
+	var length (default,null) : Int;
 
-    /** Reflects the 
+	/** Reflects the 
 
 <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/form#attr-method">method</a></code>
 &nbsp;HTML&nbsp;attribute, indicating the HTTP&nbsp;method used to submit the form. Only specified values can be set. */
-    var method :String;
+	var method : String;
 
-    /** Reflects the 
+	/** Reflects the 
 
 <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/form#attr-name">name</a></code>
 &nbsp;HTML&nbsp;attribute, containing the name of the form. */
-    var name :String;
+	var name : String;
 
-    /** Reflects the 
+	/** Reflects the 
 
 <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/form#attr-novalidate">novalidate</a></code>
  HTML attribute, indicating that the form should not be validated. */
-    var noValidate :Bool;
+	var noValidate : Bool;
 
-    /** Reflects the 
+	/** Reflects the 
 
 <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/form#attr-target">target</a></code>
  HTML attribute, indicating where to display the results received from submitting the form. */
-    var target :String;
+	var target : String;
 
-    function checkValidity () :Bool;
+	function checkValidity() : Bool;
 
-    function reset () :Void;
+	function reset() : Void;
 
-    function submit () :Void;
+	function submit() : Void;
 
 }

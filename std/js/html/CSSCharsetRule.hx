@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@ package js.html;
 @:native("CSSCharsetRule")
 extern class CSSCharsetRule extends CSSRule
 {
-    /** Setter throws DOMException. */
-    var encoding :String;
+	/** Setter throws DOMException. */
+	var encoding : String;
 
 }

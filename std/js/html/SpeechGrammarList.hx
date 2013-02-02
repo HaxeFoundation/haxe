@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,14 +26,14 @@ package js.html;
 @:native("SpeechGrammarList")
 extern class SpeechGrammarList implements ArrayAccess<SpeechGrammar>
 {
-    var length (default,null) :Int;
+	var length (default,null) : Int;
 
-    function new () :Void;
+	function new() : Void;
 
-    function addFromString (string :String, ?weight :Float) :Void;
+	function addFromString( string : String, ?weight : Float ) : Void;
 
-    function addFromUri (src :String, ?weight :Float) :Void;
+	function addFromUri( src : String, ?weight : Float ) : Void;
 
-    function item (index :Int) :SpeechGrammar;
+	function item( index : Int ) : SpeechGrammar;
 
 }

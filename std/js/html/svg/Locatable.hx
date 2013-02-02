@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,16 +26,16 @@ package js.html.svg;
 @:native("SVGLocatable")
 extern class Locatable
 {
-    var farthestViewportElement (default,null) :Element;
+	var farthestViewportElement (default,null) : Element;
 
-    var nearestViewportElement (default,null) :Element;
+	var nearestViewportElement (default,null) : Element;
 
-    function getBBox () :Rect;
+	function getBBox() : Rect;
 
-    function getCTM () :Matrix;
+	function getCTM() : Matrix;
 
-    function getScreenCTM () :Matrix;
+	function getScreenCTM() : Matrix;
 
-    function getTransformToElement (element :Element) :Matrix;
+	function getTransformToElement( element : Element ) : Matrix;
 
 }

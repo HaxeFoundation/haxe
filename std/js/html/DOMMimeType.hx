@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,12 +26,12 @@ package js.html;
 @:native("MimeType")
 extern class DOMMimeType
 {
-    var description (default,null) :String;
+	var description (default,null) : String;
 
-    var enabledPlugin (default,null) :DOMPlugin;
+	var enabledPlugin (default,null) : DOMPlugin;
 
-    var suffixes (default,null) :String;
+	var suffixes (default,null) : String;
 
-    var type (default,null) :String;
+	var type (default,null) : String;
 
 }

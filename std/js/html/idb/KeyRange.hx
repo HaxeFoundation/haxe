@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -28,21 +28,21 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("IDBKeyRange")
 extern class KeyRange
 {
-    var lower (default,null) :Key;
+	var lower (default,null) : Key;
 
-    var lowerOpen (default,null) :Bool;
+	var lowerOpen (default,null) : Bool;
 
-    var upper (default,null) :Key;
+	var upper (default,null) : Key;
 
-    /** Returns false if the upper-bound value is included in the key range. */
-    var upperOpen (default,null) :Bool;
+	/** Returns false if the upper-bound value is included in the key range. */
+	var upperOpen (default,null) : Bool;
 
-    static function bound (lower :Key, upper :Key, ?lowerOpen :Bool, ?upperOpen :Bool) :KeyRange;
+	static function bound( lower : Key, upper : Key, ?lowerOpen : Bool, ?upperOpen : Bool ) : KeyRange;
 
-    static function lowerBound (bound :Key, ?open :Bool) :KeyRange;
+	static function lowerBound( bound : Key, ?open : Bool ) : KeyRange;
 
-    static function only (value :Key) :KeyRange;
+	static function only( value : Key ) : KeyRange;
 
-    static function upperBound (bound :Key, ?open :Bool) :KeyRange;
+	static function upperBound( bound : Key, ?open : Bool ) : KeyRange;
 
 }

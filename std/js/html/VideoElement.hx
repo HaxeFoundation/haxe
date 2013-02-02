@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -28,44 +28,44 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("HTMLVideoElement")
 extern class VideoElement extends MediaElement
 {
-    var decodedFrameCount (default,null) :Int;
+	var decodedFrameCount (default,null) : Int;
 
-    var displayingFullscreen (default,null) :Bool;
+	var displayingFullscreen (default,null) : Bool;
 
-    var droppedFrameCount (default,null) :Int;
+	var droppedFrameCount (default,null) : Int;
 
-    /** Reflects the 
+	/** Reflects the 
 
 <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/video#attr-height">height</a></code>
  HTML attribute, which specifies the height of the display area, in CSS pixels. */
-    var height :Int;
+	var height : Int;
 
-    /** Reflects the 
+	/** Reflects the 
 
 <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/video#attr-poster">poster</a></code>
  HTML&nbsp;attribute, which specifies an image to show while no video data is available. */
-    var poster :String;
+	var poster : String;
 
-    var supportsFullscreen (default,null) :Bool;
+	var supportsFullscreen (default,null) : Bool;
 
-    /** The intrinsic height of the resource in CSS pixels, taking into account the dimensions, aspect ratio, clean aperture, resolution, and so forth, as defined for the format used by the resource. If the element's ready state is HAVE_NOTHING, the value is 0. */
-    var videoHeight (default,null) :Int;
+	/** The intrinsic height of the resource in CSS pixels, taking into account the dimensions, aspect ratio, clean aperture, resolution, and so forth, as defined for the format used by the resource. If the element's ready state is HAVE_NOTHING, the value is 0. */
+	var videoHeight (default,null) : Int;
 
-    /** The intrinsic width of the resource in CSS pixels, taking into account the dimensions, aspect ratio, clean aperture, resolution, and so forth, as defined for the format used by the resource. If the element's ready state is HAVE_NOTHING, the value is 0. */
-    var videoWidth (default,null) :Int;
+	/** The intrinsic width of the resource in CSS pixels, taking into account the dimensions, aspect ratio, clean aperture, resolution, and so forth, as defined for the format used by the resource. If the element's ready state is HAVE_NOTHING, the value is 0. */
+	var videoWidth (default,null) : Int;
 
-    /** Reflects the 
+	/** Reflects the 
 
 <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/video#attr-width">width</a></code>
 &nbsp;HTML&nbsp;attribute, which specifies the width of the display area, in CSS pixels. */
-    var width :Int;
+	var width : Int;
 
-    function enterFullScreen () :Void;
+	function enterFullScreen() : Void;
 
-    function enterFullscreen () :Void;
+	function enterFullscreen() : Void;
 
-    function exitFullScreen () :Void;
+	function exitFullScreen() : Void;
 
-    function exitFullscreen () :Void;
+	function exitFullscreen() : Void;
 
 }

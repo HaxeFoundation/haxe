@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,8 +26,8 @@ package js.html.svg;
 @:native("SVGFEDistantLightElement")
 extern class FEDistantLightElement extends Element
 {
-    var azimuth (default,null) :AnimatedNumber;
+	var azimuth (default,null) : AnimatedNumber;
 
-    var elevation (default,null) :AnimatedNumber;
+	var elevation (default,null) : AnimatedNumber;
 
 }

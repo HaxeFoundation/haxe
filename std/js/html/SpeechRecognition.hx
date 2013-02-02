@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,44 +26,44 @@ package js.html;
 @:native("SpeechRecognition")
 extern class SpeechRecognition extends EventTarget
 {
-    var continuous :Bool;
+	var continuous : Bool;
 
-    var grammars :SpeechGrammarList;
+	var grammars : SpeechGrammarList;
 
-    var interimResults :Bool;
+	var interimResults : Bool;
 
-    var lang :String;
+	var lang : String;
 
-    var maxAlternatives :Int;
+	var maxAlternatives : Int;
 
-    var onaudioend :EventListener;
+	var onaudioend : EventListener;
 
-    var onaudiostart :EventListener;
+	var onaudiostart : EventListener;
 
-    var onend :EventListener;
+	var onend : EventListener;
 
-    var onerror :EventListener;
+	var onerror : EventListener;
 
-    var onnomatch :EventListener;
+	var onnomatch : EventListener;
 
-    var onresult :EventListener;
+	var onresult : EventListener;
 
-    var onsoundend :EventListener;
+	var onsoundend : EventListener;
 
-    var onsoundstart :EventListener;
+	var onsoundstart : EventListener;
 
-    var onspeechend :EventListener;
+	var onspeechend : EventListener;
 
-    var onspeechstart :EventListener;
+	var onspeechstart : EventListener;
 
-    var onstart :EventListener;
+	var onstart : EventListener;
 
-    function new () :Void;
+	function new() : Void;
 
-    function abort () :Void;
+	function abort() : Void;
 
-    function start () :Void;
+	function start() : Void;
 
-    function stop () :Void;
+	function stop() : Void;
 
 }

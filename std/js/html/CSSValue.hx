@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,17 +26,17 @@ package js.html;
 @:native("CSSValue")
 extern class CSSValue
 {
-    static inline var CSS_CUSTOM :Int = 3;
+	static inline var CSS_CUSTOM : Int = 3;
 
-    static inline var CSS_INHERIT :Int = 0;
+	static inline var CSS_INHERIT : Int = 0;
 
-    static inline var CSS_PRIMITIVE_VALUE :Int = 1;
+	static inline var CSS_PRIMITIVE_VALUE : Int = 1;
 
-    static inline var CSS_VALUE_LIST :Int = 2;
+	static inline var CSS_VALUE_LIST : Int = 2;
 
-    /** Setter throws DOMException. */
-    var cssText :String;
+	/** Setter throws DOMException. */
+	var cssText : String;
 
-    var cssValueType (default,null) :Int;
+	var cssValueType (default,null) : Int;
 
 }

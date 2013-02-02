@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -29,12 +29,12 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("SVGFEGaussianBlurElement")
 extern class FEGaussianBlurElement extends Element
 {
-    var in1 (default,null) :AnimatedString;
+	var in1 (default,null) : AnimatedString;
 
-    var stdDeviationX (default,null) :AnimatedNumber;
+	var stdDeviationX (default,null) : AnimatedNumber;
 
-    var stdDeviationY (default,null) :AnimatedNumber;
+	var stdDeviationY (default,null) : AnimatedNumber;
 
-    function setStdDeviation (stdDeviationX :Float, stdDeviationY :Float) :Void;
+	function setStdDeviation( stdDeviationX : Float, stdDeviationY : Float ) : Void;
 
 }

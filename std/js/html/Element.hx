@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -87,305 +87,305 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("Element")
 extern class Element extends Node
 {
-    static inline var ALLOW_KEYBOARD_INPUT :Int = 1;
+	static inline var ALLOW_KEYBOARD_INPUT : Int = 1;
 
-    var accessKey :String;
+	var accessKey : String;
 
-    /** The number of child nodes that are elements. */
-    var childElementCount (default,null) :Int;
+	/** The number of child nodes that are elements. */
+	var childElementCount (default,null) : Int;
 
-    /** A live <code><a rel="internal" href="https://developer.mozilla.org/Article_not_found?uri=en/XPCOM_Interface_Reference/nsIDOMNodeList&amp;ident=nsIDOMNodeList" class="new">nsIDOMNodeList</a></code>
+	/** A live <code><a rel="internal" href="https://developer.mozilla.org/Article_not_found?uri=en/XPCOM_Interface_Reference/nsIDOMNodeList&amp;ident=nsIDOMNodeList" class="new">nsIDOMNodeList</a></code>
  of the current child elements. */
-    var children (default,null) :HTMLCollection;
+	var children (default,null) : HTMLCollection;
 
-    /** Token list of class attribute */
-    var classList (default,null) :DOMTokenList;
+	/** Token list of class attribute */
+	var classList (default,null) : DOMTokenList;
 
-    /** Gets/sets the class of the element. */
-    var className :String;
+	/** Gets/sets the class of the element. */
+	var className : String;
 
-    /** The inner height of an element. */
-    var clientHeight (default,null) :Int;
+	/** The inner height of an element. */
+	var clientHeight (default,null) : Int;
 
-    /** The width of the left border of an element. */
-    var clientLeft (default,null) :Int;
+	/** The width of the left border of an element. */
+	var clientLeft (default,null) : Int;
 
-    /** The width of the top border of an element. */
-    var clientTop (default,null) :Int;
+	/** The width of the top border of an element. */
+	var clientTop (default,null) : Int;
 
-    /** The inner width of an element. */
-    var clientWidth (default,null) :Int;
+	/** The inner width of an element. */
+	var clientWidth (default,null) : Int;
 
-    /** Gets/sets whether or not the element is editable. Setter throws DOMException. */
-    var contentEditable :String;
+	/** Gets/sets whether or not the element is editable. Setter throws DOMException. */
+	var contentEditable : String;
 
-    /** Allows access to read and write custom data attributes on the element. */
-    var dataset (default,null) :DOMStringMap;
+	/** Allows access to read and write custom data attributes on the element. */
+	var dataset (default,null) : DOMStringMap;
 
-    /** Gets/sets the directionality of the element. */
-    var dir :String;
+	/** Gets/sets the directionality of the element. */
+	var dir : String;
 
-    var draggable :Bool;
+	var draggable : Bool;
 
-    var dropzone :String;
+	var dropzone : String;
 
-    /** The first direct child element of an element, or <code>null</code> if the element has no child elements. */
-    var firstElementChild (default,null) :Element;
+	/** The first direct child element of an element, or <code>null</code> if the element has no child elements. */
+	var firstElementChild (default,null) : Element;
 
-    var hidden :Bool;
+	var hidden : Bool;
 
-    /** Gets/sets the id of the element. */
-    var id :String;
+	/** Gets/sets the id of the element. */
+	var id : String;
 
-    /** Gets/sets the markup of the element's content. Setter throws DOMException. */
-    var innerHTML :String;
+	/** Gets/sets the markup of the element's content. Setter throws DOMException. */
+	var innerHTML : String;
 
-    /** Setter throws DOMException. */
-    var innerText :String;
+	/** Setter throws DOMException. */
+	var innerText : String;
 
-    /** Indicates whether or not the content of the element can be edited. Read only. */
-    var isContentEditable (default,null) :Bool;
+	/** Indicates whether or not the content of the element can be edited. Read only. */
+	var isContentEditable (default,null) : Bool;
 
-    /** Gets/sets the language of an element's attributes, text, and element contents. */
-    var lang :String;
+	/** Gets/sets the language of an element's attributes, text, and element contents. */
+	var lang : String;
 
-    /** The last direct child element of an element, or <code>null</code> if the element has no child elements. */
-    var lastElementChild (default,null) :Element;
+	/** The last direct child element of an element, or <code>null</code> if the element has no child elements. */
+	var lastElementChild (default,null) : Element;
 
-    /** The element immediately following the given one in the tree, or <code>null</code> if there's no sibling node. */
-    var nextElementSibling (default,null) :Element;
+	/** The element immediately following the given one in the tree, or <code>null</code> if there's no sibling node. */
+	var nextElementSibling (default,null) : Element;
 
-    /** The height of an element, relative to the layout. */
-    var offsetHeight (default,null) :Int;
+	/** The height of an element, relative to the layout. */
+	var offsetHeight (default,null) : Int;
 
-    /** The distance from this element's left border to its <code>offsetParent</code>'s left border. */
-    var offsetLeft (default,null) :Int;
+	/** The distance from this element's left border to its <code>offsetParent</code>'s left border. */
+	var offsetLeft (default,null) : Int;
 
-    /** The element from which all offset calculations are currently computed. */
-    var offsetParent (default,null) :Element;
+	/** The element from which all offset calculations are currently computed. */
+	var offsetParent (default,null) : Element;
 
-    /** The distance from this element's top border to its <code>offsetParent</code>'s top border. */
-    var offsetTop (default,null) :Int;
+	/** The distance from this element's top border to its <code>offsetParent</code>'s top border. */
+	var offsetTop (default,null) : Int;
 
-    /** The width of an element, relative to the layout. */
-    var offsetWidth (default,null) :Int;
+	/** The width of an element, relative to the layout. */
+	var offsetWidth (default,null) : Int;
 
-    var onabort :EventListener;
+	var onabort : EventListener;
 
-    var onbeforecopy :EventListener;
+	var onbeforecopy : EventListener;
 
-    var onbeforecut :EventListener;
+	var onbeforecut : EventListener;
 
-    var onbeforepaste :EventListener;
+	var onbeforepaste : EventListener;
 
-    /** Returns the event handling code for the blur event. */
-    var onblur :EventListener;
+	/** Returns the event handling code for the blur event. */
+	var onblur : EventListener;
 
-    /** Returns the event handling code for the change event. */
-    var onchange :EventListener;
+	/** Returns the event handling code for the change event. */
+	var onchange : EventListener;
 
-    /** Returns the event handling code for the click event. */
-    var onclick :EventListener;
+	/** Returns the event handling code for the click event. */
+	var onclick : EventListener;
 
-    /** Returns the event handling code for the contextmenu event. */
-    var oncontextmenu :EventListener;
+	/** Returns the event handling code for the contextmenu event. */
+	var oncontextmenu : EventListener;
 
-    /** Returns the event handling code for the copy event. */
-    var oncopy :EventListener;
+	/** Returns the event handling code for the copy event. */
+	var oncopy : EventListener;
 
-    /** Returns the event handling code for the cut event. */
-    var oncut :EventListener;
+	/** Returns the event handling code for the cut event. */
+	var oncut : EventListener;
 
-    /** Returns the event handling code for the dblclick event. */
-    var ondblclick :EventListener;
+	/** Returns the event handling code for the dblclick event. */
+	var ondblclick : EventListener;
 
-    var ondrag :EventListener;
+	var ondrag : EventListener;
 
-    var ondragend :EventListener;
+	var ondragend : EventListener;
 
-    var ondragenter :EventListener;
+	var ondragenter : EventListener;
 
-    var ondragleave :EventListener;
+	var ondragleave : EventListener;
 
-    var ondragover :EventListener;
+	var ondragover : EventListener;
 
-    var ondragstart :EventListener;
+	var ondragstart : EventListener;
 
-    var ondrop :EventListener;
+	var ondrop : EventListener;
 
-    var onerror :EventListener;
+	var onerror : EventListener;
 
-    /** Returns the event handling code for the focus event. */
-    var onfocus :EventListener;
+	/** Returns the event handling code for the focus event. */
+	var onfocus : EventListener;
 
-    var onfullscreenchange :EventListener;
+	var onfullscreenchange : EventListener;
 
-    var onfullscreenerror :EventListener;
+	var onfullscreenerror : EventListener;
 
-    var oninput :EventListener;
+	var oninput : EventListener;
 
-    var oninvalid :EventListener;
+	var oninvalid : EventListener;
 
-    /** Returns the event handling code for the keydown event. */
-    var onkeydown :EventListener;
+	/** Returns the event handling code for the keydown event. */
+	var onkeydown : EventListener;
 
-    /** Returns the event handling code for the keypress event. */
-    var onkeypress :EventListener;
+	/** Returns the event handling code for the keypress event. */
+	var onkeypress : EventListener;
 
-    /** Returns the event handling code for the keyup event. */
-    var onkeyup :EventListener;
+	/** Returns the event handling code for the keyup event. */
+	var onkeyup : EventListener;
 
-    var onload :EventListener;
+	var onload : EventListener;
 
-    /** Returns the event handling code for the mousedown event. */
-    var onmousedown :EventListener;
+	/** Returns the event handling code for the mousedown event. */
+	var onmousedown : EventListener;
 
-    /** Returns the event handling code for the mousemove event. */
-    var onmousemove :EventListener;
+	/** Returns the event handling code for the mousemove event. */
+	var onmousemove : EventListener;
 
-    /** Returns the event handling code for the mouseout event. */
-    var onmouseout :EventListener;
+	/** Returns the event handling code for the mouseout event. */
+	var onmouseout : EventListener;
 
-    /** Returns the event handling code for the mouseover event. */
-    var onmouseover :EventListener;
+	/** Returns the event handling code for the mouseover event. */
+	var onmouseover : EventListener;
 
-    /** Returns the event handling code for the mouseup event. */
-    var onmouseup :EventListener;
+	/** Returns the event handling code for the mouseup event. */
+	var onmouseup : EventListener;
 
-    var onmousewheel :EventListener;
+	var onmousewheel : EventListener;
 
-    /** Returns the event handling code for the paste event. */
-    var onpaste :EventListener;
+	/** Returns the event handling code for the paste event. */
+	var onpaste : EventListener;
 
-    var onreset :EventListener;
+	var onreset : EventListener;
 
-    /** Returns the event handling code for the scroll event. */
-    var onscroll :EventListener;
+	/** Returns the event handling code for the scroll event. */
+	var onscroll : EventListener;
 
-    var onsearch :EventListener;
+	var onsearch : EventListener;
 
-    var onselect :EventListener;
+	var onselect : EventListener;
 
-    var onselectstart :EventListener;
+	var onselectstart : EventListener;
 
-    var onsubmit :EventListener;
+	var onsubmit : EventListener;
 
-    var ontouchcancel :EventListener;
+	var ontouchcancel : EventListener;
 
-    var ontouchend :EventListener;
+	var ontouchend : EventListener;
 
-    var ontouchmove :EventListener;
+	var ontouchmove : EventListener;
 
-    var ontouchstart :EventListener;
+	var ontouchstart : EventListener;
 
-    /** Gets the markup of the element including its content. When used as a setter, replaces the element with nodes parsed from the given string. Setter throws DOMException. */
-    var outerHTML :String;
+	/** Gets the markup of the element including its content. When used as a setter, replaces the element with nodes parsed from the given string. Setter throws DOMException. */
+	var outerHTML : String;
 
-    /** Setter throws DOMException. */
-    var outerText :String;
+	/** Setter throws DOMException. */
+	var outerText : String;
 
-    /** The element immediately preceding the given one in the tree, or <code>null</code> if there is no sibling element. */
-    var previousElementSibling (default,null) :Element;
+	/** The element immediately preceding the given one in the tree, or <code>null</code> if there is no sibling element. */
+	var previousElementSibling (default,null) : Element;
 
-    var pseudo :String;
+	var pseudo : String;
 
-    /** The scroll view height of an element. */
-    var scrollHeight (default,null) :Int;
+	/** The scroll view height of an element. */
+	var scrollHeight (default,null) : Int;
 
-    /** Gets/sets the left scroll offset of an element. */
-    var scrollLeft :Int;
+	/** Gets/sets the left scroll offset of an element. */
+	var scrollLeft : Int;
 
-    /** Gets/sets the top scroll offset of an element. */
-    var scrollTop :Int;
+	/** Gets/sets the top scroll offset of an element. */
+	var scrollTop : Int;
 
-    /** The scroll view width of an element. */
-    var scrollWidth (default,null) :Int;
+	/** The scroll view width of an element. */
+	var scrollWidth (default,null) : Int;
 
-    /** Controls <a title="en/Controlling_spell_checking_in_HTML_forms" rel="internal" href="https://developer.mozilla.org/en/HTML/Controlling_spell_checking_in_HTML_forms">spell-checking</a> (present on all HTML&nbsp;elements) */
-    var spellcheck :Bool;
+	/** Controls <a title="en/Controlling_spell_checking_in_HTML_forms" rel="internal" href="https://developer.mozilla.org/en/HTML/Controlling_spell_checking_in_HTML_forms">spell-checking</a> (present on all HTML&nbsp;elements) */
+	var spellcheck : Bool;
 
-    /** An object representing the declarations of an element's style attributes. */
-    var style (default,null) :CSSStyleDeclaration;
+	/** An object representing the declarations of an element's style attributes. */
+	var style (default,null) : CSSStyleDeclaration;
 
-    /** Gets/sets the position of the element in the tabbing order. */
-    var tabIndex :Int;
+	/** Gets/sets the position of the element in the tabbing order. */
+	var tabIndex : Int;
 
-    /** The name of the tag for the given element. */
-    var tagName (default,null) :String;
+	/** The name of the tag for the given element. */
+	var tagName (default,null) : String;
 
-    /** A string that appears in a popup box when mouse is over the element. */
-    var title :String;
+	/** A string that appears in a popup box when mouse is over the element. */
+	var title : String;
 
-    var translate :Bool;
+	var translate : Bool;
 
-    function blur () :Void;
+	function blur() : Void;
 
-    function click () :Void;
+	function click() : Void;
 
-    function focus () :Void;
+	function focus() : Void;
 
-    function getAttribute (name :String) :String;
+	function getAttribute( name : String ) : String;
 
-    function getAttributeNS (namespaceURI :String, localName :String) :String;
+	function getAttributeNS( namespaceURI : String, localName : String ) : String;
 
-    function getAttributeNode (name :String) :Attr;
+	function getAttributeNode( name : String ) : Attr;
 
-    function getAttributeNodeNS (namespaceURI :String, localName :String) :Attr;
+	function getAttributeNodeNS( namespaceURI : String, localName : String ) : Attr;
 
-    function getBoundingClientRect () :ClientRect;
+	function getBoundingClientRect() : ClientRect;
 
-    function getClientRects () :ClientRectList;
+	function getClientRects() : ClientRectList;
 
-    function getElementsByClassName (name :String) :NodeList;
+	function getElementsByClassName( name : String ) : NodeList;
 
-    function getElementsByTagName (name :String) :NodeList;
+	function getElementsByTagName( name : String ) : NodeList;
 
-    function getElementsByTagNameNS (namespaceURI :String, localName :String) :NodeList;
+	function getElementsByTagNameNS( namespaceURI : String, localName : String ) : NodeList;
 
-    function hasAttribute (name :String) :Bool;
+	function hasAttribute( name : String ) : Bool;
 
-    function hasAttributeNS (namespaceURI :String, localName :String) :Bool;
+	function hasAttributeNS( namespaceURI : String, localName : String ) : Bool;
 
-    function insertAdjacentElement (where :String, element :Element) :Element;
+	function insertAdjacentElement( where : String, element : Element ) : Element;
 
-    function insertAdjacentHTML (where :String, html :String) :Void;
+	function insertAdjacentHTML( where : String, html : String ) : Void;
 
-    function insertAdjacentText (where :String, text :String) :Void;
+	function insertAdjacentText( where : String, text : String ) : Void;
 
-    function matchesSelector (selectors :String) :Bool;
+	function matchesSelector( selectors : String ) : Bool;
 
-    function querySelector (selectors :String) :Element;
+	function querySelector( selectors : String ) : Element;
 
-    function querySelectorAll (selectors :String) :NodeList;
+	function querySelectorAll( selectors : String ) : NodeList;
 
-    function remove () :Void;
+	function remove() : Void;
 
-    function removeAttribute (name :String) :Void;
+	function removeAttribute( name : String ) : Void;
 
-    function removeAttributeNS (namespaceURI :String, localName :String) :Void;
+	function removeAttributeNS( namespaceURI : String, localName : String ) : Void;
 
-    function removeAttributeNode (oldAttr :Attr) :Attr;
+	function removeAttributeNode( oldAttr : Attr ) : Attr;
 
-    function requestFullScreen (flags :Int) :Void;
+	function requestFullScreen( flags : Int ) : Void;
 
-    function requestFullscreen () :Void;
+	function requestFullscreen() : Void;
 
-    function requestPointerLock () :Void;
+	function requestPointerLock() : Void;
 
-    function scrollByLines (lines :Int) :Void;
+	function scrollByLines( lines : Int ) : Void;
 
-    function scrollByPages (pages :Int) :Void;
+	function scrollByPages( pages : Int ) : Void;
 
-    function scrollIntoView (?alignWithTop :Bool) :Void;
+	function scrollIntoView( ?alignWithTop : Bool ) : Void;
 
-    function scrollIntoViewIfNeeded (?centerIfNeeded :Bool) :Void;
+	function scrollIntoViewIfNeeded( ?centerIfNeeded : Bool ) : Void;
 
-    function setAttribute (name :String, value :String) :Void;
+	function setAttribute( name : String, value : String ) : Void;
 
-    function setAttributeNS (namespaceURI :String, qualifiedName :String, value :String) :Void;
+	function setAttributeNS( namespaceURI : String, qualifiedName : String, value : String ) : Void;
 
-    function setAttributeNode (newAttr :Attr) :Attr;
+	function setAttributeNode( newAttr : Attr ) : Attr;
 
-    function setAttributeNodeNS (newAttr :Attr) :Attr;
+	function setAttributeNodeNS( newAttr : Attr ) : Attr;
 
 }

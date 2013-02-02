@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,10 +26,10 @@ package js.html;
 @:native("TextTrackList")
 extern class TextTrackList extends EventTarget, implements ArrayAccess<TextTrack>
 {
-    var length (default,null) :Int;
+	var length (default,null) : Int;
 
-    var onaddtrack :EventListener;
+	var onaddtrack : EventListener;
 
-    function item (index :Int) :TextTrack;
+	function item( index : Int ) : TextTrack;
 
 }

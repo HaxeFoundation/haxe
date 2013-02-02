@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,10 +26,10 @@ package js.html;
 @:native("Geolocation")
 extern class Geolocation
 {
-    function clearWatch (watchId :Int) :Void;
+	function clearWatch( watchId : Int ) : Void;
 
-    function getCurrentPosition (successCallback :PositionCallback, ?errorCallback :PositionErrorCallback, ?options :Dynamic) :Void;
+	function getCurrentPosition( successCallback : PositionCallback, ?errorCallback : PositionErrorCallback, ?options : Dynamic ) : Void;
 
-    function watchPosition (successCallback :PositionCallback, ?errorCallback :PositionErrorCallback, ?options :Dynamic) :Int;
+	function watchPosition( successCallback : PositionCallback, ?errorCallback : PositionErrorCallback, ?options : Dynamic ) : Int;
 
 }

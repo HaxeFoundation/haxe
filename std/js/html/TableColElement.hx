@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -30,25 +30,25 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("HTMLTableColElement")
 extern class TableColElement extends Element
 {
-    /** Indicates the horizontal alignment of the cell data in the column. */
-    var align :String;
+	/** Indicates the horizontal alignment of the cell data in the column. */
+	var align : String;
 
-    /** Alignment character for cell data. */
-    var ch :String;
+	/** Alignment character for cell data. */
+	var ch : String;
 
-    /** Offset for the alignment character. */
-    var chOff :String;
+	/** Offset for the alignment character. */
+	var chOff : String;
 
-    /** Reflects the 
+	/** Reflects the 
 
 <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/col#attr-span">span</a></code>
  HTML&nbsp;attribute, indicating the number of columns to apply this object's attributes to. Must be a positive integer. */
-    var span :Int;
+	var span : Int;
 
-    /** Indicates the vertical alignment of the cell data in the column. */
-    var vAlign :String;
+	/** Indicates the vertical alignment of the cell data in the column. */
+	var vAlign : String;
 
-    /** Default column width. */
-    var width :String;
+	/** Default column width. */
+	var width : String;
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -28,18 +28,18 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("DeviceMotionEvent")
 extern class DeviceMotionEvent extends Event
 {
-    /** The acceleration of the device. This value has taken into account the effect of gravity and removed it from the figures. This value may not exist if the hardware doesn't know how to remove gravity from the acceleration data. <strong>Read only.</strong> */
-    var acceleration (default,null) :DeviceAcceleration;
+	/** The acceleration of the device. This value has taken into account the effect of gravity and removed it from the figures. This value may not exist if the hardware doesn't know how to remove gravity from the acceleration data. <strong>Read only.</strong> */
+	var acceleration (default,null) : DeviceAcceleration;
 
-    /** The acceleration of the device. This value includes the effect of gravity, and may be the only value available on devices that don't have a gyroscope to allow them to properly remove gravity from the data. <strong>Read only.</strong> */
-    var accelerationIncludingGravity (default,null) :DeviceAcceleration;
+	/** The acceleration of the device. This value includes the effect of gravity, and may be the only value available on devices that don't have a gyroscope to allow them to properly remove gravity from the data. <strong>Read only.</strong> */
+	var accelerationIncludingGravity (default,null) : DeviceAcceleration;
 
-    /** The interval, in milliseconds, at which the <code>DeviceMotionEvent</code> is fired. The next event will be fired in approximately this amount of time. */
-    var interval (default,null) :Float;
+	/** The interval, in milliseconds, at which the <code>DeviceMotionEvent</code> is fired. The next event will be fired in approximately this amount of time. */
+	var interval (default,null) : Float;
 
-    /** The rates of rotation of the device about all three axes. <strong>Read only.</strong> */
-    var rotationRate (default,null) :DeviceRotationRate;
+	/** The rates of rotation of the device about all three axes. <strong>Read only.</strong> */
+	var rotationRate (default,null) : DeviceRotationRate;
 
-    function initDeviceMotionEvent (type :String, bubbles :Bool, cancelable :Bool, acceleration :DeviceAcceleration, accelerationIncludingGravity :DeviceAcceleration, rotationRate :DeviceRotationRate, interval :Float) :Void;
+	function initDeviceMotionEvent( type : String, bubbles : Bool, cancelable : Bool, acceleration : DeviceAcceleration, accelerationIncludingGravity : DeviceAcceleration, rotationRate : DeviceRotationRate, interval : Float ) : Void;
 
 }

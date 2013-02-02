@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -29,13 +29,13 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("Uint8Array")
 extern class Uint8Array extends ArrayBufferView, implements ArrayAccess<Int>
 {
-    /** The size, in bytes, of each array element. */
-    static inline var BYTES_PER_ELEMENT :Int = 1;
+	/** The size, in bytes, of each array element. */
+	static inline var BYTES_PER_ELEMENT : Int = 1;
 
-    /** The number of entries in the array; for these 8-bit values, this is the same as the size of the array in bytes. <strong>Read only.</strong> */
-    var length (default,null) :Int;
+	/** The number of entries in the array; for these 8-bit values, this is the same as the size of the array in bytes. <strong>Read only.</strong> */
+	var length (default,null) : Int;
 
-    /** <div class="note"><strong>Note:</strong> In these methods, <code><em>TypedArray</em></code> represents any of the <a title="en/JavaScript typed arrays/ArrayBufferView#Typed array subclasses" rel="internal" href="https://developer.mozilla.org/en/JavaScript_typed_arrays/ArrayBufferView#Typed_array_subclasses">typed array object types</a>.</div>
+	/** <div class="note"><strong>Note:</strong> In these methods, <code><em>TypedArray</em></code> represents any of the <a title="en/JavaScript typed arrays/ArrayBufferView#Typed array subclasses" rel="internal" href="https://developer.mozilla.org/en/JavaScript_typed_arrays/ArrayBufferView#Typed_array_subclasses">typed array object types</a>.</div>
 <table class="standard-table"> <tbody> <tr> <td><code>Uint8Array <a title="en/JavaScript typed arrays/Uint8Array#Int8Array()" rel="internal" href="https://developer.mozilla.org/en/JavaScript_typed_arrays/Uint8Array#Int8Array%28%29">Uint8Array</a>(unsigned long length);<br> </code></td> </tr> <tr> <td><code>Uint8Array </code><code><a title="en/JavaScript typed arrays/Uint8Array#Int8Array()" rel="internal" href="https://developer.mozilla.org/en/JavaScript_typed_arrays/Uint8Array#Int8Array%28%29">Uint8Array</a></code><code>(<em>TypedArray</em> array);<br> </code></td> </tr> <tr> <td><code>Uint8Array </code><code><a title="en/JavaScript typed arrays/Uint8Array#Int8Array()" rel="internal" href="https://developer.mozilla.org/en/JavaScript_typed_arrays/Uint8Array#Int8Array%28%29">Uint8Array</a></code><code>(sequence&lt;type&gt; array);<br> </code></td> </tr> <tr> <td><code>Uint8Array </code><code><a title="en/JavaScript typed arrays/Uint8Array#Int8Array()" rel="internal" href="https://developer.mozilla.org/en/JavaScript_typed_arrays/Uint8Array#Int8Array%28%29">Uint8Array</a></code><code>(ArrayBuffer buffer, optional unsigned long byteOffset, optional unsigned long length);<br> </code></td> </tr> </tbody>
 </table><p>Returns a new Uint8Array object.</p>
 <pre>Uint8Array Uint8Array(
@@ -62,13 +62,23 @@ Uint8Array Uint8Array(
 </div><div id="section_8"><span id="Return_value"></span><h6 class="editable">Return value</h6>
 <p>A new <code>Uint8Array</code> object representing the specified data buffer.</p>
 </div> */
-    @:overload(function (array :ArrayBufferView) :Void {})
-    @:overload(function (array :Array<Int>) :Void {})
-    @:overload(function (buffer :Array<Int>, ?byteOffset :Int, ?length :Int) :Void {})
-    function new (length :Int) :Void;
+	@:overload( function(array : ArrayBufferView) : Void {} )
+	@:overload( function(array : Array<Int>) : Void {} )
+	@:overload( function(buffer : Array<Int>, ?byteOffset : Int, ?length : Int) : Void {} )
+	function new(length : Int) : Void;
 
-    function set () :Void;
+	/** <p>Sets multiple values in the typed array, reading input values from a specified array.</p>
 
-    function subarray (start :Int, ?end :Int) :Uint8Array;
+<div id="section_13"><span id="Parameters_2"></span><h6 class="editable">Parameters</h6>
+<dl> <dt><code>array</code></dt> <dd>An array from which to copy values. All values from the source array are copied into the target array, unless the length of the source array plus the offset exceeds the length of the target array, in which case an exception is thrown. If the source array is a typed array, the two arrays may share the same underlying <code><a title="en/JavaScript typed arrays/ArrayBuffer" rel="internal" href="https://developer.mozilla.org/en/JavaScript_typed_arrays/ArrayBuffer">ArrayBuffer</a></code>; the browser will intelligently copy the source range of the buffer to the destination range.</dd> <dt>offset 
+<span title="">Optional</span>
+</dt> <dd>The offset into the target array at which to begin writing values from the source <code>array</code>. If you omit this value, 0 is assumed (that is, the source <code>array</code> will overwrite values in the target array starting at index 0).</dd>
+</dl>
+</div> */
+	@:overload( function() :Void {} )
+	@:overload( function( array : Uint8Array, ?offset : Int ) :Void {} )
+	function set( array : Array<Int>, ?offset : Int ) : Void;
+
+	function subarray( start : Int, ?end : Int ) : Uint8Array;
 
 }

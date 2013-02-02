@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -28,36 +28,36 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("SVGFEConvolveMatrixElement")
 extern class FEConvolveMatrixElement extends Element
 {
-    static inline var SVG_EDGEMODE_DUPLICATE :Int = 1;
+	static inline var SVG_EDGEMODE_DUPLICATE : Int = 1;
 
-    static inline var SVG_EDGEMODE_NONE :Int = 3;
+	static inline var SVG_EDGEMODE_NONE : Int = 3;
 
-    static inline var SVG_EDGEMODE_UNKNOWN :Int = 0;
+	static inline var SVG_EDGEMODE_UNKNOWN : Int = 0;
 
-    static inline var SVG_EDGEMODE_WRAP :Int = 2;
+	static inline var SVG_EDGEMODE_WRAP : Int = 2;
 
-    var bias (default,null) :AnimatedNumber;
+	var bias (default,null) : AnimatedNumber;
 
-    var divisor (default,null) :AnimatedNumber;
+	var divisor (default,null) : AnimatedNumber;
 
-    var edgeMode (default,null) :AnimatedEnumeration;
+	var edgeMode (default,null) : AnimatedEnumeration;
 
-    var in1 (default,null) :AnimatedString;
+	var in1 (default,null) : AnimatedString;
 
-    var kernelMatrix (default,null) :AnimatedNumberList;
+	var kernelMatrix (default,null) : AnimatedNumberList;
 
-    var kernelUnitLengthX (default,null) :AnimatedNumber;
+	var kernelUnitLengthX (default,null) : AnimatedNumber;
 
-    var kernelUnitLengthY (default,null) :AnimatedNumber;
+	var kernelUnitLengthY (default,null) : AnimatedNumber;
 
-    var orderX (default,null) :AnimatedInteger;
+	var orderX (default,null) : AnimatedInteger;
 
-    var orderY (default,null) :AnimatedInteger;
+	var orderY (default,null) : AnimatedInteger;
 
-    var preserveAlpha (default,null) :AnimatedBoolean;
+	var preserveAlpha (default,null) : AnimatedBoolean;
 
-    var targetX (default,null) :AnimatedInteger;
+	var targetX (default,null) : AnimatedInteger;
 
-    var targetY (default,null) :AnimatedInteger;
+	var targetY (default,null) : AnimatedInteger;
 
 }

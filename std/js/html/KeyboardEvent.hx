@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,24 +32,24 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("KeyboardEvent")
 extern class KeyboardEvent extends UIEvent
 {
-    var altGraphKey (default,null) :Bool;
+	var altGraphKey (default,null) : Bool;
 
-    /** <code>true</code> if the Alt (or Option, on Mac) key was active when the key event was generated. <strong>Read only.</strong> */
-    var altKey (default,null) :Bool;
+	/** <code>true</code> if the Alt (or Option, on Mac) key was active when the key event was generated. <strong>Read only.</strong> */
+	var altKey (default,null) : Bool;
 
-    /** <code>true</code> if the Control key was active when the key event was generated. <strong>Read only.</strong> */
-    var ctrlKey (default,null) :Bool;
+	/** <code>true</code> if the Control key was active when the key event was generated. <strong>Read only.</strong> */
+	var ctrlKey (default,null) : Bool;
 
-    var keyIdentifier (default,null) :String;
+	var keyIdentifier (default,null) : String;
 
-    var keyLocation (default,null) :Int;
+	var keyLocation (default,null) : Int;
 
-    /** <code>true</code> if the Meta (or Command, on Mac) key was active when the key event was generated. <strong>Read only.</strong> */
-    var metaKey (default,null) :Bool;
+	/** <code>true</code> if the Meta (or Command, on Mac) key was active when the key event was generated. <strong>Read only.</strong> */
+	var metaKey (default,null) : Bool;
 
-    /** <code>true</code> if the Shift key was active when the key event was generated. <strong>Read only.</strong> */
-    var shiftKey (default,null) :Bool;
+	/** <code>true</code> if the Shift key was active when the key event was generated. <strong>Read only.</strong> */
+	var shiftKey (default,null) : Bool;
 
-    function initKeyboardEvent (type :String, canBubble :Bool, cancelable :Bool, view :DOMWindow, keyIdentifier :String, keyLocation :Int, ctrlKey :Bool, altKey :Bool, shiftKey :Bool, metaKey :Bool, altGraphKey :Bool) :Void;
+	function initKeyboardEvent( type : String, canBubble : Bool, cancelable : Bool, view : DOMWindow, keyIdentifier : String, keyLocation : Int, ctrlKey : Bool, altKey : Bool, shiftKey : Bool, metaKey : Bool, altGraphKey : Bool ) : Void;
 
 }

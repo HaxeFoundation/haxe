@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -28,21 +28,21 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("CharacterData")
 extern class CharacterData extends Node
 {
-    /** Setter throws DOMException. */
-    var data :String;
+	/** Setter throws DOMException. */
+	var data : String;
 
-    var length (default,null) :Int;
+	var length (default,null) : Int;
 
-    function appendData (data :String) :Void;
+	function appendData( data : String ) : Void;
 
-    function deleteData (offset :Int, length :Int) :Void;
+	function deleteData( offset : Int, length : Int ) : Void;
 
-    function insertData (offset :Int, data :String) :Void;
+	function insertData( offset : Int, data : String ) : Void;
 
-    function remove () :Void;
+	function remove() : Void;
 
-    function replaceData (offset :Int, length :Int, data :String) :Void;
+	function replaceData( offset : Int, length : Int, data : String ) : Void;
 
-    function substringData (offset :Int, length :Int) :String;
+	function substringData( offset : Int, length : Int ) : String;
 
 }

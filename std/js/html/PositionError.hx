@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,14 +26,14 @@ package js.html;
 @:native("PositionError")
 extern class PositionError
 {
-    static inline var PERMISSION_DENIED :Int = 1;
+	static inline var PERMISSION_DENIED : Int = 1;
 
-    static inline var POSITION_UNAVAILABLE :Int = 2;
+	static inline var POSITION_UNAVAILABLE : Int = 2;
 
-    static inline var TIMEOUT :Int = 3;
+	static inline var TIMEOUT : Int = 3;
 
-    var code (default,null) :Int;
+	var code (default,null) : Int;
 
-    var message (default,null) :String;
+	var message (default,null) : String;
 
 }

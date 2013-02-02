@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,12 +26,12 @@ package js.html;
 @:native("ElementTimeControl")
 extern class ElementTimeControl
 {
-    function beginElement () :Void;
+	function beginElement() : Void;
 
-    function beginElementAt (offset :Float) :Void;
+	function beginElementAt( offset : Float ) : Void;
 
-    function endElement () :Void;
+	function endElement() : Void;
 
-    function endElementAt (offset :Float) :Void;
+	function endElementAt( offset : Float ) : Void;
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -30,20 +30,20 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("SVGStringList")
 extern class StringList
 {
-    var numberOfItems (default,null) :Int;
+	var numberOfItems (default,null) : Int;
 
-    function appendItem (item :String) :String;
+	function appendItem( item : String ) : String;
 
-    function clear () :Void;
+	function clear() : Void;
 
-    function getItem (index :Int) :String;
+	function getItem( index : Int ) : String;
 
-    function initialize (item :String) :String;
+	function initialize( item : String ) : String;
 
-    function insertItemBefore (item :String, index :Int) :String;
+	function insertItemBefore( item : String, index : Int ) : String;
 
-    function removeItem (index :Int) :String;
+	function removeItem( index : Int ) : String;
 
-    function replaceItem (item :String, index :Int) :String;
+	function replaceItem( item : String, index : Int ) : String;
 
 }

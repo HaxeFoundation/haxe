@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -29,9 +29,9 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("SVGClipPathElement")
 extern class ClipPathElement extends Element
 {
-    /** Corresponds to attribute 
+	/** Corresponds to attribute 
 <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Attribute/clipPathUnits">clipPathUnits</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/clipPath">&lt;clipPath&gt;</a></code>
  element. Takes one of the constants defined in <code><a rel="internal" href="https://developer.mozilla.org/Article_not_found?uri=en/DOM/SVGUnitTypes" class="new">SVGUnitTypes</a></code> */
-    var clipPathUnits (default,null) :AnimatedEnumeration;
+	var clipPathUnits (default,null) : AnimatedEnumeration;
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -29,63 +29,63 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("HTMLAreaElement")
 extern class AreaElement extends Element
 {
-    /** Reflects the 
+	/** Reflects the 
 
 <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/area#attr-alt">alt</a></code>
  HTML attribute, containing alternative text for the element. */
-    var alt :String;
+	var alt : String;
 
-    /** Reflects the 
+	/** Reflects the 
 
 <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/area#attr-coords">coords</a></code>
  HTML attribute, containing coordinates to define the hot-spot region. */
-    var coords :String;
+	var coords : String;
 
-    /** The fragment identifier (including the leading hash mark (#)), if any, in the referenced URL. */
-    var hash (default,null) :String;
+	/** The fragment identifier (including the leading hash mark (#)), if any, in the referenced URL. */
+	var hash (default,null) : String;
 
-    /** The hostname and port (if it's not the default port) in the referenced URL. */
-    var host (default,null) :String;
+	/** The hostname and port (if it's not the default port) in the referenced URL. */
+	var host (default,null) : String;
 
-    /** The hostname in the referenced URL. */
-    var hostname (default,null) :String;
+	/** The hostname in the referenced URL. */
+	var hostname (default,null) : String;
 
-    /** Reflects the 
+	/** Reflects the 
 
 <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/area#attr-href">href</a></code>
  HTML attribute, containing a valid URL&nbsp;of a linked resource. */
-    var href :String;
+	var href : String;
 
-    /** Indicates that this area is inactive. 
+	/** Indicates that this area is inactive. 
 
 <span title="">Obsolete</span> in 
 <span><a rel="custom" href="https://developer.mozilla.org/en/HTML/HTML5">HTML5</a></span> */
-    var noHref :Bool;
+	var noHref : Bool;
 
-    /** The path name component, if any, of the referenced URL. */
-    var pathname (default,null) :String;
+	/** The path name component, if any, of the referenced URL. */
+	var pathname (default,null) : String;
 
-    var ping :String;
+	var ping : String;
 
-    /** The port component, if any, of the referenced URL. */
-    var port (default,null) :String;
+	/** The port component, if any, of the referenced URL. */
+	var port (default,null) : String;
 
-    /** The protocol component (including trailing colon (:)), of the referenced URL. */
-    var protocol (default,null) :String;
+	/** The protocol component (including trailing colon (:)), of the referenced URL. */
+	var protocol (default,null) : String;
 
-    /** The search element (including leading question mark (?)), if any, of the referenced URL */
-    var search (default,null) :String;
+	/** The search element (including leading question mark (?)), if any, of the referenced URL */
+	var search (default,null) : String;
 
-    /** Reflects the 
+	/** Reflects the 
 
 <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/area#attr-shape">shape</a></code>
  HTML&nbsp;attribute, indicating the shape of the hot-spot, limited to known values. */
-    var shape :String;
+	var shape : String;
 
-    /** Reflects the 
+	/** Reflects the 
 
 <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/area#attr-target">target</a></code>
  HTML&nbsp;attribute, indicating the browsing context in which to open the linked resource. */
-    var target :String;
+	var target : String;
 
 }

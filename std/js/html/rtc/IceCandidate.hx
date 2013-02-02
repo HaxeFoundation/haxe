@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,12 +26,12 @@ package js.html.rtc;
 @:native("RTCIceCandidate")
 extern class IceCandidate
 {
-    var candidate (default,null) :String;
+	var candidate (default,null) : String;
 
-    var sdpMLineIndex (default,null) :Int;
+	var sdpMLineIndex (default,null) : Int;
 
-    var sdpMid (default,null) :String;
+	var sdpMid (default,null) : String;
 
-    function new () :Void;
+	function new() : Void;
 
 }

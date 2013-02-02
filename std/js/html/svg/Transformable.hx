@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -29,8 +29,8 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("SVGTransformable")
 extern class Transformable extends Locatable
 {
-    /** Corresponds to attribute 
+	/** Corresponds to attribute 
 <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Attribute/transform">transform</a></code> on the given element. */
-    var transform (default,null) :AnimatedTransformList;
+	var transform (default,null) : AnimatedTransformList;
 
 }

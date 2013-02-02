@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -29,24 +29,24 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("SVGEllipseElement")
 extern class EllipseElement extends Element
 {
-    /** Corresponds to attribute 
+	/** Corresponds to attribute 
 <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Attribute/cx">cx</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/ellipse">&lt;ellipse&gt;</a></code>
  element. */
-    var cx (default,null) :AnimatedLength;
+	var cx (default,null) : AnimatedLength;
 
-    /** Corresponds to attribute 
+	/** Corresponds to attribute 
 <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Attribute/cy">cy</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/ellipse">&lt;ellipse&gt;</a></code>
  element. */
-    var cy (default,null) :AnimatedLength;
+	var cy (default,null) : AnimatedLength;
 
-    /** Corresponds to attribute 
+	/** Corresponds to attribute 
 <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Attribute/rx">rx</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/ellipse">&lt;ellipse&gt;</a></code>
  element. */
-    var rx (default,null) :AnimatedLength;
+	var rx (default,null) : AnimatedLength;
 
-    /** Corresponds to attribute 
+	/** Corresponds to attribute 
 <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Attribute/ry">ry</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/ellipse">&lt;ellipse&gt;</a></code>
  element. */
-    var ry (default,null) :AnimatedLength;
+	var ry (default,null) : AnimatedLength;
 
 }

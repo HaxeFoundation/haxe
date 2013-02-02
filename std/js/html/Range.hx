@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -33,93 +33,93 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("Range")
 extern class Range
 {
-    static inline var END_TO_END :Int = 2;
+	static inline var END_TO_END : Int = 2;
 
-    static inline var END_TO_START :Int = 3;
+	static inline var END_TO_START : Int = 3;
 
-    static inline var NODE_AFTER :Int = 1;
+	static inline var NODE_AFTER : Int = 1;
 
-    static inline var NODE_BEFORE :Int = 0;
+	static inline var NODE_BEFORE : Int = 0;
 
-    static inline var NODE_BEFORE_AND_AFTER :Int = 2;
+	static inline var NODE_BEFORE_AND_AFTER : Int = 2;
 
-    static inline var NODE_INSIDE :Int = 3;
+	static inline var NODE_INSIDE : Int = 3;
 
-    static inline var START_TO_END :Int = 1;
+	static inline var START_TO_END : Int = 1;
 
-    static inline var START_TO_START :Int = 0;
+	static inline var START_TO_START : Int = 0;
 
-    /** Returns a&nbsp;<code>boolean</code>&nbsp;indicating whether the range's start and end points are at the same position. Getter throws DOMException. */
-    var collapsed (default,null) :Bool;
+	/** Returns a&nbsp;<code>boolean</code>&nbsp;indicating whether the range's start and end points are at the same position. Getter throws DOMException. */
+	var collapsed (default,null) : Bool;
 
-    /** Returns the deepest&nbsp;<code><a rel="custom" href="https://developer.mozilla.org/en/DOM/Node">Node</a></code>
+	/** Returns the deepest&nbsp;<code><a rel="custom" href="https://developer.mozilla.org/en/DOM/Node">Node</a></code>
 &nbsp;that contains the startContainer and endContainer Nodes. Getter throws DOMException. */
-    var commonAncestorContainer (default,null) :Node;
+	var commonAncestorContainer (default,null) : Node;
 
-    /** Returns the&nbsp;<code><a rel="custom" href="https://developer.mozilla.org/en/DOM/Node">Node</a></code>
+	/** Returns the&nbsp;<code><a rel="custom" href="https://developer.mozilla.org/en/DOM/Node">Node</a></code>
 &nbsp;within which the Range ends. Getter throws DOMException. */
-    var endContainer (default,null) :Node;
+	var endContainer (default,null) : Node;
 
-    /** Returns a number representing where in the endContainer the Range ends. Getter throws DOMException. */
-    var endOffset (default,null) :Int;
+	/** Returns a number representing where in the endContainer the Range ends. Getter throws DOMException. */
+	var endOffset (default,null) : Int;
 
-    /** Returns the&nbsp;<code><a rel="custom" href="https://developer.mozilla.org/en/DOM/Node">Node</a></code>
+	/** Returns the&nbsp;<code><a rel="custom" href="https://developer.mozilla.org/en/DOM/Node">Node</a></code>
 &nbsp;within which the Range starts. Getter throws DOMException. */
-    var startContainer (default,null) :Node;
+	var startContainer (default,null) : Node;
 
-    /** Returns a number representing where in the startContainer the Range starts. Getter throws DOMException. */
-    var startOffset (default,null) :Int;
+	/** Returns a number representing where in the startContainer the Range starts. Getter throws DOMException. */
+	var startOffset (default,null) : Int;
 
-    function cloneContents () :DocumentFragment;
+	function cloneContents() : DocumentFragment;
 
-    function cloneRange () :Range;
+	function cloneRange() : Range;
 
-    function collapse (toStart :Bool) :Void;
+	function collapse( toStart : Bool ) : Void;
 
-    function compareBoundaryPoints (how :Int, sourceRange :Range) :Int;
+	function compareBoundaryPoints( how : Int, sourceRange : Range ) : Int;
 
-    function compareNode (refNode :Node) :Int;
+	function compareNode( refNode : Node ) : Int;
 
-    function comparePoint (refNode :Node, offset :Int) :Int;
+	function comparePoint( refNode : Node, offset : Int ) : Int;
 
-    function createContextualFragment (html :String) :DocumentFragment;
+	function createContextualFragment( html : String ) : DocumentFragment;
 
-    function deleteContents () :Void;
+	function deleteContents() : Void;
 
-    function detach () :Void;
+	function detach() : Void;
 
-    function expand (unit :String) :Void;
+	function expand( unit : String ) : Void;
 
-    function extractContents () :DocumentFragment;
+	function extractContents() : DocumentFragment;
 
-    function getBoundingClientRect () :ClientRect;
+	function getBoundingClientRect() : ClientRect;
 
-    function getClientRects () :ClientRectList;
+	function getClientRects() : ClientRectList;
 
-    function insertNode (newNode :Node) :Void;
+	function insertNode( newNode : Node ) : Void;
 
-    function intersectsNode (refNode :Node) :Bool;
+	function intersectsNode( refNode : Node ) : Bool;
 
-    function isPointInRange (refNode :Node, offset :Int) :Bool;
+	function isPointInRange( refNode : Node, offset : Int ) : Bool;
 
-    function selectNode (refNode :Node) :Void;
+	function selectNode( refNode : Node ) : Void;
 
-    function selectNodeContents (refNode :Node) :Void;
+	function selectNodeContents( refNode : Node ) : Void;
 
-    function setEnd (refNode :Node, offset :Int) :Void;
+	function setEnd( refNode : Node, offset : Int ) : Void;
 
-    function setEndAfter (refNode :Node) :Void;
+	function setEndAfter( refNode : Node ) : Void;
 
-    function setEndBefore (refNode :Node) :Void;
+	function setEndBefore( refNode : Node ) : Void;
 
-    function setStart (refNode :Node, offset :Int) :Void;
+	function setStart( refNode : Node, offset : Int ) : Void;
 
-    function setStartAfter (refNode :Node) :Void;
+	function setStartAfter( refNode : Node ) : Void;
 
-    function setStartBefore (refNode :Node) :Void;
+	function setStartBefore( refNode : Node ) : Void;
 
-    function surroundContents (newParent :Node) :Void;
+	function surroundContents( newParent : Node ) : Void;
 
-    function toString () :String;
+	function toString() : String;
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -28,7 +28,7 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("HTMLDetailsElement")
 extern class DetailsElement extends Element
 {
-    /** This Boolean attribute indicates whether the details will be shown to the user on page load. If omitted the details will be hidden. */
-    var open :Bool;
+	/** This Boolean attribute indicates whether the details will be shown to the user on page load. If omitted the details will be hidden. */
+	var open : Bool;
 
 }

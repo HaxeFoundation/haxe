@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -28,62 +28,62 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("HTMLIFrameElement")
 extern class IFrameElement extends Element
 {
-    /** Specifies the alignment of the frame with respect to the surrounding context. */
-    var align :String;
+	/** Specifies the alignment of the frame with respect to the surrounding context. */
+	var align : String;
 
-    /** The active document in the inline frame's nested browsing context. */
-    var contentDocument (default,null) :Document;
+	/** The active document in the inline frame's nested browsing context. */
+	var contentDocument (default,null) : Document;
 
-    /** The window proxy for the nested browsing context. */
-    var contentWindow (default,null) :DOMWindow;
+	/** The window proxy for the nested browsing context. */
+	var contentWindow (default,null) : DOMWindow;
 
-    var frameBorder :String;
+	var frameBorder : String;
 
-    /** Reflects the 
+	/** Reflects the 
 
 <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/iframe#attr-height">height</a></code>
  HTML&nbsp;attribute, indicating the height of the frame. */
-    var height :String;
+	var height : String;
 
-    /** URI of a long description of the frame. */
-    var longDesc :String;
+	/** URI of a long description of the frame. */
+	var longDesc : String;
 
-    /** Height of the frame margin. */
-    var marginHeight :String;
+	/** Height of the frame margin. */
+	var marginHeight : String;
 
-    /** Width of the frame margin. */
-    var marginWidth :String;
+	/** Width of the frame margin. */
+	var marginWidth : String;
 
-    /** Reflects the 
+	/** Reflects the 
 
 <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/iframe#attr-name">name</a></code>
  HTML&nbsp;attribute, containing a name by which to refer to the frame. */
-    var name :String;
+	var name : String;
 
-    /** Reflects the 
+	/** Reflects the 
 
 <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/iframe#attr-sandbox">sandbox</a></code>
  HTML&nbsp;attribute, indicating extra restrictions on the behavior of the nested content. */
-    var sandbox :String;
+	var sandbox : String;
 
-    /** Indicates whether the browser should provide scrollbars for the frame. */
-    var scrolling :String;
+	/** Indicates whether the browser should provide scrollbars for the frame. */
+	var scrolling : String;
 
-    /** Reflects the 
+	/** Reflects the 
 
 <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/iframe#attr-src">src</a></code>
  HTML&nbsp;attribute, containing the address of the content to be embedded. */
-    var src :String;
+	var src : String;
 
-    /** The content to display in the frame. */
-    var srcdoc :String;
+	/** The content to display in the frame. */
+	var srcdoc : String;
 
-    /** Reflects the 
+	/** Reflects the 
 
 <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/iframe#attr-width">width</a></code>
 &nbsp;HTML&nbsp;attribute, indicating the width of the frame. */
-    var width :String;
+	var width : String;
 
-    function getSVGDocument () :js.html.svg.Document;
+	function getSVGDocument() : js.html.svg.Document;
 
 }
