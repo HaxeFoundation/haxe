@@ -722,6 +722,7 @@ try
 	let cmds = ref [] in
 	let config_macros = ref [] in
 	let cp_libs = ref [] in
+	let added_libs = Hashtbl.create 0 in
 	let gen_as3 = ref false in
 	let no_output = ref false in
 	let did_something = ref false in
@@ -772,9 +773,14 @@ try
 	in
 	let define f = Arg.Unit (fun () -> Common.define com f) in
 	let extra_args = ref [] in
+	let process_libs() =
+		let libs = List.filter (fun l -> not (Hashtbl.mem added_libs l)) (List.rev !cp_libs) in
+		List.iter (fun l -> Hashtbl.add added_libs l ()) libs;
+		add_libs com libs
+	in
 	let basic_args_spec = [
 		("-cp",Arg.String (fun path ->
-			extra_args := !extra_args @ (add_libs com (!cp_libs));
+			extra_args := !extra_args @ process_libs();
 			cp_libs := [];
 			com.class_path <- normalize_path path :: com.class_path
 		),"<path> : add a directory to find source files");
@@ -993,7 +999,7 @@ try
 	in
 	process ctx.com.args;
 	let rec loop() =
-		extra_args := !extra_args @ add_libs com (!cp_libs);
+		extra_args := !extra_args @ process_libs();
 		cp_libs := [];
 		match !extra_args with
 		| [] -> ()
