@@ -2031,15 +2031,16 @@ let generate_class ctx c =
 			| _ -> assert false
 	) in
 	let has_protected = ref None in
-	let make_name f =
+	let make_name f stat =
 		let rec find_meta c =
 			try
-				let f = PMap.find f.cf_name c.cl_fields in
+				let f = PMap.find f.cf_name (if stat then c.cl_statics else c.cl_fields) in
 				if List.mem f.cf_name c.cl_overrides then raise Not_found;
 				f.cf_meta
 			with Not_found ->
 				match c.cl_super with
 				| None -> []
+				| Some _ when stat -> []
 				| Some (c,_) -> find_meta c
 		in
 		let protect() =
@@ -2127,7 +2128,7 @@ let generate_class ctx c =
 		| None -> acc
 		| Some k ->
 			{
-				hlf_name = make_name f;
+				hlf_name = make_name f false;
 				hlf_slot = 0;
 				hlf_kind = k;
 				hlf_metas = extract_meta f.cf_meta;
@@ -2146,7 +2147,7 @@ let generate_class ctx c =
 				cf_expr = None;
 				cf_kind = Method MethNormal;
 				cf_overloads = [];
-			};
+			} false;
 			hlf_slot = 0;
 			hlf_kind = (HFMethod {
 				hlm_type = generate_inits ctx;
@@ -2167,7 +2168,7 @@ let generate_class ctx c =
 			let count = (match k with HFMethod _ -> st_meth_count | HFVar _ -> st_field_count | _ -> assert false) in
 			incr count;
 			{
-				hlf_name = make_name f;
+				hlf_name = make_name f true;
 				hlf_slot = !count;
 				hlf_kind = k;
 				hlf_metas = extract_meta f.cf_meta;
