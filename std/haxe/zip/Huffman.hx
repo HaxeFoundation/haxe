@@ -73,7 +73,7 @@ class HuffTools {
 		}
 	}
 
-	function treeMake( bits : IntHash<Int>, maxbits : Int, v : Int, len : Int ) {
+	function treeMake( bits : haxe.ds.IntMap<Int>, maxbits : Int, v : Int, len : Int ) {
 		if( len > maxbits ) throw "Invalid huffman";
 		var idx = (v << 5) | len;
 		if( bits.exists(idx) )
@@ -101,7 +101,7 @@ class HuffTools {
 			code = (code + counts[i]) << 1;
 			tmp[i] = code;
 		}
-		var bits = new IntHash();
+		var bits = new haxe.ds.IntMap();
 		for( i in 0...nlengths ) {
 			var l = lengths[i + pos];
 			if( l != 0 ) {

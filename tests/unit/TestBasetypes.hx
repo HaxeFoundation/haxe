@@ -208,8 +208,8 @@ class TestBasetypes extends Test {
 		f( h.remove("x") );
 	}
 
-	function testIntHash() {
-		var h = new IntHash<Null<Int>>();
+	function testIntMap() {
+		var h = new haxe.ds.IntMap<Null<Int>>();
 		h.set(0, -1);
 		h.set(-4815, 8546);
 		eq( h.get(0), -1);
@@ -238,7 +238,7 @@ class TestBasetypes extends Test {
 		t( h.remove(65) );
 		f( h.remove(65) );
 
-		var h = new IntHash();
+		var h = new haxe.ds.IntMap();
 		h.set(1, ['a', 'b']);
 		t( h.exists(1) );
 		t( h.remove(1) );
@@ -272,7 +272,7 @@ class TestBasetypes extends Test {
 		eq('a${x}b', "a5b");
 		eq('${x}${y}', "5[]");
 	}
-	
+
 	function testAbstract() {
 		var a = new MyAbstract(33);
 		t( Std.is(a, Int) );
@@ -290,71 +290,71 @@ class TestBasetypes extends Test {
 		t(Std.is(tpl, haxe.Template));
 		t(Std.is(tpl.get(), haxe.Template));
 		eq(tpl.get().execute( { t:"works!" } ), "Abstract casting works!");
-		
+
 		//var to
 		var str:String = tpl;
 		t(Std.is(str, String));
 		eq(str, "Abstract casting really works!");
-		
+
 		// assign from
 		var tpl:unit.MyAbstract.TemplateWrap;
 		tpl = s;
 		t(Std.is(tpl, haxe.Template));
 		t(Std.is(tpl.get(), haxe.Template));
 		eq(tpl.get().execute( { t:"works!" } ), "Abstract casting works!");
-		
+
 		//assign to
 		var str:String;
 		str = tpl;
 		t(Std.is(str, String));
 		eq(str, "Abstract casting really works!");
-		
+
 		// call arg from
 		function from(tpl:unit.MyAbstract.TemplateWrap) {
 			eq(tpl.get().execute( { t:"works!" } ), "Abstract casting works!");
 		}
 		from(s);
-		
+
 		// call arg to
 		function from(s:String) {
 			eq(s, "Abstract casting really works!");
 		}
 		from(tpl);
-		
+
 		// object decl from variant
 		var obj: { tpl:unit.MyAbstract.TemplateWrap } = { tpl:s };
 		eq(obj.tpl.get().execute( { t:"works!" } ), "Abstract casting works!");
-		
+
 		// object decl from
 		var obj: { tpl:unit.MyAbstract.TemplateWrap };
 		obj = { tpl:s };
 		eq(obj.tpl.get().execute( { t:"works!" } ), "Abstract casting works!");
-		
+
 		// object decl to variant
 		var obj: { s:String } = { s:tpl };
 		eq(obj.s, "Abstract casting really works!");
-		
+
 		// object decl to
 		var obj: { s:String };
 		obj = { s:tpl };
 		eq(obj.s, "Abstract casting really works!");
-		
+
 		// array from
 		var arr:Array<unit.MyAbstract.TemplateWrap> = [s, "foo"];
 		eq(arr[0].get().execute( { t:"works!" } ), "Abstract casting works!");
 		eq(arr[1].get().execute( { } ), "foo");
-		
+
 		// array to
 		var arr:Array<String> = [tpl];
 		eq(arr[0], "Abstract casting really works!");
 	}
-	
+
 	function testAbstractToAbstractCast() {
 		var m:unit.MyAbstract.Meter = 122.2;
 		var km:unit.MyAbstract.Kilometer = m;
 		feq(km, 0.1222);
 	}
-	
+
 	#if !cpp
 	function testAbstractTypeParameters() {
 		var hash1:unit.MyAbstract.MyHash<String> = ["k1", "v1", "k2", "v2"];
@@ -365,7 +365,7 @@ class TestBasetypes extends Test {
 		eq(4, hash1.get("_s3"));
 	}
 	#end
-	
+
 	function testAbstractToString() {
 		var km:unit.MyAbstract.Kilometer = 12.5;
 		var m:unit.MyAbstract.Meter = 12.5;

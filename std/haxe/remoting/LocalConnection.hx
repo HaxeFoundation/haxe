@@ -28,7 +28,7 @@ class LocalConnection implements AsyncConnection, implements Dynamic<AsyncConnec
 	var __path : Array<String>;
 	var __data : {
 		ctx : Context,
-		results : IntHash<{ error : Dynamic -> Void, result : Dynamic -> Void }>,
+		results : haxe.ds.IntMap<{ error : Dynamic -> Void, result : Dynamic -> Void }>,
 		error : Dynamic -> Void,
 		target : String,
 		#if flash9
@@ -116,7 +116,7 @@ class LocalConnection implements AsyncConnection, implements Dynamic<AsyncConnec
 		var c = new LocalConnection({
 			ctx : ctx,
 			error : function(e) throw e,
-			results : new IntHash(),
+			results : new haxe.ds.IntMap(),
 			cnx : l,
 			target : recv,
 		},[]);

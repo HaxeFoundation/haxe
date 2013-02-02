@@ -363,7 +363,7 @@ class TestType extends Test {
 		typedAs(c.contravariant, b);
 		typedAs(cast (c, Ctrv1).contravariant, c1);
 	}
-	
+
 	function testInlineCast() {
 		var s = new InlineCastB().test().quote();
 		eq(s, "I am the greatest.");
@@ -660,7 +660,7 @@ class TestType extends Test {
 		eq(c.test(), "test2");
 		eq(c.fProp(9), "test09");
 	}
-	
+
 	function testVoidFunc() {
 		exc(function() { throw null; return 1; } );
 		exc(function() { throw null; return "foo"; } );
@@ -669,7 +669,7 @@ class TestType extends Test {
 		exc(function() { throw null; return null; } );
 		exc(function() { throw null; return { foo: 1}; } );
 	}
-	
+
 	function testAbstractCastConstraints() {
 		var z:unit.MyAbstract.AbstractZ<String> = new unit.MyAbstract.AbstractBase("foo");
 		var s:String = z;
@@ -677,7 +677,7 @@ class TestType extends Test {
 			var i:Int = z;
 		}));
 		eq("foo", s);
-		
+
 		var z:unit.MyAbstract.AbstractZ<Int> = new unit.MyAbstract.AbstractBase(12);
 		var i:Int = z;
 		eq(12, i);
@@ -685,20 +685,20 @@ class TestType extends Test {
 			var s:String = z;
 		}));
 	}
-	
+
 	function testAbstractGeneric() {
-		var map = new unit.MyAbstract.MyMap();
+		var map = new Map();
 		map.set("foo", 1);
 		t(Std.is(map, Hash));
 
-		var map = new unit.MyAbstract.MyMap();
+		var map = new Map();
 		_mapMe(map); // infer from function call
-		t(Std.is(map, IntHash));
+		t(Std.is(map, haxe.ds.IntMap));
 
-		var map = new unit.MyAbstract.MyMap();
-		map.set(new haxe.Template("foo"), 99);
-		t(Std.is(map, unit.MyAbstract.PseudoObjectHash));
-		
+		//var map = new unit.MyAbstract.MyMap();
+		//map.set(new haxe.Template("foo"), 99);
+		//t(Std.is(map, unit.MyAbstract.PseudoObjectHash));
+
 		// all these cause a compilation error, but we cannot typeError test that because it happens
 		// during a post-process check
 		//var map = new Map(); // Could not determine type for IMap<Float, Int>
@@ -706,9 +706,9 @@ class TestType extends Test {
 
 		//var map = new Map(); // Could not determine type for IMap<x : String -> String, Int>
 		//map.set(function(x:String) return x, 1);
-		
+
 		//var map = new Map(); // Could not determine type for IMap<Unknown<0>, Unknown<1>>
 	}
-	
-	static function _mapMe(map:unit.MyAbstract.MyMap < Int, String > ) { }
+
+	static function _mapMe(map:Map < Int, String > ) { }
 }

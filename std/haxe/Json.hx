@@ -457,7 +457,7 @@ class Json {
 				case "Date" : return Std.string(val); //.split(" ").join("T"); //better with "T"?
 				case "HList" : arr = php.Lib.toPhpArray(Lambda.array(val)); //convert List to array?
 				case "_hx_enum" : return Type.enumIndex(val);
-				case "Hash", "IntHash" : arr = php.Lib.associativeArrayOfHash(val);
+				case "Hash", "IntMap" : arr = php.Lib.associativeArrayOfHash(val);
 				default : arr = php.Lib.associativeArrayOfObject(val);
 			}
 		}

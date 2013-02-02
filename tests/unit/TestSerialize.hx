@@ -63,12 +63,12 @@ class TestSerialize extends Test {
 		eq( h2.get("kéyb"), -465 );
 		eq( Lambda.count(h2), 2 );
 
-		// inthash
-		var h = new IntHash();
+		// IntMap
+		var h = new haxe.ds.IntMap();
 		h.set(55,2);
 		h.set(-101,-465);
 		var h2 = id(h);
-		t( Std.is(h2,IntHash) );
+		t( Std.is(h2,haxe.ds.IntMap) );
 		eq( h2.get(55), 2 );
 		eq( h2.get(-101), -465 );
 		eq( Lambda.count(h2), 2 );
@@ -96,7 +96,7 @@ class TestSerialize extends Test {
 		#if !cpp
 		exc(function() haxe.Unserializer.run(null));
 		#end
-		
+
 		exc(function() haxe.Unserializer.run(""));
 
 	}
