@@ -675,10 +675,12 @@ let rec link e a b =
 	(* tell is already a ~= b *)
 	if loop b then
 		(follow b) == a
-	else
-		match b with
-		| TDynamic _ -> true
-		| _ -> e := Some b; true
+	else if b == t_dynamic then
+		true
+	else begin
+		e := Some b;
+		true
+	end
 
 let monomorphs eparams t =
 	apply_params eparams (List.map (fun _ -> mk_mono()) eparams) t
