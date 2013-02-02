@@ -21,7 +21,7 @@
  */
 package haxe;
 	
-private typedef VectorData<T> = #if flash9
+private typedef VectorData<T> = #if flash10
 	flash.Vector<T>
 #elseif neko
 	neko.NativeArray<T>
