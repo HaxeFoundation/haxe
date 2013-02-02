@@ -33,6 +33,7 @@ extern class Math
 		For example, this is the result of -1.0 / 0.0.
 		
 		Operations with NEGATIVE_INFINITY as an operand may result in
+		Operations with NEGATIVE_INFINITY as an operand may result in
 		NEGATIVE_INFINITY, POSITIVE_INFINITY or NaN. For detailed information,
 		see ...
 		
@@ -50,8 +51,8 @@ extern class Math
 		see ...
 	
 		If this constant is converted to an Int, e.g. through Std.int(), the
-		result is unspecified.		
-	**/	
+		result is unspecified.
+	**/
 	static var POSITIVE_INFINITY(default,null) : Float;
 
 	/**
@@ -64,7 +65,7 @@ extern class Math
 		All further operations with NaN as an operand will result in NaN.
 		
 		If this constant is converted to an Int, e.g. through Std.int(), the
-		result is unspecified.		
+		result is unspecified.
 	**/
 	static var NaN(default, null) : Float;
 
@@ -100,7 +101,7 @@ extern class Math
 		If [a] or [b] are POSITIVE_INFINITY, the result is POSITIVE_INFINITY.
 		
 		If [a] and [b] are NEGATIVE_INFINITY, the result is NEGATIVE_INFINITY.
-	**/	
+	**/
 	static function max(a:Float, b:Float):Float;
 	
 	/**
@@ -118,7 +119,7 @@ extern class Math
 		The unit of [v] is radians.
 		
 		If [v] is NaN or infinite, the result is NaN.
-	**/	
+	**/
 	static function cos(v:Float):Float;
 	
 	// TODO
@@ -190,7 +191,7 @@ extern class Math
 		Returns the smallest Int value that is not less than [v].
 		
 		TODO: need spec
-	**/	
+	**/
 	static function ceil(v:Float):Int;
 	
 	/**

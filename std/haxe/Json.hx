@@ -102,7 +102,7 @@ class Json {
 		case TInt:
 			add(v);
 		case TFloat:
-			add(v+1==v ? null : v);
+			add(Math.isFinite(v) ? v : 'null');
 		case TFunction:
 			add('"<fun>"');
 		case TClass(c):

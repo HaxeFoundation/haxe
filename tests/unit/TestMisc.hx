@@ -562,6 +562,9 @@ class TestMisc extends Test {
 
 		eq( haxe.Json.parse('"\\u00E9"'), "é" );
 
+		eq(haxe.Json.stringify(Math.POSITIVE_INFINITY), "null");
+		eq(haxe.Json.stringify(Math.NEGATIVE_INFINITY), "null");
+		eq(haxe.Json.stringify(Math.NaN), "null");
 	}
 
 	function testConstructorsOpts() {
