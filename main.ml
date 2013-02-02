@@ -772,16 +772,19 @@ try
 		if (pf = Flash8 || pf = Flash) && file_extension file = "swc" then Common.define com Define.Swc;
 	in
 	let define f = Arg.Unit (fun () -> Common.define com f) in
-	let extra_args = ref [] in
+	let process_ref = ref (fun args -> ()) in
 	let process_libs() =
 		let libs = List.filter (fun l -> not (Hashtbl.mem added_libs l)) (List.rev !cp_libs) in
+		cp_libs := [];
 		List.iter (fun l -> Hashtbl.add added_libs l ()) libs;
-		add_libs com libs
+		(* immediately process the arguments to insert them at the place -lib was defined *)
+		match add_libs com libs with
+		| [] -> ()
+		| args -> (!process_ref) args
 	in
 	let basic_args_spec = [
 		("-cp",Arg.String (fun path ->
-			extra_args := !extra_args @ process_libs();
-			cp_libs := [];
+			process_libs();
 			com.class_path <- normalize_path path :: com.class_path
 		),"<path> : add a directory to find source files");
 		("-js",Arg.String (set_platform Js),"<file> : compile code to JavaScript file");
@@ -857,6 +860,7 @@ try
 				_ -> raise (Arg.Bad "Invalid SWF header format, expected width:height:fps[:color]")
 		),"<header> : define SWF header (width:height:fps:color)");
 		("-swf-lib",Arg.String (fun file ->
+			process_libs(); (* linked swf order matters, and lib might reference swf as well *)
 			Genswf.add_swf_lib com file false
 		),"<file> : add the SWF library to the compiled SWF");
 		("-swf-lib-extern",Arg.String (fun file ->
@@ -997,18 +1001,9 @@ try
 		let current = ref 0 in
 		Arg.parse_argv ~current (Array.of_list ("" :: List.map expand_env args)) (basic_args_spec @ adv_args_spec) args_callback usage
 	in
+	process_ref := process;
 	process ctx.com.args;
-	let rec loop() =
-		extra_args := !extra_args @ process_libs();
-		cp_libs := [];
-		match !extra_args with
-		| [] -> ()
-		| l ->
-			extra_args := [];
-			process l;
-			loop()
-	in
-	loop();
+	process_libs();
 	(try ignore(Common.find_file com "mt/Include.hx"); Common.raw_define com "mt"; with Not_found -> ());
 	if com.display then begin
 		let mode = Common.defined_value_safe com Define.DisplayMode in
