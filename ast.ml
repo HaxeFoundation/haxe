@@ -1080,5 +1080,32 @@ let reify in_macro =
 				e
 			| _ ->
 				expr "EMeta" [to_obj [("name",to_string (Meta.to_string m) p);("params",to_expr_array ml p);("pos",to_pos p)] p;loop e1]
+	and to_tparam_decl p t =
+		to_obj [
+			"name", to_string t.tp_name p;
+			"params", (EArrayDecl (List.map (to_tparam_decl p) t.tp_params),p);
+			"constraints", (EArrayDecl (List.map (fun t -> to_ctype t p) t.tp_constraints),p)
+		] p
+	and to_type_def (t,p) =
+		match t with
+		| EClass d ->
+			let ext = ref None and impl = ref [] and interf = ref false in
+			List.iter (function
+				| HExtern | HPrivate -> ()
+				| HInterface -> interf := true;
+				| HExtends t -> ext := Some (to_tpath t p)
+				| HImplements i -> impl := (to_tpath i p) :: !impl
+			) d.d_flags;
+			to_obj [
+				"pack", (EArrayDecl [],p);
+				"name", to_string d.d_name p;
+				"pos", to_pos p;
+				"meta", to_meta d.d_meta p;
+				"params", (EArrayDecl (List.map (to_tparam_decl p) d.d_params),p);
+				"isExtern", to_bool (List.mem HExtern d.d_flags) p;
+				"kind", mk_enum "TypeDefKind" "TDClass" [(match !ext with None -> (EConst (Ident "null"),p) | Some t -> t);(EArrayDecl (List.rev !impl),p);to_bool !interf p] p;
+				"fields", (EArrayDecl (List.map (fun f -> to_cfield f p) d.d_data),p)
+			] p
+		| _ -> assert false
 	in
-	(fun e -> to_expr e (snd e)), to_ctype
+	(fun e -> to_expr e (snd e)), to_ctype, to_type_def

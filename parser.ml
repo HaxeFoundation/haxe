@@ -228,15 +228,8 @@ and parse_type_decl s =
 				d_flags = List.map snd c @ n;
 				d_data = l
 			}, punion p1 p2)
-		| [< n , p1 = parse_class_flags; doc = get_doc; name = type_name; tl = parse_constraint_params; hl = psep Comma parse_class_herit; '(BrOpen,_); fl, p2 = parse_class_fields false p1 >] ->
-			(EClass {
-				d_name = name;
-				d_doc = doc;
-				d_meta = meta;
-				d_params = tl;
-				d_flags = List.map fst c @ n @ hl;
-				d_data = fl;
-			}, punion p1 p2)
+		| [< d = parse_class meta c true >] ->
+			d
 		| [< '(Kwd Typedef,p1); doc = get_doc; name = type_name; tl = parse_constraint_params; '(Binop OpAssign,p2); t = parse_complex_type; s >] ->
 			(match s with parser
 			| [< '(Semicolon,_) >] -> ()
@@ -260,6 +253,19 @@ and parse_type_decl s =
 				d_flags = flags @ sl;
 				d_data = fl;
 			},punion p1 p2)
+			
+and parse_class meta cflags need_name s =
+	let opt_name = if need_name then type_name else (fun s -> match popt type_name s with None -> "" | Some n -> n) in
+	match s with parser
+	| [< n , p1 = parse_class_flags; doc = get_doc; name = opt_name; tl = parse_constraint_params; hl = psep Comma parse_class_herit; '(BrOpen,_); fl, p2 = parse_class_fields false p1 >] ->
+		(EClass {
+			d_name = name;
+			d_doc = doc;
+			d_meta = meta;
+			d_params = tl;
+			d_flags = List.map fst cflags @ n @ hl;
+			d_data = fl;
+		}, punion p1 p2)
 
 and parse_import s p1 =
 	let rec loop acc =
@@ -720,15 +726,20 @@ and inline_function = parser
 	| [< '(Kwd Function,p1) >] -> false, p1
 
 and reify_expr e =
-	let e = fst (reify !in_macro) e in
+	let to_expr,_,_ = reify !in_macro in
+	let e = to_expr e in
 	(ECheckType (e,(CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = None; tparams = [] })),pos e)
 
 and parse_macro_expr p = parser
 	| [< '(DblDot,_); t = parse_complex_type >] ->
-		let t = snd (reify !in_macro) t p in
+		let _, to_type, _  = reify !in_macro in
+		let t = to_type t p in
 		(ECheckType (t,(CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = Some "ComplexType"; tparams = [] })),p)
 	| [< '(Kwd Var,p1); vl = psep Comma parse_var_decl >] ->
 		reify_expr (EVars vl,p1)
+	| [< d = parse_class [] [] false >] ->
+		let _,_,to_type = reify !in_macro in
+		(ECheckType (to_type d,(CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = Some "TypeDefinition"; tparams = [] })),p)
 	| [< e = secure_expr >] ->
 		reify_expr e
 
