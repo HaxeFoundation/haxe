@@ -50,6 +50,7 @@ type 'a access =
 	| VArray
 	| VScope of hl_slot
 	| VVolatile of hl_name * tkind option
+	| VSuper of hl_name
 
 type local =
 	| LReg of register
@@ -522,6 +523,8 @@ let rec setvar ctx (acc : write access) kret =
 		ctx.infos.istack <- ctx.infos.istack - 1
 	| VScope n ->
 		write ctx (HSetSlot n)
+	| VSuper id ->
+		write ctx (HSetSuper id)
 
 let getvar ctx (acc : read access) =
 	match acc with
@@ -551,6 +554,8 @@ let getvar ctx (acc : read access) =
 		ctx.infos.istack <- ctx.infos.istack - 1
 	| VScope n ->
 		write ctx (HGetSlot n)
+	| VSuper id ->
+		write ctx (HGetSuper id)
 
 let open_block ctx retval =
 	let old_stack = ctx.infos.istack in
@@ -848,12 +853,17 @@ let rec gen_access ctx e (forset : 'a) : 'a access =
 	match e.eexpr with
 	| TLocal v ->
 		gen_local_access ctx v e.epos forset
+	| TField ({ eexpr = TConst TSuper } as e1,f) ->
+		let f = field_name f in
+		let id, _, _ = property ctx f e1.etype in
+		write ctx HThis;
+		VSuper id
 	| TField (e1,f) ->
 		let f = field_name f in
 		let id, k, closure = property ctx f e1.etype in
 		if closure && not ctx.for_call then error "In Flash9, this method cannot be accessed this way : please define a local function" e1.epos;
 		(match e1.eexpr with
-		| TConst TThis when not ctx.in_static ->
+		| TConst (TThis|TSuper) when not ctx.in_static ->
 			write ctx (HFindProp id)
 		| _ -> gen_expr ctx true e1);
 		(match k with
