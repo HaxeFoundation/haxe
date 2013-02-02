@@ -864,6 +864,7 @@ let map_expr loop (e,p) =
 	(e,p)
 
 let reify in_macro =
+	let cur_pos = ref None in
 	let mk_enum ename n vl p =
 		let constr = (EConst (Ident n),p) in
 		match vl with
@@ -1019,6 +1020,10 @@ let reify in_macro =
 			to_obj fields p
 		) m p
 	and to_pos p =
+		match !cur_pos with
+		| Some p ->
+			p
+		| None ->
 		let file = (EConst (String p.pfile),p) in
 		let pmin = (EConst (Int (string_of_int p.pmin)),p) in
 		let pmax = (EConst (Int (string_of_int p.pmax)),p) in
@@ -1118,18 +1123,24 @@ let reify in_macro =
 		| ECheckType (e1,ct) ->
 			expr "ECheckType" [loop e1; to_ctype ct p]
 		| EMeta ((m,ml,p),e1) ->
-			match m with
-			| Meta.Dollar ("" | "e") ->
+			match m, ml with
+			| Meta.Dollar ("" | "e"), _ ->
 				e1
-			| Meta.Dollar "a" ->
+			| Meta.Dollar "a", _ ->
 				expr "EArrayDecl" (match fst e1 with EArrayDecl el -> [to_expr_array el p] | _ -> [e1])
 			(* TODO: can $v and $i be implemented better? *)
-			| Meta.Dollar "v" ->
+			| Meta.Dollar "v", _ ->
 				(ECall ((EField ((EField ((EField ((EConst (Ident "haxe"),p),"macro"),p),"Context"),p),"makeExpr"),p),[e; to_pos (pos e)]),p)
-			| Meta.Dollar "i" ->
+			| Meta.Dollar "i", _ ->
 				(ECall ((EField ((EField ((EField ((EConst (Ident "haxe"),p),"macro"),p),"ExprTools"),p),"asIdent"),p),[e; to_pos (pos e)]),p)
-			| Meta.Dollar "p" ->
+			| Meta.Dollar "p", _ ->
 				(ECall ((EField ((EField ((EField ((EConst (Ident "haxe"),p),"macro"),p),"ExprTools"),p),"toFieldExpr"),p),[e]),p)
+			| Meta.Custom ":pos", [pexpr] ->
+				let old = !cur_pos in
+				cur_pos := Some pexpr;
+				let e = loop e1 in
+				cur_pos := old;
+				e
 			| _ ->
 				expr "EMeta" [to_obj [("name",to_string (Meta.to_string m) p);("params",to_expr_array ml p);("pos",to_pos p)] p;loop e1]
 	in
