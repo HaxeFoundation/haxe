@@ -107,3 +107,49 @@ abstract AbstractZ(AbstractBase<T>)<T> from AbstractBase<T> {
 		return a.value;
 	}
 }
+
+class MyPoint3 {
+	public var x:Float;
+	public var y:Float;
+	public var z:Float;
+	public function new(x, y, z) {
+		this.x = x;
+		this.y = y;
+		this.z = z;
+	}
+}
+
+abstract MyVector(MyPoint3) from MyPoint3 to MyPoint3 {
+	@:op(A + B) static public inline function add(lhs:MyVector, rhs:MyVector):MyVector {
+		return new MyPoint3(lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z);
+	}
+	
+	@:op(A *= B) static public inline function scalarAssign(lhs:MyVector, rhs:Float):MyVector {
+		lhs.x *= rhs;
+		lhs.y *= rhs;
+		lhs.z *= rhs;
+		return lhs;
+	}
+	
+	@:op(A * B) static public inline function scalar(lhs:MyVector, rhs:Float):MyVector {
+		return new MyPoint3(lhs.x * rhs, lhs.y * rhs, lhs.z * rhs);
+	}
+					
+	public inline function get():MyPoint3
+		return this
+		
+	@:to public inline function toString():String
+		return untyped '(${this.x},${this.y},${this.z})'
+}
+
+abstract MyInt(Int) from Int to Int {
+	// MyInt + MyInt can be used as is, and returns a MyInt
+	@:op(A + B) static public function add(lhs:MyInt, rhs:MyInt):MyInt;
+	
+	@:commutative @:op(A * B) static public function repeat(lhs:MyInt, rhs:String):String {
+		var s:StringBuf = new StringBuf();
+		for (i in 0...lhs)
+			s.add(rhs);
+		return s.toString();
+	}
+}

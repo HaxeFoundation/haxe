@@ -1220,7 +1220,7 @@ let type_generic_function ctx (e,cf) el p =
 	with Codegen.Generic_Exception (msg,p) ->
 		error msg p)
 
-let rec type_binop ctx op e1 e2 p =
+let rec type_binop ctx op e1 e2 is_assign_op p =
 	match op with
 	| OpAssign ->
 		let e1 = type_access ctx (fst e1) (snd e1) MSet in
@@ -1246,19 +1246,24 @@ let rec type_binop ctx op e1 e2 p =
 		(match type_access ctx (fst e1) (snd e1) MSet with
 		| AKNo s -> error ("Cannot access field or identifier " ^ s ^ " for writing") p
 		| AKExpr e | AKField (e,_,_) ->
-			let eop = type_binop ctx op e1 e2 p in
+			let eop = type_binop ctx op e1 e2 true p in
 			(match eop.eexpr with
 			| TBinop (_,_,e2) ->
 				unify ctx eop.etype e.etype p;
 				check_assign ctx e;
 				mk (TBinop (OpAssignOp op,e,e2)) e.etype p;
+			| TField(e2,FDynamic ":needsAssign") ->
+				unify ctx e2.etype e.etype p;
+				check_assign ctx e;
+				mk (TBinop (OpAssign,e,e2)) e.etype p;
 			| _ ->
-				assert false)
+				(* this must be an abstract cast *)
+				eop)
 		| AKSet (e,m,t,f) ->
 			let l = save_locals ctx in
 			let v = gen_local ctx e.etype in
 			let ev = mk (TLocal v) e.etype p in
-			let get = type_binop ctx op (EField ((EConst (Ident v.v_name),p),f),p) e2 p in
+			let get = type_binop ctx op (EField ((EConst (Ident v.v_name),p),f),p) e2 true p in
 			unify ctx get.etype t p;
 			l();
 			mk (TBlock [
@@ -1287,6 +1292,44 @@ let rec type_binop ctx op e1 e2 p =
 			make_call ctx acc [e] ctx.t.tstring e.epos
 		| KInt | KFloat | KString -> e
 	in
+	let find_overload a t left =
+		let rec loop ops = match ops with
+			| [] -> raise Not_found
+			| (o,cf) :: ops when is_assign_op && o = OpAssignOp(op) || o == op ->
+				(match follow cf.cf_type with
+				| TFun([(_,_,t1);(_,_,t2)],r) when (left || Meta.has Meta.Commutative cf.cf_meta) && type_iseq t t2 ->
+					cf,r,o = OpAssignOp(op)
+				| _ -> loop ops)
+			| _ :: ops ->
+				loop ops
+		in
+		loop a.a_ops
+	in
+	let mk_cast_op c f a pl e1 e2 r assign =
+		match f.cf_expr with
+		| None -> mk (TBinop (op,e1,e2)) r p
+		| Some _ ->
+			let t = field_type ctx c [] f p in
+			let t = apply_params a.a_types pl t in
+			let et = type_module_type ctx (TClassDecl c) None p in
+			let ef = mk (TField (et,FStatic (c,f))) t p in
+			let ec = make_call ctx ef [e1;e2] r p in
+			(* obviously a hack to report back that we need an assignment *)
+			if is_assign_op && not assign then mk (TField(ec,FDynamic ":needsAssign")) t_dynamic p else ec
+	in
+	try (match e1.etype with
+		| TAbstract ({a_impl = Some c} as a,pl) ->
+			let f,r,assign = find_overload a e2.etype true in
+			mk_cast_op c f a pl e1 e2 r assign
+		| _ ->
+			raise Not_found)
+	with Not_found -> try (match e2.etype with
+		| TAbstract ({a_impl = Some c} as a,pl) ->
+			let f,r,assign = find_overload a e1.etype false in
+			mk_cast_op c f a pl e2 e1 r assign
+		| _ ->
+			raise Not_found)
+	with Not_found ->
 	let mk_op t =
 		if op = OpAdd && (classify t) = KString then
 			let e1 = to_string e1 in
@@ -1482,7 +1525,7 @@ and type_unop ctx op flag e p =
 		let eget = (EField ((EConst (Ident v.v_name),p),f),p) in
 		match flag with
 		| Prefix ->
-			let get = type_binop ctx op eget one p in
+			let get = type_binop ctx op eget one false p in
 			unify ctx get.etype t p;
 			l();
 			mk (TBlock [
@@ -1493,7 +1536,7 @@ and type_unop ctx op flag e p =
 			let v2 = gen_local ctx t in
 			let ev2 = mk (TLocal v2) t p in
 			let get = type_expr ctx eget Value in
-			let plusone = type_binop ctx op (EConst (Ident v2.v_name),p) one p in
+			let plusone = type_binop ctx op (EConst (Ident v2.v_name),p) one false p in
 			unify ctx get.etype t p;
 			l();
 			mk (TBlock [
@@ -2029,7 +2072,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 	| EConst c ->
 		Codegen.type_constant ctx.com c p
     | EBinop (op,e1,e2) ->
-		type_binop ctx op e1 e2 p
+		type_binop ctx op e1 e2 false p
 	| EBlock [] when with_type <> NoValue ->
 		type_expr ctx (EObjectDecl [],p) with_type
 	| EBlock l ->

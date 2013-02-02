@@ -39,6 +39,7 @@ module Meta = struct
 		| BuildXml
 		| Class
 		| ClassCode
+		| Commutative
 		| CompilerGenerated
 		| CoreApi
 		| CoreType
@@ -93,6 +94,7 @@ module Meta = struct
 		| NotNull
 		| NoUsing
 		| Ns
+		| Op
 		| Optional
 		| Overload
 		| Public
@@ -143,6 +145,7 @@ module Meta = struct
 		| BuildXml -> "buildXml"
 		| Class -> ":class"
 		| ClassCode -> ":classCode"
+		| Commutative -> ":commutative"
 		| CompilerGenerated -> ":compilerGenerated"
 		| CoreApi -> ":coreApi"
 		| CoreType -> ":coreType"
@@ -197,6 +200,7 @@ module Meta = struct
 		| NotNull -> ":notNull"
 		| NoUsing -> ":noUsing"
 		| Ns -> ":ns"
+		| Op -> ":op"
 		| Optional -> ":optional"
 		| Overload -> ":overload"
 		| Public -> ":public"
@@ -245,7 +249,7 @@ module Meta = struct
 		h
 
 	let parse s = try Hashtbl.find hmeta (":" ^ s) with Not_found -> Custom (":" ^ s)
-		
+
 	let from_string s =
 		if s = "" then Custom "" else match s.[0] with
 		| ':' -> (try Hashtbl.find hmeta s with Not_found -> Custom s)

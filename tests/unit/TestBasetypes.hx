@@ -374,4 +374,26 @@ class TestBasetypes extends Test {
 		eq("Distance: 12.5km", "Distance: " + km);
 		eq("Distance: 12.5m", "Distance: " + m);
 	}
+	
+	function testAbstractOperatorOverload() {
+		var v1:unit.MyAbstract.MyVector = new unit.MyAbstract.MyPoint3(1, 1, 1);
+		var v2:unit.MyAbstract.MyVector = new unit.MyAbstract.MyPoint3(1, 2, 3);
+		eq("(2,3,4)", v1 + v2);
+		eq("(2,4,6)", v2 * 2.);
+		var v1Old = v1;
+		v1 *= 2.;
+		eq("(2,2,2)", v1);
+		eq(v1Old, v1);
+		var v3 = v1 * 2.;
+		eq("(4,4,4)", v3);
+		f(v1 == v3);
+		
+		var i:unit.MyAbstract.MyInt = 1;
+		eq(2, i + i);
+		i = i + i;
+		eq(2, i);
+		var r:unit.MyAbstract.MyInt = 5;
+		eq("aaaaa", r * "a");
+		eq("aaaaa", "a" * r);
+	}
 }
