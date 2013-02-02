@@ -1080,7 +1080,15 @@ let init_class ctx c p context_init herits fields =
 	let get_fields() = !fields in
 	build_module_def ctx (TClassDecl c) c.cl_meta get_fields context_init (fun (e,p) ->
 		match e with
-		| EVars [_,Some (CTAnonymous f),None] -> fields := f
+		| EVars [_,Some (CTAnonymous f),None] ->
+			List.iter (fun f ->
+				if List.mem AMacro f.cff_access then
+					(match ctx.g.macros with
+					| Some (_,mctx) when Hashtbl.mem mctx.g.types_module c.cl_path ->
+						error "Class build macro cannot return a macro function when the class has already been compiled into the macro context" p
+					| _ -> ())
+			) f;
+			fields := f
 		| _ -> error "Class build macro must return a single variable with anonymous fields" p
 	);
 	let fields = !fields in
