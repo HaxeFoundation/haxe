@@ -1980,12 +1980,13 @@ let type_module ctx m file tdecls p =
 
 
 let resolve_module_file com m remap p =
+	let forbid = ref false in
 	let file = (match m with
 		| [] , name -> name
 		| x :: l , name ->
 			let x = (try
 				match PMap.find x com.package_rules with
-				| Forbidden -> raise (Forbid_package ((x,m,p),[],if Common.defined com Define.Macro then "macro" else platform_name com.platform));
+				| Forbidden -> forbid := true; x
 				| Directory d -> d
 				| Remap d -> remap := d :: l; d
 				with Not_found -> x
@@ -1993,11 +1994,27 @@ let resolve_module_file com m remap p =
 			String.concat "/" (x :: l) ^ "/" ^ name
 	) ^ ".hx" in
 	let file = Common.find_file com file in
-	match String.lowercase (snd m) with
+	let file = (match String.lowercase (snd m) with
 	| "con" | "aux" | "prn" | "nul" | "com1" | "com2" | "com3" | "lpt1" | "lpt2" | "lpt3" when Sys.os_type = "Win32" ->
 		(* these names are reserved by the OS - old DOS legacy, such files cannot be easily created but are reported as visible *)
 		if (try (Unix.stat file).Unix.st_size with _ -> 0) > 0 then file else raise Not_found
 	| _ -> file
+	) in
+	if !forbid then begin
+		let _, decls = (!parse_hook) com file p in
+		let meta = (match decls with
+		| (EClass d,_) :: _ -> d.d_meta
+		| (EEnum d,_) :: _ -> d.d_meta
+		| (EAbstract d,_) :: _ -> d.d_meta
+		| (ETypedef d,_) :: _ -> d.d_meta
+		| _ -> []
+		) in
+		if not (Meta.has Meta.NoPackageRestrict meta) then begin
+			let x = (match fst m with [] -> assert false | x :: _ -> x) in
+			raise (Forbid_package ((x,m,p),[],if Common.defined com Define.Macro then "macro" else platform_name com.platform));
+		end;
+	end;
+	file
 
 let parse_module ctx m p =
 	let remap = ref (fst m) in

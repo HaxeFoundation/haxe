@@ -24,6 +24,7 @@ package sys.db;
 // basic types
 
 /** int with auto increment **/
+@:noPackageRestrict
 typedef SId = Int
 
 /** int unsigned with auto increment **/
