@@ -50,7 +50,7 @@ let stack_delta = function
 	| HNop -> 0
 	| HThrow -> -1
 	| HGetSuper _ -> 0
-	| HSetSuper _ -> -1
+	| HSetSuper _ -> -2
 	| HDxNs _ -> 0
 	| HDxNsLate -> -1
 	| HRegKill _ -> 0
