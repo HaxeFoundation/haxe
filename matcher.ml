@@ -1014,7 +1014,7 @@ let rec collapse_case el = match el with
 		assert false
 
 let match_expr ctx e cases def with_type p =
-	let need_val, wtype = (match with_type with NoValue -> false, None | Value -> true, None | WithType t -> true, Some t) in
+	let need_val, wtype = (match with_type with NoValue -> false, None | Value -> true, None | WithType t | WithTypeResume t -> true, Some t) in
 	let cases = match cases,def with
 		| [],None -> []
 		| cases,Some def ->

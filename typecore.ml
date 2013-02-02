@@ -23,6 +23,7 @@ type with_type =
 	| NoValue
 	| Value
 	| WithType of t
+	| WithTypeResume of t
 
 type type_patch = {
 	mutable tp_type : Ast.complex_type option;
@@ -108,7 +109,6 @@ and typer = {
 	mutable locals : (string, tvar) PMap.t;
 	mutable opened : anon_status ref list;
 	mutable vthis : tvar option;
-	mutable with_type_resume : bool;
 	(* events *)
 	mutable on_error : typer -> string -> pos -> unit;
 }

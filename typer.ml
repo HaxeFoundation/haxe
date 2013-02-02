@@ -439,23 +439,16 @@ let rec unify_call_params ctx cf el args r p inline =
 			| [name,ul] -> arg_error ul name true p
 			| (name,ul) :: _ -> arg_error (Unify_custom ("Invalid arguments\n" ^ fun_details()) :: ul) name true p)
 		| ee :: l, (name,opt,t) :: l2 ->
-			let old = ctx.with_type_resume in
-			ctx.with_type_resume <- true;
 			try
-				let e = type_expr ctx ee (WithType t) in
+				let e = type_expr ctx ee (WithTypeResume t) in
 				(try unify_raise ctx e.etype t e.epos with Error (Unify l,p) -> raise (WithTypeError (l,p)));
-				ctx.with_type_resume <- old;
 				loop ((e,false) :: acc) l l2 skip
 			with
 				WithTypeError (ul,p) ->
-					ctx.with_type_resume <- old;
 					if opt then
 						loop (default_value t :: acc) (ee :: l) l2 ((name,ul) :: skip)
 					else
 						arg_error ul name false p
-			| _ as e ->
-				ctx.with_type_resume <- old;
-				raise e
 	in
 	loop [] el args []
 
@@ -1895,8 +1888,10 @@ and type_vars ctx vl p in_block =
 	save();
 	mk (TVars vl) ctx.t.tvoid p
 
-and with_type_error ctx msg p =
-	if ctx.with_type_resume then raise (WithTypeError ([Unify_custom msg],p)) else display_error ctx msg p
+and with_type_error ctx with_type msg p =
+	match with_type with
+	| WithTypeResume _ -> raise (WithTypeError ([Unify_custom msg],p))
+	| _ -> display_error ctx msg p
 
 and type_expr ctx (e,p) (with_type:with_type) =
 	match e with
@@ -1910,7 +1905,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			acc_get ctx (type_ident_raise ~imported_enums:false ctx s p MGet) p
 		with Not_found -> try
 			(match with_type with
-			| WithType t ->
+			| WithType t | WithTypeResume t ->
 				(match follow t with
 				| TEnum (e,pl) ->
 					(try
@@ -1918,7 +1913,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 						mk (fast_enum_field e ef p) (apply_params e.e_types pl ef.ef_type) p
 					with Not_found ->
 						if ctx.untyped then raise Not_found;
-						with_type_error ctx (string_error s e.e_names ("Identifier '" ^ s ^ "' is not part of enum " ^ s_type_path e.e_path)) p;
+						with_type_error ctx with_type (string_error s e.e_names ("Identifier '" ^ s ^ "' is not part of enum " ^ s_type_path e.e_path)) p;
 						mk (TConst TNull) t p)
 				| _ -> raise Not_found)
 			| _ ->
@@ -2057,7 +2052,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		mk (TParenthesis e) e.etype p
 	| EObjectDecl fl ->
 		let a = (match with_type with
-		| WithType t ->
+		| WithType t | WithTypeResume t ->
 			(match follow t with
 			| TAnon a when not (PMap.is_empty a.a_fields) -> Some a
 			| _ -> None)
@@ -2085,7 +2080,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				if PMap.mem n !fields then error ("Duplicate field in object declaration : " ^ n) p;
 				let e = try
 					let t = (PMap.find n a.a_fields).cf_type in
-					let e = type_expr ctx e (WithType t) in
+					let e = type_expr ctx e (match with_type with WithTypeResume _ -> WithTypeResume t | _ -> WithType t) in
 					unify ctx e.etype t e.epos;
 					(try type_eq EqStrict e.etype t; e with Unify_error _ -> mk (TCast (e,None)) t e.epos)
 				with Not_found ->
@@ -2101,7 +2096,9 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			let t = (TAnon { a_fields = !fields; a_status = ref Const }) in
 			if not ctx.untyped then begin
 				let unify_error l p =
-					if ctx.with_type_resume then raise (WithTypeError (l,p)) else raise (Error (Unify l,p))
+					match with_type with
+					| WithTypeResume _ -> raise (WithTypeError (l,p))
+					| _ -> raise (Error (Unify l,p))
 				in
 				PMap.iter (fun n cf ->
 					if not (Meta.has Meta.Optional cf.cf_meta) && not (PMap.mem n !fields) then unify_error [has_no_field t n] p;
@@ -2133,7 +2130,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		]) v.v_type p
 	| EArrayDecl el ->
 		let tp = (match with_type with
-		| WithType t ->
+		| WithType t | WithTypeResume t ->
 			(match follow t with
 			| TInst ({ cl_path = [],"Array" },[tp]) ->
 				(match follow tp with
@@ -2151,8 +2148,10 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			mk (TArrayDecl el) (ctx.t.tarray t) p
 		| Some t ->
 			let el = List.map (fun e ->
-				let e = type_expr ctx e (WithType t) in
-				if ctx.with_type_resume then (try unify_raise ctx e.etype t e.epos with Error (Unify l,p) -> raise (WithTypeError (l,p))) else unify ctx e.etype t e.epos;
+				let e = type_expr ctx e (match with_type with WithTypeResume _ -> WithTypeResume t | _ -> WithType t) in
+				(match with_type with
+				| WithTypeResume _ -> (try unify_raise ctx e.etype t e.epos with Error (Unify l,p) -> raise (WithTypeError (l,p)))
+				| _ -> unify ctx e.etype t e.epos);
 				e
 			) el in
 			mk (TArrayDecl el) (ctx.t.tarray t) p)
@@ -2305,7 +2304,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 	| ECall (((EConst (Ident s),_) as e),el) ->
 		(try
 			let t, e, pl = (match with_type with
-				| WithType t ->
+				| WithType t | WithTypeResume t ->
 					(match follow t with
 					| TEnum (e,pl) -> t, e, pl
 					| _ -> raise Exit)
@@ -2318,10 +2317,10 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				let ef = PMap.find s e.e_constrs in
 				let et = apply_params e.e_types pl (monomorphs ef.ef_params ef.ef_type) in
 				let constr = mk (fast_enum_field e ef p) et p in
-				build_call ctx (AKExpr constr) el (WithType t) p
+				build_call ctx (AKExpr constr) el (match with_type with WithTypeResume _ -> WithTypeResume t | _ -> WithType t) p
 			with Not_found ->
 				if ctx.untyped then raise Exit; (* __js__, etc. *)
-				with_type_error ctx (string_error s e.e_names "Identifier '" ^ s ^ "' is not part of enum " ^ s_type_path e.e_path) p;
+				with_type_error ctx with_type (string_error s e.e_names "Identifier '" ^ s ^ "' is not part of enum " ^ s_type_path e.e_path) p;
 				mk (TConst TNull) t p
 		with Exit ->
 			type_call ctx e el with_type p)
@@ -2394,7 +2393,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			s , c, t
 		) f.f_args in
 		(match with_type with
-		| WithType t ->
+		| WithType t | WithTypeResume t ->
 			(match follow t with
 			| TFun (args2,_) when List.length args2 = List.length args ->
 				List.iter2 (fun (_,_,t1) (_,_,t2) ->
@@ -3593,7 +3592,6 @@ let rec create com =
 		opened = [];
 		vthis = None;
 		on_error = (fun ctx msg p -> ctx.com.error msg p);
-		with_type_resume = false;
 	} in
 	ctx.g.std <- (try
 		Typeload.load_module ctx ([],"StdTypes") null_pos
