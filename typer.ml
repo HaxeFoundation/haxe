@@ -938,7 +938,10 @@ and type_field ctx e i p mode =
 				| MGet,Var _
 				| MSet,Var _ when (match c2 with Some { cl_extern = true; cl_path = ("flash" :: _,_) } -> true | _ -> false) ->
 					()
-				| _ -> error "Normal variables cannot be accessed with 'super', use 'this' instead" p);
+				| _, Method _ ->
+					error "Cannot create closure on super method" p
+				| _ ->
+					error "Normal variables cannot be accessed with 'super', use 'this' instead" p);
 			if not (can_access ctx c f false) && not ctx.untyped then display_error ctx ("Cannot access private field " ^ i) p;
 			field_access ctx mode f (match c2 with None -> FAnon f | Some c -> FInstance (c,f)) (apply_params c.cl_types params t) e p
 		with Not_found -> try
