@@ -51,6 +51,8 @@ abstract Vector(VectorData<T>)<T> {
 			this = new flash.Vector<T>(length, true);
 		#elseif neko
 			this = untyped __dollar__amake(length);
+		#elseif js
+			this = untyped __new__(Array, length);
 		#else
 			this = [];
 			#if cpp
