@@ -88,6 +88,7 @@ module Meta = struct
 		| NoCompletion
 		| NoDebug
 		| NoDoc
+		| NoPackageRestrict
 		| NoStack
 		| NotNull
 		| NoUsing
@@ -123,6 +124,7 @@ module Meta = struct
 		| Unsafe
 		| Usage
 		| Used
+		| Last
 		| Dollar of string
 		| Custom of string
 
@@ -190,6 +192,7 @@ module Meta = struct
 		| NoCompletion -> ":noCompletion"
 		| NoDebug -> ":noDebug"
 		| NoDoc -> ":noDoc"
+		| NoPackageRestrict -> ":noPackageRestrict"
 		| NoStack -> ":noStack"
 		| NotNull -> ":notNull"
 		| NoUsing -> ":noUsing"
@@ -225,97 +228,27 @@ module Meta = struct
 		| Unsafe -> ":unsafe"
 		| Usage -> ":usage"
 		| Used -> ":used"
+		| Last -> assert false
 		| Dollar s -> "$" ^ s
 		| Custom s -> s
 
-	let parse = function
-		| "abstract" -> Abstract
-		| "access" -> Access
-		| "alias" -> Alias
-		| "allow" -> Allow
-		| "annotation" -> Annotation
-		| "arrayAccess" -> ArrayAccess
-		| "autoBuild" -> AutoBuild
-		| "bind" -> Bind
-		| "bitmap" -> Bitmap
-		| "build" -> Build
-		| "buildXml" -> BuildXml
-		| "classCode" -> ClassCode (* was classContents *)
-		| "coreApi" -> CoreApi
-		| "coreType" -> CoreType
-		| "cppFileCode" -> CppFileCode
-		| "cppNamespaceCode" -> CppNamespaceCode
-		| "debug" -> Debug
-		| "decl" -> Decl
-		| "defineFeature" -> DefineFeature
-		| "defParam" -> DefParam (* was defparam *)
-		| "depend" -> Depend
-		| "deprecated" -> Deprecated
-		| "expose" -> Expose
-		| "extern" -> Extern
-		| "fakeEnum" -> FakeEnum
-		| "file" -> File
-		| "final" -> Final
-		| "font" -> Font
-		| "from" -> From
-		| "functionCode" -> FunctionCode
-		| "functionTailCode" -> FunctionTailCode
-		| "generic" -> Generic
-		| "getter" -> Getter
-		| "hack" -> Hack
-		| "headerClassCode" -> HeaderClassCode
-		| "headerCode" -> HeaderCode
-		| "headerNamespaceCode" -> HeaderNamespaceCode
-		| "hxGen" -> HxGen (* was hxgen *)
-		| "ifFeature" -> IfFeature
-		| "include" -> Include
-		| "initPackage" -> InitPackage
-		| "internal" -> Internal
-		| "isVar" -> IsVar
-		| "keep" -> Keep
-		| "keepInit" -> KeepInit
-		| "keepSub" -> KeepSub
-		| "macro" -> Macro
-		| "native" -> Native
-		| "nativeGen" -> NativeGen (* was nativegen *)
-		| "noCompletion" -> NoCompletion
-		| "noDebug" -> NoDebug
-		| "noDoc" -> NoDoc
-		| "noStack" -> NoStack
-		| "notNull" -> NotNull
-		| "noUsing" -> NoUsing
-		| "ns" -> Ns
-		| "optional" -> Optional
-		| "overload" -> Overload
-		| "protected" -> Protected
-		| "public" -> Public
-		| "readOnly" -> ReadOnly (* was readonly *)
-		| "remove" -> Remove
-		| "require" -> Require
-		| "replaceReflection" -> ReplaceReflection
-		| "rttiInfos" -> RttiInfos
-		| "runtime" -> Runtime
-		| "runtimeValue" -> RuntimeValue
-		| "setter" -> Setter
-		| "skipCtor" -> SkipCtor (* was skip_ctor *)
-		| "skipReflection" -> SkipReflection
-		| "sound" -> Sound
-		| "struct" -> Struct
-		| "suppressWarnings" -> SuppressWarnings
-		| "synchronized" -> Synchronized
-		| "throws" -> Throws
-		| "to" -> To
-		| "transient" -> Transient
-		| "varArgs" -> VarArgs
-		| "volatile" -> Volatile
-		| "unifyMinDynamic" -> UnifyMinDynamic
-		| "unreflective" -> Unreflective
-		| "unsafe" -> Unsafe
-		| s -> Custom (":" ^ s)
+	let hmeta =
+		let h = Hashtbl.create 0 in
+		let rec loop i =
+			let m = Obj.magic i in
+			if m <> Last then begin
+				Hashtbl.add h (to_string m) m;
+				loop (i + 1);
+			end;
+		in
+		loop 0;
+		h
 
+	let parse s = try Hashtbl.find hmeta (":" ^ s) with Not_found -> Custom (":" ^ s)
+		
 	let from_string s =
 		if s = "" then Custom "" else match s.[0] with
-		| ':' -> parse (String.sub s 1 (String.length s - 1))
+		| ':' -> (try Hashtbl.find hmeta s with Not_found -> Custom s)
 		| '$' -> Dollar (String.sub s 1 (String.length s - 1))
 		| _ -> Custom s
 
