@@ -834,9 +834,12 @@ let rec type_type_params ctx path get_params p tp =
 		n, t
 	| _ ->
 		let r = exc_protect ctx (fun r ->
-			r := (fun _ -> t);
+			r := (fun _ -> error "Recursive constraint parameter is now allowed" p);
 			let ctx = { ctx with type_params = ctx.type_params @ get_params() } in
-			c.cl_kind <- KTypeParameter (List.map (load_complex_type ctx p) tp.tp_constraints);
+			let constr = List.map (load_complex_type ctx p) tp.tp_constraints in
+			List.iter (fun t -> ignore(follow t)) constr; (* force other constraints evaluation to check recursion *)
+			c.cl_kind <- KTypeParameter constr;
+			r := (fun _ -> t);
 			t
 		) "constraint" in
 		delay ctx PForce (fun () -> ignore(!r()));
