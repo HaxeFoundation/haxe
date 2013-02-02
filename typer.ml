@@ -111,14 +111,14 @@ let rec is_pos_infos = function
 	| _ ->
 		false
 
-let add_constraint_checks ctx c pl f tl p =
+let add_constraint_checks ctx ctypes pl f tl p =
 	List.iter2 (fun m (name,t) ->
 		match follow t with
 		| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] ->
 			let constr = List.map (fun t ->
 				let t = apply_params f.cf_params tl t in
 				(* only apply params if not static : in that case no param is passed *)
-				let t = (if pl = [] then t else apply_params c.cl_types pl t) in
+				let t = (if pl = [] then t else apply_params ctypes pl t) in
 				t
 			) constr in
 			delay ctx PCheckConstraint (fun() ->
@@ -137,7 +137,7 @@ let field_type ctx c pl f p =
 	| [] -> f.cf_type
 	| l ->
 		let monos = List.map (fun _ -> mk_mono()) l in
-		if not (Meta.has Meta.Generic f.cf_meta) then add_constraint_checks ctx c pl f monos p;
+		if not (Meta.has Meta.Generic f.cf_meta) then add_constraint_checks ctx c.cl_types pl f monos p;
 		apply_params l monos f.cf_type
 
 let class_field ctx c pl name p =
@@ -976,7 +976,16 @@ and type_field ctx e i p mode =
 			let fmode, ft = (match !(a.a_status) with
 				| Statics c -> FStatic (c,f), field_type ctx c [] f p
 				| EnumStatics e -> FEnum (e,try PMap.find f.cf_name e.e_constrs with Not_found -> assert false), Type.field_type f
-				| _ -> FAnon f, Type.field_type f
+				| _ ->
+					match f.cf_params with
+					| [] ->
+						FAnon f, Type.field_type f
+					| l ->
+						(* handle possible constraints *)
+						let monos = List.map (fun _ -> mk_mono()) l in
+						let t = apply_params f.cf_params monos f.cf_type in
+						add_constraint_checks ctx [] [] f monos p;
+						FAnon f, t
 			) in
 			field_access ctx mode f fmode ft e p
 		with Not_found ->
@@ -1167,7 +1176,7 @@ let type_generic_function ctx (e,cf) el p =
 		| _ -> assert false
 	in
 	let t = apply_params cf.cf_params monos cf.cf_type in
-	add_constraint_checks ctx c [] cf monos p;
+	add_constraint_checks ctx c.cl_types [] cf monos p;
 	let args,ret = match t with
 		| TFun(args,ret) -> args,ret
 		| _ ->  error "Invalid field type for generic call" p

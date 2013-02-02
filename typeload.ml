@@ -420,6 +420,7 @@ and load_complex_type ctx p t =
 			in
 			let pub = ref true in
 			let dyn = ref false in
+			let params = ref [] in
 			List.iter (fun a ->
 				match a with
 				| APublic -> ()
@@ -433,11 +434,15 @@ and load_complex_type ctx p t =
 				| FVar (t, e) ->
 					no_expr e;
 					topt t, Var { v_read = AccNormal; v_write = AccNormal }
-				| FFun f ->
-					if f.f_params <> [] then error "Type parameters are not allowed in structures" p;
-					no_expr f.f_expr;
-					let args = List.map (fun (name,o,t,e) -> no_expr e; name, o, topt t) f.f_args in
-					TFun (args,topt f.f_type), Method (if !dyn then MethDynamic else MethNormal)
+				| FFun fd ->
+					params := (!type_function_params_rec) ctx fd f.cff_name p;
+					no_expr fd.f_expr;
+					let old = ctx.type_params in
+					ctx.type_params <- !params @ old;
+					let args = List.map (fun (name,o,t,e) -> no_expr e; name, o, topt t) fd.f_args in
+					let t = TFun (args,topt fd.f_type), Method (if !dyn then MethDynamic else MethNormal) in
+					ctx.type_params <- old;
+					t
 				| FProp (i1,i2,t,e) ->
 					no_expr e;
 					let access m get =
@@ -463,7 +468,7 @@ and load_complex_type ctx p t =
 				cf_pos = p;
 				cf_public = !pub;
 				cf_kind = access;
-				cf_params = [];
+				cf_params = !params;
 				cf_expr = None;
 				cf_doc = f.cff_doc;
 				cf_meta = f.cff_meta;
