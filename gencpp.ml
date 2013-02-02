@@ -1862,6 +1862,7 @@ let is_override class_def field =
 
 let rec all_virtual_functions clazz =
    (List.fold_left (fun result elem -> match follow elem.cf_type, elem.cf_kind  with
+		| _, Method MethDynamic -> result
 		| TFun (args,return_type), Method _  when not (is_override clazz elem.cf_name ) -> (elem,args,return_type) :: result
       | _,_ -> result ) [] clazz.cl_ordered_fields)
   @ (match clazz.cl_super with
@@ -1881,6 +1882,7 @@ let gen_field ctx class_def class_name ptr_name is_static is_interface field =
 	if (is_interface) then begin
 		(* Just the dynamic glue ... *)
 		match follow field.cf_type, field.cf_kind  with
+		| _, Method MethDynamic  -> ()
 		| TFun (args,result), Method _  ->
 			if (is_static) then output "STATIC_";
 			let ret = if ((type_string result ) = "Void" ) then "" else "return " in
@@ -2020,6 +2022,7 @@ let gen_member_def ctx class_def is_static is_interface field =
 
 	if (is_interface) then begin
 		match follow field.cf_type, field.cf_kind with
+		| _, Method MethDynamic  -> ()
 		| TFun (args,return_type), Method _  ->
 			output ( (if (not is_static) then "virtual " else "" ) ^ type_string return_type);
 			output (" " ^ remap_name ^ "( " );
@@ -3078,6 +3081,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 		output_h ("#define DELEGATE_" ^ (join_class_path  class_def.cl_path "_" ) ^ " \\\n");
 		List.iter (fun field ->
 		match follow field.cf_type, field.cf_kind  with
+		| _, Method MethDynamic -> ()
 		| TFun (args,return_type), Method _ ->
 			(* TODO : virtual ? *)
 			let remap_name = keyword_remap field.cf_name in
@@ -3200,6 +3204,7 @@ let create_member_types common_ctx =
 	let add_member class_name interface member =
 		match follow member.cf_type, member.cf_kind with
 		| _, Var _ when interface -> ()
+		| _, Method MethDynamic when interface -> ()
 		| TFun (_,ret), _ ->
          (*print_endline (class_name ^ "." ^ member.cf_name ^ "=" ^  (type_string ret) );*)
 			Hashtbl.add result (class_name ^ "." ^ member.cf_name) (type_string ret)
