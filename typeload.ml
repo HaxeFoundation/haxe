@@ -1894,9 +1894,9 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 			let t = load_complex_type ctx p t in
 			if not (Meta.has Meta.CoreType a.a_meta) then begin
 				if !is_type then begin
-					(try type_eq EqStrict a.a_this t with Unify_error _ -> error "You can only declare from/to with your subtype" p);
+					(try type_eq EqStrict a.a_this t with Unify_error _ -> error "You can only declare from/to with your underlying type" p);
 				end else
-					error "Missing subtype declaration or @:coreType declaration" p;
+					error "Missing underlying type declaration or @:coreType declaration" p;
 			end;
 			t
 		in
@@ -1904,13 +1904,15 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 			| AFromType t -> a.a_from <- (load_type t, None) :: a.a_from
 			| AToType t -> a.a_to <- (load_type t, None) :: a.a_to
 			| AIsType t ->
-				if a.a_impl = None then error "Abstracts with subtypes must have an implementation" a.a_pos;
+				if a.a_impl = None then error "Abstracts with underlying type must have an implementation" a.a_pos;
 				let at = load_complex_type ctx p t in
-				(match at with TAbstract(a2,_) when a == a2 -> error "Abstract subtype cannot be recursive" a.a_pos | _ -> ());
+				(match at with TAbstract(a2,_) when a == a2 -> error "Abstract underlying type cannot be recursive" a.a_pos | _ -> ());
 				a.a_this <- at;
 				is_type := true;
 			| APrivAbstract -> ()
-		) d.d_flags
+		) d.d_flags;
+		if not !is_type && (match a.a_impl with Some _ -> true | None -> not (Meta.has Meta.CoreType a.a_meta)) then
+			error "Abstract is missing underlying type declaration" a.a_pos
 
 let type_module ctx m file tdecls p =
 	let m, decls, tdecls = make_module ctx m file tdecls p in

@@ -24,5 +24,5 @@
 	
 	See [Type] for the haXe Reflection API.
 **/
-@:runtimeValue abstract Class<T> {
+@:coreType @:runtimeValue abstract Class<T> {
 }

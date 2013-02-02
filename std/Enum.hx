@@ -27,5 +27,5 @@
 	
 	See [Type] for the haXe Reflection API.
 **/
-@:runtimeValue abstract Enum<T> {
+@:coreType @:runtimeValue abstract Enum<T> {
 }

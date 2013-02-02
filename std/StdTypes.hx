@@ -24,12 +24,12 @@
 /**
 	The standard Void type. Only [null] values can be of the type [Void].
 **/
-abstract Void { }
+@:coreType abstract Void { }
 
 /**
 	The standard Float type, this is a double-precision IEEE 64bit float.
 **/
-@:notNull @:runtimeValue abstract Float { }
+@:coreType @:notNull @:runtimeValue abstract Float { }
 
 /**
 	The standard Int type. Its precision depends on the platform.
@@ -59,14 +59,14 @@ typedef Null<T> = T
 /**
 	The standard Boolean type is represented as an enum with two choices.
 **/
-@:notNull @:runtimeValue abstract Bool {
+@:coreType @:notNull @:runtimeValue abstract Bool {
 }
 
 /**
 	Dynamic is an internal compiler type which has special behavior.
 	See the haXe language reference for more informations.
 **/
-@:runtimeValue abstract Dynamic<T> {
+@:coreType @:runtimeValue abstract Dynamic<T> {
 }
 
 /**
