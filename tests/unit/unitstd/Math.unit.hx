@@ -165,9 +165,9 @@ Math.round(-1.0) == -1;
 Math.round(-1.499) == -1;
 Math.round(-1.5) == -1;
 Math.round( -1.50001) == -2;
-Math.round(Math.POSITIVE_INFINITY) == Math.POSITIVE_INFINITY;
-Math.round(Math.NEGATIVE_INFINITY) == Math.NEGATIVE_INFINITY;
-Math.isNaN(Math.round(Math.NaN)) == true;
+Math.fround(Math.POSITIVE_INFINITY) == Math.POSITIVE_INFINITY;
+Math.fround(Math.NEGATIVE_INFINITY) == Math.NEGATIVE_INFINITY;
+Math.isNaN(Math.fround(Math.NaN)) == true;
 
 // floor
 Math.floor(0.0) == 0;
@@ -176,8 +176,8 @@ Math.floor(1.0) == 1;
 Math.floor( -0.0001) == -1;
 Math.floor( -1.0) == -1;
 Math.floor( -1.0001) == -2;
-Math.floor(Math.POSITIVE_INFINITY) == Math.POSITIVE_INFINITY;
-Math.floor(Math.NEGATIVE_INFINITY) == Math.NEGATIVE_INFINITY;
+Math.ffloor(Math.POSITIVE_INFINITY) == Math.POSITIVE_INFINITY;
+Math.ffloor(Math.NEGATIVE_INFINITY) == Math.NEGATIVE_INFINITY;
 Math.isNaN(Math.floor(Math.NaN)) == true;
 
 // ceil
@@ -187,9 +187,9 @@ Math.ceil(-1.0) == -1;
 Math.ceil( 0.0001) == 1;
 Math.ceil( 1.0) == 1;
 Math.ceil( 1.0001) == 2;
-Math.ceil(Math.POSITIVE_INFINITY) == Math.POSITIVE_INFINITY;
-Math.ceil(Math.NEGATIVE_INFINITY) == Math.NEGATIVE_INFINITY;
-Math.isNaN(Math.ceil(Math.NaN)) == true;
+Math.fceil(Math.POSITIVE_INFINITY) == Math.POSITIVE_INFINITY;
+Math.fceil(Math.NEGATIVE_INFINITY) == Math.NEGATIVE_INFINITY;
+Math.isNaN(Math.fceil(Math.NaN)) == true;
 
 // random
 // not much to test here...
