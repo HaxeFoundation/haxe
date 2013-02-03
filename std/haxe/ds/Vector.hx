@@ -19,7 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package haxe;
+package haxe.ds;
 
 private typedef VectorData<T> = #if flash10
 	flash.Vector<T>
