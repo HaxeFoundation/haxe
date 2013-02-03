@@ -19,7 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package haxe;
+package haxe.ds;
 
 #if (haxe3 && (flash9 || cpp))
 @:generic
@@ -34,7 +34,7 @@ class FastCell<T> #if (!haxe3 && (flash9 || cpp)) implements haxe.rtti.Generic #
 #if haxe3
 @:generic
 #end
-private class FastListIterator<T> extends cpp.FastIterator<T>#if !haxe3 , implements haxe.rtti.Generic #end {
+private class GenericStackIterator<T> extends cpp.FastIterator<T>#if !haxe3 , implements haxe.rtti.Generic #end {
 	public var current : FastCell<T>;
 	override public function hasNext():Bool { return current!=null; }
 	override public function next():T { var result = current.elt; current = current.next; return result; }
@@ -50,7 +50,7 @@ private class FastListIterator<T> extends cpp.FastIterator<T>#if !haxe3 , implem
 #if (haxe3 && (flash9 || cpp))
 @:generic
 #end
-class FastList<T> #if (!haxe3 && (flash9 || cpp)) implements haxe.rtti.Generic #end {
+class GenericStack<T> #if (!haxe3 && (flash9 || cpp)) implements haxe.rtti.Generic #end {
 
 	public var head : FastCell<T>;
 
@@ -124,7 +124,7 @@ class FastList<T> #if (!haxe3 && (flash9 || cpp)) implements haxe.rtti.Generic #
 		Returns an iterator on the elements of the list.
 	**/
 	public function iterator() : Iterator<T> {
-		return new FastListIterator<T>(head);
+		return new GenericStackIterator<T>(head);
 	}
 
 	#else
