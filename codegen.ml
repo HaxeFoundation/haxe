@@ -1366,13 +1366,13 @@ let handle_abstract_casts ctx e =
 		| TBinop(OpAssign,e1,e2) ->
 			let e2 = check_cast e1.etype e2 e.epos in
 			{ e with eexpr = TBinop(OpAssign,loop e1,e2) }
-		| TLocal v when (match follow v.v_type with TAbstract(a,_) -> Meta.has Meta.Generic a.a_meta | _ -> false) ->
+		| TLocal v when (match follow v.v_type with TAbstract(a,_) -> Meta.has Meta.MultiType a.a_meta | _ -> false) ->
 			{e with etype = v.v_type}
 		| TVars vl ->
 			let vl = List.map (fun (v,eo) -> match eo with
 				| None -> (v,eo)
 				| Some e ->
-					let is_generic_abstract = match e.etype with TAbstract ({a_impl = Some _} as a,_) -> Meta.has Meta.Generic a.a_meta | _ -> false in
+					let is_generic_abstract = match e.etype with TAbstract ({a_impl = Some _} as a,_) -> Meta.has Meta.MultiType a.a_meta | _ -> false in
 					let e = check_cast v.v_type e e.epos in
 					(* we can rewrite this for better field inference *)
 					if is_generic_abstract then v.v_type <- e.etype;
@@ -1385,7 +1385,12 @@ let handle_abstract_casts ctx e =
 			let m = mk_mono() in
 			let _,cfo =
 				try find_to a pl at m
-				with Not_found -> error ("Could not determine type for " ^ (s_type (print_context()) at)) e.epos
+				with Not_found ->
+					let st = s_type (print_context()) at in
+					if has_mono at then
+						error ("Type parameters of multi type abstracts must be known (for " ^ st ^ ")") e.epos
+					else
+						error ("Abstract " ^ (s_type_path a.a_path) ^ " has no @:to function that accepts " ^ st) e.epos;
 			in
 			begin match cfo with
 			| None -> assert false
@@ -1400,7 +1405,7 @@ let handle_abstract_casts ctx e =
 				begin match e1.eexpr with
 					| TField(e2,fa) ->
 						begin match follow e2.etype with
-							| TAbstract(a,pl) when Meta.has Meta.Generic a.a_meta ->
+							| TAbstract(a,pl) when Meta.has Meta.MultiType a.a_meta ->
 								let at = apply_params a.a_types pl a.a_this in
 								let m = mk_mono() in
 								let _ = find_to a pl at m in

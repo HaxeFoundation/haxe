@@ -83,6 +83,7 @@ module Meta = struct
 		| Meta
 		| Macro
 		| MaybeUsed
+		| MultiType
 		| Native
 		| NativeGen
 		| NativeGeneric
@@ -189,6 +190,7 @@ module Meta = struct
 		| Meta -> ":meta"
 		| Macro -> ":macro"
 		| MaybeUsed -> ":maybeUsed"
+		| MultiType -> ":multiType"
 		| Native -> ":native"
 		| NativeGen -> ":nativeGen"
 		| NativeGeneric -> ":nativeGeneric"
