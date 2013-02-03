@@ -129,6 +129,7 @@ exception Error of error_msg * pos
 
 exception DisplayPosition of Ast.pos list
 
+let make_call_ref : (typer -> texpr -> texpr list -> t -> pos -> texpr) ref = ref (fun _ _ _ _ _ -> assert false)
 let type_expr_ref : (typer -> Ast.expr -> with_type -> texpr) ref = ref (fun _ _ _ -> assert false)
 let unify_min_ref : (typer -> texpr list -> t) ref = ref (fun _ _ -> assert false)
 let match_expr_ref : (typer -> Ast.expr -> (Ast.expr list * Ast.expr option * Ast.expr option) list -> Ast.expr option option -> with_type -> Ast.pos -> texpr) ref = ref (fun _ _ _ _ _ _ -> assert false)
@@ -247,6 +248,8 @@ let pass_name = function
 let display_error ctx msg p = ctx.on_error ctx msg p
 
 let error msg p = raise (Error (Custom msg,p))
+
+let make_call ctx e el t p = (!make_call_ref) ctx e el t p
 
 let type_expr ctx e with_type = (!type_expr_ref) ctx e with_type
 

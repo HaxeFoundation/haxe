@@ -1319,7 +1319,7 @@ let check_local_vars_init e =
 (* ABSTRACT CASTS *)
 
 let handle_abstract_casts ctx e =
-	let make_cast_call c cf a pl args t p =
+	let make_static_call c cf a pl args t p =
 		let ta = TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) } in
 		let ethis = mk (TTypeExpr (TClassDecl c)) ta p in
 		let def () =
@@ -1350,14 +1350,14 @@ let handle_abstract_casts ctx e =
 					with Not_found ->
 						c2,snd (find_from a2 pl2 t1 t2),a2,pl2
 					in
-					match cfo with None -> eright | Some cf -> make_cast_call c cf a pl [eright] tleft p
+					match cfo with None -> eright | Some cf -> make_static_call c cf a pl [eright] tleft p
 				end
 			| TDynamic _,_ | _,TDynamic _ ->
 				eright
 			| TAbstract({a_impl = Some c} as a,pl) as t1,t2 ->
-				begin match snd (find_to a pl t1 t2) with None -> eright | Some cf -> make_cast_call c cf a pl [eright] tleft p end
+				begin match snd (find_to a pl t1 t2) with None -> eright | Some cf -> make_static_call c cf a pl [eright] tleft p end
 			| t1,(TAbstract({a_impl = Some c} as a,pl) as t2) ->
-				begin match snd (find_from a pl t1 t2) with None -> eright | Some cf -> make_cast_call c cf a pl [eright] tleft p end
+				begin match snd (find_from a pl t1 t2) with None -> eright | Some cf -> make_static_call c cf a pl [eright] tleft p end
 			| _ ->
 				eright)
 		with Not_found ->
@@ -1366,6 +1366,8 @@ let handle_abstract_casts ctx e =
 		| TBinop(OpAssign,e1,e2) ->
 			let e2 = check_cast e1.etype e2 e.epos in
 			{ e with eexpr = TBinop(OpAssign,loop e1,e2) }
+		| TLocal v when (match follow v.v_type with TAbstract(a,_) -> Meta.has Meta.Generic a.a_meta | _ -> false) ->
+			{e with etype = v.v_type}
 		| TVars vl ->
 			let vl = List.map (fun (v,eo) -> match eo with
 				| None -> (v,eo)
@@ -1389,32 +1391,50 @@ let handle_abstract_casts ctx e =
 			| None -> assert false
 			| Some cf ->
 				let m = follow m in
-				let e = make_cast_call c cf a pl ((mk (TConst TNull) at e.epos) :: el) m e.epos in
+				let e = make_static_call c cf a pl ((mk (TConst TNull) at e.epos) :: el) m e.epos in
 				{e with etype = m}
 			end
-		| TField({etype = TAbstract({a_impl = Some _} as a,pl)} as e1,fa) when Meta.has Meta.Generic a.a_meta ->
-			let at = apply_params a.a_types pl a.a_this in
-			let m = mk_mono() in
-			begin try
-				let _ = find_to a pl at m in
-				(* we could inline this if we had access to Typer.make_call *)
-				{e with eexpr = TField({e1 with etype = m},quick_field m (field_name fa))}
-			with Not_found ->
-				e
-			end
 		| TCall(e1, el) ->
-			begin match follow e1.etype with
-				| TFun(args,_) ->
-					let rec loop2 el tl = match el,tl with
-						| [],_ -> []
-						| e :: el, [] -> (loop e) :: loop2 el []
-						| e :: el, (_,_,t) :: tl ->
-							(check_cast t e e.epos) :: loop2 el tl
-					in
-					let el = loop2 el args in
-					{ e with eexpr = TCall(loop e1,el)}
-				| _ ->
-					Type.map_expr loop e
+			let e1 = loop e1 in
+			begin try
+				begin match e1.eexpr with
+					| TField(e2,fa) ->
+						begin match follow e2.etype with
+							| TAbstract(a,pl) when Meta.has Meta.Generic a.a_meta ->
+								let at = apply_params a.a_types pl a.a_this in
+								let m = mk_mono() in
+								let _ = find_to a pl at m in
+								let fname = field_name fa in
+								begin try
+									let ef = mk (TField({e2 with etype = m},quick_field m fname)) e2.etype e2.epos in
+									make_call ctx ef el e.etype e.epos
+								with Not_found ->
+									(* quick_field raises Not_found if m is an abstract, we have to replicate the 'using' call here *)
+									match follow m with
+									| TAbstract({a_impl = Some c} as a,pl) ->
+										let cf = PMap.find fname c.cl_statics in
+										make_static_call c cf a pl (e2 :: el) e.etype e.epos
+									| _ -> raise Not_found
+								end
+							| _ -> raise Not_found
+						end
+					| _ ->
+						raise Not_found
+				end
+			with Not_found ->
+				begin match follow e1.etype with
+					| TFun(args,_) ->
+						let rec loop2 el tl = match el,tl with
+							| [],_ -> []
+							| e :: el, [] -> (loop e) :: loop2 el []
+							| e :: el, (_,_,t) :: tl ->
+								(check_cast t e e.epos) :: loop2 el tl
+						in
+						let el = loop2 el args in
+						{ e with eexpr = TCall(loop e1,el)}
+					| _ ->
+						Type.map_expr loop e
+				end
 			end
 		| TArrayDecl el ->
 			begin match e.etype with

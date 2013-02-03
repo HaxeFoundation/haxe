@@ -55,7 +55,6 @@ abstract Kilometer(Float) from Float to Float {
 		return new Kilometer(m.get() / 1000.)
 }
 
-#if !cpp
 abstract MyHash(Hash<V>)<V> {
 	private inline function new() {
 		this = new Hash<V>();
@@ -89,7 +88,6 @@ abstract MyHash(Hash<V>)<V> {
 		return hash;
 	}
 }
-#end
 
 class AbstractBase<T> {
 	public var value:T;
@@ -152,4 +150,10 @@ abstract MyInt(Int) from Int to Int {
 			s.add(rhs);
 		return s.toString();
 	}
+}
+
+class ClassWithHashCode {
+	var i:Int;
+	public function new(i) { this.i = i; }
+	public function hashCode() return i
 }

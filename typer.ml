@@ -3706,3 +3706,4 @@ let rec create com =
 
 ;;
 unify_min_ref := unify_min;
+make_call_ref := make_call;
