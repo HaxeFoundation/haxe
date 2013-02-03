@@ -3438,13 +3438,13 @@ let enc_array l =
 	]
 
 let enc_string s =
-	enc_inst ["haxe";"ds";"String"] [
+	enc_inst ["String"] [
 		"__s", VString s;
 		"length", VInt (String.length s)
 	]
 
 let enc_hash h =
-	enc_inst ["Hash"] [
+	enc_inst ["haxe";"ds";"StringMap"] [
 		"h", VAbstract (AHash h);
 	]
 
