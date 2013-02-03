@@ -28,7 +28,7 @@ class StringBuf {
 		b = new Array();
 	}
 
-	public inline function add( x : Dynamic ) : Void {
+	public function add( x : Dynamic ) : Void {
 		b.push(x);
 	}
 
