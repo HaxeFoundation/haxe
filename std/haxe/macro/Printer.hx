@@ -64,6 +64,7 @@ class Printer {
 		case OpUShr: ">>>";
 		case OpMod: "%";
 		case OpInterval: "...";
+		case OpArrow: "=>";
 		case OpAssignOp(op):
 			printBinop(op)
 			+ "=";

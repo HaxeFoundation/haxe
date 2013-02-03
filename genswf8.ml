@@ -829,7 +829,7 @@ and gen_binop ctx retval op e1 e2 =
 		write ctx APop;
 		gen_expr ctx true e2;
 		jump_end()
-	| OpInterval ->
+	| OpInterval | OpArrow ->
 		(* handled by typer *)
 		assert false
 

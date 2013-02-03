@@ -2085,7 +2085,7 @@ struct
               { e with eexpr = TBinop(op, mk_cast gen.gcon.basic.tbool (run e1), mk_cast gen.gcon.basic.tbool (run e2)) }
             | OpAnd | OpOr | OpXor | OpShl | OpShr | OpUShr | OpMod ->
               { e with eexpr = TBinop(op, mk_cast gen.gcon.basic.tint (run e1), mk_cast gen.gcon.basic.tint (run e2)) }
-            | OpAssign | OpAssignOp _ | OpInterval -> assert false)
+            | OpAssign | OpAssignOp _ | OpInterval | OpArrow -> assert false)
         | TUnop (Increment as op, flag, e1)
         | TUnop (Decrement as op, flag, e1) when should_change e ->
           (*

@@ -685,6 +685,38 @@ class TestType extends Test {
 			var s:String = z;
 		}));
 	}
+	
+	function testOpArrow() {
+		var m = new Map<Int,Int>();
+		var map = [1 => 2, 3 => 4];
+		typedAs(map, m);
+		t(Std.is(map, haxe.ds.IntMap));
+		eq(map.get(1), 2);
+		eq(map.get(3), 4);
+		
+		var m = new Map<String,Int>();
+		var map = ["1" => 2, "3" => 4];
+		typedAs(map, m);
+		t(Std.is(map, haxe.ds.StringMap));
+		eq(map.get("1"), 2);
+		eq(map.get("3"), 4);
+		
+		var a = new unit.MyAbstract.ClassWithHashCode(1);
+		var b = new unit.MyAbstract.ClassWithHashCode(2);
+		var m = new Map<unit.MyAbstract.ClassWithHashCode,Int>();
+		var map = [a => 2, b => 4];
+		typedAs(map, m);
+		t(Std.is(map, haxe.ds.IntMap));
+		eq(map.get(a), 2);
+		eq(map.get(b), 4);
+		
+		// duplicate key
+		t(typeError([1 => 2, 1 => 3]));
+		// key unification
+		t(typeError([1 => 2, "1" => 2]));
+		// value unification
+		t(typeError([1 => 2, 1 => "2"]));
+	}
 
 	function testAbstractGeneric() {
 		var map = new Map();
@@ -702,7 +734,7 @@ class TestType extends Test {
 		map.set(b, "bar");
 		eq(map.get(a), "foo");
 		eq(map.get(b), "bar");
-		t(Std.is(map, haxe.ds.HashMap));
+		t(Std.is(map, haxe.ds.IntMap));
 
 		//var map = new unit.MyAbstract.MyMap();
 		//map.set(new haxe.Template("foo"), 99);

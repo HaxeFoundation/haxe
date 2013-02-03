@@ -332,6 +332,7 @@ type binop =
 	| OpMod
 	| OpAssignOp of binop
 	| OpInterval
+	| OpArrow
 
 type unop =
 	| Increment
@@ -668,6 +669,7 @@ let rec s_binop = function
 	| OpMod -> "%"
 	| OpAssignOp op -> s_binop op ^ "="
 	| OpInterval -> "..."
+	| OpArrow -> "=>"
 
 let s_unop = function
 	| Increment -> "++"
@@ -844,6 +846,7 @@ let reify in_macro =
 		| OpMod -> op "OpMod"
 		| OpAssignOp o -> mk_enum "Binop" "OpAssignOp" [to_binop o p] p
 		| OpInterval -> op "OpInterval"
+		| OpArrow -> op "OpArrow"
 	in
 	let to_string s p =
 		let len = String.length s in

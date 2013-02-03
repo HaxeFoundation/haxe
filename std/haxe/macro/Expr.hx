@@ -66,6 +66,7 @@ enum Binop {
 	OpMod;
 	OpAssignOp( op : Binop );
 	OpInterval;
+	OpArrow;
 }
 
 

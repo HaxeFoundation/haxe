@@ -1482,6 +1482,8 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 		unify ctx e1.etype tint e1.epos;
 		unify ctx e2.etype tint e2.epos;
 		mk (TNew ((match t with TInst (c,[]) -> c | _ -> assert false),[],[e1;e2])) t p
+	| OpArrow ->
+		error "Unexpected =>" p
 	| OpAssign
 	| OpAssignOp _ ->
 		assert false
@@ -2183,6 +2185,43 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			efor;
 			mk (TLocal v) v.v_type p;
 		]) v.v_type p
+	| EArrayDecl ((EBinop(OpArrow,_,_),_) as e1 :: el) ->
+		let keys = Hashtbl.create 0 in
+		let tkey,tval = mk_mono(),mk_mono() in
+		let type_arrow e1 e2 =
+			let e1 = type_expr ctx e1 (WithType tkey) in
+			try
+				let p = Hashtbl.find keys e1.eexpr in
+				display_error ctx "Duplicate key" e1.epos;
+				error "Previously defined here" p
+			with Not_found ->
+				Hashtbl.add keys e1.eexpr e1.epos;
+				unify ctx e1.etype tkey e1.epos;
+				let e2 = type_expr ctx e2 (WithType tval) in
+				unify ctx e2.etype tval e2.epos;
+				e1,e2
+		in
+		let m = Typeload.load_module ctx ([],"Map") null_pos in
+		let a,c = match m.m_types with
+			| (TAbstractDecl ({a_impl = Some c} as a)) :: _ -> a,c
+			| _ -> assert false
+		in
+		let tmap = TAbstract(a,[tkey;tval]) in
+		let cf = PMap.find "set" c.cl_statics in
+		let el = e1 :: el in
+		let v = gen_local ctx tmap in
+		let ev = mk (TLocal v) tmap p in
+		let ef = mk (TField(ev,FInstance(c,cf))) (tfun [tkey;tval] ctx.t.tvoid) p in
+		let el = ev :: List.fold_left (fun acc e -> match fst e with
+			| EBinop(OpArrow,e1,e2) ->
+				let e1,e2 = type_arrow e1 e2 in
+				(make_call ctx ef [e1;e2] ctx.com.basic.tvoid p) :: acc
+			| _ ->
+				error "Expected a => b" (snd e)
+		) [] el in
+		let enew = mk (TNew(c,[tkey;tval],[])) tmap p in
+		let el = (mk (TVars [v,Some enew]) t_dynamic p) :: (List.rev el) in
+		mk (TBlock el) enew.etype p
 	| EArrayDecl el ->
 		let tp = (match with_type with
 		| WithType t | WithTypeResume t ->
