@@ -502,6 +502,8 @@ let is_interface_type t =
 
 let is_interface obj = is_interface_type obj.etype;;
 
+let should_implement_field x = not (is_extern_field x);;
+
 let is_function_member expression =
 	match (follow expression.etype) with | TFun (_,_) -> true | _ -> false;;
 
@@ -1979,7 +1981,7 @@ let gen_field ctx class_def class_name ptr_name is_static is_interface field =
 			output ( " " ^ class_name ^ "::" ^ remap_name ^ ";\n\n");
 		end
 	| _ ->
-		if is_static then begin
+		if is_static && (not (is_extern_field field)) then begin
 			gen_type ctx field.cf_type;
 			output ( " " ^ class_name ^ "::" ^ remap_name ^ ";\n\n");
 		end
@@ -2568,6 +2570,15 @@ let is_macro meta =
 ;;
 
 
+let access_str a = match a with
+	| AccNormal -> "AccNormal"
+	| AccNo -> "AccNo"
+	| AccNever -> "AccNever"
+	| AccResolve -> "AccResolve"
+	| AccCall(_) -> "AccCall"
+	| AccInline -> "AccInline"
+	| AccRequire(_,_) -> "AccRequire" ;;
+
 let generate_class_files common_ctx member_types super_deps constructor_deps class_def file_info scriptable =
 	let class_path = class_def.cl_path in
 	let class_name = (snd class_def.cl_path) ^ "_obj" in
@@ -2694,6 +2705,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 	| _ -> ());
 
 	let statics_except_meta = (List.filter (fun static -> static.cf_name <> "__meta__") class_def.cl_ordered_statics) in
+	let implemented_fields = List.filter should_implement_field statics_except_meta in
 
 	List.iter
 		(gen_field ctx class_def class_name smart_class_name false class_def.cl_interface)
@@ -2732,13 +2744,14 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 				end
 		in
 
+      let implemented_instance_fields = List.filter should_implement_field class_def.cl_ordered_fields in
 
 		(* MARK function - explicitly mark all child pointers *)
 		output_cpp ("void " ^ class_name ^ "::__Mark(HX_MARK_PARAMS)\n{\n");
 		output_cpp ("	HX_MARK_BEGIN_CLASS(" ^ smart_class_name ^ ");\n");
 		if (implement_dynamic) then
 			output_cpp "	HX_MARK_DYNAMIC;\n";
-		List.iter (dump_field_iterator "HX_MARK_MEMBER_NAME") class_def.cl_ordered_fields;
+		List.iter (dump_field_iterator "HX_MARK_MEMBER_NAME") implemented_instance_fields;
 		(match  class_def.cl_super with Some _ -> output_cpp "	super::__Mark(HX_MARK_ARG);\n" | _ -> () );
 		output_cpp "	HX_MARK_END_CLASS();\n";
 		output_cpp "}\n\n";
@@ -2747,7 +2760,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 		output_cpp ("void " ^ class_name ^ "::__Visit(HX_VISIT_PARAMS)\n{\n");
 		if (implement_dynamic) then
 			output_cpp "	HX_VISIT_DYNAMIC;\n";
-		List.iter (dump_field_iterator "HX_VISIT_MEMBER_NAME") class_def.cl_ordered_fields;
+		List.iter (dump_field_iterator "HX_VISIT_MEMBER_NAME") implemented_instance_fields;
 		(match  class_def.cl_super with Some _ -> output_cpp "	super::__Visit(HX_VISIT_ARG);\n" | _ -> () );
 		output_cpp "}\n\n";
 
@@ -2757,10 +2770,18 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 			| Some { eexpr = TFunction function_def } -> is_dynamic_haxe_method field
 			| _ -> true)
 		in
+      let is_readable field =
+			(match field.cf_kind with | Var { v_read = AccNever } | Var { v_read = AccInline } -> false
+			| _ -> true) in
+      let is_writable field =
+			(match field.cf_kind with | Var { v_write = AccNever } | Var { v_read = AccInline } -> false
+			| _ -> true) in
 
       let reflective field = not (Meta.has Meta.Unreflective field.cf_meta) in
 		let reflect_fields = List.filter reflective (statics_except_meta @ class_def.cl_ordered_fields) in
-		let reflect_variables = List.filter variable_field reflect_fields in
+		let reflect_writable = List.filter is_writable reflect_fields in
+		let reflect_readable = List.filter is_readable reflect_fields in
+		let reflect_write_variables = List.filter variable_field reflect_writable in
 
 		let dump_quick_field_test fields =
 			if ( (List.length fields) > 0) then begin
@@ -2786,17 +2807,17 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 		let get_field_dat = List.map (fun f ->
 			(f.cf_name, String.length f.cf_name, "return " ^
 				(match f.cf_kind with
+				| Var { v_read = AccCall prop } when is_extern_field f -> (keyword_remap prop) ^ "()"
 				| Var { v_read = AccCall prop } -> "inCallProp ? " ^ (keyword_remap prop) ^ "() : " ^
 				        ((keyword_remap f.cf_name) ^ if (variable_field f) then "" else "_dyn()")
 				| _ -> ((keyword_remap f.cf_name) ^ if (variable_field f) then "" else "_dyn()")
 				) ^ ";"
 			) )
 		in
-		dump_quick_field_test (get_field_dat reflect_fields);
+		dump_quick_field_test (get_field_dat reflect_readable);
 		if (implement_dynamic) then
 			output_cpp "	HX_CHECK_DYNAMIC_GET_FIELD(inName);\n";
 		output_cpp ("	return super::__Field(inName,inCallProp);\n}\n\n");
-
 
 		(* Dynamic "Get" Field function - int version *)
 		if ( field_integer_numeric || field_integer_dynamic) then begin
@@ -2805,7 +2826,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 				output_cpp ("static int __id_" ^ remap_name ^ " = __hxcpp_field_to_id(\"" ^
 								  	(field.cf_name) ^ "\");\n");
 				) in
-			List.iter dump_static_ids reflect_fields;
+			List.iter dump_static_ids reflect_readable;
 			output_cpp "\n\n";
 
 
@@ -2820,7 +2841,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 					| _ -> ((keyword_remap f.cf_name) ^ if ( variable_field f) then "" else "_dyn()")
 					) ^ ( if (return_type="Float") then " ) " else "" ) ^ ";\n");
 				) in
-			List.iter dump_field_test reflect_fields;
+			List.iter dump_field_test reflect_readable;
 			if (implement_dynamic) then
 				output_cpp "	HX_CHECK_DYNAMIC_GET_INT_FIELD(inFieldID);\n";
 			output_cpp ("	return super::" ^ function_name ^ "(inFieldID);\n}\n\n");
@@ -2835,15 +2856,20 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 		output_cpp ("Dynamic " ^ class_name ^ "::__SetField(const ::String &inName,const Dynamic &inValue,bool inCallProp)\n{\n");
 
 		let set_field_dat = List.map (fun f ->
+         let default_action = 
+            (keyword_remap f.cf_name) ^ "=inValue.Cast< " ^ (type_string f.cf_type) ^ " >();" ^
+               " return inValue;" in
 			(f.cf_name, String.length f.cf_name,
 				(match f.cf_kind with
+				| Var { v_write = AccCall prop } when is_extern_field f -> "return " ^ (keyword_remap prop) ^ "(inValue);"
 				| Var { v_write = AccCall prop } -> "if (inCallProp) return " ^ (keyword_remap prop) ^ "(inValue);"
-            | _ -> ""
-				) ^ (keyword_remap f.cf_name) ^ "=inValue.Cast< " ^ (type_string f.cf_type) ^ " >(); return inValue;"
+					 ^ default_action
+            | _ -> default_action
+				)
          )
 		) in
 
-		dump_quick_field_test (set_field_dat reflect_variables);
+		dump_quick_field_test (set_field_dat reflect_write_variables);
 		if (implement_dynamic) then begin
 			output_cpp ("	try { return super::__SetField(inName,inValue,inCallProp); }\n");
 			output_cpp ("	catch(Dynamic e) { HX_DYNAMIC_SET_FIELD(inName,inValue); }\n");
@@ -2863,14 +2889,13 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 		output_cpp "	super::__GetFields(outFields);\n";
 		output_cpp "};\n\n";
 
-
 		let dump_field_name = (fun field -> output_cpp ("	" ^  (str field.cf_name) ^ ",\n")) in
 		output_cpp "static ::String sStaticFields[] = {\n";
-		List.iter dump_field_name  statics_except_meta;
+		List.iter dump_field_name  implemented_fields;
 		output_cpp "	String(null()) };\n\n";
 
 		output_cpp "static ::String sMemberFields[] = {\n";
-		List.iter dump_field_name  class_def.cl_ordered_fields;
+		List.iter dump_field_name  implemented_instance_fields;
 		output_cpp "	String(null()) };\n\n";
 
      end; (* cl_interface *)
@@ -2881,7 +2906,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 		List.iter (fun field ->
 			if (is_data_member field) then
 				output_cpp ("	HX_MARK_MEMBER_NAME(" ^ class_name ^ "::" ^ (keyword_remap field.cf_name) ^ ",\"" ^  field.cf_name ^ "\");\n") )
-			statics_except_meta;
+			implemented_fields;
 		output_cpp "};\n\n";
 
 		(* Visit static variables *)
@@ -2890,7 +2915,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 		List.iter (fun field ->
 			if (is_data_member field) then
 				output_cpp ("	HX_VISIT_MEMBER_NAME(" ^ class_name ^ "::" ^ (keyword_remap field.cf_name) ^ ",\"" ^  field.cf_name ^ "\");\n") )
-			statics_except_meta;
+			implemented_fields;
 		output_cpp "};\n\n";
 
    if (scriptable ) then begin
@@ -2980,7 +3005,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 	end;
 
    output_cpp ("void " ^ class_name ^ "::__boot()\n{\n");
-	List.iter (gen_field_init ctx ) class_def.cl_ordered_statics;
+	List.iter (gen_field_init ctx ) (List.filter should_implement_field class_def.cl_ordered_statics);
 	output_cpp ("}\n\n");
 
 
@@ -3070,8 +3095,8 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 
 
 	let interface = class_def.cl_interface in
-	List.iter (gen_member_def ctx class_def false interface) class_def.cl_ordered_fields;
-	List.iter (gen_member_def ctx class_def true interface)  class_def.cl_ordered_statics;
+	List.iter (gen_member_def ctx class_def false interface) (List.filter should_implement_field class_def.cl_ordered_fields);
+	List.iter (gen_member_def ctx class_def true interface)  (List.filter should_implement_field class_def.cl_ordered_statics);
 
 	output_h ( get_code class_def.cl_meta Meta.HeaderClassCode );
 
