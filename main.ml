@@ -76,7 +76,10 @@ let deprecated = [
 	"Class not found : IntIter","IntIter was renamed to IntIterator";
 	"EReg has no field customReplace","EReg.customReplace was renamed to EReg.map";
 	"#StringTools has no field isEOF","StringTools.isEOF was renamed to StringTools.isEof";
-	"Class not found : haxe.BaseCode","haxe.BaseCode was moved to haxe.crypto.BaseCode"
+	"Class not found : haxe.BaseCode","haxe.BaseCode was moved to haxe.crypto.BaseCode";
+	"Class not found : Hash","Hash was moved to haxe.ds.StringMap";
+	"Class not found : IntHash","IntHash was moved to haxe.ds.IntMap";
+	"Class not found : haxe.FastList","haxe.FastList was moved to haxe.ds.GenericStack";
 ]
 
 let error ctx msg p =
