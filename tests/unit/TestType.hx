@@ -689,7 +689,7 @@ class TestType extends Test {
 	function testAbstractGeneric() {
 		var map = new Map();
 		map.set("foo", 1);
-		t(Std.is(map, Hash));
+		t(Std.is(map, haxe.ds.StringMap));
 
 		var map = new Map();
 		_mapMe(map); // infer from function call

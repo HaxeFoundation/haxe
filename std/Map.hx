@@ -11,14 +11,14 @@ typedef IMap < K, V > = {
 abstract Map(IMap < K, V > )<K,V> {
 	public function new();
 
-	@:to static inline function toHash(t:IMap < String, V > ):Hash<V> {
-		return new Hash<V>();
+	@:to static inline function toHash(t:IMap < String, V > ):haxe.ds.StringMap<V> {
+		return new haxe.ds.StringMap<V>();
 	}
 
 	@:to static inline function toIntHash(t:IMap < Int, V > ):haxe.ds.IntMap<V> {
 		return new haxe.ds.IntMap<V>();
 	}
-	
+
 	@:to static inline function toHashMap<K:{ function hashCode():Int; }>(t:IMap < K, V >):haxe.ds.HashMap<K,V> {
 		return new haxe.ds.HashMap<K, V>();
 	}

@@ -91,7 +91,7 @@ class ExternalConnection implements Connection, implements Dynamic<Connection> {
 		return new haxe.Unserializer(data).unserialize();
 	}
 
-	static var connections = new Hash<ExternalConnection>();
+	static var connections = new haxe.ds.StringMap<ExternalConnection>();
 
 	@:keep
 	static function doCall( name : String, path : String, params : String ) : String {

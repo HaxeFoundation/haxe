@@ -41,13 +41,13 @@ class Manager<T : Object> {
 
 	/* ----------------------------- STATICS ------------------------------ */
 	public static var cnx(default,set) : Connection;
-	private static var object_cache : Hash<Object> = new Hash();
+	private static var object_cache : haxe.ds.StringMap<Object> = new haxe.ds.StringMap();
 	private static var init_list : List<Manager<Object>> = new List();
 	private static var cache_field = "__cache__";
 	private static var no_update : Dynamic = function() { throw "Cannot update not locked object"; }
 	private static var LOCKS = ["","",""];
 	private static var KEYWORDS = {
-		var h = new Hash();
+		var h = new haxe.ds.StringMap();
 		for( k in ["read","write","desc","out","group","version","option",
 				"primary","exists","from","key","keys","limit","lock","use",
 				"create","order","range"] )
@@ -451,7 +451,7 @@ class Manager<T : Object> {
 	}
 
 	public static function cleanup() {
-		object_cache = new Hash();
+		object_cache = new haxe.ds.StringMap();
 	}
 
 	function initRelation(r : { prop : String, key : String, manager : Manager<Object>, lock : Bool } ) {

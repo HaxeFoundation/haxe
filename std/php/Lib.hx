@@ -76,13 +76,13 @@ class Lib {
 		return untyped __call__("new _hx_array", a);
 	}
 
-	public static function hashOfAssociativeArray<T>(arr : NativeArray) : Hash<T> {
-		var h = new Hash<T>();
+	public static function hashOfAssociativeArray<T>(arr : NativeArray) : haxe.ds.StringMap<T> {
+		var h = new haxe.ds.StringMap<T>();
 		untyped h.h = arr;
 		return h;
 	}
 
-	public static function associativeArrayOfHash(hash : Hash<Dynamic>) : NativeArray {
+	public static function associativeArrayOfHash(hash : haxe.ds.StringMap<Dynamic>) : NativeArray {
 		return untyped hash.h;
 	}
 
@@ -96,9 +96,9 @@ class Lib {
 	public static function associativeArrayOfObject(ob : Dynamic) : NativeArray {
 		return untyped __php__("(array) $ob");
 	}
-	
+
 	/**
-	 * See the documentation for the equivalent PHP function for details on usage: 
+	 * See the documentation for the equivalent PHP function for details on usage:
 	 * http://php.net/manual/en/function.mail.php
 	 * @param	to
 	 * @param	subject

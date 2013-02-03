@@ -26,14 +26,14 @@ class Request {
 	/**
 		Returns the current page GET and POST parameters (only GET parameters for Javascript)
 	**/
-	public static function getParams() : Hash<String> {
+	public static function getParams() : haxe.ds.StringMap<String> {
 		#if neko
 		return neko.Web.getParams();
 		#elseif php
 		return php.Web.getParams();
 		#elseif js
 		var get : String = untyped window.location.search.substr(1);
-		var params = new Hash();
+		var params = new haxe.ds.StringMap();
 		for( p in ~/[&;]/g.split(get) ) {
 			var pl = p.split("=");
 			if( pl.length < 2 ) continue;
@@ -69,5 +69,5 @@ class Request {
 		return untyped window.location.pathname;
 		#end
 	}
-	
+
 }

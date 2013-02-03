@@ -325,7 +325,7 @@ class Unserializer {
 			pos++;
 			return l;
 		case "b".code:
-			var h = new Hash();
+			var h = new haxe.ds.StringMap();
 			cache.push(h);
 			var buf = buf;
 			while( get(pos) != "h".code ) {

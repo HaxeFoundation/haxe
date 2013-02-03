@@ -69,7 +69,7 @@ class Serializer {
 
 	var buf : StringBuf;
 	var cache : Array<Dynamic>;
-	var shash : Hash<Int>;
+	var shash : haxe.ds.StringMap<Int>;
 	var scount : Int;
 
 	/**
@@ -101,7 +101,7 @@ class Serializer {
 		cache = new Array();
 		useCache = USE_CACHE;
 		useEnumIndex = USE_ENUM_INDEX;
-		shash = new Hash();
+		shash = new haxe.ds.StringMap();
 		scount = 0;
 	}
 
@@ -291,9 +291,9 @@ class Serializer {
 				var d : Date = v;
 				buf.add("v");
 				buf.add(d.toString());
-			case #if (neko || cs) "Hash" #else cast Hash #end:
+			case #if (neko || cs) "haxe.ds.StringMap" #else cast haxe.ds.StringMap #end:
 				buf.add("b");
-				var v : Hash<Dynamic> = v;
+				var v : haxe.ds.StringMap<Dynamic> = v;
 				for( k in v.keys() ) {
 					serializeString(k);
 					serialize(v.get(k));

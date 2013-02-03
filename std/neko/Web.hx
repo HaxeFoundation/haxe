@@ -32,7 +32,7 @@ class Web {
 	**/
 	public static function getParams() {
 		var p = _get_params();
-		var h = new Hash<String>();
+		var h = new haxe.ds.StringMap<String>();
 		var k = "";
 		while( p != null ) {
 			untyped k.__s = p[0];
@@ -166,7 +166,7 @@ class Web {
 	**/
 	public static function getCookies() {
 		var p = _get_cookies();
-		var h = new Hash<String>();
+		var h = new haxe.ds.StringMap<String>();
 		var k = "";
 		while( p != null ) {
 			untyped k.__s = p[0];
@@ -236,8 +236,8 @@ class Web {
 		Get the multipart parameters as an hashtable. The data
 		cannot exceed the maximum size specified.
 	**/
-	public static function getMultipart( maxSize : Int ) : Hash<String> {
-		var h = new Hash();
+	public static function getMultipart( maxSize : Int ) : haxe.ds.StringMap<String> {
+		var h = new haxe.ds.StringMap();
 		var buf : haxe.io.BytesBuffer = null;
 		var curname = null;
 		parseMultipart(function(p,_) {

@@ -52,7 +52,7 @@ import cs.system.threading.Thread;
 **/
 @:coreApi
 class Sys {
-	private static var _env:Hash<String>;
+	private static var _env:haxe.ds.StringMap<String>;
 	private static var _args:Array<String>;
 
 	/**
@@ -106,11 +106,11 @@ class Sys {
 	/**
 		Returns the whole environement variables.
 	**/
-	public static function environment() : Hash<String>
+	public static function environment() : haxe.ds.StringMap<String>
 	{
 		if (_env == null)
 		{
-			var e = _env = new Hash();
+			var e = _env = new haxe.ds.StringMap();
 			var nenv = Environment.GetEnvironmentVariables().GetEnumerator();
 			while (nenv.MoveNext())
 			{

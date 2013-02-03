@@ -19,63 +19,61 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-@:coreApi class Hash<T> implements php.IteratorAggregate<T> {
-	private var h : ArrayAccess<T>;
+package haxe.ds;
+
+@:coreApi class StringMap<T> {
+
+	private var h :flash.utils.Dictionary;
 
 	public function new() : Void {
-		h = untyped __call__('array');
+		h = new flash.utils.Dictionary();
 	}
 
 	public function set( key : String, value : T ) : Void {
-		untyped h[key] = value;
+		untyped h["$"+key] = value;
 	}
 
 	public function get( key : String ) : Null<T> {
-		if (untyped __call__("array_key_exists", key, h))
-			return untyped h[key];
-		else
-			return null;
+		return untyped h["$"+key];
 	}
 
 	public function exists( key : String ) : Bool {
-		return untyped __call__("array_key_exists", key, h);
+		return untyped h.hasOwnProperty("$"+key);
 	}
 
 	public function remove( key : String ) : Bool {
-		if (untyped __call__("array_key_exists", key, h)) {
-			untyped __call__("unset", h[key]);
-			return true;
-		} else
-			return false;
+		key = "$"+key;
+		if( untyped !h.hasOwnProperty(key) ) return false;
+		untyped __delete__(h,key);
+		return true;
 	}
 
 	public function keys() : Iterator<String> {
-		return untyped __call__("new _hx_array_iterator", __call__("array_keys", h));
+		return untyped (__hkeys__(h)).iterator();
 	}
 
 	public function iterator() : Iterator<T> {
-		return untyped __call__("new _hx_array_iterator", __call__("array_values", h));
+		return untyped {
+			ref : h,
+			it : __keys__(h).iterator(),
+			hasNext : function() { return __this__.it.hasNext(); },
+			next : function() { var i : Dynamic = __this__.it.next(); return __this__.ref[i]; }
+		};
 	}
 
 	public function toString() : String {
-		var s = "{";
+		var s = new StringBuf();
+		s.add("{");
 		var it = keys();
 		for( i in it ) {
-			s += i;
-			s += " => ";
-			s += Std.string(get(i));
+			s.add(i);
+			s.add(" => ");
+			s.add(Std.string(get(i)));
 			if( it.hasNext() )
-				s += ", ";
+				s.add(", ");
 		}
-		return s + "}";
+		s.add("}");
+		return s.toString();
 	}
 
-	/**
-		Implement IteratorAggregate for native php iteration
-	**/
-	#if php
-	function getIterator() : Iterator<T> {
-		return iterator();
-	}
-	#end
 }

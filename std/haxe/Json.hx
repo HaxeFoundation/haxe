@@ -121,8 +121,8 @@ class Json {
 					}
 				}
 				addChar(']'.code);
-			} else if( c == Hash ) {
-				var v : Hash<Dynamic> = v;
+			} else if( c == haxe.ds.StringMap ) {
+				var v : haxe.ds.StringMap<Dynamic> = v;
 				var o = {};
 				for( k in v.keys() )
 					Reflect.setField(o,k,v.get(k));
@@ -457,7 +457,7 @@ class Json {
 				case "Date" : return Std.string(val); //.split(" ").join("T"); //better with "T"?
 				case "HList" : arr = php.Lib.toPhpArray(Lambda.array(val)); //convert List to array?
 				case "_hx_enum" : return Type.enumIndex(val);
-				case "Hash", "IntMap" : arr = php.Lib.associativeArrayOfHash(val);
+				case "StringMap", "IntMap" : arr = php.Lib.associativeArrayOfHash(val);
 				default : arr = php.Lib.associativeArrayOfObject(val);
 			}
 		}

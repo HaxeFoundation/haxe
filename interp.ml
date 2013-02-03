@@ -3438,7 +3438,7 @@ let enc_array l =
 	]
 
 let enc_string s =
-	enc_inst ["String"] [
+	enc_inst ["haxe";"ds";"String"] [
 		"__s", VString s;
 		"length", VInt (String.length s)
 	]

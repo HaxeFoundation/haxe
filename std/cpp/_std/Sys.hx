@@ -120,9 +120,9 @@
 		return new String(sys_exe_path());
 	}
 
-	public static function environment() : Hash<String> {
+	public static function environment() : haxe.ds.StringMap<String> {
 		var vars:Array<String> = sys_env();
-		var result = new Hash<String>();
+		var result = new haxe.ds.StringMap<String>();
 		var i = 0;
 		while(i<vars.length) {
 			result.set( vars[i], vars[i+1] );

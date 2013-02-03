@@ -32,11 +32,11 @@ class Manager<T : Object> {
 
 	/* ----------------------------- STATICS ------------------------------ */
 	public static var cnx(default,set) : Connection;
-	private static var object_cache : Hash<Object> = new Hash();
+	private static var object_cache : haxe.ds.StringMap<Object> = new haxe.ds.StringMap();
 	private static var cache_field = "__cache__";
 	private static var FOR_UPDATE = "";
 
-	public static var managers = new Hash<Manager<Dynamic>>();
+	public static var managers = new haxe.ds.StringMap<Manager<Dynamic>>();
 
 	private static dynamic function set_cnx( c : Connection ) {
 		Reflect.setField(Manager,"cnx",c);
@@ -444,7 +444,7 @@ class Manager<T : Object> {
 	}
 
 	public static function cleanup() {
-		object_cache = new Hash();
+		object_cache = new haxe.ds.StringMap();
 	}
 
 	function initRelation(o : Dynamic, r : { prop : String, key : String, manager : Manager<Object>, lock : Bool } ) {

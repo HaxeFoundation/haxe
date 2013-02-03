@@ -51,7 +51,7 @@ import sys.io.Process;
 **/
 @:coreApi class Sys {
 	private static var _args:java.NativeArray<String>;
-	private static var _env:Hash<String>;
+	private static var _env:haxe.ds.StringMap<String>;
 	private static var _sysName:String;
 
 	/**
@@ -101,11 +101,11 @@ import sys.io.Process;
 	/**
 		Returns the whole environement variables.
 	**/
-	public static function environment() : Hash<String>
+	public static function environment() : haxe.ds.StringMap<String>
 	{
 		if (_env != null)
 			return _env;
-		var _env = _env = new Hash();
+		var _env = _env = new haxe.ds.StringMap();
 		for (mv in java.lang.System.getenv().entrySet())
 		{
 			_env.set(mv.getKey(), mv.getValue());

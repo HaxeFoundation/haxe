@@ -61,7 +61,7 @@ class TestReflect extends Test {
 
 	static var TYPES : Array<Dynamic> = [
 		null,Int,String,Bool,Float,
-		Array,Hash,List,Date,Xml,Math,
+		Array,haxe.ds.StringMap,List,Date,Xml,Math,
 		unit.MyEnum,unit.MyClass,unit.MySubClass,
 		Class,Enum,Dynamic,unit.MyInterface
 	];
@@ -85,7 +85,7 @@ class TestReflect extends Test {
 
 	static var TNAMES = [
 		"null","Int","String","Bool","Float",
-		"Array",u("Hash"),u("List"),"Date","Xml","Math",
+		"Array",u("haxe.ds.StringMap"),u("List"),"Date","Xml","Math",
 		u2("unit","MyEnum"),u2("unit","MyClass"),u2("unit","MySubClass"),
 		#if !flash9 u #end("Class"), u("Enum"), u("Dynamic"),
 		u2("unit","MyInterface")
@@ -130,7 +130,7 @@ class TestReflect extends Test {
 		is("",String);
 		is([],Array);
 		is(new List(),List);
-		is(new Hash(),Hash);
+		is(new haxe.ds.StringMap(),haxe.ds.StringMap);
 		is(new MyClass(0),MyClass);
 		is(new MySubClass(0),MyClass,MySubClass);
 		is(MyEnum.A,MyEnum);
@@ -170,7 +170,7 @@ class TestReflect extends Test {
 		typeof("",TClass(String));
 		typeof([],TClass(Array));
 		typeof(new List(),TClass(List));
-		typeof(new Hash(),TClass(Hash));
+		typeof(new haxe.ds.StringMap(),TClass(haxe.ds.StringMap));
 		typeof(new MyClass(0),TClass(MyClass));
 		typeof(new MySubClass(0),TClass(MySubClass));
 		typeof(MyEnum.A,TEnum(MyEnum));
@@ -245,7 +245,7 @@ class TestReflect extends Test {
 		/*
 			Comparison between a method and a closure :
 			Not widely supported atm to justify officiel support
-			
+
 			var fadd : Dynamic = Reflect.field(a, "add");
 			var fget : Dynamic = Reflect.field(a, "get");
 			t( Reflect.compareMethods(fadd, fadd) );
@@ -270,7 +270,7 @@ class TestReflect extends Test {
 		Reflect.setProperty(c, "x", 10);
 		eq( c.x, 10);
 		eq( Reflect.getProperty(c, "x"), 10);
-		
+
 		var c : InterfWithProp = new ClassWithProp();
 		eq( c.x, 5);
 

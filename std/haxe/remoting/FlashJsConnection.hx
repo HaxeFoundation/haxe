@@ -87,7 +87,7 @@ class FlashJsConnection #if flash implements AsyncConnection, implements Dynamic
 		}
 	}
 
-	static var connections = new Hash<FlashJsConnection>();
+	static var connections = new haxe.ds.StringMap<FlashJsConnection>();
 
 	static function escapeString( s : String ) {
 		#if flash9

@@ -508,7 +508,7 @@ class XmlParser {
 				meta = xmeta(c);
 			else
 				t = xtype(c);
-		var types = new Hash();
+		var types = new haxe.ds.StringMap();
 		if( curplatform != null )
 			types.set(curplatform,t);
 		return {

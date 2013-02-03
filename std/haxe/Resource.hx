@@ -24,28 +24,28 @@ package haxe;
 /**
 	Resource can be used to access resources that were added through the
 	-resource file@name command line parameter.
-	
+
 	Depending on their type they can be obtained as String through
 	getString(name), or as binary data through getBytes(name).
-	
+
 	A list of all available resource names can be obtained from listNames().
 **/
 class Resource {
-	
+
 	#if (java || cs)
 	static var content : Array<String>;
 	#else
 	static var content : Array<{ name : String, data : String, str : String }>;
 	#end
-	
+
 	#if cs
-	static var paths : Hash<String>;
-	
-	#if cs @:keep #end private static function getPaths():Hash<String>
+	static var paths : haxe.ds.StringMap<String>;
+
+	#if cs @:keep #end private static function getPaths():haxe.ds.StringMap<String>
 	{
 		if (paths != null)
 			return paths;
-		var p = new Hash();
+		var p = new haxe.ds.StringMap();
 		var all:cs.NativeArray<String> = untyped __cs__("typeof(haxe.Resource).Assembly.GetManifestResourceNames()");
 		for (i in 0...all.Length)
 		{
@@ -53,7 +53,7 @@ class Resource {
 			var name = path.substr(path.indexOf("Resources.") + 10);
 			p.set(name, path);
 		}
-		
+
 		return paths = p;
 	}
 	#end
@@ -76,7 +76,7 @@ class Resource {
 
 	/**
 		Retrieves the resource identified by [name] as a String.
-		
+
 		If [name] does not match any resource name, null is returned.
 	**/
 	public static function getString( name : String ) : String {
@@ -109,7 +109,7 @@ class Resource {
 	/**
 		Retrieves the resource identified by [name] as an instance of
 		haxe.io.Bytes.
-		
+
 		If [name] does not match any resource name, null is returned.
 	**/
 	public static function getBytes( name : String ) : haxe.io.Bytes {

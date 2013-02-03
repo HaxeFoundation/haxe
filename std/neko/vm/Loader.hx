@@ -82,8 +82,8 @@ class Loader {
 		but with different names, for example with two relatives paths reprensenting
 		the same file, since the cache is done on a by-name basic.
 	**/
-	public function getCache() : Hash<Module> {
-		var h = new Hash<Module>();
+	public function getCache() : haxe.ds.StringMap<Module> {
+		var h = new haxe.ds.StringMap<Module>();
 		var cache = untyped l.cache;
 		for( f in Reflect.fields(cache) )
 			h.set(f,new Module(Reflect.field(cache,f)));

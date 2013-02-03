@@ -150,7 +150,7 @@ class Compiler {
 	public static function excludeFile( fileName : String ) {
 		fileName = Context.resolvePath(fileName);
 		var f = sys.io.File.read(fileName,true);
-		var classes = new Hash();
+		var classes = new haxe.ds.StringMap();
 		try {
 			while( true ) {
 				var l = StringTools.trim(f.readLine());
@@ -268,7 +268,7 @@ class Compiler {
 	public static function setCustomJSGenerator( callb : JSGenApi -> Void ) {
 		load("custom_js",1)(callb);
 	}
-	
+
 	static function load( f, nargs ) : Dynamic {
 		#if macro
 		return neko.Lib.load("macro", f, nargs);

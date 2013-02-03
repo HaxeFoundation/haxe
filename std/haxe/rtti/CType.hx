@@ -104,7 +104,7 @@ typedef Enumdef = {> TypeInfos,
 
 typedef Typedef = {> TypeInfos,
 	var type : CType;
-	var types : Hash<CType>; // by platform
+	var types : haxe.ds.StringMap<CType>; // by platform
 }
 
 typedef Abstractdef = {> TypeInfos,

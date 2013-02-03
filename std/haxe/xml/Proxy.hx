@@ -30,7 +30,7 @@ package haxe.xml;
 	class MyXml extends haxe.xml.Proxy<"my.xml",MyStructure> {
 	}
 	...
-	var h = new Hash<MyStructure>();
+	var h = new haxe.ds.StringMap<MyStructure>();
 	// ... fill h with "my.xml" content
 	var m = new MyXml(h.get);
 	trace(m.myNode.structField);

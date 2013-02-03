@@ -78,7 +78,7 @@ typedef SpodInfos = {
 	var name : String;
 	var key : Array<String>;
 	var fields : Array<SpodField>;
-	var hfields : Hash<SpodField>;
+	var hfields : haxe.ds.StringMap<SpodField>;
 	var relations : Array<SpodRelation>;
 	var indexes : Array<{ keys : Array<String>, unique : Bool }>;
 }

@@ -19,44 +19,42 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-@:coreApi class Hash<T> {
+package haxe.ds;
 
-	private var h :flash.utils.Dictionary;
+@:coreApi class StringMap<T> {
+
+	private var h : Dynamic;
 
 	public function new() : Void {
-		h = new flash.utils.Dictionary();
+		h = untyped __dollar__hnew(0);
 	}
 
-	public function set( key : String, value : T ) : Void {
-		untyped h["$"+key] = value;
+	public inline function set( key : String, value : T ) : Void {
+		untyped __dollar__hset(h,key.__s,value,null);
 	}
 
-	public function get( key : String ) : Null<T> {
-		return untyped h["$"+key];
+	public inline function get( key : String ) : Null<T> {
+		return untyped __dollar__hget(h,key.__s,null);
 	}
 
-	public function exists( key : String ) : Bool {
-		return untyped h.hasOwnProperty("$"+key);
+	public inline function exists( key : String ) : Bool {
+		return untyped __dollar__hmem(h,key.__s,null);
 	}
 
-	public function remove( key : String ) : Bool {
-		key = "$"+key;
-		if( untyped !h.hasOwnProperty(key) ) return false;
-		untyped __delete__(h,key);
-		return true;
+	public inline function remove( key : String ) : Bool {
+		return untyped __dollar__hremove(h,key.__s,null);
 	}
 
 	public function keys() : Iterator<String> {
-		return untyped (__hkeys__(h)).iterator();
+		var l = new List<String>();
+		untyped __dollar__hiter(h,function(k,_) { l.push(new String(k)); });
+		return l.iterator();
 	}
 
 	public function iterator() : Iterator<T> {
-		return untyped {
-			ref : h,
-			it : __keys__(h).iterator(),
-			hasNext : function() { return __this__.it.hasNext(); },
-			next : function() { var i : Dynamic = __this__.it.next(); return __this__.ref[i]; }
-		};
+		var l = new List<T>();
+		untyped __dollar__hiter(h,function(_,v) { l.push(v); });
+		return l.iterator();
 	}
 
 	public function toString() : String {

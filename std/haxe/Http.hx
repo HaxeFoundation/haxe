@@ -57,7 +57,7 @@ class Http {
 #if sys
 	public var noShutdown : Bool;
 	public var cnxTimeout : Float;
-	public var responseHeaders : Hash<String>;
+	public var responseHeaders : haxe.ds.StringMap<String>;
 	var chunk_size : Null<Int>;
 	var chunk_buf : haxe.io.Bytes;
 	var file : { param : String, filename : String, io : haxe.io.Input, size : Int };
@@ -65,8 +65,8 @@ class Http {
 	public var async : Bool;
 #end
 	var postData : String;
-	var headers : Hash<String>;
-	var params : Hash<String>;
+	var headers : haxe.ds.StringMap<String>;
+	var params : haxe.ds.StringMap<String>;
 
 	#if sys
 	public static var PROXY : { host : String, port : Int, auth : { user : String, pass : String } } = null;
@@ -74,19 +74,19 @@ class Http {
 
 	/**
 		Creates a new Http instance with [url] as parameter.
-		
+
 		This does not do a request until request() is called.
-		
+
 		If [url] is null, the field url must be set to a value before making the
 		call to request(), or the result is unspecified.
-		
+
 		(Php) Https (SSL) connections are allowed only if the OpenSSL extension
 		is enabled.
 	**/
 	public function new( url : String ) {
 		this.url = url;
-		headers = new Hash();
-		params = new Hash();
+		headers = new haxe.ds.StringMap();
+		params = new haxe.ds.StringMap();
 		#if js
 		async = true;
 		#elseif sys
@@ -99,9 +99,9 @@ class Http {
 
 	/**
 		Sets the header identified as [header] to value [value].
-		
+
 		If [header] or [value] are null, the result is unspecified.
-		
+
 		This method provides a fluent interface.
 	**/
 	public function setHeader( header : String, value : String ):Http {
@@ -111,9 +111,9 @@ class Http {
 
 	/**
 		Sets the parameter identified as [param] to value [value].
-		
+
 		If [header] or [value] are null, the result is unspecified.
-		
+
 		This method provides a fluent interface.
 	**/
 	public function setParameter( param : String, value : String ):Http {
@@ -124,12 +124,12 @@ class Http {
 	#if !flash8
 	/**
 		Sets the post data of [this] Http request to [data].
-		
+
 		There can only be one post data per request. Subsequent calls overwrite
 		the previously set value.
-		
+
 		If [data] is null, the post data is considered to be absent.
-		
+
 		This method provides a fluent interface.
 	**/
 	public function setPostData( data : String ):Http {
@@ -140,18 +140,18 @@ class Http {
 
 	/**
 		Sends [this] Http request to the Url specified by [this].url.
-		
+
 		If [post] is true, the request is sent as POST request, otherwise it is
 		sent as GET request.
-		
+
 		Depending on the outcome of the request, this method calls the
 		onStatus(), onError() or onData() callback functions.
-		
+
 		If [this].url is null, the result is unspecified.
-		
+
 		If [this].url is an invalid or inaccessible Url, the onError() callback
 		function is called.
-		
+
 		(Js) If [this].async is false, the callback functions are called before
 		this method returns.
 	**/
@@ -559,7 +559,7 @@ class Http {
 		// remove the two lasts \r\n\r\n
 		headers.pop();
 		headers.pop();
-		responseHeaders = new Hash();
+		responseHeaders = new haxe.ds.StringMap();
 		var size = null;
 		var chunked = false;
 		for( hline in headers ) {
@@ -683,7 +683,7 @@ class Http {
 	/**
 		This method is called upon a successful request, with [data] containing
 		the result String.
-		
+
 		The intended usage is to bind it to a custom function:
 			httpInstance.onData = function(data) { // handle result }
 	**/
@@ -693,7 +693,7 @@ class Http {
 	/**
 		This method is called upon a request error, with [msg] containing the
 		error description.
-		
+
 		The intended usage is to bind it to a custom function:
 			httpInstance.onError = function(msg) { // handle error }
 	**/
@@ -703,7 +703,7 @@ class Http {
 	/**
 		This method is called upon a Http status change, with [status] being the
 		new status.
-		
+
 		The intended usage is to bind it to a custom function:
 			httpInstance.onStatus = function(status) { // handle status }
 	**/
@@ -713,10 +713,10 @@ class Http {
 #if !flash
 	/**
 		Makes a synchronous request to [url].
-		
+
 		This creates a new Http instance and makes a GET request by calling its
 		request(false) method.
-		
+
 		If [url] is null, the result is unspecified.
 	**/
 	public static function requestUrl( url : String ) : String {

@@ -65,7 +65,7 @@ enum XmlType {
 
 	var _nodeName : String;
 	var _nodeValue : String;
-	var _attributes : Hash<String>;
+	var _attributes : haxe.ds.StringMap<String>;
 	var _children : Array<Xml>;
 	var _parent : Xml;
 
@@ -160,7 +160,7 @@ enum XmlType {
 		var r = new Xml();
 		r.nodeType = Xml.Element;
 		r._children = new Array();
-		r._attributes = new Hash();
+		r._attributes = new haxe.ds.StringMap();
 		r.set_nodeName( name );
 		return r;
 	}

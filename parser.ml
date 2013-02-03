@@ -253,7 +253,7 @@ and parse_type_decl s =
 				d_flags = flags @ sl;
 				d_data = fl;
 			},punion p1 p2)
-			
+
 and parse_class meta cflags need_name s =
 	let opt_name = if need_name then type_name else (fun s -> match popt type_name s with None -> "" | Some n -> n) in
 	match s with parser

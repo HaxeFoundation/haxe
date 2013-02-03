@@ -19,12 +19,15 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
+package haxe.ds;
+
 /**
 	Hashtable over a set of elements, using [String] as keys.
 	Other kind of keys are not possible on all platforms since they
 	can't always be implemented efficiently.
 **/
-extern class Hash<T> {
+extern class StringMap<T> {
 
 	/**
 		Creates a new empty hashtable.

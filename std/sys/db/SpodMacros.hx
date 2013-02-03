@@ -43,9 +43,9 @@ class SpodMacros {
 	var manager : Expr;
 	var inf : SpodInfos;
 	var g : {
-		var cache : Hash<SpodInfos>;
-		var types : Hash<SpodType>;
-		var functions : Hash<SqlFunction>;
+		var cache : haxe.ds.StringMap<SpodInfos>;
+		var types : haxe.ds.StringMap<SpodType>;
+		var functions : haxe.ds.StringMap<SqlFunction>;
 	};
 
 	function new(c) {
@@ -60,15 +60,15 @@ class SpodMacros {
 
 	function initGlobals()
 	{
-		var cache = new Hash();
-		var types = new Hash();
+		var cache = new haxe.ds.StringMap();
+		var types = new haxe.ds.StringMap();
 		for( c in Type.getEnumConstructs(SpodType) ) {
 			var e : Dynamic = Reflect.field(SpodType, c);
 			if( Std.is(e, SpodType) )
 				types.set("S"+c.substr(1), e);
 		}
 		types.remove("SNull");
-		var functions = new Hash();
+		var functions = new haxe.ds.StringMap();
 		for( f in [
 			{ name : "now", params : [], ret : DDateTime, sql : "NOW($)" },
 			{ name : "curDate", params : [], ret : DDate, sql : "CURDATE($)" },
@@ -274,12 +274,12 @@ class SpodMacros {
 			key : null,
 			name : cname.split(".").pop(), // remove package name
 			fields : [],
-			hfields : new Hash(),
+			hfields : new haxe.ds.StringMap(),
 			relations : [],
 			indexes : [],
 		};
 		var c = c.get();
-		var fieldsPos = new Hash();
+		var fieldsPos = new haxe.ds.StringMap();
 		var fields = c.fields.get();
 		var csup = c.superClass;
 		while( csup != null ) {
@@ -409,7 +409,7 @@ class SpodMacros {
 	}
 
 	function quoteField( f : String ) {
-		var m : { private var KEYWORDS : Hash<Bool>; } = Manager;
+		var m : { private var KEYWORDS : haxe.ds.StringMap<Bool>; } = Manager;
 		return m.KEYWORDS.exists(f.toLowerCase()) ? "`"+f+"`" : f;
 	}
 
@@ -654,7 +654,7 @@ class SpodMacros {
 		case EObjectDecl(fl):
 			var first = true;
 			var sql = makeString("(", p);
-			var fields = new Hash();
+			var fields = new haxe.ds.StringMap();
 			for( f in fl ) {
 				var fi = getField(f);
 				if( first )
@@ -978,7 +978,7 @@ class SpodMacros {
 
 	function buildOptions( eopt : Expr ) {
 		var p = eopt.pos;
-		var opts = new Hash();
+		var opts = new haxe.ds.StringMap();
 		var opt = { limit : null, orderBy : null, forceIndex : null };
 		switch( eopt.expr ) {
 		case EObjectDecl(fields):

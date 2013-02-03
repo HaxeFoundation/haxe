@@ -30,16 +30,16 @@ class ExampleJSGenerator {
 	var buf : StringBuf;
 	var inits : List<TypedExpr>;
 	var statics : List<{ c : ClassType, f : ClassField }>;
-	var packages : Hash<Bool>;
-	var forbidden : Hash<Bool>;
+	var packages : haxe.ds.StringMap<Bool>;
+	var forbidden : haxe.ds.StringMap<Bool>;
 
 	public function new(api) {
 		this.api = api;
 		buf = new StringBuf();
 		inits = new List();
 		statics = new List();
-		packages = new Hash();
-		forbidden = new Hash();
+		packages = new haxe.ds.StringMap();
+		forbidden = new haxe.ds.StringMap();
 		for( x in ["prototype", "__proto__", "constructor"] )
 			forbidden.set(x, true);
 		api.setTypeAccessor(getType);

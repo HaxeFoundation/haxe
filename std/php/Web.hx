@@ -79,9 +79,9 @@ class Web {
 		}
 		explore(StringTools.replace(getParamsString(), ";", "&"));
 		explore(getPostData());
-		
+
         if (res.length == 0) {
-            var post:Hash<Dynamic> = Lib.hashOfAssociativeArray(untyped __php__("$_POST"));
+            var post:haxe.ds.StringMap<Dynamic> = Lib.hashOfAssociativeArray(untyped __php__("$_POST"));
             var data = post.get(param);
             var k = 0, v = "";
             if (untyped __call__("is_array", data)) {
@@ -90,7 +90,7 @@ class Web {
                 untyped __php__(" } ");
             }
         }
-		
+
 		if (res.length == 0)
 			return null;
 		return res;
@@ -289,8 +289,8 @@ class Web {
 		Get the multipart parameters as an hashtable. The data
 		cannot exceed the maximum size specified.
 	**/
-	public static function getMultipart( maxSize : Int ) : Hash<String> {
-		var h = new Hash();
+	public static function getMultipart( maxSize : Int ) : haxe.ds.StringMap<String> {
+		var h = new haxe.ds.StringMap();
 		var buf : StringBuf = null;
 		var curname = null;
 		parseMultipart(function(p,_) {
@@ -323,14 +323,14 @@ class Web {
 		if(untyped __call__("get_magic_quotes_gpc"))
 			untyped __php__("reset($a); while(list($k, $v) = each($a)) $a[$k] = stripslashes((string)$v)");
 		var post = Lib.hashOfAssociativeArray(a);
-		
+
 		for (key in post.keys())
 		{
 			onPart(key, "");
 			var v = post.get(key);
 			onData(Bytes.ofString(v), 0, untyped __call__("strlen", v));
 		}
-		
+
 		if(!untyped __call__("isset", __php__("$_FILES"))) return;
 		var parts : Array<String> = untyped __call__("new _hx_array",__call__("array_keys", __php__("$_FILES")));
 		for(part in parts) {

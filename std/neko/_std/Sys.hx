@@ -130,9 +130,9 @@
 		return new String(sys_exe_path());
 	}
 
-	public static function environment() : Hash<String> {
+	public static function environment() : haxe.ds.StringMap<String> {
 		var l : Array<Dynamic> = sys_env();
-		var h = new Hash();
+		var h = new haxe.ds.StringMap();
 		while( l != null ) {
 			h.set(new String(l[0]),new String(l[1]));
 			l = l[2];

@@ -104,11 +104,11 @@ class Context {
 	public static function getLocalUsing() :  Array<Type.Ref<Type.ClassType>> {
 		return load("local_using", 0)();
 	}
-	
+
 	/**
 		Returns local variables accessible where the macro was called
 	**/
-	public static function getLocalVars() : Hash<Type> {
+	public static function getLocalVars() : haxe.ds.StringMap<Type> {
 		return load("local_vars", 0)();
 	}
 
@@ -118,7 +118,7 @@ class Context {
 	public static function defined( s : String ) : Bool {
 		return load("defined", 1)(untyped s.__s);
 	}
-	
+
 	/**
 		Returns the value defined through -D key=value
 	**/
@@ -174,7 +174,7 @@ class Context {
 	public static function onGenerate( callb : Array<Type> -> Void ) {
 		load("on_generate",1)(callb);
 	}
-	
+
 	/**
 		Set a callback function that will be called when a type cannot be found.
 	**/
@@ -195,14 +195,14 @@ class Context {
 	public static function toComplexType( t : Type ) : Null<ComplexType> {
 		return load("to_complex", 1)(t);
 	}
-	
+
 	/**
 		Returns true if t1 and t2 unify, false otherwise
 	**/
 	public static function unify( t1 : Type, t2 : Type) : Bool {
 		return load("unify", 2)(t1, t2);
 	}
-	
+
 	/**
 		Follow all typedefs to reach the actual real type
 	**/

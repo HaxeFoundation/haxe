@@ -177,8 +177,8 @@ class TestBasetypes extends Test {
 		eq( Math.fround( -10000000000.7), -10000000001. );
 	}
 
-	function testHash() {
-		var h = new Hash<Null<Int>>();
+	function testStringMap() {
+		var h = new haxe.ds.StringMap<Null<Int>>();
 		h.set("x", -1);
 		h.set("abcd", 8546);
 		eq( h.get("x"), -1);
@@ -372,7 +372,7 @@ class TestBasetypes extends Test {
 		eq("Distance: 12.5km", "Distance: " + km);
 		eq("Distance: 12.5m", "Distance: " + m);
 	}
-	
+
 	function testAbstractOperatorOverload() {
 		var v1:unit.MyAbstract.MyVector = new unit.MyAbstract.MyPoint3(1, 1, 1);
 		var v2:unit.MyAbstract.MyVector = new unit.MyAbstract.MyPoint3(1, 2, 3);
@@ -385,7 +385,7 @@ class TestBasetypes extends Test {
 		var v3 = v1 * 2.;
 		eq("(4,4,4)", v3);
 		f(v1 == v3);
-		
+
 		var i:unit.MyAbstract.MyInt = 1;
 		eq(2, i + i);
 		i = i + i;

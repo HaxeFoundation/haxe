@@ -54,11 +54,11 @@ class TestSerialize extends Test {
 		doTestEnums();
 
 		// hash
-		var h = new Hash();
+		var h = new haxe.ds.StringMap();
 		h.set("keya",2);
 		h.set("kéyb",-465);
 		var h2 = id(h);
-		t( Std.is(h2,Hash) );
+		t( Std.is(h2,haxe.ds.StringMap) );
 		eq( h2.get("keya"), 2 );
 		eq( h2.get("kéyb"), -465 );
 		eq( Lambda.count(h2), 2 );

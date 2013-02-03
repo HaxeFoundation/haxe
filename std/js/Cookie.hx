@@ -45,7 +45,7 @@ class Cookie {
 		Returns all cookies
 	**/
 	public static function all(){
-		var h = new Hash();
+		var h = new haxe.ds.StringMap();
 		var a = Browser.document.cookie.split(";");
 		for( e in a ){
 			e = StringTools.ltrim(e);
@@ -63,7 +63,7 @@ class Cookie {
 	public static function get( name : String ){
 		return all().get(name);
 	}
-	
+
 	/**
 		Returns true if a cookie [name] exists
 	**/

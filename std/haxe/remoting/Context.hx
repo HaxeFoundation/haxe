@@ -23,10 +23,10 @@ package haxe.remoting;
 
 class Context {
 
-	var objects : Hash<{ obj : Dynamic, rec : Bool }>;
+	var objects : haxe.ds.StringMap<{ obj : Dynamic, rec : Bool }>;
 
 	public function new() {
-		objects = new Hash();
+		objects = new haxe.ds.StringMap();
 	}
 
 	public function addObject( name : String, obj : {}, ?recursive ) {

@@ -19,41 +19,57 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-@:coreApi class Hash<T> {
+package haxe.ds;
 
-	private var h : Dynamic;
+@:coreApi class StringMap<T>  {
+	private var __Internal : Dynamic;
 
 	public function new() : Void {
-		h = untyped __dollar__hnew(0);
+		__Internal = {};
 	}
 
-	public inline function set( key : String, value : T ) : Void {
-		untyped __dollar__hset(h,key.__s,value,null);
+	public function set( key : String, value : T ) : Void {
+		untyped __Internal.__SetField(key,value,true);
 	}
 
-	public inline function get( key : String ) : Null<T> {
-		return untyped __dollar__hget(h,key.__s,null);
+	public function get( key : String ) : Null<T> {
+		return untyped __Internal.__Field(key,true);
 	}
 
-	public inline function exists( key : String ) : Bool {
-		return untyped __dollar__hmem(h,key.__s,null);
+	public function exists( key : String ) : Bool {
+		return untyped __Internal.__HasField(key);
 	}
 
-	public inline function remove( key : String ) : Bool {
-		return untyped __dollar__hremove(h,key.__s,null);
+	public function remove( key : String ) : Bool {
+		return untyped __global__.__hxcpp_anon_remove(__Internal,key);
 	}
 
+	/**
+		Returns an iterator of all keys in the hashtable.
+	**/
 	public function keys() : Iterator<String> {
-		var l = new List<String>();
-		untyped __dollar__hiter(h,function(k,_) { l.push(new String(k)); });
-		return l.iterator();
+		var a:Array<String> = [];
+		untyped __Internal.__GetFields(a);
+		return a.iterator();
 	}
 
+	/**
+		Returns an iterator of all values in the hashtable.
+	**/
 	public function iterator() : Iterator<T> {
-		var l = new List<T>();
-		untyped __dollar__hiter(h,function(_,v) { l.push(v); });
-		return l.iterator();
+		var a:Array<String> = [];
+		untyped __Internal.__GetFields(a);
+		var it = a.iterator();
+		var me = this;
+		return untyped {
+			hasNext : function() { return it.hasNext(); },
+			next : function() { return me.__Internal.__Field(it.next(),true); }
+		};
 	}
+
+	/**
+		Returns an displayable representation of the hashtable content.
+	**/
 
 	public function toString() : String {
 		var s = new StringBuf();
@@ -69,5 +85,4 @@
 		s.add("}");
 		return s.toString();
 	}
-
 }

@@ -19,7 +19,9 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-@:coreApi class Hash<T> {
+package haxe.ds;
+
+@:coreApi class StringMap<T> {
 
 	private var h : Dynamic;
 

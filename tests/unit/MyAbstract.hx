@@ -55,9 +55,9 @@ abstract Kilometer(Float) from Float to Float {
 		return new Kilometer(m.get() / 1000.)
 }
 
-abstract MyHash(Hash<V>)<V> {
+abstract MyHash(haxe.ds.StringMap<V>)<V> {
 	private inline function new() {
-		this = new Hash<V>();
+		this = new haxe.ds.StringMap<V>();
 	}
 	public inline function set(k:String, v:V)
 		this.set(k, v)
@@ -121,21 +121,21 @@ abstract MyVector(MyPoint3) from MyPoint3 to MyPoint3 {
 	@:op(A + B) static public inline function add(lhs:MyVector, rhs:MyVector):MyVector {
 		return new MyPoint3(lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z);
 	}
-	
+
 	@:op(A *= B) static public inline function scalarAssign(lhs:MyVector, rhs:Float):MyVector {
 		lhs.x *= rhs;
 		lhs.y *= rhs;
 		lhs.z *= rhs;
 		return lhs;
 	}
-	
+
 	@:op(A * B) static public inline function scalar(lhs:MyVector, rhs:Float):MyVector {
 		return new MyPoint3(lhs.x * rhs, lhs.y * rhs, lhs.z * rhs);
 	}
-					
+
 	public inline function get():MyPoint3
 		return this
-		
+
 	@:to public inline function toString():String
 		return untyped '(${this.x},${this.y},${this.z})'
 }
@@ -143,7 +143,7 @@ abstract MyVector(MyPoint3) from MyPoint3 to MyPoint3 {
 abstract MyInt(Int) from Int to Int {
 	// MyInt + MyInt can be used as is, and returns a MyInt
 	@:op(A + B) static public function add(lhs:MyInt, rhs:MyInt):MyInt;
-	
+
 	@:commutative @:op(A * B) static public function repeat(lhs:MyInt, rhs:String):String {
 		var s:StringBuf = new StringBuf();
 		for (i in 0...lhs)
