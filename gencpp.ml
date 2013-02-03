@@ -628,7 +628,7 @@ let str s =
 		("HX_CSTRING2(" ^ q ^ "," ^ (string_of_int !l) ^ ",\"" ^ (special_to_hex null_escaped) ^ "\" )")
         end else
 		(* The wide and thin versions are the same ...  *)
-		("HX_CSTRING(\"" ^ null_escaped ^ "\")")
+		("HX_CSTRING(\"" ^ (special_to_hex null_escaped) ^ "\")")
 ;;
 
 
@@ -1409,7 +1409,7 @@ and gen_expression ctx retval expression =
 		if (ctx.ctx_debug_type) then output ("/* TCALL ret=" ^ expr_type ^ "*/");
 		ctx.ctx_calling <- true;
       let cast_result =  is_fixed_override func in
-      if (cast_result) then output ("hx::TCast<" ^ expr_type ^ ">::cast(");
+      if (cast_result) then output ("hx::TCast< " ^ expr_type ^ " >::cast(");
 		gen_expression ctx true func;
 		output "(";
 		gen_expression_list arg_list;
