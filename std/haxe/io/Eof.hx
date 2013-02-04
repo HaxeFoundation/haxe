@@ -27,7 +27,7 @@ package haxe.io;
 class Eof {
 	public function new() {
 	}
-	function toString() {
+	@:keep function toString() {
 		return "Eof";
 	}
 }
