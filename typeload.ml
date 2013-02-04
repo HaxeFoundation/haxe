@@ -1426,6 +1426,11 @@ let init_class ctx c p context_init herits fields =
 				if ctx.com.display then () else
 				try
 					let _, t2, f = (if stat then let f = PMap.find m c.cl_statics in Some c, f.cf_type, f else class_field c m) in
+					(match f.cf_kind with
+						| Method MethMacro ->
+							display_error ctx "Macro methods cannot be used as property accessor" p;
+							display_error ctx "Accessor method is here" f.cf_pos;
+						| _ -> ());
 					unify_raise ctx t2 t f.cf_pos;
 					(match req_name with None -> () | Some n -> display_error ctx ("Please use " ^ n ^ " to name your property access method") f.cf_pos);
 				with
