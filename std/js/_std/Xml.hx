@@ -280,7 +280,7 @@ enum XmlType {
 
 	public function toString() : String {
 		if( nodeType == Xml.PCData )
-			return _nodeValue;
+			return StringTools.htmlEscape(_nodeValue);
 		if( nodeType == Xml.CData )
 			return "<![CDATA["+_nodeValue+"]]>";
 		if( nodeType == Xml.Comment )

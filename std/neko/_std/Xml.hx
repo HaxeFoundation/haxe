@@ -387,7 +387,7 @@ enum XmlType {
 			s.add(_nodeName);
 			s.addChar(">".code);
 		case Xml.PCData:
-			s.add(_nodeValue);
+			s.add(StringTools.htmlEscape(_nodeValue));
 		case Xml.CData:
 			s.add("<![CDATA[");
 			s.add(_nodeValue);

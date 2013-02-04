@@ -43,10 +43,22 @@ extern private class S {
 	public static inline var COMMENT		= 15;
 	public static inline var DOCTYPE		= 16;
 	public static inline var CDATA			= 17;
+	public static inline var ESCAPE			= 18;
 }
 
 class Parser
 {
+	static var escapes = {
+		var h = new haxe.ds.StringMap();
+		h.set("lt", "<");
+		h.set("gt", ">");
+		h.set("amp", "&");
+		h.set("quot", '"');
+		h.set("apos", "'");
+		h.set("nbsp", String.fromCharCode(160));
+		h;
+	}
+	
 	static public function parse(str:String)
 	{
 		var doc = Xml.createDocument();
@@ -64,7 +76,7 @@ class Parser
 		var nsubs = 0;
 		var nbrackets = 0;
 		var c = str.fastCodeAt(p);
-
+		var buf = new StringBuf();
 		while (!c.isEof())
 		{
 			switch(state)
@@ -95,12 +107,25 @@ class Parser
 				case S.PCDATA:
 					if (c == '<'.code)
 					{
-						var child = Xml.createPCData(str.substr(start, p - start));
+						#if php
+						var child = Xml.createPCDataFromCustomParser(buf.toString() + str.substr(start, p - start));
+						#else
+						var child = Xml.createPCData(buf.toString() + str.substr(start, p - start));
+						#end
+						buf = new StringBuf();
 						parent.addChild(child);
 						nsubs++;
 						state = S.IGNORE_SPACES;
 						next = S.BEGIN_NODE;
 					}
+					#if !flash9
+					else if (c == '&'.code) {
+						buf.addSub(str, start, p - start);
+						state = S.ESCAPE;
+						next = S.PCDATA;
+						start = p + 1;
+					}
+					#end
 				case S.CDATA:
 					if (c == ']'.code && str.fastCodeAt(p + 1) == ']'.code && str.fastCodeAt(p + 2) == '>'.code)
 					{
@@ -279,6 +304,22 @@ class Parser
 						parent.addChild(Xml.createProlog(str));
 						state = S.BEGIN;
 					}
+				case S.ESCAPE:
+					if (c == ';'.code)
+					{
+						var s = str.substr(start, p - start);
+						if (s.fastCodeAt(0) == '#'.code) {
+							var i = s.fastCodeAt(1) == 'x'.code
+								? Std.parseInt("0" +s.substr(1, s.length - 1))
+								: Std.parseInt(s.substr(1, s.length - 1));
+							buf.add(String.fromCharCode(i));
+						} else if (!escapes.exists(s))
+							buf.add('&$s;');
+						else
+							buf.add(escapes.get(s));
+						start = p + 1;
+						state = next;
+					}
 			}
 			c = str.fastCodeAt(++p);
 		}
@@ -292,7 +333,7 @@ class Parser
 		if (state == S.PCDATA)
 		{
 			if (p != start || nsubs == 0)
-				parent.addChild(Xml.createPCData(str.substr(start, p - start)));
+				parent.addChild(Xml.createPCData(buf.toString() + str.substr(start, p - start)));
 			return p;
 		}
 		

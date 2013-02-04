@@ -60,7 +60,7 @@ class TestXML extends Test {
 		#end
 		#if flash9
 		eq( Xml.parse('&quot; &lt; &gt;').toString(), '" &lt; &gt;' ); // some entities are resolved but not escaped on printing
-		#else
+		#elseif
 		eq( Xml.parse('&quot; &lt; &gt;').toString(), '&quot; &lt; &gt;' );
 		#end
 	}
@@ -194,7 +194,7 @@ class TestXML extends Test {
 	function testEntities() {
 		var entities = ["&lt;", "&gt;", "&quot;", "&amp;", "&apos;", "&nbsp;", "&euro;", "&#64;", "&#244;", "&#x3F;", "&#xFF;"];
 		var values = entities.copy();
-		#if flash
+		#if (flash || js)
 		// flash parser does support XML + some HTML entities (nbsp only ?) + character codes entities
 		values = ['<', '>', '"', '&', "'", String.fromCharCode(160), '&euro;', '@', 'ô', '?', 'ÿ'];
 		#end
@@ -216,6 +216,20 @@ class TestXML extends Test {
 			infos(entities[i]);
 			eq( Xml.parse(entities[i]).firstChild().nodeValue, values[i] );
 		}
+	}
+	
+	function testCustomXmlParser() {
+		var entities = ["&lt;", "&gt;", "&quot;", "&amp;", "&apos;", "&euro;", "&#64;", "&#244;", "&#x3F;", "&#xFF;"];
+		var values = ['<', '>', '"', '&', "'", '&euro;', '@', String.fromCharCode(244), String.fromCharCode(0x3F), String.fromCharCode(0xFF)];
+		
+		for( i in 0...entities.length ) {
+			infos(entities[i]);
+			eq( haxe.xml.Parser.parse(entities[i]).firstChild().nodeValue, values[i] );
+		}
+		
+		var s = "<a>&gt;<b>&lt;</b>&lt;&gt;<b>&gt;&lt;</b>\"</a>";
+		var xml = haxe.xml.Parser.parse(s);
+		eq(s, xml.toString());
 	}
 	
 	function testMore() {
