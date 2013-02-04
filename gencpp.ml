@@ -431,7 +431,7 @@ and type_string_suff suffix haxe_type =
 	| TDynamic haxe_type -> "Dynamic" ^ suffix
 	| TLazy func -> type_string_suff suffix ((!func)())
 	| TAbstract (abs,pl) when abs.a_impl <> None ->
-		type_string_suff suffix (apply_params abs.a_types pl abs.a_this)
+		type_string_suff suffix (Codegen.get_underlying_type abs pl)
 	| TAbstract (abs,pl) ->
 		"::" ^ (join_class_path abs.a_path "::") ^ suffix
 	)
@@ -2135,7 +2135,7 @@ let find_referenced_types ctx obj super_deps constructor_deps header_only for_de
 		| TFun (args,haxe_type) -> visit_type haxe_type;
 				List.iter (fun (_,_,t) -> visit_type t; ) args;
 		| TAbstract (abs,pl) when abs.a_impl <> None ->
-			visit_type (apply_params abs.a_types pl abs.a_this)
+			visit_type (Codegen.get_underlying_type abs pl)
 		| _ -> ()
 	in
 	let rec visit_types expression =

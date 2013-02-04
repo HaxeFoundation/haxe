@@ -1017,7 +1017,7 @@ let rec unify a b =
 	| _ , TAbstract ({a_path=[],"Void"},_) ->
 		error [cannot_unify a b]
 	| TAbstract (a1,tl1) , TAbstract (a2,tl2) ->
-		if not (List.exists (unify_to_field a1 tl1 a b) a1.a_to) && not (List.exists (unify_from_field a2 tl2 a b) a2.a_from) then error [cannot_unify a b]
+		if not (List.exists (unify_to_field a1 tl1 b) a1.a_to) && not (List.exists (unify_from_field a2 tl2 a b) a2.a_from) then error [cannot_unify a b]
 	| TInst (c1,tl1) , TInst (c2,tl2) ->
 		let rec loop c tl =
 			if c == c2 then begin
@@ -1166,7 +1166,7 @@ let rec unify a b =
 		| _ ->
 			error [cannot_unify a b])
 	| TAbstract (aa,tl), _  ->
-		if not (List.exists (unify_to_field aa tl a b) aa.a_to) then error [cannot_unify a b];
+		if not (List.exists (unify_to_field aa tl b) aa.a_to) then error [cannot_unify a b];
 	| TInst ({ cl_kind = KTypeParameter ctl } as c,pl), TAbstract _ ->
 		(* one of the constraints must satisfy the abstract *)
 		if not (List.exists (fun t ->
@@ -1194,7 +1194,7 @@ and unify_from_field ab tl a b (t,cfo) =
 		true
 	with Unify_error _ -> false
 
-and unify_to_field ab tl a b (t,cfo) =
+and unify_to_field ab tl b (t,cfo) =
 	let unify_func = match follow b with TAbstract({a_impl = Some _},_) when ab.a_impl <> None -> type_eq EqStrict | _ -> unify in
 	try begin match cfo with
 		| Some cf -> (match follow cf.cf_type with

@@ -627,11 +627,11 @@ class TestType extends Test {
 		eq(complete("haxe.macro.Expr.|"), "error(haxe.macro.Expr is not a value)");
 
 		// know issue : the expr optimization will prevent inferring the array content
-		eq(complete('{
-			var a = [];
-			a.push("");
-			a[0].|
-		}'),"Unknown<0>");
+		//eq(complete('{
+			//var a = [];
+			//a.push("");
+			//a[0].|
+		//}'),"Unknown<0>");
 
 		// could be improved : expr optimization assume that variable not in scope is a member
 		// so it will eliminate the assignement that would have forced it into the local context

@@ -2247,7 +2247,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		) [] el in
 		let enew = mk (TNew(c,[tkey;tval],[])) tmap p in
 		let el = (mk (TVars [v,Some enew]) t_dynamic p) :: (List.rev el) in
-		mk (TBlock el) enew.etype p
+		mk (TBlock el) tmap p
 	| EArrayDecl el ->
 		let tp = (match with_type with
 		| WithType t | WithTypeResume t ->

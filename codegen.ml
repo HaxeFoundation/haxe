@@ -1316,6 +1316,16 @@ let check_local_vars_init e =
 (* -------------------------------------------------------------------------- *)
 (* ABSTRACT CASTS *)
 
+let find_abstract_to ab pl b = List.find (Type.unify_to_field ab pl b) ab.a_to
+
+let get_underlying_type a pl =
+	if Meta.has Meta.MultiType a.a_meta then begin
+		let m = mk_mono() in
+		let _ = find_abstract_to a pl m in
+		follow m
+	end else
+		apply_params a.a_types pl a.a_this
+
 let handle_abstract_casts ctx e =
 	let make_static_call c cf a pl args t p =
 		let ta = TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) } in
@@ -1328,14 +1338,13 @@ let handle_abstract_casts ctx e =
 		| Some { eexpr = TFunction fd } when cf.cf_kind = Method MethInline ->
 			let config = if Meta.has Meta.Impl cf.cf_meta then (Some (a.a_types <> [] || cf.cf_params <> [], fun t -> apply_params a.a_types pl (monomorphs cf.cf_params t))) else None in
 			(match Optimizer.type_inline ctx cf fd ethis args t config p true with
-				| Some e -> e
+				| Some e -> (match e.eexpr with TCast(e,None) -> e | _ -> e)
 				| None ->
 					def())
 		| _ ->
 			def())
 	in
 	let find_from ab pl a b = List.find (Type.unify_from_field ab pl a b) ab.a_from in
-	let find_to ab pl a b = List.find (Type.unify_to_field ab pl a b) ab.a_to in
 	let rec check_cast tleft eright p =
 		let eright = loop eright in
 		try (match follow eright.etype,follow tleft with
@@ -1344,7 +1353,7 @@ let handle_abstract_casts ctx e =
 					eright
 				else begin
 					let c,cfo,a,pl = try
-						c1,snd (find_to a1 pl1 t1 t2),a1,pl1
+						c1,snd (find_abstract_to a1 pl1 t2),a1,pl1
 					with Not_found ->
 						c2,snd (find_from a2 pl2 t1 t2),a2,pl2
 					in
@@ -1352,8 +1361,8 @@ let handle_abstract_casts ctx e =
 				end
 			| TDynamic _,_ | _,TDynamic _ ->
 				eright
-			| TAbstract({a_impl = Some c} as a,pl) as t1,t2 ->
-				begin match snd (find_to a pl t1 t2) with None -> eright | Some cf -> make_static_call c cf a pl [eright] tleft p end
+			| TAbstract({a_impl = Some c} as a,pl),t2 ->
+				begin match snd (find_abstract_to a pl t2) with None -> eright | Some cf -> make_static_call c cf a pl [eright] tleft p end
 			| t1,(TAbstract({a_impl = Some c} as a,pl) as t2) ->
 				begin match snd (find_from a pl t1 t2) with None -> eright | Some cf -> make_static_call c cf a pl [eright] tleft p end
 			| _ ->
@@ -1364,8 +1373,6 @@ let handle_abstract_casts ctx e =
 		| TBinop(OpAssign,e1,e2) ->
 			let e2 = check_cast e1.etype e2 e.epos in
 			{ e with eexpr = TBinop(OpAssign,loop e1,e2) }
-		| TLocal v when (match follow v.v_type with TAbstract(a,_) -> Meta.has Meta.MultiType a.a_meta | _ -> false) ->
-			{e with etype = v.v_type}
 		| TVars vl ->
 			let vl = List.map (fun (v,eo) -> match eo with
 				| None -> (v,eo)
@@ -1382,7 +1389,7 @@ let handle_abstract_casts ctx e =
 			let at = apply_params a.a_types pl a.a_this in
 			let m = mk_mono() in
 			let _,cfo =
-				try find_to a pl at m
+				try find_abstract_to a pl m
 				with Not_found ->
 					let st = s_type (print_context()) at in
 					if has_mono at then
@@ -1404,9 +1411,7 @@ let handle_abstract_casts ctx e =
 					| TField(e2,fa) ->
 						begin match follow e2.etype with
 							| TAbstract(a,pl) when Meta.has Meta.MultiType a.a_meta ->
-								let at = apply_params a.a_types pl a.a_this in
-								let m = mk_mono() in
-								let _ = find_to a pl at m in
+								let m = get_underlying_type a pl in
 								let fname = field_name fa in
 								begin try
 									let ef = mk (TField({e2 with etype = m},quick_field m fname)) e2.etype e2.epos in
