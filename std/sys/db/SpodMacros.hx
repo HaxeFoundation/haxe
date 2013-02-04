@@ -724,7 +724,7 @@ class SpodMacros {
 				return buildInt("<<", e1, e2, p);
 			case OpMod:
 				return buildNum("%", e1, e2, p);
-			case OpUShr, OpInterval, OpAssignOp(_), OpAssign:
+			case OpUShr, OpInterval, OpAssignOp(_), OpAssign, OpArrow:
 				error("Unsupported operation", p);
 			}
 		case EUnop(op, _, e):
