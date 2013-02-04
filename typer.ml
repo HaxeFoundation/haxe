@@ -2238,7 +2238,12 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		(match tp with
 		| None ->
 			let el = List.map (fun e -> type_expr ctx e Value) el in
-			let t = try unify_min_raise ctx el with Error (Unify l,p) -> raise (Error (Unify l, p))  in
+			let t = try
+				unify_min_raise ctx el
+			with Error (Unify l,p) ->
+				display_error ctx "Arrays of mixed types are only allowed if the type is forced to Array<Dynamic>" p;
+				raise (Error (Unify l, p))
+			in
 			mk (TArrayDecl el) (ctx.t.tarray t) p
 		| Some t ->
 			let el = List.map (fun e ->
