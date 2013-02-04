@@ -1,7 +1,7 @@
 class RunJava {
 
 	static function main() {
-		var p = new neko.io.Process("java", ["-jar", neko.Web.getCwd() + "/java/java.jar"]);
+		var p = new sys.io.Process("java", ["-jar", neko.Web.getCwd() + "/java/java.jar"]);
 		if( neko.Web.isModNeko )
 			neko.Web.setHeader("Content-Type","text/plain");
 		try {

@@ -15,7 +15,7 @@ static function main() {
 			neko.Web.setHeader("Content-Type","text/plain");
 		} else {
 			//command line arg
-			var args = neko.Sys.args();
+			var args = Sys.args();
 			if (args.length > 0) rel_path = args[0];
 		}
 		
@@ -24,7 +24,7 @@ static function main() {
 			return;
 		}
 		
-		var p = new neko.io.Process(neko.Web.getCwd() + rel_path, []);
+		var p = new sys.io.Process(neko.Web.getCwd() + rel_path, []);
 		
 		try {
 			while ( true ) {
