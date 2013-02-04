@@ -69,6 +69,7 @@ type typer_globals = {
 	type_patches : (path, (string * bool, type_patch) Hashtbl.t * type_patch) Hashtbl.t;
 	mutable get_build_infos : unit -> (module_type * Ast.class_field list) option;
 	delayed_macros : (unit -> unit) DynArray.t;
+	mutable global_using : tclass list;
 	(* api *)
 	do_inherit : typer -> Type.tclass -> Ast.pos -> Ast.class_flag -> bool;
 	do_create : Common.context -> typer;

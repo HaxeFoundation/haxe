@@ -767,7 +767,8 @@ let using_field ctx mode e i p =
 		with Not_found ->
 			loop l
 	in
-	loop ctx.m.module_using
+	try loop ctx.m.module_using
+	with Not_found -> loop ctx.g.global_using
 
 let get_this ctx p =
 	match ctx.curfun with
@@ -2720,21 +2721,31 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				List.iter (fun f ->
 					if not (Meta.has Meta.NoUsing f.cf_meta) then
 					let f = { f with cf_type = opt_type f.cf_type } in
-					match follow (field_type ctx c [] f p) with
-					| TFun((_,_,TType({t_path=["haxe";"macro"], ("ExprOf"|"ExprRequire")}, [t])) :: args, ret)
-					| TFun ((_,_,t) :: args, ret) when (try unify_raise ctx (dup e.etype) t e.epos; true with Error (Unify _,_) -> false) ->
-						if not (can_access ctx c f true) || follow e.etype == t_dynamic && follow t != t_dynamic then
-							()
-						else begin
-							let f = prepare_using_field f in
-							let f = { f with cf_params = []; cf_public = true; cf_type = TFun(args,ret) } in
-							acc := PMap.add f.cf_name f (!acc)
-						end
+					let monos = List.map (fun _ -> mk_mono()) f.cf_params in
+					let map = apply_params f.cf_params monos in
+					match follow (map f.cf_type) with
+					| TFun((_,_,TType({t_path=["haxe";"macro"], "ExprOf"}, [t])) :: args, ret)
+					| TFun((_,_,t) :: args, ret) ->
+						(try
+							unify_raise ctx (dup e.etype) t e.epos;
+							List.iter2 (fun m (name,t) -> match follow t with
+								| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] ->
+									List.iter (fun tc -> unify_raise ctx (dup e.etype) (map tc) e.epos) constr
+								| _ -> ()
+							) monos f.cf_params;
+							if not (can_access ctx c f true) || follow e.etype == t_dynamic && follow t != t_dynamic then
+								()
+							else begin
+								let f = prepare_using_field f in
+								let f = { f with cf_params = []; cf_public = true; cf_type = TFun(args,ret) } in
+								acc := PMap.add f.cf_name f (!acc)
+							end
+						with Error (Unify _,_) -> ())
 					| _ -> ()
 				) c.cl_ordered_statics;
 				!acc
 		in
-		let use_methods = loop PMap.empty ctx.m.module_using in
+		let use_methods = loop (loop PMap.empty ctx.g.global_using) ctx.m.module_using in
 		let fields = PMap.fold (fun f acc -> PMap.add f.cf_name f acc) fields use_methods in
 		let fields = PMap.fold (fun f acc -> if Meta.has Meta.NoCompletion f.cf_meta then acc else f :: acc) fields [] in
 		let t = (if iscall then
@@ -3685,6 +3696,7 @@ let rec create com =
 			hook_generate = [];
 			get_build_infos = (fun() -> None);
 			std = null_module;
+			global_using = [];
 			do_inherit = Codegen.on_inherit;
 			do_create = create;
 			do_macro = type_macro;
