@@ -54,6 +54,7 @@ class Http {
 		Urls.
 	**/
 	public var url : String;
+	public var responseData(default, null) : Null<String>;
 #if sys
 	public var noShutdown : Bool;
 	public var cnxTimeout : Float;
@@ -158,6 +159,7 @@ class Http {
 	public function request( ?post : Bool ) : Void {
 		var me = this;
 	#if js
+		me.responseData = null;
 		var r = js.Browser.createXMLHttpRequest();
 		var onreadystatechange = function(_) {
 			if( r.readyState != 4 )
@@ -168,7 +170,7 @@ class Http {
 			if( s != null )
 				me.onStatus(s);
 			if( s != null && s >= 200 && s < 400 )
-				me.onData(r.responseText);
+				me.onData(me.responseData = r.responseText);
 			else if ( s == null )
 				me.onError("Failed to connect or resolve host")
 			else switch( s ) {
@@ -177,6 +179,7 @@ class Http {
 			case 12007:
 				me.onError("Unknown host");
 			default:
+				me.responseData = r.responseText;
 				me.onError("Http Error #"+r.status);
 			}
 		};
@@ -214,8 +217,10 @@ class Http {
 		if( !async )
 			onreadystatechange(null);
 	#elseif flash9
+		me.responseData = null;
 		var loader = new flash.net.URLLoader();
-		loader.addEventListener( "complete", function(e){
+		loader.addEventListener( "complete", function(e) {
+			me.responseData = loader.data;
 			me.onData( loader.data );
 		});
 		loader.addEventListener( "httpStatus", function(e:flash.events.HTTPStatusEvent){
@@ -223,7 +228,8 @@ class Http {
 			if( e.status != 0 )
 				me.onStatus( e.status );
 		});
-		loader.addEventListener( "ioError", function(e:flash.events.IOErrorEvent){
+		loader.addEventListener( "ioError", function(e:flash.events.IOErrorEvent) {
+			me.responseData = loader.data;
 			me.onError(e.text);
 		});
 		loader.addEventListener( "securityError", function(e:flash.events.SecurityErrorEvent){
@@ -266,6 +272,7 @@ class Http {
 			onError("Exception: "+Std.string(e));
 		}
 	#elseif flash
+		me.responseData = null;
 		var r = new flash.LoadVars();
 		// on Firefox 1.5, onData is not called if host/port invalid (!)
 		r.onData = function(data) {
@@ -273,6 +280,7 @@ class Http {
 				me.onError("Failed to retrieve url");
 				return;
 			}
+			me.responseData = data;
 			me.onData(data);
 		};
 		#if flash8
@@ -307,15 +315,20 @@ class Http {
 		var old = onError;
 		var err = false;
 		onError = function(e) {
+			#if neko
+			me.responseData = neko.Lib.stringReference(output.getBytes());
+			#else
+			me.responseData = output.getBytes().toString();
+			#end
 			err = true;
 			old(e);
 		}
 		customRequest(post,output);
 		if( !err )
 		#if neko
-			me.onData(neko.Lib.stringReference(output.getBytes()));
+			me.onData(me.responseData = neko.Lib.stringReference(output.getBytes()));
 		#else
-			me.onData(output.getBytes().toString());
+			me.onData(me.responseData = output.getBytes().toString());
 		#end
 	#end
 	}
@@ -327,6 +340,7 @@ class Http {
 	}
 
 	public function customRequest( post : Bool, api : haxe.io.Output, ?sock : AbstractSocket, ?method : String  ) {
+		this.responseData = null;
 		var url_regexp = ~/^(https?:\/\/)?([a-zA-Z\.0-9-]+)(:[0-9]+)?(.*)$/;
 		if( !url_regexp.match(url) ) {
 			onError("Invalid URL");
