@@ -35,7 +35,7 @@ abstract ObjectMap({}) < K: { }, V > {
 		return untyped obj.__id__;
 	}
 	
-	public inline function new() {
+	public inline function new(weakKeys:Bool = false) {
 		this = { };
 		untyped this.__keys__ = { };
 	}

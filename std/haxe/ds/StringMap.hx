@@ -57,7 +57,6 @@ extern class StringMap<T> {
 	**/
 	public function remove( key : String ) : Bool;
 
-
 	/**
 		Returns an iterator of all keys in the hashtable.
 	**/

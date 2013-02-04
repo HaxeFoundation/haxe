@@ -28,7 +28,7 @@ abstract ObjectMap(StringMap<V>) < K: { }, V > {
 		return untyped __php__("spl_object_hash($key)");
 	}
 	
-	public function new() {
+	public function new(weakKeys:Bool = false) {
 		this = new StringMap<V>();
 	}
 	

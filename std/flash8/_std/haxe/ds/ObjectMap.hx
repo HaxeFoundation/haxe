@@ -35,7 +35,7 @@ abstract ObjectMap({}) < K: { }, V > {
 		return untyped obj.__id__;
 	}
 	
-	public function new() {
+	public function new(weakKeys:Bool = false) {
 		this = untyped __new__(_global["Object"]);
 		untyped this.__keys__ = untyped __new__(_global["Object"]);
 	}

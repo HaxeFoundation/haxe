@@ -23,7 +23,7 @@
 package haxe.ds;
 
 extern class ObjectMap < K: { }, V > {
-	public function new():Void;
+	public function new(?weakKeys:Bool = false):Void;
 	public function set(key:K, value:V):Void;
 	public function get(key:K):V;
 	public function exists(key:K):Bool;
