@@ -29,13 +29,17 @@ class ObjectMap <K:{ }, V> {
 	}
 	
 	var h : ArrayAccess<V>;
+	var hk : ArrayAccess<K>;
 	
 	public function new(weakKeys:Bool = false):Void {
 		h = untyped __call__('array');
+		hk = untyped __call__('array');
 	}
 	
 	public function set(key:K, value:V):Void untyped {
-		untyped h[getId(key)] = value;
+		var id = getId(key);
+		untyped h[id] = value;
+		untyped hk[id] = key;
 	}
 	
 	public function get(key:K):Null<V> {
@@ -54,13 +58,14 @@ class ObjectMap <K:{ }, V> {
 		var id = getId(key);
 		if (untyped __call__("array_key_exists", id, h)) {
 			untyped __call__("unset", h[id]);
+			untyped __call__("unset", hk[id]);
 			return true;
 		} else
 			return false;
 	}
 	
 	public inline function keys() : Iterator<K> {
-		return untyped __call__("new _hx_array_iterator", __call__("array_keys", h));
+		return untyped __call__("new _hx_array_iterator", __call__("array_values", hk));
 	}
 	
 	public inline function iterator() : Iterator<V> {

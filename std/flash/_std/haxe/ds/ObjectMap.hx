@@ -23,7 +23,10 @@ class ObjectMap<K,V> extends flash.utils.Dictionary {
 	}
 
 	public function iterator() : Iterator<V> {
-		return untyped __keys__(this).iterator();
+		var ret = [];
+		for (i in keys())
+			ret.push(get(i));
+		return ret.iterator();
 	}
 
 	public function toString() : String {

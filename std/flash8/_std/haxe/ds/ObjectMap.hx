@@ -80,8 +80,8 @@ class ObjectMap <K:{ }, V> {
 		return untyped {
 			ref : h,
 			it : __hkeys__(h.__keys__)["iterator"](),
-			hasNext : function() { return __h__.it[__unprotect__("hasNext")](); },
-			next : function() { var i = __h__.it[__unprotect__("next")](); return __h__.ref["$" +i]; }
+			hasNext : function() { return __this__.it[__unprotect__("hasNext")](); },
+			next : function() { var i = __this__.it[__unprotect__("next")](); return __this__.ref["$" +i]; }
 		};
 	}
 	
