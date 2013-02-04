@@ -26,7 +26,7 @@ class ObjectMap<K,V> {
    // TODO: Might need to add separate hash to keep track of references to keys
 	private var __Internal : IntMap<V>;
 
-	public function new() : Void {
+	public function new(?weakKeys:Bool = false) : Void {
 		__Internal = new IntMap<V>();
 	}
 
