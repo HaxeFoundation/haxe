@@ -1,32 +1,39 @@
 package haxe.ds;
 
-@:coreApi
-abstract ObjectMap<K, V>(flash.utils.Dictionary) {
-	public inline function new(weakKeys : Bool = false) {
-		this = new flash.utils.Dictionary(weakKeys);
-	}
-	
-	public inline function get( k : K ) : Null<V> {
-		return untyped this[k];
+class ObjectMap<K,V> extends flash.utils.Dictionary {
+
+	public inline function get( key : K ) : Null<V> {
+		return untyped this[key];
 	}
 
-	public inline function set( k : K, v : V ):Void {
-		untyped this[k] = v;
+	public inline function set( key : K, value : V ):Void {
+		untyped this[key] = value;
 	}
 
-	public inline function exists( k : K ) : Bool {
-		return untyped this[k] != null;
+	public inline function exists( key : K ) : Bool {
+		return untyped this[key] != null;
 	}
 
-	public inline function remove( k : K ):Bool {
-		return untyped __delete__(this,k);
+	public inline function remove( key : K ):Bool {
+		return untyped __delete__(this,key);
 	}
 
-	public inline function keys() : Array<K> {
+	public function keys() : Array<K> {
 		return untyped __keys__(this);
 	}
 
 	public function iterator() : Iterator<V> {
 		return untyped __keys__(this).iterator();
+	}
+
+	public function toString() : String {
+		var s = "";
+		var it = keys();
+		for( i in it ) {
+			s += (s == "" ? "" : ",") + i;
+			s += " => ";
+			s += Std.string(get(i));
+		}
+		return s + "}";
 	}
 }

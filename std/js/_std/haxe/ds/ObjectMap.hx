@@ -2,13 +2,13 @@
  * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
+ * copy of h software and associated documentation files (the "Software"),
  * to deal in the Software without restriction, including without limitation
  * the rights to use, copy, modify, merge, publish, distribute, sublicense,
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright notice and h permission notice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -23,51 +23,53 @@
 package haxe.ds;
 
 @:coreApi
-abstract ObjectMap <K:{ }, V>({}){
+class ObjectMap<K:{ }, V> {
 	
 	static var count = 0;
 	
-	static inline function assignId(obj: { } ) {
+	static inline function assignId(obj: { } ):Int {
 		return untyped obj.__id__ = ++count;
 	}
 	
-	static inline function getId(obj: { } ) {
+	static inline function getId(obj: { } ):Int {
 		return untyped obj.__id__;
 	}
 	
-	public inline function new(weakKeys:Bool = false) {
-		this = { };
-		untyped this.__keys__ = { };
+	var h : { };
+	
+	public inline function new(weakKeys:Bool = false):Void {
+		h = { };
+		untyped h.__keys__ = { };
 	}
 	
-	public function set(key:K, value:V) untyped {
+	public function set(key:K, value:V):Void untyped {
 		var id = key.__id__ != null ? key.__id__ : assignId(key);
-		this[id] = value;
-		this.__keys__[id] = key;
+		h[id] = value;
+		h.__keys__[id] = key;
 	}
 	
-	public inline function get(key:K) {
-		return untyped this[getId(key)];
+	public inline function get(key:K):Null<V> {
+		return untyped h[getId(key)];
 	}
 	
-	public inline function exists(key:K) {
-		return untyped this.hasOwnProperty(getId(key));
+	public inline function exists(key:K):Bool {
+		return untyped h.hasOwnProperty(getId(key));
 	}
 	
 	public function remove( key : K ) : Bool {
 		var id = getId(key);
-		if ( untyped !this.hasOwnProperty(id) ) return false;
-		untyped  __js__("delete")(this[id]);
-		untyped  __js__("delete")(this.__keys__[id]);
+		if ( untyped !h.hasOwnProperty(id) ) return false;
+		untyped  __js__("delete")(h[id]);
+		untyped  __js__("delete")(h.__keys__[id]);
 		return true;
 	}
 	
 	public function keys() : Iterator<K> {
 		var a = [];
 		untyped {
-			__js__("for( var key in this1.__keys__ ) {");
-				if( this.hasOwnProperty(key) )
-					a.push(this.__keys__[key]);
+			__js__("for( var key in this.h.__keys__ ) {");
+				if( h.hasOwnProperty(key) )
+					a.push(h.__keys__[key]);
 			__js__("}");
 		}
 		return a.iterator();
@@ -75,8 +77,8 @@ abstract ObjectMap <K:{ }, V>({}){
 	
 	public function iterator() : Iterator<V> {
 		return untyped {
-			ref : this,
-			it : keys(this),
+			ref : h,
+			it : keys(),
 			hasNext : function() { return __this__.it.hasNext(); },
 			next : function() { var i = __this__.it.next(); return __this__.ref[getId(i)]; }
 		};
@@ -85,11 +87,11 @@ abstract ObjectMap <K:{ }, V>({}){
 	public function toString() : String {
 		var s = new StringBuf();
 		s.add("{");
-		var it = keys(this);
+		var it = keys();
 		for( i in it ) {
 			s.add(i);
 			s.add(" => ");
-			s.add(Std.string(get(this,i)));
+			s.add(Std.string(get(i)));
 			if( it.hasNext() )
 				s.add(", ");
 		}

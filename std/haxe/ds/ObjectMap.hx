@@ -25,9 +25,10 @@ package haxe.ds;
 extern class ObjectMap < K: { }, V > {
 	public function new(?weakKeys:Bool = false):Void;
 	public function set(key:K, value:V):Void;
-	public function get(key:K):V;
+	public function get(key:K):Null<V>;
 	public function exists(key:K):Bool;
 	public function remove(key:K):Bool;
 	public function keys():Iterator<K>;
 	public function iterator():Iterator<V>;
+	public function toString():String;
 }

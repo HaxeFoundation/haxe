@@ -23,46 +23,57 @@
 package haxe.ds;
 
 @:coreApi
-abstract ObjectMap <K:{ }, V>(StringMap<V>) {
-	static function getId(key: { } ) {
+class ObjectMap <K:{ }, V> {
+	static function getId(key: { } ):String {
 		return untyped __php__("spl_object_hash($key)");
 	}
 	
-	public function new(weakKeys:Bool = false) {
-		this = new StringMap<V>();
+	var h : ArrayAccess<V>;
+	
+	public function new(weakKeys:Bool = false):Void {
+		h = untyped __call__('array');
 	}
 	
-	public function set(key:K, value:V) untyped {
-		untyped this.set(getId(key), value);
+	public function set(key:K, value:V):Void untyped {
+		untyped h[getId(key)] = value;
 	}
 	
-	public function get(key:K) {
-		return this.get(getId(key));
+	public function get(key:K):Null<V> {
+		var id = getId(key);
+		if (untyped __call__("array_key_exists", id, h))
+			return untyped h[id];
+		else
+			return null;
 	}
 	
-	public function exists(key:K) {
-		return this.exists(getId(key));
+	public function exists(key:K):Bool {
+		return untyped __call__("array_key_exists", getId(key), h);
 	}
 	
 	public function remove( key : K ) : Bool {
-		return this.remove(getId(key));
+		var id = getId(key);
+		if (untyped __call__("array_key_exists", id, h)) {
+			untyped __call__("unset", h[id]);
+			return true;
+		} else
+			return false;
 	}
 	
 	public inline function keys() : Iterator<K> {
-		return untyped __call__("new _hx_array_iterator", __call__("array_keys", this.h));
+		return untyped __call__("new _hx_array_iterator", __call__("array_keys", h));
 	}
 	
 	public inline function iterator() : Iterator<V> {
-		return untyped __call__("new _hx_array_iterator", __call__("array_values", this.h));
+		return untyped __call__("new _hx_array_iterator", __call__("array_values", h));
 	}
 	
 	public function toString() : String {
 		var s = "{";
-		var it = keys(this);
+		var it = keys();
 		for( i in it ) {
 			s += i;
 			s += " => ";
-			s += Std.string(get(this,i));
+			s += Std.string(get(i));
 			if( it.hasNext() )
 				s += ", ";
 		}

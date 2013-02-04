@@ -34,7 +34,7 @@ class ObjectMap<K,V> {
 		__Internal.set( untyped __global__.__hxcpp_obj_id(key), value );
 	}
 
-	public function get( key : K ) : V {
+	public function get( key : K ) : Null<V> {
 		return __Internal.get( untyped __global__.__hxcpp_obj_id(key) );
 	}
 
@@ -58,7 +58,7 @@ class ObjectMap<K,V> {
 		return __Internal.iterator();
 	}
 
-	private function toString() : String {
+	public function toString() : String {
 		var s = new StringBuf();
 		s.add("{");
 		var it = __Internal.keys();
