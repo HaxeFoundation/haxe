@@ -142,7 +142,7 @@ class UnitBuilder {
 					var el2 = [];
 					for (e in el)
 						el2.push(macro $e1 == $e);
-					collapseToOrExpr(el2);
+					macro @:pos(e.pos) t(${ collapseToOrExpr(el2) } );
 				case EVars(vl):
 					for (v in vl)
 						if (v.name == "t" || v.name == "f" || v.name == "eq" || v.name == "neq")
