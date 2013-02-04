@@ -39,7 +39,7 @@ type cache = {
 exception Abort
 exception Completion of string
 
-let version = 211
+let version = 300
 
 let measure_times = ref false
 let prompt = ref false
@@ -738,7 +738,6 @@ try
 			Common.raw_define com ("haxe_" ^ string_of_int v);
 		done;
 	end else begin
-		Common.define com Define.Haxe3;
 		Common.define_value com Define.HaxeVer (string_of_float (float_of_int version /. 100.));
 	end;
 	Common.define_value com Define.Dce "std";

@@ -74,10 +74,10 @@ class EReg {
 	public function matchedPos() : { pos : Int, len : Int } {
 		return null;
 	}
-	
+
 	/**
 		Tells if the regular expression matches the String between pos and pos + len.
-		Updates the internal state accordingly.		
+		Updates the internal state accordingly.
 	**/
 	public function matchSub( s : String, pos : Int, len : Int = 0):Bool {
 		return false;
@@ -117,8 +117,4 @@ class EReg {
 		buf.add(s);
 		return buf.toString();
 	}
-
-	#if !haxe3
-	public inline function customReplace( s : String, f : EReg -> String ) : String return map(s, f)
-	#end	
 }

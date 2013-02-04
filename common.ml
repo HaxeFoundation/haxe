@@ -155,7 +155,6 @@ module Define = struct
 		| FlashUseStage
 		| FormatWarning
 		| GencommonDebug
-		| Haxe3
 		| HaxeBoot
 		| HaxeVer
 		| Interp
@@ -163,7 +162,6 @@ module Define = struct
 		| JsModern
 		| Macro
 		| MacroTimes
-		| MatchDebug
 		| NekoSource
 		| NekoV2
 		| NetworkSandbox
@@ -215,7 +213,6 @@ module Define = struct
 		| FlashUseStage -> ("flash_use_stage","Keep the SWF library initial stage")
 		| FormatWarning -> ("format_warning","Print a warning for each formated string, for 2.x compatibility")
 		| GencommonDebug -> ("gencommon_debug","GenCommon internal")
-		| Haxe3 -> ("haxe3","Enable Haxe3 transition mode")
 		| HaxeBoot -> ("haxe_boot","Given the name 'haxe' to the flash boot class instead of a generated name")
 		| HaxeVer -> ("haxe_ver","The current Haxe version value")
 		| Interp -> ("interp","The code is compiled to be run with --interp")
@@ -223,7 +220,6 @@ module Define = struct
 		| JsModern -> ("js_modern","Use function wrapper and strict mode in JS output")
 		| Macro -> ("macro","Defined when we compile code in the macro context")
 		| MacroTimes -> ("macro_times","Display per-macro timing when used with --times")
-		| MatchDebug -> ("match_debug","Show Pattern Matcher log")
 		| NekoSource -> ("neko_source","Output neko source instead of bytecode")
 		| NekoV2 -> ("neko_v2","Activate Neko 2.0 compatibility")
 		| NetworkSandbox -> ("network-sandbox","Use local network sandbox instead of local file access one")

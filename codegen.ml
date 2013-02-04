@@ -554,9 +554,7 @@ let on_inherit ctx c p h =
 		extend_remoting ctx c t p true false;
 		false
 	| HImplements { tpackage = ["haxe";"rtti"]; tname = "Generic"; tparams = [] } ->
-		if Common.defined ctx.com Define.Haxe3 then error ("Implementing haxe.rtti.Generic is deprecated in haxe 3, please use @:generic instead") c.cl_pos;
-		if c.cl_types <> [] then c.cl_kind <- KGeneric;
-		false
+		error ("Implementing haxe.rtti.Generic is deprecated in haxe 3, please use @:generic instead") c.cl_pos;
 	| HExtends { tpackage = ["haxe";"xml"]; tname = "Proxy"; tparams = [TPExpr(EConst (String file),p);TPType t] } ->
 		extend_xml_proxy ctx c t file p;
 		true
@@ -645,11 +643,8 @@ let add_rtti ctx t =
 				| _ -> false
 			) c.cl_implements || (match c.cl_super with None -> false | Some (c,_) -> has_rtti_old c)
 		in
-		if Common.defined ctx.com Define.Haxe3 then begin
-			if has_rtti_old c then error ("Implementing haxe.rtti.Infos is deprecated in haxe 3, please use @:rttiInfos instead") c.cl_pos;
-			has_rtti_new c
-		end else
-			has_rtti_old c || has_rtti_new c
+		if has_rtti_old c then error ("Implementing haxe.rtti.Infos is deprecated in haxe 3, please use @:rttiInfos instead") c.cl_pos;
+		has_rtti_new c
 	in
 	match t with
 	| TClassDecl c when has_rtti c && not (PMap.mem "__rtti" c.cl_statics) ->

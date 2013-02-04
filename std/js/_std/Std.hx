@@ -54,12 +54,6 @@ import js.Boot;
 		return untyped x <= 0 ? 0 : Math.floor(Math.random()*x);
 	}
 
-	#if !haxe3
-	@:macro public static function format( fmt : haxe.macro.Expr.ExprOf<String> ) : haxe.macro.Expr.ExprOf<String> {
-		return haxe.macro.Context.format(fmt);
-	}
-	#end
-
 	static function __init__() : Void untyped {
 		__feature__("js.Boot.getClass",String.prototype.__class__ = __feature__("Type.resolveClass",$hxClasses["String"] = String,String));
 		__feature__("js.Boot.isClass",String.__name__ = __feature__("Type.getClassName",["String"],true));

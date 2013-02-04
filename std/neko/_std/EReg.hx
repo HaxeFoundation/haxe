@@ -61,7 +61,7 @@
 	public function matchedPos() : { pos : Int, len : Int } {
 		return regexp_matched_pos(r,0);
 	}
-	
+
 	public function matchSub( s : String, pos : Int, len : Int = -1):Bool {
 		var p = regexp_match(r, untyped s.__s, pos, len < 0 ? s.length - pos : len);
 		if( p )
@@ -69,7 +69,7 @@
 		else
 			last = null;
 		return p;
-	}		
+	}
 
 	public function split( s : String ) : Array<String> {
 		var pos = 0;
@@ -171,7 +171,7 @@
 		//b.addSub(s,pos,len);
 		//return b.toString();
 	//}
-	
+
 	public function map( s : String, f : EReg -> String ) : String {
 		var offset = 0;
 		var buf = new StringBuf();
@@ -193,7 +193,7 @@
 				offset = p.pos + p.len;
 		} while (global);
 		if (!global && offset < s.length)
-			buf.add(s.substr(offset));		
+			buf.add(s.substr(offset));
 		return buf.toString();
 	}
 
@@ -201,14 +201,4 @@
 	static var regexp_match = neko.Lib.load("regexp","regexp_match",4);
 	static var regexp_matched = neko.Lib.load("regexp","regexp_matched",2);
 	static var regexp_matched_pos : Dynamic -> Int -> { pos : Int, len : Int } = neko.Lib.load("regexp","regexp_matched_pos",2);
-
-	#if !haxe3
-	public inline function customReplace( s : String, f : EReg -> String ) : String {
-		var old = global;
-		global = true;
-		var ret = map(s, f);
-		global = old;
-		return ret;
-	}
-	#end
 }

@@ -241,8 +241,4 @@ class EReg {
 			buf.add(s.substr(offset));
 		return buf.toString();
 	}
-
-	#if !haxe3
-	public inline function customReplace( s : String, f : EReg -> String ) : String return map(s, f)
-	#end
 }

@@ -53,12 +53,6 @@
 		return untyped __random__(x);
 	}
 
-	#if !haxe3
-	@:macro public static function format( fmt : haxe.macro.Expr.ExprOf<String> ) : haxe.macro.Expr.ExprOf<String> {
-		return haxe.macro.Format.format(fmt);
-	}
-	#end
-
 	static function __init__() : Void untyped {
 		var g : Dynamic = _global;
 		g["Int"] = { __name__ : ["Int"] };

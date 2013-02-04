@@ -20,13 +20,8 @@
  * DEALINGS IN THE SOFTWARE.
  */
 package tools.haxelib;
-#if haxe3
 import haxe.zip.Reader;
 import haxe.zip.Entry;
-#else
-import neko.zip.Reader;
-private typedef Entry = ZipEntry;
-#end
 
 import haxe.xml.Check;
 

@@ -56,10 +56,4 @@
 		return untyped x <= 0 ? 0 : __call__("mt_rand", 0, x-1);
 	}
 
-	#if !haxe3
-	@:macro public static function format( fmt : haxe.macro.Expr.ExprOf<String> ) : haxe.macro.Expr.ExprOf<String> {
-		return haxe.macro.Context.format(fmt);
-	}
-	#end
-	
 }

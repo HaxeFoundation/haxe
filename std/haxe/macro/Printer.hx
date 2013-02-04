@@ -28,12 +28,12 @@ using Lambda;
 class Printer {
 	var tabs:String;
 	var tabString:String;
-	
+
 	public function new(?tabString = "\t") {
 		tabs = "";
 		this.tabString = tabString;
 	}
-	
+
 	public function printUnop(op:Unop) return switch(op) {
 		case OpIncrement: "++";
 		case OpDecrement: "--";
@@ -41,7 +41,7 @@ class Printer {
 		case OpNeg: "-";
 		case OpNegBits: "~";
 	}
-	
+
 	public function printBinop(op:Binop) return switch(op) {
 		case OpAdd: "+";
 		case OpMult: "*";
@@ -69,30 +69,27 @@ class Printer {
 			printBinop(op)
 			+ "=";
 	}
-		
+
 	public function printConstant(c:Constant) return switch(c) {
 		case CString(s): '"$s"';
 		case CIdent(s),
-			#if !haxe3
-			CType(s),
-			#end
 			CInt(s),
 			CFloat(s):
 				s;
 		case CRegexp(s,opt): '~/$s/$opt';
 	}
-	
+
 	public function printTypeParam(param:TypeParam) return switch(param) {
 		case TPType(ct): printComplexType(ct);
 		case TPExpr(e): printExpr(e);
 	}
-	
+
 	public function printTypePath(tp:TypePath) return
 		(tp.pack.length > 0 ? tp.pack.join(".") + "." : "")
 		+ tp.name
 		+ (tp.sub != null ? '.$tp.sub' : "")
 		+ (tp.params.length > 0 ? "<" + tp.params.map(printTypeParam).join(",") + ">" : "")
-	
+
 	// TODO: check if this can cause loops
 	public function printComplexType(ct:ComplexType) return switch(ct) {
 		case TPath(tp): printTypePath(tp);
@@ -102,7 +99,7 @@ class Printer {
 		case TOptional(ct): "?" + printComplexType(ct);
 		case TExtend(tp, fields): '{${printTypePath(tp)} >, ${fields.map(printField).join(",")}}';
 	}
-	
+
 	public function printMetadata(meta:MetadataEntry) return
 		'@${meta.name}'
 		+ (meta.params.length > 0 ? '(${printExprs(meta.params,",")})' : "")
@@ -125,38 +122,35 @@ class Printer {
 		  case FProp(get, set, t, eo): 'var ${field.name}($get,$set)' + opt(t, printComplexType, ":") + opt(eo, printExpr, "=");
 		  case FFun(func): 'function ${field.name}' + printFunction(func);
 		}
-	
+
 	public function printTypeParamDecl(tpd:TypeParamDecl) return
 		tpd.name
 		+ (tpd.params.length > 0 ? "<" + tpd.params.map(printTypeParamDecl).join(",") + ">" : "")
 		+ (tpd.constraints.length > 0 ? ":(" + tpd.constraints.map(printComplexType).join(",") + ")" : "")
-	
+
 	public function printFunctionArg(arg:FunctionArg) return
 		(arg.opt ? "?" : "")
 		+ arg.name
 		+ opt(arg.type, printComplexType, ":")
 		+ opt(arg.value, printExpr, "=")
-	
+
 	public function printFunction(func:Function) return
 		(func.params.length > 0 ? "<" + func.params.map(printTypeParamDecl).join(",") + ">" : "")
 		+ "(" + func.args.map(printFunctionArg).join(",") + ")"
 		+ opt(func.ret, printComplexType, ":")
 		+ opt(func.expr, printExpr, " ")
-	
+
 	public function printVar(v:Var) return
 		v.name
 		+ opt(v.type, printComplexType, ":")
 		+ opt(v.expr, printExpr, "=")
-	
-	
+
+
 	public function printExpr(e:Expr) return e == null ? "#NULL" : switch(e.expr) {
 		case EConst(c): printConstant(c);
 		case EArray(e1, e2): '${printExpr(e1)}[${printExpr(e2)}]';
 		case EBinop(op, e1, e2): '${printExpr(e1)}${printBinop(op)}${printExpr(e2)}';
-		case EField(e1, n)
-			#if !haxe3
-			,EType(e1, n)
-			#end : '${printExpr(e1)}.$n';
+		case EField(e1, n): '${printExpr(e1)}.$n';
 		case EParenthesis(e1): '(${printExpr(e1)})';
 		case EObjectDecl(fl):
 			"{" + fl.map(function(fld) return '${fld.field}:${printExpr(fld.expr)}').join(",") + "}";
@@ -209,10 +203,10 @@ class Printer {
 		case ECheckType(e1, ct): '#CHECK_TYPE(${printExpr(e1)}, ${printComplexType(ct)})';
 		case EMeta(meta, e1): printMetadata(meta) + " " +printExpr(e1);
 	}
-	
+
 	public function printExprs(el:Array<Expr>, sep:String) {
 		return el.map(printExpr).join(sep);
 	}
-	
+
 	function opt<T>(v:T, f:T->String, prefix = "") return v == null ? "" : (prefix + f(v))
 }

@@ -55,7 +55,7 @@
 		if( result == null ) throw "No string matched";
 		return { pos : result.index, len : result[0].length };
 	}
-	
+
 	public function matchSub( s : String, pos : Int, len : Int = -1):Bool {
 		return if (r.global) {
 			r.lastIndex = pos;
@@ -112,29 +112,4 @@
 			buf.add(s.substr(offset));
 		return buf.toString();
 	}
-
-	#if !haxe3
-	public inline function customReplace( s : String, f : EReg -> String ) : String {
-		var offset = 0;
-		var buf = new StringBuf();
-		do {
-			if (offset >= s.length)
-				break;
-			else if (!matchSub(s, offset)) {
-				buf.add(s.substr(offset));
-				break;
-			}
-			var p = matchedPos();
-			buf.add(s.substr(offset, p.pos - offset));
-			buf.add(f(this));
-			if (p.len == 0) {
-				buf.add(s.substr(p.pos, 1));
-				offset = p.pos + 1;
-			}
-			else
-				offset = p.pos + p.len;
-		} while (true);
-		return buf.toString();
-	}
-	#end
 }

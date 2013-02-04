@@ -31,8 +31,6 @@ using haxe.Int64;
 	@:extern private static inline function ofNative(i:NativeInt64):Int64 return untyped i
 	@:extern private static inline function mkNative(i:Dynamic):NativeInt64 return i
 
-	#if haxe3
-
 	public static inline function make( high : Int, low : Int ) : Int64
 	{
 		return ((cast(high, NativeInt64) << 32 ) | (cast(low, NativeInt64))).ofNative();
@@ -46,30 +44,6 @@ using haxe.Int64;
 	public static inline function getHigh( x : Int64 ) : Int {
 		return cast(cast(x,NativeUInt64) >> 32, Int);
 	}
-
-	#else
-
-	public static inline function make( high : Int32, low : Int32 ) : Int64
-	{
-		return ((cast(high, NativeInt64) << 32 ) | (cast(low, NativeInt64))).ofNative();
-	}
-
-	public static inline function ofInt32( x : Int32 ) : Int64 {
-		return cast x;
-	}
-
-	public static inline function getLow( x : Int64 ) : Int32
-	{
-		return cast (x.asNative() & 0xFFFFFFFF.mkNative());
-	}
-
-	public static inline function getHigh( x : Int64 ) : Int32
-	{
-		return cast(cast(x,NativeUInt64) >> 32,Int32);
-	}
-
-
-	#end
 
 	public static inline function ofInt( x : Int ) : Int64 {
 		return cast x;

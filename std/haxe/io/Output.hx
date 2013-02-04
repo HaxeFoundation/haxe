@@ -265,8 +265,6 @@ class Output {
 		}
 	}
 
-	#if haxe3
-
 	public function writeInt32( x : Int ) {
 		if( bigEndian ) {
 			writeByte( x >>> 24 );
@@ -280,56 +278,6 @@ class Output {
 			writeByte( x >>> 24 );
 		}
 	}
-
-	#else
-
-	public function writeInt31( x : Int ) {
-		#if !neko
-		if( x < -0x40000000 || x >= 0x40000000 ) throw Error.Overflow;
-		#end
-		if( bigEndian ) {
-			writeByte(x >>> 24);
-			writeByte((x >> 16) & 0xFF);
-			writeByte((x >> 8) & 0xFF);
-			writeByte(x & 0xFF);
-		} else {
-			writeByte(x & 0xFF);
-			writeByte((x >> 8) & 0xFF);
-			writeByte((x >> 16) & 0xFF);
-			writeByte(x >>> 24);
-		}
-	}
-
-	public function writeUInt30( x : Int ) {
-		if( x < 0 #if !neko || x >= 0x40000000 #end ) throw Error.Overflow;
-		if( bigEndian ) {
-			writeByte(x >>> 24);
-			writeByte((x >> 16) & 0xFF);
-			writeByte((x >> 8) & 0xFF);
-			writeByte(x & 0xFF);
-		} else {
-			writeByte(x & 0xFF);
-			writeByte((x >> 8) & 0xFF);
-			writeByte((x >> 16) & 0xFF);
-			writeByte(x >>> 24);
-		}
-	}
-
-	public function writeInt32( x : haxe.Int32 ) {
-		if( bigEndian ) {
-			writeByte( haxe.Int32.toInt(haxe.Int32.ushr(x,24)) );
-			writeByte( haxe.Int32.toInt(haxe.Int32.ushr(x,16)) & 0xFF );
-			writeByte( haxe.Int32.toInt(haxe.Int32.ushr(x,8)) & 0xFF );
-			writeByte( haxe.Int32.toInt(haxe.Int32.and(x,haxe.Int32.ofInt(0xFF))) );
-		} else {
-			writeByte( haxe.Int32.toInt(haxe.Int32.and(x,haxe.Int32.ofInt(0xFF))) );
-			writeByte( haxe.Int32.toInt(haxe.Int32.ushr(x,8)) & 0xFF );
-			writeByte( haxe.Int32.toInt(haxe.Int32.ushr(x,16)) & 0xFF );
-			writeByte( haxe.Int32.toInt(haxe.Int32.ushr(x,24)) );
-		}
-	}
-
-	#end
 
 	/**
 		Inform that we are about to write at least a specified number of bytes.

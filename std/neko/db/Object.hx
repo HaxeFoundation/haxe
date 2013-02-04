@@ -27,10 +27,10 @@ package neko.db;
 **/
 #if !spod_macro
 
-#if( spod_rtti && haxe3 )
+#if spod_rtti
 @:rttiInfos
 #end
-class Object #if (spod_rtti && !haxe3) implements haxe.rtti.Infos #end {
+class Object {
 
 /*
 	(optional)

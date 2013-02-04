@@ -40,13 +40,12 @@ let make_module ctx mpath file tdecls loadp =
 	let rec make_decl acc decl =
 		let p = snd decl in
 		let acc = (match fst decl with
-		| EImport _ | EUsing _ when Common.defined ctx.com Define.Haxe3 ->
+		| EImport _ | EUsing _ ->
 			(match !pt with
 			| None -> acc
 			| Some pt ->
 				display_error ctx "import and using may not appear after a type declaration" p;
 				error "Previous type declaration found here" pt)
-		| EImport _ | EUsing _ -> acc
 		| EClass d ->
 			pt := Some p;
 			let priv = List.mem HPrivate d.d_flags in
@@ -457,8 +456,7 @@ and load_complex_type ctx p t =
 						| x when get && x = "get_" ^ n -> AccCall x
 						| x when not get && x = "set_" ^ n -> AccCall x
 						| _ ->
-							(if Common.defined ctx.com Define.Haxe3 then error else ctx.com.warning) "Property custom access is no longer supported in Haxe3+" f.cff_pos;
-							AccCall m
+							error "Custom property access is no longer supported in Haxe 3" f.cff_pos;
 					in
 					let t = (match t with None -> error "Type required for structure property" p | Some t -> t) in
 					load_complex_type ctx p t, Var { v_read = access i1 true; v_write = access i2 false }
@@ -926,7 +924,6 @@ let init_core_api ctx c =
 			Common.define com2 Define.CoreApi;
 			Common.define com2 Define.Sys;
 			if ctx.in_macro then Common.define com2 Define.Macro;
-			if Common.defined ctx.com Define.Haxe3 then Common.define com2 Define.Haxe3;
 			com2.class_path <- ctx.com.std_path;
 			let ctx2 = ctx.g.do_create com2 in
 			ctx.g.core_api <- Some ctx2;
@@ -1096,7 +1093,7 @@ let init_class ctx c p context_init herits fields =
 	let fields = !fields in
 	let core_api = Meta.has Meta.CoreApi c.cl_meta in
 	let is_class_macro = Meta.has Meta.Macro c.cl_meta in
-	if is_class_macro && Common.defined ctx.com Define.Haxe3 then display_error ctx "Macro-class is no longer allowed in haxe3" p;
+	if is_class_macro then display_error ctx "Macro classes are no longer allowed in haxe 3" p;
 	let fields, herits = if is_class_macro && not ctx.in_macro then begin
 		c.cl_extern <- true;
 		List.filter (fun f -> List.mem AStatic f.cff_access) fields, []
@@ -1209,7 +1206,7 @@ let init_class ctx c p context_init herits fields =
 							| Some e -> e
 							| None -> display_error ctx "Extern variable initialization must be a constant value" p; e
 						end
-					| Var v when not stat || (v.v_read = AccInline && Common.defined ctx.com Define.Haxe3) ->
+					| Var v when not stat || (v.v_read = AccInline) ->
 						let e = match Optimizer.make_constant_expression ctx e with Some e -> e | None -> display_error ctx "Variable initialization must be a constant value" p; e in
 						e
 					| _ ->
@@ -1240,7 +1237,7 @@ let init_class ctx c p context_init herits fields =
 		let inline = List.mem AInline f.cff_access && allow_inline() in
 		let override = List.mem AOverride f.cff_access in
 		let is_macro = Meta.has Meta.Macro f.cff_meta in
-		if is_macro && Common.defined ctx.com Define.Haxe3 then ctx.com.warning "@:macro should now be 'macro' accessor'" p;
+		if is_macro then ctx.com.warning "@:macro should now be 'macro' accessor'" p;
 		let is_macro = is_macro || List.mem AMacro f.cff_access in
 		List.iter (fun acc ->
 			match (acc, f.cff_kind) with
@@ -1446,7 +1443,7 @@ let init_class ctx c p context_init herits fields =
 				| "default" -> AccNormal
 				| _ ->
 					let get = if get = "get" then "get_" ^ name else get in
-					delay ctx PForce (fun() -> check_method get (TFun ([],ret)) (if get <> "get" && get <> "get_" ^ name && Common.defined ctx.com Define.Haxe3 then Some ("get_" ^ name) else None));
+					delay ctx PForce (fun() -> check_method get (TFun ([],ret)) (if get <> "get" && get <> "get_" ^ name then Some ("get_" ^ name) else None));
 					AccCall get
 			) in
 			let set = (match set with
@@ -1461,7 +1458,7 @@ let init_class ctx c p context_init herits fields =
 				| "default" -> AccNormal
 				| _ ->
 					let set = if set = "set" then "set_" ^ name else set in
-					delay ctx PForce (fun() -> check_method set (TFun (["",false,ret],ret)) (if set <> "set" && set <> "set_" ^ name && Common.defined ctx.com Define.Haxe3 then Some ("set_" ^ name) else None));
+					delay ctx PForce (fun() -> check_method set (TFun (["",false,ret],ret)) (if set <> "set" && set <> "set_" ^ name then Some ("set_" ^ name) else None));
 					AccCall set
 			) in
 			if set = AccNormal && (match get with AccCall _ -> true | _ -> false) then error "Unsupported property combination" p;
@@ -1790,7 +1787,7 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 				| HImplements { tpackage = []; tname = "Generic" } -> List.exists (fun t -> t_path t = (["haxe";"rtti"],"Generic")) ctx.m.module_types
 				| _ -> false
 			) herits in
-			if rtti && Common.defined ctx.com Define.Haxe3 then error ("Implementing haxe.rtti.Generic is deprecated in haxe 3, please use @:generic instead") c.cl_pos;
+			if rtti then error ("Implementing haxe.rtti.Generic is deprecated in haxe 3, please use @:generic instead") c.cl_pos;
 			Meta.has Meta.Generic c.cl_meta || rtti
 		in
 		if implements_rtti() && c.cl_types <> [] then c.cl_kind <- KGeneric;

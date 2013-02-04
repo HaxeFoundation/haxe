@@ -38,9 +38,6 @@ enum Constant {
 	CString( s : String );
 	CIdent( s : String );
 	CRegexp( r : String, opt : String );
-	#if !haxe3
-	CType( s : String );
-	#end
 }
 
 enum Binop {
@@ -82,10 +79,6 @@ typedef Expr = {
 	var expr : ExprDef;
 	var pos : Position;
 }
-
-#if !haxe3
-typedef ExprRequire<T> = Expr;
-#end
 
 typedef ExprOf<T> = Expr;
 
@@ -138,9 +131,6 @@ enum ExprDef {
 	ETernary( econd : Expr, eif : Expr, eelse : Expr );
 	ECheckType( e : Expr, t : ComplexType );
 	EMeta( s : MetadataEntry, e : Expr );
-	#if !haxe3
-	EType( e : Expr, field : String );
-	#end
 }
 
 enum ComplexType {

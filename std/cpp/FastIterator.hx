@@ -21,10 +21,8 @@
  */
 package cpp;
 
-#if haxe3
 @:generic
-#end
-extern class FastIterator<T> #if !haxe3 implements haxe.rtti.Generic #end
+extern class FastIterator<T>
 {
 	public function hasNext():Bool;
 	public function next():T;

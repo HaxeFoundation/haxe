@@ -216,7 +216,6 @@ package unit;
 			new TestOps(),
 			new TestBasetypes(),
 			new TestBytes(),
-			#if !haxe3 new TestInt32(), #end
 			new TestIO(),
 			new TestLocals(),
 			new TestEReg(),

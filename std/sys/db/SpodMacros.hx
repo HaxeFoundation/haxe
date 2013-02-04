@@ -255,11 +255,7 @@ class SpodMacros {
 		return switch( e.expr ) {
 		case EConst(c):
 			switch( c ) {
-			#if haxe3
 			case CIdent(s): s;
-			#else
-			case CIdent(s), CType(s): s;
-			#end
 			default: error("Identifier expected", e.pos);
 			}
 		default: error("Identifier expected", e.pos);
@@ -414,7 +410,7 @@ class SpodMacros {
 	}
 
 	function initManager( pos : Position ) {
-		manager = { expr : #if haxe3 EField #else EType #end({ expr : EField({ expr : EConst(CIdent("sys")), pos : pos },"db"), pos : pos }, "Manager"), pos : pos };
+		manager = { expr : EField({ expr : EField({ expr : EConst(CIdent("sys")), pos : pos },"db"), pos : pos }, "Manager"), pos : pos };
 	}
 
 	inline function makeString( s : String, pos ) {
@@ -625,17 +621,9 @@ class SpodMacros {
 					var p = f.expr.pos;
 					path.push("manager");
 					var first = path.shift();
-					#if haxe3
 					var mpath = { expr : EConst(CIdent(first)), pos : p };
-					#else
-					var mpath = { expr : EConst(first.charCodeAt(0) <= 'Z'.code ? CType(first) : CIdent(first)), pos : p };
-					#end
 					for ( e in path )
-						#if haxe3
 						mpath = { expr : EField(mpath, e), pos : p };
-						#else
-						mpath = { expr : e.charCodeAt(0) <= 'Z'.code ? EType(mpath, e) : EField(mpath, e), pos : p };
-						#end
 					var m = getManager(typeof(mpath),p);
 					var getid = { expr : ECall( { expr : EField(mpath, "unsafeGetId"), pos : p }, [f.expr]), pos : p };
 					f.field = r.key;
@@ -757,11 +745,7 @@ class SpodMacros {
 			case CFloat(s): return { sql : makeString(s, p), t : DFloat, n : false };
 			case CString(s): return { sql : sqlQuoteValue(cond, DText), t : DString(s.length), n : false };
 			case CRegexp(_): error("Unsupported", p);
-			#if haxe3
 			case CIdent(n):
-			#else
-			case CIdent(n), CType(n):
-			#end
 				if( n.charCodeAt(0) == "$".code ) {
 					n = n.substr(1);
 					var f = inf.hfields.get(n);
@@ -782,11 +766,7 @@ class SpodMacros {
 			switch( c.expr ) {
 			case EConst(co):
 				switch(co) {
-				#if haxe3
 				case CIdent(t):
-				#else
-				case CIdent(t), CType(t):
-				#end
 					if( t.charCodeAt(0) == '$'.code ) {
 						var f = g.functions.get(t.substr(1));
 						if( f == null ) error("Unknown method " + t, c.pos);
@@ -811,11 +791,7 @@ class SpodMacros {
 					}
 				default:
 				}
-			#if haxe3
 			case EField(e, f):
-			#else
-			case EField(e, f), EType(e, f):
-			#end
 				switch( f ) {
 				case "like":
 					if( pl.length == 1 ) {
@@ -846,11 +822,7 @@ class SpodMacros {
 			default:
 			}
 			return buildDefault(cond);
-		#if haxe3
 		case EField(_, _), EDisplay(_):
-		#else
-		case EField(_, _), EType(_, _), EDisplay(_):
-		#end
 			return buildDefault(cond);
 		case EIf(e, e1, e2), ETernary(e, e1, e2):
 			if( e2 == null ) error("If must have an else statement", p);
@@ -907,11 +879,7 @@ class SpodMacros {
 		switch( e.expr ) {
 		case EConst(c):
 			switch( c ) {
-			#if haxe3
 			case CIdent(t):
-			#else
-			case CIdent(t), CType(t):
-			#end
 				if( !inf.hfields.exists(t) )
 					error("Unknown database field", e.pos);
 				return quoteField(t);
@@ -1272,11 +1240,7 @@ class SpodMacros {
 							switch( p.expr ) {
 							case EConst(c):
 								switch( c ) {
-								#if haxe3
 								case CIdent(i):
-								#else
-								case CIdent(i), CType(i):
-								#end
 									relParams.push(i);
 								default:
 								}

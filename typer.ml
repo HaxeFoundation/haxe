@@ -2238,7 +2238,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		(match tp with
 		| None ->
 			let el = List.map (fun e -> type_expr ctx e Value) el in
-			let t = try unify_min_raise ctx el with Error (Unify l,p) -> if Common.defined ctx.com Define.Haxe3 then raise (Error (Unify l, p)) else t_dynamic in
+			let t = try unify_min_raise ctx el with Error (Unify l,p) -> raise (Error (Unify l, p))  in
 			mk (TArrayDecl el) (ctx.t.tarray t) p
 		| Some t ->
 			let el = List.map (fun e ->
@@ -2761,9 +2761,6 @@ and type_call ctx e el (with_type:with_type) p =
 			mk (TCall (mk (TLocal (alloc_var "`trace" t_dynamic)) t_dynamic p,[e;infos])) ctx.t.tvoid p
 		else
 			type_expr ctx (ECall ((EField ((EField ((EConst (Ident "haxe"),p),"Log"),p),"trace"),p),[e;EUntyped infos,p]),p) NoValue
-	| (EConst (Ident "callback"),p) , e :: args when not (Common.defined ctx.com Define.Haxe3) ->
-		let e = type_expr ctx e Value in
-		type_bind ctx e args p
 	| (EConst(Ident "callback"),p1),args ->
 		let ecb = try Some (type_ident_raise ctx "callback" p1 MCall) with Not_found -> None in
 		(match ecb with

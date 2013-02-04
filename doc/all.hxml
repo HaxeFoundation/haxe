@@ -1,6 +1,5 @@
 --no-output
 --macro ImportAll.run()
--D haxe3
 -D doc-gen
 --each
 

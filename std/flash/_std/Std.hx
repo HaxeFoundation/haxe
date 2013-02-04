@@ -49,11 +49,4 @@ import flash.Boot;
 	public static function random( x : Int ) : Int {
 		return untyped x <= 0 ? 0 : Math.floor(Math.random()*x);
 	}
-
-	#if !haxe3
-	@:macro public static function format( fmt : haxe.macro.Expr.ExprOf<String> ) : haxe.macro.Expr.ExprOf<String> {
-		return haxe.macro.Format.format(fmt);
-	}
-	#end
-
 }

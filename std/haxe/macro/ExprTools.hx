@@ -29,41 +29,41 @@ using Lambda;
 	This class provides some utility methods to work with expressions. It is
 	best used through 'using haxe.macro.ExprTools' syntax and then provides
 	additional methods on haxe.macro.Expr instances.
-	
+
 	While mainly intended to be used in macros, it works in non-macro code as
 	well.
 **/
 class ExprTools {
-	
+
 	static public function asIdent( s : String, p:Position ) : Expr
 		return { expr : EConst(CIdent(s)), pos : p }
-		
+
 	static public function toFieldExpr ( sl : Array<String> ) : Expr
 		return sl.fold(function(s, e) return e == null ? (macro $i{s}) : (macro $e.$s), null)
-	
+
 	/**
 		Converts expression [e] to a human-readable String representation.
-		
+
 		The result is guaranteed to be valid haxe code, but there may be
 		differences from the original lexical syntax.
 	**/
 	static public function toString( e : Expr ) : String
 		return new Printer().printExpr(e)
-		
+
 	/**
 		Calls function [f] on each sub-expression of [e].
-		
+
 		If [e] has no sub-expressions, this operation has no effect.
-	
+
 		Otherwise [f] is called once per sub-expression of [e], with the
 		sub-expression as argument. These calls are done in order of the
 		sub-expression declarations.
-		
+
 		This method does not call itself recursively. It should instead be used
 		in a recursive function which handles the expression nodes of interest.
-		
+
 		Usage example:
-			
+
 		function findStrings(e:Expr) {
 			switch(e.expr) {
 				case EConst(CString(s)):
@@ -87,9 +87,6 @@ class ExprTools {
 				ECheckType(e, _),
 				EUnop(_, _, e),
 				ECast(e, _),
-				#if !haxe3
-				EType(e, _),
-				#end
 				EMeta(_, e):
 					f(e);
 			case EArray(e1, e2),
@@ -138,21 +135,21 @@ class ExprTools {
 					f(edef);
 		}
 	}
-	
+
 	/**
 		Transforms the sub-expressions of [e] by calling [f] on each of them.
-		
+
 		If [e] has no sub-expressions, this operation returns [e] unchanged.
-	
+
 		Otherwise [f] is called once per sub-expression of [e], with the
 		sub-expression as argument. These calls are done in order of the
 		sub-expression declarations.
-		
+
 		This method does not call itself recursively. It should instead be used
 		in a recursive function which handles the expression nodes of interest.
-		
+
 		Usage example:
-		
+
 		function capitalizeStrings(e:Expr) {
 			return switch(e.expr) {
 				case EConst(CString(s)):
@@ -214,16 +211,13 @@ class ExprTools {
 				for (arg in func.args)
 					ret.push( { name: arg.name, opt: arg.opt, type: arg.type, value: opt(arg.value, f) } );
 				EFunction(name, { args: ret, ret: func.ret, params: func.params, expr: f(func.expr) } );
-			#if !haxe3
-			case EType(e, field): EType(f(e), field);
-			#end
 			case EMeta(m, e): EMeta(m, f(e));
 		}};
 	}
-	
+
 	static inline function opt(e:Null<Expr>, f : Expr -> Expr):Expr
 		return e == null ? null : f(e)
-		
+
 	static inline function opt2(e:Null<Expr>, f : Expr -> Void):Void
 		if (e != null) f(e)
 }
@@ -239,7 +233,7 @@ class ExprArrayTools {
 			ret.push(f(e));
 		return ret;
 	}
-	
+
 	static public function iter( el : Array<Expr>, f : Expr -> Void):Void {
 		for (e in el)
 			f(e);

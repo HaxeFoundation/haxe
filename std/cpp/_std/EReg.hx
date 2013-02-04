@@ -70,7 +70,7 @@
 				last = null;
 			return p;
 	}
-	
+
 	public function split( s : String ) : Array<String> {
 			var pos = 0;
 			var len = s.length;
@@ -167,7 +167,7 @@
 				offset = p.pos + p.len;
 		} while (global);
 		if (!global && offset < s.length)
-			buf.add(s.substr(offset));		
+			buf.add(s.substr(offset));
 		return buf.toString();
 	}
 
@@ -175,14 +175,4 @@
 	static var regexp_match : Dynamic -> String -> Int -> Int -> Dynamic = cpp.Lib.load("regexp","regexp_match",4);
 	static var regexp_matched : Dynamic -> Int -> Dynamic = cpp.Lib.load("regexp","regexp_matched",2);
 	static var regexp_matched_pos : Dynamic -> Int -> { pos : Int, len : Int } = cpp.Lib.load("regexp","regexp_matched_pos",2);
-
-	#if !haxe3
-	public inline function customReplace( s : String, f : EReg -> String ) : String {
-		var old = global;
-		global = true;
-		var ret = map(s, f);
-		global = old;
-		return ret;
-	}
-	#end
 }

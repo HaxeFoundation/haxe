@@ -143,34 +143,9 @@ class BytesInput extends Input {
 		return try b.readUnsignedShort() catch( e : Dynamic ) throw new Eof();
 	}
 
-	#if haxe3
-
 	override function readInt32() : Int {
 		return try b.readInt() catch( e : Dynamic ) throw new Eof();
 	}
-
-	#else
-
-	override function readInt31() {
-		var n;
-		try n = b.readInt() catch( e : Dynamic ) throw new Eof();
-		if( (n >>> 30) & 1 != (n >>> 31) ) throw Error.Overflow;
-		return n;
-	}
-
-	override function readUInt30() {
-		var n;
-		try n = b.readInt() catch( e : Dynamic ) throw new Eof();
-		if( (n >>> 30) != 0 ) throw Error.Overflow;
-		return n;
-	}
-
-
-	override function readInt32() : haxe.Int32 {
-		return try cast b.readInt() catch( e : Dynamic ) throw new Eof();
-	}
-
-	#end
 
 	override function readString( len : Int ) {
 		return try b.readUTFBytes(len) catch( e : Dynamic ) throw new Eof();

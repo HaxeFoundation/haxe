@@ -20,11 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 package tools.haxelib;
-#if haxe3
 import haxe.zip.Reader;
-#else
-import neko.zip.Reader;
-#end
 
 enum Answer {
 	Yes;

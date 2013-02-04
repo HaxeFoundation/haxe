@@ -16,7 +16,6 @@
 #each
 --next
 -D macro-times
--D haxe3
 -debug
 -cp ..
 -resource res1.txt

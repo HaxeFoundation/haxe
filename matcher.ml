@@ -1090,10 +1090,8 @@ let match_expr ctx e cases def with_type p =
 		let out = mk_out mctx i e eg pl (pos ep) in
 		Array.of_list pl,out
 	) cases in
-	if Common.defined ctx.com Define.MatchDebug then print_endline (s_pat_matrix pl);
 	begin try
 		let dt = compile mctx stl pl in
-		if Common.defined ctx.com Define.MatchDebug then print_endline (s_dt "" dt);
 		PMap.iter (fun _ out -> if out.o_num_paths = 0 then begin
 			if out.o_pos == p then display_error ctx "The default pattern is unused" p
 			else display_error ctx "This pattern is unused" out.o_pos;

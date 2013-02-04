@@ -73,8 +73,8 @@
 			}
 			b;
 		}
-	}	
-	
+	}
+
 	public function split( s : String ) : Array<String> {
 		// we can't use directly s.split because it's ignoring the 'g' flag
 		var d = "#__delim__#";
@@ -109,14 +109,4 @@
 			buf.add(s.substr(offset));
 		return buf.toString();
 	}
-
-	#if !haxe3
-	public inline function customReplace( s : String, f : EReg -> String ) : String {
-		var old = r.global;
-		r.global = true;
-		var ret = map(s, f);
-		r.global = old;
-		return ret;
-	}
-	#end
 }
