@@ -2858,7 +2858,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 		output_cpp ("Dynamic " ^ class_name ^ "::__SetField(const ::String &inName,const Dynamic &inValue,bool inCallProp)\n{\n");
 
 		let set_field_dat = List.map (fun f ->
-         let default_action = 
+         let default_action =
             (keyword_remap f.cf_name) ^ "=inValue.Cast< " ^ (type_string f.cf_type) ^ " >();" ^
                " return inValue;" in
 			(f.cf_name, String.length f.cf_name,

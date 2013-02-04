@@ -1,33 +1,23 @@
 (*
- * Haxe DCE:
- * With this new approach the typer is almost not aware of DCE at all. It instead types what
- * it needs to type (and usually some more) and DCE then takes care of cleaning up. It does
- * so by following the typed AST expressions and mark accessed classes and fields as used.
+ * Copyright (C)2005-2013 Haxe Foundation
  *
- * The algorithm works as follows:
- * 1. Find all entry point class fields:
- *	- the main method if exists
- *	- methods marked as @:keep
- *	- methods of classes marked as @:keep
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
  *
- * 2. Mark implementing/overriding fields of these entry points as @:?used.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
- * 3. Mark entry points as @:used.
- *
- * 4. Follow the field expressions (if exists) and see what other classes/fields are added,
- *    e.g. by a TField or TNew AST node.
- *
- * 5. If new fields were added, go back to 2 with the new fields as entry points.
- *
- * 6. Filter the types by keeping those that are used explicitly or have a used field.
- *
- * Notes:
- *  - the only influence of the typer is @:?used marking on structural subtyping
- *  - properties are currently tricky to handle on some targets
- *  - cpp target does not like removing unused overridden fields
- *  - most targets seem to require keeping a property field even if it is used only through its accessor methods
- *  - I did not consider inlining at all because I'm pretty sure I don't have to at this compilation stage
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
  *)
 
 open Ast
