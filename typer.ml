@@ -3781,6 +3781,10 @@ let rec create com =
 	(match m.m_types with
 	| [TClassDecl c] -> ctx.t.tarray <- (fun t -> TInst (c,[t]))
 	| _ -> assert false);
+	let m = Typeload.load_module ctx (["haxe"],"EnumTools") null_pos in
+	(match m.m_types with
+	| [TClassDecl c1;TClassDecl c2] -> ctx.g.global_using <- c1 :: c2 :: ctx.g.global_using
+	| _ -> assert false);
 	ctx
 
 ;;
