@@ -762,4 +762,23 @@ class TestType extends Test {
 	}
 
 	static function _mapMe(map:Map < Int, String > ) { }
+	
+	function testAbstractOverload() {
+		var ms1:unit.MyAbstract.MyString = "foo";
+		var ms2:unit.MyAbstract.MyString = "bar";
+		var msum = ms1 + ms2;
+		eq(msum, "foobar");
+		typedAs(msum, ms1);
+		t(Std.is(msum, String));
+		
+		var msum2 = ms1 + 1;
+		eq(msum2, "foo1");
+		typedAs(msum2, ms1);
+		t(Std.is(msum2, String));
+		
+		// operation is defined, but return type is not compatible
+		t(typeError(ms1 + true));
+		// operation is not defined
+		t(typeError(ms1 - ms2));
+	}
 }

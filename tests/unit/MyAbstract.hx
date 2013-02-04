@@ -66,7 +66,7 @@ abstract MyHash<V>(haxe.ds.StringMap<V>) {
 	public inline function toString()
 		return this.toString()
 
-	@:from static public function fromStringArray(arr:Array<String>) {
+	@:from static public function fromStringArray(arr:Array<String>):MyHash<String> {
 		var hash = new MyHash();
 		var i = 0;
 		while (i < arr.length) {
@@ -150,6 +150,13 @@ abstract MyInt(Int) from Int to Int {
 			s.add(rhs);
 		return s.toString();
 	}
+}
+
+abstract MyString(String) from String to String {
+	@:op(A + B) static public function add(lhs:MyString, rhs:MyString):MyString;
+	@:op(A + B) static public function addInt(lhs:MyString, rhs:Int):MyString;
+	@:op(A + B) static public function addBool(lhs:MyString, rhs:Bool):Bool;
+	@:op(A - B) static public function sub(lhs:MyString, rhs:MyString):MyString;
 }
 
 class ClassWithHashCode {

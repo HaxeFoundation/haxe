@@ -1296,44 +1296,6 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 			make_call ctx acc [e] ctx.t.tstring e.epos
 		| KInt | KFloat | KString -> e
 	in
-	let find_overload a t left =
-		let rec loop ops = match ops with
-			| [] -> raise Not_found
-			| (o,cf) :: ops when is_assign_op && o = OpAssignOp(op) || o == op ->
-				(match follow cf.cf_type with
-				| TFun([(_,_,t1);(_,_,t2)],r) when (left || Meta.has Meta.Commutative cf.cf_meta) && type_iseq t t2 ->
-					cf,r,o = OpAssignOp(op)
-				| _ -> loop ops)
-			| _ :: ops ->
-				loop ops
-		in
-		loop a.a_ops
-	in
-	let mk_cast_op c f a pl e1 e2 r assign =
-		match f.cf_expr with
-		| None -> mk (TBinop (op,e1,e2)) r p
-		| Some _ ->
-			let t = field_type ctx c [] f p in
-			let t = apply_params a.a_types pl t in
-			let et = type_module_type ctx (TClassDecl c) None p in
-			let ef = mk (TField (et,FStatic (c,f))) t p in
-			let ec = make_call ctx ef [e1;e2] r p in
-			(* obviously a hack to report back that we need an assignment *)
-			if is_assign_op && not assign then mk (TField(ec,FDynamic ":needsAssign")) t_dynamic p else ec
-	in
-	try (match e1.etype with
-		| TAbstract ({a_impl = Some c} as a,pl) ->
-			let f,r,assign = find_overload a e2.etype true in
-			mk_cast_op c f a pl e1 e2 r assign
-		| _ ->
-			raise Not_found)
-	with Not_found -> try (match e2.etype with
-		| TAbstract ({a_impl = Some c} as a,pl) ->
-			let f,r,assign = find_overload a e1.etype false in
-			mk_cast_op c f a pl e2 e1 r assign
-		| _ ->
-			raise Not_found)
-	with Not_found ->
 	let mk_op t =
 		if op = OpAdd && (classify t) = KString then
 			let e1 = to_string e1 in
@@ -1342,7 +1304,7 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 		else
 			mk (TBinop (op,e1,e2)) t p
 	in
-	match op with
+	let make e1 e2 = match op with
 	| OpAdd ->
 		mk_op (match classify e1.etype, classify e2.etype with
 		| KInt , KInt ->
@@ -1491,6 +1453,65 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 	| OpAssign
 	| OpAssignOp _ ->
 		assert false
+	in
+	let find_overload a t left =
+		let rec loop ops = match ops with
+			| [] -> raise Not_found
+			| (o,cf) :: ops when is_assign_op && o = OpAssignOp(op) || o == op ->
+				(match follow cf.cf_type with
+				| TFun([(_,_,t1);(_,_,t2)],r) when (left || Meta.has Meta.Commutative cf.cf_meta) && type_iseq t t2 ->
+					cf,r,o = OpAssignOp(op)
+				| _ -> loop ops)
+			| _ :: ops ->
+				loop ops
+		in
+		loop a.a_ops
+	in
+	let mk_cast_op c f a pl e1 e2 r assign =
+		let t = field_type ctx c [] f p in
+		let t = apply_params a.a_types pl t in
+		let et = type_module_type ctx (TClassDecl c) None p in
+		let ef = mk (TField (et,FStatic (c,f))) t p in
+		let ec = make_call ctx ef [e1;e2] r p in
+		(* obviously a hack to report back that we need an assignment *)
+		if is_assign_op && not assign then mk (TField(ec,FDynamic ":needsAssign")) t_dynamic p else ec
+	in
+	let cast_rec e1t e2t r =
+		let e = make e1t e2t in
+		begin try
+			unify_raise ctx e.etype r p
+		with Error (Unify _,_) ->
+			error ("The result of this operation (" ^ (s_type (print_context()) e.etype) ^ ") is not compatible with declared return type " ^ (s_type (print_context()) r)) p;
+		end;
+		{e with etype = r}
+	in
+	try (match e1.etype with
+		| TAbstract ({a_impl = Some c} as a,pl) ->
+			let f,r,assign = find_overload a e2.etype true in
+			begin match f.cf_expr with
+				| None ->
+					let e2 = match e2.etype with TAbstract(a,pl) -> {e2 with etype = apply_params a.a_types pl a.a_this} | _ -> e2 in
+					cast_rec {e1 with etype = apply_params a.a_types pl a.a_this} e2 r
+				| Some _ ->
+					mk_cast_op c f a pl e1 e2 r assign
+			end
+		| _ ->
+			raise Not_found)
+	with Not_found -> try (match e2.etype with
+		| TAbstract ({a_impl = Some c} as a,pl) ->
+			let f,r,assign = find_overload a e1.etype false in
+			begin match f.cf_expr with
+				| None ->
+					let e1 = match e1.etype with TAbstract(a,pl) -> {e1 with etype = apply_params a.a_types pl a.a_this} | _ -> e1 in
+					cast_rec e1 {e2 with etype = apply_params a.a_types pl a.a_this} r
+				| Some _ ->
+					mk_cast_op c f a pl e2 e1 r assign
+			end
+		| _ ->
+			raise Not_found)
+	with Not_found ->
+		make e1 e2
+
 
 and type_unop ctx op flag e p =
 	let set = (op = Increment || op = Decrement) in
