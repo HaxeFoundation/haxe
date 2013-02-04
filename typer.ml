@@ -3380,7 +3380,7 @@ and flush_macro_context mint ctx =
 		mint
 	end else mint in
 	(* we should maybe ensure that all filters in Main are applied. Not urgent atm *)
-	Interp.add_types mint types (Codegen.post_process [Codegen.captured_vars mctx.com; Codegen.rename_local_vars mctx.com]);
+	Interp.add_types mint types (Codegen.post_process [Codegen.handle_abstract_casts mctx; Codegen.captured_vars mctx.com; Codegen.rename_local_vars mctx.com]);
 	Codegen.post_process_end()
 
 let create_macro_interp ctx mctx =
