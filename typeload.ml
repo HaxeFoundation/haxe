@@ -1933,7 +1933,9 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 			let t = load_complex_type ctx p t in
 			if not (Meta.has Meta.CoreType a.a_meta) then begin
 				if !is_type then begin
-					(try type_eq EqStrict a.a_this t with Unify_error _ -> error "You can only declare from/to with your underlying type" p);
+					delay ctx PFinal (fun () ->
+						(try type_eq EqStrict a.a_this t with Unify_error _ -> error "You can only declare from/to with your underlying type" p)
+					);
 				end else
 					error "Missing underlying type declaration or @:coreType declaration" p;
 			end;
