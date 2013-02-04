@@ -1043,6 +1043,11 @@ let rec unify a b =
 		with
 			Unify_error l -> error (cannot_unify a b :: l))
 	| TInst (c,tl) , TAnon an ->
+		if PMap.is_empty an.a_fields then (match c.cl_kind with
+			| KTypeParameter pl ->
+				(* one of the constraints must unify with { } *)
+				if not (List.exists (fun t -> match t with TInst _ | TAnon _ -> true | _ -> false) pl) then error [cannot_unify a b]
+			| _ -> ());
 		(try
 			PMap.iter (fun n f2 ->
 				let _, ft, f1 = (try class_field c n with Not_found -> error [has_no_field a n]) in
