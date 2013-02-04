@@ -21,20 +21,18 @@
  */
 package haxe.ds;
 
-#if (haxe3 && (flash9 || cpp))
+#if (flash9 || cpp)
 @:generic
 #end
-class FastCell<T> #if (!haxe3 && (flash9 || cpp)) implements haxe.rtti.Generic #end {
+class FastCell<T> {
 	public var elt : T;
 	public var next : FastCell<T>;
 	public function new(elt,next) { this.elt = elt; this.next = next; }
 }
 
 #if cpp
-#if haxe3
 @:generic
-#end
-private class GenericStackIterator<T> extends cpp.FastIterator<T>#if !haxe3 , implements haxe.rtti.Generic #end {
+private class GenericStackIterator<T> extends cpp.FastIterator<T> {
 	public var current : FastCell<T>;
 	override public function hasNext():Bool { return current!=null; }
 	override public function next():T { var result = current.elt; current = current.next; return result; }
@@ -47,10 +45,10 @@ private class GenericStackIterator<T> extends cpp.FastIterator<T>#if !haxe3 , im
 /**
 	A linked-list of elements. A different class is created for each container used in platforms where it matters
 **/
-#if (haxe3 && (flash9 || cpp))
+#if (flash9 || cpp)
 @:generic
 #end
-class GenericStack<T> #if (!haxe3 && (flash9 || cpp)) implements haxe.rtti.Generic #end {
+class GenericStack<T> {
 
 	public var head : FastCell<T>;
 
