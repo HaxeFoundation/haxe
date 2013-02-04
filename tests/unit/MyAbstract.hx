@@ -55,7 +55,7 @@ abstract Kilometer(Float) from Float to Float {
 		return new Kilometer(m.get() / 1000.)
 }
 
-abstract MyHash(haxe.ds.StringMap<V>)<V> {
+abstract MyHash<V>(haxe.ds.StringMap<V>) {
 	private inline function new() {
 		this = new haxe.ds.StringMap<V>();
 	}
@@ -96,7 +96,7 @@ class AbstractBase<T> {
 	}
 }
 
-abstract AbstractZ(AbstractBase<T>)<T> from AbstractBase<T> {
+abstract AbstractZ<T>(AbstractBase<T>) from AbstractBase<T> {
 	@:to public static function toFoo(a:AbstractBase<Int>):Int {
 		return a.value;
 	}

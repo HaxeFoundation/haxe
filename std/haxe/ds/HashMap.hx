@@ -21,7 +21,7 @@
  */
 package haxe.ds;
 
-abstract HashMap(IntMap<V>)<K:{ function hashCode():Int; }, V > {
+abstract HashMap<K:{ function hashCode():Int; }, V >(IntMap<V>) {
 	public function new() this = new IntMap()
 	public inline function set(k:K, v:V) this.set(k.hashCode(), v)
 	public inline function get(k:K) return this.get(k.hashCode())

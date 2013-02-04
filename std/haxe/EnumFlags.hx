@@ -31,7 +31,7 @@ package haxe;
 	enum instance is passed directly, e.g. as has(EnumCtor). Otherwise
 	Type.enumIndex() reflection is used.
 **/
-abstract EnumFlags(Int)<T:EnumValue> {
+abstract EnumFlags<T:EnumValue>(Int) {
 
 	/**
 		Initializes the bitflags to [i].

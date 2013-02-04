@@ -22,7 +22,7 @@
 package haxe.ds;
 
 @:coreApi
-abstract ObjectMap({})<K,V> {
+abstract ObjectMap<K,V>({}) {
 
 	public function new(weakKeys:Bool = false) : Void {
 		this = untyped __dollar__hnew(0);

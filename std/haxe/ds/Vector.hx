@@ -34,7 +34,7 @@ private typedef VectorData<T> = #if flash10
 	targets, and is never slower.
 **/
 @:arrayAccess
-abstract Vector(VectorData<T>)<T> {
+abstract Vector<T>(VectorData<T>) {
 	/**
 		Creates a new Vector of length [length].
 

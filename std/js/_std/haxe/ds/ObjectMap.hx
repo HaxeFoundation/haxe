@@ -23,7 +23,7 @@
 package haxe.ds;
 
 @:coreApi
-abstract ObjectMap({}) < K: { }, V > {
+abstract ObjectMap <K:{ }, V>({}){
 	
 	static var count = 0;
 	

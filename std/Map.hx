@@ -21,7 +21,7 @@
  */
 
 @:multiType
-abstract Map(IMap < K, V > )<K,V> {
+abstract Map<K,V>(IMap < K, V > ) {
 	public function new();
 
 	@:to static inline function toHash(t:IMap < String, V > ):haxe.ds.StringMap<V> {

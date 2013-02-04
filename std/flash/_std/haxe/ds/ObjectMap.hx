@@ -1,7 +1,7 @@
 package haxe.ds;
 
 @:coreApi
-abstract ObjectMap(flash.utils.Dictionary)<K, V> {
+abstract ObjectMap<K, V>(flash.utils.Dictionary) {
 	public inline function new(weakKeys : Bool = false) {
 		this = new flash.utils.Dictionary(weakKeys);
 	}

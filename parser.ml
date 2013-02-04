@@ -243,7 +243,7 @@ and parse_type_decl s =
 				d_flags = List.map snd c;
 				d_data = t;
 			}, punion p1 p2)
-		| [< '(Kwd Abstract,p1); doc = get_doc; name = type_name; st = parse_abstract_subtype; tl = parse_constraint_params; sl = plist parse_abstract_relations; '(BrOpen,_); fl, p2 = parse_class_fields false p1 >] ->
+		| [< '(Kwd Abstract,p1); doc = get_doc; name = type_name; tl = parse_constraint_params; st = parse_abstract_subtype; sl = plist parse_abstract_relations; '(BrOpen,_); fl, p2 = parse_class_fields false p1 >] ->
 			let flags = List.map (fun (_,c) -> match c with EPrivate -> APrivAbstract | EExtern -> error (Custom "extern abstract not allowed") p1) c in
 			let flags = (match st with None -> flags | Some t -> AIsType t :: flags) in
 			(EAbstract {
