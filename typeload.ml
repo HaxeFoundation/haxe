@@ -775,10 +775,15 @@ let set_heritance ctx c herits p =
 			| TInst (csup,params) ->
 				csup.cl_build();
 				if is_parent c csup then error "Recursive class" p;
-				if c.cl_interface then error "Cannot extend an interface" p;
-				if csup.cl_interface then error "Cannot extend by using an interface" p;
 				process_meta csup;
-				c.cl_super <- Some (csup,params)
+				(* interface extends are listed in cl_implements ! *)
+				if c.cl_interface then begin
+					if not csup.cl_interface then error "Cannot extend by using a class" p;
+					c.cl_implements <- (csup,params) :: c.cl_implements
+				end else begin
+					if csup.cl_interface then error "Cannot extend by using an interface" p;
+					c.cl_super <- Some (csup,params)
+				end
 			| _ -> error "Should extend by using a class" p)
 		| HImplements t ->
 			let t = load_instance ctx t p false in
@@ -789,6 +794,8 @@ let set_heritance ctx c herits p =
 			| TInst (intf,params) ->
 				intf.cl_build();
 				if is_parent c intf then error "Recursive class" p;
+				if c.cl_interface then error "Interfaces cannot implements another interface (use extends instead)" p;
+				if not intf.cl_interface then error "You can only implements an interface" p;
 				process_meta intf;
 				c.cl_implements <- (intf, params) :: c.cl_implements;
 				if not !has_interf then begin
@@ -798,7 +805,7 @@ let set_heritance ctx c herits p =
 			| TDynamic t ->
 				if c.cl_dynamic <> None then error "Cannot have several dynamics" p;
 				c.cl_dynamic <- Some t
-			| _ -> error "Should implement by using an interface or a class" p)
+			| _ -> error "Should implement by using an interface" p)
 	in
 	(*
 		resolve imports before calling build_inheritance, since it requires full paths.

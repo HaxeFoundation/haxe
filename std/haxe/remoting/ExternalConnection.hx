@@ -25,7 +25,7 @@ package haxe.remoting;
 	Synchronous communications between Flash and Javascript.
 **/
 @:expose
-class ExternalConnection implements Connection, implements Dynamic<Connection> {
+class ExternalConnection implements Connection implements Dynamic<Connection> {
 
 	var __data : { name : String, ctx : Context, #if js flash : String #end };
 	var __path : Array<String>;

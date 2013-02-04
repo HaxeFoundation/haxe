@@ -67,7 +67,7 @@ class BaseDefArgs {
 	}
 }
 
-class ExtDefArgs extends BaseDefArgs, implements IDefArgs {
+class ExtDefArgs extends BaseDefArgs implements IDefArgs {
 	public function new() {
 	}
 	override function get( x = 7 ) {

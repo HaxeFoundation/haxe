@@ -168,7 +168,7 @@ let gen_type_decl com pos t =
 		) in
 		let fields = List.map (fun (f,att) -> gen_field att f) fields in
 		let constr = (match c.cl_constructor with None -> [] | Some f -> [gen_field [] f]) in
-		let impl = List.map (gen_class_path "implements") c.cl_implements in
+		let impl = List.map (gen_class_path (if c.cl_interface then "extends" else "implements")) c.cl_implements in
 		let tree = (match c.cl_super with
 			| None -> impl
 			| Some x -> gen_class_path "extends" x :: impl
@@ -394,7 +394,7 @@ let generate_type com t =
 		| None -> []
 		| Some (c,pl) -> [" extends " ^ stype (TInst (c,pl))]
 		) in
-		let ext = List.fold_left (fun acc (i,pl) -> (" implements " ^ stype (TInst (i,pl))) :: acc) ext c.cl_implements in
+		let ext = List.fold_left (fun acc (i,pl) -> ((if c.cl_interface then " extends " else " implements ") ^ stype (TInst (i,pl))) :: acc) ext c.cl_implements in
 		let ext = (match c.cl_dynamic with
 			| None -> ext
 			| Some t ->
@@ -412,7 +412,7 @@ let generate_type com t =
 			| ["flash";"errors"], "Error" -> [" #if !flash_strict implements Dynamic #end"]
 			| _ -> ext
 		) in
-		p "%s" (String.concat "," (List.rev ext));
+		p "%s" (String.concat " " (List.rev ext));
 		p " {\n";
 		let sort l =
 			let a = Array.of_list (List.filter (fun f -> f.cf_public && not (List.mem f.cf_name c.cl_overrides)) l) in

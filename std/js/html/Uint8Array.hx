@@ -27,7 +27,7 @@ package js.html;
 <p>Once established, you can reference elements in the array using the object's methods, or using standard array index syntax (that is, using bracket notation).</p><br><br>
 Documentation for this class was provided by <a href="https://developer.mozilla.org/en/JavaScript_typed_arrays/Uint8Array">MDN</a>. */
 @:native("Uint8Array")
-extern class Uint8Array extends ArrayBufferView, implements ArrayAccess<Int>
+extern class Uint8Array extends ArrayBufferView implements ArrayAccess<Int>
 {
 	/** The size, in bytes, of each array element. */
 	static inline var BYTES_PER_ELEMENT : Int = 1;
@@ -70,7 +70,7 @@ Uint8Array Uint8Array(
 	/** <p>Sets multiple values in the typed array, reading input values from a specified array.</p>
 
 <div id="section_13"><span id="Parameters_2"></span><h6 class="editable">Parameters</h6>
-<dl> <dt><code>array</code></dt> <dd>An array from which to copy values. All values from the source array are copied into the target array, unless the length of the source array plus the offset exceeds the length of the target array, in which case an exception is thrown. If the source array is a typed array, the two arrays may share the same underlying <code><a title="en/JavaScript typed arrays/ArrayBuffer" rel="internal" href="https://developer.mozilla.org/en/JavaScript_typed_arrays/ArrayBuffer">ArrayBuffer</a></code>; the browser will intelligently copy the source range of the buffer to the destination range.</dd> <dt>offset 
+<dl> <dt><code>array</code></dt> <dd>An array from which to copy values. All values from the source array are copied into the target array, unless the length of the source array plus the offset exceeds the length of the target array, in which case an exception is thrown. If the source array is a typed array, the two arrays may share the same underlying <code><a title="en/JavaScript typed arrays/ArrayBuffer" rel="internal" href="https://developer.mozilla.org/en/JavaScript_typed_arrays/ArrayBuffer">ArrayBuffer</a></code>; the browser will intelligently copy the source range of the buffer to the destination range.</dd> <dt>offset
 <span title="">Optional</span>
 </dt> <dd>The offset into the target array at which to begin writing values from the source <code>array</code>. If you omit this value, 0 is assumed (that is, the source <code>array</code> will overwrite values in the target array starting at index 0).</dd>
 </dl>

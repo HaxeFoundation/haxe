@@ -24,7 +24,7 @@
 package js.html;
 
 @:native("CSSValueList")
-extern class CSSValueList extends CSSValue, implements ArrayAccess<CSSValue>
+extern class CSSValueList extends CSSValue implements ArrayAccess<CSSValue>
 {
 	var length (default,null) : Int;
 

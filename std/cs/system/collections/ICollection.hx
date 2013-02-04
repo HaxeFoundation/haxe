@@ -21,7 +21,7 @@
  */
 package cs.system.collections;
 
-@:native('System.Collections.ICollection') extern interface ICollection implements IEnumerable
+@:native('System.Collections.ICollection') extern interface ICollection extends IEnumerable
 {
 	var Count(default, null):Int;
 	var IsSynchronized(default, null):Bool;

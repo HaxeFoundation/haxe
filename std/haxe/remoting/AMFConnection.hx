@@ -21,7 +21,7 @@
  */
 package haxe.remoting;
 
-class AMFConnection implements AsyncConnection, implements Dynamic<AsyncConnection> {
+class AMFConnection implements AsyncConnection implements Dynamic<AsyncConnection> {
 
 	var __data : {
 		error : Dynamic -> Void,

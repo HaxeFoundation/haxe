@@ -1,6 +1,6 @@
 package flash.display;
 
-@:final extern class GraphicsStroke implements IGraphicsData, implements IGraphicsStroke {
+@:final extern class GraphicsStroke implements IGraphicsData implements IGraphicsStroke {
 	var caps : CapsStyle;
 	var fill : IGraphicsFill;
 	var joints : JointStyle;

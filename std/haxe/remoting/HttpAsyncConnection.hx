@@ -21,7 +21,7 @@
  */
 package haxe.remoting;
 
-class HttpAsyncConnection implements AsyncConnection, implements Dynamic<AsyncConnection> {
+class HttpAsyncConnection implements AsyncConnection implements Dynamic<AsyncConnection> {
 
 	var __data : { url : String, error : Dynamic -> Void };
 	var __path : Array<String>;

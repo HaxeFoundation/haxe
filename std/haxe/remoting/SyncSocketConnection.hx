@@ -22,7 +22,7 @@
 package haxe.remoting;
 import haxe.remoting.SocketProtocol.Socket;
 
-class SyncSocketConnection implements Connection, implements Dynamic<Connection> {
+class SyncSocketConnection implements Connection implements Dynamic<Connection> {
 
 	var __path : Array<String>;
 	var __proto : SocketProtocol;

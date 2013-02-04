@@ -21,7 +21,7 @@
  */
 package cs;
 
-extern class NativeArray<T> extends cs.system.Array, implements ArrayAccess<T>
+extern class NativeArray<T> extends cs.system.Array implements ArrayAccess<T>
 {
 	public var Length(default, null):Int;
 	

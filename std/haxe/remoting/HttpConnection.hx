@@ -21,7 +21,7 @@
  */
 package haxe.remoting;
 
-class HttpConnection implements Connection, implements Dynamic<Connection> {
+class HttpConnection implements Connection implements Dynamic<Connection> {
 
 	public static var TIMEOUT = 10;
 

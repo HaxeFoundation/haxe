@@ -21,7 +21,7 @@
  */
 package haxe.remoting;
 
-class FlashJsConnection #if flash implements AsyncConnection, implements Dynamic<AsyncConnection> #end {
+class FlashJsConnection #if flash implements AsyncConnection implements Dynamic<AsyncConnection> #end {
 
 #if flash
 

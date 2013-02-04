@@ -21,7 +21,7 @@
  */
 package java.util;
 
-extern interface Collection<E> implements java.util.Iterable<E>
+extern interface Collection<E> extends java.util.Iterable<E>
 {
 	function add(o:E):Bool;
 	function addAll(c:Collection<E>):Bool;

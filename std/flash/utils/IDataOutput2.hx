@@ -1,4 +1,4 @@
 package flash.utils;
 
-extern interface IDataOutput2 implements IDataOutput {
+extern interface IDataOutput2 extends IDataOutput {
 }

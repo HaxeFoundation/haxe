@@ -21,7 +21,7 @@
  */
 package cs.system.collections;
 
-@:native('System.Collections.IDictionary') extern interface IDictionary implements ICollection, implements ArrayAccess<Dynamic>
+@:native('System.Collections.IDictionary') extern interface IDictionary extends ICollection extends ArrayAccess<Dynamic>
 {
 	var IsFixedSize(default, null):Bool;
 	var IsReadOnly(default, null):Bool;

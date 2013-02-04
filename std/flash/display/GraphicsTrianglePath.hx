@@ -1,6 +1,6 @@
 package flash.display;
 
-@:final extern class GraphicsTrianglePath implements IGraphicsData, implements IGraphicsPath {
+@:final extern class GraphicsTrianglePath implements IGraphicsData implements IGraphicsPath {
 	var culling : TriangleCulling;
 	var indices : flash.Vector<Int>;
 	var uvtData : flash.Vector<Float>;

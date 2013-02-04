@@ -1,6 +1,6 @@
 package flash.display;
 
-extern class DisplayObject extends flash.events.EventDispatcher, implements IBitmapDrawable {
+extern class DisplayObject extends flash.events.EventDispatcher implements IBitmapDrawable {
 	var accessibilityProperties : flash.accessibility.AccessibilityProperties;
 	var alpha : Float;
 	var blendMode : BlendMode;

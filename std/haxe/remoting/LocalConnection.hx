@@ -21,7 +21,7 @@
  */
 package haxe.remoting;
 
-class LocalConnection implements AsyncConnection, implements Dynamic<AsyncConnection> {
+class LocalConnection implements AsyncConnection implements Dynamic<AsyncConnection> {
 
 	static var ID = 0;
 

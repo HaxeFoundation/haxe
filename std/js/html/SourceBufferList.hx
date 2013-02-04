@@ -24,7 +24,7 @@
 package js.html;
 
 @:native("SourceBufferList")
-extern class SourceBufferList extends EventTarget, implements ArrayAccess<SourceBuffer>
+extern class SourceBufferList extends EventTarget implements ArrayAccess<SourceBuffer>
 {
 	var length (default,null) : Int;
 

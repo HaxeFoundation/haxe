@@ -1,6 +1,6 @@
 package flash.net;
 
-extern class URLStream extends flash.events.EventDispatcher, implements flash.utils.IDataInput {
+extern class URLStream extends flash.events.EventDispatcher implements flash.utils.IDataInput {
 	var bytesAvailable(default,null) : UInt;
 	var connected(default,null) : Bool;
 	@:require(flash11_4) var diskCacheEnabled(default,null) : Bool;

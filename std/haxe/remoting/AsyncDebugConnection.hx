@@ -21,7 +21,7 @@
  */
 package haxe.remoting;
 
-class AsyncDebugConnection implements AsyncConnection, implements Dynamic<AsyncDebugConnection> {
+class AsyncDebugConnection implements AsyncConnection implements Dynamic<AsyncDebugConnection> {
 
 	var __path : Array<String>;
 	var __cnx : AsyncConnection;

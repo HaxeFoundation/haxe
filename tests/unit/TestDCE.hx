@@ -185,7 +185,7 @@ class PropertyAccessorsFromBaseClass {
 	public function set_x(x:String) return "ok"
 }
 
-class PropertyAccessorsFromBaseClassChild extends PropertyAccessorsFromBaseClass, implements PropertyInterface {
+class PropertyAccessorsFromBaseClassChild extends PropertyAccessorsFromBaseClass implements PropertyInterface {
 	public var x(get_x, set_x):String;
 	public function new() { }
 }
@@ -195,6 +195,6 @@ class InterfaceMethodFromBaseClass {
 	public function unusedInterfaceFunc():Void { }
 }
 
-class InterfaceMethodFromBaseClassChild extends InterfaceMethodFromBaseClass, implements UsedInterface {
+class InterfaceMethodFromBaseClassChild extends InterfaceMethodFromBaseClass implements UsedInterface {
 	public function new() { }
 }

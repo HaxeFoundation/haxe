@@ -229,8 +229,15 @@ and parse_type_decl s =
 				d_flags = List.map snd c @ n;
 				d_data = l
 			}, punion p1 p2)
-		| [< d = parse_class meta c true >] ->
-			d
+		| [< n , p1 = parse_class_flags; doc = get_doc; name = type_name; tl = parse_constraint_params; hl = plist parse_class_herit; '(BrOpen,_); fl, p2 = parse_class_fields false p1 >] ->
+			(EClass {
+				d_name = name;
+				d_doc = doc;
+				d_meta = meta;
+				d_params = tl;
+				d_flags = List.map fst c @ n @ hl;
+				d_data = fl;
+			}, punion p1 p2)
 		| [< '(Kwd Typedef,p1); doc = get_doc; name = type_name; tl = parse_constraint_params; '(Binop OpAssign,p2); t = parse_complex_type; s >] ->
 			(match s with parser
 			| [< '(Semicolon,_) >] -> ()

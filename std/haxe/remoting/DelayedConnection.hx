@@ -21,7 +21,7 @@
  */
 package haxe.remoting;
 
-class DelayedConnection implements AsyncConnection, implements Dynamic<AsyncConnection> {
+class DelayedConnection implements AsyncConnection implements Dynamic<AsyncConnection> {
 
 	public var connection(get,set) : AsyncConnection;
 

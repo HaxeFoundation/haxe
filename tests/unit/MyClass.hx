@@ -50,15 +50,15 @@ class MyChild2 extends MyParent {
 interface I1 { }
 class Base { public var s:String; public function new() { } }
 class Child1 extends Base { public function new() { super(); } }
-class Child2 extends Base, implements I1 { public function new() { super(); } }
+class Child2 extends Base implements I1 { public function new() { super(); } }
 class Child2_1 extends Child2 { public function new() { super(); } }
 class Unrelated implements I1 { public var s:String; public var t:Int;  public function new() { } }
 
-interface I2 implements I1 { }
+interface I2 extends I1 { }
 class ClassI2 implements I2 { public function new() { } }
 
-class CI1 extends Base, implements I1 { public function new() { super(); } }
-class CI2 extends Base, implements I1 { public function new() { super(); } }
+class CI1 extends Base implements I1 { public function new() { super(); } }
+class CI2 extends Base implements I1 { public function new() { super(); } }
 class CII1 extends CI1 { public function new() { super(); } }
 class CII2 extends CI2 { public function new() { super(); } }
 
@@ -70,7 +70,7 @@ interface CovI {
 	public function covariant():Base;
 }
 
-interface CovI2 implements CovI {
+interface CovI2 extends CovI {
 	public function covariant():Child2;
 }
 
@@ -79,7 +79,7 @@ class Cov1 {
 	public function covariant():Base { return new Base(); }
 }
 
-class Cov2 extends Cov1, implements CovI {
+class Cov2 extends Cov1 implements CovI {
 	public function new() { super(); }
 	public override function covariant():Child1 { return new Child1(); }
 }

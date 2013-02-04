@@ -1,6 +1,6 @@
 package flash.display;
 
-@:final extern class GraphicsGradientFill implements IGraphicsData, implements IGraphicsFill {
+@:final extern class GraphicsGradientFill implements IGraphicsData implements IGraphicsFill {
 	var alphas : Array<Float>;
 	var colors : Array<UInt>;
 	var focalPointRatio : Float;

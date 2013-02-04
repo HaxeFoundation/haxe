@@ -1,4 +1,4 @@
 package flash.utils;
 
-extern interface IDataInput2 implements IDataInput {
+extern interface IDataInput2 extends IDataInput {
 }
