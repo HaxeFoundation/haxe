@@ -142,6 +142,7 @@ class Serializer {
 		x : exception
 		y : urlencoded string
 		z : zero
+		M : haxe.ds.ObjectMap
 		C : custom
 	*/
 
@@ -305,6 +306,21 @@ class Serializer {
 				for( k in v.keys() ) {
 					buf.add(":");
 					buf.add(k);
+					serialize(v.get(k));
+				}
+				buf.add("h");
+			case #if (neko || cs) "haxe.ds.ObjectMap" #else cast haxe.ds.ObjectMap #end:
+				buf.add("M");
+				var v : haxe.ds.ObjectMap<Dynamic,Dynamic> = v;
+				for ( k in v.keys() ) {
+					#if (js || flash8)
+					var id = Reflect.field(k, "__id__");
+					Reflect.deleteField(k, "__id__");
+					serialize(k);
+					Reflect.setField(k, "__id__", id);
+					#else
+					serialize(k);
+					#end
 					serialize(v.get(k));
 				}
 				buf.add("h");

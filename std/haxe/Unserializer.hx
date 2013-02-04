@@ -347,6 +347,16 @@ class Unserializer {
 			if( c != "h".code )
 				throw "Invalid IntMap format";
 			return h;
+		case "M".code:
+			var h = new haxe.ds.ObjectMap();
+			cache.push(h);
+			var buf = buf;
+			while( get(pos) != "h".code ) {
+				var s = unserialize();
+				h.set(s,unserialize());
+			}
+			pos++;
+			return h;
 		case "v".code:
 			var d = Date.fromString(buf.substr(pos,19));
 			cache.push(d);

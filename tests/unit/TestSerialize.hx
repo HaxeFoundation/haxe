@@ -53,7 +53,7 @@ class TestSerialize extends Test {
 		haxe.Serializer.USE_ENUM_INDEX = true;
 		doTestEnums();
 
-		// hash
+		// StringMap
 		var h = new haxe.ds.StringMap();
 		h.set("keya",2);
 		h.set("kéyb",-465);
@@ -73,6 +73,32 @@ class TestSerialize extends Test {
 		eq( h2.get(-101), -465 );
 		eq( Lambda.count(h2), 2 );
 
+		// ObjectMap
+		var h = new haxe.ds.ObjectMap();
+		var a = new unit.MyAbstract.ClassWithoutHashCode(9);
+		var b = new unit.MyAbstract.ClassWithoutHashCode(8);
+		h.set(a, b);
+		h.set(b, a);
+		var h2 = id(h);
+		t(Std.is(h2, haxe.ds.ObjectMap));
+		// these are NOT the same objects
+		f(h2.exists(a));
+		f(h2.exists(b));
+		// all these should still work
+		t(h.exists(a));
+		t(h.exists(b));
+		eq(h.get(a), b);
+		eq(h.get(b), a);
+		var nothing = true;
+		for (k in h2.keys()) {
+			nothing = false;
+			t(k.i == 8 || k.i == 9);
+			t(h2.exists(k));
+			var v = h2.get(k);
+			t(v.i == 8 || v.i == 9);
+		}
+		f(nothing);
+		
 		// bytes
 		doTestBytes(haxe.io.Bytes.alloc(0));
 		doTestBytes(haxe.io.Bytes.ofString("A"));
