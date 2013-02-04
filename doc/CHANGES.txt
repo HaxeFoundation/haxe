@@ -1,11 +1,9 @@
 2012-??-??: 3.0.0
 	flash : updated player 11.4 api
 	all : allowed named functions as r-value
-	macro : added $[expr-list] support in reification
 	all : fixed using + overload usage
 	all : allow any type constraint for type parameters
 	all : make property type optional (when a initial value is set)
-	all : new post-compilation DCE
 	all : Std.random(x) when x <= 0 is now always 0
 	spod : added serialized data with SData<T>
 	all : Dispatcher will now throw DETooManyValues
@@ -43,13 +41,20 @@
 	all : changed callback(func, args) to func.bind(args)
 	macro : added haxe.macro.ExprTools/ComplexTypeTools/TypeTools
 	macro : changed reification syntax to ${expr}, $a{array}, $p{path}, $v{value}
+	macro : allow macro @:pos(pos-expr) to inject positions for reification
 	all : added array comprehension
 	flash : Vector.length is now Int instead of UInt
-	all : moved haxe.BaseCode to haxe.crypto.BaseCode
+	all : moved haxe.BaseCode, haxe.Md5 and haxe.SHA1 to haxe.crypto package
 	all : disallow Void variables and arguments (still allow S -> T to S -> Void)
 	all : added Array.map/filter
 	all : added spell check suggestions for enum constructors and fields
 	all : added opaque abstract(T) types
+	all : allow operator overloading on opaque abstract types
+	all : renamed IntIter to IntIterator
+	all : added Map
+	all : added haxe.ds with StringMap, IntMap, HashMap, ObjectMap, Vector, GenericStack
+	all : removed Hash, IntHash and haxe.FastList in favor of the types in haxe.ds
+	all : haxe.xml.Parser now handles entities consistently across platforms
 
 2012-07-16: 2.10
 	java/cs : added two new targets (beta)
