@@ -157,3 +157,8 @@ class ClassWithHashCode {
 	public function new(i) { this.i = i; }
 	public function hashCode() return i
 }
+
+class ClassWithoutHashCode {
+	public var i:Int;
+	public function new(i) { this.i = i; }
+}

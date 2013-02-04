@@ -736,6 +736,16 @@ class TestType extends Test {
 		eq(map.get(b), "bar");
 		t(Std.is(map, haxe.ds.IntMap));
 
+		var map = new Map();
+		var a = new unit.MyAbstract.ClassWithoutHashCode(1);
+		var b = new unit.MyAbstract.ClassWithoutHashCode(2);
+		map.set(a, "foo");
+		map.set(b, "bar");
+		eq(map.get(a), "foo");
+		eq(map.get(b), "bar");
+		// this may be specialized
+		//t(Std.is(map, haxe.ds.ObjectMap));
+		
 		//var map = new unit.MyAbstract.MyMap();
 		//map.set(new haxe.Template("foo"), 99);
 		//t(Std.is(map, unit.MyAbstract.PseudoObjectHash));
