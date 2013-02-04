@@ -29,11 +29,11 @@
 abstract Map<K,V>(IMap < K, V > ) {
 	public function new();
 
-	@:to static inline function toHash(t:IMap < String, V > ):StringMap<V> {
+	@:to static inline function toStringMap(t:IMap < String, V > ):StringMap<V> {
 		return new StringMap<V>();
 	}
 
-	@:to static inline function toIntHash(t:IMap < Int, V > ):IntMap<V> {
+	@:to static inline function toIntMap(t:IMap < Int, V > ):IntMap<V> {
 		return new IntMap<V>();
 	}
 
