@@ -2134,6 +2134,8 @@ let find_referenced_types ctx obj super_deps constructor_deps header_only for_de
 			)
 		| TFun (args,haxe_type) -> visit_type haxe_type;
 				List.iter (fun (_,_,t) -> visit_type t; ) args;
+		| TAbstract (abs,pl) when abs.a_impl <> None ->
+			visit_type (apply_params abs.a_types pl abs.a_this)
 		| _ -> ()
 	in
 	let rec visit_types expression =
