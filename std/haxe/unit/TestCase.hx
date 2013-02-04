@@ -23,7 +23,8 @@ package haxe.unit;
 import haxe.PosInfos;
 
 @:keepSub
-class TestCase #if mt_build implements mt.Protect, #end implements haxe.Public  {
+@:publicFields
+class TestCase #if mt_build implements mt.Protect #end {
 	public var currentTest : TestStatus;
 
 	public function new( ) {

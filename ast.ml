@@ -101,9 +101,10 @@ module Meta = struct
 		| Op
 		| Optional
 		| Overload
-		| Public
 		| PrivateAccess
 		| Protected
+		| Public
+		| PublicFields
 		| ReadOnly
 		| RealPath
 		| Remove
@@ -209,6 +210,7 @@ module Meta = struct
 		| Optional -> ":optional"
 		| Overload -> ":overload"
 		| Public -> ":public"
+		| PublicFields -> ":publicFields"
 		| PrivateAccess -> ":privateAccess"
 		| Protected -> ":protected"
 		| ReadOnly -> ":readOnly"

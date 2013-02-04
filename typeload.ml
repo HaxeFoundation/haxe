@@ -1111,7 +1111,7 @@ let init_class ctx c p context_init herits fields =
 	end else fields, herits in
 	if core_api && not ctx.com.display then delay ctx PForce (fun() -> init_core_api ctx c);
 	let rec extends_public c =
-		List.exists (fun (c,_) -> c.cl_path = (["haxe"],"Public") || extends_public c) c.cl_implements ||
+		Meta.has Meta.PublicFields c.cl_meta ||
 		match c.cl_super with
 		| None -> false
 		| Some (c,_) -> extends_public c

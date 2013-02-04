@@ -1,7 +1,11 @@
 package unit;
 
 @:expose
-@:keepSub class Test #if swf_mark implements mt.Protect #end #if as3 implements haxe.Public #end {
+@:keepSub
+#if as3
+@:publicFields
+#end
+class Test #if swf_mark implements mt.Protect #end {
 
 	public function new() {
 	}
