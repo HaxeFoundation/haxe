@@ -59,7 +59,7 @@
 		if (o != null) untyped {
 			var hasOwnProperty = __js__('Object').prototype.hasOwnProperty;
 			__js__("for( var f in o ) {");
-			if( hasOwnProperty.call(o, f) ) a.push(f);
+			if( f != "__id__" && hasOwnProperty.call(o, f) ) a.push(f);
 			__js__("}");
 		}
 		return a;

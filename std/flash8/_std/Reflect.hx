@@ -68,7 +68,7 @@
 		var a : Array<String> = __keys__(o);
 		var i = 0;
 		while( i < a.length ) {
-			if( !a["hasOwnProperty"]["call"](o,a[i]) )
+			if( a[i] == "__id__" || !a["hasOwnProperty"]["call"](o,a[i]) )
 				a.splice(i,1);
 			else
 				++i;
