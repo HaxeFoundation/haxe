@@ -191,10 +191,11 @@ class Boot extends flash.display.MovieClip {
 					s += ",";
 				s += __string_rec(a[i],str);
 			}
-			return s+"]";
+			return s + "]";
 		default:
 			switch( untyped __typeof__(v) ) {
 			case "function": return "<function>";
+			case "undefined": return "null";
 			}
 		}
 		return new String(v);
