@@ -23,10 +23,8 @@ package php.db;
 
 import php.NativeArray;
 
-#if !old_spod
 import sys.db.Connection;
 import sys.db.ResultSet;
-#end
 
 import php.Lib;
 
