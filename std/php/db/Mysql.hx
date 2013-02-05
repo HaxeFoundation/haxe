@@ -21,7 +21,12 @@
  */
 package php.db;
 
+#if old_spod
 import php.db.Connection;
+#else
+import sys.db.Connection;
+import sys.db.ResultSet;
+#end
 
 private class MysqlConnection implements Connection {
 
@@ -205,7 +210,7 @@ class Mysql {
 		pass : String,
 		socket : String,
 		database : String
-	} ) : php.db.Connection {
+	} ) : Connection {
 		var c = untyped __call__("mysql_connect",
 			params.host + (params.port == null ? '' : ':'+params.port) + (params.socket == null ? '' : ':'+params.socket),
 			params.user,

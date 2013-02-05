@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 package neko.db;
-#if !spod_macro
+#if old_spod
 
 import neko.db.Connection;
 

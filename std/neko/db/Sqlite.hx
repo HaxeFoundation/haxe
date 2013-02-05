@@ -21,7 +21,12 @@
  */
 package neko.db;
 
+#if old_spod
 import neko.db.Connection;
+#else
+import sys.db.Connection;
+import sys.db.ResultSet;
+#end
 
 private class SqliteConnection implements Connection {
 
@@ -178,7 +183,7 @@ private class SqliteResultSet implements ResultSet {
 	public function getFloatResult( n : Int ) : Float {
 		return result_get_float(r,n);
 	}
-	
+
 	public function getFieldsNames() : Array<String> {
 		return null;
 	}

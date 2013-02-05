@@ -21,7 +21,7 @@
  */
 package php.db;
 
-#if !spod_macro
+#if old_spod
 class Transaction {
 
 	public static function isDeadlock(e : Dynamic) {

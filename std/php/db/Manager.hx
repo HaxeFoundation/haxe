@@ -21,12 +21,16 @@
  */
 package php.db;
 
+#if !old_spod
+
+#else
+
 import Reflect;
 import php.db.Connection;
 
 /**
-	SPOD Manager : the persistent object database manager. See the tutorial on
-	haXe website to learn how to use SPOD.
+	Record Manager : the persistent object database manager. See the tutorial on
+	haXe website to learn how to use Record.
 **/
 class Manager<T : Object> {
 
@@ -218,7 +222,7 @@ class Manager<T : Object> {
 		return cast cnx.request(sql).results();
 	}
 
-	/* -------------------------- SPODOBJECT API -------------------------- */
+	/* -------------------------- RECORDOBJECT API -------------------------- */
 
 	function doInsert( x : T ) {
 		unmake(x);
@@ -437,7 +441,7 @@ class Manager<T : Object> {
 	/* --------------------------- INIT / CLEANUP ------------------------- */
 
 	/**
-	* Left for compability with neko SPOD
+	* Left for compability with neko Record
 	*/
 	public static function initialize() {
 
@@ -497,3 +501,4 @@ class Manager<T : Object> {
 		return c;
 	}
 }
+#end

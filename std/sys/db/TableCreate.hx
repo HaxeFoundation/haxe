@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 package sys.db;
-import sys.db.SpodInfos;
+import sys.db.RecordInfos;
 
 class TableCreate {
 
@@ -29,7 +29,7 @@ class TableCreate {
 		return dbName == "SQLite" ? "PRIMARY KEY AUTOINCREMENT" : "AUTO_INCREMENT";
 	}
 
-	public static function getTypeSQL( t : SpodType, dbName : String ) {
+	public static function getTypeSQL( t : RecordType, dbName : String ) {
 		return switch( t ) {
 		case DId: "INTEGER "+autoInc(dbName);
 		case DUId: "INTEGER UNSIGNED "+autoInc(dbName);

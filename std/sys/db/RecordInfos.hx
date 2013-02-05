@@ -21,7 +21,7 @@
  */
 package sys.db;
 
-enum SpodType {
+enum RecordType {
 	DId;
 	DInt;
 	DUId;
@@ -59,13 +59,13 @@ enum SpodType {
 	DNull;
 }
 
-typedef SpodField = {
+typedef RecordField = {
 	var name : String;
-	var t : SpodType;
+	var t : RecordType;
 	var isNull : Bool;
 }
 
-typedef SpodRelation = {
+typedef RecordRelation = {
 	var prop : String;
 	var key : String;
 	var type : String;
@@ -74,11 +74,11 @@ typedef SpodRelation = {
 	var isNull : Bool;
 }
 
-typedef SpodInfos = {
+typedef RecordInfos = {
 	var name : String;
 	var key : Array<String>;
-	var fields : Array<SpodField>;
-	var hfields : haxe.ds.StringMap<SpodField>;
-	var relations : Array<SpodRelation>;
+	var fields : Array<RecordField>;
+	var hfields : haxe.ds.StringMap<RecordField>;
+	var relations : Array<RecordRelation>;
 	var indexes : Array<{ keys : Array<String>, unique : Bool }>;
 }

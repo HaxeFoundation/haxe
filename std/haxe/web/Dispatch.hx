@@ -178,7 +178,7 @@ class Dispatch {
 			var cl : Dynamic = Type.resolveClass(c);
 			if( cl == null ) throw "assert";
 			var o : Dynamic;
-			#if spod_macro
+			#if !old_spod
 			o = cl.manager.unsafeGet(v, lock);
 			#else
 			o = cl.manager.get(v, lock);

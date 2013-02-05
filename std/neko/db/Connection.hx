@@ -21,6 +21,6 @@
  */
 package neko.db;
 
-#if !spod_macro
+#if old_spod
 typedef Connection = sys.db.Connection;
 #end

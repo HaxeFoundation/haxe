@@ -22,12 +22,12 @@
 package neko.db;
 
 /**
-	SPOD Object : the persistent object base type. See the tutorial on haXe
-	website to learn how to use SPOD.
+	Record Object : the persistent object base type. See the tutorial on haXe
+	website to learn how to use Record.
 **/
-#if !spod_macro
+#if old_spod
 
-#if spod_rtti
+#if spod-rtti
 @:rtti
 #end
 class Object {

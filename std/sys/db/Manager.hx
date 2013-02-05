@@ -23,15 +23,15 @@ package sys.db;
 import Reflect;
 import sys.db.Connection;
 
-#if (!spod_macro && !doc_gen && !macro)
-#error "Please use -D spod_macro when using new SPOD version"
+#if (!old_spod && !doc_gen && !macro)
+#error "Cannot use sys.db.Manager with -D old_spod"
 #end
 
 /**
-	SPOD Manager : the persistent object database manager. See the tutorial on
-	haXe website to learn how to use SPOD.
+	Record Manager : the persistent object database manager. See the tutorial on
+	haXe website to learn how to use Record.
 **/
-#if !macro @:build(sys.db.SpodMacros.addRtti()) #end
+#if !macro @:build(sys.db.RecordMacros.addRtti()) #end
 class Manager<T : Object> {
 
 	/* ----------------------------- STATICS ------------------------------ */
@@ -58,7 +58,7 @@ class Manager<T : Object> {
 
 	/* ---------------------------- BASIC API ----------------------------- */
 
-	var table_infos : SpodInfos;
+	var table_infos : RecordInfos;
 	var table_name : String;
 	var table_keys : Array<String>;
 	var class_proto : { prototype : Dynamic };
@@ -82,23 +82,23 @@ class Manager<T : Object> {
 	}
 
 	public macro function get(ethis,id,?lock:haxe.macro.Expr.ExprOf<Bool>) : #if macro haxe.macro.Expr #else haxe.macro.Expr.ExprOf<T> #end {
-		return SpodMacros.macroGet(ethis,id,lock);
+		return RecordMacros.macroGet(ethis,id,lock);
 	}
 
 	public macro function select(ethis, cond, ?options, ?lock:haxe.macro.Expr.ExprOf<Bool>) : #if macro haxe.macro.Expr #else haxe.macro.Expr.ExprOf<T> #end {
-		return SpodMacros.macroSearch(ethis, cond, options, lock, true);
+		return RecordMacros.macroSearch(ethis, cond, options, lock, true);
 	}
 
 	public macro function search(ethis, cond, ?options, ?lock:haxe.macro.Expr.ExprOf<Bool>) : #if macro haxe.macro.Expr #else haxe.macro.Expr.ExprOf<List<T>> #end {
-		return SpodMacros.macroSearch(ethis, cond, options, lock);
+		return RecordMacros.macroSearch(ethis, cond, options, lock);
 	}
 
 	public macro function count(ethis, cond) : #if macro haxe.macro.Expr #else haxe.macro.Expr.ExprOf<Int> #end {
-		return SpodMacros.macroCount(ethis, cond);
+		return RecordMacros.macroCount(ethis, cond);
 	}
 
 	public macro function delete(ethis, cond, ?options) : #if macro haxe.macro.Expr #else haxe.macro.Expr.ExprOf<Void> #end {
-		return SpodMacros.macroDelete(ethis, cond, options);
+		return RecordMacros.macroDelete(ethis, cond, options);
 	}
 
 	public function dynamicSearch( x : {}, ?lock : Bool ) : List<T> {
@@ -114,7 +114,7 @@ class Manager<T : Object> {
 		return getCnx().quote( s );
 	}
 
-	/* -------------------------- SPODOBJECT API -------------------------- */
+	/* -------------------------- RECORDOBJECT API -------------------------- */
 
 	function doUpdateCache( x : T, name : String, v : Dynamic ) {
 		var cache : { v : Dynamic } = Reflect.field(x, "cache_" + name);
@@ -183,7 +183,7 @@ class Manager<T : Object> {
 		addToCache(x);
 	}
 
-	inline function isBinary( t : SpodInfos.SpodType ) {
+	inline function isBinary( t : RecordInfos.RecordType ) {
 		return switch( t ) {
 			case DSmallBinary, DNekoSerialized, DLongBinary, DBytes(_), DBinary: true;
 			//case DData: true // -- disabled for implementation purposes
@@ -507,7 +507,7 @@ class Manager<T : Object> {
 		object_cache = new haxe.ds.StringMap();
 	}
 
-	function initRelation( r : SpodInfos.SpodRelation ) {
+	function initRelation( r : RecordInfos.RecordRelation ) {
 		// setup getter/setter
 		var spod : Dynamic = Type.resolveClass(r.type);
 		if( spod == null ) throw "Missing spod type " + r.type;

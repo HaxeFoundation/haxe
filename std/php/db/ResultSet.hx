@@ -21,6 +21,6 @@
  */
 package php.db;
 
-#if !spod_macro
+#if old_spod
 typedef ResultSet = sys.db.ResultSet;
 #end

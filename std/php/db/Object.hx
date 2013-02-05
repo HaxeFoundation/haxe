@@ -22,10 +22,14 @@
 package php.db;
 
 /**
-	SPOD Object : the persistent object base type. See the tutorial on haXe
-	website to learn how to use SPOD.
+	Record Object : the persistent object base type. See the tutorial on haXe
+	website to learn how to use Record.
 **/
-class Object #if spod_rtti implements haxe.rtti.Infos #end {
+#if old_spod
+#if spod_rtti
+@:rtti
+#end
+class Object {
 
 /*
 	(optional)
@@ -86,3 +90,4 @@ class Object #if spod_rtti implements haxe.rtti.Infos #end {
 	}
 
 }
+#end

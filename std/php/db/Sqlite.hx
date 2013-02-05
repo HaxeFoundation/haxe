@@ -21,7 +21,12 @@
  */
 package php.db;
 
+#if old_spod
 import php.db.Connection;
+#else
+import sys.db.Connection;
+import sys.db.ResultSet;
+#end
 
 private class SqliteConnection implements Connection {
 

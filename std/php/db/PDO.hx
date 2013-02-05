@@ -23,7 +23,7 @@ package php.db;
 
 import php.NativeArray;
 
-#if spod_macros
+#if !old_spod
 import sys.db.Connection;
 import sys.db.ResultSet;
 #end

@@ -21,11 +21,7 @@
  */
 package neko.db;
 
-#if spod_shard
-
-typedef Manager<T : Object> = mt.db.ShardManager<T>;
-
-#elseif spod_macro
+#if !old_spod
 
 #else
 
@@ -33,8 +29,8 @@ import Reflect;
 import neko.db.Connection;
 
 /**
-	SPOD Manager : the persistent object database manager. See the tutorial on
-	haXe website to learn how to use SPOD.
+	Record Manager : the persistent object database manager. See the tutorial on
+	haXe website to learn how to use Record.
 **/
 @:unifyMinDynamic
 class Manager<T : Object> {
@@ -221,7 +217,7 @@ class Manager<T : Object> {
 		return cast cnx.request(sql).results();
 	}
 
-	/* -------------------------- SPODOBJECT API -------------------------- */
+	/* -------------------------- RECORDOBJECT API -------------------------- */
 
 	function doInsert( x : T ) {
 		unmake(x);

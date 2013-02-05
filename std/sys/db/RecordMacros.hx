@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 package sys.db;
-import sys.db.SpodInfos;
+import sys.db.RecordInfos;
 import haxe.macro.Expr;
 import haxe.macro.Type.VarAccess;
 #if macro
@@ -29,22 +29,22 @@ import haxe.macro.Context;
 
 private typedef SqlFunction = {
 	var name : String;
-	var params : Array<SpodType>;
-	var ret : SpodType;
+	var params : Array<RecordType>;
+	var ret : RecordType;
 	var sql : String;
 }
 
-class SpodMacros {
+class RecordMacros {
 
 	static var GLOBAL = null;
 	static var simpleString = ~/^[A-Za-z0-9 ]*$/;
 
 	var isNull : Bool;
 	var manager : Expr;
-	var inf : SpodInfos;
+	var inf : RecordInfos;
 	var g : {
-		var cache : haxe.ds.StringMap<SpodInfos>;
-		var types : haxe.ds.StringMap<SpodType>;
+		var cache : haxe.ds.StringMap<RecordInfos>;
+		var types : haxe.ds.StringMap<RecordType>;
 		var functions : haxe.ds.StringMap<SqlFunction>;
 	};
 
@@ -55,16 +55,16 @@ class SpodMacros {
 			g = initGlobals();
 			GLOBAL = g;
 		}
-		inf = getSpodInfos(c);
+		inf = getRecordInfos(c);
 	}
 
 	function initGlobals()
 	{
 		var cache = new haxe.ds.StringMap();
 		var types = new haxe.ds.StringMap();
-		for( c in Type.getEnumConstructs(SpodType) ) {
-			var e : Dynamic = Reflect.field(SpodType, c);
-			if( Std.is(e, SpodType) )
+		for( c in Type.getEnumConstructs(RecordType) ) {
+			var e : Dynamic = Reflect.field(RecordType, c);
+			if( Std.is(e, RecordType) )
 				types.set("S"+c.substr(1), e);
 		}
 		types.remove("SNull");
@@ -111,7 +111,7 @@ class SpodMacros {
 		#end
 	}
 
-	public dynamic function getManager( t : haxe.macro.Type, p : Position ) : SpodMacros {
+	public dynamic function getManager( t : haxe.macro.Type, p : Position ) : RecordMacros {
 		#if macro
 		return getManagerInfos(t, p);
 		#else
@@ -140,7 +140,7 @@ class SpodMacros {
 		throw "Unsupported " + Std.string(t);
 	}
 
-	function makeSpod( t : haxe.macro.Type ) {
+	function makeRecord( t : haxe.macro.Type ) {
 		switch( t ) {
 		case TInst(c, _):
 			var name = c.toString();
@@ -155,7 +155,7 @@ class SpodMacros {
 			var name = t.toString();
 			if( p.length == 1 && (name == "Null" || name == "sys.db.SNull") ) {
 				isNull = true;
-				return makeSpod(p[0]);
+				return makeRecord(p[0]);
 			}
 		default:
 		}
@@ -191,7 +191,7 @@ class SpodMacros {
 			case "String": DText;
 			case "Date": DDateTime;
 			case "haxe.io.Bytes": DBinary;
-			default: throw "Unsupported SPOD Type " + name;
+			default: throw "Unsupported Record Type " + name;
 			}
 		case TAbstract(a, _):
 			var name = a.toString();
@@ -199,14 +199,14 @@ class SpodMacros {
 			case "Int": DInt;
 			case "Float": DFloat;
 			case "Bool": DBool;
-			default: throw "Unsupported SPOD Type " + name;
+			default: throw "Unsupported Record Type " + name;
 			}
 		case TEnum(e, _):
 			var name = e.toString();
 			return switch( name ) {
 			case "Bool": DBool;
 			default:
-				throw "Unsupported SPOD Type " + name + " (enums must be wrapped with SData or SEnum)";
+				throw "Unsupported Record Type " + name + " (enums must be wrapped with SData or SEnum)";
 			}
 		case TType(td, p):
 			var name = td.toString();
@@ -248,7 +248,7 @@ class SpodMacros {
 			return makeType(follow(t, true));
 		default:
 		}
-		throw "Unsupported SPOD Type " + Std.string(t);
+		throw "Unsupported Record Type " + Std.string(t);
 	}
 
 	function makeIdent( e : Expr ) {
@@ -262,7 +262,7 @@ class SpodMacros {
 		}
 	}
 
-	function getSpodInfos( c : haxe.macro.Type.Ref<haxe.macro.Type.ClassType> ) : SpodInfos {
+	function getRecordInfos( c : haxe.macro.Type.Ref<haxe.macro.Type.ClassType> ) : RecordInfos {
 		var cname = c.toString();
 		var i = g.cache.get(cname);
 		if( i != null ) return i;
@@ -305,7 +305,7 @@ class SpodMacros {
 						for( p in m.params )
 							params.push({ i : makeIdent(p), p : p.pos });
 						isNull = false;
-						var t = makeSpod(f.type);
+						var t = makeRecord(f.type);
 						if( t == null ) error("Relation type should be a sys.db.Object", f.pos);
 						var r = {
 							prop : f.name,
@@ -429,7 +429,7 @@ class SpodMacros {
 		return { expr : EBinop(OpAdd, sql, makeString(s,sql.pos)), pos : sql.pos };
 	}
 
-	function sqlQuoteValue( v : Expr, t : SpodType ) {
+	function sqlQuoteValue( v : Expr, t : RecordType ) {
 		switch( v.expr ) {
 		case EConst(c):
 			switch( c ) {
@@ -449,11 +449,11 @@ class SpodMacros {
 		return { expr : ECall( { expr : EField(manager, "quoteAny"), pos : v.pos }, [ensureType(v,t)]), pos : v.pos }
 	}
 
-	inline function sqlAddValue( sql : Expr, v : Expr, t : SpodType ) {
+	inline function sqlAddValue( sql : Expr, v : Expr, t : RecordType ) {
 		return { expr : EBinop(OpAdd, sql, sqlQuoteValue(v,t)), pos : sql.pos };
 	}
 
-	function unifyClass( t : SpodType ) {
+	function unifyClass( t : RecordType ) {
 		return switch( t ) {
 		case DId, DInt, DUId, DUInt, DEncoded, DFlags(_), DTinyInt, DTinyUInt, DSmallInt, DSmallUInt, DMediumInt, DMediumUInt: 0;
 		case DBigId, DBigInt, DSingle, DFloat: 1;
@@ -475,18 +475,18 @@ class SpodMacros {
 		return c == rc || (c == 0 && rc == 1); // allow Int-to-Float expansion
 	}
 
-	function typeStr( t : SpodType ) {
+	function typeStr( t : RecordType ) {
 		return Std.string(t).substr(1);
 	}
 
-	function canStringify( t : SpodType ) {
+	function canStringify( t : RecordType ) {
 		return switch( unifyClass(t) ) {
 		case 0, 1, 2, 3, 4, 5, 7: true;
 		default: false;
 		};
 	}
 
-	function convertType( t : SpodType ) {
+	function convertType( t : RecordType ) {
 		var pack = [];
 		return TPath( {
 			name : switch( unifyClass(t) ) {
@@ -504,7 +504,7 @@ class SpodMacros {
 		});
 	}
 
-	function unify( t : SpodType, rt : SpodType, pos : Position ) {
+	function unify( t : RecordType, rt : RecordType, pos : Position ) {
 		if( !tryUnify(t, rt) )
 			error(typeStr(t) + " should be " + typeStr(rt), pos);
 	}
@@ -847,7 +847,7 @@ class SpodMacros {
 		return null;
 	}
 
-	function ensureType( e : Expr, rt : SpodType ) {
+	function ensureType( e : Expr, rt : RecordType ) {
 		return { expr : ECheckType(e, convertType(rt)), pos : e.pos };
 	}
 
@@ -1004,7 +1004,7 @@ class SpodMacros {
 		case TInst(c, _): if( c.toString() == "sys.db.Object" ) return null; c;
 		default: return null;
 		};
-		return new SpodMacros(c);
+		return new RecordMacros(c);
 	}
 
 
@@ -1014,7 +1014,7 @@ class SpodMacros {
 	public static function addRtti() : Array<Field> {
 		if( RTTI ) return null;
 		RTTI = true;
-		Context.getType("sys.db.SpodInfos");
+		Context.getType("sys.db.RecordInfos");
 		Context.onGenerate(function(types) {
 			for( t in types )
 				switch( t ) {
@@ -1037,7 +1037,7 @@ class SpodMacros {
 				default:
 				}
 		});
-		Context.registerModuleReuseCall("sys.db.Manager", "sys.db.SpodMacros.addRtti()");
+		Context.registerModuleReuseCall("sys.db.Manager", "sys.db.RecordMacros.addRtti()");
 		return null;
 	}
 
