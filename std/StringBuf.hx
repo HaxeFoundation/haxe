@@ -77,7 +77,7 @@ class StringBuf {
 		of [s].
 	**/
 	public inline function addSub( s : String, pos : Int, ?len : Int) : Void {
-		b += s.substr(pos, len);
+		b += (len == null ? s.substr(pos) : s.substr(pos, len));
 	}
 
 	/**
