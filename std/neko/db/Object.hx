@@ -28,7 +28,7 @@ package neko.db;
 #if !spod_macro
 
 #if spod_rtti
-@:rttiInfos
+@:rtti
 #end
 class Object {
 

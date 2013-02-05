@@ -110,7 +110,7 @@ module Meta = struct
 		| Remove
 		| Require
 		| ReplaceReflection
-		| RttiInfos
+		| Rtti
 		| Runtime
 		| RuntimeValue
 		| Setter
@@ -218,7 +218,7 @@ module Meta = struct
 		| Remove -> ":remove"
 		| Require -> ":require"
 		| ReplaceReflection -> ":replaceReflection"
-		| RttiInfos -> ":rttiInfos"
+		| Rtti -> ":rtti"
 		| Runtime -> ":runtime"
 		| RuntimeValue -> ":runtimeValue"
 		| Setter -> ":setter"

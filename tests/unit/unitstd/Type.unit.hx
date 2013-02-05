@@ -6,7 +6,7 @@ Type.getClass(Float) == null;
 Type.getClass(null) == null;
 Type.getClass(Int) == null;
 Type.getClass(Bool) == null;
-Type.getClass(haxe.macro.Expr.ExprDef.EBreak) == null;
+//Type.getClass(haxe.macro.Expr.ExprDef.EBreak) == null;
 Type.getClass( { } ) == null;
 
 // getEnum

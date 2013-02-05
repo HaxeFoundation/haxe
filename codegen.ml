@@ -634,7 +634,7 @@ let apply_native_paths ctx t =
 (* Adds the __rtti field if required *)
 let add_rtti ctx t =
 	let rec has_rtti c =
-		Meta.has Meta.RttiInfos c.cl_meta || match c.cl_super with None -> false | Some (csup,_) -> has_rtti csup
+		Meta.has Meta.Rtti c.cl_meta || match c.cl_super with None -> false | Some (csup,_) -> has_rtti csup
 	in
 	match t with
 	| TClassDecl c when has_rtti c && not (PMap.mem "__rtti" c.cl_statics) ->
