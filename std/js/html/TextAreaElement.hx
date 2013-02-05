@@ -60,11 +60,11 @@ extern class TextAreaElement extends Element
  attribute of any <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/form">&lt;form&gt;</a></code>
  element in the same document.</li> <li>
 <span><a rel="custom" href="https://developer.mozilla.org/en/HTML">HTML 4</a></span> this must be <code>null</code>.</li> </ul> */
-	var form (default,null) : FormElement;
+	var form(default,null) : FormElement;
 
 	/** A list of <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/label">&lt;label&gt;</a></code>
  elements that are labels for this element. */
-	var labels (default,null) : NodeList;
+	var labels(default,null) : NodeList;
 
 	/** Reflects the 
 
@@ -114,22 +114,22 @@ extern class TextAreaElement extends Element
 	var selectionStart : Int;
 
 	/** The codepoint length of the control's value. */
-	var textLength (default,null) : Int;
+	var textLength(default,null) : Int;
 
 	/** The string <code>textarea</code>. */
-	var type (default,null) : String;
+	var type(default,null) : String;
 
 	/** A localized message that describes the validation constraints that the control does not satisfy (if any). This is the empty string if the control is not a candidate for constraint validation (<strong>willValidate</strong> is false), or it satisfies its constraints. */
-	var validationMessage (default,null) : String;
+	var validationMessage(default,null) : String;
 
 	/** The validity states that this element is in. */
-	var validity (default,null) : ValidityState;
+	var validity(default,null) : ValidityState;
 
 	/** The raw value contained in the control. */
 	var value : String;
 
 	/** Indicates whether the element is a candidate for constraint validation. It is false if any conditions bar it from constraint validation. */
-	var willValidate (default,null) : Bool;
+	var willValidate(default,null) : Bool;
 
 	/** Reflects the 
 

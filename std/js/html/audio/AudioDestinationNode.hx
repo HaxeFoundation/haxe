@@ -26,6 +26,6 @@ package js.html.audio;
 @:native("AudioDestinationNode")
 extern class AudioDestinationNode extends AudioNode
 {
-	var numberOfChannels (default,null) : Int;
+	var numberOfChannels(default,null) : Int;
 
 }

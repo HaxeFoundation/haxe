@@ -34,8 +34,8 @@ extern class PerformanceNavigation
 
 	static inline var TYPE_RESERVED : Int = 255;
 
-	var redirectCount (default,null) : Int;
+	var redirectCount(default,null) : Int;
 
-	var type (default,null) : Int;
+	var type(default,null) : Int;
 
 }

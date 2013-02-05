@@ -26,6 +26,6 @@ package js.html.rtc;
 @:native("MediaStreamTrackEvent")
 extern class MediaStreamTrackEvent extends js.html.Event
 {
-	var track (default,null) : MediaStreamTrack;
+	var track(default,null) : MediaStreamTrack;
 
 }

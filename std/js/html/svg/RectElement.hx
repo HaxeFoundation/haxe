@@ -32,25 +32,25 @@ extern class RectElement extends Element
 	/** Corresponds to attribute 
 <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Attribute/height">height</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/rect">&lt;rect&gt;</a></code>
  element. */
-	var height (default,null) : AnimatedLength;
+	var height(default,null) : AnimatedLength;
 
 	/** Corresponds to attribute 
 <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Attribute/rx">rx</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/rect">&lt;rect&gt;</a></code>
  element. */
-	var rx (default,null) : AnimatedLength;
+	var rx(default,null) : AnimatedLength;
 
 	/** Corresponds to attribute 
 <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Attribute/ry">ry</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/rect">&lt;rect&gt;</a></code>
  element. */
-	var ry (default,null) : AnimatedLength;
+	var ry(default,null) : AnimatedLength;
 
 	/** Corresponds to attribute 
 <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Attribute/width">width</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/rect">&lt;rect&gt;</a></code>
  element. */
-	var width (default,null) : AnimatedLength;
+	var width(default,null) : AnimatedLength;
 
-	var x (default,null) : AnimatedLength;
+	var x(default,null) : AnimatedLength;
 
-	var y (default,null) : AnimatedLength;
+	var y(default,null) : AnimatedLength;
 
 }

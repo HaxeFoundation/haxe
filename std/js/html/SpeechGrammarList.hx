@@ -26,7 +26,7 @@ package js.html;
 @:native("SpeechGrammarList")
 extern class SpeechGrammarList implements ArrayAccess<SpeechGrammar>
 {
-	var length (default,null) : Int;
+	var length(default,null) : Int;
 
 	function new() : Void;
 

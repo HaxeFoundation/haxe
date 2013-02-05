@@ -26,6 +26,6 @@ package js.html.audio;
 @:native("OfflineAudioCompletionEvent")
 extern class OfflineAudioCompletionEvent extends js.html.Event
 {
-	var renderedBuffer (default,null) : AudioBuffer;
+	var renderedBuffer(default,null) : AudioBuffer;
 
 }

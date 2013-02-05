@@ -28,7 +28,7 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("NamedNodeMap")
 extern class NamedNodeMap implements ArrayAccess<Node>
 {
-	var length (default,null) : Int;
+	var length(default,null) : Int;
 
 	function getNamedItem( name : String ) : Node;
 

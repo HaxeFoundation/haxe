@@ -26,15 +26,15 @@ package js.html;
 @:native("TextTrack")
 extern class TextTrack extends EventTarget
 {
-	var activeCues (default,null) : TextTrackCueList;
+	var activeCues(default,null) : TextTrackCueList;
 
-	var cues (default,null) : TextTrackCueList;
+	var cues(default,null) : TextTrackCueList;
 
-	var kind (default,null) : String;
+	var kind(default,null) : String;
 
-	var label (default,null) : String;
+	var label(default,null) : String;
 
-	var language (default,null) : String;
+	var language(default,null) : String;
 
 	var mode : String;
 

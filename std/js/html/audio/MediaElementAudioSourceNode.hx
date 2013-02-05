@@ -26,6 +26,6 @@ package js.html.audio;
 @:native("MediaElementAudioSourceNode")
 extern class MediaElementAudioSourceNode extends AudioSourceNode
 {
-	var mediaElement (default,null) : js.html.MediaElement;
+	var mediaElement(default,null) : js.html.MediaElement;
 
 }

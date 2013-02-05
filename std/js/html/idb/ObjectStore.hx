@@ -28,18 +28,18 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("IDBObjectStore")
 extern class ObjectStore
 {
-	var autoIncrement (default,null) : Bool;
+	var autoIncrement(default,null) : Bool;
 
 	/** A list of the names of <a title="en/IndexedDB#gloss index" rel="internal" href="https://developer.mozilla.org/en/IndexedDB#gloss_index">indexes</a> on objects in this object store. */
-	var indexNames (default,null) : js.html.DOMStringList;
+	var indexNames(default,null) : js.html.DOMStringList;
 
 	/** The <a title="en/IndexedDB#gloss key path" rel="internal" href="https://developer.mozilla.org/en/IndexedDB#gloss_key_path">key path</a> of this object store. If this attribute is null, the application must provide a key for each modification operation. */
-	var keyPath (default,null) : Any;
+	var keyPath(default,null) : Any;
 
 	/** The name of this object store. */
-	var name (default,null) : String;
+	var name(default,null) : String;
 
-	var transaction (default,null) : Transaction;
+	var transaction(default,null) : Transaction;
 
 	function add( value : Dynamic, ?key : Key ) : Request;
 

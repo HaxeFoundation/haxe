@@ -43,23 +43,23 @@ extern class Animation
 
 	static inline var FILL_NONE : Int = 0;
 
-	var delay (default,null) : Float;
+	var delay(default,null) : Float;
 
-	var direction (default,null) : Int;
+	var direction(default,null) : Int;
 
-	var duration (default,null) : Float;
+	var duration(default,null) : Float;
 
 	var elapsedTime : Float;
 
-	var ended (default,null) : Bool;
+	var ended(default,null) : Bool;
 
-	var fillMode (default,null) : Int;
+	var fillMode(default,null) : Int;
 
-	var iterationCount (default,null) : Int;
+	var iterationCount(default,null) : Int;
 
-	var name (default,null) : String;
+	var name(default,null) : String;
 
-	var paused (default,null) : Bool;
+	var paused(default,null) : Bool;
 
 	function pause() : Void;
 

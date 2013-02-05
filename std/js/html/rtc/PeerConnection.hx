@@ -26,12 +26,12 @@ package js.html.rtc;
 @:native("RTCPeerConnection")
 extern class PeerConnection extends js.html.EventTarget
 {
-	var iceState (default,null) : String;
+	var iceState(default,null) : String;
 
 	/** Getter throws DOMException. */
-	var localDescription (default,null) : SessionDescription;
+	var localDescription(default,null) : SessionDescription;
 
-	var localStreams (default,null) : MediaStreamList;
+	var localStreams(default,null) : MediaStreamList;
 
 	var onaddstream : js.html.EventListener;
 
@@ -49,12 +49,12 @@ extern class PeerConnection extends js.html.EventTarget
 
 	var onstatechange : js.html.EventListener;
 
-	var readyState (default,null) : String;
+	var readyState(default,null) : String;
 
 	/** Getter throws DOMException. */
-	var remoteDescription (default,null) : SessionDescription;
+	var remoteDescription(default,null) : SessionDescription;
 
-	var remoteStreams (default,null) : MediaStreamList;
+	var remoteStreams(default,null) : MediaStreamList;
 
 	function new() : Void;
 

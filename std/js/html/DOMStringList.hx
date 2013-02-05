@@ -26,7 +26,7 @@ package js.html;
 @:native("DOMStringList")
 extern class DOMStringList implements ArrayAccess<String>
 {
-	var length (default,null) : Int;
+	var length(default,null) : Int;
 
 	function contains( string : String ) : Bool;
 

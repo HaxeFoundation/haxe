@@ -26,21 +26,21 @@ package js.html.svg;
 @:native("SVGViewSpec")
 extern class ViewSpec
 {
-	var preserveAspectRatio (default,null) : AnimatedPreserveAspectRatio;
+	var preserveAspectRatio(default,null) : AnimatedPreserveAspectRatio;
 
-	var preserveAspectRatioString (default,null) : String;
+	var preserveAspectRatioString(default,null) : String;
 
-	var transform (default,null) : TransformList;
+	var transform(default,null) : TransformList;
 
-	var transformString (default,null) : String;
+	var transformString(default,null) : String;
 
-	var viewBox (default,null) : AnimatedRect;
+	var viewBox(default,null) : AnimatedRect;
 
-	var viewBoxString (default,null) : String;
+	var viewBoxString(default,null) : String;
 
-	var viewTarget (default,null) : Element;
+	var viewTarget(default,null) : Element;
 
-	var viewTargetString (default,null) : String;
+	var viewTargetString(default,null) : String;
 
 	/** Setter throws DOMException. */
 	var zoomAndPan : Int;

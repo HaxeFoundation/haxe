@@ -26,7 +26,7 @@ package js.html;
 @:native("GamepadList")
 extern class GamepadList implements ArrayAccess<Gamepad>
 {
-	var length (default,null) : Int;
+	var length(default,null) : Int;
 
 	function item( index : Int ) : Gamepad;
 

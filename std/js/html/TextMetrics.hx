@@ -28,6 +28,6 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("TextMetrics")
 extern class TextMetrics
 {
-	var width (default,null) : Float;
+	var width(default,null) : Float;
 
 }

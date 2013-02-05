@@ -26,10 +26,10 @@ package js.html;
 @:native("MemoryInfo")
 extern class MemoryInfo
 {
-	var jsHeapSizeLimit (default,null) : Int;
+	var jsHeapSizeLimit(default,null) : Int;
 
-	var totalJSHeapSize (default,null) : Int;
+	var totalJSHeapSize(default,null) : Int;
 
-	var usedJSHeapSize (default,null) : Int;
+	var usedJSHeapSize(default,null) : Int;
 
 }

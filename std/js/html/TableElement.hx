@@ -52,7 +52,7 @@ extern class TableElement extends Element
 	var frame : String;
 
 	/** <b>rows</b> returns the rows in the table. */
-	var rows (default,null) : HTMLCollection;
+	var rows(default,null) : HTMLCollection;
 
 	/** <b>rules</b> specifies which interior borders are visible. */
 	var rules : String;
@@ -61,7 +61,7 @@ extern class TableElement extends Element
 	var summary : String;
 
 	/** <b>tBodies</b> returns the table bodies. */
-	var tBodies (default,null) : HTMLCollection;
+	var tBodies(default,null) : HTMLCollection;
 
 	/** <b>tFoot</b> returns the table footer.
  Setter throws DOMException. */

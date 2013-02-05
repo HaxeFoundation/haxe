@@ -53,7 +53,7 @@ extern class MediaElement extends Element
 
 	static inline var NETWORK_NO_SOURCE : Int = 3;
 
-	var audioDecodedByteCount (default,null) : Int;
+	var audioDecodedByteCount(default,null) : Int;
 
 	/** Reflects the 
 
@@ -62,7 +62,7 @@ extern class MediaElement extends Element
 	var autoplay : Bool;
 
 	/** The ranges of the media source that the browser has buffered, if any. */
-	var buffered (default,null) : TimeRanges;
+	var buffered(default,null) : TimeRanges;
 
 	var closedCaptionsVisible : Bool;
 
@@ -75,7 +75,7 @@ extern class MediaElement extends Element
 	var controls : Bool;
 
 	/** The absolute URL of the chosen media resource (if, for example, the server selects a media file based on the resolution of the user's display), or an empty string if the <code>networkState</code> is <code>EMPTY</code>. */
-	var currentSrc (default,null) : String;
+	var currentSrc(default,null) : String;
 
 	/** The current playback time, in seconds.&nbsp; Setting this value seeks the media to the new time. Setter throws DOMException. */
 	var currentTime : Float;
@@ -90,17 +90,17 @@ extern class MediaElement extends Element
 	var defaultPlaybackRate : Float;
 
 	/** The length of the media in seconds, or zero if no media data is available.&nbsp; If the media data is available but the length is unknown, this value is <code>NaN</code>.&nbsp; If the media is streamed and has no predefined length, the value is <code>Inf</code>. */
-	var duration (default,null) : Float;
+	var duration(default,null) : Float;
 
 	/** Indicates whether the media element has ended playback. */
-	var ended (default,null) : Bool;
+	var ended(default,null) : Bool;
 
 	/** The media error object for the most recent error, or null if there has not been an error. */
-	var error (default,null) : MediaError;
+	var error(default,null) : MediaError;
 
-	var hasClosedCaptions (default,null) : Bool;
+	var hasClosedCaptions(default,null) : Bool;
 
-	var initialTime (default,null) : Float;
+	var initialTime(default,null) : Float;
 
 	/** Reflects the 
 
@@ -114,7 +114,7 @@ extern class MediaElement extends Element
 	var muted : Bool;
 
 	/** <p>The current state of fetching the media over the network.</p> <table class="standard-table"> <tbody> <tr> <td class="header">Constant</td> <td class="header">Value</td> <td class="header">Description</td> </tr> <tr> <td><code>EMPTY</code></td> <td>0</td> <td>There is no data yet.&nbsp; The <code>readyState</code> is also <code>HAVE_NOTHING</code>.</td> </tr> <tr> <td><code>LOADING</code></td> <td>1</td> <td>The media is loading.</td> </tr> <tr> <td><code>LOADED_METADATA</code></td> <td>2</td> <td>The media's metadata has been loaded.</td> </tr> <tr> <td><code>LOADED_FIRST_FRAME</code></td> <td>3</td> <td>The media's first frame has been loaded.</td> </tr> <tr> <td><code>LOADED</code></td> <td>4</td> <td>The media has been fully loaded.</td> </tr> </tbody> </table> */
-	var networkState (default,null) : Int;
+	var networkState(default,null) : Int;
 
 	var onkeyadded : EventListener;
 
@@ -125,13 +125,13 @@ extern class MediaElement extends Element
 	var onneedkey : EventListener;
 
 	/** Indicates whether the media element is paused. */
-	var paused (default,null) : Bool;
+	var paused(default,null) : Bool;
 
 	/** The current rate at which the media is being played back. This is used to implement user controls for fast forward, slow motion, and so forth. The normal playback rate is multiplied by this value to obtain the current rate, so a value of 1.0 indicates normal speed.&nbsp; Not supported by the Ogg backend. */
 	var playbackRate : Float;
 
 	/** The ranges of the media source that the browser has played, if any. */
-	var played (default,null) : TimeRanges;
+	var played(default,null) : TimeRanges;
 
 	/** Reflects the 
 
@@ -142,13 +142,13 @@ extern class MediaElement extends Element
 	var preservesPitch : Bool;
 
 	/** <p>The readiness state of the media:</p> <table class="standard-table"> <tbody> <tr> <td class="header">Constant</td> <td class="header">Value</td> <td class="header">Description</td> </tr> <tr> <td><code>HAVE_NOTHING</code></td> <td>0</td> <td>No information is available about the media resource.</td> </tr> <tr> <td><code>HAVE_METADATA</code></td> <td>1</td> <td>Enough of the media resource has been retrieved that the metadata attributes are initialized.&nbsp; Seeking will no longer raise an exception.</td> </tr> <tr> <td><code>HAVE_CURRENT_DATA</code></td> <td>2</td> <td>Data is available for the current playback position, but not enough to actually play more than one frame.</td> </tr> <tr> <td><code>HAVE_FUTURE_DATA</code></td> <td>3</td> <td>Data for the current playback position as well as for at least a little bit of time into the future is available (in other words, at least two frames of video, for example).</td> </tr> <tr> <td><code>HAVE_ENOUGH_DATA</code></td> <td>4</td> <td>Enough data is available—and the download rate is high enough—that the media can be played through to the end without interruption.</td> </tr> </tbody> </table> */
-	var readyState (default,null) : Int;
+	var readyState(default,null) : Int;
 
 	/** The time ranges that the user is able to seek to, if any. */
-	var seekable (default,null) : TimeRanges;
+	var seekable(default,null) : TimeRanges;
 
 	/** Indicates whether the media is in the process of seeking to a new position. */
-	var seeking (default,null) : Bool;
+	var seeking(default,null) : Bool;
 
 	/** Reflects the 
 
@@ -157,11 +157,11 @@ extern class MediaElement extends Element
 	var src : String;
 
 	/** The earliest possible position in the media, in seconds. */
-	var startTime (default,null) : Float;
+	var startTime(default,null) : Float;
 
-	var textTracks (default,null) : TextTrackList;
+	var textTracks(default,null) : TextTrackList;
 
-	var videoDecodedByteCount (default,null) : Int;
+	var videoDecodedByteCount(default,null) : Int;
 
 	/** The audio volume, from 0.0 (silent) to 1.0 (loudest). Setter throws DOMException. */
 	var volume : Float;

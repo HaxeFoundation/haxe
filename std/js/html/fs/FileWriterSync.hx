@@ -26,9 +26,9 @@ package js.html.fs;
 @:native("FileWriterSync")
 extern class FileWriterSync
 {
-	var length (default,null) : Int;
+	var length(default,null) : Int;
 
-	var position (default,null) : Int;
+	var position(default,null) : Int;
 
 	function seek( position : Int ) : Void;
 

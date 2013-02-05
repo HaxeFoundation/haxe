@@ -43,10 +43,10 @@ extern class TextPathElement extends TextContentElement
 
 	static inline var TEXTPATH_SPACINGTYPE_UNKNOWN : Int = 0;
 
-	var method (default,null) : AnimatedEnumeration;
+	var method(default,null) : AnimatedEnumeration;
 
-	var spacing (default,null) : AnimatedEnumeration;
+	var spacing(default,null) : AnimatedEnumeration;
 
-	var startOffset (default,null) : AnimatedLength;
+	var startOffset(default,null) : AnimatedLength;
 
 }

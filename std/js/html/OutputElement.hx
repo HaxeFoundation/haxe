@@ -33,7 +33,7 @@ extern class OutputElement extends Element
 
 <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/output#attr-form">form</a></code>
 &nbsp;HTML&nbsp;attribute if it is defined. */
-	var form (default,null) : FormElement;
+	var form(default,null) : FormElement;
 
 	/** Reflects the 
 
@@ -42,7 +42,7 @@ extern class OutputElement extends Element
 	var htmlFor : DOMSettableTokenList;
 
 	/** A list of label elements associated with this output element. */
-	var labels (default,null) : NodeList;
+	var labels(default,null) : NodeList;
 
 	/** Reflects the 
 
@@ -51,13 +51,13 @@ extern class OutputElement extends Element
 	var name : String;
 
 	/** Must be the string <code>output</code>. */
-	var type (default,null) : String;
+	var type(default,null) : String;
 
 	/** A localized message that describes the validation constraints that the control does not satisfy (if any). This is the empty string if the control is not a candidate for constraint validation (<strong>willValidate</strong> is false), or it satisfies its constraints. */
-	var validationMessage (default,null) : String;
+	var validationMessage(default,null) : String;
 
 	/** The validity states that this element is in. */
-	var validity (default,null) : ValidityState;
+	var validity(default,null) : ValidityState;
 
 	/** The value of the contents of the elements. Behaves like the <strong><a title="En/DOM/Node.textContent" rel="internal" href="https://developer.mozilla.org/En/DOM/Node.textContent">textContent</a></strong> property. */
 	var value : String;
@@ -65,7 +65,7 @@ extern class OutputElement extends Element
 	/** <p>      in Gecko 2.0. Indicates whether the element is a candidate for constraint validation. It is false if any conditions bar it from constraint validation. (See <a rel="external" href="https://bugzilla.mozilla.org/show_bug.cgi?id=604673" class="external" title="">
 bug 604673</a>
 .)</p> <p>The standard behavior is to always return false because <code>output</code> objects are never candidates for constraint validation.</p> */
-	var willValidate (default,null) : Bool;
+	var willValidate(default,null) : Bool;
 
 	function checkValidity() : Bool;
 

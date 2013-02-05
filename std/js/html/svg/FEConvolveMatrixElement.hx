@@ -36,28 +36,28 @@ extern class FEConvolveMatrixElement extends Element
 
 	static inline var SVG_EDGEMODE_WRAP : Int = 2;
 
-	var bias (default,null) : AnimatedNumber;
+	var bias(default,null) : AnimatedNumber;
 
-	var divisor (default,null) : AnimatedNumber;
+	var divisor(default,null) : AnimatedNumber;
 
-	var edgeMode (default,null) : AnimatedEnumeration;
+	var edgeMode(default,null) : AnimatedEnumeration;
 
-	var in1 (default,null) : AnimatedString;
+	var in1(default,null) : AnimatedString;
 
-	var kernelMatrix (default,null) : AnimatedNumberList;
+	var kernelMatrix(default,null) : AnimatedNumberList;
 
-	var kernelUnitLengthX (default,null) : AnimatedNumber;
+	var kernelUnitLengthX(default,null) : AnimatedNumber;
 
-	var kernelUnitLengthY (default,null) : AnimatedNumber;
+	var kernelUnitLengthY(default,null) : AnimatedNumber;
 
-	var orderX (default,null) : AnimatedInteger;
+	var orderX(default,null) : AnimatedInteger;
 
-	var orderY (default,null) : AnimatedInteger;
+	var orderY(default,null) : AnimatedInteger;
 
-	var preserveAlpha (default,null) : AnimatedBoolean;
+	var preserveAlpha(default,null) : AnimatedBoolean;
 
-	var targetX (default,null) : AnimatedInteger;
+	var targetX(default,null) : AnimatedInteger;
 
-	var targetY (default,null) : AnimatedInteger;
+	var targetY(default,null) : AnimatedInteger;
 
 }

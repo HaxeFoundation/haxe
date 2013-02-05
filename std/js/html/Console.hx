@@ -31,9 +31,9 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("Console")
 extern class Console
 {
-	var memory (default,null) : MemoryInfo;
+	var memory(default,null) : MemoryInfo;
 
-	var profiles (default,null) : Array<js.html.ScriptProfile>;
+	var profiles(default,null) : Array<js.html.ScriptProfile>;
 
 	function assert( condition : Bool , ?p1 : Dynamic, ?p2 : Dynamic, ?p3 : Dynamic, ?p4 : Dynamic, ?p5 : Dynamic) : Void;
 

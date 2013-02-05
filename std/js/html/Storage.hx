@@ -31,7 +31,7 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 extern class Storage
 {
 	/** Getter throws DOMException. */
-	var length (default,null) : Int;
+	var length(default,null) : Int;
 
 	function clear() : Void;
 

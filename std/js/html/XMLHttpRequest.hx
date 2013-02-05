@@ -62,14 +62,14 @@ extern class XMLHttpRequest extends EventTarget
 	var onreadystatechange : EventListener;
 
 	/** <p>The state of the request:</p> <table class="standard-table"> <tbody> <tr> <td class="header">Value</td> <td class="header">State</td> <td class="header">Description</td> </tr> <tr> <td><code>0</code></td> <td><code>UNSENT</code></td> <td><code>open()</code>has not been called yet.</td> </tr> <tr> <td><code>1</code></td> <td><code>OPENED</code></td> <td><code>send()</code>has not been called yet.</td> </tr> <tr> <td><code>2</code></td> <td><code>HEADERS_RECEIVED</code></td> <td><code>send()</code> has been called, and headers and status are available.</td> </tr> <tr> <td><code>3</code></td> <td><code>LOADING</code></td> <td>Downloading; <code>responseText</code> holds partial data.</td> </tr> <tr> <td><code>4</code></td> <td><code>DONE</code></td> <td>The operation is complete.</td> </tr> </tbody> </table> */
-	var readyState (default,null) : Int;
+	var readyState(default,null) : Int;
 
 	/** The response entity body according to <code><a href="#responseType">responseType</a></code>, as an <a title="en/JavaScript typed arrays/ArrayBuffer" rel="internal" href="https://developer.mozilla.org/en/JavaScript_typed_arrays/ArrayBuffer"><code>ArrayBuffer</code></a>, <a title="en/DOM/Blob" rel="internal" href="https://developer.mozilla.org/en/DOM/Blob"><code>Blob</code></a>, <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/Document">Document</a></code>
 , JavaScript object (for "moz-json"), or string. This is <code>NULL</code>&nbsp;if the request is not complete or was not successful. Getter throws DOMException. */
-	var response (default,null) : Dynamic;
+	var response(default,null) : Dynamic;
 
 	/** The response to the request as text, or <code>null</code> if the request was unsuccessful or has not yet been sent. <strong>Read-only.</strong> Getter throws DOMException. */
-	var responseText (default,null) : String;
+	var responseText(default,null) : String;
 
 	/** <p>Can be set to change the response type. This tells the server what format you want the response to be in.</p> <table class="standard-table"> <tbody> <tr> <td class="header">Value</td> <td class="header">Data type of <code>response</code> property</td> </tr> <tr> <td><em>empty string</em></td> <td>String (this is the default)</td> </tr> <tr> <td>"arraybuffer"</td> <td><a title="en/JavaScript typed arrays/ArrayBuffer" rel="internal" href="https://developer.mozilla.org/en/JavaScript_typed_arrays/ArrayBuffer"><code>ArrayBuffer</code></a></td> </tr> <tr> <td>"blob"</td> <td><code><a rel="custom" href="https://developer.mozilla.org/en/DOM/Blob">Blob</a></code>
 </td> </tr> <tr> <td>"document"</td> <td><code><a rel="custom" href="https://developer.mozilla.org/en/DOM/Document">Document</a></code>
@@ -80,17 +80,17 @@ extern class XMLHttpRequest extends EventTarget
 	var responseType : String;
 
 	/** <p>The response to the request as a DOM <code><a class="internal" title="En/DOM/Document" rel="internal" href="https://developer.mozilla.org/en/DOM/document">Document</a></code> object, or <code>null</code> if the request was unsuccessful, has not yet been sent, or cannot be parsed as XML. The response is parsed as if it were a <code>text/xml</code> stream. <strong>Read-only.</strong></p> <div class="note"><strong>Note:</strong> If the server doesn't apply the <code>text/xml</code> Content-Type header, you can use <code>overrideMimeType()</code>to force <code>XMLHttpRequest</code> to parse it as XML anyway.</div> Getter throws DOMException. */
-	var responseXML (default,null) : Document;
+	var responseXML(default,null) : Document;
 
 	/** The status of the response to the request. This is the HTTP result code (for example, <code>status</code> is 200 for a successful request). <strong>Read-only.</strong> Getter throws DOMException. */
-	var status (default,null) : Int;
+	var status(default,null) : Int;
 
 	/** The response string returned by the HTTP server. Unlike <code>status</code>, this includes the entire text of the response message ("<code>200 OK</code>", for example). <strong>Read-only.</strong> Getter throws DOMException. */
-	var statusText (default,null) : String;
+	var statusText(default,null) : String;
 
 	/** The upload process can be tracked by adding an event listener to <code>upload</code>. 
 <span>New in <a rel="custom" href="https://developer.mozilla.org/en/Firefox_3.5_for_developers">Firefox 3.5</a></span> */
-	var upload (default,null) : XMLHttpRequestUpload;
+	var upload(default,null) : XMLHttpRequestUpload;
 
 	/** <p>Indicates whether or not cross-site Access-Control requests should be made using credentials such as cookies or authorization headers. 
 <span>New in <a rel="custom" href="https://developer.mozilla.org/en/Firefox_3.5_for_developers">Firefox 3.5</a></span>

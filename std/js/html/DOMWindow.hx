@@ -39,72 +39,72 @@ extern class DOMWindow extends EventTarget
 
 	/** An <code><a rel="custom" href="https://developer.mozilla.org/en/nsIDOMOfflineResourceList">nsIDOMOfflineResourceList</a></code>
  object providing access to the offline resources for the window. */
-	var applicationCache (default,null) : DOMApplicationCache;
+	var applicationCache(default,null) : DOMApplicationCache;
 
-	var clientInformation (default,null) : Navigator;
+	var clientInformation(default,null) : Navigator;
 
 	/** <dd>This property indicates whether the current window is closed or not.</dd> <dt><a title="en/Components_object" rel="internal" href="https://developer.mozilla.org/en/Components_object">window.Components</a></dt> <dd>The entry point to many <a title="en/XPCOM" rel="internal" href="https://developer.mozilla.org/en/XPCOM">XPCOM</a> features. Some properties, e.g. <a title="en/Components.classes" rel="internal" href="https://developer.mozilla.org/en/Components.classes">classes</a>, are only available to sufficiently privileged code.</dd> */
-	var closed (default,null) : Bool;
+	var closed(default,null) : Bool;
 
-	var console (default,null) : Console;
+	var console(default,null) : Console;
 
 	/** Returns the browser crypto object. */
-	var crypto (default,null) : Crypto;
+	var crypto(default,null) : Crypto;
 
 	/** Gets/sets the status bar text for the given window. */
 	var defaultStatus : String;
 
 	var defaultstatus : String;
 
-	var devicePixelRatio (default,null) : Float;
+	var devicePixelRatio(default,null) : Float;
 
 	/** Returns a reference to the document that the window contains. */
-	var document (default,null) : Document;
+	var document(default,null) : Document;
 
-	var event (default,null) : Event;
+	var event(default,null) : Event;
 
 	/** Returns the element in which the window is embedded, or null if the window is not embedded. */
-	var frameElement (default,null) : Element;
+	var frameElement(default,null) : Element;
 
 	/** Returns an array of the subframes in the current window. */
-	var frames (default,null) : DOMWindow;
+	var frames(default,null) : DOMWindow;
 
 	/** Returns a reference to the history object. */
-	var history (default,null) : History;
+	var history(default,null) : History;
 
-	var indexedDB (default,null) : js.html.idb.Factory;
+	var indexedDB(default,null) : js.html.idb.Factory;
 
 	/** Gets the height of the content area of the browser window including, if rendered, the horizontal scrollbar. */
-	var innerHeight (default,null) : Int;
+	var innerHeight(default,null) : Int;
 
 	/** Gets the width of the content area of the browser window including, if rendered, the vertical scrollbar. */
-	var innerWidth (default,null) : Int;
+	var innerWidth(default,null) : Int;
 
 	/** Returns the number of frames in the window. See also <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/window.frames">window.frames</a></code>
 . */
-	var length (default,null) : Int;
+	var length(default,null) : Int;
 
 	/** Returns a reference to the local storage object used to store data that may only be accessed by the origin that created it. Getter throws DOMException. */
-	var localStorage (default,null) : Storage;
+	var localStorage(default,null) : Storage;
 
 	/** Gets/sets the location, or current URL, of the window object. */
 	var location : Location;
 
 	/** Returns the locationbar object, whose visibility can be toggled in the window. */
-	var locationbar (default,null) : BarInfo;
+	var locationbar(default,null) : BarInfo;
 
 	/** Returns the menubar object, whose visibility can be toggled in the window. */
-	var menubar (default,null) : BarInfo;
+	var menubar(default,null) : BarInfo;
 
 	/** Gets/sets the name of the window. */
 	var name : String;
 
 	/** Returns a reference to the navigator object. */
-	var navigator (default,null) : Navigator;
+	var navigator(default,null) : Navigator;
 
-	var notifications (default,null) : NotificationCenter;
+	var notifications(default,null) : NotificationCenter;
 
-	var offscreenBuffering (default,null) : Bool;
+	var offscreenBuffering(default,null) : Bool;
 
 	/** An event handler property for abort events on the window. */
 	var onabort : EventListener;
@@ -280,71 +280,71 @@ extern class DOMWindow extends EventTarget
 	var onwaiting : EventListener;
 
 	/** Returns a reference to the window that opened this current window. */
-	var opener (default,null) : DOMWindow;
+	var opener(default,null) : DOMWindow;
 
 	/** Gets the height of the outside of the browser window. */
-	var outerHeight (default,null) : Int;
+	var outerHeight(default,null) : Int;
 
 	/** Gets the width of the outside of the browser window. */
-	var outerWidth (default,null) : Int;
+	var outerWidth(default,null) : Int;
 
-	var pagePopupController (default,null) : PagePopupController;
+	var pagePopupController(default,null) : PagePopupController;
 
 	/** An alias for <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/window.scrollX">window.scrollX</a></code>
 . */
-	var pageXOffset (default,null) : Int;
+	var pageXOffset(default,null) : Int;
 
 	/** An alias for <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/window.scrollY">window.scrollY</a></code> */
-	var pageYOffset (default,null) : Int;
+	var pageYOffset(default,null) : Int;
 
 	/** Returns a reference to the parent of the current window or subframe. */
-	var parent (default,null) : DOMWindow;
+	var parent(default,null) : DOMWindow;
 
-	var performance (default,null) : Performance;
+	var performance(default,null) : Performance;
 
 	/** Returns the personalbar object, whose visibility can be toggled in the window. */
-	var personalbar (default,null) : BarInfo;
+	var personalbar(default,null) : BarInfo;
 
 	/** Returns a reference to the screen object associated with the window. */
-	var screen (default,null) : Screen;
+	var screen(default,null) : Screen;
 
-	var screenLeft (default,null) : Int;
+	var screenLeft(default,null) : Int;
 
-	var screenTop (default,null) : Int;
+	var screenTop(default,null) : Int;
 
 	/** Returns the horizontal distance of the left border of the user's browser from the left side of the screen. */
-	var screenX (default,null) : Int;
+	var screenX(default,null) : Int;
 
 	/** Returns the vertical distance of the top border of the user's browser from the top side of the screen. */
-	var screenY (default,null) : Int;
+	var screenY(default,null) : Int;
 
 	/** Returns the number of pixels that the document has already been scrolled horizontally. */
-	var scrollX (default,null) : Int;
+	var scrollX(default,null) : Int;
 
 	/** Returns the number of pixels that the document has already been scrolled vertically. */
-	var scrollY (default,null) : Int;
+	var scrollY(default,null) : Int;
 
 	/** Returns the scrollbars object, whose visibility can be toggled in the window. */
-	var scrollbars (default,null) : BarInfo;
+	var scrollbars(default,null) : BarInfo;
 
 	/** Returns an object reference to the window object itself. */
-	var self (default,null) : DOMWindow;
+	var self(default,null) : DOMWindow;
 
 	/** A storage object for storing data within a single page session. Getter throws DOMException. */
-	var sessionStorage (default,null) : Storage;
+	var sessionStorage(default,null) : Storage;
 
 	/** Gets/sets the text in the statusbar at the bottom of the browser. */
 	var status : String;
 
 	/** Returns the statusbar object, whose visibility can be toggled in the window. */
-	var statusbar (default,null) : BarInfo;
+	var statusbar(default,null) : BarInfo;
 
-	var storageInfo (default,null) : StorageInfo;
+	var storageInfo(default,null) : StorageInfo;
 
-	var styleMedia (default,null) : StyleMedia;
+	var styleMedia(default,null) : StyleMedia;
 
 	/** Returns the toolbar object, whose visibility can be toggled in the window. */
-	var toolbar (default,null) : BarInfo;
+	var toolbar(default,null) : BarInfo;
 
 	/** <dd>Returns a reference to the topmost window in the window hierarchy. This property is read only.</dd> <dt><code><a rel="custom" href="https://developer.mozilla.org/en/DOM/window.URL">window.URL</a></code>
  
@@ -353,11 +353,11 @@ extern class DOMWindow extends EventTarget
 </dt> <dd>A DOM&nbsp;URL&nbsp;object, which provides the <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/window.URL.createObjectURL">window.URL.createObjectURL()</a></code>
  and <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/window.URL.revokeObjectURL">window.URL.revokeObjectURL()</a></code>
  methods.</dd> */
-	var top (default,null) : DOMWindow;
+	var top(default,null) : DOMWindow;
 
 	/** <dd>Returns a reference to the current window.</dd> <dt>window[0], window[1], etc.</dt> <dd>Returns a reference to the <code>window</code> object in the frames. See <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/window.frames">window.frames</a></code>
  for more details.</dd> */
-	var window (default,null) : DOMWindow;
+	var window(default,null) : DOMWindow;
 
 	function alert( message : String ) : Void;
 

@@ -26,12 +26,12 @@ package js.html;
 @:native("MimeType")
 extern class DOMMimeType
 {
-	var description (default,null) : String;
+	var description(default,null) : String;
 
-	var enabledPlugin (default,null) : DOMPlugin;
+	var enabledPlugin(default,null) : DOMPlugin;
 
-	var suffixes (default,null) : String;
+	var suffixes(default,null) : String;
 
-	var type (default,null) : String;
+	var type(default,null) : String;
 
 }

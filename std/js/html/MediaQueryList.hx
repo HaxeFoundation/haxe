@@ -37,10 +37,10 @@ extern class MediaQueryList
 {
 	/** <code>true</code> if the <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/document">document</a></code>
  currently matches the media query list; otherwise <code>false</code>. <strong>Read only.</strong> */
-	var matches (default,null) : Bool;
+	var matches(default,null) : Bool;
 
 	/** The serialized media query list. */
-	var media (default,null) : String;
+	var media(default,null) : String;
 
 	function addListener( listener : MediaQueryListListener ) : Void;
 

@@ -26,6 +26,6 @@ package js.html;
 @:native("DOMError")
 extern class DOMError
 {
-	var name (default,null) : String;
+	var name(default,null) : String;
 
 }

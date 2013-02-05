@@ -26,7 +26,7 @@ package js.html.fs;
 @:native("EntryArraySync")
 extern class EntryArraySync implements ArrayAccess<EntrySync>
 {
-	var length (default,null) : Int;
+	var length(default,null) : Int;
 
 	function item( index : Int ) : EntrySync;
 

@@ -29,6 +29,6 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("SVGFEMergeNodeElement")
 extern class FEMergeNodeElement extends Element
 {
-	var in1 (default,null) : AnimatedString;
+	var in1(default,null) : AnimatedString;
 
 }

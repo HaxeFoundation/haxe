@@ -60,25 +60,25 @@ extern class XPathResult
 	static inline var UNORDERED_NODE_SNAPSHOT_TYPE : Int = 6;
 
 	/** readonly boolean Getter throws DOMException. */
-	var booleanValue (default,null) : Bool;
+	var booleanValue(default,null) : Bool;
 
 	/** readonly boolean */
-	var invalidIteratorState (default,null) : Bool;
+	var invalidIteratorState(default,null) : Bool;
 
 	/** readonly float Getter throws DOMException. */
-	var numberValue (default,null) : Float;
+	var numberValue(default,null) : Float;
 
 	/** readonly integer (short) */
-	var resultType (default,null) : Int;
+	var resultType(default,null) : Int;
 
 	/** readonly Node Getter throws DOMException. */
-	var singleNodeValue (default,null) : Node;
+	var singleNodeValue(default,null) : Node;
 
 	/** readonly Integer Getter throws DOMException. */
-	var snapshotLength (default,null) : Int;
+	var snapshotLength(default,null) : Int;
 
 	/** readonly String Getter throws DOMException. */
-	var stringValue (default,null) : String;
+	var stringValue(default,null) : String;
 
 	function iterateNext() : Node;
 

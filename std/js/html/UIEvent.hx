@@ -37,25 +37,25 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("UIEvent")
 extern class UIEvent extends Event
 {
-	var charCode (default,null) : Int;
+	var charCode(default,null) : Int;
 
 	/** Detail about the event, depending on the type of event. <strong>Read only.</strong> */
-	var detail (default,null) : Int;
+	var detail(default,null) : Int;
 
-	var keyCode (default,null) : Int;
+	var keyCode(default,null) : Int;
 
-	var layerX (default,null) : Int;
+	var layerX(default,null) : Int;
 
-	var layerY (default,null) : Int;
+	var layerY(default,null) : Int;
 
-	var pageX (default,null) : Int;
+	var pageX(default,null) : Int;
 
-	var pageY (default,null) : Int;
+	var pageY(default,null) : Int;
 
 	/** A view which generated the event. <strong>Read only.</strong> */
-	var view (default,null) : DOMWindow;
+	var view(default,null) : DOMWindow;
 
-	var which (default,null) : Int;
+	var which(default,null) : Int;
 
 	function initUIEvent( type : String, canBubble : Bool, cancelable : Bool, view : DOMWindow, detail : Int ) : Void;
 

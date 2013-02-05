@@ -31,25 +31,25 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 extern class Request extends js.html.EventTarget
 {
 	/** Getter throws DatabaseException. */
-	var error (default,null) : js.html.DOMError;
+	var error(default,null) : js.html.DOMError;
 
 	/** Getter throws DatabaseException. */
-	var errorCode (default,null) : Int;
+	var errorCode(default,null) : Int;
 
 	/** Getter throws DatabaseException. */
-	var errorMessage (default,null) : String;
+	var errorMessage(default,null) : String;
 
 	var onerror : js.html.EventListener;
 
 	var onsuccess : js.html.EventListener;
 
-	var readyState (default,null) : String;
+	var readyState(default,null) : String;
 
 	/** Getter throws DatabaseException. */
-	var result (default,null) : Any;
+	var result(default,null) : Any;
 
-	var source (default,null) : Any;
+	var source(default,null) : Any;
 
-	var transaction (default,null) : Transaction;
+	var transaction(default,null) : Transaction;
 
 }

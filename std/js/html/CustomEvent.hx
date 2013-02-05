@@ -31,7 +31,7 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 extern class CustomEvent extends Event
 {
 	/** The data passed when initializing the event. */
-	var detail (default,null) : Dynamic;
+	var detail(default,null) : Dynamic;
 
 	function new(type : String, canBubble : Bool = true, cancelable : Bool = true) : Void;
 

@@ -32,32 +32,32 @@ extern class PatternElement extends Element
 	/** Corresponds to attribute 
 <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Attribute/height">height</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/pattern">&lt;pattern&gt;</a></code>
  element. */
-	var height (default,null) : AnimatedLength;
+	var height(default,null) : AnimatedLength;
 
 	/** Corresponds to attribute 
 <code><a rel="internal" href="https://developer.mozilla.org/en/SVG/Attribute/patternContentUnits" class="new">patternContentUnits</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/pattern">&lt;pattern&gt;</a></code>
  element. Takes one of the constants defined in <code><a rel="internal" href="https://developer.mozilla.org/Article_not_found?uri=en/DOM/SVGUnitTypes" class="new">SVGUnitTypes</a></code>
 . */
-	var patternContentUnits (default,null) : AnimatedEnumeration;
+	var patternContentUnits(default,null) : AnimatedEnumeration;
 
 	/** Corresponds to attribute 
 <code><a rel="internal" href="https://developer.mozilla.org/en/SVG/Attribute/patternTransform" class="new">patternTransform</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/pattern">&lt;pattern&gt;</a></code>
  element. */
-	var patternTransform (default,null) : AnimatedTransformList;
+	var patternTransform(default,null) : AnimatedTransformList;
 
 	/** Corresponds to attribute 
 <code><a rel="internal" href="https://developer.mozilla.org/en/SVG/Attribute/patternUnits" class="new">patternUnits</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/pattern">&lt;pattern&gt;</a></code>
  element. Takes one of the constants defined in <code><a rel="internal" href="https://developer.mozilla.org/Article_not_found?uri=en/DOM/SVGUnitTypes" class="new">SVGUnitTypes</a></code>
 . */
-	var patternUnits (default,null) : AnimatedEnumeration;
+	var patternUnits(default,null) : AnimatedEnumeration;
 
 	/** Corresponds to attribute 
 <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Attribute/width">width</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/pattern">&lt;pattern&gt;</a></code>
  element. */
-	var width (default,null) : AnimatedLength;
+	var width(default,null) : AnimatedLength;
 
-	var x (default,null) : AnimatedLength;
+	var x(default,null) : AnimatedLength;
 
-	var y (default,null) : AnimatedLength;
+	var y(default,null) : AnimatedLength;
 
 }

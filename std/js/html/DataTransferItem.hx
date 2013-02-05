@@ -26,9 +26,9 @@ package js.html;
 @:native("DataTransferItem")
 extern class DataTransferItem
 {
-	var kind (default,null) : String;
+	var kind(default,null) : String;
 
-	var type (default,null) : String;
+	var type(default,null) : String;
 
 	function getAsEntry() : js.html.fs.Entry;
 

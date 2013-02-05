@@ -26,7 +26,7 @@ package js.html;
 @:native("ClientRectList")
 extern class ClientRectList implements ArrayAccess<ClientRect>
 {
-	var length (default,null) : Int;
+	var length(default,null) : Int;
 
 	function item( index : Int ) : ClientRect;
 

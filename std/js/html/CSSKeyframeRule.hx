@@ -28,6 +28,6 @@ extern class CSSKeyframeRule extends CSSRule
 {
 	var keyText : String;
 
-	var style (default,null) : CSSStyleDeclaration;
+	var style(default,null) : CSSStyleDeclaration;
 
 }

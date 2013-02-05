@@ -26,6 +26,6 @@ package js.html.rtc;
 @:native("RTCDataChannelEvent")
 extern class DataChannelEvent extends js.html.Event
 {
-	var channel (default,null) : DataChannel;
+	var channel(default,null) : DataChannel;
 
 }

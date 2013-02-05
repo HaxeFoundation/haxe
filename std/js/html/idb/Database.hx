@@ -30,10 +30,10 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 extern class Database extends js.html.EventTarget
 {
 	/** Name of the connected database. */
-	var name (default,null) : String;
+	var name(default,null) : String;
 
 	/** A list of the names of the <a title="en/IndexedDB#gloss object store" rel="internal" href="https://developer.mozilla.org/en/IndexedDB#gloss_object_store">object stores</a> currently in the connected database. */
-	var objectStoreNames (default,null) : js.html.DOMStringList;
+	var objectStoreNames(default,null) : js.html.DOMStringList;
 
 	var onabort : js.html.EventListener;
 
@@ -42,7 +42,7 @@ extern class Database extends js.html.EventTarget
 	var onversionchange : js.html.EventListener;
 
 	/** The version of the connected database. When a database is first created, this attribute is the empty string. */
-	var version (default,null) : Any;
+	var version(default,null) : Any;
 
 	function close() : Void;
 

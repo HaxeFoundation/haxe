@@ -26,8 +26,8 @@ package js.html.svg;
 @:native("SVGFEDistantLightElement")
 extern class FEDistantLightElement extends Element
 {
-	var azimuth (default,null) : AnimatedNumber;
+	var azimuth(default,null) : AnimatedNumber;
 
-	var elevation (default,null) : AnimatedNumber;
+	var elevation(default,null) : AnimatedNumber;
 
 }

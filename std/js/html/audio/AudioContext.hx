@@ -26,17 +26,17 @@ package js.html.audio;
 @:native("AudioContext")
 extern class AudioContext extends js.html.EventTarget
 {
-	var activeSourceCount (default,null) : Int;
+	var activeSourceCount(default,null) : Int;
 
-	var currentTime (default,null) : Float;
+	var currentTime(default,null) : Float;
 
-	var destination (default,null) : AudioDestinationNode;
+	var destination(default,null) : AudioDestinationNode;
 
-	var listener (default,null) : AudioListener;
+	var listener(default,null) : AudioListener;
 
 	var oncomplete : js.html.EventListener;
 
-	var sampleRate (default,null) : Float;
+	var sampleRate(default,null) : Float;
 
 	function new() : Void;
 

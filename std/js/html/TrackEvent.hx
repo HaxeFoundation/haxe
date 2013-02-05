@@ -26,7 +26,7 @@ package js.html;
 @:native("TrackEvent")
 extern class TrackEvent extends Event
 {
-	var track (default,null) : Dynamic;
+	var track(default,null) : Dynamic;
 
 	function new(type : String, canBubble : Bool = true, cancelable : Bool = true) : Void;
 

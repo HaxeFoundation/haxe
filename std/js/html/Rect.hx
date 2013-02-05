@@ -28,12 +28,12 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("Rect")
 extern class Rect
 {
-	var bottom (default,null) : CSSPrimitiveValue;
+	var bottom(default,null) : CSSPrimitiveValue;
 
-	var left (default,null) : CSSPrimitiveValue;
+	var left(default,null) : CSSPrimitiveValue;
 
-	var right (default,null) : CSSPrimitiveValue;
+	var right(default,null) : CSSPrimitiveValue;
 
-	var top (default,null) : CSSPrimitiveValue;
+	var top(default,null) : CSSPrimitiveValue;
 
 }

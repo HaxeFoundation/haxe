@@ -33,10 +33,10 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("DatabaseSync")
 extern class DatabaseSync
 {
-	var lastErrorMessage (default,null) : String;
+	var lastErrorMessage(default,null) : String;
 
 	/** The version of the connected database. Has the null value when the database is first created. */
-	var version (default,null) : String;
+	var version(default,null) : String;
 
 	function changeVersion( oldVersion : String, newVersion : String, ?callback_ : TransactionSyncCallback ) : Void;
 

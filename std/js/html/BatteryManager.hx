@@ -26,13 +26,13 @@ package js.html;
 @:native("BatteryManager")
 extern class BatteryManager extends EventTarget
 {
-	var charging (default,null) : Bool;
+	var charging(default,null) : Bool;
 
-	var chargingTime (default,null) : Float;
+	var chargingTime(default,null) : Float;
 
-	var dischargingTime (default,null) : Float;
+	var dischargingTime(default,null) : Float;
 
-	var level (default,null) : Float;
+	var level(default,null) : Float;
 
 	var onchargingchange : EventListener;
 

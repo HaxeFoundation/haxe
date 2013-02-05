@@ -26,7 +26,7 @@ package js.html.svg;
 @:native("SVGPathSegList")
 extern class PathSegList
 {
-	var numberOfItems (default,null) : Int;
+	var numberOfItems(default,null) : Int;
 
 	function appendItem( newItem : PathSeg ) : PathSeg;
 

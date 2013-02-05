@@ -26,10 +26,10 @@ package js.html.webgl;
 @:native("WebGLShaderPrecisionFormat")
 extern class ShaderPrecisionFormat
 {
-	var precision (default,null) : Int;
+	var precision(default,null) : Int;
 
-	var rangeMax (default,null) : Int;
+	var rangeMax(default,null) : Int;
 
-	var rangeMin (default,null) : Int;
+	var rangeMin(default,null) : Int;
 
 }

@@ -26,12 +26,12 @@ package js.html.svg;
 @:native("SVGFESpecularLightingElement")
 extern class FESpecularLightingElement extends Element
 {
-	var in1 (default,null) : AnimatedString;
+	var in1(default,null) : AnimatedString;
 
-	var specularConstant (default,null) : AnimatedNumber;
+	var specularConstant(default,null) : AnimatedNumber;
 
-	var specularExponent (default,null) : AnimatedNumber;
+	var specularExponent(default,null) : AnimatedNumber;
 
-	var surfaceScale (default,null) : AnimatedNumber;
+	var surfaceScale(default,null) : AnimatedNumber;
 
 }

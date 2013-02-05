@@ -42,6 +42,6 @@ extern class LegendElement extends Element
 	var align : String;
 
 	/** The form that this legend belongs to. If the legend has a fieldset element as its parent, then this attribute returns the same value as the <strong>form</strong> attribute on the parent fieldset element. Otherwise, it returns null. */
-	var form (default,null) : FormElement;
+	var form(default,null) : FormElement;
 
 }

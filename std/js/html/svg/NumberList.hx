@@ -36,7 +36,7 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("SVGNumberList")
 extern class NumberList
 {
-	var numberOfItems (default,null) : Int;
+	var numberOfItems(default,null) : Int;
 
 	function appendItem( item : Number ) : Number;
 

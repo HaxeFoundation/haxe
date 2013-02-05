@@ -68,6 +68,6 @@ extern class CSSTransformValue extends CSSValueList
 
 	static inline var CSS_TRANSLATEZ : Int = 12;
 
-	var operationType (default,null) : Int;
+	var operationType(default,null) : Int;
 
 }

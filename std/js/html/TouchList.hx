@@ -31,7 +31,7 @@ extern class TouchList implements ArrayAccess<Touch>
 {
 	/** The number of <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/Touch">Touch</a></code>
 &nbsp;objects in the <code>TouchList</code>. <strong>Read only.</strong> */
-	var length (default,null) : Int;
+	var length(default,null) : Int;
 
 	function item( index : Int ) : Touch;
 

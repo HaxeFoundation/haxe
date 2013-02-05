@@ -40,7 +40,7 @@ extern class TrackElement extends Element
 	static inline var NONE : Int = 0;
 
 	/** This attribute indicates that the track should be enabled unless the user's preferences indicate that another track is more appropriate. This may only be used on one <code>track</code> element per media element. */
-	var default_ (get,set) :Bool;
+	var default_(get,set) : Bool;
 	private inline function get_default_() : Bool {
 		return untyped this["default"];
 	}
@@ -54,7 +54,7 @@ extern class TrackElement extends Element
 	/** A user-readable title of the text track Used by the browser when listing available text tracks. */
 	var label : String;
 
-	var readyState (default,null) : Int;
+	var readyState(default,null) : Int;
 
 	/** Address of the track. Must be a valid URL. This attribute must be defined. */
 	var src : String;
@@ -62,6 +62,6 @@ extern class TrackElement extends Element
 	/** Language of the track text data. */
 	var srclang : String;
 
-	var track (default,null) : TextTrack;
+	var track(default,null) : TextTrack;
 
 }

@@ -26,10 +26,10 @@ package js.html;
 @:native("DeviceAcceleration")
 extern class DeviceAcceleration
 {
-	var x (default,null) : Float;
+	var x(default,null) : Float;
 
-	var y (default,null) : Float;
+	var y(default,null) : Float;
 
-	var z (default,null) : Float;
+	var z(default,null) : Float;
 
 }

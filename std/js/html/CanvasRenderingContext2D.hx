@@ -30,7 +30,7 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("CanvasRenderingContext2D")
 extern class CanvasRenderingContext2D extends CanvasRenderingContext
 {
-	var backingStorePixelRatio (default,null) : Float;
+	var backingStorePixelRatio(default,null) : Float;
 
 	/** Color or style to use inside shapes. Default <code>#000</code> (black). */
 	var fillStyle : Dynamic;

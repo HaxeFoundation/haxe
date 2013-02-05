@@ -26,10 +26,10 @@ package js.html;
 @:native("ScriptProfile")
 extern class ScriptProfile
 {
-	var head (default,null) : ScriptProfileNode;
+	var head(default,null) : ScriptProfileNode;
 
-	var title (default,null) : String;
+	var title(default,null) : String;
 
-	var uid (default,null) : Int;
+	var uid(default,null) : Int;
 
 }

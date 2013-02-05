@@ -38,14 +38,14 @@ extern class FEDisplacementMapElement extends Element
 
 	static inline var SVG_CHANNEL_UNKNOWN : Int = 0;
 
-	var in1 (default,null) : AnimatedString;
+	var in1(default,null) : AnimatedString;
 
-	var in2 (default,null) : AnimatedString;
+	var in2(default,null) : AnimatedString;
 
-	var scale (default,null) : AnimatedNumber;
+	var scale(default,null) : AnimatedNumber;
 
-	var xChannelSelector (default,null) : AnimatedEnumeration;
+	var xChannelSelector(default,null) : AnimatedEnumeration;
 
-	var yChannelSelector (default,null) : AnimatedEnumeration;
+	var yChannelSelector(default,null) : AnimatedEnumeration;
 
 }

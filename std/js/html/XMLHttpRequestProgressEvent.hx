@@ -26,8 +26,8 @@ package js.html;
 @:native("XMLHttpRequestProgressEvent")
 extern class XMLHttpRequestProgressEvent extends ProgressEvent
 {
-	var position (default,null) : Int;
+	var position(default,null) : Int;
 
-	var totalSize (default,null) : Int;
+	var totalSize(default,null) : Int;
 
 }

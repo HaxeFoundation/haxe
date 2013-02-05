@@ -26,10 +26,10 @@ package js.html;
 @:native("DeviceRotationRate")
 extern class DeviceRotationRate
 {
-	var alpha (default,null) : Float;
+	var alpha(default,null) : Float;
 
-	var beta (default,null) : Float;
+	var beta(default,null) : Float;
 
-	var gamma (default,null) : Float;
+	var gamma(default,null) : Float;
 
 }

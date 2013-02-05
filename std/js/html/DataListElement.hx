@@ -30,6 +30,6 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 extern class DataListElement extends Element
 {
 	/** A collection of the contained option elements. */
-	var options (default,null) : HTMLCollection;
+	var options(default,null) : HTMLCollection;
 
 }

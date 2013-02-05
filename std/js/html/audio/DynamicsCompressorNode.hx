@@ -26,16 +26,16 @@ package js.html.audio;
 @:native("DynamicsCompressorNode")
 extern class DynamicsCompressorNode extends AudioNode
 {
-	var attack (default,null) : AudioParam;
+	var attack(default,null) : AudioParam;
 
-	var knee (default,null) : AudioParam;
+	var knee(default,null) : AudioParam;
 
-	var ratio (default,null) : AudioParam;
+	var ratio(default,null) : AudioParam;
 
-	var reduction (default,null) : AudioParam;
+	var reduction(default,null) : AudioParam;
 
-	var release (default,null) : AudioParam;
+	var release(default,null) : AudioParam;
 
-	var threshold (default,null) : AudioParam;
+	var threshold(default,null) : AudioParam;
 
 }

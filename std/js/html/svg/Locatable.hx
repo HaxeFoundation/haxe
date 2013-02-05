@@ -26,9 +26,9 @@ package js.html.svg;
 @:native("SVGLocatable")
 extern class Locatable
 {
-	var farthestViewportElement (default,null) : Element;
+	var farthestViewportElement(default,null) : Element;
 
-	var nearestViewportElement (default,null) : Element;
+	var nearestViewportElement(default,null) : Element;
 
 	function getBBox() : Rect;
 

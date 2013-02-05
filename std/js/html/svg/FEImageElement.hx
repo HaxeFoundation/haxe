@@ -28,6 +28,6 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("SVGFEImageElement")
 extern class FEImageElement extends Element
 {
-	var preserveAspectRatio (default,null) : AnimatedPreserveAspectRatio;
+	var preserveAspectRatio(default,null) : AnimatedPreserveAspectRatio;
 
 }

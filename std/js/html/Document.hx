@@ -42,10 +42,10 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 extern class Document extends Node
 {
 	/** Returns a string containing the URL of the current document. */
-	var URL (default,null) : String;
+	var URL(default,null) : String;
 
 	/** Returns the currently focused element */
-	var activeElement (default,null) : Element;
+	var activeElement(default,null) : Element;
 
 	/** Returns or sets the color of active links in the document body. */
 	var alinkColor : String;
@@ -53,10 +53,10 @@ extern class Document extends Node
 	var all : HTMLAllCollection;
 
 	/** Returns a list of all of the anchors in the document. */
-	var anchors (default,null) : HTMLCollection;
+	var anchors(default,null) : HTMLCollection;
 
 	/** Returns an ordered list of the applets within a document. */
-	var applets (default,null) : HTMLCollection;
+	var applets(default,null) : HTMLCollection;
 
 	/** Gets/sets the background color of the current document. */
 	var bgColor : String;
@@ -65,22 +65,22 @@ extern class Document extends Node
 	var body : Element;
 
 	/** Returns the character set being used by the document. */
-	var characterSet (default,null) : String;
+	var characterSet(default,null) : String;
 
 	var charset : String;
 
 	/** Indicates whether the document is rendered in Quirks or Strict mode. */
-	var compatMode (default,null) : String;
+	var compatMode(default,null) : String;
 
 	/** Returns a semicolon-separated list of the cookies for that document or sets a single cookie. Getter throws DOMException. Setter throws DOMException. */
 	var cookie : String;
 
-	var currentFullScreenElement (default,null) : Element;
+	var currentFullScreenElement(default,null) : Element;
 
-	var defaultCharset (default,null) : String;
+	var defaultCharset(default,null) : String;
 
 	/** Returns a reference to the window object. */
-	var defaultView (default,null) : DOMWindow;
+	var defaultView(default,null) : DOMWindow;
 
 	/** Gets/sets WYSYWIG editing capability of <a title="en/Midas" rel="internal" href="https://developer.mozilla.org/en/Midas">Midas</a>. It can only be used for HTML documents. */
 	var designMode : String;
@@ -89,59 +89,59 @@ extern class Document extends Node
 	var dir : String;
 
 	/** Returns the Document Type Definition (DTD) of the current document. */
-	var doctype (default,null) : DocumentType;
+	var doctype(default,null) : DocumentType;
 
 	/** Returns the Element that is a direct child of document. For HTML documents, this is normally the HTML element. */
-	var documentElement (default,null) : Element;
+	var documentElement(default,null) : Element;
 
 	/** Returns the document location. */
-	var documentURI (default,null) : String;
+	var documentURI(default,null) : String;
 
 	/** Returns the domain of the current document. Setter throws DOMException. */
 	var domain : String;
 
 	/** Returns a list of the embedded OBJECTS within the current document. */
-	var embeds (default,null) : HTMLCollection;
+	var embeds(default,null) : HTMLCollection;
 
 	/** Gets/sets the foreground color, or text color, of the current document. */
 	var fgColor : String;
 
 	/** Returns a list of the FORM elements within the current document. */
-	var forms (default,null) : HTMLCollection;
+	var forms(default,null) : HTMLCollection;
 
-	var fullScreenKeyboardInputAllowed (default,null) : Bool;
+	var fullScreenKeyboardInputAllowed(default,null) : Bool;
 
-	var fullscreenElement (default,null) : Element;
+	var fullscreenElement(default,null) : Element;
 
-	var fullscreenEnabled (default,null) : Bool;
+	var fullscreenEnabled(default,null) : Bool;
 
 	/** Returns the HEAD node of the current document. */
-	var head (default,null) : HeadElement;
+	var head(default,null) : HeadElement;
 
 	/** Gets/sets the height of the current document. */
-	var height (default,null) : Int;
+	var height(default,null) : Int;
 
-	var hidden (default,null) : Bool;
+	var hidden(default,null) : Bool;
 
 	/** Returns a list of the images in the current document. */
-	var images (default,null) : HTMLCollection;
+	var images(default,null) : HTMLCollection;
 
 	/** Returns the DOM implementation associated with the current document. */
-	var implementation (default,null) : DOMImplementation;
+	var implementation(default,null) : DOMImplementation;
 
 	/** Returns the encoding used when the document was parsed. */
-	var inputEncoding (default,null) : String;
+	var inputEncoding(default,null) : String;
 
-	var isFullScreen (default,null) : Bool;
+	var isFullScreen(default,null) : Bool;
 
 	/** Returns the date on which the document was last modified. */
-	var lastModified (default,null) : String;
+	var lastModified(default,null) : String;
 
 	/** Gets/sets the color of hyperlinks in the document. */
 	var linkColor : String;
 
 	/** Returns a list of all the hyperlinks in the document. */
-	var links (default,null) : HTMLCollection;
+	var links(default,null) : HTMLCollection;
 
 	/** Returns the URI of the current document. */
 	var location : Location;
@@ -253,40 +253,40 @@ extern class Document extends Node
 	var ontouchstart : EventListener;
 
 	/** Returns a list of the available plugins. */
-	var plugins (default,null) : HTMLCollection;
+	var plugins(default,null) : HTMLCollection;
 
-	var pointerLockElement (default,null) : Element;
+	var pointerLockElement(default,null) : Element;
 
-	var preferredStylesheetSet (default,null) : String;
+	var preferredStylesheetSet(default,null) : String;
 
 	/** Returns loading status of the document */
-	var readyState (default,null) : String;
+	var readyState(default,null) : String;
 
 	/** Returns the URI of the page that linked to this page. */
-	var referrer (default,null) : String;
+	var referrer(default,null) : String;
 
 	/** Returns all the <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/script">&lt;script&gt;</a></code>
  elements on the document. */
-	var scripts (default,null) : HTMLCollection;
+	var scripts(default,null) : HTMLCollection;
 
 	var selectedStylesheetSet : String;
 
 	/** Returns a list of the stylesheet objects on the current document. */
-	var styleSheets (default,null) : StyleSheetList;
+	var styleSheets(default,null) : StyleSheetList;
 
 	/** Returns the title of the current document. */
 	var title : String;
 
-	var visibilityState (default,null) : String;
+	var visibilityState(default,null) : String;
 
 	/** Gets/sets the color of visited hyperlinks. */
 	var vlinkColor : String;
 
 	/** Returns the width of the current document. */
-	var width (default,null) : Int;
+	var width(default,null) : Int;
 
 	/** Returns the encoding as determined by the XML declaration.<br> <div class="note">Firefox 10 and later don't implement it anymore.</div> */
-	var xmlEncoding (default,null) : String;
+	var xmlEncoding(default,null) : String;
 
 	/** Returns <code>true</code> if the XML declaration specifies the document is standalone (<em>e.g.,</em> An external part of the DTD affects the document's content), else <code>false</code>. Setter throws DOMException. */
 	var xmlStandalone : Bool;

@@ -26,8 +26,8 @@ package js.html.audio;
 @:native("AudioProcessingEvent")
 extern class AudioProcessingEvent extends js.html.Event
 {
-	var inputBuffer (default,null) : AudioBuffer;
+	var inputBuffer(default,null) : AudioBuffer;
 
-	var outputBuffer (default,null) : AudioBuffer;
+	var outputBuffer(default,null) : AudioBuffer;
 
 }

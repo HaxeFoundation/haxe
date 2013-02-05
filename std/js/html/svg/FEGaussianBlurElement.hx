@@ -29,11 +29,11 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("SVGFEGaussianBlurElement")
 extern class FEGaussianBlurElement extends Element
 {
-	var in1 (default,null) : AnimatedString;
+	var in1(default,null) : AnimatedString;
 
-	var stdDeviationX (default,null) : AnimatedNumber;
+	var stdDeviationX(default,null) : AnimatedNumber;
 
-	var stdDeviationY (default,null) : AnimatedNumber;
+	var stdDeviationY(default,null) : AnimatedNumber;
 
 	function setStdDeviation( stdDeviationX : Float, stdDeviationY : Float ) : Void;
 

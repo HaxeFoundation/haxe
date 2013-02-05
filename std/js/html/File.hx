@@ -40,13 +40,13 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("File")
 extern class File extends Blob
 {
-	var lastModifiedDate (default,null) : Date;
+	var lastModifiedDate(default,null) : Date;
 
 	/** The name of the file referenced by the <code>File</code> object. <strong>Read only.</strong> 
 <span title="(Firefox 3.6 / Thunderbird 3.1 / Fennec 1.0)
 ">Requires Gecko 1.9.2</span> */
-	var name (default,null) : String;
+	var name(default,null) : String;
 
-	var relativePath (default,null) : String;
+	var relativePath(default,null) : String;
 
 }

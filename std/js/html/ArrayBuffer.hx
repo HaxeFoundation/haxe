@@ -29,7 +29,7 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 extern class ArrayBuffer
 {
 	/** The size, in bytes, of the array. This is established when the array is constructed and cannot be changed. <strong>Read only.</strong> */
-	var byteLength (default,null) : Int;
+	var byteLength(default,null) : Int;
 
 	function new(?arg0 : Dynamic) : Void;
 

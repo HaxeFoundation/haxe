@@ -39,12 +39,12 @@ extern class Transaction extends js.html.EventTarget
 	static inline var VERSION_CHANGE : Int = 2;
 
 	/** The database connection that this transaction is associated with. */
-	var db (default,null) : Database;
+	var db(default,null) : Database;
 
-	var error (default,null) : js.html.DOMError;
+	var error(default,null) : js.html.DOMError;
 
 	/** The mode for isolating access to data in the object stores that are in the scope of the transaction. For possible values, see Constants. The default value is <code><a href="#const_read_only" title="#const read only">READ_ONLY</a></code>. */
-	var mode (default,null) : String;
+	var mode(default,null) : String;
 
 	/** The event handler for the <code>onabort</code> event. */
 	var onabort : js.html.EventListener;

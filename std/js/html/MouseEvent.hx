@@ -31,52 +31,52 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 extern class MouseEvent extends UIEvent
 {
 	/** <code>true</code> if the alt key was down when the mouse event was fired. <strong>Read only.</strong> */
-	var altKey (default,null) : Bool;
+	var altKey(default,null) : Bool;
 
 	/** The button number that was pressed when the mouse event was fired:&nbsp;Left button=0, middle button=1 (if present), right button=2. For mice configured for left handed use in which the button actions are reversed the values are instead read from right to left. <strong>Read only.</strong> */
-	var button (default,null) : Int;
+	var button(default,null) : Int;
 
 	/** The X coordinate of the mouse pointer in local (DOM content)&nbsp;coordinates. <strong>Read only.</strong> */
-	var clientX (default,null) : Int;
+	var clientX(default,null) : Int;
 
 	/** The Y coordinate of the mouse pointer in local (DOM content)&nbsp;coordinates. <strong>Read only.</strong> */
-	var clientY (default,null) : Int;
+	var clientY(default,null) : Int;
 
 	/** <code>true</code> if the control key was down when the mouse event was fired. <strong>Read only.</strong> */
-	var ctrlKey (default,null) : Bool;
+	var ctrlKey(default,null) : Bool;
 
-	var dataTransfer (default,null) : Clipboard;
+	var dataTransfer(default,null) : Clipboard;
 
-	var fromElement (default,null) : Node;
+	var fromElement(default,null) : Node;
 
 	/** <code>true</code> if the meta key was down when the mouse event was fired. <strong>Read only.</strong> */
-	var metaKey (default,null) : Bool;
+	var metaKey(default,null) : Bool;
 
-	var movementX (default,null) : Int;
+	var movementX(default,null) : Int;
 
-	var movementY (default,null) : Int;
+	var movementY(default,null) : Int;
 
-	var offsetX (default,null) : Int;
+	var offsetX(default,null) : Int;
 
-	var offsetY (default,null) : Int;
+	var offsetY(default,null) : Int;
 
 	/** The target to which the event applies. <strong>Read only.</strong> */
-	var relatedTarget (default,null) : EventTarget;
+	var relatedTarget(default,null) : EventTarget;
 
 	/** The X coordinate of the mouse pointer in global (screen)&nbsp;coordinates. <strong>Read only.</strong> */
-	var screenX (default,null) : Int;
+	var screenX(default,null) : Int;
 
 	/** The Y coordinate of the mouse pointer in global (screen)&nbsp;coordinates. <strong>Read only.</strong> */
-	var screenY (default,null) : Int;
+	var screenY(default,null) : Int;
 
 	/** <code>true</code> if the shift key was down when the mouse event was fired. <strong>Read only.</strong> */
-	var shiftKey (default,null) : Bool;
+	var shiftKey(default,null) : Bool;
 
-	var toElement (default,null) : Node;
+	var toElement(default,null) : Node;
 
-	var x (default,null) : Int;
+	var x(default,null) : Int;
 
-	var y (default,null) : Int;
+	var y(default,null) : Int;
 
 	function initMouseEvent( type : String, canBubble : Bool, cancelable : Bool, view : DOMWindow, detail : Int, screenX : Int, screenY : Int, clientX : Int, clientY : Int, ctrlKey : Bool, altKey : Bool, shiftKey : Bool, metaKey : Bool, button : Int, relatedTarget : EventTarget ) : Void;
 

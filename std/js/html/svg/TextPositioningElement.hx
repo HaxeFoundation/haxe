@@ -34,18 +34,18 @@ extern class TextPositioningElement extends TextContentElement
 {
 	/** Corresponds to attribute 
 <code><a rel="internal" href="https://developer.mozilla.org/en/SVG/Attribute/dx" class="new">dx</a></code> on the given element. */
-	var dx (default,null) : AnimatedLengthList;
+	var dx(default,null) : AnimatedLengthList;
 
 	/** Corresponds to attribute 
 <code><a rel="internal" href="https://developer.mozilla.org/en/SVG/Attribute/dy" class="new">dy</a></code> on the given element. */
-	var dy (default,null) : AnimatedLengthList;
+	var dy(default,null) : AnimatedLengthList;
 
 	/** Corresponds to attribute 
 <code><a rel="internal" href="https://developer.mozilla.org/en/SVG/Attribute/rotate" class="new">rotate</a></code> on the given element. */
-	var rotate (default,null) : AnimatedNumberList;
+	var rotate(default,null) : AnimatedNumberList;
 
-	var x (default,null) : AnimatedLengthList;
+	var x(default,null) : AnimatedLengthList;
 
-	var y (default,null) : AnimatedLengthList;
+	var y(default,null) : AnimatedLengthList;
 
 }

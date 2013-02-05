@@ -26,14 +26,14 @@ package js.html;
 @:native("WorkerNavigator")
 extern class WorkerNavigator
 {
-	var appName (default,null) : String;
+	var appName(default,null) : String;
 
-	var appVersion (default,null) : String;
+	var appVersion(default,null) : String;
 
-	var onLine (default,null) : Bool;
+	var onLine(default,null) : Bool;
 
-	var platform (default,null) : String;
+	var platform(default,null) : String;
 
-	var userAgent (default,null) : String;
+	var userAgent(default,null) : String;
 
 }

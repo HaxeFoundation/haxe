@@ -44,9 +44,9 @@ extern class SpeechRecognitionError extends Event
 
 	static inline var SERVICE_NOT_ALLOWED : Int = 6;
 
-	var code (default,null) : Int;
+	var code(default,null) : Int;
 
-	var message (default,null) : String;
+	var message(default,null) : String;
 
 	function new(type : String, canBubble : Bool = true, cancelable : Bool = true) : Void;
 

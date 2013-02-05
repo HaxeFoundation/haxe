@@ -28,8 +28,8 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("SVGPolylineElement")
 extern class PolylineElement extends Element
 {
-	var animatedPoints (default,null) : PointList;
+	var animatedPoints(default,null) : PointList;
 
-	var points (default,null) : PointList;
+	var points(default,null) : PointList;
 
 }

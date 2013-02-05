@@ -31,7 +31,7 @@ extern class CharacterData extends Node
 	/** Setter throws DOMException. */
 	var data : String;
 
-	var length (default,null) : Int;
+	var length(default,null) : Int;
 
 	function appendData( data : String ) : Void;
 

@@ -26,15 +26,15 @@ package js.html.audio;
 @:native("AudioParam")
 extern class AudioParam
 {
-	var defaultValue (default,null) : Float;
+	var defaultValue(default,null) : Float;
 
-	var maxValue (default,null) : Float;
+	var maxValue(default,null) : Float;
 
-	var minValue (default,null) : Float;
+	var minValue(default,null) : Float;
 
-	var name (default,null) : String;
+	var name(default,null) : String;
 
-	var units (default,null) : Int;
+	var units(default,null) : Int;
 
 	var value : Float;
 

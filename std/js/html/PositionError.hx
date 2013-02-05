@@ -32,8 +32,8 @@ extern class PositionError
 
 	static inline var TIMEOUT : Int = 3;
 
-	var code (default,null) : Int;
+	var code(default,null) : Int;
 
-	var message (default,null) : String;
+	var message(default,null) : String;
 
 }

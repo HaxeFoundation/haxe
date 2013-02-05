@@ -30,7 +30,7 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("SVGStringList")
 extern class StringList
 {
-	var numberOfItems (default,null) : Int;
+	var numberOfItems(default,null) : Int;
 
 	function appendItem( item : String ) : String;
 

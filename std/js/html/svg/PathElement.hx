@@ -29,18 +29,18 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("SVGPathElement")
 extern class PathElement extends Element
 {
-	var animatedNormalizedPathSegList (default,null) : PathSegList;
+	var animatedNormalizedPathSegList(default,null) : PathSegList;
 
-	var animatedPathSegList (default,null) : PathSegList;
+	var animatedPathSegList(default,null) : PathSegList;
 
-	var normalizedPathSegList (default,null) : PathSegList;
+	var normalizedPathSegList(default,null) : PathSegList;
 
 	/** Corresponds to attribute 
 <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Attribute/pathLength">pathLength</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/path">&lt;path&gt;</a></code>
  element. */
-	var pathLength (default,null) : AnimatedNumber;
+	var pathLength(default,null) : AnimatedNumber;
 
-	var pathSegList (default,null) : PathSegList;
+	var pathSegList(default,null) : PathSegList;
 
 	function createSVGPathSegArcAbs( x : Float, y : Float, r1 : Float, r2 : Float, angle : Float, largeArcFlag : Bool, sweepFlag : Bool ) : PathSegArcAbs;
 

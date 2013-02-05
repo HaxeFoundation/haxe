@@ -41,16 +41,16 @@ extern class Cursor
 	static inline var PREV_NO_DUPLICATE : Int = 3;
 
 	/** On getting, returns the <a title="en/IndexedDB/Basic_Concepts_Behind_IndexedDB#gloss direction" rel="internal" href="https://developer.mozilla.org/en/IndexedDB/Basic_Concepts_Behind_IndexedDB#gloss_direction">direction</a> of traversal of the cursor. See Constants for possible values. */
-	var direction (default,null) : String;
+	var direction(default,null) : String;
 
 	/** Returns the key for the record at the cursor's position. If the cursor is outside its range, this is <code>undefined</code>. */
-	var key (default,null) : Dynamic;
+	var key(default,null) : Dynamic;
 
 	/** Returns the cursor's current effective key. If the cursor is currently being iterated or has iterated outside its range, this is <code>undefined</code>. */
-	var primaryKey (default,null) : Dynamic;
+	var primaryKey(default,null) : Dynamic;
 
 	/** On getting, returns the <code>IDBObjectStore</code> or <code>IDBIndex</code> that the cursor is iterating. This function never returns null or throws an exception, even if the cursor is currently being iterated, has iterated past its end, or its transaction is not active. */
-	var source (default,null) : Any;
+	var source(default,null) : Any;
 
 	function advance( count : Int ) : Void;
 

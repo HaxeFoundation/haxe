@@ -47,7 +47,7 @@ extern class Notification extends EventTarget
 
 	var onshow : EventListener;
 
-	var permission (default,null) : String;
+	var permission(default,null) : String;
 
 	var replaceId : String;
 

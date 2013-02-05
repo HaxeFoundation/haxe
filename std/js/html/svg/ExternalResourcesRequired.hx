@@ -26,6 +26,6 @@ package js.html.svg;
 @:native("SVGExternalResourcesRequired")
 extern class ExternalResourcesRequired
 {
-	var externalResourcesRequired (default,null) : AnimatedBoolean;
+	var externalResourcesRequired(default,null) : AnimatedBoolean;
 
 }

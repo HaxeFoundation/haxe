@@ -32,20 +32,20 @@ extern class ImageElement extends Element
 	/** Corresponds to attribute 
 <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Attribute/height">height</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/image">&lt;image&gt;</a></code>
  element. */
-	var height (default,null) : AnimatedLength;
+	var height(default,null) : AnimatedLength;
 
 	/** Corresponds to attribute 
 <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Attribute/preserveAspectRatio">preserveAspectRatio</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/image">&lt;image&gt;</a></code>
  element. */
-	var preserveAspectRatio (default,null) : AnimatedPreserveAspectRatio;
+	var preserveAspectRatio(default,null) : AnimatedPreserveAspectRatio;
 
 	/** Corresponds to attribute 
 <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Attribute/width">width</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/image">&lt;image&gt;</a></code>
  element. */
-	var width (default,null) : AnimatedLength;
+	var width(default,null) : AnimatedLength;
 
-	var x (default,null) : AnimatedLength;
+	var x(default,null) : AnimatedLength;
 
-	var y (default,null) : AnimatedLength;
+	var y(default,null) : AnimatedLength;
 
 }

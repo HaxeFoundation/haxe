@@ -32,7 +32,7 @@ extern class MeterElement extends Element
 	/** The lower numeric bound of the high end of the measured range. This must be less than the maximum value (<strong>max</strong> attribute), and it also must be greater than the low value and minimum value (<strong>low</strong> attribute and <strong>min</strong> attribute, respectively), if any are specified. If unspecified, or if greater than the maximum value, the <strong>high</strong> value is equal to the maximum value. Setter throws DOMException. */
 	var high : Float;
 
-	var labels (default,null) : NodeList;
+	var labels(default,null) : NodeList;
 
 	/** The upper numeric bound of the low end of the measured range. This must be greater than the minimum value (<strong>min</strong> attribute), and it also must be less than the high value and maximum value (<strong>high</strong> attribute and <strong>max</strong> attribute, respectively), if any are specified. If unspecified, or if less than the minimum value, the <strong>low</strong> value is equal to the minimum value. Setter throws DOMException. */
 	var low : Float;

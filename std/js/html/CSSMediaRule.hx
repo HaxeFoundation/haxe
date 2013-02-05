@@ -29,10 +29,10 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 extern class CSSMediaRule extends CSSRule
 {
 	/** Returns a <code><a title="en/DOM/CSSRuleList" rel="internal" href="https://developer.mozilla.org/en/DOM/CSSRuleList">CSSRuleList</a></code> of the CSS rules in the media rule. */
-	var cssRules (default,null) : CSSRuleList;
+	var cssRules(default,null) : CSSRuleList;
 
 	/** Specifies the intended destination medium for style information. */
-	var media (default,null) : MediaList;
+	var media(default,null) : MediaList;
 
 	function deleteRule( index : Int ) : Void;
 

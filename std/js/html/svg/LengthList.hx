@@ -38,7 +38,7 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("SVGLengthList")
 extern class LengthList
 {
-	var numberOfItems (default,null) : Int;
+	var numberOfItems(default,null) : Int;
 
 	function appendItem( item : Length ) : Length;
 

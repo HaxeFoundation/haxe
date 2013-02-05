@@ -75,7 +75,7 @@ extern class InputElement extends Element
  HTML attribute, indicating that the control is not available for interaction. */
 	var disabled : Bool;
 
-	var entries (default,null) : js.html.fs.EntryArray;
+	var entries(default,null) : js.html.fs.EntryArray;
 
 	/** A list of selected files. */
 	var files : FileList;
@@ -89,7 +89,7 @@ extern class InputElement extends Element
 , this property will be <code>null</code>, if it isn't the id of a <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/form">&lt;form&gt;</a></code>
  element.</li> <li>
 <span><a rel="custom" href="https://developer.mozilla.org/en/HTML">HTML 4</a></span> this must be <code>null</code>.</li> </ul> */
-	var form (default,null) : FormElement;
+	var form(default,null) : FormElement;
 
 	/** Reflects the 
 
@@ -148,10 +148,10 @@ extern class InputElement extends Element
 
 	/** A list of <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/label">&lt;label&gt;</a></code>
  elements that are labels for this element. */
-	var labels (default,null) : NodeList;
+	var labels(default,null) : NodeList;
 
 	/** Identifies a list of pre-defined options to suggest to the user. The value must be the <strong>id</strong> of a <code><a class="new" href="https://developer.mozilla.org/en/HTML/Element/datalist" rel="internal">&lt;datalist&gt;</a></code> element in the same document. The browser displays only options that are valid values for this input element. This attribute is ignored when the <strong>type</strong> attribute's value is <span>hidden</span>, <span>checkbox</span>, <span>radio</span>, <span>file</span>, or a button type. */
-	var list (default,null) : Element;
+	var list(default,null) : Element;
 
 	/** Reflects the 
 
@@ -256,10 +256,10 @@ extern class InputElement extends Element
 	var useMap : String;
 
 	/** A localized message that describes the validation constraints that the control does not satisfy (if any). This is the empty string if the control is not a candidate for constraint validation (<strong>willValidate</strong> is false), or it satisfies its constraints. */
-	var validationMessage (default,null) : String;
+	var validationMessage(default,null) : String;
 
 	/** The validity states that this element is in.&nbsp; */
-	var validity (default,null) : ValidityState;
+	var validity(default,null) : ValidityState;
 
 	/** Current value in the control. Setter throws DOMException. */
 	var value : String;
@@ -277,7 +277,7 @@ extern class InputElement extends Element
 	var width : Int;
 
 	/** Indicates whether the element is a candidate for constraint validation. It is false if any conditions bar it from constraint validation. */
-	var willValidate (default,null) : Bool;
+	var willValidate(default,null) : Bool;
 
 	function checkValidity() : Bool;
 

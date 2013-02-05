@@ -30,10 +30,10 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("Counter")
 extern class Counter
 {
-	var identifier (default,null) : String;
+	var identifier(default,null) : String;
 
-	var listStyle (default,null) : String;
+	var listStyle(default,null) : String;
 
-	var separator (default,null) : String;
+	var separator(default,null) : String;
 
 }

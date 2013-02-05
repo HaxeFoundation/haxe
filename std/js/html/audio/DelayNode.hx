@@ -26,6 +26,6 @@ package js.html.audio;
 @:native("DelayNode")
 extern class DelayNode extends AudioNode
 {
-	var delayTime (default,null) : AudioParam;
+	var delayTime(default,null) : AudioParam;
 
 }

@@ -27,10 +27,10 @@ package js.html.sql;
 extern class ResultSet
 {
 	/** Getter throws DOMException. */
-	var insertId (default,null) : Int;
+	var insertId(default,null) : Int;
 
-	var rows (default,null) : ResultSetRowList;
+	var rows(default,null) : ResultSetRowList;
 
-	var rowsAffected (default,null) : Int;
+	var rowsAffected(default,null) : Int;
 
 }

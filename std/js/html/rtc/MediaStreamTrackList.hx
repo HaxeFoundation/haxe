@@ -26,7 +26,7 @@ package js.html.rtc;
 @:native("MediaStreamTrackList")
 extern class MediaStreamTrackList extends js.html.EventTarget implements ArrayAccess<MediaStreamTrack>
 {
-	var length (default,null) : Int;
+	var length(default,null) : Int;
 
 	var onaddtrack : js.html.EventListener;
 

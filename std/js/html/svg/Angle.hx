@@ -45,7 +45,7 @@ extern class Angle
 	static inline var SVG_ANGLETYPE_UNSPECIFIED : Int = 1;
 
 	/** The type of the value as specified by one of the SVG_ANGLETYPE_* constants defined on this interface. */
-	var unitType (default,null) : Int;
+	var unitType(default,null) : Int;
 
 	/** <p>The value as a floating point value, in user units. Setting this attribute will cause <code>valueInSpecifiedUnits</code> and <code>valueAsString</code> to be updated automatically to reflect this setting.</p> <p><strong>Exceptions on setting:</strong> a <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/DOMException">DOMException</a></code>
  with code <code>NO_MODIFICATION_ALLOWED_ERR</code> is raised when the length corresponds to a read only attribute or when the object itself is read only.</p> */

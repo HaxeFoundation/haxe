@@ -34,7 +34,7 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 extern class AnimationElement extends Element
 {
 	/** The element which is being animated. */
-	var targetElement (default,null) : Element;
+	var targetElement(default,null) : Element;
 
 	function getCurrentTime() : Float;
 

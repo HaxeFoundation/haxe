@@ -33,6 +33,6 @@ extern class ViewElement extends Element
 <code><a rel="internal" href="https://developer.mozilla.org/en/SVG/Attribute/viewTarget" class="new">viewTarget</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/view">&lt;view&gt;</a></code>
  element. A list of DOMString values which contain the names listed in the 
 <code><a rel="internal" href="https://developer.mozilla.org/en/SVG/Attribute/viewTarget" class="new">viewTarget</a></code> attribute. Each of the DOMString values can be associated with the corresponding element using the getElementById() method call. */
-	var viewTarget (default,null) : StringList;
+	var viewTarget(default,null) : StringList;
 
 }

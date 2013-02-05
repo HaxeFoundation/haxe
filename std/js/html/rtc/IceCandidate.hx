@@ -26,11 +26,11 @@ package js.html.rtc;
 @:native("RTCIceCandidate")
 extern class IceCandidate
 {
-	var candidate (default,null) : String;
+	var candidate(default,null) : String;
 
-	var sdpMLineIndex (default,null) : Int;
+	var sdpMLineIndex(default,null) : Int;
 
-	var sdpMid (default,null) : String;
+	var sdpMid(default,null) : String;
 
 	function new() : Void;
 

@@ -41,10 +41,10 @@ extern class FEBlendElement extends Element
 
 	static inline var SVG_FEBLEND_MODE_UNKNOWN : Int = 0;
 
-	var in1 (default,null) : AnimatedString;
+	var in1(default,null) : AnimatedString;
 
-	var in2 (default,null) : AnimatedString;
+	var in2(default,null) : AnimatedString;
 
-	var mode (default,null) : AnimatedEnumeration;
+	var mode(default,null) : AnimatedEnumeration;
 
 }

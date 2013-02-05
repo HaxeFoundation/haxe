@@ -37,7 +37,7 @@ extern class TableRowElement extends Element
 	var bgColor : String;
 
 	/** row.ch */
-	var cells (default,null) : HTMLCollection;
+	var cells(default,null) : HTMLCollection;
 
 	/** row.chOff */
 	var ch : String;
@@ -46,10 +46,10 @@ extern class TableRowElement extends Element
 	var chOff : String;
 
 	/** row.sectionRowIndex */
-	var rowIndex (default,null) : Int;
+	var rowIndex(default,null) : Int;
 
 	/** row.vAlign */
-	var sectionRowIndex (default,null) : Int;
+	var sectionRowIndex(default,null) : Int;
 
 	var vAlign : String;
 

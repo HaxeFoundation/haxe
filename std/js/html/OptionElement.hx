@@ -45,10 +45,10 @@ extern class OptionElement extends Element
 
 	/** If the option is a descendent of a <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/select">&lt;select&gt;</a></code>
  element, then this property has the same value as the <code>form</code> property of the corresponding {{DomXref("HTMLSelectElement") object; otherwise, it is null. */
-	var form (default,null) : FormElement;
+	var form(default,null) : FormElement;
 
 	/** The position of the option within the list of options it belongs to, in tree-order. If the option is not part of a list of options, the value is 0. */
-	var index (default,null) : Int;
+	var index(default,null) : Int;
 
 	/** Reflects the value of the 
 

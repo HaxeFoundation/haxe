@@ -26,7 +26,7 @@ package js.html.svg;
 @:native("SVGPointList")
 extern class PointList
 {
-	var numberOfItems (default,null) : Int;
+	var numberOfItems(default,null) : Int;
 
 	function appendItem( item : Point ) : Point;
 

@@ -29,10 +29,10 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 extern class History
 {
 	/** Read-only. Returns the number of elements in the session history, including the currently loaded page. For example, for a page loaded in a new tab this property returns <code>1</code>. */
-	var length (default,null) : Int;
+	var length(default,null) : Int;
 
 	/** Returns the state at the top of the history stack. This is a way to look at the state without having to wait for a <code>popstate</code> event. <strong>Read only.</strong> */
-	var state (default,null) : Dynamic;
+	var state(default,null) : Dynamic;
 
 	function back() : Void;
 

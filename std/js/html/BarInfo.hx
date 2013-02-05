@@ -26,6 +26,6 @@ package js.html;
 @:native("BarInfo")
 extern class BarInfo
 {
-	var visible (default,null) : Bool;
+	var visible(default,null) : Bool;
 
 }

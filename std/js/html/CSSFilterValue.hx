@@ -50,6 +50,6 @@ extern class CSSFilterValue extends CSSValueList
 
 	static inline var CSS_FILTER_SEPIA : Int = 3;
 
-	var operationType (default,null) : Int;
+	var operationType(default,null) : Int;
 
 }

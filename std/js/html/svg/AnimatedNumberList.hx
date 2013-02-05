@@ -31,9 +31,9 @@ extern class AnimatedNumberList
 	/** A read only <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/SVGNumberList">SVGNumberList</a></code>
  representing the current animated value of the given attribute. If the given attribute is not currently being animated, then the <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/SVGNumberList">SVGNumberList</a></code>
  will have the same contents as <code>baseVal</code>. The object referenced by <code>animVal</code> will always be distinct from the one referenced by <code>baseVal</code>, even when the attribute is not animated. */
-	var animVal (default,null) : NumberList;
+	var animVal(default,null) : NumberList;
 
 	/** The base value of the given attribute before applying any animations. */
-	var baseVal (default,null) : NumberList;
+	var baseVal(default,null) : NumberList;
 
 }

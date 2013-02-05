@@ -76,39 +76,39 @@ extern class Node extends EventTarget
 
 	static inline var TEXT_NODE : Int = 3;
 
-	var attributes (default,null) : NamedNodeMap;
+	var attributes(default,null) : NamedNodeMap;
 
-	var baseURI (default,null) : String;
+	var baseURI(default,null) : String;
 
-	var childNodes (default,null) : NodeList;
+	var childNodes(default,null) : NodeList;
 
-	var firstChild (default,null) : Node;
+	var firstChild(default,null) : Node;
 
-	var lastChild (default,null) : Node;
+	var lastChild(default,null) : Node;
 
-	var localName (default,null) : String;
+	var localName(default,null) : String;
 
-	var namespaceURI (default,null) : String;
+	var namespaceURI(default,null) : String;
 
-	var nextSibling (default,null) : Node;
+	var nextSibling(default,null) : Node;
 
-	var nodeName (default,null) : String;
+	var nodeName(default,null) : String;
 
-	var nodeType (default,null) : Int;
+	var nodeType(default,null) : Int;
 
 	/** Setter throws DOMException. */
 	var nodeValue : String;
 
-	var ownerDocument (default,null) : Document;
+	var ownerDocument(default,null) : Document;
 
-	var parentElement (default,null) : Element;
+	var parentElement(default,null) : Element;
 
-	var parentNode (default,null) : Node;
+	var parentNode(default,null) : Node;
 
 	/** Setter throws DOMException. */
 	var prefix : String;
 
-	var previousSibling (default,null) : Node;
+	var previousSibling(default,null) : Node;
 
 	/** Setter throws DOMException. */
 	var textContent : String;

@@ -28,11 +28,11 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("Performance")
 extern class Performance extends EventTarget
 {
-	var memory (default,null) : MemoryInfo;
+	var memory(default,null) : MemoryInfo;
 
-	var navigation (default,null) : PerformanceNavigation;
+	var navigation(default,null) : PerformanceNavigation;
 
-	var timing (default,null) : PerformanceTiming;
+	var timing(default,null) : PerformanceTiming;
 
 	function now() : Float;
 

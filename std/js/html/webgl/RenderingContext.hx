@@ -619,9 +619,9 @@ extern class RenderingContext extends js.html.CanvasRenderingContext
 
 	static inline var ZERO : Int = 0;
 
-	var drawingBufferHeight (default,null) : Int;
+	var drawingBufferHeight(default,null) : Int;
 
-	var drawingBufferWidth (default,null) : Int;
+	var drawingBufferWidth(default,null) : Int;
 
 	function activeTexture( texture : Int ) : Void;
 

@@ -77,7 +77,7 @@ extern class ObjectElement extends Element
 	var codeType : String;
 
 	/** The active document of the object element's nested browsing context, if any; otherwise null. */
-	var contentDocument (default,null) : Document;
+	var contentDocument(default,null) : Document;
 
 	/** Reflects the 
 
@@ -95,7 +95,7 @@ extern class ObjectElement extends Element
 	var declare : Bool;
 
 	/** The object element's form owner, or null if there isn't one. */
-	var form (default,null) : FormElement;
+	var form(default,null) : FormElement;
 
 	/** Reflects the {{htmlattrxref("height", "object)}}&nbsp;HTML attribute, specifying the displayed height of the resource in CSS pixels. */
 	var height : String;
@@ -130,10 +130,10 @@ extern class ObjectElement extends Element
 	var useMap : String;
 
 	/** A localized message that describes the validation constraints that the control does not satisfy (if any). This is the empty string if the control is not a candidate for constraint validation (<strong>willValidate</strong> is false), or it satisfies its constraints. */
-	var validationMessage (default,null) : String;
+	var validationMessage(default,null) : String;
 
 	/** The validity states that this element is in. */
-	var validity (default,null) : ValidityState;
+	var validity(default,null) : ValidityState;
 
 	/** Horizontal space in pixels around the control. 
 
@@ -148,7 +148,7 @@ extern class ObjectElement extends Element
 	var width : String;
 
 	/** Indicates whether the element is a candidate for constraint validation. Always false for <code>object</code> objects. */
-	var willValidate (default,null) : Bool;
+	var willValidate(default,null) : Bool;
 
 	function checkValidity() : Bool;
 

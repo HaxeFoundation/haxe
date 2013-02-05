@@ -26,7 +26,7 @@ package js.html;
 @:native("StyleSheetList")
 extern class StyleSheetList implements ArrayAccess<StyleSheet>
 {
-	var length (default,null) : Int;
+	var length(default,null) : Int;
 
 	function item( index : Int ) : StyleSheet;
 

@@ -26,6 +26,6 @@ package js.html.svg;
 @:native("SVGURIReference")
 extern class URIReference
 {
-	var href (default,null) : AnimatedString;
+	var href(default,null) : AnimatedString;
 
 }

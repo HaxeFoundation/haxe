@@ -28,14 +28,14 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("IDBKeyRange")
 extern class KeyRange
 {
-	var lower (default,null) : Key;
+	var lower(default,null) : Key;
 
-	var lowerOpen (default,null) : Bool;
+	var lowerOpen(default,null) : Bool;
 
-	var upper (default,null) : Key;
+	var upper(default,null) : Key;
 
 	/** Returns false if the upper-bound value is included in the key range. */
-	var upperOpen (default,null) : Bool;
+	var upperOpen(default,null) : Bool;
 
 	static function bound( lower : Key, upper : Key, ?lowerOpen : Bool, ?upperOpen : Bool ) : KeyRange;
 

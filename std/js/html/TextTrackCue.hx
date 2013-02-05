@@ -54,7 +54,7 @@ extern class TextTrackCue extends EventTarget
 
 	var text : String;
 
-	var track (default,null) : TextTrack;
+	var track(default,null) : TextTrack;
 
 	/** Setter throws DOMException. */
 	var vertical : String;

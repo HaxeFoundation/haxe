@@ -26,15 +26,15 @@ package js.html.audio;
 @:native("AudioBuffer")
 extern class AudioBuffer
 {
-	var duration (default,null) : Float;
+	var duration(default,null) : Float;
 
 	var gain : Float;
 
-	var length (default,null) : Int;
+	var length(default,null) : Int;
 
-	var numberOfChannels (default,null) : Int;
+	var numberOfChannels(default,null) : Int;
 
-	var sampleRate (default,null) : Float;
+	var sampleRate(default,null) : Float;
 
 	function getChannelData( channelIndex : Int ) : js.html.Float32Array;
 

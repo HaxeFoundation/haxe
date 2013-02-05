@@ -34,13 +34,13 @@ extern class FEMorphologyElement extends Element
 
 	static inline var SVG_MORPHOLOGY_OPERATOR_UNKNOWN : Int = 0;
 
-	var in1 (default,null) : AnimatedString;
+	var in1(default,null) : AnimatedString;
 
-	var operator (default,null) : AnimatedEnumeration;
+	var operator(default,null) : AnimatedEnumeration;
 
-	var radiusX (default,null) : AnimatedNumber;
+	var radiusX(default,null) : AnimatedNumber;
 
-	var radiusY (default,null) : AnimatedNumber;
+	var radiusY(default,null) : AnimatedNumber;
 
 	function setRadius( radiusX : Float, radiusY : Float ) : Void;
 

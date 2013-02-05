@@ -26,6 +26,6 @@ package js.html;
 @:native("CanvasRenderingContext")
 extern class CanvasRenderingContext
 {
-	var canvas (default,null) : CanvasElement;
+	var canvas(default,null) : CanvasElement;
 
 }

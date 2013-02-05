@@ -32,10 +32,10 @@ extern class IFrameElement extends Element
 	var align : String;
 
 	/** The active document in the inline frame's nested browsing context. */
-	var contentDocument (default,null) : Document;
+	var contentDocument(default,null) : Document;
 
 	/** The window proxy for the nested browsing context. */
-	var contentWindow (default,null) : DOMWindow;
+	var contentWindow(default,null) : DOMWindow;
 
 	var frameBorder : String;
 

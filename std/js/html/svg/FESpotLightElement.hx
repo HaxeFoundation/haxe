@@ -26,20 +26,20 @@ package js.html.svg;
 @:native("SVGFESpotLightElement")
 extern class FESpotLightElement extends Element
 {
-	var limitingConeAngle (default,null) : AnimatedNumber;
+	var limitingConeAngle(default,null) : AnimatedNumber;
 
-	var pointsAtX (default,null) : AnimatedNumber;
+	var pointsAtX(default,null) : AnimatedNumber;
 
-	var pointsAtY (default,null) : AnimatedNumber;
+	var pointsAtY(default,null) : AnimatedNumber;
 
-	var pointsAtZ (default,null) : AnimatedNumber;
+	var pointsAtZ(default,null) : AnimatedNumber;
 
-	var specularExponent (default,null) : AnimatedNumber;
+	var specularExponent(default,null) : AnimatedNumber;
 
-	var x (default,null) : AnimatedNumber;
+	var x(default,null) : AnimatedNumber;
 
-	var y (default,null) : AnimatedNumber;
+	var y(default,null) : AnimatedNumber;
 
-	var z (default,null) : AnimatedNumber;
+	var z(default,null) : AnimatedNumber;
 
 }

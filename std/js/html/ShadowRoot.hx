@@ -26,7 +26,7 @@ package js.html;
 @:native("ShadowRoot")
 extern class ShadowRoot extends DocumentFragment
 {
-	var activeElement (default,null) : Element;
+	var activeElement(default,null) : Element;
 
 	var applyAuthorStyles : Bool;
 

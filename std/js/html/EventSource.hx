@@ -38,7 +38,7 @@ extern class EventSource extends EventTarget
 	/** The connection is open and dispatching events. */
 	static inline var OPEN : Int = 1;
 
-	var URL (default,null) : String;
+	var URL(default,null) : String;
 
 	/** A JavaScript function to call when an error occurs. */
 	var onerror : EventListener;
@@ -50,10 +50,10 @@ extern class EventSource extends EventTarget
 	var onopen : EventListener;
 
 	/** The state of the connection, must be one of <code>CONNECTING</code>, <code>OPEN</code>, or <code>CLOSED</code>. <strong>Read only.</strong> */
-	var readyState (default,null) : Int;
+	var readyState(default,null) : Int;
 
 	/** Read only. */
-	var url (default,null) : String;
+	var url(default,null) : String;
 
 	function new() : Void;
 

@@ -32,13 +32,13 @@ extern class TreeWalker
 	/** Setter throws DOMException. */
 	var currentNode : Node;
 
-	var expandEntityReferences (default,null) : Bool;
+	var expandEntityReferences(default,null) : Bool;
 
-	var filter (default,null) : NodeFilter;
+	var filter(default,null) : NodeFilter;
 
-	var root (default,null) : Node;
+	var root(default,null) : Node;
 
-	var whatToShow (default,null) : Int;
+	var whatToShow(default,null) : Int;
 
 	function firstChild() : Node;
 

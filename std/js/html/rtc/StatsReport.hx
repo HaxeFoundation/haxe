@@ -26,8 +26,8 @@ package js.html.rtc;
 @:native("RTCStatsReport")
 extern class StatsReport
 {
-	var local (default,null) : StatsElement;
+	var local(default,null) : StatsElement;
 
-	var remote (default,null) : StatsElement;
+	var remote(default,null) : StatsElement;
 
 }

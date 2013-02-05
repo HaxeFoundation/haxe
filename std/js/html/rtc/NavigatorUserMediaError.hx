@@ -28,6 +28,6 @@ extern class NavigatorUserMediaError
 {
 	static inline var PERMISSION_DENIED : Int = 1;
 
-	var code (default,null) : Int;
+	var code(default,null) : Int;
 
 }

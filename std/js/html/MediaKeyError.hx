@@ -38,6 +38,6 @@ extern class MediaKeyError
 
 	static inline var MEDIA_KEYERR_UNKNOWN : Int = 1;
 
-	var code (default,null) : Int;
+	var code(default,null) : Int;
 
 }

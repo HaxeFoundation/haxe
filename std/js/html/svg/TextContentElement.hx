@@ -32,9 +32,9 @@ extern class TextContentElement extends Element
 
 	static inline var LENGTHADJUST_UNKNOWN : Int = 0;
 
-	var lengthAdjust (default,null) : AnimatedEnumeration;
+	var lengthAdjust(default,null) : AnimatedEnumeration;
 
-	var textLength (default,null) : AnimatedLength;
+	var textLength(default,null) : AnimatedLength;
 
 	function getCharNumAtPosition( point : Point ) : Int;
 

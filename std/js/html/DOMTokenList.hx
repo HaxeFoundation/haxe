@@ -29,7 +29,7 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("DOMTokenList")
 extern class DOMTokenList implements ArrayAccess<String>
 {
-	var length (default,null) : Int;
+	var length(default,null) : Int;
 
 	function add( tokens : String ) : Void;
 

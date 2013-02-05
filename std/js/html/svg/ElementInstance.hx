@@ -26,17 +26,17 @@ package js.html.svg;
 @:native("SVGElementInstance")
 extern class ElementInstance extends js.html.EventTarget
 {
-	var childNodes (default,null) : ElementInstanceList;
+	var childNodes(default,null) : ElementInstanceList;
 
-	var correspondingElement (default,null) : Element;
+	var correspondingElement(default,null) : Element;
 
-	var correspondingUseElement (default,null) : UseElement;
+	var correspondingUseElement(default,null) : UseElement;
 
-	var firstChild (default,null) : ElementInstance;
+	var firstChild(default,null) : ElementInstance;
 
-	var lastChild (default,null) : ElementInstance;
+	var lastChild(default,null) : ElementInstance;
 
-	var nextSibling (default,null) : ElementInstance;
+	var nextSibling(default,null) : ElementInstance;
 
 	var onabort : js.html.EventListener;
 
@@ -118,8 +118,8 @@ extern class ElementInstance extends js.html.EventTarget
 
 	var onunload : js.html.EventListener;
 
-	var parentNode (default,null) : ElementInstance;
+	var parentNode(default,null) : ElementInstance;
 
-	var previousSibling (default,null) : ElementInstance;
+	var previousSibling(default,null) : ElementInstance;
 
 }

@@ -26,8 +26,8 @@ package js.html;
 @:native("SpeechInputResult")
 extern class SpeechInputResult
 {
-	var confidence (default,null) : Float;
+	var confidence(default,null) : Float;
 
-	var utterance (default,null) : String;
+	var utterance(default,null) : String;
 
 }

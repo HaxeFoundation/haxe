@@ -66,8 +66,8 @@ extern class PathSeg
 
 	static inline var PATHSEG_UNKNOWN : Int = 0;
 
-	var pathSegType (default,null) : Int;
+	var pathSegType(default,null) : Int;
 
-	var pathSegTypeAsLetter (default,null) : String;
+	var pathSegTypeAsLetter(default,null) : String;
 
 }

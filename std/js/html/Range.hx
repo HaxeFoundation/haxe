@@ -50,25 +50,25 @@ extern class Range
 	static inline var START_TO_START : Int = 0;
 
 	/** Returns a&nbsp;<code>boolean</code>&nbsp;indicating whether the range's start and end points are at the same position. Getter throws DOMException. */
-	var collapsed (default,null) : Bool;
+	var collapsed(default,null) : Bool;
 
 	/** Returns the deepest&nbsp;<code><a rel="custom" href="https://developer.mozilla.org/en/DOM/Node">Node</a></code>
 &nbsp;that contains the startContainer and endContainer Nodes. Getter throws DOMException. */
-	var commonAncestorContainer (default,null) : Node;
+	var commonAncestorContainer(default,null) : Node;
 
 	/** Returns the&nbsp;<code><a rel="custom" href="https://developer.mozilla.org/en/DOM/Node">Node</a></code>
 &nbsp;within which the Range ends. Getter throws DOMException. */
-	var endContainer (default,null) : Node;
+	var endContainer(default,null) : Node;
 
 	/** Returns a number representing where in the endContainer the Range ends. Getter throws DOMException. */
-	var endOffset (default,null) : Int;
+	var endOffset(default,null) : Int;
 
 	/** Returns the&nbsp;<code><a rel="custom" href="https://developer.mozilla.org/en/DOM/Node">Node</a></code>
 &nbsp;within which the Range starts. Getter throws DOMException. */
-	var startContainer (default,null) : Node;
+	var startContainer(default,null) : Node;
 
 	/** Returns a number representing where in the startContainer the Range starts. Getter throws DOMException. */
-	var startOffset (default,null) : Int;
+	var startOffset(default,null) : Int;
 
 	function cloneContents() : DocumentFragment;
 

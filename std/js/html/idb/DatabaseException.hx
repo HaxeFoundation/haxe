@@ -67,12 +67,12 @@ extern class DatabaseException
 	static inline var VER_ERR : Int = 12;
 
 	/** The most appropriate error code for the condition. */
-	var code (default,null) : Int;
+	var code(default,null) : Int;
 
 	/** Error message describing the exception raised. */
-	var message (default,null) : String;
+	var message(default,null) : String;
 
-	var name (default,null) : String;
+	var name(default,null) : String;
 
 	function toString() : String;
 

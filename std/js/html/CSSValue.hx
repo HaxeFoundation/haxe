@@ -37,6 +37,6 @@ extern class CSSValue
 	/** Setter throws DOMException. */
 	var cssText : String;
 
-	var cssValueType (default,null) : Int;
+	var cssValueType(default,null) : Int;
 
 }

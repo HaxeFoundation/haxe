@@ -26,11 +26,11 @@ package js.html;
 @:native("NamedFlow")
 extern class NamedFlow extends EventTarget
 {
-	var firstEmptyRegionIndex (default,null) : Int;
+	var firstEmptyRegionIndex(default,null) : Int;
 
-	var name (default,null) : String;
+	var name(default,null) : String;
 
-	var overset (default,null) : Bool;
+	var overset(default,null) : Bool;
 
 	function getContent() : NodeList;
 

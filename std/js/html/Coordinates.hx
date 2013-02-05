@@ -26,18 +26,18 @@ package js.html;
 @:native("Coordinates")
 extern class Coordinates
 {
-	var accuracy (default,null) : Float;
+	var accuracy(default,null) : Float;
 
-	var altitude (default,null) : Float;
+	var altitude(default,null) : Float;
 
-	var altitudeAccuracy (default,null) : Float;
+	var altitudeAccuracy(default,null) : Float;
 
-	var heading (default,null) : Float;
+	var heading(default,null) : Float;
 
-	var latitude (default,null) : Float;
+	var latitude(default,null) : Float;
 
-	var longitude (default,null) : Float;
+	var longitude(default,null) : Float;
 
-	var speed (default,null) : Float;
+	var speed(default,null) : Float;
 
 }

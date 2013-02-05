@@ -70,38 +70,38 @@ extern class Event
 	static inline var SELECT : Int = 16384;
 
 	/** A boolean indicating whether the event bubbles up through the DOM or not. */
-	var bubbles (default,null) : Bool;
+	var bubbles(default,null) : Bool;
 
 	/** A boolean indicating whether the bubbling of the event has been canceled or not. */
 	var cancelBubble : Bool;
 
 	/** A boolean indicating whether the event is cancelable. */
-	var cancelable (default,null) : Bool;
+	var cancelable(default,null) : Bool;
 
-	var clipboardData (default,null) : Clipboard;
+	var clipboardData(default,null) : Clipboard;
 
 	/** A reference to the currently registered target for the event. */
-	var currentTarget (default,null) : EventTarget;
+	var currentTarget(default,null) : EventTarget;
 
 	/** Indicates whether or not <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/event.preventDefault">event.preventDefault()</a></code>
  has been called on the event. */
-	var defaultPrevented (default,null) : Bool;
+	var defaultPrevented(default,null) : Bool;
 
 	/** Indicates which phase of the event flow is being processed. */
-	var eventPhase (default,null) : Int;
+	var eventPhase(default,null) : Int;
 
 	var returnValue : Bool;
 
-	var srcElement (default,null) : EventTarget;
+	var srcElement(default,null) : EventTarget;
 
 	/** A reference to the target to which the event was originally dispatched. */
-	var target (default,null) : EventTarget;
+	var target(default,null) : EventTarget;
 
 	/** The time that the event was created. */
-	var timeStamp (default,null) : Int;
+	var timeStamp(default,null) : Int;
 
 	/** The name of the event (case-insensitive). */
-	var type (default,null) : String;
+	var type(default,null) : String;
 
 	function new(type : String, canBubble : Bool = true, cancelable : Bool = true) : Void;
 

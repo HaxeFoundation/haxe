@@ -34,9 +34,9 @@ extern class MediaStreamTrack extends js.html.EventTarget
 
 	var enabled : Bool;
 
-	var kind (default,null) : String;
+	var kind(default,null) : String;
 
-	var label (default,null) : String;
+	var label(default,null) : String;
 
 	var onended : js.html.EventListener;
 
@@ -44,6 +44,6 @@ extern class MediaStreamTrack extends js.html.EventTarget
 
 	var onunmute : js.html.EventListener;
 
-	var readyState (default,null) : Int;
+	var readyState(default,null) : Int;
 
 }

@@ -52,7 +52,7 @@ extern class KeygenElement extends Element
 
 <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/keygen#attr-form">form</a></code>
 &nbsp;HTML&nbsp;attribute if it is defined. */
-	var form (default,null) : FormElement;
+	var form(default,null) : FormElement;
 
 	/** Reflects the 
 
@@ -61,7 +61,7 @@ extern class KeygenElement extends Element
 	var keytype : String;
 
 	/** A list of label elements associated with this keygen element. */
-	var labels (default,null) : NodeList;
+	var labels(default,null) : NodeList;
 
 	/** Reflects the 
 
@@ -70,16 +70,16 @@ extern class KeygenElement extends Element
 	var name : String;
 
 	/** Must be the value <code>keygen</code>. */
-	var type (default,null) : String;
+	var type(default,null) : String;
 
 	/** A localized message that describes the validation constraints that the control does not satisfy (if any). This is the empty string if the control is not a candidate for constraint validation (<strong>willValidate</strong> is false), or it satisfies its constraints. */
-	var validationMessage (default,null) : String;
+	var validationMessage(default,null) : String;
 
 	/** The validity states that this element is in. */
-	var validity (default,null) : ValidityState;
+	var validity(default,null) : ValidityState;
 
 	/** Always false because <code>keygen</code> objects are never candidates for constraint validation. */
-	var willValidate (default,null) : Bool;
+	var willValidate(default,null) : Bool;
 
 	function checkValidity() : Bool;
 

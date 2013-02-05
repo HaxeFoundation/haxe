@@ -32,9 +32,9 @@ extern class FileWriter extends js.html.EventTarget
 
 	static inline var WRITING : Int = 1;
 
-	var error (default,null) : FileError;
+	var error(default,null) : FileError;
 
-	var length (default,null) : Int;
+	var length(default,null) : Int;
 
 	var onabort : js.html.EventListener;
 
@@ -48,9 +48,9 @@ extern class FileWriter extends js.html.EventTarget
 
 	var onwritestart : js.html.EventListener;
 
-	var position (default,null) : Int;
+	var position(default,null) : Int;
 
-	var readyState (default,null) : Int;
+	var readyState(default,null) : Int;
 
 	function abort() : Void;
 

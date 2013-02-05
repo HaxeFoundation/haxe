@@ -62,7 +62,7 @@ extern class LinkElement extends Element
  attribute with the opposite <a title="en/HTML/Link types" rel="internal" href="https://developer.mozilla.org/en/HTML/Link_types">link types values</a>, e.g. <span>made</span> should be replaced by <span>author</span>. Also this attribute doesn't mean <em>revision</em> and must not be used with a version number, which is unfortunately the case on numerous sites.</div> */
 	var rev : String;
 
-	var sheet (default,null) : StyleSheet;
+	var sheet(default,null) : StyleSheet;
 
 	/** This attribute defines the sizes of the icons for visual media contained in the resource. It must be present only if the 
 

@@ -34,8 +34,8 @@ extern class ProcessingInstruction extends Node
 	/** Setter throws DOMException. */
 	var data : String;
 
-	var sheet (default,null) : StyleSheet;
+	var sheet(default,null) : StyleSheet;
 
-	var target (default,null) : String;
+	var target(default,null) : String;
 
 }

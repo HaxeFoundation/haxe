@@ -26,15 +26,15 @@ package js.html.svg;
 @:native("SVGFEDropShadowElement")
 extern class FEDropShadowElement extends Element
 {
-	var dx (default,null) : AnimatedNumber;
+	var dx(default,null) : AnimatedNumber;
 
-	var dy (default,null) : AnimatedNumber;
+	var dy(default,null) : AnimatedNumber;
 
-	var in1 (default,null) : AnimatedString;
+	var in1(default,null) : AnimatedString;
 
-	var stdDeviationX (default,null) : AnimatedNumber;
+	var stdDeviationX(default,null) : AnimatedNumber;
 
-	var stdDeviationY (default,null) : AnimatedNumber;
+	var stdDeviationY(default,null) : AnimatedNumber;
 
 	function setStdDeviation( stdDeviationX : Float, stdDeviationY : Float ) : Void;
 

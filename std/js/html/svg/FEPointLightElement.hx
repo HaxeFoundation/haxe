@@ -26,10 +26,10 @@ package js.html.svg;
 @:native("SVGFEPointLightElement")
 extern class FEPointLightElement extends Element
 {
-	var x (default,null) : AnimatedNumber;
+	var x(default,null) : AnimatedNumber;
 
-	var y (default,null) : AnimatedNumber;
+	var y(default,null) : AnimatedNumber;
 
-	var z (default,null) : AnimatedNumber;
+	var z(default,null) : AnimatedNumber;
 
 }

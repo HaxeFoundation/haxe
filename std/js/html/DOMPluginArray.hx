@@ -26,7 +26,7 @@ package js.html;
 @:native("PluginArray")
 extern class DOMPluginArray implements ArrayAccess<DOMPlugin>
 {
-	var length (default,null) : Int;
+	var length(default,null) : Int;
 
 	function item( index : Int ) : DOMPlugin;
 

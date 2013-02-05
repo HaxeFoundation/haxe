@@ -46,7 +46,7 @@ extern class FileReader extends EventTarget
 	static inline var LOADING : Int = 1;
 
 	/** The error that occurred while reading the file. <strong>Read only.</strong> */
-	var error (default,null) : js.html.fs.FileError;
+	var error(default,null) : js.html.fs.FileError;
 
 	/** Called when the read operation is aborted. */
 	var onabort : EventListener;
@@ -67,10 +67,10 @@ extern class FileReader extends EventTarget
 	var onprogress : EventListener;
 
 	/** Indicates the state of the <code>FileReader</code>. This will be one of the <a rel="custom" href="https://developer.mozilla.org/en/DOM/FileReader#State_constants">State constants</a>. <strong>Read only.</strong> */
-	var readyState (default,null) : Int;
+	var readyState(default,null) : Int;
 
 	/** The file's contents. This property is only valid after the read operation is complete, and the format of the data depends on which of the methods was used to initiate the read operation. <strong>Read only.</strong> */
-	var result (default,null) : Dynamic;
+	var result(default,null) : Dynamic;
 
 	function new() : Void;
 

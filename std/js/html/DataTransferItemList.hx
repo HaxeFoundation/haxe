@@ -26,7 +26,7 @@ package js.html;
 @:native("DataTransferItemList")
 extern class DataTransferItemList implements ArrayAccess<DataTransferItem>
 {
-	var length (default,null) : Int;
+	var length(default,null) : Int;
 
 	@:overload( function( file : File ) :Void {} )
 	function add( data : String, type : String ) : Void;

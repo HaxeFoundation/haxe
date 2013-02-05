@@ -76,11 +76,11 @@ extern class DOMCoreException
 
 	static inline var WRONG_DOCUMENT_ERR : Int = 4;
 
-	var code (default,null) : Int;
+	var code(default,null) : Int;
 
-	var message (default,null) : String;
+	var message(default,null) : String;
 
-	var name (default,null) : String;
+	var name(default,null) : String;
 
 	function toString() : String;
 

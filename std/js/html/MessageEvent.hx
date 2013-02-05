@@ -34,15 +34,15 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 extern class MessageEvent extends Event
 {
 	/** The data from the server. */
-	var data (default,null) : Dynamic;
+	var data(default,null) : Dynamic;
 
-	var lastEventId (default,null) : String;
+	var lastEventId(default,null) : String;
 
-	var origin (default,null) : String;
+	var origin(default,null) : String;
 
-	var ports (default,null) : Array<Dynamic>;
+	var ports(default,null) : Array<Dynamic>;
 
-	var source (default,null) : DOMWindow;
+	var source(default,null) : DOMWindow;
 
 	function new(type : String, canBubble : Bool = true, cancelable : Bool = true) : Void;
 

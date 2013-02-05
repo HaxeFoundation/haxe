@@ -39,7 +39,7 @@ extern class ButtonElement extends Element
 	/** <p>The form that this button is associated with. If the button is a descendant of a form element, then this attribute is the ID of that form element.</p> <p>If the button is not a descendant of a form element, then:</p> <ul> <li>
 <span><a rel="custom" href="https://developer.mozilla.org/en/HTML/HTML5">HTML5</a></span> The attribute can be the ID of any form element in the same document.</li> <li>
 <span><a rel="custom" href="https://developer.mozilla.org/en/HTML">HTML 4</a></span> The attribute is null.</li> </ul> */
-	var form (default,null) : FormElement;
+	var form(default,null) : FormElement;
 
 	/** The URI&nbsp;of a program that processes information submitted by the button. If specified, this attribute overrides the 
 
@@ -73,7 +73,7 @@ extern class ButtonElement extends Element
 
 	/** A list of <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/label">&lt;label&gt;</a></code>
  elements that are labels for this button. */
-	var labels (default,null) : NodeList;
+	var labels(default,null) : NodeList;
 
 	/** The name of the object when submitted with a form. 
 <span><a rel="custom" href="https://developer.mozilla.org/en/HTML/HTML5">HTML5</a></span> If specified, it must not be the empty string. */
@@ -84,16 +84,16 @@ extern class ButtonElement extends Element
 	var type : String;
 
 	/** A localized message that describes the validation constraints that the control does not satisfy (if any). This attribute is the empty string if the control is not a candidate for constraint validation (<strong>willValidate</strong> is false), or it satisfies its constraints. */
-	var validationMessage (default,null) : String;
+	var validationMessage(default,null) : String;
 
 	/** The validity states that this button is in. */
-	var validity (default,null) : ValidityState;
+	var validity(default,null) : ValidityState;
 
 	/** The current form control value of the button.&nbsp; */
 	var value : String;
 
 	/** Indicates whether the button is a candidate for constraint validation. It is false if any conditions bar it from constraint validation. */
-	var willValidate (default,null) : Bool;
+	var willValidate(default,null) : Bool;
 
 	function checkValidity() : Bool;
 

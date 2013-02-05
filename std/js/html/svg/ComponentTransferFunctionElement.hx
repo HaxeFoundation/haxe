@@ -38,18 +38,18 @@ extern class ComponentTransferFunctionElement extends Element
 
 	static inline var SVG_FECOMPONENTTRANSFER_TYPE_UNKNOWN : Int = 0;
 
-	var amplitude (default,null) : AnimatedNumber;
+	var amplitude(default,null) : AnimatedNumber;
 
-	var exponent (default,null) : AnimatedNumber;
+	var exponent(default,null) : AnimatedNumber;
 
-	var intercept (default,null) : AnimatedNumber;
+	var intercept(default,null) : AnimatedNumber;
 
-	var offset (default,null) : AnimatedNumber;
+	var offset(default,null) : AnimatedNumber;
 
-	var slope (default,null) : AnimatedNumber;
+	var slope(default,null) : AnimatedNumber;
 
-	var tableValues (default,null) : AnimatedNumberList;
+	var tableValues(default,null) : AnimatedNumberList;
 
-	var type (default,null) : AnimatedEnumeration;
+	var type(default,null) : AnimatedEnumeration;
 
 }

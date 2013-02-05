@@ -26,9 +26,9 @@ package js.html;
 @:native("TransitionEvent")
 extern class TransitionEvent extends Event
 {
-	var elapsedTime (default,null) : Float;
+	var elapsedTime(default,null) : Float;
 
-	var propertyName (default,null) : String;
+	var propertyName(default,null) : String;
 
 	function new(type : String, canBubble : Bool = true, cancelable : Bool = true) : Void;
 

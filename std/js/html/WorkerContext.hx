@@ -30,17 +30,17 @@ extern class WorkerContext extends EventTarget
 
 	static inline var TEMPORARY : Int = 0;
 
-	var indexedDB (default,null) : js.html.idb.Factory;
+	var indexedDB(default,null) : js.html.idb.Factory;
 
-	var location (default,null) : WorkerLocation;
+	var location(default,null) : WorkerLocation;
 
-	var navigator (default,null) : WorkerNavigator;
+	var navigator(default,null) : WorkerNavigator;
 
 	var onerror : EventListener;
 
-	var self (default,null) : WorkerContext;
+	var self(default,null) : WorkerContext;
 
-	var notifications (default,null) : NotificationCenter;
+	var notifications(default,null) : NotificationCenter;
 
 	function clearInterval( handle : Int ) : Void;
 

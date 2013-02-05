@@ -40,13 +40,13 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 extern class ProgressEvent extends Event
 {
 	/** Specifies whether or not the total size of the transfer is known. <strong>Read only.</strong> */
-	var lengthComputable (default,null) : Bool;
+	var lengthComputable(default,null) : Bool;
 
 	/** The number of bytes transferred since the beginning of the operation. This doesn't include headers and other overhead, but only the content itself. <strong>Read only.</strong> */
-	var loaded (default,null) : Int;
+	var loaded(default,null) : Int;
 
 	/** The total number of bytes of content that will be transferred during the operation. If the total size is unknown, this value is zero. <strong>Read only.</strong> */
-	var total (default,null) : Int;
+	var total(default,null) : Int;
 
 	function new(type : String, canBubble : Bool = true, cancelable : Bool = true) : Void;
 

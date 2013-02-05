@@ -30,15 +30,15 @@ extern class MediaStream extends js.html.EventTarget
 
 	static inline var LIVE : Int = 1;
 
-	var audioTracks (default,null) : MediaStreamTrackList;
+	var audioTracks(default,null) : MediaStreamTrackList;
 
-	var label (default,null) : String;
+	var label(default,null) : String;
 
 	var onended : js.html.EventListener;
 
-	var readyState (default,null) : Int;
+	var readyState(default,null) : Int;
 
-	var videoTracks (default,null) : MediaStreamTrackList;
+	var videoTracks(default,null) : MediaStreamTrackList;
 
 	function new() : Void;
 

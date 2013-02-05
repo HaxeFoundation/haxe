@@ -29,9 +29,9 @@ extern class DataChannel extends js.html.EventTarget
 	/** Setter throws DOMException. */
 	var binaryType : String;
 
-	var bufferedAmount (default,null) : Int;
+	var bufferedAmount(default,null) : Int;
 
-	var label (default,null) : String;
+	var label(default,null) : String;
 
 	var onclose : js.html.EventListener;
 
@@ -41,9 +41,9 @@ extern class DataChannel extends js.html.EventTarget
 
 	var onopen : js.html.EventListener;
 
-	var readyState (default,null) : String;
+	var readyState(default,null) : String;
 
-	var reliable (default,null) : Bool;
+	var reliable(default,null) : Bool;
 
 	function close() : Void;
 

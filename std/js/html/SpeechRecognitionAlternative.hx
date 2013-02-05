@@ -26,8 +26,8 @@ package js.html;
 @:native("SpeechRecognitionAlternative")
 extern class SpeechRecognitionAlternative
 {
-	var confidence (default,null) : Float;
+	var confidence(default,null) : Float;
 
-	var transcript (default,null) : String;
+	var transcript(default,null) : String;
 
 }

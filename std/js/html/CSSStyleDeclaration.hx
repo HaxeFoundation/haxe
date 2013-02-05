@@ -33,10 +33,10 @@ extern class CSSStyleDeclaration implements ArrayAccess<String>
 	var cssText : String;
 
 	/** The number of properties. See the <strong>item</strong> method below. */
-	var length (default,null) : Int;
+	var length(default,null) : Int;
 
 	/** The containing <code><a href="https://developer.mozilla.org/en/DOM/cssRule" rel="internal" title="en/DOM/cssRule">cssRule</a>.</code> */
-	var parentRule (default,null) : CSSRule;
+	var parentRule(default,null) : CSSRule;
 
 	/** The <code>animation</code> <a title="CSS" rel="internal" href="https://developer.mozilla.org/en/CSS">CSS</a> property is a shorthand property for <code><a rel="custom" href="https://developer.mozilla.org/en/CSS/animation-name">animation-name</a></code>
 , <code><a rel="custom" href="https://developer.mozilla.org/en/CSS/animation-duration">animation-duration</a></code>

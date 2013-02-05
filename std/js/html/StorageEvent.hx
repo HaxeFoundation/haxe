@@ -47,19 +47,19 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 extern class StorageEvent extends Event
 {
 	/** Represents the key changed. The <code>key</code> attribute is <code>null</code> when the change is caused by the storage <code>clear()</code> method. <strong>Read only.</strong> */
-	var key (default,null) : String;
+	var key(default,null) : String;
 
 	/** The new value of the <code>key</code>. The <code>newValue</code> is <code>null</code> when the change has been invoked by storage <code>clear()</code> method or the <code>key</code> has been removed from the storage. <strong>Read only.</strong> */
-	var newValue (default,null) : String;
+	var newValue(default,null) : String;
 
 	/** The original value of the <code>key</code>. The <code>oldValue</code> is <code>null</code> when the change has been invoked by storage <code>clear()</code> method or the <code>key</code> has been newly added and therefor doesn't have any previous value. <strong>Read only.</strong> */
-	var oldValue (default,null) : String;
+	var oldValue(default,null) : String;
 
 	/** Represents the Storage object that was affected. <strong>Read only.</strong> */
-	var storageArea (default,null) : Storage;
+	var storageArea(default,null) : Storage;
 
 	/** The URL of the document whose <code>key</code> changed. <strong>Read only.</strong> */
-	var url (default,null) : String;
+	var url(default,null) : String;
 
 	function new(type : String, canBubble : Bool = true, cancelable : Bool = true) : Void;
 

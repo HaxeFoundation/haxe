@@ -36,7 +36,7 @@ extern class StyleElement extends Element
 
 	var scoped : Bool;
 
-	var sheet (default,null) : StyleSheet;
+	var sheet(default,null) : StyleSheet;
 
 	/** Returns the type of style being applied by this statement. */
 	var type : String;

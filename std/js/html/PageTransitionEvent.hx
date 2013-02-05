@@ -26,7 +26,7 @@ package js.html;
 @:native("PageTransitionEvent")
 extern class PageTransitionEvent extends Event
 {
-	var persisted (default,null) : Bool;
+	var persisted(default,null) : Bool;
 
 	function new(type : String, canBubble : Bool = true, cancelable : Bool = true) : Void;
 

@@ -29,15 +29,15 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("IDBIndex")
 extern class Index
 {
-	var keyPath (default,null) : Any;
+	var keyPath(default,null) : Any;
 
-	var multiEntry (default,null) : Bool;
+	var multiEntry(default,null) : Bool;
 
-	var name (default,null) : String;
+	var name(default,null) : String;
 
-	var objectStore (default,null) : ObjectStore;
+	var objectStore(default,null) : ObjectStore;
 
-	var unique (default,null) : Bool;
+	var unique(default,null) : Bool;
 
 	/** <p>Returns an <a title="https://developer.mozilla.org/en/IndexedDB/IDBRequest" rel="internal" href="https://developer.mozilla.org/en/IndexedDB/IDBRequest">IDBRequest</a> object, and in a separate thread, returns the number of records within a key range. For example, if you want to see how many records are between keys 1000 and 2000 in an object store, you can write the following: <code> var req = store.count(<a title="en/IndexedDB/IDBKeyRange" rel="internal" href="https://developer.mozilla.org/en/IndexedDB/IDBKeyRange">IDBKeyRange</a>.bound(1000, 2000));</code></p>
 <pre>IDBRequest count (

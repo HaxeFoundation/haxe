@@ -44,11 +44,11 @@ extern class OscillatorNode extends AudioSourceNode
 
 	static inline var UNSCHEDULED_STATE : Int = 0;
 
-	var detune (default,null) : AudioParam;
+	var detune(default,null) : AudioParam;
 
-	var frequency (default,null) : AudioParam;
+	var frequency(default,null) : AudioParam;
 
-	var playbackState (default,null) : Int;
+	var playbackState(default,null) : Int;
 
 	/** Setter throws DOMException. */
 	var type : Int;

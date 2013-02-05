@@ -37,7 +37,7 @@ extern class AudioBufferSourceNode extends AudioSourceNode
 	/** Setter throws DOMException. */
 	var buffer : AudioBuffer;
 
-	var gain (default,null) : AudioGain;
+	var gain(default,null) : AudioGain;
 
 	var loop : Bool;
 
@@ -45,9 +45,9 @@ extern class AudioBufferSourceNode extends AudioSourceNode
 
 	var loopStart : Float;
 
-	var playbackRate (default,null) : AudioParam;
+	var playbackRate(default,null) : AudioParam;
 
-	var playbackState (default,null) : Int;
+	var playbackState(default,null) : Int;
 
 	@:overload( function( when : Float ) :Void {} )
 	@:overload( function( when : Float, grainOffset : Float ) :Void {} )

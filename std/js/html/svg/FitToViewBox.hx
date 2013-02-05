@@ -26,8 +26,8 @@ package js.html.svg;
 @:native("SVGFitToViewBox")
 extern class FitToViewBox
 {
-	var preserveAspectRatio (default,null) : AnimatedPreserveAspectRatio;
+	var preserveAspectRatio(default,null) : AnimatedPreserveAspectRatio;
 
-	var viewBox (default,null) : AnimatedRect;
+	var viewBox(default,null) : AnimatedRect;
 
 }

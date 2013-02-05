@@ -46,9 +46,9 @@ extern class Paint extends Color
 
 	static inline var SVG_PAINTTYPE_URI_RGBCOLOR_ICCCOLOR : Int = 106;
 
-	var paintType (default,null) : Int;
+	var paintType(default,null) : Int;
 
-	var uri (default,null) : String;
+	var uri(default,null) : String;
 
 	function setPaint( paintType : Int, uri : String, rgbColor : String, iccColor : String ) : Void;
 

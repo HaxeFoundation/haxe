@@ -26,8 +26,8 @@ package js.html.idb;
 @:native("IDBVersionChangeEvent")
 extern class UpgradeNeededEvent extends js.html.Event
 {
-	var newVersion (default,null) : Int;
+	var newVersion(default,null) : Int;
 
-	var oldVersion (default,null) : Int;
+	var oldVersion(default,null) : Int;
 
 }

@@ -43,7 +43,7 @@ extern class ImageElement extends Element
 	var border : String;
 
 	/** True if the browser has fetched the image, and it is in a <a title="en/HTML/Element/Img#Image Format" rel="internal" href="https://developer.mozilla.org/En/HTML/Element/Img#Image_Format">supported image type</a> that was decoded without errors. */
-	var complete (default,null) : Bool;
+	var complete(default,null) : Bool;
 
 	/** The CORS setting for this image element. See <a title="en/HTML/CORS settings attributes" rel="internal" href="https://developer.mozilla.org/en/HTML/CORS_settings_attributes">CORS&nbsp;settings attributes</a> for details. */
 	var crossOrigin : String;
@@ -72,10 +72,10 @@ extern class ImageElement extends Element
 	var name : String;
 
 	/** Intrinsic height of the image in CSS&nbsp;pixels, if it is available; otherwise, 0. */
-	var naturalHeight (default,null) : Int;
+	var naturalHeight(default,null) : Int;
 
 	/** Intrinsic width of the image in CSS&nbsp;pixels, if it is available; otherwise, 0. */
-	var naturalWidth (default,null) : Int;
+	var naturalWidth(default,null) : Int;
 
 	/** Reflects the 
 
@@ -98,8 +98,8 @@ extern class ImageElement extends Element
  HTML attribute, indicating the rendered width of the image in CSS&nbsp;pixels. */
 	var width : Int;
 
-	var x (default,null) : Int;
+	var x(default,null) : Int;
 
-	var y (default,null) : Int;
+	var y(default,null) : Int;
 
 }

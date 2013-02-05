@@ -28,7 +28,7 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("Location")
 extern class Location
 {
-	var ancestorOrigins (default,null) : DOMStringList;
+	var ancestorOrigins(default,null) : DOMStringList;
 
 	/** the part of the URL that follows the # symbol, including the # symbol.<br> You can listen for the <a title="en/DOM/window.onhashchange" rel="internal" href="https://developer.mozilla.org/en/DOM/window.onhashchange">hashchange event</a> to get notified of changes to the hash in supporting browsers. */
 	var hash : String;
@@ -42,7 +42,7 @@ extern class Location
 	/** the entire URL. */
 	var href : String;
 
-	var origin (default,null) : String;
+	var origin(default,null) : String;
 
 	/** the path (relative to the host). */
 	var pathname : String;

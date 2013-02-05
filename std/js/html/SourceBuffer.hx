@@ -27,7 +27,7 @@ package js.html;
 extern class SourceBuffer
 {
 	/** Getter throws DOMException. */
-	var buffered (default,null) : TimeRanges;
+	var buffered(default,null) : TimeRanges;
 
 	/** Setter throws DOMException. */
 	var timestampOffset : Float;

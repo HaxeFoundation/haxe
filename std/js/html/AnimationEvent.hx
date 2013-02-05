@@ -29,10 +29,10 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 extern class AnimationEvent extends Event
 {
 	/** The name of the animation on which the animation event occurred. */
-	var animationName (default,null) : String;
+	var animationName(default,null) : String;
 
 	/** The amount of time, in seconds, the animation had been running at the time the event occurred. */
-	var elapsedTime (default,null) : Float;
+	var elapsedTime(default,null) : Float;
 
 	function new(type : String, canBubble : Bool = true, cancelable : Bool = true) : Void;
 

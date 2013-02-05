@@ -48,7 +48,7 @@ extern class FormElement extends Element
 	var autocomplete : String;
 
 	/** All the form controls belonging to this form element. */
-	var elements (default,null) : HTMLCollection;
+	var elements(default,null) : HTMLCollection;
 
 	/** Synonym for <strong>enctype</strong>. */
 	var encoding : String;
@@ -60,7 +60,7 @@ extern class FormElement extends Element
 	var enctype : String;
 
 	/** The number of controls in the form. */
-	var length (default,null) : Int;
+	var length(default,null) : Int;
 
 	/** Reflects the 
 

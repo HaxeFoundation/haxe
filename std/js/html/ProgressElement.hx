@@ -28,12 +28,12 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("HTMLProgressElement")
 extern class ProgressElement extends Element
 {
-	var labels (default,null) : NodeList;
+	var labels(default,null) : NodeList;
 
 	/** This attribute describes how much work the task indicated by the <code>progress</code> element requires. Setter throws DOMException. */
 	var max : Float;
 
-	var position (default,null) : Float;
+	var position(default,null) : Float;
 
 	/** <dl><dd>This attribute specifies how much of the task that has been completed. If there is no <code>value</code> attribute, the progress bar is indeterminate; this indicates that an activity is ongoing with no indication of how long it is expected to take.</dd>
 </dl>

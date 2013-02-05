@@ -26,10 +26,10 @@ package js.html.webgl;
 @:native("WebGLActiveInfo")
 extern class ActiveInfo
 {
-	var name (default,null) : String;
+	var name(default,null) : String;
 
-	var size (default,null) : Int;
+	var size(default,null) : Int;
 
-	var type (default,null) : Int;
+	var type(default,null) : Int;
 
 }

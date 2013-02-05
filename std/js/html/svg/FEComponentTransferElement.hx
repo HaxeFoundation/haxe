@@ -32,6 +32,6 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("SVGFEComponentTransferElement")
 extern class FEComponentTransferElement extends Element
 {
-	var in1 (default,null) : AnimatedString;
+	var in1(default,null) : AnimatedString;
 
 }

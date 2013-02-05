@@ -31,18 +31,18 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 extern class Entry
 {
 	/** The file system on which the entry resides. */
-	var filesystem (default,null) : FileSystem;
+	var filesystem(default,null) : FileSystem;
 
-	var fullPath (default,null) : String;
+	var fullPath(default,null) : String;
 
 	/** The entry is a directory. */
-	var isDirectory (default,null) : Bool;
+	var isDirectory(default,null) : Bool;
 
 	/** The entry is a file. */
-	var isFile (default,null) : Bool;
+	var isFile(default,null) : Bool;
 
 	/** The name of the entry, excluding the path leading to it. */
-	var name (default,null) : String;
+	var name(default,null) : String;
 
 	function copyTo( parent : DirectoryEntry, ?name : String, ?successCallback : EntryCallback, ?errorCallback : ErrorCallback ) : Void;
 

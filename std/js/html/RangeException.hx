@@ -30,11 +30,11 @@ extern class RangeException
 
 	static inline var INVALID_NODE_TYPE_ERR : Int = 2;
 
-	var code (default,null) : Int;
+	var code(default,null) : Int;
 
-	var message (default,null) : String;
+	var message(default,null) : String;
 
-	var name (default,null) : String;
+	var name(default,null) : String;
 
 	function toString() : String;
 

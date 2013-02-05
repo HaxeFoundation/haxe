@@ -31,13 +31,13 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("HTMLFrameElement")
 extern class FrameElement extends Element
 {
-	var contentDocument (default,null) : Document;
+	var contentDocument(default,null) : Document;
 
-	var contentWindow (default,null) : DOMWindow;
+	var contentWindow(default,null) : DOMWindow;
 
 	var frameBorder : String;
 
-	var height (default,null) : Int;
+	var height(default,null) : Int;
 
 	var location : String;
 
@@ -58,7 +58,7 @@ extern class FrameElement extends Element
 	/** This attribute is specify document which will be displayed by frame. */
 	var src : String;
 
-	var width (default,null) : Int;
+	var width(default,null) : Int;
 
 	function getSVGDocument() : js.html.svg.Document;
 

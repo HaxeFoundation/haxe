@@ -37,23 +37,23 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 extern class ClientRect
 {
 	/** Y-coordinate, relative to the viewport origin, of the bottom of the rectangle box. <strong>Read only.</strong> */
-	var bottom (default,null) : Float;
+	var bottom(default,null) : Float;
 
 	/** Height of the rectangle box (This is identical to <code>bottom</code> minus <code>top</code>). <strong>Read only.</strong> */
-	var height (default,null) : Float;
+	var height(default,null) : Float;
 
 	/** X-coordinate, relative to the viewport origin, of the left of the rectangle box. <strong>Read only.</strong> */
-	var left (default,null) : Float;
+	var left(default,null) : Float;
 
 	/** X-coordinate, relative to the viewport origin, of the right of the rectangle box. <strong>Read only.</strong> */
-	var right (default,null) : Float;
+	var right(default,null) : Float;
 
 	/** Y-coordinate, relative to the viewport origin, of the top of the rectangle box. <strong>Read only.</strong> */
-	var top (default,null) : Float;
+	var top(default,null) : Float;
 
 	/** Width of the rectangle box (This is identical to <code>right</code> minus <code>left</code>). <strong>Read only.</strong> 
 <span title="(Firefox 3.5 / Thunderbird 3.0 / SeaMonkey 2.0)
 ">Requires Gecko 1.9.1</span> */
-	var width (default,null) : Float;
+	var width(default,null) : Float;
 
 }

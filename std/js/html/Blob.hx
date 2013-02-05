@@ -35,10 +35,10 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 extern class Blob
 {
 	/** The size, in bytes, of the data contained in the <code>Blob</code> object. <strong>Read only.</strong> */
-	var size (default,null) : Int;
+	var size(default,null) : Int;
 
 	/** An ASCII-encoded string, in all lower case, indicating the MIME&nbsp;type of the data contained in the <code>Blob</code>. If the type is unknown, this string is empty. <strong>Read only.</strong> */
-	var type (default,null) : String;
+	var type(default,null) : String;
 
 	function new(?arg0 : Dynamic, ?arg1 : Dynamic) : Void;
 

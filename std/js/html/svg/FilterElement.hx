@@ -29,21 +29,21 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("SVGFilterElement")
 extern class FilterElement extends Element
 {
-	var filterResX (default,null) : AnimatedInteger;
+	var filterResX(default,null) : AnimatedInteger;
 
-	var filterResY (default,null) : AnimatedInteger;
+	var filterResY(default,null) : AnimatedInteger;
 
-	var filterUnits (default,null) : AnimatedEnumeration;
+	var filterUnits(default,null) : AnimatedEnumeration;
 
-	var height (default,null) : AnimatedLength;
+	var height(default,null) : AnimatedLength;
 
-	var primitiveUnits (default,null) : AnimatedEnumeration;
+	var primitiveUnits(default,null) : AnimatedEnumeration;
 
-	var width (default,null) : AnimatedLength;
+	var width(default,null) : AnimatedLength;
 
-	var x (default,null) : AnimatedLength;
+	var x(default,null) : AnimatedLength;
 
-	var y (default,null) : AnimatedLength;
+	var y(default,null) : AnimatedLength;
 
 	function setFilterRes( filterResX : Int, filterResY : Int ) : Void;
 

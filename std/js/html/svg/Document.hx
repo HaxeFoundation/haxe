@@ -26,6 +26,6 @@ package js.html.svg;
 @:native("SVGDocument")
 extern class Document extends js.html.Document
 {
-	var rootElement (default,null) : SVGElement;
+	var rootElement(default,null) : SVGElement;
 
 }

@@ -28,11 +28,11 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("HTMLVideoElement")
 extern class VideoElement extends MediaElement
 {
-	var decodedFrameCount (default,null) : Int;
+	var decodedFrameCount(default,null) : Int;
 
-	var displayingFullscreen (default,null) : Bool;
+	var displayingFullscreen(default,null) : Bool;
 
-	var droppedFrameCount (default,null) : Int;
+	var droppedFrameCount(default,null) : Int;
 
 	/** Reflects the 
 
@@ -46,13 +46,13 @@ extern class VideoElement extends MediaElement
  HTML&nbsp;attribute, which specifies an image to show while no video data is available. */
 	var poster : String;
 
-	var supportsFullscreen (default,null) : Bool;
+	var supportsFullscreen(default,null) : Bool;
 
 	/** The intrinsic height of the resource in CSS pixels, taking into account the dimensions, aspect ratio, clean aperture, resolution, and so forth, as defined for the format used by the resource. If the element's ready state is HAVE_NOTHING, the value is 0. */
-	var videoHeight (default,null) : Int;
+	var videoHeight(default,null) : Int;
 
 	/** The intrinsic width of the resource in CSS pixels, taking into account the dimensions, aspect ratio, clean aperture, resolution, and so forth, as defined for the format used by the resource. If the element's ready state is HAVE_NOTHING, the value is 0. */
-	var videoWidth (default,null) : Int;
+	var videoWidth(default,null) : Int;
 
 	/** Reflects the 
 

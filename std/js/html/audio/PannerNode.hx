@@ -38,7 +38,7 @@ extern class PannerNode extends AudioNode
 
 	static inline var SOUNDFIELD : Int = 2;
 
-	var coneGain (default,null) : AudioGain;
+	var coneGain(default,null) : AudioGain;
 
 	var coneInnerAngle : Float;
 
@@ -46,7 +46,7 @@ extern class PannerNode extends AudioNode
 
 	var coneOuterGain : Float;
 
-	var distanceGain (default,null) : AudioGain;
+	var distanceGain(default,null) : AudioGain;
 
 	/** Setter throws DOMException. */
 	var distanceModel : Int;

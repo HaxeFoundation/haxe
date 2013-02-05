@@ -35,16 +35,16 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 extern class Attr extends Node
 {
 	/** Indicates whether the attribute is an "ID attribute". An "ID attribute" being an attribute which value is expected to be unique across a DOM Document. In HTML DOM, "id" is the only ID attribute, but XML documents could define others. Whether or not an attribute is unique is often determined by a DTD or other schema description. */
-	var isId (default,null) : Bool;
+	var isId(default,null) : Bool;
 
 	/** The attribute's name. */
-	var name (default,null) : String;
+	var name(default,null) : String;
 
 	/** This property has been deprecated and will be removed in the future. Since you can only get Attr objects from elements, you should already know th */
-	var ownerElement (default,null) : Element;
+	var ownerElement(default,null) : Element;
 
 	/** This property has been deprecated and will be removed in the future; it now always returns <code>true</code>. */
-	var specified (default,null) : Bool;
+	var specified(default,null) : Bool;
 
 	/** The attribute's value. Setter throws DOMException. */
 	var value : String;

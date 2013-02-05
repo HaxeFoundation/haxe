@@ -49,32 +49,32 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 extern class DOMSelection
 {
 	/** Returns the node in which the selection begins. */
-	var anchorNode (default,null) : Node;
+	var anchorNode(default,null) : Node;
 
 	/** Returns the number of characters that the selection's anchor is offset within the anchorNode. */
-	var anchorOffset (default,null) : Int;
+	var anchorOffset(default,null) : Int;
 
-	var baseNode (default,null) : Node;
+	var baseNode(default,null) : Node;
 
-	var baseOffset (default,null) : Int;
+	var baseOffset(default,null) : Int;
 
-	var extentNode (default,null) : Node;
+	var extentNode(default,null) : Node;
 
-	var extentOffset (default,null) : Int;
+	var extentOffset(default,null) : Int;
 
 	/** Returns the node in which the selection ends. */
-	var focusNode (default,null) : Node;
+	var focusNode(default,null) : Node;
 
 	/** Returns the number of characters that the selection's focus is offset within the focusNode. */
-	var focusOffset (default,null) : Int;
+	var focusOffset(default,null) : Int;
 
 	/** Returns a Boolean indicating whether the selection's start and end points are at the same position. */
-	var isCollapsed (default,null) : Bool;
+	var isCollapsed(default,null) : Bool;
 
 	/** Returns the number of ranges in the selection. */
-	var rangeCount (default,null) : Int;
+	var rangeCount(default,null) : Int;
 
-	var type (default,null) : String;
+	var type(default,null) : String;
 
 	function addRange( range : Range ) : Void;
 

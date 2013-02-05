@@ -26,9 +26,9 @@ package js.html;
 @:native("HashChangeEvent")
 extern class HashChangeEvent extends Event
 {
-	var newURL (default,null) : String;
+	var newURL(default,null) : String;
 
-	var oldURL (default,null) : String;
+	var oldURL(default,null) : String;
 
 	function new(type : String, canBubble : Bool = true, cancelable : Bool = true) : Void;
 

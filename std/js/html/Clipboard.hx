@@ -36,11 +36,11 @@ extern class Clipboard
 
 	var effectAllowed : String;
 
-	var files (default,null) : FileList;
+	var files(default,null) : FileList;
 
-	var items (default,null) : DataTransferItemList;
+	var items(default,null) : DataTransferItemList;
 
-	var types (default,null) : Array<Dynamic>;
+	var types(default,null) : Array<Dynamic>;
 
 	function clearData( ?type : String ) : Void;
 

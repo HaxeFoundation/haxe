@@ -38,10 +38,10 @@ extern class FEColorMatrixElement extends Element
 
 	static inline var SVG_FECOLORMATRIX_TYPE_UNKNOWN : Int = 0;
 
-	var in1 (default,null) : AnimatedString;
+	var in1(default,null) : AnimatedString;
 
-	var type (default,null) : AnimatedEnumeration;
+	var type(default,null) : AnimatedEnumeration;
 
-	var values (default,null) : AnimatedNumberList;
+	var values(default,null) : AnimatedNumberList;
 
 }

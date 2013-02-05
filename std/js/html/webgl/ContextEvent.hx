@@ -26,7 +26,7 @@ package js.html.webgl;
 @:native("WebGLContextEvent")
 extern class ContextEvent extends js.html.Event
 {
-	var statusMessage (default,null) : String;
+	var statusMessage(default,null) : String;
 
 	function new(type : String, canBubble : Bool = true, cancelable : Bool = true) : Void;
 

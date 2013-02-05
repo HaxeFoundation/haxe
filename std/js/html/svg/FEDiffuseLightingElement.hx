@@ -28,14 +28,14 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("SVGFEDiffuseLightingElement")
 extern class FEDiffuseLightingElement extends Element
 {
-	var diffuseConstant (default,null) : AnimatedNumber;
+	var diffuseConstant(default,null) : AnimatedNumber;
 
-	var in1 (default,null) : AnimatedString;
+	var in1(default,null) : AnimatedString;
 
-	var kernelUnitLengthX (default,null) : AnimatedNumber;
+	var kernelUnitLengthX(default,null) : AnimatedNumber;
 
-	var kernelUnitLengthY (default,null) : AnimatedNumber;
+	var kernelUnitLengthY(default,null) : AnimatedNumber;
 
-	var surfaceScale (default,null) : AnimatedNumber;
+	var surfaceScale(default,null) : AnimatedNumber;
 
 }

@@ -30,10 +30,10 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 extern class LabelElement extends Element
 {
 	/** The labeled control. */
-	var control (default,null) : Element;
+	var control(default,null) : Element;
 
 	/** The form owner of this label. */
-	var form (default,null) : FormElement;
+	var form(default,null) : FormElement;
 
 	/** The ID of the labeled control. Reflects the 
 

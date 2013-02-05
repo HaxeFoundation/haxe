@@ -32,7 +32,7 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 extern class TimeRanges
 {
 	/** The number of time ranges represented by the time range object. <strong>Read only.</strong> */
-	var length (default,null) : Int;
+	var length(default,null) : Int;
 
 	function end( index : Int ) : Float;
 

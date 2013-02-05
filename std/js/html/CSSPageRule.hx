@@ -28,6 +28,6 @@ extern class CSSPageRule extends CSSRule
 {
 	var selectorText : String;
 
-	var style (default,null) : CSSStyleDeclaration;
+	var style(default,null) : CSSStyleDeclaration;
 
 }

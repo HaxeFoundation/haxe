@@ -26,7 +26,7 @@ package js.html;
 @:native("MimeTypeArray")
 extern class DOMMimeTypeArray implements ArrayAccess<DOMMimeType>
 {
-	var length (default,null) : Int;
+	var length(default,null) : Int;
 
 	function item( index : Int ) : DOMMimeType;
 

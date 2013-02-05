@@ -36,21 +36,21 @@ extern class JavaScriptCallFrame
 
 	static inline var WITH_SCOPE : Int = 2;
 
-	var caller (default,null) : JavaScriptCallFrame;
+	var caller(default,null) : JavaScriptCallFrame;
 
-	var column (default,null) : Int;
+	var column(default,null) : Int;
 
-	var functionName (default,null) : String;
+	var functionName(default,null) : String;
 
-	var line (default,null) : Int;
+	var line(default,null) : Int;
 
-	var scopeChain (default,null) : Array<Dynamic>;
+	var scopeChain(default,null) : Array<Dynamic>;
 
-	var sourceID (default,null) : Int;
+	var sourceID(default,null) : Int;
 
-	var thisObject (default,null) : Dynamic;
+	var thisObject(default,null) : Dynamic;
 
-	var type (default,null) : String;
+	var type(default,null) : String;
 
 	function evaluate( script : String ) : Void;
 

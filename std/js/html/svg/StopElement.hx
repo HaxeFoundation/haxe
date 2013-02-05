@@ -32,6 +32,6 @@ extern class StopElement extends Element
 	/** Corresponds to attribute 
 <code><a rel="internal" href="https://developer.mozilla.org/en/SVG/Attribute/offset" class="new">offset</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/stop">&lt;stop&gt;</a></code>
  element. */
-	var offset (default,null) : AnimatedNumber;
+	var offset(default,null) : AnimatedNumber;
 
 }

@@ -26,6 +26,6 @@ package js.html;
 @:native("SpeechInputEvent")
 extern class SpeechInputEvent extends Event
 {
-	var results (default,null) : SpeechInputResultList;
+	var results(default,null) : SpeechInputResultList;
 
 }

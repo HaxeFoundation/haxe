@@ -26,6 +26,6 @@ package js.html.audio;
 @:native("GainNode")
 extern class GainNode extends AudioNode
 {
-	var gain (default,null) : AudioGain;
+	var gain(default,null) : AudioGain;
 
 }

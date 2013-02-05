@@ -26,7 +26,7 @@ package js.html;
 @:native("HTMLAllCollection")
 extern class HTMLAllCollection implements ArrayAccess<Node>
 {
-	var length (default,null) : Int;
+	var length(default,null) : Int;
 
 	function item( index : Int ) : Node;
 

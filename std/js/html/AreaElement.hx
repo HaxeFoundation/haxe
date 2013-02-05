@@ -42,13 +42,13 @@ extern class AreaElement extends Element
 	var coords : String;
 
 	/** The fragment identifier (including the leading hash mark (#)), if any, in the referenced URL. */
-	var hash (default,null) : String;
+	var hash(default,null) : String;
 
 	/** The hostname and port (if it's not the default port) in the referenced URL. */
-	var host (default,null) : String;
+	var host(default,null) : String;
 
 	/** The hostname in the referenced URL. */
-	var hostname (default,null) : String;
+	var hostname(default,null) : String;
 
 	/** Reflects the 
 
@@ -63,18 +63,18 @@ extern class AreaElement extends Element
 	var noHref : Bool;
 
 	/** The path name component, if any, of the referenced URL. */
-	var pathname (default,null) : String;
+	var pathname(default,null) : String;
 
 	var ping : String;
 
 	/** The port component, if any, of the referenced URL. */
-	var port (default,null) : String;
+	var port(default,null) : String;
 
 	/** The protocol component (including trailing colon (:)), of the referenced URL. */
-	var protocol (default,null) : String;
+	var protocol(default,null) : String;
 
 	/** The search element (including leading question mark (?)), if any, of the referenced URL */
-	var search (default,null) : String;
+	var search(default,null) : String;
 
 	/** Reflects the 
 

@@ -26,14 +26,14 @@ package js.html;
 @:native("Gamepad")
 extern class Gamepad
 {
-	var axes (default,null) : Array<Float>;
+	var axes(default,null) : Array<Float>;
 
-	var buttons (default,null) : Array<Float>;
+	var buttons(default,null) : Array<Float>;
 
-	var id (default,null) : String;
+	var id(default,null) : String;
 
-	var index (default,null) : Int;
+	var index(default,null) : Int;
 
-	var timestamp (default,null) : Int;
+	var timestamp(default,null) : Int;
 
 }

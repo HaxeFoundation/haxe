@@ -92,35 +92,35 @@ extern class Element extends Node
 	var accessKey : String;
 
 	/** The number of child nodes that are elements. */
-	var childElementCount (default,null) : Int;
+	var childElementCount(default,null) : Int;
 
 	/** A live <code><a rel="internal" href="https://developer.mozilla.org/Article_not_found?uri=en/XPCOM_Interface_Reference/nsIDOMNodeList&amp;ident=nsIDOMNodeList" class="new">nsIDOMNodeList</a></code>
  of the current child elements. */
-	var children (default,null) : HTMLCollection;
+	var children(default,null) : HTMLCollection;
 
 	/** Token list of class attribute */
-	var classList (default,null) : DOMTokenList;
+	var classList(default,null) : DOMTokenList;
 
 	/** Gets/sets the class of the element. */
 	var className : String;
 
 	/** The inner height of an element. */
-	var clientHeight (default,null) : Int;
+	var clientHeight(default,null) : Int;
 
 	/** The width of the left border of an element. */
-	var clientLeft (default,null) : Int;
+	var clientLeft(default,null) : Int;
 
 	/** The width of the top border of an element. */
-	var clientTop (default,null) : Int;
+	var clientTop(default,null) : Int;
 
 	/** The inner width of an element. */
-	var clientWidth (default,null) : Int;
+	var clientWidth(default,null) : Int;
 
 	/** Gets/sets whether or not the element is editable. Setter throws DOMException. */
 	var contentEditable : String;
 
 	/** Allows access to read and write custom data attributes on the element. */
-	var dataset (default,null) : DOMStringMap;
+	var dataset(default,null) : DOMStringMap;
 
 	/** Gets/sets the directionality of the element. */
 	var dir : String;
@@ -130,7 +130,7 @@ extern class Element extends Node
 	var dropzone : String;
 
 	/** The first direct child element of an element, or <code>null</code> if the element has no child elements. */
-	var firstElementChild (default,null) : Element;
+	var firstElementChild(default,null) : Element;
 
 	var hidden : Bool;
 
@@ -144,31 +144,31 @@ extern class Element extends Node
 	var innerText : String;
 
 	/** Indicates whether or not the content of the element can be edited. Read only. */
-	var isContentEditable (default,null) : Bool;
+	var isContentEditable(default,null) : Bool;
 
 	/** Gets/sets the language of an element's attributes, text, and element contents. */
 	var lang : String;
 
 	/** The last direct child element of an element, or <code>null</code> if the element has no child elements. */
-	var lastElementChild (default,null) : Element;
+	var lastElementChild(default,null) : Element;
 
 	/** The element immediately following the given one in the tree, or <code>null</code> if there's no sibling node. */
-	var nextElementSibling (default,null) : Element;
+	var nextElementSibling(default,null) : Element;
 
 	/** The height of an element, relative to the layout. */
-	var offsetHeight (default,null) : Int;
+	var offsetHeight(default,null) : Int;
 
 	/** The distance from this element's left border to its <code>offsetParent</code>'s left border. */
-	var offsetLeft (default,null) : Int;
+	var offsetLeft(default,null) : Int;
 
 	/** The element from which all offset calculations are currently computed. */
-	var offsetParent (default,null) : Element;
+	var offsetParent(default,null) : Element;
 
 	/** The distance from this element's top border to its <code>offsetParent</code>'s top border. */
-	var offsetTop (default,null) : Int;
+	var offsetTop(default,null) : Int;
 
 	/** The width of an element, relative to the layout. */
-	var offsetWidth (default,null) : Int;
+	var offsetWidth(default,null) : Int;
 
 	var onabort : EventListener;
 
@@ -285,12 +285,12 @@ extern class Element extends Node
 	var outerText : String;
 
 	/** The element immediately preceding the given one in the tree, or <code>null</code> if there is no sibling element. */
-	var previousElementSibling (default,null) : Element;
+	var previousElementSibling(default,null) : Element;
 
 	var pseudo : String;
 
 	/** The scroll view height of an element. */
-	var scrollHeight (default,null) : Int;
+	var scrollHeight(default,null) : Int;
 
 	/** Gets/sets the left scroll offset of an element. */
 	var scrollLeft : Int;
@@ -299,19 +299,19 @@ extern class Element extends Node
 	var scrollTop : Int;
 
 	/** The scroll view width of an element. */
-	var scrollWidth (default,null) : Int;
+	var scrollWidth(default,null) : Int;
 
 	/** Controls <a title="en/Controlling_spell_checking_in_HTML_forms" rel="internal" href="https://developer.mozilla.org/en/HTML/Controlling_spell_checking_in_HTML_forms">spell-checking</a> (present on all HTML&nbsp;elements) */
 	var spellcheck : Bool;
 
 	/** An object representing the declarations of an element's style attributes. */
-	var style (default,null) : CSSStyleDeclaration;
+	var style(default,null) : CSSStyleDeclaration;
 
 	/** Gets/sets the position of the element in the tabbing order. */
 	var tabIndex : Int;
 
 	/** The name of the tag for the given element. */
-	var tagName (default,null) : String;
+	var tagName(default,null) : String;
 
 	/** A string that appears in a popup box when mouse is over the element. */
 	var title : String;

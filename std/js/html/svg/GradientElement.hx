@@ -44,15 +44,15 @@ extern class GradientElement extends Element
 
 	/** Corresponds to attribute 
 <code><a rel="internal" href="https://developer.mozilla.org/en/SVG/Attribute/gradientTransform" class="new">gradientTransform</a></code> on the given element. */
-	var gradientTransform (default,null) : AnimatedTransformList;
+	var gradientTransform(default,null) : AnimatedTransformList;
 
 	/** Corresponds to attribute 
 <code><a rel="internal" href="https://developer.mozilla.org/en/SVG/Attribute/gradientUnits" class="new">gradientUnits</a></code> on the given element. Takes one of the constants defined in <code><a rel="internal" href="https://developer.mozilla.org/Article_not_found?uri=en/DOM/SVGUnitTypes" class="new">SVGUnitTypes</a></code>
 . */
-	var gradientUnits (default,null) : AnimatedEnumeration;
+	var gradientUnits(default,null) : AnimatedEnumeration;
 
 	/** Corresponds to attribute 
 <code><a rel="internal" href="https://developer.mozilla.org/en/SVG/Attribute/spreadMethod" class="new">spreadMethod</a></code> on the given element. One of the Spread Method Types defined on this interface. */
-	var spreadMethod (default,null) : AnimatedEnumeration;
+	var spreadMethod(default,null) : AnimatedEnumeration;
 
 }

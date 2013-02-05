@@ -59,7 +59,7 @@ bug 2212</a>
 
 	var bgColor : String;
 
-	var cellIndex (default,null) : Int;
+	var cellIndex(default,null) : Int;
 
 	var ch : String;
 

@@ -26,14 +26,14 @@ package js.html.svg;
 @:native("SVGZoomEvent")
 extern class ZoomEvent extends js.html.UIEvent
 {
-	var newScale (default,null) : Float;
+	var newScale(default,null) : Float;
 
-	var newTranslate (default,null) : Point;
+	var newTranslate(default,null) : Point;
 
-	var previousScale (default,null) : Float;
+	var previousScale(default,null) : Float;
 
-	var previousTranslate (default,null) : Point;
+	var previousTranslate(default,null) : Point;
 
-	var zoomRectScreen (default,null) : Rect;
+	var zoomRectScreen(default,null) : Rect;
 
 }

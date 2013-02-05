@@ -26,8 +26,8 @@ package js.html.fs;
 @:native("DOMFileSystem")
 extern class FileSystem
 {
-	var name (default,null) : String;
+	var name(default,null) : String;
 
-	var root (default,null) : DirectoryEntry;
+	var root(default,null) : DirectoryEntry;
 
 }

@@ -32,11 +32,11 @@ extern class Exception
 
 	static inline var SVG_WRONG_TYPE_ERR : Int = 0;
 
-	var code (default,null) : Int;
+	var code(default,null) : Int;
 
-	var message (default,null) : String;
+	var message(default,null) : String;
 
-	var name (default,null) : String;
+	var name(default,null) : String;
 
 	function toString() : String;
 

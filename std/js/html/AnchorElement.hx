@@ -69,7 +69,7 @@ extern class AnchorElement extends Element
 <span><a rel="custom" href="https://developer.mozilla.org/en/HTML/HTML5">HTML5</a></span> */
 	var name : String;
 
-	var origin (default,null) : String;
+	var origin(default,null) : String;
 
 	/** The path name component, if any, of the referenced URL. */
 	var pathname : String;
@@ -110,7 +110,7 @@ extern class AnchorElement extends Element
 	var target : String;
 
 	/** Same as the <strong><a title="https://developer.mozilla.org/En/DOM/Node.textContent" rel="internal" href="https://developer.mozilla.org/En/DOM/Node.textContent">textContent</a></strong> property. */
-	var text (default,null) : String;
+	var text(default,null) : String;
 
 	/** Reflects the 
 

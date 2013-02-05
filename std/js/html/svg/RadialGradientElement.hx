@@ -32,25 +32,25 @@ extern class RadialGradientElement extends GradientElement
 	/** Corresponds to attribute 
 <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Attribute/cx">cx</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/radialGradient">&lt;radialGradient&gt;</a></code>
  element. */
-	var cx (default,null) : AnimatedLength;
+	var cx(default,null) : AnimatedLength;
 
 	/** Corresponds to attribute 
 <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Attribute/cy">cy</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/radialGradient">&lt;radialGradient&gt;</a></code>
  element. */
-	var cy (default,null) : AnimatedLength;
+	var cy(default,null) : AnimatedLength;
 
-	var fr (default,null) : AnimatedLength;
+	var fr(default,null) : AnimatedLength;
 
 	/** Corresponds to attribute 
 <code><a rel="internal" href="https://developer.mozilla.org/en/SVG/Attribute/fx" class="new">fx</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/radialGradient">&lt;radialGradient&gt;</a></code>
  element. */
-	var fx (default,null) : AnimatedLength;
+	var fx(default,null) : AnimatedLength;
 
 	/** Corresponds to attribute 
 <code><a rel="internal" href="https://developer.mozilla.org/en/SVG/Attribute/fy" class="new">fy</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/radialGradient">&lt;radialGradient&gt;</a></code>
  element. */
-	var fy (default,null) : AnimatedLength;
+	var fy(default,null) : AnimatedLength;
 
-	var r (default,null) : AnimatedLength;
+	var r(default,null) : AnimatedLength;
 
 }

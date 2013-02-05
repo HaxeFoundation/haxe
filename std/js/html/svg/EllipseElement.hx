@@ -32,21 +32,21 @@ extern class EllipseElement extends Element
 	/** Corresponds to attribute 
 <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Attribute/cx">cx</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/ellipse">&lt;ellipse&gt;</a></code>
  element. */
-	var cx (default,null) : AnimatedLength;
+	var cx(default,null) : AnimatedLength;
 
 	/** Corresponds to attribute 
 <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Attribute/cy">cy</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/ellipse">&lt;ellipse&gt;</a></code>
  element. */
-	var cy (default,null) : AnimatedLength;
+	var cy(default,null) : AnimatedLength;
 
 	/** Corresponds to attribute 
 <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Attribute/rx">rx</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/ellipse">&lt;ellipse&gt;</a></code>
  element. */
-	var rx (default,null) : AnimatedLength;
+	var rx(default,null) : AnimatedLength;
 
 	/** Corresponds to attribute 
 <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Attribute/ry">ry</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/ellipse">&lt;ellipse&gt;</a></code>
  element. */
-	var ry (default,null) : AnimatedLength;
+	var ry(default,null) : AnimatedLength;
 
 }

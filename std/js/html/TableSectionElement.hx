@@ -52,7 +52,7 @@ bug 2212</a>
 
 	var chOff : String;
 
-	var rows (default,null) : HTMLCollection;
+	var rows(default,null) : HTMLCollection;
 
 	var vAlign : String;
 

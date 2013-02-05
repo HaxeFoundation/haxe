@@ -33,6 +33,6 @@ extern class CSSStyleRule extends CSSRule
 	var selectorText : String;
 
 	/** Returns the <code><a title="en/DOM/CSSStyleDeclaration" rel="internal" href="https://developer.mozilla.org/en/DOM/CSSStyleDeclaration">CSSStyleDeclaration</a></code> object for the rule. <strong>Read only.</strong> */
-	var style (default,null) : CSSStyleDeclaration;
+	var style(default,null) : CSSStyleDeclaration;
 
 }

@@ -42,11 +42,11 @@ extern class BiquadFilterNode extends AudioNode
 
 	static inline var PEAKING : Int = 5;
 
-	var Q (default,null) : AudioParam;
+	var Q(default,null) : AudioParam;
 
-	var frequency (default,null) : AudioParam;
+	var frequency(default,null) : AudioParam;
 
-	var gain (default,null) : AudioParam;
+	var gain(default,null) : AudioParam;
 
 	/** Setter throws DOMException. */
 	var type : Int;

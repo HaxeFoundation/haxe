@@ -26,6 +26,6 @@ package js.html;
 @:native("CSSFontFaceRule")
 extern class CSSFontFaceRule extends CSSRule
 {
-	var style (default,null) : CSSStyleDeclaration;
+	var style(default,null) : CSSStyleDeclaration;
 
 }

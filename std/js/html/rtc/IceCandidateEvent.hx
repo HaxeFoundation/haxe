@@ -26,6 +26,6 @@ package js.html.rtc;
 @:native("RTCIceCandidateEvent")
 extern class IceCandidateEvent extends js.html.Event
 {
-	var candidate (default,null) : IceCandidate;
+	var candidate(default,null) : IceCandidate;
 
 }

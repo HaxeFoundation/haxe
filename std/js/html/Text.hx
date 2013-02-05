@@ -31,7 +31,7 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 extern class Text extends CharacterData
 {
 	/** Returns all text of all Text nodes logically adjacent to this node, concatenated in document order. */
-	var wholeText (default,null) : String;
+	var wholeText(default,null) : String;
 
 	function replaceWholeText( content : String ) : Text;
 

@@ -84,7 +84,7 @@ extern class CSSPrimitiveValue extends CSSValue
 
 	static inline var CSS_VW : Int = 26;
 
-	var primitiveType (default,null) : Int;
+	var primitiveType(default,null) : Int;
 
 	function getCounterValue() : Counter;
 

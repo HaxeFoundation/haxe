@@ -29,8 +29,8 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("SVGCursorElement")
 extern class CursorElement extends Element
 {
-	var x (default,null) : AnimatedLength;
+	var x(default,null) : AnimatedLength;
 
-	var y (default,null) : AnimatedLength;
+	var y(default,null) : AnimatedLength;
 
 }

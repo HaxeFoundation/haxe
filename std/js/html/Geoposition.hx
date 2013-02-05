@@ -26,8 +26,8 @@ package js.html;
 @:native("Geoposition")
 extern class Geoposition
 {
-	var coords (default,null) : Coordinates;
+	var coords(default,null) : Coordinates;
 
-	var timestamp (default,null) : Int;
+	var timestamp(default,null) : Int;
 
 }

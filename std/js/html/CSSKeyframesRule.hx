@@ -26,7 +26,7 @@ package js.html;
 @:native("CSSKeyframesRule")
 extern class CSSKeyframesRule extends CSSRule
 {
-	var cssRules (default,null) : CSSRuleList;
+	var cssRules(default,null) : CSSRuleList;
 
 	var name : String;
 

@@ -42,8 +42,8 @@ extern class Exception
 
 	static inline var VERSION_ERR : Int = 2;
 
-	var code (default,null) : Int;
+	var code(default,null) : Int;
 
-	var message (default,null) : String;
+	var message(default,null) : String;
 
 }

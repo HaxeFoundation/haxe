@@ -44,19 +44,19 @@ extern class MarkerElement extends Element
 
 	static inline var SVG_MARKER_ORIENT_UNKNOWN : Int = 0;
 
-	var markerHeight (default,null) : AnimatedLength;
+	var markerHeight(default,null) : AnimatedLength;
 
-	var markerUnits (default,null) : AnimatedEnumeration;
+	var markerUnits(default,null) : AnimatedEnumeration;
 
-	var markerWidth (default,null) : AnimatedLength;
+	var markerWidth(default,null) : AnimatedLength;
 
-	var orientAngle (default,null) : AnimatedAngle;
+	var orientAngle(default,null) : AnimatedAngle;
 
-	var orientType (default,null) : AnimatedEnumeration;
+	var orientType(default,null) : AnimatedEnumeration;
 
-	var refX (default,null) : AnimatedLength;
+	var refX(default,null) : AnimatedLength;
 
-	var refY (default,null) : AnimatedLength;
+	var refY(default,null) : AnimatedLength;
 
 	function setOrientToAngle( angle : Angle ) : Void;
 

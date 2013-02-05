@@ -29,10 +29,10 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("Entity")
 extern class Entity extends Node
 {
-	var notationName (default,null) : String;
+	var notationName(default,null) : String;
 
-	var publicId (default,null) : String;
+	var publicId(default,null) : String;
 
-	var systemId (default,null) : String;
+	var systemId(default,null) : String;
 
 }

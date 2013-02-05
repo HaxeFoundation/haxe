@@ -51,12 +51,12 @@ extern class CSSRule
 	var cssText : String;
 
 	/** Returns the containing rule, otherwise <code>null</code>. E.g. if this rule is a style rule inside an <code><a title="en/CSS/@media" rel="internal" href="https://developer.mozilla.org/en/CSS/@media">@media</a></code> block, the parent rule would be that <code><a title="en/DOM/CSSMediaRule" rel="internal" href="https://developer.mozilla.org/en/DOM/CSSMediaRule">CSSMediaRule</a></code>. */
-	var parentRule (default,null) : CSSRule;
+	var parentRule(default,null) : CSSRule;
 
 	/** Returns the <code><a title="en/DOM/CSSStyleSheet" rel="internal" href="https://developer.mozilla.org/en/DOM/CSSStyleSheet">CSSStyleSheet</a></code> object for the style sheet that contains this rule */
-	var parentStyleSheet (default,null) : CSSStyleSheet;
+	var parentStyleSheet(default,null) : CSSStyleSheet;
 
 	/** One of the <a rel="custom" href="https://developer.mozilla.org/en/DOM/cssRule#Type_constants">Type constants</a>&nbsp;indicating the type of CSS&nbsp;rule. */
-	var type (default,null) : Int;
+	var type(default,null) : Int;
 
 }

@@ -28,8 +28,8 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 @:native("Metadata")
 extern class Metadata
 {
-	var modificationTime (default,null) : Date;
+	var modificationTime(default,null) : Date;
 
-	var size (default,null) : Int;
+	var size(default,null) : Int;
 
 }

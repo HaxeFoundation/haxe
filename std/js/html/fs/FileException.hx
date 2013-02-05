@@ -52,11 +52,11 @@ extern class FileException
 
 	static inline var TYPE_MISMATCH_ERR : Int = 11;
 
-	var code (default,null) : Int;
+	var code(default,null) : Int;
 
-	var message (default,null) : String;
+	var message(default,null) : String;
 
-	var name (default,null) : String;
+	var name(default,null) : String;
 
 	function toString() : String;
 

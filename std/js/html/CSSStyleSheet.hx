@@ -31,12 +31,12 @@ Documentation for this class was provided by <a href="https://developer.mozilla.
 extern class CSSStyleSheet extends StyleSheet
 {
 	/** Returns a <code><a title="en/DOM/CSSRuleList" rel="internal" href="https://developer.mozilla.org/en/DOM/CSSRuleList">CSSRuleList</a></code> of the CSS rules in the style sheet. */
-	var cssRules (default,null) : CSSRuleList;
+	var cssRules(default,null) : CSSRuleList;
 
 	/** If this style sheet is imported into the document using an <code><a title="en/CSS/@import" rel="internal" href="https://developer.mozilla.org/en/CSS/@import">@import</a></code> rule, the <code>ownerRule</code> property will return that <code><a title="en/DOM/CSSImportRule" rel="internal" href="https://developer.mozilla.org/en/DOM/CSSImportRule" class="new ">CSSImportRule</a></code>, otherwise it returns <code>null</code>. */
-	var ownerRule (default,null) : CSSRule;
+	var ownerRule(default,null) : CSSRule;
 
-	var rules (default,null) : CSSRuleList;
+	var rules(default,null) : CSSRuleList;
 
 	function addRule( selector : String, style : String, ?index : Int ) : Int;
 

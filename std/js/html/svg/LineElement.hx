@@ -32,21 +32,21 @@ extern class LineElement extends Element
 	/** Corresponds to attribute 
 <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Attribute/x1">x1</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/line">&lt;line&gt;</a></code>
  element. */
-	var x1 (default,null) : AnimatedLength;
+	var x1(default,null) : AnimatedLength;
 
 	/** Corresponds to attribute 
 <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Attribute/x2">x2</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/line">&lt;line&gt;</a></code>
  element. */
-	var x2 (default,null) : AnimatedLength;
+	var x2(default,null) : AnimatedLength;
 
 	/** Corresponds to attribute 
 <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Attribute/y1">y1</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/line">&lt;line&gt;</a></code>
  element. */
-	var y1 (default,null) : AnimatedLength;
+	var y1(default,null) : AnimatedLength;
 
 	/** Corresponds to attribute 
 <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Attribute/y2">y2</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/line">&lt;line&gt;</a></code>
  element. */
-	var y2 (default,null) : AnimatedLength;
+	var y2(default,null) : AnimatedLength;
 
 }

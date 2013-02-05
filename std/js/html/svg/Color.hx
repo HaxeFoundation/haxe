@@ -38,9 +38,9 @@ extern class Color extends js.html.CSSValue
 
 	static inline var SVG_COLORTYPE_UNKNOWN : Int = 0;
 
-	var colorType (default,null) : Int;
+	var colorType(default,null) : Int;
 
-	var rgbColor (default,null) : js.html.RGBColor;
+	var rgbColor(default,null) : js.html.RGBColor;
 
 	function setColor( colorType : Int, rgbColor : String, iccColor : String ) : Void;
 

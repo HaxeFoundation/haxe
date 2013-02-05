@@ -26,6 +26,6 @@ package js.html.rtc;
 @:native("MediaStreamEvent")
 extern class MediaStreamEvent extends js.html.Event
 {
-	var stream (default,null) : MediaStream;
+	var stream(default,null) : MediaStream;
 
 }

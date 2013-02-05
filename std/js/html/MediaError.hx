@@ -36,6 +36,6 @@ extern class MediaError
 
 	static inline var MEDIA_ERR_SRC_NOT_SUPPORTED : Int = 4;
 
-	var code (default,null) : Int;
+	var code(default,null) : Int;
 
 }

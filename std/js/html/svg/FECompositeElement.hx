@@ -44,18 +44,18 @@ extern class FECompositeElement extends Element
 
 	static inline var SVG_FECOMPOSITE_OPERATOR_XOR : Int = 5;
 
-	var in1 (default,null) : AnimatedString;
+	var in1(default,null) : AnimatedString;
 
-	var in2 (default,null) : AnimatedString;
+	var in2(default,null) : AnimatedString;
 
-	var k1 (default,null) : AnimatedNumber;
+	var k1(default,null) : AnimatedNumber;
 
-	var k2 (default,null) : AnimatedNumber;
+	var k2(default,null) : AnimatedNumber;
 
-	var k3 (default,null) : AnimatedNumber;
+	var k3(default,null) : AnimatedNumber;
 
-	var k4 (default,null) : AnimatedNumber;
+	var k4(default,null) : AnimatedNumber;
 
-	var operator (default,null) : AnimatedEnumeration;
+	var operator(default,null) : AnimatedEnumeration;
 
 }

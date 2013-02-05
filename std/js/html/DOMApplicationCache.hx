@@ -54,7 +54,7 @@ extern class DOMApplicationCache extends EventTarget
 
 	var onupdateready : EventListener;
 
-	var status (default,null) : Int;
+	var status(default,null) : Int;
 
 	function abort() : Void;
 
