@@ -170,8 +170,14 @@ let any = mk_any t_dynamic Ast.null_pos
 
 let fake_tuple_type = TInst(mk_class null_module ([],"-Tuple") null_pos, [])
 
-let mk_subs st con = match con.c_def with
-	| CFields (_,fl) -> List.map (fun (s,cf) -> mk_st (SField(st,s)) cf.cf_type st.st_pos) fl
+let mk_subs st con =
+	let map = match follow st.st_type with
+		| TInst(c,pl) -> apply_params c.cl_types pl
+		| TEnum(en,pl) -> apply_params en.e_types pl
+		| _ -> fun t -> t
+	in
+	match con.c_def with
+	| CFields (_,fl) -> List.map (fun (s,cf) -> mk_st (SField(st,s)) (map cf.cf_type) st.st_pos) fl
 	| CEnum (en,({ef_type = TFun _} as ef)) ->
 		let pl = match follow con.c_type with TEnum(_,pl) -> pl | _ -> assert false in
 		begin match apply_params en.e_types pl (monomorphs ef.ef_params ef.ef_type) with
@@ -439,18 +445,25 @@ let to_pattern ctx e t =
 			end
 		| (EObjectDecl fl) ->
 			begin match follow t with
-			| TAnon {a_fields = fields}
-			| TInst({cl_fields = fields},_) ->
+			| TAnon {a_fields = fields} ->
 				let ctexpr = { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = None } in
 				let texpr = Typeload.load_instance ctx ctexpr p false in
 				List.iter (fun (n,(_,p)) -> if not (PMap.mem n fields) then error (unify_error_msg (print_context()) (has_extra_field t n)) p) fl;
-				let sl,pl,i = PMap.foldi (fun n cf (sl,pl,i) ->
+				let sl,pl,i = PMap.foldi (fun n cf (sl,pl,i) -> match cf.cf_kind with Method _ -> sl,pl,i | _ ->
 					if n = "pos" && Type.type_iseq t texpr then
 						sl,pl,i
 					else
 						let pat = try loop pctx (List.assoc n fl) cf.cf_type with Not_found -> (mk_any cf.cf_type p) in
 						(n,cf) :: sl,pat :: pl,i + 1
 				) fields ([],[],0) in
+				mk_con_pat (CFields(i,sl)) pl t p
+			| TInst(c,tl) ->
+				List.iter (fun (n,(_,p)) -> if not (PMap.mem n c.cl_fields) then error (unify_error_msg (print_context()) (has_extra_field t n)) p) fl;
+				let sl,pl,i = PMap.foldi (fun n cf (sl,pl,i) -> match cf.cf_kind with Method _ -> sl,pl,i | _ ->
+						let t = apply_params c.cl_types tl (monomorphs cf.cf_params cf.cf_type) in
+						let pat = try loop pctx (List.assoc n fl) t with Not_found -> (mk_any t p) in
+						(n,cf) :: sl,pat :: pl,i + 1
+				) c.cl_fields ([],[],0) in
 				mk_con_pat (CFields(i,sl)) pl t p
 			| _ ->
 				error ((s_type t) ^ " should be { }") p
