@@ -1788,20 +1788,7 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 	| EClass d ->
 		let c = (match get_type d.d_name with TClassDecl c -> c | _ -> assert false) in
 		let herits = d.d_flags in
-		(*
-			we need to check rtti has early as class declaration, but we can't resolve imports,
-			so let's have a quick heuristic for backward compatibility
-		*)
-		let implements_rtti() =
-			let rtti = List.exists (function
-				| HImplements { tpackage = ["haxe";"rtti"]; tname = "Generic" } -> true
-				| HImplements { tpackage = []; tname = "Generic" } -> List.exists (fun t -> t_path t = (["haxe";"rtti"],"Generic")) ctx.m.module_types
-				| _ -> false
-			) herits in
-			if rtti then error ("Implementing haxe.rtti.Generic is deprecated in haxe 3, please use @:generic instead") c.cl_pos;
-			Meta.has Meta.Generic c.cl_meta || rtti
-		in
-		if implements_rtti() && c.cl_types <> [] then c.cl_kind <- KGeneric;
+		if Meta.has Meta.Generic c.cl_meta && c.cl_types <> [] then c.cl_kind <- KGeneric;
 		if c.cl_path = (["haxe";"macro"],"MacroType") then c.cl_kind <- KMacroType;
 		c.cl_extern <- List.mem HExtern herits;
 		c.cl_interface <- List.mem HInterface herits;

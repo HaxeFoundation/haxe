@@ -556,8 +556,6 @@ let on_inherit ctx c p h =
 	| HExtends { tpackage = ["mt"]; tname = "AsyncProxy"; tparams = [TPType(CTPath t)] } ->
 		extend_remoting ctx c t p true false;
 		false
-	| HImplements { tpackage = ["haxe";"rtti"]; tname = "Generic"; tparams = [] } ->
-		error ("Implementing haxe.rtti.Generic is deprecated in haxe 3, please use @:generic instead") c.cl_pos;
 	| HExtends { tpackage = ["haxe";"xml"]; tname = "Proxy"; tparams = [TPExpr(EConst (String file),p);TPType t] } ->
 		extend_xml_proxy ctx c t file p;
 		true
@@ -635,19 +633,8 @@ let apply_native_paths ctx t =
 
 (* Adds the __rtti field if required *)
 let add_rtti ctx t =
-	let has_rtti c =
-		let rec has_rtti_new c =
-			Meta.has Meta.RttiInfos c.cl_meta || match c.cl_super with None -> false | Some (csup,_) -> has_rtti_new csup
-		in
-		let rec has_rtti_old c =
-			List.exists (function (t,pl) ->
-				match t, pl with
-				| { cl_path = ["haxe";"rtti"],"Infos" },[] -> true
-				| _ -> false
-			) c.cl_implements || (match c.cl_super with None -> false | Some (c,_) -> has_rtti_old c)
-		in
-		if has_rtti_old c then error ("Implementing haxe.rtti.Infos is deprecated in haxe 3, please use @:rttiInfos instead") c.cl_pos;
-		has_rtti_new c
+	let rec has_rtti c =
+		Meta.has Meta.RttiInfos c.cl_meta || match c.cl_super with None -> false | Some (csup,_) -> has_rtti csup
 	in
 	match t with
 	| TClassDecl c when has_rtti c && not (PMap.mem "__rtti" c.cl_statics) ->

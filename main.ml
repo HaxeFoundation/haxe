@@ -88,6 +88,8 @@ let deprecated = [
 	"Class not found : Int32","Int32 has been removed, use Int instead";
 	"Identifier 'EType' is not part of enum haxe.macro.ExprDef","EType has been removed, use EField instead";
 	"Identifier 'CType' is not part of enum haxe.macro.Constant","CType has been removed, use CIdent instead";
+	"Class not found : haxe.rtti.Infos","Use @:rttiInfos instead of implementing haxe.rttiInfos";
+	"Class not found : haxe.rtti.Generic","Use @:generic instead of implementing haxe.Generic";
 ]
 
 let error ctx msg p =
