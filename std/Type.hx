@@ -203,6 +203,8 @@ extern class Type {
 		The order of the fields in the returned Array is unspecified.
 		
 		If [c] is null, the result is unspecified.
+		
+		(As3) This method only returns instance fields that are public.
 	**/
 	public static function getInstanceFields( c : Class<Dynamic> ) : Array<String>;
 
@@ -214,6 +216,8 @@ extern class Type {
 		The order of the fields in the returned Array is unspecified.
 		
 		If [c] is null, the result is unspecified.
+		
+		(As3) This method only returns class fields that are public.
 	**/
 	public static function getClassFields( c : Class<Dynamic> ) : Array<String>;
 

@@ -12,7 +12,7 @@ typedef T = {
 	public var prop(default, null):String;
 	
 	static function staticFunc() { }
-	static var staticVar:String;
+	static public var staticVar:String;
 	static var staticProp(default, null):String;
 	
 	public function new() {
