@@ -1,6 +1,6 @@
 // getClass
 Type.getClass("foo") == String;
-Type.getClass(new haxe.Template("")) == haxe.Template;
+Type.getClass(new C()) == C;
 Type.getClass([]) == Array;
 Type.getClass(Float) == null;
 Type.getClass(null) == null;
@@ -20,7 +20,7 @@ Type.getSuperClass(ClassWithToStringChild) == ClassWithToString;
 
 // getClassName
 Type.getClassName(String) == "String";
-Type.getClassName(haxe.Template) == "haxe.Template";
+Type.getClassName(C) == "unit.C";
 //Type.getClassName(null) == null;
 Type.getClassName(Type.getClass([])) == "Array";
 
@@ -30,7 +30,7 @@ Type.getEnumName(haxe.macro.Expr.ExprDef) == "haxe.macro.ExprDef";
 
 // resolveClass
 Type.resolveClass("String") == String;
-Type.resolveClass("haxe.Template") == haxe.Template;
+Type.resolveClass("unit.C") == C;
 //Type.resolveClass("Float") == null;
 //Type.resolveClass(null) == null;
 Type.resolveClass("MyNonExistingClass") == null;

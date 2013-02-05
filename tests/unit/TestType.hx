@@ -665,7 +665,9 @@ class TestType extends Test {
 		exc(function() { throw null; return 1; } );
 		exc(function() { throw null; return "foo"; } );
 		exc(function() { throw null; return MyEnum.A; } );
+		#if !flash8
 		exc(function() { throw null; return new haxe.Template("foo"); } );
+		#end
 		exc(function() { throw null; return null; } );
 		exc(function() { throw null; return { foo: 1}; } );
 	}

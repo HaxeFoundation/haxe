@@ -16,6 +16,7 @@ abstract MyAbstract(Int) {
 
 }
 
+#if !flash8
 abstract TemplateWrap(haxe.Template) {
 	public inline function new(x) {
 		this = new haxe.Template(x);
@@ -32,6 +33,7 @@ abstract TemplateWrap(haxe.Template) {
 		return this.execute( { t: "really works!"});
 	}
 }
+#end
 
 abstract Meter(Float) from Float to Float {
 	public inline function new(f)
