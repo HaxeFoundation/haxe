@@ -178,7 +178,7 @@ Math.floor( -1.0) == -1;
 Math.floor( -1.0001) == -2;
 Math.ffloor(Math.POSITIVE_INFINITY) == Math.POSITIVE_INFINITY;
 Math.ffloor(Math.NEGATIVE_INFINITY) == Math.NEGATIVE_INFINITY;
-Math.isNaN(Math.floor(Math.NaN)) == true;
+Math.isNaN(Math.ffloor(Math.NaN)) == true;
 
 // ceil
 Math.ceil(0.0) == 0;
