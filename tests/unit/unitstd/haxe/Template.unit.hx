@@ -1,3 +1,4 @@
+#if !flash8
 // normal
 var tpl = new haxe.Template("My name is <strong>::name::</strong> and I'm <em>::age::</em> years old.");
 var output = tpl.execute( { name : "John", age : 33 } );
@@ -19,3 +20,4 @@ function myfun( resolve : String -> Dynamic, title : String, p : Int ) {
 var t1 = new haxe.Template("Call macro : $$myfun(Hello,::param::)");
 var str = t1.execute({ param : 55, mult : 2 },{ myfun : myfun });
 str == "Call macro : [Hello=110]";
+#end
