@@ -147,6 +147,7 @@ type context =
 	mutable ctx_calling : bool;
 	mutable ctx_assigning : bool;
 	mutable ctx_return_from_block : bool;
+	mutable ctx_tcall_expand_args : bool;
 	(* This is for returning from the child nodes of TMatch, TSwitch && TTry *)
 	mutable ctx_return_from_internal_node : bool;
 	mutable ctx_debug : bool;
@@ -160,6 +161,7 @@ type context =
 	mutable ctx_static_id_depth : int;
 	mutable ctx_switch_id : int;
 	mutable ctx_class_name : string;
+	mutable ctx_class_super_name : string;
 	mutable ctx_local_function_args : (string,string) Hashtbl.t;
 	mutable ctx_local_return_block_args : (string,string) Hashtbl.t;
 	mutable ctx_class_member_types : (string,string) Hashtbl.t;
@@ -179,6 +181,7 @@ let new_context common_ctx writer debug file_info =
 	ctx_dump_src_pos = (fun() -> ());
 	ctx_dump_stack_line = true;
 	ctx_return_from_block = false;
+	ctx_tcall_expand_args = false;
 	ctx_return_from_internal_node = false;
 	ctx_real_this_ptr = true;
 	ctx_dynamic_this_ptr = false;
@@ -187,6 +190,7 @@ let new_context common_ctx writer debug file_info =
 	ctx_static_id_depth = 0;
 	ctx_switch_id = 0;
 	ctx_class_name = "";
+	ctx_class_super_name = "";
 	ctx_local_function_args = Hashtbl.create 0;
 	ctx_local_return_block_args = Hashtbl.create 0;
 	ctx_class_member_types =  Hashtbl.create 0;
@@ -1000,6 +1004,50 @@ let return_type_string t =
    | _ -> ""
 ;;
 
+let rec has_side_effects expr =
+   match expr.eexpr with
+     | TConst _ | TLocal _ | TFunction _ | TTypeExpr _ -> false
+     | TUnop(Increment,_,_) | TUnop(Decrement,_,_) | TBinop(OpAssign,_,_) | TBinop(OpAssignOp _,_,_) -> true
+     | TUnop(_,_,e) -> has_side_effects e
+     | TArray(e1,e2) | TBinop(_,e1,e2) -> has_side_effects e1 || has_side_effects e2
+     | TIf(cond,e1,Some e2) -> has_side_effects cond || has_side_effects e1 || has_side_effects e2
+     | TField(e,_) | TParenthesis e -> has_side_effects e
+     | TArrayDecl el -> List.exists has_side_effects el
+     | TObjectDecl decls -> List.exists (fun (_,e) -> has_side_effects e) decls
+     | TCast(e,_) -> has_side_effects e
+     | _ -> true
+;;
+
+let rec can_be_affected expr =
+   match expr.eexpr with
+     | TConst _ | TLocal _ | TFunction _ | TTypeExpr _ -> false
+     | TUnop(Increment,_,_) | TUnop(Decrement,_,_) -> true
+     | TUnop(_,_,e) -> can_be_affected e
+     | TBinop(OpAssign,_,_) | TBinop(OpAssignOp _,_,_) -> true
+     | TBinop(_,e1,e2) -> can_be_affected e1 || can_be_affected e2
+     | TField(e,_) -> can_be_affected e
+     | TParenthesis e -> can_be_affected e
+     | TCast(e,_) -> can_be_affected e
+     | TArrayDecl el -> List.exists can_be_affected el
+     | TObjectDecl decls -> List.exists (fun (_,e) -> can_be_affected e) decls
+     | _ -> true
+;;
+
+
+let call_has_side_effects func args =
+   let effects = (if has_side_effects func then 1 else 0) + (List.length (List.filter has_side_effects args)) in
+   let affected = (if can_be_affected func then 1 else 0) + (List.length (List.filter can_be_affected args)) in
+   effects + affected > 2;
+;;
+
+(*
+  The above code may be overly pessimistic - will have to check performance
+  
+
+let has_side_effects expr = false;;
+let call_has_side_effects func args = false;;
+*)
+
 
 let has_default_values args =
 	List.exists ( fun (_,o) -> match o with
@@ -1051,6 +1099,7 @@ let rec define_local_function_ctx ctx func_name func_def =
 		(* '__global__', '__cpp__' are always defined *)
 		Hashtbl.add declarations "__global__" ();
 		Hashtbl.add declarations "__cpp__" ();
+		Hashtbl.add declarations "__trace" ();
 		(* Add args as defined variables *)
 		List.iter ( fun (arg_var, opt_val) ->
 			if (ctx.ctx_debug) then
@@ -1141,19 +1190,21 @@ and find_local_functions_and_return_blocks_ctx ctx retval expression =
 		match expression.eexpr with
 		| TBlock _ ->
 			if (retval) then begin
-				define_local_return_block_ctx ctx expression (next_anon_function_name ctx);
+				define_local_return_block_ctx ctx expression (next_anon_function_name ctx) true;
 			end  (* else we are done *)
 		| TMatch (_, _, _, _)
 		| TTry (_, _)
 		| TSwitch (_, _, _) when retval ->
-				define_local_return_block_ctx ctx expression (next_anon_function_name ctx)
+				define_local_return_block_ctx ctx expression (next_anon_function_name ctx) true;
       | TObjectDecl ( ("fileName" , { eexpr = (TConst (TString file)) }) ::
          ("lineNumber" , { eexpr = (TConst (TInt line)) }) ::
             ("className" , { eexpr = (TConst (TString class_name)) }) ::
                ("methodName", { eexpr = (TConst (TString meth)) }) :: [] ) -> ()
 		| TObjectDecl decl_list ->
 				let name = next_anon_function_name ctx in
-				define_local_return_block_ctx ctx expression name;
+				define_local_return_block_ctx ctx expression name true;
+		| TCall(func,args) when call_has_side_effects func args ->
+				define_local_return_block_ctx ctx expression (next_anon_function_name ctx) retval
 		(*| TCall (e,el) -> (* visit function object first, then args *)
 			find_local_functions_and_return_blocks e;
 			List.iter find_local_functions_and_return_blocks  el *)
@@ -1174,7 +1225,7 @@ and find_local_functions_and_return_blocks_ctx ctx retval expression =
 		| _ -> iter_retval find_local_functions_and_return_blocks retval expression
 	in find_local_functions_and_return_blocks retval expression
 
-and define_local_return_block_ctx ctx expression name =
+and define_local_return_block_ctx ctx expression name retval =
 	let writer = ctx.ctx_writer in
 	let output_i = writer#write_i in
 	let output = ctx.ctx_output in
@@ -1186,6 +1237,7 @@ and define_local_return_block_ctx ctx expression name =
 		(* '__global__' is always defined *)
 		Hashtbl.add declarations "__global__" ();
 		Hashtbl.add declarations "__cpp__" ();
+		Hashtbl.add declarations "__trace" ();
 		find_undeclared_variables_ctx ctx undeclared declarations "_obj" true expression;
 
 		let vars = (hash_keys undeclared) in
@@ -1193,8 +1245,10 @@ and define_local_return_block_ctx ctx expression name =
 		Hashtbl.replace ctx.ctx_local_return_block_args name args;
 		output_i ("struct " ^ name);
 		writer#begin_block;
-		let ret_type = match expression.eexpr with
-		     | TObjectDecl _ -> "Dynamic" | _ -> type_string expression.etype in
+		let ret_type = if (not retval) then "Void" else
+          match expression.eexpr with
+		     | TObjectDecl _ -> "Dynamic"
+           | _ -> type_string expression.etype in
 		output_i ("inline static " ^ ret_type ^ " Block( ");
 		output (String.concat "," ( (List.map (fun var ->
 				(Hashtbl.find undeclared var) ^ (reference var)) ) vars));
@@ -1224,6 +1278,16 @@ and define_local_return_block_ctx ctx expression name =
 			ctx.ctx_return_from_block <- return_data;
 			ctx.ctx_return_from_internal_node <- false;
 			gen_expression ctx false expression;
+		| TCall(func,args) ->
+			writer#begin_block;
+			let pop_names = push_anon_names ctx in
+			find_local_functions_and_return_blocks_ctx ctx true func;
+			List.iter (find_local_functions_and_return_blocks_ctx ctx true) args;
+			ctx.ctx_tcall_expand_args <- true;
+			gen_expression ctx return_data expression;
+			output ";\n";
+			pop_names();
+			writer#end_block;
 		| _ ->
 			ctx.ctx_return_from_block <- false;
 			ctx.ctx_return_from_internal_node <- return_data;
@@ -1248,6 +1312,8 @@ and gen_expression ctx retval expression =
 	ctx.ctx_assigning <- false;
 	let return_from_block = ctx.ctx_return_from_block in
 	ctx.ctx_return_from_block <- false;
+	let tcall_expand_args = ctx.ctx_tcall_expand_args in
+	ctx.ctx_tcall_expand_args <- false;
 	let return_from_internal_node = ctx.ctx_return_from_internal_node in
 	ctx.ctx_return_from_internal_node <- false;
 	let dump_src_pos = ctx.ctx_dump_src_pos in
@@ -1331,7 +1397,7 @@ and gen_expression ctx retval expression =
 		| _ ->  gen_bin_op_string expr1 (Ast.s_binop op) expr2
 		in
 
-	let rec gen_field field_object member =
+	let rec gen_tfield field_object member =
 		let remap_name = keyword_remap member in
 		let already_dynamic = ref false in
 		(match field_object.eexpr with
@@ -1372,21 +1438,52 @@ and gen_expression ctx retval expression =
 		if ( (not !already_dynamic) && (not calling) && (not assigning) && (is_function_member expression) ) then
          output "_dyn()";
 	in
+   let gen_local_block_call () =
+		let func_name = use_anon_function_name ctx in (
+			try
+			output ( func_name ^ "::Block(" ^
+				(Hashtbl.find ctx.ctx_local_return_block_args func_name) ^ ")" )
+			with Not_found ->
+			 (*error ("Block function " ^ func_name ^ " not found" ) expression.epos;*)
+			 output ("/* Block function " ^ func_name ^ " not found */" );
+			)
+   in
 
 	(match expression.eexpr with
 	| TConst TNull when not retval ->
 		output "Dynamic()";
-	| TCall (func, arg_list) when (match func.eexpr with | TConst TSuper -> true | _ -> false ) ->
-		output "super::__construct(";
-		gen_expression_list arg_list;
-		output ")";
 	| TCall (func, arg_list) when (match func.eexpr with
-	| TLocal { v_name = "__cpp__" } -> true
-	| _ -> false) ->
+			| TLocal { v_name = "__cpp__" } -> true
+			| _ -> false) ->
 		( match arg_list with
 		| [{ eexpr = TConst (TString code) }] -> output code;
 		| _ -> error "__cpp__ accepts only one string as an argument" func.epos;
 		)
+	| TCall (func, arg_list) when tcall_expand_args->
+      let use_temp_func = has_side_effects func in
+      if (use_temp_func) then begin
+         output_i "Dynamic __func = ";
+         gen_expression ctx true func;
+         output ";\n";
+      end;
+      let arg_string = ref "" in
+      let idx = ref 0 in
+      List.iter (fun arg ->
+         let a_name = "__a" ^ string_of_int(!idx) in
+         arg_string := !arg_string ^ (if !arg_string<>"" then "," else "") ^ a_name;
+         idx := !idx + 1;
+         output_i ( (type_string arg.etype) ^ " " ^ a_name ^ " = ");
+         gen_expression ctx true arg;
+         output ";\n";
+      ) arg_list;
+      output_i (if retval then "return " else "");
+      if use_temp_func then
+         output "__func"
+      else begin
+		   ctx.ctx_calling <- true;
+         gen_expression ctx true func;
+      end;
+      output ("(" ^ !arg_string ^ ");\n");
 	| TCall (func, arg_list) ->
 		let rec is_variable e = match e.eexpr with
 		| TField _ -> false
@@ -1411,29 +1508,35 @@ and gen_expression ctx retval expression =
 		| TParenthesis p -> is_fixed_override p
 		| _ -> false
       in
+      let is_super = (match func.eexpr with | TConst TSuper -> true | _ -> false ) in
 		if (ctx.ctx_debug_type) then output ("/* TCALL ret=" ^ expr_type ^ "*/");
-		ctx.ctx_calling <- true;
-      let cast_result =  is_fixed_override func in
+		let is_block_call = call_has_side_effects func arg_list in
+      let cast_result =  (not is_super) && (is_fixed_override func) in
       if (cast_result) then output ("hx::TCast< " ^ expr_type ^ " >::cast(");
-		gen_expression ctx true func;
-		output "(";
-		gen_expression_list arg_list;
-		output ")";
+		if (is_block_call) then
+         gen_local_block_call()
+      else begin
+         if is_super then begin
+		      output (if ctx.ctx_real_this_ptr then
+			      "super::__construct"
+		      else
+			      ("__this->" ^ ctx.ctx_class_super_name ^ "::__construct") );
+         end else begin
+		      ctx.ctx_calling <- true;
+		      gen_expression ctx true func;
+         end;
+
+		   output "(";
+		   gen_expression_list arg_list;
+		   output ")";
+      end;
       if (cast_result) then output (")");
-      if ( (is_variable func) && (expr_type<>"Dynamic") ) then
+      if ( (is_variable func) && (expr_type<>"Dynamic") && (not is_super) && (not is_block_call)) then
          ctx.ctx_output (".Cast< " ^ expr_type ^ " >()" );
 	| TBlock expr_list ->
-		if (retval) then begin
-			let func_name = use_anon_function_name ctx in
-			(
-			try
-			output ( func_name ^ "::Block(" ^
-				(Hashtbl.find ctx.ctx_local_return_block_args func_name) ^ ")" )
-			with Not_found ->
-			 (*error ("Block function " ^ func_name ^ " not found" ) expression.epos;*)
-			 output ("/* Block function " ^ func_name ^ " not found */" );
-			)
-		end else begin
+		if (retval) then
+         gen_local_block_call()
+		else begin
 			writer#begin_block;
 			dump_src_pos();
 			(* Save old values, and equalize for new input ... *)
@@ -1526,7 +1629,7 @@ and gen_expression ctx retval expression =
 	| TField (expr,name) when (is_null expr) -> output "Dynamic()"
 
 	| TField (field_object,field) ->
-		gen_field field_object (field_name field)
+		gen_tfield field_object (field_name field)
 
 	| TParenthesis expr when not retval ->
 			gen_expression ctx retval expr;
@@ -1538,12 +1641,7 @@ and gen_expression ctx retval expression =
                ("methodName", { eexpr = (TConst (TString meth)) }) :: [] ) ->
        output ("hx::SourceInfo(" ^ (str file) ^ "," ^ (Printf.sprintf "%ld" line) ^ "," ^
           (str class_name) ^ "," ^ (str meth) ^ ")" )
-	| TObjectDecl decl_list ->
-		let func_name = use_anon_function_name ctx in
-		(try output ( func_name ^ "::Block(" ^
-					(Hashtbl.find ctx.ctx_local_return_block_args func_name) ^ ")" )
-		with Not_found ->
-			output ("/* TObjectDecl block " ^ func_name ^ " not found */" ); )
+	| TObjectDecl decl_list -> gen_local_block_call()
 	| TArrayDecl decl_list ->
 		(* gen_type output expression.etype; *)
       let tstr = (type_string_suff "_obj" expression.etype) in
@@ -1675,13 +1773,7 @@ and gen_expression ctx retval expression =
 	| TTry (_,_)
 	| TSwitch (_,_,_)
 	| TMatch (_, _, _, _) when (retval && (not return_from_internal_node) )->
-		let func_name = use_anon_function_name ctx in
-		(try output ( func_name ^ "::Block(" ^
-					(Hashtbl.find ctx.ctx_local_return_block_args func_name) ^ ")" )
-		with Not_found ->
-			output ("/* return block " ^ func_name ^ " not found */" ); )
-				(*error ("return block " ^ func_name ^ " not found" ) expression.epos;*)
-
+      gen_local_block_call()
 	| TSwitch (condition,cases,optional_default)  ->
 		let switch_on_int_constants = (only_int_cases cases) && (not (contains_break expression)) in
 		if (switch_on_int_constants) then begin
@@ -2594,6 +2686,9 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 	let debug = false in
 	let ctx = new_context common_ctx cpp_file debug file_info in
 	ctx.ctx_class_name <- "::" ^ (join_class_path class_path "::");
+	ctx.ctx_class_super_name <- (match class_def.cl_super with
+      | Some (klass, params) -> class_string klass "_obj" params
+      | _ -> "");
 	ctx.ctx_class_member_types <- member_types;
 	if debug then print_endline ("Found class definition:" ^ ctx.ctx_class_name);
 
