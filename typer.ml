@@ -2193,8 +2193,8 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			a.a_status := Closed;
 			mk (TObjectDecl fl) t p)
 	| EArrayDecl [(EFor _,_) | (EWhile _,_) as e] ->
-		let ea = type_expr ctx (EArrayDecl [],p) Value in
-		let v = gen_local ctx ea.etype in
+		let v = gen_local ctx (mk_mono()) in
+		let et = ref (EConst(Ident "null"),p) in
 		let rec map_compr (e,p) =
 			match e with
 			| EFor(it,e2) -> (EFor (it, map_compr e2),p)
@@ -2202,10 +2202,17 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			| EIf (cond,e2,None) -> (EIf (cond,map_compr e2,None),p)
 			| EBlock [e] -> (EBlock [map_compr e],p)
 			| EParenthesis e2 -> (EParenthesis (map_compr e2),p)
+			| EBinop(OpArrow,a,b) ->
+				et := (ENew({tpackage=[];tname="Map";tparams=[];tsub=None},[]),p);
+				(ECall ((EField ((EConst (Ident v.v_name),p),"set"),p),[a;b]),p)
 			| _ ->
+				et := (EArrayDecl [],p);
 				(ECall ((EField ((EConst (Ident v.v_name),p),"push"),p),[(e,p)]),p)
 		in
-		let efor = type_expr ctx (map_compr e) NoValue in
+		let e = map_compr e in
+		let ea = type_expr ctx !et Value in
+		unify ctx v.v_type ea.etype p;
+		let efor = type_expr ctx e NoValue in
 		mk (TBlock [
 			mk (TVars [v,Some ea]) ctx.t.tvoid p;
 			efor;

@@ -781,4 +781,12 @@ class TestType extends Test {
 		// operation is not defined
 		t(typeError(ms1 - ms2));
 	}
+	
+	function testMapComprehension() {
+		var map = [for (x in ["a", "b"]) x => x.toUpperCase()];
+		t(map.exists("a"));
+		t(map.exists("b"));
+		eq(map.get("a"), "A");
+		eq(map.get("b"), "B");
+	}
 }
