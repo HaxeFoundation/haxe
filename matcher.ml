@@ -444,13 +444,21 @@ let to_pattern ctx e t =
 				end
 			end
 		| (EObjectDecl fl) ->
+			let is_matchable cf = match cf.cf_kind with Method _ | Var {v_read = AccCall _} -> false | _ -> true in
+			let is_valid_field_name fields n p =
+				try
+					let cf = PMap.find n fields in
+					if not (is_matchable cf) then error ("Cannot match against method or property with getter " ^ n) p;
+				with Not_found ->
+					error (unify_error_msg (print_context()) (has_extra_field t n)) p
+			in
 			begin match follow t with
 			| TAnon {a_fields = fields} ->
 				let ctexpr = { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = None } in
 				let texpr = Typeload.load_instance ctx ctexpr p false in
-				List.iter (fun (n,(_,p)) -> if not (PMap.mem n fields) then error (unify_error_msg (print_context()) (has_extra_field t n)) p) fl;
-				let sl,pl,i = PMap.foldi (fun n cf (sl,pl,i) -> match cf.cf_kind with Method _ -> sl,pl,i | _ ->
-					if n = "pos" && Type.type_iseq t texpr then
+				List.iter (fun (n,(_,p)) -> is_valid_field_name fields n p) fl;
+				let sl,pl,i = PMap.foldi (fun n cf (sl,pl,i) ->
+					if not (is_matchable cf) || n = "pos" && Type.type_iseq t texpr then
 						sl,pl,i
 					else
 						let pat = try loop pctx (List.assoc n fl) cf.cf_type with Not_found -> (mk_any cf.cf_type p) in
@@ -458,8 +466,11 @@ let to_pattern ctx e t =
 				) fields ([],[],0) in
 				mk_con_pat (CFields(i,sl)) pl t p
 			| TInst(c,tl) ->
-				List.iter (fun (n,(_,p)) -> if not (PMap.mem n c.cl_fields) then error (unify_error_msg (print_context()) (has_extra_field t n)) p) fl;
-				let sl,pl,i = PMap.foldi (fun n cf (sl,pl,i) -> match cf.cf_kind with Method _ -> sl,pl,i | _ ->
+				List.iter (fun (n,(_,p)) -> is_valid_field_name c.cl_fields n p) fl;
+				let sl,pl,i = PMap.foldi (fun n cf (sl,pl,i) ->
+					if not (is_matchable cf) then
+						sl,pl,i
+					else
 						let t = apply_params c.cl_types tl (monomorphs cf.cf_params cf.cf_type) in
 						let pat = try loop pctx (List.assoc n fl) t with Not_found -> (mk_any t p) in
 						(n,cf) :: sl,pat :: pl,i + 1
