@@ -1105,7 +1105,7 @@ let parse ctx code =
 				| OpGte -> compare (>=)
 				| OpLt -> compare (<)
 				| OpLte -> compare (<=)
-				| _ -> error (Custom "Insupported operation") p)
+				| _ -> error (Custom "Unsupported operation") p)
 			| _ ->
 				error Unclosed_macro p
 		in
