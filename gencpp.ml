@@ -1004,6 +1004,7 @@ let return_type_string t =
    | _ -> ""
 ;;
 
+(*
 let rec has_side_effects expr =
    match expr.eexpr with
      | TConst _ | TLocal _ | TFunction _ | TTypeExpr _ -> false
@@ -1020,7 +1021,8 @@ let rec has_side_effects expr =
 
 let rec can_be_affected expr =
    match expr.eexpr with
-     | TConst _ | TLocal _ | TFunction _ | TTypeExpr _ -> false
+     | TConst _ | TFunction _ | TTypeExpr _ -> false
+     | TLocal _ -> true
      | TUnop(Increment,_,_) | TUnop(Decrement,_,_) -> true
      | TUnop(_,_,e) -> can_be_affected e
      | TBinop(OpAssign,_,_) | TBinop(OpAssignOp _,_,_) -> true
@@ -1037,16 +1039,16 @@ let rec can_be_affected expr =
 let call_has_side_effects func args =
    let effects = (if has_side_effects func then 1 else 0) + (List.length (List.filter has_side_effects args)) in
    let affected = (if can_be_affected func then 1 else 0) + (List.length (List.filter can_be_affected args)) in
-   effects + affected > 2;
+   effects + affected > 22;
 ;;
-
-(*
   The above code may be overly pessimistic - will have to check performance
+
+*)
+
   
 
 let has_side_effects expr = false;;
 let call_has_side_effects func args = false;;
-*)
 
 
 let has_default_values args =
@@ -1516,15 +1518,8 @@ and gen_expression ctx retval expression =
 		if (is_block_call) then
          gen_local_block_call()
       else begin
-         if is_super then begin
-		      output (if ctx.ctx_real_this_ptr then
-			      "super::__construct"
-		      else
-			      ("__this->" ^ ctx.ctx_class_super_name ^ "::__construct") );
-         end else begin
-		      ctx.ctx_calling <- true;
-		      gen_expression ctx true func;
-         end;
+		   ctx.ctx_calling <- true;
+		   gen_expression ctx true func;
 
 		   output "(";
 		   gen_expression_list arg_list;
@@ -1585,6 +1580,11 @@ and gen_expression ctx retval expression =
 		(*| TNull -> output ("((" ^ (type_string expression.etype) ^ ")null())")*)
 		| TNull -> output "null()"
 		| TThis -> output (if ctx.ctx_real_this_ptr then "hx::ObjectPtr<OBJ_>(this)" else "__this")
+		| TSuper when calling ->
+         output (if ctx.ctx_real_this_ptr then
+			      "super::__construct"
+		      else
+			      ("__this->" ^ ctx.ctx_class_super_name ^ "::__construct") )
 		| TSuper -> output ("hx::ObjectPtr<super>(" ^ (if ctx.ctx_real_this_ptr then "this" else "__this.mPtr") ^ ")")
 		)
 
