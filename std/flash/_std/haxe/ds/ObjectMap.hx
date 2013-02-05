@@ -14,8 +14,10 @@ class ObjectMap<K,V> extends flash.utils.Dictionary {
 		return untyped this[key] != null;
 	}
 
-	public inline function remove( key : K ):Bool {
-		return untyped __delete__(this,key);
+	public function remove( key : K ):Bool {
+		var has = exists(key);
+		untyped __delete__(this, key);
+		return has;
 	}
 
 	public function keys() : Array<K> {
