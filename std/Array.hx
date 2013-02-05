@@ -137,7 +137,9 @@ extern class Array<T> {
 		
 		This operation modifies [this] Array in place.
 		
-		The sort operation is robust: Equal elements will retain their order.
+		The sort operation is not guaranteed to be stable, which means that the
+		order of equal elements may not be retained. For a stable Array sorting
+		algorithm, haxe.ds.sort.MergeSort.sort() can be used instead.
 		
 		If [f] is null, the result is unspecified.
 	**/

@@ -110,7 +110,7 @@ var i2 = new IntWrap(5);
 var i3 = new IntWrap(9);
 var i4 = new IntWrap(2);
 var a = [i4, i0, i1, i3, i0, i2];
-a.sort(IntWrap.compare);
+haxe.ds.ArraySort.sort(a, IntWrap.compare);
 a == [i0, i1, i0, i4, i2, i3];
 
 // splice
