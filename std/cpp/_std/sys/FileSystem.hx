@@ -30,7 +30,7 @@ private enum FileKind {
 @:coreApi
 class FileSystem {
 
-	public static function exists( path : String ) : Bool {
+	public static inline function exists( path : String ) : Bool {
 		return sys_exists(path);
 	}
 
@@ -67,8 +67,12 @@ class FileSystem {
 	}
 
 	public static function createDirectory( path : String ) : Void {
-		if (sys_create_dir( path, 493 )==null)
-         throw "Could not create directory:" + path;
+		var parts = [while ((path = haxe.io.Path.directory(path)) != "") path];
+		parts.reverse();
+		for (part in parts) {
+			if (!exists(part) && sys_create_dir( part, 493 )==null)
+				throw "Could not create directory:" + part;
+		}
 	}
 
 	public static function deleteFile( path : String ) : Void {

@@ -77,7 +77,12 @@ class FileSystem {
 	}
 
 	public static inline function createDirectory( path : String ) : Void {
-		untyped __call__("@mkdir", path, 493); // php default is 0777, neko is 0755
+		var parts = [while ((path = haxe.io.Path.directory(path)) != "") path];
+		parts.reverse();
+		for (part in parts) {
+			if (!exists(part))
+				untyped __call__("@mkdir", part, 493); // php default is 0777, neko is 0755
+		}
 	}
 
 	public static inline function deleteFile( path : String ) : Void {

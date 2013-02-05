@@ -64,7 +64,12 @@ class FileSystem {
 	}
 
 	public static function createDirectory( path : String ) : Void {
-		sys_create_dir( untyped path.__s, 493 );
+		var parts = [while ((path = haxe.io.Path.directory(path)) != "") path];
+		parts.reverse();
+		for (part in parts) {
+			if (!exists(part))
+				sys_create_dir( untyped part.__s, 493 );
+		}
 	}
 
 	public static function deleteFile( path : String ) : Void {
