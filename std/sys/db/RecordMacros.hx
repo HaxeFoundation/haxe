@@ -513,8 +513,8 @@ class RecordMacros {
 		var r1 = buildCond(e1);
 		var r2 = buildCond(e2);
 		unify(r2.t, r1.t, e2.pos);
-		if( !tryUnify(r1.t, DInt) && !tryUnify(r1.t, DDate) && !tryUnify(r1.t, DText) )
-			unify(r1.t, DInt, e1.pos);
+		if( !tryUnify(r1.t, DFloat) && !tryUnify(r1.t, DDate) && !tryUnify(r1.t, DText) )
+			unify(r1.t, DFloat, e1.pos);
 		return { sql : makeOp(op, r1.sql, r2.sql, pos), t : DBool, n : r1.n || r2.n };
 	}
 
