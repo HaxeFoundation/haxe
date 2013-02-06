@@ -23,10 +23,6 @@ package sys.db;
 import Reflect;
 import sys.db.Connection;
 
-#if (!old_spod && !doc_gen && !macro)
-#error "Cannot use sys.db.Manager with -D old_spod"
-#end
-
 /**
 	Record Manager : the persistent object database manager. See the tutorial on
 	haXe website to learn how to use Record.
