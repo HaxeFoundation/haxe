@@ -1075,6 +1075,8 @@ let reify in_macro =
 				e1
 			| Meta.Dollar "a", _ ->
 				expr "EArrayDecl" (match fst e1 with EArrayDecl el -> [to_expr_array el p] | _ -> [e1])
+			| Meta.Dollar "b", _ ->
+				expr "EBlock" [e1]
 			(* TODO: can $v and $i be implemented better? *)
 			| Meta.Dollar "v", _ ->
 				(ECall ((EField ((EField ((EField ((EConst (Ident "haxe"),p),"macro"),p),"Context"),p),"makeExpr"),p),[e; to_pos (pos e)]),p)
