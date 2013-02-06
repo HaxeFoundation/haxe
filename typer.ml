@@ -2210,7 +2210,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				(ECall ((EField ((EConst (Ident v.v_name),p),"push"),p),[(e,p)]),p)
 		in
 		let e = map_compr e in
-		let ea = type_expr ctx !et Value in
+		let ea = type_expr ctx !et with_type in
 		unify ctx v.v_type ea.etype p;
 		let efor = type_expr ctx e NoValue in
 		mk (TBlock [
