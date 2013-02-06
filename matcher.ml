@@ -458,11 +458,13 @@ let to_pattern ctx e t =
 				let texpr = Typeload.load_instance ctx ctexpr p false in
 				List.iter (fun (n,(_,p)) -> is_valid_field_name fields n p) fl;
 				let sl,pl,i = PMap.foldi (fun n cf (sl,pl,i) ->
-					if not (is_matchable cf) || n = "pos" && Type.type_iseq t texpr then
+					if not (is_matchable cf) then
 						sl,pl,i
 					else
 						let pat = try loop pctx (List.assoc n fl) cf.cf_type with Not_found -> (mk_any cf.cf_type p) in
-						(n,cf) :: sl,pat :: pl,i + 1
+						let is_var = match pat.p_def with PVar _ -> true | _ -> false in
+						if is_var || not (n = "pos" && Type.type_iseq t texpr) then (n,cf) :: sl,pat :: pl,i + 1
+						else sl,pl,i
 				) fields ([],[],0) in
 				mk_con_pat (CFields(i,sl)) pl t p
 			| TInst(c,tl) ->
