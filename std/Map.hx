@@ -25,10 +25,91 @@
  import haxe.ds.HashMap;
  import haxe.ds.ObjectMap;
 
+ /**
+	Map allows key to value mapping for arbitrary value types, and many key
+	types.
+		
+	This is a multi-type abstract, it is instantiated as one of its
+	specialization types depending on its type parameters.
+	
+	A Map can be instantiated without explicit type parameters. Type inference
+	will then determine the type parameters from the usage.
+	
+	Maps can also be created with [key1 => value1, key2 => value2] syntax.
+	
+	Map is an abstract type, it is not available at runtime.
+**/
 @:multiType
-abstract Map<K,V>(IMap < K, V > ) {
+abstract Map< K, V > (IMap< K, V > ) {
+	
+	/**
+		Creates a new Map.
+		
+		This becomes a constructor call to one of the specialization types in
+		the output. The rules for that are as follows:
+			1. if K is a String, haxe.ds.StringMap is used
+			2. if K is an Int, haxe.ds.IntMap is used
+			3. if K is a class or structure that has a hashCode() function
+				which returns an Int, haxe.ds.HashMap is used
+			4. if K is any other class or structure, haxe.ds.ObjectMap is used
+			5. if K is any other type, it causes a compile-time error
+			
+		(Cpp) Map does not use weak keys on ObjectMap by default.
+	**/
 	public function new();
 
+	/**
+		Maps [key] to [value].
+		
+		If [key] already has a mapping, the previous value disappears.
+		
+		If [key] is null, the result is unspecified.
+	**/
+	public inline function set(key:K, value:V) this.set(key, value)
+	
+	/**
+		Returns the current mapping of [key].
+		
+		If no such mapping exists, null is returned.
+		
+		If [key] is null, the result is unspecified.
+	**/
+	public inline function get(key:K) return this.get(key)
+	
+	/**
+		Returns true if [key] has a mapping, false otherwise.
+		
+		If [key] is null, the result is unspecified.
+	**/
+	public inline function exists(key:K) return this.exists(key)
+	
+	/**
+		Removes the mapping of [key] and returns true if such a mapping existed,
+		false otherwise.
+		
+		If [key] is null, the result is unspecified.
+	**/
+	public inline function remove(key:K) return this.remove(key)
+	
+	/**
+		Returns an Iterator over the keys of [this] Map.
+		
+		The order of keys is undefined.
+	**/
+	public inline function keys():Iterator<K> {
+		return this.keys();
+	}
+	
+	/**
+		Returns an Iterator over the values of [this] Map.
+		
+		The order of values is undefined.
+	**/
+	public inline function iterator():Iterator<V> {
+		return this.iterator();
+	}
+	
+	
 	@:to static inline function toStringMap(t:IMap < String, V > ):StringMap<V> {
 		return new StringMap<V>();
 	}
@@ -45,21 +126,25 @@ abstract Map<K,V>(IMap < K, V > ) {
 		return new ObjectMap<K, V>();
 	}
 	
-	@:from static inline function fromStringMap<V>(map:StringMap<V>):Map<String,V> return map
-	@:from static inline function fromIntMap<V>(map:IntMap<V>):Map<Int,V> return map
-	@:from static inline function fromHashMap<K:Hashable,V>(map:HashMap<K,V>):Map<K,V> return map
-	@:from static inline function fromObjectMap<K:{},V>(map:ObjectMap<K,V>):Map<K,V> return map
-
-	public inline function set(k:K, v:V) this.set(k, v)
-	public inline function get(k:K) return this.get(k)
-	public inline function exists(k:K) return this.exists(k)
-	public inline function remove(k:K) return this.remove(k)
-	public inline function keys() return this.keys()
-	public inline function iterator() return this.iterator()
+	@:from static inline function fromStringMap<V>(map:StringMap<V>):Map< String, V > {
+		return map;
+	}
+	
+	@:from static inline function fromIntMap<V>(map:IntMap<V>):Map< Int, V > {
+		return map;
+	}
+	
+	@:from static inline function fromHashMap < K:Hashable, V > (map:HashMap< K, V > ):Map< K, V > {
+		return map;
+	}
+	
+	@:from static inline function fromObjectMap < K: { }, V > (map:ObjectMap< K, V > ):Map< K, V > {
+		return map;
+	}
 }
 
 private typedef IMap < K, V > = {
-	public function get(k:K):V;
+	public function get(k:K):Null<V>;
 	public function set(k:K, v:V):Void;
 	public function exists(k:K):Bool;
 	public function remove(k:K):Bool;

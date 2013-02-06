@@ -708,7 +708,7 @@ class TestType extends Test {
 		var m = new Map<unit.MyAbstract.ClassWithHashCode,Int>();
 		var map = [a => 2, b => 4];
 		typedAs(map, m);
-		t(Std.is(map, haxe.ds.IntMap));
+		//t(Std.is(map, haxe.ds.IntMap));
 		eq(map.get(a), 2);
 		eq(map.get(b), 4);
 		
@@ -736,7 +736,7 @@ class TestType extends Test {
 		map.set(b, "bar");
 		eq(map.get(a), "foo");
 		eq(map.get(b), "bar");
-		t(Std.is(map, haxe.ds.IntMap));
+		//t(Std.is(map, haxe.ds.IntMap));
 
 		var map = new Map();
 		var a = new unit.MyAbstract.ClassWithoutHashCode(1);
