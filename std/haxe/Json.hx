@@ -56,7 +56,9 @@ class Json {
 		#end
 	}
 
-	function toString(v:Dynamic) {
+	var replacer:Dynamic -> Dynamic -> Dynamic;
+
+	function toString(v:Dynamic, ?replacer:Dynamic -> Dynamic -> Dynamic) {
 		#if flash9
 		buf = new flash.utils.ByteArray();
 		buf.endian = flash.utils.Endian.BIG_ENDIAN;
@@ -64,7 +66,8 @@ class Json {
 		#else
 		buf = new StringBuf();
 		#end
-		toStringRec(v);
+		this.replacer = replacer;
+		toStringRec("", v);
 		return buf.toString();
 	}
 
@@ -78,7 +81,7 @@ class Json {
 			if( first ) first = false else addChar(','.code);
 			quote(f);
 			addChar(':'.code);
-			toStringRec(value);
+			toStringRec(f, value);
 		}
 		addChar('}'.code);
 	}
@@ -93,7 +96,8 @@ class Json {
 		fieldsString(v,Reflect.fields(v));
 	}
 
-	function toStringRec(v:Dynamic) {
+	function toStringRec(k:Dynamic, v:Dynamic) {
+		if (replacer != null) v = replacer(k, v);
 		switch( Type.typeof(v) ) {
 		case TUnknown:
 			add('"???"');
@@ -113,11 +117,11 @@ class Json {
 				addChar('['.code);
 				var len = v.length;
 				if( len > 0 ) {
-					toStringRec(v[0]);
+					toStringRec(0, v[0]);
 					var i = 1;
 					while( i < len ) {
 						addChar(','.code);
-						toStringRec(v[i++]);
+						toStringRec(i, v[i++]);
 					}
 				}
 				addChar(']'.code);
@@ -401,13 +405,13 @@ class Json {
 		#end
 	}
 
-	public static function stringify( value : Dynamic ) : String {
+	public static function stringify( value : Dynamic, ?replacer:Dynamic -> Dynamic -> Dynamic ) : String {
 		#if (php && !haxeJSON)
 		return phpJsonEncode(value);
 		#elseif (flash11 && !haxeJSON)
 		return null;
 		#else
-		return new Json().toString(value);
+		return new Json().toString(value, replacer);
 		#end
 	}
 
