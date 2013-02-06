@@ -574,6 +574,7 @@ let parse ch len =
 	let uints = read_list ch read_as3_uint in
 	let floats = read_list ch IO.read_double in
 	let idents = (if parse_idents then read_list ch read_ident else [||]) in
+	let idents = (if parse_idents then begin if ExtArray.Array.exists (fun i -> i="") idents then idents else Array.append idents [|""|] end else [||]) in
 	let namespaces = (if parse_namespaces then read_list ch (read_namespace idents) else [||]) in
 	let nsets = (if parse_ns_sets then read_list ch (read_ns_set namespaces) else [||]) in
 	let ctx = {
