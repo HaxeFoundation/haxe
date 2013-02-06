@@ -87,7 +87,7 @@ class Printer {
 	public function printTypePath(tp:TypePath) return
 		(tp.pack.length > 0 ? tp.pack.join(".") + "." : "")
 		+ tp.name
-		+ (tp.sub != null ? '.$tp.sub' : "")
+		+ (tp.sub != null ? '.${tp.sub}' : "")
 		+ (tp.params.length > 0 ? "<" + tp.params.map(printTypeParam).join(",") + ">" : "")
 
 	// TODO: check if this can cause loops
