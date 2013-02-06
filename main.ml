@@ -81,8 +81,8 @@ let deprecated = [
 	"EReg has no field customReplace","EReg.customReplace was renamed to EReg.map";
 	"#StringTools has no field isEOF","StringTools.isEOF was renamed to StringTools.isEof";
 	"Class not found : haxe.BaseCode","haxe.BaseCode was moved to haxe.crypto.BaseCode";
-	"Class not found : Hash","Hash was moved to haxe.ds.StringMap";
-	"Class not found : IntHash","IntHash was moved to haxe.ds.IntMap";
+	"Class not found : Hash","Hash has been removed, use Map instead";
+	"Class not found : IntHash","IntHash has been removed, use Map instead";
 	"Class not found : haxe.FastList","haxe.FastList was moved to haxe.ds.GenericStack";
 	"#Std has no field format","Std.format has been removed, use single quote 'string ${escape}' syntax instead";
 	"Class not found : Int32","Int32 has been removed, use Int instead";
@@ -90,10 +90,12 @@ let deprecated = [
 	"Identifier 'CType' is not part of enum haxe.macro.Constant","CType has been removed, use CIdent instead";
 	"Class not found : haxe.rtti.Infos","Use @:rtti instead of implementing haxe.rtti.Infos";
 	"Class not found : haxe.rtti.Generic","Use @:generic instead of implementing haxe.Generic";
+	"Class not found : haxe.Int32","haxe.Int32 has been removed, use normal Int instead";
+	"Class not found : flash.utils.TypedDictionary","flash.utils.TypedDictionary has been removed, use Map instead";
 ]
 
 let error ctx msg p =
-	let msg = try "(deprecated) " ^ List.assoc msg deprecated with Not_found -> msg in
+	let msg = try List.assoc msg deprecated with Not_found -> msg in
 	message ctx msg p;
 	ctx.has_error <- true
 
