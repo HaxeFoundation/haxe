@@ -146,7 +146,7 @@ let build_class com c file =
 			| HMPath _ -> i
 			| _ -> assert false
 		) in
-		HImplements (make_tpath i)
+		if c.hlc_interface then HExtends (make_tpath i) else HImplements (make_tpath i)
 	) (Array.to_list c.hlc_implements) @ flags in
 	let flags = if c.hlc_sealed || Common.defined com Define.FlashStrict then flags else HImplements (make_tpath (HMPath ([],"Dynamic"))) :: flags in
   (* make fields *)
