@@ -749,6 +749,7 @@ try
 		done;
 	end else begin
 		Common.define_value com Define.HaxeVer (string_of_float (float_of_int version /. 100.));
+		Common.raw_define com "haxe3";
 	end;
 	Common.define_value com Define.Dce "std";
 	com.warning <- (fun msg p -> message ctx ("Warning : " ^ msg) p);
