@@ -303,6 +303,13 @@ and expr dce e =
 				end;
 		end;
 		expr dce e;
+	| TThrow e ->
+		(match follow e.etype with
+		| TInst(c,_) ->
+			mark_class dce c;
+			field dce c "toString" false
+		| _ -> ());
+		expr dce e
 	| _ ->
 		Type.iter (expr dce) e
 

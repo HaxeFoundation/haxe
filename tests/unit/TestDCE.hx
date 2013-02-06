@@ -131,6 +131,15 @@ class TestDCE extends Test {
 		t(Type.resolveClass("unit.UsedConstructedChild") == null);
 		t(Type.resolveClass("unit.UsedReferencedChild") == null);
 	}
+	
+	public function testThrow() {
+		// class has to be known for this to work
+		var c = new ThrownWithToString();
+		try {
+			throw c;
+		} catch (_:Dynamic) { }
+		hf(ThrownWithToString, "toString");
+	}
 }
 
 class UsedConstructed {
@@ -197,4 +206,9 @@ class InterfaceMethodFromBaseClass {
 
 class InterfaceMethodFromBaseClassChild extends InterfaceMethodFromBaseClass implements UsedInterface {
 	public function new() { }
+}
+
+class ThrownWithToString {
+	public function new() { }
+	public function toString() { return "I was thrown today"; }
 }
