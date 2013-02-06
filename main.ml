@@ -81,6 +81,8 @@ let deprecated = [
 	"EReg has no field customReplace","EReg.customReplace was renamed to EReg.map";
 	"#StringTools has no field isEOF","StringTools.isEOF was renamed to StringTools.isEof";
 	"Class not found : haxe.BaseCode","haxe.BaseCode was moved to haxe.crypto.BaseCode";
+	"Class not found : haxe.Md5","haxe.Md5 was moved to haxe.crypto.Md5";
+	"Class not found : haxe.SHA1","haxe.SHA1 was moved to haxe.crypto.SHA1";
 	"Class not found : Hash","Hash has been removed, use Map instead";
 	"Class not found : IntHash","IntHash has been removed, use Map instead";
 	"Class not found : haxe.FastList","haxe.FastList was moved to haxe.ds.GenericStack";
@@ -92,6 +94,9 @@ let deprecated = [
 	"Class not found : haxe.rtti.Generic","Use @:generic instead of implementing haxe.Generic";
 	"Class not found : haxe.Int32","haxe.Int32 has been removed, use normal Int instead";
 	"Class not found : flash.utils.TypedDictionary","flash.utils.TypedDictionary has been removed, use Map instead";
+	"Class not found : haxe.Stack", "haxe.Stack has been renamed to haxe.CallStack";
+	"Class not found : neko.zip.Reader", "neko.zip.Reader has been removed, use haxe.zip.Reader instead";
+	"Class not found : neko.zip.Reader", "neko.zip.Writer has been removed, use haxe.zip.Writer instead";
 ]
 
 let error ctx msg p =
