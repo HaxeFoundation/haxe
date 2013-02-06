@@ -21,12 +21,28 @@
  */
 package haxe.ds;
 
-abstract HashMap<K:{ function hashCode():Int; }, V >(IntMap<V>) {
-	public function new() this = new IntMap()
-	public inline function set(k:K, v:V) this.set(k.hashCode(), v)
-	public inline function get(k:K) return this.get(k.hashCode())
-	public inline function exists(k:K) return this.exists(k.hashCode())
-	public inline function remove(k:K) return this.remove(k.hashCode())
-	public inline function keys() return this.keys()
-	public inline function iterator() return this.iterator()
+abstract HashMap<K:{ function hashCode():Int; }, V >({keys:IntMap<K>, values:IntMap<V>}) {
+	public function new() {
+		this = { keys:new IntMap(), values: new IntMap() };
+	}
+	public inline function set(k:K, v:V) {
+		this.keys.set(k.hashCode(), k);
+		this.values.set(k.hashCode(), v);
+	}
+	public inline function get(k:K) {
+		return this.values.get(k.hashCode());
+	}
+	public inline function exists(k:K) {
+		return this.values.exists(k.hashCode());
+	}
+	public inline function remove(k:K) {
+		this.values.remove(k.hashCode());
+		return this.keys.remove(k.hashCode());
+	}
+	public inline function keys() {
+		return this.keys.iterator();
+	}
+	public inline function iterator() {
+		return this.values.iterator();
+	}
 }
