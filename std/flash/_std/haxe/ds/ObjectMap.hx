@@ -1,5 +1,6 @@
 package haxe.ds;
 
+@:coreApi
 class ObjectMap<K,V> extends flash.utils.Dictionary {
 
 	public inline function get( key : K ) : Null<V> {
