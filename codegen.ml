@@ -1340,17 +1340,19 @@ let handle_abstract_casts ctx e =
 					eright
 				else begin
 					let c,cfo,a,pl = try
+						if Meta.has Meta.MultiType a1.a_meta then raise Not_found;
 						c1,snd (find_abstract_to a1 pl1 t2),a1,pl1
 					with Not_found ->
+						if Meta.has Meta.MultiType a2.a_meta then raise Not_found;
 						c2,snd (find_from a2 pl2 t1 t2),a2,pl2
 					in
 					match cfo with None -> eright | Some cf -> make_static_call c cf a pl [eright] tleft p
 				end
 			| TDynamic _,_ | _,TDynamic _ ->
 				eright
-			| TAbstract({a_impl = Some c} as a,pl),t2 ->
+			| TAbstract({a_impl = Some c} as a,pl),t2 when not (Meta.has Meta.MultiType a.a_meta) ->
 				begin match snd (find_abstract_to a pl t2) with None -> eright | Some cf -> make_static_call c cf a pl [eright] tleft p end
-			| t1,(TAbstract({a_impl = Some c} as a,pl) as t2) ->
+			| t1,(TAbstract({a_impl = Some c} as a,pl) as t2) when not (Meta.has Meta.MultiType a.a_meta) ->
 				begin match snd (find_from a pl t1 t2) with None -> eright | Some cf -> make_static_call c cf a pl [eright] tleft p end
 			| _ ->
 				eright)

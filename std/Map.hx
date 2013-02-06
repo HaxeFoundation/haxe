@@ -72,6 +72,11 @@ abstract Map< K, V > (IMap< K, V > ) {
 		
 		If no such mapping exists, null is returned.
 		
+		Note that a check like map.get(key) == null can hold for two reasons:
+			1. the map has no mapping for [key]
+			2. the map has a mapping with a value of null
+		If it is important to distinguish these cases, exists() should be used.
+		
 		If [key] is null, the result is unspecified.
 	**/
 	public inline function get(key:K) return this.get(key)
