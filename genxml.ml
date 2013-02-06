@@ -90,7 +90,7 @@ let rec sexpr (e,_) =
 	| _ -> "'???'"
 
 let gen_meta meta =
-	let meta = List.filter (fun (m,_,_) -> match m with Meta.MaybeUsed | Meta.RealPath -> false | _ -> true) meta in
+	let meta = List.filter (fun (m,_,_) -> match m with Meta.Used | Meta.MaybeUsed | Meta.RealPath -> false | _ -> true) meta in
 	match meta with
 	| [] -> []
 	| _ ->
@@ -338,7 +338,7 @@ let generate_type com t =
 	let print_meta ml =
 		List.iter (fun (m,pl,_) ->
 			match m with
-			| Meta.DefParam | Meta.CoreApi -> ()
+			| Meta.DefParam | Meta.CoreApi | Meta.Used | Meta.MaybeUsed -> ()
 			| _ ->
 			match pl with
 			| [] -> p "@%s " (Meta.to_string m)
