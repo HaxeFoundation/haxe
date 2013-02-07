@@ -147,7 +147,7 @@ module Meta = struct
 		| Bind -> ":bind"
 		| Bitmap -> ":bitmap"
 		| Build -> ":build"
-		| BuildXml -> "buildXml"
+		| BuildXml -> ":buildXml"
 		| Class -> ":class"
 		| ClassCode -> ":classCode"
 		| Commutative -> ":commutative"
