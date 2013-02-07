@@ -262,12 +262,25 @@ let s_path_haxe path =
 	| [], s -> s
 	| el, s -> String.concat "." el ^ "." ^ s
 
-let s_ident n =
-	let suf = "h" in
+let escape_bin s =
+	let b = Buffer.create 0 in
+	for i = 0 to String.length s - 1 do
+		match Char.code (String.unsafe_get s i) with
+		| c when c = Char.code('\\') or c = Char.code('"') or c = Char.code('$') ->
+			Buffer.add_string b "\\";
+			Buffer.add_char b (Char.chr c)
+		| c when c < 32 ->
+			Buffer.add_string b (Printf.sprintf "\\x%.2X" c)
+		| c ->
+			Buffer.add_char b (Char.chr c)
+	done;
+	Buffer.contents b
+
 (*
 haxe reserved words that match php ones: break, case, class, continue, default, do, else, extends, for, function, if, new, return, static, switch, var, while, interface, implements, public, private, try, catch, throw
  *)
 (* PHP only (for future use): cfunction, old_function *)
+let is_keyword n = 
 	match String.lowercase n with
 	| "and" | "or" | "xor" | "__file__" | "exception" | "__line__" | "array"
 	| "as" | "const" | "declare" | "die" | "echo"| "elseif" | "empty"
@@ -276,8 +289,15 @@ haxe reserved words that match php ones: break, case, class, continue, default, 
 	| "include_once" | "isset" | "list" | "namespace" | "print" | "require" | "require_once"
 	| "unset" | "use" | "__function__" | "__class__" | "__method__" | "final"
 	| "php_user_filter" | "protected" | "abstract" | "__set" | "__get" | "__call"
-	| "clone" | "instanceof" -> suf ^ n
-	| _ -> n
+	| "clone" | "instanceof" -> true
+	| _ -> false
+
+let s_ident n =
+	let suf = "h" in
+	if (is_keyword n) then (suf ^ n) else n
+
+let s_ident_field n =
+	if (is_keyword n) then ("{\"" ^ (escape_bin n) ^ "\"}") else n
 
 let s_ident_local n =
 	let suf = "h" in
@@ -421,20 +441,6 @@ let define_local ctx l =
 
 let this ctx =
 	if ctx.in_value <> None then "$»this" else "$this"
-
-let escape_bin s =
-	let b = Buffer.create 0 in
-	for i = 0 to String.length s - 1 do
-		match Char.code (String.unsafe_get s i) with
-		| c when c = Char.code('\\') or c = Char.code('"') or c = Char.code('$') ->
-			Buffer.add_string b "\\";
-			Buffer.add_char b (Char.chr c)
-		| c when c < 32 ->
-			Buffer.add_string b (Printf.sprintf "\\x%.2X" c)
-		| c ->
-			Buffer.add_char b (Char.chr c)
-	done;
-	Buffer.contents b
 
 let gen_constant ctx p = function
 	| TInt i -> print ctx "%ld" i
@@ -748,8 +754,8 @@ and gen_member_access ctx isvar e s =
 		(match !(a.a_status) with
 		| EnumStatics _
 		| Statics _ -> print ctx "::%s%s" (if isvar then "$" else "") (s_ident s)
-		| _ -> print ctx "->%s" (s_ident s))
-	| _ -> print ctx "->%s" (s_ident s)
+		| _ -> print ctx "->%s" (s_ident_field s))
+	| _ -> print ctx "->%s" (s_ident_field s)
 
 and gen_field_access ctx isvar e s =
 	match e.eexpr with
@@ -758,7 +764,7 @@ and gen_field_access ctx isvar e s =
 		gen_member_access ctx isvar e s
 	| TLocal _ ->
 		gen_expr ctx e;
-		print ctx "->%s" (s_ident s)
+		print ctx "->%s" (s_ident_field s)
 	| TArray (e1,e2) ->
 		spr ctx "_hx_array_get(";
 		gen_value ctx e1;
