@@ -70,9 +70,15 @@ class TestBasetypes extends Test {
 		eq("hello" +null, "hellonull");
 		eq(null + "hello", "nullhello");
 		var x:Dynamic = null;
+		//String const + Dynamic var with null ref
 		eq("hello" +x, "hellonull");
 		eq(x + "hello", "nullhello");
+		var y:Dynamic = "hello";
+		//Dynamic var + Dynamic var, where one is null, the other is a string:
+		eq(x + y, "nullhello");
+		eq(y + x, "hellonull");
 		var x:String = null;
+		//String const + String var with null ref
 		eq("hello" +x, "hellonull");
 		eq(x + "hello", "nullhello");
 

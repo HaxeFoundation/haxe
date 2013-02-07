@@ -580,10 +580,6 @@ and gen_call ctx e el =
 		spr ctx " === ";
 		gen_value ctx e2;
 		spr ctx ")"
-	| TLocal { v_name = "__int32__" },  [e1] ->
-		spr ctx "((";
-		gen_value ctx e1;
-		spr ctx " | 0) % 0x80000000)"
 	| TLocal _, []
 	| TFunction _, []
 	| TCall _, []
