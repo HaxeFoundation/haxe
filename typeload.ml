@@ -846,7 +846,7 @@ let rec type_type_params ctx path get_params p tp =
 		n, t
 	| _ ->
 		let r = exc_protect ctx (fun r ->
-			r := (fun _ -> error "Recursive constraint parameter is now allowed" p);
+			r := (fun _ -> error "Recursive constraint parameter is not allowed" p);
 			let ctx = { ctx with type_params = ctx.type_params @ get_params() } in
 			let constr = List.map (load_complex_type ctx p) tp.tp_constraints in
 			List.iter (fun t -> ignore(follow t)) constr; (* force other constraints evaluation to check recursion *)
