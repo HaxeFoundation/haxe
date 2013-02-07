@@ -118,8 +118,9 @@ abstract Map< K, V > (IMap< K, V > ) {
 		return this.get(k);
 	}
 	
-	@:arrayAccess public inline function arrayWrite(k:K, v:V):Void {
-		this.set(k,v);
+	@:arrayAccess public inline function arrayWrite(k:K, v:V):V {
+		this.set(k, v);
+		return v;
 	}
 	
 	@:to static inline function toStringMap(t:IMap < String, V > ):StringMap<V> {

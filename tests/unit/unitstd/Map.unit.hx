@@ -151,3 +151,6 @@ map["foo"] *= map["foo"] + 2;
 map["foo"] == 224;
 map["f" + "o" + "o"] -= 223;
 map[(function(s) return s + "o")("fo")] == 1;
+map["bar"] = map["foo"] = 9;
+map["bar"] == 9;
+map["foo"] == 9;
