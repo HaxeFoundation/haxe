@@ -282,6 +282,12 @@ let get_meta_string meta key =
 	loop meta
 ;;
 
+let has_meta_key meta key =
+   List.exists (fun m -> match m with | (k,_,_) when k=key-> true | _ -> false ) meta
+;;
+
+
+
 let get_code meta key =
 	let code = get_meta_string meta key in
 	if (code<>"") then code ^ "\n" else code
@@ -2211,6 +2217,8 @@ let find_referenced_types ctx obj super_deps constructor_deps header_only for_de
       let include_file = get_meta_string klass.cl_meta (if for_depends then Meta.Depend else Meta.Include) in
       if (include_file<>"") then
          add_type ( path_of_string for_depends include_file )
+      else if (not for_depends) && (has_meta_key klass.cl_meta Meta.Include) then
+         add_type klass.cl_path
    in
 	let rec visit_type in_type =
 		match (follow in_type) with
@@ -3149,6 +3157,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 	output_h "\n\n";
 	output_h ( get_code class_def.cl_meta Meta.HeaderNamespaceCode );
 
+	output_h ("HXCPP_CLASS_ATTRIBUTES\n");
 	output_h ("class " ^ class_name ^ " : public " ^ super );
 	output_h "{\n	public:\n";
 	output_h ("		typedef " ^ super ^ " super;\n");
@@ -3316,9 +3325,9 @@ let write_build_data filename classes main_deps build_extra exe_name =
 	output_string buildfile "</xml>\n";
 	close_out buildfile;;
 
-let write_build_options filename options =
+let write_build_options filename defines =
 	let writer = cached_source_writer filename in
-	PMap.iter ( fun name _ -> if (name <> "debug") then writer#write ( name ^ "\n") ) options;
+	writer#write ( defines ^ "\n");
 	let cmd = Unix.open_process_in "haxelib path hxcpp" in
 	writer#write (Pervasives.input_line cmd);
 	Pervasives.ignore (Unix.close_process_in cmd);
@@ -3409,7 +3418,7 @@ let gen_extern_class common_ctx class_def =
 	in
    let c = class_def in
 	output ( "package " ^ (String.concat "." (fst path)) ^ ";\n" );
-	output ( "extern " ^ (if c.cl_private then "private " else "") ^ (if c.cl_interface then "interface" else "class")
+	output ( "@:include extern " ^ (if c.cl_private then "private " else "") ^ (if c.cl_interface then "interface" else "class")
               ^ " " ^ (snd path) ^ (params c.cl_types) );
 	(match c.cl_super with None -> () | Some (c,pl) -> output (" extends " ^  (s_type (TInst (c,pl)))));
 	List.iter (fun (c,pl) -> output ( " implements " ^ (s_type (TInst (c,pl))))) c.cl_implements;
@@ -3441,7 +3450,8 @@ let generate common_ctx =
 	let constructor_deps = create_constructor_dependencies common_ctx in
 	let main_deps = ref [] in
 	let build_xml = ref "" in
-   let gen_externs = Common.defined common_ctx Define.Scriptable in
+   let scriptable = (Common.defined common_ctx Define.Scriptable) in
+   let gen_externs = scriptable || (Common.defined common_ctx Define.DllExport) in
    if (gen_externs) then begin
      make_base_directory (common_ctx.file ^ "/script");
    end;
@@ -3462,7 +3472,7 @@ let generate common_ctx =
 				if (has_init_field class_def) then
 					init_classes := class_def.cl_path ::  !init_classes;
 				let deps = generate_class_files common_ctx
-               member_types super_deps constructor_deps class_def file_info gen_externs in
+               member_types super_deps constructor_deps class_def file_info scriptable in
 				exe_classes := (class_def.cl_path, deps)  ::  !exe_classes;
 			end
 		| TEnumDecl enum_def ->
@@ -3504,14 +3514,17 @@ let generate common_ctx =
 	| _ -> "output" in
 
 	write_build_data (common_ctx.file ^ "/Build.xml") !exe_classes !main_deps !build_xml output_name;
-	write_build_options (common_ctx.file ^ "/Options.txt") common_ctx.defines;
+	let cmd_defines = ref "" in
+	PMap.iter ( fun name value -> match name with
+        | "true" | "sys" | "dce" | "cpp" | "debug" -> ()
+        | _ -> cmd_defines := !cmd_defines ^ " \"-D" ^ name ^ "=" ^ value ^ "\"" ) common_ctx.defines;
+	write_build_options (common_ctx.file ^ "/Options.txt") !cmd_defines;
 	if ( not (Common.defined common_ctx Define.NoCompilation) ) then begin
 		let old_dir = Sys.getcwd() in
 		Sys.chdir common_ctx.file;
 		let cmd = ref "haxelib run hxcpp Build.xml haxe" in
 		if (common_ctx.debug) then cmd := !cmd ^ " -Ddebug";
-		PMap.iter ( fun name _ -> cmd := !cmd ^ " -D" ^ name ^ "" ) common_ctx.defines;
-		print_endline !cmd;
+		print_endline (!cmd ^ !cmd_defines);
 		if common_ctx.run_command !cmd <> 0 then failwith "Build failed";
 		Sys.chdir old_dir;
 	end
