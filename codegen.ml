@@ -1814,7 +1814,7 @@ let dump_types com =
 	let s_expr = try if Common.defined_value com Define.Dump = "pretty" then Type.s_expr_pretty "\t" else Type.s_expr with Not_found -> Type.s_expr in
 	List.iter (fun mt ->
 		let path = Type.t_path mt in
-		let buf,close = create_dumpfile [] ("dump" :: fst path @ [snd path]) in
+		let buf,close = create_dumpfile [] ("dump" :: (Common.platform_name com.platform) :: fst path @ [snd path]) in
 		let print fmt = Printf.kprintf (fun s -> Buffer.add_string buf s) fmt in
 		(match mt with
 		| Type.TClassDecl c ->
@@ -1854,7 +1854,7 @@ let dump_types com =
 	) com.types
 
 let dump_dependencies com =
-	let buf,close = create_dumpfile [] ["dump";".dependencies"] in
+	let buf,close = create_dumpfile [] ["dump";Common.platform_name com.platform;".dependencies"] in
 	let print fmt = Printf.kprintf (fun s -> Buffer.add_string buf s) fmt in
 	let dep = Hashtbl.create 0 in
 	List.iter (fun m ->
@@ -1866,7 +1866,7 @@ let dump_dependencies com =
 		) m.m_extra.m_deps;
 	) com.Common.modules;
 	close();
-	let buf,close = create_dumpfile [] ["dump";".dependants"] in
+	let buf,close = create_dumpfile [] ["dump";Common.platform_name com.platform;".dependants"] in
 	let print fmt = Printf.kprintf (fun s -> Buffer.add_string buf s) fmt in
 	Hashtbl.iter (fun n ml ->
 		print "%s:\n" n;

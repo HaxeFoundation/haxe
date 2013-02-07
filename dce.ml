@@ -204,9 +204,11 @@ let rec to_string dce t =
 		let pop = push t in
 		PMap.iter (fun _ cf -> to_string dce cf.cf_type) a.a_fields;
 		pop();
-	| TFun(args,r) ->
+	| TFun(args,r) as t ->
+		let pop = push t in
 		List.iter (fun (_,_,t) -> to_string dce t) args;
 		to_string dce r;
+		pop();
 	| _ -> ()
 
 and field dce c n stat =
