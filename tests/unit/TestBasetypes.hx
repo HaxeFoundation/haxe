@@ -157,7 +157,7 @@ class TestBasetypes extends Test {
 
 		eq( Std.int( -10000000000.7), 0xABF41C00 );
 
-		#if (js || flash8 || as3)
+		#if (js || flash8 || as3 || php)
 
 		// higher Int resolution : should we fix this or not ?
 		eq( Math.floor( -10000000000.7)*1.0, -10000000001. );

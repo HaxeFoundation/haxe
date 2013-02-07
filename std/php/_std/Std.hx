@@ -30,7 +30,7 @@
 	}
 
 	public inline static function int( x : Float ) : Int {
-		return untyped __call__("intval", x);
+		return untyped __int32__(x);
 	}
 
 	public static function parseInt( x : String ) : Null<Int> {
