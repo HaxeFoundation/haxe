@@ -3881,6 +3881,11 @@ let rec create com =
 	let m = Typeload.load_module ctx (["haxe"],"EnumTools") null_pos in
 	(match m.m_types with
 	| [TClassDecl c1;TClassDecl c2] -> ctx.g.global_using <- c1 :: c2 :: ctx.g.global_using
+	| [TClassDecl c1] ->
+		let m = Typeload.load_module ctx (["haxe"],"EnumValueTools") null_pos in
+		(match m.m_types with
+		| [TClassDecl c2 ] -> ctx.g.global_using <- c1 :: c2 :: ctx.g.global_using
+		| _ -> assert false);
 	| _ -> assert false);
 	ctx
 
