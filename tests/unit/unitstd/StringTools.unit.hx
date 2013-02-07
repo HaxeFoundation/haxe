@@ -105,6 +105,9 @@ StringTools.hex(4564562, 0) == "45A652";
 StringTools.hex(4564562, 1) == "45A652";
 StringTools.hex( -1) == "FFFFFFFF";
 StringTools.hex( -2) == "FFFFFFFE";
+StringTools.hex(0xABCDEF, 7) == "0ABCDEF";
+StringTools.hex( -1, 8) == "FFFFFFFF";
+StringTools.hex( -481400000, 8) == "E34E6B40";
 
 // fastCodeAt
 var s = "foo1bar";
@@ -115,7 +118,16 @@ StringTools.fastCodeAt(s, 3) == 49;
 StringTools.fastCodeAt(s, 4) == 98;
 StringTools.fastCodeAt(s, 5) == 97;
 StringTools.fastCodeAt(s, 6) == 114;
-
+var str = "abc";
+StringTools.fastCodeAt(str, 0) == "a".code;
+StringTools.fastCodeAt(str, 1) == "b".code;
+StringTools.fastCodeAt(str, 2) == "c".code;
+StringTools.fastCodeAt(String.fromCharCode(128), 0) == 128;
+StringTools.fastCodeAt(String.fromCharCode(255), 0) == 255;
+StringTools.isEof(StringTools.fastCodeAt(str, 2)) == false;
+StringTools.isEof(StringTools.fastCodeAt(str, 3)) == true;
+StringTools.isEof(StringTools.fastCodeAt("", 0)) == true;
+		
 // isEOF
 #if neko
 StringTools.isEof(null) == true;
