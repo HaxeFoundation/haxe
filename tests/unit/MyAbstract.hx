@@ -171,3 +171,14 @@ class ClassWithoutHashCode {
 	public var i:Int;
 	public function new(i) { this.i = i; }
 }
+
+abstract MyReflect({}) from {} {
+	@:arrayAccess public inline function arrayAccess(key:String):Dynamic {
+		return Reflect.field(this, key);
+	}
+	
+	@:arrayAccess public inline function arrayWrite<T>(key:String, value:T):T {
+		Reflect.setField(this, key, value);
+		return value;
+	}
+}

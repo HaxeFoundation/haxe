@@ -791,4 +791,37 @@ class TestType extends Test {
 		eq(map.get("a"), "A");
 		eq(map.get("b"), "B");
 	}
+	
+	function testCustomArrayAccess() {
+		var obj = {
+			foo: 12,
+			bar: "test"
+		};
+		var mr:unit.MyAbstract.MyReflect = obj;
+		eq(mr["foo"], 12);
+		eq(mr["bar"], "test");
+		mr["foo"] = 11;
+		eq(mr["foo"], 11);
+		mr["foo"] += 99;
+		eq(mr["foo"], 110);
+		mr["baz"] = mr["bar"] += mr["foo"];
+		eq(mr["baz"], "test110");
+		eq(mr["bar"], "test110");
+		
+		var v = "hh";
+		mr[v] = 1;
+		mr[v += "h"] = 2;
+		eq(mr["hhh"], 2);
+		eq(v, "hhh");
+		
+		mr["hhhh"] = 0;
+		mr[v += "h"] += 4;
+		eq(mr["hhhh"], 4);
+		eq(mr["hhh"], 2);
+		eq(v, "hhhh");
+		
+		// note for later: As3 compilation fails if the function name is removed
+		mr["101"] = function n(x) return 9 + x;
+		eq(mr["101"](1), 10);
+	}
 }

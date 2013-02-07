@@ -50,6 +50,7 @@ type access_kind =
 	| AKInline of texpr * tclass_field * tfield_access * t
 	| AKMacro of texpr * tclass_field
 	| AKUsing of texpr * tclass * tclass_field * texpr
+	| AKAccess of texpr * texpr
 
 let mk_infos ctx p params =
 	let file = if ctx.in_macro then p.pfile else if Common.defined ctx.com Define.AbsolutePath then Common.get_full_path p.pfile else Filename.basename p.pfile in
@@ -219,6 +220,21 @@ let prepare_using_field cf = match cf.cf_type with
 		{cf with cf_overloads = loop [] cf.cf_overloads; cf_type = TFun(args,ret)}
 	| _ -> cf
 
+let find_array_access a pl c t1 t2 is_set =
+	let ta = apply_params a.a_types pl a.a_this in
+	let rec loop cfl = match cfl with
+		| [] -> raise Not_found
+		| cf :: cfl when not (Meta.has Meta.ArrayAccess cf.cf_meta) ->
+			loop cfl
+		| cf :: cfl ->
+			match follow (apply_params a.a_types pl (monomorphs cf.cf_params cf.cf_type)) with
+			| TFun([(_,_,tab);(_,_,ta1);(_,_,ta2)],r) as tf when is_set && type_iseq tab ta && type_iseq ta1 t1 && type_iseq ta2 t2 ->
+				cf,tf,r
+			| TFun([(_,_,tab);(_,_,ta1)],r) as tf when not is_set && type_iseq tab ta && type_iseq ta1 t1 ->
+				cf,tf,r
+			| _ -> loop cfl
+	in
+	loop a.a_array
 
 let parse_string ctx s p inlined =
 	let old = Lexer.save() in
@@ -601,7 +617,7 @@ let rec acc_get ctx g p =
 	match g with
 	| AKNo f -> error ("Field " ^ f ^ " cannot be accessed for reading") p
 	| AKExpr e | AKField (e,_,_) -> e
-	| AKSet _ -> assert false
+	| AKSet _ | AKAccess _ -> assert false
 	| AKUsing (et,_,_,e) ->
 		(* build a closure with first parameter applied *)
 		(match follow et.etype with
@@ -1229,7 +1245,7 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 	match op with
 	| OpAssign ->
 		let e1 = type_access ctx (fst e1) (snd e1) MSet in
-		let tt = (match e1 with AKNo _ | AKInline _ | AKUsing _ | AKMacro _ -> Value | AKSet(_,_,t,_) -> WithType t | AKExpr e | AKField (e,_,_) -> WithType e.etype) in
+		let tt = (match e1 with AKNo _ | AKInline _ | AKUsing _ | AKMacro _ | AKAccess _ -> Value | AKSet(_,_,t,_) -> WithType t | AKExpr e | AKField (e,_,_) -> WithType e.etype) in
 		let e2 = type_expr ctx e2 tt in
 		(match e1 with
 		| AKNo s -> error ("Cannot access field or identifier " ^ s ^ " for writing") p
@@ -1245,6 +1261,15 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 		| AKSet (e,m,t,_) ->
 			unify ctx e2.etype t p;
 			make_call ctx (mk (TField (e,FDynamic m)) (tfun [t] t) p) [e2] t p
+		| AKAccess(ebase,ekey) ->
+			let a,pl,c = match follow ebase.etype with TAbstract({a_impl = Some c} as a,pl) -> a,pl,c | _ -> error "Invalid operation" p in
+			let cf,tf,r =
+				try find_array_access a pl c ekey.etype e2.etype true
+				with Not_found -> error ("No @:arrayAccess function accepts arguments of " ^ (s_type (print_context()) ekey.etype) ^ " and " ^ (s_type (print_context()) e2.etype)) p
+			in
+			let et = type_module_type ctx (TClassDecl c) None p in
+			let ef = mk (TField(et,(FStatic(c,cf)))) tf p in
+			make_call ctx ef [ebase;ekey;e2] r p
 		| AKInline _ | AKUsing _ | AKMacro _ ->
 			assert false)
 	| OpAssignOp op ->
@@ -1275,6 +1300,37 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 				mk (TVars [v,Some e]) ctx.t.tvoid p;
 				make_call ctx (mk (TField (ev,FDynamic m)) (tfun [t] t) p) [get] t p
 			]) t p
+		| AKAccess(ebase,ekey) ->
+			let a,pl,c = match follow ebase.etype with TAbstract({a_impl = Some c} as a,pl) -> a,pl,c | _ -> error "Invalid operation" p in
+			let et = type_module_type ctx (TClassDecl c) None p in
+			let cf_get,tf_get,r_get =
+				try find_array_access a pl c ekey.etype t_dynamic false
+				with Not_found -> error ("No @:arrayAccess function accepts an argument of " ^ (s_type (print_context()) ekey.etype)) p
+			in
+			(* bind complex keys to a variable so they do not make it into the output twice *)
+			let ekey,l = match Optimizer.make_constant_expression ctx ekey with
+				| Some e -> e, fun () -> None
+				| None ->
+					let save = save_locals ctx in
+					let v = gen_local ctx ekey.etype in
+					let e = mk (TLocal v) ekey.etype p in
+					e, fun () -> (save(); Some (mk (TVars [v,Some ekey]) ctx.t.tvoid p))
+			in
+			let ast_call = ECall((EField(Interp.make_ast ebase,cf_get.cf_name),p),[Interp.make_ast ekey]),p in
+			let eget = type_binop ctx op ast_call e2 true p in
+			unify ctx eget.etype r_get p;
+			let cf_set,tf_set,r_set =
+				try find_array_access a pl c ekey.etype eget.etype true
+				with Not_found -> error ("No @:arrayAccess function accepts arguments of " ^ (s_type (print_context()) ekey.etype) ^ " and " ^ (s_type (print_context()) eget.etype)) p
+			in
+			let ef_set = mk (TField(et,(FStatic(c,cf_set)))) tf_set p in
+			(match l() with
+			| None -> make_call ctx ef_set [ebase;ekey;eget] r_set p
+			| Some e ->
+				mk (TBlock [
+					e;
+					make_call ctx ef_set [ebase;ekey;eget] r_set p
+				]) r_set p)
 		| AKInline _ | AKUsing _ | AKMacro _ ->
 			assert false)
 	| _ ->
@@ -1542,7 +1598,7 @@ and type_unop ctx op flag e p =
 	| AKInline _ | AKUsing _ when not set -> access (acc_get ctx acc p)
 	| AKNo s ->
 		error ("The field or identifier " ^ s ^ " is not accessible for " ^ (if set then "writing" else "reading")) p
-	| AKInline _ | AKUsing _ | AKMacro _ ->
+	| AKInline _ | AKUsing _ | AKMacro _ | AKAccess _ ->
 		error "This kind of operation is not supported" p
 	| AKSet (e,m,t,f) ->
 		let l = save_locals ctx in
@@ -1926,6 +1982,19 @@ and type_access ctx e p mode =
 	| EArray (e1,e2) ->
 		let e1 = type_expr ctx e1 Value in
 		let e2 = type_expr ctx e2 Value in
+		(try (match follow e1.etype with
+		| TAbstract ({a_impl = Some c} as a,pl) when a.a_array <> [] ->
+			(match mode with
+			| MSet ->
+				(* resolve later *)
+				AKAccess (e1, e2)
+			| _ ->
+				let cf,tf,r = find_array_access a pl c e2.etype t_dynamic false in
+				let et = type_module_type ctx (TClassDecl c) None p in
+				let ef = mk (TField(et,(FStatic(c,cf)))) tf p in
+				AKExpr (make_call ctx ef [e1;e2] r p))
+		| _ -> raise Not_found)
+		with Not_found ->
 		unify ctx e2.etype ctx.t.tint e2.epos;
 		let rec loop et =
 			match follow et with
@@ -1945,7 +2014,7 @@ and type_access ctx e p mode =
 				pt
 		in
 		let pt = loop e1.etype in
-		AKExpr (mk (TArray (e1,e2)) pt p)
+		AKExpr (mk (TArray (e1,e2)) pt p))
 	| _ ->
 		AKExpr (type_expr ctx (e,p) Value)
 
@@ -2924,7 +2993,7 @@ and build_call ctx acc el (with_type:with_type) p =
 		let e = try f() with Error (m,p) -> display_error ctx (error_msg m) p; ctx.on_error <- old; raise Fatal_error in
 		ctx.on_error <- old;
 		e
-	| AKNo _ | AKSet _ ->
+	| AKNo _ | AKSet _ | AKAccess _ ->
 		ignore(acc_get ctx acc p);
 		assert false
 	| AKExpr e | AKField (e,_,_) ->

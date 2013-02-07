@@ -137,3 +137,17 @@ map.exists(a) == true;
 map.exists(b) == false;
 map.exists(c) == true;
 map.get(b) == null;
+
+// [] access
+var map = new Map();
+map["foo"] == null;
+map["foo"] = 12;
+map.get("foo") == 12;
+map["foo"] == 12;
+map["foo"] += 2;
+map.get("foo") == 14;
+map["foo"] == 14;
+map["foo"] *= map["foo"] + 2;
+map["foo"] == 224;
+map["f" + "o" + "o"] -= 223;
+map[(function(s) return s + "o")("fo")] == 1;

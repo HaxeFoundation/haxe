@@ -110,6 +110,7 @@ let make_module ctx mpath file tdecls loadp =
 				a_to = [];
 				a_ops = [];
 				a_impl = None;
+				a_array = [];
 				a_this = mk_mono();
 			} in
 			decls := (TAbstractDecl a, decl) :: !decls;
@@ -1379,6 +1380,8 @@ let init_class ctx c p context_init herits fields =
 						unify ctx t (tfun [ta] m) f.cff_pos;
 						if not (Meta.has Meta.Impl cf.cf_meta) then cf.cf_meta <- (Meta.Impl,[],cf.cf_pos) :: cf.cf_meta;
 						a.a_to <- (follow m, Some cf) :: a.a_to
+					end else if Meta.has Meta.ArrayAccess f.cff_meta then begin
+						a.a_array <- cf :: a.a_array;
 					end else if f.cff_name = "_new" && Meta.has Meta.MultiType a.a_meta then
 						do_bind := false
 					else (try match Meta.get Meta.Op cf.cf_meta with

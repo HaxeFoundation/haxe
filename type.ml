@@ -252,6 +252,7 @@ and tabstract = {
 	mutable a_impl : tclass option;
 	mutable a_this : t;
 	mutable a_from : (t * tclass_field option) list;
+	mutable a_array : tclass_field list;
 	mutable a_to : (t * tclass_field option) list;
 }
 
