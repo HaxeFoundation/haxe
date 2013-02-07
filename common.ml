@@ -151,6 +151,8 @@ module Define = struct
 		| Debug
 		| Display
 		| DisplayMode
+		| DllExport
+		| DllImport
 		| DocGen
 		| Dump
 		| DumpDependencies
@@ -209,6 +211,8 @@ module Define = struct
 		| Debug -> ("debug","Activated when compiling with -debug")
 		| Display -> ("display","Activated during completion")
 		| DisplayMode -> ("display_mode", "The display mode to use (default, position, metadata, usage)")
+		| DllExport -> ("dll_export", "GenCPP experimental linking")
+		| DllImport -> ("dll_import", "GenCPP experimental linking")
 		| DocGen -> ("doc_gen","Do not perform any removal/change in order to correctly generate documentation")
 		| Dump -> ("dump","Dump the complete typed AST for internal debugging")
 		| DumpDependencies -> ("dump_dependencies","Dump the classes dependencies")
