@@ -33,6 +33,7 @@ type dce = {
 	mutable added_fields : (tclass * tclass_field * bool) list;
 	mutable marked_fields : tclass_field list;
 	mutable marked_maybe_fields : tclass_field list;
+	mutable t_stack : t list;
 }
 
 (* checking *)
@@ -183,7 +184,32 @@ let rec mark_dependent_fields dce csup n stat =
 
 let opt f e = match e with None -> () | Some e -> f e
 
-let rec field dce c n stat =
+let rec to_string dce t =
+	let push t =
+		dce.t_stack <- t :: dce.t_stack;
+		fun () -> dce.t_stack <- List.tl dce.t_stack
+	in
+	if not (List.mem t dce.t_stack) then match follow t with
+	| TInst(c,pl) as t ->
+		let pop = push t in
+		field dce c "toString" false;
+		List.iter (to_string dce) pl;
+		pop();
+	| TEnum(en,pl) as t ->
+		let pop = push t in
+		PMap.iter (fun _ ef -> to_string dce ef.ef_type) en.e_constrs;
+		List.iter (to_string dce) pl;
+		pop();
+	| TAnon a as t ->
+		let pop = push t in
+		PMap.iter (fun _ cf -> to_string dce cf.cf_type) a.a_fields;
+		pop();
+	| TFun(args,r) ->
+		List.iter (fun (_,_,t) -> to_string dce t) args;
+		to_string dce r;
+	| _ -> ()
+
+and field dce c n stat =
 	let find_field n =
 		if n = "new" then match c.cl_constructor with
 			| None -> raise Not_found
@@ -271,9 +297,7 @@ and expr dce e =
 	| TCall ({eexpr = TField({eexpr = TTypeExpr (TClassDecl ({cl_path = (["haxe"],"Log")} as c))},FStatic (_,{cf_name="trace"}))} as ef, ([e2;_] as args))
 	| TCall ({eexpr = TField({eexpr = TTypeExpr (TClassDecl ({cl_path = ([],"Std")} as c))},FStatic (_,{cf_name="string"}))} as ef, ([e2] as args)) ->
 		mark_class dce c;
-		(match follow e2.etype with
-			| TInst(c,_) ->	field dce c "toString" false
-			| _ -> ());
+		to_string dce e2.etype;
 		expr dce ef;
 		List.iter (expr dce) args;
 	| TCall ({eexpr = TConst TSuper} as e,el) ->
@@ -304,11 +328,7 @@ and expr dce e =
 		end;
 		expr dce e;
 	| TThrow e ->
-		(match follow e.etype with
-		| TInst(c,_) ->
-			mark_class dce c;
-			field dce c "toString" false
-		| _ -> ());
+		to_string dce e.etype;
 		expr dce e
 	| _ ->
 		Type.iter (expr dce) e
@@ -323,6 +343,7 @@ let run com main full =
 		follow_expr = expr;
 		marked_fields = [];
 		marked_maybe_fields = [];
+		t_stack = [];
 	} in
 	begin match main with
 		| Some {eexpr = TCall({eexpr = TField(e,(FStatic(c,cf)))},_)} ->
