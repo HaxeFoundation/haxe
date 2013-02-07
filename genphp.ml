@@ -218,6 +218,21 @@ let as_string_expr ctx e =
 	| _ when not (is_string_expr e) ->
 		to_string ctx e
 	| _ -> e
+(* for known String type that could have null value *)
+let to_string_null ctx e = 
+	let v = alloc_var "__call__" t_dynamic in
+	let f = mk (TLocal v) t_dynamic e.epos in
+	mk (TCall (f, [ Codegen.string ctx.com "_hx_string_or_null" e.epos; e])) ctx.com.basic.tstring e.epos
+	
+	
+let as_string_expr ctx e =	match e.eexpr with
+	| TConst (TNull) ->  to_string ctx e
+	| TConst (TString s) -> e
+	| TBinop (op,_,_) when (is_string_expr e)-> e
+	| TCall ({eexpr = TField({eexpr = TTypeExpr(TClassDecl {cl_path = ([],"Std")})},FStatic(c,f) )}, [_]) when (f.cf_name="string") -> e
+	| TCall ({eexpr = TLocal _}, [{eexpr = TConst (TString ("_hx_string_rec" | "_hx_str_or_null"))}]) -> e
+	| _ when not (is_string_expr e) -> to_string ctx e
+	| _ -> to_string_null ctx e
 
 let spr ctx s = Buffer.add_string ctx.buf s
 let print ctx = Printf.kprintf (fun s -> Buffer.add_string ctx.buf s)

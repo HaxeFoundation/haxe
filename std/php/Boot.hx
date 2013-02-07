@@ -32,7 +32,7 @@ class Boot {
 		untyped __php__("
 function _hx_add($a, $b) {
 	if (!_hx_is_numeric($a) || !_hx_is_numeric($b)) {
-		return $a . $b;
+		return _hx_string_or_null($a) . _hx_string_or_null($b);
 	} else {
 		return $a + $b;
 	}
@@ -545,6 +545,10 @@ function _hx_string_call($s, $method, $params) {
 		case 'toString'   : return $s;
 		default           : throw new HException('Invalid Operation: ' . $method);
 	}
+}
+
+function _hx_string_or_null($s) {
+	return $s === null ? 'null' : $s;
 }
 
 function _hx_string_rec($o, $s) {
