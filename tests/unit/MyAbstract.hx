@@ -134,7 +134,11 @@ abstract MyVector(MyPoint3) from MyPoint3 to MyPoint3 {
 	@:op(A * B) static public inline function scalar(lhs:MyVector, rhs:Float):MyVector {
 		return new MyPoint3(lhs.x * rhs, lhs.y * rhs, lhs.z * rhs);
 	}
-
+	
+	@:op(-A) static public inline function invert(t:MyVector):MyVector {
+		return new MyPoint3( -t.x, -t.y, -t.z);
+	}
+	
 	public inline function get():MyPoint3
 		return this
 
@@ -151,6 +155,24 @@ abstract MyInt(Int) from Int to Int {
 		for (i in 0...lhs)
 			s.add(rhs);
 		return s.toString();
+	}
+}
+
+abstract MyInt2(Int){
+	public inline function new(v) {
+		this = v;
+	}
+	
+	public function get():Int {
+		return this;
+	}
+	
+	@:op(-x) public inline function invert():MyInt2 {
+		return new MyInt2(-this);
+	}
+	
+	@:op(++x) public inline function incr() {
+		++this;
 	}
 }
 

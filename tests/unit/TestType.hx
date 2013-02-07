@@ -784,6 +784,24 @@ class TestType extends Test {
 		t(typeError(ms1 - ms2));
 	}
 	
+	function testAbstractUnop() {
+		var vec:unit.MyAbstract.MyVector = new unit.MyAbstract.MyPoint3(1, 2, 3);
+		var vec2 = -vec;
+		t(vec2 != vec);
+		eq(vec.toString(), "(1,2,3)");
+		eq(vec2.toString(), "(-1,-2,-3)");
+		
+		var my = new unit.MyAbstract.MyInt2(12);
+		eq( (-my).get(), -12);
+		typedAs( -my, my);
+		++my;
+		eq(my.get(), 13);
+		// not defined op
+		t(typeError(!my));
+		// wrong flag
+		t(typeError(my++));
+	}
+	
 	function testMapComprehension() {
 		var map = [for (x in ["a", "b"]) x => x.toUpperCase()];
 		t(map.exists("a"));

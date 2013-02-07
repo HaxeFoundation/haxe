@@ -109,6 +109,7 @@ let make_module ctx mpath file tdecls loadp =
 				a_from = [];
 				a_to = [];
 				a_ops = [];
+				a_unops = [];
 				a_impl = None;
 				a_array = [];
 				a_this = mk_mono();
@@ -1387,6 +1388,9 @@ let init_class ctx c p context_init herits fields =
 					else (try match Meta.get Meta.Op cf.cf_meta with
 						| _,[EBinop(op,_,_),_],_ ->
 							a.a_ops <- (op,cf) :: a.a_ops;
+							if fd.f_expr = None then do_bind := false;
+						| _,[EUnop(op,flag,_),_],_ ->
+							a.a_unops <- (op,flag,cf) :: a.a_unops;
 							if fd.f_expr = None then do_bind := false;
 						| _ -> ()
 						with Not_found -> ())

@@ -1511,12 +1511,12 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 	| OpAssignOp _ ->
 		assert false
 	in
-	let find_overload a t left =
+	let find_overload a c t left =
 		let rec loop ops = match ops with
 			| [] -> raise Not_found
 			| (o,cf) :: ops when is_assign_op && o = OpAssignOp(op) || o == op ->
 				(match follow cf.cf_type with
-				| TFun([(_,_,t1);(_,_,t2)],r) when (left || Meta.has Meta.Commutative cf.cf_meta) && type_iseq t t2 ->
+				| TFun([(_,_,t1);(_,_,t2)],r) when (left || Meta.has Meta.Commutative cf.cf_meta) && type_iseq t t2 && can_access ctx c cf true ->
 					cf,r,o = OpAssignOp(op)
 				| _ -> loop ops)
 			| _ :: ops ->
@@ -1542,9 +1542,9 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 		end;
 		{e with etype = r}
 	in
-	try (match e1.etype with
+	try (match follow e1.etype with
 		| TAbstract ({a_impl = Some c} as a,pl) ->
-			let f,r,assign = find_overload a e2.etype true in
+			let f,r,assign = find_overload a c e2.etype true in
 			begin match f.cf_expr with
 				| None ->
 					let e2 = match e2.etype with TAbstract(a,pl) -> {e2 with etype = apply_params a.a_types pl a.a_this} | _ -> e2 in
@@ -1554,9 +1554,9 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 			end
 		| _ ->
 			raise Not_found)
-	with Not_found -> try (match e2.etype with
+	with Not_found -> try (match follow e2.etype with
 		| TAbstract ({a_impl = Some c} as a,pl) ->
-			let f,r,assign = find_overload a e1.etype false in
+			let f,r,assign = find_overload a c e1.etype false in
 			begin match f.cf_expr with
 				| None ->
 					let e1 = match e1.etype with TAbstract(a,pl) -> {e1 with etype = apply_params a.a_types pl a.a_this} | _ -> e1 in
@@ -1574,24 +1574,45 @@ and type_unop ctx op flag e p =
 	let set = (op = Increment || op = Decrement) in
 	let acc = type_access ctx (fst e) (snd e) (if set then MSet else MGet) in
 	let access e =
-		let t = (match op with
-		| Not ->
-			unify ctx e.etype ctx.t.tbool e.epos;
-			ctx.t.tbool
-		| Increment
-		| Decrement
-		| Neg
-		| NegBits ->
-			if set then check_assign ctx e;
-			(match classify e.etype with
-			| KFloat -> ctx.t.tfloat
-			| KParam t ->
-				unify ctx e.etype ctx.t.tfloat e.epos;
-				t
-			| k ->
-				if unify_int ctx e k then ctx.t.tint else ctx.t.tfloat)
-		) in
-		mk (TUnop (op,flag,e)) t p
+		let make e =
+			let t = (match op with
+			| Not ->
+				unify ctx e.etype ctx.t.tbool e.epos;
+				ctx.t.tbool
+			| Increment
+			| Decrement
+			| Neg
+			| NegBits ->
+				if set then check_assign ctx e;
+				(match classify e.etype with
+				| KFloat -> ctx.t.tfloat
+				| KParam t ->
+					unify ctx e.etype ctx.t.tfloat e.epos;
+					t
+				| k ->
+					if unify_int ctx e k then ctx.t.tint else ctx.t.tfloat)
+			) in
+			mk (TUnop (op,flag,e)) t p
+		in
+		try (match follow e.etype with
+			| TAbstract ({a_impl = Some c} as a,pl) ->
+				let _,_,cf = List.find (fun (op2,flag2,cf) -> op2 == op && flag2 == flag) a.a_unops in
+				if not (can_access ctx c cf true) then error ("Cannot access " ^ cf.cf_name) p;
+				let t = field_type ctx c [] cf p in
+				let t = apply_params a.a_types pl t in
+				let r = match t with TFun (_,r) -> r | _ -> error "Invalid operation" p in
+				(match cf.cf_expr with
+				| None ->
+					let e = make {e with etype = apply_params a.a_types pl a.a_this} in
+					unify ctx r e.etype p;
+					{e with etype = r}
+				| Some _ ->
+					let et = type_module_type ctx (TClassDecl c) None p in
+					let ef = mk (TField (et,FStatic (c,cf))) t p in
+					make_call ctx ef [e] r p)
+			| _ -> raise Not_found
+		) with Not_found ->
+			make e
 	in
 	match acc with
 	| AKExpr e | AKField (e,_,_) -> access e

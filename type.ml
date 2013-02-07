@@ -249,6 +249,7 @@ and tabstract = {
 	mutable a_meta : metadata;
 	mutable a_types : type_params;
 	mutable a_ops : (Ast.binop * tclass_field) list;
+	mutable a_unops : (Ast.unop * unop_flag * tclass_field) list;
 	mutable a_impl : tclass option;
 	mutable a_this : t;
 	mutable a_from : (t * tclass_field option) list;
