@@ -104,6 +104,7 @@ type matcher = {
 }
 
 exception Not_exhaustive of pat * st
+exception Unrecognized_pattern of Ast.expr
 
 let arity con = match con.c_def with
 	| CEnum (_,{ef_type = TFun(args,_)}) -> List.length args
@@ -454,17 +455,16 @@ let to_pattern ctx e t =
 			in
 			begin match follow t with
 			| TAnon {a_fields = fields} ->
-				let ctexpr = { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = None } in
-				let texpr = Typeload.load_instance ctx ctexpr p false in
 				List.iter (fun (n,(_,p)) -> is_valid_field_name fields n p) fl;
 				let sl,pl,i = PMap.foldi (fun n cf (sl,pl,i) ->
 					if not (is_matchable cf) then
 						sl,pl,i
 					else
-						let pat = try loop pctx (List.assoc n fl) cf.cf_type with Not_found -> (mk_any cf.cf_type p) in
-						let is_var = match pat.p_def with PVar _ -> true | _ -> false in
-						if is_var || not (n = "pos" && Type.type_iseq t texpr) then (n,cf) :: sl,pat :: pl,i + 1
-						else sl,pl,i
+						try
+							let pat = try loop pctx (List.assoc n fl) cf.cf_type with Not_found when n <> "pos" -> (mk_any cf.cf_type p) in
+							(n,cf) :: sl,pat :: pl,i + 1
+						with (Unrecognized_pattern _ | Not_found) when n = "pos" ->
+							sl,pl,i
 				) fields ([],[],0) in
 				mk_con_pat (CFields(i,sl)) pl t p
 			| TInst(c,tl) ->
@@ -528,7 +528,7 @@ let to_pattern ctx e t =
 					mk_pat (POr(pat1,pat2)) pat2.p_type (punion pat1.p_pos pat2.p_pos);
 			end
 		| _ ->
-			error "Unrecognized pattern" p;
+			raise (Unrecognized_pattern e)
 	in
 	let pctx = {
 		pc_locals = PMap.empty;
@@ -537,8 +537,11 @@ let to_pattern ctx e t =
 	loop pctx e t, pctx.pc_locals
 
 let get_pattern_locals ctx e t =
-	let _,locals = to_pattern ctx e t in
-	PMap.foldi (fun n (v,_) acc -> PMap.add n v acc) locals PMap.empty
+	try
+		let _,locals = to_pattern ctx e t in
+		PMap.foldi (fun n (v,_) acc -> PMap.add n v acc) locals PMap.empty
+	with Unrecognized_pattern _ ->
+		PMap.empty
 
 (* Match compilation *)
 
@@ -1125,9 +1128,11 @@ let match_expr ctx e cases def with_type p =
 		List.iter (fun e -> match fst e with EBinop(OpOr,_,_) -> mctx.toplevel_or <- true; | _ -> ()) el;
 		let ep = collapse_case el in
 		let save = save_locals ctx in
-		let pl = match tl with
-			| [t] -> [add_pattern_locals (to_pattern ctx ep t)]
-			| tl -> [add_pattern_locals (to_pattern ctx ep (tfun tl fake_tuple_type))]
+		let pl = try (match tl with
+				| [t] -> [add_pattern_locals (to_pattern ctx ep t)]
+				| tl -> [add_pattern_locals (to_pattern ctx ep (tfun tl fake_tuple_type))])
+			with Unrecognized_pattern (e,p) ->
+				error "Unrecognized_pattern" p
 		in
 		let e = match e with
 			| None -> mk (TBlock []) ctx.com.basic.tvoid (punion_el el)
