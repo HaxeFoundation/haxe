@@ -142,17 +142,4 @@ extern class EnumValueTools {
 	**/
 	static public inline function getIndex(e:EnumValue):Int
 		return Type.enumIndex(e)
-		
-	/**
-		Returns the enum of enum instance [o].
-		
-		An enum instance is the result of using an enum constructor. Given an
-		enum Color { Red; }, getEnum(Red) returns Enum<Color>.
-		
-		If [o] is null, null is returned.
-		
-		In general, type parameter information cannot be obtained at runtime.
-	**/
-	static public inline function getEnum(o:EnumValue):Enum<Dynamic>
-		return Type.getEnum(o)
 }
