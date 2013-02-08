@@ -1423,7 +1423,6 @@ let init_class ctx c p context_init herits fields =
 						(match e.eexpr with
 						| TBlock [] | TBlock [{ eexpr = TConst _ }] | TConst _ | TObjectDecl [] -> ()
 						| _ -> c.cl_init <- Some e);
-					if Meta.has Meta.DefineFeature cf.cf_meta then add_feature ctx.com (s_type_path c.cl_path ^ "." ^ cf.cf_name);
 					cf.cf_expr <- Some (mk (TFunction f) t p);
 					cf.cf_type <- t;
 				end;

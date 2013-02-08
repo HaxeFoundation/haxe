@@ -38,16 +38,14 @@
 		o[field] = value;
 	}
 
-	@:defineFeature
 	public static inline function getProperty( o : Dynamic, field : String ) : Dynamic untyped {
 		var tmp;
-		return if( o == null ) null else if( o.__properties__ && (tmp=o.__properties__["get_"+field]) ) o[tmp]() else o[field];
+		return if( o == null ) __define_feature__("Reflect.getProperty",null) else if( o.__properties__ && (tmp=o.__properties__["get_"+field]) ) o[tmp]() else o[field];
 	}
 
-	@:defineFeature
 	public static inline function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void untyped {
 		var tmp;
-		if( o.__properties__ && (tmp=o.__properties__["set_"+field]) ) o[tmp](value) else o[field] = value;
+		if( o.__properties__ && (tmp=o.__properties__["set_"+field]) ) o[tmp](value) else o[field] = __define_feature__("Reflect.setProperty",value);
 	}
 
 	public inline static function callMethod( o : Dynamic, func : Dynamic, args : Array<Dynamic> ) : Dynamic untyped {

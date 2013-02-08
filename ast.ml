@@ -26,6 +26,17 @@ type pos = {
 	pmax : int;
 }
 
+type platform =
+	| Cross
+	| Flash8
+	| Js
+	| Neko
+	| Flash
+	| Php
+	| Cpp
+	| Cs
+	| Java
+
 module Meta = struct
 	type strict_meta =
 		| Abstract
@@ -50,7 +61,6 @@ module Meta = struct
 		| CppNamespaceCode
 		| Debug
 		| Decl
-		| DefineFeature
 		| DefParam
 		| Depend
 		| Deprecated
@@ -135,120 +145,134 @@ module Meta = struct
 		| Dollar of string
 		| Custom of string
 
+	type meta_usage =
+		| TClass
+		| TClassField
+		| TAbstract
+		| TAbstractField
+		| TEnum
+		| TTypedef
+
+	type meta_parameter =
+		| HasParam of string
+		| Platform of platform
+		| Platforms of platform list
+		| UsedOn of meta_usage
+		| UsedOnEither of meta_usage list
+
 	let to_string = function
-		| Abstract -> ":abstract"
-		| Access -> ":access"
-		| Alias -> ":alias"
-		| Allow -> ":allow"
-		| Annotation -> ":annotation"
-		| ArrayAccess -> ":arrayAccess"
-		| AutoBuild -> ":autoBuild"
-		| BaseInterface -> ":baseInterface"
-		| Bind -> ":bind"
-		| Bitmap -> ":bitmap"
-		| Build -> ":build"
-		| BuildXml -> ":buildXml"
-		| Class -> ":class"
-		| ClassCode -> ":classCode"
-		| Commutative -> ":commutative"
-		| CompilerGenerated -> ":compilerGenerated"
-		| CoreApi -> ":coreApi"
-		| CoreType -> ":coreType"
-		| CppFileCode -> ":cppFileCode"
-		| CppNamespaceCode -> ":cppNamespaceCode"
-		| Debug -> ":debug"
-		| Decl -> ":decl"
-		| DefineFeature -> ":defineFeature"
-		| DefParam -> ":defParam"
-		| Depend -> ":depend"
-		| Deprecated -> ":deprecated"
-		| DynamicObject -> ":dynamicObject"
-		| Enum -> ":enum"
-		| Expose -> ":expose"
-		| Extern -> ":extern"
-		| FakeEnum -> ":fakeEnum"
-		| File -> ":file"
-		| Final -> ":final"
-		| Font -> ":font"
-		| From -> ":from"
-		| FunctionCode -> ":functionCode"
-		| FunctionTailCode -> ":functionTailCode"
-		| Generic -> ":generic"
-		| Getter -> ":getter"
-		| Hack -> ":hack"
-		| HaxeGeneric -> ":haxeGeneric"
-		| HeaderClassCode -> ":headerClassCode"
-		| HeaderCode -> ":headerCode"
-		| HeaderNamespaceCode -> ":headerNamespaceCode"
-		| HxGen -> ":hxGen"
-		| IfFeature -> ":ifFeature"
-		| Impl -> ":impl"
-		| Include -> ":include"
-		| InitPackage -> ":initPackage"
-		| Internal -> ":internal"
-		| IsVar -> ":isVar"
-		| JavaNative -> ":javaNative"
-		| Keep -> ":keep"
-		| KeepInit -> ":keepInit"
-		| KeepSub -> ":keepSub"
-		| Meta -> ":meta"
-		| Macro -> ":macro"
-		| MaybeUsed -> ":maybeUsed"
-		| MultiType -> ":multiType"
-		| Native -> ":native"
-		| NativeGen -> ":nativeGen"
-		| NativeGeneric -> ":nativeGeneric"
-		| NoCompletion -> ":noCompletion"
-		| NoDebug -> ":noDebug"
-		| NoDoc -> ":noDoc"
-		| NoPackageRestrict -> ":noPackageRestrict"
-		| NoStack -> ":noStack"
-		| NotNull -> ":notNull"
-		| NoUsing -> ":noUsing"
-		| Ns -> ":ns"
-		| Op -> ":op"
-		| Optional -> ":optional"
-		| Overload -> ":overload"
-		| Public -> ":public"
-		| PublicFields -> ":publicFields"
-		| PrivateAccess -> ":privateAccess"
-		| Protected -> ":protected"
-		| ReadOnly -> ":readOnly"
-		| RealPath -> ":realPath"
-		| Remove -> ":remove"
-		| Require -> ":require"
-		| ReplaceReflection -> ":replaceReflection"
-		| Rtti -> ":rtti"
-		| Runtime -> ":runtime"
-		| RuntimeValue -> ":runtimeValue"
-		| Setter -> ":setter"
-		| SkipCtor -> ":skipCtor"
-		| SkipReflection -> ":skipReflection"
-		| Sound -> ":sound"
-		| Struct -> ":struct"
-		| SuppressWarnings -> ":suppressWarnings"
-		| Synchronized -> ":synchronized"
-		| Throws -> ":throws"
-		| To -> ":to"
-		| Transient -> ":transient"
-		| ValueUsed -> ":valueUsed"
-		| VarArgs -> ":varArgs"
-		| Volatile -> ":volatile"
-		| UnifyMinDynamic -> ":unifyMinDynamic"
-		| Unreflective -> ":unreflective"
-		| Unsafe -> ":unsafe"
-		| Usage -> ":usage"
-		| Used -> ":used"
+		| Abstract -> ":abstract",("",[Platforms [Java;Cs]])
+		| Access -> ":access",("Forces private access to package, type or field",[HasParam "Target path";UsedOnEither [TClass;TClassField]])
+		| Alias -> ":alias",("",[Platforms [Java;Cs]])
+		| Allow -> ":allow",("Allows private access from package, type or field",[HasParam "Target path";UsedOnEither [TClass;TClassField]])
+		| Annotation -> ":annotation",("",[Platforms [Java;Cs]])
+		| ArrayAccess -> ":arrayAccess",("Allows [] access on an abstract",[UsedOnEither [TAbstract;TAbstractField]])
+		| AutoBuild -> ":autoBuild",("Extends @:build metadata to all extending and implementing classes",[HasParam "Build macro call";UsedOn TClass])
+		| BaseInterface -> ":baseInterface",("",[Platforms [Java;Cs]])
+		| Bind -> ":bind",("Override Swf class declaration",[Platform Flash;UsedOn TClass])
+		| Bitmap -> ":bitmap",("Embeds given bitmap data into the class (must extend flash.display.BitmapData)",[HasParam "Bitmap file path";UsedOn TClass;Platform Flash])
+		| Build -> ":build",("Builds a class or enum from a macro",[HasParam "Build macro call";UsedOnEither [TClass;TEnum]])
+		| BuildXml -> ":buildXml",("",[Platform Cpp])
+		| Class -> ":class",("",[Platforms [Java;Cs]])
+		| ClassCode -> ":classCode",("",[Platforms [Java;Cs]])
+		| Commutative -> ":commutative",("Declares an abstract operator as commutative",[UsedOn TAbstractField])
+		| CompilerGenerated -> ":compilerGenerated",("",[Platforms [Java;Cs]])
+		| CoreApi -> ":coreApi",("Identifies this class as a core api class (forces Api check)",[UsedOnEither [TClass;TEnum;TTypedef;TAbstract]])
+		| CoreType -> ":coreType",("Identifies an abstract as core type so that it requires no implementation",[UsedOn TAbstract])
+		| CppFileCode -> ":cppFileCode",("",[Platform Cpp])
+		| CppNamespaceCode -> ":cppNamespaceCode",("",[Platform Cpp])
+		| Debug -> ":debug",("Forces debug information to be generated into the Swf even without -debug",[UsedOnEither [TClass;TClassField]; Platform Flash])
+		| Decl -> ":decl",("",[Platform Cpp])
+		| DefParam -> ":defParam",("?",[])
+		| Depend -> ":depend",("",[Platform Cpp])
+		| Deprecated -> ":deprecated",("",[Platforms [Java;Cs]])
+		| DynamicObject -> ":dynamicObject",("",[Platforms [Java;Cs]])
+		| Enum -> ":enum",("",[Platforms [Java;Cs]])
+		| Expose -> ":expose",("Makes the class available on the window object",[HasParam "?Name=Class path";UsedOn TClass;Platform Js])
+		| Extern -> ":extern",("Marks the field as extern so it is not generated",[UsedOn TClassField])
+		| FakeEnum -> ":fakeEnum",("Treat enum as collection of values of the specified type",[HasParam "Type name";UsedOn TEnum])
+		| File -> ":file",("Includes a given binary file into the target Swf and associates it with the class (must extend flash.utils.ByteArray)",[HasParam "File path";UsedOn TClass;Platform Flash])
+		| Final -> ":final",("Prevents a class from being extended",[UsedOn TClass])
+		| Font -> ":font",("Embeds the given TrueType font into the class (must extend flash.text.Font)",[HasParam "TTF path";HasParam "Range String";UsedOn TClass])
+		| From -> ":from",("Specifies that the field of the abstract is a cast operation from the type identified in the function",[UsedOn TAbstractField])
+		| FunctionCode -> ":functionCode",("",[Platform Cpp])
+		| FunctionTailCode -> ":functionTailCode",("",[Platform Cpp])
+		| Generic -> ":generic",("Marks a class or class field as generic so each type parameter combination generates its own type/field",[UsedOnEither [TClass;TClassField]])
+		| Getter -> ":getter",("Generates a native getter function on the given field",[HasParam "Class field name";UsedOn TClassField;Platform Flash])
+		| Hack -> ":hack",("Allows extending classes marked as @:final",[UsedOn TClass])
+		| HaxeGeneric -> ":haxeGeneric",("",[Platforms [Java;Cs]])
+		| HeaderClassCode -> ":headerClassCode",("",[Platform Cpp])
+		| HeaderCode -> ":headerCode",("",[Platform Cpp])
+		| HeaderNamespaceCode -> ":headerNamespaceCode",("",[Platform Cpp])
+		| HxGen -> ":hxGen",("",[Platforms [Java;Cs]])
+		| IfFeature -> ":ifFeature",("Causes a field to be kept by DCE if the given feature is part of the compilation",[HasParam "Feature name";UsedOn TClassField])
+		| Impl -> ":impl",("Used internally to mark abstract implementation fields",[UsedOn TAbstractField])
+		| Include -> ":include",("",[Platform Cpp])
+		| InitPackage -> ":initPackage",("?",[])
+		| Internal -> ":internal",("",[Platforms [Java;Cs]])
+		| IsVar -> ":isVar",("Forces a physical field to be generated for properties that otherwise would not require one",[UsedOn TClassField])
+		| JavaNative -> ":javaNative",("",[Platforms [Java;Cs]])
+		| Keep -> ":keep",("Causes a field or type to be kept by DCE",[])
+		| KeepInit -> ":keepInit",("Causes a class to be kept by DCE even if all its field are removed",[UsedOn TClass])
+		| KeepSub -> ":keepSub",("Extends @:keep metadata to all implementing and extending classes",[UsedOn TClass])
+		| Meta -> ":meta",("Internally used to mark a class field as being the metadata field",[])
+		| Macro -> ":macro",("(deprecated)",[])
+		| MaybeUsed -> ":maybeUsed",("Internally used by DCE to mark fields that might be kept",[])
+		| MultiType -> ":multiType",("Specifies that an abstract chooses its this-type from its @:to functions",[UsedOn TAbstract])
+		| Native -> ":native",("Rewrites the path of a class or enum during generation",[HasParam "Output type path";UsedOnEither [TClass;TEnum]])
+		| NativeGen -> ":nativeGen",("",[Platforms [Java;Cs]])
+		| NativeGeneric -> ":nativeGeneric",("",[Platforms [Java;Cs]])
+		| NoCompletion -> ":noCompletion",("Prevents the compiler from suggesting completion on this field",[UsedOn TClassField])
+		| NoDebug -> ":noDebug",("Does not generate debug information into the Swf even if -debug is set",[UsedOnEither [TClass;TClassField];Platform Flash])
+		| NoDoc -> ":noDoc",("Prevents a type from being included in documentation generation",[])
+		| NoPackageRestrict -> ":noPackageRestrict",("?",[])
+		| NoStack -> ":noStack",("",[Platform Cpp])
+		| NotNull -> ":notNull",("Declares an abstract type as not accepting null values",[UsedOn TAbstract])
+		| NoUsing -> ":noUsing",("Prevents a field from being used with 'using'",[UsedOn TClassField])
+		| Ns -> ":ns",("Internally used by the Swf generator to handle namespaces",[Platform Flash])
+		| Op -> ":op",("Declares an abstract field as being an operator overload",[HasParam "The operation";UsedOn TAbstractField])
+		| Optional -> ":optional",("Marks the field of a structure as optional",[UsedOn TClassField])
+		| Overload -> ":overload",("Allows the field to be called with different argument types",[HasParam "Function specification (no expression)";UsedOn TClassField])
+		| Public -> ":public",("Marks a class field as being public",[UsedOn TClassField])
+		| PublicFields -> ":publicFields",("Forces all class fields of inheriting classes to be public",[UsedOn TClass])
+		| PrivateAccess -> ":privateAccess",("Internally used by the typer to allow context-sensitive private access",[])
+		| Protected -> ":protected",("Marks a class field as being protected",[UsedOn TClassField])
+		| ReadOnly -> ":readOnly",("",[Platforms [Java;Cs]])
+		| RealPath -> ":realPath",("Internally used on @:native types to retain original path information",[])
+		| Remove -> ":remove",("Causes an interface to be removed from all implementing classes before generation",[UsedOn TClass])
+		| Require -> ":require",("Allows access to a field only if the specified compiler flag is set",[HasParam "Compiler flag to check";UsedOn TClassField])
+		| ReplaceReflection -> ":replaceReflection",("",[Platforms [Java;Cs]])
+		| Rtti -> ":rtti",("Adds runtime type informations",[UsedOn TClass])
+		| Runtime -> ":runtime",("?",[])
+		| RuntimeValue -> ":runtimeValue",("Marks an abstract as being a runtime value",[UsedOn TAbstract])
+		| Setter -> ":setter",("Generates a native getter function on the given field",[HasParam "Class field name";UsedOn TClassField;Platform Flash])
+		| SkipCtor -> ":skipCtor",("",[Platforms [Java;Cs]])
+		| SkipReflection -> ":skipReflection",("",[Platforms [Java;Cs]])
+		| Sound -> ":sound",( "Includes a given .wav or .mp3 file into the target Swf and associates it with the class (must extend flash.media.Sound)",[HasParam "File path";UsedOn TClass;Platform Flash])
+		| Struct -> ":struct",("",[Platforms [Java;Cs]])
+		| SuppressWarnings -> ":suppressWarnings",("",[Platforms [Java;Cs]])
+		| Synchronized -> ":synchronized",("",[Platforms [Java;Cs]])
+		| Throws -> ":throws",("",[Platforms [Java;Cs]])
+		| To -> ":to",("Specifies that the field of the abstract is a cast operation to the type identified in the function",[UsedOn TAbstractField])
+		| Transient -> ":transient",("",[Platforms [Java;Cs]])
+		| ValueUsed -> ":valueUsed",("Internally used by DCE to mark an abstract value as used",[])
+		| VarArgs -> ":varArgs",("",[Platforms [Java;Cs]])
+		| Volatile -> ":volatile",("",[Platforms [Java;Cs]])
+		| UnifyMinDynamic -> ":unifyMinDynamic",("Allows a collection of types to unify to Dynamic",[UsedOn TClassField])
+		| Unreflective -> ":unreflective",("",[Platform Cpp])
+		| Unsafe -> ":unsafe",("",[Platforms [Java;Cs]])
+		| Usage -> ":usage",("?",[])
+		| Used -> ":used",("Internally used by DCE to mark a class or field as used",[])
 		| Last -> assert false
-		| Dollar s -> "$" ^ s
-		| Custom s -> s
+		| Dollar s -> "$" ^ s,("",[])
+		| Custom s -> s,("",[])
 
 	let hmeta =
 		let h = Hashtbl.create 0 in
 		let rec loop i =
 			let m = Obj.magic i in
 			if m <> Last then begin
-				Hashtbl.add h (to_string m) m;
+				Hashtbl.add h (fst (to_string m)) m;
 				loop (i + 1);
 			end;
 		in
@@ -960,7 +984,7 @@ let reify in_macro =
 	and to_meta m p =
 		to_array (fun (m,el,p) _ ->
 			let fields = [
-				"name", to_string (Meta.to_string m) p;
+				"name", to_string (fst (Meta.to_string m)) p;
 				"params", to_expr_array el p;
 				"pos", to_pos p;
 			] in
@@ -1091,7 +1115,7 @@ let reify in_macro =
 				cur_pos := old;
 				e
 			| _ ->
-				expr "EMeta" [to_obj [("name",to_string (Meta.to_string m) p);("params",to_expr_array ml p);("pos",to_pos p)] p;loop e1]
+				expr "EMeta" [to_obj [("name",to_string (fst (Meta.to_string m)) p);("params",to_expr_array ml p);("pos",to_pos p)] p;loop e1]
 	and to_tparam_decl p t =
 		to_obj [
 			"name", to_string t.tp_name p;

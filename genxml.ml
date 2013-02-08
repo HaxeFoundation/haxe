@@ -95,7 +95,7 @@ let gen_meta meta =
 	| [] -> []
 	| _ ->
 		let nodes = List.map (fun (m,el,_) ->
-			node "m" ["n",Meta.to_string m] (List.map (fun e -> node "e" [] [gen_string (sexpr e)]) el)
+			node "m" ["n",fst (Meta.to_string m)] (List.map (fun e -> node "e" [] [gen_string (sexpr e)]) el)
 		) meta in
 		[node "meta" [] nodes]
 
@@ -341,8 +341,8 @@ let generate_type com t =
 			| Meta.DefParam | Meta.CoreApi | Meta.Used | Meta.MaybeUsed -> ()
 			| _ ->
 			match pl with
-			| [] -> p "@%s " (Meta.to_string m)
-			| l -> p "@%s(%s) " (Meta.to_string m) (String.concat "," (List.map sexpr pl))
+			| [] -> p "@%s " (fst (Meta.to_string m))
+			| l -> p "@%s(%s) " (fst (Meta.to_string m)) (String.concat "," (List.map sexpr pl))
 		) ml
 	in
 	let access a =

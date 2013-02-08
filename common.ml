@@ -20,23 +20,13 @@
  * DEALINGS IN THE SOFTWARE.
  *)
 
+open Ast
 open Type
 
 type package_rule =
 	| Forbidden
 	| Directory of string
 	| Remap of string
-
-type platform =
-	| Cross
-	| Flash8
-	| Js
-	| Neko
-	| Flash
-	| Php
-	| Cpp
-	| Cs
-	| Java
 
 type pos = Ast.pos
 

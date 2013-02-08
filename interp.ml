@@ -2373,7 +2373,7 @@ let macro_lib =
 			| VString file ->
 				let com = ccom() in
 				(match com.platform with
-				| Flash -> Genswf.add_swf_lib com file false
+				| Ast.Flash -> Genswf.add_swf_lib com file false
 				| _ -> failwith "Unsupported platform");
 				VNull
 			| _ ->
@@ -3545,7 +3545,7 @@ and encode_access a =
 
 and encode_meta_entry (m,ml,p) =
 	enc_obj [
-		"name", enc_string (Meta.to_string m);
+		"name", enc_string (fst (Meta.to_string m));
 		"params", enc_array (List.map encode_expr ml);
 		"pos", encode_pos p;
 	]

@@ -21,6 +21,7 @@
  *)
 
 open Printf
+open Ast
 open Genswf
 open Common
 open Type
@@ -1275,7 +1276,7 @@ with
 	| Typer.DisplayMetadata m ->
 		let b = Buffer.create 0 in
 		List.iter (fun (m,el,p) ->
-			Buffer.add_string b ("<meta name=\"" ^ (Ast.Meta.to_string m) ^ "\"");
+			Buffer.add_string b ("<meta name=\"" ^ (fst (Ast.Meta.to_string m)) ^ "\"");
 			if el = [] then Buffer.add_string b "/>" else begin
 				Buffer.add_string b ">\n";
 				List.iter (fun e -> Buffer.add_string b ((htmlescape (Genxml.sexpr e)) ^ "\n")) el;
