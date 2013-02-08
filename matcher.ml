@@ -328,17 +328,15 @@ let to_pattern ctx e t =
 			| TField(_, FStatic(_,cf)) when is_value_type cf.cf_type ->
 				mk_con_pat (CExpr e) [] cf.cf_type p
 			| TField(_, FEnum(en,ef)) ->
-				let tc = monomorphs ctx.type_params (t) in
 				begin try
-					unify_enum_field en (List.map (fun _ -> mk_mono()) en.e_types) ef tc
+					unify_enum_field en (List.map (fun _ -> mk_mono()) en.e_types) ef t
 				with Unify_error l ->
 					error (error_msg (Unify l)) p
 				end;
 				mk_con_pat (CEnum(en,ef)) [] t p
 			| _ -> error "Constant expression expected" p)
 		| ECall(ec,el) ->
-			let tc = monomorphs ctx.type_params (t) in
-			let ec = type_expr ctx ec (WithType tc) in
+			let ec = type_expr ctx ec (WithType t) in
 			(match follow ec.etype with
 			| TEnum(en,pl)
 			| TFun(_,TEnum(en,pl)) ->
@@ -352,7 +350,7 @@ let to_pattern ctx e t =
 				in
 				let tl = match apply_params en.e_types pl (apply_params ef.ef_params monos ef.ef_type) with
 					| TFun(args,r) ->
-						unify ctx r tc p;
+						unify ctx r t p;
 						List.map (fun (n,_,t) ->
 							let tf = apply_params mono_map tpl (follow t) in
 							if is_null t then ctx.t.tnull tf else tf
@@ -389,8 +387,7 @@ let to_pattern ctx e t =
 			end
 		| EConst(Ident s) ->
 			begin try
-				let tc = monomorphs ctx.type_params (t) in
-				let ec = match follow tc with
+				let ec = match follow t with
 					| TEnum(en,pl) ->
 						let ef = try
 							PMap.find s en.e_constrs
@@ -411,23 +408,23 @@ let to_pattern ctx e t =
 					| _ ->
 						let old = ctx.untyped in
 						ctx.untyped <- true;
-						let e = try type_expr ctx e (WithType tc) with _ -> ctx.untyped <- old; raise Not_found in
+						let e = try type_expr ctx e (WithType t) with _ -> ctx.untyped <- old; raise Not_found in
 						ctx.untyped <- old;
 						e
 				in
 				(match ec.eexpr with
 					| TField (_,FEnum (en,ef)) ->
-						begin try unify_raise ctx ec.etype tc ec.epos with Error (Unify _,_) -> raise Not_found end;
+						begin try unify_raise ctx ec.etype t ec.epos with Error (Unify _,_) -> raise Not_found end;
 						begin try
-							unify_enum_field en (List.map (fun _ -> mk_mono()) en.e_types) ef tc;
+							unify_enum_field en (List.map (fun _ -> mk_mono()) en.e_types) ef t;
 						with Unify_error l ->
 							error (error_msg (Unify l)) p
 						end;
 						mk_con_pat (CEnum(en,ef)) [] t p
                     | TConst c ->
-                    	begin try unify_raise ctx ec.etype tc ec.epos with Error (Unify _,_) -> raise Not_found end;
-                        unify ctx ec.etype tc p;
-                        mk_con_pat (CConst c) [] tc p
+                    	begin try unify_raise ctx ec.etype t ec.epos with Error (Unify _,_) -> raise Not_found end;
+                        unify ctx ec.etype t p;
+                        mk_con_pat (CConst c) [] t p
 					| TTypeExpr mt ->
 						let tcl = Typeload.load_instance ctx {tname="Class";tpackage=[];tsub=None;tparams=[]} p true in
 						let t2 = match tcl with TAbstract(a,_) -> TAbstract(a,[mk_mono()]) | _ -> assert false in
@@ -953,7 +950,6 @@ and group_cases mctx cases to_case =
 
 and to_enum_switch mctx en pl st cases =
 	let eval = st_to_texpr mctx st in
-	let et = monomorphs mctx.ctx.type_params (TEnum(en,pl)) in
 	let to_case con = match con.c_def with
 		| CEnum(en,ef) -> en,ef
 		| _ ->
@@ -973,7 +969,6 @@ and to_enum_switch mctx en pl st cases =
 		(* TODO: this is horrible *)
 		let vl = match etf with
 			| TFun(args,r) ->
-				unify mctx.ctx r et p;
 				let vl = ExtList.List.mapi (fun i (_,_,t) ->
 					let st = mk_st (SEnum(st,ef.ef_name,i)) t st.st_pos in
 					let mk_e () = Some (match (st_to_texpr mctx st).eexpr with TLocal v -> v | _ -> assert false) in
@@ -1128,15 +1123,24 @@ let match_expr ctx e cases def with_type p =
 		List.iter (fun e -> match fst e with EBinop(OpOr,_,_) -> mctx.toplevel_or <- true; | _ -> ()) el;
 		let ep = collapse_case el in
 		let save = save_locals ctx in
-		let pl = try (match tl with
-				| [t] -> [add_pattern_locals (to_pattern ctx ep t)]
-				| tl -> [add_pattern_locals (to_pattern ctx ep (tfun tl fake_tuple_type))])
+		let pl,with_type = try (match tl with
+				| [t] ->
+					let monos = List.map (fun _ -> mk_mono()) ctx.type_params in
+					let t = apply_params ctx.type_params monos t in
+					let pl = [add_pattern_locals (to_pattern ctx ep t)] in
+					pl,(match wtype with Some t -> WithType (apply_params ctx.type_params monos t) | _ -> with_type);
+				| tl ->
+					let t = monomorphs ctx.type_params (tfun tl fake_tuple_type) in
+					[add_pattern_locals (to_pattern ctx ep t)],with_type)
 			with Unrecognized_pattern (e,p) ->
 				error "Unrecognized_pattern" p
 		in
 		let e = match e with
 			| None -> mk (TBlock []) ctx.com.basic.tvoid (punion_el el)
-			| Some e -> type_expr ctx e with_type
+			| Some e ->
+				let e = type_expr ctx e with_type in
+				(match with_type with WithType t -> unify ctx e.etype t e.epos | _ -> ());
+				e
 		in
 		let eg = match eg with None -> None | Some e -> Some (type_expr ctx e Value) in
 		save();
@@ -1155,10 +1159,10 @@ let match_expr ctx e cases def with_type p =
 		end) mctx.outcomes;
 		let t = if not need_val then
 			mk_mono()
-		else
-			try Typer.unify_min_raise ctx (List.rev_map (fun (_,out) -> out.o_expr) (List.rev pl)) with Error (Unify l,p) -> error (error_msg (Unify l)) p
+		else match wtype with
+			| Some t -> t
+			| None -> try Typer.unify_min_raise ctx (List.rev_map (fun (_,out) -> out.o_expr) (List.rev pl)) with Error (Unify l,p) -> error (error_msg (Unify l)) p
 		in
-		unify ctx t mctx.out_type p;
 		let e = to_typed_ast mctx dt in
 		let e = { e with epos = p} in
 		if !var_inits = [] then
