@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,11 +19,13 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 /**
-	The DateTools class contains some extra functionalities for [Date]
-	manipulation. It's stored in a different class in order to prevent
-	the standard [Date] of being bloated and thus increasing the size of
-	each application using it.
+	The DateTools class contains some extra functionalities for handling [Date]
+	instances and timestamps.
+	
+	In the context of haxe dates, a timestamp is defined as the number of
+	milliseconds elapsed since 1st January 1970.
 **/
 class DateTools {
 
@@ -103,11 +105,11 @@ class DateTools {
 	#end
 
 	/**
-		Format the date [d] according to the format [f]. The format
-		is compatible with the [strftime] standard format, except that there
-		is no support in Flash and JS for day and months names (due to lack
-		of proper internationalization API). On haXe/Neko/Windows, some
-		formats are not supported.
+		Format the date [d] according to the format [f]. The format is
+		compatible with the [strftime] standard format, except that there is no
+		support in Flash and JS for day and months names (due to lack of proper
+		internationalization API). On haXe/Neko/Windows, some formats are not
+		supported.
 	**/
 	public static function format( d : Date, f : String ) : String {
 		#if (neko && !(macro || interp))
@@ -120,16 +122,21 @@ class DateTools {
 	}
 
 	/**
-		Returns a Date which time has been changed by [t] milliseconds.
+		Returns the result of adding timestamp [t] to Date [d].
+		
+		This is a convenience function for calling
+		Date.fromTime(d.getTime() + t).
 	**/
-	public static function delta( d : Date, t : Float ) : Date {
+	public static inline function delta( d : Date, t : Float ) : Date {
 		return Date.fromTime( d.getTime() + t );
 	}
 
 	static var DAYS_OF_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 
 	/**
-		Returns the number of days in a month
+		Returns the number of days in the month of Date [d].
+		
+		This method handles leap years.
 	**/
 	public static function getMonthDays( d : Date ) : Int {
 		var month = d.getMonth();
@@ -143,30 +150,30 @@ class DateTools {
 	}
 
 	/**
-		Convert a number of seconds to a date-time
+		Converts a number of seconds to a timestamp.
 	**/
-	public static function seconds( n : Float ) : Float {
+	public static inline function seconds( n : Float ) : Float {
 		return n * 1000.0;
 	}
 
 	/**
-		Convert a number of minutes to a date-time
+		Converts a number of minutes to a timestamp.
 	**/
-	public static function minutes( n : Float ) : Float {
+	public static inline function minutes( n : Float ) : Float {
 		return n * 60.0 * 1000.0;
 	}
 
 	/**
-		Convert a number of hours to a date-time
+		Converts a number of hours to a timestamp.
 	**/
-	public static function hours( n : Float ) : Float {
+	public static inline function hours( n : Float ) : Float {
 		return n * 60.0 * 60.0 * 1000.0;
 	}
 
 	/**
-		Convert a number of days to a date-time
+		Converts a number of days to a timestamp.
 	**/
-	public static function days( n : Float ) : Float {
+	public static inline function days( n : Float ) : Float {
 		return n * 24.0 * 60.0 * 60.0 * 1000.0;
 	}
 
