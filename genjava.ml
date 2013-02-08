@@ -875,7 +875,7 @@ let configure gen =
         | TDynamic _ ->
             path_s_import pos (["java";"lang"], "Object")
       | TAbstract(a,pl) when a.a_impl <> None ->
-        t_s pos (apply_params a.a_types pl a.a_this)
+        t_s pos (Codegen.get_underlying_type a pl)
       (* No Lazy type nor Function type made. That's because function types will be at this point be converted into other types *)
       | _ -> if !strict_mode then begin trace ("[ !TypeError " ^ (Type.s_type (Type.print_context()) t) ^ " ]"); assert false end else "[ !TypeError " ^ (Type.s_type (Type.print_context()) t) ^ " ]"
 

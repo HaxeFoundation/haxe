@@ -41,7 +41,7 @@ class Bytes {
 		#elseif cpp
 		return untyped b[pos];
 		#elseif java
-		return b[pos] & 0xFF;
+		return untyped b[pos] & 0xFF;
 		#else
 		return b[pos];
 		#end
@@ -156,7 +156,7 @@ class Bytes {
 				#if cpp
 				return untyped b1[i] - untyped b2[i];
 				#else
-				return b1[i] - b2[i];
+				return untyped b1[i] - untyped b2[i];
 				#end
 		return length - other.length;
 		#end
@@ -362,7 +362,7 @@ class Bytes {
 		#elseif cpp
 		return untyped b[pos];
 		#elseif java
-		return b[pos] & 0xFF;
+		return untyped b[pos] & 0xFF;
 		#else
 		return b[pos];
 		#end

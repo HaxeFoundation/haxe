@@ -63,7 +63,7 @@ class BytesInput extends Input {
 			#elseif cpp
 			return untyped b[pos++];
 			#elseif java
-			return b[pos++] & 0xFF;
+			return untyped b[pos++] & 0xFF;
 			#else
 			return b[pos++];
 			#end

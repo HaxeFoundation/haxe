@@ -116,7 +116,7 @@
 
 	public static function resolveEnum( name : String ) : Enum<Dynamic> untyped
 	{
-		if (name.equals("Bool")) return Bool;
+		if (name == "Bool") return Bool;
 		return resolveClass(name);
 	}
 
@@ -371,7 +371,7 @@
 	')
 	public static function enumEq<T>( a : T, b : T ) : Bool untyped
 	{
-		return a.equals(b);
+		return a == b;
 	}
 
 	@:functionCode('

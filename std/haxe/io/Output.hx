@@ -54,7 +54,7 @@ class Output {
 			#elseif cpp
 				writeByte(untyped b[pos]);
 			#else
-				writeByte(b[pos]);
+				writeByte(untyped b[pos]);
 			#end
 			pos++;
 			k--;
@@ -121,10 +121,10 @@ class Output {
 		helper.order(bigEndian ? java.nio.ByteOrder.BIG_ENDIAN : java.nio.ByteOrder.LITTLE_ENDIAN);
 
 		helper.putFloat(0, x);
-		writeByte(helper.get(0));
-		writeByte(helper.get(1));
-		writeByte(helper.get(2));
-		writeByte(helper.get(3));
+		writeByte(untyped helper.get(0));
+		writeByte(untyped helper.get(1));
+		writeByte(untyped helper.get(2));
+		writeByte(untyped helper.get(3));
 		#else
 		if (x == 0.0)
 		{
@@ -184,14 +184,14 @@ class Output {
 
 		helper.putDouble(0, x);
 
-		writeByte(helper.get(0));
-		writeByte(helper.get(1));
-		writeByte(helper.get(2));
-		writeByte(helper.get(3));
-		writeByte(helper.get(4));
-		writeByte(helper.get(5));
-		writeByte(helper.get(6));
-		writeByte(helper.get(7));
+		writeByte(untyped helper.get(0));
+		writeByte(untyped helper.get(1));
+		writeByte(untyped helper.get(2));
+		writeByte(untyped helper.get(3));
+		writeByte(untyped helper.get(4));
+		writeByte(untyped helper.get(5));
+		writeByte(untyped helper.get(6));
+		writeByte(untyped helper.get(7));
 		#else
 		if (x == 0.0)
 		{
