@@ -1517,7 +1517,7 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 		let rec loop ops = match ops with
 			| [] -> raise Not_found
 			| (o,cf) :: ops when is_assign_op && o = OpAssignOp(op) || o == op ->
-				(match follow cf.cf_type with
+				(match follow (monomorphs cf.cf_params cf.cf_type) with
 				| TFun([(_,_,t1);(_,_,t2)],r) when (left || Meta.has Meta.Commutative cf.cf_meta) && type_iseq t t2 && can_access ctx c cf true ->
 					cf,r,o = OpAssignOp(op)
 				| _ -> loop ops)
