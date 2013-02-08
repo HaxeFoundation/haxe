@@ -633,6 +633,12 @@ let escape_null s =
    String.iter (fun ch -> if (ch=='\x00') then Buffer.add_string b "\\000" else Buffer.add_char b ch ) s;
    Buffer.contents b;;
 
+let escape_command s =
+	let b = Buffer.create 0 in
+   String.iter (fun ch -> if (ch=='"' || ch=='\\' ) then Buffer.add_string b "\\";  Buffer.add_char b ch ) s;
+   Buffer.contents b;;
+
+
 let str s =
 	let escaped = Ast.s_escape s in
       let null_escaped = escape_null escaped in
@@ -3392,7 +3398,7 @@ let create_constructor_dependencies common_ctx =
 
 
 let gen_extern_class common_ctx class_def =
-   let file = new_source_file common_ctx.file  "script" ".hx" class_def.cl_path in
+   let file = new_source_file common_ctx.file  "extern" ".hx" class_def.cl_path in
    let path = class_def.cl_path in
    let rec remove_prefix  =  function
       | TInst ({cl_path=prefix} as cval ,tl) ->  TInst ( { cval with cl_path = ([],snd cval.cl_path) }, List.map remove_prefix tl)
@@ -3453,7 +3459,7 @@ let generate common_ctx =
    let scriptable = (Common.defined common_ctx Define.Scriptable) in
    let gen_externs = scriptable || (Common.defined common_ctx Define.DllExport) in
    if (gen_externs) then begin
-     make_base_directory (common_ctx.file ^ "/script");
+     make_base_directory (common_ctx.file ^ "/extern");
    end;
 
 	List.iter (fun object_def ->
@@ -3517,14 +3523,15 @@ let generate common_ctx =
 	let cmd_defines = ref "" in
 	PMap.iter ( fun name value -> match name with
         | "true" | "sys" | "dce" | "cpp" | "debug" -> ()
-        | _ -> cmd_defines := !cmd_defines ^ " \"-D" ^ name ^ "=" ^ value ^ "\"" ) common_ctx.defines;
+        | _ -> cmd_defines := !cmd_defines ^ " -D" ^ name ^ "=\"" ^ (escape_command value) ^ "\"" ) common_ctx.defines;
 	write_build_options (common_ctx.file ^ "/Options.txt") !cmd_defines;
 	if ( not (Common.defined common_ctx Define.NoCompilation) ) then begin
 		let old_dir = Sys.getcwd() in
 		Sys.chdir common_ctx.file;
 		let cmd = ref "haxelib run hxcpp Build.xml haxe" in
 		if (common_ctx.debug) then cmd := !cmd ^ " -Ddebug";
-		print_endline (!cmd ^ !cmd_defines);
+      cmd := !cmd ^ !cmd_defines;
+      print_endline !cmd;
 		if common_ctx.run_command !cmd <> 0 then failwith "Build failed";
 		Sys.chdir old_dir;
 	end
