@@ -92,7 +92,7 @@ class TestEReg extends Test {
 		// length
 		f(r.matchSub("bbaa", 0, 1));
 		f(r.matchSub("bbaa", 0, 2));
-		f(r.matchSub("bbaa", 1, 1)); 
+		f(r.matchSub("bbaa", 1, 1));
 		t(r.matchSub("bbaa", 2, 1));
 		eq(r.matchedLeft(), "bb");
 		eq(r.matchedRight(), "a");
@@ -120,7 +120,10 @@ class TestEReg extends Test {
 		var r = ~/^/m;
 		eq(r.map("\n", f), "([][][\n])b\n");
 		eq(r.map("a", f), "([][][a])ba");
-		eq(r.map("aa\na", f), "([][][aa\na])baa\na");		
+		eq(r.map("aa\na", f), "([][][aa\na])baa\na");
+		
+		var r = ~/a/;
+		exc(function() r.matched(0));
 		#end
 	}
 
