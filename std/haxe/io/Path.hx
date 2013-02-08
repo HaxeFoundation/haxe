@@ -49,7 +49,7 @@ class Path {
 		If there is no file name, e.g. for ".htaccess" or "/dir/", the value
 		is the empty String "".
 	**/
-	public var file(default, null) : String;	
+	public var file(default, null) : String;
 	
 	/**
 		The file extension.
@@ -123,7 +123,7 @@ class Path {
 		Returns the String representation of [path] without the directory.
 		
 		If [path] is null, the result is unspecified.
-	**/	
+	**/
 	public static function withoutDirectory( path ) {
 		var s = new Path(path);
 		s.dir = null;
@@ -171,4 +171,29 @@ class Path {
 		return s.toString();
 	}
 
+	/**
+		Adds a trailing slash to [path], if it does not have one already.
+		
+		If the last slash in [path] is a backslash, a backslash is appended to
+		[path].
+		
+		If the last slash in [path] is a slash, or if no slash is found, a slash
+		is appended to [path]. In particular, this applies to the empty String
+		"".
+		
+		If [path] is null, the result is unspecified.
+	**/
+	public static function addTrailingSlash( path : String ) : String {
+		if (path.length == 0)
+			return "/";
+		var c1 = path.lastIndexOf("/");
+		var c2 = path.lastIndexOf("\\");
+		return if ( c1 < c2 ) {
+			if (c2 != path.length - 1) path + "\\";
+			else path;
+		} else {
+			if (c1 != path.length - 1) path + "/";
+			else path;
+		}
+	}
 }

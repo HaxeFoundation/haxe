@@ -77,6 +77,7 @@ class FileSystem {
 	}
 
 	public static inline function createDirectory( path : String ) : Void {
+		var path = haxe.io.Path.addTrailingSlash(path);
 		var parts = [while ((path = haxe.io.Path.directory(path)) != "") path];
 		parts.reverse();
 		for (part in parts) {

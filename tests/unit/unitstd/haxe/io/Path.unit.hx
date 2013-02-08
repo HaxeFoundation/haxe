@@ -59,3 +59,13 @@ haxe.io.Path.withExtension(path, "foo") == "/dir1/dir2/file.foo";
 haxe.io.Path.withExtension(path2, "foo") == "/dir1/dir.with.dots\\file.foo";
 haxe.io.Path.withExtension(path3, "foo") == ".foo";
 haxe.io.Path.withExtension(path4, "foo") == "/dir/.foo";
+
+// addTrailingSlash
+haxe.io.Path.addTrailingSlash("") == "/";
+haxe.io.Path.addTrailingSlash("a") == "a/";
+haxe.io.Path.addTrailingSlash("a/") == "a/";
+haxe.io.Path.addTrailingSlash("a/b") == "a/b/";
+haxe.io.Path.addTrailingSlash("a/b/") == "a/b/";
+haxe.io.Path.addTrailingSlash("a\\") == "a\\";
+haxe.io.Path.addTrailingSlash("a\\b") == "a\\b\\";
+haxe.io.Path.addTrailingSlash("a\\b\\") == "a\\b\\";
