@@ -84,7 +84,7 @@
 	}
 
 	public function split( s : String ) : Array<String> {
-		return untyped __php__("new _hx_array(preg_split($this->re, $s, $this->hglobal ? -1 : 2))");
+		return untyped __php__("new _hx_array(preg_split($this->re, $s, $this->{\"global\"} ? -1 : 2))");
 	}
 
 	public function replace( s : String, by : String ) : String {
