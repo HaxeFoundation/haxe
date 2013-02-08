@@ -760,6 +760,7 @@ let field_access ctx mode f fmode t e p =
 
 let using_field ctx mode e i p =
 	if mode = MSet then raise Not_found;
+	let has_mono = has_mono (monomorphs ctx.type_params e.etype) in
 	let rec loop = function
 	| [] ->
 		raise Not_found
@@ -784,7 +785,7 @@ let using_field ctx mode e i p =
 			loop l
 	in
 	try loop ctx.m.module_using
-	with Not_found -> loop ctx.g.global_using
+	with Not_found when not has_mono -> loop ctx.g.global_using
 
 let get_this ctx p =
 	match ctx.curfun with
