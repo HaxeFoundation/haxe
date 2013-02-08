@@ -235,4 +235,7 @@ class Error {
 		this.message = m;
 		this.pos = p;
 	}
+	function toString() {
+		return message;
+	}
 }
