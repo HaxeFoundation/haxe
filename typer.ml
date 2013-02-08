@@ -1288,6 +1288,7 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 				mk (TBinop (OpAssign,e,e2)) e.etype p;
 			| _ ->
 				(* this must be an abstract cast *)
+				check_assign ctx e;
 				eop)
 		| AKSet (e,m,t,f) ->
 			let l = save_locals ctx in
