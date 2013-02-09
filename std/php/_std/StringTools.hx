@@ -78,8 +78,11 @@
 	}
 
 	public static function hex( n : Int, ?digits : Int ) : String {
-		var s : String = untyped __call__("dechex", n);
-		if ( digits != null )
+		var s : String = untyped __call__("dechex", n),
+			len = 8;
+		if (s.length > (null == digits ? len : (len = digits)))
+			s = s.substr(-len);
+		else if ( digits != null )
 			s = lpad(s, '0', digits);
 		return s.toUpperCase();
 	}
