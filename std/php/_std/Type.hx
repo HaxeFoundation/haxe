@@ -176,7 +176,7 @@ enum ValueType {
 			if($m->isStatic()) $r[] = $m->getName();
 		$ps = $rfl->getProperties();
 		while(list(, $p) = each($ps))
-			if($p->isStatic()) $r[] = $p->getName();
+			if($p->isStatic() && ($name = $p->getName()) !== '__properties__') $r[] = $name;
 		");
 		return untyped __php__("new _hx_array(array_unique($r))");
 	}
