@@ -1849,7 +1849,8 @@ let gen_assigned_value ctx eo =	match eo with
 		()
 
 let generate_field ctx static f =
-	newline ctx;
+	if not (is_extern_field f) then
+		newline ctx;
 	ctx.locals <- PMap.empty;
 	ctx.inv_locals <- PMap.empty;
 	ctx.in_instance_method <- not static;
@@ -1867,7 +1868,9 @@ let generate_field ctx static f =
 		else
 			gen_function ctx (s_ident f.cf_name) fd f.cf_params p
 	| _ ->
-		if ctx.curclass.cl_interface then
+		if (is_extern_field f) then
+			()
+		else if ctx.curclass.cl_interface then
 			match follow f.cf_type, f.cf_kind with
 			| TFun (args,r), Method _ ->
 				print ctx "function %s(" (s_ident f.cf_name);
