@@ -73,7 +73,21 @@ class Lib {
 	public inline static function as<T>( v : Dynamic, c : Class<T> ) : Null<T> {
 		return untyped __as__(v,c);
 	}
+	
+	public static function redirectTraces() {
+		if (flash.external.ExternalInterface.available)
+			haxe.Log.trace = traceToConsole;
+	}
 
+	static function traceToConsole(v : Dynamic, ?inf : haxe.PosInfos ) {
+		var type = if( inf != null && inf.customParams != null ) inf.customParams[0] else null;
+		if( type != "warn" && type != "info" && type != "debug" && type != "error" )
+			type = if( inf == null ) "error" else "log";
+		var str = if( inf == null ) "" else inf.fileName + ":" + inf.lineNumber + " : ";
+		try	str += Std.string(v) catch( e : Dynamic ) str += "????";
+		str = str.split("\\").join("\\\\");
+		flash.external.ExternalInterface.call("console."+type,str);
+	}
 }
 
 
