@@ -466,8 +466,10 @@ class Json {
 			}
 		}
 		else if (untyped __call__("is_array", val)) arr = val;
-		else
+		else {
+			if (untyped __call__("is_float",val) && !__call__("is_finite",val)) val = null;
 			return val;
+		}
 		return phpMapArray(arr, convertBeforeEncode);
 	}
 
