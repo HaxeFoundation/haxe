@@ -29,7 +29,7 @@ enum XmlType {
 	public static var CData(default,null) : XmlType;
 	public static var Comment(default,null) : XmlType;
 	public static var DocType(default,null) : XmlType;
-	public static var Prolog(default,null) : XmlType;
+	public static var ProcessingInstruction(default,null) : XmlType;
 	public static var Document(default,null) : XmlType;
 
 	public var nodeType(default,null) : XmlType;
@@ -87,9 +87,9 @@ enum XmlType {
 		return r;
 	}
 
-	public static function createProlog( data : String ) : Xml {
+	public static function createProcessingInstruction( data : String ) : Xml {
 		var r = new Xml();
-		r.nodeType = Xml.Prolog;
+		r.nodeType = Xml.ProcessingInstruction;
 		r.set_nodeValue( data );
 		return r;
 	}
@@ -287,7 +287,7 @@ enum XmlType {
 			return "<!--"+_nodeValue+"-->";
 		if( nodeType == Xml.DocType )
 			return "<!DOCTYPE "+_nodeValue+">";
-		if( nodeType == Xml.Prolog )
+		if( nodeType == Xml.ProcessingInstruction )
 			return "<?"+_nodeValue+"?>";
 		var s = new StringBuf();
 
@@ -325,7 +325,7 @@ enum XmlType {
 		Xml.CData = "cdata";
 		Xml.Comment = "comment";
 		Xml.DocType = "doctype";
-		Xml.Prolog = "prolog";
+		Xml.ProcessingInstruction = "processingInstruction";
 		Xml.Document = "document";
 	}
 

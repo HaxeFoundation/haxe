@@ -66,7 +66,7 @@ extern class Xml {
 	/**
 		A type of Xml node.
 	**/
-	static var Prolog(default,null) : XmlType;
+	static var ProcessingInstruction(default,null) : XmlType;
 
 	/**
 		A type of Xml node.
@@ -106,7 +106,7 @@ extern class Xml {
 	/**
 		Creates a node of the given type.
 	**/
-	static function createProlog( data : String ) : Xml;
+	static function createProcessingInstruction( data : String ) : Xml;
 
 	/**
 		Creates a node of the given type.

@@ -126,11 +126,11 @@ class TestXML extends Test {
 		eq( Xml.createComment("Hello").toString(), "<!--Hello-->" );
 		
 		#if flash9
-		eq( Xml.createProlog("XHTML").toString(), "<?XHTML ?>");
+		eq( Xml.createProcessingInstruction("XHTML").toString(), "<?XHTML ?>");
 		// doctype is parsed but not printed
 		eq( Xml.createDocType("XHTML").toString(), "" );
 		#else
-		eq( Xml.createProlog("XHTML").toString(), "<?XHTML?>");
+		eq( Xml.createProcessingInstruction("XHTML").toString(), "<?XHTML?>");
 		eq( Xml.createDocType("XHTML").toString(), "<!DOCTYPE XHTML>" );
 		#end
 				
@@ -177,7 +177,7 @@ class TestXML extends Test {
 	function testNodetype() {
 		var element = Xml.createElement("x");
 
-		var l = [Xml.createPCData("x"), Xml.createCData("x"), Xml.createDocType("x"), Xml.createProlog("x") #if !flash8, Xml.createComment("x") #end];
+		var l = [Xml.createPCData("x"), Xml.createCData("x"), Xml.createDocType("x"), Xml.createProcessingInstruction("x") #if !flash8, Xml.createComment("x") #end];
 		for (xml in l)
 		{
 			exc(function() xml.firstChild());

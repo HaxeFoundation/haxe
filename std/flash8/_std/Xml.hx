@@ -29,7 +29,7 @@ enum XmlType {
 	public static var CData(default,null) : XmlType;
 	public static var Comment(default,null) : XmlType;
 	public static var DocType(default,null) : XmlType;
-	public static var Prolog(default,null) : XmlType;
+	public static var ProcessingInstruction(default,null) : XmlType;
 	public static var Document(default,null) : XmlType;
 
 
@@ -108,9 +108,9 @@ enum XmlType {
 		return x;
 	}
 
-	public static function createProlog( data : String ) : Xml {
+	public static function createProcessingInstruction( data : String ) : Xml {
 		var x = createPCData("");
-		x.nodeType = Xml.Prolog;
+		x.nodeType = Xml.ProcessingInstruction;
 		x.nodeValue = data;
 		return x;
 	}
@@ -292,7 +292,7 @@ enum XmlType {
 		// only works for toplevel elements
 		if( nodeType == Xml.CData )
 			return "<![CDATA["+__x[untyped "nodeValue"]+"]]>";
-		if( nodeType == Xml.Prolog )
+		if( nodeType == Xml.ProcessingInstruction )
 			return "<?"+__x[untyped "nodeValue"]+"?>";
 		if( nodeType == Xml.DocType )
 			return "<!DOCTYPE "+__x[untyped "nodeValue"]+">";
@@ -306,7 +306,7 @@ enum XmlType {
 		Xml.CData = "cdata";
 		Xml.Comment = "comment";
 		Xml.DocType = "doctype";
-		Xml.Prolog = "prolog";
+		Xml.ProcessingInstruction = "processingInstruction";
 		Xml.Document = "document";
 		#if swf_mark
 		flash.Lib.current["Xml"] = Xml;

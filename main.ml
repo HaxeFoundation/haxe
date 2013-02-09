@@ -99,6 +99,7 @@ let deprecated = [
 	"Class not found : neko.zip.Reader", "neko.zip.Reader has been removed, use haxe.zip.Reader instead";
 	"Class not found : neko.zip.Reader", "neko.zip.Writer has been removed, use haxe.zip.Writer instead";
 	"Class not found : haxe.Public", "Use @:publicFields instead of implementing or extending haxe.Public";
+	"#Xml has no field createProlog", "Xml.createProlog was renamed to Xml.createProcessingInstruction";
 ]
 
 let error ctx msg p =

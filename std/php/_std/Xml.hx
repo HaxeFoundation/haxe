@@ -31,7 +31,7 @@ enum XmlType {
 	public static var CData(default,null) : XmlType;
 	public static var Comment(default,null) : XmlType;
 	public static var DocType(default,null) : XmlType;
-	public static var Prolog(default,null) : XmlType;
+	public static var ProcessingInstruction(default,null) : XmlType;
 	public static var Document(default,null) : XmlType;
 
 	public var nodeType(default,null) : XmlType;
@@ -124,9 +124,9 @@ enum XmlType {
 		if (null != doctype)
 			build.insertChild(createDocType(doctype), 0);
 
-		var prolog = reHeader.matched(1);
-		if (null != prolog)
-			build.insertChild(createProlog(prolog), 0);
+		var ProcessingInstruction = reHeader.matched(1);
+		if (null != ProcessingInstruction)
+			build.insertChild(createProcessingInstruction(ProcessingInstruction), 0);
 
 		return build;
 	}
@@ -180,9 +180,9 @@ enum XmlType {
 		return r;
 	}
 
-	public static function createProlog( data : String ) : Xml {
+	public static function createProcessingInstruction( data : String ) : Xml {
 		var r = new Xml();
-		r.nodeType = Xml.Prolog;
+		r.nodeType = Xml.ProcessingInstruction;
 		r.set_nodeValue( data );
 		return r;
 	}
@@ -332,7 +332,7 @@ enum XmlType {
 			return "<!--"+_nodeValue+"-->";
 		else if( nodeType == Xml.DocType )
 			return "<!DOCTYPE "+_nodeValue+">";
-		else if ( nodeType == Xml.Prolog )
+		else if ( nodeType == Xml.ProcessingInstruction )
 			return "<?"+_nodeValue+"?>";
 
 
@@ -353,7 +353,7 @@ enum XmlType {
 		Xml.CData = "cdata";
 		Xml.Comment = "comment";
 		Xml.DocType = "doctype";
-		Xml.Prolog = "prolog";
+		Xml.ProcessingInstruction = "processingInstruction";
 		Xml.Document = "document";
 	}
 

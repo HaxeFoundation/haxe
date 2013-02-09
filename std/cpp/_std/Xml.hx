@@ -28,7 +28,7 @@ enum XmlType {
 	public static var CData(default,null) : XmlType;
 	public static var Comment(default,null) : XmlType;
 	public static var DocType(default,null) : XmlType;
-	public static var Prolog(default,null) : XmlType;
+	public static var ProcessingInstruction(default,null) : XmlType;
 	public static var Document(default,null) : XmlType;
 
 
@@ -79,7 +79,7 @@ enum XmlType {
 				var x = new Xml();
 				x._parent = untyped __this__.cur;
 				if( untyped text.cca(0) == 63 ) {
-					x.nodeType = Xml.Prolog;
+					x.nodeType = Xml.ProcessingInstruction;
 					text = new String(text);
 					text = text.substr(1, text.length - 2);
 				} else {
@@ -144,9 +144,9 @@ enum XmlType {
 		return r;
 	}
 
-	public static function createProlog( data : String ) : Xml {
+	public static function createProcessingInstruction( data : String ) : Xml {
 		var r = new Xml();
-		r.nodeType = Xml.Prolog;
+		r.nodeType = Xml.ProcessingInstruction;
 		r._nodeValue = data;
 		return r;
 	}
@@ -393,7 +393,7 @@ enum XmlType {
 			s.add("<!DOCTYPE ");
 			s.add(_nodeValue);
 			s.add(">");
-		case Xml.Prolog:
+		case Xml.ProcessingInstruction:
 			s.add("<?");
 			s.add(_nodeValue);
 			s.add("?>");
@@ -406,14 +406,14 @@ enum XmlType {
 		CData =  Type.createEnum(XmlType,"__");
 		Comment = Type.createEnum(XmlType,"__");
 		DocType = Type.createEnum(XmlType,"__");
-		Prolog =  Type.createEnum(XmlType,"__");
+		ProcessingInstruction =  Type.createEnum(XmlType,"__");
 		Document = Type.createEnum(XmlType,"__");
 		__global__.__hxcpp_enum_force(PCData , "pcdata", 0);
 		__global__.__hxcpp_enum_force(Element , "element", 1);
 		__global__.__hxcpp_enum_force(CData , "cdata", 2);
 		__global__.__hxcpp_enum_force(Comment , "comment", 3);
 		__global__.__hxcpp_enum_force(DocType , "doctype", 4);
-		__global__.__hxcpp_enum_force(Prolog , "prolog", 5);
+		__global__.__hxcpp_enum_force(ProcessingInstruction , "processingInstruction", 5);
 		__global__.__hxcpp_enum_force(Document , "document", 6);
 	}
 

@@ -32,7 +32,7 @@ extern enum XmlType {
 	public static var CData(default,null) : XmlType;
 	public static var Comment(default,null) : XmlType;
 	public static var DocType(default,null) : XmlType;
-	public static var Prolog(default,null) : XmlType;
+	public static var ProcessingInstruction(default,null) : XmlType;
 	public static var Document(default,null) : XmlType;
 
 	public var nodeType(default,null) : XmlType;
@@ -92,9 +92,9 @@ extern enum XmlType {
 		return wrap( new flash.xml.XML("<!DOCTYPE "+data+">"), Xml.DocType );
 	}
 
-	public static function createProlog( data : String ) : Xml {
+	public static function createProcessingInstruction( data : String ) : Xml {
 		XML.ignoreProcessingInstructions = false;
-		return wrap( new flash.xml.XML("<?"+data+"?>"), Xml.Prolog );
+		return wrap( new flash.xml.XML("<?"+data+"?>"), Xml.ProcessingInstruction );
 	}
 
 	public static function createDocument() : Xml {
@@ -108,7 +108,7 @@ extern enum XmlType {
 		case "text":
 			return Xml.PCData;
 		case "processing-instruction":
-			return Xml.Prolog;
+			return Xml.ProcessingInstruction;
 		case "comment":
 			return Xml.Comment;
 		default :
@@ -160,7 +160,7 @@ extern enum XmlType {
 		else if( nodeType == Xml.DocType )
 			x = createDocType(v);
 		else
-			x = createProlog(v);
+			x = createProcessingInstruction(v);
 		var p = _node.parent();
 		if( p != null ) {
 			p.insertChildAfter(_node, x._node);
@@ -404,7 +404,7 @@ extern enum XmlType {
 		CData = "cdata";
 		Comment = "comment";
 		DocType = "doctype";
-		Prolog = "prolog";
+		ProcessingInstruction = "processingInstruction";
 		Document = "document";
 	}
 

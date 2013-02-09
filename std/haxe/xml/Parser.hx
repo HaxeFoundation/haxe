@@ -301,7 +301,7 @@ class Parser
 					{
 						p++;
 						var str = str.substr(start + 1, p - start - 2);
-						parent.addChild(Xml.createProlog(str));
+						parent.addChild(Xml.createProcessingInstruction(str));
 						state = S.BEGIN;
 					}
 				case S.ESCAPE:
