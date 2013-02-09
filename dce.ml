@@ -186,10 +186,10 @@ let opt f e = match e with None -> () | Some e -> f e
 
 let rec to_string dce t =
 	let push t =
-		dce.t_stack <- t :: dce.t_stack;
+		dce.t_stack <- (follow t) :: dce.t_stack;
 		fun () -> dce.t_stack <- List.tl dce.t_stack
 	in
-	if not (List.mem t dce.t_stack) then match follow t with
+	if not (List.mem (follow t) dce.t_stack) then match follow t with
 	| TInst(c,pl) as t ->
 		let pop = push t in
 		field dce c "toString" false;
