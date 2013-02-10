@@ -156,11 +156,12 @@ enum ValueType {
 		$ms = $rfl->getMethods();
 		while(list(, $m) = each($ms)) {
 			$n = $m->getName();
-			if(!$m->isStatic() && ! in_array($n, $internals)) $r[] = $n;
+			if(!$m->isStatic() && !in_array($n, $internals)) $r[] = $n;
 		}
 		$ps = $rfl->getProperties();
 		while(list(, $p) = each($ps))
-			if(!$p->isStatic()) $r[] = $p->getName()");
+			if(!$p->isStatic() && ($name = $p->getName()) !== '__dynamics') $r[] = $name;
+		");
 		return untyped __php__("new _hx_array(array_values(array_unique($r)))");
 	}
 
@@ -170,13 +171,17 @@ enum ValueType {
 		untyped __php__("
 		$rfl = $c->__rfl__();
 		if($rfl === null) return new _hx_array(array());
-		$ms = $rfl->getMethods();
+		$ms = $rfl->getMethods(ReflectionMethod::IS_STATIC);
 		$r = array();
-		while(list(, $m) = each($ms))
-			if($m->isStatic()) $r[] = $m->getName();
-		$ps = $rfl->getProperties();
-		while(list(, $p) = each($ps))
-			if($p->isStatic() && ($name = $p->getName()) !== '__properties__') $r[] = $name;
+		while(list(, $m) = each($ms)) {
+			$cls = $m->getDeclaringClass();
+			if($cls->getName() == $c->__tname__) $r[] = $m->getName();
+		}
+		$ps = $rfl->getProperties(ReflectionMethod::IS_STATIC);
+		while(list(, $p) = each($ps)) {
+			$cls = $p->getDeclaringClass();
+			if($cls->getName() == $c->__tname__ && ($name = $p->getName()) !== '__properties__') $r[] = $name;
+		}
 		");
 		return untyped __php__("new _hx_array(array_unique($r))");
 	}
