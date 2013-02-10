@@ -3163,8 +3163,10 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 	output_h "\n\n";
 	output_h ( get_code class_def.cl_meta Meta.HeaderNamespaceCode );
 
-	output_h ("HXCPP_CLASS_ATTRIBUTES\n");
-	output_h ("class " ^ class_name ^ " : public " ^ super );
+   let extern_class =  Common.defined common_ctx Define.DllExport in
+	let attribs = "HXCPP_" ^ (if extern_class then "EXTERN_" else "") ^ "CLASS_ATTRIBUTES " in
+
+	output_h ("class " ^ attribs ^ " " ^ class_name ^ " : public " ^ super );
 	output_h "{\n	public:\n";
 	output_h ("		typedef " ^ super ^ " super;\n");
 	output_h ("		typedef " ^ class_name ^ " OBJ_;\n");
