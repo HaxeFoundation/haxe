@@ -27,8 +27,8 @@
 	public static var NEGATIVE_INFINITY(default,null) : Float;
 
 	public static function abs(v : Float) : Float      { return untyped __call__("abs", v); }
-	public static function min(a : Float,b : Float) : Float    { return untyped __call__("min", a, b); }
-	public static function max(a : Float,b : Float) : Float    { return untyped __call__("max", a, b); }
+	public static function min(a : Float,b : Float) : Float    { return untyped __call__("_hx_min", a, b); }
+	public static function max(a : Float,b : Float) : Float    { return untyped __call__("_hx_max", a, b); }
 	public static function sin(v : Float) : Float      { return untyped __call__("sin", v); }
 	public static function cos(v : Float) : Float      { return untyped __call__("cos", v); }
 	public static function atan2(y : Float,x : Float) : Float  { return untyped __call__("atan2", y, x); }
