@@ -487,18 +487,6 @@ class _hx_list_iterator implements Iterator {
 	}
 }
 
-function _hx_max($a, $b) {
-	if(is_nan($a) || is_nan($b))
-		return Math::$NaN;
-	return max($a, $b);
-}
-
-function _hx_min($a, $b) {
-	if(is_nan($a) || is_nan($b))
-		return Math::$NaN;
-	return min($a, $b);
-}
-
 function _hx_null() { return null; }
 
 class _hx_nullob {
