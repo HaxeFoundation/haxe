@@ -50,7 +50,7 @@
 	}
 
 	public function matched( n : Int ) : String {
-		if ( n < 0 ) throw "EReg::matched";
+		if (matches == null ||  n < 0 ) throw "EReg::matched";
 		// we can't differenciate between optional groups at the end of a match
 		// that have not been matched and invalid groups
 		if( n >= untyped __call__("count", matches)) return null;
