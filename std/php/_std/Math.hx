@@ -33,7 +33,14 @@
 	public static function cos(v : Float) : Float      { return untyped __call__("cos", v); }
 	public static function atan2(y : Float,x : Float) : Float  { return untyped __call__("atan2", y, x); }
 	public static function tan(v : Float) : Float      { return untyped __call__("tan", v); }
-	public static function exp(v : Float) : Float      { return untyped __call__("exp", v); }
+	public static function exp(v : Float) : Float      {
+		if(v == POSITIVE_INFINITY)
+			return POSITIVE_INFINITY;
+		else if(v == NEGATIVE_INFINITY)
+			return 0.0;
+		else
+			return untyped __call__("exp", v);
+	}
 	public static function log(v : Float) : Float      { return untyped __call__("log", v); }
 	public static function sqrt(v : Float) : Float     { return untyped __call__("sqrt", v); }
 	public static function round(v : Float) : Int      { return untyped __call__("(int) floor", v + 0.5); }

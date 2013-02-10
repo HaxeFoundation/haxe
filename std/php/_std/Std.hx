@@ -32,7 +32,7 @@
 	public static function int( x : Float ) : Int {
 		var i : Int = untyped __call__("fmod", x, 0x80000000) & 0xffffffff;
 		if (untyped i & 0x80000000)
-        	i = -((~i & 0xFFFFFFFF) + 1);
+        	i = -((~i & 0xffffffff) + 1);
         return i;
 	}
 
