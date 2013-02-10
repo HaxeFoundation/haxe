@@ -34,12 +34,12 @@
 	public static function atan2(y : Float,x : Float) : Float  { return untyped __call__("atan2", y, x); }
 	public static function tan(v : Float) : Float      { return untyped __call__("tan", v); }
 	public static function exp(v : Float) : Float      {
-		if(v == POSITIVE_INFINITY)
-			return POSITIVE_INFINITY;
-		else if(v == NEGATIVE_INFINITY)
-			return 0.0;
-		else
+		if(untyped __call__("is_finite", v))
 			return untyped __call__("exp", v);
+		else if(v == POSITIVE_INFINITY)
+			return POSITIVE_INFINITY;
+		else
+			return 0.0;	
 	}
 	public static function log(v : Float) : Float      { return untyped __call__("log", v); }
 	public static function sqrt(v : Float) : Float     { return untyped __call__("sqrt", v); }
