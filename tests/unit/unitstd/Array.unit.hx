@@ -229,6 +229,11 @@ var func = function(s) return s.toUpperCase();
 [1, 2, 3, 4].filter(function(i) return false) == [];
 [].filter(function(i) return true) == [];
 [].filter(function(i) return false) == [];
+var arr = [{id: 1}, {id: 2}, {id: 3}, {id: 4}, {id: 5}];
+arr = arr.filter(function(i) return i.id % 2 != 0);
+var values = [];
+for (a in arr) values.push(a.id);
+values == [1, 3, 5];
 
 #if !as3
 // check that map and filter work well on Dynamic as well

@@ -160,7 +160,7 @@ class _hx_array implements ArrayAccess, IteratorAggregate {
 	}
 
 	function filter($f) {
-		return new _hx_array(array_filter($this->a,$f));
+		return new _hx_array(array_values(array_filter($this->a,$f)));
 	}
 
 	// ArrayAccess methods:
