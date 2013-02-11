@@ -3399,14 +3399,54 @@ let create_constructor_dependencies common_ctx =
 	result;;
 
 
-let gen_extern_class common_ctx class_def =
+let rec s_type t =
+	match t with
+	| TMono r -> (match !r with | None -> "Dynamic" | Some t -> s_type t)
+	| TEnum (e,tl) -> Ast.s_type_path e.e_path ^ s_type_params tl
+	| TInst (c,tl) -> Ast.s_type_path c.cl_path ^ s_type_params tl
+	| TType (t,tl) -> Ast.s_type_path t.t_path ^ s_type_params tl
+	| TAbstract (a,tl) -> Ast.s_type_path a.a_path ^ s_type_params tl
+	| TFun ([],t) -> "Void -> " ^ s_fun t false
+	| TFun (l,t) ->
+		String.concat " -> " (List.map (fun (s,b,t) ->
+			(if b then "?" else "") ^ (""(*if s = "" then "" else s ^ " : "*)) ^ s_fun t true
+		) l) ^ " -> " ^ s_fun t false
+	| TAnon a ->
+	let fl = PMap.fold (fun f acc -> ((if Meta.has Meta.Optional f.cf_meta then " ?" else " ") ^ f.cf_name ^ " : " ^ s_type f.cf_type) :: acc) a.a_fields [] in
+		"{" ^ (if not (is_closed a) then "+" else "") ^  String.concat "," fl ^ " }"
+	| TDynamic t2 -> "Dynamic" ^ s_type_params (if t == t2 then [] else [t2])
+	| TLazy f -> s_type (!f())
+
+and s_fun t void =
+	match t with
+	| TFun _ -> "(" ^ s_type t ^ ")"
+	| TEnum ({ e_path = ([],"Void") },[]) when void -> "(" ^ s_type t ^ ")"
+	| TAbstract ({ a_path = ([],"Void") },[]) when void -> "(" ^ s_type t ^ ")"
+	| TMono r -> (match !r with | None -> s_type t | Some t -> s_fun t void)
+	| TLazy f -> s_fun (!f()) void
+	| _ -> s_type t
+
+and s_type_params = function
+	| [] -> ""
+	| l -> "<" ^ String.concat ", " (List.map s_type  l) ^ ">"
+
+;;
+
+
+
+
+
+let gen_extern_class common_ctx class_def file_info =
    let file = new_source_file common_ctx.file  "extern" ".hx" class_def.cl_path in
    let path = class_def.cl_path in
+   (*
    let rec remove_prefix  =  function
       | TInst ({cl_path=prefix} as cval ,tl) ->  TInst ( { cval with cl_path = ([],snd cval.cl_path) }, List.map remove_prefix tl)
       | t -> Type.map remove_prefix t
       in
-   let s_type t = s_type (Type.print_context()) (remove_prefix t) in
+   let s_type t = s_type (remove_prefix t) in
+   let s_type t = s_type (remove_prefix t) in *)
+
    let output = file#write in
    let params = function [] -> "" | l ->  "<" ^ (String.concat "," (List.map (fun (n,t) -> n) l) ^ ">")  in
    let args  = function  TFun (args,_) ->
@@ -3416,6 +3456,12 @@ let gen_extern_class common_ctx class_def =
    let print_field stat f =
 		output ("\t" ^ (if stat then "static " else "") ^ (if f.cf_public then "public " else "") );
       (match f.cf_kind, f.cf_name with
+	   | Var { v_read = AccInline; v_write = AccNever },_ ->
+           (match f.cf_expr with Some expr ->
+              output ("inline var " ^ f.cf_name ^ ":" ^ (s_type f.cf_type) ^ "=" );
+              let ctx = (new_context common_ctx file false file_info) in
+              gen_expression ctx true expr;
+           | _ -> ()  )
 	   | Var { v_read = AccNormal; v_write = AccNormal },_ -> output ("var " ^ f.cf_name ^ ":" ^ (s_type f.cf_type))
 	   | Var v,_ -> output ("var " ^ f.cf_name ^ "(" ^ (s_access v.v_read) ^ "," ^ (s_access v.v_write) ^ "):" ^ (s_type f.cf_type))
 	   | Method _, "new" -> output ("function new(" ^ (args f.cf_type) ^ "):Void")
@@ -3467,10 +3513,10 @@ let generate common_ctx =
 	List.iter (fun object_def ->
 		(match object_def with
 		| TClassDecl class_def when class_def.cl_extern ->
-         if (gen_externs) then gen_extern_class common_ctx class_def;
+         () (*if (gen_externs) then gen_extern_class common_ctx class_def;*)
 		| TClassDecl class_def ->
 			let name =  class_text class_def.cl_path in
-         if (gen_externs) then gen_extern_class common_ctx class_def;
+         if (gen_externs) then gen_extern_class common_ctx class_def file_info;
 			let is_internal = is_internal_class class_def.cl_path in
 			if (is_internal || (is_macro class_def.cl_meta) ) then
 				( if debug then print_endline (" internal class " ^ name ))
