@@ -25,7 +25,7 @@ import haxe.rtti.CType;
 
 class Site {
 
-	static var db : neko.db.Connection;
+	static var db : sys.db.Connection;
 
 	static var CWD = neko.Web.getCwd();
 	static var DB_FILE = CWD+"haxelib.db";

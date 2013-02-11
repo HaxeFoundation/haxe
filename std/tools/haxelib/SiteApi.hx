@@ -25,7 +25,7 @@ import tools.haxelib.SiteDb;
 
 class SiteApi {
 
-	var db : neko.db.Connection;
+	var db : sys.db.Connection;
 
 	public function new( db ) {
 		this.db = db;
