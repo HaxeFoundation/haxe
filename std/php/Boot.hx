@@ -46,33 +46,33 @@ function _hx_anonymous($arr = array()) {
 }
 
 class _hx_array implements ArrayAccess, IteratorAggregate {
-	var $»a;
+	var $a;
 	var $length;
 	function __construct($a = array()) {
-		$this->»a = $a;
+		$this->a = $a;
 		$this->length = count($a);
 	}
 
 	function concat($a) {
-		return new _hx_array(array_merge($this->»a, $a->»a));
+		return new _hx_array(array_merge($this->a, $a->a));
 	}
 
 	function copy() {
-		return new _hx_array($this->»a);
+		return new _hx_array($this->a);
 	}
 
 	function &get($index) {
-		if(isset($this->»a[$index])) return $this->»a[$index];
+		if(isset($this->a[$index])) return $this->a[$index];
 		return null;
 	}
 
 	function insert($pos, $x) {
-		array_splice($this->»a, $pos, 0, array($x));
+		array_splice($this->a, $pos, 0, array($x));
 		$this->length++;
 	}
 
 	function iterator() {
-		return new _hx_array_iterator($this->»a);
+		return new _hx_array_iterator($this->a);
 	}
 
 	function getIterator() {
@@ -80,25 +80,25 @@ class _hx_array implements ArrayAccess, IteratorAggregate {
 	}
 
 	function join($sep) {
-		return implode($sep, array_map('_hx_string_rec',$this->»a,array()));
+		return implode($sep, array_map('_hx_string_rec',$this->a,array()));
 	}
 
 	function pop() {
-		$r = array_pop($this->»a);
-		$this->length = count($this->»a);
+		$r = array_pop($this->a);
+		$this->length = count($this->a);
 		return $r;
 	}
 
 	function push($x) {
-		$this->»a[] = $x;
+		$this->a[] = $x;
 		return ++$this->length;
 	}
 
 	function remove($x) {
-		for($i = 0; $i < count($this->»a); $i++)
-			if($this->»a[$i] === $x) {
-				unset($this->»a[$i]);
-				$this->»a = array_values($this->»a);
+		for($i = 0; $i < count($this->a); $i++)
+			if($this->a[$i] === $x) {
+				unset($this->a[$i]);
+				$this->a = array_values($this->a);
 				$this->length--;
 				return true;
 			}
@@ -106,8 +106,8 @@ class _hx_array implements ArrayAccess, IteratorAggregate {
 	}
 
 	function removeAt($pos) {
-		if(array_key_exists($pos, $this->»a)) {
-			unset($this->»a[$pos]);
+		if(array_key_exists($pos, $this->a)) {
+			unset($this->a[$pos]);
 			$this->length--;
 			return true;
 		} else
@@ -115,35 +115,35 @@ class _hx_array implements ArrayAccess, IteratorAggregate {
 	}
 
 	function reverse() {
-		$this->»a = array_reverse($this->»a, false);
+		$this->a = array_reverse($this->a, false);
 	}
 
 	function shift() {
-		$r = array_shift($this->»a);
-		$this->length = count($this->»a);
+		$r = array_shift($this->a);
+		$this->length = count($this->a);
 		return $r;
 	}
 
 	function slice($pos, $end) {
 		if($end === null)
-			return new _hx_array(array_slice($this->»a, $pos));
+			return new _hx_array(array_slice($this->a, $pos));
 		else
-			return new _hx_array(array_slice($this->»a, $pos, $end-$pos));
+			return new _hx_array(array_slice($this->a, $pos, $end-$pos));
 	}
 
 	function sort($f) {
-		usort($this->»a, $f);
+		usort($this->a, $f);
 	}
 
 	function splice($pos, $len) {
 		if($len < 0) $len = 0;
-		$nh = new _hx_array(array_splice($this->»a, $pos, $len));
-		$this->length = count($this->»a);
+		$nh = new _hx_array(array_splice($this->a, $pos, $len));
+		$this->length = count($this->a);
 		return $nh;
 	}
 
 	function toString() {
-		return '['.implode(',', array_map('_hx_string_rec',$this->»a,array())).']';
+		return '['.implode(',', array_map('_hx_string_rec',$this->a,array())).']';
 	}
 
 	function __toString() {
@@ -151,34 +151,34 @@ class _hx_array implements ArrayAccess, IteratorAggregate {
 	}
 
 	function unshift($x) {
-		array_unshift($this->»a, $x);
+		array_unshift($this->a, $x);
 		$this->length++;
 	}
 
 	function map($f) {
-		return new _hx_array(array_map($f, $this->»a));
+		return new _hx_array(array_map($f, $this->a));
 	}
 
 	function filter($f) {
-		return new _hx_array(array_filter($this->»a,$f));
+		return new _hx_array(array_filter($this->a,$f));
 	}
 
 	// ArrayAccess methods:
 	function offsetExists($offset) {
-		return isset($this->»a[$offset]);
+		return isset($this->a[$offset]);
 	}
 
 	function offsetGet($offset) {
-		if(isset($this->»a[$offset])) return $this->»a[$offset];
+		if(isset($this->a[$offset])) return $this->a[$offset];
 		return null;
 	}
 
 	function offsetSet($offset, $value) {
 		if($this->length <= $offset) {
-			$this->»a = array_merge($this->»a, array_fill(0, $offset+1-$this->length, null));
+			$this->a = array_merge($this->a, array_fill(0, $offset+1-$this->length, null));
 			$this->length = $offset+1;
 		}
-		return $this->»a[$offset] = $value;
+		return $this->a[$offset] = $value;
 	}
 
 	function offsetUnset($offset) {
@@ -187,29 +187,29 @@ class _hx_array implements ArrayAccess, IteratorAggregate {
 }
 
 class _hx_array_iterator implements Iterator {
-	private $»a;
-	private $»i;
+	private $a;
+	private $i;
 	public function __construct($a) {
-		$this->»a = $a;
-		$this->»i = 0;
+		$this->a = $a;
+		$this->i = 0;
 	}
 
 	public function next() {
 		if(!$this->hasNext()) return null;
-		return $this->»a[$this->»i++];
+		return $this->a[$this->i++];
 	}
 
 	public function hasNext() {
-		return $this->»i < count($this->»a);
+		return $this->i < count($this->a);
 	}
 
 	public function current() {
 		if (!$this->hasNext()) return false;
-		return $this->»a[$this->»i];
+		return $this->a[$this->i];
 	}
 
 	public function key() {
-		return $this->»i;
+		return $this->i;
 	}
 
 	public function valid() {
@@ -217,10 +217,10 @@ class _hx_array_iterator implements Iterator {
 	}
 
 	public function rewind() {
-		$this->»i = 0;
+		$this->i = 0;
 	}
 	public function size() {
-		return count($this->»a);
+		return count($this->a);
 	}
 }
 
@@ -382,9 +382,7 @@ function _hx_get_object_vars($o) {
 	$arr = array();
 	for($i=0;$i<count($a); $i++)
 	{
-		$k = '' . $a[$i];
-		if(substr($k, 0, 1) != '»')
-			$arr[] = $k;
+		$arr[] = '' . $a[$i];
 	}
 	return $arr;
 }
@@ -444,33 +442,33 @@ function _hx_len($o) {
 }
 
 class _hx_list_iterator implements Iterator {
-	private $»h;
-	private $»list;
-	private $»counter;
+	private $h;
+	private $list;
+	private $counter;
 	public function __construct($list) {
-		$this->»list = $list;
+		$this->list = $list;
 		$this->rewind();
 	}
 
 	public function next() {
-		if($this->»h == null) return null;
-		$this->»counter++;
-		$x = $this->»h[0];
-		$this->»h = $this->»h[1];
+		if($this->h == null) return null;
+		$this->counter++;
+		$x = $this->h[0];
+		$this->h = $this->h[1];
 		return $x;
 	}
 
 	public function hasNext() {
-		return $this->»h != null;
+		return $this->h != null;
 	}
 
 	public function current() {
 		if (!$this->hasNext()) return null;
-		return $this->»h[0];
+		return $this->h[0];
 	}
 
 	public function key() {
-		return $this->»counter;
+		return $this->counter;
 	}
 
 	public function valid() {
@@ -478,12 +476,12 @@ class _hx_list_iterator implements Iterator {
 	}
 
 	public function rewind() {
-		$this->»counter = -1;
-		$this->»h = $this->»list->h;
+		$this->counter = -1;
+		$this->h = $this->list->h;
 	}
 
 	public function size() {
-		return $this->»list->length;
+		return $this->list->length;
 	}
 }
 
@@ -609,12 +607,12 @@ function _hx_string_rec($o, $s) {
 		}
 	}
 	if(is_string($o)) {
-		if(_hx_is_lambda($o)) return '«function»';
+		if(_hx_is_lambda($o)) return '<function>';
 //		if(strlen($s) > 0)    return '\"' . str_replace('\"', '\\\"', $o) . '\"';
 		else                  return $o;
 	}
 	if(is_array($o)) {
-		if(is_callable($o)) return '«function»';
+		if(is_callable($o)) return '<function>';
 		$str = '[';
 		$s .= \"\t\";
 		$first = true;

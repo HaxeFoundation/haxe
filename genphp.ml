@@ -158,6 +158,12 @@ let s_expr_name e =
 let s_type_name t =
 	s_type (print_context()) t
 
+
+
+and start_with s test =
+	let len = String.length test in
+	(String.length s > len && String.sub s 0 len = test)
+
 let rec is_uncertain_type t =
 	match follow t with
 	| TInst (c, _) -> c.cl_interface
@@ -341,7 +347,7 @@ let write_resource dir name data =
 	close_out ch
 
 let stack_init com use_add =
-	Codegen.stack_context_init com "GLOBALS['%s']" "GLOBALS['%e']" "»spos" "»tmp" use_add null_pos
+	Codegen.stack_context_init com "GLOBALS['%s']" "GLOBALS['%e']" "__hx__spos" "tmp" use_add null_pos
 
 let init com cwd path def_type =
 	let rec create acc = function
@@ -358,7 +364,7 @@ let init com cwd path def_type =
 		| [], "List" -> "HList";
 		| _, s -> s) in
 	(*--php-prefix*)
-	let ch = open_out_bin (String.concat "/" dir ^ "/" ^ (filename path) ^ (if def_type = 0 then ".class" else if def_type = 1 then ".enum"  else if def_type = 2 then ".interface" else ".extern") ^ ".php") in
+	let ch = open_out (String.concat "/" dir ^ "/" ^ (filename path) ^ (if def_type = 0 then ".class" else if def_type = 1 then ".enum"  else if def_type = 2 then ".interface" else ".extern") ^ ".php") in
 	let imports = Hashtbl.create 0 in
 	Hashtbl.add imports (snd path) [fst path];
 	{
@@ -455,7 +461,7 @@ let define_local ctx l =
 	loop 1
 
 let this ctx =
-	if ctx.in_value <> None then "$»this" else "$this"
+	if ctx.in_value <> None then "$__hx__this" else "$this"
 
 let gen_constant ctx p = function
 	| TInt i -> print ctx "%ld" i
@@ -1020,7 +1026,7 @@ and gen_expr ctx e =
 			(match e.eexpr with
 			| TArray(te1, te2) ->
 				gen_value ctx te1;
-				spr ctx "->»a[";
+				spr ctx "->a[";
 				gen_value ctx te2;
 				spr ctx "]";
 			| _ ->
@@ -1029,7 +1035,7 @@ and gen_expr ctx e =
 			(match e.eexpr with
 			| TArray(te1, te2) ->
 				gen_value ctx te1;
-				spr ctx "->»a[";
+				spr ctx "->a[";
 				gen_value ctx te2;
 				spr ctx "]";
 			| TField (e1,s) ->
@@ -1068,11 +1074,14 @@ and gen_expr ctx e =
 		| Ast.OpAssignOp(Ast.OpAdd) when (is_uncertain_expr e1 && is_uncertain_expr e2) ->
 			(match e1.eexpr with
 			| TArray(te1, te2) ->
-				spr ctx "_hx_array_assign($»t1 = ";
+				let t1 = define_local ctx "__hx__t1" in
+				let t2 = define_local ctx "__hx__t2" in
+
+				print ctx "_hx_array_assign($%s = " t1;
 				gen_value ctx te1;
-				spr ctx ", $»t2 = ";
+				print ctx ", $%s = " t2;
 				gen_value ctx te2;
-				spr ctx ", $»t1->»a[$»t2] + ";
+				print ctx ", $%s->a[$%s] + " t1 t2;
 				gen_value_op ctx e2;
 				spr ctx ")";
 			| _ ->
@@ -1419,16 +1428,6 @@ and gen_expr ctx e =
 				spr ctx ",";
 				gen_value ctx te2;
 				spr ctx ")";
-(*
-				let t = define_local ctx "»t" in
-				gen_value ctx te1;
-				print ctx "[%s = " t;
-				gen_value ctx te2;
-				spr ctx "] = ";
-				gen_value ctx te1;
-				print ctx "[%s]" t;
-				print ctx "[%s]" t;
-*)
 			| _ ->
 				spr ctx (Ast.s_unop op);
 				gen_value ctx te1;
@@ -1446,7 +1445,7 @@ and gen_expr ctx e =
 		(match e.eexpr with
 		| TArray(te1, te2) ->
 			gen_value ctx te1;
-			spr ctx "->»a[";
+			spr ctx "->a[";
 			gen_value ctx te2;
 			spr ctx "]";
 		| TField (e1,s) ->
@@ -1481,7 +1480,7 @@ and gen_expr ctx e =
 		spr ctx "))"
 	| TFor (v,it,e) ->
 		let b = save_locals ctx in
-		let tmp = define_local ctx "»it" in
+		let tmp = define_local ctx "__hx__it" in
 		let v = define_local ctx v.v_name in
 		(match it.eexpr with
 		| TCall (e,_) ->
@@ -1512,7 +1511,7 @@ and gen_expr ctx e =
 		restore_in_block ctx in_block;
 		gen_expr ctx (mk_block e);
 		let old = save_locals ctx in
-		let ex = define_local ctx "»e" in
+		let ex = define_local ctx "__hx__e" in
 		print ctx "catch(Exception $%s) {" ex;
 		let bend = open_block ctx in
 		let first = ref true in
@@ -1573,7 +1572,7 @@ and gen_expr ctx e =
 		spr ctx "}"
 	| TMatch (e,_,cases,def) ->
 		let b = save_locals ctx in
-		let tmp = define_local ctx "»t" in
+		let tmp = define_local ctx "__hx__t" in
 		print ctx "$%s = " tmp;
 		gen_value ctx e;
 		newline ctx;
@@ -1670,7 +1669,7 @@ and gen_expr ctx e =
 
 and argument_list_from_locals include_this in_var l =
 	let lst = ref [] in
-	if (include_this && in_var) then lst := "»this" :: !lst
+	if (include_this && in_var) then lst := "__hx__this" :: !lst
 	else if include_this then lst := "this" :: !lst;
 	PMap.iter (fun n _ ->
 		lst := !lst @ [n];
@@ -1678,7 +1677,7 @@ and argument_list_from_locals include_this in_var l =
 	!lst
 
 and remove_internals args =
-	List.filter (fun a -> a = "»this" or '»' <> String.get a 0) args;
+	List.filter (fun a -> a = "__hx__this" || not (start_with a "__hx__")) args;
 
 and inline_block ctx e =
 		let index = ctx.inline_index in
@@ -1916,7 +1915,7 @@ let generate_field ctx static f =
 					(match follow f.cf_type with
 					| TFun _
 					| TDynamic _ ->
-						print ctx "static function %s() { $»args = func_get_args(); return call_user_func_array(self::$%s, $»args); }" name name;
+						print ctx "static function %s() { $args = func_get_args(); return call_user_func_array(self::$%s, $args); }" name name;
 						newline ctx;
 					| _ ->
 						()
@@ -1985,8 +1984,8 @@ let generate_inline_method ctx c m =
 	let in_value = (match ctx.in_value with Some _ -> true | _ -> false) in
 	let arguments = remove_internals (argument_list_from_locals m.ihasthis in_value ctx.locals) in
 	let arguments = match arguments with
-	| [h] when h = "this" -> ["»this"]
-	| h :: t when h = "this" -> "»this" :: t
+	| [h] when h = "this" -> ["__hx__this"]
+	| h :: t when h = "this" -> "__hx__this" :: t
 	| _ -> arguments
 	in
 
@@ -2004,21 +2003,10 @@ let generate_inline_method ctx c m =
 
 	(* blocks *)
 	if ctx.com.debug then begin
-		(*--php-prefix*)
-(*		print_endline (s_path_haxe c.cl_path); *)
-		spr ctx "$»spos = $GLOBALS['%s']->length";
+		spr ctx "$__hx__spos = $GLOBALS['%s']->length";
 		newline ctx;
 	end;
-(*
-	if ctx.com.debug then begin
-		(*--php-prefix*)
-		print_endline (s_path_haxe c.cl_path);
-		print ctx "\t$GLOBALS['%s']->push('%s:lambda_%d')" "%s" (s_path_haxe c.cl_path) m.iindex;
-		newline ctx;
-		spr ctx "\t$»spos = $GLOBALS['%s']->length";
-		newline ctx;
-	end;
-*)
+
 	gen_expr ctx m.iexpr;
 	block();
 	old();
@@ -2071,12 +2059,12 @@ let generate_class ctx c =
 	(match c.cl_dynamic with
 		| Some _ when not c.cl_interface && not (super_has_dynamic c) ->
 			newline ctx;
-			spr ctx "public $__dynamics = array();\n\tpublic function __get($n) {\n\t\tif(isset($this->__dynamics[$n]))\n\t\t\treturn $this->__dynamics[$n];\n\t}\n\tpublic function __set($n, $v) {\n\t\t$this->__dynamics[$n] = $v;\n\t}\n\tpublic function __call($n, $a) {\n\t\tif(isset($this->__dynamics[$n]) && is_callable($this->__dynamics[$n]))\n\t\t\treturn call_user_func_array($this->__dynamics[$n], $a);\n\t\tif('toString' == $n)\n\t\t\treturn $this->__toString();\n\t\tthrow new HException(\"Unable to call «\".$n.\"»\");\n\t}"
+			spr ctx "public $__dynamics = array();\n\tpublic function __get($n) {\n\t\tif(isset($this->__dynamics[$n]))\n\t\t\treturn $this->__dynamics[$n];\n\t}\n\tpublic function __set($n, $v) {\n\t\t$this->__dynamics[$n] = $v;\n\t}\n\tpublic function __call($n, $a) {\n\t\tif(isset($this->__dynamics[$n]) && is_callable($this->__dynamics[$n]))\n\t\t\treturn call_user_func_array($this->__dynamics[$n], $a);\n\t\tif('toString' == $n)\n\t\t\treturn $this->__toString();\n\t\tthrow new HException(\"Unable to call <\".$n.\">\");\n\t}"
 		| Some _
 		| _ ->
 			if List.length ctx.dynamic_methods > 0 then begin
 				newline ctx;
-				spr ctx "public function __call($m, $a) {\n\t\tif(isset($this->$m) && is_callable($this->$m))\n\t\t\treturn call_user_func_array($this->$m, $a);\n\t\telse if(isset($this->__dynamics[$m]) && is_callable($this->__dynamics[$m]))\n\t\t\treturn call_user_func_array($this->__dynamics[$m], $a);\n\t\telse if('toString' == $m)\n\t\t\treturn $this->__toString();\n\t\telse\n\t\t\tthrow new HException('Unable to call «'.$m.'»');\n\t}";
+				spr ctx "public function __call($m, $a) {\n\t\tif(isset($this->$m) && is_callable($this->$m))\n\t\t\treturn call_user_func_array($this->$m, $a);\n\t\telse if(isset($this->__dynamics[$m]) && is_callable($this->__dynamics[$m]))\n\t\t\treturn call_user_func_array($this->__dynamics[$m], $a);\n\t\telse if('toString' == $m)\n\t\t\treturn $this->__toString();\n\t\telse\n\t\t\tthrow new HException('Unable to call <'.$m.'>');\n\t}";
 			end;
 	);
 
@@ -2126,7 +2114,7 @@ let createmain com e =
 		com = com;
 		stack = stack_init com false;
 		tabs = "";
-		ch = open_out_bin (com.file ^ "/" ^ filename);
+		ch = open_out (com.file ^ "/" ^ filename);
 		path = ([], "");
 		buf = Buffer.create (1 lsl 14);
 		in_value = None;

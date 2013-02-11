@@ -69,7 +69,7 @@ class Lib {
 	}
 
 	public static function toPhpArray(a : Array<Dynamic>) : NativeArray {
-		return untyped __field__(a, '»a');
+		return untyped __field__(a, 'a');
 	}
 
 	public static inline function toHaxeArray(a : NativeArray) : Array<Dynamic> {

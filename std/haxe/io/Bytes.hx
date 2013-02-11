@@ -72,7 +72,6 @@ class Bytes {
 		#if neko
 		try untyped __dollar__sblit(b,pos,src.b,srcpos,len) catch( e : Dynamic ) throw Error.OutsideBounds;
 		#elseif php
-		// TODO: test me
 		b = untyped __php__("substr($this->b, 0, $pos) . substr($src->b, $srcpos, $len) . substr($this->b, $pos+$len)"); //__call__("substr", b, 0, pos)+__call__("substr", src.b, srcpos, len)+__call__("substr", b, pos+len);
 		#elseif flash9
 		b.position = pos;
@@ -109,7 +108,6 @@ class Bytes {
 		b.readBytes(b2,0,len);
 		return new Bytes(len,b2);
 		#elseif php
-		// TODO: test me
 		return new Bytes(len, untyped __call__("substr", b, pos, len));
 		#elseif java
 		var newarr = new java.NativeArray(len);
@@ -172,9 +170,7 @@ class Bytes {
 		b.position = pos;
 		return b.readUTFBytes(len);
 		#elseif php
-		// TODO: test me
 		return untyped __call__("substr", b, pos, len);
-//		return untyped __call__("call_user_func_array", "pack", __call__("array_merge", __call__("array", "C*"), __call__("array_slice", b.»a, pos, len)));
 		#elseif cpp
 		var result:String="";
 		untyped __global__.__hxcpp_string_of_bytes(b,result,pos,len);
@@ -219,9 +215,7 @@ class Bytes {
 		b.position = 0;
 		return b.readUTFBytes(length);
 		#elseif php
-		// TODO: test me
 		return cast b;
-//		return untyped __call__("call_user_func_array", "pack", __call__("array_merge", __call__("array", "C*"), b.»a));
 		#elseif cs
 		return cs.system.text.Encoding.UTF8.GetString(b, 0, length);
 		#elseif java
@@ -261,14 +255,7 @@ class Bytes {
 		b.length = length;
 		return new Bytes(length,b);
 		#elseif php
-		// TODO: test me
 		return new Bytes(length, untyped __call__("str_repeat", __call__("chr", 0), length));
-		/*
-		if(length > 0)
-			return new Bytes(length, untyped __call__("new _hx_array", __call__("array_fill", 0, length, 0)));
-		else
-			return new Bytes(0, untyped __call__("new _hx_array", __call__("array")));
-		*/
 		#elseif cpp
 		var a = new BytesData();
 		if (length>0) a[length-1] = untyped 0;
