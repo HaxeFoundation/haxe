@@ -773,8 +773,10 @@ and gen_member_access ctx isvar e s =
 	match follow e.etype with
 	| TAnon a ->
 		(match !(a.a_status) with
-		| EnumStatics _
-		| Statics _ -> print ctx "::%s%s" (if isvar then "$" else "") (s_ident s)
+		| EnumStatics _ ->
+			print ctx "::%s%s" (if isvar then "$" else "") s
+		| Statics _ ->
+			print ctx "::%s%s" (if isvar then "$" else "") (s_ident s)
 		| _ -> print ctx "->%s" (s_ident_field s))
 	| _ -> print ctx "->%s" (s_ident_field s)
 

@@ -4,7 +4,7 @@ class TestPhp extends Test
 {
 	function testAbstractEnum()
 	{
-		trace(Abstract);
+		eq(Abstract.getName(), "Abstract");
 	}
 }
 
