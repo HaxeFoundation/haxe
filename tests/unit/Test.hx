@@ -242,6 +242,9 @@ class Test #if swf_mark implements mt.Protect #end {
 			#if java
 			new TestJava(),
 			#end
+			#if php
+			new TestPhp(),
+			#end
 			#if ((dce == "full") && !interp && !as3)
 			new TestDCE(),
 			#end

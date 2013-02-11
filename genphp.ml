@@ -2001,12 +2001,12 @@ let generate_inline_method ctx c m =
 	let block = open_block ctx in
 	newline ctx;
 
-	(* blocks *)
+	(* blocks
 	if ctx.com.debug then begin
 		spr ctx "$__hx__spos = $GLOBALS['%s']->length";
 		newline ctx;
 	end;
-
+ *)
 	gen_expr ctx m.iexpr;
 	block();
 	old();
