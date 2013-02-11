@@ -794,7 +794,8 @@ let get_this ctx p =
 	| FunMemberLocal ->
 		let v = (match ctx.vthis with
 			| None ->
-				let v = gen_local ctx ctx.tthis in
+				(* we might be in a closure of an abstract member, so check for local "this" first *)
+				let v = try PMap.find "this" ctx.locals with Not_found -> gen_local ctx ctx.tthis in
 				ctx.vthis <- Some v;
 				v
 			| Some v ->

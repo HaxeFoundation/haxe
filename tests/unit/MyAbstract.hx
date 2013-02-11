@@ -204,3 +204,20 @@ abstract MyReflect({}) from {} {
 		return value;
 	}
 }
+
+abstract MyAbstractClosure(String){
+	public function new(value:String) {
+		this = value;
+	}
+	
+	public function test() {
+		var fn = function(){
+			return this;
+		}
+		return fn;
+	}
+	
+	public inline function setVal(v) {
+		this = v;
+	}
+}

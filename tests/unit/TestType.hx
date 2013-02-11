@@ -842,4 +842,13 @@ class TestType extends Test {
 		mr["101"] = function n(x) return 9 + x;
 		eq(mr["101"](1), 10);
 	}
+	
+	function testAbstractClosure() {
+		var s = new unit.MyAbstract.MyAbstractClosure("foo");
+		var func1 = s.test();
+		eq(func1(), "foo");
+		s.setVal("bar");
+		eq(func1(), "foo");
+		eq(s.test()(), "bar");
+	}
 }
