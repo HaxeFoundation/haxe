@@ -199,5 +199,21 @@ class DateTools {
 	public static function make( o : { ms : Float, seconds : Int, minutes : Int, hours : Int, days : Int } ) {
 		return o.ms + 1000.0 * (o.seconds + 60.0 * (o.minutes + 60.0 * (o.hours + 24.0 * o.days)));
 	}
+	
+	/**
+		Retrieve Unix timestamp value from Date components. Takes same argument sequence as the Date constructor.
+	**/
+	public static #if (js || flash || php) inline #end function makeUtc(year : Int, month : Int, day : Int, hour : Int, min : Int, sec : Int ):Float {
+	    #if (js || flash)
+		   return untyped Date.UTC(year, month, day, hour, min, sec);
+		#elseif php
+		   return untyped __call__("gmmktime", hour, min, sec, month + 1, day, year) * 1000;
+		#elseif cpp
+		  return untyped __global__.__hxcpp_utc_date(year,month,day,hour,min,sec)*1000.0 ;  
+		#else
+			//TODO
+		   return 0.;
+		#end
+	}
 
 }
