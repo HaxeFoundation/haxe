@@ -34,6 +34,8 @@
 	public static function atan2(y : Float,x : Float) : Float  { return untyped __call__("atan2", y, x); }
 	public static function tan(v : Float) : Float      { return untyped __call__("tan", v); }
 	public static function exp(v : Float) : Float      {
+		if(isNaN(v))
+			return NaN;
 		if(untyped __call__("is_finite", v))
 			return untyped __call__("exp", v);
 		else if(v == POSITIVE_INFINITY)
