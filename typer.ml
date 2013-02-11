@@ -764,9 +764,11 @@ let field_access ctx mode f fmode t e p =
 
 let using_field ctx mode e i p =
 	if mode = MSet then raise Not_found;
-	(* do not try to find using fields if the type has monomorphs, which could lead to side-effects *)
-	if has_mono e.etype then raise Not_found;
-	let is_dynamic = follow e.etype == t_dynamic in
+	(* do not try to find using fields if the type is a monomorph, which could lead to side-effects *)
+	let is_dynamic = match follow e.etype with
+		| TMono _ -> raise Not_found
+		| t -> t == t_dynamic
+	in
 	let rec loop = function
 	| [] ->
 		raise Not_found
@@ -2856,7 +2858,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				) c.cl_ordered_statics;
 				!acc
 		in
-		let use_methods = loop (loop PMap.empty ctx.g.global_using) ctx.m.module_using in
+		let use_methods = match follow e.etype with TMono _ -> PMap.empty | _ -> loop (loop PMap.empty ctx.g.global_using) ctx.m.module_using in
 		let fields = PMap.fold (fun f acc -> PMap.add f.cf_name f acc) fields use_methods in
 		let fields = PMap.fold (fun f acc -> if Meta.has Meta.NoCompletion f.cf_meta then acc else f :: acc) fields [] in
 		let t = (if iscall then
