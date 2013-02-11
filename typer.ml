@@ -386,8 +386,12 @@ let rec unify_min_raise ctx (el:texpr list) : t =
 				| [], Some err -> raise err
 				| _ -> ()
 			in
-			List.iter loop (List.tl el);
-			List.hd !common_types
+			match !common_types with
+			| [] ->
+				error "No common base type found" (punion (List.hd el).epos (List.hd (List.rev el)).epos)
+			| _ ->
+				List.iter loop (List.tl el);
+				List.hd !common_types
 
 let unify_min ctx el =
 	try unify_min_raise ctx el
