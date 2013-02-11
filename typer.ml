@@ -760,32 +760,39 @@ let field_access ctx mode f fmode t e p =
 
 let using_field ctx mode e i p =
 	if mode = MSet then raise Not_found;
-	let has_mono = has_mono (monomorphs ctx.type_params e.etype) in
+	(* do not try to find using fields if the type has monomorphs, which could lead to side-effects *)
+	if has_mono e.etype then raise Not_found;
+	let is_dynamic = follow e.etype == t_dynamic in
 	let rec loop = function
 	| [] ->
 		raise Not_found
 	| c :: l ->
 		try
-			let f = PMap.find i c.cl_statics in
-			let t = field_type ctx c [] f p in
-			(match follow t with
-			| TFun ((_,_,t0) :: args,r) ->
-				let t0 = (try match t0 with
-				| TType({t_path=["haxe";"macro"], ("ExprOf"|"ExprRequire")}, [t]) ->
-					(try unify_raise ctx e.etype t p with Error (Unify _,_) -> raise Not_found); t;
-				| _ -> raise Not_found
-				with Not_found ->
-					(try unify_raise ctx e.etype t0 p with Error (Unify _,_) -> raise Not_found); t0) in
-				if follow e.etype == t_dynamic && follow t0 != t_dynamic then raise Not_found;
-				if Meta.has Meta.NoUsing f.cf_meta then raise Not_found;
-				let et = type_module_type ctx (TClassDecl c) None p in
-				AKUsing (mk (TField (et,FStatic (c,f))) t p,c,f,e)
-			| _ -> raise Not_found)
-		with Not_found ->
+			let cf = PMap.find i c.cl_statics in
+			if Meta.has Meta.NoUsing cf.cf_meta then raise Not_found;
+			let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
+			let map = apply_params cf.cf_params monos in
+			let t = map cf.cf_type in
+			begin match follow t with
+				| TFun((_,_,(TType({t_path = ["haxe";"macro"],"ExprOf"},[t0]) | t0)) :: args,r) ->
+					if is_dynamic && follow t0 != t_dynamic then raise Not_found;
+					Type.unify e.etype t0;
+					(* early constraints check is possible because e.etype has no monomorphs *)
+		 			List.iter2 (fun m (name,t) -> match follow t with
+						| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] ->
+							List.iter (fun tc -> Type.unify m (map tc)) constr
+						| _ -> ()
+					) monos cf.cf_params;
+					let et = type_module_type ctx (TClassDecl c) None p in
+					AKUsing (mk (TField (et,FStatic (c,cf))) t p,c,cf,e)
+				| _ ->
+					raise Not_found
+			end
+		with Not_found | Unify_error _ ->
 			loop l
 	in
 	try loop ctx.m.module_using
-	with Not_found when not has_mono -> loop ctx.g.global_using
+	with Not_found -> loop ctx.g.global_using
 
 let get_this ctx p =
 	match ctx.curfun with
