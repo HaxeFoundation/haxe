@@ -2558,7 +2558,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				build_call ctx (AKExpr constr) el (match with_type with WithTypeResume _ -> WithTypeResume t | _ -> WithType t) p
 			with Not_found ->
 				if ctx.untyped then raise Exit; (* __js__, etc. *)
-				with_type_error ctx with_type (string_error s e.e_names "Identifier '" ^ s ^ "' is not part of enum " ^ s_type_path e.e_path) p;
+				with_type_error ctx with_type (string_error s e.e_names ("Identifier '" ^ s ^ "' is not part of enum " ^ s_type_path e.e_path)) p;
 				mk (TConst TNull) t p
 		with Exit ->
 			type_call ctx e el with_type p)
