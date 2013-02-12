@@ -166,6 +166,7 @@ type context =
 	mutable ctx_local_return_block_args : (string,string) Hashtbl.t;
 	mutable ctx_class_member_types : (string,string) Hashtbl.t;
 	mutable ctx_file_info : (string,string) PMap.t ref;
+	mutable ctx_for_extern : bool;
 }
 
 let new_context common_ctx writer debug file_info =
@@ -195,8 +196,15 @@ let new_context common_ctx writer debug file_info =
 	ctx_local_return_block_args = Hashtbl.create 0;
 	ctx_class_member_types =  Hashtbl.create 0;
 	ctx_file_info = file_info;
+	ctx_for_extern = false;
 	}
 
+let new_extern_context common_ctx writer debug file_info =
+  let ctx = new_context common_ctx writer debug file_info in
+  ctx.ctx_for_extern <- true;
+  ctx
+;;
+  
 
 (* The internal classes are implemented by the core hxcpp system, so the cpp
 	 classes should not be generated *)
@@ -619,6 +627,18 @@ let special_to_hex s =
 		| c -> Buffer.add_char b (Char.chr c)
 	done;
 	Buffer.contents b;;
+
+let escape_extern s =
+	let l = String.length s in
+	let b = Buffer.create 0 in
+	for i = 0 to l - 1 do
+		match Char.code (String.unsafe_get s i) with
+		| c when (c>127) || (c<32) || (c=34) || (c=92) ->
+			Buffer.add_string b (Printf.sprintf "\\x%02x" c)
+		| c -> Buffer.add_char b (Char.chr c)
+	done;
+	Buffer.contents b;;
+
 
 
 let has_utf8_chars s =
@@ -1585,12 +1605,13 @@ and gen_expression ctx retval expression =
 
 	| TConst const ->
 		(match const with
-		| TInt i -> output (Printf.sprintf "(int)%ld" i)
+		| TInt i -> output (Printf.sprintf (if ctx.ctx_for_extern then "%ld" else "(int)%ld")  i)
 		| TFloat float_as_string -> output float_as_string
+		| TString s when ctx.ctx_for_extern -> output ("\"" ^ (escape_extern s) ^ "\"")
 		| TString s -> output (str s)
 		| TBool b -> output (if b then "true" else "false")
 		(*| TNull -> output ("((" ^ (type_string expression.etype) ^ ")null())")*)
-		| TNull -> output "null()"
+		| TNull -> output (if ctx.ctx_for_extern then "null" else "null()")
 		| TThis -> output (if ctx.ctx_real_this_ptr then "hx::ObjectPtr<OBJ_>(this)" else "__this")
 		| TSuper when calling ->
          output (if ctx.ctx_real_this_ptr then
@@ -2820,7 +2841,6 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 
 	let statics_except_meta = (List.filter (fun static -> static.cf_name <> "__meta__") class_def.cl_ordered_statics) in
 	let implemented_fields = List.filter should_implement_field statics_except_meta in
-	let implemented_instance_fields = List.filter should_implement_field class_def.cl_ordered_fields in
 
 	List.iter
 		(gen_field ctx class_def class_name smart_class_name false class_def.cl_interface)
@@ -2829,8 +2849,6 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 		(gen_field ctx class_def class_name smart_class_name true class_def.cl_interface) statics_except_meta;
 	output_cpp "\n";
 
-
-	let dump_field_name = (fun field -> output_cpp ("	" ^  (str field.cf_name) ^ ",\n")) in
 
 	(* Initialise non-static variables *)
 	if (not class_def.cl_interface) then begin
@@ -2861,6 +2879,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 				end
 		in
 
+      let implemented_instance_fields = List.filter should_implement_field class_def.cl_ordered_fields in
 
 		(* MARK function - explicitly mark all child pointers *)
 		output_cpp ("void " ^ class_name ^ "::__Mark(HX_MARK_PARAMS)\n{\n");
@@ -3005,33 +3024,34 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 		output_cpp "	super::__GetFields(outFields);\n";
 		output_cpp "};\n\n";
 
+		let dump_field_name = (fun field -> output_cpp ("	" ^  (str field.cf_name) ^ ",\n")) in
 		output_cpp "static ::String sStaticFields[] = {\n";
 		List.iter dump_field_name  implemented_fields;
 		output_cpp "	String(null()) };\n\n";
 
-	end; (* !cl_interface *)
+		output_cpp "static ::String sMemberFields[] = {\n";
+		List.iter dump_field_name  implemented_instance_fields;
+		output_cpp "	String(null()) };\n\n";
 
-	output_cpp "static ::String sMemberFields[] = {\n";
-	List.iter dump_field_name  implemented_instance_fields;
-	output_cpp "	String(null()) };\n\n";
+     end; (* cl_interface *)
 
-	(* Mark static variables as used *)
-	output_cpp "static void sMarkStatics(HX_MARK_PARAMS) {\n";
-	output_cpp ("	HX_MARK_MEMBER_NAME(" ^ class_name ^ "::__mClass,\"__mClass\");\n");
-	List.iter (fun field ->
-		if (is_data_member field) then
-			output_cpp ("	HX_MARK_MEMBER_NAME(" ^ class_name ^ "::" ^ (keyword_remap field.cf_name) ^ ",\"" ^  field.cf_name ^ "\");\n") )
-		implemented_fields;
-	output_cpp "};\n\n";
+		(* Mark static variables as used *)
+		output_cpp "static void sMarkStatics(HX_MARK_PARAMS) {\n";
+		output_cpp ("	HX_MARK_MEMBER_NAME(" ^ class_name ^ "::__mClass,\"__mClass\");\n");
+		List.iter (fun field ->
+			if (is_data_member field) then
+				output_cpp ("	HX_MARK_MEMBER_NAME(" ^ class_name ^ "::" ^ (keyword_remap field.cf_name) ^ ",\"" ^  field.cf_name ^ "\");\n") )
+			implemented_fields;
+		output_cpp "};\n\n";
 
-	(* Visit static variables *)
-	output_cpp "static void sVisitStatics(HX_VISIT_PARAMS) {\n";
-	output_cpp ("	HX_VISIT_MEMBER_NAME(" ^ class_name ^ "::__mClass,\"__mClass\");\n");
-	List.iter (fun field ->
-		if (is_data_member field) then
-			output_cpp ("	HX_VISIT_MEMBER_NAME(" ^ class_name ^ "::" ^ (keyword_remap field.cf_name) ^ ",\"" ^  field.cf_name ^ "\");\n") )
-		implemented_fields;
-	output_cpp "};\n\n";
+		(* Visit static variables *)
+		output_cpp "static void sVisitStatics(HX_VISIT_PARAMS) {\n";
+		output_cpp ("	HX_VISIT_MEMBER_NAME(" ^ class_name ^ "::__mClass,\"__mClass\");\n");
+		List.iter (fun field ->
+			if (is_data_member field) then
+				output_cpp ("	HX_VISIT_MEMBER_NAME(" ^ class_name ^ "::" ^ (keyword_remap field.cf_name) ^ ",\"" ^  field.cf_name ^ "\");\n") )
+			implemented_fields;
+		output_cpp "};\n\n";
 
    if (scriptable ) then begin
       let dump_script_field idx (field,f_args,return_t) =
@@ -3111,7 +3131,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 
 		output_cpp ("void " ^ class_name ^ "::__register()\n{\n");
 		output_cpp ("	hx::Static(__mClass) = hx::RegisterClass(" ^ (str class_name_text)  ^
-				", hx::TCanCast< " ^ class_name ^ "> ,0,sMemberFields,\n");
+				", hx::TCanCast< " ^ class_name ^ "> ,0,0,\n");
 		output_cpp ("	0, 0,\n");
 		output_cpp ("	&super::__SGetClass(), 0, sMarkStatics, sVisitStatics);\n");
       if (scriptable) then
@@ -3401,7 +3421,8 @@ let create_constructor_dependencies common_ctx =
 
 
 let rec s_type t =
-	match t with
+   let result =
+	match follow t with
 	| TMono r -> (match !r with | None -> "Dynamic" | Some t -> s_type t)
 	| TEnum (e,tl) -> Ast.s_type_path e.e_path ^ s_type_params tl
 	| TInst (c,tl) -> Ast.s_type_path c.cl_path ^ s_type_params tl
@@ -3417,15 +3438,17 @@ let rec s_type t =
 		"{" ^ (if not (is_closed a) then "+" else "") ^  String.concat "," fl ^ " }"
 	| TDynamic t2 -> "Dynamic" ^ s_type_params (if t == t2 then [] else [t2])
 	| TLazy f -> s_type (!f())
+   in
+   if result="Array<haxe.io.Unsigned_char__>" then "haxe.io.BytesData" else result
 
 and s_fun t void =
-	match t with
+	match follow t with
 	| TFun _ -> "(" ^ s_type t ^ ")"
 	| TEnum ({ e_path = ([],"Void") },[]) when void -> "(" ^ s_type t ^ ")"
 	| TAbstract ({ a_path = ([],"Void") },[]) when void -> "(" ^ s_type t ^ ")"
 	| TMono r -> (match !r with | None -> s_type t | Some t -> s_fun t void)
 	| TLazy f -> s_fun (!f()) void
-	| _ -> s_type t
+	| _ ->  (s_type t)
 
 and s_type_params = function
 	| [] -> ""
@@ -3440,37 +3463,45 @@ and s_type_params = function
 let gen_extern_class common_ctx class_def file_info =
    let file = new_source_file common_ctx.file  "extern" ".hx" class_def.cl_path in
    let path = class_def.cl_path in
-   (*
-   let rec remove_prefix  =  function
-      | TInst ({cl_path=prefix} as cval ,tl) ->  TInst ( { cval with cl_path = ([],snd cval.cl_path) }, List.map remove_prefix tl)
-      | t -> Type.map remove_prefix t
+   let filterPath = fst path @ [snd path] in
+   let rec remove_prefix field t = match t with
+      | TInst ({cl_path=[f],suffix } as cval ,tl) when f=field ->
+            TInst ( { cval with cl_path = ([],suffix) }, List.map (remove_prefix field) tl)
+      | TInst ({cl_path=cpath,suffix } as cval ,tl) when cpath=filterPath ->
+            TInst ( { cval with cl_path = ([],suffix) }, List.map (remove_prefix field) tl)
+      | TInst (cval,tl) -> TInst ( cval, List.map (remove_prefix field) tl)
+      (*| TInst ({cl_path=prefix} as cval ,tl) -> 
+            TInst ( { cval with cl_path = ([],snd cval.cl_path) }, List.map (remove_prefix field) tl)*)
+      | t -> Type.map (remove_prefix field) t
       in
-   let s_type t = s_type (remove_prefix t) in
-   let s_type t = s_type (remove_prefix t) in *)
-
-   let output = file#write in
    let params = function [] -> "" | l ->  "<" ^ (String.concat "," (List.map (fun (n,t) -> n) l) ^ ">")  in
-   let args  = function  TFun (args,_) ->
-       String.concat "," (List.map (fun (name,opt,t) -> (if opt then "?" else "") ^ name ^":"^ (s_type t)) args) | _ -> "" in
-   let ret  = function  TFun (_,ret) -> s_type ret | _ -> "Dynamic" in
+   let output = file#write in
 
    let print_field stat f =
+      let s_type t = s_type (remove_prefix f.cf_name t) in
+      let args  = function  TFun (args,_) ->
+          String.concat "," (List.map (fun (name,opt,t) -> (if opt then "?" else "") ^ name ^":"^ (s_type t)) args) | _ -> "" in
+      let ret  = function  TFun (_,ret) -> s_type ret | _ -> "Dynamic" in
+      let override = if (is_override class_def f.cf_name ) then "override " else "" in
+
 		output ("\t" ^ (if stat then "static " else "") ^ (if f.cf_public then "public " else "") );
       (match f.cf_kind, f.cf_name with
 	   | Var { v_read = AccInline; v_write = AccNever },_ ->
            (match f.cf_expr with Some expr ->
               output ("inline var " ^ f.cf_name ^ ":" ^ (s_type f.cf_type) ^ "=" );
-              let ctx = (new_context common_ctx file false file_info) in
+              let ctx = (new_extern_context common_ctx file false file_info) in
               gen_expression ctx true expr;
            | _ -> ()  )
 	   | Var { v_read = AccNormal; v_write = AccNormal },_ -> output ("var " ^ f.cf_name ^ ":" ^ (s_type f.cf_type))
 	   | Var v,_ -> output ("var " ^ f.cf_name ^ "(" ^ (s_access v.v_read) ^ "," ^ (s_access v.v_write) ^ "):" ^ (s_type f.cf_type))
 	   | Method _, "new" -> output ("function new(" ^ (args f.cf_type) ^ "):Void")
 	   | Method MethDynamic, _  -> output ("dynamic function " ^ f.cf_name ^ (params f.cf_params) ^ "(" ^ (args f.cf_type) ^ "):" ^ (ret f.cf_type) )
-	   | Method _, _  -> output ("function " ^ f.cf_name ^ (params f.cf_params) ^ "(" ^ (args f.cf_type) ^ "):" ^ (ret f.cf_type) )
+	   | Method _, _  -> output (override ^ "function " ^ f.cf_name ^ (params f.cf_params) ^ "(" ^ (args f.cf_type) ^ "):" ^ (ret f.cf_type) )
       );
 		output ";\n\n";
 	in
+
+   let s_type t = s_type (remove_prefix "*" t) in
    let c = class_def in
 	output ( "package " ^ (String.concat "." (fst path)) ^ ";\n" );
 	output ( "@:include extern " ^ (if c.cl_private then "private " else "") ^ (if c.cl_interface then "interface" else "class")
@@ -3489,6 +3520,35 @@ let gen_extern_class common_ctx class_def file_info =
    output "\n";
 	file#close
 ;;
+
+
+
+
+let gen_extern_enum common_ctx enum_def file_info =
+	let path = enum_def.e_path in
+   let file = new_source_file common_ctx.file  "extern" ".hx" path in
+   let output = file#write in
+
+   let params = function [] -> "" | l ->  "<" ^ (String.concat "," (List.map (fun (n,t) -> n) l) ^ ">")  in
+	output ( "package " ^ (String.concat "." (fst path)) ^ ";\n" );
+	output ( "@:include extern " ^ (if enum_def.e_private then "private " else "")
+              ^ " enum " ^ (snd path) ^ (params enum_def.e_types) );
+	output " {\n";
+	PMap.iter (fun _ constructor ->
+		let name = keyword_remap constructor.ef_name in
+		match constructor.ef_type with
+		| TFun (args,_) ->
+		   output ( name ^ "(" );
+			output ( String.concat "," (List.map (fun (arg,_,t) -> arg ^ ":" ^ (s_type t) ) args) );
+		   output ");\n\n";
+		| _ -> output ( name ^ ";\n\n" )
+	) enum_def.e_constrs;
+
+	output "}\n";
+	file#close
+;;
+
+
 
 (* The common_ctx contains the haxe AST in the "types" field and the resources *)
 let generate common_ctx =
@@ -3532,6 +3592,7 @@ let generate common_ctx =
 			end
 		| TEnumDecl enum_def ->
 			let name =  class_text enum_def.e_path in
+         if (gen_externs) then gen_extern_enum common_ctx enum_def file_info;
 			let is_internal = is_internal_class enum_def.e_path in
 			if (is_internal) then
 				(if debug then print_endline (" internal enum " ^ name ))
