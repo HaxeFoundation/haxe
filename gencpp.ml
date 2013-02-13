@@ -1605,7 +1605,8 @@ and gen_expression ctx retval expression =
 
 	| TConst const ->
 		(match const with
-		| TInt i -> output (Printf.sprintf (if ctx.ctx_for_extern then "%ld" else "(int)%ld")  i)
+		| TInt i when  ctx.ctx_for_extern -> output (Printf.sprintf "%ld" i)
+		| TInt i -> output (Printf.sprintf "(int)%ld"  i)
 		| TFloat float_as_string -> output float_as_string
 		| TString s when ctx.ctx_for_extern -> output ("\"" ^ (escape_extern s) ^ "\"")
 		| TString s -> output (str s)
