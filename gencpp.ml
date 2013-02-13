@@ -2846,6 +2846,8 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 
 	let statics_except_meta = (List.filter (fun static -> static.cf_name <> "__meta__") class_def.cl_ordered_statics) in
 	let implemented_fields = List.filter should_implement_field statics_except_meta in
+	let dump_field_name = (fun field -> output_cpp ("	" ^  (str field.cf_name) ^ ",\n")) in
+   let implemented_instance_fields = List.filter should_implement_field class_def.cl_ordered_fields in
 
 	List.iter
 		(gen_field ctx class_def class_name smart_class_name false class_def.cl_interface)
@@ -2884,7 +2886,6 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 				end
 		in
 
-      let implemented_instance_fields = List.filter should_implement_field class_def.cl_ordered_fields in
 
 		(* MARK function - explicitly mark all child pointers *)
 		output_cpp ("void " ^ class_name ^ "::__Mark(HX_MARK_PARAMS)\n{\n");
@@ -3029,34 +3030,34 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 		output_cpp "	super::__GetFields(outFields);\n";
 		output_cpp "};\n\n";
 
-		let dump_field_name = (fun field -> output_cpp ("	" ^  (str field.cf_name) ^ ",\n")) in
 		output_cpp "static ::String sStaticFields[] = {\n";
 		List.iter dump_field_name  implemented_fields;
 		output_cpp "	String(null()) };\n\n";
 
-		output_cpp "static ::String sMemberFields[] = {\n";
-		List.iter dump_field_name  implemented_instance_fields;
-		output_cpp "	String(null()) };\n\n";
+   end; (* cl_interface *)
 
-     end; (* cl_interface *)
+	output_cpp "static ::String sMemberFields[] = {\n";
+	List.iter dump_field_name  implemented_instance_fields;
+	output_cpp "	String(null()) };\n\n";
 
-		(* Mark static variables as used *)
-		output_cpp "static void sMarkStatics(HX_MARK_PARAMS) {\n";
-		output_cpp ("	HX_MARK_MEMBER_NAME(" ^ class_name ^ "::__mClass,\"__mClass\");\n");
-		List.iter (fun field ->
-			if (is_data_member field) then
-				output_cpp ("	HX_MARK_MEMBER_NAME(" ^ class_name ^ "::" ^ (keyword_remap field.cf_name) ^ ",\"" ^  field.cf_name ^ "\");\n") )
-			implemented_fields;
-		output_cpp "};\n\n";
 
-		(* Visit static variables *)
-		output_cpp "static void sVisitStatics(HX_VISIT_PARAMS) {\n";
-		output_cpp ("	HX_VISIT_MEMBER_NAME(" ^ class_name ^ "::__mClass,\"__mClass\");\n");
-		List.iter (fun field ->
-			if (is_data_member field) then
-				output_cpp ("	HX_VISIT_MEMBER_NAME(" ^ class_name ^ "::" ^ (keyword_remap field.cf_name) ^ ",\"" ^  field.cf_name ^ "\");\n") )
-			implemented_fields;
-		output_cpp "};\n\n";
+	(* Mark static variables as used *)
+	output_cpp "static void sMarkStatics(HX_MARK_PARAMS) {\n";
+	output_cpp ("	HX_MARK_MEMBER_NAME(" ^ class_name ^ "::__mClass,\"__mClass\");\n");
+	List.iter (fun field ->
+		if (is_data_member field) then
+			output_cpp ("	HX_MARK_MEMBER_NAME(" ^ class_name ^ "::" ^ (keyword_remap field.cf_name) ^ ",\"" ^  field.cf_name ^ "\");\n") )
+		implemented_fields;
+	output_cpp "};\n\n";
+
+	(* Visit static variables *)
+	output_cpp "static void sVisitStatics(HX_VISIT_PARAMS) {\n";
+	output_cpp ("	HX_VISIT_MEMBER_NAME(" ^ class_name ^ "::__mClass,\"__mClass\");\n");
+	List.iter (fun field ->
+		if (is_data_member field) then
+			output_cpp ("	HX_VISIT_MEMBER_NAME(" ^ class_name ^ "::" ^ (keyword_remap field.cf_name) ^ ",\"" ^  field.cf_name ^ "\");\n") )
+		implemented_fields;
+	output_cpp "};\n\n";
 
    if (scriptable ) then begin
       let dump_script_field idx (field,f_args,return_t) =
@@ -3136,7 +3137,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 
 		output_cpp ("void " ^ class_name ^ "::__register()\n{\n");
 		output_cpp ("	hx::Static(__mClass) = hx::RegisterClass(" ^ (str class_name_text)  ^
-				", hx::TCanCast< " ^ class_name ^ "> ,0,0,\n");
+				", hx::TCanCast< " ^ class_name ^ "> ,0,sMemberFields,\n");
 		output_cpp ("	0, 0,\n");
 		output_cpp ("	&super::__SGetClass(), 0, sMarkStatics, sVisitStatics);\n");
       if (scriptable) then
