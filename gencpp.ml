@@ -335,11 +335,11 @@ let rec is_function_expr expr =
    | TFunction _ -> true
    | _ -> false;;
 
-let is_virtual_field field =
+let is_var_field field =
    match field.cf_kind with
-   | Var _ -> false
-	| Method MethDynamic -> false
-	| _ -> true
+   | Var _ -> true
+	| Method MethDynamic -> true
+	| _ -> false
 ;;
 
 let rec has_rtti_interface c interface =
@@ -1431,7 +1431,8 @@ and gen_expression ctx retval expression =
 		| _ ->  gen_bin_op_string expr1 (Ast.s_binop op) expr2
 		in
 
-	let rec gen_tfield field_object member =
+	let rec gen_tfield field_object field =
+      let member = (field_name field) in
 		let remap_name = keyword_remap member in
 		let already_dynamic = ref false in
 		(match field_object.eexpr with
@@ -1465,7 +1466,10 @@ and gen_expression ctx retval expression =
 				   output ( "." ^ remap_name )
             else begin
                cast_if_required ctx field_object (type_string field_object.etype);
-				   output ( "->" ^ remap_name )
+               output ( "->" ^ remap_name );
+               already_dynamic := match field with
+                  | FInstance(_,var) when is_var_field var -> true
+                  | _ -> false
             end;
          end;
       );
@@ -1663,7 +1667,7 @@ and gen_expression ctx retval expression =
 	| TField (expr,name) when (is_null expr) -> output "Dynamic()"
 
 	| TField (field_object,field) ->
-		gen_tfield field_object (field_name field)
+		gen_tfield field_object field
 
 	| TParenthesis expr when not retval ->
 			gen_expression ctx retval expr;
