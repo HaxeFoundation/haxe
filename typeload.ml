@@ -1755,7 +1755,8 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 				) in
 				context_init := (fun() ->
 					match resolve_typedef t with
-					| TClassDecl c ->
+					| TClassDecl c
+					| TAbstractDecl {a_impl = Some c} ->
 						c.cl_build();
 						PMap.iter (fun _ cf -> ctx.m.module_globals <- PMap.add cf.cf_name (TClassDecl c,cf.cf_name) ctx.m.module_globals) c.cl_statics
 					| TEnumDecl e ->
