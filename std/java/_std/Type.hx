@@ -66,6 +66,7 @@
 	}
 
 	public static function getClassName( c : Class<Dynamic> ) : String untyped {
+		var c : java.lang.Class<Dynamic> = c;
 		var name:String = c.getName();
 		if (name.startsWith("haxe.root."))
 			return name.substr(10);
@@ -82,7 +83,8 @@
 	}
 
 	public static function getEnumName( e : Enum<Dynamic> ) : String untyped {
-		var ret:String = e.getName();
+		var c : java.lang.Class<Dynamic> = e;
+		var ret:String = c.getName();
 		if (ret.startsWith("haxe.root."))
 			return ret.substr(10);
 		else if (ret == "boolean" || ret == "java.lang.Boolean")

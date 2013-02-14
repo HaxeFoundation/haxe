@@ -29,15 +29,15 @@ import cs.internal.Iterator;
 import cs.internal.Null;
 import cs.internal.StringExt;
 import cs.StdTypes;
-import Hash;
+import StringMap;
 import Reflect;
 
-class Boot 
+class Boot
 {
 
 	@:keep public static function init():Void
 	{
 		cs.Lib.applyCultureChanges();
 	}
-	
+
 }

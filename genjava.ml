@@ -749,6 +749,8 @@ let configure gen =
   let rec real_type t =
     let t = gen.gfollow#run_f t in
     match t with
+      | TAbstract ({ a_impl = Some _ } as a, pl) ->
+        real_type (Codegen.get_underlying_type a pl)
       | TInst( { cl_path = (["haxe"], "Int32") }, [] ) -> gen.gcon.basic.tint
       | TInst( { cl_path = (["haxe"], "Int64") }, [] ) -> ti64
       | TAbstract( { a_path = ([], "Class") }, p  )
@@ -1419,7 +1421,12 @@ let configure gen =
         print w "%s %s%s %s %s %s" (visibility) v_n (String.concat " " modifiers) params (if is_new then "" else rett_s cf.cf_pos (run_follow gen ret_type)) (change_field name);
 
         (* <T>(string arg1, object arg2) with T : object *)
-        print w "(%s)" (String.concat ", " (List.map (fun (name, _, t) -> sprintf "%s %s" (t_s cf.cf_pos (run_follow gen t)) (change_id name)) args));
+        (match cf.cf_expr with
+          | Some { eexpr = TFunction tf } ->
+              print w "(%s)" (String.concat ", " (List.map (fun (var,_) -> sprintf "%s %s" (t_s cf.cf_pos (run_follow gen var.v_type)) (change_id var.v_name)) tf.tf_args))
+          | _ ->
+              print w "(%s)" (String.concat ", " (List.map (fun (name, _, t) -> sprintf "%s %s" (t_s cf.cf_pos (run_follow gen t)) (change_id name)) args))
+        );
         if is_interface then
           write w ";"
         else begin
@@ -1657,6 +1664,8 @@ let configure gen =
   ClosuresToClass.configure gen (ClosuresToClass.default_implementation closure_t (fun e _ _ -> e));
 
   StubClosureImpl.configure gen (StubClosureImpl.default_implementation gen float_cl 10 (fun e _ _ -> e));*)
+
+  AbstractImplementationFix.configure gen;
 
   IteratorsInterface.configure gen (fun e -> e);
 
@@ -2008,8 +2017,6 @@ let configure gen =
   run_filters gen;
 
   TypeParams.RenameTypeParameters.run gen;
-
-  (*Codegen.dump_types gen.gcon;*)
 
   let t = Common.timer "code generation" in
 

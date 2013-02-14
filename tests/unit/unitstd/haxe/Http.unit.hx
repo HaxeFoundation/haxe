@@ -1,3 +1,4 @@
+#if !(java || cs)
 var http1 = new haxe.Http("_");
 var r = "";
 http1.onStatus = function(_) r = "status";
@@ -14,4 +15,5 @@ r == "error";
 #end
 #if !flash
 exc(function() haxe.Http.requestUrl("_"));
+#end
 #end

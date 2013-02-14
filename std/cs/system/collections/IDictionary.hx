@@ -25,7 +25,7 @@ package cs.system.collections;
 {
 	var IsFixedSize(default, null):Bool;
 	var IsReadOnly(default, null):Bool;
-	
+
 	function Add(key:Dynamic, value:Dynamic):Void;
 	function Clear():Void;
 	function Contains(key:Dynamic):Bool;
@@ -33,7 +33,7 @@ package cs.system.collections;
 	function GetEnumerator():IDictionaryEnumerator;
 }
 
-@:native('System.Collections.IDictionaryEnumerator') extern interface IDictionaryEnumerator implements IEnumerator
+@:native('System.Collections.IDictionaryEnumerator') extern interface IDictionaryEnumerator extends IEnumerator
 {
 	var Key(default, null):Dynamic;
 	var Value(default, null):Dynamic;

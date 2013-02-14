@@ -21,8 +21,8 @@
  */
 package haxe;
 using haxe.Int64;
-@:notNull @:runtimeValue private abstract NativeInt64 => Int, <= Int {}
-@:notNull @:runtimeValue private abstract NativeUInt64 => Int, <= Int {}
+@:coreType @:notNull @:runtimeValue private abstract NativeInt64 from Int to Int {}
+@:coreType @:notNull @:runtimeValue private abstract NativeUInt64 from Int to Int {}
 
 @:coreApi
 @:nativeGen class Int64

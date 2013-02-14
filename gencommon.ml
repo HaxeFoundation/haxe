@@ -9469,6 +9469,48 @@ struct
 
 end;;
 
+(* ******************************************* *)
+(* AbstractImplementationFix *)
+(* ******************************************* *)
+
+(*
+
+  This module filter will map the compiler created classes from abstract
+  implementations to valid haxe code, as needed by gencommon
+
+  dependencies:
+    No dependencies
+
+*)
+
+module AbstractImplementationFix =
+struct
+
+  let name = "abstract_implementation_fix"
+
+  let priority = solve_deps name []
+
+  let default_implementation gen =
+    let rec run md =
+      match md with
+        | TClassDecl ({ cl_kind = KAbstractImpl a } as c) ->
+            List.iter (function
+              | cf when Meta.has Meta.Impl cf.cf_meta ->
+                  (* add type parameters to all implementation functions *)
+                  cf.cf_params <- cf.cf_params @ (List.filter (fun (s,_) -> not (List.exists (fun (s2,_) -> s = s2) cf.cf_params)) a.a_types)
+              | _ -> ()
+            ) c.cl_ordered_statics;
+            Some md
+        | _ -> Some md
+    in
+    run
+
+  let configure gen =
+    let map = default_implementation gen in
+    gen.gmodule_filters#add ~name:name ~priority:(PCustom priority) map
+
+end;;
+
 (*
 (* ******************************************* *)
 (* Example *)
