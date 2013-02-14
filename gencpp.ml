@@ -1934,6 +1934,7 @@ and gen_expression ctx retval expression =
 				end else
 					output_i (!else_str ^ "if (__e.IsClass< " ^ type_name ^ " >() )");
 				ctx.ctx_writer#begin_block;
+				output_i "HX_STACK_BEGIN_CATCH\n";
 				output_i (type_name ^ " " ^ v.v_name ^ " = __e;");
 				(* Move this "inside" the catch call too ... *)
 				ctx.ctx_return_from_block <-return_from_internal_node;
