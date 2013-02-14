@@ -4204,18 +4204,18 @@ struct
 
     let run gen =
       let i = ref 0 in
-      let found_types = Hashtbl.create 10 in
+      let found_types = ref PMap.empty in
       let check_type name on_changed =
         let rec loop name =
           incr i;
           let changed_name = (name ^ (string_of_int !i)) in
-          if Hashtbl.mem found_types changed_name then loop name else changed_name
+          if PMap.mem changed_name !found_types then loop name else changed_name
         in
-        if Hashtbl.mem found_types name then begin
+        if PMap.mem name !found_types then begin
           let new_name = loop name in
-          Hashtbl.add found_types new_name true;
+          found_types := PMap.add new_name true !found_types;
           on_changed new_name
-        end else Hashtbl.add found_types name true
+        end else found_types := PMap.add name true !found_types
       in
 
       let get_cls t =
@@ -4230,25 +4230,25 @@ struct
       in
 
       List.iter (function
-        | TClassDecl ( ({ cl_types = hd :: tl } as cl) ) ->
+        | TClassDecl cl ->
           i := 0;
-          Hashtbl.clear found_types;
 
-          List.iter iter_types (hd :: tl);
+          found_types := PMap.empty;
+          List.iter iter_types cl.cl_types;
+          let cur_found_types = !found_types in
           List.iter (fun cf ->
-            match cf.cf_params with
-              | [] -> ()
-              | _ -> List.iter iter_types cf.cf_params
+            found_types := cur_found_types;
+            List.iter iter_types cf.cf_params
           ) (cl.cl_ordered_fields @ cl.cl_ordered_statics)
 
         | TEnumDecl ( ({ e_types = hd :: tl }) ) ->
           i := 0;
-          Hashtbl.clear found_types;
+          found_types := PMap.empty;
           List.iter iter_types (hd :: tl)
 
         | TAbstractDecl { a_types = hd :: tl } ->
           i := 0;
-          Hashtbl.clear found_types;
+          found_types := PMap.empty;
           List.iter iter_types (hd :: tl)
 
         | _ -> ()
@@ -9497,7 +9497,7 @@ struct
             List.iter (function
               | cf when Meta.has Meta.Impl cf.cf_meta ->
                   (* add type parameters to all implementation functions *)
-                  cf.cf_params <- cf.cf_params @ (List.filter (fun (s,_) -> not (List.exists (fun (s2,_) -> s = s2) cf.cf_params)) a.a_types)
+                  cf.cf_params <- cf.cf_params @ a.a_types
               | _ -> ()
             ) c.cl_ordered_statics;
             Some md
