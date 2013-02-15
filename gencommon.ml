@@ -8013,7 +8013,7 @@ struct
             let cf = mk_class_field name actual_t true pos (Var { v_read = AccNormal; v_write = AccNormal }) [] in
             cf.cf_meta <- [];
             cf.cf_expr <- Some {
-              eexpr = TNew(cl, List.map (fun _ -> t_empty) cl.cl_types, [mk_int gen old_i pos; null (basic.tarray t_empty) pos]);
+              eexpr = TNew(cl, List.map (fun _ -> t_empty) cl.cl_types, [mk_int gen old_i pos; { eexpr = TArrayDecl []; etype = basic.tarray t_empty; epos = pos }]);
               etype = TInst(cl, List.map (fun _ -> t_empty) cl.cl_types);
               epos = pos;
             };

@@ -57,6 +57,9 @@ abstract Vector<T>(VectorData<T>) {
 			this = [];
 			#if cpp
 				untyped this.__SetSize(length);
+			#elseif (java || cs)
+				//TODO optimize
+				this[length-1] = cast null;
 			#else
 				untyped this.length = length;
 			#end
