@@ -36,6 +36,18 @@ class MyParent {
 	function b() return 20
 }
 
+class MyDynamicChildWithToString extends MyParent implements Dynamic
+{
+	public function toString()
+	{
+		return "Custom toString";
+	}
+}
+
+class MyDynamicChildWithoutToString extends MyParent implements Dynamic
+{
+}
+
 class MyChild1 extends MyParent {
 	public override function a() { return 12; }
 	override function b() return 21
@@ -105,13 +117,13 @@ class InitBase {
 	public var s = "foo";
 	public var b = true;
 	public var t = String;
-	
+
 	static public inline var si = 2;
 	static public inline var sop = 2 + 5 * 5;
 	static public inline var st = String;
 	static public inline var sp = (2 * 3);
 	static public inline var sinline = DateTools.minutes(1);
-	
+
 	public function new() { }
 }
 
@@ -133,7 +145,7 @@ class InitProperties {
 	public var accFunc(default, set_accFunc):Int = 3;
 	public var accNever(default, never):Int = 3;
 	public var accDynamic(default, dynamic):Int = 3;
-	
+
 	function set_accFunc(v) return throw "setter was called"
 	function set_accDynamic(v) return throw "setter was called"
 	public function new() { }
@@ -146,9 +158,9 @@ class ParamConstraintsClass {
 	public function memberMultiple < A:(Base, I1) > (a:A):A { return a; }
 	public function memberComplex < A:I1, B:List<A> > (a:A, b:B) { return b; }
 	public function memberBasic < A:String, B:Array<A> > (a:A, b:B) { return b[0]; }
-	
+
 	public function memberAnon < A:( { x : Int }, { y : Float } ) > (v:A) { return v.x + v.y; }
-	
+
 #if !(java || cs)  //this is a known bug caused by issue #915
 	@:overload(function< A, B:Array<A> > (a:A, b:B):Void { } )
 	public function memberOverload < A, B > (a:String, b:String) { }
@@ -158,7 +170,7 @@ class ParamConstraintsClass {
 class ParamConstraintsClass2<T> {
 	public function new() { }
 	public function bind(t:T) { }
-	
+
 	public function check<A:Array<T>>(a:A) { }
 }
 
@@ -171,7 +183,7 @@ class UsingChild1 extends UsingBase {
 	static public function test() {
 		return "foo".pupFunc() + "foo".privFunc() + "FOO".siblingFunc();
 	}
-	
+
 	static function siblingFunc(s:String) return s.toLowerCase()
 }
 
@@ -182,7 +194,7 @@ class UsingChild2 extends UsingBase {
 		#end
 		return "foo".siblingFunc();
 	}
-	
+
 	static public function siblingFunc(s:String) return s.toUpperCase()
 }
 
@@ -197,18 +209,18 @@ class UsingUnrelated {
 }
 
 @:keep class VarProps {
-	
+
 	static var SX(get, set) : Int;
 	@:isVar static var SY(get, set) : Int;
-	
+
 	static function get_SX() {
 		return 1;
 	}
-	
+
 	static function set_SX(v) {
 		return v;
 	}
-	
+
 	static function get_SY() {
 		return SY;
 	}
@@ -217,26 +229,26 @@ class UsingUnrelated {
 		SY = v;
 		return v;
 	}
-		
+
 
 	public var x(get, set) : Int;
 	@:isVar public var y(get, set) : Int;
 	public var z(default, set) : Int;
-	
+
 	public function new() {
 		x = 1;
 		y = 2;
 		z = 3;
 	}
-	
+
 	function get_x() {
 		return 1;
 	}
-	
+
 	function set_x(v) {
 		return v;
 	}
-	
+
 	function get_y() {
 		return y;
 	}
@@ -245,7 +257,7 @@ class UsingUnrelated {
 		y = v;
 		return v;
 	}
-	
+
 	function set_z(v) {
 		z = v + 1;
 		return z;
@@ -256,26 +268,26 @@ class UsingUnrelated {
 class BaseSuperProp {
 	public var prop(get, set):Int;
 	public var fProp(get, null):Int->String;
-	
+
 	public function new() {
-		
+
 	}
-	
+
 	function get_prop() return 1
 	function set_prop(v) return v
-	
+
 	function get_fProp() return function(i:Int) return "test" +i
 }
 
 class ChildSuperProp extends BaseSuperProp {
 	public override function get_prop() return super.prop + 1
 	public override function set_prop(v) return (super.prop = v) + 1
-	
+
 	public override function get_fProp() {
 		var s = super.fProp(0);
 		return function(i:Int) return s + i;
 	}
-	
+
 	public function test() {
 		return super.fProp(2);
 	}
