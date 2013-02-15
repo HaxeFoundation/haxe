@@ -2310,6 +2310,12 @@ struct
           change_expr (mk_field_access gen obj field obj.epos) (run obj) field (Some (run evalue)) false
         | TBinop(OpAssign, ({eexpr = TField(fexpr, f)}), evalue) when is_dynamic e fexpr (field_name f) ->
           change_expr e (run fexpr) (field_name f) (Some (run evalue)) true
+        | TBinop(OpAssign, { eexpr = TField(fexpr, f) }, evalue) ->
+            (match field_access gen fexpr.etype (field_name f) with
+              | FClassField(_,_,_,cf,false,t) when (try PMap.find cf.cf_name gen.gbase_class_fields == cf with Not_found -> false) ->
+                  change_expr e (run fexpr) (field_name f) (Some (run evalue)) true
+              | _ -> Type.map_expr run e
+            )
 (* #if debug *)
         | TBinop(OpAssignOp op, ({eexpr = TField(fexpr, f)}), evalue) when is_dynamic e fexpr (field_name f) -> assert false (* this case shouldn't happen *)
         | TUnop(Increment, _, ({eexpr = TField( ( { eexpr=TLocal(local) } as fexpr ), f)}))
@@ -4694,6 +4700,8 @@ struct
             (* if it's a var, we will just try to apply the class parameters that have been changed with greal_type_param *)
             let t = apply_params cl.cl_types (gen.greal_type_param (TClassDecl cl) params) (gen.greal_type actual_t) in
             return_var (handle_cast gen { e1 with eexpr = TField(ef, f) } (gen.greal_type e1.etype) (gen.greal_type t))
+          | _ when e = None && (try PMap.find cf.cf_name gen.gbase_class_fields == cf with Not_found -> false) ->
+            return_var (handle_cast gen { e1 with eexpr = TField({ ef with etype = t_dynamic }, f) } e1.etype t_dynamic) (* force dynamic and cast back to needed type *)
           | _ ->
             let ecall = match e with | None -> trace (field_name f); trace cf.cf_name; gen.gcon.error "This field should be called immediately" ef.epos; assert false | Some ecall -> ecall in
             match cf.cf_params with
@@ -6399,6 +6407,10 @@ struct
           mk_class_field (gen.gmk_internal_name "hx" "hashes_f") (basic.tarray hasht) false pos (Var { v_read = AccNormal; v_write = AccNormal }) [];
           mk_class_field (gen.gmk_internal_name "hx" "dynamics_f") (basic.tarray basic.tfloat) false pos (Var { v_read = AccNormal; v_write = AccNormal }) [];
         ] in
+
+        (if cl.cl_path <> (["haxe"; "lang"], "DynamicObject") then
+          List.iter (fun cf -> cf.cf_expr <- Some { eexpr = TArrayDecl([]); etype = cf.cf_type; epos = cf.cf_pos }) new_fields
+        );
 
         let delete = get_delete_field ctx cl true in
         List.iter (fun cf ->

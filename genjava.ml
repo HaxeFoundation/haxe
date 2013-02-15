@@ -1363,7 +1363,14 @@ let configure gen =
       | Method (MethDynamic) ->
         if not is_interface then begin
           let access, modifiers = get_fun_modifiers cf.cf_meta "public" [] in
-          print w "%s %s%s %s %s;" access (if is_static then "static " else "") (String.concat " " modifiers) (t_s cf.cf_pos (run_follow gen cf.cf_type)) (change_field name)
+          print w "%s %s%s %s %s" access (if is_static then "static " else "") (String.concat " " modifiers) (t_s cf.cf_pos (run_follow gen cf.cf_type)) (change_field name);
+          (match cf.cf_expr with
+            | Some e ->
+                write w " = ";
+                expr_s w e;
+                write w ";"
+            | None -> write w ";"
+          )
         end (* TODO see how (get,set) variable handle when they are interfaces *)
       | Method mkind ->
         let is_virtual = is_new || (not is_final && match mkind with | MethInline -> false | _ when not is_new -> true | _ -> false) in

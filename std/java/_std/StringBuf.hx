@@ -38,7 +38,7 @@ class StringBuf {
 	}
 
 	public function addSub( s : String, pos : Int, ?len : Int ) : Void {
-		var l:Int = (len == null) ? s.length : len;
+		var l:Int = (len == null) ? s.length - pos : len;
 		b.append(s, pos, pos + l);
 	}
 

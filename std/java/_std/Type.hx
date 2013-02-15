@@ -34,7 +34,7 @@
 @:keep @:coreApi class Type {
 
 	@:functionCode('
-		if (o instanceof haxe.lang.DynamicObject || o instanceof java.lang.Class)
+		if (o == null || o instanceof haxe.lang.DynamicObject || o instanceof java.lang.Class)
 			return null;
 
 		return (java.lang.Class<T>) o.getClass();
@@ -247,7 +247,7 @@
 	}
 
 	@:functionCode('
-		if (params == null)
+		if (params == null || params.length == 0)
 		{
 			java.lang.Object ret = haxe.lang.Runtime.slowGetField(e, constr, false);
 			if (ret instanceof haxe.lang.Function)

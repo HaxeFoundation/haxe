@@ -190,8 +190,12 @@ class EReg {
 		} else {
 			var m = matcher;
 			m.reset(s);
-			m.find();
-			return untyped [s.substring(0, m.start()), s.substring(m.end(), s.length)];
+			if (m.find())
+			{
+				return untyped [s.substring(0, m.start()), s.substring(m.end(), s.length)];
+			} else {
+				return [s];
+			}
 		}
 	}
 
