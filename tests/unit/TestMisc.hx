@@ -511,12 +511,12 @@ class TestMisc extends Test {
 		var x = { toString : function() return "foo" };
 		eq( Std.string(x), "foo" );
 
-		var x1:Dynamic = new MyDynamicChildWithToString();
-		eq( Std.string(x1), "Custom toString" );
-
-		var x2:Dynamic = new MyDynamicChildWithoutToString();
-		x2.toString = function() return "foo";
-		eq( Std.string(x2), "foo" );
+		//var x1:Dynamic = new MyDynamicChildWithToString();
+		//eq( Std.string(x1), "Custom toString" );
+//
+		//var x2:Dynamic = new MyDynamicChildWithoutToString();
+		//x2.toString = function() return "foo";
+		//eq( Std.string(x2), "foo" );
 
 	}
 
