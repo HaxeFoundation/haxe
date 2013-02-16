@@ -204,7 +204,7 @@ let new_extern_context common_ctx writer debug file_info =
   ctx.ctx_for_extern <- true;
   ctx
 ;;
-  
+
 
 (* The internal classes are implemented by the core hxcpp system, so the cpp
 	 classes should not be generated *)
@@ -1077,7 +1077,7 @@ let call_has_side_effects func args =
 
 *)
 
-  
+
 
 let has_side_effects expr = false;;
 let call_has_side_effects func args = false;;
@@ -1993,7 +1993,7 @@ let is_data_member field =
 
 
 let is_override class_def field =
-   List.mem field class_def.cl_overrides
+   List.exists (fun f -> f.cf_name = field) class_def.cl_overrides
 ;;
 
 let rec all_virtual_functions clazz =
@@ -3477,7 +3477,7 @@ let gen_extern_class common_ctx class_def file_info =
       | TInst ({cl_path=cpath,suffix } as cval ,tl) when cpath=filterPath ->
             TInst ( { cval with cl_path = ([],suffix) }, List.map (remove_prefix field) tl)
       | TInst (cval,tl) -> TInst ( cval, List.map (remove_prefix field) tl)
-      (*| TInst ({cl_path=prefix} as cval ,tl) -> 
+      (*| TInst ({cl_path=prefix} as cval ,tl) ->
             TInst ( { cval with cl_path = ([],snd cval.cl_path) }, List.map (remove_prefix field) tl)*)
       | t -> Type.map (remove_prefix field) t
       in

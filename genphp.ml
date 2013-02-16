@@ -225,7 +225,7 @@ let as_string_expr ctx e =
 		to_string ctx e
 	| _ -> e
 (* for known String type that could have null value *)
-let to_string_null ctx e = 
+let to_string_null ctx e =
 	let v = alloc_var "__call__" t_dynamic in
 	let f = mk (TLocal v) t_dynamic e.epos in
 	mk (TCall (f, [ Codegen.string ctx.com "_hx_string_or_null" e.epos; e])) ctx.com.basic.tstring e.epos
@@ -301,7 +301,7 @@ let escape_bin s =
 haxe reserved words that match php ones: break, case, class, continue, default, do, else, extends, for, function, if, new, return, static, switch, var, while, interface, implements, public, private, try, catch, throw
  *)
 (* PHP only (for future use): cfunction, old_function *)
-let is_keyword n = 
+let is_keyword n =
 	match String.lowercase n with
 	| "and" | "or" | "xor" | "__file__" | "exception" | "__line__" | "array"
 	| "as" | "const" | "declare" | "die" | "echo"| "elseif" | "empty"
@@ -2231,7 +2231,7 @@ let generate com =
 		let special_cases = ["toString"] in
 		let loop c lst static =
 			let in_special_cases name =
-				(List.exists (fun n -> String.lowercase n = name) (special_cases @ c.cl_overrides))
+				(List.exists (fun n -> String.lowercase n = name) (special_cases @ List.map (fun f -> f.cf_name) c.cl_overrides))
 			in
 			List.iter(fun cf ->
 				let name = String.lowercase cf.cf_name in

@@ -419,7 +419,7 @@ let generate_type com t =
 		p "%s" (String.concat " " (List.rev ext));
 		p " {\n";
 		let sort l =
-			let a = Array.of_list (List.filter (fun f -> f.cf_public && not (List.mem f.cf_name c.cl_overrides)) l) in
+			let a = Array.of_list (List.filter (fun f -> f.cf_public && not (List.memq f c.cl_overrides)) l) in
 			let name = function "new" -> "" | n -> n in
 			Array.sort (fun f1 f2 ->
 				match f1.cf_kind, f2.cf_kind with

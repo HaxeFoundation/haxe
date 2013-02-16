@@ -198,7 +198,7 @@ and tclass = {
 	mutable cl_array_access : t option;
 	mutable cl_constructor : tclass_field option;
 	mutable cl_init : texpr option;
-	mutable cl_overrides : string list;
+	mutable cl_overrides : tclass_field list;
 
 	mutable cl_build : unit -> unit;
 	mutable cl_restore : unit -> unit;

@@ -691,7 +691,7 @@ let add_field_inits ctx t =
 				let e = Type.map_expr (use_this v) e in
 				let cf = {cf with cf_expr = Some e} in
 				(* if the method is an override, we have to remove the class field to not get invalid overrides *)
-				let fields = if List.mem cf.cf_name c.cl_overrides then begin
+				let fields = if List.memq cf c.cl_overrides then begin
 					c.cl_fields <- PMap.remove cf.cf_name c.cl_fields;
 					fields
 				end else

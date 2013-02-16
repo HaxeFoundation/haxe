@@ -629,7 +629,7 @@ let check_overriding ctx c =
 		(match c.cl_overrides with
 		| [] -> ()
 		| i :: _ ->
-			display_error ctx ("Field " ^ i ^ " is declared 'override' but doesn't override any field") p)
+			display_error ctx ("Field " ^ i.cf_name ^ " is declared 'override' but doesn't override any field") p)
 	| Some (csup,params) ->
 		PMap.iter (fun i f ->
 			let p = f.cf_pos in
@@ -639,7 +639,7 @@ let check_overriding ctx c =
 				(match f2.cf_kind with
 				| Var { v_read = AccRequire _ } -> raise Not_found;
 				| _ -> ());
-				if not (List.mem i c.cl_overrides) then
+				if not (List.memq f c.cl_overrides) then
 					display_error ctx ("Field " ^ i ^ " should be declared with 'override' since it is inherited from superclass") p
 				else if not f.cf_public && f2.cf_public then
 					display_error ctx ("Field " ^ i ^ " has less visibility (public/private) than superclass one") p
@@ -660,7 +660,7 @@ let check_overriding ctx c =
 						display_error ctx (error_msg (Unify l)) p;
 			with
 				Not_found ->
-					if List.mem i c.cl_overrides then display_error ctx ("Field " ^ i ^ " is declared 'override' but doesn't override any field") p
+					if List.memq f c.cl_overrides then display_error ctx ("Field " ^ i ^ " is declared 'override' but doesn't override any field") p
 		) c.cl_fields
 
 let class_field_no_interf c i =
@@ -986,7 +986,7 @@ let init_core_api ctx c =
 			) fcore;
 			PMap.iter (fun i f ->
 				let p = (match f.cf_expr with None -> c.cl_pos | Some e -> e.epos) in
-				if f.cf_public && not (Meta.has Meta.Hack f.cf_meta) && not (PMap.mem f.cf_name fcore) && not (List.mem f.cf_name c.cl_overrides) then error ("Public field " ^ i ^ " is not part of core type") p;
+				if f.cf_public && not (Meta.has Meta.Hack f.cf_meta) && not (PMap.mem f.cf_name fcore) && not (List.memq f c.cl_overrides) then error ("Public field " ^ i ^ " is not part of core type") p;
 			) fl;
 		in
 		check_fields ccore.cl_fields c.cl_fields;
@@ -1540,7 +1540,7 @@ let init_class ctx c p context_init herits fields =
 				end else begin
 					c.cl_fields <- PMap.add f.cf_name f c.cl_fields;
 					c.cl_ordered_fields <- f :: c.cl_ordered_fields;
-					if List.mem AOverride fd.cff_access then c.cl_overrides <- f.cf_name :: c.cl_overrides;
+					if List.mem AOverride fd.cff_access then c.cl_overrides <- f :: c.cl_overrides;
 				end;
 			end
 		with Error (Custom str,p) ->

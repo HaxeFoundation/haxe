@@ -471,7 +471,7 @@ let run com main full =
 			c.cl_overrides <- List.filter (fun s ->
 				let rec loop c =
 					match c.cl_super with
-					| Some (csup,_) when PMap.mem s csup.cl_fields -> true
+					| Some (csup,_) when PMap.mem s.cf_name csup.cl_fields -> true
 					| Some (csup,_) -> loop csup
 					| None -> false
 				in
