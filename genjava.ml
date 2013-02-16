@@ -1383,9 +1383,9 @@ let configure gen =
                   | TDynamic _, TAbstract ({ a_path = ([], "Bool") },[])
                   | TAnon _, TEnum( { e_path = ([], "Bool") }, [])
                   | TAnon _, TAbstract ({ a_path = ([], "Bool") },[]) -> true
-                  | _ -> List.mem cf.cf_name cl.cl_overrides
+                  | _ -> List.memq cf cl.cl_overrides
                 )
-              | _ -> List.mem cf.cf_name cl.cl_overrides)
+              | _ -> List.memq cf cl.cl_overrides)
           | "toString" when not is_static ->
             (match cf.cf_type with
               | TFun([], ret) ->
@@ -1393,7 +1393,7 @@ let configure gen =
                   | TInst( { cl_path = ([], "String") }, []) -> true
                   | _ -> gen.gcon.error "A toString() function should return a String!" cf.cf_pos; false
                 )
-              | _ -> List.mem cf.cf_name cl.cl_overrides
+              | _ -> List.memq cf cl.cl_overrides
             )
           | "hashCode" when not is_static ->
             (match cf.cf_type with
@@ -1404,9 +1404,9 @@ let configure gen =
                     true
                   | _ -> gen.gcon.error "A hashCode() function should return an Int!" cf.cf_pos; false
                 )
-              | _ -> List.mem cf.cf_name cl.cl_overrides
+              | _ -> List.memq cf cl.cl_overrides
             )
-          | _ -> List.mem cf.cf_name cl.cl_overrides
+          | _ -> List.memq cf cl.cl_overrides
         in
         let visibility = if is_interface then "" else "public" in
 

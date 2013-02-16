@@ -1839,7 +1839,7 @@ struct
                   let var = { eexpr = TField({ eexpr = TConst(TThis); epos = cf.cf_pos; etype = TInst(cl, List.map snd cl.cl_types); }, FInstance(cl, cf)); etype = cf.cf_type; epos = cf.cf_pos } in
                   let ret = ({ eexpr = TBinop(Ast.OpAssign, var, e); etype = cf.cf_type; epos = cf.cf_pos; }) in
                   cf.cf_expr <- None;
-                  let is_override = List.mem cf.cf_name cl.cl_overrides in
+                  let is_override = List.memq cf cl.cl_overrides in
 
                   if is_override then begin
                     cl.cl_ordered_fields <- List.filter (fun f -> f.cf_name <> cf.cf_name) cl.cl_ordered_fields;
@@ -1856,7 +1856,7 @@ struct
 
                   let ret = ({ eexpr = TBinop(Ast.OpAssign, var, change_expr e); etype = fn cf.cf_type; epos = cf.cf_pos; }) in
                   cf.cf_expr <- None;
-                  let is_override = List.mem cf.cf_name cl.cl_overrides in
+                  let is_override = List.memq cf cl.cl_overrides in
 
                   if is_override then begin
                     cl.cl_ordered_fields <- List.filter (fun f -> f.cf_name <> cf.cf_name) cl.cl_ordered_fields;
@@ -2891,7 +2891,7 @@ struct
         (* add invoke function to the class *)
         cls.cl_ordered_fields <- invoke_field :: cls.cl_ordered_fields;
         cls.cl_fields <- PMap.add invoke_field.cf_name invoke_field cls.cl_fields;
-        cls.cl_overrides <- invoke_field.cf_name :: cls.cl_overrides;
+        cls.cl_overrides <- invoke_field :: cls.cl_overrides;
 
         (* add this class to the module with gadd_to_module *)
         ft.fgen.gadd_to_module (TClassDecl(cls)) priority;
@@ -6440,7 +6440,7 @@ struct
         ) new_fields;
 
         cl.cl_ordered_fields <- cl.cl_ordered_fields @ (delete :: new_fields);
-        if is_override then cl.cl_overrides <- delete.cf_name :: cl.cl_overrides
+        if is_override then cl.cl_overrides <- delete :: cl.cl_overrides
       end
     end else if not is_override then begin
       let delete = get_delete_field ctx cl false in
@@ -6517,7 +6517,7 @@ struct
       cl.cl_fields <- PMap.add create_empty.cf_name create_empty cl.cl_fields;
       cl.cl_fields <- PMap.add create.cf_name create cl.cl_fields;
       if is_override then begin
-        cl.cl_overrides <- create_empty.cf_name :: create.cf_name :: cl.cl_overrides
+        cl.cl_overrides <- create_empty :: create :: cl.cl_overrides
       end
     end else begin
       cl.cl_ordered_statics <- cl.cl_ordered_statics @ [create_empty; create];
@@ -6629,7 +6629,7 @@ struct
       cl.cl_ordered_fields <- cl.cl_ordered_fields @ cfs;
       List.iter (fun cf ->
         cl.cl_fields <- PMap.add cf.cf_name cf cl.cl_fields;
-        if is_override then cl.cl_overrides <- cf.cf_name :: cl.cl_overrides
+        if is_override then cl.cl_overrides <- cf :: cl.cl_overrides
       ) cfs
     in
 
@@ -6870,7 +6870,7 @@ struct
         cl.cl_ordered_fields <- cl.cl_ordered_fields @ [cfield];
         cl.cl_fields <- PMap.add fun_name cfield cl.cl_fields;
 
-        (if is_override then cl.cl_overrides <- fun_name :: cl.cl_overrides)
+        (if is_override then cl.cl_overrides <- cfield  :: cl.cl_overrides)
       end else ()
     in
     (if ctx.rcf_float_special_case then mk_cfield true true);
@@ -6940,7 +6940,7 @@ struct
       let cf = mk_class_field name t false pos (Method MethNormal) [] in
       cl.cl_ordered_fields <- cl.cl_ordered_fields @ [cf];
       cl.cl_fields <- PMap.add cf.cf_name cf cl.cl_fields;
-      (if is_override cl then cl.cl_overrides <- name :: cl.cl_overrides);
+      (if is_override cl then cl.cl_overrides <- cf :: cl.cl_overrides);
       (*
         var newarr = ["field1", "field2"] ...;
       *)
@@ -7000,7 +7000,7 @@ struct
         List.map (fun (_,cf) ->
           match cf.cf_kind with
             | Var _
-            | Method MethDynamic when not (List.mem cf.cf_name cl.cl_overrides) ->
+            | Method MethDynamic when not (List.memq cf cl.cl_overrides) ->
               has_value := true;
               mk_push { eexpr = TConst(TString(cf.cf_name)); etype = basic.tstring; epos = pos }
             | _ -> null basic.tvoid pos
@@ -7072,7 +7072,7 @@ struct
       (if !has_value || (not (is_override cl)) then begin
         cl.cl_ordered_fields <- cl.cl_ordered_fields @ [cf];
         cl.cl_fields <- PMap.add cf.cf_name cf cl.cl_fields;
-        (if is_override cl then cl.cl_overrides <- name :: cl.cl_overrides)
+        (if is_override cl then cl.cl_overrides <- cf :: cl.cl_overrides)
       end);
       cf.cf_expr <- Some { eexpr = TFunction(fn); etype = t; epos = pos }
     in
@@ -7100,7 +7100,7 @@ struct
     let register_cf cf override =
       cl.cl_ordered_fields <- cf :: cl.cl_ordered_fields;
       cl.cl_fields <- PMap.add cf.cf_name cf cl.cl_fields;
-      if override then cl.cl_overrides <- cf.cf_name :: cl.cl_overrides
+      if override then cl.cl_overrides <- cf :: cl.cl_overrides
     in
     (* register_cf cf false; *)
 
@@ -7300,7 +7300,7 @@ struct
     cl.cl_ordered_statics <- cl.cl_ordered_statics @ all_f;
     List.iter (fun cf -> cl.cl_statics <- PMap.add cf.cf_name cf cl.cl_statics) all_f;
 
-    if is_override cl then cl.cl_overrides <- get_cl.cf_name :: cl.cl_overrides
+    if is_override cl then cl.cl_overrides <- get_cl :: cl.cl_overrides
 
   let implement_invokeField ctx ~slow_invoke cl =
     (*
@@ -7407,7 +7407,7 @@ struct
       in
 
       let cfs = List.filter (fun (_,cf) -> match cf.cf_kind with
-        | Method _ -> if List.mem cf.cf_name cl.cl_overrides then false else true
+        | Method _ -> if List.memq cf cl.cl_overrides then false else true
         | _ -> true) cfs
       in
 
@@ -7456,7 +7456,7 @@ struct
         | None -> nonstatics
         | Some _ ->
           List.filter (fun (n,cf) ->
-            let is_old = not (PMap.mem cf.cf_name cl.cl_fields) || List.mem cf.cf_name cl.cl_overrides in
+            let is_old = not (PMap.mem cf.cf_name cl.cl_fields) || List.memq cf cl.cl_overrides in
             (if is_old then old_nonstatics := cf :: !old_nonstatics);
             not is_old
           ) nonstatics
@@ -7485,7 +7485,7 @@ struct
     if !is_override && not (!has_method) then () else begin
       cl.cl_ordered_fields <- cl.cl_ordered_fields @ [dyn_fun];
       cl.cl_fields <- PMap.add dyn_fun.cf_name dyn_fun cl.cl_fields;
-      (if !is_override then cl.cl_overrides <- dyn_fun.cf_name :: cl.cl_overrides)
+      (if !is_override then cl.cl_overrides <- dyn_fun :: cl.cl_overrides)
     end
 
   let implement_varargs_cl ctx cl =
@@ -7541,7 +7541,7 @@ struct
     ) all_cfs;
 
     List.iter (fun cf ->
-      cl.cl_overrides <- cf.cf_name :: cl.cl_overrides
+      cl.cl_overrides <- cf :: cl.cl_overrides
     ) cl.cl_ordered_fields
 
   let implement_closure_cl ctx cl =
@@ -7604,7 +7604,7 @@ struct
     let all_cfs = List.filter (fun cf -> cf.cf_name <> "new" && match cf.cf_kind with Method _ -> true | _ -> false) (ctx.rcf_ft.map_base_classfields cl true map_fn) in
 
     List.iter (fun cf ->
-      cl.cl_overrides <- cf.cf_name :: cl.cl_overrides
+      cl.cl_overrides <- cf :: cl.cl_overrides
     ) all_cfs;
     let all_cfs = cfs @ all_cfs in
 
@@ -7737,7 +7737,7 @@ struct
 
           (if static then cl.cl_statics <- PMap.add new_name new_cf cl.cl_statics else cl.cl_fields <- PMap.add new_name new_cf cl.cl_fields);
 
-          if not static && PMap.mem new_name last_fields then cl.cl_overrides <- new_name :: cl.cl_overrides
+          if not static && PMap.mem new_name last_fields then cl.cl_overrides <- new_cf :: cl.cl_overrides
         | _ -> ()
     in
 
@@ -9468,7 +9468,7 @@ struct
           cl.cl_overrides <- List.filter (fun s ->
             let rec loop cl =
               match cl.cl_super with
-                | Some (cl,_) when PMap.mem s cl.cl_fields -> true
+                | Some (cl,_) when PMap.mem s.cf_name cl.cl_fields -> true
                 | Some (cl,_) -> loop cl
                 | None -> false
             in

@@ -1291,7 +1291,7 @@ let configure gen =
       | Method mkind ->
         let is_virtual = not is_final && match mkind with | MethInline -> false | _ when not is_new -> true | _ -> false in
         let is_virtual = if not is_virtual || Meta.has Meta.Final cf.cf_meta then false else is_virtual in
-        let is_override = List.mem cf.cf_name cl.cl_overrides in
+        let is_override = List.memq cf cl.cl_overrides in
         let is_override = is_override || match cf.cf_name, follow cf.cf_type with
           | "Equals", TFun([_,_,targ], tret) ->
             (match follow targ, follow tret with
@@ -1409,7 +1409,7 @@ let configure gen =
       ) cl.cl_implements
     end);
     if is_some cl.cl_array_access then begin
-      if not cl.cl_interface && PMap.mem "__get" cl.cl_fields && PMap.mem "__set" cl.cl_fields && not (List.mem "__get" cl.cl_overrides) then begin
+      if not cl.cl_interface && PMap.mem "__get" cl.cl_fields && PMap.mem "__set" cl.cl_fields && not (List.exists (fun c -> c.cf_name = "__get") cl.cl_overrides) then begin
         let get = PMap.find "__get" cl.cl_fields in
         let idx_t, v_t = match follow get.cf_type with
           | TFun([_,_,arg_t],ret_t) ->
@@ -1444,7 +1444,7 @@ let configure gen =
     end;
     (try
       let cf = PMap.find "toString" cl.cl_fields in
-      (if List.mem "toString" cl.cl_overrides then raise Not_found);
+      (if List.exists (fun c -> c.cf_name = "toString") cl.cl_overrides then raise Not_found);
       (match cf.cf_type with
         | TFun([], ret) ->
           (match real_type ret with
