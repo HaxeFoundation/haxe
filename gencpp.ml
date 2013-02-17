@@ -1453,9 +1453,11 @@ and gen_expression ctx retval expression =
 		| _ ->
 			gen_expression ctx true field_object;
          ctx.ctx_dbgout "/* TField */";
-         if (is_internal_member member) then begin
+         (* toString is the only internal member that can be set... *)
+         let settingInternal = assigning && member="toString" in
+         if (is_internal_member member && not settingInternal) then begin
 				output ( "->" ^ member );
-         end else if (is_dynamic_member_lookup_in_cpp ctx field_object member) then begin
+         end else if (settingInternal || is_dynamic_member_lookup_in_cpp ctx field_object member) then begin
             if assigning then
 				    output ( "->__FieldRef(" ^ (str member) ^ ")" )
             else
