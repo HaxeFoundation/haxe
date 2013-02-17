@@ -343,7 +343,7 @@ extern class JQuery implements ArrayAccess<Element> {
 
 	// haXe addition
 	@:runtime inline function iterator() : Iterator<JQuery> {
-		return untyped this["iterator"]();
+		return untyped __define_feature__('js.JQuery.iterator', this["iterator"])();
 	}
 
 	/**

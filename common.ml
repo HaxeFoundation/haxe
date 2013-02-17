@@ -555,6 +555,7 @@ let rec has_feature com f =
 				let path = List.rev pack, cl in
 				(match List.find (fun t -> t_path t = path && not (Ast.Meta.has Ast.Meta.RealPath (t_infos t).mt_meta)) com.types with
 				| t when meth = "*" -> (match t with TAbstractDecl a -> Ast.Meta.has Ast.Meta.ValueUsed a.a_meta | _ -> Ast.Meta.has Ast.Meta.Used (t_infos t).mt_meta)
+				| TClassDecl ({cl_extern = true} as c) -> Meta.has Meta.Used (try PMap.find meth c.cl_statics with Not_found -> PMap.find meth c.cl_fields).cf_meta
 				| TClassDecl c -> PMap.exists meth c.cl_statics || PMap.exists meth c.cl_fields
 				| _ -> false)
 			with Not_found ->
