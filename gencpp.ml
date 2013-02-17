@@ -3403,14 +3403,15 @@ let create_super_dependencies common_ctx =
 	let result = Hashtbl.create 0 in
 	List.iter (fun object_def ->
 		(match object_def with
-		| TClassDecl class_def ->
+		| TClassDecl class_def when not class_def.cl_extern ->
 			let deps = ref [] in
 			(match class_def.cl_super with Some super ->
-				deps := ((fst super).cl_path) :: !deps
+            if not (fst super).cl_extern then
+				   deps := ((fst super).cl_path) :: !deps
 			| _ ->() );
 			List.iter (fun imp -> deps := (fst imp).cl_path :: !deps) (real_interfaces class_def.cl_implements);
 			Hashtbl.add result class_def.cl_path !deps;
-		| TEnumDecl enum_def ->
+		| TEnumDecl enum_def when not enum_def.e_extern ->
 			Hashtbl.add result enum_def.e_path [];
 		| _ -> () );
 		) common_ctx.types;
@@ -3420,7 +3421,7 @@ let create_constructor_dependencies common_ctx =
 	let result = Hashtbl.create 0 in
 	List.iter (fun object_def ->
 		(match object_def with
-		| TClassDecl class_def ->
+		| TClassDecl class_def when not class_def.cl_extern ->
 			(match class_def.cl_constructor with
            | Some func_def -> Hashtbl.add result class_def.cl_path func_def
            | _ -> () )
@@ -3523,8 +3524,9 @@ let gen_extern_class common_ctx class_def file_info =
 	(match c.cl_constructor with
 	| None -> ()
 	| Some f -> print_field false f);
-	List.iter (print_field false) c.cl_ordered_fields;
-	List.iter (print_field true) c.cl_ordered_statics;
+   let is_public f = f.cf_public in
+	List.iter (print_field false) (List.filter is_public c.cl_ordered_fields);
+	List.iter (print_field true) (List.filter is_public c.cl_ordered_statics);
 	output "}";
    output "\n";
 	file#close
@@ -3599,6 +3601,7 @@ let generate common_ctx =
                member_types super_deps constructor_deps class_def file_info scriptable in
 				exe_classes := (class_def.cl_path, deps)  ::  !exe_classes;
 			end
+		| TEnumDecl enum_def when enum_def.e_extern -> ()
 		| TEnumDecl enum_def ->
 			let name =  class_text enum_def.e_path in
          if (gen_externs) then gen_extern_enum common_ctx enum_def file_info;
