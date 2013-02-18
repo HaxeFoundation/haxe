@@ -144,7 +144,16 @@ let make_path f =
 		| ["hx";path] -> ExtString.String.nsplit path "/"
 		| _ -> cl
 	) in
-	let error() = failwith ("Invalid class name " ^ f) in
+	let error() =
+		let msg =
+			if String.length f == 0 then
+				"Class name must not be empty"
+			else match f.[0] with
+				| 'A'..'Z' -> "Invalid class name"
+				| _ -> "Class name must start with uppercase character"
+		in
+		failwith msg
+	in
 	let invalid_char x =
 		for i = 1 to String.length x - 1 do
 			match x.[i] with
