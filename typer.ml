@@ -2326,7 +2326,12 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		]) v.v_type p
 	| EArrayDecl ((EBinop(OpArrow,_,_),_) as e1 :: el) ->
 		let keys = Hashtbl.create 0 in
-		let tkey,tval = mk_mono(),mk_mono() in
+		let tkey,tval = match with_type with
+			| WithType (TAbstract({a_path=[],"Map"},[tk;tv]))
+			| WithTypeResume (TAbstract({a_path=[],"Map"},[tk;tv])) ->
+				tk,tv
+			| _ -> mk_mono(),mk_mono()
+		in
 		let type_arrow e1 e2 =
 			let e1 = type_expr ctx e1 (WithType tkey) in
 			try
