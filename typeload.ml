@@ -1376,11 +1376,11 @@ let init_class ctx c p context_init herits fields =
 					if Meta.has Meta.From f.cff_meta then begin
 						let ta = TAbstract(a, List.map (fun _ -> mk_mono()) a.a_types) in
 						if not (type_iseq ret ta) then raise (Error (Unify [Cannot_unify (ret,ta)],p));
-						unify ctx t (tfun [m] ta) f.cff_pos;
+						(try unify_raise ctx t (tfun [m] ta) f.cff_pos with Error (Unify l,p) -> error (error_msg (Unify l)) p);
 						a.a_from <- (follow m, Some cf) :: a.a_from
 					end else if Meta.has Meta.To f.cff_meta then begin
 						let ta = monomorphs a.a_types (monomorphs params a.a_this) in
-						unify ctx t (tfun [ta] m) f.cff_pos;
+						(try unify_raise ctx t (tfun [ta] m) f.cff_pos with Error (Unify l,p) -> error (error_msg (Unify l)) p);
 						if not (Meta.has Meta.Impl cf.cf_meta) then cf.cf_meta <- (Meta.Impl,[],cf.cf_pos) :: cf.cf_meta;
 						a.a_to <- (follow m, Some cf) :: a.a_to
 					end else if Meta.has Meta.ArrayAccess f.cff_meta then begin
