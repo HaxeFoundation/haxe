@@ -1375,6 +1375,7 @@ let init_class ctx c p context_init herits fields =
 					let m = mk_mono() in
 					if Meta.has Meta.From f.cff_meta then begin
 						let ta = TAbstract(a, List.map (fun _ -> mk_mono()) a.a_types) in
+						if not (type_iseq ret ta) then raise (Error (Unify [Cannot_unify (ret,ta)],p));
 						unify ctx t (tfun [m] ta) f.cff_pos;
 						a.a_from <- (follow m, Some cf) :: a.a_from
 					end else if Meta.has Meta.To f.cff_meta then begin
