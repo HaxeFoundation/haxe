@@ -1061,7 +1061,7 @@ let rec collapse_case el = match el with
 		assert false
 
 let match_expr ctx e cases def with_type p =
-	let need_val, wtype = (match with_type with NoValue -> false, None | Value -> true, None | WithType t | WithTypeResume t -> true, Some t) in
+	let need_val = match with_type with NoValue -> false | _ -> true in
 	let cases = match cases,def with
 		| [],None -> []
 		| cases,Some def ->
@@ -1129,7 +1129,10 @@ let match_expr ctx e cases def with_type p =
 					let monos = List.map (fun _ -> mk_mono()) ctx.type_params in
 					let t = apply_params ctx.type_params monos t in
 					let pl = [add_pattern_locals (to_pattern ctx ep t)] in
-					pl,(match wtype with Some t -> WithType (apply_params ctx.type_params monos t) | _ -> with_type);
+					pl,(match with_type with
+						| WithType t -> WithType (apply_params ctx.type_params monos t)
+						| WithTypeResume t -> WithTypeResume (apply_params ctx.type_params monos t)
+						| _ -> with_type);
 				| tl ->
 					let t = monomorphs ctx.type_params (tfun tl fake_tuple_type) in
 					[add_pattern_locals (to_pattern ctx ep t)],with_type)
@@ -1140,7 +1143,10 @@ let match_expr ctx e cases def with_type p =
 			| None -> mk (TBlock []) ctx.com.basic.tvoid (punion_el el)
 			| Some e ->
 				let e = type_expr ctx e with_type in
-				(match with_type with WithType t -> unify ctx e.etype t e.epos | _ -> ());
+				(match with_type with
+				| WithType t -> unify ctx e.etype t e.epos
+				| WithTypeResume t -> (try unify_raise ctx e.etype t e.epos with Error (Unify l,p) -> raise (Typer.WithTypeError (l,p)) )
+				| _ -> ());
 				e
 		in
 		let eg = match eg with None -> None | Some e -> Some (type_expr ctx e Value) in
@@ -1160,9 +1166,9 @@ let match_expr ctx e cases def with_type p =
 		end) mctx.outcomes;
 		let t = if not need_val then
 			mk_mono()
-		else match wtype with
-			| Some t -> t
-			| None -> try Typer.unify_min_raise ctx (List.rev_map (fun (_,out) -> out.o_expr) (List.rev pl)) with Error (Unify l,p) -> error (error_msg (Unify l)) p
+		else match with_type with
+			| WithType t | WithTypeResume t -> t
+			| _ -> try Typer.unify_min_raise ctx (List.rev_map (fun (_,out) -> out.o_expr) (List.rev pl)) with Error (Unify l,p) -> error (error_msg (Unify l)) p
 		in
 		let e = to_typed_ast mctx dt in
 		let e = { e with epos = p} in

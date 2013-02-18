@@ -2326,11 +2326,14 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		]) v.v_type p
 	| EArrayDecl ((EBinop(OpArrow,_,_),_) as e1 :: el) ->
 		let keys = Hashtbl.create 0 in
-		let tkey,tval = match with_type with
-			| WithType (TAbstract({a_path=[],"Map"},[tk;tv]))
-			| WithTypeResume (TAbstract({a_path=[],"Map"},[tk;tv])) ->
-				tk,tv
-			| _ -> mk_mono(),mk_mono()
+		let tkey,tval,resume = match with_type with
+			| WithType (TAbstract({a_path=[],"Map"},[tk;tv])) -> tk,tv,false
+			| WithTypeResume (TAbstract({a_path=[],"Map"},[tk;tv])) -> tk,tv,true
+			| _ -> mk_mono(),mk_mono(),false
+		in
+		let unify_with_resume ctx a b p =
+			if resume then try unify_raise ctx a b p with Error (Unify l,p) -> raise (WithTypeError(l,p))
+			else unify ctx a b p
 		in
 		let type_arrow e1 e2 =
 			let e1 = type_expr ctx e1 (WithType tkey) in
@@ -2340,9 +2343,9 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				error "Previously defined here" p
 			with Not_found ->
 				Hashtbl.add keys e1.eexpr e1.epos;
-				unify ctx e1.etype tkey e1.epos;
+				unify_with_resume ctx e1.etype tkey e1.epos;
 				let e2 = type_expr ctx e2 (WithType tval) in
-				unify ctx e2.etype tval e2.epos;
+				unify_with_resume ctx e2.etype tval e2.epos;
 				e1,e2
 		in
 		let m = Typeload.load_module ctx ([],"Map") null_pos in
