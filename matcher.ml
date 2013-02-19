@@ -1183,7 +1183,7 @@ let match_expr ctx e cases def with_type p =
 			| _ -> assert false
 		end;
 		let e = to_typed_ast mctx dt in
-		let e = { e with epos = p} in
+		let e = { e with epos = p; etype = t} in
 		if !var_inits = [] then
 			e
 		else begin
