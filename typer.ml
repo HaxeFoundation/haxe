@@ -399,21 +399,34 @@ let unify_min ctx el =
 		if not ctx.untyped then display_error ctx (error_msg (Unify l)) p;
 		(List.hd el).etype
 
-let rec unify_call_params ctx cf el args r p inline =
+let rec unify_call_params ctx ?(overloads=None) cf el args r p inline =
+	let overloads = match cf, overloads with
+		| Some(TInst(c,pl),f), None when ctx.com.config.pf_overload ->
+				let overloads = Typeload.get_overloads c f.cf_name in
+				if overloads = [] then (* is static function *)
+					List.map (fun f -> f.cf_type, f) f.cf_overloads
+				else
+					overloads
+		| Some(_,f), None ->
+				List.map (fun f -> f.cf_type, f) f.cf_overloads
+		| _, Some s ->
+				s
+		| _ -> []
+	in
 	let next() =
-		match cf with
-		| Some (TInst(c,pl),{ cf_overloads = o :: l }) ->
-			let args, ret = (match field_type ctx c pl o p with
+		match cf, overloads with
+		| Some (TInst(c,pl),_), (ft,o) :: l ->
+			let args, ret = (match follow (apply_params c.cl_types pl (field_type ctx c pl o p)) with (* I'm getting non-followed types here. Should it happen? *)
 				| TFun (tl,t) -> tl, t
 				| _ -> assert false
 			) in
-			Some (unify_call_params ctx (Some (TInst(c,pl),{ o with cf_overloads = l })) el args ret p inline)
-		| Some (t,{ cf_overloads = o :: l }) ->
+			Some (unify_call_params ctx ~overloads:(Some l) (Some (TInst(c,pl),{ o with cf_type = ft })) el args ret p inline)
+		| Some (t,_), (_,o) :: l ->
 			let args, ret = (match Type.field_type o with
 				| TFun (tl,t) -> tl, t
 				| _ -> assert false
 			) in
-			Some (unify_call_params ctx (Some (t, { o with cf_overloads = l })) el args ret p inline)
+			Some (unify_call_params ctx ~overloads:(Some l) (Some (t, o)) el args ret p inline)
 		| _ ->
 			None
 	in

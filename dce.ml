@@ -391,7 +391,10 @@ let run com main full =
 				mark_t dce cf.cf_type
 			) cfl;
 			(* follow expressions to new types/fields *)
-			List.iter (fun (_,cf,_) -> opt (expr dce) cf.cf_expr) cfl;
+			List.iter (fun (_,cf,_) ->
+				opt (expr dce) cf.cf_expr;
+				List.iter (fun cf -> if cf.cf_expr <> None then opt (expr dce) cf.cf_expr) cf.cf_overloads
+			) cfl;
 			loop ()
 	in
 	loop ();

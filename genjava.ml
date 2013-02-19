@@ -1362,7 +1362,7 @@ let configure gen =
         (params, String.concat " " params_extends)
   in
 
-  let gen_class_field w is_static cl is_final cf =
+  let rec gen_class_field w ?(is_overload=false) is_static cl is_final cf =
     let is_interface = cl.cl_interface in
     let name, is_new, is_explicit_iface = match cf.cf_name with
       | "new" -> snd cl.cl_path, true, false
@@ -1374,6 +1374,8 @@ let configure gen =
     (match cf.cf_kind with
       | Var _
       | Method (MethDynamic) ->
+        (if is_overload || List.exists (fun cf -> cf.cf_expr <> None) cf.cf_overloads then
+          gen.gcon.error "Only normal (non-dynamic) methods can be overloaded" cf.cf_pos);
         if not is_interface then begin
           let access, modifiers = get_fun_modifiers cf.cf_meta "public" [] in
           print w "%s %s%s %s %s" access (if is_static then "static " else "") (String.concat " " modifiers) (t_s cf.cf_pos (run_follow gen cf.cf_type)) (change_field name);
@@ -1386,6 +1388,10 @@ let configure gen =
           )
         end (* TODO see how (get,set) variable handle when they are interfaces *)
       | Method mkind ->
+        List.iter (fun cf ->
+          if cl.cl_interface || cf.cf_expr <> None then
+            gen_class_field w ~is_overload:true is_static cl (Meta.has Meta.Final cf.cf_meta) cf
+        ) cf.cf_overloads;
         let is_virtual = is_new || (not is_final && match mkind with | MethInline -> false | _ when not is_new -> true | _ -> false) in
         let is_override = match cf.cf_name with
           | "equals" when not is_static ->
@@ -1426,7 +1432,7 @@ let configure gen =
         let visibility, modifiers = get_fun_modifiers cf.cf_meta visibility [] in
         let visibility, is_virtual = if is_explicit_iface then "",false else visibility, is_virtual in
         let v_n = if is_static then "static " else if is_override && not is_interface then "" else if not is_virtual then "final " else "" in
-        let cf_type = if is_override then match field_access gen (TInst(cl, List.map snd cl.cl_types)) cf.cf_name with | FClassField(_,_,_,_,_,actual_t) -> actual_t | _ -> assert false else cf.cf_type in
+        let cf_type = if is_override && not is_overload && not (Meta.has Meta.Overload cf.cf_meta) then match field_access gen (TInst(cl, List.map snd cl.cl_types)) cf.cf_name with | FClassField(_,_,_,_,_,actual_t) -> actual_t | _ -> assert false else cf.cf_type in
 
         let params = List.map snd cl.cl_types in
         let ret_type, args = match follow cf_type, follow cf.cf_type with

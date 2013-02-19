@@ -1248,7 +1248,7 @@ let configure gen =
         (params, String.concat " " params_extends)
   in
 
-  let gen_class_field w is_static cl is_final cf =
+  let rec gen_class_field w ?(is_overload=false) is_static cl is_final cf =
     let is_interface = cl.cl_interface in
     let name, is_new, is_explicit_iface = match cf.cf_name with
       | "new" -> snd cl.cl_path, true, false
@@ -1276,6 +1276,8 @@ let configure gen =
     (match cf.cf_kind with
       | Var _
       | Method (MethDynamic) ->
+        (if is_overload || List.exists (fun cf -> cf.cf_expr <> None) cf.cf_overloads then
+          gen.gcon.error "Only normal (non-dynamic) methods can be overloaded" cf.cf_pos);
         if not is_interface then begin
           let access, modifiers = get_fun_modifiers cf.cf_meta "public" [] in
           let modifiers = modifiers @ modf in
@@ -1289,6 +1291,10 @@ let configure gen =
           )
         end (* TODO see how (get,set) variable handle when they are interfaces *)
       | Method mkind ->
+        List.iter (fun cf ->
+          if cl.cl_interface || cf.cf_expr <> None then
+            gen_class_field w ~is_overload:true is_static cl (Meta.has Meta.Final cf.cf_meta) cf
+        ) cf.cf_overloads;
         let is_virtual = not is_final && match mkind with | MethInline -> false | _ when not is_new -> true | _ -> false in
         let is_virtual = if not is_virtual || Meta.has Meta.Final cf.cf_meta then false else is_virtual in
         let is_override = List.memq cf cl.cl_overrides in

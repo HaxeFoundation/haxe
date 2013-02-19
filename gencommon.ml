@@ -1125,6 +1125,28 @@ let mk_paren e =
 let rec get_last_ctor cl =
   Option.map_default (fun (super,_) -> if is_some super.cl_constructor then Some(get super.cl_constructor) else get_last_ctor super) None cl.cl_super
 
+let add_constructor cl cf =
+  match cl.cl_constructor with
+  | None -> cl.cl_constructor <- Some cf
+  | Some ctor ->
+      if ctor != cf && not (List.memq cf ctor.cf_overloads) then
+        ctor.cf_overloads <- cf :: ctor.cf_overloads
+
+(* replace open TMonos with TDynamic *)
+let rec replace_mono t =
+  match follow t with
+  | TMono t -> t := Some t_dynamic
+  | TEnum (_,p) | TInst (_,p) | TType (_,p) | TAbstract (_,p) ->
+      List.iter replace_mono p
+  | TFun (args,ret) ->
+      List.iter (fun (_,_,t) -> replace_mono t) args;
+      replace_mono ret
+  | TAnon a ->
+      PMap.iter (fun _ f -> replace_mono f.cf_type) a.a_fields
+  | TDynamic _ -> ()
+  | _ -> assert false
+
+
 (* helper *)
 let mk_class_field name t public pos kind params =
   {
@@ -1451,15 +1473,20 @@ struct
         | _ -> ()
       );
 
-      let rec get_last_static_ctor cl params =
+      let rec get_last_static_ctor cl params mayt =
         match cl.cl_super with
           | None -> None
           | Some (super,tl) ->
             let params = List.map (apply_params cl.cl_types params) tl in
-            if PMap.mem static_ctor_name super.cl_statics then
-              Some(mk_static_field_access_infer super static_ctor_name super.cl_pos params)
-            else
-              get_last_static_ctor super params
+            try
+              let cf = PMap.find static_ctor_name super.cl_statics in
+              (match mayt with
+                | None -> Some (cf, super, tl)
+                | Some argst ->
+                    let chosen_cf = List.find (fun cf -> try unify (apply_params cf.cf_params tl cf.cf_type) argst; true with | Unify_error _ -> false) (cf :: cf.cf_overloads) in
+                    Some(chosen_cf, super, tl))
+            with | Not_found ->
+              get_last_static_ctor super params mayt
       in
 
       let rec prev_ctor cl =
@@ -1479,7 +1506,7 @@ struct
 
       (* check if we have a constructor right now *)
       let do_empty_only and_no_args_too =
-        let super = match get_last_static_ctor cl (List.map snd cl.cl_types) with
+        let super = match get_last_static_ctor cl (List.map snd cl.cl_types) None with
           | None ->
             { eexpr = TCall({ eexpr = TConst(TSuper); etype = TInst(cl, List.map snd cl.cl_types); epos = cl.cl_pos }, []); etype = basic.tvoid; epos = cl.cl_pos }
           | Some _ ->
@@ -1495,9 +1522,8 @@ struct
           etype = empty_ctor.cf_type;
           epos = empty_ctor.cf_pos
         };
+        empty_ctor.cf_meta <- [Meta.SkipCtor, [], empty_ctor.cf_pos];
 
-        cl.cl_ordered_fields <- empty_ctor :: cl.cl_ordered_fields;
-        cl.cl_fields <- PMap.add "new" empty_ctor cl.cl_fields;
         if and_no_args_too then begin
           let noargs_ctor = mk_class_field "new" (TFun([],basic.tvoid)) false cl.cl_pos (Method MethNormal) [] in
           noargs_ctor.cf_expr <- Some {
@@ -1509,9 +1535,10 @@ struct
           etype = noargs_ctor.cf_type;
           epos = noargs_ctor.cf_pos
         };
+        add_constructor cl noargs_ctor
+        end;
 
-        cl.cl_constructor <- Some noargs_ctor
-        end
+        add_constructor cl empty_ctor
       in
 
       let cur_ctor =
@@ -1528,38 +1555,43 @@ struct
               | Some ctor when not supports_ctor_inheritance ->
                 (* if there are and not supports_ctor_inheritance, we need to create the constructors anyway *)
                 (* create a constructor that only receives its arguments and calls super with them *)
-                let new_ctor = mk_class_field "new" ctor.cf_type ctor.cf_public cl.cl_pos (Method MethNormal) [] in
-                let args, _ = get_fun ctor.cf_type in
-                let tf_args = List.map (fun (name,_,t) ->
-                  (* the constructor will have no optional arguments, as presumably this will be handled by the underlying expr *)
-                  (alloc_var name t, None)
-                ) args in
-                let super_call =
-                {
-                  eexpr = TCall(
-                    { eexpr = TConst(TSuper); etype = TInst(cl, List.map snd cl.cl_types); epos = ctor.cf_pos },
-                    List.map (fun (v,_) -> mk_local v ctor.cf_pos) tf_args);
-                  etype = basic.tvoid;
-                  epos = ctor.cf_pos
-                } in
-                new_ctor.cf_expr <- Some ({
-                  eexpr = TFunction({
-                    tf_args = tf_args;
-                    tf_type = basic.tvoid;
-                    tf_expr = mk_block super_call
+                List.iter (function
+                  | ctor when not (type_iseq (TFun(["empty",false,empty_ctor_type], gen.gcon.basic.tvoid)) ctor.cf_type) ->
+                  let new_ctor = mk_class_field "new" ctor.cf_type ctor.cf_public cl.cl_pos (Method MethNormal) [] in
+                  let args, _ = get_fun ctor.cf_type in
+                  let tf_args = List.map (fun (name,_,t) ->
+                    (* the constructor will have no optional arguments, as presumably this will be handled by the underlying expr *)
+                    (alloc_var name t, None)
+                  ) args in
+                  let super_call =
+                  {
+                    eexpr = TCall(
+                      { eexpr = TConst(TSuper); etype = TInst(cl, List.map snd cl.cl_types); epos = ctor.cf_pos },
+                      List.map (fun (v,_) -> mk_local v ctor.cf_pos) tf_args);
+                    etype = basic.tvoid;
+                    epos = ctor.cf_pos
+                  } in
+                  new_ctor.cf_expr <- Some ({
+                    eexpr = TFunction({
+                      tf_args = tf_args;
+                      tf_type = basic.tvoid;
+                      tf_expr = mk_block super_call
+                    });
+                    etype = ctor.cf_type;
+                    epos = ctor.cf_pos
                   });
-                  etype = ctor.cf_type;
-                  epos = ctor.cf_pos
-                });
-                cl.cl_constructor <- Some new_ctor;
-
-                Some new_ctor
+                  add_constructor cl new_ctor;
+                | _ -> ()) (ctor :: ctor.cf_overloads);
+                cl.cl_constructor
               | _ ->
                 do_empty_only true;
                 None
       in
+
+      let rec create_static_ctor cur_ctor is_overload =
       match cur_ctor with
         | None -> ()
+        | Some ctor when Meta.has Meta.SkipCtor ctor.cf_meta -> ()
         | Some ctor ->
           (* now that we are sure to have a constructor:
               change its contents to reference 'me' var whenever 'this' is referenced
@@ -1605,16 +1637,21 @@ struct
 
           let super_call = ref None in
           let change_super_to, mk_supers =
-            let last_static_ctor = get_last_static_ctor cl (List.map snd ctor_types) in
             let change_super_to scall params =
+              let argst = TFun(("me",false,me.v_type) :: List.map (fun e -> replace_mono e.etype; "arg",false,e.etype) params, gen.gcon.basic.tvoid) in
+              let last_static_ctor = get_last_static_ctor cl (List.map snd ctor_types) (Some argst) in
               super_call := Some scall;
               match last_static_ctor with
                 | None ->
                   if is_super_first then
-                    { eexpr = TConst(TNull); etype = t_dynamic; epos = scall.epos }
+                    { eexpr = TBlock []; etype = t_dynamic; epos = scall.epos }
                   else
                     ( gen.gcon.error "Super call must be the first call when extending native types." scall.epos; assert false )
-                | Some e -> { scall with eexpr = TCall(e, [mk_local me scall.epos] @ params) }
+                | Some (chosen_cf, csup, tlsup) ->
+                    { scall with eexpr = TCall(
+                      { eexpr = TField(mk_classtype_access csup scall.epos, FStatic(csup, chosen_cf)); etype = apply_params csup.cl_types tlsup chosen_cf.cf_type; epos = scall.epos },
+                      (mk_local me scall.epos) :: params
+                    )}
             in
 
             (*
@@ -1634,7 +1671,7 @@ struct
                     epos = cl.cl_pos
                   } in
 
-                  let ret = match last_static_ctor, !super_call with
+                  let ret = match get_last_static_ctor cl (List.map snd cl.cl_types) None, !super_call with
                     | None, Some super ->
                       (* it has an empty constructor, but we cannot call an out of placed super *)
                       super
@@ -1687,8 +1724,12 @@ struct
           static_ctor.cf_expr <- Some { eexpr = TFunction(mapped); etype = static_ctor.cf_type; epos = ctor.cf_pos };
           let normal_super, empty_super = mk_supers () in
 
-          cl.cl_ordered_statics <- static_ctor :: cl.cl_ordered_statics;
-          cl.cl_statics <- PMap.add static_ctor_name static_ctor cl.cl_statics;
+          (try
+            let sc = PMap.find static_ctor.cf_name cl.cl_statics in
+            sc.cf_overloads <- static_ctor :: sc.cf_overloads
+          with | Not_found ->
+            cl.cl_ordered_statics <- static_ctor :: cl.cl_ordered_statics;
+            cl.cl_statics <- PMap.add static_ctor_name static_ctor cl.cl_statics);
 
           let normal_super =
           {
@@ -1696,7 +1737,7 @@ struct
               normal_super;
               {
                 eexpr = TCall(
-                  mk_static_field_access cl static_ctor_name (apply_params ctor_types (List.map snd cl.cl_types) fn_type) ctor.cf_pos,
+                  { eexpr = TField(mk_classtype_access cl ctor.cf_pos, FStatic(cl,static_ctor)); etype = apply_params ctor_types (List.map snd cl.cl_types) fn_type; epos = ctor.cf_pos },
                   [ { eexpr = TConst(TThis); etype = TInst(cl, List.map snd cl.cl_types); epos = cl.cl_pos } ] @ List.map (fun (v,_) -> mk_local v ctor.cf_pos) changed_tf_args
                 );
                 etype = basic.tvoid;
@@ -1713,21 +1754,31 @@ struct
             epos = ctor.cf_pos;
           };
 
-          let empty_ctor = mk_class_field "new" (TFun(["empty",false,empty_ctor_type],basic.tvoid)) false cl.cl_pos (Method MethNormal) [] in
-          empty_ctor.cf_expr <- Some {
-            eexpr = TFunction {
-              tf_type = basic.tvoid;
-              tf_args = [alloc_var "empty" empty_ctor_type, None];
-              tf_expr = mk_block empty_super
+          List.iter (fun cf -> create_static_ctor (Some cf) true) ctor.cf_overloads;
+          if not is_overload then begin
+            let empty_ctor = mk_class_field "new" (TFun(["empty",false,empty_ctor_type],basic.tvoid)) false cl.cl_pos (Method MethNormal) [] in
+            empty_ctor.cf_meta <- [Meta.SkipCtor,[],empty_ctor.cf_pos];
+            empty_ctor.cf_expr <- Some {
+              eexpr = TFunction {
+                tf_type = basic.tvoid;
+                tf_args = [alloc_var "empty" empty_ctor_type, None];
+                tf_expr = mk_block empty_super
+              };
+              etype = empty_ctor.cf_type;
+              epos = empty_ctor.cf_pos
             };
-            etype = empty_ctor.cf_type;
-            epos = empty_ctor.cf_pos
-          };
 
-          cl.cl_ordered_fields <- empty_ctor :: cl.cl_ordered_fields;
-          cl.cl_fields <- PMap.add "new" empty_ctor cl.cl_fields;
+            add_constructor cl empty_ctor
+          end;
 
-          ()
+          ctor.cf_meta <- (Meta.SkipCtor,[],ctor.cf_pos) :: ctor.cf_meta;
+          (match cl.cl_constructor with
+          | None -> ()
+          | Some cf ->
+              (* since all constructors are overloaded, make sure no TMonos are left open *)
+              List.iter (fun cf -> replace_mono cf.cf_type) (cf :: cf.cf_overloads))
+      in
+      create_static_ctor cur_ctor false
     in
 
     let module_filter md = match md with
@@ -4819,6 +4870,19 @@ struct
 
     let in_value = ref false in
 
+    let rec get_ctor_p cl p =
+      match cl.cl_constructor with
+        | Some c -> follow (apply_params cl.cl_types p c.cf_type), cl, p
+        | None -> match cl.cl_super with
+          | Some (cls,tl) ->
+            get_ctor_p cls (List.map (apply_params cls.cl_types p) tl)
+          | None -> TFun([],gen.gcon.basic.tvoid), cl, p
+    in
+
+    let get_f t =
+      match follow t with | TFun(p,_) -> List.map (fun (_,_,t) -> t) p | _ -> assert false
+    in
+
     let rec run ?(just_type = false) e =
       let handle = if not just_type then handle else fun e t1 t2 -> { e with etype = gen.greal_type t2 } in
       let was_in_value = !in_value in
@@ -4860,6 +4924,32 @@ struct
         | TCall( ({ eexpr = TField(ef, f) }) as e1, elist ) ->
           handle_type_parameter gen (Some e) (e1) (run ef) f (List.map run elist) impossible_tparam_is_dynamic
 
+        | TCall( { eexpr = TConst TSuper } as ef, [ maybe_empty ]) when is_some maybe_empty_t && type_iseq gen (get maybe_empty_t) maybe_empty.etype ->
+          { e with eexpr = TCall(ef, [ run maybe_empty ]); }
+        | TCall( { eexpr = TConst TSuper } as ef, eparams ) ->
+          (* handle special distinction between EmptyConstructor vs one argument contructor *)
+          let handle = if gen.gcon.platform = Java && List.length eparams = 1 then
+            (fun e t1 t2 -> mk_cast (gen.greal_type t1) e)
+          else
+            handle
+          in
+          let cl,tparams = match follow ef.etype with | TInst(c,p) -> c,p | _ -> assert false in
+          let t, c, p = get_ctor_p cl tparams in
+          let called_t = TFun(List.map (fun e -> "arg",false,e.etype) eparams, gen.gcon.basic.tvoid) in
+          (match c.cl_constructor with
+          | None ->
+            { e with eexpr = TCall(ef, List.map run eparams); }
+          | Some cf when cf.cf_overloads <> [] ->
+            (try
+              (* TODO use the same sorting algorithm as in typer *)
+              let cf = List.find (fun cf -> try unify cf.cf_type called_t; true with | Unify_error _ -> false) (cf :: cf.cf_overloads) in
+              let t = apply_params c.cl_types p cf.cf_type in
+              { e with eexpr = TCall(ef, List.map2 (fun e t -> handle (run e) t e.etype) eparams (get_f t)); }
+            with | Not_found ->
+              { e with eexpr = TCall(ef, List.map run eparams); })
+          | _ ->
+            { e with eexpr = TCall(ef, List.map2 (fun e t -> handle (run e) t e.etype) eparams (get_f t)); }
+          )
         | TCall (ef, eparams) ->
           (match ef.etype with
             | TFun(p, ret) ->
@@ -4869,34 +4959,29 @@ struct
         | TNew (cl, tparams, [ maybe_empty ]) when is_some maybe_empty_t && type_iseq gen (get maybe_empty_t) maybe_empty.etype ->
           { e with eexpr = TNew(cl, tparams, [ maybe_empty ]); etype = TInst(cl, tparams) }
         | TNew (cl, tparams, eparams) ->
-          let get_f t =
-            match t with | TFun(p,_) -> List.map (fun (_,_,t) -> t) p | _ -> assert false
-          in
-
-          let rec get_ctor_p cl p =
-            match cl.cl_constructor with
-              | Some c -> follow (apply_params cl.cl_types p c.cf_type)
-              | None -> match cl.cl_super with
-                | Some (cls,tl) ->
-                  get_ctor_p cls (List.map (apply_params cls.cl_types p) tl)
-                | None -> TFun([],gen.gcon.basic.tvoid)
-          in
-
+          (* handle special distinction between EmptyConstructor vs one argument contructor *)
           let handle = if gen.gcon.platform = Java && List.length eparams = 1 then
             (fun e t1 t2 -> mk_cast (gen.greal_type t1) e)
           else
             handle
           in
-
-          (* try / with because TNew might be overloaded *)
-          (
-          try
-            { e with eexpr = TNew(cl, tparams, List.map2 (fun e t -> handle (run e) t e.etype) eparams (get_f (get_ctor_p cl tparams))) }
-          with
-            | Invalid_argument(_) ->
-              { e with eexpr = TNew(cl, tparams, List.map run eparams); etype = TInst(cl, tparams) }
+          (* choose best overload *)
+          let t, c, p = get_ctor_p cl tparams in
+          let called_t = TFun(List.map (fun e -> "arg",false,e.etype) eparams, gen.gcon.basic.tvoid) in
+          (match c.cl_constructor with
+          | None ->
+            { e with eexpr = TNew(cl, tparams, List.map run eparams); etype = TInst(cl, tparams) }
+          | Some cf when cf.cf_overloads <> [] ->
+            (try
+              (* TODO use the same sorting algorithm as in typer *)
+              let cf = List.find (fun cf -> try unify cf.cf_type called_t; true with | Unify_error _ -> false) (cf :: cf.cf_overloads) in
+              let t = apply_params c.cl_types p cf.cf_type in
+              { e with eexpr = TNew(cl, tparams, List.map2 (fun e t -> handle (run e) t e.etype) eparams (get_f t)) }
+            with | Not_found ->
+              { e with eexpr = TNew(cl, tparams, List.map run eparams); etype = TInst(cl, tparams) })
+          | _ ->
+            { e with eexpr = TNew(cl, tparams, List.map2 (fun e t -> handle (run e) t e.etype) eparams (get_f t)) }
           )
-
         | TArray(arr, idx) ->
           (* get underlying class (if it's a class *)
           (match follow arr.etype with
@@ -6313,7 +6398,7 @@ struct
       epos = pos
     });
 
-    cl.cl_ordered_fields <- ctor :: cl.cl_ordered_fields;
+    add_constructor cl ctor;
     (* and finally we will return a function that transforms a TObjectDecl into a new DynamicObject() call *)
     let rec loop objdecl acc acc_f =
       match objdecl with

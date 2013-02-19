@@ -95,7 +95,7 @@ let make_module ctx mpath file tdecls loadp =
 			} in
 			decls := (TTypeDecl t, decl) :: !decls;
 			acc
-	   | EAbstract d ->
+		 | EAbstract d ->
 			let priv = List.mem APrivAbstract d.d_flags in
 			let path = make_path d.d_name priv in
 			let a = {
@@ -287,7 +287,7 @@ let rec load_type_def ctx p t =
 				Exit -> next()
 
 let check_param_constraints ctx types t pl c p =
- 	match follow t with
+	match follow t with
 	| TMono _ -> ()
 	| _ ->
 		let ctl = (match c.cl_kind with KTypeParameter l -> l | _ -> []) in
@@ -477,7 +477,7 @@ and load_complex_type ctx p t =
 				cf_params = !params;
 				cf_expr = None;
 				cf_doc = f.cff_doc;
-				cf_meta = f.cff_meta;
+			cf_meta = f.cff_meta;
 				cf_overloads = [];
 			} in
 			init_meta_overloads ctx cf;
@@ -512,6 +512,16 @@ and init_meta_overloads ctx cf =
 			overloads := (args,topt f.f_type, params) :: !overloads;
 			ctx.type_params <- old;
 			false
+		| (Meta.Overload,[],_) when ctx.com.config.pf_overload ->
+			let topt (n,_,t) = match t with | TMono t when !t = None -> error ("Explicit type required for overload functions\nFor function argument '" ^ n ^ "'") cf.cf_pos | _ -> () in
+			(match follow cf.cf_type with
+			| TFun (args,_) -> List.iter topt args
+			| _ -> () (* could be a variable *));
+			true
+		| (Meta.Overload,[],p) ->
+				error "This platform does not support this kind of overload declaration. Try @:overload(function()... {}) instead" p
+		| (Meta.Overload,_,p) ->
+				error "Invalid @:overload metadata format" p
 		| _ ->
 			true
 	) cf.cf_meta;
@@ -622,6 +632,23 @@ let copy_meta meta_src meta_target sl =
 	) meta_src;
 	!meta
 
+(** retrieves all overloads from class c and field i, as (Type.t * tclass_field) list *)
+let rec get_overloads c i =
+	let ret = try
+		let f = PMap.find i c.cl_fields in
+			(f.cf_type, f) :: (List.map (fun f -> f.cf_type, f) f.cf_overloads)
+		with | Not_found -> []
+	in
+	match c.cl_super with
+	| None when c.cl_interface ->
+			let ifaces = List.concat (List.map (fun (c,tl) ->
+				List.map (fun (t,f) -> apply_params c.cl_types tl t, f) (get_overloads c i)
+			) c.cl_implements) in
+			ret @ ifaces
+	| None -> ret
+	| Some (c,tl) ->
+			ret @ ( List.map (fun (t,f) -> apply_params c.cl_types tl t, f) (get_overloads c i) )
+
 let check_overriding ctx c =
 	let p = c.cl_pos in
 	match c.cl_super with
@@ -632,14 +659,18 @@ let check_overriding ctx c =
 			display_error ctx ("Field " ^ i.cf_name ^ " is declared 'override' but doesn't override any field") p)
 	| Some (csup,params) ->
 		PMap.iter (fun i f ->
-			let p = f.cf_pos in
-			try
-				let _, t , f2 = raw_class_field (fun f -> f.cf_type) csup i in
+			let check_field f get_super_field is_overload = try
+				let p = f.cf_pos in
+				(if is_overload && not (Meta.has Meta.Overload f.cf_meta) then
+					display_error ctx ("Missing @:overload declaration for field " ^ i) p);
+				let t, f2 = get_super_field csup i in
 				(* allow to define fields that are not defined for this platform version in superclass *)
 				(match f2.cf_kind with
 				| Var { v_read = AccRequire _ } -> raise Not_found;
 				| _ -> ());
-				if not (List.memq f c.cl_overrides) then
+				if ctx.com.config.pf_overload && (Meta.has Meta.Overload f2.cf_meta && not (Meta.has Meta.Overload f.cf_meta)) then
+					display_error ctx ("Field " ^ i ^ " should be declared with @:overload since it was already declared as @:overload in superclass") p
+				else if not (List.memq f c.cl_overrides) then
 					display_error ctx ("Field " ^ i ^ " should be declared with 'override' since it is inherited from superclass") p
 				else if not f.cf_public && f2.cf_public then
 					display_error ctx ("Field " ^ i ^ " has less visibility (public/private) than superclass one") p
@@ -660,7 +691,35 @@ let check_overriding ctx c =
 						display_error ctx (error_msg (Unify l)) p;
 			with
 				Not_found ->
-					if List.memq f c.cl_overrides then display_error ctx ("Field " ^ i ^ " is declared 'override' but doesn't override any field") p
+					if List.memq f c.cl_overrides then
+						let msg = if is_overload then
+							("Field " ^ i ^ " is declared 'override' but no compatible overload was found")
+						else
+							("Field " ^ i ^ " is declared 'override' but doesn't override any field")
+						in
+						display_error ctx msg p
+			in
+			if ctx.com.config.pf_overload && Meta.has Meta.Overload f.cf_meta then begin
+				(* check if field with same signature was declared more than once *)
+				List.iter (fun f2 ->
+					try
+						ignore (List.find (fun f3 -> f3 != f2 && type_iseq f2.cf_type f3.cf_type) (f :: f.cf_overloads));
+						display_error ctx ("Another overloaded field of same signature was already declared : " ^ f2.cf_name) f2.cf_pos
+					with | Not_found -> ()
+				) (f :: f.cf_overloads);
+				let overloads = get_overloads csup i in
+				List.iter (fun f ->
+					(* find the exact field being overridden *)
+					check_field f (fun csup i ->
+						List.find (fun (t,f2) ->
+							type_iseq f.cf_type (apply_params csup.cl_types params t)
+						) overloads
+					) true
+				) f.cf_overloads
+      end else
+				check_field f (fun csup i ->
+					let _, t, f2 = raw_class_field (fun f -> f.cf_type) csup i in
+					t, f2) false
 		) c.cl_fields
 
 let class_field_no_interf c i =
@@ -678,9 +737,25 @@ let class_field_no_interf c i =
 
 let rec check_interface ctx c intf params =
 	let p = c.cl_pos in
-	PMap.iter (fun i f ->
+	let rec check_field i f =
+		(if ctx.com.config.pf_overload then
+			List.iter (function
+				| f2 when f != f2 ->
+						check_field i f2
+				| _ -> ()) f.cf_overloads);
+		let is_overload = ref false in
 		try
 			let t2, f2 = class_field_no_interf c i in
+			let t2, f2 =
+				if ctx.com.config.pf_overload && (f2.cf_overloads <> [] || Meta.has Meta.Overload f2.cf_meta) then
+					let overloads = get_overloads c i in
+					is_overload := true;
+					let t = (apply_params intf.cl_types params f.cf_type) in
+					List.find (fun (t1,f1) -> type_iseq t t1) overloads
+				else
+					t2, f2
+			in
+
 			ignore(follow f2.cf_type); (* force evaluation *)
 			let p = (match f2.cf_expr with None -> p | Some e -> e.epos) in
 			let mkind = function
@@ -699,9 +774,18 @@ let rec check_interface ctx c intf params =
 					display_error ctx ("Field " ^ i ^ " has different type than in " ^ s_type_path intf.cl_path) p;
 					display_error ctx (error_msg (Unify l)) p;
 		with
-			Not_found ->
-				if not c.cl_interface then display_error ctx ("Field " ^ i ^ " needed by " ^ s_type_path intf.cl_path ^ " is missing") p
-	) intf.cl_fields;
+			| Not_found when not c.cl_interface ->
+				let msg = if !is_overload then
+					let ctx = print_context() in
+					let args = match follow f.cf_type with | TFun(args,_) -> String.concat ", " (List.map (fun (n,o,t) -> (if o then "?" else "") ^ n ^ " : " ^ (s_type ctx t)) args) | _ -> assert false in
+					"No suitable overload for " ^ i ^ "( " ^ args ^ " ), as needed by " ^ s_type_path intf.cl_path ^ " was found"
+				else
+					("Field " ^ i ^ " needed by " ^ s_type_path intf.cl_path ^ " is missing")
+				in
+				display_error ctx msg p
+			| Not_found -> ()
+	in
+	PMap.iter check_field intf.cl_fields;
 	List.iter (fun (i2,p2) ->
 		check_interface ctx c i2 (List.map (apply_params intf.cl_types params) p2)
 	) intf.cl_implements
@@ -1468,7 +1552,7 @@ let init_class ctx c p context_init herits fields =
 			let set = (match set with
 				| "null" ->
 					(* standard flash library read-only variables can't be accessed for writing, even in subclasses *)
-					if c.cl_extern && (match c.cl_path with "flash" :: _  , _ -> true | _ -> false) && ctx.com.platform = Flash then
+					if c.cl_extern && (match c.cl_path with "flash" :: _	, _ -> true | _ -> false) && ctx.com.platform = Flash then
 						AccNever
 					else
 						AccNo
@@ -1527,21 +1611,34 @@ let init_class ctx c p context_init herits fields =
 			| None -> ()
 			| Some r -> f.cf_kind <- Var { v_read = AccRequire (fst r, snd r); v_write = AccRequire (fst r, snd r) });
 			if constr then begin
-				if c.cl_constructor <> None then error "Duplicate constructor" p;
-				c.cl_constructor <- Some f;
+				match c.cl_constructor with
+					| None ->
+							c.cl_constructor <- Some f
+					| Some ctor when ctx.com.config.pf_overload ->
+              if Meta.has Meta.Overload f.cf_meta && Meta.has Meta.Overload ctor.cf_meta then
+  							ctor.cf_overloads <- f :: ctor.cf_overloads
+              else if Meta.has Meta.Overload f.cf_meta <> Meta.has Meta.Overload ctor.cf_meta then
+								display_error ctx ("If using overloaded constructors, all constructors must be declared with @:overload") (if Meta.has Meta.Overload f.cf_meta then ctor.cf_pos else f.cf_pos)
+					| Some ctor ->
+								display_error ctx "Duplicate constructor" p
 			end else if not is_static || f.cf_name <> "__init__" then begin
-				if PMap.mem f.cf_name (if is_static then c.cl_statics else c.cl_fields) then
-					display_error ctx ("Duplicate class field declaration : " ^ f.cf_name) p
-				else
 				let dup = if is_static then PMap.exists f.cf_name c.cl_fields || has_field f.cf_name c.cl_super else PMap.exists f.cf_name c.cl_statics in
 				if dup then error ("Same field name can't be use for both static and instance : " ^ f.cf_name) p;
+				if List.mem AOverride fd.cff_access then c.cl_overrides <- f :: c.cl_overrides;
+				if PMap.mem f.cf_name (if is_static then c.cl_statics else c.cl_fields) then
+					if ctx.com.config.pf_overload && Meta.has Meta.Overload f.cf_meta then
+						let mainf = PMap.find f.cf_name (if is_static then c.cl_statics else c.cl_fields) in
+						(if not (Meta.has Meta.Overload mainf.cf_meta) then display_error ctx ("Overloaded methods must have @:overload metadata") mainf.cf_pos);
+						mainf.cf_overloads <- f :: mainf.cf_overloads
+					else
+						display_error ctx ("Duplicate class field declaration : " ^ f.cf_name) p
+				else
 				if is_static then begin
 					c.cl_statics <- PMap.add f.cf_name f c.cl_statics;
 					c.cl_ordered_statics <- f :: c.cl_ordered_statics;
 				end else begin
 					c.cl_fields <- PMap.add f.cf_name f c.cl_fields;
 					c.cl_ordered_fields <- f :: c.cl_ordered_fields;
-					if List.mem AOverride fd.cff_access then c.cl_overrides <- f :: c.cl_overrides;
 				end;
 			end
 		with Error (Custom str,p) ->
@@ -1576,6 +1673,7 @@ let init_class ctx c p context_init herits fields =
 					pass = PTypeField;
 				} in
 				ignore (follow cfsup.cf_type); (* make sure it's typed *)
+				(if ctx.com.config.pf_overload then List.iter (fun cf -> ignore (follow cf.cf_type)) cf.cf_overloads);
 				let args = (match cfsup.cf_expr with
 					| Some { eexpr = TFunction f } ->
 						List.map (fun (v,def) ->
@@ -1616,6 +1714,17 @@ let init_class ctx c p context_init herits fields =
 			()
 	in
 	add_constructor c;
+	(* check overloaded constructors *)
+	(if ctx.com.config.pf_overload then match c.cl_constructor with
+	| Some ctor ->
+		List.iter (fun f ->
+			try
+				(* TODO: consider making a broader check, and treat some types, like TAnon and type parameters as Dynamic *)
+				ignore(List.find (fun f2 -> f != f2 && type_iseq f.cf_type f2.cf_type) (ctor :: ctor.cf_overloads));
+				display_error ctx ("Another overloaded field of same signature was already declared : " ^ f.cf_name) f.cf_pos;
+			with Not_found -> ()
+		) (ctor :: ctor.cf_overloads)
+	| _ -> ());
 	(* push delays in reverse order so they will be run in correct order *)
 	List.iter (fun (ctx,r) ->
 		ctx.pass <- PTypeField;
@@ -1986,7 +2095,7 @@ let type_module ctx m file tdecls p =
 		vthis = None;
 	} in
 	(* here is an additional PASS 1 phase, which define the type parameters for all module types.
-	   Constraints are handled lazily (no other type is loaded) because they might be recursive anyway *)
+		 Constraints are handled lazily (no other type is loaded) because they might be recursive anyway *)
 	List.iter (fun d ->
 		match d with
 		| (TClassDecl c, (EClass d, p)) ->

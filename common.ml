@@ -80,6 +80,8 @@ type platform_config = {
 	pf_pad_nulls : bool;
 	(** add a final return to methods not having one already - prevent some compiler warnings *)
 	pf_add_final_return : bool;
+	(** does the platform natively support overloaded functions *)
+	pf_overload : bool;
 }
 
 type context = {
@@ -270,6 +272,7 @@ let default_config =
 		pf_capture_policy = CPNone;
 		pf_pad_nulls = false;
 		pf_add_final_return = false;
+		pf_overload = false;
 	}
 
 let get_config com =
@@ -288,6 +291,7 @@ let get_config com =
 			pf_capture_policy = CPLoopVars;
 			pf_pad_nulls = false;
 			pf_add_final_return = false;
+			pf_overload = false;
 		}
 	| Js ->
 		{
@@ -300,6 +304,7 @@ let get_config com =
 			pf_capture_policy = CPLoopVars;
 			pf_pad_nulls = false;
 			pf_add_final_return = false;
+			pf_overload = false;
 		}
 	| Neko ->
 		{
@@ -312,6 +317,7 @@ let get_config com =
 			pf_capture_policy = CPNone;
 			pf_pad_nulls = true;
 			pf_add_final_return = false;
+			pf_overload = false;
 		}
 	| Flash when defined Define.As3 ->
 		{
@@ -324,6 +330,7 @@ let get_config com =
 			pf_capture_policy = CPLoopVars;
 			pf_pad_nulls = false;
 			pf_add_final_return = true;
+			pf_overload = false;
 		}
 	| Flash ->
 		{
@@ -336,6 +343,7 @@ let get_config com =
 			pf_capture_policy = CPLoopVars;
 			pf_pad_nulls = false;
 			pf_add_final_return = false;
+			pf_overload = false;
 		}
 	| Php ->
 		{
@@ -346,13 +354,14 @@ let get_config com =
 			pf_unique_locals = false;
 			pf_can_init_member = (fun cf ->
 				match cf.cf_kind, cf.cf_expr with
-				| Var { v_write = AccCall _ },  _ -> false
+				| Var { v_write = AccCall _ },	_ -> false
 				| _, Some { eexpr = TTypeExpr _ } -> false
 				| _ -> true
 			);
 			pf_capture_policy = CPNone;
 			pf_pad_nulls = true;
 			pf_add_final_return = false;
+			pf_overload = false;
 		}
 	| Cpp ->
 		{
@@ -365,6 +374,7 @@ let get_config com =
 			pf_capture_policy = CPWrapRef;
 			pf_pad_nulls = true;
 			pf_add_final_return = true;
+			pf_overload = false;
 		}
 	| Cs ->
 		{
@@ -377,6 +387,7 @@ let get_config com =
 			pf_capture_policy = CPWrapRef;
 			pf_pad_nulls = true;
 			pf_add_final_return = false;
+			pf_overload = true;
 		}
 	| Java ->
 		{
@@ -389,6 +400,7 @@ let get_config com =
 			pf_capture_policy = CPWrapRef;
 			pf_pad_nulls = true;
 			pf_add_final_return = false;
+			pf_overload = true;
 		}
 
 let create v args =
