@@ -1314,14 +1314,15 @@ let get_underlying_type a pl =
 		apply_params a.a_types pl a.a_this
 
 let handle_abstract_casts ctx e =
-	let make_static_call c cf a pl args t p =
+	let find_from ab pl a b = List.find (Type.unify_from_field ab pl a b) ab.a_from in
+	let rec make_static_call c cf a pl args t p =
 		let ta = TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) } in
 		let ethis = mk (TTypeExpr (TClassDecl c)) ta p in
 		let def () =
 			let e = mk (TField (ethis,(FStatic (c,cf)))) cf.cf_type p in
 			mk (TCall(e,args)) t p
 		in
-		(match cf.cf_expr with
+		let e = match cf.cf_expr with
 		| Some { eexpr = TFunction fd } when cf.cf_kind = Method MethInline ->
 			let config = if Meta.has Meta.Impl cf.cf_meta then (Some (a.a_types <> [] || cf.cf_params <> [], fun t -> apply_params a.a_types pl (monomorphs cf.cf_params t))) else None in
 			(match Optimizer.type_inline ctx cf fd ethis args t config p true with
@@ -1329,10 +1330,11 @@ let handle_abstract_casts ctx e =
 				| None ->
 					def())
 		| _ ->
-			def())
-	in
-	let find_from ab pl a b = List.find (Type.unify_from_field ab pl a b) ab.a_from in
-	let rec check_cast tleft eright p =
+			def()
+		in
+		(* TODO: can this cause loops? *)
+		loop e
+	and check_cast tleft eright p =
 		let eright = loop eright in
 		try (match follow eright.etype,follow tleft with
 			| (TAbstract({a_impl = Some c1} as a1,pl1) as t1),(TAbstract({a_impl = Some c2} as a2,pl2) as t2) ->
