@@ -1061,7 +1061,13 @@ let rec collapse_case el = match el with
 		assert false
 
 let match_expr ctx e cases def with_type p =
-	let need_val = match with_type with NoValue -> false | _ -> true in
+	let need_val,with_type,tmono = match with_type with
+		| NoValue -> false,NoValue,None
+		| WithType t | WithTypeResume t when (match follow t with TMono _ -> true | _ -> false) ->
+			(* we don't want to unify with each case individually, but instead at the end after unify_min *)
+			true,Value,Some with_type
+		| t -> true,t,None
+	in
 	let cases = match cases,def with
 		| [],None -> []
 		| cases,Some def ->
@@ -1170,6 +1176,12 @@ let match_expr ctx e cases def with_type p =
 			| WithType t | WithTypeResume t -> t
 			| _ -> try Typer.unify_min_raise ctx (List.rev_map (fun (_,out) -> out.o_expr) (List.rev pl)) with Error (Unify l,p) -> error (error_msg (Unify l)) p
 		in
+		begin match tmono with
+			| None -> ()
+			| Some (WithType t2) -> unify ctx t2 t p
+			| Some (WithTypeResume t2) -> (try unify_raise ctx t2 t p with Error (Unify l,p) -> raise (Typer.WithTypeError (l,p)))
+			| _ -> assert false
+		end;
 		let e = to_typed_ast mctx dt in
 		let e = { e with epos = p} in
 		if !var_inits = [] then
