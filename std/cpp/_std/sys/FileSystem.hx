@@ -71,7 +71,7 @@ class FileSystem {
 		var parts = [while ((path = haxe.io.Path.directory(path)) != "") path];
 		parts.reverse();
 		for (part in parts) {
-			if (!exists(part) && sys_create_dir( part, 493 )==null)
+			if (part.charCodeAt(part.length - 1) != ":".code && !exists(part) && sys_create_dir( part, 493 )==null)
 				throw "Could not create directory:" + part;
 		}
 	}
