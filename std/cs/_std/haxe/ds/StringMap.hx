@@ -335,7 +335,7 @@ import cs.NativeArray;
 			if (cachedKey == key)
 				cachedIndex = -1;
 
-			hashes[idx] = FLAG_EMPTY;
+			hashes[idx] = FLAG_DEL;
 			_keys[idx] = null;
 			vals[idx] = null;
 			--size;
