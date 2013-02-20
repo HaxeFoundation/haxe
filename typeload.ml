@@ -130,8 +130,13 @@ let make_module ctx mpath file tdecls loadp =
 					let stat = List.mem AStatic f.cff_access in
 					let p = f.cff_pos in
 					match f.cff_kind with
-					| FVar _ | FProp _ when not stat ->
-						display_error ctx "Cannot declare member variable or property in abstract" p;
+					| FProp ("get","never",_,_) ->
+						{ f with cff_access = AStatic :: f.cff_access; cff_meta = (Meta.Impl,[],p) :: f.cff_meta }
+					| FProp _ when not stat ->
+						display_error ctx "Member property on abstract must be (get,never)" p;
+						f
+					| FVar _ when not stat ->
+						display_error ctx "Cannot declare member variable in abstract" p;
 						f
 					| FFun fu when f.cff_name = "new" && not stat ->
 						let init p = (EVars ["this",Some this_t,None],p) in
@@ -1522,6 +1527,13 @@ let init_class ctx c p context_init herits fields =
 				| None, _ -> mk_mono()
 				| Some t, _ -> load_complex_type ctx p t
 			) in
+			let t_get,t_set = match c.cl_kind with
+				| KAbstractImpl a ->
+					if Meta.has Meta.IsVar f.cff_meta then error "Abstract properties cannot be real variables" f.cff_pos;
+					let ta = apply_params a.a_types (List.map snd a.a_types) a.a_this in
+					tfun [ta] ret, tfun [ta;ret] ret
+				| _ -> tfun [] ret, tfun [ret] ret
+			in
 			let check_method m t req_name =
 				if ctx.com.display then () else
 				try
@@ -1546,7 +1558,7 @@ let init_class ctx c p context_init herits fields =
 				| "default" -> AccNormal
 				| _ ->
 					let get = if get = "get" then "get_" ^ name else get in
-					delay ctx PForce (fun() -> check_method get (TFun ([],ret)) (if get <> "get" && get <> "get_" ^ name then Some ("get_" ^ name) else None));
+					delay ctx PForce (fun() -> check_method get t_get (if get <> "get" && get <> "get_" ^ name then Some ("get_" ^ name) else None));
 					AccCall get
 			) in
 			let set = (match set with
@@ -1561,7 +1573,7 @@ let init_class ctx c p context_init herits fields =
 				| "default" -> AccNormal
 				| _ ->
 					let set = if set = "set" then "set_" ^ name else set in
-					delay ctx PForce (fun() -> check_method set (TFun (["",false,ret],ret)) (if set <> "set" && set <> "set_" ^ name then Some ("set_" ^ name) else None));
+					delay ctx PForce (fun() -> check_method set t_set (if set <> "set" && set <> "set_" ^ name then Some ("set_" ^ name) else None));
 					AccCall set
 			) in
 			if set = AccNormal && (match get with AccCall _ -> true | _ -> false) then error "Unsupported property combination" p;

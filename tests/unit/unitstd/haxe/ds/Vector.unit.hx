@@ -3,12 +3,12 @@ var vNullInt = #if (flash9 || cpp || java || cs) 0 #else null #end;
 var vNullBool = #if (flash9 || cpp || java || cs) false #else null #end;
 var vNullFloat = #if (flash9 || cpp || java || cs) 0.0 #else null #end;
 
-vec.length() == 3;
+vec.length == 3;
 vec.get(0) == vNullInt;
 vec.get(1) == vNullInt;
 vec.get(2) == vNullInt;
 vec.set(1, 2);
-vec.length() == 3;
+vec.length == 3;
 vec.get(0) == vNullInt;
 vec.get(1) == 2;
 vec.get(2) == vNullInt;
@@ -34,7 +34,7 @@ var vec:haxe.ds.Vector<String> = haxe.ds.Vector.fromArrayCopy(arr);
 #if (!flash && !neko)
 arr != vec.toData();
 #end
-vec.length() == 3;
+vec.length == 3;
 vec.get(0) == "1";
 vec.get(1) == "2";
 vec.get(2) == "3";

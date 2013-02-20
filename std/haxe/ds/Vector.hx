@@ -89,7 +89,9 @@ abstract Vector<T>(VectorData<T>) {
 	/**
 		Returns the length of [this] Vector.
 	**/
-	public inline function length():Int {
+	public var length(get, never):Int;
+	
+	inline function get_length():Int {
 		#if neko
 			return untyped __dollar__asize(this);
 		#else

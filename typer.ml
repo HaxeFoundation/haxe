@@ -1084,13 +1084,22 @@ and type_field ctx e i p mode =
 		(try
 			let c = (match a.a_impl with None -> raise Not_found | Some c -> c) in
 			let f = PMap.find i c.cl_statics in
+			let f = if mode <> MGet then f else match f.cf_kind with
+				| Var {v_read = AccCall s} -> PMap.find s c.cl_statics
+				| _ -> error "Invalid operation" p
+			in
 			let t = field_type ctx c [] f p in
 			let t = apply_params a.a_types pl t in
 			if not (Meta.has Meta.Impl f.cf_meta) then (match follow t with
 				| TFun((_,_,ta) :: _,_) -> unify ctx e.etype ta p
 				| _ -> raise Not_found);
 			let et = type_module_type ctx (TClassDecl c) None p in
-			AKUsing ((mk (TField (et,FStatic (c,f))) t p),c,f,e)
+			let ef = mk (TField (et,FStatic (c,f))) t p in
+			if mode = MGet then begin
+				let r = match follow t with TFun(_,r) -> r | _ -> raise Not_found in
+				AKExpr(make_call ctx ef [e] r p)
+			end else
+				AKUsing (ef,c,f,e)
 		with Not_found -> try
 			using_field ctx mode e i p
 		with Not_found -> try
