@@ -1371,7 +1371,7 @@ let map_expr_type f ft fv e =
 	| TNew (_,_,el) ->
 		let et = ft e.etype in
 		(* make sure that we use the class corresponding to the replaced type *)
-		let c, pl = (match follow et with TInst (c,pl) -> (c,pl) | TAbstract({a_impl = Some c},pl) -> c,pl | _ -> assert false) in
+		let c, pl = (match follow et with TInst (c,pl) -> (c,pl) | TAbstract({a_impl = Some c},pl) -> c,pl | t -> error [has_no_field t "new"]) in
 		{ e with eexpr = TNew (c,pl,List.map f el); etype = et }
 	| TBlock el ->
 		{ e with eexpr = TBlock (List.map f el); etype = ft e.etype }

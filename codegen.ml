@@ -355,7 +355,8 @@ let rec build_generic ctx c p tl =
 		List.iter loop tl;
 		let build_field f =
 			let t = generic_substitute_type gctx f.cf_type in
-			{ f with cf_type = t; cf_expr = (match f.cf_expr with None -> None | Some e -> Some (generic_substitute_expr gctx e)) }
+			try { f with cf_type = t; cf_expr = (match f.cf_expr with None -> None | Some e -> Some (generic_substitute_expr gctx e)) }
+			with Unify_error l -> error (error_msg (Unify l)) f.cf_pos
 		in
 		if c.cl_init <> None || c.cl_dynamic <> None then error "This class can't be generic" p;
 		if c.cl_ordered_statics <> [] then error "A generic class can't have static fields" p;
