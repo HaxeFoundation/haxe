@@ -94,7 +94,7 @@ let precedence op =
 	| OpInterval -> 6, left
 	| OpBoolAnd -> 7, left
 	| OpBoolOr -> 8, left
-	| OpArrow -> 9, left
+	| OpArrow -> 9, right
 	| OpAssign | OpAssignOp _ -> 10, right
 
 let is_not_assign = function
