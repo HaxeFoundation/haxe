@@ -1600,8 +1600,8 @@ let init_class ctx c p context_init herits fields =
 	in
 	let cl_req = check_require c.cl_meta in
 	List.iter (fun f ->
+		let p = f.cff_pos in
 		try
-			let p = f.cff_pos in
 			let fd , constr, f = loop_cf f in
 			let is_static = List.mem AStatic fd.cff_access in
 			if (is_static || constr) && c.cl_interface && f.cf_name <> "__init__" then error "You can't declare static fields in interfaces" p;
@@ -1641,7 +1641,7 @@ let init_class ctx c p context_init herits fields =
 					c.cl_ordered_fields <- f :: c.cl_ordered_fields;
 				end;
 			end
-		with Error (Custom str,p) ->
+		with Error (Custom str,p2) when p = p2 ->
 			display_error ctx str p
 	) fields;
 	(match c.cl_kind with
