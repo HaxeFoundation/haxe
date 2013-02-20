@@ -995,7 +995,7 @@ let dump_descriptor gen name path_s =
   SourceWriter.write w "begin libs";
   SourceWriter.newline w;
   if Common.platform gen.gcon Java then
-    List.iter (fun (s,_) ->
+    List.iter (fun (s,_,_,_) ->
       SourceWriter.write w s;
       SourceWriter.newline w
     ) gen.gcon.java_libs;

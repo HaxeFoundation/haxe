@@ -70,10 +70,10 @@ unit.Test
 -D NO_PRECOMPILED_HEADERS
 
 #java native build
-#-cmd "haxelib run hxjava native_java/hxjava_build.txt --out native_java/native"
+-cmd "haxelib run hxjava native_java/hxjava_build.txt --out native_java/native"
 
 #java
 --next
 -main unit.Test
 -java java
-#-java-lib native_java/native.jar
+-java-lib native_java/native.jar
