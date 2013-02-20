@@ -2599,14 +2599,15 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			if not (Codegen.is_generic_parameter ctx c) then error "Only generic type parameters can be constructed" p;
 			let el = List.map (fun e -> type_expr ctx e Value) el in
 			let ct = (tfun (List.map (fun e -> e.etype) el) ctx.t.tvoid) in
-			List.iter (fun t -> match follow t with
+			if not (List.exists (fun t -> match follow t with
 				| TAnon a ->
 					(try
 						unify ctx (PMap.find "new" a.a_fields).cf_type ct p;
+						true
 					with Not_found ->
-						())
-				| _ -> ()
-			) tl;
+						 false)
+				| _ -> false
+			) tl) then error (s_type_path c.cl_path ^ " does not have a constructor") p;
 			mk (TNew (c,params,el)) t p
 		| TInst (c,params) ->
 			let ct, f = get_constructor ctx c params p in
