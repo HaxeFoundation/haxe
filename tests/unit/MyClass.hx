@@ -32,8 +32,8 @@ class MyClass {
 
 class MyParent {
 	public function new() { }
-	function a() return 11
-	function b() return 20
+	function a() return 11;
+	function b() return 20;
 }
 
 class MyDynamicChildWithToString extends MyParent implements Dynamic
@@ -50,12 +50,12 @@ class MyDynamicChildWithoutToString extends MyParent implements Dynamic
 
 class MyChild1 extends MyParent {
 	public override function a() { return 12; }
-	override function b() return 21
-	function c() return 19
+	override function b() return 21;
+	function c() return 19;
 }
 #if !as3
 class MyChild2 extends MyParent {
-	public function test1(mc1:MyChild1) return mc1.b()
+	public function test1(mc1:MyChild1) return mc1.b();
 }
 #end
 
@@ -146,8 +146,8 @@ class InitProperties {
 	public var accNever(default, never):Int = 3;
 	public var accDynamic(default, dynamic):Int = 3;
 
-	function set_accFunc(v) return throw "setter was called"
-	function set_accDynamic(v) return throw "setter was called"
+	function set_accFunc(v) return throw "setter was called";
+	function set_accDynamic(v) return throw "setter was called";
 	public function new() { }
 }
 
@@ -175,8 +175,8 @@ class ParamConstraintsClass2<T> {
 }
 
 class UsingBase {
-	static function privFunc(s:String) return s.toUpperCase()
-	static public function pupFunc(s:String) return s.toUpperCase()
+	static function privFunc(s:String) return s.toUpperCase();
+	static public function pupFunc(s:String) return s.toUpperCase();
 }
 
 class UsingChild1 extends UsingBase {
@@ -184,7 +184,7 @@ class UsingChild1 extends UsingBase {
 		return "foo".pupFunc() + "foo".privFunc() + "FOO".siblingFunc();
 	}
 
-	static function siblingFunc(s:String) return s.toLowerCase()
+	static function siblingFunc(s:String) return s.toLowerCase();
 }
 
 class UsingChild2 extends UsingBase {
@@ -195,7 +195,7 @@ class UsingChild2 extends UsingBase {
 		return "foo".siblingFunc();
 	}
 
-	static public function siblingFunc(s:String) return s.toUpperCase()
+	static public function siblingFunc(s:String) return s.toUpperCase();
 }
 
 class UsingUnrelated {
@@ -273,15 +273,15 @@ class BaseSuperProp {
 
 	}
 
-	function get_prop() return 1
-	function set_prop(v) return v
+	function get_prop() return 1;
+	function set_prop(v) return v;
 
-	function get_fProp() return function(i:Int) return "test" +i
+	function get_fProp() return function(i:Int) return "test" +i;
 }
 
 class ChildSuperProp extends BaseSuperProp {
-	public override function get_prop() return super.prop + 1
-	public override function set_prop(v) return (super.prop = v) + 1
+	public override function get_prop() return super.prop + 1;
+	public override function set_prop(v) return (super.prop = v) + 1;
 
 	public override function get_fProp() {
 		var s = super.fProp(0);

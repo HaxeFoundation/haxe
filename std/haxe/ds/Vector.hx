@@ -103,7 +103,7 @@ abstract Vector<T>(VectorData<T>) {
 		This returns the internal representation type.
 	**/
 	public inline function toData():VectorData<T>
-		return cast this
+		return cast this;
 
 	/**
 		Initializes a new Vector from [data].
@@ -113,7 +113,7 @@ abstract Vector<T>(VectorData<T>) {
 		If [data] is null, the corresponding Vector is also [null].
 	**/
 	static public inline function fromData<T>(data:VectorData<T>):Vector<T>
-		return cast data
+		return cast data;
 
 	/**
 		Creates a new Vector by copying the elements of [array].

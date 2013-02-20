@@ -434,16 +434,16 @@ import java.NativeArray;
 	}
 
 	@:extern private static inline function getInc(k:Int, mask:Int):Int //return 1 for linear probing
-		return (((k) >> 3 ^ (k) << 3) | 1) & (mask)
+		return (((k) >> 3 ^ (k) << 3) | 1) & (mask);
 
 	@:extern private static inline function isEither(v:HashType):Bool
-		return (v & 0xFFFFFFFE) == 0
+		return (v & 0xFFFFFFFE) == 0;
 
 	@:extern private static inline function isEmpty(v:HashType):Bool
-		return v == FLAG_EMPTY
+		return v == FLAG_EMPTY;
 
 	@:extern private static inline function isDel(v:HashType):Bool
-		return v == FLAG_DEL
+		return v == FLAG_DEL;
 
 	//guarantee: Whatever this function is, it will never return 0 nor 1
 	@:extern private static inline function hash(s:String):HashType
@@ -475,7 +475,7 @@ import java.NativeArray;
 	}
 
 	@:extern private static inline function arrayCopy(sourceArray:Dynamic, sourceIndex:Int, destinationArray:Dynamic, destinationIndex:Int, length:Int):Void
-		java.lang.System.arraycopy(sourceArray, sourceIndex, destinationArray, destinationIndex, length)
+		java.lang.System.arraycopy(sourceArray, sourceIndex, destinationArray, destinationIndex, length);
 
 	@:extern private static inline function assert(x:Bool):Void
 	{

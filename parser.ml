@@ -596,7 +596,9 @@ and parse_class_field s =
 				name, punion p1 p2, FVar (t,e))
 		| [< '(Kwd Function,p1); name = parse_fun_name; pl = parse_constraint_params; '(POpen,_); al = psep Comma parse_fun_param; '(PClose,_); t = parse_type_opt; s >] ->
 			let e, p2 = (match s with parser
-				| [< e = toplevel_expr >] -> Some e, pos e
+				| [< e = toplevel_expr; s >] ->
+					(try ignore(semicolon s) with Error (Missing_semicolon,p) -> !display_error Missing_semicolon p);
+					Some e, pos e
 				| [< '(Semicolon,p) >] -> None, p
 				| [< >] -> serror()
 			) in

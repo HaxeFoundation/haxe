@@ -270,7 +270,7 @@ let parse_expr_string ctx s p inl =
 	let head = "class X{static function main() " in
 	let head = (if p.pmin > String.length head then head ^ String.make (p.pmin - String.length head) ' ' else head) in
 	let rec loop e = let e = Ast.map_expr loop e in (fst e,p) in
-	match parse_string ctx (head ^ s ^ "}") p inl with
+	match parse_string ctx (head ^ s ^ ";}") p inl with
 	| EClass { d_data = [{ cff_name = "main"; cff_kind = FFun { f_expr = Some e } }]} -> if inl then e else loop e
 	| _ -> assert false
 

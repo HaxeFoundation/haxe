@@ -33,7 +33,7 @@ private class EmptyClass {
 
 private class ClassWithToString {
 	public function new() { }
-	public function toString() return "ClassWithToString.toString()"
+	public function toString() return "ClassWithToString.toString()";
 }
 
 private class ClassWithToStringChild extends ClassWithToString {
@@ -41,7 +41,7 @@ private class ClassWithToStringChild extends ClassWithToString {
 }
 
 private class ClassWithToStringChild2 extends ClassWithToString {
-	public override function toString() return "ClassWithToStringChild2.toString()"
+	public override function toString() return "ClassWithToStringChild2.toString()";
 }
 
 @:keep private class ClassWithCtorDefaultValues {

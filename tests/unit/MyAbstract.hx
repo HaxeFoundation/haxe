@@ -23,7 +23,7 @@ abstract TemplateWrap(haxe.Template) {
 	}
 
 	public inline function get()
-		return this
+		return this;
 
 	@:from static inline public function fromString(s:String) {
 		return new TemplateWrap(s);
@@ -37,24 +37,24 @@ abstract TemplateWrap(haxe.Template) {
 
 abstract Meter(Float) from Float to Float {
 	public inline function new(f)
-		this = f
+		this = f;
 
 	public inline function get()
-		return this
+		return this;
 
 	@:to public inline function toString()
-		return this + "m"
+		return this + "m";
 }
 
 abstract Kilometer(Float) from Float to Float {
 	public inline function new(f)
-		this = f
+		this = f;
 
 	@:to public inline function toString()
-		return this + "km"
+		return this + "km";
 
 	@:from static public inline function fromMeter(m:Meter)
-		return new Kilometer(m.get() / 1000.)
+		return new Kilometer(m.get() / 1000.);
 }
 
 abstract MyHash<V>(haxe.ds.StringMap<V>) {
@@ -62,11 +62,11 @@ abstract MyHash<V>(haxe.ds.StringMap<V>) {
 		this = new haxe.ds.StringMap<V>();
 	}
 	public inline function set(k:String, v:V)
-		this.set(k, v)
+		this.set(k, v);
 	public inline function get(k:String)
-		return this.get(k)
+		return this.get(k);
 	public inline function toString()
-		return this.toString()
+		return this.toString();
 
 	@:from static public function fromStringArray(arr:Array<String>):MyHash<String> {
 		var hash = new MyHash();
@@ -140,10 +140,10 @@ abstract MyVector(MyPoint3) from MyPoint3 to MyPoint3 {
 	}
 	
 	public inline function get():MyPoint3
-		return this
+		return this;
 
 	@:to public inline function toString():String
-		return untyped '(${this.x},${this.y},${this.z})'
+		return untyped '(${this.x},${this.y},${this.z})';
 }
 
 abstract MyInt(Int) from Int to Int {
@@ -186,7 +186,7 @@ abstract MyString(String) from String to String {
 class ClassWithHashCode {
 	var i:Int;
 	public function new(i) { this.i = i; }
-	public function hashCode() return i
+	public function hashCode() return i;
 }
 
 class ClassWithoutHashCode {

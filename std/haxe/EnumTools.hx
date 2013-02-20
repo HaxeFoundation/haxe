@@ -38,8 +38,9 @@ extern class EnumTools {
 		
 		The enum name does not include any type parameters.
 	**/
-	static public inline function getName<T>(e:Enum<T>):String
-		return Type.getEnumName(e)
+	static public inline function getName<T>(e:Enum<T>):String {
+		return Type.getEnumName(e);
+	}
 		
 	/**
 		Creates an instance of enum [e] by calling its constructor [constr] with
@@ -50,8 +51,9 @@ extern class EnumTools {
 		expected number of constructor arguments, or if any argument has an
 		invalid type, the result is unspecified.
 	**/
-	static public inline function createByName<T>(e:Enum<T>, constr:String, ?params:Array<Dynamic>):T
-		return Type.createEnum(e, constr, params)
+	static public inline function createByName<T>(e:Enum<T>, constr:String, ?params:Array<Dynamic>):T {
+		return Type.createEnum(e, constr, params);
+	}
 	
 	/**
 		Creates an instance of enum [e] by calling its constructor number
@@ -65,8 +67,9 @@ extern class EnumTools {
 		expected number of constructor arguments, or if any argument has an
 		invalid type, the result is unspecified.
 	**/
-	static public inline function createByIndex<T>(e:Enum<T>, index:Int, ?params:Array<Dynamic>):T
-		return Type.createEnumIndex(e, index, params)
+	static public inline function createByIndex<T>(e:Enum<T>, index:Int, ?params:Array<Dynamic>):T {
+		return Type.createEnumIndex(e, index, params);
+	}
 		
 	/**
 		Returns a list of all constructors of enum [e] that require no
@@ -81,8 +84,9 @@ extern class EnumTools {
 		
 		If [e] is null, the result is unspecified.
 	**/
-	static public inline function createAll<T>(e:Enum<T>):Array<T>
-		return Type.allEnums(e)
+	static public inline function createAll<T>(e:Enum<T>):Array<T> {
+		return Type.allEnums(e);
+	}
 		
 	/**
 		Returns a list of the names of all constructors of enum [e].
@@ -92,8 +96,9 @@ extern class EnumTools {
 		
 		If [c] is null, the result is unspecified.
 	**/
-	static public inline function getConstructors<T>(e:Enum<T>):Array<String>
-		return Type.getEnumConstructs(e)
+	static public inline function getConstructors<T>(e:Enum<T>):Array<String> {
+		return Type.getEnumConstructs(e);
+	}
 }
 
 extern class EnumValueTools {
@@ -106,8 +111,9 @@ extern class EnumValueTools {
 		
 		If [a] or [b] are null, the result is unspecified.
 	**/
-	static public inline function equals<T:EnumValue>(a:T, b:T):Bool
-		return Type.enumEq(a, b)
+	static public inline function equals<T:EnumValue>(a:T, b:T):Bool {
+		return Type.enumEq(a, b);
+	}
 		
 	/**
 		Returns the constructor name of enum instance [e].
@@ -116,8 +122,9 @@ extern class EnumValueTools {
 		
 		If [e] is null, the result is unspecified.
 	**/
-	static public inline function getName(e:EnumValue):String
-		return Type.enumConstructor(e)
+	static public inline function getName(e:EnumValue):String {
+		return Type.enumConstructor(e);
+	}
 		
 	/**
 		Returns a list of the constructor arguments of enum instance [e].
@@ -129,8 +136,9 @@ extern class EnumValueTools {
 		
 		If [e] is null, the result is unspecified.
 	**/
-	static public inline function getParameters(e:EnumValue):Array<Dynamic>
-		return Type.enumParameters(e)
+	static public inline function getParameters(e:EnumValue):Array<Dynamic> {
+		return Type.enumParameters(e);
+	}
 		
 	/**
 		Returns the index of enum instance [e].
@@ -140,6 +148,7 @@ extern class EnumValueTools {
 		
 		If [e] is null, the result is unspecified.
 	**/
-	static public inline function getIndex(e:EnumValue):Int
-		return Type.enumIndex(e)
+	static public inline function getIndex(e:EnumValue):Int {
+		return Type.enumIndex(e);
+	}
 }

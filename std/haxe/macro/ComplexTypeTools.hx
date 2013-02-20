@@ -36,9 +36,9 @@ class ComplexTypeTools {
 		
 		The result is guaranteed to be valid haxe code, but there may be
 		differences from the original lexical syntax.
-	**/	
+	**/
 	static public function toString( c : ComplexType ) : String
-		return new Printer().printComplexType(c)
+		return new Printer().printComplexType(c);
 		
 	#if macro
 	

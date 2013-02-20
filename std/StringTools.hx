@@ -376,7 +376,7 @@ class StringTools {
 	}
 
 	#if java
-	private static inline function _charAt(str:String, idx:Int):java.StdTypes.Char16 return untyped str._charAt(idx)
+	private static inline function _charAt(str:String, idx:Int):java.StdTypes.Char16 return untyped str._charAt(idx);
 	#end
 	
 	#if neko

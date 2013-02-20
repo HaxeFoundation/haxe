@@ -65,7 +65,7 @@ abstract Map< K, V > (IMap< K, V > ) {
 		
 		If [key] is null, the result is unspecified.
 	**/
-	public inline function set(key:K, value:V) this.set(key, value)
+	public inline function set(key:K, value:V) this.set(key, value);
 	
 	/**
 		Returns the current mapping of [key].
@@ -79,14 +79,14 @@ abstract Map< K, V > (IMap< K, V > ) {
 		
 		If [key] is null, the result is unspecified.
 	**/
-	@:arrayAccess public inline function get(key:K) return this.get(key)
+	@:arrayAccess public inline function get(key:K) return this.get(key);
 	
 	/**
 		Returns true if [key] has a mapping, false otherwise.
 		
 		If [key] is null, the result is unspecified.
 	**/
-	public inline function exists(key:K) return this.exists(key)
+	public inline function exists(key:K) return this.exists(key);
 	
 	/**
 		Removes the mapping of [key] and returns true if such a mapping existed,
@@ -94,7 +94,7 @@ abstract Map< K, V > (IMap< K, V > ) {
 		
 		If [key] is null, the result is unspecified.
 	**/
-	public inline function remove(key:K) return this.remove(key)
+	public inline function remove(key:K) return this.remove(key);
 	
 	/**
 		Returns an Iterator over the keys of [this] Map.

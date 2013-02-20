@@ -28,7 +28,7 @@ class MyDynamicClass {
 	}
 
 	@:isVar public static var W(get, set) : Int = 55;
-	static function get_W() return W + 2
+	static function get_W() return W + 2;
 	static function set_W(v) { W = v; return v; }
 
 }
@@ -451,7 +451,7 @@ class TestMisc extends Test {
 		eq(o.blabla,3);
 	}
 
-	static inline function foo(x) return x + 5
+	static inline function foo(x) return x + 5;
 
 	function testInline() {
 		// check that operations are correctly generated

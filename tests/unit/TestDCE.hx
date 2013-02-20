@@ -6,30 +6,30 @@ class DCEClass {
 	@:keep static function staticKeep() { }
 	static var staticVarUsed = "foo";
 	@:isVar static var staticPropUsed(get, set):Int = 1;
-	static function get_staticPropUsed() return staticPropUsed
-	static function set_staticPropUsed(i:Int) return 0
+	static function get_staticPropUsed() return staticPropUsed;
+	static function set_staticPropUsed(i:Int) return 0;
 	
 	// used members
 	function memberUsed() { }
 	@:keep function memberKeep() { }
 	var memberVarUsed = 0;
 	@:isVar var memberPropUsed(get, set):Int = 1;
-	function get_memberPropUsed() return memberPropUsed
-	function set_memberPropUsed(i:Int) return 0
+	function get_memberPropUsed() return memberPropUsed;
+	function set_memberPropUsed(i:Int) return 0;
 	
 	// unused statics
 	static function staticUnused() { }
 	static var staticVarUnused = "bar";
 	static var staticPropUnused(get, set):Int = 1;
-	static function get_staticPropUnused() return 0
-	static function set_staticPropUnused(i:Int) return 0
+	static function get_staticPropUnused() return 0;
+	static function set_staticPropUnused(i:Int) return 0;
 	
 	// unused members
 	function memberUnused() { }
 	var memberVarUnused = 1;
 	var memberPropUnused(get, set):Int = 1;
-	function get_memberPropUnused() return 0
-	function set_memberPropUnused(i:Int) return 0
+	function get_memberPropUnused() return 0;
+	function set_memberPropUnused(i:Int) return 0;
 	
 	static var c :Array<Dynamic> = [null, unit.UsedReferenced2];
 	
@@ -190,8 +190,8 @@ interface PropertyInterface {
 }
 
 class PropertyAccessorsFromBaseClass {
-	public function get_x() return throw "must not set"
-	public function set_x(x:String) return "ok"
+	public function get_x() return throw "must not set";
+	public function set_x(x:String) return "ok";
 }
 
 class PropertyAccessorsFromBaseClassChild extends PropertyAccessorsFromBaseClass implements PropertyInterface {

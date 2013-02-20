@@ -39,7 +39,7 @@ class ExprTools {
 		return { expr : EConst(CIdent(s)), pos : p }
 
 	static public function toFieldExpr ( sl : Array<String> ) : Expr
-		return sl.fold(function(s, e) return e == null ? (macro $i{s}) : (macro $e.$s), null)
+		return sl.fold(function(s, e) return e == null ? (macro $i{s}) : (macro $e.$s), null);
 
 	/**
 		Converts expression [e] to a human-readable String representation.
@@ -48,7 +48,7 @@ class ExprTools {
 		differences from the original lexical syntax.
 	**/
 	static public function toString( e : Expr ) : String
-		return new Printer().printExpr(e)
+		return new Printer().printExpr(e);
 
 	/**
 		Calls function [f] on each sub-expression of [e].
@@ -216,10 +216,10 @@ class ExprTools {
 	}
 
 	static inline function opt(e:Null<Expr>, f : Expr -> Expr):Expr
-		return e == null ? null : f(e)
+		return e == null ? null : f(e);
 
 	static inline function opt2(e:Null<Expr>, f : Expr -> Void):Void
-		if (e != null) f(e)
+		if (e != null) f(e);
 }
 
 /**

@@ -88,7 +88,7 @@ class Printer {
 		(tp.pack.length > 0 ? tp.pack.join(".") + "." : "")
 		+ tp.name
 		+ (tp.sub != null ? '.${tp.sub}' : "")
-		+ (tp.params.length > 0 ? "<" + tp.params.map(printTypeParam).join(",") + ">" : "")
+		+ (tp.params.length > 0 ? "<" + tp.params.map(printTypeParam).join(",") + ">" : "");
 
 	// TODO: check if this can cause loops
 	public function printComplexType(ct:ComplexType) return switch(ct) {
@@ -102,7 +102,7 @@ class Printer {
 
 	public function printMetadata(meta:MetadataEntry) return
 		'@${meta.name}'
-		+ (meta.params.length > 0 ? '(${printExprs(meta.params,",")})' : "")
+		+ (meta.params.length > 0 ? '(${printExprs(meta.params,",")})' : "");
 
 	public function printAccess(access:Access) return switch(access) {
 		case AStatic: "static";
@@ -127,24 +127,24 @@ class Printer {
 	public function printTypeParamDecl(tpd:TypeParamDecl) return
 		tpd.name
 		+ (tpd.params.length > 0 ? "<" + tpd.params.map(printTypeParamDecl).join(",") + ">" : "")
-		+ (tpd.constraints.length > 0 ? ":(" + tpd.constraints.map(printComplexType).join(",") + ")" : "")
+		+ (tpd.constraints.length > 0 ? ":(" + tpd.constraints.map(printComplexType).join(",") + ")" : "");
 
 	public function printFunctionArg(arg:FunctionArg) return
 		(arg.opt ? "?" : "")
 		+ arg.name
 		+ opt(arg.type, printComplexType, ":")
-		+ opt(arg.value, printExpr, "=")
+		+ opt(arg.value, printExpr, "=");
 
 	public function printFunction(func:Function) return
 		(func.params.length > 0 ? "<" + func.params.map(printTypeParamDecl).join(",") + ">" : "")
 		+ "(" + func.args.map(printFunctionArg).join(",") + ")"
 		+ opt(func.ret, printComplexType, ":")
-		+ opt(func.expr, printExpr, " ")
+		+ opt(func.expr, printExpr, " ");
 
 	public function printVar(v:Var) return
 		v.name
 		+ opt(v.type, printComplexType, ":")
-		+ opt(v.expr, printExpr, "=")
+		+ opt(v.expr, printExpr, "=");
 
 
 	public function printExpr(e:Expr) return e == null ? "#NULL" : switch(e.expr) {
@@ -216,9 +216,9 @@ class Printer {
 		var str = t == null ? "#NULL" :
 			(printPackage && t.pack.length > 0 && t.pack[0] != "" ? "package " + t.pack.join(".") + ";\n" : "") +
 			(t.meta != null && t.meta.length > 0 ? t.meta.map(printMetadata).join(" ") + " " : "") + (t.isExtern ? "extern " : "") + switch (t.kind) {
-				case TDEnum:				
+				case TDEnum:
 					"enum " + t.name + (t.params.length > 0 ? "<" + t.params.map(printTypeParamDecl).join(",") + ">" : "") + " {\n"
-					+ [for (field in t.fields) 
+					+ [for (field in t.fields)
 						tabs + (field.doc != null && field.doc != "" ? "/**\n" + tabs + tabs + StringTools.replace(field.doc, "\n", "\n" + tabs + tabs) + "\n" + tabs + "**/\n" + tabs : "")
 						+ (field.meta != null && field.meta.length > 0 ? field.meta.map(printMetadata).join(" ") + " " : "")
 						+ (switch(field.kind) {
@@ -260,5 +260,5 @@ class Printer {
 		return str;
 	}
 
-	function opt<T>(v:T, f:T->String, prefix = "") return v == null ? "" : (prefix + f(v))
+	function opt<T>(v:T, f:T->String, prefix = "") return v == null ? "" : (prefix + f(v));
 }

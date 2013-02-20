@@ -26,9 +26,9 @@ private typedef NativeInt64 = Int;
 @:coreApi
 @:nativeGen class Int64
 {
-	@:extern private static inline function asNative(i:Int64):NativeInt64 return untyped i
-	@:extern private static inline function ofNative(i:NativeInt64):Int64 return untyped i
-	@:extern private static inline function mkNative(i:Dynamic):NativeInt64 return i
+	@:extern private static inline function asNative(i:Int64):NativeInt64 return untyped i;
+	@:extern private static inline function ofNative(i:NativeInt64):Int64 return untyped i;
+	@:extern private static inline function mkNative(i:Dynamic):NativeInt64 return i;
 
 	public static inline function make( high : Int, low : Int ) : Int64
 	{
