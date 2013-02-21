@@ -219,12 +219,12 @@ class Printer {
 				case TDEnum:
 					"enum " + t.name + (t.params.length > 0 ? "<" + t.params.map(printTypeParamDecl).join(",") + ">" : "") + " {\n"
 					+ [for (field in t.fields)
-						tabs + (field.doc != null && field.doc != "" ? "/**\n" + tabs + tabs + StringTools.replace(field.doc, "\n", "\n" + tabs + tabs) + "\n" + tabs + "**/\n" + tabs : "")
+						tabs + (field.doc != null && field.doc != "" ? "/**\n" + tabs + tabString + StringTools.replace(field.doc, "\n", "\n" + tabs + tabString) + "\n" + tabs + "**/\n" + tabs : "")
 						+ (field.meta != null && field.meta.length > 0 ? field.meta.map(printMetadata).join(" ") + " " : "")
 						+ (switch(field.kind) {
-						  case FVar(_, _): field.name;
-						  case FProp(_, _, _, _): throw "FProp is invalid for TDEnum.";
-						  case FFun(func): field.name + printFunction(func);
+							case FVar(_, _): field.name;
+							case FProp(_, _, _, _): throw "FProp is invalid for TDEnum.";
+							case FFun(func): field.name + printFunction(func);
 						}) + ";"
 					].join("\n")
 					+ "\n}";
@@ -242,12 +242,7 @@ class Printer {
 					+ " {\n"
 					+ [for (f in t.fields) {
 						var fstr = printField(f);
-						switch (f.kind) {
-							case FVar(_, _), FProp(_, _, _, _):
-								tabs + fstr + (StringTools.endsWith(fstr, "}") ? "" : ";");
-							case FFun(f):
-								tabs + fstr + (f.expr == null ? ";" : "");
-						}
+						tabs + fstr + (StringTools.endsWith(fstr, "}") ? "" : ";");
 					}].join("\n")
 					+ "\n}";
 				case TDAlias(ct):

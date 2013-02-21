@@ -55,7 +55,7 @@ class TypeTools {
 			trace(t.follow()); //TInst(String,[])
 	**/
 	static public inline function follow( t : Type, ?once : Bool ) : Type
-		return Context.follow(t, once)
+		return Context.follow(t, once);
 		
 	/**
 		Returns a syntax-level type corresponding to Type [t].
@@ -67,7 +67,7 @@ class TypeTools {
 		If [t] is null, an internal exception is thrown.
 	**/
 	static public inline function toComplexType( t : Type ) : ComplexType
-		return Context.toComplexType(t)
+		return Context.toComplexType(t);
 		
 	/**
 		Tries to extract the class instance stored inside [t].
@@ -100,7 +100,7 @@ class TypeTools {
 	/**
 		Converts type [t] to a human-readable String representation.
 	**/
-	static public function toString( t : Type ) : String return new String(Context.load("s_type", 1)(t))
+	static public function toString( t : Type ) : String return new String(Context.load("s_type", 1)(t));
 	#end
 	
 }

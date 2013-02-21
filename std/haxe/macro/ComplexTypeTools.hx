@@ -48,7 +48,7 @@ class ComplexTypeTools {
 		If [c] is null, the result is null.
 	**/
 	static public function toType( c : ComplexType ) : Null<Type>
-		return c == null ? null : haxe.macro.Context.typeof( { expr: ECheckType(macro null, c), pos: Context.currentPos() } )
+		return c == null ? null : haxe.macro.Context.typeof( { expr: ECheckType(macro null, c), pos: Context.currentPos() } );
 		
 	#end
 }
