@@ -154,7 +154,7 @@ import cs.NativeArray;
 		}
 
 		__a[length] = x;
-		return length++;
+		return ++length;
 	}
 
 	/**
@@ -419,7 +419,7 @@ import cs.NativeArray;
 
 		return false;
 	}
-	
+
 	public function map<S>( f : T -> S ) : Array<S> {
 		var ret = [];
 		for (elt in this)

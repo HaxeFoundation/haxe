@@ -53,7 +53,7 @@ import java.internal.Exceptions;
 	}
 
 	public static function string( s : Dynamic ) : String {
-		return cast s;
+		return cast(s, String) + "";
 	}
 
 	public static inline function int( x : Float ) : Int {

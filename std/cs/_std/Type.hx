@@ -159,7 +159,13 @@ import cs.internal.Runtime;
 		}
 	}
 
-
+	@:functionCode('
+		if (name == "Bool") return typeof(bool);
+		System.Type t = resolveClass(name);
+		if (t != null && (t.BaseType.Equals(typeof(System.Enum)) || t.BaseType.Equals(haxe.lang.Enum)))
+			return t;
+		return null;
+	')
 	public static function resolveEnum( name : String ) : Enum<Dynamic> untyped
 	{
 		if (name == "Bool") return Bool;

@@ -158,7 +158,7 @@ import java.NativeArray;
 		}
 
 		__a[length] = x;
-		return this.length++;
+		return ++this.length;
 	}
 
 	/**
@@ -450,7 +450,7 @@ import java.NativeArray;
 			next:function() return __a[i++]
 		};
 	}
-	
+
 	public function map<S>( f : T -> S ) : Array<S> {
 		var ret = [];
 		for (elt in this)

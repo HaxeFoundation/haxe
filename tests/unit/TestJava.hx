@@ -157,7 +157,7 @@ class TestJava extends Test
 		eq(child.someField("test") , 2);
 		eq(child.someField(Bytes.ofString("a")), 2);
 		eq(child.someField(22.2), 3);
-		eq(new ChildJava(25).i, 25);
+		eq(new ChildJava(25).i, 26);
 
 		var child:OverloadedInterface = child;
 		eq(child.someField("test"), 2);
@@ -168,7 +168,7 @@ class TestJava extends Test
 		eq(child.someField(true), -1);
 
 		var child:ChildJava2<ChildJava2<Dynamic>> = new ChildJava2(22.5);
-		eq(child.i, 22);
+		eq(child.i, 23);
 		eq(child.someField(22.5), 50);
 		eq(child.someField(child), child);
 		eq(child.someField(ChildJava2), 51);
@@ -222,7 +222,7 @@ class TestJava extends Test
 	function testNameClash()
 	{
 		eq(Base._nameClash(null), -1);
-		eq(new Base().nameClash(), 2);
+		eq(new Base().nameClash(), 1);
 		eq(new Base().varNameClash(1), 1);
 		eq(Base._varNameClash(10.4), 10.4);
 

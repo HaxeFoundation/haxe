@@ -116,6 +116,13 @@
 	}
 
 
+	@:functionCode('
+		if ("Bool".equals(name)) return boolean.class;
+		Class r = resolveClass(name);
+		if (r != null && (r.getSuperclass() == java.lang.Enum.class || r.getSuperclass() == haxe.lang.Enum.class))
+			return r;
+		return null;
+	')
 	public static function resolveEnum( name : String ) : Enum<Dynamic> untyped
 	{
 		if (name == "Bool") return Bool;

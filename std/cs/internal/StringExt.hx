@@ -28,7 +28,7 @@ private typedef NativeString = String;
 
 	@:functionCode('
 			if ( ((uint) index) >= me.Length)
-				return null;
+				return "";
 			else
 				return new string(me[index], 1);
 	')

@@ -70,7 +70,7 @@ import cs.system.text.regularExpressions.Regex;
 	}
 
 	public function matchedPos() : { pos : Int, len : Int } {
-		return { pos : sub +  m.Index, len : m.Length };
+		return { pos : sub + m.Index, len : m.Length };
 	}
 
 	public function matchSub( s : String, pos : Int, len : Int = -1):Bool {
@@ -88,11 +88,67 @@ import cs.system.text.regularExpressions.Regex;
 		return untyped [s.Substring(0, m.Index), s.Substring(m.Index + m.Length)];
 	}
 
-	public function replace( s : String, by : String ) : String {
-		if (isGlobal)
-			return regex.Replace(s, by);
-		var m = regex.Match(s);
-		return untyped (s.Substring(0, m.Index) + by + s.Substring(m.Index + m.Length));
+	inline function start(group:Int)
+	{
+		return m.Groups[group].Index + sub;
+	}
+
+	inline function len(group:Int)
+	{
+		return m.Groups[group].Length;
+	}
+
+	public function replace( s : String, by : String ) : String
+	{
+      var b = new StringBuf();
+      var pos = 0;
+      var len = s.length;
+      var a = by.split("$");
+      var first = true;
+      do {
+        if( !matchSub(s,pos,len) )
+          break;
+        var p = matchedPos();
+        if( p.len == 0 && !first ) {
+          if( p.pos == s.length )
+            break;
+          p.pos += 1;
+        }
+        b.addSub(s,pos,p.pos-pos);
+        if( a.length > 0 )
+          b.add(a[0]);
+        var i = 1;
+        while( i < a.length ) {
+          var k = a[i];
+          var c = k.charCodeAt(0);
+          // 1...9
+          if( c >= 49 && c <= 57 ) {
+						try {
+							var ppos = start( c-48 ), plen = this.len( c-48 );
+							b.addSub(s, ppos, plen);
+						}
+						catch(e:Dynamic)
+						{
+							b.add("$");
+							b.add(k);
+						}
+          } else if( c == null ) {
+            b.add("$");
+            i++;
+            var k2 = a[i];
+            if( k2 != null && k2.length > 0 )
+              b.add(k2);
+          } else
+            b.add("$"+k);
+          i++;
+        }
+        var tot = p.pos + p.len - pos;
+        pos += tot;
+        len -= tot;
+        first = false;
+      } while( isGlobal );
+      b.addSub(s,pos,len);
+      return b.toString();
 	}
 
 	public function map( s : String, f : EReg -> String ) : String {
