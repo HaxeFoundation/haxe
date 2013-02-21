@@ -158,9 +158,19 @@ class EReg {
 	}
 
 	/**
-		Replaces a pattern by another string. The [by] format can
-		contains [$1] to [$9] that will correspond to groups matched
-		while replacing. [$$] means the [$] character.
+		Replaces the first substring of [s] which [this] EReg matches with [by].
+		
+		If [this] EReg does not match any substring, the result is [s].
+		
+		By default, this method replaces only the first matched substring. If
+		the global g modifier is in place, all matched substrings are replaced.
+		
+		If [by] contains [$1] to [$9], the digit corresponds to number of a
+		matched sub-group and its value is used instead. If no such sub-group
+		exists, the [$1] to [$9] string is used as is. The string [$$] becomes
+		[$].
+		
+		If [s] or [by] are null, the result is unspecified.
 	**/
 	public function replace( s : String, by : String ) : String {
 		return null;

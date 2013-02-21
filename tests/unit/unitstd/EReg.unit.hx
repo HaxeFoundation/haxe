@@ -65,4 +65,35 @@ pos.len == 2;
 ~/a/g.split("aba") == ["","b",""];
 ~/a/g.split("bab") == ["b","b"];
 ~/a/g.split("baba") == ["b","b",""];
+
+// replace
+~/a/.replace("", "z") == "";
+~/a/.replace("a", "z") == "z";
+~/a/.replace("aa", "z") == "za";
+~/a/.replace("b", "z") == "b";
+~/a/.replace("ab", "z") == "zb";
+~/a/.replace("ba", "z") == "bz";
+~/a/.replace("aba", "z") == "zba";
+~/a/.replace("bab", "z") == "bzb";
+~/a/.replace("baba", "z") == "bzba";
+
+// replace + g
+~/a/g.replace("", "z") == "";
+~/a/g.replace("a", "z") == "z";
+~/a/g.replace("aa", "z") == "zz";
+~/a/g.replace("b", "z") == "b";
+~/a/g.replace("ab", "z") == "zb";
+~/a/g.replace("ba", "z") == "bz";
+~/a/g.replace("aba", "z") == "zbz";
+~/a/g.replace("bab", "z") == "bzb";
+~/a/g.replace("baba", "z") == "bzbz";
+
+// replace + $
+~/href="(.*?)"/.replace('lead href="foo" trail',"$1") == "lead foo trail";
+~/href="(.*?)"/.replace('lead href="foo" trail',"$2") == "lead $2 trail";
+~/href="(.*?)"/.replace('href="foo"',"$1") == "foo";
+~/href="(.*?)"/.replace('href="foo"',"$2") == "$2";
+~/href="(.*?)"/g.replace('lead href="foo" href="bar" trail',"$1") == "lead foo bar trail";
+~/href="(.*?)"/g.replace('lead href="foo" href="bar" trail',"$$$1$$") == "lead $foo$ $bar$ trail";
+~/href="(.*?)"/g.replace('lead href="foo" href="bar" trail',"$$$2$$") == "lead $$2$ $$2$ trail";
 #end
