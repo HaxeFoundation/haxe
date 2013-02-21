@@ -1090,9 +1090,10 @@ and type_field ctx e i p mode =
 			in
 			let t = field_type ctx c [] f p in
 			let t = apply_params a.a_types pl t in
-			if not (Meta.has Meta.Impl f.cf_meta) then (match follow t with
-				| TFun((_,_,ta) :: _,_) -> unify ctx e.etype ta p
-				| _ -> raise Not_found);
+			if mode = MCall then begin match follow t with
+				| TFun((_,_,ta) :: _,_) -> if not (Meta.has Meta.Impl f.cf_meta) then unify ctx e.etype ta p
+				| _ -> error (s_type_path a.a_path ^ "." ^ i ^ " cannot be called") p
+			end;
 			let et = type_module_type ctx (TClassDecl c) None p in
 			let ef = mk (TField (et,FStatic (c,f))) t p in
 			if mode = MGet then begin
