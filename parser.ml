@@ -120,8 +120,6 @@ let rec make_binop op e ((v,p2) as e2) =
 	| ETernary (e1,e2,e3) when is_not_assign op ->
 		let e = make_binop op e e1 in
 		ETernary (e,e2,e3) , punion (pos e) (pos e3)
-	| EMeta(_,e2) ->
-		make_binop op e e2
 	| _ ->
 		EBinop (op,e,e2) , punion (pos e) (pos e2)
 
@@ -131,6 +129,13 @@ let rec make_unop op ((v,p2) as e) p1 =
 	| ETernary (e1,e2,e3) -> ETernary (make_unop op e1 p1 , e2, e3), punion p1 p2
 	| _ ->
 		EUnop (op,Prefix,e), punion p1 p2
+
+let rec make_meta name params ((v,p2) as e) p1 =
+	match v with
+	| EBinop (bop,e,e2) -> EBinop (bop, make_meta name params e p1 , e2) , (punion p1 p2)
+	| ETernary (e1,e2,e3) -> ETernary (make_meta name params e1 p1 , e2, e3), punion p1 p2
+	| _ ->
+		EMeta((name,params,p1),e),punion p1 p2
 
 let popt f = parser
 	| [< v = f >] -> Some v
@@ -760,9 +765,9 @@ and parse_macro_expr p = parser
 and expr = parser
 	| [< (name,params,p) = parse_meta_entry; s >] ->
 		(try
-			(EMeta((name,params,p), secure_expr s),p)
+			make_meta name params (secure_expr s) p
 		with Display e ->
-			display (EMeta((name,params,p), e),punion p (pos e)))
+			display (make_meta name params e p))
 	| [< '(BrOpen,p1); b = block1; '(BrClose,p2); s >] ->
 		let e = (b,punion p1 p2) in
 		(match b with
