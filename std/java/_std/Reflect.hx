@@ -102,6 +102,9 @@ import java.Boot;
 		if (o instanceof haxe.lang.IHxObject)
 			return ((haxe.lang.IHxObject) o).__hx_getField(field, false, false, true);
 
+		if (haxe.lang.Runtime.slowHasField(o, "get_" + field))
+			return haxe.lang.Runtime.slowCallField(o, "get_" + field, null);
+
 		return haxe.lang.Runtime.slowGetField(o, field, false);
 	')
 	public static function getProperty( o : Dynamic, field : String ) : Dynamic
@@ -115,6 +118,8 @@ import java.Boot;
 	@:functionCode('
 		if (o instanceof haxe.lang.IHxObject)
 			((haxe.lang.IHxObject) o).__hx_setField(field, value, true);
+		else if (haxe.lang.Runtime.slowHasField(o, "set_" + field))
+			haxe.lang.Runtime.slowCallField(o, "set_" + field, new Array( new java.lang.Object[]{value} ));
 		else
 			haxe.lang.Runtime.slowSetField(o, field, value);
 	')

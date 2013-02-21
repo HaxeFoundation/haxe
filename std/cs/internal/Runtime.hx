@@ -665,6 +665,7 @@ import cs.system.Type;
 		return null;
 	}
 
+
 	//TODO: change from genericCast to getConverter, so we don't need to handle extra boxing associated with it
 	/*@:functionCode('
 		if (typeof(To).TypeHandle == typeof(double).TypeHandle)

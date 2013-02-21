@@ -249,7 +249,7 @@
 	@:functionCode('
 		if (params == null || params.length == 0)
 		{
-			java.lang.Object ret = haxe.lang.Runtime.slowGetField(e, constr, false);
+			java.lang.Object ret = haxe.lang.Runtime.slowGetField(e, constr, true);
 			if (ret instanceof haxe.lang.Function)
 				throw haxe.lang.HaxeException.wrap("Constructor " + constr + " needs parameters");
 			return (T) ret;

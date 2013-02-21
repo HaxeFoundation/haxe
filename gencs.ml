@@ -1275,7 +1275,7 @@ let configure gen =
 
     (match cf.cf_kind with
       | Var _
-      | Method (MethDynamic) ->
+      | Method (MethDynamic) when not (Type.is_extern_field cf) ->
         (if is_overload || List.exists (fun cf -> cf.cf_expr <> None) cf.cf_overloads then
           gen.gcon.error "Only normal (non-dynamic) methods can be overloaded" cf.cf_pos);
         if not is_interface then begin
@@ -1290,6 +1290,11 @@ let configure gen =
               print w "%s %s%s %s %s;" access (if is_static then "static " else "") (String.concat " " modifiers) (t_s (run_follow gen cf.cf_type)) (change_field name)
           )
         end (* TODO see how (get,set) variable handle when they are interfaces *)
+      | Method _ when Type.is_extern_field cf ->
+        List.iter (fun cf -> if cl.cl_interface || cf.cf_expr <> None then
+          gen_class_field w ~is_overload:true is_static cl (Meta.has Meta.Final cf.cf_meta) cf
+        ) cf.cf_overloads
+      | Var _ | Method MethDynamic -> ()
       | Method mkind ->
         List.iter (fun cf ->
           if cl.cl_interface || cf.cf_expr <> None then

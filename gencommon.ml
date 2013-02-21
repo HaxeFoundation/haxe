@@ -6823,14 +6823,17 @@ struct
                 mk_this_call_raw fn (TFun(["value",false,cf.cf_type], cf.cf_type)) [ value_local ];
                 mk_return value_local
               ] in
-              {
-                eexpr = TIf(
-                  handle_prop_local,
-                  { eexpr = TBlock bl; etype = value_local.etype; epos = pos },
-                  Some ret);
-                etype = value_local.etype;
-                epos = pos;
-              }
+              if Type.is_extern_field cf then
+                { eexpr = TBlock bl; etype = value_local.etype; epos = pos }
+              else
+                {
+                  eexpr = TIf(
+                    handle_prop_local,
+                    { eexpr = TBlock bl; etype = value_local.etype; epos = pos },
+                    Some ret);
+                  etype = value_local.etype;
+                  epos = pos;
+                }
             | _ ->
               ret
         in
@@ -6868,6 +6871,8 @@ struct
 
          let get_field cf cf_type ethis cl name =
           match cf.cf_kind with
+            | Var { v_read = AccCall fn } when Type.is_extern_field cf ->
+              mk_return (mk_this_call_raw fn (TFun(["value",false,cf.cf_type], cf.cf_type)) [  ])
             | Var { v_read = AccCall fn } ->
               {
                 eexpr = TIf(
@@ -6918,6 +6923,11 @@ struct
 
       let mk_switch static =
         let fields = get_fields static in
+        let fields = List.filter (fun (_, cf) -> match is_set, cf.cf_kind with
+          | true, Var { v_write = AccCall _ } -> true
+          | false, Var { v_read = AccCall _ } -> true
+          | _ -> not (Type.is_extern_field cf)) fields
+        in
         (if fields <> [] then has_fields := true);
         let cases = List.map (fun (names, cf) ->
           (if names = [] then assert false);

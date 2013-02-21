@@ -52,7 +52,7 @@ import java.internal.Exceptions;
 		return untyped clt.isAssignableFrom(clv);
 	}
 
-	public static inline function string( s : Dynamic ) : String {
+	public static function string( s : Dynamic ) : String {
 		return cast s;
 	}
 

@@ -181,9 +181,9 @@ import cs.internal.Runtime;
 	}
 
 	@:functionCode('
-		if (@params == null)
+		if (@params == null || @params.length == 0)
 		{
-			object ret = haxe.lang.Runtime.slowGetField(e, constr, false);
+			object ret = haxe.lang.Runtime.slowGetField(e, constr, true);
 			if (ret is haxe.lang.Function)
 				throw haxe.lang.HaxeException.wrap("Constructor " + constr + " needs parameters");
 			return (T) ret;

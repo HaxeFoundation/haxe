@@ -239,7 +239,7 @@ package java.internal;
 
 	@:functionCode('
 			if (v1 instanceof java.lang.String || v2 instanceof java.lang.String)
-				return (v1 + "") + (v2 + "");
+				return toString(v1) + toString(v2);
 
 			if (v1 instanceof java.lang.Number || v2 instanceof java.lang.Number)
 			{
@@ -559,6 +559,11 @@ package java.internal;
 		if (isInt(obj))
 			return (cast(obj, Int)) + "";
 		return untyped obj.toString();
+	}
+
+	public static function isFinite(v:Float):Bool
+	{
+		return (v == v) && !java.lang.Double._isInfinite(v);
 	}
 }
 

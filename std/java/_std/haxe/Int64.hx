@@ -37,7 +37,7 @@ private typedef NativeInt64 = Int;
 
 	public static inline function getLow( x : Int64 ) : Int
 	{
-		return cast (x.asNative() & 0xFFFFFFFF.mkNative());
+		return cast (x.asNative() & untyped __java__("0xFFFFFFFFL"));
 	}
 
 	public static inline function getHigh( x : Int64 ) : Int

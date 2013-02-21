@@ -85,7 +85,7 @@ private class Enum
 	}
 	public function toString():String
 	{
-		if (params == null) return getTag();
+		if (params == null || params.length == 0) return getTag();
 		var ret = new StringBuf();
 		ret.add(getTag()); ret.add("(");
 		var first = true;

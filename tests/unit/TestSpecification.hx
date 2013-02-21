@@ -10,11 +10,11 @@ typedef T = {
 	public function func() { }
 	public var v:String;
 	public var prop(default, null):String;
-	
+
 	static function staticFunc() { }
 	static public var staticVar:String;
 	static var staticProp(default, null):String;
-	
+
 	public function new() {
 		v = "var";
 		prop = "prop";
@@ -37,7 +37,7 @@ private class ClassWithToString {
 }
 
 private class ClassWithToStringChild extends ClassWithToString {
-	
+
 }
 
 private class ClassWithToStringChild2 extends ClassWithToString {
@@ -54,7 +54,7 @@ private class ClassWithToStringChild2 extends ClassWithToString {
 }
 
 private class ClassWithCtorDefaultValuesChild extends ClassWithCtorDefaultValues {
-	
+
 }
 
 private enum SomeEnum<T> {
@@ -64,11 +64,11 @@ private enum SomeEnum<T> {
 
 private class IntWrap {
 	public var i(default, null):Int;
-	
+
 	public function new(i:Int) {
 		this.i = i;
 	}
-	
+
 	static public function compare(a:IntWrap, b:IntWrap) {
 		return if (a.i == b.i) 0;
 			else if (a.i > b.i) 1;
