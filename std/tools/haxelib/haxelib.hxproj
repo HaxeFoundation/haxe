@@ -2,7 +2,7 @@
 <project version="2">
   <!-- Output SWF options -->
   <output>
-    <movie outputType="Application" />
+    <movie outputType="CustomBuild" />
     <movie input="" />
     <movie path="index.n" />
     <movie fps="30" />
@@ -23,7 +23,7 @@
     <option flashStrict="False" />
     <option mainClass="tools.haxelib.Site" />
     <option enabledebug="False" />
-    <option additional="-D haxe3&#xA;-dce no&#xA;--next&#xA;-neko haxelib.n&#xA;-main tools.haxelib.Main&#xA;-cmd nekotools boot haxelib.n&#xA;-D haxe3" />
+    <option additional="" />
   </build>
   <!-- haxelib libraries -->
   <haxelib>
@@ -38,13 +38,14 @@
     <!-- example: <hidden path="..." /> -->
   </hiddenPaths>
   <!-- Executed before build -->
-  <preBuildCommand />
+  <preBuildCommand>haxe haxelib.hxml</preBuildCommand>
   <!-- Executed after build -->
   <postBuildCommand alwaysRun="False" />
   <!-- Other project options -->
   <options>
     <option showHiddenPaths="False" />
-    <option testMovie="Unknown" />
+    <option testMovie="Custom" />
+    <option testMovieCommand="" />
   </options>
   <!-- Plugin storage -->
   <storage />

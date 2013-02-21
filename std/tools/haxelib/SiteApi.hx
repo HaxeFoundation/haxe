@@ -21,7 +21,9 @@
  */
 package tools.haxelib;
 import tools.haxelib.Data;
+#if haxelib_site
 import tools.haxelib.SiteDb;
+#end
 
 class SiteApi {
 

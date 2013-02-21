@@ -20,7 +20,9 @@
  * DEALINGS IN THE SOFTWARE.
  */
 package tools.haxelib;
+#if haxelib_site
 import tools.haxelib.SiteDb;
+#end
 import haxe.rtti.CType;
 
 class Site {
