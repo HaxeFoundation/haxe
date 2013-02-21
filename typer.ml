@@ -1585,7 +1585,7 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 			let f,r,assign = find_overload a c e2.etype true in
 			begin match f.cf_expr with
 				| None ->
-					let e2 = match e2.etype with TAbstract(a,pl) -> {e2 with etype = apply_params a.a_types pl a.a_this} | _ -> e2 in
+					let e2 = match follow e2.etype with TAbstract(a,pl) -> {e2 with etype = apply_params a.a_types pl a.a_this} | _ -> e2 in
 					cast_rec {e1 with etype = apply_params a.a_types pl a.a_this} e2 r
 				| Some _ ->
 					mk_cast_op c f a pl e1 e2 r assign
@@ -1597,7 +1597,7 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 			let f,r,assign = find_overload a c e1.etype false in
 			begin match f.cf_expr with
 				| None ->
-					let e1 = match e1.etype with TAbstract(a,pl) -> {e1 with etype = apply_params a.a_types pl a.a_this} | _ -> e1 in
+					let e1 = match follow e1.etype with TAbstract(a,pl) -> {e1 with etype = apply_params a.a_types pl a.a_this} | _ -> e1 in
 					cast_rec e1 {e2 with etype = apply_params a.a_types pl a.a_this} r
 				| Some _ ->
 					mk_cast_op c f a pl e2 e1 r assign
