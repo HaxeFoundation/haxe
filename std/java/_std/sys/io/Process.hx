@@ -23,7 +23,8 @@ package sys.io;
 import haxe.io.Bytes;
 import haxe.io.BytesInput;
 import haxe.io.Eof;
-import java.io.Exceptions;
+import java.io.IOException;
+import java.io.EOFException;
 import java.NativeArray;
 
 @:coreApi

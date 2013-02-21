@@ -24,7 +24,8 @@ import haxe.Int64;
 import haxe.io.Bytes;
 import haxe.io.Eof;
 import haxe.io.Output;
-import java.io.Exceptions;
+import java.io.IOException;
+import java.io.EOFException;
 
 @:native('haxe.java.io.NativeOutput') class NativeOutput extends Output
 {
@@ -33,42 +34,42 @@ import java.io.Exceptions;
 	{
 		this.stream = stream;
 	}
-	
-	override public function writeByte(c:Int):Void 
+
+	override public function writeByte(c:Int):Void
 	{
 		try
 		{
 			stream.write(c);
 		}
-		
+
 		catch (e:EOFException) {
 			throw new Eof();
 		}
-		
+
 		catch (e:IOException) {
 			throw haxe.io.Error.Custom(e);
 		}
 	}
-	
+
 	override public function close():Void
 	{
 		try
 		{
 			stream.close();
 		}
-		
+
 		catch (e:IOException) {
 			throw haxe.io.Error.Custom(e);
 		}
 	}
-	
+
 	override public function flush():Void
 	{
 		try
 		{
 			stream.flush();
 		}
-		
+
 		catch (e:IOException) {
 			throw haxe.io.Error.Custom(e);
 		}

@@ -181,12 +181,23 @@ class TestJava extends Test
 		eq(child.someField(true, 10), 52);
 	}
 
+	function testHaxeKeywords()
+	{
+		eq(Base._inline, 42);
+		eq(Base._callback, 43);
+		eq(Base._cast, 44);
+		eq(Base._untyped, 45);
+		eq(Base._in, 46);
+		Base._in = 40;
+		eq(Base._in, 40);
+	}
+
 
 	function testInnerClass()
 	{
 		//-java-lib should be able to detect inner classes on import
 		var i = new Base_InnerClass();
-		t(true);
+		eq(i.nameClash(), 10);
 
 		var i2 = new Base_InnerClass_InnerInnerClass();
 		t(true);
@@ -206,6 +217,15 @@ class TestJava extends Test
 		g1.complexTypeParameterOfTypeParameter(new Base_InnerClass_InnerInnerClass());
 		//if no compile-time error, we're fine!
 		t(true);
+	}
+
+	function testNameClash()
+	{
+		eq(Base._nameClash(null), -1);
+		eq(new Base().nameClash(), 2);
+		eq(new Base().varNameClash(1), 1);
+		eq(Base._varNameClash(10.4), 10.4);
+
 	}
 
 	function testOverloadOverride()

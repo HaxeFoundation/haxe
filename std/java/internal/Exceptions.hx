@@ -21,6 +21,8 @@
  */
 package java.internal;
 import java.lang.Throwable;
+import java.lang.RuntimeException;
+import java.lang.Exception;
 
 @:nativeGen @:keep @:native("haxe.lang.HaxeException") private class HaxeException extends RuntimeException
 {
@@ -44,7 +46,7 @@ import java.lang.Throwable;
 		return obj;
 	}
 
-	public function toString():String
+	@:overload override public function toString():String
 	{
 		return "Haxe Exception: " + obj;
 	}

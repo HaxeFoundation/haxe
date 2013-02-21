@@ -20,6 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  *)
 
+open JData
 open Unix
 open Ast
 open Common
@@ -153,7 +154,7 @@ struct
         | TField( _, FStatic({ cl_path = (["java";"lang"], "Math") }, { cf_name = "POSITIVE_INFINITY" }) ) ->
           mk_static_field_access_infer float_cl "POSITIVE_INFINITY" e.epos []
         | TField( _, FStatic({ cl_path = (["java";"lang"], "Math") }, { cf_name = "isNaN"}) ) ->
-          mk_static_field_access_infer float_cl "isNaN" e.epos []
+          mk_static_field_access_infer float_cl "_isNaN" e.epos []
         | TCall( ({ eexpr = TField( (_ as ef), FStatic({ cl_path = (["java";"lang"], "Math") }, { cf_name = ("ffloor" as f) }) ) } as fe), p)
         | TCall( ({ eexpr = TField( (_ as ef), FStatic({ cl_path = (["java";"lang"], "Math") }, { cf_name = ("fround" as f) }) ) } as fe), p)
         | TCall( ({ eexpr = TField( (_ as ef), FStatic({ cl_path = (["java";"lang"], "Math") }, { cf_name = ("fceil" as f) }) ) } as fe), p) ->
@@ -165,7 +166,7 @@ struct
         | TCall( ( { eexpr = TField( _, FStatic({ cl_path = (["java";"lang"], "Math") }, { cf_name = "isFinite" }) ) } as efield ), [v]) ->
           { e with eexpr =
             TUnop(Ast.Not, Ast.Prefix, {
-              e with eexpr = TCall( mk_static_field_access_infer float_cl "isInfinite" efield.epos [], [run v] )
+              e with eexpr = TCall( mk_static_field_access_infer float_cl "_isInfinite" efield.epos [], [run v] )
             })
           }
         (* end of math changes *)
@@ -1068,6 +1069,14 @@ let configure gen =
           write w "( ";
           expr_s w e1; write w ( " " ^ (Ast.s_binop op) ^ " " ); expr_s w e2;
           write w " )"
+        | TField (e, FStatic(_, cf)) when Meta.has Meta.Native cf.cf_meta ->
+          let rec loop meta = match meta with
+            | (Meta.Native, [EConst (String s), _],_) :: _ ->
+              expr_s w e; write w "."; write_field w s
+            | _ :: tl -> loop tl
+            | [] -> expr_s w e; write w "."; write_field w (cf.cf_name)
+          in
+          loop cf.cf_meta
         | TField (e, s) ->
           expr_s w e; write w "."; write_field w (field_name s)
         | TTypeExpr (TClassDecl { cl_path = (["haxe"], "Int32") }) ->
@@ -2063,6 +2072,16 @@ let configure gen =
 (* end of configure function *)
 
 let before_generate con =
+  let java_ver = try
+      int_of_string (PMap.find "java_ver" con.defines)
+    with | Not_found ->
+      7
+  in
+  let rec loop i =
+    Common.raw_define con ("java" ^ (string_of_int i));
+    if i > 0 then loop (i - 1)
+  in
+  loop java_ver;
   ()
 
 let generate con =
@@ -2093,12 +2112,12 @@ type java_lib_ctx = {
   jcur_pack : string list;
 }
 
-let lookup_jclass ctx path =
+let lookup_jclass com path =
   List.fold_left (fun acc (_,_,_,get_raw_class) ->
     match acc with
     | None -> get_raw_class path
     | Some p -> Some p
-  ) None ctx.jcom.java_libs
+  ) None com.java_libs
 
 exception ConversionError of string * pos
 
@@ -2158,8 +2177,8 @@ and convert_signature ctx p jsig =
   | TObject ( (["java";"lang"], "Class"), args ) -> mk_type_path ctx ([], "Class") (List.map (convert_arg ctx p) args)
   (** other types *)
   | TObject ( path, [] ) ->
-    (match lookup_jclass ctx path with
-    | Some jcl -> mk_type_path ctx path (List.map (fun _ -> convert_arg ctx p TAny) jcl.ctypes)
+    (match lookup_jclass ctx.jcom path with
+    | Some (jcl, _, _) -> mk_type_path ctx path (List.map (fun _ -> convert_arg ctx p TAny) jcl.ctypes)
     | None -> mk_type_path ctx path [])
   | TObject ( path, args ) -> mk_type_path ctx path (List.map (convert_arg ctx p) args)
   | TArray (jsig, _) -> mk_type_path ctx (["java"], "NativeArray") [ TPType (convert_signature ctx p jsig) ]
@@ -2188,6 +2207,21 @@ let convert_param ctx p param =
 
 
 let get_type_path ctx ct = match ct with | CTPath p -> p | _ -> assert false
+
+let is_override field =
+  List.exists (function
+    (* TODO: pass anotations as @:meta *)
+    | AttrVisibleAnnotations ann ->
+      List.exists (function
+        | { ann_type = TObject( (["java";"lang"], "Override"), [] ) } ->
+            true
+        | _ -> false
+      ) ann
+    | _ -> false
+  ) field.jf_attributes
+
+let mk_override field =
+  { field with jf_attributes = ((AttrVisibleAnnotations [{ ann_type = TObject( (["java";"lang"], "Override"), [] ); ann_elements = [] }]) :: field.jf_attributes) }
 
 let convert_java_enum ctx p pe =
   let meta = ref [Meta.Native, [EConst (String (real_java_path ctx pe.cpath) ), p], p ] in
@@ -2291,12 +2325,20 @@ let convert_java_field ctx p jc field =
         })
       | _ -> error "Method signature was expected" p
   in
+  let cff_name, cff_meta =
+    if String.get cff_name 0 = '%' then
+      let name = (String.sub cff_name 1 (String.length cff_name - 1)) in
+      "_" ^ name,
+      (Meta.Native, [EConst (String (name) ), cff_pos], cff_pos) :: !cff_meta
+    else
+      cff_name, !cff_meta
+  in
 
   {
     cff_name = cff_name;
     cff_doc = cff_doc;
     cff_pos = cff_pos;
-    cff_meta = !cff_meta;
+    cff_meta = cff_meta;
     cff_access = !cff_access;
     cff_kind = kind
   }
@@ -2394,9 +2436,9 @@ let add_java_lib com file =
         let real_path = file ^ "/" ^ (String.concat "." pack) ^ "/" ^ name ^ ".class" in
         try
           let data = Std.input_file ~bin:true real_path in
-          Some (IO.input_string data), real_path, real_path
+          Some(JReader.parse_class (IO.input_string data), real_path, real_path)
         with
-          | _ -> None, real_path, real_path), (fun () -> ()), (fun () -> let ret = ref [] in get_classes_dir [] file ret; !ret)
+          | _ -> None), (fun () -> ()), (fun () -> let ret = ref [] in get_classes_dir [] file ret; !ret)
     | _ -> (* open zip file *)
       let zip = Zip.open_in file in
       let closed = ref false in
@@ -2406,23 +2448,87 @@ let add_java_lib com file =
           let location = (String.concat "/" (pack @ [name]) ^ ".class") in
           let entry = Zip.find_entry zip location in
           let data = Zip.read_entry zip entry in
-          Some (IO.input_string data), file, file ^ "@" ^ location
+          Some(JReader.parse_class (IO.input_string data), file, file ^ "@" ^ location)
         with
           | Not_found ->
-            None, file, file),
+            None),
       (fun () -> closed := true; Zip.close_in zip),
       (fun () -> get_classes_zip zip)
   in
+  let cached_types = Hashtbl.create 12 in
+  let get_raw_class path =
+    try
+      Hashtbl.find cached_types path
+    with | Not_found ->
+      match get_raw_class path with
+      | None ->
+          Hashtbl.add cached_types path None;
+          None
+      | Some (i, p1, p2) ->
+          let ret = Some (i, p1, p2) in
+          Hashtbl.add cached_types path ret;
+          ret
+  in
   let rec build path p outer =
     match get_raw_class path, path with
-    | (None, _, _), ([], c) -> build (["haxe";"root"], c) p outer
-    | (None, _, _), _ -> None
-    | (Some i, real_path, pos_path), _ ->
+    | None, ([], c) -> build (["haxe";"root"], c) p outer
+    | None, _ -> None
+    | Some (cls, real_path, pos_path), _ ->
         let outer = Option.default (fst path @ [snd path]) outer in
         let ctx =  create_ctx com outer in
       try
         let pos = { pfile = pos_path; pmin = 0; pmax = 0; } in
-        let cls = JReader.parse_class i in
+        (* search static / non-static name clash *)
+        let nonstatics = ref [] in
+        List.iter (fun f ->
+          if not(List.mem JStatic f.jf_flags) then nonstatics := f :: !nonstatics
+        ) (cls.cfields @ cls.cmethods);
+        let cmethods = ref cls.cmethods in
+        let rec loop cls =
+          match cls.csuper with
+            | TObject ((["java";"lang"],"Object"), _) -> ()
+            | TObject (path, _) ->
+                (match lookup_jclass com path with
+                | None -> ()
+                | Some (cls,_,_) ->
+                  List.iter (fun f -> if not (List.mem JStatic f.jf_flags) then nonstatics := f :: !nonstatics) (cls.cfields @ cls.cmethods);
+                  cmethods := List.map (fun jm ->
+                    if not(List.mem JStatic jm.jf_flags) && not (is_override jm) && List.exists (fun msup ->
+                      msup.jf_name = jm.jf_name && not(List.mem JStatic msup.jf_flags) && match msup.jf_vmsignature, jm.jf_vmsignature with
+                      | TMethod(a1,_), TMethod(a2,_) -> a1 = a2
+                      | _ -> false
+                    ) cls.cmethods then
+                      mk_override jm
+                    else
+                      jm
+                  ) !cmethods;
+                  loop cls)
+            | _ -> ()
+        in
+        loop cls;
+        let map_field f =
+          let change = match f.jf_name with
+          | "callback" | "cast" | "extern" | "function" | "in" | "typedef" | "using" | "var" | "untyped" | "inline" -> true
+          | _ when List.mem JStatic f.jf_flags && List.exists (fun f2 -> f.jf_name = f2.jf_name) !nonstatics -> true
+          | _ -> false
+          in
+          if change then
+            { f with jf_name = "%" ^ f.jf_name }
+          else
+            f
+        in
+        (* change static fields that have the same name as methods *)
+        let cfields = List.map map_field cls.cfields in
+        let cmethods = List.map map_field !cmethods in
+        (* take off variable fields that have the same name as methods *)
+        let filter_field f f2 = f != f2 && (List.mem JStatic f.jf_flags = List.mem JStatic f2.jf_flags) && f.jf_name = f2.jf_name && f2.jf_kind <> f.jf_kind in
+        let cfields = List.filter (fun f ->
+          if List.mem JStatic f.jf_flags then
+            not (List.exists (filter_field f) cmethods)
+          else
+            not (List.exists (filter_field f) !nonstatics)) cfields
+        in
+        let cls = { cls with cfields = cfields; cmethods = cmethods } in
         let pack = match fst path with | ["haxe";"root"] -> [] | p -> p in
 
         let ppath = path in
@@ -2450,20 +2556,6 @@ let add_java_lib com file =
     | Some r -> r
   in
 
-  let cached_types = Hashtbl.create 12 in
-  let get_raw_class path =
-    try
-      Hashtbl.find cached_types path
-    with | Not_found ->
-      match get_raw_class path with
-      | (None, _ ,_) ->
-          Hashtbl.add cached_types path None;
-          None
-      | (Some i, _, _) ->
-          let ret = JReader.parse_class i in
-          Hashtbl.add cached_types path (Some ret);
-          Some ret
-  in
 
   (* TODO: add_dependency m mdep *)
   com.load_extern_type <- com.load_extern_type @ [build];
