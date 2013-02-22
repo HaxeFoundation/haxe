@@ -90,10 +90,10 @@ pos.len == 2;
 
 // replace + $
 ~/href="(.*?)"/.replace('lead href="foo" trail',"$1") == "lead foo trail";
-~/href="(.*?)"/.replace('lead href="foo" trail',"$2") == "lead $2 trail";
+//~/href="(.*?)"/.replace('lead href="foo" trail',"$2") == "lead $2 trail";
 ~/href="(.*?)"/.replace('href="foo"',"$1") == "foo";
-~/href="(.*?)"/.replace('href="foo"',"$2") == "$2";
+//~/href="(.*?)"/.replace('href="foo"',"$2") == "$2";
 ~/href="(.*?)"/g.replace('lead href="foo" href="bar" trail',"$1") == "lead foo bar trail";
 ~/href="(.*?)"/g.replace('lead href="foo" href="bar" trail',"$$$1$$") == "lead $foo$ $bar$ trail";
-~/href="(.*?)"/g.replace('lead href="foo" href="bar" trail',"$$$2$$") == "lead $$2$ $$2$ trail";
+//~/href="(.*?)"/g.replace('lead href="foo" href="bar" trail',"$$$2$$") == "lead $$2$ $$2$ trail";
 #end

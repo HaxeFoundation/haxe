@@ -167,8 +167,7 @@ class EReg {
 		
 		If [by] contains [$1] to [$9], the digit corresponds to number of a
 		matched sub-group and its value is used instead. If no such sub-group
-		exists, the [$1] to [$9] string is used as is. The string [$$] becomes
-		[$].
+		exists, the replacement is unspecified. The string [$$] becomes [$].
 		
 		If [s] or [by] are null, the result is unspecified.
 	**/
