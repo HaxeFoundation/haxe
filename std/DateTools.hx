@@ -200,6 +200,7 @@ class DateTools {
 		return o.ms + 1000.0 * (o.seconds + 60.0 * (o.minutes + 60.0 * (o.hours + 24.0 * o.days)));
 	}
 	
+	#if (js || flash || php || cpp)
 	/**
 		Retrieve Unix timestamp value from Date components. Takes same argument sequence as the Date constructor.
 	**/
@@ -209,11 +210,11 @@ class DateTools {
 		#elseif php
 		   return untyped __call__("gmmktime", hour, min, sec, month + 1, day, year) * 1000;
 		#elseif cpp
-		  return untyped __global__.__hxcpp_utc_date(year,month,day,hour,min,sec)*1000.0 ;  
+		  return untyped __global__.__hxcpp_utc_date(year,month,day,hour,min,sec)*1000.0 ;
 		#else
 			//TODO
 		   return 0.;
 		#end
 	}
-
+	#end
 }
