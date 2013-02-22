@@ -1506,7 +1506,6 @@ let configure gen =
           write w "public static void Main()";
           begin_block w;
           (if Hashtbl.mem gen.gtypes (["cs"], "Boot") then write w "cs.Boot.init();"; newline w);
-          write w "global::";
           expr_s w { eexpr = TTypeExpr(TClassDecl cl); etype = t_dynamic; epos = Ast.null_pos };
           write w ".main();";
           end_block w;

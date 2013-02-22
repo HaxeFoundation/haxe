@@ -95,7 +95,7 @@ class FileSystem {
 	**/
 	public static function createDirectory( path : String ) : Void
 	{
-		if (!new File(path).mkdir())
+		if (!new File(path).mkdirs())
 			throw "Cannot create dir " + path;
 	}
 
