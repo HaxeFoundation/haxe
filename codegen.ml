@@ -1319,9 +1319,17 @@ let handle_abstract_casts ctx e =
 	let rec make_static_call c cf a pl args t p =
 		let ta = TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) } in
 		let ethis = mk (TTypeExpr (TClassDecl c)) ta p in
-		let map t = apply_params a.a_types pl (monomorphs cf.cf_params t) in
+		let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
+		let map t = apply_params a.a_types pl (apply_params cf.cf_params monos t) in
+		(* TODO: temp RC fix for from-functions to infer type parameters *)
+		let tcf = match follow (map cf.cf_type),args with
+			| TFun((_,_,ta) :: args,r) as tf,e :: el when Meta.has Meta.From cf.cf_meta ->
+				unify ctx e.etype ta p;
+				tf
+			| t,_ -> t
+		in
 		let def () =
-			let e = mk (TField (ethis,(FStatic (c,cf)))) (map cf.cf_type) p in
+			let e = mk (TField (ethis,(FStatic (c,cf)))) tcf p in
 			mk (TCall(e,args)) (map t) p
 		in
 		let e = match cf.cf_expr with
