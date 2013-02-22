@@ -1703,6 +1703,7 @@ let fix_override com c f fd =
 			f
 	) in
 	c.cl_fields <- PMap.add f.cf_name f c.cl_fields;
+  c.cl_overrides <- f :: c.cl_overrides;
 	f
 
 let fix_overrides com t =
