@@ -407,37 +407,37 @@ import cs.NativeArray;
 		#end
 	}
 
-	private static inline function defaultK():Int return 0
+	private static inline function defaultK():Int return 0;
 
 	private static inline function arrayCopy(sourceArray:cs.system.Array, sourceIndex:Int, destinationArray:cs.system.Array, destinationIndex:Int, length:Int):Void
-		cs.system.Array.Copy(sourceArray, sourceIndex, destinationArray, destinationIndex, length)
+		cs.system.Array.Copy(sourceArray, sourceIndex, destinationArray, destinationIndex, length);
 
 	private static inline function getInc(k:Int, mask:Int):Int
-		return (((k) >> 3 ^ (k) << 3) | 1) & (mask)
+		return (((k) >> 3 ^ (k) << 3) | 1) & (mask);
 
 	private static inline function hash(i:Int):Int
-		return i
+		return i;
 
 	private static inline function flagIsEmpty(flag:NativeArray<Int>, i:Int):Bool
-		return ( (flag[i >> 4] >>> ((i & 0xf) << 1)) & 2 ) != 0
+		return ( (flag[i >> 4] >>> ((i & 0xf) << 1)) & 2 ) != 0;
 
 	private static inline function flagIsDel(flag:NativeArray<Int>, i:Int):Bool
-		return ((flag[i >> 4] >>> ((i & 0xf) << 1)) & 1) != 0
+		return ((flag[i >> 4] >>> ((i & 0xf) << 1)) & 1) != 0;
 
 	private static inline function isEither(flag:NativeArray<Int>, i:Int):Bool
-		return ((flag[i >> 4] >>> ((i & 0xf) << 1)) & 3) != 0
+		return ((flag[i >> 4] >>> ((i & 0xf) << 1)) & 3) != 0;
 
 	private static inline function setIsDelFalse(flag:NativeArray<Int>, i:Int):Void
-		flag[i >> 4] &= ~(1 << ((i & 0xf) << 1))
+		flag[i >> 4] &= ~(1 << ((i & 0xf) << 1));
 
 	private static inline function setIsEmptyFalse(flag:NativeArray<Int>, i:Int):Void
-		flag[i >> 4] &= ~(2 << ((i & 0xf) << 1))
+		flag[i >> 4] &= ~(2 << ((i & 0xf) << 1));
 
 	private static inline function setIsBothFalse(flag:NativeArray<Int>, i:Int):Void
-		flag[i >> 4] &= ~(3 << ((i & 0xf) << 1))
+		flag[i >> 4] &= ~(3 << ((i & 0xf) << 1));
 
 	private static inline function setIsDelTrue(flag:NativeArray<Int>, i:Int):Void
-		flag[i >> 4] |= 1 << ((i & 0xf) << 1)
+		flag[i >> 4] |= 1 << ((i & 0xf) << 1);
 
 	private static inline function roundUp(x:Int):Int
 	{
@@ -451,5 +451,5 @@ import cs.NativeArray;
 	}
 
 	private static inline function flagsSize(m:Int):Int
-		return ((m) < 16? 1 : (m) >> 4)
+		return ((m) < 16? 1 : (m) >> 4);
 }

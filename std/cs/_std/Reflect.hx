@@ -101,7 +101,7 @@ import cs.internal.Function;
 		if (o is haxe.lang.IHxObject)
 			return ((haxe.lang.IHxObject) o).__hx_getField(field, haxe.lang.FieldLookup.hash(field), false, false, true);
 
-		if (haxe.lang.Runtime.hasField(o, "get_" + field))
+		if (haxe.lang.Runtime.slowHasField(o, "get_" + field))
 			return haxe.lang.Runtime.slowCallField(o, "get_" + field, null);
 
 		return haxe.lang.Runtime.slowGetField(o, field, false);
@@ -117,7 +117,7 @@ import cs.internal.Function;
 	@:functionCode('
 		if (o is haxe.lang.IHxObject)
 			((haxe.lang.IHxObject) o).__hx_setField(field, haxe.lang.FieldLookup.hash(field), value, true);
-		else if (haxe.lang.Runtime.hasField(o, "set_" + field))
+		else if (haxe.lang.Runtime.slowHasField(o, "set_" + field))
 			haxe.lang.Runtime.slowCallField(o, "set_" + field, new Array<object>(new object[]{value}));
 		else
 			haxe.lang.Runtime.slowSetField(o, field, value);

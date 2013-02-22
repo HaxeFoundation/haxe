@@ -593,6 +593,8 @@ let configure gen =
   let rec real_type t =
     let t = gen.gfollow#run_f t in
     let ret = match t with
+      | TAbstract ({ a_impl = Some _ } as a, pl) ->
+        real_type (Codegen.get_underlying_type a pl)
       | TInst( { cl_path = (["haxe"], "Int32") }, [] ) -> gen.gcon.basic.tint
       | TInst( { cl_path = (["haxe"], "Int64") }, [] ) -> ti64
       | TAbstract( { a_path = [],"Class" }, _ )
@@ -737,6 +739,8 @@ let configure gen =
           | Statics _ | EnumStatics _ -> "System.Type"
           | _ -> "object")
       | TDynamic _ -> "object"
+      | TAbstract(a,pl) when a.a_impl <> None ->
+        t_s (Codegen.get_underlying_type a pl)
       (* No Lazy type nor Function type made. That's because function types will be at this point be converted into other types *)
       | _ -> if !strict_mode then begin trace ("[ !TypeError " ^ (Type.s_type (Type.print_context()) t) ^ " ]"); assert false end else "[ !TypeError " ^ (Type.s_type (Type.print_context()) t) ^ " ]"
 
@@ -1325,7 +1329,12 @@ let configure gen =
         print w "%s %s %s %s %s" (visibility) v_n (String.concat " " modifiers) (if is_new then "" else rett_s (run_follow gen ret_type)) (change_field name);
         let params, params_ext = get_string_params cf.cf_params in
         (* <T>(string arg1, object arg2) with T : object *)
-        print w "%s(%s)%s" (params) (String.concat ", " (List.map (fun (name, _, t) -> sprintf "%s %s" (argt_s (run_follow gen t)) (change_id name)) args)) (params_ext);
+        (match cf.cf_expr with
+        | Some { eexpr = TFunction tf } ->
+            print w "%s(%s)%s" (params) (String.concat ", " (List.map (fun (var, _) -> sprintf "%s %s" (argt_s (run_follow gen var.v_type)) (change_id var.v_name)) tf.tf_args)) (params_ext)
+        | _ ->
+            print w "%s(%s)%s" (params) (String.concat ", " (List.map (fun (name, _, t) -> sprintf "%s %s" (argt_s (run_follow gen t)) (change_id name)) args)) (params_ext)
+        );
         if is_interface then
           write w ";"
         else begin
@@ -1475,6 +1484,8 @@ let configure gen =
   in
 
   let gen_class w cl =
+    write w "#pragma warning disable 109, 114, 219, 429, 168, 162";
+    newline w;
     let should_close = match change_ns (fst (cl.cl_path)) with
       | [] -> false
       | ns ->
@@ -1692,6 +1703,8 @@ let configure gen =
     true
   );
 
+  AbstractImplementationFix.configure gen;
+
   IteratorsInterface.configure gen (fun e -> e);
 
   OverrideFix.configure gen;
@@ -1786,6 +1799,14 @@ let configure gen =
 
   (* let closure_func = ReflectionCFs.implement_closure_cl rcf_ctx ( get_cl (get_type gen (["haxe";"lang"],"Closure")) ) in *)
   let closure_cl = get_cl (get_type gen (["haxe";"lang"],"Closure")) in
+  let varargs_cl = get_cl (get_type gen (["haxe";"lang"],"VarArgsFunction")) in
+  let dynamic_name = gen.gmk_internal_name "hx" "invokeDynamic" in
+
+  List.iter (fun cl ->
+    List.iter (fun cf ->
+      if cf.cf_name = dynamic_name then cl.cl_overrides <- cf :: cl.cl_overrides
+    ) cl.cl_ordered_fields
+  ) [closure_cl; varargs_cl];
 
   let closure_func = ReflectionCFs.get_closure_func rcf_ctx closure_cl in
 

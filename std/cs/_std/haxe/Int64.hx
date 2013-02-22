@@ -27,9 +27,9 @@ using haxe.Int64;
 @:coreApi
 @:nativeGen class Int64
 {
-	@:extern private static inline function asNative(i:Int64):NativeInt64 return untyped i
-	@:extern private static inline function ofNative(i:NativeInt64):Int64 return untyped i
-	@:extern private static inline function mkNative(i:Dynamic):NativeInt64 return i
+	@:extern private static inline function asNative(i:Int64):NativeInt64 return untyped i;
+	@:extern private static inline function ofNative(i:NativeInt64):Int64 return untyped i;
+	@:extern private static inline function mkNative(i:Dynamic):NativeInt64 return i;
 
 	public static inline function make( high : Int, low : Int ) : Int64
 	{
@@ -38,7 +38,7 @@ using haxe.Int64;
 
 	public static inline function getLow( x : Int64 ) : Int
 	{
-		return cast (x.asNative() & 0xFFFFFFFF.mkNative());
+		return cast (x.asNative() & (untyped __cs__("0xFFFFFFFFL")), Int);
 	}
 
 	public static inline function getHigh( x : Int64 ) : Int {

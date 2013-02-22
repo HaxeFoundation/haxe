@@ -77,3 +77,14 @@ unit.Test
 -main unit.Test
 -java java
 -java-lib native_java/native.jar
+
+#cs
+--next
+-main unit.Test
+-cs cs
+
+#cs_unsafe
+--next
+-main unit.Test
+-D unsafe
+-cs cs_unsafe

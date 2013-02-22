@@ -1319,13 +1319,14 @@ let handle_abstract_casts ctx e =
 	let rec make_static_call c cf a pl args t p =
 		let ta = TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) } in
 		let ethis = mk (TTypeExpr (TClassDecl c)) ta p in
+		let map t = apply_params a.a_types pl (monomorphs cf.cf_params t) in
 		let def () =
-			let e = mk (TField (ethis,(FStatic (c,cf)))) cf.cf_type p in
-			mk (TCall(e,args)) t p
+			let e = mk (TField (ethis,(FStatic (c,cf)))) (map cf.cf_type) p in
+			mk (TCall(e,args)) (map t) p
 		in
 		let e = match cf.cf_expr with
 		| Some { eexpr = TFunction fd } when cf.cf_kind = Method MethInline ->
-			let config = if Meta.has Meta.Impl cf.cf_meta then (Some (a.a_types <> [] || cf.cf_params <> [], fun t -> apply_params a.a_types pl (monomorphs cf.cf_params t))) else None in
+			let config = if Meta.has Meta.Impl cf.cf_meta then (Some (a.a_types <> [] || cf.cf_params <> [], map)) else None in
 			(match Optimizer.type_inline ctx cf fd ethis args t config p true with
 				| Some e -> (match e.eexpr with TCast(e,None) -> e | _ -> e)
 				| None ->

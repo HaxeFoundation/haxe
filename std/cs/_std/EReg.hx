@@ -21,7 +21,7 @@
  */
 import cs.system.text.regularExpressions.Regex;
 
-@:coreApi class EReg {
+class EReg {
 
 	private var regex : Regex;
 	private var m : Match;

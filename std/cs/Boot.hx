@@ -29,7 +29,7 @@ import cs.internal.Iterator;
 import cs.internal.Null;
 import cs.internal.StringExt;
 import cs.StdTypes;
-import StringMap;
+import haxe.ds.StringMap;
 import Reflect;
 
 class Boot

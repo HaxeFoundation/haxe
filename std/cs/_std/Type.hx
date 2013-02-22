@@ -162,7 +162,7 @@ import cs.internal.Runtime;
 	@:functionCode('
 		if (name == "Bool") return typeof(bool);
 		System.Type t = resolveClass(name);
-		if (t != null && (t.BaseType.Equals(typeof(System.Enum)) || t.BaseType.Equals(haxe.lang.Enum)))
+		if (t != null && (t.BaseType.Equals(typeof(System.Enum)) || t.BaseType.Equals(typeof(haxe.lang.Enum))))
 			return t;
 		return null;
 	')
@@ -187,7 +187,7 @@ import cs.internal.Runtime;
 	}
 
 	@:functionCode('
-		if (@params == null || @params.length == 0)
+		if (@params == null || @params[0] == null)
 		{
 			object ret = haxe.lang.Runtime.slowGetField(e, constr, true);
 			if (ret is haxe.lang.Function)
