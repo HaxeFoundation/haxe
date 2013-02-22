@@ -60,7 +60,7 @@ class TestXML extends Test {
 		#end
 		#if flash9
 		eq( Xml.parse('&quot; &lt; &gt;').toString(), '" &lt; &gt;' ); // some entities are resolved but not escaped on printing
-		#elseif
+		#else
 		eq( Xml.parse('&quot; &lt; &gt;').toString(), '&quot; &lt; &gt;' );
 		#end
 	}
