@@ -162,7 +162,18 @@ class TestBasetypes extends Test {
 
 
 		eq( Std.int( -10000000000.7), 0xABF41C00 );
+		
+		// int/uint limit values
+		eq( Std.int( -4294967296.7), 0 );
+		eq( Std.int( 4294967296.7), 0 );
+		eq( Std.int( -4294967295.7), 1 );
+		eq( Std.int( 4294967295.7), -1 );
 
+		eq( Std.int( -2147483648.7), 0x80000000 );
+		eq( Std.int( 2147483648.7), 0x80000000 );
+		eq( Std.int( -2147483647.7), 0x80000001 );
+		eq( Std.int( 2147483647.7), 0x7FFFFFFF );
+		
 		#if (js || flash8 || as3 || php)
 
 		// higher Int resolution : should we fix this or not ?
