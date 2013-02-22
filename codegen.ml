@@ -1410,20 +1410,20 @@ let handle_abstract_casts ctx e =
 			begin try
 				begin match e1.eexpr with
 					| TField(e2,fa) ->
-						let e2 = loop e2 in
 						begin match follow e2.etype with
 							| TAbstract(a,pl) when Meta.has Meta.MultiType a.a_meta ->
 								let m = get_underlying_type a pl in
 								let fname = field_name fa in
+								let el = List.map loop el in
 								begin try
 									let ef = mk (TField({e2 with etype = m},quick_field m fname)) e2.etype e2.epos in
-									make_call ctx ef (List.map loop el) e.etype e.epos
+									make_call ctx ef el e.etype e.epos
 								with Not_found ->
 									(* quick_field raises Not_found if m is an abstract, we have to replicate the 'using' call here *)
 									match follow m with
 									| TAbstract({a_impl = Some c} as a,pl) ->
 										let cf = PMap.find fname c.cl_statics in
-										make_static_call c cf a pl (e2 :: (List.map loop el)) e.etype e.epos
+										make_static_call c cf a pl (e2 :: el) e.etype e.epos
 									| _ -> raise Not_found
 								end
 							| _ -> raise Not_found
