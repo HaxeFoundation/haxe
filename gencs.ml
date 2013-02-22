@@ -574,6 +574,8 @@ let configure gen =
       | TAbstract ({ a_path = ["cs"],"Out" },_)
       | TType ({ t_path = [],"Single" },[])
       | TAbstract ({ a_path = [],"Single" },[]) -> Some t
+      | TAbstract ({ a_impl = Some _ } as a, pl) ->
+          Some (gen.gfollow#run_f ( Codegen.get_underlying_type a pl) )
       | TAbstract( { a_path = ([], "EnumValue") }, _  )
       | TInst( { cl_path = ([], "EnumValue") }, _  ) -> Some t_dynamic
       | _ -> None);

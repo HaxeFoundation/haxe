@@ -680,7 +680,7 @@ let configure gen =
             if has_tdynamic params then List.map (fun _ -> t_dynamic) params else
               List.map (fun t ->
                 let f_t = gen.gfollow#run_f t in
-                match gen.gfollow#run_f t with
+                match f_t  with
                   | TEnum ({ e_path = ([], "Bool") }, [])
                   | TAbstract ({ a_path = ([], "Bool") },[])
                   | TInst ({ cl_path = ([],"Float") },[])
@@ -698,7 +698,9 @@ let configure gen =
                   | TType ({ t_path = ["java"],"Char16" },[])
                   | TAbstract ({ a_path = ["java"],"Char16" },[])
                   | TType ({ t_path = [],"Single" },[])
-                  | TAbstract ({ a_path = [],"Single" },[]) -> basic.tnull f_t
+                  | TAbstract ({ a_path = [],"Single" },[]) ->
+                      t_dynamic
+                      (*basic.tnull f_t*)
                   (*| TType ({ t_path = [], "Null"*)
                   | TInst (cl, ((_ :: _) as p)) ->
                     TInst(cl, List.map (fun _ -> t_dynamic) p)
@@ -745,6 +747,8 @@ let configure gen =
       | TType ({ t_path = [],"Single" },[])
       | TAbstract ({ a_path = [],"Single" },[])
       | TType ({ t_path = [],"Null" },[_]) -> Some t
+      | TAbstract ({ a_impl = Some _ } as a, pl) ->
+          Some (gen.gfollow#run_f ( Codegen.get_underlying_type a pl) )
 	    | TAbstract( { a_path = ([], "EnumValue") }, _ )
       | TInst( { cl_path = ([], "EnumValue") }, _  ) -> Some t_dynamic
       | _ -> None);
@@ -933,7 +937,7 @@ let configure gen =
   and path_param_s pos md path params =
       match params with
         | [] -> path_s_import pos path
-        | _ when has_tdynamic params -> path_s_import pos path
+        | _ when has_tdynamic (change_param_type md params) -> path_s_import pos path
         | _ -> sprintf "%s<%s>" (path_s_import pos path) (String.concat ", " (List.map (fun t -> param_t_s pos t) (change_param_type md params)))
   in
 
@@ -1816,7 +1820,7 @@ let configure gen =
   fun e ->
     match e.eexpr with
       | TArray(e1, e2) ->
-        ( match follow e1.etype with
+        ( match run_follow gen e1.etype with
           | TInst({ cl_path = (["java"], "NativeArray") }, _) -> false
           | _ -> true )
       | _ -> assert false

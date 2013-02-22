@@ -25,6 +25,10 @@ private typedef VectorData<T> = #if flash10
 	flash.Vector<T>
 #elseif neko
 	neko.NativeArray<T>
+#elseif cs
+	cs.NativeArray<T>
+#elseif java
+	java.NativeArray<T>
 #else
 	Array<T>
 #end
@@ -53,13 +57,14 @@ abstract Vector<T>(VectorData<T>) {
 			this = untyped __dollar__amake(length);
 		#elseif js
 			this = untyped __new__(Array, length);
+		#elseif cs
+			this = new cs.NativeArray(length);
+		#elseif java
+			this = new java.NativeArray(length);
 		#else
 			this = [];
 			#if cpp
 				untyped this.__SetSize(length);
-			#elseif (java || cs)
-				//TODO optimize
-				this[length-1] = cast null;
 			#else
 				untyped this.length = length;
 			#end
@@ -87,17 +92,109 @@ abstract Vector<T>(VectorData<T>) {
 	}
 
 	/**
+		Returns the value at index [index].
+
+		WARNING: On some platforms it may not perform any bounds check,
+		so accessing it out-of-bounds may cause an irrecoverable crash
+		or data corruption
+	**
+	public inline function unsafeGet(index:Int):T
+	{
+		#if cpp
+			return untyped this.__unsafeGet(index);
+		#else
+			return this[index];
+		#end
+	}*/
+
+	/**
+		Sets the value at index [index] to [val]
+
+		WARNING: On some platforms it may not perform any bounds check,
+		so accessing it out-of-bounds may cause an irrecoverable crash
+		or data corruption
+	**
+	public inline function unsafeSet(index:Int, val:T):Void
+	{
+		#if cpp
+			untyped this.__unsafeSet(index, val);
+		#else
+			this[index] = val;
+		#end
+	}*/
+
+	/**
 		Returns the length of [this] Vector.
 	**/
 	public var length(get, never):Int;
-	
+
 	inline function get_length():Int {
 		#if neko
 			return untyped __dollar__asize(this);
+		#elseif cs
+			return this.Length;
+		#elseif java
+			return this.length;
 		#else
 			return untyped this.length;
 		#end
 	}
+
+	/**
+		Copies [length] of elements from [src] Vector, beginning at [srcPos] to [dest] Vector, beginning at [destPos]
+
+		The results are unspecified if [length] results in out-of-bounds access, or if [src] or [dest] are null
+	**
+	public static #if (cs || java || neko) inline #end function blit<T>(src:Vector<T>, srcPos:Int, dest:Vector<T>, destPos:Int, length:Int):Void
+	{
+		#if neko
+			untyped __dollar__ablit(dst,dstPos,src,srcPos,length);
+		#elseif java
+			java.lang.System.arraycopy(src, srcPos, dest, destPos, length);
+		#elseif cs
+			cs.system.Array.Copy(cast src, srcPos,cast dest, destPos, length);
+		#else
+			for (i in 0...length)
+			{
+				dest[destPos + i] = src[srcPos + i];
+			}
+		#end
+	}*/
+
+	/**
+		Returns a Vector with the same elements as [this], and with size [targetSize].
+
+		WARNING: On some platforms, this function may modify [this] Vector, while on others it may return a copy
+	**
+	public #if (java || cs) inline #end function grow(targetSize:Int):Vector<T>
+	{
+		#if (neko || java || cs)
+			//because of type parameters' erasure, java must run this inlined
+			var len = #if cs this.Length #else this.length #end;
+			var ret = new Vector(targetSize), targetIdx = (len < targetSize) ? len : targetSize;
+			blit(cast this, 0, ret, 0, targetIdx);
+			return ret;
+		#elseif js
+			untyped this.length = targetSize;
+			return cast this;
+		#elseif flash
+			this.fixed = false;
+			this.length = targetSize;
+			this.fixed = true;
+			return cast this;
+		#elseif cpp
+			untyped this.__SetSize(targetSize);
+			return cast this;
+		#else
+			var len = this.length;
+			while (len > targetSize)
+			{
+				this.pop();
+			}
+			untyped this.length = targetSize;
+			return cast this;
+		#end
+	}*/
 
 	/**
 		Extracts the data of [this] Vector.
