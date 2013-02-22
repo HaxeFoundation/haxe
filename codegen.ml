@@ -1660,9 +1660,8 @@ let rec find_field c f =
 		f
 
 let fix_override com c f fd =
-	c.cl_fields <- PMap.remove f.cf_name c.cl_fields;
 	let f2 = (try Some (find_field c f) with Not_found -> None) in
-	let f = (match f2,fd with
+	match f2,fd with
 		| Some (f2), Some(fd) ->
 			let targs, tret = (match follow f2.cf_type with TFun (args,ret) -> args, ret | _ -> assert false) in
 			let changed_args = ref [] in
@@ -1695,16 +1694,13 @@ let fix_override com c f fd =
 			if Common.defined com Define.As3 && f.cf_public then f2.cf_public <- true;
 			let targs = List.map (fun(v,c) -> (v.v_name, Option.is_some c, v.v_type)) nargs in
 			let fde = (match f.cf_expr with None -> assert false | Some e -> e) in
-			{ f with cf_expr = Some { fde with eexpr = TFunction fd2 }; cf_type = TFun(targs,tret) }
+			f.cf_expr <- Some { fde with eexpr = TFunction fd2 };
+			f.cf_type <- TFun(targs,tret);
 		| Some(f2), None when c.cl_interface ->
 			let targs, tret = (match follow f2.cf_type with TFun (args,ret) -> args, ret | _ -> assert false) in
-			{ f with cf_type = TFun(targs,tret) }
+			f.cf_type <- TFun(targs,tret)
 		| _ ->
-			f
-	) in
-	c.cl_fields <- PMap.add f.cf_name f c.cl_fields;
-  (* c.cl_overrides <- f :: c.cl_overrides; *)
-	f
+			()
 
 let fix_overrides com t =
 	match t with
@@ -1719,14 +1715,14 @@ let fix_overrides com t =
 				with Not_found ->
 					true
 			) c.cl_ordered_fields;
-		c.cl_ordered_fields <- List.map (fun f ->
+		List.iter (fun f ->
 			match f.cf_expr, f.cf_kind with
 			| Some { eexpr = TFunction fd }, Method (MethNormal | MethInline) ->
 				fix_override com c f (Some fd)
 			| None, Method (MethNormal | MethInline) when c.cl_interface ->
 				fix_override com c f None
 			| _ ->
-				f
+				()
 		) c.cl_ordered_fields
 	| _ ->
 		()
