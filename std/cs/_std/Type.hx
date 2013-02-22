@@ -62,7 +62,7 @@ import cs.internal.Runtime;
 @:keep @:coreApi class Type {
 
 	@:functionCode('
-		if (o is haxe.lang.DynamicObject || o is System.Type)
+		if (o == null || o is haxe.lang.DynamicObject || o is System.Type)
 			return null;
 
 		return o.GetType();
@@ -174,6 +174,8 @@ import cs.internal.Runtime;
 
 	public static function createInstance<T>( cl : Class<T>, args : Array<Dynamic> ) : T
 	{
+		if (untyped cl == String)
+			return args[0];
 		var t:cs.system.Type = Lib.toNativeType(cl);
 		var ctors = t.GetConstructors();
 		return Runtime.callMethod(null, cast ctors, ctors.Length, args);
@@ -215,13 +217,13 @@ import cs.internal.Runtime;
 
 		Array<object> ret = new Array<object>();
 
-        System.Reflection.MemberInfo[] mis = c.GetMembers(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.DeclaredOnly | System.Reflection.BindingFlags.Instance);
+        System.Reflection.MemberInfo[] mis = c.GetMembers(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.FlattenHierarchy);
         for (int i = 0; i < mis.Length; i++)
         {
 			if (mis[i] is System.Reflection.PropertyInfo)
                 continue;
 			string n = mis[i].Name;
-			if (!n.StartsWith("__hx_") && n[0] != \'.\')
+			if (!n.StartsWith("__hx_") && n[0] != \'.\' && !n.Equals("Equals") && !n.Equals("ToString") && !n.Equals("GetHashCode") && !n.Equals("GetType"))
 				ret.push(mis[i].Name);
         }
 

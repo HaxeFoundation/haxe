@@ -285,14 +285,17 @@ class StringTools {
 
 		If [sub] or [by] are null, the result is unspecified.
 	**/
-	public #if cs inline #end static function replace( s : String, sub : String, by : String ) : String {
+	public static function replace( s : String, sub : String, by : String ) : String {
 		#if java
 		if (sub.length == 0)
 			return s.split(sub).join(by);
 		else
 			return untyped s.replace(sub, by);
 		#elseif cs
-		return untyped s.Replace(sub, by);
+		if (sub.length == 0)
+			return s.split(sub).join(by);
+		else
+			return untyped s.Replace(sub, by);
 		#else
 		return s.split(sub).join(by);
 		#end

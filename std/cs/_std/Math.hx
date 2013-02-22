@@ -47,12 +47,12 @@ import cs.system.Random;
 
 	public static inline function min(a:Float, b:Float):Float
 	{
-		return (a < b) ? a : b;
+		return cs.system.Math.Min(a,b);
 	}
 
 	public static inline function max(a:Float, b:Float):Float
 	{
-		return (a > b) ? a : b;
+		return cs.system.Math.Max(a,b);
 	}
 
 	public static inline function sin(v:Float):Float
@@ -155,7 +155,7 @@ import cs.system.Random;
 
 	public static function isFinite( f : Float ) : Bool
 	{
-		return untyped __cs__("!double.IsInfinity(f)");
+		return untyped __cs__("!double.IsInfinity(f) && !double.IsNaN(f)");
 	}
 
 	public static function isNaN( f : Float ) : Bool

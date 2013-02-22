@@ -4886,7 +4886,7 @@ struct
           { e with eexpr = TCall(ef, [ run maybe_empty ]); }
         | TCall( { eexpr = TConst TSuper } as ef, eparams ) ->
           (* handle special distinction between EmptyConstructor vs one argument contructor *)
-          let handle = if gen.gcon.platform = Java && List.length eparams = 1 then
+          let handle = if (List.length eparams = 1) then
             (fun e t1 t2 -> mk_cast (gen.greal_type t1) e)
           else
             handle
@@ -4918,7 +4918,7 @@ struct
           { e with eexpr = TNew(cl, tparams, [ maybe_empty ]); etype = TInst(cl, tparams) }
         | TNew (cl, tparams, eparams) ->
           (* handle special distinction between EmptyConstructor vs one argument contructor *)
-          let handle = if gen.gcon.platform = Java && List.length eparams = 1 then
+          let handle = if (List.length eparams = 1) then
             (fun e t1 t2 -> mk_cast (gen.greal_type t1) e)
           else
             handle
@@ -5007,13 +5007,22 @@ struct
         | TCast (expr, md) when is_void (follow e.etype) ->
           run expr
         | TCast (expr, md) ->
-          let last_unsafe = gen.gon_unsafe_cast in
-          gen.gon_unsafe_cast <- (fun t t2 pos -> ());
-          let ret = handle (run expr) e.etype expr.etype in
-          gen.gon_unsafe_cast <- last_unsafe;
-          (match ret.eexpr with
-            | TCast _ -> ret
-            | _ -> { e with eexpr = TCast(ret,md); etype = gen.greal_type e.etype }
+          let rec get_null e =
+            match e.eexpr with
+            | TConst TNull -> Some e
+            | TParenthesis e -> get_null e
+            | _ -> None
+          in
+          (match get_null expr with
+          | Some enull -> { enull with etype = e.etype }
+          | _ ->
+            let last_unsafe = gen.gon_unsafe_cast in
+            gen.gon_unsafe_cast <- (fun t t2 pos -> ());
+            let ret = handle (run expr) e.etype expr.etype in
+            gen.gon_unsafe_cast <- last_unsafe;
+            match ret.eexpr with
+              | TCast _ -> ret
+              | _ -> { e with eexpr = TCast(ret,md); etype = gen.greal_type e.etype }
           )
         (*| TCast _ ->
           (* if there is already a cast, we should skip this cast check *)

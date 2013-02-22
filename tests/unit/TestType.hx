@@ -687,7 +687,7 @@ class TestType extends Test {
 			var s:String = z;
 		}));
 	}
-	
+
 	function testOpArrow() {
 		var m = new Map<Int,Int>();
 		var map = [1 => 2, 3 => 4];
@@ -695,14 +695,14 @@ class TestType extends Test {
 		t(Std.is(map, haxe.ds.IntMap));
 		eq(map.get(1), 2);
 		eq(map.get(3), 4);
-		
+
 		var m = new Map<String,Int>();
 		var map = ["1" => 2, "3" => 4];
 		typedAs(map, m);
 		t(Std.is(map, haxe.ds.StringMap));
 		eq(map.get("1"), 2);
 		eq(map.get("3"), 4);
-		
+
 		var a = new unit.MyAbstract.ClassWithHashCode(1);
 		var b = new unit.MyAbstract.ClassWithHashCode(2);
 		var m = new Map<unit.MyAbstract.ClassWithHashCode,Int>();
@@ -711,7 +711,7 @@ class TestType extends Test {
 		//t(Std.is(map, haxe.ds.IntMap));
 		eq(map.get(a), 2);
 		eq(map.get(b), 4);
-		
+
 		// duplicate key
 		t(typeError([1 => 2, 1 => 3]));
 		// key unification
@@ -747,7 +747,7 @@ class TestType extends Test {
 		eq(map.get(b), "bar");
 		// this may be specialized
 		//t(Std.is(map, haxe.ds.ObjectMap));
-		
+
 		//var map = new unit.MyAbstract.MyMap();
 		//map.set(new haxe.Template("foo"), 99);
 		//t(Std.is(map, unit.MyAbstract.PseudoObjectHash));
@@ -764,7 +764,7 @@ class TestType extends Test {
 	}
 
 	static function _mapMe(map:Map < Int, String > ) { }
-	
+
 	function testAbstractOverload() {
 		var ms1:unit.MyAbstract.MyString = "foo";
 		var ms2:unit.MyAbstract.MyString = "bar";
@@ -772,25 +772,25 @@ class TestType extends Test {
 		eq(msum, "foobar");
 		typedAs(msum, ms1);
 		t(Std.is(msum, String));
-		
+
 		var msum2 = ms1 + 1;
 		eq(msum2, "foo1");
 		typedAs(msum2, ms1);
 		t(Std.is(msum2, String));
-		
+
 		// operation is defined, but return type is not compatible
 		t(typeError(ms1 + true));
 		// operation is not defined
 		t(typeError(ms1 - ms2));
 	}
-	
+
 	function testAbstractUnop() {
 		var vec:unit.MyAbstract.MyVector = new unit.MyAbstract.MyPoint3(1, 2, 3);
 		var vec2 = -vec;
 		t(vec2 != vec);
 		eq(vec.toString(), "(1,2,3)");
 		eq(vec2.toString(), "(-1,-2,-3)");
-		
+
 		var my = new unit.MyAbstract.MyInt2(12);
 		eq( (-my).get(), -12);
 		typedAs( -my, my);
@@ -801,7 +801,7 @@ class TestType extends Test {
 		// wrong flag
 		t(typeError(my++));
 	}
-	
+
 	function testMapComprehension() {
 		var map = [for (x in ["a", "b"]) x => x.toUpperCase()];
 		t(map.exists("a"));
@@ -809,7 +809,7 @@ class TestType extends Test {
 		eq(map.get("a"), "A");
 		eq(map.get("b"), "B");
 	}
-	
+
 	function testCustomArrayAccess() {
 		var obj = {
 			foo: 12,
@@ -825,24 +825,24 @@ class TestType extends Test {
 		mr["baz"] = mr["bar"] += mr["foo"];
 		eq(mr["baz"], "test110");
 		eq(mr["bar"], "test110");
-		
+
 		var v = "hh";
 		mr[v] = 1;
 		mr[v += "h"] = 2;
 		eq(mr["hhh"], 2);
 		eq(v, "hhh");
-		
+
 		mr["hhhh"] = 0;
 		mr[v += "h"] += 4;
 		eq(mr["hhhh"], 4);
 		eq(mr["hhh"], 2);
 		eq(v, "hhhh");
-		
+
 		// note for later: As3 compilation fails if the function name is removed
 		mr["101"] = function n(x) return 9 + x;
 		eq(mr["101"](1), 10);
 	}
-	
+
 	function testAbstractClosure() {
 		var s = new unit.MyAbstract.MyAbstractClosure("foo");
 		var func1 = s.test();

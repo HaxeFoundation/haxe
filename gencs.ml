@@ -132,7 +132,7 @@ struct
         (* Std.is() *)
         | TCall(
             { eexpr = TField( _, FStatic({ cl_path = ([], "Std") }, { cf_name = "is" })) },
-            [ obj; { eexpr = TTypeExpr(TClassDecl { cl_path = [], "Dynamic" }) }]
+            [ obj; { eexpr = TTypeExpr(TClassDecl { cl_path = [], "Dynamic" } | TAbstractDecl { a_path = [], "Dynamic" }) }]
           ) ->
             Type.map_expr run e
         | TCall(
@@ -1892,6 +1892,11 @@ let configure gen =
       | _ -> false
   in
 
+  let string_cl = match gen.gcon.basic.tstring with
+    | TInst(c,[]) -> c
+    | _ -> assert false
+  in
+
   DynamicOperators.configure gen
     (DynamicOperators.abstract_implementation gen (fun e -> match e.eexpr with
       | TBinop (Ast.OpEq, e1, e2)
@@ -1952,7 +1957,7 @@ let configure gen =
           mk_cast e.etype { eexpr = TCall(static, [e1; e2]); etype = t_dynamic; epos=e1.epos })
     (fun e1 e2 ->
       if is_string e1.etype then begin
-        { e1 with eexpr = TCall(mk_field_access gen e1 "compareTo" e1.epos, [ e2 ]); etype = gen.gcon.basic.tint }
+        { e1 with eexpr = TCall(mk_static_field_access_infer string_cl "Compare" e1.epos [], [ e1; e2 ]); etype = gen.gcon.basic.tint }
       end else begin
         let static = mk_static_field_access_infer (runtime_cl) "compare" e1.epos [] in
         { eexpr = TCall(static, [e1; e2]); etype = gen.gcon.basic.tint; epos=e1.epos }

@@ -197,10 +197,40 @@ import cs.system.Type;
 					case System.TypeCode.String:
 						if (cv2.GetTypeCode() != System.TypeCode.String)
 							throw new System.ArgumentException("Cannot compare " + v1.GetType().ToString() + " and " + v2.GetType().ToString());
-						return v1.ToString().CompareTo(v2);
-					/*case System.TypeCode.Int64:
-					case System.TypeCode.UInt64:
-						return ((int) (cv1.ToUInt64() - cv2.ToUInt64())) no Int64 operator support */
+						string s1 = v1 as string;
+						string s2 = v2 as string;
+						int i =0;
+						int l1 = s1.Length;
+						int l2 = s2.Length;
+						bool active = true;
+						while(active)
+						{
+							char h1; char h2;
+							if (i >= l1)
+							{
+								h1 = (char) 0;
+								active = false;
+							} else {
+								h1 = s1[i];
+							}
+
+							if (i >= l2)
+							{
+								h2 = (char) 0;
+								active = false;
+							} else {
+								h2 = s2[i];
+							}
+
+							int v = h1 - h2;
+							if (v > 0)
+								return 1;
+							else if (v < 0)
+								return -1;
+
+							i++;
+						}
+						return 0;
 					case System.TypeCode.Double:
 					double d1 = (double) v1;
 					double d2 = cv2.ToDouble(null);
@@ -389,6 +419,7 @@ import cs.system.Type;
 		var length = args.length;
 		var oargs:NativeArray<Dynamic> = new NativeArray(length);
 		var ts:NativeArray<cs.system.Type> = new NativeArray(length);
+		var rates:NativeArray<Int> = new NativeArray(methods.Length);
 
 		for (i in 0...length)
 		{
@@ -408,15 +439,21 @@ import cs.system.Type;
 				if (params.Length != length) {
 					continue;
 				} else {
-					var fits = true;
+					var fits = true, crate = 0;
 					for (i in 0...params.Length)
 					{
 						var param = params[i].ParameterType;
 						var strParam = param + "";
-						if (untyped strParam.StartsWith("haxe.lang.Null") || ( (oargs[i] == null || Std.is(oargs[i], IConvertible) ) && cast(untyped __typeof__(IConvertible), Type).IsAssignableFrom(param) ))
+						if (param.IsAssignableFrom(ts[i]))
 						{
+							//if it is directly assignable, we'll give it top rate
 							continue;
-						} else if (!param.ContainsGenericParameters && !param.IsAssignableFrom(ts[i])) {
+						} else if (untyped strParam.StartsWith("haxe.lang.Null") || ( (oargs[i] == null || Std.is(oargs[i], IConvertible) ) && cast(untyped __typeof__(IConvertible), Type).IsAssignableFrom(param) ))
+						{
+							//if it needs conversion, give a penalty. TODO rate penalty
+							crate++;
+							continue;
+						} else if (!param.ContainsGenericParameters) { //generics don't appear as assignable, but may be in the end. no rate there.
 							fits = false;
 							break;
 						}
@@ -424,6 +461,7 @@ import cs.system.Type;
 
 					if (fits)
 					{
+						rates[last] = crate;
 						methods[last++] = methods[i];
 					}
 				}
@@ -442,6 +480,18 @@ import cs.system.Type;
 		if (methodLength == 0)
 			throw "Invalid calling parameters for method " + methods[0].Name;
 
+		var best = Math.POSITIVE_INFINITY;
+		var bestMethod = 0;
+		for(i in 0...methodLength)
+		{
+			if (rates[i] < best)
+			{
+				bestMethod = i;
+				best = rates[i];
+			}
+		}
+
+		methods[0] = methods[bestMethod];
 		var params = methods[0].GetParameters();
 		for (i in 0...params.Length)
 		{

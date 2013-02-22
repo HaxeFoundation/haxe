@@ -24,7 +24,9 @@ import cs.StdTypes;
 /**
 	The basic String class.
 **/
-extern class String implements ArrayAccess<Char16> {
+@:coreType extern class String implements ArrayAccess<Char16> {
+
+	private static function Compare(s1:String, s2:String):Int;
 
 	/**
 		The number of characters in the String.
@@ -81,7 +83,7 @@ extern class String implements ArrayAccess<Char16> {
 		If [len] is not specified, it takes all the remaining characters.
 	**/
 	function substr( pos : Int, ?len : Int ) : String;
-	
+
 	/**
 		Returns a part of the String, taking from [startIndex] to [endIndex] - 1.
 		If [endIndex] is not specified, length is used.
@@ -96,12 +98,13 @@ extern class String implements ArrayAccess<Char16> {
 	function toString() : String;
 
 	static function fromCharCode( code : Int ) : String;
-	
+
 	private function Replace(oldValue:String, newValue:String):String;
 	private function StartsWith(value:String):Bool;
 	private function EndsWith(value:String):Bool;
 	private function TrimStart():String;
 	private function TrimEnd():String;
+	private function Trim():String;
 	private function CompareTo(obj:Dynamic):Int;
 	@:overload(function(startIndex:Int):String {})
 	private function Substring(startIndex:Int, length:Int):String;
