@@ -186,7 +186,7 @@ class TestBasetypes extends Test {
 		eq( Std.int( 2147483647.001), 0x7FFFFFFF );
 		
 
-		#if flash9
+		#if (flash9 && !as3)
 		eq( Math.floor( -10000000000.7), 0xABF41BFF);
 		eq( Math.ceil( -10000000000.7), 0xABF41C00);
 		eq( Math.round( -10000000000.7), 0xABF41BFF);
