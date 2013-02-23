@@ -1260,6 +1260,8 @@ with
 		error ctx ("Error: " ^ msg) Ast.null_pos
 	| Arg.Help msg ->
 		message ctx msg Ast.null_pos
+	| Failure msg when (try Sys.getenv "OCAMLRUNPARAM" <> "b" with _ -> true) ->
+		message ctx msg Ast.null_pos
 	| Typer.DisplayFields fields ->
 		let ctx = print_context() in
 		let fields = List.map (fun (name,t,doc) -> name, s_type ctx t, (match doc with None -> "" | Some d -> d)) fields in
