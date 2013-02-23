@@ -34,7 +34,7 @@ codegen gencommon genas3 gencpp genjs genneko genphp genswf8 \
 
 export HAXE_LIBRARY_PATH=$(CURDIR)/std
 
-all: libs haxe tools
+all: libs haxe
 
 libs:
 	make -C libs/extlib opt
@@ -57,6 +57,16 @@ haxedoc:
 	cp std/tools/haxedoc/haxedoc$(EXTENSION) haxedoc$(EXTENSION)
 
 tools: haxelib haxedoc
+
+install:
+	cp haxe /usr/bin/haxe
+	rm -rf /usr/lib/haxe
+	mkdir /usr/lib/haxe
+	cp -r std /usr/lib/haxe
+	mkdir /usr/lib/haxe/lib
+	chmod 777 /usr/lib/haxe/lib
+	echo haxe --run tools.haxelib.Main \$@ >/usr/bin/haxelib.sh
+	chmod +x /usr/bin/haxelib.sh
 
 export:
 	cp haxe*.exe doc/CHANGES.txt $(EXPORT)
