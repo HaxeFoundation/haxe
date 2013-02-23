@@ -2084,7 +2084,7 @@ let before_generate con =
       Common.define_value con Define.JavaVer "7";
       7
   in
-  if java_ver < 5 then failwith ("Java version is defined to target Java " ^ string_of_int java_ver ^ ", but the compiler can only output code to versions equal or superior to Java 5");
+ if java_ver < 5 then failwith ("Java version is defined to target Java " ^ string_of_int java_ver ^ ", but the compiler can only output code to versions equal or superior to Java 5");
   let rec loop i =
     Common.raw_define con ("java" ^ (string_of_int i));
     if i > 0 then loop (i - 1)
@@ -2405,12 +2405,15 @@ let create_ctx com base_pack =
     jcur_pack = base_pack;
   }
 
+let filename_to_clsname f =
+  String.map (fun c -> if c = '$' then '_' else c) (String.sub f 0 (String.length f - 6))
+
 let rec get_classes_dir pack dir ret =
   Array.iter (fun f -> match (Unix.stat (dir ^"/"^ f)).st_kind with
     | S_DIR ->
         get_classes_dir (pack @ [f]) (dir ^"/"^ f) ret
     | _ when (String.sub (String.uncapitalize f) (String.length f - 6) 6) = ".class" ->
-        ret := (pack, String.sub f 0 (String.length f - 6)) :: !ret;
+        ret := (pack, filename_to_clsname f) :: !ret;
     | _ -> ()
   ) (Sys.readdir dir)
 
@@ -2420,9 +2423,9 @@ let get_classes_zip zip =
     | { Zip.is_directory = false; Zip.filename = f } when (String.sub (String.uncapitalize f) (String.length f - 6) 6) = ".class" ->
         (match List.rev (String.nsplit f "/") with
         | clsname :: pack ->
-            ret := (List.rev pack, String.sub f 0 (String.length f - 6)) :: !ret
+            ret := (List.rev pack, filename_to_clsname f) :: !ret
         | _ ->
-            ret := ([], String.sub f 0 (String.length f - 6)) :: !ret)
+            ret := ([], filename_to_clsname f) :: !ret)
     | _ -> ()
   ) (Zip.entries zip);
   !ret

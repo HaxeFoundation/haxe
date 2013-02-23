@@ -232,6 +232,18 @@ let rec read_type_path com p =
 			loop path p
 		) (extract());
 	) com.swf_libs;
+  List.iter (fun (path,close,all_files,lookup) ->
+    List.iter (fun (path, name) ->
+      if path = p then classes := name :: !classes else
+      let rec loop p1 p2 =
+        match p1, p2 with
+        | [], _ -> ()
+        | x :: _, [] -> packages := x :: !packages
+        | a :: p1, b :: p2 -> if a = b then loop p1 p2
+      in
+      loop path p
+    ) (all_files())
+  ) com.java_libs;
 	unique !packages, unique !classes
 
 let delete_file f = try Sys.remove f with _ -> ()
