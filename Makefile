@@ -65,8 +65,8 @@ install:
 	cp -r std /usr/lib/haxe
 	mkdir /usr/lib/haxe/lib
 	chmod 777 /usr/lib/haxe/lib
-	echo haxe --run tools.haxelib.Main \$@ >/usr/bin/haxelib.sh
-	chmod +x /usr/bin/haxelib.sh
+	cp std/tools/haxelib/haxelib.sh /usr/bin/haxelib
+	chmod +x /usr/bin/haxelib
 
 export:
 	cp haxe*.exe doc/CHANGES.txt $(EXPORT)
