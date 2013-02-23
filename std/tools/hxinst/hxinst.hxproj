@@ -23,7 +23,7 @@
     <option flashStrict="False" />
     <option mainClass="tools.hxinst.Main" />
     <option enabledebug="False" />
-    <option additional="-lib format&#xA;-lib xcross&#xA;-cmd haxelib run xcross -bundle HaxeInstaller hxinst.n" />
+    <option additional="-lib format&#xA;-lib xcross&#xA;-cmd haxelib run xcross -bundle HaxeInstaller hxinst.n&#xA;--next&#xA;-neko hxinst.n&#xA;-main tools.hxinst.Main&#xA;-lib format&#xA;-cmd haxelib run xcross -console -linux hxinst.n" />
   </build>
   <!-- haxelib libraries -->
   <haxelib>

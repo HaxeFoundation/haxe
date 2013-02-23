@@ -3,3 +3,8 @@
 -lib format
 -lib xcross
 -cmd "haxelib run xcross -bundle HaxeInstaller hxinst.n"
+--next
+-neko hxinst.n
+-main tools.hxinst.Main
+-lib format
+-cmd "haxelib run xcross -console -linux hxinst.n"
