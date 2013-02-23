@@ -170,6 +170,8 @@ class Main {
 			"/usr/local/lib/haxe",
 			"/opt/neko",
 			"/opt/haxe",
+			"c:/motion-twin",
+			"c:/program files/motion-twin",
 		];
 		for( d in dirs )
 			if( !debug && sys.FileSystem.exists(d) )
