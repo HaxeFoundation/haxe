@@ -163,7 +163,7 @@ module Define = struct
 		| Macro
 		| MacroTimes
 		| NekoSource
-		| NekoV2
+		| NekoV1
 		| NetworkSandbox
 		| NoCompilation
 		| NoCOpt
@@ -224,7 +224,7 @@ module Define = struct
 		| Macro -> ("macro","Defined when we compile code in the macro context")
 		| MacroTimes -> ("macro_times","Display per-macro timing when used with --times")
 		| NekoSource -> ("neko_source","Output neko source instead of bytecode")
-		| NekoV2 -> ("neko_v2","Activate Neko 2.0 compatibility")
+		| NekoV1 -> ("neko_v1","Keep Neko 1.x compatibility")
 		| NetworkSandbox -> ("network-sandbox","Use local network sandbox instead of local file access one")
 		| NoCompilation -> ("no-compilation","Disable CPP final compilation")
 		| NoCOpt -> ("no_copt","Disable completion optimization (for debug purposes)")
