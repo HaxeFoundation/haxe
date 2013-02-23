@@ -23,7 +23,7 @@ package haxe.remoting;
 
 class HttpConnection implements Connection implements Dynamic<Connection> {
 
-	public static var TIMEOUT = 10;
+	public static var TIMEOUT = 10.;
 
 	var __url : String;
 	var __path : Array<String>;
