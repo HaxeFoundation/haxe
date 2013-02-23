@@ -22,33 +22,51 @@
 package haxe.ds;
 
 @:coreApi
-class ObjectMap<K,V> {
+class ObjectMap<K:{},V> {
 
+	static var count = 0;
+	
+	static inline function assignId(obj: { } ):Int {
+		var newId = count++;
+		untyped obj.__id__ = newId;
+		return newId;
+	}
+	
+	static inline function getId(obj: { } ):Int {
+		return untyped obj.__id__;
+	}
+	
 	var h : { };
+	var k : { };
 	
 	public function new(weakKeys:Bool = false) : Void {
 		h = untyped __dollar__hnew(0);
+		k = untyped __dollar__hnew(0);
 	}
 
-	public inline function set( key : K, value : V ) : Void {
-		untyped __dollar__hset(h,key,value,null);
+	public inline function set( key : K, value : V ) : Void untyped {
+		var id = key.__id__ != null ? key.__id__ : assignId(key);
+		untyped __dollar__hset(h,id,value,null);
+		untyped __dollar__hset(k,id,key,null);
 	}
 
 	public function get( key : K ) : Null<V> {
-		return untyped __dollar__hget(h,key,null);
+		return untyped __dollar__hget(h,getId(key),null);
 	}
 
 	public inline function exists( key : K ) : Bool {
-		return untyped __dollar__hmem(h,key,null);
+		return untyped __dollar__hmem(h,getId(key),null);
 	}
 
-	public inline function remove( key : K ) : Bool {
-		return untyped __dollar__hremove(h,key,null);
+	public function remove( key : K ) : Bool {
+		var id = getId(key);
+		untyped __dollar__hremove(h,id,null);
+		return untyped __dollar__hremove(k,id,null);
 	}
 
 	public function keys() : Iterator<K> {
 		var l = new List<K>();
-		untyped __dollar__hiter(h,function(k,_) { l.push(k); });
+		untyped __dollar__hiter(k,function(_,v) { l.push(v); });
 		return l.iterator();
 	}
 

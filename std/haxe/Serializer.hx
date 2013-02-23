@@ -313,7 +313,7 @@ class Serializer {
 				buf.add("M");
 				var v : haxe.ds.ObjectMap<Dynamic,Dynamic> = v;
 				for ( k in v.keys() ) {
-					#if (js || flash8)
+					#if (js || flash8 || neko)
 					var id = Reflect.field(k, "__id__");
 					Reflect.deleteField(k, "__id__");
 					serialize(k);
