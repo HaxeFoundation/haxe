@@ -113,18 +113,18 @@ abstract Vector<T>(VectorData<T>) {
 
 		The results are unspecified if [length] results in out-of-bounds access, or if [src] or [dest] are null
 	**/
-	public #if (cs || java || neko) inline #end function blit<T>(srcPos:Int, dest:Vector<T>, destPos:Int, length:Int):Void
+	public static #if (cs || java || neko) inline #end function blit<T>(src:Vector<T>, srcPos:Int, dest:Vector<T>, destPos:Int, len:Int):Void
 	{
 		#if neko
-			untyped __dollar__ablit(dest,destPos,this,srcPos,length);
+			untyped __dollar__ablit(dest,destPos,src,srcPos,len);
 		#elseif java
-			java.lang.System.arraycopy(this, srcPos, dest, destPos, length);
+			java.lang.System.arraycopy(src, srcPos, dest, destPos, len);
 		#elseif cs
-			cs.system.Array.Copy(cast this, srcPos,cast dest, destPos, length);
+			cs.system.Array.Copy(cast src, srcPos,cast dest, destPos, len);
 		#else
-			for (i in 0...length)
+			for (i in 0...len)
 			{
-				dest[destPos + i] = this[srcPos + i];
+				dest[destPos + i] = src[srcPos + i];
 			}
 		#end
 	}

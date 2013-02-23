@@ -65,21 +65,21 @@ vec2[0] = "1a";
 var vec3 = haxe.ds.Vector.fromArrayCopy([0,1,2,3,4,5,6]);
 var vec4 = new haxe.ds.Vector(5);
 
-vec3.blit(0, vec4, 1, 3);
+haxe.ds.Vector.blit(vec3, 0, vec4, 1, 3);
 vec4[1] == 0;
 vec4[2] == 1;
 vec4[3] == 2;
 vec4[4] == vNullInt;
 vec4[0] == vNullInt;
 
-vec3.blit(0, vec4, 0, 5);
+haxe.ds.Vector.blit(vec3, 0, vec4, 0, 5);
 vec4[0] == 0;
 vec4[1] == 1;
 vec4[2] == 2;
 vec4[3] == 3;
 vec4[4] == 4;
 
-vec4.blit(1, vec3, 0, 4);
+haxe.ds.Vector.blit(vec4, 1, vec3, 0, 4);
 //vec3 should be [1,2,3,4,4,5,6]
 vec3[0] == 1;
 vec3[1] == 2;
