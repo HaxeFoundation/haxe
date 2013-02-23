@@ -777,8 +777,8 @@ and gen_member_access ctx isvar e s =
 			print ctx "::%s%s" (if isvar then "$" else "") s
 		| Statics _ ->
 			print ctx "::%s%s" (if isvar then "$" else "") (s_ident s)
-		| _ -> print ctx "->%s" (s_ident_field s))
-	| _ -> print ctx "->%s" (s_ident_field s)
+		| _ -> print ctx "->%s" (if isvar then s_ident_field s else s_ident s))
+	| _ -> print ctx "->%s" (if isvar then s_ident_field s else s_ident s)
 
 and gen_field_access ctx isvar e s =
 	match e.eexpr with
@@ -787,7 +787,7 @@ and gen_field_access ctx isvar e s =
 		gen_member_access ctx isvar e s
 	| TLocal _ ->
 		gen_expr ctx e;
-		print ctx "->%s" (s_ident_field s)
+		print ctx "->%s" (if isvar then s_ident_field s else s_ident s)
 	| TArray (e1,e2) ->
 		spr ctx "_hx_array_get(";
 		gen_value ctx e1;
@@ -1897,12 +1897,12 @@ let generate_field ctx static f =
 					false
 				| AccCall m, _ ->
 					if not (is_method_defined ctx m static) then generate_self_method ctx rights m static false;
-					print ctx "%s $%s" rights (s_ident f.cf_name);
+					print ctx "%s $%s" rights (s_ident_field f.cf_name);
 					gen_assigned_value ctx f.cf_expr;
 					true
 				| _, AccCall m ->
 					if not (is_method_defined ctx m static) then generate_self_method ctx rights m static true;
-					print ctx "%s $%s" rights (s_ident f.cf_name);
+					print ctx "%s $%s" rights (s_ident_field f.cf_name);
 					gen_assigned_value ctx f.cf_expr;
 					true
 				| _ ->
@@ -1910,7 +1910,7 @@ let generate_field ctx static f =
 			| _ -> false) then
 				()
 		else begin
-			let name = s_ident f.cf_name in
+			let name = if static then s_ident f.cf_name else f.cf_name in
 			if static then
 				(match f.cf_kind with
 				| Var _ ->
