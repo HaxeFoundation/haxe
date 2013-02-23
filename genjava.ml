@@ -2423,7 +2423,7 @@ let get_classes_zip zip =
     | { Zip.is_directory = false; Zip.filename = f } when (String.sub (String.uncapitalize f) (String.length f - 6) 6) = ".class" ->
         (match List.rev (String.nsplit f "/") with
         | clsname :: pack ->
-            ret := (List.rev pack, filename_to_clsname f) :: !ret
+            ret := (List.rev pack, filename_to_clsname clsname) :: !ret
         | _ ->
             ret := ([], filename_to_clsname f) :: !ret)
     | _ -> ()
