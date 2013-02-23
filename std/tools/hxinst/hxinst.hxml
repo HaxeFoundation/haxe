@@ -1,6 +1,5 @@
-# Neko
--lib format
 -neko hxinst.n
 -main tools.hxinst.Main
+-lib format
 -lib xcross
--cmd haxelib run xcross -bundle "Haxe Installer" hxinst.n
+-cmd "haxelib run xcross -bundle HaxeInstaller hxinst.n"

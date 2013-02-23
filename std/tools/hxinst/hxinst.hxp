@@ -1,7 +1,0 @@
-﻿<haxe selected="0">
-  <output name="Neko" mode="neko" out="hxinst.n" class="tools.hxinst.Main" lib="" cmd="" main="True" debug="False">-lib xcross
--cmd haxelib run xcross -bundle "haXe Installer" hxinst.n</output>
-  <files path="/">
-    <file path="Main.hx" />
-  </files>
-</haxe>

@@ -46,7 +46,7 @@ class Main {
 		baseDir = if( SYS == "Windows" ) {
 			// use C:/ for Vista, Win7
 			var baseDir = (Sys.getEnv("ALLUSERSPROFILE") == "C:\\ProgramData") ? "C:" : Sys.getEnv("ProgramFiles");
-			baseDir + "/Motion-Twin";
+			baseDir + "/HaxeFoundation";
 		} else
 			libDir;
 	}
@@ -118,7 +118,7 @@ class Main {
 			display("");
 			display("");
 			display("ERROR = "+Std.string(e));
-			display(haxe.Stack.toString(haxe.Stack.exceptionStack()));
+			display(haxe.CallStack.toString(haxe.CallStack.exceptionStack()));
 			#if xcross
 			xcross.Api.error("Error","Installation aborted");
 			#end
@@ -152,6 +152,17 @@ class Main {
 		}
 	}
 
+	var cacheResult : Null<Bool>;
+	function is64() {
+		if( cacheResult != null )
+			return cacheResult;
+		var p = new sys.io.Process("uname", ["-m"]);
+		var ret = p.stdout.readAll().toString();
+		p.exitCode();
+		cacheResult = ret.indexOf("x86_64") != -1;
+		return cacheResult;
+	}
+
 	function install() {
 		// CLEANUP
 		var dirs = [
@@ -174,7 +185,7 @@ class Main {
 			try {
 				haxe.Http.requestUrl("http://google.com");
 			} catch( e : Dynamic ) {
-				display("Could not connect on Google, don't use the proxy");
+				display("Could not connect on Google, trying with no proxy");
 				haxe.Http.PROXY = null;
 			}
 		}
@@ -182,13 +193,13 @@ class Main {
 		// GET haxe Version
 		display("Getting Local Haxe Version");
 		var content = commandOutput("haxe");
-		var r = ~/^Haxe Compiler ([0-9]+)\.([0-9]+)/;
+		var r = ~/^Haxe Compiler ([0-9]+)\.([0-9]+)(\.([0-9]+))?/;
 		var haxeVersion = null;
 		if( r.match(content) )
 			haxeVersion = {
 				major : Std.parseInt(r.matched(1)),
 				minor : Std.parseInt(r.matched(2)),
-				build : 0,
+				build : Std.parseInt(r.matched(4))
 			};
 
 		// GET Neko Version
@@ -232,13 +243,13 @@ class Main {
 		// GET Neko files list
 		display("Getting Latest Neko Version");
 		var nekoFile = null;
-		var r = ~/^neko-([0-9]+)\.([0-9]+)(\.([0-9]+))?(-win|-linux|-osx)(\.zip|\.tar\.gz)$/;
+		var r = ~/^neko-([0-9]+)\.([0-9]+)(\.([0-9]+))?(-win|-linux|-osx|-linux64)(\.zip|\.tar\.gz)$/;
 		for( f in haxe.Http.requestUrl("http://nekovm.org/latest.n").split("\n") )
 			if( r.match(f) ) {
 				var pf = r.matched(5);
 				switch( SYS ) {
 				case "Windows": if( pf != "-win" ) continue;
-				case "Linux": if( pf != "-linux" ) continue;
+				case "Linux": if( pf != "-linux"+(is64() ? "64":"") ) continue;
 				case "Mac": if( pf != "-osx" ) continue;
 				default: continue;
 				}
