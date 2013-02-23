@@ -47,6 +47,16 @@ public class Base
 	{
 		return d;
 	}
+	
+	public static char charTest(char c)
+	{
+		return c;
+	}
+
+	public static byte byteTest(byte b)
+	{
+		return b;
+	}
 
 	public int varNameClash;
 

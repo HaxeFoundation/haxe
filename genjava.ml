@@ -2161,13 +2161,13 @@ let rec convert_arg ctx p arg =
 
 and convert_signature ctx p jsig =
   match jsig with
-  | TByte -> mk_type_path ctx (["java"; "StdTypes"], "Int8") []
-  | TChar -> mk_type_path ctx (["java"; "StdTypes"], "Char16") []
+  | TByte -> mk_type_path ctx (["java"; "types"], "Int8") []
+  | TChar -> mk_type_path ctx (["java"; "types"], "Char16") []
   | TDouble -> mk_type_path ctx ([], "Float") []
   | TFloat -> mk_type_path ctx ([], "Single") []
   | TInt -> mk_type_path ctx ([], "Int") []
   | TLong -> mk_type_path ctx (["haxe"], "Int64") []
-  | TShort -> mk_type_path ctx (["java"; "StdTypes"], "Int16") []
+  | TShort -> mk_type_path ctx (["java"; "types"], "Int16") []
   | TBool -> mk_type_path ctx ([], "Bool") []
   | TObject ( (["haxe";"root"], name), args ) -> mk_type_path ctx ([], name) (List.map (convert_arg ctx p) args)
   (** nullable types *)
@@ -2175,9 +2175,9 @@ and convert_signature ctx p jsig =
   | TObject ( (["java";"lang"], "Double"), [] ) -> mk_type_path ctx ([], "Null") [ TPType (mk_type_path ctx ([], "Float") []) ]
   | TObject ( (["java";"lang"], "Single"), [] ) -> mk_type_path ctx ([], "Null") [ TPType (mk_type_path ctx ([], "Single") []) ]
   | TObject ( (["java";"lang"], "Boolean"), [] ) -> mk_type_path ctx ([], "Null") [ TPType (mk_type_path ctx ([], "Bool") []) ]
-  | TObject ( (["java";"lang"], "Byte"), [] ) -> mk_type_path ctx ([], "Null") [ TPType (mk_type_path ctx (["java";"StdTypes"], "Int8") []) ]
-  | TObject ( (["java";"lang"], "Character"), [] ) -> mk_type_path ctx ([], "Null") [ TPType (mk_type_path ctx (["java";"StdTypes"], "Char16") []) ]
-  | TObject ( (["java";"lang"], "Short"), [] ) -> mk_type_path ctx ([], "Null") [ TPType (mk_type_path ctx (["java";"StdTypes"], "Int16") []) ]
+  | TObject ( (["java";"lang"], "Byte"), [] ) -> mk_type_path ctx ([], "Null") [ TPType (mk_type_path ctx (["java";"types"], "Int8") []) ]
+  | TObject ( (["java";"lang"], "Character"), [] ) -> mk_type_path ctx ([], "Null") [ TPType (mk_type_path ctx (["java";"types"], "Char16") []) ]
+  | TObject ( (["java";"lang"], "Short"), [] ) -> mk_type_path ctx ([], "Null") [ TPType (mk_type_path ctx (["java";"types"], "Int16") []) ]
   | TObject ( (["java";"lang"], "Long"), [] ) -> mk_type_path ctx ([], "Null") [ TPType (mk_type_path ctx (["haxe"], "Int64") []) ]
   (** other std types *)
   | TObject ( (["java";"lang"], "Object"), [] ) -> mk_type_path ctx ([], "Dynamic") []

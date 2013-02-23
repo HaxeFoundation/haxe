@@ -192,6 +192,12 @@ class TestJava extends Test
 		eq(Base._in, 40);
 	}
 
+	function testTypes()
+	{
+		eq(Base.charTest(cast 10), cast 10);
+		eq(Base.byteTest(cast 10), cast 10);
+	}
+
 
 	function testInnerClass()
 	{
