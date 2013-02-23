@@ -88,6 +88,7 @@ type context = {
 	(* config *)
 	version : int;
 	args : string list;
+	mutable sys_args : string list;
 	mutable display : bool;
 	mutable debug : bool;
 	mutable verbose : bool;
@@ -410,6 +411,7 @@ let create v args =
 	{
 		version = v;
 		args = args;
+		sys_args = args;
 		debug = false;
 		display = !display_default;
 		verbose = false;

@@ -470,6 +470,12 @@ let rec process_params create pl =
 			| Some _ ->
 				(* already connected : skip *)
 				loop acc l)
+		| "--run" :: cl :: args ->
+			let acc = (cl ^ ".main()") :: "--macro" :: acc in
+			let ctx = create (!each_params @ (List.rev acc)) in
+			ctx.com.sys_args <- args;
+			init ctx;
+			ctx.flush()
 		| arg :: l ->
 			match List.rev (ExtString.String.nsplit arg ".") with
 			| "hxml" :: _ when (match acc with "-cmd" :: _ -> false | _ -> true) -> loop acc (parse_hxml arg @ l)

@@ -3267,7 +3267,7 @@ let load_prim ctx f n =
 
 let create com api =
 	let loader = obj hash [
-		"args",VArray (Array.of_list (List.map (fun s -> VString s) com.args));
+		"args",VArray (Array.of_list (List.map (fun s -> VString s) com.sys_args));
 		"loadprim",VFunction (Fun2 (fun a b -> (get_ctx()).do_loadprim a b));
 		"loadmodule",VFunction (Fun2 (fun a b -> assert false));
 	] in
