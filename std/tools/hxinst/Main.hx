@@ -195,12 +195,15 @@ class Main {
 		var content = commandOutput("haxe");
 		var r = ~/^Haxe Compiler ([0-9]+)\.([0-9]+)(\.([0-9]+))?/;
 		var haxeVersion = null;
-		if( r.match(content) )
+		if( r.match(content) ) {
 			haxeVersion = {
 				major : Std.parseInt(r.matched(1)),
 				minor : Std.parseInt(r.matched(2)),
 				build : Std.parseInt(r.matched(4))
 			};
+			if( haxeVersion.build == null ) haxeVersion.build = 0;
+		}
+
 
 		// GET Neko Version
 		display("Getting Local Neko Version");
