@@ -56,12 +56,17 @@
 		else {
 			var a : neko.NativeArray<Int> = $objfields(o);
 			var i = 0;
+			var hasid = false;
 			var l = $asize(a);
 			while( i < l ) {
-				a[i] = new String($field(a[i]));
+				var fid = a[i];
+				if( fid == -190054693 ) hasid = true; // $hash("__id__")
+				a[i] = new String($field(fid));
 				i++;
 			}
-			return Array.new1(a,l);
+			var a : Array<String> = Array.new1(a, l);
+			if( hasid ) a.remove("__id__");
+			return a;
 		}
 	}
 
