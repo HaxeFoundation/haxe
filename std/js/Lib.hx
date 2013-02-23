@@ -23,8 +23,6 @@ package js;
 
 class Lib {
 
-	static var onerror : String -> Array<String> -> Bool = null;
-
 	/**
 		Inserts a 'debugger' statement that will make a breakpoint if a debugger is available.
 	**/
@@ -41,21 +39,6 @@ class Lib {
 
 	public static inline function eval( code : String ) : Dynamic {
 		return untyped __js__("eval")(code);
-	}
-
-	public static inline function setErrorHandler( f ) {
-		onerror = f;
-	}
-
-	static function __init__() {
-		if( untyped __js__("typeof window") != "undefined" ) {
-			(untyped window).onerror = function( msg, url, line ) {
-				var f = Lib.onerror;
-				if( f == null )
-					return false;
-				return f(msg, [url+":"+line]);
-			};
-		}
 	}
 
 }
