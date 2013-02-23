@@ -202,7 +202,7 @@ class Sys {
 	**/
 	public static function time() : Float
 	{
-		return Date.now().getTime();
+		return Date.now().getTime() / 1000;
 	}
 
 	/**
