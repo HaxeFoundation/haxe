@@ -145,9 +145,10 @@ class Main {
 		addCommand("config",config,"print the repository path",false);
 		addCommand("path",path,"give paths to libraries",false);
 		addCommand("run",run,"run the specified library with parameters",false);
-		addCommand("test",test,"install the specified package localy",false);
+		addCommand("local",local,"install the specified package localy",false);
 		addCommand("dev",dev,"set the development directory for a given library",false);
-		addCommand("git",git,"uses git repository as library");
+		addCommand("git", git, "uses git repository as library");
+		addCommand("proxy", proxy, "setup the Http proxy");
 		initSite();
 	}
 
@@ -214,6 +215,8 @@ class Main {
 			switch( a ) {
 			case "-debug":
 				debug = true;
+			case "-notimeout":
+				haxe.remoting.HttpConnection.TIMEOUT = 0;
 			case "-R":
 				var path = args[argcur++];
 				var r = ~/^(http:\/\/)?([^:\/]+)(:[0-9]+)?\/?(.*)$/;
@@ -235,13 +238,7 @@ class Main {
 		for( c in commands )
 			if( c.name == cmd ) {
 				try {
-					if( c.net ) {
-						var p = neko.net.ProxyDetect.detect();
-						if( p != null ) {
-							print("Using proxy "+p.host+":"+p.port);
-							haxe.Http.PROXY = p;
-						}
-					}
+					if( c.net ) loadProxy();
 					c.f();
 				} catch( e : Dynamic ) {
 					if( e == "std@host_resolve" ) {
@@ -249,7 +246,12 @@ class Main {
 						print("Please ensure that your internet connection is on");
 						print("If you don't have an internet connection or if you are behing a proxy");
 						print("please download manually the file from http://lib.haxe.org/files");
-						print("and run 'haxelib test <file>' to install the Library.");
+						print("and run 'haxelib local <file>' to install the Library.");
+						print("You can also setup the proxy with 'haxelib proxy'.");
+						Sys.exit(1);
+					}
+					if( e == "Blocked" ) {
+						print("Http connection timeout. Try running haxelib -notimeout <command> to disable timeout");
 						Sys.exit(1);
 					}
 					if( debug )
@@ -940,7 +942,7 @@ class Main {
 		return '"'+a+'"';
 	}
 
-	function test() {
+	function local() {
 		var file = param("Package");
 		doInstallFile(file,true,true);
 	}
@@ -949,6 +951,40 @@ class Main {
 		var p = new sys.io.Process(cmd, args);
 		var code = p.exitCode();
 		return { code:code, out: code == 0 ? p.stdout.readAll().toString() : p.stderr.readAll().toString() };
+	}
+	
+	function proxy() {
+		var rep = getRepository();
+		var host = param("Proxy host");
+		if( host == "" ) {
+			if( sys.FileSystem.exists(rep + "/.proxy") ) {
+				sys.FileSystem.deleteFile(rep + "/.proxy");
+				print("Proxy disabled");
+			} else
+				print("No proxy specified");
+			return;
+		}
+		var port = Std.parseInt(param("Proxy port"));
+		var authName = param("Proxy user login");
+		var authPass = authName == "" ? "" : param("Proxy user pass");
+		var proxy = {
+			host : host,
+			port : port,
+			auth : authName == "" ? null : { user : authName, pass : authPass },
+		};
+		haxe.Http.PROXY = proxy;
+		print("Testing proxy...");
+		try haxe.Http.requestUrl("http://www.google.com") catch( e : Dynamic ) {
+			print("Proxy connection failed");
+			return;
+		}
+		sys.io.File.saveContent(rep + "/.proxy", haxe.Serializer.run(proxy));
+		print("Proxy setup done");
+	}
+
+	function loadProxy() {
+		var rep = getRepository();
+		try haxe.Http.PROXY = haxe.Unserializer.run(sys.io.File.getContent(rep + "/.proxy")) catch( e : Dynamic ) { };
 	}
 
 	// ----------------------------------
