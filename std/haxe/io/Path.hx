@@ -39,7 +39,7 @@ class Path {
 		
 		If the path has no directory, the value is null.
 	**/
-	public var dir(default, null) : String;
+	public var dir : String;
 	
 	/**
 		The file name.
@@ -49,7 +49,7 @@ class Path {
 		If there is no file name, e.g. for ".htaccess" or "/dir/", the value
 		is the empty String "".
 	**/
-	public var file(default, null) : String;
+	public var file : String;
 	
 	/**
 		The file extension.
@@ -59,7 +59,7 @@ class Path {
 		
 		If the path has no extension, the value is null.
 	**/
-	public var ext(default, null) : String;
+	public var ext : String;
 		
 	/**
 		True if the last directory separator is a backslash, false otherwise.
