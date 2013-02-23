@@ -2081,8 +2081,10 @@ let before_generate con =
   let java_ver = try
       int_of_string (PMap.find "java_ver" con.defines)
     with | Not_found ->
+      Common.define_value con Define.JavaVer "7";
       7
   in
+  if java_ver < 5 then failwith ("Java version is defined to target Java " ^ string_of_int java_ver ^ ", but the compiler can only output code to versions equal or superior to Java 5");
   let rec loop i =
     Common.raw_define con ("java" ^ (string_of_int i));
     if i > 0 then loop (i - 1)

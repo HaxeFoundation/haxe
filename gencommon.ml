@@ -942,7 +942,7 @@ let dump_descriptor gen name path_s =
   (* dump called path *)
   SourceWriter.write w (Sys.getcwd());
   SourceWriter.newline w;
-  (* dump all defines *)
+  (* dump all defines. deprecated *)
   SourceWriter.write w "begin defines";
   SourceWriter.newline w;
   PMap.iter (fun name _ ->
@@ -950,6 +950,17 @@ let dump_descriptor gen name path_s =
     SourceWriter.newline w
   ) gen.gcon.defines;
   SourceWriter.write w "end defines";
+  SourceWriter.newline w;
+  (* dump all defines with their values; keeping the old defines for compatibility *)
+  SourceWriter.write w "begin defines_data";
+  SourceWriter.newline w;
+  PMap.iter (fun name v ->
+    SourceWriter.write w name;
+    SourceWriter.write w "=";
+    SourceWriter.write w v;
+    SourceWriter.newline w
+  ) gen.gcon.defines;
+  SourceWriter.write w "end defines_data";
   SourceWriter.newline w;
   (* dump all generated types *)
   SourceWriter.write w "begin modules";
