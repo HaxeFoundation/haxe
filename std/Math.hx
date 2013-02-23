@@ -67,6 +67,8 @@ extern class Math
 		If this constant is converted to an Int, e.g. through Std.int(), the
 		result is unspecified.
 		
+		In order to test if a value is NaN, you should use Math.isNaN() function.
+		
 		(Php) In PHP versions prior to 5.3.1 VC 9 there may be unexpected
 		results when performing arithmetic operations with NaN on Windows, see:
 			https://bugs.php.net/bug.php?id=42143
@@ -179,6 +181,8 @@ extern class Math
 	
 	/**
 		Rounds [v] to the nearest Int value.
+
+		If v is outside of the signed Int32 range, or is NaN, NEGATIVE_INFINITY or POSITIVE_INFINITY, the result is unspecified.
 		
 		TODO: need spec
 	**/
@@ -187,12 +191,16 @@ extern class Math
 	/**
 		Returns the largest Int value that is not greater than [v].
 		
+		If v is outside of the signed Int32 range, or is NaN, NEGATIVE_INFINITY or POSITIVE_INFINITY, the result is unspecified.		
+		
 		TODO: need spec
 	**/
 	static function floor(v:Float):Int;
 	
 	/**
 		Returns the smallest Int value that is not less than [v].
+
+		If v is outside of the signed Int32 range, or is NaN, NEGATIVE_INFINITY or POSITIVE_INFINITY, the result is unspecified.
 		
 		TODO: need spec
 	**/
@@ -243,7 +251,7 @@ extern class Math
 		If [f] is NaN, the result is true.
 		
 		Otherwise the result is false. In particular, both POSITIVE_INFINITY and
-		NEGATIVE_INFINITY are not considered invalid numbers.
+		NEGATIVE_INFINITY are not considered NaN.
 	**/
 	static function isNaN( f : Float ) : Bool;
 

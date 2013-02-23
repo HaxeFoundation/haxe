@@ -161,31 +161,40 @@ class TestBasetypes extends Test {
 		eq( Math.round(1.2), 1 );
 
 
+		// we don't specify Std.int and other to-int conversions when outside the Int range
+
+		#if (js || flash)
 		eq( Std.int( -10000000000.7), 0xABF41C00 );
+		eq( Std.int( 10000000000.7), 0x540BE400 );
 		
-		// int/uint limit values
 		eq( Std.int( -4294967296.7), 0 );
+		eq( Std.int( -4294967296.001), 0 );
 		eq( Std.int( 4294967296.7), 0 );
+		eq( Std.int( 4294967296.001), 0 );
 		eq( Std.int( -4294967295.7), 1 );
+		eq( Std.int( -4294967295.001), 1 );
 		eq( Std.int( 4294967295.7), -1 );
+		eq( Std.int( 4294967295.001), -1 );
 
 		eq( Std.int( -2147483648.7), 0x80000000 );
+		eq( Std.int( -2147483648.001), 0x80000000 );
 		eq( Std.int( 2147483648.7), 0x80000000 );
+		eq( Std.int( 2147483648.001), 0x80000000 );
 		eq( Std.int( -2147483647.7), 0x80000001 );
+		eq( Std.int( -2147483647.001), 0x80000001 );
 		eq( Std.int( 2147483647.7), 0x7FFFFFFF );
+		eq( Std.int( 2147483647.001), 0x7FFFFFFF );
 		
-		#if (js || flash8 || as3 || php)
 
-		// higher Int resolution : should we fix this or not ?
-		eq( Math.floor( -10000000000.7)*1.0, -10000000001. );
-		eq( Math.ceil( -10000000000.7)*1.0, -10000000000. );
-		eq( Math.round( -10000000000.7)*1.0, -10000000001. );
-
-		#else
-
+		#if flash9
 		eq( Math.floor( -10000000000.7), 0xABF41BFF);
 		eq( Math.ceil( -10000000000.7), 0xABF41C00);
 		eq( Math.round( -10000000000.7), 0xABF41BFF);
+		#else
+		eq( Math.floor( -10000000000.7)*1.0, -10000000001. );
+		eq( Math.ceil( -10000000000.7)*1.0, -10000000000. );
+		eq( Math.round( -10000000000.7)*1.0, -10000000001. );
+		#end
 
 		#end
 
