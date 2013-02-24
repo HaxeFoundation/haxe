@@ -10,6 +10,8 @@
 #
 .SUFFIXES : .ml .mli .cmo .cmi .cmx .mll .mly
 
+INSTALL_DIR=/usr
+
 OUTPUT=haxe
 EXTENSION=
 OCAMLOPT=ocamlopt
@@ -59,15 +61,18 @@ haxedoc:
 tools: haxelib haxedoc
 
 install:
-	cp haxe /usr/bin/haxe
-	rm -rf /usr/lib/haxe
-	mkdir /usr/lib/haxe
-	cp -r std /usr/lib/haxe
-	mkdir /usr/lib/haxe/lib
-	chmod 777 /usr/lib/haxe/lib
-	cp std/tools/haxelib/haxelib.sh /usr/bin/haxelib
-	chmod +x /usr/bin/haxelib
-
+	cp haxe $(INSTALL_DIR)/bin/haxe
+	rm -rf $(INSTALL_DIR)/lib/haxe
+	mkdir $(INSTALL_DIR)/lib/haxe
+	cp -r std $(INSTALL_DIR)/lib/haxe
+	mkdir $(INSTALL_DIR)/lib/haxe/lib
+	chmod 777 $(INSTALL_DIR)/lib/haxe/lib
+	cp std/tools/haxelib/haxelib.sh $(INSTALL_DIR)/bin/haxelib
+	chmod +x $(INSTALL_DIR)/bin/haxelib
+	
+uninstall:
+	rm -rf $(INSTALL_DIR)/bin/haxe $(INSTALL_DIR)/bin/haxelib $(INSTALL_DIR)/lib/haxe
+	
 export:
 	cp haxe*.exe doc/CHANGES.txt $(EXPORT)
 	rsync -a --exclude .svn --exclude *.n --exclude std/libs --delete std $(EXPORT)
