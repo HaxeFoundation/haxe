@@ -45,11 +45,6 @@ import java.util.regex.Regex;
  * DAMAGE.
  */
 
-/**
-	Regular expressions are a way to find regular patterns into
-	Strings. Have a look at the tutorial on haXe website to learn
-	how to use them.
-**/
 @:coreType class EReg {
 
 	private var pattern:String;
@@ -58,10 +53,6 @@ import java.util.regex.Regex;
 	private var sub:Int;
 	private var isGlobal:Bool;
 
-	/**
-		Creates a new regular expression with pattern [r] and
-		options [opt].
-	**/
 	public function new( r : String, opt : String ) {
 		var flags = 0;
 		for (i in 0...opt.length)
@@ -111,10 +102,6 @@ import java.util.regex.Regex;
 		return r;
 	}
 
-	/**
-		Tells if the regular expression matches the String.
-		Updates the internal state accordingly.
-	**/
 	public function match( s : String ) : Bool {
 		sub = 0;
 		cur = s;
@@ -122,11 +109,6 @@ import java.util.regex.Regex;
 		return matcher.find();
 	}
 
-	/**
-		Returns a matched group or throw an expection if there
-		is no such group. If [n = 0], the whole matched substring
-		is returned.
-	**/
 	public function matched( n : Int ) : String
 	{
 		if (n == 0)
@@ -135,28 +117,16 @@ import java.util.regex.Regex;
 			return matcher.group(n);
 	}
 
-	/**
-		Returns the part of the string that was as the left of
-		of the matched substring.
-	**/
 	public function matchedLeft() : String
 	{
 		return untyped cur.substring(0, sub + matcher.start());
 	}
 
-	/**
-		Returns the part of the string that was at the right of
-		of the matched substring.
-	**/
 	public function matchedRight() : String
 	{
 		return untyped cur.substring(sub + matcher.end(), cur.length);
 	}
 
-	/**
-		Returns the position of the matched substring within the
-		original matched string.
-	**/
 	public function matchedPos() : { pos : Int, len : Int } {
 		var start = matcher.start();
 		return { pos : sub + start, len : matcher.end() - start };
@@ -170,10 +140,6 @@ import java.util.regex.Regex;
 		return matcher.find();
 	}
 
-	/**
-		Split a string by using the regular expression to match
-		the separators.
-	**/
 	public function split( s : String ) : Array<String>
 	{
 		if (isGlobal)
@@ -261,11 +227,6 @@ import java.util.regex.Regex;
       return b.toString();
 	}
 
-	/**
-		For each occurence of the pattern in the string [s], the function [f] is called and
-		can return the string that needs to be replaced. All occurences are matched anyway,
-		and setting the [g] flag might cause some incorrect behavior on some platforms.
-	**/
 	public function map( s : String, f : EReg -> String ) : String {
 		var offset = 0;
 		var buf = new StringBuf();
