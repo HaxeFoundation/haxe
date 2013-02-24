@@ -61,11 +61,13 @@ class Writer {
 	public function writeEntryHeader( f : Entry ) {
 		var o = this.o;
 		var flags = 0;
-		for( e in f.extraFields )
-			switch( e ) {
-			case FUtf8: flags |= 0x800;
-			default:
-			}
+		if (f.extraFields != null) {
+			for( e in f.extraFields )
+				switch( e ) {
+				case FUtf8: flags |= 0x800;
+				default:
+				}
+		}
 		o.writeInt32(0x04034B50);
 		o.writeUInt16(0x0014); // version
 		o.writeUInt16(flags); // flags
@@ -91,22 +93,24 @@ class Writer {
 		o.writeInt32(f.fileSize);
 		o.writeUInt16(f.fileName.length);
 		var e = new haxe.io.BytesOutput();
-		for( f in f.extraFields )
-			switch( f ) {
-			case FInfoZipUnicodePath(name,crc):
-				var namebytes = haxe.io.Bytes.ofString(name);
-				e.writeUInt16(0x7075);
-				e.writeUInt16(namebytes.length + 5);
-				e.writeByte(1); // version
-				e.writeInt32(crc);
-				e.write(namebytes);
-			case FUnknown(tag,bytes):
-				e.writeUInt16(tag);
-				e.writeUInt16(bytes.length);
-				e.write(bytes);
-			case FUtf8:
-				// nothing
-			}
+		if (f.extraFields != null) {
+			for( f in f.extraFields )
+				switch( f ) {
+				case FInfoZipUnicodePath(name,crc):
+					var namebytes = haxe.io.Bytes.ofString(name);
+					e.writeUInt16(0x7075);
+					e.writeUInt16(namebytes.length + 5);
+					e.writeByte(1); // version
+					e.writeInt32(crc);
+					e.write(namebytes);
+				case FUnknown(tag,bytes):
+					e.writeUInt16(tag);
+					e.writeUInt16(bytes.length);
+					e.write(bytes);
+				case FUtf8:
+					// nothing
+				}
+		}
 		var ebytes = e.getBytes();
 		o.writeUInt16(ebytes.length);
 		o.writeString(f.fileName);
