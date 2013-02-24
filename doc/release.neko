@@ -37,7 +37,7 @@ mkdir(dir);
 mkdir(dir+"/doc");
 
 if( sys == "Windows" )
-	cmd("cp ../haxe.exe ../haxesetup.exe haxeserver.bat "+dir);
+	cmd("cp ../haxe.exe haxeserver.bat "+dir);
 else
 	cmd("cp ../haxe "+dir);
 

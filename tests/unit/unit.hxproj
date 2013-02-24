@@ -60,7 +60,7 @@
     <hidden path="server.bat" />
   </hiddenPaths>
   <!-- Executed before build -->
-  <preBuildCommand>$(CompilerPath)/haxe compile.hxml</preBuildCommand>
+  <preBuildCommand>"$(CompilerPath)\haxe" compile.hxml</preBuildCommand>
   <!-- Executed after build -->
   <postBuildCommand alwaysRun="False" />
   <!-- Other project options -->
