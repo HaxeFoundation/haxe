@@ -412,7 +412,7 @@ extern class DOMWindow extends EventTarget
 
 	function print() : Void;
 
-	function prompt( message : String, defaultValue : String ) : String;
+	function prompt( message : String, ?defaultValue : String ) : String;
 
 	function releaseEvents() : Void;
 
