@@ -43,6 +43,7 @@ and jsignature =
   | TShort (* S *)
   | TBool (* Z *)
   | TObject of jpath * jtype_argument list (* L Classname *)
+  | TObjectInner of (string list) * (string * jtype_argument list) list (* L Classname ClassTypeSignatureSuffix *)
   | TArray of jsignature * int option (* [ *)
   | TMethod of jmethod_signature (* ( *)
   | TTypeParameter of string (* T *)

@@ -27,9 +27,9 @@ let error msg = raise (Error_message msg)
 
 let get_reference_type i constid =
   match i with
-  | 1 -> RGetField 
+  | 1 -> RGetField
   | 2 -> RGetStatic
-  | 3 -> RPutField 
+  | 3 -> RPutField
   | 4 -> RPutStatic
   | 5 -> RInvokeVirtual
   | 6 -> RInvokeStatic
@@ -43,7 +43,7 @@ let parse_constant max idx ch =
   let error() = error (string_of_int idx ^ ": Invalid constant " ^ string_of_int cid) in
   let index() =
     let n = read_ui16 ch in
-    if n = 0 || n >= max then error();		
+    if n = 0 || n >= max then error();
     n
   in
   match cid with
@@ -63,10 +63,10 @@ let parse_constant max idx ch =
     KInterfaceMethodRef (n1,n2)
   | 8 ->
     KString (index())
-  | 3 ->		
+  | 3 ->
     KInt (read_real_i32 ch)
   | 4 ->
-    let f = Int32.float_of_bits (read_real_i32 ch) in		
+    let f = Int32.float_of_bits (read_real_i32 ch) in
     KFloat f
   | 5 ->
     KLong (read_i64 ch)
@@ -91,7 +91,7 @@ let parse_constant max idx ch =
     let bootstrapref = read_ui16 ch in (* not index *)
     let nametyperef = index() in
     KInvokeDynamic (bootstrapref, nametyperef)
-  | n -> 
+  | n ->
     error()
 
 let expand_path s =
@@ -127,12 +127,13 @@ and parse_signature_part s =
   | 'J' -> TLong, 1
   | 'S' -> TShort, 1
   | 'Z' -> TBool, 1
-  | 'L' -> 
+  | 'L' ->
     (try
+      let orig_s = s in
       let rec loop start i acc =
         match s.[i] with
         | '/' -> loop (i + 1) (i + 1) (String.sub s start (i - start) :: acc)
-        | ';' -> List.rev acc, (String.sub s start (i - start)), [], (i + 1)
+        | ';' | '.' -> List.rev acc, (String.sub s start (i - start)), [], (i)
         | '<' ->
           let name = String.sub s start (i - start) in
           let rec loop_params i acc =
@@ -144,12 +145,23 @@ and parse_signature_part s =
               loop_params (l + i) (tp :: acc)
           in
           let params, _end = loop_params (i + 1) [] in
-          if s.[_end] <> ';' then error ("End of complex type signature expected after type parameter. Got '" ^ Char.escaped s.[_end] ^ "'");
-          List.rev acc, name, params, (_end + 1)
-        | _ -> loop start (i+ 1) acc
+          List.rev acc, name, params, (_end)
+        | _ -> loop start (i+1) acc
       in
-      let pack, name, params, l = loop 1 1 [] in
-      TObject ((pack,name), params), l
+      let pack, name, params, _end = loop 1 1 [] in
+      let rec loop_inner i acc =
+        match s.[i] with
+        | '.' ->
+          let pack, name, params, _end = loop (i+1) (i+1) [] in
+          if pack <> [] then error ("Inner types must not define packages. For '" ^ orig_s ^ "'.");
+          loop_inner _end ( (name,params) :: acc )
+        | ';' -> List.rev acc, i + 1
+        | c -> error ("End of complex type signature expected after type parameter. Got '" ^ Char.escaped c ^ "' for '" ^ orig_s ^ "'." );
+      in
+      let inners, _end = loop_inner _end [] in
+      match inners with
+      | [] -> TObject((pack,name), params), _end
+      | _ -> TObjectInner( pack, (name,params) :: inners ), _end
     with
       Invalid_string -> raise Exit)
   | '[' ->
@@ -170,7 +182,7 @@ and parse_signature_part s =
     done;
     incr p;
     if !p >= String.length s then raise Exit;
-    let ret , l = (match s.[!p] with 'V' -> None , 1 | _ -> 
+    let ret , l = (match s.[!p] with 'V' -> None , 1 | _ ->
       let s, l = parse_signature_part (String.sub s !p (String.length s - !p)) in
       Some s, l
     ) in
@@ -200,7 +212,7 @@ let parse_method_signature s =
 
 let parse_formal_type_params s =
   match s.[0] with
-  | '<' -> 
+  | '<' ->
     let rec read_id i =
       match s.[i] with
       | ':' | '>' -> i
@@ -211,7 +223,7 @@ let parse_formal_type_params s =
       let idi = read_id (idx + 1) in
       let id = String.sub s (idx + 1) (idi - idx - 1) in
       (* next must be a : *)
-      (match s.[idi] with | ':' -> () | _ -> error ("Invalid formal type signature character: " ^ Char.escaped s.[idi]));
+      (match s.[idi] with | ':' -> () | _ -> error ("Invalid formal type signature character: " ^ Char.escaped s.[idi] ^ " ; from " ^ s));
       let ext, l = match s.[idi + 1] with
         | ':' | '>' -> None, idi + 1
         | _ ->
@@ -220,14 +232,14 @@ let parse_formal_type_params s =
       in
       let rec loop idx acc =
         match s.[idx] with
-        | ':' -> 
+        | ':' ->
           let ifacesig, ifacei = parse_signature_part (String.sub s (idx + 1) (len - idx - 1)) in
-          loop ifacei (ifacesig :: acc)
+          loop (idx + ifacei + 1) (ifacesig :: acc)
         | _ -> acc, idx
       in
       let ifaces, idx = loop l [] in
       let acc = (id, ext, ifaces) :: acc in
-      if s.[idx] = '>' then acc, idx + 1 else parse_params (idx - 1) acc
+      if s.[idx] = '>' then List.rev acc, idx + 1 else parse_params (idx - 1) acc
     in
     parse_params 0 []
   | _ -> [], 0
@@ -235,10 +247,10 @@ let parse_formal_type_params s =
 let parse_throws s =
   let len = String.length s in
   let rec loop idx acc =
-    if idx > len then raise Exit 
+    if idx > len then raise Exit
     else if idx = len then acc, idx
     else match s.[idx] with
-    | '^' -> 
+    | '^' ->
       let tsig, l = parse_signature_part (String.sub s idx (len - idx)) in
       loop (idx + l) (tsig :: acc)
     | _ -> acc, idx
@@ -262,8 +274,8 @@ let parse_complete_method_signature s =
 
 let rec expand_constant consts i =
   let unexpected i = error (string_of_int i ^ ": Unexpected constant type") in
-  let expand_path n = match Array.get consts n with 
-    | KUtf8String s -> expand_path s 
+  let expand_path n = match Array.get consts n with
+    | KUtf8String s -> expand_path s
     | _ -> unexpected n
   in
   let expand_cls n = match expand_constant consts n with
@@ -290,7 +302,7 @@ let rec expand_constant consts i =
   in
 
   match Array.get consts i with
-  | KClass utf8ref -> 
+  | KClass utf8ref ->
     ConstClass (expand_path utf8ref)
   | KFieldRef (classref, nametyperef) ->
     ConstField (expand classref nametyperef)
@@ -313,17 +325,17 @@ let rec expand_constant consts i =
   | KUtf8String s ->
     ConstUtf8 s (* TODO: expand UTF8 characters *)
   | KMethodHandle (reference_type, dynref) ->
-    ConstMethodHandle (reference_type, expand_constant consts dynref) 
+    ConstMethodHandle (reference_type, expand_constant consts dynref)
   | KMethodType utf8ref ->
     ConstMethodType (parse_method_signature (expand_string utf8ref))
   | KInvokeDynamic (bootstrapref, nametyperef) ->
     let n, t = expand_nametype nametyperef in
     ConstInvokeDynamic(bootstrapref, n, t)
-  | KUnusable -> 
+  | KUnusable ->
     ConstUnusable
 
 let parse_access_flags ch all_flags =
-  let fl = read_ui16 ch in  
+  let fl = read_ui16 ch in
   let flags = ref [] in
   let fbit = ref 0 in
   List.iter (fun f ->
@@ -346,7 +358,7 @@ let get_class consts ch =
   match get_constant consts (read_ui16 ch) with
   | ConstClass n -> n
   | _ -> error "Invalid class index"
-  
+
 let get_string consts ch =
   let i = read_ui16 ch in
   match get_constant consts i with
@@ -364,7 +376,7 @@ let rec parse_element_value consts ch =
     ValEnum (path, name)
   | 'c' ->
     let name = get_string consts ch in
-    let jsig = if name = "V" then 
+    let jsig = if name = "V" then
       TObject(([], "Void"), [])
     else
       parse_signature name
@@ -520,14 +532,14 @@ let parse_class ch =
     match aname with
     | "InnerClasses" ->
       let count = read_ui16 ch in
-      let classes = List.init count (fun _ -> 
+      let classes = List.init count (fun _ ->
         let inner_ci = get_class consts ch in
         let outeri = read_ui16 ch in
         let outer_ci = match outeri with
           | 0 -> None
           | _ -> match get_constant consts outeri with
           | ConstClass n -> Some n
-          | _ -> error "Invalid class index" 
+          | _ -> error "Invalid class index"
         in
 
         let inner_namei = read_ui16 ch in
@@ -549,8 +561,8 @@ let parse_class ch =
       let s = String.sub s idx (String.length s - idx) in
       let len = String.length s in
       let sup, idx = parse_signature_part s in
-      let rec loop idx acc = 
-        if idx = len then 
+      let rec loop idx acc =
+        if idx = len then
           acc
         else begin
           let s = String.sub s idx (len - idx) in
