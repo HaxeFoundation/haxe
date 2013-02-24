@@ -901,7 +901,7 @@ let set_heritance ctx c herits p =
 			| TInst (intf,params) ->
 				intf.cl_build();
 				if is_parent c intf then error "Recursive class" p;
-				if c.cl_interface then error "Interfaces cannot implements another interface (use extends instead)" p;
+				if c.cl_interface then error "Interfaces cannot implement another interface (use extends instead)" p;
 				if not intf.cl_interface then error "You can only implements an interface" p;
 				process_meta intf;
 				c.cl_implements <- (intf, params) :: c.cl_implements;
