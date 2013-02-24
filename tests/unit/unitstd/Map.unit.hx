@@ -139,6 +139,7 @@ map.exists(c) == true;
 map.get(b) == null;
 
 // [] access
+/*
 var map = new Map();
 map["foo"] == null;
 map["foo"] = 12;
@@ -154,3 +155,4 @@ map[(function(s) return s + "o")("fo")] == 1;
 map["bar"] = map["foo"] = 9;
 map["bar"] == 9;
 map["foo"] == 9;
+*/

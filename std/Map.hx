@@ -79,7 +79,7 @@ abstract Map< K, V > (IMap< K, V > ) {
 		
 		If [key] is null, the result is unspecified.
 	**/
-	@:arrayAccess public inline function get(key:K) return this.get(key);
+	public inline function get(key:K) return this.get(key);
 	
 	/**
 		Returns true if [key] has a mapping, false otherwise.
@@ -112,11 +112,6 @@ abstract Map< K, V > (IMap< K, V > ) {
 	**/
 	public inline function iterator():Iterator<V> {
 		return this.iterator();
-	}
-	
-	@:arrayAccess @:noCompletion public inline function arrayWrite(k:K, v:V):V {
-		this.set(k, v);
-		return v;
 	}
 	
 	@:to static inline function toStringMap(t:IMap < String, V > ):StringMap<V> {
