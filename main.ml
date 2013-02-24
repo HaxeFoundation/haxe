@@ -1230,7 +1230,7 @@ try
 			Common.log com ("Generating Cs in : " ^ com.file);
 			Gencs.generate com;
 		| Java ->
-			Common.log com ("Generating Cs in : " ^ com.file);
+			Common.log com ("Generating Java in : " ^ com.file);
 			Genjava.generate com;
 		);
 	end;
