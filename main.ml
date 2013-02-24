@@ -761,8 +761,8 @@ and do_connect host port args =
 
 and init ctx =
 	let usage = Printf.sprintf
-		"Haxe Compiler %d.%.2d - (C)2005-2013 Haxe Foundation\n Usage : haxe%s -main <class> [-swf|-js|-neko|-php|-cpp|-as3] <output> [options]\n Options :"
-		(version / 100) (version mod 100) (if Sys.os_type = "Win32" then ".exe" else "")
+		"Haxe Compiler %d.%d.%d - (C)2005-2013 Haxe Foundation\n Usage : haxe%s -main <class> [-swf|-js|-neko|-php|-cpp|-as3] <output> [options]\n Options :"
+		(version / 100) ((version mod 100)/10) (version mod 10) (if Sys.os_type = "Win32" then ".exe" else "")
 	in
 	let com = ctx.com in
 	let classes = ref [([],"Std")] in
@@ -1030,6 +1030,10 @@ try
 		("--cwd", Arg.String (fun dir ->
 			(try Unix.chdir dir with _ -> raise (Arg.Bad "Invalid directory"))
 		),"<dir> : set current working directory");
+		("-version",Arg.Unit (fun() ->
+			message ctx (Printf.sprintf "%d.%d.%d" (version / 100) ((version mod 100)/10) (version mod 10)) Ast.null_pos;
+			did_something := true;
+		),": print version and exit");
 		("--help-defines", Arg.Unit (fun() ->
 			let rec loop i =
 				let d = Obj.magic i in
@@ -1042,9 +1046,6 @@ try
 			loop 0;
 			did_something := true
 		),": print help for all compiler specific defines");
-		("-swf9",Arg.String (fun file ->
-			set_platform Flash file;
-		),"<file> : [deprecated] compile code to Flash9 SWF file");
 	] in
 	let args_callback cl = classes := make_path cl :: !classes in
 	let process args =

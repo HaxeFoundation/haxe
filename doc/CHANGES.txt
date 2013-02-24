@@ -1,4 +1,4 @@
-2012-??-??: 3.0.0
+2013-02-24: 3.0.0-RC
 	flash : updated player 11.4 api
 	all : allowed named functions as r-value
 	all : fixed using + overload usage
