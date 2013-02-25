@@ -96,7 +96,7 @@ import cs.internal.Runtime;
 
 	public static function getClassName( c : Class<Dynamic> ) : String {
 		var ret:String = cast Lib.toNativeType(c);
-#if no-root
+#if no_root
 		if (ret.length > 10 && StringTools.startsWith(ret, "haxe.root."))
 			ret = ret.substr(10);
 #end
@@ -115,7 +115,7 @@ import cs.internal.Runtime;
 	public static function getEnumName( e : Enum<Dynamic> ) : String
 	{
 		var ret:String = cast Lib.toNativeType(untyped e);
-#if no-root
+#if no_root
 		if (ret.length > 10 && StringTools.startsWith(ret, "haxe.root."))
 			ret = ret.substr(10);
 #end
@@ -126,7 +126,7 @@ import cs.internal.Runtime;
 
 	public static function resolveClass( name : String ) : Class<Dynamic>
 	{
-#if no-root
+#if no_root
 		if (name.indexOf(".") == -1)
 			name = "haxe.root." + name;
 #end
@@ -135,11 +135,11 @@ import cs.internal.Runtime;
 		{
 			switch(name)
 			{
-				case #if no-root "haxe.root.Int" #else "Int" #end: return cast Int;
-				case #if no-root "haxe.root.Float" #else "Float" #end: return cast Float;
-				case #if no-root "haxe.root.Class" #else "Class" #end: return cast Class;
-				case #if no-root "haxe.root.Dynamic" #else "Dynamic" #end: return cast Dynamic;
-				case #if no-root "haxe.root.String" #else "String" #end: return cast String;
+				case #if no_root "haxe.root.Int" #else "Int" #end: return cast Int;
+				case #if no_root "haxe.root.Float" #else "Float" #end: return cast Float;
+				case #if no_root "haxe.root.Class" #else "Class" #end: return cast Class;
+				case #if no_root "haxe.root.Dynamic" #else "Dynamic" #end: return cast Dynamic;
+				case #if no_root "haxe.root.String" #else "String" #end: return cast String;
 				default: return null;
 			}
 		} else if (t.IsInterface && cast(untyped __typeof__(IGenericObject), cs.system.Type).IsAssignableFrom(t)) {
