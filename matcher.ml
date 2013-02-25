@@ -1088,7 +1088,9 @@ let match_expr ctx e cases def with_type p =
 			cases @ [[(EConst(Ident "_")),p],None,def]
 		| _ -> cases
 	in
-	let evals = match fst e with
+	let old_error = ctx.on_error in
+	ctx.on_error <- (fun ctx s p -> ctx.on_error <- old_error; error s p);
+	let evals = try (match fst e with
 		| EArrayDecl el | EParenthesis(EArrayDecl el,_) ->
 			List.map (fun e -> type_expr ctx e Value) el
 		| _ ->
@@ -1099,8 +1101,12 @@ let match_expr ctx e cases def with_type p =
 			| _ ->
 				()
 			end;
-			[e]
+			[e])
+		with e ->
+			ctx.on_error <- old_error;
+			raise e
 	in
+	ctx.on_error <- old_error;
 	let var_inits = ref [] in
 	let a = List.length evals in
 	let stl = ExtList.List.mapi (fun i e ->
