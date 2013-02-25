@@ -145,7 +145,7 @@ class Main {
 		addCommand("config",config,"print the repository path",false);
 		addCommand("path",path,"give paths to libraries",false);
 		addCommand("run",run,"run the specified library with parameters",false);
-		addCommand("local",local,"install the specified package localy",false);
+		addCommand("local",local,"install the specified package locally",false);
 		addCommand("dev",dev,"set the development directory for a given library",false);
 		addCommand("git", git, "uses git repository as library");
 		addCommand("proxy", proxy, "setup the Http proxy");
