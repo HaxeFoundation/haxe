@@ -1082,25 +1082,28 @@ and type_field ctx e i p mode =
 		field_access ctx mode f (FAnon f) (Type.field_type f) e p
 	| TAbstract (a,pl) ->
 		(try
-			let c = (match a.a_impl with None -> raise Not_found | Some c -> c) in
+ 			let c = (match a.a_impl with None -> raise Not_found | Some c -> c) in
 			let f = PMap.find i c.cl_statics in
-			let f = if mode <> MGet then f else match f.cf_kind with
-				| Var {v_read = AccCall s} -> PMap.find s c.cl_statics
-				| _ -> error "Invalid operation" p
+			let field_type f =
+				let t = field_type ctx c [] f p in
+				apply_params a.a_types pl t
 			in
-			let t = field_type ctx c [] f p in
-			let t = apply_params a.a_types pl t in
-			if mode = MCall then begin match follow t with
-				| TFun((_,_,ta) :: _,_) -> if not (Meta.has Meta.Impl f.cf_meta) then unify ctx e.etype ta p
-				| _ -> error (s_type_path a.a_path ^ "." ^ i ^ " cannot be called") p
-			end;
 			let et = type_module_type ctx (TClassDecl c) None p in
-			let ef = mk (TField (et,FStatic (c,f))) t p in
-			if mode = MGet then begin
+			let field_expr f t = mk (TField (et,FStatic (c,f))) t p in
+			(match mode, f.cf_kind with
+			| MGet, Var {v_read = AccCall s} ->
+				(* getter call *)
+				let f = PMap.find s c.cl_statics in
+				let t = field_type f in
 				let r = match follow t with TFun(_,r) -> r | _ -> raise Not_found in
+				let ef = field_expr f r in
 				AKExpr(make_call ctx ef [e] r p)
-			end else
+			| (MGet | MCall), _ ->
+				let t = field_type f in
+				let ef = field_expr f t in
 				AKUsing (ef,c,f,e)
+			| MSet, _ ->
+				error "This operation is unsupported" p)
 		with Not_found -> try
 			using_field ctx mode e i p
 		with Not_found -> try
