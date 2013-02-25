@@ -401,8 +401,11 @@ let unsupported msg p = error ("This expression cannot be generated to PHP: " ^ 
 
 let newline ctx =
 	match Buffer.nth ctx.buf (Buffer.length ctx.buf - 1) with
-	| '}' | '{' | ':' | ' ' -> print ctx "\n%s" ctx.tabs
-	| _ -> print ctx ";\n%s" ctx.tabs
+	| '{' | ':' | ' '
+	| '}' when Buffer.nth ctx.buf (Buffer.length ctx.buf - 2) != '"' ->
+		print ctx "\n%s" ctx.tabs
+	| _ ->
+		print ctx ";\n%s" ctx.tabs
 
 let rec concat ctx s f = function
 	| [] -> ()
