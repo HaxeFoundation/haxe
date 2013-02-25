@@ -76,7 +76,7 @@ class ObjectMap <K:{ }, V> {
 		var s = "{";
 		var it = keys();
 		for( i in it ) {
-			s += i;
+			s += Std.string(i);
 			s += " => ";
 			s += Std.string(get(i));
 			if( it.hasNext() )

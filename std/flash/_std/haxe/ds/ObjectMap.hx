@@ -36,7 +36,7 @@ class ObjectMap<K,V> extends flash.utils.Dictionary {
 		var s = "";
 		var it = keys();
 		for( i in it ) {
-			s += (s == "" ? "" : ",") + i;
+			s += (s == "" ? "" : ",") + Std.string(i);
 			s += " => ";
 			s += Std.string(get(i));
 		}

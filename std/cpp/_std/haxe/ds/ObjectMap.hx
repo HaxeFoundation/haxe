@@ -63,7 +63,7 @@ class ObjectMap<K,V> {
 		s.add("{");
 		var it = __Internal.keys();
 		for( i in it ) {
-			s.add(i);
+			s.add(Std.string(i));
 			s.add(" => ");
 			s.add(Std.string(__Internal.get(i)));
 			if( it.hasNext() )

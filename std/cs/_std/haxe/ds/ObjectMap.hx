@@ -412,7 +412,7 @@ import cs.NativeArray;
 		s.add("{");
 		var it = keys();
 		for( i in it ) {
-			s.add(i);
+			s.add(Std.string(i));
 			s.add(" => ");
 			s.add(Std.string(get(i)));
 			if( it.hasNext() )

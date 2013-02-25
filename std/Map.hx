@@ -114,6 +114,15 @@ abstract Map< K, V > (IMap< K, V > ) {
 		return this.iterator();
 	}
 	
+	/**
+		Returns a String representation of [this] Map.
+		
+		The exact representation depends on the platform and key-type.
+	**/
+	public inline function toString():String {
+		return this.toString();
+	}
+	
 	@:to static inline function toStringMap(t:IMap < String, V > ):StringMap<V> {
 		return new StringMap<V>();
 	}
@@ -154,6 +163,7 @@ private typedef IMap < K, V > = {
 	public function remove(k:K):Bool;
 	public function keys():Iterator<K>;
 	public function iterator():Iterator<V>;
+	public function toString():String;
 }
 
 private typedef Hashable = {
