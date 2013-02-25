@@ -83,6 +83,7 @@ type pat_matrix = pat_vec list
 type pattern_ctx = {
 	mutable pc_locals : (string, pvar) PMap.t;
 	mutable pc_sub_vars : (string, pvar) PMap.t option;
+	mutable pc_reify : bool;
 }
 
 type dt =
@@ -309,7 +310,11 @@ let to_pattern ctx e t =
 		| EConst(Ident "null") ->
 			error "null-patterns are not allowed" p
 		| ECheckType(e, CTPath({tpackage=["haxe";"macro"]; tname="Expr"})) ->
-			loop pctx e t
+			let old = pctx.pc_reify in
+			pctx.pc_reify <- true;
+			let e = loop pctx e t in
+			pctx.pc_reify <- old;
+			e
 		| EParenthesis e ->
 			loop pctx e t
 		| ECast(e1,None) ->
@@ -457,11 +462,14 @@ let to_pattern ctx e t =
 					if not (is_matchable cf) then
 						sl,pl,i
 					else
-						try
-							let pat = try loop pctx (List.assoc n fl) cf.cf_type with Not_found when n <> "pos" -> (mk_any cf.cf_type p) in
-							(n,cf) :: sl,pat :: pl,i + 1
-						with (Unrecognized_pattern _ | Not_found) when n = "pos" ->
-							sl,pl,i
+						let pat =
+							try
+								if pctx.pc_reify && cf.cf_name = "pos" then raise Not_found;
+								loop pctx (List.assoc n fl) cf.cf_type
+							with Not_found ->
+								(mk_any cf.cf_type p)
+						in
+						(n,cf) :: sl,pat :: pl,i + 1
 				) fields ([],[],0) in
 				mk_con_pat (CFields(i,sl)) pl t p
 			| TInst(c,tl) ->
@@ -518,6 +526,7 @@ let to_pattern ctx e t =
 					let pctx2 = {
 						pc_sub_vars = Some pctx.pc_locals;
 						pc_locals = old;
+						pc_reify = pctx.pc_reify;
 					} in
 					let pat2 = loop pctx2 e2 t in
 					PMap.iter (fun s (_,p) -> if not (PMap.mem s pctx2.pc_locals) then verror s p) pctx.pc_locals;
@@ -530,6 +539,7 @@ let to_pattern ctx e t =
 	let pctx = {
 		pc_locals = PMap.empty;
 		pc_sub_vars = None;
+		pc_reify = false;
 	} in
 	loop pctx e t, pctx.pc_locals
 
