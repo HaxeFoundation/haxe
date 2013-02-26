@@ -23,7 +23,7 @@ package haxe.ds;
 
 import java.NativeArray;
 
-@:coreApi class ObjectMap<K, T>
+@:coreApi class ObjectMap<K, V>
 {
 	@:extern private static inline var HASH_UPPER = 0.77;
 	@:extern private static inline var FLAG_EMPTY = 0;
@@ -39,7 +39,7 @@ import java.NativeArray;
 	 */
 	private var hashes:NativeArray<HashType>;
 	private var _keys:NativeArray<K>;
-	private var vals:NativeArray<T>;
+	private var vals:NativeArray<V>;
 
 	private var nBuckets:Int;
 	private var size:Int;
@@ -61,7 +61,7 @@ import java.NativeArray;
 		cachedIndex = -1;
 	}
 
-	public function set( key : K, value : T ) : Void
+	public function set( key : K, value : V ) : Void
 	{
 		var x:Int, k:Int;
 		if (nOccupied >= upperBound)
@@ -260,7 +260,7 @@ import java.NativeArray;
 		}
 	}
 
-	public function get( key : K ) : Null<T>
+	public function get( key : K ) : Null<V>
 	{
 		var idx = -1;
 		if (cachedKey == key && ( (idx = cachedIndex) != -1 ))
@@ -280,7 +280,7 @@ import java.NativeArray;
 		return null;
 	}
 
-	private function getDefault( key : K, def : T ) : T
+	private function getDefault( key : K, def : V ) : V
 	{
 		var idx = -1;
 		if (cachedKey == key && ( (idx = cachedIndex) != -1 ))
@@ -379,7 +379,7 @@ import java.NativeArray;
 		Returns an iterator of all values in the hashtable.
 		Implementation detail: Do not set() any new value while iterating, as it may cause a resize, which will break iteration
 	**/
-	public function iterator() : Iterator<T>
+	public function iterator() : Iterator<V>
 	{
 		var i = 0;
 		var len = nBuckets;
