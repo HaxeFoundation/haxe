@@ -1650,7 +1650,7 @@ let configure gen =
 
     print w "public enum %s" (change_clname (snd e.e_path));
     begin_block w;
-    write w (String.concat ", " e.e_names);
+    write w (String.concat ", " (List.map (change_id) e.e_names));
     end_block w;
 
     if should_close then end_block w
