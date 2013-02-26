@@ -4284,6 +4284,11 @@ let decode_type_def v =
 		EClass (mk flags fields)
 	| 3, [t] ->
 		ETypedef (mk (if isExtern then [EExtern] else []) (decode_ctype t))
+	| 4, [tthis;tfrom;tto] ->
+		let flags = match opt decode_ctype tfrom with None -> [] | Some t -> [AFromType t] in
+		let flags = match opt decode_ctype tto with None -> flags | Some t -> (AToType t) :: flags in
+		let flags = (AIsType (decode_ctype tthis)) :: flags in
+		EAbstract(mk flags fields)
 	| _ ->
 		raise Invalid_expr
 	) in

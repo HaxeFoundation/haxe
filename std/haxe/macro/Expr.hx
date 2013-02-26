@@ -223,6 +223,7 @@ enum TypeDefKind {
 	TDStructure;
 	TDClass( ?superClass : TypePath, ?interfaces : Array<TypePath>, ?isInterface : Bool );
 	TDAlias( t : ComplexType ); // ignore TypeDefinition.fields
+	TDAbstract( tthis : ComplexType, ?from : ComplexType, ?to: ComplexType );
 }
 
 /**
