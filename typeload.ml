@@ -130,12 +130,12 @@ let make_module ctx mpath file tdecls loadp =
 					let stat = List.mem AStatic f.cff_access in
 					let p = f.cff_pos in
 					match f.cff_kind with
-					| FProp ("get","never",_,_) ->
+					| FProp (("get" | "never"),("set" | "never"),_,_) ->
 						(* TODO: hack to avoid issues with abstract property generation on As3 *)
 						if Common.defined ctx.com Define.As3 then f.cff_meta <- (Meta.Extern,[],p) :: f.cff_meta;
 						{ f with cff_access = AStatic :: f.cff_access; cff_meta = (Meta.Impl,[],p) :: f.cff_meta }
 					| FProp _ when not stat ->
-						display_error ctx "Member property on abstract must be (get,never)" p;
+						display_error ctx "Member property accessors must be get/set or never" p;
 						f
 					| FVar _ when not stat ->
 						display_error ctx "Cannot declare member variable in abstract" p;

@@ -423,4 +423,10 @@ class TestBasetypes extends Test {
 		eq("aaaaa", r * "a");
 		eq("aaaaa", "a" * r);
 	}
+	
+	function testAbstractSetter() {
+		var as = new unit.MyAbstract.MyAbstractSetter();
+		as.value = "foo";
+		eq(as.value, "foo");
+	}
 }

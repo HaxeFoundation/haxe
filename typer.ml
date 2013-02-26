@@ -1098,6 +1098,13 @@ and type_field ctx e i p mode =
 				let r = match follow t with TFun(_,r) -> r | _ -> raise Not_found in
 				let ef = field_expr f r in
 				AKExpr(make_call ctx ef [e] r p)
+			| MSet, Var {v_write = AccCall s} ->
+				let f = PMap.find s c.cl_statics in
+				let t = field_type f in
+				let ef = field_expr f t in
+				AKUsing (ef,c,f,e)
+			| MGet, Var {v_read = AccNever} ->
+				AKNo f.cf_name
 			| (MGet | MCall), _ ->
 				let t = field_type f in
 				let ef = field_expr f t in
@@ -1311,7 +1318,10 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 			let et = type_module_type ctx (TClassDecl c) None p in
 			let ef = mk (TField(et,(FStatic(c,cf)))) tf p in
 			make_call ctx ef [ebase;ekey;e2] r p
-		| AKInline _ | AKUsing _ | AKMacro _ ->
+		| AKUsing(ef,_,_,et) ->
+			(* this must be an abstract setter *)
+			make_call ctx ef [et;e2] e2.etype p
+		| AKInline _ | AKMacro _ ->
 			assert false)
 	| OpAssignOp op ->
 		(match type_access ctx (fst e1) (snd e1) MSet with

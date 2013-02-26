@@ -221,3 +221,21 @@ abstract MyAbstractClosure(String){
 		this = v;
 	}
 }
+
+abstract MyAbstractSetter(Dynamic) {
+	
+	public var value(get,set):String;
+	
+	public inline function new() {
+		this = {};
+	}
+	
+	inline function get_value() {
+		return this.value;
+	}
+	
+	inline function set_value(s:String) {
+		this.value = s;
+		return s;
+	}
+}
