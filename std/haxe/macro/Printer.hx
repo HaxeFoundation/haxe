@@ -249,6 +249,8 @@ class Printer {
 					"typedef " + t.name + (t.params.length > 0 ? "<" + t.params.map(printTypeParamDecl).join(",") + ">" : "") + " = "
 					+ printComplexType(ct)
 					+ ";";
+				case TDAbstract(_,_,_):
+					"";
 			}
 		
 		tabs = old;
