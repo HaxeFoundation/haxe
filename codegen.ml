@@ -1310,11 +1310,12 @@ module Abstract = struct
 	let find_from ab pl a b = List.find (Type.unify_from_field ab pl a b) ab.a_from
 
 	let get_underlying_type a pl =
-		if Meta.has Meta.MultiType a.a_meta then begin
+		try
+			if not (Meta.has Meta.MultiType a.a_meta) then raise Not_found;
 			let m = mk_mono() in
 			let _ = find_to a pl m in
 			follow m
-		end else
+		with Not_found ->
 			apply_params a.a_types pl a.a_this
 
 	let rec make_static_call ctx c cf a pl args t p =
