@@ -1171,7 +1171,13 @@ let match_expr ctx e cases def with_type p =
 				| _ -> ());
 				e
 		in
-		let eg = match eg with None -> None | Some e -> Some (type_expr ctx e Value) in
+		let eg = match eg with
+			| None -> None
+			| Some e ->
+				let eg = type_expr ctx e (WithType ctx.com.basic.tbool) in
+				unify ctx eg.etype ctx.com.basic.tbool eg.epos;
+				Some eg
+		in
 		save();
 		let out = mk_out mctx i e eg pl (pos ep) in
 		Array.of_list pl,out
