@@ -1161,7 +1161,7 @@ try
 		if Common.defined_value_safe com Define.DisplayMode = "usage" then
 			Codegen.detect_usage com;
 		let filters = [
-			Codegen.handle_abstract_casts tctx;
+			Codegen.Abstract.handle_abstract_casts tctx;
 			if com.foptimize then Optimizer.reduce_expression tctx else Optimizer.sanitize tctx;
 			Codegen.check_local_vars_init;
 			Codegen.captured_vars com;

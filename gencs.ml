@@ -575,7 +575,7 @@ let configure gen =
       | TType ({ t_path = [],"Single" },[])
       | TAbstract ({ a_path = [],"Single" },[]) -> Some t
       | TAbstract ({ a_impl = Some _ } as a, pl) ->
-          Some (gen.gfollow#run_f ( Codegen.get_underlying_type a pl) )
+          Some (gen.gfollow#run_f ( Codegen.Abstract.get_underlying_type a pl) )
       | TAbstract( { a_path = ([], "EnumValue") }, _  )
       | TInst( { cl_path = ([], "EnumValue") }, _  ) -> Some t_dynamic
       | _ -> None);
@@ -596,7 +596,7 @@ let configure gen =
     let t = gen.gfollow#run_f t in
     let ret = match t with
       | TAbstract ({ a_impl = Some _ } as a, pl) ->
-        real_type (Codegen.get_underlying_type a pl)
+        real_type (Codegen.Abstract.get_underlying_type a pl)
       | TInst( { cl_path = (["haxe"], "Int32") }, [] ) -> gen.gcon.basic.tint
       | TInst( { cl_path = (["haxe"], "Int64") }, [] ) -> ti64
       | TAbstract( { a_path = [],"Class" }, _ )
@@ -742,7 +742,7 @@ let configure gen =
           | _ -> "object")
       | TDynamic _ -> "object"
       | TAbstract(a,pl) when a.a_impl <> None ->
-        t_s (Codegen.get_underlying_type a pl)
+        t_s (Codegen.Abstract.get_underlying_type a pl)
       (* No Lazy type nor Function type made. That's because function types will be at this point be converted into other types *)
       | _ -> if !strict_mode then begin trace ("[ !TypeError " ^ (Type.s_type (Type.print_context()) t) ^ " ]"); assert false end else "[ !TypeError " ^ (Type.s_type (Type.print_context()) t) ^ " ]"
 

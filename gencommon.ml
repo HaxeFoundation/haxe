@@ -4955,7 +4955,7 @@ struct
           let arr_etype = match follow arr.etype with
           | (TInst _ as t) -> t
           | TAbstract ({ a_impl = Some _ } as a, pl) ->
-            follow (Codegen.get_underlying_type a pl)
+            follow (Codegen.Abstract.get_underlying_type a pl)
           | t -> t in
           (* get underlying class (if it's a class *)
           (match arr_etype with

@@ -2546,6 +2546,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			| Some e ->
 				let e = type_expr ctx e (WithType ctx.ret) in
 				unify ctx e.etype ctx.ret e.epos;
+				let e = Codegen.Abstract.check_cast ctx ctx.ret e p in
 				Some e , e.etype
 		) in
 		mk (TReturn e) t_dynamic p
@@ -3576,7 +3577,7 @@ and flush_macro_context mint ctx =
 		mint
 	end else mint in
 	(* we should maybe ensure that all filters in Main are applied. Not urgent atm *)
-	(try Interp.add_types mint types (Codegen.post_process [Codegen.handle_abstract_casts mctx; Codegen.captured_vars mctx.com; Codegen.rename_local_vars mctx.com])
+	(try Interp.add_types mint types (Codegen.post_process [Codegen.Abstract.handle_abstract_casts mctx; Codegen.captured_vars mctx.com; Codegen.rename_local_vars mctx.com])
 	with Error (e,p) -> display_error ctx (error_msg e) p; raise Fatal_error);
 	Codegen.post_process_end()
 

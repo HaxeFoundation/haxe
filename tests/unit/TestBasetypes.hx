@@ -376,8 +376,15 @@ class TestBasetypes extends Test {
 		var arr:Array<String> = [tpl];
 		eq(arr[0], "Abstract casting really works!");
 		#end
+		
+		// cast to return
+		function returnAbstractCast():String {
+			return new unit.MyAbstract.Meter(12.2);
+		}
+		
+		eq(returnAbstractCast(), "12.2m");
 	}
-
+	
 	function testAbstractToAbstractCast() {
 		var m:unit.MyAbstract.Meter = 122.2;
 		var km:unit.MyAbstract.Kilometer = m;
