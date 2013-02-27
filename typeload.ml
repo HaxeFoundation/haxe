@@ -656,14 +656,17 @@ let rec get_overloads c i =
 	| Some (c,tl) ->
 			ret @ ( List.map (fun (t,f) -> apply_params c.cl_types tl t, f) (get_overloads c i) )
 
-let same_overload_args t1 t2 =
-  match follow t1, follow t2 with
-  | TFun(a1,_), TFun(a2,_) ->
-    (try
-      List.for_all2 (fun (_,_,t1) (_,_,t2) -> type_iseq t1 t2) a1 a2
-    with | Invalid_argument("List.for_all2") ->
-      false)
-  | _ -> assert false
+let same_overload_args t1 t2 f1 f2 =
+  if List.length f1.cf_params <> List.length f2.cf_params then
+    false
+  else
+    match follow (apply_params f1.cf_params (List.map (fun (_,t) -> t) f2.cf_params) t1), follow t2 with
+    | TFun(a1,_), TFun(a2,_) ->
+      (try
+        List.for_all2 (fun (_,_,t1) (_,_,t2) -> type_iseq t1 t2) a1 a2
+      with | Invalid_argument("List.for_all2") ->
+        false)
+    | _ -> assert false
 
 let check_overriding ctx c =
 	let p = c.cl_pos in
@@ -719,7 +722,7 @@ let check_overriding ctx c =
 				(* check if field with same signature was declared more than once *)
 				List.iter (fun f2 ->
 					try
-						ignore (List.find (fun f3 -> f3 != f2 && same_overload_args f2.cf_type f3.cf_type) (f :: f.cf_overloads));
+						ignore (List.find (fun f3 -> f3 != f2 && same_overload_args f2.cf_type f3.cf_type f2 f3) (f :: f.cf_overloads));
 						display_error ctx ("Another overloaded field of same signature was already declared : " ^ f2.cf_name) f2.cf_pos
 					with | Not_found -> ()
 				) (f :: f.cf_overloads);
@@ -728,7 +731,7 @@ let check_overriding ctx c =
 					(* find the exact field being overridden *)
 					check_field f (fun csup i ->
 						List.find (fun (t,f2) ->
-							same_overload_args f.cf_type (apply_params csup.cl_types params t)
+							same_overload_args f.cf_type (apply_params csup.cl_types params t) f f2
 						) overloads
 					) true
 				) f.cf_overloads
@@ -767,7 +770,7 @@ let rec check_interface ctx c intf params =
 					let overloads = get_overloads c i in
 					is_overload := true;
 					let t = (apply_params intf.cl_types params f.cf_type) in
-					List.find (fun (t1,f1) -> same_overload_args t t1) overloads
+					List.find (fun (t1,f1) -> same_overload_args t t1 f f1) overloads
 				else
 					t2, f2
 			in
@@ -1743,7 +1746,7 @@ let init_class ctx c p context_init herits fields =
 		List.iter (fun f ->
 			try
 				(* TODO: consider making a broader check, and treat some types, like TAnon and type parameters as Dynamic *)
-				ignore(List.find (fun f2 -> f != f2 && same_overload_args f.cf_type f2.cf_type) (ctor :: ctor.cf_overloads));
+				ignore(List.find (fun f2 -> f != f2 && same_overload_args f.cf_type f2.cf_type f f2) (ctor :: ctor.cf_overloads));
 				display_error ctx ("Another overloaded field of same signature was already declared : " ^ f.cf_name) f.cf_pos;
 			with Not_found -> ()
 		) (ctor :: ctor.cf_overloads)
