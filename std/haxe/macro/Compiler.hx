@@ -26,14 +26,19 @@ import haxe.macro.Expr;
 	All these methods can be called for compiler configuration macros.
 **/
 class Compiler {
+	
+	macro static public function getDefine( key : String ) {
+		return macro $v{haxe.macro.Context.definedValue(key)};
+	}
 
 #if neko
 
 	static var ident = ~/^[A-Za-z_][A-Za-z0-9_]*$/;
 	static var path = ~/^[A-Za-z_][A-Za-z0-9_.]*$/;
 
-	public static function define( flag : String ) {
-		untyped load("define", 1)(flag.__s);
+	public static function define( flag : String, ?value : String ) untyped {
+		var v = flag + (value == null ? "" : "= " + value);
+		load("define", 1)(v.__s);
 	}
 
 	public static function removeField( className : String, field : String, ?isStatic : Bool ) {
