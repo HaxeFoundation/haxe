@@ -192,7 +192,7 @@
 			else
 				offset = p.pos + p.len;
 		} while (global);
-		if (!global && offset < s.length)
+		if (!global && offset > 0 && offset < s.length)
 			buf.add(s.substr(offset));
 		return buf.toString();
 	}

@@ -171,7 +171,7 @@ class EReg {
 			else
 				offset = p.pos + p.len;
 		} while (isGlobal);
-		if (!isGlobal && offset < s.length)
+		if (!isGlobal && offset > 0 && offset < s.length)
 			buf.add(s.substr(offset));
 		return buf.toString();
 	}
