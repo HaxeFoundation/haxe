@@ -664,7 +664,7 @@ let configure gen =
   let ti64 = match ( get_type gen (["haxe";"_Int64"], "NativeInt64") ) with | TTypeDecl t -> TType(t,[]) | _ -> assert false in
 
   let has_tdynamic params =
-    List.exists (fun e -> match gen.greal_type e with | TDynamic _ -> true | _ -> false) params
+    List.exists (fun e -> match e with | TDynamic _ -> true | _ -> false) params
   in
 
   (*
@@ -699,8 +699,7 @@ let configure gen =
                   | TAbstract ({ a_path = ["java"],"Char16" },[])
                   | TType ({ t_path = [],"Single" },[])
                   | TAbstract ({ a_path = [],"Single" },[]) ->
-                      t_dynamic
-                      (*basic.tnull f_t*)
+                      basic.tnull f_t
                   (*| TType ({ t_path = [], "Null"*)
                   | TInst (cl, ((_ :: _) as p)) ->
                     TInst(cl, List.map (fun _ -> t_dynamic) p)
