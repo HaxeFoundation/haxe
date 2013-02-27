@@ -148,7 +148,7 @@ let make_path f =
 		let msg =
 			if String.length f == 0 then
 				"Class name must not be empty"
-			else match f.[0] with
+			else match (List.hd (List.rev cl)).[0] with
 				| 'A'..'Z' -> "Invalid class name"
 				| _ -> "Class name must start with uppercase character"
 		in
