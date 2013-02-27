@@ -1443,7 +1443,7 @@ let init_class ctx c p context_init herits fields =
 			let dynamic = List.mem ADynamic f.cff_access || (match parent with Some { cf_kind = Method MethDynamic } -> true | _ -> false) in
 			if inline && dynamic then error "You can't have both 'inline' and 'dynamic'" p;
 			ctx.type_params <- (match c.cl_kind with
-				| KAbstractImpl a when Meta.has Meta.Impl f.cff_meta || Meta.has Meta.MultiType a.a_meta && Meta.has Meta.To f.cff_meta ->
+				| KAbstractImpl a when Meta.has Meta.Impl f.cff_meta || Meta.has Meta.From f.cff_meta || Meta.has Meta.MultiType a.a_meta && Meta.has Meta.To f.cff_meta ->
 					params @ a.a_types
 				| _ ->
 					if stat then params else params @ ctx.type_params);
