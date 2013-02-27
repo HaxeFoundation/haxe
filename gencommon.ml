@@ -1859,7 +1859,7 @@ struct
       let init = List.fold_left (fun acc cf ->
         match cf.cf_kind, should_handle_dynamic_functions with
           | (Var _, _)
-          | (Method (MethDynamic), true) ->
+          | (Method (MethDynamic), true) when not (Type.is_extern_field cf) ->
             (match cf.cf_expr with
               | Some e ->
                 (match cf.cf_params with
