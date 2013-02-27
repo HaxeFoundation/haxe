@@ -383,7 +383,7 @@ class XmlParser {
 		};
 	}
 
-	function xclassfield( x : Fast ) : ClassField {
+	function xclassfield( x : Fast, ?defPublic ) : ClassField {
 		var e = x.elements;
 		var t = xtype(e.next());
 		var doc = null;
@@ -397,7 +397,7 @@ class XmlParser {
 		return {
 			name : x.name,
 			type : t,
-			isPublic : x.x.exists("public"),
+			isPublic : x.x.exists("public") || defPublic,
 			isOverride : x.x.exists("override"),
 			line : if( x.has.line ) Std.parseInt(x.att.line) else null,
 			doc : doc,
@@ -561,8 +561,11 @@ class XmlParser {
 			CFunction(args,ret.t);
 		case "a":
 			var fields = new List();
-			for( f in x.elements )
-				fields.add(xclassfield(f));
+			for( f in x.elements ) {
+				var f = xclassfield(f,true);
+				f.platforms = new List(); // platforms selection are on the type itself, not on fields
+				fields.add(f);
+			}
 			CAnonymous(fields);
 		case "d":
 			var t = null;
