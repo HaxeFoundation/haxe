@@ -1409,6 +1409,9 @@ let handle_abstract_casts ctx e =
 			let e1 = loop e1 in
 			begin try
 				begin match e1.eexpr with
+ 					| TField(_,FStatic(_,cf)) when Meta.has Meta.To cf.cf_meta ->
+ 						(* do not recurse over @:to functions to avoid infinite recursion *)
+						{ e with eexpr = TCall(e1,el)}
 					| TField(e2,fa) ->
 						begin match follow e2.etype with
 							| TAbstract(a,pl) when Meta.has Meta.MultiType a.a_meta ->
