@@ -2060,12 +2060,13 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 		let a = (match get_type d.d_name with TAbstractDecl a -> a | _ -> assert false) in
 		let ctx = { ctx with type_params = a.a_types } in
 		let is_type = ref false in
-		let load_type t =
+		let load_type t from =
 			let t = load_complex_type ctx p t in
 			if not (Meta.has Meta.CoreType a.a_meta) then begin
 				if !is_type then begin
 					delay ctx PFinal (fun () ->
-						(try type_eq EqStrict a.a_this t with Unify_error _ -> error "You can only declare from/to with your underlying type" p)
+						let at = monomorphs a.a_types a.a_this in
+						(try (if from then Type.unify t at else Type.unify at t) with Unify_error _ -> error "You can only declare from/to with compatible types" p)
 					);
 				end else
 					error "Missing underlying type declaration or @:coreType declaration" p;
@@ -2073,8 +2074,8 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 			t
 		in
 		List.iter (function
-			| AFromType t -> a.a_from <- (load_type t, None) :: a.a_from
-			| AToType t -> a.a_to <- (load_type t, None) :: a.a_to
+			| AFromType t -> a.a_from <- (load_type t true, None) :: a.a_from
+			| AToType t -> a.a_to <- (load_type t false, None) :: a.a_to
 			| AIsType t ->
 				if a.a_impl = None then error "Abstracts with underlying type must have an implementation" a.a_pos;
 				let at = load_complex_type ctx p t in
