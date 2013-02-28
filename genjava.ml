@@ -2015,7 +2015,7 @@ let configure gen =
 
   IntDivisionSynf.configure gen (IntDivisionSynf.default_implementation gen true);
 
-  UnreachableCodeEliminationSynf.configure gen (UnreachableCodeEliminationSynf.traverse gen true true true true);
+  UnreachableCodeEliminationSynf.configure gen (UnreachableCodeEliminationSynf.traverse gen false true true true);
 
   ArrayDeclSynf.configure gen (ArrayDeclSynf.default_implementation gen native_arr_cl);
 
