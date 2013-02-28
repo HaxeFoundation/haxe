@@ -1296,7 +1296,7 @@ let configure gen =
               print w "%s %s%s %s %s;" access (if is_static then "static " else "") (String.concat " " modifiers) (t_s (run_follow gen cf.cf_type)) (change_field name)
           )
         end (* TODO see how (get,set) variable handle when they are interfaces *)
-      | Method _ when Type.is_extern_field cf ->
+      | Method _ when Type.is_extern_field cf || (match cl.cl_kind, cf.cf_expr with | KAbstractImpl _, None -> true | _ -> false) ->
         List.iter (fun cf -> if cl.cl_interface || cf.cf_expr <> None then
           gen_class_field w ~is_overload:true is_static cl (Meta.has Meta.Final cf.cf_meta) cf
         ) cf.cf_overloads

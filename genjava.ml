@@ -1399,7 +1399,7 @@ let configure gen =
             | None -> write w ";"
           )
         end (* TODO see how (get,set) variable handle when they are interfaces *)
-      | Method _ when Type.is_extern_field cf ->
+      | Method _ when Type.is_extern_field cf || (match cl.cl_kind, cf.cf_expr with | KAbstractImpl _, None -> true | _ -> false) ->
         List.iter (fun cf -> if cl.cl_interface || cf.cf_expr <> None then
           gen_class_field w ~is_overload:true is_static cl (Meta.has Meta.Final cf.cf_meta) cf
         ) cf.cf_overloads
