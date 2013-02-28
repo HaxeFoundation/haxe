@@ -49,6 +49,12 @@ b.pop() == 2;
 b.pop() == 4;
 b.pop() == 6;
 
+// has
+Lambda.has([1,2,3],1) == true;
+Lambda.has([1,2,3],4) == false;
+Lambda.has([],null) == false;
+Lambda.has([null],null) == true;
+
 // exists
 Lambda.exists([1, 2, 3], function(i) return i == 2) == true;
 Lambda.exists([1, 2, 3], function(i) return i == 4) == false;

@@ -88,24 +88,17 @@ class Lambda {
 	}
 
 	/**
-		Tells if the element is part of an iterable. The comparison
-		is made using the [==] operator. Optionally you can pass as
-		a third parameter a function that performs the comparison.
-		That function must take as arguments the two items to
-		compare and returns a boolean value.
+		Tells if [it] contains [elt].
 		
-		TODO
+		This function returns true as soon as an element is found which is equal
+		to [elt] according to the [==] operator.
+		
+		If no such element is found, the result is false.
 	**/
-	public static function has<A>( it : Iterable<A>, elt : A, ?cmp : A -> A -> Bool ) : Bool {
-		if( cmp == null ) {
-			for( x in it )
-				if( x == elt )
-					return true;
-		} else {
-			for( x in it )
-				if( cmp(x,elt) )
-					return true;
-		}
+	public static function has<A>( it : Iterable<A>, elt : A ) : Bool {
+		for( x in it )
+			if( x == elt )
+				return true;
 		return false;
 	}
 
