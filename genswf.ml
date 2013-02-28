@@ -530,7 +530,7 @@ let swf_ver = function
 	| 11.3 -> 16
 	| 11.4 -> 17
 	| 11.5 -> 18
-	| _ -> assert false
+	| v -> failwith ("Invalid SWF version " ^ string_of_float v)
 
 let convert_header com (w,h,fps,bg) =
 	let high = (max w h) * 20 in
