@@ -235,10 +235,10 @@ class Printer {
 						tabs + fstr + ";";
 					}].join("\n")
 					+ "\n}";
-				case TDClass(extend, implement, isInterface):
+				case TDClass(superClass, interfaces, isInterface):
 					(isInterface ? "interface " : "class ") + t.name + (t.params.length > 0 ? "<" + t.params.map(printTypeParamDecl).join(",") + ">" : "")
-					+ (extend != null ? "extends " + printTypePath(extend) + " " : "")
-					+ (implement != null ? [for (tp in implement) "implements " + printTypePath(tp)].join(" ") : "")
+					+ (superClass != null ? " extends " + printTypePath(superClass) : "")
+					+ (interfaces != null ? (isInterface ? [for (tp in interfaces) " extends " + printTypePath(tp)] : [for (tp in interfaces) " implements " + printTypePath(tp)]).join("") : "")
 					+ " {\n"
 					+ [for (f in t.fields) {
 						var fstr = printField(f);
@@ -249,8 +249,18 @@ class Printer {
 					"typedef " + t.name + (t.params.length > 0 ? "<" + t.params.map(printTypeParamDecl).join(",") + ">" : "") + " = "
 					+ printComplexType(ct)
 					+ ";";
-				case TDAbstract(_,_,_):
-					"";
+				case TDAbstract(tthis, from, to):
+					"abstract " + t.name
+					+ (tthis == null ? "" : "(" + printComplexType(tthis) + ")")
+					+ (t.params.length > 0 ? "<" + t.params.map(printTypeParamDecl).join(",") + ">" : "")
+					+ (from == null ? "" : [for (f in from) " from " + printComplexType(f)].join(""))
+					+ (to == null ? "" : [for (t in to) " to " + printComplexType(t)].join(""))
+					+ " {\n"
+					+ [for (f in t.fields) {
+						var fstr = printField(f);
+						tabs + fstr + (StringTools.endsWith(fstr, "}") ? "" : ";");
+					}].join("\n")
+					+ "\n}";
 			}
 		
 		tabs = old;
