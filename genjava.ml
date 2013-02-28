@@ -2237,8 +2237,7 @@ let convert_param ctx p param =
 
 let get_type_path ctx ct = match ct with | CTPath p -> p | _ -> assert false
 
-let is_override field =
-  List.exists (function
+let is_override_attrib = (function
     (* TODO: pass anotations as @:meta *)
     | AttrVisibleAnnotations ann ->
       List.exists (function
@@ -2247,7 +2246,10 @@ let is_override field =
         | _ -> false
       ) ann
     | _ -> false
-  ) field.jf_attributes
+  )
+
+let is_override field =
+  List.exists is_override_attrib field.jf_attributes
 
 let mk_override field =
   { field with jf_attributes = ((AttrVisibleAnnotations [{ ann_type = TObject( (["java";"lang"], "Override"), [] ); ann_elements = [] }]) :: field.jf_attributes) }
@@ -2538,6 +2540,7 @@ let add_java_lib com file =
               if not(List.mem JStatic f.jf_flags) then nonstatics := f :: !nonstatics
             ) (cls.cfields @ cls.cmethods);
             let cmethods = ref cls.cmethods in
+            let all_methods = ref cls.cmethods in
             let rec loop cls =
               match cls.csuper with
                 | TObject ((["java";"lang"],"Object"), _) -> ()
@@ -2546,6 +2549,7 @@ let add_java_lib com file =
                     | None -> ()
                     | Some (cls,_,_) ->
                       List.iter (fun f -> if not (List.mem JStatic f.jf_flags) then nonstatics := f :: !nonstatics) (cls.cfields @ cls.cmethods);
+                      all_methods := cls.cmethods @ !all_methods;
                       cmethods := List.map (fun jm ->
                         if not(List.mem JStatic jm.jf_flags) && not (is_override jm) && List.exists (fun msup ->
                           msup.jf_name = jm.jf_name && not(List.mem JStatic msup.jf_flags) && match msup.jf_vmsignature, jm.jf_vmsignature with
@@ -2583,7 +2587,33 @@ let add_java_lib com file =
               else
                 not (List.exists (filter_field f) !nonstatics)) cfields
             in
-            let cls = { cls with cfields = cfields; cmethods = cmethods } in
+            let cmethods = ref cmethods in
+            (* if abstract, look for interfaces and add missing implementations *)
+            let rec loop_interface iface =
+              match iface with
+                | TObject ((["java";"lang"],"Object"), _) -> ()
+                | TObject (path, _) ->
+                    (match lookup_jclass com path with
+                    | None -> ()
+                    | Some (cif,_,_) ->
+                      List.iter (fun jf ->
+                        if not(List.mem JStatic jf.jf_flags) && not (List.exists (fun jf2 -> jf.jf_name = jf2.jf_name && not (List.mem JStatic jf2.jf_flags) && jf.jf_vmsignature = jf2.jf_vmsignature) !all_methods) then begin
+                          cmethods := jf :: !cmethods;
+                          all_methods := jf :: !all_methods;
+                        end
+                      ) cif.cmethods;
+                      List.iter loop_interface cif.cinterfaces)
+                | _ -> ()
+            in
+            if List.mem JAbstract cls.cflags then List.iter loop_interface cls.cinterfaces;
+            (* take off equals, hashCode and toString from interface *)
+            if List.mem JInterface cls.cflags then cmethods := List.filter (fun jf -> match jf.jf_name, jf.jf_vmsignature with
+                | "equals", TMethod([TObject( (["java";"lang"],"Object"), _)],_)
+                | "hashCode", TMethod([], _)
+                | "toString", TMethod([], _) -> false
+                | _ -> true
+            ) !cmethods;
+            let cls = { cls with cfields = cfields; cmethods = !cmethods } in
             let pack = match fst path with | ["haxe";"root"] -> [] | p -> p in
 
             let ppath = path in
