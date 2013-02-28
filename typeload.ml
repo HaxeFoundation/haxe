@@ -1484,6 +1484,8 @@ let init_class ctx c p context_init herits fields =
 					end else if Meta.has Meta.To f.cff_meta then begin
 						let ta = monomorphs a.a_types (monomorphs params a.a_this) in
 						(try unify_raise ctx t (tfun [ta] m) f.cff_pos with Error (Unify l,p) -> error (error_msg (Unify l)) p);
+						(* multitype @:to functions must unify with a_this *)
+						if Meta.has Meta.MultiType a.a_meta then delay ctx PFinal (fun () -> unify ctx m (monomorphs a.a_types a.a_this) f.cff_pos);
 						if not (Meta.has Meta.Impl cf.cf_meta) then cf.cf_meta <- (Meta.Impl,[],cf.cf_pos) :: cf.cf_meta;
 						a.a_to <- (follow m, Some cf) :: a.a_to
 					end else if Meta.has Meta.ArrayAccess f.cff_meta then begin

@@ -156,7 +156,7 @@ abstract Map< K, V > (IMap< K, V > ) {
 	}
 }
 
-private typedef IMap < K, V > = {
+typedef IMap < K, V > = {
 	public function get(k:K):Null<V>;
 	public function set(k:K, v:V):Void;
 	public function exists(k:K):Bool;

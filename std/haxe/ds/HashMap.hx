@@ -45,4 +45,10 @@ abstract HashMap<K:{ function hashCode():Int; }, V >({keys:IntMap<K>, values:Int
 	public inline function iterator() {
 		return this.values.iterator();
 	}
+	
+	// TODO: this is required because abstracts do not unify against structures even
+	// if they are structurally compatible
+	@:to function toIMap():Map.IMap<K,V> {
+		return untyped this;
+	}
 }
