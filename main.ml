@@ -795,7 +795,7 @@ try
 	Parser.display_error := (fun e p -> com.error (Parser.error_msg e) p);
 	Parser.use_doc := !Common.display_default || (!global_cache <> None);
 	(try
-		let p = Sys.getenv "HAXE_LIBRARY_PATH" in
+		let p = Sys.getenv "HAXE_STD_PATH" in
 		let rec loop = function
 			| drive :: path :: l ->
 				if String.length drive = 1 && ((drive.[0] >= 'a' && drive.[0] <= 'z') || (drive.[0] >= 'A' && drive.[0] <= 'Z')) then
