@@ -2541,6 +2541,7 @@ let add_java_lib com file =
             ) (cls.cfields @ cls.cmethods);
             let cmethods = ref cls.cmethods in
             let all_methods = ref cls.cmethods in
+            (* fix overrides *)
             let rec loop cls =
               match cls.csuper with
                 | TObject ((["java";"lang"],"Object"), _) -> ()
@@ -2564,30 +2565,6 @@ let add_java_lib com file =
                 | _ -> ()
             in
             loop cls;
-            (* change field name to not collide with haxe keywords *)
-            let map_field f =
-              let change = match f.jf_name with
-              | "callback" | "cast" | "extern" | "function" | "in" | "typedef" | "using" | "var" | "untyped" | "inline" -> true
-              | _ when List.mem JStatic f.jf_flags && List.exists (fun f2 -> f.jf_name = f2.jf_name) !nonstatics -> true
-              | _ -> false
-              in
-              if change then
-                { f with jf_name = "%" ^ f.jf_name }
-              else
-                f
-            in
-            (* change static fields that have the same name as methods *)
-            let cfields = List.map map_field cls.cfields in
-            let cmethods = List.map map_field !cmethods in
-            (* take off variable fields that have the same name as methods *)
-            let filter_field f f2 = f != f2 && (List.mem JStatic f.jf_flags = List.mem JStatic f2.jf_flags) && f.jf_name = f2.jf_name && f2.jf_kind <> f.jf_kind in
-            let cfields = List.filter (fun f ->
-              if List.mem JStatic f.jf_flags then
-                not (List.exists (filter_field f) cmethods)
-              else
-                not (List.exists (filter_field f) !nonstatics)) cfields
-            in
-            let cmethods = ref cmethods in
             (* if abstract, look for interfaces and add missing implementations *)
             let rec loop_interface iface =
               match iface with
@@ -2613,7 +2590,30 @@ let add_java_lib com file =
                 | "toString", TMethod([], _) -> false
                 | _ -> true
             ) !cmethods;
-            let cls = { cls with cfields = cfields; cmethods = !cmethods } in
+            (* change field name to not collide with haxe keywords *)
+            let map_field f =
+              let change = match f.jf_name with
+              | "callback" | "cast" | "extern" | "function" | "in" | "typedef" | "using" | "var" | "untyped" | "inline" -> true
+              | _ when List.mem JStatic f.jf_flags && List.exists (fun f2 -> f.jf_name = f2.jf_name) !nonstatics -> true
+              | _ -> false
+              in
+              if change then
+                { f with jf_name = "%" ^ f.jf_name }
+              else
+                f
+            in
+            (* change static fields that have the same name as methods *)
+            let cfields = List.map map_field cls.cfields in
+            let cmethods = List.map map_field !cmethods in
+            (* take off variable fields that have the same name as methods *)
+            let filter_field f f2 = f != f2 && (List.mem JStatic f.jf_flags = List.mem JStatic f2.jf_flags) && f.jf_name = f2.jf_name && f2.jf_kind <> f.jf_kind in
+            let cfields = List.filter (fun f ->
+              if List.mem JStatic f.jf_flags then
+                not (List.exists (filter_field f) cmethods)
+              else
+                not (List.exists (filter_field f) !nonstatics)) cfields
+            in
+            let cls = { cls with cfields = cfields; cmethods = cmethods } in
             let pack = match fst path with | ["haxe";"root"] -> [] | p -> p in
 
             let ppath = path in
