@@ -1309,6 +1309,8 @@ module Abstract = struct
 	let find_to ab pl b = List.find (Type.unify_to_field ab pl b) ab.a_to
 	let find_from ab pl a b = List.find (Type.unify_from_field ab pl a b) ab.a_from
 
+	let cast_stack = ref []
+
 	let get_underlying_type a pl =
 		try
 			if not (Meta.has Meta.MultiType a.a_meta) then raise Not_found;
@@ -1351,6 +1353,13 @@ module Abstract = struct
 		let tright = follow eright.etype in
 		let tleft = follow tleft in
 		if tleft == tright then eright else
+		let recurse cf f =
+			if cf == ctx.curfield || List.mem cf !cast_stack then error "Recursive implicit cast" p;
+			cast_stack := cf :: !cast_stack;
+			let r = f() in
+			cast_stack := List.tl !cast_stack;
+			r
+		in
 		try (match tright,tleft with
 			| (TAbstract({a_impl = Some c1} as a1,pl1) as t1),(TAbstract({a_impl = Some c2} as a2,pl2) as t2) ->
 				if a1 == a2 then
@@ -1363,14 +1372,25 @@ module Abstract = struct
 						if Meta.has Meta.MultiType a2.a_meta then raise Not_found;
 						c2,snd (find_from a2 pl2 t1 t2),a2,pl2
 					in
-					match cfo with None -> eright | Some cf -> make_static_call ctx c cf a pl [eright] tleft p
+					match cfo with
+					| None -> eright
+					| Some cf ->
+						recurse cf (fun () -> make_static_call ctx c cf a pl [eright] tleft p)
 				end
 			| TDynamic _,_ | _,TDynamic _ ->
 				eright
 			| TAbstract({a_impl = Some c} as a,pl),t2 when not (Meta.has Meta.MultiType a.a_meta) ->
-				begin match snd (find_to a pl t2) with None -> eright | Some cf -> make_static_call ctx c cf a pl [eright] tleft p end
+				begin match snd (find_to a pl t2) with
+					| None -> eright
+					| Some cf ->
+						recurse cf (fun () -> make_static_call ctx c cf a pl [eright] tleft p)
+				end
 			| t1,(TAbstract({a_impl = Some c} as a,pl) as t2) when not (Meta.has Meta.MultiType a.a_meta) ->
-				begin match snd (find_from a pl t1 t2) with None -> eright | Some cf -> make_static_call ctx c cf a pl [eright] tleft p end
+				begin match snd (find_from a pl t1 t2) with
+					| None -> eright
+					| Some cf ->
+						recurse cf (fun () -> make_static_call ctx c cf a pl [eright] tleft p)
+				end
 			| _ ->
 				eright)
 		with Not_found ->
@@ -1527,7 +1547,9 @@ let post_process filters t =
 			match f.cf_expr with
 			| None -> ()
 			| Some e ->
-				f.cf_expr <- Some (List.fold_left (fun e f -> f e) e filters)
+				Abstract.cast_stack := f :: !Abstract.cast_stack;
+				f.cf_expr <- Some (List.fold_left (fun e f -> f e) e filters);
+				Abstract.cast_stack := List.tl !Abstract.cast_stack;
 		in
 		List.iter process_field c.cl_ordered_fields;
 		List.iter process_field c.cl_ordered_statics;
