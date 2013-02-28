@@ -1165,11 +1165,14 @@ let match_expr ctx e cases def with_type p =
 			| None -> mk (TBlock []) ctx.com.basic.tvoid (punion_el el)
 			| Some e ->
 				let e = type_expr ctx e with_type in
-				(match with_type with
-				| WithType t -> unify ctx e.etype t e.epos
-				| WithTypeResume t -> (try unify_raise ctx e.etype t e.epos with Error (Unify l,p) -> raise (Typer.WithTypeError (l,p)) )
-				| _ -> ());
-				e
+				match with_type with
+				| WithType t ->
+					unify ctx e.etype t e.epos;
+					Codegen.Abstract.check_cast ctx t e e.epos;
+				| WithTypeResume t ->
+					(try unify_raise ctx e.etype t e.epos with Error (Unify l,p) -> raise (Typer.WithTypeError (l,p)));
+					Codegen.Abstract.check_cast ctx t e e.epos
+				| _ -> e
 		in
 		let eg = match eg with
 			| None -> None

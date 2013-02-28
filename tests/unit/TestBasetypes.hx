@@ -383,6 +383,17 @@ class TestBasetypes extends Test {
 		}
 		
 		eq(returnAbstractCast(), "12.2m");
+		
+		// switch
+		function switchMe(b):String {
+			return switch(b) {
+				case true: new unit.MyAbstract.Meter(12.2);
+				default: new unit.MyAbstract.Meter(2.4);
+			}
+		}
+		
+		eq(switchMe(true), "12.2m");
+		eq(switchMe(false), "2.4m");
 	}
 	
 	function testAbstractToAbstractCast() {
