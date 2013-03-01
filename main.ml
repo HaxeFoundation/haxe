@@ -1263,11 +1263,9 @@ with
 		message ctx msg p;
 		List.iter (message ctx "Called from") l;
 		error ctx "Aborted" Ast.null_pos;
-	| Arg.Bad msg ->
+	| Arg.Bad msg | Failure msg ->
 		error ctx ("Error: " ^ msg) Ast.null_pos
 	| Arg.Help msg ->
-		message ctx msg Ast.null_pos
-	| Failure msg ->
 		message ctx msg Ast.null_pos
 	| Typer.DisplayFields fields ->
 		let ctx = print_context() in
