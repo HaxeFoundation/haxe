@@ -349,16 +349,14 @@ let to_pattern ctx e t =
 					| TField (_,FEnum (_,f)) -> f
 					| _ -> error ("Expected constructor for enum " ^ (s_type_path en.e_path)) p
 				in
-				let mono_map,monos,tpl = List.fold_left (fun (mm,ml,tpl) (n,t) ->
-					let mono = mk_mono() in
-					(n,mono) :: mm, mono :: ml, t :: tpl) ([],[],[]) ef.ef_params
-				in
+				let monos = List.map (fun _ -> mk_mono()) ef.ef_params in
 				let tl = match apply_params en.e_types pl (apply_params ef.ef_params monos ef.ef_type) with
 					| TFun(args,r) ->
 						unify ctx r t p;
+						List.iter2 (fun m (_,t) -> match follow m with TMono _ -> Type.unify m t | _ -> ()) monos ef.ef_params;
 						List.map (fun (n,_,t) ->
-							let tf = apply_params mono_map tpl (follow t) in
-							if is_null t then ctx.t.tnull tf else tf
+							let t = follow t in
+							if is_null t then ctx.t.tnull t else t
 						) args
 					| _ -> error "Arguments expected" p
 				in
