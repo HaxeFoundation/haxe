@@ -61,7 +61,7 @@ haxedoc:
 tools: haxelib haxedoc
 
 install:
-	rm -rf $(INSTALL_DIR)/bin/haxe
+	rm -f $(INSTALL_DIR)/bin/haxe
 	ln -s $(CURDIR)/haxe $(INSTALL_DIR)/bin/haxe
 	rm -rf $(INSTALL_DIR)/lib/haxe
 	mkdir $(INSTALL_DIR)/lib/haxe
