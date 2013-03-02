@@ -61,7 +61,8 @@ haxedoc:
 tools: haxelib haxedoc
 
 install:
-	cp haxe $(INSTALL_DIR)/bin/haxe
+	rm -rf $(INSTALL_DIR)/bin/haxe
+	ln -s $(CURDIR)/haxe $(INSTALL_DIR)/bin/haxe
 	rm -rf $(INSTALL_DIR)/lib/haxe
 	mkdir $(INSTALL_DIR)/lib/haxe
 	cp -r std $(INSTALL_DIR)/lib/haxe
