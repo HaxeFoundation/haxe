@@ -1765,7 +1765,7 @@ struct
             epos = ctor.cf_pos;
           };
 
-          List.iter (fun cf -> create_static_ctor (Some cf) true) ctor.cf_overloads;
+          List.iter (fun cf -> if cf.cf_expr <> None then create_static_ctor (Some cf) true) ctor.cf_overloads;
           if not is_overload then begin
             let empty_ctor = mk_class_field "new" (TFun(["empty",false,empty_ctor_type],basic.tvoid)) false cl.cl_pos (Method MethNormal) [] in
             empty_ctor.cf_meta <- [Meta.SkipCtor,[],empty_ctor.cf_pos];
