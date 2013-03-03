@@ -603,7 +603,12 @@ let make_call ctx e params t p =
 		) in
 		let config = match cl with
 			| Some ({cl_kind = KAbstractImpl _ }) when Meta.has Meta.Impl f.cf_meta ->
-				(match if fname = "_new" then t else follow (List.hd params).etype with
+				(match if fname = "_new" then
+					t
+				else if params = [] then
+					error "Invalid abstract implementation function" f.cf_pos
+				else
+					follow (List.hd params).etype with
 					| TAbstract(a,pl) ->
 						Some (a.a_types <> [] || f.cf_params <> [], fun t -> apply_params a.a_types pl (monomorphs f.cf_params t))
 					| _ ->
@@ -1103,6 +1108,8 @@ and type_field ctx e i p mode =
 				let t = field_type f in
 				let ef = field_expr f t in
 				AKUsing (ef,c,f,e)
+			| MCall, Var {v_read = AccCall _} ->
+				error (i ^ " cannot be called") p
 			| MGet, Var {v_read = AccNever} ->
 				AKNo f.cf_name
 			| (MGet | MCall), _ ->
