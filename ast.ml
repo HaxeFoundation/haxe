@@ -131,6 +131,7 @@ module Meta = struct
 		| Usage
 		| Used
 		| Last
+		(* do not put any custom metadata after Last *)
 		| Dollar of string
 		| Custom of string
 

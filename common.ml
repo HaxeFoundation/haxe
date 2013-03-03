@@ -388,6 +388,7 @@ module MetaInfo = struct
 		| Usage -> ":usage",("?",[])
 		| Used -> ":used",("Internally used by DCE to mark a class or field as used",[])
 		| Last -> assert false
+		(* do not put any custom metadata after Last *)
 		| Dollar s -> "$" ^ s,("",[])
 		| Custom s -> s,("",[])
 
