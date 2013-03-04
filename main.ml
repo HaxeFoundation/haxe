@@ -53,6 +53,9 @@ let global_cache = ref None
 
 let executable_path() =
 	Extc.executable_path()
+	
+let is_debug_run() =
+	try Sys.getenv "HAXEDEBUG" = "1" with _ -> false
 
 let format msg p =
 	if p = Ast.null_pos then
@@ -1263,7 +1266,9 @@ with
 		message ctx msg p;
 		List.iter (message ctx "Called from") l;
 		error ctx "Aborted" Ast.null_pos;
-	| Arg.Bad msg | Failure msg ->
+	| Arg.Bad msg ->
+		error ctx ("Error: " ^ msg) Ast.null_pos
+	| Failure msg when not (is_debug_run()) ->
 		error ctx ("Error: " ^ msg) Ast.null_pos
 	| Arg.Help msg ->
 		message ctx msg Ast.null_pos
@@ -1342,7 +1347,7 @@ with
 				raise (Completion c)
 			| _ ->
 				error ctx ("Could not load module " ^ (Ast.s_type_path (p,c))) Ast.null_pos)
-	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" || !global_cache <> None with _ -> true) ->
+	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" || !global_cache <> None with _ -> true) && not (is_debug_run()) ->
 		error ctx (Printexc.to_string e) Ast.null_pos
 
 ;;
