@@ -1570,14 +1570,17 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 	| OpAssignOp _ ->
 		assert false
 	in
-	let find_overload a c t left =
+	let find_overload a pl c t left =
 		let rec loop ops = match ops with
 			| [] -> raise Not_found
 			| (o,cf) :: ops when is_assign_op && o = OpAssignOp(op) || o == op ->
 				(match follow (monomorphs cf.cf_params cf.cf_type) with
-				| TFun([(_,_,t1);(_,_,t2)],r) when (left || Meta.has Meta.Commutative cf.cf_meta) && type_iseq t t2 ->
-					if not (can_access ctx c cf true) then display_error ctx ("Cannot access operator function " ^ (s_type_path a.a_path) ^ "." ^ cf.cf_name) p;
-					cf,r,o = OpAssignOp(op)
+				| TFun([(_,_,t1);(_,_,t2)],r) when
+					(left || Meta.has Meta.Commutative cf.cf_meta)
+					&& type_iseq t t2
+					&& if Meta.has Meta.Impl cf.cf_meta then type_iseq (apply_params a.a_types pl a.a_this) t1 else type_iseq (TAbstract(a,pl)) t1 ->
+						if not (can_access ctx c cf true) then display_error ctx ("Cannot access operator function " ^ (s_type_path a.a_path) ^ "." ^ cf.cf_name) p;
+						cf,r,o = OpAssignOp(op)
 				| _ -> loop ops)
 			| _ :: ops ->
 				loop ops
@@ -1604,7 +1607,7 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 	in
 	try (match follow e1.etype with
 		| TAbstract ({a_impl = Some c} as a,pl) ->
-			let f,r,assign = find_overload a c e2.etype true in
+			let f,r,assign = find_overload a pl c e2.etype true in
 			begin match f.cf_expr with
 				| None ->
 					let e2 = match follow e2.etype with TAbstract(a,pl) -> {e2 with etype = apply_params a.a_types pl a.a_this} | _ -> e2 in
@@ -1616,7 +1619,7 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 			raise Not_found)
 	with Not_found -> try (match follow e2.etype with
 		| TAbstract ({a_impl = Some c} as a,pl) ->
-			let f,r,assign = find_overload a c e1.etype false in
+			let f,r,assign = find_overload a pl c e1.etype false in
 			begin match f.cf_expr with
 				| None ->
 					let e1 = match follow e1.etype with TAbstract(a,pl) -> {e1 with etype = apply_params a.a_types pl a.a_this} | _ -> e1 in
@@ -1656,11 +1659,19 @@ and type_unop ctx op flag e p =
 		in
 		try (match follow e.etype with
 			| TAbstract ({a_impl = Some c} as a,pl) ->
-				let _,_,cf = List.find (fun (op2,flag2,cf) -> op2 == op && flag2 == flag) a.a_unops in
+				let rec loop opl = match opl with
+					| [] -> raise Not_found
+					| (op2,flag2,cf) :: opl when op == op2 && flag == flag2 ->
+						let m = mk_mono() in
+						let tcf = apply_params c.cl_types pl (monomorphs cf.cf_params cf.cf_type) in
+						if Meta.has Meta.Impl cf.cf_meta then begin
+							if type_iseq (tfun [apply_params a.a_types pl a.a_this] m) tcf then cf,tcf,m else loop opl
+						end else
+							if type_iseq (tfun [e.etype] m) tcf then cf,tcf,m else loop opl
+					| _ :: opl -> loop opl
+				in
+				let cf,t,r = loop a.a_unops in
 				if not (can_access ctx c cf true) then error ("Cannot access " ^ cf.cf_name) p;
-				let t = field_type ctx c [] cf p in
-				let t = apply_params a.a_types pl t in
-				let r = match t with TFun (_,r) -> r | _ -> error "Invalid operation" p in
 				(match cf.cf_expr with
 				| None ->
 					let e = make {e with etype = apply_params a.a_types pl a.a_this} in

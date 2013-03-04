@@ -1476,16 +1476,17 @@ let init_class ctx c p context_init herits fields =
 			(match c.cl_kind with
 				| KAbstractImpl a ->
 					let m = mk_mono() in
+					let ta = TAbstract(a, List.map (fun _ -> mk_mono()) a.a_types) in
+					let tthis = if Meta.has Meta.Impl f.cff_meta || Meta.has Meta.To f.cff_meta then monomorphs a.a_types a.a_this else a.a_this in
 					if Meta.has Meta.From f.cff_meta then begin
-						let ta = TAbstract(a, List.map (fun _ -> mk_mono()) a.a_types) in
-						if not (type_iseq ret ta) then raise (Error (Unify [Cannot_unify (ret,ta)],p));
+						(* the return type of a from-function must be the abstract, not the underlying type *)
 						(try unify_raise ctx t (tfun [m] ta) f.cff_pos with Error (Unify l,p) -> error (error_msg (Unify l)) p);
 						a.a_from <- (follow m, Some cf) :: a.a_from
 					end else if Meta.has Meta.To f.cff_meta then begin
-						let ta = monomorphs a.a_types (monomorphs params a.a_this) in
-						(try unify_raise ctx t (tfun [ta] m) f.cff_pos with Error (Unify l,p) -> error (error_msg (Unify l)) p);
+						(* the first argument of a to-function must be the underlying type, not the abstract *)
+						(try unify_raise ctx t (tfun [tthis] m) f.cff_pos with Error (Unify l,p) -> error (error_msg (Unify l)) p);
 						(* multitype @:to functions must unify with a_this *)
-						if Meta.has Meta.MultiType a.a_meta then delay ctx PFinal (fun () -> unify ctx m (monomorphs a.a_types a.a_this) f.cff_pos);
+						if Meta.has Meta.MultiType a.a_meta then delay ctx PFinal (fun () -> unify ctx m tthis f.cff_pos);
 						if not (Meta.has Meta.Impl cf.cf_meta) then cf.cf_meta <- (Meta.Impl,[],cf.cf_pos) :: cf.cf_meta;
 						a.a_to <- (follow m, Some cf) :: a.a_to
 					end else if Meta.has Meta.ArrayAccess f.cff_meta then begin
@@ -1494,9 +1495,13 @@ let init_class ctx c p context_init herits fields =
 						do_bind := false
 					else (try match Meta.get Meta.Op cf.cf_meta with
 						| _,[EBinop(op,_,_),_],_ ->
+							let targ = if Meta.has Meta.Impl f.cff_meta then tthis else ta in
+							(try type_eq EqStrict t (tfun [targ;m] (mk_mono())) with Unify_error l -> raise (Error ((Unify l),f.cff_pos)));
 							a.a_ops <- (op,cf) :: a.a_ops;
 							if fd.f_expr = None then do_bind := false;
 						| _,[EUnop(op,flag,_),_],_ ->
+							let targ = if Meta.has Meta.Impl f.cff_meta then tthis else ta in
+							(try type_eq EqStrict t (tfun [targ] (mk_mono())) with Unify_error l -> raise (Error ((Unify l),f.cff_pos)));
 							a.a_unops <- (op,flag,cf) :: a.a_unops;
 							if fd.f_expr = None then do_bind := false;
 						| _ -> ()
@@ -1677,6 +1682,7 @@ let init_class ctx c p context_init herits fields =
 		a.a_to <- List.rev a.a_to;
 		a.a_from <- List.rev a.a_from;
 		a.a_ops <- List.rev a.a_ops;
+		a.a_unops <- List.rev a.a_unops;
 	| _ -> ());
 	c.cl_ordered_statics <- List.rev c.cl_ordered_statics;
 	c.cl_ordered_fields <- List.rev c.cl_ordered_fields;
