@@ -938,7 +938,7 @@ let reduce_expression ctx e =
 	if ctx.com.foptimize then reduce_loop ctx e else e
 
 let rec make_constant_expression ctx e =
-	let e = ctx.g.do_optimize ctx e in
+	let e = reduce_loop ctx e in
 	match e.eexpr with
 	| TConst _ -> Some e
 	| TBinop ((OpAdd|OpSub|OpMult|OpDiv|OpMod) as op,e1,e2) -> (match make_constant_expression ctx e1,make_constant_expression ctx e2 with
