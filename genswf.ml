@@ -876,7 +876,10 @@ let build_swf9 com file swc =
 									tag ~ext:true (TBitsLossless2 { bll_id = !cid; bll_format = 5; bll_width = h.Png.png_width; bll_height = h.Png.png_height; bll_data = cmp_data })
 								| _ -> raw())
 							with Exit ->
-								raw())
+								raw()
+							| _ ->
+								failwith ("Could not read PNG " ^ file)
+							)
 						| _ -> raw()
 					) in
 					t :: loop l
