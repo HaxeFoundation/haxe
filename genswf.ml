@@ -979,11 +979,11 @@ let build_swf9 com file swc =
 										let bits = IO.read_byte i in
 										let bitrate = (if ver = 3 then [|0;32;40;48;56;64;80;96;112;128;160;192;224;256;320;-1|] else [|0;8;16;24;32;40;48;56;64;80;96;112;128;144;160;-1|]).(bits lsr 4) in
 										let srate = [|
-											[|11025;-1;22050;44100|];
-											[|12000;-1;24000;48000|];
-											[|8000;-1;16000;32000|];
-											[|-1;-1;-1;-1|]
-										|].((bits lsr 2) land 2).(ver) in
+											[|11025;12000;8000;-1|];
+											[|-1;-1;-1;-1|];
+											[|22050;24000;16000;-1|];
+											[|44100;48000;32000;-1|];
+										|].(ver).((bits lsr 2) land 3) in
 										let pad = (bits lsr 1) land 1 in
 										mono := (IO.read_byte i) lsr 6 = 3;
 										let bpp = (if ver = 3 then 144 else 72) in
