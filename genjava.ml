@@ -2577,6 +2577,7 @@ let add_java_lib com file =
                         if not(List.mem JStatic jf.jf_flags) && not (List.exists (fun jf2 -> jf.jf_name = jf2.jf_name && not (List.mem JStatic jf2.jf_flags) && jf.jf_vmsignature = jf2.jf_vmsignature) !all_methods) then begin
                           cmethods := jf :: !cmethods;
                           all_methods := jf :: !all_methods;
+                          nonstatics := jf :: !nonstatics;
                         end
                       ) cif.cmethods;
                       List.iter loop_interface cif.cinterfaces)
