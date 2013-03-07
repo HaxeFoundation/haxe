@@ -24,7 +24,8 @@ import haxe.Int64;
 import haxe.io.Bytes;
 import haxe.io.Eof;
 import haxe.io.Input;
-import java.io.Exceptions;
+import java.io.EOFException;
+import java.io.IOException;
 
 /**
 	Use [sys.io.File.read] to create a [FileInput]
@@ -35,45 +36,45 @@ class FileInput extends Input {
 	{
 		this.f = f;
 	}
-	
-	override public function readByte():Int 
+
+	override public function readByte():Int
 	{
 		try
 		{
 			return f.readUnsignedByte();
 		}
-		
+
 		catch (e:EOFException) {
 			throw new Eof();
 		}
-		
+
 		catch (e:IOException) {
 			throw haxe.io.Error.Custom(e);
 		}
 	}
-	
-	override public function readBytes(s:Bytes, pos:Int, len:Int):Int 
+
+	override public function readBytes(s:Bytes, pos:Int, len:Int):Int
 	{
 		var ret = 0;
 		try
 		{
 			ret = f.read(s.getData(), pos, len);
 		}
-		
+
 		catch (e:EOFException) {
 			throw new Eof();
 		}
-		
+
 		catch (e:IOException) {
 			throw haxe.io.Error.Custom(e);
 		}
 
 		if (ret == -1)
 			throw new Eof();
-		
+
 		return ret;
 	}
-	
+
 	public function seek( p : Int, pos : FileSeek ) : Void
 	{
 		try
@@ -85,35 +86,35 @@ class FileInput extends Input {
 				case SeekEnd: f.seek(haxe.Int64.add(f.length(), cast p));
 			}
 		}
-		
+
 		catch (e:EOFException) {
 			throw new Eof();
 		}
-		
+
 		catch (e:IOException) {
 			throw haxe.io.Error.Custom(e);
 		}
 	}
-	
+
 	public function tell() : Int
 	{
 		try
 		{
 			return cast f.getFilePointer();
 		}
-		
+
 		catch (e:IOException) {
 			throw haxe.io.Error.Custom(e);
 		}
 	}
-	
+
 	public function eof() : Bool
 	{
 		try
 		{
 			return f.getFilePointer() == f.length();
 		}
-		
+
 		catch (e:IOException) {
 			throw haxe.io.Error.Custom(e);
 		}

@@ -23,8 +23,8 @@ package sys.io;
 import haxe.io.Bytes;
 import haxe.io.Eof;
 import haxe.io.Output;
-
-import java.io.Exceptions;
+import java.io.EOFException;
+import java.io.IOException;
 
 /**
 	Use [sys.io.File.write] to create a [FileOutput]
@@ -35,44 +35,44 @@ class FileOutput extends Output {
 	{
 		this.f = f;
 	}
-	
-	override public function writeByte(c:Int):Void 
+
+	override public function writeByte(c:Int):Void
 	{
 		try
 		{
 			this.f.write(c);
 		}
-		
+
 		catch (e:IOException) {
 			throw haxe.io.Error.Custom(e);
 		}
 	}
-	
-	override public function write(s:Bytes):Void 
+
+	override public function write(s:Bytes):Void
 	{
 		try
 		{
 			this.f.write(s.getData());
 		}
-		
+
 		catch (e:IOException) {
 			throw haxe.io.Error.Custom(e);
 		}
 	}
-	
-	override public function writeBytes(s:Bytes, pos:Int, len:Int):Int 
+
+	override public function writeBytes(s:Bytes, pos:Int, len:Int):Int
 	{
 		try
 		{
 			this.f.write(s.getData(), pos, len);
 			return len;
 		}
-		
+
 		catch (e:IOException) {
 			throw haxe.io.Error.Custom(e);
 		}
 	}
-	
+
 	public function seek( p : Int, pos : FileSeek ) : Void
 	{
 		try
@@ -87,19 +87,19 @@ class FileOutput extends Output {
 		catch (e:EOFException) {
 			throw new Eof();
 		}
-		
+
 		catch (e:IOException) {
 			throw haxe.io.Error.Custom(e);
 		}
 	}
-	
+
 	public function tell() : Int
 	{
 		try
 		{
 			return cast f.getFilePointer();
 		}
-		
+
 		catch (e:IOException) {
 			throw haxe.io.Error.Custom(e);
 		}
