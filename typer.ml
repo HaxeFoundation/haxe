@@ -1112,7 +1112,17 @@ and type_field ctx e i p mode =
 				error (i ^ " cannot be called") p
 			| MGet, Var {v_read = AccNever} ->
 				AKNo f.cf_name
-			| (MGet | MCall), _ ->
+			| MCall, _ ->
+				let t = field_type f in
+				begin match follow t with
+					| TFun((_,_,t1) :: _,_) ->
+						unify ctx (apply_params a.a_types pl a.a_this) t1 p
+					| _ ->
+						error (i ^ " cannot be called") p
+				end;
+				let ef = field_expr f t in
+				AKUsing (ef,c,f,e)
+			| MGet, _ ->
 				let t = field_type f in
 				let ef = field_expr f t in
 				AKUsing (ef,c,f,e)
