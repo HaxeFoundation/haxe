@@ -41,7 +41,7 @@ if( sys == "Windows" )
 else
 	cmd("cp ../haxe "+dir);
 
-cmd("cp -a -R CHANGES.txt LICENSE.txt ../std "+dir);
+cmd("cp -pR CHANGES.txt LICENSE.txt ../std "+dir);
 
 if( sys == "Windows" ) cmd("chmod -R 777 "+dir);
 
