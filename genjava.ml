@@ -2464,7 +2464,6 @@ let convert_java_class ctx p jc =
 
     let fields = ref [] in
 
-    print_endline ("======== class " ^ path_s jc.cpath);
     let nf = ref [] in
     if jc.cpath <> (["java";"lang"], "CharSequence") then
       List.iter (fun f ->
@@ -2478,7 +2477,6 @@ let convert_java_class ctx p jc =
         with
           | Exit -> ()
       ) (jc.cfields @ jc.cmethods);
-    print_endline (s_fields !nf);
 
     EClass {
       d_name = mk_clsname ctx (snd jc.cpath);
@@ -2673,7 +2671,6 @@ let add_java_lib com file =
   in
   let cached_types = Hashtbl.create 12 in
   let get_raw_class path =
-    (*print_endline ("getting raw class of path " ^ (path_s path) ^ " for file " ^ file);*)
     try
       Hashtbl.find cached_types path
     with | Not_found ->
