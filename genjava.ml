@@ -2464,14 +2464,12 @@ let convert_java_class ctx p jc =
 
     let fields = ref [] in
 
-    let nf = ref [] in
     if jc.cpath <> (["java";"lang"], "CharSequence") then
       List.iter (fun f ->
         try
           if !is_interface && List.mem JStatic f.jf_flags then
             ()
           else begin
-            nf := f :: !nf;
             fields := convert_java_field ctx p jc f :: !fields;
           end
         with
