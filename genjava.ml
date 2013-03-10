@@ -2124,11 +2124,11 @@ type java_lib_ctx = {
 }
 
 let lookup_jclass com path =
-  List.fold_left (fun acc (_,_,_,get_raw_class) ->
+  List.fold_right (fun (_,_,_,get_raw_class) acc ->
     match acc with
     | None -> get_raw_class path
     | Some p -> Some p
-  ) None com.java_libs
+  ) com.java_libs None
 
 exception ConversionError of string * pos
 
@@ -2221,13 +2221,23 @@ let convert_constant ctx p const =
     | ConstFloat f | ConstDouble f -> Some (EConst (Float (Printf.sprintf "%E" f)), p)
     | _ -> None) None const
 
-let convert_param ctx p param =
+let rec same_sig parent jsig =
+  match jsig with
+  | TObject (p,targs) -> parent = p || List.exists (function | TType (_,s) -> same_sig parent s | _ -> false) targs
+  | TObjectInner(p, ntargs) ->
+      parent = (p, String.concat "$" (List.map (fun (s,targs) -> s) ntargs)) ||
+      List.exists (fun (_,targs) -> List.exists (function | TType(_,s) -> same_sig parent s | _ -> false) targs) ntargs
+  | TArray(s,_) -> same_sig parent s
+  | _ -> false
+
+let convert_param ctx p parent param =
   let name, constraints = match param with
     | (name, Some extends_sig, implem_sig) ->
       name, extends_sig :: implem_sig
     | (name, None, implemem_sig) ->
       name, implemem_sig
     in
+    let constraints = List.map (fun s -> if same_sig parent s then (TObject( (["java";"lang"], "Object"), [])) else s) constraints in
     {
       tp_name = name;
       tp_params = [];
@@ -2254,6 +2264,9 @@ let is_override field =
 let mk_override field =
   { field with jf_attributes = ((AttrVisibleAnnotations [{ ann_type = TObject( (["java";"lang"], "Override"), [] ); ann_elements = [] }]) :: field.jf_attributes) }
 
+let del_override field =
+  { field with jf_attributes = List.filter (fun a -> not (is_override_attrib a)) field.jf_attributes }
+
 let convert_java_enum ctx p pe =
   let meta = ref [Meta.Native, [EConst (String (real_java_path ctx pe.cpath) ), p], p ] in
   let data = ref [] in
@@ -2270,6 +2283,39 @@ let convert_java_enum ctx p pe =
     d_flags = [EExtern];
     d_data = !data;
   }
+
+(* genjava debugging *)
+let rec s_sig = function
+  | TByte (* B *) -> "byte"
+  | TChar (* C *) -> "char"
+  | TDouble (* D *) -> "double"
+  | TFloat (* F *) -> "float"
+  | TInt (* I *) -> "int"
+  | TLong (* J *) -> "long"
+  | TShort (* S *) -> "short"
+  | TBool (* Z *) -> "bool"
+  | TObject(path,args) -> path_s  path ^ s_args args
+  | TObjectInner (sl, sjargl) -> String.concat "." sl ^ "." ^ (String.concat "." (List.map (fun (s,arg) -> s ^ s_args arg) sjargl))
+  | TArray (s,i) -> s_sig s ^ "[" ^ (match i with | None -> "" | Some i -> string_of_int i) ^ "]"
+  | TMethod (sigs, sopt) -> (match sopt with | None -> "" | Some s -> s_sig s ^ " ") ^ "(" ^ String.concat ", " (List.map s_sig sigs) ^ ")"
+  | TTypeParameter s -> s
+
+and s_args = function
+  | [] -> ""
+  | args -> "<" ^ String.concat ", " (List.map (fun t ->
+      match t with
+      | TAny -> "*"
+      | TType (wc, s) ->
+        (match wc with
+          | WNone -> ""
+          | WExtends -> "+"
+          | WSuper -> "-") ^
+        (s_sig s))
+    args)
+
+let s_field f = (if is_override f then "override " else "") ^ s_sig f.jf_signature ^ " " ^ f.jf_name
+
+let s_fields fs = "{ \n\t" ^ String.concat "\n\t" (List.map s_field fs) ^ "\n}"
 
 let convert_java_field ctx p jc field =
   let p = { p with pfile =  p.pfile ^" (" ^field.jf_name ^")" } in
@@ -2418,20 +2464,26 @@ let convert_java_class ctx p jc =
 
     let fields = ref [] in
 
-    List.iter (fun f ->
-      try
-        if !is_interface && List.mem JStatic f.jf_flags then
-          ()
-        else
-          fields := convert_java_field ctx p jc f :: !fields
-      with
-        | Exit -> ()
-    ) (jc.cfields @ jc.cmethods);
+    print_endline ("======== class " ^ path_s jc.cpath);
+    let nf = ref [] in
+    if jc.cpath <> (["java";"lang"], "CharSequence") then
+      List.iter (fun f ->
+        try
+          if !is_interface && List.mem JStatic f.jf_flags then
+            ()
+          else begin
+            nf := f :: !nf;
+            fields := convert_java_field ctx p jc f :: !fields;
+          end
+        with
+          | Exit -> ()
+      ) (jc.cfields @ jc.cmethods);
+    print_endline (s_fields !nf);
 
     EClass {
       d_name = mk_clsname ctx (snd jc.cpath);
       d_doc = None;
-      d_params = List.map (convert_param ctx p) jc.ctypes;
+      d_params = List.map (convert_param ctx p jc.cpath) jc.ctypes;
       d_meta = !meta;
       d_flags = !flags;
       d_data = !fields;
@@ -2442,6 +2494,121 @@ let create_ctx com =
     jcom = com;
     jtparams = [];
   }
+
+let rec has_type_param = function
+  | TTypeParameter _ -> true
+  | TMethod (lst, opt) -> List.exists has_type_param lst || Option.map_default has_type_param false opt
+  | TArray (s,_) -> has_type_param s
+  | TObjectInner (_, stpl) -> List.exists (fun (_,sigs) -> List.exists has_type_param_arg sigs) stpl
+  | TObject(_, pl) -> List.exists has_type_param_arg pl
+  | _ -> false
+
+and has_type_param_arg = function | TType(_,s) -> has_type_param s | _ -> false
+
+let compatible_methods f1 f2 = match f1.jf_vmsignature, f2.jf_vmsignature with
+  | TMethod(a1,_), TMethod(a2,_) -> a1 = a2
+  | _ -> false
+
+let normalize_jclass com cls =
+  (* search static / non-static name clash *)
+  let nonstatics = ref [] in
+  List.iter (fun f ->
+    if not(List.mem JStatic f.jf_flags) then nonstatics := f :: !nonstatics
+  ) (cls.cfields @ cls.cmethods);
+  (* we won't be able to deal correctly with field's type parameters *)
+  (* since java sometimes overrides / implements crude (ie no type parameters) versions *)
+  (* and interchanges between them *)
+  let methods = List.map (fun f -> let f = del_override f in  if f.jf_types <> [] then { f with jf_types = []; jf_signature = f.jf_vmsignature } else f ) cls.cmethods in
+  let cmethods = ref methods in
+  let all_methods = ref methods in
+  let all_fields = ref cls.cfields in
+  (* fix overrides *)
+  let rec loop cls =
+    match cls.csuper with
+      | TObject ((["java";"lang"],"Object"), _) -> ()
+      | TObject (path, _) ->
+          (match lookup_jclass com path with
+          | None -> ()
+          | Some (cls,_,_) ->
+            List.iter (fun f -> if not (List.mem JStatic f.jf_flags) then nonstatics := f :: !nonstatics) (cls.cfields @ cls.cmethods);
+            all_methods := cls.cmethods @ !all_methods;
+            all_fields := cls.cfields @ !all_fields;
+            cmethods := List.map (fun jm ->
+              if not(List.mem JStatic jm.jf_flags) && List.exists (fun msup ->
+                msup.jf_name = jm.jf_name && not(List.mem JStatic msup.jf_flags) && compatible_methods msup jm && has_type_param msup.jf_signature = has_type_param jm.jf_signature) cls.cmethods then
+                mk_override jm
+              else
+                jm
+            ) !cmethods;
+            loop cls)
+      | _ -> ()
+  in
+  if not (List.mem JInterface cls.cflags) then begin
+    cmethods := List.filter (fun f -> List.exists (function | JPublic | JProtected -> true | _ -> false) f.jf_flags) !cmethods;
+    all_fields := List.filter (fun f -> List.exists (function | JPublic | JProtected -> true | _ -> false) f.jf_flags) !all_fields;
+  end;
+  loop cls;
+  (* if abstract, look for interfaces and add missing implementations *)
+  let rec loop_interface iface =
+    match iface with
+      | TObject ((["java";"lang"],"Object"), _) -> ()
+      | TObject (path, _) ->
+          (match lookup_jclass com path with
+          | None -> ()
+          | Some (cif,_,_) ->
+            List.iter (fun jf ->
+              if not(List.mem JStatic jf.jf_flags) && not (List.exists (fun jf2 -> jf.jf_name = jf2.jf_name && not (List.mem JStatic jf2.jf_flags) && compatible_methods jf jf2) !all_methods) then begin
+                cmethods := jf :: !cmethods;
+                all_methods := jf :: !all_methods;
+                nonstatics := jf :: !nonstatics;
+              end
+            ) cif.cmethods;
+            List.iter loop_interface cif.cinterfaces)
+      | _ -> ()
+  in
+  if List.mem JAbstract cls.cflags then List.iter loop_interface cls.cinterfaces;
+  (* take off equals, hashCode and toString from interface *)
+  if List.mem JInterface cls.cflags then cmethods := List.filter (fun jf -> match jf.jf_name, jf.jf_vmsignature with
+      | "equals", TMethod([TObject( (["java";"lang"],"Object"), _)],_)
+      | "hashCode", TMethod([], _)
+      | "toString", TMethod([], _) -> false
+      | _ -> true
+  ) !cmethods;
+  (* change field name to not collide with haxe keywords *)
+  let map_field f =
+    let change = match f.jf_name with
+    | "callback" | "cast" | "extern" | "function" | "in" | "typedef" | "using" | "var" | "untyped" | "inline" -> true
+    | _ when List.mem JStatic f.jf_flags && List.exists (fun f2 -> f.jf_name = f2.jf_name) !nonstatics -> true
+    | _ -> false
+    in
+    if change then
+      { f with jf_name = "%" ^ f.jf_name }
+    else
+      f
+  in
+  (* change static fields that have the same name as methods *)
+  let cfields = List.map map_field cls.cfields in
+  let cmethods = List.map map_field !cmethods in
+  (* take off variable fields that have the same name as methods *)
+  (* and take off variables that already have been declared *)
+  let filter_field f f2 = f != f2 && (List.mem JStatic f.jf_flags = List.mem JStatic f2.jf_flags) && f.jf_name = f2.jf_name && f2.jf_kind <> f.jf_kind in
+  let cfields = List.filter (fun f ->
+    if List.mem JStatic f.jf_flags then
+      not (List.exists (filter_field f) cmethods)
+    else
+      not (List.exists (filter_field f) !nonstatics) && not (List.exists (fun f2 -> f.jf_name = f2.jf_name && not (List.mem JStatic f2.jf_flags)) !all_fields) ) cfields
+  in
+  (* removing duplicate fields. They are there because of return type covariance in Java *)
+  let rec loop acc = function
+    | [] -> acc
+    | f :: cmeths ->
+        if (List.exists (fun f2 -> f != f2 && f.jf_name = f2.jf_name && compatible_methods f f2) cmeths) then
+          loop acc cmeths
+        else
+          loop (f :: acc) cmeths
+  in
+  let cmethods = loop [] cmethods in
+  { cls with cfields = cfields; cmethods = cmethods }
 
 let filename_to_clsname f =
   String.map (fun c -> if c = '$' then '_' else c) (String.sub f 0 (String.length f - 6))
@@ -2506,6 +2673,7 @@ let add_java_lib com file =
   in
   let cached_types = Hashtbl.create 12 in
   let get_raw_class path =
+    (*print_endline ("getting raw class of path " ^ (path_s path) ^ " for file " ^ file);*)
     try
       Hashtbl.find cached_types path
     with | Not_found ->
@@ -2514,7 +2682,7 @@ let add_java_lib com file =
           Hashtbl.add cached_types path None;
           None
       | Some (i, p1, p2) ->
-          let ret = Some (i, p1, p2) in
+          let ret = Some (normalize_jclass com i, p1, p2) in
           Hashtbl.add cached_types path ret;
           ret
   in
@@ -2534,87 +2702,6 @@ let add_java_lib com file =
 
             let pos = { pfile = pos_path; pmin = 0; pmax = 0; } in
 
-            (* search static / non-static name clash *)
-            let nonstatics = ref [] in
-            List.iter (fun f ->
-              if not(List.mem JStatic f.jf_flags) then nonstatics := f :: !nonstatics
-            ) (cls.cfields @ cls.cmethods);
-            let cmethods = ref cls.cmethods in
-            let all_methods = ref cls.cmethods in
-            (* fix overrides *)
-            let rec loop cls =
-              match cls.csuper with
-                | TObject ((["java";"lang"],"Object"), _) -> ()
-                | TObject (path, _) ->
-                    (match lookup_jclass com path with
-                    | None -> ()
-                    | Some (cls,_,_) ->
-                      List.iter (fun f -> if not (List.mem JStatic f.jf_flags) then nonstatics := f :: !nonstatics) (cls.cfields @ cls.cmethods);
-                      all_methods := cls.cmethods @ !all_methods;
-                      cmethods := List.map (fun jm ->
-                        if not(List.mem JStatic jm.jf_flags) && not (is_override jm) && List.exists (fun msup ->
-                          msup.jf_name = jm.jf_name && not(List.mem JStatic msup.jf_flags) && match msup.jf_vmsignature, jm.jf_vmsignature with
-                          | TMethod(a1,_), TMethod(a2,_) -> a1 = a2
-                          | _ -> false
-                        ) cls.cmethods then
-                          mk_override jm
-                        else
-                          jm
-                      ) !cmethods;
-                      loop cls)
-                | _ -> ()
-            in
-            loop cls;
-            (* if abstract, look for interfaces and add missing implementations *)
-            let rec loop_interface iface =
-              match iface with
-                | TObject ((["java";"lang"],"Object"), _) -> ()
-                | TObject (path, _) ->
-                    (match lookup_jclass com path with
-                    | None -> ()
-                    | Some (cif,_,_) ->
-                      List.iter (fun jf ->
-                        if not(List.mem JStatic jf.jf_flags) && not (List.exists (fun jf2 -> jf.jf_name = jf2.jf_name && not (List.mem JStatic jf2.jf_flags) && jf.jf_vmsignature = jf2.jf_vmsignature) !all_methods) then begin
-                          cmethods := jf :: !cmethods;
-                          all_methods := jf :: !all_methods;
-                          nonstatics := jf :: !nonstatics;
-                        end
-                      ) cif.cmethods;
-                      List.iter loop_interface cif.cinterfaces)
-                | _ -> ()
-            in
-            if List.mem JAbstract cls.cflags then List.iter loop_interface cls.cinterfaces;
-            (* take off equals, hashCode and toString from interface *)
-            if List.mem JInterface cls.cflags then cmethods := List.filter (fun jf -> match jf.jf_name, jf.jf_vmsignature with
-                | "equals", TMethod([TObject( (["java";"lang"],"Object"), _)],_)
-                | "hashCode", TMethod([], _)
-                | "toString", TMethod([], _) -> false
-                | _ -> true
-            ) !cmethods;
-            (* change field name to not collide with haxe keywords *)
-            let map_field f =
-              let change = match f.jf_name with
-              | "callback" | "cast" | "extern" | "function" | "in" | "typedef" | "using" | "var" | "untyped" | "inline" -> true
-              | _ when List.mem JStatic f.jf_flags && List.exists (fun f2 -> f.jf_name = f2.jf_name) !nonstatics -> true
-              | _ -> false
-              in
-              if change then
-                { f with jf_name = "%" ^ f.jf_name }
-              else
-                f
-            in
-            (* change static fields that have the same name as methods *)
-            let cfields = List.map map_field cls.cfields in
-            let cmethods = List.map map_field !cmethods in
-            (* take off variable fields that have the same name as methods *)
-            let filter_field f f2 = f != f2 && (List.mem JStatic f.jf_flags = List.mem JStatic f2.jf_flags) && f.jf_name = f2.jf_name && f2.jf_kind <> f.jf_kind in
-            let cfields = List.filter (fun f ->
-              if List.mem JStatic f.jf_flags then
-                not (List.exists (filter_field f) cmethods)
-              else
-                not (List.exists (filter_field f) !nonstatics)) cfields
-            in
-            let cls = { cls with cfields = cfields; cmethods = cmethods } in
             let pack = match fst path with | ["haxe";"root"] -> [] | p -> p in
 
             let ppath = path in
@@ -2627,14 +2714,14 @@ let add_java_lib com file =
                 | _ -> acc);
             ) [] cls.cinner_types in
 
-            (* build anonymous classes also *)
+            (* build anonymous classes also *
             let rec loop inner n =
               match build ctx (fst path, snd path ^ "$" ^ (string_of_int n)) p types with
               | Some(_,(_, classes)) ->
                   loop (classes @ inner) (n + 1)
               | _ -> inner
             in
-            let inner = loop inner 1 in
+            let inner = loop inner 1 in*)
             let ret = Some ( real_path, (pack, (convert_java_class ctx pos cls, pos) :: inner) ) in
             ctx.jtparams <- old_types;
             ret
