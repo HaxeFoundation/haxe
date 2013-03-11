@@ -170,7 +170,6 @@ module Define = struct
 		| Interp
 		| JavaVer
 		| JsClassic
-		| JsModern
 		| Macro
 		| MacroTimes
 		| NekoSource
@@ -231,7 +230,6 @@ module Define = struct
 		| Interp -> ("interp","The code is compiled to be run with --interp")
 		| JavaVer -> ("java_ver", "<version:5-7> Sets the Java version to be targeted")
 		| JsClassic -> ("js_classic","Don't use a function wrapper and strict mode in JS output")
-		| JsModern -> ("js_modern","Use function wrapper and strict mode in JS output")
 		| Macro -> ("macro","Defined when we compile code in the macro context")
 		| MacroTimes -> ("macro_times","Display per-macro timing when used with --times")
 		| NekoSource -> ("neko_source","Output neko source instead of bytecode")
