@@ -110,10 +110,16 @@ let rec header = function
 	| CHeader h :: _ -> h
 	| _ :: l -> header l
 
-let rec data = function
-	| [] -> error Invalid_file
-	| CData s :: _ -> s
-	| _ :: l -> data l
+let data f = 
+	let rec loop acc = function
+		| [] -> 
+			(match List.rev acc with
+			| [] -> error Invalid_file
+			| l -> String.concat "" l)
+		| CData s :: l -> loop (s :: acc) l
+		| _ :: l -> loop acc l
+	in
+	loop [] f
 
 let color_bits = function
 	| ClGreyScale g -> (match g with
