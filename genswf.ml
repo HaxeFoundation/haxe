@@ -878,7 +878,7 @@ let build_swf9 com file swc =
 							with Exit ->
 								raw()
 							| _ ->
-								failwith ("Could not read PNG " ^ file)
+								com.error ("Failed to decode this PNG " ^ file) p
 							)
 						| _ -> raw()
 					) in
