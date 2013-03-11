@@ -1902,9 +1902,9 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 					| TClassDecl c
 					| TAbstractDecl {a_impl = Some c} ->
 						c.cl_build();
-						PMap.iter (fun _ cf -> ctx.m.module_globals <- PMap.add cf.cf_name (TClassDecl c,cf.cf_name) ctx.m.module_globals) c.cl_statics
+						PMap.iter (fun _ cf -> if not (has_meta Meta.NoImportGlobal cf.cf_meta) then ctx.m.module_globals <- PMap.add cf.cf_name (TClassDecl c,cf.cf_name) ctx.m.module_globals) c.cl_statics
 					| TEnumDecl e ->
-						PMap.iter (fun _ c -> ctx.m.module_globals <- PMap.add c.ef_name (TEnumDecl e,c.ef_name) ctx.m.module_globals) e.e_constrs
+						PMap.iter (fun _ c -> if not (has_meta Meta.NoImportGlobal c.ef_meta) then ctx.m.module_globals <- PMap.add c.ef_name (TEnumDecl e,c.ef_name) ctx.m.module_globals) e.e_constrs
 					| _ ->
 						error "No statics to import from this type" p
 				) :: !context_init

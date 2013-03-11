@@ -274,6 +274,7 @@ module MetaInfo = struct
 		| TAbstractField
 		| TEnum
 		| TTypedef
+		| TAnyField
 
 	type meta_parameter =
 		| HasParam of string
@@ -347,6 +348,7 @@ module MetaInfo = struct
 		| NoCompletion -> ":noCompletion",("Prevents the compiler from suggesting completion on this field",[UsedOn TClassField])
 		| NoDebug -> ":noDebug",("Does not generate debug information into the Swf even if -debug is set",[UsedOnEither [TClass;TClassField];Platform Flash])
 		| NoDoc -> ":noDoc",("Prevents a type from being included in documentation generation",[])
+		| NoImportGlobal -> ":noImportGlobal",("Prevents a static field from being imported with import Class.*",[UsedOn TAnyField])
 		| NoPackageRestrict -> ":noPackageRestrict",("?",[])
 		| NoStack -> ":noStack",("",[Platform Cpp])
 		| NotNull -> ":notNull",("Declares an abstract type as not accepting null values",[UsedOn TAbstract])
