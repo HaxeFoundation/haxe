@@ -1039,11 +1039,13 @@ try
 				let d = Obj.magic i in
 				if d <> Define.Last then begin
 					let t, doc = Define.infos d in
-					message ctx (String.concat "-" (ExtString.String.nsplit t "_") ^ " : " ^ doc) Ast.null_pos;
-					loop (i + 1)
-				end
+					let str = String.concat "-" (ExtString.String.nsplit t "_") ^ " : " ^ doc in
+					str :: loop (i + 1)
+				end else
+					[]
 			in
-			loop 0;
+			let all = List.sort String.compare (loop 0) in
+			List.iter (fun msg -> ctx.com.print (msg ^ "\n")) all;
 			did_something := true
 		),": print help for all compiler specific defines");
 		("--help-metas", Arg.Unit (fun() ->
@@ -1074,7 +1076,7 @@ try
 					[]
 			in
 			let all = List.sort String.compare (loop 0) in
-			List.iter (fun msg -> message ctx msg Ast.null_pos) all;
+			List.iter (fun msg -> ctx.com.print (msg ^ "\n")) all;
 			did_something := true
 		),": print help for all compiler metadatas");
 	] in
