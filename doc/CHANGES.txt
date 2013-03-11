@@ -55,6 +55,7 @@
 	all : added haxe.ds with StringMap, IntMap, HashMap, ObjectMap, Vector, GenericStack
 	all : removed Hash, IntHash and haxe.FastList in favor of the types in haxe.ds
 	all : haxe.xml.Parser now handles entities consistently across platforms
+	all : renamed HAXE_LIBRARY_PATH environment variable to HAXE_STD_PATH
 
 2012-07-16: 2.10
 	java/cs : added two new targets (beta)
