@@ -779,7 +779,7 @@ let detect_format data p =
 	| '\x89', 'P', 'N' -> BPNG
 	| 'R', 'I', 'F' -> SWAV
 	| 'I', 'D', '3' -> SMP3
-	| '\xFF', '\xFB', _ -> SMP3
+	| '\xFF', i, _ when (int_of_char i) land 0xE2 = 0xE2 -> SMP3
 	| 'G', 'I', 'F' -> BGIF
 	| _ ->
 		error "Unknown file format" p
