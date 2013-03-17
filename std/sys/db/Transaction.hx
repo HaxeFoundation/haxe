@@ -50,7 +50,7 @@ class Transaction {
 		}
 	}
 
-	public static function main( cnx, mainFun : Void -> Void, logError : Dynamic -> Void ) {
+	public static function main( cnx, mainFun : Void -> Void, ?logError : Dynamic -> Void ) {
 		Manager.initialize();
 		Manager.cnx = cnx;
 		Manager.cnx.startTransaction();

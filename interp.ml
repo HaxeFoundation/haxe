@@ -149,6 +149,8 @@ type context = {
 	mutable venv : value array;
 	(* context *)
 	mutable curapi : extern_api;
+	mutable on_reused : (unit -> bool) list;
+	mutable is_reused : bool;
 	(* eval *)
 	mutable locals_map : (string, int) PMap.t;
 	mutable locals_count : int;
@@ -2420,6 +2422,14 @@ let macro_lib =
 			PMap.iter (fun n v -> Hashtbl.replace h (VString n) (encode_type v.v_type)) loc;
 			enc_hash h
 		);
+		"macro_context_reused", Fun1 (fun c ->
+			match c with
+			| VFunction (Fun0 _) ->
+				let ctx = get_ctx() in
+				ctx.on_reused <- (fun() -> catch_errors ctx (fun() -> ctx.do_call VNull c [] null_pos) = Some (VBool true)) :: ctx.on_reused;
+				VNull
+			| _ -> error()
+		);
 	]
 
 (* ---------------------------------------------------------------------- *)
@@ -3300,6 +3310,8 @@ let create com api =
 		(* context *)
 		curapi = api;
 		loader = VObject loader;
+		on_reused = [];
+		is_reused = true;
 		exports = VObject { ofields = [||]; oproto = None };
 	} in
 	ctx.do_call <- call ctx;
@@ -3310,12 +3322,29 @@ let create com api =
 	List.iter (fun e -> ignore((eval ctx e)())) (Genneko.header());
 	ctx
 
-let has_old_version ctx t =
-	let inf = Type.t_infos t in
-	try
-		Hashtbl.find ctx.types inf.mt_path <> inf.mt_module.m_id
-	with Not_found ->
+	
+
+let do_reuse ctx =
+	ctx.is_reused <- false
+	
+let can_reuse ctx types =
+	let has_old_version t =
+		let inf = Type.t_infos t in
+		try
+			Hashtbl.find ctx.types inf.mt_path <> inf.mt_module.m_id
+		with Not_found ->
+			false
+	in
+	if List.exists has_old_version types then
 		false
+	else if ctx.is_reused then
+		true
+	else if not (List.for_all (fun f -> f()) ctx.on_reused) then
+		false
+	else begin
+		ctx.is_reused <- true;
+		true;
+	end
 
 let add_types ctx types ready =
 	let types = List.filter (fun t ->

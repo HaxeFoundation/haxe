@@ -1010,10 +1010,19 @@ class RecordMacros {
 
 	#if macro
 	static var RTTI = false;
+	static var FIRST_COMPILATION = true;
 
 	public static function addRtti() : Array<Field> {
 		if( RTTI ) return null;
 		RTTI = true;
+		if( FIRST_COMPILATION ) {
+			FIRST_COMPILATION = false;
+			Context.onMacroContextReused(function() {
+				RTTI = false;
+				GLOBAL = null;
+				return true;
+			});
+		}
 		Context.getType("sys.db.RecordInfos");
 		Context.onGenerate(function(types) {
 			for( t in types )

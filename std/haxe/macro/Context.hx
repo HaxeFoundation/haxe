@@ -269,6 +269,15 @@ class Context {
 	public static function registerModuleReuseCall( modulePath : String, macroCall : String ) {
 		load("module_reuse_call", 2)(untyped modulePath.__s,untyped macroCall.__s);
 	}
+	
+	/**
+		Register a callback function that will be called everytime the macro context cached is reused with a new
+		compilation. This enable to reset some static vars since the code might have been changed. If the callback
+		returns false, the macro context is discarded and another one is created.
+	**/
+	public static function onMacroContextReused( callb : Void -> Bool ) {
+		load("macro_context_reused", 1)(callb);
+	}
 
 	@:allow(haxe.macro.TypeTools)
 	static function load( f, nargs ) : Dynamic {
