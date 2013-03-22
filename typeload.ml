@@ -880,7 +880,7 @@ let set_heritance ctx c herits p =
 			| TInst ({ cl_path = [],"Array" },_)
 			| TInst ({ cl_path = [],"String" },_)
 			| TInst ({ cl_path = [],"Date" },_)
-			| TInst ({ cl_path = [],"Xml" },_) when ((not (platform ctx.com Cpp)) && (match c.cl_path with "mt" :: _ , _ -> false | _ -> true)) ->
+			| TInst ({ cl_path = [],"Xml" },_) when ((not (platform ctx.com Cpp)) && (match c.cl_path with ("mt" | "flash") :: _ , _ -> false | _ -> true)) ->
 				error "Cannot extend basic class" p;
 			| TInst (csup,params) ->
 				csup.cl_build();

@@ -132,6 +132,7 @@ let build_class com c file =
 	let flags = if c.hlc_interface then HInterface :: flags else flags in
 	let flags = (match c.hlc_super with
 		| None | Some (HMPath ([],"Object")) -> flags
+		| Some (HMPath ([],"Function")) -> flags (* found in AIR SDK *)
 		| Some s -> HExtends (make_tpath s) :: flags
 	) in
 	let flags = List.map (fun i ->
@@ -287,6 +288,7 @@ let build_class com c file =
 			| None, Some t -> false, true, t
 			| Some t1, Some t2 -> true, true, (if t1 <> t2 then None else t1)
 		) in
+		let t = if name = "endian" then Some (HMPath (["flash";"utils"],"Endian")) else t in
 		let flags = [APublic] in
 		let flags = if stat then AStatic :: flags else flags in
 		{
