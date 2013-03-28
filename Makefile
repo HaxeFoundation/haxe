@@ -63,14 +63,14 @@ tools: haxelib haxedoc
 install:
 	cp haxe $(INSTALL_DIR)/bin/haxe
 	rm -rf $(INSTALL_DIR)/lib/haxe
-	mkdir $(INSTALL_DIR)/lib/haxe
+	-mkdir $(INSTALL_DIR)/lib/haxe
 	svn export std/ $(INSTALL_DIR)/lib/haxe/std
-	mkdir $(INSTALL_DIR)/lib/haxe/lib
+	-mkdir $(INSTALL_DIR)/lib/haxe/lib
+	chmod -R a+rx $(INSTALL_DIR)/lib/haxe
 	chmod 777 $(INSTALL_DIR)/lib/haxe/lib
 	cp std/tools/haxelib/haxelib.sh $(INSTALL_DIR)/bin/haxelib
 	cp std/tools/haxedoc/haxedoc.sh $(INSTALL_DIR)/bin/haxedoc
-	chmod +x $(INSTALL_DIR)/bin/haxelib
-	chmod +x $(INSTALL_DIR)/bin/haxedoc
+	chmod a+rx $(INSTALL_DIR)/bin/haxe $(INSTALL_DIR)/bin/haxelib $(INSTALL_DIR)/bin/haxedoc
 	
 uninstall:
 	rm -rf $(INSTALL_DIR)/bin/haxe $(INSTALL_DIR)/bin/haxelib $(INSTALL_DIR)/lib/haxe
