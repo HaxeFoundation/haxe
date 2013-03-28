@@ -27,6 +27,8 @@ class BytesInput extends Input {
 	var pos : Int;
 	var len : Int;
 	#end
+	
+	public var position(get,set) : Int;
 
 	public function new( b : Bytes, ?pos : Int, ?len : Int ) {
 		if( pos == null ) pos = 0;
@@ -48,7 +50,23 @@ class BytesInput extends Input {
 		this.len = len;
 		#end
 	}
+	
+	function get_position() : Int {
+		#if flash9
+		return b.position;
+		#else
+		return pos;
+		#end
+	}
 
+	function set_position( p : Int ) : Int {
+		#if flash9
+		return b.position = p;
+		#else
+		return pos = p;
+		#end
+	}
+	
 	public override function readByte() : Int {
 		#if flash9
 			return try b.readUnsignedByte() catch( e : Dynamic ) throw new Eof();
