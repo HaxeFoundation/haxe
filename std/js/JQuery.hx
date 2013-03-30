@@ -318,6 +318,7 @@ extern class JQuery implements ArrayAccess<Element> {
 	function undelegate( ?selector : String, ?events : String, ?callb : JqEvent -> Void ) : JQuery;
 
 	// JQuery 1.7+
+	@:overload(function(events:Dynamic<JqEvent->Void>):JQuery{})
 	function on( events : String, callb : JqEvent -> Void ) : JQuery;
 
 	// queue
