@@ -2463,6 +2463,7 @@ let convert_java_class ctx p jc =
     ) jc.cinterfaces;
 
     let fields = ref [] in
+    print_endline ("======== class " ^ path_s jc.cpath);
 
     if jc.cpath <> (["java";"lang"], "CharSequence") then
       List.iter (fun f ->
@@ -2592,7 +2593,7 @@ let normalize_jclass com cls =
     if List.mem JStatic f.jf_flags then
       not (List.exists (filter_field f) cmethods)
     else
-      not (List.exists (filter_field f) !nonstatics) && not (List.exists (fun f2 -> f.jf_name = f2.jf_name && not (List.mem JStatic f2.jf_flags)) !all_fields) ) cfields
+      not (List.exists (filter_field f) !nonstatics) && not (List.exists (fun f2 -> f != f2 && f.jf_name = f2.jf_name && not (List.mem JStatic f2.jf_flags)) !all_fields) ) cfields
   in
   (* removing duplicate fields. They are there because of return type covariance in Java *)
   let rec loop acc = function

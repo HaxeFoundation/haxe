@@ -12,11 +12,6 @@ public class MyClass
 
 	}
 
-	public void normalOverload(Integer a)
-	{
-
-	}
-
 	public void normalOverload(boolean a)
 	{
 
