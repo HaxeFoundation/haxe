@@ -25,10 +25,10 @@ import java.NativeArray;
 extern class Pattern
 {
 	static function compile(regex:String, flags:Int):Pattern;
-	
+
 	function matcher(input:String):Matcher;
 	function split(input:String):NativeArray<String>;
-	
+
 	static var CANON_EQ(default, null):Int;
 	static var CASE_INSENSITIVE(default, null):Int;
 	static var COMMENTS(default, null):Int;
@@ -43,12 +43,12 @@ extern interface MatchResult
 {
 	@:overload(function(group:Int):Int {})
 	function end():Int;
-	
+
 	@:overload(function():String {})
 	function group(group:Int):String;
-	
+
 	function groupCount():Int;
-	
+
 	@:overload(function(group:Int):Int {})
 	function start():Int;
 }
@@ -56,21 +56,24 @@ extern interface MatchResult
 extern class Matcher implements MatchResult
 {
 	function reset(input:String):Matcher;
-	
+
 	@:overload(function(group:Int):Int {})
 	function end():Int;
-	
+
 	@:overload(function():String {})
 	function group(group:Int):String;
-	
+
 	function groupCount():Int;
 
 	@:overload(function(group:Int):Int {})
 	function start():Int;
-	
+
+	@:overload(function(startPos:Int):Bool{})
 	function find():Bool;
-	
+
 	function replaceAll(replacement:String):String;
-	
+
+	function replaceFirst(replacement:String):String;
+
 	function pattern():Pattern;
 }

@@ -26,7 +26,6 @@ import java.util.regex.Regex;
 	private var pattern:String;
 	private var matcher:Matcher;
 	private var cur:String;
-	private var sub:Int;
 	private var isGlobal:Bool;
 
 	public function new( r : String, opt : String ) {
@@ -79,7 +78,6 @@ import java.util.regex.Regex;
 	}
 
 	public function match( s : String ) : Bool {
-		sub = 0;
 		cur = s;
 		matcher = matcher.reset(s);
 		return matcher.find();
@@ -95,25 +93,23 @@ import java.util.regex.Regex;
 
 	public function matchedLeft() : String
 	{
-		return untyped cur.substring(0, sub + matcher.start());
+		return untyped cur.substring(0, matcher.start());
 	}
 
 	public function matchedRight() : String
 	{
-		return untyped cur.substring(sub + matcher.end(), cur.length);
+		return untyped cur.substring(matcher.end(), cur.length);
 	}
 
 	public function matchedPos() : { pos : Int, len : Int } {
 		var start = matcher.start();
-		return { pos : sub + start, len : matcher.end() - start };
+		return { pos : start, len : matcher.end() - start };
 	}
 
 	public function matchSub( s : String, pos : Int, len : Int = -1):Bool {
-		var s2 = (len < 0 ? s.substr(pos) : s.substr(pos, len));
-		sub = pos;
-		matcher = matcher.reset(s2);
+		matcher = matcher.reset(s);
 		cur = s;
-		return matcher.find();
+		return matcher.find(pos);
 	}
 
 	public function split( s : String ) : Array<String>
@@ -142,7 +138,7 @@ import java.util.regex.Regex;
 
 	inline function start(group:Int)
 	{
-		return matcher.start(group) + sub;
+		return matcher.start(group);
 	}
 
 	inline function len(group:Int)
@@ -152,55 +148,9 @@ import java.util.regex.Regex;
 
 	public function replace( s : String, by : String ) : String
 	{
-      var b = new StringBuf();
-      var pos = 0;
-      var len = s.length;
-      var a = by.split("$");
-      var first = true;
-      do {
-        if( !matchSub(s,pos,len) )
-          break;
-        var p = matchedPos();
-        if( p.len == 0 && !first ) {
-          if( p.pos == s.length )
-            break;
-          p.pos += 1;
-        }
-        b.addSub(s,pos,p.pos-pos);
-        if( a.length > 0 )
-          b.add(a[0]);
-        var i = 1;
-        while( i < a.length ) {
-          var k = a[i];
-          var c = k.charCodeAt(0);
-          // 1...9
-          if( c >= 49 && c <= 57 ) {
-						try {
-							var ppos = start( c-48 ), plen = this.len( c-48 );
-							b.addSub(s, ppos, plen);
-						}
-						catch(e:Dynamic)
-						{
-							b.add("$");
-							b.add(k);
-						}
-          } else if( c == null ) {
-            b.add("$");
-            i++;
-            var k2 = a[i];
-            if( k2 != null && k2.length > 0 )
-              b.add(k2);
-          } else
-            b.add("$"+k);
-          i++;
-        }
-        var tot = p.pos + p.len - pos;
-        pos += tot;
-        len -= tot;
-        first = false;
-      } while( isGlobal );
-      b.addSub(s,pos,len);
-      return b.toString();
+      matcher.reset(s);
+			by = by.split("$$").join("\\$");
+			return isGlobal ? matcher.replaceAll(by) : matcher.replaceFirst(by);
 	}
 
 	public function map( s : String, f : EReg -> String ) : String {
