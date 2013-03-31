@@ -2463,7 +2463,6 @@ let convert_java_class ctx p jc =
     ) jc.cinterfaces;
 
     let fields = ref [] in
-    print_endline ("======== class " ^ path_s jc.cpath);
 
     if jc.cpath <> (["java";"lang"], "CharSequence") then
       List.iter (fun f ->
