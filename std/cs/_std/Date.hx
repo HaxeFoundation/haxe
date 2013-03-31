@@ -98,12 +98,9 @@ import haxe.Int64;
 	/**
 		Returns the week day of the date (0-6 range).
 	**/
-	public function getDay() : Int
+	public inline function getDay() : Int
 	{
-		var ret = cast(date.DayOfWeek, Int) - 1;
-		if (ret == -1)
-			ret = 6;
-		return ret;
+		return cast(date.DayOfWeek, Int);
 	}
 
 	/**
@@ -143,7 +140,7 @@ import haxe.Int64;
 	static public function fromTime( t : Float ) : Date
 	{
 		var d = new Date(0, 0, 0, 0, 0, 0);
-		d.date = new DateTime(cast(t, Int64));
+		d.date = new DateTime(cast(t * TimeSpan.TicksPerMillisecond, Int64));
 		return d;
 	}
 

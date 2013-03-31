@@ -22,11 +22,14 @@
 package cs.system.text.regularExpressions;
 import cs.NativeArray;
 
-@:native('System.Text.RegularExpressions.Regex') extern class Regex 
+@:native('System.Text.RegularExpressions.Regex') extern class Regex
 {
 	function new(pattern:String, options:RegexOptions):Void;
+	@:overload(function(input:String, startPos:Int, len:Int):Match{})
+	@:overload(function(input:String, startPos:Int):Match{})
 	function Match(input:String):Match;
 	function Split(input:String):NativeArray<String>;
+	@:overload(function(input:String, replacement:String,max:Int):String{})
 	function Replace(input:String, replacement:String):String;
 }
 

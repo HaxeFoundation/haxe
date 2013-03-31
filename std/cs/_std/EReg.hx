@@ -27,7 +27,6 @@ class EReg {
 	private var m : Match;
 	private var isGlobal : Bool;
 	private var cur : String;
-	private var sub : Int;
 
 	public function new( r : String, opt : String ) : Void {
 		var opts:Int = cast CultureInvariant;
@@ -49,7 +48,6 @@ class EReg {
 	}
 
 	public function match( s : String ) : Bool {
-		sub = 0;
 		m = regex.Match(s);
 		cur = s;
 		return m.Success;
@@ -58,25 +56,24 @@ class EReg {
 	public function matched( n : Int ) : String {
 		if (m == null || cast(n, UInt) > m.Groups.Count)
 			throw "EReg::matched";
+		if (!m.Groups[n].Success) return null;
 		return m.Groups[n].Value;
 	}
 
 	public function matchedLeft() : String {
-		return untyped cur.Substring(0, sub + m.Index);
+		return untyped cur.Substring(0, m.Index);
 	}
 
 	public function matchedRight() : String {
-		return untyped cur.Substring(sub + m.Index + m.Length);
+		return untyped cur.Substring(m.Index + m.Length);
 	}
 
 	public function matchedPos() : { pos : Int, len : Int } {
-		return { pos : sub + m.Index, len : m.Length };
+		return { pos : m.Index, len : m.Length };
 	}
 
 	public function matchSub( s : String, pos : Int, len : Int = -1):Bool {
-		var s2 = (len < 0 ? s.substr(pos) : s.substr(pos, len));
-		sub = pos;
-		m = regex.Match(s2);
+		m= if (len<0) regex.Match(s,pos) else regex.Match(s, pos, len);
 		cur = s;
 		return m.Success;
 	}
@@ -85,12 +82,13 @@ class EReg {
 		if (isGlobal)
 			return cs.Lib.array(regex.Split(s));
 		var m = regex.Match(s);
+		if (!m.Success) return [s];
 		return untyped [s.Substring(0, m.Index), s.Substring(m.Index + m.Length)];
 	}
 
 	inline function start(group:Int)
 	{
-		return m.Groups[group].Index + sub;
+		return m.Groups[group].Index;
 	}
 
 	inline function len(group:Int)
@@ -100,55 +98,7 @@ class EReg {
 
 	public function replace( s : String, by : String ) : String
 	{
-      var b = new StringBuf();
-      var pos = 0;
-      var len = s.length;
-      var a = by.split("$");
-      var first = true;
-      do {
-        if( !matchSub(s,pos,len) )
-          break;
-        var p = matchedPos();
-        if( p.len == 0 && !first ) {
-          if( p.pos == s.length )
-            break;
-          p.pos += 1;
-        }
-        b.addSub(s,pos,p.pos-pos);
-        if( a.length > 0 )
-          b.add(a[0]);
-        var i = 1;
-        while( i < a.length ) {
-          var k = a[i];
-          var c = k.charCodeAt(0);
-          // 1...9
-          if( c >= 49 && c <= 57 ) {
-						try {
-							var ppos = start( c-48 ), plen = this.len( c-48 );
-							b.addSub(s, ppos, plen);
-						}
-						catch(e:Dynamic)
-						{
-							b.add("$");
-							b.add(k);
-						}
-          } else if( c == null ) {
-            b.add("$");
-            i++;
-            var k2 = a[i];
-            if( k2 != null && k2.length > 0 )
-              b.add(k2);
-          } else
-            b.add("$"+k);
-          i++;
-        }
-        var tot = p.pos + p.len - pos;
-        pos += tot;
-        len -= tot;
-        first = false;
-      } while( isGlobal );
-      b.addSub(s,pos,len);
-      return b.toString();
+      return (isGlobal) ? regex.Replace(s, by): regex.Replace(s,by,1);
 	}
 
 	public function map( s : String, f : EReg -> String ) : String {
