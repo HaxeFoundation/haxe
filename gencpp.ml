@@ -2709,6 +2709,7 @@ let access_str a = match a with
 let generate_class_files common_ctx member_types super_deps constructor_deps class_def file_info scriptable =
 	let class_path = class_def.cl_path in
 	let class_name = (snd class_def.cl_path) ^ "_obj" in
+	let is_abstract_impl = match class_def.cl_kind with | KAbstractImpl _ -> true | _ -> false in
 	let smart_class_name =  (snd class_def.cl_path)  in
 	(*let cpp_file = new_cpp_file common_ctx.file class_path in*)
 	let cpp_file = new_placed_cpp_file common_ctx class_path in
@@ -2903,9 +2904,11 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 		in
       let is_readable field =
 			(match field.cf_kind with | Var { v_read = AccNever } | Var { v_read = AccInline } -> false
+			| Var _ when is_abstract_impl -> false
 			| _ -> true) in
       let is_writable field =
 			(match field.cf_kind with | Var { v_write = AccNever } | Var { v_read = AccInline } -> false
+			| Var _ when is_abstract_impl -> false
 			| _ -> true) in
 
       let reflective field = not (Meta.has Meta.Unreflective field.cf_meta) in

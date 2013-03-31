@@ -21,7 +21,8 @@
 -resource res1.txt
 -resource res2.bin
 --no-opt
--dce full
+#DCE temporarily disabled so we can fix all DCE-obscured issues
+#-dce full
 --each
 
 #flash8
