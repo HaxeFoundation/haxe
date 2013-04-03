@@ -2740,10 +2740,16 @@ let add_java_lib com file =
             ctx.jtparams <- old_types;
             ret
       end
-    with JReader.Error_message msg ->
+    with
+    | JReader.Error_message msg ->
       if com.verbose then prerr_endline ("Class reader failed: " ^ msg);
       None
-      | _ -> None
+    | e ->
+      if com.verbose then begin
+        prerr_endline (Printexc.get_backtrace ());
+        prerr_endline (Printexc.to_string e)
+      end;
+      None
   in
   let build path p = build (create_ctx com) path p (ref [["java";"lang"], "String"]) in
   let cached_files = ref None in
