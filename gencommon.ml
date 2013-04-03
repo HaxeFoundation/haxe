@@ -937,7 +937,7 @@ let write_file gen w source_dir path extension =
   end;
   t()
 
-let dump_descriptor gen name path_s =
+let dump_descriptor gen name path_s module_s =
   let w = SourceWriter.new_source_writer () in
   (* dump called path *)
   SourceWriter.write w (Sys.getcwd());
@@ -965,6 +965,7 @@ let dump_descriptor gen name path_s =
   (* dump all generated types *)
   SourceWriter.write w "begin modules";
   SourceWriter.newline w;
+  let main_paths = Hashtbl.create 0 in
   List.iter (fun md_def ->
     SourceWriter.write w "M ";
     SourceWriter.write w (path_s md_def.m_path);
@@ -973,11 +974,13 @@ let dump_descriptor gen name path_s =
       match m with
         | TClassDecl cl when not cl.cl_extern ->
           SourceWriter.write w "C ";
-          SourceWriter.write w (path_s cl.cl_path);
+          let s = module_s m in
+          Hashtbl.add main_paths cl.cl_path s;
+          SourceWriter.write w (s);
           SourceWriter.newline w
         | TEnumDecl e when not e.e_extern ->
           SourceWriter.write w "E ";
-          SourceWriter.write w (path_s e.e_path);
+          SourceWriter.write w (module_s m);
           SourceWriter.newline w
         | _ -> () (* still no typedef or abstract is generated *)
     ) md_def.m_types
@@ -989,7 +992,10 @@ let dump_descriptor gen name path_s =
     | Some path ->
       SourceWriter.write w "begin main";
       SourceWriter.newline w;
-      SourceWriter.write w (path_s path);
+      (try
+        SourceWriter.write w (Hashtbl.find main_paths path)
+      with
+        | Not_found -> SourceWriter.write w (path_s path));
       SourceWriter.newline w;
       SourceWriter.write w "end main";
       SourceWriter.newline w

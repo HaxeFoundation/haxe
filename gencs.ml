@@ -525,9 +525,9 @@ let configure gen =
 
   let no_root = Common.defined gen.gcon Define.NoRoot in
 
-  let change_ns = if no_root then
+  let change_ns md = if no_root then
     function
-      | [] -> ["haxe";"root"]
+      | [] when is_hxgen md -> ["haxe";"root"]
       | ns -> ns
   else fun ns -> ns in
 
@@ -581,10 +581,12 @@ let configure gen =
       | TInst( { cl_path = ([], "EnumValue") }, _  ) -> Some t_dynamic
       | _ -> None);
 
-  let path_s path = match path with
+  let module_s md =
+    let path = (t_infos md).mt_path in
+    match path with
     | ([], "String") -> "string"
-    | ([], "Null") -> path_s (change_ns ["haxe"; "lang"], change_clname "Null")
-    | (ns,clname) -> path_s (change_ns ns, change_clname clname)
+    | ([], "Null") -> path_s (change_ns md ["haxe"; "lang"], change_clname "Null")
+    | (ns,clname) -> path_s (change_ns md ns, change_clname clname)
   in
 
   let ifaces = Hashtbl.create 1 in
@@ -732,9 +734,9 @@ let configure gen =
       | TInst ({ cl_kind = KTypeParameter _; cl_path=p }, []) -> snd p
       | TMono r -> (match !r with | None -> "object" | Some t -> t_s (run_follow gen t))
       | TInst ({ cl_path = [], "String" }, []) -> "string"
-      | TEnum ({ e_path = p }, params) -> ("global::" ^ path_s p)
-      | TInst (({ cl_path = p } as cl), _ :: _) when Meta.has Meta.Enum cl.cl_meta ->
-        "global::" ^ path_s p
+      | TEnum (e, params) -> ("global::" ^ (module_s (TEnumDecl e)))
+      | TInst (cl, _ :: _) when Meta.has Meta.Enum cl.cl_meta ->
+        "global::" ^ module_s (TClassDecl cl)
       | TInst (({ cl_path = p } as cl), params) -> (path_param_s (TClassDecl cl) p params)
       | TType (({ t_path = p } as t), params) -> (path_param_s (TTypeDecl t) p params)
       | TAnon (anon) ->
@@ -749,8 +751,8 @@ let configure gen =
 
   and path_param_s md path params =
       match params with
-        | [] -> "global::" ^ path_s path
-        | _ -> sprintf "%s<%s>" ("global::" ^ path_s path) (String.concat ", " (List.map (fun t -> t_s t) (change_param_type md params)))
+        | [] -> "global::" ^ module_s md
+        | _ -> sprintf "%s<%s>" ("global::" ^ module_s md) (String.concat ", " (List.map (fun t -> t_s t) (change_param_type md params)))
   in
 
   let rett_s t =
@@ -880,7 +882,7 @@ let configure gen =
           write_id w var.v_name
         | TField (_, FEnum(e, ef)) ->
           let s = ef.ef_name in
-          print w "%s." ("global::" ^ path_s e.e_path); write_field w s
+          print w "%s." ("global::" ^ module_s (TEnumDecl e)); write_field w s
         | TArray (e1, e2) ->
           expr_s w e1; write w "["; expr_s w e2; write w "]"
         | TBinop ((Ast.OpAssign as op), e1, e2)
@@ -892,8 +894,8 @@ let configure gen =
           write w " )"
         | TField ({ eexpr = TTypeExpr mt }, s) ->
           (match mt with
-            | TClassDecl { cl_path = (["haxe"], "Int64") } -> write w ("global::" ^ path_s (["haxe"], "Int64"))
-            | TClassDecl { cl_path = (["haxe"], "Int32") } -> write w ("global::" ^ path_s (["haxe"], "Int32"))
+            | TClassDecl { cl_path = (["haxe"], "Int64") } -> write w ("global::" ^ module_s mt)
+            | TClassDecl { cl_path = (["haxe"], "Int32") } -> write w ("global::" ^ module_s mt)
             | TClassDecl cl -> write w (t_s (TInst(cl, List.map (fun _ -> t_empty) cl.cl_types)))
             | TEnumDecl en -> write w (t_s (TEnum(en, List.map (fun _ -> t_empty) en.e_types)))
             | TTypeDecl td -> write w (t_s (gen.gfollow#run_f (TType(td, List.map (fun _ -> t_empty) td.t_types))))
@@ -905,8 +907,8 @@ let configure gen =
           expr_s w e; write w "."; write_field w (field_name s)
         | TTypeExpr mt ->
           (match mt with
-            | TClassDecl { cl_path = (["haxe"], "Int64") } -> write w ("global::" ^ path_s (["haxe"], "Int64"))
-            | TClassDecl { cl_path = (["haxe"], "Int32") } -> write w ("global::" ^ path_s (["haxe"], "Int32"))
+            | TClassDecl { cl_path = (["haxe"], "Int64") } -> write w ("global::" ^ module_s mt)
+            | TClassDecl { cl_path = (["haxe"], "Int32") } -> write w ("global::" ^ module_s mt)
             | TClassDecl cl -> write w (t_s (TInst(cl, List.map (fun _ -> t_dynamic) cl.cl_types)))
             | TEnumDecl en -> write w (t_s (TEnum(en, List.map (fun _ -> t_dynamic) en.e_types)))
             | TTypeDecl td -> write w (t_s (gen.gfollow#run_f (TType(td, List.map (fun _ -> t_dynamic) td.t_types))))
@@ -1489,10 +1491,10 @@ let configure gen =
   let gen_class w cl =
     write w "#pragma warning disable 109, 114, 219, 429, 168, 162";
     newline w;
-    let should_close = match change_ns (fst (cl.cl_path)) with
+    let should_close = match change_ns (TClassDecl cl) (fst (cl.cl_path)) with
       | [] -> false
       | ns ->
-        print w "namespace %s" (String.concat "." (change_ns ns));
+        print w "namespace %s" (String.concat "." ns);
         begin_block w;
         true
     in
@@ -1568,7 +1570,7 @@ let configure gen =
 
 
   let gen_enum w e =
-    let should_close = match change_ns (fst e.e_path) with
+    let should_close = match change_ns (TEnumDecl e) (fst e.e_path) with
       | [] -> false
       | ns ->
         print w "namespace %s" (String.concat "." ns);
@@ -2136,7 +2138,7 @@ let configure gen =
 
 	generate_modules gen "cs" "src" module_gen;
 
-  dump_descriptor gen ("hxcs_build.txt") path_s;
+  dump_descriptor gen ("hxcs_build.txt") path_s module_s;
 	if ( not (Common.defined gen.gcon Define.NoCompilation) ) then begin
 		let old_dir = Sys.getcwd() in
 		Sys.chdir gen.gcon.file;

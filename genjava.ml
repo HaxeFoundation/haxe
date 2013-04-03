@@ -2084,7 +2084,7 @@ let configure gen =
 
 	generate_modules_t gen "java" "src" change_path module_gen;
 
-  dump_descriptor gen ("hxjava_build.txt") path_s;
+  dump_descriptor gen ("hxjava_build.txt") path_s (fun md -> path_s (t_infos md).mt_path);
 	if ( not (Common.defined gen.gcon Define.NoCompilation) ) then begin
 		let old_dir = Sys.getcwd() in
 		Sys.chdir gen.gcon.file;
