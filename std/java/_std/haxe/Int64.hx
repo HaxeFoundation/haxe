@@ -42,7 +42,7 @@ private typedef NativeInt64 = Int;
 
 	public static inline function getHigh( x : Int64 ) : Int
 	{
-		return cast(x,NativeInt64) >>> 32;
+		return cast(cast(x,NativeInt64) >>> cast(32,NativeInt64), Int);
 	}
 
 	public static inline function ofInt( x : Int ) : Int64 {
@@ -127,7 +127,7 @@ private typedef NativeInt64 = Int;
 
 	public static inline function compare( a : Int64, b : Int64 ) : Int
 	{
-		return cast (a.asNative() - b.asNative());
+		return cast(a.asNative() - b.asNative(), Int);
 	}
 
 	/**

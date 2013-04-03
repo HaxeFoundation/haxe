@@ -893,8 +893,6 @@ let configure gen =
               path_s_import pos (["java";"lang"], "Object"))
         | TDynamic _ ->
             path_s_import pos (["java";"lang"], "Object")
-      | TAbstract(a,pl) when a.a_impl <> None ->
-        t_s pos (Codegen.Abstract.get_underlying_type a pl)
       (* No Lazy type nor Function type made. That's because function types will be at this point be converted into other types *)
       | _ -> if !strict_mode then begin trace ("[ !TypeError " ^ (Type.s_type (Type.print_context()) t) ^ " ]"); assert false end else "[ !TypeError " ^ (Type.s_type (Type.print_context()) t) ^ " ]"
 
@@ -1466,7 +1464,7 @@ let configure gen =
         (* <T>(string arg1, object arg2) with T : object *)
         (match cf.cf_expr with
           | Some { eexpr = TFunction tf } ->
-              print w "(%s)" (String.concat ", " (List.map (fun (var,_) -> sprintf "%s %s" (t_s cf.cf_pos (run_follow gen var.v_type)) (change_id var.v_name)) tf.tf_args))
+              print w "(%s)" (String.concat ", " (List.map2 (fun (var,_) (_,_,t) -> sprintf "%s %s" (t_s cf.cf_pos (run_follow gen t)) (change_id var.v_name)) tf.tf_args args))
           | _ ->
               print w "(%s)" (String.concat ", " (List.map (fun (name, _, t) -> sprintf "%s %s" (t_s cf.cf_pos (run_follow gen t)) (change_id name)) args))
         );
@@ -1695,6 +1693,27 @@ let configure gen =
   gen.greal_type_param <- change_param_type;
 
   SetHXGen.run_filter gen SetHXGen.default_hxgen_func;
+
+  (* before running the filters, follow all possible types *)
+  (* this is needed so our module transformations don't break some core features *)
+  (* like multitype selection *)
+  let run_follow_gen = run_follow gen in
+  let rec type_map e = Type.map_expr_type (fun e->type_map e) (run_follow_gen)  (fun tvar-> tvar.v_type <- (run_follow_gen tvar.v_type); tvar) e in
+  let super_map (cl,tl) = (cl, List.map run_follow_gen tl) in
+  List.iter (function
+    | TClassDecl cl ->
+        let all_fields = (Option.map_default (fun cf -> [cf]) [] cl.cl_constructor) @ cl.cl_ordered_fields @ cl.cl_ordered_statics in
+        List.iter (fun cf ->
+          cf.cf_type <- run_follow_gen cf.cf_type;
+          cf.cf_expr <- Option.map type_map cf.cf_expr
+        ) all_fields;
+       cl.cl_dynamic <- Option.map run_follow_gen cl.cl_dynamic;
+       cl.cl_array_access <- Option.map run_follow_gen cl.cl_array_access;
+       cl.cl_init <- Option.map type_map cl.cl_init;
+       cl.cl_super <- Option.map super_map cl.cl_super;
+       cl.cl_implements <- List.map super_map cl.cl_implements
+    | _ -> ()
+    ) gen.gcon.types;
 
   let closure_t = ClosuresToClass.DoubleAndDynamicClosureImpl.get_ctx gen 6 in
 

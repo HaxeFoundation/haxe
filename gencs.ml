@@ -574,6 +574,7 @@ let configure gen =
       | TAbstract ({ a_path = ["cs"],"Out" },_)
       | TType ({ t_path = [],"Single" },[])
       | TAbstract ({ a_path = [],"Single" },[]) -> Some t
+      | TType ({ t_path = [],"Null" },[_]) -> Some t
       | TAbstract ({ a_impl = Some _ } as a, pl) ->
           Some (gen.gfollow#run_f ( Codegen.Abstract.get_underlying_type a pl) )
       | TAbstract( { a_path = ([], "EnumValue") }, _  )
@@ -1333,7 +1334,7 @@ let configure gen =
         (* <T>(string arg1, object arg2) with T : object *)
         (match cf.cf_expr with
         | Some { eexpr = TFunction tf } ->
-            print w "%s(%s)%s" (params) (String.concat ", " (List.map (fun (var, _) -> sprintf "%s %s" (argt_s (run_follow gen var.v_type)) (change_id var.v_name)) tf.tf_args)) (params_ext)
+            print w "%s(%s)%s" (params) (String.concat ", " (List.map2 (fun (var, _) (_,_,t) -> sprintf "%s %s" (argt_s (run_follow gen t)) (change_id var.v_name)) tf.tf_args args)) (params_ext)
         | _ ->
             print w "%s(%s)%s" (params) (String.concat ", " (List.map (fun (name, _, t) -> sprintf "%s %s" (argt_s (run_follow gen t)) (change_id name)) args)) (params_ext)
         );
@@ -1638,6 +1639,27 @@ let configure gen =
 
   SetHXGen.run_filter gen SetHXGen.default_hxgen_func;
 
+  (* before running the filters, follow all possible types *)
+  (* this is needed so our module transformations don't break some core features *)
+  (* like multitype selection *)
+  let run_follow_gen = run_follow gen in
+  let rec type_map e = Type.map_expr_type (fun e->type_map e) (run_follow_gen)  (fun tvar-> tvar.v_type <- (run_follow_gen tvar.v_type); tvar) e in
+  let super_map (cl,tl) = (cl, List.map run_follow_gen tl) in
+  List.iter (function
+    | TClassDecl cl ->
+        let all_fields = (Option.map_default (fun cf -> [cf]) [] cl.cl_constructor) @ cl.cl_ordered_fields @ cl.cl_ordered_statics in
+        List.iter (fun cf ->
+          cf.cf_type <- run_follow_gen cf.cf_type;
+          cf.cf_expr <- Option.map type_map cf.cf_expr
+        ) all_fields;
+       cl.cl_dynamic <- Option.map run_follow_gen cl.cl_dynamic;
+       cl.cl_array_access <- Option.map run_follow_gen cl.cl_array_access;
+       cl.cl_init <- Option.map type_map cl.cl_init;
+       cl.cl_super <- Option.map super_map cl.cl_super;
+       cl.cl_implements <- List.map super_map cl.cl_implements
+    | _ -> ()
+    ) gen.gcon.types;
+
   let closure_t = ClosuresToClass.DoubleAndDynamicClosureImpl.get_ctx gen 6 in
 
   (*let closure_t = ClosuresToClass.create gen 10 float_cl
@@ -1913,25 +1935,19 @@ let configure gen =
       | TUnop (_, _, e1) -> is_dynamic_expr e1 || is_null_expr e1 (* we will see if the expression is Null<T> also, as the unwrap from Unop will be the same *)
       | _ -> false)
     (fun e1 e2 ->
-      let is_null e = match e.eexpr with | TConst(TNull) | TLocal({ v_name = "__undefined__" }) -> true | _ -> false in
+      let is_basic = is_cs_basic_type (follow e1.etype) || is_cs_basic_type (follow e2.etype) in
+      let is_ref = if is_basic then false else match follow e1.etype, follow e2.etype with
+        | TDynamic _, _
+        | _, TDynamic _
+        | TInst( { cl_path = ([], "String") }, [] ), _
+        | _, TInst( { cl_path = ([], "String") }, [] )
+        | TInst( { cl_kind = KTypeParameter _ }, [] ), _
+        | _, TInst( { cl_kind = KTypeParameter _ }, [] ) -> false
+        | _, _ -> true
+      in
 
-      if is_null e1 || is_null e2 then
-        { e1 with eexpr = TBinop(Ast.OpEq, e1, e2); etype = basic.tbool }
-      else begin
-        let is_basic = is_cs_basic_type (follow e1.etype) || is_cs_basic_type (follow e2.etype) in
-        let is_ref = if is_basic then false else match follow e1.etype, follow e2.etype with
-          | TDynamic _, _
-          | _, TDynamic _
-          | TInst( { cl_path = ([], "String") }, [] ), _
-          | _, TInst( { cl_path = ([], "String") }, [] )
-          | TInst( { cl_kind = KTypeParameter _ }, [] ), _
-          | _, TInst( { cl_kind = KTypeParameter _ }, [] ) -> false
-          | _, _ -> true
-        in
-
-        let static = mk_static_field_access_infer (runtime_cl) (if is_ref then "refEq" else "eq") e1.epos [] in
-        { eexpr = TCall(static, [e1; e2]); etype = gen.gcon.basic.tbool; epos=e1.epos }
-      end
+      let static = mk_static_field_access_infer (runtime_cl) (if is_ref then "refEq" else "eq") e1.epos [] in
+      { eexpr = TCall(static, [e1; e2]); etype = gen.gcon.basic.tbool; epos=e1.epos }
     )
     (fun e e1 e2 ->
       match may_nullable e1.etype, may_nullable e2.etype with
