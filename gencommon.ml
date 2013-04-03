@@ -6891,7 +6891,15 @@ struct
 
       let get_fields static =
         let ret = collect_fields cl ( if is_float || is_set then Some (false) else None ) (Some static) in
-        let ret = if is_set then List.filter (fun (_,cf) -> not (Meta.has Meta.ReadOnly cf.cf_meta)) ret else ret in
+        let ret = if is_set then List.filter (fun (_,cf) ->
+          match cf.cf_kind with
+          | Var { v_write = AccNever } -> false
+          | _ -> not (Meta.has Meta.ReadOnly cf.cf_meta)) ret
+        else
+          List.filter (fun (_,cf) ->
+          match cf.cf_kind with
+          | Var { v_read = AccNever } -> false
+          | _ -> true) ret in
         if is_float then
           List.filter (fun (_,cf) -> (* TODO: maybe really apply_params in cf.cf_type. The benefits would be limited, though *)
             match follow (ctx.rcf_gen.greal_type (ctx.rcf_gen.gfollow#run_f cf.cf_type)) with
