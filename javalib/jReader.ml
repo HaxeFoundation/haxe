@@ -366,7 +366,7 @@ let get_string consts ch =
   | _ -> error ("Invalid string index " ^ string_of_int i)
 
 let rec parse_element_value consts ch =
-  let tag = read_ui16 ch in
+  let tag = IO.read_byte ch in
   match Char.chr tag with
   | 'B' | 'C' | 'D' | 'E' | 'F' | 'I' | 'J' | 'S' | 'Z' | 's' ->
     ValConst (get_constant consts (read_ui16 ch))
