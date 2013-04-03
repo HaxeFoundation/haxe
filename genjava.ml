@@ -2746,7 +2746,7 @@ let add_java_lib com file =
       None
     | e ->
       if com.verbose then begin
-        prerr_endline (Printexc.get_backtrace ());
+        (* prerr_endline (Printexc.get_backtrace ()); requires ocaml 3.11 *)
         prerr_endline (Printexc.to_string e)
       end;
       None
