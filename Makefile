@@ -71,7 +71,13 @@ install:
 	cp std/tools/haxelib/haxelib.sh $(INSTALL_DIR)/bin/haxelib
 	cp std/tools/haxedoc/haxedoc.sh $(INSTALL_DIR)/bin/haxedoc
 	chmod a+rx $(INSTALL_DIR)/bin/haxe $(INSTALL_DIR)/bin/haxelib $(INSTALL_DIR)/bin/haxedoc
-	
+
+# will install native version of the tools instead of script ones
+install_tools: tools
+	cp haxelib ${INSTALL_DIR}/bin/haxelib
+	cp haxedoc ${INSTALL_DIR}/bin/haxedoc
+	chmod a+rx $(INSTALL_DIR)/bin/haxelib $(INSTALL_DIR)/bin/haxedoc
+
 uninstall:
 	rm -rf $(INSTALL_DIR)/bin/haxe $(INSTALL_DIR)/bin/haxelib $(INSTALL_DIR)/lib/haxe
 	
