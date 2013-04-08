@@ -2817,7 +2817,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 		output_cpp ("	result->__construct(" ^ (array_arg_list constructor_var_list) ^ ");\n");
 		output_cpp ("	return result;}\n\n");
 		if ( (List.length implemented) > 0 ) then begin
-			output_cpp ("hx::Object *" ^ class_name ^ "::__ToInterface(const type_info &inType) {\n");
+			output_cpp ("hx::Object *" ^ class_name ^ "::__ToInterface(const hx::type_info &inType) {\n");
 			List.iter (fun interface_name ->
 				output_cpp ("	if (inType==typeid( " ^ interface_name ^ "_obj)) " ^
 					"return operator " ^ interface_name ^ "_obj *();\n");
@@ -3215,7 +3215,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 		) implemented;
 
 		if ( (List.length implemented) > 0 ) then
-			output_h "		hx::Object *__ToInterface(const type_info &inType);\n";
+			output_h "		hx::Object *__ToInterface(const hx::type_info &inType);\n";
 
 		if (has_init_field class_def) then
 			output_h "		static void __init__();\n\n";
