@@ -2982,7 +2982,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 			in
 
 			if (field_integer_dynamic) then output_ifield "Dynamic" "__IField";
-			if (field_integer_numeric) then output_ifield "Float" "__INumField";
+			if (field_integer_numeric) then output_ifield "double" "__INumField";
 		end;
 
 
