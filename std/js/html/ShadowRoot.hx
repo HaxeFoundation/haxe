@@ -43,7 +43,7 @@ extern class ShadowRoot extends DocumentFragment
 
 	function getElementsByTagName( tagName : String ) : NodeList;
 
-	function getElementsByTagNameNS( namespaceURI : String, localName : String ) : NodeList;
+	function getElementsByTagNameNS( ?namespaceURI : String, localName : String ) : NodeList;
 
 	function getSelection() : DOMSelection;
 

@@ -308,7 +308,7 @@ extern class Document extends Node
 
 	function createAttribute( name : String ) : Attr;
 
-	function createAttributeNS( namespaceURI : String, qualifiedName : String ) : Attr;
+	function createAttributeNS( ?namespaceURI : String, ?qualifiedName : String ) : Attr;
 
 	function createCDATASection( data : String ) : CDATASection;
 
@@ -316,9 +316,9 @@ extern class Document extends Node
 
 	function createDocumentFragment() : DocumentFragment;
 
-	function createElement( tagName : String ) : Element;
+	function createElement( ?tagName : String ) : Element;
 
-	function createElementNS( namespaceURI : String, qualifiedName : String ) : Element;
+	function createElementNS( ?namespaceURI : String, ?qualifiedName : String ) : Element;
 
 	function createEntityReference( name : String ) : EntityReference;
 
@@ -346,7 +346,7 @@ extern class Document extends Node
 
 	function evaluate( expression : String, contextNode : Node, resolver : XPathNSResolver, type : Int, inResult : XPathResult ) : XPathResult;
 
-	function execCommand( command : String, userInterface : Bool, value : String ) : Bool;
+	function execCommand( command : String, userInterface : Bool, ?value : String ) : Bool;
 
 	function exitFullscreen() : Void;
 
@@ -362,7 +362,7 @@ extern class Document extends Node
 
 	function getElementsByTagName( tagname : String ) : NodeList;
 
-	function getElementsByTagNameNS( namespaceURI : String, localName : String ) : NodeList;
+	function getElementsByTagNameNS( ?namespaceURI : String, localName : String ) : NodeList;
 
 	function getOverrideStyle( element : Element, pseudoElement : String ) : CSSStyleDeclaration;
 

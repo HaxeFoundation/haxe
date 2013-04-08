@@ -63,6 +63,6 @@ extern class StorageEvent extends Event
 
 	function new(type : String, canBubble : Bool = true, cancelable : Bool = true) : Void;
 
-	function initStorageEvent( typeArg : String, canBubbleArg : Bool, cancelableArg : Bool, keyArg : String, oldValueArg : String, newValueArg : String, urlArg : String, storageAreaArg : Storage ) : Void;
+	function initStorageEvent( typeArg : String, canBubbleArg : Bool, cancelableArg : Bool, keyArg : String, ?oldValueArg : String, ?newValueArg : String, urlArg : String, storageAreaArg : Storage ) : Void;
 
 }

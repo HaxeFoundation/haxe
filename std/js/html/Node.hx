@@ -127,17 +127,17 @@ extern class Node extends EventTarget
 
 	function insertBefore( newChild : Node, refChild : Node ) : Node;
 
-	function isDefaultNamespace( namespaceURI : String ) : Bool;
+	function isDefaultNamespace( ?namespaceURI : String ) : Bool;
 
 	function isEqualNode( other : Node ) : Bool;
 
 	function isSameNode( other : Node ) : Bool;
 
-	function isSupported( feature : String, version : String ) : Bool;
+	function isSupported( feature : String, ?version : String ) : Bool;
 
-	function lookupNamespaceURI( prefix : String ) : String;
+	function lookupNamespaceURI( ?prefix : String ) : String;
 
-	function lookupPrefix( namespaceURI : String ) : String;
+	function lookupPrefix( ?namespaceURI : String ) : String;
 
 	function normalize() : Void;
 

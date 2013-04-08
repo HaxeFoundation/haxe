@@ -626,6 +626,6 @@ Negative value are also allowed. */
 
 	function removeProperty( propertyName : String ) : String;
 
-	function setProperty( propertyName : String, value : String, priority : String ) : Void;
+	function setProperty( propertyName : String, ?value : String, priority : String ) : Void;
 
 }

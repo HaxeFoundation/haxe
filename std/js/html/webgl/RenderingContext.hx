@@ -740,11 +740,14 @@ extern class RenderingContext extends js.html.CanvasRenderingContext
 
 	function getActiveUniform( program : Program, index : Int ) : ActiveInfo;
 
-	function getAttachedShaders( program : Program ) : Void;
+	/** Throws DOMException. */
+	@:overload( function( program : Program ) :Void {} )
+	function getAttachedShaders( program : Program ) : Array<js.html.webgl.Shader>;
 
 	function getAttribLocation( program : Program, name : String ) : Int;
 
-	function getBufferParameter() : Void;
+	@:overload( function() :Void {} )
+	function getBufferParameter( target : Int, pname : Int ) : Dynamic;
 
 	function getContextAttributes() : ContextAttributes;
 
@@ -752,19 +755,25 @@ extern class RenderingContext extends js.html.CanvasRenderingContext
 
 	function getExtension( name : String ) : Dynamic;
 
-	function getFramebufferAttachmentParameter() : Void;
+	@:overload( function() :Void {} )
+	function getFramebufferAttachmentParameter( target : Int, attachment : Int, pname : Int ) : Dynamic;
 
-	function getParameter() : Void;
+	@:overload( function() :Void {} )
+	function getParameter( pname : Int ) : Dynamic;
 
 	function getProgramInfoLog( program : Program ) : String;
 
-	function getProgramParameter() : Void;
+	@:overload( function() :Void {} )
+	function getProgramParameter( program : Program, pname : Int ) : Dynamic;
 
-	function getRenderbufferParameter() : Void;
+	@:overload( function() :Void {} )
+	function getRenderbufferParameter( target : Int, pname : Int ) : Dynamic;
 
 	function getShaderInfoLog( shader : Shader ) : String;
 
-	function getShaderParameter() : Void;
+	/** Throws DOMException. */
+	@:overload( function() :Void {} )
+	function getShaderParameter( shader : Shader, pname : Int ) : Dynamic;
 
 	function getShaderPrecisionFormat( shadertype : Int, precisiontype : Int ) : ShaderPrecisionFormat;
 
@@ -772,13 +781,16 @@ extern class RenderingContext extends js.html.CanvasRenderingContext
 
 	function getSupportedExtensions() : Array<String>;
 
-	function getTexParameter() : Void;
+	@:overload( function() :Void {} )
+	function getTexParameter( target : Int, pname : Int ) : Dynamic;
 
-	function getUniform() : Void;
+	@:overload( function() :Void {} )
+	function getUniform( program : Program, location : UniformLocation ) : Dynamic;
 
 	function getUniformLocation( program : Program, name : String ) : UniformLocation;
 
-	function getVertexAttrib() : Void;
+	@:overload( function() :Void {} )
+	function getVertexAttrib( index : Int, pname : Int ) : Dynamic;
 
 	function getVertexAttribOffset( index : Int, pname : Int ) : Int;
 

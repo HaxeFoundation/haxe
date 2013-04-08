@@ -32,13 +32,13 @@ extern class NamedNodeMap implements ArrayAccess<Node>
 
 	function getNamedItem( name : String ) : Node;
 
-	function getNamedItemNS( namespaceURI : String, localName : String ) : Node;
+	function getNamedItemNS( ?namespaceURI : String, localName : String ) : Node;
 
 	function item( index : Int ) : Node;
 
 	function removeNamedItem( name : String ) : Node;
 
-	function removeNamedItemNS( namespaceURI : String, localName : String ) : Node;
+	function removeNamedItemNS( ?namespaceURI : String, localName : String ) : Node;
 
 	function setNamedItem( node : Node ) : Node;
 

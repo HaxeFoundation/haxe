@@ -43,7 +43,7 @@ extern class CanvasElement extends Element
 
 	function getContext( contextId : String ) : Dynamic;
 
-	function toDataURL( type : String ) : String;
+	function toDataURL( ?type : String ) : String;
 
 	/** A typed shortcut for <code>getContext("2d")</code>. */
 	public inline function getContext2d() : CanvasRenderingContext2D { return cast getContext("2d"); }

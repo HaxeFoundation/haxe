@@ -170,7 +170,7 @@ extern class MediaElement extends Element
 
 	function addTextTrack( kind : String, ?label : String, ?language : String ) : TextTrack;
 
-	function canPlayType( type : String, keySystem : String ) : String;
+	function canPlayType( type : String, ?keySystem : String ) : String;
 
 	function cancelKeyRequest( keySystem : String, sessionId : String ) : Void;
 

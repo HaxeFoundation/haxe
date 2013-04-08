@@ -326,11 +326,11 @@ extern class Element extends Node
 
 	function getAttribute( name : String ) : String;
 
-	function getAttributeNS( namespaceURI : String, localName : String ) : String;
+	function getAttributeNS( ?namespaceURI : String, localName : String ) : String;
 
 	function getAttributeNode( name : String ) : Attr;
 
-	function getAttributeNodeNS( namespaceURI : String, localName : String ) : Attr;
+	function getAttributeNodeNS( ?namespaceURI : String, localName : String ) : Attr;
 
 	function getBoundingClientRect() : ClientRect;
 
@@ -340,11 +340,11 @@ extern class Element extends Node
 
 	function getElementsByTagName( name : String ) : NodeList;
 
-	function getElementsByTagNameNS( namespaceURI : String, localName : String ) : NodeList;
+	function getElementsByTagNameNS( ?namespaceURI : String, localName : String ) : NodeList;
 
 	function hasAttribute( name : String ) : Bool;
 
-	function hasAttributeNS( namespaceURI : String, localName : String ) : Bool;
+	function hasAttributeNS( ?namespaceURI : String, localName : String ) : Bool;
 
 	function insertAdjacentElement( where : String, element : Element ) : Element;
 
@@ -382,7 +382,7 @@ extern class Element extends Node
 
 	function setAttribute( name : String, value : String ) : Void;
 
-	function setAttributeNS( namespaceURI : String, qualifiedName : String, value : String ) : Void;
+	function setAttributeNS( ?namespaceURI : String, qualifiedName : String, value : String ) : Void;
 
 	function setAttributeNode( newAttr : Attr ) : Attr;
 

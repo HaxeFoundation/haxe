@@ -361,11 +361,11 @@ extern class DOMWindow extends EventTarget
 
 	function alert( message : String ) : Void;
 
-	function atob( string : String ) : String;
+	function atob( ?string : String ) : String;
 
 	function blur() : Void;
 
-	function btoa( string : String ) : String;
+	function btoa( ?string : String ) : String;
 
 	@:overload( function( id : Int ) :Void {} )
 	function cancelAnimationFrame( id : Int ) : Void;
@@ -390,9 +390,9 @@ extern class DOMWindow extends EventTarget
 
 	function focus() : Void;
 
-	function getComputedStyle( element : Element, pseudoElement : String ) : CSSStyleDeclaration;
+	function getComputedStyle( element : Element, ?pseudoElement : String ) : CSSStyleDeclaration;
 
-	function getMatchedCSSRules( element : Element, pseudoElement : String ) : CSSRuleList;
+	function getMatchedCSSRules( element : Element, ?pseudoElement : String ) : CSSRuleList;
 
 	function getSelection() : DOMSelection;
 

@@ -30,12 +30,12 @@ extern class DOMImplementation
 {
 	function createCSSStyleSheet( title : String, media : String ) : CSSStyleSheet;
 
-	function createDocument( namespaceURI : String, qualifiedName : String, doctype : DocumentType ) : Document;
+	function createDocument( ?namespaceURI : String, ?qualifiedName : String, ?doctype : DocumentType ) : Document;
 
-	function createDocumentType( qualifiedName : String, publicId : String, systemId : String ) : DocumentType;
+	function createDocumentType( ?qualifiedName : String, ?publicId : String, ?systemId : String ) : DocumentType;
 
 	function createHTMLDocument( title : String ) : Document;
 
-	function hasFeature( feature : String, version : String ) : Bool;
+	function hasFeature( feature : String, ?version : String ) : Bool;
 
 }
