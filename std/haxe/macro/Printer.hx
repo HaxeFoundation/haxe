@@ -94,7 +94,7 @@ class Printer {
 	public function printComplexType(ct:ComplexType) return switch(ct) {
 		case TPath(tp): printTypePath(tp);
 		case TFunction(args, ret): args.map(printComplexType).join("->") + "->" + printComplexType(ret);
-		case TAnonymous(fields): "{" + fields.map(printField).join(",") + "}";
+		case TAnonymous(fields): "{" + [for (f in fields) printField(f) + ";"].join("") + "}";
 		case TParent(ct): "(" + printComplexType(ct) + ")";
 		case TOptional(ct): "?" + printComplexType(ct);
 		case TExtend(tp, fields): '{${printTypePath(tp)} >, ${fields.map(printField).join(",")}}';
@@ -126,8 +126,8 @@ class Printer {
 
 	public function printTypeParamDecl(tpd:TypeParamDecl) return
 		tpd.name
-		+ (tpd.params.length > 0 ? "<" + tpd.params.map(printTypeParamDecl).join(",") + ">" : "")
-		+ (tpd.constraints.length > 0 ? ":(" + tpd.constraints.map(printComplexType).join(",") + ")" : "");
+		+ (tpd.params != null && tpd.params.length > 0 ? "<" + tpd.params.map(printTypeParamDecl).join(",") + ">" : "")
+		+ (tpd.constraints != null && tpd.constraints.length > 0 ? ":(" + tpd.constraints.map(printComplexType).join(",") + ")" : "");
 
 	public function printFunctionArg(arg:FunctionArg) return
 		(arg.opt ? "?" : "")
@@ -231,8 +231,7 @@ class Printer {
 				case TDStructure:
 					"typedef " + t.name + (t.params.length > 0 ? "<" + t.params.map(printTypeParamDecl).join(",") + ">" : "") + " = {\n"
 					+ [for (f in t.fields) {
-						var fstr = printField(f);
-						tabs + fstr + ";";
+						tabs + printField(f) + ";";
 					}].join("\n")
 					+ "\n}";
 				case TDClass(superClass, interfaces, isInterface):
@@ -242,7 +241,11 @@ class Printer {
 					+ " {\n"
 					+ [for (f in t.fields) {
 						var fstr = printField(f);
-						tabs + fstr + (StringTools.endsWith(fstr, "}") ? "" : ";");
+						tabs + fstr + switch(f.kind) {
+							case FVar(_, _), FProp(_, _, _, _): ";";
+							case FFun(func) if (func.expr == null): ";";
+							case _: "";
+						};
 					}].join("\n")
 					+ "\n}";
 				case TDAlias(ct):
@@ -258,7 +261,11 @@ class Printer {
 					+ " {\n"
 					+ [for (f in t.fields) {
 						var fstr = printField(f);
-						tabs + fstr + (StringTools.endsWith(fstr, "}") ? "" : ";");
+						tabs + fstr + switch(f.kind) {
+							case FVar(_, _), FProp(_, _, _, _): ";";
+							case FFun(func) if (func.expr == null): ";";
+							case _: "";
+						};
 					}].join("\n")
 					+ "\n}";
 			}
