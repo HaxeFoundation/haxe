@@ -2453,8 +2453,10 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			let t = try
 				unify_min_raise ctx el
 			with Error (Unify l,p) ->
-				display_error ctx "Arrays of mixed types are only allowed if the type is forced to Array<Dynamic>" p;
-				raise (Error (Unify l, p))
+				if ctx.untyped then t_dynamic else begin
+					display_error ctx "Arrays of mixed types are only allowed if the type is forced to Array<Dynamic>" p;
+					raise (Error (Unify l, p))
+				end
 			in
 			mk (TArrayDecl el) (ctx.t.tarray t) p
 		| Some t ->
