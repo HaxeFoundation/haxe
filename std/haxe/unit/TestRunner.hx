@@ -23,7 +23,7 @@ package haxe.unit;
 import Reflect;
 
 class TestRunner {
-	var result : TestResult;
+	public var result(default, null) : TestResult;
 	var cases  : List<TestCase>;
 
 #if flash9
