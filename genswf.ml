@@ -832,6 +832,7 @@ let build_swf9 com file swc =
 			let rec loop = function
 				| [] -> acc
 				| (Meta.Font,(EConst (String file),p) :: args,_) :: l ->
+					let file = try Common.find_file com file with Not_found -> file in
 					let ch = try open_in_bin file with _ -> error "File not found" p in
 					let ttf = Ttf.parse ch in
 					close_in ch;
