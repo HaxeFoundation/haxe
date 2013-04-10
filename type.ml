@@ -73,7 +73,7 @@ and tconstant =
 	| TSuper
 
 and tvar = {
-	v_id : int;
+	mutable v_id : int;
 	mutable v_name : string;
 	mutable v_type : t;
 	mutable v_capture : bool;
