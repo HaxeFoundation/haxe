@@ -1543,6 +1543,10 @@ let init_class ctx c p context_init herits fields =
 			if !do_bind then bind_type ctx cf r (match fd.f_expr with Some e -> snd e | None -> f.cff_pos) is_macro;
 			f, constr, cf
 		| FProp (get,set,t,eo) ->
+			(match c.cl_kind with
+			| KAbstractImpl a when Meta.has Meta.Impl f.cff_meta ->
+				ctx.type_params <- a.a_types;
+			| _ -> ());
 			let ret = (match t, eo with
 				| None, None -> error "Property must either define a type or a default value" p;
 				| None, _ -> mk_mono()
