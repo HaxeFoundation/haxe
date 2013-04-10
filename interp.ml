@@ -4350,13 +4350,20 @@ let rec make_const e =
 
 open Ast
 
-let tpath p pl =
-	CTPath {
-		tpackage = fst p;
-		tname = snd p;
-		tparams = List.map (fun t -> TPType t) pl;
-		tsub = None;
-	}
+let tpath p mp pl =
+	if snd mp = snd p then
+		CTPath {
+			tpackage = fst p;
+			tname = snd p;
+			tparams = List.map (fun t -> TPType t) pl;
+			tsub = None;
+		}
+	else CTPath {
+			tpackage = fst mp;
+			tname = snd mp;
+			tparams = List.map (fun t -> TPType t) pl;
+			tsub = Some (snd p);
+		}
 
 let rec make_type = function
 	| TMono r ->
@@ -4364,13 +4371,13 @@ let rec make_type = function
 		| None -> raise Exit
 		| Some t -> make_type t)
 	| TEnum (e,pl) ->
-		tpath e.e_path (List.map make_type pl)
+		tpath e.e_path e.e_module.m_path (List.map make_type pl)
 	| TInst (c,pl) ->
-		tpath c.cl_path (List.map make_type pl)
+		tpath c.cl_path c.cl_module.m_path (List.map make_type pl)
 	| TType (t,pl) ->
-		tpath t.t_path (List.map make_type pl)
+		tpath t.t_path t.t_module.m_path (List.map make_type pl)
 	| TAbstract (a,pl) ->
-		tpath a.a_path (List.map make_type pl)
+		tpath a.a_path a.a_module.m_path (List.map make_type pl)
 	| TFun (args,ret) ->
 		CTFunction (List.map (fun (_,_,t) -> make_type t) args, make_type ret)
 	| TAnon a ->
@@ -4385,7 +4392,7 @@ let rec make_type = function
 			} :: acc
 		) a.a_fields [])
 	| (TDynamic t2) as t ->
-		tpath ([],"Dynamic") (if t == t_dynamic then [] else [make_type t2])
+		tpath ([],"Dynamic") ([],"Dynamic") (if t == t_dynamic then [] else [make_type t2])
 	| TLazy f ->
 		make_type ((!f)())
 
