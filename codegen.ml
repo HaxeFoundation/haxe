@@ -263,7 +263,13 @@ let generic_substitute_expr gctx e =
 			Hashtbl.add vars v.v_id v2;
 			v2
 	in
-	let rec build_expr e = map_expr_type build_expr (generic_substitute_type gctx) build_var e in
+	let rec build_expr e =
+		match e.eexpr with
+		| TField({eexpr = TConst TThis} as e1, FInstance({cl_kind = KGeneric},cf)) ->
+			let cg = match follow (generic_substitute_type gctx (e1.etype)) with TInst(c,_) -> c | _ -> assert false in
+			build_expr {e with eexpr = TField(e1,FInstance(cg,cf))}
+		| _ -> map_expr_type build_expr (generic_substitute_type gctx) build_var e
+	in
 	build_expr e
 
 let is_generic_parameter ctx c =
