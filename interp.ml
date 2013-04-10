@@ -2119,6 +2119,7 @@ let macro_lib =
 			| VAbstract (APos p) ->
 				let h_enum = hash "__enum__" and h_et = hash "__et__" and h_ct = hash "__ct__" in
 				let h_tag = hash "tag" and h_args = hash "args" in
+				let h_length = hash "length" in
 				let ctx = get_ctx() in
 				let error v = failwith ("Unsupported value " ^ ctx.do_string v) in
 				let make_path t =
@@ -2154,12 +2155,12 @@ let macro_lib =
 								let fields = List.fold_left (fun acc (fid,v) -> (field_name ctx fid, loop v) :: acc) [] (Array.to_list o.ofields) in
 								(Ast.EObjectDecl fields, p))
 						| Some proto ->
-							match get_field_opt proto h_enum, get_field_opt o h_a, get_field_opt o h_s with
-							| _, Some (VArray a), _ ->
-								(Ast.EArrayDecl (List.map loop (Array.to_list a)),p)
-							| _, _, Some (VString s) ->
+							match get_field_opt proto h_enum, get_field_opt o h_a, get_field_opt o h_s, get_field_opt o h_length with
+							| _, Some (VArray a), _, Some (VInt len) ->
+								(Ast.EArrayDecl (List.map loop (Array.to_list (Array.sub a 0 len))),p)
+							| _, _, Some (VString s), _ ->
 								(Ast.EConst (Ast.String s),p)
-							| Some (VObject en), _, _ ->
+							| Some (VObject en), _, _, _ ->
 								(match get_field en h_et, get_field o h_tag with
 								| VAbstract (ATDecl t), VString tag ->
 									let e = (Ast.EField (make_path t,tag),p) in
