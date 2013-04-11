@@ -34,18 +34,33 @@ MODULES=ast type lexer common genxml parser typecore optimizer typeload \
 codegen gencommon genas3 gencpp genjs genneko genphp genswf8 \
 	genswf9 genswf genjava gencs interp typer matcher dce main
 
+ADDITIONAL_LIBS=neko javalib ziplib swflib
+
 export HAXE_STD_PATH=$(CURDIR)/std
 
-all: libs haxe
+all: haxe
 
-libs:
-	make -C libs/extlib opt
-	make -C libs/extc native
-	make -C libs/neko
-	make -C libs/javalib
-	make -C libs/ziplib
-	make -C libs/swflib
-	make -C libs/xml-light xml-light.cmxa
+libs: $(ADDITIONAL_LIBS) extlib extc xml-light
+
+$(ADDITIONAL_LIBS):
+	$(MAKE) $(MFLAGS) -C libs/$@
+
+extlib:
+	$(MAKE) $(MFLAGS) -C libs/extlib opt
+
+extc: extlib
+	$(MAKE) $(MFLAGS) -C libs/extc native
+
+xml-light:
+	$(MAKE) $(MFLAGS) -C libs/xml-light xml-light.cmxa
+
+neko: extlib
+
+javalib: extlib
+
+ziplib: extc extlib
+
+swflib: extlib extc
 
 haxe: $(MODULES:=.cmx)
 	$(OCAMLOPT) -o $(OUTPUT) $(NATIVE_LIBS) $(LIBS) $(MODULES:=.cmx)
@@ -85,9 +100,11 @@ export:
 	cp haxe*.exe doc/CHANGES.txt $(EXPORT)
 	rsync -a --exclude .svn --exclude *.n --exclude std/libs --delete std $(EXPORT)
 
-codegen.cmx: optimizer.cmx typeload.cmx typecore.cmx type.cmx genxml.cmx common.cmx ast.cmx
+ast.cmx: extlib
 
-common.cmx: type.cmx ast.cmx
+codegen.cmx: optimizer.cmx typeload.cmx typecore.cmx type.cmx genxml.cmx common.cmx ast.cmx xml-light
+
+common.cmx: type.cmx ast.cmx  swflib javalib
 
 dce.cmx: ast.cmx common.cmx type.cmx
 
@@ -99,15 +116,15 @@ gencpp.cmx: type.cmx lexer.cmx common.cmx codegen.cmx ast.cmx
 
 gencs.cmx: type.cmx lexer.cmx gencommon.cmx common.cmx codegen.cmx ast.cmx
 
-genjava.cmx: type.cmx gencommon.cmx common.cmx codegen.cmx ast.cmx
+genjava.cmx: type.cmx gencommon.cmx common.cmx codegen.cmx ast.cmx ziplib
 
 genjs.cmx: type.cmx optimizer.cmx lexer.cmx common.cmx codegen.cmx ast.cmx
 
-genneko.cmx: type.cmx lexer.cmx common.cmx codegen.cmx ast.cmx
+genneko.cmx: type.cmx lexer.cmx common.cmx codegen.cmx ast.cmx neko
 
 genphp.cmx: type.cmx lexer.cmx common.cmx codegen.cmx ast.cmx
 
-genswf.cmx: type.cmx genswf9.cmx genswf8.cmx common.cmx ast.cmx
+genswf.cmx: type.cmx genswf9.cmx genswf8.cmx common.cmx ast.cmx ziplib
 
 genswf8.cmx: type.cmx lexer.cmx common.cmx codegen.cmx ast.cmx
 
@@ -116,6 +133,8 @@ genswf9.cmx: type.cmx lexer.cmx genswf8.cmx common.cmx codegen.cmx ast.cmx
 genxml.cmx: type.cmx lexer.cmx common.cmx ast.cmx
 
 interp.cmx: typecore.cmx type.cmx lexer.cmx genneko.cmx common.cmx codegen.cmx ast.cmx genswf.cmx parser.cmx
+
+lexer.cmx: ast.cmx lexer.ml
 
 matcher.cmx: optimizer.cmx codegen.cmx typecore.cmx type.cmx typer.cmx common.cmx ast.cmx
 
@@ -134,21 +153,14 @@ typeload.cmx: typecore.cmx type.cmx parser.cmx optimizer.cmx lexer.cmx common.cm
 
 typer.cmx: typeload.cmx typecore.cmx type.cmx parser.cmx optimizer.cmx lexer.cmx interp.cmx genneko.cmx genjs.cmx common.cmx codegen.cmx ast.cmx
 
-lexer.cmx: lexer.ml
-
-lexer.cmx: ast.cmx
-
-
 clean: clean_libs clean_haxe clean_tools
 
-clean_libs:
-	make -C libs/extlib clean
-	make -C libs/extc clean
-	make -C libs/neko clean
-	make -C libs/ziplib clean
-	make -C libs/javalib clean
-	make -C libs/swflib clean
-	make -C libs/xml-light clean
+CLEANLIB_pattern=clean_lib_%
+
+$(CLEANLIB_pattern):
+	$(MAKE) $(MFLAGS) -C libs/$* clean
+
+clean_libs: $(patsubst %,$(CLEANLIB_pattern), extlib extc neko ziplib javalib swflib xml-light)
 
 clean_haxe:
 	rm -f $(MODULES:=.obj) $(MODULES:=.o) $(MODULES:=.cmx) $(MODULES:=.cmi) lexer.ml
