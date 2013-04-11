@@ -65,13 +65,32 @@ extern class DataView extends ArrayBufferView
 
 	function getInt32( byteOffset : Int, ?littleEndian : Bool ) : Int;
 
-	function getInt8() : Dynamic;
+	/** <p>Gets a signed 8-bit integer at the specified byte offset from the start of the view.</p>
+
+<div id="section_11"><span id="Parameters_2"></span><h6 class="editable">Parameters</h6>
+<dl> <dt><code>offset</code></dt> <dd>The offset, in byte, from the start of the view where to read the data.</dd>
+</dl>
+</div><div id="section_12"><span id="Exceptions_thrown_2"></span><h6 class="editable">Exceptions thrown</h6>
+<dl> <dt><code>INDEX_SIZE_ERR</code></dt> <dd>The <code>byteOffset</code> is set such as it would read beyond the end of the view</dd>
+</dl>
+</div> Throws DOMException. */
+	@:overload( function() :Dynamic {} )
+	function getInt8( byteOffset : Int ) : Int;
 
 	function getUint16( byteOffset : Int, ?littleEndian : Bool ) : Int;
 
 	function getUint32( byteOffset : Int, ?littleEndian : Bool ) : Int;
 
-	function getUint8() : Dynamic;
+	/** <p>Gets an unsigned 8-bit integer at the specified byte offset from the start of the view.</p>
+
+<div id="section_14"><span id="Parameters_3"></span><h6 class="editable">Parameters</h6>
+<dl> <dt><code>offset</code></dt> <dd>The offset, in byte, from the start of the view where to read the data.</dd>
+</dl>
+<dl> <dt><code>INDEX_SIZE_ERR</code></dt> <dd>The <code>byteOffset</code> is set such as it would read beyond the end of the view</dd>
+</dl>
+</div> Throws DOMException. */
+	@:overload( function() :Dynamic {} )
+	function getUint8( byteOffset : Int ) : Int;
 
 	function setFloat32( byteOffset : Int, value : Float, ?littleEndian : Bool ) : Void;
 
@@ -81,12 +100,16 @@ extern class DataView extends ArrayBufferView
 
 	function setInt32( byteOffset : Int, value : Int, ?littleEndian : Bool ) : Void;
 
-	function setInt8() : Void;
+	/** Throws DOMException. */
+	@:overload( function() :Void {} )
+	function setInt8( byteOffset : Int, value : Int ) : Void;
 
 	function setUint16( byteOffset : Int, value : Int, ?littleEndian : Bool ) : Void;
 
 	function setUint32( byteOffset : Int, value : Int, ?littleEndian : Bool ) : Void;
 
-	function setUint8() : Void;
+	/** Throws DOMException. */
+	@:overload( function() :Void {} )
+	function setUint8( byteOffset : Int, value : Int ) : Void;
 
 }
