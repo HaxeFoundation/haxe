@@ -173,11 +173,15 @@ let unsupported p = error "This expression cannot be generated to AS3" p
 let newline ctx =
 	let rec loop p =
 		match Buffer.nth ctx.buf p with
-		| '}' | '{' | ':' -> print ctx "\n%s" ctx.tabs
+		| '}' | '{' | ':' | ';' -> print ctx "\n%s" ctx.tabs
 		| '\n' | '\t' -> loop (p - 1)
 		| _ -> print ctx ";\n%s" ctx.tabs
 	in
 	loop (Buffer.length ctx.buf - 1)
+
+let block_newline ctx = match Buffer.nth ctx.buf (Buffer.length ctx.buf - 1) with
+	| '}' -> print ctx ";\n%s" ctx.tabs
+	| _ -> newline ctx
 
 let rec concat ctx s f = function
 	| [] -> ()
@@ -623,7 +627,7 @@ and gen_expr ctx e =
             (fun() -> print ctx "}")
 		end) in
 		(match ctx.block_inits with None -> () | Some i -> i());
-		List.iter (fun e -> newline ctx; gen_expr ctx e) el;
+		List.iter (fun e -> block_newline ctx; gen_expr ctx e) el;
 		bend();
 		newline ctx;
 		cb();
