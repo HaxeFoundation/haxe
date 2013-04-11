@@ -1,0 +1,8 @@
+*.cmx
+*.cmi
+*.tmp
+*.ml
+~*
+!common.ml
+!genrust.ml
+!main.ml
