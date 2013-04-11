@@ -51,7 +51,11 @@ class Log {
 		untyped flash.Boot.__trace(v,infos);
 			#end
 		#elseif neko
-		untyped __dollar__print(infos.fileName+":"+infos.lineNumber+": ",v,"\n");
+		untyped {
+			$print(infos.fileName + ":" + infos.lineNumber + ": ", v);
+			if( infos.customParams != null ) for( v in infos.customParams ) $print(",", v);
+			$print("\n");
+		}
 		#elseif js
 		untyped js.Boot.__trace(v,infos);
 		#elseif php

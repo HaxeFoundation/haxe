@@ -34,7 +34,10 @@ class Boot {
 			msg += __string_rec(v,"");
 			fl.trace(msg);
 			#else
-			msg += __string_rec(v,"");
+			msg += __string_rec(v, "");
+			if( i != null && i.customParams != null )
+				for( v in i.customParams )
+					msg += "," + __string_rec(v, "");
 			var d;
 			if( __js__("typeof")(document) != "undefined" && (d = document.getElementById("haxe:trace")) != null )
 				d.innerHTML += __unhtml(msg)+"<br/>";

@@ -181,7 +181,10 @@ class Boot {
 		untyped {
 			var root = flash.Lib.current;
 			var tf = getTrace();
-			var s = inf.fileName+(if( inf.lineNumber == null ) "" else ":"+inf.lineNumber)+": "+__string_rec(v,"");
+			var s = inf.fileName+(if( inf.lineNumber == null ) "" else ":"+inf.lineNumber)+": "+__string_rec(v, "");
+			if( inf != null && inf.customParams != null )
+				for( v in inf.customParams )
+					s += "," + __string_rec(v, "");
 			var lines : Array<String> = root.__trace_lines["concat"](s.split("\n"));
 			tf.text = lines.join("\n");
 			while( lines.length > 1 && tf.textHeight > Stage.height ) {

@@ -145,7 +145,11 @@ class Boot extends flash.display.MovieClip {
 		var tf = getTrace();
 		var pstr = if( pos == null ) "(null)" else pos.fileName+":"+pos.lineNumber;
 		if( lines == null ) lines = [];
-		lines = lines.concat((pstr +": "+__string_rec(v,"")).split("\n"));
+		var str = pstr +": "+__string_rec(v, "");
+		if( pos != null && pos.customParams != null )
+			for( v in pos.customParams )
+				str += ","+__string_rec(v, "");
+		lines = lines.concat(str.split("\n"));
 		tf.text = lines.join("\n");
 		var stage = flash.Lib.current.stage;
 		if( stage == null )
