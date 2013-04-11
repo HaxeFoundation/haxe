@@ -738,6 +738,12 @@ let rec has_feature com f =
 			Hashtbl.add com.features f r;
 			r
 
+let allow_package ctx s =
+	try
+		if (PMap.find s ctx.package_rules) = Forbidden then ctx.package_rules <- PMap.remove s ctx.package_rules
+	with Not_found ->
+		()
+
 let error msg p = raise (Abort (msg,p))
 
 let platform ctx p = ctx.platform = p

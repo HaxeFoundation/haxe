@@ -36,6 +36,10 @@ class Compiler {
 	static var ident = ~/^[A-Za-z_][A-Za-z0-9_]*$/;
 	static var path = ~/^[A-Za-z_][A-Za-z0-9_.]*$/;
 
+	public static function allowPackage( v : String ) {
+		untyped load("allow_package", 1)(v.__s);
+	}
+	
 	public static function define( flag : String, ?value : String ) untyped {
 		var v = flag + (value == null ? "" : "= " + value);
 		load("define", 1)(v.__s);

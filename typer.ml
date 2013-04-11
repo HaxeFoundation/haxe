@@ -3466,6 +3466,7 @@ let make_macro_api ctx p =
 			restore();
 			str
 		);
+		Interp.allow_package = (fun v -> Common.allow_package ctx.com v);
 		Interp.type_patch = (fun t f s v ->
 			typing_timer ctx (fun() ->
 				let v = (match v with None -> None | Some s ->

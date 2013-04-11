@@ -104,6 +104,7 @@ type extern_api = {
 	parse_string : string -> Ast.pos -> bool -> Ast.expr;
 	typeof : Ast.expr -> Type.t;
 	get_display : string -> string;
+	allow_package : string -> unit;
 	type_patch : string -> string -> bool -> string option -> unit;
 	meta_patch : string -> string -> string option -> bool -> unit;
 	set_js_generator : (value -> unit) -> unit;
@@ -2276,6 +2277,12 @@ let macro_lib =
 			| _ ->
 				error()
 		);
+		"allow_package", Fun1 (fun v ->
+			match v with
+			| VString s ->
+				(get_ctx()).curapi.allow_package s;
+				VNull
+			| _ -> error());
 		"type_patch", Fun4 (fun t f s v ->
 			let p = (get_ctx()).curapi.type_patch in
 			(match t, f, s, v with
@@ -3323,11 +3330,11 @@ let create com api =
 	List.iter (fun e -> ignore((eval ctx e)())) (Genneko.header());
 	ctx
 
-	
+
 
 let do_reuse ctx =
 	ctx.is_reused <- false
-	
+
 let can_reuse ctx types =
 	let has_old_version t =
 		let inf = Type.t_infos t in
