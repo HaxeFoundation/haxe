@@ -95,7 +95,7 @@ let compile_libs() =
 
 	(* SWFLIB *)
 	Sys.chdir "swflib";
-	let files = "-I .. -I ../extc as3.mli as3hl.mli as3code.ml as3parse.ml as3hlparse.ml swf.ml actionScript.ml swfParser.ml png.mli png.ml ttf.ml" in
+	let files = "-I .. -I ../extc as3.mli as3hl.mli as3code.ml as3parse.ml as3hlparse.ml swf.ml actionScript.ml swfParser.ml png.mli png.ml" in
 	if bytecode then command ("ocamlc -a -o swflib.cma " ^ files);
 	if native then command ("ocamlopt -a -o swflib.cmxa " ^ files);
 	Sys.chdir "..";
@@ -119,6 +119,13 @@ let compile_libs() =
 	let files = "-I .. jData.mli jReader.ml" in
 	if bytecode then command ("ocamlc -a -o java.cma " ^ files);
 	if native then command ("ocamlopt -a -o java.cmxa " ^ files);
+	Sys.chdir "..";
+
+	(* TTFLIB *)
+	Sys.chdir "ttflib";
+	let files = "-I ../extlib -I ../swflib tTFData.ml tTFParser.ml tTFTools.ml tTFSwfWriter.ml tTFCanvasWriter.ml tTFJsonWriter.ml main.ml" in
+	if bytecode then command ("ocamlc -a -o ttf.cma " ^ files);
+	if native then command ("ocamlopt -a -o ttf.cmxa " ^ files);
 	Sys.chdir "..";
 
 	(* XML-LIGHT *)
