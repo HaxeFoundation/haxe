@@ -123,7 +123,7 @@ let compile_libs() =
 
 	(* TTFLIB *)
 	Sys.chdir "ttflib";
-	let files = "-I ../extlib -I ../swflib tTFData.ml tTFParser.ml tTFTools.ml tTFSwfWriter.ml tTFCanvasWriter.ml tTFJsonWriter.ml main.ml" in
+	let files = "-I .. -I ../extlib -I ../swflib tTFData.ml tTFParser.ml tTFTools.ml tTFSwfWriter.ml tTFCanvasWriter.ml tTFJsonWriter.ml main.ml" in
 	if bytecode then command ("ocamlc -a -o ttf.cma " ^ files);
 	if native then command ("ocamlopt -a -o ttf.cmxa " ^ files);
 	Sys.chdir "..";
@@ -157,7 +157,8 @@ let compile() =
 		"libs/javalib/java";
 		"unix";
 		"libs/ziplib/zip";
-		"str"
+		"str";
+		"libs/ttflib/ttf"
 	] in
 	let paths = [
 		"libs";
@@ -166,12 +167,13 @@ let compile() =
 		"libs/extc";
 		"libs/neko";
 		"libs/ziplib";
-		"libs/javalib"
+		"libs/javalib";
+		"libs/ttflib"
 	] in
 	let mlist = [
 		"ast";"lexer";"type";"common";"parser";"typecore";
 		"genxml";"optimizer";"typeload";"codegen";
-    "gencommon"; "genneko";"genas3";"genjs";"genswf8";"genswf9";"genswf";"genphp";"gencpp"; "gencs";"genjava";
+    	"gencommon"; "genneko";"genas3";"genjs";"genswf8";"genswf9";"genswf";"genphp";"gencpp"; "gencs";"genjava";
 		"interp";"typer";"matcher";"dce";"main";
 	] in
 	let path_str = String.concat " " (List.map (fun s -> "-I " ^ s) paths) in
