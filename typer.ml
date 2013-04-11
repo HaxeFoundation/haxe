@@ -696,6 +696,28 @@ let error_require r p =
 	in
 	error ("Accessing this field requires " ^ r) p
 
+let get_this ctx p =
+	match ctx.curfun with
+	| FunStatic ->
+		error "Cannot access this from a static function" p
+	| FunMemberLocal ->
+		let v = (match ctx.vthis with
+			| None ->
+				(* we might be in a closure of an abstract member, so check for local "this" first *)
+				let v = try PMap.find "this" ctx.locals with Not_found -> gen_local ctx ctx.tthis in
+				ctx.vthis <- Some v;
+				v
+			| Some v ->
+				ctx.locals <- PMap.add v.v_name v ctx.locals;
+				v
+		) in
+		mk (TLocal v) ctx.tthis p
+	| FunMemberAbstract ->
+		let v = (try PMap.find "this" ctx.locals with Not_found -> assert false) in
+		mk (TLocal v) v.v_type p
+	| FunConstructor | FunMember ->
+		mk (TConst TThis) ctx.tthis p
+
 let field_access ctx mode f fmode t e p =
 	let fnormal() = AKField ((mk (TField (e,fmode)) t p),f,fmode) in
 	let normal() =
@@ -763,7 +785,19 @@ let field_access ctx mode f fmode t e p =
 					display_error ctx "Add @:isVar here to enable it" f.cf_pos;
 				end;
 				AKExpr (mk (TField (e,if prefix = "" then fmode else FDynamic (prefix ^ f.cf_name))) t p)
-			else if mode = MSet then
+			else if (match e.eexpr with TTypeExpr (TClassDecl ({cl_kind = KAbstractImpl _} as c)) when c == ctx.curclass -> true | _ -> false) then begin
+				let this = get_this ctx p in
+				if mode = MSet then begin
+					let c,a = match ctx.curclass with {cl_kind = KAbstractImpl a} as c -> c,a | _ -> assert false in
+					let f = PMap.find m c.cl_statics in
+					(* we don't have access to the type parameters here, right? *)
+					(* let t = apply_params a.a_types pl (field_type ctx c [] f p) in *)
+					let t = (field_type ctx c [] f p) in
+					let ef = mk (TField (e,FStatic (c,f))) t p in
+					AKUsing (ef,c,f,this)
+				end else
+					AKExpr (make_call ctx (mk (TField (e,FDynamic m)) (tfun [this.etype] t) p) [this] t p)
+			end else if mode = MSet then
 				AKSet (e,m,t,f.cf_name)
 			else
 				AKExpr (make_call ctx (mk (TField (e,FDynamic m)) (tfun [] t) p) [] t p)
@@ -817,28 +851,6 @@ let using_field ctx mode e i p =
 	in
 	try loop ctx.m.module_using
 	with Not_found -> loop ctx.g.global_using
-
-let get_this ctx p =
-	match ctx.curfun with
-	| FunStatic ->
-		error "Cannot access this from a static function" p
-	| FunMemberLocal ->
-		let v = (match ctx.vthis with
-			| None ->
-				(* we might be in a closure of an abstract member, so check for local "this" first *)
-				let v = try PMap.find "this" ctx.locals with Not_found -> gen_local ctx ctx.tthis in
-				ctx.vthis <- Some v;
-				v
-			| Some v ->
-				ctx.locals <- PMap.add v.v_name v ctx.locals;
-				v
-		) in
-		mk (TLocal v) ctx.tthis p
-	| FunMemberAbstract ->
-		let v = (try PMap.find "this" ctx.locals with Not_found -> assert false) in
-		mk (TLocal v) v.v_type p
-	| FunConstructor | FunMember ->
-		mk (TConst TThis) ctx.tthis p
 
 let rec type_ident_raise ?(imported_enums=true) ctx i p mode =
 	match i with
