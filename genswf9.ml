@@ -334,7 +334,7 @@ let property ctx p t =
 		| Statics { cl_path = [], "Math" } ->
 			(match p with
 			| "POSITIVE_INFINITY" | "NEGATIVE_INFINITY" | "NaN" -> ident p, Some KFloat, false
-			| "floor" | "ceil" | "round" -> ident p, Some KInt, false
+			| "floor" | "ceil" | "round" when ctx.for_call -> ident p, Some KInt, false
 			| "ffloor" | "fceil" | "fround" -> ident (String.sub p 1 (String.length p - 1)), None, false
 			| _ -> ident p, None, false)
 		| _ -> ident p, None, false)
@@ -1509,9 +1509,9 @@ and gen_call ctx retval e el r =
 		let old = ctx.for_call in
 		ctx.for_call <- true;
 		gen_expr ctx true e1;
+		let id , _, _ = property ctx (field_name f) e1.etype in
 		ctx.for_call <- old;
 		List.iter (gen_expr ctx true) el;
-		let id , _, _ = property ctx (field_name f) e1.etype in
 		if retval then begin
 			write ctx (HCallProperty (id,List.length el));
 			coerce ctx (classify ctx r);
