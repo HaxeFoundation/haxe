@@ -6,7 +6,7 @@ CFLAGS= -I ../extlib -I ../extc -g
 LIBS=
 LFLAGS= -o swflib.cmxa -a
 
-MODULES=as3code.cmx png.cmx swf.cmx actionScript.cmx as3parse.cmx swfPic.cmx as3hlparse.cmx swfParser.cmx ttf.cmx
+MODULES=as3code.cmx png.cmx swf.cmx actionScript.cmx as3parse.cmx swfPic.cmx as3hlparse.cmx swfParser.cmx
 
 all: swflib.cmxa
 
@@ -30,8 +30,6 @@ swf.cmx: as3.cmi
 swfParser.cmx: swf.cmx as3parse.cmx actionScript.cmx
 
 swfPic.cmx: swf.cmx png.cmi
-
-ttf.cmx: swf.cmx swfParser.cmx
 
 clean:
 	rm -f swflib.cmxa swflib.lib swflib.a as3.cmi as3hl.cmi
