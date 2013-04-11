@@ -1496,7 +1496,10 @@ let init_class ctx c p context_init herits fields =
 					else (try match Meta.get Meta.Op cf.cf_meta with
 						| _,[EBinop(op,_,_),_],_ ->
 							let targ = if Meta.has Meta.Impl f.cff_meta then tthis else ta in
-							(try type_eq EqStrict t (tfun [targ;m] (mk_mono())) with Unify_error l -> raise (Error ((Unify l),f.cff_pos)));
+							let left_eq = type_iseq t (tfun [targ;m] (mk_mono())) in
+							let right_eq = type_iseq t (tfun [mk_mono();targ] (mk_mono())) in
+							if not (left_eq || right_eq) then error ("The left or right argument type must be " ^ (s_type (print_context()) targ)) f.cff_pos;
+							if right_eq && Meta.has Meta.Commutative f.cff_meta then error ("@:commutative is only allowed if the right argument is not " ^ (s_type (print_context()) targ)) f.cff_pos;
 							a.a_ops <- (op,cf) :: a.a_ops;
 							if fd.f_expr = None then do_bind := false;
 						| _,[EUnop(op,flag,_),_],_ ->
