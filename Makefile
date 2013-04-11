@@ -16,13 +16,13 @@ OUTPUT=haxe
 EXTENSION=
 OCAMLOPT=ocamlopt
 
-CFLAGS= -g -I libs/extlib -I libs/extc -I libs/neko -I libs/javalib -I libs/ziplib -I libs/swflib -I libs/xml-light
+CFLAGS= -g -I libs/extlib -I libs/extc -I libs/neko -I libs/javalib -I libs/ziplib -I libs/swflib -I libs/xml-light -I libs/ttflib
 
 CC_CMD = $(OCAMLOPT) $(CFLAGS) -c $<
 CC_PARSER_CMD = $(OCAMLOPT) -pp camlp4o $(CFLAGS) -c parser.ml
 
 LIBS=unix.cmxa str.cmxa libs/extlib/extLib.cmxa libs/xml-light/xml-light.cmxa libs/swflib/swflib.cmxa \
-	libs/extc/extc.cmxa libs/neko/neko.cmxa libs/javalib/java.cmxa libs/ziplib/zip.cmxa
+	libs/extc/extc.cmxa libs/neko/neko.cmxa libs/javalib/java.cmxa libs/ziplib/zip.cmxa libs/ttflib/ttf.cmxa
 
 NATIVE_LIBS=-cclib libs/extc/extc_stubs.o -cclib -lz
 
@@ -46,6 +46,7 @@ libs:
 	make -C libs/ziplib
 	make -C libs/swflib
 	make -C libs/xml-light xml-light.cmxa
+	make -C libs/ttflib
 
 haxe: $(MODULES:=.cmx)
 	$(OCAMLOPT) -o $(OUTPUT) $(NATIVE_LIBS) $(LIBS) $(MODULES:=.cmx)
@@ -80,7 +81,7 @@ install_tools: tools
 
 uninstall:
 	rm -rf $(INSTALL_DIR)/bin/haxe $(INSTALL_DIR)/bin/haxelib $(INSTALL_DIR)/lib/haxe
-	
+
 export:
 	cp haxe*.exe doc/CHANGES.txt $(EXPORT)
 	rsync -a --exclude .svn --exclude *.n --exclude std/libs --delete std $(EXPORT)
@@ -149,6 +150,7 @@ clean_libs:
 	make -C libs/javalib clean
 	make -C libs/swflib clean
 	make -C libs/xml-light clean
+	make -C libs/ttflib clean
 
 clean_haxe:
 	rm -f $(MODULES:=.obj) $(MODULES:=.o) $(MODULES:=.cmx) $(MODULES:=.cmi) lexer.ml

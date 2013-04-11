@@ -834,16 +834,16 @@ let build_swf9 com file swc =
 				| (Meta.Font,(EConst (String file),p) :: args,_) :: l ->
 					let file = try Common.find_file com file with Not_found -> file in
 					let ch = try open_in_bin file with _ -> error "File not found" p in
-					let ttf = Ttf.parse ch in
+					let ttf = TTFParser.parse ch in
 					close_in ch;
 					let range_str = match args with
 						| [EConst (String str),_] -> str
 						| _ -> ""
 					in
-					let ttf_swf = Ttf.write_swf ttf range_str in
+					let ttf_swf = TTFSwfWriter.to_swf ttf range_str in
 					let ch = IO.output_string () in
 					let b = IO.output_bits ch in
-					Ttf.write_font2 ch b ttf_swf;
+					TTFSwfWriter.write_font2 ch b ttf_swf;
 					let data = IO.close_out ch in
 					incr cid;
 					classes := { f9_cid = Some !cid; f9_classname = s_type_path c.cl_path } :: !classes;
