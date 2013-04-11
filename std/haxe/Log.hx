@@ -45,8 +45,10 @@ class Log {
 	public static dynamic function trace( v : Dynamic, ?infos : PosInfos ) : Void {
 		#if flash
 			#if (fdb || native_trace)
-		var pstr = infos == null ? "(null)" : infos.fileName+":"+infos.lineNumber;
-		untyped #if flash9 __global__["trace"] #else __trace__ #end(pstr+": "+flash.Boot.__string_rec(v,""));
+		var pstr = infos == null ? "(null)" : infos.fileName + ":" + infos.lineNumber;
+		var str = flash.Boot.__string_rec(v, "");
+		if( infos != null && infos.customParams != null ) for( v in infos.customParams ) str += "," + flash.Boot.__string_rec(v, "");
+		untyped #if flash9 __global__["trace"] #else __trace__ #end(pstr+": "+str);
 			#else
 		untyped flash.Boot.__trace(v,infos);
 			#end
