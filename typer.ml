@@ -127,7 +127,35 @@ let get_iterable_param t =
 		| _ ->
 			raise Not_found)
 	| _ -> raise Not_found
-	
+
+(*
+	temporally remove the constant flag from structures to allow larger unification
+*)
+let remove_constant_flag t callb =
+	let tmp = ref [] in
+	let rec loop t =
+		match follow t with
+		| TAnon a ->
+			if !(a.a_status) = Const then begin
+				a.a_status := Closed;
+				tmp := a :: !tmp;
+			end;
+			PMap.iter (fun _ f -> loop f.cf_type) a.a_fields;
+		|  _ ->
+			()
+	in
+	let restore() =
+		List.iter (fun a -> a.a_status := Const) (!tmp)
+	in
+	try
+		loop t;
+		let ret = callb (!tmp <> []) in
+		restore();
+		ret
+	with e ->
+		restore();
+		raise e
+			
 let rec is_pos_infos = function
 	| TMono r ->
 		(match !r with
@@ -840,13 +868,14 @@ let field_access ctx mode f fmode t e p =
 			| None -> error_require r p
 			| Some msg -> error msg p
 
-let using_field ctx mode e i p =
+let rec using_field ctx mode e i p =
 	if mode = MSet then raise Not_found;
 	(* do not try to find using fields if the type is a monomorph, which could lead to side-effects *)
 	let is_dynamic = match follow e.etype with
 		| TMono _ -> raise Not_found
 		| t -> t == t_dynamic
 	in
+	let check_constant_struct = ref false in
 	let rec loop = function
 	| [] ->
 		raise Not_found
@@ -872,11 +901,16 @@ let using_field ctx mode e i p =
 				| _ ->
 					raise Not_found
 			end
-		with Not_found | Unify_error _ ->
+		with Not_found ->
+			loop l
+		| Unify_error el ->
+			if List.exists (function Has_extra_field _ -> true | _ -> false) el then check_constant_struct := true;
 			loop l
 	in
-	try loop ctx.m.module_using
-	with Not_found -> loop ctx.g.global_using
+	try loop ctx.m.module_using with Not_found ->
+	try loop ctx.g.global_using with Not_found ->
+	if not !check_constant_struct then raise Not_found;
+	remove_constant_flag e.etype (fun ok -> if ok then using_field ctx mode e i p else raise Not_found)
 
 let rec type_ident_raise ?(imported_enums=true) ctx i p mode =
 	match i with
