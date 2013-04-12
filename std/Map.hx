@@ -20,10 +20,11 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
- import haxe.ds.StringMap;
- import haxe.ds.IntMap;
- import haxe.ds.HashMap;
- import haxe.ds.ObjectMap;
+import haxe.ds.StringMap;
+import haxe.ds.IntMap;
+import haxe.ds.HashMap;
+import haxe.ds.ObjectMap;
+import haxe.ds.WeakMap;
 
  /**
 	Map allows key to value mapping for arbitrary value types, and many key
@@ -154,6 +155,11 @@ abstract Map< K, V > (IMap< K, V > ) {
 	@:from static inline function fromObjectMap < K: { }, V > (map:ObjectMap< K, V > ):Map< K, V > {
 		return map;
 	}
+	
+	@:from static inline function fromWeakMap<K:{},V>(map:WeakMap<K,V>):Map<K,V> {
+		return map;
+	}
+	
 }
 
 interface IMap < K, V > {
