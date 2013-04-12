@@ -31,7 +31,7 @@ import java.NativeArray;
  * (https://jonasmalaco.com/fossil/test/jonas-haxe/artifact/887b53126e237d6c68951111d594033403889304)
  */
 
-@:coreApi class IntMap<T>
+@:coreApi class IntMap<T> implements Map.IMap<Int,T>
 {
 	private static inline var HASH_UPPER = 0.7;
 

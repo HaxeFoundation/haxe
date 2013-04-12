@@ -21,7 +21,7 @@
  */
 package haxe.ds;
 
-@:coreApi class StringMap<T>  {
+@:coreApi class StringMap<T> implements Map.IMap<String,T> {
 	private var __Internal : Dynamic;
 
 	public function new() : Void {

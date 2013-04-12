@@ -22,11 +22,11 @@
 package haxe.ds;
 
 @:coreApi
-class ObjectMap<K,V> {
+class ObjectMap<K,V> implements Map.IMap<K,V> {
    // TODO: Might need to add separate hash to keep track of references to keys
 	private var __Internal : IntMap<V>;
 
-	public function new(?weakKeys:Bool = false) : Void {
+	public function new() : Void {
 		__Internal = new IntMap<V>();
 	}
 

@@ -27,7 +27,7 @@ package haxe.ds;
 	Other kind of keys are not possible on all platforms since they
 	can't always be implemented efficiently.
 **/
-extern class StringMap<T> {
+extern class StringMap<T> implements Map.IMap<String,T> {
 
 	/**
 		Creates a new empty hashtable.

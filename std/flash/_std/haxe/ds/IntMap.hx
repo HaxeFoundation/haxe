@@ -21,7 +21,7 @@
  */
 package haxe.ds;
 
-@:coreApi class IntMap<T> {
+@:coreApi class IntMap<T> implements Map.IMap<Int,T> {
 
 	private var h : flash.utils.Dictionary;
 

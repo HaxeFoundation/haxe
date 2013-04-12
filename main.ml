@@ -53,7 +53,7 @@ let global_cache = ref None
 
 let executable_path() =
 	Extc.executable_path()
-	
+
 let is_debug_run() =
 	try Sys.getenv "HAXEDEBUG" = "1" with _ -> false
 
@@ -822,6 +822,7 @@ try
 		if com.platform <> Cross then failwith "Multiple targets";
 		Common.init_platform com pf;
 		com.file <- file;
+		message ctx ("Compiling to " ^ (platform_name pf)) Ast.null_pos;
 		if (pf = Flash8 || pf = Flash) && file_extension file = "swc" then Common.define com Define.Swc;
 	in
 	let define f = Arg.Unit (fun () -> Common.define com f) in

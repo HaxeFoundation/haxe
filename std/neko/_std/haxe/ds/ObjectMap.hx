@@ -22,7 +22,7 @@
 package haxe.ds;
 
 @:coreApi
-class ObjectMap<K:{},V> {
+class ObjectMap<K:{},V> implements Map.IMap<K,V> {
 
 	static var count = 0;
 	
@@ -39,7 +39,7 @@ class ObjectMap<K:{},V> {
 	var h : { };
 	var k : { };
 	
-	public function new(weakKeys:Bool = false) : Void {
+	public function new() : Void {
 		h = untyped __dollar__hnew(0);
 		k = untyped __dollar__hnew(0);
 	}

@@ -23,7 +23,7 @@ package haxe.ds;
 
 import cs.NativeArray;
 
-@:coreApi class ObjectMap<K, V>
+@:coreApi class ObjectMap<K, V> implements Map.IMap<K,V>
 {
 	@:extern private static inline var HASH_UPPER = 0.77;
 	@:extern private static inline var FLAG_EMPTY = 0;
@@ -56,7 +56,7 @@ import cs.NativeArray;
 	private var maxProbe:Int;
 #end
 
-	public function new(?weakKeys:Bool) : Void
+	public function new() : Void
 	{
 		cachedIndex = -1;
 	}

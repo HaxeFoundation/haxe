@@ -1,8 +1,12 @@
 package haxe.ds;
 
 @:coreApi
-class ObjectMap<K,V> extends flash.utils.Dictionary {
+class ObjectMap<K,V> extends flash.utils.Dictionary implements Map.IMap<K,V> {
 
+	public function new() {
+		super(false);
+	}
+	
 	public inline function get( key : K ) : Null<V> {
 		return untyped this[key];
 	}

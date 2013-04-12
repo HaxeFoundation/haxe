@@ -22,8 +22,8 @@
 
 package haxe.ds;
 
-extern class ObjectMap < K: { }, V > {
-	public function new(?weakKeys:Bool = false):Void;
+extern class ObjectMap < K: { }, V > implements Map.IMap<K,V> {
+	public function new():Void;
 	public function set(key:K, value:V):Void;
 	public function get(key:K):Null<V>;
 	public function exists(key:K):Bool;

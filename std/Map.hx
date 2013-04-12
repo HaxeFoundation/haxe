@@ -131,9 +131,9 @@ abstract Map< K, V > (IMap< K, V > ) {
 		return new IntMap<V>();
 	}
 
-	@:to static inline function toHashMap<K:Hashable>(t:IMap < K, V >):HashMap<K,V> {
-		return new HashMap<K, V>();
-	}
+	//@:to static inline function toHashMap<K:Hashable>(t:IMap < K, V >):HashMap<K,V> {
+		//return new HashMap<K, V>();
+	//}
 	
 	@:to static inline function toObjectMap<K:{ }>(t:IMap < K, V >):ObjectMap<K,V> {
 		return new ObjectMap<K, V>();
@@ -147,16 +147,16 @@ abstract Map< K, V > (IMap< K, V > ) {
 		return map;
 	}
 	
-	@:from static inline function fromHashMap < K:Hashable, V > (map:HashMap< K, V > ):Map< K, V > {
-		return map;
-	}
+	//@:from static inline function fromHashMap < K:Hashable, V > (map:HashMap< K, V > ):Map< K, V > {
+		//return map;
+	//}
 	
 	@:from static inline function fromObjectMap < K: { }, V > (map:ObjectMap< K, V > ):Map< K, V > {
 		return map;
 	}
 }
 
-typedef IMap < K, V > = {
+interface IMap < K, V > {
 	public function get(k:K):Null<V>;
 	public function set(k:K, v:V):Void;
 	public function exists(k:K):Bool;

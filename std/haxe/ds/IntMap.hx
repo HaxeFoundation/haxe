@@ -25,7 +25,7 @@ package haxe.ds;
 	Hashtable over a set of elements, using [Int] as keys.
 	On Flash and Javascript, the underlying structure is an Object.
 **/
-extern class IntMap<T> {
+extern class IntMap<T> implements Map.IMap<Int,T> {
 
 	/**
 		Creates a new empty hashtable.
