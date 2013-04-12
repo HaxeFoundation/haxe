@@ -102,6 +102,32 @@ let object_field f =
 	let pflen = String.length pf in
 	if String.length f >= pflen && String.sub f 0 pflen = pf then String.sub f pflen (String.length f - pflen), false else f, true
 
+let get_iterator_param t =
+	match follow t with
+	| TAnon a ->
+		if !(a.a_status) <> Closed then raise Not_found;
+		(match follow (PMap.find "hasNext" a.a_fields).cf_type, follow (PMap.find "next" a.a_fields).cf_type with
+		| TFun ([],tb), TFun([],t) when (match follow tb with TAbstract ({ a_path = [],"Bool" },[]) -> true | _ -> false) ->
+			if PMap.fold (fun _ acc -> acc + 1) a.a_fields 0 <> 2 then raise Not_found;
+			t
+		| _ ->
+			raise Not_found)
+	| _ ->
+		raise Not_found
+	
+let get_iterable_param t =
+	match follow t with
+	| TAnon a ->
+		if !(a.a_status) <> Closed then raise Not_found;
+		(match follow (PMap.find "iterator" a.a_fields).cf_type with
+		| TFun ([],it) ->
+			let t = get_iterator_param it in
+			if PMap.fold (fun _ acc -> acc + 1) a.a_fields 0 <> 1 then raise Not_found;
+			t
+		| _ ->
+			raise Not_found)
+	| _ -> raise Not_found
+	
 let rec is_pos_infos = function
 	| TMono r ->
 		(match !r with
@@ -2454,6 +2480,11 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				(match follow tp with
 				| TMono _ -> None
 				| _ -> Some tp)
+			| TAnon _ ->
+				(try
+					Some (get_iterable_param t)
+				with Not_found ->
+					None)
 			| _ ->
 				if t == t_dynamic then Some t else None)
 		| _ ->
