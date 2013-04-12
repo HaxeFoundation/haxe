@@ -2721,14 +2721,19 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		) f.f_args in
 		(match with_type with
 		| WithType t | WithTypeResume t ->
-			(match follow t with
-			| TFun (args2,_) when List.length args2 = List.length args ->
-				List.iter2 (fun (_,_,t1) (_,_,t2) ->
-					match follow t1 with
-					| TMono _ -> unify ctx t2 t1 p
-					| _ -> ()
-				) args args2;
-			| _ -> ())
+			let rec loop t =
+				(match follow t with
+				| TFun (args2,_) when List.length args2 = List.length args ->
+					List.iter2 (fun (_,_,t1) (_,_,t2) ->
+						match follow t1 with
+						| TMono _ -> unify ctx t2 t1 p
+						| _ -> ()
+					) args args2;
+				| TAbstract({a_this = ta} as a,tl) ->
+					loop (apply_params a.a_types tl ta)
+				| _ -> ())
+			in
+			loop t
 		| _ ->
 			());
 		let ft = TFun (fun_args args,rt) in
