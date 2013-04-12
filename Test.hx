@@ -1,5 +1,5 @@
 class Test {
-	var b:Null<Int>=23;
+	var b:Null<Int>=null;
 	var c:String="No idea";
 	function new() {
 

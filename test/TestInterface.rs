@@ -1,9 +1,12 @@
 mod HxObject;
 mod HxEnum;
 pub struct TestInterface {
-	, , 
+	obj: Option<@HxObject>, 
+	awesomeness: f32, 
+	objs: Option<@vec>
 }
-pub trait TestInterface {fn isAwesome() : i32;
+pub trait TestInterface {
+	fn isAwesome() : i32;
 }
 impl HxObject for Option<@TestInterface> {
 	pub fn __get_field(&self, &field:str) {

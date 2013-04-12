@@ -207,6 +207,7 @@ let default_value tstr =
 	| _ -> "None"
 
 let rec type_str ctx t p =
+	let extern = ctx.curclass.cl_extern in
 	match t with
 	| TAbstract ({ a_impl = Some _ } as a,pl) ->
 		type_str ctx (apply_params a.a_types pl a.a_this) p
@@ -237,25 +238,22 @@ let rec type_str ctx t p =
 		) else
 			s_path ctx true e.e_path p
 	| TInst ({ cl_path = [], "String"}, _) ->
-		"Option<@str>"
-	| TInst ({ cl_path = [],"Array"; cl_extern = true },[pt]) ->
-		"@[" ^ type_str ctx pt p ^ "]"
-	| TInst ({ cl_path = [],"Array"; cl_extern = false },[pt]) ->
-		"Option<@[" ^ type_str ctx pt p ^ "]>"
-	| TInst ({ cl_path = [], "Null"}, [pt]) ->
-		type_str ctx pt p
+		if extern then "@str" else "Option<@str>"
+	| TInst ({ cl_path = ["rust"],"NativeArray"},[pt]) ->
+		if extern then "@[" ^ (type_str ctx pt p) ^ "]" else "Option<@[" ^ (type_str ctx pt p) ^ "]>"
 	| TInst (c,_) ->
-		if c.cl_extern then
+		if extern then
 			"@" ^ (match c.cl_kind with
 			| KNormal | KGeneric | KGenericInstance _ | KAbstractImpl _ -> s_path ctx false c.cl_path p
-			| KTypeParameter _ | KExtension _ | KExpr _ | KMacroType -> (error "No dynamics allowed in externs." p)"")
+			| KTypeParameter _ | KExtension _ | KExpr _ | KMacroType -> (error "No dynamics allowed in externs." p);"")
 		else
 			"Option<@" ^ (match c.cl_kind with
 			| KNormal | KGeneric | KGenericInstance _ | KAbstractImpl _ -> s_path ctx false c.cl_path p
 			| KTypeParameter _ | KExtension _ | KExpr _ | KMacroType -> "HxObject") ^ ">"
 	| TFun (args, haxe_type) ->
 		let nargs = List.map (fun (arg,o,t) -> (type_str ctx t p)) args in
-		"@fn(" ^ (String.concat ", " nargs) ^ ")->" ^ type_str ctx haxe_type p
+		let asfun = "@fn(" ^ (String.concat ", " nargs) ^ ")->" ^ type_str ctx haxe_type p in
+		if extern then asfun else "Option<"^asfun^">"
 	| TMono r ->
 		(match !r with None -> "Option<@HxObject>" | Some t -> type_str ctx t p)
 	| TAnon _ | TDynamic _ ->
@@ -350,6 +348,9 @@ let gen_function_header ctx name f params p =
 	let old = ctx.in_value in
 	let old_t = ctx.local_types in
 	let old_bi = ctx.block_inits in
+	let closure = (match name with
+	| None -> true
+	| _ -> false) in
 	ctx.in_value <- None;
 	ctx.local_types <- List.map snd params @ ctx.local_types;
 	let init () =
@@ -371,25 +372,27 @@ let gen_function_header ctx name f params p =
 		ctx.block_inits <- None;
 	in
 	ctx.block_inits <- Some init;
-	print ctx "fn%s(" (match name with None -> "" | Some (n,meta) ->
-		let rec loop = function
-			| [] -> n
-			| (Ast.Meta.Getter,[Ast.EConst (Ast.Ident i),_],_) :: _ -> "get " ^ i
-			| (Ast.Meta.Setter,[Ast.EConst (Ast.Ident i),_],_) :: _ -> "set " ^ i
-			| _ :: l -> loop l
-		in
-		" " ^ loop meta
-	);
-	(match name with None -> spr ctx "|" | _ -> ());
-	if not ctx.in_static && not ctx.constructor_block then
+	if not closure then
+		print ctx "fn%s(" (match name with None -> "" | Some (n,meta) ->
+			let rec loop = function
+				| [] -> n
+				| (Ast.Meta.Getter,[Ast.EConst (Ast.Ident i),_],_) :: _ -> "get " ^ i
+				| (Ast.Meta.Setter,[Ast.EConst (Ast.Ident i),_],_) :: _ -> "set " ^ i
+				| _ :: l -> loop l
+			in
+			" " ^ loop meta
+		);
+	if closure then
+		spr ctx "|";
+	if not ctx.in_static && not ctx.constructor_block && not closure then
 		print ctx "&self";
-	if (not ctx.in_static) && List.length f.tf_args > 0 && not ctx.constructor_block then
+	if (not ctx.in_static) && List.length f.tf_args > 0 && not ctx.constructor_block && not closure then
 		print ctx ", ";
 	concat ctx ", " (fun (v,c) ->
 		let tstr = type_str ctx v.v_type p in
 		print ctx "%s: %s" (s_ident v.v_name) tstr;
 	) f.tf_args;
-	print ctx "%s -> %s " (match name with None -> "|" | _ -> ")") (type_str ctx (if ctx.constructor_block then TInst(ctx.curclass, []) else f.tf_type) p);
+	print ctx "%s -> %s " (if closure then "|" else ")") (type_str ctx (if ctx.constructor_block then TInst(ctx.curclass, []) else f.tf_type) p);
 	(fun () ->
 		ctx.in_value <- old;
 		ctx.local_types <- old_t;
@@ -534,12 +537,14 @@ and gen_expr ctx e =
 		newline ctx;
 		print ctx "}";
 	| TFunction f ->
+		spr ctx "Some(";
 		let h = gen_function_header ctx None f [] e.epos in
 		let old = ctx.in_static in
 		ctx.in_static <- true;
-		gen_expr ctx f.tf_expr;
+		gen_expr ctx (block f.tf_expr);
 		ctx.in_static <- old;
 		h();
+		spr ctx ")";
 	| TCall (v,el) ->
 		gen_call ctx v el e.etype
 	| TArrayDecl el ->
@@ -948,7 +953,9 @@ let generate_field ctx static f =
 					| AccCall s -> print ctx "fn %s( __v : %s ) : %s" s t t;
 					| _ -> ());
 				| _ -> assert false)
-			| _ -> ()
+			| _ ->
+				print ctx "%s: %s" (s_ident f.cf_name) (type_str ctx f.cf_type p);
+				()
 		else
 		let gen_init () = match f.cf_expr with
 			| None -> ()
@@ -1054,8 +1061,10 @@ let generate_class ctx c =
 	if ((List.length obj_fields) > 0) then (
 		spr ctx "{";
 		let st = open_block ctx in
-		newline ctx;
-		concat ctx ", " (generate_field ctx false) obj_fields;
+		concat ctx ", " (fun f ->
+			soft_newline ctx;
+			generate_field ctx false f;
+		) obj_fields;
 		st();
 		soft_newline ctx;
 		spr ctx "}";
@@ -1085,6 +1094,7 @@ let generate_class ctx c =
 	if c.cl_interface then (
 		print ctx "pub trait %s {" (snd c.cl_path);
 		let tr = open_block ctx in
+		soft_newline ctx;
 		List.iter (generate_field ctx false) obj_methods;
 		List.iter (generate_field ctx true) c.cl_ordered_statics;
 		tr();

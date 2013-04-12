@@ -1,7 +1,8 @@
 mod HxObject;
 mod HxEnum;
 pub struct Test {
-	c: Option<@str>, b: i32
+	c: Option<@str>, 
+	b: i32
 }
 pub impl Test {
 	pub fn main() -> () {
@@ -14,7 +15,7 @@ pub impl Test {
 				io::println(i.toString());
 			}
 		}
-		let mut a: @vec = [5i32,6i32,7i32,8i32];
+		let mut a: Option<@vec> = [5i32,6i32,7i32,8i32];
 		{
 			let mut _g1: i32 = 0i32;
 			while (_g1 < a.length) {
@@ -34,9 +35,9 @@ pub impl Test {
 				break;
 			}
 		}
-		let mut func: @fn(Option<@str>, i32)->Option<@str> = fn(|a1: Option<@str>, b: i32| -> Option<@str> {
+		let mut func: Option<@fn(Option<@str>, i32)->Option<@str>> = Some(|a1: Option<@str>, b: i32| -> Option<@str> {
 			return Some(@"") + a1 + Some(@" ") + b * 100i32;
-		}
+		});
 		io::println(func(Some(@"Hello"),3i32));
 		let $err = do task::try {
 			fail!(Some(@"Random error"));
@@ -48,7 +49,7 @@ pub impl Test {
 		}
 	}
 	pub fn _new() -> Option<@Test> {
-		let mut self = {c: Some(@"No idea"), b: 23i32}
+		let mut self = {c: Some(@"No idea"), b: None}
 		return Some(self);
 	}
 }

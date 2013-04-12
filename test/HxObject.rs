@@ -36,7 +36,7 @@ impl HxObject for @ArrayAccess {
 	pub fn __set_field(&self, field:&str, value:&Option<&HxObject>) {
 		}
 }
-impl HxObject for Option<@str> {
+impl HxObject for @str {
 	pub fn __get_field(&self, &field:str) {
 		return match(field) {
 			"length" => Some(self.length),
