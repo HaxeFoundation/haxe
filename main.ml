@@ -822,7 +822,6 @@ try
 		if com.platform <> Cross then failwith "Multiple targets";
 		Common.init_platform com pf;
 		com.file <- file;
-		message ctx ("Compiling to " ^ (platform_name pf)) Ast.null_pos;
 		if (pf = Flash8 || pf = Flash) && file_extension file = "swc" then Common.define com Define.Swc;
 	in
 	let define f = Arg.Unit (fun () -> Common.define com f) in
