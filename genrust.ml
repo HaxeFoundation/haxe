@@ -248,7 +248,7 @@ let rec type_str ctx t p =
 		if c.cl_extern then
 			"@" ^ (match c.cl_kind with
 			| KNormal | KGeneric | KGenericInstance _ | KAbstractImpl _ -> s_path ctx false c.cl_path p
-			| KTypeParameter _ | KExtension _ | KExpr _ | KMacroType -> error "No dynamics allowed in externs." p;"")
+			| KTypeParameter _ | KExtension _ | KExpr _ | KMacroType -> (error "No dynamics allowed in externs." p)"")
 		else
 			"Option<@" ^ (match c.cl_kind with
 			| KNormal | KGeneric | KGenericInstance _ | KAbstractImpl _ -> s_path ctx false c.cl_path p
@@ -389,7 +389,7 @@ let gen_function_header ctx name f params p =
 		let tstr = type_str ctx v.v_type p in
 		print ctx "%s: %s" (s_ident v.v_name) tstr;
 	) f.tf_args;
-	print ctx "%s -> %s " (match name with None -> "|" | _ -> ")") (type_str ctx f.tf_type p);
+	print ctx "%s -> %s " (match name with None -> "|" | _ -> ")") (type_str ctx (if ctx.constructor_block then TInst(ctx.curclass, []) else f.tf_type) p);
 	(fun () ->
 		ctx.in_value <- old;
 		ctx.local_types <- old_t;
@@ -452,7 +452,7 @@ and gen_field_access ctx t s =
 		| Statics c -> field c true
 		| _ -> print ctx ".%s" (s_ident s))
 	| _ ->
-		print ctx "::%s" (s_ident s)
+		print ctx ".%s" (s_ident s)
 
 and gen_expr ctx e =
 	match e.eexpr with
@@ -460,23 +460,11 @@ and gen_expr ctx e =
 		gen_constant ctx e.epos c
 	| TLocal v ->
 		spr ctx (s_ident v.v_name)
-	| TArray ({ eexpr = TLocal { v_name = "__global__" } },{ eexpr = TConst (TString s) }) ->
-		let path = Ast.parse_path s in
-		spr ctx (s_path ctx false path e.epos)
 	| TArray (e1,e2) ->
 		gen_value ctx e1;
 		spr ctx "[";
 		gen_value ctx e2;
 		spr ctx "]";
-	| TBinop (Ast.OpEq,e1,e2) when (match is_special_compare e1 e2 with Some c -> true | None -> false) ->
-		let c = match is_special_compare e1 e2 with Some c -> c | None -> assert false in
-		gen_expr ctx (mk (TCall (mk (TField (mk (TTypeExpr (TClassDecl c)) t_dynamic e.epos,FDynamic "compare")) t_dynamic e.epos,[e1;e2])) ctx.inf.com.basic.tbool e.epos);
-	(* what is this used for? *)
-(* 	| TBinop (op,{ eexpr = TField (e1,s) },e2) ->
-		gen_value_op ctx e1;
-		gen_field_access ctx e1.etype s;
-		print ctx " %s " (Ast.s_binop op);
-		gen_value_op ctx e2; *)
 	| TBinop (op,e1,e2) ->
 		gen_value_op ctx e1;
 		print ctx " %s " (Ast.s_binop op);
@@ -522,21 +510,28 @@ and gen_expr ctx e =
 	| TBlock el ->
 		print ctx "{";
 		let bend = open_block ctx in
-		let cb = (if not ctx.constructor_block then
-			(fun () -> ())
-		else begin
-			ctx.constructor_block <- false;
-			(fun () -> ())
-		end) in
 		(match ctx.block_inits with None -> () | Some i -> i());
-		if ctx.constructor_block then
+		if ctx.constructor_block then (
 			newline ctx;
-		if ctx.constructor_block then
-			print ctx "let mut self = None";
+			print ctx "let mut self = {";
+			let c = ctx.curclass in
+			let obj_fields = List.filter is_var c.cl_ordered_fields in
+			concat ctx ", " (fun f ->
+				spr ctx f.cf_name;
+				spr ctx ": ";
+				match(f.cf_expr) with
+				| None -> spr ctx (default_value (type_str ctx f.cf_type e.epos));
+				| Some v -> gen_expr ctx v;
+			) obj_fields;
+			spr ctx "}";
+		);
 		List.iter (fun e -> newline ctx; gen_expr ctx e) el;
+		if ctx.constructor_block then (
+			newline ctx;
+			spr ctx "return Some(self)";
+		);
 		bend();
 		newline ctx;
-		cb();
 		print ctx "}";
 	| TFunction f ->
 		let h = gen_function_header ctx None f [] e.epos in
@@ -568,6 +563,8 @@ and gen_expr ctx e =
 				gen_value ctx e
 		) vl;
 	| TNew ({cl_path = ([], "Array")},[t],el) ->
+		spr ctx "[]";
+	| TNew ({cl_path = (["rust"], "NativeArray")},[t],el) ->
 		spr ctx "[]";
 	| TNew (c,params,el) ->
 		print ctx "%s.new(" (s_path ctx true c.cl_path e.epos);
@@ -611,13 +608,25 @@ and gen_expr ctx e =
 	| TUnop (op,Ast.Postfix,e) ->
 		(match(op) with
 		| Increment ->
-			spr ctx "((";
+			spr ctx "{";
 			gen_value ctx e;
-			spr ctx " += 1)-1)";
+			spr ctx " += 1";
+			newline ctx;
+			gen_value ctx e;
+			spr ctx " - 1";
+			soft_newline ctx;
+			spr ctx "}";
+			newline ctx;
 		| Decrement ->
-			spr ctx "((";
+			spr ctx "{";
 			gen_value ctx e;
-			spr ctx " -= 1)+1)";
+			spr ctx " -= 1";
+			newline ctx;
+			gen_value ctx e;
+			spr ctx " + 1";
+			soft_newline ctx;
+			spr ctx "}";
+			newline ctx;
 		| _ ->
 			gen_value ctx e;
 			spr ctx (Ast.s_unop op);
@@ -655,20 +664,29 @@ and gen_expr ctx e =
 		newline ctx;
 		print ctx "let %s:%s = %s.next()" (s_ident v.v_name) (type_str ctx v.v_type e.epos) tmp;
 		newline ctx;
-		gen_expr ctx e;
+		gen_expr ctx (block e);
 		newline ctx;
 		spr ctx "}";
 		handle_break();
 	| TTry (e,catchs) ->
 		let tmp = gen_local ctx "$err" in
-		print ctx "let mut %s = do task::try " tmp;
-		gen_expr ctx e;
-		print ctx ";";
+		print ctx "let %s = do task::try " tmp;
+		gen_expr ctx (block e);
 		newline ctx;
+		let mto = ref false in
 		List.iter (fun (v,e) ->
 			newline ctx;
-			print ctx "catch( %s : %s )" (s_ident v.v_name) (type_str ctx v.v_type e.epos);
+			if !mto then
+				spr ctx "else";
+			print ctx "if Std::is(%s, %s) {" tmp (type_str ctx v.v_type e.epos);
+			let errb = open_block ctx in
+			newline ctx;
+			print ctx "let mut %s = %s" (s_ident v.v_name) tmp;
 			gen_expr ctx e;
+			errb();
+			newline ctx;
+			spr ctx "}";
+			mto := true;
 		) catchs;
 	| TMatch (e,_,cases,def) ->
 		print ctx "{";
@@ -881,13 +899,12 @@ let generate_field ctx static f =
 		match m,pl with
 		| _ -> ()
 	) f.cf_meta;
-	newline ctx;
 	let public = f.cf_public || Hashtbl.mem ctx.get_sets (f.cf_name,static) || (f.cf_name = "main" && static) || f.cf_name = "resolve" || Ast.Meta.has Ast.Meta.Public f.cf_meta in
 	let rights = (if public then "pub" else "priv") in
 	let p = ctx.curclass.cl_pos in
 	match f.cf_expr, f.cf_kind with
 	| Some { eexpr = TFunction fd }, Method (MethNormal | MethInline) ->
-		newline ctx;
+		soft_newline ctx;
 		print ctx "%s " rights;
 		let rec loop c =
 			match c.cl_super with
@@ -907,8 +924,8 @@ let generate_field ctx static f =
 			| TFun (args,r) ->
 				let rec loop = function
 					| [] -> f.cf_name
-					| (Ast.Meta.Getter,[Ast.EConst (Ast.String name),_],_) :: _ -> "get " ^ name
-					| (Ast.Meta.Setter,[Ast.EConst (Ast.String name),_],_) :: _ -> "set " ^ name
+					| (Ast.Meta.Getter,[Ast.EConst (Ast.String name),_],_) :: _ -> "get_" ^ name
+					| (Ast.Meta.Setter,[Ast.EConst (Ast.String name),_],_) :: _ -> "set_" ^ name
 					| _ :: l -> loop l
 				in
 				print ctx "fn %s(" (loop f.cf_meta);
@@ -923,11 +940,11 @@ let generate_field ctx static f =
 				(match f.cf_kind with
 				| Var v ->
 					(match v.v_read with
-					| AccNormal -> print ctx "fn get %s() : %s" id t;
+					| AccNormal -> print ctx "fn get_%s() : %s" id t;
 					| AccCall s -> print ctx "fn %s() : %s" s t;
 					| _ -> ());
 					(match v.v_write with
-					| AccNormal -> print ctx "fn set %s( __v : %s )" id t;
+					| AccNormal -> print ctx "fn set_%s( __v : %s )" id t;
 					| AccCall s -> print ctx "fn %s( __v : %s ) : %s" s t t;
 					| _ -> ());
 				| _ -> assert false)
@@ -1033,20 +1050,18 @@ let generate_class ctx c =
 	spr ctx "mod HxEnum";
 	newline ctx;
 	List.iter (generate_field ctx true) static_fields;
-	if ((List.length obj_fields) > 0) or (((List.length obj_methods) > 0) or (List.length static_methods) > 0) then (
-		print ctx "pub struct %s " (snd c.cl_path);
-		if ((List.length obj_fields) > 0) then (
-			spr ctx "{";
-			let st = open_block ctx in
-			List.iter (generate_field ctx false) obj_fields;
-			st();
-			newline ctx;
-			spr ctx "}";
-			newline ctx;
-		);
+	print ctx "pub struct %s " (snd c.cl_path);
+	if ((List.length obj_fields) > 0) then (
+		spr ctx "{";
+		let st = open_block ctx in
 		newline ctx;
+		concat ctx ", " (generate_field ctx false) obj_fields;
+		st();
+		soft_newline ctx;
+		spr ctx "}";
 	);
-	if (((List.length obj_methods) > 0) or (List.length c.cl_ordered_statics) > 0) then (
+	newline ctx;
+	if (((List.length obj_methods) > 0) || (List.length c.cl_ordered_statics) > 0) && not c.cl_interface then (
 		print ctx "pub impl %s {" (snd c.cl_path);
 		let cl = open_block ctx in
 		List.iter (generate_field ctx false) obj_methods;
@@ -1067,9 +1082,8 @@ let generate_class ctx c =
 		print ctx "}";
 		newline ctx;
 	);
-	if (c.cl_interface) or ((List.length obj_methods) > 0) or ((List.length c.cl_ordered_statics) > 0) then (
-		ctx.in_interface <- true;
-		print ctx "pub trait %si {" (snd c.cl_path);
+	if c.cl_interface then (
+		print ctx "pub trait %s {" (snd c.cl_path);
 		let tr = open_block ctx in
 		List.iter (generate_field ctx false) obj_methods;
 		List.iter (generate_field ctx true) c.cl_ordered_statics;
@@ -1077,7 +1091,6 @@ let generate_class ctx c =
 		newline ctx;
 		spr ctx "}";
 		newline ctx;
-		ctx.in_interface <- c.cl_interface;
 	);
 	generate_obj_impl ctx c;
 	()
@@ -1108,7 +1121,9 @@ let generate_base_enum ctx com =
 	spr ctx "pub trait HxEnum {";
 	let trait = open_block ctx in
 	newline ctx;
-	spr ctx "pub fn __get_index(ind:i32) -> HxEnum";
+	spr ctx "pub fn __index(ind:i32) -> Self";
+	newline ctx;
+	spr ctx "pub fn __index(&self) -> i32";
 	trait();
 	newline ctx;
 	spr ctx "}";

@@ -10,4 +10,3 @@
 	public function head():T;
 	public function is_empty():Bool;
 }
-}
