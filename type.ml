@@ -1074,7 +1074,10 @@ let rec unify a b =
 					if (c.cl_extern || Meta.has Meta.Extern f1.cf_meta) && not (Meta.has Meta.Runtime f1.cf_meta) then error [Has_no_runtime_field (a,n)];
 				| _ -> ());
 			) an.a_fields;
-			if !(an.a_status) = Opened then an.a_status := Closed;
+			(match !(an.a_status) with
+			| Opened -> an.a_status := Closed;
+			| Statics _ | EnumStatics _ | AbstractStatics _ -> error []
+			| Closed | Const -> ())
 		with
 			Unify_error l -> error (cannot_unify a b :: l))
 	| TAnon a1, TAnon a2 ->
@@ -1115,17 +1118,18 @@ let rec unify a b =
 			(match !(a2.a_status) with
 			| Statics c -> (match !(a1.a_status) with Statics c2 when c == c2 -> () | _ -> error [])
 			| EnumStatics e -> (match !(a1.a_status) with EnumStatics e2 when e == e2 -> () | _ -> error [])
+			| AbstractStatics a -> (match !(a1.a_status) with AbstractStatics a2 when a == a2 -> () | _ -> error [])
 			| Opened -> a2.a_status := Closed
-			| _ -> ())
+			| Const | Closed -> ())
 		with
 			Unify_error l -> error (cannot_unify a b :: l))
 	| TAnon an, TAbstract ({ a_path = [],"Class" },[pt]) ->
 		(match !(an.a_status) with
-		| Statics cl -> unify (TInst (cl,List.map snd cl.cl_types)) pt
+		| Statics cl -> unify (TInst (cl,List.map (fun _ -> mk_mono()) cl.cl_types)) pt
 		| _ -> error [cannot_unify a b])
 	| TAnon an, TAbstract ({ a_path = [],"Enum" },[pt]) ->
 		(match !(an.a_status) with
-		| EnumStatics e -> unify (TEnum (e,List.map snd e.e_types)) pt
+		| EnumStatics e -> unify (TEnum (e,List.map (fun _ -> mk_mono()) e.e_types)) pt
 		| _ -> error [cannot_unify a b])
 	| TEnum _, TAbstract ({ a_path = [],"EnumValue" },[]) ->
 		()
