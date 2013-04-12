@@ -26,31 +26,59 @@
 extern class Reflect {
 
 	/**
-		Tells if an object has a field set. This doesn't take into account the object prototype (class methods).
+		Tells if structure [o] has a field named [field].
+		
+		This is only guaranteed to work for anonymous structures. Refer to
+		[Type.getInstanceFields()] for a function supporting class instances.
+		
+		If [o] or [field] are null, the result is unspecified.
 	**/
 	public static function hasField( o : Dynamic, field : String ) : Bool;
 
 	/**
-		Returns the field of an object, or null if [o] is not an object or doesn't have this field.
+		Returns the value of the field named [field] on object [o].
+		
+		If [o] is not an object or has no field named [field], the result is
+		null.
+		
+		If the field is defined as a property, its accessors are ignored. Refer
+		to [Reflect.getProperty()] for a function supporting property accessors.
+		
+		If [field] is null, the result is unspecified.
 	**/
 	public static function field( o : Dynamic, field : String ) : Dynamic;
 
-
 	/**
-		Set an object field value.
+		Sets the field named [field] of object [o] to value [value].
+		
+		If [o] has no field named [field], this function is only guaranteed to
+		work for anonymous structures.
+		
+		If [o] or [field] are null, the result is unspecified.
 	**/
 	public static function setField( o : Dynamic, field : String, value : Dynamic ) : Void;
 
 	/**
-		Similar to field but also supports property (might be slower).
+		Returns the value of the field named [field] on object [o], taking
+		property getter functions into account.
+		
+		If the field is not a property, this function behaves like
+		[Reflect.field], but might be slower.
+		
+		If [o] or [field] are null, the result is unspecified.
 	**/
 	public static function getProperty( o : Dynamic, field : String ) : Dynamic;
 
 	/**
-		Similar to setField but also supports property (might be slower).
+		Sets the field named [field] of object [o] to value [value], taking
+		property setter functions into account.
+		
+		If the field is not a property, this function behaves like
+		[Reflect.setField], but might be slower.
+		
+		If [field] is null, the result is unspecified.		
 	**/
 	public static function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void;
-
 
 	/**
 		Call a method with the given object and arguments.
@@ -58,12 +86,19 @@ extern class Reflect {
 	public static function callMethod( o : Dynamic, func : Dynamic, args : Array<Dynamic> ) : Dynamic;
 
 	/**
-		Returns the list of fields of an object, excluding its prototype (class methods).
+		Returns the fields of structure [o].
+		
+		This method is only guaranteed to work on anonymous structures. Refer to
+		[Type.getInstancefields()] for a function supporting class instances.
+		
+		If [o] is null, the result is unspecified.
 	**/
 	public static function fields( o : Dynamic ) : Array<String>;
 
 	/**
-		Tells if a value is a function or not.
+		Returns true if [f] is a function, false otherwise.
+		
+		If [f] is null, the result is false.
 	**/
 	public static function isFunction( f : Dynamic ) : Bool;
 
@@ -79,17 +114,24 @@ extern class Reflect {
 
 	/**
 		Tells if a value is an object or not.
-
 	**/
 	public static function isObject( v : Dynamic ) : Bool;
 
 	/**
-		Delete an object field.
+		Removes the field named [field] from structure [o].
+		
+		This method is only guaranteed to work on anonymous structures.
+		
+		If [o] or [field] are null, the result is unspecified. 
 	**/
-	public static function deleteField( o : Dynamic, f : String ) : Bool;
+	public static function deleteField( o : Dynamic, field : String ) : Bool;
 
 	/**
-		Make a copy of the fields of an object.
+		Copies the fields of structure [o].
+		
+		This is only guaranteed to work on anonymous structures.
+		
+		If [o] is null, the result is unspecified.
 	**/
 	public static function copy<T>( o : T ) : T;
 

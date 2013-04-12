@@ -93,9 +93,9 @@
 		return untyped __php__("is_string($v) && !_hx_is_lambda($v)");
 	}
 
-	public static function deleteField( o : Dynamic, f : String ) : Bool {
-		if(!hasField(o,f)) return false;
-		untyped __php__("if(isset($o->__dynamics[$f])) unset($o->__dynamics[$f]); else if($o instanceof _hx_anonymous) unset($o->$f); else $o->$f = null");
+	public static function deleteField( o : Dynamic, field : String ) : Bool {
+		if(!hasField(o,field)) return false;
+		untyped __php__("if(isset($o->__dynamics[$field])) unset($o->__dynamics[$field]); else if($o instanceof _hx_anonymous) unset($o->$f); else $o->$f = null");
 		return true;
 	}
 

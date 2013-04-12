@@ -220,7 +220,7 @@ import cs.internal.Function;
 	@:functionCode('
 		return (o is haxe.lang.DynamicObject && ((haxe.lang.DynamicObject) o).__hx_deleteField(f, haxe.lang.FieldLookup.hash(f)));
 	')
-	public static function deleteField( o : Dynamic, f : String ) : Bool
+	public static function deleteField( o : Dynamic, field : String ) : Bool
 	{
 		return false;
 	}

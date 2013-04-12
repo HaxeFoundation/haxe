@@ -222,7 +222,7 @@ import java.Boot;
 	@:functionCode('
 		return (o instanceof haxe.lang.DynamicObject && ((haxe.lang.DynamicObject) o).__hx_deleteField(f));
 	')
-	public static function deleteField( o : Dynamic, f : String ) : Bool
+	public static function deleteField( o : Dynamic, field : String ) : Bool
 	{
 		return false;
 	}

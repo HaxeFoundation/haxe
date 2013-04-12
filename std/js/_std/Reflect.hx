@@ -86,9 +86,9 @@
 		return (t == "string" || (t == "object" && !v.__enum__) || (t == "function" && (js.Boot.isClass(v) || js.Boot.isEnum(v))));
 	}
 
-	public static function deleteField( o : Dynamic, f : String ) : Bool untyped {
-		if( !hasField(o,f) ) return false;
-		__js__("delete")(o[f]);
+	public static function deleteField( o : Dynamic, field : String ) : Bool untyped {
+		if( !hasField(o,field) ) return false;
+		__js__("delete")(o[field]);
 		return true;
 	}
 

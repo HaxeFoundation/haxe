@@ -10,7 +10,6 @@ typedef T = {
 	public function func() { }
 	public var v:String;
 	public var prop(default, null):String;
-
 	static function staticFunc() { }
 	static public var staticVar:String;
 	static var staticProp(default, null):String;
@@ -21,6 +20,27 @@ typedef T = {
 		staticVar = "staticVar";
 		staticProp = "staticProp";
 	}
+}
+
+@:keep class C2 {
+	public function func() { return "foo"; }
+	public var v:String;
+	public var prop(default, null):String;
+	@:isVar public var propAcc(get, set):String;
+
+	public function new() {
+		v = "var";
+		prop = "prop";
+		propAcc = "0";
+	}
+	
+	public function get_propAcc() {
+		return "1";
+	}
+	
+	public function set_propAcc(v) {
+		return this.propAcc = v.toUpperCase();
+	}	
 }
 
 class CChild extends C { }

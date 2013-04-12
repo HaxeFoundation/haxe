@@ -108,9 +108,9 @@
 		return (t == "string");
 	}
 
-	public static function deleteField( o : Dynamic, f : String ) : Bool untyped {
-		if( o.hasOwnProperty(f) != true ) return false;
-		__delete__(o,f);
+	public static function deleteField( o : Dynamic, field : String ) : Bool untyped {
+		if( o.hasOwnProperty(field) != true ) return false;
+		__delete__(o,field);
 		return true;
 	}
 

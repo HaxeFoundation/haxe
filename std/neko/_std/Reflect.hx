@@ -86,8 +86,8 @@
 		return $typeof(v) == $tobject && v.__enum__ == null;
 	}
 
-	public inline static function deleteField( o : Dynamic, f : String ) : Bool untyped {
-		return $objremove(o,$fasthash(f.__s));
+	public inline static function deleteField( o : Dynamic, field : String ) : Bool untyped {
+		return $objremove(o,$fasthash(field.__s));
 	}
 
 	public inline static function copy<T>( o : T ) : T {

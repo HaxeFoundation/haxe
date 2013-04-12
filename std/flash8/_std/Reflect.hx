@@ -93,9 +93,9 @@
 		return (t == "string" || (t == "object" && !v.__enum__) || (t == "function" && v.__name__ != null));
 	}
 
-	public static function deleteField( o : Dynamic, f : String ) : Bool untyped {
-		if( __this__["hasOwnProperty"]["call"](o,f) != true ) return false;
-		__delete__(o,f);
+	public static function deleteField( o : Dynamic, field : String ) : Bool untyped {
+		if( __this__["hasOwnProperty"]["call"](o,field) != true ) return false;
+		__delete__(o,field);
 		return true;
 	}
 
