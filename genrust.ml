@@ -458,7 +458,7 @@ let rec gen_call ctx e el r =
 
 and unwrap ctx e =
 	if (is_wrapped ctx e.etype) then (
-		spr ctx "(Std::unwrap(";
+		spr ctx "(rust::Lib::unwrap(";
 		gen_value ctx e;
 		spr ctx "))";
 	) else
@@ -714,7 +714,7 @@ and gen_expr ctx e =
 			newline ctx;
 			if !mto then
 				spr ctx "else";
-			print ctx "if Std::is(%s, %s) {" tmp (type_str ctx v.v_type e.epos);
+			print ctx "if (rust::Lib::is(%s, %s)) {" tmp (type_str ctx v.v_type e.epos);
 			let errb = open_block ctx in
 			newline ctx;
 			print ctx "let mut %s = %s" (s_ident v.v_name) tmp;
@@ -924,6 +924,13 @@ and gen_value ctx e =
 let final m =
 	if Ast.Meta.has Ast.Meta.Final m then "final " else ""
 
+let generate_params ctx cl_types =
+	 match cl_types with
+		| [] ->
+			()
+		| _ ->
+			print ctx "<%s>" (String.concat ", " (List.map (fun (_, tcl) -> match follow tcl with | TInst(cl, _) -> snd cl.cl_path | _ -> assert false) cl_types))
+
 let generate_field ctx static f =
 	ctx.in_static <- static;
 	ctx.gen_uid <- 0;
@@ -1090,9 +1097,10 @@ let generate_class ctx c =
 	spr ctx "mod HxEnum";
 	newline ctx;
 	List.iter (generate_field ctx true) static_fields;
-	print ctx "pub struct %s " (snd c.cl_path);
+	print ctx "pub struct %s" (snd c.cl_path);
+	generate_params ctx c.cl_types;
 	if ((List.length obj_fields) > 0) then (
-		spr ctx "{";
+		spr ctx " {";
 		let st = open_block ctx in
 		concat ctx ", " (fun f ->
 			soft_newline ctx;
@@ -1104,7 +1112,11 @@ let generate_class ctx c =
 	);
 	newline ctx;
 	if (((List.length obj_methods) > 0) || (List.length c.cl_ordered_statics) > 0) && not c.cl_interface then (
-		print ctx "pub impl %s {" (snd c.cl_path);
+		spr ctx "pub impl";
+		generate_params ctx c.cl_types;
+		print ctx " %s" (snd c.cl_path);
+		generate_params ctx c.cl_types;
+		spr ctx " {";
 		let cl = open_block ctx in
 		List.iter (generate_field ctx false) obj_methods;
 		List.iter (generate_field ctx true) static_methods;

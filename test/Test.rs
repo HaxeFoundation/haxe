@@ -1,18 +1,16 @@
 mod HxObject;
 mod HxEnum;
-pub struct Test {
+pub struct Test<T> {
 	value: Option<@T>
 }
-pub impl Test {
+pub impl<T> Test<T> {
 	pub fn main() -> () {
 		Test.new(78.533567f32);
-		io::println(Some(@"898687"));
-		io::println(Some(@"Hello, world!"));
-		io::println(Std::string(f32::floor(88621698.2703f32)));
+		Some(@"898687");
 	}
 	pub fn new(val: Option<@T>) -> Option<@Test> {
 		let mut self = Option<@Test> {value: None}
-		(Std::unwrap(self)).value = val;
+		(rust::Lib::unwrap(self)).value = val;
 		return @Some(self);
 	}
 }
@@ -23,7 +21,7 @@ impl HxObject for Option<@Test> {
 			_ => None
 		}
 	}
-	pub fn __set_field(&self, field:&str, value:&Option<&HxObject>) {
+	pub fn __set_field(&mut self, field:&str, value:&Option<&HxObject>) {
 		match(field) {
 			"value" => self.value = value,
 			_ => None

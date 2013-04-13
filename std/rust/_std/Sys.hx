@@ -2,15 +2,9 @@ import rust.os.*;
 import rust.io.*;
 import rust.*;
 class Sys {
-	@:functionCode('
-		return os::args();
-	')
 	public static function args():Array<String> {
-		return [];
+		return OS.args();
 	}
-	@:functionCode('
-		io::print(s);
-	')
 	public static inline function print(s:String):Void {
 		IO.print(s);
 	}
@@ -32,9 +26,6 @@ class Sys {
 	public static function command(cmd:String, ?args:Array<String>):Int {
 		return 0;
 	}
-	@:functionCode('
-		return os::getcwd();
-		')
 	public static function getCwd():String {
 		return "";
 	}

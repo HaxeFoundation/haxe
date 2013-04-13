@@ -6,9 +6,7 @@ class Test<T> {
 	}
 	static function main() {
 		new Test(78.533567);
-		Sys.println(Std.string(898687));
-		Sys.println("Hello, world!");
-		Sys.println(Std.string(Math.floor(897*98797.8799)));
+		Std.string(898687);
 	}
 }
 class SubTest<T> extends Test<Int> {
