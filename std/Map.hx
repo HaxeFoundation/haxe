@@ -154,12 +154,7 @@ abstract Map< K, V > (IMap< K, V > ) {
 	
 	@:from static inline function fromObjectMap < K: { }, V > (map:ObjectMap< K, V > ):Map< K, V > {
 		return map;
-	}
-	
-	@:from static inline function fromWeakMap<K:{},V>(map:WeakMap<K,V>):Map<K,V> {
-		return map;
-	}
-	
+	}	
 }
 
 interface IMap < K, V > {
