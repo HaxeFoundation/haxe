@@ -576,6 +576,19 @@ let get_config com =
 			pf_add_final_return = false;
 			pf_overload = true;
 		}
+	| Rust ->
+		{
+			pf_static = true;
+			pf_sys = true;
+			pf_locals_scope = false;
+			pf_captured_scope = true;
+			pf_unique_locals = false;
+			pf_can_init_member = (fun _ -> false);
+			pf_capture_policy = CPWrapRef;
+			pf_pad_nulls = true;
+			pf_add_final_return = false;
+			pf_overload = false;
+		}
 
 let create v args =
 	let m = Type.mk_mono() in

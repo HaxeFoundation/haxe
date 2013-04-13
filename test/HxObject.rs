@@ -8,14 +8,7 @@ impl ToStr for HxObject {
 		return self.toString();
 	}
 }
-impl HxObject for @BaseIter {
-	pub fn __get_field(&self, &field:str) {
-		return None;
-	}
-	pub fn __set_field(&self, field:&str, value:&Option<&HxObject>) {
-		}
-}
-impl HxObject for @vec {
+impl HxObject for @Array {
 	pub fn __get_field(&self, &field:str) {
 		return match(field) {
 			"length" => Some(self.length),
@@ -28,6 +21,13 @@ impl HxObject for @vec {
 			_ => None
 		}
 	}
+}
+impl HxObject for @f32 {
+	pub fn __get_field(&self, &field:str) {
+		return None;
+	}
+	pub fn __set_field(&self, field:&str, value:&Option<&HxObject>) {
+		}
 }
 impl HxObject for @ArrayAccess {
 	pub fn __get_field(&self, &field:str) {
@@ -65,6 +65,13 @@ impl HxObject for @haxe::EnumTools {
 		}
 }
 impl HxObject for @haxe::EnumValueTools {
+	pub fn __get_field(&self, &field:str) {
+		return None;
+	}
+	pub fn __set_field(&self, field:&str, value:&Option<&HxObject>) {
+		}
+}
+impl HxObject for @BaseIter {
 	pub fn __get_field(&self, &field:str) {
 		return None;
 	}

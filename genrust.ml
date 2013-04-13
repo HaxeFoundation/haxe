@@ -73,7 +73,7 @@ let protect name =
 let s_type_path (p, s) =
 	match p with [] -> s | _ -> String.concat "::" p ^ "::" ^ s
 
-let s_path ctx stat path p =
+let s_path ctx stat path p is_param =
 	match path with
 	| ([],name) ->
 		(match name with
@@ -86,10 +86,14 @@ let s_path ctx stat path p =
 		| "EnumValue" -> "enum"
 		| _ -> name)
 	| (pack,name) ->
-		let name = protect name in
-		let packs = (try Hashtbl.find ctx.imports name with Not_found -> []) in
-		if not (List.mem pack packs) then Hashtbl.replace ctx.imports name (pack :: packs);
-		s_type_path (pack,name)
+		if is_param then
+			name
+		else (
+			let name = protect name in
+			let packs = (try Hashtbl.find ctx.imports name with Not_found -> []) in
+			if not (List.mem pack packs) then Hashtbl.replace ctx.imports name (pack :: packs);
+			s_type_path (pack,name)
+		)
 
 let reserved =
 	let h = Hashtbl.create 0 in
@@ -100,7 +104,7 @@ let reserved =
 	"loop";"with";"int";"float";"extern";"let";"mod";"impl";"trait";"struct";"_";
 	(* we don't include get+set since they are not 'real' keywords, but they can't be used as method names *)
 	"function";"class";"var";"if";"else";"while";"do";"for";"break";"continue";"return";"extends";"implements";
-	"import";"switch";"case";"default";"static";"public";"private";"try";"catch";"new";"this";"throw";"interface";
+	"import";"switch";"case";"default";"static";"public";"private";"try";"catch";"this";"throw";"interface";
 	"override";"package";"null";"true";"false";"()"
 	];
 	h
@@ -206,6 +210,31 @@ let default_value tstr =
 	| "()" -> "()"
 	| _ -> "None"
 
+let rec is_wrapped ctx t =
+	match t with
+	| TAbstract ({ a_impl = Some _ } as a,pl) ->
+		is_wrapped ctx (apply_params a.a_types pl a.a_this)
+	| TAbstract (a,_) ->
+		(match a.a_path with
+		| [], "UInt" | [], "Int" | [], "Float" | [], "Bool" -> false
+		| _ -> true)
+	| TEnum(e, _) ->
+		not e.e_extern
+	| TInst(c, _) ->
+		not c.cl_extern
+	| TFun(_, _) ->
+		true
+	| TMono r ->
+		(match !r with None -> false | Some t -> true)
+	| TDynamic t ->
+		is_wrapped ctx t
+	| TAnon a ->
+		false
+	| TType(t, args) ->
+		is_wrapped ctx t.t_type
+	| TLazy f ->
+		is_wrapped ctx ((!f)())
+
 let rec type_str ctx t p =
 	let extern = ctx.curclass.cl_extern in
 	match t with
@@ -217,13 +246,12 @@ let rec type_str ctx t p =
 		| [], "Int" -> "i32"
 		| [], "Float" -> "f32"
 		| [], "Bool" -> "bool"
-		| _ -> s_path ctx true a.a_path p)
-	| TEnum (e,_) ->
+		| _ -> s_path ctx true a.a_path p false)
+	| TEnum (e, params) ->
 		if e.e_extern then (match e.e_path with
 			| [], "Bool" -> "bool"
 			| _ ->
 				let rec loop = function
-					| [] -> "Object"
 					| (Ast.Meta.FakeEnum,[Ast.EConst (Ast.Ident n),_],_) :: _ ->
 						(match n with
 						| "Int" -> "i32"
@@ -232,24 +260,29 @@ let rec type_str ctx t p =
 						| "String" -> "str"
 						| "Bool" -> "bool"
 						| _ -> n)
+					| [] -> error "Unknown value" p; ""
 					| _ :: l -> loop l
 				in
-				loop e.e_meta
+				(loop e.e_meta) ^ (if List.length params > 0 then "<" ^ (String.concat ", " (List.map (fun x -> type_str ctx x p) params))^">" else "")
 		) else
-			s_path ctx true e.e_path p
+			s_path ctx true e.e_path p false
+	| TInst ({ cl_path = [], "Class"}, [pt]) ->
+		"Option<@HxObject>"
 	| TInst ({ cl_path = [], "String"}, _) ->
 		if extern then "@str" else "Option<@str>"
 	| TInst ({ cl_path = ["rust"],"NativeArray"},[pt]) ->
 		if extern then "@[" ^ (type_str ctx pt p) ^ "]" else "Option<@[" ^ (type_str ctx pt p) ^ "]>"
-	| TInst (c,_) ->
+	| TInst (c,params) ->
 		if extern then
 			"@" ^ (match c.cl_kind with
-			| KNormal | KGeneric | KGenericInstance _ | KAbstractImpl _ -> s_path ctx false c.cl_path p
+			| KTypeParameter _ -> (s_path ctx false c.cl_path p true)
+			| KNormal | KGeneric | KGenericInstance _ | KAbstractImpl _ -> (s_path ctx false c.cl_path p false) ^ (if List.length params > 0 then "<" ^ (String.concat ", " (List.map (fun x -> type_str ctx x p) params))^">" else "")
 			| KTypeParameter _ | KExtension _ | KExpr _ | KMacroType -> (error "No dynamics allowed in externs." p);"")
 		else
 			"Option<@" ^ (match c.cl_kind with
-			| KNormal | KGeneric | KGenericInstance _ | KAbstractImpl _ -> s_path ctx false c.cl_path p
-			| KTypeParameter _ | KExtension _ | KExpr _ | KMacroType -> "HxObject") ^ ">"
+			| KTypeParameter _ -> (s_path ctx false c.cl_path p true)
+			| KNormal | KGeneric | KGenericInstance _ | KAbstractImpl _-> (s_path ctx false c.cl_path p false) ^ (if List.length params > 0 then "<" ^ (String.concat ", " (List.map (fun x -> type_str ctx x p) params))^">" else "")
+			| KExtension _ | KExpr _ | KMacroType -> "HxObject") ^ ">"
 	| TFun (args, haxe_type) ->
 		let nargs = List.map (fun (arg,o,t) -> (type_str ctx t p)) args in
 		let asfun = "@fn(" ^ (String.concat ", " nargs) ^ ")->" ^ type_str ctx haxe_type p in
@@ -385,7 +418,7 @@ let gen_function_header ctx name f params p =
 	if closure then
 		spr ctx "|";
 	if not ctx.in_static && not ctx.constructor_block && not closure then
-		print ctx "&self";
+		print ctx "&mut self";
 	if (not ctx.in_static) && List.length f.tf_args > 0 && not ctx.constructor_block && not closure then
 		print ctx ", ";
 	concat ctx ", " (fun (v,c) ->
@@ -410,16 +443,6 @@ let rec gen_call ctx e el r =
 		spr ctx ")";
 	| TLocal { v_name = "__rust__" }, [{ eexpr = TConst (TString code) }] ->
 		spr ctx (String.concat "\n" (ExtString.String.nsplit code "\r\n"))
-	| TField (_, FStatic ({ cl_path = (["flash"],"Vector") }, cf)), args ->
-		(match cf.cf_name, args with
-		| "ofArray", [e] | "convert", [e] ->
-			(match follow r with
-			| TInst ({ cl_path = (["flash"],"Vector") },[t]) ->
-				print ctx "Vector.<%s>(" (type_str ctx t e.epos);
-				gen_value ctx e;
-				print ctx ")";
-			| _ -> assert false)
-		| _ -> assert false)
 	| TField (ee,f), args when is_var_field f ->
 		spr ctx "(";
 		gen_value ctx e;
@@ -433,11 +456,19 @@ let rec gen_call ctx e el r =
 		concat ctx "," (gen_value ctx) el;
 		spr ctx ")"
 
+and unwrap ctx e =
+	if (is_wrapped ctx e.etype) then (
+		spr ctx "(Std::unwrap(";
+		gen_value ctx e;
+		spr ctx "))";
+	) else
+		gen_value ctx e;
+
 and gen_value_op ctx e =
 	match e.eexpr with
 	| TBinop (op,_,_) when op = Ast.OpAnd || op = Ast.OpOr || op = Ast.OpXor ->
 		spr ctx "(";
-		gen_value ctx e;
+		unwrap ctx e;
 		spr ctx ")";
 	| _ ->
 		gen_value ctx e
@@ -464,9 +495,9 @@ and gen_expr ctx e =
 	| TLocal v ->
 		spr ctx (s_ident v.v_name)
 	| TArray (e1,e2) ->
-		gen_value ctx e1;
+		unwrap ctx e1;
 		spr ctx "[";
-		gen_value ctx e2;
+		unwrap ctx e2;
 		spr ctx "]";
 	| TBinop (op,e1,e2) ->
 		gen_value_op ctx e1;
@@ -478,10 +509,10 @@ and gen_expr ctx e =
 		spr ctx ")";
 		gen_field_access ctx e1.etype (field_name s)
 	| TField (e,s) ->
-		gen_value ctx e;
+		unwrap ctx e;
 		gen_field_access ctx e.etype (field_name s)
 	| TTypeExpr t ->
-		spr ctx (s_path ctx true (t_path t) e.epos)
+		spr ctx (s_path ctx true (t_path t) e.epos false)
 	| TParenthesis e ->
 		spr ctx "(";
 		gen_value ctx e;
@@ -516,7 +547,7 @@ and gen_expr ctx e =
 		(match ctx.block_inits with None -> () | Some i -> i());
 		if ctx.constructor_block then (
 			newline ctx;
-			print ctx "let mut self = {";
+			print ctx "let mut self = %s {" (type_str ctx (TInst(ctx.curclass, [])) e.epos);
 			let c = ctx.curclass in
 			let obj_fields = List.filter is_var c.cl_ordered_fields in
 			concat ctx ", " (fun f ->
@@ -531,13 +562,13 @@ and gen_expr ctx e =
 		List.iter (fun e -> newline ctx; gen_expr ctx e) el;
 		if ctx.constructor_block then (
 			newline ctx;
-			spr ctx "return Some(self)";
+			spr ctx "return @Some(self)";
 		);
 		bend();
 		newline ctx;
 		print ctx "}";
 	| TFunction f ->
-		spr ctx "Some(";
+		spr ctx "@Some(";
 		let h = gen_function_header ctx None f [] e.epos in
 		let old = ctx.in_static in
 		ctx.in_static <- true;
@@ -572,7 +603,7 @@ and gen_expr ctx e =
 	| TNew ({cl_path = (["rust"], "NativeArray")},[t],el) ->
 		spr ctx "[]";
 	| TNew (c,params,el) ->
-		print ctx "%s.new(" (s_path ctx true c.cl_path e.epos);
+		print ctx "%s.new(" (s_path ctx true c.cl_path e.epos false);
 		concat ctx "," (gen_value ctx) el;
 		spr ctx ")"
 	| TIf (cond,e,eelse) ->
@@ -809,14 +840,10 @@ and gen_value ctx e =
 			if ctx.in_static then
 				print ctx "()"
 			else
-				print ctx "(%s))" (this ctx)
+				print ctx "%s" (this ctx)
 		)
 	in
 	match e.eexpr with
-	| TCall ({ eexpr = TLocal { v_name = "__keys__" } },_) | TCall ({ eexpr = TLocal { v_name = "__hkeys__" } },_) ->
-		let v = value true in
-		gen_expr ctx e;
-		v()
 	| TConst _
 	| TLocal _
 	| TArray _
@@ -846,14 +873,14 @@ and gen_value ctx e =
 		gen_expr ctx e;
 		v()
 	| TBlock [] ->
-		spr ctx "null"
+		spr ctx "None"
 	| TBlock [e] ->
 		gen_value ctx e
 	| TBlock el ->
 		let v = value true in
 		let rec loop = function
 			| [] ->
-				spr ctx "return null";
+				spr ctx "return None";
 			| [e] ->
 				gen_expr ctx (assign e);
 			| e :: l ->
@@ -870,7 +897,7 @@ and gen_value ctx e =
 		gen_value ctx e;
 		spr ctx " else ";
 		(match eo with
-		| None -> spr ctx "null"
+		| None -> spr ctx "None"
 		| Some e -> gen_value ctx e);
 		newline ctx
 	| TSwitch (cond,cases,def) ->
@@ -1006,7 +1033,13 @@ let generate_obj_impl ctx c =
 		let mtc = open_block ctx in
 		List.iter(fun f ->
 			soft_newline ctx;
-			print ctx "\"%s\" => Some(self.%s)," f.cf_name f.cf_name;
+			print ctx "\"%s\" => " f.cf_name;
+			if not (is_wrapped ctx f.cf_type) then
+				spr ctx "Some(";
+			print ctx "self.%s" f.cf_name;
+			if not (is_wrapped ctx f.cf_type) then
+				spr ctx ")";
+			spr ctx ",";
 		) obj_fields;
 		soft_newline ctx;
 		spr ctx "_ => None";
@@ -1018,7 +1051,7 @@ let generate_obj_impl ctx c =
 	newline ctx;
 	spr ctx "}";
 	newline ctx;
-	spr ctx "pub fn __set_field(&self, field:&str, value:&Option<&HxObject>) {";
+	spr ctx "pub fn __set_field(&mut self, field:&str, value:&Option<&HxObject>) {";
 	let fn = open_block ctx in
 	soft_newline ctx;
 	if ((List.length obj_fields) > 0) then (
@@ -1146,7 +1179,7 @@ let generate_base_object ctx com =
 	newline ctx;
 	spr ctx "pub fn __get_field(&self, field:@str) -> Option<HxObject>";
 	newline ctx;
-	spr ctx "pub fn __set_field(&self, field:@str, value:Option<@HxObject>) -> Option<@HxObject>";
+	spr ctx "pub fn __set_field(&mut self, field:@str, value:Option<@HxObject>) -> Option<@HxObject>";
 	newline ctx;
 	spr ctx "pub fn toString(&self) -> @str";
 	trait();
