@@ -1,16 +1,14 @@
 import rust.os.*;
 import rust.io.*;
-import rust.*;
-class Sys {
+import rust.Lib;
+@:coreApi class Sys {
 	public static function args():Array<String> {
 		return OS.args();
 	}
-	public static inline function print(s:String):Void {
-		IO.print(s);
-	}
-	public static inline function println(s:String):Void {
-		IO.println(s);
-	}
+	@:functionCode('io::print(s)')
+	public static inline function print(s:String):Void {}
+	@:functionCode('io::println(s)')
+	public static inline function print(s:String):Void {}
 	public static function getEnv(s:String):String {
 		return OS.getenv(s);
 	}

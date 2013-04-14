@@ -53,7 +53,7 @@ let global_cache = ref None
 
 let executable_path() =
 	Extc.executable_path()
-	
+
 let is_debug_run() =
 	try Sys.getenv "HAXEDEBUG" = "1" with _ -> false
 
@@ -117,7 +117,7 @@ let htmlescape s =
 	s
 
 let reserved_flags = [
-	"cross";"flash8";"js";"neko";"flash";"php";"cpp";"cs";"java"; "rust";
+	"cross";"flash8";"js";"neko";"flash";"php";"cpp";"cs";"java";
 	"as3";"swc";"macro";"sys"
 	]
 
@@ -764,7 +764,7 @@ and do_connect host port args =
 
 and init ctx =
 	let usage = Printf.sprintf
-		"Haxe Compiler %d.%d.%d - (C)2005-2013 Haxe Foundation\n Usage : haxe%s -main <class> [-swf|-js|-neko|-php|-cpp|-as3] <output> [options]\n Options :"
+		"Haxe Compiler %d.%d.%d - (C)2005-2013 Haxe Foundation\n Usage : haxe%s -main <class> [-swf|-js|-neko|-php|-cpp|-as3|-rust] <output> [options]\n Options :"
 		(version / 100) ((version mod 100)/10) (version mod 10) (if Sys.os_type = "Win32" then ".exe" else "")
 	in
 	let com = ctx.com in
@@ -848,7 +848,6 @@ try
 			Common.define com Define.As3;
 			Common.define com Define.NoInline;
 		),"<directory> : generate AS3 code into target directory");
-		("-rust",Arg.String (set_platform Rust),"<file> : compile code to Rust file");
 		("-neko",Arg.String (set_platform Neko),"<file> : compile code to Neko Binary");
 		("-php",Arg.String (fun dir ->
 			classes := (["php"],"Boot") :: !classes;
@@ -860,6 +859,9 @@ try
  		("-cs",Arg.String (fun dir ->
 			set_platform Cs dir;
 		),"<directory> : generate C# code into target directory");
+ 		("-rust",Arg.String (fun dir ->
+			set_platform Rust dir;
+		),"<directory> : generate Rust code into target directory");
 		("-java",Arg.String (fun dir ->
 			set_platform Java dir;
 		),"<directory> : generate Java code into target directory");
@@ -1199,7 +1201,7 @@ try
 			Codegen.detect_usage com;
 		let filters = [
 			Codegen.Abstract.handle_abstract_casts tctx;
-			if com.foptimize then Optimizer.reduce_expression tctx else Optimizer.sanitize tctx;
+			if com.foptimize then (fun e -> Optimizer.reduce_expression tctx (Optimizer.inline_constructors tctx e)) else Optimizer.sanitize tctx;
 			Codegen.check_local_vars_init;
 			Codegen.captured_vars com;
 			Codegen.rename_local_vars com;
@@ -1272,7 +1274,7 @@ try
 			Genjava.generate com;
 		| Rust ->
 			Common.log com ("Generating Rust in : " ^ com.file);
-			Genrust.generate com;
+			Genjava.generate com;
 		);
 	end;
 	Sys.catch_break false;

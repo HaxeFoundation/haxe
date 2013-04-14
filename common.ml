@@ -312,8 +312,7 @@ module MetaInfo = struct
 		| Deprecated -> ":deprecated",("",[Platforms [Java;Cs]])
 		| DynamicObject -> ":dynamicObject",("",[Platforms [Java;Cs]])
 		| Enum -> ":enum",("",[Platforms [Java;Cs]])
-		| Expose -> ":expose",("Makes the class ava
-			ilable on the window object",[HasParam "?Name=Class path";UsedOn TClass;Platform Js])
+		| Expose -> ":expose",("Makes the class available on the window object",[HasParam "?Name=Class path";UsedOn TClass;Platform Js])
 		| Extern -> ":extern",("Marks the field as extern so it is not generated",[UsedOn TClassField])
 		| FakeEnum -> ":fakeEnum",("Treat enum as collection of values of the specified type",[HasParam "Type name";UsedOn TEnum])
 		| File -> ":file",("Includes a given binary file into the target Swf and associates it with the class (must extend flash.utils.ByteArray)",[HasParam "File path";UsedOn TClass;Platform Flash])
@@ -494,19 +493,6 @@ let get_config com =
 			pf_add_final_return = true;
 			pf_overload = false;
 		}
-	| Rust ->
-		{
-			pf_static = true;
-			pf_sys = false;
-			pf_locals_scope = false;
-			pf_captured_scope = true;
-			pf_unique_locals = true;
-			pf_can_init_member = (fun _ -> true);
-			pf_capture_policy = CPLoopVars;
-			pf_pad_nulls = false;
-			pf_add_final_return = true;
-			pf_overload = false;
-		}
 	| Flash ->
 		{
 			pf_static = true;
@@ -581,13 +567,13 @@ let get_config com =
 		{
 			pf_static = true;
 			pf_sys = true;
-			pf_locals_scope = false;
+			pf_locals_scope = true;
 			pf_captured_scope = true;
 			pf_unique_locals = false;
 			pf_can_init_member = (fun _ -> false);
 			pf_capture_policy = CPWrapRef;
 			pf_pad_nulls = true;
-			pf_add_final_return = false;
+			pf_add_final_return = true;
 			pf_overload = false;
 		}
 
@@ -679,7 +665,6 @@ let platforms = [
 	Cpp;
 	Cs;
 	Java;
-	Rust;
 ]
 
 let platform_name = function
@@ -767,6 +752,12 @@ let rec has_feature com f =
 			let r = r || not (has_dce com) in
 			Hashtbl.add com.features f r;
 			r
+
+let allow_package ctx s =
+	try
+		if (PMap.find s ctx.package_rules) = Forbidden then ctx.package_rules <- PMap.remove s ctx.package_rules
+	with Not_found ->
+		()
 
 let error msg p = raise (Abort (msg,p))
 

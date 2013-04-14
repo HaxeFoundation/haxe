@@ -16,13 +16,13 @@ OUTPUT=haxe
 EXTENSION=
 OCAMLOPT=ocamlopt
 
-CFLAGS= -g -I libs/extlib -I libs/extc -I libs/neko -I libs/javalib -I libs/ziplib -I libs/swflib -I libs/xml-light
+CFLAGS= -g -I libs/extlib -I libs/extc -I libs/neko -I libs/javalib -I libs/ziplib -I libs/swflib -I libs/xml-light -I libs/ttflib
 
 CC_CMD = $(OCAMLOPT) $(CFLAGS) -c $<
 CC_PARSER_CMD = $(OCAMLOPT) -pp camlp4o $(CFLAGS) -c parser.ml
 
 LIBS=unix.cmxa str.cmxa libs/extlib/extLib.cmxa libs/xml-light/xml-light.cmxa libs/swflib/swflib.cmxa \
-	libs/extc/extc.cmxa libs/neko/neko.cmxa libs/javalib/java.cmxa libs/ziplib/zip.cmxa
+	libs/extc/extc.cmxa libs/neko/neko.cmxa libs/javalib/java.cmxa libs/ziplib/zip.cmxa libs/ttflib/ttf.cmxa
 
 NATIVE_LIBS=-cclib libs/extc/extc_stubs.o -cclib -lz
 
@@ -31,7 +31,7 @@ RELDIR=../../..
 EXPORT=../../../projects/motionTools/haxe
 
 MODULES=ast type lexer common genxml parser typecore optimizer typeload \
-codegen gencommon genas3 gencpp genjs genneko genphp genrust genswf8 \
+codegen gencommon genas3 gencpp genjs genneko genphp genswf8 \
 	genswf9 genswf genjava gencs interp typer matcher dce main
 
 export HAXE_STD_PATH=$(CURDIR)/std
@@ -46,6 +46,7 @@ libs:
 	make -C libs/ziplib
 	make -C libs/swflib
 	make -C libs/xml-light xml-light.cmxa
+	make -C libs/ttflib
 
 haxe: $(MODULES:=.cmx)
 	$(OCAMLOPT) -o $(OUTPUT) $(NATIVE_LIBS) $(LIBS) $(MODULES:=.cmx)
@@ -64,18 +65,23 @@ install:
 	cp haxe $(INSTALL_DIR)/bin/haxe
 	rm -rf $(INSTALL_DIR)/lib/haxe
 	-mkdir $(INSTALL_DIR)/lib/haxe
-	rm -r $(INSTALL_DIR)/lib/haxe/std
-	cp -r std/ $(INSTALL_DIR)/lib/haxe/std
+	svn export std/ $(INSTALL_DIR)/lib/haxe/std
 	-mkdir $(INSTALL_DIR)/lib/haxe/lib
 	chmod -R a+rx $(INSTALL_DIR)/lib/haxe
 	chmod 777 $(INSTALL_DIR)/lib/haxe/lib
 	cp std/tools/haxelib/haxelib.sh $(INSTALL_DIR)/bin/haxelib
 	cp std/tools/haxedoc/haxedoc.sh $(INSTALL_DIR)/bin/haxedoc
 	chmod a+rx $(INSTALL_DIR)/bin/haxe $(INSTALL_DIR)/bin/haxelib $(INSTALL_DIR)/bin/haxedoc
-	
+
+# will install native version of the tools instead of script ones
+install_tools: tools
+	cp haxelib ${INSTALL_DIR}/bin/haxelib
+	cp haxedoc ${INSTALL_DIR}/bin/haxedoc
+	chmod a+rx $(INSTALL_DIR)/bin/haxelib $(INSTALL_DIR)/bin/haxedoc
+
 uninstall:
 	rm -rf $(INSTALL_DIR)/bin/haxe $(INSTALL_DIR)/bin/haxelib $(INSTALL_DIR)/lib/haxe
-	
+
 export:
 	cp haxe*.exe doc/CHANGES.txt $(EXPORT)
 	rsync -a --exclude .svn --exclude *.n --exclude std/libs --delete std $(EXPORT)
@@ -87,8 +93,6 @@ common.cmx: type.cmx ast.cmx
 dce.cmx: ast.cmx common.cmx type.cmx
 
 genas3.cmx: type.cmx common.cmx codegen.cmx ast.cmx
-
-genrust.cmx: type.cmx optimizer.cmx lexer.cmx common.cmx codegen.cmx ast.cmx
 
 gencommon.cmx: type.cmx common.cmx codegen.cmx ast.cmx
 
@@ -146,6 +150,7 @@ clean_libs:
 	make -C libs/javalib clean
 	make -C libs/swflib clean
 	make -C libs/xml-light clean
+	make -C libs/ttflib clean
 
 clean_haxe:
 	rm -f $(MODULES:=.obj) $(MODULES:=.o) $(MODULES:=.cmx) $(MODULES:=.cmi) lexer.ml
