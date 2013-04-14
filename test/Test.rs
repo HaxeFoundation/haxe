@@ -18,7 +18,7 @@ pub impl<T> Test<T> {
 	}
 }
 impl HxObject for Option<@Test> {
-	pub fn __get_field(&self, &field:str) {
+	pub fn __get_field(&self, &field:str)->Option<@HxObject> {
 		return match(field) {
 			"value" => self.value,
 			_ => None
@@ -29,5 +29,14 @@ impl HxObject for Option<@Test> {
 			"value" => self.value = value,
 			_ => None
 		}
+	}
+	pub fn __fields(&mut self) -> Option<@[@str]> {
+		return __instance_fields();
+	}
+	pub fn __instance_fields() -> Option<@[@str]> {
+		return Some(@[@"value"]);
+	}
+	pub fn __name() -> Option<@str> {
+		return Some(@Test);
 	}
 }

@@ -70,7 +70,7 @@ let protect name =
 	| "Error" | "Namespace" -> "_" ^ name
 	| _ -> name
 
-let s_type_path (p, s) =
+let type_path (p, s) =
 	match p with [] -> s | _ -> String.concat "::" p ^ "::" ^ s
 
 let s_path ctx stat path p is_param =
@@ -92,7 +92,7 @@ let s_path ctx stat path p is_param =
 			let name = protect name in
 			let packs = (try Hashtbl.find ctx.imports name with Not_found -> []) in
 			if not (List.mem pack packs) then Hashtbl.replace ctx.imports name (pack :: packs);
-			s_type_path (pack,name)
+			type_path (pack,name)
 		)
 
 let reserved =
@@ -178,7 +178,7 @@ let close ctx =
 	Hashtbl.iter (fun name paths ->
 		List.iter (fun pack ->
 			let path = pack, name in
-			if (path <> ctx.path) && (List.length pack) = 0 then output_string ctx.ch ("mod " ^ s_type_path path ^ ";\n");
+			if (path <> ctx.path) && (List.length pack) = 0 then output_string ctx.ch ("mod " ^ type_path path ^ ";\n");
 		) paths
 	) ctx.imports;
 	output_string ctx.ch (Buffer.contents ctx.buf);
@@ -1036,7 +1036,7 @@ let generate_obj_impl ctx c =
 	print ctx "impl HxObject for %s {" (type_str ctx (TInst(c,[])) p);
 	let impl = open_block ctx in
 	newline ctx;
-	spr ctx "pub fn __get_field(&self, &field:str) {";
+	spr ctx "pub fn __get_field(&self, &field:str)->Option<@HxObject> {";
 	let fn = open_block ctx in
 	soft_newline ctx;
 	if ((List.length obj_fields) = 0) then
@@ -1053,7 +1053,7 @@ let generate_obj_impl ctx c =
 			if not (is_wrapped ctx f.cf_type) then
 				spr ctx ")";
 			spr ctx ",";
-		) obj_fields;
+		) (List.append obj_fields obj_methods);
 		soft_newline ctx;
 		spr ctx "_ => None";
 		mtc();
@@ -1080,6 +1080,34 @@ let generate_obj_impl ctx c =
 		soft_newline ctx;
 		spr ctx "}"
 	);
+	fn();
+	newline ctx;
+	spr ctx "}";
+	newline ctx;
+	spr ctx "pub fn __fields(&mut self) -> Option<@[@str]> {";
+	let fn = open_block ctx in
+	newline ctx;
+	spr ctx "return __instance_fields()";
+	fn();
+	newline ctx;
+	spr ctx "}";
+	newline ctx;
+	spr ctx "pub fn __instance_fields() -> Option<@[@str]> {";
+	let fn = open_block ctx in
+	newline ctx;
+	spr ctx "return Some(@[";
+	concat ctx ", " (fun f ->
+		print ctx "@\"%s\"" f.cf_name;
+	) obj_fields;
+	spr ctx "])";
+	fn();
+	newline ctx;
+	spr ctx "}";
+	newline ctx;
+	spr ctx "pub fn __name() -> Option<@str> {";
+	let fn = open_block ctx in
+	newline ctx;
+	print ctx "return Some(@\"%s\")" (Ast.s_type_path c.cl_path);
 	fn();
 	newline ctx;
 	spr ctx "}";
