@@ -499,7 +499,7 @@ and gen_expr ctx e =
 	| TBinop (op,e1,e2) ->
 		spr ctx "{";
 		let temp = open_block ctx in (* for cleanliness *)
-		let vident = s_ident "v" in
+		let vident = gen_local "_v" in
 		soft_newline ctx;
 		print ctx "let %s:%s = " vident (type_str ctx e1.etype e1.epos);
 		gen_value_op ctx e1;
