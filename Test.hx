@@ -1,15 +1,18 @@
 import rust.*;
-class Test<T> implements TestInterface<T> {
-	var value:T;
-	public function new(val:T) {
+enum Item<T> {
+	value(v:T);
+	none;
+}
+class Test<T> implements TestInterface<Item<T>> {
+	var value:Item<T>;
+	public function new(val:Item<T>) {
 		this.value = val;
 	}
-	public function get():T {
+	public function get():Item<T> {
 		return value;
 	}
 	static function main() {
-		var cl = Test;
-		new Test(78.533567);
+		new SubTest();
 		Std.string(898687);
 		triangular(20);
 		reltest();
@@ -23,9 +26,9 @@ class Test<T> implements TestInterface<T> {
 		return n;
 	}
 }
-class SubTest<T> extends Test<Int> {
+class SubTest extends Test<Int> {
 	public function new() {
-		super(87);
+		super(Item.value(87));
 	}
 }
 interface TestInterface<T> {

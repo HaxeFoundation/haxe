@@ -38,7 +38,6 @@ type context = {
 	mutable tabs : string;
 	mutable in_value : tvar option;
 	mutable in_static : bool;
-	mutable handle_break : bool;
 	mutable imports : (string,string list list) Hashtbl.t;
 	mutable gen_uid : int;
 	mutable local_types : t list;
@@ -138,7 +137,6 @@ let init infos path =
 		buf = Buffer.create (1 lsl 14);
 		in_value = None;
 		in_static = false;
-		handle_break = false;
 		imports = imports;
 		curclass = null_class;
 		gen_uid = 0;
@@ -325,25 +323,6 @@ let rec iter_switch_break in_switch e =
 	| TSwitch _ | TMatch _ when not in_switch -> iter_switch_break true e
 	| TBreak when in_switch -> raise Exit
 	| _ -> iter (iter_switch_break in_switch) e
-
-let handle_break ctx e =
-	let old_handle = ctx.handle_break in
-	try
-		iter_switch_break false e;
-		ctx.handle_break <- false;
-		(fun() -> ctx.handle_break <- old_handle)
-	with
-		Exit ->
-			spr ctx "try {";
-			let b = open_block ctx in
-			newline ctx;
-			ctx.handle_break <- true;
-			(fun() ->
-				b();
-				ctx.handle_break <- old_handle;
-				newline ctx;
-				spr ctx "} catch( e : * ) { if( e != \"__break__\" ) throw e; }";
-			)
 
 let this ctx = "self"
 
@@ -565,7 +544,7 @@ and gen_expr ctx e =
 			gen_value ctx e);
 	| TBreak ->
 		if ctx.in_value <> None then unsupported e.epos;
-		if ctx.handle_break then spr ctx "throw \"__break__\"" else spr ctx "break"
+		spr ctx "break"
 	| TContinue ->
 		if ctx.in_value <> None then unsupported e.epos;
 		spr ctx "continue"
@@ -688,30 +667,23 @@ and gen_expr ctx e =
 		gen_value ctx e;
 		spr ctx (Ast.s_unop op);
 	| TWhile ({ eexpr = TConst (TBool true) },e,_) ->
-		let handle_break = handle_break ctx e in
 		spr ctx "loop ";
 		gen_expr ctx (block e);
-		handle_break();
 	| TWhile (cond,e,Ast.NormalWhile) ->
-		let handle_break = handle_break ctx e in
 		spr ctx "while ";
 		gen_value ctx (parent cond);
 		spr ctx " ";
 		gen_expr ctx (block e);
-		handle_break();
 	| TWhile (cond,e,Ast.DoWhile) ->
-		let handle_break = handle_break ctx e in
 		spr ctx "do ";
 		gen_expr ctx (block e);
 		spr ctx " while";
 		gen_value ctx (parent cond);
-		handle_break();
 	| TObjectDecl fields ->
 		spr ctx "{ ";
 		concat ctx ", " (fun (f,e) -> print ctx "%s : " (s_ident f); gen_value ctx e) fields;
 		spr ctx "}"
 	| TFor (v,it,e) ->
-		let handle_break = handle_break ctx e in
 		let tmp = gen_local ctx "_it" in
 		print ctx "let mut %s = " tmp;
 		gen_value ctx it;
@@ -723,7 +695,6 @@ and gen_expr ctx e =
 		gen_expr ctx (block e);
 		newline ctx;
 		spr ctx "}";
-		handle_break();
 	| TTry (e,catchs) ->
 		let tmp = gen_local ctx "$err" in
 		print ctx "let %s = do task::try " tmp;
@@ -1137,9 +1108,10 @@ let rec s_tparams ctx params pos =
 			match t with
 			| TInst({cl_kind = KTypeParameter pl; cl_path = path}, ps) ->
 				(snd path) ^ (s_tparams ctx ps pos)
+			| TInst(c, ps) ->
+				(s_type_path c.cl_path) ^ (s_tparams ctx ps pos)
 			| _ ->
-				error "Unresolvable type parameter" pos;
-				""
+				type_str ctx t pos
 		) params)) ^ ">"
 	else
 		""

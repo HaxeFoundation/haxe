@@ -1,15 +1,14 @@
 mod HxObject;
 mod HxEnum;
 pub struct Test<T> {
-	value: Option<@T>
+	value: Item
 }
 pub impl<T> Test<T> {
-	pub fn get(&mut self) -> Option<@T> {
+	pub fn get(&mut self) -> Item {
 		return (rust::Lib::unwrap(self)).value;
 	}
 	pub fn main() -> () {
-		let mut cl: Option<@HxObject> = Test;
-		Test::new(78.533567f32);
+		SubTest::new();
 		(rust::Lib::unwrap(Test))::triangular(20i32);
 		(rust::Lib::unwrap(Test))::reltest();
 	}
@@ -35,16 +34,16 @@ pub impl<T> Test<T> {
 		}
 		return n;
 	}
-	pub fn new(val: Option<@T>) -> Option<@Test> {
+	pub fn new(val: Item) -> Option<@Test> {
 		let mut self = Test {value: None}
 		{
-			let v:Option<@T> = (rust::Lib::unwrap(self)).value = val;
+			let v:Item = (rust::Lib::unwrap(self)).value = val;
 			v
 		}
 		return @Some(self);
 	}
 }
-impl TestInterface<T> for Test<T> {
+impl TestInterface<Item> for Test<T> {
 	pub fn get() -> Option<@Test> {
 		let mut self = Test {value: None}
 		return (rust::Lib::unwrap(self)).value;
