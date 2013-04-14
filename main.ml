@@ -117,7 +117,7 @@ let htmlescape s =
 	s
 
 let reserved_flags = [
-	"cross";"flash8";"js";"neko";"flash";"php";"cpp";"cs";"java";
+	"cross";"flash8";"js";"neko";"flash";"php";"cpp";"cs";"java"; "rust";
 	"as3";"swc";"macro";"sys"
 	]
 
