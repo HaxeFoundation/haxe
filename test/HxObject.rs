@@ -1,9 +1,10 @@
 mod BaseIter;
 mod Type;
-mod haxe::EnumValueTools;
+mod EnumValueTools;
+mod String;
 mod ArrayAccess;
 mod vec;
-mod haxe::EnumTools;
+mod EnumTools;
 pub trait HxObject {
 	pub fn __get_field(&self, field:@str) -> Option<HxObject>;
 	pub fn __set_field(&mut self, field:@str, value:Option<@HxObject>) -> Option<@HxObject>;
@@ -14,17 +15,17 @@ impl ToStr for HxObject {
 		return self.toString();
 	}
 }
-impl HxObject for Option<@BaseIter> {
+impl HxObject for BaseIter<T> {
 }
-impl HxObject for Option<@vec> {
+impl HxObject for vec<T> {
 }
-impl HxObject for Option<@ArrayAccess> {
+impl HxObject for ArrayAccess<T> {
 }
-impl HxObject for Option<@str> {
+impl HxObject for String {
 }
-impl HxObject for Option<@Type> {
+impl HxObject for Type {
 }
-impl HxObject for Option<@haxe::EnumTools> {
+impl HxObject for haxe::EnumTools {
 }
-impl HxObject for Option<@haxe::EnumValueTools> {
+impl HxObject for haxe::EnumValueTools {
 }

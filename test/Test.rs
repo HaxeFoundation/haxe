@@ -1,5 +1,6 @@
 mod SubTest;
 mod Item;
+mod Test;
 pub struct Test<T> {
 	value: Item
 }
@@ -42,5 +43,5 @@ impl TestInterface<Item> for Test<T> {
 		return (rust::Lib::unwrap(self)).value;
 	}
 }
-impl HxObject for Option<@Test> {
+impl HxObject for Test<T> {
 }

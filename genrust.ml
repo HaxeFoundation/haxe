@@ -69,7 +69,7 @@ let is_special_compare e1 e2 =
 
 let protect name =
 	match name with
-	| "Error" | "Namespace" -> "_" ^ name
+	| "HxObject" | "HxEnum" -> "_" ^ name
 	| _ -> name
 
 let type_path (p, s) =
@@ -171,13 +171,14 @@ let newline ctx =
 	try loop (Buffer.length ctx.buf - 1) with _ -> ()
 
 let close ctx =
-	Hashtbl.replace ctx.imports "HxObject" [];
-	Hashtbl.replace ctx.imports "HxEnum" [];
 	Hashtbl.iter (fun name paths ->
-		List.iter (fun pack ->
-			let path = pack, name in
-			if (path <> ctx.path) then output_string ctx.ch ("mod " ^ type_path path ^ ";\n");
-		) paths
+		if (List.length paths) > 0 then
+			output_string ctx.ch ("mod " ^ name ^ ";\n")
+		else 
+			List.iter (fun pack ->
+				let path = pack, name in
+				if (path <> ctx.path) then output_string ctx.ch ("mod " ^ type_path path ^ ";\n");
+			) paths
 	) ctx.imports;
 	output_string ctx.ch (Buffer.contents ctx.buf);
 	close_out ctx.ch
@@ -257,10 +258,13 @@ let rec type_str ctx t p =
 		| l -> "<" ^ String.concat ", " (List.map (fun param -> type_str ctx param p) params) ^ ">") in
 	let extern = ctx.curclass.cl_extern in
 	let reftype = "@" in (* The default reference type *)
-	match t with
+	let canwrap = ref false in
+	let value = (match t with
 	| TAbstract ({ a_impl = Some _ } as a,pl) ->
+		canwrap := false;
 		type_str ctx (apply_params a.a_types pl a.a_this) p
 	| TAbstract (a,_) ->
+		canwrap := false;
 		(match a.a_path with
 		| [], "UInt" -> "ui32"
 		| [], "Int" -> "i32"
@@ -269,6 +273,7 @@ let rec type_str ctx t p =
 		| [], "Void" -> "()"
 		| _ -> s_path ctx true a.a_path p false)
 	| TEnum (e, params) ->
+		canwrap := false;
 		if e.e_extern then (match e.e_path with
 			| [], "Bool" -> "bool"
 			| _ ->
@@ -288,32 +293,46 @@ let rec type_str ctx t p =
 		) else
 			s_path ctx true e.e_path p false
 	| TInst ({ cl_path = [], "Class"}, [pt]) ->
-		"Option<" ^ reftype ^ "HxObject>"
+		canwrap := true;
+		reftype ^ "HxObject"
 	| TInst ({ cl_path = [], "String"}, _) ->
-		"Option<" ^ reftype ^ "str>"
+		canwrap := true;
+		reftype ^ "str"
 	| TInst ({ cl_path = ["rust"],"NativeArray"},[pt]) ->
 		let typed = type_str ctx pt p in
-		"Option<" ^ reftype ^ "[" ^ typed ^ "]>"
+		canwrap := true;
+		reftype ^ "[" ^ typed ^ "]"
 	| TInst (c,params) ->
+		canwrap := true;
 		let ps = s_type_params params in
 		let name = ((match c.cl_kind with
 			| KTypeParameter _ -> snd c.cl_path
 			| KNormal | KGeneric | KGenericInstance _ | KAbstractImpl _ -> (s_path ctx false c.cl_path p false) ^ ps
 			| KExtension _ | KExpr _ | KMacroType -> "HxObject") ^ ps) in
-		"Option<" ^ reftype ^ name ^ ">"
+		reftype ^ name
 	| TFun (args, haxe_type) ->
+		canwrap := true;
 		let nargs = List.map (fun (arg,o,t) -> (type_str ctx t p)) args in
 		let asfun = "@fn(" ^ (String.concat ", " nargs) ^ ")->" ^ type_str ctx haxe_type p in
-		"Option<" ^ reftype ^ asfun ^ ">"
+		reftype ^ asfun
 	| TMono r ->
-		(match !r with None -> "Option<" ^ reftype ^ "HxObject>" | Some t -> type_str ctx t p)
+		canwrap := false;
+		(match !r with None -> reftype ^ "HxObject" | Some t -> type_str ctx t p)
 	| TAnon _ | TDynamic _ ->
-		"Option<@HxObject>"
+		canwrap := false;
+		reftype ^ "HxObject"
 	| TType (t,args) ->
+		canwrap := false;
 		(match t.t_path with
 		| _ -> type_str ctx (apply_params t.t_types args t.t_type) p)
 	| TLazy f ->
+		canwrap := false;
 		type_str ctx ((!f)()) p
+	) in
+	if !canwrap then
+		"Option<"^value^">"
+	else
+		value
 
 let rec s_tparams ctx params p =
 	if List.length params > 0 then
@@ -1017,15 +1036,16 @@ let rec define_getset ctx stat c =
 	| _ -> ()
 
 let generate_obj_impl ctx c =
+	Hashtbl.replace ctx.imports "HxObject" [];
 	ctx.curclass <- c;
 	ctx.local_types <- List.map snd c.cl_types;
 	let obj_fields = List.filter (is_var) c.cl_ordered_fields in
 	let obj_methods = List.filter (fun x -> not (is_var x)) c.cl_ordered_fields in
 	let static_fields = List.filter(is_var) c.cl_ordered_statics in
 	let static_methods = List.filter (fun x -> not (is_var x)) c.cl_ordered_statics in
+	let params = get_params c.cl_types in
 	ctx.in_interface <- c.cl_interface;
-	let p = ctx.curclass.cl_pos in
-	print ctx "impl HxObject for %s {" (type_str ctx (TInst(c,[])) p);
+	print ctx "impl HxObject for %s%s {" (s_path ctx false c.cl_path c.cl_pos false) params;
 	let impl = open_block ctx in
 	if (has_feature ctx "Reflect.field") then (
 		newline ctx;
@@ -1234,7 +1254,7 @@ let generate_base_enum ctx com =
 	spr ctx "pub trait HxEnum {";
 	let trait = open_block ctx in
 	newline ctx;
-	spr ctx "pub fn __index(ind:i32) -> Self";
+	spr ctx "pub fn __get_index(ind:i32) -> Self";
 	newline ctx;
 	spr ctx "pub fn __index(&self) -> i32";
 	trait();
