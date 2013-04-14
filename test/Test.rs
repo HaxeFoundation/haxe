@@ -5,11 +5,26 @@ pub struct Test<T> {
 }
 pub impl<T> Test<T> {
 	pub fn main() -> () {
+		let mut cl: Option<@HxObject> = Test;
 		Test::new(78.533567f32);
+		(rust::Lib::unwrap(Test))::triangular(20i32);
 		(rust::Lib::unwrap(Test))::reltest();
 	}
 	priv fn reltest() -> i32 {
 		return 8i32;
+	}
+	priv fn triangular(n: i32) -> i32 {
+		{
+			let mut _g: i32 = 1i32;
+			while (_g < n) {
+				let mut i: i32 = {
+					_g += 1;
+					_g - 1
+				};
+				n += i;
+			}
+		}
+		return n;
 	}
 	pub fn new(val: Option<@T>) -> Option<@Test> {
 		let mut self = Test {value: None}
@@ -18,25 +33,4 @@ pub impl<T> Test<T> {
 	}
 }
 impl HxObject for Option<@Test> {
-	pub fn __get_field(&self, &field:str)->Option<@HxObject> {
-		return match(field) {
-			"value" => self.value,
-			_ => None
-		}
-	}
-	pub fn __set_field(&mut self, field:&str, value:&Option<&HxObject>) {
-		match(field) {
-			"value" => self.value = value,
-			_ => None
-		}
-	}
-	pub fn __fields(&mut self) -> Option<@[@str]> {
-		return __instance_fields();
-	}
-	pub fn __instance_fields() -> Option<@[@str]> {
-		return Some(@[@"value"]);
-	}
-	pub fn __name() -> Option<@str> {
-		return Some(@Test);
-	}
 }

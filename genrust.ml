@@ -47,6 +47,9 @@ type context = {
 	mutable block_inits : (unit -> unit) option;
 }
 
+let has_feature ctx = Common.has_feature ctx.inf.com
+let add_feature ctx = Common.add_feature ctx.inf.com
+
 let is_var_field f =
 	match f with
 	| FStatic (_,f) | FInstance (_,f) ->
@@ -213,6 +216,8 @@ let default_value tstr =
 
 let rec is_wrapped ctx t =
 	match t with
+	| TAbstract ({ a_path = [], "Class"}, ps) ->
+		true
 	| TAbstract ({ a_impl = Some _ } as a,pl) ->
 		is_wrapped ctx (apply_params a.a_types pl a.a_this)
 	| TAbstract (a,_) ->
@@ -221,6 +226,8 @@ let rec is_wrapped ctx t =
 		| _ -> true)
 	| TEnum(e, _) ->
 		not e.e_extern
+	| TInst ({ cl_path = [], "Class"}, [pt]) ->
+		false
 	| TInst(c, _) ->
 		not c.cl_extern
 	| TFun(_, _) ->
@@ -630,56 +637,46 @@ and gen_expr ctx e =
 			newline ctx;
 			spr ctx "else ";
 			gen_expr ctx (block e));
-	| TUnop (op,Ast.Prefix,e) ->
-		(match(op) with
-		| Increment ->
-			spr ctx "{";
-			gen_value ctx e;
-			spr ctx " += 1";
-			newline ctx;
-			gen_value ctx e;
-			soft_newline ctx;
-			spr ctx "}";
-			newline ctx;
-		| Decrement ->
-			spr ctx "{";
-			gen_value ctx e;
-			spr ctx " -= 1";
-			newline ctx;
-			gen_value ctx e;
-			soft_newline ctx;
-			spr ctx "}";
-			newline ctx;
-		| _ ->
-			spr ctx (Ast.s_unop op);
-			gen_value ctx e;
-			());
-	| TUnop (op,Ast.Postfix,e) ->
-		(match(op) with
-		| Increment ->
-			spr ctx "{";
-			gen_value ctx e;
-			spr ctx " += 1";
-			newline ctx;
-			gen_value ctx e;
+	| TUnop (Increment,fix,e) ->
+		let post = match fix with
+		| Postfix -> true
+		| Prefix -> false in
+		spr ctx "{";
+		let temp = open_block ctx in (* for cleanliness *)
+		soft_newline ctx;
+		gen_value ctx e;
+		spr ctx " += 1";
+		newline ctx;
+		gen_value ctx e;
+		if post then
 			spr ctx " - 1";
-			soft_newline ctx;
-			spr ctx "}";
-			newline ctx;
-		| Decrement ->
-			spr ctx "{";
-			gen_value ctx e;
-			spr ctx " -= 1";
-			newline ctx;
-			gen_value ctx e;
+		temp();
+		soft_newline ctx;
+		spr ctx "};";
+		soft_newline ctx;
+	| TUnop (Decrement,fix,e) ->
+		let post = match fix with
+		| Postfix -> true
+		| Prefix -> false in
+		spr ctx "{";
+		let temp = open_block ctx in (* for cleanliness *)
+		soft_newline ctx;
+		gen_value ctx e;
+		spr ctx " -= 1";
+		newline ctx;
+		gen_value ctx e;
+		if post then
 			spr ctx " + 1";
-			soft_newline ctx;
-			spr ctx "}";
-			newline ctx;
-		| _ ->
-			gen_value ctx e;
-			spr ctx (Ast.s_unop op);
-			());
+		temp();
+		soft_newline ctx;
+		spr ctx "};";
+		soft_newline ctx;
+	| TUnop (op, Ast.Prefix,e) ->
+		spr ctx (Ast.s_unop op);
+		gen_value ctx e;
+	| TUnop (op, Ast.Postfix,e) ->
+		gen_value ctx e;
+		spr ctx (Ast.s_unop op);
 	| TWhile ({ eexpr = TConst (TBool true) },e,_) ->
 		let handle_break = handle_break ctx e in
 		spr ctx "loop ";
@@ -1035,82 +1032,92 @@ let generate_obj_impl ctx c =
 	let p = ctx.curclass.cl_pos in
 	print ctx "impl HxObject for %s {" (type_str ctx (TInst(c,[])) p);
 	let impl = open_block ctx in
-	newline ctx;
-	spr ctx "pub fn __get_field(&self, &field:str)->Option<@HxObject> {";
-	let fn = open_block ctx in
-	soft_newline ctx;
-	if ((List.length obj_fields) = 0) then
-		spr ctx "return None"
-	else (
-		spr ctx "return match(field) {";
-		let mtc = open_block ctx in
-		List.iter(fun f ->
+	if (has_feature ctx "Reflect.field") then (
+		newline ctx;
+		spr ctx "pub fn __get_field(&self, &field:str)->Option<@HxObject> {";
+		let fn = open_block ctx in
+		soft_newline ctx;
+		if ((List.length obj_fields) = 0) then
+			spr ctx "return None"
+		else (
+			spr ctx "return match(field) {";
+			let mtc = open_block ctx in
+			List.iter(fun f ->
+				soft_newline ctx;
+				print ctx "\"%s\" => " f.cf_name;
+				if not (is_wrapped ctx f.cf_type) then
+					spr ctx "Some(";
+				print ctx "self.%s" f.cf_name;
+				if not (is_wrapped ctx f.cf_type) then
+					spr ctx ")";
+				spr ctx ",";
+			) (List.append obj_fields obj_methods);
 			soft_newline ctx;
-			print ctx "\"%s\" => " f.cf_name;
-			if not (is_wrapped ctx f.cf_type) then
-				spr ctx "Some(";
-			print ctx "self.%s" f.cf_name;
-			if not (is_wrapped ctx f.cf_type) then
-				spr ctx ")";
-			spr ctx ",";
-		) (List.append obj_fields obj_methods);
-		soft_newline ctx;
-		spr ctx "_ => None";
-		mtc();
-		soft_newline ctx;
-		spr ctx "}"
+			spr ctx "_ => None";
+			mtc();
+			soft_newline ctx;
+			spr ctx "}"
+		);
+		fn();
+		newline ctx;
+		spr ctx "}";
 	);
-	fn();
-	newline ctx;
-	spr ctx "}";
-	newline ctx;
-	spr ctx "pub fn __set_field(&mut self, field:&str, value:&Option<&HxObject>) {";
-	let fn = open_block ctx in
-	soft_newline ctx;
-	if ((List.length obj_fields) > 0) then (
-		spr ctx "match(field) {";
-		let mtc = open_block ctx in
-		List.iter(fun f ->
+	if (has_feature ctx "Reflect.setField") then (
+		newline ctx;
+		spr ctx "pub fn __set_field(&mut self, field:&str, value:&Option<&HxObject>) {";
+		let fn = open_block ctx in
+		soft_newline ctx;
+		if ((List.length obj_fields) > 0) then (
+			spr ctx "match(field) {";
+			let mtc = open_block ctx in
+			List.iter(fun f ->
+				soft_newline ctx;
+				print ctx "\"%s\" => self.%s = value," f.cf_name f.cf_name;
+			) obj_fields;
 			soft_newline ctx;
-			print ctx "\"%s\" => self.%s = value," f.cf_name f.cf_name;
+			spr ctx "_ => None";
+			mtc();
+			soft_newline ctx;
+			spr ctx "}"
+		);
+		fn();
+		newline ctx;
+		spr ctx "}";
+	);
+	if (has_feature ctx "Reflect.fields") then (
+		newline ctx;
+		spr ctx "pub fn __fields(&mut self) -> Option<@[@str]> {";
+		let fn = open_block ctx in
+		newline ctx;
+		spr ctx "return __instance_fields()";
+		fn();
+		newline ctx;
+		spr ctx "}";
+	);
+	if (has_feature ctx "Type.getInstanceFields") then (
+		newline ctx;
+		spr ctx "pub fn __instance_fields() -> Option<@[@str]> {";
+		let fn = open_block ctx in
+		newline ctx;
+		spr ctx "return Some(@[";
+		concat ctx ", " (fun f ->
+			print ctx "@\"%s\"" f.cf_name;
 		) obj_fields;
-		soft_newline ctx;
-		spr ctx "_ => None";
-		mtc();
-		soft_newline ctx;
-		spr ctx "}"
+		spr ctx "])";
+		fn();
+		newline ctx;
+		spr ctx "}";
 	);
-	fn();
-	newline ctx;
-	spr ctx "}";
-	newline ctx;
-	spr ctx "pub fn __fields(&mut self) -> Option<@[@str]> {";
-	let fn = open_block ctx in
-	newline ctx;
-	spr ctx "return __instance_fields()";
-	fn();
-	newline ctx;
-	spr ctx "}";
-	newline ctx;
-	spr ctx "pub fn __instance_fields() -> Option<@[@str]> {";
-	let fn = open_block ctx in
-	newline ctx;
-	spr ctx "return Some(@[";
-	concat ctx ", " (fun f ->
-		print ctx "@\"%s\"" f.cf_name;
-	) obj_fields;
-	spr ctx "])";
-	fn();
-	newline ctx;
-	spr ctx "}";
-	newline ctx;
-	spr ctx "pub fn __name() -> Option<@str> {";
-	let fn = open_block ctx in
-	newline ctx;
-	print ctx "return Some(@\"%s\")" (Ast.s_type_path c.cl_path);
-	fn();
-	newline ctx;
-	spr ctx "}";
+	if (has_feature ctx "Type.getClassName") then (
+		newline ctx;
+		spr ctx "pub fn __name() -> Option<@str> {";
+		let fn = open_block ctx in
+		newline ctx;
+		print ctx "return Some(@\"%s\")" (Ast.s_type_path c.cl_path);
+		fn();
+		newline ctx;
+		spr ctx "}";
+	);
 	impl();
 	newline ctx;
 	spr ctx "}";
