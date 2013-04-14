@@ -210,6 +210,7 @@ let default_value tstr =
 	| "()" -> "()"
 	| _ -> "None"
 
+
 let rec is_wrapped ctx t =
 	match t with
 	| TAbstract ({ a_impl = Some _ } as a,pl) ->
@@ -229,14 +230,31 @@ let rec is_wrapped ctx t =
 	| TDynamic t ->
 		is_wrapped ctx t
 	| TAnon a ->
-		false
+		(match !(a.a_status) with
+		| Statics c -> true
+		| _ -> false)
 	| TType(t, args) ->
 		is_wrapped ctx t.t_type
 	| TLazy f ->
 		is_wrapped ctx ((!f)())
 
+let get_params cl_types =
+	match cl_types with
+		| [] ->
+			""
+		| _ ->
+			"<"^(String.concat ", " (List.map (fun (_, tcl) ->
+				match follow tcl with
+				| TInst(cl, _) -> snd cl.cl_path
+				| _ -> assert false) cl_types)
+			) ^ ">"
 let rec type_str ctx t p =
+	let s_type_params params =
+		match params with
+		| [] -> ""
+		| l -> "<" ^ String.concat ", " (List.map (fun param -> type_str ctx param p) params) ^ ">" in
 	let extern = ctx.curclass.cl_extern in
+	let reftype = "@" in (* The default reference type *)
 	match t with
 	| TAbstract ({ a_impl = Some _ } as a,pl) ->
 		type_str ctx (apply_params a.a_types pl a.a_this) p
@@ -263,32 +281,29 @@ let rec type_str ctx t p =
 					| [] -> error "Unknown value" p; ""
 					| _ :: l -> loop l
 				in
-				(loop e.e_meta) ^ (if List.length params > 0 then "<" ^ (String.concat ", " (List.map (fun x -> type_str ctx x p) params))^">" else "")
+				(loop e.e_meta) ^ (s_type_params params)
 		) else
 			s_path ctx true e.e_path p false
 	| TInst ({ cl_path = [], "Class"}, [pt]) ->
-		"Option<@HxObject>"
+		"Option<" ^ reftype ^ "HxObject>"
 	| TInst ({ cl_path = [], "String"}, _) ->
-		if extern then "@str" else "Option<@str>"
+		"Option<" ^ reftype ^ "str>"
 	| TInst ({ cl_path = ["rust"],"NativeArray"},[pt]) ->
-		if extern then "@[" ^ (type_str ctx pt p) ^ "]" else "Option<@[" ^ (type_str ctx pt p) ^ "]>"
+		let typed = type_str ctx pt p in
+		"Option<" ^ reftype ^ "[" ^ typed ^ "]>"
 	| TInst (c,params) ->
-		if extern then
-			"@" ^ (match c.cl_kind with
-			| KTypeParameter _ -> (s_path ctx false c.cl_path p true)
-			| KNormal | KGeneric | KGenericInstance _ | KAbstractImpl _ -> (s_path ctx false c.cl_path p false) ^ (if List.length params > 0 then "<" ^ (String.concat ", " (List.map (fun x -> type_str ctx x p) params))^">" else "")
-			| KTypeParameter _ | KExtension _ | KExpr _ | KMacroType -> (error "No dynamics allowed in externs." p);"")
-		else
-			"Option<@" ^ (match c.cl_kind with
-			| KTypeParameter _ -> (s_path ctx false c.cl_path p true)
-			| KNormal | KGeneric | KGenericInstance _ | KAbstractImpl _-> (s_path ctx false c.cl_path p false) ^ (if List.length params > 0 then "<" ^ (String.concat ", " (List.map (fun x -> type_str ctx x p) params))^">" else "")
-			| KExtension _ | KExpr _ | KMacroType -> "HxObject") ^ ">"
+		let ps = s_type_params params in
+		let name = ((match c.cl_kind with
+			| KTypeParameter _ -> (s_path ctx false c.cl_path p true) ^ ps
+			| KNormal | KGeneric | KGenericInstance _ | KAbstractImpl _ -> (s_path ctx false c.cl_path p false) ^ ps
+			| KExtension _ | KExpr _ | KMacroType -> "HxObject") ^ ps) in
+		"Option<" ^ reftype ^ name ^ ">"
 	| TFun (args, haxe_type) ->
 		let nargs = List.map (fun (arg,o,t) -> (type_str ctx t p)) args in
 		let asfun = "@fn(" ^ (String.concat ", " nargs) ^ ")->" ^ type_str ctx haxe_type p in
-		if extern then asfun else "Option<"^asfun^">"
+		"Option<" ^ reftype ^ asfun ^ ">"
 	| TMono r ->
-		(match !r with None -> "Option<@HxObject>" | Some t -> type_str ctx t p)
+		(match !r with None -> "Option<" ^ reftype ^ "HxObject>" | Some t -> type_str ctx t p)
 	| TAnon _ | TDynamic _ ->
 		"Option<@HxObject>"
 	| TType (t,args) ->
@@ -474,19 +489,15 @@ and gen_value_op ctx e =
 		gen_value ctx e
 
 and gen_field_access ctx t s =
-	let field c static =
-		match fst c.cl_path, snd c.cl_path, s with
-		| _ ->
-			print ctx "%s%s" (if static then "::" else ".") (s_ident s)
-	in
-	match follow t with
-	| TInst (c,_) -> field c false
+	let static = match follow t with
+	| TInst (c,_) -> false
 	| TAnon a ->
 		(match !(a.a_status) with
-		| Statics c -> field c true
-		| _ -> print ctx ".%s" (s_ident s))
+		| Statics c -> true
+		| _ -> false)
 	| _ ->
-		print ctx ".%s" (s_ident s)
+		false in
+	print ctx "%s%s" (if static then "::" else ".") (s_ident s)
 
 and gen_expr ctx e =
 	match e.eexpr with
@@ -546,9 +557,11 @@ and gen_expr ctx e =
 		let bend = open_block ctx in
 		(match ctx.block_inits with None -> () | Some i -> i());
 		if ctx.constructor_block then (
-			newline ctx;
-			print ctx "let mut self = %s {" (type_str ctx (TInst(ctx.curclass, [])) e.epos);
 			let c = ctx.curclass in
+			newline ctx;
+			let name = match ctx.curclass.cl_path with
+			| _, n -> n in
+			print ctx "let mut self = %s {" name;
 			let obj_fields = List.filter is_var c.cl_ordered_fields in
 			concat ctx ", " (fun f ->
 				spr ctx f.cf_name;
@@ -603,7 +616,7 @@ and gen_expr ctx e =
 	| TNew ({cl_path = (["rust"], "NativeArray")},[t],el) ->
 		spr ctx "[]";
 	| TNew (c,params,el) ->
-		print ctx "%s.new(" (s_path ctx true c.cl_path e.epos false);
+		print ctx "%s::new(" (s_path ctx true c.cl_path e.epos false);
 		concat ctx "," (gen_value ctx) el;
 		spr ctx ")"
 	| TIf (cond,e,eelse) ->
@@ -924,13 +937,6 @@ and gen_value ctx e =
 let final m =
 	if Ast.Meta.has Ast.Meta.Final m then "final " else ""
 
-let generate_params ctx cl_types =
-	 match cl_types with
-		| [] ->
-			()
-		| _ ->
-			print ctx "<%s>" (String.concat ", " (List.map (fun (_, tcl) -> match follow tcl with | TInst(cl, _) -> snd cl.cl_path | _ -> assert false) cl_types))
-
 let generate_field ctx static f =
 	ctx.in_static <- static;
 	ctx.gen_uid <- 0;
@@ -1091,14 +1097,14 @@ let generate_class ctx c =
 	let obj_methods = List.filter (fun x -> not (is_var x)) c.cl_ordered_fields in
 	let static_fields = List.filter(is_var) c.cl_ordered_statics in
 	let static_methods = List.filter (fun x -> not (is_var x)) c.cl_ordered_statics in
+	let params = get_params c.cl_types in
 	ctx.in_interface <- c.cl_interface;
 	spr ctx "mod HxObject";
 	newline ctx;
 	spr ctx "mod HxEnum";
 	newline ctx;
 	List.iter (generate_field ctx true) static_fields;
-	print ctx "pub struct %s" (snd c.cl_path);
-	generate_params ctx c.cl_types;
+	print ctx "pub struct %s%s" (snd c.cl_path) params;
 	if ((List.length obj_fields) > 0) then (
 		spr ctx " {";
 		let st = open_block ctx in
@@ -1112,11 +1118,7 @@ let generate_class ctx c =
 	);
 	newline ctx;
 	if (((List.length obj_methods) > 0) || (List.length c.cl_ordered_statics) > 0) && not c.cl_interface then (
-		spr ctx "pub impl";
-		generate_params ctx c.cl_types;
-		print ctx " %s" (snd c.cl_path);
-		generate_params ctx c.cl_types;
-		spr ctx " {";
+		print ctx "pub impl%s %s%s {" params (snd c.cl_path) params;
 		let cl = open_block ctx in
 		List.iter (generate_field ctx false) obj_methods;
 		List.iter (generate_field ctx true) static_methods;

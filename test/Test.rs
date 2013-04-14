@@ -5,11 +5,14 @@ pub struct Test<T> {
 }
 pub impl<T> Test<T> {
 	pub fn main() -> () {
-		Test.new(78.533567f32);
-		Some(@"898687");
+		Test::new(78.533567f32);
+		(rust::Lib::unwrap(Test))::reltest();
+	}
+	priv fn reltest() -> i32 {
+		return 8i32;
 	}
 	pub fn new(val: Option<@T>) -> Option<@Test> {
-		let mut self = Option<@Test> {value: None}
+		let mut self = Test {value: None}
 		(rust::Lib::unwrap(self)).value = val;
 		return @Some(self);
 	}

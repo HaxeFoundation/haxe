@@ -8,14 +8,14 @@ impl ToStr for HxObject {
 		return self.toString();
 	}
 }
-impl HxObject for @BaseIter {
+impl HxObject for Option<@BaseIter> {
 	pub fn __get_field(&self, &field:str) {
 		return None;
 	}
 	pub fn __set_field(&mut self, field:&str, value:&Option<&HxObject>) {
 		}
 }
-impl HxObject for @vec {
+impl HxObject for Option<@vec> {
 	pub fn __get_field(&self, &field:str) {
 		return match(field) {
 			"length" => Some(self.length),
@@ -29,14 +29,14 @@ impl HxObject for @vec {
 		}
 	}
 }
-impl HxObject for @ArrayAccess {
+impl HxObject for Option<@ArrayAccess> {
 	pub fn __get_field(&self, &field:str) {
 		return None;
 	}
 	pub fn __set_field(&mut self, field:&str, value:&Option<&HxObject>) {
 		}
 }
-impl HxObject for @str {
+impl HxObject for Option<@str> {
 	pub fn __get_field(&self, &field:str) {
 		return match(field) {
 			"length" => Some(self.length),
@@ -50,21 +50,21 @@ impl HxObject for @str {
 		}
 	}
 }
-impl HxObject for @Type {
+impl HxObject for Option<@Type> {
 	pub fn __get_field(&self, &field:str) {
 		return None;
 	}
 	pub fn __set_field(&mut self, field:&str, value:&Option<&HxObject>) {
 		}
 }
-impl HxObject for @haxe::EnumTools {
+impl HxObject for Option<@haxe::EnumTools> {
 	pub fn __get_field(&self, &field:str) {
 		return None;
 	}
 	pub fn __set_field(&mut self, field:&str, value:&Option<&HxObject>) {
 		}
 }
-impl HxObject for @haxe::EnumValueTools {
+impl HxObject for Option<@haxe::EnumValueTools> {
 	pub fn __get_field(&self, &field:str) {
 		return None;
 	}

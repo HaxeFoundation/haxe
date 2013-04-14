@@ -7,6 +7,10 @@ class Test<T> {
 	static function main() {
 		new Test(78.533567);
 		Std.string(898687);
+		reltest();
+	}
+	static function reltest() {
+		return 8;
 	}
 }
 class SubTest<T> extends Test<Int> {
