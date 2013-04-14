@@ -312,7 +312,8 @@ module MetaInfo = struct
 		| Deprecated -> ":deprecated",("",[Platforms [Java;Cs]])
 		| DynamicObject -> ":dynamicObject",("",[Platforms [Java;Cs]])
 		| Enum -> ":enum",("",[Platforms [Java;Cs]])
-		| Expose -> ":expose",("Makes the class available on the window object",[HasParam "?Name=Class path";UsedOn TClass;Platform Js])
+		| Expose -> ":expose",("Makes the class ava
+			ilable on the window object",[HasParam "?Name=Class path";UsedOn TClass;Platform Js])
 		| Extern -> ":extern",("Marks the field as extern so it is not generated",[UsedOn TClassField])
 		| FakeEnum -> ":fakeEnum",("Treat enum as collection of values of the specified type",[HasParam "Type name";UsedOn TEnum])
 		| File -> ":file",("Includes a given binary file into the target Swf and associates it with the class (must extend flash.utils.ByteArray)",[HasParam "File path";UsedOn TClass;Platform Flash])

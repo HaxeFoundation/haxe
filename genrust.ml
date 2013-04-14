@@ -518,9 +518,19 @@ and gen_expr ctx e =
 		unwrap ctx e2;
 		spr ctx "]";
 	| TBinop (op,e1,e2) ->
+		spr ctx "{";
+		let temp = open_block ctx in (* for cleanliness *)
+		let vident = s_ident "v" in
+		soft_newline ctx;
+		print ctx "let %s:%s = " vident (type_str ctx e1.etype e1.epos);
 		gen_value_op ctx e1;
-		print ctx " %s " (Ast.s_binop op);
-		gen_value_op ctx e2;
+		spr ctx (Ast.s_binop op);
+		gen_value_op e2;
+		newline ctx;
+		spr ctx vident;
+		temp();
+		soft_newline ctx;
+		spr ctx "}";
 	| TField({eexpr = TArrayDecl _} as e1,s) ->
 		spr ctx "(";
 		gen_expr ctx e1;
