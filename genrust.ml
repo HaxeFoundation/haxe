@@ -123,8 +123,6 @@ let init infos path =
 	create_dir [] dir;
 	let ch = open_out (String.concat "/" dir ^ "/" ^ snd path ^ ".rs") in
 	let imports = Hashtbl.create 0 in
-	Hashtbl.add imports "HxObject" [];
-	Hashtbl.add imports "HxEnum" [];
 	Hashtbl.add imports (snd path) [fst path];
 	{
 		inf = infos;
@@ -173,6 +171,8 @@ let newline ctx =
 	try loop (Buffer.length ctx.buf - 1) with _ -> ()
 
 let close ctx =
+	Hashtbl.replace ctx.imports "HxObject" [];
+	Hashtbl.replace ctx.imports "HxEnum" [];
 	Hashtbl.iter (fun name paths ->
 		List.iter (fun pack ->
 			let path = pack, name in
@@ -1153,7 +1153,7 @@ let generate_class ctx c =
 		spr ctx "}";
 	);
 	newline ctx;
-	if ((not (c.cl_constructor = None)) || ((List.length obj_methods) > 0) || (List.length c.cl_ordered_statics) > 0) && not c.cl_interface then (
+	if ((c.cl_constructor <> None) || ((List.length obj_methods) > 0) || (List.length c.cl_ordered_statics) > 0) && not c.cl_interface then (
 		print ctx "pub impl%s %s%s {" params path params;
 		let cl = open_block ctx in
 		List.iter (generate_field ctx false) obj_methods;
