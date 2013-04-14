@@ -4,9 +4,6 @@ pub struct Test<T> {
 	value: Item
 }
 pub impl<T> Test<T> {
-	pub fn get(&mut self) -> Item {
-		return (rust::Lib::unwrap(self)).value;
-	}
 	pub fn main() -> () {
 		SubTest::new();
 		(rust::Lib::unwrap(Test))::triangular(20i32);
@@ -18,17 +15,15 @@ pub impl<T> Test<T> {
 	priv fn triangular(n: i32) -> i32 {
 		{
 			let mut _g: i32 = 1i32;
-			while ({
-				let v:i32 = _g < n;
-				v
-			}) {
+			while (_g < n) {
 				let mut i: i32 = {
 					_g += 1;
 					_g - 1
 				};
 				{
-					let v:i32 = n += i;
-					v
+					let _v:i32 = n;
+					_v += i;
+					_v
 				}
 			}
 		}
@@ -37,17 +32,16 @@ pub impl<T> Test<T> {
 	pub fn new(val: Item) -> Option<@Test> {
 		let mut self = Test {value: None}
 		{
-			let v:Item = (rust::Lib::unwrap(self)).value = val;
-			v
+			let _v:Item = (rust::Lib::unwrap(self)).value;
+			_v = val;
+			_v
 		}
 		return @Some(self);
 	}
 }
 impl TestInterface<Item> for Test<T> {
-	pub fn get() -> Option<@Test> {
-		let mut self = Test {value: None}
+	pub fn get(&mut self) -> Item {
 		return (rust::Lib::unwrap(self)).value;
-		return @Some(self);
 	}
 }
 impl HxObject for Option<@Test> {

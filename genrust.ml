@@ -182,6 +182,7 @@ let close ctx =
 			if (path <> ctx.path) && (List.length pack) = 0 then output_string ctx.ch ("mod " ^ type_path path ^ ";\n");
 		) paths
 	) ctx.imports;
+	output_string ctx.ch ("mod HxObject;\nmod HxEnum;\n");
 	output_string ctx.ch (Buffer.contents ctx.buf);
 	close_out ctx.ch
 
@@ -497,19 +498,26 @@ and gen_expr ctx e =
 		unwrap ctx e2;
 		spr ctx "]";
 	| TBinop (op,e1,e2) ->
-		spr ctx "{";
-		let temp = open_block ctx in (* for cleanliness *)
-		let vident = gen_local "_v" in
-		soft_newline ctx;
-		print ctx "let %s:%s = " vident (type_str ctx e1.etype e1.epos);
-		gen_value_op ctx e1;
-		print ctx " %s " (Ast.s_binop op);
-		gen_value_op ctx e2;
-		newline ctx;
-		spr ctx vident;
-		temp();
-		soft_newline ctx;
-		spr ctx "}";
+		(match op with
+		| Ast.OpAssign | Ast.OpAssignOp _ ->
+			spr ctx "{";
+			let temp = open_block ctx in (* for cleanliness *)
+			let vident = gen_local ctx "_v" in
+			soft_newline ctx;
+			print ctx "let %s:%s = " vident (type_str ctx e1.etype e1.epos);
+			gen_value_op ctx e1;
+			newline ctx;
+			print ctx "%s %s " vident (Ast.s_binop op);
+			gen_value_op ctx e2;
+			newline ctx;
+			spr ctx vident;
+			temp();
+			soft_newline ctx;
+			spr ctx "}";
+		| _ ->
+			gen_value_op ctx e1;
+			print ctx " %s " (Ast.s_binop op);
+			gen_value_op ctx e2;)
 	| TField({eexpr = TArrayDecl _} as e1,s) ->
 		spr ctx "(";
 		gen_expr ctx e1;
@@ -1121,17 +1129,22 @@ let generate_class ctx c =
 	define_getset ctx true c;
 	define_getset ctx false c;
 	ctx.local_types <- List.map snd c.cl_types;
+	ctx.constructor_block <- false;
 	let obj_fields = List.filter (is_var) c.cl_ordered_fields in
-	let obj_methods = List.filter (fun x -> not (is_var x)) c.cl_ordered_fields in
+	let obj_methods = List.filter(fun f ->
+		let x = ref (is_var f) in
+		List.iter(fun (iface, ifaceps) ->
+			List.iter(fun ifacef ->
+				x := !x || (f.cf_name = ifacef.cf_name);
+			) iface.cl_ordered_fields;
+		) c.cl_implements;
+		not !x
+	) c.cl_ordered_fields in
 	let static_fields = List.filter(is_var) c.cl_ordered_statics in
 	let static_methods = List.filter (fun x -> not (is_var x)) c.cl_ordered_statics in
 	let params = get_params c.cl_types in
 	let path = snd c.cl_path in
 	ctx.in_interface <- c.cl_interface;
-	spr ctx "mod HxObject";
-	newline ctx;
-	spr ctx "mod HxEnum";
-	newline ctx;
 	List.iter (generate_field ctx true) static_fields;
 	print ctx "pub struct %s%s" path params;
 	if ((List.length obj_fields) > 0) then (
@@ -1161,6 +1174,7 @@ let generate_class ctx c =
 				} in
 				ctx.constructor_block <- true;
 				generate_field ctx false f;
+				ctx.constructor_block <- false;
 		);
 		cl();
 		newline ctx;
@@ -1184,12 +1198,12 @@ let generate_class ctx c =
 		print ctx "impl %s%s for %s%s {" iface_path tparams path params;
 		let i = open_block ctx in
 		let iface_fields = List.filter(fun f ->
-			let x = ref false in
+			let x = ref (not (is_var f)) in
 			List.iter(fun ifacef ->
 				x := !x || (f.cf_name = ifacef.cf_name);
 			) iface.cl_ordered_fields;
 			!x
-		) obj_methods in
+		) c.cl_ordered_fields in
 		List.iter(generate_field ctx false) iface_fields;
 		i();
 		newline ctx;

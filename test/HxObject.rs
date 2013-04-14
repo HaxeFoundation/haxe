@@ -1,3 +1,5 @@
+mod HxObject;
+mod HxEnum;
 pub trait HxObject {
 	pub fn __get_field(&self, field:@str) -> Option<HxObject>;
 	pub fn __set_field(&mut self, field:@str, value:Option<@HxObject>) -> Option<@HxObject>;
