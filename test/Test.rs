@@ -44,7 +44,7 @@ pub impl<T> Test<T> {
 		return @Some(self);
 	}
 }
-impl TestInterface for Test {
+impl TestInterface<T> for Test<T> {
 	pub fn get() -> Option<@Test> {
 		let mut self = Test {value: None}
 		return (rust::Lib::unwrap(self)).value;

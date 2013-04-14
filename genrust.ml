@@ -1131,6 +1131,19 @@ let generate_obj_impl ctx c =
 	spr ctx "}";
 	newline ctx
 
+let rec s_tparams ctx params pos =
+	if List.length params > 0 then
+		"<" ^ (String.concat ", " (List.map(fun t ->
+			match t with
+			| TInst({cl_kind = KTypeParameter pl; cl_path = path}, ps) ->
+				(snd path) ^ (s_tparams ctx ps pos)
+			| _ ->
+				error "Unresolvable type parameter" pos;
+				""
+		) params)) ^ ">"
+	else
+		""
+
 let generate_class ctx c =
 	ctx.curclass <- c;
 	define_getset ctx true c;
@@ -1194,9 +1207,9 @@ let generate_class ctx c =
 		newline ctx;
 	);
 	List.iter (fun (iface, iface_params) ->
-		let params = "" in
+		let tparams = s_tparams ctx iface_params c.cl_pos in
 		let iface_path = snd iface.cl_path in
-		print ctx "impl %s for %s {" iface_path path;
+		print ctx "impl %s%s for %s%s {" iface_path tparams path params;
 		let i = open_block ctx in
 		let iface_fields = List.filter(fun f ->
 			let x = ref false in
