@@ -1,4 +1,8 @@
+mod BaseIter;
+mod Type;
 mod haxe::EnumValueTools;
+mod ArrayAccess;
+mod vec;
 mod haxe::EnumTools;
 pub trait HxObject {
 	pub fn __get_field(&self, field:@str) -> Option<HxObject>;

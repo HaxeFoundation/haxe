@@ -1,3 +1,5 @@
+mod SubTest;
+mod Item;
 pub struct Test<T> {
 	value: Item
 }

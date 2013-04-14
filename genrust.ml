@@ -88,7 +88,7 @@ let s_path ctx stat path p is_param =
 		else (
 			let name = protect name in
 			let packs = (try Hashtbl.find ctx.imports name with Not_found -> []) in
-			if not (List.mem pack packs) then Hashtbl.replace ctx.imports name packs;
+			if not (List.mem pack packs) then Hashtbl.replace ctx.imports name (pack :: packs);
 			type_path (pack,name)
 		)
 
@@ -252,9 +252,9 @@ let get_params cl_types =
 			) ^ ">"
 let rec type_str ctx t p =
 	let s_type_params params =
-		match params with
+		(match params with
 		| [] -> ""
-		| l -> "<" ^ String.concat ", " (List.map (fun param -> type_str ctx param p) params) ^ ">" in
+		| l -> "<" ^ String.concat ", " (List.map (fun param -> type_str ctx param p) params) ^ ">") in
 	let extern = ctx.curclass.cl_extern in
 	let reftype = "@" in (* The default reference type *)
 	match t with
@@ -262,10 +262,11 @@ let rec type_str ctx t p =
 		type_str ctx (apply_params a.a_types pl a.a_this) p
 	| TAbstract (a,_) ->
 		(match a.a_path with
-		| [], "UInt" -> "uint"
+		| [], "UInt" -> "ui32"
 		| [], "Int" -> "i32"
 		| [], "Float" -> "f32"
 		| [], "Bool" -> "bool"
+		| [], "Void" -> "()"
 		| _ -> s_path ctx true a.a_path p false)
 	| TEnum (e, params) ->
 		if e.e_extern then (match e.e_path with
@@ -280,7 +281,7 @@ let rec type_str ctx t p =
 						| "String" -> "str"
 						| "Bool" -> "bool"
 						| _ -> n)
-					| [] -> error "Unknown value" p; ""
+					| [] -> "HxObject"
 					| _ :: l -> loop l
 				in
 				(loop e.e_meta) ^ (s_type_params params)
@@ -296,7 +297,7 @@ let rec type_str ctx t p =
 	| TInst (c,params) ->
 		let ps = s_type_params params in
 		let name = ((match c.cl_kind with
-			| KTypeParameter _ -> (s_path ctx false c.cl_path p true) ^ ps
+			| KTypeParameter _ -> snd c.cl_path
 			| KNormal | KGeneric | KGenericInstance _ | KAbstractImpl _ -> (s_path ctx false c.cl_path p false) ^ ps
 			| KExtension _ | KExpr _ | KMacroType -> "HxObject") ^ ps) in
 		"Option<" ^ reftype ^ name ^ ">"
@@ -313,6 +314,20 @@ let rec type_str ctx t p =
 		| _ -> type_str ctx (apply_params t.t_types args t.t_type) p)
 	| TLazy f ->
 		type_str ctx ((!f)()) p
+
+let rec s_tparams ctx params p =
+	if List.length params > 0 then
+		"<" ^ (String.concat ", " (List.map(fun t ->
+			match t with
+			| TInst({cl_kind = KTypeParameter pl; cl_path = path}, ps) ->
+				(snd path) ^ (s_tparams ctx ps p)
+			| TInst(c, ps) ->
+				(s_path ctx true c.cl_path pos false) ^ (s_tparams ctx ps p)
+			| _ ->
+				(type_str ctx t pos)
+		) params)) ^ ">"
+	else
+		""
 
 let rec iter_switch_break in_switch e =
 	match e.eexpr with
@@ -1106,20 +1121,6 @@ let generate_obj_impl ctx c =
 	spr ctx "}";
 	newline ctx
 
-let rec s_tparams ctx params pos =
-	if List.length params > 0 then
-		"<" ^ (String.concat ", " (List.map(fun t ->
-			match t with
-			| TInst({cl_kind = KTypeParameter pl; cl_path = path}, ps) ->
-				(snd path) ^ (s_tparams ctx ps pos)
-			| TInst(c, ps) ->
-				(s_path ctx true c.cl_path pos false) ^ (s_tparams ctx ps pos)
-			| _ ->
-				type_str ctx t pos
-		) params)) ^ ">"
-	else
-		""
-
 let generate_class ctx c =
 	ctx.curclass <- c;
 	define_getset ctx true c;
@@ -1211,12 +1212,13 @@ let generate_class ctx c =
 
 let generate_enum ctx e =
 	ctx.local_types <- List.map snd e.e_types;
+	let params = get_params e.e_types in
 	let ename = snd e.e_path in
-	print ctx "\tpub enum %s {" ename;
+	print ctx "pub enum %s%s {" ename params;
 	let cl = open_block ctx in
 	PMap.iter (fun _ c ->
-		newline ctx;
-		match c.ef_type with
+		soft_newline ctx;
+		(match c.ef_type with
 		| TFun (args,_) ->
 			print ctx "%s(" c.ef_name;
 			concat ctx ", " (fun (a,o,t) ->
@@ -1224,10 +1226,10 @@ let generate_enum ctx e =
 			) args;
 			print ctx ")";
 		| _ ->
-			();
+			spr ctx (type_str ctx c.ef_type c.ef_pos););
 	) e.e_constrs;
 	cl();
-	newline ctx;
+	soft_newline ctx;
 	spr ctx "}";
 	newline ctx
 
