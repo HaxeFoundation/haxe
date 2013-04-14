@@ -1159,7 +1159,7 @@ let generate_class ctx c =
 		spr ctx "}";
 	);
 	newline ctx;
-	if (((List.length obj_methods) > 0) || (List.length c.cl_ordered_statics) > 0) && not c.cl_interface then (
+	if ((not (c.cl_constructor = None)) || ((List.length obj_methods) > 0) || (List.length c.cl_ordered_statics) > 0) && not c.cl_interface then (
 		print ctx "pub impl%s %s%s {" params path params;
 		let cl = open_block ctx in
 		List.iter (generate_field ctx false) obj_methods;
