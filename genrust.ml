@@ -947,8 +947,17 @@ and gen_value ctx e =
 		)) e.etype e.epos);
 		v()
 
-let final m =
-	if Ast.Meta.has Ast.Meta.Final m then "final " else ""
+let get_meta_string meta key =
+	let rec loop = function
+		| [] -> ""
+		| (k,[Ast.EConst (Ast.String name),_],_) :: _  when k=key-> name
+		| _ :: l -> loop l
+		in
+	loop meta
+
+let get_code meta key =
+	let code = get_meta_string meta key in
+	if (code<>"") then code ^ "\n" else code
 
 let generate_field ctx static f =
 	ctx.in_static <- static;
@@ -972,7 +981,17 @@ let generate_field ctx static f =
 		in
 		if not static then loop ctx.curclass;
 		let h = gen_function_header ctx (Some (s_ident f.cf_name, f.cf_meta)) fd f.cf_params p in
-		if not ctx.in_interface then
+		let code = (get_code f.cf_meta Meta.FunctionCode) in
+		if (not ctx.in_interface) && String.length code > 0 then (
+			spr ctx "{";
+			let fn = open_block ctx in
+			newline ctx;
+			spr ctx code;
+			soft_newline ctx;
+			fn();
+			spr ctx "}";
+		);
+		if (not ctx.in_interface) && String.length code = 0 then
 			gen_expr ctx fd.tf_expr;
 		h()
 	| _ ->

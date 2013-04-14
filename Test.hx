@@ -17,8 +17,9 @@ class Test<T> implements TestInterface<Item<T>> {
 		triangular(20);
 		reltest();
 	}
-	static function reltest() {
-		return 8;
+	@:functionCode('return Some(@((io::stdout() as io::ReaderUtil).readLine()));')
+	static function reltest():Null<String> {
+		return "";
 	}
 	static function triangular(n:Int) {
 		for(i in 1...n)

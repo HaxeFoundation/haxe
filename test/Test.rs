@@ -10,9 +10,10 @@ pub impl<T> Test<T> {
 		(rust::Lib::unwrap(Test))::triangular(20i32);
 		(rust::Lib::unwrap(Test))::reltest();
 	}
-	priv fn reltest() -> i32 {
-		return 8i32;
-	}
+	priv fn reltest() -> Option<@str> {
+		return Some(@((io::stdout() as io::ReaderUtil).readLine()));
+
+		}
 	priv fn triangular(n: i32) -> i32 {
 		{
 			let mut _g: i32 = 1i32;
