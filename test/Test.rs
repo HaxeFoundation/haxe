@@ -21,9 +21,8 @@ pub impl<T> Test<T> {
 					_g - 1
 				};
 				{
-					let _v:i32 = n;
-					_v += i;
-					_v
+					n += i;
+					n
 				}
 			}
 		}
@@ -32,9 +31,8 @@ pub impl<T> Test<T> {
 	pub fn new(val: Item) -> Option<@Test> {
 		let mut self = Test {value: None}
 		{
-			let _v:Item = (rust::Lib::unwrap(self)).value;
-			_v = val;
-			_v
+			(rust::Lib::unwrap(self)).value = val;
+			(rust::Lib::unwrap(self)).value
 		}
 		return @Some(self);
 	}

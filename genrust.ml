@@ -513,15 +513,12 @@ and gen_expr ctx e =
 		| Ast.OpAssign | Ast.OpAssignOp _ ->
 			spr ctx "{";
 			let temp = open_block ctx in (* for cleanliness *)
-			let vident = gen_local ctx "_v" in
 			soft_newline ctx;
-			print ctx "let %s:%s = " vident (type_str ctx e1.etype e1.epos);
 			gen_value_op ctx e1;
-			newline ctx;
-			print ctx "%s %s " vident (Ast.s_binop op);
+			print ctx " %s " (Ast.s_binop op);
 			gen_value_op ctx e2;
 			newline ctx;
-			spr ctx vident;
+			gen_value_op ctx e1;
 			temp();
 			soft_newline ctx;
 			spr ctx "}";
