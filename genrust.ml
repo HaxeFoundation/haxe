@@ -77,23 +77,18 @@ let type_path (p, s) =
 
 let s_path ctx stat path p is_param =
 	match path with
-	| ([],name) ->
-		(match name with
-		| "Int" -> "i32"
-		| "Float" -> "f32"
-		| "Void" -> "()"
-		| "Dynamic" -> "HxObject"
-		| "Bool" -> "bool"
-		| "Enum" -> "Class"
-		| "EnumValue" -> "enum"
-		| _ -> name)
+	| ([], "Int") -> "i32"
+	| ([], "Float") -> "f32"
+	| ([], "Void") -> "()"
+	| ([], "Dynamic") -> "HxObject"
+	| ([], "Bool") -> "bool"
 	| (pack,name) ->
 		if is_param then
 			name
 		else (
 			let name = protect name in
 			let packs = (try Hashtbl.find ctx.imports name with Not_found -> []) in
-			if not (List.mem pack packs) then Hashtbl.replace ctx.imports name (pack :: packs);
+			if not (List.mem pack packs) then Hashtbl.replace ctx.imports name packs;
 			type_path (pack,name)
 		)
 
@@ -128,6 +123,8 @@ let init infos path =
 	create_dir [] dir;
 	let ch = open_out (String.concat "/" dir ^ "/" ^ snd path ^ ".rs") in
 	let imports = Hashtbl.create 0 in
+	Hashtbl.add imports "HxObject" [];
+	Hashtbl.add imports "HxEnum" [];
 	Hashtbl.add imports (snd path) [fst path];
 	{
 		inf = infos;
@@ -179,10 +176,9 @@ let close ctx =
 	Hashtbl.iter (fun name paths ->
 		List.iter (fun pack ->
 			let path = pack, name in
-			if (path <> ctx.path) && (List.length pack) = 0 then output_string ctx.ch ("mod " ^ type_path path ^ ";\n");
+			if (path <> ctx.path) then output_string ctx.ch ("mod " ^ type_path path ^ ";\n");
 		) paths
 	) ctx.imports;
-	output_string ctx.ch ("mod HxObject;\nmod HxEnum;\n");
 	output_string ctx.ch (Buffer.contents ctx.buf);
 	close_out ctx.ch
 
@@ -1117,7 +1113,7 @@ let rec s_tparams ctx params pos =
 			| TInst({cl_kind = KTypeParameter pl; cl_path = path}, ps) ->
 				(snd path) ^ (s_tparams ctx ps pos)
 			| TInst(c, ps) ->
-				(s_type_path c.cl_path) ^ (s_tparams ctx ps pos)
+				(s_path ctx true c.cl_path pos false) ^ (s_tparams ctx ps pos)
 			| _ ->
 				type_str ctx t pos
 		) params)) ^ ">"

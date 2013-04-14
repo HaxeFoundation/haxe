@@ -1,5 +1,5 @@
-mod HxObject;
-mod HxEnum;
+mod haxe::EnumValueTools;
+mod haxe::EnumTools;
 pub trait HxObject {
 	pub fn __get_field(&self, field:@str) -> Option<HxObject>;
 	pub fn __set_field(&mut self, field:@str, value:Option<@HxObject>) -> Option<@HxObject>;

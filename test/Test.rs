@@ -1,5 +1,3 @@
-mod HxObject;
-mod HxEnum;
 pub struct Test<T> {
 	value: Item
 }
