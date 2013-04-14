@@ -524,8 +524,8 @@ and gen_expr ctx e =
 		soft_newline ctx;
 		print ctx "let %s:%s = " vident (type_str ctx e1.etype e1.epos);
 		gen_value_op ctx e1;
-		spr ctx (Ast.s_binop op);
-		gen_value_op e2;
+		print ctx " %s " (Ast.s_binop op);
+		gen_value_op ctx e2;
 		newline ctx;
 		spr ctx vident;
 		temp();
@@ -1031,8 +1031,6 @@ let rec define_getset ctx stat c =
 
 let generate_obj_impl ctx c =
 	ctx.curclass <- c;
-	define_getset ctx true c;
-	define_getset ctx false c;
 	ctx.local_types <- List.map snd c.cl_types;
 	let obj_fields = List.filter (is_var) c.cl_ordered_fields in
 	let obj_methods = List.filter (fun x -> not (is_var x)) c.cl_ordered_fields in
@@ -1143,13 +1141,14 @@ let generate_class ctx c =
 	let static_fields = List.filter(is_var) c.cl_ordered_statics in
 	let static_methods = List.filter (fun x -> not (is_var x)) c.cl_ordered_statics in
 	let params = get_params c.cl_types in
+	let path = snd c.cl_path in
 	ctx.in_interface <- c.cl_interface;
 	spr ctx "mod HxObject";
 	newline ctx;
 	spr ctx "mod HxEnum";
 	newline ctx;
 	List.iter (generate_field ctx true) static_fields;
-	print ctx "pub struct %s%s" (snd c.cl_path) params;
+	print ctx "pub struct %s%s" path params;
 	if ((List.length obj_fields) > 0) then (
 		spr ctx " {";
 		let st = open_block ctx in
@@ -1163,7 +1162,7 @@ let generate_class ctx c =
 	);
 	newline ctx;
 	if (((List.length obj_methods) > 0) || (List.length c.cl_ordered_statics) > 0) && not c.cl_interface then (
-		print ctx "pub impl%s %s%s {" params (snd c.cl_path) params;
+		print ctx "pub impl%s %s%s {" params path params;
 		let cl = open_block ctx in
 		List.iter (generate_field ctx false) obj_methods;
 		List.iter (generate_field ctx true) static_methods;
@@ -1184,7 +1183,7 @@ let generate_class ctx c =
 		newline ctx;
 	);
 	if c.cl_interface then (
-		print ctx "pub trait %s {" (snd c.cl_path);
+		print ctx "pub trait%s %s%s {" params path params;
 		let tr = open_block ctx in
 		soft_newline ctx;
 		List.iter (generate_field ctx false) obj_methods;
@@ -1194,6 +1193,24 @@ let generate_class ctx c =
 		spr ctx "}";
 		newline ctx;
 	);
+	List.iter (fun (iface, iface_params) ->
+		let params = "" in
+		let iface_path = snd iface.cl_path in
+		print ctx "impl %s for %s {" iface_path path;
+		let i = open_block ctx in
+		let iface_fields = List.filter(fun f ->
+			let x = ref false in
+			List.iter(fun ifacef ->
+				x := !x || (f.cf_name = ifacef.cf_name);
+			) iface.cl_ordered_fields;
+			!x
+		) obj_methods in
+		List.iter(generate_field ctx false) iface_fields;
+		i();
+		newline ctx;
+		spr ctx "}";
+		newline ctx;
+	) c.cl_implements;
 	generate_obj_impl ctx c;
 	()
 

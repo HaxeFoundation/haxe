@@ -1,8 +1,11 @@
 import rust.*;
-class Test<T> {
+class Test<T> implements TestInterface<T> {
 	var value:T;
 	public function new(val:T) {
 		this.value = val;
+	}
+	public function get():T {
+		return value;
 	}
 	static function main() {
 		var cl = Test;
@@ -24,4 +27,7 @@ class SubTest<T> extends Test<Int> {
 	public function new() {
 		super(87);
 	}
+}
+interface TestInterface<T> {
+	public function get():T;
 }
