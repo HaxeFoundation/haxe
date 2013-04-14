@@ -44,7 +44,4 @@ impl TestInterface<Item> for Test<T> {
 	}
 }
 impl HxObject for Test<T> {
-	pub fn toString() -> Option<@str> {
-		return Self.__name();
-	}
 }

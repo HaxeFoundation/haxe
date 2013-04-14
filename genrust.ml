@@ -98,7 +98,7 @@ let reserved =
 	(* these ones are defined in order to prevent recursion in some Std functions *)
 	["is";"as";"i32";"uint";"const";"getTimer";"typeof";"parseInt";"parseFloat";
 	(* Rust keywords which are not Haxe ones *)
-	"loop";"with";"i32";"f32";"float";"let";"mod";"impl";"trait";"struct";"_";"self";"Self"
+	"loop";"with";"int";"float";"extern";"let";"mod";"impl";"trait";"struct";"_";
 	(* we don't include get+set since they are not 'real' keywords, but they can't be used as method names *)
 	"function";"class";"var";"if";"else";"while";"do";"for";"break";"continue";"return";"extends";"implements";
 	"import";"switch";"case";"default";"static";"public";"private";"try";"catch";"this";"throw";"interface";
@@ -209,6 +209,7 @@ let default_value tstr =
 	| "()" -> "()"
 	| _ -> "None"
 
+
 let rec is_wrapped ctx t =
 	match t with
 	| TAbstract ({ a_path = [], "Class"}, ps) ->
@@ -240,11 +241,6 @@ let rec is_wrapped ctx t =
 	| TLazy f ->
 		is_wrapped ctx ((!f)())
 
-let is_wrapped_expr ctx e =
-	match e.eexpr with
-	| TConst TThis -> true
-	| _ -> is_wrapped ctx e.etype
-
 let get_params cl_types =
 	match cl_types with
 		| [] ->
@@ -255,7 +251,6 @@ let get_params cl_types =
 				| TInst(cl, _) -> snd cl.cl_path
 				| _ -> assert false) cl_types)
 			) ^ ">"
-
 let rec type_str ctx t p =
 	let s_type_params params =
 		(match params with
@@ -360,6 +355,8 @@ let rec iter_switch_break in_switch e =
 	| TBreak when in_switch -> raise Exit
 	| _ -> iter (iter_switch_break in_switch) e
 
+let this ctx = "self"
+
 let escape_bin s =
 	let b = Buffer.create 0 in
 	for i = 0 to String.length s - 1 do
@@ -409,7 +406,7 @@ let gen_constant ctx p = function
 	| TString s -> print ctx "Some(@\"%s\")" (escape_bin (Ast.s_escape s))
 	| TBool b -> spr ctx (if b then "true" else "false")
 	| TNull -> spr ctx "None"
-	| TThis -> spr ctx "self"
+	| TThis -> spr ctx (this ctx)
 	| TSuper -> spr ctx "self.super()"
 
 let gen_function_header ctx name f params p =
@@ -492,7 +489,7 @@ let rec gen_call ctx e el r =
 		spr ctx ")"
 
 and unwrap ctx e =
-	if (is_wrapped_expr ctx e) then (
+	if (is_wrapped ctx e.etype) then (
 		spr ctx "(rust::Lib::unwrap(";
 		gen_value ctx e;
 		spr ctx "))";
@@ -869,7 +866,7 @@ and gen_value ctx e =
 			if ctx.in_static then
 				print ctx "()"
 			else
-				spr ctx "self"
+				print ctx "%s" (this ctx)
 		)
 	in
 	match e.eexpr with
@@ -1136,14 +1133,6 @@ let generate_obj_impl ctx c =
 		newline ctx;
 		spr ctx "}";
 	);
-	newline ctx;
-	spr ctx "pub fn toString() -> Option<@str> {";
-	let fn = open_block ctx in
-	newline ctx;
-	spr ctx "return Self.__name()";
-	fn();
-	newline ctx;
-	spr ctx "}";
 	impl();
 	newline ctx;
 	spr ctx "}";
@@ -1278,22 +1267,10 @@ let generate_base_object ctx com =
 	spr ctx "pub trait HxObject {";
 	let trait = open_block ctx in
 	newline ctx;
-	if has_feature ctx "Reflect.field" then (
-		spr ctx "pub fn __field(&self, field:@str) -> Option<@HxObject>";
-		newline ctx;
-	);
-	if has_feature ctx "Reflect.fields" then (
-		spr ctx "pub fn __fields(&self, field:@str) -> Option<@HxObject>";
-		newline ctx;
-	);
-	if has_feature ctx "Type.getInstanceFields" then (
-		spr ctx "pub fn __instance_fields() -> [@str]";
-		newline ctx;
-	);
-	if has_feature ctx "Reflect.setField" then (
-		spr ctx "pub fn __set_field(&mut self, field:@str, value:Option<@HxObject>) -> Option<@HxObject>";
-		newline ctx;
-	);
+	spr ctx "pub fn __get_field(&self, field:@str) -> Option<HxObject>";
+	newline ctx;
+	spr ctx "pub fn __set_field(&mut self, field:@str, value:Option<@HxObject>) -> Option<@HxObject>";
+	newline ctx;
 	spr ctx "pub fn toString(&self) -> @str";
 	trait();
 	newline ctx;
