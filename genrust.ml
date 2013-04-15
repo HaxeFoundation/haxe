@@ -616,7 +616,7 @@ and gen_expr ctx e =
 		newline ctx;
 		print ctx "}";
 	| TFunction f ->
-		spr ctx "@Some(";
+		spr ctx "Some(@";
 		let h = gen_function_header ctx None f [] e.epos in
 		let old = ctx.in_static in
 		ctx.in_static <- true;
@@ -1167,13 +1167,11 @@ let generate_class ctx c =
 	ctx.constructor_block <- false;
 	let obj_fields = List.filter (is_var) c.cl_ordered_fields in
 	let obj_methods = List.filter(fun f ->
-		let x = ref (is_var f) in
-		List.iter(fun (iface, ifaceps) ->
-			List.iter(fun ifacef ->
-				x := !x || (f.cf_name = ifacef.cf_name);
-			) iface.cl_ordered_fields;
-		) c.cl_implements;
-		not !x
+		let x = ref false in
+		List.iter(fun ifacef ->
+			x := !x || (f.cf_name = ifacef.cf_name);
+		) c.cl_ordered_fields;
+		!x && (not (is_var f))
 	) c.cl_ordered_fields in
 	let static_fields = List.filter(is_var) c.cl_ordered_statics in
 	let static_methods = List.filter (fun x -> not (is_var x)) c.cl_ordered_statics in
@@ -1233,11 +1231,11 @@ let generate_class ctx c =
 		print ctx "impl %s%s for %s%s {" iface_path tparams path params;
 		let i = open_block ctx in
 		let iface_fields = List.filter(fun f ->
-			let x = ref (not (is_var f)) in
+			let x = ref false in
 			List.iter(fun ifacef ->
 				x := !x || (f.cf_name = ifacef.cf_name);
 			) iface.cl_ordered_fields;
-			!x
+			!x && (not (is_var f))
 		) c.cl_ordered_fields in
 		List.iter(generate_field ctx false) iface_fields;
 		i();

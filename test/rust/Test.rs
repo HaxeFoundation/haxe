@@ -6,6 +6,9 @@ pub struct Test<T> {
 	value: Item
 }
 pub impl<T> Test<T> {
+	pub fn get(&mut self) -> Item {
+		return (rust::Lib::unwrap(self)).value;
+	}
 	pub fn main() -> () {
 		let mut b: Option<@~[Option<@str>]> = [];
 		{

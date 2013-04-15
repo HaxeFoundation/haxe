@@ -1,5 +1,7 @@
 mod TestInterface;
-pub struct TestInterface<T>;
+pub struct TestInterface<T> {
+	value: Option<@T>
+}
 pub trait<T> TestInterface<T> {
 	fn get() : Option<@T>;
 }
