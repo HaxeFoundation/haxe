@@ -5,7 +5,7 @@ enum Item<T> {
 	none;
 }
 class Test<T> implements TestInterface<Item<T>> {
-	var value:Item<T>;
+	public var value:Item<T>;
 	public function new(val:Item<T>) {
 		this.value = val;
 	}
@@ -29,5 +29,6 @@ class SubTest extends Test<Int> {
 	}
 }
 interface TestInterface<T> {
+	public var value:T;
 	public function get():T;
 }

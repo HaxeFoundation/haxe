@@ -355,8 +355,6 @@ let rec iter_switch_break in_switch e =
 	| TBreak when in_switch -> raise Exit
 	| _ -> iter (iter_switch_break in_switch) e
 
-let this ctx = "self"
-
 let escape_bin s =
 	let b = Buffer.create 0 in
 	for i = 0 to String.length s - 1 do
@@ -406,7 +404,7 @@ let gen_constant ctx p = function
 	| TString s -> print ctx "Some(@\"%s\")" (escape_bin (Ast.s_escape s))
 	| TBool b -> spr ctx (if b then "true" else "false")
 	| TNull -> spr ctx "None"
-	| TThis -> spr ctx (this ctx)
+	| TThis -> spr ctx "self"
 	| TSuper -> spr ctx "self.super()"
 
 let gen_function_header ctx name f params p =
@@ -870,7 +868,7 @@ and gen_value ctx e =
 			if ctx.in_static then
 				print ctx "()"
 			else
-				print ctx "%s" (this ctx)
+				spr ctx "self";
 		)
 	in
 	match e.eexpr with
