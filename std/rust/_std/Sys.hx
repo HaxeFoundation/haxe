@@ -8,7 +8,7 @@ import rust.Lib;
 	@:functionCode('io::print(s)')
 	public static inline function print(s:String):Void {}
 	@:functionCode('io::println(s)')
-	public static inline function print(s:String):Void {}
+	public static inline function println(s:String):Void {}
 	public static function getEnv(s:String):String {
 		return OS.getenv(s);
 	}

@@ -118,7 +118,7 @@ let htmlescape s =
 
 let reserved_flags = [
 	"cross";"flash8";"js";"neko";"flash";"php";"cpp";"cs";"java";
-	"as3";"swc";"macro";"sys"
+	"as3";"swc";"macro";"sys";"rust";
 	]
 
 let complete_fields fields =
@@ -1274,7 +1274,7 @@ try
 			Genjava.generate com;
 		| Rust ->
 			Common.log com ("Generating Rust in : " ^ com.file);
-			Genjava.generate com;
+			Genrust.generate com;
 		);
 	end;
 	Sys.catch_break false;

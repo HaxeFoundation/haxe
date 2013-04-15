@@ -298,10 +298,10 @@ let rec type_str ctx t p =
 	| TInst ({ cl_path = [], "String"}, _) ->
 		canwrap := true;
 		reftype ^ "str"
-	| TInst ({ cl_path = ["rust"],"NativeArray"},[pt]) ->
+	| TInst ({ cl_path = [], "Array"},[pt]) ->
 		let typed = type_str ctx pt p in
 		canwrap := true;
-		reftype ^ "[" ^ typed ^ "]"
+		reftype ^ "~[" ^ typed ^ "]"
 	| TInst (c,params) ->
 		canwrap := true;
 		let ps = s_type_params params in
@@ -545,7 +545,13 @@ and gen_expr ctx e =
 			gen_value_op ctx e1;
 			print ctx " %s " (Ast.s_binop op);
 			gen_value_op ctx e2;)
-	| TField({eexpr = TArrayDecl _} as e1,s) ->
+	| TField( e, FInstance({ cl_path = ([], "String") }, { cf_name = "length" }) ) ->
+       	unwrap ctx e;
+		spr ctx ".len()";
+	| TField( e, FInstance({ cl_path = ([], "Array") }, { cf_name = "length" }) ) ->
+       	unwrap ctx e;
+		spr ctx ".len()";
+	| TField ({eexpr = TArrayDecl _} as e1,s) ->
 		spr ctx "(";
 		gen_expr ctx e1;
 		spr ctx ")";
@@ -623,9 +629,9 @@ and gen_expr ctx e =
 	| TCall (v,el) ->
 		gen_call ctx v el e.etype
 	| TArrayDecl el ->
-		spr ctx "[";
+		spr ctx "Some(~[";
 		concat ctx "," (gen_value ctx) el;
-		spr ctx "]"
+		spr ctx "])"
 	| TThrow e ->
 		spr ctx "fail!(";
 		gen_value ctx e;
@@ -643,8 +649,6 @@ and gen_expr ctx e =
 				gen_value ctx e
 		) vl;
 	| TNew ({cl_path = ([], "Array")},[t],el) ->
-		spr ctx "[]";
-	| TNew ({cl_path = (["rust"], "NativeArray")},[t],el) ->
 		spr ctx "[]";
 	| TNew (c,params,el) ->
 		print ctx "%s::new(" (s_path ctx true c.cl_path e.epos false);

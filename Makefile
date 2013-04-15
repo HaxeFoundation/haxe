@@ -31,7 +31,7 @@ RELDIR=../../..
 EXPORT=../../../projects/motionTools/haxe
 
 MODULES=ast type lexer common genxml parser typecore optimizer typeload \
-codegen gencommon genas3 gencpp genjs genneko genphp genswf8 \
+codegen gencommon genas3 gencpp genjs genneko genphp genswf8 genrust \
 	genswf9 genswf genjava gencs interp typer matcher dce main
 
 export HAXE_STD_PATH=$(CURDIR)/std
@@ -113,6 +113,8 @@ genswf.cmx: type.cmx genswf9.cmx genswf8.cmx common.cmx ast.cmx
 genswf8.cmx: type.cmx lexer.cmx common.cmx codegen.cmx ast.cmx
 
 genswf9.cmx: type.cmx lexer.cmx genswf8.cmx common.cmx codegen.cmx ast.cmx
+
+genrust.cmx: type.cmx lexer.cmx common.cmx codegen.cmx ast.cmx
 
 genxml.cmx: type.cmx lexer.cmx common.cmx ast.cmx
 

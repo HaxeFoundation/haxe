@@ -1,4 +1,5 @@
 import rust.*;
+import rust.io.*;
 enum Item<T> {
 	value(v:T);
 	none;
@@ -12,19 +13,14 @@ class Test<T> implements TestInterface<Item<T>> {
 		return value;
 	}
 	static function main() {
+		var b = new Array<String>();
+		b.push("8989");
+		var a = [56, 78, 42, 35];
+		b.push(Std.string(a));
+		Std.string(b.length);
+		for(i in b)
+			i;
 		new SubTest();
-		Sys.println(Std.string(898687));
-		triangular(20);
-		reltest();
-	}
-	@:functionCode('return Some(@((io::stdout() as io::ReaderUtil).readLine()));')
-	static function reltest():Null<String> {
-		return "";
-	}
-	static function triangular(n:Int) {
-		for(i in 1...n)
-			n += i;
-		return n;
 	}
 }
 class SubTest extends Test<Int> {

@@ -665,6 +665,7 @@ let platforms = [
 	Cpp;
 	Cs;
 	Java;
+	Rust;
 ]
 
 let platform_name = function
