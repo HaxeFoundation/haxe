@@ -164,7 +164,7 @@ class Web {
 		Returns an hashtable of all Cookies sent by the client.
 		Modifying the hashtable will not modify the cookie, use setCookie instead.
 	**/
-	public static function getCookies() {
+	public static function getCookies():haxe.ds.StringMap<String> {
 		var p = _get_cookies();
 		var h = new haxe.ds.StringMap<String>();
 		var k = "";
