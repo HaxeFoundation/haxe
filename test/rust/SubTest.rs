@@ -1,5 +1,5 @@
+mod HxObject;
 mod Item;
-mod SubTest;
 pub struct SubTest;
 pub impl SubTest {
 	pub fn new() -> Option<@SubTest> {

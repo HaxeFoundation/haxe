@@ -172,13 +172,13 @@ let newline ctx =
 
 let close ctx =
 	Hashtbl.iter (fun name paths ->
+		let path = ref ([], name) in
 		if (List.length paths) > 0 then
-			output_string ctx.ch ("mod " ^ name ^ ";\n")
-		else 
 			List.iter (fun pack ->
-				let path = pack, name in
-				if (path <> ctx.path) then output_string ctx.ch ("mod " ^ type_path path ^ ";\n");
-			) paths
+				path := (pack, name);
+			) paths;
+		if !path <> ctx.path then
+			output_string ctx.ch ("mod " ^ type_path !path ^ ";\n");
 	) ctx.imports;
 	output_string ctx.ch (Buffer.contents ctx.buf);
 	close_out ctx.ch
@@ -1252,7 +1252,10 @@ let generate_enum ctx e =
 	let ename = snd e.e_path in
 	print ctx "pub enum %s%s {" ename params;
 	let cl = open_block ctx in
-	PMap.iter (fun _ c ->
+	let not_first = ref false in
+	PMap.iter (fun name c ->
+		if !not_first then
+			spr ctx ",";
 		soft_newline ctx;
 		(match c.ef_type with
 		| TFun (args,_) ->
@@ -1263,6 +1266,7 @@ let generate_enum ctx e =
 			print ctx ")";
 		| _ ->
 			spr ctx (type_str ctx c.ef_type c.ef_pos););
+		not_first := true;
 	) e.e_constrs;
 	cl();
 	soft_newline ctx;

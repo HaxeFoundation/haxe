@@ -1,5 +1,4 @@
-mod Item;
 pub enum Item<T> {
-	Item
+	Item,
 	value(Option<@T>)
 }

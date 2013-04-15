@@ -1,4 +1,4 @@
-mod TestInterface;
+mod HxObject;
 pub struct TestInterface<T> {
 	value: Option<@T>
 }

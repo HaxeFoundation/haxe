@@ -1,12 +1,12 @@
 mod BaseIter;
 mod Array;
-mod NativeArray;
+mod rust::NativeArray;
 mod Type;
-mod EnumValueTools;
+mod haxe::EnumValueTools;
 mod String;
 mod ArrayAccess;
 mod f32;
-mod EnumTools;
+mod haxe::EnumTools;
 pub trait HxObject {
 	pub fn __get_field(&self, field:@str) -> Option<HxObject>;
 	pub fn __set_field(&mut self, field:@str, value:Option<@HxObject>) -> Option<@HxObject>;

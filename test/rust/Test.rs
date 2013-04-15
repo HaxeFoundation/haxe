@@ -1,7 +1,7 @@
+mod HxObject;
 mod SubTest;
 mod Item;
 mod Std;
-mod Test;
 pub struct Test<T> {
 	value: Item
 }
