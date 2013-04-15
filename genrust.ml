@@ -301,7 +301,7 @@ let rec type_str ctx t p =
 	| TInst ({ cl_path = [], "Array"},[pt]) ->
 		let typed = type_str ctx pt p in
 		canwrap := true;
-		reftype ^ "~[" ^ typed ^ "]"
+		"~[" ^ typed ^ "]"
 	| TInst (c,params) ->
 		canwrap := true;
 		let ps = s_type_params params in

@@ -10,7 +10,7 @@ pub impl<T> Test<T> {
 		return (rust::Lib::unwrap(self)).value;
 	}
 	pub fn main() -> () {
-		let mut b: Option<@~[Option<@str>]> = [];
+		let mut b: Option<~[Option<@str>]> = [];
 		{
 			b.grow(b.len() + 1i32,None);
 			{
@@ -18,7 +18,7 @@ pub impl<T> Test<T> {
 				b[b.len() - 1i32]
 			}
 		}
-		let mut a: Option<@~[i32]> = Some(~[56i32,78i32,42i32,35i32]);
+		let mut a: Option<~[i32]> = Some(~[56i32,78i32,42i32,35i32]);
 		{
 			b.grow(b.len() + 1i32,None);
 			{
