@@ -1058,6 +1058,7 @@ let rec define_getset ctx stat c =
 
 let generate_obj_impl ctx c =
 	Hashtbl.replace ctx.imports "HxObject" [];
+	Hashtbl.replace ctx.imports "Lib" [ [ "rust" ] ];
 	ctx.curclass <- c;
 	ctx.local_types <- List.map snd c.cl_types;
 	let obj_fields = List.filter (is_var) c.cl_ordered_fields in

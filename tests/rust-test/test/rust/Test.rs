@@ -1,3 +1,4 @@
+mod Lib;
 mod HxObject;
 mod SubTest;
 mod Item;
@@ -8,6 +9,12 @@ pub struct Test<T> {
 pub impl<T> Test<T> {
 	pub fn get(&mut self) -> Item {
 		return (rust::Lib::unwrap(self)).value;
+	}
+	pub fn test(i: i32, s: Option<@str>) -> () {
+		s = match s {
+			None => Some(@"Poo"),;
+			Some(v) => v}
+		(rust::Lib::unwrap(Std))::string(i) + s;
 	}
 	pub fn main() -> () {
 		let mut b: Option<~[Option<@str>]> = [];

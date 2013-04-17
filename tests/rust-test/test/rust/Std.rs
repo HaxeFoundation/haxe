@@ -1,3 +1,4 @@
+mod Lib;
 mod HxObject;
 pub struct Std;
 pub impl Std {

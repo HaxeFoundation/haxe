@@ -9,6 +9,9 @@ class Test<T> implements TestInterface<Item<T>> {
 	public function new(val:Item<T>) {
 		this.value = val;
 	}
+	public static function test(i = 76, s = "Poo") {
+		Std.string(i) + s;
+	}
 	public function get():Item<T> {
 		return value;
 	}

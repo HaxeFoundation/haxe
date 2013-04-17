@@ -1,3 +1,4 @@
+mod Lib;
 mod HxObject;
 mod Item;
 pub struct SubTest;
