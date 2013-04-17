@@ -114,13 +114,6 @@ class TestMisc extends Test {
 		eq( unit, TestMisc.unit );
 	}
 
-	function testCiServer()
-	{
-		//ignore this test, this is only to test the CI server
-		//TODO delete this
-		eq( "Testing CI server", "" );
-	}
-
 	function testDate() {
 		var d = new Date(2012, 07, 17, 01, 02, 03);
 		eq( d.getDay(), 5 );
