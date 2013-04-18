@@ -302,6 +302,17 @@ let rec type_str ctx t p =
 		let typed = type_str ctx pt p in
 		canwrap := true;
 		"~[" ^ typed ^ "]"
+	| TInst ({ cl_path = ["rust"], "Tuple2"},[pa, pb]) ->
+		let at = type_str ctx pa p in
+		let bt = type_str ctx pb p in
+		canwrap := true;
+		"(" at ^ ", " ^ bt ^ ")"
+	| TInst ({ cl_path = ["rust"], "Tuple3"},[pa, pb, pc]) ->
+		let at = type_str ctx pa p in
+		let bt = type_str ctx pb p in
+		let ct = type_str ctx pc p in
+		canwrap := true;
+		"(" at ^ ", " ^ bt ^ ", "^ ct ^")"
 	| TInst (c,params) ->
 		canwrap := true;
 		let ps = s_type_params params in
@@ -366,34 +377,29 @@ let escape_bin s =
 
 let generate_resources infos =
 	if Hashtbl.length infos.com.resources <> 0 then begin
-		let dir = (infos.com.file :: ["__res"]) in
-		create_dir [] dir;
 		let add_resource name data =
-			let ch = open_out_bin (String.concat "/" (dir @ [name])) in
-			output_string ch data;
-			close_out ch
+			print ctx "| %s => Some(\"" name;
+			for i = 0 to String.length data - 1 do
+				let code = Char.code (String.unsafe_get data i) in
+				print ctx "0x%.2x, " code;
+				if ( (i mod 10) = 9) then soft_newline ctx;
+			done;
+			spr ctx "\")";
 		in
+		let ctx = init infos ([],"resources") in
+		spr ctx "pub fn get(name:@str) -> ~Option<@str> {";
+		let getfn = open_block ctx in
+		newline ctx;
+		spr ctx "return match(name) {";
+		let mtc = open_block ctx in
+		newline ctx;
 		Hashtbl.iter (fun name data -> add_resource name data) infos.com.resources;
-		let ctx = init infos ([],"__resources__") in
-		spr ctx "\timport flash.utils.Dictionary;\n";
-		spr ctx "\tpubl class __resources__ {\n";
-		spr ctx "\t\tpubl static var list:Dictionary;\n";
-		let inits = ref [] in
-		let k = ref 0 in
-		Hashtbl.iter (fun name _ ->
-			let varname = ("v" ^ (string_of_int !k)) in
-			k := !k + 1;
-			print ctx "\t\t[Embed(source = \"__res/%s\", mimeType = \"application/octet-stream\")]\n" name;
-			print ctx "\t\tpub static var %s:Class;\n" varname;
-			inits := ("list[\"" ^name^ "\"] = " ^ varname ^ ";") :: !inits;
-		) infos.com.resources;
-		spr ctx "\t\tstatic pub function __init__():() {\n";
-		spr ctx "\t\t\tlist = new Dictionary();\n";
-		List.iter (fun init ->
-			print ctx "\t\t\t%s\n" init
-		) !inits;
-		spr ctx "\t\t}\n";
-		spr ctx "\t}\n";
+		spr ctx "| _ => None"
+		mtc();
+		newline ctx;
+		spr ctx "}";
+		getfn();
+		newline ctx;
 		spr ctx "}";
 		close ctx;
 	end
