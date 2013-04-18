@@ -1,4 +1,3 @@
-import rust.NativeArray;
 @:final @:nativeGen extern class Array<T> implements ArrayAccess<T> {
 	public var length(default, null):Int;
 	public function new() {

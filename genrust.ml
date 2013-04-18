@@ -171,14 +171,19 @@ let newline ctx =
 	try loop (Buffer.length ctx.buf - 1) with _ -> ()
 
 let close ctx =
+	let get_mod_type path =
+		match !path with
+		| ([], _) -> "mod "
+		| _ -> "use "
+	in
 	Hashtbl.iter (fun name paths ->
 		let path = ref ([], name) in
-		if (List.length paths) > 0 then
+		if List.length paths > 0 then
 			List.iter (fun pack ->
 				path := (pack, name);
 			) paths;
 		if !path <> ctx.path then
-			output_string ctx.ch ("mod " ^ type_path !path ^ ";\n");
+			output_string ctx.ch (get_mod_type path ^ type_path !path ^ ";\n");
 	) ctx.imports;
 	output_string ctx.ch (Buffer.contents ctx.buf);
 	close_out ctx.ch
@@ -302,17 +307,17 @@ let rec type_str ctx t p =
 		let typed = type_str ctx pt p in
 		canwrap := true;
 		"~[" ^ typed ^ "]"
-	| TInst ({ cl_path = ["rust"], "Tuple2"},[pa, pb]) ->
+	| TInst ({ cl_path = ["rust"], "Tuple2"}, [pa; pb]) ->
 		let at = type_str ctx pa p in
 		let bt = type_str ctx pb p in
 		canwrap := true;
-		"(" at ^ ", " ^ bt ^ ")"
-	| TInst ({ cl_path = ["rust"], "Tuple3"},[pa, pb, pc]) ->
+		"(" ^ at ^ ", " ^ bt ^ ")"
+	| TInst ({ cl_path = ["rust"], "Tuple3"}, [pa; pb; pc]) ->
 		let at = type_str ctx pa p in
 		let bt = type_str ctx pb p in
 		let ct = type_str ctx pc p in
 		canwrap := true;
-		"(" at ^ ", " ^ bt ^ ", "^ ct ^")"
+		"(" ^ at ^ ", " ^ bt ^ ", " ^ ct ^")"
 	| TInst (c,params) ->
 		canwrap := true;
 		let ps = s_type_params params in
@@ -375,10 +380,10 @@ let escape_bin s =
 	done;
 	Buffer.contents b
 
-let generate_resources infos =
+let generate_resources ctx infos =
 	if Hashtbl.length infos.com.resources <> 0 then begin
 		let add_resource name data =
-			print ctx "| %s => Some(\"" name;
+			print ctx "%s => Some(\"" name;
 			for i = 0 to String.length data - 1 do
 				let code = Char.code (String.unsafe_get data i) in
 				print ctx "0x%.2x, " code;
@@ -394,13 +399,14 @@ let generate_resources infos =
 		let mtc = open_block ctx in
 		newline ctx;
 		Hashtbl.iter (fun name data -> add_resource name data) infos.com.resources;
-		spr ctx "| _ => None"
+		spr ctx "_ => None";
 		mtc();
 		newline ctx;
 		spr ctx "}";
 		getfn();
 		newline ctx;
-		spr ctx "}";
+		spr ctx "};";
+		newline ctx;
 		close ctx;
 	end
 
@@ -550,11 +556,20 @@ and gen_expr ctx e =
 			print ctx " %s " (Ast.s_binop op);
 			gen_value_op ctx e2;)
 	| TField( e, FInstance({ cl_path = ([], "String") }, { cf_name = "length" }) ) ->
-       	unwrap ctx e;
+		unwrap ctx e;
 		spr ctx ".len()";
 	| TField( e, FInstance({ cl_path = ([], "Array") }, { cf_name = "length" }) ) ->
-       	unwrap ctx e;
+		unwrap ctx e;
 		spr ctx ".len()";
+	| TField( e, FInstance({ cl_path = (["rust"], "Tuple2") }, { cf_name = "a" }) ) ->
+		spr ctx "match ";
+		unwrap ctx e;
+		spr ctx " {";
+		let mtc = open_block ctx in
+		newline ctx;
+		spr ctx "";
+		mtc();
+		newline ctx;
 	| TField ({eexpr = TArrayDecl _} as e1,s) ->
 		spr ctx "(";
 		gen_expr ctx e1;
@@ -1337,7 +1352,9 @@ let generate com =
 	let infos = {
 		com = com;
 	} in
-	generate_resources infos;
+	let ctx = init infos ([], "resources") in
+	generate_resources ctx infos;
+	close ctx;
 	let ctx = init infos ([],"HxEnum") in
 	generate_base_enum ctx com;
 	close ctx;
