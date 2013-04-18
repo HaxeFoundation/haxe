@@ -363,7 +363,7 @@ class StringTools {
 	/*
 		Tells if [c] represents the end-of-file (EOF) character.
 	*/
-	public static inline function isEof( c : Int ) : Bool {
+	@:noUsing public static inline function isEof( c : Int ) : Bool {
 		#if (flash9 || cpp)
 		return c == 0;
 		#elseif flash8
