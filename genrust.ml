@@ -631,7 +631,7 @@ and gen_expr ctx e =
 		List.iter (fun e -> newline ctx; gen_expr ctx e) el;
 		if ctx.constructor_block then (
 			newline ctx;
-			spr ctx "return @Some(self)";
+			spr ctx "return Some(@self)";
 		);
 		bend();
 		newline ctx;
@@ -667,8 +667,16 @@ and gen_expr ctx e =
 				spr ctx " = ";
 				gen_value ctx e
 		) vl;
-	| TNew ({cl_path = ([], "Array")},[t],el) ->
+	| TNew ({ cl_path = ([], "Array") },_, el) ->
 		spr ctx "[]";
+	| TNew ({ cl_path = (["rust"], "Tuple2") },_ ,el) ->
+		spr ctx "Some((";
+		concat ctx ", " (gen_value ctx) el;
+		spr ctx "))";
+	| TNew ({ cl_path = (["rust"], "Tuple3") },_ ,el) ->
+		spr ctx "Some((";
+		concat ctx ", " (gen_value ctx) el;
+		spr ctx "))";
 	| TNew (c,params,el) ->
 		print ctx "%s::new(" (s_path ctx true c.cl_path e.epos false);
 		concat ctx "," (gen_value ctx) el;
@@ -777,11 +785,9 @@ and gen_expr ctx e =
 		print ctx "{";
 		let bend = open_block ctx in
 		newline ctx;
-		let tmp = gen_local ctx "_e" in
-		print ctx "let mut %s = " tmp;
-		gen_value ctx e;
-		newline ctx;
-		print ctx "match %s.index() {" tmp;
+		spr ctx "match ";
+		unwrap ctx e;
+		spr ctx " {";
 		List.iter (fun (cl,params,e) ->
 			List.iter (fun c ->
 				soft_newline ctx;
@@ -795,12 +801,13 @@ and gen_expr ctx e =
 				match l with
 				| [] -> ()
 				| l ->
-					newline ctx;
+					soft_newline ctx;
 					spr ctx "var ";
 					concat ctx ", " (fun (v,n) ->
-						print ctx "%s : %s = %s.params[%d]" (s_ident v.v_name) (type_str ctx v.v_type e.epos) tmp n;
+						print ctx "%s : %s = %s.params" (s_ident v.v_name) (type_str ctx v.v_type e.epos);
+						()
 					) l);
-			gen_block ctx e;
+			gen_expr ctx e;
 			print ctx ",";
 		) cases;
 		(match def with
