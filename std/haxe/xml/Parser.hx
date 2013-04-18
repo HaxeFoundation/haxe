@@ -77,7 +77,7 @@ class Parser
 		var nbrackets = 0;
 		var c = str.fastCodeAt(p);
 		var buf = new StringBuf();
-		while (!c.isEof())
+		while (!StringTools.isEof(c))
 		{
 			switch(state)
 			{
