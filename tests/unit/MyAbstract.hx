@@ -164,6 +164,10 @@ abstract MyInt(Int) from Int to Int {
 			s.add(rhs);
 		return s.toString();
 	}
+	
+	@:op(A / B) static public function cut(lhs:String, rhs:MyInt) {
+		return lhs.substr(0, rhs);
+	}
 }
 
 abstract MyInt2(Int){

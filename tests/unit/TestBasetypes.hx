@@ -445,6 +445,9 @@ class TestBasetypes extends Test {
 		var r:unit.MyAbstract.MyInt = 5;
 		eq("aaaaa", r * "a");
 		eq("aaaaa", "a" * r);
+		
+		var v:unit.MyAbstract.MyInt = 5;
+		eq("abcde", "abcdefghijk" / v);
 	}
 	
 	function testAbstractSetter() {

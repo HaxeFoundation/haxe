@@ -1661,7 +1661,7 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 					let t1,t2 = if left || Meta.has Meta.Commutative cf.cf_meta then t1,t2 else t2,t1 in
 					if type_iseq t t2 && (if Meta.has Meta.Impl cf.cf_meta then type_iseq (apply_params a.a_types pl a.a_this) t1 else type_iseq (TAbstract(a,pl)) t1) then begin
 						if not (can_access ctx c cf true) then display_error ctx ("Cannot access operator function " ^ (s_type_path a.a_path) ^ "." ^ cf.cf_name) p;
-						cf,r,o = OpAssignOp(op)
+						cf,r,o = OpAssignOp(op),Meta.has Meta.Commutative cf.cf_meta
 					end else loop ops
 				| _ -> loop ops)
 			| _ :: ops ->
@@ -1689,7 +1689,7 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 	in
 	try (match follow e1.etype with
 		| TAbstract ({a_impl = Some c} as a,pl) ->
-			let f,r,assign = find_overload a pl c e2.etype true in
+			let f,r,assign,commutative = find_overload a pl c e2.etype true in
 			begin match f.cf_expr with
 				| None ->
 					let e2 = match follow e2.etype with TAbstract(a,pl) -> {e2 with etype = apply_params a.a_types pl a.a_this} | _ -> e2 in
@@ -1701,13 +1701,15 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 			raise Not_found)
 	with Not_found -> try (match follow e2.etype with
 		| TAbstract ({a_impl = Some c} as a,pl) ->
-			let f,r,assign = find_overload a pl c e1.etype false in
+			let f,r,assign,commutative = find_overload a pl c e1.etype false in
 			begin match f.cf_expr with
 				| None ->
 					let e1 = match follow e1.etype with TAbstract(a,pl) -> {e1 with etype = apply_params a.a_types pl a.a_this} | _ -> e1 in
+					let e1,e2 = if commutative then e2,e1 else e1,e2 in
 					cast_rec e1 {e2 with etype = apply_params a.a_types pl a.a_this} r
 				| Some _ ->
-					mk_cast_op c f a pl e2 e1 r assign
+					let e1,e2 = if commutative then e2,e1 else e1,e2 in
+					mk_cast_op c f a pl e1 e2 r assign
 			end
 		| _ ->
 			raise Not_found)
