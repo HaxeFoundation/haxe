@@ -1,4 +1,4 @@
-package rust.hashmap;
+package rust.ds;
 @:native("hashmap::linear::LinearMap") extern class LinearMap<K, V> implements rust.BaseIter<K> {
 	public function len():Int;
 	public function is_empty():Bool;

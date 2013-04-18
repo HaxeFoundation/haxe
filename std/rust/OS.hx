@@ -45,3 +45,8 @@ import rust.path.*;
 	/** Recursively walk a directory structure */
 	public static function walkdir(p:Path, f:Path->Bool):Void;
 }
+
+@:native("os.Pipe") extern class Pipe {
+	public var pin:Int;
+	public var pout:Int;
+}

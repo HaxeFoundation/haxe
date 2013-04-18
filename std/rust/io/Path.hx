@@ -1,4 +1,4 @@
-package rust.path;
+package rust.io;
 import rust.*;
 import rust.type.*;
 @:native("path.Path") extern class Path implements Clone implements ToStr {

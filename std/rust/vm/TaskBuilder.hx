@@ -1,4 +1,4 @@
-package rust.task;
+package rust.vm;
 
 @:native("task.TaskBuilder") extern class TaskBuilder {
 	public var opts(default, null):TaskObps;

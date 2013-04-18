@@ -1,6 +1,6 @@
 package haxe.ds;
 import rust.hashmap.LinearMap;
-class ObjectMap<K, V> {
+class ObjectMap<K:{}, V> implements Map.IMap<K, V> {
 	var _:LinearMap<K, V>;
 	public function new(weakKeys:Bool = false):Void {
 		_ = new LinearMap<K, V>();

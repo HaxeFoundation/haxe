@@ -1,4 +1,4 @@
-package rust.run;
+package rust.vm;
 import rust.io.*;
 @:native("run.Program") extern class Program {
 	/** Returns the process id of the program */
@@ -19,7 +19,7 @@ import rust.io.*;
 	public static function program_output(prog:String, args:Array<String>):ProgramOutput {}
 	public static function readclose(fd:Int):String {}
 	/** Spawns a process and waits for it to terminate */
-	public static function run_program(prog:String, args:Array<String>):NativeObject<String>;
+	public static function run_program(prog:String, args:Array<String>):String;
 	/** Run a program, providing stdin, stdout and stderr handles */
 	public static function spawn_process(prog:String, args:Array<String, env:Tuple2, dir:String, in_fd:Int, out_fd:Int, err_fd:Int):Int;
 	public static function start_program(prog:String, args:Array<String):Program {}

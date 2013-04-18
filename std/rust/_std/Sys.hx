@@ -1,7 +1,8 @@
 import rust.os.*;
 import rust.io.*;
 import rust.Lib;
-@:coreApi class Sys {
+import haxe.ds.StringMap;
+class Sys {
 	public static function args():Array<String> {
 		return OS.args();
 	}
@@ -16,7 +17,7 @@ import rust.Lib;
 		OS.setenv(s, v);
 	}
 	public static function environment():haxe.ds.StringMap<String> {
-		return null;
+		return new StringMap();
 	}
 	public static function sleep(s:Float):Void {
 
@@ -32,5 +33,9 @@ import rust.Lib;
 	}
 	public static function exit(c:Int):Void {
 
+	}
+	@:functionCode('return std::time::precise_time_s()')
+	public static function time():Float {
+		return 0;
 	}
 }

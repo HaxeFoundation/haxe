@@ -1,4 +1,4 @@
-package rust.run;
+package rust.vm;
 import rust.*;
 @:native("run.ProgramOutput") extern class ProgramOutput {
 	public var status(default, null):Int;

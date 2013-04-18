@@ -1,4 +1,4 @@
-package rust.task;
+package rust.vm;
 
 /** A handle to a scheduler */
 @:native("Scheduler") extern enum Scheduler {

@@ -1,2 +1,5 @@
 package haxe.ds;
-typedef StringMap<T> = ObjectMap<String, T>;
+@:native("std::treemap::TreeMap")
+class StringMap<T> implements Map.IMap<String, T> {
+	public function clear();
+}

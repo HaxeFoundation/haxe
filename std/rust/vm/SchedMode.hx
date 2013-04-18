@@ -1,4 +1,4 @@
-package rust.task;
+package rust.vm;
 
 /** Scheduler modes */
 @:native("task.SchedMode") extern enum SchedMode {

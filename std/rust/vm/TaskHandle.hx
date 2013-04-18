@@ -1,4 +1,4 @@
-package rust.task;
+package rust.vm;
 
 /** A handle to a task */
 @:native("task.Task") extern enum TaskHandle {
