@@ -114,7 +114,7 @@ let get_iterator_param t =
 			raise Not_found)
 	| _ ->
 		raise Not_found
-	
+
 let get_iterable_param t =
 	match follow t with
 	| TAnon a ->
@@ -155,7 +155,7 @@ let remove_constant_flag t callb =
 	with e ->
 		restore();
 		raise e
-			
+
 let rec is_pos_infos = function
 	| TMono r ->
 		(match !r with
@@ -4069,3 +4069,4 @@ let rec create com =
 ;;
 unify_min_ref := unify_min;
 make_call_ref := make_call;
+get_constructor_ref := get_constructor;

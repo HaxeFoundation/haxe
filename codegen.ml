@@ -1402,6 +1402,12 @@ module Abstract = struct
 		with Not_found ->
 			eright
 
+	and call_args ctx el tl = match el,tl with
+		| [],_ -> []
+		| e :: el, [] -> (loop ctx e) :: call_args ctx el []
+		| e :: el, (_,_,t) :: tl ->
+			(check_cast ctx t (loop ctx e) e.epos) :: call_args ctx el tl
+
 	and loop ctx e = match e.eexpr with
 		| TBinop(OpAssign,e1,e2) ->
 			let e2 = check_cast ctx e1.etype (loop ctx e2) e.epos in
@@ -1437,6 +1443,19 @@ module Abstract = struct
 				let e = make_static_call ctx c cf a pl ((mk (TConst TNull) at e.epos) :: el) m e.epos in
 				{e with etype = m}
 			end
+		| TNew(c,pl,el) ->
+			begin try
+				let t,_ = (!get_constructor_ref) ctx c pl e.epos in
+				begin match follow t with
+					| TFun(args,_) ->
+						{ e with eexpr = TNew(c,pl,call_args ctx el args)}
+					| _ ->
+						Type.map_expr (loop ctx) e
+				end
+			with Error _ ->
+				(* TODO: when does this happen? *)
+				Type.map_expr (loop ctx) e
+			end
 		| TCall(e1, el) ->
 			let e1 = loop ctx e1 in
 			begin try
@@ -1469,14 +1488,7 @@ module Abstract = struct
 			with Not_found ->
 				begin match follow e1.etype with
 					| TFun(args,_) ->
-						let rec loop2 el tl = match el,tl with
-							| [],_ -> []
-							| e :: el, [] -> (loop ctx e) :: loop2 el []
-							| e :: el, (_,_,t) :: tl ->
-								(check_cast ctx t (loop ctx e) e.epos) :: loop2 el tl
-						in
-						let el = loop2 el args in
-						{ e with eexpr = TCall(loop ctx e1,el)}
+						{ e with eexpr = TCall(loop ctx e1,call_args ctx el args)}
 					| _ ->
 						Type.map_expr (loop ctx) e
 				end

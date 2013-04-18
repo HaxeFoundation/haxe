@@ -394,6 +394,11 @@ class TestBasetypes extends Test {
 		
 		eq(switchMe(true), "12.2m");
 		eq(switchMe(false), "2.4m");
+		
+		// ctor
+		var m:unit.MyAbstract.Meter = 3000;
+		var c = new unit.MyAbstract.MyClassWithAbstractArgCtor(m);
+		feq(c.km, 3);
 	}
 	
 	function testAbstractToAbstractCast() {

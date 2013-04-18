@@ -57,6 +57,14 @@ abstract Kilometer(Float) from Float to Float {
 		return new Kilometer(m.get() / 1000.);
 }
 
+
+class MyClassWithAbstractArgCtor {
+	public var km:Kilometer;
+	public function new(km:Kilometer) {
+		this.km = km;
+	}
+}
+
 abstract MyHash<V>(haxe.ds.StringMap<V>) {
 	private inline function new() {
 		this = new haxe.ds.StringMap<V>();
