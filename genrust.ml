@@ -89,7 +89,7 @@ let s_path ctx path =
 		let name = protect name in
 		let packs = (try Hashtbl.find ctx.imports name with Not_found -> []) in
 		if not (List.mem pack packs) && notcore then Hashtbl.replace ctx.imports name (pack :: packs);
-		type_path (pack,name)
+		type_path (pack,name) ^ (if ctx.path <> path then "::" ^ name else "")
 
 let reserved =
 	let h = Hashtbl.create 0 in
@@ -598,7 +598,7 @@ and gen_expr ctx e =
 		spr ctx "}";
 		newline ctx;
 	| TField (e, FStatic(c, f)) ->
-		spr ctx (type_path c.cl_path);
+		spr ctx (s_path ctx c.cl_path);
 		gen_field_access ctx e.etype f.cf_name
 	| TField (e,s) ->
 		unwrap ctx e;
@@ -1204,7 +1204,7 @@ let generate_obj_impl ctx c =
 		spr ctx "pub fn __name() -> Option<@str> {";
 		let fn = open_block ctx in
 		newline ctx;
-		print ctx "return Some(@\"%s\")" (s_path ctx c.cl_path);
+		print ctx "return Some(@\"%s\")" (s_type_path c.cl_path);
 		fn();
 		newline ctx;
 		spr ctx "}";
