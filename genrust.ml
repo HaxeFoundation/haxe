@@ -170,10 +170,10 @@ let newline ctx =
 	try loop (Buffer.length ctx.buf - 1) with _ -> ()
 
 let close ctx =
-	let get_mod_type path =
+	let is_mod path =
 		match !path with
-		| ([], _) -> "mod "
-		| _ -> "use "
+		| ([], _) -> true
+		| _ -> false
 	in
 	Hashtbl.iter (fun name paths ->
 		let path = ref ([], name) in
@@ -181,8 +181,17 @@ let close ctx =
 			List.iter (fun pack ->
 				path := (pack, name);
 			) paths;
-		if !path <> ctx.path then
-			output_string ctx.ch (get_mod_type path ^ type_path !path ^ ";\n");
+		if not (is_mod path) && !path <> ctx.path then
+			output_string ctx.ch ("use " ^ type_path !path ^ ";\n");
+	) ctx.imports;
+	Hashtbl.iter (fun name paths ->
+		let path = ref ([], name) in
+		if List.length paths > 0 then
+			List.iter (fun pack ->
+				path := (pack, name);
+			) paths;
+		if is_mod path && !path <> ctx.path then
+			output_string ctx.ch ("mod " ^ type_path !path ^ ";\n");
 	) ctx.imports;
 	output_string ctx.ch (Buffer.contents ctx.buf);
 	close_out ctx.ch

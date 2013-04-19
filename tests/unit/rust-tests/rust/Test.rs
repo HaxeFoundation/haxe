@@ -1,5 +1,5 @@
-mod HxObject;
 use rust::Lib;
+mod HxObject;
 pub struct Test;
 pub impl Test {
 	pub fn main() -> () {
