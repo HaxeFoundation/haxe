@@ -218,7 +218,7 @@ import cs.internal.Function;
 		Delete an object field.
 	**/
 	@:functionCode('
-		return (o is haxe.lang.DynamicObject && ((haxe.lang.DynamicObject) o).__hx_deleteField(f, haxe.lang.FieldLookup.hash(f)));
+		return (o is haxe.lang.DynamicObject && ((haxe.lang.DynamicObject) o).__hx_deleteField(field, haxe.lang.FieldLookup.hash(field)));
 	')
 	public static function deleteField( o : Dynamic, field : String ) : Bool
 	{
