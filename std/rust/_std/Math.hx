@@ -1,25 +1,13 @@
-@:native("f32") extern class Math {
+@:nativeGen @:native("f64") extern class Math {
 	static inline var PI:Float = 3.14159265358979;
 	static var NaN(default, null):Float;
 	static var infinity(default, null):Float;
 	static var neg_infinity(default, null):Float;
-	static var POSITIVE_INFINITY(get, null):Float;
-	static var NEGATIVE_INFINITY(get, null):Float;
-	static inline function get_POSITIVE_INFINITY():Float {
-		return infinity;
-	}
-	static inline function get_NEGATIVE_INFINITY():Float {
-		return neg_infinity;
-	}
+	static var POSITIVE_INFINITY(default, null):Float;
+	static var NEGATIVE_INFINITY(default, null):Float;
 	static function abs(v:Float):Float;
-	static function fmax(a:Float,b:Float):Float;
-	static function fmin(a:Float,b:Float):Float;
-	static inline function min(a:Float, b:Float):Float {
-		return fmin(a, b);
-	}
-	static inline function max(a:Float, b:Float):Float {
-		return fmax(a, b);
-	}
+	static function max(a:Float,b:Float):Float;
+	static function min(a:Float,b:Float):Float;
 	static function sin(v:Float):Float;
 	static function cos(v:Float):Float;
 	static function atan2(y:Float,x:Float):Float;
@@ -41,10 +29,4 @@
 
 	static function is_finite(f:Float): Bool;
 	static function is_NaN(f:Float): Bool;
-	static inline function isFinite(f:Float):Bool {
-		return is_finite(f);
-	}
-	static inline function isNaN(f:Float):Bool {
-		return is_NaN(f);
-	}
 }

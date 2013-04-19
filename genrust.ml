@@ -75,22 +75,21 @@ let protect name =
 let type_path (p, s) =
 	match p with [] -> s | _ -> String.concat "::" p ^ "::" ^ s
 
-let s_path ctx stat path p is_param =
+let is_core path =
 	match path with
-	| ([], "Int") -> "i32"
-	| ([], "Float") -> "f32"
-	| ([], "Void") -> "()"
-	| ([], "Dynamic") -> "HxObject"
-	| ([], "Bool") -> "bool"
+	| ([], "Math") | ([], "UInt") | ([], "Array") | ([], "ArrayAccess") | ([], "Int") | ([], "Float") | ([], "Single") | ([], "Void") | ([], "Dynamic") | ([], "Bool") | ([], "String") | (["rust"], "Tuple2") | (["rust"], "Tuple3") ->
+		true
+	| _ ->
+		false
+
+let s_path ctx path =
+	match path with
 	| (pack,name) ->
-		if is_param then
-			name
-		else (
-			let name = protect name in
-			let packs = (try Hashtbl.find ctx.imports name with Not_found -> []) in
-			if not (List.mem pack packs) then Hashtbl.replace ctx.imports name (pack :: packs);
-			type_path (pack,name)
-		)
+		let notcore = not (is_core path) in
+		let name = protect name in
+		let packs = (try Hashtbl.find ctx.imports name with Not_found -> []) in
+		if not (List.mem pack packs) && notcore then Hashtbl.replace ctx.imports name (pack :: packs);
+		type_path (pack,name)
 
 let reserved =
 	let h = Hashtbl.create 0 in
@@ -208,8 +207,10 @@ let parent e =
 
 let default_value tstr =
 	match tstr with
-	| "i32" | "ui32" -> "0i32"
+	| "i32"  -> "0i32"
+	| "ui32" -> "0ui32"
 	| "f32" -> "f32::NaN"
+	| "f64" -> "f64::NaN"
 	| "bool" -> "false"
 	| "()" -> "()"
 	| _ -> "None"
@@ -222,9 +223,7 @@ let rec is_wrapped ctx t =
 	| TAbstract ({ a_impl = Some _ } as a,pl) ->
 		is_wrapped ctx (apply_params a.a_types pl a.a_this)
 	| TAbstract (a,_) ->
-		(match a.a_path with
-		| [], "UInt" | [], "Int" | [], "Float" | [], "Bool" -> false
-		| _ -> true)
+		not (is_core a.a_path)
 	| TEnum(e, _) ->
 		not e.e_extern
 	| TInst ({ cl_path = [], "Class"}, [pt]) ->
@@ -273,10 +272,11 @@ let rec type_str ctx t p =
 		(match a.a_path with
 		| [], "UInt" -> "ui32"
 		| [], "Int" -> "i32"
-		| [], "Float" -> "f32"
+		| [], "Float" -> "f64"
+		| [], "Single" -> "f32"
 		| [], "Bool" -> "bool"
 		| [], "Void" -> "()"
-		| _ -> s_path ctx true a.a_path p false)
+		| _ -> s_path ctx a.a_path)
 	| TEnum (e, params) ->
 		canwrap := false;
 		if e.e_extern then (match e.e_path with
@@ -287,7 +287,8 @@ let rec type_str ctx t p =
 						(match n with
 						| "Int" -> "i32"
 						| "UInt" -> "ui32"
-						| "Float" -> "f32"
+						| "Float" -> "f64"
+						| "Single" -> "f32"
 						| "String" -> "str"
 						| "Bool" -> "bool"
 						| _ -> n)
@@ -296,7 +297,7 @@ let rec type_str ctx t p =
 				in
 				(loop e.e_meta) ^ (s_type_params params)
 		) else
-			s_path ctx true e.e_path p false
+			s_path ctx e.e_path
 	| TInst ({ cl_path = [], "Class"}, [pt]) ->
 		canwrap := true;
 		reftype ^ "HxObject"
@@ -311,19 +312,19 @@ let rec type_str ctx t p =
 		let at = type_str ctx pa p in
 		let bt = type_str ctx pb p in
 		canwrap := true;
-		"(" ^ at ^ ", " ^ bt ^ ")"
+		reftype ^ "(" ^ at ^ ", " ^ bt ^ ")"
 	| TInst ({ cl_path = ["rust"], "Tuple3"}, [pa; pb; pc]) ->
 		let at = type_str ctx pa p in
 		let bt = type_str ctx pb p in
 		let ct = type_str ctx pc p in
 		canwrap := true;
-		"(" ^ at ^ ", " ^ bt ^ ", " ^ ct ^")"
+		reftype ^ "(" ^ at ^ ", " ^ bt ^ ", " ^ ct ^")"
 	| TInst (c,params) ->
 		canwrap := true;
 		let ps = s_type_params params in
 		let name = ((match c.cl_kind with
 			| KTypeParameter _ -> snd c.cl_path
-			| KNormal | KGeneric | KGenericInstance _ | KAbstractImpl _ -> (s_path ctx false c.cl_path p false) ^ ps
+			| KNormal | KGeneric | KGenericInstance _ | KAbstractImpl _ -> (s_path ctx c.cl_path) ^ ps
 			| KExtension _ | KExpr _ | KMacroType -> "HxObject") ^ ps) in
 		reftype ^ name
 	| TFun (args, haxe_type) ->
@@ -357,7 +358,7 @@ let rec s_tparams ctx params p =
 			| TInst({cl_kind = KTypeParameter pl; cl_path = path}, ps) ->
 				(snd path) ^ (s_tparams ctx ps p)
 			| TInst(c, ps) ->
-				(s_path ctx true c.cl_path pos false) ^ (s_tparams ctx ps p)
+				(s_path ctx c.cl_path) ^ (s_tparams ctx ps p)
 			| _ ->
 				(type_str ctx t pos)
 		) params)) ^ ">"
@@ -412,7 +413,7 @@ let generate_resources ctx infos =
 
 let gen_constant ctx p = function
 	| TInt i -> print ctx "%ldi32" i
-	| TFloat s -> print ctx "%sf32" s
+	| TFloat s -> print ctx "%sf64" s
 	| TString s -> print ctx "Some(@\"%s\")" (escape_bin (Ast.s_escape s))
 	| TBool b -> spr ctx (if b then "true" else "false")
 	| TNull -> spr ctx "None"
@@ -500,7 +501,7 @@ let rec gen_call ctx e el r =
 
 and unwrap ctx e =
 	if (is_wrapped ctx e.etype) then (
-		spr ctx "(rust::Lib::unwrap(";
+		print ctx "(%s::unwrap(" (s_path ctx (["rust"], "Lib"));
 		gen_value ctx e;
 		spr ctx "))";
 	) else
@@ -510,7 +511,7 @@ and gen_value_op ctx e =
 	match e.eexpr with
 	| TBinop (op,_,_) when op = Ast.OpAnd || op = Ast.OpOr || op = Ast.OpXor ->
 		spr ctx "(";
-		unwrap ctx e;
+		gen_value ctx e;
 		spr ctx ")";
 	| _ ->
 		gen_value ctx e
@@ -561,14 +562,31 @@ and gen_expr ctx e =
 	| TField( e, FInstance({ cl_path = ([], "Array") }, { cf_name = "length" }) ) ->
 		unwrap ctx e;
 		spr ctx ".len()";
-	| TField( e, FInstance({ cl_path = (["rust"], "Tuple2") }, { cf_name = "a" }) ) ->
+	| TField( e, FInstance({ cl_path = (["rust"], "Tuple2") }, { cf_name = name }) ) ->
 		spr ctx "match ";
 		unwrap ctx e;
 		spr ctx " {";
 		let mtc = open_block ctx in
 		newline ctx;
-		spr ctx "";
+		print ctx "(a, b) => %s," name;
+		soft_newline ctx;
+		spr ctx "_ => ()";
 		mtc();
+		soft_newline ctx;
+		spr ctx "}";
+		newline ctx;
+	| TField( e, FInstance({ cl_path = (["rust"], "Tuple3") }, { cf_name = name }) ) ->
+		spr ctx "match ";
+		unwrap ctx e;
+		spr ctx " {";
+		let mtc = open_block ctx in
+		newline ctx;
+		print ctx "(a, b, c) => %s," name;
+		soft_newline ctx;
+		spr ctx "_ => ()";
+		mtc();
+		soft_newline ctx;
+		spr ctx "}";
 		newline ctx;
 	| TField ({eexpr = TArrayDecl _} as e1,s) ->
 		spr ctx "(";
@@ -579,7 +597,7 @@ and gen_expr ctx e =
 		unwrap ctx e;
 		gen_field_access ctx e.etype (field_name s)
 	| TTypeExpr t ->
-		spr ctx (s_path ctx true (t_path t) e.epos false)
+		spr ctx (s_path ctx (t_path t))
 	| TParenthesis e ->
 		spr ctx "(";
 		gen_value ctx e;
@@ -678,7 +696,7 @@ and gen_expr ctx e =
 		concat ctx ", " (gen_value ctx) el;
 		spr ctx "))";
 	| TNew (c,params,el) ->
-		print ctx "%s::new(" (s_path ctx true c.cl_path e.epos false);
+		print ctx "%s::new(" (s_path ctx c.cl_path);
 		concat ctx "," (gen_value ctx) el;
 		spr ctx ")"
 	| TIf (cond,e,eelse) ->
@@ -755,10 +773,12 @@ and gen_expr ctx e =
 		gen_value ctx it;
 		newline ctx;
 		print ctx "while %s.hasNext() {" tmp;
+		let lup = open_block ctx in
 		newline ctx;
 		print ctx "let %s:%s = %s.next()" (s_ident v.v_name) (type_str ctx v.v_type e.epos) tmp;
 		newline ctx;
 		gen_expr ctx (block e);
+		lup();
 		newline ctx;
 		spr ctx "}";
 	| TTry (e,catchs) ->
@@ -804,7 +824,7 @@ and gen_expr ctx e =
 					soft_newline ctx;
 					spr ctx "var ";
 					concat ctx ", " (fun (v,n) ->
-						print ctx "%s : %s = %s.params" (s_ident v.v_name) (type_str ctx v.v_type e.epos);
+						print ctx "%s : %s" (s_ident v.v_name) (type_str ctx v.v_type e.epos);
 						()
 					) l);
 			gen_expr ctx e;
@@ -1086,7 +1106,6 @@ let rec define_getset ctx stat c =
 
 let generate_obj_impl ctx c =
 	Hashtbl.replace ctx.imports "HxObject" [];
-	Hashtbl.replace ctx.imports "Lib" [ [ "rust" ] ];
 	ctx.curclass <- c;
 	ctx.local_types <- List.map snd c.cl_types;
 	let obj_fields = List.filter (is_var) c.cl_ordered_fields in
@@ -1095,7 +1114,7 @@ let generate_obj_impl ctx c =
 	let static_methods = List.filter (fun x -> not (is_var x)) c.cl_ordered_statics in
 	let params = get_params c.cl_types in
 	ctx.in_interface <- c.cl_interface;
-	print ctx "impl HxObject for %s%s {" (s_path ctx false c.cl_path c.cl_pos false) params;
+	print ctx "impl HxObject for %s%s {" (s_path ctx c.cl_path) params;
 	let impl = open_block ctx in
 	if (has_feature ctx "Reflect.field") then (
 		newline ctx;
@@ -1178,7 +1197,7 @@ let generate_obj_impl ctx c =
 		spr ctx "pub fn __name() -> Option<@str> {";
 		let fn = open_block ctx in
 		newline ctx;
-		print ctx "return Some(@\"%s\")" (Ast.s_type_path c.cl_path);
+		print ctx "return Some(@\"%s\")" (s_path ctx c.cl_path);
 		fn();
 		newline ctx;
 		spr ctx "}";
@@ -1306,9 +1325,15 @@ let generate_base_enum ctx com =
 	spr ctx "pub trait HxEnum {";
 	let trait = open_block ctx in
 	newline ctx;
+	spr ctx "pub fn __name() -> Option<@str>";
+	newline ctx;
 	spr ctx "pub fn __get_index(ind:i32) -> Self";
 	newline ctx;
+	spr ctx "pub fn __parameters(&self) -> Option<~[@HxObject]>";
+	newline ctx;
 	spr ctx "pub fn __index(&self) -> i32";
+	newline ctx;
+	spr ctx "pub fn __constructor(&self) -> @str";
 	trait();
 	newline ctx;
 	spr ctx "}";
@@ -1319,7 +1344,9 @@ let generate_base_object ctx com =
 	spr ctx "pub trait HxObject {";
 	let trait = open_block ctx in
 	newline ctx;
-	spr ctx "pub fn __get_field(&self, field:@str) -> Option<HxObject>";
+	spr ctx "pub fn __name() -> Option<@str>";
+	newline ctx;
+	spr ctx "pub fn __field(&self, field:@str) -> Option<HxObject>";
 	newline ctx;
 	spr ctx "pub fn __set_field(&mut self, field:@str, value:Option<@HxObject>) -> Option<@HxObject>";
 	newline ctx;
@@ -1345,7 +1372,7 @@ let generate_base_object ctx com =
 	List.iter(fun t ->
 		match t with
 		| TClassDecl c ->
-			if c.cl_extern then (
+			if c.cl_extern && Meta.has Meta.Native c.cl_meta && not (Meta.has Meta.NativeGen c.cl_meta) then (
 				let c = (match c.cl_path with
 					| (pack,name) -> { c with cl_path = (pack,protect name) }
 				) in

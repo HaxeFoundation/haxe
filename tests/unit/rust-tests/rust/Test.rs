@@ -1,24 +1,36 @@
-use rust::Lib;
 mod HxObject;
-use haxe::unit::TestRunner;
+use rust::Lib;
 pub struct Test;
 pub impl Test {
-	pub fn testTuple(&mut self) -> () {
-		let mut t: Option<(f32, Option<@str>, bool)> = (371.235f32, Some(@"Nopenup"), false);
-		(rust::Lib::unwrap(t)).a;
-		(rust::Lib::unwrap(t)).b;
-		(rust::Lib::unwrap(t)).c;
-	}
 	pub fn main() -> () {
-		let mut r: Option<@haxe::unit::TestRunner> = haxe::unit::TestRunner::new();
-		(rust::Lib::unwrap(r)).add(Test::new());
-		(rust::Lib::unwrap(r)).run();
+		(rust::Lib::unwrap(Test))::testTuple();
 	}
-	pub fn new() -> Option<@Test> {
-		let mut self = Test {}
-		self.super()();
-		return Some(@self);
-	}
+	priv fn testTuple() -> () {
+		let mut t: Option<@(f64, i32, bool)> = Some((371.235f64, 38i32, false));
+		let mut a: Option<~[Option<@(f64, i32, bool)>]> = [];
+		let mut s: f32 = 23.663124f64;
+		s;
+		{
+			a.grow(a.len() + 1i32,None);
+			{
+				a[a.len() - 1i32] = t;
+				a[a.len() - 1i32]
+			}
+			a.len();
+		}
+		match t {
+			(a, b, c) => a,
+			_ => ()
+		}
+		match t {
+			(a, b, c) => b,
+			_ => ()
+		}
+		match t {
+			(a, b, c) => c,
+			_ => ()
+		}
+		}
 }
 impl HxObject for Test {
 }
