@@ -89,7 +89,7 @@ let s_path ctx path =
 		let name = protect name in
 		let packs = (try Hashtbl.find ctx.imports name with Not_found -> []) in
 		if not (List.mem pack packs) && notcore then Hashtbl.replace ctx.imports name (pack :: packs);
-		type_path (pack,name) ^ (if ctx.path <> path then "::" ^ name else "")
+		type_path path ^ (if ctx.path = path then "" else "::" ^ name)
 
 let reserved =
 	let h = Hashtbl.create 0 in
@@ -695,11 +695,11 @@ and gen_expr ctx e =
 	| TNew ({ cl_path = ([], "Array") },_, el) ->
 		spr ctx "[]";
 	| TNew ({ cl_path = (["rust"], "Tuple2") },_ ,el) ->
-		spr ctx "Some((";
+		spr ctx "Some(@(";
 		concat ctx ", " (gen_value ctx) el;
 		spr ctx "))";
 	| TNew ({ cl_path = (["rust"], "Tuple3") },_ ,el) ->
-		spr ctx "Some((";
+		spr ctx "Some(@(";
 		concat ctx ", " (gen_value ctx) el;
 		spr ctx "))";
 	| TNew (c,params,el) ->
@@ -1121,7 +1121,7 @@ let generate_obj_impl ctx c =
 	let static_methods = List.filter (fun x -> not (is_var x)) c.cl_ordered_statics in
 	let params = get_params c.cl_types in
 	ctx.in_interface <- c.cl_interface;
-	print ctx "impl HxObject for %s%s {" (s_path ctx c.cl_path) params;
+	print ctx "impl HxObject::HxObject for %s%s {" (s_path ctx c.cl_path) params;
 	let impl = open_block ctx in
 	if (has_feature ctx "Reflect.field") then (
 		newline ctx;

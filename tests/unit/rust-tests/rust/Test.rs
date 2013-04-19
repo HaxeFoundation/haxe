@@ -5,7 +5,7 @@ pub impl Test {
 		Test::testTuple();
 	}
 	priv fn testTuple() -> () {
-		let mut t: Option<@(f64, i32, bool)> = Some((371.235f64, 38i32, false));
+		let mut t: Option<@(f64, i32, bool)> = Some(@(371.235f64, 38i32, false));
 		let mut a: Option<~[Option<@(f64, i32, bool)>]> = [];
 		let mut s: f32 = 23.663124f64;
 		s;
@@ -31,5 +31,5 @@ pub impl Test {
 		}
 		}
 }
-impl HxObject for Test {
+impl HxObject::HxObject for Test {
 }
