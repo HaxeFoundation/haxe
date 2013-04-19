@@ -1,9 +1,8 @@
-use rust::Lib;
 mod HxObject;
 pub struct Test;
 pub impl Test {
 	pub fn main() -> () {
-		(rust::Lib::unwrap(Test))::testTuple();
+		Test::testTuple();
 	}
 	priv fn testTuple() -> () {
 		let mut t: Option<@(f64, i32, bool)> = Some((371.235f64, 38i32, false));

@@ -597,11 +597,9 @@ and gen_expr ctx e =
 		soft_newline ctx;
 		spr ctx "}";
 		newline ctx;
-	| TField ({eexpr = TArrayDecl _} as e1,s) ->
-		spr ctx "(";
-		gen_expr ctx e1;
-		spr ctx ")";
-		gen_field_access ctx e1.etype (field_name s)
+	| TField (e, FStatic(c, f)) ->
+		spr ctx (type_path c.cl_path);
+		gen_field_access ctx e.etype f.cf_name
 	| TField (e,s) ->
 		unwrap ctx e;
 		gen_field_access ctx e.etype (field_name s)
