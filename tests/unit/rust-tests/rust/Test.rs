@@ -20,6 +20,7 @@ pub impl Test {
 	}
 	priv fn testTuple() -> () {
 		let mut t: Option<@(f64, i32, bool)> = Some(@(371.235f64, 38i32, false));
+		let mut p: Option<@(Option<@str>, i32)> = Some(@(Some(@"Nope"), 22i32));
 		let mut a: Option<~[Option<@(f64, i32, bool)>]> = [];
 		let mut s: f32 = 23.663124f64;
 		s;
@@ -31,19 +32,41 @@ pub impl Test {
 			}
 			a.len();
 		}
-		match (lib::unwrap(t)) {
-			(a, b, c) => a,
-			_ => ()
+		{
+			let mut _r:Option<@A> = None;
+			match *(t).unwrap() {
+				(a, _, _) => _r = a
+			}
+			_r
 		}
-		match (lib::unwrap(t)) {
-			(a, b, c) => b,
-			_ => ()
+		{
+			let mut _r2:Option<@B> = None;
+			match *(t).unwrap() {
+				(_, b, _) => _r2 = b
+			}
+			_r2
 		}
-		match (lib::unwrap(t)) {
-			(a, b, c) => c,
-			_ => ()
+		{
+			let mut _r3:Option<@C> = None;
+			match *(t).unwrap() {
+				(_, _, c) => _r3 = c
+			}
+			_r3
 		}
+		{
+			let mut _r4:Option<@A> = None;
+			match *(p).unwrap() {
+				(a, _) => _r4 = a
+			}
+			_r4
+		} + {
+			let mut _r5:Option<@B> = None;
+			match *(p).unwrap() {
+				(_, b) => _r5 = b
+			}
+			_r5
 		}
+	}
 }
 impl lib::HxObject for Test {
 }

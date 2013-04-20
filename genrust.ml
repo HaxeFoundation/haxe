@@ -374,7 +374,7 @@ let rec type_str ctx t p =
 		canwrap := false;
 		type_str ctx ((!f)()) p
 	) in
-	if !canwrap then
+	if !canwrap && not extern then
 		"Option<"^value^">"
 	else
 		value
@@ -529,9 +529,9 @@ let rec gen_call ctx e el r =
 
 and unwrap ctx e =
 	if (is_wrapped ctx e.etype) then (
-		spr ctx "(lib::unwrap(";
+		spr ctx "(";
 		gen_value ctx e;
-		spr ctx "))";
+		spr ctx ").unwrap()";
 	) else
 		gen_value ctx e;
 
@@ -590,32 +590,64 @@ and gen_expr ctx e =
 	| TField( e, FInstance({ cl_path = ([], "Array") }, { cf_name = "length" }) ) ->
 		unwrap ctx e;
 		spr ctx ".len()";
-	| TField( e, FInstance({ cl_path = (["rust"], "Tuple2") }, { cf_name = name }) ) ->
-		spr ctx "match ";
+	| TField( e, FInstance({ cl_path = (["rust"], "Tuple2"); cl_types = [(_, t1); (_, t2)] }, f) ) when f.cf_name = "a" || f.cf_name = "b" ->
+		let tmp = gen_local ctx "_r" in
+		spr ctx "{";
+		let bl = open_block ctx in
+		let typ = match f.cf_name with
+		| "a" -> t1
+		| _ -> t2
+		in
+		newline ctx;
+		print ctx "let mut %s:%s = None" tmp (type_str ctx typ e.epos);
+		newline ctx;
+		spr ctx "match *";
 		unwrap ctx e;
 		spr ctx " {";
 		let mtc = open_block ctx in
 		newline ctx;
-		print ctx "(a, b) => %s," name;
-		soft_newline ctx;
-		spr ctx "_ => ()";
+		(match f.cf_name with
+		| "a" -> print ctx "(a, _) => %s = a" tmp;
+		| _ -> print ctx "(_, b) => %s = b" tmp;
+		);
 		mtc();
 		soft_newline ctx;
 		spr ctx "}";
 		newline ctx;
-	| TField( e, FInstance({ cl_path = (["rust"], "Tuple3") }, { cf_name = name }) ) ->
-		spr ctx "match ";
+		spr ctx tmp;
+		bl();
+		soft_newline ctx;
+		spr ctx "}"
+	| TField( e, FInstance({ cl_path = (["rust"], "Tuple3"); cl_types = [(_, t1); (_, t2); (_, t3)] }, f) ) when f.cf_name = "a" || f.cf_name = "b" || f.cf_name = "c" ->
+		let tmp = gen_local ctx "_r" in
+		spr ctx "{";
+		let bl = open_block ctx in
+		let typ = match f.cf_name with
+		| "a" -> t1
+		| "b" -> t2
+		| _ -> t3
+		in
+		newline ctx;
+		print ctx "let mut %s:%s = None" tmp (type_str ctx typ e.epos);
+		newline ctx;
+		spr ctx "match *";
 		unwrap ctx e;
 		spr ctx " {";
 		let mtc = open_block ctx in
 		newline ctx;
-		print ctx "(a, b, c) => %s," name;
-		soft_newline ctx;
-		spr ctx "_ => ()";
+		(match f.cf_name with
+		| "a" -> print ctx "(a, _, _) => %s = a" tmp;
+		| "b" -> print ctx "(_, b, _) => %s = b" tmp;
+		| _ -> print ctx "(_, _, c) => %s = c" tmp;
+		);
 		mtc();
 		soft_newline ctx;
 		spr ctx "}";
 		newline ctx;
+		spr ctx tmp;
+		bl();
+		soft_newline ctx;
+		spr ctx "}";
 	| TField (e, FStatic(c, f)) when (match f.cf_kind with | Var _ -> true | _ -> false) && ctx.curclass.cl_path = c.cl_path ->
 		spr ctx f.cf_name
 	| TField (e, FStatic(c, f)) ->
@@ -1412,6 +1444,9 @@ let generate_base_object ctx com =
 	) com.types;
 	newline ctx
 
+let generate_base_lib ctx com =
+	newline ctx
+
 let generate com =
 	let infos = {
 		com = com;
@@ -1420,6 +1455,7 @@ let generate com =
 	generate_resources ctx infos;
 	generate_base_enum ctx com;
 	generate_base_object ctx com;
+	generate_base_lib ctx com;
 	close ctx;
 	let inits = ref [] in
 	List.iter (fun t ->
