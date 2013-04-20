@@ -1,4 +1,4 @@
-mod HxObject;
+mod lib;
 pub struct Test;
 pub impl Test {
 	pub fn main() -> () {
@@ -17,19 +17,19 @@ pub impl Test {
 			}
 			a.len();
 		}
-		match t {
+		match (lib::unwrap(t)) {
 			(a, b, c) => a,
 			_ => ()
 		}
-		match t {
+		match (lib::unwrap(t)) {
 			(a, b, c) => b,
 			_ => ()
 		}
-		match t {
+		match (lib::unwrap(t)) {
 			(a, b, c) => c,
 			_ => ()
 		}
 		}
 }
-impl HxObject::HxObject for Test {
+impl lib::HxObject::HxObject for Test {
 }

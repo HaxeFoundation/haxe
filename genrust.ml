@@ -69,7 +69,7 @@ let is_special_compare e1 e2 =
 
 let protect name =
 	match name with
-	| "HxObject" | "HxEnum" -> "_" ^ name
+	| "lib::HxObject" | "HxEnum" -> "_" ^ name
 	| _ -> name
 
 let type_path (p, s) =
@@ -170,9 +170,19 @@ let newline ctx =
 	try loop (Buffer.length ctx.buf - 1) with _ -> ()
 
 let close ctx =
+	let should_gen path =
+		match !path with
+		| (["lib"], _) -> false
+		| (name, paths) -> !path <> ctx.path
+	in
 	let is_mod path =
 		match !path with
 		| ([], _) -> true
+		| _ -> false
+	in
+	let is_lib = match ctx.path with
+		| (["lib"], _) -> true
+		| ([], "lib") -> true
 		| _ -> false
 	in
 	Hashtbl.iter (fun name paths ->
@@ -181,16 +191,18 @@ let close ctx =
 			List.iter (fun pack ->
 				path := (pack, name);
 			) paths;
-		if not (is_mod path) && !path <> ctx.path then
+		if not (is_mod path) && should_gen path then
 			output_string ctx.ch ("use " ^ type_path !path ^ ";\n");
 	) ctx.imports;
+	if not is_lib then
+		output_string ctx.ch "mod lib;\n";
 	Hashtbl.iter (fun name paths ->
 		let path = ref ([], name) in
 		if List.length paths > 0 then
 			List.iter (fun pack ->
 				path := (pack, name);
 			) paths;
-		if is_mod path && !path <> ctx.path then
+		if is_mod path && should_gen path then
 			output_string ctx.ch ("mod " ^ type_path !path ^ ";\n");
 	) ctx.imports;
 	output_string ctx.ch (Buffer.contents ctx.buf);
@@ -234,11 +246,9 @@ let rec is_wrapped ctx t =
 	| TAbstract (a,_) ->
 		not (is_core a.a_path)
 	| TEnum(e, _) ->
-		not e.e_extern
-	| TInst ({ cl_path = [], "Class"}, [pt]) ->
-		false
-	| TInst(c, _) ->
-		not c.cl_extern
+		true
+	| TInst(cl, _) ->
+		not (Meta.has Meta.NativeGen cl.cl_meta)
 	| TFun(_, _) ->
 		true
 	| TMono r ->
@@ -301,7 +311,7 @@ let rec type_str ctx t p =
 						| "String" -> "str"
 						| "Bool" -> "bool"
 						| _ -> n)
-					| [] -> "HxObject"
+					| [] -> "lib::HxObject"
 					| _ :: l -> loop l
 				in
 				(loop e.e_meta) ^ (s_type_params params)
@@ -309,7 +319,7 @@ let rec type_str ctx t p =
 			s_path ctx e.e_path
 	| TInst ({ cl_path = [], "Class"}, [pt]) ->
 		canwrap := true;
-		reftype ^ "HxObject"
+		reftype ^ "lib::HxObject"
 	| TInst ({ cl_path = [], "String"}, _) ->
 		canwrap := true;
 		reftype ^ "str"
@@ -334,7 +344,7 @@ let rec type_str ctx t p =
 		let name = ((match c.cl_kind with
 			| KTypeParameter _ -> snd c.cl_path
 			| KNormal | KGeneric | KGenericInstance _ | KAbstractImpl _ -> (s_path ctx c.cl_path) ^ ps
-			| KExtension _ | KExpr _ | KMacroType -> "HxObject") ^ ps) in
+			| KExtension _ | KExpr _ | KMacroType -> "lib::HxObject") ^ ps) in
 		reftype ^ name
 	| TFun (args, haxe_type) ->
 		canwrap := true;
@@ -343,10 +353,10 @@ let rec type_str ctx t p =
 		reftype ^ asfun
 	| TMono r ->
 		canwrap := false;
-		(match !r with None -> reftype ^ "HxObject" | Some t -> type_str ctx t p)
+		(match !r with None -> reftype ^ "lib::HxObject" | Some t -> type_str ctx t p)
 	| TAnon _ | TDynamic _ ->
 		canwrap := false;
-		reftype ^ "HxObject"
+		reftype ^ "lib::HxObject"
 	| TType (t,args) ->
 		canwrap := false;
 		(match t.t_path with
@@ -510,7 +520,7 @@ let rec gen_call ctx e el r =
 
 and unwrap ctx e =
 	if (is_wrapped ctx e.etype) then (
-		print ctx "(%s::unwrap(" (s_path ctx (["rust"], "Lib"));
+		spr ctx "(lib::unwrap(";
 		gen_value ctx e;
 		spr ctx "))";
 	) else
@@ -798,7 +808,7 @@ and gen_expr ctx e =
 			newline ctx;
 			if !mto then
 				spr ctx "else";
-			print ctx "if (rust::Lib::is(%s, %s)) {" tmp (type_str ctx v.v_type e.epos);
+			print ctx "if (lib::is(%s, %s)) {" tmp (type_str ctx v.v_type e.epos);
 			let errb = open_block ctx in
 			newline ctx;
 			print ctx "let mut %s = %s" (s_ident v.v_name) tmp;
@@ -1112,7 +1122,6 @@ let rec define_getset ctx stat c =
 	| _ -> ()
 
 let generate_obj_impl ctx c =
-	Hashtbl.replace ctx.imports "HxObject" [];
 	ctx.curclass <- c;
 	ctx.local_types <- List.map snd c.cl_types;
 	let obj_fields = List.filter (is_var) c.cl_ordered_fields in
@@ -1121,7 +1130,7 @@ let generate_obj_impl ctx c =
 	let static_methods = List.filter (fun x -> not (is_var x)) c.cl_ordered_statics in
 	let params = get_params c.cl_types in
 	ctx.in_interface <- c.cl_interface;
-	print ctx "impl HxObject::HxObject for %s%s {" (s_path ctx c.cl_path) params;
+	print ctx "impl %s for %s%s {" (s_path ctx (["lib"], "HxObject")) (s_path ctx c.cl_path) params;
 	let impl = open_block ctx in
 	if (has_feature ctx "Reflect.field") then (
 		newline ctx;
@@ -1379,7 +1388,7 @@ let generate_base_object ctx com =
 	List.iter(fun t ->
 		match t with
 		| TClassDecl c ->
-			if c.cl_extern && Meta.has Meta.Native c.cl_meta && not (Meta.has Meta.NativeGen c.cl_meta) then (
+			if c.cl_extern && not (Meta.has Meta.NativeGen c.cl_meta) then (
 				let c = (match c.cl_path with
 					| (pack,name) -> { c with cl_path = (pack,protect name) }
 				) in
@@ -1393,13 +1402,9 @@ let generate com =
 	let infos = {
 		com = com;
 	} in
-	let ctx = init infos ([], "resources") in
+	let ctx = init infos ([], "lib") in
 	generate_resources ctx infos;
-	close ctx;
-	let ctx = init infos ([],"HxEnum") in
 	generate_base_enum ctx com;
-	close ctx;
-	let ctx = init infos ([],"HxObject") in
 	generate_base_object ctx com;
 	close ctx;
 	let inits = ref [] in
