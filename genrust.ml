@@ -235,15 +235,20 @@ let parent e =
 	| TParenthesis _ -> e
 	| _ -> mk (TParenthesis e) e.etype e.epos
 
-let default_value tstr =
-	match tstr with
-	| "i32"  -> "0i32"
-	| "ui32" -> "0ui32"
-	| "f32" -> "f32::NaN"
-	| "f64" -> "f64::NaN"
-	| "bool" -> "false"
-	| "()" -> "()"
-	| _ -> "None"
+let rec default_value tstr =
+	match tstr.[0] with
+	| '@' -> "@" ^ default_value (String.sub tstr 1 ((String.length tstr)-1))
+	| '~' -> "~" ^ default_value (String.sub tstr 1 ((String.length tstr)-1))
+	| '&' -> "&" ^ default_value (String.sub tstr 1 ((String.length tstr)-1))
+	| _ -> (match tstr with
+		| "i32"  -> "0i32"
+		| "ui32" -> "0ui32"
+		| "f32" -> "f32::NaN"
+		| "f64" -> "f64::NaN"
+		| "bool" -> "false"
+		| "str" -> "\"\""
+		| "()" -> "()"
+		| _ -> "None")
 
 
 let rec is_wrapped ctx t =
@@ -738,11 +743,11 @@ and gen_expr ctx e =
 	| TVars vl ->
 		spr ctx "let mut ";
 		concat ctx ", " (fun (v,eo) ->
-			print ctx "%s: %s" (s_ident v.v_name) (type_str ctx v.v_type e.epos);
+			print ctx "%s: %s = " (s_ident v.v_name) (type_str ctx v.v_type e.epos);
 			match eo with
-			| None -> ()
+			| None ->
+				spr ctx (default_value (type_str ctx v.v_type e.epos))
 			| Some e ->
-				spr ctx " = ";
 				gen_value ctx e
 		) vl;
 	| TNew ({ cl_path = ([], "Array") },_, el) ->

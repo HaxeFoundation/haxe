@@ -2,7 +2,16 @@ import rust.Tuple3;
 import rust.Tuple2;
 class Test {
 	static var num:Int = 7;
+	var dup:Single  = 8.990;
+	public function new() {
+	}
 	public static function main() {
+		var b = 8.9;
+		var c:Single;
+		c = 8;
+		var d:Null<Single> = 0.8678;
+		d = null;
+		new Test();
 		testTuple();
 		for(i in 0...4)
 			num += i;

@@ -3,6 +3,18 @@ pub struct Test;
 priv static num:i32 = 0i32;
 pub impl Test {
 	pub fn main() -> () {
+		let mut b: f64 = 8.9f64;
+		let mut c: f32 = f32::NaN;
+		{
+			c = 8i32;
+			c
+		}
+		let mut d: f32 = 0.8678f64;
+		{
+			d = None;
+			d
+		}
+		Test::new();
 		Test::testTuple();
 		{
 			let mut _g: i32 = 0i32;
@@ -66,6 +78,10 @@ pub impl Test {
 			}
 			_r5
 		}
+	}
+	pub fn new() -> Option<@Test> {
+		let mut self = Test {}
+		return Some(@self);
 	}
 }
 impl lib::HxObject for Test {
