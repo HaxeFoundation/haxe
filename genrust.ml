@@ -239,7 +239,7 @@ let default_value tstr =
 
 let rec is_wrapped ctx t =
 	match t with
-	| TAbstract ({ a_path = [], "Class"}, ps) ->
+	| TAbstract (a, ps) when Meta.has Meta.Extern a.a_meta ->
 		true
 	| TAbstract ({ a_impl = Some _ } as a,pl) ->
 		is_wrapped ctx (apply_params a.a_types pl a.a_this)
@@ -1092,17 +1092,19 @@ let generate_field ctx static f =
 					| AccCall s -> print ctx "fn %s( __v : %s ) : %s" s t t;
 					| _ -> ());
 				| _ -> assert false)
-			| _ ->
+			| _ when not static ->
 				print ctx "%s: %s" (s_ident f.cf_name) (type_str ctx f.cf_type p);
 				()
+			| _ when static ->
+				print ctx "%s static %s:%s = %s" rights (s_ident f.cf_name) (type_str ctx f.cf_type p) (default_value (type_str ctx f.cf_type p));
+				()
 		else
-		let gen_init () = match f.cf_expr with
-			| None -> ()
-			| Some e -> ()
-		in 
-		if not is_getset then begin
+		if not is_getset && not static then begin
 			print ctx "%s: %s" (s_ident f.cf_name) (type_str ctx f.cf_type p);
-			gen_init()
+			newline ctx;
+		end else if not is_getset && static then begin
+			print ctx "%s static %s:%s = %s" rights (s_ident f.cf_name) (type_str ctx f.cf_type p) (default_value (type_str ctx f.cf_type p));
+			newline ctx;
 		end
 
 let rec define_getset ctx stat c =

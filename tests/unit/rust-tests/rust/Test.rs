@@ -1,8 +1,22 @@
 mod lib;
+priv static num:i32 = 0i32;
 pub struct Test;
 pub impl Test {
 	pub fn main() -> () {
 		Test::testTuple();
+		{
+			let mut _g: i32 = 0i32;
+			while (_g < 4i32) {
+				let mut i: i32 = {
+					_g += 1;
+					_g - 1
+				};
+				{
+					Test::num += i;
+					Test::num
+				}
+			}
+		}
 	}
 	priv fn testTuple() -> () {
 		let mut t: Option<@(f64, i32, bool)> = Some(@(371.235f64, 38i32, false));
