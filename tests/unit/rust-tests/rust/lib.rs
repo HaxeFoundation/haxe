@@ -1,5 +1,3 @@
-use haxe::EnumValueTools;
-use haxe::EnumTools;
 pub trait HxEnum {
 	pub fn __name() -> Option<@str>;
 	pub fn __get_index(ind:i32) -> Self;
@@ -17,12 +15,4 @@ impl ToStr for HxObject {
 	pub fn to_str(&self) -> ~str {
 		return self.toString();
 	}
-}
-impl lib::HxObject::HxObject for ArrayAccess::ArrayAccess<T> {
-}
-impl lib::HxObject::HxObject for haxe::EnumTools::EnumTools {
-}
-impl lib::HxObject::HxObject for haxe::EnumValueTools::EnumValueTools {
-}
-impl lib::HxObject::HxObject for rust::Tuple3::Tuple3<A, B, C> {
 }

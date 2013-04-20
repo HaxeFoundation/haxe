@@ -1390,7 +1390,7 @@ let generate_base_object ctx com =
 	List.iter(fun t ->
 		match t with
 		| TClassDecl c ->
-			if c.cl_extern && not (Meta.has Meta.NativeGen c.cl_meta) then (
+			if c.cl_extern && not (Meta.has Meta.NativeGen c.cl_meta) && Meta.has Meta.Native c.cl_meta then (
 				let c = (match c.cl_path with
 					| (pack,name) -> { c with cl_path = (pack,protect name) }
 				) in
