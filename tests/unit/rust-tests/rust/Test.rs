@@ -45,5 +45,5 @@ pub impl Test {
 		}
 		}
 }
-impl lib::HxObject::HxObject for Test {
+impl lib::HxObject for Test {
 }

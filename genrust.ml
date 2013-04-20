@@ -1132,7 +1132,7 @@ let generate_obj_impl ctx c =
 	let static_methods = List.filter (fun x -> not (is_var x)) c.cl_ordered_statics in
 	let params = get_params c.cl_types in
 	ctx.in_interface <- c.cl_interface;
-	print ctx "impl %s for %s%s {" (s_path ctx (["lib"], "HxObject")) (s_path ctx c.cl_path) params;
+	print ctx "impl %s for %s%s {" (if ctx.path = ([], "lib") then "HxObject" else "lib::HxObject") (s_path ctx c.cl_path) params;
 	let impl = open_block ctx in
 	if (has_feature ctx "Reflect.field") then (
 		newline ctx;
