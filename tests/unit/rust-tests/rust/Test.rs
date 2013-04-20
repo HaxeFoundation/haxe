@@ -1,6 +1,6 @@
 mod lib;
-priv static num:i32 = 0i32;
 pub struct Test;
+priv static num:i32 = 0i32;
 pub impl Test {
 	pub fn main() -> () {
 		Test::testTuple();
@@ -12,8 +12,8 @@ pub impl Test {
 					_g - 1
 				};
 				{
-					Test::num += i;
-					Test::num
+					num += i;
+					num
 				}
 			}
 		}

@@ -28,6 +28,7 @@ class Sys {
 	public static function getCwd():String {
 		return "";
 	}
+	@:functionCode('return std::time::precise_time_s()')
 	public static function cpuTime():Float {
 		return 0;
 	}

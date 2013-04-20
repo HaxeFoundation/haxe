@@ -91,6 +91,15 @@ let s_path ctx path =
 		if not (List.mem pack packs) && notcore then Hashtbl.replace ctx.imports name (pack :: packs);
 		type_path path ^ (if ctx.path = path then "" else "::" ^ name)
 
+let s_path_short ctx path =
+	match path with
+	| (pack,name) ->
+		let notcore = not (is_core path) in
+		let name = protect name in
+		let packs = (try Hashtbl.find ctx.imports name with Not_found -> []) in
+		if not (List.mem pack packs) && notcore then Hashtbl.replace ctx.imports name (pack :: packs);
+		type_path path
+
 let reserved =
 	let h = Hashtbl.create 0 in
 	List.iter (fun l -> Hashtbl.add h l ())
@@ -607,6 +616,8 @@ and gen_expr ctx e =
 		soft_newline ctx;
 		spr ctx "}";
 		newline ctx;
+	| TField (e, FStatic(c, f)) when (match f.cf_kind with | Var _ -> true | _ -> false) && ctx.curclass.cl_path = c.cl_path ->
+		spr ctx f.cf_name
 	| TField (e, FStatic(c, f)) ->
 		spr ctx (s_path ctx c.cl_path);
 		gen_field_access ctx e.etype f.cf_name
@@ -618,7 +629,7 @@ and gen_expr ctx e =
 	| TParenthesis e ->
 		spr ctx "(";
 		gen_value ctx e;
-		spr ctx ")";
+		spr ctx ")"
 	| TReturn eo ->
 		if ctx.in_value <> None then unsupported e.epos;
 		(match eo with
@@ -1098,6 +1109,7 @@ let generate_field ctx static f =
 			| _ when static ->
 				print ctx "%s static %s:%s = %s" rights (s_ident f.cf_name) (type_str ctx f.cf_type p) (default_value (type_str ctx f.cf_type p));
 				()
+			| _ -> ()
 		else
 		if not is_getset && not static then begin
 			print ctx "%s: %s" (s_ident f.cf_name) (type_str ctx f.cf_type p);
@@ -1244,7 +1256,6 @@ let generate_class ctx c =
 	let params = get_params c.cl_types in
 	let path = snd c.cl_path in
 	ctx.in_interface <- c.cl_interface;
-	List.iter (generate_field ctx true) static_fields;
 	print ctx "pub struct %s%s" path params;
 	if ((List.length obj_fields) > 0) then (
 		spr ctx " {";
@@ -1258,6 +1269,7 @@ let generate_class ctx c =
 		spr ctx "}";
 	);
 	newline ctx;
+	List.iter (generate_field ctx true) static_fields;
 	if ((c.cl_constructor <> None) || ((List.length obj_methods) > 0) || (List.length c.cl_ordered_statics) > 0) && not c.cl_interface then (
 		print ctx "pub impl%s %s%s {" params path params;
 		let cl = open_block ctx in
