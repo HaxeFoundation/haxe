@@ -57,7 +57,7 @@ let is_var_field f =
 		false
 let is_var f =
 	match f.cf_kind with
-	| Var _ -> true
+	| Var _ | Method MethDynamic -> true
 	| _ -> false
 let is_special_compare e1 e2 =
 	match e1.eexpr, e2.eexpr with
@@ -77,28 +77,13 @@ let type_path (p, s) =
 
 let is_core path =
 	match path with
-	| ([], "Math") | ([], "UInt") | ([], "Array") | ([], "ArrayAccess") | ([], "Int") | ([], "Float") | ([], "Single") | ([], "Void") | ([], "Dynamic") | ([], "Bool") | ([], "String") | (["rust"], "Tuple2") | (["rust"], "Tuple3") ->
+	| (["rust"], "Int8") | (["rust"], "Int16") | (["rust"], "Char16") | ([], "Math") | ([], "UInt") | ([], "Array") | ([], "ArrayAccess") | ([], "Int") | ([], "Float") | ([], "Single") | ([], "Void") | ([], "Dynamic") | ([], "Bool") | ([], "String") | (["rust"], "Tuple2") | (["rust"], "Tuple3") ->
 		true
 	| _ ->
 		false
 
-let s_path ctx path =
-	match path with
-	| (pack,name) ->
-		let notcore = not (is_core path) in
-		let name = protect name in
-		let packs = (try Hashtbl.find ctx.imports name with Not_found -> []) in
-		if not (List.mem pack packs) && notcore then Hashtbl.replace ctx.imports name (pack :: packs);
-		type_path path ^ (if ctx.path = path then "" else "::" ^ name)
-
-let s_path_short ctx path =
-	match path with
-	| (pack,name) ->
-		let notcore = not (is_core path) in
-		let name = protect name in
-		let packs = (try Hashtbl.find ctx.imports name with Not_found -> []) in
-		if not (List.mem pack packs) && notcore then Hashtbl.replace ctx.imports name (pack :: packs);
-		type_path path
+let not_package name =
+	((String.lowercase (String.sub name 0 1)) <> (String.sub name 0 1))
 
 let reserved =
 	let h = Hashtbl.create 0 in
@@ -106,7 +91,7 @@ let reserved =
 	(* these ones are defined in order to prevent recursion in some Std functions *)
 	["is";"as";"i32";"uint";"const";"getTimer";"typeof";"parseInt";"parseFloat";
 	(* Rust keywords which are not Haxe ones *)
-	"loop";"with";"int";"float";"extern";"let";"mod";"impl";"trait";"struct";"_";
+	"loop";"with";"int";"float";"extern";"let";"mod";"impl";"trait";"struct";"_";"i8";"ui8";"i16";"ui16";
 	(* we don't include get+set since they are not 'real' keywords, but they can't be used as method names *)
 	"function";"class";"var";"if";"else";"while";"do";"for";"break";"continue";"return";"extends";"implements";
 	"import";"switch";"case";"default";"static";"public";"private";"try";"catch";"this";"throw";"interface";
@@ -151,6 +136,16 @@ let init infos path =
 	}
 
 let print ctx = Printf.kprintf (fun s -> Buffer.add_string ctx.buf s)
+
+let s_path ctx path =
+	match path with
+	| (pack,name) ->
+		let notcore = not (is_core path) in
+		let name = protect name in
+		let packs = (try Hashtbl.find ctx.imports name with Not_found -> []) in
+		print ctx "/*Package %s => %s*/" name (if not (not_package name) then "yes" else "no");
+		if not (List.mem pack packs) && notcore && not_package name then Hashtbl.replace ctx.imports name (pack :: packs);
+		type_path path ^ (if ctx.path = path || not_package name then "" else "::" ^ name)
 
 let soft_newline ctx =
 	print ctx "\n%s" ctx.tabs
@@ -294,7 +289,7 @@ let rec type_str ctx t p =
 		| [] -> ""
 		| l -> "<" ^ String.concat ", " (List.map (fun param -> type_str ctx param p) params) ^ ">") in
 	let extern = ctx.curclass.cl_extern in
-	let reftype = "@" in (* The default reference type *)
+	let reftype = (if ctx.curclass.cl_extern then "@" else "~") in (* The default reference type *)
 	let canwrap = ref false in
 	let value = (match t with
 	| TAbstract ({ a_impl = Some _ } as a,pl) ->
@@ -305,11 +300,14 @@ let rec type_str ctx t p =
 		(match a.a_path with
 		| [], "UInt" -> "ui32"
 		| [], "Int" -> "i32"
+		| ["rust"], "Int8" -> "i8"
+		| ["rust"], "Int16" -> "i16"
+		| ["rust"], "Char16" -> "char"
 		| [], "Float" -> "f64"
 		| [], "Single" -> "f32"
 		| [], "Bool" -> "bool"
 		| [], "Void" -> "()"
-		| _ -> s_path ctx a.a_path)
+		| _ -> if (Meta.has Meta.Extern a.a_meta) then (snd a.a_path) else (s_path ctx a.a_path))
 	| TEnum (e, params) ->
 		canwrap := false;
 		if e.e_extern then (match e.e_path with
@@ -352,6 +350,10 @@ let rec type_str ctx t p =
 		let ct = type_str ctx pc p in
 		canwrap := true;
 		reftype ^ "(" ^ at ^ ", " ^ bt ^ ", " ^ ct ^")"
+	| TInst (c,params) when c.cl_extern ->
+		canwrap := true;
+		let name = snd c.cl_path in
+		reftype ^ name
 	| TInst (c,params) ->
 		canwrap := true;
 		let ps = s_type_params params in
@@ -363,13 +365,17 @@ let rec type_str ctx t p =
 	| TFun (args, haxe_type) ->
 		canwrap := true;
 		let nargs = List.map (fun (arg,o,t) -> (type_str ctx t p)) args in
-		let asfun = "@fn(" ^ (String.concat ", " nargs) ^ ")->" ^ type_str ctx haxe_type p in
+		let asfun = "fn(" ^ (String.concat ", " nargs) ^ ")->" ^ type_str ctx haxe_type p in
 		reftype ^ asfun
 	| TMono r ->
 		canwrap := false;
-		(match !r with None -> reftype ^ "lib::HxObject" | Some t -> type_str ctx t p)
+		(match !r with
+		| None -> 
+			canwrap := true;
+			reftype ^ "lib::HxObject"
+		| Some t -> type_str ctx t p)
 	| TAnon _ | TDynamic _ ->
-		canwrap := false;
+		canwrap := true;
 		reftype ^ "lib::HxObject"
 	| TType (t,args) ->
 		canwrap := false;
@@ -589,12 +595,27 @@ and gen_expr ctx e =
 			gen_value_op ctx e1;
 			print ctx " %s " (Ast.s_binop op);
 			gen_value_op ctx e2;)
+	| TField( e, FStatic({ cl_path = ([], "Math") }, { cf_name = "PI" })) ->
+		spr ctx "3.1415926589f64"
+	| TField( e, FStatic({ cl_path = ([], "Math") }, { cf_name = "NaN" })) ->
+		spr ctx "f64::NaN"
+	| TField( e, FStatic({ cl_path = ([], "Math") }, { cf_name = "isNaN" })) ->
+		spr ctx "f64::is_NaN";
+	| TField( e, FStatic({ cl_path = ([], "Math") }, { cf_name = "isFinite" })) ->
+		spr ctx "f64::is_finite";
+	| TField( e, FStatic({ cl_path = ([], "Math") }, { cf_name = "POSITIVE_INFINITY" })) ->
+		spr ctx "f64::infinity";
+	| TField( e, FStatic({ cl_path = ([], "Math") }, { cf_name = "NEGATIVE_INFINITY" })) ->
+		spr ctx "f64::neg_infinity";
 	| TField( e, FInstance({ cl_path = ([], "String") }, { cf_name = "length" }) ) ->
 		unwrap ctx e;
-		spr ctx ".len()";
+		spr ctx ".len()"
 	| TField( e, FInstance({ cl_path = ([], "Array") }, { cf_name = "length" }) ) ->
 		unwrap ctx e;
-		spr ctx ".len()";
+		spr ctx ".len()"
+	| TField( e, FInstance({ cl_path = ([], "Array") }, { cf_name = "alloc" }) ) ->
+		unwrap ctx e;
+		spr ctx ".len()"
 	| TField( e, FInstance({ cl_path = (["rust"], "Tuple2"); cl_types = [(_, t1); (_, t2)] }, f) ) when f.cf_name = "a" || f.cf_name = "b" ->
 		let tmp = gen_local ctx "_r" in
 		spr ctx "{";
@@ -604,7 +625,7 @@ and gen_expr ctx e =
 		| _ -> t2
 		in
 		newline ctx;
-		print ctx "let mut %s:%s = None" tmp (type_str ctx typ e.epos);
+		print ctx "let mut %s = None" tmp;
 		newline ctx;
 		spr ctx "match *";
 		unwrap ctx e;
@@ -633,7 +654,7 @@ and gen_expr ctx e =
 		| _ -> t3
 		in
 		newline ctx;
-		print ctx "let mut %s:%s = None" tmp (type_str ctx typ e.epos);
+		print ctx "let mut %s = None" tmp;
 		newline ctx;
 		spr ctx "match *";
 		unwrap ctx e;
@@ -692,7 +713,7 @@ and gen_expr ctx e =
 		if ctx.in_value <> None then unsupported e.epos;
 		spr ctx "continue"
 	| TBlock el ->
-		print ctx "{";
+		spr ctx "{";
 		let bend = open_block ctx in
 		(match ctx.block_inits with None -> () | Some i -> i());
 		if ctx.constructor_block then (
@@ -709,16 +730,18 @@ and gen_expr ctx e =
 				| None -> spr ctx (default_value (type_str ctx f.cf_type e.epos));
 				| Some v -> gen_expr ctx v;
 			) obj_fields;
-			spr ctx "}";
+			spr ctx "};";
+			soft_newline ctx;
 		);
 		List.iter (fun e -> newline ctx; gen_expr ctx e) el;
 		if ctx.constructor_block then (
-			newline ctx;
+			soft_newline ctx;
 			spr ctx "return Some(@self)";
-		);
+		) else
+			newline ctx;
 		bend();
-		newline ctx;
-		print ctx "}";
+		spr ctx "}";
+		soft_newline ctx;
 	| TFunction f ->
 		spr ctx "Some(@";
 		let h = gen_function_header ctx None f [] e.epos in
@@ -1150,7 +1173,7 @@ let generate_field ctx static f =
 		else
 		if not is_getset && not static then begin
 			print ctx "%s: %s" (s_ident f.cf_name) (type_str ctx f.cf_type p);
-			newline ctx;
+			soft_newline ctx;
 		end else if not is_getset && static then begin
 			print ctx "%s static %s:%s = %s" rights (s_ident f.cf_name) (type_str ctx f.cf_type p) (default_value (type_str ctx f.cf_type p));
 			newline ctx;
@@ -1439,7 +1462,7 @@ let generate_base_object ctx com =
 	List.iter(fun t ->
 		match t with
 		| TClassDecl c ->
-			if c.cl_extern && not (Meta.has Meta.NativeGen c.cl_meta) && Meta.has Meta.Native c.cl_meta then (
+			if c.cl_extern && not_package (snd c.cl_path) && not (Meta.has Meta.NativeGen c.cl_meta) && Meta.has Meta.Native c.cl_meta then (
 				let c = (match c.cl_path with
 					| (pack,name) -> { c with cl_path = (pack,protect name) }
 				) in

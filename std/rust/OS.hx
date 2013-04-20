@@ -1,6 +1,6 @@
-package rust.os;
+package rust;
 import Array;
-import rust.path.*;
+import rust.io.*;
 /** Higher-level interfaces to libc.* functions and operating system services. */
 @:native("os") extern class OS {
 	public static var TMPBUF_SZ(default, null):Int;

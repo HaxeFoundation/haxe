@@ -1,5 +1,6 @@
 package haxe.ds;
-import rust.hashmap.LinearMap;
+import rust.ds.LinearMap;
+import rust.BaseIter;
 class ObjectMap<K:{}, V> implements Map.IMap<K, V> {
 	var _:LinearMap<K, V>;
 	public function new(weakKeys:Bool = false):Void {
@@ -18,7 +19,7 @@ class ObjectMap<K:{}, V> implements Map.IMap<K, V> {
 		return _.remove(key);
 	}
 	public inline function keys():Iterator<K> {
-		return null;
+		return Array.of(_).iterator();
 	}
 	public inline function iterator():Iterator<V> {
 		return null;

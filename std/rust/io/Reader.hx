@@ -1,7 +1,7 @@
 package rust.io;
 import rust.*;
 /** The raw underlying reader trait. All readers must implement this. */
-@:native("io.Reader") extern interface Reader {
+@:native("io.Reader") extern interface Reader extends ReaderUtil {
 	/** Read up to [len] bytes (or EOF) and put them into [bytes] (which must be at least len bytes long). Return number of bytes read. */
 	public function read(bytes:Array<Int>, len:Int):Int;
 	/** Read a single byte, returning a negative value for EOF or read error. */

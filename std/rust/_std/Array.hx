@@ -1,7 +1,19 @@
+/** Implemented as an OwnedVector, or ~[T] */
 @:final @:nativeGen extern class Array<T> implements ArrayAccess<T> {
 	public var length(default, null):Int;
 	public function new() {
 
+	}
+	public static inline function of<T>(i:rust.BaseIter<T>):Array<T> {
+		return ofFunc(i.each);
+	}
+	public static inline function ofFunc<T>(func:(T -> Bool)->Void):Array<T> {
+		var a = new Array<T>();
+		func(function(v:T) {
+			a.push(v);
+			return true;
+		});
+		return a;
 	}
 	public inline function concat(a:Array<T>):Array<T> {
 		return untyped this.add(a);
@@ -15,44 +27,29 @@
 			s.add(this[i]);
 		return s.toString();
 	}
-	public inline function filter(f:T -> Bool):Array<T> {
-		return untyped this.filter(f);
-	}
-	inline function allocate(nlen:Int):Void {
-		untyped this.grow(nlen, null);
+	public function filter(f:T -> Bool):Array<T> {
+		return [];
 	}
 	public inline function push(v:T):Int {
-		allocate(length + 1);
-		this[length-1] = v;
-		return length;
+		untyped this.push(v);
+		return this.length;
 	}
-	public inline function insert(pos:Int, v:T):Void {
-		if(pos >= this.length) {
-			allocate(pos+1);
-			this[pos] = v;
-		} else {
-			for(ui in 0...this.length) {
-				var i = this.length - 1 - ui;
-				this[i] = this[i - 1];
-			}
-		}
+	public function insert(pos:Int, v:T):Void {
 	}
 	public inline function unshift(v:T):Void {
 		insert(0, v);
 	}
 	public inline function pop():Null<T> {
-		var v:Null<T> = this.length == 0 ? null : this[length > 0 ? length-1 : 0];
-		allocate(length >= 1 ? length - 1 : 0);
-		return v;
+		return try untyped this.pop() catch(v:Dynamic) null;
 	}
 	public inline function reverse():Array<T> {
-		var n = alloc(this.length);
+		var n = [];
 		for(i in 0...this.length)
 			n[this.length+1-i] = this[i];
 		return n;
 	}
 	public inline function map<B>(fn:T->B):Array<B> {
-		var n = alloc(this.length);
+		var n = [];
 		for(i in 0...this.length)
 			n[i] = fn(this[i]);
 		return n;
@@ -62,16 +59,15 @@
 			pos += this.length;
 		if(end < 0)
 			pos += this.length;
-		var n = alloc(end - pos);
+		var n = [];
 		for(i in pos...end)
 			n.push(this[i]);
 		return n;
 	}
 	public inline function splice(pos:Int, len:Int):Array<T> {
-		var n = alloc(len);
+		var n = [];
 		for(i in 0...len)
 			n[i] = this[pos + i];
-		allocate(pos-1);
 		return n;
 	}
 	public function shift():Null<T> {
@@ -93,9 +89,7 @@
 	public function iterator():Iterator<T> {
 		return null;
 	}
-	static inline function alloc<T>(len:Int):Array<T> {
-		var n = new Array<T>();
-		n.allocate(len);
-		return n;
+	public static inline function alloc<T>(len:Int):Array<T> {
+		return [];
 	}
 }
