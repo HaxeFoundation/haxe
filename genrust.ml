@@ -82,8 +82,8 @@ let is_core path =
 	| _ ->
 		false
 
-let not_package name =
-	((String.lowercase (String.sub name 0 1)) <> (String.sub name 0 1))
+let is_package name =
+	((String.lowercase (String.sub name 0 1)) = (String.sub name 0 1))
 
 let reserved =
 	let h = Hashtbl.create 0 in
@@ -143,9 +143,8 @@ let s_path ctx path =
 		let notcore = not (is_core path) in
 		let name = protect name in
 		let packs = (try Hashtbl.find ctx.imports name with Not_found -> []) in
-		print ctx "/*Package %s => %s*/" name (if not (not_package name) then "yes" else "no");
-		if not (List.mem pack packs) && notcore && not_package name then Hashtbl.replace ctx.imports name (pack :: packs);
-		type_path path ^ (if ctx.path = path || not_package name then "" else "::" ^ name)
+		if not (List.mem pack packs) && notcore && not (is_package name) then Hashtbl.replace ctx.imports name (pack :: packs);
+		type_path path ^ (if (ctx.path = path) || (is_package name) then "" else "::" ^ name)
 
 let soft_newline ctx =
 	print ctx "\n%s" ctx.tabs
@@ -488,7 +487,7 @@ let gen_function_header ctx name f params p =
 	in
 	ctx.block_inits <- Some init;
 	if not closure then
-		print ctx "fn%s(" (match name with None -> "" | Some (n,meta) ->
+		print ctx "fn%s%s(" (match name with None -> "" | Some (n,meta) ->
 			let rec loop = function
 				| [] -> n
 				| (Ast.Meta.Getter,[Ast.EConst (Ast.Ident i),_],_) :: _ -> "get " ^ i
@@ -496,7 +495,7 @@ let gen_function_header ctx name f params p =
 				| _ :: l -> loop l
 			in
 			" " ^ loop meta
-		);
+		) (get_params params);
 	if closure then
 		spr ctx "|";
 	if not ctx.in_static && not ctx.constructor_block && not closure then
@@ -550,10 +549,10 @@ and gen_value_op ctx e =
 	match e.eexpr with
 	| TBinop (op,_,_) when op = Ast.OpAnd || op = Ast.OpOr || op = Ast.OpXor ->
 		spr ctx "(";
-		gen_value ctx e;
+		unwrap ctx e;
 		spr ctx ")";
 	| _ ->
-		gen_value ctx e
+		unwrap ctx e
 
 and gen_field_access ctx t s =
 	let static = match follow t with
@@ -1462,7 +1461,7 @@ let generate_base_object ctx com =
 	List.iter(fun t ->
 		match t with
 		| TClassDecl c ->
-			if c.cl_extern && not_package (snd c.cl_path) && not (Meta.has Meta.NativeGen c.cl_meta) && Meta.has Meta.Native c.cl_meta then (
+			if c.cl_extern && not (is_package (snd c.cl_path)) && not (Meta.has Meta.NativeGen c.cl_meta) && Meta.has Meta.Native c.cl_meta then (
 				let c = (match c.cl_path with
 					| (pack,name) -> { c with cl_path = (pack,protect name) }
 				) in

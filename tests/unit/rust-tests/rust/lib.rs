@@ -23,17 +23,17 @@ impl ToStr for HxObject {
 		return self.toString();
 	}
 }
-/*Package BaseIter => no*/impl HxObject for BaseIter<T> {
+impl HxObject for BaseIter::BaseIter<T> {
 }
-/*Package Clone => no*/impl HxObject for Clone {
+impl HxObject for Clone::Clone {
 }
-/*Package Pipe => no*/impl HxObject for os::Pipe {
+impl HxObject for os::Pipe::Pipe {
 }
-/*Package Path => no*/impl HxObject for path::Path {
+impl HxObject for path::Path::Path {
 }
-/*Package ReaderUtil => no*/impl HxObject for io::ReaderUtil {
+impl HxObject for io::ReaderUtil::ReaderUtil {
 }
-/*Package Reader => no*/impl HxObject for io::Reader {
+impl HxObject for io::Reader::Reader {
 }
-/*Package Writer => no*/impl HxObject for io::Writer {
+impl HxObject for io::Writer::Writer {
 }

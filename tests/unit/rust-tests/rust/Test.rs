@@ -2,8 +2,13 @@ mod lib;
 pub struct Test;
 pub impl Test {
 	pub fn main() -> () {
-		/*Package io => yes*/io::io::println(Some(@"Hello, world!"));
+		io::println(Some(@"Hello, world!"));
+		Test::isCool(78.9f64);
+		}
+	
+	priv fn isCool<T>(v: Option<~T>) -> bool {
+		return true;
 		}
 	}
-/*Package Test => no*/impl lib::HxObject for Test {
+impl lib::HxObject for Test {
 }
