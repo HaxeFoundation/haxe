@@ -826,9 +826,19 @@ let generate com =
 	let source = Common.defined com Define.NekoSource in
 	let use_nekoc = Common.defined com Define.UseNekoc in
 	if not use_nekoc then begin
-		let ch = IO.output_channel (open_out_bin com.file) in
-		Nbytecode.write ch (Ncompile.compile ctx.version e);
-		IO.close_out ch;
+		try
+			let ch = IO.output_channel (open_out_bin com.file) in
+			Nbytecode.write ch (Ncompile.compile ctx.version e);
+			IO.close_out ch;
+		with Ncompile.Error (msg,pos) ->
+			let rec loop p =
+				let pp = { pfile = pos.psource; pmin = p; pmax = p; } in
+				if Lexer.get_error_line pp >= pos.pline then
+					pp
+				else
+					loop (p + 1)
+			in
+			error msg (loop 0)
 	end;
 	let command cmd = try com.run_command cmd with _ -> -1 in
 	let neko_file = (try Filename.chop_extension com.file with _ -> com.file) ^ ".neko" in
