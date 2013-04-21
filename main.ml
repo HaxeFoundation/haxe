@@ -888,7 +888,7 @@ try
 		("-debug", Arg.Unit (fun() ->
 			Common.define com Define.Debug;
 			com.debug <- true;
-		), ": add debug informations to the compiled code");
+		), ": add debug information to the compiled code");
 	] in
 	let adv_args_spec = [
 		("-dce", Arg.String (fun mode ->
