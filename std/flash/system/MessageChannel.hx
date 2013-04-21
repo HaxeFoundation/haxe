@@ -5,5 +5,5 @@ package flash.system;
 	var state(default,null) : MessageChannelState;
 	function close() : Void;
 	function receive(blockUntilReceived : Bool = false) : Dynamic;
-	function send(arg : Dynamic, queueLimit : Int = -1) : Dynamic;
+	function send(arg : Dynamic, queueLimit : Int = -1) : Void;
 }

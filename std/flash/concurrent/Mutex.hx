@@ -5,4 +5,5 @@ package flash.concurrent;
 	function lock() : Void;
 	function tryLock() : Bool;
 	function unlock() : Void;
+	static var isSupported(default,null) : Bool;
 }

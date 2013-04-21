@@ -11,7 +11,7 @@ extern class ByteArray implements IDataOutput2 implements IDataInput2 implements
 	@:require(flash11_4) function atomicCompareAndSwapIntAt(byteIndex : Int, expectedValue : Int, newValue : Int) : Int;
 	@:require(flash11_4) function atomicCompareAndSwapLength(expectedLength : Int, newLength : Int) : Int;
 	@:require(flash10) function clear() : Void;
-	function compress(#if flash11 ?algorithm : CompressionAlgorithm #end) : Void;
+	function compress(?algorithm : CompressionAlgorithm) : Void;
 	@:require(flash10) function deflate() : Void;
 	@:require(flash10) function inflate() : Void;
 	function readBoolean() : Bool;
@@ -29,7 +29,7 @@ extern class ByteArray implements IDataOutput2 implements IDataInput2 implements
 	function readUnsignedInt() : UInt;
 	function readUnsignedShort() : UInt;
 	function toString() : String;
-	function uncompress(#if flash11 ?algorithm : CompressionAlgorithm #end) : Void;
+	function uncompress(?algorithm : CompressionAlgorithm) : Void;
 	function writeBoolean(value : Bool) : Void;
 	function writeByte(value : Int) : Void;
 	function writeBytes(bytes : ByteArray, offset : UInt = 0, length : UInt = 0) : Void;

@@ -2,7 +2,7 @@ package flash.utils;
 
 extern class Proxy {
 	function new() : Void;
-	@:ns("http://www.adobe.com/2006/actionscript/flash/proxy") function callProperty(name : Dynamic, __arguments__ : Array<Dynamic> ) : Dynamic;
+	@:ns("http://www.adobe.com/2006/actionscript/flash/proxy") function callProperty(name : Dynamic, ?p1 : Dynamic, ?p2 : Dynamic, ?p3 : Dynamic, ?p4 : Dynamic, ?p5 : Dynamic) : Dynamic;
 	@:ns("http://www.adobe.com/2006/actionscript/flash/proxy") function deleteProperty(name : Dynamic) : Bool;
 	@:ns("http://www.adobe.com/2006/actionscript/flash/proxy") function getDescendants(name : Dynamic) : Dynamic;
 	@:ns("http://www.adobe.com/2006/actionscript/flash/proxy") function getProperty(name : Dynamic) : Dynamic;

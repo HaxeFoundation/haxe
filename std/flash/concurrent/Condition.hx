@@ -6,4 +6,5 @@ package flash.concurrent;
 	function notify() : Void;
 	function notifyAll() : Void;
 	function wait(timeout : Float = -1) : Bool;
+	static var isSupported(default,null) : Bool;
 }

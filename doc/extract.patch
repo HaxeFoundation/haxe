@@ -1199,3 +1199,20 @@ flash.system.MessageChannel.state : MessageChannelState;
 
 enum flash.system.WorkerState;
 
+
+// ---  11.6 API
+
+enum flash.display3D.Context3DMipFilter
+enum flash.display3D.Context3DTextureFilter
+enum flash.display3D.Context3DWrapMode
+enum flash.system.ApplicationInstallerMode
+
+@:require(flash11_6) flash.display3D.Context3D.setSamplerStateAt
+flash.display3D.Context3D.$wrap : Context3DWrapMode;
+flash.display3D.Context3D.$filter : Context3DTextureFilter;
+flash.display3D.Context3D.$mipfilter : Context3DMipFilter;
+
+-flash.display.DisplayObject.metaData
+
+@:require(flash11_6) flash.display.Graphics.readGraphicsData
+

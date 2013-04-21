@@ -25,4 +25,5 @@ package flash.display;
 	function lineStyle(?thickness : Float, color : UInt = 0, alpha : Float = 1, pixelHinting : Bool = false, ?scaleMode : LineScaleMode, ?caps : CapsStyle, ?joints : JointStyle, miterLimit : Float = 3) : Void;
 	function lineTo(x : Float, y : Float) : Void;
 	function moveTo(x : Float, y : Float) : Void;
+	@:require(flash11_6) function readGraphicsData(recurse : Bool = true) : flash.Vector<IGraphicsData>;
 }

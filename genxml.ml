@@ -333,7 +333,7 @@ let generate_type com t =
 		| Some (Ident "null") ->
 			"?" ^ n ^ " : " ^ stype (notnull t)
 		| Some v ->
-			n ^ " : " ^ stype t ^ " = " ^ (s_constant v)
+			n ^ " : " ^ stype t ^ " = " ^ (match s_constant v with "nan" -> "0./*NaN*/" | v -> v)
 	in
 	let print_meta ml =
 		List.iter (fun (m,pl,_) ->
@@ -412,11 +412,11 @@ let generate_type com t =
 			| ["flash";"utils"], "Dictionnary" -> [" implements ArrayAccess<Dynamic>"]
 			| ["flash";"xml"], "XML" -> [" implements Dynamic<XMLList>"]
 			| ["flash";"xml"], "XMLList" -> [" implements ArrayAccess<XML>"]
-			| ["flash";"display"],"MovieClip" -> [" extends Sprite #if !flash_strict, implements Dynamic #end"]
+			| ["flash";"display"],"MovieClip" -> [" extends Sprite #if !flash_strict implements Dynamic #end"]
 			| ["flash";"errors"], "Error" -> [" #if !flash_strict implements Dynamic #end"]
 			| _ -> ext
 		) in
-		p "%s" (String.concat " " (List.rev ext));
+		p "%s" (String.concat "" (List.rev ext));
 		p " {\n";
 		let sort l =
 			let a = Array.of_list (List.filter (fun f -> f.cf_public && not (List.memq f c.cl_overrides)) l) in

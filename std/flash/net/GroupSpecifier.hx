@@ -2,6 +2,7 @@ package flash.net;
 
 @:require(flash10_1) extern class GroupSpecifier {
 	var ipMulticastMemberUpdatesEnabled : Bool;
+	var minGroupspecVersion : Int;
 	var multicastEnabled : Bool;
 	var objectReplicationEnabled : Bool;
 	var peerToPeerDisabled : Bool;
@@ -18,6 +19,7 @@ package flash.net;
 	function setPostingPassword(?password : String, ?salt : String) : Void;
 	function setPublishPassword(?password : String, ?salt : String) : Void;
 	function toString() : String;
+	static var maxSupportedGroupspecVersion(default,null) : Int;
 	static function encodeBootstrapPeerIDSpec(peerID : String) : String;
 	static function encodeIPMulticastAddressSpec(address : String, ?port : Dynamic, ?source : String) : String;
 	static function encodePostingAuthorization(password : String) : String;
