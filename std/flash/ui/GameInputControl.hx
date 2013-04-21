@@ -1,13 +1,10 @@
 package flash.ui;
 
-@:final extern class GameInputControl extends flash.events.EventDispatcher {
+extern class GameInputControl extends flash.events.EventDispatcher implements Dynamic {
 	var device(default,null) : GameInputDevice;
-	var finger(default,null) : GameInputFinger;
-	var hand(default,null) : GameInputHand;
-	var index(default,null) : Int;
-	var numValues(default,null) : Int;
-	var relative(default,null) : Bool;
-	var type(default,null) : GameInputControlType;
+	var id(default,null) : String;
+	var maxValue(default,null) : Float;
+	var minValue(default,null) : Float;
+	var value(default,null) : Float;
 	function new() : Void;
-	function getValueAt(index : Int = 0) : Float;
 }

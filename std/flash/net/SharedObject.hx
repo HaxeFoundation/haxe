@@ -15,6 +15,7 @@ extern class SharedObject extends flash.events.EventDispatcher {
 	function setDirty(propertyName : String) : Void;
 	function setProperty(propertyName : String, ?value : flash.utils.Object) : Void;
 	static var defaultObjectEncoding : UInt;
+	@:require(flash11_7) static var preventBackup : Bool;
 	static function deleteAll(url : String) : Int;
 	static function getDiskUsage(url : String) : Int;
 	static function getLocal(name : String, ?localPath : String, secure : Bool = false) : SharedObject;

@@ -4,5 +4,6 @@ package flash.system;
 	var authorizedFeatures(default,null) : AuthorizedFeatures;
 	function new() : Void;
 	function loadAuthorizedFeatures() : Void;
+	@:require(flash11_7) function loadAuthorizedFeaturesFromData(data : flash.utils.ByteArray) : Void;
 	@:require(flash11_4) function makeGlobal() : Void;
 }
