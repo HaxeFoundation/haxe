@@ -270,6 +270,15 @@ class TestBasetypes extends Test {
 		t( h.remove(1) );
 		f( h.remove(1) );
 	}
+	
+	function testMap() {
+		var i = new Map();
+		i[1] = 0;
+		var x = 1;
+		i[x++] += 4;
+		eq(x, 2);
+		eq(i[1], 4);
+	}
 
 	function testObjectKeyword() {
 		// new is a keyword in Haxe
