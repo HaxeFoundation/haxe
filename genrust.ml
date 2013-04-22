@@ -144,7 +144,7 @@ let s_path ctx path =
 		let name = protect name in
 		let packs = (try Hashtbl.find ctx.imports name with Not_found -> []) in
 		if not (List.mem pack packs) && notcore && not (is_package name) then Hashtbl.replace ctx.imports name (pack :: packs);
-		type_path path ^ (if (ctx.path = path) || (is_package name) then "" else "::" ^ name)
+		type_path path ^ (if (ctx.path = path) || (is_package name) || (List.length packs = 0) then "" else "::" ^ name)
 
 let soft_newline ctx =
 	print ctx "\n%s" ctx.tabs
@@ -197,17 +197,18 @@ let close ctx =
 		if not (is_mod path) && should_gen path then
 			output_string ctx.ch ("use " ^ type_path !path ^ ";\n");
 	) ctx.imports;
-	if not is_lib then
+	if not is_lib then (
 		output_string ctx.ch "mod lib;\n";
-	Hashtbl.iter (fun name paths ->
-		let path = ref ([], name) in
-		if List.length paths > 0 then
-			List.iter (fun pack ->
-				path := (pack, name);
-			) paths;
-		if is_mod path && should_gen path then
-			output_string ctx.ch ("mod " ^ type_path !path ^ ";\n");
-	) ctx.imports;
+		Hashtbl.iter (fun name paths ->
+			let path = ref ([], name) in
+			if List.length paths > 0 then
+				List.iter (fun pack ->
+					path := (pack, name);
+				) paths;
+			if is_mod path && should_gen path then
+				output_string ctx.ch ("mod " ^ type_path !path ^ ";\n");
+		) ctx.imports;
+	);
 	output_string ctx.ch (Buffer.contents ctx.buf);
 	close_out ctx.ch
 
@@ -249,7 +250,7 @@ let rec is_wrapped ctx t =
 	match t with
 	| TAbstract (a, ps) when Meta.has Meta.Extern a.a_meta ->
 		true
-	| TAbstract ({ a_impl = Some _ } as a,pl) ->
+	| TAbstract (a,pl) ->
 		is_wrapped ctx (apply_params a.a_types pl a.a_this)
 	| TAbstract (a,_) ->
 		not (is_core a.a_path)
@@ -288,7 +289,7 @@ let rec type_str ctx t p =
 		| [] -> ""
 		| l -> "<" ^ String.concat ", " (List.map (fun param -> type_str ctx param p) params) ^ ">") in
 	let extern = ctx.curclass.cl_extern in
-	let reftype = (if ctx.curclass.cl_extern then "@" else "~") in (* The default reference type *)
+	let reftype = (if ctx.curclass.cl_extern then "~" else "@") in (* The default reference type *)
 	let canwrap = ref false in
 	let value = (match t with
 	| TAbstract ({ a_impl = Some _ } as a,pl) ->
@@ -326,8 +327,10 @@ let rec type_str ctx t p =
 					| _ :: l -> loop l
 				in
 				(loop e.e_meta) ^ (s_type_params params)
-		) else
+		) else (
+			print ctx "/*Enum %s*/" (s_path ctx e.e_path);
 			s_path ctx e.e_path
+		)
 	| TInst ({ cl_path = [], "Class"}, [pt]) ->
 		canwrap := true;
 		reftype ^ "lib::HxObject"
@@ -431,7 +434,7 @@ let generate_resources ctx infos =
 			spr ctx "\")";
 		in
 		let ctx = init infos ([],"resources") in
-		spr ctx "pub fn get(name:@str) -> ~Option<@str> {";
+		spr ctx "pub fn get(name:@str) -> Option<@str> {";
 		let getfn = open_block ctx in
 		newline ctx;
 		spr ctx "return match(name) {";
@@ -561,6 +564,7 @@ and gen_field_access ctx t s =
 		(match !(a.a_status) with
 		| Statics c -> true
 		| _ -> false)
+	| TEnum _ -> true
 	| _ ->
 		false in
 	print ctx "%s%s" (if static then "::" else ".") (s_ident s)
@@ -675,6 +679,8 @@ and gen_expr ctx e =
 		spr ctx "}";
 	| TField (e, FStatic(c, f)) when (match f.cf_kind with | Var _ -> true | _ -> false) && ctx.curclass.cl_path = c.cl_path ->
 		spr ctx f.cf_name
+	| TField (e, FEnum(m, f)) ->
+		print ctx "%s::%s" (s_path ctx m.e_path) f.ef_name;
 	| TField (e, FStatic(c, f)) ->
 		spr ctx (s_path ctx c.cl_path);
 		gen_field_access ctx e.etype f.cf_name
@@ -749,6 +755,22 @@ and gen_expr ctx e =
 		gen_expr ctx (block f.tf_expr);
 		ctx.in_static <- old;
 		h();
+		spr ctx ")";
+	| TCall({ eexpr = TField( _, FStatic({ cl_path = ([], "Std") }, { cf_name = "int" })) }, [obj]) ->
+		spr ctx "((";
+		unwrap ctx obj;
+		spr ctx ") as i32)";
+	| TCall({ eexpr = TField( _, FStatic({ cl_path = ([], "Std") }, { cf_name = "string" })) }, [obj]) ->
+		spr ctx "@(";
+		gen_value ctx obj;
+		spr ctx ".to_str())";
+	| TCall({ eexpr = TField( _, FStatic({ cl_path = ([], "Std") }, { cf_name = "parseFloat" })) }, [obj]) ->
+		spr ctx "f64::from_str(";
+		unwrap ctx obj;
+		spr ctx ")";
+	| TCall({ eexpr = TField( _, FStatic({ cl_path = ([], "Std") }, { cf_name = "parseInt" })) }, [obj]) ->
+		spr ctx "i32::from_str(";
+		unwrap ctx obj;
 		spr ctx ")";
 	| TCall (v,el) ->
 		gen_call ctx v el e.etype
@@ -869,10 +891,14 @@ and gen_expr ctx e =
 		newline ctx;
 		spr ctx "}";
 	| TTry (e,catchs) ->
-		let tmp = gen_local ctx "$err" in
+		spr ctx "{";
+		let tblock = open_block ctx in
+		soft_newline ctx;
+		let tmp = gen_local ctx "err" in
 		print ctx "let %s = do task::try " tmp;
 		gen_expr ctx (block e);
-		newline ctx;
+		spr ctx ";";
+		soft_newline ctx;
 		let mto = ref false in
 		List.iter (fun (v,e) ->
 			newline ctx;
@@ -882,17 +908,19 @@ and gen_expr ctx e =
 			let errb = open_block ctx in
 			newline ctx;
 			print ctx "let mut %s = %s" (s_ident v.v_name) tmp;
+			newline ctx;
 			gen_expr ctx e;
 			errb();
 			newline ctx;
-			spr ctx "}";
+			spr ctx "};";
 			mto := true;
 		) catchs;
+		tblock();
+		soft_newline ctx;
+		spr ctx "}";
 	| TMatch (e,_,cases,def) ->
-		print ctx "{";
-		let bend = open_block ctx in
-		newline ctx;
 		spr ctx "match ";
+		let bend = open_block ctx in
 		unwrap ctx e;
 		spr ctx " {";
 		List.iter (fun (cl,params,e) ->
@@ -924,10 +952,8 @@ and gen_expr ctx e =
 			spr ctx "_ => ";
 			gen_block ctx e;
 		);
-		soft_newline ctx;
-		spr ctx "}";
 		bend();
-		newline ctx;
+		soft_newline ctx;
 		spr ctx "}";
 	| TSwitch (e,cases,def) ->
 		spr ctx "match ";
@@ -1203,7 +1229,7 @@ let generate_obj_impl ctx c =
 	let static_methods = List.filter (fun x -> not (is_var x)) c.cl_ordered_statics in
 	let params = get_params c.cl_types in
 	ctx.in_interface <- c.cl_interface;
-	print ctx "impl %s for %s%s {" (if ctx.path = ([], "lib") then "HxObject" else "lib::HxObject") (s_path ctx c.cl_path) params;
+	print ctx "impl%s %s for %s%s {" params (if ctx.path = ([], "lib") then "HxObject" else "lib::HxObject") (type_path c.cl_path) params;
 	let impl = open_block ctx in
 	if (has_feature ctx "Reflect.field") then (
 		newline ctx;
@@ -1402,7 +1428,8 @@ let generate_enum ctx e =
 			) args;
 			print ctx ")";
 		| _ ->
-			spr ctx (type_str ctx c.ef_type c.ef_pos););
+			spr ctx c.ef_name;
+		);
 		not_first := true;
 	) e.e_constrs;
 	cl();
