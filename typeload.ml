@@ -968,7 +968,7 @@ let type_function_params ctx fd fname p =
 	) fd.f_params;
 	!params
 
-let type_function ctx args ret fmode f p =
+let type_function ctx args ret fmode f do_display p =
 	let locals = save_locals ctx in
 	let fargs = List.map (fun (n,c,t) ->
 		let c = (match c with
@@ -989,7 +989,12 @@ let type_function ctx args ret fmode f p =
 	ctx.curfun <- fmode;
 	ctx.ret <- ret;
 	ctx.opened <- [];
-	let e = type_expr ctx (match f.f_expr with None -> error "Function body required" p | Some e -> e) NoValue in
+	let e = match f.f_expr with None -> error "Function body required" p | Some e -> e in
+	let e = if not do_display then type_expr ctx e NoValue else try
+		type_expr ctx (Optimizer.optimize_completion_expr e) NoValue
+	with DisplayTypes [TMono _] | Parser.TypePath (_,None) ->
+		type_expr ctx e NoValue
+	in
 	let rec loop e =
 		match e.eexpr with
 		| TReturn (Some _) -> raise Exit
@@ -1264,7 +1269,7 @@ let init_class ctx c p context_init herits fields =
 
 	let display_file = if ctx.com.display then Common.unique_full_path p.pfile = (!Parser.resume_display).pfile else false in
 
-	let fields = if not display_file || Common.defined ctx.com Define.NoCOpt then fields else Optimizer.optimize_completion c fields in
+	let cp = !Parser.resume_display in
 
 	let delayed_expr = ref [] in
 
@@ -1528,7 +1533,8 @@ let init_class ctx c p context_init herits fields =
 						| _ ->
 							if constr then FunConstructor else if stat then FunStatic else FunMember
 					) in
-					let e , fargs = type_function ctx args ret fmode fd p in
+					let display_field = f.cff_pos.pmin <= cp.pmin && f.cff_pos.pmax >= cp.pmax in
+					let e , fargs = type_function ctx args ret fmode fd display_field p in
 					let f = {
 						tf_args = fargs;
 						tf_type = ret;

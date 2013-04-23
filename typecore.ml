@@ -132,6 +132,8 @@ exception Forbid_package of (string * path * pos) * pos list * string
 
 exception Error of error_msg * pos
 
+exception DisplayTypes of t list
+
 exception DisplayPosition of Ast.pos list
 
 let make_call_ref : (typer -> texpr -> texpr list -> t -> pos -> texpr) ref = ref (fun _ _ _ _ _ -> assert false)

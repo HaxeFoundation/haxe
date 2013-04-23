@@ -89,7 +89,7 @@ extern class Reflect {
 		Returns the fields of structure [o].
 		
 		This method is only guaranteed to work on anonymous structures. Refer to
-		[Type.getInstancefields()] for a function supporting class instances.
+		[Type.getInstanceFields()] for a function supporting class instances.
 		
 		If [o] is null, the result is unspecified.
 	**/

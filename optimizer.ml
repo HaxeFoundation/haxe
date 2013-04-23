@@ -966,7 +966,7 @@ let rec make_constant_expression ctx e =
 	We will look at local variables in the form   var v = new ....
 	we only capture the ones which have constructors marked as inlined
 	then we make sure that these locals are no more referenced except for fields accesses
-	
+
 	Second pass :
 	We replace the variables by their fields lists, and the corresponding fields accesses as well
 *)
@@ -1225,19 +1225,5 @@ let optimize_completion_expr e =
 		Ast.map_expr loop e
 	in
 	(try loop e with Return e -> e)
-
-let optimize_completion c fields =
-	let cp = !Parser.resume_display in
-	List.map (fun f ->
-		if cp.pmin = 0 || (f.cff_pos.pmin <= cp.pmin && f.cff_pos.pmax >= cp.pmax) then
-			let k = try (match f.cff_kind with
-				| FVar (t,Some e) -> FVar (t,Some (optimize_completion_expr e))
-				| FFun fn -> (match optimize_completion_expr (EFunction (None,fn),f.cff_pos) with (EFunction (None,fn),_) -> FFun fn | e -> FFun({ fn with f_expr = Some e; f_args = []; }))
-				| k -> k
-			) with Exit -> f.cff_kind in
-			{ f with cff_kind = k }
-		else
-			f
-	) fields
 
 (* ---------------------------------------------------------------------- *)

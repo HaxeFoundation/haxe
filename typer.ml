@@ -37,7 +37,6 @@ type access_mode =
 	| MSet
 	| MCall
 
-exception DisplayTypes of t list
 exception DisplayFields of (string * t * documentation) list
 exception DisplayMetadata of metadata_entry list
 exception WithTypeError of unify_error list * pos
@@ -2821,7 +2820,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				if v.[0] = '$' then display_error ctx "Variables names starting with a dollar are not allowed" p;
 				Some (add_local ctx v ft)
 		) in
-		let e , fargs = Typeload.type_function ctx args rt (match ctx.curfun with FunStatic -> FunStatic | _ -> FunMemberLocal) f p in
+		let e , fargs = Typeload.type_function ctx args rt (match ctx.curfun with FunStatic -> FunStatic | _ -> FunMemberLocal) f false p in
 		ctx.type_params <- old;
 		let f = {
 			tf_args = fargs;
