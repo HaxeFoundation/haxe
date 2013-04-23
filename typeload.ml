@@ -166,7 +166,7 @@ let make_module ctx mpath file tdecls loadp =
 					| _ ->
 						f
 				) fields in
-				let acc = make_decl acc (EClass { d_name = d.d_name ^ "Impl"; d_flags = [HPrivate]; d_data = fields; d_doc = None; d_params = []; d_meta = [] },p) in
+				let acc = make_decl acc (EClass { d_name = d.d_name ^ "_Impl_"; d_flags = [HPrivate]; d_data = fields; d_doc = None; d_params = []; d_meta = [] },p) in
 				(match !decls with
 				| (TClassDecl c,_) :: _ ->
 					(try c.cl_meta <- (Meta.get Meta.Build a.a_meta) :: c.cl_meta with Not_found -> ());
