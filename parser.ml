@@ -1314,6 +1314,12 @@ and parse_macro_op e s =
 	match Stream.peek s with
 	| Some (Binop op,_) ->
 		Stream.junk s;
+		let op = match Stream.peek s with
+			| Some (Binop OpAssign,_) when op = OpGt ->
+				Stream.junk s;
+				OpGte
+			| _ -> op
+		in
 		let tk, e2 = (try parse_macro_cond true s with Stream.Failure -> serror()) in
 		tk, make_binop op e e2
 	| tk ->
