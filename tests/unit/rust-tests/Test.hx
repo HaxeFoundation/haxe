@@ -6,6 +6,8 @@ class Test {
 		var c = Std.int(a / b);
 		useless(78.9);
 		Sys.println(Std.string(TestEnum.c));
+		while(true)
+			Sys.println(Std.string(b++));
 	}
 	static function useless<T>(v:T):T {
 		return v;

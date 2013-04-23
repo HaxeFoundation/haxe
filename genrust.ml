@@ -245,34 +245,6 @@ let rec default_value tstr =
 		| "()" -> "()"
 		| _ -> "None")
 
-
-let rec is_wrapped ctx t =
-	match t with
-	| TAbstract (a, ps) when Meta.has Meta.Extern a.a_meta ->
-		true
-	| TAbstract (a,pl) ->
-		is_wrapped ctx (apply_params a.a_types pl a.a_this)
-	| TAbstract (a,_) ->
-		not (is_core a.a_path)
-	| TEnum(e, _) ->
-		true
-	| TInst(cl, _) ->
-		not (Meta.has Meta.NativeGen cl.cl_meta)
-	| TFun(_, _) ->
-		true
-	| TMono r ->
-		(match !r with None -> false | Some t -> true)
-	| TDynamic t ->
-		is_wrapped ctx t
-	| TAnon a ->
-		(match !(a.a_status) with
-		| Statics c -> true
-		| _ -> false)
-	| TType(t, args) ->
-		is_wrapped ctx t.t_type
-	| TLazy f ->
-		is_wrapped ctx ((!f)())
-
 let get_params cl_types =
 	match cl_types with
 		| [] ->
@@ -283,6 +255,7 @@ let get_params cl_types =
 				| TInst(cl, _) -> snd cl.cl_path
 				| _ -> assert false) cl_types)
 			) ^ ">"
+
 let rec type_str ctx t p =
 	let s_type_params params =
 		(match params with
@@ -293,10 +266,8 @@ let rec type_str ctx t p =
 	let canwrap = ref false in
 	let value = (match t with
 	| TAbstract ({ a_impl = Some _ } as a,pl) ->
-		canwrap := false;
 		type_str ctx (apply_params a.a_types pl a.a_this) p
 	| TAbstract (a,_) ->
-		canwrap := false;
 		(match a.a_path with
 		| [], "UInt" -> "ui32"
 		| [], "Int" -> "i32"
@@ -309,7 +280,6 @@ let rec type_str ctx t p =
 		| [], "Void" -> "()"
 		| _ -> if (Meta.has Meta.Extern a.a_meta) then (snd a.a_path) else (s_path ctx a.a_path))
 	| TEnum (e, params) ->
-		canwrap := false;
 		if e.e_extern then (match e.e_path with
 			| [], "Bool" -> "bool"
 			| _ ->
@@ -327,37 +297,28 @@ let rec type_str ctx t p =
 					| _ :: l -> loop l
 				in
 				(loop e.e_meta) ^ (s_type_params params)
-		) else (
-			print ctx "/*Enum %s*/" (s_path ctx e.e_path);
+		) else
 			s_path ctx e.e_path
-		)
 	| TInst ({ cl_path = [], "Class"}, [pt]) ->
-		canwrap := true;
 		reftype ^ "lib::HxObject"
 	| TInst ({ cl_path = [], "String"}, _) ->
-		canwrap := true;
 		reftype ^ "str"
 	| TInst ({ cl_path = [], "Array"},[pt]) ->
 		let typed = type_str ctx pt p in
-		canwrap := true;
 		"~[" ^ typed ^ "]"
 	| TInst ({ cl_path = ["rust"], "Tuple2"}, [pa; pb]) ->
 		let at = type_str ctx pa p in
 		let bt = type_str ctx pb p in
-		canwrap := true;
 		reftype ^ "(" ^ at ^ ", " ^ bt ^ ")"
 	| TInst ({ cl_path = ["rust"], "Tuple3"}, [pa; pb; pc]) ->
 		let at = type_str ctx pa p in
 		let bt = type_str ctx pb p in
 		let ct = type_str ctx pc p in
-		canwrap := true;
 		reftype ^ "(" ^ at ^ ", " ^ bt ^ ", " ^ ct ^")"
 	| TInst (c,params) when c.cl_extern ->
-		canwrap := true;
 		let name = snd c.cl_path in
 		reftype ^ name
 	| TInst (c,params) ->
-		canwrap := true;
 		let ps = s_type_params params in
 		let name = ((match c.cl_kind with
 			| KTypeParameter _ -> snd c.cl_path
@@ -365,29 +326,23 @@ let rec type_str ctx t p =
 			| KExtension _ | KExpr _ | KMacroType -> "lib::HxObject") ^ ps) in
 		reftype ^ name
 	| TFun (args, haxe_type) ->
-		canwrap := true;
 		let nargs = List.map (fun (arg,o,t) -> (type_str ctx t p)) args in
 		let asfun = "fn(" ^ (String.concat ", " nargs) ^ ")->" ^ type_str ctx haxe_type p in
 		reftype ^ asfun
 	| TMono r ->
-		canwrap := false;
 		(match !r with
 		| None -> 
-			canwrap := true;
 			reftype ^ "lib::HxObject"
 		| Some t -> type_str ctx t p)
 	| TAnon _ | TDynamic _ ->
-		canwrap := true;
 		reftype ^ "lib::HxObject"
 	| TType (t,args) ->
-		canwrap := false;
 		(match t.t_path with
 		| _ -> type_str ctx (apply_params t.t_types args t.t_type) p)
 	| TLazy f ->
-		canwrap := false;
 		type_str ctx ((!f)()) p
 	) in
-	if !canwrap && not extern then
+	if is_nullable t && value <> "()" && not extern then
 		"Option<"^value^">"
 	else
 		value
@@ -541,12 +496,21 @@ let rec gen_call ctx e el r =
 		spr ctx ")"
 
 and unwrap ctx e =
-	if (is_wrapped ctx e.etype) then (
+	if (is_nullable e.etype) then (
 		spr ctx "(";
 		gen_value ctx e;
 		spr ctx ").unwrap()";
 	) else
 		gen_value ctx e;
+
+and wrap ctx e =
+	if (is_nullable e.etype) then (
+		gen_value ctx e;
+	) else (
+		spr ctx "Some(";
+		gen_value ctx e;
+		spr ctx ")";
+	)
 
 and gen_value_op ctx e =
 	match e.eexpr with
@@ -761,9 +725,9 @@ and gen_expr ctx e =
 		unwrap ctx obj;
 		spr ctx ") as i32)";
 	| TCall({ eexpr = TField( _, FStatic({ cl_path = ([], "Std") }, { cf_name = "string" })) }, [obj]) ->
-		spr ctx "@(";
+		spr ctx "Some(@(";
 		gen_value ctx obj;
-		spr ctx ".to_str())";
+		spr ctx ".to_str()))";
 	| TCall({ eexpr = TField( _, FStatic({ cl_path = ([], "Std") }, { cf_name = "parseFloat" })) }, [obj]) ->
 		spr ctx "f64::from_str(";
 		unwrap ctx obj;
@@ -859,7 +823,7 @@ and gen_expr ctx e =
 	| TUnop (op, Ast.Postfix,e) ->
 		gen_value ctx e;
 		spr ctx (Ast.s_unop op);
-	| TWhile ({ eexpr = TConst (TBool true) },e,_) ->
+	| TWhile ({ eexpr = TConst (TBool true) }, e, _) ->
 		spr ctx "loop ";
 		gen_expr ctx (block e);
 	| TWhile (cond,e,Ast.NormalWhile) ->
@@ -979,13 +943,12 @@ and gen_expr ctx e =
 		mtc();
 		soft_newline ctx;
 		spr ctx "}"
-	| TCast (e1,None) ->
-		spr ctx "((";
-		gen_expr ctx e1;
-		print ctx ") as %s)" (type_str ctx e.etype e.epos);
-	| TCast (e1,Some t) ->
-		match(t) with
-		| _ -> gen_expr ctx (Codegen.default_cast ctx.inf.com e1 t e.etype e.epos)
+	| TCast (e, None) ->
+		spr ctx "(";
+		gen_value ctx e;
+		print ctx " as %s)" (type_str ctx e.etype e.epos);
+	| TCast (e, Some t) ->
+		gen_expr ctx (Codegen.default_cast ctx.inf.com e t e.etype e.epos)
 
 and gen_block ctx e =
 	newline ctx;
@@ -1244,10 +1207,10 @@ let generate_obj_impl ctx c =
 			List.iter(fun f ->
 				soft_newline ctx;
 				print ctx "\"%s\" => " f.cf_name;
-				if not (is_wrapped ctx f.cf_type) then
+				if not (is_nullable f.cf_type) then
 					spr ctx "Some(";
 				print ctx "self.%s" f.cf_name;
-				if not (is_wrapped ctx f.cf_type) then
+				if not (is_nullable f.cf_type) then
 					spr ctx ")";
 				spr ctx ",";
 			) (List.append obj_fields obj_methods);
