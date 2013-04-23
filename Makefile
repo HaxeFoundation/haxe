@@ -63,7 +63,7 @@ tools: haxelib haxedoc
 
 install:
 	cp haxe $(INSTALL_DIR)/bin/haxe
-	rm -rf $(INSTALL_DIR)/lib/haxe
+	rm -rf $(INSTALL_DIR)/lib/haxe/std
 	-mkdir $(INSTALL_DIR)/lib/haxe
 	svn export std/ $(INSTALL_DIR)/lib/haxe/std
 	-mkdir $(INSTALL_DIR)/lib/haxe/lib
