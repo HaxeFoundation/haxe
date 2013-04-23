@@ -1342,7 +1342,7 @@ let type_generic_function ctx (e,cf) el p =
 		| TFun(args,ret) -> args,ret
 		| _ ->  error "Invalid field type for generic call" p
 	in
-	let el,tfunc = unify_call_params ctx None el args ret p false in
+	let el,_ = unify_call_params ctx None el args ret p false in
 	(try
 		let gctx = Codegen.make_generic ctx cf.cf_params monos p in
 		let name = cf.cf_name ^ "_" ^ gctx.Codegen.name in
@@ -1409,7 +1409,13 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 			make_call ctx ef [ebase;ekey;e2] r p
 		| AKUsing(ef,_,_,et) ->
 			(* this must be an abstract setter *)
-			make_call ctx ef [et;e2] e2.etype p
+			let ret = match ef.etype with
+				| TFun([_;(_,_,t)],ret) ->
+					unify ctx e2.etype t p;
+					ret
+				| _ ->  error "Invalid field type for abstract setter" p
+			in
+			make_call ctx ef [et;e2] ret p
 		| AKInline _ | AKMacro _ ->
 			assert false)
 	| OpAssignOp op ->
