@@ -3935,6 +3935,66 @@ struct
             get_fields gen cs (List.map (apply_params cl.cl_types params_cl) tls) (List.map (apply_params cl.cl_types params_cf) tls) (fields @ acc)
           | None -> (fields @ acc)
 
+      (* overrides all needed cast functions from super classes / interfaces to call the new cast function *)
+      let create_stub_casts gen cl cast_cfield =
+        (* go through superclasses and interfaces *)
+        let p = cl.cl_pos in
+        let this = { eexpr = TConst TThis; etype = (TInst(cl, List.map snd cl.cl_types)); epos = p } in
+
+        let rec loop cls tls level reverse_params =
+          if (level <> 0 || cls.cl_interface) && tls <> [] && is_hxgeneric (TClassDecl cls) then begin
+            let cparams = List.map (fun (s,t) -> (s, TInst (map_param (get_cl_t t), []))) cls.cl_types in
+            let name = String.concat "_" ((fst cls.cl_path) @ [snd cls.cl_path; cast_field_name]) in
+            let cfield = mk_class_field name (TFun([], t_dynamic)) false cl.cl_pos (Method MethNormal) cparams in
+            let field = { eexpr = TField(this, FInstance(cl,cast_cfield)); etype = apply_params cast_cfield.cf_params reverse_params cast_cfield.cf_type; epos = p } in
+            let call =
+            {
+              eexpr = TCall(field, []);
+              etype = t_dynamic;
+              epos = p;
+            } in
+            let call = gen.gparam_func_call call field reverse_params [] in
+            let delay () =
+              cfield.cf_expr <-
+              Some {
+                eexpr = TFunction(
+                {
+                  tf_args = [];
+                  tf_type = t_dynamic;
+                  tf_expr =
+                  {
+                    eexpr = TReturn( Some call );
+                    etype = t_dynamic;
+                    epos = p;
+                  }
+                });
+                etype = cfield.cf_type;
+                epos = p;
+              }
+            in
+            gen.gafter_filters_ended <- delay :: gen.gafter_filters_ended; (* do not let filters alter this expression content *)
+            cl.cl_ordered_fields <- cfield :: cl.cl_ordered_fields;
+            cl.cl_fields <- PMap.add cfield.cf_name cfield cl.cl_fields;
+            if level <> 0 then cl.cl_overrides <- cfield :: cl.cl_overrides
+          end;
+          let get_reverse super supertl =
+            let kv = List.map2 (fun (_,tparam) applied -> (follow applied, follow tparam)) super.cl_types supertl in
+            List.map (fun t ->
+              try
+                List.assq (follow t) kv
+              with | Not_found -> t
+            ) reverse_params
+          in
+          (match cls.cl_super with
+          | None -> ()
+          | Some(super, supertl) ->
+            loop super supertl (level + 1) (get_reverse super supertl));
+          List.iter (fun (iface, ifacetl) ->
+            loop iface ifacetl level (get_reverse iface ifacetl)
+          ) cls.cl_implements
+        in
+        loop cl (List.map snd cl.cl_types) 0 (List.map snd cl.cl_types)
+
       (*
         Creates a cast classfield, with the desired name
 
@@ -4008,11 +4068,10 @@ struct
           ) fields
         in
 
-        let thandle = alloc_var "__typeof__" t_dynamic in
-        let mk_typehandle cl =
-          { eexpr = TCall(mk_local thandle pos, [ mk_classtype_access cl pos ]); etype = t_dynamic; epos = pos }
+        let mk_typehandle =
+          let thandle = alloc_var "__typeof__" t_dynamic in
+          (fun cl -> { eexpr = TCall(mk_local thandle pos, [ mk_classtype_access cl pos ]); etype = t_dynamic; epos = pos })
         in
-
         let mk_eq cl1 cl2 =
           { eexpr = TBinop(Ast.OpEq, mk_typehandle cl1, mk_typehandle cl2); etype = basic.tbool; epos = pos }
         in
@@ -4100,6 +4159,7 @@ struct
         } in
         let call = gen.gparam_func_call call field params [] in
 
+        (* since object.someCall<ExplicitParameterDefinition>() isn't allowed on Haxe, we need to directly apply the params and delay this call *)
         let delay () =
           cfield.cf_expr <-
           Some {
@@ -4147,12 +4207,12 @@ struct
               iface.cl_interface <- true;
               cl.cl_implements <- (iface, []) :: cl.cl_implements;
 
-              let original_name = cast_field_name in
-              let name = String.concat "." ((fst cl.cl_path) @ [snd cl.cl_path; original_name]) (* explicitly define it *) in
+              let name = String.concat "_" ((fst cl.cl_path) @ [snd cl.cl_path; cast_field_name]) (* explicitly define it *) in
               let cast_cf = create_cast_cfield gen cl name in
+              if not cl.cl_interface then create_stub_casts gen cl cast_cf;
 
               (if not cl.cl_interface then cl.cl_ordered_fields <- cast_cf :: cl.cl_ordered_fields);
-              let iface_cf = mk_class_field original_name cast_cf.cf_type false cast_cf.cf_pos (Method MethNormal) cast_cf.cf_params in
+              let iface_cf = mk_class_field name cast_cf.cf_type false cast_cf.cf_pos (Method MethNormal) cast_cf.cf_params in
               let cast_static_cf, delay = create_static_cast_cf gen iface iface_cf in
 
               cl.cl_ordered_statics <- cast_static_cf :: cl.cl_ordered_statics;
@@ -4160,7 +4220,7 @@ struct
               gen.gafter_filters_ended <- delay :: gen.gafter_filters_ended; (* do not let filters alter this expression content *)
 
               iface_cf.cf_type <- cast_cf.cf_type;
-              iface.cl_fields <- PMap.add original_name iface_cf iface.cl_fields;
+              iface.cl_fields <- PMap.add name iface_cf iface.cl_fields;
               iface.cl_ordered_fields <- [iface_cf];
 
               add_iface iface;
