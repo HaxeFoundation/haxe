@@ -1,17 +1,8 @@
 mod lib;
-pub struct Test {
-	value: Option<~str>
-	
-}
+pub struct Test;
 pub impl Test {
 	pub fn main() -> () {
-		io::println(Test::new(Some(~"Hallo, wurld.")).unwrap().value.unwrap());
-		}
-	
-	pub fn new(val: Option<~str>) -> Option<~Test> {
-		let mut self = ~Test {value: None};
-		self.value = val;
-		return Some(self);
+		let mut a: i32 = 0i32, b: f32 = f32::NaN, c: i8 = 0i8;
 		}
 	}
 impl lib::HxObject for Test {
