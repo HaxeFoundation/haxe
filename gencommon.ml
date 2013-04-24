@@ -9343,6 +9343,9 @@ struct
       | Some const ->
         let basic = gen.gcon.basic in
         let nullable_var = mk_temp gen var.v_name (basic.tnull var.v_type) in
+        let orig_name = var.v_name in
+        var.v_name <- nullable_var.v_name;
+        nullable_var.v_name <- orig_name;
         let const_t = match const with
           | TString _ -> basic.tstring | TInt _ -> basic.tint | TFloat _ -> basic.tfloat
           | TNull -> var.v_type | TBool _ -> basic.tbool | _ -> assert false
