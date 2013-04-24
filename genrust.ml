@@ -529,7 +529,7 @@ let rec gen_call ctx e el r =
 		spr ctx "(";
 		concat ctx "," (gen_value ctx) el;
 		spr ctx ")"
-	| TField( _, FStatic({ cl_extern = true }, { cf_name = name; cf_type=t })), args ->
+	| TField( _, _({ cl_extern = true }, { cf_name = name; cf_type=t })), args ->
 		gen_value ctx e;
 		spr ctx "(";
 		concat ctx "," (fun arg ->
