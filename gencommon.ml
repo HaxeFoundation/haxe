@@ -2791,11 +2791,16 @@ struct
     match follow t with
       | TInst(( { cl_kind = KTypeParameter _ } as cl), []) ->
         if List.exists (fun c -> c == cl) acc then acc else cl :: acc
-      | TFun _
-      | TDynamic _
-      | TAnon _
+      | TFun (params,tret) ->
+        List.fold_left get_type_params acc ( tret :: List.map (fun (_,_,t) -> t) params )
+      | TDynamic t ->
+        (match t with | TDynamic _ -> acc | _ -> get_type_params acc t)
+      | TAnon a ->
+        PMap.fold (fun cf acc -> get_type_params acc cf.cf_type) a.a_fields acc
+      | TAbstract ({ a_impl = Some _ } as a, pl) ->
+          get_type_params acc ( Codegen.Abstract.get_underlying_type a pl)
       | TMono _
-      | TAbstract(_, [])
+      | TAbstract (_, [])
       | TInst(_, [])
       | TEnum(_, []) -> acc
       | TAbstract(_, params)
