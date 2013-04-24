@@ -1666,7 +1666,7 @@ struct
                     ( gen.gcon.error "Super call must be the first call when extending native types." scall.epos; assert false )
                 | Some (chosen_cf, csup, tlsup) ->
                     { scall with eexpr = TCall(
-                      { eexpr = TField(mk_classtype_access csup scall.epos, FStatic(csup, chosen_cf)); etype = apply_params csup.cl_types tlsup chosen_cf.cf_type; epos = scall.epos },
+                      { eexpr = TField(mk_classtype_access csup scall.epos, FStatic(csup, chosen_cf)); etype = apply_params chosen_cf.cf_params tlsup chosen_cf.cf_type; epos = scall.epos },
                       (mk_local me scall.epos) :: params
                     )}
             in
