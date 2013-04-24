@@ -234,6 +234,9 @@ class Test #if swf_mark implements mt.Protect #end {
 			new TestMeta(),
 			new TestType(),
 			new TestOrder(),
+			#if (!java && !cs)
+			new TestGADT(),
+			#end
 			#if !no_pattern_matching
 			new TestMatch(),
 			#end

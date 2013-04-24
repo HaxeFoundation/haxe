@@ -1144,18 +1144,26 @@ let match_expr ctx e cases def with_type p =
 		List.iter (fun e -> match fst e with EBinop(OpOr,_,_) -> mctx.toplevel_or <- true; | _ -> ()) el;
 		let ep = collapse_case el in
 		let save = save_locals ctx in
-		let pl,with_type = try (match tl with
+		let pl,restore,with_type = try (match tl with
 				| [t] ->
 					let monos = List.map (fun _ -> mk_mono()) ctx.type_params in
 					let t = apply_params ctx.type_params monos t in
 					let pl = [add_pattern_locals (to_pattern ctx ep t)] in
-					pl,(match with_type with
+					(* we add a constraint to the context type parameters to allow some expressions like binops *)
+					let restore = List.map2 (fun (n,tp) t -> match follow tp with
+						| TInst({cl_kind = (KTypeParameter pl as kt)} as c,_) ->
+							let restore = fun () -> c.cl_kind <- kt in
+							c.cl_kind <- KTypeParameter (pl @ [t]);
+							restore
+						| _ -> assert false) ctx.type_params monos
+					in
+					pl,restore,(match with_type with
 						| WithType t -> WithType (apply_params ctx.type_params monos t)
 						| WithTypeResume t -> WithTypeResume (apply_params ctx.type_params monos t)
 						| _ -> with_type);
 				| tl ->
 					let t = monomorphs ctx.type_params (tfun tl fake_tuple_type) in
-					[add_pattern_locals (to_pattern ctx ep t)],with_type)
+					[add_pattern_locals (to_pattern ctx ep t)],[],with_type)
 			with Unrecognized_pattern (e,p) ->
 				error "Unrecognized_pattern" p
 		in
@@ -1179,6 +1187,7 @@ let match_expr ctx e cases def with_type p =
 				unify ctx eg.etype ctx.com.basic.tbool eg.epos;
 				Some eg
 		in
+		List.iter (fun f -> f()) restore;
 		save();
 		let out = mk_out mctx i e eg pl (pos ep) in
 		Array.of_list pl,out
