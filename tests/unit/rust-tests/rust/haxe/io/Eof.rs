@@ -1,7 +1,7 @@
 mod lib;
 pub struct Eof;
 pub impl Eof {
-	priv fn toString(&mut self) -> Option<Option<@str>> {
+	priv fn toString(&mut self) -> Option<@str> {
 		return Some(@"Eof");
 		}
 	}

@@ -263,7 +263,6 @@ let rec type_str ctx t p =
 		| l -> "<" ^ String.concat ", " (List.map (fun param -> type_str ctx param p) params) ^ ">") in
 	let extern = ctx.curclass.cl_extern in
 	let reftype = (if ctx.curclass.cl_extern then "~" else "@") in (* The default reference type *)
-	let canwrap = ref false in
 	let value = (match t with
 	| TAbstract ({ a_impl = Some _ } as a,pl) ->
 		type_str ctx (apply_params a.a_types pl a.a_this) p
@@ -342,7 +341,7 @@ let rec type_str ctx t p =
 	| TLazy f ->
 		type_str ctx ((!f)()) p
 	) in
-	if is_nullable t && value <> "()" && not extern then
+	if is_nullable t && value <> "()" && not extern && (String.length value <= 6 || (String.sub value 0 6) <> "Option") then
 		"Option<"^value^">"
 	else
 		value
@@ -360,7 +359,6 @@ let rec s_tparams ctx params p =
 		) params)) ^ ">"
 	else
 		""
-
 
 let rec is_nullable_ext ?(no_lazy=false) = function
 	| TMono r ->
@@ -554,13 +552,12 @@ and unwrap ctx e =
 		| TConst (TString s) ->
 			print ctx "@\"%s\"" (escape_bin (Ast.s_escape s))
 		| TConst (TNull) ->
-			spr ctx "()"
+			spr ctx "None"
 		| TConst (TThis) ->
 			spr ctx "self"
 		| _ ->
-			spr ctx "(";
 			gen_value ctx e;
-			spr ctx ").unwrap()";
+			spr ctx ".unwrap()";
 	) else
 		gen_value ctx e;
 
@@ -605,6 +602,12 @@ and gen_expr ctx e =
 		spr ctx "[";
 		unwrap ctx e2;
 		spr ctx "]";
+	| TBinop (Ast.OpEq, e, {eexpr=TConst(TNull)}) ->
+		gen_expr ctx e;
+		spr ctx ".is_none()";
+	| TBinop (Ast.OpNotEq, e, {eexpr=TConst(TNull)}) ->
+		gen_expr ctx e;
+		spr ctx ".is_some()";
 	| TBinop (op,e1,e2) ->
 		(match op with
 		| Ast.OpAssign | Ast.OpAssignOp _ ->
@@ -635,12 +638,11 @@ and gen_expr ctx e =
 		spr ctx "f64::infinity";
 	| TField( e, FStatic({ cl_path = ([], "Math") }, { cf_name = "NEGATIVE_INFINITY" })) ->
 		spr ctx "f64::neg_infinity";
-	| TField( e, FInstance({ cl_path = ([], "String") }, { cf_name = "length" }) ) ->
-		unwrap ctx e;
-		spr ctx ".len()"
+	| TField( e, FInstance({ cl_path = ([], "String") }, { cf_name = "length" }) )
 	| TField( e, FInstance({ cl_path = ([], "Array") }, { cf_name = "length" }) ) ->
+		spr ctx "(";
 		unwrap ctx e;
-		spr ctx ".len()"
+		spr ctx ".len() as i32)"
 	| TField( e, FInstance({ cl_path = (["rust"], "Tuple2"); cl_types = [(_, t1); (_, t2)] }, f) ) when f.cf_name = "a" || f.cf_name = "b" ->
 		let tmp = gen_local ctx "_r" in
 		spr ctx "{";
@@ -758,14 +760,13 @@ and gen_expr ctx e =
 				| Some v -> gen_expr ctx v;
 			) obj_fields;
 			spr ctx "};";
-			soft_newline ctx;
 		);
 		List.iter (fun e -> newline ctx; gen_expr ctx e) el;
+		newline ctx;
 		if ctx.constructor_block then (
-			soft_newline ctx;
 			spr ctx "return Some(@self)";
-		) else
 			newline ctx;
+		);
 		bend();
 		spr ctx "}";
 		soft_newline ctx;
@@ -814,17 +815,16 @@ and gen_expr ctx e =
 		print ctx "%s::new(" (s_path ctx c.cl_path);
 		concat ctx "," (gen_value ctx) el;
 		spr ctx ")"
-	| TIf (cond,e,eelse) ->
+	| TIf (cond,ie,eelse) ->
 		spr ctx "if ";
 		unwrap ctx (parent cond);
 		spr ctx " ";
-		gen_expr ctx (block e);
+		gen_expr ctx (block ie);
 		(match eelse with
 		| None -> ()
-		| Some e ->
-			newline ctx;
-			spr ctx "else ";
-			gen_expr ctx (block e));
+		| Some ee ->
+			spr ctx " else ";
+			gen_expr ctx (block ee));
 	| TUnop (Increment,fix,e) ->
 		let post = match fix with
 		| Postfix -> true
@@ -1007,37 +1007,7 @@ and gen_value ctx e =
 			e
 		)) e.etype e.epos
 	in
-	let value block =
-		let old = ctx.in_value in
-		let t = type_str ctx e.etype e.epos in
-		let r = alloc_var (gen_local ctx "_r") e.etype in
-		ctx.in_value <- Some r;
-		let b = if block then begin
-			spr ctx "{";
-			let b = open_block ctx in
-			newline ctx;
-			print ctx "let mut %s : %s" r.v_name t;
-			newline ctx;
-			b
-		end else
-			(fun() -> ())
-		in
-		(fun() ->
-			if block then begin
-				newline ctx;
-				print ctx "%s" r.v_name;
-				b();
-				newline ctx;
-				spr ctx "}";
-			end;
-			ctx.in_value <- old;
-			if ctx.in_static then
-				print ctx "()"
-			else
-				spr ctx "self";
-		)
-	in
-	match e.eexpr with
+	(match e.eexpr with
 	| TConst _
 	| TLocal _
 	| TArray _
@@ -1063,57 +1033,50 @@ and gen_value ctx e =
 	| TWhile _
 	| TThrow _ ->
 		(* value is discarded anyway *)
-		let v = value true in
 		gen_expr ctx e;
-		v()
-	| TBlock [] ->
-		spr ctx "None"
-	| TBlock [e] ->
-		gen_value ctx e
 	| TBlock el ->
-		let v = value true in
+		spr ctx "{";
+		let bl = open_block ctx in
+		newline ctx;
 		let rec loop = function
 			| [] ->
-				spr ctx "return None";
+				spr ctx "None";
 			| [e] ->
-				gen_expr ctx (assign e);
+				gen_value ctx e;
 			| e :: l ->
 				gen_expr ctx e;
 				newline ctx;
 				loop l
 		in
 		loop el;
-		v();
-	| TIf (cond,e,eo) ->
+		bl();
+		soft_newline ctx;
+		spr ctx "}";
+	| TIf (cond,e,eelse) ->
 		spr ctx "if ";
-		gen_value ctx (mk (TBlock [cond]) e.etype e.epos);
+		unwrap ctx (parent cond);
 		spr ctx " ";
-		gen_value ctx e;
-		spr ctx " else ";
-		(match eo with
-		| None -> spr ctx "None"
-		| Some e -> gen_value ctx e);
-		newline ctx
+		gen_value ctx (block e);
+		(match eelse with
+		| None -> ()
+		| Some ee ->
+			spr ctx " else ";
+			gen_value ctx (block ee));
 	| TSwitch (cond,cases,def) ->
-		let v = value true in
 		gen_expr ctx (mk (TSwitch (cond,
 			List.map (fun (e1,e2) -> (e1,assign e2)) cases,
 			match def with None -> None | Some e -> Some (assign e)
 		)) e.etype e.epos);
-		v()
 	| TMatch (cond,enum,cases,def) ->
-		let v = value true in
 		gen_expr ctx (mk (TMatch (cond,enum,
 			List.map (fun (constr,params,e) -> (constr,params,assign e)) cases,
 			match def with None -> None | Some e -> Some (assign e)
 		)) e.etype e.epos);
-		v()
 	| TTry (b,catchs) ->
-		let v = value true in
 		gen_expr ctx (mk (TTry (block (assign b),
 			List.map (fun (v,e) -> v, block (assign e)) catchs
 		)) e.etype e.epos);
-		v()
+	)
 
 let get_meta_string meta key =
 	let rec loop = function
