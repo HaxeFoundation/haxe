@@ -433,6 +433,19 @@ class TestBasetypes extends Test {
 		eq("Distance: 12.5km", "Distance: " + km);
 		eq("Distance: 12.5m", "Distance: " + m);
 	}
+	
+	function testAbstractInline() {
+		eq(getAbstractValue(1), 2);
+		eq(unit.MyAbstract.MyAbstractCounter.counter, 1);
+		eq(getAbstractValue(2), 3);
+		eq(unit.MyAbstract.MyAbstractCounter.counter, 2);
+		eq(getAbstractValue(3), 4);
+		eq(unit.MyAbstract.MyAbstractCounter.counter, 3);
+	}
+	
+	inline function getAbstractValue(a:unit.MyAbstract.MyAbstractCounter) {
+		return a.getValue();
+	}
 
 	function testAbstractOperatorOverload() {
 		var v1:unit.MyAbstract.MyVector = new unit.MyAbstract.MyPoint3(1, 1, 1);

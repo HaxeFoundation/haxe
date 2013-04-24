@@ -149,7 +149,7 @@ let rec type_inline ctx cf f ethis params tret config p force =
 			}
 	in
 	(* use default values for null/unset arguments *)
-	let rec loop pl al =
+	let rec loop pl al first =
 		match pl, al with
 		| _, [] -> []
 		| e :: pl, (v, opt) :: al ->
@@ -165,16 +165,19 @@ let rec type_inline ctx cf f ethis params tret config p force =
 			if v.v_type != t_dynamic && follow e.etype == t_dynamic then (local v).i_write <- true;
 			(match e.eexpr, opt with
 			| TConst TNull , Some c -> mk (TConst c) v.v_type e.epos
-			| _ -> e) :: loop pl al
+			(* we have to check for abstract casts here because we can't do that later. However, we have to skip the check for the
+			   first argument of abstract implementation functions. *)
+			| _ when not (first && Meta.has Meta.Impl cf.cf_meta) -> (!check_abstract_cast_ref) ctx (map_type v.v_type) e e.epos
+			| _ -> e) :: loop pl al false
 		| [], (v,opt) :: al ->
-			mk (TConst (match opt with None -> TNull | Some c -> c)) v.v_type p :: loop [] al
+			mk (TConst (match opt with None -> TNull | Some c -> c)) v.v_type p :: loop [] al false
 	in
 	(*
 		Build the expr/var subst list
 	*)
 	let ethis = (match ethis.eexpr with TConst TSuper -> { ethis with eexpr = TConst TThis } | _ -> ethis) in
 	let vthis = alloc_var "_this" ethis.etype in
-	let inlined_vars = List.map2 (fun e (v,_) -> local v, e) (ethis :: loop params f.tf_args) ((vthis,None) :: f.tf_args) in
+	let inlined_vars = List.map2 (fun e (v,_) -> local v, e) (ethis :: loop params f.tf_args true) ((vthis,None) :: f.tf_args) in
 	(*
 		here, we try to eliminate final returns from the expression tree.
 		However, this is not entirely correct since we don't yet correctly propagate

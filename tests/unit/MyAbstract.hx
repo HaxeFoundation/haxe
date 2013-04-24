@@ -251,3 +251,17 @@ abstract MyAbstractSetter(Dynamic) {
 		return s;
 	}
 }
+
+abstract MyAbstractCounter(Int) {
+	public static var counter = 0;
+	inline function new(v:Int) {
+		this = v;
+		counter++;
+	}
+
+	@:from inline static public function fromInt(v:Int) {
+		return new MyAbstractCounter(v);
+	}
+	
+	inline public function getValue():Int return this + 1;
+}
