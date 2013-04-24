@@ -144,7 +144,7 @@ let s_path ctx path =
 		let name = protect name in
 		let packs = (try Hashtbl.find ctx.imports name with Not_found -> []) in
 		if not (List.mem pack packs) && notcore && not (is_package name) then Hashtbl.replace ctx.imports name (pack :: packs);
-		type_path path ^ (if (ctx.path = path) || (is_package name) || (List.length packs = 0) then "" else "::" ^ name)
+		type_path path ^ (if (ctx.path = path) || (is_package name) then "" else "::" ^ name)
 
 let soft_newline ctx =
 	print ctx "\n%s" ctx.tabs
@@ -529,7 +529,8 @@ let rec gen_call ctx e el r =
 		spr ctx "(";
 		concat ctx "," (gen_value ctx) el;
 		spr ctx ")"
-	| TField( _, _({ cl_extern = true }, { cf_name = name; cf_type=t })), args ->
+	| TField( _, FStatic({ cl_extern = true }, { cf_type=t })), args
+	| TField( _, FInstance({ cl_extern = true }, { cf_type=t })), args ->
 		gen_value ctx e;
 		spr ctx "(";
 		concat ctx "," (fun arg ->
@@ -549,25 +550,17 @@ let rec gen_call ctx e el r =
 
 and unwrap ctx e =
 	if (is_nullable e.etype) then (
-<<<<<<< HEAD
-<<<<<<< HEAD
 		match e.eexpr with
 		| TConst (TString s) ->
 			print ctx "@\"%s\"" (escape_bin (Ast.s_escape s))
+		| TConst (TNull) ->
+			spr ctx "()"
+		| TConst (TThis) ->
+			spr ctx "self"
 		| _ ->
 			spr ctx "(";
 			gen_value ctx e;
 			spr ctx ").unwrap()";
-=======
-		spr ctx "(";
-		gen_value ctx e;
-		spr ctx ").unwrap()";
->>>>>>> parent of c22ca42... Inline unwrap for constant strings
-=======
-		spr ctx "(";
-		gen_value ctx e;
-		spr ctx ").unwrap()";
->>>>>>> parent of c22ca42... Inline unwrap for constant strings
 	) else
 		gen_value ctx e;
 
@@ -1240,9 +1233,11 @@ let generate_obj_impl ctx c =
 	let static_fields = List.filter(is_var) c.cl_ordered_statics in
 	let static_methods = List.filter (fun x -> not (is_var x)) c.cl_ordered_statics in
 	let params = get_params c.cl_types in
+	let full_path = type_path c.cl_path in
 	ctx.in_interface <- c.cl_interface;
-	print ctx "impl%s %s for %s%s {" params (if ctx.path = ([], "lib") then "HxObject" else "lib::HxObject") (type_path c.cl_path) params;
+	print ctx "impl%s %s for %s%s {" params (if ctx.path = ([], "lib") then "HxObject" else "lib::HxObject") full_path params;
 	let impl = open_block ctx in
+	newline ctx;
 	if (has_feature ctx "Reflect.field") then (
 		newline ctx;
 		spr ctx "pub fn __get_field(&self, &field:str)->Option<@HxObject> {";
@@ -1332,6 +1327,21 @@ let generate_obj_impl ctx c =
 	impl();
 	newline ctx;
 	spr ctx "}";
+	if not c.cl_extern then (
+		newline ctx;
+		print ctx "impl%s ToStr for %s%s {" params full_path params;
+		let impl = open_block ctx in
+		newline ctx;
+		spr ctx "pub fn to_str(&self) -> ~str {";
+		let tostr = open_block ctx in
+		newline ctx;
+		print ctx "return ~\"%s\"" (snd c.cl_path);
+		tostr();
+		newline ctx;
+		spr ctx "}";
+		impl();
+		spr ctx "}";
+	);
 	newline ctx
 
 let generate_class ctx c =
@@ -1453,15 +1463,26 @@ let generate_base_enum ctx com =
 	spr ctx "pub trait HxEnum {";
 	let trait = open_block ctx in
 	newline ctx;
-	spr ctx "pub fn __name() -> Option<@str>";
-	newline ctx;
-	spr ctx "pub fn __get_index(ind:i32) -> Self";
-	newline ctx;
-	spr ctx "pub fn __parameters(&self) -> Option<~[@HxObject]>";
-	newline ctx;
-	spr ctx "pub fn __index(&self) -> i32";
-	newline ctx;
-	spr ctx "pub fn __constructor(&self) -> @str";
+	if has_feature ctx "Type.getEnumName" then (
+		spr ctx "pub fn __name() -> Option<@str>";
+		newline ctx;
+	);
+	if has_feature ctx "Type.createEnumIndex" then (
+		spr ctx "pub fn __get_index(ind:i32) -> Self";
+		newline ctx;
+	);
+	if has_feature ctx "Type.enumParameters" then (
+		spr ctx "pub fn __parameters(&self) -> Option<~[@HxObject]>";
+		newline ctx;
+	);
+	if has_feature ctx "Type.enumIndex" then (
+		spr ctx "pub fn __index(&self) -> i32";
+		newline ctx;
+	);
+	if has_feature ctx "Type.enumConstructor" then (
+		spr ctx "pub fn __constructor(&self) -> @str";
+		newline ctx;
+	);
 	trait();
 	newline ctx;
 	spr ctx "}";
@@ -1472,29 +1493,19 @@ let generate_base_object ctx com =
 	spr ctx "pub trait HxObject {";
 	let trait = open_block ctx in
 	newline ctx;
-	spr ctx "pub fn __name() -> Option<@str>";
-	newline ctx;
-	spr ctx "pub fn __field(&self, field:@str) -> Option<HxObject>";
-	newline ctx;
-	spr ctx "pub fn __set_field(&mut self, field:@str, value:Option<@HxObject>) -> Option<@HxObject>";
-	newline ctx;
-	spr ctx "pub fn toString(&self) -> @str";
+	if has_feature ctx "Type.getClassName" then (
+		spr ctx "pub fn __name() -> Option<@str>";
+		newline ctx;
+	);
+	if has_feature ctx "Reflect.field" then (
+		spr ctx "pub fn __field(&self, field:@str) -> Option<HxObject>";
+		newline ctx;
+	);
+	if has_feature ctx "Reflect.setField" then (
+		spr ctx "pub fn __set_field(&mut self, field:@str, value:Option<@HxObject>) -> Option<@HxObject>";
+		newline ctx;
+	);
 	trait();
-	newline ctx;
-	spr ctx "}";
-	newline ctx;
-	spr ctx "impl ToStr for HxObject {";
-	let obj = open_block ctx in
-	newline ctx;
-	spr ctx "pub fn to_str(&self) -> ~str {";
-	let fn = open_block ctx in
-	newline ctx;
-	spr ctx "return self.toString()";
-	fn();
-	newline ctx;
-	spr ctx "}";
-	obj();
-	newline ctx;
 	spr ctx "}";
 	newline ctx;
 	List.iter(fun t ->
@@ -1510,7 +1521,17 @@ let generate_base_object ctx com =
 	) com.types;
 	newline ctx
 
-let generate_base_lib ctx com =
+let generate_main ctx com inits =
+	spr ctx "fn main() {";
+	let mn = open_block ctx in
+	newline ctx;
+	List.iter (fun init ->
+		gen_expr ctx init;
+		newline ctx;
+	) inits;
+	mn();
+	newline ctx;
+	spr ctx "}";
 	newline ctx
 
 let generate com =
@@ -1521,7 +1542,6 @@ let generate com =
 	generate_resources ctx infos;
 	generate_base_enum ctx com;
 	generate_base_object ctx com;
-	generate_base_lib ctx com;
 	close ctx;
 	let inits = ref [] in
 	List.iter (fun t ->
@@ -1551,6 +1571,9 @@ let generate com =
 	(match com.main with
 	| None -> ()
 	| Some e -> inits := e :: !inits);
+	let ctx = init infos ([], "main") in
+	generate_main ctx com !inits;
+	close ctx;
 	let command cmd = try com.run_command cmd with _ -> -1 in
-	if (command ("rustc \""^com.file^"/Test.rs\"") <> 0) then
+	if (command ("rustc \""^com.file^"/main.rs\"") <> 0) then
 		(failwith "Failed to compile Rust program");

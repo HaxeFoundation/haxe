@@ -35,8 +35,6 @@ class BytesBuffer {
 	var b : cs.system.io.MemoryStream;
 	#elseif java
 	var b : java.io.ByteArrayOutputStream;
-	#elseif rust
-	var b : BytesData;
 	#else
 	var b : Array<Int>;
 	#end
@@ -54,8 +52,6 @@ class BytesBuffer {
 		b = new cs.system.io.MemoryStream();
 		#elseif java
 		b = new java.io.ByteArrayOutputStream();
-		#elseif rust
-		b = new BytesData();
 		#else
 		b = new Array();
 		#end
@@ -112,8 +108,6 @@ class BytesBuffer {
 		b.Write(src.getData(), pos, len);
 		#elseif java
 		b.write(src.getData(), pos, len);
-		#elseif rust
-
 		#else
 		var b1 = b;
 		var b2 = src.getData();

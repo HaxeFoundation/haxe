@@ -40,7 +40,7 @@ class Bytes {
 		return untyped __call__("ord", b[pos]);
 		#elseif cpp
 		return untyped b[pos];
-		#elseif java || rust
+		#elseif java
 		return untyped b[pos] & 0xFF;
 		#else
 		return b[pos];
@@ -56,7 +56,7 @@ class Bytes {
 		b[pos] = untyped __call__("chr", v);
 		#elseif cpp
 		untyped b[pos] = v;
-		#elseif java || rust
+		#elseif java
 		b[pos] = cast v;
 		#elseif cs
 		b[pos] = cast v;
@@ -264,11 +264,6 @@ class Bytes {
 		return new Bytes(length, new cs.NativeArray(length));
 		#elseif java
 		return new Bytes(length, new java.NativeArray(length));
-		#elseif rust
-		var a = new BytesData();
-		for(i in 0...length)
-			a.push(0);
-		return new Bytes(length, a);
 		#else
 		var a = new Array();
 		for( i in 0...length )
@@ -302,7 +297,7 @@ class Bytes {
 		}
 		catch (e:Dynamic) throw e;
 		#else
-		var a = new BytesData();
+		var a = new Array();
 		// utf8-decode
 		for( i in 0...s.length ) {
 			var c : Int = StringTools.fastCodeAt(s,i);
@@ -353,7 +348,7 @@ class Bytes {
 		return untyped __call__("ord", b[pos]);
 		#elseif cpp
 		return untyped b[pos];
-		#elseif java || rust
+		#elseif java
 		return untyped b[pos] & 0xFF;
 		#else
 		return b[pos];
