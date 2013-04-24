@@ -4923,6 +4923,11 @@ struct
       let was_in_value = !in_value in
       in_value := true;
       match e.eexpr with
+        | TBinop ( (Ast.OpAssign as op),e1,e2)
+        | TBinop ( (Ast.OpAssignOp _ as op),e1,e2) when was_in_value ->
+          let e1r = run e1 ~just_type:true in
+          let r = { e with eexpr = TBinop(op, e1r, handle (run e2) e1r.etype e2.etype); etype = e1.etype } in
+          handle r e1.etype e1r.etype
         | TBinop ( (Ast.OpAssign as op),({ eexpr = TField(tf, f) } as e1), e2 )
         | TBinop ( (Ast.OpAssignOp _ as op),({ eexpr = TField(tf, f) } as e1), e2 ) ->
           (match field_access gen (gen.greal_type tf.etype) (field_name f) with
