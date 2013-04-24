@@ -554,10 +554,6 @@ and unwrap ctx e =
 		match e.eexpr with
 		| TConst (TString s) ->
 			print ctx "@\"%s\"" (escape_bin (Ast.s_escape s))
-		| TConst (TNull) ->
-			spr ctx "()"
-		| TConst (TThis) ->
-			spr ctx "self"
 		| _ ->
 			spr ctx "(";
 			gen_value ctx e;
