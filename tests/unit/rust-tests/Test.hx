@@ -1,5 +1,6 @@
 class Test {
 	public static function main() {
-		Sys.println("Hello, world!");
+		for(i in 0...100)
+			Sys.println(Std.string(i));
 	}
 }

@@ -2,7 +2,14 @@ mod lib;
 pub struct Test;
 pub impl Test {
 	pub fn main() -> () {
-		io::println(@"Hello, world!");
+		let mut _g: i32 = 0i32;
+		while (_g < 100i32) {
+			let mut i: i32 = {
+				_g += 1;
+				_g - 1
+			};
+			io::println((Some(i.to_str().to_owned())).unwrap());
+			}
 		}
 	}
 impl lib::HxObject for Test {

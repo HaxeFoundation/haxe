@@ -511,9 +511,9 @@ let rec gen_call ctx e el r =
 		unwrap ctx num;
 		spr ctx ") as i32)";
 	| TField( _, FStatic({ cl_path = ([], "Std") }, { cf_name = "string" })), [obj] ->
-		spr ctx "Some(@(";
+		spr ctx "Some(";
 		gen_value ctx obj;
-		spr ctx ".to_str()))";
+		spr ctx ".to_str().to_owned())";
 	| TField( _, FStatic({ cl_path = ([], "Std") }, { cf_name = "parseFloat" })), [st] ->
 		spr ctx "f64::from_str(";
 		unwrap ctx st;
