@@ -361,6 +361,30 @@ let rec s_tparams ctx params p =
 	else
 		""
 
+
+let rec is_nullable_ext ?(no_lazy=false) = function
+	| TMono r ->
+		(match !r with None -> false | Some t -> is_nullable t)
+	| TType ({ t_path = ([],"Null") },[_]) ->
+		true
+	| TLazy f ->
+		if no_lazy then raise Exit else is_nullable (!f())
+	| TType (t,tl) ->
+		is_nullable (apply_params t.t_types tl t.t_type)
+	| TFun _ ->
+		false
+(*
+	Type parameters will most of the time be nullable objects, so we don't want to make it hard for users
+	to have to specify Null<T> all over the place, so while they could be a basic type, let's assume they will not.
+
+	This will still cause issues with inlining and haxe.rtti.Generic. In that case proper explicit Null<T> is required to
+	work correctly with basic types. This could still be fixed by redoing a nullability inference on the typed AST.
+
+	| TInst ({ cl_kind = KTypeParameter },_) -> false
+*)
+	| _ ->
+		false
+
 let rec iter_switch_break in_switch e =
 	match e.eexpr with
 	| TFunction _ | TWhile _ | TFor _ -> ()
@@ -504,6 +528,18 @@ let rec gen_call ctx e el r =
 		spr ctx ")";
 		spr ctx "(";
 		concat ctx "," (gen_value ctx) el;
+		spr ctx ")"
+	| TField( _, FStatic({ cl_extern = true }, { cf_name = name; cf_type=t })), args ->
+		gen_value ctx e;
+		spr ctx "(";
+		concat ctx "," (fun arg ->
+			 if (is_nullable_ext t) && not (is_nullable arg.etype) then
+			 	wrap ctx arg
+			 else if not (is_nullable_ext t) && (is_nullable arg.etype) then
+			 	unwrap ctx arg
+			 else
+			 	gen_value ctx arg
+		) args;
 		spr ctx ")"
 	| _ ->
 		gen_value ctx e;
