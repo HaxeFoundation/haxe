@@ -529,7 +529,8 @@ let rec gen_call ctx e el r =
 		spr ctx "(";
 		concat ctx "," (gen_value ctx) el;
 		spr ctx ")"
-	| TField( _, _({ cl_extern = true }, { cf_name = name; cf_type=t })), args ->
+	| TField( _, FStatic({ cl_extern = true }, { cf_type=t })), args
+	| TField( _, FInstance({ cl_extern = true }, { cf_type=t })), args ->
 		gen_value ctx e;
 		spr ctx "(";
 		concat ctx "," (fun arg ->
@@ -549,9 +550,13 @@ let rec gen_call ctx e el r =
 
 and unwrap ctx e =
 	if (is_nullable e.etype) then (
-		spr ctx "(";
-		gen_value ctx e;
-		spr ctx ").unwrap()";
+		match e.eexpr with
+		| TConst (TString s) ->
+			print ctx "@\"%s\"" (escape_bin (Ast.s_escape s))
+		| _ ->
+			spr ctx "(";
+			gen_value ctx e;
+			spr ctx ").unwrap()";
 	) else
 		gen_value ctx e;
 
