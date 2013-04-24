@@ -482,6 +482,22 @@ let rec gen_call ctx e el r =
 		spr ctx ")";
 	| TLocal { v_name = "__rust__" }, [{ eexpr = TConst (TString code) }] ->
 		spr ctx (String.concat "\n" (ExtString.String.nsplit code "\r\n"))
+	| TField( _, FStatic({ cl_path = ([], "Std") }, { cf_name = "int" })), [num] ->
+		spr ctx "((";
+		unwrap ctx num;
+		spr ctx ") as i32)";
+	| TField( _, FStatic({ cl_path = ([], "Std") }, { cf_name = "string" })), [obj] ->
+		spr ctx "Some(@(";
+		gen_value ctx obj;
+		spr ctx ".to_str()))";
+	| TField( _, FStatic({ cl_path = ([], "Std") }, { cf_name = "parseFloat" })), [st] ->
+		spr ctx "f64::from_str(";
+		unwrap ctx st;
+		spr ctx ")";
+	| TField( _, FStatic({ cl_path = ([], "Std") }, { cf_name = "parseInt" })), [st] ->
+		spr ctx "i32::from_str(";
+		unwrap ctx st;
+		spr ctx ")";
 	| TField (ee,f), args when is_var_field f ->
 		spr ctx "(";
 		gen_value ctx e;
@@ -578,9 +594,6 @@ and gen_expr ctx e =
 		unwrap ctx e;
 		spr ctx ".len()"
 	| TField( e, FInstance({ cl_path = ([], "Array") }, { cf_name = "length" }) ) ->
-		unwrap ctx e;
-		spr ctx ".len()"
-	| TField( e, FInstance({ cl_path = ([], "Array") }, { cf_name = "alloc" }) ) ->
 		unwrap ctx e;
 		spr ctx ".len()"
 	| TField( e, FInstance({ cl_path = (["rust"], "Tuple2"); cl_types = [(_, t1); (_, t2)] }, f) ) when f.cf_name = "a" || f.cf_name = "b" ->
@@ -720,22 +733,6 @@ and gen_expr ctx e =
 		ctx.in_static <- old;
 		h();
 		spr ctx ")";
-	| TCall({ eexpr = TField( _, FStatic({ cl_path = ([], "Std") }, { cf_name = "int" })) }, [obj]) ->
-		spr ctx "((";
-		unwrap ctx obj;
-		spr ctx ") as i32)";
-	| TCall({ eexpr = TField( _, FStatic({ cl_path = ([], "Std") }, { cf_name = "string" })) }, [obj]) ->
-		spr ctx "Some(@(";
-		gen_value ctx obj;
-		spr ctx ".to_str()))";
-	| TCall({ eexpr = TField( _, FStatic({ cl_path = ([], "Std") }, { cf_name = "parseFloat" })) }, [obj]) ->
-		spr ctx "f64::from_str(";
-		unwrap ctx obj;
-		spr ctx ")";
-	| TCall({ eexpr = TField( _, FStatic({ cl_path = ([], "Std") }, { cf_name = "parseInt" })) }, [obj]) ->
-		spr ctx "i32::from_str(";
-		unwrap ctx obj;
-		spr ctx ")";
 	| TCall (v,el) ->
 		gen_call ctx v el e.etype
 	| TArrayDecl el ->
@@ -774,7 +771,7 @@ and gen_expr ctx e =
 		spr ctx ")"
 	| TIf (cond,e,eelse) ->
 		spr ctx "if ";
-		gen_value ctx (parent cond);
+		unwrap ctx (parent cond);
 		spr ctx " ";
 		gen_expr ctx (block e);
 		(match eelse with
