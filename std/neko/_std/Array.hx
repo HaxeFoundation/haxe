@@ -73,7 +73,7 @@
 			if( pos < 0 ) pos = 0;
 		}
 		if( pos > l ) pos = l;
-		this.__double(l+1);
+		this.__grow(l+1);
 		var a = this.__a;
 		neko.NativeArray.blit(a,pos+1,a,pos,l-pos);
 		a[pos] = x;
@@ -115,14 +115,14 @@
 
 	public function push(x:T) : Int {
 		var l = this.length;
-		this.__double(l + 1);
+		this.__grow(l + 1);
 		this.__a[l] = x;
 		return l + 1;
 	}
 
 	public function unshift(x : T) : Void {
 		var l = this.length;
-		this.__double(l + 1);
+		this.__grow(l + 1);
 		var a = this.__a;
 		neko.NativeArray.blit(a,1,a,0,l);
 		a[0] = x;
@@ -264,7 +264,7 @@
 			var dlen = l - neko.NativeArray.length(a);
 			if( dlen > 0 ) {
 				if( dlen == 1 ) {
-					this.__double(l);
+					this.__grow(l);
 					a = this.__a;
 				} else {
 					a = neko.NativeArray.alloc(l);
@@ -278,14 +278,14 @@
 		return v;
 	}
 
-	private function __double(l:Int) : Void {
+	private function __grow(l:Int) : Void {
 		var a = this.__a;
 		var sz = neko.NativeArray.length(a);
 		if( sz >= l ) {
 			this.length = l;
 			return;
 		}
-		var big = sz * 2;
+		var big = (sz * 3) >> 1;
 		if( big < l ) big = l;
 		var a2 = neko.NativeArray.alloc(big);
 		neko.NativeArray.blit(a2,0,a,0,this.length);
