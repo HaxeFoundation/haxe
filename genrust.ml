@@ -312,7 +312,7 @@ let rec type_str ctx t p =
 		reftype ^ "str"
 	| TInst ({ cl_path = [], "Array"},[pt]) ->
 		let typed = type_str ctx pt p in
-		"@[" ^ typed ^ "]"
+		"~[" ^ typed ^ "]"
 	| TInst ({ cl_path = ["rust"], "Tuple2"}, [pa; pb]) ->
 		let at = type_str ctx pa p in
 		let bt = type_str ctx pb p in
@@ -803,14 +803,21 @@ and gen_expr ctx e =
 		let h = gen_function_header ctx None f [] e.epos in
 		let old = ctx.in_static in
 		ctx.in_static <- true;
-		gen_value ctx (block f.tf_expr);
+		gen_value ctx (block (map_expr (fun e -> 
+		(match e.eexpr with
+			| TReturn eo -> 
+				(match eo with
+					| Some v -> v
+					| None -> mk (TConst TNull) e.etype e.epos);
+			| _ -> e
+		)) f.tf_expr));
 		ctx.in_static <- old;
 		h();	
 		spr ctx ")";
 	| TCall (v,el) ->
 		gen_call ctx v el e.etype
 	| TArrayDecl el ->
-		spr ctx "Some(@[";
+		spr ctx "Some(~[";
 		concat ctx "," (gen_value ctx) el;
 		spr ctx "])"
 	| TThrow e ->
@@ -830,7 +837,7 @@ and gen_expr ctx e =
 				gen_value ctx e
 		) vl;
 	| TNew ({ cl_path = ([], "Array") },_, el) ->
-		spr ctx "[]";
+		spr ctx (default_value (type_str ctx e.etype e.epos))
 	| TNew ({ cl_path = (["rust"], "Tuple2") },_ ,el) ->
 		spr ctx "Some(@(";
 		concat ctx ", " (gen_value ctx) el;
@@ -1311,7 +1318,7 @@ let generate_obj_impl ctx c =
 	);
 	if (has_feature ctx "Reflect.fields") then (
 		newline ctx;
-		spr ctx "pub fn __fields(&mut self) -> Option<@[@str]> {";
+		spr ctx "pub fn __fields(&mut self) -> Option<~[@str]> {";
 		let fn = open_block ctx in
 		newline ctx;
 		spr ctx "return __instance_fields()";
@@ -1321,10 +1328,10 @@ let generate_obj_impl ctx c =
 	);
 	if (has_feature ctx "Type.getInstanceFields") then (
 		newline ctx;
-		spr ctx "pub fn __instance_fields() -> Option<@[@str]> {";
+		spr ctx "pub fn __instance_fields() -> Option<~[@str]> {";
 		let fn = open_block ctx in
 		newline ctx;
-		spr ctx "return Some(@[";
+		spr ctx "return Some(~[";
 		concat ctx ", " (fun f ->
 			print ctx "@\"%s\"" f.cf_name;
 		) obj_fields;
@@ -1492,7 +1499,7 @@ let generate_base_enum ctx com =
 		newline ctx;
 	);
 	if has_feature ctx "Type.enumParameters" then (
-		spr ctx "pub fn __parameters(&self) -> Option<@[@HxObject]>";
+		spr ctx "pub fn __parameters(&self) -> Option<~[@HxObject]>";
 		newline ctx;
 	);
 	if has_feature ctx "Type.enumIndex" then (

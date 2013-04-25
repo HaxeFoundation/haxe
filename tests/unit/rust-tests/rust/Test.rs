@@ -1,23 +1,11 @@
 mod lib;
-pub struct Test {
-	severity: i32
-	
-}
+pub struct Test;
 pub impl Test {
 	pub fn main() -> () {
-		let mut a: Option<i32> = None, b: f32 = f32::NaN, c: i8 = 0i8, d: Option<@Test> = None;
-		a = None;
-		if (a.is_none()) {
-			io::println(@"A IS AN NULL");
-			}
-		d = Test::new();
-		io::println(Some(d.unwrap().severity.to_str().to_owned()).unwrap());
-		}
-	
-	pub fn new() -> Option<@Test> {
-		let mut self = Test {severity: 0i32};
-		self.severity = 215692i32;
-		return Some(@self);
+		let mut func: @fn(i32)->i32 = (|n: i32| -> i32 {
+			n + 1i32
+		});
+		func(34i32);
 		}
 	}
 impl lib::HxObject for Test {

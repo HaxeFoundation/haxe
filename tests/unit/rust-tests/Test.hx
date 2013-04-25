@@ -5,11 +5,7 @@ class Test {
 
 	}
 	public static function main() {
-		var a:Null<Int>, b:Single, c:Int8, d:Test;
-		a = null;
-		if(a == null)
-			Sys.println("A IS AN NULL");
-		d = new Test();
-		Sys.println(Std.string(d.severity));
+		var func = function(n) return n + 1;
+		func(34);
 	}
 }
