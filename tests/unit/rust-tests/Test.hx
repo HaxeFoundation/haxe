@@ -5,7 +5,8 @@ class Test {
 
 	}
 	public static function main() {
-		var func = function(n) return n + 1;
+		var func:Int -> Void;
+		func = function(n) Sys.println(Std.string(n + 1));
 		func(34);
 	}
 }

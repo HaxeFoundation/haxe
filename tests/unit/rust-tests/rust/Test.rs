@@ -2,8 +2,9 @@ mod lib;
 pub struct Test;
 pub impl Test {
 	pub fn main() -> () {
-		let mut func: @fn(i32)->i32 = (|n: i32| -> i32 {
-			n + 1i32
+		let mut func: @fn(i32)->() = (||{()});
+		func = (|n: i32| -> () {
+			io::println(Some((n + 1i32).to_str().to_owned()).unwrap())
 		});
 		func(34i32);
 		}

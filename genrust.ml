@@ -232,7 +232,7 @@ let parent e =
 
 let rec default_value tstr =
 	match tstr.[0] with
-	| '@' -> "@" ^ default_value (String.sub tstr 1 ((String.length tstr)-1))
+	| '@' -> (if String.sub tstr 1 3 = "fn(" then "" else "@") ^ default_value (String.sub tstr 1 ((String.length tstr)-1))
 	| '~' -> "~" ^ default_value (String.sub tstr 1 ((String.length tstr)-1))
 	| '&' -> "@" ^ default_value (String.sub tstr 1 ((String.length tstr)-1))
 	| '[' -> "[]"
@@ -251,6 +251,10 @@ let rec default_value tstr =
 		| "bool" -> "false"
 		| "str" -> "\"\""
 		| "()" -> "()"
+		| "fn()->()" -> ""
+		| _ when (String.sub tstr 0 3) = "fn(" ->
+			let ret = String.sub ((String.rindex '>' tstr)+1 -1) tstr;
+			"(||->{" ^ (default_value ret) ^ "})"
 		| _ -> "None")
 
 let get_params cl_types =
@@ -1136,9 +1140,12 @@ and gen_value ctx e =
 			soft_newline ctx;
 			spr ctx "}";
 		| _ ->
+			spr ctx "(";
 			gen_value_op ctx e1;
 			print ctx " %s " (Ast.s_binop op);
-			gen_value_op ctx e2;)
+			gen_value_op ctx e2;
+			spr ctx ")";
+		)
 	)
 
 let get_meta_string meta key =
