@@ -556,7 +556,6 @@ let rec gen_call ctx e el r =
 
 and unwrap ctx e =
 	match e.eexpr with
-	| TConst (TThis) -> gen_value ctx e;
 	| TConst (TString s) ->
 		print ctx "@\"%s\"" (escape_bin (Ast.s_escape s))
 	| TConst (TNull) ->
@@ -778,11 +777,7 @@ and gen_expr ctx e =
 			print ctx "let mut self = %s {" name;
 			let obj_fields = List.filter is_var c.cl_ordered_fields in
 			concat ctx ", " (fun f ->
-				spr ctx f.cf_name;
-				spr ctx ": ";
-				match(f.cf_expr) with
-				| None -> spr ctx (default_value (type_str ctx f.cf_type e.epos));
-				| Some v -> gen_value ctx v;
+				print ctx "%s: %s" f.cf_name (default_value (type_str ctx f.cf_type e.epos));
 			) obj_fields;
 			spr ctx "};";
 			soft_newline ctx;
@@ -1109,6 +1104,12 @@ and gen_value ctx e =
 		gen_expr ctx (mk (TTry (block (b),
 			List.map (fun (v,e) -> v, block e) catchs
 		)) e.etype e.epos);
+	| TBinop (Ast.OpEq, e, {eexpr=TConst(TNull)}) when is_nullable e.etype ->
+		gen_expr ctx e;
+		spr ctx ".is_none()";
+	| TBinop (Ast.OpNotEq, e, {eexpr=TConst(TNull)}) when is_nullable e.etype ->
+		gen_expr ctx e;
+		spr ctx ".is_some()";
 	| TBinop (op,e1,e2) ->
 		(match op with
 		| Ast.OpAssign | Ast.OpAssignOp _ ->
@@ -1358,6 +1359,7 @@ let generate_obj_impl ctx c =
 		newline ctx;
 		spr ctx "}";
 		impl();
+		newline ctx;
 		spr ctx "}";
 	);
 	newline ctx

@@ -10,4 +10,5 @@ impl lib::HxObject for haxe::io::Eof {
 impl ToStr for haxe::io::Eof {
 	pub fn to_str(&self) -> ~str {
 		return ~"Eof";
-	}}
+	}
+}
