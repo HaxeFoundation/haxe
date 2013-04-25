@@ -261,10 +261,15 @@
 		var a = this.__a;
 		if( this.length <= pos ) {
 			var l = pos + 1;
-			if( neko.NativeArray.length(a) < l ) {
-				a = neko.NativeArray.alloc(l);
-				neko.NativeArray.blit(a,0,this.__a,0,this.length);
-				this.__a = a;
+			var dlen = l - neko.NativeArray.length(a);
+			if( dlen > 0 ) {
+				if( dlen == 1 )
+					this.__double(l);
+				else {
+					a = neko.NativeArray.alloc(l);
+					neko.NativeArray.blit(a,0,this.__a,0,this.length);
+					this.__a = a;
+				}
 			}
 			this.length = l;
 		}
