@@ -1,3 +1,4 @@
+#if false
 // hasField
 var x = { a: 1, b: null };
 Reflect.hasField(x, "a") == true;
@@ -79,3 +80,4 @@ var y = Reflect.copy(x);
 Reflect.field(y, "a") == 2;
 Reflect.field(y, "b") == null;
 Reflect.field(y, "c") == null;
+#end
