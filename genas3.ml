@@ -866,8 +866,17 @@ and gen_value ctx e =
 	| TUnop _
 	| TFunction _ ->
 		gen_expr ctx e
-	| TCast (e1,t) ->
-		gen_value ctx (match t with None -> e1 | Some t -> Codegen.default_cast ctx.inf.com e1 t e.etype e.epos)
+	| TCast (e1,None) ->
+		let s = type_str ctx e.etype e1.epos in
+		if s = "*" then
+			gen_value ctx e1
+		else begin
+			print ctx "%s(" s;
+			gen_value ctx e1;
+			spr ctx ")";
+		end
+	| TCast (e1,Some t) ->
+		gen_value ctx (Codegen.default_cast ctx.inf.com e1 t e.etype e.epos)
 	| TReturn _
 	| TBreak
 	| TContinue ->
