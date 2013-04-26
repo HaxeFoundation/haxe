@@ -37,7 +37,7 @@ package flash;
 	function reverse() : Void;
 	function shift() : Null<T>;
 	function unshift( x : T ) : Void;
-	function slice( pos : Int, ?end : Int ) : Vector<T>;
+	function slice( ?pos : Int, ?end : Int ) : Vector<T>;
 	function sort( f : T -> T -> Int ) : Void;
 	function splice( pos : Int, len : Int ) : Vector<T>;
 	function toString() : String;
