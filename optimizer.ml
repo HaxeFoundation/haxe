@@ -441,7 +441,7 @@ let rec type_inline ctx cf f ethis params tret config p force =
 (* ---------------------------------------------------------------------- *)
 (* LOOPS *)
 
-let optimize_for_loop ctx i e1 e2 p =
+let rec optimize_for_loop ctx i e1 e2 p =
 	let t_void = ctx.t.tvoid in
 	let t_int = ctx.t.tint in
 	let lblock el = Some (mk (TBlock el) t_void p) in
@@ -466,10 +466,18 @@ let optimize_for_loop ctx i e1 e2 p =
 			| _ -> mk (TBlock [aget;incr;e2]) t_void p
 		in
 		let ivar = index, Some (mk (TConst (TInt 0l)) t_int p) in
+		let elength = match follow e1.etype with
+			| TAbstract({a_impl = Some c},_) ->
+				let ta = TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) } in
+				let ethis = mk (TTypeExpr (TClassDecl c)) ta e1.epos in
+				let efield = mk (mk_field ethis "get_length") (tfun [arr.etype] t_int) p in
+				make_call ctx efield [arr] t_int e1.epos
+			| _ -> mk (mk_field arr "length") t_int p
+		in
 		lblock [
 			mk (TVars (ivar :: avars)) t_void p;
 			mk (TWhile (
-				mk (TBinop (OpLt, iexpr, mk (mk_field arr "length") t_int p)) ctx.t.tbool p,
+				mk (TBinop (OpLt, iexpr, elength)) ctx.t.tbool p,
 				block,
 				NormalWhile
 			)) t_void p;
@@ -534,6 +542,8 @@ let optimize_for_loop ctx i e1 e2 p =
 		gen_int_iter pt
 	| _ , TInst({ cl_array_access = Some pt } as c,pl) when (try match follow (PMap.find "length" c.cl_fields).cf_type with TAbstract ({ a_path = [],"Int" },[]) -> true | _ -> false with Not_found -> false) && not (PMap.mem "iterator" c.cl_fields) ->
 		gen_int_iter (apply_params c.cl_types pl pt)
+	| (TLocal _ | TField _), TAbstract({a_impl = Some c} as a,[pt]) when Meta.has Meta.ArrayAccess a.a_meta && (try match follow (PMap.find "length" c.cl_statics).cf_type with TAbstract ({ a_path = [],"Int" },[]) -> true | _ -> false with Not_found -> false) && not (PMap.mem "iterator" c.cl_statics) ->
+		gen_int_iter pt
 	| _ , TInst ({ cl_kind = KGenericInstance ({ cl_path = ["haxe";"ds"],"GenericStack" },[t]) } as c,[]) ->
 		let tcell = (try (PMap.find "head" c.cl_fields).cf_type with Not_found -> assert false) in
 		let i = add_local ctx i t in
