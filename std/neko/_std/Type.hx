@@ -96,7 +96,14 @@ enum ValueType {
 	}
 
 	public static function createInstance<T>( cl : Class<T>, args : Array<Dynamic> ) : T untyped {
-		return __dollar__call(__dollar__objget(cl,__dollar__hash("new".__s)),cl,args.__neko());
+		var fnew = $objget(cl,$hash("new".__s));
+		var n = $nargs(fnew);
+		if( args.length < n ) {
+			args = args.copy();
+			while( args.length < n )
+				args.push(null);
+		}
+		return $call(fnew,cl,args.__neko());
 	}
 
 	public static function createEmptyInstance<T>( cl : Class<T> ) : T untyped {
