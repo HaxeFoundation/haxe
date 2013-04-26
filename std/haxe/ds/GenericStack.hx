@@ -24,16 +24,16 @@ package haxe.ds;
 #if (flash9 || cpp)
 @:generic
 #end
-class FastCell<T> {
+class GenericCell<T> {
 	public var elt : T;
-	public var next : FastCell<T>;
+	public var next : GenericCell<T>;
 	public function new(elt,next) { this.elt = elt; this.next = next; }
 }
 
 #if cpp
 @:generic
 private class GenericStackIterator<T> extends cpp.FastIterator<T> {
-	public var current : FastCell<T>;
+	public var current : GenericCell<T>;
 	override public function hasNext():Bool { return current!=null; }
 	override public function next():T { var result = current.elt; current = current.next; return result; }
 
@@ -50,7 +50,7 @@ private class GenericStackIterator<T> extends cpp.FastIterator<T> {
 #end
 class GenericStack<T> {
 
-	public var head : FastCell<T>;
+	public var head : GenericCell<T>;
 
 	/**
 		Creates a new empty list.
@@ -62,7 +62,7 @@ class GenericStack<T> {
 		Add an element at the head of the list.
 	**/
 	public inline function add( item : T ) {
-		head = new FastCell<T>(item,head);
+		head = new GenericCell<T>(item,head);
 	}
 
 	/**
