@@ -69,6 +69,8 @@ let is_java_basic_type t =
   match follow t with
     | TInst( { cl_path = (["haxe"], "Int32") }, [] )
     | TInst( { cl_path = (["haxe"], "Int64") }, [] )
+    | TAbstract( { a_path = ([], "Single") }, [] )
+    | TAbstract( { a_path = (["java"], ("Int8" | "Int16" | "Char16")) }, [] )
     | TInst( { cl_path = ([], "Int") }, [] ) | TAbstract( { a_path =  ([], "Int") }, [] )
     | TInst( { cl_path = ([], "Float") }, [] ) | TAbstract( { a_path =  ([], "Float") }, [] )
     | TEnum( { e_path = ([], "Bool") }, [] ) | TAbstract( { a_path =  ([], "Bool") }, [] ) ->
@@ -140,6 +142,11 @@ struct
   let traverse gen runtime_cl =
     let basic = gen.gcon.basic in
     let float_cl = get_cl ( get_type gen (["java";"lang"], "Double")) in
+    let i8_md  = ( get_type gen (["java";"lang"], "Byte")) in
+    let i16_md  = ( get_type gen (["java";"lang"], "Short")) in
+    let i64_md  = ( get_type gen (["java";"lang"], "Long")) in
+    let c16_md  = ( get_type gen (["java";"lang"], "Character")) in
+    let f_md  = ( get_type gen (["java";"lang"], "Float")) in
     let bool_md = get_type gen (["java";"lang"], "Boolean") in
 
     let is_var = alloc_var "__is__" t_dynamic in
@@ -173,7 +180,8 @@ struct
             { eexpr = TField( _, FStatic({ cl_path = ([], "Std") }, { cf_name = "is" })) },
             [ obj; { eexpr = TTypeExpr(md) } ]
           ) ->
-          let mk_is obj md =
+          let mk_is is_basic obj md =
+            let obj = if is_basic then mk_cast t_dynamic obj else obj in
             { e with eexpr = TCall( { eexpr = TLocal is_var; etype = t_dynamic; epos = e.epos }, [
               run obj;
               { eexpr = TTypeExpr md; etype = t_dynamic (* this is after all a syntax filter *); epos = e.epos }
@@ -202,7 +210,17 @@ struct
               }
             | TAbstractDecl{ a_path = ([], "Bool") }
             | TEnumDecl{ e_path = ([], "Bool") } ->
-              mk_is obj bool_md
+              mk_is true obj bool_md
+            | TAbstractDecl{ a_path = ([], "Single") } ->
+              mk_is true obj f_md
+            | TAbstractDecl{ a_path = (["java"], "Int8") } ->
+              mk_is true obj i8_md
+            | TAbstractDecl{ a_path = (["java"], "Int16") } ->
+              mk_is true obj i16_md
+            | TAbstractDecl{ a_path = (["java"], "Char16") } ->
+              mk_is true obj c16_md
+            | TClassDecl{ cl_path = (["haxe"], "Int64") } ->
+              mk_is true obj i64_md
             | TAbstractDecl{ a_path = ([], "Dynamic") }
             | TClassDecl{ cl_path = ([], "Dynamic") } ->
               (match obj.eexpr with
@@ -210,7 +228,7 @@ struct
                 | _ -> { e with eexpr = TBlock([run obj; { e with eexpr = TConst(TBool true) }]) }
               )
             | _ ->
-              mk_is obj md
+              mk_is false obj md
           )
         (* end Std.is() *)
         | _ -> Type.map_expr run e
