@@ -276,10 +276,20 @@ let keyword_remap name =
 	| "and_eq" | "xor_eq" | "typeof" | "stdin" | "stdout" | "stderr"
 	| "BIG_ENDIAN" | "LITTLE_ENDIAN" | "assert" | "NULL" | "wchar_t" | "EOF"
 	| "bool" | "const_cast" | "dynamic_cast" | "explicit" | "export" | "mutable" | "namespace"
- 	| "reinterpret_cast" | "static_cast" | "typeid" | "typename" | "virtual"
+	| "reinterpret_cast" | "static_cast" | "typeid" | "typename" | "virtual"
+	| "_Complex"
 	| "struct" -> "_" ^ name
 	| "asm" -> "_asm_"
 	| x -> x
+;;
+
+let remap_class_path class_path =
+    (List.map keyword_remap (fst class_path)) , (snd class_path)
+;;
+
+let join_class_path_remap path separator =
+	join_class_path (remap_class_path path) separator
+;;
 
 let get_meta_string meta key =
 	let rec loop = function
@@ -316,8 +326,9 @@ let gen_forward_decl writer class_path =
 		writer#add_include class_path
 	else begin
 		let output = writer#write in
-		output ("HX_DECLARE_CLASS" ^ (string_of_int (List.length (fst class_path) ) ) ^ "(");
-		List.iter (fun package_part -> output (package_part ^ ",") ) (fst class_path);
+		let name = fst (remap_class_path class_path) in
+		output ("HX_DECLARE_CLASS" ^ (string_of_int (List.length name ) ) ^ "(");
+		List.iter (fun package_part -> output (package_part ^ ",") ) name;
 		output ( (snd class_path) ^ ")\n")
 	end;;
 
@@ -356,7 +367,7 @@ let has_field_integer_numeric_lookup class_def =
 
 (* Output required code to place contents in required namespace *)
 let gen_open_namespace output class_path =
-		List.iter (fun namespace -> output ("namespace " ^ namespace ^ "{\n")) (fst class_path);;
+		List.iter (fun namespace -> output ("namespace " ^ namespace ^ "{\n")) (List.map keyword_remap (fst class_path));;
 
 let gen_close_namespace output class_path =
 		List.iter
@@ -399,8 +410,8 @@ let rec class_string klass suffix params =
 			| _ -> assert false);
 	(* Normal class *)
 	| path when klass.cl_extern && (not (is_internal_class path) )->
-            (join_class_path klass.cl_path "::") ^ suffix
-	| _ -> "::" ^ (join_class_path klass.cl_path "::") ^ suffix
+            (join_class_path_remap klass.cl_path "::") ^ suffix
+	| _ -> "::" ^ (join_class_path_remap klass.cl_path "::") ^ suffix
 	)
 and type_string_suff suffix haxe_type =
 	(match haxe_type with
@@ -414,7 +425,7 @@ and type_string_suff suffix haxe_type =
 	| TEnum ({ e_path = ([],"Bool") },[]) -> "bool"
 	| TInst ({ cl_path = ([],"Float") },[]) -> "Float"
 	| TInst ({ cl_path = ([],"Int") },[]) -> "int"
-	| TEnum (enum,params) ->  "::" ^ (join_class_path enum.e_path "::") ^ suffix
+	| TEnum (enum,params) ->  "::" ^ (join_class_path_remap enum.e_path "::") ^ suffix
 	| TInst (klass,params) ->  (class_string klass suffix params)
 	| TType (type_def,params) ->
 		(match type_def.t_path with
@@ -454,7 +465,7 @@ and type_string_suff suffix haxe_type =
 	| TAbstract (abs,pl) when abs.a_impl <> None ->
 		type_string_suff suffix (Codegen.Abstract.get_underlying_type abs pl)
 	| TAbstract (abs,pl) ->
-		"::" ^ (join_class_path abs.a_path "::") ^ suffix
+		"::" ^ (join_class_path_remap abs.a_path "::") ^ suffix
 	)
 and type_string haxe_type =
 	type_string_suff "" haxe_type
@@ -1425,7 +1436,7 @@ and gen_expression ctx retval expression =
 		(match field_object.eexpr with
 		(* static access ... *)
 		| TTypeExpr type_def ->
-			let class_name = "::" ^ (join_class_path (t_path type_def) "::" ) in
+			let class_name = "::" ^ (join_class_path_remap (t_path type_def) "::" ) in
 			if (class_name="::String") then
 				output ("::String::" ^ remap_name)
 			else
@@ -1578,7 +1589,7 @@ and gen_expression ctx retval expression =
 			pop_names()
 		end
 	| TTypeExpr type_expr ->
-		let klass = "::" ^ (join_class_path (t_path type_expr) "::" ) in
+		let klass = "::" ^ (join_class_path_remap (t_path type_expr) "::" ) in
 		let klass1 = if klass="::Array" then "Array<int>" else klass in
 		output ("hx::ClassOf< " ^ klass1 ^ " >()")
 	| TReturn _ when retval ->
@@ -1856,7 +1867,7 @@ and gen_expression ctx retval expression =
 	| TMatch (condition, enum, cases, default) ->
 		let tmp_var = get_switch_var ctx in
 		writer#begin_block;
-		output_i (  "::" ^ (join_class_path (fst enum).e_path "::") ^ " " ^ tmp_var ^ " = " );
+		output_i (  "::" ^ (join_class_path_remap (fst enum).e_path "::") ^ " " ^ tmp_var ^ " = " );
 		gen_expression ctx true condition;
 		output ";\n";
 
@@ -1947,7 +1958,7 @@ and gen_expression ctx retval expression =
 		gen_expression ctx retval cast;
       if (void_cast) then output ")";
 	| TCast (e1,Some t) ->
-		let class_name = (join_class_path (t_path t) "::" ) in
+		let class_name = (join_class_path_remap (t_path t) "::" ) in
 		if (class_name="Array") then
 			output ("hx::TCastToArray(" )
 		else
@@ -2418,12 +2429,12 @@ let generate_boot common_ctx boot_classes init_classes =
 	output_boot "\nvoid __boot_all()\n{\n";
 	output_boot "hx::RegisterResources( hx::GetResources() );\n";
 	List.iter ( fun class_path ->
-		output_boot ("::" ^ ( join_class_path class_path "::" ) ^ "_obj::__register();\n") ) boot_classes;
+		output_boot ("::" ^ ( join_class_path_remap class_path "::" ) ^ "_obj::__register();\n") ) boot_classes;
 	List.iter ( fun class_path ->
-		output_boot ("::" ^ ( join_class_path class_path "::" ) ^ "_obj::__init__();\n") ) (List.rev init_classes);
+		output_boot ("::" ^ ( join_class_path_remap class_path "::" ) ^ "_obj::__init__();\n") ) (List.rev init_classes);
    let dump_boot =
 	List.iter ( fun class_path ->
-		output_boot ("::" ^ ( join_class_path class_path "::" ) ^ "_obj::__boot();\n") ) in
+		output_boot ("::" ^ ( join_class_path_remap class_path "::" ) ^ "_obj::__boot();\n") ) in
    dump_boot (List.filter  (fun path -> is_cpp_class path )  (List.rev boot_classes));
    dump_boot (List.filter  (fun path -> not (is_cpp_class path) )  (List.rev boot_classes));
 
@@ -2708,15 +2719,15 @@ let access_str a = match a with
 
 let generate_class_files common_ctx member_types super_deps constructor_deps class_def file_info scriptable =
 	let class_path = class_def.cl_path in
-	let class_name = (snd class_def.cl_path) ^ "_obj" in
+	let class_name = (snd class_path) ^ "_obj" in
 	let is_abstract_impl = match class_def.cl_kind with | KAbstractImpl _ -> true | _ -> false in
-	let smart_class_name =  (snd class_def.cl_path)  in
+	let smart_class_name =  (snd class_path)  in
 	(*let cpp_file = new_cpp_file common_ctx.file class_path in*)
 	let cpp_file = new_placed_cpp_file common_ctx class_path in
 	let output_cpp = (cpp_file#write) in
 	let debug = false in
 	let ctx = new_context common_ctx cpp_file debug file_info in
-	ctx.ctx_class_name <- "::" ^ (join_class_path class_path "::");
+	ctx.ctx_class_name <- "::" ^ (join_class_path class_def.cl_path "::");
 	ctx.ctx_class_super_name <- (match class_def.cl_super with
       | Some (klass, params) -> class_string klass "_obj" params
       | _ -> "");
@@ -3240,7 +3251,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 	output_h "};\n\n";
 
 	if (class_def.cl_interface) then begin
-		output_h ("#define DELEGATE_" ^ (join_class_path  class_def.cl_path "_" ) ^ " \\\n");
+		output_h ("#define DELEGATE_" ^ (join_class_path class_path "_" ) ^ " \\\n");
 		List.iter (fun field ->
 		match follow field.cf_type, field.cf_kind  with
 		| _, Method MethDynamic -> ()
@@ -3266,7 +3277,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 		output_h ("		hx::Object *__GetRealObject() { return mDelegate; }\n");
 		output_h ("		void __Visit(HX_VISIT_PARAMS) { HX_VISIT_OBJECT(mDelegate); }\n");
 		let rec dump_delegate interface =
-			output_h ("		DELEGATE_" ^ (join_class_path  interface.cl_path "_" ) ^ "\n");
+			output_h ("		DELEGATE_" ^ (join_class_path interface.cl_path "_" ) ^ "\n");
 			match interface.cl_super with | Some super -> dump_delegate (fst super) | _ -> ();
 		in
 		dump_delegate class_def;
@@ -3580,7 +3591,8 @@ let generate common_ctx =
 			let name =  class_text class_def.cl_path in
          if (gen_externs) then gen_extern_class common_ctx class_def file_info;
 			let is_internal = is_internal_class class_def.cl_path in
-			if (is_internal || (is_macro class_def.cl_meta) ) then
+			let is_generic_def = match class_def.cl_kind with KGeneric -> true | _ -> false in
+			if (is_internal || (is_macro class_def.cl_meta) || is_generic_def) then
 				( if debug then print_endline (" internal class " ^ name ))
 			else begin
 				build_xml := !build_xml ^ (get_code class_def.cl_meta Meta.BuildXml);

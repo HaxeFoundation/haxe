@@ -1700,6 +1700,8 @@ let rec find_field c f =
 		(match c.cl_super with
 		| None ->
 			raise Not_found
+		| Some ( {cl_path = (["cpp"],"FastIterator")}, _ ) ->
+			raise Not_found (* This is a strongly typed 'extern' and the usual rules don't apply *)
 		| Some (c,_) ->
 			find_field c f)
 	with Not_found -> try

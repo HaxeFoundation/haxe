@@ -21,7 +21,6 @@
  */
 package cpp;
 
-@:generic
 extern class FastIterator<T>
 {
 	public function hasNext():Bool;
