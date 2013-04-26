@@ -1328,7 +1328,7 @@ with
 			fields
 		in
 		complete_fields fields
-	| Typer.DisplayTypes tl ->
+	| Typecore.DisplayTypes tl ->
 		let ctx = print_context() in
 		let b = Buffer.create 0 in
 		List.iter (fun t ->

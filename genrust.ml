@@ -230,33 +230,6 @@ let parent e =
 	| TParenthesis _ -> e
 	| _ -> mk (TParenthesis e) e.etype e.epos
 
-let rec default_value tstr =
-	match tstr.[0] with
-	| '@' -> (if String.sub tstr 1 3 = "fn(" then "" else "@") ^ default_value (String.sub tstr 1 ((String.length tstr)-1))
-	| '~' -> "~" ^ default_value (String.sub tstr 1 ((String.length tstr)-1))
-	| '&' -> "@" ^ default_value (String.sub tstr 1 ((String.length tstr)-1))
-	| '[' -> "[]"
-	| _ -> (match tstr with
-		| "int" -> "0"
-		| "i8" -> "0i8"
-		| "i16" -> "0i16"
-		| "i32"  -> "0i32"
-		| "uint" -> "0u"
-		| "ui8" -> "0ui8"
-		| "ui16" -> "0ui16"
-		| "ui32" -> "0ui32"
-		| "float" -> "float::NaN"
-		| "f32" -> "f32::NaN"
-		| "f64" -> "f64::NaN"
-		| "bool" -> "false"
-		| "str" -> "\"\""
-		| "()" -> "()"
-		| "fn()->()" -> ""
-		| _ when (String.sub tstr 0 3) = "fn(" ->
-			let ret = String.sub ((String.rindex '>' tstr)+1 -1) tstr;
-			"(||->{" ^ (default_value ret) ^ "})"
-		| _ -> "None")
-
 let get_params cl_types =
 	match cl_types with
 		| [] ->
@@ -357,6 +330,24 @@ let rec type_str ctx t p =
 		"Option<"^value^">"
 	else
 		value
+
+let rec default_value ctx t p =
+	match t with
+	| TAbstract ({ a_impl = Some _ } as a,pl) ->
+		default_value ctx (apply_params a.a_types pl a.a_this) p
+	| TAbstract({ a_path = ([], "Int") }, _) -> "0i32"
+	| TAbstract({ a_path = ([], "UInt") }, _) -> "0ui32"
+	| TAbstract({ a_path = ([], "Float") }, _) -> "f64::NaN"
+	| TAbstract({ a_path = ([], "Single") }, _) -> "f32::NaN"
+	| TAbstract({ a_path = ([], "Array")}, _) -> "~[]"
+	| TFun(args, ret) ->
+		"(|" ^ String.concat ", " (List.map (fun (name, opt, at) ->
+			(s_ident "a") ^ ":" ^ (type_str ctx at p)
+		) args) ^ "|->" ^ type_str ctx ret p ^ "{ " ^ default_value ctx ret p ^ " })"
+	| TAbstract ({ a_path = ([], "Void") }, _) -> ""
+	| _ when is_nullable t ->
+		"None"
+	| _ -> "()"
 
 let rec s_tparams ctx params p =
 	if List.length params > 0 then
@@ -781,7 +772,7 @@ and gen_expr ctx e =
 			print ctx "let mut self = %s {" name;
 			let obj_fields = List.filter is_var c.cl_ordered_fields in
 			concat ctx ", " (fun f ->
-				print ctx "%s: %s" f.cf_name (default_value (type_str ctx f.cf_type e.epos));
+				print ctx "%s: %s" f.cf_name (default_value ctx f.cf_type e.epos);
 			) obj_fields;
 			spr ctx "};";
 			soft_newline ctx;
@@ -836,12 +827,12 @@ and gen_expr ctx e =
 			print ctx "%s: %s = " (s_ident v.v_name) (type_str ctx v.v_type e.epos);
 			match eo with
 			| None ->
-				spr ctx (default_value (type_str ctx v.v_type e.epos))
+				spr ctx (default_value ctx v.v_type e.epos)
 			| Some e ->
 				gen_value ctx e
 		) vl;
 	| TNew ({ cl_path = ([], "Array") },_, el) ->
-		spr ctx (default_value (type_str ctx e.etype e.epos))
+		spr ctx (default_value ctx e.etype e.epos)
 	| TNew ({ cl_path = (["rust"], "Tuple2") },_ ,el) ->
 		spr ctx "Some(@(";
 		concat ctx ", " (gen_value ctx) el;
@@ -1230,7 +1221,7 @@ let generate_field ctx static f =
 				print ctx "%s: %s" (s_ident f.cf_name) (type_str ctx f.cf_type p);
 				()
 			| _ when static ->
-				print ctx "%s static %s:%s = %s" rights (s_ident f.cf_name) (type_str ctx f.cf_type p) (default_value (type_str ctx f.cf_type p));
+				print ctx "%s static %s:%s = %s" rights (s_ident f.cf_name) (type_str ctx f.cf_type p) (default_value ctx f.cf_type ctx.curclass.cl_pos);
 				()
 			| _ -> ()
 		else
@@ -1238,7 +1229,7 @@ let generate_field ctx static f =
 			print ctx "%s: %s" (s_ident f.cf_name) (type_str ctx f.cf_type p);
 			soft_newline ctx;
 		end else if not is_getset && static then begin
-			print ctx "%s static %s:%s = %s" rights (s_ident f.cf_name) (type_str ctx f.cf_type p) (default_value (type_str ctx f.cf_type p));
+			print ctx "%s static %s:%s = %s" rights (s_ident f.cf_name) (type_str ctx f.cf_type p) (default_value ctx f.cf_type ctx.curclass.cl_pos);
 			newline ctx;
 		end
 
