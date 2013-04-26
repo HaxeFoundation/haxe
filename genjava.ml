@@ -664,7 +664,7 @@ let configure gen =
   let ti64 = match ( get_type gen (["haxe";"_Int64"], "NativeInt64") ) with | TTypeDecl t -> TType(t,[]) | _ -> assert false in
 
   let has_tdynamic params =
-    List.exists (fun e -> match e with | TDynamic _ -> true | _ -> false) params
+    List.exists (fun e -> match run_follow gen e with | TDynamic _ -> true | _ -> false) params
   in
 
   (*
@@ -773,13 +773,15 @@ let configure gen =
       | TAbstract( { a_path = ([], "Class") }, p  )
       | TAbstract( { a_path = ([], "Enum") }, p  )
       | TInst( { cl_path = ([], "Class") }, p  )
-      | TInst( { cl_path = ([], "Enum") }, p  ) -> TInst(cl_cl,[t_dynamic])
+      | TInst( { cl_path = ([], "Enum") }, p  ) -> TInst(cl_cl,p)
       | TEnum _
       | TInst _ -> t
       | TType({ t_path = ([], "Null") }, [t]) when is_java_basic_type t -> t_dynamic
       | TType({ t_path = ([], "Null") }, [t]) ->
         (match follow t with
-          | TInst( { cl_kind = KTypeParameter _ }, []) -> t_dynamic
+          | TInst( { cl_kind = KTypeParameter _ }, []) ->
+              (* t_dynamic *)
+              real_type t
           | _ -> real_type t
         )
       | TType _ | TAbstract _ -> t
@@ -1727,6 +1729,7 @@ let configure gen =
 
   StubClosureImpl.configure gen (StubClosureImpl.default_implementation gen float_cl 10 (fun e _ _ -> e));*)
 
+  FixOverrides.configure gen;
   AbstractImplementationFix.configure gen;
 
   IteratorsInterface.configure gen (fun e -> e);
@@ -2395,6 +2398,10 @@ let convert_java_field ctx p jc field =
     | JKMethod ->
       match field.jf_signature with
       | TMethod (args, ret) ->
+        let old_types = ctx.jtparams in
+        (match ctx.jtparams with
+        | c :: others -> ctx.jtparams <- (c @ field.jf_types) :: others
+        | [] -> ctx.jtparams <- field.jf_types :: []);
         let i = ref 0 in
         let args = List.map (fun s ->
           incr i;
@@ -2417,6 +2424,7 @@ let convert_java_field ctx p jc field =
               tp_constraints = List.map (convert_signature ctx p) (impl);
             }
         ) field.jf_types in
+        ctx.jtparams <- old_types;
 
         FFun ({
           f_params = types;
@@ -2533,7 +2541,8 @@ let normalize_jclass com cls =
   (* we won't be able to deal correctly with field's type parameters *)
   (* since java sometimes overrides / implements crude (ie no type parameters) versions *)
   (* and interchanges between them *)
-  let methods = List.map (fun f -> let f = del_override f in  if f.jf_types <> [] then { f with jf_types = []; jf_signature = f.jf_vmsignature } else f ) cls.cmethods in
+  (* let methods = List.map (fun f -> let f = del_override f in  if f.jf_types <> [] then { f with jf_types = []; jf_signature = f.jf_vmsignature } else f ) cls.cmethods in *)
+  let methods = List.map (fun f -> del_override f ) cls.cmethods in
   let cmethods = ref methods in
   let all_methods = ref methods in
   let all_fields = ref cls.cfields in

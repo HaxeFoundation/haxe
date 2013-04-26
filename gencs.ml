@@ -595,6 +595,13 @@ let configure gen =
 
   let ttype = get_cl ( get_type gen (["System"], "Type") ) in
 
+  let has_tdyn tl =
+    List.exists (fun t -> match follow t with
+    | TDynamic _ | TMono _ -> true
+    | _ -> false
+  ) tl
+  in
+
   let rec real_type t =
     let t = gen.gfollow#run_f t in
     let ret = match t with
@@ -609,11 +616,11 @@ let configure gen =
       | TEnum(_, [])
       | TInst(_, []) -> t
       | TInst(cl, params) when
-        List.exists (fun t -> match follow t with | TDynamic _ -> true | _ -> false) params &&
+        has_tdyn params &&
         Hashtbl.mem ifaces cl.cl_path ->
           TInst(Hashtbl.find ifaces cl.cl_path, [])
       | TEnum(e, params) when
-        List.exists (fun t -> match follow t with | TDynamic _ -> true | _ -> false) params &&
+        has_tdyn params &&
         Hashtbl.mem ifaces e.e_path ->
           TInst(Hashtbl.find ifaces e.e_path, [])
       | TInst(cl, params) -> TInst(cl, change_param_type (TClassDecl cl) params)
@@ -896,6 +903,9 @@ let configure gen =
           (match mt with
             | TClassDecl { cl_path = (["haxe"], "Int64") } -> write w ("global::" ^ module_s mt)
             | TClassDecl { cl_path = (["haxe"], "Int32") } -> write w ("global::" ^ module_s mt)
+            | TClassDecl { cl_interface = true } ->
+                write w ("global::" ^ module_s mt);
+                write w "__Statics_";
             | TClassDecl cl -> write w (t_s (TInst(cl, List.map (fun _ -> t_empty) cl.cl_types)))
             | TEnumDecl en -> write w (t_s (TEnum(en, List.map (fun _ -> t_empty) en.e_types)))
             | TTypeDecl td -> write w (t_s (gen.gfollow#run_f (TType(td, List.map (fun _ -> t_empty) td.t_types))))
@@ -1328,7 +1338,8 @@ let configure gen =
         let modifiers = modifiers @ modf in
         let visibility, is_virtual = if is_explicit_iface then "",false else visibility, is_virtual in
         let v_n = if is_static then "static " else if is_override && not is_interface then "override " else if is_virtual then "virtual " else "" in
-        let ret_type, args = match follow cf.cf_type with | TFun (strbtl, t) -> (t, strbtl) | _ -> assert false in
+        let cf_type = if is_override && not is_overload && not (Meta.has Meta.Overload cf.cf_meta) then match field_access gen (TInst(cl, List.map snd cl.cl_types)) cf.cf_name with | FClassField(_,_,_,_,_,actual_t) -> actual_t | _ -> assert false else cf.cf_type in
+        let ret_type, args = match follow cf_type with | TFun (strbtl, t) -> (t, strbtl) | _ -> assert false in
 
         (* public static void funcName *)
         print w "%s %s %s %s %s" (visibility) v_n (String.concat " " modifiers) (if is_new then "" else rett_s (run_follow gen ret_type)) (change_field name);
@@ -1468,6 +1479,7 @@ let configure gen =
       end
     end;
     (try
+      if cl.cl_interface then raise Not_found;
       let cf = PMap.find "toString" cl.cl_fields in
       (if List.exists (fun c -> c.cf_name = "toString") cl.cl_overrides then raise Not_found);
       (match cf.cf_type with
@@ -1559,12 +1571,16 @@ let configure gen =
         print w "static %s() " (snd cl.cl_path);
         expr_s w (mk_block init));
     (if is_some cl.cl_constructor then gen_class_field w false cl is_final (get cl.cl_constructor));
-    (if not cl.cl_interface then
-      List.iter (gen_class_field w true cl is_final) cl.cl_ordered_statics);
+    if not cl.cl_interface then List.iter (gen_class_field w true cl is_final) cl.cl_ordered_statics;
     List.iter (gen_class_field w false cl is_final) cl.cl_ordered_fields;
     check_special_behaviors w cl;
     end_block w;
-
+    if cl.cl_interface && cl.cl_ordered_statics <> [] then begin
+      print w "public class %s__Statics_" (snd cl.cl_path);
+      begin_block w;
+      List.iter (gen_class_field w true { cl with cl_interface = false } is_final) cl.cl_ordered_statics;
+      end_block w
+    end;
     if should_close then end_block w
   in
 
@@ -1725,8 +1741,14 @@ let configure gen =
       }
     )
     true
-    true
+    false
   );
+
+
+  let explicit_fn_name c tl fname =
+    path_param_s (TClassDecl c) c.cl_path tl ^ "." ^ fname
+  in
+  FixOverrides.configure ~explicit_fn_name:explicit_fn_name gen;
 
   AbstractImplementationFix.configure gen;
 
