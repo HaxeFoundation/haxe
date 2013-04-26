@@ -2,9 +2,10 @@ mod lib;
 pub struct Test;
 pub impl Test {
 	pub fn main() -> () {
-		let mut func: @fn(i32)->() = (|a:i32|->(){  });
-		func = (|n: i32| -> () {
-			io::println(Some((n + 1i32).to_str().to_owned()).unwrap())
+		let mut a: Option<i32> = Some(46i32);
+		let mut func: @fn(i32)->Option<i32> = (|a:i32|->Option<i32>{ None });
+		func = (|n: i32| -> Option<i32> {
+			n
 		});
 		func(24i32);
 		}

@@ -1,12 +1,11 @@
 import rust.StdTypes;
 class Test {
-	public var severity:Int = 215692;
-	function new() {
-
-	}
 	public static function main() {
-		var func:Int -> Void;
-		func = function(n) Sys.println(Std.string(n + 1));
+		var a:Null<Int> = 46;
+		var func:Int -> Null<Int>;
+		func = function(n):Null<Int> {
+			return n;
+		};
 		func(24);
 	}
 }

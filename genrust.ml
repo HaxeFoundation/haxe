@@ -597,6 +597,12 @@ and gen_value_op ctx e =
 	| _ ->
 		unwrap ctx e
 
+and match_type ctx e t =
+	if is_nullable t then
+		wrap ctx e
+	else
+		unwrap ctx e
+
 and gen_field_access ctx t s =
 	let static = match follow t with
 	| TInst (c,_) -> false
@@ -611,10 +617,6 @@ and gen_field_access ctx t s =
 
 and gen_expr ctx e =
 	match e.eexpr with
-	| TConst ((TInt _) as c) | TConst ((TFloat _) as c) | TConst ((TBool _) as c) when is_nullable e.etype ->
-		spr ctx "Some(";
-		gen_constant ctx e.epos c;
-		spr ctx ")";
 	| TConst c ->
 		gen_constant ctx e.epos c
 	| TLocal v ->
@@ -829,7 +831,7 @@ and gen_expr ctx e =
 			| None ->
 				spr ctx (default_value ctx v.v_type e.epos)
 			| Some e ->
-				gen_value ctx e
+				match_type ctx e v.v_type
 		) vl;
 	| TNew ({ cl_path = ([], "Array") },_, el) ->
 		spr ctx (default_value ctx e.etype e.epos)
@@ -1353,13 +1355,25 @@ let generate_obj_impl ctx c =
 	spr ctx "}";
 	if not c.cl_extern then (
 		newline ctx;
+		let tostrf = ref false in
+		List.iter (fun cf ->
+			(match cf with
+			| { cf_name = "toString"; cf_type = TFun([], TInst({ cl_path = ([], "String") }, []))} ->
+				tostrf := true;
+			| _ -> ();
+			);
+		) obj_fields;
 		print ctx "impl%s ToStr for %s%s {" params full_path params;
 		let impl = open_block ctx in
 		newline ctx;
 		spr ctx "pub fn to_str(&self) -> ~str {";
 		let tostr = open_block ctx in
 		newline ctx;
-		print ctx "return ~\"%s\"" (snd c.cl_path);
+		if !tostrf then (
+			spr ctx "return ~(*(self.toString()))";
+		) else (
+			print ctx "return ~\"%s\"" (snd c.cl_path);
+		);
 		tostr();
 		newline ctx;
 		spr ctx "}";
