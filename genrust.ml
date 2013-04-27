@@ -1073,8 +1073,8 @@ and gen_value ctx e =
 		let rec loop = function
 			| [] ->
 				spr ctx "None";
-			| [e] ->
-				gen_value ctx e;
+			| [ne] ->
+				match_type ctx ne e.etype;
 			| e :: l ->
 				gen_expr ctx e;
 				newline ctx;
