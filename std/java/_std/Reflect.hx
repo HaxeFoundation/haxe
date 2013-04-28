@@ -209,7 +209,7 @@ import java.Boot;
 
 	**/
 	@:functionCode('
-		return v instanceof haxe.lang.DynamicObject;
+		return v != null && !(v instanceof haxe.lang.Enum || v instanceof haxe.lang.Function);
 	')
 	public static function isObject( v : Dynamic ) : Bool
 	{

@@ -207,7 +207,7 @@ import cs.internal.Function;
 
 	**/
 	@:functionCode('
-		return v is haxe.lang.DynamicObject;
+		return v != null && !(v is haxe.lang.DynamicObject || v is haxe.lang.Function);
 	')
 	public static function isObject( v : Dynamic ) : Bool
 	{
