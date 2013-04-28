@@ -334,7 +334,7 @@ class StringTools {
 		[index] is negative or exceeds [s].length.
 
 		This operation is not guaranteed to work if [s] contains the \0
-		character. The method isEof() can be used to check for that.
+		character.
 	**/
 	public static inline function fastCodeAt( s : String, index : Int ) : Int untyped {
 		#if neko
