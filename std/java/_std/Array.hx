@@ -481,13 +481,16 @@ import java.NativeArray;
 		if (idx >= __a.length)
 		{
 			var newl = idx + 1;
+			if (idx == __a.length)
+				newl = (idx << 1) + 1;
 			var newArr = new NativeArray<T>(newl);
 			if (length > 0)
 				System.arraycopy(__a, 0, newArr, 0, length);
 			this.__a = __a = newArr;
-
-			this.length = newl;
 		}
+
+		if (idx >= length)
+			this.length = idx + 1;
 
 		return __a[idx] = v;
 	}

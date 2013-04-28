@@ -478,12 +478,16 @@ import cs.NativeArray;
 		var __a = __a;
 		if (idx >= __a.Length)
 		{
-			var newArr = new NativeArray<T>(idx + 1);
+			var len = idx + 1;
+			if (idx == __a.Length)
+				len = (idx << 1) + 1;
+			var newArr = new NativeArray<T>(len);
 			__a.CopyTo(newArr, 0);
 			this.__a = __a = newArr;
-
-			this.length = cast (idx + 1);
 		}
+
+		if (idx >= length)
+			this.length = idx + 1;
 
 		return __a[idx] = v;
 	}
