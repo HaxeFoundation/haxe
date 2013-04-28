@@ -1760,7 +1760,9 @@ let init_class ctx c p context_init herits fields =
 			(* nothing to do *)
 			()
 	in
-	add_constructor c;
+  (* add_constructor does not deal with overloads correctly *)
+  if not ctx.com.config.pf_overload then
+  	add_constructor c;
 	(* check overloaded constructors *)
 	(if ctx.com.config.pf_overload then match c.cl_constructor with
 	| Some ctor ->

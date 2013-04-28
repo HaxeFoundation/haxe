@@ -48,6 +48,8 @@ class BaseJava implements NormalInterface
 
 class ChildJava extends BaseJava implements OverloadedInterface
 {
+	public var initialized = 10;
+
 	@:overload public function new(b:haxe.io.Bytes)
 	{
 		super(b.toString());
@@ -71,6 +73,8 @@ class ChildJava extends BaseJava implements OverloadedInterface
 
 class ChildJava2<T> extends ChildJava
 {
+	public var initialized2 = "20";
+
 	@:overload public function new(x:Float)
 	{
 		super(Std.int(x));
@@ -98,6 +102,8 @@ class ChildJava2<T> extends ChildJava
 
 class ChildJava3<A, T : BaseJava> extends ChildJava2<T>
 {
+	public var initialized3 = true;
+
 	@:overload override public function someField(t:T):T
 	{
 		return null;
@@ -112,6 +118,10 @@ class ChildJava3<A, T : BaseJava> extends ChildJava2<T>
 	{
 		return 52;
 	}
+}
+
+class ChildJava4<X, Y, Z : ChildJava2<Dynamic>> extends ChildJava3<Y, Z>
+{
 }
 
 interface NormalInterface
@@ -158,6 +168,8 @@ class TestJava extends Test
 		eq(child.someField(Bytes.ofString("a")), 2);
 		eq(child.someField(22.2), 3);
 		eq(new ChildJava(25).i, 26);
+		eq(child.initialized, 10);
+		eq(new ChildJava(100).initialized, 10);
 
 		var child:OverloadedInterface = child;
 		eq(child.someField("test"), 2);
@@ -173,12 +185,18 @@ class TestJava extends Test
 		eq(child.someField(child), child);
 		eq(child.someField(ChildJava2), 51);
 		eq(child.someField(true), -1);
+		eq(child.initialized2, "20");
 
 		var child:ChildJava3<Bool, BaseJava> = new ChildJava3(Bytes.ofString("test"));
 		eq(child.s, "test");
 		eq(child.someField(base), null);
 		eq(child.someField(true, child, 99), 99);
 		eq(child.someField(true, 10), 52);
+		eq(child.initialized3, true);
+
+		var child:ChildJava4<Int, Bool, ChildJava3<Dynamic, Dynamic>> = new ChildJava4(Bytes.ofString("test"));
+		eq(child.s, "test");
+		eq(child.someField(child), null);
 	}
 
 	function testHaxeKeywords()

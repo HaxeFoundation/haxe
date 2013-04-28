@@ -1212,7 +1212,7 @@ try
 			Codegen.apply_native_paths;
 			Codegen.add_rtti;
 			Codegen.remove_extern_fields;
-			Codegen.add_field_inits;
+			(match ctx.com.platform with | Java | Cs -> (fun _ _ -> ()) | _ -> Codegen.add_field_inits);
 			Codegen.add_meta_field;
 			Codegen.check_remove_metadata;
 			Codegen.check_void_field;
