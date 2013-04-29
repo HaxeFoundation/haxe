@@ -1478,6 +1478,14 @@ struct
         old cl params pos
     )
 
+  let rec cur_ctor c tl =
+    match c.cl_constructor with
+    | Some ctor -> ctor, c, tl
+    | None -> match c.cl_super with
+    | None -> raise Not_found
+    | Some (sup,stl) ->
+      cur_ctor sup (List.map (apply_params c.cl_types tl) stl)
+
   let rec prev_ctor c tl =
     match c.cl_super with
     | None -> raise Not_found
@@ -4808,6 +4816,55 @@ struct
     | (t,cf) :: _ -> cf,t,false
     | _ -> assert false
 
+  let choose_ctor gen cl tparams etl maybe_empty_t p =
+    let ctor, sup, stl = OverloadingConstructor.cur_ctor cl tparams in
+    (* get returned stl, with Dynamic as t_empty *)
+    let rec get_changed_stl c tl =
+      if c == sup then
+        tl
+      else match c.cl_super with
+      | None -> stl
+      | Some(sup,stl) -> get_changed_stl sup (List.map (apply_params c.cl_types tl) stl)
+    in
+    let ret_tparams = List.map (fun t -> match follow t with
+    | TDynamic _ | TMono _ -> t_empty
+    | _ -> t) tparams in
+    let ret_stl = get_changed_stl cl ret_tparams in
+    let ctors = ctor :: ctor.cf_overloads in
+    List.iter replace_mono etl;
+    (* first filter out or select outright maybe_empty *)
+    let ctors, is_overload = match etl, maybe_empty_t with
+    | [t], Some empty_t ->
+      let count = ref 0 in
+      let is_empty_call = Type.type_iseq t empty_t in
+      let ret = List.filter (fun cf -> match follow cf.cf_type with
+      (* | TFun([_,_,t],_) -> incr count; true *)
+      | TFun([_,_,t],_) -> replace_mono t; incr count; is_empty_call = (Type.type_iseq t empty_t)
+      | _ -> false) ctors in
+      ret, !count > 1
+    | _ ->
+      let len = List.length etl in
+      let ret = List.filter (fun cf -> List.length (fst (get_fun cf.cf_type)) = len) ctors in
+      ret, (match ret with | _ :: [] -> false | _ -> true)
+    in
+    let rec check_arg arglist elist =
+      match arglist, elist with
+      | [], [] -> true
+      | (_,_,t) :: arglist, et :: elist -> (try
+        unify et t;
+        check_arg arglist elist
+      with | Unify_error el ->
+        (* List.iter (fun el -> gen.gcon.warning (Typecore.unify_error_msg (print_context()) el) p) el; *)
+        false)
+      | _ -> false
+    in
+    let rec check_cf cf =
+      let t = apply_params sup.cl_types stl cf.cf_type in
+      replace_mono t;
+      let args, _ = get_fun t in
+      check_arg args etl
+    in
+    is_overload, List.find check_cf ctors, sup, ret_stl
 
   (*
 
@@ -4993,10 +5050,6 @@ struct
           | None -> TFun([],gen.gcon.basic.tvoid), cl, p
     in
 
-    let get_f t =
-      match follow t with | TFun(p,_) -> List.map (fun (_,_,t) -> t) p | _ -> assert false
-    in
-
     let rec run ?(just_type = false) e =
       let handle = if not just_type then handle else fun e t1 t2 -> { e with etype = gen.greal_type t2 } in
       let was_in_value = !in_value in
@@ -5043,66 +5096,58 @@ struct
         | TCall( ({ eexpr = TField(ef, f) }) as e1, elist ) ->
           handle_type_parameter gen (Some e) (e1) (run ef) ~clean_ef:ef f (List.map run elist) impossible_tparam_is_dynamic
 
-        | TCall( { eexpr = TConst TSuper } as ef, [ maybe_empty ]) when is_some maybe_empty_t && type_iseq gen (get maybe_empty_t) maybe_empty.etype ->
-          { e with eexpr = TCall(ef, [ run maybe_empty ]); }
+        (* the TNew and TSuper code was modified at r6497 *)
         | TCall( { eexpr = TConst TSuper } as ef, eparams ) ->
-          (* handle special distinction between EmptyConstructor vs one argument contructor *)
-          let handle = if (List.length eparams = 1) then
-            (fun e t1 t2 -> mk_cast (gen.greal_type t1) e)
-          else
-            handle
-          in
-          let cl,tparams = match follow ef.etype with | TInst(c,p) -> c,p | _ -> assert false in
-          let t, c, p = get_ctor_p cl tparams in
-          let called_t = TFun(List.map (fun e -> "arg",false,e.etype) eparams, gen.gcon.basic.tvoid) in
-          (match c.cl_constructor with
-          | None ->
-            { e with eexpr = TCall(ef, List.map run eparams); }
-          | Some cf when cf.cf_overloads <> [] ->
-            (try
-              replace_mono called_t;
-              (* TODO use the same sorting algorithm as in typer *)
-              let cf = List.find (fun cf -> try unify cf.cf_type called_t; true with | Unify_error _ -> false) (cf :: cf.cf_overloads) in
-              let t = apply_params c.cl_types p cf.cf_type in
-              { e with eexpr = TCall(ef, List.map2 (fun e t -> handle (run e) t e.etype) eparams (get_f t)); }
-            with | Not_found ->
-              { e with eexpr = TCall(ef, List.map run eparams); })
-          | _ ->
-            { e with eexpr = TCall(ef, List.map2 (fun e t -> handle (run e) t e.etype) eparams (get_f t)); }
-          )
+          let cl, tparams = match follow ef.etype with
+          | TInst(cl,p) -> cl, p
+          | _ -> assert false in
+          (try
+            let is_overload, cf, sup, stl = choose_ctor gen cl tparams (List.map (fun e -> e.etype) eparams) maybe_empty_t e.epos in
+            let handle e t1 t2 =
+              if is_overload then
+                let ret = handle e t1 t2 in
+                match ret.eexpr with
+                | TCast _ -> ret
+                | _ -> mk_cast (gen.greal_type t1) e
+              else
+                handle e t1 t2
+            in
+            let stl = gen.greal_type_param (TClassDecl sup) stl in
+            let args, _ = get_fun (apply_params sup.cl_types stl cf.cf_type) in
+            let eparams = List.map2 (fun e (_,_,t) ->
+              handle (run e) t e.etype
+            ) eparams args in
+            { e with eexpr = TCall(ef, eparams) }
+          with | Not_found ->
+            gen.gcon.warning "No overload found for this constructor call" e.epos;
+            { e with eexpr = TCall(ef, List.map run eparams) })
         | TCall (ef, eparams) ->
           (match ef.etype with
             | TFun(p, ret) ->
               handle ({ e with eexpr = TCall(run ef, List.map2 (fun param (_,_,t) -> handle (run param) t param.etype) eparams p) }) e.etype ret
             | _ -> Type.map_expr run e
           )
-        | TNew (cl, tparams, [ maybe_empty ]) when is_some maybe_empty_t && type_iseq gen (get maybe_empty_t) maybe_empty.etype ->
-          { e with eexpr = TNew(cl, tparams, [ maybe_empty ]); etype = TInst(cl, tparams) }
-        | TNew (cl, tparams, eparams) ->
-          (* handle special distinction between EmptyConstructor vs one argument contructor *)
-          let handle = if (List.length eparams = 1) then
-            (fun e t1 t2 -> mk_cast (gen.greal_type t1) e)
-          else
-            handle
+        (* the TNew and TSuper code was modified at r6497 *)
+        | TNew (cl, tparams, eparams) -> (try
+          let is_overload, cf, sup, stl = choose_ctor gen cl tparams (List.map (fun e -> e.etype) eparams) maybe_empty_t e.epos in
+          let handle e t1 t2 =
+            if true then
+              let ret = handle e t1 t2 in
+              match ret.eexpr with
+              | TCast _ -> ret
+              | _ -> mk_cast (gen.greal_type t1) e
+            else
+              handle e t1 t2
           in
-          (* choose best overload *)
-          let t, c, p = get_ctor_p cl tparams in
-          let called_t = TFun(List.map (fun e -> "arg",false,e.etype) eparams, gen.gcon.basic.tvoid) in
-          (match c.cl_constructor with
-          | None ->
-            { e with eexpr = TNew(cl, tparams, List.map run eparams); etype = TInst(cl, tparams) }
-          | Some cf when cf.cf_overloads <> [] ->
-            (try
-              (* TODO use the same sorting algorithm as in typer *)
-              replace_mono called_t;
-              let cf = List.find (fun cf -> try unify cf.cf_type called_t; true with | Unify_error _ -> false) (cf :: cf.cf_overloads) in
-              let t = apply_params c.cl_types p cf.cf_type in
-              { e with eexpr = TNew(cl, tparams, List.map2 (fun e t -> handle (run e) t e.etype) eparams (get_f t)) }
-            with | Not_found ->
-              { e with eexpr = TNew(cl, tparams, List.map run eparams); etype = TInst(cl, tparams) })
-          | _ ->
-            { e with eexpr = TNew(cl, tparams, List.map2 (fun e t -> handle (run e) t e.etype) eparams (get_f t)) }
-          )
+          let stl = gen.greal_type_param (TClassDecl sup) stl in
+          let args, _ = get_fun (apply_params sup.cl_types stl cf.cf_type) in
+          let eparams = List.map2 (fun e (_,_,t) ->
+            handle (run e) t e.etype
+          ) eparams args in
+          { e with eexpr = TNew(cl, tparams, eparams) }
+        with | Not_found ->
+          gen.gcon.warning "No overload found for this constructor call" e.epos;
+          { e with eexpr = TNew(cl, tparams, List.map run eparams) })
         | TArray(arr, idx) ->
           let arr_etype = match follow arr.etype with
           | (TInst _ as t) -> t
