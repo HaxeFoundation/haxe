@@ -27,7 +27,7 @@ class Lib {
 		Load and return a Cpp primitive from a DLL library.
 	**/
 	public static function load( lib : String, prim : String, nargs : Int ) : Dynamic {
-		#if iphone
+		#if (iphone || emscripten)
 		return loadLazy(lib,prim,nargs);
 		#else
 		return untyped __global__.__loadprim(lib,prim,nargs);
