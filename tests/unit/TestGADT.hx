@@ -60,7 +60,7 @@ class TestGADT extends Test {
 	static function eval<T>(e:Expr<T>):T {
 		return switch(e) {
 			case EConst(c): evalConst(c);
-			case EBinop(op,e1,e2): evalBinop(op,e1,e2); // TODO: this generates some unused variable warnings in macro context (issue #1675?)
+			case EBinop(_op,_e1,_e2): evalBinop(_op,_e1,_e2); // TODO: this generates some unused variable warnings in macro context (issue #1675?)
 		}
 	}
 }
