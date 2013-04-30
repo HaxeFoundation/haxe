@@ -4389,7 +4389,7 @@ let rec make_type = function
 		tpath a.a_path a.a_module.m_path (List.map make_type pl)
 	| TFun (args,ret) ->
 		CTFunction (List.map (fun (_,_,t) -> make_type t) args, make_type ret)
-	| TAnon a as t ->
+	| TAnon a ->
 		begin match !(a.a_status) with
 		| Statics c -> tpath ([],"Class") ([],"Class") [tpath c.cl_path c.cl_path []]
 		| EnumStatics e -> tpath ([],"Enum") ([],"Enum") [tpath e.e_path e.e_path []]
@@ -4436,12 +4436,15 @@ let rec make_ast e =
 		| TThis -> Ident "this"
 		| TSuper -> Ident "super"
 	in
-
+	let mk_ident = function
+		| "`trace" -> Ident "trace"
+		| n -> Ident n
+	in
 	let eopt = function None -> None | Some e -> Some (make_ast e) in
 	((match e.eexpr with
 	| TConst c ->
 		EConst (mk_const c)
-	| TLocal v -> EConst (Ident v.v_name)
+	| TLocal v -> EConst (mk_ident v.v_name)
 	| TArray (e1,e2) -> EArray (make_ast e1,make_ast e2)
 	| TBinop (op,e1,e2) -> EBinop (op, make_ast e1, make_ast e2)
 	| TField (e,f) -> EField (make_ast e, Type.field_name f)
