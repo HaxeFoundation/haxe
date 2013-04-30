@@ -4382,23 +4382,29 @@ let rec make_type = function
 		tpath e.e_path e.e_module.m_path (List.map make_type pl)
 	| TInst (c,pl) ->
 		tpath c.cl_path c.cl_module.m_path (List.map make_type pl)
-	| TType (t,pl) ->
-		tpath t.t_path t.t_module.m_path (List.map make_type pl)
+	| TType (t,pl) as tf ->
+		(* recurse on type-type *)
+		if (snd t.t_path).[0] = '#' then make_type (follow tf) else tpath t.t_path t.t_module.m_path (List.map make_type pl)
 	| TAbstract (a,pl) ->
 		tpath a.a_path a.a_module.m_path (List.map make_type pl)
 	| TFun (args,ret) ->
 		CTFunction (List.map (fun (_,_,t) -> make_type t) args, make_type ret)
-	| TAnon a ->
-		CTAnonymous (PMap.foldi (fun _ f acc ->
-			{
-				cff_name = f.cf_name;
-				cff_kind = FVar (mk_ot f.cf_type,None);
-				cff_pos = f.cf_pos;
-				cff_doc = f.cf_doc;
-				cff_meta = f.cf_meta;
-				cff_access = [];
-			} :: acc
-		) a.a_fields [])
+	| TAnon a as t ->
+		begin match !(a.a_status) with
+		| Statics c -> tpath ([],"Class") ([],"Class") [tpath c.cl_path c.cl_path []]
+		| EnumStatics e -> tpath ([],"Enum") ([],"Enum") [tpath e.e_path e.e_path []]
+		| _ ->
+			CTAnonymous (PMap.foldi (fun _ f acc ->
+				{
+					cff_name = f.cf_name;
+					cff_kind = FVar (mk_ot f.cf_type,None);
+					cff_pos = f.cf_pos;
+					cff_doc = f.cf_doc;
+					cff_meta = f.cf_meta;
+					cff_access = [];
+				} :: acc
+			) a.a_fields [])
+		end
 	| (TDynamic t2) as t ->
 		tpath ([],"Dynamic") ([],"Dynamic") (if t == t_dynamic then [] else [make_type t2])
 	| TLazy f ->
