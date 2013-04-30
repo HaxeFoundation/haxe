@@ -36,6 +36,11 @@ class FileOutput extends Output {
 		this.f = f;
 	}
 
+	override public function close()
+	{
+		try f.close() catch(e:Dynamic) throw e;
+	}
+
 	override public function writeByte(c:Int):Void
 	{
 		try

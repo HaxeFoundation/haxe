@@ -37,6 +37,11 @@ class FileInput extends Input {
 		this.f = f;
 	}
 
+	override public function close()
+	{
+		try f.close() catch(e:Dynamic) throw e;
+	}
+
 	override public function readByte():Int
 	{
 		try
