@@ -1202,8 +1202,8 @@ and type_field ctx e i p mode =
 		with Not_found -> try
 			using_field ctx mode e i p
 		with Not_found -> try
-			(match ctx.curclass.cl_kind with
-			| KAbstractImpl a2 when a == a2 -> type_field ctx {e with etype = apply_params a.a_types pl a.a_this} i p mode;
+			(match ctx.curfun, e.eexpr with
+			| FunMemberAbstract, TConst (TThis) -> type_field ctx {e with etype = apply_params a.a_types pl a.a_this} i p mode;
 			| _ -> raise Not_found)
 		with Not_found ->
 			no_field())
