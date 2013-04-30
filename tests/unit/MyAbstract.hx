@@ -128,6 +128,17 @@ class MyPoint3 {
 }
 
 abstract MyVector(MyPoint3) from MyPoint3 to MyPoint3 {
+	var x(get, set):Float;
+	var y(get, set):Float;
+	var z(get, set):Float;
+
+	public function get_x() return this.x;
+	public function get_y() return this.y;
+	public function get_z() return this.z;
+	public function set_x(x) return this.x = x;
+	public function set_y(y) return this.y = y;
+	public function set_z(z) return this.z = z;
+	
 	@:op(A + B) static public inline function add(lhs:MyVector, rhs:MyVector):MyVector {
 		return new MyPoint3(lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z);
 	}

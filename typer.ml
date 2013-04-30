@@ -1446,6 +1446,25 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 				mk (TVars [v,Some e]) ctx.t.tvoid p;
 				make_call ctx (mk (TField (ev,FDynamic m)) (tfun [t] t) p) [get] t p
 			]) t p
+ 		| AKUsing(ef,c,cf,et) ->
+ 			(* abstract setter + getter *)
+ 			let ta = match c.cl_kind with KAbstractImpl a -> TAbstract(a, List.map (fun _ -> mk_mono()) a.a_types) | _ -> assert false in
+			let ret = match ef.etype with
+				| TFun([_;_],ret) -> ret
+				| _ ->  error "Invalid field type for abstract setter" p
+			in
+			let l = save_locals ctx in
+			let v = gen_local ctx ta in
+			let ev = mk (TLocal v) ta p in
+			(* this relies on the fact that cf_name is set_name *)
+			let getter_name = String.sub cf.cf_name 4 (String.length cf.cf_name - 4) in
+			let get = type_binop ctx op (EField ((EConst (Ident v.v_name),p),getter_name),p) e2 true p in
+			unify ctx get.etype ret p;
+			l();
+			mk (TBlock [
+				mk (TVars [v,Some et]) ctx.t.tvoid p;
+				make_call ctx ef [ev;get] ret p
+			]) ret p
 		| AKAccess(ebase,ekey) ->
 			let a,pl,c = match follow ebase.etype with TAbstract({a_impl = Some c} as a,pl) -> a,pl,c | _ -> error "Invalid operation" p in
 			let et = type_module_type ctx (TClassDecl c) None p in
@@ -1477,7 +1496,7 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 					e;
 					make_call ctx ef_set [ebase;ekey;eget] r_set p
 				]) r_set p)
-		| AKInline _ | AKUsing _ | AKMacro _ ->
+		| AKInline _ | AKMacro _ ->
 			assert false)
 	| _ ->
 	let e1 = type_expr ctx e1 Value in
