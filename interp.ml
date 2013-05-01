@@ -4380,6 +4380,8 @@ let rec make_type = function
 		| Some t -> make_type t)
 	| TEnum (e,pl) ->
 		tpath e.e_path e.e_module.m_path (List.map make_type pl)
+	| TInst({cl_kind = KTypeParameter _} as c,pl) ->
+		tpath ([],snd c.cl_path) ([],snd c.cl_path) (List.map make_type pl)
 	| TInst (c,pl) ->
 		tpath c.cl_path c.cl_module.m_path (List.map make_type pl)
 	| TType (t,pl) as tf ->
