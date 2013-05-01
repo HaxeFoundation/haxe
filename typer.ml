@@ -3088,6 +3088,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 	| ECheckType (e,t) ->
 		let t = Typeload.load_complex_type ctx p t in
 		let e = type_expr ctx e (WithType t) in
+		let e = Codegen.Abstract.check_cast ctx t e p in
 		unify ctx e.etype t e.epos;
 		if e.etype == t then e else mk (TCast (e,None)) t p
 	| EMeta (m,e) ->
