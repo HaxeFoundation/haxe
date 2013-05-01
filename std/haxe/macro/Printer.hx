@@ -182,7 +182,7 @@ class Printer {
 				cl.map(function(c)
 					return 'case ${printExprs(c.values, ",")}'
 						+ (c.guard != null ? 'if(${printExpr(c.guard)}):' : ":")
-						+ (opt(c.expr, printExpr))) + ";"
+						+ (opt(c.expr, printExpr)) + ";")
 				.join('\n$tabs');
 			if (edef != null)
 				s += '\n${tabs}default:' + (edef.expr == null ? "" : printExpr(edef)) + ";";
