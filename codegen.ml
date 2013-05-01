@@ -1386,15 +1386,15 @@ module Abstract = struct
 			| TDynamic _,_ | _,TDynamic _ ->
 				eright
 			| TAbstract({a_impl = Some c} as a,pl),t2 when not (Meta.has Meta.MultiType a.a_meta) ->
-				begin match snd (find_to a pl t2) with
-					| None -> eright
-					| Some cf ->
+				begin match find_to a pl t2 with
+					| tcf,None -> if tcf == tleft then eright else check_cast ctx (apply_params a.a_types pl tcf) eright p
+					| _,Some cf ->
 						recurse cf (fun () -> make_static_call ctx c cf a pl [eright] tleft p)
 				end
 			| t1,(TAbstract({a_impl = Some c} as a,pl) as t2) when not (Meta.has Meta.MultiType a.a_meta) ->
-				begin match snd (find_from a pl t1 t2) with
-					| None -> eright
-					| Some cf ->
+				begin match find_from a pl t1 t2 with
+					| tcf,None -> if tcf == tleft then eright else check_cast ctx (apply_params a.a_types pl tcf) eright p
+					| _,Some cf ->
 						recurse cf (fun () -> make_static_call ctx c cf a pl [eright] tleft p)
 				end
 			| _ ->
