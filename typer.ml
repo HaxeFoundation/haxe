@@ -578,7 +578,7 @@ let rec type_module_type ctx t tparams p =
 				cf_doc = None;
 				cf_meta = no_meta;
 				cf_expr = None;
-				cf_params = [];
+				cf_params = f.ef_params;
 				cf_overloads = [];
 			} acc
 		) e.e_constrs PMap.empty in
@@ -2265,7 +2265,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				| TEnum (e,pl) ->
 					(try
 						let ef = PMap.find s e.e_constrs in
-						mk (fast_enum_field e ef p) (apply_params e.e_types pl ef.ef_type) p
+						mk (fast_enum_field e ef p) (apply_params e.e_types pl (monomorphs ef.ef_params ef.ef_type)) p
 					with Not_found ->
 						if ctx.untyped then raise Not_found;
 						with_type_error ctx with_type (string_error s e.e_names ("Identifier '" ^ s ^ "' is not part of enum " ^ s_type_path e.e_path)) p;
