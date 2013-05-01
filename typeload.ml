@@ -400,7 +400,7 @@ and load_complex_type ctx p t =
 					c2.cl_fields <- a.a_fields;
 					TInst (c2,[])
 				| TMono _ ->
-					error "Please ensure correct initialization of cascading signatures" p
+					error "Loop found in cascading signatures definitions. Please change order/import" p
 				| TAnon a2 ->
 					PMap.iter (fun f _ ->
 						if PMap.mem f a2.a_fields then error ("Cannot redefine field " ^ f) p
