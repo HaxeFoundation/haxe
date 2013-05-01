@@ -1180,7 +1180,7 @@ and type_field ctx e i p mode =
 				let f = PMap.find ("get_" ^ f.cf_name) c.cl_statics in
 				let t = field_type f in
 				let r = match follow t with TFun(_,r) -> r | _ -> raise Not_found in
-				let ef = field_expr f r in
+				let ef = field_expr f t in
 				AKExpr(make_call ctx ef [e] r p)
 			| MSet, Var {v_write = AccCall } ->
 				let f = PMap.find ("set_" ^ f.cf_name) c.cl_statics in
