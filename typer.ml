@@ -2657,6 +2657,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			let t = match with_type with
 				| NoValue -> ctx.t.tvoid
 				| Value -> unify_min ctx [e1; e2]
+				| WithType t | WithTypeResume t when (match follow t with TMono _ -> true | _ -> false) -> unify_min ctx [e1; e2]
 				| WithType t | WithTypeResume t ->
 					unify ctx e1.etype t e1.epos;
 					unify ctx e2.etype t e2.epos;
