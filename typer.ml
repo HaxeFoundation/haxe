@@ -1416,7 +1416,7 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 			make_call ctx ef [ebase;ekey;e2] r p
 		| AKUsing(ef,_,_,et) ->
 			(* this must be an abstract setter *)
-			let ret = match ef.etype with
+			let ret = match follow ef.etype with
 				| TFun([_;(_,_,t)],ret) ->
 					unify ctx e2.etype t p;
 					ret
