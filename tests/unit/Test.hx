@@ -209,6 +209,9 @@ class Test #if swf_mark implements mt.Protect #end {
 			php.Web.setHeader("Content-Type","text/plain");
 		#end
 		resetTimer();
+		#if !macro
+		trace("Generated at: " + TestType.getCompilationDate());
+		#end
 		trace("START");
 		#if flash9
 		var tf : flash.text.TextField = untyped flash.Boot.getTrace();

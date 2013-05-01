@@ -12,6 +12,10 @@ class TestType extends Test {
 		#end
 	}
 
+	static public macro function getCompilationDate() {
+		return macro $v { Std.string(Date.now()) };
+	}
+	
 	static public macro function typedAs(actual:haxe.macro.Expr, expected:haxe.macro.Expr) {
 		var tExpected = haxe.macro.Context.typeof(expected);
 		var tActual = haxe.macro.Context.typeof(actual);
