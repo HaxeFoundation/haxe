@@ -789,6 +789,8 @@ try
 		done;
 	end else begin
 		Common.define_value com Define.HaxeVer (string_of_float (float_of_int version /. 100.));
+		(* TODO: fix this line for 3.0 release *)
+		Common.raw_define com (if false && ((version / 10) land 1 == 0) then "haxe_release" else "haxe_svn");
 		Common.raw_define com "haxe3";
 	end;
 	Common.define_value com Define.Dce "std";
