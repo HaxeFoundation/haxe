@@ -276,3 +276,12 @@ abstract MyAbstractCounter(Int) {
 	
 	inline public function getValue():Int return this + 1;
 }
+
+abstract MyAbstractThatCallsAMember(Int) to Int {
+	public function new(i) {
+		this = i;
+		bar();
+	}
+
+	inline function bar() this++;
+}

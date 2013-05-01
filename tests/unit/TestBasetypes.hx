@@ -477,4 +477,9 @@ class TestBasetypes extends Test {
 		as.value = "foo";
 		eq(as.value, "foo");
 	}
+	
+	function testAbstractMemberCall() {
+		var as = new MyAbstract.MyAbstractThatCallsAMember(2);
+		eq(3, as);
+	}
 }

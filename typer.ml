@@ -788,6 +788,9 @@ let field_access ctx mode f fmode t e p =
 	| Method m ->
 		if mode = MSet && m <> MethDynamic && not ctx.untyped then error "Cannot rebind this method : please use 'dynamic' before method declaration" p;
 		(match m, mode with
+		| _ when (match e.eexpr with TTypeExpr(TClassDecl ({cl_kind = KAbstractImpl a} as c)) -> c == ctx.curclass && ctx.curfun = FunMemberAbstract && Meta.has Meta.Impl f.cf_meta | _ -> false) ->
+			let e = mk (TField(e,fmode)) t p in
+			AKUsing(e,ctx.curclass,f,get_this ctx p)
 		| MethInline, _ -> AKInline (e,f,fmode,t)
 		| MethMacro, MGet -> display_error ctx "Macro functions must be called immediately" p; normal()
 		| MethMacro, MCall -> AKMacro (e,f)
@@ -3170,7 +3173,7 @@ and build_call ctx acc el (with_type:with_type) p =
 			(match acc with
 			| AKMacro _ ->
 				build_call ctx acc (Interp.make_ast eparam :: el) with_type p
-			| AKExpr _ | AKField _ | AKInline _ ->
+			| AKExpr _ | AKField _ | AKInline _ | AKUsing _ ->
 				let params, tfunc = (match follow et.etype with
 					| TFun ( _ :: args,r) -> unify_call_params ctx (Some (TInst(cl,[]),ef)) el args r p (ef.cf_kind = Method MethInline)
 					| _ -> assert false
