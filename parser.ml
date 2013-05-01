@@ -63,7 +63,7 @@ let quote_ident s =
 		quoted_ident_prefix ^ s
 
 let cache = ref (DynArray.create())
-let doc = ref None
+let last_doc = ref None
 let use_doc = ref false
 let resume_display = ref null_pos
 let in_macro = ref false
@@ -494,9 +494,15 @@ let property_ident = parser
 	| [< '(Kwd Null,_) >] -> "null"
 
 let get_doc s =
-	let d = !doc in
-	doc := None;
-	d
+	(* do the peek first to make sure we fetch the doc *)
+	match Stream.peek s with
+	| None -> None
+	| Some (tk,p) ->
+		match !last_doc with
+		| None -> None
+		| Some (d,pos) ->
+			last_doc := None;
+			if pos = p.pmin then Some d else None
 
 let comma = parser
 	| [< '(Comma,_) >] -> ()
@@ -514,7 +520,7 @@ let semicolon s =
 			if do_resume() then pos else error Missing_semicolon pos
 
 let rec	parse_file s =
-	doc := None;
+	last_doc := None;
 	match s with parser
 	| [< '(Kwd Package,_); p = parse_package; _ = semicolon; l = parse_type_decls p []; '(Eof,_) >] -> p , l
 	| [< l = parse_type_decls [] []; '(Eof,_) >] -> [] , l
@@ -540,9 +546,9 @@ and parse_type_decl s =
 	match s with parser
 	| [< '(Kwd Import,p1) >] -> parse_import s p1
 	| [< '(Kwd Using,p1); t = parse_type_path; p2 = semicolon >] -> EUsing t, punion p1 p2
-	| [< meta = parse_meta; c = parse_common_flags; s >] ->
+	| [< doc = get_doc; meta = parse_meta; c = parse_common_flags; s >] ->
 		match s with parser
-		| [< n , p1 = parse_enum_flags; doc = get_doc; name = type_name; tl = parse_constraint_params; '(BrOpen,_); l = plist parse_enum; '(BrClose,p2) >] ->
+		| [< n , p1 = parse_enum_flags; name = type_name; tl = parse_constraint_params; '(BrOpen,_); l = plist parse_enum; '(BrClose,p2) >] ->
 			(EEnum {
 				d_name = name;
 				d_doc = doc;
@@ -551,7 +557,7 @@ and parse_type_decl s =
 				d_flags = List.map snd c @ n;
 				d_data = l
 			}, punion p1 p2)
-		| [< n , p1 = parse_class_flags; doc = get_doc; name = type_name; tl = parse_constraint_params; hl = plist parse_class_herit; '(BrOpen,_); fl, p2 = parse_class_fields false p1 >] ->
+		| [< n , p1 = parse_class_flags; name = type_name; tl = parse_constraint_params; hl = plist parse_class_herit; '(BrOpen,_); fl, p2 = parse_class_fields false p1 >] ->
 			(EClass {
 				d_name = name;
 				d_doc = doc;
@@ -560,7 +566,7 @@ and parse_type_decl s =
 				d_flags = List.map fst c @ n @ hl;
 				d_data = fl;
 			}, punion p1 p2)
-		| [< '(Kwd Typedef,p1); doc = get_doc; name = type_name; tl = parse_constraint_params; '(Binop OpAssign,p2); t = parse_complex_type; s >] ->
+		| [< '(Kwd Typedef,p1); name = type_name; tl = parse_constraint_params; '(Binop OpAssign,p2); t = parse_complex_type; s >] ->
 			(match s with parser
 			| [< '(Semicolon,_) >] -> ()
 			| [< >] -> ());
@@ -572,7 +578,7 @@ and parse_type_decl s =
 				d_flags = List.map snd c;
 				d_data = t;
 			}, punion p1 p2)
-		| [< '(Kwd Abstract,p1); doc = get_doc; name = type_name; tl = parse_constraint_params; st = parse_abstract_subtype; sl = plist parse_abstract_relations; '(BrOpen,_); fl, p2 = parse_class_fields false p1 >] ->
+		| [< '(Kwd Abstract,p1); name = type_name; tl = parse_constraint_params; st = parse_abstract_subtype; sl = plist parse_abstract_relations; '(BrOpen,_); fl, p2 = parse_class_fields false p1 >] ->
 			let flags = List.map (fun (_,c) -> match c with EPrivate -> APrivAbstract | EExtern -> error (Custom "extern abstract not allowed") p1) c in
 			let flags = (match st with None -> flags | Some t -> AIsType t :: flags) in
 			(EAbstract {
@@ -584,10 +590,10 @@ and parse_type_decl s =
 				d_data = fl;
 			},punion p1 p2)
 
-and parse_class meta cflags need_name s =
+and parse_class doc meta cflags need_name s =
 	let opt_name = if need_name then type_name else (fun s -> match popt type_name s with None -> "" | Some n -> n) in
 	match s with parser
-	| [< n , p1 = parse_class_flags; doc = get_doc; name = opt_name; tl = parse_constraint_params; hl = psep Comma parse_class_herit; '(BrOpen,_); fl, p2 = parse_class_fields false p1 >] ->
+	| [< n , p1 = parse_class_flags; name = opt_name; tl = parse_constraint_params; hl = psep Comma parse_class_herit; '(BrOpen,_); fl, p2 = parse_class_fields false p1 >] ->
 		(EClass {
 			d_name = name;
 			d_doc = doc;
@@ -857,10 +863,10 @@ and parse_type_anonymous opt = parser
 		| [< >] -> serror()
 
 and parse_enum s =
-	doc := None;
+	let doc = get_doc s in
 	let meta = parse_meta s in
 	match s with parser
-	| [< name, p1 = any_enum_ident; doc = get_doc; params = parse_constraint_params; s >] ->
+	| [< name, p1 = any_enum_ident; params = parse_constraint_params; s >] ->
 		let args = (match s with parser
 		| [< '(POpen,_); l = psep Comma parse_enum_param; '(PClose,_) >] -> l
 		| [< >] -> []
@@ -888,9 +894,9 @@ and parse_enum_param = parser
 	| [< name, _ = ident; '(DblDot,_); t = parse_complex_type >] -> (name,false,t)
 
 and parse_class_field s =
-	doc := None;
+	let doc = get_doc s in
 	match s with parser
-	| [< meta = parse_meta; al = parse_cf_rights true []; doc = get_doc; s >] ->
+	| [< meta = parse_meta; al = parse_cf_rights true []; s >] ->
 		let name, pos, k = (match s with parser
 		| [< '(Kwd Var,p1); name, _ = ident; s >] ->
 			(match s with parser
@@ -1069,7 +1075,7 @@ and parse_macro_expr p = parser
 		(ECheckType (t,(CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = Some "ComplexType"; tparams = [] })),p)
 	| [< '(Kwd Var,p1); vl = psep Comma parse_var_decl >] ->
 		reify_expr (EVars vl,p1)
-	| [< d = parse_class [] [] false >] ->
+	| [< d = parse_class None [] [] false >] ->
 		let _,_,to_type = reify !in_macro in
 		(ECheckType (to_type d,(CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = Some "TypeDefinition"; tparams = [] })),p)
 	| [< e = secure_expr >] ->
@@ -1150,18 +1156,11 @@ and expr = parser
 		let e2 = (match s with parser
 			| [< '(Kwd Else,_); e2 = expr; s >] -> Some e2
 			| [< >] ->
-				(*
-					we can't directly npeek 2 elements because this might
-					remove some documentation tag.
-				*)
-				match Stream.npeek 1 s with
-				| [(Semicolon,_)] ->
-					(match Stream.npeek 2 s with
-					| [(Semicolon,_); (Kwd Else,_)] ->
-						Stream.junk s;
-						Stream.junk s;
-						Some (secure_expr s)
-					| _ -> None)
+				match Stream.npeek 2 s with
+				| [(Semicolon,_); (Kwd Else,_)] ->
+					Stream.junk s;
+					Stream.junk s;
+					Some (secure_expr s)
 				| _ ->
 					None
 		) in
@@ -1347,7 +1346,7 @@ let parse ctx code =
 	let old_cache = !cache in
 	let mstack = ref [] in
 	cache := DynArray.create();
-	doc := None;
+	last_doc := None;
 	in_macro := Common.defined ctx Common.Define.Macro;
 	Lexer.skip_header code;
 
@@ -1357,11 +1356,12 @@ let parse ctx code =
 	and process_token tk =
 		match fst tk with
 		| Comment s ->
+			let tk = next_token() in
 			if !use_doc then begin
 				let l = String.length s in
-				if l > 0 && s.[0] = '*' then doc := Some (String.sub s 1 (l - (if l > 1 && s.[l-1] = '*' then 2 else 1)));
+				if l > 0 && s.[0] = '*' then last_doc := Some (String.sub s 1 (l - (if l > 1 && s.[l-1] = '*' then 2 else 1)), (snd tk).pmin);
 			end;
-			next_token()
+			tk
 		| CommentLine s ->
 			next_token()
 		| Sharp "end" ->
