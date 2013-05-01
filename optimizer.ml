@@ -950,11 +950,13 @@ let rec reduce_loop ctx e =
 let reduce_expression ctx e =
 	if ctx.com.foptimize then reduce_loop ctx e else e
 
-let rec make_constant_expression ctx e =
+let rec make_constant_expression ctx ?(concat_strings=false) e =
 	let e = reduce_loop ctx e in
 	match e.eexpr with
 	| TConst _ -> Some e
 	| TBinop ((OpAdd|OpSub|OpMult|OpDiv|OpMod) as op,e1,e2) -> (match make_constant_expression ctx e1,make_constant_expression ctx e2 with
+		| Some ({eexpr = TConst (TString s1)}), Some ({eexpr = TConst (TString s2)}) when concat_strings ->
+			Some (mk (TConst (TString (s1 ^ s2))) ctx.com.basic.tstring (punion e1.epos e2.epos))
 		| Some e1, Some e2 -> Some (mk (TBinop(op, e1, e2)) e.etype e.epos)
 		| _ -> None)
 	| TParenthesis e -> Some e

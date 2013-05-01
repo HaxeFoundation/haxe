@@ -326,7 +326,7 @@ let to_pattern ctx e t =
 			mk_con_pat (CConst c) [] t p
 		| EField _ ->
 			let e = type_expr ctx e (WithType t) in
-			let e = match Optimizer.make_constant_expression ctx e with Some e -> e | None -> e in
+			let e = match Optimizer.make_constant_expression ctx ~concat_strings:true e with Some e -> e | None -> e in
 			(match e.eexpr with
 			| TConst c -> mk_con_pat (CConst c) [] t p
 			| TTypeExpr mt -> mk_con_pat (CType mt) [] t p
@@ -415,6 +415,7 @@ let to_pattern ctx e t =
 						ctx.untyped <- old;
 						e
 				in
+				let ec = match Optimizer.make_constant_expression ctx ~concat_strings:true ec with Some e -> e | None -> ec in
 				(match ec.eexpr with
 					| TField (_,FEnum (en,ef)) ->
 						begin try unify_raise ctx ec.etype t ec.epos with Error (Unify _,_) -> raise Not_found end;
