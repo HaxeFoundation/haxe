@@ -5041,6 +5041,7 @@ struct
 
     let in_value = ref false in
 
+	(*
     let rec get_ctor_p cl p =
       match cl.cl_constructor with
         | Some c -> follow (apply_params cl.cl_types p c.cf_type), cl, p
@@ -5049,6 +5050,7 @@ struct
             get_ctor_p cls (List.map (apply_params cls.cl_types p) tl)
           | None -> TFun([],gen.gcon.basic.tvoid), cl, p
     in
+	*)
 
     let rec run ?(just_type = false) e =
       let handle = if not just_type then handle else fun e t1 t2 -> { e with etype = gen.greal_type t2 } in
