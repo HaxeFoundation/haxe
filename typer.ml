@@ -45,7 +45,7 @@ type access_kind =
 	| AKNo of string
 	| AKExpr of texpr
 	| AKField of texpr * tclass_field * tfield_access
-	| AKSet of texpr * string * t * string
+	| AKSet of texpr * t * tclass_field
 	| AKInline of texpr * tclass_field * tfield_access * t
 	| AKMacro of texpr * tclass_field
 	| AKUsing of texpr * tclass * tclass_field * texpr
@@ -95,6 +95,10 @@ let rec classify t =
 	| TMono r when !r = None -> KUnk
 	| TDynamic _ -> KDyn
 	| _ -> KOther
+
+let quick_field_dynamic t s =
+	try quick_field t s
+	with Not_found -> FDynamic s
 
 let object_field f =
 	let pf = Parser.quoted_ident_prefix in
@@ -833,7 +837,8 @@ let field_access ctx mode f fmode t e p =
 				AKExpr (mk (TField (e,FClosure (None,f))) t p)
 			else
 				normal()
-		| AccCall m ->
+		| AccCall ->
+			let m = (match mode with MSet -> "set_" | _ -> "get_") ^ f.cf_name in
 			if m = ctx.curfield.cf_name && (match e.eexpr with TConst TThis -> true | TTypeExpr (TClassDecl c) when c == ctx.curclass -> true | _ -> false) then
 				let prefix = (match ctx.com.platform with Flash when Common.defined ctx.com Define.As3 -> "$" | _ -> "") in
 				if is_extern_field f then begin
@@ -852,11 +857,11 @@ let field_access ctx mode f fmode t e p =
 					let ef = mk (TField (e,FStatic (c,f))) t p in
 					AKUsing (ef,c,f,this)
 				end else
-					AKExpr (make_call ctx (mk (TField (e,FDynamic m)) (tfun [this.etype] t) p) [this] t p)
+					AKExpr (make_call ctx (mk (TField (e,quick_field_dynamic e.etype m)) (tfun [this.etype] t) p) [this] t p)
 			end else if mode = MSet then
-				AKSet (e,m,t,f.cf_name)
+				AKSet (e,t,f)
 			else
-				AKExpr (make_call ctx (mk (TField (e,FDynamic m)) (tfun [] t) p) [] t p)
+				AKExpr (make_call ctx (mk (TField (e,quick_field_dynamic e.etype m)) (tfun [] t) p) [] t p)
 		| AccResolve ->
 			let fstring = mk (TConst (TString f.cf_name)) ctx.t.tstring p in
 			let tresolve = tfun [ctx.t.tstring] t in
@@ -1170,15 +1175,15 @@ and type_field ctx e i p mode =
 			let et = type_module_type ctx (TClassDecl c) None p in
 			let field_expr f t = mk (TField (et,FStatic (c,f))) t p in
 			(match mode, f.cf_kind with
-			| MGet, Var {v_read = AccCall s} ->
+			| MGet, Var {v_read = AccCall } ->
 				(* getter call *)
-				let f = PMap.find s c.cl_statics in
+				let f = PMap.find ("get_" ^ f.cf_name) c.cl_statics in
 				let t = field_type f in
 				let r = match follow t with TFun(_,r) -> r | _ -> raise Not_found in
 				let ef = field_expr f r in
 				AKExpr(make_call ctx ef [e] r p)
-			| MSet, Var {v_write = AccCall s} ->
-				let f = PMap.find s c.cl_statics in
+			| MSet, Var {v_write = AccCall } ->
+				let f = PMap.find ("set_" ^ f.cf_name) c.cl_statics in
 				let t = field_type f in
 				let ef = field_expr f t in
 				AKUsing (ef,c,f,e)
@@ -1384,7 +1389,7 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 	match op with
 	| OpAssign ->
 		let e1 = type_access ctx (fst e1) (snd e1) MSet in
-		let tt = (match e1 with AKNo _ | AKInline _ | AKUsing _ | AKMacro _ | AKAccess _ -> Value | AKSet(_,_,t,_) -> WithType t | AKExpr e | AKField (e,_,_) -> WithType e.etype) in
+		let tt = (match e1 with AKNo _ | AKInline _ | AKUsing _ | AKMacro _ | AKAccess _ -> Value | AKSet(_,t,_) -> WithType t | AKExpr e | AKField (e,_,_) -> WithType e.etype) in
 		let e2 = type_expr ctx e2 tt in
 		(match e1 with
 		| AKNo s -> error ("Cannot access field or identifier " ^ s ^ " for writing") p
@@ -1397,9 +1402,9 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 				error "Assigning a value to itself" p
 			| _ , _ -> ());
 			mk (TBinop (op,e1,e2)) e1.etype p
-		| AKSet (e,m,t,_) ->
+		| AKSet (e,t,cf) ->
 			unify ctx e2.etype t p;
-			make_call ctx (mk (TField (e,FDynamic m)) (tfun [t] t) p) [e2] t p
+			make_call ctx (mk (TField (e,quick_field_dynamic e.etype ("set_" ^ cf.cf_name))) (tfun [t] t) p) [e2] t p
 		| AKAccess(ebase,ekey) ->
 			let a,pl,c = match follow ebase.etype with TAbstract({a_impl = Some c} as a,pl) -> a,pl,c | _ -> error "Invalid operation" p in
 			let cf,tf,r =
@@ -1438,16 +1443,16 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 				(* this must be an abstract cast *)
 				check_assign ctx e;
 				eop)
-		| AKSet (e,m,t,f) ->
+		| AKSet (e,t,cf) ->
 			let l = save_locals ctx in
 			let v = gen_local ctx e.etype in
 			let ev = mk (TLocal v) e.etype p in
-			let get = type_binop ctx op (EField ((EConst (Ident v.v_name),p),f),p) e2 true p in
+			let get = type_binop ctx op (EField ((EConst (Ident v.v_name),p),cf.cf_name),p) e2 true p in
 			unify ctx get.etype t p;
 			l();
 			mk (TBlock [
 				mk (TVars [v,Some e]) ctx.t.tvoid p;
-				make_call ctx (mk (TField (ev,FDynamic m)) (tfun [t] t) p) [get] t p
+				make_call ctx (mk (TField (ev,quick_field_dynamic ev.etype ("set_" ^ cf.cf_name))) (tfun [t] t) p) [get] t p
 			]) t p
  		| AKUsing(ef,c,cf,et) ->
  			(* abstract setter + getter *)
@@ -1803,13 +1808,13 @@ and type_unop ctx op flag e p =
 		error ("The field or identifier " ^ s ^ " is not accessible for " ^ (if set then "writing" else "reading")) p
 	| AKInline _ | AKUsing _ | AKMacro _ | AKAccess _ ->
 		error "This kind of operation is not supported" p
-	| AKSet (e,m,t,f) ->
+	| AKSet (e,t,cf) ->
 		let l = save_locals ctx in
 		let v = gen_local ctx e.etype in
 		let ev = mk (TLocal v) e.etype p in
 		let op = (match op with Increment -> OpAdd | Decrement -> OpSub | _ -> assert false) in
 		let one = (EConst (Int "1"),p) in
-		let eget = (EField ((EConst (Ident v.v_name),p),f),p) in
+		let eget = (EField ((EConst (Ident v.v_name),p),cf.cf_name),p) in
 		match flag with
 		| Prefix ->
 			let get = type_binop ctx op eget one false p in
@@ -1817,7 +1822,7 @@ and type_unop ctx op flag e p =
 			l();
 			mk (TBlock [
 				mk (TVars [v,Some e]) ctx.t.tvoid p;
-				make_call ctx (mk (TField (ev,FDynamic m)) (tfun [t] t) p) [get] t p
+				make_call ctx (mk (TField (ev,quick_field_dynamic ev.etype ("set_" ^ cf.cf_name))) (tfun [t] t) p) [get] t p
 			]) t p
 		| Postfix ->
 			let v2 = gen_local ctx t in
@@ -1828,7 +1833,7 @@ and type_unop ctx op flag e p =
 			l();
 			mk (TBlock [
 				mk (TVars [v,Some e; v2,Some get]) ctx.t.tvoid p;
-				make_call ctx (mk (TField (ev,FDynamic m)) (tfun [plusone.etype] t) p) [plusone] t p;
+				make_call ctx (mk (TField (ev,quick_field_dynamic ev.etype ("set_" ^ cf.cf_name))) (tfun [plusone.etype] t) p) [plusone] t p;
 				ev2
 			]) t p
 

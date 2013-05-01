@@ -38,7 +38,7 @@ and var_access =
 	| AccNo				(* can't be accessed outside of the class itself and its subclasses *)
 	| AccNever			(* can't be accessed, even in subclasses *)
 	| AccResolve		(* call resolve("field") when accessed *)
-	| AccCall of string (* perform a method call when accessed *)
+	| AccCall			(* perform a method call when accessed *)
 	| AccInline			(* similar to Normal but inline when accessed *)
 	| AccRequire of string * string option (* set when @:require(cond) fails *)
 
@@ -466,7 +466,7 @@ let s_access = function
 	| AccNo -> "null"
 	| AccNever -> "never"
 	| AccResolve -> "resolve"
-	| AccCall m -> m
+	| AccCall -> "accessor"
 	| AccInline	-> "inline"
 	| AccRequire (n,_) -> "require " ^ n
 

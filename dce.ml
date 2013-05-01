@@ -224,7 +224,7 @@ and field dce c n stat =
 		mark_field dce c cf stat;
 	with Not_found -> try
 		(* me might have a property access on an interface *)
-		let l = String.length n - 4 in
+ 		let l = String.length n - 4 in
 		if l < 0 then raise Not_found;
 		let prefix = String.sub n 0 4 in
 		let pn = String.sub n 4 l in
@@ -235,8 +235,8 @@ and field dce c n stat =
 				field dce c pn stat
 			in
 			(match prefix,cf.cf_kind with
-				| "get_",Var {v_read = AccCall s} when s = n -> keep()
-				| "set_",Var {v_write = AccCall s} when s = n -> keep()
+				| "get_",Var {v_read = AccCall} when "get_" ^ cf.cf_name = n -> keep()
+				| "set_",Var {v_write = AccCall} when "set_" ^ cf.cf_name = n -> keep()
 				| _ -> raise Not_found
 			);
 		end;
@@ -455,12 +455,14 @@ let run com main full =
 			in
 			let check_prop stat cf =
 				(match cf.cf_kind with
-				| Var {v_read = AccCall s; v_write = a} ->
-					cf.cf_kind <- Var {v_read = if has_accessor c s stat then AccCall s else AccNever; v_write = a}
+				| Var {v_read = AccCall; v_write = a} ->
+					let s = "get_" ^ cf.cf_name in
+					cf.cf_kind <- Var {v_read = if has_accessor c s stat then AccCall else AccNever; v_write = a}
 				| _ -> ());
 				(match cf.cf_kind with
-				| Var {v_write = AccCall s; v_read = a} ->
-					cf.cf_kind <- Var {v_write = if has_accessor c s stat then AccCall s else AccNever; v_read = a}
+				| Var {v_write = AccCall; v_read = a} ->
+					let s = "set_" ^ cf.cf_name in
+					cf.cf_kind <- Var {v_write = if has_accessor c s stat then AccCall else AccNever; v_read = a}
 				| _ -> ())
 			in
 			List.iter (check_prop true) c.cl_ordered_statics;

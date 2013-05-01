@@ -4129,7 +4129,7 @@ and encode_var_access a =
 		| AccNo -> 1, []
 		| AccNever -> 2, []
 		| AccResolve -> 3, []
-		| AccCall s -> 4, [enc_string s]
+		| AccCall -> 4, []
 		| AccInline	-> 5, []
 		| AccRequire (s,msg) -> 6, [enc_string s; null enc_string msg]
 	) in

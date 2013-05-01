@@ -2074,56 +2074,8 @@ let generate_class ctx c =
 		match f.cf_kind with
 		| Method _ -> acc
 		| Var v ->
-			let p = f.cf_pos in
-			let ethis = mk (TConst TThis) (TInst (c,[])) p in
-			let acc = (match v.v_read with
-				| AccCall n when n <> "get_" ^ f.cf_name ->
-					(* generate get_xxx method *)
-					let m = if c.cl_interface then
-						end_fun ctx [] None f.cf_type
-					else
-						let fk = begin_fun ctx [] f.cf_type [ethis] false p in
-						gen_expr ctx false (mk (TReturn (Some (mk (TCall (mk (TField (ethis,FDynamic n)) t_dynamic p,[])) f.cf_type p))) t_dynamic p);
-						fk()
-					in
-					{
-						hlf_name = ident ("get_" ^ f.cf_name);
-						hlf_slot = alloc_slot();
-						hlf_kind = HFMethod {
-							hlm_type = m;
-							hlm_final = false;
-							hlm_override = false;
-							hlm_kind = MK3Normal;
-						};
-						hlf_metas = None;
-					} :: acc
-				| _ ->
-					acc
-			) in
-			let acc = (match v.v_write with
-				| AccCall n when n <> "set_" ^ f.cf_name ->
-					(* generatee set_xxx method *)
-					let v = alloc_var "tmp" f.cf_type in
-					let m = if c.cl_interface then
-						end_fun ctx [v,None] None f.cf_type
-					else
-						let fk = begin_fun ctx [v,None] f.cf_type [ethis] false p in
-						gen_expr ctx false (mk (TReturn (Some (mk (TCall (mk (TField (ethis,FDynamic n)) t_dynamic p,[mk (TLocal v) v.v_type p])) f.cf_type p))) t_dynamic p);
-						fk()
-					in
-					{
-						hlf_name = ident ("set_" ^ f.cf_name);
-						hlf_slot = alloc_slot();
-						hlf_kind = HFMethod {
-							hlm_type = m;
-							hlm_final = false;
-							hlm_override = false;
-							hlm_kind = MK3Normal;
-						};
-						hlf_metas = None;
-					} :: acc
-				| _ -> acc
-			) in
+			(* let p = f.cf_pos in *)
+			(* let ethis = mk (TConst TThis) (TInst (c,[])) p in *)
 			acc
 	in
 	let fields = PMap.fold (fun f acc ->

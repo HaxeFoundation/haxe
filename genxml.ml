@@ -120,7 +120,7 @@ and gen_field att f =
 		match acc with
 		| AccNormal | AccResolve | AccRequire _ -> att
 		| AccNo | AccNever -> (name, "null") :: att
-		| AccCall m -> (name,m) :: att
+		| AccCall -> (name,"accessor") :: att
 		| AccInline -> (name,"inline") :: att
 	in
 	let att = (match f.cf_expr with None -> att | Some e -> ("line",string_of_int (Lexer.get_error_line e.epos)) :: att) in

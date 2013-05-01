@@ -464,11 +464,11 @@ and load_complex_type ctx p t =
 						| "null" -> AccNo
 						| "never" -> AccNever
 						| "default" -> AccNormal
-						| "dynamic" -> AccCall ((if get then "get_"  else "set_") ^ n)
-						| "get" when get -> AccCall ("get_" ^ n)
-						| "set" when not get -> AccCall ("set_" ^ n)
-						| x when get && x = "get_" ^ n -> AccCall x
-						| x when not get && x = "set_" ^ n -> AccCall x
+						| "dynamic" -> AccCall
+						| "get" when get -> AccCall
+						| "set" when not get -> AccCall
+						| x when get && x = "get_" ^ n -> AccCall
+						| x when not get && x = "set_" ^ n -> AccCall
 						| _ ->
 							error "Custom property access is no longer supported in Haxe 3" f.cff_pos;
 					in
@@ -1587,13 +1587,13 @@ let init_class ctx c p context_init herits fields =
 			in
 			let get = (match get with
 				| "null" -> AccNo
-				| "dynamic" -> AccCall ("get_" ^ name)
+				| "dynamic" -> AccCall
 				| "never" -> AccNever
 				| "default" -> AccNormal
 				| _ ->
 					let get = if get = "get" then "get_" ^ name else get in
 					delay ctx PForce (fun() -> check_method get t_get (if get <> "get" && get <> "get_" ^ name then Some ("get_" ^ name) else None));
-					AccCall get
+					AccCall
 			) in
 			let set = (match set with
 				| "null" ->
@@ -1603,14 +1603,14 @@ let init_class ctx c p context_init herits fields =
 					else
 						AccNo
 				| "never" -> AccNever
-				| "dynamic" -> AccCall ("set_" ^ name)
+				| "dynamic" -> AccCall
 				| "default" -> AccNormal
 				| _ ->
 					let set = if set = "set" then "set_" ^ name else set in
 					delay ctx PForce (fun() -> check_method set t_set (if set <> "set" && set <> "set_" ^ name then Some ("set_" ^ name) else None));
-					AccCall set
+					AccCall
 			) in
-			if set = AccNormal && (match get with AccCall _ -> true | _ -> false) then error "Unsupported property combination" p;
+			if set = AccNormal && (match get with AccCall -> true | _ -> false) then error "Unsupported property combination" p;
 			let cf = {
 				cf_name = name;
 				cf_doc = f.cff_doc;

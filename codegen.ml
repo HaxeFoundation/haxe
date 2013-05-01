@@ -95,10 +95,10 @@ let rec has_properties c =
 let get_properties fields =
 	List.fold_left (fun acc f ->
 		let acc = (match f.cf_kind with
-		| Var { v_read = AccCall getter } -> ("get_" ^ f.cf_name , getter) :: acc
+		| Var { v_read = AccCall } -> ("get_" ^ f.cf_name , "get_" ^ f.cf_name) :: acc
 		| _ -> acc) in
 		match f.cf_kind with
-		| Var { v_write = AccCall setter } -> ("set_" ^ f.cf_name , setter) :: acc
+		| Var { v_write = AccCall } -> ("set_" ^ f.cf_name , "set_" ^ f.cf_name) :: acc
 		| _ -> acc
 	) [] fields
 

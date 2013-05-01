@@ -131,7 +131,7 @@ enum VarAccess {
 	AccNo;
 	AccNever;
 	AccResolve;
-	AccCall( m : String );
+	AccCall;
 	AccInline;
 	AccRequire( r : String, ?msg : String );
 }

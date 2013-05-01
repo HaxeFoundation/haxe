@@ -229,8 +229,8 @@ let to_string_null ctx e =
 	let v = alloc_var "__call__" t_dynamic in
 	let f = mk (TLocal v) t_dynamic e.epos in
 	mk (TCall (f, [ Codegen.string ctx.com "_hx_string_or_null" e.epos; e])) ctx.com.basic.tstring e.epos
-	
-	
+
+
 let as_string_expr ctx e =	match e.eexpr with
 	| TConst (TNull) ->  to_string ctx e
 	| TConst (TString s) -> e
@@ -1887,7 +1887,9 @@ let generate_field ctx static f =
 			(match f.cf_kind with
 			| Var v ->
 				(match v.v_read, v.v_write with
-				| AccCall m1, AccCall m2 ->
+				| AccCall, AccCall ->
+					let m1 = "get_" ^ f.cf_name in
+					let m2 = "set_" ^ f.cf_name in
 					if not (is_method_defined ctx m1 static) then (
 						generate_self_method ctx rights m1 static false;
 						print ctx "%s $%s" rights (s_ident m1);
@@ -1898,12 +1900,14 @@ let generate_field ctx static f =
 						print ctx "%s $%s" rights (s_ident m2);
 						newline ctx);
 					false
-				| AccCall m, _ ->
+				| AccCall, _ ->
+					let m = "get_" ^ f.cf_name in
 					if not (is_method_defined ctx m static) then generate_self_method ctx rights m static false;
 					print ctx "%s $%s" rights (s_ident_field f.cf_name);
 					gen_assigned_value ctx f.cf_expr;
 					true
-				| _, AccCall m ->
+				| _, AccCall ->
+					let m = "set_" ^ f.cf_name in
 					if not (is_method_defined ctx m static) then generate_self_method ctx rights m static true;
 					print ctx "%s $%s" rights (s_ident_field f.cf_name);
 					gen_assigned_value ctx f.cf_expr;

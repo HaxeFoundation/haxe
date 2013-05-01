@@ -1013,11 +1013,11 @@ let generate_field ctx static f =
 				| Var v ->
 					(match v.v_read with
 					| AccNormal -> print ctx "function get %s() : %s;" id t;
-					| AccCall s -> print ctx "function %s() : %s;" s t;
+					| AccCall -> print ctx "function %s() : %s;" ("get_" ^ f.cf_name) t;
 					| _ -> ());
 					(match v.v_write with
 					| AccNormal -> print ctx "function set %s( __v : %s ) : void;" id t;
-					| AccCall s -> print ctx "function %s( __v : %s ) : %s;" s t t;
+					| AccCall -> print ctx "function %s( __v : %s ) : %s;" ("set_" ^ f.cf_name) t t;
 					| _ -> ());
 				| _ -> assert false)
 			| _ -> ()
@@ -1036,16 +1036,16 @@ let generate_field ctx static f =
 			| AccNormal | AccNo | AccNever ->
 				print ctx "%s function get %s() : %s { return $%s; }" rights id t id;
 				newline ctx
-			| AccCall m ->
-				print ctx "%s function get %s() : %s { return %s(); }" rights id t m;
+			| AccCall ->
+				print ctx "%s function get %s() : %s { return %s(); }" rights id t ("get_" ^ f.cf_name);
 				newline ctx
 			| _ -> ());
 			(match v.v_write with
 			| AccNormal | AccNo | AccNever ->
 				print ctx "%s function set %s( __v : %s ) : void { $%s = __v; }" rights id t id;
 				newline ctx
-			| AccCall m ->
-				print ctx "%s function set %s( __v : %s ) : void { %s(__v); }" rights id t m;
+			| AccCall ->
+				print ctx "%s function set %s( __v : %s ) : void { %s(__v); }" rights id t ("set_" ^ f.cf_name);
 				newline ctx
 			| _ -> ());
 			print ctx "%sprotected var $%s : %s" (if static then "static " else "") (s_ident f.cf_name) (type_str ctx f.cf_type p);
@@ -1063,8 +1063,8 @@ let rec define_getset ctx stat c =
 		match f.cf_kind with
 		| Method _ -> ()
 		| Var v ->
-			(match v.v_read with AccCall m -> def f m | _ -> ());
-			(match v.v_write with AccCall m -> def f m | _ -> ())
+			(match v.v_read with AccCall -> def f ("get_" ^ f.cf_name) | _ -> ());
+			(match v.v_write with AccCall -> def f ("set_" ^ f.cf_name) | _ -> ())
 	in
 	List.iter field (if stat then c.cl_ordered_statics else c.cl_ordered_fields);
 	match c.cl_super with

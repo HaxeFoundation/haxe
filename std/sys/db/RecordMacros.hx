@@ -296,7 +296,7 @@ class RecordMacros {
 					continue;
 				// handle relations
 				if( f.meta.has(":relation") ) {
-					if( !Type.enumEq(g,AccCall("get_" + f.name)) || !Type.enumEq(s,AccCall("set_" + f.name)) )
+					if( !Type.enumEq(g,AccCall) || !Type.enumEq(s,AccCall) )
 						error("Relation should be (dynamic,dynamic)", f.pos);
 					for( m in f.meta.get() ) {
 						if( m.name != ":relation" ) continue;
@@ -327,7 +327,7 @@ class RecordMacros {
 					continue;
 				}
 				switch( g ) {
-				case AccCall(_):
+				case AccCall:
 					if( !f.meta.has(":data") )
 						error("Relation should be defined with @:relation(key)", f.pos);
 				default:
