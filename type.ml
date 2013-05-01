@@ -703,6 +703,8 @@ let rec fast_eq a b =
 		e1 == e2 && List.for_all2 fast_eq l1 l2
 	| TInst (c1,l1), TInst (c2,l2) ->
 		c1 == c2 && List.for_all2 fast_eq l1 l2
+	| TAbstract (a1,l1), TAbstract (a2,l2) ->
+		a1 == a2 && List.for_all2 fast_eq l1 l2
 	| _ , _ ->
 		false
 
@@ -874,6 +876,7 @@ let type_iseq a b =
 		Unify_error _ -> false
 
 let unify_stack = ref []
+let abstract_cast_stack = ref []
 
 let is_extern_field f =
 	match f.cf_kind with
@@ -1185,8 +1188,10 @@ let rec unify a b =
 		error [cannot_unify a b]
 
 and unify_from_field ab tl a b (t,cfo) =
+	if (List.exists (fun (a2,b2) -> fast_eq a a2 && fast_eq b b2) (!abstract_cast_stack)) then false else begin
+	abstract_cast_stack := (a,b) :: !abstract_cast_stack;
 	let unify_func = match follow a with TAbstract({a_impl = Some _},_) when ab.a_impl <> None -> type_eq EqStrict | _ -> unify in
-	try begin match cfo with
+	let b = try begin match cfo with
 		| Some cf -> (match follow cf.cf_type with
 			| TFun(_,r) ->
 				let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
@@ -1199,10 +1204,17 @@ and unify_from_field ab tl a b (t,cfo) =
 		end;
 		true
 	with Unify_error _ -> false
+	in
+	abstract_cast_stack := List.tl !abstract_cast_stack;
+	b
+	end
 
 and unify_to_field ab tl b (t,cfo) =
+	let a = TAbstract(ab,tl) in
+	if (List.exists (fun (b2,a2) -> fast_eq a a2 && fast_eq b b2) (!abstract_cast_stack)) then false else begin
+	abstract_cast_stack := (b,a) :: !abstract_cast_stack;
 	let unify_func = match follow b with TAbstract({a_impl = Some _},_) when ab.a_impl <> None -> type_eq EqStrict | _ -> unify in
-	try begin match cfo with
+	let b = try begin match cfo with
 		| Some cf -> (match follow cf.cf_type with
 			| TFun([_,_,ta],_) ->
 				let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
@@ -1224,6 +1236,10 @@ and unify_to_field ab tl b (t,cfo) =
 		end;
 		true
 	with Unify_error _ -> false
+	in
+	abstract_cast_stack := List.tl !abstract_cast_stack;
+	b
+	end
 
 and unify_types a b tl1 tl2 =
 	List.iter2 (fun t1 t2 ->
