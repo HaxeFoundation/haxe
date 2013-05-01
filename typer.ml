@@ -2654,7 +2654,14 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				mk (TIf (e,e1,None)) ctx.t.tvoid p
 		| Some e2 ->
 			let e2 = type_expr ctx e2 with_type in
-			let t = if with_type = NoValue then ctx.t.tvoid else unify_min ctx [e1; e2] in
+			let t = match with_type with
+				| NoValue -> ctx.t.tvoid
+				| Value -> unify_min ctx [e1; e2]
+				| WithType t | WithTypeResume t ->
+					unify ctx e1.etype t e1.epos;
+					unify ctx e2.etype t e2.epos;
+					t
+			in
 			mk (TIf (e,e1,Some e2)) t p)
 	| EWhile (cond,e,NormalWhile) ->
 		let old_loop = ctx.in_loop in
