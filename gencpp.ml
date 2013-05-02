@@ -1434,14 +1434,19 @@ and gen_expression ctx retval expression =
 		| _ ->  gen_bin_op_string expr1 (Ast.s_binop op) expr2
 		in
 
-	let gen_array_cast array_type cast_name call =
+	let gen_array_cast cast_name real_type call =
+     output (cast_name ^ "< " ^ real_type ^ " >" ^ call)
+   in
+	let rec check_array_cast array_type cast_name call =
 	   match follow array_type with
 	   | TInst (klass,[element]) ->
          ( match type_string element with
            | x when cant_be_null x -> ()
            | "::String" | "Dynamic" -> ()
-           | real_type -> output (cast_name ^ "< " ^ real_type ^ " >" ^ call)
+           | real_type -> gen_array_cast cast_name real_type call
          )
+	   | TAbstract (abs,pl) when abs.a_impl <> None ->
+		   check_array_cast (Codegen.Abstract.get_underlying_type abs pl) cast_name call
       | _ -> ()
    in
 	let rec gen_tfield field_object field =
@@ -1483,7 +1488,7 @@ and gen_expression ctx retval expression =
                cast_if_required ctx field_object (type_string field_object.etype);
                output ( "->" ^ remap_name );
                if (calling && (is_array field_object.etype) && remap_name="iterator" ) then
-                  gen_array_cast field_object.etype "Fast" "";
+                  check_array_cast field_object.etype "Fast" "";
 
                already_dynamic := (match field with
                   | FInstance(_,var) when is_var_field var -> true
@@ -1587,7 +1592,7 @@ and gen_expression ctx retval expression =
          match func.eexpr with
             | TField(obj,field) when is_array obj.etype ->
                (match field_name field with
-                  | "pop" | "shift" -> gen_array_cast obj.etype ".StaticCast" "()"
+                  | "pop" | "shift" -> check_array_cast obj.etype ".StaticCast" "()"
                   | _ -> ()
                )
             | TParenthesis p -> cast_array_output p
@@ -1692,7 +1697,7 @@ and gen_expression ctx retval expression =
 			output "->__get(";
 			gen_expression ctx true index;
 			output ")";
-			gen_array_cast array_expr.etype ".StaticCast" "()";
+			check_array_cast array_expr.etype ".StaticCast" "()";
 		end
 	(* Get precidence matching haxe ? *)
 	| TBinop (op,expr1,expr2) -> gen_bin_op op expr1 expr2
