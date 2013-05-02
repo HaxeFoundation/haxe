@@ -1,19 +1,31 @@
 mod lib;
-pub struct Test;
+pub struct Test {
+	value: Option<i32>
+	
+}
 pub impl Test {
-	pub fn main() -> () {
-		let mut a: Option<i32> = Some(46i32);
-		let mut func: @fn(i32)->Option<i32> = (|a:i32|->Option<i32>{ None });
-		func = (|n: i32| -> Option<i32> {
-			Some(n)
-		});
-		func(24i32);
+	priv fn assert(v: bool, msg: Option<@str>) -> () {
+		if (!v) {
+			fail!(msg);
 		}
+		}
+	
+	pub fn main() -> () {
+		let mut c: Option<@Test> = Test::new();
+		c.unwrap().value = Some((67i32 % 2i32));
+		c.unwrap().value = Some((((c.unwrap().value / Some(0.2f64))) as i32));
+		Test::assert((c.unwrap().value == Some(5i32)),None);
 	}
+	
+	pub fn new() -> Option<@Test> {
+		let mut self = Test {value: None};;
+		self.value = None;
+		return Some(@self);
+	}
+	
+}
 impl lib::HxObject for Test {
-	}
-impl ToStr for Test {
-	pub fn to_str(&self) -> ~str {
-		return ~"Test";
+	pub fn toString(&self) -> Option<@str> {
+		return Some(@"Test");
 	}
 }

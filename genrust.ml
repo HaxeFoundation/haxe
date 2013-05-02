@@ -157,11 +157,6 @@ let spr ctx s = Buffer.add_string ctx.buf s
 
 let unsupported p = error "This expression cannot be generated into Rust" p
 
-let block e =
-	match e.eexpr with
-	| TBlock(el) -> e
-	| _ -> mk (TBlock [e]) e.etype e.epos
-
 let newline ctx =
 	let rec loop p =
 		match Buffer.nth ctx.buf p with
@@ -286,7 +281,7 @@ let rec type_str ctx t p =
 	| TInst ({ cl_path = [], "Class"}, [pt]) ->
 		reftype ^ "lib::HxObject"
 	| TInst ({ cl_path = [], "String"}, _) ->
-		reftype ^ "str"
+		"@str"
 	| TInst ({ cl_path = [], "Array"},[pt]) ->
 		let typed = type_str ctx pt p in
 		"~[" ^ typed ^ "]"
@@ -511,10 +506,14 @@ let rec gen_call ctx e el r =
 		spr ctx "((";
 		unwrap ctx num;
 		spr ctx ") as i32)";
+	| TField( _, FStatic({ cl_path = ([], "Std") }, { cf_name = "string" })), [({etype= TAbstract({ a_path = ([], _) }, _) } as obj)] ->
+		spr ctx "(@";
+		unwrap ctx obj;
+		spr ctx " as @lib::HxObject).toString()";
 	| TField( _, FStatic({ cl_path = ([], "Std") }, { cf_name = "string" })), [obj] ->
-		spr ctx "Some(";
-		gen_value ctx obj;
-		spr ctx ".to_str().to_owned())";
+		spr ctx "(";
+		unwrap ctx obj;
+		spr ctx " as @lib::HxObject).toString()";
 	| TField( _, FStatic({ cl_path = ([], "Std") }, { cf_name = "parseFloat" })), [st] ->
 		spr ctx "f64::from_str(";
 		unwrap ctx st;
@@ -523,6 +522,16 @@ let rec gen_call ctx e el r =
 		spr ctx "i32::from_str(";
 		unwrap ctx st;
 		spr ctx ")";
+	| TField( _, FStatic(c, cf)), el when is_extern_field cf || c.cl_extern ->
+		unwrap ctx e;
+		spr ctx "(";
+		concat ctx ", " (fun arg -> 
+			(if is_null arg.etype then
+				wrap ctx arg
+			else
+				unwrap ctx arg)
+		) el;
+		spr ctx ")";
 	| TField (ee,f), args when is_var_field f ->
 		spr ctx "(";
 		gen_value ctx e;
@@ -530,19 +539,17 @@ let rec gen_call ctx e el r =
 		spr ctx "(";
 		concat ctx "," (gen_value ctx) el;
 		spr ctx ")"
-	| TField( _, FStatic({ cl_extern = true }, { cf_type=t })), args
-	| TField( _, FInstance({ cl_extern = true }, { cf_type=t })), args ->
+	| TField( _, FStatic(c, { cf_type = TFun(fargs, fret) })), args ->
 		gen_value ctx e;
 		spr ctx "(";
+		let ind = ref 0 in
 		concat ctx "," (fun arg ->
-			 if (is_nullable_ext t) && not (is_nullable arg.etype) then
-			 	wrap ctx arg
-			 else if not (is_nullable_ext t) && (is_nullable arg.etype) then
-			 	unwrap ctx arg
-			 else
-			 	gen_value ctx arg
+			let (name, opt, typ) = List.nth fargs !ind in
+			match_type ctx arg typ;
+			ind := !ind + 1;
 		) args;
-		spr ctx ")"
+		spr ctx ")";
+	(*Tomorrow me, write case for Static call to match each type correctly*)
 	| _ ->
 		gen_value ctx e;
 		spr ctx "(";
@@ -570,38 +577,52 @@ and wrap ctx e =
 		spr ctx "Some(";
 		unwrap ctx e;
 		spr ctx ")";
-	)
+	);
+
+and match_type ctx e t =
+	match e.etype, t with
+	| TInst({cl_path = ([], "String")}, []), TInst({cl_path = ([], "String")}, []) ->
+		gen_value ctx e;
+	| a, TInst({cl_path = ([], "String")}, []) | TInst({cl_path = ([], "String")}, []), a ->
+		gen_value ctx e;
+		spr ctx ".to_str()";
+	| TAbstract({a_path = ([], "Float")}, []), TAbstract({a_path = ([], "Single")}, []) ->
+		spr ctx "(";
+		gen_value ctx e;
+		spr ctx " as f32)";
+	| TAbstract({a_path = ([], "Single")}, []), TAbstract({a_path = ([], "Float")}, []) ->
+		spr ctx "(";
+		gen_value ctx e;
+		spr ctx " as f64)";
+	| a, b when is_nullable a = is_nullable b ->
+		gen_value ctx e;
+	| _, b when is_nullable b ->
+		wrap ctx e;
+	| _, _ ->
+		unwrap ctx e;
+
+and block e t =
+	match e.eexpr with
+	| TBlock(el) -> e
+	| _ -> mk (TBlock [e]) t e.epos
 
 and dereference ctx e =
 	match e.etype with
-	| TInst({ cl_path = ([], "String") }, []) -> unwrap ctx e; spr ctx ".to_owned()";
+	| TInst({ cl_path = ([], "String") }, []) -> unwrap ctx e; spr ctx ".to_managed()";
 	| _ -> error "Cannot dereference type" e.epos;
+
 and gen_unwrapped_constant ctx e =
 	let con = (match e.eexpr with
 	| TConst c -> c
 	| _ -> assert false) in
-	(match con with
-	| TInt i -> print ctx "%ldi32" i
-	| TFloat s -> print ctx "%sf64" s
-	| TString s -> print ctx "@\"%s\"" (escape_bin (Ast.s_escape s))
-	| TBool b -> spr ctx (if b then "true" else "false")
-	| TNull -> spr ctx "None"
-	| _ -> assert false)
-
-and gen_value_op ctx e =
-	match e.eexpr with
-	| TBinop (op,_,_) when op = Ast.OpAnd || op = Ast.OpOr || op = Ast.OpXor ->
-		spr ctx "(";
-		unwrap ctx e;
-		spr ctx ")";
-	| _ ->
-		unwrap ctx e
-
-and match_type ctx e t =
-	if is_nullable t then
-		wrap ctx e
-	else
-		unwrap ctx e
+	(match con, e.etype with
+	| TInt i, _ -> print ctx "%ldi32" i
+	| TFloat s, TInst({ cl_path=([], "Single") }, []) -> print ctx "%sf32" s
+	| TFloat s, _ -> print ctx "%sf64" s
+	| TString s, _ -> print ctx "@\"%s\"" (escape_bin (Ast.s_escape s))
+	| TBool b, _ -> spr ctx (if b then "true" else "false")
+	| TNull, _ -> spr ctx "None"
+	| _, _ -> assert false)
 
 and gen_field_access ctx t s =
 	let static = match follow t with
@@ -635,15 +656,11 @@ and gen_expr ctx e =
 	| TBinop (OpAssign as op,e1,e2) | TBinop((OpAssignOp _) as op, e1, e2) ->
 		gen_value ctx e1;
 		print ctx " %s " (Ast.s_binop op);
-		if is_nullable e1.etype then (
-			wrap ctx e2;
-		) else (
-			unwrap ctx e2;
-		);
+		match_type ctx e2 e1.etype;
 	| TBinop (op,e1,e2) ->
-		gen_value_op ctx e1;
+		unwrap ctx e1;
 		print ctx " %s " (Ast.s_binop op);
-		gen_value_op ctx e2;
+		unwrap ctx e2;
 	| TField( e, FStatic({ cl_path = ([], "Math") }, { cf_name = "PI" })) ->
 		spr ctx "3.1415926589f64"
 	| TField( e, FStatic({ cl_path = ([], "Math") }, { cf_name = "NaN" })) ->
@@ -777,15 +794,14 @@ and gen_expr ctx e =
 				print ctx "%s: %s" f.cf_name (default_value ctx f.cf_type e.epos);
 			) obj_fields;
 			spr ctx "};";
-			soft_newline ctx;
 		);
 		List.iter (fun e -> newline ctx; gen_expr ctx e) el;
-		newline ctx;
 		if ctx.constructor_block then (
-			spr ctx "return Some(@self)";
 			newline ctx;
+			spr ctx "return Some(@self)";
 		);
 		bend();
+		newline ctx;
 		spr ctx "}";
 		if String.length ctx.tabs > 1 then
 			newline ctx
@@ -800,14 +816,15 @@ and gen_expr ctx e =
 		let h = gen_function_header ctx None f [] e.epos in
 		let old = ctx.in_static in
 		ctx.in_static <- true;
-		gen_value ctx (block (map_expr (fun e -> 
+		let mapped = map_expr (fun e -> 
 		(match e.eexpr with
 			| TReturn eo -> 
 				(match eo with
 					| Some v -> v
 					| None -> mk (TConst TNull) e.etype e.epos);
 			| _ -> e
-		)) f.tf_expr));
+		)) f.tf_expr in
+		gen_value ctx (block mapped f.tf_type);
 		ctx.in_static <- old;
 		h();	
 		spr ctx ")";
@@ -819,7 +836,7 @@ and gen_expr ctx e =
 		spr ctx "])"
 	| TThrow e ->
 		spr ctx "fail!(";
-		gen_value ctx e;
+		unwrap ctx e;
 		spr ctx ")";
 	| TVars [] ->
 		()
@@ -851,12 +868,12 @@ and gen_expr ctx e =
 		spr ctx "if ";
 		unwrap ctx (parent cond);
 		spr ctx " ";
-		gen_expr ctx (block ie);
+		gen_expr ctx (block ie e.etype);
 		(match eelse with
 		| None -> ()
 		| Some ee ->
 			spr ctx " else ";
-			gen_expr ctx (block ee));
+			gen_expr ctx (block ee e.etype));
 	| TUnop (Increment,fix,e) ->
 		let post = match fix with
 		| Postfix -> true
@@ -899,15 +916,15 @@ and gen_expr ctx e =
 		spr ctx (Ast.s_unop op);
 	| TWhile ({ eexpr = TConst (TBool true) }, e, _) ->
 		spr ctx "loop ";
-		gen_expr ctx (block e);
+		gen_expr ctx (block e e.etype);
 	| TWhile (cond,e,Ast.NormalWhile) ->
 		spr ctx "while ";
 		gen_value ctx (parent cond);
 		spr ctx " ";
-		gen_expr ctx (block e);
+		gen_expr ctx (block e e.etype);
 	| TWhile (cond,e,Ast.DoWhile) ->
 		spr ctx "do ";
-		gen_expr ctx (block e);
+		gen_expr ctx (block e e.etype);
 		spr ctx " while";
 		gen_value ctx (parent cond);
 	| TObjectDecl fields ->
@@ -924,17 +941,17 @@ and gen_expr ctx e =
 		newline ctx;
 		print ctx "let %s:%s = %s.next()" (s_ident v.v_name) (type_str ctx v.v_type e.epos) tmp;
 		newline ctx;
-		gen_expr ctx (block e);
+		gen_expr ctx (block e e.etype);
 		lup();
 		newline ctx;
 		spr ctx "}";
-	| TTry (e,catchs) ->
+	| TTry (te,catchs) ->
 		spr ctx "{";
 		let tblock = open_block ctx in
 		soft_newline ctx;
 		let tmp = gen_local ctx "err" in
 		print ctx "let %s = do task::try " tmp;
-		gen_expr ctx (block e);
+		gen_expr ctx (block te e.etype);
 		spr ctx ";";
 		soft_newline ctx;
 		let mto = ref false in
@@ -988,7 +1005,7 @@ and gen_expr ctx e =
 		| Some e ->
 			soft_newline ctx;
 			spr ctx "_ => ";
-			gen_block ctx e;
+			gen_expr ctx (block e e.etype);
 		);
 		bend();
 		soft_newline ctx;
@@ -1072,7 +1089,7 @@ and gen_value ctx e =
 		newline ctx;
 		let rec loop = function
 			| [] ->
-				spr ctx "None";
+				spr ctx (default_value ctx e.etype e.epos);
 			| [ne] ->
 				match_type ctx ne e.etype;
 			| e :: l ->
@@ -1088,12 +1105,12 @@ and gen_value ctx e =
 		spr ctx "if ";
 		unwrap ctx (parent cond);
 		spr ctx " ";
-		gen_value ctx (block e);
+		gen_value ctx (block e e.etype);
 		(match eelse with
 		| None -> ()
 		| Some ee ->
 			spr ctx " else ";
-			gen_value ctx (block ee));
+			gen_value ctx (block ee e.etype));
 	| TSwitch (cond,cases,def) ->
 		gen_expr ctx (mk (TSwitch (cond,
 			List.map (fun (e1,e2) -> (e1,e2)) cases,
@@ -1105,14 +1122,14 @@ and gen_value ctx e =
 			match def with None -> None | Some e -> Some e
 		)) e.etype e.epos);
 	| TTry (b,catchs) ->
-		gen_expr ctx (mk (TTry (block (b),
-			List.map (fun (v,e) -> v, block e) catchs
+		gen_expr ctx (mk (TTry (block b e.etype,
+			List.map (fun (v,e) -> v, block e e.etype) catchs
 		)) e.etype e.epos);
 	| TBinop (Ast.OpEq, e, {eexpr=TConst(TNull)}) when is_nullable e.etype ->
-		gen_expr ctx e;
+		gen_value ctx e;
 		spr ctx ".is_none()";
 	| TBinop (Ast.OpNotEq, e, {eexpr=TConst(TNull)}) when is_nullable e.etype ->
-		gen_expr ctx e;
+		gen_value ctx e;
 		spr ctx ".is_some()";
 	| TBinop (op,e1,e2) ->
 		(match op with
@@ -1122,21 +1139,19 @@ and gen_value ctx e =
 			soft_newline ctx;
 			gen_value ctx e1;
 			print ctx " %s " (Ast.s_binop op);
-			if is_nullable e1.etype then (
-				wrap ctx e2;
-			) else (
-				unwrap ctx e2;
-			);
+			match_type ctx e2 e1.etype;
 			newline ctx;
 			gen_value ctx e1;
 			temp();
 			soft_newline ctx;
 			spr ctx "}";
 		| _ ->
+			if is_nullable e.etype then
+				spr ctx "Some";
 			spr ctx "(";
-			gen_value_op ctx e1;
+			gen_value ctx e1;
 			print ctx " %s " (Ast.s_binop op);
-			gen_value_op ctx e2;
+			match_type ctx e2 e1.etype;
 			spr ctx ")";
 		)
 	)
@@ -1251,6 +1266,22 @@ let rec define_getset ctx stat c =
 	| Some (c,_) when not stat -> define_getset ctx stat c
 	| _ -> ()
 
+let generate_min_impl ctx ts =
+	print ctx "impl %s for %s {" (if ctx.path = ([], "lib") then "HxObject" else "lib::HxObject") ts;
+	let impl = open_block ctx in
+	newline ctx;
+	spr ctx "pub fn toString(&self) -> Option<@str> {";
+	let func = open_block ctx in
+	newline ctx;
+	spr ctx "return Some(self.to_str().to_managed())";
+	func();
+	newline ctx;
+	spr ctx "}";
+	impl();
+	newline ctx;
+	spr ctx "}";
+	newline ctx
+
 let generate_obj_impl ctx c =
 	ctx.curclass <- c;
 	ctx.local_types <- List.map snd c.cl_types;
@@ -1264,6 +1295,26 @@ let generate_obj_impl ctx c =
 	print ctx "impl%s %s for %s%s {" params (if ctx.path = ([], "lib") then "HxObject" else "lib::HxObject") full_path params;
 	let impl = open_block ctx in
 	newline ctx;
+	let tostrf = ref false in
+	List.iter (fun cf ->
+		(match cf with
+		| { cf_name = "toString"; cf_type = TFun([], TInst({ cl_path = ([], "String") }, []))} ->
+			tostrf := true;
+		| _ -> ();
+		);
+	) obj_fields;
+	newline ctx;
+	spr ctx "pub fn toString(&self) -> Option<@str> {";
+	let tostr = open_block ctx in
+	newline ctx;
+	if !tostrf then (
+		spr ctx "return self.toString()";
+	) else (
+		print ctx "return Some(@\"%s\")" (snd c.cl_path);
+	);
+	tostr();
+	newline ctx;
+	spr ctx "}";
 	if (has_feature ctx "Reflect.field") then (
 		newline ctx;
 		spr ctx "pub fn __get_field(&self, &field:str)->Option<@HxObject> {";
@@ -1353,34 +1404,6 @@ let generate_obj_impl ctx c =
 	impl();
 	newline ctx;
 	spr ctx "}";
-	if not c.cl_extern then (
-		newline ctx;
-		let tostrf = ref false in
-		List.iter (fun cf ->
-			(match cf with
-			| { cf_name = "toString"; cf_type = TFun([], TInst({ cl_path = ([], "String") }, []))} ->
-				tostrf := true;
-			| _ -> ();
-			);
-		) obj_fields;
-		print ctx "impl%s ToStr for %s%s {" params full_path params;
-		let impl = open_block ctx in
-		newline ctx;
-		spr ctx "pub fn to_str(&self) -> ~str {";
-		let tostr = open_block ctx in
-		newline ctx;
-		if !tostrf then (
-			spr ctx "return ~(*(self.toString()))";
-		) else (
-			print ctx "return ~\"%s\"" (snd c.cl_path);
-		);
-		tostr();
-		newline ctx;
-		spr ctx "}";
-		impl();
-		newline ctx;
-		spr ctx "}";
-	);
 	newline ctx
 
 let generate_class ctx c =
@@ -1434,7 +1457,7 @@ let generate_class ctx c =
 				ctx.constructor_block <- false;
 		);
 		cl();
-		newline ctx;
+		soft_newline ctx;
 		print ctx "}";
 		newline ctx;
 	);
@@ -1532,41 +1555,41 @@ let generate_base_object ctx com =
 	spr ctx "pub trait HxObject {";
 	let trait = open_block ctx in
 	newline ctx;
+	spr ctx "pub fn toString(&self) -> Option<@str>";
 	if has_feature ctx "Type.getClassName" then (
-		spr ctx "pub fn __name() -> Option<@str>";
 		newline ctx;
+		spr ctx "pub fn __name() -> Option<@str>";
 	);
 	if has_feature ctx "Reflect.field" then (
-		spr ctx "pub fn __field(&self, field:@str) -> Option<HxObject>";
 		newline ctx;
+		spr ctx "pub fn __field(&self, field:@str) -> Option<HxObject>";
 	);
 	if has_feature ctx "Reflect.setField" then (
-		spr ctx "pub fn __set_field(&mut self, field:@str, value:Option<@HxObject>) -> Option<@HxObject>";
 		newline ctx;
+		spr ctx "pub fn __set_field(&mut self, field:@str, value:Option<@HxObject>) -> Option<@HxObject>";
 	);
 	trait();
-	spr ctx "}";
 	newline ctx;
+	spr ctx "}";
 	List.iter(fun t ->
 		match t with
-		| TClassDecl c ->
-			if c.cl_extern && not (is_package (snd c.cl_path)) && not (Meta.has Meta.NativeGen c.cl_meta) && Meta.has Meta.Native c.cl_meta then (
-				let c = (match c.cl_path with
-					| (pack,name) -> { c with cl_path = (pack,protect name) }
-				) in
-				generate_obj_impl ctx c
-			)
+		| TClassDecl c when c.cl_extern && not (is_package (snd c.cl_path)) && not (Meta.has Meta.NativeGen c.cl_meta) && Meta.has Meta.Native c.cl_meta ->
+			let c = (match c.cl_path with
+				| (pack,name) -> { c with cl_path = (pack,protect name) }
+			) in
+			generate_obj_impl ctx c
 		| _ -> ()
 	) com.types;
+	let core_types = ["i32";"i64";"f32";"f64"] in
+	List.iter(generate_min_impl ctx) core_types;
 	newline ctx
 
 let generate_main ctx com inits =
 	spr ctx "fn main() {";
 	let mn = open_block ctx in
-	newline ctx;
 	List.iter (fun init ->
-		gen_expr ctx init;
 		newline ctx;
+		gen_expr ctx init;
 	) inits;
 	mn();
 	newline ctx;
