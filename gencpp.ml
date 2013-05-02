@@ -3535,6 +3535,15 @@ let gen_extern_class common_ctx class_def file_info =
       let override = if (is_override class_def f.cf_name ) then "override " else "" in
 
 		output ("\t" ^ (if stat then "static " else "") ^ (if f.cf_public then "public " else "") );
+      let s_access mode op name = match mode with
+         | AccNormal -> "default"
+         | AccNo -> "null"
+         | AccNever -> "never"
+         | AccResolve -> "resolve"
+         | AccCall -> op ^ "_" ^ name
+         | AccInline	-> "default"
+         | AccRequire (n,_) -> "require " ^ n
+      in
       (match f.cf_kind, f.cf_name with
 	   | Var { v_read = AccInline; v_write = AccNever },_ ->
            (match f.cf_expr with Some expr ->
@@ -3543,7 +3552,7 @@ let gen_extern_class common_ctx class_def file_info =
               gen_expression ctx true expr;
            | _ -> ()  )
 	   | Var { v_read = AccNormal; v_write = AccNormal },_ -> output ("var " ^ f.cf_name ^ ":" ^ (s_type f.cf_type))
-	   | Var v,_ -> output ("var " ^ f.cf_name ^ "(" ^ (s_access v.v_read) ^ "," ^ (s_access v.v_write) ^ "):" ^ (s_type f.cf_type))
+	   | Var v,_ -> output ("var " ^ f.cf_name ^ "(" ^ (s_access v.v_read "get" f.cf_name) ^ "," ^ (s_access v.v_write "set" f.cf_name) ^ "):" ^ (s_type f.cf_type))
 	   | Method _, "new" -> output ("function new(" ^ (args f.cf_type) ^ "):Void")
 	   | Method MethDynamic, _  -> output ("dynamic function " ^ f.cf_name ^ (params f.cf_params) ^ "(" ^ (args f.cf_type) ^ "):" ^ (ret f.cf_type) )
 	   | Method _, _  -> output (override ^ "function " ^ f.cf_name ^ (params f.cf_params) ^ "(" ^ (args f.cf_type) ^ "):" ^ (ret f.cf_type) )
@@ -3557,7 +3566,7 @@ let gen_extern_class common_ctx class_def file_info =
 	output ( "@:include extern " ^ (if c.cl_private then "private " else "") ^ (if c.cl_interface then "interface" else "class")
               ^ " " ^ (snd path) ^ (params c.cl_types) );
 	(match c.cl_super with None -> () | Some (c,pl) -> output (" extends " ^  (s_type (TInst (c,pl)))));
-	List.iter (fun (c,pl) -> output ( " implements " ^ (s_type (TInst (c,pl))))) c.cl_implements;
+	List.iter (fun (c,pl) -> output ( " implements " ^ (s_type (TInst (c,pl))))) (real_interfaces c.cl_implements);
 	(match c.cl_dynamic with None -> () | Some t -> output (" implements Dynamic<" ^ (s_type t) ^ ">"));
 	(match c.cl_array_access with None -> () | Some t -> output (" implements ArrayAccess<" ^ (s_type t) ^ ">"));
 	output "{\n";
