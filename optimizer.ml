@@ -1021,7 +1021,7 @@ let inline_constructors ctx e =
 							())
 				| _ -> ()
 			) vl
-		| TField ({ eexpr = TLocal _ },_) ->
+		| TField ({ eexpr = TLocal _ },FInstance (_,{ cf_kind = Var _ })) ->
 			()
 		| TLocal v when v.v_id < 0 ->
 			v.v_id <- -v.v_id;
