@@ -1,17 +1,20 @@
 import rust.StdTypes;
-class Test {
-	var value:Null<Int>;
-	function new() {
-		value = null;
-	}
-	static function assert(v:Bool, ?msg:String):Void {
-		if(!v)
-			throw msg;
+using StringTools;
+interface STest {
+
+}
+class Test<V:STest> implements STest {
+	var value:V;
+	public function new(v:V) {
+		value = v;
 	}
 	public static function main() {
-		var c = new Test();
-		c.value = 67 % 2;
-		c.value = Std.int(c.value / 0.2);
-		assert(c.value == 5);
+		var ot = new Test(null);
+		var t:Relation = {id: "Goodbye, world!", value: 23};
+		Sys.println("hello, world!"+t.value);
 	}
+}
+typedef Relation = {
+	id:String,
+	value:Int
 }
