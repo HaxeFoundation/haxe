@@ -44,7 +44,6 @@ exception WithTypeError of unify_error list * pos
 type access_kind =
 	| AKNo of string
 	| AKExpr of texpr
-	| AKField of texpr * tclass_field * tfield_access
 	| AKSet of texpr * t * tclass_field
 	| AKInline of texpr * tclass_field * tfield_access * t
 	| AKMacro of texpr * tclass_field
@@ -695,7 +694,7 @@ let make_call ctx e params t p =
 let rec acc_get ctx g p =
 	match g with
 	| AKNo f -> error ("Field " ^ f ^ " cannot be accessed for reading") p
-	| AKExpr e | AKField (e,_,_) -> e
+	| AKExpr e -> e
 	| AKSet _ | AKAccess _ -> assert false
 	| AKUsing (et,_,_,e) ->
 		(* build a closure with first parameter applied *)
@@ -776,7 +775,7 @@ let get_this ctx p =
 		mk (TConst TThis) ctx.tthis p
 
 let field_access ctx mode f fmode t e p =
-	let fnormal() = AKField ((mk (TField (e,fmode)) t p),f,fmode) in
+	let fnormal() = AKExpr (mk (TField (e,fmode)) t p) in
 	let normal() =
 		match follow e.etype with
 		| TAnon a ->
@@ -784,7 +783,7 @@ let field_access ctx mode f fmode t e p =
 			| EnumStatics en ->
 				let c = (try PMap.find f.cf_name en.e_constrs with Not_found -> assert false) in
 				let fmode = FEnum (en,c) in
-				AKField ((mk (TField (e,fmode)) t p),f, fmode)
+				AKExpr (mk (TField (e,fmode)) t p)
 			| _ -> fnormal())
 		| _ -> fnormal()
 	in
@@ -1389,11 +1388,11 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 	match op with
 	| OpAssign ->
 		let e1 = type_access ctx (fst e1) (snd e1) MSet in
-		let tt = (match e1 with AKNo _ | AKInline _ | AKUsing _ | AKMacro _ | AKAccess _ -> Value | AKSet(_,t,_) -> WithType t | AKExpr e | AKField (e,_,_) -> WithType e.etype) in
+		let tt = (match e1 with AKNo _ | AKInline _ | AKUsing _ | AKMacro _ | AKAccess _ -> Value | AKSet(_,t,_) -> WithType t | AKExpr e -> WithType e.etype) in
 		let e2 = type_expr ctx e2 tt in
 		(match e1 with
 		| AKNo s -> error ("Cannot access field or identifier " ^ s ^ " for writing") p
-		| AKExpr e1 | AKField (e1,_,_) ->
+		| AKExpr e1  ->
 			unify ctx e2.etype e1.etype p;
 			check_assign ctx e1;
 			(match e1.eexpr , e2.eexpr with
@@ -1428,7 +1427,7 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 	| OpAssignOp op ->
 		(match type_access ctx (fst e1) (snd e1) MSet with
 		| AKNo s -> error ("Cannot access field or identifier " ^ s ^ " for writing") p
-		| AKExpr e | AKField (e,_,_) ->
+		| AKExpr e ->
 			let eop = type_binop ctx op e1 e2 true p in
 			(match eop.eexpr with
 			| TBinop (_,_,e2) ->
@@ -1802,7 +1801,7 @@ and type_unop ctx op flag e p =
 			make e
 	in
 	match acc with
-	| AKExpr e | AKField (e,_,_) -> access e
+	| AKExpr e -> access e
 	| AKInline _ | AKUsing _ when not set -> access (acc_get ctx acc p)
 	| AKNo s ->
 		error ("The field or identifier " ^ s ^ " is not accessible for " ^ (if set then "writing" else "reading")) p
@@ -3187,7 +3186,7 @@ and build_call ctx acc el (with_type:with_type) p =
 			(match acc with
 			| AKMacro _ ->
 				build_call ctx acc (Interp.make_ast eparam :: el) with_type p
-			| AKExpr _ | AKField _ | AKInline _ | AKUsing _ ->
+			| AKExpr _ | AKInline _ | AKUsing _ ->
 				let params, tfunc = (match follow et.etype with
 					| TFun ( _ :: args,r) -> unify_call_params ctx (Some (TInst(cl,[]),ef)) el args r p (ef.cf_kind = Method MethInline)
 					| _ -> assert false
@@ -3235,19 +3234,17 @@ and build_call ctx acc el (with_type:with_type) p =
 	| AKNo _ | AKSet _ | AKAccess _ ->
 		ignore(acc_get ctx acc p);
 		assert false
-	| AKExpr e | AKField (e,_,_) ->
+	| AKExpr e ->
 		let el , t, e = (match follow e.etype with
 		| TFun (args,r) ->
 			let fopts = (match acc with
-				| AKField (e,f,_) ->
-					(match e.eexpr with
-					| TField (e,_) -> fopts e.etype f
-					| _ -> None)
+				| AKExpr {eexpr = TField(e, (FStatic (_,f) | FInstance(_,f)))} ->
+					fopts e.etype f
 				| _ ->
 					None
 			) in
 			(match fopts,acc with
-				| Some (_,cf),AKField({eexpr = TField(e,_)},_,_) when Meta.has Meta.Generic cf.cf_meta ->
+				| Some (_,cf),AKExpr({eexpr = TField(e,_)}) when Meta.has Meta.Generic cf.cf_meta ->
 					type_generic_function ctx (e,cf) el p
 				| _ ->
 					let el, tfunc = unify_call_params ctx fopts el args r p false in
