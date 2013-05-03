@@ -5559,7 +5559,7 @@ struct
   let apply_assign_block assign_fun elist =
     let rec assign acc elist =
       match elist with
-        | [] -> assert false
+        | [] -> acc
         | last :: [] ->
           (assign_fun last) :: acc
         | hd :: tl ->
@@ -5569,6 +5569,7 @@ struct
 
   let mk_get_block assign_fun e =
     match e.eexpr with
+      | TBlock [] -> e
       | TBlock (el) ->
         { e with eexpr = TBlock(apply_assign_block assign_fun el) }
       | _ ->
