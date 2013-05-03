@@ -1,41 +1,48 @@
 pub trait HxEnum {
-	}
+}
 pub trait HxObject {
 	pub fn toString(&self) -> Option<~str>;
 }
 impl<T> HxObject for BaseIter<T> {
+	
 	pub fn toString(&self) -> Option<~str> {
-		return Some(~"BaseIter");
+		return Some(~"BaseIter")
 	}
 }
 impl HxObject for Clone {
+	
 	pub fn toString(&self) -> Option<~str> {
-		return Some(~"Clone");
+		return Some(~"Clone")
 	}
 }
 impl HxObject for os::Pipe {
+	
 	pub fn toString(&self) -> Option<~str> {
-		return Some(~"Pipe");
+		return Some(~"Pipe")
 	}
 }
 impl HxObject for path::Path {
+	
 	pub fn toString(&self) -> Option<~str> {
-		return Some(~"Path");
+		return Some(~"Path")
 	}
 }
 impl HxObject for io::ReaderUtil {
+	
 	pub fn toString(&self) -> Option<~str> {
-		return Some(~"ReaderUtil");
+		return Some(~"ReaderUtil")
 	}
 }
 impl HxObject for io::Reader {
+	
 	pub fn toString(&self) -> Option<~str> {
-		return Some(~"Reader");
+		return Some(~"Reader")
 	}
 }
 impl HxObject for io::Writer {
+	
 	pub fn toString(&self) -> Option<~str> {
-		return Some(~"Writer");
+		return Some(~"Writer")
 	}
 }
 impl HxObject for i32 {
@@ -43,7 +50,22 @@ impl HxObject for i32 {
 		return Some(self.to_str());
 	}
 }
+impl HxObject for i8 {
+	pub fn toString(&self) -> Option<~str> {
+		return Some(self.to_str());
+	}
+}
 impl HxObject for i64 {
+	pub fn toString(&self) -> Option<~str> {
+		return Some(self.to_str());
+	}
+}
+impl HxObject for ui32 {
+	pub fn toString(&self) -> Option<~str> {
+		return Some(self.to_str());
+	}
+}
+impl HxObject for ui8 {
 	pub fn toString(&self) -> Option<~str> {
 		return Some(self.to_str());
 	}
@@ -63,3 +85,4 @@ impl HxObject for ~str {
 		return Some(self.to_str());
 	}
 }
+

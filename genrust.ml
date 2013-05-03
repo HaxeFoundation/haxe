@@ -69,7 +69,7 @@ let is_special_compare e1 e2 =
 
 let protect name =
 	match name with
-	| "lib::HxObject" | "HxEnum" -> "_" ^ name
+	| "HxObject" | "HxEnum" -> "_" ^ name
 	| _ -> name
 
 let type_path (p, s) =
@@ -102,7 +102,8 @@ let reserved =
 	(* "each", "label" : removed (actually allowed in locals and fields accesses) *)
 
 let s_ident n =
-	if Hashtbl.mem reserved n then (if n = "_" then "z" else "_") ^ n else n
+	let nn = (if Hashtbl.mem reserved n then (if n = "_" then "z" else "_") ^ n else n) in
+	if String.sub nn 0 1 = "$" then String.sub nn 1 (String.length nn - 1) else nn
 
 let rec create_dir acc = function
 	| [] -> ()
@@ -160,7 +161,7 @@ let unsupported p = error "This expression cannot be generated into Rust" p
 let newline ctx =
 	let rec loop p =
 		match Buffer.nth ctx.buf p with
-		| '}' | '{' | ':' -> print ctx "\n%s" ctx.tabs
+		| ':' | '{' | '(' -> print ctx "\n%s" ctx.tabs
 		| '\t' | ' ' -> loop (p - 1)
 		| '\n' -> ()
 		| _ -> print ctx ";\n%s" ctx.tabs
@@ -333,6 +334,9 @@ let rec default_value ctx t p =
 	| TAbstract ({ a_impl = Some _ } as a,pl) ->
 		default_value ctx (apply_params a.a_types pl a.a_this) p
 	| TAbstract({ a_path = ([], "Int") }, _) -> "0i32"
+	| TAbstract({ a_path = ([], "Int8") }, _) -> "0i8"
+	| TAbstract({ a_path = ([], "Int16") }, _) -> "0i16"
+	| TAbstract({ a_path = ([], "Char16") }, _) -> "'\\0'"
 	| TAbstract({ a_path = ([], "UInt") }, _) -> "0ui32"
 	| TAbstract({ a_path = ([], "Float") }, _) -> "f64::NaN"
 	| TAbstract({ a_path = ([], "Single") }, _) -> "f32::NaN"
@@ -413,7 +417,7 @@ let generate_resources ctx infos =
 		let ctx = init infos ([],"resources") in
 		spr ctx "pub fn get(name:~str) -> Option<~str> {";
 		let getfn = open_block ctx in
-		newline ctx;
+		soft_newline ctx;
 		spr ctx "return match(name) {";
 		let mtc = open_block ctx in
 		newline ctx;
@@ -428,6 +432,12 @@ let generate_resources ctx infos =
 		newline ctx;
 		close ctx;
 	end
+
+let class_path ctx c =
+	if c.cl_extern then
+		type_path c.cl_path
+	else
+		s_path ctx c.cl_path
 
 let gen_constant ctx p = function
 	| TInt i -> print ctx "%ldi32" i
@@ -704,7 +714,7 @@ and gen_expr ctx e =
 	| TField (e, FEnum(m, f)) ->
 		print ctx "%s::%s" (s_path ctx m.e_path) f.ef_name;
 	| TField (e, FStatic(c, f)) ->
-		spr ctx (s_path ctx c.cl_path);
+		spr ctx (class_path ctx c);
 		gen_field_access ctx e.etype f.cf_name
 	| TField (e,s) ->
 		unwrap ctx e;
@@ -766,10 +776,6 @@ and gen_expr ctx e =
 		bend();
 		newline ctx;
 		spr ctx "}";
-		if String.length ctx.tabs > 1 then
-			newline ctx
-		else
-			soft_newline ctx
 	| TFunction f ->
 		if (is_nullable e.etype) then (	
 			spr ctx "Some(@";
@@ -824,7 +830,7 @@ and gen_expr ctx e =
 		concat ctx ", " (gen_value ctx) el;
 		spr ctx "))";
 	| TNew (c,params,el) ->
-		print ctx "%s::new(" (s_path ctx c.cl_path);
+		print ctx "%s::new(" (class_path ctx c);
 		concat ctx "," (gen_value ctx) el;
 		spr ctx ")"
 	| TIf (cond,ie,eelse) ->
@@ -1058,7 +1064,7 @@ and gen_value ctx e =
 	| TBlock el ->
 		spr ctx "{";
 		let bl = open_block ctx in
-		newline ctx;
+		soft_newline ctx;
 		let rec loop = function
 			| [] ->
 				spr ctx (default_value ctx e.etype e.epos);
@@ -1071,7 +1077,7 @@ and gen_value ctx e =
 		in
 		loop el;
 		bl();
-		soft_newline ctx;
+		newline ctx;
 		spr ctx "}";
 	| TIf (cond,e,eelse) ->
 		spr ctx "if ";
@@ -1241,18 +1247,18 @@ let rec define_getset ctx stat c =
 let generate_min_impl ctx ts =
 	print ctx "impl %s for %s {" (if ctx.path = ([], "lib") then "HxObject" else "lib::HxObject") ts;
 	let impl = open_block ctx in
-	newline ctx;
+	soft_newline ctx;
 	spr ctx "pub fn toString(&self) -> Option<~str> {";
 	let func = open_block ctx in
-	newline ctx;
+	soft_newline ctx;
 	spr ctx "return Some(self.to_str())";
 	func();
 	newline ctx;
 	spr ctx "}";
 	impl();
-	newline ctx;
+	soft_newline ctx;
 	spr ctx "}";
-	newline ctx
+	soft_newline ctx
 
 let generate_obj_impl ctx c =
 	ctx.curclass <- c;
@@ -1266,7 +1272,7 @@ let generate_obj_impl ctx c =
 	ctx.in_interface <- c.cl_interface;
 	print ctx "impl%s %s for %s%s {" params (if ctx.path = ([], "lib") then "HxObject" else "lib::HxObject") full_path params;
 	let impl = open_block ctx in
-	newline ctx;
+	soft_newline ctx;
 	let tostrf = ref false in
 	List.iter (fun cf ->
 		(match cf with
@@ -1275,20 +1281,20 @@ let generate_obj_impl ctx c =
 		| _ -> ();
 		);
 	) obj_fields;
-	newline ctx;
+	soft_newline ctx;
 	spr ctx "pub fn toString(&self) -> Option<~str> {";
 	let tostr = open_block ctx in
-	newline ctx;
+	soft_newline ctx;
 	if !tostrf then (
 		spr ctx "return self.toString()";
 	) else (
 		print ctx "return Some(~\"%s\")" (snd c.cl_path);
 	);
 	tostr();
-	newline ctx;
+	soft_newline ctx;
 	spr ctx "}";
 	if (has_feature ctx "Reflect.field") then (
-		newline ctx;
+		soft_newline ctx;
 		spr ctx "pub fn __get_field(&self, &field:str)->Option<@HxObject> {";
 		let fn = open_block ctx in
 		soft_newline ctx;
@@ -1318,11 +1324,11 @@ let generate_obj_impl ctx c =
 		spr ctx "}";
 	);
 	if (has_feature ctx "Reflect.setField") then (
-		newline ctx;
+		soft_newline ctx;
 		spr ctx "pub fn __set_field(&mut self, field:~str, value:Option<~HxObject>) {";
 		let fn = open_block ctx in
-		soft_newline ctx;
 		if ((List.length obj_fields) > 0) then (
+			soft_newline ctx;
 			spr ctx "match(field) {";
 			let mtc = open_block ctx in
 			List.iter(fun f ->
@@ -1336,24 +1342,24 @@ let generate_obj_impl ctx c =
 			spr ctx "}"
 		);
 		fn();
-		newline ctx;
+		soft_newline ctx;
 		spr ctx "}";
 	);
 	if (has_feature ctx "Reflect.fields") then (
-		newline ctx;
+		soft_newline ctx;
 		spr ctx "pub fn __fields(&mut self) -> Option<~[~str]> {";
 		let fn = open_block ctx in
-		newline ctx;
+		soft_newline ctx;
 		spr ctx "return __instance_fields()";
 		fn();
 		newline ctx;
 		spr ctx "}";
 	);
 	if (has_feature ctx "Type.getInstanceFields") then (
-		newline ctx;
+		soft_newline ctx;
 		spr ctx "pub fn __instance_fields() -> Option<~[~str]> {";
 		let fn = open_block ctx in
-		newline ctx;
+		soft_newline ctx;
 		spr ctx "return Some(~[";
 		concat ctx ", " (fun f ->
 			print ctx "~\"%s\"" f.cf_name;
@@ -1364,19 +1370,19 @@ let generate_obj_impl ctx c =
 		spr ctx "}";
 	);
 	if (has_feature ctx "Type.getClassName") then (
-		newline ctx;
+		soft_newline ctx;
 		spr ctx "pub fn __name() -> Option<~str> {";
 		let fn = open_block ctx in
-		newline ctx;
+		soft_newline ctx;
 		print ctx "return Some(~\"%s\")" (s_type_path c.cl_path);
 		fn();
 		newline ctx;
 		spr ctx "}";
 	);
 	impl();
-	newline ctx;
+	soft_newline ctx;
 	spr ctx "}";
-	newline ctx
+	soft_newline ctx
 
 let generate_class ctx c =
 	ctx.curclass <- c;
@@ -1409,7 +1415,7 @@ let generate_class ctx c =
 		soft_newline ctx;
 		spr ctx "}";
 	);
-	newline ctx;
+	soft_newline ctx;
 	List.iter (generate_field ctx true) static_fields;
 	if ((c.cl_constructor <> None) || ((List.length obj_methods) > 0) || (List.length c.cl_ordered_statics) > 0) && not c.cl_interface then (
 		print ctx "pub impl%s %s%s {" params path params;
@@ -1431,7 +1437,7 @@ let generate_class ctx c =
 		cl();
 		soft_newline ctx;
 		print ctx "}";
-		newline ctx;
+		soft_newline ctx;
 	);
 	if c.cl_interface then (
 		print ctx "pub trait%s %s%s {" params path params;
@@ -1442,7 +1448,7 @@ let generate_class ctx c =
 		tr();
 		newline ctx;
 		spr ctx "}";
-		newline ctx;
+		soft_newline ctx;
 	);
 	List.iter (fun (iface, iface_params) ->
 		let tparams = s_tparams ctx iface_params c.cl_pos in
@@ -1458,9 +1464,9 @@ let generate_class ctx c =
 		) c.cl_ordered_fields in
 		List.iter(generate_field ctx false) iface_fields;
 		i();
-		newline ctx;
+		soft_newline ctx;
 		spr ctx "}";
-		newline ctx;
+		soft_newline ctx;
 	) c.cl_implements;
 	generate_obj_impl ctx c;
 	()
@@ -1491,42 +1497,40 @@ let generate_enum ctx e =
 	cl();
 	soft_newline ctx;
 	spr ctx "}";
-	newline ctx
+	soft_newline ctx
 
 let generate_base_enum ctx com =
 	spr ctx "pub trait HxEnum {";
 	let trait = open_block ctx in
-	newline ctx;
 	if has_feature ctx "Type.getEnumName" then (
-		spr ctx "pub fn __name() -> Option<~str>";
 		newline ctx;
+		spr ctx "pub fn __name() -> Option<~str>";
 	);
 	if has_feature ctx "Type.createEnumIndex" then (
-		spr ctx "pub fn __get_index(ind:i32) -> Self";
 		newline ctx;
+		spr ctx "pub fn __get_index(ind:i32) -> Self";
 	);
 	if has_feature ctx "Type.enumParameters" then (
-		spr ctx "pub fn __parameters(&self) -> Option<~[~HxObject]>";
 		newline ctx;
+		spr ctx "pub fn __parameters(&self) -> Option<~[~HxObject]>";
 	);
 	if has_feature ctx "Type.enumIndex" then (
-		spr ctx "pub fn __index(&self) -> i32";
 		newline ctx;
+		spr ctx "pub fn __index(&self) -> i32";
 	);
 	if has_feature ctx "Type.enumConstructor" then (
-		spr ctx "pub fn __constructor(&self) -> ~str";
 		newline ctx;
+		spr ctx "pub fn __constructor(&self) -> ~str";
 	);
 	trait();
-	newline ctx;
+	soft_newline ctx;
 	spr ctx "}";
-	newline ctx
-
+	soft_newline ctx
 
 let generate_base_object ctx com =
 	spr ctx "pub trait HxObject {";
 	let trait = open_block ctx in
-	newline ctx;
+	soft_newline ctx;
 	spr ctx "pub fn toString(&self) -> Option<~str>";
 	if has_feature ctx "Type.getClassName" then (
 		newline ctx;
@@ -1543,7 +1547,7 @@ let generate_base_object ctx com =
 	trait();
 	newline ctx;
 	spr ctx "}";
-	newline ctx;
+	soft_newline ctx;
 	List.iter(fun t ->
 		match t with
 		| TClassDecl c when c.cl_extern && not (is_package (snd c.cl_path)) && not (Meta.has Meta.NativeGen c.cl_meta) && Meta.has Meta.Native c.cl_meta ->
@@ -1553,9 +1557,9 @@ let generate_base_object ctx com =
 			generate_obj_impl ctx c
 		| _ -> ()
 	) com.types;
-	let core_types = ["i32";"i64";"f32";"f64";"~str"] in
+	let core_types = ["i32";"i8";"i64";"ui32";"ui8";"f32";"f64";"~str"] in
 	List.iter(generate_min_impl ctx) core_types;
-	newline ctx
+	soft_newline ctx
 
 let generate_main ctx com inits =
 	spr ctx "fn main() {";
@@ -1567,7 +1571,7 @@ let generate_main ctx com inits =
 	mn();
 	newline ctx;
 	spr ctx "}";
-	newline ctx
+	soft_newline ctx
 
 let generate com =
 	let infos = {
