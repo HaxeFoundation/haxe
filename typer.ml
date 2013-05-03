@@ -3391,7 +3391,7 @@ let generate ctx =
 				| TField ({ eexpr = TTypeExpr t },name) ->
 					(match t with
 					| TEnumDecl _ -> ()
-					| TAbstractDecl _ -> assert false
+					| TAbstractDecl _ -> ()
 					| TTypeDecl _ -> assert false
 					| TClassDecl c -> walk_static_call p c (field_name name))
 				| _ -> ()
