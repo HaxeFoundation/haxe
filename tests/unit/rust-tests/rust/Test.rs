@@ -11,7 +11,8 @@ pub impl<V> Test<V> {
 			o.insert(~"id", Some(~"Goodbye, world!"));
 			o.insert(~"value", 23i32);
 			Some(~o)
-		};
+		}
+		io::println(Some(Some(~"hello, world!") + (&(t.unwrap().value) as &lib::HxObject).toString()).unwrap());
 	}
 	
 	pub fn new(v: Option<~V>) -> Option<~Test> {

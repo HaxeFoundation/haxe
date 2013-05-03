@@ -324,8 +324,7 @@ let get_params ctx cl_types =
 				match follow t with
 				| TInst(c, _) -> snd c.cl_path ^ (if List.length c.cl_implements <> 0 then
 				":" ^ type_str ctx (match List.hd c.cl_implements with
-					| (oc, ps) -> TInst(oc, ps)
-					| _ -> assert false) ctx.curclass.cl_pos else "")
+					| (oc, ps) -> TInst(oc, ps)) ctx.curclass.cl_pos else "")
 				| _ -> assert false) cl_types)
 			) ^ ">"
 
@@ -585,9 +584,9 @@ and match_type ctx e t =
 		else
 			unwrap ctx e);
 	| a, (TInst({cl_path = ([], "String")}, []) as b) ->
-		spr ctx "(&";
+		spr ctx "(&(";
 		unwrap ctx e;
-		spr ctx " as &lib::HxObject).toString()";
+		spr ctx ") as &lib::HxObject).toString()";
 		if not (is_nullable b) then
 			spr ctx ".unwrap()";
 	| a, b ->
