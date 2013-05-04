@@ -2663,8 +2663,13 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				| Value -> unify_min ctx [e1; e2]
 				| WithType t | WithTypeResume t when (match follow t with TMono _ -> true | _ -> false) -> unify_min ctx [e1; e2]
 				| WithType t | WithTypeResume t ->
-					unify ctx e1.etype t e1.epos;
-					unify ctx e2.etype t e2.epos;
+					begin try
+						unify_raise ctx e1.etype t e1.epos;
+						unify_raise ctx e2.etype t e2.epos;
+					with Error (Unify l,p) -> match with_type with
+						| WithTypeResume _ -> raise (WithTypeError (l,p))
+						| _ -> display_error ctx (error_msg (Unify l)) p
+					end;
 					t
 			in
 			mk (TIf (e,e1,Some e2)) t p)
