@@ -6578,6 +6578,24 @@ struct
     });
 
     add_constructor cl ctor;
+    (* default ctor also *)
+    let ctor = mk_class_field "new" (TFun([],basic.tvoid)) false pos (Method MethNormal) [] in
+    ctor.cf_expr <- Some {
+      eexpr = TFunction {
+        tf_type = basic.tvoid;
+        tf_args = [];
+        tf_expr = {
+          eexpr = TBlock(List.map (fun (f,t) ->
+            { eexpr = TBinop(Ast.OpAssign, mk_this f t,{ eexpr = TArrayDecl([]); etype = t; epos = pos; }); etype = t; epos = pos }
+          ) fields);
+          etype = basic.tvoid;
+          epos = pos;
+        }
+      };
+      etype = ctor.cf_type;
+      epos = pos;
+    };
+    add_constructor cl ctor;
     (* and finally we will return a function that transforms a TObjectDecl into a new DynamicObject() call *)
     let rec loop objdecl acc acc_f =
       match objdecl with
