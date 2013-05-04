@@ -1150,7 +1150,7 @@ class RecordMacros {
 
 	static var isNeko = Context.defined("neko");
 
-	static function buildField( f : Field, fields : Array<Field>, ft : ComplexType ) {
+	static function buildField( f : Field, fields : Array<Field>, ft : ComplexType, rt : ComplexType ) {
 		var p = switch( ft ) {
 		case TPath(p): p;
 		default: return;
@@ -1164,7 +1164,7 @@ class RecordMacros {
 		var pos = f.pos;
 		switch( p.name ) {
 		case "SData":
-			f.kind = FProp("dynamic", "dynamic", ft, null);
+			f.kind = FProp("dynamic", "dynamic", rt, null);
 			f.meta.push( { name : ":data", params : [], pos : f.pos } );
 			f.meta.push( { name : ":isVar", params : [], pos : f.pos } );
 			var meta = [ { name : ":hide", params : [], pos : pos } ];
@@ -1192,7 +1192,7 @@ class RecordMacros {
 			fields.push( { name : "get_" + f.name, pos : pos, meta : meta, access : [APrivate], doc : null, kind : FFun(get) } );
 			fields.push( { name : "set_" + f.name, pos : pos, meta : meta, access : [APrivate], doc : null, kind : FFun(set) } );
 		case "SEnum":
-			f.kind = FProp("dynamic", "dynamic", ft, null);
+			f.kind = FProp("dynamic", "dynamic", rt, null);
 			f.meta.push( { name : ":isVar", params : [], pos : f.pos } );
 			f.meta.push( { name : ":data", params : [], pos : f.pos } );
 			var meta = [ { name : ":hide", params : [], pos : pos } ];
@@ -1221,7 +1221,7 @@ class RecordMacros {
 			fields.push( { name : "get_" + f.name, pos : pos, meta : meta, access : [APrivate], doc : null, kind : FFun(get) } );
 			fields.push( { name : "set_" + f.name, pos : pos, meta : meta, access : [APrivate], doc : null, kind : FFun(set) } );
 		case "SNull", "Null":
-			buildField(f, fields, t);
+			buildField(f, fields, t, rt);
 		}
 	}
 
@@ -1310,7 +1310,7 @@ class RecordMacros {
 			switch( f.kind ) {
 			case FVar(t, _):
 				if( t != null )
-					buildField(f,fields,t);
+					buildField(f,fields,t,t);
 			default:
 			}
 		}
