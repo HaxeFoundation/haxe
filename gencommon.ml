@@ -4386,864 +4386,6 @@ struct
 
 end;;
 
-(* ******************************************* *)
-(* Casts detection v2 *)
-(* ******************************************* *)
-
-(*
-
-  Will detect implicit casts and add TCast for them. Since everything is already followed by follow_all, typedefs are considered a new type altogether
-
-  Types shouldn't be cast if:
-    * When an instance is being coerced to a superclass or to an implemented interface
-    * When anything is being coerced to Dynamic
-
-  edit:
-    As a matter of performance, we will also run the type parameters casts in here. Otherwise the exact same computation would have to be performed twice,
-    with maybe even some loss of information
-
-    * TAnon / TDynamic will call
-    * Type parameter handling will be abstracted
-
-  dependencies:
-    MUST be one of the first called filters, (right after FollowAll), as it needs the AST still mainly untouched
-    This module depends physically on some methods declared on TypeParams. And it must be executed before TypeParams.
-
-*)
-
-module CastDetect =
-struct
-
-  let name = "cast_detect_2"
-
-  let priority = solve_deps name [DBefore TypeParams.priority]
-
-  let get_args t = match follow t with
-    | TFun(args,ret) -> args,ret
-    | _ -> trace (debug_type t); assert false
-
-  let s_path (pack,n) = (String.concat "." (pack @ [n]))
-
-  (*
-    Since this function is applied under native-context only, the type paraters will already be changed
-  *)
-  let map_cls gen also_implements fn super =
-    let rec loop c tl =
-      if c == super then
-        fn c tl
-      else (match c.cl_super with
-        | None -> false
-        | Some (cs,tls) ->
-          let tls = gen.greal_type_param (TClassDecl cs) tls in
-          loop cs (List.map (apply_params c.cl_types tl) tls)
-      ) || (if also_implements then List.exists (fun (cs,tls) ->
-        loop cs (List.map (apply_params c.cl_types tl) tls)
-      ) c.cl_implements else false)
-    in
-    loop
-
-  let follow_dyn t = match follow t with
-    | TMono _ | TLazy _ -> t_dynamic
-    | t -> t
-
-  (*
-    this has a slight change from the type.ml version, in which it doesn't
-    change a TMono into the other parameter
-  *)
-  let rec type_eq gen param a b =
-    if a == b then
-      ()
-    else match follow_dyn (gen.greal_type a) , follow_dyn (gen.greal_type b) with
-    | TEnum (e1,tl1) , TEnum (e2,tl2) ->
-      if e1 != e2 && not (param = EqCoreType && e1.e_path = e2.e_path) then Type.error [cannot_unify a b];
-      List.iter2 (type_eq gen param) tl1 tl2
-    | TAbstract (a1,tl1) , TAbstract (a2,tl2) ->
-      if a1 != a2 && not (param = EqCoreType && a1.a_path = a2.a_path) then Type.error [cannot_unify a b];
-      List.iter2 (type_eq gen param) tl1 tl2
-    | TInst (c1,tl1) , TInst (c2,tl2) ->
-      if c1 != c2 && not (param = EqCoreType && c1.cl_path = c2.cl_path) && (match c1.cl_kind, c2.cl_kind with KExpr _, KExpr _ -> false | _ -> true) then Type.error [cannot_unify a b];
-      List.iter2 (type_eq gen param) tl1 tl2
-    | TFun (l1,r1) , TFun (l2,r2) when List.length l1 = List.length l2 ->
-      (try
-        type_eq gen param r1 r2;
-        List.iter2 (fun (n,o1,t1) (_,o2,t2) ->
-          if o1 <> o2 then Type.error [Not_matching_optional n];
-          type_eq gen param t1 t2
-        ) l1 l2
-      with
-        Unify_error l -> Type.error (cannot_unify a b :: l))
-    | TDynamic a , TDynamic b ->
-      type_eq gen param a b
-    | TAnon a1, TAnon a2 ->
-      (try
-        PMap.iter (fun n f1 ->
-          try
-            let f2 = PMap.find n a2.a_fields in
-            if f1.cf_kind <> f2.cf_kind && (param = EqStrict || param = EqCoreType || not (unify_kind f1.cf_kind f2.cf_kind)) then Type.error [invalid_kind n f1.cf_kind f2.cf_kind];
-            try
-              type_eq gen param f1.cf_type f2.cf_type
-            with
-              Unify_error l -> Type.error (invalid_field n :: l)
-          with
-            Not_found ->
-              if is_closed a2 then Type.error [has_no_field b n];
-              if not (link (ref None) b f1.cf_type) then Type.error [cannot_unify a b];
-              a2.a_fields <- PMap.add n f1 a2.a_fields
-        ) a1.a_fields;
-        PMap.iter (fun n f2 ->
-          if not (PMap.mem n a1.a_fields) then begin
-            if is_closed a1 then Type.error [has_no_field a n];
-            if not (link (ref None) a f2.cf_type) then Type.error [cannot_unify a b];
-            a1.a_fields <- PMap.add n f2 a1.a_fields
-          end;
-        ) a2.a_fields;
-      with
-        Unify_error l -> Type.error (cannot_unify a b :: l))
-    | _ , _ ->
-      if b == t_dynamic && (param = EqRightDynamic || param = EqBothDynamic) then
-        ()
-      else if a == t_dynamic && param = EqBothDynamic then
-        ()
-      else
-        Type.error [cannot_unify a b]
-
-  let type_iseq gen a b =
-    try
-      type_eq gen EqStrict a b;
-      true
-    with
-      Unify_error _ -> false
-
-  (* will return true if both arguments are compatible. If it's not the case, a runtime error is very likely *)
-  let is_cl_related gen cl tl super superl =
-    let is_cl_related cl tl super superl = map_cls gen (gen.guse_tp_constraints || (match cl.cl_kind,super.cl_kind with KTypeParameter _, _ | _,KTypeParameter _ -> false | _ -> true)) (fun _ _ -> true) super cl tl in
-    is_cl_related cl tl super superl || is_cl_related super superl cl tl
-
-
-  let rec is_unsafe_cast gen to_t from_t =
-    match (follow to_t, follow from_t) with
-      | TInst(cl_to, to_params), TInst(cl_from, from_params) ->
-        not (is_cl_related gen cl_from from_params cl_to to_params)
-      | TEnum(e_to, _), TEnum(e_from, _) ->
-        e_to.e_path <> e_from.e_path
-      | TFun _, TFun _ ->
-        (* functions are never unsafe cast by default. This behavior might be changed *)
-        (* with a later AST pass which will run through TFun to TFun casts *)
-        false
-      | TMono _, _
-      | _, TMono _
-      | TDynamic _, _
-      | _, TDynamic _ ->
-        false
-      | TAnon _, _
-      | _, TAnon _ ->
-        (* anonymous are never unsafe also. *)
-        (* Though they will generate a cast, so if this cast is unneeded it's better to avoid them by tweaking gen.greal_type *)
-        false
-      | TAbstract _, _
-      | _, TAbstract _ ->
-        (try
-          unify from_t to_t;
-          false
-        with | Unify_error _ ->
-          try
-            unify to_t from_t; (* still not unsafe *)
-            false
-          with | Unify_error _ ->
-            true)
-      | _ -> true
-
-  let do_unsafe_cast gen from_t to_t e  =
-    let t_path t =
-      match t with
-        | TInst(cl, _) -> cl.cl_path
-        | TEnum(e, _) -> e.e_path
-        | TType(t, _) -> t.t_path
-        | TAbstract(a, _) -> a.a_path
-        | TDynamic _ -> ([], "Dynamic")
-        | _ -> raise Not_found
-    in
-    let do_default () =
-      gen.gon_unsafe_cast to_t e.etype e.epos;
-      mk_cast to_t (mk_cast t_dynamic e)
-    in
-    (* TODO: there really should be a better way to write that *)
-    try
-      if (Hashtbl.find gen.gsupported_conversions (t_path from_t)) from_t to_t then
-        mk_cast to_t e
-      else
-        do_default()
-    with
-      | Not_found ->
-        try
-          if (Hashtbl.find gen.gsupported_conversions (t_path to_t)) from_t to_t then
-            mk_cast to_t e
-          else
-            do_default()
-        with
-          | Not_found -> do_default()
-
-  (* ****************************** *)
-  (* cast handler *)
-  (* decides if a cast should be emitted, given a from and a to type *)
-  (*
-    this function is like a mini unify, without e.g. subtyping, which makes sense
-    at the backend level, since most probably Anons and TInst will have a different representation there
-  *)
-  let rec handle_cast gen e real_to_t real_from_t =
-    let do_unsafe_cast () = do_unsafe_cast gen real_from_t real_to_t { e with etype = real_from_t } in
-    let to_t, from_t = real_to_t, real_from_t in
-
-    let mk_cast t e =
-      match e.eexpr with
-        (* TThrow is always typed as Dynamic, we just need to type it accordingly *)
-        | TThrow _ -> { e with etype = t }
-        | _ -> mk_cast t e
-    in
-
-    let e = { e with etype = real_from_t } in
-    if try fast_eq real_to_t real_from_t with Invalid_argument("List.for_all2") -> false then e else
-    match real_to_t, real_from_t with
-      (* string is the only type that can be implicitly converted from any other *)
-      | TInst( { cl_path = ([], "String") }, []), _ ->
-        mk_cast to_t e
-      | TInst(cl_to, params_to), TInst(cl_from, params_from) ->
-        let ret = ref None in
-        (*
-          this is a little confusing:
-          we are here mapping classes until we have the same to and from classes, applying the type parameters in each step, so we can
-          compare the type parameters;
-
-          If a class is found - meaning that the cl_from can be converted without a cast into cl_to,
-          we still need to check their type parameters.
-        *)
-        ignore (map_cls gen (gen.guse_tp_constraints || (match cl_from.cl_kind,cl_to.cl_kind with KTypeParameter _, _ | _,KTypeParameter _ -> false | _ -> true)) (fun _ tl ->
-          try
-            (* type found, checking type parameters *)
-            List.iter2 (type_eq gen EqStrict) tl params_to;
-            ret := Some e;
-            true
-          with | Unify_error _ ->
-            (* type parameters need casting *)
-            if gen.ghas_tparam_cast_handler then begin
-              (*
-                if we are already handling type parameter casts on other part of code (e.g. RealTypeParameters),
-                we'll just make a cast to indicate that this place needs type parameter-involved casting
-              *)
-              ret := Some (mk_cast to_t e);
-              true
-            end else
-              (*
-                if not, we're going to check if we only need a simple cast,
-                or if we need to first cast into the dynamic version of it
-              *)
-              try
-                List.iter2 (type_eq gen EqRightDynamic) tl params_to;
-                ret := Some (mk_cast to_t e);
-                true
-              with | Unify_error _ ->
-                ret := Some (mk_cast to_t (mk_cast (TInst(cl_to, List.map (fun _ -> t_dynamic) params_to)) e));
-                true
-        ) cl_to cl_from params_from);
-        if is_some !ret then
-          get !ret
-        else if is_cl_related gen cl_from params_from cl_to params_to then
-          mk_cast to_t e
-        else
-          (* potential unsafe cast *)
-          (do_unsafe_cast ())
-      | TMono _, TMono _
-      | TMono _, TDynamic _
-      | TDynamic _, TDynamic _
-      | TDynamic _, TMono _ ->
-        e
-      | TMono _, _
-      | TDynamic _, _
-      | TAnon _, _ when gen.gneeds_box real_from_t ->
-        mk_cast to_t e
-      | TMono _, _
-      | TDynamic _, _ -> e
-      | _, TMono _
-      | _, TDynamic _ -> mk_cast to_t e
-      | TAnon (a_to), TAnon (a_from) ->
-        if a_to == a_from then
-          e
-        else if type_iseq gen to_t from_t then (* FIXME apply unify correctly *)
-          e
-        else
-          mk_cast to_t e
-      | _, TAnon(anon) -> (try
-        let p2 = match !(anon.a_status) with
-        | Statics c -> TInst(c,List.map (fun _ -> t_dynamic) c.cl_types)
-        | EnumStatics e -> TEnum(e, List.map (fun _ -> t_dynamic) e.e_types)
-        | AbstractStatics a -> TAbstract(a, List.map (fun _ -> t_dynamic) a.a_types)
-        | _ -> raise Not_found
-        in
-        let tclass = match get_type gen ([],"Class") with
-        | TAbstractDecl(a) -> a
-        | _ -> assert false in
-        handle_cast gen e real_to_t (gen.greal_type (TAbstract(tclass, [p2])))
-      with | Not_found ->
-        mk_cast to_t e)
-      | TAbstract (a_to, _), TAbstract(a_from, _) when a_to == a_from ->
-        e
-      | TAbstract _, _
-      | _, TAbstract _ ->
-        (try
-          unify from_t to_t;
-          mk_cast to_t e
-        with | Unify_error _ ->
-          try
-            unify to_t from_t;
-            mk_cast to_t e
-          with | Unify_error _ ->
-            do_unsafe_cast())
-      | TEnum(e_to, []), TEnum(e_from, []) ->
-        if e_to == e_from then
-          e
-        else
-          (* potential unsafe cast *)
-          (do_unsafe_cast ())
-      | TEnum(e_to, params_to), TEnum(e_from, params_from) when e_to.e_path = e_from.e_path ->
-        (try
-            List.iter2 (type_eq gen (if gen.gallow_tp_dynamic_conversion then EqRightDynamic else EqStrict)) params_from params_to;
-            e
-          with
-            | Unify_error _ -> do_unsafe_cast ()
-        )
-      | TEnum(en, params_to), TInst(cl, params_from)
-        | TInst(cl, params_to), TEnum(en, params_from) ->
-          (* this is here for max compatibility with EnumsToClass module *)
-        if en.e_path = cl.cl_path && en.e_extern then begin
-          (try
-            List.iter2 (type_eq gen (if gen.gallow_tp_dynamic_conversion then EqRightDynamic else EqStrict)) params_from params_to;
-            e
-          with
-            | Invalid_argument("List.iter2") ->
-              (*
-                this is a hack for RealTypeParams. Since there is no way at this stage to know if the class is the actual
-                EnumsToClass derived from the enum, we need to imply from possible ArgumentErrors (because of RealTypeParams interfaces),
-                that they would only happen if they were a RealTypeParams created interface
-              *)
-              e
-            | Unify_error _ -> do_unsafe_cast ()
-          )
-        end else
-          do_unsafe_cast ()
-      | TType(t_to, params_to), TType(t_from, params_from) when t_to == t_from ->
-        if gen.gspecial_needs_cast real_to_t real_from_t then
-          (try
-            List.iter2 (type_eq gen (if gen.gallow_tp_dynamic_conversion then EqRightDynamic else EqStrict)) params_from params_to;
-            e
-          with
-            | Unify_error _ -> do_unsafe_cast ()
-          )
-        else
-          e
-      | TType(t_to, _), TType(t_from,_) ->
-        if gen.gspecial_needs_cast real_to_t real_from_t then
-          mk_cast to_t e
-        else
-          e
-      | TType _, _ when gen.gspecial_needs_cast real_to_t real_from_t ->
-        mk_cast to_t e
-      | _, TType _ when gen.gspecial_needs_cast real_to_t real_from_t ->
-        mk_cast to_t e
-      (*| TType(t_to, _), TType(t_from, _) ->
-        if t_to.t_path = t_from.t_path then
-          e
-        else if is_unsafe_cast gen real_to_t real_from_t then (* is_unsafe_cast will already follow both *)
-          (do_unsafe_cast ())
-        else
-          mk_cast to_t e*)
-      | TType _, _
-      | _, TType _ ->
-        if is_unsafe_cast gen real_to_t real_from_t then (* is_unsafe_cast will already follow both *)
-          (do_unsafe_cast ())
-        else
-          mk_cast to_t e
-      | TAnon anon, _ ->
-        if PMap.is_empty anon.a_fields then
-          e
-        else
-          mk_cast to_t e
-      | TFun(args, ret), TFun(args2, ret2) ->
-        let get_args = List.map (fun (_,_,t) -> t) in
-        (try List.iter2 (type_eq gen (EqBothDynamic)) (ret :: get_args args) (ret2 :: get_args args2); e with | Unify_error _ | Invalid_argument("List.iter2") -> mk_cast to_t e)
-      | _, _ ->
-        do_unsafe_cast ()
-
-  (* end of cast handler *)
-  (* ******************* *)
-
-  let is_static_overload c name =
-    match c.cl_super with
-    | None -> false
-    | Some (sup,_) ->
-      let rec loop c =
-        (PMap.mem name c.cl_statics) || (match c.cl_super with
-          | None -> false
-          | Some (sup,_) -> loop sup)
-      in
-      loop sup
-
-  let does_unify a b =
-    try
-      unify a b;
-      true
-    with | Unify_error _ -> false
-
-  (* this is a workaround for issue #1743, as FInstance() is returning the incorrect classfield *)
-  let select_overload gen applied_f overloads types params =
-    let rec check_arg arglist elist =
-      match arglist, elist with
-        | [], [] -> true (* it is valid *)
-        | (_,_,t) :: arglist, (_,_,et) :: elist when Type.type_iseq et t ->
-          check_arg arglist elist
-        | _ -> false
-    in
-    match follow applied_f with
-    | TFun _ ->
-      replace_mono applied_f;
-      let args, _ = get_fun applied_f in
-      let elist = List.rev args in
-      let rec check_overload overloads =
-        match overloads with
-        | (t, cf) :: overloads ->
-            let cft = apply_params types params t in
-            let cft = monomorphs cf.cf_params cft in
-            let args, _ = get_fun cft in
-            if check_arg (List.rev args) elist then
-              cf,t,false
-            else if overloads = [] then
-              cf,t,true (* no compatible overload was found *)
-            else
-              check_overload overloads
-        | [] -> assert false
-      in
-      check_overload overloads
-    | _ -> match overloads with  (* issue #1742 *)
-    | (t,cf) :: [] -> cf,t,true
-    | (t,cf) :: _ -> cf,t,false
-    | _ -> assert false
-
-  let choose_ctor gen cl tparams etl maybe_empty_t p =
-    let ctor, sup, stl = OverloadingConstructor.cur_ctor cl tparams in
-    (* get returned stl, with Dynamic as t_empty *)
-    let rec get_changed_stl c tl =
-      if c == sup then
-        tl
-      else match c.cl_super with
-      | None -> stl
-      | Some(sup,stl) -> get_changed_stl sup (List.map (apply_params c.cl_types tl) stl)
-    in
-    let ret_tparams = List.map (fun t -> match follow t with
-    | TDynamic _ | TMono _ -> t_empty
-    | _ -> t) tparams in
-    let ret_stl = get_changed_stl cl ret_tparams in
-    let ctors = ctor :: ctor.cf_overloads in
-    List.iter replace_mono etl;
-    (* first filter out or select outright maybe_empty *)
-    let ctors, is_overload = match etl, maybe_empty_t with
-    | [t], Some empty_t ->
-      let count = ref 0 in
-      let is_empty_call = Type.type_iseq t empty_t in
-      let ret = List.filter (fun cf -> match follow cf.cf_type with
-      (* | TFun([_,_,t],_) -> incr count; true *)
-      | TFun([_,_,t],_) -> replace_mono t; incr count; is_empty_call = (Type.type_iseq t empty_t)
-      | _ -> false) ctors in
-      ret, !count > 1
-    | _ ->
-      let len = List.length etl in
-      let ret = List.filter (fun cf -> List.length (fst (get_fun cf.cf_type)) = len) ctors in
-      ret, (match ret with | _ :: [] -> false | _ -> true)
-    in
-    let rec check_arg arglist elist =
-      match arglist, elist with
-      | [], [] -> true
-      | (_,_,t) :: arglist, et :: elist -> (try
-        unify et t;
-        check_arg arglist elist
-      with | Unify_error el ->
-        (* List.iter (fun el -> gen.gcon.warning (Typecore.unify_error_msg (print_context()) el) p) el; *)
-        false)
-      | _ -> false
-    in
-    let rec check_cf cf =
-      let t = apply_params sup.cl_types stl cf.cf_type in
-      replace_mono t;
-      let args, _ = get_fun t in
-      check_arg args etl
-    in
-    is_overload, List.find check_cf ctors, sup, ret_stl
-
-  (*
-
-    Type parameter handling
-    It will detect if/what type parameters were used, and call the cast handler
-    It will handle both TCall(TField) and TCall by receiving a texpr option field: e
-    Also it will transform the type parameters with greal_type_param and make
-
-    handle_impossible_tparam - should cases where the type parameter is impossible to be determined from the called parameters be Dynamic?
-    e.g. static function test<T>():T {}
-  *)
-
-  (* match e.eexpr with | TCall( ({ eexpr = TField(ef, f) }) as e1, elist ) -> *)
-  let handle_type_parameter gen e e1 ef ~clean_ef f elist impossible_tparam_is_dynamic =
-    (* the ONLY way to know if this call has parameters is to analyze the calling field. *)
-    (* To make matters a little worse, on both C# and Java only in some special cases that type parameters will be used *)
-    (* Namely, when using reflection type parameters are useless, of course. This also includes anonymous types *)
-    (* this will have to be handled by gparam_func_call *)
-
-    let return_var efield =
-      match e with
-        | None ->
-          efield
-        | Some ecall ->
-          match follow efield.etype with
-            | TFun(_,ret) ->
-              (* closures will be handled by the closure handler. So we will just hint what's the expected type *)
-              (* FIXME: should closures have also its arguments cast correctly? In the current implementation I think not. TO_REVIEW *)
-              handle_cast gen { ecall with eexpr = TCall(efield, elist) } (gen.greal_type ecall.etype) ret
-            | _ ->
-              { ecall with eexpr = TCall(efield, elist) }
-    in
-
-    let real_type = gen.greal_type ef.etype in
-    (* this part was rewritten at roughly r6477 in order to correctly support overloads *)
-    (match field_access gen real_type (field_name f) with
-    | FClassField (cl, params, _, cf, is_static, actual_t) when e <> None && (cf.cf_kind = Method MethNormal || cf.cf_kind = Method MethInline) ->
-        (* C# target changes params with a real_type function *)
-        let params = match follow clean_ef.etype with
-        | TInst(_,params) -> params
-        | _ -> params in
-        let ecall = get e in
-        let is_overload = cf.cf_overloads <> [] || Meta.has Meta.Overload cf.cf_meta || (is_static && is_static_overload cl (field_name f)) in
-        let cf, actual_t, error = match is_overload with
-          | false ->
-              (* since actual_t from FClassField already applies greal_type, we're using the get_overloads helper to get this info *)
-              let overloads = Typeload.get_overloads cl (field_name f) in
-              (match overloads with
-              | [] -> cf, cf.cf_type, false
-              | _ -> try
-                  let t, cf = List.find (fun (t,f) -> f == cf) overloads in
-                  cf,t,false
-                  with | Not_found -> cf,actual_t,true)
-          | true -> match f with
-          | FInstance(c,cf) | FClosure(Some c,cf) ->
-            (* get from overloads *)
-            (* FIXME: this is a workaround for issue #1743 . Uncomment this code after it was solved *)
-            (* let t, cf = List.find (fun (t,cf2) -> cf == cf2) (Typeload.get_overloads cl (field_name f)) in *)
-            (* cf, t, false *)
-            select_overload gen e1.etype (Typeload.get_overloads cl (field_name f)) cl.cl_types params
-          | FStatic(c,f) ->
-            (* workaround for issue #1743 *)
-            (* f,f.cf_type, false *)
-            select_overload gen e1.etype ((f.cf_type,f) :: List.map (fun f -> f.cf_type,f) f.cf_overloads) [] []
-          | _ ->
-            gen.gcon.warning "Overloaded classfield typed as anonymous" ecall.epos;
-            cf, actual_t, true
-        in
-        let error = error || (match follow actual_t with | TFun _ -> false | _ -> true) in
-        if error then (* if error, ignore arguments *)
-          mk_cast ecall.etype { ecall with eexpr = TCall({ e1 with eexpr = TField(ef, f) }, elist ) }
-        else begin
-          (* infer arguments *)
-          (* let called_t = TFun(List.map (fun e -> "arg",false,e.etype) elist, ecall.etype) in *)
-          let called_t = match follow e1.etype with | TFun _ -> e1.etype | _ -> TFun(List.map (fun e -> "arg",false,e.etype) elist, ecall.etype)  in (* workaround for issue #1742 *)
-          let fparams = TypeParams.infer_params gen ecall.epos (get_fun (apply_params cl.cl_types params actual_t)) (get_fun called_t) cf.cf_params impossible_tparam_is_dynamic in
-          let real_params = gen.greal_type_param (TClassDecl cl) params in
-          let real_fparams = gen.greal_type_param (TClassDecl cl) fparams in
-          (* get what the backend actually sees *)
-          (* actual field's function *)
-          let actual_t = get_real_fun gen actual_t in
-          let function_t = apply_params cl.cl_types real_params actual_t in
-          let function_t = get_real_fun gen (apply_params cf.cf_params real_fparams function_t) in
-          let args_ft, ret_ft = get_fun function_t in
-          (* applied function *)
-          let applied = elist in
-          (* check types list *)
-          let new_ecall, elist = try
-            let elist = List.map2 (fun applied (_,_,funct) ->
-              match is_overload, applied.eexpr with
-              | true, TConst TNull ->
-                mk_cast (gen.greal_type funct) applied
-              | true, _ -> (* when not (type_iseq gen (gen.greal_type applied.etype) funct) -> *)
-                let ret = handle_cast gen applied (funct) (gen.greal_type applied.etype) in
-                (match ret.eexpr with
-                | TCast _ -> ret
-                | _ -> mk_cast (funct) ret)
-              | _ ->
-                handle_cast gen applied (funct) (gen.greal_type applied.etype)
-            ) applied args_ft in
-            { ecall with
-              eexpr = TCall(
-                { e1 with eexpr = TField(ef, f) },
-                elist);
-            }, elist
-          with | Invalid_argument("List.map2") ->
-            gen.gcon.warning ("This expression may be invalid" ) ecall.epos;
-            { ecall with eexpr = TCall({ e1 with eexpr = TField(ef, f) }, elist) }, elist
-          in
-          let new_ecall = if fparams <> [] then gen.gparam_func_call new_ecall { e1 with eexpr = TField(ef, f) } fparams elist else new_ecall in
-          handle_cast gen new_ecall (gen.greal_type ecall.etype) (gen.greal_type ret_ft)
-        end
-    | FClassField (cl,params,_,{ cf_kind = (Method MethDynamic | Var _) },_,actual_t) ->
-      (* if it's a var, we will just try to apply the class parameters that have been changed with greal_type_param *)
-      let t = apply_params cl.cl_types (gen.greal_type_param (TClassDecl cl) params) (gen.greal_type actual_t) in
-      return_var (handle_cast gen { e1 with eexpr = TField(ef, f) } (gen.greal_type e1.etype) (gen.greal_type t))
-    | FClassField (cl,params,_,cf,_,actual_t) ->
-      return_var (handle_cast gen { e1 with eexpr = TField({ ef with etype = t_dynamic }, f) } e1.etype t_dynamic) (* force dynamic and cast back to needed type *)
-    | FEnumField (en, efield, true) ->
-      let ecall = match e with | None -> trace (field_name f); trace efield.ef_name; gen.gcon.error "This field should be called immediately" ef.epos; assert false | Some ecall -> ecall in
-      (match en.e_types with
-        (*
-        | [] ->
-          let args, ret = get_args (efield.ef_type) in
-          let ef = { ef with eexpr = TTypeExpr( TEnumDecl en ); etype = TEnum(en, []) } in
-          handle_cast gen { ecall with eexpr = TCall({ e1 with eexpr = TField(ef, FEnum(en, efield)) }, List.map2 (fun param (_,_,t) -> handle_cast gen param (gen.greal_type t) (gen.greal_type param.etype)) elist args) } (gen.greal_type ecall.etype) (gen.greal_type ret)
-      *)
-        | _ ->
-          let pt = match e with | None -> real_type | Some _ -> snd (get_fun e1.etype) in
-          let _params = match follow pt with | TEnum(_, p) -> p | _ -> gen.gcon.warning (debug_expr e1) e1.epos; assert false in
-          let args, ret = get_args efield.ef_type in
-          let actual_t = TFun(List.map (fun (n,o,t) -> (n,o,gen.greal_type t)) args, gen.greal_type ret) in
-          (*
-            because of differences on how <Dynamic> is handled on the platforms, this is a hack to be able to
-            correctly use class field type parameters with RealTypeParams
-          *)
-          let cf_params = List.map (fun t -> match follow t with | TDynamic _ -> t_empty | _ -> t) _params in
-          (* params are inverted *)
-          let cf_params = List.rev cf_params in
-          let t = apply_params en.e_types (gen.greal_type_param (TEnumDecl en) cf_params) actual_t in
-          let t = apply_params efield.ef_params (List.map (fun _ -> t_dynamic) efield.ef_params) t in
-
-          let args, ret = get_args t in
-
-          let elist = List.map2 (fun param (_,_,t) -> handle_cast gen (param) (gen.greal_type t) (gen.greal_type param.etype)) elist args in
-          let e1 = { e1 with eexpr = TField({ ef with eexpr = TTypeExpr( TEnumDecl en ); etype = TEnum(en, _params) }, FEnum(en, efield) ) } in
-          let new_ecall = gen.gparam_func_call ecall e1 _params elist in
-
-          handle_cast gen new_ecall (gen.greal_type ecall.etype) (gen.greal_type ret)
-      )
-    | FEnumField _ when is_some e -> assert false
-    | FEnumField (en,efield,_) ->
-        return_var { e1 with eexpr = TField({ ef with eexpr = TTypeExpr( TEnumDecl en ); },FEnum(en,efield)) }
-    (* no target by date will uses this.so this code may not be correct at all *)
-    | FAnonField cf ->
-      let t = gen.greal_type cf.cf_type in
-      return_var (handle_cast gen { e1 with eexpr = TField(ef, f) } (gen.greal_type e1.etype) t)
-    | FNotFound
-    | FDynamicField _ ->
-      if is_some e then
-        return_var { e1 with eexpr = TField(ef, f) }
-      else
-        return_var (handle_cast gen { e1 with eexpr = TField({ ef with etype = t_dynamic }, f) } e1.etype t_dynamic) (* force dynamic and cast back to needed type *)
-    )
-
-  (* end of type parameter handling *)
-  (* ****************************** *)
-
-  let default_implementation gen ?(native_string_cast = true) maybe_empty_t impossible_tparam_is_dynamic =
-
-    let current_ret_type = ref None in
-
-    let handle e t1 t2 = handle_cast gen e (gen.greal_type t1) (gen.greal_type t2) in
-
-    let in_value = ref false in
-
-    let rec run ?(just_type = false) e =
-      let handle = if not just_type then handle else fun e t1 t2 -> { e with etype = gen.greal_type t2 } in
-      let was_in_value = !in_value in
-      in_value := true;
-      match e.eexpr with
-        | TBinop ( (Ast.OpAssign as op),e1,e2)
-        | TBinop ( (Ast.OpAssignOp _ as op),e1,e2) when was_in_value ->
-          let e1r = run e1 ~just_type:true in
-          let r = { e with eexpr = TBinop(op, e1r, handle (run e2) e1r.etype e2.etype); etype = e1.etype } in
-          handle r e1.etype e1r.etype
-        | TBinop ( (Ast.OpAssign as op),({ eexpr = TField(tf, f) } as e1), e2 )
-        | TBinop ( (Ast.OpAssignOp _ as op),({ eexpr = TField(tf, f) } as e1), e2 ) ->
-          (match field_access gen (gen.greal_type tf.etype) (field_name f) with
-            | FClassField(cl,params,_,_,is_static,actual_t) ->
-              let actual_t = if is_static then actual_t else apply_params cl.cl_types params actual_t in
-
-              let e1 = run e1 ~just_type:true in
-              { e with eexpr = TBinop(op, e1, handle (run e2) actual_t e2.etype); etype = e1.etype }
-            | _ ->
-              let e1 = run e1 ~just_type:true in
-              { e with eexpr = TBinop(op, e1, handle (run e2) e1.etype e2.etype); etype = e1.etype }
-          )
-        | TBinop ( (Ast.OpAssign as op),e1,e2)
-        | TBinop ( (Ast.OpAssignOp _ as op),e1,e2) ->
-          let e1 = run e1 ~just_type:true in
-          { e with eexpr = TBinop(op, e1, handle (run e2) e1.etype e2.etype); etype = e1.etype }
-        (* this is an exception so we can avoid infinite loop on Std.String and haxe.lang.Runtime.toString(). It also takes off unnecessary casts to string *)
-        | TBinop ( Ast.OpAdd, ( { eexpr = TCast(e1, _) } as e1c), e2 ) when native_string_cast && is_string e1c.etype && is_string e2.etype ->
-          { e with eexpr = TBinop( Ast.OpAdd, run e1, run e2 ) }
-        | TField(ef, f) ->
-          handle_type_parameter gen None e (run ef) ~clean_ef:ef f [] impossible_tparam_is_dynamic
-        | TArrayDecl el ->
-          let et = e.etype in
-          let base_type = match follow et with
-            | TInst({ cl_path = ([], "Array") } as cl, bt) -> gen.greal_type_param (TClassDecl cl) bt
-            | _ -> assert false
-          in
-          let base_type = List.hd base_type in
-          { e with eexpr = TArrayDecl( List.map (fun e -> handle (run e) base_type e.etype) el ); etype = et }
-        | TCall( ({ eexpr = TField({ eexpr = TLocal(v) },_) } as tf), params ) when String.get v.v_name 0 = '_' &&String.get v.v_name 1 = '_' && Hashtbl.mem gen.gspecial_vars v.v_name ->
-          { e with eexpr = TCall(tf, List.map run params) }
-        | TCall( ({ eexpr = TLocal v } as local), params ) when String.get v.v_name 0 = '_' && String.get v.v_name 1 = '_' && Hashtbl.mem gen.gspecial_vars v.v_name ->
-          { e with eexpr = TCall(local, List.map run params) }
-        | TCall( ({ eexpr = TField(ef, f) }) as e1, elist ) ->
-          handle_type_parameter gen (Some e) (e1) (run ef) ~clean_ef:ef f (List.map run elist) impossible_tparam_is_dynamic
-
-        (* the TNew and TSuper code was modified at r6497 *)
-        | TCall( { eexpr = TConst TSuper } as ef, eparams ) ->
-          let cl, tparams = match follow ef.etype with
-          | TInst(cl,p) -> cl, p
-          | _ -> assert false in
-          (try
-            let is_overload, cf, sup, stl = choose_ctor gen cl tparams (List.map (fun e -> e.etype) eparams) maybe_empty_t e.epos in
-            let handle e t1 t2 =
-              if is_overload then
-                let ret = handle e t1 t2 in
-                match ret.eexpr with
-                | TCast _ -> ret
-                | _ -> mk_cast (gen.greal_type t1) e
-              else
-                handle e t1 t2
-            in
-            let stl = gen.greal_type_param (TClassDecl sup) stl in
-            let args, _ = get_fun (apply_params sup.cl_types stl cf.cf_type) in
-            let eparams = List.map2 (fun e (_,_,t) ->
-              handle (run e) t e.etype
-            ) eparams args in
-            { e with eexpr = TCall(ef, eparams) }
-          with | Not_found ->
-            gen.gcon.warning "No overload found for this constructor call" e.epos;
-            { e with eexpr = TCall(ef, List.map run eparams) })
-        | TCall (ef, eparams) ->
-          (match ef.etype with
-            | TFun(p, ret) ->
-              handle ({ e with eexpr = TCall(run ef, List.map2 (fun param (_,_,t) -> handle (run param) t param.etype) eparams p) }) e.etype ret
-            | _ -> Type.map_expr run e
-          )
-        (* the TNew and TSuper code was modified at r6497 *)
-        | TNew (cl, tparams, eparams) -> (try
-          let is_overload, cf, sup, stl = choose_ctor gen cl tparams (List.map (fun e -> e.etype) eparams) maybe_empty_t e.epos in
-          let handle e t1 t2 =
-            if true then
-              let ret = handle e t1 t2 in
-              match ret.eexpr with
-              | TCast _ -> ret
-              | _ -> mk_cast (gen.greal_type t1) e
-            else
-              handle e t1 t2
-          in
-          let stl = gen.greal_type_param (TClassDecl sup) stl in
-          let args, _ = get_fun (apply_params sup.cl_types stl cf.cf_type) in
-          let eparams = List.map2 (fun e (_,_,t) ->
-            handle (run e) t e.etype
-          ) eparams args in
-          { e with eexpr = TNew(cl, tparams, eparams) }
-        with | Not_found ->
-          gen.gcon.warning "No overload found for this constructor call" e.epos;
-          { e with eexpr = TNew(cl, tparams, List.map run eparams) })
-        | TArray(arr, idx) ->
-          let arr_etype = match follow arr.etype with
-          | (TInst _ as t) -> t
-          | TAbstract ({ a_impl = Some _ } as a, pl) ->
-            follow (Codegen.Abstract.get_underlying_type a pl)
-          | t -> t in
-          (* get underlying class (if it's a class *)
-          (match arr_etype with
-            | TInst(cl, params) ->
-              (* see if it implements ArrayAccess *)
-              (match cl.cl_array_access with
-                | None -> Type.map_expr run e (*FIXME make it loop through all super types *)
-                | Some t ->
-                  (* if it does, apply current parameters (and change them) *)
-                  (* let real_t = apply_params_internal (List.map (gen.greal_type_param (TClassDecl cl))) cl params t in *)
-                  let param = apply_params cl.cl_types (gen.greal_type_param (TClassDecl cl) params) t in
-                  let real_t = apply_params cl.cl_types params param in
-                  (* see if it needs a cast *)
-
-                  handle (Type.map_expr run e) (gen.greal_type e.etype) (gen.greal_type real_t)
-              )
-            | _ -> Type.map_expr run e)
-        | TVars (veopt_l) ->
-          { e with eexpr = TVars (List.map (fun (v,eopt) ->
-            match eopt with
-              | None -> (v,eopt)
-              | Some e ->
-                (v, Some( handle (run e) v.v_type e.etype ))
-          ) veopt_l) }
-        (* FIXME deal with in_value when using other statements that may not have a TBlock wrapped on them *)
-        | TIf (econd, ethen, Some(eelse)) when was_in_value ->
-          { e with eexpr = TIf (handle (run econd) gen.gcon.basic.tbool econd.etype, handle (run ethen) e.etype ethen.etype, Some( handle (run eelse) e.etype eelse.etype ) ) }
-        | TIf (econd, ethen, eelse) ->
-          { e with eexpr = TIf (handle (run econd) gen.gcon.basic.tbool econd.etype, run (mk_block ethen), Option.map (fun e -> run (mk_block e)) eelse) }
-        | TWhile (econd, e1, flag) ->
-          { e with eexpr = TWhile (handle (run econd) gen.gcon.basic.tbool econd.etype, run (mk_block e1), flag) }
-        | TSwitch (cond, el_e_l, edef) ->
-          { e with eexpr = TSwitch(run cond, List.map (fun (el,e) -> (List.map run el, run (mk_block e))) el_e_l, Option.map (fun e -> run (mk_block e)) edef) }
-        | TMatch (cond, en, il_vl_e_l, edef) ->
-          { e with eexpr = TMatch(run cond, en, List.map (fun (il, vl, e) -> (il, vl, run (mk_block e))) il_vl_e_l, Option.map (fun e -> run (mk_block e)) edef) }
-        | TFor (v,cond,e1) ->
-          { e with eexpr = TFor(v, run cond, run (mk_block e1)) }
-        | TTry (e, ve_l) ->
-          { e with eexpr = TTry(run (mk_block e), List.map (fun (v,e) -> (v, run (mk_block e))) ve_l) }
-        | TReturn (eopt) ->
-          (* a return must be inside a function *)
-          let ret_type = match !current_ret_type with | Some(s) -> s | None -> gen.gcon.error "Invalid return outside function declaration." e.epos; assert false in
-          (match eopt with
-            | None -> e
-            | Some eret ->
-              { e with eexpr = TReturn( Some(handle (run eret) ret_type eret.etype ) ) }
-          )
-        | TBlock el ->
-          { e with eexpr = TBlock ( List.map (fun e -> in_value := false; run e) el ) }
-        | TFunction(tfunc) ->
-          let last_ret = !current_ret_type in
-          current_ret_type := Some(tfunc.tf_type);
-          let ret = Type.map_expr run e in
-          current_ret_type := last_ret;
-          ret
-        | TCast (expr, md) when is_void (follow e.etype) ->
-          run expr
-        | TCast (expr, md) ->
-          let rec get_null e =
-            match e.eexpr with
-            | TConst TNull -> Some e
-            | TParenthesis e -> get_null e
-            | _ -> None
-          in
-          (match get_null expr with
-          | Some enull -> { enull with etype = e.etype }
-          | _ ->
-            let last_unsafe = gen.gon_unsafe_cast in
-            gen.gon_unsafe_cast <- (fun t t2 pos -> ());
-            let ret = handle (run expr) e.etype expr.etype in
-            gen.gon_unsafe_cast <- last_unsafe;
-            match ret.eexpr with
-              | TCast _ -> ret
-              | _ -> { e with eexpr = TCast(ret,md); etype = gen.greal_type e.etype }
-          )
-        (*| TCast _ ->
-          (* if there is already a cast, we should skip this cast check *)
-          Type.map_expr run e*)
-        | _ -> Type.map_expr run e
-    in
-    run
-
-  let configure gen (mapping_func:texpr->texpr) =
-    gen.ghandle_cast <- (fun tto tfrom expr -> handle_cast gen expr (gen.greal_type tto) (gen.greal_type tfrom));
-    let map e = Some(mapping_func e) in
-    gen.gsyntax_filters#add ~name:name ~priority:(PCustom priority) map
-
-end;;
-
 (**************************************************************************************************************************)
 (*                                                   SYNTAX FILTERS                                                       *)
 (**************************************************************************************************************************)
@@ -5281,8 +4423,7 @@ struct
   let name = "expression_unwrap"
 
   (* priority: first syntax filter *)
-  let priority = (-10.0)
-
+  let priority = -10.0
 
   (*
     We always need to rely on Blocks to be able to unwrap expressions correctly.
@@ -5924,6 +5065,899 @@ struct
     gen.gsyntax_filters#add ~name:name ~priority:(PCustom priority) map
 
 end;;
+
+(* ******************************************* *)
+(* Casts detection v2 *)
+(* ******************************************* *)
+
+(*
+
+  Will detect implicit casts and add TCast for them. Since everything is already followed by follow_all, typedefs are considered a new type altogether
+
+  Types shouldn't be cast if:
+    * When an instance is being coerced to a superclass or to an implemented interface
+    * When anything is being coerced to Dynamic
+
+  edit:
+    As a matter of performance, we will also run the type parameters casts in here. Otherwise the exact same computation would have to be performed twice,
+    with maybe even some loss of information
+
+    * TAnon / TDynamic will call
+    * Type parameter handling will be abstracted
+
+  dependencies:
+    Must run before ExpressionUnwrap
+
+*)
+
+module CastDetect =
+struct
+
+  let name = "cast_detect_2"
+
+  let priority = solve_deps name [DBefore TypeParams.priority; DBefore ExpressionUnwrap.priority]
+
+  (* ******************************************* *)
+  (* ReturnCast *)
+  (* ******************************************* *)
+
+  (*
+
+    Cast detection for return types can't be done at CastDetect time, since we need an
+    unwrapped expression to make sure we catch all return cast detections. So this module
+    is specifically to deal with that, and is configured automatically by CastDetect
+
+    dependencies:
+
+
+  *)
+
+  module ReturnCast =
+  struct
+
+    let name = "return_cast"
+
+    let priority = solve_deps name [DAfter priority; DAfter ExpressionUnwrap.priority]
+
+    let default_implementation gen =
+      let current_ret_type = ref None in
+      let handle e tto tfrom = gen.ghandle_cast tto tfrom e in
+
+      let rec run e =
+        match e.eexpr with
+        | TReturn (eopt) ->
+          (* a return must be inside a function *)
+          let ret_type = match !current_ret_type with | Some(s) -> s | None -> gen.gcon.error "Invalid return outside function declaration." e.epos; assert false in
+          (match eopt with
+          | None -> e
+          | Some eret ->
+            { e with eexpr = TReturn( Some(handle (run eret) ret_type eret.etype ) ) })
+        | TFunction(tfunc) ->
+          let last_ret = !current_ret_type in
+          current_ret_type := Some(tfunc.tf_type);
+          let ret = Type.map_expr run e in
+          current_ret_type := last_ret;
+          ret
+        | _ -> Type.map_expr run e
+      in
+      run
+
+    let configure gen =
+      let map e = Some(default_implementation gen e) in
+      gen.gsyntax_filters#add ~name:name ~priority:(PCustom priority) map
+
+  end;;
+
+  let get_args t = match follow t with
+    | TFun(args,ret) -> args,ret
+    | _ -> trace (debug_type t); assert false
+
+  let s_path (pack,n) = (String.concat "." (pack @ [n]))
+
+  (*
+    Since this function is applied under native-context only, the type paraters will already be changed
+  *)
+  let map_cls gen also_implements fn super =
+    let rec loop c tl =
+      if c == super then
+        fn c tl
+      else (match c.cl_super with
+        | None -> false
+        | Some (cs,tls) ->
+          let tls = gen.greal_type_param (TClassDecl cs) tls in
+          loop cs (List.map (apply_params c.cl_types tl) tls)
+      ) || (if also_implements then List.exists (fun (cs,tls) ->
+        loop cs (List.map (apply_params c.cl_types tl) tls)
+      ) c.cl_implements else false)
+    in
+    loop
+
+  let follow_dyn t = match follow t with
+    | TMono _ | TLazy _ -> t_dynamic
+    | t -> t
+
+  (*
+    this has a slight change from the type.ml version, in which it doesn't
+    change a TMono into the other parameter
+  *)
+  let rec type_eq gen param a b =
+    if a == b then
+      ()
+    else match follow_dyn (gen.greal_type a) , follow_dyn (gen.greal_type b) with
+    | TEnum (e1,tl1) , TEnum (e2,tl2) ->
+      if e1 != e2 && not (param = EqCoreType && e1.e_path = e2.e_path) then Type.error [cannot_unify a b];
+      List.iter2 (type_eq gen param) tl1 tl2
+    | TAbstract (a1,tl1) , TAbstract (a2,tl2) ->
+      if a1 != a2 && not (param = EqCoreType && a1.a_path = a2.a_path) then Type.error [cannot_unify a b];
+      List.iter2 (type_eq gen param) tl1 tl2
+    | TInst (c1,tl1) , TInst (c2,tl2) ->
+      if c1 != c2 && not (param = EqCoreType && c1.cl_path = c2.cl_path) && (match c1.cl_kind, c2.cl_kind with KExpr _, KExpr _ -> false | _ -> true) then Type.error [cannot_unify a b];
+      List.iter2 (type_eq gen param) tl1 tl2
+    | TFun (l1,r1) , TFun (l2,r2) when List.length l1 = List.length l2 ->
+      (try
+        type_eq gen param r1 r2;
+        List.iter2 (fun (n,o1,t1) (_,o2,t2) ->
+          if o1 <> o2 then Type.error [Not_matching_optional n];
+          type_eq gen param t1 t2
+        ) l1 l2
+      with
+        Unify_error l -> Type.error (cannot_unify a b :: l))
+    | TDynamic a , TDynamic b ->
+      type_eq gen param a b
+    | TAnon a1, TAnon a2 ->
+      (try
+        PMap.iter (fun n f1 ->
+          try
+            let f2 = PMap.find n a2.a_fields in
+            if f1.cf_kind <> f2.cf_kind && (param = EqStrict || param = EqCoreType || not (unify_kind f1.cf_kind f2.cf_kind)) then Type.error [invalid_kind n f1.cf_kind f2.cf_kind];
+            try
+              type_eq gen param f1.cf_type f2.cf_type
+            with
+              Unify_error l -> Type.error (invalid_field n :: l)
+          with
+            Not_found ->
+              if is_closed a2 then Type.error [has_no_field b n];
+              if not (link (ref None) b f1.cf_type) then Type.error [cannot_unify a b];
+              a2.a_fields <- PMap.add n f1 a2.a_fields
+        ) a1.a_fields;
+        PMap.iter (fun n f2 ->
+          if not (PMap.mem n a1.a_fields) then begin
+            if is_closed a1 then Type.error [has_no_field a n];
+            if not (link (ref None) a f2.cf_type) then Type.error [cannot_unify a b];
+            a1.a_fields <- PMap.add n f2 a1.a_fields
+          end;
+        ) a2.a_fields;
+      with
+        Unify_error l -> Type.error (cannot_unify a b :: l))
+    | _ , _ ->
+      if b == t_dynamic && (param = EqRightDynamic || param = EqBothDynamic) then
+        ()
+      else if a == t_dynamic && param = EqBothDynamic then
+        ()
+      else
+        Type.error [cannot_unify a b]
+
+  let type_iseq gen a b =
+    try
+      type_eq gen EqStrict a b;
+      true
+    with
+      Unify_error _ -> false
+
+  (* will return true if both arguments are compatible. If it's not the case, a runtime error is very likely *)
+  let is_cl_related gen cl tl super superl =
+    let is_cl_related cl tl super superl = map_cls gen (gen.guse_tp_constraints || (match cl.cl_kind,super.cl_kind with KTypeParameter _, _ | _,KTypeParameter _ -> false | _ -> true)) (fun _ _ -> true) super cl tl in
+    is_cl_related cl tl super superl || is_cl_related super superl cl tl
+
+
+  let rec is_unsafe_cast gen to_t from_t =
+    match (follow to_t, follow from_t) with
+      | TInst(cl_to, to_params), TInst(cl_from, from_params) ->
+        not (is_cl_related gen cl_from from_params cl_to to_params)
+      | TEnum(e_to, _), TEnum(e_from, _) ->
+        e_to.e_path <> e_from.e_path
+      | TFun _, TFun _ ->
+        (* functions are never unsafe cast by default. This behavior might be changed *)
+        (* with a later AST pass which will run through TFun to TFun casts *)
+        false
+      | TMono _, _
+      | _, TMono _
+      | TDynamic _, _
+      | _, TDynamic _ ->
+        false
+      | TAnon _, _
+      | _, TAnon _ ->
+        (* anonymous are never unsafe also. *)
+        (* Though they will generate a cast, so if this cast is unneeded it's better to avoid them by tweaking gen.greal_type *)
+        false
+      | TAbstract _, _
+      | _, TAbstract _ ->
+        (try
+          unify from_t to_t;
+          false
+        with | Unify_error _ ->
+          try
+            unify to_t from_t; (* still not unsafe *)
+            false
+          with | Unify_error _ ->
+            true)
+      | _ -> true
+
+  let do_unsafe_cast gen from_t to_t e  =
+    let t_path t =
+      match t with
+        | TInst(cl, _) -> cl.cl_path
+        | TEnum(e, _) -> e.e_path
+        | TType(t, _) -> t.t_path
+        | TAbstract(a, _) -> a.a_path
+        | TDynamic _ -> ([], "Dynamic")
+        | _ -> raise Not_found
+    in
+    let do_default () =
+      gen.gon_unsafe_cast to_t e.etype e.epos;
+      mk_cast to_t (mk_cast t_dynamic e)
+    in
+    (* TODO: there really should be a better way to write that *)
+    try
+      if (Hashtbl.find gen.gsupported_conversions (t_path from_t)) from_t to_t then
+        mk_cast to_t e
+      else
+        do_default()
+    with
+      | Not_found ->
+        try
+          if (Hashtbl.find gen.gsupported_conversions (t_path to_t)) from_t to_t then
+            mk_cast to_t e
+          else
+            do_default()
+        with
+          | Not_found -> do_default()
+
+  (* ****************************** *)
+  (* cast handler *)
+  (* decides if a cast should be emitted, given a from and a to type *)
+  (*
+    this function is like a mini unify, without e.g. subtyping, which makes sense
+    at the backend level, since most probably Anons and TInst will have a different representation there
+  *)
+  let rec handle_cast gen e real_to_t real_from_t =
+    let do_unsafe_cast () = do_unsafe_cast gen real_from_t real_to_t { e with etype = real_from_t } in
+    let to_t, from_t = real_to_t, real_from_t in
+
+    let mk_cast t e =
+      match e.eexpr with
+        (* TThrow is always typed as Dynamic, we just need to type it accordingly *)
+        | TThrow _ -> { e with etype = t }
+        | _ -> mk_cast t e
+    in
+
+    let e = { e with etype = real_from_t } in
+    if try fast_eq real_to_t real_from_t with Invalid_argument("List.for_all2") -> false then e else
+    match real_to_t, real_from_t with
+      (* string is the only type that can be implicitly converted from any other *)
+      | TInst( { cl_path = ([], "String") }, []), _ ->
+        mk_cast to_t e
+      | TInst(cl_to, params_to), TInst(cl_from, params_from) ->
+        let ret = ref None in
+        (*
+          this is a little confusing:
+          we are here mapping classes until we have the same to and from classes, applying the type parameters in each step, so we can
+          compare the type parameters;
+
+          If a class is found - meaning that the cl_from can be converted without a cast into cl_to,
+          we still need to check their type parameters.
+        *)
+        ignore (map_cls gen (gen.guse_tp_constraints || (match cl_from.cl_kind,cl_to.cl_kind with KTypeParameter _, _ | _,KTypeParameter _ -> false | _ -> true)) (fun _ tl ->
+          try
+            (* type found, checking type parameters *)
+            List.iter2 (type_eq gen EqStrict) tl params_to;
+            ret := Some e;
+            true
+          with | Unify_error _ ->
+            (* type parameters need casting *)
+            if gen.ghas_tparam_cast_handler then begin
+              (*
+                if we are already handling type parameter casts on other part of code (e.g. RealTypeParameters),
+                we'll just make a cast to indicate that this place needs type parameter-involved casting
+              *)
+              ret := Some (mk_cast to_t e);
+              true
+            end else
+              (*
+                if not, we're going to check if we only need a simple cast,
+                or if we need to first cast into the dynamic version of it
+              *)
+              try
+                List.iter2 (type_eq gen EqRightDynamic) tl params_to;
+                ret := Some (mk_cast to_t e);
+                true
+              with | Unify_error _ ->
+                ret := Some (mk_cast to_t (mk_cast (TInst(cl_to, List.map (fun _ -> t_dynamic) params_to)) e));
+                true
+        ) cl_to cl_from params_from);
+        if is_some !ret then
+          get !ret
+        else if is_cl_related gen cl_from params_from cl_to params_to then
+          mk_cast to_t e
+        else
+          (* potential unsafe cast *)
+          (do_unsafe_cast ())
+      | TMono _, TMono _
+      | TMono _, TDynamic _
+      | TDynamic _, TDynamic _
+      | TDynamic _, TMono _ ->
+        e
+      | TMono _, _
+      | TDynamic _, _
+      | TAnon _, _ when gen.gneeds_box real_from_t ->
+        mk_cast to_t e
+      | TMono _, _
+      | TDynamic _, _ -> e
+      | _, TMono _
+      | _, TDynamic _ -> mk_cast to_t e
+      | TAnon (a_to), TAnon (a_from) ->
+        if a_to == a_from then
+          e
+        else if type_iseq gen to_t from_t then (* FIXME apply unify correctly *)
+          e
+        else
+          mk_cast to_t e
+      | _, TAnon(anon) -> (try
+        let p2 = match !(anon.a_status) with
+        | Statics c -> TInst(c,List.map (fun _ -> t_dynamic) c.cl_types)
+        | EnumStatics e -> TEnum(e, List.map (fun _ -> t_dynamic) e.e_types)
+        | AbstractStatics a -> TAbstract(a, List.map (fun _ -> t_dynamic) a.a_types)
+        | _ -> raise Not_found
+        in
+        let tclass = match get_type gen ([],"Class") with
+        | TAbstractDecl(a) -> a
+        | _ -> assert false in
+        handle_cast gen e real_to_t (gen.greal_type (TAbstract(tclass, [p2])))
+      with | Not_found ->
+        mk_cast to_t e)
+      | TAbstract (a_to, _), TAbstract(a_from, _) when a_to == a_from ->
+        e
+      | TAbstract _, _
+      | _, TAbstract _ ->
+        (try
+          unify from_t to_t;
+          mk_cast to_t e
+        with | Unify_error _ ->
+          try
+            unify to_t from_t;
+            mk_cast to_t e
+          with | Unify_error _ ->
+            do_unsafe_cast())
+      | TEnum(e_to, []), TEnum(e_from, []) ->
+        if e_to == e_from then
+          e
+        else
+          (* potential unsafe cast *)
+          (do_unsafe_cast ())
+      | TEnum(e_to, params_to), TEnum(e_from, params_from) when e_to.e_path = e_from.e_path ->
+        (try
+            List.iter2 (type_eq gen (if gen.gallow_tp_dynamic_conversion then EqRightDynamic else EqStrict)) params_from params_to;
+            e
+          with
+            | Unify_error _ -> do_unsafe_cast ()
+        )
+      | TEnum(en, params_to), TInst(cl, params_from)
+        | TInst(cl, params_to), TEnum(en, params_from) ->
+          (* this is here for max compatibility with EnumsToClass module *)
+        if en.e_path = cl.cl_path && en.e_extern then begin
+          (try
+            List.iter2 (type_eq gen (if gen.gallow_tp_dynamic_conversion then EqRightDynamic else EqStrict)) params_from params_to;
+            e
+          with
+            | Invalid_argument("List.iter2") ->
+              (*
+                this is a hack for RealTypeParams. Since there is no way at this stage to know if the class is the actual
+                EnumsToClass derived from the enum, we need to imply from possible ArgumentErrors (because of RealTypeParams interfaces),
+                that they would only happen if they were a RealTypeParams created interface
+              *)
+              e
+            | Unify_error _ -> do_unsafe_cast ()
+          )
+        end else
+          do_unsafe_cast ()
+      | TType(t_to, params_to), TType(t_from, params_from) when t_to == t_from ->
+        if gen.gspecial_needs_cast real_to_t real_from_t then
+          (try
+            List.iter2 (type_eq gen (if gen.gallow_tp_dynamic_conversion then EqRightDynamic else EqStrict)) params_from params_to;
+            e
+          with
+            | Unify_error _ -> do_unsafe_cast ()
+          )
+        else
+          e
+      | TType(t_to, _), TType(t_from,_) ->
+        if gen.gspecial_needs_cast real_to_t real_from_t then
+          mk_cast to_t e
+        else
+          e
+      | TType _, _ when gen.gspecial_needs_cast real_to_t real_from_t ->
+        mk_cast to_t e
+      | _, TType _ when gen.gspecial_needs_cast real_to_t real_from_t ->
+        mk_cast to_t e
+      (*| TType(t_to, _), TType(t_from, _) ->
+        if t_to.t_path = t_from.t_path then
+          e
+        else if is_unsafe_cast gen real_to_t real_from_t then (* is_unsafe_cast will already follow both *)
+          (do_unsafe_cast ())
+        else
+          mk_cast to_t e*)
+      | TType _, _
+      | _, TType _ ->
+        if is_unsafe_cast gen real_to_t real_from_t then (* is_unsafe_cast will already follow both *)
+          (do_unsafe_cast ())
+        else
+          mk_cast to_t e
+      | TAnon anon, _ ->
+        if PMap.is_empty anon.a_fields then
+          e
+        else
+          mk_cast to_t e
+      | TFun(args, ret), TFun(args2, ret2) ->
+        let get_args = List.map (fun (_,_,t) -> t) in
+        (try List.iter2 (type_eq gen (EqBothDynamic)) (ret :: get_args args) (ret2 :: get_args args2); e with | Unify_error _ | Invalid_argument("List.iter2") -> mk_cast to_t e)
+      | _, _ ->
+        do_unsafe_cast ()
+
+  (* end of cast handler *)
+  (* ******************* *)
+
+  let is_static_overload c name =
+    match c.cl_super with
+    | None -> false
+    | Some (sup,_) ->
+      let rec loop c =
+        (PMap.mem name c.cl_statics) || (match c.cl_super with
+          | None -> false
+          | Some (sup,_) -> loop sup)
+      in
+      loop sup
+
+  let does_unify a b =
+    try
+      unify a b;
+      true
+    with | Unify_error _ -> false
+
+  (* this is a workaround for issue #1743, as FInstance() is returning the incorrect classfield *)
+  let select_overload gen applied_f overloads types params =
+    let rec check_arg arglist elist =
+      match arglist, elist with
+        | [], [] -> true (* it is valid *)
+        | (_,_,t) :: arglist, (_,_,et) :: elist when Type.type_iseq et t ->
+          check_arg arglist elist
+        | _ -> false
+    in
+    match follow applied_f with
+    | TFun _ ->
+      replace_mono applied_f;
+      let args, _ = get_fun applied_f in
+      let elist = List.rev args in
+      let rec check_overload overloads =
+        match overloads with
+        | (t, cf) :: overloads ->
+            let cft = apply_params types params t in
+            let cft = monomorphs cf.cf_params cft in
+            let args, _ = get_fun cft in
+            if check_arg (List.rev args) elist then
+              cf,t,false
+            else if overloads = [] then
+              cf,t,true (* no compatible overload was found *)
+            else
+              check_overload overloads
+        | [] -> assert false
+      in
+      check_overload overloads
+    | _ -> match overloads with  (* issue #1742 *)
+    | (t,cf) :: [] -> cf,t,true
+    | (t,cf) :: _ -> cf,t,false
+    | _ -> assert false
+
+  let choose_ctor gen cl tparams etl maybe_empty_t p =
+    let ctor, sup, stl = OverloadingConstructor.cur_ctor cl tparams in
+    (* get returned stl, with Dynamic as t_empty *)
+    let rec get_changed_stl c tl =
+      if c == sup then
+        tl
+      else match c.cl_super with
+      | None -> stl
+      | Some(sup,stl) -> get_changed_stl sup (List.map (apply_params c.cl_types tl) stl)
+    in
+    let ret_tparams = List.map (fun t -> match follow t with
+    | TDynamic _ | TMono _ -> t_empty
+    | _ -> t) tparams in
+    let ret_stl = get_changed_stl cl ret_tparams in
+    let ctors = ctor :: ctor.cf_overloads in
+    List.iter replace_mono etl;
+    (* first filter out or select outright maybe_empty *)
+    let ctors, is_overload = match etl, maybe_empty_t with
+    | [t], Some empty_t ->
+      let count = ref 0 in
+      let is_empty_call = Type.type_iseq t empty_t in
+      let ret = List.filter (fun cf -> match follow cf.cf_type with
+      (* | TFun([_,_,t],_) -> incr count; true *)
+      | TFun([_,_,t],_) -> replace_mono t; incr count; is_empty_call = (Type.type_iseq t empty_t)
+      | _ -> false) ctors in
+      ret, !count > 1
+    | _ ->
+      let len = List.length etl in
+      let ret = List.filter (fun cf -> List.length (fst (get_fun cf.cf_type)) = len) ctors in
+      ret, (match ret with | _ :: [] -> false | _ -> true)
+    in
+    let rec check_arg arglist elist =
+      match arglist, elist with
+      | [], [] -> true
+      | (_,_,t) :: arglist, et :: elist -> (try
+        unify et t;
+        check_arg arglist elist
+      with | Unify_error el ->
+        (* List.iter (fun el -> gen.gcon.warning (Typecore.unify_error_msg (print_context()) el) p) el; *)
+        false)
+      | _ -> false
+    in
+    let rec check_cf cf =
+      let t = apply_params sup.cl_types stl cf.cf_type in
+      replace_mono t;
+      let args, _ = get_fun t in
+      check_arg args etl
+    in
+    is_overload, List.find check_cf ctors, sup, ret_stl
+
+  (*
+
+    Type parameter handling
+    It will detect if/what type parameters were used, and call the cast handler
+    It will handle both TCall(TField) and TCall by receiving a texpr option field: e
+    Also it will transform the type parameters with greal_type_param and make
+
+    handle_impossible_tparam - should cases where the type parameter is impossible to be determined from the called parameters be Dynamic?
+    e.g. static function test<T>():T {}
+  *)
+
+  (* match e.eexpr with | TCall( ({ eexpr = TField(ef, f) }) as e1, elist ) -> *)
+  let handle_type_parameter gen e e1 ef ~clean_ef f elist impossible_tparam_is_dynamic =
+    (* the ONLY way to know if this call has parameters is to analyze the calling field. *)
+    (* To make matters a little worse, on both C# and Java only in some special cases that type parameters will be used *)
+    (* Namely, when using reflection type parameters are useless, of course. This also includes anonymous types *)
+    (* this will have to be handled by gparam_func_call *)
+
+    let return_var efield =
+      match e with
+        | None ->
+          efield
+        | Some ecall ->
+          match follow efield.etype with
+            | TFun(_,ret) ->
+              (* closures will be handled by the closure handler. So we will just hint what's the expected type *)
+              (* FIXME: should closures have also its arguments cast correctly? In the current implementation I think not. TO_REVIEW *)
+              handle_cast gen { ecall with eexpr = TCall(efield, elist) } (gen.greal_type ecall.etype) ret
+            | _ ->
+              { ecall with eexpr = TCall(efield, elist) }
+    in
+
+    let real_type = gen.greal_type ef.etype in
+    (* this part was rewritten at roughly r6477 in order to correctly support overloads *)
+    (match field_access gen real_type (field_name f) with
+    | FClassField (cl, params, _, cf, is_static, actual_t) when e <> None && (cf.cf_kind = Method MethNormal || cf.cf_kind = Method MethInline) ->
+        (* C# target changes params with a real_type function *)
+        let params = match follow clean_ef.etype with
+        | TInst(_,params) -> params
+        | _ -> params in
+        let ecall = get e in
+        let is_overload = cf.cf_overloads <> [] || Meta.has Meta.Overload cf.cf_meta || (is_static && is_static_overload cl (field_name f)) in
+        let cf, actual_t, error = match is_overload with
+          | false ->
+              (* since actual_t from FClassField already applies greal_type, we're using the get_overloads helper to get this info *)
+              let overloads = Typeload.get_overloads cl (field_name f) in
+              (match overloads with
+              | [] -> cf, cf.cf_type, false
+              | _ -> try
+                  let t, cf = List.find (fun (t,f) -> f == cf) overloads in
+                  cf,t,false
+                  with | Not_found -> cf,actual_t,true)
+          | true -> match f with
+          | FInstance(c,cf) | FClosure(Some c,cf) ->
+            (* get from overloads *)
+            (* FIXME: this is a workaround for issue #1743 . Uncomment this code after it was solved *)
+            (* let t, cf = List.find (fun (t,cf2) -> cf == cf2) (Typeload.get_overloads cl (field_name f)) in *)
+            (* cf, t, false *)
+            select_overload gen e1.etype (Typeload.get_overloads cl (field_name f)) cl.cl_types params
+          | FStatic(c,f) ->
+            (* workaround for issue #1743 *)
+            (* f,f.cf_type, false *)
+            select_overload gen e1.etype ((f.cf_type,f) :: List.map (fun f -> f.cf_type,f) f.cf_overloads) [] []
+          | _ ->
+            gen.gcon.warning "Overloaded classfield typed as anonymous" ecall.epos;
+            cf, actual_t, true
+        in
+        let error = error || (match follow actual_t with | TFun _ -> false | _ -> true) in
+        if error then (* if error, ignore arguments *)
+          mk_cast ecall.etype { ecall with eexpr = TCall({ e1 with eexpr = TField(ef, f) }, elist ) }
+        else begin
+          (* infer arguments *)
+          (* let called_t = TFun(List.map (fun e -> "arg",false,e.etype) elist, ecall.etype) in *)
+          let called_t = match follow e1.etype with | TFun _ -> e1.etype | _ -> TFun(List.map (fun e -> "arg",false,e.etype) elist, ecall.etype)  in (* workaround for issue #1742 *)
+          let fparams = TypeParams.infer_params gen ecall.epos (get_fun (apply_params cl.cl_types params actual_t)) (get_fun called_t) cf.cf_params impossible_tparam_is_dynamic in
+          let real_params = gen.greal_type_param (TClassDecl cl) params in
+          let real_fparams = gen.greal_type_param (TClassDecl cl) fparams in
+          (* get what the backend actually sees *)
+          (* actual field's function *)
+          let actual_t = get_real_fun gen actual_t in
+          let function_t = apply_params cl.cl_types real_params actual_t in
+          let function_t = get_real_fun gen (apply_params cf.cf_params real_fparams function_t) in
+          let args_ft, ret_ft = get_fun function_t in
+          (* applied function *)
+          let applied = elist in
+          (* check types list *)
+          let new_ecall, elist = try
+            let elist = List.map2 (fun applied (_,_,funct) ->
+              match is_overload, applied.eexpr with
+              | true, TConst TNull ->
+                mk_cast (gen.greal_type funct) applied
+              | true, _ -> (* when not (type_iseq gen (gen.greal_type applied.etype) funct) -> *)
+                let ret = handle_cast gen applied (funct) (gen.greal_type applied.etype) in
+                (match ret.eexpr with
+                | TCast _ -> ret
+                | _ -> mk_cast (funct) ret)
+              | _ ->
+                handle_cast gen applied (funct) (gen.greal_type applied.etype)
+            ) applied args_ft in
+            { ecall with
+              eexpr = TCall(
+                { e1 with eexpr = TField(ef, f) },
+                elist);
+            }, elist
+          with | Invalid_argument("List.map2") ->
+            gen.gcon.warning ("This expression may be invalid" ) ecall.epos;
+            { ecall with eexpr = TCall({ e1 with eexpr = TField(ef, f) }, elist) }, elist
+          in
+          let new_ecall = if fparams <> [] then gen.gparam_func_call new_ecall { e1 with eexpr = TField(ef, f) } fparams elist else new_ecall in
+          handle_cast gen new_ecall (gen.greal_type ecall.etype) (gen.greal_type ret_ft)
+        end
+    | FClassField (cl,params,_,{ cf_kind = (Method MethDynamic | Var _) },_,actual_t) ->
+      (* if it's a var, we will just try to apply the class parameters that have been changed with greal_type_param *)
+      let t = apply_params cl.cl_types (gen.greal_type_param (TClassDecl cl) params) (gen.greal_type actual_t) in
+      return_var (handle_cast gen { e1 with eexpr = TField(ef, f) } (gen.greal_type e1.etype) (gen.greal_type t))
+    | FClassField (cl,params,_,cf,_,actual_t) ->
+      return_var (handle_cast gen { e1 with eexpr = TField({ ef with etype = t_dynamic }, f) } e1.etype t_dynamic) (* force dynamic and cast back to needed type *)
+    | FEnumField (en, efield, true) ->
+      let ecall = match e with | None -> trace (field_name f); trace efield.ef_name; gen.gcon.error "This field should be called immediately" ef.epos; assert false | Some ecall -> ecall in
+      (match en.e_types with
+        (*
+        | [] ->
+          let args, ret = get_args (efield.ef_type) in
+          let ef = { ef with eexpr = TTypeExpr( TEnumDecl en ); etype = TEnum(en, []) } in
+          handle_cast gen { ecall with eexpr = TCall({ e1 with eexpr = TField(ef, FEnum(en, efield)) }, List.map2 (fun param (_,_,t) -> handle_cast gen param (gen.greal_type t) (gen.greal_type param.etype)) elist args) } (gen.greal_type ecall.etype) (gen.greal_type ret)
+      *)
+        | _ ->
+          let pt = match e with | None -> real_type | Some _ -> snd (get_fun e1.etype) in
+          let _params = match follow pt with | TEnum(_, p) -> p | _ -> gen.gcon.warning (debug_expr e1) e1.epos; assert false in
+          let args, ret = get_args efield.ef_type in
+          let actual_t = TFun(List.map (fun (n,o,t) -> (n,o,gen.greal_type t)) args, gen.greal_type ret) in
+          (*
+            because of differences on how <Dynamic> is handled on the platforms, this is a hack to be able to
+            correctly use class field type parameters with RealTypeParams
+          *)
+          let cf_params = List.map (fun t -> match follow t with | TDynamic _ -> t_empty | _ -> t) _params in
+          (* params are inverted *)
+          let cf_params = List.rev cf_params in
+          let t = apply_params en.e_types (gen.greal_type_param (TEnumDecl en) cf_params) actual_t in
+          let t = apply_params efield.ef_params (List.map (fun _ -> t_dynamic) efield.ef_params) t in
+
+          let args, ret = get_args t in
+
+          let elist = List.map2 (fun param (_,_,t) -> handle_cast gen (param) (gen.greal_type t) (gen.greal_type param.etype)) elist args in
+          let e1 = { e1 with eexpr = TField({ ef with eexpr = TTypeExpr( TEnumDecl en ); etype = TEnum(en, _params) }, FEnum(en, efield) ) } in
+          let new_ecall = gen.gparam_func_call ecall e1 _params elist in
+
+          handle_cast gen new_ecall (gen.greal_type ecall.etype) (gen.greal_type ret)
+      )
+    | FEnumField _ when is_some e -> assert false
+    | FEnumField (en,efield,_) ->
+        return_var { e1 with eexpr = TField({ ef with eexpr = TTypeExpr( TEnumDecl en ); },FEnum(en,efield)) }
+    (* no target by date will uses this.so this code may not be correct at all *)
+    | FAnonField cf ->
+      let t = gen.greal_type cf.cf_type in
+      return_var (handle_cast gen { e1 with eexpr = TField(ef, f) } (gen.greal_type e1.etype) t)
+    | FNotFound
+    | FDynamicField _ ->
+      if is_some e then
+        return_var { e1 with eexpr = TField(ef, f) }
+      else
+        return_var (handle_cast gen { e1 with eexpr = TField({ ef with etype = t_dynamic }, f) } e1.etype t_dynamic) (* force dynamic and cast back to needed type *)
+    )
+
+  (* end of type parameter handling *)
+  (* ****************************** *)
+
+  let default_implementation gen ?(native_string_cast = true) maybe_empty_t impossible_tparam_is_dynamic =
+    let handle e t1 t2 = handle_cast gen e (gen.greal_type t1) (gen.greal_type t2) in
+
+    let in_value = ref false in
+
+    let rec run ?(just_type = false) e =
+      let handle = if not just_type then handle else fun e t1 t2 -> { e with etype = gen.greal_type t2 } in
+      let was_in_value = !in_value in
+      in_value := true;
+      match e.eexpr with
+        | TBinop ( (Ast.OpAssign as op),e1,e2)
+        | TBinop ( (Ast.OpAssignOp _ as op),e1,e2) when was_in_value ->
+          let e1r = run e1 ~just_type:true in
+          let r = { e with eexpr = TBinop(op, e1r, handle (run e2) e1r.etype e2.etype); etype = e1.etype } in
+          handle r e1.etype e1r.etype
+        | TBinop ( (Ast.OpAssign as op),({ eexpr = TField(tf, f) } as e1), e2 )
+        | TBinop ( (Ast.OpAssignOp _ as op),({ eexpr = TField(tf, f) } as e1), e2 ) ->
+          (match field_access gen (gen.greal_type tf.etype) (field_name f) with
+            | FClassField(cl,params,_,_,is_static,actual_t) ->
+              let actual_t = if is_static then actual_t else apply_params cl.cl_types params actual_t in
+
+              let e1 = run e1 ~just_type:true in
+              { e with eexpr = TBinop(op, e1, handle (run e2) actual_t e2.etype); etype = e1.etype }
+            | _ ->
+              let e1 = run e1 ~just_type:true in
+              { e with eexpr = TBinop(op, e1, handle (run e2) e1.etype e2.etype); etype = e1.etype }
+          )
+        | TBinop ( (Ast.OpAssign as op),e1,e2)
+        | TBinop ( (Ast.OpAssignOp _ as op),e1,e2) ->
+          let e1 = run e1 ~just_type:true in
+          { e with eexpr = TBinop(op, e1, handle (run e2) e1.etype e2.etype); etype = e1.etype }
+        (* this is an exception so we can avoid infinite loop on Std.String and haxe.lang.Runtime.toString(). It also takes off unnecessary casts to string *)
+        | TBinop ( Ast.OpAdd, ( { eexpr = TCast(e1, _) } as e1c), e2 ) when native_string_cast && is_string e1c.etype && is_string e2.etype ->
+          { e with eexpr = TBinop( Ast.OpAdd, run e1, run e2 ) }
+        | TField(ef, f) ->
+          handle_type_parameter gen None e (run ef) ~clean_ef:ef f [] impossible_tparam_is_dynamic
+        | TArrayDecl el ->
+          let et = e.etype in
+          let base_type = match follow et with
+            | TInst({ cl_path = ([], "Array") } as cl, bt) -> gen.greal_type_param (TClassDecl cl) bt
+            | _ -> assert false
+          in
+          let base_type = List.hd base_type in
+          { e with eexpr = TArrayDecl( List.map (fun e -> handle (run e) base_type e.etype) el ); etype = et }
+        | TCall( ({ eexpr = TField({ eexpr = TLocal(v) },_) } as tf), params ) when String.get v.v_name 0 = '_' &&String.get v.v_name 1 = '_' && Hashtbl.mem gen.gspecial_vars v.v_name ->
+          { e with eexpr = TCall(tf, List.map run params) }
+        | TCall( ({ eexpr = TLocal v } as local), params ) when String.get v.v_name 0 = '_' && String.get v.v_name 1 = '_' && Hashtbl.mem gen.gspecial_vars v.v_name ->
+          { e with eexpr = TCall(local, List.map run params) }
+        | TCall( ({ eexpr = TField(ef, f) }) as e1, elist ) ->
+          handle_type_parameter gen (Some e) (e1) (run ef) ~clean_ef:ef f (List.map run elist) impossible_tparam_is_dynamic
+
+        (* the TNew and TSuper code was modified at r6497 *)
+        | TCall( { eexpr = TConst TSuper } as ef, eparams ) ->
+          let cl, tparams = match follow ef.etype with
+          | TInst(cl,p) -> cl, p
+          | _ -> assert false in
+          (try
+            let is_overload, cf, sup, stl = choose_ctor gen cl tparams (List.map (fun e -> e.etype) eparams) maybe_empty_t e.epos in
+            let handle e t1 t2 =
+              if is_overload then
+                let ret = handle e t1 t2 in
+                match ret.eexpr with
+                | TCast _ -> ret
+                | _ -> mk_cast (gen.greal_type t1) e
+              else
+                handle e t1 t2
+            in
+            let stl = gen.greal_type_param (TClassDecl sup) stl in
+            let args, _ = get_fun (apply_params sup.cl_types stl cf.cf_type) in
+            let eparams = List.map2 (fun e (_,_,t) ->
+              handle (run e) t e.etype
+            ) eparams args in
+            { e with eexpr = TCall(ef, eparams) }
+          with | Not_found ->
+            gen.gcon.warning "No overload found for this constructor call" e.epos;
+            { e with eexpr = TCall(ef, List.map run eparams) })
+        | TCall (ef, eparams) ->
+          (match ef.etype with
+            | TFun(p, ret) ->
+              handle ({ e with eexpr = TCall(run ef, List.map2 (fun param (_,_,t) -> handle (run param) t param.etype) eparams p) }) e.etype ret
+            | _ -> Type.map_expr run e
+          )
+        (* the TNew and TSuper code was modified at r6497 *)
+        | TNew (cl, tparams, eparams) -> (try
+          let is_overload, cf, sup, stl = choose_ctor gen cl tparams (List.map (fun e -> e.etype) eparams) maybe_empty_t e.epos in
+          let handle e t1 t2 =
+            if true then
+              let ret = handle e t1 t2 in
+              match ret.eexpr with
+              | TCast _ -> ret
+              | _ -> mk_cast (gen.greal_type t1) e
+            else
+              handle e t1 t2
+          in
+          let stl = gen.greal_type_param (TClassDecl sup) stl in
+          let args, _ = get_fun (apply_params sup.cl_types stl cf.cf_type) in
+          let eparams = List.map2 (fun e (_,_,t) ->
+            handle (run e) t e.etype
+          ) eparams args in
+          { e with eexpr = TNew(cl, tparams, eparams) }
+        with | Not_found ->
+          gen.gcon.warning "No overload found for this constructor call" e.epos;
+          { e with eexpr = TNew(cl, tparams, List.map run eparams) })
+        | TArray(arr, idx) ->
+          let arr_etype = match follow arr.etype with
+          | (TInst _ as t) -> t
+          | TAbstract ({ a_impl = Some _ } as a, pl) ->
+            follow (Codegen.Abstract.get_underlying_type a pl)
+          | t -> t in
+          (* get underlying class (if it's a class *)
+          (match arr_etype with
+            | TInst(cl, params) ->
+              (* see if it implements ArrayAccess *)
+              (match cl.cl_array_access with
+                | None -> Type.map_expr run e (*FIXME make it loop through all super types *)
+                | Some t ->
+                  (* if it does, apply current parameters (and change them) *)
+                  (* let real_t = apply_params_internal (List.map (gen.greal_type_param (TClassDecl cl))) cl params t in *)
+                  let param = apply_params cl.cl_types (gen.greal_type_param (TClassDecl cl) params) t in
+                  let real_t = apply_params cl.cl_types params param in
+                  (* see if it needs a cast *)
+
+                  handle (Type.map_expr run e) (gen.greal_type e.etype) (gen.greal_type real_t)
+              )
+            | _ -> Type.map_expr run e)
+        | TVars (veopt_l) ->
+          { e with eexpr = TVars (List.map (fun (v,eopt) ->
+            match eopt with
+              | None -> (v,eopt)
+              | Some e ->
+                (v, Some( handle (run e) v.v_type e.etype ))
+          ) veopt_l) }
+        (* FIXME deal with in_value when using other statements that may not have a TBlock wrapped on them *)
+        | TIf (econd, ethen, Some(eelse)) when was_in_value ->
+          { e with eexpr = TIf (handle (run econd) gen.gcon.basic.tbool econd.etype, handle (run ethen) e.etype ethen.etype, Some( handle (run eelse) e.etype eelse.etype ) ) }
+        | TIf (econd, ethen, eelse) ->
+          { e with eexpr = TIf (handle (run econd) gen.gcon.basic.tbool econd.etype, run (mk_block ethen), Option.map (fun e -> run (mk_block e)) eelse) }
+        | TWhile (econd, e1, flag) ->
+          { e with eexpr = TWhile (handle (run econd) gen.gcon.basic.tbool econd.etype, run (mk_block e1), flag) }
+        | TSwitch (cond, el_e_l, edef) ->
+          { e with eexpr = TSwitch(run cond, List.map (fun (el,e) -> (List.map run el, run (mk_block e))) el_e_l, Option.map (fun e -> run (mk_block e)) edef) }
+        | TMatch (cond, en, il_vl_e_l, edef) ->
+          { e with eexpr = TMatch(run cond, en, List.map (fun (il, vl, e) -> (il, vl, run (mk_block e))) il_vl_e_l, Option.map (fun e -> run (mk_block e)) edef) }
+        | TFor (v,cond,e1) ->
+          { e with eexpr = TFor(v, run cond, run (mk_block e1)) }
+        | TTry (e, ve_l) ->
+          { e with eexpr = TTry(run (mk_block e), List.map (fun (v,e) -> (v, run (mk_block e))) ve_l) }
+        | TBlock el ->
+          { e with eexpr = TBlock ( List.map (fun e -> in_value := false; run e) el ) }
+        | TCast (expr, md) when is_void (follow e.etype) ->
+          run expr
+        | TCast (expr, md) ->
+          let rec get_null e =
+            match e.eexpr with
+            | TConst TNull -> Some e
+            | TParenthesis e -> get_null e
+            | _ -> None
+          in
+          (match get_null expr with
+          | Some enull -> { enull with etype = e.etype }
+          | _ ->
+            let last_unsafe = gen.gon_unsafe_cast in
+            gen.gon_unsafe_cast <- (fun t t2 pos -> ());
+            let ret = handle (run expr) e.etype expr.etype in
+            gen.gon_unsafe_cast <- last_unsafe;
+            match ret.eexpr with
+              | TCast _ -> ret
+              | _ -> { e with eexpr = TCast(ret,md); etype = gen.greal_type e.etype }
+          )
+        (*| TCast _ ->
+          (* if there is already a cast, we should skip this cast check *)
+          Type.map_expr run e*)
+        | _ -> Type.map_expr run e
+    in
+    run
+
+  let configure gen (mapping_func:texpr->texpr) =
+    gen.ghandle_cast <- (fun tto tfrom expr -> handle_cast gen expr (gen.greal_type tto) (gen.greal_type tfrom));
+    let map e = Some(mapping_func e) in
+    gen.gsyntax_filters#add ~name:name ~priority:(PCustom priority) map;
+    ReturnCast.configure gen
+
+end;;
+
 
 (* ******************************************* *)
 (* Reflection-enabling Class fields *)
@@ -8902,6 +8936,7 @@ end;;
   For compatibility with the C# target, HardNullable will accept both Null<T> and haxe.lang.Null<T> types
 
   dependencies:
+    Needs to be run after all cast detection modules
 
 
 *)
@@ -8911,8 +8946,7 @@ struct
 
   let name = "hard_nullable"
 
-  (* let priority = solve_deps name [] *)
-  let priority = -200.0
+  let priority = solve_deps name [DAfter CastDetect.ReturnCast.priority]
 
   let rec is_null_t gen t = match gen.greal_type t with
     | TType( { t_path = ([], "Null") }, [of_t])

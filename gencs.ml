@@ -247,7 +247,7 @@ struct
 
   let name = "csharp_specific"
 
-  let priority = solve_deps name [ DAfter ExpressionUnwrap.priority; DAfter ObjectDeclMap.priority; DAfter ArrayDeclSynf.priority; DBefore IntDivisionSynf.priority; DAfter HardNullableSynf.priority ]
+  let priority = solve_deps name [ DAfter ExpressionUnwrap.priority; DAfter ObjectDeclMap.priority; DAfter ArrayDeclSynf.priority;  DAfter HardNullableSynf.priority ]
 
   let get_cl_from_t t =
     match follow t with
@@ -619,12 +619,11 @@ let configure gen =
         has_tdyn params &&
         Hashtbl.mem ifaces cl.cl_path ->
           TInst(Hashtbl.find ifaces cl.cl_path, [])
-      | TEnum(e, params) when
-        has_tdyn params &&
-        Hashtbl.mem ifaces e.e_path ->
-          TInst(Hashtbl.find ifaces e.e_path, [])
+      | TEnum(e, params) ->
+        TEnum(e, List.map (fun _ -> t_dynamic) params)
+      | TInst(cl, params) when Meta.has Meta.Enum cl.cl_meta ->
+        TInst(cl, List.map (fun _ -> t_dynamic) params)
       | TInst(cl, params) -> TInst(cl, change_param_type (TClassDecl cl) params)
-      | TEnum(e, params) -> TEnum(e, change_param_type (TEnumDecl e) params)
       | TType({ t_path = ([], "Null") }, [t]) ->
         (*
           Null<> handling is a little tricky.

@@ -801,7 +801,9 @@ let configure gen =
       | TAbstract( { a_path = ([], "Enum") }, p  )
       | TInst( { cl_path = ([], "Class") }, p  )
       | TInst( { cl_path = ([], "Enum") }, p  ) -> TInst(cl_cl,p)
-      | TEnum _
+      | TEnum(e,params) -> TEnum(e, List.map (fun _ -> t_dynamic) params)
+      | TInst(c,params) when Meta.has Meta.Enum c.cl_meta ->
+        TInst(c, List.map (fun _ -> t_dynamic) params)
       | TInst _ -> t
       | TType({ t_path = ([], "Null") }, [t]) when is_java_basic_type t -> t_dynamic
       | TType({ t_path = ([], "Null") }, [t]) ->
@@ -917,7 +919,10 @@ let configure gen =
       | TAbstract ({ a_path = [], "Class" }, _) | TAbstract ({ a_path = [], "Enum" }, _)
       | TInst ({ cl_path = [], "Class" }, _) | TInst ({ cl_path = [], "Enum" }, _) ->
           path_s_import pos (["java";"lang"], "Class")
-      | TEnum (({e_path = p;} as e), params) -> (path_param_s pos (TEnumDecl e) p params)
+      | TEnum ({e_path = p}, _) ->
+          path_s_import pos p
+      | TInst (({cl_path = p;} as cl), _) when Meta.has Meta.Enum cl.cl_meta ->
+          path_s_import pos p
       | TInst (({cl_path = p;} as cl), params) -> (path_param_s pos (TClassDecl cl) p params)
       | TType (({t_path = p;} as t), params) -> (path_param_s pos (TTypeDecl t) p params)
       | TAnon (anon) ->
@@ -1769,7 +1774,7 @@ let configure gen =
 
   ClosuresToClass.configure gen (ClosuresToClass.default_implementation closure_t (get_cl (get_type gen (["haxe";"lang"],"Function")) ));
 
-  EnumToClass.configure gen (None) false true (get_cl (get_type gen (["haxe";"lang"],"Enum")) ) false true;
+  EnumToClass.configure gen (None) false true (get_cl (get_type gen (["haxe";"lang"],"Enum")) ) false false;
 
   InterfaceVarsDeleteModf.configure gen;
 
