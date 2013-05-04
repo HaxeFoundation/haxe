@@ -4504,16 +4504,6 @@ struct
     with
       Unify_error _ -> false
 
-  (* Helpers for cast handling *)
-  (* will return true if 'super' is a superclass of 'cl' or if cl implements super or if they are the same class *)
-  let can_be_converted gen cl tl super_t super_tl =
-    map_cls gen (gen.guse_tp_constraints || (match cl.cl_kind,super_t.cl_kind with KTypeParameter _, _ | _,KTypeParameter _ -> false | _ -> true)) (fun _ tl ->
-      try
-        List.iter2 (type_eq gen (if gen.gallow_tp_dynamic_conversion then EqRightDynamic else EqStrict)) tl super_tl;
-        true
-      with | Unify_error _ -> false
-    ) super_t cl tl
-
   (* will return true if both arguments are compatible. If it's not the case, a runtime error is very likely *)
   let is_cl_related gen cl tl super superl =
     let is_cl_related cl tl super superl = map_cls gen (gen.guse_tp_constraints || (match cl.cl_kind,super.cl_kind with KTypeParameter _, _ | _,KTypeParameter _ -> false | _ -> true)) (fun _ _ -> true) super cl tl in
@@ -4665,6 +4655,26 @@ struct
       | TDynamic _, _ -> e
       | _, TMono _
       | _, TDynamic _ -> mk_cast to_t e
+      | TAnon (a_to), TAnon (a_from) ->
+        if a_to == a_from then
+          e
+        else if type_iseq gen to_t from_t then (* FIXME apply unify correctly *)
+          e
+        else
+          mk_cast to_t e
+      | _, TAnon(anon) -> (try
+        let p2 = match !(anon.a_status) with
+        | Statics c -> TInst(c,List.map (fun _ -> t_dynamic) c.cl_types)
+        | EnumStatics e -> TEnum(e, List.map (fun _ -> t_dynamic) e.e_types)
+        | AbstractStatics a -> TAbstract(a, List.map (fun _ -> t_dynamic) a.a_types)
+        | _ -> raise Not_found
+        in
+        let tclass = match get_type gen ([],"Class") with
+        | TAbstractDecl(a) -> a
+        | _ -> assert false in
+        handle_cast gen e real_to_t (gen.greal_type (TAbstract(tclass, [p2])))
+      with | Not_found ->
+        mk_cast to_t e)
       | TAbstract (a_to, _), TAbstract(a_from, _) when a_to == a_from ->
         e
       | TAbstract _, _
@@ -4692,8 +4702,8 @@ struct
             | Unify_error _ -> do_unsafe_cast ()
         )
       | TEnum(en, params_to), TInst(cl, params_from)
-      | TInst(cl, params_to), TEnum(en, params_from) ->
-        (* this is here for max compatibility with EnumsToClass module *)
+        | TInst(cl, params_to), TEnum(en, params_from) ->
+          (* this is here for max compatibility with EnumsToClass module *)
         if en.e_path = cl.cl_path && en.e_extern then begin
           (try
             List.iter2 (type_eq gen (if gen.gallow_tp_dynamic_conversion then EqRightDynamic else EqStrict)) params_from params_to;
@@ -4742,20 +4752,11 @@ struct
           (do_unsafe_cast ())
         else
           mk_cast to_t e
-      | TAnon (a_to), TAnon (a_from) ->
-        if a_to == a_from then
-          e
-        else if type_iseq gen to_t from_t then (* FIXME apply unify correctly *)
-          e
-        else
-          mk_cast to_t e
       | TAnon anon, _ ->
         if PMap.is_empty anon.a_fields then
           e
         else
           mk_cast to_t e
-      | _, TAnon _ ->
-        mk_cast to_t e
       | TFun(args, ret), TFun(args2, ret2) ->
         let get_args = List.map (fun (_,_,t) -> t) in
         (try List.iter2 (type_eq gen (EqBothDynamic)) (ret :: get_args args) (ret2 :: get_args args2); e with | Unify_error _ | Invalid_argument("List.iter2") -> mk_cast to_t e)
@@ -5040,17 +5041,6 @@ struct
     let handle e t1 t2 = handle_cast gen e (gen.greal_type t1) (gen.greal_type t2) in
 
     let in_value = ref false in
-
-	(*
-    let rec get_ctor_p cl p =
-      match cl.cl_constructor with
-        | Some c -> follow (apply_params cl.cl_types p c.cf_type), cl, p
-        | None -> match cl.cl_super with
-          | Some (cls,tl) ->
-            get_ctor_p cls (List.map (apply_params cls.cl_types p) tl)
-          | None -> TFun([],gen.gcon.basic.tvoid), cl, p
-    in
-	*)
 
     let rec run ?(just_type = false) e =
       let handle = if not just_type then handle else fun e t1 t2 -> { e with etype = gen.greal_type t2 } in

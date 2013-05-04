@@ -112,6 +112,12 @@ let is_string t =
     | TInst( { cl_path = ([], "String") }, [] ) -> true
     | _ -> false
 
+let is_cl t = match follow t with
+  | TInst({ cl_path = ["java";"lang"],"Class" },_)
+  | TAbstract({ a_path = [], ("Class"|"Enum") },_) -> true
+  | TAnon(a) when is_some (anon_class t) -> true
+  | _ -> false
+
 (* ******************************************* *)
 (* JavaSpecificESynf *)
 (* ******************************************* *)
@@ -619,6 +625,9 @@ struct
           let static = mk_static_field_access_infer (runtime_cl) "valEq" e1.epos [] in
           let eret = { eexpr = TCall(static, [run e1; run e2]); etype = gen.gcon.basic.tbool; epos=e.epos } in
           if op = Ast.OpNotEq then { eret with eexpr = TUnop(Ast.Not, Ast.Prefix, eret) } else eret
+
+        | TBinop( (Ast.OpNotEq | Ast.OpEq as op), e1, e2) when is_cl e1.etype && is_cl e2.etype ->
+          { e with eexpr = TBinop(op, mk_cast t_empty (run e1), mk_cast t_empty (run e2)) }
         | _ -> Type.map_expr run e
     in
     run
@@ -803,7 +812,9 @@ let configure gen =
           | _ -> real_type t
         )
       | TType _ | TAbstract _ -> t
-      | TAnon (anon) when (match !(anon.a_status) with | Statics _ | EnumStatics _ | AbstractStatics _ -> true | _ -> false) -> t
+      | TAnon (anon) -> (match !(anon.a_status) with
+        | Statics _ | EnumStatics _ | AbstractStatics _ -> t
+        | _ -> t_dynamic)
       | TFun _ -> TInst(fn_cl,[])
       | _ -> t_dynamic
   in
@@ -852,7 +863,7 @@ let configure gen =
     | TMono _ | TDynamic _ -> true
     | TAnon anon ->
       (match !(anon.a_status) with
-        | EnumStatics _ | Statics _ -> false
+        | EnumStatics _ | Statics _ | AbstractStatics _ -> false
         | _ -> true
       )
     | _ -> false
@@ -900,8 +911,12 @@ let configure gen =
       | TMono r -> (match !r with | None -> "java.lang.Object" | Some t -> t_s pos (run_follow gen t))
       | TInst ({ cl_path = [], "String" }, []) ->
           path_s_import pos (["java";"lang"], "String")
-	    | TAbstract ({ a_path = [], "Class" }, _) | TAbstract ({ a_path = [], "Enum" }, _)
-      | TInst ({ cl_path = [], "Class" }, _) | TInst ({ cl_path = [], "Enum" }, _) -> assert false (* should have been converted earlier *)
+      | TAbstract ({ a_path = [], "Class" }, [p]) | TAbstract ({ a_path = [], "Enum" }, [p])
+      | TInst ({ cl_path = [], "Class" }, [p]) | TInst ({ cl_path = [], "Enum" }, [p]) ->
+          path_param_s pos (TClassDecl cl_cl) (["java";"lang"], "Class") [p]
+      | TAbstract ({ a_path = [], "Class" }, _) | TAbstract ({ a_path = [], "Enum" }, _)
+      | TInst ({ cl_path = [], "Class" }, _) | TInst ({ cl_path = [], "Enum" }, _) ->
+          path_s_import pos (["java";"lang"], "Class")
       | TEnum (({e_path = p;} as e), params) -> (path_param_s pos (TEnumDecl e) p params)
       | TInst (({cl_path = p;} as cl), params) -> (path_param_s pos (TClassDecl cl) p params)
       | TType (({t_path = p;} as t), params) -> (path_param_s pos (TTypeDecl t) p params)
