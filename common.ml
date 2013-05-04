@@ -185,6 +185,7 @@ module Define = struct
 		| NoTraces
 		| NoUnusedVarWarnings
 		| PhpPrefix
+    | RealPosition
 		| ReplaceFiles
 		| Scriptable
 		| Swc
@@ -246,6 +247,7 @@ module Define = struct
 		| NoTraces -> ("no_traces","Disable all trace calls")
 		| NoUnusedVarWarnings -> ("no_unused_var_warnings","Do not warn about unused catch-variables in patterns")
 		| PhpPrefix -> ("php_prefix","Compiled with --php-prefix")
+    | RealPosition -> ("real_position","Disables haxe source mapping when targetting C#")
 		| ReplaceFiles -> ("replace_files","GenCommon internal")
 		| Scriptable -> ("scriptable","GenCPP internal")
 		| Swc -> ("swc","Output a SWC instead of a SWF")

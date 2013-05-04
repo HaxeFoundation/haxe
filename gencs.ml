@@ -846,7 +846,20 @@ let configure gen =
     | _ ->
         false in
 
+  let last_line = ref (-1) in
+  let line_directive =
+    if Common.defined gen.gcon Define.RealPosition then
+      fun w p -> ()
+    else fun w p ->
+      let cur_line = Lexer.get_error_line p in
+      let is_relative_path = (String.sub p.pfile 0 1) = "." in
+      let file = if is_relative_path then Common.get_full_path p.pfile else p.pfile in
+      if cur_line <> ((!last_line)+1) then begin print w "#line %d \"%s\"" cur_line (Ast.s_escape file); newline w end;
+      last_line := cur_line
+  in
+
   let expr_s w e =
+    last_line := -1;
     in_value := false;
     let rec expr_s w e =
       let was_in_value = !in_value in
@@ -1123,20 +1136,8 @@ let configure gen =
           expr_s w e
         | TBlock el ->
           begin_block w;
-          (*
-            Line directives are turned off right now because:
-              1 - It makes harder to debug when the generated code internals are the problem
-              2 - Lexer.get_error_line is a very expensive operation
-          let last_line = ref (-1) in
-          let line_directive p =
-            let cur_line = Lexer.get_error_line p in
-            let is_relative_path = (String.sub p.pfile 0 1) = "." in
-            let file = if is_relative_path then "../" ^ p.pfile else p.pfile in
-            if cur_line <> ((!last_line)+1) then begin print w "//#line %d \"%s\"" cur_line (Ast.s_escape file); newline w end;
-            last_line := cur_line
-          in *)
           List.iter (fun e ->
-            (*line_directive e.epos;*)
+            line_directive w e.epos;
             in_value := false;
             expr_s w e;
             (if has_semicolon e then write w ";");
