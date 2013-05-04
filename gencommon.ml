@@ -9213,6 +9213,7 @@ struct
       if before then cur_block := expr :: !cur_block else to_add := expr :: !to_add
     in
     let num = ref 0 in
+    let cur_num = ref 0 in
 
     let rec run e =
       match e.eexpr with
@@ -9226,13 +9227,16 @@ struct
         | TWhile _ ->
           let last_switch = !in_switch in
           let last_found = !did_found in
+          let last_num = !cur_num in
           in_switch := false;
           incr num;
+          cur_num := !num;
           did_found := -1;
             let new_e = Type.map_expr run e in (* assuming that no loop will be found in the condition *)
             let new_e = if !did_found <> -1 then change_loop new_e !did_found api else new_e in
           did_found := last_found;
           in_switch := last_switch;
+          cur_num := last_num;
 
           new_e
         | TSwitch _
@@ -9264,7 +9268,7 @@ struct
 
           { e with eexpr = TBlock(ret) }
         | TBreak ->
-          if !in_switch then (did_found := !num; change_break e !num api) else e
+          if !in_switch then (did_found := !cur_num; change_break e !cur_num api) else e
         | _ -> Type.map_expr run e
     in
     run
