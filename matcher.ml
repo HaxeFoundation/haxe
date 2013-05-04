@@ -446,7 +446,7 @@ let to_pattern ctx e t =
 				end
 			end
 		| (EObjectDecl fl) ->
-			let is_matchable cf = match cf.cf_kind with Method _ | Var {v_read = AccCall _} -> false | _ -> true in
+			let is_matchable cf = match cf.cf_kind with Method _ | Var {v_read = AccCall} -> false | _ -> true in
 			let is_valid_field_name fields n p =
 				try
 					let cf = PMap.find n fields in

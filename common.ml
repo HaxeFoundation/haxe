@@ -514,7 +514,7 @@ let get_config com =
 			pf_unique_locals = false;
 			pf_can_init_member = (fun cf ->
 				match cf.cf_kind, cf.cf_expr with
-				| Var { v_write = AccCall _ },	_ -> false
+				| Var { v_write = AccCall },	_ -> false
 				| _, Some { eexpr = TTypeExpr _ } -> false
 				| _ -> true
 			);

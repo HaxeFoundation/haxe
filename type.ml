@@ -752,7 +752,7 @@ let unify_access a1 a2 =
 
 let direct_access = function
 	| AccNo | AccNever | AccNormal | AccInline | AccRequire _ -> true
-	| AccResolve | AccCall _ -> false
+	| AccResolve | AccCall -> false
 
 let unify_kind k1 k2 =
 	k1 = k2 || match k1, k2 with

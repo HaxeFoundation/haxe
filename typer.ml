@@ -1059,9 +1059,9 @@ and type_field ctx e i p mode =
 		(try
 			let c2, t , f = class_field ctx c params i p in
 			if e.eexpr = TConst TSuper then (match mode,f.cf_kind with
-				| MGet,Var {v_read = AccCall _}
-				| MSet,Var {v_write = AccCall _}
-				| MCall,Var {v_read = AccCall _} ->
+				| MGet,Var {v_read = AccCall }
+				| MSet,Var {v_write = AccCall }
+				| MCall,Var {v_read = AccCall } ->
 					()
 				| MCall, Var _ ->
 					error "Cannot access superclass variable for calling: needs to be a proper method" p
@@ -1186,7 +1186,7 @@ and type_field ctx e i p mode =
 				let t = field_type f in
 				let ef = field_expr f t in
 				AKUsing (ef,c,f,e)
-			| MCall, Var {v_read = AccCall _} ->
+			| MCall, Var {v_read = AccCall} ->
 				error (i ^ " cannot be called") p
 			| MGet, Var {v_read = AccNever} ->
 				AKNo f.cf_name

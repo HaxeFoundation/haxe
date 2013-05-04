@@ -521,7 +521,7 @@ let is_array_implementer haxe_type =
 	;;
 
 
-let is_numeric_field field = 
+let is_numeric_field field =
    match field.cf_kind with
    | Var _ -> is_numeric (type_string field.cf_type)
 	| _ -> false;
@@ -2763,7 +2763,7 @@ let access_str a = match a with
 	| AccNo -> "AccNo"
 	| AccNever -> "AccNever"
 	| AccResolve -> "AccResolve"
-	| AccCall(_) -> "AccCall"
+	| AccCall -> "AccCall"
 	| AccInline -> "AccInline"
 	| AccRequire(_,_) -> "AccRequire" ;;
 

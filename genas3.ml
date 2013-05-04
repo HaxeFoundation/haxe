@@ -989,7 +989,7 @@ let generate_field ctx static f =
 		h();
 		newline ctx
 	| _ ->
-		let is_getset = (match f.cf_kind with Var { v_read = AccCall _ } | Var { v_write = AccCall _ } -> true | _ -> false) in
+		let is_getset = (match f.cf_kind with Var { v_read = AccCall } | Var { v_write = AccCall } -> true | _ -> false) in
 		if ctx.curclass.cl_interface then
 			match follow f.cf_type with
 			| TFun (args,r) ->

@@ -7129,8 +7129,8 @@ struct
       let mk_switch static =
         let fields = get_fields static in
         let fields = List.filter (fun (_, cf) -> match is_set, cf.cf_kind with
-          | true, Var { v_write = AccCall _ } -> true
-          | false, Var { v_read = AccCall _ } -> true
+          | true, Var { v_write = AccCall } -> true
+          | false, Var { v_read = AccCall } -> true
           | _ -> not (Type.is_extern_field cf)) fields
         in
         (if fields <> [] then has_fields := true);

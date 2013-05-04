@@ -87,8 +87,8 @@ let rec type_constant_value com (e,p) =
 let rec has_properties c =
 	List.exists (fun f ->
 		match f.cf_kind with
-		| Var { v_read = AccCall _ } -> true
-		| Var { v_write = AccCall _ } -> true
+		| Var { v_read = AccCall } -> true
+		| Var { v_write = AccCall } -> true
 		| _ -> false
 	) c.cl_ordered_fields || (match c.cl_super with Some (c,_) -> has_properties c | _ -> false)
 
