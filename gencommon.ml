@@ -4230,6 +4230,16 @@ struct
               let cast_cf = create_cast_cfield gen cl name in
               if not cl.cl_interface then create_stub_casts gen cl cast_cf;
 
+              let rec loop c = match c.cl_super with
+                | None -> ()
+                | Some(sup,_) -> try
+                  let siface = Hashtbl.find ifaces sup.cl_path in
+                  iface.cl_implements <- (siface,[]) :: iface.cl_implements;
+                  ()
+                with | Not_found -> loop sup
+              in
+              loop cl;
+
               (if not cl.cl_interface then cl.cl_ordered_fields <- cast_cf :: cl.cl_ordered_fields);
               let iface_cf = mk_class_field name cast_cf.cf_type false cast_cf.cf_pos (Method MethNormal) cast_cf.cf_params in
               let cast_static_cf, delay = create_static_cast_cf gen iface iface_cf in
