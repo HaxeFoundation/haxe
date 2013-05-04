@@ -1408,19 +1408,22 @@ let generate_class ctx c =
 	let params = get_params ctx c.cl_types in
 	let path = snd c.cl_path in
 	ctx.in_interface <- c.cl_interface;
-	print ctx "pub struct %s%s" path params;
-	if ((List.length obj_fields) > 0) then (
-		spr ctx " {";
-		let st = open_block ctx in
-		concat ctx ", " (fun f ->
+	if not c.cl_interface then (
+		print ctx "pub struct %s%s" path params;
+		if ((List.length obj_fields) > 0) then (
+			spr ctx " {";
+			let st = open_block ctx in
+			concat ctx ", " (fun f ->
+				soft_newline ctx;
+				generate_field ctx false f;
+			) obj_fields;
+			st();
 			soft_newline ctx;
-			generate_field ctx false f;
-		) obj_fields;
-		st();
-		soft_newline ctx;
-		spr ctx "}";
+			spr ctx "}";
+			soft_newline ctx;
+		) else
+			newline ctx;
 	);
-	soft_newline ctx;
 	List.iter (generate_field ctx true) static_fields;
 	if ((c.cl_constructor <> None) || ((List.length obj_methods) > 0) || (List.length c.cl_ordered_statics) > 0) && not c.cl_interface then (
 		print ctx "pub impl%s %s%s {" params path params;
@@ -1458,7 +1461,7 @@ let generate_class ctx c =
 	List.iter (fun (iface, iface_params) ->
 		let tparams = s_tparams ctx iface_params c.cl_pos in
 		let aparams = get_params ctx (List.append c.cl_types iface.cl_types) in
-		let iface_path = snd iface.cl_path in
+		let iface_path = s_path ctx iface.cl_path in
 		print ctx "impl%s %s%s for %s%s {" aparams iface_path tparams path params;
 		let i = open_block ctx in
 		let iface_fields = List.filter(fun f ->

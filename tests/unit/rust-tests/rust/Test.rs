@@ -1,5 +1,6 @@
 extern mod std;
 mod lib;
+mod STest;
 pub struct Test<V> {
 	value: Option<~V>
 	
@@ -31,7 +32,7 @@ pub impl<V> Test<V> {
 		return Some(~self);
 	}
 }
-impl<V> STest for Test<V> {
+impl<V> STest::STest for Test<V> {
 }
 impl<V> lib::HxObject for Test<V> {
 	

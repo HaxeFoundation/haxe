@@ -1,6 +1,6 @@
 extern mod std;
 mod lib;
-pub struct Eof
+pub struct Eof;
 pub impl Eof {
 	priv fn toString(&mut self) -> Option<~str> {
 		return Some(~"Eof");
