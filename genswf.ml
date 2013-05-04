@@ -70,6 +70,13 @@ let rec make_tpath = function
 			tparams = [];
 			tsub = None;
 		}
+	| HMNSAny (id) ->
+		{
+			tpackage = [];
+			tname = id;
+			tparams = [];
+			tsub = None;
+		}
 	| HMMultiName _ ->
 		assert false
 	| HMRuntimeName _ ->
