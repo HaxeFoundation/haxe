@@ -1,3 +1,4 @@
+extern mod std;
 pub trait HxEnum {
 }
 pub trait HxObject {
@@ -45,12 +46,17 @@ impl HxObject for io::Writer {
 		return Some(~"Writer")
 	}
 }
-impl HxObject for i32 {
+impl HxObject for i8 {
 	pub fn toString(&self) -> Option<~str> {
 		return Some(self.to_str());
 	}
 }
-impl HxObject for i8 {
+impl HxObject for i16 {
+	pub fn toString(&self) -> Option<~str> {
+		return Some(self.to_str());
+	}
+}
+impl HxObject for i32 {
 	pub fn toString(&self) -> Option<~str> {
 		return Some(self.to_str());
 	}
@@ -60,12 +66,12 @@ impl HxObject for i64 {
 		return Some(self.to_str());
 	}
 }
-impl HxObject for ui32 {
+impl HxObject for int {
 	pub fn toString(&self) -> Option<~str> {
 		return Some(self.to_str());
 	}
 }
-impl HxObject for ui8 {
+impl HxObject for float {
 	pub fn toString(&self) -> Option<~str> {
 		return Some(self.to_str());
 	}

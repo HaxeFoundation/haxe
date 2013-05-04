@@ -1,3 +1,4 @@
+extern mod std;
 mod lib;
 pub struct Eof
 pub impl Eof {

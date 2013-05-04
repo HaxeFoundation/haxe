@@ -1,3 +1,4 @@
+extern mod std;
 mod lib;
 pub struct Test<V> {
 	value: Option<~V>
@@ -15,7 +16,7 @@ pub impl<V> Test<V> {
 		let mut oi: i8 = (24i32 as i8);
 		oi += {
 			let mut t: i32 = 5i32;
-			if (Std::_is(t, rust::Int8::Int8.unwrap())) {
+			if (Std::_is(t, i8.unwrap())) {
 				t;
 			} else {
 				fail!(~"Class cast error");
@@ -30,7 +31,7 @@ pub impl<V> Test<V> {
 		return Some(~self);
 	}
 }
-impl STest for Test<V> {
+impl<V> STest for Test<V> {
 }
 impl<V> lib::HxObject for Test<V> {
 	

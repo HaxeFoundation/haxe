@@ -74,7 +74,6 @@ let protect name =
 
 let type_path (p, s) =
 	match p with [] -> s | _ -> String.concat "::" p ^ "::" ^ s
-
 let is_core path =
 	match path with
 	| (["rust"], "Int8") | (["rust"], "Int16") | (["rust"], "Char16") | ([], "Math") | ([], "UInt") | ([], "Array") | ([], "ArrayAccess") | ([], "Int") | ([], "Float") | ([], "Single") | ([], "Void") | ([], "Dynamic") | ([], "Bool") | ([], "String") | (["rust"], "Tuple2") | (["rust"], "Tuple3") ->
@@ -184,6 +183,7 @@ let close ctx =
 		| ([], "lib") -> true
 		| _ -> false
 	in
+	output_string ctx.ch "extern mod std;\n";
 	Hashtbl.iter (fun name paths ->
 		let path = ref ([], name) in
 		if List.length paths > 0 then
@@ -571,11 +571,11 @@ and unwrap ctx e =
 		spr ctx "None"
 	| TConst (TThis) ->
 		spr ctx "self"
-	| _ when is_nullable e.etype ->
+	| _ when not (is_nullable e.etype) ->
 		gen_value ctx e;
-		spr ctx ".unwrap()";
 	| _ ->
 		gen_value ctx e;
+		spr ctx ".unwrap()";
 
 and wrap ctx e =
 	if (is_nullable e.etype) then (
@@ -720,7 +720,12 @@ and gen_expr ctx e =
 		unwrap ctx e;
 		gen_field_access ctx e.etype (field_name s)
 	| TTypeExpr t ->
-		spr ctx (s_path ctx (t_path t))
+		spr ctx (type_str ctx (match t with
+			| TClassDecl c -> TInst(c, [])
+			| TEnumDecl e -> TEnum(e, [])
+			| TTypeDecl ty -> TType(ty, [])
+			| TAbstractDecl a -> TAbstract(a, [])
+		) e.epos)
 	| TParenthesis e ->
 		spr ctx "(";
 		gen_value ctx e;
@@ -1452,8 +1457,9 @@ let generate_class ctx c =
 	);
 	List.iter (fun (iface, iface_params) ->
 		let tparams = s_tparams ctx iface_params c.cl_pos in
+		let aparams = get_params ctx (List.append c.cl_types iface.cl_types) in
 		let iface_path = snd iface.cl_path in
-		print ctx "impl %s%s for %s%s {" iface_path tparams path params;
+		print ctx "impl%s %s%s for %s%s {" aparams iface_path tparams path params;
 		let i = open_block ctx in
 		let iface_fields = List.filter(fun f ->
 			let x = ref false in
@@ -1557,7 +1563,7 @@ let generate_base_object ctx com =
 			generate_obj_impl ctx c
 		| _ -> ()
 	) com.types;
-	let core_types = ["i32";"i8";"i64";"ui32";"ui8";"f32";"f64";"~str"] in
+	let core_types = ["i8";"i16";"i32";"i64";"int";"float";"f32";"f64";"~str"] in
 	List.iter(generate_min_impl ctx) core_types;
 	soft_newline ctx
 
