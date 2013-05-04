@@ -375,10 +375,16 @@ let gen_close_namespace output class_path =
 			(fst class_path);;
 
 (* The basic types can have default values and are passesby value *)
-let cant_be_null = function
+let is_numeric = function
 	| "Int" | "Bool" | "Float" |  "::haxe::io::Unsigned_char__" | "unsigned char" -> true
 	| "int" | "bool" | "double" | "float" -> true
 	| _ -> false
+
+
+let cant_be_null type_string =
+   is_numeric type_string
+;;
+
 
 (*  Get a string to represent a type.
 	 The "suffix" will be nothing or "_obj", depending if we want the name of the
@@ -513,6 +519,13 @@ let is_array_implementer haxe_type =
 		| _ -> false )
 	| _ -> false
 	;;
+
+
+let is_numeric_field field = 
+   match field.cf_kind with
+   | Var _ -> is_numeric (type_string field.cf_type)
+	| _ -> false;
+;;
 
 
 
@@ -3014,7 +3027,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 			output_cpp "\n\n";
 
 
-			let output_ifield return_type function_name =
+			let output_ifield return_type function_name all_fields =
 			output_cpp (return_type ^" " ^ class_name ^ "::" ^ function_name ^ "(int inFieldID)\n{\n");
 			let dump_field_test = (fun f ->
 				let remap_name = keyword_remap f.cf_name in
@@ -3022,17 +3035,17 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 					( if (return_type="Float") then "hx::ToDouble( " else "" ) ^
 					(match f.cf_kind with
 					| Var { v_read = AccCall } -> (keyword_remap ("get_" ^ f.cf_name)) ^ "()"
-					| _ -> ((keyword_remap f.cf_name) ^ if ( variable_field f) then "" else "_dyn()")
+					| _ -> (remap_name ^ if ( variable_field f) then "" else "_dyn()")
 					) ^ ( if (return_type="Float") then " ) " else "" ) ^ ";\n");
 				) in
-			List.iter dump_field_test reflect_readable;
+			List.iter dump_field_test (List.filter (fun f -> all_fields || (is_numeric_field f)) reflect_readable);
 			if (implement_dynamic) then
 				output_cpp "	HX_CHECK_DYNAMIC_GET_INT_FIELD(inFieldID);\n";
 			output_cpp ("	return super::" ^ function_name ^ "(inFieldID);\n}\n\n");
 			in
 
-			if (field_integer_dynamic) then output_ifield "Dynamic" "__IField";
-			if (field_integer_numeric) then output_ifield "double" "__INumField";
+			if (field_integer_dynamic) then output_ifield "Dynamic" "__IField" true;
+			if (field_integer_numeric) then output_ifield "double" "__INumField" false;
 		end;
 
 
