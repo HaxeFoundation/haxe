@@ -1961,6 +1961,8 @@ let generate_static_field_assign ctx path f =
 					print ctx "%s::$%s = " (s_path ctx path false p) (s_ident f.cf_name);
 					gen_value ctx e
 				| _ -> ())
+			| _ when is_extern_field f ->
+				()
 			| _ ->
 				newline ctx;
 				print ctx "%s::$%s = " (s_path ctx path false p) (s_ident f.cf_name);
