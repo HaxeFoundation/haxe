@@ -118,6 +118,7 @@ type extern_api = {
 	module_dependency : string -> string -> bool -> unit;
 	current_module : unit -> module_def;
 	delayed_macro : int -> (unit -> (unit -> value));
+	use_cache : unit -> bool;
 }
 
 type callstack = {
@@ -1627,6 +1628,7 @@ let std_lib =
 			VInt (((get_ctx()).curapi.get_com()).run_command (vstring cmd))
 		);
 		"sys_exit", Fun1 (fun code ->
+			if (get_ctx()).curapi.use_cache() then raise Typecore.Fatal_error;
 			exit (vint code);
 		);
 		"sys_exists", Fun1 (fun file ->

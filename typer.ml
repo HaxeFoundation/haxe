@@ -3704,6 +3704,9 @@ let make_macro_api ctx p =
 			delayed_macro_result := (fun() -> assert false);
 			ret
 		);
+		Interp.use_cache = (fun() ->
+			!macro_enable_cache
+		);
 	}
 
 let rec init_macro_interp ctx mctx mint =
