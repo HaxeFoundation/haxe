@@ -777,7 +777,7 @@ and gen_member_access ctx isvar e s =
 	| TAnon a ->
 		(match !(a.a_status) with
 		| EnumStatics _ ->
-			print ctx "::%s%s" (if isvar then "$" else "") s
+			print ctx "::%s%s" (if isvar then "$" else "") (s_ident s)
 		| Statics _ ->
 			print ctx "::%s%s" (if isvar then "$" else "") (s_ident s)
 		| _ -> print ctx "->%s" (if isvar then s_ident_field s else s_ident s))
@@ -2174,17 +2174,17 @@ let generate_enum ctx e =
 		newline ctx;
 		match c.ef_type with
 		| TFun (args,_) ->
-			print ctx "public static function %s($" c.ef_name;
+			print ctx "public static function %s($" (s_ident c.ef_name);
 			concat ctx ", $" (fun (a,o,t) ->
 				spr ctx a;
 				if o then spr ctx " = null";
 			) args;
 			spr ctx ") {";
-			print ctx " return new %s(\"%s\", %d, array($" ename c.ef_name c.ef_index;
+			print ctx " return new %s(\"%s\", %d, array($" ename (s_ident c.ef_name) c.ef_index;
 			concat ctx ", $" (fun (a,_,_) -> spr ctx a) args;
 			print ctx ")); }";
 		| _ ->
-			print ctx "public static $%s" c.ef_name;
+			print ctx "public static $%s" (s_ident c.ef_name);
 	) e.e_constrs;
 	newline ctx;
 
@@ -2193,7 +2193,7 @@ let generate_enum ctx e =
 	let first = ref true in
 	PMap.iter (fun _ c ->
 		if not !first then spr ctx ", ";
-		print ctx "%d => '%s'" c.ef_index c.ef_name;
+		print ctx "%d => '%s'" c.ef_index (s_ident c.ef_name);
 		first := false;
 	) e.e_constrs;
 
@@ -2217,7 +2217,7 @@ let generate_enum ctx e =
 			();
 		| _ ->
 			newline ctx;
-			print ctx "%s::$%s = new %s(\"%s\", %d)" ename c.ef_name ename c.ef_name  c.ef_index;
+			print ctx "%s::$%s = new %s(\"%s\", %d)" ename (s_ident c.ef_name) ename c.ef_name c.ef_index;
 	) e.e_constrs;
 
 	newline ctx;

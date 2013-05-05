@@ -8,6 +8,12 @@ class TestPhp extends Test
 	function testAbstractEnum()
 	{
 		eq(Abstract.getName(), "Abstract");
+		var x = Const("foo");
+		var s = switch(x) {
+			case Const(s): s;
+			case Abstract: "null";
+		}
+		eq("foo", s);
 	}
 
 	function testAbstractKeywordAsFunction()
@@ -32,4 +38,5 @@ class TestPhp extends Test
 
 enum Annotation {
 	Abstract;
+	Const(i:String);
 }
