@@ -31,7 +31,7 @@ class Int64 {
 		this.low = i32(low);
 	}
 
-	@:extern inline function i32(i) {
+	@:extern static inline function i32(i) {
 		#if (php || js || flash8)
 		return i | 0;
 		#else
@@ -85,8 +85,8 @@ class Int64 {
 	}
 
 	public static function add( a : Int64, b : Int64 ) : Int64 {
-		var high = a.high + b.high;
-		var low = a.low + b.low;
+		var high = i32(a.high + b.high);
+		var low = i32(a.low + b.low);
 		if( uicompare(low,a.low) < 0 )
 			high++;
 		return new Int64(high, low);
@@ -104,16 +104,16 @@ class Int64 {
 		var mask = 0xFFFF;
 		var al = a.low & mask, ah = a.low >>> 16;
 		var bl = b.low & mask, bh = b.low >>> 16;
-		var p00 = al * bl;
-		var p10 = ah * bl;
-		var p01 = al * bh;
-		var p11 = ah * bh;
+		var p00 = i32(al * bl);
+		var p10 = i32(ah * bl);
+		var p01 = i32(al * bh);
+		var p11 = i32(ah * bh);
 		var low = p00;
-		var high = p11 + (p01 >>> 16) + (p10 >>> 16);
-		p01 = (p01 << 16); low += p01; if( uicompare(low,p01) < 0 ) high++;
-		p10 = (p10 << 16); low += p10; if( uicompare(low,p10) < 0 ) high++;
-		high += a.low * b.high;
-		high += a.high * b.low;
+		var high = i32(p11 + i32((p01 >>> 16) + (p10 >>> 16)));
+		p01 = (p01 << 16); low = i32(low + p01); if( uicompare(low,p01) < 0 ) high = i32(high + 1);
+		p10 = (p10 << 16); low = i32(low + p10); if( uicompare(low,p10) < 0 ) high = i32(high + 1);
+		high = i32(high + i32(a.low * b.high));
+		high = i32(high + i32(a.high * b.low));
 		return new Int64(high, low);
 	}
 
