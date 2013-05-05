@@ -73,8 +73,6 @@ type out = {
 	o_guard : texpr option;
 	o_pos : pos;
 	o_id : int;
-	mutable o_num_paths : int;
-	mutable o_bindings : (pvar * st) list;
 }
 
 type pat_vec = pat array * out
@@ -87,8 +85,9 @@ type pattern_ctx = {
 }
 
 type dt =
-	| Bind of out * dt option
+	| Out of out * dt option
 	| Switch of st * (con * dt) list
+	| Bind of (pvar * st) list * dt
 	| Goto of int
 
 type matcher = {
@@ -97,11 +96,10 @@ type matcher = {
 	need_val : bool;
 	v_lookup : (string,tvar) Hashtbl.t;
 	mutable outcomes : (pat list,out) PMap.t;
-	mutable subtree_index : (st list * pat_matrix,int) Hashtbl.t;
-	mutable subtrees : (int,dt) Hashtbl.t;
-	mutable num_subtrees : int;
 	mutable out_type : Type.t;
 	mutable toplevel_or : bool;
+	mutable used_paths : (int,bool) Hashtbl.t;
+	mutable eval_stack : (pvar * st) list list;
 }
 
 exception Not_exhaustive of pat * st
@@ -128,21 +126,13 @@ let mk_out mctx id e eg pl p =
 		o_guard = eg;
 		o_pos = p;
 		o_id = id;
-		o_num_paths = 0;
-		o_bindings = [];
 	} in
 	mctx.outcomes <- PMap.add pl out mctx.outcomes;
 	out
 
 let clone_out mctx out pl p =
-	try PMap.find pl mctx.outcomes
-	with Not_found ->
-		let out = {out with o_pos = p} in
-		mctx.outcomes <- PMap.add pl out mctx.outcomes;
-		out
-
-let bind_st out st v =
-	if not (List.mem_assq v out.o_bindings) then out.o_bindings <- (v,st) :: out.o_bindings
+	let out = {out with o_pos = p; } in
+	out
 
 let mk_pat pdef t p = {
 	p_def = pdef;
@@ -245,17 +235,16 @@ let rec s_st st = (match st.st_def with
 let rec s_pat_vec pl =
 	String.concat " " (Array.to_list (Array.map s_pat pl))
 
-let s_out out =
-	"var " ^ (String.concat "," (List.map (fun ((v,_),st) -> v.v_name ^ "=" ^ (s_st st)) out.o_bindings)) ^ ";"
+let s_out out = ""
 	(* ^ s_expr_small out.o_expr *)
 
 let rec s_pat_matrix pmat =
 	String.concat "\n" (List.map (fun (pl,out) -> (s_pat_vec pl) ^ "->" ^ (s_out out)) pmat)
 
 let rec s_dt tabs tree = tabs ^ match tree with
-	| Bind (out,None)->
+	| Out(out,None)->
 		s_out out;
-	| Bind (out,Some dt) ->
+	| Out(out,Some dt) ->
 		"if (" ^ (s_expr_small (match out.o_guard with Some e -> e | None -> assert false)) ^ ") " ^ (s_out out) ^ " else " ^ s_dt tabs dt
 	| Switch (st, cl) ->
 		"switch(" ^ (s_st st) ^ ") { \n" ^ tabs
@@ -263,6 +252,7 @@ let rec s_dt tabs tree = tabs ^ match tree with
 			"case " ^ (s_con c) ^ ":\n" ^ (s_dt (tabs ^ "\t") dt)
 		) cl))
 		^ "\n" ^ (if String.length tabs = 0 then "" else (String.sub tabs 0 (String.length tabs - 1))) ^ "}"
+	| Bind (bl, dt) -> "bind " ^ (String.concat "," (List.map (fun ((v,_),st) -> v.v_name ^ "(" ^ (string_of_int v.v_id) ^ ") =" ^ (s_st st)) bl)) ^ "\n" ^ (s_dt tabs dt)
 	| Goto i ->
 		"goto " ^ (string_of_int i)
 
@@ -585,7 +575,7 @@ let spec mctx con pmat =
 		| PCon(c2,pl) ->
 			()
 		| PAny | PVar _->
-			add (Array.append (Array.make a pv.(0)) (array_tl pv)) out
+			add (Array.append (Array.make a (mk_any (pv.(0).p_type) (pv.(0).p_pos))) (array_tl pv)) out
  		| POr(pat1,pat2) ->
 			let tl = array_tl pv in
 			let out2 = clone_out mctx out [pat2] pat2.p_pos in
@@ -672,10 +662,14 @@ let swap_columns i (row : 'a list) : 'a list =
 
 let column_sigma mctx st pmat =
 	let acc = ref [] in
+	let bindings = ref [] in
 	let unguarded = Hashtbl.create 0 in
 	let add c g =
 		if not (List.exists (fun c2 -> unify_con c2 c) !acc) then acc := c :: !acc;
 		if not g then Hashtbl.replace unguarded c.c_def true;
+	in
+	let bind_st out st v =
+		if not (List.exists (fun ((v2,p),_) -> v2.v_id == (fst v).v_id) !bindings) then bindings := (v,st) :: !bindings
 	in
 	let rec loop pmat = match pmat with
 		| (pv,out) :: pr ->
@@ -702,7 +696,7 @@ let column_sigma mctx st pmat =
 			()
 	in
 	loop pmat;
-	List.rev_map (fun con -> con,not (Hashtbl.mem unguarded con.c_def)) !acc
+	List.rev_map (fun con -> con,not (Hashtbl.mem unguarded con.c_def)) !acc,!bindings
 
 let all_ctors mctx st =
 	let h = ref PMap.empty in
@@ -755,20 +749,19 @@ let rec collapse_pattern pl = match pl with
 let bind_remaining out pv stl =
 	let rec loop stl pv =
 		if Array.length pv = 0 then
-			()
+			[]
 		else
 			match stl,pv.(0).p_def with
 			| st :: stl,PAny ->
 				loop stl (array_tl pv)
 			| st :: stl,PVar v ->
-				bind_st out st v;
-				loop stl (array_tl pv)
+				(v,st) :: loop stl (array_tl pv)
 			| stl,PTuple pl ->
 				loop stl pl
 			| _ :: _,_->
 				loop stl (array_tl pv)
 			| [],_ ->
-				()
+				[]
 	in
 	loop stl pv
 
@@ -792,30 +785,32 @@ let rec compile mctx stl pmat = match pmat with
 	| (pv,out) :: pl ->
 		let i = pick_column pmat in
 		if i = -1 then begin
-			out.o_num_paths <- out.o_num_paths + 1;
-			bind_remaining out pv stl;
-			if out.o_guard = None || match pl with [] -> true | _ -> false then
-				Bind(out,None)
+			Hashtbl.replace mctx.used_paths out.o_id true;
+			let bl = bind_remaining out pv stl in
+			let dt = if out.o_guard = None || match pl with [] -> true | _ -> false then
+				Out(out,None)
 			else
-				Bind(out,Some (compile mctx stl pl))
+				Out(out,Some (compile mctx stl pl))
+			in
+			if bl = [] then dt else Bind(bl,dt)
 		end else if i > 0 then begin
 			let pmat = swap_pmat_columns i pmat in
 			let stls = swap_columns i stl in
 			compile mctx stls pmat
 		end else begin
 			let st_head,st_tail = match stl with st :: stl -> st,stl | _ -> assert false in
-			let sigma = column_sigma mctx st_head pmat in
+			let sigma,bl = column_sigma mctx st_head pmat in
 			let all,inf = all_ctors mctx st_head in
 			let cases = List.map (fun (c,g) ->
 				if not g then all := PMap.remove c.c_def !all;
 				let spec = spec mctx c pmat in
-				let hsubs = (mk_subs st_head c) in
+				let hsubs = mk_subs st_head c in
 				let subs = hsubs @ st_tail in
 				let dt = compile mctx subs spec in
 				c,dt
 			) sigma in
 			let def = default mctx pmat in
-			match def,cases with
+			let dt = match def,cases with
 			| _,[{c_def = CFields _},dt] ->
 				dt
 			| _ when not inf && PMap.is_empty !all ->
@@ -833,6 +828,8 @@ let rec compile mctx stl pmat = match pmat with
 				let cdef = mk_con (CConst TNull) t_dynamic st_head.st_pos in
 				let cases = cases @ [cdef,compile mctx st_tail def] in
 				Switch(st_head,cases)
+			in
+			if bl = [] then dt else Bind(bl,dt)
 		end
 
 (* Conversion to typed AST *)
@@ -870,13 +867,25 @@ let rec st_to_texpr mctx st = match st.st_def with
 		mctx.ctx.locals <- PMap.add n v mctx.ctx.locals;
 		mk (TLocal v) v.v_type st.st_pos
 
+let rec st_eq st1 st2 = match st1.st_def,st2.st_def with
+	| STuple (st1,i1,_), STuple(st2,i2,_) -> i1 = i2 && st_eq st1 st2
+	| SEnum(st1,_,i1), SEnum(st2,_,i2) -> i1 = i2 && st_eq st1 st2
+	| SField(st1,f1),SField(st2,f2) -> f1 = f2 && st_eq st1 st2
+	| SArray(st1,i1),SArray(st2,i2) -> i1 = i1 && st_eq st1 st2
+	| SVar _, SVar _ -> true
+	| _ -> false
+
+let is_compatible out1 out2 =
+	out1.o_id = out2.o_id
+	&& out1.o_guard = None
+
 let replace_locals mctx out e =
-	let all_subterms = Hashtbl.create 0 in
-	let bindings = List.map (fun ((v,p),st) -> Hashtbl.add all_subterms st (v,p); v,st) out.o_bindings in
 	let replace v =
-		let st = List.assq v bindings in
-		Hashtbl.remove all_subterms st;
-		st
+		let rec loop vl = match vl with
+			| vl :: vll -> (try snd (List.find (fun ((v2,_),st) -> v2 == v) vl) with Not_found -> loop vll)
+			| [] -> raise Not_found
+		in
+		loop mctx.eval_stack
 	in
 	let rec loop e = match e.eexpr with
 		| TLocal v ->
@@ -890,31 +899,15 @@ let replace_locals mctx out e =
 			Type.map_expr loop e
 	in
 	let e = loop e in
-(* 	if not (Common.defined mctx.ctx.com Define.NoUnusedVarWarnings) then
-		Hashtbl.iter (fun _ (v,p) -> if (String.length v.v_name) > 0 && v.v_name.[0] <> '_' then mctx.ctx.com.warning "This variable is unused" p) all_subterms; *)
+	(*      if not (Common.defined mctx.ctx.com Define.NoUnusedVarWarnings) then
+	Hashtbl.iter (fun _ (v,p) -> if (String.length v.v_name) > 0 && v.v_name.[0] <> '_' then mctx.ctx.com.warning "This variable is unused" p) all_subterms; *)
 	e
-
-let rec st_eq st1 st2 = match st1.st_def,st2.st_def with
-	| STuple (st1,i1,_), STuple(st2,i2,_) -> i1 = i2 && st_eq st1 st2
-	| SEnum(st1,_,i1), SEnum(st2,_,i2) -> i1 = i2 && st_eq st1 st2
-	| SField(st1,f1),SField(st2,f2) -> f1 = f2 && st_eq st1 st2
-	| SArray(st1,i1),SArray(st2,i2) -> i1 = i1 && st_eq st1 st2
-	| SVar _, SVar _ -> true
-	| _ -> false
-
-let is_compatible out1 out2 =
-	out1.o_id = out2.o_id
-	&& out1.o_guard = None
-	&& (out1.o_bindings = []
-		|| (List.length out1.o_bindings) = (List.length out2.o_bindings)
-		&& (ExtList.List.for_all2 (fun (_,st1) (_,st2) -> st_eq st1 st2) out1.o_bindings out2.o_bindings)
-	)
 
 let rec to_typed_ast mctx dt =
 	match dt with
 	| Goto _ ->
 		error "Not implemented yet" Ast.null_pos
-	| Bind(out,dt) ->
+	| Out(out,dt) ->
 		replace_locals mctx out begin match out.o_guard,dt with
 			| Some eg,None ->
 				mk (TIf(eg,out.o_expr,None)) t_dynamic out.o_expr.epos
@@ -925,6 +918,11 @@ let rec to_typed_ast mctx dt =
 				out.o_expr
 			| _ -> assert false
 		end
+	| Bind (bl, dt) ->
+		mctx.eval_stack <- bl :: mctx.eval_stack;
+		let e = to_typed_ast mctx dt in
+		mctx.eval_stack <- List.tl mctx.eval_stack;
+		e
 	| Switch(st,cases) ->
 		match follow st.st_type with
 		| TEnum(en,pl) | TAbstract({a_this = TEnum(en,_)},pl) -> to_enum_switch mctx en pl st cases
@@ -941,7 +939,7 @@ and group_cases mctx cases to_case =
 		| _ -> match dto with
 			| None -> ([to_case con],cases,Some dt)
 			| Some dt2 -> match dt,dt2 with
-				| Bind(out1,_),Bind(out2,_) when is_compatible out1 out2 ->
+				| Out(out1,_),Out(out2,_) when is_compatible out1 out2 ->
 					((to_case con) :: group,cases,dto)
 				| _ ->
 					let e = to_typed_ast mctx dt2 in
@@ -970,13 +968,14 @@ and to_enum_switch mctx en pl st cases =
 		let en,ef = List.hd group in
 		let save = save_locals mctx.ctx in
 		let etf = follow (monomorphs en.e_types (monomorphs ef.ef_params ef.ef_type)) in
+		(* TODO: this is horrible !!! *)
 		let capture_vars = match dt with
-			| Bind(out,None) ->
-				Some out.o_bindings
+			| Out(out,None) ->
+				let vl = PMap.foldi (fun k v acc -> (k,v) :: acc) (List.fold_left (fun acc vl -> List.fold_left (fun acc (v,st) -> if PMap.mem v acc then acc else PMap.add v st acc) acc vl) PMap.empty mctx.eval_stack) [] in
+				Some vl
 			| _ ->
 				None
 		in
-		(* TODO: this is horrible *)
 		let vl = match etf with
 			| TFun(args,r) ->
 				let vl = ExtList.List.mapi (fun i (_,_,t) ->
@@ -1014,7 +1013,7 @@ and to_enum_switch mctx en pl st cases =
 		| _ -> match dto with
 			| None -> ([to_case con],cases,Some dt)
 			| Some dt2 -> match dt,dt2 with
-				| Bind(out1,_),Bind(out2,_) when is_compatible out1 out2 ->
+				| Out(out1,_),Out(out2,_) when is_compatible out1 out2 ->
 					((to_case con) :: group,cases,dto)
 				| _ ->
 					let g = type_case group dt2 con.c_pos in
@@ -1131,11 +1130,10 @@ let match_expr ctx e cases def with_type p =
 		need_val = need_val;
 		v_lookup = Hashtbl.create 0;
 		outcomes = PMap.empty;
-		subtrees = Hashtbl.create 0;
-		subtree_index = Hashtbl.create 0;
-		num_subtrees = 0;
 		out_type = mk_mono();
 		toplevel_or = false;
+		used_paths = Hashtbl.create 0;
+		eval_stack = [];
 	} in
 	let add_pattern_locals (pat,locals) =
 		PMap.iter (fun n (v,p) -> ctx.locals <- PMap.add n v ctx.locals) locals;
@@ -1218,7 +1216,7 @@ let match_expr ctx e cases def with_type p =
 	in
 	begin try
 		let dt = compile mctx stl pl in
-		PMap.iter (fun _ out -> if out.o_num_paths = 0 then begin
+ 		PMap.iter (fun _ out -> if not (Hashtbl.mem mctx.used_paths out.o_id) then begin
 			if out.o_pos == p then display_error ctx "The default pattern is unused" p
 			else unused out.o_pos;
 			if mctx.toplevel_or then match evals with

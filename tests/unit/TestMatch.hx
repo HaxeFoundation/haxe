@@ -265,6 +265,39 @@ class TestMatch extends Test {
 		eq("unit.MyClass", switchClass(MyClass));
 		eq("other: unit.TestMatch", switchClass(TestMatch));
 	}
+	
+	function testOr() {
+		var i1 = macro 1;
+		var i2 = macro 2;
+		var f1 = macro 3.9;
+		var f2 = macro 4.8;
+		eq("11", orMatch(i1, i1));
+		eq("12", orMatch(i1, i2));
+		eq("13.9", orMatch(i1, f1));
+		eq("14.8", orMatch(i1, f2));
+		
+		eq("21", orMatch(i2, i1));
+		eq("22", orMatch(i2, i2));
+		eq("23.9", orMatch(i2, f1));
+		eq("24.8", orMatch(i2, f2));
+		
+		eq("3.91", orMatch(f1, i1));
+		eq("3.92", orMatch(f1, i2));
+		eq("3.93.9", orMatch(f1, f1));
+		eq("3.94.8", orMatch(f1, f2));
+		
+		eq("4.81", orMatch(f2, i1));
+		eq("4.82", orMatch(f2, i2));
+		eq("4.83.9", orMatch(f2, f1));
+		eq("4.84.8", orMatch(f2, f2));
+	}
+	
+	static function orMatch(e1, e2) {
+		return switch([e1.expr, e2.expr]) {
+			case [EConst(CFloat(a) | CInt(a)), EConst(CFloat(b) | CInt(b))]: a + b;
+			case _: null;
+		}		
+	}	
 
 	function testNonExhaustiveness() {
 		eq("Unmatched patterns: false", getErrorMessage(switch(true) {
@@ -313,7 +346,7 @@ class TestMatch extends Test {
 		}));
 	}
 
-	#if false
+	#if true
 	 //all lines marked as // unused should give an error
 	function testRedundance() {
 		switch(true) {
