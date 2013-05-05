@@ -54,6 +54,8 @@ class ImportAll {
 			if( !Context.defined("cs") ) return;
 		case "tools":
 			return;
+		case "build-tool":
+			return;
 		}
 		for( p in Context.getClassPath() ) {
 			if( p == "/" )

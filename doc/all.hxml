@@ -47,6 +47,7 @@
 -D unsafe
 -xml cs.xml
 -D xmldoc
+--macro exclude('haxe._Int64',true)
 
 --next
 
