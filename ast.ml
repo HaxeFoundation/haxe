@@ -122,6 +122,7 @@ module Meta = struct
 		| Synchronized
 		| Throws
 		| To
+		| ToString
 		| Transient
 		| ValueUsed
 		| VarArgs

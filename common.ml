@@ -378,6 +378,7 @@ module MetaInfo = struct
 		| Synchronized -> ":synchronized",("",[Platforms [Java;Cs]])
 		| Throws -> ":throws",("",[Platforms [Java;Cs]])
 		| To -> ":to",("Specifies that the field of the abstract is a cast operation to the type identified in the function",[UsedOn TAbstractField])
+		| ToString -> ":toString",("Internally used",[])
 		| Transient -> ":transient",("",[Platforms [Java;Cs]])
 		| ValueUsed -> ":valueUsed",("Internally used by DCE to mark an abstract value as used",[])
 		| VarArgs -> ":varArgs",("",[Platforms [Java;Cs]])

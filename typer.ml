@@ -1414,6 +1414,11 @@ let type_generic_function ctx (e,cf) el p =
 	with Codegen.Generic_Exception (msg,p) ->
 		error msg p)
 
+let call_to_string ctx c e =
+	let et = type_module_type ctx (TClassDecl c) None e.epos in
+	let cf = PMap.find "toString" c.cl_statics in
+	make_call ctx (mk (TField(et,FStatic(c,cf))) cf.cf_type e.epos) [e] ctx.t.tstring e.epos
+
 let rec type_binop ctx op e1 e2 is_assign_op p =
 	match op with
 	| OpAssign ->
@@ -1544,9 +1549,7 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 	let to_string e =
 		match classify e.etype with
 		| KAbstract {a_impl = Some c} when PMap.mem "toString" c.cl_statics ->
-			let et = type_module_type ctx (TClassDecl c) None e.epos in
-			let cf = PMap.find "toString" c.cl_statics in
-			make_call ctx (mk (TField(et,FStatic(c,cf))) cf.cf_type e.epos) [e] ctx.t.tstring e.epos
+			call_to_string ctx c e
 		| KUnk | KDyn | KParam _ | KOther | KAbstract _ ->
 			let std = type_type ctx ([],"Std") e.epos in
 			let acc = acc_get ctx (type_field ctx std "string" e.epos MCall) e.epos in
@@ -3129,6 +3132,13 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		let old = ctx.meta in
 		ctx.meta <- m :: ctx.meta;
 		let e = type_expr ctx e with_type in
+		let e = match m with
+			| (Meta.ToString,_,_) ->
+				(match follow e.etype with
+					| TAbstract({a_impl = Some c},_) -> call_to_string ctx c e
+					| _ -> e)
+			| _ -> e
+		in
 		ctx.meta <- old;
 		e
 
@@ -3150,7 +3160,8 @@ and type_call ctx e el (with_type:with_type) p =
 			let infos = type_expr ctx infos Value in
 			mk (TCall (mk (TLocal (alloc_var "`trace" t_dynamic)) t_dynamic p,[e;infos])) ctx.t.tvoid p
 		else
-			type_expr ctx (ECall ((EField ((EField ((EConst (Ident "haxe"),p),"Log"),p),"trace"),p),[e;EUntyped infos,p]),p) NoValue
+			let me = Meta.ToString,[],pos e in
+			type_expr ctx (ECall ((EField ((EField ((EConst (Ident "haxe"),p),"Log"),p),"trace"),p),[(EMeta (me,e),pos e);EUntyped infos,p]),p) NoValue
 	| (EConst(Ident "callback"),p1),args ->
 		let ecb = try Some (type_ident_raise ctx "callback" p1 MCall) with Not_found -> None in
 		(match ecb with
