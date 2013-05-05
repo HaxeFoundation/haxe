@@ -1,3 +1,21 @@
+2013-05-05: 3.0.0
+	all : improved abstract support
+	all : renamed HAXE_LIBRARY_PATH to HAXE_STD_PATH
+	all : added inlinable constructors
+	all : renamed haxe.ds.FastCell to GenericCell
+	all : fixed >= operator in #if conditionals
+	all : improved completion support for Unknown results
+	all : allowed [] access for Map
+	all : added haxe.ds.WeakMap (not yet supported on all platforms)
+	all : all trace parameters are now printed by default
+	js : cached $bind results (unique closure creation per instance)
+	js : removed --js-modern (now as default)	
+	cpp : added socket.setFastSend
+	flash : update player 11.7 api
+	flash : improved @:font, @:sound and @:bitmap support
+	neko : improved Array performances when growing with []
+	java/cs : lots of improvements
+	
 2013-02-24: 3.0.0-RC
 	flash : updated player 11.4 api
 	all : allowed named functions as r-value
