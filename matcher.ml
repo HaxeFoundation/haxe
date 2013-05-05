@@ -1150,11 +1150,15 @@ let match_expr ctx e cases def with_type p =
 					let monos = List.map (fun _ -> mk_mono()) ctx.type_params in
 					let t = apply_params ctx.type_params monos t in
 					let pl = [add_pattern_locals (to_pattern ctx ep t)] in
-					let restore = PMap.fold (fun v acc ->
-						let t = v.v_type in
-						v.v_type <- apply_params ctx.type_params monos v.v_type;
-						(fun () -> v.v_type <- t) :: acc
-					) ctx.locals [] in
+					let restore = match with_type with
+						| Value | NoValue -> []
+						| WithType _ | WithTypeResume _ ->
+							PMap.fold (fun v acc ->
+								let t = v.v_type in
+								v.v_type <- apply_params ctx.type_params monos v.v_type;
+								(fun () -> v.v_type <- t) :: acc
+							) ctx.locals []
+					in
 					pl,restore,(match with_type with
 						| WithType t -> WithType (apply_params ctx.type_params monos t)
 						| WithTypeResume t -> WithTypeResume (apply_params ctx.type_params monos t)
