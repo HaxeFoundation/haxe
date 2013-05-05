@@ -890,8 +890,8 @@ let replace_locals mctx out e =
 			Type.map_expr loop e
 	in
 	let e = loop e in
-	if not (Common.defined mctx.ctx.com Define.NoUnusedVarWarnings) then
-		Hashtbl.iter (fun _ (v,p) -> if (String.length v.v_name) > 0 && v.v_name.[0] <> '_' then mctx.ctx.com.warning "This variable is unused" p) all_subterms;
+(* 	if not (Common.defined mctx.ctx.com Define.NoUnusedVarWarnings) then
+		Hashtbl.iter (fun _ (v,p) -> if (String.length v.v_name) > 0 && v.v_name.[0] <> '_' then mctx.ctx.com.warning "This variable is unused" p) all_subterms; *)
 	e
 
 let rec st_eq st1 st2 = match st1.st_def,st2.st_def with
@@ -1190,11 +1190,33 @@ let match_expr ctx e cases def with_type p =
 		let out = mk_out mctx i e eg pl (pos ep) in
 		Array.of_list pl,out
 	) cases in
+	let unused p =
+		let check_expr e p =
+			try
+				let old_error = ctx.on_error in
+				ctx.on_error <- (fun ctx s p -> ctx.on_error <- old_error; error s p);
+				ignore (type_expr ctx e Value);
+				ctx.on_error <- old_error;
+				display_error ctx "Case expression must be a constant value or a pattern, not an arbitrary expression" (pos e)
+			with _ ->
+				ctx.on_error <- old_error;
+				display_error ctx "This pattern is unused" p
+		in
+		let rec loop prev cl = match cl with
+			| ((e,p2) :: _,_,_) :: cl ->
+				if p2.pmin = p.pmin then check_expr prev p else loop (e,p2) cl
+			| _ :: cl ->
+				assert false
+			| [] ->
+				check_expr prev p
+		in
+		loop (EConst (Ident "null"),Ast.null_pos) cases
+	in
 	begin try
 		let dt = compile mctx stl pl in
 		PMap.iter (fun _ out -> if out.o_num_paths = 0 then begin
 			if out.o_pos == p then display_error ctx "The default pattern is unused" p
-			else display_error ctx "This pattern is unused" out.o_pos;
+			else unused out.o_pos;
 			if mctx.toplevel_or then match evals with
 				| [{etype = t}] when (match follow t with TAbstract({a_path=[],"Int"},[]) -> true | _ -> false) ->
 					display_error ctx "Note: Int | Int is an or-pattern now" p;
