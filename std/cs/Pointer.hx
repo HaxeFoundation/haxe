@@ -44,6 +44,10 @@ package cs;
 #else
 extern class Pointer<T> /*extends Int,*/ implements ArrayAccess<T>
 {
-
+	static function op_Addition<T>(p:Pointer<T>, i:Int):Pointer<T>;
+	public inline function add(i:Int):Pointer<T>
+	{
+		return op_Addition(this,i);
+	}
 }
 #end

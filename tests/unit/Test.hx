@@ -243,7 +243,7 @@ class Test #if swf_mark implements mt.Protect #end {
 			#end
 			new TestSpecification(),
 			#if cs
-			//new TestCSharp(),
+			new TestCSharp(),
 			#end
 			#if java
 			new TestJava(),

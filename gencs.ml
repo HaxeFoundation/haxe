@@ -905,6 +905,13 @@ let configure gen =
       last_line := cur_line
   in
 
+  let rec extract_tparams params el =
+    match el with
+      | ({ eexpr = TLocal({ v_name = "$type_param" }) } as tp) :: tl ->
+        extract_tparams (tp.etype :: params) tl
+      | _ -> (params, el)
+  in
+
   let expr_s w e =
     last_line := -1;
     in_value := false;
@@ -1065,72 +1072,19 @@ let configure gen =
           expr_s w { e with eexpr = TArray(ef, idx) }
         | TCall({ eexpr = TField(ef, FInstance(cl,{ cf_name = "__set" })) }, [idx; v]) when not (is_hxgen (TClassDecl cl)) ->
           expr_s w { e with eexpr = TBinop(Ast.OpAssign, { e with eexpr = TArray(ef, idx) }, v) }
-        | TCall({ eexpr = TField(ef, FStatic(_,cf)) }, [e1;e2]) when PMap.mem cf.cf_name binops_names ->
-          expr_s w { e with eexpr = TBinop(PMap.find cf.cf_name binops_names, e1, e2) }
-        | TCall({ eexpr = TField(ef, FStatic(_,cf)) }, [e1]) when PMap.mem cf.cf_name unops_names ->
-          expr_s w { e with eexpr = TUnop(PMap.find cf.cf_name unops_names, Ast.Prefix,e1) }
+        | TCall({ eexpr = TField(ef, FStatic(_,cf)) }, el) when PMap.mem cf.cf_name binops_names ->
+          let _, elr = extract_tparams [] el in
+          (match elr with
+          | [e1;e2] ->
+            expr_s w { e with eexpr = TBinop(PMap.find cf.cf_name binops_names, e1, e2) }
+          | _ -> do_call w e el)
+        | TCall({ eexpr = TField(ef, FStatic(_,cf)) }, el) when PMap.mem cf.cf_name unops_names ->
+          (match extract_tparams [] el with
+          | _, [e1] ->
+            expr_s w { e with eexpr = TUnop(PMap.find cf.cf_name unops_names, Ast.Prefix,e1) }
+          | _ -> do_call w e el)
         | TCall (e, el) ->
-          let rec extract_tparams params el =
-            match el with
-              | ({ eexpr = TLocal({ v_name = "$type_param" }) } as tp) :: tl ->
-                extract_tparams (tp.etype :: params) tl
-              | _ -> (params, el)
-          in
-          let params, el = extract_tparams [] el in
-          let params = List.rev params in
-
-          expr_s w e;
-
-          (match params with
-            | [] -> ()
-            | params ->
-              let md = match e.eexpr with
-                | TField(ef, _) -> t_to_md (run_follow gen ef.etype)
-                | _ -> assert false
-              in
-              write w "<";
-              ignore (List.fold_left (fun acc t ->
-                (if acc <> 0 then write w ", ");
-                write w (t_s t);
-                acc + 1
-              ) 0 (change_param_type md params));
-              write w ">"
-          );
-
-          let rec loop acc elist tlist =
-            match elist, tlist with
-              | e :: etl, (_,_,t) :: ttl ->
-                (if acc <> 0 then write w ", ");
-                (match real_type t with
-                  | TType({ t_path = (["cs"], "Ref") }, _)
-                  | TAbstract ({ a_path = (["cs"], "Ref") },_) ->
-                    let e = ensure_local e "of type cs.Ref" in
-                    write w "ref ";
-                    expr_s w e
-                  | TType({ t_path = (["cs"], "Out") }, _)
-                  | TAbstract ({ a_path = (["cs"], "Out") },_) ->
-                    let e = ensure_local e "of type cs.Out" in
-                    write w "out ";
-                    expr_s w e
-                  | _ ->
-                    expr_s w e
-                );
-                loop (acc + 1) etl ttl
-              | e :: etl, [] ->
-                (if acc <> 0 then write w ", ");
-                expr_s w e;
-                loop (acc + 1) etl []
-              | _ -> ()
-          in
-          write w "(";
-          let ft = match follow e.etype with
-            | TFun(args,_) -> args
-            | _ -> []
-          in
-
-          loop 0 el ft;
-
-          write w ")"
+          do_call w e el
         | TNew (({ cl_path = (["cs"], "NativeArray") } as cl), params, [ size ]) ->
           let rec check_t_s t times =
             match real_type t with
@@ -1301,6 +1255,62 @@ let configure gen =
         | TFunction _ -> write w "[ func decl not supported ]"; if !strict_mode then assert false
         | TMatch _ -> write w "[ match not supported ]"; if !strict_mode then assert false
     )
+    and do_call w e el =
+      let params, el = extract_tparams [] el in
+      let params = List.rev params in
+
+      expr_s w e;
+
+      (match params with
+        | [] -> ()
+        | params ->
+          let md = match e.eexpr with
+            | TField(ef, _) -> t_to_md (run_follow gen ef.etype)
+            | _ -> assert false
+          in
+          write w "<";
+          ignore (List.fold_left (fun acc t ->
+            (if acc <> 0 then write w ", ");
+            write w (t_s t);
+            acc + 1
+          ) 0 (change_param_type md params));
+          write w ">"
+      );
+
+      let rec loop acc elist tlist =
+        match elist, tlist with
+          | e :: etl, (_,_,t) :: ttl ->
+            (if acc <> 0 then write w ", ");
+            (match real_type t with
+              | TType({ t_path = (["cs"], "Ref") }, _)
+              | TAbstract ({ a_path = (["cs"], "Ref") },_) ->
+                let e = ensure_local e "of type cs.Ref" in
+                write w "ref ";
+                expr_s w e
+              | TType({ t_path = (["cs"], "Out") }, _)
+              | TAbstract ({ a_path = (["cs"], "Out") },_) ->
+                let e = ensure_local e "of type cs.Out" in
+                write w "out ";
+                expr_s w e
+              | _ ->
+                expr_s w e
+            );
+            loop (acc + 1) etl ttl
+          | e :: etl, [] ->
+            (if acc <> 0 then write w ", ");
+            expr_s w e;
+            loop (acc + 1) etl []
+          | _ -> ()
+      in
+      write w "(";
+      let ft = match follow e.etype with
+        | TFun(args,_) -> args
+        | _ -> []
+      in
+
+      loop 0 el ft;
+
+      write w ")"
     in
     expr_s w e
   in

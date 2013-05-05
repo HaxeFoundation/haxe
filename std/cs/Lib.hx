@@ -152,7 +152,7 @@ class Lib
 			});
 		This method only exists at compile-time, so it can't be called via reflection.
 	**/
-	@:extern public static inline function checked(block:Dynamic):Void
+	@:extern public static inline function checked<V>(block:V):Void
 	{
 		untyped __checked__(block);
 	}
@@ -164,7 +164,7 @@ class Lib
 
 		This method only exists at compile-time, so it can't be called via reflection.
 	**/
-	@:extern public static inline function lock(obj:Dynamic, block:Dynamic):Void
+	@:extern public static inline function lock<O,V>(obj:O, block:V):Void
 	{
 		untyped __lock__(obj, block);
 	}
@@ -186,7 +186,7 @@ class Lib
 
 		This method only exists at compile-time, so it can't be called via reflection.
 	**/
-	@:extern public static inline function fixed(block:Dynamic):Void
+	@:extern public static inline function fixed<V>(block:V):Void
 	{
 		untyped __fixed__(block);
 	}
@@ -200,7 +200,7 @@ class Lib
 
 		This method only exists at compile-time, so it can't be called via reflection.
 	**/
-	@:extern public static inline function unsafe(block:Dynamic):Void
+	@:extern public static inline function unsafe<V>(block:V):Void
 	{
 		untyped __unsafe__(block);
 	}

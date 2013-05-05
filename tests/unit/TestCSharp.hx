@@ -1,6 +1,4 @@
 package unit;
-import haxe.Int32;
-using haxe.Int32;
 
 //C#-specific tests, like unsafe code
 class TestCSharp extends Test
@@ -63,7 +61,7 @@ class TestCSharp extends Test
 			for (i in 0...10)
 			{
 				p[0] = i;
-				p++;
+				p = p.add(1);
 			}
 		});
 
