@@ -1470,7 +1470,7 @@ module Abstract = struct
 								let fname = field_name fa in
 								let el = List.map (loop ctx) el in
 								begin try
-									let ef = mk (TField({e2 with etype = m},quick_field m fname)) e2.etype e2.epos in
+									let ef = mk (TField({e2 with etype = m},quick_field m fname)) e1.etype e2.epos in
 									make_call ctx ef el e.etype e.epos
 								with Not_found ->
 									(* quick_field raises Not_found if m is an abstract, we have to replicate the 'using' call here *)
