@@ -46,6 +46,53 @@ let is_cs_basic_type t =
     | TInst(cl, _) when Meta.has Meta.Struct cl.cl_meta -> true
     | _ -> false
 
+(* see http://msdn.microsoft.com/en-us/library/2sk3x8a7(v=vs.71).aspx *)
+let cs_binops =
+  [Ast.OpAdd, "op_Addition";
+  Ast.OpSub, "op_Subtraction";
+  Ast.OpMult, "op_Multiply";
+  Ast.OpDiv, "op_Division";
+  Ast.OpMod, "op_Modulus";
+  Ast.OpXor, "op_ExclusiveOr";
+  Ast.OpOr, "op_BitwiseOr";
+  Ast.OpAnd, "op_BitwiseAnd";
+  Ast.OpBoolAnd, "op_LogicalAnd";
+  Ast.OpBoolOr, "op_LogicalOr";
+  Ast.OpAssign, "op_Assign";
+  Ast.OpShl, "op_LeftShift";
+  Ast.OpShr, "op_RightShift";
+  Ast.OpShr, "op_SignedRightShift";
+  Ast.OpUShr, "op_UnsignedRightShift";
+  Ast.OpEq, "op_Equality";
+  Ast.OpGt, "op_GreaterThan";
+  Ast.OpLt, "op_LessThan";
+  Ast.OpNotEq, "op_Inequality";
+  Ast.OpGte, "op_GreaterThanOrEqual";
+  Ast.OpLte, "op_LessThanOrEqual";
+  Ast.OpAssignOp Ast.OpMult, "op_MultiplicationAssignment";
+  Ast.OpAssignOp Ast.OpSub, "op_SubtractionAssignment";
+  Ast.OpAssignOp Ast.OpXor, "op_ExclusiveOrAssignment";
+  Ast.OpAssignOp Ast.OpShl, "op_LeftShiftAssignment";
+  Ast.OpAssignOp Ast.OpMod, "op_ModulusAssignment";
+  Ast.OpAssignOp Ast.OpAdd, "op_AdditionAssignment";
+  Ast.OpAssignOp Ast.OpAnd, "op_BitwiseAndAssignment";
+  Ast.OpAssignOp Ast.OpOr, "op_BitwiseOrAssignment";
+  (* op_Comma *)
+  Ast.OpAssignOp Ast.OpDiv, "op_DivisionAssignment";]
+
+let cs_unops =
+  [Ast.Decrement, "op_Decrement";
+  Ast.Increment, "op_Increment";
+  Ast.Not, "op_UnaryNegation";
+  Ast.Neg, "op_UnaryMinus";
+  Ast.NegBits, "op_OnesComplement"]
+
+let binops_names = List.fold_left (fun acc (op,n) -> PMap.add n op acc) PMap.empty cs_binops
+let unops_names = List.fold_left (fun acc (op,n) -> PMap.add n op acc) PMap.empty cs_unops
+
+let get_item = "get_Item"
+let set_item = "set_Item"
+
 let is_tparam t =
   match follow t with
     | TInst( { cl_kind = KTypeParameter _ }, [] ) -> true
@@ -1013,6 +1060,15 @@ let configure gen =
           print w "label%ld: {}" v
         | TCall ({ eexpr = TLocal( { v_name = "__rethrow__" } ) }, _) ->
           write w "throw"
+        (* operator overloading handling *)
+        | TCall({ eexpr = TField(ef, FInstance(cl,{ cf_name = "__get" })) }, [idx]) when not (is_hxgen (TClassDecl cl)) ->
+          expr_s w { e with eexpr = TArray(ef, idx) }
+        | TCall({ eexpr = TField(ef, FInstance(cl,{ cf_name = "__set" })) }, [idx; v]) when not (is_hxgen (TClassDecl cl)) ->
+          expr_s w { e with eexpr = TBinop(Ast.OpAssign, { e with eexpr = TArray(ef, idx) }, v) }
+        | TCall({ eexpr = TField(ef, FStatic(_,cf)) }, [e1;e2]) when PMap.mem cf.cf_name binops_names ->
+          expr_s w { e with eexpr = TBinop(PMap.find cf.cf_name binops_names, e1, e2) }
+        | TCall({ eexpr = TField(ef, FStatic(_,cf)) }, [e1]) when PMap.mem cf.cf_name unops_names ->
+          expr_s w { e with eexpr = TUnop(PMap.find cf.cf_name unops_names, Ast.Prefix,e1) }
         | TCall (e, el) ->
           let rec extract_tparams params el =
             match el with
@@ -1274,7 +1330,14 @@ let configure gen =
       | name when String.contains name '.' ->
         let fn_name, path = parse_explicit_iface name in
         (path_s path) ^ "." ^ fn_name, false, true
-      | name -> name, false, false
+      | name -> try
+        let binop = PMap.find name binops_names in
+        "operator " ^ s_binop binop, false, false
+      with | Not_found -> try
+        let unop = PMap.find name unops_names in
+        "operator " ^ s_unop unop, false, false
+      with | Not_found ->
+        name, false, false
     in
     let rec loop_static cl =
       match is_static, cl.cl_super with
@@ -1415,8 +1478,55 @@ let configure gen =
       newline w;
   in
 
-  let check_special_behaviors w cl =
-    (if PMap.mem "__get" cl.cl_fields then begin
+  let check_special_behaviors w cl = match cl.cl_kind with
+  | KAbstractImpl _ -> ()
+  | _ ->
+    (* get/set pairs *)
+    let pairs = ref PMap.empty in
+    (try
+      let get = PMap.find "__get" cl.cl_fields in
+      List.iter (fun cf ->
+        let args,ret = get_fun cf.cf_type in
+        match args with
+        | [_,_,idx] -> pairs := PMap.add (t_s idx) ( t_s ret, Some cf, None ) !pairs
+        | _ -> gen.gcon.warning "The __get function must have exactly one argument (the index)" cf.cf_pos
+      ) (get :: get.cf_overloads)
+    with | Not_found -> ());
+    (try
+      let set = PMap.find "__set" cl.cl_fields in
+      List.iter (fun cf ->
+        let args, ret = get_fun cf.cf_type in
+        match args with
+        | [_,_,idx; _,_,v] -> (try
+          let vt, g, _ = PMap.find (t_s idx) !pairs in
+          let tvt = t_s v in
+          if vt <> tvt then gen.gcon.warning "The __get function of same index has a different type from this __set function" cf.cf_pos;
+          pairs := PMap.add (t_s idx) (vt, g, Some cf) !pairs
+        with | Not_found ->
+          pairs := PMap.add (t_s idx) (t_s v, None, Some cf) !pairs)
+        | _ ->
+          gen.gcon.warning "The __set function must have exactly two arguments (index, value)" cf.cf_pos
+      ) (set :: set.cf_overloads)
+    with | Not_found -> ());
+    PMap.iter (fun idx (v, get, set) ->
+      print w "public %s this[%s index]" v idx;
+        begin_block w;
+        (match get with
+        | None -> ()
+        | Some _ ->
+          write w "get";
+          begin_block w;
+          write w "return this.__get(index);";
+          end_block w);
+        (match set with
+        | None -> ()
+        | Some _ ->
+          write w "set";
+          begin_block w;
+          write w "this.__set(index,value);";
+          end_block w);
+        end_block w) !pairs;
+    (if not (PMap.is_empty !pairs) then try
       let get = PMap.find "__get" cl.cl_fields in
       let idx_t, v_t = match follow get.cf_type with
         | TFun([_,_,arg_t],ret_t) ->
@@ -1443,40 +1553,18 @@ let configure gen =
             newline w;
             newline w
       ) cl.cl_implements
-    end);
-    if is_some cl.cl_array_access then begin
-      if not cl.cl_interface && PMap.mem "__get" cl.cl_fields && PMap.mem "__set" cl.cl_fields && not (List.exists (fun c -> c.cf_name = "__get") cl.cl_overrides) then begin
-        let get = PMap.find "__get" cl.cl_fields in
-        let idx_t, v_t = match follow get.cf_type with
-          | TFun([_,_,arg_t],ret_t) ->
-            t_s (run_follow gen arg_t), t_s (run_follow gen ret_t)
-          | _ -> gen.gcon.error "The __get function must be a function with one argument. " get.cf_pos; assert false
-        in
-        print w "public %s this[%s key]" v_t idx_t;
-        begin_block w;
-          write w "get";
-          begin_block w;
-            write w "return this.__get(key);";
-          end_block w;
-          write w "set";
-          begin_block w;
-            write w "this.__set(key, value);";
-          end_block w;
-        end_block w;
+    with | Not_found -> ());
+    if cl.cl_interface && is_hxgen (TClassDecl cl) && is_some cl.cl_array_access then begin
+      let changed_t = apply_params cl.cl_types (List.map (fun _ -> t_dynamic) cl.cl_types) (get cl.cl_array_access) in
+      print w "%s this[int key]" (t_s (run_follow gen changed_t));
+      begin_block w;
+        write w "get;";
         newline w;
+        write w "set;";
         newline w;
-      end else if cl.cl_interface && is_hxgen (TClassDecl cl) then begin
-        let changed_t = apply_params cl.cl_types (List.map (fun _ -> t_dynamic) cl.cl_types) (get cl.cl_array_access) in
-        print w "%s this[int key]" (t_s (run_follow gen changed_t));
-        begin_block w;
-          write w "get;";
-          newline w;
-          write w "set;";
-          newline w;
-        end_block w;
-        newline w;
-        newline w
-      end
+      end_block w;
+      newline w;
+      newline w
     end;
     (try
       if cl.cl_interface then raise Not_found;
@@ -1497,7 +1585,47 @@ let configure gen =
           )
         | _ -> ()
       )
-    with | Not_found -> ())
+    with | Not_found -> ());
+    (* properties *
+    let handle_prop static f =
+      match f.cf_kind with
+      | Method _ -> ()
+      | Var v when not (Type.is_extern_field f) -> ()
+      | Var v ->
+        let prop acc = match acc with
+          | AccNo | AccNever | AccCall -> true
+          | _ -> false
+        in
+        if prop v.v_read && prop v.v_write && (v.v_read = AccCall || v.v_write = AccCall) then begin
+          let this = if static then
+            mk_classtype_access cl f.cf_pos
+          else
+            { eexpr = TConst TThis; etype = TInst(cl,List.map snd cl.cl_types); epos = f.cf_pos }
+          in
+          print w "public %s%s %s" (if static then "static " else "") (t_s f.cf_type) f.cf_name;
+          begin_block w;
+          (match v.v_read with
+          | AccCall ->
+            write w "get";
+            begin_block w;
+            write w "return ";
+            expr_s w this;
+            print w ".get_%s();" f.cf_name;
+            end_block w
+          | _ -> ());
+          (match v.v_write with
+          | AccCall ->
+            write w "set";
+            begin_block w;
+            expr_s w this;
+            print w ".set_%s(value);" f.cf_name;
+            end_block w
+          | _ -> ());
+          end_block w;
+        end
+    in
+    List.iter (handle_prop true) cl.cl_ordered_statics;
+    List.iter (handle_prop false) cl.cl_ordered_fields *)
   in
 
   let gen_class w cl =

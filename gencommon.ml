@@ -5883,12 +5883,19 @@ struct
           | TAbstract ({ a_impl = Some _ } as a, pl) ->
             follow (Codegen.Abstract.get_underlying_type a pl)
           | t -> t in
+          let idx = match gen.greal_type idx.etype with
+          | TAbstract({ a_path = [],"Int" },_) -> run idx
+          | _ -> match handle (run idx) gen.gcon.basic.tint (gen.greal_type idx.etype) with
+          | ({ eexpr = TCast _ } as idx) -> idx
+          | idx -> mk_cast gen.gcon.basic.tint idx
+          in
+          let e = { e with eexpr = TArray(run arr, idx) } in
           (* get underlying class (if it's a class *)
           (match arr_etype with
             | TInst(cl, params) ->
               (* see if it implements ArrayAccess *)
               (match cl.cl_array_access with
-                | None -> Type.map_expr run e (*FIXME make it loop through all super types *)
+                | None -> e
                 | Some t ->
                   (* if it does, apply current parameters (and change them) *)
                   (* let real_t = apply_params_internal (List.map (gen.greal_type_param (TClassDecl cl))) cl params t in *)
@@ -5896,7 +5903,7 @@ struct
                   let real_t = apply_params cl.cl_types params param in
                   (* see if it needs a cast *)
 
-                  handle (Type.map_expr run e) (gen.greal_type e.etype) (gen.greal_type real_t)
+                  handle (e) (gen.greal_type e.etype) (gen.greal_type real_t)
               )
             | _ -> Type.map_expr run e)
         | TVars (veopt_l) ->
