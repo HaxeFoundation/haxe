@@ -19,7 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-import java.util.regex.Regex;
+import java.util.regex.*;
 
 @:coreType class EReg {
 
@@ -45,7 +45,7 @@ import java.util.regex.Regex;
 			}
 		}
 
-		matcher = Pattern.compile(convert(r), flags).matcher("");
+		matcher = Pattern._compile(convert(r), flags).matcher("");
 		pattern = r;
 	}
 
@@ -107,7 +107,7 @@ import java.util.regex.Regex;
 	}
 
 	public function matchSub( s : String, pos : Int, len : Int = -1):Bool {
-		matcher = matcher.reset(s);
+		matcher = matcher.reset(len < 0 ? s : s.substr(0,pos + len));
 		cur = s;
 		return matcher.find(pos);
 	}

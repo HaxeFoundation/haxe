@@ -478,7 +478,10 @@ let rec unify_call_params ctx ?(overloads=None) cf el args r p inline =
 			let o = { o with cf_type = ft } in
 			let args, ret = (match follow (apply_params c.cl_types pl (field_type ctx c pl o p)) with (* I'm getting non-followed types here. Should it happen? *)
 				| TFun (tl,t) -> tl, t
-				| _ -> assert false
+				| _ ->
+            print_endline (s_type (print_context()) o.cf_type);
+						print_endline o.cf_pos.pfile;
+            assert false
 			) in
 			Some (unify_call_params ctx ~overloads:(Some (l,compatible)) (Some (TInst(c,pl),o)) el args ret p inline)
 		| Some (t,_), (ft,o) :: l ->

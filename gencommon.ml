@@ -1017,9 +1017,11 @@ let dump_descriptor gen name path_s module_s =
   SourceWriter.write w "begin libs";
   SourceWriter.newline w;
   if Common.platform gen.gcon Java then
-    List.iter (fun (s,_,_,_) ->
-      SourceWriter.write w s;
-      SourceWriter.newline w
+    List.iter (fun (s,std,_,_,_) ->
+      if not std then begin
+        SourceWriter.write w s;
+        SourceWriter.newline w;
+      end
     ) gen.gcon.java_libs;
   SourceWriter.write w "end libs";
 
@@ -4739,9 +4741,10 @@ struct
         { e with eexpr = TBlock([ assign_fun e ]) }
 
   let add_assign gen add_statement expr =
-    match follow expr.etype with
-      | TEnum({ e_path = ([],"Void") },[])
-      | TAbstract ({ a_path = ([],"Void") },[]) ->
+    match expr.eexpr, follow expr.etype with
+      | _, TEnum({ e_path = ([],"Void") },[])
+      | _, TAbstract ({ a_path = ([],"Void") },[])
+      | TThrow _, _ ->
         add_statement expr;
         null expr.etype expr.epos
       | _ ->
@@ -4953,17 +4956,17 @@ struct
       | TVars([v,Some({ eexpr = TBinop(Ast.OpBoolAnd,_,_) } as right)])
       | TVars([v,Some({ eexpr = TBinop(Ast.OpBoolOr,_,_) } as right)]) ->
         let right = short_circuit_op_unwrap gen add_statement right in
-        Some { expr with eexpr = TVars([v, Some(right)]) }
+        Some { expr with eexpr = TVars([v, Some(right)]); etype = v.v_type }
       | TVars([v,Some(right)]) when shallow_expr_type right = Statement ->
         add_statement ({ expr with eexpr = TVars([v, Some(null right.etype right.epos)]) });
-        handle_assign Ast.OpAssign { expr with eexpr = TLocal(v) } right
+        handle_assign Ast.OpAssign { expr with eexpr = TLocal(v); etype = v.v_type } right
       (* TIf handling *)
       | TBinop((Ast.OpAssign as op),left, ({ eexpr = TIf _ } as right))
       | TBinop((Ast.OpAssignOp _ as op),left,({ eexpr = TIf _ } as right)) when is_problematic_if right ->
         handle_assign op left right
       | TVars([v,Some({ eexpr = TIf _ } as right)]) when is_problematic_if right ->
         add_statement ({ expr with eexpr = TVars([v, Some(null right.etype right.epos)]) });
-        handle_assign Ast.OpAssign { expr with eexpr = TLocal(v) } right
+        handle_assign Ast.OpAssign { expr with eexpr = TLocal(v); etype = v.v_type } right
       | TWhile(cond, e1, flag) when is_problematic_if cond ->
         twhile_with_condition_statement gen add_statement expr cond e1 flag;
         Some (null expr.etype expr.epos)
@@ -5142,10 +5145,18 @@ struct
     let priority = solve_deps name [DAfter priority; DAfter ExpressionUnwrap.priority]
 
     let default_implementation gen =
+      let rec extract_expr e = match e.eexpr with
+        | TParenthesis e
+        | TCast(e,_) -> extract_expr e
+        | _ -> e
+      in
       let current_ret_type = ref None in
-      let handle e tto tfrom = gen.ghandle_cast tto tfrom e in
+      let handle e tto tfrom = gen.ghandle_cast (gen.greal_type tto) (gen.greal_type tfrom) e in
+      let in_value = ref false in
 
       let rec run e =
+        let was_in_value = !in_value in
+        in_value := true;
         match e.eexpr with
         | TReturn (eopt) ->
           (* a return must be inside a function *)
@@ -5160,6 +5171,28 @@ struct
           let ret = Type.map_expr run e in
           current_ret_type := last_ret;
           ret
+        | TBlock el ->
+          { e with eexpr = TBlock ( List.map (fun e -> in_value := false; run e) el ) }
+        | TBinop ( (Ast.OpAssign as op),e1,e2)
+        | TBinop ( (Ast.OpAssignOp _ as op),e1,e2) when was_in_value ->
+          let e1 = extract_expr (run e1) in
+          let r = { e with eexpr = TBinop(op, e1, handle (run e2) e1.etype e2.etype); etype = e1.etype } in
+          handle r e.etype e1.etype
+        | TBinop ( (Ast.OpAssign as op),({ eexpr = TField(tf, f) } as e1), e2 )
+        | TBinop ( (Ast.OpAssignOp _ as op),({ eexpr = TField(tf, f) } as e1), e2 ) ->
+          (match field_access gen (gen.greal_type tf.etype) (field_name f) with
+            | FClassField(cl,params,_,_,is_static,actual_t) ->
+              let actual_t = if is_static then actual_t else apply_params cl.cl_types params actual_t in
+              let e1 = extract_expr (run e1) in
+              { e with eexpr = TBinop(op, e1, handle (run e2) actual_t e2.etype); etype = e1.etype }
+            | _ ->
+              let e1 = extract_expr (run e1) in
+              { e with eexpr = TBinop(op, e1, handle (run e2) e1.etype e2.etype); etype = e1.etype }
+          )
+        | TBinop ( (Ast.OpAssign as op),e1,e2)
+        | TBinop ( (Ast.OpAssignOp _ as op),e1,e2) ->
+          let e1 = extract_expr (run e1) in
+          { e with eexpr = TBinop(op, e1, handle (run e2) e1.etype e2.etype); etype = e1.etype }
         | _ -> Type.map_expr run e
       in
       run
@@ -5829,30 +5862,8 @@ struct
       let was_in_value = !in_value in
       in_value := true;
       match e.eexpr with
-        | TBinop ( (Ast.OpAssign as op),e1,e2)
-        | TBinop ( (Ast.OpAssignOp _ as op),e1,e2) when was_in_value ->
-          let e1r = run e1 ~just_type:true in
-          let r = { e with eexpr = TBinop(op, e1r, handle (run e2) e1r.etype e2.etype); etype = e1.etype } in
-          handle r e1.etype e1r.etype
-        | TBinop ( (Ast.OpAssign as op),({ eexpr = TField(tf, f) } as e1), e2 )
-        | TBinop ( (Ast.OpAssignOp _ as op),({ eexpr = TField(tf, f) } as e1), e2 ) ->
-          (match field_access gen (gen.greal_type tf.etype) (field_name f) with
-            | FClassField(cl,params,_,_,is_static,actual_t) ->
-              let actual_t = if is_static then actual_t else apply_params cl.cl_types params actual_t in
-
-              let e1 = run e1 ~just_type:true in
-              { e with eexpr = TBinop(op, e1, handle (run e2) actual_t e2.etype); etype = e1.etype }
-            | _ ->
-              let e1 = run e1 ~just_type:true in
-              { e with eexpr = TBinop(op, e1, handle (run e2) e1.etype e2.etype); etype = e1.etype }
-          )
-        | TBinop ( (Ast.OpAssign as op),e1,e2)
-        | TBinop ( (Ast.OpAssignOp _ as op),e1,e2) ->
-          let e1 = run e1 ~just_type:true in
-          { e with eexpr = TBinop(op, e1, handle (run e2) e1.etype e2.etype); etype = e1.etype }
-        (* this is an exception so we can avoid infinite loop on Std.String and haxe.lang.Runtime.toString(). It also takes off unnecessary casts to string *)
-        | TBinop ( Ast.OpAdd, ( { eexpr = TCast(e1, _) } as e1c), e2 ) when native_string_cast && is_string e1c.etype && is_string e2.etype ->
-          { e with eexpr = TBinop( Ast.OpAdd, run e1, run e2 ) }
+        | TBinop ( (Ast.OpAssign | Ast.OpAssignOp _ as op), e1, e2 ) ->
+          { e with eexpr = TBinop(op, run ~just_type:true e1, run e2) }
         | TField(ef, f) ->
           handle_type_parameter gen None e (run ef) ~clean_ef:ef ~overloads_cast_to_base:overloads_cast_to_base f [] impossible_tparam_is_dynamic
         | TArrayDecl el ->
@@ -9949,7 +9960,7 @@ struct
   let run ~explicit_fn_name gen =
     let implement_explicitly = is_some explicit_fn_name in
     let run md = match md with
-      | TClassDecl ( { cl_interface = true } as c ) ->
+      | TClassDecl ( { cl_interface = true; cl_extern = false } as c ) ->
         (* overrides can be removed from interfaces *)
         c.cl_ordered_fields <- List.filter (fun f ->
           try
@@ -9962,7 +9973,7 @@ struct
             true
         ) c.cl_ordered_fields;
         md
-      | TClassDecl c ->
+      | TClassDecl({ cl_extern = false } as c) ->
         let this = { eexpr = TConst TThis; etype = TInst(c,List.map snd c.cl_types); epos = c.cl_pos } in
         (* look through all interfaces, and try to find a type that applies exactly *)
         let rec loop_iface (iface:tclass) itl =

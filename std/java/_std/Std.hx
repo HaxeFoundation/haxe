@@ -30,10 +30,10 @@ import java.internal.Exceptions;
 			return t == Dynamic;
 		if (t == null)
 			return false;
-		var clt:Class<Dynamic> = cast t;
+		var clt:java.lang.Class<Dynamic> = cast t;
 		if (clt == null)
 			return false;
-		var name:String = untyped __java__("clt.getName()");
+		var name:String = clt.getName();
 
 		switch(name)
 		{
@@ -47,9 +47,9 @@ import java.internal.Exceptions;
 				return true;
 		}
 
-		var clv:Class<Dynamic> = untyped __java__('v.getClass()');
+		var clv:java.lang.Class<Dynamic> = untyped __java__('v.getClass()');
 
-		return untyped clt.isAssignableFrom(clv);
+		return clt.isAssignableFrom(clv);
 	}
 
 	public static function string( s : Dynamic ) : String {

@@ -1141,7 +1141,9 @@ let configure gen =
             print w "%s " (t_s var.v_type);
             write_id w var.v_name;
             (match eopt with
-              | None -> ()
+              | None ->
+                write w " = ";
+                expr_s w (null var.v_type e.epos)
               | Some e ->
                 write w " = ";
                 expr_s w e
@@ -2172,7 +2174,7 @@ let configure gen =
       (fun t -> not (is_exception (real_type t)))
       (fun throwexpr expr ->
         let wrap_static = mk_static_field_access (hx_exception) "wrap" (TFun([("obj",false,t_dynamic)], base_exception_t)) expr.epos in
-        { throwexpr with eexpr = TThrow { expr with eexpr = TCall(wrap_static, [expr]) }; etype = gen.gcon.basic.tvoid }
+        { throwexpr with eexpr = TThrow { expr with eexpr = TCall(wrap_static, [expr]); etype = hx_exception_t }; etype = gen.gcon.basic.tvoid }
       )
       (fun v_to_unwrap pos ->
         let local = mk_cast hx_exception_t { eexpr = TLocal(v_to_unwrap); etype = v_to_unwrap.v_type; epos = pos } in

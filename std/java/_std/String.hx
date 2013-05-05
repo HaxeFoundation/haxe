@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-extern class String {
+extern class String implements java.lang.CharSequence {
 
 	var length(default,null) : Int;
 
@@ -43,15 +43,15 @@ extern class String {
 	function split( delimiter : String ) : Array<String>;
 
 	function substr( pos : Int, ?len : Int ) : String;
-	
+
 	function substring( startIndex : Int, ?endIndex : Int ) : String;
 
 	function toString() : String;
-	
+
 	private function compareTo( anotherString : String ) : Int;
-	
+
 	private function codePointAt( idx : Int ) : Int;
-	
+
 	private function getBytes(encoding:String) : haxe.io.BytesData;
 
 	static function fromCharCode( code : Int ) : String;

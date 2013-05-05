@@ -660,10 +660,34 @@ let same_overload_args t1 t2 f1 f2 =
   if List.length f1.cf_params <> List.length f2.cf_params then
     false
   else
+    let rec follow_skip_null t = match t with
+    | TMono r ->
+      (match !r with
+      | Some t -> follow_skip_null t
+      | _ -> t)
+    | TLazy f ->
+      follow_skip_null (!f())
+    | TType ({ t_path = [],"Null" } as t, [p]) ->
+      TType(t,[follow p])
+    | TType (t,tl) ->
+      follow_skip_null (apply_params t.t_types tl t.t_type)
+    | _ -> t
+    in
+    let same_arg t1 t2 =
+      let t1 = follow_skip_null t1 in
+      let t2 = follow_skip_null t2 in
+      match follow_skip_null t1, follow_skip_null t2 with
+      | TType _, TType _ -> type_iseq t1 t2
+      | TType _, _
+      | _, TType _ -> false
+      | _ -> type_iseq t1 t2
+    in
+
     match follow (apply_params f1.cf_params (List.map (fun (_,t) -> t) f2.cf_params) t1), follow t2 with
     | TFun(a1,_), TFun(a2,_) ->
       (try
-        List.for_all2 (fun (_,_,t1) (_,_,t2) -> type_iseq t1 t2) a1 a2
+        List.for_all2 (fun (_,_,t1) (_,_,t2) ->
+          same_arg t1 t2) a1 a2
       with | Invalid_argument("List.for_all2") ->
         false)
     | _ -> assert false
@@ -731,6 +755,13 @@ let check_overriding ctx c =
 			in
 			if ctx.com.config.pf_overload && Meta.has Meta.Overload f.cf_meta then begin
 				let overloads = get_overloads csup i in
+				List.iter (fun (t,f2) ->
+					(* check if any super class fields are vars *)
+					match f2.cf_kind with
+					| Var _ ->
+						display_error ctx ("A variable named '" ^ f2.cf_name ^ "' was already declared in a superclass") f.cf_pos
+					| _ -> ()
+				) overloads;
 				List.iter (fun f ->
 					(* find the exact field being overridden *)
 					check_field f (fun csup i ->
@@ -1676,9 +1707,11 @@ let init_class ctx c p context_init herits fields =
 				let dup = if is_static then PMap.exists f.cf_name c.cl_fields || has_field f.cf_name c.cl_super else PMap.exists f.cf_name c.cl_statics in
 				if dup then error ("Same field name can't be use for both static and instance : " ^ f.cf_name) p;
 				if List.mem AOverride fd.cff_access then c.cl_overrides <- f :: c.cl_overrides;
+				let is_var f = match f.cf_kind with | Var _ -> true | _ -> false in
 				if PMap.mem f.cf_name (if is_static then c.cl_statics else c.cl_fields) then
-					if ctx.com.config.pf_overload && Meta.has Meta.Overload f.cf_meta then
+					if ctx.com.config.pf_overload && Meta.has Meta.Overload f.cf_meta && not (is_var f) then
 						let mainf = PMap.find f.cf_name (if is_static then c.cl_statics else c.cl_fields) in
+						if is_var mainf then display_error ctx "Cannot declare a variable with same name as a method" mainf.cf_pos;
 						(if not (Meta.has Meta.Overload mainf.cf_meta) then display_error ctx ("Overloaded methods must have @:overload metadata") mainf.cf_pos);
 						mainf.cf_overloads <- f :: mainf.cf_overloads
 					else
