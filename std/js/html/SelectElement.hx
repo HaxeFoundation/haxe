@@ -23,7 +23,7 @@
 // This file is generated, do not edit!
 package js.html;
 
-/** <code>DOM select</code> elements share all of the properties and methods of other HTML elements described in the <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/element">element</a></code>
+/** <code>DOM select</code> elements share all of the properties and methods of other HTML elements described in the <code><a rel="custom" href="/api/js/html/Element">element</a></code>
  section. They also have the specialized interface <a class="external" title="http://dev.w3.org/html5/spec/the-button-element.html#htmlselectelement" rel="external" href="http://dev.w3.org/html5/spec/the-button-element.html#htmlselectelement" target="_blank">HTMLSelectElement</a> (or 
 <span><a rel="custom" href="https://developer.mozilla.org/en/HTML">HTML 4</a></span> <a class="external" title="http://www.w3.org/TR/DOM-Level-2-HTML/html.html#ID-94282980" rel="external" href="http://www.w3.org/TR/DOM-Level-2-HTML/html.html#ID-94282980" target="_blank">HTMLSelectElement</a>).<br><br>
 Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/HTMLSelectElement">MDN</a>. */

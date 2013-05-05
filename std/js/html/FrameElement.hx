@@ -23,7 +23,7 @@
 // This file is generated, do not edit!
 package js.html;
 
-/** <p><code>&lt;frame&gt;</code> is an HTML element which defines a particular area in which another HTML document can be displayed. A frame should be used within a <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/frameset">&lt;frameset&gt;</a></code>
+/** <p><code>&lt;frame&gt;</code> is an HTML element which defines a particular area in which another HTML document can be displayed. A frame should be used within a <code><a rel="custom" href="/api/js/html/FrameSetElement">&lt;frameset&gt;</a></code>
 .</p>
 <p>Using the <code>&lt;frame&gt;</code> element is not encouraged because of certain disadvantages such as performance problems and lack of accessibility for users with screen readers. Instead of the <code>&lt;frame&gt;</code> element, <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/iframe">&lt;iframe&gt;</a></code>
 &nbsp;may be preferred.</p><br><br>

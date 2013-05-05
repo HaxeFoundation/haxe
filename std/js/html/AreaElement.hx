@@ -24,7 +24,7 @@
 package js.html;
 
 /** DOM area objects expose the <a class=" external" title="http://www.w3.org/TR/html5/the-map-element.html#htmlareaelement" rel="external" href="http://www.w3.org/TR/html5/the-map-element.html#htmlareaelement" target="_blank">HTMLAreaElement</a> (or 
-<span><a rel="custom" href="https://developer.mozilla.org/en/HTML">HTML 4</a></span> <a class=" external" title="http://www.w3.org/TR/DOM-Level-2-HTML/html.html#ID-26019118" rel="external" href="http://www.w3.org/TR/DOM-Level-2-HTML/html.html#ID-26019118" target="_blank"><code>HTMLAreaElement</code></a>) interface, which provides special properties and methods (beyond the regular <a href="https://developer.mozilla.org/en/DOM/element" rel="internal">element</a> object interface they also have available to them by inheritance) for manipulating the layout and presentation of area elements.<br><br>
+<span><a rel="custom" href="https://developer.mozilla.org/en/HTML">HTML 4</a></span> <a class=" external" title="http://www.w3.org/TR/DOM-Level-2-HTML/html.html#ID-26019118" rel="external" href="http://www.w3.org/TR/DOM-Level-2-HTML/html.html#ID-26019118" target="_blank"><code>HTMLAreaElement</code></a>) interface, which provides special properties and methods (beyond the regular <a href="/api/js/html/Element" rel="internal">element</a> object interface they also have available to them by inheritance) for manipulating the layout and presentation of area elements.<br><br>
 Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/HTMLAreaElement">MDN</a>. */
 @:native("HTMLAreaElement")
 extern class AreaElement extends Element

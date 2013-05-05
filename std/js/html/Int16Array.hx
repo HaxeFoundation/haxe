@@ -62,10 +62,10 @@ Int16Array Int16Array(
 </div><div id="section_8"><span id="Return_value"></span><h6 class="editable">Return value</h6>
 <p>A new <code>Int16Array</code> object representing the specified data buffer.</p>
 </div> */
-	@:overload( function(array : ArrayBufferView) : Void {} )
+	@:overload( function(length : Int) : Void {} )
 	@:overload( function(array : Array<Int>) : Void {} )
-	@:overload( function(buffer : Array<Int>, ?byteOffset : Int, ?length : Int) : Void {} )
-	function new(length : Int) : Void;
+	@:overload( function(array : Int16Array) : Void {} )
+	function new(buffer : ArrayBuffer, ?byteOffset : Int, ?length : Int) : Void;
 
 	/** <p>Sets multiple values in the typed array, reading input values from a specified array.</p>
 

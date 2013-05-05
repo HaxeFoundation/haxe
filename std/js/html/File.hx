@@ -23,7 +23,7 @@
 // This file is generated, do not edit!
 package js.html;
 
-/** <p>The <code>File</code> object provides information about -- and access to the contents of -- files. These are generally retrieved from a <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/FileList">FileList</a></code>
+/** <p>The <code>File</code> object provides information about -- and access to the contents of -- files. These are generally retrieved from a <code><a rel="custom" href="/api/js/html/FileList">FileList</a></code>
  object returned as a result of a user selecting files using the <code>input</code> element, or from a drag and drop operation's <a title="En/DragDrop/DataTransfer" rel="internal" href="https://developer.mozilla.org/En/DragDrop/DataTransfer"><code>DataTransfer</code></a> object.</p>
 <div class="geckoVersionNote">
 <p>
@@ -31,7 +31,7 @@ package js.html;
 </div></div>
 <p></p>
 <p>Starting in Gecko 2.0&nbsp;(Firefox 4 / Thunderbird 3.3 / SeaMonkey 2.1)
-, the File object inherits from the <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/Blob">Blob</a></code>
+, the File object inherits from the <code><a rel="custom" href="/api/js/html/Blob">Blob</a></code>
 &nbsp;interface, which provides methods and properties providing further information about the file.</p>
 </div>
 <p>The file reference can be saved when the form is submitted while the user is offline, so that the data can be retrieved and uploaded when the Internet connection is restored.</p>

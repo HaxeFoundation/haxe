@@ -25,8 +25,8 @@ package js.html.svg;
 
 /** The <code>marker</code> element defines the graphics that is to be used for drawing arrowheads or polymarkers on a given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/path">&lt;path&gt;</a></code>
 , <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/line">&lt;line&gt;</a></code>
-, <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/polyline">&lt;polyline&gt;</a></code>
- or <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/polygon">&lt;polygon&gt;</a></code>
+, <code><a rel="custom" href="/api/js/html/svg/PolylineElement">&lt;polyline&gt;</a></code>
+ or <code><a rel="custom" href="/api/js/html/svg/PolygonElement">&lt;polygon&gt;</a></code>
  element.<br><br>
 Documentation for this class was provided by <a href="https://developer.mozilla.org/en/SVG/Element/marker">MDN</a>. */
 @:native("SVGMarkerElement")

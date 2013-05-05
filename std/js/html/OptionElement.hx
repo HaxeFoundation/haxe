@@ -23,7 +23,7 @@
 // This file is generated, do not edit!
 package js.html;
 
-/** <p>DOM&nbsp;<em>option</em> elements elements share all of the properties and methods of other HTML elements described in the <a title="en/DOM/element" rel="internal" href="https://developer.mozilla.org/en/DOM/element">element</a> section. They also have the specialized interface <a title="http://dev.w3.org/html5/spec/the-button-element.html#htmloptionelement" class=" external" rel="external" href="http://dev.w3.org/html5/spec/the-button-element.html#htmloptionelement" target="_blank">HTMLOptionElement</a> (or 
+/** <p>DOM&nbsp;<em>option</em> elements elements share all of the properties and methods of other HTML elements described in the <a title="en/DOM/element" rel="internal" href="/api/js/html/Element">element</a> section. They also have the specialized interface <a title="http://dev.w3.org/html5/spec/the-button-element.html#htmloptionelement" class=" external" rel="external" href="http://dev.w3.org/html5/spec/the-button-element.html#htmloptionelement" target="_blank">HTMLOptionElement</a> (or 
 <span><a rel="custom" href="https://developer.mozilla.org/en/HTML">HTML 4</a></span> <a class="external" title="http://www.w3.org/TR/DOM-Level-2-HTML/html.html#ID-70901257" rel="external" href="http://www.w3.org/TR/DOM-Level-2-HTML/html.html#ID-70901257" target="_blank">HTMLOptionElement</a>).</p>
 <p>No methods are defined on this interface.</p><br><br>
 Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/HTMLOptionElement">MDN</a>. */

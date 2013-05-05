@@ -24,7 +24,7 @@
 package js.html;
 
 /** DOM body elements expose the <a href="http://www.w3.org/TR/html5/sections.html#the-body-element" target="_blank" rel="external nofollow" class=" external" title="http://www.w3.org/TR/html5/sections.html#the-body-element">HTMLBodyElement</a> (or 
-<span><a rel="custom" href="https://developer.mozilla.org/en/HTML">HTML 4</a></span> <a href="http://www.w3.org/TR/DOM-Level-2-HTML/html.html#ID-48250443" target="_blank" title="http://www.w3.org/TR/DOM-Level-2-HTML/html.html#ID-48250443" rel="external nofollow" class=" external"><code>HTMLBodyElement</code></a>) interface, which provides special properties (beyond the regular <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/element">element</a></code>
+<span><a rel="custom" href="https://developer.mozilla.org/en/HTML">HTML 4</a></span> <a href="http://www.w3.org/TR/DOM-Level-2-HTML/html.html#ID-48250443" target="_blank" title="http://www.w3.org/TR/DOM-Level-2-HTML/html.html#ID-48250443" rel="external nofollow" class=" external"><code>HTMLBodyElement</code></a>) interface, which provides special properties (beyond the regular <code><a rel="custom" href="/api/js/html/Element">element</a></code>
  object interface they also have available to them by inheritance) for manipulating body elements.<br><br>
 Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/HTMLBodyElement">MDN</a>. */
 @:native("HTMLBodyElement")

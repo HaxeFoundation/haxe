@@ -25,7 +25,7 @@ package js.html;
 
 /** HTML media elements (such as <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/audio">&lt;audio&gt;</a></code>
  and <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/video">&lt;video&gt;</a></code>
-) expose the <code>HTMLMediaElement</code> interface which provides special properties and methods (beyond the regular <a href="https://developer.mozilla.org/en/DOM/element" rel="internal">element</a> object interface they also have available to them by inheritance) for manipulating the layout and presentation of media elements.<br><br>
+) expose the <code>HTMLMediaElement</code> interface which provides special properties and methods (beyond the regular <a href="/api/js/html/Element" rel="internal">element</a> object interface they also have available to them by inheritance) for manipulating the layout and presentation of media elements.<br><br>
 Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/HTMLMediaElement">MDN</a>. */
 @:native("HTMLMediaElement")
 extern class MediaElement extends Element

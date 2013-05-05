@@ -23,7 +23,7 @@
 // This file is generated, do not edit!
 package js.html;
 
-/** DOM <code>video</code> objects expose the <a class="external" title="http://www.w3.org/TR/html5/video.html#htmlvideoelement" rel="external" href="http://www.w3.org/TR/html5/video.html#htmlvideoelement" target="_blank">HTMLVideoElement</a> interface, which provides special properties (beyond the regular <a href="https://developer.mozilla.org/en/DOM/element" rel="internal">element</a> object and <a title="en/DOM/HTMLMediaElement" rel="internal" href="https://developer.mozilla.org/en/DOM/HTMLMediaElement">HTMLMediaElement</a> interfaces they also have available to them by inheritance) for manipulating video objects.<br><br>
+/** DOM <code>video</code> objects expose the <a class="external" title="http://www.w3.org/TR/html5/video.html#htmlvideoelement" rel="external" href="http://www.w3.org/TR/html5/video.html#htmlvideoelement" target="_blank">HTMLVideoElement</a> interface, which provides special properties (beyond the regular <a href="/api/js/html/Element" rel="internal">element</a> object and <a title="en/DOM/HTMLMediaElement" rel="internal" href="/api/js/html/MediaElement">HTMLMediaElement</a> interfaces they also have available to them by inheritance) for manipulating video objects.<br><br>
 Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/HTMLVideoElement">MDN</a>. */
 @:native("HTMLVideoElement")
 extern class VideoElement extends MediaElement

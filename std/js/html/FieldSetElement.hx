@@ -24,7 +24,7 @@
 package js.html;
 
 /** DOM&nbsp;<code>fieldset</code> elements expose the <a class=" external" title="http://dev.w3.org/html5/spec/forms.html#htmlfieldsetelement" rel="external" href="http://dev.w3.org/html5/spec/forms.html#htmlfieldsetelement" target="_blank">HTMLFieldSetElement</a>&nbsp; (
-<span><a rel="custom" href="https://developer.mozilla.org/en/HTML">HTML 4</a></span> <a class=" external" title="http://www.w3.org/TR/DOM-Level-2-HTML/html.html#ID-7365882" rel="external" href="http://www.w3.org/TR/DOM-Level-2-HTML/html.html#ID-7365882" target="_blank">HTMLFieldSetElement</a>) interface, which provides special properties and methods (beyond the regular <a rel="internal" href="https://developer.mozilla.org/en/DOM/element">element</a> object interface they also have available to them by inheritance) for manipulating the layout and presentation of field-set elements.<br><br>
+<span><a rel="custom" href="https://developer.mozilla.org/en/HTML">HTML 4</a></span> <a class=" external" title="http://www.w3.org/TR/DOM-Level-2-HTML/html.html#ID-7365882" rel="external" href="http://www.w3.org/TR/DOM-Level-2-HTML/html.html#ID-7365882" target="_blank">HTMLFieldSetElement</a>) interface, which provides special properties and methods (beyond the regular <a rel="internal" href="/api/js/html/Element">element</a> object interface they also have available to them by inheritance) for manipulating the layout and presentation of field-set elements.<br><br>
 Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/HTMLFieldSetElement">MDN</a>. */
 @:native("HTMLFieldSetElement")
 extern class FieldSetElement extends Element

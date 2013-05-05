@@ -23,7 +23,7 @@
 // This file is generated, do not edit!
 package js.html.svg;
 
-/** The <code>SVGAnimatedPreserveAspectRatio</code> interface is used for attributes of type <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/SVGPreserveAspectRatio">SVGPreserveAspectRatio</a></code>
+/** The <code>SVGAnimatedPreserveAspectRatio</code> interface is used for attributes of type <code><a rel="custom" href="/api/js/html/svg/PreserveAspectRatio">SVGPreserveAspectRatio</a></code>
  which can be animated.<br><br>
 Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/SVGAnimatedPreserveAspectRatio">MDN</a>. */
 @:native("SVGAnimatedPreserveAspectRatio")

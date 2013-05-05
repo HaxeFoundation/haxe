@@ -23,8 +23,8 @@
 // This file is generated, do not edit!
 package js.html.idb;
 
-/** <p>The <code>IDBTransaction</code> interface of the <a title="en/IndexedDB" rel="internal" href="https://developer.mozilla.org/en/IndexedDB">IndexedDB&nbsp;API</a> provides a static, asynchronous transaction on a database using event handler attributes. All reading and writing of data are done within transactions. You actually use <code><a title="en/IndexedDB/IDBDatabase" rel="internal" href="https://developer.mozilla.org/en/IndexedDB/IDBDatabase">IDBDatabase</a></code> to start transactions and use <code>IDBTransaction</code> to set the mode of the transaction and access an object store and make your request. You can also use it to abort transactions.</p>
-<p>Inherits from: <a title="en/DOM/EventTarget" rel="internal" href="https://developer.mozilla.org/en/DOM/EventTarget">EventTarget</a></p><br><br>
+/** <p>The <code>IDBTransaction</code> interface of the <a title="en/IndexedDB" rel="internal" href="https://developer.mozilla.org/en/IndexedDB">IndexedDB&nbsp;API</a> provides a static, asynchronous transaction on a database using event handler attributes. All reading and writing of data are done within transactions. You actually use <code><a title="en/IndexedDB/IDBDatabase" rel="internal" href="/api/js/html/idb/Database">IDBDatabase</a></code> to start transactions and use <code>IDBTransaction</code> to set the mode of the transaction and access an object store and make your request. You can also use it to abort transactions.</p>
+<p>Inherits from: <a title="en/DOM/EventTarget" rel="internal" href="/api/js/html/EventTarget">EventTarget</a></p><br><br>
 Documentation for this class was provided by <a href="https://developer.mozilla.org/en/IndexedDB/IDBTransaction">MDN</a>. */
 @:native("IDBTransaction")
 extern class Transaction extends js.html.EventTarget

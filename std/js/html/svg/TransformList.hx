@@ -23,7 +23,7 @@
 // This file is generated, do not edit!
 package js.html.svg;
 
-/** <p>The <code>SVGTransformList</code> defines a list of <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/SVGTransform">SVGTransform</a></code>
+/** <p>The <code>SVGTransformList</code> defines a list of <code><a rel="custom" href="/api/js/html/svg/Transform">SVGTransform</a></code>
  objects.</p>
 <p>An <code>SVGTransformList</code> object can be designated as read only, which means that attempts to modify the object will result in an exception being thrown.</p>
 <div class="geckoVersionNote"> <p>

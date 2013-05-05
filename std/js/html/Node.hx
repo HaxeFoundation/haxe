@@ -25,17 +25,17 @@ package js.html;
 
 /** A <code>Node</code> is an interface from which a number of DOM types inherit, and allows these various types to be treated (or tested) similarly.<br> The following all inherit this interface and its methods and properties (though they may return null in particular cases where not relevant; or throw an exception when adding children to a node type for which no children can exist): <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/Document">Document</a></code>
 , <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/Element">Element</a></code>
-, <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/Attr">Attr</a></code>
+, <code><a rel="custom" href="/api/js/html/Attr">Attr</a></code>
 , <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/CharacterData">CharacterData</a></code>
- (which <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/Text">Text</a></code>
-, <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/Comment">Comment</a></code>
-, and <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/CDATASection">CDATASection</a></code>
- inherit), <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/ProcessingInstruction">ProcessingInstruction</a></code>
-, <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/DocumentFragment">DocumentFragment</a></code>
-, <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/DocumentType">DocumentType</a></code>
-, <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/Notation">Notation</a></code>
-, <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/Entity">Entity</a></code>
-, <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/EntityReference">EntityReference</a></code><br><br>
+ (which <code><a rel="custom" href="/api/js/html/Text">Text</a></code>
+, <code><a rel="custom" href="/api/js/html/Comment">Comment</a></code>
+, and <code><a rel="custom" href="/api/js/html/CDATASection">CDATASection</a></code>
+ inherit), <code><a rel="custom" href="/api/js/html/ProcessingInstruction">ProcessingInstruction</a></code>
+, <code><a rel="custom" href="/api/js/html/DocumentFragment">DocumentFragment</a></code>
+, <code><a rel="custom" href="/api/js/html/DocumentType">DocumentType</a></code>
+, <code><a rel="custom" href="/api/js/html/Notation">Notation</a></code>
+, <code><a rel="custom" href="/api/js/html/Entity">Entity</a></code>
+, <code><a rel="custom" href="/api/js/html/EntityReference">EntityReference</a></code><br><br>
 Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/Node">MDN</a>. */
 @:native("Node")
 extern class Node extends EventTarget

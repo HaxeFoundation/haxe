@@ -24,7 +24,7 @@
 package js.html;
 
 /** DOM <code>Input</code> objects expose the <a title="http://dev.w3.org/html5/spec/the-input-element.html#htmlinputelement" class=" external" rel="external" href="http://dev.w3.org/html5/spec/the-input-element.html#htmlinputelement" target="_blank">HTMLInputElement</a> (or 
-<span><a rel="custom" href="https://developer.mozilla.org/en/HTML">HTML 4</a></span> <a class=" external" rel="external" href="http://www.w3.org/TR/DOM-Level-2-HTML/html.html#ID-6043025" title="http://www.w3.org/TR/DOM-Level-2-HTML/html.html#ID-6043025" target="_blank"><code>HTMLInputElement</code></a>) interface, which provides special properties and methods (beyond the regular <a rel="internal" href="https://developer.mozilla.org/en/DOM/element">element</a> object interface they also have available to them by inheritance) for manipulating the layout and presentation of input elements.<br><br>
+<span><a rel="custom" href="https://developer.mozilla.org/en/HTML">HTML 4</a></span> <a class=" external" rel="external" href="http://www.w3.org/TR/DOM-Level-2-HTML/html.html#ID-6043025" title="http://www.w3.org/TR/DOM-Level-2-HTML/html.html#ID-6043025" target="_blank"><code>HTMLInputElement</code></a>) interface, which provides special properties and methods (beyond the regular <a rel="internal" href="/api/js/html/Element">element</a> object interface they also have available to them by inheritance) for manipulating the layout and presentation of input elements.<br><br>
 Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/HTMLInputElement">MDN</a>. */
 @:native("HTMLInputElement")
 extern class InputElement extends Element

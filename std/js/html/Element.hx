@@ -32,23 +32,23 @@ package js.html;
 <p>The articles listed here span the above and include links to the appropriate W3C DOM specification.</p>
 <p>While these interfaces are generally shared by most HTML and XML elements, there are more specialized interfaces for particular objects listed in the DOM HTML Specification. Note, however, that these HTML&nbsp;interfaces are "only for [HTML 4.01] and [XHTML 1.0] documents and are not guaranteed to work with any future version of XHTML." The HTML 5 draft does state it aims for backwards compatibility with these HTML&nbsp;interfaces but says of them that "some features that were formerly deprecated, poorly supported, rarely used or considered unnecessary have been removed." One can avoid the potential conflict by moving entirely to DOM&nbsp;XML attribute methods such as <code>getAttribute()</code>.</p>
 <p><code><a rel="custom" href="https://developer.mozilla.org/en/DOM/HTMLHtmlElement">Html</a></code>
-, <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/HTMLHeadElement">Head</a></code>
+, <code><a rel="custom" href="/api/js/html/HeadElement">Head</a></code>
 , <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/HTMLLinkElement">Link</a></code>
-, <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/HTMLTitleElement">Title</a></code>
-, <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/HTMLMetaElement">Meta</a></code>
-, <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/HTMLBaseElement">Base</a></code>
+, <code><a rel="custom" href="/api/js/html/TitleElement">Title</a></code>
+, <code><a rel="custom" href="/api/js/html/MetaElement">Meta</a></code>
+, <code><a rel="custom" href="/api/js/html/BaseElement">Base</a></code>
 , <code><a rel="internal" href="https://developer.mozilla.org/Article_not_found?uri=en/DOM/HTMLIsIndexElement" class="new">IsIndex</a></code>
-, <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/HTMLStyleElement">Style</a></code>
-, <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/HTMLBodyElement">Body</a></code>
-, <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/HTMLFormElement">Form</a></code>
-, <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/HTMLSelectElement">Select</a></code>
+, <code><a rel="custom" href="/api/js/html/StyleElement">Style</a></code>
+, <code><a rel="custom" href="/api/js/html/BodyElement">Body</a></code>
+, <code><a rel="custom" href="/api/js/html/FormElement">Form</a></code>
+, <code><a rel="custom" href="/api/js/html/SelectElement">Select</a></code>
 , <code><a rel="internal" href="https://developer.mozilla.org/Article_not_found?uri=en/DOM/HTMLOptGroupElement" class="new">OptGroup</a></code>
-, <a title="en/HTML/Element/HTMLOptionElement" rel="internal" href="https://developer.mozilla.org/en/HTML/Element/HTMLOptionElement" class="new ">Option</a>, <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/HTMLInputElement">Input</a></code>
-, <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/HTMLTextAreaElement">TextArea</a></code>
-, <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/HTMLButtonElement">Button</a></code>
-, <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/HTMLLabelElement">Label</a></code>
-, <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/HTMLFieldSetElement">FieldSet</a></code>
-, <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/HTMLLegendElement">Legend</a></code>
+, <a title="en/HTML/Element/HTMLOptionElement" rel="internal" href="https://developer.mozilla.org/en/HTML/Element/HTMLOptionElement" class="new ">Option</a>, <code><a rel="custom" href="/api/js/html/InputElement">Input</a></code>
+, <code><a rel="custom" href="/api/js/html/TextAreaElement">TextArea</a></code>
+, <code><a rel="custom" href="/api/js/html/ButtonElement">Button</a></code>
+, <code><a rel="custom" href="/api/js/html/LabelElement">Label</a></code>
+, <code><a rel="custom" href="/api/js/html/FieldSetElement">FieldSet</a></code>
+, <code><a rel="custom" href="/api/js/html/LegendElement">Legend</a></code>
 , <code><a rel="internal" href="https://developer.mozilla.org/Article_not_found?uri=en/DOM/HTMLUListElement" class="new">UList</a></code>
 , <code><a rel="internal" href="https://developer.mozilla.org/Article_not_found?uri=en/DOM/OList" class="new">OList</a></code>
 , <code><a rel="internal" href="https://developer.mozilla.org/Article_not_found?uri=en/DOM/DList" class="new">DList</a></code>
@@ -65,23 +65,23 @@ package js.html;
 , <code><a rel="internal" href="https://developer.mozilla.org/Article_not_found?uri=en/DOM/Font" class="new">Font</a></code>
 , <code><a rel="internal" href="https://developer.mozilla.org/Article_not_found?uri=en/DOM/HR" class="new">HR</a></code>
 , <code><a rel="internal" href="https://developer.mozilla.org/Article_not_found?uri=en/DOM/Mod" class="new">Mod</a></code>
-, <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/HTMLAnchorElement">Anchor</a></code>
+, <code><a rel="custom" href="/api/js/html/AnchorElement">Anchor</a></code>
 , <code><a rel="internal" href="https://developer.mozilla.org/Article_not_found?uri=en/DOM/Image" class="new">Image</a></code>
-, <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/HTMLObjectElement">Object</a></code>
+, <code><a rel="custom" href="/api/js/html/ObjectElement">Object</a></code>
 , <code><a rel="internal" href="https://developer.mozilla.org/Article_not_found?uri=en/DOM/Param" class="new">Param</a></code>
 , <code><a rel="internal" href="https://developer.mozilla.org/Article_not_found?uri=en/DOM/Applet" class="new">Applet</a></code>
 , <code><a rel="internal" href="https://developer.mozilla.org/Article_not_found?uri=en/DOM/Map" class="new">Map</a></code>
 , <code><a rel="internal" href="https://developer.mozilla.org/Article_not_found?uri=en/DOM/Area" class="new">Area</a></code>
 , <code><a rel="internal" href="https://developer.mozilla.org/Article_not_found?uri=en/DOM/Script" class="new">Script</a></code>
-, <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/HTMLTableElement">Table</a></code>
+, <code><a rel="custom" href="/api/js/html/TableElement">Table</a></code>
 , <code><a rel="internal" href="https://developer.mozilla.org/Article_not_found?uri=en/DOM/TableCaption" class="new">TableCaption</a></code>
 , <code><a rel="internal" href="https://developer.mozilla.org/Article_not_found?uri=en/DOM/TableCol" class="new">TableCol</a></code>
 , <code><a rel="internal" href="https://developer.mozilla.org/Article_not_found?uri=en/DOM/TableSection" class="new">TableSection</a></code>
-, <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/HTMLTableRowElement">TableRow</a></code>
+, <code><a rel="custom" href="/api/js/html/TableRowElement">TableRow</a></code>
 , <code><a rel="internal" href="https://developer.mozilla.org/Article_not_found?uri=en/DOM/TableCell" class="new">TableCell</a></code>
 , <code><a rel="internal" href="https://developer.mozilla.org/Article_not_found?uri=en/DOM/FrameSet" class="new">FrameSet</a></code>
 , <code><a rel="internal" href="https://developer.mozilla.org/Article_not_found?uri=en/DOM/Frame" class="new">Frame</a></code>
-, <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/HTMLIFrameElement">IFrame</a></code>
+, <code><a rel="custom" href="/api/js/html/IFrameElement">IFrame</a></code>
 </p><br><br>
 Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/element">MDN</a>. */
 @:native("Element")

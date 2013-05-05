@@ -25,14 +25,14 @@ package js.html;
 
 /** <p>The HTML <em>ordered list</em> element (<code>&lt;ol&gt;</code>) represents an ordered list of items. Typically, ordered-list items are displayed with a preceding numbering, which can be of any form, like numerals, letters or Romans numerals or even simple bullets. This numbered style is not defined in the HTML description of the page, but in its associated CSS, using the <code><a rel="custom" href="https://developer.mozilla.org/en/CSS/list-style-type">list-style-type</a></code>
  property.</p>
-<p>There is no limitation to the depth and imbrication of lists defined with the <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/ol">&lt;ol&gt;</a></code>
- and <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/ul">&lt;ul&gt;</a></code>
+<p>There is no limitation to the depth and imbrication of lists defined with the <code><a rel="custom" href="/api/js/html/OListElement">&lt;ol&gt;</a></code>
+ and <code><a rel="custom" href="/api/js/html/UListElement">&lt;ul&gt;</a></code>
  elements.</p>
-<div class="note"><strong>Usage note: </strong> The <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/ol">&lt;ol&gt;</a></code>
- and <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/ul">&lt;ul&gt;</a></code>
- both represent a list of items. They differ in the way that, with the <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/ol">&lt;ol&gt;</a></code>
- element, the order is meaningful. As a rule of thumb to determine which one to use, try changing the order of the list items; if the meaning is changed, the <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/ol">&lt;ol&gt;</a></code>
- element should be used, else the <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/ul">&lt;ul&gt;</a></code>
+<div class="note"><strong>Usage note: </strong> The <code><a rel="custom" href="/api/js/html/OListElement">&lt;ol&gt;</a></code>
+ and <code><a rel="custom" href="/api/js/html/UListElement">&lt;ul&gt;</a></code>
+ both represent a list of items. They differ in the way that, with the <code><a rel="custom" href="/api/js/html/OListElement">&lt;ol&gt;</a></code>
+ element, the order is meaningful. As a rule of thumb to determine which one to use, try changing the order of the list items; if the meaning is changed, the <code><a rel="custom" href="/api/js/html/OListElement">&lt;ol&gt;</a></code>
+ element should be used, else the <code><a rel="custom" href="/api/js/html/UListElement">&lt;ul&gt;</a></code>
  is adequate.</div><br><br>
 Documentation for this class was provided by <a href="https://developer.mozilla.org/en/HTML/Element/ol">MDN</a>. */
 @:native("HTMLOListElement")

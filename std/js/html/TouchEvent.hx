@@ -24,8 +24,8 @@
 package js.html;
 
 /** <p>A <code>TouchEvent</code> represents an event sent when the state of contacts with a touch-sensitive surface changes. This surface can be a touch screen or trackpad, for example. The event can describe one or more points of contact with the screen and includes support for detecting movement, addition and removal of contact points, and so forth.</p>
-<p>Touches are represented by the <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/Touch">Touch</a></code>
-&nbsp;object; each touch is described by a position, size and shape, amount of pressure, and target element. Lists of touches are represented by <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/TouchList">TouchList</a></code>
+<p>Touches are represented by the <code><a rel="custom" href="/api/js/html/Touch">Touch</a></code>
+&nbsp;object; each touch is described by a position, size and shape, amount of pressure, and target element. Lists of touches are represented by <code><a rel="custom" href="/api/js/html/TouchList">TouchList</a></code>
  objects.</p><br><br>
 Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/TouchEvent">MDN</a>. */
 @:native("TouchEvent")

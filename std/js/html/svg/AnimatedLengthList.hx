@@ -23,7 +23,7 @@
 // This file is generated, do not edit!
 package js.html.svg;
 
-/** The <code>SVGAnimatedLengthList</code> interface is used for attributes of type <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/SVGLengthList">SVGLengthList</a></code>
+/** The <code>SVGAnimatedLengthList</code> interface is used for attributes of type <code><a rel="custom" href="/api/js/html/svg/LengthList">SVGLengthList</a></code>
  which can be animated.<br><br>
 Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/SVGAnimatedLengthList">MDN</a>. */
 @:native("SVGAnimatedLengthList")

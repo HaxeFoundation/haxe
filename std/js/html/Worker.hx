@@ -34,7 +34,7 @@ package js.html;
 <p>If you want to use workers in extensions, and would like to have access to <a title="en/js-ctypes" rel="internal" href="https://developer.mozilla.org/en/js-ctypes">js-ctypes</a>, you should use the <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/ChromeWorker">ChromeWorker</a></code>
  object instead.</p>
 </div>
-<p>See <a class="internal" title="en/Using DOM workers" rel="internal" href="https://developer.mozilla.org/En/Using_web_workers">Using web workers</a> for examples and details.</p><br><br>
+<p>See <a class="internal" title="en/Using DOM workers" rel="internal" href="/api/js/html/WorkerContext">Using web workers</a> for examples and details.</p><br><br>
 Documentation for this class was provided by <a href="https://developer.mozilla.org/En/DOM/Worker">MDN</a>. */
 @:native("Worker")
 extern class Worker extends AbstractWorker

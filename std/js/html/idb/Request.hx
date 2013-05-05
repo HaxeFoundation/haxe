@@ -25,7 +25,7 @@ package js.html.idb;
 
 /** <p>The <code>IDBRequest</code> interface of the IndexedDB&nbsp;API provides access to results of asynchronous requests to databases and database objects using event handler attributes. Each reading and writing operation on a database is done using a request.</p>
 <p>The request object does not initially contain any information about the result of the operation, but once information becomes available, an event is fired on the request, and the information becomes available through the properties of the <code>IDBRequest</code> instance.</p>
-<p>Inherits from: <a title="en/DOM/EventTarget" rel="internal" href="https://developer.mozilla.org/en/DOM/EventTarget">EventTarget</a></p><br><br>
+<p>Inherits from: <a title="en/DOM/EventTarget" rel="internal" href="/api/js/html/EventTarget">EventTarget</a></p><br><br>
 Documentation for this class was provided by <a href="https://developer.mozilla.org/en/IndexedDB/IDBRequest">MDN</a>. */
 @:native("IDBRequest")
 extern class Request extends js.html.EventTarget

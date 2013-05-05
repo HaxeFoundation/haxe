@@ -23,7 +23,7 @@
 // This file is generated, do not edit!
 package js.html.svg;
 
-/** The <code>SVGAnimatedRect</code> interface is used for attributes of basic <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/SVGRect">SVGRect</a></code>
+/** The <code>SVGAnimatedRect</code> interface is used for attributes of basic <code><a rel="custom" href="/api/js/html/svg/Rect">SVGRect</a></code>
  which can be animated.<br><br>
 Documentation for this class was provided by <a href="https://developer.mozilla.org/en/Document_Object_Model_(DOM)/SVGAnimatedRect">MDN</a>. */
 @:native("SVGAnimatedRect")

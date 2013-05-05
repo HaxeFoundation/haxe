@@ -29,8 +29,8 @@ package js.html;
 
 <p></p>
 <div class="note"><strong>Note:</strong> <code>DataView</code> is not yet implemented in Gecko. It is implemented in Chrome 9.</div>
-<p>An <code>ArrayBuffer</code> is a useful object for representing an arbitrary chunk of data. In many cases, such data will be read from disk or from the network, and will not follow the alignment restrictions that are imposed on the <a title="en/JavaScript_typed_arrays/ArrayBufferView" rel="internal" href="https://developer.mozilla.org/en/JavaScript_typed_arrays/ArrayBufferView">Typed Array Views</a> described earlier. In addition, the data will often be heterogeneous in nature and have a defined byte order.</p>
-<p>The <code>DataView</code> view provides a low-level interface for reading such data from and writing it to an <code><a title="en/JavaScript_typed_arrays/ArrayBuffer" rel="internal" href="https://developer.mozilla.org/en/JavaScript_typed_arrays/ArrayBuffer">ArrayBuffer</a></code>.</p><br><br>
+<p>An <code>ArrayBuffer</code> is a useful object for representing an arbitrary chunk of data. In many cases, such data will be read from disk or from the network, and will not follow the alignment restrictions that are imposed on the <a title="en/JavaScript_typed_arrays/ArrayBufferView" rel="internal" href="/api/js/html/ArrayBufferView">Typed Array Views</a> described earlier. In addition, the data will often be heterogeneous in nature and have a defined byte order.</p>
+<p>The <code>DataView</code> view provides a low-level interface for reading such data from and writing it to an <code><a title="en/JavaScript_typed_arrays/ArrayBuffer" rel="internal" href="/api/js/html/ArrayBuffer">ArrayBuffer</a></code>.</p><br><br>
 Documentation for this class was provided by <a href="https://developer.mozilla.org/en/JavaScript_typed_arrays/DataView">MDN</a>. */
 @:native("DataView")
 extern class DataView extends ArrayBufferView

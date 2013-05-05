@@ -24,7 +24,7 @@
 package js.html.idb;
 
 /** <p>The <code>IDBDatabase</code> interface of the IndexedDB&nbsp;API provides asynchronous access to a <a title="en/IndexedDB#database connection" rel="internal" href="https://developer.mozilla.org/en/IndexedDB#database_connection">connection to a database</a>. Use it to create, manipulate, and delete objects in that database. The interface also provides the only way to get a <a title="en/IndexedDB#gloss transaction" rel="internal" href="https://developer.mozilla.org/en/IndexedDB#gloss_transaction">transaction</a>&nbsp;and manage versions on that database.</p>
-<p>Inherits from: <a title="en/DOM/EventTarget" rel="internal" href="https://developer.mozilla.org/en/DOM/EventTarget">EventTarget</a></p><br><br>
+<p>Inherits from: <a title="en/DOM/EventTarget" rel="internal" href="/api/js/html/EventTarget">EventTarget</a></p><br><br>
 Documentation for this class was provided by <a href="https://developer.mozilla.org/en/IndexedDB/IDBDatabase">MDN</a>. */
 @:native("IDBDatabase")
 extern class Database extends js.html.EventTarget

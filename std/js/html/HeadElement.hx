@@ -24,7 +24,7 @@
 package js.html;
 
 /** The DOM <code>head</code> element exposes the <a title="http://www.w3.org/TR/html5/semantics.html#htmlheadelement" class=" external" rel="external" href="http://www.w3.org/TR/html5/semantics.html#htmlheadelement" target="_blank">HTMLHeadElement</a> (or 
-<span><a rel="custom" href="https://developer.mozilla.org/en/HTML">HTML 4</a></span>&nbsp; <a class=" external" target="_blank" rel="external" href="http://www.w3.org/TR/DOM-Level-2-HTML/html.html#ID-77253168" title="http://www.w3.org/TR/DOM-Level-2-HTML/html.html#ID-77253168">HTMLHeadElement</a>) interface, which contains the descriptive information, or metadata, for a document. This object inherits all of the properties and methods described in the <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/element">element</a></code>
+<span><a rel="custom" href="https://developer.mozilla.org/en/HTML">HTML 4</a></span>&nbsp; <a class=" external" target="_blank" rel="external" href="http://www.w3.org/TR/DOM-Level-2-HTML/html.html#ID-77253168" title="http://www.w3.org/TR/DOM-Level-2-HTML/html.html#ID-77253168">HTMLHeadElement</a>) interface, which contains the descriptive information, or metadata, for a document. This object inherits all of the properties and methods described in the <code><a rel="custom" href="/api/js/html/Element">element</a></code>
  section. In 
 <span><a rel="custom" href="https://developer.mozilla.org/en/HTML/HTML5">HTML5</a></span>, this interface inherits from HTMLElement, but defines no additional members.<br><br>
 Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/HTMLHeadElement">MDN</a>. */

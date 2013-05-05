@@ -23,9 +23,9 @@
 // This file is generated, do not edit!
 package js.html.svg;
 
-/** The <code>SVGTextPositioningElement</code> interface is inherited by text-related interfaces: <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/SVGTextElement">SVGTextElement</a></code>
-, <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/SVGTSpanElement">SVGTSpanElement</a></code>
-, <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/SVGTRefElement">SVGTRefElement</a></code>
+/** The <code>SVGTextPositioningElement</code> interface is inherited by text-related interfaces: <code><a rel="custom" href="/api/js/html/svg/TextElement">SVGTextElement</a></code>
+, <code><a rel="custom" href="/api/js/html/svg/TSpanElement">SVGTSpanElement</a></code>
+, <code><a rel="custom" href="/api/js/html/svg/TRefElement">SVGTRefElement</a></code>
  and <code><a rel="internal" href="https://developer.mozilla.org/Article_not_found?uri=en/DOM/SVGAltGlyphElement" class="new">SVGAltGlyphElement</a></code>
 .<br><br>
 Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/SVGTextPositioningElement">MDN</a>. */

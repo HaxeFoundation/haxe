@@ -23,7 +23,7 @@
 // This file is generated, do not edit!
 package js.html.svg;
 
-/** The <code>SVGRectElement</code> interface provides access to the properties of <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/rect">&lt;rect&gt;</a></code>
+/** The <code>SVGRectElement</code> interface provides access to the properties of <code><a rel="custom" href="/api/js/html/Rect">&lt;rect&gt;</a></code>
  elements, as well as methods to manipulate them.<br><br>
 Documentation for this class was provided by <a href="https://developer.mozilla.org/en/Document_Object_Model_(DOM)/SVGRectElement">MDN</a>. */
 @:native("SVGRectElement")

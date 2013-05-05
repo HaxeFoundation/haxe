@@ -23,7 +23,7 @@
 // This file is generated, do not edit!
 package js.html;
 
-/** <p>An object implementing the <code>CSSRule</code> DOM interface represents a single CSS rule. References to a <code>CSSRule</code>-implementing object may be obtained by looking at a <a title="en/DOM/stylesheet" rel="internal" href="https://developer.mozilla.org/en/DOM/CSSStyleSheet">CSS style sheet's</a> <code><a title="en/DOM/CSSStyleSheet/cssRules" rel="internal" href="https://developer.mozilla.org/en/DOM/CSSStyleSheet">cssRules</a></code> list.</p>
+/** <p>An object implementing the <code>CSSRule</code> DOM interface represents a single CSS rule. References to a <code>CSSRule</code>-implementing object may be obtained by looking at a <a title="en/DOM/stylesheet" rel="internal" href="/api/js/html/CSSStyleSheet">CSS style sheet's</a> <code><a title="en/DOM/CSSStyleSheet/cssRules" rel="internal" href="/api/js/html/CSSStyleSheet">cssRules</a></code> list.</p>
 <p>There are several kinds of rules. The <code>CSSRule</code> interface specifies the properties common to all rules, while properties unique to specific rule types are specified in the more specialized interfaces for those rules' respective types.</p><br><br>
 Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/cssRule">MDN</a>. */
 @:native("CSSRule")

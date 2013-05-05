@@ -23,7 +23,7 @@
 // This file is generated, do not edit!
 package js.html;
 
-/** <code>&lt;frameset&gt;</code> is an HTML element which is used to contain <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/frame">&lt;frame&gt;</a></code>
+/** <code>&lt;frameset&gt;</code> is an HTML element which is used to contain <code><a rel="custom" href="/api/js/html/FrameElement">&lt;frame&gt;</a></code>
  elements.<br><br>
 Documentation for this class was provided by <a href="https://developer.mozilla.org/en/HTML/Element/frameset">MDN</a>. */
 @:native("HTMLFrameSetElement")

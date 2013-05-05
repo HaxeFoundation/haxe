@@ -23,9 +23,9 @@
 // This file is generated, do not edit!
 package js.html;
 
-/** <p>The <code>FileReader</code> object lets web applications asynchronously read the contents of files (or raw data buffers) stored on the user's computer, using <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/File">File</a></code>
- or <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/Blob">Blob</a></code>
- objects to specify the file or data to read. File objects may be obtained in one of two ways: from a <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/FileList">FileList</a></code>
+/** <p>The <code>FileReader</code> object lets web applications asynchronously read the contents of files (or raw data buffers) stored on the user's computer, using <code><a rel="custom" href="/api/js/html/File">File</a></code>
+ or <code><a rel="custom" href="/api/js/html/Blob">Blob</a></code>
+ objects to specify the file or data to read. File objects may be obtained in one of two ways: from a <code><a rel="custom" href="/api/js/html/FileList">FileList</a></code>
  object returned as a result of a user selecting files using the <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/input">&lt;input&gt;</a></code>
  element, or from a drag and drop operation's <a title="En/DragDrop/DataTransfer" rel="internal" href="https://developer.mozilla.org/En/DragDrop/DataTransfer"><code>DataTransfer</code></a> object.</p>
 <p>To create a <code>FileReader</code>, simply do the following:</p>

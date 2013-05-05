@@ -23,7 +23,7 @@
 // This file is generated, do not edit!
 package js.html.svg;
 
-/** The <code>altGlyphItem</code> element provides a set of candidates for glyph substitution by the <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/altGlyph">&lt;altGlyph&gt;</a></code>
+/** The <code>altGlyphItem</code> element provides a set of candidates for glyph substitution by the <code><a rel="custom" href="/api/js/html/svg/AltGlyphElement">&lt;altGlyph&gt;</a></code>
  element.<br><br>
 Documentation for this class was provided by <a href="https://developer.mozilla.org/en/SVG/Element/altGlyphItem">MDN</a>. */
 @:native("SVGAltGlyphItemElement")

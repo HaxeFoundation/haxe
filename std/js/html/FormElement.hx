@@ -23,7 +23,7 @@
 // This file is generated, do not edit!
 package js.html;
 
-/** <p><code>FORM</code> elements share all of the properties and methods of other HTML elements described in the <a title="en/DOM/element" rel="internal" href="https://developer.mozilla.org/en/DOM/element">element</a> section.</p>
+/** <p><code>FORM</code> elements share all of the properties and methods of other HTML elements described in the <a title="en/DOM/element" rel="internal" href="/api/js/html/Element">element</a> section.</p>
 <p>This interface provides methods to create and modify <code>FORM</code> elements using the DOM.</p><br><br>
 Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/HTMLFormElement">MDN</a>. */
 @:native("HTMLFormElement")

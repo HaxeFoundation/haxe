@@ -25,7 +25,7 @@ package js.html;
 
 /** DOM&nbsp;<code>Button </code>objects expose the <a class=" external" title="http://www.w3.org/TR/html5/the-button-element.html#the-button-element" rel="external" href="http://www.w3.org/TR/html5/the-button-element.html#the-button-element" target="_blank">HTMLButtonElement</a> 
 <span><a rel="custom" href="https://developer.mozilla.org/en/HTML/HTML5">HTML5</a></span>&nbsp;(or <a class=" external" title="http://www.w3.org/TR/DOM-Level-2-HTML/html.html#ID-34812697" rel="external" href="http://www.w3.org/TR/DOM-Level-2-HTML/html.html#ID-34812697" target="_blank">HTMLButtonElement</a> 
-<span><a rel="custom" href="https://developer.mozilla.org/en/HTML">HTML 4</a></span>) interface, which provides properties and methods (beyond the <a href="https://developer.mozilla.org/en/DOM/element" rel="internal">element</a> object interface they also have available to them by inheritance) for manipulating the layout and presentation of button elements.<br><br>
+<span><a rel="custom" href="https://developer.mozilla.org/en/HTML">HTML 4</a></span>) interface, which provides properties and methods (beyond the <a href="/api/js/html/Element" rel="internal">element</a> object interface they also have available to them by inheritance) for manipulating the layout and presentation of button elements.<br><br>
 Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/HTMLButtonElement">MDN</a>. */
 @:native("HTMLButtonElement")
 extern class ButtonElement extends Element

@@ -24,18 +24,18 @@
 package js.html;
 
 /** <p>Selection is the class of the object returned by <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/window.getSelection">window.getSelection()</a></code>
- and other methods. It represents the text selection in the greater page, possibly spanning multiple elements, when the user drags over static text and other parts of the page. For information about text selection in an individual text editing element, see <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/HTMLInputElement">Input</a></code>
-, <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/HTMLTextAreaElement">TextArea</a></code>
+ and other methods. It represents the text selection in the greater page, possibly spanning multiple elements, when the user drags over static text and other parts of the page. For information about text selection in an individual text editing element, see <code><a rel="custom" href="/api/js/html/InputElement">Input</a></code>
+, <code><a rel="custom" href="/api/js/html/TextAreaElement">TextArea</a></code>
  and <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/document.activeElement">document.activeElement</a></code>
  which typically return the parent object returned from <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/window.getSelection">window.getSelection()</a></code>
 .</p>
-<p>A selection object represents the <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/range">ranges</a></code>
+<p>A selection object represents the <code><a rel="custom" href="/api/js/html/Range">ranges</a></code>
  that the user has selected. Typically, it holds only one range, accessed as follows:</p>
 
           <pre name="code" class="js">var selObj = window.getSelection();
 var range  = selObj.getRangeAt(0);</pre>
         
-<ul> <li><code>selObj</code> is a Selection object</li> <li><code>range</code> is a <a title="en/DOM/Range" rel="internal" href="https://developer.mozilla.org/en/DOM/range">Range</a> object</li>
+<ul> <li><code>selObj</code> is a Selection object</li> <li><code>range</code> is a <a title="en/DOM/Range" rel="internal" href="/api/js/html/Range">Range</a> object</li>
 </ul>
 <p>Calling the <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/Selection/toString">Selection/toString()</a></code>
  method returns the text contained in the selection, e.g</p>

@@ -23,7 +23,7 @@
 // This file is generated, do not edit!
 package js.html;
 
-/** DOM&nbsp;canvas elements expose the <code><a class="external" href="http://www.w3.org/TR/html5/the-canvas-element.html#htmlcanvaselement" rel="external nofollow" target="_blank" title="http://www.w3.org/TR/html5/the-canvas-element.html#htmlcanvaselement">HTMLCanvasElement</a></code> interface, which provides properties and methods for manipulating the layout and presentation of canvas elements. The <code>HTMLCanvasElement</code> interface inherits the properties and methods of the <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/element">element</a></code>
+/** DOM&nbsp;canvas elements expose the <code><a class="external" href="http://www.w3.org/TR/html5/the-canvas-element.html#htmlcanvaselement" rel="external nofollow" target="_blank" title="http://www.w3.org/TR/html5/the-canvas-element.html#htmlcanvaselement">HTMLCanvasElement</a></code> interface, which provides properties and methods for manipulating the layout and presentation of canvas elements. The <code>HTMLCanvasElement</code> interface inherits the properties and methods of the <code><a rel="custom" href="/api/js/html/Element">element</a></code>
  object interface.<br><br>
 Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/HTMLCanvasElement">MDN</a>. */
 @:native("HTMLCanvasElement")

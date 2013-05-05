@@ -23,7 +23,7 @@
 // This file is generated, do not edit!
 package js.html;
 
-/** <code>AnimationEvent</code> objects provide information about events that occur related to <a rel="internal" href="https://developer.mozilla.org/en/CSS/CSS_animations" title="en/CSS/CSS_animations">CSS animations</a>.<br><br>
+/** <code>AnimationEvent</code> objects provide information about events that occur related to <a rel="internal" href="/api/js/html/Animation" title="en/CSS/CSS_animations">CSS animations</a>.<br><br>
 Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/event/AnimationEvent">MDN</a>. */
 @:native("AnimationEvent")
 extern class AnimationEvent extends Event

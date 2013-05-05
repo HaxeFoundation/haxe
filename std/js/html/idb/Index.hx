@@ -24,7 +24,7 @@
 package js.html.idb;
 
 /** <p>The <code>IDBIndex</code> interface of the <a title="en/IndexedDB" rel="internal" href="https://developer.mozilla.org/en/IndexedDB">IndexedDB API</a> provides asynchronous access to an <a title="en/IndexedDB#gloss index" rel="internal" href="https://developer.mozilla.org/en/IndexedDB#gloss_index">index</a> in a database. An index is a kind of object store for looking up records in another object store, called the <em>referenced object store</em>. You use this interface to retrieve data.</p>
-<p>Inherits from: <a title="en/DOM/EventTarget" rel="internal" href="https://developer.mozilla.org/en/DOM/EventTarget">EventTarget</a></p><br><br>
+<p>Inherits from: <a title="en/DOM/EventTarget" rel="internal" href="/api/js/html/EventTarget">EventTarget</a></p><br><br>
 Documentation for this class was provided by <a href="https://developer.mozilla.org/en/IndexedDB/IDBIndex">MDN</a>. */
 @:native("IDBIndex")
 extern class Index

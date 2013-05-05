@@ -23,7 +23,7 @@
 // This file is generated, do not edit!
 package js.html;
 
-/** An object implementing the <code>StyleSheet</code> interface represents a single style sheet.&nbsp; CSS style sheets will further implement the more specialized <code><a title="en/DOM/CSSStyleSheet" rel="internal" href="https://developer.mozilla.org/en/DOM/CSSStyleSheet">CSSStyleSheet</a></code> interface.<br><br>
+/** An object implementing the <code>StyleSheet</code> interface represents a single style sheet.&nbsp; CSS style sheets will further implement the more specialized <code><a title="en/DOM/CSSStyleSheet" rel="internal" href="/api/js/html/CSSStyleSheet">CSSStyleSheet</a></code> interface.<br><br>
 Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/stylesheet">MDN</a>. */
 @:native("StyleSheet")
 extern class StyleSheet

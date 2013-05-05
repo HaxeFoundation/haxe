@@ -23,9 +23,9 @@
 // This file is generated, do not edit!
 package js.html;
 
-/** The <em>HTML List item element</em> (<code>&lt;li&gt;</code>) is used to represent a list item. It should be contained in an ordered list (<code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/ol">&lt;ol&gt;</a></code>
-), an unordered list (<code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/ul">&lt;ul&gt;</a></code>
-) or a menu (<code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/menu">&lt;menu&gt;</a></code>
+/** The <em>HTML List item element</em> (<code>&lt;li&gt;</code>) is used to represent a list item. It should be contained in an ordered list (<code><a rel="custom" href="/api/js/html/OListElement">&lt;ol&gt;</a></code>
+), an unordered list (<code><a rel="custom" href="/api/js/html/UListElement">&lt;ul&gt;</a></code>
+) or a menu (<code><a rel="custom" href="/api/js/html/MenuElement">&lt;menu&gt;</a></code>
 ), where it represents a single entity in that list. In menus and unordered lists, list items are ordinarily displayed using bullet points. In order lists, they are usually displayed with some ascending counter on the left such as a number or letter<br><br>
 Documentation for this class was provided by <a href="https://developer.mozilla.org/en/HTML/Element/li">MDN</a>. */
 @:native("HTMLLIElement")

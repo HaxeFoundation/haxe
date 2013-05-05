@@ -23,9 +23,6 @@
 // This file is generated, do not edit!
 package js.html.webgl;
 
-/** An alias for accessing GL constants more easily. */
-typedef GL = RenderingContext;
-
 @:native("WebGLRenderingContext")
 extern class RenderingContext extends js.html.CanvasRenderingContext
 {

@@ -27,7 +27,7 @@ package js.html;
 <p>A range can be created using the <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/Document.createRange">Document.createRange</a></code>
 &nbsp;method of the&nbsp;<code><a rel="custom" href="https://developer.mozilla.org/en/DOM/Document">Document</a></code>
 &nbsp;object. Range objects can also be retrieved by using the <code><a rel="internal" href="https://developer.mozilla.org/Article_not_found?uri=en/DOM/Selection.getRangeAt" class="new">Selection.getRangeAt</a></code>
-&nbsp;method of the&nbsp;<code><a rel="custom" href="https://developer.mozilla.org/en/DOM/Selection">Selection</a></code>
+&nbsp;method of the&nbsp;<code><a rel="custom" href="/api/js/html/DOMSelection">Selection</a></code>
 &nbsp;object.</p><br><br>
 Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/range">MDN</a>. */
 @:native("Range")

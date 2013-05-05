@@ -23,7 +23,7 @@
 // This file is generated, do not edit!
 package js.html.svg;
 
-/** <p><code>SVGTransform</code> is the interface for one of the component transformations within an <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/SVGTransformList">SVGTransformList</a></code>
+/** <p><code>SVGTransform</code> is the interface for one of the component transformations within an <code><a rel="custom" href="/api/js/html/svg/TransformList">SVGTransformList</a></code>
 ; thus, an <code>SVGTransform</code> object corresponds to a single component (e.g., <code>scale(…)</code> or <code>matrix(…)</code>) within a 
 <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Attribute/transform">transform</a></code> attribute.</p>
 <p>An <code>SVGTransform</code> object can be designated as read only, which means that attempts to modify the object will result in an exception being thrown.</p><br><br>

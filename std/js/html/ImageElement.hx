@@ -24,7 +24,7 @@
 package js.html;
 
 /** DOM image objects expose the <a title="http://www.w3.org/TR/html5/embedded-content-1.html#htmlimageelement" class=" external" rel="external" href="http://www.w3.org/TR/html5/embedded-content-1.html#htmlimageelement" target="_blank">HTMLImageElement</a> (or 
-<span><a rel="custom" href="https://developer.mozilla.org/en/HTML">HTML 4</a></span> <a title="http://www.w3.org/TR/DOM-Level-2-HTML/html.html#ID-17701901" class=" external" rel="external" href="http://www.w3.org/TR/DOM-Level-2-HTML/html.html#ID-17701901" target="_blank"><code>HTMLImageElement</code></a>) interface, which provides special properties and methods (beyond the regular <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/element">element</a></code>
+<span><a rel="custom" href="https://developer.mozilla.org/en/HTML">HTML 4</a></span> <a title="http://www.w3.org/TR/DOM-Level-2-HTML/html.html#ID-17701901" class=" external" rel="external" href="http://www.w3.org/TR/DOM-Level-2-HTML/html.html#ID-17701901" target="_blank"><code>HTMLImageElement</code></a>) interface, which provides special properties and methods (beyond the regular <code><a rel="custom" href="/api/js/html/Element">element</a></code>
  object interface they also have available to them by inheritance) for manipulating the layout and presentation of input elements.<br><br>
 Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/HTMLImageElement">MDN</a>. */
 @:native("HTMLImageElement")

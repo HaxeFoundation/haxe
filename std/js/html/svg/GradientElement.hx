@@ -23,8 +23,8 @@
 // This file is generated, do not edit!
 package js.html.svg;
 
-/** The <code>SVGGradient</code> interface is a base interface used by <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/SVGLinearGradientElement">SVGLinearGradientElement</a></code>
- and <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/SVGRadialGradientElement">SVGRadialGradientElement</a></code>
+/** The <code>SVGGradient</code> interface is a base interface used by <code><a rel="custom" href="/api/js/html/svg/LinearGradientElement">SVGLinearGradientElement</a></code>
+ and <code><a rel="custom" href="/api/js/html/svg/RadialGradientElement">SVGRadialGradientElement</a></code>
 .<br><br>
 Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/SVGGradientElement">MDN</a>. */
 @:native("SVGGradientElement")
