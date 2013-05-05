@@ -346,7 +346,7 @@ class TestMatch extends Test {
 		}));
 	}
 
-	#if true
+	#if false
 	 //all lines marked as // unused should give an error
 	function testRedundance() {
 		switch(true) {
