@@ -32,7 +32,9 @@ import haxe.Int64;
 	**/
 	public function new(year : Int, month : Int, day : Int, hour : Int, min : Int, sec : Int ) : Void
 	{
-		date = new java.util.Date(year != 0 ? year - 1900 : 0, month, day, hour, min, sec);
+		//issue #1769
+		year = year != 0 ? year - 1900 : 0;
+		date = new java.util.Date(year, month, day, hour, min, sec);
 	}
 
 	/**

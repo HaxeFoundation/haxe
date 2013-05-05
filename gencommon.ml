@@ -514,7 +514,7 @@ type generator_ctx =
 
   (* cast detection helpers / settings *)
   (* this is a cache for all field access types *)
-  greal_field_types : (path * string, (tclass_field (* does the cf exist *) * t (*cf's type in relation to current class type params *) * tclass (* declared class *) ) option) Hashtbl.t;
+  greal_field_types : (path * string, (tclass_field (* does the cf exist *) * t (*cf's type in relation to current class type params *) * t * tclass (* declared class *) ) option) Hashtbl.t;
   (* this function allows any code to handle casts as if it were inside the cast_detect module *)
   mutable ghandle_cast : t->t->texpr->texpr;
   (* when an unsafe cast is made, we can warn the user *)
@@ -1213,6 +1213,52 @@ type tfield_access =
   | FDynamicField of t
   | FNotFound
 
+let find_first_declared_field gen orig_cl ?exact_field field =
+  let chosen = ref None in
+  let is_overload = ref false in
+  let rec loop_cl depth c tl tlch =
+    (try
+      let ret = PMap.find field c.cl_fields in
+      if Meta.has Meta.Overload ret.cf_meta then is_overload := true;
+      match !chosen, exact_field with
+      | Some(d,_,_,_,_), _ when depth <= d -> ()
+      | _, None ->
+        chosen := Some(depth,ret,c,tl,tlch)
+      | _, Some f2 ->
+        List.iter (fun f ->
+          let declared_t = apply_params c.cl_types tl f.cf_type in
+          if Typeload.same_overload_args declared_t f2.cf_type f f2 then
+            chosen := Some(depth,f,c,tl,tlch)
+        ) (ret :: ret.cf_overloads)
+    with | Not_found -> ());
+    (match c.cl_super with
+    | Some (sup,stl) ->
+      let tl = List.map (apply_params c.cl_types tl) stl in
+      let stl = gen.greal_type_param (TClassDecl sup) stl in
+      let tlch = List.map (apply_params c.cl_types tlch) stl in
+      loop_cl (depth+1) sup tl tlch
+    | None -> ());
+    if c.cl_interface then
+      List.iter (fun (sup,stl) ->
+        let tl = List.map (apply_params c.cl_types tl) stl in
+        let stl = gen.greal_type_param (TClassDecl sup) stl in
+        let tlch = List.map (apply_params c.cl_types tlch) stl in
+        loop_cl (depth+1) sup tl tlch
+      ) c.cl_implements
+  in
+  loop_cl 0 orig_cl (List.map snd orig_cl.cl_types) (List.map snd orig_cl.cl_types);
+  match !chosen with
+  | None -> None
+  | Some(_,f,c,tl,tlch) ->
+    if !is_overload && not (Meta.has Meta.Overload f.cf_meta) then
+      f.cf_meta <- (Meta.Overload,[],f.cf_pos) :: f.cf_meta;
+    let declared_t = apply_params c.cl_types tl f.cf_type in
+    let params_t = apply_params c.cl_types tlch f.cf_type in
+    let actual_t = match follow params_t with
+    | TFun(args,ret) -> TFun(List.map (fun (n,o,t) -> (n,o,gen.greal_type t)) args, gen.greal_type ret)
+    | _ -> gen.greal_type params_t in
+    Some(f,actual_t,declared_t,params_t,c,tl,tlch)
+
 let field_access gen (t:t) (field:string) : (tfield_access) =
   (*
     t can be either an haxe-type as a real-type;
@@ -1245,45 +1291,21 @@ let field_access gen (t:t) (field:string) : (tfield_access) =
 
       (* this is a hack for C#'s different generic types with same path *)
       let hashtbl_field = (String.concat "" (List.map (fun _ -> "]") cl.cl_types)) ^ field in
-      (try
-        match Hashtbl.find gen.greal_field_types (orig_cl.cl_path, hashtbl_field) with
-          | None -> not_found()
-          | Some (cf, actual_t, declared_cl) ->
-            FClassField(orig_cl, orig_params, declared_cl, cf, false, actual_t)
+      let types = try
+        Hashtbl.find gen.greal_field_types (orig_cl.cl_path, hashtbl_field)
       with | Not_found ->
-        let rec flatten_hierarchy cl acc =
-          match cl.cl_super with
-            | None -> acc
-            | Some (cl,super) -> flatten_hierarchy cl ((cl,super) :: acc)
+        let ret = find_first_declared_field gen cl field in
+        let ret = match ret with
+          | None -> None
+          | Some(cf,t,dt,_,cl,_,_) -> Some(cf,t,dt,cl)
         in
-
-        let hierarchy = flatten_hierarchy orig_cl [orig_cl, List.map snd orig_cl.cl_types] in
-
-        let rec loop_find_cf acc =
-          match acc with
-            | [] ->
-              not_found()
-            | (cl,params) :: tl ->
-              (try
-                let cf = PMap.find field cl.cl_fields in
-                (* found *)
-                (* get actual type *)
-                let get_real_t = match cf.cf_kind with
-                  | Var _ -> (fun t -> gen.greal_type t)
-                  | _ -> (fun t ->
-                    let args, ret = get_fun t in
-                    TFun(List.map (fun (n,o,t) -> (n,o,gen.greal_type t)) args, gen.greal_type ret)
-                  )
-                in
-                let actual_t = List.fold_left (fun t (cl,params) -> apply_params cl.cl_types (gen.greal_type_param (TClassDecl cl) params) (get_real_t t)) cf.cf_type acc in
-                Hashtbl.add gen.greal_field_types (orig_cl.cl_path, hashtbl_field) (Some (cf, actual_t, cl));
-                FClassField(orig_cl, orig_params, cl, cf, false, actual_t)
-              with | Not_found ->
-                loop_find_cf tl
-              )
-        in
-        loop_find_cf hierarchy
-      )
+        Hashtbl.add gen.greal_field_types (orig_cl.cl_path, hashtbl_field) ret;
+        ret
+      in
+      (match types with
+          | None -> not_found()
+          | Some (cf, actual_t, _, declared_cl) ->
+            FClassField(orig_cl, orig_params, declared_cl, cf, false, actual_t))
     | TEnum _ | TAbstract _ ->
       (* enums have no field *) FNotFound
     | TAnon anon ->
@@ -5619,7 +5641,7 @@ struct
   *)
 
   (* match e.eexpr with | TCall( ({ eexpr = TField(ef, f) }) as e1, elist ) -> *)
-  let handle_type_parameter gen e e1 ef ~clean_ef f elist impossible_tparam_is_dynamic =
+  let handle_type_parameter gen e e1 ef ~clean_ef ~overloads_cast_to_base f elist impossible_tparam_is_dynamic =
     (* the ONLY way to know if this call has parameters is to analyze the calling field. *)
     (* To make matters a little worse, on both C# and Java only in some special cases that type parameters will be used *)
     (* Namely, when using reflection type parameters are useless, of course. This also includes anonymous types *)
@@ -5648,6 +5670,7 @@ struct
         | TInst(_,params) -> params
         | _ -> params in
         let ecall = get e in
+        let ef = ref ef in
         let is_overload = cf.cf_overloads <> [] || Meta.has Meta.Overload cf.cf_meta || (is_static && is_static_overload cl (field_name f)) in
         let cf, actual_t, error = match is_overload with
           | false ->
@@ -5659,24 +5682,44 @@ struct
                   let t, cf = List.find (fun (t,f) -> f == cf) overloads in
                   cf,t,false
                   with | Not_found -> cf,actual_t,true)
-          | true -> match f with
-          | FInstance(c,cf) | FClosure(Some c,cf) ->
-            (* get from overloads *)
-            (* FIXME: this is a workaround for issue #1743 . Uncomment this code after it was solved *)
-            (* let t, cf = List.find (fun (t,cf2) -> cf == cf2) (Typeload.get_overloads cl (field_name f)) in *)
-            (* cf, t, false *)
-            select_overload gen e1.etype (Typeload.get_overloads cl (field_name f)) cl.cl_types params
-          | FStatic(c,f) ->
-            (* workaround for issue #1743 *)
-            (* f,f.cf_type, false *)
-            select_overload gen e1.etype ((f.cf_type,f) :: List.map (fun f -> f.cf_type,f) f.cf_overloads) [] []
-          | _ ->
-            gen.gcon.warning "Overloaded classfield typed as anonymous" ecall.epos;
+          | true ->
+          let (cf, actual_t, error), is_static = match f with
+            | FInstance(c,cf) | FClosure(Some c,cf) ->
+              (* get from overloads *)
+              (* FIXME: this is a workaround for issue #1743 . Uncomment this code after it was solved *)
+              (* let t, cf = List.find (fun (t,cf2) -> cf == cf2) (Typeload.get_overloads cl (field_name f)) in *)
+              (* cf, t, false *)
+              select_overload gen e1.etype (Typeload.get_overloads cl (field_name f)) cl.cl_types params, false
+            | FStatic(c,f) ->
+              (* workaround for issue #1743 *)
+              (* f,f.cf_type, false *)
+              select_overload gen e1.etype ((f.cf_type,f) :: List.map (fun f -> f.cf_type,f) f.cf_overloads) [] [], true
+            | _ ->
+              gen.gcon.warning "Overloaded classfield typed as anonymous" ecall.epos;
+              (cf, actual_t, true), true
+          in
+          if not (is_static || error) then match find_first_declared_field gen cl ~exact_field:{ cf with cf_type = actual_t } cf.cf_name with
+          | Some(_,actual_t,_,_,declared_cl,tl,tlch) ->
+            if declared_cl != cl && overloads_cast_to_base then begin
+              let pos = (!ef).epos in
+              ef := {
+                eexpr = TCall(
+                  { eexpr = TLocal(alloc_var "__as__" t_dynamic); etype = t_dynamic; epos = pos },
+                  [!ef]);
+                etype = TInst(declared_cl,List.map (apply_params cl.cl_types params) tl);
+                epos = pos
+              }
+            end;
+            cf,actual_t,false
+          | None ->
+            gen.gcon.warning "Cannot find matching overload" ecall.epos;
             cf, actual_t, true
+          else
+            cf,actual_t,error
         in
         let error = error || (match follow actual_t with | TFun _ -> false | _ -> true) in
         if error then (* if error, ignore arguments *)
-          mk_cast ecall.etype { ecall with eexpr = TCall({ e1 with eexpr = TField(ef, f) }, elist ) }
+          mk_cast ecall.etype { ecall with eexpr = TCall({ e1 with eexpr = TField(!ef, f) }, elist ) }
         else begin
           (* infer arguments *)
           (* let called_t = TFun(List.map (fun e -> "arg",false,e.etype) elist, ecall.etype) in *)
@@ -5708,14 +5751,14 @@ struct
             ) applied args_ft in
             { ecall with
               eexpr = TCall(
-                { e1 with eexpr = TField(ef, f) },
+                { e1 with eexpr = TField(!ef, f) },
                 elist);
             }, elist
           with | Invalid_argument("List.map2") ->
             gen.gcon.warning ("This expression may be invalid" ) ecall.epos;
-            { ecall with eexpr = TCall({ e1 with eexpr = TField(ef, f) }, elist) }, elist
+            { ecall with eexpr = TCall({ e1 with eexpr = TField(!ef, f) }, elist) }, elist
           in
-          let new_ecall = if fparams <> [] then gen.gparam_func_call new_ecall { e1 with eexpr = TField(ef, f) } fparams elist else new_ecall in
+          let new_ecall = if fparams <> [] then gen.gparam_func_call new_ecall { e1 with eexpr = TField(!ef, f) } fparams elist else new_ecall in
           handle_cast gen new_ecall (gen.greal_type ecall.etype) (gen.greal_type ret_ft)
         end
     | FClassField (cl,params,_,{ cf_kind = (Method MethDynamic | Var _) },_,actual_t) ->
@@ -5774,7 +5817,9 @@ struct
   (* end of type parameter handling *)
   (* ****************************** *)
 
-  let default_implementation gen ?(native_string_cast = true) maybe_empty_t impossible_tparam_is_dynamic =
+  (** overloads_cast_to_base argument will cast overloaded function types to the class that declared it. **)
+  (**     This is necessary for C#, and if true, will require the target to implement __as__, as a `quicker` form of casting **)
+  let default_implementation gen ?(native_string_cast = true) ?(overloads_cast_to_base = false) maybe_empty_t impossible_tparam_is_dynamic =
     let handle e t1 t2 = handle_cast gen e (gen.greal_type t1) (gen.greal_type t2) in
 
     let in_value = ref false in
@@ -5809,7 +5854,7 @@ struct
         | TBinop ( Ast.OpAdd, ( { eexpr = TCast(e1, _) } as e1c), e2 ) when native_string_cast && is_string e1c.etype && is_string e2.etype ->
           { e with eexpr = TBinop( Ast.OpAdd, run e1, run e2 ) }
         | TField(ef, f) ->
-          handle_type_parameter gen None e (run ef) ~clean_ef:ef f [] impossible_tparam_is_dynamic
+          handle_type_parameter gen None e (run ef) ~clean_ef:ef ~overloads_cast_to_base:overloads_cast_to_base f [] impossible_tparam_is_dynamic
         | TArrayDecl el ->
           let et = e.etype in
           let base_type = match follow et with
@@ -5823,7 +5868,7 @@ struct
         | TCall( ({ eexpr = TLocal v } as local), params ) when String.get v.v_name 0 = '_' && String.get v.v_name 1 = '_' && Hashtbl.mem gen.gspecial_vars v.v_name ->
           { e with eexpr = TCall(local, List.map run params) }
         | TCall( ({ eexpr = TField(ef, f) }) as e1, elist ) ->
-          handle_type_parameter gen (Some e) (e1) (run ef) ~clean_ef:ef f (List.map run elist) impossible_tparam_is_dynamic
+          handle_type_parameter gen (Some e) (e1) (run ef) ~clean_ef:ef ~overloads_cast_to_base:overloads_cast_to_base f (List.map run elist) impossible_tparam_is_dynamic
 
         (* the TNew and TSuper code was modified at r6497 *)
         | TCall( { eexpr = TConst TSuper } as ef, eparams ) ->
@@ -5964,7 +6009,6 @@ struct
     ReturnCast.configure gen
 
 end;;
-
 
 (* ******************************************* *)
 (* Reflection-enabling Class fields *)
@@ -10021,6 +10065,47 @@ struct
           List.iter loop_f iface.cl_ordered_fields
         in
         List.iter (fun (iface,itl) -> loop_iface iface itl) c.cl_implements;
+        (* now go through all overrides, and find those that are overloads and have actual_t <> t *)
+        let rec check_f f =
+          (* find the first declared field *)
+          match find_first_declared_field gen c ~exact_field:f f.cf_name with
+          | Some(f2,actual_t,_,t,declared_cl,_,_)
+            when not (Typeload.same_overload_args actual_t (get_real_fun gen f.cf_type) f2 f) ->
+              (* create another field with the requested type *)
+              let f3 = mk_class_field f.cf_name t f.cf_public f.cf_pos f.cf_kind f.cf_params in
+              let p = f.cf_pos in
+              let old_args, old_ret = get_fun f.cf_type in
+              let args, ret = get_fun t in
+              let tf_args = List.map (fun (n,o,t) -> alloc_var n t, None) args in
+              f3.cf_expr <- Some {
+                eexpr = TFunction({
+                  tf_args = tf_args;
+                  tf_type = ret;
+                  tf_expr = mk_block (mk_return (mk_cast ret {
+                    eexpr = TCall(
+                      {
+                        eexpr = TField(
+                          { eexpr = TConst TThis; etype = TInst(c, List.map snd c.cl_types); epos = p },
+                          FInstance(c,f));
+                        etype = f.cf_type;
+                        epos = p
+                      },
+                      List.map2 (fun (v,_) (_,_,t) -> mk_cast t (mk_local v p)) tf_args old_args);
+                    etype = old_ret;
+                    epos = p
+                  }))
+                });
+                etype = t;
+                epos = p;
+              };
+              gen.gafter_filters_ended <- ((fun () ->
+                f.cf_overloads <- f3 :: f.cf_overloads;
+              ) :: gen.gafter_filters_ended);
+              f3
+          | _ -> f
+        in
+        if not c.cl_extern then
+          c.cl_overrides <- List.map (fun f -> if Meta.has Meta.Overload f.cf_meta then check_f f else f) c.cl_overrides;
         md
       | _ -> md
     in

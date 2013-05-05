@@ -31,7 +31,9 @@ class StringBuf {
 	public function add( x : Dynamic ) : Void {
 		if (Std.is(x, Int))
 		{
-			b.append(cast(x, Int));
+			var x:Int = x;
+			var xd:Dynamic = x;
+			b.append(xd);
 		} else {
 			b.append(x);
 		}

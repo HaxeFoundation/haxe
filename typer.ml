@@ -456,35 +456,53 @@ let unify_min ctx el =
 		(List.hd el).etype
 
 let rec unify_call_params ctx ?(overloads=None) cf el args r p inline =
-	let overloads = match cf, overloads with
-		| Some(TInst(c,pl),f), None when ctx.com.config.pf_overload ->
-				let overloads = Typeload.get_overloads c f.cf_name in
+  (* 'overloads' will carry a ( return_result ) list, called 'compatible' *)
+  (* it's used to correctly support an overload selection algorithm *)
+	let overloads, compatible = match cf, overloads with
+		| Some(TInst(c,pl),f), None when ctx.com.config.pf_overload && Meta.has Meta.Overload f.cf_meta ->
+				let overloads = List.filter (fun (_,f2) -> not (f == f2)) (Typeload.get_overloads c f.cf_name) in
 				if overloads = [] then (* is static function *)
-					List.map (fun f -> f.cf_type, f) f.cf_overloads
+					List.map (fun f -> f.cf_type, f) f.cf_overloads, []
 				else
-					overloads
+					overloads, []
 		| Some(_,f), None ->
-				List.map (fun f -> f.cf_type, f) f.cf_overloads
+				List.map (fun f -> f.cf_type, f) f.cf_overloads, []
 		| _, Some s ->
 				s
-		| _ -> []
+		| _ -> [], []
 	in
-	let next() =
+	let next ?retval () =
+		let compatible = Option.map_default (fun r -> r :: compatible) compatible retval in
 		match cf, overloads with
 		| Some (TInst(c,pl),_), (ft,o) :: l ->
+			let o = { o with cf_type = ft } in
 			let args, ret = (match follow (apply_params c.cl_types pl (field_type ctx c pl o p)) with (* I'm getting non-followed types here. Should it happen? *)
 				| TFun (tl,t) -> tl, t
 				| _ -> assert false
 			) in
-			Some (unify_call_params ctx ~overloads:(Some l) (Some (TInst(c,pl),{ o with cf_type = ft })) el args ret p inline)
-		| Some (t,_), (_,o) :: l ->
+			Some (unify_call_params ctx ~overloads:(Some (l,compatible)) (Some (TInst(c,pl),o)) el args ret p inline)
+		| Some (t,_), (ft,o) :: l ->
+			let o = { o with cf_type = ft } in
 			let args, ret = (match Type.field_type o with
 				| TFun (tl,t) -> tl, t
 				| _ -> assert false
 			) in
-			Some (unify_call_params ctx ~overloads:(Some l) (Some (t, o)) el args ret p inline)
+			Some (unify_call_params ctx ~overloads:(Some (l,compatible)) (Some (t, o)) el args ret p inline)
 		| _ ->
-			None
+			match compatible with
+			| [] -> None
+			| [acc,t] -> Some (List.map fst acc, t)
+			| comp ->
+				match Codegen.Overloads.reduce_compatible compatible with
+				| [acc,t] -> Some (List.map fst acc, t)
+				| (acc,t) :: _ -> (* ambiguous overload *)
+					let name = match cf with | Some(_,f) -> "'" ^ f.cf_name ^ "' " | _ -> "" in
+					let format_amb = String.concat "\n" (List.map (fun (_,t) ->
+						"Function " ^ name ^ "with type " ^ (s_type (print_context()) t)
+					) compatible) in
+					display_error ctx ("This call is ambiguous between the following methods:\n" ^ format_amb) p;
+					Some (List.map fst acc,t)
+				| [] -> None
 	in
 	let fun_details() =
 		let format_arg = (fun (name,opt,_) -> (if opt then "?" else "") ^ name) in
@@ -505,7 +523,7 @@ let rec unify_call_params ctx ?(overloads=None) cf el args r p inline =
 	let rec no_opt = function
 		| [] -> []
 		| ({ eexpr = TConst TNull },true) :: l -> no_opt l
-		| l -> List.map fst l
+		| l -> l
 	in
 	let rec default_value t =
 		if is_pos_infos t then
@@ -518,10 +536,19 @@ let rec unify_call_params ctx ?(overloads=None) cf el args r p inline =
 	let rec loop acc l l2 skip =
 		match l , l2 with
 		| [] , [] ->
-			if not (inline && ctx.g.doinline) && not ctx.com.config.pf_pad_nulls then
+			let args,tf = if not (inline && ctx.g.doinline) && not ctx.com.config.pf_pad_nulls then
 				List.rev (no_opt acc), (TFun(args,r))
 			else
-				List.rev (List.map fst acc), (TFun(args,r))
+				List.rev (acc), (TFun(args,r))
+			in
+			if ctx.com.config.pf_overload then
+				match next ~retval:(args,tf) () with
+				| Some l -> l
+				| None ->
+					display_error ctx ("No overloaded function matches the arguments. Are the arguments correctly typed?") p;
+					List.map fst args, tf
+			else
+				List.map fst args, tf
 		| [] , (_,false,_) :: _ ->
 			error (List.fold_left (fun acc (_,_,t) -> default_value t :: acc) acc l2) "Not enough"
 		| [] , (name,true,t) :: l ->

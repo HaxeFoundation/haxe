@@ -642,8 +642,8 @@ let copy_meta meta_src meta_target sl =
 (** retrieves all overloads from class c and field i, as (Type.t * tclass_field) list *)
 let rec get_overloads c i =
 	let ret = try
-		let f = PMap.find i c.cl_fields in
-			(f.cf_type, f) :: (List.map (fun f -> f.cf_type, f) f.cf_overloads)
+			let f = PMap.find i c.cl_fields in
+			List.filter (fun (_,f) -> not (List.memq f c.cl_overrides)) ((f.cf_type, f) :: (List.map (fun f -> f.cf_type, f) f.cf_overloads))
 		with | Not_found -> []
 	in
 	match c.cl_super with
@@ -667,6 +667,17 @@ let same_overload_args t1 t2 f1 f2 =
       with | Invalid_argument("List.for_all2") ->
         false)
     | _ -> assert false
+
+let check_overloads ctx c =
+	(* check if field with same signature was declared more than once *)
+	List.iter (fun f ->
+		if Meta.has Meta.Overload f.cf_meta then
+			List.iter (fun f2 ->
+				try
+					ignore (List.find (fun f3 -> f3 != f2 && same_overload_args f2.cf_type f3.cf_type f2 f3) (f :: f.cf_overloads));
+					display_error ctx ("Another overloaded field of same signature was already declared : " ^ f2.cf_name) f2.cf_pos
+				with | Not_found -> ()
+		) (f :: f.cf_overloads)) (c.cl_ordered_fields @ c.cl_ordered_statics)
 
 let check_overriding ctx c =
 	let p = c.cl_pos in
@@ -719,13 +730,6 @@ let check_overriding ctx c =
 						display_error ctx msg p
 			in
 			if ctx.com.config.pf_overload && Meta.has Meta.Overload f.cf_meta then begin
-				(* check if field with same signature was declared more than once *)
-				List.iter (fun f2 ->
-					try
-						ignore (List.find (fun f3 -> f3 != f2 && same_overload_args f2.cf_type f3.cf_type f2 f3) (f :: f.cf_overloads));
-						display_error ctx ("Another overloaded field of same signature was already declared : " ^ f2.cf_name) f2.cf_pos
-					with | Not_found -> ()
-				) (f :: f.cf_overloads);
 				let overloads = get_overloads csup i in
 				List.iter (fun f ->
 					(* find the exact field being overridden *)
@@ -1264,6 +1268,7 @@ let init_class ctx c p context_init herits fields =
 	in
 
 	(match c.cl_super with None -> () | Some _ -> delay ctx PForce (fun() -> check_overriding ctx c));
+	if ctx.com.config.pf_overload then delay ctx PForce (fun() -> check_overloads ctx c);
 
 	(* ----------------------- COMPLETION ----------------------------- *)
 

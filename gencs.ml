@@ -1013,6 +1013,12 @@ let configure gen =
           write w " as ";
           write w (md_s md);
           write w " )"
+        | TCall ({ eexpr = TLocal( { v_name = "__as__" } ) }, [ expr ] ) ->
+          write w "( ";
+          expr_s w expr;
+          write w " as ";
+          write w (t_s e.etype);
+          write w " )";
         | TCall ({ eexpr = TLocal( { v_name = "__cs__" } ) }, [ { eexpr = TConst(TString(s)) } ] ) ->
           write w s
         | TCall ({ eexpr = TLocal( { v_name = "__unsafe__" } ) }, [ e ] ) ->
@@ -2188,7 +2194,7 @@ let configure gen =
     get_typeof e
   ));
 
-  CastDetect.configure gen (CastDetect.default_implementation gen (Some (TEnum(empty_e, []))) false ~native_string_cast:false);
+  CastDetect.configure gen (CastDetect.default_implementation gen (Some (TEnum(empty_e, []))) false ~native_string_cast:false ~overloads_cast_to_base:true);
 
   (*FollowAll.configure gen;*)
 

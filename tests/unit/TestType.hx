@@ -465,7 +465,7 @@ class TestType extends Test {
 		//typeError(pcc.memberAnon( { y : 3. } ));
 
 		#if !(java || cs)
-		pcc.memberOverload("foo", "bar");
+		// pcc.memberOverload("foo", "bar");
 		#end
 		// TODO: this should not fail (overload accepts)
 		//pcc.memberOverload(1, [2]);

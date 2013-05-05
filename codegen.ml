@@ -1968,3 +1968,176 @@ let default_cast ?(vtmp="$t") com e texpr t p =
 	let exc = mk (TThrow (mk (TConst (TString "Class cast error")) api.tstring p)) t p in
 	let check = mk (TIf (mk_parent is,mk (TCast (vexpr,None)) t p,Some exc)) t p in
 	mk (TBlock [var;check;vexpr]) t p
+
+(** Overload resolution **)
+module Overloads =
+struct
+	let rec simplify_t t = match t with
+		| TInst _ | TEnum _ | TAbstract({ a_impl = None }, _) ->
+			t
+		| TAbstract(a,tl) -> simplify_t (Abstract.get_underlying_type a tl)
+		| TType(({ t_path = [],"Null" } as t), [t2]) -> (match simplify_t t2 with
+			| (TAbstract({ a_impl = None }, _) | TEnum _ as t2) -> TType(t, [simplify_t t2])
+			| t2 -> t2)
+		| TType(t, tl) ->
+			simplify_t (apply_params t.t_types tl t.t_type)
+		| TMono r -> (match !r with
+			| Some t -> simplify_t t
+			| None -> t_dynamic)
+		| TAnon _ -> t_dynamic
+		| TDynamic _ -> t
+		| TLazy f -> simplify_t (!f())
+		| TFun _ -> t
+
+	(* rate type parameters *)
+	let rate_tp tlfun tlarg =
+		let acc = ref 0 in
+		List.iter2 (fun f a -> if not (type_iseq f a) then incr acc) tlfun tlarg;
+		!acc
+
+	let rec rate_conv cacc tfun targ =
+		match simplify_t tfun, simplify_t targ with
+		| TInst({ cl_interface = true } as cf, tlf), TInst(ca, tla) ->
+			(* breadth-first *)
+			let stack = ref [0,ca,tla] in
+			let cur = ref (0, ca,tla) in
+			let rec loop () =
+				match !stack with
+				| [] -> (let acc, ca, tla = !cur in match ca.cl_super with
+					| None -> raise Not_found
+					| Some (sup,tls) ->
+						cur := (acc+1,sup,List.map (apply_params ca.cl_types tla) tls);
+						stack := [!cur];
+						loop())
+				| (acc,ca,tla) :: _ when ca == cf ->
+					acc,tla
+				| (acc,ca,tla) :: s ->
+					stack := s @ List.map (fun (c,tl) -> (acc+1,c,List.map (apply_params ca.cl_types tla) tl)) ca.cl_implements;
+					loop()
+			in
+			let acc, tla = loop() in
+			(cacc + acc, rate_tp tlf tla)
+		| TInst(cf,tlf), TInst(ca,tla) ->
+			let rec loop acc ca tla =
+				if cf == ca then
+					acc, tla
+				else match ca.cl_super with
+				| None -> raise Not_found
+				| Some(sup,stl) ->
+					loop (acc+1) sup (List.map (apply_params ca.cl_types tla) stl)
+			in
+			let acc, tla = loop 0 ca tla in
+			(cacc + acc, rate_tp tlf tla)
+		| TEnum(ef,tlf), TEnum(ea, tla) ->
+			if ef != ea then raise Not_found;
+			(cacc, rate_tp tlf tla)
+		| TDynamic _, TDynamic _ ->
+			(cacc, 0)
+		| TDynamic _, _ ->
+			(max_int, 0) (* a function with dynamic will always be worst of all *)
+		| TAbstract({ a_impl = None }, _), TDynamic _ ->
+			(cacc + 2, 0) (* a dynamic to a basic type will have an "unboxing" penalty *)
+		| _, TDynamic _ ->
+			(cacc + 1, 0)
+		| TAbstract(af,tlf), TAbstract(aa,tla) ->
+			(if af == aa then
+				(cacc, rate_tp tlf tla)
+			else
+				let ret = ref None in
+				if List.exists (fun (t,_) -> try
+					ret := Some (rate_conv (cacc+1) (apply_params af.a_types tlf t) targ);
+					true
+				with | Not_found ->
+					false
+				) af.a_from then
+					Option.get !ret
+			else
+				if List.exists (fun (t,_) -> try
+					ret := Some (rate_conv (cacc+1) tfun (apply_params aa.a_types tla t));
+					true
+				with | Not_found ->
+					false
+				) aa.a_to then
+					Option.get !ret
+			else
+				raise Not_found)
+		| TType({ t_path = [], "Null" }, [tf]), TType({ t_path = [], "Null" }, [ta]) ->
+			rate_conv (cacc+0) tf ta
+		| TType({ t_path = [], "Null" }, [tf]), ta ->
+			rate_conv (cacc+1) tf ta
+		| tf, TType({ t_path = [], "Null" }, [ta]) ->
+			rate_conv (cacc+1) tf ta
+		| TFun _, TFun _ -> (* unify will make sure they are compatible *)
+			cacc,0
+		| tfun,targ ->
+			raise Not_found
+
+	let is_best arg1 arg2 =
+		(List.for_all2 (fun v1 v2 ->
+			v1 <= v2)
+		arg1 arg2) && (List.exists2 (fun v1 v2 ->
+			v1 < v2)
+		arg1 arg2)
+
+	let rec rm_duplicates acc ret = match ret with
+		| [] -> acc
+		| ( el, t ) :: ret when List.exists (fun (_,t2) -> type_iseq t t2) acc ->
+			rm_duplicates acc ret
+		| r :: ret ->
+			rm_duplicates (r :: acc) ret
+
+	let s_options rated =
+		String.concat ",\n" (List.map (fun ((_,t),rate) ->
+			"( " ^ (String.concat "," (List.map (fun (i,i2) -> string_of_int i ^ ":" ^ string_of_int i2) rate)) ^ " ) => " ^ (s_type (print_context()) t)
+		) rated)
+
+	let count_optionals elist =
+		List.fold_left (fun acc (_,is_optional) -> if is_optional then acc + 1 else acc) 0 elist
+
+	let rec fewer_optionals acc compatible = match acc, compatible with
+		| _, [] -> acc
+		| [], c :: comp -> fewer_optionals [c] comp
+		| (elist_acc, _) :: _, ((elist, _) as cur) :: comp ->
+			let acc_opt = count_optionals elist_acc in
+			let comp_opt = count_optionals elist in
+			if acc_opt = comp_opt then
+				fewer_optionals (cur :: acc) comp
+			else if acc_opt < comp_opt then
+				fewer_optionals acc comp
+			else
+				fewer_optionals [cur] comp
+
+	let reduce_compatible compatible = match fewer_optionals [] (rm_duplicates [] compatible) with
+		| [] -> [] | [v] -> [v]
+		| compatible ->
+			(* convert compatible into ( rate * compatible_type ) list *)
+			let rec mk_rate acc elist args = match elist, args with
+				| [], [] -> acc
+				| (_,true) :: elist, _ :: args -> mk_rate acc elist args
+				| (e,false) :: elist, (n,o,t) :: args ->
+					mk_rate (rate_conv 0 t e.etype :: acc) elist args
+				| _ -> assert false
+			in
+
+			let rated = ref [] in
+			List.iter (function
+				| (elist,TFun(args,ret)) -> (try
+					rated := ( (elist,TFun(args,ret)), mk_rate [] elist args ) :: !rated
+					with | Not_found ->  ())
+				| _ -> assert false
+			) compatible;
+
+			let rec loop best rem = match best, rem with
+				| _, [] -> best
+				| [], r1 :: rem -> loop [r1] rem
+				| (bover, bargs) :: b1, (rover, rargs) :: rem ->
+					if is_best bargs rargs then
+						loop best rem
+					else if is_best rargs bargs then
+						loop (loop b1 [rover,rargs]) rem
+					else (* equally specific *)
+						loop ( (rover,rargs) :: best ) rem
+			in
+
+			List.map fst (loop [] !rated)
+end;;
