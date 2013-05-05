@@ -161,7 +161,9 @@ class Boot {
 
 	@:ifFeature("typed_catch") private static function __instanceof(o : Dynamic,cl) {
 		untyped {
-			try {
+			if( cl == null )
+				return false;
+			if( o != null && __js__("typeof(cl)") == "function" ) {
 				if( __js__("o instanceof cl") ) {
 					if( cl == Array )
 						return (o.__enum__ == null);
@@ -169,9 +171,6 @@ class Boot {
 				}
 				if( __interfLoop(js.Boot.getClass(o),cl) )
 					return true;
-			} catch( e : Dynamic ) {
-				if( cl == null )
-					return false;
 			}
 			switch( cl ) {
 			case Int:
