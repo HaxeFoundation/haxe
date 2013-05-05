@@ -159,38 +159,39 @@ class Boot {
 		return __interfLoop(cc.__super__,cl);
 	}
 
-	@:ifFeature("typed_catch") private static function __instanceof(o : Dynamic,cl) {
-		untyped {
-			if( cl == null )
-				return false;
-			if( o != null && __js__("typeof(cl)") == "function" ) {
-				if( __js__("o instanceof cl") ) {
-					if( cl == Array )
-						return (o.__enum__ == null);
-					return true;
+	@:ifFeature("typed_catch") private static function __instanceof(o : Dynamic,cl : Dynamic) {
+		if( cl == null )
+			return false;
+		switch( cl ) {
+		case Int:
+			return (untyped __js__("(o|0) === o"));
+		case Float:
+			return (untyped __js__("typeof"))(o) == "number";
+		case Bool:
+			return (untyped __js__("typeof"))(o) == "boolean";
+		case String:
+			return (untyped __js__("typeof"))(o) == "string";
+		case Dynamic:
+			return true;
+		default:
+			if( o != null ) {
+				// Check if o is an instance of a Haxe class
+				if( (untyped __js__("typeof"))(cl) == "function" ) {
+					if( untyped __js__("o instanceof cl") ) {
+						if( cl == Array )
+							return (o.__enum__ == null);
+						return true;
+					}
+					if( __interfLoop(getClass(o),cl) )
+						return true;
 				}
-				if( __interfLoop(js.Boot.getClass(o),cl) )
-					return true;
+			} else {
+				return false;
 			}
-			switch( cl ) {
-			case Int:
-				return __js__("Math.ceil(o%2147483648.0) === o");
-			case Float:
-				return __js__("typeof(o)") == "number";
-			case Bool:
-				return __js__("o === true || o === false");
-			case String:
-				return __js__("typeof(o)") == "string";
-			case Dynamic:
-				return true;
-			default:
-				if( o == null )
-					return false;
-				// do not use isClass/isEnum here
-				__feature__("Class.*",if( cl == Class && o.__name__ != null ) return true);
-				__feature__("Enum.*",if( cl == Enum && o.__ename__ != null ) return true);
-				return o.__enum__ == cl;
-			}
+			// do not use isClass/isEnum here
+			untyped __feature__("Class.*",if( cl == Class && o.__name__ != null ) return true);
+			untyped __feature__("Enum.*",if( cl == Enum && o.__ename__ != null ) return true);
+			return o.__enum__ == cl;
 		}
 	}
 
