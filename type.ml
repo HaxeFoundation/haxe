@@ -1583,19 +1583,23 @@ let rec s_expr_pretty tabs s_type e =
 		| NormalWhile -> sprintf "while (%s) %s" (loop econd) (loop e)
 		| DoWhile -> sprintf "do (%s) while(%s)" (loop e) (loop econd))
 	| TSwitch (e,cases,def) ->
-		sprintf "switch (%s) {%s%s}" (loop e) (slist (fun (cl,e) -> sprintf "case %s: %s" (slist loop cl) (loop e)) cases) (match def with None -> "" | Some e -> ",default: " ^ loop e)
+		let ntabs = tabs ^ "\t" in
+		let s = sprintf "switch (%s) {\n%s%s" (loop e) (slist (fun (cl,e) -> sprintf "%scase %s: %s\n" ntabs (slist loop cl) (s_expr_pretty ntabs s_type e)) cases) (match def with None -> "" | Some e -> ntabs ^ "default: " ^ (s_expr_pretty ntabs s_type e) ^ "\n") in
+		s ^ tabs ^ "}"
 	| TMatch (e,(en,tparams),cases,def) ->
+		let ntabs = tabs ^ "\t" in
 		let cases = slist (fun (il,vl,e) ->
 			let ctor i = (PMap.find (List.nth en.e_names i) en.e_constrs).ef_name in
 			let ctors = String.concat "," (List.map ctor il) in
 			begin match vl with
 				| None ->
-					sprintf "case %s:%s" ctors (loop e)
+					sprintf "%scase %s: %s\n" ntabs ctors (s_expr_pretty ntabs s_type e)
 				| Some vl ->
-					sprintf "case %s(%s):%s" ctors (String.concat "," (List.map (fun v -> match v with None -> "_" | Some v -> v.v_name) vl)) (loop e)
+					sprintf "%scase %s(%s): %s\n" ntabs ctors (String.concat "," (List.map (fun v -> match v with None -> "_" | Some v -> v.v_name) vl)) (s_expr_pretty ntabs s_type e)
 			end
 		) cases in
-		sprintf "switch (%s) {%s%s}" (loop e) cases (match def with None -> "" | Some e -> ",default: " ^ loop e)
+		let s = sprintf "switch (%s) {\n%s%s" (loop e) cases (match def with None -> "" | Some e -> ntabs ^ "default: " ^ (s_expr_pretty ntabs s_type e) ^ "\n") in
+		s ^ tabs ^ "}"
 	| TTry (e,cl) ->
 		sprintf "try %s%s" (loop e) (slist (fun (v,e) -> sprintf "catch( %s : %s ) %s" v.v_name (s_type v.v_type) (loop e)) cl)
 	| TReturn None ->
