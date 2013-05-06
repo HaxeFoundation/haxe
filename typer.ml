@@ -3132,7 +3132,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		let e = match m with
 			| (Meta.ToString,_,_) ->
 				(match follow e.etype with
-					| TAbstract({a_impl = Some c},_) -> call_to_string ctx c e
+					| TAbstract({a_impl = Some c},_) when PMap.mem "toString" c.cl_statics -> call_to_string ctx c e
 					| _ -> e)
 			| _ -> e
 		in
