@@ -657,7 +657,11 @@ let add_rtti ctx t =
 let remove_extern_fields ctx t = match t with
 	| TClassDecl c ->
 		let do_remove f =
-			(not ctx.in_macro && f.cf_kind = Method MethMacro) || Meta.has Meta.Extern f.cf_meta || Meta.has Meta.Generic f.cf_meta
+			Meta.has Meta.Extern f.cf_meta || Meta.has Meta.Generic f.cf_meta
+			|| (match f.cf_kind with
+				| Var {v_read = AccRequire (s,_)} -> not (Common.raw_defined ctx.com s)
+				| Method MethMacro -> not ctx.in_macro
+				| _ -> false)
 		in
 		if not (Common.defined ctx.com Define.DocGen) then begin
 			c.cl_ordered_fields <- List.filter (fun f ->
