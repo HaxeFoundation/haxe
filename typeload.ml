@@ -1445,6 +1445,10 @@ let init_class ctx c p context_init herits fields =
 		| FFun fd ->
 			let params = type_function_params ctx fd f.cff_name p in
 			if inline && c.cl_interface then error "You can't declare inline methods in interfaces" p;
+			if Meta.has Meta.Generic f.cff_meta then begin
+				if params = [] then error "Generic functions must have type parameters" p;
+				match c.cl_kind with KAbstractImpl _ -> error "Generic functions are not allowed on abstracts" p | _ -> ()
+			end;
 			let is_macro = is_macro || (is_class_macro && stat) in
 			let f, stat, fd = if not is_macro || stat then
 				f, stat, fd
