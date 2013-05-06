@@ -2626,9 +2626,9 @@ struct
                 let rec loop must_wrap_catches = match must_wrap_catches with
                   | (vcatch,catch) :: tl ->
                     { eexpr = TIf(mk_std_is vcatch.v_type catch.epos,
-                      { eexpr = TBlock({ eexpr=TVars([vcatch, Some(mk_cast vcatch.v_type catchall_local)]); etype=gen.gcon.basic.tvoid; epos=catch.epos } :: [catch] ); etype = gen.gcon.basic.tvoid; epos = catch.epos },
+                      { eexpr = TBlock({ eexpr=TVars([vcatch, Some(mk_cast vcatch.v_type catchall_local)]); etype=gen.gcon.basic.tvoid; epos=catch.epos } :: [catch] ); etype = catch.etype; epos = catch.epos },
                       Some (loop tl));
-                    etype = gen.gcon.basic.tvoid; epos = catch.epos }
+                    etype = catch.etype; epos = catch.epos }
                   | [] ->
                     match catchall with
                       | Some (v,s) ->
@@ -3722,11 +3722,11 @@ struct
   (* this function will receive the original function argument, the applied function argument and the original function parameters. *)
   (* from this info, it will infer the applied tparams for the function *)
   (* this function is used by CastDetection module *)
-  let infer_params gen pos (original_args:((string * bool * t) list * t)) (applied_args:((string * bool * t) list * t)) (params:(string * t) list) impossible_tparam_is_dynamic : tparams =
+  let infer_params gen pos (original_args:((string * bool * t) list * t)) (applied_args:((string * bool * t) list * t)) (params:(string * t) list) calls_parameters_explicitly : tparams =
     match params with
     | [] -> []
     | _ ->
-      let args_list args = (if impossible_tparam_is_dynamic then t_dynamic else snd args) :: (List.map (fun (n,o,t) -> t) (fst args)) in
+      let args_list args = (if not calls_parameters_explicitly then t_dynamic else snd args) :: (List.map (fun (n,o,t) -> t) (fst args)) in
 
       let monos = List.map (fun _ -> mk_mono()) params in
       let original = args_list (get_fun (apply_params params monos (TFun(fst original_args,snd original_args)))) in
@@ -4954,7 +4954,7 @@ struct
       | TVars([v,Some({ eexpr = TBinop(Ast.OpBoolAnd,_,_) } as right)])
       | TVars([v,Some({ eexpr = TBinop(Ast.OpBoolOr,_,_) } as right)]) ->
         let right = short_circuit_op_unwrap gen add_statement right in
-        Some { expr with eexpr = TVars([v, Some(right)]); etype = v.v_type }
+        Some { expr with eexpr = TVars([v, Some(right)]) }
       | TVars([v,Some(right)]) when shallow_expr_type right = Statement ->
         add_statement ({ expr with eexpr = TVars([v, Some(null right.etype right.epos)]) });
         handle_assign Ast.OpAssign { expr with eexpr = TLocal(v); etype = v.v_type } right
@@ -5030,8 +5030,8 @@ struct
                 let kinds = get_kinds e in
                 if has_problematic_expressions kinds then begin
                   match try_call_unwrap_statement gen problematic_expression_unwrap add_statement e with
-                    | Some { eexpr = TConst(TNull) } (* no op *) ->
-                      ()
+                    | Some { eexpr = TConst(TNull) } (* no op *)
+                    | Some { eexpr = TBlock [] } -> ()
                     | Some e ->
                       if has_problematic_expressions (get_kinds e) then begin
                         process_statement e
@@ -5160,6 +5160,8 @@ struct
           (* a return must be inside a function *)
           let ret_type = match !current_ret_type with | Some(s) -> s | None -> gen.gcon.error "Invalid return outside function declaration." e.epos; assert false in
           (match eopt with
+          | None when not (is_void ret_type) ->
+            { e with eexpr = TReturn( Some(null ret_type e.epos)) }
           | None -> e
           | Some eret ->
             { e with eexpr = TReturn( Some(handle (run eret) ret_type eret.etype ) ) })
@@ -5672,7 +5674,7 @@ struct
   *)
 
   (* match e.eexpr with | TCall( ({ eexpr = TField(ef, f) }) as e1, elist ) -> *)
-  let handle_type_parameter gen e e1 ef ~clean_ef ~overloads_cast_to_base f elist impossible_tparam_is_dynamic =
+  let handle_type_parameter gen e e1 ef ~clean_ef ~overloads_cast_to_base f elist calls_parameters_explicitly =
     (* the ONLY way to know if this call has parameters is to analyze the calling field. *)
     (* To make matters a little worse, on both C# and Java only in some special cases that type parameters will be used *)
     (* Namely, when using reflection type parameters are useless, of course. This also includes anonymous types *)
@@ -5755,13 +5757,16 @@ struct
           (* infer arguments *)
           (* let called_t = TFun(List.map (fun e -> "arg",false,e.etype) elist, ecall.etype) in *)
           let called_t = match follow e1.etype with | TFun _ -> e1.etype | _ -> TFun(List.map (fun e -> "arg",false,e.etype) elist, ecall.etype)  in (* workaround for issue #1742 *)
-          let fparams = TypeParams.infer_params gen ecall.epos (get_fun (apply_params cl.cl_types params actual_t)) (get_fun called_t) cf.cf_params impossible_tparam_is_dynamic in
-          let real_params = gen.greal_type_param (TClassDecl cl) params in
-          let real_fparams = gen.greal_type_param (TClassDecl cl) fparams in
+          let fparams = TypeParams.infer_params gen ecall.epos (get_fun (apply_params cl.cl_types params actual_t)) (get_fun called_t) cf.cf_params calls_parameters_explicitly in
           (* get what the backend actually sees *)
           (* actual field's function *)
           let actual_t = get_real_fun gen actual_t in
+          let real_params = gen.greal_type_param (TClassDecl cl) params in
           let function_t = apply_params cl.cl_types real_params actual_t in
+          let real_fparams = if calls_parameters_explicitly then
+            gen.greal_type_param (TClassDecl cl) fparams
+          else
+            gen.greal_type_param (TClassDecl cl) (TypeParams.infer_params gen ecall.epos (get_fun function_t) (get_fun (get_real_fun gen called_t)) cf.cf_params calls_parameters_explicitly) in
           let function_t = get_real_fun gen (apply_params cf.cf_params real_fparams function_t) in
           let args_ft, ret_ft = get_fun function_t in
           (* applied function *)
@@ -5850,7 +5855,7 @@ struct
 
   (** overloads_cast_to_base argument will cast overloaded function types to the class that declared it. **)
   (**     This is necessary for C#, and if true, will require the target to implement __as__, as a `quicker` form of casting **)
-  let default_implementation gen ?(native_string_cast = true) ?(overloads_cast_to_base = false) maybe_empty_t impossible_tparam_is_dynamic =
+  let default_implementation gen ?(native_string_cast = true) ?(overloads_cast_to_base = false) maybe_empty_t calls_parameters_explicitly =
     let handle e t1 t2 = handle_cast gen e (gen.greal_type t1) (gen.greal_type t2) in
 
     let in_value = ref false in
@@ -5863,7 +5868,7 @@ struct
         | TBinop ( (Ast.OpAssign | Ast.OpAssignOp _ as op), e1, e2 ) ->
           { e with eexpr = TBinop(op, run ~just_type:true e1, run e2) }
         | TField(ef, f) ->
-          handle_type_parameter gen None e (run ef) ~clean_ef:ef ~overloads_cast_to_base:overloads_cast_to_base f [] impossible_tparam_is_dynamic
+          handle_type_parameter gen None e (run ef) ~clean_ef:ef ~overloads_cast_to_base:overloads_cast_to_base f [] calls_parameters_explicitly
         | TArrayDecl el ->
           let et = e.etype in
           let base_type = match follow et with
@@ -5872,12 +5877,10 @@ struct
           in
           let base_type = List.hd base_type in
           { e with eexpr = TArrayDecl( List.map (fun e -> handle (run e) base_type e.etype) el ); etype = et }
-        | TCall( ({ eexpr = TField({ eexpr = TLocal(v) },_) } as tf), params ) when String.get v.v_name 0 = '_' &&String.get v.v_name 1 = '_' && Hashtbl.mem gen.gspecial_vars v.v_name ->
-          { e with eexpr = TCall(tf, List.map run params) }
         | TCall( ({ eexpr = TLocal v } as local), params ) when String.get v.v_name 0 = '_' && String.get v.v_name 1 = '_' && Hashtbl.mem gen.gspecial_vars v.v_name ->
           { e with eexpr = TCall(local, List.map run params) }
         | TCall( ({ eexpr = TField(ef, f) }) as e1, elist ) ->
-          handle_type_parameter gen (Some e) (e1) (run ef) ~clean_ef:ef ~overloads_cast_to_base:overloads_cast_to_base f (List.map run elist) impossible_tparam_is_dynamic
+          handle_type_parameter gen (Some e) (e1) (run ef) ~clean_ef:ef ~overloads_cast_to_base:overloads_cast_to_base f (List.map run elist) calls_parameters_explicitly
 
         (* the TNew and TSuper code was modified at r6497 *)
         | TCall( { eexpr = TConst TSuper } as ef, eparams ) ->
@@ -8038,13 +8041,14 @@ struct
     let gen = ctx.rcf_gen in
     let basic = gen.gcon.basic in
     let closure_func eclosure e field is_static =
-      { eclosure with
+      mk_cast eclosure.etype { eclosure with
         eexpr = TNew(closure_cl, [], [
           e;
           { eexpr = TConst(TString field); etype = basic.tstring; epos = eclosure.epos }
         ] @ (
           if ctx.rcf_optimize then [ { eexpr = TConst(TInt (hash_field_i32 ctx eclosure.epos field)); etype = basic.tint; epos = eclosure.epos } ] else []
-        ))
+        ));
+        etype = TInst(closure_cl,[])
       }
     in
     closure_func

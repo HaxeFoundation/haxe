@@ -2050,7 +2050,7 @@ let configure gen =
     { ecall with eexpr = TCall(efield, elist) }
   );
 
-  CastDetect.configure gen (CastDetect.default_implementation gen ~native_string_cast:false (Some (TEnum(empty_e, []))) true);
+  CastDetect.configure gen (CastDetect.default_implementation gen ~native_string_cast:false (Some (TEnum(empty_e, []))) false);
 
   (*FollowAll.configure gen;*)
 

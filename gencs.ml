@@ -2181,7 +2181,7 @@ let configure gen =
         mk_field_access gen local "obj" pos
       )
       (fun rethrow ->
-        { rethrow with eexpr = TCall(mk_local (alloc_var "__rethrow__" t_dynamic) rethrow.epos, [rethrow]) }
+        { rethrow with eexpr = TCall(mk_local (alloc_var "__rethrow__" t_dynamic) rethrow.epos, [rethrow]); etype = gen.gcon.basic.tvoid }
       )
       (base_exception_t)
       (hx_exception_t)
@@ -2196,7 +2196,7 @@ let configure gen =
     get_typeof e
   ));
 
-  CastDetect.configure gen (CastDetect.default_implementation gen (Some (TEnum(empty_e, []))) false ~native_string_cast:false ~overloads_cast_to_base:true);
+  CastDetect.configure gen (CastDetect.default_implementation gen (Some (TEnum(empty_e, []))) true ~native_string_cast:false ~overloads_cast_to_base:true);
 
   (*FollowAll.configure gen;*)
 
