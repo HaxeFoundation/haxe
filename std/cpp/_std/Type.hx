@@ -79,18 +79,16 @@ enum ValueType {
 
 	public static function createInstance<T>( cl : Class<T>, args : Array<Dynamic> ) : T untyped {
 		if (cl!=null)
-			return cl.mConstructArgs(args);
+			return cl.ConstructArgs(args);
 		return null;
 	}
 
 	public static function createEmptyInstance<T>( cl : Class<T> ) : T untyped {
-		return cl.mConstructEmpty();
+		return cl.ConstructEmpty();
 	}
 
 	public static function createEnum<T>( e : Enum<T>, constr : String, ?params : Array<Dynamic> ) : T {
-		if (untyped e.mConstructEnum != null)
-			return untyped e.mConstructEnum(constr,params);
-		return null;
+		return untyped e.ConstructEnum(constr,params);
 	}
 
 	public static function createEnumIndex<T>( e : Enum<T>, index : Int, ?params : Array<Dynamic> ) : T {
