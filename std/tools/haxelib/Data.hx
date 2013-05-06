@@ -23,7 +23,7 @@ package tools.haxelib;
 import haxe.zip.Reader;
 import haxe.zip.Entry;
 
-import haxe.xml.Check;
+import haxe.Json;
 
 typedef UserInfos = {
 	var name : String;
@@ -49,12 +49,12 @@ typedef ProjectInfos = {
 	var tags : List<String>;
 }
 
-typedef XmlInfos = {
+typedef Infos = {
 	var project : String;
 	var website : String;
 	var desc : String;
 	var license : String;
-	var version : String;
+	var version : SemVer;
 	var versionComments : String;
 	var developers : List<String>;
 	var tags : List<String>;
@@ -63,32 +63,11 @@ typedef XmlInfos = {
 
 class Data {
 
-	public static var XML = "haxelib.xml";
+	public static var JSON = "haxelib.json";
 	public static var DOCXML = "haxedoc.xml";
 	public static var REPOSITORY = "files";
 	public static var alphanum = ~/^[A-Za-z0-9_.-]+$/;
 	static var LICENSES = ["GPL","LGPL","BSD","Public","MIT"];
-
-	static function requiredAttribute( x : Xml, name ) {
-		var v = x.get(name);
-		if( v == null )
-			throw "Missing required attribute '"+name+"' in node "+x.nodeName;
-		return v;
-	}
-
-	static function requiredNode( x : Xml, name ) {
-		var v = x.elementsNamed(name).next();
-		if( v == null )
-			throw "Missing required node '"+name+"' in node "+x.nodeName;
-		return v;
-	}
-
-	static function requiredText( x : Xml ) {
-		var v = x.firstChild();
-		if( v == null || (v.nodeType != Xml.PCData && v.nodeType != Xml.CData) )
-			throw "Missing required text in node "+x.nodeName;
-		return v.nodeValue;
-	}
 
 	public static function safe( name : String ) {
 		if( !alphanum.match(name) )
@@ -104,6 +83,15 @@ class Data {
 		return safe(lib)+"-"+safe(ver)+".zip";
 	}
 
+	public static function locateBasePath( zip : List<Entry> ) {
+		for( f in zip ) {
+			if( StringTools.endsWith(f.fileName,JSON) ) {
+				return f.fileName.substr(0,f.fileName.length - JSON.length);
+			}
+		}
+		throw "No "+JSON+" found";
+	}
+
 	public static function readDoc( zip : List<Entry> ) : String {
 		for( f in zip )
 			if( StringTools.endsWith(f.fileName,DOCXML) )
@@ -111,62 +99,79 @@ class Data {
 		return null;
 	}
 
-	public static function readInfos( zip : List<Entry>, check : Bool ) : XmlInfos {
-		var xmldata = null;
+	public static function readInfos( zip : List<Entry>, check : Bool ) : Infos {
+		var infodata = null;
 		for( f in zip )
-			if( StringTools.endsWith(f.fileName,XML) ) {
-				xmldata = Reader.unzip(f).toString();
+			if( StringTools.endsWith(f.fileName,JSON) ) {
+				infodata = Reader.unzip(f).toString();
 				break;
 			}
-		if( xmldata == null )
-			throw XML+" not found in package";
-		return readData(xmldata,check);
+		if( infodata == null )
+			throw JSON + " not found in package";
+		
+		return readData(infodata,check);
 	}
 
-	static function doCheck( doc : Xml ) {
-		var sname = Att("name",FReg(alphanum));
-		var schema = RNode(
-			"project",
-			[ sname, Att("url"), Att("license",FEnum(LICENSES)) ],
-			RList([
-				RMulti( RNode("user",[sname]), true ),
-				RMulti( RNode("tag",[Att("v",FReg(alphanum))]) ),
-				RNode("description",[],RData()),
-				RNode("version",[sname],RData()),
-				RMulti(	RNode("depends",[sname,Att("version",FReg(alphanum),"")]) ),
-			])
-		);
-		haxe.xml.Check.checkDocument(doc,schema);
+	static function doCheck( doc : Dynamic ) {
+		if( Lambda.indexOf(LICENSES, doc.license) == -1 )
+			throw "License must be one of the following: " + LICENSES;
+		switch Type.typeof(doc.contributors) {
+			case TNull: throw "At least one contributor must be included";
+			//case TClass(String): doc.contributors = [doc.contributors];
+			case TClass(Array):
+			default: throw 'invalid type for contributors';
+		}
+		switch Type.typeof(doc.tags) {
+			case TClass(Array), TNull:
+			default: throw 'tags must be defined as array';
+		}
+		switch Type.typeof(doc.dependencies) {
+			case TObject, TNull:
+			default: throw 'dependencies must be defined as object';
+		}
+		switch Type.typeof(doc.releasenote) {
+			case TClass(String):
+			case TNull: throw 'no releasenote specified';
+			default: throw 'releasenote should be string';
+		}
 	}
 
-	public static function readData( xmldata : String, check : Bool ) : XmlInfos {
-		var doc = Xml.parse(xmldata);
+	public static function readData( jsondata: String, check : Bool ) : Infos {
+		var doc = Json.parse(jsondata);
 		if( check )
 			doCheck(doc);
-		var p = new haxe.xml.Fast(doc).node.project;
-		var project = p.att.name;
+		var project:String = doc.name;
 		if( project.length < 3 )
 			throw "Project name must contain at least 3 characters";
 		var tags = new List();
-		for( t in p.nodes.tag )
-			tags.add(t.att.v.toLowerCase());
+		if( doc.tags != null) {
+			var tagsArray:Array<String> = doc.tags;
+			for( t in tagsArray )
+				tags.add(t);
+		}
 		var devs = new List();
-		for( d in p.nodes.user )
-			devs.add(d.att.name);
+		var developers:Array<String> = doc.contributors;
+		
+		for( d in developers )
+			devs.add(d);
 		var deps = new List();
-		for( d in p.nodes.depends )
-			deps.add({ project : d.att.name, version : if( d.has.version ) d.att.version else "" });
+		if( doc.dependencies != null ) {
+			for( d in Reflect.fields(doc.dependencies) ) {
+				deps.add({ project: d, version: Std.string(Reflect.field(doc.dependencies, d)) });
+			}
+		}
+		
 		return {
 			project : project,
-			website : p.att.url,
-			desc : p.node.description.innerData,
-			version : p.node.version.att.name,
-			versionComments : p.node.version.innerData,
-			license : p.att.license,
+			website : doc.url,
+			desc : doc.description,
+			version : SemVer.ofString(doc.version),
+			versionComments : doc.releasenote,
+			license : doc.license,
 			tags : tags,
 			developers : devs,
-			dependencies : deps,
-		}
+			dependencies : deps
+		};
 	}
 
 }

@@ -203,8 +203,9 @@ class SiteApi {
 
 		// look for current version
 		var current = null;
+		var vstr = infos.version.toString();
 		for( v in Version.manager.search({ project : p.id }) )
-			if( v.name == infos.version ) {
+			if( v.name == vstr ) {
 				current = v;
 				break;
 			}

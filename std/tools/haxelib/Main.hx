@@ -20,7 +20,11 @@
  * DEALINGS IN THE SOFTWARE.
  */
 package tools.haxelib;
+
 import haxe.zip.Reader;
+import sys.io.File;
+import sys.io.Process;
+import haxe.ds.Option;
 
 enum Answer {
 	Yes;
@@ -112,13 +116,14 @@ class ProgressIn extends haxe.io.Input {
 
 class Main {
 
-	static var VERSION = 104;
+	static var VERSION = SemVer.ofString('3.0.0-rc.2');
 	static var REPNAME = "lib";
 	static var SERVER = {
 		host : "lib.haxe.org",
 		port : 80,
 		dir : "",
-		url : "index.n"
+		url : "index.n",
+		apiVersion : VERSION.major+"."+VERSION.minor,
 	};
 
 	var argcur : Int;
@@ -130,31 +135,34 @@ class Main {
 	function new() {
 		args = Sys.args();
 		commands = new List();
-		addCommand("install",install,"install a given library");
-		addCommand("list",list,"list all installed libraries",false);
-		addCommand("upgrade",upgrade,"upgrade all installed libraries");
-		addCommand("update",update,"update a single library");
-		addCommand("remove",remove,"remove a given library/version",false);
-		addCommand("set",set,"set the current version for a library",false);
-		addCommand("search",search,"list libraries matching a word");
-		addCommand("info",info,"list informations on a given library");
-		addCommand("user",user,"list informations on a given user");
-		addCommand("register",register,"register a new user");
-		addCommand("submit",submit,"submit or update a library package");
-		addCommand("setup",setup,"set the haxelib repository path",false);
-		addCommand("config",config,"print the repository path",false);
-		addCommand("path",path,"give paths to libraries",false);
-		addCommand("run",run,"run the specified library with parameters",false);
-		addCommand("local",local,"install the specified package locally",false);
-		addCommand("dev",dev,"set the development directory for a given library",false);
+		addCommand("install", install, "install a given library");
+		addCommand("list", list, "list all installed libraries", false);
+		addCommand("upgrade", upgrade, "upgrade all installed libraries");
+		addCommand("update", update, "update a single library");
+		addCommand("updateself", updateSelf, "update haxelib itself");
+		addCommand("remove", remove, "remove a given library/version", false);
+		addCommand("set", set, "set the current version for a library", false);
+		addCommand("search", search, "list libraries matching a word");
+		addCommand("info", info, "list informations on a given library");
+		addCommand("user", user, "list informations on a given user");
+		addCommand("register", register, "register a new user");
+		addCommand("submit", submit, "submit or update a library package");
+		addCommand("setup", setup, "set the haxelib repository path", false);
+		addCommand("config", config, "print the repository path", false);
+		addCommand("path", path, "give paths to libraries", false);
+		addCommand("run", run, "run the specified library with parameters", false);
+		addCommand("local", local, "install the specified package locally", false);
+		addCommand("dev", dev, "set the development directory for a given library", false);
 		addCommand("git", git, "uses git repository as library");
 		addCommand("proxy", proxy, "setup the Http proxy");
 		initSite();
 	}
+	
+	
 
 	function initSite() {
-		siteUrl = "http://"+SERVER.host+":"+SERVER.port+"/"+SERVER.dir;
-		site = new SiteProxy(haxe.remoting.HttpConnection.urlConnect(siteUrl+SERVER.url).api);
+		siteUrl = "http://" + SERVER.host + ":" + SERVER.port + "/" + SERVER.dir;
+		site = new SiteProxy(haxe.remoting.HttpConnection.urlConnect(siteUrl + "api/" + SERVER.apiVersion + "/" + SERVER.url).api);
 	}
 
 	function param( name, ?passwd ) {
@@ -195,9 +203,7 @@ class Main {
 	}
 
 	function usage() {
-		var vmin = Std.string(VERSION % 100);
-		var ver = Std.int(VERSION/100) + "." + if( vmin.length == 1 ) "0"+vmin else vmin;
-		print("Haxe Library Manager "+ver+" - (c)2006-2012 Haxe Foundation");
+		print("Haxe Library Manager " + VERSION + " - (c)2006-2013 Haxe Foundation");
 		print(" Usage : haxelib [command] [options]");
 		print(" Commands :");
 		for( c in commands )
@@ -358,10 +364,11 @@ class Main {
 		}
 
 		// check if this version already exists
+
 		var sinfos = try site.infos(infos.project) catch( _ : Dynamic ) null;
 		if( sinfos != null )
 			for( v in sinfos.versions )
-				if( v.name == infos.version && ask("You're about to overwrite existing version '"+v.name+"', please confirm") == No )
+				if( v.name == infos.version.toString() && ask("You're about to overwrite existing version '"+v.name+"', please confirm") == No )
 					throw "Aborted";
 
 		// query a submit id that will identify the file
@@ -431,36 +438,26 @@ class Main {
 		print("Downloading "+filename+"...");
 		h.customRequest(false,progress);
 
-		doInstallFile(filepath,setcurrent);
-		site.postInstall(project,version);
+		doInstallFile(filepath, setcurrent);
+		site.postInstall(project, version);
 	}
 
 	function doInstallFile(filepath,setcurrent,?nodelete) {
-
 		// read zip content
 		var f = sys.io.File.read(filepath,true);
 		var zip = Reader.readZip(f);
 		f.close();
 		var infos = Data.readInfos(zip,false);
-
 		// create directories
 		var pdir = getRepository() + Data.safe(infos.project);
 		safeDir(pdir);
 		pdir += "/";
-		var target = pdir + Data.safe(infos.version);
+		var target = pdir + Data.safe(infos.version.toString());
 		safeDir(target);
 		target += "/";
 
 		// locate haxelib.xml base path
-		var basepath = null;
-		for( f in zip ) {
-			if( StringTools.endsWith(f.fileName,Data.XML) ) {
-				basepath = f.fileName.substr(0,f.fileName.length - Data.XML.length);
-				break;
-			}
-		}
-		if( basepath == null )
-			throw "No "+Data.XML+" found";
+		var basepath = Data.locateBasePath(zip);
 
 		// unzip content
 		for( zipfile in zip ) {
@@ -491,7 +488,7 @@ class Main {
 
 		// set current version
 		if( setcurrent || !sys.FileSystem.exists(pdir+".current") ) {
-			sys.io.File.saveContent(pdir+".current",infos.version);
+			sys.io.File.saveContent(pdir + ".current", infos.version.toString());
 			print("  Current version is now "+infos.version);
 		}
 
@@ -680,13 +677,82 @@ class Main {
 				setCurrent(p, inf.curversion, true);
 		}
 	}
-
-	function update() {
-		var prj = param("Library");
+	function updateByName(prj:String) {
 		var state = { rep : getRepository(), prompt : false, updated : false };
 		doUpdate(prj,state);
-		if( !state.updated )
+		return state.updated;
+	}
+	function update() {
+		var prj = param('Library');
+		if (!updateByName(prj))
 			print(prj + " is up to date");
+	}	
+	
+	function updateSelf() {
+		function tryBuild() {
+			var p = new Process('haxe', ['-neko', 'test.n', '-lib', 'haxelib_client', '-main', 'tools.haxelib.Main', '--no-output']);
+			return 
+				if (p.exitCode() == 0) None;
+				else Some(p.stderr.readAll().toString());
+		}
+		if (!updateByName('haxelib_client'))
+			print("haxelib is up to date");
+		switch tryBuild() {
+			case None:
+				var haxepath = Sys.getEnv("HAXEPATH"),
+					win = Sys.systemName() == "Windows";
+					
+				if (haxepath == null) 
+					throw 'HAXEPATH environment variable not defined';
+				else 
+					haxepath += 
+						switch (haxepath.charAt(haxepath.length - 1)) {
+							case '/', '\\': '';
+							default: '/';
+						}
+				
+				if (win) {
+					var file = '$haxepath/haxelib.n';
+					var p = new Process(
+						'haxe', 
+						[
+							'-neko', file, 
+							'-lib', 'haxelib_client', 
+							'-main', 'tools.haxelib.Main', 
+						]
+					);
+					if (p.exitCode() == 0) {
+						var p = new Process('nekotools', ['boot', file]);
+						if (p.exitCode() != 0) 
+							throw 'Error booting haxelib :' + p.stderr.readAll().toString();
+					}
+					else throw 'Error rebuilding haxelib: ' + p.stderr.readAll().toString();
+				}
+				else {
+					var p = new Process('haxelib', ['path', 'haxelib_client']);
+					if (p.exitCode() == 0) {
+						var args = [];
+						for (arg in p.stdout.readAll().toString().split('\n')) {
+							arg = StringTools.trim(arg);
+							if (arg.charAt(0) == '-') 
+								args.push(arg);
+							else if (arg.length > 0) 
+								args.push('-cp "$arg"');
+						};
+						
+						var file = '$haxepath/haxelib.sh';
+						try File.saveContent(
+							file,
+							'#!\nhaxe --run -main tools.haxelib.Main '+args.join(' ')
+						)
+						catch (e:Dynamic) 
+							throw 'Error writing file $file. Please ensure you have write permissions. Error message ' + Std.string(e);
+					}
+					else throw p.stdout.readAll();
+				}
+			case Some(error):
+				throw 'Error compiling haxelib client: $error';
+		}
 	}
 
 	function deleteRec(dir) {
@@ -760,8 +826,10 @@ class Main {
 				throw "Library "+prj+" has two version included "+version+" and "+p.version;
 			}
 		l.add({ project : prj, version : version });
-		var xml = sys.io.File.getContent(vdir+"/haxelib.xml");
-		var inf = Data.readData(xml,false);
+		var json = try sys.io.File.getContent(vdir+"/"+Data.JSON) catch( e : Dynamic ) null;
+		if( json == null )
+			return; // ignore missing haxelib.json, assume no dependencies
+		var inf = Data.readData(json,false);
 		for( d in inf.dependencies )
 			checkRec(d.project,if( d.version == "" ) null else d.version,l);
 	}
@@ -952,7 +1020,7 @@ class Main {
 		var code = p.exitCode();
 		return { code:code, out: code == 0 ? p.stdout.readAll().toString() : p.stderr.readAll().toString() };
 	}
-	
+
 	function proxy() {
 		var rep = getRepository();
 		var host = param("Proxy host");
