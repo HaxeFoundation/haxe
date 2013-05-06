@@ -2751,20 +2751,27 @@ let add_java_lib com file std =
         with
           | _ -> None), (fun () -> ()), (fun () -> let ret = ref [] in get_classes_dir [] file ret; !ret)
     | _ -> (* open zip file *)
-      let zip = Zip.open_in file in
       let closed = ref false in
+      let zip = ref (Zip.open_in file) in
+      let check_open () =
+        if !closed then begin
+          prerr_endline ("JAR file " ^ file ^ " already closed"); (* if this happens, find when *)
+          zip := Zip.open_in file;
+          closed := false
+        end
+      in
       (fun (pack, name) ->
-        if !closed then failwith ("JAR file " ^ file ^ " already closed");
+        check_open();
         try
           let location = (String.concat "/" (pack @ [name]) ^ ".class") in
-          let entry = Zip.find_entry zip location in
-          let data = Zip.read_entry zip entry in
+          let entry = Zip.find_entry !zip location in
+          let data = Zip.read_entry !zip entry in
           Some(JReader.parse_class (IO.input_string data), file, file ^ "@" ^ location)
         with
           | Not_found ->
             None),
-      (fun () -> closed := true; Zip.close_in zip),
-      (fun () -> get_classes_zip zip)
+      (fun () -> if not !closed then begin closed := true; Zip.close_in !zip end),
+      (fun () -> check_open(); get_classes_zip !zip)
   in
   let cached_types = Hashtbl.create 12 in
   let get_raw_class path =

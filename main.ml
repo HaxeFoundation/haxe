@@ -1160,6 +1160,11 @@ try
 			Gencs.before_generate com;
 			add_std "cs"; "cs"
 		| Java ->
+      let old_flush = ctx.flush in
+      ctx.flush <- (fun () ->
+        List.iter (fun (_,_,close,_,_) -> close()) com.java_libs;
+        old_flush()
+      );
 			Genjava.before_generate com;
 			add_std "java"; "java"
 	) in
