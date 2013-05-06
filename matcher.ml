@@ -1193,7 +1193,8 @@ let match_expr ctx e cases def with_type p =
 		Array.of_list pl,out
 	) cases in
 	let unused p =
-		let check_expr e p =
+		display_error ctx "This pattern is unused" p
+(* 		let check_expr e p =
 			try
 				let old_error = ctx.on_error in
 				ctx.on_error <- (fun ctx s p -> ctx.on_error <- old_error; error s p);
@@ -1212,7 +1213,7 @@ let match_expr ctx e cases def with_type p =
 			| [] ->
 				check_expr prev p
 		in
-		loop (EConst (Ident "null"),Ast.null_pos) cases
+		loop (EConst (Ident "null"),Ast.null_pos) cases *)
 	in
 	begin try
 		let dt = compile mctx stl pl in
