@@ -63,7 +63,14 @@ class Log {
 		#elseif php
 		untyped __call__('_hx_trace', v,infos);
 		#elseif cpp
-		untyped __trace(v,infos);
+      if (infos!=null && infos.customParams!=null) {
+         var extra:String = "";
+         for( v in infos.customParams )
+            extra += "," + v;
+		   untyped __trace(v + extra,infos);
+      }
+      else
+		   untyped __trace(v,infos);
 		#elseif cs
 		var str = infos.fileName + ":" + infos.lineNumber + ": " + v;
 		untyped __cs__("System.Console.WriteLine(str)");
