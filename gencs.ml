@@ -572,15 +572,15 @@ let configure gen =
 
   let no_root = Common.defined gen.gcon Define.NoRoot in
 
-  let change_ns md = if no_root then
-    function
-      | [] when is_hxgen md -> ["haxe";"root"]
-      | ns -> ns
-  else fun ns -> ns in
-
   let change_clname n = n in
 
   let change_id name = try Hashtbl.find reserved name with | Not_found -> name in
+
+  let change_ns md = if no_root then
+    function
+      | [] when is_hxgen md -> ["haxe";"root"]
+      | ns -> List.map change_id ns
+  else List.map change_id in
 
   let change_field = change_id in
 

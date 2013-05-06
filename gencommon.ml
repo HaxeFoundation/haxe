@@ -2817,7 +2817,7 @@ struct
       | _ -> run e)
 
   let rec get_type_params acc t =
-    match follow t with
+    match t with
       | TInst(( { cl_kind = KTypeParameter _ } as cl), []) ->
         if List.memq cl acc then acc else cl :: acc
       | TFun (params,tret) ->
@@ -2826,16 +2826,22 @@ struct
         (match t with | TDynamic _ -> acc | _ -> get_type_params acc t)
       | TAbstract ({ a_impl = Some _ } as a, pl) ->
           get_type_params acc ( Codegen.Abstract.get_underlying_type a pl)
-      | TAnon _
-      | TMono _
+      | TAnon a ->
+        PMap.fold (fun cf acc -> get_type_params acc cf.cf_type) a.a_fields acc
+      | TType(_, [])
       | TAbstract (_, [])
       | TInst(_, [])
-      | TEnum(_, []) -> acc
+      | TEnum(_, []) ->
+        acc
+      | TType(_, params)
       | TAbstract(_, params)
       | TEnum(_, params)
       | TInst(_, params) ->
         List.fold_left get_type_params acc params
-      | _ -> assert false
+      | TMono r -> (match !r with
+        | Some t -> get_type_params acc t
+        | None -> acc)
+      | _ -> get_type_params acc (follow_once t)
 
   let get_captured expr =
     let ret = Hashtbl.create 1 in
@@ -9944,6 +9950,7 @@ end;;
 
   dependencies:
     FixOverrides expects that the target platform is able to deal with overloaded functions
+    It must run after DefaultArguments, otherwise code added by the default arguments may be invalid
 
 *)
 
@@ -9952,7 +9959,7 @@ struct
 
   let name = "fix_overrides"
 
-  let priority = solve_deps name []
+  let priority = solve_deps name [DAfter DefaultArguments.priority]
 
   (*
     if the platform allows explicit interface implementation (C#),
@@ -10078,47 +10085,75 @@ struct
           List.iter loop_f iface.cl_ordered_fields
         in
         List.iter (fun (iface,itl) -> loop_iface iface itl) c.cl_implements;
-        (* now go through all overrides, and find those that are overloads and have actual_t <> t *)
+        (* now go through all overrides, *)
         let rec check_f f =
           (* find the first declared field *)
-          match find_first_declared_field gen c ~exact_field:f f.cf_name with
+          let is_overload = Meta.has Meta.Overload f.cf_meta in
+          let decl = if is_overload then
+            find_first_declared_field gen c ~exact_field:f f.cf_name
+          else
+            find_first_declared_field gen c f.cf_name
+          in
+          match decl with
           | Some(f2,actual_t,_,t,declared_cl,_,_)
             when not (Typeload.same_overload_args actual_t (get_real_fun gen f.cf_type) f2 f) ->
-              (* create another field with the requested type *)
-              let f3 = mk_class_field f.cf_name t f.cf_public f.cf_pos f.cf_kind f.cf_params in
-              let p = f.cf_pos in
-              let old_args, old_ret = get_fun f.cf_type in
-              let args, ret = get_fun t in
-              let tf_args = List.map (fun (n,o,t) -> alloc_var n t, None) args in
-              f3.cf_expr <- Some {
-                eexpr = TFunction({
-                  tf_args = tf_args;
-                  tf_type = ret;
-                  tf_expr = mk_block (mk_return (mk_cast ret {
-                    eexpr = TCall(
-                      {
-                        eexpr = TField(
-                          { eexpr = TConst TThis; etype = TInst(c, List.map snd c.cl_types); epos = p },
-                          FInstance(c,f));
-                        etype = f.cf_type;
-                        epos = p
-                      },
-                      List.map2 (fun (v,_) (_,_,t) -> mk_cast t (mk_local v p)) tf_args old_args);
-                    etype = old_ret;
-                    epos = p
-                  }))
+              if Meta.has Meta.Overload f.cf_meta then begin
+                (* if it is overload, create another field with the requested type *)
+                let f3 = mk_class_field f.cf_name t f.cf_public f.cf_pos f.cf_kind f.cf_params in
+                let p = f.cf_pos in
+                let old_args, old_ret = get_fun f.cf_type in
+                let args, ret = get_fun t in
+                let tf_args = List.map (fun (n,o,t) -> alloc_var n t, None) args in
+                f3.cf_expr <- Some {
+                  eexpr = TFunction({
+                    tf_args = tf_args;
+                    tf_type = ret;
+                    tf_expr = mk_block (mk_return (mk_cast ret {
+                      eexpr = TCall(
+                        {
+                          eexpr = TField(
+                            { eexpr = TConst TThis; etype = TInst(c, List.map snd c.cl_types); epos = p },
+                            FInstance(c,f));
+                          etype = f.cf_type;
+                          epos = p
+                        },
+                        List.map2 (fun (v,_) (_,_,t) -> mk_cast t (mk_local v p)) tf_args old_args);
+                      etype = old_ret;
+                      epos = p
+                    }))
+                  });
+                  etype = t;
+                  epos = p;
+                };
+                gen.gafter_filters_ended <- ((fun () ->
+                  f.cf_overloads <- f3 :: f.cf_overloads;
+                ) :: gen.gafter_filters_ended);
+                f3
+              end else begin match f.cf_expr with
+              | Some({ eexpr = TFunction(tf) } as e) ->
+                (* if it's not overload, just cast the vars *)
+                let actual_args, _ = get_fun (get_real_fun gen actual_t) in
+                let new_args, vardecl = List.fold_left2 (fun (args,vdecl) (v,_) (_,_,t) ->
+                  if not (type_iseq (gen.greal_type v.v_type) (gen.greal_type t)) then begin
+                    let new_var = mk_temp gen v.v_name t in
+                    (new_var,None) :: args, (v, Some(mk_cast v.v_type (mk_local new_var f.cf_pos))) :: vdecl
+                  end else
+                    (v,None) :: args, vdecl
+                ) ([],[]) tf.tf_args actual_args in
+                if vardecl <> [] then
+                f.cf_expr <- Some({ e with
+                  eexpr = TFunction({ tf with
+                    tf_args = List.rev new_args;
+                    tf_expr = Codegen.concat { eexpr = TVars(vardecl); etype = gen.gcon.basic.tvoid; epos = e.epos } tf.tf_expr
+                  });
                 });
-                etype = t;
-                epos = p;
-              };
-              gen.gafter_filters_ended <- ((fun () ->
-                f.cf_overloads <- f3 :: f.cf_overloads;
-              ) :: gen.gafter_filters_ended);
-              f3
+                f
+              | _ -> f
+              end
           | _ -> f
         in
         if not c.cl_extern then
-          c.cl_overrides <- List.map (fun f -> if Meta.has Meta.Overload f.cf_meta then check_f f else f) c.cl_overrides;
+          c.cl_overrides <- List.map (fun f -> check_f f) c.cl_overrides;
         md
       | _ -> md
     in

@@ -555,6 +555,12 @@ import cs.system.Type;
 	}
 
 	@:functionCode('
+		if (field == "toString")
+		{
+			if (args == null)
+				return obj.ToString();
+			field = "ToString";
+		}
 		if (args == null) args = new Array<object>();
 
 		System.Reflection.BindingFlags bf;

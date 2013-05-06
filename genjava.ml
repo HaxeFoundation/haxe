@@ -736,18 +736,14 @@ let configure gen =
               ) params
   in
 
-  let rec change_ns ns = match ns with
-    | [] -> ["haxe"; "root"]
-    | _ -> ns
-  in
-
   let change_clname name =
     String.map (function | '$' -> '.' | c -> c) name
   in
-
-
   let change_id name = try Hashtbl.find reserved name with | Not_found -> name in
-
+  let rec change_ns ns = match ns with
+    | [] -> ["haxe"; "root"]
+    | _ -> List.map change_id ns
+  in
   let change_field = change_id in
 
   let write_id w name = write w (change_id name) in
