@@ -4219,13 +4219,45 @@ struct
         in
         cfield, delay
 
+      let get_cast_name cl = String.concat "_" ((fst cl.cl_path) @ [snd cl.cl_path; cast_field_name]) (* explicitly define it *)
+
       let default_implementation gen ifaces base_generic =
         let add_iface cl =
           gen.gadd_to_module (TClassDecl cl) (max_dep);
         in
 
+        let implement_stub_cast cthis iface tl =
+          let name = get_cast_name iface in
+          let cparams = List.map (fun (s,t) -> ("To_" ^ s, TInst(map_param (get_cl_t t), []))) iface.cl_types in
+          let field = mk_class_field name (TFun([],t_dynamic)) false iface.cl_pos (Method MethNormal) cparams in
+          let this = { eexpr = TConst TThis; etype = TInst(cthis, List.map snd cthis.cl_types); epos = cthis.cl_pos } in
+          field.cf_expr <- Some {
+            etype = TFun([],t_dynamic);
+            epos = this.epos;
+            eexpr = TFunction {
+              tf_type = t_dynamic;
+              tf_args = [];
+              tf_expr = mk_block { this with
+                eexpr = TReturn (Some this)
+              }
+            }
+          };
+          cthis.cl_ordered_fields <- field :: cthis.cl_ordered_fields;
+          cthis.cl_fields <- PMap.add name field cthis.cl_fields
+        in
+
         let rec run md =
           match md with
+            | TClassDecl ({ cl_extern = false; cl_types = [] } as cl) ->
+              (* see if we're implementing any generic interface *)
+              let rec check (iface,tl) =
+                if tl <> [] && set_hxgeneric gen (TClassDecl iface) then
+                  (* implement cast stub *)
+                  implement_stub_cast cl iface tl;
+                List.iter (fun (s,stl) -> check (s, List.map (apply_params iface.cl_types tl) stl)) iface.cl_implements;
+              in
+              List.iter (check) cl.cl_implements;
+              md
             | TClassDecl ({ cl_extern = false; cl_types = hd :: tl } as cl) when set_hxgeneric gen md ->
               let iface = mk_class cl.cl_module cl.cl_path cl.cl_pos in
               iface.cl_array_access <- Option.map (apply_params (cl.cl_types) (List.map (fun _ -> t_dynamic) cl.cl_types)) cl.cl_array_access;
@@ -4237,7 +4269,7 @@ struct
               iface.cl_interface <- true;
               cl.cl_implements <- (iface, []) :: cl.cl_implements;
 
-              let name = String.concat "_" ((fst cl.cl_path) @ [snd cl.cl_path; cast_field_name]) (* explicitly define it *) in
+              let name = get_cast_name cl in
               let cast_cf = create_cast_cfield gen cl name in
               if not cl.cl_interface then create_stub_casts gen cl cast_cf;
 
