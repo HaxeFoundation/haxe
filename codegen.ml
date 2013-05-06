@@ -659,7 +659,7 @@ let remove_extern_fields ctx t = match t with
 		let do_remove f =
 			Meta.has Meta.Extern f.cf_meta || Meta.has Meta.Generic f.cf_meta
 			|| (match f.cf_kind with
-				| Var {v_read = AccRequire (s,_)} -> not (Common.raw_defined ctx.com s)
+				| Var {v_read = AccRequire (s,_)} -> true
 				| Method MethMacro -> not ctx.in_macro
 				| _ -> false)
 		in
