@@ -8,14 +8,21 @@
 	all : allowed [] access for Map
 	all : added haxe.ds.WeakMap (not yet supported on all platforms)
 	all : all trace parameters are now printed by default
+	all : added --help-metas
+	all : improved completion
+	all : improved pattern matching variable capture and GADT support
 	js : cached $bind results (unique closure creation per instance)
-	js : removed --js-modern (now as default)	
+	js : removed --js-modern (now as default)
 	cpp : added socket.setFastSend
 	flash : update player 11.7 api
 	flash : improved @:font, @:sound and @:bitmap support
 	neko : improved Array performances when growing with []
 	java/cs : lots of improvements
-	
+	as3 : fixed rare syntax ambiguity
+	php : removed initialization of some inline fields
+	macro : fixed several issues with 'using' a macro function
+	macro : improved expression printing
+
 2013-02-24: 3.0.0-RC
 	flash : updated player 11.4 api
 	all : allowed named functions as r-value
