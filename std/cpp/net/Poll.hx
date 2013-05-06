@@ -47,9 +47,7 @@ class Poll {
 
 	public function poll( a : Array<Socket>, ?t : Float ) : Array<Socket> {
 		if (t==null) t=-1.0;
-trace("Poll " + a + " / " + t);
 		var read:Array<Dynamic> = socket_poll(a,mPollHandle,t);
-trace("Got " + read);
 		// Convert to array of sockets...
 		var result = new Array<Socket>();
 		if (read!=null && read.length>0) {
