@@ -2028,35 +2028,18 @@ struct
               let process ctor =
                 let func = match ctor.cf_expr with
                   | Some({eexpr = TFunction(tf)} as e) ->
-
-                    let block = match tf.tf_expr.eexpr with
-                      | TBlock(bl) -> bl
-                      | _ -> [tf.tf_expr]
+                    let rec add_fn e = match e.eexpr with
+                      | TBlock(hd :: tl) -> (match hd.eexpr with
+                        | TCall({ eexpr = TConst TSuper }, _) ->
+                          { e with eexpr = TBlock(hd :: (funs @ tl)) }
+                        | TBlock(_) ->
+                          { e with eexpr = TBlock( (add_fn hd) :: tl ) }
+                        | _ ->
+                          { e with eexpr = TBlock( funs @ (hd :: tl) ) })
+                      | _ -> Codegen.concat { e with eexpr = TBlock(funs) } e
                     in
-
-                    let found = ref false in
-                    let rec add_fn block acc =
-                      match block with
-                        | ({ eexpr = TCall({ eexpr = TConst(TSuper) }, _) } as hd) :: tl ->
-                          found := true;
-                          (List.rev acc) @ ((hd :: funs) @ tl)
-                        | ({ eexpr = TBlock bl } as hd) :: tl ->
-                          add_fn tl ( ({ hd with eexpr = TBlock (add_fn bl []) }) :: acc )
-                        | hd :: tl ->
-                          add_fn tl ( hd :: acc )
-                        | [] -> List.rev acc
-                    in
-
-                    let block = add_fn block [] in
-                    let block = if !found then
-                      block
-                    else
-                      funs @ block
-                    in
-
-                    { e with eexpr = TFunction({
-                      tf with tf_expr = {tf.tf_expr with eexpr = TBlock(block)}
-                    })}
+                    let tf_expr = add_fn (mk_block tf.tf_expr) in
+                    { e with eexpr = TFunction({ tf with tf_expr = tf_expr }) }
                   | _ -> assert false
                 in
                 ctor.cf_expr <- Some(func)
