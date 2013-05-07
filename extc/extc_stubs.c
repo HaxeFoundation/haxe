@@ -288,7 +288,6 @@ CAMLprim value sys_getch( value b ) {
 	// terminal on initscr()
 	int c;
 	struct termios term, old;
-	val_check(b,bool);
 	tcgetattr(fileno(stdin), &old);
 	term = old;
 	cfmakeraw(&term);
