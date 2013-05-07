@@ -72,6 +72,7 @@ external dlmemcpy : value -> value -> int -> unit = "sys_dlmemcpy"
 external dlcallback : int -> value = "sys_dlcallback"
 external dlcaml_callback : int -> value = "sys_dlcaml_callback"
 external dlint32 : int32 -> value = "sys_dlint32"
+external getch : bool -> int = "sys_getch"
 
 (* support for backward compatibility *)
 let zlib_deflate_init lvl = zlib_deflate_init2 lvl 15

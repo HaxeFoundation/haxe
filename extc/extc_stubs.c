@@ -24,11 +24,13 @@
 #include <zlib.h>
 #ifdef _WIN32
 #	include <windows.h>
+#	include <conio.h>
 #else
 #	include <dlfcn.h>
 #	include <limits.h>
 #	include <unistd.h>
 #	include <string.h>
+#	include <termios.h>
 #	include <sys/time.h>
 #	include <sys/times.h>
 #	include <caml/memory.h>
@@ -276,6 +278,29 @@ CAMLprim value sys_time() {
 	return caml_copy_double( ((double)(t.tms_utime + t.tms_stime)) / CLK_TCK );
 #endif
 }
+
+CAMLprim value sys_getch( value b ) {
+#	ifdef _WIN32
+	return Val_int( Bool_val(b)?getche():getch() );
+#	else
+	// took some time to figure out how to do that
+	// without relying on ncurses, which clear the
+	// terminal on initscr()
+	int c;
+	struct termios term, old;
+	val_check(b,bool);
+	tcgetattr(fileno(stdin), &old);
+	term = old;
+	cfmakeraw(&term);
+	tcsetattr(fileno(stdin), 0, &term);
+	c = getchar();
+	tcsetattr(fileno(stdin), 0, &old);
+	if( Bool_val(b) ) fputc(c,stdout);
+	return Val_int(c);
+#	endif
+}
+
+// --------------- Support for NekoVM Bridge
 
 CAMLprim value sys_dlopen( value lib ) {
 #ifdef _WIN32
