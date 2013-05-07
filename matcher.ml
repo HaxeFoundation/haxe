@@ -344,10 +344,7 @@ let to_pattern ctx e t =
 					| TFun(args,r) ->
 						unify ctx r t p;
 						List.iter2 (fun m (_,t) -> match follow m with TMono _ -> Type.unify m t | _ -> ()) monos ef.ef_params;
-						List.map (fun (n,_,t) ->
-							let t = follow t in
-							if is_null t then ctx.t.tnull t else t
-						) args
+						List.map (fun (n,_,t) -> t) args
 					| _ -> error "Arguments expected" p
 				in
 				let rec loop2 i el tl = match el,tl with
