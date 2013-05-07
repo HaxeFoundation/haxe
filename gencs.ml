@@ -1473,7 +1473,8 @@ let configure gen =
                       let t = Common.timer "expression to string" in
                       expr_s w { expr with eexpr = TBlock(rest) };
                       t();
-                      end_block w
+                      write w "#line default";
+                      end_block w;
                     | _ -> assert false
                 end else begin
                   begin_block w;
@@ -1481,7 +1482,8 @@ let configure gen =
                   let t = Common.timer "expression to string" in
                   expr_s w expr;
                   t();
-                  end_block w
+                  write w "#line default";
+                  end_block w;
                 end)
               | (Meta.FunctionCode, [Ast.EConst (Ast.String contents),_],_) :: tl ->
                 begin_block w;

@@ -416,6 +416,7 @@ import cs.system.Type;
 
 	public static function callMethod(obj:Dynamic, methods:NativeArray<MethodBase>, methodLength:Int, args:Array<Dynamic>):Dynamic
 	{
+		if (methodLength == 0) throw "No available methods";
 		var length = args.length;
 		var oargs:NativeArray<Dynamic> = new NativeArray(length);
 		var ts:NativeArray<cs.system.Type> = new NativeArray(length);

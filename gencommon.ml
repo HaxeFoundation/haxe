@@ -3975,37 +3975,40 @@ struct
           if (level <> 0 || cls.cl_interface) && tls <> [] && is_hxgeneric (TClassDecl cls) then begin
             let cparams = List.map (fun (s,t) -> (s, TInst (map_param (get_cl_t t), []))) cls.cl_types in
             let name = String.concat "_" ((fst cls.cl_path) @ [snd cls.cl_path; cast_field_name]) in
-            let cfield = mk_class_field name (TFun([], t_dynamic)) false cl.cl_pos (Method MethNormal) cparams in
-            let field = { eexpr = TField(this, FInstance(cl,cast_cfield)); etype = apply_params cast_cfield.cf_params reverse_params cast_cfield.cf_type; epos = p } in
-            let call =
-            {
-              eexpr = TCall(field, []);
-              etype = t_dynamic;
-              epos = p;
-            } in
-            let call = gen.gparam_func_call call field reverse_params [] in
-            let delay () =
-              cfield.cf_expr <-
-              Some {
-                eexpr = TFunction(
-                {
-                  tf_args = [];
-                  tf_type = t_dynamic;
-                  tf_expr =
-                  {
-                    eexpr = TReturn( Some call );
-                    etype = t_dynamic;
-                    epos = p;
-                  }
-                });
-                etype = cfield.cf_type;
+            if not (PMap.mem name cl.cl_fields) then begin
+              let reverse_params = List.map (apply_params cls.cl_types (List.map snd cparams)) reverse_params in
+              let cfield = mk_class_field name (TFun([], t_dynamic)) false cl.cl_pos (Method MethNormal) cparams in
+              let field = { eexpr = TField(this, FInstance(cl,cast_cfield)); etype = apply_params cast_cfield.cf_params reverse_params cast_cfield.cf_type; epos = p } in
+              let call =
+              {
+                eexpr = TCall(field, []);
+                etype = t_dynamic;
                 epos = p;
-              }
-            in
-            gen.gafter_filters_ended <- delay :: gen.gafter_filters_ended; (* do not let filters alter this expression content *)
-            cl.cl_ordered_fields <- cfield :: cl.cl_ordered_fields;
-            cl.cl_fields <- PMap.add cfield.cf_name cfield cl.cl_fields;
-            if level <> 0 then cl.cl_overrides <- cfield :: cl.cl_overrides
+              } in
+              let call = gen.gparam_func_call call field reverse_params [] in
+              let delay () =
+                cfield.cf_expr <-
+                Some {
+                  eexpr = TFunction(
+                  {
+                    tf_args = [];
+                    tf_type = t_dynamic;
+                    tf_expr =
+                    {
+                      eexpr = TReturn( Some call );
+                      etype = t_dynamic;
+                      epos = p;
+                    }
+                  });
+                  etype = cfield.cf_type;
+                  epos = p;
+                }
+              in
+              gen.gafter_filters_ended <- delay :: gen.gafter_filters_ended; (* do not let filters alter this expression content *)
+              cl.cl_ordered_fields <- cfield :: cl.cl_ordered_fields;
+              cl.cl_fields <- PMap.add cfield.cf_name cfield cl.cl_fields;
+              if level <> 0 then cl.cl_overrides <- cfield :: cl.cl_overrides
+            end
           end;
           let get_reverse super supertl =
             let kv = List.map2 (fun (_,tparam) applied -> (follow applied, follow tparam)) super.cl_types supertl in
@@ -4228,22 +4231,24 @@ struct
 
         let implement_stub_cast cthis iface tl =
           let name = get_cast_name iface in
-          let cparams = List.map (fun (s,t) -> ("To_" ^ s, TInst(map_param (get_cl_t t), []))) iface.cl_types in
-          let field = mk_class_field name (TFun([],t_dynamic)) false iface.cl_pos (Method MethNormal) cparams in
-          let this = { eexpr = TConst TThis; etype = TInst(cthis, List.map snd cthis.cl_types); epos = cthis.cl_pos } in
-          field.cf_expr <- Some {
-            etype = TFun([],t_dynamic);
-            epos = this.epos;
-            eexpr = TFunction {
-              tf_type = t_dynamic;
-              tf_args = [];
-              tf_expr = mk_block { this with
-                eexpr = TReturn (Some this)
+          if not (PMap.mem name cthis.cl_fields) then begin
+            let cparams = List.map (fun (s,t) -> ("To_" ^ s, TInst(map_param (get_cl_t t), []))) iface.cl_types in
+            let field = mk_class_field name (TFun([],t_dynamic)) false iface.cl_pos (Method MethNormal) cparams in
+            let this = { eexpr = TConst TThis; etype = TInst(cthis, List.map snd cthis.cl_types); epos = cthis.cl_pos } in
+            field.cf_expr <- Some {
+              etype = TFun([],t_dynamic);
+              epos = this.epos;
+              eexpr = TFunction {
+                tf_type = t_dynamic;
+                tf_args = [];
+                tf_expr = mk_block { this with
+                  eexpr = TReturn (Some this)
+                }
               }
-            }
-          };
-          cthis.cl_ordered_fields <- field :: cthis.cl_ordered_fields;
-          cthis.cl_fields <- PMap.add name field cthis.cl_fields
+            };
+            cthis.cl_ordered_fields <- field :: cthis.cl_ordered_fields;
+            cthis.cl_fields <- PMap.add name field cthis.cl_fields
+          end
         in
 
         let rec run md =

@@ -177,12 +177,24 @@ import cs.internal.Runtime;
 		if (untyped cl == String)
 			return args[0];
 		var t:cs.system.Type = Lib.toNativeType(cl);
+		if (t.IsInterface)
+		{
+			//may be generic
+			t = Lib.toNativeType(resolveClass(getClassName(cl)));
+		}
 		var ctors = t.GetConstructors();
 		return Runtime.callMethod(null, cast ctors, ctors.Length, args);
 	}
 
 	public static function createEmptyInstance<T>( cl : Class<T> ) : T
 	{
+		var t:cs.system.Type = Lib.toNativeType(cl);
+		if (t.IsInterface)
+		{
+			//may be generic
+			t = Lib.toNativeType(resolveClass(getClassName(cl)));
+		}
+
 		if (Reflect.hasField(cl, "__hx_createEmpty"))
 			return untyped cl.__hx_createEmpty();
 		return createInstance(cl, []);
