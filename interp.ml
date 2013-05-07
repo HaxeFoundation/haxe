@@ -1711,7 +1711,7 @@ let std_lib =
 		);
 		"sys_getch", Fun1 (fun echo ->
 			match echo with
-			| VBool _ -> VInt (int_of_char (input_char Pervasives.stdin))
+			| VBool b -> VInt (Extc.getch b)
 			| _ -> error()
 		);
 		"sys_get_pid", Fun0 (fun() ->
