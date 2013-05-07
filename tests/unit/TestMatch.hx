@@ -17,6 +17,10 @@ enum X<A> {
 	U2:X<String>;
 }
 
+enum NE {
+	A(?x:Int);
+}
+
 class TestMatch extends Test {
 	static macro function getErrorMessage(e:Expr) {
 		var result = try {
@@ -292,12 +296,22 @@ class TestMatch extends Test {
 		eq("4.84.8", orMatch(f2, f2));
 	}
 	
+	function testStaticNull() {
+		var v = A();
+		var r = switch(v) {
+			case A(x):
+				if (x == null) "null";
+				else "not null";
+		}
+		eq("null", r);
+	}
+	
 	static function orMatch(e1, e2) {
 		return switch([e1.expr, e2.expr]) {
 			case [EConst(CFloat(a) | CInt(a)), EConst(CFloat(b) | CInt(b))]: a + b;
 			case _: null;
 		}		
-	}	
+	}
 
 	function testNonExhaustiveness() {
 		eq("Unmatched patterns: false", getErrorMessage(switch(true) {
