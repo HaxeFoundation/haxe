@@ -31,6 +31,7 @@
 #	include <unistd.h>
 #	include <string.h>
 #	include <termios.h>
+#	include <stdio.h>
 #	include <sys/time.h>
 #	include <sys/times.h>
 #	include <caml/memory.h>
