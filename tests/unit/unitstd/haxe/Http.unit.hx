@@ -1,4 +1,4 @@
-#if !(java || cs)
+#if !cs
 var http1 = new haxe.Http("_");
 var r = "";
 http1.onStatus = function(_) r = "status";

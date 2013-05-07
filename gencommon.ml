@@ -2291,7 +2291,11 @@ struct
                )
               | _ -> e)
           | TField(e1, FClosure (Some _, cf)) when should_change e1 cf.cf_name ->
-            filter e (run e1) cf.cf_name false
+            (match cf.cf_kind with
+            | Method MethDynamic | Var _ ->
+              Type.map_expr run e
+            | _ ->
+              filter e (run e1) cf.cf_name false)
           | _ -> Type.map_expr run e
     in
     run
