@@ -16,8 +16,14 @@
 	cpp : added socket.setFastSend
 	flash : update player 11.7 api
 	flash : improved @:font, @:sound and @:bitmap support
-	neko : improved Array performances when growing with []
-	java/cs : lots of improvements
+	neko/java/cs : improved Array performances when growing with []
+	java : added -java-lib support
+	java : added sys.net package implementation (alpha)
+	java : complete java std library through hxjava haxelib
+	java/cs : added support for overloaded function declarations
+	java/cs : overload selection algorithm
+	cs : operator overloading is now accessible through Haxe
+	cs : source mapping; can be disabled with -D real_position
 	as3 : fixed rare syntax ambiguity
 	php : removed initialization of some inline fields
 	macro : fixed several issues with 'using' a macro function
