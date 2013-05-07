@@ -80,6 +80,8 @@ class Log {
 			{
 				str += "," + infos.customParams.join(",");
 			}
+		} else {
+			str = v;
 		}
 			#if cs
 			untyped __cs__("System.Console.WriteLine(str)");
