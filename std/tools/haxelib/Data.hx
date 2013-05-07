@@ -137,7 +137,7 @@ class Data {
 	}
 
 	public static function readData( jsondata: String, check : Bool ) : Infos {
-		var doc = Json.parse(jsondata);
+		var doc = try Json.parse(jsondata) catch( e : Dynamic ) throw "Error in JSON data : " + e;
 		if( check )
 			doCheck(doc);
 		var project:String = doc.name;
