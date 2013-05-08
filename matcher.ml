@@ -343,7 +343,6 @@ let to_pattern ctx e t =
 				let tl = match apply_params en.e_types pl (apply_params ef.ef_params monos ef.ef_type) with
 					| TFun(args,r) ->
 						unify ctx r t p;
-						List.iter2 (fun m (_,t) -> match follow m with TMono _ -> Type.unify m t | _ -> ()) monos ef.ef_params;
 						List.map (fun (n,_,t) -> t) args
 					| _ -> error "Arguments expected" p
 				in
@@ -361,7 +360,9 @@ let to_pattern ctx e t =
 					| [],[] ->
 						[]
 				in
-				mk_con_pat (CEnum(en,ef)) (loop2 0 el tl) t p
+				let el = loop2 0 el tl in
+				List.iter2 (fun m (_,t) -> match follow m with TMono _ -> Type.unify m t | _ -> ()) monos ef.ef_params;
+				mk_con_pat (CEnum(en,ef)) el t p
 			| _ -> perror p)
 		| EConst(Ident "_") ->
 			begin match get_tuple_types t with
