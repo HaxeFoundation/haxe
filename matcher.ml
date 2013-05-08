@@ -171,7 +171,7 @@ let mk_subs st con =
 	match con.c_def with
 	| CFields (_,fl) -> List.map (fun (s,cf) -> mk_st (SField(st,s)) (map cf.cf_type) st.st_pos) fl
 	| CEnum (en,({ef_type = TFun _} as ef)) ->
-		let pl = match follow con.c_type with TEnum(_,pl) | TAbstract({a_this = TEnum(_)},pl)-> pl | TAbstract({a_path = [],"EnumValue"},[]) -> [] | _ -> assert false in
+		let pl = match follow con.c_type with TEnum(_,pl) | TAbstract({a_this = TEnum(_)},pl)-> pl | TAbstract({a_path = [],"EnumValue"},[]) -> [] | _ -> [] in
 		begin match apply_params en.e_types pl (monomorphs ef.ef_params ef.ef_type) with
 			| TFun(args,r) ->
 				ExtList.List.mapi (fun i (_,_,t) ->
@@ -340,10 +340,10 @@ let to_pattern ctx e t =
 					| _ -> error ("Expected constructor for enum " ^ (s_type_path en.e_path)) p
 				in
 				let monos = List.map (fun _ -> mk_mono()) ef.ef_params in
-				let tl = match apply_params en.e_types pl (apply_params ef.ef_params monos ef.ef_type) with
+				let tl,r = match apply_params en.e_types pl (apply_params ef.ef_params monos ef.ef_type) with
 					| TFun(args,r) ->
 						unify ctx r t p;
-						List.map (fun (n,_,t) -> t) args
+						List.map (fun (n,_,t) -> t) args,r
 					| _ -> error "Arguments expected" p
 				in
 				let rec loop2 i el tl = match el,tl with
@@ -362,7 +362,7 @@ let to_pattern ctx e t =
 				in
 				let el = loop2 0 el tl in
 				List.iter2 (fun m (_,t) -> match follow m with TMono _ -> Type.unify m t | _ -> ()) monos ef.ef_params;
-				mk_con_pat (CEnum(en,ef)) el t p
+				mk_con_pat (CEnum(en,ef)) el r p
 			| _ -> perror p)
 		| EConst(Ident "_") ->
 			begin match get_tuple_types t with
@@ -504,6 +504,13 @@ let to_pattern ctx e t =
 			loop pctx (EBinop(OpOr,e1,(EBinop(OpOr,e2,e3),p2)),p) t
 		| EBinop(OpOr,e1,e2) ->
 			let old = pctx.pc_locals in
+			let rec dup t = match t with
+				| TMono r -> (match !r with
+					| None -> mk_mono()
+					| Some t -> Type.map dup t)
+				| _ -> Type.map dup t
+			in
+			let t2 = dup t in
 			let pat1 = loop pctx e1 t in
 			begin match pat1.p_def with
 				| PAny | PVar _ ->
@@ -515,9 +522,8 @@ let to_pattern ctx e t =
 						pc_locals = old;
 						pc_reify = pctx.pc_reify;
 					} in
-					let pat2 = loop pctx2 e2 t in
+					let pat2 = loop pctx2 e2 t2 in
 					PMap.iter (fun s (_,p) -> if not (PMap.mem s pctx2.pc_locals) then verror s p) pctx.pc_locals;
-					unify ctx pat1.p_type pat2.p_type pat1.p_pos;
 					mk_pat (POr(pat1,pat2)) pat2.p_type (punion pat1.p_pos pat2.p_pos);
 			end
 		| _ ->
