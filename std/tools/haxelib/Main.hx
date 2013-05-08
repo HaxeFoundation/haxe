@@ -21,6 +21,7 @@
  */
 package tools.haxelib;
 
+import haxe.io.Path;
 import haxe.zip.Reader;
 import sys.io.File;
 import sys.io.Process;
@@ -139,7 +140,7 @@ class Main {
 		addCommand("list", list, "list all installed libraries", false);
 		addCommand("upgrade", upgrade, "upgrade all installed libraries");
 		addCommand("update", update, "update a single library");
-		addCommand("updateself", updateSelf, "update haxelib itself");
+		addCommand("selfupdate", updateSelf, "update haxelib itself");
 		addCommand("remove", remove, "remove a given library/version", false);
 		addCommand("set", set, "set the current version for a library", false);
 		addCommand("search", search, "list libraries matching a word");
@@ -171,9 +172,11 @@ class Main {
 		Sys.print(name+" : ");
 		if( passwd ) {
 			var s = new StringBuf();
-			var c;
-			while( (c = Sys.getChar(false)) != 13 )
-				s.addChar(c);
+			do switch Sys.getChar(false) {
+				case 10, 13: break;
+				case c: s.addChar(c);
+			}
+			while (true);
 			print("");
 			return s.toString();
 		}
@@ -699,8 +702,10 @@ class Main {
 			print("haxelib is up to date");
 		switch tryBuild() {
 			case None:
-				var haxepath = Sys.getEnv("HAXEPATH"),
-					win = Sys.systemName() == "Windows";
+				var win = Sys.systemName() == "Windows";
+				var haxepath = 
+					if (win) Sys.getEnv("HAXEPATH");
+					else new Path(new Process('which', ['haxelib']).stdout.readAll().toString()).dir + '/';
 					
 				if (haxepath == null) 
 					throw 'HAXEPATH environment variable not defined';
@@ -712,21 +717,8 @@ class Main {
 						}
 				
 				if (win) {
-					var file = '$haxepath/haxelib.n';
-					var p = new Process(
-						'haxe', 
-						[
-							'-neko', file, 
-							'-lib', 'haxelib_client', 
-							'-main', 'tools.haxelib.Main', 
-						]
-					);
-					if (p.exitCode() == 0) {
-						var p = new Process('nekotools', ['boot', file]);
-						if (p.exitCode() != 0) 
-							throw 'Error booting haxelib :' + p.stderr.readAll().toString();
-					}
-					else throw 'Error rebuilding haxelib: ' + p.stderr.readAll().toString();
+					File.saveContent('update.hxml', '-lib haxelib_client\n--run tools.haxelib.Rebuild');
+					Sys.println('Please run haxe update.hxml');
 				}
 				else {
 					var p = new Process('haxelib', ['path', 'haxelib_client']);
@@ -740,13 +732,13 @@ class Main {
 								args.push('-cp "$arg"');
 						};
 						
-						var file = '$haxepath/haxelib.sh';
+						var file = haxepath+'haxelib';
 						try File.saveContent(
 							file,
-							'#!\nhaxe --run -main tools.haxelib.Main '+args.join(' ')
+							'#!\nhaxe '+args.join(' ')+' --run tools.haxelib.Main $@'
 						)
 						catch (e:Dynamic) 
-							throw 'Error writing file $file. Please ensure you have write permissions. Error message ' + Std.string(e);
+							throw 'Error writing file $file. Please ensure you have write permissions. \n  ' + Std.string(e);
 					}
 					else throw p.stdout.readAll();
 				}
