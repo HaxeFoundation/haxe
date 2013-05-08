@@ -40,14 +40,12 @@
 -java all_java
 -xml java.xml
 -D xmldoc
---macro exclude('haxe._Int64',true)
 
 --next
 -cs all_cs
 -D unsafe
 -xml cs.xml
 -D xmldoc
---macro exclude('haxe._Int64',true)
 
 --next
 
