@@ -23,7 +23,7 @@ package haxe.ds;
 
 import cs.NativeArray;
 
-@:coreApi class ObjectMap<K, V> implements Map.IMap<K,V>
+@:coreApi class ObjectMap<K:{}, V> implements Map.IMap<K,V>
 {
 	@:extern private static inline var HASH_UPPER = 0.77;
 	@:extern private static inline var FLAG_EMPTY = 0;
