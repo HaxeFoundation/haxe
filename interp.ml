@@ -4420,6 +4420,15 @@ and mk_ot t =
 	| _ -> (try Some (make_type t) with Exit -> None)
 
 let rec make_ast e =
+	let full_type_path t =
+		let mp,p = match t with
+		| TClassDecl c -> c.cl_module.m_path,c.cl_path
+		| TEnumDecl en -> en.e_module.m_path,en.e_path
+		| TAbstractDecl a -> a.a_module.m_path,a.a_path
+		| TTypeDecl t -> t.t_module.m_path,t.t_path
+		in
+		if snd mp = snd p then p else (fst mp) @ [snd mp],snd p
+	in
 	let mk_path (pack,name) p =
 		match List.rev pack with
 		| [] -> (EConst (Ident name),p)
@@ -4452,7 +4461,7 @@ let rec make_ast e =
 	| TArray (e1,e2) -> EArray (make_ast e1,make_ast e2)
 	| TBinop (op,e1,e2) -> EBinop (op, make_ast e1, make_ast e2)
 	| TField (e,f) -> EField (make_ast e, Type.field_name f)
-	| TTypeExpr t -> fst (mk_path (t_path t) e.epos)
+	| TTypeExpr t -> fst (mk_path (full_type_path t) e.epos)
 	| TParenthesis e -> EParenthesis (make_ast e)
 	| TObjectDecl fl -> EObjectDecl (List.map (fun (f,e) -> f, make_ast e) fl)
 	| TArrayDecl el -> EArrayDecl (List.map make_ast el)
