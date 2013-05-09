@@ -1897,6 +1897,7 @@ let configure gen =
     path_param_s (TClassDecl c) c.cl_path tl ^ "." ^ fname
   in
   FixOverrides.configure ~explicit_fn_name:explicit_fn_name gen;
+  NormalizeType.configure gen;
 
   AbstractImplementationFix.configure gen;
 

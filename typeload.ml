@@ -2088,6 +2088,9 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 			let params = ref [] in
 			params := List.map (fun tp -> type_type_params ctx ([],c.ec_name) (fun() -> !params) c.ec_pos tp) c.ec_params;
 			let params = !params in
+			List.iter (fun (_,t) -> match follow t with
+				| TInst(p,_) -> p.cl_meta <- (Meta.EnumConstructorParam,[],p.cl_pos) :: p.cl_meta
+				| _ -> assert false) params;
 			let ctx = { ctx with type_params = params @ ctx.type_params } in
 			let rt = (match c.ec_type with
 				| None -> et

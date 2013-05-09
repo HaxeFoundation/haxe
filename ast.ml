@@ -55,6 +55,7 @@ module Meta = struct
 		| Deprecated
 		| DynamicObject
 		| Enum
+		| EnumConstructorParam
 		| Expose
 		| Extern
 		| FakeEnum
