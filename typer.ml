@@ -83,8 +83,6 @@ type type_class =
 
 let rec classify t =
 	match follow t with
-	| TInst ({ cl_path = ([],"Int") },[]) -> KInt
-	| TInst ({ cl_path = ([],"Float") },[]) -> KFloat
 	| TInst ({ cl_path = ([],"String") },[]) -> KString
 	| TAbstract({a_impl = Some _} as a,_) -> KAbstract a
 	| TAbstract ({ a_path = [],"Int" },[]) -> KInt
@@ -4105,15 +4103,9 @@ let rec create com =
 			| "Bool" -> ctx.t.tbool <- TAbstract (a,[])
 			| _ -> ());
 		| TEnumDecl e ->
-			(match snd e.e_path with
-			| "Void" -> ctx.t.tvoid <- TEnum (e,[])
-			| "Bool" -> ctx.t.tbool <- TEnum (e,[])
-			| _ -> ())
+			()
 		| TClassDecl c ->
-			(match snd c.cl_path with
-			| "Float" -> ctx.t.tfloat <- TInst (c,[])
-			| "Int" -> ctx.t.tint <- TInst (c,[])
-			| _ -> ())
+			()
 		| TTypeDecl td ->
 			(match snd td.t_path with
 			| "Null" ->

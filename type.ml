@@ -444,8 +444,6 @@ and s_fun ctx t void =
 	match t with
 	| TFun _ ->
 		"(" ^ s_type ctx t ^ ")"
-	| TEnum ({ e_path = ([],"Void") },[]) when void ->
-		"(" ^ s_type ctx t ^ ")"
 	| TAbstract ({ a_path = ([],"Void") },[]) when void ->
 		"(" ^ s_type ctx t ^ ")"
 	| TMono r ->
@@ -620,10 +618,6 @@ let rec is_nullable ?(no_lazy=false) = function
 
 	| TInst ({ cl_kind = KTypeParameter },_) -> false
 *)
-	| TInst ({ cl_path = (["haxe"],"Int32") },[])
-	| TInst ({ cl_path = ([],"Int") },[])
-	| TInst ({ cl_path = ([],"Float") },[])
-	| TEnum ({ e_path = ([],"Bool") },[]) -> false
 	| TAbstract (a,_) -> not (Meta.has Meta.NotNull a.a_meta)
 	| _ ->
 		true
