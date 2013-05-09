@@ -1092,6 +1092,25 @@ let init_core_api ctx c =
 	flush_pass ctx2 PFinal "core_final";
 	match t with
 	| TInst (ccore,_) ->
+		begin try
+			List.iter2 (fun (n1,t1) (n2,t2) -> match follow t1, follow t2 with
+				| TInst({cl_kind = KTypeParameter l1},_),TInst({cl_kind = KTypeParameter l2},_) ->
+					begin try
+						List.iter2 (fun t1 t2 -> type_eq EqCoreType t2 t1) l1 l2
+					with
+						| Invalid_argument _ ->
+							error "Type parameters must have the same number of constraints as core type" c.cl_pos
+						| Unify_error l ->
+							display_error ctx ("Type parameter " ^ n2 ^ " has different constraint than in core type") c.cl_pos;
+							display_error ctx (error_msg (Unify l)) c.cl_pos
+					end
+				| t1,t2 ->
+					Printf.printf "%s %s" (s_type (print_context()) t1) (s_type (print_context()) t2);
+					assert false
+			) ccore.cl_types c.cl_types;
+		with Invalid_argument _ ->
+			error "Class must have the same number of type parameters as core type" c.cl_pos
+		end;
 		(match c.cl_doc with
 		| None -> c.cl_doc <- ccore.cl_doc
 		| Some _ -> ());

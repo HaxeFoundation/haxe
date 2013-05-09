@@ -1,7 +1,7 @@
 package haxe.ds;
 
 @:coreApi
-class WeakMap<K,V> extends flash.utils.Dictionary implements Map.IMap<K,V> {
+class WeakMap<K:{},V> extends flash.utils.Dictionary implements Map.IMap<K,V> {
 
 	public function new() {
 		super(true);
@@ -36,7 +36,7 @@ class WeakMap<K,V> extends flash.utils.Dictionary implements Map.IMap<K,V> {
 		for (i in keys())
 			ret.push(get(i));
 		return ret.iterator();
- 	}	
+ 	}
 	#else
 	
 	public function keys() : Iterator<K> {
