@@ -126,9 +126,12 @@ extern class String {
 		If [len] is omitted, all characters from position [pos] to the end of
 		[this] String are included.
 		
-		If [pos] is negative, its values is calculated from the end	of [this]
+		If [pos] is negative, its value is calculated from the end of [this]
 		String by [this].length + [pos]. If this yields a negative value, 0 is
 		used instead.
+		
+		If the calculated position + [len] exceeds [this].length, the characters
+		from that position to the end of [this] String are returned.
 		
 		If [len] is negative, the result is unspecified.
 	**/
@@ -137,11 +140,15 @@ extern class String {
 	/**
 		Returns the part of [this] String from [startIndex] to [endIndex].
 		
-		If [endIndex] is omitted, [this].length is used instead.
-		
 		If [startIndex] or [endIndex] are negative, 0 is used instead.
 		
 		If [startIndex] exceeds [endIndex], they are swapped.
+		
+		If the (possibly swapped) [endIndex] is omitted or exceeds
+		[this].length, [this].length is used instead.
+		
+		If the (possibly swapped) [startIndex] exceeds [this].length, the empty
+		String "" is returned.
 	**/
 	function substring( startIndex : Int, ?endIndex : Int ) : String;
 
@@ -155,6 +162,6 @@ extern class String {
 		
 		If [code] is negative or has another invalid value, the result is
 		unspecified.
-	**/	
+	**/
 	static function fromCharCode( code : Int ) : String;
 }

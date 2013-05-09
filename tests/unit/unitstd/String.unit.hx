@@ -147,6 +147,10 @@ s.substring(0, -1) == "";
 s.substring(1, -1) == "x";
 s.substring(2, -1) == "xf";
 s.substring(20, 0) == "xfooxfooxxbarxbarxx";
+s.substring(0, 100) == "xfooxfooxxbarxbarxx";
+s.substring(100, 120) == "";
+s.substring(100, 0) == "xfooxfooxxbarxbarxx";
+s.substring(120, 100) == "";
 
 // fromCharCode
 String.fromCharCode(65) == "A";
