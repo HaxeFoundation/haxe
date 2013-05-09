@@ -310,7 +310,7 @@ module MetaInfo = struct
 		| Depend -> ":depend",("",[Platform Cpp])
 		| Deprecated -> ":deprecated",("",[Platforms [Java;Cs]])
 		| DynamicObject -> ":dynamicObject",("",[Platforms [Java;Cs]])
-    | Enum -> ":enum",("Used internally to annotate a class that was generated from an enum",[Platforms [Java;Cs]; UsedOn TClass])
+		| Enum -> ":enum",("Used internally to annotate a class that was generated from an enum",[Platforms [Java;Cs]; UsedOn TClass])
 		| EnumConstructorParam -> ":enumConstructorParam",("Used internally to annotate GADT type parameters",[UsedOn TClass])
 		| Expose -> ":expose",("Makes the class available on the window object",[HasParam "?Name=Class path";UsedOn TClass;Platform Js])
 		| Extern -> ":extern",("Marks the field as extern so it is not generated",[UsedOn TClassField])
