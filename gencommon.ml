@@ -2841,18 +2841,17 @@ struct
         | TFor (v, _, _) ->
           Hashtbl.add ignored v.v_id v;
           check_params v.v_type;
-          Type.map_expr traverse expr
+          Type.iter traverse expr
         | TFunction(tf) ->
           List.iter (fun (v,_) -> check_params v.v_type; Hashtbl.add ignored v.v_id v) tf.tf_args;
-          Type.map_expr traverse expr
+          check_params tf.tf_type;
+          Type.iter traverse expr
         | TVars (vars) ->
           List.iter (fun (v, opt) -> check_params v.v_type; Hashtbl.add ignored v.v_id v; ignore(Option.map traverse opt)) vars;
-          expr
         | TLocal(( { v_capture = true } ) as v) ->
           (if not (Hashtbl.mem ignored v.v_id || Hashtbl.mem ret v.v_id) then begin check_params v.v_type; Hashtbl.replace ret v.v_id expr end);
-          expr
-        | _ -> Type.map_expr traverse expr
-    in ignore (traverse expr);
+        | _ -> Type.iter traverse expr
+    in traverse expr;
     ret, !params
 
   (*
