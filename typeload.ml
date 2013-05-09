@@ -974,10 +974,11 @@ let set_heritance ctx c herits p =
 	) herits in
 	List.iter loop (List.filter (ctx.g.do_inherit ctx c p) herits)
 
-let rec type_type_params ctx path get_params p tp =
+let rec type_type_params ?(enum_constructor=false) ctx path get_params p tp =
 	let n = tp.tp_name in
 	let c = mk_class ctx.m.curmod (fst path @ [snd path],n) p in
 	c.cl_types <- List.map (type_type_params ctx c.cl_path get_params p) tp.tp_params;
+	if enum_constructor then c.cl_meta <- (Meta.EnumConstructorParam,[],c.cl_pos) :: c.cl_meta;
 	let t = TInst (c,List.map snd c.cl_types) in
 	match tp.tp_constraints with
 	| [] ->
@@ -2086,11 +2087,8 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 		List.iter (fun c ->
 			let p = c.ec_pos in
 			let params = ref [] in
-			params := List.map (fun tp -> type_type_params ctx ([],c.ec_name) (fun() -> !params) c.ec_pos tp) c.ec_params;
+			params := List.map (fun tp -> type_type_params ~enum_constructor:true ctx ([],c.ec_name) (fun() -> !params) c.ec_pos tp) c.ec_params;
 			let params = !params in
-			List.iter (fun (_,t) -> match follow t with
-				| TInst(p,_) -> p.cl_meta <- (Meta.EnumConstructorParam,[],p.cl_pos) :: p.cl_meta
-				| _ -> assert false) params;
 			let ctx = { ctx with type_params = params @ ctx.type_params } in
 			let rt = (match c.ec_type with
 				| None -> et
