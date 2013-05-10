@@ -1201,7 +1201,7 @@ and expr_next e1 = parser
 	| [< '(POpen,p1); s >] ->
 		if is_resuming p1 then display (EDisplay (e1,true),p1);
 		(match s with parser
-		| [< '(Binop OpOr,p2) when do_resume() >] -> display (EDisplay (e1,false),p1) (* help for debug display mode *)
+		| [< '(Binop OpOr,p2) when do_resume() >] -> display (EDisplay (e1,true),p1) (* help for debug display mode *)
 		| [< params = parse_call_params e1; '(PClose,p2); s >] -> expr_next (ECall (e1,params) , punion (pos e1) p2) s
 		| [< >] -> serror())
 	| [< '(BkOpen,_); e2 = expr; '(BkClose,p2); s >] ->
