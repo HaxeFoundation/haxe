@@ -424,7 +424,7 @@ let to_pattern ctx e t =
 					| _ ->
 						raise Not_found);
 			with Not_found ->
-				if not (is_lower_ident s) then error "Capture variables must be lower-case" p;
+				if not (is_lower_ident s) && s.[0] <> '`' then error "Capture variables must be lower-case" p;
 				begin match get_tuple_types t with
 					| Some _ ->
 						error "Cannot bind tuple" p
@@ -923,6 +923,13 @@ let rec to_typed_ast mctx dt =
 			| _ -> assert false
 		end
 	| Bind (bl, dt) ->
+		List.iter (fun ((v,_),st) ->
+			let e = st_to_texpr mctx st in
+			begin match e.eexpr with
+				| TLocal v2 -> v2.v_name <- v.v_name
+				| _ -> ()
+			end;
+		) bl;
 		mctx.eval_stack <- bl :: mctx.eval_stack;
 		let e = to_typed_ast mctx dt in
 		mctx.eval_stack <- List.tl mctx.eval_stack;
