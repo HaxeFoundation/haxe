@@ -35,7 +35,12 @@
   </compileTargets>
   <!-- Paths to exclude from the Project Explorer tree -->
   <hiddenPaths>
-    <!-- example: <hidden path="..." /> -->
+    <hidden path="haxelib.n" />
+    <hidden path="haxelib.sh" />
+    <hidden path="index.n" />
+    <hidden path="files" />
+    <hidden path="tmp" />
+    <hidden path="haxelib.exe" />
   </hiddenPaths>
   <!-- Executed before build -->
   <preBuildCommand>haxe haxelib.hxml</preBuildCommand>

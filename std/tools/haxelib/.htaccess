@@ -1,4 +1,0 @@
-<FilesMatch "^([_a-z0-9A-Z-])+$">
-	RewriteEngine On
-	RewriteRule (.*) /index.n
-</FilesMatch>
