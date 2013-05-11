@@ -963,6 +963,10 @@ let quick_field t n =
 	| TLazy _ | TType _ ->
 		assert false
 
+let quick_field_dynamic t s =
+	try quick_field t s
+	with Not_found -> FDynamic s
+
 let rec get_constructor build_type c =
 	match c.cl_constructor, c.cl_super with
 	| Some c, _ -> build_type c, c

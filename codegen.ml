@@ -265,9 +265,8 @@ let generic_substitute_expr gctx e =
 	in
 	let rec build_expr e =
 		match e.eexpr with
-		| TField({eexpr = TConst TThis} as e1, FInstance({cl_kind = KGeneric},cf)) ->
-			let cg = match follow (generic_substitute_type gctx (e1.etype)) with TInst(c,_) -> c | _ -> assert false in
-			build_expr {e with eexpr = TField(e1,FInstance(cg,cf))}
+		| TField(e1, FInstance({cl_kind = KGeneric},cf)) ->
+			build_expr {e with eexpr = TField(e1,quick_field_dynamic (generic_substitute_type gctx (e1.etype)) cf.cf_name)}
 		| _ -> map_expr_type build_expr (generic_substitute_type gctx) build_var e
 	in
 	build_expr e
@@ -359,10 +358,15 @@ let rec build_generic ctx c p tl =
 			List.iter loop tl
 		in
 		List.iter loop tl;
+		let delays = ref [] in
 		let build_field f =
 			let t = generic_substitute_type gctx f.cf_type in
-			try { f with cf_type = t; cf_expr = (match f.cf_expr with None -> None | Some e -> Some (generic_substitute_expr gctx e)) }
-			with Unify_error l -> error (error_msg (Unify l)) f.cf_pos
+			let f = { f with cf_type = t} in
+			(* delay the expression mapping to make sure all cf_type fields are set correctly first *)
+			(delays := (fun () ->
+				try (match f.cf_expr with None -> () | Some e -> f.cf_expr <- Some (generic_substitute_expr gctx e))
+				with Unify_error l -> error (error_msg (Unify l)) f.cf_pos) :: !delays);
+			f
 		in
 		if c.cl_init <> None || c.cl_dynamic <> None then error "This class can't be generic" p;
 		if c.cl_ordered_statics <> [] then error "A generic class can't have static fields" p;
@@ -394,6 +398,7 @@ let rec build_generic ctx c p tl =
 			cg.cl_fields <- PMap.add f.cf_name f cg.cl_fields;
 			f
 		) c.cl_ordered_fields;
+		List.iter (fun f -> f()) !delays;
 		TInst (cg,[])
 
 (* -------------------------------------------------------------------------- *)

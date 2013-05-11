@@ -93,10 +93,6 @@ let rec classify t =
 	| TDynamic _ -> KDyn
 	| _ -> KOther
 
-let quick_field_dynamic t s =
-	try quick_field t s
-	with Not_found -> FDynamic s
-
 let object_field f =
 	let pf = Parser.quoted_ident_prefix in
 	let pflen = String.length pf in
