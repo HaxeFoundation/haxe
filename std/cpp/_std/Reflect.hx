@@ -79,6 +79,13 @@
 		return t ==  __global__.vtObject || t==__global__.vtClass || t==__global__.vtString ||
 				t==__global__.vtArray;
 	}
+	
+	public static function isEnumValue( v : Dynamic ) : Bool {
+		return switch(Type.typeof(v)) {
+			case TEnum(_): true;
+			case _: false;
+		}
+	}
 
 	public static function deleteField( o : Dynamic, field : String ) : Bool untyped {
 		if (o==null) return false;

@@ -215,6 +215,13 @@ import java.Boot;
 	{
 		return false;
 	}
+	
+	public static function isEnumValue( v : Dynamic ) : Bool {
+		return switch(Type.typeof(v)) {
+			case TEnum(_): true;
+			case _: false;
+		}
+	}
 
 	/**
 		Delete an object field.

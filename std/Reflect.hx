@@ -76,7 +76,7 @@ extern class Reflect {
 		If the field is not a property, this function behaves like
 		[Reflect.setField], but might be slower.
 		
-		If [field] is null, the result is unspecified.		
+		If [field] is null, the result is unspecified.
 	**/
 	public static function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void;
 
@@ -118,11 +118,16 @@ extern class Reflect {
 	public static function isObject( v : Dynamic ) : Bool;
 
 	/**
+		Tells if [v] is an enum value.
+	**/
+	public static function isEnumValue( v : Dynamic ) : Bool;
+	
+	/**
 		Removes the field named [field] from structure [o].
 		
 		This method is only guaranteed to work on anonymous structures.
 		
-		If [o] or [field] are null, the result is unspecified. 
+		If [o] or [field] are null, the result is unspecified.
 	**/
 	public static function deleteField( o : Dynamic, field : String ) : Bool;
 

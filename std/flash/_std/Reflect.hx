@@ -107,6 +107,10 @@
 		}
 		return (t == "string");
 	}
+	
+	public static function isEnumValue( v : Dynamic ) : Bool {
+		return try v.__enum__ == true catch ( e : Dynamic) false;
+	}
 
 	public static function deleteField( o : Dynamic, field : String ) : Bool untyped {
 		if( o.hasOwnProperty(field) != true ) return false;

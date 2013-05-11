@@ -1,5 +1,7 @@
 package unit;
 
+import haxe.macro.Expr;
+
 typedef T = {
 	function func():Void;
 	var v:String;
@@ -40,7 +42,7 @@ typedef T = {
 	
 	public function set_propAcc(v) {
 		return this.propAcc = v.toUpperCase();
-	}	
+	}
 }
 
 class CChild extends C { }
@@ -107,6 +109,14 @@ enum EnumFlagTest {
 	EA;
 	EB;
 	EC;
+}
+
+enum EVMTest {
+	EVMA;
+	EVMB(?s:String);
+	EVMC(s:String, ?i:Int);
+	EVMD(n:EVMTest);
+	EVME(?n:EVMTest);
 }
 
 #if !macro

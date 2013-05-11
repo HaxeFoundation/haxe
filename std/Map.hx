@@ -25,6 +25,7 @@ import haxe.ds.IntMap;
 import haxe.ds.HashMap;
 import haxe.ds.ObjectMap;
 import haxe.ds.WeakMap;
+import haxe.ds.EnumValueMap;
 
  /**
 	Map allows key to value mapping for arbitrary value types, and many key
@@ -136,6 +137,10 @@ abstract Map< K, V > (IMap< K, V > ) {
 	@:to static inline function toIntMap(t:IMap < Int, V > ):IntMap<V> {
 		return new IntMap<V>();
 	}
+	
+	@:to static inline function toEnumValueMapMap<K:EnumValue>(t:IMap<K, V>):EnumValueMap<K,V> {
+		return new EnumValueMap<K, V>();
+	}
 
 	@:to static inline function toObjectMap<K:{ }>(t:IMap < K, V >):ObjectMap<K,V> {
 		return new ObjectMap<K, V>();
@@ -151,7 +156,7 @@ abstract Map< K, V > (IMap< K, V > ) {
 
 	@:from static inline function fromObjectMap < K: { }, V > (map:ObjectMap< K, V > ):Map< K, V > {
 		return map;
-	}	
+	}
 }
 
 interface IMap < K, V > {

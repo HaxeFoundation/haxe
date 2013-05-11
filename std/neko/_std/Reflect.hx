@@ -85,6 +85,10 @@
 	public static function isObject( v : Dynamic ) : Bool untyped {
 		return $typeof(v) == $tobject && v.__enum__ == null;
 	}
+	
+	public static function isEnumValue( v : Dynamic ) : Bool untyped {
+		return $typeof(v) == $tobject && v.__enum__ != null;
+	}
 
 	public inline static function deleteField( o : Dynamic, field : String ) : Bool untyped {
 		return $objremove(o,$fasthash(field.__s));

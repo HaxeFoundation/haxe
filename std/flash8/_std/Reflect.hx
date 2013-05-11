@@ -92,6 +92,10 @@
 		var t = __typeof__(v);
 		return (t == "string" || (t == "object" && !v.__enum__) || (t == "function" && v.__name__ != null));
 	}
+	
+	public static function isEnumValue( v : Dynamic ) : Bool {
+		return v.__enum__;
+	}
 
 	public static function deleteField( o : Dynamic, field : String ) : Bool untyped {
 		if( __this__["hasOwnProperty"]["call"](o,field) != true ) return false;

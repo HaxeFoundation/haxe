@@ -92,7 +92,14 @@
 			return untyped __php__("$v instanceof _hx_anonymous") || Type.getClass(v) != null;
 		return untyped __php__("is_string($v) && !_hx_is_lambda($v)");
 	}
-
+	
+	public static function isEnumValue( v : Dynamic ) : Bool {
+		return switch(Type.typeof(v)) {
+			case TEnum(_): true;
+			case _: false;
+		}
+	}
+		
 	public static function deleteField( o : Dynamic, field : String ) : Bool {
 		if(!hasField(o,field)) return false;
 		untyped __php__("if(isset($o->__dynamics[$field])) unset($o->__dynamics[$field]); else if($o instanceof _hx_anonymous) unset($o->$f); else $o->$f = null");

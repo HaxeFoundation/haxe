@@ -67,7 +67,7 @@
   <options>
     <option showHiddenPaths="False" />
     <option testMovie="OpenDocument" />
-    <option testMovieCommand="http://dev.unit-tests/unit.html" />
+    <option testMovieCommand="" />
   </options>
   <!-- Plugin storage -->
   <storage />
