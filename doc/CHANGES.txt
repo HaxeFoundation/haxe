@@ -1,3 +1,10 @@
+2013-05-??: 3.0.0
+	all : added haxe.ds.BalancedTree
+	all : added haxe.ds.EnumValueMap
+	all : allow enum constructors as keys to Map
+	all : preliminary support of -D display-mode=usage|position|metadata
+	all : improved pattern matcher error messages
+
 2013-05-08: 3.0.0-RC2
 	all : improved abstract support
 	all : renamed HAXE_LIBRARY_PATH to HAXE_STD_PATH
