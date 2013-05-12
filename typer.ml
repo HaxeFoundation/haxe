@@ -2632,12 +2632,12 @@ and type_expr ctx (e,p) (with_type:with_type) =
 					with Error (Unify _,_) ->
 						let acc = acc_get ctx (type_field ctx e1 "iterator" e1.epos MCall) e1.epos in
 						let acc = (match acc.eexpr with TField (e,FClosure (c,f)) -> { acc with eexpr = TField (e,match c with None -> FAnon f | Some c -> FInstance (c,f)) } | _ -> acc) in
-						match follow acc.etype with
-						| TFun ([],it) ->
-							unify ctx it t e1.epos;
-							make_call ctx acc [] it e1.epos
-						| _ ->
-							display_error ctx "The field iterator is not a method" e1.epos;
+						try
+							unify_raise ctx acc.etype (tfun [] t) acc.epos;
+							make_call ctx acc [] t e1.epos
+						with Error (Unify(l),p) ->
+							display_error ctx "Field iterator has an invalid type" acc.epos;
+							display_error ctx (error_msg (Unify l)) p;
 							mk (TConst TNull) t_dynamic p
 					)
 				) in
