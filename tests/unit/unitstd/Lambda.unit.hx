@@ -85,6 +85,12 @@ Lambda.array(Lambda.filter([],function(i) return false)) == [];
 Lambda.array(Lambda.filter([],function(i) return true)) == [];
 Lambda.array(Lambda.filter([],null)) == [];
 
+
+// fold
+Lambda.fold(["b","c","d"],function(s,acc) return s + acc,"a") == "dcba";
+Lambda.fold([],function(s:String,acc) return s + acc,"a") == "a";
+Lambda.fold([],function(s:String,acc) return s + acc,null) == null;
+
 // count
 Lambda.count([1,2,3]) == 3;
 Lambda.count([1,2,3], function(x) return false) == 0;

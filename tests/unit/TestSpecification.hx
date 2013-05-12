@@ -53,6 +53,8 @@ private class EmptyClass {
 	public function new() { }
 }
 
+@:keep private class ReallyEmptyClass { }
+
 private class ClassWithToString {
 	public function new() { }
 	public function toString() return "ClassWithToString.toString()";

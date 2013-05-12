@@ -1,4 +1,4 @@
-#if false
+#if !php
 // hasField
 var x = { a: 1, b: null };
 Reflect.hasField(x, "a") == true;
@@ -80,4 +80,73 @@ var y = Reflect.copy(x);
 Reflect.field(y, "a") == 2;
 Reflect.field(y, "b") == null;
 Reflect.field(y, "c") == null;
+
+//compare
+Reflect.compare(1,2) == -1;
+Reflect.compare(2,1) == 1;
+Reflect.compare(1,1) == 0;
+Reflect.compare("abcd","e") == -1;
+Reflect.compare("abcd","abcd") == 0;
+Reflect.compare("e","abcd") == 1;
+Reflect.compare(null,null) == 0;
+Reflect.compare("abcd",null) != 0;
+Reflect.compare(null, "abcd") != 0;
+
+// compareMethods
+var x = function(t) return 1;
+var y = function(t) return -1;
+var z = function(t) return 1;
+Reflect.compareMethods(x,y) == false;
+Reflect.compareMethods(x,z) == false;
+Reflect.compareMethods(y,z) == false;
+Reflect.compareMethods(x,x) == true;
+Reflect.compareMethods(y,y) == true;
+Reflect.compareMethods(z,z) == true;
+//Reflect.compareMethods(x,null) == false;
+//Reflect.compareMethods(null,x) == false;
+//Reflect.compareMethods(null,null) == false; // varies
+
+// isObject
+Reflect.isObject({}) == true;
+Reflect.isObject({v:"f"}) == true;
+Reflect.isObject(new C()) == true;
+Reflect.isObject(new C2()) == true;
+Reflect.isObject(new CChild()) == true;
+Reflect.isObject(new CDyn()) == true;
+Reflect.isObject(new EmptyClass()) == true;
+Reflect.isObject(Type.createEmptyInstance(ReallyEmptyClass)) == true;
+Reflect.isObject("foo") == true;
+Reflect.isObject(E) == true;
+Reflect.isObject(C) == true;
+
+Reflect.isObject(1) == false;
+Reflect.isObject(1.1) == false;
+Reflect.isObject(true) == false;
+Reflect.isObject(EA) == false;
+Reflect.isObject(EVMB()) == false;
+Reflect.isObject(null) == false;
+var x:C = null;
+Reflect.isObject(x) == false;
+
+// isEnumValue
+Reflect.isEnumValue(EA) == true;
+Reflect.isEnumValue(EVMB()) == true;
+
+Reflect.isEnumValue({}) == false;
+Reflect.isEnumValue({v:"f"}) == false;
+Reflect.isEnumValue(new C()) == false;
+Reflect.isEnumValue(new C2()) == false;
+Reflect.isEnumValue(new CChild()) == false;
+Reflect.isEnumValue(new CDyn()) == false;
+Reflect.isEnumValue(new EmptyClass()) == false;
+Reflect.isEnumValue(Type.createEmptyInstance(ReallyEmptyClass)) == false;
+Reflect.isEnumValue("foo") == false;
+Reflect.isEnumValue(E) == false;
+Reflect.isEnumValue(C) == false;
+Reflect.isEnumValue(1) == false;
+Reflect.isEnumValue(1.1) == false;
+Reflect.isEnumValue(true) == false;
+Reflect.isEnumValue(null) == false;
+var x:C = null;
+Reflect.isEnumValue(x) == false;
 #end

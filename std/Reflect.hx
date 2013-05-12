@@ -103,22 +103,57 @@ extern class Reflect {
 	public static function isFunction( f : Dynamic ) : Bool;
 
 	/**
-		Generic comparison function, does not work for methods, see [compareMethods]
+		Compares [a] and [b].
+		
+		If [a] is less than [b], the result is -1. If [b] is less than [a], the
+		result is 1. If [a] and [b] are equal, the result is 0.
+		
+		This function is only defined if [a] and [b] are of the same type.
+		
+		If that type is a function, the result is unspecified and
+		[Type.compareMethods()] should be used instead.
+		
+		For all other types, the result is 0 if [a] and [b] are equal. If they
+		are not equal, the result depends on the type and is -1 if:
+			Numeric types: a is less than b
+			String: a is lexicographically less than b
+			Other: unspecified
+		
+		If [a] and [b] are null, the result is 0. If only one of them is null,
+		the result is unspecified.
 	**/
 	public static function compare<T>( a : T, b : T ) : Int;
 
 	/**
-		Compare two methods closures. Returns true if it's the same method of the same instance.
+		Compares the functions [f1] and [f2].
+		
+		If [f1] or [f2] are not functions, the result is unspecified.
+		
+		Otherwise the result is true if [f1] and the [f2] are physically equal,
+		false otherwise.
 	**/
 	public static function compareMethods( f1 : Dynamic, f2 : Dynamic ) : Bool;
 
 	/**
-		Tells if a value is an object or not.
+		Tells if [v] is an object.
+		
+		The result is true if [v] is one of the following:
+			- class instance
+			- structure
+			- Class<T>
+			- Enum<T>
+			
+		Otherwise, including if [v] is null, the result is false.
 	**/
 	public static function isObject( v : Dynamic ) : Bool;
 
 	/**
 		Tells if [v] is an enum value.
+		
+		The result is true if [v] is of type EnumValue, i.e. an enum
+		constructor.
+		
+		Otherwise, including if [v] is null, the result is false.
 	**/
 	public static function isEnumValue( v : Dynamic ) : Bool;
 	

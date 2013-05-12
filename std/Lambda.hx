@@ -165,7 +165,16 @@ class Lambda {
 	}
 
 	/**
-		Functional 'fold' using an [Iterable]
+		Functional fold on Iterable [it], using function [f] with start argument
+		[first].
+		
+		If [it] has no elements, the result is [first].
+		
+		Otherwise the first element of [it] is passed to [f] alongside [first].
+		The result of that call is then passed to [f] with the next element of
+		[it], and so on until [it] has no more elements.
+		
+		If [it] or [f] are null, the result is unspecified.
 	**/
 	public static function fold<A,B>( it : Iterable<A>, f : A -> B -> B, first : B ) : B {
 		for( x in it )
