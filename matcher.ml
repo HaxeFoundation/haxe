@@ -1170,6 +1170,7 @@ let match_expr ctx e cases def with_type p =
 								(fun () -> v.v_type <- t) :: acc
 							) ctx.locals []
 					in
+					List.iter2 (fun m (_,t) -> match follow m with TMono _ -> Type.unify m t | _ -> ()) monos ctx.type_params;
 					pl,restore,(match with_type with
 						| WithType t -> WithType (apply_params ctx.type_params monos t)
 						| WithTypeResume t -> WithTypeResume (apply_params ctx.type_params monos t)
