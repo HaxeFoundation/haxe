@@ -96,10 +96,10 @@ pos.len == 2;
 ~/href="(.*?)"/g.replace('lead href="foo" href="bar" trail',"$1") == "lead foo bar trail";
 ~/href="(.*?)"/g.replace('lead href="foo" href="bar" trail',"$$$1$$") == "lead $foo$ $bar$ trail";
 //~/href="(.*?)"/g.replace('lead href="foo" href="bar" trail',"$$$2$$") == "lead $$2$ $$2$ trail";
-#end
 
 // map
 ~/(Hello)/.map("Hello World", function(e) return "Hallo") == "Hallo World";
 ~/(Hello)/.map("Hello", function(e) return "Hallo") == "Hallo";
 ~/(World)/.map("Hello World", function(e) return "Hallo") == "Hello Hallo";
 ~/(Hola)/.map("Hello World", function(e) return throw "not called") == "Hello World";
+#end
