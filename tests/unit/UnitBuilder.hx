@@ -136,6 +136,11 @@ class UnitBuilder {
 						macro { $a{el2}; };
 				case EBinop(OpEq, e1, e2):
 					mkEq(e1, e2, e.pos);
+				case EBinop(OpGt | OpGte | OpLt | OpLte, _, _):
+					{
+						expr: (macro t($e)).expr,
+						pos: e.pos
+					}
 				case EThrow(e):
 					macro exc(function() $e);
 				case EIn(e1, {expr:EArrayDecl(el) }):

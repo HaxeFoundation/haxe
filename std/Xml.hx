@@ -217,8 +217,3 @@ extern class Xml {
 	function toString() : String;
 
 }
-
-
-
-
-

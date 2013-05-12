@@ -83,11 +83,11 @@ Reflect.field(y, "c") == null;
 
 //compare
 Reflect.compare(1,2) < 0;
-Reflect.compare(2,1) > 1;
+Reflect.compare(2,1) > 0;
 Reflect.compare(1,1) == 0;
-Reflect.compare("abcd","e") < -1;
+Reflect.compare("abcd","e") < 0;
 Reflect.compare("abcd","abcd") == 0;
-Reflect.compare("e","abcd") > 1;
+Reflect.compare("e","abcd") > 0;
 Reflect.compare(null,null) == 0;
 Reflect.compare("abcd",null) != 0;
 Reflect.compare(null, "abcd") != 0;
