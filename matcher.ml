@@ -1146,13 +1146,15 @@ let match_expr ctx e cases def with_type p =
 		used_paths = Hashtbl.create 0;
 		eval_stack = [];
 	} in
+	let cases = List.map (fun (el,eg,e) ->
+		List.iter (fun e -> match fst e with EBinop(OpOr,_,_) -> mctx.toplevel_or <- true; | _ -> ()) el;
+		collapse_case el,eg,e
+	) cases in
 	let add_pattern_locals (pat,locals) =
 		PMap.iter (fun n (v,p) -> ctx.locals <- PMap.add n v ctx.locals) locals;
 		pat
 	in
-	let pl = ExtList.List.mapi (fun i (el,eg,e) ->
-		List.iter (fun e -> match fst e with EBinop(OpOr,_,_) -> mctx.toplevel_or <- true; | _ -> ()) el;
-		let ep = collapse_case el in
+	let pl = ExtList.List.mapi (fun i (ep,eg,e) ->
 		let save = save_locals ctx in
 		let pl,restore,with_type = try (match tl with
 				| [t] ->
@@ -1176,10 +1178,10 @@ let match_expr ctx e cases def with_type p =
 					let t = monomorphs ctx.type_params (tfun tl fake_tuple_type) in
 					[add_pattern_locals (to_pattern ctx ep t)],[],with_type)
 			with Unrecognized_pattern (e,p) ->
-				error "Unrecognized_pattern" p
+				error "Case expression must be a constant value or a pattern, not an arbitrary expression" p
 		in
 		let e = match e with
-			| None -> mk (TBlock []) ctx.com.basic.tvoid (punion_el el)
+			| None -> mk (TBlock []) ctx.com.basic.tvoid (pos ep)
 			| Some e ->
 				let e = type_expr ctx e with_type in
 				match with_type with
@@ -1204,37 +1206,41 @@ let match_expr ctx e cases def with_type p =
 		Array.of_list pl,out
 	) cases in
 	let unused p =
-		display_error ctx "This pattern is unused" p
-(* 		let check_expr e p =
+		display_error ctx "This pattern is unused" p;
+ 		let check_expr e p =
 			try
-				let old_error = ctx.on_error in
-				ctx.on_error <- (fun ctx s p -> ctx.on_error <- old_error; error s p);
-				ignore (type_expr ctx e Value);
-				ctx.on_error <- old_error;
-				display_error ctx "Case expression must be a constant value or a pattern, not an arbitrary expression" (pos e)
+				begin match fst e with
+					| EConst(Ident ("null" | "true" | "false")) -> ()
+					| EConst(Ident _) ->
+						let old_error = ctx.on_error in
+						ctx.on_error <- (fun ctx s p -> ctx.on_error <- old_error; error s p);
+						ignore (type_expr ctx e Value);
+						ctx.on_error <- old_error;
+						display_error ctx "Case expression must be a constant value or a pattern, not an arbitrary expression" (pos e)
+					| _ -> ()
+				end
 			with _ ->
 				ctx.on_error <- old_error;
-				display_error ctx "This pattern is unused" p
 		in
 		let rec loop prev cl = match cl with
-			| ((e,p2) :: _,_,_) :: cl ->
-				if p2.pmin = p.pmin then check_expr prev p else loop (e,p2) cl
-			| _ :: cl ->
-				assert false
+			| (_,Some _,_) :: cl -> loop prev cl
+			| ((e,p2),_,_) :: cl ->
+				if p2.pmin >= p.pmin then check_expr prev p else loop (e,p2) cl
 			| [] ->
 				check_expr prev p
 		in
-		loop (EConst (Ident "null"),Ast.null_pos) cases *)
+		match cases with (e,_,_) :: cl -> loop e cl | [] -> assert false
 	in
 	begin try
 		let dt = compile mctx stl pl in
  		PMap.iter (fun _ out -> if not (Hashtbl.mem mctx.used_paths out.o_id) then begin
 			if out.o_pos == p then display_error ctx "The default pattern is unused" p
 			else unused out.o_pos;
-			if mctx.toplevel_or then match evals with
+			if mctx.toplevel_or then begin match evals with
 				| [{etype = t}] when (match follow t with TAbstract({a_path=[],"Int"},[]) -> true | _ -> false) ->
 					display_error ctx "Note: Int | Int is an or-pattern now" p;
 				| _ -> ()
+			end;
 		end) mctx.outcomes;
 		let t = if not need_val then
 			mk_mono()

@@ -310,7 +310,7 @@ class TestMatch extends Test {
 		return switch([e1.expr, e2.expr]) {
 			case [EConst(CFloat(a) | CInt(a)), EConst(CFloat(b) | CInt(b))]: a + b;
 			case _: null;
-		}		
+		}
 	}
 
 	function testNonExhaustiveness() {
@@ -390,7 +390,7 @@ class TestMatch extends Test {
 
 		switch({s:"foo"}) {
 			case { s : "foo" } :
-			case { s : a } : // Warning : This variable is unused
+			case { s : a } :
 			case _: // unused
 		}
 
