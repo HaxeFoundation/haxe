@@ -83,11 +83,11 @@
 		if( v == null )
 			return false;
 		var t = __js__("typeof(v)");
-		return (t == "string" || (t == "object" && !v.__enum__) || (t == "function" && (js.Boot.isClass(v) || js.Boot.isEnum(v))));
+		return (t == "string" || (t == "object" && v.__enum__ == null)) || (t == "function" && (js.Boot.isClass(v) || js.Boot.isEnum(v)) != null);
 	}
 	
 	public static function isEnumValue( v : Dynamic ) : Bool {
-		return v != null && v.__enum__;
+		return v != null && v.__enum__ != null;
 	}
 
 	public static function deleteField( o : Dynamic, field : String ) : Bool untyped {
