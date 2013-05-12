@@ -1547,7 +1547,8 @@ let detect_usage com =
 				| TField(_,fa) ->
 					(match extract_field fa with
 						| Some cf when Meta.has Meta.Usage cf.cf_meta ->
-							usage := e.epos :: !usage;
+							let p = {e.epos with pmin = e.epos.pmax - (String.length cf.cf_name)} in
+							usage := p :: !usage;
 						| _ -> ());
 					Type.iter expr e
 				| _ -> Type.iter expr e
@@ -1559,7 +1560,10 @@ let detect_usage com =
 			List.iter field c.cl_ordered_fields;
 		| _ -> ()
 	) com.types;
-	let usage = List.sort (fun p1 p2 -> compare p1.pmin p2.pmin) !usage in
+	let usage = List.sort (fun p1 p2 ->
+		let c = compare p1.pfile p2.pfile in
+		if c <> 0 then c else compare p1.pmin p2.pmin
+	) !usage in
 	raise (Typecore.DisplayPosition usage)
 
 (* -------------------------------------------------------------------------- *)

@@ -1199,8 +1199,6 @@ try
 		com.main <- main;
 		com.types <- types;
 		com.modules <- modules;
-		if Common.defined_value_safe com Define.DisplayMode = "usage" then
-			Codegen.detect_usage com;
 		let filters = [
 			Codegen.Abstract.handle_abstract_casts tctx;
 			if com.foptimize then (fun e -> Optimizer.reduce_expression tctx (Optimizer.inline_constructors tctx e)) else Optimizer.sanitize tctx;
@@ -1212,6 +1210,8 @@ try
 		Codegen.post_process_end();
 		List.iter (fun f -> f()) (List.rev com.filters);
 		List.iter (Codegen.save_class_state tctx) com.types;
+		if Common.defined_value_safe com Define.DisplayMode = "usage" then
+			Codegen.detect_usage com;
 		let dce_mode = (try Common.defined_value com Define.Dce with _ -> "no") in
 		if not (!gen_as3 || dce_mode = "no" || Common.defined com Define.DocGen) then Dce.run com main (dce_mode = "full" && not !interp);
 		let type_filters = [
