@@ -105,8 +105,8 @@ extern class Reflect {
 	/**
 		Compares [a] and [b].
 		
-		If [a] is less than [b], the result is -1. If [b] is less than [a], the
-		result is 1. If [a] and [b] are equal, the result is 0.
+		If [a] is less than [b], the result is negative. If [b] is less than
+		[a], the result is positive. If [a] and [b] are equal, the result is 0.
 		
 		This function is only defined if [a] and [b] are of the same type.
 		
@@ -114,7 +114,7 @@ extern class Reflect {
 		[Type.compareMethods()] should be used instead.
 		
 		For all other types, the result is 0 if [a] and [b] are equal. If they
-		are not equal, the result depends on the type and is -1 if:
+		are not equal, the result depends on the type and is negative if:
 			Numeric types: a is less than b
 			String: a is lexicographically less than b
 			Other: unspecified
