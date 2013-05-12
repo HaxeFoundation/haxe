@@ -42,7 +42,7 @@ import haxe.ds.EnumValueMap;
 	Map is an abstract type, it is not available at runtime.
 **/
 @:multiType
-abstract Map< K, V > (IMap< K, V > ) {
+abstract Map<K,V>(IMap<K,V> ) {
 	
 	/**
 		Creates a new Map.
@@ -51,8 +51,7 @@ abstract Map< K, V > (IMap< K, V > ) {
 		the output. The rules for that are as follows:
 			1. if K is a String, haxe.ds.StringMap is used
 			2. if K is an Int, haxe.ds.IntMap is used
-			3. if K is a class or structure that has a hashCode() function
-				which returns an Int, haxe.ds.HashMap is used
+			3. if K is an enum, haxe.ds.EnumValueMap is used
 			4. if K is any other class or structure, haxe.ds.ObjectMap is used
 			5. if K is any other type, it causes a compile-time error
 			
@@ -130,19 +129,19 @@ abstract Map< K, V > (IMap< K, V > ) {
 		return v;
 	}
 	
-	@:to static inline function toStringMap(t:IMap < String, V > ):StringMap<V> {
+	@:to static inline function toStringMap(t:IMap<String,V>):StringMap<V> {
 		return new StringMap<V>();
 	}
 
-	@:to static inline function toIntMap(t:IMap < Int, V > ):IntMap<V> {
+	@:to static inline function toIntMap(t:IMap<Int,V>):IntMap<V> {
 		return new IntMap<V>();
 	}
 	
-	@:to static inline function toEnumValueMapMap<K:EnumValue>(t:IMap<K, V>):EnumValueMap<K,V> {
+	@:to static inline function toEnumValueMapMap<K:EnumValue>(t:IMap<K,V>):EnumValueMap<K,V> {
 		return new EnumValueMap<K, V>();
 	}
 
-	@:to static inline function toObjectMap<K:{ }>(t:IMap < K, V >):ObjectMap<K,V> {
+	@:to static inline function toObjectMap<K:{ }>(t:IMap<K,V>):ObjectMap<K,V> {
 		return new ObjectMap<K, V>();
 	}
 	
@@ -154,12 +153,12 @@ abstract Map< K, V > (IMap< K, V > ) {
 		return map;
 	}
 
-	@:from static inline function fromObjectMap < K: { }, V > (map:ObjectMap< K, V > ):Map< K, V > {
+	@:from static inline function fromObjectMap<K:{ }, V>(map:ObjectMap<K,V>):Map<K,V> {
 		return map;
 	}
 }
 
-interface IMap < K, V > {
+interface IMap<K,V> {
 	public function get(k:K):Null<V>;
 	public function set(k:K, v:V):Void;
 	public function exists(k:K):Bool;
