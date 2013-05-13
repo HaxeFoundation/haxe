@@ -834,7 +834,7 @@ let build_swf9 com file swc =
 		if String.length file > 5 && String.sub file 0 5 = "data:" then
 			String.sub file 5 (String.length file - 5)
 		else
-			(try Std.input_file ~bin:true file with _  -> error "File not found" p)
+			(try Std.input_file ~bin:true file with Invalid_argument("String.create") -> error "File is too big (max 16MB allowed)" p | _  -> error "File not found" p)
 	in
 	let bmp = List.fold_left (fun acc t ->
 		match t with
