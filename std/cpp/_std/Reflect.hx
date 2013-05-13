@@ -80,11 +80,8 @@
 				t==__global__.vtArray;
 	}
 	
-	public static function isEnumValue( v : Dynamic ) : Bool {
-		return switch(Type.typeof(v)) {
-			case TEnum(_): true;
-			case _: false;
-		}
+	public static function isEnumValue( v : Dynamic ) : Bool untyped {
+		return v!=null && v.__GetType() == __global__.vtEnum;
 	}
 
 	public static function deleteField( o : Dynamic, field : String ) : Bool untyped {
