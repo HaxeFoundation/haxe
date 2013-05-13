@@ -560,6 +560,7 @@ type tag_data =
 	| TMorphShape2 of morph_shape
 	| TScenes of (int * string) list * (int * string) list
 	| TBinaryData of int * binary
+	| TBigBinaryData of int * binary list
 	| TFontName of cid_data
 	| TBitsJPEG4 of bitmap_data
 	| TFont4 of cid_data

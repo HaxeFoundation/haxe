@@ -425,6 +425,8 @@ let rec tag_data_length = function
 		As3parse.int_length (List.length fl) + sum (fun(n,s) -> As3parse.int_length n + string_length s) fl
 	| TBinaryData (_,data) ->
 		2 + 4 + String.length data
+	| TBigBinaryData (_,data) ->
+		2 + 4 + (List.fold_left (fun acc s -> acc + String.length s) 0 data)
 	| TFontName c ->
 		cid_data_length c
 	| TBitsJPEG4 b ->
@@ -1416,8 +1418,16 @@ let rec parse_tag ch h =
 		| 0x57 ->
 			let cid = read_ui16 ch in
 			if read_i32 ch <> 0 then assert false;
-			let data = nread ch (len - 6) in
-			TBinaryData (cid,data)
+			let rec loop len =
+				if len > Sys.max_string_length then
+					let s = nread ch Sys.max_string_length in
+					s :: loop (len - Sys.max_string_length)
+				else
+					[nread ch len]
+			in
+			(match loop (len - 6) with
+			| [data] -> TBinaryData (cid,data)
+			| data -> TBigBinaryData (cid,data))
 		| 0x58 ->
 			TFontName (parse_cid_data ch len)
 		(* // 0x59 TStartSound2 *)
@@ -1537,7 +1547,7 @@ let rec tag_id = function
 	| TShape4 _ -> 0x53
 	| TMorphShape2 _ -> 0x54
 	| TScenes _ -> 0x56
-	| TBinaryData _ -> 0x57
+	| TBinaryData _ | TBigBinaryData _ -> 0x57
 	| TFontName _ -> 0x58
 	| TBitsJPEG4 _ -> 0x5A
 	| TFont4 _ -> 0x5B
@@ -2016,6 +2026,10 @@ let rec write_tag_data ch = function
 		write_ui16 ch id;
 		write_i32 ch 0;
 		nwrite ch data
+	| TBigBinaryData (id,data) ->
+		write_ui16 ch id;
+		write_i32 ch 0;
+		List.iter (nwrite ch) data
 	| TFontName c ->
 		write_cid_data ch c
 	| TBitsJPEG4 b ->
@@ -2161,6 +2175,8 @@ let scan fid f t =
 		c.cd_id <- f c.cd_id
 	| TBinaryData (id,data) ->
 		t.tdata <- TBinaryData (fid id,data)
+	| TBigBinaryData (id,data) ->
+		t.tdata <- TBigBinaryData (fid id,data)
 	| TFontAlignZones c | TFontInfo c | TFontInfo2 c | TFontName c ->
 		c.cd_id <- f c.cd_id
 	| TScale9 (id,r) ->
@@ -2225,6 +2241,7 @@ let tag_name = function
 	| TMorphShape2 _ -> "MorphShape2"
 	| TScenes _ -> "Scenes"
 	| TBinaryData _ -> "BinaryData"
+	| TBigBinaryData _ -> "BigBinaryData"
 	| TFontName _ -> "FontName"
 	| TBitsJPEG4 _ -> "BitsJPEG4"
 	| TFont4 _ -> "Font4"
