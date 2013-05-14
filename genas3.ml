@@ -584,11 +584,12 @@ and gen_expr ctx e =
 		gen_field_access ctx e1.etype (field_name s)
 	| TField (e,fa) ->
    		gen_value ctx e;
-   		let s = match extract_field fa with
-   			| Some cf when is_getset cf -> "$" ^ cf.cf_name
-   			| Some cf -> cf.cf_name
-   			| None -> field_name fa
-   		in
+		let s = match fa with
+			| FStatic(c,cf) | FInstance(c,cf) -> if ctx.curclass == c && is_getset cf then "$" ^ cf.cf_name else cf.cf_name
+			| FClosure (_,cf) | FAnon cf -> cf.cf_name
+			| FEnum(_,ef) -> ef.ef_name
+			| FDynamic n -> n
+		in
 		gen_field_access ctx e.etype s
 	| TTypeExpr t ->
 		spr ctx (s_path ctx true (t_path t) e.epos)
