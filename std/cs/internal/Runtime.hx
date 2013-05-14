@@ -182,6 +182,9 @@ import cs.system.Type;
 	}
 
 	@:functionCode('
+			if (v1 == v2) return 0;
+			if (v1 == null) return -1;
+			if (v2 == null) return 1;
 			System.IConvertible cv1 = v1 as System.IConvertible;
 			if (cv1 != null)
 			{

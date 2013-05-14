@@ -211,6 +211,8 @@ package java.internal;
 	@:functionCode('
 			if (v1 == v2)
 				return 0;
+			if (v1 == null) return -1;
+			if (v2 == null) return 1;
 
 			if (v1 instanceof java.lang.Number || v2 instanceof java.lang.Number)
 			{
