@@ -209,13 +209,16 @@ import java.Boot;
 
 	**/
 	@:functionCode('
-		return v != null && !(v instanceof haxe.lang.Enum || v instanceof haxe.lang.Function);
+		return v != null && !(v instanceof haxe.lang.Enum || v instanceof haxe.lang.Function || v instanceof java.lang.Enum);
 	')
 	public static function isObject( v : Dynamic ) : Bool
 	{
 		return false;
 	}
-	
+
+	@:functionCode('
+		return v != null && (v instanceof haxe.lang.Enum || v instanceof java.lang.Enum);
+	')
 	public static function isEnumValue( v : Dynamic ) : Bool {
 		return switch(Type.typeof(v)) {
 			case TEnum(_): true;

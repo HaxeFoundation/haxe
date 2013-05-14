@@ -207,13 +207,16 @@ import cs.internal.Function;
 
 	**/
 	@:functionCode('
-		return v != null && !(v is haxe.lang.DynamicObject || v is haxe.lang.Function);
+		return v != null && !(v is haxe.lang.DynamicObject || v is haxe.lang.Function || v is System.Enum);
 	')
 	public static function isObject( v : Dynamic ) : Bool
 	{
 		return false;
 	}
-	
+
+	@:functionCode('
+		return v != null && (v is haxe.lang.Enum || v is System.Enum);
+	')
 	public static function isEnumValue( v : Dynamic ) : Bool {
 		return switch(Type.typeof(v)) {
 			case TEnum(_): true;
