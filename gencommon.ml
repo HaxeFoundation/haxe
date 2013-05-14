@@ -4701,8 +4701,9 @@ struct
             aggregate false [e1;e2]
           | TBinop (_, e1, e2) ->
             aggregate true [e1;e2]
-          | TIf (cond, eif, Some(eelse)) ->
-            aggregate true [cond;eif;eelse]
+          | TIf (cond, eif, Some(eelse)) -> (match aggregate true [cond;eif;eelse] with
+            | KExprWithStatement -> KStatement
+            | k -> k)
           | TArray (e1,e2) ->
             aggregate true [e1;e2]
           | TParenthesis e
