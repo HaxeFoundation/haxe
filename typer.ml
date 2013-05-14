@@ -3275,7 +3275,7 @@ and build_call ctx acc el (with_type:with_type) p =
 		let el , t, e = (match follow e.etype with
 		| TFun (args,r) ->
 			let fopts = (match acc with
-				| AKExpr {eexpr = TField(e, (FStatic (_,f) | FInstance(_,f)))} ->
+				| AKExpr {eexpr = TField(e, (FStatic (_,f) | FInstance(_,f) | FAnon(f)))} ->
 					fopts e.etype f
 				| _ ->
 					None
