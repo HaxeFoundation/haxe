@@ -1,5 +1,14 @@
+FLAGS=-I ../extlib -I ../swflib
+FILES=tTFData tTFParser tTFTools tTFSwfWriter tTFCanvasWriter tTFJsonWriter
+LIBS=extLib swflib unix
+
+OUTPUT=ttf
+
 all:
-	ocamlopt -I ../extlib -I ../swflib tTFData.ml tTFParser.ml tTFTools.ml tTFSwfWriter.ml tTFCanvasWriter.ml tTFJsonWriter.ml main.ml -g -a -o ttf.cmxa
+	ocamlopt $(FLAGS) $(FILES:=.ml) -g -a -o ttf.cmxa
+
+exec:
+	ocamlopt $(FLAGS) $(LIBS:=.cmxa) $(FILES:=.ml) main.ml -g -o $(OUTPUT)
 
 clean:
 	rm -rf ttf.cmxa ttf.lib ttf.a $(wildcard *.cmx) $(wildcard *.obj) $(wildcard *.o) $(wildcard *.cmi)
