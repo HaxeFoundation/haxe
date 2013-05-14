@@ -201,6 +201,8 @@ let parent e =
 	| TParenthesis _ -> e
 	| _ -> mk (TParenthesis e) e.etype e.epos
 
+let is_getset f = match f.cf_kind with Var { v_read = AccCall } | Var { v_write = AccCall } -> true | _ -> false
+
 let default_value tstr =
 	match tstr with
 	| "int" | "uint" -> "0"
@@ -580,9 +582,14 @@ and gen_expr ctx e =
 		gen_expr ctx e1;
 		spr ctx ")";
 		gen_field_access ctx e1.etype (field_name s)
-	| TField (e,s) ->
+	| TField (e,fa) ->
    		gen_value ctx e;
-		gen_field_access ctx e.etype (field_name s)
+   		let s = match extract_field fa with
+   			| Some cf when is_getset cf -> "$" ^ cf.cf_name
+   			| Some cf -> cf.cf_name
+   			| None -> field_name fa
+   		in
+		gen_field_access ctx e.etype s
 	| TTypeExpr t ->
 		spr ctx (s_path ctx true (t_path t) e.epos)
 	| TParenthesis e ->
@@ -989,7 +996,7 @@ let generate_field ctx static f =
 		h();
 		newline ctx
 	| _ ->
-		let is_getset = (match f.cf_kind with Var { v_read = AccCall } | Var { v_write = AccCall } -> true | _ -> false) in
+		let is_getset = is_getset f in
 		if ctx.curclass.cl_interface then
 			match follow f.cf_type with
 			| TFun (args,r) ->
