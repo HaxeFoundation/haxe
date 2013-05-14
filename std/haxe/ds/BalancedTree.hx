@@ -78,7 +78,7 @@ class BalancedTree<K,V> {
 	function setLoop(k:K, v:V, node:TreeNode<K,V>) {
 		if (node == null) return new TreeNode<K,V>(null, k, v, null);
 		var c = compare(k, node.key);
-		return if (c == 0) new TreeNode<K,V>(node.left, k, v, node.right, node.height);
+		return if (c == 0) new TreeNode<K,V>(node.left, k, v, node.right, node.get_height());
 		else if (c < 0) {
 			var nl = setLoop(k, v, node.left);
 			balance(nl, node.key, node.value, node.right);
@@ -131,13 +131,13 @@ class BalancedTree<K,V> {
 	}
 		
 	function balance(l:TreeNode<K,V>, k:K, v:V, r:TreeNode<K,V>):TreeNode<K,V> {
-		var hl = l.height;
-		var hr = r.height;
+		var hl = l.get_height();
+		var hr = r.get_height();
 		return if (hl > hr + 2) {
-			if (l.left.height >= l.right.height) new TreeNode<K,V>(l.left, l.key, l.value, new TreeNode<K,V>(l.right, k, v, r));
+			if (l.left.get_height() >= l.right.get_height()) new TreeNode<K,V>(l.left, l.key, l.value, new TreeNode<K,V>(l.right, k, v, r));
 			else new TreeNode<K,V>(new TreeNode<K,V>(l.left,l.key, l.value, l.right.left), l.right.key, l.right.value, new TreeNode<K,V>(l.right.right, k, v, r));
 		} else if (hr > hl + 2) {
-			if (r.right.height > r.left.height) new TreeNode<K,V>(new TreeNode<K,V>(l, k, v, r.left), r.key, r.value, r.right);
+			if (r.right.get_height() > r.left.get_height()) new TreeNode<K,V>(new TreeNode<K,V>(l, k, v, r.left), r.key, r.value, r.right);
 			else new TreeNode<K,V>(new TreeNode<K,V>(l, k, v, r.left.left), r.left.key, r.left.value, new TreeNode<K,V>(r.left.right, r.key, r.value, r.right));
 		} else {
 			new TreeNode<K,V>(l, k, v, r, (hl > hr ? hl : hr) + 1);
@@ -158,7 +158,10 @@ class TreeNode<K,V> {
 	public var right : TreeNode<K,V>;
 	public var key : K;
 	public var value : V;
-	public var height(get, null) : Int;
+	#if as3
+	public
+	#end
+	var _height : Int;
 	
 	public function new(l, k, v, r, h = -1) {
 		left = l;
@@ -166,12 +169,12 @@ class TreeNode<K,V> {
 		value = v;
 		right = r;
 		if (h == -1)
-			height = (left.height > right.height ? left.height : right.height) + 1;
+			_height = (left.get_height() > right.get_height() ? left.get_height() : right.get_height()) + 1;
 		else
-			height = h;
+			_height = h;
 	}
 	
-	@:extern public inline function get_height() return this == null ? 0 : height;
+	@:extern public inline function get_height() return this == null ? 0 : _height;
 	
 	public function toString() {
 		return (left == null ? "" : left.toString() + ", ") + '$key=$value' + (right == null ? "" : ", " +right.toString());
