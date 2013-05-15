@@ -36,9 +36,11 @@ cmd("rm -rf "+dir);
 mkdir(dir);
 mkdir(dir+"/doc");
 
-if( sys == "Windows" )
+if( sys == "Windows" ) {
 	cmd("cp ../haxe.exe ../haxesetup.exe haxeserver.bat "+dir);
-else
+	// copy if available (means we build on recent OCaml/MSVC)
+	try cmd("cp C:/Windows/System32/msvcr100.dll "+dir) catch e {};
+} else
 	cmd("cp ../haxe "+dir);
 
 cmd("cp -pR CHANGES.txt LICENSE.txt ../std "+dir);
