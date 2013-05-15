@@ -1685,12 +1685,12 @@ let std_lib =
 		"sys_read_dir", Fun1 (fun dir ->
 			let d = Sys.readdir (vstring dir) in
 			let rec loop acc i =
-				if i = Array.length d then
+				if i < 0 then
 					acc
 				else
-					loop (VArray [|VString d.(i);acc|]) (i + 1)
+					loop (VArray [|VString d.(i);acc|]) (i - 1)
 			in
-			loop VNull 0
+			loop VNull (Array.length d - 1)
 		);
 		"file_full_path", Fun1 (fun file ->
 			VString (try Extc.get_full_path (vstring file) with _ -> error())
@@ -1701,13 +1701,13 @@ let std_lib =
 		"sys_env", Fun0 (fun() ->
 			let env = Unix.environment() in
 			let rec loop acc i =
-				if i = Array.length env then
+				if i < 0 then
 					acc
 				else
 					let e, v = ExtString.String.split "=" env.(i) in
-					loop (VArray [|VString e;VString v;acc|]) (i + 1)
+					loop (VArray [|VString e;VString v;acc|]) (i - 1)
 			in
-			loop VNull 0
+			loop VNull (Array.length env - 1)
 		);
 		"sys_getch", Fun1 (fun echo ->
 			match echo with
