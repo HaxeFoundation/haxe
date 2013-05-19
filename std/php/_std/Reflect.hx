@@ -94,10 +94,7 @@
 	}
 	
 	public static function isEnumValue( v : Dynamic ) : Bool {
-		return switch(Type.typeof(v)) {
-			case TEnum(_): true;
-			case _: false;
-		}
+		return untyped __php__("$v instanceof _hx_enum");
 	}
 		
 	public static function deleteField( o : Dynamic, field : String ) : Bool {
