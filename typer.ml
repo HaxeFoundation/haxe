@@ -2674,11 +2674,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		let e1 = type_expr ctx e1 with_type in
 		(match e2 with
 		| None ->
-			if with_type <> NoValue then begin
-				let t = ctx.t.tnull e1.etype in
-				mk (TIf (e,e1,Some (null t p))) t p
-			end else
-				mk (TIf (e,e1,None)) ctx.t.tvoid p
+			mk (TIf (e,e1,None)) ctx.t.tvoid p
 		| Some e2 ->
 			let e2 = type_expr ctx e2 with_type in
 			let t = match with_type with
