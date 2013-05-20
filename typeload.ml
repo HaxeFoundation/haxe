@@ -1033,7 +1033,7 @@ let type_function ctx args ret fmode f do_display p =
 	in
 	let rec loop e =
 		match e.eexpr with
-		| TReturn (Some _) -> raise Exit
+		| TReturn (Some e) -> (match follow e.etype with TAbstract({a_path = [],"Void"},[]) -> () | _ -> raise Exit)
 		| TFunction _ -> ()
 		| _ -> Type.iter loop e
 	in
