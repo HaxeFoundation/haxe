@@ -859,13 +859,14 @@ let field_access ctx mode f fmode t e p =
 				normal()
 		| AccCall ->
 			let m = (match mode with MSet -> "set_" | _ -> "get_") ^ f.cf_name in
-			if m = ctx.curfield.cf_name && (match e.eexpr with TConst TThis -> true | TTypeExpr (TClassDecl c) when c == ctx.curclass -> true | _ -> false) then begin
+			if m = ctx.curfield.cf_name && (match e.eexpr with TConst TThis -> true | TTypeExpr (TClassDecl c) when c == ctx.curclass -> true | _ -> false) then
+				let prefix = (match ctx.com.platform with Flash when Common.defined ctx.com Define.As3 -> "$" | _ -> "") in
 				if is_extern_field f then begin
 					display_error ctx "This field cannot be accessed because it is not a real variable" p;
 					display_error ctx "Add @:isVar here to enable it" f.cf_pos;
 				end;
-				AKExpr (mk (TField(e, fmode)) t p)
-			end else if (match e.eexpr with TTypeExpr (TClassDecl ({cl_kind = KAbstractImpl _} as c)) when c == ctx.curclass -> true | _ -> false) then begin
+				AKExpr (mk (TField (e,if prefix = "" then fmode else FDynamic (prefix ^ f.cf_name))) t p)
+			else if (match e.eexpr with TTypeExpr (TClassDecl ({cl_kind = KAbstractImpl _} as c)) when c == ctx.curclass -> true | _ -> false) then begin
 				let this = get_this ctx p in
 				if mode = MSet then begin
 					let c,a = match ctx.curclass with {cl_kind = KAbstractImpl a} as c -> c,a | _ -> assert false in
