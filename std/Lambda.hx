@@ -203,7 +203,7 @@ class Lambda {
 	/**
 		Tells if Iterable [it] does not contain any element.
 	**/
-	public static function empty( it : Iterable<Dynamic> ) : Bool {
+	public static function empty<T>( it : Iterable<T> ) : Bool {
 		return !it.iterator().hasNext();
 	}
 
