@@ -1064,7 +1064,7 @@ try
 							| MetaInfo.Platforms fl -> pfs := fl @ !pfs
 							| MetaInfo.UsedOn u -> used := u :: !used
 							| MetaInfo.UsedOnEither ul -> used := ul @ !used
-              | MetaInfo.Internal -> assert false
+							| MetaInfo.Internal -> assert false
 						) flags;
 						let params = (match List.rev !params with
 							| [] -> ""
