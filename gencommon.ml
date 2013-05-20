@@ -10019,7 +10019,7 @@ struct
             replace_mono real_ftype;
             let overloads = Typeload.get_overloads c f.cf_name in
             (* if we find a function with the exact type of real_ftype, it means this interface has already been taken care of *)
-            if not (List.exists (fun (t,_) -> replace_mono t; type_iseq (get_real_fun gen t) real_ftype) overloads) then
+            if not (List.exists (fun (t,f2) -> replace_mono t; type_iseq (get_real_fun gen (apply_params f2.cf_params (List.map snd f.cf_params) t)) real_ftype) overloads) then
               try
                 (match f.cf_kind with | Method (MethNormal | MethInline) -> () | _ -> raise Not_found);
                 let t2, f2 =
