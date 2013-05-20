@@ -2013,7 +2013,7 @@ let configure gen =
     eexpr = TCall(slow_invoke, [ethis; efield; eargs]);
     etype = t_dynamic;
     epos = ethis.epos;
-  } );
+  } ) object_iface;
 
   let objdecl_fn = ReflectionCFs.implement_dynamic_object_ctor rcf_ctx dynamic_object in
 

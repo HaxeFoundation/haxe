@@ -30,12 +30,10 @@ module Meta = struct
 	type strict_meta =
 		| Abstract
 		| Access
-		| Alias
 		| Allow
 		| Annotation
 		| ArrayAccess
 		| AutoBuild
-		| BaseInterface
 		| Bind
 		| Bitmap
 		| Build
@@ -120,13 +118,11 @@ module Meta = struct
 		| Sound
 		| Struct
 		| SuppressWarnings
-		| Synchronized
 		| Throws
 		| To
 		| ToString
 		| Transient
 		| ValueUsed
-		| VarArgs
 		| Volatile
 		| UnifyMinDynamic
 		| Unreflective

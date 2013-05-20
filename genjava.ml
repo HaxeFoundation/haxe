@@ -1871,7 +1871,7 @@ let configure gen =
     eexpr = TCall(slow_invoke, [ethis; efield; eargs]);
     etype = t_dynamic;
     epos = ethis.epos;
-  } );
+  } ) object_iface;
 
   let objdecl_fn = ReflectionCFs.implement_dynamic_object_ctor rcf_ctx dynamic_object in
 
@@ -2418,10 +2418,10 @@ let convert_java_enum ctx p pe =
           readonly := true;
           jf_constant := None;
         | _ -> jf_constant := None)
-      | JSynchronized -> cff_meta := (Meta.Synchronized, [], p) :: !cff_meta
+      (* | JSynchronized -> cff_meta := (Meta.Synchronized, [], p) :: !cff_meta *)
       | JVolatile -> cff_meta := (Meta.Volatile, [], p) :: !cff_meta
       | JTransient -> cff_meta := (Meta.Transient, [], p) :: !cff_meta
-      | JVarArgs -> cff_meta := (Meta.VarArgs, [], p) :: !cff_meta
+      (* | JVarArgs -> cff_meta := (Meta.VarArgs, [], p) :: !cff_meta *)
       | _ -> ()
     ) field.jf_flags;
 

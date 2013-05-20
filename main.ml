@@ -1056,25 +1056,28 @@ try
 				let d = Obj.magic i in
 				if d <> Meta.Last then begin
 					let t, (doc,flags) = MetaInfo.to_string d in
-					let params = ref [] and used = ref [] and pfs = ref [] in
-					List.iter (function
-						| MetaInfo.HasParam s -> params := s :: !params
-						| MetaInfo.Platform f -> pfs := f :: !pfs
-						| MetaInfo.Platforms fl -> pfs := fl @ !pfs
-						| MetaInfo.UsedOn u -> used := u :: !used
-						| MetaInfo.UsedOnEither ul -> used := ul @ !used
-					) flags;
-					let params = (match List.rev !params with
-						| [] -> ""
-						| l -> "(" ^ String.concat "," l ^ ")"
-					) in
-					let pfs = (match List.rev !pfs with
-						| [] -> ""
-						| [p] -> " (" ^ platform_name p ^ " only)"
-						| pl -> " (for " ^ String.concat "," (List.map platform_name pl) ^ ")"
-					) in
-					let str = "@" ^ t ^ params ^ " : " ^ doc ^ pfs in
-					str :: loop (i + 1)
+					if not (List.mem MetaInfo.Internal flags) then begin
+						let params = ref [] and used = ref [] and pfs = ref [] in
+						List.iter (function
+							| MetaInfo.HasParam s -> params := s :: !params
+							| MetaInfo.Platform f -> pfs := f :: !pfs
+							| MetaInfo.Platforms fl -> pfs := fl @ !pfs
+							| MetaInfo.UsedOn u -> used := u :: !used
+							| MetaInfo.UsedOnEither ul -> used := ul @ !used
+						) flags;
+						let params = (match List.rev !params with
+							| [] -> ""
+							| l -> "(" ^ String.concat "," l ^ ")"
+						) in
+						let pfs = (match List.rev !pfs with
+							| [] -> ""
+							| [p] -> " (" ^ platform_name p ^ " only)"
+							| pl -> " (for " ^ String.concat "," (List.map platform_name pl) ^ ")"
+						) in
+						let str = "@" ^ t ^ params ^ " : " ^ doc ^ pfs in
+						str :: loop (i + 1)
+					end else
+						loop (i + 1)
 				end else
 					[]
 			in

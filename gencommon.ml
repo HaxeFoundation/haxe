@@ -8197,7 +8197,7 @@ struct
     let priority = min_dep +. 10.
 
     let default_implementation gen baseclass baseinterface basedynamic =
-      baseinterface.cl_meta <- (Meta.BaseInterface, [], baseinterface.cl_pos) :: baseinterface.cl_meta;
+      (* baseinterface.cl_meta <- (Meta.BaseInterface, [], baseinterface.cl_pos) :: baseinterface.cl_meta; *)
       let rec run md =
         (if is_hxgen md then
           match md with
@@ -8231,10 +8231,10 @@ struct
   *)
   let priority = solve_deps name [DAfter UniversalBaseClass.priority]
 
-  let configure ?slow_invoke ctx =
+  let configure ?slow_invoke ctx baseinterface =
     let gen = ctx.rcf_gen in
     let run = (fun md -> match md with
-      | TClassDecl cl when is_hxgen md && ( not cl.cl_interface || Meta.has Meta.BaseInterface cl.cl_meta ) ->
+      | TClassDecl cl when is_hxgen md && ( not cl.cl_interface || cl.cl_path = baseinterface.cl_path ) ->
         (if Meta.has Meta.ReplaceReflection cl.cl_meta then replace_reflection ctx cl);
         (implement_dynamics ctx cl);
         (if not (PMap.mem (gen.gmk_internal_name "hx" "lookupField") cl.cl_fields) then implement_final_lookup ctx cl);
@@ -8448,7 +8448,6 @@ struct
             cf
         in
         cl.cl_statics <- PMap.add cf.cf_name cf cl.cl_statics;
-        cf.cf_meta <- (Meta.Alias, [ EConst( String (string_of_int old_i) ), pos ], pos) :: [];
         cf
       ) en.e_names in
       let constructs_cf = mk_class_field "constructs" (basic.tarray basic.tstring) true pos (Var { v_read = AccNormal; v_write = AccNormal }) [] in
