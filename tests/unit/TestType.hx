@@ -855,4 +855,9 @@ class TestType extends Test {
 		eq(func1(), "foo");
 		eq(s.test()(), "bar");
 	}
+	
+	function testAbstractTypeParameterVariance() {
+		var a:Array<unit.MyAbstract.MyInt> = [1, 2, 3];
+		var b:Array<unit.MyAbstract.MyInt2> = a;
+	}
 }
