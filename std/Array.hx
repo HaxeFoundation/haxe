@@ -62,7 +62,7 @@ extern class Array<T> {
 		[this] has exactly one element, the result is equal to a call to
 		Std.string(this[0]).
 		
-		If [a] is null, the result is unspecified.
+		If [sep] is null, the result is unspecified.
 	**/
 	function join( sep : String ) : String;
 
@@ -84,7 +84,7 @@ extern class Array<T> {
 		
 		This operation modifies [this] Array in place.
 		
-		[this].length will increase by 1.
+		[this].length increases by 1.
 	**/
 	function push(x : T) : Int;
 
