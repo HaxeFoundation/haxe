@@ -1000,8 +1000,8 @@ let inline_constructors ctx e =
 							match e.eexpr with
 							| TBlock el ->
 								List.iter get_assigns el
-							| TBinop (OpAssign, { eexpr = TField ({ eexpr = TLocal vv },FInstance(_,cf)) }, e) when v == vv ->
-								assigns := (cf.cf_name,e) :: !assigns
+							| TBinop (OpAssign, { eexpr = TField ({ eexpr = TLocal vv },FInstance(_,cf)); etype = t }, e) when v == vv ->
+								assigns := (cf.cf_name,e,t) :: !assigns
 							| _ ->
 								raise Exit
 						in
@@ -1030,8 +1030,8 @@ let inline_constructors ctx e =
 		e
 	else begin
 		let vfields = PMap.map (fun (v,assigns) ->
-			List.fold_left (fun (acc,map) (name,e) ->
-				let vf = alloc_var (v.v_name ^ "_" ^ name) e.etype in
+			List.fold_left (fun (acc,map) (name,e,t) ->
+				let vf = alloc_var (v.v_name ^ "_" ^ name) t in
 				((vf,e) :: acc, PMap.add name vf map)
 			) ([],PMap.empty) assigns
 		) vars in
