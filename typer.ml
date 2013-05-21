@@ -1355,7 +1355,7 @@ let unify_int ctx e k =
 		unify ctx e.etype ctx.t.tint e.epos;
 		true
 
-let type_generic_function ctx (e,cf) el p =
+let type_generic_function ctx (e,cf) el ?(using_param=None) p =
 	if cf.cf_params = [] then error "Function has no type parameters and cannot be generic" p;
 	let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
 	let c,stat = match follow e.etype with
@@ -1365,11 +1365,16 @@ let type_generic_function ctx (e,cf) el p =
 	in
 	let t = apply_params cf.cf_params monos cf.cf_type in
 	add_constraint_checks ctx c.cl_types [] cf monos p;
-	let args,ret = match t with
-		| TFun(args,ret) -> args,ret
+	let args,ret = match t,using_param with
+		| TFun((_,_,ta) :: args,ret),Some e ->
+			(* manually unify first argument *)
+			unify ctx e.etype ta p;
+			args,ret
+		| TFun(args,ret),None -> args,ret
 		| _ ->  error "Invalid field type for generic call" p
 	in
 	let el,_ = unify_call_params ctx None el args ret p false in
+	let el = match using_param with None -> el | Some e -> e :: el in
 	(try
 		let gctx = Codegen.make_generic ctx cf.cf_params monos p in
 		let name = cf.cf_name ^ "_" ^ gctx.Codegen.name in
@@ -3208,7 +3213,7 @@ and build_call ctx acc el (with_type:with_type) p =
 	| AKUsing (et,cl,ef,eparam) when Meta.has Meta.Generic ef.cf_meta ->
 		(match et.eexpr with
 		| TField(ec,_) ->
-			let el,t,e = type_generic_function ctx (ec,ef) (Interp.make_ast eparam :: el) p in
+			let el,t,e = type_generic_function ctx (ec,ef) el ~using_param:(Some eparam) p in
 			make_call ctx e el t p
 		| _ -> assert false)
 	| AKUsing (et,cl,ef,eparam) ->
