@@ -161,7 +161,11 @@ let make_module ctx mpath file tdecls loadp =
 						{ f with cff_name = "_new"; cff_access = AStatic :: f.cff_access; cff_kind = FFun fu; cff_meta = (Meta.Impl,[],p) :: f.cff_meta }
 					| FFun fu when not stat ->
 						if Meta.has Meta.From f.cff_meta then error "@:from cast functions must be static" f.cff_pos;
-						let fu = { fu with f_args = ("this",false,Some this_t,None) :: fu.f_args } in
+						let first = if List.mem AMacro f.cff_access
+							then CTPath ({ tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = Some ("ExprOf"); tparams = [TPType this_t] })
+							else this_t
+						in
+						let fu = { fu with f_args = ("this",false,Some first,None) :: fu.f_args } in
 						{ f with cff_kind = FFun fu; cff_access = AStatic :: f.cff_access; cff_meta = (Meta.Impl,[],p) :: f.cff_meta }
 					| _ ->
 						f

@@ -1215,7 +1215,7 @@ and type_field ctx e i p mode =
 				let t = field_type f in
 				begin match follow t with
 					| TFun((_,_,t1) :: _,_) ->
-						unify ctx (apply_params a.a_types pl a.a_this) t1 p
+						(match f.cf_kind with Method MethMacro -> () | _ -> unify ctx (apply_params a.a_types pl a.a_this) t1 p)
 					| _ ->
 						error (i ^ " cannot be called") p
 				end;
