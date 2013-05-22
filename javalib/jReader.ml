@@ -251,8 +251,8 @@ let parse_throws s =
     else if idx = len then acc, idx
     else match s.[idx] with
     | '^' ->
-      let tsig, l = parse_signature_part (String.sub s idx (len - idx)) in
-      loop (idx + l) (tsig :: acc)
+      let tsig, l = parse_signature_part (String.sub s (idx+1) (len - idx - 1)) in
+      loop (idx + l + 1) (tsig :: acc)
     | _ -> acc, idx
   in
   loop 0 []
@@ -262,7 +262,7 @@ let parse_complete_method_signature s =
     let len = String.length s in
     let tparams, i = parse_formal_type_params s in
     let sign, l = parse_signature_part (String.sub s i (len - i)) in
-    let throws, l2 = parse_throws (String.sub s l (len - l)) in
+    let throws, l2 = parse_throws (String.sub s (i+l) (len - i - l)) in
     if (i + l + l2) <> len then raise Exit;
 
     match sign with
