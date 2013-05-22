@@ -2849,7 +2849,7 @@ let normalize_jclass com cls =
           end
         ) cif.cmethods;
         List.iter (loop_interface abstract cif) cif.cinterfaces;
-    with Not_found _ -> ()
+    with Not_found -> ()
   in
   (* another pass: *)
   (* if List.mem JAbstract cls.cflags then List.iter loop_interface cls.cinterfaces; *)
