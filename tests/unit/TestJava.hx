@@ -50,7 +50,8 @@ class TestJava extends Test
 
 	function testGenerics()
 	{
-		t(haxe.test.GenericHelper.staticTypedGeneric(Base_InnerClass_InnerInnerClass) != null);
+		var jcl:java.lang.Class<Base_InnerClass_InnerInnerClass> = cast Base_InnerClass_InnerInnerClass;
+		t(haxe.test.GenericHelper.staticTypedGeneric(jcl) != null);
 
 		var helper = new haxe.test.GenericHelper();
 		//TODO use typedAs
