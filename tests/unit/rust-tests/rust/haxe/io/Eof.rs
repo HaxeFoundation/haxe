@@ -9,6 +9,6 @@ pub impl Eof {
 impl lib::HxObject for haxe::io::Eof {
 	
 	pub fn toString(&self) -> Option<~str> {
-		return Some(~"Eof")
+		return Some(~"Eof: { }")// Eof
 	}
 }

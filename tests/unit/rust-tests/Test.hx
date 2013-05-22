@@ -1,23 +1,13 @@
 import rust.StdTypes;
-using StringTools;
-interface STest {
-
-}
-class Test<V:STest> implements STest {
-	var value:V;
-	public function new(v:V) {
-		value = v;
+class Test {
+	public var val:Int;
+	public var tok:String;
+	function new(t:String) {
+		val = 40;
+		tok = t;
 	}
 	public static function main() {
-		var ot = new Test(null);
-		var t:Relation = {id: "Goodbye, world!", value: 23};
-		var oi:Int8 = 24;
-		oi += cast(5, Int8);
-
-		Sys.println("hello, world!"+t.value);
+		Sys.println(Std.string(new Test("Hallo")));
+		Sys.println("Hello, world!");
 	}
-}
-typedef Relation = {
-	id:String,
-	value:Int
 }

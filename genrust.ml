@@ -1293,7 +1293,12 @@ let generate_obj_impl ctx c =
 	if !tostrf then (
 		spr ctx "return self.toString()";
 	) else (
-		print ctx "return Some(~\"%s\")" (snd c.cl_path);
+		print ctx "return Some(~\"%s: { " (snd c.cl_path);
+		concat ctx ", " (fun f ->
+			print ctx "%s: \"+self.%s.toString()+\"" f.cf_name f.cf_name;
+		) obj_fields;
+		spr ctx "}\")";
+		print ctx "// %s" (snd c.cl_path);
 	);
 	tostr();
 	soft_newline ctx;

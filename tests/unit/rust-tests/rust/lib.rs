@@ -7,43 +7,43 @@ pub trait HxObject {
 impl<T> HxObject for BaseIter<T> {
 	
 	pub fn toString(&self) -> Option<~str> {
-		return Some(~"BaseIter")
+		return Some(~"BaseIter: { }")// BaseIter
 	}
 }
 impl HxObject for Clone {
 	
 	pub fn toString(&self) -> Option<~str> {
-		return Some(~"Clone")
+		return Some(~"Clone: { }")// Clone
 	}
 }
 impl HxObject for os::Pipe {
 	
 	pub fn toString(&self) -> Option<~str> {
-		return Some(~"Pipe")
+		return Some(~"Pipe: { pout: "+self.pout.toString()+", pin: "+self.pin.toString()+"}")// Pipe
 	}
 }
 impl HxObject for path::Path {
 	
 	pub fn toString(&self) -> Option<~str> {
-		return Some(~"Path")
+		return Some(~"Path: { components: "+self.components.toString()+", is_absolute: "+self.is_absolute.toString()+"}")// Path
 	}
 }
 impl HxObject for io::ReaderUtil {
 	
 	pub fn toString(&self) -> Option<~str> {
-		return Some(~"ReaderUtil")
+		return Some(~"ReaderUtil: { }")// ReaderUtil
 	}
 }
 impl HxObject for io::Reader {
 	
 	pub fn toString(&self) -> Option<~str> {
-		return Some(~"Reader")
+		return Some(~"Reader: { }")// Reader
 	}
 }
 impl HxObject for io::Writer {
 	
 	pub fn toString(&self) -> Option<~str> {
-		return Some(~"Writer")
+		return Some(~"Writer: { }")// Writer
 	}
 }
 impl HxObject for i8 {
