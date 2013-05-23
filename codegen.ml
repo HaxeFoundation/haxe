@@ -1340,7 +1340,6 @@ module Abstract = struct
 		let ethis = mk (TTypeExpr (TClassDecl c)) ta p in
 		let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
 		let map t = apply_params a.a_types pl (apply_params cf.cf_params monos t) in
-		(* TODO: temp RC fix for from-functions to infer type parameters *)
 		let tcf = match follow (map cf.cf_type),args with
 			| TFun((_,_,ta) :: args,r) as tf,e :: el when Meta.has Meta.From cf.cf_meta ->
 				unify ctx e.etype ta p;
@@ -1349,20 +1348,16 @@ module Abstract = struct
 		in
 		let def () =
 			let e = mk (TField (ethis,(FStatic (c,cf)))) tcf p in
-			mk (TCall(e,args)) (map t) p
+			loop ctx (mk (TCall(e,args)) (map t) p)
 		in
-		let e = match cf.cf_expr with
+		match cf.cf_expr with
 		| Some { eexpr = TFunction fd } when cf.cf_kind = Method MethInline ->
 			let config = if Meta.has Meta.Impl cf.cf_meta then (Some (a.a_types <> [] || cf.cf_params <> [], map)) else None in
 			(match Optimizer.type_inline ctx cf fd ethis args t config p true with
 				| Some e -> (match e.eexpr with TCast(e,None) -> e | _ -> e)
-				| None ->
-					def())
+				| None -> def())
 		| _ ->
 			def()
-		in
-		(* TODO: can this cause loops? *)
-		loop ctx e
 
 	and check_cast ctx tleft eright p =
 		let tright = follow eright.etype in

@@ -482,4 +482,9 @@ class TestBasetypes extends Test {
 		var as = new MyAbstract.MyAbstractThatCallsAMember(2);
 		eq(3, as);
 	}
+	
+	function testAbstractMultitypeInline() {
+		var a = new unit.MyAbstract.MySpecialString("My debugging abstract");
+		eq("debugging abstract", a.substr(3));
+	}
 }

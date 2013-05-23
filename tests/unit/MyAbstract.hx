@@ -285,3 +285,25 @@ abstract MyAbstractThatCallsAMember(Int) to Int {
 
 	inline function bar() this++;
 }
+
+abstract MyDebugString(String) to String {
+	public inline function new(s:String) {
+		this = s;
+	}
+	
+	public inline function substr(i:Int, ?len:Null<Int>) {
+		return this.substr(i);
+	}
+}
+
+@:multiType abstract MySpecialString(String) {
+	public function new(value:String);	
+
+	public inline function substr(i:Int, ?len:Int) {
+		return len == null ? this.substr(i) : this.substr(i, len);
+	}
+	
+	@:to static inline public function toNormal(t:String, value:String) {
+		return new MyDebugString(value);
+	}	
+}
