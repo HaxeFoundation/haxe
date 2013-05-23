@@ -33,7 +33,7 @@ using haxe.Int64;
 
 	public static inline function make( high : Int, low : Int ) : Int64
 	{
-		return ((cast(high, NativeInt64) << 32 ) | (cast(low, NativeInt64))).ofNative();
+		return ((cast(high, NativeInt64) << 32 ) | (low & untyped __cs__('0xffffffffL'))).ofNative();
 	}
 
 	public static inline function getLow( x : Int64 ) : Int
