@@ -2202,6 +2202,15 @@ let jname_to_hx name =
   (* handle with inner classes *)
   String.map (function | '$' -> '_' | c -> c) name
 
+let jpath_to_hx (pack,name) = match pack, name with
+  | ["haxe";"root"], name -> [], name
+  | "com" :: ("oracle" | "sun") :: _, _
+  | "javax" :: _, _
+  | "org" :: ("ietf" | "jcp" | "omg" | "w3c" | "xml") :: _, _
+  | "sun" :: _, _
+  | "sunw" :: _, _ -> "java" :: pack, jname_to_hx name
+  | pack, name -> pack, jname_to_hx name
+
 let hxname_to_j name =
   let name = String.implode (List.rev (String.explode name)) in
   let fl = String.nsplit name "__" in
@@ -2209,11 +2218,19 @@ let hxname_to_j name =
   let ret = String.concat "_" fl in
   String.implode (List.rev (String.explode ret))
 
+let hxpath_to_j (pack,name) = match pack, name with
+  | "java" :: "com" :: ("oracle" | "sun") :: _, _
+  | "java" :: "javax" :: _, _
+  | "java" :: "org" :: ("ietf" | "jcp" | "omg" | "w3c" | "xml") :: _, _
+  | "java" :: "sun" :: _, _
+  | "java" :: "sunw" :: _, _ -> List.tl pack, hxname_to_j name
+  | pack, name -> pack, hxname_to_j name
+
 let real_java_path ctx (pack,name) =
   path_s (pack, name)
 
 let lookup_jclass com path =
-  let path = fst path, jname_to_hx (snd path) in
+  let path = jpath_to_hx path in
   List.fold_right (fun (_,_,_,_,get_raw_class) acc ->
     match acc with
     | None -> get_raw_class path
@@ -2223,12 +2240,12 @@ let lookup_jclass com path =
 let mk_type_path ctx path params =
   let name, sub = try
     let p, _ = String.split (snd path) "$" in
-    p, Some (jname_to_hx (snd path))
+    jname_to_hx p, Some (jname_to_hx (snd path))
   with | Invalid_string ->
     jname_to_hx (snd path), None
   in
   CTPath {
-    tpackage = fst path;
+    tpackage = fst (jpath_to_hx path);
     tname = name;
     tparams = params;
     tsub = sub;
@@ -2921,7 +2938,8 @@ let rec get_classes_dir pack dir ret =
     | S_DIR ->
         get_classes_dir (pack @ [f]) (dir ^"/"^ f) ret
     | _ when (String.sub (String.uncapitalize f) (String.length f - 6) 6) = ".class" ->
-        ret := (pack, jname_to_hx f) :: !ret;
+        let path = jpath_to_hx (pack,f) in
+        ret := path :: !ret;
     | _ -> ()
   ) (Sys.readdir dir)
 
@@ -2931,7 +2949,8 @@ let get_classes_zip zip =
     | { Zip.is_directory = false; Zip.filename = f } when (String.sub (String.uncapitalize f) (String.length f - 6) 6) = ".class" ->
         (match List.rev (String.nsplit f "/") with
         | clsname :: pack ->
-            ret := (List.rev pack, jname_to_hx clsname) :: !ret
+            let path = jpath_to_hx (List.rev pack, clsname) in
+            ret := path :: !ret
         | _ ->
             ret := ([], jname_to_hx f) :: !ret)
     | _ -> ()
@@ -2949,7 +2968,7 @@ let add_java_lib com file std =
     match (Unix.stat file).st_kind with
     | S_DIR -> (* open classes directly from directory *)
       (fun (pack, name) ->
-        let name = hxname_to_j name in
+        let pack, name = hxpath_to_j (pack,name) in
         let real_path = file ^ "/" ^ (String.concat "/" pack) ^ "/" ^ (name ^ ".class") in
         try
           let data = Std.input_file ~bin:true real_path in
@@ -2969,7 +2988,7 @@ let add_java_lib com file std =
         end
       in
       (fun (pack, name) ->
-        let name = hxname_to_j name in
+        let pack, name = hxpath_to_j (pack,name) in
         check_open();
         try
           let location = (String.concat "/" (pack @ [name]) ^ ".class") in
@@ -3015,8 +3034,9 @@ let add_java_lib com file std =
 
             let pack = match fst path with | ["haxe";"root"] -> [] | p -> p in
 
-            let ppath = path in
+            let ppath = hxpath_to_j path in
             let inner = List.fold_left (fun acc (path,out,_,_) ->
+              let path = jpath_to_hx path in
               (if out <> Some ppath then
                 acc
               else match build ctx path p types with
