@@ -1555,10 +1555,18 @@ let init_class ctx c p context_init herits fields =
 						(try unify_raise ctx t (tfun [m] ta) f.cff_pos with Error (Unify l,p) -> error (error_msg (Unify l)) p);
 						a.a_from <- (follow m, Some cf) :: a.a_from
 					end else if Meta.has Meta.To f.cff_meta then begin
+						let args = if Meta.has Meta.MultiType a.a_meta then begin
+							(* the return type of multitype @:to functions must unify with a_this *)
+							delay ctx PFinal (fun () -> unify ctx m tthis f.cff_pos);
+							(* the arguments must be compatible with the original constructor, which we have to find at this point *)
+							try (match follow (monomorphs a.a_types (PMap.find "_new" c.cl_statics).cf_type) with
+								| TFun(args,_) -> List.map (fun (_,_,t) -> t) args
+								| _ -> assert false)
+							with Not_found ->
+								error "Constructor of multi-type abstract must be defined before the individual @:to-functions are" cf.cf_pos
+						end else [] in
 						(* the first argument of a to-function must be the underlying type, not the abstract *)
-						(try unify_raise ctx t (tfun [tthis] m) f.cff_pos with Error (Unify l,p) -> error (error_msg (Unify l)) p);
-						(* multitype @:to functions must unify with a_this *)
-						if Meta.has Meta.MultiType a.a_meta then delay ctx PFinal (fun () -> unify ctx m tthis f.cff_pos);
+						(try unify_raise ctx t (tfun (tthis :: args) m) f.cff_pos with Error (Unify l,p) -> error (error_msg (Unify l)) p);
 						if not (Meta.has Meta.Impl cf.cf_meta) then cf.cf_meta <- (Meta.Impl,[],cf.cf_pos) :: cf.cf_meta;
 						a.a_to <- (follow m, Some cf) :: a.a_to
 					end else if Meta.has Meta.ArrayAccess f.cff_meta then begin
