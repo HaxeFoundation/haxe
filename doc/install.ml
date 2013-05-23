@@ -116,7 +116,7 @@ let compile_libs() =
 
 	(* JAVALIB *)
 	Sys.chdir "javalib";
-	let files = "-I .. jData.mli jReader.ml" in
+	let files = "-I .. jData.ml jReader.ml" in
 	if bytecode then command ("ocamlc -a -o java.cma " ^ files);
 	if native then command ("ocamlopt -a -o java.cmxa " ^ files);
 	Sys.chdir "..";
