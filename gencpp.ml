@@ -385,6 +385,10 @@ let cant_be_null type_string =
    is_numeric type_string
 ;;
 
+let is_object type_string =
+   not (is_numeric type_string || type_string="::String");
+;;
+
 
 (*  Get a string to represent a type.
 	 The "suffix" will be nothing or "_obj", depending if we want the name of the
@@ -998,7 +1002,7 @@ and is_dynamic_member_lookup_in_cpp ctx field_object member =
 				with Not_found -> true
    )
 and is_dynamic_member_return_in_cpp ctx field_object member =
-	if (is_array field_object.etype) then member="map" else
+	if (is_array field_object.etype) then false else
 	if (is_internal_member member) then false else
    match field_object.eexpr with
    | TTypeExpr t ->
@@ -1450,7 +1454,7 @@ and gen_expression ctx retval expression =
 	let gen_array_cast cast_name real_type call =
      output (cast_name ^ "< " ^ real_type ^ " >" ^ call)
    in
-	let rec check_array_cast array_type cast_name call =
+	let rec check_array_element_cast array_type cast_name call =
 	   match follow array_type with
 	   | TInst (klass,[element]) ->
          ( match type_string element with
@@ -1459,9 +1463,22 @@ and gen_expression ctx retval expression =
            | real_type -> gen_array_cast cast_name real_type call
          )
 	   | TAbstract (abs,pl) when abs.a_impl <> None ->
-		   check_array_cast (Codegen.Abstract.get_underlying_type abs pl) cast_name call
+		   check_array_element_cast (Codegen.Abstract.get_underlying_type abs pl) cast_name call
       | _ -> ()
    in
+	let rec check_array_cast array_type =
+	   match follow array_type with
+	   | TInst (klass,[element]) ->
+         let name = type_string element in
+         if ( is_object name ) then
+            gen_array_cast ".StaticCast" "Array<Dynamic>" "()"
+         else
+            gen_array_cast ".StaticCast" (type_string array_type) "()"
+	   | TAbstract (abs,pl) when abs.a_impl <> None ->
+		   check_array_cast (Codegen.Abstract.get_underlying_type abs pl)
+      | _ -> ()
+   in
+	
 	let rec gen_tfield field_object field =
       let member = (field_name field) in
 		let remap_name = keyword_remap member in
@@ -1501,7 +1518,7 @@ and gen_expression ctx retval expression =
                cast_if_required ctx field_object (type_string field_object.etype);
                output ( "->" ^ remap_name );
                if (calling && (is_array field_object.etype) && remap_name="iterator" ) then
-                  check_array_cast field_object.etype "Fast" "";
+                  check_array_element_cast field_object.etype "Fast" "";
 
                already_dynamic := (match field with
                   | FInstance(_,var) when is_var_field var -> true
@@ -1605,7 +1622,8 @@ and gen_expression ctx retval expression =
          match func.eexpr with
             | TField(obj,field) when is_array obj.etype ->
                (match field_name field with
-                  | "pop" | "shift" -> check_array_cast obj.etype ".StaticCast" "()"
+                  | "pop" | "shift" -> check_array_element_cast obj.etype ".StaticCast" "()"
+                  | "map" -> check_array_cast expression.etype
                   | _ -> ()
                )
             | TParenthesis p -> cast_array_output p
@@ -1710,7 +1728,7 @@ and gen_expression ctx retval expression =
 			output "->__get(";
 			gen_expression ctx true index;
 			output ")";
-			check_array_cast array_expr.etype ".StaticCast" "()";
+			check_array_element_cast array_expr.etype ".StaticCast" "()";
 		end
 	(* Get precidence matching haxe ? *)
 	| TBinop (op,expr1,expr2) -> gen_bin_op op expr1 expr2
