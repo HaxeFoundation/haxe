@@ -4616,6 +4616,25 @@ struct
       | TBlock _ -> expr (* there is no expected expression here. Only statements *)
       | _ -> assert false (* we only expect valid statements here. other expressions aren't valid statements *)
 
+  let is_expr = function | Expression _ -> true | _ -> false
+
+  let aggregate_expr_type map_fn side_effects_free children =
+    let rec loop acc children =
+      match children with
+        | [] -> acc
+        | hd :: children ->
+          match acc, map_fn hd with
+            | _, KExprWithStatement
+            | _, KStatement
+            | KExprWithStatement, _
+            | KStatement, _ -> KExprWithStatement
+            | KNormalExpr, KNoSideEffects
+            | KNoSideEffects, KNormalExpr
+            | KNormalExpr, KNormalExpr -> loop KNormalExpr children
+            | KNoSideEffects, KNoSideEffects -> loop KNoSideEffects children
+    in
+    loop (if side_effects_free then KNoSideEffects else KNormalExpr) children
+
   (* statements: *)
   (* Error CS0201: Only assignment, call, increment,           *)
   (* decrement, and new object expressions can be used as a    *)
@@ -4628,7 +4647,9 @@ struct
       | TUnop (Ast.Decrement, _, _)
       | TBinop (Ast.OpAssign, _, _)
       | TBinop (Ast.OpAssignOp _, _, _) -> Both expr
-      | TIf (cond, eif, Some(eelse)) when (shallow_expr_type eif <> Statement) && (shallow_expr_type eelse <> Statement) -> Both expr
+      | TIf (cond, eif, Some(eelse)) -> (match aggregate_expr_type expr_kind true [cond;eif;eelse] with
+        | KExprWithStatement -> Statement
+        | _ -> Both expr)
       | TConst _
       | TLocal _
       | TArray _
@@ -4656,24 +4677,7 @@ struct
       | TIf _
       | TThrow _ -> Statement
 
-  let aggregate_expr_type map_fn side_effects_free children =
-    let rec loop acc children =
-      match children with
-        | [] -> acc
-        | hd :: children ->
-          match acc, map_fn hd with
-            | _, KExprWithStatement
-            | _, KStatement
-            | KExprWithStatement, _
-            | KStatement, _ -> KExprWithStatement
-            | KNormalExpr, KNoSideEffects
-            | KNoSideEffects, KNormalExpr
-            | KNormalExpr, KNormalExpr -> loop KNormalExpr children
-            | KNoSideEffects, KNoSideEffects -> loop KNoSideEffects children
-    in
-    loop (if side_effects_free then KNoSideEffects else KNormalExpr) children
-
-  let rec expr_kind expr =
+  and expr_kind expr =
     match shallow_expr_type expr with
       | Statement -> KStatement
       | Both expr | Expression expr ->
