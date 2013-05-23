@@ -49,11 +49,12 @@ abstract Map<K,V>(IMap<K,V> ) {
 		
 		This becomes a constructor call to one of the specialization types in
 		the output. The rules for that are as follows:
-			1. if K is a String, haxe.ds.StringMap is used
-			2. if K is an Int, haxe.ds.IntMap is used
-			3. if K is an enum, haxe.ds.EnumValueMap is used
-			4. if K is any other class or structure, haxe.ds.ObjectMap is used
-			5. if K is any other type, it causes a compile-time error
+		
+		1. if K is a String, haxe.ds.StringMap is used
+		2. if K is an Int, haxe.ds.IntMap is used
+		3. if K is an enum, haxe.ds.EnumValueMap is used
+		4. if K is any other class or structure, haxe.ds.ObjectMap is used
+		5. if K is any other type, it causes a compile-time error
 			
 		(Cpp) Map does not use weak keys on ObjectMap by default.
 	**/
@@ -74,8 +75,10 @@ abstract Map<K,V>(IMap<K,V> ) {
 		If no such mapping exists, null is returned.
 		
 		Note that a check like map.get(key) == null can hold for two reasons:
-			1. the map has no mapping for [key]
-			2. the map has a mapping with a value of null
+		
+		1. the map has no mapping for [key]
+		2. the map has a mapping with a value of null
+		
 		If it is important to distinguish these cases, exists() should be used.
 		
 		If [key] is null, the result is unspecified.
