@@ -989,7 +989,7 @@ let inline_constructors ctx e =
 			Type.iter find_locals e;
 			List.iter (fun (v,e) ->
 				match e with
-				| Some ({ eexpr = TNew ({ cl_constructor = Some ({ cf_kind = Method MethInline; cf_expr = Some { eexpr = TFunction f } } as cst) },_,pl) } as n) ->
+				| Some ({ eexpr = TNew ({ cl_constructor = Some ({ cf_kind = Method MethInline; cf_expr = Some { eexpr = TFunction f } } as cst) } as c,_,pl) } as n) ->
 					(* inline the constructor *)
 					(match (try type_inline ctx cst f (mk (TLocal v) v.v_type n.epos) pl v.v_type None n.epos true with Error (Custom _,_) -> None) with
 					| None -> ()
@@ -1008,7 +1008,7 @@ let inline_constructors ctx e =
 						try
 							get_assigns ecst;
 							(* mark variable as candidate for inlining *)
-							vars := PMap.add v.v_id (v,List.rev !assigns) !vars;
+							vars := PMap.add v.v_id (v,List.rev !assigns,c.cl_extern || Meta.has Meta.Extern cst.cf_meta,n.epos) !vars;
 							v.v_id <- -v.v_id; (* mark *)
 							(* recurse with the constructor code which will be inlined here *)
 							find_locals ecst
@@ -1020,6 +1020,12 @@ let inline_constructors ctx e =
 			()
 		| TLocal v when v.v_id < 0 ->
 			v.v_id <- -v.v_id;
+			(* error if the constructor is extern *)
+			(match PMap.find v.v_id !vars with
+			| _,_,true,p ->
+				display_error ctx "Extern constructor could not be inlined" p;
+				error "Variable is used here" e.epos
+			| _ -> ());
 			vars := PMap.remove v.v_id !vars;
 		| _ ->
 			Type.iter find_locals e
@@ -1029,7 +1035,7 @@ let inline_constructors ctx e =
 	if PMap.is_empty vars then
 		e
 	else begin
-		let vfields = PMap.map (fun (v,assigns) ->
+		let vfields = PMap.map (fun (v,assigns,_,_) ->
 			List.fold_left (fun (acc,map) (name,e,t) ->
 				let vf = alloc_var (v.v_name ^ "_" ^ name) t in
 				((vf,e) :: acc, PMap.add name vf map)
@@ -1062,7 +1068,7 @@ let inline_constructors ctx e =
 				Type.map_expr subst e
 		in
 		let e = (try subst e with Not_found -> assert false) in
-		PMap.iter (fun _ (v,_) -> v.v_id <- -v.v_id) vars;
+		PMap.iter (fun _ (v,_,_,_) -> v.v_id <- -v.v_id) vars;
 		e
 	end
 
