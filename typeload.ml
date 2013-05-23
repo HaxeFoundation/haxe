@@ -161,11 +161,7 @@ let make_module ctx mpath file tdecls loadp =
 						{ f with cff_name = "_new"; cff_access = AStatic :: f.cff_access; cff_kind = FFun fu; cff_meta = (Meta.Impl,[],p) :: f.cff_meta }
 					| FFun fu when not stat ->
 						if Meta.has Meta.From f.cff_meta then error "@:from cast functions must be static" f.cff_pos;
-						let first = if List.mem AMacro f.cff_access
-							then CTPath ({ tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = Some ("ExprOf"); tparams = [TPType this_t] })
-							else this_t
-						in
-						let fu = { fu with f_args = ("this",false,Some first,None) :: fu.f_args } in
+						let fu = { fu with f_args = ("this",false,Some this_t,None) :: fu.f_args } in
 						{ f with cff_kind = FFun fu; cff_access = AStatic :: f.cff_access; cff_meta = (Meta.Impl,[],p) :: f.cff_meta }
 					| _ ->
 						f
@@ -643,23 +639,6 @@ let copy_meta meta_src meta_target sl =
 	) meta_src;
 	!meta
 
-(** retrieves all overloads from class c and field i, as (Type.t * tclass_field) list *)
-let rec get_overloads c i =
-	let ret = try
-			let f = PMap.find i c.cl_fields in
-			List.filter (fun (_,f) -> not (List.memq f c.cl_overrides)) ((f.cf_type, f) :: (List.map (fun f -> f.cf_type, f) f.cf_overloads))
-		with | Not_found -> []
-	in
-	match c.cl_super with
-	| None when c.cl_interface ->
-			let ifaces = List.concat (List.map (fun (c,tl) ->
-				List.map (fun (t,f) -> apply_params c.cl_types tl t, f) (get_overloads c i)
-			) c.cl_implements) in
-			ret @ ifaces
-	| None -> ret
-	| Some (c,tl) ->
-			ret @ ( List.map (fun (t,f) -> apply_params c.cl_types tl t, f) (get_overloads c i) )
-
 let same_overload_args t1 t2 f1 f2 =
   if List.length f1.cf_params <> List.length f2.cf_params then
     false
@@ -695,6 +674,25 @@ let same_overload_args t1 t2 f1 f2 =
       with | Invalid_argument("List.for_all2") ->
         false)
     | _ -> assert false
+
+(** retrieves all overloads from class c and field i, as (Type.t * tclass_field) list *)
+let rec get_overloads c i =
+	let ret = try
+			let f = PMap.find i c.cl_fields in
+			(f.cf_type, f) :: (List.map (fun f -> f.cf_type, f) f.cf_overloads)
+		with | Not_found -> []
+	in
+	let rsup = match c.cl_super with
+	| None when c.cl_interface ->
+			let ifaces = List.concat (List.map (fun (c,tl) ->
+				List.map (fun (t,f) -> apply_params c.cl_types tl t, f) (get_overloads c i)
+			) c.cl_implements) in
+			ret @ ifaces
+	| None -> ret
+	| Some (c,tl) ->
+			ret @ ( List.map (fun (t,f) -> apply_params c.cl_types tl t, f) (get_overloads c i) )
+	in
+	ret @ (List.filter (fun (t,f) -> not (List.exists (fun (t2,f2) -> same_overload_args t t2 f f2) ret)) rsup)
 
 let check_overloads ctx c =
 	(* check if field with same signature was declared more than once *)

@@ -1419,7 +1419,7 @@ let configure gen =
         let modifiers = modifiers @ modf in
         let visibility, is_virtual = if is_explicit_iface then "",false else visibility, is_virtual in
         let v_n = if is_static then "static " else if is_override && not is_interface then "override " else if is_virtual then "virtual " else "" in
-        let cf_type = if is_override && not is_overload && not (Meta.has Meta.Overload cf.cf_meta) then match field_access gen (TInst(cl, List.map snd cl.cl_types)) cf.cf_name with | FClassField(_,_,_,_,_,actual_t) -> actual_t | _ -> assert false else cf.cf_type in
+        let cf_type = if is_override && not is_overload && not (Meta.has Meta.Overload cf.cf_meta) then match field_access gen (TInst(cl, List.map snd cl.cl_types)) cf.cf_name with | FClassField(_,_,_,_,_,actual_t,_) -> actual_t | _ -> assert false else cf.cf_type in
         let ret_type, args = match follow cf_type with | TFun (strbtl, t) -> (t, strbtl) | _ -> assert false in
 
         (* public static void funcName *)
@@ -2075,7 +2075,7 @@ let configure gen =
 
   let is_null_expr e = is_null e.etype || match e.eexpr with
     | TField(tf, f) -> (match field_access gen (real_type tf.etype) (field_name f) with
-      | FClassField(_,_,_,_,_,actual_t) -> is_null actual_t
+      | FClassField(_,_,_,_,_,actual_t,_) -> is_null actual_t
       | _ -> false)
     | _ -> false
   in

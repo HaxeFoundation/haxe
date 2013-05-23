@@ -1208,7 +1208,7 @@ let mk_class m path pos =
   cl
 
 type tfield_access =
-  | FClassField of tclass * tparams * tclass (* declared class *) * tclass_field * bool (* is static? *) * t (* the actual cf type, in relation to the class type params *)
+  | FClassField of tclass * tparams * tclass (* declared class *) * tclass_field * bool (* is static? *) * t (* the actual cf type, in relation to the class type params *) * t (* declared type *)
   | FEnumField of tenum * tenum_field * bool (* is parameterized enum ? *)
   | FAnonField of tclass_field
   | FDynamicField of t
@@ -1285,7 +1285,7 @@ let field_access gen (t:t) (field:string) : (tfield_access) =
       let not_found () =
         try
           let cf = PMap.find field gen.gbase_class_fields in
-          FClassField (orig_cl, orig_params, gen.gclasses.cl_dyn, cf, false, cf.cf_type)
+          FClassField (orig_cl, orig_params, gen.gclasses.cl_dyn, cf, false, cf.cf_type, cf.cf_type)
         with
           | Not_found -> not_found cl params
       in
@@ -1305,37 +1305,37 @@ let field_access gen (t:t) (field:string) : (tfield_access) =
       in
       (match types with
           | None -> not_found()
-          | Some (cf, actual_t, _, declared_cl) ->
-            FClassField(orig_cl, orig_params, declared_cl, cf, false, actual_t))
+          | Some (cf, actual_t, declared_t, declared_cl) ->
+            FClassField(orig_cl, orig_params, declared_cl, cf, false, actual_t, declared_t))
     | TEnum _ | TAbstract _ ->
       (* enums have no field *) FNotFound
     | TAnon anon ->
       (try match !(anon.a_status) with
         | Statics cl ->
           let cf = PMap.find field cl.cl_statics in
-          FClassField(cl, List.map (fun _ -> t_dynamic) cl.cl_types, cl, cf, true, cf.cf_type)
+          FClassField(cl, List.map (fun _ -> t_dynamic) cl.cl_types, cl, cf, true, cf.cf_type, cf.cf_type)
         | EnumStatics e ->
           let f = PMap.find field e.e_constrs in
           let is_param = match follow f.ef_type with | TFun _ -> true | _ -> false in
           FEnumField(e, f, is_param)
         | _ when PMap.mem field gen.gbase_class_fields ->
           let cf = PMap.find field gen.gbase_class_fields in
-          FClassField(gen.gclasses.cl_dyn, [t_dynamic], gen.gclasses.cl_dyn, cf, false, cf.cf_type)
+          FClassField(gen.gclasses.cl_dyn, [t_dynamic], gen.gclasses.cl_dyn, cf, false, cf.cf_type, cf.cf_type)
         | _ ->
           FAnonField(PMap.find field anon.a_fields)
       with | Not_found -> FNotFound)
     | _ when PMap.mem field gen.gbase_class_fields ->
       let cf = PMap.find field gen.gbase_class_fields in
-      FClassField(gen.gclasses.cl_dyn, [t_dynamic], gen.gclasses.cl_dyn, cf, false, cf.cf_type)
+      FClassField(gen.gclasses.cl_dyn, [t_dynamic], gen.gclasses.cl_dyn, cf, false, cf.cf_type, cf.cf_type)
     | TDynamic t -> FDynamicField t
     | TMono _ -> FDynamicField t_dynamic
     | _ -> FNotFound
 
 let mk_field_access gen expr field pos =
   match field_access gen expr.etype field with
-    | FClassField(c,p,dc,cf,false,at) ->
+    | FClassField(c,p,dc,cf,false,at,_) ->
         { eexpr = TField(expr, FInstance(dc,cf)); etype = apply_params c.cl_types p at; epos = pos }
-    | FClassField(c,p,dc,cf,true,at) ->
+    | FClassField(c,p,dc,cf,true,at,_) ->
         { eexpr = TField(expr, FStatic(dc,cf)); etype = at; epos = pos }
     | FAnonField cf ->
         { eexpr = TField(expr, FAnon cf); etype = cf.cf_type; epos = pos }
@@ -2279,7 +2279,7 @@ struct
               )
           | TField(({ eexpr = TTypeExpr _ } as tf), f) ->
             (match field_access gen tf.etype (field_name f) with
-              | FClassField(_,_,_,cf,_,_) ->
+              | FClassField(_,_,_,cf,_,_,_) ->
                 (match cf.cf_kind with
                   | Method(MethDynamic)
                   | Var _ ->
@@ -2396,7 +2396,7 @@ struct
           change_expr e (run fexpr) (field_name f) (Some (run evalue)) true
         | TBinop(OpAssign, { eexpr = TField(fexpr, f) }, evalue) ->
             (match field_access gen fexpr.etype (field_name f) with
-              | FClassField(_,_,_,cf,false,t) when (try PMap.find cf.cf_name gen.gbase_class_fields == cf with Not_found -> false) ->
+              | FClassField(_,_,_,cf,false,t,_) when (try PMap.find cf.cf_name gen.gbase_class_fields == cf with Not_found -> false) ->
                   change_expr e (run fexpr) (field_name f) (Some (run evalue)) true
               | _ -> Type.map_expr run e
             )
@@ -2749,7 +2749,7 @@ struct
           (* check to see if called field is known and if it is a MethNormal (only MethNormal fields can be called directly) *)
           let name = field_name f in
           (match field_access gen (gen.greal_type ecl.etype) name with
-            | FClassField(_,_,_,cf,_,_) ->
+            | FClassField(_,_,_,cf,_,_,_) ->
               (match cf.cf_kind with
                 | Method MethNormal
                 | Method MethInline ->
@@ -5211,7 +5211,7 @@ struct
         | TBinop ( (Ast.OpAssign as op),({ eexpr = TField(tf, f) } as e1), e2 )
         | TBinop ( (Ast.OpAssignOp _ as op),({ eexpr = TField(tf, f) } as e1), e2 ) ->
           (match field_access gen (gen.greal_type tf.etype) (field_name f) with
-            | FClassField(cl,params,_,_,is_static,actual_t) ->
+            | FClassField(cl,params,_,_,is_static,actual_t,_) ->
               let actual_t = if is_static then actual_t else apply_params cl.cl_types params actual_t in
               let e1 = extract_expr (run e1) in
               { e with eexpr = TBinop(op, e1, handle (run e2) actual_t e2.etype); etype = e1.etype }
@@ -5727,7 +5727,7 @@ struct
     let real_type = gen.greal_type ef.etype in
     (* this part was rewritten at roughly r6477 in order to correctly support overloads *)
     (match field_access gen real_type (field_name f) with
-    | FClassField (cl, params, _, cf, is_static, actual_t) when e <> None && (cf.cf_kind = Method MethNormal || cf.cf_kind = Method MethInline) ->
+    | FClassField (cl, params, _, cf, is_static, actual_t, declared_t) when e <> None && (cf.cf_kind = Method MethNormal || cf.cf_kind = Method MethInline) ->
         (* C# target changes params with a real_type function *)
         let params = match follow clean_ef.etype with
         | TInst(_,params) -> params
@@ -5738,13 +5738,7 @@ struct
         let cf, actual_t, error = match is_overload with
           | false ->
               (* since actual_t from FClassField already applies greal_type, we're using the get_overloads helper to get this info *)
-              let overloads = Typeload.get_overloads cl (field_name f) in
-              (match overloads with
-              | [] -> cf, cf.cf_type, false
-              | _ -> try
-                  let t, cf = List.find (fun (t,f) -> f == cf) overloads in
-                  cf,t,false
-                  with | Not_found -> cf,actual_t,true)
+              cf,declared_t,false
           | true ->
           let (cf, actual_t, error), is_static = match f with
             | FInstance(c,cf) | FClosure(Some c,cf) ->
@@ -5827,11 +5821,11 @@ struct
           let new_ecall = if fparams <> [] then gen.gparam_func_call new_ecall { e1 with eexpr = TField(!ef, f) } fparams elist else new_ecall in
           handle_cast gen new_ecall (gen.greal_type ecall.etype) (gen.greal_type ret_ft)
         end
-    | FClassField (cl,params,_,{ cf_kind = (Method MethDynamic | Var _) },_,actual_t) ->
+    | FClassField (cl,params,_,{ cf_kind = (Method MethDynamic | Var _) },_,actual_t,_) ->
       (* if it's a var, we will just try to apply the class parameters that have been changed with greal_type_param *)
       let t = apply_params cl.cl_types (gen.greal_type_param (TClassDecl cl) params) (gen.greal_type actual_t) in
       return_var (handle_cast gen { e1 with eexpr = TField(ef, f) } (gen.greal_type e1.etype) (gen.greal_type t))
-    | FClassField (cl,params,_,cf,_,actual_t) ->
+    | FClassField (cl,params,_,cf,_,actual_t,_) ->
       return_var (handle_cast gen { e1 with eexpr = TField({ ef with etype = t_dynamic }, f) } e1.etype t_dynamic) (* force dynamic and cast back to needed type *)
     | FEnumField (en, efield, true) ->
       let ecall = match e with | None -> trace (field_name f); trace efield.ef_name; gen.gcon.error "This field should be called immediately" ef.epos; assert false | Some ecall -> ecall in
@@ -10017,23 +10011,24 @@ struct
             let real_ftype = get_real_fun gen (apply_params iface.cl_types real_itl f.cf_type) in
             replace_mono real_ftype;
             let overloads = Typeload.get_overloads c f.cf_name in
-            (* if we find a function with the exact type of real_ftype, it means this interface has already been taken care of *)
-            if not (List.exists (fun (t,f2) -> replace_mono t; type_iseq (get_real_fun gen (apply_params f2.cf_params (List.map snd f.cf_params) t)) real_ftype) overloads) then
-              try
+            try
+              let t2, f2 =
+                match overloads with
+                | (_, cf) :: _ when Meta.has Meta.Overload cf.cf_meta -> (* overloaded function *)
+                  (* try to find exact function *)
+                  List.find (fun (t,f2) ->
+                    Typeload.same_overload_args ftype t f f2
+                  ) overloads
+                | _ :: _ ->
+                  (match field_access gen (TInst(c, List.map snd c.cl_types)) f.cf_name with
+                  | FClassField(_,_,_,f2,false,t,_) -> t,f2 (* if it's not an overload, all functions should have the same signature *)
+                  | _ -> raise Not_found)
+                | [] -> raise Not_found
+              in
+              replace_mono t2;
+              (* if we find a function with the exact type of real_ftype, it means this interface has already been taken care of *)
+              if not (type_iseq (get_real_fun gen (apply_params f2.cf_params (List.map snd f.cf_params) t2)) real_ftype) then begin
                 (match f.cf_kind with | Method (MethNormal | MethInline) -> () | _ -> raise Not_found);
-                let t2, f2 =
-                  match overloads with
-                  | (_, cf) :: _ when Meta.has Meta.Overload cf.cf_meta -> (* overloaded function *)
-                    (* try to find exact function *)
-                    List.find (fun (t,f2) ->
-                      Typeload.same_overload_args ftype t f f2
-                    ) overloads
-                  | _ :: _ ->
-                    (match field_access gen (TInst(c, List.map snd c.cl_types)) f.cf_name with
-                    | FClassField(_,_,_,f2,false,t) -> t,f2 (* if it's not an overload, all functions should have the same signature *)
-                    | _ -> raise Not_found)
-                  | [] -> raise Not_found
-                in
                 let t2 = get_real_fun gen t2 in
                 if List.length f.cf_params <> List.length f2.cf_params then raise Not_found;
                 replace_mono t2;
@@ -10061,7 +10056,7 @@ struct
                         f2.cf_expr <- Some { e with eexpr = TFunction { tf with tf_type = newr } }
                     | _ -> ())
                   end
-               | TFun(a1,r1), TFun(a2,r2) ->
+                | TFun(a1,r1), TFun(a2,r2) ->
                   (* just implement a function that will call the main one *)
                   let name, is_explicit = match explicit_fn_name with
                     | Some fn when not (type_iseq r1 r2) && Typeload.same_overload_args real_ftype t2 f f2 ->
@@ -10103,7 +10098,8 @@ struct
                   (* gen.gafter_filters_ended <- delay :: gen.gafter_filters_ended *)
                   delay();
                 | _ -> assert false
-              with | Not_found -> ()
+              end
+            with | Not_found -> ()
           in
           List.iter loop_f iface.cl_ordered_fields
         in

@@ -1486,7 +1486,7 @@ let configure gen =
         let visibility, modifiers = get_fun_modifiers cf.cf_meta visibility [] in
         let visibility, is_virtual = if is_explicit_iface then "",false else visibility, is_virtual in
         let v_n = if is_static then "static " else if is_override && not is_interface then "" else if not is_virtual then "final " else "" in
-        let cf_type = if is_override && not is_overload && not (Meta.has Meta.Overload cf.cf_meta) then match field_access gen (TInst(cl, List.map snd cl.cl_types)) cf.cf_name with | FClassField(_,_,_,_,_,actual_t) -> actual_t | _ -> assert false else cf.cf_type in
+        let cf_type = if is_override && not is_overload && not (Meta.has Meta.Overload cf.cf_meta) then match field_access gen (TInst(cl, List.map snd cl.cl_types)) cf.cf_name with | FClassField(_,_,_,_,_,actual_t,_) -> actual_t | _ -> assert false else cf.cf_type in
 
         let params = List.map snd cl.cl_types in
         let ret_type, args = match follow cf_type, follow cf.cf_type with
@@ -1890,7 +1890,7 @@ let configure gen =
 
   let field_is_dynamic t field =
     match field_access gen (gen.greal_type t) field with
-      | FClassField (cl,p,_,_,_,t) ->
+      | FClassField (cl,p,_,_,_,t,_) ->
         is_dynamic (apply_params cl.cl_types p t)
       | FEnumField _ -> false
       | _ -> true
