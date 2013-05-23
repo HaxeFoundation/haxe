@@ -29,7 +29,7 @@ extern class Reflect {
 		Tells if structure [o] has a field named [field].
 		
 		This is only guaranteed to work for anonymous structures. Refer to
-		[Type.getInstanceFields()] for a function supporting class instances.
+		[Type.getInstanceFields] for a function supporting class instances.
 		
 		If [o] or [field] are null, the result is unspecified.
 	**/
@@ -42,7 +42,7 @@ extern class Reflect {
 		null.
 		
 		If the field is defined as a property, its accessors are ignored. Refer
-		to [Reflect.getProperty()] for a function supporting property accessors.
+		to [Reflect.getProperty] for a function supporting property accessors.
 		
 		If [field] is null, the result is unspecified.
 	**/
@@ -111,7 +111,7 @@ extern class Reflect {
 		This function is only defined if [a] and [b] are of the same type.
 		
 		If that type is a function, the result is unspecified and
-		[Type.compareMethods()] should be used instead.
+		[Reflect.compareMethods] should be used instead.
 		
 		For all other types, the result is 0 if [a] and [b] are equal. If they
 		are not equal, the result depends on the type and is negative if:
