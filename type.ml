@@ -1214,7 +1214,7 @@ and unify_to_field ab tl b (t,cfo) =
 	let unify_func = match follow b with TAbstract({a_impl = Some _},_) when ab.a_impl <> None -> type_eq EqStrict | _ -> unify in
 	let b = try begin match cfo with
 		| Some cf -> (match follow cf.cf_type with
-			| TFun([_,_,ta],_) ->
+			| TFun((_,_,ta) :: _,_) ->
 				let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
 				let map t = apply_params ab.a_types tl (apply_params cf.cf_params monos t) in
 				let athis = map ab.a_this in
