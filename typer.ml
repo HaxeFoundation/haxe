@@ -2683,10 +2683,10 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			mk (TIf (e,e1,None)) ctx.t.tvoid p
 		| Some e2 ->
 			let e2 = type_expr ctx e2 with_type in
-			let t = match with_type with
-				| NoValue -> ctx.t.tvoid
-				| Value -> unify_min ctx [e1; e2]
-				| WithType t | WithTypeResume t when (match follow t with TMono _ -> true | _ -> false) -> unify_min ctx [e1; e2]
+			let e1,e2,t = match with_type with
+				| NoValue -> e1,e2,ctx.t.tvoid
+				| Value -> e1,e2,unify_min ctx [e1; e2]
+				| WithType t | WithTypeResume t when (match follow t with TMono _ -> true | _ -> false) -> e1,e2,unify_min ctx [e1; e2]
 				| WithType t | WithTypeResume t ->
 					begin try
 						unify_raise ctx e1.etype t e1.epos;
@@ -2695,7 +2695,9 @@ and type_expr ctx (e,p) (with_type:with_type) =
 						| WithTypeResume _ -> raise (WithTypeError (l,p))
 						| _ -> display_error ctx (error_msg (Unify l)) p
 					end;
-					t
+					let e1 = Codegen.Abstract.check_cast ctx t e1 e1.epos in
+					let e2 = Codegen.Abstract.check_cast ctx t e2 e2.epos in
+					e1,e2,t
 			in
 			mk (TIf (e,e1,Some e2)) t p)
 	| EWhile (cond,e,NormalWhile) ->
