@@ -45,6 +45,9 @@ extern class Reflect {
 		to [Reflect.getProperty] for a function supporting property accessors.
 		
 		If [field] is null, the result is unspecified.
+		
+		(As3) If used on a property field, the getter will be invoked. It is
+		not possible to obtain the value directly.
 	**/
 	public static function field( o : Dynamic, field : String ) : Dynamic;
 
@@ -55,6 +58,9 @@ extern class Reflect {
 		work for anonymous structures.
 		
 		If [o] or [field] are null, the result is unspecified.
+		
+		(As3) If used on a property field, the setter will be invoked. It is
+		not possible to set the value directly.		
 	**/
 	public static function setField( o : Dynamic, field : String, value : Dynamic ) : Void;
 
