@@ -116,7 +116,9 @@ let make_module ctx mpath file tdecls loadp =
 			} in
 			decls := (TAbstractDecl a, decl) :: !decls;
 			match d.d_data with
-			| [] when Meta.has Meta.CoreType a.a_meta -> acc
+			| [] when Meta.has Meta.CoreType a.a_meta ->
+				a.a_this <- t_dynamic;
+				acc
 			| fields ->
 				let rec loop = function
 					| [] ->
