@@ -991,7 +991,7 @@ let inline_constructors ctx e =
 				match e with
 				| Some ({ eexpr = TNew ({ cl_constructor = Some ({ cf_kind = Method MethInline; cf_expr = Some { eexpr = TFunction f } } as cst) } as c,_,pl) } as n) ->
 					(* inline the constructor *)
-					(match (try type_inline ctx cst f (mk (TLocal v) v.v_type n.epos) pl v.v_type None n.epos true with Error (Custom _,_) -> None) with
+					(match (try type_inline ctx cst f (mk (TLocal v) v.v_type n.epos) pl ctx.t.tvoid None n.epos true with Error (Custom _,_) -> None) with
 					| None -> ()
 					| Some ecst ->
 						let assigns = ref [] in
