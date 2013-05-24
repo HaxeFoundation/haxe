@@ -1553,10 +1553,12 @@ let init_class ctx c p context_init herits fields =
 					let ta = TAbstract(a, List.map (fun _ -> mk_mono()) a.a_types) in
 					let tthis = if Meta.has Meta.Impl f.cff_meta || Meta.has Meta.To f.cff_meta then monomorphs a.a_types a.a_this else a.a_this in
 					if Meta.has Meta.From f.cff_meta then begin
+						if is_macro then error "Macro cast functions are not supported" cf.cf_pos;
 						(* the return type of a from-function must be the abstract, not the underlying type *)
 						(try unify_raise ctx t (tfun [m] ta) f.cff_pos with Error (Unify l,p) -> error (error_msg (Unify l)) p);
 						a.a_from <- (follow m, Some cf) :: a.a_from
 					end else if Meta.has Meta.To f.cff_meta then begin
+						if is_macro then error "Macro cast functions are not supported" cf.cf_pos;
 						let args = if Meta.has Meta.MultiType a.a_meta then begin
 							(* the return type of multitype @:to functions must unify with a_this *)
 							delay ctx PFinal (fun () -> unify ctx m tthis f.cff_pos);
@@ -1572,11 +1574,13 @@ let init_class ctx c p context_init herits fields =
 						if not (Meta.has Meta.Impl cf.cf_meta) then cf.cf_meta <- (Meta.Impl,[],cf.cf_pos) :: cf.cf_meta;
 						a.a_to <- (follow m, Some cf) :: a.a_to
 					end else if Meta.has Meta.ArrayAccess f.cff_meta then begin
+						if is_macro then error "Macro array-access functions are not supported" cf.cf_pos;
 						a.a_array <- cf :: a.a_array;
 					end else if f.cff_name = "_new" && Meta.has Meta.MultiType a.a_meta then
 						do_bind := false
 					else (try match Meta.get Meta.Op cf.cf_meta with
 						| _,[EBinop(op,_,_),_],_ ->
+							if is_macro then error "Macro operator functions are not supported" cf.cf_pos;
 							let targ = if Meta.has Meta.Impl f.cff_meta then tthis else ta in
 							let left_eq = type_iseq t (tfun [targ;m] (mk_mono())) in
 							let right_eq = type_iseq t (tfun [mk_mono();targ] (mk_mono())) in
@@ -1585,6 +1589,7 @@ let init_class ctx c p context_init herits fields =
 							a.a_ops <- (op,cf) :: a.a_ops;
 							if fd.f_expr = None then do_bind := false;
 						| _,[EUnop(op,flag,_),_],_ ->
+							if is_macro then error "Macro operator functions are not supported" cf.cf_pos;
 							let targ = if Meta.has Meta.Impl f.cff_meta then tthis else ta in
 							(try type_eq EqStrict t (tfun [targ] (mk_mono())) with Unify_error l -> raise (Error ((Unify l),f.cff_pos)));
 							a.a_unops <- (op,flag,cf) :: a.a_unops;
