@@ -782,17 +782,9 @@ try
 	let force_typing = ref false in
 	let pre_compilation = ref [] in
 	let interp = ref false in
-	if version < 300 then begin
-		for i = 0 to 4 do
-			let v = version - i in
-			Common.raw_define com ("haxe_" ^ string_of_int v);
-		done;
-	end else begin
-		Common.define_value com Define.HaxeVer (string_of_float (float_of_int version /. 100.));
-		(* TODO: fix this line for 3.0 release *)
-		Common.raw_define com (if false && ((version / 10) land 1 == 0) then "haxe_release" else "haxe_svn");
-		Common.raw_define com "haxe3";
-	end;
+	Common.define_value com Define.HaxeVer (string_of_float (float_of_int version /. 100.));
+	Common.raw_define com (if ((version / 10) land 1 == 0) then "haxe_release" else "haxe_svn");
+	Common.raw_define com "haxe3";
 	Common.define_value com Define.Dce "std";
 	com.warning <- (fun msg p -> message ctx ("Warning : " ^ msg) p);
 	com.error <- error ctx;
