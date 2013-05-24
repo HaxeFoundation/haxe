@@ -36,7 +36,7 @@ UninstallCaption "Haxe ${VERSION} Uninstall"
 OutFile "haxe-${VERSION}-win.exe"
 
 ; Default installation folder
-InstallDir "$PROGRAMFILES\HaxeFoundation\"
+InstallDir "C:\HaxeToolkit\"
 
 ; Define executable files
 !define EXECUTABLE "$INSTDIR\haxe\haxe.exe"
