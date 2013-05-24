@@ -1487,7 +1487,7 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
  		| AKUsing(ef,c,cf,et) ->
  			(* abstract setter + getter *)
  			let ta = match c.cl_kind with KAbstractImpl a -> TAbstract(a, List.map (fun _ -> mk_mono()) a.a_types) | _ -> assert false in
-			let ret = match ef.etype with
+			let ret = match follow ef.etype with
 				| TFun([_;_],ret) -> ret
 				| _ ->  error "Invalid field type for abstract setter" p
 			in
