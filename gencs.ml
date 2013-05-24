@@ -1409,6 +1409,7 @@ let configure gen =
               | TDynamic _, TEnum({ e_path = ([], "Bool") }, [])
               | TDynamic _, TAbstract({ a_path = ([], "Bool") }, []) -> true
               | _ -> false)
+          | "GetHashCode", TFun([],_) -> true
           | _ -> false
         in
 

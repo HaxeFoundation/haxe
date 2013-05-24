@@ -120,4 +120,17 @@ private class Enum
 		}
 		return true;
 	}
+
+	public function hashCode():Int
+	{
+		var h = 19;
+		if (params != null) for (p in params)
+		{
+			h = h * 31;
+			if (p != null)
+				h += untyped p.hashCode();
+		}
+		h += index;
+		return h;
+	}
 }
