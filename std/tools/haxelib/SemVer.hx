@@ -5,8 +5,7 @@ using Std;
 enum Preview {
 	ALPHA;
 	BETA;
-	RC;
-	REV;
+	RC;	
 }
 
 
@@ -33,7 +32,7 @@ class SemVer {
 		}
 		return ret;
 	}
-	static var parse = ~/^([0-9]+)\.([0-9]+)\.([0-9]+)(-(alpha|beta|rc|rev)(\.([0-9]+))?)?$/;
+	static var parse = ~/^([0-9]+)\.([0-9]+)\.([0-9]+)(-(alpha|beta|rc)(\.([0-9]+))?)?$/;
 	
 	static public function ofString(s:String):SemVer 
 		return
@@ -46,7 +45,6 @@ class SemVer {
 						case 'alpha': ALPHA;
 						case 'beta': BETA;
 						case 'rc': RC;
-						case 'rev': REV;
 						case v if (v == null): null;
 						case v: throw 'unrecognized preview tag $v';
 					},
@@ -56,5 +54,5 @@ class SemVer {
 					}
 				)
 			else 
-				throw '$s is not a valid version string (should be major.minor.patch[-(alpha|beta|rc|rev)[.version]]';
+				throw '$s is not a valid version string';//TODO: include some URL for reference
 }

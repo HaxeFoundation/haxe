@@ -22,8 +22,8 @@
 package tools.haxelib;
 import haxe.zip.Reader;
 import haxe.zip.Entry;
-
 import haxe.Json;
+using StringTools;
 
 typedef UserInfos = {
 	var name : String;
@@ -65,9 +65,10 @@ class Data {
 
 	public static var JSON = "haxelib.json";
 	public static var DOCXML = "haxedoc.xml";
-	public static var REPOSITORY = "files";
+	public static var REPOSITORY = "files/3.0";
 	public static var alphanum = ~/^[A-Za-z0-9_.-]+$/;
 	static var LICENSES = ["GPL","LGPL","BSD","Public","MIT"];
+	static var RESERVED_NAMES = ["haxe","all"];
 
 	public static function safe( name : String ) {
 		if( !alphanum.match(name) )
@@ -113,6 +114,13 @@ class Data {
 	}
 
 	static function doCheck( doc : Dynamic ) {
+		var libName = doc.name.toLowerCase();
+		if ( Lambda.indexOf(RESERVED_NAMES, libName) > -1 )
+			throw 'Library name "${doc.name}" is reserved.  Please choose another name';
+		if ( libName.endsWith(".zip") )
+			throw 'Library name cannot end in ".zip".  Please choose another name';
+		if ( libName.endsWith(".hxml") )
+			throw 'Library name cannot end in ".hxml".  Please choose another name';
 		if( Lambda.indexOf(LICENSES, doc.license) == -1 )
 			throw "License must be one of the following: " + LICENSES;
 		switch Type.typeof(doc.contributors) {
