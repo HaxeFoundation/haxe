@@ -61,7 +61,7 @@ unit.Test
 --next
 -main unit.Test
 -as3 as3
-#-cmd mxmlc -static-link-runtime-shared-libraries=true -debug as3/__main__.as --output unit9_as3.swf
+-cmd mxmlc -static-link-runtime-shared-libraries=true -debug as3/__main__.as --output unit9_as3.swf
 
 #cpp
 --next

@@ -97,19 +97,18 @@
 		if( v == null )
 			return false;
 		var t = __typeof__(v);
-		if( t == "object" ) {
-			try {
-				if( v.__enum__ == true )
-					return false;
-			} catch( e : Dynamic ) {
-			}
-			return true;
+		if ( t == "object" ) {
+			return !isEnumValue(v);
 		}
 		return (t == "string");
 	}
 	
 	public static function isEnumValue( v : Dynamic ) : Bool {
+		#if as3
+		return try Type.getEnum(v) != null catch ( e: Dynamic) false;
+		#else
 		return try v.__enum__ == true catch ( e : Dynamic) false;
+		#end
 	}
 
 	public static function deleteField( o : Dynamic, field : String ) : Bool untyped {
