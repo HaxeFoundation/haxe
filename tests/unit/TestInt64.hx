@@ -38,12 +38,11 @@ class TestInt64 extends Test {
 		var c = Int64.add(a, b);
 		eq( Int64.toStr(c), "5613028097" );
 
-		// FIXME: Failing unit test!
-		// var a = Int64.make(0xFFF21CDA, 0x972E8BA3);
-		// var b = Int64.make(0x0098C29B, 0x81000001);
-		// var c = Int64.mul(a, b);
-		// var expected = Int64.make(0xDDE8A2E8, 0xBA2E8BA3);
-		// eq( expected.compare(c), 0 );
+		var a = Int64.make(0xFFF21CDA, 0x972E8BA3);
+		var b = Int64.make(0x0098C29B, 0x81000001);
+		var c = Int64.mul(a, b);
+		var expected = Int64.make(0xDDE8A2E8, 0xBA2E8BA3);
+		eq( expected.compare(c), 0 );
 	}
 
 }
