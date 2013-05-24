@@ -1039,16 +1039,20 @@ let rec unify a b =
 		in
 		if not (loop c1 tl1) then error [cannot_unify a b]
 	| TFun (l1,r1) , TFun (l2,r2) when List.length l1 = List.length l2 ->
+		let i = ref 0 in
 		(try
 			(match r2 with
 			| TAbstract ({a_path=[],"Void"},_) -> ()
-			| _ -> unify r1 r2);
+			| _ -> unify r1 r2; incr i);
 			List.iter2 (fun (_,o1,t1) (_,o2,t2) ->
 				if o1 && not o2 then error [Cant_force_optional];
-				unify t1 t2
+				unify t1 t2;
+				incr i
 			) l2 l1 (* contravariance *)
 		with
-			Unify_error l -> error (cannot_unify a b :: l))
+			Unify_error l ->
+				let msg = if !i = 0 then "Cannot unify return types" else "Cannot unify argument " ^ (string_of_int !i) in
+				error (cannot_unify a b :: Unify_custom msg :: l))
 	| TInst (c,tl) , TAnon an ->
 		if PMap.is_empty an.a_fields then (match c.cl_kind with
 			| KTypeParameter pl ->
