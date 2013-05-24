@@ -43,12 +43,12 @@ class BalancedTree<K,V> {
 	}
 	
 	public function remove(k:K) {
-		return try {
+		try {
 			root = removeLoop(k, root);
-			true;
+			return true;
 		}
 		catch (e:String) {
-			false;
+			return false;
 		}
 	}
 	
