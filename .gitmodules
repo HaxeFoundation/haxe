@@ -1,0 +1,3 @@
+[submodule "libs"]
+	path = libs
+	url = git://github.com/HaxeFoundation/ocamllibs.git
