@@ -1,0 +1,12 @@
+*.obj
+*.o
+*.cmx
+*.cmi
+*.cmxa
+*.a
+*.exe
+.*.swp
+
+/xml-light/xml_lexer.ml
+/xml-light/xml_parser.ml
+/xml-light/xml_parser.mli
