@@ -65,7 +65,7 @@ install:
 	cp haxe $(INSTALL_DIR)/bin/haxe
 	rm -rf $(INSTALL_DIR)/lib/haxe/std
 	-mkdir -p $(INSTALL_DIR)/lib/haxe
-	svn export std/ $(INSTALL_DIR)/lib/haxe/std
+	cp -rf std $(INSTALL_DIR)/lib/haxe/std
 	-mkdir -p $(INSTALL_DIR)/lib/haxe/lib
 	chmod -R a+rx $(INSTALL_DIR)/lib/haxe
 	chmod 777 $(INSTALL_DIR)/lib/haxe/lib
