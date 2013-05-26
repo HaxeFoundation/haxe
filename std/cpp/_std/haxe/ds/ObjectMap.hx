@@ -23,15 +23,18 @@ package haxe.ds;
 
 @:coreApi
 class ObjectMap<K:{},V> implements Map.IMap<K,V> {
-   // TODO: Might need to add separate hash to keep track of references to keys
 	private var __Internal : IntMap<V>;
+	private var __KeyRefs : IntMap<K>;
 
 	public function new() : Void {
 		__Internal = new IntMap<V>();
+		__KeyRefs = new IntMap<K>();
 	}
 
-	public inline function set( key : K, value : V ) : Void {
-		__Internal.set( untyped __global__.__hxcpp_obj_id(key), value );
+	public function set( key : K, value : V ) : Void {
+		var id = untyped __global__.__hxcpp_obj_id(key);
+		__Internal.set( id, value );
+		__KeyRefs.set( id, key );
 	}
 
 	public function get( key : K ) : Null<V> {
@@ -42,16 +45,14 @@ class ObjectMap<K:{},V> implements Map.IMap<K,V> {
 		return __Internal.exists( untyped __global__.__hxcpp_obj_id(key) );
 	}
 
-	public inline function remove( key : K ) : Bool {
-		return __Internal.remove( untyped __global__.__hxcpp_obj_id(key) );
+	public function remove( key : K ) : Bool {
+		var id = untyped __global__.__hxcpp_obj_id(key);
+		return __Internal.remove(id);
+		return __KeyRefs.remove(id);
 	}
 
 	public function keys() : Iterator<K> {
-		var a:Array<Int> = untyped __global__.__int_hash_keys(__Internal.h);
-		var l = new Array<K>();
-		for(id in a)
- 			l.push(  untyped __global__.__hxcpp_id_obj(id) );
-		return l.iterator();
+		return __KeyRefs.iterator();
 	}
 
 	public function iterator() : Iterator<V> {
@@ -63,7 +64,7 @@ class ObjectMap<K:{},V> implements Map.IMap<K,V> {
 		s.add("{");
 		var it = __Internal.keys();
 		for( i in it ) {
-			s.add(Std.string(i));
+			s.add(Std.string(__KeyRefs.get(i)));
 			s.add(" => ");
 			s.add(Std.string(__Internal.get(i)));
 			if( it.hasNext() )
