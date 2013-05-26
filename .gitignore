@@ -6,6 +6,7 @@
 *.a
 *.exe
 .*.swp
+*.lib
 
 /xml-light/xml_lexer.ml
 /xml-light/xml_parser.ml
