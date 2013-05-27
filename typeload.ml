@@ -1714,13 +1714,11 @@ let init_class ctx c p context_init herits fields =
 		| (Meta.Require,conds,_) :: l ->
 			let rec loop = function
 				| [] -> check_require l
-				| [EConst (String _),_] -> check_require l
-				| (EConst (Ident i),_) :: l ->
-					if not (Common.raw_defined ctx.com i) then
-						Some (i,(match List.rev l with (EConst (String msg),_) :: _ -> Some msg | _ -> None))
+				| e :: l ->
+					if not (Parser.is_true (Parser.eval ctx.com e)) then
+						Some ("condition",(match List.rev l with (EConst (String msg),_) :: _ -> Some msg | _ -> None))
 					else
 						loop l
-				| _ -> error "Invalid require identifier" p
 			in
 			loop conds
 		| _ :: l ->
