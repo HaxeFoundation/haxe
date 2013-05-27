@@ -3558,13 +3558,13 @@ let make_macro_api ctx p =
 			)
 		);
 		Interp.on_type_not_found = (fun f ->
-			ctx.com.load_extern_type <- (fun path p ->
+			ctx.com.load_extern_type <- ctx.com.load_extern_type @ [fun path p ->
 				match f (s_type_path path) with
 				| Interp.VNull -> None
 				| td ->
 					let (pack,name),tdef,p = Interp.decode_type_def td in
 					Some (name,(pack,[tdef,p]))
-			) :: ctx.com.load_extern_type;
+			];
 		);
 		Interp.parse_string = parse_expr_string;
 		Interp.typeof = (fun e ->
