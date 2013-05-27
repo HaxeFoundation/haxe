@@ -23,8 +23,14 @@
 
 	private var b : Dynamic;
 
+	public var length(get,never) : Int;
+
 	public function new() : Void {
 		b = __make();
+	}
+
+	inline function get_length() : Int {
+		return untyped __dollar__ssize( __to_string(b) );
 	}
 
 	public inline function add( x : Dynamic ) : Void {

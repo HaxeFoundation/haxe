@@ -24,8 +24,14 @@ class StringBuf {
 
 	private var b : java.lang.StringBuilder;
 
+	public var length(get,never) : Int;
+
 	public function new() : Void {
 		b = new java.lang.StringBuilder();
+	}
+
+	inline function get_length() : Int {
+		return b.length();
 	}
 
 	public function add( x : Dynamic ) : Void {
