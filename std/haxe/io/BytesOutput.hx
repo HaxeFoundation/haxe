@@ -29,6 +29,9 @@ class BytesOutput extends Output {
 	var b : BytesBuffer;
 	#end
 
+	/** The length of the stream in bytes. **/
+	public var length(get,never) : Int;
+
 	public function new() {
 		#if flash9
 		b = new flash.utils.ByteArray();
@@ -36,6 +39,10 @@ class BytesOutput extends Output {
 		#else
 		b = new BytesBuffer();
 		#end
+	}
+
+	inline function get_length() : Int {
+		return b.length;
 	}
 
 	override function writeByte(c) {
