@@ -39,6 +39,9 @@ class BytesBuffer {
 	var b : Array<Int>;
 	#end
 
+	/** The length of the buffer in bytes. **/
+	public var length(get,never) : Int;
+
 	public function new() {
 		#if neko
 		b = untyped StringBuf.__make();
@@ -54,6 +57,18 @@ class BytesBuffer {
 		b = new java.io.ByteArrayOutputStream();
 		#else
 		b = new Array();
+		#end
+	}
+
+	inline function get_length() : Int {
+		#if neko
+		return untyped __dollar__ssize( StringBuf.__to_string(b) );
+		#elseif cs
+		return haxe.Int64.toInt( b.Length );
+		#elseif java
+		return b.size();
+		#else
+		return b.length;
 		#end
 	}
 

@@ -100,10 +100,12 @@ class TestBytes extends Test {
 
 	function testBuffer() {
 		var out = new haxe.io.BytesBuffer();
+		eq( out.length, 0 );
 		out.add( haxe.io.Bytes.ofString("ABCDEF") );
 		for( i in 1...6 )
 			out.addByte(i);
 		out.addBytes( haxe.io.Bytes.ofString("ABCDEF"),1,3 );
+		eq( out.length, 14 );
 		var b = out.getBytes();
 		var str = "ABCDEF\x01\x02\x03\x04\x05BCD";
 		eq( b.length, str.length );

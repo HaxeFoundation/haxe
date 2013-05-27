@@ -35,11 +35,20 @@ class StringBuf {
 	var b:String = "";
 	
 	/**
+		The length of [this] StringBuf in characters.
+	**/
+	public var length(get,never) : Int;
+
+	/**
 		Creates a new StringBuf instance.
 		
 		This may involve initialization of the internal buffer.
 	**/
 	public function new() {}
+
+	inline function get_length() : Int {
+		return b.length;
+	}
 
 	/**
 		Appends the representation of [x] to [this] StringBuf.
