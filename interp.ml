@@ -2108,7 +2108,9 @@ let macro_lib =
 			| VFunction (Fun1 _) ->
 				let ctx = get_ctx() in
 				ctx.curapi.on_type_not_found (fun path ->
-					ctx.do_call VNull f [enc_string path] null_pos
+					match catch_errors ctx (fun () -> ctx.do_call VNull f [enc_string path] null_pos) with
+					| Some v -> v
+					| None -> VNull
 				);
 				VNull
 			| _ -> error()
