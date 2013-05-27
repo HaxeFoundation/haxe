@@ -1069,7 +1069,13 @@ and type_field ctx e i p mode =
 				let t = apply_params c.cl_types params t in
 				if (mode = MGet || mode = MCall) && PMap.mem "resolve" c.cl_fields then begin
 					let f = PMap.find "resolve" c.cl_fields in
-					AKExpr (make_call ctx (mk (TField (e,FInstance (c,f))) (tfun [ctx.t.tstring] t) p) [Codegen.type_constant ctx.com (String i) p] t p)
+					let texpect = tfun [ctx.t.tstring] t in
+					let tfield = apply_params c.cl_types params (monomorphs f.cf_params f.cf_type) in
+					(try Type.unify tfield texpect
+					with Unify_error l ->
+						display_error ctx "Field resolve has an invalid type" f.cf_pos;
+						display_error ctx (error_msg (Unify [Cannot_unify(tfield,texpect)])) f.cf_pos);
+					AKExpr (make_call ctx (mk (TField (e,FInstance (c,f))) tfield p) [Codegen.type_constant ctx.com (String i) p] t p)
 				end else
 					AKExpr (mk (TField (e,FDynamic i)) t p)
 			| None ->
