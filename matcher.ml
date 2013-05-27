@@ -1153,8 +1153,10 @@ let match_expr ctx e cases def with_type p =
 		| _ -> cases
 	in
 	(* type subject(s) *)
+	let array_match = ref false in
 	let evals = match fst e with
 		| EArrayDecl el | EParenthesis(EArrayDecl el,_) ->
+			array_match := true;
 			List.map (fun e -> type_expr ctx e Value) el
 		| _ ->
 			let e = type_expr ctx e Value in
@@ -1212,7 +1214,7 @@ let match_expr ctx e cases def with_type p =
 		let save = save_locals ctx in
 		(* type case patterns *)
 		let pl,restore,with_type = try (match tl with
-				| [t] ->
+				| [t] when not !array_match ->
 					(* context type parameters are turned into monomorphs until the pattern has been typed *)
 					let monos = List.map (fun _ -> mk_mono()) ctx.type_params in
 					let t = apply_params ctx.type_params monos t in
