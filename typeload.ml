@@ -1715,8 +1715,12 @@ let init_class ctx c p context_init herits fields =
 			let rec loop = function
 				| [] -> check_require l
 				| e :: l ->
+					let sc = match fst e with
+						| EConst (Ident s) -> s
+						| _ -> ""
+					in
 					if not (Parser.is_true (Parser.eval ctx.com e)) then
-						Some ("condition",(match List.rev l with (EConst (String msg),_) :: _ -> Some msg | _ -> None))
+						Some (sc,(match List.rev l with (EConst (String msg),_) :: _ -> Some msg | _ -> None))
 					else
 						loop l
 			in

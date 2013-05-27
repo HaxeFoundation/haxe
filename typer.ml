@@ -762,6 +762,9 @@ let rec acc_get ctx g p =
 		assert false
 
 let error_require r p =
+	if r = "" then
+		error "This field is not available with the current compilation flags" p
+	else
 	let r = if r = "sys" then
 		"a system platform (php,neko,cpp,etc.)"
 	else try
