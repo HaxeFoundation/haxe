@@ -37,7 +37,7 @@ import haxe.ds.EnumValueMap;
 	A Map can be instantiated without explicit type parameters. Type inference
 	will then determine the type parameters from the usage.
 	
-	Maps can also be created with [key1 => value1, key2 => value2] syntax.
+	Maps can also be created with `key1 => value1, key2 => value2` syntax.
 	
 	Map is an abstract type, it is not available at runtime.
 **/
@@ -61,47 +61,47 @@ abstract Map<K,V>(IMap<K,V> ) {
 	public function new();
 
 	/**
-		Maps [key] to [value].
+		Maps `key` to `value`.
 		
-		If [key] already has a mapping, the previous value disappears.
+		If `key` already has a mapping, the previous value disappears.
 		
-		If [key] is null, the result is unspecified.
+		If `key` is null, the result is unspecified.
 	**/
 	public inline function set(key:K, value:V) this.set(key, value);
 	
 	/**
-		Returns the current mapping of [key].
+		Returns the current mapping of `key`.
 		
 		If no such mapping exists, null is returned.
 		
 		Note that a check like map.get(key) == null can hold for two reasons:
 		
-		1. the map has no mapping for [key]
+		1. the map has no mapping for `key`
 		2. the map has a mapping with a value of null
 		
 		If it is important to distinguish these cases, exists() should be used.
 		
-		If [key] is null, the result is unspecified.
+		If `key` is null, the result is unspecified.
 	**/
 	@:arrayAccess public inline function get(key:K) return this.get(key);
 	
 	/**
-		Returns true if [key] has a mapping, false otherwise.
+		Returns true if `key` has a mapping, false otherwise.
 		
-		If [key] is null, the result is unspecified.
+		If `key` is null, the result is unspecified.
 	**/
 	public inline function exists(key:K) return this.exists(key);
 	
 	/**
-		Removes the mapping of [key] and returns true if such a mapping existed,
+		Removes the mapping of `key` and returns true if such a mapping existed,
 		false otherwise.
 		
-		If [key] is null, the result is unspecified.
+		If `key` is null, the result is unspecified.
 	**/
 	public inline function remove(key:K) return this.remove(key);
 	
 	/**
-		Returns an Iterator over the keys of [this] Map.
+		Returns an Iterator over the keys of `this` Map.
 		
 		The order of keys is undefined.
 	**/
@@ -110,7 +110,7 @@ abstract Map<K,V>(IMap<K,V> ) {
 	}
 	
 	/**
-		Returns an Iterator over the values of [this] Map.
+		Returns an Iterator over the values of `this` Map.
 		
 		The order of values is undefined.
 	**/
@@ -119,7 +119,7 @@ abstract Map<K,V>(IMap<K,V> ) {
 	}
 	
 	/**
-		Returns a String representation of [this] Map.
+		Returns a String representation of `this` Map.
 		
 		The exact representation depends on the platform and key-type.
 	**/
