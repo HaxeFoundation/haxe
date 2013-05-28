@@ -70,14 +70,14 @@ class Template {
 	var buf : StringBuf;
 
 	/**
-		Creates a new Template instance from [str].
+		Creates a new Template instance from `str`.
 		
-		[str] is parsed into tokens, which are stored for internal use. This
+		`str` is parsed into tokens, which are stored for internal use. This
 		means that multiple execute() operations on a single Template instance
 		are more efficient than one execute() operations on multiple Template
 		instances.
 		
-		If [str] is null, the result is unspecified.
+		If `str` is null, the result is unspecified.
 	**/
 	public function new( str : String ) {
 		var tokens = parseTokens(str);
@@ -87,19 +87,19 @@ class Template {
 	}
 
 	/**
-		Executes [this] Template, taking into account [context] for
-		replacements and [macros] for callback functions.
+		Executes `this` Template, taking into account `context` for
+		replacements and `macros` for callback functions.
 		
-		If [context] has a field 'name', its value replaces all occurrences of
+		If `context` has a field 'name', its value replaces all occurrences of
 		::name:: in the Template. Otherwise Template.globals is checked instead,
 		If 'name' is not a field of that either, ::name:: is replaced with null.
 		
-		If [macros] has a field 'name', all occurrences of $$name(args) are
+		If `macros` has a field 'name', all occurrences of $$name(args) are
 		replaced with the result of calling that field. The first argument is
 		always the the resolve() method, followed by the given arguments.
-		If [macros] has no such field, the result is unspecified.
+		If `macros` has no such field, the result is unspecified.
 		
-		If [context] is null, the result is unspecified. If [macros] is null,
+		If `context` is null, the result is unspecified. If `macros` is null,
 		no macros are used.
 	**/
 	public function execute( context : Dynamic, ?macros : Dynamic ):String {

@@ -34,43 +34,43 @@ package haxe;
 abstract EnumFlags<T:EnumValue>(Int) {
 
 	/**
-		Initializes the bitflags to [i].
+		Initializes the bitflags to `i`.
 	**/
 	public inline function new(i = 0) {
 		this = i;
 	}
 
 	/**
-		Checks if the index of enum instance [v] is set.
+		Checks if the index of enum instance `v` is set.
 		
-		This method is optimized if [v] is an enum instance expression such as
+		This method is optimized if `v` is an enum instance expression such as
 		SomeEnum.SomeCtor.
 		
-		If [v] is null, the result is unspecified.
+		If `v` is null, the result is unspecified.
 	**/
 	public inline function has( v : T ) : Bool {
 		return this & (1 << Type.enumIndex(v)) != 0;
 	}
 
 	/**
-		Sets the index of enum instance [v].
+		Sets the index of enum instance `v`.
 		
-		This method is optimized if [v] is an enum instance expression such as
+		This method is optimized if `v` is an enum instance expression such as
 		SomeEnum.SomeCtor.
 		
-		If [v] is null, the result is unspecified.
+		If `v` is null, the result is unspecified.
 	**/
 	public inline function set( v : T ) : Void {
 		this |= 1 << Type.enumIndex(v);
 	}
 
 	/**
-		Unsets the index of enum instance [v].
+		Unsets the index of enum instance `v`.
 		
-		This method is optimized if [v] is an enum instance expression such as
+		This method is optimized if `v` is an enum instance expression such as
 		SomeEnum.SomeCtor.
 		
-		If [v] is null, the result is unspecified.
+		If `v` is null, the result is unspecified.
 	**/
 	public inline function unset( v : T ) : Void {
 		this &= 0xFFFFFFF - (1 << Type.enumIndex(v));

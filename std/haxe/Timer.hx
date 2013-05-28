@@ -39,12 +39,12 @@ class Timer {
 	private var id : Null<Int>;
 
 	/**
-		Creates a new timer that will run every [time_ms] milliseconds.
+		Creates a new timer that will run every `time_ms` milliseconds.
 		
-		After creating the Timer instance, it calls [this].run() repeatedly,
-		with delays of [time_ms] milliseconds, until [this].stop() is called.
+		After creating the Timer instance, it calls `this].run` repeatedly,
+		with delays of `time_ms` milliseconds, until `this.stop` is called.
 		
-		The first invocation occurs after [time_ms] milliseconds, not
+		The first invocation occurs after `time_ms` milliseconds, not
 		immediately.
 		
 		The accuracy of this may be platform-dependent.
@@ -63,12 +63,12 @@ class Timer {
 	}
 
 	/**
-		Stops [this] Timer.
+		Stops `this` Timer.
 		
-		After calling this method, no additional invocations of [this].run()
+		After calling this method, no additional invocations of `this.run`
 		will occur.
 		
-		It is not possible to restart [this] Timer once stopped.
+		It is not possible to restart `this` Timer once stopped.
 	**/
 	public function stop() {
 		if( id == null )
@@ -84,28 +84,28 @@ class Timer {
 	}
 
 	/**
-		This method is invoked repeatedly on [this] Timer.
+		This method is invoked repeatedly on `this` Timer.
 		
 		It can be overridden in a subclass, or rebound directly to a custom
 		function:
 			var timer = new haxe.Timer(1000); // 1000ms delay
 			timer.run = function() { ... }
 			
-		Once bound, it can still be rebound to different functions until [this]
-		Timer is stopped through a call to [this].stop().
+		Once bound, it can still be rebound to different functions until `this`
+		Timer is stopped through a call to `this.stop`.
 	**/
 	public dynamic function run() {
 		trace("run");
 	}
 
 	/**
-		Invokes [f] after [time_ms] milliseconds.
+		Invokes `f` after `time_ms` milliseconds.
 		
 		This is a convenience function for creating a new Timer instance with
-		[time_ms] as argument, binding its run() method to [f] and then stopping
-		[this] Timer upon the first invocation.
+		`time_ms` as argument, binding its run() method to `f` and then stopping
+		`this` Timer upon the first invocation.
 		
-		If [f] is null, the result is unspecified.
+		If `f` is null, the result is unspecified.
 	**/
 	public static function delay( f : Void -> Void, time_ms : Int ) {
 		var t = new haxe.Timer(time_ms);
@@ -119,15 +119,15 @@ class Timer {
 	#end
 
 	/**
-		Measures the time it takes to execute [f], in seconds with fractions.
+		Measures the time it takes to execute `f`, in seconds with fractions.
 		
 		This is a convenience function for calculating the difference between
-		Timer.stamp() before and after the invocation of [f].
+		Timer.stamp() before and after the invocation of `f`.
 		
 		The difference is passed as argument to Log.trace(), with "s" appended
-		to denote the unit. The optional [pos] argument is passed through.
+		to denote the unit. The optional `pos` argument is passed through.
 		
-		If [f] is null, the result is unspecified.
+		If `f` is null, the result is unspecified.
 	**/
 	public static function measure<T>( f : Void -> T, ?pos : PosInfos ) : T {
 		var t0 = stamp();
