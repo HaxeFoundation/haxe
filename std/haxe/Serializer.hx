@@ -26,17 +26,18 @@ package haxe;
 	from which the Unserializer class can recreate the original representation.
 
 	This class can be used in two ways:
-		- create a new Serializer() instance, call its serialize() method with
+	
+	- create a new Serializer() instance, call its serialize() method with
 		any argument and finally retrieve the String representation from
 		toString()
-		- call Serializer.run() to obtain the serialized representation of a
+	- call Serializer.run() to obtain the serialized representation of a
 		single argument
 
 	Serialization is guaranteed to work for all haxe-defined classes, but may
 	or may not work for instances of external/native classes.
 
 	The specification of the serialization format can be found here:
-		http://haxe.org/manual/serialization/format
+	[http://haxe.org/manual/serialization/format]
 **/
 class Serializer {
 
