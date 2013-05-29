@@ -23,7 +23,7 @@ package haxe;
 
 /**
 	Crossplatform JSON API : it will automatically use the optimized native API if available.
-	Use -D haxeJSON to force usage of the haXe implementation even if a native API is found : this will provide
+	Use -D haxeJSON to force usage of the Haxe implementation even if a native API is found : this will provide
 	extra encoding features such as enums (replaced by their index), Hashs and Iterable.
 **/
 #if (flash11 && !haxeJSON)

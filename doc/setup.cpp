@@ -17,7 +17,7 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-// this is a small program that do basic haXe setup on Windows
+// this is a small program that do basic Haxe setup on Windows
 #include <windows.h>
 
 static void Set( HKEY k, const char *name, DWORD t, const char *data ) {
@@ -67,6 +67,6 @@ int WINAPI WinMain( HINSTANCE inst, HINSTANCE prev, LPSTR lpCmdLine, int nCmdSho
 	delete kdata;
 	// register 
 	if( strcmp(lpCmdLine,"-silent") != 0 )
-		MessageBox(NULL,"Setup completed, you can start using haXe now","haxesetup",MB_OK | MB_ICONINFORMATION);
+		MessageBox(NULL,"Setup completed, you can start using Haxe now","haxesetup",MB_OK | MB_ICONINFORMATION);
 	return 0;
 }
