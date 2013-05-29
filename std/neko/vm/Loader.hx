@@ -116,8 +116,8 @@ class Loader {
 
 	/**
 		Loads a neko primitive. By default, the name is of the form [library@method].
-		The primitive might not be used directly in haXe since some of the Neko values
-		needs an object wrapper in haXe.
+		The primitive might not be used directly in Haxe since some of the Neko values
+		needs an object wrapper in Haxe.
 	**/
 	public function loadPrimitive( prim : String, nargs : Int ) : Dynamic {
 		return untyped l.loadprim(prim.__s,nargs);

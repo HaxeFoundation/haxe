@@ -25,14 +25,14 @@
 
   This module intends to be a common set of utilities common to all targets.
 
-  It's intended to provide a set of tools to be able to make targets in haXe more easily, and to
+  It's intended to provide a set of tools to be able to make targets in Haxe more easily, and to
   allow the programmer to have more control of how the target language will handle the program.
 
   For example, as of now, the hxcpp target, while greatly done, relies heavily on cpp's own operator
   overloading, and implicit conversions, which make it very hard to deliver a similar solution for languages
   that lack these features.
 
-  So this little framework is here so you can manipulate the HaXe AST and start bringing the AST closer
+  So this little framework is here so you can manipulate the Haxe AST and start bringing the AST closer
   to how it's intenteded to be in your host language.
 
   Rules
@@ -4451,7 +4451,7 @@ end;;
   and will unwrap statements where expressions are expected, and vice-versa.
 
   It should be one of the first syntax filters to be applied. As a consequence, it's applied after all filters that add code to the AST, and by being
-  the first of the syntax filters, it will also have the AST retain most of the meaning of normal HaXe code. So it's easier to detect cases which are
+  the first of the syntax filters, it will also have the AST retain most of the meaning of normal Haxe code. So it's easier to detect cases which are
   side-effects free, for example
 
   Any target can make use of this, but there is one requirement: The target must accept null to be set to any kind of variable. For example,
@@ -4460,7 +4460,7 @@ end;;
   dependencies:
     While it's best for Expression Unwrap to delay its execution as much as possible, since theoretically any
     filter can return an expression that needs to be unwrapped, it is also desirable for ExpresionUnwrap to have
-    the AST as close as possible as HaXe's, so it can make some correct predictions (for example, so it can
+    the AST as close as possible as Haxe's, so it can make some correct predictions (for example, so it can
     more accurately know what can be side-effects-free and what can't).
     This way, it will run slightly after the Normal priority, so if you don't say that a syntax filter must run
     before Expression Unwrap, it will run after it.

@@ -19,7 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-// standard haXe types
+// standard Haxe types
 
 /**
 	The standard Void type. Only `null` values can be of the type `Void`.
@@ -64,7 +64,7 @@ typedef Null<T> = T
 
 /**
 	Dynamic is an internal compiler type which has special behavior.
-	See the haXe language reference for more informations.
+	See the Haxe language reference for more informations.
 **/
 @:coreType @:runtimeValue abstract Dynamic<T> {
 }
