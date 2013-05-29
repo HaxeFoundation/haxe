@@ -633,7 +633,7 @@ struct
     run
 
   let configure gen (mapping_func:texpr->texpr) =
-    (if java_hash "Testing string hashCode implementation from Haxe" <> (Int32.of_int 545883604) then assert false);
+    (if java_hash "Testing string hashCode implementation from haXe" <> (Int32.of_int 545883604) then assert false);
     let map e = Some(mapping_func e) in
     gen.gsyntax_filters#add ~name:name ~priority:(PCustom priority) map
 
