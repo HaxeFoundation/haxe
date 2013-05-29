@@ -4711,6 +4711,7 @@ struct
           | TArray (e1,e2) ->
             aggregate true [e1;e2]
           | TParenthesis e
+          | TMeta(_,e)
           | TField (e,_) ->
             aggregate true [e]
           | TArrayDecl (el) ->
@@ -4805,7 +4806,7 @@ struct
       | TReturn _
       | TBreak
       | TContinue -> right
-      | TParenthesis p ->
+      | TParenthesis p | TMeta(_,p) ->
         apply_assign assign_fun p
       | _ ->
         match follow right.etype with
@@ -5179,6 +5180,7 @@ struct
     let default_implementation gen =
       let rec extract_expr e = match e.eexpr with
         | TParenthesis e
+        | TMeta (_,e)
         | TCast(e,_) -> extract_expr e
         | _ -> e
       in
@@ -6021,7 +6023,7 @@ struct
           let rec get_null e =
             match e.eexpr with
             | TConst TNull -> Some e
-            | TParenthesis e -> get_null e
+            | TParenthesis e | TMeta(_,e) -> get_null e
             | _ -> None
           in
           (match get_null expr with
@@ -6658,7 +6660,7 @@ struct
         | TIf(cond,e1,Some e2) ->
           is_side_effects_free cond && is_side_effects_free e1 && is_side_effects_free e2
         | TField(e,_)
-        | TParenthesis e -> is_side_effects_free e
+        | TParenthesis e | TMeta(_,e) -> is_side_effects_free e
         | TArrayDecl el -> List.for_all is_side_effects_free el
         | TCast(e,_) -> is_side_effects_free e
         | _ -> false
@@ -9423,7 +9425,7 @@ struct
     match e.eexpr with
       | TConst (v) -> Some v
       | TBinop(op, v1, v2) -> aggregate_constant op (get_constant_expr v1) (get_constant_expr v2)
-      | TParenthesis(e) -> get_constant_expr e
+      | TParenthesis(e) | TMeta(_,e) -> get_constant_expr e
       | _ -> None
 
   let traverse gen should_warn handle_switch_break handle_not_final_returns java_mode =
