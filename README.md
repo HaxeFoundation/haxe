@@ -17,7 +17,7 @@ Haxe allows you to compile for the following targets:
  * NekoVM
  * PHP
 
-You can try Haxe directly from your browser at http://try.haxe.org!
+You can try Haxe directly from your browser at [try.haxe.org](http://try.haxe.org)!
 
 For more information about Haxe, head to the [offical Haxe website](http://haxe.org).
 
@@ -29,7 +29,7 @@ The Haxe project has several licenses, covering different parts of the projects.
  * The Haxe libraries are released under a "two-clause" BSD license.
  * The Neko runtime is licensed under the GNU Lesser General Public License version 2.1 or any later version.
 
-For the complete Haxe licenses, please see http://haxe.org/doc/license or doc/LICENSE.txt.
+For the complete Haxe licenses, please see http://haxe.org/doc/license or [doc/LICENSE.txt](doc/LICENSE.txt).
 
 ## Installing Haxe
 
@@ -53,7 +53,7 @@ The latest stable release is [Haxe v3.0](http://haxe.org/download). Pre-built bi
 
 ## Using Haxe
 
-For information on on using Haxe, consult the [Haxe documentation]:
+For information on on using Haxe, consult the [Haxe documentation](http://haxe.org/doc):
 
  * [Haxe introduction](http://haxe.org/doc/intro), an introduction to the Haxe toolkit
  * [Haxe language reference](http://haxe.org/ref), an overview of the Haxe programming language
