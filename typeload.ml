@@ -1037,8 +1037,9 @@ let type_function ctx args ret fmode f do_display p =
 	ctx.opened <- [];
 	let e = match f.f_expr with None -> error "Function body required" p | Some e -> e in
 	let e = if not do_display then type_expr ctx e NoValue else try
+		if Common.defined ctx.com Define.NoCOpt then raise Exit;
 		type_expr ctx (Optimizer.optimize_completion_expr e) NoValue
-	with DisplayTypes [TMono _] | Parser.TypePath (_,None) ->
+	with DisplayTypes [TMono _] | Parser.TypePath (_,None) | Exit ->
 		type_expr ctx e NoValue
 	in
 	let rec loop e =
