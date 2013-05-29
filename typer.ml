@@ -2497,9 +2497,10 @@ and type_expr ctx (e,p) (with_type:with_type) =
 					| WithTypeResume _ -> raise (WithTypeError (l,p))
 					| _ -> raise (Error (Unify l,p))
 				in
-				PMap.iter (fun n cf ->
-					if not (Meta.has Meta.Optional cf.cf_meta) && not (PMap.mem n !fields) then unify_error [has_no_field t n] p;
-				) a.a_fields;
+				(match PMap.foldi (fun n cf acc -> if not (Meta.has Meta.Optional cf.cf_meta) && not (PMap.mem n !fields) then n :: acc else acc) a.a_fields [] with
+					| [] -> ()
+					| [n] -> unify_error [Unify_custom ("Object requires field " ^ n)] p
+					| nl -> unify_error [Unify_custom ("Object requires fields: " ^ (String.concat ", " nl))] p);
 				(match !extra_fields with
 				| [] -> ()
 				| _ -> unify_error (List.map (fun n -> has_extra_field t n) !extra_fields) p);
