@@ -209,6 +209,7 @@ let type_function_param ctx t e opt p =
 		let e = (match e with None -> Some (EConst (Ident "null"),p) | _ -> e) in
 		ctx.t.tnull t, e
 	else
+		let t = match e with Some (EConst (Ident "null"),p) -> ctx.t.tnull t | _ -> t in
 		t, e
 
 let type_var_field ctx t e stat p =
