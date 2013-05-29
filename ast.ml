@@ -676,3 +676,11 @@ let map_expr loop (e,p) =
 	| EMeta (m,e) -> EMeta(m, loop e)
 	) in
 	(e,p)
+
+let rec s_expr (e,_) =
+	match e with
+	| EConst c -> s_constant c
+	| EParenthesis e -> "(" ^ (s_expr e) ^ ")"
+	| EArrayDecl el -> "[" ^ (String.concat "," (List.map s_expr el)) ^ "]"
+	| EObjectDecl fl -> "{" ^ (String.concat "," (List.map (fun (n,e) -> n ^ ":" ^ (s_expr e)) fl)) ^ "}"
+	| _ -> "'???'"

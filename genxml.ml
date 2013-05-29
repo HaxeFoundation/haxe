@@ -81,21 +81,13 @@ let rec follow_param t =
 	| _ ->
 		t
 
-let rec sexpr (e,_) =
-	match e with
-	| EConst c -> s_constant c
-	| EParenthesis e -> "(" ^ (sexpr e) ^ ")"
-	| EArrayDecl el -> "[" ^ (String.concat "," (List.map sexpr el)) ^ "]"
-	| EObjectDecl fl -> "{" ^ (String.concat "," (List.map (fun (n,e) -> n ^ ":" ^ (sexpr e)) fl)) ^ "}"
-	| _ -> "'???'"
-
 let gen_meta meta =
 	let meta = List.filter (fun (m,_,_) -> match m with Meta.Used | Meta.MaybeUsed | Meta.RealPath -> false | _ -> true) meta in
 	match meta with
 	| [] -> []
 	| _ ->
 		let nodes = List.map (fun (m,el,_) ->
-			node "m" ["n",fst (MetaInfo.to_string m)] (List.map (fun e -> node "e" [] [gen_string (sexpr e)]) el)
+			node "m" ["n",fst (MetaInfo.to_string m)] (List.map (fun e -> node "e" [] [gen_string (Ast.s_expr e)]) el)
 		) meta in
 		[node "meta" [] nodes]
 
@@ -342,7 +334,7 @@ let generate_type com t =
 			| _ ->
 			match pl with
 			| [] -> p "@%s " (fst (MetaInfo.to_string m))
-			| l -> p "@%s(%s) " (fst (MetaInfo.to_string m)) (String.concat "," (List.map sexpr pl))
+			| l -> p "@%s(%s) " (fst (MetaInfo.to_string m)) (String.concat "," (List.map Ast.s_expr pl))
 		) ml
 	in
 	let access a =
