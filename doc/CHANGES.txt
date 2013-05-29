@@ -280,7 +280,7 @@
 	all : added --dead-code-elimination, removes unused functions from the output
 	     (beta feature could not make in the final release)
 	all : added @:keep to prevent --dead-code-elimination of class/method
-	flash9 : fixed issues with loading a haXe SWF (boot_XXXX class extends flash.Boot)
+	flash9 : fixed issues with loading a Haxe SWF (boot_XXXX class extends flash.Boot)
 	all : allow to inline override methods (if the superclass method is not inlined already)
 	all : fixed escape sequences in literal regular expressions
 	flash9 : fixed Xml.setNodeValue
@@ -319,7 +319,7 @@
 	compiler : fixed -no-opt
 	flash : allow several -swf-lib
 		no longer support automatic creation of classes for f8 swfs in f9 mode
-		classes defined in f9 swf are not redefinable in haXe code (use extern)
+		classes defined in f9 swf are not redefinable in Haxe code (use extern)
 	flash9 : allow direct access and completion with classes defined in -swf-lib's
 	flash9 : remove imported libraries debug infos when not compiled with -debug
 	all : only display errors with --display if no completion matched
@@ -347,7 +347,7 @@
 	php : removed eval() everywhere and simplified _hx_lambda
 	php : fixed return type for Std.string() with integers and floats
 	php : fixed php.Lib.rethrow
-	all : added custom haXe serialization
+	all : added custom Haxe serialization
 	php : aligned php.Web.parseMultipart signature with neko implementation
 	cpp : Added source location and stack dump for errors in debug mode
 	cpp : Remapped more keywords
@@ -460,7 +460,7 @@
 	php: fixed String.charCodeAt
 	php: minor optimization (removed foreach from std code)
 	php: implemented haxe.Stack
-	php: changed exception handler to use haXe call stack
+	php: changed exception handler to use Haxe call stack
 	php: changed special vars to use the » prefix instead of __
 	php: fixed use of reserved keywords for var names
 	php: List iterator is now class based (faster)
@@ -477,16 +477,16 @@
 	bugfix for flash.display.BitmapDataChannel and GraphicsPathCommand (allow inline static)
 	resolve environment variable in -cmd commands
 	added flash.Vector.indexOf and lastIndexOf
-	fixed bug in interfaces that define the method toString (haXe/PHP)
+	fixed bug in interfaces that define the method toString (Haxe/PHP)
 	fixed bug in haxe.io.BytesInput.readBytes in Flash9 (was throwing Eof if full buffer can't be readed)
 	fixed implements/extends special classes when they are imported
 	StringBuf now uses an array for JS implementation (around same on FF, faster on IE)
-	fixed assignment of field length in anonym objects (haXe/PHP)
+	fixed assignment of field length in anonym objects (Haxe/PHP)
 	fixed addEventListener typing for flash9
 	fixed __vector__ generation for AS3 target
 	fix with inline functions : position is now the inserted position and not the original one (better error reporting)
 	added SWC output support
-	fixed issues with unset of values in for loops and executing blocks that return functions (haXe/PHP)
+	fixed issues with unset of values in for loops and executing blocks that return functions (Haxe/PHP)
 	"throw" type is now Unknown instead of Dynamic (prevent type-hole in "if A else if B else throw")
 	added __foreach__ for flash9/as3
 	fixed f9 verify error with different kind of functions
@@ -511,7 +511,7 @@
 	speedup Array.remove on flash9/js
 
 2008-11-23: 2.02
-	Std.is(MyInterface, Class) now returns true (haXe/PHP)
+	Std.is(MyInterface, Class) now returns true (Haxe/PHP)
 	php arrays are wrapped into _hx_array instances, fixes issues with references (array cast, access out of bounds ...)
 	removed untested php classes (php.DBase, php.IniHash)
 	added -D use_rtti_doc
@@ -564,12 +564,12 @@
 	always use full classes paths for genAS3
 	prevent different get/set property accesses when implementing an interface
 	fixed assign of dynamicfunction references in PHP
-	haXe/PHP now generates code for extern classes __init__
+	Haxe/PHP now generates code for extern classes __init__
 	added strings literal support in haxe.Template
-	fixed Process arguments and exitCode() in haXe/PHP
-	fixed hierarchy problem for classes with the name from different packages haXe/PHP
+	fixed Process arguments and exitCode() in Haxe/PHP
+	fixed hierarchy problem for classes with the name from different packages Haxe/PHP
 	php.db.Mysql now throws an exception when tries to connect to an unexistant DB
-	fixed blocks in if statements for haXe/PHP
+	fixed blocks in if statements for Haxe/PHP
 	added php check on the full hierarchy for colliding names
 	added support for "g" modifier in EReg for PHP
 	PHP now generates __toString for classes that have toString defined
@@ -591,7 +591,7 @@
 	fixed current package bug in inherited constructor type
 	delayed type-parameter constraints check (allow mutual rec extends for SPOD)
 	improved unclosed macro error reporting
-	haXe/PHP integration
+	Haxe/PHP integration
 	renamed NekoSocketConnection to SyncSocketConnection (php support)
 	fixes in genAs3
 	fix for flash9 : always coerce call return type
@@ -769,7 +769,7 @@
 	optional enums arguments on Flash9 are now automatically Null
 	forbid usage of type parameters in static functions
 	fixed Std.int with negative numbers
-	fixed some F9 issues with haXe-specific Array, Date and Math methods
+	fixed some F9 issues with Haxe-specific Array, Date and Math methods
 	used AS3 namespace for F9 Array and String instance methods
 	fixed F9 with uninitialized integer registers
 	fixed F9 + operator with Dynamic/Null operands
@@ -781,7 +781,7 @@
 	fixed stack overflow with static setter
 	fixed package completion bug when -cp points to an not existing dir
 	fix duplicate sandboxes tags with -swf
-	__resolve in haXe Remoting is now public
+	__resolve in Haxe Remoting is now public
 
 2007-07-25: 1.14
 	fixed no error when invalid "catch" expression
@@ -961,7 +961,7 @@
 	fixed scope bug in try/catch with Flash9
 	added remoting over XMLSocket and LocalConnection for Flash9
 	fixed Std.is(*,null) = false
-	allowed >64K haXe/neko strings
+	allowed >64K Haxe/neko strings
 	-debug and stack traces support for Flash and JS
 	minor changes in xml output
 
@@ -995,7 +995,7 @@
 	some method renamed in neko.FileSystem.
 	added neko.remoting.Server.setLogger
 	fixed bug in haxe.Serializer on neko (was preventing List serialization)
-	fixed bugs in haXe.Unserializer on neko (invalid enum tag & pbs with UTF8 strings)
+	fixed bugs in Haxe.Unserializer on neko (invalid enum tag & pbs with UTF8 strings)
 	fixed sqlite escape & quote , added BOOL support
 	allowed direct property access in getter/setter (prevent rec loop)
 	allowed event-driven neko http requests

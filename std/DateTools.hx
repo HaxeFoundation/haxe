@@ -108,7 +108,7 @@ class DateTools {
 		Format the date `d` according to the format `f`. The format is
 		compatible with the `strftime` standard format, except that there is no
 		support in Flash and JS for day and months names (due to lack of proper
-		internationalization API). On haXe/Neko/Windows, some formats are not
+		internationalization API). On Haxe/Neko/Windows, some formats are not
 		supported.
 	**/
 	public static function format( d : Date, f : String ) : String {
