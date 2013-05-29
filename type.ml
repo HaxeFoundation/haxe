@@ -1558,7 +1558,7 @@ let rec s_expr s_type e =
 	| TCast (e,t) ->
 		sprintf "Cast %s%s" (match t with None -> "" | Some t -> s_type_path (t_path t) ^ ": ") (loop e)
 	| TMeta ((n,el,_),e) ->
-		sprintf "@%s%s %s" "TODO" (match el with [] -> "" | _ -> "(" ^ (String.concat ", " (List.map Ast.s_expr el)) ^ ")") (loop e)
+		sprintf "@%s%s %s" (Meta.to_string n) (match el with [] -> "" | _ -> "(" ^ (String.concat ", " (List.map Ast.s_expr el)) ^ ")") (loop e)
 	) in
 	sprintf "(%s : %s)" str (s_type e.etype)
 
@@ -1635,4 +1635,4 @@ let rec s_expr_pretty tabs s_type e =
 	| TCast (e,Some mt) ->
 		sprintf "cast (%s,%s)" (loop e) (s_type_path (t_path mt))
 	| TMeta ((n,el,_),e) ->
-		sprintf "@%s%s %s" "TODO" (match el with [] -> "" | _ -> "(" ^ (String.concat ", " (List.map Ast.s_expr el)) ^ ")") (loop e)		
+		sprintf "@%s%s %s" (Meta.to_string n) (match el with [] -> "" | _ -> "(" ^ (String.concat ", " (List.map Ast.s_expr el)) ^ ")") (loop e)		
