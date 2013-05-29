@@ -86,7 +86,7 @@ type pattern_ctx = {
 }
 
 type dt =
-	| Out of out * dt option
+	| Out of texpr * texpr option * dt option
 	| Switch of st * (con * dt) list
 	| Bind of (pvar * st) list * dt
 	| Goto of int
@@ -244,10 +244,10 @@ let rec s_pat_matrix pmat =
 	String.concat "\n" (List.map (fun (pl,out) -> (s_pat_vec pl) ^ "->" ^ (s_out out)) pmat)
 
 let rec s_dt tabs tree = tabs ^ match tree with
-	| Out(out,None)->
-		s_out out;
-	| Out(out,Some dt) ->
-		"if (" ^ (s_expr_small (match out.o_guard with Some e -> e | None -> assert false)) ^ ") " ^ (s_out out) ^ " else " ^ s_dt tabs dt
+	| Out(e,eo,None)->
+		s_expr_small e
+	| Out(e,eo,Some dt) ->
+		"if (" ^ (s_expr_small (match eo with Some e -> e | None -> assert false)) ^ ") " ^ (s_expr_small e) ^ " else " ^ s_dt tabs dt
 	| Switch (st, cl) ->
 		"switch(" ^ (s_st st) ^ ") { \n" ^ tabs
 		^ (String.concat ("\n" ^ tabs) (List.map (fun (c,dt) ->
@@ -824,9 +824,9 @@ let rec compile mctx stl pmat = match pmat with
 			Hashtbl.replace mctx.used_paths out.o_id true;
 			let bl = bind_remaining out pv stl in
 			let dt = if out.o_guard = None || match pl with [] -> true | _ -> false then
-				Out(out,None)
+				Out(out.o_expr,out.o_guard,None)
 			else
-				Out(out,Some (compile mctx stl pl))
+				Out(out.o_expr,out.o_guard,Some (compile mctx stl pl))
 			in
 			if bl = [] then dt else Bind(bl,dt)
 		end else if i > 0 then begin
@@ -915,7 +915,7 @@ let is_compatible out1 out2 =
 	out1.o_id = out2.o_id
 	&& out1.o_guard = None
 
-let replace_locals mctx out e =
+let replace_locals mctx e =
 	let replace v =
 		let rec loop vl = match vl with
 			| vl :: vll -> (try snd (List.find (fun ((v2,_),st) -> v2 == v) vl) with Not_found -> loop vll)
@@ -943,15 +943,15 @@ let rec to_typed_ast mctx dt =
 	match dt with
 	| Goto _ ->
 		error "Not implemented yet" Ast.null_pos
-	| Out(out,dt) ->
-		replace_locals mctx out begin match out.o_guard,dt with
+	| Out(e,eo,dt) ->
+		replace_locals mctx begin match eo,dt with
 			| Some eg,None ->
-				mk (TIf(eg,out.o_expr,None)) t_dynamic out.o_expr.epos
+				mk (TIf(eg,e,None)) t_dynamic e.epos
 			| Some eg,Some dt ->
 				let eelse = to_typed_ast mctx dt in
-				mk (TIf(eg,out.o_expr,Some eelse)) eelse.etype (punion out.o_expr.epos eelse.epos)
+				mk (TIf(eg,e,Some eelse)) eelse.etype (punion e.epos eelse.epos)
 			| _,None ->
-				out.o_expr
+				e
 			| _ -> assert false
 		end
 	| Bind (bl, dt) ->
@@ -995,7 +995,7 @@ and group_cases mctx cases to_case =
 		| _ -> match dto with
 			| None -> ([to_case con],cases,Some dt)
 			| Some dt2 -> match dt,dt2 with
-				| Out(out1,_),Out(out2,_) when is_compatible out1 out2 ->
+				| Out(e1,eg,_),Out(e2,_,_) when e1 == e2 && eg = None ->
 					((to_case con) :: group,cases,dto)
 				| _ ->
 					let e = to_typed_ast mctx dt2 in
@@ -1026,7 +1026,7 @@ and to_enum_switch mctx en pl st cases =
 		let etf = follow (monomorphs en.e_types (monomorphs ef.ef_params ef.ef_type)) in
 		(* TODO: this is horrible !!! *)
 		let capture_vars = match dt with
-			| Out(out,None) ->
+			| Out(_,_,None) ->
 				let vl = PMap.foldi (fun k v acc -> (k,v) :: acc) (List.fold_left (fun acc vl -> List.fold_left (fun acc (v,st) -> if PMap.mem v acc then acc else PMap.add v st acc) acc vl) PMap.empty mctx.eval_stack) [] in
 				Some vl
 			| _ ->
@@ -1069,7 +1069,7 @@ and to_enum_switch mctx en pl st cases =
 		| _ -> match dto with
 			| None -> ([to_case con],cases,Some dt)
 			| Some dt2 -> match dt,dt2 with
-				| Out(out1,_),Out(out2,_) when is_compatible out1 out2 ->
+				| Out(e1,eg,_),Out(e2,_,_) when e1 == e2 && eg = None ->
 					((to_case con) :: group,cases,dto)
 				| _ ->
 					let g = type_case group dt2 con.c_pos in
