@@ -882,7 +882,7 @@ let configure gen =
     match e.eexpr with
       | TLocal _ -> e
       | TCast(e,_)
-      | TParenthesis e -> ensure_local e explain
+      | TParenthesis e | TMeta(_,e) -> ensure_local e explain
       | _ -> gen.gcon.error ("This function argument " ^ explain ^ " must be a local variable.") e.epos; e
   in
 

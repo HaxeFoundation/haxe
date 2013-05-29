@@ -954,7 +954,7 @@ let rec make_constant_expression ctx ?(concat_strings=false) e =
 			Some (mk (TConst (TString (s1 ^ s2))) ctx.com.basic.tstring (punion e1.epos e2.epos))
 		| Some e1, Some e2 -> Some (mk (TBinop(op, e1, e2)) e.etype e.epos)
 		| _ -> None)
-	| TParenthesis e -> Some e
+	| TParenthesis e | TMeta(_,e) -> Some e
 	| TTypeExpr _ -> Some e
 	(* try to inline static function calls *)
 	| TCall ({ etype = TFun(_,ret); eexpr = TField (_,FStatic (c,cf)) },el) ->

@@ -284,7 +284,7 @@ struct
       (* this is hack to not use 'break' on switch cases *)
       | TLocal { v_name = "__fallback__" } when is_switch -> true
       | TCall( { eexpr = TLocal { v_name = "__goto__" } }, _ ) -> true
-      | TParenthesis p -> is_final_return_expr p
+      | TParenthesis p | TMeta (_,p) -> is_final_return_expr p
       | TBlock bl -> is_final_return_block is_switch bl
       | TSwitch (_, el_e_l, edef) ->
         List.for_all (fun (_,e) -> is_final_return_expr e) el_e_l && Option.map_default is_final_return_expr false edef
