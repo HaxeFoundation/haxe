@@ -589,6 +589,8 @@ and gen_expr ctx e =
 		spr ctx "(";
 		gen_value ctx e;
 		spr ctx ")";
+	| TMeta (_,e) ->
+		gen_value ctx e
 	| TReturn eo ->
 		if ctx.in_value <> None then unsupported e.epos;
 		(match eo with
@@ -859,6 +861,7 @@ and gen_value ctx e =
 	| TField _
 	| TTypeExpr _
 	| TParenthesis _
+	| TMeta _
 	| TObjectDecl _
 	| TArrayDecl _
 	| TCall _

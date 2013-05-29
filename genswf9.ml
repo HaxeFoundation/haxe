@@ -989,7 +989,7 @@ let rec gen_expr_content ctx retval e =
 		gen_expr ctx true e;
 		write ctx HThrow;
 		no_value ctx retval;
-	| TParenthesis e ->
+	| TParenthesis e | TMeta (_,e) ->
 		gen_expr ctx retval e
 	| TObjectDecl fl ->
 		List.iter (fun (name,e) ->

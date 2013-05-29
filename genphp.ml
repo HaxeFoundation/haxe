@@ -1236,6 +1236,8 @@ and gen_expr ctx e =
 			gen_value ctx e;
 			spr ctx ")"
 		);
+	| TMeta (_,e) ->
+		gen_value ctx e
 	| TReturn eo ->
 		(match eo with
 		| None ->
@@ -1762,6 +1764,7 @@ and gen_value ctx e =
 	| TBinop _
 	| TField _
 	| TParenthesis _
+	| TMeta _
 	| TObjectDecl _
 	| TArrayDecl _
 	| TCall _

@@ -760,7 +760,7 @@ let rec iter_retval f retval e =
 	| TField (e,_)
 	| TUnop (_,_,e) ->
 		f true e
-	| TParenthesis e ->
+	| TParenthesis e | TMeta(_,e) ->
 		f retval e
 	| TBlock expr_list when retval ->
 		let rec return_last = function
@@ -1579,7 +1579,7 @@ and gen_expression ctx retval expression =
 		let rec is_variable e = match e.eexpr with
 		| TField _ -> false
 		| TLocal { v_name = "__global__" } -> false
-		| TParenthesis p -> is_variable p
+		| TParenthesis p | TMeta(_,p) -> is_variable p
 		| TCast (e,None) -> is_variable e
 		| _ -> true
       in
@@ -1596,7 +1596,7 @@ and gen_expression ctx retval expression =
             end;
             fixed
           )
-		| TParenthesis p -> is_fixed_override p
+		| TParenthesis p | TMeta(_,p) -> is_fixed_override p
 		| _ -> false
       in
       let is_super = (match func.eexpr with | TConst TSuper -> true | _ -> false ) in
@@ -1626,7 +1626,7 @@ and gen_expression ctx retval expression =
                   | "map" -> check_array_cast expression.etype
                   | _ -> ()
                )
-            | TParenthesis p -> cast_array_output p
+            | TParenthesis p | TMeta(_,p) -> cast_array_output p
             | _ -> ()
       in
       cast_array_output func;
@@ -1740,6 +1740,7 @@ and gen_expression ctx retval expression =
 	| TParenthesis expr when not retval ->
 			gen_expression ctx retval expr;
 	| TParenthesis expr -> output "("; gen_expression ctx retval expr; output ")"
+	| TMeta (_,expr) -> gen_expression ctx retval expr;
 	| TObjectDecl (
       ("fileName" , { eexpr = (TConst (TString file)) }) ::
          ("lineNumber" , { eexpr = (TConst (TInt line)) }) ::

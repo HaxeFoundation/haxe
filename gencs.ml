@@ -992,6 +992,8 @@ let configure gen =
           )
         | TParenthesis e ->
           write w "("; expr_s w e; write w ")"
+        | TMeta (_,e) ->
+            expr_s w e 
         | TArrayDecl el ->
           print w "new %s" (t_s e.etype);
           write w "{";

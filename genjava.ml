@@ -1123,6 +1123,8 @@ let configure gen =
         | TTypeExpr mt -> write w (md_s e.epos mt)
         | TParenthesis e ->
           write w "("; expr_s w e; write w ")"
+        | TMeta (_,e) ->
+          expr_s w e
         | TArrayDecl el when t_has_type_param_shallow false e.etype ->
           print w "( (%s) (new java.lang.Object[] " (t_s e.epos e.etype);
           write w "{";
