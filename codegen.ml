@@ -1541,7 +1541,7 @@ module PatternMatchConversion = struct
 		dt_lookup : dt array;
 	}
 
-	let mk_st def t p = {
+(* 	let mk_st def t p = {
 		st_def = def;
 		st_type = t;
 		st_pos = p;
@@ -1613,7 +1613,15 @@ module PatternMatchConversion = struct
 		match dt with
 		| Goto i ->
 			to_typed_ast cctx (cctx.dt_lookup.(i))
-		| Out(e,eo,dt) ->
+		| Expr e -> replace_locals cctx e
+		| Guard (e,dt1,dt2) ->
+			begin match dt2 with
+			| None -> mk (TIf(e,to_typed_ast cctx dt1,None)) t_dynamic e.epos
+			| Some dt ->
+				let eelse = to_typed_ast cctx dt in
+				mk (TIf(e,to_typed_ast cctx dt1,Some eelse)) eelse.etype (punion e.epos eelse.epos)
+			end
+(* 		| Out(e,eo,dt) ->
 			replace_locals cctx begin match eo,dt with
 				| Some eg,None ->
 					mk (TIf(eg,e,None)) t_dynamic e.epos
@@ -1623,7 +1631,7 @@ module PatternMatchConversion = struct
 				| _,None ->
 					e
 				| _ -> assert false
-			end
+			end *)
 		| Bind (bl, dt) ->
 			List.iter (fun ((v,_),st) ->
 				let e = st_to_texpr cctx st in
@@ -1653,7 +1661,7 @@ module PatternMatchConversion = struct
 				let eif = mk (TBinop(OpEq,(mk (TConst TNull) st.st_type st.st_pos),eval)) cctx.ctx.t.tbool ethen.epos in
 				mk (TIf(eif,ethen,Some e)) ethen.etype ethen.epos
 			| _ ->
-				assert false	
+				assert false
 
 	and group_cases cctx cases to_case =
 		let def = ref None in
@@ -1791,7 +1799,7 @@ module PatternMatchConversion = struct
 		let eval = st_to_texpr cctx st in
 		let eval = mk (TField(eval,quick_field eval.etype "length")) cctx.ctx.com.basic.tint st.st_pos in
 		mk (TSwitch(eval,cases,!def)) cctx.out_type eval.epos
-
+ *)
 	let to_typed_ast ctx dt p =
 		let first = dt.dt_dt_lookup.(dt.dt_first) in
 		let cctx = {
@@ -1802,7 +1810,7 @@ module PatternMatchConversion = struct
 			dt_lookup = dt.dt_dt_lookup;
 		} in
 		(* generate typed AST from decision tree *)
-		let e = to_typed_ast cctx first in
+		let e = mk (TConst TNull) t_dynamic p in
 		let e = { e with epos = p; etype = dt.dt_type} in
 		if dt.dt_var_init = [] then
 			e

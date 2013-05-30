@@ -320,10 +320,12 @@ and st = {
 }
 
 and dt =
-	| Out of texpr * texpr option * dt option
+	(* | Out of texpr * texpr option * dt option *)
 	| Switch of st * (con * dt) list
 	| Bind of ((tvar * pos) * st) list * dt
 	| Goto of int
+	| Expr of texpr
+	| Guard of texpr * dt * dt option
 
 and decision_tree = {
 	dt_dt_lookup : dt array;
@@ -1359,13 +1361,18 @@ let iter f e =
 		(match def with None -> () | Some e -> f e)
 	| TPatMatch dt ->
 		let rec loop dt = match dt with
-			| Out(e,eo,dt) ->
+(* 			| Out(e,eo,dt) ->
 				f e;
 				(match eo with None -> () | Some e -> f e);
-				(match dt with None -> () | Some dt -> loop dt);
+				(match dt with None -> () | Some dt -> loop dt); *)
 			| Bind(_,dt) -> loop dt
 			| Goto _ -> ()
 			| Switch(_,cl) -> List.iter (fun (_,dt) -> loop dt) cl
+			| Expr e -> f e
+			| Guard(eg,dt1,dt2) ->
+				f eg;
+				loop dt1;
+				(match dt2 with None -> () | Some dt -> loop dt)
 		in
 		Array.iter loop dt.dt_dt_lookup
 	| TTry (e,catches) ->
@@ -1420,13 +1427,15 @@ let map_expr f e =
 		{ e with eexpr = TMatch (f e1, t, List.map (fun (cl,params,e) -> cl, params, f e) cases, match def with None -> None | Some e -> Some (f e)) }
 	| TPatMatch dt ->
 		let rec loop dt = match dt with
-			| Out(e,eo,dt) ->
-				Out(f e, (match eo with None -> None | Some e -> Some (f e)), (match dt with None -> None | Some dt -> Some (loop dt)));
+(* 			| Out(e,eo,dt) ->
+				Out(f e, (match eo with None -> None | Some e -> Some (f e)), (match dt with None -> None | Some dt -> Some (loop dt))); *)
 			| Bind(vl,dt) -> Bind(vl, loop dt)
 			| Goto _ -> dt
 			| Switch(st,cl) -> Switch(st, List.map (fun (c,dt) -> c,loop dt) cl)
+			| Expr e -> Expr(f e)
+			| Guard(e,dt1,dt2) -> Guard(f e,loop dt1,match dt2 with None -> None | Some dt -> Some (loop dt))
 		in
-		{ e with eexpr = TPatMatch({dt with dt_dt_lookup = Array.map loop dt.dt_dt_lookup})}		
+		{ e with eexpr = TPatMatch({dt with dt_dt_lookup = Array.map loop dt.dt_dt_lookup})}
 	| TTry (e1,catches) ->
 		{ e with eexpr = TTry (f e1, List.map (fun (v,e) -> v, f e) catches) }
 	| TReturn eo ->
@@ -1498,13 +1507,15 @@ let map_expr_type f ft fv e =
 		{ e with eexpr = TMatch (f e1, (en,List.map ft pl), List.map map_case cases, match def with None -> None | Some e -> Some (f e)); etype = ft e.etype }
 	| TPatMatch dt ->
 		let rec loop dt = match dt with
-			| Out(e,eo,dt) ->
-				Out(f e, (match eo with None -> None | Some e -> Some (f e)), (match dt with None -> None | Some dt -> Some (loop dt)));
+(* 			| Out(e,eo,dt) ->
+				Out(f e, (match eo with None -> None | Some e -> Some (f e)), (match dt with None -> None | Some dt -> Some (loop dt))); *)
 			| Bind(vl,dt) -> Bind(vl, loop dt)
 			| Goto _ -> dt
 			| Switch(st,cl) -> Switch(st, List.map (fun (c,dt) -> c,loop dt) cl)
+			| Expr e -> Expr(f e)
+			| Guard (e,dt1,dt2) -> Guard(f e, loop dt, match dt2 with None -> None | Some dt -> Some (loop dt))
 		in
-		{ e with eexpr = TPatMatch({dt with dt_dt_lookup = Array.map loop dt.dt_dt_lookup}); etype = ft e.etype}		
+		{ e with eexpr = TPatMatch({dt with dt_dt_lookup = Array.map loop dt.dt_dt_lookup}); etype = ft e.etype}
 	| TTry (e1,catches) ->
 		{ e with eexpr = TTry (f e1, List.map (fun (v,e) -> fv v, f e) catches); etype = ft e.etype }
 	| TReturn eo ->
@@ -1579,10 +1590,6 @@ and s_dt tabs tree =
 		| SField (st,n) -> s_st st ^ "." ^ n)
 	in
 	tabs ^ match tree with
-	| Out(e,eo,None)->
-		s_expr s_type e
-	| Out(e,eo,Some dt) ->
-		"if (" ^ (s_expr s_type (match eo with Some e -> e | None -> assert false)) ^ ") " ^ (s_expr s_type e) ^ " else " ^ s_dt tabs dt
 	| Switch (st, cl) ->
 		"switch(" ^ (s_st st) ^ ") { \n" ^ tabs
 		^ (String.concat ("\n" ^ tabs) (List.map (fun (c,dt) ->
@@ -1592,6 +1599,8 @@ and s_dt tabs tree =
 	| Bind (bl, dt) -> "bind " ^ (String.concat "," (List.map (fun ((v,_),st) -> v.v_name ^ "(" ^ (string_of_int v.v_id) ^ ") =" ^ (s_st st)) bl)) ^ "\n" ^ (s_dt tabs dt)
 	| Goto i ->
 		"goto " ^ (string_of_int i)
+	| Expr e -> s_expr s_type e
+	| Guard (e,dt1,dt2) -> "if(" ^ (s_expr s_type e) ^ ") " ^ (s_dt tabs dt1) ^ (match dt2 with None -> "" | Some dt -> " else " ^ (s_dt tabs dt))
 
 and s_expr s_type e =
 	let sprintf = Printf.sprintf in
@@ -1730,7 +1739,7 @@ let rec s_expr_pretty tabs s_type e =
 		) cases in
 		let s = sprintf "switch (%s) {\n%s%s" (loop e) cases (match def with None -> "" | Some e -> ntabs ^ "default: " ^ (s_expr_pretty ntabs s_type e) ^ "\n") in
 		s ^ tabs ^ "}"
-	| TPatMatch dt -> s_dt tabs (dt.dt_dt_lookup.(dt.dt_first))	
+	| TPatMatch dt -> s_dt tabs (dt.dt_dt_lookup.(dt.dt_first))
 	| TTry (e,cl) ->
 		sprintf "try %s%s" (loop e) (slist (fun (v,e) -> sprintf "catch( %s : %s ) %s" v.v_name (s_type v.v_type) (loop e)) cl)
 	| TReturn None ->
@@ -1748,4 +1757,4 @@ let rec s_expr_pretty tabs s_type e =
 	| TCast (e,Some mt) ->
 		sprintf "cast (%s,%s)" (loop e) (s_type_path (t_path mt))
 	| TMeta ((n,el,_),e) ->
-		sprintf "@%s%s %s" (Meta.to_string n) (match el with [] -> "" | _ -> "(" ^ (String.concat ", " (List.map Ast.s_expr el)) ^ ")") (loop e)		
+		sprintf "@%s%s %s" (Meta.to_string n) (match el with [] -> "" | _ -> "(" ^ (String.concat ", " (List.map Ast.s_expr el)) ^ ")") (loop e)

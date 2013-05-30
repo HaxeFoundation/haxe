@@ -757,10 +757,9 @@ let rec compile mctx stl pmat =
 		if i = -1 then begin
 			Hashtbl.replace mctx.used_paths out.o_id true;
 			let bl = bind_remaining out pv stl in
-			let dt = if out.o_guard = None || match pl with [] -> true | _ -> false then
-				Out(out.o_expr,out.o_guard,None)
-			else
-				Out(out.o_expr,out.o_guard,Some (compile mctx stl pl))
+			let dt = match out.o_guard with
+				| None -> Expr out.o_expr
+				| Some e -> Guard (e, Expr out.o_expr, match pl with [] -> None | _ -> Some (compile mctx stl pl))
 			in
 			if bl = [] then dt else Bind(bl,dt)
 		end else if i > 0 then begin
@@ -1035,15 +1034,18 @@ let match_expr ctx e cases def with_type p =
 		| Goto i -> Array.set count i (count.(i))
 		| Switch(_,cl) -> List.iter (fun (_,dt) -> loop dt) cl
 		| Bind(_,dt) -> loop dt
-		| Out(_,_,Some dt) -> loop dt
-		| _ -> ()
+		| Expr _ -> ()
+		| Guard (_,dt1,dt2) ->
+			loop dt1;
+			(match dt2 with None -> () | Some dt -> loop dt)
 	in
 	Array.iter loop lut;
 	let rec loop dt = match dt with
 		| Goto i -> if count.(i) < 2 then lut.(i) else Goto i
 		| Switch(st,cl) -> Switch(st, List.map (fun (c,dt) -> c, loop dt) cl)
 		| Bind(bl,dt) -> Bind(bl,loop dt)
-		| Out(e,eo,dt) -> Out(e,eo, match dt with None -> None | Some dt -> Some (loop dt))
+		| Expr e -> Expr e
+		| Guard(e,dt1,dt2) -> Guard(e,loop dt1, match dt2 with None -> None | Some dt -> Some (loop dt))
 	in
 	{
 		dt_first = first;

@@ -468,14 +468,13 @@ and gen_expr ctx e =
 					(EBinop ("=",field p (ident p "@state") v.v_name,gen_st st),p)
 				) bl in
 				EBlock (block @ [loop dt]),p
-			| Out(e,eo,dt) ->
-				begin match eo,dt with
- 					| Some eg,None -> (EIf (gen_expr ctx eg,gen_expr ctx e,None),p)
-					| Some eg,Some dt -> (EIf (gen_expr ctx eg,gen_expr ctx e,Some (loop dt)),p)
-					| _,None ->
-						let state = Hashtbl.fold (fun n _ l -> (n, Some (field p (ident p "@state") n)) :: l) state [] in
-						assign_return state (gen_expr ctx e)
-					| None,Some _ -> assert false
+			| Expr e ->
+				let state = Hashtbl.fold (fun n _ l -> (n, Some (field p (ident p "@state") n)) :: l) state [] in
+				assign_return state (gen_expr ctx e)
+			| Guard (e,dt1,dt2) ->
+				begin match dt2 with
+ 					| None -> (EIf (gen_expr ctx e,loop dt1,None),p)
+					| Some dt -> (EIf (gen_expr ctx e,loop dt1,Some (loop dt)),p)
 				end
 			| Switch (st,cl) ->
 				let est = gen_st st in
