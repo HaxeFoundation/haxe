@@ -453,7 +453,7 @@ and gen_expr ctx e =
 		],p in *)
 		let assign_return e =
 			EBlock [
-				(EBinop ("=",ident p "@tmp",e),p);
+				(EBinop ("=",ident p "@ret",e),p);
 				goto num_labels;
 			],p
 		in
@@ -463,7 +463,7 @@ and gen_expr ctx e =
 				goto i
 			| Bind (bl,dt) ->
 				let block = List.map (fun ((v,_),st) ->
-					Hashtbl.replace state v true;
+					Hashtbl.replace state v.v_name true;
 					(EBinop ("=",ident p v.v_name,gen_st st),p)
 				) bl in
 				EBlock (block @ [loop dt]),p
@@ -475,11 +475,14 @@ and gen_expr ctx e =
 					| None,Some _ -> assert false
 				end
 			| Switch (st,cl) ->
+				let est = gen_st st in
 				let e = match follow st.st_type with
-					| TEnum(_) | TAbstract({a_this = TEnum(_)},_) -> field p (gen_st st) "index"
-					| TInst({cl_path = [],"Array"},[t]) -> field p (gen_st st) "length"
-					| _ -> gen_st st
+					| TEnum(_) | TAbstract({a_this = TEnum(_)},_) -> field p est "index"
+					| TInst({cl_path = [],"Array"},[t]) -> field p est "length"
+					| _ -> est;
 				in
+				let econd = (EBinop ("!=",est,null p),p) in
+				(* let e = EIf(econd,e,Some (null p)),p in *)
 				let def = ref None in
 				let cases = ExtList.List.filter_map (fun (c,dt) ->
 					if c.c_def = CAny then begin
@@ -488,17 +491,23 @@ and gen_expr ctx e =
 					end else
 						Some (s_con c,loop dt)
 				) cl in
-				(ESwitch (e,cases,!def),p)
+				EBlock [
+					call p (builtin p "print") [gen_big_string ctx p "Switching on "];
+					call p (builtin p "print") [est];
+					(ESwitch (e,cases,!def),p);
+					goto num_labels;
+				],p
 		in
 		let i = ref 0 in
-		let eout = (ELabel (get_label num_labels),p) :: [ident p "@tmp"] in
+		let eout = (ELabel (get_label num_labels),p) :: [ident p "@ret"] in
 		let el = Array.fold_left (fun acc dt ->
 			incr i;
 			(ELabel(get_label (!i - 1)),p) :: loop dt :: acc
 		) eout dt.dt_dt_lookup in
-		let state_init = Hashtbl.fold (fun v _ l -> (v.v_name,None) :: l) state [] in
+		let state_init = Hashtbl.fold (fun n _ l -> (n,None) :: l) state [] in
 		let state_init = List.fold_left (fun acc (v,eo) -> (v.v_name,(match eo with None -> None | Some e -> Some (gen_expr ctx e))) :: acc) state_init dt.dt_var_init in
-		EBlock ((EVars state_init,p) :: el),p
+		let el = match state_init with [] -> el | _ -> (EVars state_init,p) :: el in
+		EBlock el,p
 	| TSwitch (e,cases,eo) ->
 		let e = gen_expr ctx e in
 		let eo = (match eo with None -> None | Some e -> Some (gen_expr ctx e)) in
