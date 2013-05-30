@@ -977,7 +977,7 @@ and gen_expr_2 ctx retval e =
 		getvar ctx (gen_access ctx false e)
 	| TConst c ->
 		gen_constant ctx c e.epos
-	| TParenthesis e ->
+	| TParenthesis e | TMeta (_,e) ->
 		gen_expr ctx retval e
 	| TBlock el ->
 		let rec loop = function

@@ -609,6 +609,7 @@ and gen_call ctx e el =
 	| TFunction _, []
 	| TCall _, []
 	| TParenthesis _, []
+	| TMeta _, []
 	| TBlock _, [] ->
 		ctx.is_call <- true;
 		spr ctx "call_user_func(";
@@ -619,6 +620,7 @@ and gen_call ctx e el =
 	| TFunction _, el
 	| TCall _, el
 	| TParenthesis _, el
+	| TMeta _, el
 	| TBlock _, el ->
 		ctx.is_call <- true;
 		spr ctx "call_user_func_array(";
@@ -801,6 +803,7 @@ and gen_field_access ctx isvar e s =
 		gen_member_access ctx isvar e s
 	| TBlock _
 	| TParenthesis _
+	| TMeta _
 	| TObjectDecl _
 	| TArrayDecl _
 	| TNew _ ->
@@ -1001,6 +1004,7 @@ and gen_expr ctx e =
 		| TCall _
 		| TBlock _
 		| TParenthesis _
+		| TMeta _
 		| TArrayDecl _ ->
 			spr ctx "_hx_array_get(";
 			gen_value ctx e1;
@@ -1236,6 +1240,8 @@ and gen_expr ctx e =
 			gen_value ctx e;
 			spr ctx ")"
 		);
+	| TMeta (_,e) ->
+		gen_value ctx e
 	| TReturn eo ->
 		(match eo with
 		| None ->
@@ -1733,6 +1739,7 @@ and canbe_ternary_param e =
 	| TLocal _
 	| TField (_,FEnum _)
 	| TParenthesis _
+	| TMeta _
 	| TObjectDecl _
 	| TArrayDecl _
 	| TCall _
@@ -1762,6 +1769,7 @@ and gen_value ctx e =
 	| TBinop _
 	| TField _
 	| TParenthesis _
+	| TMeta _
 	| TObjectDecl _
 	| TArrayDecl _
 	| TCall _

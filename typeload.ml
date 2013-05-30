@@ -865,7 +865,7 @@ let rec return_flow ctx e =
 	let return_flow = return_flow ctx in
 	match e.eexpr with
 	| TReturn _ | TThrow _ -> ()
-	| TParenthesis e ->
+	| TParenthesis e | TMeta(_,e) ->
 		return_flow e
 	| TBlock el ->
 		let rec loop = function

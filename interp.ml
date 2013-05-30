@@ -4356,7 +4356,7 @@ let rec make_const e =
 		| TBool b -> VBool b
 		| TNull -> VNull
 		| TThis | TSuper -> raise Exit)
-	| TParenthesis e ->
+	| TParenthesis e | TMeta(_,e) ->
 		make_const e
 	| TObjectDecl el ->
 		VObject (obj (hash_field (get_ctx())) (List.map (fun (f,e) -> f, make_const e) el))
@@ -4530,7 +4530,8 @@ let rec make_ast e =
 				let t = (match t with TClassDecl c -> TInst (c,[]) | TEnumDecl e -> TEnum (e,[]) | TTypeDecl t -> TType (t,[]) | TAbstractDecl a -> TAbstract (a,[])) in
 				Some (try make_type t with Exit -> assert false)
 		) in
-		ECast (make_ast e,t))
+		ECast (make_ast e,t)
+	| TMeta (m,e) -> EMeta(m,make_ast e))
 	,e.epos)
 
 ;;
