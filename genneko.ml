@@ -419,6 +419,7 @@ and gen_expr ctx e =
 					) (match eo with None -> null p | Some e -> (gen_expr ctx e)) (List.rev cases)
 				],p)
 		)
+	| TPatMatch dt -> assert false
 	| TSwitch (e,cases,eo) ->
 		let e = gen_expr ctx e in
 		let eo = (match eo with None -> None | Some e -> Some (gen_expr ctx e)) in

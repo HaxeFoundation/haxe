@@ -1631,6 +1631,7 @@ and gen_expr ctx e =
 		ctx.in_loop <- old_loop;
 		spr ctx "}";
 		b()
+	| TPatMatch dt -> assert false
 	| TSwitch (e,cases,def) ->
 		let old_loop = ctx.in_loop in
 		ctx.in_loop <- false;
@@ -1820,6 +1821,7 @@ and gen_value ctx e =
 	| TSwitch _
 	| TFor _
 	| TMatch _
+	| TPatMatch _
 	| TIf _
 	| TTry _ ->
 		inline_block ctx e

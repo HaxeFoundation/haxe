@@ -1166,6 +1166,7 @@ and gen_expr_2 ctx retval e =
 		gen_expr ctx retval (Codegen.default_cast ctx.com e1 t e.etype e.epos)
 	| TMatch (e,_,cases,def) ->
 		gen_match ctx retval e cases def
+	| TPatMatch dt -> assert false
 	| TFor (v,it,e) ->
 		gen_expr ctx true it;
 		let r = alloc_tmp ctx in

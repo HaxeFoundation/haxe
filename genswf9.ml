@@ -1325,6 +1325,7 @@ let rec gen_expr_content ctx retval e =
 		switch();
 		List.iter (fun j -> j()) jends;
 		free_reg ctx rparams
+	| TPatMatch dt -> assert false
 	| TCast (e1,t) ->
 		gen_expr ctx retval e1;
 		if retval then begin

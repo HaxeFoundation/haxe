@@ -120,6 +120,7 @@ and texpr_expr =
 	| TWhile of texpr * texpr * Ast.while_flag
 	| TSwitch of texpr * (texpr list * texpr) list * texpr option
 	| TMatch of texpr * (tenum * tparams) * (int list * tvar option list option * texpr) list * texpr option
+	| TPatMatch of decision_tree
 	| TTry of texpr * (tvar * texpr) list
 	| TReturn of texpr option
 	| TBreak
@@ -1356,6 +1357,17 @@ let iter f e =
 		f e;
 		List.iter (fun (_,_,e) -> f e) cases;
 		(match def with None -> () | Some e -> f e)
+	| TPatMatch dt ->
+		let rec loop dt = match dt with
+			| Out(e,eo,dt) ->
+				f e;
+				(match eo with None -> () | Some e -> f e);
+				(match dt with None -> () | Some dt -> loop dt);
+			| Bind(_,dt) -> loop dt
+			| Goto _ -> ()
+			| Switch(_,cl) -> List.iter (fun (_,dt) -> loop dt) cl
+		in
+		Array.iter loop dt.dt_dt_lookup
 	| TTry (e,catches) ->
 		f e;
 		List.iter (fun (_,e) -> f e) catches
@@ -1406,6 +1418,15 @@ let map_expr f e =
 		{ e with eexpr = TSwitch (f e1, List.map (fun (el,e2) -> List.map f el, f e2) cases, match def with None -> None | Some e -> Some (f e)) }
 	| TMatch (e1,t,cases,def) ->
 		{ e with eexpr = TMatch (f e1, t, List.map (fun (cl,params,e) -> cl, params, f e) cases, match def with None -> None | Some e -> Some (f e)) }
+	| TPatMatch dt ->
+		let rec loop dt = match dt with
+			| Out(e,eo,dt) ->
+				Out(f e, (match eo with None -> None | Some e -> Some (f e)), (match dt with None -> None | Some dt -> Some (loop dt)));
+			| Bind(vl,dt) -> Bind(vl, loop dt)
+			| Goto _ -> dt
+			| Switch(st,cl) -> Switch(st, List.map (fun (c,dt) -> c,loop dt) cl)
+		in
+		{ e with eexpr = TPatMatch({dt with dt_dt_lookup = Array.map loop dt.dt_dt_lookup})}		
 	| TTry (e1,catches) ->
 		{ e with eexpr = TTry (f e1, List.map (fun (v,e) -> v, f e) catches) }
 	| TReturn eo ->
@@ -1475,6 +1496,15 @@ let map_expr_type f ft fv e =
 			cl, params, f e
 		in
 		{ e with eexpr = TMatch (f e1, (en,List.map ft pl), List.map map_case cases, match def with None -> None | Some e -> Some (f e)); etype = ft e.etype }
+	| TPatMatch dt ->
+		let rec loop dt = match dt with
+			| Out(e,eo,dt) ->
+				Out(f e, (match eo with None -> None | Some e -> Some (f e)), (match dt with None -> None | Some dt -> Some (loop dt)));
+			| Bind(vl,dt) -> Bind(vl, loop dt)
+			| Goto _ -> dt
+			| Switch(st,cl) -> Switch(st, List.map (fun (c,dt) -> c,loop dt) cl)
+		in
+		{ e with eexpr = TPatMatch({dt with dt_dt_lookup = Array.map loop dt.dt_dt_lookup}); etype = ft e.etype}		
 	| TTry (e1,catches) ->
 		{ e with eexpr = TTry (f e1, List.map (fun (v,e) -> fv v, f e) catches); etype = ft e.etype }
 	| TReturn eo ->
@@ -1506,6 +1536,7 @@ let s_expr_kind e =
 	| TWhile (_,_,_) -> "While"
 	| TSwitch (_,_,_) -> "Switch"
 	| TMatch (_,_,_,_) -> "Match"
+	| TPatMatch _ -> "PatMatch"
 	| TTry (_,_) -> "Try"
 	| TReturn _ -> "Return"
 	| TBreak -> "Break"
@@ -1523,7 +1554,46 @@ let s_const = function
 	| TThis -> "this"
 	| TSuper -> "super"
 
-let rec s_expr s_type e =
+let rec s_con con = match con.c_def with
+	| CEnum(_,ef) -> ef.ef_name
+	| CAny -> "_"
+	| CConst c -> s_const c
+	| CType mt -> s_type_path (t_path mt)
+	| CArray i -> "[" ^(string_of_int i) ^ "]"
+	| CFields (_,fl) -> String.concat "," (List.map (fun (s,_) -> s) fl)
+	| CExpr e -> s_expr (s_type (print_context())) e
+
+and st_args l r v =
+	(if l > 0 then (String.concat "," (ExtList.List.make l "_")) ^ "," else "")
+	^ v ^
+	(if r > 0 then "," ^ (String.concat "," (ExtList.List.make r "_")) else "")
+
+and s_dt tabs tree =
+	let s_type = s_type (print_context()) in
+	let rec s_st st =
+		(match st.st_def with
+		| SVar v -> v.v_name
+		| SEnum (st,n,i) -> s_st st ^ "." ^ n ^ "." ^ (string_of_int i)
+		| SArray (st,i) -> s_st st ^ "[" ^ (string_of_int i) ^ "]"
+		| STuple (st,i,a) -> "(" ^ (st_args i (a - i - 1) (s_st st)) ^ ")"
+		| SField (st,n) -> s_st st ^ "." ^ n)
+	in
+	tabs ^ match tree with
+	| Out(e,eo,None)->
+		s_expr s_type e
+	| Out(e,eo,Some dt) ->
+		"if (" ^ (s_expr s_type (match eo with Some e -> e | None -> assert false)) ^ ") " ^ (s_expr s_type e) ^ " else " ^ s_dt tabs dt
+	| Switch (st, cl) ->
+		"switch(" ^ (s_st st) ^ ") { \n" ^ tabs
+		^ (String.concat ("\n" ^ tabs) (List.map (fun (c,dt) ->
+			"case " ^ (s_con c) ^ ":\n" ^ (s_dt (tabs ^ "\t") dt)
+		) cl))
+		^ "\n" ^ (if String.length tabs = 0 then "" else (String.sub tabs 0 (String.length tabs - 1))) ^ "}"
+	| Bind (bl, dt) -> "bind " ^ (String.concat "," (List.map (fun ((v,_),st) -> v.v_name ^ "(" ^ (string_of_int v.v_id) ^ ") =" ^ (s_st st)) bl)) ^ "\n" ^ (s_dt tabs dt)
+	| Goto i ->
+		"goto " ^ (string_of_int i)
+
+and s_expr s_type e =
 	let sprintf = Printf.sprintf in
 	let slist f l = String.concat "," (List.map f l) in
 	let loop = s_expr s_type in
@@ -1584,6 +1654,7 @@ let rec s_expr s_type e =
 		let args vl = slist (function None -> "_" | Some v -> sprintf "%s : %s" (s_var v) (s_type v.v_type)) vl in
 		let cases = slist (fun (il,vl,e) -> sprintf "case %s%s : %s" (slist string_of_int il) (match vl with None -> "" | Some vl -> sprintf "(%s)" (args vl)) (loop e)) cases in
 		sprintf "Match %s (%s,(%s)%s)" (s_type (TEnum (en,tparams))) (loop e) cases (match def with None -> "" | Some e -> "," ^ loop e)
+	| TPatMatch dt -> s_dt "" (dt.dt_dt_lookup.(dt.dt_first))
 	| TTry (e,cl) ->
 		sprintf "Try %s(%s) " (loop e) (slist (fun (v,e) -> sprintf "catch( %s : %s ) %s" (s_var v) (s_type v.v_type) (loop e)) cl)
 	| TReturn None ->
@@ -1659,6 +1730,7 @@ let rec s_expr_pretty tabs s_type e =
 		) cases in
 		let s = sprintf "switch (%s) {\n%s%s" (loop e) cases (match def with None -> "" | Some e -> ntabs ^ "default: " ^ (s_expr_pretty ntabs s_type e) ^ "\n") in
 		s ^ tabs ^ "}"
+	| TPatMatch dt -> s_dt tabs (dt.dt_dt_lookup.(dt.dt_first))	
 	| TTry (e,cl) ->
 		sprintf "try %s%s" (loop e) (slist (fun (v,e) -> sprintf "catch( %s : %s ) %s" v.v_name (s_type v.v_type) (loop e)) cl)
 	| TReturn None ->

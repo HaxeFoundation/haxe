@@ -794,6 +794,7 @@ let rec iter_retval f retval e =
 		f true e;
 		List.iter (fun (_,_,e) -> f false e) cases;
 		(match def with None -> () | Some e -> f false e)
+	| TPatMatch dt -> assert false
 	| TTry (e,catches) ->
 		f retval e;
 		List.iter (fun (_,e) -> f false e) catches
@@ -1881,6 +1882,7 @@ and gen_expression ctx retval expression =
 	| TSwitch (_,_,_)
 	| TMatch (_, _, _, _) when (retval && (not return_from_internal_node) )->
       gen_local_block_call()
+    | TPatMatch dt -> assert false
 	| TSwitch (condition,cases,optional_default)  ->
 		let switch_on_int_constants = (only_int_cases cases) && (not (contains_break expression)) in
 		if (switch_on_int_constants) then begin

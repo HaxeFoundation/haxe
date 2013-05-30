@@ -1264,6 +1264,7 @@ let configure gen =
         | TObjectDecl _ -> write w "[ obj decl not supported ]"; if !strict_mode then assert false
         | TFunction _ -> write w "[ func decl not supported ]"; if !strict_mode then assert false
         | TMatch _ -> write w "[ match not supported ]"; if !strict_mode then assert false
+        | TPatMatch dt -> assert false
     )
     and do_call w e el =
       let params, el = extract_tparams [] el in

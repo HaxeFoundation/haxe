@@ -1531,6 +1531,290 @@ module Abstract = struct
 	let handle_abstract_casts ctx e =
 		loop ctx e
 end
+
+module PatternMatchConversion = struct
+	type cctx = {
+		ctx : typer;
+		v_lookup : (string,tvar) Hashtbl.t;
+		out_type : t;
+		mutable eval_stack : ((tvar * pos) * st) list list;
+		dt_lookup : dt array;
+	}
+
+	let mk_st def t p = {
+		st_def = def;
+		st_type = t;
+		st_pos = p;
+	}
+
+	let mk_const ctx p = function
+		| TString s -> mk (TConst (TString s)) ctx.com.basic.tstring p
+		| TInt i -> mk (TConst (TInt i)) ctx.com.basic.tint p
+		| TFloat f -> mk (TConst (TFloat f)) ctx.com.basic.tfloat p
+		| TBool b -> mk (TConst (TBool b)) ctx.com.basic.tbool p
+		| TNull -> mk (TConst TNull) (ctx.com.basic.tnull (mk_mono())) p
+		| _ -> error "Unsupported constant" p
+
+	let rec st_to_unique_name ctx st = match st.st_def with
+		| SField(st,f) -> st_to_unique_name ctx st ^ "_f" ^ f
+		| SArray(st,i) -> st_to_unique_name ctx st ^ "_a" ^ (string_of_int i)
+		| SEnum(st,n,i) -> st_to_unique_name ctx st ^ "_e" ^ n ^ "_" ^ (string_of_int i)
+		| SVar v -> v.v_name
+		| STuple (st,_,_) -> st_to_unique_name ctx st
+
+	let rec st_to_texpr cctx st = match st.st_def with
+		| SVar v -> mk (TLocal v) v.v_type st.st_pos
+		| SField (sts,f) ->
+			let e = st_to_texpr cctx sts in
+			let fa = try quick_field e.etype f with Not_found -> FDynamic f in
+			mk (TField(e,fa)) st.st_type st.st_pos
+		| SArray (sts,i) -> mk (TArray(st_to_texpr cctx sts,mk_const cctx.ctx st.st_pos (TInt (Int32.of_int i)))) st.st_type st.st_pos
+		| STuple (st,_,_) -> st_to_texpr cctx st
+		| SEnum _ ->
+			let n = st_to_unique_name cctx st in
+			let v = try	Hashtbl.find cctx.v_lookup n with Not_found ->
+				let v = alloc_var n st.st_type in
+				Hashtbl.add cctx.v_lookup n v;
+				v
+			in
+			cctx.ctx.locals <- PMap.add n v cctx.ctx.locals;
+			mk (TLocal v) v.v_type st.st_pos
+
+	let rec st_eq st1 st2 = match st1.st_def,st2.st_def with
+		| STuple (st1,i1,_), STuple(st2,i2,_) -> i1 = i2 && st_eq st1 st2
+		| SEnum(st1,_,i1), SEnum(st2,_,i2) -> i1 = i2 && st_eq st1 st2
+		| SField(st1,f1),SField(st2,f2) -> f1 = f2 && st_eq st1 st2
+		| SArray(st1,i1),SArray(st2,i2) -> i1 = i1 && st_eq st1 st2
+		| SVar _, SVar _ -> true
+		| _ -> false
+
+	let replace_locals cctx e =
+		let replace v =
+			let rec loop vl = match vl with
+				| vl :: vll -> (try snd (List.find (fun ((v2,_),st) -> v2 == v) vl) with Not_found -> loop vll)
+				| [] -> raise Not_found
+			in
+			loop cctx.eval_stack
+		in
+		let rec loop e = match e.eexpr with
+			| TLocal v ->
+				(try
+					let st = replace v in
+					unify cctx.ctx e.etype st.st_type e.epos;
+					st_to_texpr cctx st
+				with Not_found ->
+					e)
+			| _ ->
+				Type.map_expr loop e
+		in
+		loop e
+
+	let rec to_typed_ast cctx dt =
+		match dt with
+		| Goto i ->
+			to_typed_ast cctx (cctx.dt_lookup.(i))
+		| Out(e,eo,dt) ->
+			replace_locals cctx begin match eo,dt with
+				| Some eg,None ->
+					mk (TIf(eg,e,None)) t_dynamic e.epos
+				| Some eg,Some dt ->
+					let eelse = to_typed_ast cctx dt in
+					mk (TIf(eg,e,Some eelse)) eelse.etype (punion e.epos eelse.epos)
+				| _,None ->
+					e
+				| _ -> assert false
+			end
+		| Bind (bl, dt) ->
+			List.iter (fun ((v,_),st) ->
+				let e = st_to_texpr cctx st in
+				begin match e.eexpr with
+					| TLocal v2 -> v2.v_name <- v.v_name
+					| _ -> ()
+				end;
+			) bl;
+			cctx.eval_stack <- bl :: cctx.eval_stack;
+			let e = to_typed_ast cctx dt in
+			cctx.eval_stack <- List.tl cctx.eval_stack;
+			e
+		| Switch(st,cases) ->
+			(* separate null-patterns: these are placed in an initial if (st == null) check to avoid null access issues *)
+			let null,cases = List.partition (fun (c,_) -> match c.c_def with CConst(TNull) -> true | _ -> false) cases in
+			let e = match follow st.st_type with
+			| TEnum(en,pl) | TAbstract({a_this = TEnum(en,_)},pl) -> to_enum_switch cctx en pl st cases
+			| TInst({cl_path = [],"Array"},[t]) -> to_array_switch cctx t st cases
+			| TAnon a -> to_structure_switch cctx a st cases
+			| t -> to_value_switch cctx t st cases
+			in
+			match null with
+			| [] -> e
+			| [_,dt] ->
+				let eval = st_to_texpr cctx st in
+				let ethen = to_typed_ast cctx dt in
+				let eif = mk (TBinop(OpEq,(mk (TConst TNull) st.st_type st.st_pos),eval)) cctx.ctx.t.tbool ethen.epos in
+				mk (TIf(eif,ethen,Some e)) ethen.etype ethen.epos
+			| _ ->
+				assert false	
+
+	and group_cases cctx cases to_case =
+		let def = ref None in
+		let group,cases,dto = List.fold_left (fun (group,cases,dto) (con,dt) -> match con.c_def with
+			| CAny ->
+				let e = to_typed_ast cctx dt in
+				def := Some e;
+				(group,cases,dto)
+			| _ -> match dto with
+				| None -> ([to_case con],cases,Some dt)
+				| Some dt2 -> match dt,dt2 with
+					| Out(e1,eg,_),Out(e2,_,_) when e1 == e2 && eg = None ->
+						((to_case con) :: group,cases,dto)
+					| _ ->
+						let e = to_typed_ast cctx dt2 in
+						([to_case con],(List.rev group,e) :: cases, Some dt)
+		) ([],[],None) cases in
+		let cases = List.rev (match group,dto with
+			| [],None ->
+				cases
+			| group,Some dt ->
+				let e = to_typed_ast cctx dt in
+				(List.rev group,e) :: cases
+			| _ ->
+				assert false
+		) in
+		cases,def
+
+	and to_enum_switch cctx en pl st cases =
+		let eval = st_to_texpr cctx st in
+		let to_case con = match con.c_def with
+			| CEnum(en,ef) -> en,ef
+			| _ ->
+				error ("Unexpected") con.c_pos
+		in
+		let type_case group dt p =
+			let group = List.rev group in
+			let en,ef = List.hd group in
+			let save = save_locals cctx.ctx in
+			let etf = follow (monomorphs en.e_types (monomorphs ef.ef_params ef.ef_type)) in
+			(* TODO: this is horrible !!! *)
+			let capture_vars = match dt with
+				| Out(_,_,None) ->
+					let vl = PMap.foldi (fun k v acc -> (k,v) :: acc) (List.fold_left (fun acc vl -> List.fold_left (fun acc (v,st) -> if PMap.mem v acc then acc else PMap.add v st acc) acc vl) PMap.empty cctx.eval_stack) [] in
+					Some vl
+				| _ ->
+					None
+			in
+			let vl = match etf with
+				| TFun(args,r) ->
+					let vl = ExtList.List.mapi (fun i (_,_,t) ->
+						let st = mk_st (SEnum(st,ef.ef_name,i)) t st.st_pos in
+						let mk_e () = Some (match (st_to_texpr cctx st).eexpr with TLocal v -> v | _ -> assert false) in
+						begin match capture_vars with
+							| Some cvl ->
+								let rec check st2 = st_eq st st2 || match st2.st_def with
+									| SEnum(st,_,_) | SArray(st,_) | STuple(st,_,_) | SField(st,_) -> check st
+									| SVar _ -> false
+								in
+								let rec loop cvl = match cvl with
+									| [] -> None
+									| (_,st2) :: cvl ->
+										if check st2 then mk_e() else loop cvl
+								in
+								loop cvl
+							| _ ->
+								mk_e()
+						end
+					) args in
+					if List.exists (fun e -> e <> None) vl then (Some vl) else None
+				| _ -> None
+			in
+			let e = to_typed_ast cctx dt in
+			save();
+			(List.map (fun (_,ef) -> ef.ef_index) group),vl,e
+		in
+		let def = ref None in
+		let group,cases,dto = List.fold_left (fun (group,cases,dto) (con,dt) -> match con.c_def with
+			| CAny ->
+				let e = to_typed_ast cctx dt in
+				def := Some e;
+				(group,cases,dto)
+			| _ -> match dto with
+				| None -> ([to_case con],cases,Some dt)
+				| Some dt2 -> match dt,dt2 with
+					| Out(e1,eg,_),Out(e2,_,_) when e1 == e2 && eg = None ->
+						((to_case con) :: group,cases,dto)
+					| _ ->
+						let g = type_case group dt2 con.c_pos in
+						([to_case con],g :: cases, Some dt)
+		) ([],[],None) cases in
+		let cases = List.rev (match group,dto with
+			| [],None ->
+				cases
+			| group,Some dt ->
+				let g = type_case group dt eval.epos in
+				g :: cases
+			| _ ->
+				assert false
+		) in
+		mk (TMatch(eval,(en,pl),cases,!def)) cctx.out_type eval.epos
+
+	and to_value_switch cctx t st cases =
+		let eval = st_to_texpr cctx st in
+		let to_case con = match con.c_def with
+			| CConst c ->
+				mk_const cctx.ctx con.c_pos c
+			| CType mt ->
+				(* Typer.type_module_type cctx.ctx mt None con.c_pos *)
+				assert false
+			| CExpr e ->
+				e
+			| _ ->
+				error ("Unexpected "  ^ (s_con con)) con.c_pos
+		in
+		let cases,def = group_cases cctx cases to_case in
+		mk (TSwitch(eval,cases,!def)) cctx.out_type eval.epos
+
+	and to_structure_switch cctx t st cases =
+		match cases with
+		| ({c_def = CFields _},dt) :: cl ->
+			to_typed_ast cctx dt
+		| ({c_def = CAny},dt) :: [] ->
+			to_typed_ast cctx dt;
+		| _ ->
+			assert false
+
+	and to_array_switch cctx t st cases =
+		let to_case con = match con.c_def with
+			| CArray i ->
+				mk_const cctx.ctx con.c_pos (TInt (Int32.of_int i))
+			| _ ->
+				error ("Unexpected "  ^ (s_con con)) con.c_pos
+		in
+		let cases,def = group_cases cctx cases to_case in
+		let eval = st_to_texpr cctx st in
+		let eval = mk (TField(eval,quick_field eval.etype "length")) cctx.ctx.com.basic.tint st.st_pos in
+		mk (TSwitch(eval,cases,!def)) cctx.out_type eval.epos
+
+	let to_typed_ast ctx dt p =
+		let first = dt.dt_dt_lookup.(dt.dt_first) in
+		let cctx = {
+			ctx = ctx;
+			out_type = mk_mono();
+			v_lookup = Hashtbl.create 0;
+			eval_stack = [];
+			dt_lookup = dt.dt_dt_lookup;
+		} in
+		(* generate typed AST from decision tree *)
+		let e = to_typed_ast cctx first in
+		let e = { e with epos = p; etype = dt.dt_type} in
+		if dt.dt_var_init = [] then
+			e
+		else begin
+			mk (TBlock [
+				mk (TVars dt.dt_var_init) t_dynamic e.epos;
+				e;
+			]) dt.dt_type e.epos
+		end			
+end
+
 (* -------------------------------------------------------------------------- *)
 (* USAGE *)
 
@@ -1854,7 +2138,7 @@ let rec constructor_side_effects e =
 		true
 	| TField (_,FEnum _) ->
 		false
-	| TUnop _ | TArray _ | TField _ | TCall _ | TNew _ | TFor _ | TWhile _ | TSwitch _ | TMatch _ | TReturn _ | TThrow _ ->
+	| TUnop _ | TArray _ | TField _ | TCall _ | TNew _ | TFor _ | TWhile _ | TSwitch _ | TMatch _ | TPatMatch _ | TReturn _ | TThrow _ ->
 		true
 	| TBinop _ | TTry _ | TIf _ | TBlock _ | TVars _
 	| TFunction _ | TArrayDecl _ | TObjectDecl _
