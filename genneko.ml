@@ -440,8 +440,8 @@ and gen_expr ctx e =
 			| CEnum (_,ef) -> int p ef.ef_index
 			| CConst cst -> gen_constant ctx c.c_pos cst
 			| CExpr e -> gen_expr ctx e
-			| CArray _ -> assert false
-			| CType _ -> assert false
+			| CArray i -> int p i
+			| CType t -> gen_type_path p (t_path t)
 			| CAny -> assert false
 			| CFields _ -> assert false
 		in
@@ -466,10 +466,10 @@ and gen_expr ctx e =
 					| None,Some _ -> assert false
 				end
 			| Switch (st,cl) ->
-				let est = gen_st st in
 				let e = match st.st_type with
-					| TEnum _ -> field p est "index"
-					| _ -> est
+					| TEnum(_) | TAbstract(_) -> field p (gen_st st) "index"
+					| TInst({cl_path = [],"Array"},[t]) -> field p (gen_st st) "length"
+					| _ -> gen_st st
 				in
 				let def = ref None in
 				let cases = ExtList.List.filter_map (fun (c,dt) ->
