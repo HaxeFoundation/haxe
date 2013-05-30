@@ -1368,7 +1368,6 @@ and to_array_switch cctx t st cases =
 
 let match_expr ctx e cases def with_type p =
 	let dt,var_inits,t,dtl = make_dt ctx e cases def with_type p in
-	if p.pfile = "src/Main.hx" then print_endline (s_dt "" dt);
 	let lut = Hashtbl.create 0 in
 	Hashtbl.iter (fun k v -> Hashtbl.replace lut v k) dtl;
 	let cctx = {
