@@ -808,13 +808,9 @@ let bind_remaining out pv stl =
 let get_cache mctx dt =
 	match dt with Goto _ -> dt | _ ->
 	try
-		let i = Hashtbl.find mctx.dt_cache dt in
-		Goto i
+		Goto (Hashtbl.find mctx.dt_cache dt)
 	with Not_found ->
 		Hashtbl.replace mctx.dt_cache dt mctx.dt_count;
-		print_endline ("REGISTERED " ^ (string_of_int mctx.dt_count));
-		print_endline (s_dt "" dt);
-		print_endline "==========";
 		mctx.dt_count <- mctx.dt_count + 1;
 		dt
 
@@ -1111,7 +1107,7 @@ let make_dt ctx e cases def with_type p =
 		| Some (WithTypeResume t2) -> (try unify_raise ctx t2 t p with Error (Unify l,p) -> raise (Typer.WithTypeError (l,p)))
 		| _ -> assert false
 	end;
-	dt,!var_inits,t
+	dt,!var_inits,t,mctx.dt_cache
 
 (* Conversion to Typed AST *)
 
@@ -1119,7 +1115,8 @@ type cctx = {
 	ctx : typer;
 	v_lookup : (string,tvar) Hashtbl.t;
 	out_type : t;
-	mutable eval_stack : (pvar * st) list list;	
+	mutable eval_stack : (pvar * st) list list;
+	dt_lookup : (int,dt) Hashtbl.t;
 }
 
 let mk_const ctx p = function
@@ -1186,8 +1183,8 @@ let replace_locals cctx e =
 
 let rec to_typed_ast cctx dt =
 	match dt with
-	| Goto _ ->
-		error "Not implemented yet" Ast.null_pos
+	| Goto i ->
+		to_typed_ast cctx (Hashtbl.find cctx.dt_lookup i)
 	| Out(e,eo,dt) ->
 		replace_locals cctx begin match eo,dt with
 			| Some eg,None ->
@@ -1370,13 +1367,16 @@ and to_array_switch cctx t st cases =
 (* Main *)
 
 let match_expr ctx e cases def with_type p =
-	let dt,var_inits,t = make_dt ctx e cases def with_type p in
+	let dt,var_inits,t,dtl = make_dt ctx e cases def with_type p in
 	if p.pfile = "src/Main.hx" then print_endline (s_dt "" dt);
+	let lut = Hashtbl.create 0 in
+	Hashtbl.iter (fun k v -> Hashtbl.replace lut v k) dtl;
 	let cctx = {
 		ctx = ctx;
 		out_type = mk_mono();
 		v_lookup = Hashtbl.create 0;
 		eval_stack = [];
+		dt_lookup = lut;
 	} in
 	(* generate typed AST from decision tree *)
 	let e = to_typed_ast cctx dt in
