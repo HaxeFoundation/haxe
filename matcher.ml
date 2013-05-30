@@ -101,6 +101,7 @@ type matcher = {
 	ctx : typer;
 	need_val : bool;
 	dt_cache : (dt,int) Hashtbl.t;
+	dt_lut : dt DynArray.t;
 	mutable dt_count : int;
 	mutable outcomes : (pat list,out) PMap.t;
 	mutable toplevel_or : bool;
@@ -812,6 +813,7 @@ let get_cache mctx dt =
 	with Not_found ->
 		Hashtbl.replace mctx.dt_cache dt mctx.dt_count;
 		mctx.dt_count <- mctx.dt_count + 1;
+		DynArray.add mctx.dt_lut dt;
 		dt
 
 let rec compile mctx stl pmat =
@@ -958,6 +960,7 @@ let make_dt ctx e cases def with_type p =
 		toplevel_or = false;
 		used_paths = Hashtbl.create 0;
 		dt_cache = Hashtbl.create 0;
+		dt_lut = DynArray.create ();
 		dt_count = 0;
 	} in
 	(* flatten cases *)
@@ -1107,7 +1110,7 @@ let make_dt ctx e cases def with_type p =
 		| Some (WithTypeResume t2) -> (try unify_raise ctx t2 t p with Error (Unify l,p) -> raise (Typer.WithTypeError (l,p)))
 		| _ -> assert false
 	end;
-	dt,!var_inits,t,mctx.dt_cache
+	dt,!var_inits,t,DynArray.to_array mctx.dt_lut
 
 (* Conversion to Typed AST *)
 
@@ -1116,7 +1119,7 @@ type cctx = {
 	v_lookup : (string,tvar) Hashtbl.t;
 	out_type : t;
 	mutable eval_stack : (pvar * st) list list;
-	dt_lookup : (int,dt) Hashtbl.t;
+	dt_lookup : dt array;
 }
 
 let mk_const ctx p = function
@@ -1184,7 +1187,7 @@ let replace_locals cctx e =
 let rec to_typed_ast cctx dt =
 	match dt with
 	| Goto i ->
-		to_typed_ast cctx (Hashtbl.find cctx.dt_lookup i)
+		to_typed_ast cctx (cctx.dt_lookup.(i))
 	| Out(e,eo,dt) ->
 		replace_locals cctx begin match eo,dt with
 			| Some eg,None ->
@@ -1367,9 +1370,7 @@ and to_array_switch cctx t st cases =
 (* Main *)
 
 let match_expr ctx e cases def with_type p =
-	let dt,var_inits,t,dtl = make_dt ctx e cases def with_type p in
-	let lut = Hashtbl.create 0 in
-	Hashtbl.iter (fun k v -> Hashtbl.replace lut v k) dtl;
+	let dt,var_inits,t,lut = make_dt ctx e cases def with_type p in
 	let cctx = {
 		ctx = ctx;
 		out_type = mk_mono();
