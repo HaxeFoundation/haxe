@@ -882,7 +882,7 @@ let configure gen =
     match e.eexpr with
       | TLocal _ -> e
       | TCast(e,_)
-      | TParenthesis e -> ensure_local e explain
+      | TParenthesis e | TMeta(_,e) -> ensure_local e explain
       | _ -> gen.gcon.error ("This function argument " ^ explain ^ " must be a local variable.") e.epos; e
   in
 
@@ -992,6 +992,8 @@ let configure gen =
           )
         | TParenthesis e ->
           write w "("; expr_s w e; write w ")"
+        | TMeta (_,e) ->
+            expr_s w e 
         | TArrayDecl el ->
           print w "new %s" (t_s e.etype);
           write w "{";

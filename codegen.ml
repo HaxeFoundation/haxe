@@ -1858,7 +1858,7 @@ let rec constructor_side_effects e =
 		true
 	| TBinop _ | TTry _ | TIf _ | TBlock _ | TVars _
 	| TFunction _ | TArrayDecl _ | TObjectDecl _
-	| TParenthesis _ | TTypeExpr _ | TLocal _
+	| TParenthesis _ | TTypeExpr _ | TLocal _ | TMeta _
 	| TConst _ | TContinue | TBreak | TCast _ ->
 		try
 			Type.iter (fun e -> if constructor_side_effects e then raise Exit) e;

@@ -126,6 +126,7 @@ and texpr_expr =
 	| TContinue
 	| TThrow of texpr
 	| TCast of texpr * module_type option
+	| TMeta of metadata_entry * texpr
 
 and tfield_access =
 	| FInstance of tclass * tclass_field
@@ -1286,7 +1287,8 @@ let iter f e =
 	| TField (e,_)
 	| TParenthesis e
 	| TCast (e,_)
-	| TUnop (_,_,e) ->
+	| TUnop (_,_,e)
+	| TMeta(_,e) ->
 		f e
 	| TArrayDecl el
 	| TNew (_,_,el)
@@ -1369,6 +1371,8 @@ let map_expr f e =
 		{ e with eexpr = TReturn (match eo with None -> None | Some e -> Some (f e)) }
 	| TCast (e1,t) ->
 		{ e with eexpr = TCast (f e1,t) }
+	| TMeta (m,e1) ->
+		 {e with eexpr = TMeta(m,f e1)}
 
 let map_expr_type f ft fv e =
 	match e.eexpr with
@@ -1436,6 +1440,8 @@ let map_expr_type f ft fv e =
 		{ e with eexpr = TReturn (match eo with None -> None | Some e -> Some (f e)); etype = ft e.etype }
 	| TCast (e1,t) ->
 		{ e with eexpr = TCast (f e1,t); etype = ft e.etype }
+	| TMeta (m,e1) ->
+		{e with eexpr = TMeta(m, f e1); etype = ft e.etype }
 
 let s_expr_kind e =
 	match e.eexpr with
@@ -1465,6 +1471,7 @@ let s_expr_kind e =
 	| TContinue -> "Continue"
 	| TThrow _ -> "Throw"
 	| TCast _ -> "Cast"
+	| TMeta _ -> "Meta"
 
 let s_const = function
 	| TInt i -> Int32.to_string i
@@ -1550,6 +1557,8 @@ let rec s_expr s_type e =
 		"Throw " ^ (loop e)
 	| TCast (e,t) ->
 		sprintf "Cast %s%s" (match t with None -> "" | Some t -> s_type_path (t_path t) ^ ": ") (loop e)
+	| TMeta ((n,el,_),e) ->
+		sprintf "@%s%s %s" (Meta.to_string n) (match el with [] -> "" | _ -> "(" ^ (String.concat ", " (List.map Ast.s_expr el)) ^ ")") (loop e)
 	) in
 	sprintf "(%s : %s)" str (s_type e.etype)
 
@@ -1625,3 +1634,5 @@ let rec s_expr_pretty tabs s_type e =
 		sprintf "cast %s" (loop e)
 	| TCast (e,Some mt) ->
 		sprintf "cast (%s,%s)" (loop e) (s_type_path (t_path mt))
+	| TMeta ((n,el,_),e) ->
+		sprintf "@%s%s %s" (Meta.to_string n) (match el with [] -> "" | _ -> "(" ^ (String.concat ", " (List.map Ast.s_expr el)) ^ ")") (loop e)		
