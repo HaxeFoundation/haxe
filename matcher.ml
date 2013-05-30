@@ -25,6 +25,10 @@ open Common
 open Type
 open Typecore
 
+(* Dt *)
+
+type pvar = tvar * pos
+
 type con_def =
 	| CEnum of tenum * tenum_field
 	| CConst of tconstant
@@ -40,7 +44,26 @@ and con = {
 	c_pos : pos;
 }
 
-type pvar = tvar * pos
+type st_def =
+	| SVar of tvar
+	| SField of st * string
+	| SEnum of st * string * int
+	| SArray of st * int
+	| STuple of st * int * int
+
+and st = {
+	st_def : st_def;
+	st_type : t;
+	st_pos : pos;
+}
+
+type dt =
+	| Out of texpr * texpr option * dt option
+	| Switch of st * (con * dt) list
+	| Bind of (pvar * st) list * dt
+	| Goto of int
+
+(* Pattern *)
 
 type pat_def =
 	| PAny
@@ -56,19 +79,6 @@ and pat = {
 	p_pos : pos;
 }
 
-type st_def =
-	| SVar of tvar
-	| SField of st * string
-	| SEnum of st * string * int
-	| SArray of st * int
-	| STuple of st * int * int
-
-and st = {
-	st_def : st_def;
-	st_type : t;
-	st_pos : pos;
-}
-
 type out = {
 	o_expr : texpr;
 	o_guard : texpr option;
@@ -79,21 +89,19 @@ type out = {
 type pat_vec = pat array * out
 type pat_matrix = pat_vec list
 
+(* Context *)
+
 type pattern_ctx = {
 	mutable pc_locals : (string, pvar) PMap.t;
 	mutable pc_sub_vars : (string, pvar) PMap.t option;
 	mutable pc_reify : bool;
 }
 
-type dt =
-	| Out of texpr * texpr option * dt option
-	| Switch of st * (con * dt) list
-	| Bind of (pvar * st) list * dt
-	| Goto of int
-
 type matcher = {
 	ctx : typer;
 	need_val : bool;
+	dt_cache : (dt,int) Hashtbl.t;
+	mutable dt_count : int;
 	mutable outcomes : (pat list,out) PMap.t;
 	mutable toplevel_or : bool;
 	mutable used_paths : (int,bool) Hashtbl.t;
@@ -797,7 +805,21 @@ let bind_remaining out pv stl =
 	in
 	loop stl pv
 
-let rec compile mctx stl pmat = match pmat with
+let get_cache mctx dt =
+	match dt with Goto _ -> dt | _ ->
+	try
+		let i = Hashtbl.find mctx.dt_cache dt in
+		Goto i
+	with Not_found ->
+		Hashtbl.replace mctx.dt_cache dt mctx.dt_count;
+		print_endline ("REGISTERED " ^ (string_of_int mctx.dt_count));
+		print_endline (s_dt "" dt);
+		print_endline "==========";
+		mctx.dt_count <- mctx.dt_count + 1;
+		dt
+
+let rec compile mctx stl pmat =
+	let dt = match pmat with
 	| [] ->
 		(match stl with
 		| st :: stl ->
@@ -839,7 +861,7 @@ let rec compile mctx stl pmat = match pmat with
 				let hsubs = mk_subs st_head c in
 				let subs = hsubs @ st_tail in
 				let dt = compile mctx subs spec in
-				c,dt
+				c,get_cache mctx dt
 			) sigma in
 			let def = default mctx pmat in
 			let dt = match def,cases with
@@ -858,13 +880,13 @@ let rec compile mctx stl pmat = match pmat with
 				compile mctx st_tail def
 			| def,_ ->
 				let cdef = mk_con CAny t_dynamic st_head.st_pos in
-				let cases = cases @ [cdef,compile mctx st_tail def] in
+				let cases = cases @ [cdef,get_cache mctx (compile mctx st_tail def)] in
 				Switch(st_head,cases)
 			in
-			if bl = [] then dt else Bind(bl,dt)
+			if bl = [] then dt else Bind(bl,get_cache mctx dt)
 		end
-
-(* Main *)
+	in
+	get_cache mctx dt
 
 let rec collapse_case el = match el with
 	| e :: [] ->
@@ -874,6 +896,8 @@ let rec collapse_case el = match el with
 		EBinop(OpOr,e,e2),punion (pos e) (pos e2)
 	| [] ->
 		assert false
+
+(* Decision tree compilation *)
 
 let make_dt ctx e cases def with_type p =
 	let need_val,with_type,tmono = match with_type with
@@ -937,6 +961,8 @@ let make_dt ctx e cases def with_type p =
 		outcomes = PMap.empty;
 		toplevel_or = false;
 		used_paths = Hashtbl.create 0;
+		dt_cache = Hashtbl.create 0;
+		dt_count = 0;
 	} in
 	(* flatten cases *)
 	let cases = List.map (fun (el,eg,e) ->
@@ -1345,6 +1371,7 @@ and to_array_switch cctx t st cases =
 
 let match_expr ctx e cases def with_type p =
 	let dt,var_inits,t = make_dt ctx e cases def with_type p in
+	if p.pfile = "src/Main.hx" then print_endline (s_dt "" dt);
 	let cctx = {
 		ctx = ctx;
 		out_type = mk_mono();
