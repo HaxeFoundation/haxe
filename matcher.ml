@@ -64,8 +64,8 @@ type dt =
 	| Goto of int
 
 type decision_tree = {
-	dt_first : dt;
 	dt_dt_lookup : dt array;
+	dt_first : int;
 	dt_type : t;
 	dt_var_init : (tvar * texpr option) list;
 }
@@ -1118,7 +1118,7 @@ let make_dt ctx e cases def with_type p =
 		| _ -> assert false
 	end;
 	{
-		dt_first = dt;
+		dt_first = Hashtbl.find mctx.dt_cache dt;
 		dt_dt_lookup = DynArray.to_array mctx.dt_lut;
 		dt_type = t;
 		dt_var_init = List.rev !var_inits;
@@ -1383,6 +1383,7 @@ and to_array_switch cctx t st cases =
 
 let match_expr ctx e cases def with_type p =
 	let dt = make_dt ctx e cases def with_type p in
+	let first = dt.dt_dt_lookup.(dt.dt_first) in
 	let cctx = {
 		ctx = ctx;
 		out_type = mk_mono();
@@ -1391,7 +1392,7 @@ let match_expr ctx e cases def with_type p =
 		dt_lookup = dt.dt_dt_lookup;
 	} in
 	(* generate typed AST from decision tree *)
-	let e = to_typed_ast cctx dt.dt_first in
+	let e = to_typed_ast cctx first in
 	let e = { e with epos = p; etype = dt.dt_type} in
 	if dt.dt_var_init = [] then
 		e
