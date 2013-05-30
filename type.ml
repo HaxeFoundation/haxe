@@ -289,6 +289,47 @@ and module_kind =
 	| MMacro
 	| MFake
 
+and con_def =
+	| CEnum of tenum * tenum_field
+	| CConst of tconstant
+	| CAny
+	| CType of module_type
+	| CArray of int
+	| CFields of int * (string * tclass_field) list
+	| CExpr of texpr
+
+and con = {
+	c_def : con_def;
+	c_type : t;
+	c_pos : pos;
+}
+
+and st_def =
+	| SVar of tvar
+	| SField of st * string
+	| SEnum of st * string * int
+	| SArray of st * int
+	| STuple of st * int * int
+
+and st = {
+	st_def : st_def;
+	st_type : t;
+	st_pos : pos;
+}
+
+and dt =
+	| Out of texpr * texpr option * dt option
+	| Switch of st * (con * dt) list
+	| Bind of ((tvar * pos) * st) list * dt
+	| Goto of int
+
+and decision_tree = {
+	dt_dt_lookup : dt array;
+	dt_first : int;
+	dt_type : t;
+	dt_var_init : (tvar * texpr option) list;
+}
+
 let alloc_var =
 	let uid = ref 0 in
 	(fun n t -> incr uid; { v_name = n; v_type = t; v_id = !uid; v_capture = false; v_extra = None })
