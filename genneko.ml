@@ -421,8 +421,8 @@ and gen_expr ctx e =
 				],p)
 		)
 	| TPatMatch dt ->
-		let lc = ctx.label_count in
 		let num_labels = Array.length dt.dt_dt_lookup in
+		let lc = ctx.label_count in
 		ctx.label_count <- ctx.label_count + num_labels + 1;
 		let get_label i ="label_" ^ (string_of_int (lc + i)) in
 		let rec gen_st st =
@@ -446,32 +446,35 @@ and gen_expr ctx e =
 			| CFields _ -> assert false
 		in
 		let goto i = call p (builtin p "goto") [ident p (get_label i)] in
-(* 		let goto i = EBlock [
+(*  		let goto i = EBlock [
 			call p (builtin p "print") [call p (field p (ident p "String") "new") [gen_big_string ctx p ("goto " ^ (string_of_int i))];];
 			call p (builtin p "print") [gen_big_string ctx p "\n"];
 			goto i;
 		],p in *)
-		let assign_return e =
-			EBlock [
+		let assign_return vl e =
+			let block = [
 				(EBinop ("=",ident p "@ret",e),p);
 				goto num_labels;
-			],p
+			] in
+			EBlock (if vl = [] then block else (EVars vl,p) :: block),p
 		in
 		let state = Hashtbl.create 0 in
-		let rec loop dt = match dt with
+		let rec loop d = match d with
 			| Goto i ->
 				goto i
 			| Bind (bl,dt) ->
 				let block = List.map (fun ((v,_),st) ->
 					Hashtbl.replace state v.v_name true;
-					(EBinop ("=",ident p v.v_name,gen_st st),p)
+					(EBinop ("=",field p (ident p "@state") v.v_name,gen_st st),p)
 				) bl in
 				EBlock (block @ [loop dt]),p
 			| Out(e,eo,dt) ->
 				begin match eo,dt with
-					| Some eg,None -> (EIf (gen_expr ctx eg,gen_expr ctx e,None),p)
+ 					| Some eg,None -> (EIf (gen_expr ctx eg,gen_expr ctx e,None),p)
 					| Some eg,Some dt -> (EIf (gen_expr ctx eg,gen_expr ctx e,Some (loop dt)),p)
-					| _,None -> assign_return (gen_expr ctx e)
+					| _,None ->
+						let state = Hashtbl.fold (fun n _ l -> (n, Some (field p (ident p "@state") n)) :: l) state [] in
+						assign_return state (gen_expr ctx e)
 					| None,Some _ -> assert false
 				end
 			| Switch (st,cl) ->
@@ -481,8 +484,6 @@ and gen_expr ctx e =
 					| TInst({cl_path = [],"Array"},[t]) -> field p est "length"
 					| _ -> est;
 				in
-				let econd = (EBinop ("!=",est,null p),p) in
-				(* let e = EIf(econd,e,Some (null p)),p in *)
 				let def = ref None in
 				let cases = ExtList.List.filter_map (fun (c,dt) ->
 					if c.c_def = CAny then begin
@@ -492,8 +493,6 @@ and gen_expr ctx e =
 						Some (s_con c,loop dt)
 				) cl in
 				EBlock [
-					call p (builtin p "print") [gen_big_string ctx p "Switching on "];
-					call p (builtin p "print") [est];
 					(ESwitch (e,cases,!def),p);
 					goto num_labels;
 				],p
@@ -504,9 +503,15 @@ and gen_expr ctx e =
 			incr i;
 			(ELabel(get_label (!i - 1)),p) :: loop dt :: acc
 		) eout dt.dt_dt_lookup in
-		let state_init = Hashtbl.fold (fun n _ l -> (n,None) :: l) state [] in
-		let state_init = List.fold_left (fun acc (v,eo) -> (v.v_name,(match eo with None -> None | Some e -> Some (gen_expr ctx e))) :: acc) state_init dt.dt_var_init in
-		let el = match state_init with [] -> el | _ -> (EVars state_init,p) :: el in
+		let var_init = List.fold_left (fun acc (v,eo) -> (v.v_name,(match eo with None -> None | Some e -> Some (gen_expr ctx e))) :: acc) [] dt.dt_var_init in
+		let state_init = Hashtbl.fold (fun n _ l -> (n,null p) :: l) state [] in
+		let init = match var_init,state_init with
+			| [], [] -> []
+			| el, [] -> el
+			| [], vl -> ["@state",Some (EObject vl,p)]
+			| el, vl -> ("@state",Some (EObject vl,p)) :: el
+		in
+		let el = match init with [] -> el | _ -> (EVars init,p) :: el in
 		EBlock el,p
 	| TSwitch (e,cases,eo) ->
 		let e = gen_expr ctx e in
