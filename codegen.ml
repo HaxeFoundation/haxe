@@ -1621,17 +1621,6 @@ module PatternMatchConversion = struct
 				let eelse = to_typed_ast cctx dt in
 				mk (TIf(e,to_typed_ast cctx dt1,Some eelse)) eelse.etype (punion e.epos eelse.epos)
 			end
-(* 		| Out(e,eo,dt) ->
-			replace_locals cctx begin match eo,dt with
-				| Some eg,None ->
-					mk (TIf(eg,e,None)) t_dynamic e.epos
-				| Some eg,Some dt ->
-					let eelse = to_typed_ast cctx dt in
-					mk (TIf(eg,e,Some eelse)) eelse.etype (punion e.epos eelse.epos)
-				| _,None ->
-					e
-				| _ -> assert false
-			end *)
 		| Bind (bl, dt) ->
 			List.iter (fun ((v,_),st) ->
 				let e = st_to_texpr cctx st in
