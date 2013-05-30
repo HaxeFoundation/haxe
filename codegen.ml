@@ -1541,7 +1541,7 @@ module PatternMatchConversion = struct
 		dt_lookup : dt array;
 	}
 
-(* 	let mk_st def t p = {
+	let mk_st def t p = {
 		st_def = def;
 		st_type = t;
 		st_pos = p;
@@ -1673,7 +1673,7 @@ module PatternMatchConversion = struct
 			| _ -> match dto with
 				| None -> ([to_case con],cases,Some dt)
 				| Some dt2 -> match dt,dt2 with
-					| Out(e1,eg,_),Out(e2,_,_) when e1 == e2 && eg = None ->
+					| Expr e1, Expr e2 when e1 == e2 ->
 						((to_case con) :: group,cases,dto)
 					| _ ->
 						let e = to_typed_ast cctx dt2 in
@@ -1704,7 +1704,7 @@ module PatternMatchConversion = struct
 			let etf = follow (monomorphs en.e_types (monomorphs ef.ef_params ef.ef_type)) in
 			(* TODO: this is horrible !!! *)
 			let capture_vars = match dt with
-				| Out(_,_,None) ->
+				| Expr _ ->
 					let vl = PMap.foldi (fun k v acc -> (k,v) :: acc) (List.fold_left (fun acc vl -> List.fold_left (fun acc (v,st) -> if PMap.mem v acc then acc else PMap.add v st acc) acc vl) PMap.empty cctx.eval_stack) [] in
 					Some vl
 				| _ ->
@@ -1747,7 +1747,7 @@ module PatternMatchConversion = struct
 			| _ -> match dto with
 				| None -> ([to_case con],cases,Some dt)
 				| Some dt2 -> match dt,dt2 with
-					| Out(e1,eg,_),Out(e2,_,_) when e1 == e2 && eg = None ->
+					| Expr e1,Expr e2 when e1 == e2 ->
 						((to_case con) :: group,cases,dto)
 					| _ ->
 						let g = type_case group dt2 con.c_pos in
@@ -1799,7 +1799,7 @@ module PatternMatchConversion = struct
 		let eval = st_to_texpr cctx st in
 		let eval = mk (TField(eval,quick_field eval.etype "length")) cctx.ctx.com.basic.tint st.st_pos in
 		mk (TSwitch(eval,cases,!def)) cctx.out_type eval.epos
- *)
+
 	let to_typed_ast ctx dt p =
 		let first = dt.dt_dt_lookup.(dt.dt_first) in
 		let cctx = {
@@ -1810,7 +1810,7 @@ module PatternMatchConversion = struct
 			dt_lookup = dt.dt_dt_lookup;
 		} in
 		(* generate typed AST from decision tree *)
-		let e = mk (TConst TNull) t_dynamic p in
+		let e = to_typed_ast cctx first in
 		let e = { e with epos = p; etype = dt.dt_type} in
 		if dt.dt_var_init = [] then
 			e
