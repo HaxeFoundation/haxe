@@ -425,8 +425,6 @@ and gen_expr ctx e =
 		let num_labels = Array.length dt.dt_dt_lookup in
 		ctx.label_count <- ctx.label_count + num_labels + 1;
 		let get_label i ="label_" ^ (string_of_int (lc + i)) in
-		let state = Hashtbl.create 0 in
-		Hashtbl.add state "@tmp" true;
 		let rec gen_st st =
 			let p = pos ctx st.st_pos in
 			match st.st_def with
@@ -441,13 +439,13 @@ and gen_expr ctx e =
 			match c.c_def with
 			| CEnum (_,ef) -> int p ef.ef_index
 			| CConst cst -> gen_constant ctx c.c_pos cst
+			| CExpr e -> gen_expr ctx e
+			| CArray _ -> assert false
+			| CType _ -> assert false
 			| CAny -> assert false
+			| CFields _ -> assert false
 		in
 		let goto i = call p (builtin p "goto") [ident p (get_label i)] in
-(* 		let goto i = EBlock [
-			call p (builtin p "print") [call p (field p (ident p "String") "new") [gen_big_string ctx p ("goto " ^ (get_label i) ^ "\n")]];
-			call p (builtin p "goto") [ident p (get_label i)];
-		],p in	 *)
 		let assign_return e =
 			EBlock [
 				(EBinop ("=",ident p "@tmp",e),p);
