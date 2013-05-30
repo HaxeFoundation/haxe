@@ -221,7 +221,7 @@ let rec matches_null ctx t = match t with
 		false
 	| TAbstract (a,_) -> not (Meta.has Meta.NotNull a.a_meta)
 	| _ ->
-		true	
+		true
 
 let to_pattern ctx e t =
 	let perror p = error "Unrecognized pattern" p in
@@ -1028,9 +1028,26 @@ let match_expr ctx e cases def with_type p =
 		| Some (WithTypeResume t2) -> (try unify_raise ctx t2 t p with Error (Unify l,p) -> raise (Typer.WithTypeError (l,p)))
 		| _ -> assert false
 	end;
+	let lut = DynArray.to_array mctx.dt_lut in
+	let first = match dt with Goto i -> i | _ -> Hashtbl.find mctx.dt_cache dt in
+	let count = Array.make (Array.length lut) 0 in
+	let rec loop dt = match dt with
+		| Goto i -> Array.set count i (count.(i))
+		| Switch(_,cl) -> List.iter (fun (_,dt) -> loop dt) cl
+		| Bind(_,dt) -> loop dt
+		| Out(_,_,Some dt) -> loop dt
+		| _ -> ()
+	in
+	Array.iter loop lut;
+	let rec loop dt = match dt with
+		| Goto i -> if count.(i) < 2 then lut.(i) else Goto i
+		| Switch(st,cl) -> Switch(st, List.map (fun (c,dt) -> c, loop dt) cl)
+		| Bind(bl,dt) -> Bind(bl,loop dt)
+		| Out(e,eo,dt) -> Out(e,eo, match dt with None -> None | Some dt -> Some (loop dt))
+	in
 	{
-		dt_first = (match dt with Goto i -> i | _ -> Hashtbl.find mctx.dt_cache dt);
-		dt_dt_lookup = DynArray.to_array mctx.dt_lut;
+		dt_first = first;
+		dt_dt_lookup = Array.map loop lut;
 		dt_type = t;
 		dt_var_init = List.rev !var_inits;
 	}
