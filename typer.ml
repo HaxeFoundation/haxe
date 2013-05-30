@@ -2079,7 +2079,7 @@ and type_switch ctx e cases def (with_type:with_type) p =
 	try
 		if (Common.defined ctx.com Common.Define.NoPatternMatching) then raise Exit;
 		let dt = match_expr ctx e cases def with_type p in
-		if ctx.com.config.pf_pattern_matching then mk (TPatMatch dt) dt.dt_type p else Codegen.PatternMatchConversion.to_typed_ast ctx dt p
+		if not ctx.in_macro && ctx.com.config.pf_pattern_matching then mk (TPatMatch dt) dt.dt_type p else Codegen.PatternMatchConversion.to_typed_ast ctx dt p
 	with Exit ->
 		type_switch_old ctx e cases def with_type p
 
