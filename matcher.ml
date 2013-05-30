@@ -758,10 +758,10 @@ let rec compile mctx stl pmat =
 			Hashtbl.replace mctx.used_paths out.o_id true;
 			let bl = bind_remaining out pv stl in
 			let dt = match out.o_guard with
-				| None -> Expr out.o_expr
+				| None -> get_cache mctx (Expr out.o_expr)
 				| Some e -> Guard (e, Expr out.o_expr, match pl with [] -> None | _ -> Some (compile mctx stl pl))
 			in
-			if bl = [] then dt else Bind(bl,dt)
+			get_cache mctx (if bl = [] then dt else Bind(bl,dt))
 		end else if i > 0 then begin
 			let pmat = swap_pmat_columns i pmat in
 			let stls = swap_columns i stl in
@@ -1031,7 +1031,7 @@ let match_expr ctx e cases def with_type p =
 	let first = match dt with Goto i -> i | _ -> Hashtbl.find mctx.dt_cache dt in
 	let count = Array.make (Array.length lut) 0 in
 	let rec loop dt = match dt with
-		| Goto i -> Array.set count i (count.(i))
+		| Goto i -> Array.set count i (count.(i) + 1)
 		| Switch(_,cl) -> List.iter (fun (_,dt) -> loop dt) cl
 		| Bind(_,dt) -> loop dt
 		| Expr _ -> ()
