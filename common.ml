@@ -93,6 +93,8 @@ type platform_config = {
 	pf_add_final_return : bool;
 	(** does the platform natively support overloaded functions *)
 	pf_overload : bool;
+	(** does the platform generator handle pattern matching *)
+	pf_pattern_matching : bool;
 }
 
 type context = {
@@ -432,6 +434,7 @@ let default_config =
 		pf_pad_nulls = false;
 		pf_add_final_return = false;
 		pf_overload = false;
+		pf_pattern_matching = false;
 	}
 
 let get_config com =
@@ -451,6 +454,7 @@ let get_config com =
 			pf_pad_nulls = false;
 			pf_add_final_return = false;
 			pf_overload = false;
+			pf_pattern_matching = false;
 		}
 	| Js ->
 		{
@@ -464,6 +468,7 @@ let get_config com =
 			pf_pad_nulls = false;
 			pf_add_final_return = false;
 			pf_overload = false;
+			pf_pattern_matching = false;
 		}
 	| Neko ->
 		{
@@ -477,6 +482,7 @@ let get_config com =
 			pf_pad_nulls = true;
 			pf_add_final_return = false;
 			pf_overload = false;
+			pf_pattern_matching = false;
 		}
 	| Flash when defined Define.As3 ->
 		{
@@ -490,6 +496,7 @@ let get_config com =
 			pf_pad_nulls = false;
 			pf_add_final_return = true;
 			pf_overload = false;
+			pf_pattern_matching = false;
 		}
 	| Flash ->
 		{
@@ -503,6 +510,7 @@ let get_config com =
 			pf_pad_nulls = false;
 			pf_add_final_return = false;
 			pf_overload = false;
+			pf_pattern_matching = false;
 		}
 	| Php ->
 		{
@@ -521,6 +529,7 @@ let get_config com =
 			pf_pad_nulls = true;
 			pf_add_final_return = false;
 			pf_overload = false;
+			pf_pattern_matching = false;
 		}
 	| Cpp ->
 		{
@@ -534,6 +543,7 @@ let get_config com =
 			pf_pad_nulls = true;
 			pf_add_final_return = true;
 			pf_overload = false;
+			pf_pattern_matching = false;
 		}
 	| Cs ->
 		{
@@ -547,6 +557,7 @@ let get_config com =
 			pf_pad_nulls = true;
 			pf_add_final_return = false;
 			pf_overload = true;
+			pf_pattern_matching = false;
 		}
 	| Java ->
 		{
@@ -560,6 +571,7 @@ let get_config com =
 			pf_pad_nulls = true;
 			pf_add_final_return = false;
 			pf_overload = true;
+			pf_pattern_matching = false;
 		}
 
 let create v args =

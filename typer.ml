@@ -2078,7 +2078,8 @@ and type_switch_old ctx e cases def with_type p =
 and type_switch ctx e cases def (with_type:with_type) p =
 	try
 		if (Common.defined ctx.com Common.Define.NoPatternMatching) then raise Exit;
-		match_expr ctx e cases def with_type p
+		let dt = match_expr ctx e cases def with_type p in
+		if ctx.com.config.pf_pattern_matching then mk (TPatMatch dt) dt.dt_type p else Codegen.PatternMatchConversion.to_typed_ast ctx dt p
 	with Exit ->
 		type_switch_old ctx e cases def with_type p
 
@@ -4158,3 +4159,4 @@ unify_min_ref := unify_min;
 make_call_ref := make_call;
 get_constructor_ref := get_constructor;
 check_abstract_cast_ref := Codegen.Abstract.check_cast;
+type_module_type_ref := type_module_type;

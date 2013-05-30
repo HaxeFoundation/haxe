@@ -1762,8 +1762,7 @@ module PatternMatchConversion = struct
 			| CConst c ->
 				mk_const cctx.ctx con.c_pos c
 			| CType mt ->
-				(* Typer.type_module_type cctx.ctx mt None con.c_pos *)
-				assert false
+				(!type_module_type_ref) cctx.ctx mt None con.c_pos
 			| CExpr e ->
 				e
 			| _ ->

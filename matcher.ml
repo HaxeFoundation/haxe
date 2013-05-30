@@ -1028,13 +1028,12 @@ let match_expr ctx e cases def with_type p =
 		| Some (WithTypeResume t2) -> (try unify_raise ctx t2 t p with Error (Unify l,p) -> raise (Typer.WithTypeError (l,p)))
 		| _ -> assert false
 	end;
-	let dt = {
+	{
 		dt_first = (match dt with Goto i -> i | _ -> Hashtbl.find mctx.dt_cache dt);
 		dt_dt_lookup = DynArray.to_array mctx.dt_lut;
 		dt_type = t;
 		dt_var_init = List.rev !var_inits;
-	} in
-	mk (TPatMatch dt) t p
+	}
 ;;
 match_expr_ref := match_expr;
 get_pattern_locals_ref := get_pattern_locals
