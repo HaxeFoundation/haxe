@@ -886,6 +886,9 @@ let rec return_flow ctx e =
 	| TMatch (_,_,cases,def) ->
 		List.iter (fun (_,_,e) -> return_flow e) cases;
 		(match def with None -> () | Some e -> return_flow e)
+	| TPatMatch _ ->
+		(* TODO *)
+		()
 	| TTry (e,cases) ->
 		return_flow e;
 		List.iter (fun (_,e) -> return_flow e) cases;

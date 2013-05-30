@@ -1811,7 +1811,7 @@ module PatternMatchConversion = struct
 				mk (TVars dt.dt_var_init) t_dynamic e.epos;
 				e;
 			]) dt.dt_type e.epos
-		end			
+		end
 end
 
 (* -------------------------------------------------------------------------- *)

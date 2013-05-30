@@ -291,7 +291,7 @@ let add_local ctx n t =
 	ctx.locals <- PMap.add n v ctx.locals;
 	v
 
-let gen_local_prefix = "`"
+let gen_local_prefix = "_"
 
 let gen_local ctx t =
 	(* ensure that our generated local does not mask an existing one *)

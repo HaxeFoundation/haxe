@@ -35,6 +35,7 @@ type context = {
 	mutable curclass : string;
 	mutable curmethod : string;
 	mutable inits : (tclass * texpr) list;
+	mutable label_count : int;
 }
 
 let files = Hashtbl.create 0
@@ -419,7 +420,81 @@ and gen_expr ctx e =
 					) (match eo with None -> null p | Some e -> (gen_expr ctx e)) (List.rev cases)
 				],p)
 		)
-	| TPatMatch dt -> assert false
+	| TPatMatch dt ->
+		let lc = ctx.label_count in
+		let get_label i =
+			ctx.label_count <- ctx.label_count + 1;
+			"label_" ^ (string_of_int (lc + i))
+		in
+		let state = Hashtbl.create 0 in
+		Hashtbl.add state "@tmp" true;
+		let rec gen_st st =
+			let p = pos ctx st.st_pos in
+			match st.st_def with
+			| SVar v -> gen_expr ctx (mk (TLocal v) v.v_type st.st_pos)
+			| SField (st,s) -> field p (gen_st st) s
+			| SArray (st,i) -> (EArray (gen_st st,int p i),p)
+			| STuple (st,_,_) -> gen_st st
+			| SEnum (st,_,i) -> (EArray (field p (gen_st st) "args",int p i),p)
+		in
+		let s_con c =
+			let p = pos ctx c.c_pos in
+			match c.c_def with
+			| CEnum (_,ef) -> int p ef.ef_index 
+			| CConst cst -> gen_constant ctx c.c_pos cst
+			| CAny -> assert false
+		in
+		let goto i = call p (builtin p "goto") [ident p (get_label i)] in
+(* 		let goto i = EBlock [
+			call p (builtin p "print") [call p (field p (ident p "String") "new") [gen_big_string ctx p ("goto " ^ (get_label i) ^ "\n")]];			
+			call p (builtin p "goto") [ident p (get_label i)];
+		],p in	 *)	
+		let out = Array.length dt.dt_dt_lookup in
+		let assign_return e =
+			EBlock [
+				(EBinop ("=",ident p "@tmp",e),p);
+				goto out;
+			],p
+		in
+		let rec loop dt = match dt with
+			| Goto i ->
+				goto i
+			| Bind (bl,dt) ->
+				let block = List.map (fun ((v,_),st) -> (EBinop ("=",ident p v.v_name,gen_st st),p)) bl in
+				EBlock (block @ [loop dt]),p
+			| Out(e,eo,dt) ->
+				begin match eo,dt with
+					| Some eg,None -> (EIf (gen_expr ctx eg,gen_expr ctx e,None),p)
+					| Some eg,Some dt -> (EIf (gen_expr ctx eg,gen_expr ctx e,Some (loop dt)),p)
+					| _,None -> assign_return (gen_expr ctx e)
+					| None,Some _ -> assert false
+				end
+			| Switch (st,cl) ->
+				let est = gen_st st in
+				let e = match st.st_type with
+					| TEnum _ -> field p est "index"
+					| _ -> est
+				in
+				let def = ref None in
+				let cases = ExtList.List.filter_map (fun (c,dt) ->
+					if c.c_def = CAny then begin
+						def := Some (loop dt);
+						None
+					end else
+						Some (s_con c,loop dt)
+				) cl in
+				(ESwitch (e,cases,!def),p)
+		in
+		let i = ref 0 in
+		let var_inits = EVars (List.map (fun (v,eo) -> v.v_name,(match eo with None -> None | Some e -> Some (gen_expr ctx e))) dt.dt_var_init),p in
+		let eout = (ELabel (get_label out),p) :: [ident p "@tmp"] in
+		let inits = Array.fold_left (fun acc dt ->
+			incr i;
+			(ELabel(get_label (!i - 1)),p)
+			:: loop dt
+			:: acc
+		) eout dt.dt_dt_lookup in
+		EBlock (var_inits :: inits),p
 	| TSwitch (e,cases,eo) ->
 		let e = gen_expr ctx e in
 		let eo = (match eo with None -> None | Some e -> Some (gen_expr ctx e)) in
@@ -766,6 +841,7 @@ let new_context com ver macros =
 		curclass = "$boot";
 		curmethod = "$init";
 		inits = [];
+		label_count = 0;
 	}
 
 let header() =
