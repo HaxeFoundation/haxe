@@ -422,10 +422,9 @@ and gen_expr ctx e =
 		)
 	| TPatMatch dt ->
 		let lc = ctx.label_count in
-		let get_label i =
-			ctx.label_count <- ctx.label_count + 1;
-			"label_" ^ (string_of_int (lc + i))
-		in
+		let num_labels = Array.length dt.dt_dt_lookup in
+		ctx.label_count <- ctx.label_count + num_labels + 1;
+		let get_label i ="label_" ^ (string_of_int (lc + i)) in
 		let state = Hashtbl.create 0 in
 		Hashtbl.add state "@tmp" true;
 		let rec gen_st st =
@@ -440,20 +439,19 @@ and gen_expr ctx e =
 		let s_con c =
 			let p = pos ctx c.c_pos in
 			match c.c_def with
-			| CEnum (_,ef) -> int p ef.ef_index 
+			| CEnum (_,ef) -> int p ef.ef_index
 			| CConst cst -> gen_constant ctx c.c_pos cst
 			| CAny -> assert false
 		in
 		let goto i = call p (builtin p "goto") [ident p (get_label i)] in
 (* 		let goto i = EBlock [
-			call p (builtin p "print") [call p (field p (ident p "String") "new") [gen_big_string ctx p ("goto " ^ (get_label i) ^ "\n")]];			
+			call p (builtin p "print") [call p (field p (ident p "String") "new") [gen_big_string ctx p ("goto " ^ (get_label i) ^ "\n")]];
 			call p (builtin p "goto") [ident p (get_label i)];
-		],p in	 *)	
-		let out = Array.length dt.dt_dt_lookup in
+		],p in	 *)
 		let assign_return e =
 			EBlock [
 				(EBinop ("=",ident p "@tmp",e),p);
-				goto out;
+				goto num_labels;
 			],p
 		in
 		let rec loop dt = match dt with
@@ -487,7 +485,7 @@ and gen_expr ctx e =
 		in
 		let i = ref 0 in
 		let var_inits = EVars (List.map (fun (v,eo) -> v.v_name,(match eo with None -> None | Some e -> Some (gen_expr ctx e))) dt.dt_var_init),p in
-		let eout = (ELabel (get_label out),p) :: [ident p "@tmp"] in
+		let eout = (ELabel (get_label num_labels),p) :: [ident p "@tmp"] in
 		let inits = Array.fold_left (fun acc dt ->
 			incr i;
 			(ELabel(get_label (!i - 1)),p)
