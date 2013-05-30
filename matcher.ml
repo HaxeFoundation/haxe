@@ -63,6 +63,13 @@ type dt =
 	| Bind of (pvar * st) list * dt
 	| Goto of int
 
+type decision_tree = {
+	dt_first : dt;
+	dt_dt_lookup : dt array;
+	dt_type : t;
+	dt_var_init : (tvar * texpr option) list;
+}
+
 (* Pattern *)
 
 type pat_def =
@@ -1110,7 +1117,12 @@ let make_dt ctx e cases def with_type p =
 		| Some (WithTypeResume t2) -> (try unify_raise ctx t2 t p with Error (Unify l,p) -> raise (Typer.WithTypeError (l,p)))
 		| _ -> assert false
 	end;
-	dt,!var_inits,t,DynArray.to_array mctx.dt_lut
+	{
+		dt_first = dt;
+		dt_dt_lookup = DynArray.to_array mctx.dt_lut;
+		dt_type = t;
+		dt_var_init = List.rev !var_inits;
+	}
 
 (* Conversion to Typed AST *)
 
@@ -1370,24 +1382,24 @@ and to_array_switch cctx t st cases =
 (* Main *)
 
 let match_expr ctx e cases def with_type p =
-	let dt,var_inits,t,lut = make_dt ctx e cases def with_type p in
+	let dt = make_dt ctx e cases def with_type p in
 	let cctx = {
 		ctx = ctx;
 		out_type = mk_mono();
 		v_lookup = Hashtbl.create 0;
 		eval_stack = [];
-		dt_lookup = lut;
+		dt_lookup = dt.dt_dt_lookup;
 	} in
 	(* generate typed AST from decision tree *)
-	let e = to_typed_ast cctx dt in
-	let e = { e with epos = p; etype = t} in
-	if var_inits = [] then
+	let e = to_typed_ast cctx dt.dt_first in
+	let e = { e with epos = p; etype = dt.dt_type} in
+	if dt.dt_var_init = [] then
 		e
 	else begin
 		mk (TBlock [
-			mk (TVars (List.rev var_inits)) t_dynamic e.epos;
+			mk (TVars dt.dt_var_init) t_dynamic e.epos;
 			e;
-		]) t e.epos
+		]) dt.dt_type e.epos
 	end
 ;;
 match_expr_ref := match_expr;
