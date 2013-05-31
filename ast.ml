@@ -54,6 +54,7 @@ module Meta = struct
 		| DynamicObject
 		| Enum
 		| EnumConstructorParam
+		| Exhaustive
 		| Expose
 		| Extern
 		| FakeEnum
@@ -138,7 +139,7 @@ module Meta = struct
 	let get m ml = List.find (fun (m2,_,_) -> m = m2) ml
 
 	let to_string_ref = ref (fun _ -> assert false)
-	let to_string (m : strict_meta) : string = !to_string_ref m 
+	let to_string (m : strict_meta) : string = !to_string_ref m
 end
 
 type keyword =

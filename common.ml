@@ -313,6 +313,7 @@ module MetaInfo = struct
 		| DynamicObject -> ":dynamicObject",("Used internally to identify the Dynamic Object implementation",[Platforms [Java;Cs]; UsedOn TClass; Internal])
 		| Enum -> ":enum",("Used internally to annotate a class that was generated from an enum",[Platforms [Java;Cs]; UsedOn TClass; Internal])
 		| EnumConstructorParam -> ":enumConstructorParam",("Used internally to annotate GADT type parameters",[UsedOn TClass; Internal])
+		| Exhaustive -> ":exhaustive",("",[Internal])
 		| Expose -> ":expose",("Makes the class available on the window object",[HasParam "?Name=Class path";UsedOn TClass;Platform Js])
 		| Extern -> ":extern",("Marks the field as extern so it is not generated",[UsedOn TClassField])
 		| FakeEnum -> ":fakeEnum",("Treat enum as collection of values of the specified type",[HasParam "Type name";UsedOn TEnum])
