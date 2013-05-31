@@ -1179,12 +1179,12 @@ let rec unify a b =
 			error [cannot_unify a b])
 	| TAbstract (aa,tl), _  ->
 		if not (List.exists (unify_to_field aa tl b) aa.a_to) then error [cannot_unify a b];
-	| TInst ({ cl_kind = KTypeParameter ctl } as c,pl), TAbstract _ ->
+	| TInst ({ cl_kind = KTypeParameter ctl } as c,pl), TAbstract (bb,tl) ->
 		(* one of the constraints must satisfy the abstract *)
 		if not (List.exists (fun t ->
 			let t = apply_params c.cl_types pl t in
 			try unify t b; true with Unify_error _ -> false
-		) ctl) then error [cannot_unify a b];
+		) ctl) && not (List.exists (unify_from_field bb tl a b) bb.a_from) then error [cannot_unify a b];
 	| _, TAbstract (bb,tl) ->
 		if not (List.exists (unify_from_field bb tl a b) bb.a_from) then error [cannot_unify a b]
 	| _ , _ ->
@@ -1635,4 +1635,4 @@ let rec s_expr_pretty tabs s_type e =
 	| TCast (e,Some mt) ->
 		sprintf "cast (%s,%s)" (loop e) (s_type_path (t_path mt))
 	| TMeta ((n,el,_),e) ->
-		sprintf "@%s%s %s" (Meta.to_string n) (match el with [] -> "" | _ -> "(" ^ (String.concat ", " (List.map Ast.s_expr el)) ^ ")") (loop e)		
+		sprintf "@%s%s %s" (Meta.to_string n) (match el with [] -> "" | _ -> "(" ^ (String.concat ", " (List.map Ast.s_expr el)) ^ ")") (loop e)
