@@ -249,6 +249,9 @@ let rec type_inline ctx cf f ethis params tret config p force =
 			) cases in
 			let def = opt (map term) def in
 			{ e with eexpr = TMatch (map false v,en,cases,def); etype = if term && ret_val then unify_min ctx ((List.map (fun (_,_,e) -> e) cases) @ (match def with None -> [] | Some e -> [e])) else e.etype }
+		| TPatMatch _ ->
+			cancel_inlining := true; (* TODO *)
+			e
 		| TSwitch (e1,cases,def) when term ->
 			let term = term && def <> None in
 			let cases = List.map (fun (el,e) ->
