@@ -95,7 +95,7 @@ class Timer {
 		Timer is stopped through a call to `this.stop`.
 	**/
 	public dynamic function run() {
-		trace("run");
+
 	}
 
 	/**
