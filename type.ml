@@ -320,7 +320,6 @@ and st = {
 }
 
 and dt =
-	(* | Out of texpr * texpr option * dt option *)
 	| Switch of st * (con * dt) list
 	| Bind of ((tvar * pos) * st) list * dt
 	| Goto of int
@@ -1361,10 +1360,6 @@ let iter f e =
 		(match def with None -> () | Some e -> f e)
 	| TPatMatch dt ->
 		let rec loop dt = match dt with
-(* 			| Out(e,eo,dt) ->
-				f e;
-				(match eo with None -> () | Some e -> f e);
-				(match dt with None -> () | Some dt -> loop dt); *)
 			| Bind(_,dt) -> loop dt
 			| Goto _ -> ()
 			| Switch(_,cl) -> List.iter (fun (_,dt) -> loop dt) cl
@@ -1427,8 +1422,6 @@ let map_expr f e =
 		{ e with eexpr = TMatch (f e1, t, List.map (fun (cl,params,e) -> cl, params, f e) cases, match def with None -> None | Some e -> Some (f e)) }
 	| TPatMatch dt ->
 		let rec loop dt = match dt with
-(* 			| Out(e,eo,dt) ->
-				Out(f e, (match eo with None -> None | Some e -> Some (f e)), (match dt with None -> None | Some dt -> Some (loop dt))); *)
 			| Bind(vl,dt) -> Bind(vl, loop dt)
 			| Goto _ -> dt
 			| Switch(st,cl) -> Switch(st, List.map (fun (c,dt) -> c,loop dt) cl)
@@ -1507,8 +1500,6 @@ let map_expr_type f ft fv e =
 		{ e with eexpr = TMatch (f e1, (en,List.map ft pl), List.map map_case cases, match def with None -> None | Some e -> Some (f e)); etype = ft e.etype }
 	| TPatMatch dt ->
 		let rec loop dt = match dt with
-(* 			| Out(e,eo,dt) ->
-				Out(f e, (match eo with None -> None | Some e -> Some (f e)), (match dt with None -> None | Some dt -> Some (loop dt))); *)
 			| Bind(vl,dt) -> Bind(vl, loop dt)
 			| Goto _ -> dt
 			| Switch(st,cl) -> Switch(st, List.map (fun (c,dt) -> c,loop dt) cl)
