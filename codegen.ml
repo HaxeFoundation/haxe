@@ -1563,12 +1563,12 @@ module PatternMatchConversion = struct
 			mk (TField(e,fa)) st.st_type st.st_pos
 		| SArray (sts,i) -> mk (TArray(convert_st cctx sts,mk_const cctx.ctx st.st_pos (TInt (Int32.of_int i)))) st.st_type st.st_pos
 		| STuple (st,_,_) -> convert_st cctx st
-		| SEnum(st,_,i) ->
+		| SEnum(sts,_,i) ->
 			let cf = PMap.find "enumParameters" cctx.ttype.cl_statics in
 			let ec = mk (TTypeExpr (TClassDecl cctx.ttype)) t_dynamic st.st_pos in
-			let ef = mk (TField(ec, FStatic(cctx.ttype,cf))) (tfun [st.st_type] (cctx.ctx.t.tarray t_dynamic)) st.st_pos in
-			let ec = mk (TCall (ef,[convert_st cctx st])) t_dynamic st.st_pos in
-			mk (TArray (ec,mk (TConst(TInt (Int32.of_int i))) cctx.ctx.t.tint st.st_pos)) t_dynamic st.st_pos
+			let ef = mk (TField(ec, FStatic(cctx.ttype,cf))) (tfun [sts.st_type] (cctx.ctx.t.tarray t_dynamic)) st.st_pos in
+			let ec = mk (TCall (ef,[convert_st cctx sts])) t_dynamic st.st_pos in
+			mk (TArray (ec,mk (TConst(TInt (Int32.of_int i))) cctx.ctx.t.tint st.st_pos)) st.st_type st.st_pos
 
 	let convert_con cctx con = match con.c_def with
 		| CConst c -> mk_const cctx.ctx con.c_pos c
@@ -1588,7 +1588,12 @@ module PatternMatchConversion = struct
 			loop stack
 		in
 		let rec loop e = match e.eexpr with
-			| TLocal v -> (try f (replace v) with Not_found -> e)
+			| TLocal v ->
+				begin try
+					let st = replace v in
+					Type.unify e.etype st.st_type;
+					f st;
+				with Not_found -> e end
 			| _ -> Type.map_expr loop e
 		in
 		loop e
@@ -1616,8 +1621,8 @@ module PatternMatchConversion = struct
 					let ec = mk (TTypeExpr (TClassDecl cctx.ttype)) t_dynamic p in
 					let ef = mk (TField(ec, FStatic(cctx.ttype,cf))) (tfun [t_dynamic] cctx.ctx.t.tint) p in
 					mk (TCall (ef,[e_st])) cctx.ctx.t.tint p,true
-				| TInst({cl_path = [],"Array"},_) ->
-					mk (TField (e_st,FDynamic "length")) cctx.ctx.t.tint p,false
+				| TInst({cl_path = [],"Array"},_) as t ->
+					mk (TField (e_st,quick_field t "length")) cctx.ctx.t.tint p,false
 				| _ ->
 					e_st,false
 			in
