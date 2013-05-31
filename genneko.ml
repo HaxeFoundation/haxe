@@ -446,11 +446,6 @@ and gen_expr ctx e =
 			| CFields _ -> assert false
 		in
 		let goto i = call p (builtin p "goto") [ident p (get_label i)] in
-(*  		let goto i = EBlock [
-			call p (builtin p "print") [call p (field p (ident p "String") "new") [gen_big_string ctx p ("goto " ^ (string_of_int (lc + i)))];];
-			call p (builtin p "print") [gen_big_string ctx p "\n"];
-			goto i;
-		],p in *)
 		let state = Hashtbl.create 0 in
 		let v_name v = "v" ^ (string_of_int v.v_id) in
 		let get_locals e =
@@ -493,17 +488,25 @@ and gen_expr ctx e =
 					| _ -> est;
 				in
 				let def = ref None in
+				let pnull = ref None in
 				let cases = ExtList.List.filter_map (fun (c,dt) ->
-					if c.c_def = CAny then begin
+					match c.c_def with
+					| CAny ->
 						def := Some (loop dt);
 						None
-					end else
+					| CConst (TNull) ->
+						pnull := Some (loop dt);
+						None;
+					| _ ->
 						Some (s_con c,loop dt)
 				) cl in
-				EBlock [
+				let e = EBlock [
 					(ESwitch (e,cases,!def),p);
 					goto num_labels;
-				],p
+				],p in
+				match !pnull with
+				| None -> e
+				| Some enull -> (EIf((EBinop ("==",est,null p),p),enull,Some e)),p
 		in
 		let acc = DynArray.create () in
 		for i = num_labels -1 downto 0 do
