@@ -1608,29 +1608,39 @@ module PatternMatchConversion = struct
 			let ethen = convert_dt cctx dt1 in
 			mk (TIf(replace_locals cctx.eval_stack (convert_st cctx) e,ethen,match dt2 with None -> None | Some dt -> Some (convert_dt cctx dt))) ethen.etype (punion e.epos ethen.epos)
 		| Switch(st,cl) ->
-			let e_subject = convert_st cctx st in
+			let p = st.st_pos in
+			let e_st = convert_st cctx st in
 			let e_subject,exh = match follow st.st_type with
 				| TEnum(_) ->
 					let cf = PMap.find "enumIndex" cctx.ttype.cl_statics in
-					let ec = mk (TTypeExpr (TClassDecl cctx.ttype)) t_dynamic st.st_pos in
-					let ef = mk (TField(ec, FStatic(cctx.ttype,cf))) (tfun [t_dynamic] cctx.ctx.t.tint) st.st_pos in
-					mk (TCall (ef,[e_subject])) cctx.ctx.t.tint st.st_pos,true
+					let ec = mk (TTypeExpr (TClassDecl cctx.ttype)) t_dynamic p in
+					let ef = mk (TField(ec, FStatic(cctx.ttype,cf))) (tfun [t_dynamic] cctx.ctx.t.tint) p in
+					mk (TCall (ef,[e_st])) cctx.ctx.t.tint p,true
 				| TInst({cl_path = [],"Array"},_) ->
-					mk (TField (e_subject,FDynamic "length")) cctx.ctx.t.tint st.st_pos,false
+					mk (TField (e_st,FDynamic "length")) cctx.ctx.t.tint p,false
 				| _ ->
-					e_subject,false
+					e_st,false
 			in
 			let def = ref None in
+			let null = ref None in
 			let cases = ExtList.List.filter_map (fun (con,dt) ->
 				match con.c_def with
 				| CAny ->
 					def := Some (convert_dt cctx dt);
 					None
+				| CConst (TNull) ->
+					null := Some (convert_dt cctx dt);
+					None
 				| _ ->
 					Some ([convert_con cctx con],convert_dt cctx dt)
 			) cl in
-			let e_subject = if exh then mk (TMeta((Meta.Exhaustive,[],st.st_pos), e_subject)) e_subject.etype e_subject.epos else e_subject in
-			mk (TSwitch(e_subject,cases,!def)) (mk_mono()) (st.st_pos)
+			let e_subject = if exh then mk (TMeta((Meta.Exhaustive,[],p), e_subject)) e_subject.etype e_subject.epos else e_subject in
+			let e = mk (TSwitch(e_subject,cases,!def)) (mk_mono()) (p) in
+			match !null with
+			| None -> e
+			| Some enull ->
+				let econd = mk (TBinop(OpEq,e_st,mk (TConst TNull) (mk_mono()) p)) cctx.ctx.t.tbool p in
+				mk (TIf(econd,enull,Some e)) e.etype e.epos
 
 	let to_typed_ast ctx dt p =
 		let first = dt.dt_dt_lookup.(dt.dt_first) in
