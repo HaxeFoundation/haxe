@@ -1615,6 +1615,7 @@ module PatternMatchConversion = struct
 			to_typed_ast cctx (cctx.dt_lookup.(i))
 		| Expr e -> replace_locals cctx e
 		| Guard (e,dt1,dt2) ->
+			let e = replace_locals cctx e in
 			begin match dt2 with
 			| None -> mk (TIf(e,to_typed_ast cctx dt1,None)) t_dynamic e.epos
 			| Some dt ->
