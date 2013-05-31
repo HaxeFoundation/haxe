@@ -1369,6 +1369,7 @@ let iter f e =
 				loop dt1;
 				(match dt2 with None -> () | Some dt -> loop dt)
 		in
+		List.iter (fun (_,eo) -> match eo with None -> () | Some e -> f e) dt.dt_var_init;
 		Array.iter loop dt.dt_dt_lookup
 	| TTry (e,catches) ->
 		f e;
@@ -1428,7 +1429,8 @@ let map_expr f e =
 			| Expr e -> Expr(f e)
 			| Guard(e,dt1,dt2) -> Guard(f e,loop dt1,match dt2 with None -> None | Some dt -> Some (loop dt))
 		in
-		{ e with eexpr = TPatMatch({dt with dt_dt_lookup = Array.map loop dt.dt_dt_lookup})}
+		let vi = List.map (fun (v,eo) -> v, match eo with None -> None | Some e -> Some(f e)) dt.dt_var_init in
+		{ e with eexpr = TPatMatch({dt with dt_dt_lookup = Array.map loop dt.dt_dt_lookup; dt_var_init = vi})}
 	| TTry (e1,catches) ->
 		{ e with eexpr = TTry (f e1, List.map (fun (v,e) -> v, f e) catches) }
 	| TReturn eo ->
@@ -1506,7 +1508,8 @@ let map_expr_type f ft fv e =
 			| Expr e -> Expr(f e)
 			| Guard (e,dt1,dt2) -> Guard(f e, loop dt, match dt2 with None -> None | Some dt -> Some (loop dt))
 		in
-		{ e with eexpr = TPatMatch({dt with dt_dt_lookup = Array.map loop dt.dt_dt_lookup}); etype = ft e.etype}
+		let vi = List.map (fun (v,eo) -> v, match eo with None -> None | Some e -> Some(f e)) dt.dt_var_init in
+		{ e with eexpr = TPatMatch({dt with dt_dt_lookup = Array.map loop dt.dt_dt_lookup; dt_var_init = vi}); etype = ft e.etype}
 	| TTry (e1,catches) ->
 		{ e with eexpr = TTry (f e1, List.map (fun (v,e) -> fv v, f e) catches); etype = ft e.etype }
 	| TReturn eo ->
