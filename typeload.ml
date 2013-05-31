@@ -886,9 +886,17 @@ let rec return_flow ctx e =
 	| TMatch (_,_,cases,def) ->
 		List.iter (fun (_,_,e) -> return_flow e) cases;
 		(match def with None -> () | Some e -> return_flow e)
-	| TPatMatch _ ->
-		(* TODO *)
-		()
+	| TPatMatch dt ->
+		let rec loop d = match d with
+			| Expr e -> return_flow e
+			| Guard(_,dt1,dt2) ->
+				loop dt1;
+				(match dt2 with None -> () | Some dt -> loop dt)
+			| Bind (_,d) -> loop d
+			| Switch (_,cl) -> List.iter (fun (_,dt) -> loop dt) cl
+			| Goto i -> loop (dt.dt_dt_lookup.(i))
+		in
+		loop (dt.dt_dt_lookup.(dt.dt_first))
 	| TTry (e,cases) ->
 		return_flow e;
 		List.iter (fun (_,e) -> return_flow e) cases;
