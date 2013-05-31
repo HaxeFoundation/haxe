@@ -421,7 +421,6 @@ and gen_expr ctx e =
 				],p)
 		)
 	| TPatMatch dt ->
-		(* if e.epos.pfile = "Main.hx" then Array.iteri (fun i dt -> print_endline (string_of_int i); print_endline (s_dt "" dt)) dt.dt_dt_lookup; *)
 		let num_labels = Array.length dt.dt_dt_lookup in
 		let lc = ctx.label_count in
 		ctx.label_count <- ctx.label_count + num_labels + 1;
