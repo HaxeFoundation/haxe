@@ -447,37 +447,45 @@ and gen_expr ctx e =
 			| CFields _ -> assert false
 		in
 		let goto i = call p (builtin p "goto") [ident p (get_label i)] in
- 		let goto i = EBlock [
+(*  		let goto i = EBlock [
 			call p (builtin p "print") [call p (field p (ident p "String") "new") [gen_big_string ctx p ("goto " ^ (string_of_int (lc + i)))];];
 			call p (builtin p "print") [gen_big_string ctx p "\n"];
 			goto i;
-		],p in
+		],p in *)
 		let state = Hashtbl.create 0 in
-		let assign_return e =
-			let block = [
-				(EBinop ("=",ident p "@ret",e),p);
-				goto num_labels;
-			] in
-			let e_state = Hashtbl.fold (fun n _ l -> (n, Some (field p (ident p "@state") n)) :: l) state [] in
-			match e_state with [] -> EBlock block,p | _ -> EBlock ((EVars(e_state),p) :: block),p
+		let v_name v = "v" ^ (string_of_int v.v_id) in
+		let get_locals e =
+			let locals = Hashtbl.create 0 in
+			let rec loop e = match e.eexpr with
+				| TLocal v -> Hashtbl.replace locals v true
+				| _ -> Type.iter loop e
+			in
+			loop e;
+			Hashtbl.fold (fun v _ l -> if Hashtbl.mem locals v then (v.v_name, Some (field p (ident p "@state") (v_name v))) :: l else l) state []
 		in
 		let rec loop d = match d with
 			| Goto i ->
 				goto i
 			| Bind (bl,dt) ->
 				let block = List.map (fun ((v,_),st) ->
-					Hashtbl.replace state v.v_name true;
 					let est = gen_st st in
-					(EBinop ("=",field p (ident p "@state") v.v_name,est),p)
+					let field = field p (ident p "@state") (v_name v) in
+					Hashtbl.replace state v field;
+					(EBinop ("=",field,est),p)
 				) bl in
 				EBlock (block @ [loop dt]),p
 			| Expr e ->
-				assign_return (gen_expr ctx e)
+				let block = [
+					(EBinop ("=",ident p "@ret",gen_expr ctx e),p);
+					goto num_labels;
+				] in
+				(match get_locals e with [] -> EBlock block,p | el -> EBlock ((EVars(el),p) :: block),p)
 			| Guard (e,dt1,dt2) ->
-				begin match dt2 with
+				let eg = match dt2 with
  					| None -> (EIf (gen_expr ctx e,loop dt1,None),p)
 					| Some dt -> (EIf (gen_expr ctx e,loop dt1,Some (loop dt)),p)
-				end
+				in
+				(match get_locals e with [] -> eg | el -> EBlock [(EVars(el),p);eg],p)
 			| Switch (st,cl) ->
 				let est = gen_st st in
 				let e = match follow st.st_type with
@@ -508,7 +516,7 @@ and gen_expr ctx e =
 		DynArray.add acc (ident p "@ret");
 		let el = DynArray.to_list acc in
 		let var_init = List.fold_left (fun acc (v,eo) -> (v.v_name,(match eo with None -> None | Some e -> Some (gen_expr ctx e))) :: acc) [] dt.dt_var_init in
-		let state_init = Hashtbl.fold (fun n _ l -> (n,null p) :: l) state [] in
+		let state_init = Hashtbl.fold (fun v _ l -> (v_name v,null p) :: l) state [] in
 		let init = match var_init,state_init with
 			| [], [] -> []
 			| el, [] -> el
