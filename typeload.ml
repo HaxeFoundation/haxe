@@ -132,7 +132,7 @@ let make_module ctx mpath file tdecls loadp =
 					let stat = List.mem AStatic f.cff_access in
 					let p = f.cff_pos in
 					match f.cff_kind with
-					| FProp (("get" | "never"),("set" | "never"),_,_) ->
+					| FProp (("get" | "never"),("set" | "never"),_,_) when not stat ->
 						(* TODO: hack to avoid issues with abstract property generation on As3 *)
 						if Common.defined ctx.com Define.As3 then f.cff_meta <- (Meta.Extern,[],p) :: f.cff_meta;
 						{ f with cff_access = AStatic :: f.cff_access; cff_meta = (Meta.Impl,[],p) :: f.cff_meta }
@@ -1646,7 +1646,7 @@ let init_class ctx c p context_init herits fields =
 				| Some t, _ -> load_complex_type ctx p t
 			) in
 			let t_get,t_set = match c.cl_kind with
-				| KAbstractImpl a ->
+				| KAbstractImpl a when Meta.has Meta.Impl f.cff_meta ->
 					if Meta.has Meta.IsVar f.cff_meta then error "Abstract properties cannot be real variables" f.cff_pos;
 					let ta = apply_params a.a_types (List.map snd a.a_types) a.a_this in
 					tfun [ta] ret, tfun [ta;ret] ret
