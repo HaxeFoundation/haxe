@@ -1598,6 +1598,26 @@ module PatternMatchConversion = struct
 		in
 		loop e
 
+	let group_cases cases =
+		let dt_eq dt1 dt2 = match dt1,dt2 with
+			| Goto i1, Goto i2 when i1 = i2 -> true
+			(* TODO equal bindings *)
+			| _ -> false
+		in
+		match List.rev cases with
+		| [] -> []
+		| [con,dt] -> [[con],dt]
+		| (con,dt) :: cases ->
+			let tmp,ldt,cases = List.fold_left (fun (tmp,ldt,acc) (con,dt) ->
+				if dt_eq dt ldt then
+					(con :: tmp,dt,acc)
+				else
+					([con],dt,(tmp,ldt) :: acc)
+			) ([con],dt,[]) cases in
+			match tmp with
+			| [] -> cases
+			| tmp -> ((tmp,ldt) :: cases)
+
 	let rec convert_dt cctx dt =
 		match dt with
 		| Bind (bl,dt) ->
@@ -1628,17 +1648,19 @@ module PatternMatchConversion = struct
 			in
 			let def = ref None in
 			let null = ref None in
-			let cases = ExtList.List.filter_map (fun (con,dt) ->
+			let cases = List.filter (fun (con,dt) ->
 				match con.c_def with
 				| CAny ->
 					def := Some (convert_dt cctx dt);
-					None
+					false
 				| CConst (TNull) ->
 					null := Some (convert_dt cctx dt);
-					None
+					false
 				| _ ->
-					Some ([convert_con cctx con],convert_dt cctx dt)
+					true
 			) cl in
+			let cases = group_cases cases in
+			let cases = List.map (fun (cl,dt) -> List.map (convert_con cctx) cl,convert_dt cctx dt) cases in
 			let e_subject = if exh then mk (TMeta((Meta.Exhaustive,[],p), e_subject)) e_subject.etype e_subject.epos else e_subject in
 			let e = mk (TSwitch(e_subject,cases,!def)) (mk_mono()) (p) in
 			match !null with
