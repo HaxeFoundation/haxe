@@ -105,6 +105,18 @@ let deprecated = [
 	"#Xml has no field createProlog", "Xml.createProlog was renamed to Xml.createProcessingInstruction";
 ]
 
+let limit_string s offset =
+	let rest = 80 - offset in
+	let words = ExtString.String.nsplit s " " in
+	let rec loop i words = match words with
+		| word :: words ->
+			if String.length word + i + 1 > rest then (Printf.sprintf "\n%*s" offset "") :: word :: loop (String.length word) words
+			else (if i = 0 then "" else " ") :: word :: loop (i + 1 + String.length word) words
+		| [] ->
+			[]
+	in
+	String.concat "" (loop 0 words)
+
 let error ctx msg p =
 	let msg = try List.assoc msg deprecated with Not_found -> msg in
 	message ctx msg p;
@@ -1030,20 +1042,23 @@ try
 			did_something := true;
 		),": print version and exit");
 		("--help-defines", Arg.Unit (fun() ->
+			let m = ref 0 in
 			let rec loop i =
 				let d = Obj.magic i in
 				if d <> Define.Last then begin
 					let t, doc = Define.infos d in
-					let str = String.concat "-" (ExtString.String.nsplit t "_") ^ " : " ^ doc in
-					str :: loop (i + 1)
+					if String.length t > !m then m := String.length t;
+					((String.concat "-" (ExtString.String.nsplit t "_")),doc) :: (loop (i + 1))
 				end else
 					[]
 			in
-			let all = List.sort String.compare (loop 0) in
+			let all = List.sort (fun (s1,_) (s2,_) -> String.compare s1 s2) (loop 0) in
+			let all = List.map (fun (n,doc) -> Printf.sprintf " %-*s: %s" !m n (limit_string doc (!m + 3))) all in
 			List.iter (fun msg -> ctx.com.print (msg ^ "\n")) all;
 			did_something := true
 		),": print help for all compiler specific defines");
 		("--help-metas", Arg.Unit (fun() ->
+			let m = ref 0 in
 			let rec loop i =
 				let d = Obj.magic i in
 				if d <> Meta.Last then begin
@@ -1067,14 +1082,16 @@ try
 							| [p] -> " (" ^ platform_name p ^ " only)"
 							| pl -> " (for " ^ String.concat "," (List.map platform_name pl) ^ ")"
 						) in
-						let str = "@" ^ t ^ params ^ " : " ^ doc ^ pfs in
-						str :: loop (i + 1)
+						let str = "@" ^ t in
+						if String.length str > !m then m := String.length str;
+						(str,params ^ doc ^ pfs) :: loop (i + 1)
 					end else
 						loop (i + 1)
 				end else
 					[]
 			in
-			let all = List.sort String.compare (loop 0) in
+			let all = List.sort (fun (s1,_) (s2,_) -> String.compare s1 s2) (loop 0) in
+			let all = List.map (fun (n,doc) -> Printf.sprintf " %-*s: %s" !m n (limit_string doc (!m + 3))) all in
 			List.iter (fun msg -> ctx.com.print (msg ^ "\n")) all;
 			did_something := true
 		),": print help for all compiler metadatas");
