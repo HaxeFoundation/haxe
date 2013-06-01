@@ -44,7 +44,7 @@ type cache = {
 exception Abort
 exception Completion of string
 
-let version = 300
+let version = 310
 
 let measure_times = ref false
 let prompt = ref false
