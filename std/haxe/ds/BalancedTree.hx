@@ -98,16 +98,16 @@ class BalancedTree<K,V> {
 	
 	function iteratorLoop(node:TreeNode<K,V>, acc:Array<V>) {
 		if (node != null) {
-			acc.push(node.value);
 			iteratorLoop(node.left, acc);
+			acc.push(node.value);
 			iteratorLoop(node.right, acc);
 		}
 	}
 	
 	function keysLoop(node:TreeNode<K,V>, acc:Array<K>) {
 		if (node != null) {
-			acc.push(node.key);
 			keysLoop(node.left, acc);
+			acc.push(node.key);
 			keysLoop(node.right, acc);
 		}
 	}
