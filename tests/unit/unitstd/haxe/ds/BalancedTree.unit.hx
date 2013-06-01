@@ -24,6 +24,8 @@ for (k in test.keys()) {
 for (k in otherKeys) {
 	eq(false, m.exists(k));
 }
+[for (key in m.keys()) key] == [1,6,8,11,13,15,17,22,25,27];
+[for (val in m) val] == [4,8,2,5,1,6,3,9,7,10];
 for (k in test.keys()) {
 	eq(true, m.remove(k));
 	eq(false, m.exists(k));
