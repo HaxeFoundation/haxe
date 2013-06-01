@@ -136,6 +136,7 @@ and tfield_access =
 	| FDynamic of string
 	| FClosure of tclass option * tclass_field (* None class = TAnon *)
 	| FEnum of tenum * tenum_field
+	| FEnumParameter of tenum_field * int
 
 and texpr = {
 	eexpr : texpr_expr;
@@ -309,7 +310,7 @@ and con = {
 and st_def =
 	| SVar of tvar
 	| SField of st * string
-	| SEnum of st * string * int
+	| SEnum of st * tenum_field * int
 	| SArray of st * int
 	| STuple of st * int * int
 
@@ -361,7 +362,7 @@ let fun_args l = List.map (fun (a,c,t) -> a, c <> None, t) l
 let field_name f =
 	match f with
 	| FAnon f | FInstance (_,f) | FStatic (_,f) | FClosure (_,f) -> f.cf_name
-	| FEnum (_,f) -> f.ef_name
+	| FEnum (_,f) | FEnumParameter (f,_) -> f.ef_name
 	| FDynamic n -> n
 
 let extract_field = function
@@ -1578,7 +1579,7 @@ and s_dt tabs tree =
 	let rec s_st st =
 		(match st.st_def with
 		| SVar v -> v.v_name
-		| SEnum (st,n,i) -> s_st st ^ "." ^ n ^ "." ^ (string_of_int i)
+		| SEnum (st,ef,i) -> s_st st ^ "." ^ ef.ef_name ^ "." ^ (string_of_int i)
 		| SArray (st,i) -> s_st st ^ "[" ^ (string_of_int i) ^ "]"
 		| STuple (st,i,a) -> "(" ^ (st_args i (a - i - 1) (s_st st)) ^ ")"
 		| SField (st,n) -> s_st st ^ "." ^ n)
@@ -1618,6 +1619,7 @@ and s_expr s_type e =
 			| FAnon f -> "anon(" ^ f.cf_name ^ ")"
 			| FEnum (en,f) -> "enum(" ^ s_type_path en.e_path ^ "." ^ f.ef_name ^ ")"
 			| FDynamic f -> "dynamic(" ^ f ^ ")"
+			| FEnumParameter (f,i) -> "enumParam(" ^ f.ef_name ^ "," ^ (string_of_int i) ^ ")"
 		) in
 		sprintf "%s.%s" (loop e) fstr
 	| TTypeExpr m ->

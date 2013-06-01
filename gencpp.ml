@@ -1479,7 +1479,7 @@ and gen_expression ctx retval expression =
 		   check_array_cast (Codegen.Abstract.get_underlying_type abs pl)
       | _ -> ()
    in
-	
+
 	let rec gen_tfield field_object field =
       let member = (field_name field) in
 		let remap_name = keyword_remap member in
@@ -1734,7 +1734,11 @@ and gen_expression ctx retval expression =
 	(* Get precidence matching haxe ? *)
 	| TBinop (op,expr1,expr2) -> gen_bin_op op expr1 expr2
 	| TField (expr,name) when (is_null expr) -> output "Dynamic()"
-
+	| TField (expr,FEnumParameter(ef,i)) ->
+		let enum = match follow expr.etype with TEnum(enum,_) -> enum | _ -> assert false in
+		output (  "(::" ^ (join_class_path_remap enum.e_path "::") ^ "(");
+		gen_expression ctx true expr;
+		output ( "))->__Param(" ^ (string_of_int i) ^ ")")
 	| TField (field_object,field) ->
 		gen_tfield field_object field
 

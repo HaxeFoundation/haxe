@@ -862,6 +862,11 @@ let rec gen_access ctx e (forset : 'a) : 'a access =
 		let id, _, _ = property ctx f e1.etype in
 		write ctx HThis;
 		VSuper id
+	| TField (e1,FEnumParameter(ef,i)) ->
+		gen_expr ctx true e1;
+		write ctx (HGetProp (ident "params"));
+		write ctx (HSmallInt i);
+		VArray
 	| TField (e1,f) ->
 		let f = field_name f in
 		let id, k, closure = property ctx f e1.etype in

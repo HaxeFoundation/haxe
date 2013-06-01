@@ -1563,12 +1563,7 @@ module PatternMatchConversion = struct
 			mk (TField(e,fa)) st.st_type st.st_pos
 		| SArray (sts,i) -> mk (TArray(convert_st cctx sts,mk_const cctx.ctx st.st_pos (TInt (Int32.of_int i)))) st.st_type st.st_pos
 		| STuple (st,_,_) -> convert_st cctx st
-		| SEnum(sts,_,i) ->
-			let cf = PMap.find "enumParameters" cctx.ttype.cl_statics in
-			let ec = mk (TTypeExpr (TClassDecl cctx.ttype)) t_dynamic st.st_pos in
-			let ef = mk (TField(ec, FStatic(cctx.ttype,cf))) (tfun [sts.st_type] (cctx.ctx.t.tarray t_dynamic)) st.st_pos in
-			let ec = mk (TCall (ef,[convert_st cctx sts])) t_dynamic st.st_pos in
-			mk (TArray (ec,mk (TConst(TInt (Int32.of_int i))) cctx.ctx.t.tint st.st_pos)) st.st_type st.st_pos
+		| SEnum(sts,ef,i) -> mk (TField(convert_st cctx sts, FEnumParameter(ef,i))) st.st_type st.st_pos
 
 	let convert_con cctx con = match con.c_def with
 		| CConst c -> mk_const cctx.ctx con.c_pos c
@@ -1638,8 +1633,9 @@ module PatternMatchConversion = struct
 			let e_subject,exh = match follow st.st_type with
 				| TEnum(_) ->
 					let cf = PMap.find "enumIndex" cctx.ttype.cl_statics in
-					let ec = mk (TTypeExpr (TClassDecl cctx.ttype)) t_dynamic p in
+					let ec = (!type_module_type_ref) cctx.ctx (TClassDecl cctx.ttype) None p in
 					let ef = mk (TField(ec, FStatic(cctx.ttype,cf))) (tfun [t_dynamic] cctx.ctx.t.tint) p in
+					(* make_call cctx.ctx ef [e_st] cctx.ctx.t.tint p,true *)
 					mk (TCall (ef,[e_st])) cctx.ctx.t.tint p,true
 				| TInst({cl_path = [],"Array"},_) as t ->
 					mk (TField (e_st,quick_field t "length")) cctx.ctx.t.tint p,false

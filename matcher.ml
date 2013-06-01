@@ -146,7 +146,7 @@ let mk_subs st con =
 		begin match apply_params en.e_types pl (monomorphs ef.ef_params ef.ef_type) with
 			| TFun(args,r) ->
 				ExtList.List.mapi (fun i (_,_,t) ->
-					mk_st (SEnum(st,ef.ef_name,i)) t st.st_pos
+					mk_st (SEnum(st,ef,i)) t st.st_pos
 				) args
 			| _ ->
 				assert false
@@ -1004,11 +1004,7 @@ let match_expr ctx e cases def with_type p =
  				s_st_r false true st (Printf.sprintf "[%i]%s" i (if top then " = " ^ v else v))
   			| SField(st,f) ->
  				s_st_r false true st (Printf.sprintf ".%s%s" f (if top then " = " ^ v else v))
- 			| SEnum(st,n,i) ->
-				let ef = match follow st.st_type with
- 					| TEnum(en,_) -> PMap.find n en.e_constrs
- 					| _ -> raise Not_found
- 				in
+ 			| SEnum(st,ef,i) ->
  				let len = match follow ef.ef_type with TFun(args,_) -> List.length args | _ -> 0 in
 				s_st_r false false st (Printf.sprintf "%s(%s)" ef.ef_name (st_args i (len - 1 - i) v))
 		in

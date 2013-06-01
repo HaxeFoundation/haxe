@@ -826,7 +826,7 @@ let field_access ctx mode f fmode t e p =
 				| FInstance (c,cf) -> FClosure (Some c,cf)
 				| FStatic _ | FEnum _ -> fmode
 				| FAnon f -> FClosure (None, f)
-				| FDynamic _ | FClosure _ -> assert false
+				| FDynamic _ | FClosure _ | FEnumParameter _ -> assert false
 			) in
 			AKExpr (mk (TField (e,cmode)) t p)
 		| _ -> normal())
