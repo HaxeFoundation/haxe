@@ -21,7 +21,7 @@
  */
 
 /**
-	The DateTools class contains some extra functionalities for handling [Date]
+	The DateTools class contains some extra functionalities for handling `Date`
 	instances and timestamps.
 	
 	In the context of haxe dates, a timestamp is defined as the number of
@@ -105,10 +105,10 @@ class DateTools {
 	#end
 
 	/**
-		Format the date [d] according to the format [f]. The format is
-		compatible with the [strftime] standard format, except that there is no
+		Format the date `d` according to the format `f`. The format is
+		compatible with the `strftime` standard format, except that there is no
 		support in Flash and JS for day and months names (due to lack of proper
-		internationalization API). On haXe/Neko/Windows, some formats are not
+		internationalization API). On Haxe/Neko/Windows, some formats are not
 		supported.
 	**/
 	public static function format( d : Date, f : String ) : String {
@@ -122,10 +122,10 @@ class DateTools {
 	}
 
 	/**
-		Returns the result of adding timestamp [t] to Date [d].
+		Returns the result of adding timestamp `t` to Date `d`.
 		
 		This is a convenience function for calling
-		Date.fromTime(d.getTime() + t).
+		`Date.fromTime(d.getTime() + t)`.
 	**/
 	public static inline function delta( d : Date, t : Float ) : Date {
 		return Date.fromTime( d.getTime() + t );
@@ -134,7 +134,7 @@ class DateTools {
 	static var DAYS_OF_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 
 	/**
-		Returns the number of days in the month of Date [d].
+		Returns the number of days in the month of Date `d`.
 		
 		This method handles leap years.
 	**/

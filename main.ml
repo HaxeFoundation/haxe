@@ -44,7 +44,7 @@ type cache = {
 exception Abort
 exception Completion of string
 
-let version = 300
+let version = 310
 
 let measure_times = ref false
 let prompt = ref false
@@ -1348,7 +1348,7 @@ with
 			Buffer.add_string b ("<meta name=\"" ^ (fst (MetaInfo.to_string m)) ^ "\"");
 			if el = [] then Buffer.add_string b "/>" else begin
 				Buffer.add_string b ">\n";
-				List.iter (fun e -> Buffer.add_string b ((htmlescape (Genxml.sexpr e)) ^ "\n")) el;
+				List.iter (fun e -> Buffer.add_string b ((htmlescape (Ast.s_expr e)) ^ "\n")) el;
 				Buffer.add_string b "</meta>\n";
 			end
 		) m;

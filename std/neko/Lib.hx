@@ -90,7 +90,7 @@ class Lib {
 	}
 
 	/**
-		Converts a Neko value to its haXe equivalent. Used for wrapping String and Arrays raw values into haXe Objects.
+		Converts a Neko value to its Haxe equivalent. Used for wrapping String and Arrays raw values into Haxe Objects.
 	**/
 	public static function nekoToHaxe( v : Dynamic ) : Dynamic untyped {
 		switch( __dollar__typeof(v) ) {
@@ -122,7 +122,7 @@ class Lib {
 	}
 
 	/**
-		Converts a Neko value to its haXe equivalent. Used to unwrap String and Arrays Objects into raw Neko values.
+		Converts a Neko value to its Haxe equivalent. Used to unwrap String and Arrays Objects into raw Neko values.
 	**/
 	public static function haxeToNeko( v : Dynamic ) : Dynamic untyped {
 		switch( __dollar__typeof(v) ) {

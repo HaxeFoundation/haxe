@@ -39,37 +39,37 @@
 class EReg {
 
 	/**
-		Creates a new regular expression with pattern [r] and modifiers [opt].
+		Creates a new regular expression with pattern `r` and modifiers `opt`.
 		
 		This is equivalent to the shorthand syntax ~/r/opt
 		
-		If [r] or [opt] are null, the result is unspecified.
+		If `r` or `opt` are null, the result is unspecified.
 	**/
 	public function new( r : String, opt : String ) {
 		throw "Regular expressions are not implemented for this platform";
 	}
 
 	/**
-		Tells if [this] regular expression matches String [s].
+		Tells if `this` regular expression matches String `s`.
 		
 		This method modifies the internal state.
 		
-		If [s] is null, the result is unspecified.
+		If `s` is null, the result is unspecified.
 	**/
 	public function match( s : String ) : Bool {
 		return false;
 	}
 
 	/**
-		Returns the matched sub-group [n] of [this] EReg.
+		Returns the matched sub-group `n` of `this` EReg.
 		
-		This method should only be called after [this].match() or
-		[this].matchSub(), and then operates on the String of that operation.
+		This method should only be called after `this.match` or
+		`this.matchSub`, and then operates on the String of that operation.
 		
-		The index [n] corresponds to the n-th set of parentheses in the pattern
-		of [this] EReg. If no such sub-group exists, an exception is thrown.
+		The index `n` corresponds to the n-th set of parentheses in the pattern
+		of `this` EReg. If no such sub-group exists, an exception is thrown.
 		
-		If [n] equals 0, the whole matched substring is returned.
+		If `n` equals 0, the whole matched substring is returned.
 	**/
 	public function matched( n : Int ) : String {
 		return null;
@@ -78,7 +78,7 @@ class EReg {
 	/**
 		Returns the part to the left of the last matched substring.
 		
-		If the most recent call to [this].match() or [this].matchSub() did not
+		If the most recent call to `this.match` or `this.matchSub` did not
 		match anything, the result is unspecified.
 		
 		If the global g modifier was in place for the matching, only the
@@ -93,7 +93,7 @@ class EReg {
 	/**
 		Returns the part to the right of the last matched substring.
 		
-		If the most recent call to [this].match() or [this].matchSub() did not
+		If the most recent call to `this.match` or `this.matchSub` did not
 		match anything, the result is unspecified.
 		
 		If the global g modifier was in place for the matching, only the
@@ -107,10 +107,10 @@ class EReg {
 
 	/**
 		Returns the position and length of the last matched substring, within
-		the String which was last used as argument to [this].match() or
-		[this].matchSub().
+		the String which was last used as argument to `this.match` or
+		`this.matchSub`.
 		
-		If the most recent call to [this].match() or [this].matchSub() did not
+		If the most recent call to `this.match` or `this.matchSub` did not
 		match anything, the result is unspecified.
 		
 		If the global g modifier was in place for the matching, the position and
@@ -121,64 +121,64 @@ class EReg {
 	}
 
 	/**
-		Tells if [this] regular expression matches a substring of String [s].
+		Tells if `this` regular expression matches a substring of String `s`.
 		
-		This function expects [pos] and [len] to describe a valid substring of
-		[s], or else the result is unspecified. To get more robust behavior,
-		[this].matchSub(s.substr(pos,len)) can be used instead.
+		This function expects `pos` and `len` to describe a valid substring of
+		`s`, or else the result is unspecified. To get more robust behavior,
+		`this.matchSub(s.substr(pos,len))` can be used instead.
 		
 		This method modifies the internal state.
 		
-		If [s] is null, the result is unspecified.
+		If `s` is null, the result is unspecified.
 	**/
 	public function matchSub( s : String, pos : Int, len : Int = 0):Bool {
 		return false;
 	}
 
 	/**
-		Splits String [s] at all substrings [this] EReg matches.
+		Splits String `s` at all substrings `this` EReg matches.
 		
-		If a match is found at the start of [s], the result contains a leading
+		If a match is found at the start of `s`, the result contains a leading
 		empty String "" entry.
 		
-		If a match is found at the end of [s], the result contains a trailing
+		If a match is found at the end of `s`, the result contains a trailing
 		empty String "" entry.
 		
 		If two matching substrings appear next to each other, the result
 		contains the empty String "" between them.
 		
-		By default, this method splits [s] into two parts at the first matched
-		substring. If the global g modifier is in place, [s] is split at each
+		By default, this method splits `s` into two parts at the first matched
+		substring. If the global g modifier is in place, `s` is split at each
 		matched substring.
 		
-		If [s] is null, the result is unspecified.
+		If `s` is null, the result is unspecified.
 	**/
 	public function split( s : String ) : Array<String> {
 		return null;
 	}
 
 	/**
-		Replaces the first substring of [s] which [this] EReg matches with [by].
+		Replaces the first substring of `s` which `this` EReg matches with `by`.
 		
-		If [this] EReg does not match any substring, the result is [s].
+		If `this` EReg does not match any substring, the result is `s`.
 		
 		By default, this method replaces only the first matched substring. If
 		the global g modifier is in place, all matched substrings are replaced.
 		
-		If [by] contains [$1] to [$9], the digit corresponds to number of a
+		If `by` contains `$1` to `$9`, the digit corresponds to number of a
 		matched sub-group and its value is used instead. If no such sub-group
-		exists, the replacement is unspecified. The string [$$] becomes [$].
+		exists, the replacement is unspecified. The string `$$` becomes `$`.
 		
-		If [s] or [by] are null, the result is unspecified.
+		If `s` or `by` are null, the result is unspecified.
 	**/
 	public function replace( s : String, by : String ) : String {
 		return null;
 	}
 
 	/**
-		For each occurence of the pattern in the string [s], the function [f] is called and
+		For each occurence of the pattern in the string `s`, the function `f` is called and
 		can return the string that needs to be replaced. All occurences are matched anyway,
-		and setting the [g] flag might cause some incorrect behavior on some platforms.
+		and setting the `g` flag might cause some incorrect behavior on some platforms.
 	**/
 	public function map( s : String, f : EReg -> String ) : String {
 		var buf = new StringBuf();

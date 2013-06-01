@@ -30,7 +30,7 @@ class List<T> {
 	private var q : Array<Dynamic>;
 
 	/**
-		The length of [this] List.
+		The length of `this` List.
 	**/
 	public var length(default,null) : Int;
 
@@ -42,9 +42,9 @@ class List<T> {
 	}
 
 	/**
-		Adds element [item] at the end of [this] List.
+		Adds element `item` at the end of `this` List.
 		
-		[this].length increases by 1.
+		`this.length` increases by 1.
 	**/
 	public function add( item : T ) {
 		var x:Array<Dynamic> = #if neko untyped __dollar__array(item,null) #else [item] #end;
@@ -57,9 +57,9 @@ class List<T> {
 	}
 
 	/**
-		Adds element [item] at the beginning of [this] List.
+		Adds element `item` at the beginning of `this` List.
 		
-		[this].length increases by 1.
+		`this.length` increases by 1.
 	**/
 	public function push( item : T ) {
 		var x : Array<Dynamic> = #if neko
@@ -74,18 +74,18 @@ class List<T> {
 	}
 
 	/**
-		Returns the first element of [this] List, or null if no elements exist.
+		Returns the first element of `this` List, or null if no elements exist.
 		
-		This function does not modify [this] List.
+		This function does not modify `this` List.
 	**/
 	public function first() : Null<T> {
 		return if( h == null ) null else h[0];
 	}
 
 	/**
-		Returns the last element of [this] List, or null if no elements exist.
+		Returns the last element of `this` List, or null if no elements exist.
 		
-		This function does not modify [this] List.
+		This function does not modify `this` List.
 	**/
 	public function last() : Null<T> {
 		return if( q == null ) null else q[0];
@@ -93,9 +93,9 @@ class List<T> {
 
 
 	/**
-		Returns the first element of [this] List, or null if no elements exist.
+		Returns the first element of `this` List, or null if no elements exist.
 		
-		The element is removed from [this] List.
+		The element is removed from `this` List.
 	**/
 	public function pop() : Null<T> {
 		if( h == null )
@@ -109,17 +109,17 @@ class List<T> {
 	}
 
 	/**
-		Tells if [this] List is empty.
+		Tells if `this` List is empty.
 	**/
 	public function isEmpty() : Bool {
 		return (h == null);
 	}
 
 	/**
-		Empties [this] List.
+		Empties `this` List.
 		
 		This function does not traverse the elements, but simply sets the
-		internal references to null and [this].length to 0.
+		internal references to null and `this.length` to 0.
 	**/
 	public function clear() : Void {
 		h = null;
@@ -128,9 +128,9 @@ class List<T> {
 	}
 
 	/**
-		Removes the first occurence of [v] in [this] List.
+		Removes the first occurence of `v` in `this` List.
 		
-		If [v] is found by checking standard equality, it is removed from [this]
+		If `v` is found by checking standard equality, it is removed from `this`
 		List and the function returns true.
 		
 		Otherwise, false is returned.
@@ -195,7 +195,7 @@ class List<T> {
 	}
 
 	/**
-		Returns a string representation of [this] List.
+		Returns a string representation of `this` List.
 		
 		The result is enclosed in { } with the individual elements being
 		separated by a comma.
@@ -218,7 +218,7 @@ class List<T> {
 	}
 
 	/**
-		Returns a string representation of [this] List, with [sep] separating
+		Returns a string representation of `this` List, with `sep` separating
 		each element.
 	**/
 	public function join(sep : String) {
@@ -237,8 +237,8 @@ class List<T> {
 	}
 
 	/**
-		Returns a list filtered with [f]. The returned list will contain all
-		elements for which [f(x) = true].
+		Returns a list filtered with `f`. The returned list will contain all
+		elements for which `f(x) == true`.
 	**/
 	public function filter( f : T -> Bool ) {
 		var l2 = new List();
@@ -254,7 +254,7 @@ class List<T> {
 
 	/**
 		Returns a new list where all elements have been converted by the
-		function [f].
+		function `f`.
 	**/
 	public function map<X>(f : T -> X) : List<X> {
 		var b = new List();

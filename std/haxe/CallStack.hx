@@ -22,7 +22,7 @@
 package haxe;
 
 /**
-	Elements return by [Stack] methods.
+	Elements return by `CallStack` methods.
 **/
 enum StackItem {
 	CFunction;

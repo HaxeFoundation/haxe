@@ -28,6 +28,7 @@ open Typecore
 type con_def =
 	| CEnum of tenum * tenum_field
 	| CConst of tconstant
+	| CAny
 	| CType of module_type
 	| CArray of int
 	| CFields of int * (string * tclass_field) list
@@ -113,6 +114,7 @@ let arity con = match con.c_def with
 	| CArray i -> i
 	| CFields (i,_) -> i
 	| CExpr _ -> 0
+	| CAny -> 0
 
 let mk_st def t p = {
 	st_def = def;
@@ -184,7 +186,7 @@ let mk_subs st con =
 	| CArray i ->
 		let t = match follow con.c_type with TInst({cl_path=[],"Array"},[t]) -> t | _ -> assert false in
 		ExtList.List.init i (fun i -> mk_st (SArray(st,i)) t st.st_pos)
-	| CEnum _ | CConst _ | CType _ | CExpr _ ->
+	| CEnum _ | CConst _ | CType _ | CExpr _ | CAny _ ->
 		[]
 
 let get_tuple_types t = match t with
@@ -203,7 +205,7 @@ let rec s_expr_small e = match e.eexpr with
 
 let s_con con = match con.c_def with
 	| CEnum(_,ef) -> ef.ef_name
-	| CConst TNull -> "_"
+	| CAny -> "_"
 	| CConst c -> s_const c
 	| CType mt -> s_type_path (t_path mt)
 	| CArray i -> "[" ^(string_of_int i) ^ "]"
@@ -281,6 +283,23 @@ let rec is_value_type = function
 	| _ ->
 		false
 
+(* 	Determines if a type allows null-matching. This is similar to is_nullable, but it infers Null<T> on monomorphs,
+	and enums are not considered nullable *)
+let rec matches_null ctx t = match t with
+	| TMono r ->
+		(match !r with None -> r := Some (ctx.t.tnull (mk_mono())); true | Some t -> matches_null ctx t)
+	| TType ({ t_path = ([],"Null") },[_]) ->
+		true
+	| TLazy f ->
+		matches_null ctx (!f())
+	| TType (t,tl) ->
+		matches_null ctx (apply_params t.t_types tl t.t_type)
+	| TFun _ | TEnum _ ->
+		false
+	| TAbstract (a,_) -> not (Meta.has Meta.NotNull a.a_meta)
+	| _ ->
+		true	
+
 let to_pattern ctx e t =
 	let perror p = error "Unrecognized pattern" p in
 	let verror n p = error ("Variable " ^ n ^ " must appear exactly once in each sub-pattern") p in
@@ -297,8 +316,6 @@ let to_pattern ctx e t =
 	let rec loop pctx e t =
 		let p = pos e in
 		match fst e with
-		| EConst(Ident "null") ->
-			error "null-patterns are not allowed" p
 		| ECheckType(e, CTPath({tpackage=["haxe";"macro"]; tname="Expr"})) ->
 			let old = pctx.pc_reify in
 			pctx.pc_reify <- true;
@@ -309,6 +326,9 @@ let to_pattern ctx e t =
 			loop pctx e t
 		| ECast(e1,None) ->
 			loop pctx e1 t
+		| EConst(Ident "null") ->
+			if not (matches_null ctx t) then error ("Null-patterns are only allowed on nullable types (found " ^ (s_type t) ^ ")") p;
+			mk_con_pat (CConst TNull) [] t p
 		| EConst((Ident ("false" | "true") | Int _ | String _ | Float _) as c) ->
 			let e = Codegen.type_constant ctx.com c p in
 			unify ctx e.etype t p;
@@ -562,6 +582,8 @@ let unify_con con1 con2 = match con1.c_def,con2.c_def with
 		t_path mt1 = t_path mt2
 	| CArray a1, CArray a2 ->
 		a1 == a2
+	| CAny, CAny ->
+		true
 	| _ ->
 		false
 
@@ -702,8 +724,22 @@ let column_sigma mctx st pmat =
 	loop pmat;
 	List.rev_map (fun con -> con,not (Hashtbl.mem unguarded con.c_def)) !acc,!bindings
 
+(* Determines if we have a Null<T>. Unlike is_null, this returns true even if the wrapped type is nullable itself. *)
+let rec is_explicit_null = function
+	| TMono r ->
+		(match !r with None -> false | Some t -> is_null t)
+	| TType ({ t_path = ([],"Null") },[t]) ->
+		true
+	| TLazy f ->
+		is_null (!f())
+	| TType (t,tl) ->
+		is_null (apply_params t.t_types tl t.t_type)
+	| _ ->
+		false
+
 let all_ctors mctx st =
 	let h = ref PMap.empty in
+	if is_explicit_null st.st_type then h := PMap.add (CConst TNull) Ast.null_pos !h;
 	let inf = match follow st.st_type with
 	| TAbstract({a_path = [],"Bool"},_) ->
 		h := PMap.add (CConst(TBool true)) Ast.null_pos !h;
@@ -725,11 +761,7 @@ let all_ctors mctx st =
 	| TInst ({cl_kind = KTypeParameter _},_) ->
 		error "Unapplied type parameter" st.st_pos
 	| TAnon a ->
-		(match !(a.a_status) with
-		| Statics c ->
-			true
-		| _ ->
-			false)
+		true
 	| TInst(_,_) ->
 		false
 	| _ ->
@@ -815,7 +847,7 @@ let rec compile mctx stl pmat = match pmat with
 			) sigma in
 			let def = default mctx pmat in
 			let dt = match def,cases with
-			| _,[{c_def = CFields _},dt] ->
+ 			| _,[{c_def = CFields _},dt] ->
 				dt
 			| _ when not inf && PMap.is_empty !all ->
 				Switch(st_head,cases)
@@ -829,7 +861,7 @@ let rec compile mctx stl pmat = match pmat with
 			| def,[] ->
 				compile mctx st_tail def
 			| def,_ ->
-				let cdef = mk_con (CConst TNull) t_dynamic st_head.st_pos in
+				let cdef = mk_con CAny t_dynamic st_head.st_pos in
 				let cases = cases @ [cdef,compile mctx st_tail def] in
 				Switch(st_head,cases)
 			in
@@ -935,15 +967,28 @@ let rec to_typed_ast mctx dt =
 		mctx.eval_stack <- List.tl mctx.eval_stack;
 		e
 	| Switch(st,cases) ->
-		match follow st.st_type with
+		(* separate null-patterns: these are placed in an initial if (st == null) check to avoid null access issues *)
+		let null,cases = List.partition (fun (c,_) -> match c.c_def with CConst(TNull) -> true | _ -> false) cases in
+		let e = match follow st.st_type with
 		| TEnum(en,pl) | TAbstract({a_this = TEnum(en,_)},pl) -> to_enum_switch mctx en pl st cases
 		| TInst({cl_path = [],"Array"},[t]) -> to_array_switch mctx t st cases
+		| TAnon a -> to_structure_switch mctx a st cases
 		| t -> to_value_switch mctx t st cases
+		in
+		match null with
+		| [] -> e
+		| [_,dt] ->
+			let eval = st_to_texpr mctx st in
+			let ethen = to_typed_ast mctx dt in
+			let eif = mk (TBinop(OpEq,(mk (TConst TNull) st.st_type st.st_pos),eval)) mctx.ctx.t.tbool ethen.epos in
+			mk (TIf(eif,ethen,Some e)) ethen.etype ethen.epos
+		| _ ->
+			assert false	
 
 and group_cases mctx cases to_case =
 	let def = ref None in
 	let group,cases,dto = List.fold_left (fun (group,cases,dto) (con,dt) -> match con.c_def with
-		| CConst TNull ->
+		| CAny ->
 			let e = to_typed_ast mctx dt in
 			def := Some e;
 			(group,cases,dto)
@@ -1017,7 +1062,7 @@ and to_enum_switch mctx en pl st cases =
 	in
 	let def = ref None in
 	let group,cases,dto = List.fold_left (fun (group,cases,dto) (con,dt) -> match con.c_def with
-		| CConst TNull ->
+		| CAny ->
 			let e = to_typed_ast mctx dt in
 			def := Some e;
 			(group,cases,dto)
@@ -1055,6 +1100,15 @@ and to_value_switch mctx t st cases =
 	in
 	let cases,def = group_cases mctx cases to_case in
 	mk (TSwitch(eval,cases,!def)) mctx.out_type eval.epos
+
+and to_structure_switch mctx t st cases =
+	match cases with
+	| ({c_def = CFields _},dt) :: cl ->
+		to_typed_ast mctx dt
+	| ({c_def = CAny},dt) :: [] ->
+		to_typed_ast mctx dt;
+	| _ ->
+		assert false
 
 and to_array_switch mctx t st cases =
 	let to_case con = match con.c_def with
@@ -1099,8 +1153,10 @@ let match_expr ctx e cases def with_type p =
 		| _ -> cases
 	in
 	(* type subject(s) *)
+	let array_match = ref false in
 	let evals = match fst e with
 		| EArrayDecl el | EParenthesis(EArrayDecl el,_) ->
+			array_match := true;
 			List.map (fun e -> type_expr ctx e Value) el
 		| _ ->
 			let e = type_expr ctx e Value in
@@ -1119,7 +1175,7 @@ let match_expr ctx e cases def with_type p =
 		let rec loop e = match e.eexpr with
 			| TField (ef,s) when (match s with FEnum _ -> false | _ -> true) ->
 				mk_st (SField(loop ef,field_name s)) e.etype e.epos
-			| TParenthesis e ->
+			| TParenthesis e | TMeta(_,e) ->
 				loop e
 			| TLocal v ->
 				mk_st (SVar v) e.etype e.epos
@@ -1158,7 +1214,7 @@ let match_expr ctx e cases def with_type p =
 		let save = save_locals ctx in
 		(* type case patterns *)
 		let pl,restore,with_type = try (match tl with
-				| [t] ->
+				| [t] when not !array_match ->
 					(* context type parameters are turned into monomorphs until the pattern has been typed *)
 					let monos = List.map (fun _ -> mk_mono()) ctx.type_params in
 					let t = apply_params ctx.type_params monos t in

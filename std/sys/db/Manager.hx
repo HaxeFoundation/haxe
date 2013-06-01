@@ -25,7 +25,7 @@ import sys.db.Connection;
 
 /**
 	Record Manager : the persistent object database manager. See the tutorial on
-	haXe website to learn how to use Record.
+	Haxe website to learn how to use Record.
 **/
 #if !macro @:build(sys.db.RecordMacros.addRtti()) #end
 class Manager<T : Object> {

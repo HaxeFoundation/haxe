@@ -337,6 +337,16 @@ class TestMatch extends Test {
 		eq("Unmatched patterns: [_,false,_]", getErrorMessage(switch [1, true, "foo"] {
 			case [_, true, _]:
 		}));
+		var x:Null<Bool> = true;
+		eq("Unmatched patterns: null", getErrorMessage(switch x {
+			case true:
+			case false:
+		}));
+		var t:Null<Tree<String>> = null;
+		eq("Unmatched patterns: null", getErrorMessage(switch t {
+			case Leaf(_):
+			case Node(_):
+		}));		
 	}
 
 	function testInvalidBinding() {
@@ -358,6 +368,52 @@ class TestMatch extends Test {
 		eq("String should be unit.Tree<String>", getErrorMessage(switch(Leaf("foo")) {
 			case Node(l = Leaf(_), _) | Leaf(l):
 		}));
+	}
+	
+	function testNullPattern() {
+		var i:Null<Int> = null;
+		var r = switch(i) {
+			case 1: 1;
+			case null: 2;
+			case _: 3;
+		}
+		eq(2, r);
+		
+		// this should not compile because the argument is not explicitly Null
+		//var e = EConst(null);
+		//var r = switch(e) {
+			//case EConst(null): 1;
+			//case _: 2;
+		//}
+		
+		var t:Null<Tree<String>> = null;
+		var r = switch(t) {
+			case Leaf(_): 1;
+			case null if (i != null): 2;
+			case null: 3;
+			case Node(_): 4;
+		}
+		eq(r, 3);
+		
+		var e1 = macro if (1) 2;
+		var e2 = macro if (1) 2 else 3;
+		function matchIf(e) {
+			return switch(e.expr) {
+				case EIf(_, _, null): 1;
+				case EIf(_, _, _): 2;
+				case _: 3;
+			}
+		}
+		eq(1, matchIf(e1));
+		eq(2, matchIf(e2));
+		
+		var t = Leaf("foo");
+		function f(t) return switch(t) {
+			case Leaf(null): "null";
+			case Leaf(e): e;
+			case Node(_): "default";
+		}
+		eq(f(t), "foo");
 	}
 
 	#if false
