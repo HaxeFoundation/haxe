@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, The haXe Project Contributors
+ * Copyright (c) 2005, The Haxe Project Contributors
  * All rights reserved.
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:

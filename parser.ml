@@ -1335,12 +1335,56 @@ and secure_expr s =
 	| [< e = expr >] -> e
 	| [< >] -> serror()
 
+(* eval *)
 type small_type =
 	| TNull
 	| TBool of bool
 	| TFloat of float
 	| TString of string
 
+let is_true = function
+	| TBool false | TNull | TFloat 0. | TString "" -> false
+	| _ -> true
+
+let cmp v1 v2 =
+	match v1, v2 with
+	| TNull, TNull -> 0
+	| TFloat a, TFloat b -> compare a b
+	| TString a, TString b -> compare a b
+	| TBool a, TBool b -> compare a b
+	| TString a, TFloat b -> compare (float_of_string a) b
+	| TFloat a, TString b -> compare a (float_of_string b)
+	| _ -> raise Exit (* always false *)
+
+let rec eval ctx (e,p) =
+	match e with
+	| EConst (Ident i) ->
+		(try TString (Common.raw_defined_value ctx i) with Not_found -> TNull)
+	| EConst (String s) -> TString s
+	| EConst (Int i) -> TFloat (float_of_string i)
+	| EConst (Float f) -> TFloat (float_of_string f)
+	| EBinop (OpBoolAnd, e1, e2) -> TBool (is_true (eval ctx e1) && is_true (eval ctx e2))
+	| EBinop (OpBoolOr, e1, e2) -> TBool (is_true (eval ctx e1) || is_true(eval ctx e2))
+	| EUnop (Not, _, e) -> TBool (not (is_true (eval ctx e)))
+	| EParenthesis e -> eval ctx e
+	| EBinop (op, e1, e2) ->
+		let v1 = eval ctx e1 in
+		let v2 = eval ctx e2 in
+		let compare op =
+			TBool (try op (cmp v1 v2) 0 with _ -> false)
+		in
+		(match op with
+		| OpEq -> compare (=)
+		| OpNotEq -> compare (<>)
+		| OpGt -> compare (>)
+		| OpGte -> compare (>=)
+		| OpLt -> compare (<)
+		| OpLte -> compare (<=)
+		| _ -> error (Custom "Unsupported operation") p)
+	| _ ->
+		error (Custom "Invalid condition expression") p
+
+(* parse main *)
 let parse ctx code =
 	let old = Lexer.save() in
 	let old_cache = !cache in
@@ -1393,51 +1437,9 @@ let parse ctx code =
 			tk
 
 	and enter_macro p =
-		let is_true = function
-			| TBool false | TNull | TFloat 0. | TString "" -> false
-			| _ -> true
-		in
-		let cmp v1 v2 =
-			match v1, v2 with
-			| TNull, TNull -> 0
-			| TFloat a, TFloat b -> compare a b
-			| TString a, TString b -> compare a b
-			| TBool a, TBool b -> compare a b
-			| TString a, TFloat b -> compare (float_of_string a) b
-			| TFloat a, TString b -> compare a (float_of_string b)
-			| _ -> raise Exit (* always false *)
-		in
-		let rec loop (e,p) =
-			match e with
-			| EConst (Ident i) ->
-				(try TString (Common.raw_defined_value ctx i) with Not_found -> TNull)
-			| EConst (String s) -> TString s
-			| EConst (Int i) -> TFloat (float_of_string i)
-			| EConst (Float f) -> TFloat (float_of_string f)
-			| EBinop (OpBoolAnd, e1, e2) -> TBool (is_true (loop e1) && is_true (loop e2))
-			| EBinop (OpBoolOr, e1, e2) -> TBool (is_true (loop e1) || is_true(loop e2))
-			| EUnop (Not, _, e) -> TBool (not (is_true (loop e)))
-			| EParenthesis e -> loop e
-			| EBinop (op, e1, e2) ->
-				let v1 = loop e1 in
-				let v2 = loop e2 in
-				let compare op =
-					TBool (try op (cmp v1 v2) 0 with _ -> false)
-				in
-				(match op with
-				| OpEq -> compare (=)
-				| OpNotEq -> compare (<>)
-				| OpGt -> compare (>)
-				| OpGte -> compare (>=)
-				| OpLt -> compare (<)
-				| OpLte -> compare (<=)
-				| _ -> error (Custom "Unsupported operation") p)
-			| _ ->
-				error Unclosed_macro p
-		in
 		let tk, e = parse_macro_cond false sraw in
 		let tk = (match tk with None -> Lexer.token code | Some tk -> tk) in
-		if is_true (loop e) || (match fst e with EConst (Ident "macro") when Common.unique_full_path p.pfile = (!resume_display).pfile -> true | _ -> false) then begin
+		if is_true (eval ctx e) || (match fst e with EConst (Ident "macro") when Common.unique_full_path p.pfile = (!resume_display).pfile -> true | _ -> false) then begin
 			mstack := p :: !mstack;
 			tk
 		end else

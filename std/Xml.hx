@@ -21,8 +21,8 @@
  */
 /**
 	An abstract type representing the type of the Xml
-	Node. You can compare it to [Xml] statics and can
-	use [Std.string(t)] to get a string reprensation
+	Node. You can compare it to `Xml` statics and can
+	use `Std.string` to get a string reprensation
 	of the type.
 **/
 

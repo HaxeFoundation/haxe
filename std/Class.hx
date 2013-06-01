@@ -22,7 +22,7 @@
 /**
 	An abstract type that represents a Class.
 	
-	See [Type] for the haXe Reflection API.
+	See `Type` for the Haxe Reflection API.
 **/
 @:coreType @:runtimeValue abstract Class<T> {
 }

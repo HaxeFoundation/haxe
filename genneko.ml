@@ -248,6 +248,8 @@ and gen_expr ctx e =
 		gen_type_path p (t_path t)
 	| TParenthesis e ->
 		(EParenthesis (gen_expr ctx e),p)
+	| TMeta (_,e) ->
+		gen_expr ctx e
 	| TObjectDecl fl ->
 		let hasToString = ref false in
 		let fl = List.map (fun (f,e) -> if f = "toString" then hasToString := (match follow e.etype with TFun ([],_) -> true | _ -> false); f , gen_expr ctx e) fl in
@@ -729,7 +731,7 @@ let generate_libs_init = function
 				"@b", Some (EIf (op "==" es (str p "Windows"),
 					op "+" (call p (ident p "@env") [str p "HAXEPATH"]) (str p "\\lib\\"),
 					Some (ETry (
-						op "+" (call p (loadp "file_contents" 1) [op "+" (call p (ident p "@env") [str p "HOME"]) (str p "./haxelib")]) (str p "/"),
+						op "+" (call p (loadp "file_contents" 1) [op "+" (call p (ident p "@env") [str p "HOME"]) (str p "/.haxelib")]) (str p "/"),
 						"e",
 						(EIf (op "==" es (str p "Linux"),
 							str p "/usr/lib/haxe/lib/",

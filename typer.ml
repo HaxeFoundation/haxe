@@ -364,7 +364,7 @@ let rec unify_min_raise ctx (el:texpr list) : t =
 				(match List.rev el with
 				| [] -> false
 				| e :: _ -> chk_null e)
-			| TParenthesis e -> chk_null e
+			| TParenthesis e | TMeta(_,e) -> chk_null e
 			| _ -> false
 		in
 
@@ -762,6 +762,9 @@ let rec acc_get ctx g p =
 		assert false
 
 let error_require r p =
+	if r = "" then
+		error "This field is not available with the current compilation flags" p
+	else
 	let r = if r = "sys" then
 		"a system platform (php,neko,cpp,etc.)"
 	else try
@@ -1069,7 +1072,13 @@ and type_field ctx e i p mode =
 				let t = apply_params c.cl_types params t in
 				if (mode = MGet || mode = MCall) && PMap.mem "resolve" c.cl_fields then begin
 					let f = PMap.find "resolve" c.cl_fields in
-					AKExpr (make_call ctx (mk (TField (e,FInstance (c,f))) (tfun [ctx.t.tstring] t) p) [Codegen.type_constant ctx.com (String i) p] t p)
+					let texpect = tfun [ctx.t.tstring] t in
+					let tfield = apply_params c.cl_types params (monomorphs f.cf_params f.cf_type) in
+					(try Type.unify tfield texpect
+					with Unify_error l ->
+						display_error ctx "Field resolve has an invalid type" f.cf_pos;
+						display_error ctx (error_msg (Unify [Cannot_unify(tfield,texpect)])) f.cf_pos);
+					AKExpr (make_call ctx (mk (TField (e,FInstance (c,f))) tfield p) [Codegen.type_constant ctx.com (String i) p] t p)
 				end else
 					AKExpr (mk (TField (e,FDynamic i)) t p)
 			| None ->
@@ -1337,7 +1346,7 @@ let unify_int ctx e k =
 		| TArray({ etype = t } as e,_) -> is_dynamic_array t || maybe_dynamic_rec e t
 		| TField({ etype = t } as e,f) -> is_dynamic_field t (field_name f) || maybe_dynamic_rec e t
 		| TCall({ etype = t } as e,_) -> is_dynamic_return t || maybe_dynamic_rec e t
-		| TParenthesis e -> maybe_dynamic_mono e
+		| TParenthesis e | TMeta(_,e) -> maybe_dynamic_mono e
 		| TIf (_,a,Some b) -> maybe_dynamic_mono a || maybe_dynamic_mono b
 		| _ -> false
 	and maybe_dynamic_rec e t =
@@ -1355,7 +1364,7 @@ let unify_int ctx e k =
 		unify ctx e.etype ctx.t.tint e.epos;
 		true
 
-let type_generic_function ctx (e,cf) el ?(using_param=None) p =
+let type_generic_function ctx (e,cf) el ?(using_param=None) with_type p =
 	if cf.cf_params = [] then error "Function has no type parameters and cannot be generic" p;
 	let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
 	let c,stat = match follow e.etype with
@@ -1373,6 +1382,11 @@ let type_generic_function ctx (e,cf) el ?(using_param=None) p =
 		| TFun(args,ret),None -> args,ret
 		| _ ->  error "Invalid field type for generic call" p
 	in
+	begin match with_type with
+		| WithType t -> unify ctx ret t p
+		| WithTypeResume t -> (try unify_raise ctx ret t p with Error (Unify l,_) -> raise (WithTypeError(l,p)))
+		| _ -> ()
+	end;
 	let el,_ = unify_call_params ctx None el args ret p false in
 	let el = match using_param with None -> el | Some e -> e :: el in
 	(try
@@ -2488,9 +2502,10 @@ and type_expr ctx (e,p) (with_type:with_type) =
 					| WithTypeResume _ -> raise (WithTypeError (l,p))
 					| _ -> raise (Error (Unify l,p))
 				in
-				PMap.iter (fun n cf ->
-					if not (Meta.has Meta.Optional cf.cf_meta) && not (PMap.mem n !fields) then unify_error [has_no_field t n] p;
-				) a.a_fields;
+				(match PMap.foldi (fun n cf acc -> if not (Meta.has Meta.Optional cf.cf_meta) && not (PMap.mem n !fields) then n :: acc else acc) a.a_fields [] with
+					| [] -> ()
+					| [n] -> unify_error [Unify_custom ("Object requires field " ^ n)] p
+					| nl -> unify_error [Unify_custom ("Object requires fields: " ^ (String.concat ", " nl))] p);
 				(match !extra_fields with
 				| [] -> ()
 				| _ -> unify_error (List.map (fun n -> has_extra_field t n) !extra_fields) p);
@@ -3215,7 +3230,7 @@ and build_call ctx acc el (with_type:with_type) p =
 	| AKUsing (et,cl,ef,eparam) when Meta.has Meta.Generic ef.cf_meta ->
 		(match et.eexpr with
 		| TField(ec,_) ->
-			let el,t,e = type_generic_function ctx (ec,ef) el ~using_param:(Some eparam) p in
+			let el,t,e = type_generic_function ctx (ec,ef) el ~using_param:(Some eparam) with_type p in
 			make_call ctx e el t p
 		| _ -> assert false)
 	| AKUsing (et,cl,ef,eparam) ->
@@ -3285,7 +3300,7 @@ and build_call ctx acc el (with_type:with_type) p =
 			) in
 			(match fopts,acc with
 				| Some (_,cf),AKExpr({eexpr = TField(e,_)}) when Meta.has Meta.Generic cf.cf_meta ->
-					type_generic_function ctx (e,cf) el p
+					type_generic_function ctx (e,cf) el with_type p
 				| _ ->
 					let el, tfunc = unify_call_params ctx fopts el args r p false in
 					el,(match tfunc with TFun(_,r) -> r | _ -> assert false), {e with etype = tfunc})
@@ -3558,13 +3573,13 @@ let make_macro_api ctx p =
 			)
 		);
 		Interp.on_type_not_found = (fun f ->
-			ctx.com.load_extern_type <- (fun path p ->
+			ctx.com.load_extern_type <- ctx.com.load_extern_type @ [fun path p ->
 				match f (s_type_path path) with
 				| Interp.VNull -> None
 				| td ->
 					let (pack,name),tdef,p = Interp.decode_type_def td in
 					Some (name,(pack,[tdef,p]))
-			) :: ctx.com.load_extern_type;
+			];
 		);
 		Interp.parse_string = parse_expr_string;
 		Interp.typeof = (fun e ->

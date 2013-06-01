@@ -31,10 +31,11 @@ typedef TypeResolver = {
 	a serialization String and creates objects from the contained data.
 
 	This class can be used in two ways:
-		- create a new Unserializer() instance with a given serialization
+	
+	- create a new Unserializer() instance with a given serialization
 		String, then call its unserialize() method until all values are
 		extracted
-		- call Unserializer.run() to unserialize a single value from a given
+	- call Unserializer.run() to unserialize a single value from a given
 		String
 **/
 class Unserializer {
@@ -46,9 +47,10 @@ class Unserializer {
 		default, the haxe Type Api is used.
 
 		A type resolver must provide two methods:
-			resolveClass(name:String):Class<Dynamic> is called to determine a
+		
+		1. resolveClass(name:String):Class<Dynamic> is called to determine a
 				Class from a class name
-			resolveEnum(name:String):Enum<Dynamic> is called to determine an
+		2. resolveEnum(name:String):Enum<Dynamic> is called to determine an
 				Enum from an enum name
 
 		This value is applied when a new Unserializer instance is created.
@@ -86,10 +88,10 @@ class Unserializer {
 
 	/**
 		Creates a new Unserializer instance, with its internal buffer
-		initialized to [buf].
+		initialized to `buf`.
 
-		This does not parse [buf] immediately. It is parsed only when calls to
-		[this].unserialize are made.
+		This does not parse `buf` immediately. It is parsed only when calls to
+		`this.unserialize` are made.
 
 		Each Unserializer instance maintains its own cache.
 	**/
@@ -111,9 +113,9 @@ class Unserializer {
  	}
 
 	/**
-		Sets the type resolver of [this] Unserializer instance to [r].
+		Sets the type resolver of `this` Unserializer instance to `r`.
 
-		If [r] is null, a special resolver is used which returns null for all
+		If `r` is null, a special resolver is used which returns null for all
 		input values.
 
 		See DEFAULT_RESOLVER for more information on type resolvers.
@@ -129,7 +131,7 @@ class Unserializer {
 	}
 
 	/**
-		Gets the type resolver of [this] Unserializer instance.
+		Gets the type resolver of `this` Unserializer instance.
 
 		See DEFAULT_RESOLVER for more information on type resolvers.
 	**/
@@ -194,14 +196,14 @@ class Unserializer {
 	}
 
 	/**
-		Unserializes the next part of [this] Unserializer instance and returns
+		Unserializes the next part of `this` Unserializer instance and returns
 		the according value.
 
-		This function may call [this].resolver.resolveClass to determine a
-		Class from a String, and [this].resolver.resolveEnum to determine an
+		This function may call `this.resolver.resolveClass` to determine a
+		Class from a String, and `this.resolver.resolveEnum` to determine an
 		Enum from a String.
 
-		If [this] Unserializer instance contains no more or invalid data, an
+		If `this` Unserializer instance contains no more or invalid data, an
 		exception is thrown.
 
 		This operation may fail on structurally valid data if a type cannot be
@@ -421,10 +423,10 @@ class Unserializer {
  	}
 
 	/**
-		Unserializes [v] and returns the according value.
+		Unserializes `v` and returns the according value.
 
 		This is a convenience function for creating a new instance of
-		Unserializer with [v] as buffer and calling its unserialize() method
+		Unserializer with `v` as buffer and calling its unserialize() method
 		once.
 	**/
 	public static function run( v : String ) : Dynamic {

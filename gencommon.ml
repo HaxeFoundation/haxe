@@ -25,14 +25,14 @@
 
   This module intends to be a common set of utilities common to all targets.
 
-  It's intended to provide a set of tools to be able to make targets in haXe more easily, and to
+  It's intended to provide a set of tools to be able to make targets in Haxe more easily, and to
   allow the programmer to have more control of how the target language will handle the program.
 
   For example, as of now, the hxcpp target, while greatly done, relies heavily on cpp's own operator
   overloading, and implicit conversions, which make it very hard to deliver a similar solution for languages
   that lack these features.
 
-  So this little framework is here so you can manipulate the HaXe AST and start bringing the AST closer
+  So this little framework is here so you can manipulate the Haxe AST and start bringing the AST closer
   to how it's intenteded to be in your host language.
 
   Rules
@@ -110,7 +110,7 @@ struct
   let mk_heexpr = function
     | TConst _ -> 0 | TLocal _ -> 1 | TArray _ -> 3 | TBinop _ -> 4 | TField _ -> 5 | TTypeExpr _ -> 7 | TParenthesis _ -> 8 | TObjectDecl _ -> 9
     | TArrayDecl _ -> 10 | TCall _ -> 11 | TNew _ -> 12 | TUnop _ -> 13 | TFunction _ -> 14 | TVars _ -> 15 | TBlock _ -> 16 | TFor _ -> 17 | TIf _ -> 18 | TWhile _ -> 19
-    | TSwitch _ -> 20 | TMatch _ -> 21 | TTry _ -> 22 | TReturn _ -> 23 | TBreak -> 24 | TContinue -> 25 | TThrow _ -> 26 | TCast _ -> 27
+    | TSwitch _ -> 20 | TMatch _ -> 21 | TTry _ -> 22 | TReturn _ -> 23 | TBreak -> 24 | TContinue -> 25 | TThrow _ -> 26 | TCast _ -> 27 | TMeta _ -> 28
 
   let mk_heetype = function
     | TMono _ -> 0 | TEnum _ -> 1 | TInst _ -> 2 | TType _ -> 3 | TFun _ -> 4
@@ -4451,7 +4451,7 @@ end;;
   and will unwrap statements where expressions are expected, and vice-versa.
 
   It should be one of the first syntax filters to be applied. As a consequence, it's applied after all filters that add code to the AST, and by being
-  the first of the syntax filters, it will also have the AST retain most of the meaning of normal HaXe code. So it's easier to detect cases which are
+  the first of the syntax filters, it will also have the AST retain most of the meaning of normal Haxe code. So it's easier to detect cases which are
   side-effects free, for example
 
   Any target can make use of this, but there is one requirement: The target must accept null to be set to any kind of variable. For example,
@@ -4460,7 +4460,7 @@ end;;
   dependencies:
     While it's best for Expression Unwrap to delay its execution as much as possible, since theoretically any
     filter can return an expression that needs to be unwrapped, it is also desirable for ExpresionUnwrap to have
-    the AST as close as possible as HaXe's, so it can make some correct predictions (for example, so it can
+    the AST as close as possible as Haxe's, so it can make some correct predictions (for example, so it can
     more accurately know what can be side-effects-free and what can't).
     This way, it will run slightly after the Normal priority, so if you don't say that a syntax filter must run
     before Expression Unwrap, it will run after it.
@@ -4661,7 +4661,7 @@ struct
       | TFunction _
       | TCast _
       | TUnop _ -> Expression (expr)
-      | TParenthesis p -> shallow_expr_type p
+      | TParenthesis p | TMeta(_,p) -> shallow_expr_type p
       | TBlock ([e]) -> shallow_expr_type e
       | TCall _
       | TVars _
@@ -4711,6 +4711,7 @@ struct
           | TArray (e1,e2) ->
             aggregate true [e1;e2]
           | TParenthesis e
+          | TMeta(_,e)
           | TField (e,_) ->
             aggregate true [e]
           | TArrayDecl (el) ->
@@ -4805,7 +4806,7 @@ struct
       | TReturn _
       | TBreak
       | TContinue -> right
-      | TParenthesis p ->
+      | TParenthesis p | TMeta(_,p) ->
         apply_assign assign_fun p
       | _ ->
         match follow right.etype with
@@ -5179,6 +5180,7 @@ struct
     let default_implementation gen =
       let rec extract_expr e = match e.eexpr with
         | TParenthesis e
+        | TMeta (_,e)
         | TCast(e,_) -> extract_expr e
         | _ -> e
       in
@@ -6021,7 +6023,7 @@ struct
           let rec get_null e =
             match e.eexpr with
             | TConst TNull -> Some e
-            | TParenthesis e -> get_null e
+            | TParenthesis e | TMeta(_,e) -> get_null e
             | _ -> None
           in
           (match get_null expr with
@@ -6658,7 +6660,7 @@ struct
         | TIf(cond,e1,Some e2) ->
           is_side_effects_free cond && is_side_effects_free e1 && is_side_effects_free e2
         | TField(e,_)
-        | TParenthesis e -> is_side_effects_free e
+        | TParenthesis e | TMeta(_,e) -> is_side_effects_free e
         | TArrayDecl el -> List.for_all is_side_effects_free el
         | TCast(e,_) -> is_side_effects_free e
         | _ -> false
@@ -9423,7 +9425,7 @@ struct
     match e.eexpr with
       | TConst (v) -> Some v
       | TBinop(op, v1, v2) -> aggregate_constant op (get_constant_expr v1) (get_constant_expr v2)
-      | TParenthesis(e) -> get_constant_expr e
+      | TParenthesis(e) | TMeta(_,e) -> get_constant_expr e
       | _ -> None
 
   let traverse gen should_warn handle_switch_break handle_not_final_returns java_mode =

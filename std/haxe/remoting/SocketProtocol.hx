@@ -35,7 +35,7 @@ typedef Socket =
 	#end
 
 /**
-	The haXe Remoting Socket Protocol is composed of serialized string exchanges.
+	The Haxe Remoting Socket Protocol is composed of serialized string exchanges.
 	Each string is prefixed with a 2-chars header encoding the string size (up to 4KB)
 	and postfixed with the \0 message delimiting char.
 	A request string is composed of the following serialized values :

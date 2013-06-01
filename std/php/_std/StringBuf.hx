@@ -22,8 +22,14 @@
 @:coreApi class StringBuf {
 	private var b : String;
 
+	public var length(get,never) : Int;
+
 	public function new() : Void {
 		b = "";
+	}
+
+	inline function get_length() : Int {
+		return b.length;
 	}
 
 	public function add( x : Dynamic ) : Void {

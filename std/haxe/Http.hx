@@ -49,7 +49,7 @@ private typedef AbstractSocket = {
 class Http {
 
 	/**
-		The url of [this] request. It is used only by the request() method and
+		The url of `this` request. It is used only by the request() method and
 		can be changed in order to send the same request to different target
 		Urls.
 	**/
@@ -74,11 +74,11 @@ class Http {
 	#end
 
 	/**
-		Creates a new Http instance with [url] as parameter.
+		Creates a new Http instance with `url` as parameter.
 
 		This does not do a request until request() is called.
 
-		If [url] is null, the field url must be set to a value before making the
+		If `url` is null, the field url must be set to a value before making the
 		call to request(), or the result is unspecified.
 
 		(Php) Https (SSL) connections are allowed only if the OpenSSL extension
@@ -99,9 +99,9 @@ class Http {
 	}
 
 	/**
-		Sets the header identified as [header] to value [value].
+		Sets the header identified as `header` to value `value`.
 
-		If [header] or [value] are null, the result is unspecified.
+		If `header` or `value` are null, the result is unspecified.
 
 		This method provides a fluent interface.
 	**/
@@ -111,9 +111,9 @@ class Http {
 	}
 
 	/**
-		Sets the parameter identified as [param] to value [value].
+		Sets the parameter identified as `param` to value `value`.
 
-		If [header] or [value] are null, the result is unspecified.
+		If `header` or `value` are null, the result is unspecified.
 
 		This method provides a fluent interface.
 	**/
@@ -124,12 +124,12 @@ class Http {
 
 	#if !flash8
 	/**
-		Sets the post data of [this] Http request to [data].
+		Sets the post data of `this` Http request to `data`.
 
 		There can only be one post data per request. Subsequent calls overwrite
 		the previously set value.
 
-		If [data] is null, the post data is considered to be absent.
+		If `data` is null, the post data is considered to be absent.
 
 		This method provides a fluent interface.
 	**/
@@ -140,20 +140,20 @@ class Http {
 	#end
 
 	/**
-		Sends [this] Http request to the Url specified by [this].url.
+		Sends `this` Http request to the Url specified by `this.url`.
 
-		If [post] is true, the request is sent as POST request, otherwise it is
+		If `post` is true, the request is sent as POST request, otherwise it is
 		sent as GET request.
 
 		Depending on the outcome of the request, this method calls the
 		onStatus(), onError() or onData() callback functions.
 
-		If [this].url is null, the result is unspecified.
+		If `this.url` is null, the result is unspecified.
 
-		If [this].url is an invalid or inaccessible Url, the onError() callback
+		If `this.url` is an invalid or inaccessible Url, the onError() callback
 		function is called.
 
-		(Js) If [this].async is false, the callback functions are called before
+		(Js) If `this.async` is false, the callback functions are called before
 		this method returns.
 	**/
 	public function request( ?post : Bool ) : Void {
@@ -695,7 +695,7 @@ class Http {
 #end
 
 	/**
-		This method is called upon a successful request, with [data] containing
+		This method is called upon a successful request, with `data` containing
 		the result String.
 
 		The intended usage is to bind it to a custom function:
@@ -705,7 +705,7 @@ class Http {
 	}
 
 	/**
-		This method is called upon a request error, with [msg] containing the
+		This method is called upon a request error, with `msg` containing the
 		error description.
 
 		The intended usage is to bind it to a custom function:
@@ -715,7 +715,7 @@ class Http {
 	}
 
 	/**
-		This method is called upon a Http status change, with [status] being the
+		This method is called upon a Http status change, with `status` being the
 		new status.
 
 		The intended usage is to bind it to a custom function:
@@ -726,12 +726,12 @@ class Http {
 
 #if !flash
 	/**
-		Makes a synchronous request to [url].
+		Makes a synchronous request to `url`.
 
 		This creates a new Http instance and makes a GET request by calling its
 		request(false) method.
 
-		If [url] is null, the result is unspecified.
+		If `url` is null, the result is unspecified.
 	**/
 	public static function requestUrl( url : String ) : String {
 		var h = new Http(url);

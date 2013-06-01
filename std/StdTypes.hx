@@ -19,10 +19,10 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-// standard haXe types
+// standard Haxe types
 
 /**
-	The standard Void type. Only [null] values can be of the type [Void].
+	The standard Void type. Only `null` values can be of the type `Void`.
 **/
 @:coreType abstract Void { }
 
@@ -49,8 +49,8 @@
 #end
 
 /**
-	[Null] can be useful in two cases. In order to document some methods
-	that accepts or can return a [null] value, or for the Flash9 compiler and AS3
+	`Null` can be useful in two cases. In order to document some methods
+	that accepts or can return a `null` value, or for the Flash9 compiler and AS3
 	generator to distinguish between base values that can be null and others that
 	can't.
 **/
@@ -64,7 +64,7 @@ typedef Null<T> = T
 
 /**
 	Dynamic is an internal compiler type which has special behavior.
-	See the haXe language reference for more informations.
+	See the Haxe language reference for more informations.
 **/
 @:coreType @:runtimeValue abstract Dynamic<T> {
 }
@@ -100,7 +100,7 @@ typedef Iterator<T> = {
 
 /**
 	An Iterable is a data structure which has an iterator() method.
-	See [Lambda] for generic functions on iterable structures.
+	See `Lambda` for generic functions on iterable structures.
 **/
 typedef Iterable<T> = {
 	function iterator() : Iterator<T>;

@@ -824,3 +824,5 @@ let rec close_times() =
 	| [] -> ()
 	| t :: _ -> close t; close_times()
 
+;;
+Ast.Meta.to_string_ref := fun m -> fst (MetaInfo.to_string m)

@@ -82,13 +82,13 @@ class StringTools {
 	}
 
 	/**
-		Escapes HTML special characters of the string [s].
+		Escapes HTML special characters of the string `s`.
 
 		The following replacements are made:
 			- & becomes &amp;
 			- < becomes &lt;
 			- > becomes &gt;
-		If [quotes] is true, the following characters are also replaced:
+		If `quotes` is true, the following characters are also replaced:
 			- " becomes &quot;
 			- ' becomes &#039;
 	**/
@@ -98,7 +98,7 @@ class StringTools {
 	}
 
 	/**
-		Unescapes HTML special characters of the string [s].
+		Unescapes HTML special characters of the string `s`.
 
 		This is the inverse operation to htmlEscape, i.e. the following always
 		holds: htmlUnescape(htmlEscape(s)) == s
@@ -115,11 +115,11 @@ class StringTools {
 	}
 
 	/**
-		Tells if the string [s] starts with the string [start].
+		Tells if the string `s` starts with the string `start`.
 
-		If [start] is null, the result is unspecified.
+		If `start` is null, the result is unspecified.
 
-		If [start] is the empty String "", the result is true.
+		If `start` is the empty String "", the result is true.
 	**/
 	public static #if (cs || java) inline #end function startsWith( s : String, start : String ) : Bool {
 		#if java
@@ -132,11 +132,11 @@ class StringTools {
 	}
 
 	/**
-		Tells if the string [s] ends with the string [end].
+		Tells if the string `s` ends with the string `end`.
 
-		If [end] is null, the result is unspecified.
+		If `end` is null, the result is unspecified.
 
-		If [end] is the empty String "", the result is true.
+		If `end` is the empty String "", the result is true.
 	**/
 	public static #if (cs || java) inline #end function endsWith( s : String, end : String ) : Bool {
 		#if java
@@ -151,13 +151,13 @@ class StringTools {
 	}
 
 	/**
-		Tells if the character in the string [s] at position [pos] is a space.
+		Tells if the character in the string `s` at position `pos` is a space.
 
 		A character is considered to be a space character if its character code
 		is 9,10,11,12,13 or 32.
 
-		If [s] is the empty String "", or if pos is not a valid position within
-		[s], the result is false.
+		If `s` is the empty String "", or if pos is not a valid position within
+		`s`, the result is false.
 	**/
 	public static function isSpace( s : String, pos : Int ) : Bool {
 		var c = s.charCodeAt( pos );
@@ -165,12 +165,12 @@ class StringTools {
 	}
 
 	/**
-		Removes leading space characters of [s].
+		Removes leading space characters of `s`.
 
 		This function internally calls isSpace() to decide which characters to
 		remove.
 
-		If [s] is the empty String "" or consists only of space characters, the
+		If `s` is the empty String "" or consists only of space characters, the
 		result is the empty String "".
 	**/
 	public #if cs inline #end static function ltrim( s : String ) : String {
@@ -190,12 +190,12 @@ class StringTools {
 	}
 
 	/**
-		Removes trailing space characters of [s].
+		Removes trailing space characters of `s`.
 
 		This function internally calls isSpace() to decide which characters to
 		remove.
 
-		If [s] is the empty String "" or consists only of space characters, the
+		If `s` is the empty String "" or consists only of space characters, the
 		result is the empty String "".
 	**/
 	public #if cs inline #end static function rtrim( s : String ) : String {
@@ -216,7 +216,7 @@ class StringTools {
 	}
 
 	/**
-		Removes leading and trailing space characters of [s].
+		Removes leading and trailing space characters of `s`.
 
 		This is a convenience function for ltrim(rtrim(s)).
 	**/
@@ -231,16 +231,16 @@ class StringTools {
 	}
 
 	/**
-		Concatenates [c] to [s] until [s].length is at least [l].
+		Concatenates `c` to `s` until `s.length` is at least `l`.
 
-		If [c] is the empty String "" or if [l] does not exceed [s].length,
-		[s] is returned unchanged.
+		If `c` is the empty String "" or if `l` does not exceed `s.length`,
+		`s` is returned unchanged.
 
-		If [c].length is 1, the resulting String length is exactly [l].
+		If `c.length` is 1, the resulting String length is exactly `l`.
 
-		Otherwise the length may exceed [l].
+		Otherwise the length may exceed `l`.
 
-		If [c] is null, the result is unspecified.
+		If `c` is null, the result is unspecified.
 	**/
 	public static function lpad( s : String, c : String, l : Int ) : String {
 		if (c.length <= 0)
@@ -253,16 +253,16 @@ class StringTools {
 	}
 
 	/**
-		Appends [c] to [s] until [s].length is at least [l].
+		Appends `c` to `s` until `s.length` is at least `l`.
 
-		If [c] is the empty String "" or if [l] does not exceed [s].length,
-		[s] is returned unchanged.
+		If `c` is the empty String "" or if `l` does not exceed `s.length`,
+		`s` is returned unchanged.
 
-		If [c].length is 1, the resulting String length is exactly [l].
+		If `c.length` is 1, the resulting String length is exactly `l`.
 
-		Otherwise the length may exceed [l].
+		Otherwise the length may exceed `l`.
 
-		If [c] is null, the result is unspecified.
+		If `c` is null, the result is unspecified.
 	**/
 	public static function rpad( s : String, c : String, l : Int ) : String {
 		if (c.length <= 0)
@@ -275,15 +275,15 @@ class StringTools {
 	}
 
 	/**
-		Replace all occurences of the String [sub] in the String [s] by the
-		String [by].
+		Replace all occurences of the String `sub` in the String `s` by the
+		String `by`.
 
-		If [sub] is the empty String "", [by] is inserted after each character
-		of [s]. If [by] is also the empty String "", [s] remains unchanged.
+		If `sub` is the empty String "", `by` is inserted after each character
+		of `s`. If `by` is also the empty String "", `s` remains unchanged.
 
-		This is a convenience function for [s].split([sub]).join([by]).
+		This is a convenience function for `s.split(sub).join(by)`.
 
-		If [sub] or [by] are null, the result is unspecified.
+		If `sub` or `by` are null, the result is unspecified.
 	**/
 	public static function replace( s : String, sub : String, by : String ) : String {
 		#if java
@@ -302,10 +302,10 @@ class StringTools {
 	}
 
 	/**
-		Encodes [n] into a hexadecimal representation.
+		Encodes `n` into a hexadecimal representation.
 
-		If [digits] is specified, the resulting String is padded with "0" until
-		its length equals [digits].
+		If `digits` is specified, the resulting String is padded with "0" until
+		its length equals `digits`.
 	**/
 	public static function hex( n : Int, ?digits : Int ) {
 		#if flash9
@@ -327,13 +327,13 @@ class StringTools {
 	}
 
 	/**
-		Returns the character code at position [index] of String [s].
+		Returns the character code at position `index` of String `s`.
 
 		This method is faster than String.charCodeAt() on most platforms.
 		However, unlike String.charCodeAt(), the result is unspecified if
-		[index] is negative or exceeds [s].length.
+		`index` is negative or exceeds `s.length`.
 
-		This operation is not guaranteed to work if [s] contains the \0
+		This operation is not guaranteed to work if `s` contains the \0
 		character.
 	**/
 	public static inline function fastCodeAt( s : String, index : Int ) : Int untyped {
@@ -361,7 +361,7 @@ class StringTools {
 	}
 
 	/*
-		Tells if [c] represents the end-of-file (EOF) character.
+		Tells if `c` represents the end-of-file (EOF) character.
 	*/
 	@:noUsing public static inline function isEof( c : Int ) : Bool {
 		#if (flash9 || cpp)

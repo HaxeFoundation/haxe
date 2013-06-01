@@ -25,6 +25,7 @@ package cs;
 //Once this bug is fixed, it will be moved back to the cs.system.text package
 @:native('System.Text.StringBuilder') extern class StringBuilder 
 {
+	var Length(default,never):Int;
 
 	function new():Void;
 	
