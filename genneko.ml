@@ -731,7 +731,7 @@ let generate_libs_init = function
 				"@b", Some (EIf (op "==" es (str p "Windows"),
 					op "+" (call p (ident p "@env") [str p "HAXEPATH"]) (str p "\\lib\\"),
 					Some (ETry (
-						op "+" (call p (loadp "file_contents" 1) [op "+" (call p (ident p "@env") [str p "HOME"]) (str p "./haxelib")]) (str p "/"),
+						op "+" (call p (loadp "file_contents" 1) [op "+" (call p (ident p "@env") [str p "HOME"]) (str p "/.haxelib")]) (str p "/"),
 						"e",
 						(EIf (op "==" es (str p "Linux"),
 							str p "/usr/lib/haxe/lib/",
