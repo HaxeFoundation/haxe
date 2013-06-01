@@ -588,6 +588,10 @@ let rec gen_access ?(read_write=false) ctx forcall e =
 		if read_write then assert false;
 		push ctx [VStr (f,is_protected ctx e.etype f)];
 		VarClosure
+	| TField (e,FEnumParameter(_,i)) ->
+		gen_expr ctx true e;
+		push ctx [VInt i];
+		VarObj
 	| TField (e2,f) ->
 		gen_expr ctx true e2;
 		if read_write then write ctx ADup;
