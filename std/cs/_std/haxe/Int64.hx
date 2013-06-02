@@ -129,10 +129,7 @@ using haxe.Int64;
 	{
 		return cast (a.asNative() - b.asNative());
 	}
-
-	/**
-		Compare two Int64 in unsigned mode.
-	**/
+	
 	public static function ucompare( a : Int64, b : Int64 ) : Int
 	{
 		if (a.asNative() < 0.mkNative())

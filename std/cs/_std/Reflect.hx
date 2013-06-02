@@ -45,15 +45,8 @@ import cs.internal.Function;
  * DAMAGE.
  */
 
-/**
-	The Reflect API is a way to manipulate values dynamicly through an
-	abstract interface in an untyped manner. Use with care.
-**/
 @:keep @:coreApi class Reflect {
 
-	/**
-		Tells if an object has a field set. This doesn't take into account the object prototype (class methods).
-	**/
 	@:functionCode('
 		if (o is haxe.lang.IHxObject)
 			return ((haxe.lang.IHxObject) o).__hx_getField(field, haxe.lang.FieldLookup.hash(field), false, true, false) != haxe.lang.Runtime.undefined;
@@ -65,9 +58,6 @@ import cs.internal.Function;
 		return false;
 	}
 
-	/**
-		Returns the field of an object, or null if [o] is not an object or doesn't have this field.
-	**/
 	@:functionCode('
 		if (o is haxe.lang.IHxObject)
 			return ((haxe.lang.IHxObject) o).__hx_getField(field, haxe.lang.FieldLookup.hash(field), false, false, false);
@@ -79,10 +69,6 @@ import cs.internal.Function;
 		return null;
 	}
 
-
-	/**
-		Set an object field value.
-	**/
 	@:functionCode('
 		if (o is haxe.lang.IHxObject)
 			((haxe.lang.IHxObject) o).__hx_setField(field, haxe.lang.FieldLookup.hash(field), value, false);
@@ -94,9 +80,6 @@ import cs.internal.Function;
 
 	}
 
-	/**
-		Similar to field but also supports property (might be slower).
-	**/
 	@:functionCode('
 		if (o is haxe.lang.IHxObject)
 			return ((haxe.lang.IHxObject) o).__hx_getField(field, haxe.lang.FieldLookup.hash(field), false, false, true);
@@ -111,9 +94,6 @@ import cs.internal.Function;
 		return null;
 	}
 
-	/**
-		Similar to setField but also supports property (might be slower).
-	**/
 	@:functionCode('
 		if (o is haxe.lang.IHxObject)
 			((haxe.lang.IHxObject) o).__hx_setField(field, haxe.lang.FieldLookup.hash(field), value, true);
@@ -127,9 +107,6 @@ import cs.internal.Function;
 
 	}
 
-	/**
-		Call a method with the given object and arguments.
-	**/
 	@:functionCode('
 		return ((haxe.lang.Function) func).__hx_invokeDynamic(args);
 	')
@@ -138,9 +115,6 @@ import cs.internal.Function;
 		return null;
 	}
 
-	/**
-		Returns the list of fields of an object, excluding its prototype (class methods).
-	**/
 	@:functionCode('
 		if (o is haxe.lang.IHxObject)
 		{
@@ -158,9 +132,6 @@ import cs.internal.Function;
 		return null;
 	}
 
-	/**
-		Tells if a value is a function or not.
-	**/
 	@:functionCode('
 		return f is haxe.lang.Function;
 	')
@@ -169,9 +140,6 @@ import cs.internal.Function;
 		return false;
 	}
 
-	/**
-		Generic comparison function, does not work for methods, see [compareMethods]
-	**/
 	@:functionCode('
 		return haxe.lang.Runtime.compare(a, b);
 	')
@@ -180,9 +148,6 @@ import cs.internal.Function;
 		return 0;
 	}
 
-	/**
-		Compare two methods closures. Returns true if it's the same method of the same instance.
-	**/
 	@:functionCode('
 		if (f1 == f2)
 			return true;
@@ -202,10 +167,6 @@ import cs.internal.Function;
 		return false;
 	}
 
-	/**
-		Tells if a value is an object or not.
-
-	**/
 	@:functionCode('
 		return v != null && !(v is haxe.lang.Enum || v is haxe.lang.Function || v is System.ValueType);
 	')
@@ -224,9 +185,6 @@ import cs.internal.Function;
 		}
 	}
 
-	/**
-		Delete an object field.
-	**/
 	@:functionCode('
 		return (o is haxe.lang.DynamicObject && ((haxe.lang.DynamicObject) o).__hx_deleteField(field, haxe.lang.FieldLookup.hash(field)));
 	')
@@ -235,9 +193,6 @@ import cs.internal.Function;
 		return false;
 	}
 
-	/**
-		Make a copy of the fields of an object.
-	**/
 	public static function copy<T>( o : T ) : T
 	{
 		var o2 : Dynamic = {};
@@ -246,10 +201,6 @@ import cs.internal.Function;
 		return cast o2;
 	}
 
-	/**
-		Transform a function taking an array of arguments into a function that can
-		be called with any number of arguments.
-	**/
 	@:overload(function( f : Array<Dynamic> -> Void ) : Dynamic {})
 	public static function makeVarArgs( f : Array<Dynamic> -> Dynamic ) : Dynamic
 	{

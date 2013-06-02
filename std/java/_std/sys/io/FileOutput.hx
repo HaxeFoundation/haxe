@@ -26,9 +26,6 @@ import haxe.io.Output;
 import java.io.EOFException;
 import java.io.IOException;
 
-/**
-	Use [sys.io.File.write] to create a [FileOutput]
-**/
 class FileOutput extends Output {
 	var f:java.io.RandomAccessFile;
 	public function new(f)

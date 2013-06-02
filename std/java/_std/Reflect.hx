@@ -19,42 +19,12 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 import java.internal.Function;
 import java.Boot;
-/*
- * Copyright (c) 2005, The Haxe Project Contributors
- * All rights reserved.
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- *   - Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
- *   - Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in the
- *     documentation and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE HAXE PROJECT CONTRIBUTORS "AS IS" AND ANY
- * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE HAXE PROJECT CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
- * DAMAGE.
- */
 
-/**
-	The Reflect API is a way to manipulate values dynamicly through an
-	abstract interface in an untyped manner. Use with care.
-**/
 @:keep @:coreApi class Reflect {
 
-	/**
-		Tells if an object has a field set. This doesn't take into account the object prototype (class methods).
-	**/
 	@:functionCode('
 		if (o instanceof haxe.lang.IHxObject)
 		return ((haxe.lang.IHxObject) o).__hx_getField(field, false, true, false) != haxe.lang.Runtime.undefined;
@@ -66,9 +36,6 @@ import java.Boot;
 		return false;
 	}
 
-	/**
-		Returns the field of an object, or null if [o] is not an object or doesn't have this field.
-	**/
 	@:functionCode('
 		if (o instanceof haxe.lang.IHxObject)
 			return ((haxe.lang.IHxObject) o).__hx_getField(field, false, false, false);
@@ -80,10 +47,6 @@ import java.Boot;
 		return null;
 	}
 
-
-	/**
-		Set an object field value.
-	**/
 	@:functionCode('
 		if (o instanceof haxe.lang.IHxObject)
 			((haxe.lang.IHxObject) o).__hx_setField(field, value, false);
@@ -95,9 +58,6 @@ import java.Boot;
 
 	}
 
-	/**
-		Similar to field but also supports property (might be slower).
-	**/
 	@:functionCode('
 		if (o instanceof haxe.lang.IHxObject)
 			return ((haxe.lang.IHxObject) o).__hx_getField(field, false, false, true);
@@ -112,9 +72,6 @@ import java.Boot;
 		return null;
 	}
 
-	/**
-		Similar to setField but also supports property (might be slower).
-	**/
 	@:functionCode('
 		if (o instanceof haxe.lang.IHxObject)
 			((haxe.lang.IHxObject) o).__hx_setField(field, value, true);
@@ -128,9 +85,6 @@ import java.Boot;
 
 	}
 
-	/**
-		Call a method with the given object and arguments.
-	**/
 	@:functionCode('
 		return ((haxe.lang.Function) func).__hx_invokeDynamic(args);
 	')
@@ -139,9 +93,6 @@ import java.Boot;
 		return null;
 	}
 
-	/**
-		Returns the list of fields of an object, excluding its prototype (class methods).
-	**/
 	@:functionCode('
 		if (o instanceof haxe.lang.IHxObject)
 		{
@@ -159,9 +110,6 @@ import java.Boot;
 		return null;
 	}
 
-	/**
-		Tells if a value is a function or not.
-	**/
 	@:functionCode('
 		return f instanceof haxe.lang.Function;
 	')
@@ -170,9 +118,6 @@ import java.Boot;
 		return false;
 	}
 
-	/**
-		Generic comparison function, does not work for methods, see [compareMethods]
-	**/
 	@:functionCode('
 		return haxe.lang.Runtime.compare(a, b);
 	')
@@ -181,9 +126,6 @@ import java.Boot;
 		return 0;
 	}
 
-	/**
-		Compare two methods closures. Returns true if it's the same method of the same instance.
-	**/
 	@:functionCode('
 		if (f1 == f2)
 			return true;
@@ -204,10 +146,6 @@ import java.Boot;
 		return false;
 	}
 
-	/**
-		Tells if a value is an object or not.
-
-	**/
 	@:functionCode('
 		return v != null && !(v instanceof haxe.lang.Enum || v instanceof haxe.lang.Function || v instanceof java.lang.Enum || v instanceof java.lang.Number || v instanceof java.lang.Boolean);
 	')
@@ -226,9 +164,6 @@ import java.Boot;
 		}
 	}
 
-	/**
-		Delete an object field.
-	**/
 	@:functionCode('
 		return (o instanceof haxe.lang.DynamicObject && ((haxe.lang.DynamicObject) o).__hx_deleteField(field));
 	')
@@ -237,9 +172,6 @@ import java.Boot;
 		return false;
 	}
 
-	/**
-		Make a copy of the fields of an object.
-	**/
 	public static function copy<T>( o : T ) : T
 	{
 		var o2 : Dynamic = {};
@@ -248,10 +180,6 @@ import java.Boot;
 		return cast o2;
 	}
 
-	/**
-		Transform a function taking an array of arguments into a function that can
-		be called with any number of arguments.
-	**/
 	@:overload(function( f : Array<Dynamic> -> Void ) : Dynamic {})
 	public static function makeVarArgs( f : Array<Dynamic> -> Dynamic ) : Dynamic
 	{

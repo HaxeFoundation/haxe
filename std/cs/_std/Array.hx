@@ -21,11 +21,6 @@
  */
 import cs.NativeArray;
 
-/**
-	An Array is a storage for values. You can access it using indexes or
-	with its API. On the server side, it's often better to use a [List] which
-	is less memory and CPU consuming, unless you really need indexed access.
-**/
 @:classCode('
 	public Array(T[] native)
 	{
@@ -35,9 +30,6 @@ import cs.NativeArray;
 ')
 @:final @:coreApi class Array<T> implements ArrayAccess<T> {
 
-	/**
-		The length of the Array
-	**/
 	public var length(default,null) : Int;
 
 	private var __a:NativeArray<T>;
@@ -58,18 +50,12 @@ import cs.NativeArray;
 		return null;
 	}
 
-	/**
-		Creates a new Array.
-	**/
 	public function new() : Void
 	{
 		this.length = 0;
 		this.__a = new NativeArray(0);
 	}
 
-	/**
-		Returns a new Array by appending [a] to [this].
-	**/
 	public function concat( a : Array<T> ) : Array<T>
 	{
 		var len = length + a.length;
@@ -98,9 +84,6 @@ import cs.NativeArray;
 		this.length = len;
 	}
 
-	/**
-		Returns a representation of an array with [sep] for separating each element.
-	**/
 	public function join( sep : String ) : String
 	{
 		var buf = new StringBuf();
@@ -120,9 +103,6 @@ import cs.NativeArray;
 		return buf.toString();
 	}
 
-	/**
-		Removes the last element of the array and returns it.
-	**/
 	public function pop() : Null<T>
 	{
 		var __a = __a;
@@ -139,9 +119,6 @@ import cs.NativeArray;
 		}
 	}
 
-	/**
-		Adds the element [x] at the end of the array.
-	**/
 	public function push(x : T) : Int
 	{
 		if (length >= __a.Length)
@@ -157,9 +134,6 @@ import cs.NativeArray;
 		return ++length;
 	}
 
-	/**
-		Reverse the order of elements of the Array.
-	**/
 	public function reverse() : Void
 	{
 		var i = 0;
@@ -176,9 +150,6 @@ import cs.NativeArray;
 		}
 	}
 
-	/**
-		Removes the first element and returns it.
-	**/
 	public function shift() : Null<T>
 	{
 		var l = this.length;
@@ -195,12 +166,6 @@ import cs.NativeArray;
 		return x;
 	}
 
-	/**
-		Copies the range of the array starting at [pos] up to,
-		but not including, [end]. Both [pos] and [end] can be
-		negative to count from the end: -1 is the last item in
-		the array.
-	**/
 	public function slice( pos : Int, ?end : Int ) : Array<T>
 	{
 		if( pos < 0 ){
@@ -223,11 +188,6 @@ import cs.NativeArray;
 		return ofNative(newarr);
 	}
 
-	/**
-		Sort the Array according to the comparison public function [f].
-		[f(x,y)] should return [0] if [x == y], [>0] if [x > y]
-		and [<0] if [x < y].
-	**/
 	public function sort( f : T -> T -> Int ) : Void
 	{
 		if (length == 0)
@@ -235,10 +195,6 @@ import cs.NativeArray;
 		quicksort(0, length - 1, f);
 	}
 
-	/**
-		quicksort author: tong disktree
-		http://blog.disktree.net/2008/10/26/array-sort-performance.html
-	 */
 	private function quicksort( lo : Int, hi : Int, f : T -> T -> Int ) : Void
 	{
         var buf = __a;
@@ -260,9 +216,6 @@ import cs.NativeArray;
         if( i < hi ) quicksort( i, hi, f );
 	}
 
-	/**
-		Removes [len] elements starting from [pos] an returns them.
-	**/
 	public function splice( pos : Int, len : Int ) : Array<T>
 	{
 		if( len < 0 ) return new Array();
@@ -314,9 +267,6 @@ import cs.NativeArray;
 			a[this.length + len] = null;
 	}
 
-	/**
-		Returns a displayable representation of the Array content.
-	**/
 	public function toString() : String
 	{
 		var ret = new StringBuf();
@@ -336,9 +286,6 @@ import cs.NativeArray;
 		return ret.toString();
 	}
 
-	/**
-		Adds the element [x] at the start of the array.
-	**/
 	public function unshift( x : T ) : Void
 	{
 		var __a = __a;
@@ -358,10 +305,6 @@ import cs.NativeArray;
 		++this.length;
 	}
 
-	/**
-		Inserts the element [x] at the position [pos].
-		All elements after [pos] are moved one index ahead.
-	**/
 	public function insert( pos : Int, x : T ) : Void
 	{
 		var l = this.length;
@@ -396,11 +339,6 @@ import cs.NativeArray;
 		}
 	}
 
-	/**
-		Removes the first occurence of [x].
-		Returns false if [x] was not present.
-		Elements are compared by using standard equality.
-	**/
 	public function remove( x : T ) : Bool
 	{
 		var __a = __a;
@@ -435,10 +373,6 @@ import cs.NativeArray;
 		return ret;
 	}
 
-	/**
-		Returns a copy of the Array. The values are not
-		copied, only the Array structure.
-	**/
 	public function copy() : Array<T>
 	{
 		var len = length;
@@ -448,9 +382,6 @@ import cs.NativeArray;
 		return ofNative(newarr);
 	}
 
-	/**
-		Returns an iterator of the Array values.
-	**/
 	public function iterator() : Iterator<T>
 	{
 		var i = 0;
