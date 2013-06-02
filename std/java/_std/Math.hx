@@ -19,9 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-/**
-	This class defines mathematical functions and constants.
-**/
+
 @:coreApi
 @:native("java.lang.Math") extern class Math
 {

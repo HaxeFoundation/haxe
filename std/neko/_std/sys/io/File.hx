@@ -24,9 +24,6 @@ package sys.io;
 enum FileHandle {
 }
 
-/**
-	API for reading and writing to files.
-**/
 @:coreApi class File {
 
 	public static function getContent( path : String ) : String {

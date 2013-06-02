@@ -21,9 +21,6 @@
  */
 package sys.io;
 
-/**
-	API for reading and writing to files.
-**/
 @:coreApi
 class File {
 
