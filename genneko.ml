@@ -422,31 +422,11 @@ and gen_expr ctx e =
 					) (match eo with None -> null p | Some e -> (gen_expr ctx e)) (List.rev cases)
 				],p)
 		)
-(* 	| TPatMatch dt ->
+ 	| TPatMatch dt ->
 		let num_labels = Array.length dt.dt_dt_lookup in
 		let lc = ctx.label_count in
 		ctx.label_count <- ctx.label_count + num_labels + 1;
 		let get_label i ="label_" ^ (string_of_int (lc + i)) in
-		let rec gen_st st =
-			let p = pos ctx st.st_pos in
-			match st.st_def with
-			| SVar v -> gen_expr ctx (mk (TLocal v) v.v_type st.st_pos)
-			| SField (st,s) -> field p (gen_st st) s
-			| SArray (st,i) -> (EArray (gen_st st,int p i),p)
-			| STuple (st,_,_) -> gen_st st
-			| SEnum (st,_,i) -> (EArray (field p (gen_st st) "args",int p i),p)
-		in
-		let s_con c =
-			let p = pos ctx c.c_pos in
-			match c.c_def with
-			| CEnum (_,ef) -> int p ef.ef_index
-			| CConst cst -> gen_constant ctx c.c_pos cst
-			| CExpr e -> gen_expr ctx e
-			| CArray i -> int p i
-			| CType t -> gen_type_path p (t_path t)
-			| CAny -> assert false
-			| CFields _ -> assert false
-		in
 		let goto i = call p (builtin p "goto") [ident p (get_label i)] in
 		let state = Hashtbl.create 0 in
 		let v_name v = "v" ^ (string_of_int v.v_id) in
@@ -460,47 +440,47 @@ and gen_expr ctx e =
 			Hashtbl.fold (fun v _ l -> if Hashtbl.mem locals v then (v.v_name, Some (field p (ident p "@state") (v_name v))) :: l else l) state []
 		in
 		let rec loop d = match d with
-			| Goto i ->
+			| DTGoto i ->
 				goto i
-			| Bind (bl,dt) ->
-				let block = List.map (fun ((v,_),st) ->
-					let est = gen_st st in
+			| DTBind (bl,dt) ->
+				let block = List.map (fun ((v,_),est) ->
+					let est = gen_expr ctx est in
 					let field = field p (ident p "@state") (v_name v) in
 					Hashtbl.replace state v field;
 					(EBinop ("=",field,est),p)
 				) bl in
 				EBlock (block @ [loop dt]),p
-			| Expr e ->
+			| DTExpr e ->
 				let block = [
 					(EBinop ("=",ident p "@ret",gen_expr ctx e),p);
 					goto num_labels;
 				] in
 				(match get_locals e with [] -> EBlock block,p | el -> EBlock ((EVars(el),p) :: block),p)
-			| Guard (e,dt1,dt2) ->
+			| DTGuard (e,dt1,dt2) ->
 				let eg = match dt2 with
  					| None -> (EIf (gen_expr ctx e,loop dt1,None),p)
 					| Some dt -> (EIf (gen_expr ctx e,loop dt1,Some (loop dt)),p)
 				in
 				(match get_locals e with [] -> eg | el -> EBlock [(EVars(el),p);eg],p)
-			| Switch (st,cl) ->
-				let est = gen_st st in
-				let e = match follow st.st_type with
+			| DTSwitch (e,cl) ->
+				let est = gen_expr ctx e in
+				let e = match follow e.etype with
 					| TEnum(_) | TAbstract({a_this = TEnum(_)},_) -> field p est "index"
 					| TInst({cl_path = [],"Array"},[t]) -> field p est "length"
 					| _ -> est;
 				in
 				let def = ref None in
 				let pnull = ref None in
-				let cases = ExtList.List.filter_map (fun (c,dt) ->
-					match c.c_def with
-					| CAny ->
+				let cases = ExtList.List.filter_map (fun (e,dt) ->
+					match e.eexpr with
+	 				| TMeta((Meta.MatchAny,_,_),_) ->
 						def := Some (loop dt);
 						None
-					| CConst (TNull) ->
+					| TConst (TNull) ->
 						pnull := Some (loop dt);
 						None;
 					| _ ->
-						Some (s_con c,loop dt)
+						Some (gen_expr ctx e,loop dt)
 				) cl in
 				let e = EBlock [
 					(ESwitch (e,cases,!def),p);
@@ -528,7 +508,7 @@ and gen_expr ctx e =
 			| el, vl -> ("@state",Some (EObject vl,p)) :: el
 		in
 		let el = match init with [] -> (goto dt.dt_first) :: el | _ -> (EVars init,p) :: (goto dt.dt_first) :: el in
-		EBlock el,p *)
+		EBlock el,p
 	| TSwitch (e,cases,eo) ->
 		let e = gen_expr ctx e in
 		let eo = (match eo with None -> None | Some e -> Some (gen_expr ctx e)) in
