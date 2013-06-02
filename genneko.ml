@@ -225,7 +225,7 @@ and gen_expr ctx e =
 			ident p v.v_name
 	| TArray (e1,e2) ->
 		(EArray (gen_expr ctx e1,gen_expr ctx e2),p)
-	| TBinop (OpAssign,{ eexpr = TField (e1,f) },e2) ->
+	| TBinop (OpAssign,{ eexpr = TField (e1,(FStatic _ | FInstance _ | FAnon _ | FClosure _ | FDynamic _ | FEnum _ as f)) },e2) ->
 		(EBinop ("=",field p (gen_expr ctx e1) (field_name f),gen_expr ctx e2),p)
 	| TBinop (op,e1,e2) ->
 		gen_binop ctx p op e1 e2
