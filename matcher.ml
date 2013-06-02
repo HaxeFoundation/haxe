@@ -936,6 +936,8 @@ let match_expr ctx e cases def with_type p =
 			begin match follow e.etype with
 			| TEnum(en,_) when PMap.is_empty en.e_constrs || Meta.has Meta.FakeEnum en.e_meta ->
 				raise Exit
+			| TAbstract({a_path=[],("Int" | "Float" | "Bool")},_) | TInst({cl_path = [],"String"},_) when (Common.defined ctx.com Common.Define.NoPatternMatching) ->
+				raise Exit;
 			| _ ->
 				()
 			end;
