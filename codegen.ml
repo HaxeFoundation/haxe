@@ -1623,7 +1623,7 @@ module PatternMatchConversion = struct
 			let null = ref None in
 			let cases = List.filter (fun (e,dt) ->
  				match e.eexpr with
- 				| TConst (TString "_") ->
+ 				| TMeta((Meta.MatchAny,_,_),_) ->
 					def := Some (convert_dt cctx dt);
 					false
 				| TConst (TNull) ->

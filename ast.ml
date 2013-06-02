@@ -85,6 +85,7 @@ module Meta = struct
 		| Meta
 		| Macro
 		| MaybeUsed
+		| MatchAny
 		| MultiType
 		| Native
 		| NativeGen

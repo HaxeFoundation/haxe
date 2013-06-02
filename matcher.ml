@@ -899,7 +899,9 @@ let convert_con ctx con = match con.c_def with
 	| CExpr e -> e
 	| CEnum(e,ef) -> mk_const ctx con.c_pos (TInt (Int32.of_int ef.ef_index))
 	| CArray i -> mk_const ctx con.c_pos (TInt (Int32.of_int i))
-	| CAny -> mk (TConst (TString "_")) (mk_mono()) con.c_pos
+	| CAny ->
+		let t = mk_mono() in
+		mk (TMeta((Meta.MatchAny,[],con.c_pos),mk (TConst (TNull)) t con.c_pos)) t con.c_pos
 	| CFields _ -> assert false
 
 (* Decision tree compilation *)
