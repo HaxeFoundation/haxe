@@ -1631,7 +1631,7 @@ module PatternMatchConversion = struct
 			let p = st.st_pos in
 			let e_st = convert_st cctx st in
 			let e_subject,exh = match follow st.st_type with
-				| TEnum(_) ->
+				| TEnum(_) | TAbstract({a_this = TEnum(_)},_)->
 					let cf = PMap.find "enumIndex" cctx.ttype.cl_statics in
 					let ec = (!type_module_type_ref) cctx.ctx (TClassDecl cctx.ttype) None p in
 					let ef = mk (TField(ec, FStatic(cctx.ttype,cf))) (tfun [t_dynamic] cctx.ctx.t.tint) p in
