@@ -484,7 +484,7 @@ let get_config com =
 			pf_pad_nulls = true;
 			pf_add_final_return = false;
 			pf_overload = false;
-			pf_pattern_matching = false;
+			pf_pattern_matching = true;
 		}
 	| Flash when defined Define.As3 ->
 		{

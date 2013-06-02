@@ -260,7 +260,7 @@ let rec has_return e =
 let rec iter_switch_break in_switch e =
 	match e.eexpr with
 	| TFunction _ | TWhile _ | TFor _ -> ()
-	| TSwitch _ | TMatch _ when not in_switch -> iter_switch_break true e
+	| TSwitch _ | TPatMatch _ when not in_switch -> iter_switch_break true e
 	| TBreak when in_switch -> raise Exit
 	| _ -> iter (iter_switch_break in_switch) e
 
@@ -638,58 +638,6 @@ and gen_expr ctx e =
 		bend();
 		newline ctx;
 		spr ctx "}";
-	| TMatch (e,(estruct,_),cases,def) ->
-		let evar = (if List.for_all (fun (_,pl,_) -> pl = None) cases then begin
-			spr ctx "switch( ";
-			gen_value ctx (if Optimizer.need_parent e then Codegen.mk_parent e else e);
-			spr ctx "[1] ) {";
-			"???"
-		end else begin
-			let v = (match e.eexpr with
-				| TLocal v -> v.v_name
-				| _ ->
-					spr ctx "var $e = ";
-					gen_value ctx e;
-					newline ctx;
-					"$e"
-			) in
-			print ctx "switch( %s[1] ) {" v;
-			v
-		end) in
-		List.iter (fun (cl,params,e) ->
-			List.iter (fun c ->
-				newline ctx;
-				print ctx "case %d:" c;
-			) cl;
-			let bend = open_block ctx in
-			(match params with
-			| None -> ()
-			| Some l ->
-				let n = ref 1 in
-				let l = List.fold_left (fun acc v -> incr n; match v with None -> acc | Some v -> (v.v_name,!n) :: acc) [] l in
-				newline ctx;
-				spr ctx "var ";
-				concat ctx ", " (fun (v,n) ->
-					print ctx "%s = %s[%d]" (ident v) evar n;
-				) l);
-			gen_block ctx e;
-			if not (has_return e) then begin
-				newline ctx;
-				print ctx "break";
-			end;
-			bend();
-		) cases;
-		(match def with
-		| None -> ()
-		| Some e ->
-			newline ctx;
-			spr ctx "default:";
-			let bend = open_block ctx in
-			gen_block ctx e;
-			bend();
-		);
-		newline ctx;
-		spr ctx "}"
 	| TPatMatch dt -> assert false
 	| TSwitch (e,cases,def) ->
 		spr ctx "switch";
@@ -852,13 +800,6 @@ and gen_value ctx e =
 		let v = value() in
 		gen_expr ctx (mk (TSwitch (cond,
 			List.map (fun (e1,e2) -> (e1,assign e2)) cases,
-			match def with None -> None | Some e -> Some (assign e)
-		)) e.etype e.epos);
-		v()
-	| TMatch (cond,enum,cases,def) ->
-		let v = value() in
-		gen_expr ctx (mk (TMatch (cond,enum,
-			List.map (fun (constr,params,e) -> (constr,params,assign e)) cases,
 			match def with None -> None | Some e -> Some (assign e)
 		)) e.etype e.epos);
 		v()

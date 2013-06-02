@@ -1278,7 +1278,7 @@ let rec gen_expr_content ctx retval e =
 		);
 		List.iter (fun j -> j()) jend;
 		branch());
-	| TMatch (e0,_,cases,def) ->
+(* 	| TMatch (e0,_,cases,def) ->
 		let t = classify ctx e.etype in
 		let rparams = alloc_reg ctx (KType (type_path ctx ([],"Array"))) in
 		let has_params = List.exists (fun (_,p,_) -> p <> None) cases in
@@ -1329,7 +1329,7 @@ let rec gen_expr_content ctx retval e =
 		) cases in
 		switch();
 		List.iter (fun j -> j()) jends;
-		free_reg ctx rparams
+		free_reg ctx rparams *)
 	| TPatMatch dt -> assert false
 	| TCast (e1,t) ->
 		gen_expr ctx retval e1;
@@ -1705,7 +1705,7 @@ and generate_function ctx fdata stat =
 			| TReturn (Some e) ->
 				let rec inner_loop e =
 					match e.eexpr with
-					| TSwitch _ | TMatch _ | TFor _ | TWhile _ | TTry _ -> false
+					| TSwitch _ | TPatMatch _ | TFor _ | TWhile _ | TTry _ -> false
 					| TIf _ -> loop e
 					| TParenthesis e | TMeta(_,e) -> inner_loop e
 					| _ -> true

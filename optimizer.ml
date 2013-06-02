@@ -32,7 +32,7 @@ let has_side_effect e =
 	let rec loop e =
 		match e.eexpr with
 		| TConst _ | TLocal _ | TField (_,FEnum _) | TTypeExpr _ | TFunction _ -> ()
-		| TMatch _ | TPatMatch _ | TNew _ | TCall _ | TField _ | TArray _ | TBinop ((OpAssignOp _ | OpAssign),_,_) | TUnop ((Increment|Decrement),_,_) -> raise Exit
+		| TPatMatch _ | TNew _ | TCall _ | TField _ | TArray _ | TBinop ((OpAssignOp _ | OpAssign),_,_) | TUnop ((Increment|Decrement),_,_) -> raise Exit
 		| TReturn _ | TBreak | TContinue | TThrow _ | TCast (_,Some _) -> raise Exit
 		| TCast (_,None) | TBinop _ | TUnop _ | TParenthesis _ | TMeta _ | TWhile _ | TFor _ | TIf _ | TTry _ | TSwitch _ | TArrayDecl _ | TVars _ | TBlock _ | TObjectDecl _ -> Type.iter loop e
 	in
@@ -241,14 +241,14 @@ let rec type_inline ctx cf f ethis params tret config p force =
 			let eloop = map false eloop in
 			in_loop := old;
 			{ e with eexpr = TWhile (cond,eloop,flag) }
-		| TMatch (v,en,cases,def) ->
+(* 		| TMatch (v,en,cases,def) ->
 			let term = term && def <> None in
 			let cases = List.map (fun (i,vl,e) ->
 				let vl = opt (List.map (fun v -> opt (fun v -> (local v).i_subst) v)) vl in
 				i, vl, map term e
 			) cases in
 			let def = opt (map term) def in
-			{ e with eexpr = TMatch (map false v,en,cases,def); etype = if term && ret_val then unify_min ctx ((List.map (fun (_,_,e) -> e) cases) @ (match def with None -> [] | Some e -> [e])) else e.etype }
+			{ e with eexpr = TMatch (map false v,en,cases,def); etype = if term && ret_val then unify_min ctx ((List.map (fun (_,_,e) -> e) cases) @ (match def with None -> [] | Some e -> [e])) else e.etype } *)
 		| TPatMatch _ ->
 			cancel_inlining := true; (* TODO *)
 			e
@@ -605,7 +605,7 @@ let rec need_parent e =
 	match e.eexpr with
 	| TConst _ | TLocal _ | TArray _ | TField _ | TParenthesis _ | TMeta _ | TCall _ | TNew _ | TTypeExpr _ | TObjectDecl _ | TArrayDecl _ -> false
 	| TCast (e,None) -> need_parent e
-	| TCast _ | TThrow _ | TReturn _ | TTry _ | TMatch _ | TPatMatch _ | TSwitch _ | TFor _ | TIf _ | TWhile _ | TBinop _ | TContinue | TBreak
+	| TCast _ | TThrow _ | TReturn _ | TTry _ | TPatMatch _ | TSwitch _ | TFor _ | TIf _ | TWhile _ | TBinop _ | TContinue | TBreak
 	| TBlock _ | TVars _ | TFunction _ | TUnop _ -> true
 
 let rec add_final_return e t =
@@ -647,7 +647,7 @@ let sanitize_expr com e =
 		match e.eexpr with
 		| TVars _	(* needs to be put into blocks *)
 		| TFor _	(* a temp var is needed for holding iterator *)
-		| TMatch _	(* a temp var is needed for holding enum *)
+		| TPatMatch _	(* a temp var is needed for holding enum *)
 		| TCall ({ eexpr = TLocal { v_name = "__js__" } },_) (* we never know *)
 			-> block e
 		| _ -> e
@@ -730,11 +730,11 @@ let sanitize_expr com e =
 		let cases = List.map (fun (el,e) -> el, complex e) cases in
 		let def = (match def with None -> None | Some e -> Some (complex e)) in
 		{ e with eexpr = TSwitch (e1,cases,def) }
-	| TMatch (e1, en, cases, def) ->
+(* 	| TMatch (e1, en, cases, def) ->
 		let e1 = parent e1 in
 		let cases = List.map (fun (el,vars,e) -> el, vars, complex e) cases in
 		let def = (match def with None -> None | Some e -> Some (complex e)) in
-		{ e with eexpr = TMatch (e1,en,cases,def) }
+		{ e with eexpr = TMatch (e1,en,cases,def) } *)
 	| _ ->
 		e
 

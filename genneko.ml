@@ -364,64 +364,6 @@ and gen_expr ctx e =
 		gen_expr ctx e
 	| TCast (e1,Some t) ->
 		gen_expr ctx (Codegen.default_cast ~vtmp:"@tmp" ctx.com e1 t e.etype e.epos)
-	| TMatch (e,_,cases,eo) ->
-		let p = pos ctx e.epos in
-		let etmp = (EVars ["@tmp",Some (gen_expr ctx e)],p) in
-		let eindex = field p (ident p "@tmp") "index" in
-		let gen_params params e =
-			match params with
-			| None ->
-				gen_expr ctx e
-			| Some el ->
-				let count = ref (-1) in
-				let vars = List.fold_left (fun acc v ->
-					incr count;
-					match v with
-					| None ->
-						acc
-					| Some v ->
-						let e = (EArray (ident p "@tmp",int p (!count)),p) in
-						let e = (if v.v_capture then call p (builtin p "array") [e] else e) in
-						(v.v_name , Some e) :: acc
-				) [] el in
-				let e = gen_expr ctx e in
-				(EBlock [
-					(EVars ["@tmp",Some (field p (ident p "@tmp") "args")],p);
-					(match vars with [] -> null p | _ -> EVars vars,p);
-					e
-				],p)
-		in
-		(try
-		  (EBlock [
-			etmp;
-			(ESwitch (
-				eindex,
-				List.map (fun (cl,params,e2) ->
-					let cond = match cl with
-						| [s] -> int p s
-						| _ -> raise Exit
-					in
-					cond , gen_params params e2
-				) cases,
-				(match eo with None -> None | Some e -> Some (gen_expr ctx e))
-			),p)
-		  ],p)
-		with
-			Exit ->
-				(EBlock [
-					etmp;
-					(EVars ["@index",Some eindex],p);
-					List.fold_left (fun acc (cl,params,e2) ->
-						let cond = (match cl with
-							| [] -> assert false
-							| c :: l ->
-								let eq c = (EBinop ("==",ident p "@index",int p c),p) in
-								List.fold_left (fun acc c -> (EBinop ("||",acc,eq c),p)) (eq c) l
-						) in
-						EIf (cond,gen_params params e2,Some acc),p
-					) (match eo with None -> null p | Some e -> (gen_expr ctx e)) (List.rev cases)
-				],p)
-		)
  	| TPatMatch dt ->
 		let num_labels = Array.length dt.dt_dt_lookup in
 		let lc = ctx.label_count in

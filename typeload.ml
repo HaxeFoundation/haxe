@@ -883,9 +883,6 @@ let rec return_flow ctx e =
 		return_flow e
 	| TSwitch (e,cases,None) when (match follow e.etype with TEnum _ -> true | _ -> false) ->
 		List.iter (fun (_,e) -> return_flow e) cases;
-	| TMatch (_,_,cases,def) ->
-		List.iter (fun (_,_,e) -> return_flow e) cases;
-		(match def with None -> () | Some e -> return_flow e)
 	| TPatMatch dt ->
 		let rec loop d = match d with
 			| DTExpr e -> return_flow e
