@@ -1335,7 +1335,12 @@ let iter f e =
 		let rec loop dt = match dt with
 			| DTBind(_,dt) -> loop dt
 			| DTGoto _ -> ()
-			| DTSwitch(_,cl) -> List.iter (fun (_,dt) -> loop dt) cl
+			| DTSwitch(e,cl) ->
+				f e;
+				List.iter (fun (e,dt) ->
+					f e;
+					loop dt
+				) cl
 			| DTExpr e -> f e
 			| DTGuard(eg,dt1,dt2) ->
 				f eg;
@@ -1398,7 +1403,7 @@ let map_expr f e =
 		let rec loop dt = match dt with
 			| DTBind(vl,dt) -> DTBind(vl, loop dt)
 			| DTGoto _ -> dt
-			| DTSwitch(st,cl) -> DTSwitch(st, List.map (fun (c,dt) -> c,loop dt) cl)
+			| DTSwitch(e,cl) -> DTSwitch(f e, List.map (fun (e,dt) -> f e,loop dt) cl)
 			| DTExpr e -> DTExpr(f e)
 			| DTGuard(e,dt1,dt2) -> DTGuard(f e,loop dt1,match dt2 with None -> None | Some dt -> Some (loop dt))
 		in
@@ -1477,7 +1482,7 @@ let map_expr_type f ft fv e =
 		let rec loop dt = match dt with
 			| DTBind(vl,dt) -> DTBind(vl, loop dt)
 			| DTGoto _ -> dt
-			| DTSwitch(st,cl) -> DTSwitch(st, List.map (fun (c,dt) -> c,loop dt) cl)
+			| DTSwitch(e,cl) -> DTSwitch(f e, List.map (fun (e,dt) -> f e,loop dt) cl)
 			| DTExpr e -> DTExpr(f e)
 			| DTGuard (e,dt1,dt2) -> DTGuard(f e, loop dt, match dt2 with None -> None | Some dt -> Some (loop dt))
 		in
