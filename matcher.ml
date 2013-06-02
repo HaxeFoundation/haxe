@@ -911,9 +911,10 @@ let convert_switch ctx st cases loop =
 		let ttype = match follow (Typeload.load_instance ctx { tpackage = ["std"]; tname="Type"; tparams=[]; tsub = None} p true) with TInst(c,_) -> c | t -> assert false in
 		let cf = PMap.find "enumIndex" ttype.cl_statics in
 		let ec = (!type_module_type_ref) ctx (TClassDecl ttype) None p in
-		let ef = mk (TField(ec, FStatic(ttype,cf))) (tfun [t_dynamic] ctx.t.tint) p in
-		(* make_call cctx.ctx ef [e_st] cctx.ctx.t.tint p,true *)
-		mk (TCall (ef,[e_st])) ctx.t.tint p
+		let ef = mk (TField(ec, FStatic(ttype,cf))) (tfun [e_st.etype] ctx.t.tint) p in
+		(* TODO: inlining this causes errors on flash 9 for whatever reason *)
+		if ctx.com.platform = Flash then mk (TCall (ef,[e_st])) ctx.t.tint p
+		else make_call ctx ef [e_st] ctx.t.tint p
 	in
 	let e = match follow st.st_type with
 	| TEnum(_) ->
