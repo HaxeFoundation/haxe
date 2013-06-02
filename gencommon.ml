@@ -8584,6 +8584,22 @@ struct
     let traverse gen t opt_get_native_enum_tag =
       let rec run e =
         match e.eexpr with
+          | TField(f, FEnumParameter(ef, i)) ->
+            let f = run f in
+            (* check if en was converted to class *)
+            (* if it was, switch on tag field and change cond type *)
+            let f = try
+              let en, eparams = match follow (gen.gfollow#run_f f.etype) with
+                | TEnum(en,p) -> en, p
+                | _ -> raise Not_found
+              in
+              let cl = Hashtbl.find t.ec_tbl en.e_path in
+              { f with etype = TInst(cl, eparams) }
+            with | Not_found ->
+              f
+            in
+            let cond_array = { (mk_field_access gen f "params" f.epos) with etype = gen.gcon.basic.tarray t_empty } in
+            { e with eexpr = TArray(cond_array, mk_int gen i cond_array.epos); }
           | TMatch(cond,(en,eparams),cases,default) ->
             let cond = run cond in (* being safe *)
             (* check if en was converted to class *)
