@@ -1093,6 +1093,8 @@ let match_expr ctx e cases def with_type p =
  				Printf.sprintf "[%s]" (st_args i r (s_st_r top false st v))
  			| SArray(st,i) ->
  				s_st_r false true st (Printf.sprintf "[%i]%s" i (if top then " = " ^ v else v))
+ 			| SField({st_def = SVar v1},f) when v1.v_name.[0] = '`' ->
+ 				f ^ (if top then " = " ^ v else v)
   			| SField(st,f) ->
  				s_st_r false true st (Printf.sprintf ".%s%s" f (if top then " = " ^ v else v))
  			| SEnum(st,ef,i) ->
