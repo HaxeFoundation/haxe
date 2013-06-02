@@ -44,18 +44,12 @@ package haxe.ds;
 		return untyped __global__.__hxcpp_anon_remove(__Internal,key);
 	}
 
-	/**
-		Returns an iterator of all keys in the hashtable.
-	**/
 	public function keys() : Iterator<String> {
 		var a:Array<String> = [];
 		untyped __Internal.__GetFields(a);
 		return a.iterator();
 	}
 
-	/**
-		Returns an iterator of all values in the hashtable.
-	**/
 	public function iterator() : Iterator<T> {
 		var a:Array<String> = [];
 		untyped __Internal.__GetFields(a);
@@ -66,10 +60,6 @@ package haxe.ds;
 			next : function() { return me.__Internal.__Field(it.next(),true); }
 		};
 	}
-
-	/**
-		Returns an displayable representation of the hashtable content.
-	**/
 
 	public function toString() : String {
 		var s = new StringBuf();

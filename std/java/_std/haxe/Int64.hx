@@ -130,9 +130,6 @@ private typedef NativeInt64 = Int;
 		return cast(a.asNative() - b.asNative(), Int);
 	}
 
-	/**
-		Compare two Int64 in unsigned mode.
-	**/
 	public static function ucompare( a : Int64, b : Int64 ) : Int
 	{
 		if (a.asNative() < 0.mkNative())
@@ -144,5 +141,3 @@ private typedef NativeInt64 = Int;
 		return a + "";
 	}
 }
-
-

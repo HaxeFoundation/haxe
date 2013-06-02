@@ -22,20 +22,11 @@
 package sys.net;
 import java.net.InetAddress;
 
-/**
-	A given IP host name.
-**/
 class Host {
-	/**
-		The actual IP corresponding to the host.
-	**/
 	public var ip(default,null) : Int;
 
 	@:allow(sys.net) private var wrapped:InetAddress;
-	/**
-		Creates a new Host : the name can be an IP in the form "127.0.0.1" or an host name such as "google.com", in which case
-		the corresponding IP address is resolved using DNS. An exception occur if the host name could not be found.
-	**/
+
 	public function new( name : String ) : Void
 	{
 		try
@@ -46,25 +37,16 @@ class Host {
 		this.ip = cast(rawIp[3], Int) | (cast(rawIp[2], Int) << 8) | (cast(rawIp[1], Int) << 16) | (cast(rawIp[0], Int) << 24);
 	}
 
-	/**
-		Returns the IP representation of the host
-	**/
 	public function toString() : String
 	{
 		return wrapped.getHostAddress();
 	}
 
-	/**
-		Perform a reverse-DNS query to resolve a host name from an IP.
-	**/
 	public function reverse() : String
 	{
 		return wrapped.getHostName();
 	}
 
-	/**
-		Returns the local computer host name
-	**/
 	public static function localhost() : String
 	{
 		try
