@@ -27,6 +27,41 @@ open Typecore
 
 type pvar = tvar * pos
 
+type con_def =
+	| CEnum of tenum * tenum_field
+	| CConst of tconstant
+	| CAny
+	| CType of module_type
+	| CArray of int
+	| CFields of int * (string * tclass_field) list
+	| CExpr of texpr
+
+and con = {
+	c_def : con_def;
+	c_type : t;
+	c_pos : pos;
+}
+
+and st_def =
+	| SVar of tvar
+	| SField of st * string
+	| SEnum of st * tenum_field * int
+	| SArray of st * int
+	| STuple of st * int * int
+
+and st = {
+	st_def : st_def;
+	st_type : t;
+	st_pos : pos;
+}
+
+and dt =
+	| Switch of st * (con * dt) list
+	| Bind of ((tvar * pos) * st) list * dt
+	| Goto of int
+	| Expr of texpr
+	| Guard of texpr * dt * dt option
+
 (* Pattern *)
 
 type pat_def =
@@ -173,6 +208,15 @@ let get_tuple_types t = match t with
 
 let s_type = s_type (print_context())
 
+let rec s_con con = match con.c_def with
+	| CEnum(_,ef) -> ef.ef_name
+	| CAny -> "_"
+	| CConst c -> s_const c
+	| CType mt -> s_type_path (t_path mt)
+	| CArray i -> "[" ^(string_of_int i) ^ "]"
+	| CFields (_,fl) -> String.concat "," (List.map (fun (s,_) -> s) fl)
+	| CExpr e -> s_expr s_type e
+
 let rec s_pat pat = match pat.p_def with
 	| PVar (v,_) -> v.v_name
 	| PCon (c,[]) -> s_con c
@@ -187,6 +231,19 @@ let rec s_pat_vec pl =
 
 let rec s_pat_matrix pmat =
 	String.concat "\n" (List.map (fun (pl,out) -> (s_pat_vec pl) ^ "->" ^ "") pmat)
+
+let st_args l r v =
+	(if l > 0 then (String.concat "," (ExtList.List.make l "_")) ^ "," else "")
+	^ v ^
+	(if r > 0 then "," ^ (String.concat "," (ExtList.List.make r "_")) else "")
+
+let rec s_st st =
+	(match st.st_def with
+	| SVar v -> v.v_name
+	| SEnum (st,ef,i) -> s_st st ^ "." ^ ef.ef_name ^ "." ^ (string_of_int i)
+	| SArray (st,i) -> s_st st ^ "[" ^ (string_of_int i) ^ "]"
+	| STuple (st,i,a) -> "(" ^ (st_args i (a - i - 1) (s_st st)) ^ ")"
+	| SField (st,n) -> s_st st ^ "." ^ n)
 
 (* Pattern parsing *)
 
@@ -818,6 +875,33 @@ let rec collapse_case el = match el with
 	| [] ->
 		assert false
 
+let mk_const ctx p = function
+	| TString s -> mk (TConst (TString s)) ctx.com.basic.tstring p
+	| TInt i -> mk (TConst (TInt i)) ctx.com.basic.tint p
+	| TFloat f -> mk (TConst (TFloat f)) ctx.com.basic.tfloat p
+	| TBool b -> mk (TConst (TBool b)) ctx.com.basic.tbool p
+	| TNull -> mk (TConst TNull) (ctx.com.basic.tnull (mk_mono())) p
+	| _ -> error "Unsupported constant" p
+
+let rec convert_st ctx st = match st.st_def with
+	| SVar v -> mk (TLocal v) v.v_type st.st_pos
+	| SField (sts,f) ->
+		let e = convert_st ctx sts in
+		let fa = try quick_field e.etype f with Not_found -> FDynamic f in
+		mk (TField(e,fa)) st.st_type st.st_pos
+	| SArray (sts,i) -> mk (TArray(convert_st ctx sts,mk_const ctx st.st_pos (TInt (Int32.of_int i)))) st.st_type st.st_pos
+	| STuple (st,_,_) -> convert_st ctx st
+	| SEnum(sts,ef,i) -> mk (TField(convert_st ctx sts, FEnumParameter(ef,i))) st.st_type st.st_pos
+
+let convert_con ctx con = match con.c_def with
+	| CConst c -> mk_const ctx con.c_pos c
+	| CType mt -> mk (TTypeExpr mt) t_dynamic con.c_pos
+	| CExpr e -> e
+	| CEnum(e,ef) -> mk_const ctx con.c_pos (TInt (Int32.of_int ef.ef_index))
+	| CArray i -> mk_const ctx con.c_pos (TInt (Int32.of_int i))
+	| CAny -> mk (TConst (TString "_")) (mk_mono()) con.c_pos
+	| CFields _ -> assert false
+
 (* Decision tree compilation *)
 
 let match_expr ctx e cases def with_type p =
@@ -1060,11 +1144,11 @@ let match_expr ctx e cases def with_type p =
 	loop 0 0;
 	(* reindex *)
 	let rec loop dt = match dt with
-		| Goto i -> if usage.(i) > 1 then Goto (map.(i)) else loop (DynArray.get mctx.dt_lut i)
-		| Switch(st,cl) -> Switch(st, List.map (fun (c,dt) -> c, loop dt) cl)
-		| Bind(bl,dt) -> Bind(bl,loop dt)
-		| Expr e -> Expr e
-		| Guard(e,dt1,dt2) -> Guard(e,loop dt1, match dt2 with None -> None | Some dt -> Some (loop dt))
+		| Goto i -> if usage.(i) > 1 then DTGoto (map.(i)) else loop (DynArray.get mctx.dt_lut i)
+		| Switch(st,cl) -> DTSwitch(convert_st ctx st, List.map (fun (c,dt) -> convert_con ctx c, loop dt) cl)
+		| Bind(bl,dt) -> DTBind(List.map (fun (v,st) -> v,convert_st ctx st) bl,loop dt)
+		| Expr e -> DTExpr e
+		| Guard(e,dt1,dt2) -> DTGuard(e,loop dt1, match dt2 with None -> None | Some dt -> Some (loop dt))
 	in
 	let lut = DynArray.map loop lut in
 	{

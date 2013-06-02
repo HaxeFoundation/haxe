@@ -1542,39 +1542,12 @@ module PatternMatchConversion = struct
 
  	type cctx = {
 		ctx : typer;
-		mutable eval_stack : ((tvar * pos) * st) list list;
+		mutable eval_stack : ((tvar * pos) * texpr) list list;
 		dt_lookup : dt array;
 		ttype : tclass;
 	}
 
-	let mk_const ctx p = function
-		| TString s -> mk (TConst (TString s)) ctx.com.basic.tstring p
-		| TInt i -> mk (TConst (TInt i)) ctx.com.basic.tint p
-		| TFloat f -> mk (TConst (TFloat f)) ctx.com.basic.tfloat p
-		| TBool b -> mk (TConst (TBool b)) ctx.com.basic.tbool p
-		| TNull -> mk (TConst TNull) (ctx.com.basic.tnull (mk_mono())) p
-		| _ -> error "Unsupported constant" p
-
-	let rec convert_st cctx st = match st.st_def with
-		| SVar v -> mk (TLocal v) v.v_type st.st_pos
-		| SField (sts,f) ->
-			let e = convert_st cctx sts in
-			let fa = try quick_field e.etype f with Not_found -> FDynamic f in
-			mk (TField(e,fa)) st.st_type st.st_pos
-		| SArray (sts,i) -> mk (TArray(convert_st cctx sts,mk_const cctx.ctx st.st_pos (TInt (Int32.of_int i)))) st.st_type st.st_pos
-		| STuple (st,_,_) -> convert_st cctx st
-		| SEnum(sts,ef,i) -> mk (TField(convert_st cctx sts, FEnumParameter(ef,i))) st.st_type st.st_pos
-
-	let convert_con cctx con = match con.c_def with
-		| CConst c -> mk_const cctx.ctx con.c_pos c
-		| CType mt -> mk (TTypeExpr mt) t_dynamic con.c_pos
-		| CExpr e -> e
-		| CEnum(e,ef) -> mk_const cctx.ctx con.c_pos (TInt (Int32.of_int ef.ef_index))
-		| CArray i -> mk_const cctx.ctx con.c_pos (TInt (Int32.of_int i))
-		| CAny -> assert false
-		| CFields _ -> assert false
-
-	let replace_locals stack f e =
+	let replace_locals stack e =
 		let replace v =
 			let rec loop vl = match vl with
 				| vl :: vll -> (try snd (List.find (fun ((v2,_),st) -> v2 == v) vl) with Not_found -> loop vll)
@@ -1585,9 +1558,9 @@ module PatternMatchConversion = struct
 		let rec loop e = match e.eexpr with
 			| TLocal v ->
 				begin try
-					let st = replace v in
-					Type.unify e.etype st.st_type;
-					f st;
+					let e2 = replace v in
+					Type.unify e.etype e2.etype;
+					e2
 				with Not_found -> e end
 			| _ -> Type.map_expr loop e
 		in
@@ -1595,7 +1568,7 @@ module PatternMatchConversion = struct
 
 	let group_cases cases =
 		let dt_eq dt1 dt2 = match dt1,dt2 with
-			| Goto i1, Goto i2 when i1 = i2 -> true
+			| DTGoto i1, DTGoto i2 when i1 = i2 -> true
 			(* TODO equal bindings *)
 			| _ -> false
 		in
@@ -1615,21 +1588,20 @@ module PatternMatchConversion = struct
 
 	let rec convert_dt cctx dt =
 		match dt with
-		| Bind (bl,dt) ->
+		| DTBind (bl,dt) ->
 			cctx.eval_stack <- bl :: cctx.eval_stack;
 			let e = convert_dt cctx dt in
 			cctx.eval_stack <- List.tl cctx.eval_stack;
 			e
-		| Goto i ->
+		| DTGoto i ->
 			convert_dt cctx (cctx.dt_lookup.(i))
-		| Expr e ->
-			replace_locals cctx.eval_stack (convert_st cctx) e
-		| Guard(e,dt1,dt2) ->
+		| DTExpr e ->
+			replace_locals cctx.eval_stack e
+		| DTGuard(e,dt1,dt2) ->
 			let ethen = convert_dt cctx dt1 in
-			mk (TIf(replace_locals cctx.eval_stack (convert_st cctx) e,ethen,match dt2 with None -> None | Some dt -> Some (convert_dt cctx dt))) ethen.etype (punion e.epos ethen.epos)
-		| Switch(st,cl) ->
-			let p = st.st_pos in
-			let e_st = convert_st cctx st in
+			mk (TIf(replace_locals cctx.eval_stack e,ethen,match dt2 with None -> None | Some dt -> Some (convert_dt cctx dt))) ethen.etype (punion e.epos ethen.epos)
+		| DTSwitch(e_st,cl) ->
+			let p = e_st.epos in
 			let mk_index_call () =
 				let cf = PMap.find "enumIndex" cctx.ttype.cl_statics in
 				let ec = (!type_module_type_ref) cctx.ctx (TClassDecl cctx.ttype) None p in
@@ -1637,7 +1609,7 @@ module PatternMatchConversion = struct
 				(* make_call cctx.ctx ef [e_st] cctx.ctx.t.tint p,true *)
 				mk (TCall (ef,[e_st])) cctx.ctx.t.tint p,true
 			in
-			let e_subject,exh = match follow st.st_type with
+			let e_subject,exh = match follow e_st.etype with
 				| TEnum(_) ->
 					mk_index_call ()
 				| TAbstract(a,pl) when (match Abstract.get_underlying_type a pl with TEnum(_) -> true | _ -> false) ->
@@ -1649,19 +1621,19 @@ module PatternMatchConversion = struct
 			in
 			let def = ref None in
 			let null = ref None in
-			let cases = List.filter (fun (con,dt) ->
-				match con.c_def with
-				| CAny ->
+			let cases = List.filter (fun (e,dt) ->
+ 				match e.eexpr with
+ 				| TConst (TString "_") ->
 					def := Some (convert_dt cctx dt);
 					false
-				| CConst (TNull) ->
+				| TConst (TNull) ->
 					null := Some (convert_dt cctx dt);
 					false
 				| _ ->
 					true
 			) cl in
 			let cases = group_cases cases in
-			let cases = List.map (fun (cl,dt) -> List.map (convert_con cctx) cl,convert_dt cctx dt) cases in
+			let cases = List.map (fun (cl,dt) -> cl,convert_dt cctx dt) cases in
 			let e_subject = if exh then mk (TMeta((Meta.Exhaustive,[],p), e_subject)) e_subject.etype e_subject.epos else e_subject in
 			let e = mk (TSwitch(e_subject,cases,!def)) (mk_mono()) (p) in
 			match !null with

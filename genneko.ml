@@ -422,7 +422,7 @@ and gen_expr ctx e =
 					) (match eo with None -> null p | Some e -> (gen_expr ctx e)) (List.rev cases)
 				],p)
 		)
-	| TPatMatch dt ->
+(* 	| TPatMatch dt ->
 		let num_labels = Array.length dt.dt_dt_lookup in
 		let lc = ctx.label_count in
 		ctx.label_count <- ctx.label_count + num_labels + 1;
@@ -528,7 +528,7 @@ and gen_expr ctx e =
 			| el, vl -> ("@state",Some (EObject vl,p)) :: el
 		in
 		let el = match init with [] -> (goto dt.dt_first) :: el | _ -> (EVars init,p) :: (goto dt.dt_first) :: el in
-		EBlock el,p
+		EBlock el,p *)
 	| TSwitch (e,cases,eo) ->
 		let e = gen_expr ctx e in
 		let eo = (match eo with None -> None | Some e -> Some (gen_expr ctx e)) in

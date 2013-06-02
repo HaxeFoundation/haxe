@@ -292,40 +292,12 @@ and module_kind =
 	| MMacro
 	| MFake
 
-and con_def =
-	| CEnum of tenum * tenum_field
-	| CConst of tconstant
-	| CAny
-	| CType of module_type
-	| CArray of int
-	| CFields of int * (string * tclass_field) list
-	| CExpr of texpr
-
-and con = {
-	c_def : con_def;
-	c_type : t;
-	c_pos : pos;
-}
-
-and st_def =
-	| SVar of tvar
-	| SField of st * string
-	| SEnum of st * tenum_field * int
-	| SArray of st * int
-	| STuple of st * int * int
-
-and st = {
-	st_def : st_def;
-	st_type : t;
-	st_pos : pos;
-}
-
 and dt =
-	| Switch of st * (con * dt) list
-	| Bind of ((tvar * pos) * st) list * dt
-	| Goto of int
-	| Expr of texpr
-	| Guard of texpr * dt * dt option
+	| DTSwitch of texpr * (texpr * dt) list
+	| DTBind of ((tvar * pos) * texpr) list * dt
+	| DTGoto of int
+	| DTExpr of texpr
+	| DTGuard of texpr * dt * dt option
 
 and decision_tree = {
 	dt_dt_lookup : dt array;
@@ -1361,11 +1333,11 @@ let iter f e =
 		(match def with None -> () | Some e -> f e)
 	| TPatMatch dt ->
 		let rec loop dt = match dt with
-			| Bind(_,dt) -> loop dt
-			| Goto _ -> ()
-			| Switch(_,cl) -> List.iter (fun (_,dt) -> loop dt) cl
-			| Expr e -> f e
-			| Guard(eg,dt1,dt2) ->
+			| DTBind(_,dt) -> loop dt
+			| DTGoto _ -> ()
+			| DTSwitch(_,cl) -> List.iter (fun (_,dt) -> loop dt) cl
+			| DTExpr e -> f e
+			| DTGuard(eg,dt1,dt2) ->
 				f eg;
 				loop dt1;
 				(match dt2 with None -> () | Some dt -> loop dt)
@@ -1424,11 +1396,11 @@ let map_expr f e =
 		{ e with eexpr = TMatch (f e1, t, List.map (fun (cl,params,e) -> cl, params, f e) cases, match def with None -> None | Some e -> Some (f e)) }
 	| TPatMatch dt ->
 		let rec loop dt = match dt with
-			| Bind(vl,dt) -> Bind(vl, loop dt)
-			| Goto _ -> dt
-			| Switch(st,cl) -> Switch(st, List.map (fun (c,dt) -> c,loop dt) cl)
-			| Expr e -> Expr(f e)
-			| Guard(e,dt1,dt2) -> Guard(f e,loop dt1,match dt2 with None -> None | Some dt -> Some (loop dt))
+			| DTBind(vl,dt) -> DTBind(vl, loop dt)
+			| DTGoto _ -> dt
+			| DTSwitch(st,cl) -> DTSwitch(st, List.map (fun (c,dt) -> c,loop dt) cl)
+			| DTExpr e -> DTExpr(f e)
+			| DTGuard(e,dt1,dt2) -> DTGuard(f e,loop dt1,match dt2 with None -> None | Some dt -> Some (loop dt))
 		in
 		let vi = List.map (fun (v,eo) -> v, match eo with None -> None | Some e -> Some(f e)) dt.dt_var_init in
 		{ e with eexpr = TPatMatch({dt with dt_dt_lookup = Array.map loop dt.dt_dt_lookup; dt_var_init = vi})}
@@ -1503,11 +1475,11 @@ let map_expr_type f ft fv e =
 		{ e with eexpr = TMatch (f e1, (en,List.map ft pl), List.map map_case cases, match def with None -> None | Some e -> Some (f e)); etype = ft e.etype }
 	| TPatMatch dt ->
 		let rec loop dt = match dt with
-			| Bind(vl,dt) -> Bind(vl, loop dt)
-			| Goto _ -> dt
-			| Switch(st,cl) -> Switch(st, List.map (fun (c,dt) -> c,loop dt) cl)
-			| Expr e -> Expr(f e)
-			| Guard (e,dt1,dt2) -> Guard(f e, loop dt, match dt2 with None -> None | Some dt -> Some (loop dt))
+			| DTBind(vl,dt) -> DTBind(vl, loop dt)
+			| DTGoto _ -> dt
+			| DTSwitch(st,cl) -> DTSwitch(st, List.map (fun (c,dt) -> c,loop dt) cl)
+			| DTExpr e -> DTExpr(f e)
+			| DTGuard (e,dt1,dt2) -> DTGuard(f e, loop dt, match dt2 with None -> None | Some dt -> Some (loop dt))
 		in
 		let vi = List.map (fun (v,eo) -> v, match eo with None -> None | Some e -> Some(f e)) dt.dt_var_init in
 		{ e with eexpr = TPatMatch({dt with dt_dt_lookup = Array.map loop dt.dt_dt_lookup; dt_var_init = vi}); etype = ft e.etype}
@@ -1560,44 +1532,7 @@ let s_const = function
 	| TThis -> "this"
 	| TSuper -> "super"
 
-let rec s_con con = match con.c_def with
-	| CEnum(_,ef) -> ef.ef_name
-	| CAny -> "_"
-	| CConst c -> s_const c
-	| CType mt -> s_type_path (t_path mt)
-	| CArray i -> "[" ^(string_of_int i) ^ "]"
-	| CFields (_,fl) -> String.concat "," (List.map (fun (s,_) -> s) fl)
-	| CExpr e -> s_expr (s_type (print_context())) e
-
-and st_args l r v =
-	(if l > 0 then (String.concat "," (ExtList.List.make l "_")) ^ "," else "")
-	^ v ^
-	(if r > 0 then "," ^ (String.concat "," (ExtList.List.make r "_")) else "")
-
-and s_dt tabs tree =
-	let s_type = s_type (print_context()) in
-	let rec s_st st =
-		(match st.st_def with
-		| SVar v -> v.v_name
-		| SEnum (st,ef,i) -> s_st st ^ "." ^ ef.ef_name ^ "." ^ (string_of_int i)
-		| SArray (st,i) -> s_st st ^ "[" ^ (string_of_int i) ^ "]"
-		| STuple (st,i,a) -> "(" ^ (st_args i (a - i - 1) (s_st st)) ^ ")"
-		| SField (st,n) -> s_st st ^ "." ^ n)
-	in
-	tabs ^ match tree with
-	| Switch (st, cl) ->
-		"switch(" ^ (s_st st) ^ ") { \n" ^ tabs
-		^ (String.concat ("\n" ^ tabs) (List.map (fun (c,dt) ->
-			"case " ^ (s_con c) ^ ":\n" ^ (s_dt (tabs ^ "\t") dt)
-		) cl))
-		^ "\n" ^ (if String.length tabs = 0 then "" else (String.sub tabs 0 (String.length tabs - 1))) ^ "}"
-	| Bind (bl, dt) -> "bind " ^ (String.concat "," (List.map (fun ((v,_),st) -> v.v_name ^ "(" ^ (string_of_int v.v_id) ^ ") =" ^ (s_st st)) bl)) ^ "\n" ^ (s_dt tabs dt)
-	| Goto i ->
-		"goto " ^ (string_of_int i)
-	| Expr e -> s_expr s_type e
-	| Guard (e,dt1,dt2) -> "if(" ^ (s_expr s_type e) ^ ") " ^ (s_dt tabs dt1) ^ (match dt2 with None -> "" | Some dt -> " else " ^ (s_dt tabs dt))
-
-and s_expr s_type e =
+let rec s_expr s_type e =
 	let sprintf = Printf.sprintf in
 	let slist f l = String.concat "," (List.map f l) in
 	let loop = s_expr s_type in
@@ -1678,6 +1613,21 @@ and s_expr s_type e =
 		sprintf "@%s%s %s" (Meta.to_string n) (match el with [] -> "" | _ -> "(" ^ (String.concat ", " (List.map Ast.s_expr el)) ^ ")") (loop e)
 	) in
 	sprintf "(%s : %s)" str (s_type e.etype)
+
+and s_dt tabs tree =
+	let s_type = s_type (print_context()) in
+	tabs ^ match tree with
+	| DTSwitch (st, cl) ->
+		"switch(" ^ (s_expr s_type st) ^ ") { \n" ^ tabs
+		^ (String.concat ("\n" ^ tabs) (List.map (fun (c,dt) ->
+			"case " ^ (s_expr s_type c) ^ ":\n" ^ (s_dt (tabs ^ "\t") dt)
+		) cl))
+		^ "\n" ^ (if String.length tabs = 0 then "" else (String.sub tabs 0 (String.length tabs - 1))) ^ "}"
+	| DTBind (bl, dt) -> "bind " ^ (String.concat "," (List.map (fun ((v,_),st) -> v.v_name ^ "(" ^ (string_of_int v.v_id) ^ ") =" ^ (s_expr s_type st)) bl)) ^ "\n" ^ (s_dt tabs dt)
+	| DTGoto i ->
+		"goto " ^ (string_of_int i)
+	| DTExpr e -> s_expr s_type e
+	| DTGuard (e,dt1,dt2) -> "if(" ^ (s_expr s_type e) ^ ") " ^ (s_dt tabs dt1) ^ (match dt2 with None -> "" | Some dt -> " else " ^ (s_dt tabs dt))
 
 let rec s_expr_pretty tabs s_type e =
 	let sprintf = Printf.sprintf in
