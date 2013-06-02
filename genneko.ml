@@ -405,32 +405,20 @@ and gen_expr ctx e =
 				in
 				(match get_locals e with [] -> eg | el -> EBlock [(EVars(el),p);eg],p)
 			| DTSwitch (e,cl) ->
-				let est = gen_expr ctx e in
-				let e = match follow e.etype with
-					| TEnum(_) | TAbstract({a_this = TEnum(_)},_) -> field p est "index"
-					| TInst({cl_path = [],"Array"},[t]) -> field p est "length"
-					| _ -> est;
-				in
+				let e = gen_expr ctx e in
 				let def = ref None in
-				let pnull = ref None in
 				let cases = ExtList.List.filter_map (fun (e,dt) ->
 					match e.eexpr with
 	 				| TMeta((Meta.MatchAny,_,_),_) ->
 						def := Some (loop dt);
 						None
-					| TConst (TNull) ->
-						pnull := Some (loop dt);
-						None;
 					| _ ->
 						Some (gen_expr ctx e,loop dt)
 				) cl in
-				let e = EBlock [
+				EBlock [
 					(ESwitch (e,cases,!def),p);
 					goto num_labels;
-				],p in
-				match !pnull with
-				| None -> e
-				| Some enull -> (EIf((EBinop ("==",est,null p),p),enull,Some e)),p
+				],p
 		in
 		let acc = DynArray.create () in
 		for i = num_labels -1 downto 0 do
