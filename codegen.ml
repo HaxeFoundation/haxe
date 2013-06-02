@@ -1578,7 +1578,6 @@ module PatternMatchConversion = struct
 		ctx : typer;
 		mutable eval_stack : ((tvar * pos) * texpr) list list;
 		dt_lookup : dt array;
-		ttype : tclass;
 	}
 
 	let replace_locals stack e =
@@ -1635,46 +1634,18 @@ module PatternMatchConversion = struct
 			let ethen = convert_dt cctx dt1 in
 			mk (TIf(replace_locals cctx.eval_stack e,ethen,match dt2 with None -> None | Some dt -> Some (convert_dt cctx dt))) ethen.etype (punion e.epos ethen.epos)
 		| DTSwitch(e_st,cl) ->
-			let p = e_st.epos in
-			let mk_index_call () =
-				let cf = PMap.find "enumIndex" cctx.ttype.cl_statics in
-				let ec = (!type_module_type_ref) cctx.ctx (TClassDecl cctx.ttype) None p in
-				let ef = mk (TField(ec, FStatic(cctx.ttype,cf))) (tfun [t_dynamic] cctx.ctx.t.tint) p in
-				(* make_call cctx.ctx ef [e_st] cctx.ctx.t.tint p,true *)
-				mk (TCall (ef,[e_st])) cctx.ctx.t.tint p,true
-			in
-			let e_subject,exh = match follow e_st.etype with
-				| TEnum(_) ->
-					mk_index_call ()
-				| TAbstract(a,pl) when (match Abstract.get_underlying_type a pl with TEnum(_) -> true | _ -> false) ->
-					mk_index_call ()
-				| TInst({cl_path = [],"Array"},_) as t ->
-					mk (TField (e_st,quick_field t "length")) cctx.ctx.t.tint p,false
-				| _ ->
-					e_st,false
-			in
 			let def = ref None in
-			let null = ref None in
 			let cases = List.filter (fun (e,dt) ->
  				match e.eexpr with
  				| TMeta((Meta.MatchAny,_,_),_) ->
 					def := Some (convert_dt cctx dt);
-					false
-				| TConst (TNull) ->
-					null := Some (convert_dt cctx dt);
 					false
 				| _ ->
 					true
 			) cl in
 			let cases = group_cases cases in
 			let cases = List.map (fun (cl,dt) -> cl,convert_dt cctx dt) cases in
-			let e_subject = if exh then mk (TMeta((Meta.Exhaustive,[],p), e_subject)) e_subject.etype e_subject.epos else e_subject in
-			let e = mk (TSwitch(e_subject,cases,!def)) (mk_mono()) (p) in
-			match !null with
-			| None -> e
-			| Some enull ->
-				let econd = mk (TBinop(OpEq,e_st,mk (TConst TNull) (mk_mono()) p)) cctx.ctx.t.tbool p in
-				mk (TIf(econd,enull,Some e)) e.etype e.epos
+			mk (TSwitch(e_st,cases,!def)) (mk_mono()) e_st.epos
 
 	let to_typed_ast ctx dt p =
 		let first = dt.dt_dt_lookup.(dt.dt_first) in
@@ -1682,7 +1653,6 @@ module PatternMatchConversion = struct
 			ctx = ctx;
 			dt_lookup = dt.dt_dt_lookup;
 			eval_stack = [];
-			ttype = match follow (Typeload.load_instance ctx { tpackage = ["std"]; tname="Type"; tparams=[]; tsub = None} p true) with TInst(c,_) -> c | t -> assert false;
 		} in
 		let e = convert_dt cctx first in
 		let e = { e with epos = p; etype = dt.dt_type} in

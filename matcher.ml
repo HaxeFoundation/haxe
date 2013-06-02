@@ -904,6 +904,44 @@ let convert_con ctx con = match con.c_def with
 		mk (TMeta((Meta.MatchAny,[],con.c_pos),mk (TConst (TNull)) t con.c_pos)) t con.c_pos
 	| CFields _ -> assert false
 
+let convert_switch ctx st cases loop =
+	let e_st = convert_st ctx st in
+	let p = e_st.epos in
+	let mk_index_call () =
+		let ttype = match follow (Typeload.load_instance ctx { tpackage = ["std"]; tname="Type"; tparams=[]; tsub = None} p true) with TInst(c,_) -> c | t -> assert false in
+		let cf = PMap.find "enumIndex" ttype.cl_statics in
+		let ec = (!type_module_type_ref) ctx (TClassDecl ttype) None p in
+		let ef = mk (TField(ec, FStatic(ttype,cf))) (tfun [t_dynamic] ctx.t.tint) p in
+		(* make_call cctx.ctx ef [e_st] cctx.ctx.t.tint p,true *)
+		mk (TCall (ef,[e_st])) ctx.t.tint p
+	in
+	let e = match follow st.st_type with
+	| TEnum(_) ->
+		mk_index_call ()
+	| TAbstract(a,pl) when (match Codegen.Abstract.get_underlying_type a pl with TEnum(_) -> true | _ -> false) ->
+		mk_index_call ()
+	| TInst({cl_path = [],"Array"},_) as t ->
+		mk (TField (e_st,quick_field t "length")) ctx.t.tint p
+	| _ ->
+		e_st
+	in
+	let null = ref None in
+	let cases = List.filter (fun (con,dt) ->
+		match con.c_def with
+		| CConst TNull ->
+			null := Some (loop dt);
+			false
+		| _ ->
+			true
+	) cases in
+	let e = mk (TMeta((Meta.Exhaustive,[],p), e)) e.etype e.epos in
+	let dt = DTSwitch(e, List.map (fun (c,dt) -> convert_con ctx c, loop dt) cases) in
+	match !null with
+	| None -> dt
+	| Some dt_null ->
+		let econd = mk (TBinop(OpEq,e_st,mk (TConst TNull) (mk_mono()) p)) ctx.t.tbool p in
+		DTGuard(econd,dt_null,Some dt)
+
 (* Decision tree compilation *)
 
 let match_expr ctx e cases def with_type p =
@@ -1151,7 +1189,7 @@ let match_expr ctx e cases def with_type p =
 	(* reindex *)
 	let rec loop dt = match dt with
 		| Goto i -> if usage.(i) > 1 then DTGoto (map.(i)) else loop (DynArray.get mctx.dt_lut i)
-		| Switch(st,cl) -> DTSwitch(convert_st ctx st, List.map (fun (c,dt) -> convert_con ctx c, loop dt) cl)
+		| Switch(st,cl) -> convert_switch ctx st cl loop
 		| Bind(bl,dt) -> DTBind(List.map (fun (v,st) -> v,convert_st ctx st) bl,loop dt)
 		| Expr e -> DTExpr e
 		| Guard(e,dt1,dt2) -> DTGuard(e,loop dt1, match dt2 with None -> None | Some dt -> Some (loop dt))
