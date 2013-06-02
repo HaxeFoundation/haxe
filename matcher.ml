@@ -137,12 +137,19 @@ let mk_subs st con =
 	let map = match follow st.st_type with
 		| TInst(c,pl) -> apply_params c.cl_types pl
 		| TEnum(en,pl) -> apply_params en.e_types pl
+		| TAbstract(a,pl) -> apply_params a.a_types pl
 		| _ -> fun t -> t
 	in
 	match con.c_def with
 	| CFields (_,fl) -> List.map (fun (s,cf) -> mk_st (SField(st,s)) (map cf.cf_type) st.st_pos) fl
 	| CEnum (en,({ef_type = TFun _} as ef)) ->
-		let pl = match follow con.c_type with TEnum(_,pl) | TAbstract({a_this = TEnum(_)},pl)-> pl | TAbstract({a_path = [],"EnumValue"},[]) -> [] | _ -> [] in
+		let rec loop t = match follow t with
+			| TEnum(_,pl) -> pl
+			| TAbstract({a_path = [],"EnumValue"},[]) -> []
+			| TAbstract(a,pl) -> loop (Codegen.Abstract.get_underlying_type a pl)
+			| _ -> []
+		in
+		let pl = loop con.c_type in
 		begin match apply_params en.e_types pl (monomorphs ef.ef_params ef.ef_type) with
 			| TFun(args,r) ->
 				ExtList.List.mapi (fun i (_,_,t) ->
@@ -660,37 +667,33 @@ let rec is_explicit_null = function
 	| _ ->
 		false
 
-let all_ctors mctx st =
+let rec all_ctors mctx t =
 	let h = ref PMap.empty in
-	if is_explicit_null st.st_type then h := PMap.add (CConst TNull) Ast.null_pos !h;
-	let inf = match follow st.st_type with
+	if is_explicit_null t then h := PMap.add (CConst TNull) Ast.null_pos !h;
+	match follow t with
 	| TAbstract({a_path = [],"Bool"},_) ->
 		h := PMap.add (CConst(TBool true)) Ast.null_pos !h;
 		h := PMap.add (CConst(TBool false)) Ast.null_pos !h;
-		false
+		h,false
+	| TAbstract(a,pl) -> all_ctors mctx (Codegen.Abstract.get_underlying_type a pl)
 	| TInst({cl_path=[],"String"},_)
-	| TInst({cl_path=[],"Array"},_)
-	| TAbstract _ ->
-		true
+	| TInst({cl_path=[],"Array"},_) ->
+		h,true
 	| TEnum(en,pl) ->
 		PMap.iter (fun _ ef ->
-			let tc = monomorphs mctx.ctx.type_params st.st_type in
+			let tc = monomorphs mctx.ctx.type_params t in
 			try unify_enum_field en pl ef tc;
 				h := PMap.add (CEnum(en,ef)) ef.ef_pos !h
 			with Unify_error _ ->
 				()
 		) en.e_constrs;
-		false
-	| TInst ({cl_kind = KTypeParameter _},_) ->
-		error "Unapplied type parameter" st.st_pos
+		h,false
 	| TAnon a ->
-		true
+		h,true
 	| TInst(_,_) ->
-		false
+		h,false
 	| _ ->
-		true
-	in
-	h,inf
+		h,true
 
 let rec collapse_pattern pl = match pl with
 	| pat :: [] ->
@@ -744,7 +747,7 @@ let rec compile mctx stl pmat =
 	| [] ->
 		(match stl with
 		| st :: stl ->
-			let all,inf = all_ctors mctx st in
+			let all,inf = all_ctors mctx st.st_type in
 			let pl = PMap.foldi (fun cd p acc -> (mk_con_pat cd [] t_dynamic p) :: acc) !all [] in
 			begin match pl,inf with
 				| _,true
@@ -774,7 +777,7 @@ let rec compile mctx stl pmat =
 		end else begin
 			let st_head,st_tail = match stl with st :: stl -> st,stl | _ -> assert false in
 			let sigma,bl = column_sigma mctx st_head pmat in
-			let all,inf = all_ctors mctx st_head in
+			let all,inf = all_ctors mctx st_head.st_type in
 			let cases = List.map (fun (c,g) ->
 				if not g then all := PMap.remove c.c_def !all;
 				let spec = spec mctx c pmat in

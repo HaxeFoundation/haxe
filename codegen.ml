@@ -1630,13 +1630,18 @@ module PatternMatchConversion = struct
 		| Switch(st,cl) ->
 			let p = st.st_pos in
 			let e_st = convert_st cctx st in
+			let mk_index_call () =
+				let cf = PMap.find "enumIndex" cctx.ttype.cl_statics in
+				let ec = (!type_module_type_ref) cctx.ctx (TClassDecl cctx.ttype) None p in
+				let ef = mk (TField(ec, FStatic(cctx.ttype,cf))) (tfun [t_dynamic] cctx.ctx.t.tint) p in
+				(* make_call cctx.ctx ef [e_st] cctx.ctx.t.tint p,true *)
+				mk (TCall (ef,[e_st])) cctx.ctx.t.tint p,true
+			in
 			let e_subject,exh = match follow st.st_type with
-				| TEnum(_) | TAbstract({a_this = TEnum(_)},_)->
-					let cf = PMap.find "enumIndex" cctx.ttype.cl_statics in
-					let ec = (!type_module_type_ref) cctx.ctx (TClassDecl cctx.ttype) None p in
-					let ef = mk (TField(ec, FStatic(cctx.ttype,cf))) (tfun [t_dynamic] cctx.ctx.t.tint) p in
-					(* make_call cctx.ctx ef [e_st] cctx.ctx.t.tint p,true *)
-					mk (TCall (ef,[e_st])) cctx.ctx.t.tint p,true
+				| TEnum(_) ->
+					mk_index_call ()
+				| TAbstract(a,pl) when (match Abstract.get_underlying_type a pl with TEnum(_) -> true | _ -> false) ->
+					mk_index_call ()
 				| TInst({cl_path = [],"Array"},_) as t ->
 					mk (TField (e_st,quick_field t "length")) cctx.ctx.t.tint p,false
 				| _ ->
