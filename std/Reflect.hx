@@ -121,9 +121,10 @@ extern class Reflect {
 		
 		For all other types, the result is 0 if `a` and `b` are equal. If they
 		are not equal, the result depends on the type and is negative if:
-			Numeric types: a is less than b
-			String: a is lexicographically less than b
-			Other: unspecified
+		
+		- Numeric types: a is less than b
+		- String: a is lexicographically less than b
+		- Other: unspecified
 		
 		If `a` and `b` are null, the result is 0. If only one of them is null,
 		the result is unspecified.
@@ -144,10 +145,11 @@ extern class Reflect {
 		Tells if `v` is an object.
 		
 		The result is true if `v` is one of the following:
-			- class instance
-			- structure
-			- Class<T>
-			- Enum<T>
+			
+		- class instance
+		- structure
+		- Class<T>
+		- Enum<T>
 			
 		Otherwise, including if `v` is null, the result is false.
 	**/

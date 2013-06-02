@@ -81,7 +81,7 @@ extern class Type {
 		
 		If `c` is inside a package, the package structure is returned dot-
 		separated, with another dot separating the class name:
-			pack1.pack2.(...).packN.ClassName
+		`pack1.pack2.(...).packN.ClassName`
 		If `c` is a sub-type of a haxe module, that module is not part of the
 		package structure.
 			
@@ -98,7 +98,7 @@ extern class Type {
 		
 		If `e` is inside a package, the package structure is returned dot-
 		separated, with another dot separating the enum name:
-			pack1.pack2.(...).packN.EnumName
+		`pack1.pack2.(...).packN.EnumName`
 		If `e` is a sub-type of a haxe module, that module is not part of the
 		package structure.
 			

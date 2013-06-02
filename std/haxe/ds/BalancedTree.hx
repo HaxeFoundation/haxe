@@ -24,12 +24,12 @@ package haxe.ds;
 
 /**
 	BalancedTree allows key-value mapping with arbitrary keys, as long as they
-	can be ordered. By default, [Reflect.compare] is used in the [compare]
+	can be ordered. By default, `Reflect.compare` is used in the `compare`
 	method, which can be overridden in subclasses.
 	
 	Operations have a logarithmic average and worst-case cost.
 	
-	Iteration over keys and values, using [keys] and [iterator] respectively,
+	Iteration over keys and values, using `keys` and `iterator` respectively,
 	are in-order.
 **/
 class BalancedTree<K,V> {
@@ -41,22 +41,22 @@ class BalancedTree<K,V> {
 	public function new() { }
 	
 	/**
-		Binds [key] to [value].
+		Binds `key` to `value`.
 		
-		If [key] is already bound to a value, that binding disappears.
+		If `key` is already bound to a value, that binding disappears.
 		
-		If [key] is null, the result is unspecified.
+		If `key` is null, the result is unspecified.
 	**/
 	public function set(key:K, value:V) {
 		root = setLoop(key, value, root);
 	}
 	
 	/**
-		Returns the value [key] is bound to.
+		Returns the value `key` is bound to.
 		
-		If [key] is not bound to any value, [null] is returned.
+		If `key` is not bound to any value, `null` is returned.
 		
-		If [key] is null, the result is unspecified.
+		If `key` is null, the result is unspecified.
 	**/
 	public function get(key:K):Null<V> {
 		var node = root;
@@ -70,14 +70,14 @@ class BalancedTree<K,V> {
 	}
 	
 	/**
-		Removes the current binding of [key].
+		Removes the current binding of `key`.
 		
-		If [key] has no binding, [this] BalancedTree is unchanged and false is
+		If `key` has no binding, `this` BalancedTree is unchanged and false is
 		returned.
 		
-		Otherwise the binding of [key] is removed and true is returned.
+		Otherwise the binding of `key` is removed and true is returned.
 		
-		If [key] is null, the result is unspecified.
+		If `key` is null, the result is unspecified.
 	**/
 	public function remove(key:K) {
 		try {
@@ -90,11 +90,11 @@ class BalancedTree<K,V> {
 	}
 	
 	/**
-		Tells if [key] is bound to a value.
+		Tells if `key` is bound to a value.
 		
-		This method returns true even if [key] is bound to null.
+		This method returns true even if `key` is bound to null.
 		
-		If [key] is null, the result is unspecified.
+		If `key` is null, the result is unspecified.
 	**/
 	public function exists(key:K) {
 		var node = root;
@@ -108,7 +108,7 @@ class BalancedTree<K,V> {
 	}
 	
 	/**
-		Iterates over the bound values of [this] BalancedTree.
+		Iterates over the bound values of `this` BalancedTree.
 		
 		This operation is performed in-order.
 	**/
@@ -119,7 +119,7 @@ class BalancedTree<K,V> {
 	}
 	
 	/**
-		Iterates over the keys of [this] BalancedTree.
+		Iterates over the keys of `this` BalancedTree.
 		
 		This operation is performed in-order.
 	**/

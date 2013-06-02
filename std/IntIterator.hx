@@ -24,7 +24,7 @@
 	IntIterator is used for implementing interval iterations.
 	
 	It is usually not used explicitly, but through it's special syntax:
-		min...max
+	`min...max`
 		
 	While it is possible to assign an instance of IntIterator to a variable or
 	field, it is worth noting that IntIterator does not reset after being used

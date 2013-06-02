@@ -85,12 +85,15 @@ class StringTools {
 		Escapes HTML special characters of the string `s`.
 
 		The following replacements are made:
-			- & becomes &amp;
-			- < becomes &lt;
-			- > becomes &gt;
+			
+		- & becomes &amp;
+		- < becomes &lt;
+		- > becomes &gt;
+		
 		If `quotes` is true, the following characters are also replaced:
-			- " becomes &quot;
-			- ' becomes &#039;
+		
+		- " becomes &quot;
+		- ' becomes &#039;
 	**/
 	public static function htmlEscape( s : String, ?quotes : Bool ) : String {
 		s = s.split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;");
@@ -104,11 +107,12 @@ class StringTools {
 		holds: htmlUnescape(htmlEscape(s)) == s
 
 		The replacements follow:
-			- &amp; becomes &
-			- &lt; becomes <
-			- &gt; becomes >
-			- &quot; becomes "
-			- &#039; becomes '
+			
+		- &amp; becomes &
+		- &lt; becomes <
+		- &gt; becomes >
+		- &quot; becomes "
+		- &#039; becomes '
 	**/
 	public static function htmlUnescape( s : String ) : String {
 		return s.split("&gt;").join(">").split("&lt;").join("<").split("&quot;").join('"').split("&#039;").join("'").split("&amp;").join("&");
