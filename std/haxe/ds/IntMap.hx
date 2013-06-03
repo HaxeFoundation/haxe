@@ -22,50 +22,49 @@
 package haxe.ds;
 
 /**
-	Hashtable over a set of elements, using [Int] as keys.
-	On Flash and Javascript, the underlying structure is an Object.
+	IntMap allows mapping of Int keys to arbitrary values.
+	
+	See `Map` for documentation details.
 **/
 extern class IntMap<T> implements Map.IMap<Int,T> {
 
 	/**
-		Creates a new empty hashtable.
+		Creates a new IntMap.
 	**/
 	public function new() : Void;
 
 	/**
-		Set a value for the given key.
+		See `Map.set`
 	**/
 	public function set( key : Int, value : T ) : Void;
+	
 	/**
-		Get a value for the given key.
+		See `Map.get`
 	**/
 	public function get( key : Int ) : Null<T>;
 
 	/**
-		Tells if a value exists for the given key.
-		In particular, it's useful to tells if a key has
-		a [null] value versus no value.
+		See `Map.exists`
 	**/
 	public function exists( key : Int ) : Bool;
 
 	/**
-		Removes a hashtable entry. Returns [true] if
-		there was such entry.
+		See `Map.remove`
 	**/
 	public function remove( key : Int ) : Bool;
 
 	/**
-		Returns an iterator of all keys in the hashtable.
+		See `Map.keys`
 	**/
 	public function keys() : Iterator<Int>;
 
 	/**
-		Returns an iterator of all values in the hashtable.
+		See `Map.iterator`
 	**/
 	public function iterator() : Iterator<T>;
 
 	/**
-		Returns an displayable representation of the hashtable content.
+		See `Map.toString`
 	**/
 	public function toString() : String;
 

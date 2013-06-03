@@ -22,27 +22,66 @@
 
 package haxe.ds;
 
-class WeakMap<K:{},V> implements Map.IMap<K,V> {
+/**
+	WeakMap allows mapping of object keys to arbitrary values.
+	
+	The keys are considered to be weak references on static targets.
+	
+	See `Map` for documentation details.
+**/
+class WeakMap<K: { },V> implements Map.IMap<K,V> {
+	
+	/**
+		Creates a new WeakMap.
+	**/	
 	public function new():Void {
 		throw "Not implemented for this platform";
 	}
+	
+	/**
+		See `Map.set`
+	**/	
 	public function set(key:K, value:V):Void {
 	}
+	
+	/**
+		See `Map.get`
+	**/		
 	public function get(key:K):Null<V> {
 		return null;
 	}
+	
+	/**
+		See `Map.exists`
+	**/		
 	public function exists(key:K):Bool {
 		return false;
 	}
+	
+	/**
+		See `Map.remove`
+	**/		
 	public function remove(key:K):Bool {
 		return false;
 	}
+	
+	/**
+		See `Map.keys`
+	**/		
 	public function keys():Iterator<K> {
 		return null;
 	}
+	
+	/**
+		See `Map.iterator`
+	**/		
 	public function iterator():Iterator<V> {
 		return null;
 	}
+	
+	/**
+		See `Map.toString`
+	**/		
 	public function toString():String {
 		return null;
 	}
