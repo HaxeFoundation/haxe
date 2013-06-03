@@ -465,7 +465,7 @@ class XmlParser {
 	}
 
 	function xabstract( x : Fast ) : Abstractdef {
-		var doc = null;
+		var doc = null, impl = null;
 		var meta = [], subs = [], supers = [];
 		for( c in x.elements )
 			switch( c.name ) {
@@ -479,6 +479,8 @@ class XmlParser {
 			case "from":
 				for( t in c.elements )
 					supers.push(xtype(t));
+			case "impl":
+				impl = xclass(c.node.resolve("class"));
 			default:
 				xerror(c);
 			}
@@ -493,6 +495,7 @@ class XmlParser {
 			meta : meta,
 			subs : subs,
 			supers : supers,
+			impl: impl
 		};
 	}
 
