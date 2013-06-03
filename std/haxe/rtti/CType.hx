@@ -110,6 +110,7 @@ typedef Typedef = {> TypeInfos,
 typedef Abstractdef = {> TypeInfos,
 	var subs : Array<CType>;
 	var supers : Array<CType>;
+	var impl : Classdef;
 }
 
 enum TypeTree {
