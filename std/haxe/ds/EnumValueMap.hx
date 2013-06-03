@@ -22,6 +22,12 @@
 
 package haxe.ds;
 
+/**
+	EnumValueMap allows mapping of enum value keys to arbitrary values.
+	
+	Keys are compared by value and recursively over their parameters. If any
+	parameter is not an enum value, `Reflect.compare` is used to compare them.
+**/
 class EnumValueMap<K:EnumValue, V> extends haxe.ds.BalancedTree<K, V> implements Map.IMap<K,V> {
 	
 	override function compare(k1:EnumValue, k2:EnumValue) {
