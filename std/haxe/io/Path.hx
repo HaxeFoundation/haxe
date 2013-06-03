@@ -24,8 +24,9 @@ package haxe.io;
 /**
 	This class provides a convenient way of working with paths. It supports the
 	common path formats:
-		directory1/directory2/filename.extension
-		directory1\directory2\filename.excention
+		
+	- directory1/directory2/filename.extension
+	- directory1\directory2\filename.excention
 **/
 class Path {
 
@@ -67,7 +68,7 @@ class Path {
 	public var backslash : Bool;
 
 	/**
-		Creates a new Path instance by parsing [path].
+		Creates a new Path instance by parsing `path`.
 		
 		Path information can be retrieved by accessing the dir, file and ext
 		properties.
@@ -95,13 +96,13 @@ class Path {
 	}
 
 	/**
-		Returns a String representation of [this] path.
+		Returns a String representation of `this` path.
 		
-		If [this].backslash is true, backslash is used as directory separator,
+		If `this.backslash` is true, backslash is used as directory separator,
 		otherwise slash is used. This only affects the separator between
-		[this].dir and [this].file.
+		`this.dir` and `this.file`.
 		
-		If [this].directory or [this].extension is null, their representation
+		If `this.directory` or `this.extension` is null, their representation
 		is the empty String "".
 	**/
 	public function toString() {
@@ -109,9 +110,9 @@ class Path {
 	}
 
 	/**
-		Returns the String representation of [path] without the file extension.
+		Returns the String representation of `path` without the file extension.
 		
-		If [path] is null, the result is unspecified.
+		If `path` is null, the result is unspecified.
 	**/
 	public static function withoutExtension( path : String ) {
 		var s = new Path(path);
@@ -120,9 +121,9 @@ class Path {
 	}
 
 	/**
-		Returns the String representation of [path] without the directory.
+		Returns the String representation of `path` without the directory.
 		
-		If [path] is null, the result is unspecified.
+		If `path` is null, the result is unspecified.
 	**/
 	public static function withoutDirectory( path ) {
 		var s = new Path(path);
@@ -131,11 +132,11 @@ class Path {
 	}
 
 	/**
-		Returns the directory of [path].
+		Returns the directory of `path`.
 		
 		If the directory is null, the empty String "" is returned.
 		
-		If [path] is null, the result is unspecified.
+		If `path` is null, the result is unspecified.
 	**/
 	public static function directory( path ) {
 		var s = new Path(path);
@@ -145,11 +146,11 @@ class Path {
 	}
 
 	/**
-		Returns the extension of [path].
+		Returns the extension of `path`.
 		
 		If the extension is null, the empty String "" is returned.
 		
-		If [path] is null, the result is unspecified.
+		If `path` is null, the result is unspecified.
 	**/
 	public static function extension( path ) {
 		var s = new Path(path);
@@ -159,11 +160,11 @@ class Path {
 	}
 
 	/**
-		Returns a String representation of [path] where the extension is [ext].
+		Returns a String representation of `path` where the extension is `ext`.
 		
-		If [path] has no extension, [ext] is added as extension.
+		If `path` has no extension, `ext` is added as extension.
 		
-		If [path] or [ext] are null, the result is unspecified.
+		If `path` or `ext` are null, the result is unspecified.
 	**/
 	public static function withExtension( path, ext ) {
 		var s = new Path(path);
@@ -172,16 +173,16 @@ class Path {
 	}
 
 	/**
-		Adds a trailing slash to [path], if it does not have one already.
+		Adds a trailing slash to `path`, if it does not have one already.
 		
-		If the last slash in [path] is a backslash, a backslash is appended to
-		[path].
+		If the last slash in `path` is a backslash, a backslash is appended to
+		`path`.
 		
-		If the last slash in [path] is a slash, or if no slash is found, a slash
-		is appended to [path]. In particular, this applies to the empty String
+		If the last slash in `path` is a slash, or if no slash is found, a slash
+		is appended to `path`. In particular, this applies to the empty String
 		"".
 		
-		If [path] is null, the result is unspecified.
+		If `path` is null, the result is unspecified.
 	**/
 	public static function addTrailingSlash( path : String ) : String {
 		if (path.length == 0)
