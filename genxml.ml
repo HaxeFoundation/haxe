@@ -153,7 +153,7 @@ let rec exists f c =
 			| None -> false
 			| Some (csup,_) -> exists f csup
 
-let gen_type_decl com pos t =
+let rec gen_type_decl com pos t =
 	let m = (t_infos t).mt_module in
 	match t with
 	| TClassDecl c ->
@@ -192,7 +192,8 @@ let gen_type_decl com pos t =
 		let meta = gen_meta a.a_meta in
 		let sub = (match a.a_from with [] -> [] | l -> [node "from" [] (List.map (fun (t,_) -> gen_type t) l)]) in
 		let super = (match a.a_to with [] -> [] | l -> [node "to" [] (List.map (fun (t,_) -> gen_type t) l)]) in
-		node "abstract" (gen_type_params pos a.a_private (tpath t) a.a_types a.a_pos m) (sub @ super @ doc @ meta)
+		let impl = (match a.a_impl with None -> [] | Some c -> [node "impl" [] [gen_type_decl com pos (TClassDecl c)]]) in
+		node "abstract" (gen_type_params pos a.a_private (tpath t) a.a_types a.a_pos m) (sub @ super @ doc @ meta @ impl)
 
 let att_str att =
 	String.concat "" (List.map (fun (a,v) -> Printf.sprintf " %s=\"%s\"" a v) att)
