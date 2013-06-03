@@ -31,11 +31,11 @@ class FileSystem {
 		return new File(path).exists();
 	}
 
-	public static function rename( path : String, newpath : String ) : Void
+	public static function rename( path : String, newPath : String ) : Void
 	{
-		if (!new File(path).renameTo(new File(newpath)))
+		if (!new File(path).renameTo(new File(newPath)))
 		{
-			throw "Cannot rename " + path + " to " + newpath;
+			throw "Cannot rename " + path + " to " + newPath;
 		}
 	}
 
@@ -59,9 +59,9 @@ class FileSystem {
 		};
 	}
 
-	public static function fullPath( relpath : String ) : String
+	public static function fullPath( relPath : String ) : String
 	{
-		return new File(relpath).getAbsolutePath();
+		return new File(relPath).getAbsolutePath();
 	}
 
 	public static function isDirectory( path : String ) : Bool

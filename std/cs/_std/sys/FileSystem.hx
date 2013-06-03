@@ -33,9 +33,9 @@ class FileSystem {
 		return (File.Exists(path) || Directory.Exists(path));
 	}
 
-	public static function rename( path : String, newpath : String ) : Void
+	public static function rename( path : String, newPath : String ) : Void
 	{
-		Directory.Move(path, newpath);
+		Directory.Move(path, newPath);
 	}
 
 	public static function stat( path : String ) : FileStat
@@ -77,9 +77,9 @@ class FileSystem {
 
 	}
 
-	public static function fullPath( relpath : String ) : String
+	public static function fullPath( relPath : String ) : String
 	{
-		return new FileInfo(relpath).FullName;
+		return new FileInfo(relPath).FullName;
 	}
 
 	public static function isDirectory( path : String ) : Bool
