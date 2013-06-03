@@ -752,7 +752,7 @@ and gen_uncertain_string_call ctx s e el =
 
 and gen_field_op ctx e =
 	match e.eexpr with
-	| TField (f,s) ->
+	| TField (f,((FStatic _ | FInstance _ | FAnon _ | FClosure _ | FEnum _ | FDynamic _) as s)) ->
 		(match follow e.etype with
 		| TFun _ ->
 			gen_field_access ctx true f (field_name s)
@@ -1048,13 +1048,13 @@ and gen_expr ctx e =
 				spr ctx "->a[";
 				gen_value ctx te2;
 				spr ctx "]";
-			| TField (e1,s) ->
+			| TField (e1,((FStatic _ | FInstance _ | FAnon _ | FClosure _ | FEnum _ | FDynamic _) as s)) ->
 				gen_field_access ctx true e1 (field_name s)
 			| _ ->
 				gen_field_op ctx e1;) in
 		let leftsidef e =
 			(match e.eexpr with
-			| TField (e1,s) ->
+			| TField (e1,((FStatic _ | FInstance _ | FAnon _ | FClosure _ | FEnum _ | FDynamic _) as s)) ->
 				gen_field_access ctx true e1 (field_name s)
 			| _ ->
 				gen_field_op ctx e1;
@@ -1162,7 +1162,7 @@ and gen_expr ctx e =
 				|| e2.eexpr = TConst (TNull)
 			then begin
 				(match e1.eexpr with
-				| TField (f, s) when is_anonym_expr e1 || is_unknown_expr e1 ->
+				| TField (f, ((FStatic _ | FInstance _ | FAnon _ | FClosure _ | FEnum _ | FDynamic _) as s)) when is_anonym_expr e1 || is_unknown_expr e1 ->
 					spr ctx "_hx_field(";
 					gen_value ctx f;
 					print ctx ", \"%s\")" (field_name s);
@@ -1172,7 +1172,7 @@ and gen_expr ctx e =
 				spr ctx s_phop;
 
 				(match e2.eexpr with
-				| TField (f, s) when is_anonym_expr e2 || is_unknown_expr e2 ->
+				| TField (f, ((FStatic _ | FInstance _ | FAnon _ | FClosure _ | FEnum _ | FDynamic _) as s)) when is_anonym_expr e2 || is_unknown_expr e2 ->
 					spr ctx "_hx_field(";
 					gen_value ctx f;
 					print ctx ", \"%s\")" (field_name s);
@@ -1450,7 +1450,7 @@ and gen_expr ctx e =
 				gen_value ctx te2;
 				spr ctx "]";
 			);
-		| TField (e1,s) ->
+		| TField (e1,((FStatic _ | FInstance _ | FAnon _ | FClosure _ | FEnum _ | FDynamic _) as s)) ->
 			spr ctx (Ast.s_unop op);
 			gen_field_access ctx true e1 (field_name s)
 		| _ ->
@@ -1463,7 +1463,7 @@ and gen_expr ctx e =
 			spr ctx "->a[";
 			gen_value ctx te2;
 			spr ctx "]";
-		| TField (e1,s) ->
+		| TField (e1,((FStatic _ | FInstance _ | FAnon _ | FClosure _ | FEnum _ | FDynamic _) as s)) ->
 			gen_field_access ctx true e1 (field_name s)
 		| _ ->
 			gen_value ctx e);
