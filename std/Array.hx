@@ -235,6 +235,22 @@ extern class Array<T> {
 	**/
 	function iterator() : Iterator<T>;
 
+	/**
+		Creates a new Array by applying function `f` to all elements of `this`.
+		
+		The order of elements is preserved.
+		
+		If `f` is null, the result is unspecified.
+	**/	
 	function map<S>( f : T -> S ) : Array<S>;
+	
+	/**
+		Returns an Array containing those elements of `this` for which `f`
+		returned true.
+
+		The individual elements are not duplicated and retain their identity.
+		
+		If `f` is null, the result is unspecified.
+	**/	
 	function filter( f : T -> Bool ) : Array<T>;
 }
