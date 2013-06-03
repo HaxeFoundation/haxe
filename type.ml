@@ -127,6 +127,7 @@ and texpr_expr =
 	| TThrow of texpr
 	| TCast of texpr * module_type option
 	| TMeta of metadata_entry * texpr
+	| TEnumParameter of texpr * int
 
 and tfield_access =
 	| FInstance of tclass * tclass_field
@@ -135,7 +136,6 @@ and tfield_access =
 	| FDynamic of string
 	| FClosure of tclass option * tclass_field (* None class = TAnon *)
 	| FEnum of tenum * tenum_field
-	| FEnumParameter of tenum_field * int
 
 and texpr = {
 	eexpr : texpr_expr;
@@ -333,7 +333,7 @@ let fun_args l = List.map (fun (a,c,t) -> a, c <> None, t) l
 let field_name f =
 	match f with
 	| FAnon f | FInstance (_,f) | FStatic (_,f) | FClosure (_,f) -> f.cf_name
-	| FEnum (_,f) | FEnumParameter (f,_) -> f.ef_name
+	| FEnum (_,f) -> f.ef_name
 	| FDynamic n -> n
 
 let extract_field = function
@@ -1308,6 +1308,7 @@ let iter f e =
 		f e2;
 	| TThrow e
 	| TField (e,_)
+	| TEnumParameter (e,_)
 	| TParenthesis e
 	| TCast (e,_)
 	| TUnop (_,_,e)
@@ -1376,6 +1377,8 @@ let map_expr f e =
 		{ e with eexpr = TWhile (f e1,f e2,flag) }
 	| TThrow e1 ->
 		{ e with eexpr = TThrow (f e1) }
+	| TEnumParameter (e1,i) ->
+		 { e with eexpr = TEnumParameter(f e1,i) }
 	| TField (e1,v) ->
 		{ e with eexpr = TField (f e1,v) }
 	| TParenthesis e1 ->
@@ -1438,6 +1441,8 @@ let map_expr_type f ft fv e =
 		{ e with eexpr = TWhile (f e1,f e2,flag); etype = ft e.etype }
 	| TThrow e1 ->
 		{ e with eexpr = TThrow (f e1); etype = ft e.etype }
+	| TEnumParameter (e1,i) ->
+		{ e with eexpr = TEnumParameter(f e1,i); etype = ft e.etype }
 	| TField (e1,v) ->
 		{ e with eexpr = TField (f e1,v); etype = ft e.etype }
 	| TParenthesis e1 ->
@@ -1495,6 +1500,7 @@ let s_expr_kind e =
 	| TLocal _ -> "Local"
 	| TArray (_,_) -> "Array"
 	| TBinop (_,_,_) -> "Binop"
+	| TEnumParameter (_,_) -> "EnumParameter"
 	| TField (_,_) -> "Field"
 	| TTypeExpr _ -> "TypeExpr"
 	| TParenthesis _ -> "Parenthesis"
@@ -1542,6 +1548,8 @@ let rec s_expr s_type e =
 		sprintf "%s[%s]" (loop e1) (loop e2)
 	| TBinop (op,e1,e2) ->
 		sprintf "(%s %s %s)" (loop e1) (s_binop op) (loop e2)
+	| TEnumParameter (e1,i) ->
+		sprintf "%s[%i]" (loop e1) i
 	| TField (e,f) ->
 		let fstr = (match f with
 			| FStatic (c,f) -> "static(" ^ s_type_path c.cl_path ^ "." ^ f.cf_name ^ ")"
@@ -1550,7 +1558,6 @@ let rec s_expr s_type e =
 			| FAnon f -> "anon(" ^ f.cf_name ^ ")"
 			| FEnum (en,f) -> "enum(" ^ s_type_path en.e_path ^ "." ^ f.ef_name ^ ")"
 			| FDynamic f -> "dynamic(" ^ f ^ ")"
-			| FEnumParameter (f,i) -> "enumParam(" ^ f.ef_name ^ "," ^ (string_of_int i) ^ ")"
 		) in
 		sprintf "%s.%s" (loop e) fstr
 	| TTypeExpr m ->
@@ -1630,6 +1637,7 @@ let rec s_expr_pretty tabs s_type e =
 	| TLocal v -> v.v_name
 	| TArray (e1,e2) -> sprintf "%s[%s]" (loop e1) (loop e2)
 	| TBinop (op,e1,e2) -> sprintf "%s %s %s" (loop e1) (s_binop op) (loop e2)
+	| TEnumParameter (e1,i) -> sprintf "%s[%i]" (loop e1) i
 	| TField (e1,s) -> sprintf "%s.%s" (loop e1) (field_name s)
 	| TTypeExpr mt -> (s_type_path (t_path mt))
 	| TParenthesis e1 -> sprintf "(%s)" (loop e1)

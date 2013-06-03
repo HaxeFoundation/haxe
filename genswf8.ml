@@ -588,7 +588,7 @@ let rec gen_access ?(read_write=false) ctx forcall e =
 		if read_write then assert false;
 		push ctx [VStr (f,is_protected ctx e.etype f)];
 		VarClosure
-	| TField (e,FEnumParameter(_,i)) ->
+	| TEnumParameter(e,i) ->
 		gen_expr ctx true e;
 		push ctx [VInt i];
 		VarObj
@@ -974,6 +974,7 @@ and gen_expr_2 ctx retval e =
 	match e.eexpr with
 	| TConst TSuper
 	| TConst TThis
+	| TEnumParameter _
 	| TField _
 	| TArray _
 	| TLocal _

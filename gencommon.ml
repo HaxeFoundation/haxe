@@ -110,7 +110,7 @@ struct
   let mk_heexpr = function
     | TConst _ -> 0 | TLocal _ -> 1 | TArray _ -> 3 | TBinop _ -> 4 | TField _ -> 5 | TTypeExpr _ -> 7 | TParenthesis _ -> 8 | TObjectDecl _ -> 9
     | TArrayDecl _ -> 10 | TCall _ -> 11 | TNew _ -> 12 | TUnop _ -> 13 | TFunction _ -> 14 | TVars _ -> 15 | TBlock _ -> 16 | TFor _ -> 17 | TIf _ -> 18 | TWhile _ -> 19
-    | TSwitch _ -> 20 | TPatMatch _ -> 21 | TTry _ -> 22 | TReturn _ -> 23 | TBreak -> 24 | TContinue -> 25 | TThrow _ -> 26 | TCast _ -> 27 | TMeta _ -> 28
+    | TSwitch _ -> 20 | TPatMatch _ -> 21 | TTry _ -> 22 | TReturn _ -> 23 | TBreak -> 24 | TContinue -> 25 | TThrow _ -> 26 | TCast _ -> 27 | TMeta _ -> 28 | TEnumParameter _ -> 29
 
   let mk_heetype = function
     | TMono _ -> 0 | TEnum _ -> 1 | TInst _ -> 2 | TType _ -> 3 | TFun _ -> 4
@@ -4655,6 +4655,7 @@ struct
       | TArray _
       | TBinop _
       | TField _
+      | TEnumParameter _
       | TTypeExpr _
       | TObjectDecl _
       | TArrayDecl _
@@ -8583,7 +8584,7 @@ struct
     let traverse gen t opt_get_native_enum_tag =
       let rec run e =
         match e.eexpr with
-          | TField(f, FEnumParameter(ef, i)) ->
+          | TEnumParameter(f, i) ->
             let f = run f in
             (* check if en was converted to class *)
             (* if it was, switch on tag field and change cond type *)

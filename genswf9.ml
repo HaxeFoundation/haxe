@@ -862,7 +862,7 @@ let rec gen_access ctx e (forset : 'a) : 'a access =
 		let id, _, _ = property ctx f e1.etype in
 		write ctx HThis;
 		VSuper id
-	| TField (e1,FEnumParameter(ef,i)) ->
+	| TEnumParameter (e1,i) ->
 		gen_expr ctx true e1;
 		write ctx (HGetProp (ident "params"));
 		write ctx (HSmallInt i);
@@ -1038,6 +1038,7 @@ let rec gen_expr_content ctx retval e =
 		ctx.infos.icond <- true;
 		no_value ctx retval
 	| TField _
+	| TEnumParameter _
 	| TLocal _
 	| TTypeExpr _ ->
 		getvar ctx (gen_access ctx e Read)

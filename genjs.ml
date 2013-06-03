@@ -449,10 +449,13 @@ and gen_expr ctx e =
 			print ctx "($_=";
 			gen_value ctx x;
 			print ctx ",$bind($_,$_%s))" (field f.cf_name))
+	| TEnumParameter (x,i) ->
+		gen_value ctx x;
+		print ctx "[%i]" (i + 2)
 	| TField (x,f) ->
 		gen_value ctx x;
 		let name = field_name f in
-		spr ctx (match f with FStatic _ | FEnum _ -> static_field name | FInstance _ | FAnon _ | FDynamic _ | FClosure _ -> field name | FEnumParameter(f,i) -> "[" ^ (string_of_int (i + 2)) ^ "]")
+		spr ctx (match f with FStatic _ | FEnum _ -> static_field name | FInstance _ | FAnon _ | FDynamic _ | FClosure _ -> field name)
 	| TTypeExpr t ->
 		spr ctx (ctx.type_accessor t)
 	| TParenthesis e ->
@@ -735,6 +738,7 @@ and gen_value ctx e =
 	| TArray _
 	| TBinop _
 	| TField _
+	| TEnumParameter _
 	| TTypeExpr _
 	| TParenthesis _
 	| TMeta _
