@@ -41,7 +41,7 @@ class EReg {
 	/**
 		Creates a new regular expression with pattern `r` and modifiers `opt`.
 		
-		This is equivalent to the shorthand syntax ~/r/opt
+		This is equivalent to the shorthand syntax `~/r/opt`
 		
 		If `r` or `opt` are null, the result is unspecified.
 	**/
@@ -54,7 +54,7 @@ class EReg {
 		
 		This method modifies the internal state.
 		
-		If `s` is null, the result is unspecified.
+		If `s` is `null`, the result is unspecified.
 	**/
 	public function match( s : String ) : Bool {
 		return false;
