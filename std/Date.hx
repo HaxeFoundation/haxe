@@ -112,9 +112,9 @@ extern class Date
 		Returns a Date from a formated string `s`, with the following accepted
 		formats:
 		
-		- [YYYY-MM-DD hh:mm:ss]
-		- [YYYY-MM-DD]
-		- [hh:mm:ss]
+		- `"YYYY-MM-DD hh:mm:ss"`
+		- `"YYYY-MM-DD"`
+		- `"hh:mm:ss"`
 		
 		The first two formats are expressed in local time, the third in UTC
 		Epoch.
@@ -188,4 +188,3 @@ extern class Date
 	}
 #end
 }
-
