@@ -91,6 +91,14 @@ let gen_meta meta =
 		) meta in
 		[node "meta" [] nodes]
 
+let unfold_overloads cfl =
+	let acc = DynArray.create () in
+	List.iter (fun cf ->
+		DynArray.add acc cf;
+		List.iter (fun cf -> DynArray.add acc cf) cf.cf_overloads
+	) cfl;
+	DynArray.to_list acc
+
 let rec gen_type t =
 	match t with
 	| TMono m -> (match !m with None -> tag "unknown" | Some t -> gen_type t)
@@ -157,13 +165,13 @@ let rec gen_type_decl com pos t =
 	let m = (t_infos t).mt_module in
 	match t with
 	| TClassDecl c ->
-		let stats = List.map (gen_field ["static","1"]) (List.filter (fun cf -> cf.cf_name <> "__meta__") c.cl_ordered_statics) in
+		let stats = List.map (gen_field ["static","1"]) (List.filter (fun cf -> cf.cf_name <> "__meta__") (unfold_overloads c.cl_ordered_statics)) in
 		let fields = (match c.cl_super with
-			| None -> List.map (fun f -> f,[]) c.cl_ordered_fields
-			| Some (csup,_) -> List.map (fun f -> if exists f csup then (f,["override","1"]) else (f,[])) c.cl_ordered_fields
+			| None -> List.map (fun f -> f,[]) (unfold_overloads c.cl_ordered_fields)
+			| Some (csup,_) -> List.map (fun f -> if exists f csup then (f,["override","1"]) else (f,[])) (unfold_overloads c.cl_ordered_fields)
 		) in
 		let fields = List.map (fun (f,att) -> gen_field att f) fields in
-		let constr = (match c.cl_constructor with None -> [] | Some f -> [gen_field [] f]) in
+		let constr = (match c.cl_constructor with None -> [] | Some f -> List.map (gen_field []) (unfold_overloads [f])) in
 		let impl = List.map (gen_class_path (if c.cl_interface then "extends" else "implements")) c.cl_implements in
 		let tree = (match c.cl_super with
 			| None -> impl
