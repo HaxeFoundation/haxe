@@ -125,7 +125,11 @@ and gen_field att f =
 			| MethInline -> ("get", "inline") :: ("set","null") :: att)
 	) in
 	let att = (match f.cf_params with [] -> att | l -> ("params", String.concat ":" (List.map (fun (n,_) -> n) l)) :: att) in
-	node f.cf_name (if f.cf_public then ("public","1") :: att else att) (gen_type f.cf_type :: gen_meta f.cf_meta @ gen_doc_opt f.cf_doc)
+	let overloads = match List.map (gen_field []) f.cf_overloads with
+		| [] -> []
+		| nl -> [node "overloads" [] nl]
+	in
+	node f.cf_name (if f.cf_public then ("public","1") :: att else att) (gen_type f.cf_type :: gen_meta f.cf_meta @ gen_doc_opt f.cf_doc @ overloads)
 
 let gen_constr e =
 	let doc = gen_doc_opt e.ef_doc in

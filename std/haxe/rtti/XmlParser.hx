@@ -332,6 +332,14 @@ class XmlParser {
 		}
 		return ml;
 	}
+	
+	function xoverloads( x : Fast ) : List<ClassField> {
+		var l = new List();
+		for ( m in x.elements ) {
+			l.add(xclassfield(m));
+		}
+		return l;
+	}
 
 	function xpath( x : Fast ) : PathParams {
 		var path = mkPath(x.att.path);
@@ -389,10 +397,12 @@ class XmlParser {
 		var t = xtype(e.next());
 		var doc = null;
 		var meta = [];
+		var overloads = null;
 		for( c in e )
 			switch( c.name ) {
 			case "haxe_doc": doc = c.innerData;
 			case "meta": meta = xmeta(c);
+			case "overloads": overloads = xoverloads(c);
 			default: xerror(c);
 			}
 		return {
@@ -407,6 +417,7 @@ class XmlParser {
 			params : if( x.has.params ) mkTypeParams(x.att.params) else null,
 			platforms : defplat(),
 			meta : meta,
+			overloads: overloads
 		};
 	}
 

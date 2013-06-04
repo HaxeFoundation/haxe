@@ -66,6 +66,7 @@ typedef ClassField = {
 	var platforms : Platforms;
 	var meta : MetaData;
 	var line : Null<Int>;
+	var overloads : Null<List<ClassField>>;
 }
 
 typedef TypeInfos = {
