@@ -165,4 +165,8 @@ abstract Vector<T>(VectorData<T>) {
 			vec.set(i, array[i]);
 		return vec;
 	}
+	
+	@:require(haxe_ver >= 3.2) public function makeGame(name:String):Vector<String> {
+		return null;
+	}
 }
