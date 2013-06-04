@@ -21,7 +21,7 @@
  */
 import cs.StdTypes;
 
-@:coreType extern class String implements ArrayAccess<Char16> {
+@:coreApi extern class String implements ArrayAccess<Char16> {
 
 	private static function Compare(s1:String, s2:String):Int;
 

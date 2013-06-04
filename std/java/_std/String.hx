@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-extern class String implements java.lang.CharSequence {
+@:coreApi extern class String implements java.lang.CharSequence {
 
 	var length(default,null) : Int;
 
