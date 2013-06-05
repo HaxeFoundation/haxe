@@ -881,7 +881,7 @@ let rec return_flow ctx e =
 	| TSwitch (v,cases,Some e) ->
 		List.iter (fun (_,e) -> return_flow e) cases;
 		return_flow e
-	| TSwitch (e,cases,None) when (match follow e.etype with TEnum _ -> true | _ -> false) ->
+	| TSwitch ({eexpr = TMeta((Meta.Exhaustive,_,_),_)},cases,None) ->
 		List.iter (fun (_,e) -> return_flow e) cases;
 	| TPatMatch dt ->
 		let rec loop d = match d with
