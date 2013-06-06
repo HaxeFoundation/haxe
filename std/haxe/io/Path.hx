@@ -36,7 +36,7 @@ class Path {
 		This is the leading part of the path that is not part of the file name
 		and the extension.
 		
-		Does not end with a / or \ separator.
+		Does not end with a `/` or `\` separator.
 		
 		If the path has no directory, the value is null.
 	**/
@@ -195,6 +195,24 @@ class Path {
 		} else {
 			if (c1 != path.length - 1) path + "/";
 			else path;
+		}
+	}
+	
+	/**
+		Removes a trailing slash from `path` if it exists.
+		
+		If `path` does not end with a `/` or `\`, `path` is returned unchanged.
+		
+		Otherwise the substring of `path` excluding the trailing slash or
+		backslash is returned.
+		
+		If `path` is null, the result is unspecified.
+	**/
+	@:require(haxe_ver >= 3.1)
+	public static function removeTrailingSlash ( path : String ) : String {
+		return switch(path.charCodeAt(path.length - 1)) {
+			case '/'.code | '\\'.code: path.substr(0, -1);
+			case _: path;
 		}
 	}
 }
