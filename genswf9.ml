@@ -1038,11 +1038,11 @@ let rec gen_expr_content ctx retval e =
 		ctx.infos.icond <- true;
 		no_value ctx retval
 	| TField _
-	| TEnumParameter _
 	| TLocal _
 	| TTypeExpr _ ->
 		getvar ctx (gen_access ctx e Read)
-	| TArray _ ->
+	(* both accesses return dynamic so let's cast them to the real type *)
+	| TEnumParameter _ | TArray _ ->
 		getvar ctx (gen_access ctx e Read);
 		coerce ctx (classify ctx e.etype)
 	| TBinop (op,e1,e2) ->
