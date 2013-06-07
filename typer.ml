@@ -1881,102 +1881,6 @@ and type_unop ctx op flag e p =
 
 and type_switch_old ctx e cases def with_type p =
 	let eval = type_expr ctx e Value in
-	let old_m = ctx.m in
-	let enum = ref None in
-	let used_cases = Hashtbl.create 0 in
-	let is_fake_enum e =
-		e.e_path = ([],"Bool") || Meta.has Meta.FakeEnum e.e_meta
-	in
-	(match follow eval.etype with
-	| TEnum (e,_) when is_fake_enum e -> ()
-	| TEnum (e,params) ->
-		enum := Some (Some (e,params));
-		(* hack to prioritize enum lookup *)
-		ctx.m <- { ctx.m with module_types = TEnumDecl e :: ctx.m.module_types }
-	| TMono _ ->
-		enum := Some None;
-	| t ->
-		if t == t_dynamic then enum := Some None
-	);
-	let case_expr c =
-		enum := None;
-		(* this inversion is needed *)
-		unify ctx eval.etype c.etype c.epos;
-		CExpr c
-	in
-	let type_match e en s pl =
-		let p = e.epos in
-		let params = (match !enum with
-			| None ->
-				assert false
-			| Some None when is_fake_enum en ->
-				raise Exit
-			| Some None ->
-				let params = List.map (fun _ -> mk_mono()) en.e_types in
-				enum := Some (Some (en,params));
-				unify ctx eval.etype (TEnum (en,params)) p;
-				params
-			| Some (Some (en2,params)) ->
-				if en != en2 then error ("This constructor is part of enum " ^ s_type_path en.e_path ^ " but is matched with enum " ^ s_type_path en2.e_path) p;
-				params
-		) in
-		if Hashtbl.mem used_cases s then error "This constructor has already been used" p;
-		Hashtbl.add used_cases s ();
-		let cst = (try PMap.find s en.e_constrs with Not_found -> assert false) in
-		let et = apply_params en.e_types params (monomorphs cst.ef_params cst.ef_type) in
-		let pl, rt = (match et with
-		| TFun (l,rt) ->
-			let pl = (if List.length l = List.length pl then pl else
-				match pl with
-				| [None] -> List.map (fun _ -> None) l
-				| _ -> error ("This constructor requires " ^ string_of_int (List.length l) ^ " arguments") p
-			) in
-			Some (List.map2 (fun p (_,_,t) -> match p with None -> None | Some p -> Some (p, t)) pl l), rt
-		| TEnum _ ->
-			if pl <> [] then error "This constructor does not require any argument" p;
-			None, et
-		| _ -> assert false
-		) in
-		unify ctx rt eval.etype p;
-		CMatch (cst,pl,p)
-	in
-	let type_case efull e pl p =
-		try
-			let e = (match !enum, e with
-			| None, _ -> raise Exit
-			| Some (Some (en,params)), (EConst (Ident i),p) ->
-				let ef = (try
-					PMap.find i en.e_constrs
-				with Not_found ->
-					display_error ctx ("This constructor is not part of the enum " ^ s_type_path en.e_path) p;
-					raise Exit
-				) in
-				mk (fast_enum_field en ef p) (apply_params en.e_types params ef.ef_type) (snd e)
-			| _ ->
-				type_expr ctx e Value
-			) in
-			let pl = List.map (fun e ->
-				match fst e with
-				| EConst (Ident "_") -> None
-				| EConst (Ident i) -> Some i
-				| _ -> raise Exit
-			) pl in
-			(match e.eexpr with
-			| TField (_,FEnum (en,c)) -> type_match e en c.ef_name pl
-			| _ -> if pl = [] then case_expr e else raise Exit)
-		with Exit ->
-			case_expr (type_expr ctx efull Value)
-	in
-	let cases = List.map (fun (el,eg,e2) ->
-		if el = [] then error "Case must match at least one expression" (punion_el el);
-		let el = List.map (fun e ->
-			match e with
-			| (ECall (c,pl),p) -> type_case e c pl p
-			| e -> type_case e e [] (snd e)
-		) el in
-		el, e2
-	) cases in
-	ctx.m <- old_m;
 	let el = ref [] in
 	let type_case_code e =
 		let e = (match e with
@@ -1986,6 +1890,23 @@ and type_switch_old ctx e cases def with_type p =
 		el := e :: !el;
 		e
 	in
+	let consts = Hashtbl.create 0 in
+	let exprs (el,_,e) =
+		let el = List.map (fun e ->
+			match type_expr ctx e (WithType eval.etype) with
+			| { eexpr = TConst c } as e ->
+				if Hashtbl.mem consts c then error "Duplicate constant in switch" e.epos;
+				Hashtbl.add consts c true;
+				e
+			| e ->
+				e
+		) el in
+		let locals = save_locals ctx in
+		let e = type_case_code e in
+		locals();
+		el, e
+	in
+	let cases = List.map exprs cases in
 	let def() = (match def with
 		| None -> None
 		| Some e ->
@@ -1994,96 +1915,17 @@ and type_switch_old ctx e cases def with_type p =
 			locals();
 			Some e
 	) in
-	match !enum with
-	| Some (Some (enum,enparams)) ->
-		let same_params p1 p2 =
-			let l1 = (match p1 with None -> [] | Some l -> l) in
-			let l2 = (match p2 with None -> [] | Some l -> l) in
-			let rec loop = function
-				| [] , [] -> true
-				| None :: l , [] | [] , None :: l -> loop (l,[])
-				| None :: l1, None :: l2 -> loop (l1,l2)
-				| Some (n1,t1) :: l1, Some (n2,t2) :: l2 ->
-					n1 = n2 && type_iseq t1 t2 && loop (l1,l2)
-				| _ -> false
-			in
-			loop (l1,l2)
-		in
-		let matchs (el,e) =
-			match el with
-			| CMatch (c,params,p1) :: l ->
-				let params = ref params in
-				let cl = List.map (fun c ->
-					match c with
-					| CMatch (c,p,p2) ->
-						if not (same_params p !params) then display_error ctx "Constructors parameters differs : should be same name, same type, and same position" p2;
-						if p <> None then params := p;
-						c
-					| _ -> assert false
-				) l in
-				let locals = save_locals ctx in
-				let params = (match !params with
-					| None -> None
-					| Some l ->
-						let has = ref false in
-						let l = List.map (fun v ->
-							match v with
-							| None -> None
-							| Some (v,t) -> has := true; Some (add_local ctx v t)
-						) l in
-						if !has then Some l else None
-				) in
-				let e = type_case_code e in
-				locals();
-				(c :: cl) , params, e
-			| _ ->
-				assert false
-		in
-		let indexes (el,vars,e) =
-			List.map (fun c -> c.ef_index) el, vars, e
-		in
-		let cases = List.map matchs cases in
-		let def = def() in
-		(match def with
-		| Some _ -> ()
-		| None ->
-			let tenum = TEnum(enum,enparams) in
-			let l = PMap.fold (fun c acc ->
-				let t = monomorphs enum.e_types (monomorphs c.ef_params (match c.ef_type with TFun (_,t) -> t | t -> t)) in
-				if Hashtbl.mem used_cases c.ef_name || not (try unify_raise ctx t tenum c.ef_pos; true with Error (Unify _,_) -> false) then acc else c.ef_name :: acc
-			) enum.e_constrs [] in
-			match l with
-			| [] -> ()
-			| _ -> display_error ctx ("Some constructors are not matched : " ^ String.concat "," l) p
-		);
-		let t = if with_type = NoValue then (mk_mono()) else unify_min ctx (List.rev !el) in
-		mk (TMatch (eval,(enum,enparams),List.map indexes cases,def)) t p
-	| _ ->
-		let consts = Hashtbl.create 0 in
-		let exprs (el,e) =
-			let el = List.map (fun c ->
-				match c with
-				| CExpr (({ eexpr = TConst c }) as e) ->
-					if Hashtbl.mem consts c then error "Duplicate constant in switch" e.epos;
-					Hashtbl.add consts c true;
-					e
-				| CExpr c -> c
-				| CMatch (_,_,p) -> error "You cannot use a normal switch on an enum constructor" p
-			) el in
-			let locals = save_locals ctx in
-			let e = type_case_code e in
-			locals();
-			el, e
-		in
-		let cases = List.map exprs cases in
-		let def = def() in
-		let t = if with_type = NoValue then (mk_mono()) else unify_min ctx (List.rev !el) in
-		mk (TSwitch (eval,cases,def)) t p
+	let def = def() in
+	let t = if with_type = NoValue then (mk_mono()) else unify_min ctx (List.rev !el) in
+	mk (TSwitch (eval,cases,def)) t p
 
-and type_switch ctx e cases def (with_type:with_type) p =
+and type_switch ctx e cases def with_type p =
 	try
-		if (Common.defined ctx.com Common.Define.NoPatternMatching) then raise Exit;
-		match_expr ctx e cases def with_type p
+		let dt = match_expr ctx e cases def with_type p in
+		if not ctx.in_macro && not (Common.defined ctx.com Define.Interp) && ctx.com.config.pf_pattern_matching then
+			mk (TPatMatch dt) dt.dt_type p
+		else
+			Codegen.PatternMatchConversion.to_typed_ast ctx dt p
 	with Exit ->
 		type_switch_old ctx e cases def with_type p
 
@@ -3435,9 +3277,9 @@ let generate ctx =
 				end
 			in
 			loop c
-		| TMatch (_,(enum,_),_,_) ->
+(* 		| TMatch (_,(enum,_),_,_) ->
 			loop_enum p enum;
-			iter (walk_expr p) e
+			iter (walk_expr p) e *)
 		| TCall (f,_) ->
 			iter (walk_expr p) e;
 			(* static call for initializing a variable *)
@@ -4163,3 +4005,4 @@ unify_min_ref := unify_min;
 make_call_ref := make_call;
 get_constructor_ref := get_constructor;
 check_abstract_cast_ref := Codegen.Abstract.check_cast;
+type_module_type_ref := type_module_type;

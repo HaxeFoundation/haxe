@@ -288,8 +288,8 @@ struct
       | TBlock bl -> is_final_return_block is_switch bl
       | TSwitch (_, el_e_l, edef) ->
         List.for_all (fun (_,e) -> is_final_return_expr e) el_e_l && Option.map_default is_final_return_expr false edef
-      | TMatch (_, _, il_vl_e_l, edef) ->
-        List.for_all (fun (_,_,e) -> is_final_return_expr e)il_vl_e_l && Option.map_default is_final_return_expr false edef
+(*       | TMatch (_, _, il_vl_e_l, edef) ->
+        List.for_all (fun (_,_,e) -> is_final_return_expr e)il_vl_e_l && Option.map_default is_final_return_expr false edef *)
       | TIf (_,eif, Some eelse) ->
         is_final_return_expr eif && is_final_return_expr eelse
       | TFor (_,_,e) ->
@@ -1012,7 +1012,7 @@ let configure gen =
     match e.eexpr with
       | TLocal { v_name = "__fallback__" }
       | TCall ({ eexpr = TLocal( { v_name = "__label__" } ) }, [ { eexpr = TConst(TInt _) } ] ) -> false
-      | TBlock _ | TFor _ | TSwitch _ | TMatch _ | TTry _ | TIf _ -> false
+      | TBlock _ | TFor _ | TSwitch _ | TPatMatch _ | TTry _ | TIf _ -> false
       | TWhile (_,_,flag) when flag = Ast.NormalWhile -> false
       | _ -> true
   in
@@ -1390,7 +1390,8 @@ let configure gen =
           if !strict_mode then assert false
         | TObjectDecl _ -> write w "[ obj decl not supported ]"; if !strict_mode then assert false
         | TFunction _ -> write w "[ func decl not supported ]"; if !strict_mode then assert false
-        | TMatch _ -> write w "[ match not supported ]"; if !strict_mode then assert false
+        | TPatMatch _ -> write w "[ match not supported ]"; if !strict_mode then assert false
+        | TEnumParameter _ -> write w "[ enum parameter not supported ]"; if !strict_mode then assert false
     in
     expr_s w e
   in

@@ -276,7 +276,7 @@ let rec type_str ctx t p =
 let rec iter_switch_break in_switch e =
 	match e.eexpr with
 	| TFunction _ | TWhile _ | TFor _ -> ()
-	| TSwitch _ | TMatch _ when not in_switch -> iter_switch_break true e
+	| TSwitch _ | TPatMatch _ when not in_switch -> iter_switch_break true e
 	| TBreak when in_switch -> raise Exit
 	| _ -> iter (iter_switch_break in_switch) e
 
@@ -580,6 +580,9 @@ and gen_expr ctx e =
 		gen_expr ctx e1;
 		spr ctx ")";
 		gen_field_access ctx e1.etype (field_name s)
+	| TEnumParameter (e,i) ->
+		gen_value ctx e;
+		print ctx ".params[%i]" i;
 	| TField (e,s) ->
    		gen_value ctx e;
 		gen_field_access ctx e.etype (field_name s)
@@ -723,49 +726,7 @@ and gen_expr ctx e =
 			print ctx "catch( %s : %s )" (s_ident v.v_name) (type_str ctx v.v_type e.epos);
 			gen_expr ctx e;
 		) catchs;
-	| TMatch (e,_,cases,def) ->
-		print ctx "{";
-		let bend = open_block ctx in
-		newline ctx;
-		let tmp = gen_local ctx "$e" in
-		print ctx "var %s : enum = " tmp;
-		gen_value ctx e;
-		newline ctx;
-		print ctx "switch( %s.index ) {" tmp;
-		List.iter (fun (cl,params,e) ->
-			List.iter (fun c ->
-				newline ctx;
-				print ctx "case %d:" c;
-			) cl;
-			(match params with
-			| None | Some [] -> ()
-			| Some l ->
-				let n = ref (-1) in
-				let l = List.fold_left (fun acc v -> incr n; match v with None -> acc | Some v -> (v,!n) :: acc) [] l in
-				match l with
-				| [] -> ()
-				| l ->
-					newline ctx;
-					spr ctx "var ";
-					concat ctx ", " (fun (v,n) ->
-						print ctx "%s : %s = %s.params[%d]" (s_ident v.v_name) (type_str ctx v.v_type e.epos) tmp n;
-					) l);
-			gen_block ctx e;
-			print ctx "break";
-		) cases;
-		(match def with
-		| None -> ()
-		| Some e ->
-			newline ctx;
-			spr ctx "default:";
-			gen_block ctx e;
-			print ctx "break";
-		);
-		newline ctx;
-		spr ctx "}";
-		bend();
-		newline ctx;
-		spr ctx "}";
+	| TPatMatch dt -> assert false
 	| TSwitch (e,cases,def) ->
 		spr ctx "switch";
 		gen_value ctx (parent e);
@@ -859,6 +820,7 @@ and gen_value ctx e =
 	| TArray _
 	| TBinop _
 	| TField _
+	| TEnumParameter _
 	| TTypeExpr _
 	| TParenthesis _
 	| TMeta _
@@ -927,13 +889,7 @@ and gen_value ctx e =
 			match def with None -> None | Some e -> Some (assign e)
 		)) e.etype e.epos);
 		v()
-	| TMatch (cond,enum,cases,def) ->
-		let v = value true in
-		gen_expr ctx (mk (TMatch (cond,enum,
-			List.map (fun (constr,params,e) -> (constr,params,assign e)) cases,
-			match def with None -> None | Some e -> Some (assign e)
-		)) e.etype e.epos);
-		v()
+	| TPatMatch dt -> assert false
 	| TTry (b,catchs) ->
 		let v = value true in
 		gen_expr ctx (mk (TTry (block (assign b),

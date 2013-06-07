@@ -93,6 +93,8 @@ type platform_config = {
 	pf_add_final_return : bool;
 	(** does the platform natively support overloaded functions *)
 	pf_overload : bool;
+	(** does the platform generator handle pattern matching *)
+	pf_pattern_matching : bool;
 }
 
 type context = {
@@ -311,6 +313,7 @@ module MetaInfo = struct
 		| DynamicObject -> ":dynamicObject",("Used internally to identify the Dynamic Object implementation",[Platforms [Java;Cs]; UsedOn TClass; Internal])
 		| Enum -> ":enum",("Used internally to annotate a class that was generated from an enum",[Platforms [Java;Cs]; UsedOn TClass; Internal])
 		| EnumConstructorParam -> ":enumConstructorParam",("Used internally to annotate GADT type parameters",[UsedOn TClass; Internal])
+		| Exhaustive -> ":exhaustive",("",[Internal])
 		| Expose -> ":expose",("Makes the class available on the window object",[HasParam "?Name=Class path";UsedOn TClass;Platform Js])
 		| Extern -> ":extern",("Marks the field as extern so it is not generated",[UsedOn TClassField])
 		| FakeEnum -> ":fakeEnum",("Treat enum as collection of values of the specified type",[HasParam "Type name";UsedOn TEnum])
@@ -341,6 +344,7 @@ module MetaInfo = struct
 		| Meta -> ":meta",("Internally used to mark a class field as being the metadata field",[])
 		| Macro -> ":macro",("(deprecated)",[])
 		| MaybeUsed -> ":maybeUsed",("Internally used by DCE to mark fields that might be kept",[Internal])
+		| MatchAny -> ":matchAny",("Internally used to mark the default case when pattern matching",[Internal])
 		| MultiType -> ":multiType",("Specifies that an abstract chooses its this-type from its @:to functions",[UsedOn TAbstract])
 		| Native -> ":native",("Rewrites the path of a class or enum during generation",[HasParam "Output type path";UsedOnEither [TClass;TEnum]])
 		| NativeGen -> ":nativeGen",("Annotates that a type should be treated as if it were an extern definition - platform native",[Platforms [Java;Cs]; UsedOnEither[TClass;TEnum]])
@@ -432,6 +436,7 @@ let default_config =
 		pf_pad_nulls = false;
 		pf_add_final_return = false;
 		pf_overload = false;
+		pf_pattern_matching = false;
 	}
 
 let get_config com =
@@ -451,6 +456,7 @@ let get_config com =
 			pf_pad_nulls = false;
 			pf_add_final_return = false;
 			pf_overload = false;
+			pf_pattern_matching = false;
 		}
 	| Js ->
 		{
@@ -464,6 +470,7 @@ let get_config com =
 			pf_pad_nulls = false;
 			pf_add_final_return = false;
 			pf_overload = false;
+			pf_pattern_matching = false;
 		}
 	| Neko ->
 		{
@@ -477,6 +484,7 @@ let get_config com =
 			pf_pad_nulls = true;
 			pf_add_final_return = false;
 			pf_overload = false;
+			pf_pattern_matching = false;
 		}
 	| Flash when defined Define.As3 ->
 		{
@@ -490,6 +498,7 @@ let get_config com =
 			pf_pad_nulls = false;
 			pf_add_final_return = true;
 			pf_overload = false;
+			pf_pattern_matching = false;
 		}
 	| Flash ->
 		{
@@ -503,6 +512,7 @@ let get_config com =
 			pf_pad_nulls = false;
 			pf_add_final_return = false;
 			pf_overload = false;
+			pf_pattern_matching = false;
 		}
 	| Php ->
 		{
@@ -521,6 +531,7 @@ let get_config com =
 			pf_pad_nulls = true;
 			pf_add_final_return = false;
 			pf_overload = false;
+			pf_pattern_matching = false;
 		}
 	| Cpp ->
 		{
@@ -534,6 +545,7 @@ let get_config com =
 			pf_pad_nulls = true;
 			pf_add_final_return = true;
 			pf_overload = false;
+			pf_pattern_matching = false;
 		}
 	| Cs ->
 		{
@@ -547,6 +559,7 @@ let get_config com =
 			pf_pad_nulls = true;
 			pf_add_final_return = false;
 			pf_overload = true;
+			pf_pattern_matching = false;
 		}
 	| Java ->
 		{
@@ -560,6 +573,7 @@ let get_config com =
 			pf_pad_nulls = true;
 			pf_add_final_return = false;
 			pf_overload = true;
+			pf_pattern_matching = false;
 		}
 
 let create v args =
