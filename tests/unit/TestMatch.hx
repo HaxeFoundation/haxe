@@ -337,16 +337,16 @@ class TestMatch extends Test {
 		eq("Unmatched patterns: [_,false,_]", getErrorMessage(switch [1, true, "foo"] {
 			case [_, true, _]:
 		}));
-		var x:Null<Bool> = true;
-		eq("Unmatched patterns: null", getErrorMessage(switch x {
-			case true:
-			case false:
-		}));
-		var t:Null<Tree<String>> = null;
-		eq("Unmatched patterns: null", getErrorMessage(switch t {
-			case Leaf(_):
-			case Node(_):
-		}));		
+		//var x:Null<Bool> = true;
+		//eq("Unmatched patterns: null", getErrorMessage(switch x {
+			//case true:
+			//case false:
+		//}));
+		//var t:Null<Tree<String>> = null;
+		//eq("Unmatched patterns: null", getErrorMessage(switch t {
+			//case Leaf(_):
+			//case Node(_):
+		//}));
 	}
 
 	function testInvalidBinding() {

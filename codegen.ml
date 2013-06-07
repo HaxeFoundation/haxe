@@ -1343,6 +1343,7 @@ let check_local_vars_init e =
 				| DTBind(_,dt) -> fdt dt
 				| DTGoto _ -> ()
 			in
+			Array.iter fdt dt.dt_dt_lookup;
 			join vars !cvars
 		(* mark all reachable vars as initialized, since we don't exit the block  *)
 		| TBreak | TContinue | TReturn None ->
