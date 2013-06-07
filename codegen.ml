@@ -1581,25 +1581,6 @@ module PatternMatchConversion = struct
 		dt_lookup : dt array;
 	}
 
-	let replace_locals stack e =
-		let replace v =
-			let rec loop vl = match vl with
-				| vl :: vll -> (try snd (List.find (fun ((v2,_),st) -> v2 == v) vl) with Not_found -> loop vll)
-				| [] -> raise Not_found
-			in
-			loop stack
-		in
-		let rec loop e = match e.eexpr with
-			| TLocal v ->
-				begin try
-					let e2 = replace v in
-					Type.unify e.etype e2.etype;
-					e2
-				with Not_found -> e end
-			| _ -> Type.map_expr loop e
-		in
-		loop e
-
 	let group_cases cases =
 		let dt_eq dt1 dt2 = match dt1,dt2 with
 			| DTGoto i1, DTGoto i2 when i1 = i2 -> true
@@ -1626,14 +1607,17 @@ module PatternMatchConversion = struct
 			cctx.eval_stack <- bl :: cctx.eval_stack;
 			let e = convert_dt cctx dt in
 			cctx.eval_stack <- List.tl cctx.eval_stack;
-			e
+			mk (TBlock [
+				mk (TVars (List.map (fun ((v,_),e) -> v,Some e) bl)) cctx.ctx.t.tvoid e.epos;
+				e
+			]) e.etype e.epos
 		| DTGoto i ->
 			convert_dt cctx (cctx.dt_lookup.(i))
 		| DTExpr e ->
-			replace_locals cctx.eval_stack e
+			e
 		| DTGuard(e,dt1,dt2) ->
 			let ethen = convert_dt cctx dt1 in
-			mk (TIf(replace_locals cctx.eval_stack e,ethen,match dt2 with None -> None | Some dt -> Some (convert_dt cctx dt))) ethen.etype (punion e.epos ethen.epos)
+			mk (TIf(e,ethen,match dt2 with None -> None | Some dt -> Some (convert_dt cctx dt))) ethen.etype (punion e.epos ethen.epos)
 		| DTSwitch(e_st,cl) ->
 			let def = ref None in
 			let cases = List.filter (fun (e,dt) ->
