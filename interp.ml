@@ -1705,7 +1705,7 @@ let std_lib =
 				if i < 0 then
 					acc
 				else
-					let e, v = ExtString.String.split "=" env.(i) in
+					let e, v = ExtString.String.split env.(i) "=" in
 					loop (VArray [|VString e;VString v;acc|]) (i - 1)
 			in
 			loop VNull (Array.length env - 1)
