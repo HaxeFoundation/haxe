@@ -1226,6 +1226,9 @@ and gen_expr ctx e =
 			print ctx " %s " (Ast.s_binop op);
 			gen_value_op ctx e2;
 		));
+	| TEnumParameter(e1,i) ->
+		gen_value ctx e1;
+		print ctx "->params[%d]" i;
 	| TField (e1,s) ->
 		gen_tfield ctx e e1 (field_name s)
 	| TTypeExpr t ->
@@ -1300,7 +1303,7 @@ and gen_expr ctx e =
 				| TThrow _
 				| TWhile _
 				| TFor _
-				| TMatch _
+				| TPatMatch _
 				| TTry _
 				| TBreak
 				| TBlock _ ->
@@ -1314,7 +1317,7 @@ and gen_expr ctx e =
 					| TThrow _
 					| TWhile _
 					| TFor _
-					| TMatch _
+					| TPatMatch _
 					| TTry _
 					| TBlock _ -> ()
 					| _ ->
@@ -1582,55 +1585,7 @@ and gen_expr ctx e =
 		bend();
 		newline ctx;
 		spr ctx "}"
-	| TMatch (e,_,cases,def) ->
-		let b = save_locals ctx in
-		let tmp = define_local ctx "__hx__t" in
-		print ctx "$%s = " tmp;
-		gen_value ctx e;
-		newline ctx;
-		print ctx "switch($%s->index) {" tmp;
-		let old_loop = ctx.in_loop in
-		ctx.in_loop <- false;
-		ctx.nested_loops <- ctx.nested_loops + 1;
-		newline ctx;
-		List.iter (fun (cl,params,e) ->
-			List.iter (fun c ->
-				print ctx "case %d:" c;
-				newline ctx;
-			) cl;
-			let b = save_locals ctx in
-			(match params with
-			| None | Some [] -> ()
-			| Some l ->
-				let n = ref (-1) in
-				let l = List.fold_left (fun acc v -> incr n; match v with None -> acc | Some v -> (v.v_name,v.v_type,!n) :: acc) [] l in
-				match l with
-				| [] -> ()
-				| l ->
-					concat ctx "; " (fun (v,t,n) ->
-						let v = define_local ctx v in
-						print ctx "$%s = $%s->params[%d]" v tmp n;
-					) l;
-					newline ctx);
-			restore_in_block ctx in_block;
-			gen_expr ctx (mk_block e);
-			print ctx "break";
-			newline ctx;
-			b()
-		) cases;
-		(match def with
-		| None -> ()
-		| Some e ->
-			spr ctx "default:";
-			restore_in_block ctx in_block;
-			gen_expr ctx (mk_block e);
-			print ctx "break";
-			newline ctx;
-		);
-		ctx.nested_loops <- ctx.nested_loops - 1;
-		ctx.in_loop <- old_loop;
-		spr ctx "}";
-		b()
+	| TPatMatch dt -> assert false
 	| TSwitch (e,cases,def) ->
 		let old_loop = ctx.in_loop in
 		ctx.in_loop <- false;
@@ -1767,6 +1722,7 @@ and gen_value ctx e =
 	| TLocal _
 	| TArray _
 	| TBinop _
+	| TEnumParameter _
 	| TField _
 	| TParenthesis _
 	| TMeta _
@@ -1819,7 +1775,7 @@ and gen_value ctx e =
 	| TThrow _
 	| TSwitch _
 	| TFor _
-	| TMatch _
+	| TPatMatch _
 	| TIf _
 	| TTry _ ->
 		inline_block ctx e

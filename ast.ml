@@ -54,6 +54,7 @@ module Meta = struct
 		| DynamicObject
 		| Enum
 		| EnumConstructorParam
+		| Exhaustive
 		| Expose
 		| Extern
 		| FakeEnum
@@ -84,6 +85,7 @@ module Meta = struct
 		| Meta
 		| Macro
 		| MaybeUsed
+		| MatchAny
 		| MultiType
 		| Native
 		| NativeGen
