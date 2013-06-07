@@ -197,7 +197,7 @@ let mk_subs st con =
 	| CArray i ->
 		let t = match follow con.c_type with TInst({cl_path=[],"Array"},[t]) -> t | _ -> assert false in
 		ExtList.List.init i (fun i -> mk_st (SArray(st,i)) t st.st_pos)
-	| CEnum _ | CConst _ | CType _ | CExpr _ | CAny _ ->
+	| CEnum _ | CConst _ | CType _ | CExpr _ | CAny ->
 		[]
 
 let get_tuple_types t = match t with
