@@ -1395,7 +1395,7 @@ module Abstract = struct
 		| Some { eexpr = TFunction fd } when cf.cf_kind = Method MethInline ->
 			let config = if Meta.has Meta.Impl cf.cf_meta then (Some (a.a_types <> [] || cf.cf_params <> [], map)) else None in
 			(match Optimizer.type_inline ctx cf fd ethis args t config p true with
-				| Some e -> (match e.eexpr with TCast(e,None) -> e | _ -> e)
+				| Some e -> e
 				| None -> def())
 		| _ ->
 			def()
