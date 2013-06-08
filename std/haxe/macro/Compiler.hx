@@ -37,7 +37,6 @@ class Compiler {
 	static var path = ~/^[A-Za-z_][A-Za-z0-9_.]*$/;
 
 	public static function allowPackage( v : String ) {
-		trace(haxe.macro.Context.getLocalClass());
 		untyped load("allow_package", 1)(v.__s);
 	}
 	
