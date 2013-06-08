@@ -37,15 +37,15 @@ class TypeTools {
 	#if macro
 	
 	/**
-		Follows all typedefs of [t] to reach the actual type.
+		Follows all typedefs of `t` to reach the actual type.
 		
-		If [once] is true, this function does not call itself recursively,
+		If `once` is true, this function does not call itself recursively,
 		otherwise it does. This can be useful in cases where intermediate
 		typedefs might be of interest.
 		
-		Affected types are monomorphs (TMono) and typedefs (TType(t,pl)).
+		Affected types are monomorphs `TMono` and typedefs `TType(t,pl)`.
 		
-		If [t] is null, an internal exception is thrown.
+		If `t` is null, an internal exception is thrown.
 		
 		Usage example:
 			var t = Context.typeof(macro null); // TMono(<mono>)
@@ -58,25 +58,25 @@ class TypeTools {
 		return Context.follow(t, once);
 		
 	/**
-		Returns a syntax-level type corresponding to Type [t].
+		Returns a syntax-level type corresponding to Type `t`.
 		
-		This function is mostly inverse to ComplexTypeTools.toType(), but may
+		This function is mostly inverse to `ComplexTypeTools.toType`, but may
 		lose some information on types that do not have a corresponding syntax
 		version, such as monomorphs. In these cases, the result is null.
 		
-		If [t] is null, an internal exception is thrown.
+		If `t` is null, an internal exception is thrown.
 	**/
 	static public inline function toComplexType( t : Type ) : ComplexType
 		return Context.toComplexType(t);
 		
 	/**
-		Tries to extract the class instance stored inside [t].
+		Tries to extract the class instance stored inside `t`.
 		
-		If [t] is a class instance TInst(c,pl), c is returned.
+		If `t` is a class instance `TInst(c,pl)`, c is returned.
 		
-		If [t] is of a different type, an exception of type String is thrown.
+		If `t` is of a different type, an exception of type String is thrown.
 
-		If [t] is null, the result is null.
+		If `t` is null, the result is null.
 	**/
 	static public function getClass( t : Type ) return t == null ? null : switch(follow(t)) {
 		case TInst(c, _): c.get();
@@ -84,13 +84,13 @@ class TypeTools {
 	}
 	
 	/**
-		Tries to extract the enum instance stored inside [t].
+		Tries to extract the enum instance stored inside `t`.
 		
-		If [t] is an enum instance TEnum(e,pl), e is returned.
+		If `t` is an enum instance `TEnum(e,pl)`, e is returned.
 		
-		If [t] is of a different type, an exception of type String is thrown.
+		If `t` is of a different type, an exception of type String is thrown.
 
-		If [t] is null, the result is null.
+		If `t` is null, the result is null.
 	**/
 	static public function getEnum( t : Type ) return t == null ? null : switch(follow(t)) {
 		case TEnum(e, _): e.get();
@@ -98,7 +98,7 @@ class TypeTools {
 	}
 
 	/**
-		Converts type [t] to a human-readable String representation.
+		Converts type `t` to a human-readable String representation.
 	**/
 	static public function toString( t : Type ) : String return new String(Context.load("s_type", 1)(t));
 	#end
