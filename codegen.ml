@@ -373,13 +373,25 @@ let rec build_generic ctx c p tl =
 		cg.cl_super <- (match c.cl_super with
 			| None -> None
 			| Some (cs,pl) ->
-				(match apply_params c.cl_types tl (TInst (cs,pl)) with
+				let find_class subst =
+					let rec loop subst = match subst with
+						| (TInst(c,[]),t) :: subst when c == cs -> t
+						| _ :: subst -> loop subst
+						| [] -> raise Not_found
+					in
+					try
+						if pl <> [] then raise Not_found;
+						loop subst;
+					with Not_found ->
+						apply_params c.cl_types tl (TInst(cs,pl))
+				in
+				(match follow (find_class gctx.subst) with
 				| TInst (cs,pl) when cs.cl_kind = KGeneric ->
 					(match build_generic ctx cs p pl with
 					| TInst (cs,pl) -> Some (cs,pl)
 					| _ -> assert false)
 				| TInst (cs,pl) -> Some (cs,pl)
-				| _ -> assert false)
+				| t -> error ("Cannot use " ^ (short_type (print_context()) t) ^ " as type parameter because " ^ (s_type_path c.cl_path) ^ " extends it") p)
 		);
 		cg.cl_kind <- KGenericInstance (c,tl);
 		cg.cl_interface <- c.cl_interface;
