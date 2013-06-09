@@ -912,6 +912,17 @@ let rec return_flow ctx e =
 (* ---------------------------------------------------------------------- *)
 (* PASS 1 & 2 : Module and Class Structure *)
 
+let is_generic_parameter ctx c =
+	(* first check field parameters, then class parameters *)
+	try
+		ignore (List.assoc (snd c.cl_path) ctx.curfield.cf_params);
+		Meta.has Meta.Generic ctx.curfield.cf_meta
+	with Not_found -> try
+		ignore(List.assoc (snd c.cl_path) ctx.type_params);
+		(match ctx.curclass.cl_kind with | KGeneric -> true | _ -> false);
+	with Not_found ->
+		false
+
 let set_heritance ctx c herits p =
 	let ctx = { ctx with curclass = c; type_params = c.cl_types; } in
 	let process_meta csup =
@@ -945,7 +956,9 @@ let set_heritance ctx c herits p =
 					c.cl_implements <- (csup,params) :: c.cl_implements
 				end else begin
 					if csup.cl_interface then error "Cannot extend by using an interface" p;
-					c.cl_super <- Some (csup,params)
+					match csup.cl_kind with
+					| KTypeParameter _ when not (is_generic_parameter ctx csup) -> error "Cannot extend non-generic type parameters" p
+					| _ -> c.cl_super <- Some (csup,params)
 				end
 			| _ -> error "Should extend by using a class" p)
 		| HImplements t ->
