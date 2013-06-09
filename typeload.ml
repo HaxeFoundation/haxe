@@ -923,6 +923,20 @@ let is_generic_parameter ctx c =
 	with Not_found ->
 		false
 
+let check_extends ctx c t p = match follow t with
+	| TInst ({ cl_path = [],"Array" },_)
+	| TInst ({ cl_path = [],"String" },_)
+	| TInst ({ cl_path = [],"Date" },_)
+	| TInst ({ cl_path = [],"Xml" },_) when ((not (platform ctx.com Cpp)) && (match c.cl_path with ("mt" | "flash") :: _ , _ -> false | _ -> true)) ->
+		error "Cannot extend basic class" p;
+	| TInst (csup,params) ->
+		if is_parent c csup then error "Recursive class" p;
+		begin match csup.cl_kind with
+			| KTypeParameter _ when not (is_generic_parameter ctx csup) -> error "Cannot extend non-generic type parameters" p
+			| _ -> csup,params
+		end
+	| _ -> error "Should extend by using a class" p
+
 let set_heritance ctx c herits p =
 	let ctx = { ctx with curclass = c; type_params = c.cl_types; } in
 	let process_meta csup =
@@ -940,27 +954,16 @@ let set_heritance ctx c herits p =
 		| HExtends t ->
 			if c.cl_super <> None then error "Cannot extend several classes" p;
 			let t = load_instance ctx t p false in
-			(match follow t with
-			| TInst ({ cl_path = [],"Array" },_)
-			| TInst ({ cl_path = [],"String" },_)
-			| TInst ({ cl_path = [],"Date" },_)
-			| TInst ({ cl_path = [],"Xml" },_) when ((not (platform ctx.com Cpp)) && (match c.cl_path with ("mt" | "flash") :: _ , _ -> false | _ -> true)) ->
-				error "Cannot extend basic class" p;
-			| TInst (csup,params) ->
-				csup.cl_build();
-				if is_parent c csup then error "Recursive class" p;
-				process_meta csup;
-				(* interface extends are listed in cl_implements ! *)
-				if c.cl_interface then begin
-					if not csup.cl_interface then error "Cannot extend by using a class" p;
-					c.cl_implements <- (csup,params) :: c.cl_implements
-				end else begin
-					if csup.cl_interface then error "Cannot extend by using an interface" p;
-					match csup.cl_kind with
-					| KTypeParameter _ when not (is_generic_parameter ctx csup) -> error "Cannot extend non-generic type parameters" p
-					| _ -> c.cl_super <- Some (csup,params)
-				end
-			| _ -> error "Should extend by using a class" p)
+			let csup,params = check_extends ctx c t p in
+			csup.cl_build();
+			process_meta csup;
+			if c.cl_interface then begin
+				if not csup.cl_interface then error "Cannot extend by using a class" p;
+				c.cl_implements <- (csup,params) :: c.cl_implements
+			end else begin
+				if csup.cl_interface then error "Cannot extend by using an interface" p;
+				c.cl_super <- Some (csup,params)
+			end
 		| HImplements t ->
 			let t = load_instance ctx t p false in
 			(match follow t with

@@ -374,13 +374,14 @@ let rec build_generic ctx c p tl =
 					with Not_found ->
 						apply_params c.cl_types tl (TInst(cs,pl))
 				in
-				(match follow (find_class gctx.subst) with
-				| TInst (cs,pl) when cs.cl_kind = KGeneric ->
+				let ts = follow (find_class gctx.subst) in
+				let cs,pl = Typeload.check_extends ctx c ts p in
+				match cs.cl_kind with
+				| KGeneric ->
 					(match build_generic ctx cs p pl with
 					| TInst (cs,pl) -> Some (cs,pl)
 					| _ -> assert false)
-				| TInst (cs,pl) -> Some (cs,pl)
-				| t -> error ("Cannot use " ^ (short_type (print_context()) t) ^ " as type parameter because " ^ (s_type_path c.cl_path) ^ " extends it") p)
+				| _ -> Some(cs,pl)
 		);
 		cg.cl_kind <- KGenericInstance (c,tl);
 		cg.cl_interface <- c.cl_interface;
