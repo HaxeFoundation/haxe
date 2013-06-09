@@ -370,7 +370,9 @@ let rec build_generic ctx c p tl =
 					in
 					try
 						if pl <> [] then raise Not_found;
-						loop subst;
+						let t = loop subst in
+						(match c.cl_constructor with None -> () | Some cf -> error "Generics extending type parameters cannot have constructors" cf.cf_pos);
+						t
 					with Not_found ->
 						apply_params c.cl_types tl (TInst(cs,pl))
 				in
@@ -383,11 +385,13 @@ let rec build_generic ctx c p tl =
 					| _ -> assert false)
 				| _ -> Some(cs,pl)
 		);
+		Typeload.add_constructor ctx cg p;
 		cg.cl_kind <- KGenericInstance (c,tl);
 		cg.cl_interface <- c.cl_interface;
-		cg.cl_constructor <- (match c.cl_constructor, c.cl_super with
-			| None, None -> None
-			| Some c, _ -> Some (build_field c)
+		cg.cl_constructor <- (match cg.cl_constructor, c.cl_constructor, c.cl_super with
+			| Some ctor, _, _ -> Some ctor
+			| None, None, None -> None
+			| None, Some c, _ -> Some (build_field c)
 			| _ -> error "Please define a constructor for this class in order to use it as generic" c.cl_pos
 		);
 		cg.cl_implements <- List.map (fun (i,tl) ->

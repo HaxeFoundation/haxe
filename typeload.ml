@@ -937,6 +937,64 @@ let check_extends ctx c t p = match follow t with
 		end
 	| _ -> error "Should extend by using a class" p
 
+let rec add_constructor ctx c p =
+	match c.cl_constructor, c.cl_super with
+	| None, Some ({ cl_constructor = Some cfsup } as csup,cparams) when not c.cl_extern ->
+		let cf = {
+			cfsup with
+			cf_pos = p;
+			cf_meta = [];
+			cf_doc = None;
+			cf_expr = None;
+		} in
+		let r = exc_protect ctx (fun r ->
+			let t = mk_mono() in
+			r := (fun() -> t);
+			let ctx = { ctx with
+				curfield = cf;
+				pass = PTypeField;
+			} in
+			ignore (follow cfsup.cf_type); (* make sure it's typed *)
+			(if ctx.com.config.pf_overload then List.iter (fun cf -> ignore (follow cf.cf_type)) cf.cf_overloads);
+			let args = (match cfsup.cf_expr with
+				| Some { eexpr = TFunction f } ->
+					List.map (fun (v,def) ->
+						(*
+							let's optimize a bit the output by not always copying the default value
+							into the inherited constructor when it's not necessary for the platform
+						*)
+						match ctx.com.platform, def with
+						| _, Some _ when not ctx.com.config.pf_static -> v, (Some TNull)
+						| Flash, Some (TString _) -> v, (Some TNull)
+						| Cpp, Some (TString _) -> v, def
+						| Cpp, Some _ -> { v with v_type = ctx.t.tnull v.v_type }, (Some TNull)
+						| _ -> v, def
+					) f.tf_args
+				| _ ->
+					match follow cfsup.cf_type with
+					| TFun (args,_) -> List.map (fun (n,o,t) -> alloc_var n (if o then ctx.t.tnull t else t), if o then Some TNull else None) args
+					| _ -> assert false
+			) in
+			let p = c.cl_pos in
+			let vars = List.map (fun (v,def) -> alloc_var v.v_name (apply_params csup.cl_types cparams v.v_type), def) args in
+			let super_call = mk (TCall (mk (TConst TSuper) (TInst (csup,cparams)) p,List.map (fun (v,_) -> mk (TLocal v) v.v_type p) vars)) ctx.t.tvoid p in
+			let constr = mk (TFunction {
+				tf_args = vars;
+				tf_type = ctx.t.tvoid;
+				tf_expr = super_call;
+			}) (TFun (List.map (fun (v,c) -> v.v_name, c <> None, v.v_type) vars,ctx.t.tvoid)) p in
+			cf.cf_expr <- Some constr;
+			cf.cf_type <- t;
+			unify ctx t constr.etype p;
+			t
+		) "add_constructor" in
+		cf.cf_type <- TLazy r;
+		c.cl_constructor <- Some cf;
+		delay ctx PForce (fun() -> ignore((!r)()));
+	| _ ->
+		(* nothing to do *)
+		()
+
 let set_heritance ctx c herits p =
 	let ctx = { ctx with curclass = c; type_params = c.cl_types; } in
 	let process_meta csup =
@@ -1814,67 +1872,10 @@ let init_class ctx c p context_init herits fields =
 	(*
 		make sure a default contructor with same access as super one will be added to the class structure at some point.
 	*)
-	let rec add_constructor c =
-		match c.cl_constructor, c.cl_super with
-		| None, Some ({ cl_constructor = Some cfsup } as csup,cparams) when not c.cl_extern ->
-			let cf = {
-				cfsup with
-				cf_pos = p;
-				cf_meta = [];
-				cf_doc = None;
-				cf_expr = None;
-			} in
-			let r = exc_protect ctx (fun r ->
-				let t = mk_mono() in
-				r := (fun() -> t);
-				let ctx = { ctx with
-					curfield = cf;
-					pass = PTypeField;
-				} in
-				ignore (follow cfsup.cf_type); (* make sure it's typed *)
-				(if ctx.com.config.pf_overload then List.iter (fun cf -> ignore (follow cf.cf_type)) cf.cf_overloads);
-				let args = (match cfsup.cf_expr with
-					| Some { eexpr = TFunction f } ->
-						List.map (fun (v,def) ->
-							(*
-								let's optimize a bit the output by not always copying the default value
-								into the inherited constructor when it's not necessary for the platform
-							*)
-							match ctx.com.platform, def with
-							| _, Some _ when not ctx.com.config.pf_static -> v, (Some TNull)
-							| Flash, Some (TString _) -> v, (Some TNull)
-							| Cpp, Some (TString _) -> v, def
-							| Cpp, Some _ -> { v with v_type = ctx.t.tnull v.v_type }, (Some TNull)
-							| _ -> v, def
-						) f.tf_args
-					| _ ->
-						match follow cfsup.cf_type with
-						| TFun (args,_) -> List.map (fun (n,o,t) -> alloc_var n (if o then ctx.t.tnull t else t), if o then Some TNull else None) args
-						| _ -> assert false
-				) in
-				let p = c.cl_pos in
-				let vars = List.map (fun (v,def) -> alloc_var v.v_name (apply_params csup.cl_types cparams v.v_type), def) args in
-				let super_call = mk (TCall (mk (TConst TSuper) (TInst (csup,cparams)) p,List.map (fun (v,_) -> mk (TLocal v) v.v_type p) vars)) ctx.t.tvoid p in
-				let constr = mk (TFunction {
-					tf_args = vars;
-					tf_type = ctx.t.tvoid;
-					tf_expr = super_call;
-				}) (TFun (List.map (fun (v,c) -> v.v_name, c <> None, v.v_type) vars,ctx.t.tvoid)) p in
-				cf.cf_expr <- Some constr;
-				cf.cf_type <- t;
-				unify ctx t constr.etype p;
-				t
-			) "add_constructor" in
-			cf.cf_type <- TLazy r;
-			c.cl_constructor <- Some cf;
-			delay ctx PForce (fun() -> ignore((!r)()));
-		| _ ->
-			(* nothing to do *)
-			()
-	in
+
   (* add_constructor does not deal with overloads correctly *)
   if not ctx.com.config.pf_overload then
-  	add_constructor c;
+  	add_constructor ctx c p;
 	(* check overloaded constructors *)
 	(if ctx.com.config.pf_overload then match c.cl_constructor with
 	| Some ctor ->
