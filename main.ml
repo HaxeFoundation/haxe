@@ -44,7 +44,7 @@ type cache = {
 exception Abort
 exception Completion of string
 
-let version = 300
+let version = 310
 
 let measure_times = ref false
 let prompt = ref false
@@ -104,6 +104,18 @@ let deprecated = [
 	"Class not found : haxe.Public", "Use @:publicFields instead of implementing or extending haxe.Public";
 	"#Xml has no field createProlog", "Xml.createProlog was renamed to Xml.createProcessingInstruction";
 ]
+
+let limit_string s offset =
+	let rest = 80 - offset in
+	let words = ExtString.String.nsplit s " " in
+	let rec loop i words = match words with
+		| word :: words ->
+			if String.length word + i + 1 > rest then (Printf.sprintf "\n%*s" offset "") :: word :: loop (String.length word) words
+			else (if i = 0 then "" else " ") :: word :: loop (i + 1 + String.length word) words
+		| [] ->
+			[]
+	in
+	String.concat "" (loop 0 words)
 
 let error ctx msg p =
 	let msg = try List.assoc msg deprecated with Not_found -> msg in
@@ -1030,20 +1042,23 @@ try
 			did_something := true;
 		),": print version and exit");
 		("--help-defines", Arg.Unit (fun() ->
+			let m = ref 0 in
 			let rec loop i =
 				let d = Obj.magic i in
 				if d <> Define.Last then begin
 					let t, doc = Define.infos d in
-					let str = String.concat "-" (ExtString.String.nsplit t "_") ^ " : " ^ doc in
-					str :: loop (i + 1)
+					if String.length t > !m then m := String.length t;
+					((String.concat "-" (ExtString.String.nsplit t "_")),doc) :: (loop (i + 1))
 				end else
 					[]
 			in
-			let all = List.sort String.compare (loop 0) in
+			let all = List.sort (fun (s1,_) (s2,_) -> String.compare s1 s2) (loop 0) in
+			let all = List.map (fun (n,doc) -> Printf.sprintf " %-*s: %s" !m n (limit_string doc (!m + 3))) all in
 			List.iter (fun msg -> ctx.com.print (msg ^ "\n")) all;
 			did_something := true
 		),": print help for all compiler specific defines");
 		("--help-metas", Arg.Unit (fun() ->
+			let m = ref 0 in
 			let rec loop i =
 				let d = Obj.magic i in
 				if d <> Meta.Last then begin
@@ -1067,14 +1082,16 @@ try
 							| [p] -> " (" ^ platform_name p ^ " only)"
 							| pl -> " (for " ^ String.concat "," (List.map platform_name pl) ^ ")"
 						) in
-						let str = "@" ^ t ^ params ^ " : " ^ doc ^ pfs in
-						str :: loop (i + 1)
+						let str = "@" ^ t in
+						if String.length str > !m then m := String.length str;
+						(str,params ^ doc ^ pfs) :: loop (i + 1)
 					end else
 						loop (i + 1)
 				end else
 					[]
 			in
-			let all = List.sort String.compare (loop 0) in
+			let all = List.sort (fun (s1,_) (s2,_) -> String.compare s1 s2) (loop 0) in
+			let all = List.map (fun (n,doc) -> Printf.sprintf " %-*s: %s" !m n (limit_string doc (!m + 3))) all in
 			List.iter (fun msg -> ctx.com.print (msg ^ "\n")) all;
 			did_something := true
 		),": print help for all compiler metadatas");
@@ -1210,6 +1227,11 @@ try
 			Codegen.detect_usage com;
 		let dce_mode = (try Common.defined_value com Define.Dce with _ -> "no") in
 		if not (!gen_as3 || dce_mode = "no" || Common.defined com Define.DocGen) then Dce.run com main (dce_mode = "full" && not !interp);
+		(* always filter empty abstract implementation classes (issue #1885) *)
+		List.iter (fun mt -> match mt with
+			| TClassDecl({cl_kind = KAbstractImpl _} as c) when c.cl_ordered_statics = [] && c.cl_ordered_fields = [] -> c.cl_extern <- true
+			| _ -> ()
+		) com.types;
 		let type_filters = [
 			Codegen.check_private_path;
 			Codegen.remove_generic_base;
@@ -1348,7 +1370,7 @@ with
 			Buffer.add_string b ("<meta name=\"" ^ (fst (MetaInfo.to_string m)) ^ "\"");
 			if el = [] then Buffer.add_string b "/>" else begin
 				Buffer.add_string b ">\n";
-				List.iter (fun e -> Buffer.add_string b ((htmlescape (Genxml.sexpr e)) ^ "\n")) el;
+				List.iter (fun e -> Buffer.add_string b ((htmlescape (Ast.s_expr e)) ^ "\n")) el;
 				Buffer.add_string b "</meta>\n";
 			end
 		) m;

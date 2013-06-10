@@ -35,29 +35,38 @@ class StringBuf {
 	var b:String = "";
 	
 	/**
+		The length of `this` StringBuf in characters.
+	**/
+	public var length(get,never) : Int;
+
+	/**
 		Creates a new StringBuf instance.
 		
 		This may involve initialization of the internal buffer.
 	**/
 	public function new() {}
 
+	inline function get_length() : Int {
+		return b.length;
+	}
+
 	/**
-		Appends the representation of [x] to [this] StringBuf.
+		Appends the representation of `x` to `this` StringBuf.
 		
-		The exact representation of [x] may vary per platform. To get more
+		The exact representation of `x` may vary per platform. To get more
 		consistent behavior, this function should be called with
 		Std.string(x).
 		
-		If [x] is null, the String "null" is appended.
+		If `x` is null, the String "null" is appended.
 	**/
 	public inline function add( x : Dynamic ) : Void {
 		b += x;
 	}
 
 	/**
-		Appends the character identified by [c] to [this] StringBuf.
+		Appends the character identified by `c` to `this` StringBuf.
 		
-		If [c] is negative or has another invalid value, the result is
+		If `c` is negative or has another invalid value, the result is
 		unspecified.
 	**/
 	public inline function addChar( c : Int ) : Void {
@@ -65,23 +74,23 @@ class StringBuf {
 	}
 
 	/**
-		Appends a substring of [s] to [this] StringBuf.
+		Appends a substring of `s` to `this` StringBuf.
 		
-		This function expects [pos] and [len] to describe a valid substring of
-		[s], or else the result is unspecified. To get more robust behavior,
-		[this].add(s.substr(pos,len)) can be used instead.
+		This function expects `pos` and `len` to describe a valid substring of
+		`s`, or else the result is unspecified. To get more robust behavior,
+		`this.add(s.substr(pos,len))` can be used instead.
 		
-		If [s] or [pos] are null, the result is unspecified.
+		If `s` or `pos` are null, the result is unspecified.
 		
-		If [len] is omitted or null, the substring ranges from [pos] to the end
-		of [s].
+		If `len` is omitted or null, the substring ranges from `pos` to the end
+		of `s`.
 	**/
 	public inline function addSub( s : String, pos : Int, ?len : Int) : Void {
 		b += (len == null ? s.substr(pos) : s.substr(pos, len));
 	}
 
 	/**
-		Returns the content of [this] StringBuf as String.
+		Returns the content of `this` StringBuf as String.
 		
 		The buffer is not emptied by this operation.
 	**/

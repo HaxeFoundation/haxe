@@ -1705,7 +1705,7 @@ let std_lib =
 				if i < 0 then
 					acc
 				else
-					let e, v = ExtString.String.split "=" env.(i) in
+					let e, v = ExtString.String.split env.(i) "=" in
 					loop (VArray [|VString e;VString v;acc|]) (i - 1)
 			in
 			loop VNull (Array.length env - 1)
@@ -2108,7 +2108,9 @@ let macro_lib =
 			| VFunction (Fun1 _) ->
 				let ctx = get_ctx() in
 				ctx.curapi.on_type_not_found (fun path ->
-					ctx.do_call VNull f [enc_string path] null_pos
+					match catch_errors ctx (fun () -> ctx.do_call VNull f [enc_string path] null_pos) with
+					| Some v -> v
+					| None -> VNull
 				);
 				VNull
 			| _ -> error()
@@ -4354,7 +4356,7 @@ let rec make_const e =
 		| TBool b -> VBool b
 		| TNull -> VNull
 		| TThis | TSuper -> raise Exit)
-	| TParenthesis e ->
+	| TParenthesis e | TMeta(_,e) ->
 		make_const e
 	| TObjectDecl el ->
 		VObject (obj (hash_field (get_ctx())) (List.map (fun (f,e) -> f, make_const e) el))
@@ -4468,6 +4470,7 @@ let rec make_ast e =
 	| TLocal v -> EConst (mk_ident v.v_name)
 	| TArray (e1,e2) -> EArray (make_ast e1,make_ast e2)
 	| TBinop (op,e1,e2) -> EBinop (op, make_ast e1, make_ast e2)
+	| TEnumParameter (e,i) -> assert false
 	| TField (e,f) -> EField (make_ast e, Type.field_name f)
 	| TTypeExpr t -> fst (mk_path (full_type_path t) e.epos)
 	| TParenthesis e -> EParenthesis (make_ast e)
@@ -4493,7 +4496,7 @@ let rec make_ast e =
 		) cases in
 		let def = match eopt def with None -> None | Some (EBlock [],_) -> Some None | e -> Some e in
 		ESwitch (make_ast e,cases,def)
-	| TMatch (e,(en,_),cases,def) ->
+(* 	| TMatch (e,(en,_),cases,def) ->
 		let scases (idx,args,e) =
 			let p = e.epos in
 			let unused = (EConst (Ident "_"),p) in
@@ -4515,7 +4518,8 @@ let rec make_ast e =
 			) idx, None, (match e.eexpr with TBlock [] -> None | _ -> Some (make_ast e))
 		in
 		let def = match eopt def with None -> None | Some (EBlock [],_) -> Some None | e -> Some e in
-		ESwitch (make_ast e,List.map scases cases,def)
+		ESwitch (make_ast e,List.map scases cases,def) *)
+	| TPatMatch dt -> assert false
 	| TTry (e,catches) -> ETry (make_ast e,List.map (fun (v,e) -> v.v_name, (try make_type v.v_type with Exit -> assert false), make_ast e) catches)
 	| TReturn e -> EReturn (eopt e)
 	| TBreak -> EBreak
@@ -4528,7 +4532,8 @@ let rec make_ast e =
 				let t = (match t with TClassDecl c -> TInst (c,[]) | TEnumDecl e -> TEnum (e,[]) | TTypeDecl t -> TType (t,[]) | TAbstractDecl a -> TAbstract (a,[])) in
 				Some (try make_type t with Exit -> assert false)
 		) in
-		ECast (make_ast e,t))
+		ECast (make_ast e,t)
+	| TMeta (m,e) -> EMeta(m,make_ast e))
 	,e.epos)
 
 ;;

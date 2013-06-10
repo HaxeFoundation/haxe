@@ -20,38 +20,58 @@
  * DEALINGS IN THE SOFTWARE.
  */
 package haxe.macro;
+
 import haxe.macro.Expr;
 
 /**
-	This is an API that can be used by macros implementations.
+	Context provides an API for macro programming.
+	
+	It contains common functions that interact with the macro interpreter to
+	query or set information. Other API functions are available in the tools
+	classes:
+		
+	- `haxe.macro.ComplexTypeTools`
+	- `haxe.macro.ExprTools`
+	- `haxe.macro.TypeTools`
 **/
 #if !neko @:noDoc #end
 class Context {
 
 #if neko
 	/**
-		Display a compilation error at the given position in code and abort the current macro call
+		Displays a compilation error `msg` at the given `Position` `pos`
+		and aborts the current macro call.
 	**/
 	public static function error( msg : String, pos : Position ) : Dynamic {
 		return load("error",2)(untyped msg.__s, pos);
 	}
 
 	/**
-		Display a compilation warning at the given position in code
+		Displays a compilation warning `msg` at the given `Position` `pos`.
 	**/
 	public static function warning( msg : String, pos : Position ) {
 		load("warning",2)(untyped msg.__s, pos);
 	}
 
 	/**
-		Resolve a filename based on current classpath.
+		Resolves a file name `file` based on the current class paths.
+		
+		The resolution follows the usual class path rules where the last
+		declared class path has priority.
+		
+		If a class path was declared relative, this method returns the relative
+		file path. Otherwise it returns the absolute file path.
 	**/
 	public static function resolvePath( file : String ) {
 		return new String(load("resolve",1)(untyped file.__s));
 	}
 
 	/**
-		Return the current classpath
+		Returns an `Array` of current class paths in the order of their
+		declaration.
+		
+		Modifying the returned array has no effect on the compiler. Class paths
+		can be added using `haxe.macro.Compiler.addClassPath`.
 	**/
 	public static function getClassPath() : Array<String> {
 		var c : neko.NativeArray<neko.NativeString> = load("class_path",0)();
@@ -62,14 +82,16 @@ class Context {
 	}
 
 	/**
-		Returns the position at which the macro is called
+		Returns the position at which the macro was called.
 	**/
 	public static function currentPos() : Position {
 		return load("curpos", 0)();
 	}
 
 	/**
-		Returns the current class in which the macro is called
+		Returns the current class in which the macro was called.
+		
+		If no such class exists, null is returned.
 	**/
 	public static function getLocalClass() : Null<Type.Ref<Type.ClassType>> {
 		var l : Type = load("local_type", 0)();
@@ -81,7 +103,9 @@ class Context {
 	}
 
 	/**
-		Returns the current type in/on which the macro is called
+		Returns the current type in/on which the macro was called.
+		
+		If no such type exists, null is returned.
 	**/
 	public static function getLocalType() : Null<Type> {
 		var l : Type = load("local_type", 0)();
@@ -90,7 +114,9 @@ class Context {
 	}
 
 	/**
-		Returns the name of the method from which the macro was called
+		Returns the name of the method from which the macro was called.
+		
+		If no such method exists, null is returned.
 	**/
 	public static function getLocalMethod() : Null<String> {
 		var l : String = load("local_method", 0)();
@@ -99,28 +125,47 @@ class Context {
 	}
 
 	/**
-		Returns classes which are available for "using" where the macro was called
+		Returns an `Array` of classes which are available for `using` usage in
+		the context the macro was called.
+		
+		Modifying the returned array has no effect on the compiler.
 	**/
 	public static function getLocalUsing() :  Array<Type.Ref<Type.ClassType>> {
 		return load("local_using", 0)();
 	}
 
 	/**
-		Returns local variables accessible where the macro was called
+		Returns a map of local variables accessible in the context the macro was
+		called.
+		
+		The keys of the returned map are the variable names, the values are
+		their types.
+		
+		Modifying the returned map has no effect on the compiler.
 	**/
 	public static function getLocalVars() : haxe.ds.StringMap<Type> {
 		return load("local_vars", 0)();
 	}
 
 	/**
-		Tells is the given compiler directive has been defined with -D
+		Tells if compiler directive `s` has been set.
+		
+		Compiler directives are set using the `-D` command line parameter, or
+		by calling `haxe.macro.Compiler.define`.
 	**/
 	public static function defined( s : String ) : Bool {
 		return load("defined", 1)(untyped s.__s);
 	}
 
 	/**
-		Returns the value defined through -D key=value
+		Returns the value defined for compiler directive `key`.
+		
+		If no value is defined for `key`, null is returned.
+		
+		Compiler directive values are set using the `-D key=value` command line
+		parameter, or by calling `haxe.macro.Compiler.define`.
+		
+		The default value is `"1"`.
 	**/
 	public static function definedValue( key : String ) : String {
 		var d = load("defined_value", 1)(untyped key.__s);
@@ -128,91 +173,128 @@ class Context {
 	}
 
 	/**
-		Resolve a type from its name.
+		Resolves a type identified by `name`.
+		
+		The resolution follows the usual class path rules where the last
+		declared class path has priority.
+		
+		If no type can be found, null is returned.
 	**/
 	public static function getType( name : String ) : Type {
 		return load("get_type", 1)(untyped name.__s);
 	}
 
 	/**
-		Return the list of types defined in the given compilation unit module
+		Resolves a module identified by `name` and returns an `Array` of all
+		its contained types.
+		
+		The resolution follows the usual class path rules where the last
+		declared class path has priority.
+		
+		If no module can be found, null is returned.
 	**/
 	public static function getModule( name : String ) : Array<Type> {
 		return load("get_module", 1)(untyped name.__s);
 	}
 
 	/**
-		Parse a constructed string into the corresponding expression.
+		Parses `expr` as haxe code, returning the corresponding AST.
+		
+		The provided `Position` `pos` is used for all generated inner AST nodes.
 	**/
 	public static function parse( expr : String, pos : Position ) : Expr {
 		return load("parse", 3)(untyped expr.__s, pos, false);
 	}
 
 	/**
-		Parse a string contained into source code into the corresponding expression. Errors positions are reported within this string
+		Similar to `parse`, but error positions are reported within the provided
+		String `expr`.
 	**/
 	public static function parseInlineString( expr : String, pos : Position ) : Expr {
 		return load("parse", 3)(untyped expr.__s, pos, true);
 	}
 
 	/**
-		Build an expression corresponding to the given runtime value. Only basic types + enums are supported.
+		Builds an expression from `v`.
+		
+		This method generates AST nodes depending on the macro-runtime value of
+		`v`. As such, only basic types and enums are supported and the behavior
+		for other types is undefined.
+		
+		The provided `Position` `pos` is used for all generated inner AST nodes.
 	**/
 	public static function makeExpr( v : Dynamic, pos : Position ) : Expr {
 		return load("make_expr", 2)(v, pos);
 	}
 
 	/**
-		Quickly build an hashed MD5 signature for any given value
+		Returns a hashed MD5 signature of value `v`.
 	**/
 	public static function signature( v : Dynamic ) : String {
 		return new String(load("signature", 1)(v));
 	}
 
 	/**
-		Set a callback function that will return all the types compiled before they get generated.
+		Adds a callback function `callback` which is invoked after the
+		compiler's typing phase, just before its generation phase.
+		
+		The callback receives an `Array` containing all types which are about
+		to be generated. Modifications are limited to metadata, it is mainly
+		intended to obtain information.
 	**/
-	public static function onGenerate( callb : Array<Type> -> Void ) {
-		load("on_generate",1)(callb);
+	public static function onGenerate( callback : Array<Type> -> Void ) {
+		load("on_generate",1)(callback);
 	}
 
 	/**
-		Set a callback function that will be called when a type cannot be found.
+		Adds a callback function `callback` which is invoked when a type name
+		cannot be resolved.
+		
+		The callback may return a type definition, which is then used for the
+		expected type. If it returns null, the type is considered to still not
+		exist.
 	**/
-	public static function onTypeNotFound ( callb : String -> TypeDefinition ) {
-		load("on_type_not_found",1)(callb);
+	public static function onTypeNotFound ( callback : String -> TypeDefinition ) {
+		load("on_type_not_found",1)(callback);
 	}
 
 	/**
-		Evaluate the type a given expression would have in the context of the current macro call.
+		Types expression `e` and returns its type.
+		
+		Typing the expression may result in an compiler error which can be
+		caught using `try ... catch`.
 	**/
 	public static function typeof( e : Expr ) : Type {
 		return load("typeof", 1)(e);
 	}
 
 	/**
-		Returns the ComplexType corresponding to the given Type.
+		Returns the `ComplexType` corresponding to the given `Type` `t`.
+		
+		See `haxe.macro.TypeTools.toComplexType` for details.
 	**/
 	public static function toComplexType( t : Type ) : Null<ComplexType> {
 		return load("to_complex", 1)(t);
 	}
 
 	/**
-		Returns true if t1 and t2 unify, false otherwise
+		Returns true if `t1` and `t2` unify, false otherwise.
 	**/
 	public static function unify( t1 : Type, t2 : Type) : Bool {
 		return load("unify", 2)(t1, t2);
 	}
 
 	/**
-		Follow all typedefs to reach the actual real type
+		Follows a type.
+		
+		See `haxe.macro.TypeTools.follow` for details.
 	**/
 	public static function follow( t : Type, ?once : Bool ) : Type {
 		return load("follow", 2)(t,once);
 	}
 
 	/**
-		Get the informations stored into a given position.
+		Returns the information stored in `Position` `p`.
 	**/
 	public static function getPosInfos( p : Position ) : { min : Int, max : Int, file : String } {
 		var i = load("get_pos_infos",1)(p);
@@ -221,28 +303,34 @@ class Context {
 	}
 
 	/**
-		Build a position with the given informations.
+		Builds a `Position` from `inf`.
 	**/
 	public static function makePosition( inf : { min : Int, max : Int, file : String } ) : Position {
 		return load("make_pos",3)(inf.min,inf.max,untyped inf.file.__s);
 	}
 
 	/**
-		Add or modify a resource that will be accessible with haxe.Resource api.
+		Makes resource `data` available as `name`.
+		
+		The resource is then available using the `haxe.macro.Resource` API.
+		
+		If a previous resource was bound to `name`, it is overwritten.
 	**/
 	public static function addResource( name : String, data : haxe.io.Bytes ) {
 		load("add_resource",2)(untyped name.__s,data.getData());
 	}
 
 	/**
-		Returns the list of fields for the current type inside the build macro.
+		Returns an `Array` of fields of the class which is to be built.
+		
+		This is only defined for `@:build/@:autoBuild` macros.
 	**/
 	public static function getBuildFields() : Array<Field> {
 		return load("build_fields", 0)();
 	}
 
 	/**
-		Define a new type based on the given definition.
+		Defines a new type from `TypeDefinition` `t`.
 	**/
 	public static function defineType( t : TypeDefinition ) : Void {
 		load("define_type", 1)(t);
@@ -250,15 +338,22 @@ class Context {
 
 
 	/**
-		Return the raw expression corresponding to the given typed expression.
+		Returns a syntax-level expression corresponding to typed expression `t`.
+		
+		This process may lose some information.
 	**/
 	public static function getTypedExpr( t : Type.TypedExpr ) : Expr {
 		return load("get_typed_expr",1)(t);
 	}
 
 	/**
-		Manually add a dependency between a module and a third party file :
-		make sure the module gets recompiled (if it was cached) in case the extern file has been modified as well.
+		Manually adds a dependency between module `modulePath` and an external
+		file `externFile`.
+		
+		This affects the compilation cache, causing the module to be typed if
+		`externFile` has changed.
+		
+		Has no effect if the compilation cache is not used.
 	**/
 	public static function registerModuleDependency( modulePath : String, externFile : String ) {
 		load("module_dependency", 2)(untyped modulePath.__s,untyped externFile.__s);

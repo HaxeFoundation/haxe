@@ -851,18 +851,32 @@ let rec local_usage f e =
 				local_usage f e;
 			))
 		) catchs;
-	| TMatch (e,_,cases,def) ->
-		local_usage f e;
-		List.iter (fun (_,vars,e) ->
-			let cc f =
-				(match vars with
-				| None -> ()
-				| Some l ->	List.iter (function None -> () | Some v -> f (Declare v)) l);
+	| TPatMatch dt ->
+		List.iter (fun (v,eo) ->
+			f (Declare v);
+			match eo with None -> () | Some e -> local_usage f e
+		) dt.dt_var_init;
+		let rec fdt dt = match dt with
+			| DTBind(bl,dt) ->
+				List.iter (fun ((v,_),e) ->
+					f (Declare v);
+					local_usage f e
+				) bl;
+				fdt dt
+			| DTExpr e -> local_usage f e
+			| DTGuard(e,dt1,dt2) ->
 				local_usage f e;
-			in
-			f (Block cc)
-		) cases;
-		(match def with None -> () | Some e -> local_usage f e);
+				fdt dt1;
+				(match dt2 with None -> () | Some dt -> fdt dt)
+			| DTSwitch(e,cl) ->
+				local_usage f e;
+				List.iter (fun (e,dt) ->
+					local_usage f e;
+					fdt dt
+				) cl
+			| DTGoto _ -> ()
+		in
+		Array.iter fdt dt.dt_dt_lookup
 	| _ ->
 		iter (local_usage f) e
 
@@ -924,7 +938,8 @@ let captured_vars com e =
 					v, e
 			) catchs in
 			mk (TTry (wrap used expr,catchs)) e.etype e.epos
-		| TMatch (expr,enum,cases,def) ->
+		(* TODO: find out this does *)
+(* 		| TMatch (expr,enum,cases,def) ->
 			let cases = List.map (fun (il,vars,e) ->
 				let pos = e.epos in
 				let e = ref (wrap used e) in
@@ -943,7 +958,7 @@ let captured_vars com e =
 				il, vars, !e
 			) cases in
 			let def = match def with None -> None | Some e -> Some (wrap used e) in
-			mk (TMatch (wrap used expr,enum,cases,def)) e.etype e.epos
+			mk (TMatch (wrap used expr,enum,cases,def)) e.etype e.epos *)
 		| TFunction f ->
 			(*
 				list variables that are marked as used, but also used in that
@@ -1176,17 +1191,29 @@ let rename_local_vars com e =
 				loop e;
 				old()
 			) catchs;
-		| TMatch (e,_,cases,def) ->
-			loop e;
-			List.iter (fun (_,vars,e) ->
-				let old = save() in
-				(match vars with
-				| None -> ()
-				| Some l ->	List.iter (function None -> () | Some v -> declare v e.epos) l);
-				loop e;
-				old();
-			) cases;
-			(match def with None -> () | Some e -> loop e);
+		| TPatMatch dt ->
+			let rec fdt dt = match dt with
+				| DTSwitch(e,cl) ->
+					loop e;
+					List.iter (fun (_,dt) ->
+						let old = save() in
+						fdt dt;
+						old();
+					) cl;
+				| DTBind(bl,dt) ->
+					List.iter (fun ((v,p),e) ->
+						declare v e.epos
+					) bl;
+					fdt dt
+				| DTExpr e -> loop e;
+				| DTGuard(e,dt1,dt2) ->
+					loop e;
+					fdt dt1;
+					(match dt2 with None -> () | Some dt -> fdt dt)
+				| DTGoto _ ->
+					()
+			in
+			Array.iter fdt dt.dt_dt_lookup
 		| TTypeExpr t ->
 			check t
 		| TNew (c,_,_) ->
@@ -1289,21 +1316,35 @@ let check_local_vars_init e =
 				v
 			) cases in
 			(match def with
+			| None when (match e.eexpr with TMeta((Meta.Exhaustive,_,_),_) | TParenthesis({eexpr = TMeta((Meta.Exhaustive,_,_),_)}) -> true | _ -> false) ->
+				(match cvars with
+				| cv :: cvars ->
+					PMap.iter (fun i b -> if b then vars := PMap.add i b !vars) cv;
+					join vars cvars
+				| [] -> ())
 			| None -> ()
 			| Some e ->
 				loop vars e;
 				join vars cvars)
-		| TMatch (e,_,cases,def) ->
-			loop vars e;
-			let old = !vars in
-			let cvars = List.map (fun (_,vl,e) ->
-				vars := old;
-				loop vars e;
-				restore vars old [];
-				!vars
-			) cases in
-			(match def with None -> () | Some e -> vars := old; loop vars e);
-			join vars cvars
+		| TPatMatch dt ->
+			let cvars = ref [] in
+			let rec fdt dt = match dt with
+				| DTExpr e ->
+					let old = !vars in
+					loop vars e;
+					restore vars old [];
+					cvars := !vars :: !cvars
+				| DTSwitch(e,cl) ->
+					loop vars e;
+					List.iter (fun (_,dt) -> fdt dt) cl
+				| DTGuard(e,dt1,dt2) ->
+					fdt dt1;
+					(match dt2 with None -> () | Some dt -> fdt dt)
+				| DTBind(_,dt) -> fdt dt
+				| DTGoto _ -> ()
+			in
+			Array.iter fdt dt.dt_dt_lookup;
+			join vars !cvars
 		(* mark all reachable vars as initialized, since we don't exit the block  *)
 		| TBreak | TContinue | TReturn None ->
 			vars := PMap.map (fun _ -> true) !vars
@@ -1354,7 +1395,7 @@ module Abstract = struct
 		| Some { eexpr = TFunction fd } when cf.cf_kind = Method MethInline ->
 			let config = if Meta.has Meta.Impl cf.cf_meta then (Some (a.a_types <> [] || cf.cf_params <> [], map)) else None in
 			(match Optimizer.type_inline ctx cf fd ethis args t config p true with
-				| Some e -> (match e.eexpr with TCast(e,None) -> e | _ -> e)
+				| Some e -> e
 				| None -> def())
 		| _ ->
 			def()
@@ -1531,6 +1572,85 @@ module Abstract = struct
 	let handle_abstract_casts ctx e =
 		loop ctx e
 end
+
+module PatternMatchConversion = struct
+
+ 	type cctx = {
+		ctx : typer;
+		mutable eval_stack : ((tvar * pos) * texpr) list list;
+		dt_lookup : dt array;
+	}
+
+	let group_cases cases =
+		let dt_eq dt1 dt2 = match dt1,dt2 with
+			| DTGoto i1, DTGoto i2 when i1 = i2 -> true
+			(* TODO equal bindings *)
+			| _ -> false
+		in
+		match List.rev cases with
+		| [] -> []
+		| [con,dt] -> [[con],dt]
+		| (con,dt) :: cases ->
+			let tmp,ldt,cases = List.fold_left (fun (tmp,ldt,acc) (con,dt) ->
+				if dt_eq dt ldt then
+					(con :: tmp,dt,acc)
+				else
+					([con],dt,(tmp,ldt) :: acc)
+			) ([con],dt,[]) cases in
+			match tmp with
+			| [] -> cases
+			| tmp -> ((tmp,ldt) :: cases)
+
+	let rec convert_dt cctx dt =
+		match dt with
+		| DTBind (bl,dt) ->
+			cctx.eval_stack <- bl :: cctx.eval_stack;
+			let e = convert_dt cctx dt in
+			cctx.eval_stack <- List.tl cctx.eval_stack;
+			mk (TBlock [
+				mk (TVars (List.map (fun ((v,_),e) -> v,Some e) bl)) cctx.ctx.t.tvoid e.epos;
+				e
+			]) e.etype e.epos
+		| DTGoto i ->
+			convert_dt cctx (cctx.dt_lookup.(i))
+		| DTExpr e ->
+			e
+		| DTGuard(e,dt1,dt2) ->
+			let ethen = convert_dt cctx dt1 in
+			mk (TIf(e,ethen,match dt2 with None -> None | Some dt -> Some (convert_dt cctx dt))) ethen.etype (punion e.epos ethen.epos)
+		| DTSwitch(e_st,cl) ->
+			let def = ref None in
+			let cases = List.filter (fun (e,dt) ->
+ 				match e.eexpr with
+ 				| TMeta((Meta.MatchAny,_,_),_) ->
+					def := Some (convert_dt cctx dt);
+					false
+				| _ ->
+					true
+			) cl in
+			let cases = group_cases cases in
+			let cases = List.map (fun (cl,dt) -> cl,convert_dt cctx dt) cases in
+			mk (TSwitch(e_st,cases,!def)) (mk_mono()) e_st.epos
+
+	let to_typed_ast ctx dt p =
+		let first = dt.dt_dt_lookup.(dt.dt_first) in
+		let cctx = {
+			ctx = ctx;
+			dt_lookup = dt.dt_dt_lookup;
+			eval_stack = [];
+		} in
+		let e = convert_dt cctx first in
+		let e = { e with epos = p; etype = dt.dt_type} in
+		if dt.dt_var_init = [] then
+			e
+		else begin
+			mk (TBlock [
+				mk (TVars dt.dt_var_init) t_dynamic e.epos;
+				e;
+			]) dt.dt_type e.epos
+		end
+end
+
 (* -------------------------------------------------------------------------- *)
 (* USAGE *)
 
@@ -1854,11 +1974,11 @@ let rec constructor_side_effects e =
 		true
 	| TField (_,FEnum _) ->
 		false
-	| TUnop _ | TArray _ | TField _ | TCall _ | TNew _ | TFor _ | TWhile _ | TSwitch _ | TMatch _ | TReturn _ | TThrow _ ->
+	| TUnop _ | TArray _ | TField _ | TEnumParameter _ | TCall _ | TNew _ | TFor _ | TWhile _ | TSwitch _ | TPatMatch _ | TReturn _ | TThrow _ ->
 		true
 	| TBinop _ | TTry _ | TIf _ | TBlock _ | TVars _
 	| TFunction _ | TArrayDecl _ | TObjectDecl _
-	| TParenthesis _ | TTypeExpr _ | TLocal _
+	| TParenthesis _ | TTypeExpr _ | TLocal _ | TMeta _
 	| TConst _ | TContinue | TBreak | TCast _ ->
 		try
 			Type.iter (fun e -> if constructor_side_effects e then raise Exit) e;

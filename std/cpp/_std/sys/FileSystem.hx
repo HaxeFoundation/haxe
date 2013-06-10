@@ -34,9 +34,9 @@ class FileSystem {
 		return sys_exists(path);
 	}
 
-	public static function rename( path : String, newpath : String ) : Void {
-		if (sys_rename(path,newpath)==null)
-         throw "Could not rename:" + path + " to " + newpath;
+	public static function rename( path : String, newPath : String ) : Void {
+		if (sys_rename(path,newPath)==null)
+         throw "Could not rename:" + path + " to " + newPath;
 	}
 
 	public static function stat( path : String ) : FileStat {
@@ -49,8 +49,8 @@ class FileSystem {
 		return s;
 	}
 
-	public static function fullPath( relpath : String ) : String {
-		return new String(file_full_path(relpath));
+	public static function fullPath( relPath : String ) : String {
+		return new String(file_full_path(relPath));
 	}
 
 	static function kind( path : String ) : FileKind {

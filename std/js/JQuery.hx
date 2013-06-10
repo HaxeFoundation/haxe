@@ -365,7 +365,7 @@ extern class JQuery implements ArrayAccess<Element> {
 	//	return untyped this["map"](function() return f(cur)).get();
 	//}
 
-	// haXe addition
+	// Haxe addition
 	@:runtime inline function iterator() : Iterator<JQuery> {
 		return untyped __define_feature__('js.JQuery.iterator', this["iterator"])();
 	}

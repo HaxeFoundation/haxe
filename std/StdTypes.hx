@@ -19,20 +19,26 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-// standard haXe types
+// standard Haxe types
 
 /**
-	The standard Void type. Only [null] values can be of the type [Void].
+	The standard Void type. Only `null` values can be of the type `Void`.
 **/
 @:coreType abstract Void { }
 
 /**
 	The standard Float type, this is a double-precision IEEE 64bit float.
+	
+	On static targets, null cannot be assigned to Float. If this is necessary,
+	`Null<Float>` can be used instead.	
 **/
 @:coreType @:notNull @:runtimeValue abstract Float { }
 
 /**
 	The standard Int type. Its precision depends on the platform.
+	
+	On static targets, null cannot be assigned to Int. If this is necessary,
+	`Null<Int>` can be used instead.
 **/
 @:coreType @:notNull @:runtimeValue abstract Int to Float { }
 
@@ -49,22 +55,27 @@
 #end
 
 /**
-	[Null] can be useful in two cases. In order to document some methods
-	that accepts or can return a [null] value, or for the Flash9 compiler and AS3
+	`Null` can be useful in two cases. In order to document some methods
+	that accepts or can return a `null` value, or for the Flash9 compiler and AS3
 	generator to distinguish between base values that can be null and others that
 	can't.
 **/
 typedef Null<T> = T
 
 /**
-	The standard Boolean type is represented as an enum with two choices.
+	The standard Boolean type, which can either be true or false.
+	
+	On static targets, null cannot be assigned to Bool. If this is necessary,
+	`Null<Bool>` can be used instead.
 **/
 @:coreType @:notNull @:runtimeValue abstract Bool {
 }
 
 /**
-	Dynamic is an internal compiler type which has special behavior.
-	See the haXe language reference for more informations.
+	Dynamic is a special type which is compatible with all other types.
+	
+	Use of Dynamic should be minimized as it prevents several compiler
+	checks and optimizations.
 **/
 @:coreType @:runtimeValue abstract Dynamic<T> {
 }
@@ -100,7 +111,7 @@ typedef Iterator<T> = {
 
 /**
 	An Iterable is a data structure which has an iterator() method.
-	See [Lambda] for generic functions on iterable structures.
+	See `Lambda` for generic functions on iterable structures.
 **/
 typedef Iterable<T> = {
 	function iterator() : Iterator<T>;

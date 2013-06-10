@@ -21,9 +21,6 @@
  */
 package sys.io;
 
-/**
-	API for reading and writing to files.
-**/
 @:coreApi
 class File {
 
@@ -87,8 +84,8 @@ class File {
 		return new FileOutput(stream);
 	}
 
-	public static function copy( src : String, dst : String ) : Void
+	public static function copy( srcPath : String, dstPath : String ) : Void
 	{
-		cs.system.io.File.Copy(src, dst);
+		cs.system.io.File.Copy(srcPath, dstPath);
 	}
 }

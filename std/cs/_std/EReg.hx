@@ -21,7 +21,7 @@
  */
 import cs.system.text.regularExpressions.Regex;
 
-class EReg {
+@:coreApi class EReg {
 
 	private var regex : Regex;
 	private var m : Match;
@@ -86,12 +86,12 @@ class EReg {
 		return untyped [s.Substring(0, m.Index), s.Substring(m.Index + m.Length)];
 	}
 
-	inline function start(group:Int)
+	inline function start(group:Int) : Int
 	{
 		return m.Groups[group].Index;
 	}
 
-	inline function len(group:Int)
+	inline function len(group:Int) : Int
 	{
 		return m.Groups[group].Length;
 	}

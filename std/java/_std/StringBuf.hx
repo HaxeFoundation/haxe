@@ -19,13 +19,20 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 @:coreApi
 class StringBuf {
 
 	private var b : java.lang.StringBuilder;
 
+	public var length(get,never) : Int;
+
 	public function new() : Void {
 		b = new java.lang.StringBuilder();
+	}
+
+	inline function get_length() : Int {
+		return b.length();
 	}
 
 	public function add( x : Dynamic ) : Void {

@@ -81,21 +81,13 @@ let rec follow_param t =
 	| _ ->
 		t
 
-let rec sexpr (e,_) =
-	match e with
-	| EConst c -> s_constant c
-	| EParenthesis e -> "(" ^ (sexpr e) ^ ")"
-	| EArrayDecl el -> "[" ^ (String.concat "," (List.map sexpr el)) ^ "]"
-	| EObjectDecl fl -> "{" ^ (String.concat "," (List.map (fun (n,e) -> n ^ ":" ^ (sexpr e)) fl)) ^ "}"
-	| _ -> "'???'"
-
 let gen_meta meta =
 	let meta = List.filter (fun (m,_,_) -> match m with Meta.Used | Meta.MaybeUsed | Meta.RealPath -> false | _ -> true) meta in
 	match meta with
 	| [] -> []
 	| _ ->
 		let nodes = List.map (fun (m,el,_) ->
-			node "m" ["n",fst (MetaInfo.to_string m)] (List.map (fun e -> node "e" [] [gen_string (sexpr e)]) el)
+			node "m" ["n",fst (MetaInfo.to_string m)] (List.map (fun e -> node "e" [] [gen_string (Ast.s_expr e)]) el)
 		) meta in
 		[node "meta" [] nodes]
 
@@ -133,7 +125,11 @@ and gen_field att f =
 			| MethInline -> ("get", "inline") :: ("set","null") :: att)
 	) in
 	let att = (match f.cf_params with [] -> att | l -> ("params", String.concat ":" (List.map (fun (n,_) -> n) l)) :: att) in
-	node f.cf_name (if f.cf_public then ("public","1") :: att else att) (gen_type f.cf_type :: gen_meta f.cf_meta @ gen_doc_opt f.cf_doc)
+	let overloads = match List.map (gen_field []) f.cf_overloads with
+		| [] -> []
+		| nl -> [node "overloads" [] nl]
+	in
+	node f.cf_name (if f.cf_public then ("public","1") :: att else att) (gen_type f.cf_type :: gen_meta f.cf_meta @ gen_doc_opt f.cf_doc @ overloads)
 
 let gen_constr e =
 	let doc = gen_doc_opt e.ef_doc in
@@ -161,7 +157,7 @@ let rec exists f c =
 			| None -> false
 			| Some (csup,_) -> exists f csup
 
-let gen_type_decl com pos t =
+let rec gen_type_decl com pos t =
 	let m = (t_infos t).mt_module in
 	match t with
 	| TClassDecl c ->
@@ -200,7 +196,8 @@ let gen_type_decl com pos t =
 		let meta = gen_meta a.a_meta in
 		let sub = (match a.a_from with [] -> [] | l -> [node "from" [] (List.map (fun (t,_) -> gen_type t) l)]) in
 		let super = (match a.a_to with [] -> [] | l -> [node "to" [] (List.map (fun (t,_) -> gen_type t) l)]) in
-		node "abstract" (gen_type_params pos a.a_private (tpath t) a.a_types a.a_pos m) (sub @ super @ doc @ meta)
+		let impl = (match a.a_impl with None -> [] | Some c -> [node "impl" [] [gen_type_decl com pos (TClassDecl c)]]) in
+		node "abstract" (gen_type_params pos a.a_private (tpath t) a.a_types a.a_pos m) (sub @ super @ doc @ meta @ impl)
 
 let att_str att =
 	String.concat "" (List.map (fun (a,v) -> Printf.sprintf " %s=\"%s\"" a v) att)
@@ -342,7 +339,7 @@ let generate_type com t =
 			| _ ->
 			match pl with
 			| [] -> p "@%s " (fst (MetaInfo.to_string m))
-			| l -> p "@%s(%s) " (fst (MetaInfo.to_string m)) (String.concat "," (List.map sexpr pl))
+			| l -> p "@%s(%s) " (fst (MetaInfo.to_string m)) (String.concat "," (List.map Ast.s_expr pl))
 		) ml
 	in
 	let access a =

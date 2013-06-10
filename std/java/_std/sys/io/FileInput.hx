@@ -27,9 +27,6 @@ import haxe.io.Input;
 import java.io.EOFException;
 import java.io.IOException;
 
-/**
-	Use [sys.io.File.read] to create a [FileInput]
-**/
 class FileInput extends Input {
 	var f:java.io.RandomAccessFile;
 	public function new(f)

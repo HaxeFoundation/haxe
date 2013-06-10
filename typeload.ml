@@ -132,7 +132,7 @@ let make_module ctx mpath file tdecls loadp =
 					let stat = List.mem AStatic f.cff_access in
 					let p = f.cff_pos in
 					match f.cff_kind with
-					| FProp (("get" | "never"),("set" | "never"),_,_) ->
+					| FProp (("get" | "never"),("set" | "never"),_,_) when not stat ->
 						(* TODO: hack to avoid issues with abstract property generation on As3 *)
 						if Common.defined ctx.com Define.As3 then f.cff_meta <- (Meta.Extern,[],p) :: f.cff_meta;
 						{ f with cff_access = AStatic :: f.cff_access; cff_meta = (Meta.Impl,[],p) :: f.cff_meta }
@@ -209,6 +209,7 @@ let type_function_param ctx t e opt p =
 		let e = (match e with None -> Some (EConst (Ident "null"),p) | _ -> e) in
 		ctx.t.tnull t, e
 	else
+		let t = match e with Some (EConst (Ident "null"),p) -> ctx.t.tnull t | _ -> t in
 		t, e
 
 let type_var_field ctx t e stat p =
@@ -864,7 +865,7 @@ let rec return_flow ctx e =
 	let return_flow = return_flow ctx in
 	match e.eexpr with
 	| TReturn _ | TThrow _ -> ()
-	| TParenthesis e ->
+	| TParenthesis e | TMeta(_,e) ->
 		return_flow e
 	| TBlock el ->
 		let rec loop = function
@@ -880,11 +881,19 @@ let rec return_flow ctx e =
 	| TSwitch (v,cases,Some e) ->
 		List.iter (fun (_,e) -> return_flow e) cases;
 		return_flow e
-	| TSwitch (e,cases,None) when (match follow e.etype with TEnum _ -> true | _ -> false) ->
+	| TSwitch ({eexpr = TMeta((Meta.Exhaustive,_,_),_)},cases,None) ->
 		List.iter (fun (_,e) -> return_flow e) cases;
-	| TMatch (_,_,cases,def) ->
-		List.iter (fun (_,_,e) -> return_flow e) cases;
-		(match def with None -> () | Some e -> return_flow e)
+	| TPatMatch dt ->
+		let rec loop d = match d with
+			| DTExpr e -> return_flow e
+			| DTGuard(_,dt1,dt2) ->
+				loop dt1;
+				(match dt2 with None -> () | Some dt -> loop dt)
+			| DTBind (_,d) -> loop d
+			| DTSwitch (_,cl) -> List.iter (fun (_,dt) -> loop dt) cl
+			| DTGoto i -> loop (dt.dt_dt_lookup.(i))
+		in
+		loop (dt.dt_dt_lookup.(dt.dt_first))
 	| TTry (e,cases) ->
 		return_flow e;
 		List.iter (fun (_,e) -> return_flow e) cases;
@@ -1036,8 +1045,9 @@ let type_function ctx args ret fmode f do_display p =
 	ctx.opened <- [];
 	let e = match f.f_expr with None -> error "Function body required" p | Some e -> e in
 	let e = if not do_display then type_expr ctx e NoValue else try
+		if Common.defined ctx.com Define.NoCOpt then raise Exit;
 		type_expr ctx (Optimizer.optimize_completion_expr e) NoValue
-	with DisplayTypes [TMono _] | Parser.TypePath (_,None) ->
+	with DisplayTypes [TMono _] | Parser.TypePath (_,None) | Exit ->
 		type_expr ctx e NoValue
 	in
 	let rec loop e =
@@ -1644,7 +1654,7 @@ let init_class ctx c p context_init herits fields =
 				| Some t, _ -> load_complex_type ctx p t
 			) in
 			let t_get,t_set = match c.cl_kind with
-				| KAbstractImpl a ->
+				| KAbstractImpl a when Meta.has Meta.Impl f.cff_meta ->
 					if Meta.has Meta.IsVar f.cff_meta then error "Abstract properties cannot be real variables" f.cff_pos;
 					let ta = apply_params a.a_types (List.map snd a.a_types) a.a_this in
 					tfun [ta] ret, tfun [ta;ret] ret
@@ -1714,13 +1724,15 @@ let init_class ctx c p context_init herits fields =
 		| (Meta.Require,conds,_) :: l ->
 			let rec loop = function
 				| [] -> check_require l
-				| [EConst (String _),_] -> check_require l
-				| (EConst (Ident i),_) :: l ->
-					if not (Common.raw_defined ctx.com i) then
-						Some (i,(match List.rev l with (EConst (String msg),_) :: _ -> Some msg | _ -> None))
+				| e :: l ->
+					let sc = match fst e with
+						| EConst (Ident s) -> s
+						| _ -> ""
+					in
+					if not (Parser.is_true (Parser.eval ctx.com e)) then
+						Some (sc,(match List.rev l with (EConst (String msg),_) :: _ -> Some msg | _ -> None))
 					else
 						loop l
-				| _ -> error "Invalid require identifier" p
 			in
 			loop conds
 		| _ :: l ->

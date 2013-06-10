@@ -51,7 +51,7 @@ class Utf8 {
 	}
 
 	/**
-		Call the [chars] function for each UTF8 char of the string.
+		Call the `chars` function for each UTF8 char of the string.
 	**/
 	public static function iter( s : String, chars : Int -> Void ) {
 		for( i in 0...s.length )
@@ -76,7 +76,7 @@ class Utf8 {
 	}
 
 	/**
-		Similar to [String.charCodeAt] but uses the UTF8 character position.
+		Similar to `String.charCodeAt` but uses the UTF8 character position.
 	**/
 	public static inline function charCodeAt( s : String, index : Int ) : Int {
 		return s.charCodeAt(index);
@@ -105,7 +105,7 @@ class Utf8 {
 	}
 
 	/**
-		This is similar to [String.substr] but the [pos] and [len] parts are considering UTF8 characters.
+		This is similar to `String.substr` but the `pos` and `len` parts are considering UTF8 characters.
 	**/
 	public static inline function sub( s : String, pos : Int, len : Int ) : String {
 		return s.substr(pos,len);

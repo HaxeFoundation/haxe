@@ -25,14 +25,14 @@
 
   This module intends to be a common set of utilities common to all targets.
 
-  It's intended to provide a set of tools to be able to make targets in haXe more easily, and to
+  It's intended to provide a set of tools to be able to make targets in Haxe more easily, and to
   allow the programmer to have more control of how the target language will handle the program.
 
   For example, as of now, the hxcpp target, while greatly done, relies heavily on cpp's own operator
   overloading, and implicit conversions, which make it very hard to deliver a similar solution for languages
   that lack these features.
 
-  So this little framework is here so you can manipulate the HaXe AST and start bringing the AST closer
+  So this little framework is here so you can manipulate the Haxe AST and start bringing the AST closer
   to how it's intenteded to be in your host language.
 
   Rules
@@ -110,7 +110,7 @@ struct
   let mk_heexpr = function
     | TConst _ -> 0 | TLocal _ -> 1 | TArray _ -> 3 | TBinop _ -> 4 | TField _ -> 5 | TTypeExpr _ -> 7 | TParenthesis _ -> 8 | TObjectDecl _ -> 9
     | TArrayDecl _ -> 10 | TCall _ -> 11 | TNew _ -> 12 | TUnop _ -> 13 | TFunction _ -> 14 | TVars _ -> 15 | TBlock _ -> 16 | TFor _ -> 17 | TIf _ -> 18 | TWhile _ -> 19
-    | TSwitch _ -> 20 | TMatch _ -> 21 | TTry _ -> 22 | TReturn _ -> 23 | TBreak -> 24 | TContinue -> 25 | TThrow _ -> 26 | TCast _ -> 27
+    | TSwitch _ -> 20 | TPatMatch _ -> 21 | TTry _ -> 22 | TReturn _ -> 23 | TBreak -> 24 | TContinue -> 25 | TThrow _ -> 26 | TCast _ -> 27 | TMeta _ -> 28 | TEnumParameter _ -> 29
 
   let mk_heetype = function
     | TMono _ -> 0 | TEnum _ -> 1 | TInst _ -> 2 | TType _ -> 3 | TFun _ -> 4
@@ -4451,7 +4451,7 @@ end;;
   and will unwrap statements where expressions are expected, and vice-versa.
 
   It should be one of the first syntax filters to be applied. As a consequence, it's applied after all filters that add code to the AST, and by being
-  the first of the syntax filters, it will also have the AST retain most of the meaning of normal HaXe code. So it's easier to detect cases which are
+  the first of the syntax filters, it will also have the AST retain most of the meaning of normal Haxe code. So it's easier to detect cases which are
   side-effects free, for example
 
   Any target can make use of this, but there is one requirement: The target must accept null to be set to any kind of variable. For example,
@@ -4460,7 +4460,7 @@ end;;
   dependencies:
     While it's best for Expression Unwrap to delay its execution as much as possible, since theoretically any
     filter can return an expression that needs to be unwrapped, it is also desirable for ExpresionUnwrap to have
-    the AST as close as possible as HaXe's, so it can make some correct predictions (for example, so it can
+    the AST as close as possible as Haxe's, so it can make some correct predictions (for example, so it can
     more accurately know what can be side-effects-free and what can't).
     This way, it will run slightly after the Normal priority, so if you don't say that a syntax filter must run
     before Expression Unwrap, it will run after it.
@@ -4602,8 +4602,8 @@ struct
         { expr with eexpr = TWhile(fn cond, block, flag) }
       | TSwitch(cond, el_block_l, default) ->
         { expr with eexpr = TSwitch( fn cond, List.map (fun (el,block) -> (List.map fn el, block)) el_block_l, default ) }
-      | TMatch(cond, enum, cases, default) ->
-        { expr with eexpr = TMatch(fn cond, enum, cases, default) }
+(*       | TMatch(cond, enum, cases, default) ->
+        { expr with eexpr = TMatch(fn cond, enum, cases, default) } *)
       | TReturn(eopt) ->
         { expr with eexpr = TReturn(Option.map fn eopt) }
       | TThrow (texpr) ->
@@ -4655,13 +4655,14 @@ struct
       | TArray _
       | TBinop _
       | TField _
+      | TEnumParameter _
       | TTypeExpr _
       | TObjectDecl _
       | TArrayDecl _
       | TFunction _
       | TCast _
       | TUnop _ -> Expression (expr)
-      | TParenthesis p -> shallow_expr_type p
+      | TParenthesis p | TMeta(_,p) -> shallow_expr_type p
       | TBlock ([e]) -> shallow_expr_type e
       | TCall _
       | TVars _
@@ -4669,7 +4670,7 @@ struct
       | TFor _
       | TWhile _
       | TSwitch _
-      | TMatch _
+      | TPatMatch _
       | TTry _
       | TReturn _
       | TBreak
@@ -4711,6 +4712,7 @@ struct
           | TArray (e1,e2) ->
             aggregate true [e1;e2]
           | TParenthesis e
+          | TMeta(_,e)
           | TField (e,_) ->
             aggregate true [e]
           | TArrayDecl (el) ->
@@ -4793,8 +4795,8 @@ struct
         { right with eexpr = TBlock(apply_assign_block assign_fun el) }
       | TSwitch (cond, elblock_l, default) ->
         { right with eexpr = TSwitch(cond, List.map (fun (el,block) -> (el, mk_get_block assign_fun block)) elblock_l, Option.map (mk_get_block assign_fun) default) }
-      | TMatch (cond, ep, il_vlo_e_l, default) ->
-        { right with eexpr = TMatch(cond, ep, List.map (fun (il,vlo,e) -> (il,vlo,mk_get_block assign_fun e)) il_vlo_e_l, Option.map (mk_get_block assign_fun) default) }
+(*       | TMatch (cond, ep, il_vlo_e_l, default) ->
+        { right with eexpr = TMatch(cond, ep, List.map (fun (il,vlo,e) -> (il,vlo,mk_get_block assign_fun e)) il_vlo_e_l, Option.map (mk_get_block assign_fun) default) } *)
       | TTry (block, catches) ->
         { right with eexpr = TTry(mk_get_block assign_fun block, List.map (fun (v,block) -> (v,mk_get_block assign_fun block) ) catches) }
       | TIf (cond,eif,eelse) ->
@@ -4805,7 +4807,7 @@ struct
       | TReturn _
       | TBreak
       | TContinue -> right
-      | TParenthesis p ->
+      | TParenthesis p | TMeta(_,p) ->
         apply_assign assign_fun p
       | _ ->
         match follow right.etype with
@@ -5101,8 +5103,8 @@ struct
           { e with eexpr = TBlock(block) }
         | TTry (block, catches) ->
           { e with eexpr = TTry(traverse (mk_block block), List.map (fun (v,block) -> (v, traverse (mk_block block))) catches) }
-        | TMatch (cond,ep,il_vol_e_l,default) ->
-          { e with eexpr = TMatch(cond,ep,List.map (fun (il,vol,e) -> (il,vol,traverse (mk_block e))) il_vol_e_l, Option.map (fun e -> traverse (mk_block e)) default) }
+(*         | TMatch (cond,ep,il_vol_e_l,default) ->
+          { e with eexpr = TMatch(cond,ep,List.map (fun (il,vol,e) -> (il,vol,traverse (mk_block e))) il_vol_e_l, Option.map (fun e -> traverse (mk_block e)) default) } *)
         | TSwitch (cond,el_e_l, default) ->
           { e with eexpr = TSwitch(cond, List.map (fun (el,e) -> (el, traverse (mk_block e))) el_e_l, Option.map (fun e -> traverse (mk_block e)) default) }
         | TWhile (cond,block,flag) ->
@@ -5179,6 +5181,7 @@ struct
     let default_implementation gen =
       let rec extract_expr e = match e.eexpr with
         | TParenthesis e
+        | TMeta (_,e)
         | TCast(e,_) -> extract_expr e
         | _ -> e
       in
@@ -6007,8 +6010,8 @@ struct
           { e with eexpr = TWhile (handle (run econd) gen.gcon.basic.tbool econd.etype, run (mk_block e1), flag) }
         | TSwitch (cond, el_e_l, edef) ->
           { e with eexpr = TSwitch(run cond, List.map (fun (el,e) -> (List.map run el, run (mk_block e))) el_e_l, Option.map (fun e -> run (mk_block e)) edef) }
-        | TMatch (cond, en, il_vl_e_l, edef) ->
-          { e with eexpr = TMatch(run cond, en, List.map (fun (il, vl, e) -> (il, vl, run (mk_block e))) il_vl_e_l, Option.map (fun e -> run (mk_block e)) edef) }
+(*         | TMatch (cond, en, il_vl_e_l, edef) ->
+          { e with eexpr = TMatch(run cond, en, List.map (fun (il, vl, e) -> (il, vl, run (mk_block e))) il_vl_e_l, Option.map (fun e -> run (mk_block e)) edef) } *)
         | TFor (v,cond,e1) ->
           { e with eexpr = TFor(v, run cond, run (mk_block e1)) }
         | TTry (e, ve_l) ->
@@ -6021,7 +6024,7 @@ struct
           let rec get_null e =
             match e.eexpr with
             | TConst TNull -> Some e
-            | TParenthesis e -> get_null e
+            | TParenthesis e | TMeta(_,e) -> get_null e
             | _ -> None
           in
           (match get_null expr with
@@ -6658,7 +6661,7 @@ struct
         | TIf(cond,e1,Some e2) ->
           is_side_effects_free cond && is_side_effects_free e1 && is_side_effects_free e2
         | TField(e,_)
-        | TParenthesis e -> is_side_effects_free e
+        | TParenthesis e | TMeta(_,e) -> is_side_effects_free e
         | TArrayDecl el -> List.for_all is_side_effects_free el
         | TCast(e,_) -> is_side_effects_free e
         | _ -> false
@@ -8581,43 +8584,22 @@ struct
     let traverse gen t opt_get_native_enum_tag =
       let rec run e =
         match e.eexpr with
-          | TMatch(cond,(en,eparams),cases,default) ->
-            let cond = run cond in (* being safe *)
+          | TEnumParameter(f, i) ->
+            let f = run f in
             (* check if en was converted to class *)
             (* if it was, switch on tag field and change cond type *)
-            let exprs_before, cond_local, cond = try
-              let cl = Hashtbl.find t.ec_tbl en.e_path in
-              let cond = { cond with etype = TInst(cl, eparams) } in
-              let exprs_before, new_cond = ensure_local gen cond in
-              exprs_before, new_cond, get_index gen new_cond cl eparams
-            with | Not_found ->
-              (*
-                if it's not a class, we'll either use get_native_enum_tag or in a last resource,
-                call Type.getEnumIndex
-              *)
-              match opt_get_native_enum_tag with
-                | Some get_native_etag ->
-                  [], cond, get_native_etag cond
-                | None ->
-                  [], cond, { eexpr = TCall(mk_static_field_access_infer gen.gclasses.cl_type "enumIndex" e.epos [], [cond]); etype = gen.gcon.basic.tint; epos = cond.epos }
-            in
-
-            (* for each case, change cases to expr int, and see if there is any var create *)
-            let change_case (il, params, expr) =
-              let expr = run expr in
-              (* if there are, set var with tarray *)
-              let exprs = tmatch_params_to_exprs gen params cond_local in
-              let expr = match expr.eexpr with
-                | TBlock(bl) -> { expr with eexpr = TBlock(exprs @ bl) }
-                | _ -> { expr with eexpr = TBlock ( exprs @ [expr] ) }
+            let f = try
+              let en, eparams = match follow (gen.gfollow#run_f f.etype) with
+                | TEnum(en,p) -> en, p
+                | _ -> raise Not_found
               in
-              (List.map (fun i -> mk_int gen i e.epos) il, expr)
+              let cl = Hashtbl.find t.ec_tbl en.e_path in
+              { f with etype = TInst(cl, eparams) }
+            with | Not_found ->
+              f
             in
-
-            let tswitch = { e with eexpr = TSwitch(cond, List.map change_case cases, Option.map run default) } in
-            (match exprs_before with
-              | [] -> tswitch
-              | _ -> { e with eexpr = TBlock(exprs_before @ [tswitch]) })
+            let cond_array = { (mk_field_access gen f "params" f.epos) with etype = gen.gcon.basic.tarray t_empty } in
+            { e with eexpr = TArray(cond_array, mk_int gen i cond_array.epos); }
           | _ -> Type.map_expr run e
       in
 
@@ -9331,7 +9313,7 @@ struct
 
           new_e
         | TSwitch _
-        | TMatch _ ->
+        | TPatMatch _ ->
           let last_switch = !in_switch in
           in_switch := true;
 
@@ -9423,7 +9405,7 @@ struct
     match e.eexpr with
       | TConst (v) -> Some v
       | TBinop(op, v1, v2) -> aggregate_constant op (get_constant_expr v1) (get_constant_expr v2)
-      | TParenthesis(e) -> get_constant_expr e
+      | TParenthesis(e) | TMeta(_,e) -> get_constant_expr e
       | _ -> None
 
   let traverse gen should_warn handle_switch_break handle_not_final_returns java_mode =
@@ -9555,9 +9537,9 @@ struct
             (el, handle_case (e, ek))
           ) el_e_l, Some def) } in
           ret, !k
-        | TMatch(cond, ep, il_vopt_e_l, None) ->
-          { expr with eexpr = TMatch(cond, ep, List.map (fun (il, vopt, e) -> (il, vopt, handle_case (process_expr e))) il_vopt_e_l, None) }, Normal
-        | TMatch(cond, ep, il_vopt_e_l, Some def) ->
+(*         | TMatch(cond, ep, il_vopt_e_l, None) ->
+          { expr with eexpr = TMatch(cond, ep, List.map (fun (il, vopt, e) -> (il, vopt, handle_case (process_expr e))) il_vopt_e_l, None) }, Normal *)
+(*         | TMatch(cond, ep, il_vopt_e_l, Some def) ->
           let def, k = process_expr def in
           let def = handle_case (def, k) in
           let k = ref k in
@@ -9566,7 +9548,7 @@ struct
             k := aggregate_kind !k ek;
             (il, vopt, handle_case (e, ek))
           ) il_vopt_e_l, Some def) } in
-          ret, !k
+          ret, !k *)
         | TTry (e, catches) ->
           let e, k = process_expr e in
           let k = ref k in
@@ -9847,8 +9829,8 @@ struct
           { e with eexpr = TBlock bl }
         | TTry (block, catches) ->
           { e with eexpr = TTry(traverse (mk_block block), List.map (fun (v,block) -> (v, traverse (mk_block block))) catches) }
-        | TMatch (cond,ep,il_vol_e_l,default) ->
-          { e with eexpr = TMatch(cond,ep,List.map (fun (il,vol,e) -> (il,vol,traverse (mk_block e))) il_vol_e_l, Option.map (fun e -> traverse (mk_block e)) default) }
+(*         | TMatch (cond,ep,il_vol_e_l,default) ->
+          { e with eexpr = TMatch(cond,ep,List.map (fun (il,vol,e) -> (il,vol,traverse (mk_block e))) il_vol_e_l, Option.map (fun e -> traverse (mk_block e)) default) } *)
         | TSwitch (cond,el_e_l, default) ->
           { e with eexpr = TSwitch(cond, List.map (fun (el,e) -> (el, traverse (mk_block e))) el_e_l, Option.map (fun e -> traverse (mk_block e)) default) }
         | TWhile (cond,block,flag) ->

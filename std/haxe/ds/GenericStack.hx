@@ -43,7 +43,16 @@ private class GenericStackIterator<T> extends cpp.FastIterator<T> {
 #end
 
 /**
-	A linked-list of elements. A different class is created for each container used in platforms where it matters
+	A stack of elements.
+	
+	This class is generic, which means one type is generated for each type
+	parameter T on static targets. For example:
+		
+	- `new GenericStack<Int>()` generates `GenericStack_Int`
+	- `new GenericStack<String>()` generates `GenericStack_String`
+	
+	The generated name is an implementation detail and should not be relied
+	upon.
 **/
 #if (flash9 || cpp)
 @:generic
@@ -53,30 +62,31 @@ class GenericStack<T> {
 	public var head : GenericCell<T>;
 
 	/**
-		Creates a new empty list.
+		Creates a new empty GenericStack.
 	**/
 	public function new() {
 	}
 
 	/**
-		Add an element at the head of the list.
+		Pushes element `item` onto the stack.
 	**/
 	public inline function add( item : T ) {
 		head = new GenericCell<T>(item,head);
 	}
 
 	/**
-		Returns the first element of the list, or null
-		if the list is empty.
+		Returns the topmost stack element without removing it.
+		
+		If the stack is empty, null is returned.
 	**/
 	public inline function first() : Null<T> {
 		return if( head == null ) null else head.elt;
 	}
 
 	/**
-		Removes the first element of the list and
-		returns it or simply returns null if the
-		list is empty.
+		Returns the topmost stack element and removes it.
+		
+		If the stack is empty, null is returned.
 	**/
 	public inline function pop() : Null<T> {
 		var k = head;
@@ -89,15 +99,20 @@ class GenericStack<T> {
 	}
 
 	/**
-		Tells if a list is empty.
+		Tells if the stack is empty.
 	**/
 	public inline function isEmpty() : Bool {
 		return (head == null);
 	}
 
 	/**
-		Remove the first element that is [== v] from the list.
-		Returns [true] if an element was removed, [false] otherwise.
+		Removes the first element which is equal to `v` according to the `==`
+		operator.
+		
+		This method traverses the stack until it finds a matching element and
+		unlinks it, returning true.
+		
+		If no matching element is found, false is returned.
 	**/
 	public function remove( v : T ) : Bool {
 		var prev = null;
@@ -119,7 +134,7 @@ class GenericStack<T> {
 	#if cpp
 
 	/**
-		Returns an iterator on the elements of the list.
+		Returns an iterator over the elements of `this` GenericStack.
 	**/
 	public function iterator() : Iterator<T> {
 		return new GenericStackIterator<T>(head);
@@ -128,7 +143,7 @@ class GenericStack<T> {
 	#else
 
 	/**
-		Returns an iterator on the elements of the list.
+		Returns an iterator over the elements of `this` GenericStack.
 	**/
 	public function iterator() : Iterator<T> {
 		var l = head;
@@ -146,7 +161,7 @@ class GenericStack<T> {
    #end
 
 	/**
-		Returns a displayable representation of the String.
+		Returns a String representation of `this` GenericStack.
 	**/
 	public function toString() {
 		var a = new Array();

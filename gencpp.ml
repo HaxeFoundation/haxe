@@ -341,7 +341,7 @@ List.filter (function (t,pl) ->
 
 let rec is_function_expr expr =
    match expr.eexpr with
-   | TParenthesis expr -> is_function_expr expr
+   | TParenthesis expr | TMeta(_,expr) -> is_function_expr expr
    | TCast (e,None) -> is_function_expr e
    | TFunction _ -> true
    | _ -> false;;
@@ -758,9 +758,10 @@ let rec iter_retval f retval e =
 		f false e2;
 	| TThrow e
 	| TField (e,_)
+	| TEnumParameter (e,_)
 	| TUnop (_,_,e) ->
 		f true e
-	| TParenthesis e ->
+	| TParenthesis e | TMeta(_,e) ->
 		f retval e
 	| TBlock expr_list when retval ->
 		let rec return_last = function
@@ -790,10 +791,11 @@ let rec iter_retval f retval e =
 		f true e;
 		List.iter (fun (el,e2) -> List.iter (f true) el; f retval e2) cases;
 		(match def with None -> () | Some e -> f retval e)
-	| TMatch (e,_,cases,def) ->
+(* 	| TMatch (e,_,cases,def) ->
 		f true e;
 		List.iter (fun (_,_,e) -> f false e) cases;
-		(match def with None -> () | Some e -> f false e)
+		(match def with None -> () | Some e -> f false e) *)
+	| TPatMatch dt -> assert false
 	| TTry (e,catches) ->
 		f retval e;
 		List.iter (fun (_,e) -> f false e) catches
@@ -856,7 +858,7 @@ let tmatch_params_to_args params =
 let rec is_null expr =
    match expr.eexpr with
    | TConst TNull -> true
-   | TParenthesis expr -> is_null expr
+   | TParenthesis expr | TMeta (_,expr) -> is_null expr
    | TCast (e,None) -> is_null e
    | _ -> false
 ;;
@@ -893,7 +895,7 @@ let find_undeclared_variables_ctx ctx undeclared declarations this_suffix allow_
          let name = keyword_remap tvar.v_name in
 			if  not (Hashtbl.mem declarations name) then
 				Hashtbl.replace undeclared name (type_string expression.etype)
-		| TMatch (condition, enum, cases, default) ->
+(* 		| TMatch (condition, enum, cases, default) ->
 			find_undeclared_variables undeclared declarations this_suffix allow_this condition;
 			List.iter (fun (case_ids,params,expression) ->
 				let old_decs = Hashtbl.copy declarations in
@@ -909,7 +911,7 @@ let find_undeclared_variables_ctx ctx undeclared declarations this_suffix allow_
 			(match default with | None -> ()
 			| Some expr ->
 				find_undeclared_variables undeclared declarations this_suffix allow_this expr;
-			);
+			); *)
 		| TFor (tvar, init, loop) ->
 			let old_decs = Hashtbl.copy declarations in
 			Hashtbl.add declarations (keyword_remap tvar.v_name) ();
@@ -941,6 +943,8 @@ let rec is_dynamic_in_cpp ctx expr =
 	else begin
 		let result = (
 		match expr.eexpr with
+ 		| TEnumParameter( obj, index ) ->
+			true (* TODO? *)
 		| TField( obj, field ) ->
 			let name = field_name field in
 			ctx.ctx_dbgout ("/* ?tfield "^name^" */");
@@ -971,7 +975,7 @@ let rec is_dynamic_in_cpp ctx expr =
                    is_dynamic_in_cpp ctx func
                | _ -> ctx.ctx_dbgout "/* not TFun */";  true
            );
-		| TParenthesis(expr) -> is_dynamic_in_cpp ctx expr
+		| TParenthesis(expr) | TMeta(_,expr) -> is_dynamic_in_cpp ctx expr
       | TCast (e,None) -> is_dynamic_in_cpp ctx e
 		| TLocal { v_name = "__global__" } -> false
 		| TConst TNull -> true
@@ -1246,7 +1250,7 @@ and find_local_functions_and_return_blocks_ctx ctx retval expression =
 			if (retval) then begin
 				define_local_return_block_ctx ctx expression (next_anon_function_name ctx) true;
 			end  (* else we are done *)
-		| TMatch (_, _, _, _)
+		| TPatMatch (_)
 		| TTry (_, _)
 		| TSwitch (_, _, _) when retval ->
 				define_local_return_block_ctx ctx expression (next_anon_function_name ctx) true;
@@ -1266,13 +1270,13 @@ and find_local_functions_and_return_blocks_ctx ctx retval expression =
 			let func_name = next_anon_function_name ctx in
 			output "\n";
 			define_local_function_ctx ctx func_name func
-		| TField (obj,_) when (is_null obj) -> ( )
+		| TField (obj,_) | TEnumParameter (obj,_) when (is_null obj) -> ( )
 		| TArray (obj,_) when (is_null obj) -> ( )
 		| TIf ( _ , _ , _ ) when retval -> (* ? operator style *)
 		   iter_retval find_local_functions_and_return_blocks retval expression
-		| TMatch (_, _, _, _)
+		| TPatMatch (_)
 		| TSwitch (_, _, _) when retval -> ( )
-		| TMatch ( cond , _, _, _)
+		(* | TMatch ( cond , _, _, _) *)
 		| TWhile ( cond , _, _ )
 		| TIf ( cond , _, _ )
 		| TSwitch ( cond , _, _) -> iter_retval find_local_functions_and_return_blocks true cond
@@ -1478,7 +1482,7 @@ and gen_expression ctx retval expression =
 		   check_array_cast (Codegen.Abstract.get_underlying_type abs pl)
       | _ -> ()
    in
-	
+
 	let rec gen_tfield field_object field =
       let member = (field_name field) in
 		let remap_name = keyword_remap member in
@@ -1577,9 +1581,9 @@ and gen_expression ctx retval expression =
       output ("(" ^ !arg_string ^ ");\n");
 	| TCall (func, arg_list) ->
 		let rec is_variable e = match e.eexpr with
-		| TField _ -> false
+		| TField _ | TEnumParameter _ -> false
 		| TLocal { v_name = "__global__" } -> false
-		| TParenthesis p -> is_variable p
+		| TParenthesis p | TMeta(_,p) -> is_variable p
 		| TCast (e,None) -> is_variable e
 		| _ -> true
       in
@@ -1596,7 +1600,7 @@ and gen_expression ctx retval expression =
             end;
             fixed
           )
-		| TParenthesis p -> is_fixed_override p
+		| TParenthesis p | TMeta(_,p) -> is_fixed_override p
 		| _ -> false
       in
       let is_super = (match func.eexpr with | TConst TSuper -> true | _ -> false ) in
@@ -1626,7 +1630,7 @@ and gen_expression ctx retval expression =
                   | "map" -> check_array_cast expression.etype
                   | _ -> ()
                )
-            | TParenthesis p -> cast_array_output p
+            | TParenthesis p | TMeta(_,p) -> cast_array_output p
             | _ -> ()
       in
       cast_array_output func;
@@ -1732,14 +1736,19 @@ and gen_expression ctx retval expression =
 		end
 	(* Get precidence matching haxe ? *)
 	| TBinop (op,expr1,expr2) -> gen_bin_op op expr1 expr2
-	| TField (expr,name) when (is_null expr) -> output "Dynamic()"
-
+	| TField (expr,_) | TEnumParameter (expr,_) when (is_null expr) -> output "Dynamic()"
+	| TEnumParameter (expr,i) ->
+		let enum = match follow expr.etype with TEnum(enum,_) -> enum | _ -> assert false in
+		output (  "(::" ^ (join_class_path_remap enum.e_path "::") ^ "(");
+		gen_expression ctx true expr;
+		output ( "))->__Param(" ^ (string_of_int i) ^ ")")
 	| TField (field_object,field) ->
 		gen_tfield field_object field
 
 	| TParenthesis expr when not retval ->
 			gen_expression ctx retval expr;
 	| TParenthesis expr -> output "("; gen_expression ctx retval expr; output ")"
+	| TMeta (_,expr) -> gen_expression ctx retval expr;
 	| TObjectDecl (
       ("fileName" , { eexpr = (TConst (TString file)) }) ::
          ("lineNumber" , { eexpr = (TConst (TInt line)) }) ::
@@ -1878,8 +1887,9 @@ and gen_expression ctx retval expression =
 	(* These have already been defined in find_local_return_blocks ... *)
 	| TTry (_,_)
 	| TSwitch (_,_,_)
-	| TMatch (_, _, _, _) when (retval && (not return_from_internal_node) )->
+	| TPatMatch (_) when (retval && (not return_from_internal_node) )->
       gen_local_block_call()
+    | TPatMatch dt -> assert false
 	| TSwitch (condition,cases,optional_default)  ->
 		let switch_on_int_constants = (only_int_cases cases) && (not (contains_break expression)) in
 		if (switch_on_int_constants) then begin
@@ -1932,58 +1942,6 @@ and gen_expression ctx retval expression =
 				output ";\n";
 			);
 		end
-	| TMatch (condition, enum, cases, default) ->
-		let tmp_var = get_switch_var ctx in
-		writer#begin_block;
-		output_i (  "::" ^ (join_class_path_remap (fst enum).e_path "::") ^ " " ^ tmp_var ^ " = " );
-		gen_expression ctx true condition;
-		output ";\n";
-
-		let use_if_statements = contains_break expression in
-		let dump_condition = if (use_if_statements) then begin
-			let tmp_name = get_switch_var ctx in
-			output_i ( "int " ^ tmp_name ^ " = (" ^ tmp_var ^ ")->GetIndex();" );
-			let elif = ref "if" in
-			( fun case_ids -> output (!elif ^ " (" ); elif := "else if";
-					output (String.concat "||"
-					(List.map (fun id -> (string_of_int id) ^ "==" ^ tmp_name ) case_ids ) );
-				output ") " )
-		end else begin
-			output_i ("switch((" ^ tmp_var ^ ")->GetIndex())");
-			( fun case_ids ->
-			List.iter (fun id -> output ("case " ^ (string_of_int id) ^ ": ") ) case_ids;
-			)
-		end in
-		writer#begin_block;
-		List.iter (fun (case_ids,params,expression) ->
-			output_i "";
-			dump_condition case_ids;
-			let has_params = match params with | Some _ -> true | _ -> false in
-			if (has_params) then begin
-				writer#begin_block;
-				List.iter (fun (name,vtype,id) -> output_i
-				((type_string vtype) ^ " " ^ (keyword_remap name) ^
-					" = " ^ tmp_var ^ "->__Param(" ^ (string_of_int id) ^ ");\n"))
-						(tmatch_params_to_args params);
-			end;
-			ctx.ctx_return_from_block <- return_from_internal_node;
-			gen_expression ctx false (to_block expression);
-			if (has_params) then writer#end_block;
-			if (not use_if_statements) then output_i ";break;\n";
-		) cases;
-		(match default with
-		| None -> ()
-		|  Some e ->
-			if (use_if_statements) then
-				output_i "else "
-			else
-				output_i "default: ";
-			ctx.ctx_return_from_block <- return_from_internal_node;
-			gen_expression ctx false (to_block e);
-		);
-		writer#end_block;
-		writer#end_block;
-
 	| TTry (expression, catch_list) ->
 		output "try";
 		(* Move this "inside" the try call ... *)
@@ -2356,12 +2314,12 @@ let find_referenced_types ctx obj super_deps constructor_deps header_only for_de
 				| TTry (e,catches) ->
 					List.iter (fun (v,_) -> visit_type v.v_type) catches
 				(* Must visit the enum param types, Type.iter will visit the rest ... *)
-				| TMatch (_,enum,cases,_) ->
+(* 				| TMatch (_,enum,cases,_) ->
 					add_type (fst enum).e_path;
 					List.iter (fun (case_ids,params,expression) ->
 						(match params with
 						| None -> ()
-						| Some l -> List.iter (function None -> () | Some v -> visit_type v.v_type) l  ) ) cases;
+						| Some l -> List.iter (function None -> () | Some v -> visit_type v.v_type) l  ) ) cases; *)
 				(* Must visit type too, Type.iter will visit the expressions ... *)
             | TNew  (klass,params,_) -> begin
                visit_type (TInst (klass,params));

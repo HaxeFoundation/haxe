@@ -119,13 +119,15 @@ and texpr_expr =
 	| TIf of texpr * texpr * texpr option
 	| TWhile of texpr * texpr * Ast.while_flag
 	| TSwitch of texpr * (texpr list * texpr) list * texpr option
-	| TMatch of texpr * (tenum * tparams) * (int list * tvar option list option * texpr) list * texpr option
+	| TPatMatch of decision_tree
 	| TTry of texpr * (tvar * texpr) list
 	| TReturn of texpr option
 	| TBreak
 	| TContinue
 	| TThrow of texpr
 	| TCast of texpr * module_type option
+	| TMeta of metadata_entry * texpr
+	| TEnumParameter of texpr * int
 
 and tfield_access =
 	| FInstance of tclass * tclass_field
@@ -288,6 +290,20 @@ and module_kind =
 	| MCode
 	| MMacro
 	| MFake
+
+and dt =
+	| DTSwitch of texpr * (texpr * dt) list
+	| DTBind of ((tvar * pos) * texpr) list * dt
+	| DTGoto of int
+	| DTExpr of texpr
+	| DTGuard of texpr * dt * dt option
+
+and decision_tree = {
+	dt_dt_lookup : dt array;
+	dt_first : int;
+	dt_type : t;
+	dt_var_init : (tvar * texpr option) list;
+}
 
 let alloc_var =
 	let uid = ref 0 in
@@ -1178,12 +1194,12 @@ let rec unify a b =
 			error [cannot_unify a b])
 	| TAbstract (aa,tl), _  ->
 		if not (List.exists (unify_to_field aa tl b) aa.a_to) then error [cannot_unify a b];
-	| TInst ({ cl_kind = KTypeParameter ctl } as c,pl), TAbstract _ ->
+	| TInst ({ cl_kind = KTypeParameter ctl } as c,pl), TAbstract (bb,tl) ->
 		(* one of the constraints must satisfy the abstract *)
 		if not (List.exists (fun t ->
 			let t = apply_params c.cl_types pl t in
 			try unify t b; true with Unify_error _ -> false
-		) ctl) then error [cannot_unify a b];
+		) ctl) && not (List.exists (unify_from_field bb tl a b) bb.a_from) then error [cannot_unify a b];
 	| _, TAbstract (bb,tl) ->
 		if not (List.exists (unify_from_field bb tl a b) bb.a_from) then error [cannot_unify a b]
 	| _ , _ ->
@@ -1268,6 +1284,14 @@ and unify_with_access t1 f2 =
 	(* read/write *)
 	| _ -> type_eq EqBothDynamic t1 f2.cf_type
 
+let iter_dt f dt = match dt with
+	| DTBind(_,dt) -> f dt
+	| DTSwitch(_,cl) -> List.iter (fun (_,dt) -> f dt) cl
+	| DTGuard(_,dt1,dt2) ->
+		f dt1;
+		(match dt2 with None -> () | Some dt -> f dt)
+	| DTGoto _ | DTExpr _ -> ()
+
 let iter f e =
 	match e.eexpr with
 	| TConst _
@@ -1284,9 +1308,11 @@ let iter f e =
 		f e2;
 	| TThrow e
 	| TField (e,_)
+	| TEnumParameter (e,_)
 	| TParenthesis e
 	| TCast (e,_)
-	| TUnop (_,_,e) ->
+	| TUnop (_,_,e)
+	| TMeta(_,e) ->
 		f e
 	| TArrayDecl el
 	| TNew (_,_,el)
@@ -1309,10 +1335,24 @@ let iter f e =
 		f e;
 		List.iter (fun (el,e2) -> List.iter f el; f e2) cases;
 		(match def with None -> () | Some e -> f e)
-	| TMatch (e,_,cases,def) ->
-		f e;
-		List.iter (fun (_,_,e) -> f e) cases;
-		(match def with None -> () | Some e -> f e)
+	| TPatMatch dt ->
+		let rec loop dt = match dt with
+			| DTBind(_,dt) -> loop dt
+			| DTGoto _ -> ()
+			| DTSwitch(e,cl) ->
+				f e;
+				List.iter (fun (e,dt) ->
+					f e;
+					loop dt
+				) cl
+			| DTExpr e -> f e
+			| DTGuard(eg,dt1,dt2) ->
+				f eg;
+				loop dt1;
+				(match dt2 with None -> () | Some dt -> loop dt)
+		in
+		List.iter (fun (_,eo) -> match eo with None -> () | Some e -> f e) dt.dt_var_init;
+		Array.iter loop dt.dt_dt_lookup
 	| TTry (e,catches) ->
 		f e;
 		List.iter (fun (_,e) -> f e) catches
@@ -1337,6 +1377,8 @@ let map_expr f e =
 		{ e with eexpr = TWhile (f e1,f e2,flag) }
 	| TThrow e1 ->
 		{ e with eexpr = TThrow (f e1) }
+	| TEnumParameter (e1,i) ->
+		 { e with eexpr = TEnumParameter(f e1,i) }
 	| TField (e1,v) ->
 		{ e with eexpr = TField (f e1,v) }
 	| TParenthesis e1 ->
@@ -1361,14 +1403,24 @@ let map_expr f e =
 		{ e with eexpr = TIf (f ec,f e1,match e2 with None -> None | Some e -> Some (f e)) }
 	| TSwitch (e1,cases,def) ->
 		{ e with eexpr = TSwitch (f e1, List.map (fun (el,e2) -> List.map f el, f e2) cases, match def with None -> None | Some e -> Some (f e)) }
-	| TMatch (e1,t,cases,def) ->
-		{ e with eexpr = TMatch (f e1, t, List.map (fun (cl,params,e) -> cl, params, f e) cases, match def with None -> None | Some e -> Some (f e)) }
+	| TPatMatch dt ->
+		let rec loop dt = match dt with
+			| DTBind(vl,dt) -> DTBind(vl, loop dt)
+			| DTGoto _ -> dt
+			| DTSwitch(e,cl) -> DTSwitch(f e, List.map (fun (e,dt) -> f e,loop dt) cl)
+			| DTExpr e -> DTExpr(f e)
+			| DTGuard(e,dt1,dt2) -> DTGuard(f e,loop dt1,match dt2 with None -> None | Some dt -> Some (loop dt))
+		in
+		let vi = List.map (fun (v,eo) -> v, match eo with None -> None | Some e -> Some(f e)) dt.dt_var_init in
+		{ e with eexpr = TPatMatch({dt with dt_dt_lookup = Array.map loop dt.dt_dt_lookup; dt_var_init = vi})}
 	| TTry (e1,catches) ->
 		{ e with eexpr = TTry (f e1, List.map (fun (v,e) -> v, f e) catches) }
 	| TReturn eo ->
 		{ e with eexpr = TReturn (match eo with None -> None | Some e -> Some (f e)) }
 	| TCast (e1,t) ->
 		{ e with eexpr = TCast (f e1,t) }
+	| TMeta (m,e1) ->
+		 {e with eexpr = TMeta(m,f e1)}
 
 let map_expr_type f ft fv e =
 	match e.eexpr with
@@ -1389,6 +1441,8 @@ let map_expr_type f ft fv e =
 		{ e with eexpr = TWhile (f e1,f e2,flag); etype = ft e.etype }
 	| TThrow e1 ->
 		{ e with eexpr = TThrow (f e1); etype = ft e.etype }
+	| TEnumParameter (e1,i) ->
+		{ e with eexpr = TEnumParameter(f e1,i); etype = ft e.etype }
 	| TField (e1,v) ->
 		{ e with eexpr = TField (f e1,v); etype = ft e.etype }
 	| TParenthesis e1 ->
@@ -1421,21 +1475,24 @@ let map_expr_type f ft fv e =
 		{ e with eexpr = TIf (f ec,f e1,match e2 with None -> None | Some e -> Some (f e)); etype = ft e.etype }
 	| TSwitch (e1,cases,def) ->
 		{ e with eexpr = TSwitch (f e1, List.map (fun (el,e2) -> List.map f el, f e2) cases, match def with None -> None | Some e -> Some (f e)); etype = ft e.etype }
-	| TMatch (e1,(en,pl),cases,def) ->
-		let map_case (cl,params,e) =
-			let params = match params with
-				| None -> None
-				| Some l -> Some (List.map (function None -> None | Some v -> Some (fv v)) l)
-			in
-			cl, params, f e
+	| TPatMatch dt ->
+		let rec loop dt = match dt with
+			| DTBind(vl,dt) -> DTBind(vl, loop dt)
+			| DTGoto _ -> dt
+			| DTSwitch(e,cl) -> DTSwitch(f e, List.map (fun (e,dt) -> f e,loop dt) cl)
+			| DTExpr e -> DTExpr(f e)
+			| DTGuard (e,dt1,dt2) -> DTGuard(f e, loop dt, match dt2 with None -> None | Some dt -> Some (loop dt))
 		in
-		{ e with eexpr = TMatch (f e1, (en,List.map ft pl), List.map map_case cases, match def with None -> None | Some e -> Some (f e)); etype = ft e.etype }
+		let vi = List.map (fun (v,eo) -> v, match eo with None -> None | Some e -> Some(f e)) dt.dt_var_init in
+		{ e with eexpr = TPatMatch({dt with dt_dt_lookup = Array.map loop dt.dt_dt_lookup; dt_var_init = vi}); etype = ft e.etype}
 	| TTry (e1,catches) ->
 		{ e with eexpr = TTry (f e1, List.map (fun (v,e) -> fv v, f e) catches); etype = ft e.etype }
 	| TReturn eo ->
 		{ e with eexpr = TReturn (match eo with None -> None | Some e -> Some (f e)); etype = ft e.etype }
 	| TCast (e1,t) ->
 		{ e with eexpr = TCast (f e1,t); etype = ft e.etype }
+	| TMeta (m,e1) ->
+		{e with eexpr = TMeta(m, f e1); etype = ft e.etype }
 
 let s_expr_kind e =
 	match e.eexpr with
@@ -1443,6 +1500,7 @@ let s_expr_kind e =
 	| TLocal _ -> "Local"
 	| TArray (_,_) -> "Array"
 	| TBinop (_,_,_) -> "Binop"
+	| TEnumParameter (_,_) -> "EnumParameter"
 	| TField (_,_) -> "Field"
 	| TTypeExpr _ -> "TypeExpr"
 	| TParenthesis _ -> "Parenthesis"
@@ -1458,13 +1516,14 @@ let s_expr_kind e =
 	| TIf (_,_,_) -> "If"
 	| TWhile (_,_,_) -> "While"
 	| TSwitch (_,_,_) -> "Switch"
-	| TMatch (_,_,_,_) -> "Match"
+	| TPatMatch _ -> "PatMatch"
 	| TTry (_,_) -> "Try"
 	| TReturn _ -> "Return"
 	| TBreak -> "Break"
 	| TContinue -> "Continue"
 	| TThrow _ -> "Throw"
 	| TCast _ -> "Cast"
+	| TMeta _ -> "Meta"
 
 let s_const = function
 	| TInt i -> Int32.to_string i
@@ -1489,6 +1548,8 @@ let rec s_expr s_type e =
 		sprintf "%s[%s]" (loop e1) (loop e2)
 	| TBinop (op,e1,e2) ->
 		sprintf "(%s %s %s)" (loop e1) (s_binop op) (loop e2)
+	| TEnumParameter (e1,i) ->
+		sprintf "%s[%i]" (loop e1) i
 	| TField (e,f) ->
 		let fstr = (match f with
 			| FStatic (c,f) -> "static(" ^ s_type_path c.cl_path ^ "." ^ f.cf_name ^ ")"
@@ -1532,10 +1593,7 @@ let rec s_expr s_type e =
 		| DoWhile -> sprintf "DoWhile (%s,%s)" (loop e) (loop econd))
 	| TSwitch (e,cases,def) ->
 		sprintf "Switch (%s,(%s)%s)" (loop e) (slist (fun (cl,e) -> sprintf "case %s: %s" (slist loop cl) (loop e)) cases) (match def with None -> "" | Some e -> "," ^ loop e)
-	| TMatch (e,(en,tparams),cases,def) ->
-		let args vl = slist (function None -> "_" | Some v -> sprintf "%s : %s" (s_var v) (s_type v.v_type)) vl in
-		let cases = slist (fun (il,vl,e) -> sprintf "case %s%s : %s" (slist string_of_int il) (match vl with None -> "" | Some vl -> sprintf "(%s)" (args vl)) (loop e)) cases in
-		sprintf "Match %s (%s,(%s)%s)" (s_type (TEnum (en,tparams))) (loop e) cases (match def with None -> "" | Some e -> "," ^ loop e)
+	| TPatMatch dt -> s_dt "" (dt.dt_dt_lookup.(dt.dt_first))
 	| TTry (e,cl) ->
 		sprintf "Try %s(%s) " (loop e) (slist (fun (v,e) -> sprintf "catch( %s : %s ) %s" (s_var v) (s_type v.v_type) (loop e)) cl)
 	| TReturn None ->
@@ -1550,8 +1608,25 @@ let rec s_expr s_type e =
 		"Throw " ^ (loop e)
 	| TCast (e,t) ->
 		sprintf "Cast %s%s" (match t with None -> "" | Some t -> s_type_path (t_path t) ^ ": ") (loop e)
+	| TMeta ((n,el,_),e) ->
+		sprintf "@%s%s %s" (Meta.to_string n) (match el with [] -> "" | _ -> "(" ^ (String.concat ", " (List.map Ast.s_expr el)) ^ ")") (loop e)
 	) in
 	sprintf "(%s : %s)" str (s_type e.etype)
+
+and s_dt tabs tree =
+	let s_type = s_type (print_context()) in
+	tabs ^ match tree with
+	| DTSwitch (st, cl) ->
+		"switch(" ^ (s_expr s_type st) ^ ") { \n" ^ tabs
+		^ (String.concat ("\n" ^ tabs) (List.map (fun (c,dt) ->
+			"case " ^ (s_expr s_type c) ^ ":\n" ^ (s_dt (tabs ^ "\t") dt)
+		) cl))
+		^ "\n" ^ (if String.length tabs = 0 then "" else (String.sub tabs 0 (String.length tabs - 1))) ^ "}"
+	| DTBind (bl, dt) -> "bind " ^ (String.concat "," (List.map (fun ((v,_),st) -> v.v_name ^ "(" ^ (string_of_int v.v_id) ^ ") =" ^ (s_expr s_type st)) bl)) ^ "\n" ^ (s_dt tabs dt)
+	| DTGoto i ->
+		"goto " ^ (string_of_int i)
+	| DTExpr e -> s_expr s_type e
+	| DTGuard (e,dt1,dt2) -> "if(" ^ (s_expr s_type e) ^ ") " ^ (s_dt tabs dt1) ^ (match dt2 with None -> "" | Some dt -> " else " ^ (s_dt tabs dt))
 
 let rec s_expr_pretty tabs s_type e =
 	let sprintf = Printf.sprintf in
@@ -1562,6 +1637,7 @@ let rec s_expr_pretty tabs s_type e =
 	| TLocal v -> v.v_name
 	| TArray (e1,e2) -> sprintf "%s[%s]" (loop e1) (loop e2)
 	| TBinop (op,e1,e2) -> sprintf "%s %s %s" (loop e1) (s_binop op) (loop e2)
+	| TEnumParameter (e1,i) -> sprintf "%s[%i]" (loop e1) i
 	| TField (e1,s) -> sprintf "%s.%s" (loop e1) (field_name s)
 	| TTypeExpr mt -> (s_type_path (t_path mt))
 	| TParenthesis e1 -> sprintf "(%s)" (loop e1)
@@ -1595,20 +1671,7 @@ let rec s_expr_pretty tabs s_type e =
 		let ntabs = tabs ^ "\t" in
 		let s = sprintf "switch (%s) {\n%s%s" (loop e) (slist (fun (cl,e) -> sprintf "%scase %s: %s\n" ntabs (slist loop cl) (s_expr_pretty ntabs s_type e)) cases) (match def with None -> "" | Some e -> ntabs ^ "default: " ^ (s_expr_pretty ntabs s_type e) ^ "\n") in
 		s ^ tabs ^ "}"
-	| TMatch (e,(en,tparams),cases,def) ->
-		let ntabs = tabs ^ "\t" in
-		let cases = slist (fun (il,vl,e) ->
-			let ctor i = (PMap.find (List.nth en.e_names i) en.e_constrs).ef_name in
-			let ctors = String.concat "," (List.map ctor il) in
-			begin match vl with
-				| None ->
-					sprintf "%scase %s: %s\n" ntabs ctors (s_expr_pretty ntabs s_type e)
-				| Some vl ->
-					sprintf "%scase %s(%s): %s\n" ntabs ctors (String.concat "," (List.map (fun v -> match v with None -> "_" | Some v -> v.v_name) vl)) (s_expr_pretty ntabs s_type e)
-			end
-		) cases in
-		let s = sprintf "switch (%s) {\n%s%s" (loop e) cases (match def with None -> "" | Some e -> ntabs ^ "default: " ^ (s_expr_pretty ntabs s_type e) ^ "\n") in
-		s ^ tabs ^ "}"
+	| TPatMatch dt -> s_dt tabs (dt.dt_dt_lookup.(dt.dt_first))
 	| TTry (e,cl) ->
 		sprintf "try %s%s" (loop e) (slist (fun (v,e) -> sprintf "catch( %s : %s ) %s" v.v_name (s_type v.v_type) (loop e)) cl)
 	| TReturn None ->
@@ -1625,3 +1688,5 @@ let rec s_expr_pretty tabs s_type e =
 		sprintf "cast %s" (loop e)
 	| TCast (e,Some mt) ->
 		sprintf "cast (%s,%s)" (loop e) (s_type_path (t_path mt))
+	| TMeta ((n,el,_),e) ->
+		sprintf "@%s%s %s" (Meta.to_string n) (match el with [] -> "" | _ -> "(" ^ (String.concat ", " (List.map Ast.s_expr el)) ^ ")") (loop e)

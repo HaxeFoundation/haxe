@@ -588,6 +588,10 @@ let rec gen_access ?(read_write=false) ctx forcall e =
 		if read_write then assert false;
 		push ctx [VStr (f,is_protected ctx e.etype f)];
 		VarClosure
+	| TEnumParameter(e,i) ->
+		gen_expr ctx true e;
+		push ctx [VInt i];
+		VarObj
 	| TField (e2,f) ->
 		gen_expr ctx true e2;
 		if read_write then write ctx ADup;
@@ -970,6 +974,7 @@ and gen_expr_2 ctx retval e =
 	match e.eexpr with
 	| TConst TSuper
 	| TConst TThis
+	| TEnumParameter _
 	| TField _
 	| TArray _
 	| TLocal _
@@ -977,7 +982,7 @@ and gen_expr_2 ctx retval e =
 		getvar ctx (gen_access ctx false e)
 	| TConst c ->
 		gen_constant ctx c e.epos
-	| TParenthesis e ->
+	| TParenthesis e | TMeta (_,e) ->
 		gen_expr ctx retval e
 	| TBlock el ->
 		let rec loop = function
@@ -1164,8 +1169,7 @@ and gen_expr_2 ctx retval e =
 		gen_expr ctx retval e
 	| TCast (e1,Some t) ->
 		gen_expr ctx retval (Codegen.default_cast ctx.com e1 t e.etype e.epos)
-	| TMatch (e,_,cases,def) ->
-		gen_match ctx retval e cases def
+	| TPatMatch dt -> assert false
 	| TFor (v,it,e) ->
 		gen_expr ctx true it;
 		let r = alloc_tmp ctx in

@@ -22,51 +22,93 @@
 package sys;
 
 /**
-	This class allows you to get informations about the files and directories.
+	This class allows you to get information about the files and directories.
+	
+	See `sys.io.File` for the complementary file API.
 **/
 extern class FileSystem {
 
 	/**
-		Tells if the given file or directory exists.
+		Tells if the file or directory specified by `path` exists.
+		
+		If `path` is null, the result is unspecified.
 	**/
 	static function exists( path : String ) : Bool;
 
 	/**
-		Rename the corresponding file or directory, allow to move it accross directories as well.
+		Renames/moves the file or directory specified by `path` to `newPath`.
+		
+		If `path` is not a valid file system entry, or if it is not accessible,
+		or if `newPath` is not accessible, an exception is thrown.
+		
+		If `path` or `newPath` are null, the result is unspecified.
 	**/
-	static function rename( path : String, newpath : String ) : Void;
+	static function rename( path : String, newPath : String ) : Void;
 
 	/**
-		Returns informations for the given file/directory.
+		Returns `FileStat` information on the file or directory specified by
+		`path`.
+		
+		If `path` is null, the result is unspecified.
 	**/
 	static function stat( path : String ) : FileStat;
 
 	/**
-		Returns the full path for the given path which is relative to the current working directory.
+		Returns the full path of the file or directory specified by `relPath`,
+		which is relative to the current working directory.
+		
+		If `relPath` is null, the result is unspecified.
 	**/
-	static function fullPath( relpath : String ) : String;
+	static function fullPath( relPath : String ) : String;
 
 	/**
-		Tells if the given path is a directory. Throw an exception if it does not exists or is not accesible.
+		Tells if the file or directory specified by `path` is a directory.
+		
+		If `path` is not a valid file system entry or if its destination is no
+		accessible, an exception is thrown.
+		
+		If `path` is null, the result is unspecified.
 	**/
 	static function isDirectory( path : String ) : Bool;
 
-	/**
-		Create the given directory. Not recursive : the parent directory must exists.
+	/**	
+		Creates a directory specified by `path`.
+		
+		This method is not recursive: All parent directories must exist.
+		
+		If the directory cannot be created, an exception is thrown.
+		
+		If `path` is null, the result is unspecified.
 	**/
 	static function createDirectory( path : String ) : Void;
 
 	/**
-		Delete a given file.
+		Deletes the file specified by `path`.
+		
+		If `path` does not denote a valid file, or if that file cannot be
+		deleted, an exception is thrown.
+		
+		If `path` is null, the result is unspecified.
 	**/
 	static function deleteFile( path : String ) : Void;
+	
 	/**
-		Delete a given directory.
+		Deletes the directory specified by `path`.
+		
+		If `path` does not denote a valid directory, or if that directory cannot
+		be deleted, an exception is thrown.
+		
+		If `path` is null, the result is unspecified.
 	**/
 	static function deleteDirectory( path : String ) : Void;
 
 	/**
-		Read all the files/directories stored into the given directory.
+		Returns the names of all files and directory in the directory specified
+		by `path`.
+		
+		If `path` does not denote a valid directory, an exception is thrown.
+		
+		If `path` is null, the result is unspecified.
 	**/
 	static function readDirectory( path : String ) : Array<String>;
 

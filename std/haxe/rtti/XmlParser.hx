@@ -231,6 +231,7 @@ class XmlParser {
 					else
 						tinf.doc = inf.doc;
 				}
+				if (tinf.path == "haxe._Int64.NativeInt64") continue;
 				if( tinf.module == inf.module && tinf.doc == inf.doc && tinf.isPrivate == inf.isPrivate )
 					switch( ct ) {
 					case TClassdecl(c):
@@ -331,6 +332,14 @@ class XmlParser {
 		}
 		return ml;
 	}
+	
+	function xoverloads( x : Fast ) : List<ClassField> {
+		var l = new List();
+		for ( m in x.elements ) {
+			l.add(xclassfield(m));
+		}
+		return l;
+	}
 
 	function xpath( x : Fast ) : PathParams {
 		var path = mkPath(x.att.path);
@@ -388,10 +397,12 @@ class XmlParser {
 		var t = xtype(e.next());
 		var doc = null;
 		var meta = [];
+		var overloads = null;
 		for( c in e )
 			switch( c.name ) {
 			case "haxe_doc": doc = c.innerData;
 			case "meta": meta = xmeta(c);
+			case "overloads": overloads = xoverloads(c);
 			default: xerror(c);
 			}
 		return {
@@ -406,6 +417,7 @@ class XmlParser {
 			params : if( x.has.params ) mkTypeParams(x.att.params) else null,
 			platforms : defplat(),
 			meta : meta,
+			overloads: overloads
 		};
 	}
 
@@ -465,7 +477,7 @@ class XmlParser {
 	}
 
 	function xabstract( x : Fast ) : Abstractdef {
-		var doc = null;
+		var doc = null, impl = null;
 		var meta = [], subs = [], supers = [];
 		for( c in x.elements )
 			switch( c.name ) {
@@ -479,6 +491,8 @@ class XmlParser {
 			case "from":
 				for( t in c.elements )
 					supers.push(xtype(t));
+			case "impl":
+				impl = xclass(c.node.resolve("class"));
 			default:
 				xerror(c);
 			}
@@ -493,6 +507,7 @@ class XmlParser {
 			meta : meta,
 			subs : subs,
 			supers : supers,
+			impl: impl
 		};
 	}
 

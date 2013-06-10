@@ -24,7 +24,7 @@
 	IntIterator is used for implementing interval iterations.
 	
 	It is usually not used explicitly, but through it's special syntax:
-		min...max
+	`min...max`
 		
 	While it is possible to assign an instance of IntIterator to a variable or
 	field, it is worth noting that IntIterator does not reset after being used
@@ -37,9 +37,9 @@ class IntIterator {
 	var max : Int;
 
 	/**
-		Iterates from [min] (inclusive) to [max] (exclusive).
+		Iterates from `min` (inclusive) to `max` (exclusive).
 		
-		If [max <= min], the iterator will not act as a countdown.
+		If `max <= min`, the iterator will not act as a countdown.
 	**/
 	public function new( min : Int, max : Int ) {
 		this.min = min;

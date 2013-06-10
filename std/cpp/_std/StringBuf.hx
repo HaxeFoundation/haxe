@@ -24,8 +24,16 @@ class StringBuf {
 
 	private var b : Array<String>;
 
+	public var length(get,never) : Int;
+
 	public function new() : Void {
 		b = new Array();
+	}
+
+	function get_length() : Int {
+		var len = 0;
+		for(s in b) len += s.length;
+		return len;
 	}
 
 	public function add( x : Dynamic ) : Void {

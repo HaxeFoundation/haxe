@@ -850,7 +850,7 @@ let configure gen =
 
   let has_semicolon e =
     match e.eexpr with
-      | TBlock _ | TFor _ | TSwitch _ | TMatch _ | TTry _ | TIf _ -> false
+      | TBlock _ | TFor _ | TSwitch _ | TPatMatch _ | TTry _ | TIf _ -> false
       | TWhile (_,_,flag) when flag = Ast.NormalWhile -> false
       | _ -> true
   in
@@ -882,7 +882,7 @@ let configure gen =
     match e.eexpr with
       | TLocal _ -> e
       | TCast(e,_)
-      | TParenthesis e -> ensure_local e explain
+      | TParenthesis e | TMeta(_,e) -> ensure_local e explain
       | _ -> gen.gcon.error ("This function argument " ^ explain ^ " must be a local variable.") e.epos; e
   in
 
@@ -992,6 +992,8 @@ let configure gen =
           )
         | TParenthesis e ->
           write w "("; expr_s w e; write w ")"
+        | TMeta (_,e) ->
+            expr_s w e
         | TArrayDecl el ->
           print w "new %s" (t_s e.etype);
           write w "{";
@@ -1261,7 +1263,8 @@ let configure gen =
           if !strict_mode then assert false
         | TObjectDecl _ -> write w "[ obj decl not supported ]"; if !strict_mode then assert false
         | TFunction _ -> write w "[ func decl not supported ]"; if !strict_mode then assert false
-        | TMatch _ -> write w "[ match not supported ]"; if !strict_mode then assert false
+        | TPatMatch _ -> write w "[ match not supported ]"; if !strict_mode then assert false
+        | TEnumParameter _ -> write w "[ enum parameter not supported ]"; if !strict_mode then assert false
     )
     and do_call w e el =
       let params, el = extract_tparams [] el in

@@ -54,6 +54,7 @@ module Meta = struct
 		| DynamicObject
 		| Enum
 		| EnumConstructorParam
+		| Exhaustive
 		| Expose
 		| Extern
 		| FakeEnum
@@ -84,6 +85,7 @@ module Meta = struct
 		| Meta
 		| Macro
 		| MaybeUsed
+		| MatchAny
 		| MultiType
 		| Native
 		| NativeGen
@@ -136,6 +138,9 @@ module Meta = struct
 
 	let has m ml = List.exists (fun (m2,_,_) -> m = m2) ml
 	let get m ml = List.find (fun (m2,_,_) -> m = m2) ml
+
+	let to_string_ref = ref (fun _ -> assert false)
+	let to_string (m : strict_meta) : string = !to_string_ref m
 end
 
 type keyword =
@@ -676,3 +681,12 @@ let map_expr loop (e,p) =
 	| EMeta (m,e) -> EMeta(m, loop e)
 	) in
 	(e,p)
+
+let rec s_expr (e,_) =
+	match e with
+	| EConst c -> s_constant c
+	| EParenthesis e -> "(" ^ (s_expr e) ^ ")"
+	| EArrayDecl el -> "[" ^ (String.concat "," (List.map s_expr el)) ^ "]"
+	| EObjectDecl fl -> "{" ^ (String.concat "," (List.map (fun (n,e) -> n ^ ":" ^ (s_expr e)) fl)) ^ "}"
+	| EBinop (op,e1,e2) -> s_expr e1 ^ s_binop op ^ s_expr e2
+	| _ -> "'???'"

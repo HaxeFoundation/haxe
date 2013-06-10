@@ -22,7 +22,7 @@
 package sys.db;
 
 /**
-	Record Object : the persistent object base type. See the tutorial on haXe
+	Record Object : the persistent object base type. See the tutorial on Haxe
 	website to learn how to use Record.
 **/
 @:keepSub

@@ -1114,7 +1114,9 @@ and expr = parser
 		(match s with parser
 		| [< al = psep Comma expr; '(PClose,p2); s >] -> expr_next (ENew (t,al),punion p1 p2) s
 		| [< >] -> serror())
-	| [< '(POpen,p1); e = expr; '(PClose,p2); s >] -> expr_next (EParenthesis e, punion p1 p2) s
+	| [< '(POpen,p1); e = expr; s >] -> (match s with parser
+		| [< '(PClose,p2); s >] -> expr_next (EParenthesis e, punion p1 p2) s
+		| [< '(DblDot,_); t = parse_complex_type; '(PClose,p2); s >] -> expr_next (EParenthesis (ECheckType(e,t),punion p1 p2), punion p1 p2) s)
 	| [< '(BkOpen,p1); l = parse_array_decl; '(BkClose,p2); s >] -> expr_next (EArrayDecl l, punion p1 p2) s
 	| [< inl, p1 = inline_function; name = popt dollar_ident; pl = parse_constraint_params; '(POpen,_); al = psep Comma parse_fun_param; '(PClose,_); t = parse_type_opt; s >] ->
 		let make e =
@@ -1335,12 +1337,56 @@ and secure_expr s =
 	| [< e = expr >] -> e
 	| [< >] -> serror()
 
+(* eval *)
 type small_type =
 	| TNull
 	| TBool of bool
 	| TFloat of float
 	| TString of string
 
+let is_true = function
+	| TBool false | TNull | TFloat 0. | TString "" -> false
+	| _ -> true
+
+let cmp v1 v2 =
+	match v1, v2 with
+	| TNull, TNull -> 0
+	| TFloat a, TFloat b -> compare a b
+	| TString a, TString b -> compare a b
+	| TBool a, TBool b -> compare a b
+	| TString a, TFloat b -> compare (float_of_string a) b
+	| TFloat a, TString b -> compare a (float_of_string b)
+	| _ -> raise Exit (* always false *)
+
+let rec eval ctx (e,p) =
+	match e with
+	| EConst (Ident i) ->
+		(try TString (Common.raw_defined_value ctx i) with Not_found -> TNull)
+	| EConst (String s) -> TString s
+	| EConst (Int i) -> TFloat (float_of_string i)
+	| EConst (Float f) -> TFloat (float_of_string f)
+	| EBinop (OpBoolAnd, e1, e2) -> TBool (is_true (eval ctx e1) && is_true (eval ctx e2))
+	| EBinop (OpBoolOr, e1, e2) -> TBool (is_true (eval ctx e1) || is_true(eval ctx e2))
+	| EUnop (Not, _, e) -> TBool (not (is_true (eval ctx e)))
+	| EParenthesis e -> eval ctx e
+	| EBinop (op, e1, e2) ->
+		let v1 = eval ctx e1 in
+		let v2 = eval ctx e2 in
+		let compare op =
+			TBool (try op (cmp v1 v2) 0 with _ -> false)
+		in
+		(match op with
+		| OpEq -> compare (=)
+		| OpNotEq -> compare (<>)
+		| OpGt -> compare (>)
+		| OpGte -> compare (>=)
+		| OpLt -> compare (<)
+		| OpLte -> compare (<=)
+		| _ -> error (Custom "Unsupported operation") p)
+	| _ ->
+		error (Custom "Invalid condition expression") p
+
+(* parse main *)
 let parse ctx code =
 	let old = Lexer.save() in
 	let old_cache = !cache in
@@ -1393,51 +1439,9 @@ let parse ctx code =
 			tk
 
 	and enter_macro p =
-		let is_true = function
-			| TBool false | TNull | TFloat 0. | TString "" -> false
-			| _ -> true
-		in
-		let cmp v1 v2 =
-			match v1, v2 with
-			| TNull, TNull -> 0
-			| TFloat a, TFloat b -> compare a b
-			| TString a, TString b -> compare a b
-			| TBool a, TBool b -> compare a b
-			| TString a, TFloat b -> compare (float_of_string a) b
-			| TFloat a, TString b -> compare a (float_of_string b)
-			| _ -> raise Exit (* always false *)
-		in
-		let rec loop (e,p) =
-			match e with
-			| EConst (Ident i) ->
-				(try TString (Common.raw_defined_value ctx i) with Not_found -> TNull)
-			| EConst (String s) -> TString s
-			| EConst (Int i) -> TFloat (float_of_string i)
-			| EConst (Float f) -> TFloat (float_of_string f)
-			| EBinop (OpBoolAnd, e1, e2) -> TBool (is_true (loop e1) && is_true (loop e2))
-			| EBinop (OpBoolOr, e1, e2) -> TBool (is_true (loop e1) || is_true(loop e2))
-			| EUnop (Not, _, e) -> TBool (not (is_true (loop e)))
-			| EParenthesis e -> loop e
-			| EBinop (op, e1, e2) ->
-				let v1 = loop e1 in
-				let v2 = loop e2 in
-				let compare op =
-					TBool (try op (cmp v1 v2) 0 with _ -> false)
-				in
-				(match op with
-				| OpEq -> compare (=)
-				| OpNotEq -> compare (<>)
-				| OpGt -> compare (>)
-				| OpGte -> compare (>=)
-				| OpLt -> compare (<)
-				| OpLte -> compare (<=)
-				| _ -> error (Custom "Unsupported operation") p)
-			| _ ->
-				error Unclosed_macro p
-		in
 		let tk, e = parse_macro_cond false sraw in
 		let tk = (match tk with None -> Lexer.token code | Some tk -> tk) in
-		if is_true (loop e) || (match fst e with EConst (Ident "macro") when Common.unique_full_path p.pfile = (!resume_display).pfile -> true | _ -> false) then begin
+		if is_true (eval ctx e) || (match fst e with EConst (Ident "macro") when Common.unique_full_path p.pfile = (!resume_display).pfile -> true | _ -> false) then begin
 			mstack := p :: !mstack;
 			tk
 		end else

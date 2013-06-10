@@ -22,19 +22,46 @@
 
 package haxe.ds;
 
+/**
+	BalancedTree allows key-value mapping with arbitrary keys, as long as they
+	can be ordered. By default, `Reflect.compare` is used in the `compare`
+	method, which can be overridden in subclasses.
+	
+	Operations have a logarithmic average and worst-case cost.
+	
+	Iteration over keys and values, using `keys` and `iterator` respectively,
+	are in-order.
+**/
 class BalancedTree<K,V> {
 	var root:TreeNode<K,V>;
 	
+	/**
+		Creates a new BalancedTree, which is initially empty.
+	**/
 	public function new() { }
 	
-	public function set(k:K, v:V) {
-		root = setLoop(k, v, root);
+	/**
+		Binds `key` to `value`.
+		
+		If `key` is already bound to a value, that binding disappears.
+		
+		If `key` is null, the result is unspecified.
+	**/
+	public function set(key:K, value:V) {
+		root = setLoop(key, value, root);
 	}
 	
-	public function get(k:K):Null<V> {
+	/**
+		Returns the value `key` is bound to.
+		
+		If `key` is not bound to any value, `null` is returned.
+		
+		If `key` is null, the result is unspecified.
+	**/
+	public function get(key:K):Null<V> {
 		var node = root;
 		while (node != null) {
-			var c = compare(k, node.key);
+			var c = compare(key, node.key);
 			if (c == 0) return node.value;
 			if (c < 0) node = node.left;
 			else node = node.right;
@@ -42,9 +69,19 @@ class BalancedTree<K,V> {
 		return null;
 	}
 	
-	public function remove(k:K) {
+	/**
+		Removes the current binding of `key`.
+		
+		If `key` has no binding, `this` BalancedTree is unchanged and false is
+		returned.
+		
+		Otherwise the binding of `key` is removed and true is returned.
+		
+		If `key` is null, the result is unspecified.
+	**/
+	public function remove(key:K) {
 		try {
-			root = removeLoop(k, root);
+			root = removeLoop(key, root);
 			return true;
 		}
 		catch (e:String) {
@@ -52,10 +89,17 @@ class BalancedTree<K,V> {
 		}
 	}
 	
-	public function exists(k:K) {
+	/**
+		Tells if `key` is bound to a value.
+		
+		This method returns true even if `key` is bound to null.
+		
+		If `key` is null, the result is unspecified.
+	**/
+	public function exists(key:K) {
 		var node = root;
 		while (node != null) {
-			var c = compare(k, node.key);
+			var c = compare(key, node.key);
 			if (c == 0) return true;
 			else if (c < 0) node = node.left;
 			else node = node.right;
@@ -63,12 +107,22 @@ class BalancedTree<K,V> {
 		return false;
 	}
 	
+	/**
+		Iterates over the bound values of `this` BalancedTree.
+		
+		This operation is performed in-order.
+	**/
 	public function iterator():Iterator<V> {
 		var ret = [];
 		iteratorLoop(root, ret);
 		return ret.iterator();
 	}
 	
+	/**
+		Iterates over the keys of `this` BalancedTree.
+		
+		This operation is performed in-order.
+	**/
 	public function keys():Iterator<K> {
 		var ret = [];
 		keysLoop(root, ret);
@@ -98,16 +152,16 @@ class BalancedTree<K,V> {
 	
 	function iteratorLoop(node:TreeNode<K,V>, acc:Array<V>) {
 		if (node != null) {
-			acc.push(node.value);
 			iteratorLoop(node.left, acc);
+			acc.push(node.value);
 			iteratorLoop(node.right, acc);
 		}
 	}
 	
 	function keysLoop(node:TreeNode<K,V>, acc:Array<K>) {
 		if (node != null) {
-			acc.push(node.key);
 			keysLoop(node.left, acc);
+			acc.push(node.key);
 			keysLoop(node.right, acc);
 		}
 	}
