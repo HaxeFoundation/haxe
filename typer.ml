@@ -3410,6 +3410,8 @@ let make_macro_api ctx p =
 		Interp.on_generate = (fun f ->
 			Common.add_filter ctx.com (fun() ->
 				let t = macro_timer ctx "onGenerate" in
+				(* add standard types to current module so basic types can be resolved (issue #1904) *)
+				ctx.m.module_types <- ctx.m.module_types @ ctx.g.std.m_types;
 				f (List.map make_instance ctx.com.types);
 				t()
 			)
