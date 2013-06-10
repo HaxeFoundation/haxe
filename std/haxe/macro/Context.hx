@@ -168,7 +168,8 @@ class Context {
 		The default value is `"1"`.
 	**/
 	public static function definedValue( key : String ) : String {
-		return new String(load("defined_value", 1)(untyped key.__s));
+		var d = load("defined_value", 1)(untyped key.__s);
+		return d == null ? null : new String(d);
 	}
 
 	/**
