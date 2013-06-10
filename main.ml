@@ -1227,6 +1227,11 @@ try
 			Codegen.detect_usage com;
 		let dce_mode = (try Common.defined_value com Define.Dce with _ -> "no") in
 		if not (!gen_as3 || dce_mode = "no" || Common.defined com Define.DocGen) then Dce.run com main (dce_mode = "full" && not !interp);
+		(* always filter empty abstract implementation classes (issue #1885) *)
+		List.iter (fun mt -> match mt with
+			| TClassDecl({cl_kind = KAbstractImpl _} as c) when c.cl_ordered_statics = [] && c.cl_ordered_fields = [] -> c.cl_extern <- true
+			| _ -> ()
+		) com.types;
 		let type_filters = [
 			Codegen.check_private_path;
 			Codegen.remove_generic_base;
