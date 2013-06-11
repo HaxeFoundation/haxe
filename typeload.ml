@@ -176,6 +176,7 @@ let make_module ctx mpath file tdecls loadp =
 				(match !decls with
 				| (TClassDecl c,_) :: _ ->
 					(try c.cl_meta <- (Meta.get Meta.Build a.a_meta) :: c.cl_meta with Not_found -> ());
+					(try c.cl_meta <- (Meta.get Meta.CoreApi a.a_meta) :: c.cl_meta with Not_found -> ());
 					a.a_impl <- Some c;
 					c.cl_kind <- KAbstractImpl a
 				| _ -> assert false);
