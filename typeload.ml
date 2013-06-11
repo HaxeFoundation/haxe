@@ -1109,10 +1109,14 @@ let init_core_api ctx c =
 		| Some c ->
 			c
 	) in
-	let t = load_instance ctx2 { tpackage = fst c.cl_path; tname = snd c.cl_path; tparams = []; tsub = None; } c.cl_pos true in
+	let tpath = match c.cl_kind with
+		| KAbstractImpl a -> { tpackage = fst a.a_path; tname = snd a.a_path; tparams = []; tsub = None; }
+		| _ -> { tpackage = fst c.cl_path; tname = snd c.cl_path; tparams = []; tsub = None; }
+	in
+	let t = load_instance ctx2 tpath c.cl_pos true in
 	flush_pass ctx2 PFinal "core_final";
 	match t with
-	| TInst (ccore,_) ->
+	| TInst (ccore,_) | TAbstract({a_impl = Some ccore}, _) ->
 		begin try
 			List.iter2 (fun (n1,t1) (n2,t2) -> match follow t1, follow t2 with
 				| TInst({cl_kind = KTypeParameter l1},_),TInst({cl_kind = KTypeParameter l2},_) ->
