@@ -1581,6 +1581,15 @@ module PatternMatchConversion = struct
 		dt_lookup : dt array;
 	}
 
+	let is_declared cctx v =
+		let rec loop sl = match sl with
+			| stack :: sl ->
+				List.exists (fun ((v2,_),_) -> v == v2) stack || loop sl
+			| [] ->
+				false
+		in
+		loop cctx.eval_stack
+
 	let group_cases cases =
 		let dt_eq dt1 dt2 = match dt1,dt2 with
 			| DTGoto i1, DTGoto i2 when i1 = i2 -> true
@@ -1607,10 +1616,16 @@ module PatternMatchConversion = struct
 			cctx.eval_stack <- bl :: cctx.eval_stack;
 			let e = convert_dt cctx dt in
 			cctx.eval_stack <- List.tl cctx.eval_stack;
-			mk (TBlock [
-				mk (TVars (List.map (fun ((v,_),e) -> v,Some e) bl)) cctx.ctx.t.tvoid e.epos;
-				e
-			]) e.etype e.epos
+			let vl,el = List.fold_left (fun (vl,el) ((v,p),e) ->
+				if is_declared cctx v then
+					vl, (mk (TBinop(OpAssign,mk (TLocal v) v.v_type p,e)) e.etype e.epos) :: el
+				else
+					((v,Some e) :: vl), el
+			) ([],[e]) bl in
+			mk (TBlock
+				((mk (TVars (vl)) cctx.ctx.t.tvoid e.epos)
+				:: el)
+			) e.etype e.epos
 		| DTGoto i ->
 			convert_dt cctx (cctx.dt_lookup.(i))
 		| DTExpr e ->
