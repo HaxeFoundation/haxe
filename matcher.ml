@@ -912,7 +912,8 @@ let convert_switch ctx st cases loop =
 		let cf = PMap.find "enumIndex" ttype.cl_statics in
 		let ec = (!type_module_type_ref) ctx (TClassDecl ttype) None p in
 		let ef = mk (TField(ec, FStatic(ttype,cf))) (tfun [e_st.etype] ctx.t.tint) p in
-		make_call ctx ef [e_st] ctx.t.tint p
+		let e = make_call ctx ef [e_st] ctx.t.tint p in
+		mk (TMeta((Meta.Exhaustive,[],p), e)) e.etype e.epos
 	in
 	let e = match follow st.st_type with
 	| TEnum(_) ->
@@ -933,7 +934,6 @@ let convert_switch ctx st cases loop =
 		| _ ->
 			true
 	) cases in
-	let e = mk (TMeta((Meta.Exhaustive,[],p), e)) e.etype e.epos in
 	let dt = DTSwitch(e, List.map (fun (c,dt) -> convert_con ctx c, loop dt) cases) in
 	match !null with
 	| None -> dt
