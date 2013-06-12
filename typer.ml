@@ -2831,6 +2831,9 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				if field_name fa = "bind" then (match follow e1.etype with
 					| TFun(args,ret) -> {e1 with etype = opt_args args ret}
 					| _ -> e)
+				else if field_name fa = "match" then (match follow e1.etype with
+					| TEnum _ as t -> {e1 with etype = tfun [t] ctx.t.tbool }
+					| _ -> e)
 				else if mode = "position" then (match extract_field fa with
 					| None -> e
 					| Some cf -> raise (Typecore.DisplayPosition [cf.cf_pos]))
@@ -2904,6 +2907,9 @@ and type_expr ctx (e,p) (with_type:with_type) =
 					PMap.fold (fun f acc -> if can_access ctx c f true then PMap.add f.cf_name { f with cf_public = true; cf_type = opt_type f.cf_type } acc else acc) a.a_fields PMap.empty
 				| _ ->
 					a.a_fields)
+			| TEnum(_) as t ->
+				let cf = mk_field "match" (tfun [t] ctx.t.tbool) p in
+				PMap.add "match" cf PMap.empty
 			| TFun (args,ret) ->
 				let t = opt_args args ret in
 				let cf = mk_field "bind" (tfun [t] t) p in
@@ -3026,6 +3032,15 @@ and type_call ctx e el (with_type:with_type) p =
 		let e = type_expr ctx e Value in
 		(match follow e.etype with
 			| TFun _ -> type_bind ctx e args p
+			| _ -> def ())
+	| (EField(e,"match"),p), [epat] ->
+		let et = type_expr ctx e Value in
+		(match follow et.etype with
+			| TEnum _ as t ->
+				let e = type_switch ctx e [[epat],None,Some (EConst(Ident "true"),p)] (Some (Some (EConst(Ident "false"),p))) (WithType ctx.t.tbool) p in
+				let locals = !get_pattern_locals_ref ctx epat t in
+				PMap.iter (fun _ (_,p) -> display_error ctx "Capture variables are not allowed" p) locals;
+				e
 			| _ -> def ())
 	| (EConst (Ident "$type"),_) , [e] ->
 		let e = type_expr ctx e Value in

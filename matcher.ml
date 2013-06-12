@@ -546,7 +546,7 @@ let to_pattern ctx e t =
 let get_pattern_locals ctx e t =
 	try
 		let _,locals = to_pattern ctx e t in
-		PMap.foldi (fun n (v,_) acc -> PMap.add n v acc) locals PMap.empty
+		PMap.foldi (fun n v acc -> PMap.add n v acc) locals PMap.empty
 	with Unrecognized_pattern _ ->
 		PMap.empty
 
