@@ -1679,7 +1679,7 @@ let promote_complex_returns ctx e =
 			{e with eexpr = TIf(eif, loop t ethen, match eelse with None -> None | Some e -> Some (loop t e))}
 		| TTry(e1,el) ->
 			{e with eexpr = TTry(loop t e1, List.map (fun (el,e) -> el,loop t e) el)}
-		| TReturn _ ->
+		| TReturn _ | TThrow _ ->
 			e
 		| _ ->
 			mk (TReturn (Some e)) t e.epos
