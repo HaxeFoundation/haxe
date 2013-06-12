@@ -186,6 +186,7 @@ class XmlParser {
 		for( i in 0...a.supers.length )
 			if( !TypeApi.typeEq(a.supers[i],a2.supers[i]) )
 				return false;
+		if (a2.impl != null) mergeClasses(a.impl, a2.impl);
 		a.platforms.add(curplatform);
 		return true;
 	}
