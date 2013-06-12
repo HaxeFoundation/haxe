@@ -1713,7 +1713,6 @@ and generate_function ctx fdata stat =
 				in
 				inner_loop e
 			| TIf (_,e1,Some e2) -> loop e1 && loop e2
-			| TSwitch (_,_,Some e) -> loop e
 			| TParenthesis e | TMeta(_,e) -> loop e
 			| _ -> false
 		in
