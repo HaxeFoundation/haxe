@@ -142,6 +142,15 @@ let gen_constr e =
 	) in
 	node e.ef_name args t
 
+let gen_ordered_constr e =
+	let rec loop el = match el with
+		| n :: el ->
+			gen_constr (PMap.find n e.e_constrs) :: loop el
+		| [] ->
+			[]
+	in
+	loop e.e_names
+
 let gen_type_params ipos priv path params pos m =
 	let mpriv = (if priv then [("private","1")] else []) in
 	let mpath = (if m.m_path <> path then [("module",snd (gen_path m.m_path false))] else []) in
@@ -185,7 +194,7 @@ let rec gen_type_decl com pos t =
 	| TEnumDecl e ->
 		let doc = gen_doc_opt e.e_doc in
 		let meta = gen_meta e.e_meta in
-		node "enum" (gen_type_params pos e.e_private (tpath t) e.e_types e.e_pos m) (pmap gen_constr e.e_constrs @ doc @ meta)
+		node "enum" (gen_type_params pos e.e_private (tpath t) e.e_types e.e_pos m) (gen_ordered_constr e  @ doc @ meta)
 	| TTypeDecl t ->
 		let doc = gen_doc_opt t.t_doc in
 		let meta = gen_meta t.t_meta in
