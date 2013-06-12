@@ -107,7 +107,11 @@ class Web {
 		Surprisingly returns the client IP address.
 	**/
 	public static inline function getClientIP() : String {
-		return untyped __php__("$_SERVER['REMOTE_ADDR']");
+		// support forwarding through load balancers and proxies 
+		var ip = getClientHeader('X_FORWARDED_FOR');
+		if ( ip == null || ip == '' )
+			ip = untyped __php__("$_SERVER['REMOTE_ADDR']");
+		return ip;
 	}
 
 	/**
