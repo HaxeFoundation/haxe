@@ -1666,6 +1666,30 @@ module PatternMatchConversion = struct
 		end
 end
 
+let promote_complex_returns ctx e =
+	let rec loop t e = match e.eexpr with
+		| TBlock(el) ->
+			begin match List.rev el with
+				| elast :: el -> {e with eexpr = TBlock(List.rev ((loop t elast) :: el))}
+				| [] -> e
+			end
+		| TSwitch(es,cases,edef) ->
+			{e with eexpr = TSwitch(es,List.map (fun (el,e) -> el,loop t e) cases,match edef with None -> None | Some e -> Some (loop t e))}
+		| TIf(eif,ethen,eelse) ->
+			{e with eexpr = TIf(eif, loop t ethen, match eelse with None -> None | Some e -> Some (loop t e))}
+		| TTry(e1,el) ->
+			{e with eexpr = TTry(loop t e1, List.map (fun (el,e) -> el,loop t e) el)}
+		| TReturn _ ->
+			e
+		| _ ->
+			mk (TReturn (Some e)) t e.epos
+	in
+	let rec find e = match e.eexpr with
+		| TReturn (Some e1) -> loop e.etype e1
+		| _ -> Type.map_expr find e
+	in
+	find e
+
 (* -------------------------------------------------------------------------- *)
 (* USAGE *)
 
