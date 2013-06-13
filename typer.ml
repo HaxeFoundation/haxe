@@ -2231,6 +2231,24 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		mk (TConst (TInt (Int32.of_int (UChar.code (UTF8.get s 0))))) ctx.t.tint p
 	| EField(_,n) when n.[0] = '$' ->
 		error "Field names starting with $ are not allowed" p
+	| EField (e1,"new") ->
+		let e1 = type_expr ctx e1 Value in
+		begin match e1.eexpr with
+			| TTypeExpr (TClassDecl c) ->
+				let monos = List.map (fun _ -> mk_mono()) c.cl_types in
+				let ct, _ = get_constructor ctx c monos p in
+				let args = match follow ct with TFun(args,ret) -> args | _ -> assert false in
+				let vl = List.map (fun (n,_,t) -> alloc_var n t) args in
+				let vexpr v = mk (TLocal v) v.v_type p in
+				let t = TInst(c,monos) in
+				let ec = mk (TNew(c,monos,List.map vexpr vl)) t p in
+				mk (TFunction {
+					tf_args = List.map (fun v -> v,None) vl;
+					tf_type = t;
+					tf_expr = mk (TReturn (Some ec)) t p;
+				}) (tfun (List.map (fun v -> v.v_type) vl) t) p
+			| _ -> error "Binding new is only allowed on class types" p
+		end;
 	| EConst (Ident s) ->
 		(try
 			acc_get ctx (type_ident_raise ~imported_enums:false ctx s p MGet) p
