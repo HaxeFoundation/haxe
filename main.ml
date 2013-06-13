@@ -1212,6 +1212,10 @@ try
 		com.main <- main;
 		com.types <- types;
 		com.modules <- modules;
+		List.iter (fun t ->
+			Codegen.remove_generic_base tctx t;
+			Codegen.remove_extern_fields tctx t
+		) com.types;
 		let filters = [
 			Codegen.Abstract.handle_abstract_casts tctx;
 			if com.foptimize then (fun e -> Optimizer.reduce_expression tctx (Optimizer.inline_constructors tctx e)) else Optimizer.sanitize tctx;
@@ -1234,10 +1238,8 @@ try
 		) com.types;
 		let type_filters = [
 			Codegen.check_private_path;
-			Codegen.remove_generic_base;
 			Codegen.apply_native_paths;
 			Codegen.add_rtti;
-			Codegen.remove_extern_fields;
 			(match ctx.com.platform with | Java | Cs -> (fun _ _ -> ()) | _ -> Codegen.add_field_inits);
 			Codegen.add_meta_field;
 			Codegen.check_remove_metadata;
