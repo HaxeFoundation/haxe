@@ -1965,6 +1965,26 @@ and type_access ctx e p mode =
 	match e with
 	| EConst (Ident s) ->
 		type_ident ctx s p mode
+	| EField (e1,"new") ->
+		let e1 = type_expr ctx e1 Value in
+		begin match e1.eexpr with
+			| TTypeExpr (TClassDecl c) ->
+				if mode = MSet then error "Cannot set constructor" p;
+				if mode = MCall then error ("Cannot call constructor like this, use 'new " ^ (s_type_path c.cl_path) ^ "()' instead") p;
+				let monos = List.map (fun _ -> mk_mono()) c.cl_types in
+				let ct, _ = get_constructor ctx c monos p in
+				let args = match follow ct with TFun(args,ret) -> args | _ -> assert false in
+				let vl = List.map (fun (n,_,t) -> alloc_var n t) args in
+				let vexpr v = mk (TLocal v) v.v_type p in
+				let t = TInst(c,monos) in
+				let ec = mk (TNew(c,monos,List.map vexpr vl)) t p in
+				AKExpr(mk (TFunction {
+					tf_args = List.map (fun v -> v,None) vl;
+					tf_type = t;
+					tf_expr = mk (TReturn (Some ec)) t p;
+				}) (tfun (List.map (fun v -> v.v_type) vl) t) p)
+			| _ -> error "Binding new is only allowed on class types" p
+		end;
 	| EField _ ->
 		let fields path e =
 			List.fold_left (fun e (f,_,p) ->
@@ -2231,24 +2251,6 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		mk (TConst (TInt (Int32.of_int (UChar.code (UTF8.get s 0))))) ctx.t.tint p
 	| EField(_,n) when n.[0] = '$' ->
 		error "Field names starting with $ are not allowed" p
-	| EField (e1,"new") ->
-		let e1 = type_expr ctx e1 Value in
-		begin match e1.eexpr with
-			| TTypeExpr (TClassDecl c) ->
-				let monos = List.map (fun _ -> mk_mono()) c.cl_types in
-				let ct, _ = get_constructor ctx c monos p in
-				let args = match follow ct with TFun(args,ret) -> args | _ -> assert false in
-				let vl = List.map (fun (n,_,t) -> alloc_var n t) args in
-				let vexpr v = mk (TLocal v) v.v_type p in
-				let t = TInst(c,monos) in
-				let ec = mk (TNew(c,monos,List.map vexpr vl)) t p in
-				mk (TFunction {
-					tf_args = List.map (fun v -> v,None) vl;
-					tf_type = t;
-					tf_expr = mk (TReturn (Some ec)) t p;
-				}) (tfun (List.map (fun v -> v.v_type) vl) t) p
-			| _ -> error "Binding new is only allowed on class types" p
-		end;
 	| EConst (Ident s) ->
 		(try
 			acc_get ctx (type_ident_raise ~imported_enums:false ctx s p MGet) p
@@ -2922,7 +2924,8 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			| TAnon a ->
 				(match !(a.a_status) with
 				| Statics c ->
-					PMap.fold (fun f acc -> if can_access ctx c f true then PMap.add f.cf_name { f with cf_public = true; cf_type = opt_type f.cf_type } acc else acc) a.a_fields PMap.empty
+					let pm = match c.cl_constructor with None -> PMap.empty | Some cf -> PMap.add "new" cf PMap.empty in
+					PMap.fold (fun f acc -> if can_access ctx c f true then PMap.add f.cf_name { f with cf_public = true; cf_type = opt_type f.cf_type } acc else acc) a.a_fields pm
 				| _ ->
 					a.a_fields)
 			| TFun (args,ret) ->
