@@ -2137,6 +2137,93 @@ and with_type_error ctx with_type msg p =
 	| WithTypeResume _ -> raise (WithTypeError ([Unify_custom msg],p))
 	| _ -> display_error ctx msg p
 
+and format_string ctx s p =
+	let e = ref None in
+	let pmin = ref p.pmin in
+	let min = ref (p.pmin + 1) in
+	let add enext len =
+		let p = { p with pmin = !min; pmax = !min + len } in
+		min := !min + len;
+		match !e with
+		| None -> e := Some (enext,p)
+		| Some prev ->
+			e := Some (EBinop (OpAdd,prev,(enext,p)),punion (pos prev) p)
+	in
+	let add_sub start pos =
+		let len = pos - start in
+		if len > 0 || !e = None then add (EConst (String (String.sub s start len))) len
+	in
+	let warn_escape = Common.defined ctx.com Define.FormatWarning in
+	let warn pos len =
+		ctx.com.warning "This string is formated" { p with pmin = !pmin + 1 + pos; pmax = !pmin + 1 + pos + len }
+	in
+	let len = String.length s in
+	let rec parse start pos =
+		if pos = len then add_sub start pos else
+		let c = String.unsafe_get s pos in
+		let pos = pos + 1 in
+		if c = '\'' then begin
+			incr pmin;
+			incr min;
+		end;
+		if c <> '$' || pos = len then parse start pos else
+		match String.unsafe_get s pos with
+		| '$' ->
+			if warn_escape then warn pos 1;
+			(* double $ *)
+			add_sub start pos;
+			parse (pos + 1) (pos + 1)
+		| '{' ->
+			parse_group start pos '{' '}' "brace"
+		| 'a'..'z' | 'A'..'Z' | '_' ->
+			add_sub start (pos - 1);
+			incr min;
+			let rec loop i =
+				if i = len then i else
+				let c = String.unsafe_get s i in
+				match c with
+				| 'a'..'z' | 'A'..'Z' | '0'..'9' | '_' -> loop (i+1)
+				| _ -> i
+			in
+			let iend = loop (pos + 1) in
+			let len = iend - pos in
+			if warn_escape then warn pos len;
+			add (EConst (Ident (String.sub s pos len))) len;
+			parse (pos + len) (pos + len)
+		| _ ->
+			(* keep as-it *)
+			parse start pos
+	and parse_group start pos gopen gclose gname =
+		add_sub start (pos - 1);
+		let rec loop groups i =
+			if i = len then
+				match groups with
+				| [] -> assert false
+				| g :: _ -> error ("Unclosed " ^ gname) { p with pmin = !pmin + g + 1; pmax = !pmin + g + 2 }
+			else
+				let c = String.unsafe_get s i in
+				if c = gopen then
+					loop (i :: groups) (i + 1)
+				else if c = gclose then begin
+					let groups = List.tl groups in
+					if groups = [] then i else loop groups (i + 1)
+				end else
+					loop groups (i + 1)
+		in
+		let send = loop [pos] (pos + 1) in
+		let slen = send - pos - 1 in
+		let scode = String.sub s (pos + 1) slen in
+		if warn_escape then warn (pos + 1) slen;
+		min := !min + 2;
+		add (fst (parse_expr_string ctx scode { p with pmin = !pmin + pos + 2; pmax = !pmin + send + 1 } true)) slen;
+		min := !min + 1;
+		parse (send + 1) (send + 1)
+	in
+	parse 0 0;
+	match !e with
+	| None -> assert false
+	| Some e -> e
+
 and type_expr ctx (e,p) (with_type:with_type) =
 	match e with
 	| EField ((EConst (String s),p),"code") ->
@@ -2173,91 +2260,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		let t = Typeload.load_core_type ctx "EReg" in
 		mk (TNew ((match t with TInst (c,[]) -> c | _ -> assert false),[],[str;opt])) t p
 	| EConst (String s) when Lexer.is_fmt_string p ->
-		let e = ref None in
-		let pmin = ref p.pmin in
-		let min = ref (p.pmin + 1) in
-		let add enext len =
-			let p = { p with pmin = !min; pmax = !min + len } in
-			min := !min + len;
-			match !e with
-			| None -> e := Some (enext,p)
-			| Some prev ->
-				e := Some (EBinop (OpAdd,prev,(enext,p)),punion (pos prev) p)
-		in
-		let add_sub start pos =
-			let len = pos - start in
-			if len > 0 || !e = None then add (EConst (String (String.sub s start len))) len
-		in
-		let warn_escape = Common.defined ctx.com Define.FormatWarning in
-		let warn pos len =
-			ctx.com.warning "This string is formated" { p with pmin = !pmin + 1 + pos; pmax = !pmin + 1 + pos + len }
-		in
-		let len = String.length s in
-		let rec parse start pos =
-			if pos = len then add_sub start pos else
-			let c = String.unsafe_get s pos in
-			let pos = pos + 1 in
-			if c = '\'' then begin
-				incr pmin;
-				incr min;
-			end;
-			if c <> '$' || pos = len then parse start pos else
-			match String.unsafe_get s pos with
-			| '$' ->
-				if warn_escape then warn pos 1;
-				(* double $ *)
-				add_sub start pos;
-				parse (pos + 1) (pos + 1)
-			| '{' ->
-				parse_group start pos '{' '}' "brace"
-			| 'a'..'z' | 'A'..'Z' | '_' ->
-				add_sub start (pos - 1);
-				incr min;
-				let rec loop i =
-					if i = len then i else
-					let c = String.unsafe_get s i in
-					match c with
-					| 'a'..'z' | 'A'..'Z' | '0'..'9' | '_' -> loop (i+1)
-					| _ -> i
-				in
-				let iend = loop (pos + 1) in
-				let len = iend - pos in
-				if warn_escape then warn pos len;
-				add (EConst (Ident (String.sub s pos len))) len;
-				parse (pos + len) (pos + len)
-			| _ ->
-				(* keep as-it *)
-				parse start pos
-		and parse_group start pos gopen gclose gname =
-			add_sub start (pos - 1);
-			let rec loop groups i =
-				if i = len then
-					match groups with
-					| [] -> assert false
-					| g :: _ -> error ("Unclosed " ^ gname) { p with pmin = !pmin + g + 1; pmax = !pmin + g + 2 }
-				else
-					let c = String.unsafe_get s i in
-					if c = gopen then
-						loop (i :: groups) (i + 1)
-					else if c = gclose then begin
-						let groups = List.tl groups in
-						if groups = [] then i else loop groups (i + 1)
-					end else
-						loop groups (i + 1)
-			in
-			let send = loop [pos] (pos + 1) in
-			let slen = send - pos - 1 in
-			let scode = String.sub s (pos + 1) slen in
-			if warn_escape then warn (pos + 1) slen;
-			min := !min + 2;
-			add (fst (parse_expr_string ctx scode { p with pmin = !pmin + pos + 2; pmax = !pmin + send + 1 } true)) slen;
-			min := !min + 1;
-			parse (send + 1) (send + 1)
-		in
-		parse 0 0;
-		(match !e with
-		| None -> assert false
-		| Some e -> type_expr ctx e with_type);
+		type_expr ctx (format_string ctx s p) with_type
 	| EConst c ->
 		Codegen.type_constant ctx.com c p
     | EBinop (op,e1,e2) ->
@@ -3605,6 +3608,9 @@ let make_macro_api ctx p =
 		);
 		Interp.use_cache = (fun() ->
 			!macro_enable_cache
+		);
+		Interp.format_string = (fun s p ->
+			format_string ctx s p
 		);
 	}
 

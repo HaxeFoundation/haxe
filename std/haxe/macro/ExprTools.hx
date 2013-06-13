@@ -35,9 +35,6 @@ using Lambda;
 **/
 class ExprTools {
 
-	static public function toFieldExpr ( sl : Array<String> ) : Expr
-		return sl.fold(function(s, e) return e == null ? (macro $i{s}) : (macro $e.$s), null);
-
 	/**
 		Converts expression [e] to a human-readable String representation.
 

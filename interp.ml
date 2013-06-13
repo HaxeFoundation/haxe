@@ -119,6 +119,7 @@ type extern_api = {
 	current_module : unit -> module_def;
 	delayed_macro : int -> (unit -> (unit -> value));
 	use_cache : unit -> bool;
+	format_string : string -> Ast.pos -> Ast.expr;
 }
 
 type callstack = {
@@ -2274,6 +2275,16 @@ let macro_lib =
 		);
 		"s_type", Fun1 (fun v ->
 			VString (Type.s_type (print_context()) (decode_type v))
+		);
+		"is_fmt_string", Fun1 (fun v ->
+			match v with
+			| VAbstract (APos p) -> VBool(Lexer.is_fmt_string p)
+			| _ -> VNull
+		);
+		"format_string", Fun2 (fun s p ->
+			match s,p with
+			| VString(s),VAbstract(APos p) -> encode_expr ((get_ctx()).curapi.format_string s p)
+			| _ -> VNull
 		);
 		"display", Fun1 (fun v ->
 			match v with
