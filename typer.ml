@@ -987,7 +987,7 @@ let rec type_ident_raise ?(imported_enums=true) ctx i p mode =
 	| _ ->
 	try
 		let v = PMap.find i ctx.locals in
-		(match v.v_extra with
+		(match fst v.v_extra with
 		| Some (params,e) ->
 			let t = monomorphs params v.v_type in
 			(match e with
@@ -2754,7 +2754,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		(match v with
 		| None -> e
 		| Some v ->
-			if params <> [] || inline then v.v_extra <- Some (params,if inline then Some e else None);
+			if params <> [] || inline then v.v_extra <- Some (params,if inline then Some e else None),snd v.v_extra;
 			let rec loop = function
 				| Codegen.Block f | Codegen.Loop f | Codegen.Function f -> f loop
 				| Codegen.Use v2 when v == v2 -> raise Exit

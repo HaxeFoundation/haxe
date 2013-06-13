@@ -1036,7 +1036,9 @@ let type_function ctx args ret fmode f do_display p =
 				| TConst c -> Some c
 				| _ -> display_error ctx "Parameter default value should be constant" p; None
 		) in
-		add_local ctx n t, c
+		let v,c = add_local ctx n t, c in
+		if n = "this" then v.v_extra <- None,true;
+		v,c
 	) args in
 	let old_ret = ctx.ret in
 	let old_fun = ctx.curfun in

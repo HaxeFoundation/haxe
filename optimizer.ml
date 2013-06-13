@@ -341,16 +341,16 @@ let rec type_inline ctx cf f ethis params tret config p force =
 	let force = ref force in
 	let vars = List.fold_left (fun acc (i,e) ->
 		let flag = (match e.eexpr with
-			| TLocal { v_name = "this" } -> true
+			| TLocal {v_extra = _,true} -> true
 			| TLocal _ | TConst _ -> not i.i_write
 			| TFunction _ -> if i.i_write then error "Cannot modify a closure parameter inside inline method" p; true
 			| _ -> not i.i_write && i.i_read <= 1
 		) in
 		let flag = flag && (not i.i_captured || is_constant e) in
 		(* force inlining if we modify 'this' *)
-		if i.i_write && i.i_var.v_name = "this" then force := true;
+		if i.i_write && snd i.i_var.v_extra then force := true;
 		(* force inlining of 'this' variable if the expression is writable *)
-		let flag = if not flag && i.i_var.v_name = "this" then begin
+		let flag = if not flag && snd i.i_var.v_extra then begin
 			if i.i_write && not (is_writable e) then error "Cannot modify the abstract value, store it into a local first" p;
 			true
 		end else flag in
