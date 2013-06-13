@@ -80,7 +80,7 @@ abstract EnumFlags<T:EnumValue>(Int) {
 		Convert a integer bitflag into a typed one (this is a no-op, it does not
 		have any impact on speed).
 	**/
-	@:from public inline static function ofInt<T:EnumValue>( i : Int ) : EnumFlags<T> {
+	public inline static function ofInt<T:EnumValue>( i : Int ) : EnumFlags<T> {
 		return new EnumFlags<T>(i);
 	}
 
@@ -88,7 +88,7 @@ abstract EnumFlags<T:EnumValue>(Int) {
 		Convert the typed bitflag into the corresponding int value (this is a
 		no-op, it doesn't have any impact on speed).
 	**/
-	@:to public inline function toInt() : Int {
+	public inline function toInt() : Int {
 		return this;
 	}
 }
