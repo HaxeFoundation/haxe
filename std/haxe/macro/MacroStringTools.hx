@@ -41,7 +41,6 @@ class MacroStringTools {
 	static public function formatString(s:String, pos:Position) {
 		return Context.load("format_string", 2)(untyped s.__s, pos);
 	}
-	#end
 	
 	/**
 		Tells if `e` is a format string, i.e. uses single quotes `'` as
@@ -67,4 +66,6 @@ class MacroStringTools {
 	static public function toFieldExpr(sl:Array<String>):Expr {
 		return Lambda.fold(sl, function(s, e) return e == null ? (macro $i{s}) : (macro $e.$s), null);
 	}
+	
+	#end
 }
