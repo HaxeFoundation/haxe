@@ -1157,7 +1157,11 @@ and type_field ctx e i p mode =
 			if is_closed a then try
 				using_field ctx mode e i p
 			with Not_found ->
-				no_field()
+				(match e.eexpr with
+				| TTypeExpr mt when (t_infos mt).mt_module == ctx.m.curmod && not (is_lower_ident i) ->
+					(* subtype access on current module? *)
+					(try AKExpr (type_type ctx ([],i) p) with Error (Module_not_found ([],name),_) when name = i -> no_field())
+				| _ -> no_field())
 			else
 			let f = {
 				cf_name = i;
