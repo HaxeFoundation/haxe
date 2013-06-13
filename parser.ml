@@ -407,7 +407,12 @@ let reify in_macro =
 				expr "EBlock" [e1]
 			(* TODO: can $v and $i be implemented better? *)
 			| Meta.Dollar "v", _ ->
-				(ECall ((EField ((EField ((EField ((EConst (Ident "haxe"),p),"macro"),p),"Context"),p),"makeExpr"),p),[e; to_pos (pos e)]),p)
+				begin match fst e1 with
+				| EParenthesis (ECheckType (e2, CTPath{tname="String";tpackage=[]}),_) -> expr "EConst" [mk_enum "Constant" "CString" [e2] (pos e2)]
+				| EParenthesis (ECheckType (e2, CTPath{tname="Int";tpackage=[]}),_) -> expr "EConst" [mk_enum "Constant" "CInt" [e2] (pos e2)]
+				| EParenthesis (ECheckType (e2, CTPath{tname="Float";tpackage=[]}),_) -> expr "EConst" [mk_enum "Constant" "CFloat" [e2] (pos e2)]
+				| _ -> (ECall ((EField ((EField ((EField ((EConst (Ident "haxe"),p),"macro"),p),"Context"),p),"makeExpr"),p),[e; to_pos (pos e)]),p)
+				end
 			| Meta.Dollar "i", _ ->
 				expr "EConst" [mk_enum "Constant" "CIdent" [e1] (pos e1)]
 			| Meta.Dollar "p", _ ->
