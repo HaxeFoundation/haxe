@@ -1062,7 +1062,11 @@ let type_function ctx args ret fmode f do_display p =
 	let have_ret = (try loop e; false with Exit -> true) in
 	if have_ret then
 		(try return_flow ctx e with Exit -> ())
-	else (try type_eq EqStrict ret ctx.t.tvoid with Unify_error _ -> display_error ctx ("Missing return " ^ (s_type (print_context()) ret)) p);
+	else (try type_eq EqStrict ret ctx.t.tvoid with Unify_error _ ->
+		match e.eexpr with
+		(* accept final throw (issue #1923) *)
+		| TBlock el when (match List.rev el with ({eexpr = TThrow _} :: _) -> true | _ -> false) -> ()
+		| _ -> display_error ctx ("Missing return " ^ (s_type (print_context()) ret)) p);
 	let rec loop e =
 		match e.eexpr with
 		| TCall ({ eexpr = TConst TSuper },_) -> raise Exit
