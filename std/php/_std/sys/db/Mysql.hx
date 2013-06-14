@@ -114,9 +114,16 @@ private class MysqlResultSet implements ResultSet {
 		if(_fieldsDesc == null) {
 			_fieldsDesc = [];
 			for (i in 0...nfields) {
+				var type = untyped __call__("mysql_field_type", __r, i);
+				if ( type == "blob" ) {
+					var flags : String = untyped __call__("mysql_field_flags", __r, i);
+					if ( flags.indexOf("blobs") == -1 && flags.indexOf("binary") == -1 ) {
+						type = "text";
+					}
+				}
 				var item = {
 					name : untyped __call__("mysql_field_name", __r, i),
-					type : untyped __call__("mysql_field_type", __r, i)
+					type : type,
 				};
 				_fieldsDesc.push(item);
 			}
