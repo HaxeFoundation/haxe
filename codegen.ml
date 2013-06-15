@@ -806,6 +806,37 @@ let promote_abstract_parameters ctx t = match t with
 	| _ ->
 		()
 
+(*
+	Pushes complex right-hand side expression inwards.
+
+	return { exprs; value; } -> { exprs; return value; }
+	x = { exprs; value; } -> { exprs; x = value; }
+*)
+let promote_complex_rhs ctx e =
+	let rec loop f e = match e.eexpr with
+		| TBlock(el) ->
+			begin match List.rev el with
+				| elast :: el -> {e with eexpr = TBlock(List.rev ((loop f elast) :: (List.map find el)))}
+				| [] -> e
+			end
+		| TSwitch(es,cases,edef) ->
+			{e with eexpr = TSwitch(es,List.map (fun (el,e) -> List.map find el,loop f e) cases,match edef with None -> None | Some e -> Some (loop f e))}
+		| TIf(eif,ethen,eelse) ->
+			{e with eexpr = TIf(find eif, loop f ethen, match eelse with None -> None | Some e -> Some (loop f e))}
+		| TTry(e1,el) ->
+			{e with eexpr = TTry(loop f e1, List.map (fun (el,e) -> el,loop f e) el)}
+		| TReturn _ | TThrow _ ->
+			find e
+		| _ ->
+			f (find e)
+	and find e = match e.eexpr with
+		| TReturn (Some e1) -> loop (fun e -> {e with eexpr = TReturn (Some e)}) e1
+		| TBinop(OpAssign, ({eexpr = TLocal _ | TField _ | TArray _} as e1), e2) -> loop (fun er -> {e with eexpr = TBinop(OpAssign, e1, er)}) e2
+		| _ -> Type.map_expr find e
+	in
+	find e
+
+
 (* -------------------------------------------------------------------------- *)
 (* LOCAL VARIABLES USAGE *)
 
@@ -1665,30 +1696,6 @@ module PatternMatchConversion = struct
 			]) dt.dt_type e.epos
 		end
 end
-
-let promote_complex_rhs ctx e =
-	let rec loop f e = match e.eexpr with
-		| TBlock(el) ->
-			begin match List.rev el with
-				| elast :: el -> {e with eexpr = TBlock(List.rev ((loop f elast) :: (List.map find el)))}
-				| [] -> e
-			end
-		| TSwitch(es,cases,edef) ->
-			{e with eexpr = TSwitch(es,List.map (fun (el,e) -> List.map find el,loop f e) cases,match edef with None -> None | Some e -> Some (loop f e))}
-		| TIf(eif,ethen,eelse) ->
-			{e with eexpr = TIf(find eif, loop f ethen, match eelse with None -> None | Some e -> Some (loop f e))}
-		| TTry(e1,el) ->
-			{e with eexpr = TTry(loop f e1, List.map (fun (el,e) -> el,loop f e) el)}
-		| TReturn _ | TThrow _ ->
-			find e
-		| _ ->
-			f (find e)
-	and find e = match e.eexpr with
-		| TReturn (Some e1) -> loop (fun e -> {e with eexpr = TReturn (Some e)}) e1
-		| TBinop(OpAssign, ({eexpr = TLocal v} as e1), e2) -> loop (fun er -> {e with eexpr = TBinop(OpAssign, e1, er)}) e2
-		| _ -> Type.map_expr find e
-	in
-	find e
 
 (* -------------------------------------------------------------------------- *)
 (* USAGE *)
