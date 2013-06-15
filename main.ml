@@ -1218,7 +1218,7 @@ try
 		) com.types;
 		let filters = [
 			Codegen.Abstract.handle_abstract_casts tctx;
-			Codegen.promote_complex_returns com;
+			Codegen.promote_complex_rhs com;
 			if com.foptimize then (fun e -> Optimizer.reduce_expression tctx (Optimizer.inline_constructors tctx e)) else Optimizer.sanitize tctx;
 			Codegen.check_local_vars_init;
 			Codegen.captured_vars com;
