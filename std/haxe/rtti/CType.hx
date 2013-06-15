@@ -109,9 +109,10 @@ typedef Typedef = {> TypeInfos,
 }
 
 typedef Abstractdef = {> TypeInfos,
-	var subs : Array<CType>;
-	var supers : Array<CType>;
+	var to : Array<{t:CType, field:Null<String>}>;
+	var from : Array<{t:CType, field:Null<String>}>;
 	var impl : Classdef;
+	var athis : CType;
 }
 
 enum TypeTree {

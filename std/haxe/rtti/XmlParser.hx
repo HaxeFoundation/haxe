@@ -178,13 +178,13 @@ class XmlParser {
 	function mergeAbstracts( a : Abstractdef, a2 : Abstractdef ) {
 		if( curplatform == null )
 			return false;
-		if( a.subs.length != a2.subs.length || a.supers.length != a2.supers.length )
+		if( a.to.length != a2.to.length || a.from.length != a2.from.length )
 			return false;
-		for( i in 0...a.subs.length )
-			if( !TypeApi.typeEq(a.subs[i],a2.subs[i]) )
+		for( i in 0...a.to.length )
+			if( !TypeApi.typeEq(a.to[i].t,a2.to[i].t) )
 				return false;
-		for( i in 0...a.supers.length )
-			if( !TypeApi.typeEq(a.supers[i],a2.supers[i]) )
+		for( i in 0...a.from.length )
+			if( !TypeApi.typeEq(a.from[i].t,a2.from[i].t) )
 				return false;
 		if (a2.impl != null) mergeClasses(a.impl, a2.impl);
 		a.platforms.add(curplatform);
@@ -478,8 +478,8 @@ class XmlParser {
 	}
 
 	function xabstract( x : Fast ) : Abstractdef {
-		var doc = null, impl = null;
-		var meta = [], subs = [], supers = [];
+		var doc = null, impl = null, athis = null;
+		var meta = [], to = [], from = [];
 		for( c in x.elements )
 			switch( c.name ) {
 			case "haxe_doc":
@@ -488,12 +488,14 @@ class XmlParser {
 				meta = xmeta(c);
 			case "to":
 				for( t in c.elements )
-					subs.push(xtype(t));
+					to.push({t: xtype(new Fast(t.x.firstElement())), field: t.has.field ? t.att.field : null});
 			case "from":
 				for( t in c.elements )
-					supers.push(xtype(t));
+					from.push({t: xtype(new Fast(t.x.firstElement())), field: t.has.field ? t.att.field : null});
 			case "impl":
 				impl = xclass(c.node.resolve("class"));
+			case "this":
+				athis = xtype(new Fast(c.x.firstElement()));
 			default:
 				xerror(c);
 			}
@@ -506,8 +508,9 @@ class XmlParser {
 			params : mkTypeParams(x.att.params),
 			platforms : defplat(),
 			meta : meta,
-			subs : subs,
-			supers : supers,
+			athis : athis,
+			to : to,
+			from : from,
 			impl: impl
 		};
 	}
