@@ -396,7 +396,7 @@ class Dispatch {
 		return null;
 	}
 
-	static var PARAMS = null;
+	static var PARAMS:Array<Dynamic> = null;
 
 	static function buildParams(_) {
 		var rules = [];
