@@ -175,7 +175,7 @@ class Manager<T : Object> {
 		untyped x._lock = true;
 		// table with one key not defined : suppose autoincrement
 		if( table_keys.length == 1 && Reflect.field(x,table_keys[0]) == null )
-			Reflect.setField(x, table_keys[0], getCnx().lastInsertId());
+			Reflect.setField(x,table_keys[0],getCnx().lastInsertId());
 		
 		// make sure there is a cache_field (needed for update)
 		if ( Reflect.field(x, cache_field) == null ) {
@@ -183,7 +183,7 @@ class Manager<T : Object> {
 			var o = untyped __dollar__new(x);
 			untyped __dollar__objsetproto(o, class_proto.prototype);
 			#else
-			var o : T = Type.createEmptyInstance(cast class_proto);
+			var o = untyped __php__("new stdClass()");
 			for( f in Reflect.fields(x) )
 				Reflect.setField(o, f, Reflect.field(x, f));
 			untyped o._manager = this;
