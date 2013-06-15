@@ -1667,25 +1667,26 @@ module PatternMatchConversion = struct
 end
 
 let promote_complex_returns ctx e =
-	let rec loop t e = match e.eexpr with
+	let rec loop f e = match e.eexpr with
 		| TBlock(el) ->
 			begin match List.rev el with
-				| elast :: el -> {e with eexpr = TBlock(List.rev ((loop t elast) :: el))}
+				| elast :: el -> {e with eexpr = TBlock(List.rev ((loop f elast) :: el))}
 				| [] -> e
 			end
 		| TSwitch(es,cases,edef) ->
-			{e with eexpr = TSwitch(es,List.map (fun (el,e) -> el,loop t e) cases,match edef with None -> None | Some e -> Some (loop t e))}
+			{e with eexpr = TSwitch(es,List.map (fun (el,e) -> el,loop f e) cases,match edef with None -> None | Some e -> Some (loop f e))}
 		| TIf(eif,ethen,eelse) ->
-			{e with eexpr = TIf(eif, loop t ethen, match eelse with None -> None | Some e -> Some (loop t e))}
+			{e with eexpr = TIf(eif, loop f ethen, match eelse with None -> None | Some e -> Some (loop f e))}
 		| TTry(e1,el) ->
-			{e with eexpr = TTry(loop t e1, List.map (fun (el,e) -> el,loop t e) el)}
+			{e with eexpr = TTry(loop f e1, List.map (fun (el,e) -> el,loop f e) el)}
 		| TReturn _ | TThrow _ ->
 			e
 		| _ ->
-			mk (TReturn (Some e)) t e.epos
+			f e
 	in
 	let rec find e = match e.eexpr with
-		| TReturn (Some e1) -> loop e.etype e1
+		| TReturn (Some e1) -> loop (fun e -> {e with eexpr = TReturn (Some e)}) e1
+		| TBinop(OpAssign, ({eexpr = TLocal v} as e1), e2) -> loop (fun er -> {e with eexpr = TBinop(OpAssign, e1, er)}) e2
 		| _ -> Type.map_expr find e
 	in
 	find e
