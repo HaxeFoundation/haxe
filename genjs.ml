@@ -194,7 +194,7 @@ let basename path =
 
 let write_mappings ctx =
 	let basefile = basename ctx.com.file in
-	print ctx "\n//@ sourceMappingURL=%s.map" basefile;
+	print ctx "\n//# sourceMappingURL=%s.map" basefile;
 	let channel = open_out_bin (ctx.com.file ^ ".map") in
 	let sources = DynArray.to_list ctx.smap.sources in
 	let to_url file =
