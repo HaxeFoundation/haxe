@@ -181,7 +181,6 @@ class Manager<T : Object> {
 		if ( Reflect.field(x, cache_field) == null ) {
 			#if neko
 			var o = untyped __dollar__new(x);
-			untyped __dollar__objsetproto(o, class_proto.prototype);
 			#else
 			var o = untyped __php__("new stdClass()");
 			for( f in Reflect.fields(x) )
