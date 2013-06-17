@@ -51,20 +51,25 @@ let pos ctx p =
 		| false ->
 			try
 				Hashtbl.find files p.pfile
-			with Not_found -> try
-				(* lookup relative path *)
-				let len = String.length p.pfile in
-				let base = List.find (fun path ->
-					let l = String.length path in
-					len > l && String.sub p.pfile 0 l = path
-				) ctx.com.Common.class_path in
-				let l = String.length base in
-				let path = String.sub p.pfile l (len - l) in
+			with Not_found ->
+				let path = (match Common.defined ctx.com Common.Define.AbsolutePath with
+				| true -> if (Filename.is_relative p.pfile)
+					then Filename.concat (Sys.getcwd()) p.pfile
+					else p.pfile
+				| false -> try
+					(* lookup relative path *)
+					let len = String.length p.pfile in
+					let base = List.find (fun path ->
+						let l = String.length path in
+						len > l && String.sub p.pfile 0 l = path
+					) ctx.com.Common.class_path in
+					let l = String.length base in
+					String.sub p.pfile l (len - l)
+
+					with Not_found -> p.pfile
+				) in
 				Hashtbl.add files p.pfile path;
 				path
-			with Not_found ->
-				Hashtbl.add files p.pfile p.pfile;
-				p.pfile
 	) in
 	{
 		psource = file;

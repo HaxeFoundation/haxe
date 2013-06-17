@@ -207,7 +207,7 @@ module Define = struct
 		| Last (* must be last *)
 
 	let infos = function
-		| AbsolutePath -> ("absolute_path","Print absoluate file path in trace output")
+		| AbsolutePath -> ("absolute_path","Print absolute file path in trace output")
 		| AdvancedTelemetry -> ("advanced-telemetry","Allow the SWF to be measured with Monocle tool")
 		| As3 -> ("as3","Defined when outputing flash9 as3 source code")
 		| CheckXmlProxy -> ("check_xml_proxy","Check the used fields of the xml proxy")
