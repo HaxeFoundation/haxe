@@ -811,12 +811,13 @@ let promote_abstract_parameters ctx t = match t with
 
 	return { exprs; value; } -> { exprs; return value; }
 	x = { exprs; value; } -> { exprs; x = value; }
+	var x = { exprs; value; } -> { var x; exprs; x = value; }
 *)
 let promote_complex_rhs ctx e =
 	let rec loop f e = match e.eexpr with
 		| TBlock(el) ->
 			begin match List.rev el with
-				| elast :: el -> {e with eexpr = TBlock(List.rev ((loop f elast) :: (List.map find el)))}
+				| elast :: el -> {e with eexpr = TBlock(block (List.rev ((loop f elast) :: el)))}
 				| [] -> e
 			end
 		| TSwitch(es,cases,edef) ->
@@ -829,9 +830,28 @@ let promote_complex_rhs ctx e =
 			find e
 		| _ ->
 			f (find e)
+	and block el =
+		let r = ref [] in
+		List.iter (fun e ->
+			match e.eexpr with
+			| TVars(vl) ->
+				List.iter (fun (v,eo) ->
+					match eo with
+					(* TODO: we may want to widen this pattern *)
+					| Some ({eexpr = TBlock _ | TSwitch _ | TIf _ | TTry _} as e) ->
+						r := (loop (fun e -> mk (TBinop(OpAssign,mk (TLocal v) v.v_type e.epos,e)) v.v_type e.epos) e)
+							:: ((mk (TVars [v,None]) ctx.basic.tvoid e.epos))
+							:: !r
+					| _ -> r := (mk (TVars [v,eo]) ctx.basic.tvoid e.epos) :: !r
+
+				) vl
+			| _ -> r := (find e) :: !r
+		) el;
+		List.rev !r
 	and find e = match e.eexpr with
 		| TReturn (Some e1) -> loop (fun e -> {e with eexpr = TReturn (Some e)}) e1
 		| TBinop(OpAssign, ({eexpr = TLocal _ | TField _ | TArray _} as e1), e2) -> loop (fun er -> {e with eexpr = TBinop(OpAssign, e1, er)}) e2
+		| TBlock(el) -> {e with eexpr = TBlock (block el)}
 		| _ -> Type.map_expr find e
 	in
 	find e
