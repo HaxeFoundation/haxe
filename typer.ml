@@ -962,11 +962,8 @@ let rec type_ident_raise ?(imported_enums=true) ctx i p mode =
 			| Method _ when ctx.curfield.cf_name = "_new" -> ()
 			| _ -> error "You can only modify 'this' inside an inline function" p);
 			AKExpr (get_this ctx p)
-		| _ ->
-		if mode = MGet then
-			AKExpr (get_this ctx p)
-		else
-			AKNo i)
+		| (MCall, KAbstractImpl _) | (MGet, _)-> AKExpr(get_this ctx p)
+		| _ -> AKNo i)
 	| "super" ->
 		let t = (match ctx.curclass.cl_super with
 			| None -> error "Current class does not have a superclass" p
