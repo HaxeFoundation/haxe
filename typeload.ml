@@ -1675,6 +1675,8 @@ let init_class ctx c p context_init herits fields =
 				if ctx.com.display then () else
 				try
 					let _, t2, f = (if stat then let f = PMap.find m c.cl_statics in Some c, f.cf_type, f else class_field c m) in
+					(* accessors must be public on As3 (issue #1872) *)
+					if Common.defined ctx.com Define.As3 then f.cf_meta <- (Meta.Public,[],p) :: f.cf_meta;
 					(match f.cf_kind with
 						| Method MethMacro ->
 							display_error ctx "Macro methods cannot be used as property accessor" p;
