@@ -814,6 +814,12 @@ let promote_abstract_parameters ctx t = match t with
 	var x = { exprs; value; } -> { var x; exprs; x = value; }
 *)
 let promote_complex_rhs ctx e =
+	let rec is_complex e = match e.eexpr with
+		| TBlock _ | TSwitch _ | TIf _ | TTry _ -> true
+		| TBinop(_,e1,e2) -> is_complex e1 || is_complex e2
+		| TParenthesis e | TMeta(_,e) -> is_complex e
+		| _ -> false
+	in
 	let rec loop f e = match e.eexpr with
 		| TBlock(el) ->
 			begin match List.rev el with
@@ -826,6 +832,10 @@ let promote_complex_rhs ctx e =
 			{e with eexpr = TIf(find eif, loop f ethen, match eelse with None -> None | Some e -> Some (loop f e))}
 		| TTry(e1,el) ->
 			{e with eexpr = TTry(loop f e1, List.map (fun (el,e) -> el,loop f e) el)}
+		| TParenthesis e1 when not (Common.defined ctx Define.As3) ->
+			{e with eexpr = TParenthesis(loop f e1)}
+		| TMeta(m,e1) ->
+			{ e with eexpr = TMeta(m,loop f e1)}
 		| TReturn _ | TThrow _ ->
 			find e
 		| _ ->
@@ -837,12 +847,13 @@ let promote_complex_rhs ctx e =
 			| TVars(vl) ->
 				List.iter (fun (v,eo) ->
 					match eo with
-					(* TODO: we may want to widen this pattern *)
-					| Some ({eexpr = TBlock _ | TSwitch _ | TIf _ | TTry _} as e) ->
+					| Some e when is_complex e ->
 						r := (loop (fun e -> mk (TBinop(OpAssign,mk (TLocal v) v.v_type e.epos,e)) v.v_type e.epos) e)
 							:: ((mk (TVars [v,None]) ctx.basic.tvoid e.epos))
 							:: !r
-					| _ -> r := (mk (TVars [v,eo]) ctx.basic.tvoid e.epos) :: !r
+					| Some e ->
+						r := (mk (TVars [v,Some (find e)]) ctx.basic.tvoid e.epos) :: !r
+					| None -> r := (mk (TVars [v,None]) ctx.basic.tvoid e.epos) :: !r
 
 				) vl
 			| _ -> r := (find e) :: !r
