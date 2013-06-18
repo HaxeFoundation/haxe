@@ -223,7 +223,7 @@ class Test #if swf_mark implements mt.Protect #end {
 		#end
 		var classes = [
 			new TestOps(),
-			//new TestBasetypes(),
+			new TestBasetypes(),
 			new TestBytes(),
 			new TestIO(),
 			new TestLocals(),
