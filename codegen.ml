@@ -1438,31 +1438,15 @@ module Abstract = struct
 		with Not_found ->
 			apply_params a.a_types pl a.a_this
 
-	let rec make_static_call ctx c cf a pl args t p =
+	let make_static_call ctx c cf a pl args t p =
 		let ta = TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) } in
 		let ethis = mk (TTypeExpr (TClassDecl c)) ta p in
-		let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
+	  	let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
 		let map t = apply_params a.a_types pl (apply_params cf.cf_params monos t) in
-		let tcf = match follow (map cf.cf_type),args with
-			| TFun((_,_,ta) :: args,r) as tf,e :: el when Meta.has Meta.From cf.cf_meta ->
-				unify ctx e.etype ta p;
-				tf
-			| t,_ -> t
-		in
-		let def () =
-			let e = mk (TField (ethis,(FStatic (c,cf)))) tcf p in
-			loop ctx (mk (TCall(e,args)) (map t) p)
-		in
-		match cf.cf_expr with
-		| Some { eexpr = TFunction fd } when cf.cf_kind = Method MethInline ->
-			let config = if Meta.has Meta.Impl cf.cf_meta then (Some (a.a_types <> [] || cf.cf_params <> [], map)) else None in
-			(match Optimizer.type_inline ctx cf fd ethis args t config p true with
-				| Some e -> e
-				| None -> def())
-		| _ ->
-			def()
+		let ef = mk (TField (ethis,(FStatic (c,cf)))) (map cf.cf_type) p in
+		make_call ctx ef args (map t) p
 
-	and check_cast ctx tleft eright p =
+	let rec check_cast ctx tleft eright p =
 		let tright = follow eright.etype in
 		let tleft = follow tleft in
 		if tleft == tright then eright else
@@ -1513,125 +1497,60 @@ module Abstract = struct
 		with Not_found ->
 			eright
 
-	and call_args ctx el tl = match el,tl with
-		| [],_ -> []
-		| e :: el, [] -> (loop ctx e) :: call_args ctx el []
-		| e :: el, (_,_,t) :: tl ->
-			(check_cast ctx t (loop ctx e) e.epos) :: call_args ctx el tl
-
-	and loop ctx e = match e.eexpr with
-		| TBinop(OpAssign,e1,e2) ->
-			let e2 = check_cast ctx e1.etype (loop ctx e2) e.epos in
-			{ e with eexpr = TBinop(OpAssign,loop ctx e1,e2) }
-		| TVars vl ->
-			let vl = List.map (fun (v,eo) -> match eo with
-				| None -> (v,eo)
-				| Some e ->
-					let is_generic_abstract = match e.etype with TAbstract ({a_impl = Some _} as a,_) -> Meta.has Meta.MultiType a.a_meta | _ -> false in
-					let e = check_cast ctx v.v_type (loop ctx e) e.epos in
-					(* we can rewrite this for better field inference *)
-					if is_generic_abstract then v.v_type <- e.etype;
-					v, Some e
-			) vl in
-			{ e with eexpr = TVars vl }
-		| TNew({cl_kind = KAbstractImpl a} as c,pl,el) ->
-			(* a TNew of an abstract implementation is only generated if it is a generic abstract *)
-			let at = apply_params a.a_types pl a.a_this in
-			let m = mk_mono() in
-			let _,cfo =
-				try find_to a pl m
-				with Not_found ->
-					let st = s_type (print_context()) at in
-					if has_mono at then
-						error ("Type parameters of multi type abstracts must be known (for " ^ st ^ ")") e.epos
-					else
-						error ("Abstract " ^ (s_type_path a.a_path) ^ " has no @:to function that accepts " ^ st) e.epos;
-			in
-			begin match cfo with
-			| None -> assert false
-			| Some cf ->
-				let m = follow m in
-				let e = make_static_call ctx c cf a pl ((mk (TConst TNull) at e.epos) :: el) m e.epos in
-				{e with etype = m}
-			end
-		| TNew(c,pl,el) ->
-			begin try
-				let t,_ = (!get_constructor_ref) ctx c pl e.epos in
-				begin match follow t with
-					| TFun(args,_) ->
-						{ e with eexpr = TNew(c,pl,call_args ctx el args)}
-					| _ ->
-						Type.map_expr (loop ctx) e
-				end
-			with Error _ ->
-				(* TODO: when does this happen? *)
-				Type.map_expr (loop ctx) e
-			end
-		| TCall(e1, el) ->
-			let e1 = loop ctx e1 in
-			begin try
-				begin match e1.eexpr with
- 					| TField(_,FStatic(_,cf)) when Meta.has Meta.To cf.cf_meta ->
- 						(* do not recurse over @:to functions to avoid infinite recursion *)
-						{ e with eexpr = TCall(e1,el)}
-					| TField(e2,fa) ->
-						begin match follow e2.etype with
-							| TAbstract(a,pl) when Meta.has Meta.MultiType a.a_meta ->
-								let m = get_underlying_type a pl in
-								let fname = field_name fa in
-								let el = List.map (loop ctx) el in
-								begin try
-									let ef = mk (TField({e2 with etype = m},quick_field m fname)) e1.etype e2.epos in
-									make_call ctx ef el e.etype e.epos
-								with Not_found ->
-									(* quick_field raises Not_found if m is an abstract, we have to replicate the 'using' call here *)
-									match follow m with
-									| TAbstract({a_impl = Some c} as a,pl) ->
-										let cf = PMap.find fname c.cl_statics in
-										make_static_call ctx c cf a pl (e2 :: el) e.etype e.epos
-									| _ -> raise Not_found
-								end
-							| _ -> raise Not_found
-						end
-					| _ ->
-						raise Not_found
-				end
-			with Not_found ->
-				begin match follow e1.etype with
-					| TFun(args,_) ->
-						{ e with eexpr = TCall(loop ctx e1,call_args ctx el args)}
-					| _ ->
-						Type.map_expr (loop ctx) e
-				end
-			end
-		| TArrayDecl el ->
-			begin match e.etype with
-				| TInst(_,[t]) ->
-					let el = List.map (fun e -> check_cast ctx t (loop ctx e) e.epos) el in
-					{ e with eexpr = TArrayDecl el}
-				| _ ->
-					Type.map_expr (loop ctx) e
-			end
-		| TObjectDecl fl ->
-			begin match follow e.etype with
-			| TAnon a ->
-				let fl = List.map (fun (n,e) ->
-					try
-						let cf = PMap.find n a.a_fields in
-						let e = match e.eexpr with TCast(e1,None) -> e1 | _ -> e in
-						(n,check_cast ctx cf.cf_type (loop ctx e) e.epos)
+	let handle_abstract_casts ctx e =
+		let rec loop ctx e = match e.eexpr with
+			| TNew({cl_kind = KAbstractImpl a} as c,pl,el) ->
+				(* a TNew of an abstract implementation is only generated if it is a generic abstract *)
+				let at = apply_params a.a_types pl a.a_this in
+				let m = mk_mono() in
+				let _,cfo =
+					try find_to a pl m
 					with Not_found ->
-						(n,loop ctx e)
-				) fl in
-				{ e with eexpr = TObjectDecl fl }
+						let st = s_type (print_context()) at in
+						if has_mono at then
+							error ("Type parameters of multi type abstracts must be known (for " ^ st ^ ")") e.epos
+						else
+							error ("Abstract " ^ (s_type_path a.a_path) ^ " has no @:to function that accepts " ^ st) e.epos;
+				in
+				begin match cfo with
+				| None -> assert false
+				| Some cf ->
+					let m = follow m in
+					let e = make_static_call ctx c cf a pl ((mk (TConst TNull) (TAbstract(a,pl)) e.epos) :: el) m e.epos in
+					{e with etype = m}
+				end
+			| TCall(e1, el) ->
+				let e1 = loop ctx e1 in
+				begin try
+					begin match e1.eexpr with
+						| TField(e2,fa) ->
+							begin match follow e2.etype with
+								| TAbstract(a,pl) when Meta.has Meta.MultiType a.a_meta ->
+									let m = get_underlying_type a pl in
+									let fname = field_name fa in
+									let el = List.map (loop ctx) el in
+									begin try
+										let ef = mk (TField({e2 with etype = m},quick_field m fname)) e1.etype e2.epos in
+										make_call ctx ef el e.etype e.epos
+									with Not_found ->
+										(* quick_field raises Not_found if m is an abstract, we have to replicate the 'using' call here *)
+										match follow m with
+										| TAbstract({a_impl = Some c} as a,pl) ->
+											let cf = PMap.find fname c.cl_statics in
+											make_static_call ctx c cf a pl (e2 :: el) e.etype e.epos
+										| _ -> raise Not_found
+									end
+								| _ -> raise Not_found
+							end
+						| _ ->
+							raise Not_found
+					end
+				with Not_found ->
+					Type.map_expr (loop ctx) e
+				end
 			| _ ->
 				Type.map_expr (loop ctx) e
-			end
-		| _ ->
-			Type.map_expr (loop ctx) e
-
-
-	let handle_abstract_casts ctx e =
+		in
 		loop ctx e
 end
 
