@@ -556,7 +556,7 @@ let rec unify_call_params ctx ?(overloads=None) cf el args r p inline =
 			try
 				let e = type_expr ctx ee (WithTypeResume t) in
 				(try unify_raise ctx e.etype t e.epos with Error (Unify l,p) -> raise (WithTypeError (l,p)));
-				loop ((e,false) :: acc) l l2 skip
+				loop ((Codegen.Abstract.check_cast ctx t e p,false) :: acc) l l2 skip
 			with
 				WithTypeError (ul,p) ->
 					if opt then
@@ -1432,6 +1432,7 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 		let e1 = type_access ctx (fst e1) (snd e1) MSet in
 		let tt = (match e1 with AKNo _ | AKInline _ | AKUsing _ | AKMacro _ | AKAccess _ -> Value | AKSet(_,t,_) -> WithType t | AKExpr e -> WithType e.etype) in
 		let e2 = type_expr ctx e2 tt in
+		let e2 = match tt with WithType t -> Codegen.Abstract.check_cast ctx t e2 p | _ -> e2 in
 		(match e1 with
 		| AKNo s -> error ("Cannot access field or identifier " ^ s ^ " for writing") p
 		| AKExpr e1  ->
@@ -2137,7 +2138,7 @@ and type_vars ctx vl p in_block =
 				| Some e ->
 					let e = type_expr ctx e (WithType t) in
 					unify ctx e.etype t p;
-					Some e
+					Some (Codegen.Abstract.check_cast ctx t e p)
 			) in
 			if v.[0] = '$' && not ctx.com.display then error "Variables names starting with a dollar are not allowed" p;
 			add_local ctx v t, e
@@ -2344,7 +2345,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				if PMap.mem n !fields then error ("Duplicate field in object declaration : " ^ n) p;
 				let e = try
 					let t = (PMap.find n a.a_fields).cf_type in
-					let e = type_expr ctx e (match with_type with WithTypeResume _ -> WithTypeResume t | _ -> WithType t) in
+					let e = Codegen.Abstract.check_cast ctx t (type_expr ctx e (match with_type with WithTypeResume _ -> WithTypeResume t | _ -> WithType t)) p in
 					unify ctx e.etype t e.epos;
 					(try type_eq EqStrict e.etype t; e with Unify_error _ -> mk (TCast (e,None)) t e.epos)
 				with Not_found ->
@@ -2481,7 +2482,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				(match with_type with
 				| WithTypeResume _ -> (try unify_raise ctx e.etype t e.epos with Error (Unify l,p) -> raise (WithTypeError (l,p)))
 				| _ -> unify ctx e.etype t e.epos);
-				e
+				Codegen.Abstract.check_cast ctx t e p
 			) el in
 			mk (TArrayDecl el) (ctx.t.tarray t) p)
 	| EVars vl ->
