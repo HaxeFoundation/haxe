@@ -717,8 +717,8 @@ let sanitize_expr com e =
 		{ e with eexpr = TFunction f }
 	| TCall (e2,args) ->
 		if need_parent e2 then { e with eexpr = TCall(parent e2,args) } else e
-	| TEnumParameter (e2,i) ->
-		if need_parent e2 then { e with eexpr = TEnumParameter(parent e2,i) } else e
+	| TEnumParameter (e2,ef,i) ->
+		if need_parent e2 then { e with eexpr = TEnumParameter(parent e2,ef,i) } else e
 	| TField (e2,f) ->
 		if need_parent e2 then { e with eexpr = TField(parent e2,f) } else e
 	| TArray (e1,e2) ->

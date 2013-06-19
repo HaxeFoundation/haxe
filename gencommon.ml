@@ -8584,7 +8584,7 @@ struct
     let traverse gen t opt_get_native_enum_tag =
       let rec run e =
         match e.eexpr with
-          | TEnumParameter(f, i) ->
+          | TEnumParameter(f, _,i) ->
             let f = run f in
             (* check if en was converted to class *)
             (* if it was, switch on tag field and change cond type *)

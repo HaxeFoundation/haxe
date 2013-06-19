@@ -588,7 +588,7 @@ let rec gen_access ?(read_write=false) ctx forcall e =
 		if read_write then assert false;
 		push ctx [VStr (f,is_protected ctx e.etype f)];
 		VarClosure
-	| TEnumParameter(e,i) ->
+	| TEnumParameter(e,_,i) ->
 		gen_expr ctx true e;
 		push ctx [VInt i];
 		VarObj

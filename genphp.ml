@@ -1226,7 +1226,7 @@ and gen_expr ctx e =
 			print ctx " %s " (Ast.s_binop op);
 			gen_value_op ctx e2;
 		));
-	| TEnumParameter(e1,i) ->
+	| TEnumParameter(e1,_,i) ->
 		gen_value ctx e1;
 		print ctx "->params[%d]" i;
 	| TField (e1,s) ->

@@ -891,7 +891,7 @@ let rec convert_st ctx st = match st.st_def with
 		mk (TField(e,fa)) st.st_type st.st_pos
 	| SArray (sts,i) -> mk (TArray(convert_st ctx sts,mk_const ctx st.st_pos (TInt (Int32.of_int i)))) st.st_type st.st_pos
 	| STuple (st,_,_) -> convert_st ctx st
-	| SEnum(sts,ef,i) -> mk (TEnumParameter(convert_st ctx sts, i)) st.st_type st.st_pos
+	| SEnum(sts,ef,i) -> mk (TEnumParameter(convert_st ctx sts, ef, i)) st.st_type st.st_pos
 
 let convert_con ctx con = match con.c_def with
 	| CConst c -> mk_const ctx con.c_pos c

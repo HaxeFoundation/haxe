@@ -449,7 +449,7 @@ and gen_expr ctx e =
 			print ctx "($_=";
 			gen_value ctx x;
 			print ctx ",$bind($_,$_%s))" (field f.cf_name))
-	| TEnumParameter (x,i) ->
+	| TEnumParameter (x,_,i) ->
 		gen_value ctx x;
 		print ctx "[%i]" (i + 2)
 	| TField (x,f) ->

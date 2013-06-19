@@ -758,7 +758,7 @@ let rec iter_retval f retval e =
 		f false e2;
 	| TThrow e
 	| TField (e,_)
-	| TEnumParameter (e,_)
+	| TEnumParameter (e,_,_)
 	| TUnop (_,_,e) ->
 		f true e
 	| TParenthesis e | TMeta(_,e) ->
@@ -943,7 +943,7 @@ let rec is_dynamic_in_cpp ctx expr =
 	else begin
 		let result = (
 		match expr.eexpr with
- 		| TEnumParameter( obj, index ) ->
+ 		| TEnumParameter( obj, _, index ) ->
 			true (* TODO? *)
 		| TField( obj, field ) ->
 			let name = field_name field in
@@ -1270,7 +1270,7 @@ and find_local_functions_and_return_blocks_ctx ctx retval expression =
 			let func_name = next_anon_function_name ctx in
 			output "\n";
 			define_local_function_ctx ctx func_name func
-		| TField (obj,_) | TEnumParameter (obj,_) when (is_null obj) -> ( )
+		| TField (obj,_) | TEnumParameter (obj,_,_) when (is_null obj) -> ( )
 		| TArray (obj,_) when (is_null obj) -> ( )
 		| TIf ( _ , _ , _ ) when retval -> (* ? operator style *)
 		   iter_retval find_local_functions_and_return_blocks retval expression
@@ -1736,8 +1736,8 @@ and gen_expression ctx retval expression =
 		end
 	(* Get precidence matching haxe ? *)
 	| TBinop (op,expr1,expr2) -> gen_bin_op op expr1 expr2
-	| TField (expr,_) | TEnumParameter (expr,_) when (is_null expr) -> output "Dynamic()"
-	| TEnumParameter (expr,i) ->
+	| TField (expr,_) | TEnumParameter (expr,_,_) when (is_null expr) -> output "Dynamic()"
+	| TEnumParameter (expr,_,i) ->
 		let enum = match follow expr.etype with TEnum(enum,_) -> enum | _ -> assert false in
 		output (  "(::" ^ (join_class_path_remap enum.e_path "::") ^ "(");
 		gen_expression ctx true expr;
