@@ -26,6 +26,10 @@
 		return untyped flash.Boot.__instanceof(v,t);
 	}
 
+	public static function instance<T>( v : { }, c : Class<T> ) : T {
+		return Std.is(v, c) ? cast v : null;
+	}
+	
 	public static function string( s : Dynamic ) : String {
 		return untyped flash.Boot.__string_rec(s,"");
 	}

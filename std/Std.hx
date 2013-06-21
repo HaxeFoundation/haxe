@@ -32,6 +32,13 @@ extern class Std {
 		Tells if a value v is of the type t. Returns false if v or t are null.
 	**/
 	public static function is( v : Dynamic, t : Dynamic ) : Bool;
+	
+	/**
+		Check if an object is an instance of the given class, then cast it.
+		Returns null if the object is not an instance of the class.
+		Is not guaranteed to work with interfaces or core types such as String, Array and Date.
+	**/
+	public static function instance<T>( v : {}, c : Class<T> ) : T;
 
 	/**
 		Converts any value to a String.

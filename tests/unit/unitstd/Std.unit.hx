@@ -6,7 +6,18 @@ var unknown = null;
 Std.is(unknown, String) == false;
 Std.is(null, String) == false;
 Std.is("foo", null) == false;
-	
+
+// instance
+#if !js
+Std.instance("", String) == "";
+#end
+var a = [];
+Std.instance(a, Array) == a;
+Std.instance("", Array) == null;
+Std.instance([], String) == null;
+Std.instance(new MyClass.MyChild1(), MyClass.MyParent) != null;
+Std.instance(new MyClass.MyChild1(), MyClass) == null;
+
 // string
 var cwts = new ClassWithToString();
 var cwtsc = new ClassWithToStringChild();
@@ -47,7 +58,7 @@ Std.parseInt(null) == null;
 Std.parseInt("0xFF") == 255;
 Std.parseInt("0x123") == 291;
 Std.parseInt("0XFF") == 255;
-Std.parseInt("0X123") == 291;	
+Std.parseInt("0X123") == 291;
 Std.parseInt("0X01") == 1;
 Std.parseInt("0x01") == 1;
 	

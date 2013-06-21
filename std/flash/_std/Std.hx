@@ -27,6 +27,10 @@ import flash.Boot;
 		return untyped flash.Boot.__instanceof(v,t);
 	}
 
+	public inline static function instance<T>( v : { }, c : Class<T> ) : T {
+		return flash.Lib.as(v, c);
+	}
+
 	public static function string( s : Dynamic ) : String {
 		return untyped flash.Boot.__string_rec(s,"");
 	}

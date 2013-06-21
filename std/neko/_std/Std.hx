@@ -25,6 +25,10 @@
 	public static function is( v : Dynamic, t : Dynamic ) : Bool {
 		return untyped neko.Boot.__instanceof(v,t);
 	}
+	
+	public static function instance<T>( v : { }, c : Class<T> ) : T {
+		return Std.is(v, c) ? cast v : null;
+	}
 
 	public static function string( s : Dynamic ) : String {
 		return new String(untyped __dollar__string(s));
