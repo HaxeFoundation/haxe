@@ -2954,7 +2954,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 							unify_raise ctx (dup e.etype) t e.epos;
 							List.iter2 (fun m (name,t) -> match follow t with
 								| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] ->
-									List.iter (fun tc -> unify_raise ctx (dup e.etype) (map tc) e.epos) constr
+									List.iter (fun tc -> unify_raise ctx m (map tc) e.epos) constr
 								| _ -> ()
 							) monos f.cf_params;
 							if not (can_access ctx c f true) || follow e.etype == t_dynamic && follow t != t_dynamic then
