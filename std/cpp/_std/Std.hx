@@ -24,6 +24,10 @@
 		return untyped __global__.__instanceof(v,t);
 	}
 
+	public static function instance<T>( v : { }, c : Class<T> ) : T {
+		return Std.is(v, c) ? cast v : null;
+	}
+
 	public static function string( s : Dynamic ) : String {
 		return untyped s==null ? "null" : s.toString();
 	}
