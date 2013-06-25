@@ -1117,7 +1117,7 @@ try
 		let real = Extc.get_real_path (!Parser.resume_display).Ast.pfile in
 		classes := lookup_classes com real;
 		if !classes = [] then begin
-			if not (Sys.file_exists real) then failwith "Display file does not exists";
+			if not (Sys.file_exists real) then failwith "Display file does not exist";
 			(match List.rev (ExtString.String.nsplit real "\\") with
 			| file :: _ when file.[0] >= 'a' && file.[1] <= 'z' -> failwith ("Display file '" ^ file ^ "' should not start with a lowercase letter")
 			| _ -> ());
