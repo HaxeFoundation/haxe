@@ -237,7 +237,11 @@ import java.internal.Exceptions;
 	public static function parseFloat( x : String ) : Float {
 		return 0.0;
 	}
-
+	
+	public static function instance<T>( v : { }, c : Class<T> ) : T {
+		return Std.is(v, c) ? cast v : null;
+	}
+	
 	public static function random( x : Int ) : Int {
 		if (x <= 0) return 0;
 		return Std.int(Math.random() * x);
