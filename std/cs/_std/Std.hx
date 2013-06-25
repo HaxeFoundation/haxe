@@ -234,6 +234,10 @@ import cs.internal.Exceptions;
 		}
 	}
 
+	public static function instance<T>( v : { }, c : Class<T> ) : T {
+		return Std.is(v, c) ? cast v : null;
+	}
+
 	public static function random( x : Int ) : Int {
 		if (x <= 0) return 0;
 		return untyped Math.rand.Next(x);
