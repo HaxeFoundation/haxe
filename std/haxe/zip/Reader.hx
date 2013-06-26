@@ -99,7 +99,7 @@ class Reader {
 		if( utf8 )
 			fields.push(FUtf8);
 		var data = null;
-		if( (flags & 8) != 0 )
+		if( compressed )
 			csize = -1;
 		return {
 			fileName : fname,
@@ -166,11 +166,13 @@ class Reader {
 				}
 				e.data = out.getBytes();
 				#end
-				e.crc32 = i.readInt32();
-				if( e.crc32 == 0x08074b50 )
+				if (e.extraFields != null && Lambda.has(e.extraFields, FUtf8)) {
 					e.crc32 = i.readInt32();
-				e.dataSize = i.readInt32();
-				e.fileSize = i.readInt32();
+					if( e.crc32 == 0x08074b50 )
+						e.crc32 = i.readInt32();
+					e.dataSize = i.readInt32();
+					e.fileSize = i.readInt32();
+				}
 				// set data to uncompressed
 				e.dataSize = e.fileSize;
 				e.compressed = false;
