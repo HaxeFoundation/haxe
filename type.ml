@@ -244,7 +244,7 @@ and tdef = {
 }
 
 and tabstract = {
-	a_path : path;
+	mutable a_path : path;
 	a_module : module_def;
 	a_pos : Ast.pos;
 	a_private : bool;
