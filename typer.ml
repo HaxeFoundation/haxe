@@ -2120,7 +2120,7 @@ and type_access ctx e p mode =
 				let pt = mk_mono() in
 				let t = ctx.t.tarray pt in
 				(try unify_raise ctx et t p
-				with Error(Unify _,_) -> if not ctx.untyped then error ("Array access is not allowed on " ^ (s_type (print_context()) e1.etype)) e1.epos);
+				with Error(Unify _,_) -> if not ctx.untyped then error ("Array access is not allowed on " ^ (s_type (print_context()) e1.etype) ^ " with " ^ (s_type (print_context()) e2.etype)) e1.epos);
 				pt
 		in
 		let pt = loop e1.etype in
