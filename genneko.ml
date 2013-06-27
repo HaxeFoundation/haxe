@@ -409,19 +409,12 @@ and gen_expr ctx e =
 					| Some dt -> (EIf (gen_expr ctx e,loop dt1,Some (loop dt)),p)
 				in
 				(match get_locals e with [] -> eg | el -> EBlock [(EVars(el),p);eg],p)
-			| DTSwitch (e,cl) ->
+			| DTSwitch (e,cl,dto) ->
 				let e = gen_expr ctx e in
-				let def = ref None in
-				let cases = ExtList.List.filter_map (fun (e,dt) ->
-					match e.eexpr with
-	 				| TMeta((Meta.MatchAny,_,_),_) ->
-						def := Some (loop dt);
-						None
-					| _ ->
-						Some (gen_expr ctx e,loop dt)
-				) cl in
+				let def = match dto with None -> None | Some dt -> Some (loop dt) in
+				let cases = List.map (fun (e,dt) -> gen_expr ctx e,loop dt) cl in
 				EBlock [
-					(ESwitch (e,cases,!def),p);
+					(ESwitch (e,cases,def),p);
 					goto num_labels;
 				],p
 		in

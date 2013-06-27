@@ -934,12 +934,13 @@ let rec local_usage f e =
 				local_usage f e;
 				fdt dt1;
 				(match dt2 with None -> () | Some dt -> fdt dt)
-			| DTSwitch(e,cl) ->
+			| DTSwitch(e,cl,dto) ->
 				local_usage f e;
 				List.iter (fun (e,dt) ->
 					local_usage f e;
 					fdt dt
-				) cl
+				) cl;
+				(match dto with None -> () | Some dt -> fdt dt)
 			| DTGoto _ -> ()
 		in
 		Array.iter fdt dt.dt_dt_lookup
@@ -1259,13 +1260,17 @@ let rename_local_vars com e =
 			) catchs;
 		| TPatMatch dt ->
 			let rec fdt dt = match dt with
-				| DTSwitch(e,cl) ->
+				| DTSwitch(e,cl,dto) ->
 					loop e;
 					List.iter (fun (_,dt) ->
 						let old = save() in
 						fdt dt;
 						old();
 					) cl;
+					(match dto with None -> () | Some dt ->
+						let old = save() in
+						fdt dt;
+						old())
 				| DTBind(bl,dt) ->
 					List.iter (fun ((v,p),e) ->
 						declare v e.epos
@@ -1400,9 +1405,10 @@ let check_local_vars_init e =
 					loop vars e;
 					restore vars old [];
 					cvars := !vars :: !cvars
-				| DTSwitch(e,cl) ->
+				| DTSwitch(e,cl,dto) ->
 					loop vars e;
-					List.iter (fun (_,dt) -> fdt dt) cl
+					List.iter (fun (_,dt) -> fdt dt) cl;
+					(match dto with None -> () | Some dt -> fdt dt)
 				| DTGuard(e,dt1,dt2) ->
 					fdt dt1;
 					(match dt2 with None -> () | Some dt -> fdt dt)
@@ -1618,19 +1624,11 @@ module PatternMatchConversion = struct
 		| DTGuard(e,dt1,dt2) ->
 			let ethen = convert_dt cctx dt1 in
 			mk (TIf(e,ethen,match dt2 with None -> None | Some dt -> Some (convert_dt cctx dt))) ethen.etype (punion e.epos ethen.epos)
-		| DTSwitch(e_st,cl) ->
-			let def = ref None in
-			let cases = List.filter (fun (e,dt) ->
- 				match e.eexpr with
- 				| TMeta((Meta.MatchAny,_,_),_) ->
-					def := Some (convert_dt cctx dt);
-					false
-				| _ ->
-					true
-			) cl in
-			let cases = group_cases cases in
+		| DTSwitch(e_st,cl,dto) ->
+			let def = match dto with None -> None | Some dt -> Some (convert_dt cctx dt) in
+			let cases = group_cases cl in
 			let cases = List.map (fun (cl,dt) -> cl,convert_dt cctx dt) cases in
-			mk (TSwitch(e_st,cases,!def)) (mk_mono()) e_st.epos
+			mk (TSwitch(e_st,cases,def)) (mk_mono()) e_st.epos
 
 	let to_typed_ast ctx dt p =
 		let first = dt.dt_dt_lookup.(dt.dt_first) in

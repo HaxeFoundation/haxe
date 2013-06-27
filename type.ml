@@ -293,7 +293,7 @@ and module_kind =
 	| MFake
 
 and dt =
-	| DTSwitch of texpr * (texpr * dt) list
+	| DTSwitch of texpr * (texpr * dt) list * dt option
 	| DTBind of ((tvar * pos) * texpr) list * dt
 	| DTGoto of int
 	| DTExpr of texpr
@@ -1287,7 +1287,9 @@ and unify_with_access t1 f2 =
 
 let iter_dt f dt = match dt with
 	| DTBind(_,dt) -> f dt
-	| DTSwitch(_,cl) -> List.iter (fun (_,dt) -> f dt) cl
+	| DTSwitch(_,cl,dto) ->
+		List.iter (fun (_,dt) -> f dt) cl;
+		(match dto with None -> () | Some dt -> f dt)
 	| DTGuard(_,dt1,dt2) ->
 		f dt1;
 		(match dt2 with None -> () | Some dt -> f dt)
@@ -1340,12 +1342,13 @@ let iter f e =
 		let rec loop dt = match dt with
 			| DTBind(_,dt) -> loop dt
 			| DTGoto _ -> ()
-			| DTSwitch(e,cl) ->
+			| DTSwitch(e,cl,dto) ->
 				f e;
 				List.iter (fun (e,dt) ->
 					f e;
 					loop dt
-				) cl
+				) cl;
+				(match dto with None -> () | Some dt -> loop dt)
 			| DTExpr e -> f e
 			| DTGuard(eg,dt1,dt2) ->
 				f eg;
@@ -1408,7 +1411,7 @@ let map_expr f e =
 		let rec loop dt = match dt with
 			| DTBind(vl,dt) -> DTBind(vl, loop dt)
 			| DTGoto _ -> dt
-			| DTSwitch(e,cl) -> DTSwitch(f e, List.map (fun (e,dt) -> f e,loop dt) cl)
+			| DTSwitch(e,cl,dto) -> DTSwitch(f e, List.map (fun (e,dt) -> f e,loop dt) cl,match dto with None -> None | Some dt -> Some (loop dt))
 			| DTExpr e -> DTExpr(f e)
 			| DTGuard(e,dt1,dt2) -> DTGuard(f e,loop dt1,match dt2 with None -> None | Some dt -> Some (loop dt))
 		in
@@ -1480,7 +1483,7 @@ let map_expr_type f ft fv e =
 		let rec loop dt = match dt with
 			| DTBind(vl,dt) -> DTBind(vl, loop dt)
 			| DTGoto _ -> dt
-			| DTSwitch(e,cl) -> DTSwitch(f e, List.map (fun (e,dt) -> f e,loop dt) cl)
+			| DTSwitch(e,cl,dto) -> DTSwitch(f e, List.map (fun (e,dt) -> f e,loop dt) cl,match dto with None -> None | Some dt -> Some (loop dt))
 			| DTExpr e -> DTExpr(f e)
 			| DTGuard (e,dt1,dt2) -> DTGuard(f e, loop dt, match dt2 with None -> None | Some dt -> Some (loop dt))
 		in
@@ -1617,11 +1620,12 @@ let rec s_expr s_type e =
 and s_dt tabs tree =
 	let s_type = s_type (print_context()) in
 	tabs ^ match tree with
-	| DTSwitch (st, cl) ->
+	| DTSwitch (st,cl,dto) ->
 		"switch(" ^ (s_expr s_type st) ^ ") { \n" ^ tabs
 		^ (String.concat ("\n" ^ tabs) (List.map (fun (c,dt) ->
 			"case " ^ (s_expr s_type c) ^ ":\n" ^ (s_dt (tabs ^ "\t") dt)
 		) cl))
+		^ (match dto with None -> "" | Some dt -> tabs ^ "default: " ^ (s_dt (tabs ^ "\t") dt))
 		^ "\n" ^ (if String.length tabs = 0 then "" else (String.sub tabs 0 (String.length tabs - 1))) ^ "}"
 	| DTBind (bl, dt) -> "bind " ^ (String.concat "," (List.map (fun ((v,_),st) -> v.v_name ^ "(" ^ (string_of_int v.v_id) ^ ") =" ^ (s_expr s_type st)) bl)) ^ "\n" ^ (s_dt tabs dt)
 	| DTGoto i ->
