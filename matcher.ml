@@ -845,8 +845,8 @@ let rec compile mctx stl pmat =
 			) sigma in
 			let def = default mctx pmat in
 			let dt = match def,cases with
- 			| _,[{c_def = CFields _},dt] ->
-				dt
+			| _ when List.exists (fun (c,_) -> match c.c_def with CFields _ -> true | _ -> false) cases ->
+				switch st_head cases
 			| _ when not inf && PMap.is_empty !all ->
 				switch st_head cases
 			| [],_ when inf && not mctx.need_val ->
@@ -934,7 +934,10 @@ let convert_switch ctx st cases loop =
 		| _ ->
 			true
 	) cases in
-	let dt = DTSwitch(e, List.map (fun (c,dt) -> convert_con ctx c, loop dt) cases) in
+	let dt = match cases with
+		| [{c_def = CFields _},dt] -> loop dt
+		| _ -> DTSwitch(e, List.map (fun (c,dt) -> convert_con ctx c, loop dt) cases)
+	in
 	match !null with
 	| None -> dt
 	| Some dt_null ->

@@ -414,6 +414,18 @@ class TestMatch extends Test {
 			case Node(_): "default";
 		}
 		eq(f(t), "foo");
+		
+		function f(a) {
+			return switch(a:{a: Int}) {
+				case {a: 1}: 1;
+				case null: 2;
+				default: 3;
+			}
+		}
+		
+		eq(f(null), 2);
+		eq(f({a: 1}), 1);
+		eq(f({a: 2}), 3);
 	}
 
 	#if false
