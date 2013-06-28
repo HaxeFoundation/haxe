@@ -2092,6 +2092,7 @@ and type_access ctx e p mode =
 	| EArray (e1,e2) ->
 		let e1 = type_expr ctx e1 Value in
 		let e2 = type_expr ctx e2 Value in
+		let has_abstract_array_access = ref false in
 		(try (match follow e1.etype with
 		| TAbstract ({a_impl = Some c} as a,pl) when a.a_array <> [] ->
 			(match mode with
@@ -2099,6 +2100,7 @@ and type_access ctx e p mode =
 				(* resolve later *)
 				AKAccess (e1, e2)
 			| _ ->
+				has_abstract_array_access := true;
 				let cf,tf,r = find_array_access a pl c e2.etype t_dynamic false in
 				let et = type_module_type ctx (TClassDecl c) None p in
 				let ef = mk (TField(et,(FStatic(c,cf)))) tf p in
@@ -2120,7 +2122,10 @@ and type_access ctx e p mode =
 				let pt = mk_mono() in
 				let t = ctx.t.tarray pt in
 				(try unify_raise ctx et t p
-				with Error(Unify _,_) -> if not ctx.untyped then error ("Array access is not allowed on " ^ (s_type (print_context()) e1.etype)) e1.epos);
+				with Error(Unify _,_) -> if not ctx.untyped then begin
+					if !has_abstract_array_access then error ("No @:arrayAccess function accepts an argument of " ^ (s_type (print_context()) e2.etype)) e1.epos
+					else error ("Array access is not allowed on " ^ (s_type (print_context()) e1.etype)) e1.epos
+				end);
 				pt
 		in
 		let pt = loop e1.etype in
