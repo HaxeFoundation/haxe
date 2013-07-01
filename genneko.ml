@@ -852,8 +852,9 @@ let generate com =
 			Nbytecode.write ch (Ncompile.compile ctx.version e);
 			IO.close_out ch;
 		with Ncompile.Error (msg,pos) ->
+			let pfile = Common.find_file com pos.psource in
 			let rec loop p =
-				let pp = { pfile = pos.psource; pmin = p; pmax = p; } in
+				let pp = { pfile = pfile; pmin = p; pmax = p; } in
 				if Lexer.get_error_line pp >= pos.pline then
 					pp
 				else
