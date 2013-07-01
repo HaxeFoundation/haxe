@@ -1826,7 +1826,7 @@ and type_unop ctx op flag e p =
 							if type_iseq (tfun [e.etype] m) tcf then cf,tcf,m else loop opl
 					| _ :: opl -> loop opl
 				in
-				let cf,t,r = loop a.a_unops in
+				let cf,t,r = try loop a.a_unops with Not_found -> error "Invalid operation" p in
 				if not (can_access ctx c cf true) then error ("Cannot access " ^ cf.cf_name) p;
 				(match cf.cf_expr with
 				| None ->
