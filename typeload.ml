@@ -1397,6 +1397,12 @@ let init_class ctx c p context_init herits fields =
 		match e with
 		| None -> ()
 		| Some e ->
+			let check_cast e =
+				(* insert cast to keep explicit field type (issue #1901) *)
+				if not (type_iseq e.etype cf.cf_type)
+				then mk (TCast(e,None)) cf.cf_type e.epos
+				else e
+			in
 			let r = exc_protect ctx (fun r ->
 				if not !return_partial_type then begin
 					r := (fun() -> t);
@@ -1417,7 +1423,7 @@ let init_class ctx c p context_init herits fields =
 							| None -> display_error ctx "Extern variable initialization must be a constant value" p; e
 						end
 					| Var v when not stat || (v.v_read = AccInline) ->
-						let e = match Optimizer.make_constant_expression ctx e with Some e -> e | None -> display_error ctx "Variable initialization must be a constant value" p; e in
+						let e = match Optimizer.make_constant_expression ctx e with Some e -> check_cast e | None -> display_error ctx "Variable initialization must be a constant value" p; e in
 						e
 					| _ ->
 						e
