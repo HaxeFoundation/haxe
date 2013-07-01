@@ -1404,7 +1404,8 @@ let init_class ctx c p context_init herits fields =
 				else e
 			in
 			let r = exc_protect ctx (fun r ->
-				if not !return_partial_type then begin
+				(* type constant init fields (issue #1956) *)
+				if not !return_partial_type || (match fst e with EConst _ -> true | _ -> false) then begin
 					r := (fun() -> t);
 					context_init();
 					if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.in_macro then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ cf.cf_name);
