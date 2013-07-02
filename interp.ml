@@ -2050,6 +2050,12 @@ let macro_lib =
 				raise Abort
 			| _ -> error()
 		);
+		"fatal_error", Fun2 (fun msg p ->
+			match msg, p with
+			| VString s, VAbstract (APos p) ->
+				raise (Typecore.Fatal_error (s,p))
+			| _ -> error()
+		);		
 		"warning", Fun2 (fun msg p ->
 			match msg, p with
 			| VString s, VAbstract (APos p) ->

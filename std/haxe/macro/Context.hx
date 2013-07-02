@@ -45,6 +45,14 @@ class Context {
 	public static function error( msg : String, pos : Position ) : Dynamic {
 		return load("error",2)(untyped msg.__s, pos);
 	}
+	
+	/**
+		Displays a compilation error `msg` at the given `Position` `pos`
+		and aborts the compilation.
+	**/
+	public static function fatalError( msg : String, pos : Position ) : Dynamic {
+		return load("fatal_error",2)(untyped msg.__s, pos);
+	}
 
 	/**
 		Displays a compilation warning `msg` at the given `Position` `pos`.
