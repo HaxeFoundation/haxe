@@ -201,7 +201,7 @@ class Printer {
 		case EDisplay(e1, _): '#DISPLAY(${printExpr(e1)})';
 		case EDisplayNew(tp): '#DISPLAY(${printTypePath(tp)})';
 		case ETernary(econd, eif, eelse): '${printExpr(econd)} ? ${printExpr(eif)} : ${printExpr(eelse)}';
-		case ECheckType(e1, ct): '#CHECK_TYPE(${printExpr(e1)}, ${printComplexType(ct)})';
+		case ECheckType(e1, ct, so): '#CHECK_TYPE(${printExpr(e1)}, ${printComplexType(ct)})';
 		case EMeta(meta, e1): printMetadata(meta) + " " +printExpr(e1);
 	}
 

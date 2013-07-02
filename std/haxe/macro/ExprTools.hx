@@ -185,7 +185,7 @@ class ExprTools {
 			case ECast(e, t): ECast(f(e), t);
 			case EDisplay(e, isCall): EDisplay(f(e), isCall);
 			case ETernary(econd, eif, eelse): ETernary(f(econd), f(eif), f(eelse));
-			case ECheckType(e, t): ECheckType(f(e), t);
+			case ECheckType(e, t, so): ECheckType(f(e), t, so);
 			case EDisplayNew(_),
 				EContinue,
 				EBreak:
