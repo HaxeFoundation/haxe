@@ -732,11 +732,17 @@ let sanitize_expr com e =
 		let cases = List.map (fun (el,e) -> el, complex e) cases in
 		let def = (match def with None -> None | Some e -> Some (complex e)) in
 		{ e with eexpr = TSwitch (e1,cases,def) }
-(* 	| TMatch (e1, en, cases, def) ->
-		let e1 = parent e1 in
-		let cases = List.map (fun (el,vars,e) -> el, vars, complex e) cases in
-		let def = (match def with None -> None | Some e -> Some (complex e)) in
-		{ e with eexpr = TMatch (e1,en,cases,def) } *)
+	| TPatMatch dt ->
+		let rec loop d = match d with
+			| DTGoto _ -> d
+			| DTExpr e -> DTExpr (complex e)
+			| DTBind(bl,dt) -> DTBind(bl, loop dt)
+			| DTGuard(e,dt1,dt2) -> DTGuard(complex e,loop dt1,match dt2 with None -> None | Some dt -> Some (loop dt))
+			| DTSwitch(e,cl,dto) ->
+				let cl = List.map (fun (e,dt) -> complex e,loop dt) cl in
+				DTSwitch(parent e,cl,match dto with None -> None | Some dt -> Some (loop dt))
+		in
+		{ e with eexpr = TPatMatch({dt with dt_dt_lookup = Array.map loop dt.dt_dt_lookup })}
 	| _ ->
 		e
 
