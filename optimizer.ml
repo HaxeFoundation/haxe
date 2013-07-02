@@ -1215,7 +1215,7 @@ let optimize_completion_expr e =
 					let p = snd e in
 					(try
 						(match PMap.find n locals.r with
-						| Some t , _ -> (ECheckType ((EConst (Ident "null"),p),t),p)
+						| Some t , _ -> (ECheckType ((EConst (Ident "null"),p),t,None),p)
 						| _, Some (id,e,lc) ->
 							let name = (try
 								PMap.find id (!tmp_hlocals)

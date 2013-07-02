@@ -3740,8 +3740,8 @@ and encode_expr e =
 				26, [encode_path t]
 			| ETernary (econd,e1,e2) ->
 				27, [loop econd;loop e1;loop e2]
-			| ECheckType (e,t) ->
-				28, [loop e; encode_ctype t]
+			| ECheckType (e,t,so) ->
+				28, [loop e; encode_ctype t;null enc_string so]
 			| EMeta (m,e) ->
 				29, [encode_meta_entry m;loop e]
 		in
@@ -4003,8 +4003,8 @@ let rec decode_expr v =
 			EDisplayNew (decode_path t)
 		| 27, [e1;e2;e3] ->
 			ETernary (loop e1,loop e2,loop e3)
-		| 28, [e;t] ->
-			ECheckType (loop e, decode_ctype t)
+		| 28, [e;t;so] ->
+			ECheckType (loop e, decode_ctype t, opt dec_string so)
 		| 29, [m;e] ->
 			EMeta (decode_meta_entry m,loop e)
 		| 30, [e;f] ->

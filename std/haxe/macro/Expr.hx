@@ -129,7 +129,7 @@ enum ExprDef {
 	EDisplay( e : Expr, isCall : Bool );
 	EDisplayNew( t : TypePath );
 	ETernary( econd : Expr, eif : Expr, eelse : Expr );
-	ECheckType( e : Expr, t : ComplexType );
+	ECheckType( e : Expr, t : ComplexType, ?message : Null<String> );
 	EMeta( s : MetadataEntry, e : Expr );
 }
 
