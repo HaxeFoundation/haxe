@@ -1303,8 +1303,10 @@ try
 		if r <> 0 then failwith ("Command failed with error " ^ string_of_int r)
 	) (List.rev !cmds)
 with
-	| Abort | Typecore.Fatal_error ->
+	| Abort ->
 		()
+	| Typecore.Fatal_error (m,p) ->
+		error ctx m p
 	| Common.Abort (m,p) ->
 		error ctx m p
 	| Lexer.Error (m,p) ->

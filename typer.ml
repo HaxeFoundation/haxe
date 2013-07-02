@@ -3155,7 +3155,7 @@ and build_call ctx acc el (with_type:with_type) p =
 			(* display additional info in the case the error is not part of our original call *)
 			if ep.pfile <> p.pfile || ep.pmax < p.pmin || ep.pmin > p.pmax then old ctx "Called from macro here" p
 		);
-		let e = try f() with Error (m,p) -> display_error ctx (error_msg m) p; ctx.on_error <- old; raise Fatal_error in
+		let e = try f() with Error (m,p) -> ctx.on_error <- old; raise (Fatal_error ((error_msg m),p)) in
 		ctx.on_error <- old;
 		e
 	| AKNo _ | AKSet _ | AKAccess _ ->
@@ -3667,7 +3667,7 @@ and flush_macro_context mint ctx =
 	end else mint in
 	(* we should maybe ensure that all filters in Main are applied. Not urgent atm *)
 	(try Interp.add_types mint types (Codegen.post_process [Codegen.Abstract.handle_abstract_casts mctx; Codegen.captured_vars mctx.com; Codegen.rename_local_vars mctx.com])
-	with Error (e,p) -> display_error ctx (error_msg e) p; raise Fatal_error);
+	with Error (e,p) -> raise (Fatal_error(error_msg e,p)));
 	Codegen.post_process_end()
 
 let create_macro_interp ctx mctx =

@@ -126,7 +126,7 @@ type error_msg =
 	| Unknown_ident of string
 	| Stack of error_msg * error_msg
 
-exception Fatal_error
+exception Fatal_error of string * Ast.pos
 
 exception Forbid_package of (string * path * pos) * pos list * string
 
@@ -341,8 +341,7 @@ let exc_protect ctx f (where:string) =
 			f r
 		with
 			| Error (m,p) ->
-				display_error ctx (error_msg m) p;
-				raise Fatal_error
+				raise (Fatal_error ((error_msg m),p))
 	) in
 	r
 

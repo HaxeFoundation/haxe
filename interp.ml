@@ -1630,7 +1630,7 @@ let std_lib =
 			VInt (((get_ctx()).curapi.get_com()).run_command (vstring cmd))
 		);
 		"sys_exit", Fun1 (fun code ->
-			if (get_ctx()).curapi.use_cache() then raise Typecore.Fatal_error;
+			if (get_ctx()).curapi.use_cache() then raise (Typecore.Fatal_error ("",Ast.null_pos));
 			exit (vint code);
 		);
 		"sys_exists", Fun1 (fun file ->
