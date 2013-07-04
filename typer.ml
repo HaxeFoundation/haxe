@@ -3107,23 +3107,28 @@ and build_call ctx acc el (with_type:with_type) p =
 			make_call ctx e el t p
 		| _ -> assert false)
 	| AKUsing (et,cl,ef,eparam) ->
-		let ef = prepare_using_field ef in
-		(match et.eexpr with
-		| TField (ec,_) ->
-			let acc = type_field ctx ec ef.cf_name p MCall in
-			(match acc with
-			| AKMacro _ ->
-				build_call ctx acc (Interp.make_ast eparam :: el) with_type p
-			| AKExpr _ | AKInline _ | AKUsing _ ->
-				let params, tfunc = (match follow et.etype with
-					| TFun ( _ :: args,r) -> unify_call_params ctx (Some (TInst(cl,[]),ef)) el args r p (ef.cf_kind = Method MethInline)
+		begin match ef.cf_kind with
+		| Method MethMacro ->
+			let ethis = type_module_type ctx (TClassDecl cl) None p in
+			build_call ctx (AKMacro (ethis,ef)) (Interp.make_ast eparam :: el) with_type p
+		| _ ->
+			let t = follow (field_type ctx cl [] ef p) in
+			(* for abstracts we have to apply their parameters to the static function *)
+			let t,tthis = match follow eparam.etype with
+				| TAbstract(a,tl) -> apply_params a.a_types tl t,apply_params a.a_types tl a.a_this
+				| te -> t,te
+			in
+			let params,args,r = match t with
+				| TFun ((_,_,t1) :: args,r) ->
+					unify ctx tthis t1 eparam.epos;
+					begin match unify_call_params ctx (Some (TInst(cl,[]),ef)) el args r p (ef.cf_kind = Method MethInline) with
+					| el,TFun(args,r) -> el,args,r
 					| _ -> assert false
-				) in
-				let args,r = match tfunc with TFun(args,r) -> args,r | _ -> assert false in
-				let et = {et with etype = TFun(("",false,eparam.etype) :: args,r)} in
-				make_call ctx et (eparam::params) r p
-			| _ -> assert false)
-		| _ -> assert false)
+					end
+				| _ -> assert false
+			in		
+			make_call ctx et (eparam :: params) r p
+		end
 	| AKMacro (ethis,f) ->
 		if ctx.macro_depth > 300 then error "Stack overflow" p;
 		ctx.macro_depth <- ctx.macro_depth + 1;
