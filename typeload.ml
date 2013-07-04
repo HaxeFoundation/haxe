@@ -1007,12 +1007,20 @@ let rec type_type_params ?(enum_constructor=false) ctx path get_params p tp =
 		n, t
 	| _ ->
 		let r = exc_protect ctx (fun r ->
-			r := (fun _ -> error "Recursive constraint parameter is not allowed" p);
+			r := (fun _ -> t);
 			let ctx = { ctx with type_params = ctx.type_params @ get_params() } in
 			let constr = List.map (load_complex_type ctx p) tp.tp_constraints in
-			List.iter (fun t -> ignore(follow t)) constr; (* force other constraints evaluation to check recursion *)
+			(* check against direct recursion *)
+			let rec loop t =
+				match follow t with
+				| TInst (c2,_) when c == c2 -> error "Recursive constraint parameter is not allowed" p
+				| TInst ({ cl_kind = KTypeParameter cl },_) ->
+					List.iter loop cl
+				| _ ->
+					()
+			in
+			List.iter loop constr;
 			c.cl_kind <- KTypeParameter constr;
-			r := (fun _ -> t);
 			t
 		) "constraint" in
 		delay ctx PForce (fun () -> ignore(!r()));
