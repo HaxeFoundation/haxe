@@ -315,7 +315,10 @@ let check_param_constraints ctx types t pl c p =
 					f pl
 				| _ -> ti
 			) in
-			unify ctx t ti p
+			try 
+				unify_raise ctx t ti p
+			with Error(Unify l,p) ->
+				if not ctx.untyped then display_error ctx (error_msg (Unify (Constraint_failure (s_type_path c.cl_path) :: l))) p;
 		) ctl
 
 (* build an instance from a full type *)
