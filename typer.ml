@@ -179,6 +179,7 @@ let add_constraint_checks ctx ctypes pl f tl p =
 			delay ctx PCheckConstraint (fun() ->
 				List.iter (fun ct ->
 					try
+						if has_mono m then raise (Unify_error [Unify_custom "Could not resolve full type for constraint checks"; Unify_custom ("Type was " ^ (s_type (print_context()) m))]);
 						Type.unify m ct
 					with Unify_error l ->
 						display_error ctx (error_msg (Unify (Constraint_failure (f.cf_name ^ "." ^ name) :: l))) p;
@@ -922,7 +923,7 @@ let rec using_field ctx mode e i p =
 					Type.unify e.etype t0;
 					(* early constraints check is possible because e.etype has no monomorphs *)
 		 			List.iter2 (fun m (name,t) -> match follow t with
-						| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] ->
+						| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] && not (has_mono m) ->
 							List.iter (fun tc -> Type.unify m (map tc)) constr
 						| _ -> ()
 					) monos cf.cf_params;
