@@ -541,7 +541,8 @@ let to_pattern ctx e t =
 		pc_sub_vars = None;
 		pc_reify = false;
 	} in
-	loop pctx e t, pctx.pc_locals
+	let x = loop pctx e t in
+	x, x.pc_locals
 
 let get_pattern_locals ctx e t =
 	try
