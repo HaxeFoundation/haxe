@@ -82,6 +82,9 @@ let is_resuming p =
 	let p2 = !resume_display in
 	p.pmax = p2.pmin && Common.unique_full_path p.pfile = p2.pfile
 
+let set_resume p =
+	resume_display := { p with pfile = Common.unique_full_path p.pfile }
+
 let is_dollar_ident e = match fst e with
 	| EConst (Ident n) when n.[0] = '$' ->
 		true
@@ -621,6 +624,7 @@ and parse_import s p1 =
 			| [< '(Binop OpMult,_); '(Semicolon,p2) >] ->
 				p2, List.rev acc, IAll
 			| [< '(Binop OpOr,_) when do_resume() >] ->
+				set_resume p;
 				raise (TypePath (List.rev (List.map fst acc),None))
 			| [< >] ->
 				serror());
@@ -800,6 +804,7 @@ and parse_type_path1 pack = parser
 					else match s with parser
 						| [< '(Const (Ident name),_) when not (is_lower_ident name) >] -> Some name
 						| [< '(Binop OpOr,_) when do_resume() >] ->
+							set_resume p;
 							raise (TypePath (List.rev pack,Some (name,false)))
 						| [< >] -> serror())
 				| [< >] -> None
@@ -1200,7 +1205,9 @@ and expr_next e1 = parser
 		| [< '(Kwd New,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,"new") , punion (pos e1) p2) s
 		| [< '(Const (Ident f),p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,f) , punion (pos e1) p2) s
 		| [< '(Dollar v,p2); s >] -> expr_next (EField (e1,"$"^v) , punion (pos e1) p2) s
-		| [< '(Binop OpOr,p2) when do_resume() >] -> display (EDisplay (e1,false),p) (* help for debug display mode *)
+		| [< '(Binop OpOr,p2) when do_resume() >] ->
+			set_resume p;
+			display (EDisplay (e1,false),p) (* help for debug display mode *)
 		| [< >] ->
 			(* turn an integer followed by a dot into a float *)
 			match e1 with
@@ -1209,7 +1216,9 @@ and expr_next e1 = parser
 	| [< '(POpen,p1); s >] ->
 		if is_resuming p1 then display (EDisplay (e1,true),p1);
 		(match s with parser
-		| [< '(Binop OpOr,p2) when do_resume() >] -> display (EDisplay (e1,true),p1) (* help for debug display mode *)
+		| [< '(Binop OpOr,p2) when do_resume() >] ->
+			set_resume p1;
+			display (EDisplay (e1,true),p1) (* help for debug display mode *)
 		| [< params = parse_call_params e1; '(PClose,p2); s >] -> expr_next (ECall (e1,params) , punion (pos e1) p2) s
 		| [< >] -> serror())
 	| [< '(BkOpen,_); e2 = expr; '(BkClose,p2); s >] ->
