@@ -485,7 +485,10 @@ let neko =
 	let vm = Extc.dlcall1 (load "neko_vm_alloc") null in
 	ignore(Extc.dlcall1 (load "neko_vm_select") vm);
 	let loader = Extc.dlcall2 (load "neko_default_loader") null null in
-	let loadprim = Extc.dlcall2 (load "neko_val_field") loader (Extc.dlcall1 (load "neko_val_id") (Extc.dlstring "loadprim")) in
+	let loadprim =
+		let l1 = load "neko_val_field" in
+		let l2 = Extc.dlcall1 (load "neko_val_id") (Extc.dlstring "loadprim") in
+		Extc.dlcall2 (l1) loader (l2) in
 
 	let callN = load "neko_val_callN" in
 	let callEx = load "neko_val_callEx" in
