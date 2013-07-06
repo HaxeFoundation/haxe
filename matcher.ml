@@ -542,7 +542,7 @@ let to_pattern ctx e t =
 		pc_reify = false;
 	} in
 	let x = loop pctx e t in
-	x, x.pc_locals
+	x, pctx.pc_locals
 
 let get_pattern_locals ctx e t =
 	try
