@@ -984,6 +984,9 @@ let configure gen =
       | _ -> t_s pos t
   in
 
+  let high_surrogate c = (c lsr 10) + 0xD7C0 in
+  let low_surrogate c = (c land 0x3FF) lor 0xDC00 in
+
   let escape ichar b =
     match ichar with
       | 92 (* \ *) -> Buffer.add_string b "\\\\"
@@ -992,7 +995,8 @@ let configure gen =
       | 13 (* \r *) -> Buffer.add_string b "\\r"
       | 10 (* \n *) -> Buffer.add_string b "\\n"
       | 9 (* \t *) -> Buffer.add_string b "\\t"
-      | c when c < 32 || c >= 127 -> Buffer.add_string b (Printf.sprintf "\\u%.4x" c)
+      | c when c < 32 || (c >= 127 && c <= 0xFFFF) -> Buffer.add_string b (Printf.sprintf "\\u%.4x" c)
+      | c when c > 0xFFFF -> Buffer.add_string b (Printf.sprintf "\\u%.4x\\u%.4x" (high_surrogate c) (low_surrogate c))
       | c -> Buffer.add_char b (Char.chr c)
   in
 
