@@ -706,7 +706,7 @@ let gen_name ctx acc t =
 		in
 		setname :: setconstrs :: meta @ acc
 	| TClassDecl c ->
-		if c.cl_extern then
+		if c.cl_extern || (match c.cl_kind with KTypeParameter _ -> true | _ -> false) then
 			acc
 		else
 			let p = pos ctx c.cl_pos in

@@ -2685,7 +2685,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		) in
 		(match follow ct with
 		| TInst ({cl_kind = KTypeParameter tl} as c,params) ->
-			if not (Codegen.is_generic_parameter ctx c) then error "Only generic type parameters can be constructed" p;
+			if not (Typeload.is_generic_parameter ctx c) then error "Only generic type parameters can be constructed" p;
 			let el = List.map (fun e -> type_expr ctx e Value) el in
 			let ct = (tfun (List.map (fun e -> e.etype) el) ctx.t.tvoid) in
 			if not (List.exists (fun t -> match follow t with
