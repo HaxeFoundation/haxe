@@ -1188,10 +1188,8 @@ let generate_field ctx static f =
 		else
 		if not is_getset && not static then begin
 			print ctx "%s: %s" (s_ident f.cf_name) (type_str ctx f.cf_type p);
-			soft_newline ctx;
 		end else if not is_getset && static then begin
 			print ctx "%s static %s:%s = %s" rights (s_ident f.cf_name) (type_str ctx f.cf_type p) (default_value ctx f.cf_type ctx.curclass.cl_pos);
-			newline ctx;
 		end
 
 let rec define_getset ctx stat c =
