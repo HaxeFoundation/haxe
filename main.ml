@@ -44,7 +44,7 @@ type cache = {
 exception Abort
 exception Completion of string
 
-let version = 310
+let version = 300
 
 let measure_times = ref false
 let prompt = ref false
@@ -105,18 +105,6 @@ let deprecated = [
 	"#Xml has no field createProlog", "Xml.createProlog was renamed to Xml.createProcessingInstruction";
 ]
 
-let limit_string s offset =
-	let rest = 80 - offset in
-	let words = ExtString.String.nsplit s " " in
-	let rec loop i words = match words with
-		| word :: words ->
-			if String.length word + i + 1 > rest then (Printf.sprintf "\n%*s" offset "") :: word :: loop (String.length word) words
-			else (if i = 0 then "" else " ") :: word :: loop (i + 1 + String.length word) words
-		| [] ->
-			[]
-	in
-	String.concat "" (loop 0 words)
-
 let error ctx msg p =
 	let msg = try List.assoc msg deprecated with Not_found -> msg in
 	message ctx msg p;
@@ -130,7 +118,7 @@ let htmlescape s =
 
 let reserved_flags = [
 	"cross";"flash8";"js";"neko";"flash";"php";"cpp";"cs";"java";
-	"as3";"swc";"macro";"sys"
+	"as3";"swc";"macro";"sys";"rust";
 	]
 
 let complete_fields fields =
@@ -247,7 +235,7 @@ let rec read_type_path com p =
 			loop path p
 		) (extract());
 	) com.swf_libs;
-  List.iter (fun (path,std,close,all_files,lookup) ->
+  List.iter (fun (path,close,all_files,lookup) ->
     List.iter (fun (path, name) ->
       if path = p then classes := name :: !classes else
       let rec loop p1 p2 =
@@ -776,7 +764,7 @@ and do_connect host port args =
 
 and init ctx =
 	let usage = Printf.sprintf
-		"Haxe Compiler %d.%d.%d - (C)2005-2013 Haxe Foundation\n Usage : haxe%s -main <class> [-swf|-js|-neko|-php|-cpp|-as3] <output> [options]\n Options :"
+		"Haxe Compiler %d.%d.%d - (C)2005-2013 Haxe Foundation\n Usage : haxe%s -main <class> [-swf|-js|-neko|-php|-cpp|-as3|-rust] <output> [options]\n Options :"
 		(version / 100) ((version mod 100)/10) (version mod 10) (if Sys.os_type = "Win32" then ".exe" else "")
 	in
 	let com = ctx.com in
@@ -794,9 +782,15 @@ try
 	let force_typing = ref false in
 	let pre_compilation = ref [] in
 	let interp = ref false in
-	Common.define_value com Define.HaxeVer (string_of_float (float_of_int version /. 100.));
-	Common.raw_define com (if ((version / 10) land 1 == 0) then "haxe_release" else "haxe_svn");
-	Common.raw_define com "haxe3";
+	if version < 300 then begin
+		for i = 0 to 4 do
+			let v = version - i in
+			Common.raw_define com ("haxe_" ^ string_of_int v);
+		done;
+	end else begin
+		Common.define_value com Define.HaxeVer (string_of_float (float_of_int version /. 100.));
+		Common.raw_define com "haxe3";
+	end;
 	Common.define_value com Define.Dce "std";
 	com.warning <- (fun msg p -> message ctx ("Warning : " ^ msg) p);
 	com.error <- error ctx;
@@ -819,10 +813,10 @@ try
 	with
 		Not_found ->
 			if Sys.os_type = "Unix" then
-				com.class_path <- ["/usr/lib/haxe/std/";"/usr/local/lib/haxe/std/";"/usr/lib/haxe/extraLibs/";"/usr/local/lib/haxe/extraLibs/";"";"/"]
+				com.class_path <- ["/usr/lib/haxe/std/";"/usr/local/lib/haxe/std/";"/usr/lib/haxe/std/libs/";"/usr/local/lib/haxe/std/libs/";"";"/"]
 			else
 				let base_path = normalize_path (Extc.get_real_path (try executable_path() with _ -> "./")) in
-				com.class_path <- [base_path ^ "std/";base_path ^ "extraLibs/";""]);
+				com.class_path <- [base_path ^ "std/";base_path ^ "std/libs/";""]);
 	com.std_path <- List.filter (fun p -> ExtString.String.ends_with p "std/" || ExtString.String.ends_with p "std\\") com.class_path;
 	let set_platform pf file =
 		if com.platform <> Cross then failwith "Multiple targets";
@@ -865,8 +859,10 @@ try
  		("-cs",Arg.String (fun dir ->
 			set_platform Cs dir;
 		),"<directory> : generate C# code into target directory");
+ 		("-rust",Arg.String (fun dir ->
+			set_platform Rust dir;
+		),"<directory> : generate Rust code into target directory");
 		("-java",Arg.String (fun dir ->
-			cp_libs := "hxjava" :: !cp_libs;
 			set_platform Java dir;
 		),"<directory> : generate Java code into target directory");
 		("-xml",Arg.String (fun file ->
@@ -895,7 +891,7 @@ try
 		("-debug", Arg.Unit (fun() ->
 			Common.define com Define.Debug;
 			com.debug <- true;
-		), ": add debug information to the compiled code");
+		), ": add debug informations to the compiled code");
 	] in
 	let adv_args_spec = [
 		("-dce", Arg.String (fun mode ->
@@ -927,7 +923,7 @@ try
 			Genswf.add_swf_lib com file true
 		),"<file> : use the SWF library for type checking");
 		("-java-lib",Arg.String (fun file ->
-			Genjava.add_java_lib com file false
+			Genjava.add_java_lib com file
 		),"<file> : add an external JAR or class directory library");
 		("-x", Arg.String (fun file ->
 			let neko_file = file ^ ".n" in
@@ -1042,56 +1038,47 @@ try
 			did_something := true;
 		),": print version and exit");
 		("--help-defines", Arg.Unit (fun() ->
-			let m = ref 0 in
 			let rec loop i =
 				let d = Obj.magic i in
 				if d <> Define.Last then begin
 					let t, doc = Define.infos d in
-					if String.length t > !m then m := String.length t;
-					((String.concat "-" (ExtString.String.nsplit t "_")),doc) :: (loop (i + 1))
+					let str = String.concat "-" (ExtString.String.nsplit t "_") ^ " : " ^ doc in
+					str :: loop (i + 1)
 				end else
 					[]
 			in
-			let all = List.sort (fun (s1,_) (s2,_) -> String.compare s1 s2) (loop 0) in
-			let all = List.map (fun (n,doc) -> Printf.sprintf " %-*s: %s" !m n (limit_string doc (!m + 3))) all in
+			let all = List.sort String.compare (loop 0) in
 			List.iter (fun msg -> ctx.com.print (msg ^ "\n")) all;
 			did_something := true
 		),": print help for all compiler specific defines");
 		("--help-metas", Arg.Unit (fun() ->
-			let m = ref 0 in
 			let rec loop i =
 				let d = Obj.magic i in
 				if d <> Meta.Last then begin
 					let t, (doc,flags) = MetaInfo.to_string d in
-					if not (List.mem MetaInfo.Internal flags) then begin
-						let params = ref [] and used = ref [] and pfs = ref [] in
-						List.iter (function
-							| MetaInfo.HasParam s -> params := s :: !params
-							| MetaInfo.Platform f -> pfs := f :: !pfs
-							| MetaInfo.Platforms fl -> pfs := fl @ !pfs
-							| MetaInfo.UsedOn u -> used := u :: !used
-							| MetaInfo.UsedOnEither ul -> used := ul @ !used
-							| MetaInfo.Internal -> assert false
-						) flags;
-						let params = (match List.rev !params with
-							| [] -> ""
-							| l -> "(" ^ String.concat "," l ^ ")"
-						) in
-						let pfs = (match List.rev !pfs with
-							| [] -> ""
-							| [p] -> " (" ^ platform_name p ^ " only)"
-							| pl -> " (for " ^ String.concat "," (List.map platform_name pl) ^ ")"
-						) in
-						let str = "@" ^ t in
-						if String.length str > !m then m := String.length str;
-						(str,params ^ doc ^ pfs) :: loop (i + 1)
-					end else
-						loop (i + 1)
+					let params = ref [] and used = ref [] and pfs = ref [] in
+					List.iter (function
+						| MetaInfo.HasParam s -> params := s :: !params
+						| MetaInfo.Platform f -> pfs := f :: !pfs
+						| MetaInfo.Platforms fl -> pfs := fl @ !pfs
+						| MetaInfo.UsedOn u -> used := u :: !used
+						| MetaInfo.UsedOnEither ul -> used := ul @ !used
+					) flags;
+					let params = (match List.rev !params with
+						| [] -> ""
+						| l -> "(" ^ String.concat "," l ^ ")"
+					) in
+					let pfs = (match List.rev !pfs with
+						| [] -> ""
+						| [p] -> " (" ^ platform_name p ^ " only)"
+						| pl -> " (for " ^ String.concat "," (List.map platform_name pl) ^ ")"
+					) in
+					let str = "@" ^ t ^ params ^ " : " ^ doc ^ pfs in
+					str :: loop (i + 1)
 				end else
 					[]
 			in
-			let all = List.sort (fun (s1,_) (s2,_) -> String.compare s1 s2) (loop 0) in
-			let all = List.map (fun (n,doc) -> Printf.sprintf " %-*s: %s" !m n (limit_string doc (!m + 3))) all in
+			let all = List.sort String.compare (loop 0) in
 			List.iter (fun msg -> ctx.com.print (msg ^ "\n")) all;
 			did_something := true
 		),": print help for all compiler metadatas");
@@ -1117,7 +1104,7 @@ try
 		let real = Extc.get_real_path (!Parser.resume_display).Ast.pfile in
 		classes := lookup_classes com real;
 		if !classes = [] then begin
-			if not (Sys.file_exists real) then failwith "Display file does not exist";
+			if not (Sys.file_exists real) then failwith "Display file does not exists";
 			(match List.rev (ExtString.String.nsplit real "\\") with
 			| file :: _ when file.[0] >= 'a' && file.[1] <= 'z' -> failwith ("Display file '" ^ file ^ "' should not start with a lowercase letter")
 			| _ -> ());
@@ -1173,13 +1160,11 @@ try
 			Gencs.before_generate com;
 			add_std "cs"; "cs"
 		| Java ->
-      let old_flush = ctx.flush in
-      ctx.flush <- (fun () ->
-        List.iter (fun (_,_,close,_,_) -> close()) com.java_libs;
-        old_flush()
-      );
 			Genjava.before_generate com;
 			add_std "java"; "java"
+		| Rust ->
+			add_std "rust";
+			"rust"
 	) in
 	(* if we are at the last compilation step, allow all packages accesses - in case of macros or opening another project file *)
 	if com.display && not ctx.has_next then com.package_rules <- PMap.foldi (fun p r acc -> match r with Forbidden -> acc | _ -> PMap.add p r acc) com.package_rules PMap.empty;
@@ -1212,9 +1197,10 @@ try
 		com.main <- main;
 		com.types <- types;
 		com.modules <- modules;
+		if Common.defined_value_safe com Define.DisplayMode = "usage" then
+			Codegen.detect_usage com;
 		let filters = [
 			Codegen.Abstract.handle_abstract_casts tctx;
-			Codegen.promote_complex_rhs com;
 			if com.foptimize then (fun e -> Optimizer.reduce_expression tctx (Optimizer.inline_constructors tctx e)) else Optimizer.sanitize tctx;
 			Codegen.check_local_vars_init;
 			Codegen.captured_vars com;
@@ -1224,28 +1210,20 @@ try
 		Codegen.post_process_end();
 		List.iter (fun f -> f()) (List.rev com.filters);
 		List.iter (Codegen.save_class_state tctx) com.types;
-		List.iter (fun t ->
-			Codegen.remove_generic_base tctx t;
-			Codegen.remove_extern_fields tctx t
-		) com.types;
-		if Common.defined_value_safe com Define.DisplayMode = "usage" then
-			Codegen.detect_usage com;
 		let dce_mode = (try Common.defined_value com Define.Dce with _ -> "no") in
 		if not (!gen_as3 || dce_mode = "no" || Common.defined com Define.DocGen) then Dce.run com main (dce_mode = "full" && not !interp);
-		(* always filter empty abstract implementation classes (issue #1885) *)
-		List.iter (fun mt -> match mt with
-			| TClassDecl({cl_kind = KAbstractImpl _} as c) when c.cl_ordered_statics = [] && c.cl_ordered_fields = [] -> c.cl_extern <- true
-			| _ -> ()
-		) com.types;
 		let type_filters = [
 			Codegen.check_private_path;
+			Codegen.remove_generic_base;
 			Codegen.apply_native_paths;
 			Codegen.add_rtti;
-			(match ctx.com.platform with | Java | Cs -> (fun _ _ -> ()) | _ -> Codegen.add_field_inits);
+			Codegen.remove_extern_fields;
+			Codegen.add_field_inits;
 			Codegen.add_meta_field;
 			Codegen.check_remove_metadata;
 			Codegen.check_void_field;
 		] in
+		let type_filters = if ctx.com.platform = Java then Codegen.promote_abstract_parameters :: type_filters else type_filters in
 		List.iter (fun t -> List.iter (fun f -> f tctx t) type_filters) com.types;
 		if ctx.has_error then raise Abort;
 		(match !xml_out with
@@ -1255,8 +1233,7 @@ try
 		| Some file ->
 			Common.log com ("Generating xml : " ^ file);
 			Genxml.generate com file);
-		if com.platform = Java then List.iter (Codegen.promote_abstract_parameters com) com.types;
-		if com.platform = Flash || com.platform = Cpp then List.iter (Codegen.fix_overrides com) com.types;
+		if com.platform = Flash || com.platform = Cpp || com.platform = Cs then List.iter (Codegen.fix_overrides com) com.types;
 		if Common.defined com Define.Dump then Codegen.dump_types com;
 		if Common.defined com Define.DumpDependencies then Codegen.dump_dependencies com;
 		t();
@@ -1295,6 +1272,9 @@ try
 		| Java ->
 			Common.log com ("Generating Java in : " ^ com.file);
 			Genjava.generate com;
+		| Rust ->
+			Common.log com ("Generating Rust in : " ^ com.file);
+			Genrust.generate com;
 		);
 	end;
 	Sys.catch_break false;
@@ -1303,10 +1283,8 @@ try
 		if r <> 0 then failwith ("Command failed with error " ^ string_of_int r)
 	) (List.rev !cmds)
 with
-	| Abort ->
+	| Abort | Typecore.Fatal_error ->
 		()
-	| Typecore.Fatal_error (m,p) ->
-		error ctx m p
 	| Common.Abort (m,p) ->
 		error ctx m p
 	| Lexer.Error (m,p) ->
@@ -1375,7 +1353,7 @@ with
 			Buffer.add_string b ("<meta name=\"" ^ (fst (MetaInfo.to_string m)) ^ "\"");
 			if el = [] then Buffer.add_string b "/>" else begin
 				Buffer.add_string b ">\n";
-				List.iter (fun e -> Buffer.add_string b ((htmlescape (Ast.s_expr e)) ^ "\n")) el;
+				List.iter (fun e -> Buffer.add_string b ((htmlescape (Genxml.sexpr e)) ^ "\n")) el;
 				Buffer.add_string b "</meta>\n";
 			end
 		) m;
