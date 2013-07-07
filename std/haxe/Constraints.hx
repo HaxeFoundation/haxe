@@ -20,55 +20,18 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-package haxe.ds;
+package haxe;
 
 /**
-	ObjectMap allows mapping of object keys to arbitrary values.
+	This abstract is compatible to both its type parameters.
 	
-	On static targets, the keys are considered to be strong references. Refer
-	to `haxe.ds.WeakMap` for a weak reference version.
+	If used as a type parameter constraint, the accepted types are `L` and `R`.
 	
-	See `Map` for documentation details.
+	If used as a real type, the underlying type will be `Dynamic`.
 **/
-extern class ObjectMap<K:haxe.Constraints.ObjectMapKey, V> implements Map.IMap<K,V> {
-	
-	/**
-		Creates a new ObjectMap.
-	**/
-	public function new():Void;
-	
-	/**
-		See `Map.set`
-	**/
-	public function set(key:K, value:V):Void;
-	
-	/**
-		See `Map.get`
-	**/
-	public function get(key:K):Null<V>;
-	
-	/**
-		See `Map.exists`
-	**/
-	public function exists(key:K):Bool;
-	
-	/**
-		See `Map.remove`
-	**/
-	public function remove(key:K):Bool;
-	
-	/**
-		See `Map.keys`
-	**/
-	public function keys():Iterator<K>;
-	
-	/**
-		See `Map.iterator`
-	**/
-	public function iterator():Iterator<V>;
-	
-	/**
-		See `Map.toString`
-	**/
-	public function toString():String;
-}
+abstract Or<L,R>(Dynamic) from L to L from R to R { }
+
+/**
+	The types allowed as key to `haxe.ds.ObjectMap`.
+**/
+extern typedef ObjectMapKey = Or<Class<Dynamic>, {}>;

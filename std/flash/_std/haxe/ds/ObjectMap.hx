@@ -1,7 +1,9 @@
 package haxe.ds;
 
+import haxe.Constraints;
+
 @:coreApi
-class ObjectMap<K:{},V> extends flash.utils.Dictionary implements Map.IMap<K,V> {
+class ObjectMap<K:ObjectMapKey,V> extends flash.utils.Dictionary implements Map.IMap<K,V> {
 
 	public function new() {
 		super(false);
