@@ -770,7 +770,7 @@ let reduce_expr ctx e =
 				| _ ->
 					true
 			) l with
-			| [] -> { ec with epos = e.epos }
+			| [] -> ec
 			| l -> { e with eexpr = TBlock (List.rev (ec :: l)) })
 	| TParenthesis ec ->
 		{ ec with epos = e.epos }
