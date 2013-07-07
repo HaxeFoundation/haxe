@@ -183,7 +183,7 @@ let close ctx =
 		| ([], "lib") -> true
 		| _ -> false
 	in
-	output_string ctx.ch "extern mod std;\n";
+	(*output_string ctx.ch "extern mod std;\n";*)
 	Hashtbl.iter (fun name paths ->
 		let path = ref ([], name) in
 		if List.length paths > 0 then
@@ -1587,5 +1587,6 @@ let generate com =
 	generate_main ctx com !inits;
 	close ctx;
 	let command cmd = try com.run_command cmd with _ -> -1 in
-	if (command ("rustc \""^com.file^"/main.rs\"") <> 0) then
+	let opt = if (Common.defined com Define.Debug) then "" else "-O " in
+	if (command ("rustc "^opt^"\""^com.file^"/main.rs\"") <> 0) then
 		(failwith "Failed to compile Rust program");
