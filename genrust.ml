@@ -1015,6 +1015,9 @@ and gen_value ctx e =
 	| TCall _
 	| TNew _
 	| TUnop _
+	| TPatMatch _
+	| TMeta _
+	| TEnumParameter _
 	| TFunction _ ->
 		gen_expr ctx e
 	| TCast (e1,t) ->
@@ -1389,7 +1392,7 @@ let generate_class ctx c =
 	);
 	List.iter (generate_field ctx true) static_fields;
 	if ((c.cl_constructor <> None) || ((List.length obj_methods) > 0) || (List.length c.cl_ordered_statics) > 0) && not c.cl_interface then (
-		print ctx "pub impl%s %s%s {" params path params;
+		print ctx "impl%s %s%s {" params path params;
 		let cl = open_block ctx in
 		List.iter (generate_field ctx false) obj_methods;
 		List.iter (generate_field ctx true) static_methods;
