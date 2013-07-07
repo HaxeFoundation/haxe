@@ -1,6 +1,6 @@
 package rust.io;
 import rust.*;
-@:native("path.Path") extern class Path implements Clone {
+@:native("std.path.Path") extern class Path implements Clone {
 	public var is_absolute(default, null):Bool;
 	public var components(default, null):Array<String>;
 	public function exists():Bool;

@@ -1,7 +1,7 @@
 package rust.io;
 
 /** Generic utility functions defined on readers.*/
-@:native("io.ReaderUtil") extern interface ReaderUtil {
+@:native("std.io.ReaderUtil") extern interface ReaderUtil {
 	/** Read len bytes into a new vec. */
 	public function read_bytes(len:Int):Array<Int>;
 	/** Read up until a specified character (which is optionally included) or EOF. */

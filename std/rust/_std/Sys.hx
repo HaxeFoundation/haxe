@@ -18,7 +18,8 @@ class Sys {
 		IO.print(s);
 	}
 	public static inline function println(s:String):Void {
-		IO.println(s);
+		//IO.println(s);
+		untyped __rust__("println")(__unwrap__(s));
 	}
 	public static function getEnv(s:String):String {
 		return OS.getenv(s);

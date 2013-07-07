@@ -20,7 +20,6 @@
  * DEALINGS IN THE SOFTWARE.
  */
 package haxe.ds;
-
 @:coreApi class IntMap<T> implements Map.IMap<Int,T> {
 
 	private var h : Dynamic;

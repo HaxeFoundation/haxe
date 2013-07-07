@@ -330,25 +330,26 @@ let get_params ctx cl_types =
 			) ^ ">"
 
 let rec default_value ctx t p =
-	match t with
+	match follow t with
 	| TAbstract ({ a_impl = Some _ } as a,pl) ->
 		default_value ctx (apply_params a.a_types pl a.a_this) p
-	| TAbstract({ a_path = ([], "Int") }, _) -> "0i32"
-	| TAbstract({ a_path = ([], "Int8") }, _) -> "0i8"
-	| TAbstract({ a_path = ([], "Int16") }, _) -> "0i16"
+	| TAbstract({ a_path = ([], "Int") }, _)
+	| TAbstract({ a_path = ([], "UInt") }, _)
+	| TAbstract({ a_path = ([], "Int8") }, _)
+	| TAbstract({ a_path = ([], "Int16") }, _) -> "0"
 	| TAbstract({ a_path = ([], "Char16") }, _) -> "'\\0'"
-	| TAbstract({ a_path = ([], "UInt") }, _) -> "0ui32"
 	| TAbstract({ a_path = ([], "Float") }, _) -> "f64::NaN"
 	| TAbstract({ a_path = ([], "Single") }, _) -> "f32::NaN"
 	| TAbstract({ a_path = ([], "Array")}, _) -> "~[]"
+	| TFun([], ret) ->
+		"||->"^default_value ctx ret p
 	| TFun(args, ret) ->
-		"(|" ^ String.concat ", " (List.map (fun (name, opt, at) ->
+		"|" ^ String.concat ", " (List.map (fun (name, opt, at) ->
 			(s_ident "a") ^ ":" ^ (type_str ctx at p)
-		) args) ^ "|->" ^ type_str ctx ret p ^ "{ " ^ default_value ctx ret p ^ " })"
-	| TAbstract ({ a_path = ([], "Void") }, _) -> ""
+		) args) ^ "|" ^ type_str ctx ret p ^ "{ " ^ default_value ctx ret p ^ " })"
+	| TAbstract ({ a_path = ([], "Void") }, _) -> "()"
 	| _ when is_nullable t ->
 		"None"
-	| _ -> "()"
 
 let rec s_tparams ctx params p =
 	if List.length params > 0 then
@@ -440,8 +441,8 @@ let class_path ctx c =
 		s_path ctx c.cl_path
 
 let gen_constant ctx p = function
-	| TInt i -> print ctx "%ldi32" i
-	| TFloat s -> print ctx "%sf64" s
+	| TInt i -> print ctx "%ld" i
+	| TFloat s -> print ctx "%s" s
 	| TString s -> print ctx "Some(~\"%s\")" (escape_bin (Ast.s_escape s))
 	| TBool b -> spr ctx (if b then "true" else "false")
 	| TNull -> spr ctx "None"
@@ -514,6 +515,9 @@ let rec gen_call ctx e el r =
 		spr ctx ")";
 	| TLocal { v_name = "__rust__" }, [{ eexpr = TConst (TString code) }] ->
 		spr ctx (String.concat "\n" (ExtString.String.nsplit code "\r\n"))
+	| TLocal { v_name = "__unwrap__" }, [e] ->
+		gen_value ctx e;
+		spr ctx ".unwrap()";
 	| TField( _, FStatic({ cl_path = ([], "Std") }, { cf_name = "int" })), [num] ->
 		spr ctx "((";
 		unwrap ctx num;
@@ -588,11 +592,10 @@ and wrap ctx e =
 
 and match_type ctx e t =
 	match e.etype, t with
+	| a, b when type_iseq a b && is_nullable b ->
+		wrap ctx e;
 	| a, b when type_iseq a b ->
-		(if is_nullable b then
-			wrap ctx e
-		else
-			unwrap ctx e);
+		unwrap ctx e;
 	| a, (TInst({cl_path = ([], "String")}, []) as b) ->
 		spr ctx "(&(";
 		unwrap ctx e;
@@ -652,10 +655,10 @@ and gen_expr ctx e =
 		unwrap ctx e2;
 		spr ctx "]";
 	| TBinop (Ast.OpEq, e, {eexpr=TConst(TNull)}) ->
-		gen_expr ctx e;
+		gen_value ctx e;
 		spr ctx ".is_none()";
 	| TBinop (Ast.OpNotEq, e, {eexpr=TConst(TNull)}) ->
-		gen_expr ctx e;
+		gen_value ctx e;
 		spr ctx ".is_some()";
 	| TBinop (OpAssign as op,e1,e2) | TBinop((OpAssignOp _) as op, e1, e2) ->
 		gen_value ctx e1;
@@ -798,7 +801,8 @@ and gen_expr ctx e =
 					| None -> mk (TConst TNull) e.etype e.epos);
 			| _ -> e
 		)) f.tf_expr in
-		gen_value ctx (block mapped f.tf_type);
+		gen_value ctx mapped;
+		print ctx "/*TYPE: %s*/" (type_str ctx f.tf_type e.epos);
 		ctx.in_static <- old;
 		h();	
 		spr ctx ")";
@@ -1048,7 +1052,7 @@ and gen_value ctx e =
 		in
 		loop el;
 		bl();
-		newline ctx;
+		soft_newline ctx;
 		spr ctx "}";
 	| TIf (cond,e,eelse) ->
 		spr ctx "if ";
@@ -1234,7 +1238,7 @@ let generate_obj_impl ctx c =
 	let params = get_params ctx c.cl_types in
 	let full_path = type_path c.cl_path in
 	ctx.in_interface <- c.cl_interface;
-	print ctx "impl%s %s for %s%s {" params (if ctx.path = ([], "lib") then "HxObject" else "lib::HxObject") full_path params;
+	print ctx "impl%s %s for ~%s%s {" params (if ctx.path = ([], "lib") then "HxObject" else "lib::HxObject") full_path params;
 	let impl = open_block ctx in
 	soft_newline ctx;
 	let tostrf = ref false in

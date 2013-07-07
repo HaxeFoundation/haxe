@@ -1,6 +1,6 @@
 package rust.io;
 
-@:native("io.Writer") extern interface Writer {
+@:native("std.io.Writer") extern interface Writer {
 	/** Write all of the given bytes. */
 	public function write(bytes:Array<Int>):Void;
 	/** Move the current position within the stream to [to]. [rel] determines the position that [to] is relative to. */

@@ -4,8 +4,15 @@
 	public function new() {
 
 	}
-	public static inline function of<T>(i:rust.BaseIter<T>):Array<T> {
-		return ofFunc(i.each);
+	public static inline function of<T>(i:rust.Iterator<T>):Array<T> {
+		var arr = new Array<T>();
+		while(true) {
+			var n = i.next();
+			if(n == null)
+				break;
+			arr.push(n);
+		}
+		return arr;
 	}
 	public static inline function ofFunc<T>(func:(T -> Bool)->Void):Array<T> {
 		var a = new Array<T>();

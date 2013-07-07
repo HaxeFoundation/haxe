@@ -168,6 +168,7 @@ module Define = struct
 		| FlashUseStage
 		| FormatWarning
 		| GencommonDebug
+		| Harmony
 		| HaxeBoot
 		| HaxeVer
 		| Interp
@@ -228,6 +229,7 @@ module Define = struct
 		| FlashUseStage -> ("flash_use_stage","Keep the SWF library initial stage")
 		| FormatWarning -> ("format_warning","Print a warning for each formated string, for 2.x compatibility")
 		| GencommonDebug -> ("gencommon_debug","GenCommon internal")
+		| Harmony -> ("harmony","Enable experimental ES6 'Harmony' features")
 		| HaxeBoot -> ("haxe_boot","Given the name 'haxe' to the flash boot class instead of a generated name")
 		| HaxeVer -> ("haxe_ver","The current Haxe version value")
 		| Interp -> ("interp","The code is compiled to be run with --interp")
@@ -465,7 +467,7 @@ let get_config com =
 			pf_locals_scope = false;
 			pf_captured_scope = false;
 			pf_unique_locals = false;
-			pf_can_init_member = (fun _ -> false);
+			pf_can_init_member = (fun _ -> (defined Define.Harmony));
 			pf_capture_policy = CPLoopVars;
 			pf_pad_nulls = false;
 			pf_add_final_return = false;

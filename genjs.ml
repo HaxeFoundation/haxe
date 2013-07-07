@@ -45,6 +45,7 @@ type ctx = {
 	packages : (string list,unit) Hashtbl.t;
 	smap : sourcemap;
 	js_modern : bool;
+	harmony : bool;
 	mutable current : tclass;
 	mutable statics : (tclass * string * texpr) list;
 	mutable inits : texpr list;
@@ -422,6 +423,15 @@ and gen_expr ctx e =
 		spr ctx "[";
 		gen_value ctx e2;
 		spr ctx "]";
+	(* Some day...
+	| TBinop (OpMult,e1,e2) when ctx.harmony && (match e.etype with
+		| TAbstract ({ a_path = [],"Int" }, _) -> true
+		| _ -> false) ->
+		spr ctx "Math.imul(";
+		gen_value ctx e1;
+		spr ctx ", ";
+		gen_value ctx e2;
+		spr ctx ")"; *)
 	| TBinop (op,{ eexpr = TField (x,f) },e2) when field_name f = "iterator" ->
 		gen_value ctx x;
 		spr ctx (field "iterator");
@@ -489,8 +499,26 @@ and gen_expr ctx e =
 		let old = ctx.in_value, ctx.in_loop in
 		ctx.in_value <- None;
 		ctx.in_loop <- false;
-		print ctx "function(%s) " (String.concat "," (List.map ident (List.map arg_name f.tf_args)));
-		gen_expr ctx (fun_block ctx f e.epos);
+		if not ctx.harmony then
+			spr ctx "function";
+		spr ctx "(";
+		concat ctx "," (fun (v,c) ->
+			spr ctx v.v_name;
+			match c with
+			| Some c when ctx.harmony ->
+				spr ctx " = ";
+				gen_constant ctx e.epos c
+			| _ -> ()
+		) f.tf_args;
+		spr ctx ")";
+		(if ctx.harmony then (
+			spr ctx " => ";
+			let mapped = match f.tf_expr.eexpr with
+			| TReturn (Some e) -> e
+			| _ -> f.tf_expr in
+			gen_expr ctx mapped;
+		) else
+			gen_expr ctx (fun_block ctx f e.epos));
 		ctx.in_value <- fst old;
 		ctx.in_loop <- snd old;
 		ctx.separator <- true
@@ -506,7 +534,7 @@ and gen_expr ctx e =
 	| TVars [] ->
 		()
 	| TVars vl ->
-		spr ctx "var ";
+		spr ctx (if ctx.harmony then "let " else "var ");
 		concat ctx ", " (fun (v,e) ->
 			spr ctx (ident v.v_name);
 			match e with
@@ -1050,6 +1078,7 @@ let alloc_ctx com =
 			mappings = Buffer.create 16;
 		};
 		js_modern = not (Common.defined com Define.JsClassic);
+		harmony = Common.defined com Define.Harmony;
 		statics = [];
 		inits = [];
 		current = null_class;

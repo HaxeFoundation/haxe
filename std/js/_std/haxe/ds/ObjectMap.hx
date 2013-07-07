@@ -21,10 +21,52 @@
  */
 
 package haxe.ds;
-
 @:coreApi
 class ObjectMap<K:{ }, V> implements Map.IMap<K,V> {
-	
+	public function iterator() : Iterator<V> {
+		return untyped {
+			ref : h,
+			it : keys(),
+			hasNext : function() { return __this__.it.hasNext(); },
+			next : function() { var i = __this__.it.next(); return __this__.ref[getId(i)]; }
+		};
+	}
+
+	public function toString() : String {
+		var s = new StringBuf();
+		s.add("{");
+		var it = keys();
+		for( i in it ) {
+			s.add(Std.string(i));
+			s.add(" => ");
+			s.add(Std.string(get(i)));
+			if( it.hasNext() )
+				s.add(", ");
+		}
+		s.add("}");
+		return s.toString();
+	}
+#if harmony
+	var m:js.es6.Map<K, V>;
+	public function new():Void {
+		m = new js.es6.Map<K, V>();
+	}
+	public inline function set(key:K, value:V):Void
+		m.set(key, value);
+
+	public inline function get(key:K):Null<V>
+		return m.get(key);
+
+	public inline function exists(key:K):Bool
+		return m.has(key);
+
+	public inline function remove(key:K):Bool
+		return m.delete(key);
+
+	public inline function keys():Iterator<K>
+		return m.keys().iterator();
+
+#else
 	static var count = 0;
 	
 	static inline function assignId(obj: { } ):Int {
@@ -74,28 +116,5 @@ class ObjectMap<K:{ }, V> implements Map.IMap<K,V> {
 		}
 		return a.iterator();
 	}
-	
-	public function iterator() : Iterator<V> {
-		return untyped {
-			ref : h,
-			it : keys(),
-			hasNext : function() { return __this__.it.hasNext(); },
-			next : function() { var i = __this__.it.next(); return __this__.ref[getId(i)]; }
-		};
-	}
-	
-	public function toString() : String {
-		var s = new StringBuf();
-		s.add("{");
-		var it = keys();
-		for( i in it ) {
-			s.add(Std.string(i));
-			s.add(" => ");
-			s.add(Std.string(get(i)));
-			if( it.hasNext() )
-				s.add(", ");
-		}
-		s.add("}");
-		return s.toString();
-	}
+#end
 }
