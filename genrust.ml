@@ -390,7 +390,7 @@ let rec is_nullable_ext ?(no_lazy=false) = function
 let rec iter_switch_break in_switch e =
 	match e.eexpr with
 	| TFunction _ | TWhile _ | TFor _ -> ()
-	| TSwitch _ | TMatch _ when not in_switch -> iter_switch_break true e
+	| TSwitch _ when not in_switch -> iter_switch_break true e
 	| TBreak when in_switch -> raise Exit
 	| _ -> iter (iter_switch_break in_switch) e
 
@@ -960,43 +960,6 @@ and gen_expr ctx e =
 		tblock();
 		soft_newline ctx;
 		spr ctx "}";
-	| TMatch (e,_,cases,def) ->
-		spr ctx "match ";
-		let bend = open_block ctx in
-		unwrap ctx e;
-		spr ctx " {";
-		List.iter (fun (cl,params,e) ->
-			List.iter (fun c ->
-				soft_newline ctx;
-				print ctx "%d =>" c;
-			) cl;
-			(match params with
-			| None | Some [] -> ()
-			| Some l ->
-				let n = ref (-1) in
-				let l = List.fold_left (fun acc v -> incr n; match v with None -> acc | Some v -> (v,!n) :: acc) [] l in
-				match l with
-				| [] -> ()
-				| l ->
-					soft_newline ctx;
-					spr ctx "var ";
-					concat ctx ", " (fun (v,n) ->
-						print ctx "%s : %s" (s_ident v.v_name) (type_str ctx v.v_type e.epos);
-						()
-					) l);
-			gen_expr ctx e;
-			print ctx ",";
-		) cases;
-		(match def with
-		| None -> ()
-		| Some e ->
-			soft_newline ctx;
-			spr ctx "_ => ";
-			gen_expr ctx (block e e.etype);
-		);
-		bend();
-		soft_newline ctx;
-		spr ctx "}";
 	| TSwitch (e,cases,def) ->
 		let sw = is_nullable e.etype in
 		if sw then
@@ -1099,11 +1062,6 @@ and gen_value ctx e =
 			List.map (fun (e1,e2) -> (e1,e2)) cases,
 			match def with None -> None | Some e -> Some e
 		)) e.etype e.epos);
-	| TMatch (cond,enum,cases,def) ->
-		gen_expr ctx (mk (TMatch (cond,enum,
-			List.map (fun (constr,params,e) -> (constr,params,e)) cases,
-			match def with None -> None | Some e -> Some e
-		)) e.etype e.epos);
 	| TTry (b,catchs) ->
 		gen_expr ctx (mk (TTry (block b e.etype,
 			List.map (fun (v,e) -> v, block e e.etype) catchs
@@ -1187,7 +1145,7 @@ let generate_field ctx static f =
 			gen_expr ctx fd.tf_expr;
 		h()
 	| _ ->
-		let is_getset = (match f.cf_kind with Var { v_read = AccCall _ } | Var { v_write = AccCall _ } -> true | _ -> false) in
+		let is_getset = (match f.cf_kind with Var { v_read = AccCall } | Var { v_write = AccCall } -> true | _ -> false) in
 		if ctx.curclass.cl_interface then
 			match follow f.cf_type with
 			| TFun (args,r) ->
@@ -1210,11 +1168,11 @@ let generate_field ctx static f =
 				| Var v ->
 					(match v.v_read with
 					| AccNormal -> print ctx "fn get_%s() : %s" id t;
-					| AccCall s -> print ctx "fn %s() : %s" s t;
+					| AccCall -> print ctx "fn %s() : %s" id t;
 					| _ -> ());
 					(match v.v_write with
 					| AccNormal -> print ctx "fn set_%s( __v : %s )" id t;
-					| AccCall s -> print ctx "fn %s( __v : %s ) : %s" s t t;
+					| AccCall -> print ctx "fn %s( __v : %s ) : %s" id t t;
 					| _ -> ());
 				| _ -> assert false)
 			| _ when not static ->
@@ -1241,8 +1199,8 @@ let rec define_getset ctx stat c =
 		match f.cf_kind with
 		| Method _ -> ()
 		| Var v ->
-			(match v.v_read with AccCall m -> def f m | _ -> ());
-			(match v.v_write with AccCall m -> def f m | _ -> ())
+			(match v.v_read with AccCall -> def f ("get_" ^ f.cf_name) | _ -> ());
+			(match v.v_write with AccCall -> def f ("set_" ^ f.cf_name) | _ -> ())
 	in
 	List.iter field (if stat then c.cl_ordered_statics else c.cl_ordered_fields);
 	match c.cl_super with
