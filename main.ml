@@ -1173,8 +1173,8 @@ try
 			add_std "cpp";
 			"cpp"
 		| Rust ->
-			add_std "cpp";
-			"cpp"
+			add_std "rust";
+			"rust"
 		| Cs ->
 			Gencs.before_generate com;
 			add_std "cs"; "cs"
