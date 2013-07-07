@@ -2171,6 +2171,7 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 		let et = TEnum (e,List.map snd e.e_types) in
 		let names = ref [] in
 		let index = ref 0 in
+		let is_flat = ref true in
 		List.iter (fun c ->
 			let p = c.ec_pos in
 			let params = ref [] in
@@ -2191,6 +2192,7 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 			let t = (match c.ec_args with
 				| [] -> rt
 				| l ->
+					is_flat := false;
 					let pnames = ref PMap.empty in
 					TFun (List.map (fun (s,opt,t) ->
 						(match t with CTPath({tpackage=[];tname="Void"}) -> error "Arguments of type Void are not allowed in enum constructors" c.ec_pos | _ -> ());
@@ -2213,7 +2215,8 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 			names := c.ec_name :: !names;
 		) (!constructs);
 		e.e_names <- List.rev !names;
-		e.e_extern <- e.e_extern
+		e.e_extern <- e.e_extern;
+		if !is_flat then e.e_meta <- (Meta.FlatEnum,[],e.e_pos) :: e.e_meta;
 	| ETypedef d ->
 		let t = (match get_type d.d_name with TTypeDecl t -> t | _ -> assert false) in
 		let ctx = { ctx with type_params = t.t_types } in
