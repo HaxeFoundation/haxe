@@ -119,6 +119,7 @@ enum EVMTest {
 	EVMC(s:String, ?i:Int);
 	EVMD(n:EVMTest);
 	EVME(?n:EVMTest);
+	EVMF(a:Array<EVMTest>);
 }
 
 #if !macro
