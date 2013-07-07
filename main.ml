@@ -1220,7 +1220,7 @@ try
 			Codegen.captured_vars com;
 			Codegen.rename_local_vars com;
 		] in
-		List.iter (Codegen.post_process filters) com.types;
+		List.iter (Codegen.post_process tctx filters) com.types;
 		Codegen.post_process_end();
 		List.iter (fun f -> f()) (List.rev com.filters);
 		List.iter (Codegen.save_class_state tctx) com.types;

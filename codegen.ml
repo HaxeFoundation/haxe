@@ -674,23 +674,24 @@ let add_rtti ctx t =
 		()
 
 (* Removes extern and macro fields, also checks for Void fields *)
+
+let is_removable_field ctx f =
+	Meta.has Meta.Extern f.cf_meta || Meta.has Meta.Generic f.cf_meta
+	|| (match f.cf_kind with
+		| Var {v_read = AccRequire (s,_)} -> true
+		| Method MethMacro -> not ctx.in_macro
+		| _ -> false)
+
 let remove_extern_fields ctx t = match t with
 	| TClassDecl c ->
-		let do_remove f =
-			Meta.has Meta.Extern f.cf_meta || Meta.has Meta.Generic f.cf_meta
-			|| (match f.cf_kind with
-				| Var {v_read = AccRequire (s,_)} -> true
-				| Method MethMacro -> not ctx.in_macro
-				| _ -> false)
-		in
 		if not (Common.defined ctx.com Define.DocGen) then begin
 			c.cl_ordered_fields <- List.filter (fun f ->
-				let b = do_remove f in
+				let b = is_removable_field ctx f in
 				if b then c.cl_fields <- PMap.remove f.cf_name c.cl_fields;
 				not b
 			) c.cl_ordered_fields;
 			c.cl_ordered_statics <- List.filter (fun f ->
-				let b = do_remove f in
+				let b = is_removable_field ctx f in
 				if b then c.cl_statics <- PMap.remove f.cf_name c.cl_statics;
 				not b
 			) c.cl_ordered_statics;
@@ -1695,7 +1696,7 @@ let detect_usage com =
 
 let pp_counter = ref 1
 
-let post_process filters t =
+let post_process ctx filters t =
 	(* ensure that we don't process twice the same (cached) module *)
 	let m = (t_infos t).mt_module.m_extra in
 	if m.m_processed = 0 then m.m_processed <- !pp_counter;
@@ -1704,11 +1705,11 @@ let post_process filters t =
 	| TClassDecl c ->
 		let process_field f =
 			match f.cf_expr with
-			| None -> ()
-			| Some e ->
+			| Some e when not (is_removable_field ctx f) ->
 				Abstract.cast_stack := f :: !Abstract.cast_stack;
 				f.cf_expr <- Some (List.fold_left (fun e f -> f e) e filters);
 				Abstract.cast_stack := List.tl !Abstract.cast_stack;
+			| _ -> ()
 		in
 		List.iter process_field c.cl_ordered_fields;
 		List.iter process_field c.cl_ordered_statics;
