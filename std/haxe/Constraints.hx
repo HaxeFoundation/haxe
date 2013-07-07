@@ -23,11 +23,27 @@
 package haxe;
 
 /**
-	This abstract is compatible to both its type parameters.
+	This type unifies with any function type.
 	
-	If used as a type parameter constraint, the accepted types are `L` and `R`.
+	It is intended to be used as a type parameter constraint. If used as a real
+	type, the underlying type will be `Dynamic`.
+**/
+abstract Function(Dynamic) { }
+
+/**
+	This type unifies with an enum instance if all constructors of the enum
+	require no arguments.
 	
-	If used as a real type, the underlying type will be `Dynamic`.
+	It is intended to be used as a type parameter constraint. If used as a real
+	type, the underlying type will be `Dynamic`.
+**/
+abstract FlatEnum(Dynamic) { }
+
+/**
+	This type is compatible with both its type parameters.
+	
+	It is intended to be used as a type parameter constraint. If used as a real
+	type, the underlying type will be `Dynamic`.
 **/
 abstract Or<L,R>(Dynamic) from L to L from R to R { }
 

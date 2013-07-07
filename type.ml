@@ -1155,6 +1155,10 @@ let rec unify a b =
 		| _ -> error [cannot_unify a b])
 	| TEnum _, TAbstract ({ a_path = [],"EnumValue" },[]) ->
 		()
+	| TEnum(en,_), TAbstract ({ a_path = ["haxe"],"FlatEnum" },[]) ->
+		PMap.iter (fun _ ef -> match follow ef.ef_type with TFun _ -> error [cannot_unify a b] | _ -> ()) en.e_constrs	
+	| TFun _, TAbstract ({ a_path = ["haxe"],"Function" },[]) ->
+		()		
 	| TDynamic t , _ ->
 		if t == a then
 			()
