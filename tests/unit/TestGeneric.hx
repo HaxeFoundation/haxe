@@ -20,6 +20,10 @@ class MyRandomClass {
 	}
 }
 
+class MyRandomEmptyClass {
+	
+}
+
 class TestGeneric extends Test {
 	function testBasic() {
 		var mg = new MyGeneric<Int>(12);
@@ -32,8 +36,14 @@ class TestGeneric extends Test {
 	}
 	
 	function testExtends() {
-		t(unit.TestType.typeError(new MyGeneric2<String>()));
-		t(unit.TestType.typeError(new MyGeneric2<Int>()));
+		// basic class
+		//t(unit.TestType.typeError(new MyGeneric2<String>()));
+		
+		// not a class
+		//t(unit.TestType.typeError(new MyGeneric2<Int>()));
+		
+		// no constructor
+		//t(unit.TestType.typeError(new MyGeneric2<MyRandomEmptyClass>()));
 		
 		var mg = new MyGeneric2<MyRandomClass>("foo");
 		eq("foo", mg.s);

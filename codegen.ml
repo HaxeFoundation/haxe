@@ -371,7 +371,12 @@ let rec build_generic ctx c p tl =
 					try
 						if pl <> [] then raise Not_found;
 						let t = loop subst in
-						(match c.cl_constructor with None -> () | Some cf -> error "Generics extending type parameters cannot have constructors" cf.cf_pos);
+						(* extended type parameter: concrete type must have a constructor, but generic base class must not have one *)
+ 						begin match follow t,c.cl_constructor with
+							| TInst({cl_constructor = None} as cs,_),None -> error ("Cannot use " ^ (s_type_path cs.cl_path) ^ " as type parameter because it is extended and has no constructor") p
+							| _,Some cf -> error "Generics extending type parameters cannot have constructors" cf.cf_pos
+							| _ -> ()
+						end;
 						t
 					with Not_found ->
 						apply_params c.cl_types tl (TInst(cs,pl))
