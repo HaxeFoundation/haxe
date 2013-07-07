@@ -26,12 +26,12 @@ class Int64 {
 	var high : Int;
 	var low : Int;
 
-	function new(high, low) {
+	inline function new(high, low) {
 		this.high = i32(high);
 		this.low = i32(low);
 	}
 
-	@:extern inline function i32(i) {
+	@:extern static inline function i32(i) {
 		#if (php || js || flash8)
 		return i | 0;
 		#else
@@ -39,6 +39,17 @@ class Int64 {
 		#end
 	}
 
+	@:extern static inline function i32mul(a:Int,b:Int) {
+		#if (php || js || flash8)
+		/*
+			We can't simply use i32(a*b) since we might overflow (52 bits precision in doubles)
+		*/
+		return i32(i32((a * (b >>> 16)) << 16) + (a * (b&0xFFFF)));
+		#else
+		return a * b;
+		#end
+	}
+	
 	#if as3 public #end function toString() {
 		if ((high|low) == 0 )
 			return "0";
@@ -85,8 +96,8 @@ class Int64 {
 	}
 
 	public static function add( a : Int64, b : Int64 ) : Int64 {
-		var high = a.high + b.high;
-		var low = a.low + b.low;
+		var high = i32(a.high + b.high);
+		var low = i32(a.low + b.low);
 		if( uicompare(low,a.low) < 0 )
 			high++;
 		return new Int64(high, low);
@@ -109,11 +120,11 @@ class Int64 {
 		var p01 = al * bh;
 		var p11 = ah * bh;
 		var low = p00;
-		var high = p11 + (p01 >>> 16) + (p10 >>> 16);
-		p01 = (p01 << 16); low += p01; if( uicompare(low,p01) < 0 ) high++;
-		p10 = (p10 << 16); low += p10; if( uicompare(low,p10) < 0 ) high++;
-		high += a.low * b.high;
-		high += a.high * b.low;
+		var high = i32(p11 + (p01 >>> 16) + (p10 >>> 16));
+		p01 = i32(p01 << 16); low = i32(low + p01); if( uicompare(low, p01) < 0 ) high = i32(high + 1);
+		p10 = i32(p10 << 16); low = i32(low + p10); if( uicompare(low, p10) < 0 ) high = i32(high + 1);
+		high = i32(high + i32mul(a.low,b.high));
+		high = i32(high + i32mul(a.high,b.low));
 		return new Int64(high, low);
 	}
 

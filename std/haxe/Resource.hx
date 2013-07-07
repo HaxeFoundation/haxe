@@ -75,9 +75,9 @@ class Resource {
 	}
 
 	/**
-		Retrieves the resource identified by [name] as a String.
+		Retrieves the resource identified by `name` as a String.
 
-		If [name] does not match any resource name, null is returned.
+		If `name` does not match any resource name, null is returned.
 	**/
 	public static function getString( name : String ) : String {
 		#if java
@@ -107,10 +107,10 @@ class Resource {
 	}
 
 	/**
-		Retrieves the resource identified by [name] as an instance of
+		Retrieves the resource identified by `name` as an instance of
 		haxe.io.Bytes.
 
-		If [name] does not match any resource name, null is returned.
+		If `name` does not match any resource name, null is returned.
 	**/
 	public static function getBytes( name : String ) : haxe.io.Bytes {
 		#if java

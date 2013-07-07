@@ -1,0 +1,98 @@
+version = $loader.args[0];
+if( version == null )
+	$throw("<version> argument required");
+
+sys = $loader.loadprim("std@sys_string",0)();
+binext = "";
+curdir = "./";
+ext = switch( sys ) {
+	"Windows" => {
+		curdir = ".\\";
+		binext = ".exe";
+		"-win"
+	}
+	"Mac" => "-osx"
+	"Linux" => "-linux"
+	"BSD" => "-bsd"
+	default => $throw("Unknown system")
+}
+
+rights = 493; // octal 755
+_mkdir = $loader.loadprim("std@sys_create_dir",2);
+mkdir = function(d) {
+	_mkdir(d,rights);
+}
+
+chdir = $loader.loadprim("std@set_cwd",1);
+
+_cmd = $loader.loadprim("std@sys_command",1);
+cmd = function(c) {
+	if( _cmd(c) != 0 ) $throw("Command '"+c+"' failed");
+}
+
+dir = "haxe-"+version+ext;
+
+cmd("rm -rf "+dir);
+mkdir(dir);
+mkdir(dir+"/doc");
+
+if( sys == "Windows" ) {
+	cmd("cp ../haxe.exe ../haxesetup.exe haxeserver.bat "+dir);
+	// copy if available (means we build on recent OCaml/MSVC)
+	try cmd("cp C:/Windows/System32/msvcr100.dll "+dir) catch e {};
+} else
+	cmd("cp ../haxe "+dir);
+
+cmd("cp -pR CHANGES.txt LICENSE.txt ../std "+dir);
+
+if( sys == "Windows" ) cmd("chmod -R 777 "+dir);
+
+cmd("haxe all.hxml");
+chdir(dir+"/std/tools");
+
+// BUILD TOOLS
+
+chdir("haxedoc");
+cmd("haxe haxedoc.hxml");
+cmd(curdir+"haxedoc -v \"../../../../flash8.xml;flash8;flash\" \"../../../../neko.xml;neko\" \"../../../../js.xml;js\" \"../../../../flash9.xml;flash\" \"../../../../php.xml;php\" \"../../../../cpp.xml;cpp\"");
+cmd("mv index.html content ../../../doc");
+cmd("mv haxedoc"+binext+" ../../..");
+chdir("..");
+
+chdir("haxelib");
+cmd("haxe haxelib.hxml");
+cmd("mv haxelib"+binext+" ../../..");
+chdir("..");
+
+// CLEANUP
+
+chdir("..");
+
+cmd("rm -rf .svn */.svn */*/.svn */*/*/.svn */*/*/*/.svn");
+cmd("rm -rf all.n all.js *.swf *.xml");
+
+chdir("tools");
+chdir("haxedoc");
+cmd("rm -rf haxedoc.n index.html content haxedoc"+binext);
+chdir("..");
+
+chdir("haxelib");
+cmd("rm -rf *.bat *.zip *.db *.n tmp files");
+chdir("..");
+
+chdir("hxinst");
+cmd("rm -rf *.n *.zip *.dmg *.app hxinst-win.exe hxinst-linux hxinst-osx");
+chdir("..");
+
+chdir("..");
+cmd("rm -rf mt mtwin");
+chdir("../..");
+
+// PACKAGE
+
+if( sys == "Windows" )
+	cmd("7z a -tzip "+dir+".zip "+dir);
+else
+	cmd("tar -czf "+dir+".tar.gz "+dir);
+
+cmd("rm -rf "+dir);

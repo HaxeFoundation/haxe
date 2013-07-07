@@ -40,15 +40,15 @@ private typedef VectorData<T> = #if flash10
 @:arrayAccess
 abstract Vector<T>(VectorData<T>) {
 	/**
-		Creates a new Vector of length [length].
+		Creates a new Vector of length `length`.
 
-		Initially [this] Vector contains [length] neutral elements:
-			- always null on dynamic targets
-			- 0, 0.0 or false for Int, Float and Bool respectively on static
-			targets
-			- null for other types on static targets
+		Initially `this` Vector contains `length` neutral elements:
+			
+		- always null on dynamic targets
+		- 0, 0.0 or false for Int, Float and Bool respectively on static targets
+		- null for other types on static targets
 
-		If [length] is less than or equal to 0, the result is unspecified.
+		If `length` is less than or equal to 0, the result is unspecified.
 	**/
 	public inline function new(length:Int) {
 		#if flash9
@@ -61,20 +61,18 @@ abstract Vector<T>(VectorData<T>) {
 			this = new cs.NativeArray(length);
 		#elseif java
 			this = new java.NativeArray(length);
+		#elseif cpp
+			this = untyped (new Array<T>()).__SetSizeExact(length);
 		#else
 			this = [];
-			#if cpp
-				untyped this.__SetSize(length);
-			#else
-				untyped this.length = length;
-			#end
+			untyped this.length = length;
 		#end
 	}
 
 	/**
-		Returns the value at index [index].
+		Returns the value at index `index`.
 
-		If [index] is negative or exceeds [this].length, the result is
+		If `index` is negative or exceeds `this.length`, the result is
 		unspecified.
 	**/
 	public inline function get(index:Int):Null<T> {
@@ -82,9 +80,9 @@ abstract Vector<T>(VectorData<T>) {
 	}
 
 	/**
-		Sets the value at index [index] to [val].
+		Sets the value at index `index` to `val`.
 
-		If [index] is negative or exceeds [this].length, the result is
+		If `index` is negative or exceeds `this.length`, the result is
 		unspecified.
 	**/
 	public inline function set(index:Int, val:T):T {
@@ -92,7 +90,7 @@ abstract Vector<T>(VectorData<T>) {
 	}
 
 	/**
-		Returns the length of [this] Vector.
+		Returns the length of `this` Vector.
 	**/
 	public var length(get, never):Int;
 
@@ -109,9 +107,11 @@ abstract Vector<T>(VectorData<T>) {
 	}
 
 	/**
-		Copies [length] of elements from [src] Vector, beginning at [srcPos] to [dest] Vector, beginning at [destPos]
+		Copies `length` of elements from `src` Vector, beginning at `srcPos` to
+		`dest` Vector, beginning at `destPos`
 
-		The results are unspecified if [length] results in out-of-bounds access, or if [src] or [dest] are null
+		The results are unspecified if `length` results in out-of-bounds access,
+		or if `src` or `dest` are null
 	**/
 	public static #if (cs || java || neko) inline #end function blit<T>(src:Vector<T>, srcPos:Int, dest:Vector<T>, destPos:Int, len:Int):Void
 	{
@@ -130,7 +130,7 @@ abstract Vector<T>(VectorData<T>) {
 	}
 
 	/**
-		Extracts the data of [this] Vector.
+		Extracts the data of `this` Vector.
 
 		This returns the internal representation type.
 	**/
@@ -138,25 +138,25 @@ abstract Vector<T>(VectorData<T>) {
 		return cast this;
 
 	/**
-		Initializes a new Vector from [data].
+		Initializes a new Vector from `data`.
 
-		Since [data] is the internal representation of Vector, this is a no-op.
+		Since `data` is the internal representation of Vector, this is a no-op.
 
-		If [data] is null, the corresponding Vector is also [null].
+		If `data` is null, the corresponding Vector is also `null`.
 	**/
 	static public inline function fromData<T>(data:VectorData<T>):Vector<T>
 		return cast data;
 
 	/**
-		Creates a new Vector by copying the elements of [array].
+		Creates a new Vector by copying the elements of `array`.
 
 		This always creates a copy, even on platforms where the internal
 		representation is Array.
 
 		The elements are not copied and retain their identity, so
-		a[i] == Vector.fromArrayCopy(a).get(i) is true for any valid i.
+		`a[i] == Vector.fromArrayCopy(a).get(i)` is true for any valid i.
 
-		If [array] is null, the result is unspecified.
+		If `array` is null, the result is unspecified.
 	**/
 	static public inline function fromArrayCopy<T>(array:Array<T>):Vector<T> {
 		// TODO: Optimize this for flash (and others?)

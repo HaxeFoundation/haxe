@@ -1,0 +1,31 @@
+include Makefile
+
+OUTPUT=haxe.exe
+EXTENSION=.exe
+
+OCAMLOPT=ocamlopt.opt
+
+kill:
+	-@taskkill /F /IM haxe.exe 2>/dev/null
+
+# allow Ocaml/Mingw as well
+NATIVE_LIBS += -I "c:/program files/mingw/lib/"
+
+# use make MSVC=1 -f Makefile.win to build for OCaml/MSVC
+
+ifeq (${MSVC}, 1)
+NATIVE_LIBS = shell32.lib libs/extc/extc_stubs.obj libs/extc/zlib/zlib.lib
+endif
+
+ifeq (${MSVC_OUTPUT}, 1)
+FILTER=sed 's/File "\([^"]\+\)", line \([0-9]\+\), \(.*\)/\1(\2): \3/' tmp.cmi
+endif
+
+ifeq (${FD_OUTPUT}, 1)
+FILTER=sed '/File/{ N; s/File "\([^"]\+\)", line \([0-9]\+\), characters \([0-9-]\+\):[\r\n]*\(.*\)/\1:\2: characters \3 : \4/ }' tmp.cmi
+endif
+
+ifdef FILTER
+CC_CMD=($(OCAMLOPT) $(CFLAGS) -c $< 2>tmp.cmi && $(FILTER)) || ($(FILTER) && exit 1)
+CC_PARSER_CMD=($(OCAMLOPT) -pp camlp4o $(CFLAGS) -c parser.ml 2>tmp.cmi && $(FILTER)) || ($(FILTER) && exit 1)
+endif

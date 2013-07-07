@@ -35,9 +35,6 @@ using Lambda;
 **/
 class ExprTools {
 
-	static public function toFieldExpr ( sl : Array<String> ) : Expr
-		return sl.fold(function(s, e) return e == null ? (macro $i{s}) : (macro $e.$s), null);
-
 	/**
 		Converts expression [e] to a human-readable String representation.
 
@@ -188,7 +185,7 @@ class ExprTools {
 			case ECast(e, t): ECast(f(e), t);
 			case EDisplay(e, isCall): EDisplay(f(e), isCall);
 			case ETernary(econd, eif, eelse): ETernary(f(econd), f(eif), f(eelse));
-			case ECheckType(e, t): ECheckType(f(e), t);
+			case ECheckType(e, t, so): ECheckType(f(e), t, so);
 			case EDisplayNew(_),
 				EContinue,
 				EBreak:

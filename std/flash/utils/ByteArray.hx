@@ -1,0 +1,46 @@
+package flash.utils;
+
+extern class ByteArray implements IDataOutput2 implements IDataInput2 implements ArrayAccess<Int> {
+	var bytesAvailable(default,null) : UInt;
+	var endian : Endian;
+	var length : UInt;
+	var objectEncoding : UInt;
+	var position : UInt;
+	@:require(flash11_4) var shareable : Bool;
+	function new() : Void;
+	@:require(flash11_4) function atomicCompareAndSwapIntAt(byteIndex : Int, expectedValue : Int, newValue : Int) : Int;
+	@:require(flash11_4) function atomicCompareAndSwapLength(expectedLength : Int, newLength : Int) : Int;
+	@:require(flash10) function clear() : Void;
+	function compress(?algorithm : CompressionAlgorithm) : Void;
+	@:require(flash10) function deflate() : Void;
+	@:require(flash10) function inflate() : Void;
+	function readBoolean() : Bool;
+	function readByte() : Int;
+	function readBytes(bytes : ByteArray, offset : UInt = 0, length : UInt = 0) : Void;
+	function readDouble() : Float;
+	function readFloat() : Float;
+	function readInt() : Int;
+	function readMultiByte(length : UInt, charSet : String) : String;
+	function readObject() : Dynamic;
+	function readShort() : Int;
+	function readUTF() : String;
+	function readUTFBytes(length : UInt) : String;
+	function readUnsignedByte() : UInt;
+	function readUnsignedInt() : UInt;
+	function readUnsignedShort() : UInt;
+	function toString() : String;
+	function uncompress(?algorithm : CompressionAlgorithm) : Void;
+	function writeBoolean(value : Bool) : Void;
+	function writeByte(value : Int) : Void;
+	function writeBytes(bytes : ByteArray, offset : UInt = 0, length : UInt = 0) : Void;
+	function writeDouble(value : Float) : Void;
+	function writeFloat(value : Float) : Void;
+	function writeInt(value : Int) : Void;
+	function writeMultiByte(value : String, charSet : String) : Void;
+	function writeObject(object : Dynamic) : Void;
+	function writeShort(value : Int) : Void;
+	function writeUTF(value : String) : Void;
+	function writeUTFBytes(value : String) : Void;
+	function writeUnsignedInt(value : UInt) : Void;
+	static var defaultObjectEncoding : UInt;
+}

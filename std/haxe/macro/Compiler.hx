@@ -232,7 +232,11 @@ class Compiler {
 	}
 
 	/**
-		Mark a class (or array of classes) with the metadata @:keep
+		Mark a class (or array of classes) with the metadata @:keep.
+		
+		Note that this does not imply inclusion of the class(es): If a class is
+		neither referenced nor added via [Compiler.include], it will not be part
+		of the output even if @:keep was added.
 	**/
 	public static function keep(?path : String, ?paths : Array<String>, rec = false)
 	{
