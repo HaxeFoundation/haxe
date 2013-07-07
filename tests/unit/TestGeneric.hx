@@ -20,8 +20,23 @@ class MyRandomClass {
 	}
 }
 
-class MyRandomEmptyClass {
-	
+class MyRandomEmptyClass { }
+
+@:generic class RBNode<T:RBNode<T>> {
+	public var rbLeft : T;
+	public var rbRight : T;
+}
+
+@:generic class RBTree<T:RBNode<T>> {
+	public var root : T;
+	public function new() {	}
+}
+
+class MyData extends RBNode<MyData> {
+	var id : Int;
+	public function new(id:Int) {
+		this.id = id;
+	}
 }
 
 class TestGeneric extends Test {
@@ -50,5 +65,12 @@ class TestGeneric extends Test {
 		
 		var mg = new MyGeneric2<MyGeneric<MyRandomClass>>(new MyRandomClass("foo"));
 		eq("foo", mg.t.s);
+	}
+	
+	function testConstraints() {
+		var n = new RBTree<MyData>();
+		n.root = new MyData(1);
+		n.root.rbLeft = new MyData(2);
+		n.root.rbRight = new MyData(3);
 	}
 }

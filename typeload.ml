@@ -304,15 +304,20 @@ let rec load_type_def ctx p t =
 let check_param_constraints ctx types t pl c p =
 	match follow t with
 	| TMono _ -> ()
+	| TInst({cl_kind = KTypeParameter _},_) -> ()
 	| _ ->
 		let ctl = (match c.cl_kind with KTypeParameter l -> l | _ -> []) in
 		List.iter (fun ti ->
 			let ti = apply_params types pl ti in
 			let ti = (match follow ti with
-				| TInst ({ cl_kind = KGeneric }as c,pl) ->
+				| TInst ({ cl_kind = KGeneric } as c,pl) ->
 					(* if we solve a generic contraint, let's substitute with the actual generic instance before unifying *)
 					let _,_, f = ctx.g.do_build_instance ctx (TClassDecl c) p in
 					f pl
+				| TInst({cl_kind = KGenericInstance(c2,tl)},_) ->
+					(* build generic instance again with applied type parameters (issue 1965) *)
+					let _,_, f = ctx.g.do_build_instance ctx (TClassDecl c2) p in
+					f (List.map (fun t -> apply_params types pl t) tl)
 				| _ -> ti
 			) in
 			try 
