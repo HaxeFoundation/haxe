@@ -148,9 +148,36 @@ let find_line p f =
 	in
 	loop 0 (Array.length f.lalines)
 
+(* resolve a position within a non-haxe file by counting newlines *)
+let resolve_pos file =
+	let ch = open_in_bin file in
+	let f = make_file file in
+	let rec loop p =
+		let inc i () =
+			f.lline <- f.lline + 1;
+			f.llines <- (p + i,f.lline) :: f.llines;
+			i
+		in		
+		let i = match input_char ch with
+			| '\n' -> inc 1
+			| '\r' ->
+				ignore(input_char ch);
+				inc 2
+			| _ -> fun () -> 1
+		in
+		loop (p + i())
+	in
+	try
+		loop 0
+	with End_of_file ->
+		close_in ch;
+		f
+
+let find_file file =
+	try Hashtbl.find all_files file with Not_found -> try resolve_pos file with Sys_error _ -> make_file file
+
 let find_pos p =
-	let file = (try Hashtbl.find all_files p.pfile with Not_found -> make_file p.pfile) in
-	find_line p.pmin file
+	find_line p.pmin (find_file p.pfile)
 
 let get_error_line p =
 	let l, _ = find_pos p in
@@ -160,7 +187,7 @@ let get_error_pos printer p =
 	if p.pmin = -1 then
 		"(unknown)"
 	else
-		let file = (try Hashtbl.find all_files p.pfile with Not_found -> make_file p.pfile) in
+		let file = find_file p.pfile in
 		let l1, p1 = find_line p.pmin file in
 		let l2, p2 = find_line p.pmax file in
 		if l1 = l2 then begin
