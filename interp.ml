@@ -1764,7 +1764,7 @@ let std_lib =
 			VString (UTF8.Buf.contents buf)
 		);
 		"utf8_get", Fun2 (fun s p ->
-			VInt (UChar.uint_code (try UTF8.look (vstring s) (vint p) with _ -> error()))
+			VInt (UChar.uint_code (try UTF8.get (vstring s) (vint p) with _ -> error()))
 		);
 		"utf8_iter", Fun2 (fun s f ->
 			let ctx = get_ctx() in
