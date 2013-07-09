@@ -58,6 +58,12 @@ class TypeTools {
 		return Context.follow(t, once);
 		
 	/**
+		Returns true if `t1` and `t2` unify, false otherwise.
+	**/
+	static public inline function unify( t1 : Type, t2:Type ) : Bool
+		return Context.unify(t1, t2);
+		
+	/**
 		Returns a syntax-level type corresponding to Type `t`.
 		
 		This function is mostly inverse to `ComplexTypeTools.toType`, but may
