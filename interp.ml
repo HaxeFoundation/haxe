@@ -193,11 +193,13 @@ let decode_expr_ref = ref (fun e -> assert false)
 let encode_clref_ref = ref (fun c -> assert false)
 let enc_hash_ref = ref (fun h -> assert false)
 let enc_array_ref = ref (fun l -> assert false)
+let dec_array_ref = ref (fun v -> assert false)
 let enc_string_ref = ref (fun s -> assert false)
 let make_ast_ref = ref (fun _ -> assert false)
 let make_complex_type_ref = ref (fun _ -> assert false)
 let get_ctx() = (!get_ctx_ref)()
 let enc_array (l:value list) : value = (!enc_array_ref) l
+let dec_array (l:value) : value list = (!dec_array_ref) l
 let encode_complex_type (t:Ast.complex_type) : value = (!encode_complex_type_ref) t
 let encode_type (t:Type.t) : value = (!encode_type_ref) t
 let decode_type (v:value) : Type.t = (!decode_type_ref) v
@@ -2463,6 +2465,28 @@ let macro_lib =
 				VNull
 			| _ -> error()
 		);
+		"apply_params", Fun3 (fun tpl tl t ->
+			let tpl = List.map (fun v ->
+				match v with
+				| VObject o ->
+					let name = match get_field o (hash "name") with VString s -> s | _ -> assert false in
+					let t = decode_type (get_field o (hash "t")) in
+					name,t
+				| _ -> assert false
+			) (dec_array tpl) in
+			let tl = List.map decode_type (dec_array tl) in
+			let rec map t = match t with
+				| TInst({cl_kind = KTypeParameter _},_) ->
+					begin try
+						(* use non-physical equality check here to make apply_params work *)
+						snd (List.find (fun (_,t2) -> type_iseq t t2) tpl)
+					with Not_found ->
+						Type.map map t
+					end
+				| _ -> Type.map map t
+			in
+			encode_type (apply_params tpl tl (map (decode_type t)))
+		);
 	]
 
 (* ---------------------------------------------------------------------- *)
@@ -4561,6 +4585,7 @@ make_ast_ref := make_ast;
 make_complex_type_ref := make_type;
 encode_complex_type_ref := encode_ctype;
 enc_array_ref := enc_array;
+dec_array_ref := dec_array;
 encode_type_ref := encode_type;
 decode_type_ref := decode_type;
 encode_expr_ref := encode_expr;

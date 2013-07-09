@@ -43,6 +43,11 @@ typedef AnonType = {
 	//var status : AnonStatus;
 }
 
+typedef TypeParameter = {
+	var name: String;
+	var t: Type;
+}
+
 typedef BaseType = {
 	var pack : Array<String>;
 	var name : String;
@@ -50,7 +55,7 @@ typedef BaseType = {
 	var pos : Expr.Position;
 	var isPrivate : Bool;
 	var isExtern : Bool;
-	var params : Array<{ name : String, t : Type }>;
+	var params : Array<TypeParameter>;
 	var meta : MetaAccess;
 	var doc : Null<String>;
 	function exclude() : Void;
@@ -60,7 +65,7 @@ typedef ClassField = {
 	var name : String;
 	var type : Type;
 	var isPublic : Bool;
-	var params : Array<{ name : String, t : Type }>;
+	var params : Array<TypeParameter>;
 	var meta : MetaAccess;
 	var kind : FieldKind;
 	function expr() : Null<TypedExpr>;
@@ -99,7 +104,7 @@ typedef EnumField = {
 	var meta : MetaAccess;
 	var index : Int;
 	var doc : Null<String>;
-	var params : Array<{ name : String, t : Type }>;
+	var params : Array<TypeParameter>;
 }
 
 typedef EnumType = {> BaseType,

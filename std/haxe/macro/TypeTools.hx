@@ -98,6 +98,29 @@ class TypeTools {
 	}
 
 	/**
+		Applies the type parameters `typeParameters` to type `t` with the given
+		types `concreteTypes`.
+		
+		This function replaces occurences of type parameters in `t` if they are
+		part of `typeParameters`. The array index of such a type parameter is
+		then used to lookup the concrete type in `concreteTypes`.
+		
+		If `typeParameters.length` is not equal to `concreteTypes.length`, an
+		exception of type `String` is thrown.
+		
+		If `typeParameters.length` is 0, `t` is returned unchanged.
+		
+		If either argument is `null`, the result is unspecified.
+	**/
+	static public function applyTypeParameters(t:Type, typeParameters:Array<TypeParameter>, concreteTypes:Array<Type>):Type {
+		if (typeParameters.length != concreteTypes.length)
+			throw 'Incompatible arguments: ${typeParameters.length} type parameters and ${concreteTypes.length} concrete types';
+		else if (typeParameters.length == 0)
+			return t;
+		return Context.load("apply_params", 3)(typeParameters.map(function(tp) return {name:untyped tp.name.__s, t:tp.t}), concreteTypes, t);
+	}
+	
+	/**
 		Converts type `t` to a human-readable String representation.
 	**/
 	static public function toString( t : Type ) : String return new String(Context.load("s_type", 1)(t));
