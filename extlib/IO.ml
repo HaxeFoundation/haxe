@@ -664,7 +664,7 @@ let rec read_bits b n =
 	end else begin
 		let k = read_byte b.ch in
 		if b.nbits >= 24 then begin
-			if n >= 31 then raise Bits_error;
+			if n > 31 then raise Bits_error;
 			let c = 8 + b.nbits - n in
 			let d = b.bits land ((1 lsl b.nbits) - 1) in
 			let d = (d lsl (8 - c)) lor (k lsr c) in
