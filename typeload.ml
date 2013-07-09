@@ -214,7 +214,7 @@ let type_function_param ctx t e opt p =
 		t, e
 
 let type_var_field ctx t e stat p =
-	if stat then ctx.curfun <- FunStatic;
+	if stat then ctx.curfun <- FunStatic else ctx.curfun <- FunMember;
 	let e = type_expr ctx e (WithType t) in
 	unify ctx e.etype t p;
 	match t with
