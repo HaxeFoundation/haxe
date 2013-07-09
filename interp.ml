@@ -190,6 +190,7 @@ let encode_type_ref = ref (fun t -> assert false)
 let decode_type_ref = ref (fun t -> assert false)
 let encode_expr_ref = ref (fun e -> assert false)
 let decode_expr_ref = ref (fun e -> assert false)
+let encode_texpr_ref = ref (fun e -> assert false)
 let encode_clref_ref = ref (fun c -> assert false)
 let enc_hash_ref = ref (fun h -> assert false)
 let enc_array_ref = ref (fun l -> assert false)
@@ -205,6 +206,7 @@ let encode_type (t:Type.t) : value = (!encode_type_ref) t
 let decode_type (v:value) : Type.t = (!decode_type_ref) v
 let encode_expr (e:Ast.expr) : value = (!encode_expr_ref) e
 let decode_expr (e:value) : Ast.expr = (!decode_expr_ref) e
+let encode_texpr (e:Type.texpr) : value = (!encode_texpr_ref) e
 let encode_clref (c:tclass) : value = (!encode_clref_ref) c
 let enc_hash (h:('a,'b) Hashtbl.t) : value = (!enc_hash_ref) h
 let make_ast (e:texpr) : Ast.expr = (!make_ast_ref) e
@@ -256,7 +258,8 @@ let constants =
 	"$";"add";"remove";"has";"__t";"module";"isPrivate";"isPublic";"isExtern";"isInterface";"exclude";
 	"constructs";"names";"superClass";"interfaces";"fields";"statics";"constructor";"init";"t";
 	"gid";"uid";"atime";"mtime";"ctime";"dev";"ino";"nlink";"rdev";"size";"mode";"pos";"len";
-	"binops";"unops";"from";"to";"array";"op";"isPostfix";"impl"];
+	"binops";"unops";"from";"to";"array";"op";"isPostfix";"impl";
+	"id";"capture";"extra";"v";"ids";"vars";"en"];	
 	h
 
 let h_get = hash "__get" and h_set = hash "__set"
@@ -3461,6 +3464,10 @@ type enum_index =
 	| IVarAccess
 	| IAccess
 	| IClassKind
+	| ITypedExpr
+	| ITConstant
+	| IModuleType
+	| IFieldAccess	
 
 let enum_name = function
 	| IExpr -> "ExprDef"
@@ -3476,9 +3483,13 @@ let enum_name = function
 	| IVarAccess -> "VarAccess"
 	| IAccess -> "Access"
 	| IClassKind -> "ClassKind"
+	| ITypedExpr -> "TypedExprDef"
+	| ITConstant -> "TConstant"
+	| IModuleType -> "ModuleType"
+	| IFieldAccess -> "FieldAccess"
 
 let init ctx =
-	let enums = [IExpr;IBinop;IUnop;IConst;ITParam;ICType;IField;IType;IFieldKind;IMethodKind;IVarAccess;IAccess;IClassKind] in
+	let enums = [IExpr;IBinop;IUnop;IConst;ITParam;ICType;IField;IType;IFieldKind;IMethodKind;IVarAccess;IAccess;IClassKind;ITypedExpr;ITConstant;IModuleType;IFieldAccess] in
 	let get_enum_proto e =
 		match get_path ctx ["haxe";"macro";enum_name e] null_pos with
 		| VObject e ->
@@ -4249,6 +4260,9 @@ and encode_tparams pl =
 and encode_clref c =
 	encode_ref c encode_tclass (fun() -> s_type_path c.cl_path)
 
+and encode_enref en =
+	encode_ref en encode_tenum (fun() -> s_type_path en.e_path)
+
 and encode_type t =
 	let rec loop = function
 		| TMono r ->
@@ -4312,9 +4326,6 @@ and decode_type t =
 	| 8, [a; pl] -> TAbstract (decode_ref a, List.map decode_type (dec_array pl))
 	| _ -> raise Invalid_expr
 
-and encode_texpr e =
-	VAbstract (ATExpr e)
-
 let decode_tdecl v =
 	match v with
 	| VObject o ->
@@ -4322,6 +4333,144 @@ let decode_tdecl v =
 		| VAbstract (ATDecl t) -> t
 		| _ -> raise Invalid_expr)
 	| _ -> raise Invalid_expr
+
+(* ---------------------------------------------------------------------- *)
+(* TEXPR Encoding *)
+
+let vopt f v = match v with
+	| None -> VNull
+	| Some v -> f v
+
+let rec encode_tconst c =
+	let tag, pl = match c with
+		| TInt i -> 0,[VInt (Int32.to_int i)]
+		| TFloat f -> 1,[enc_string f]
+		| TString s -> 2,[enc_string s]
+		| TBool b -> 3,[VBool b]
+		| TNull -> 4,[]
+		| TThis -> 5,[]
+		| TSuper -> 6,[]
+	in
+	enc_enum ITConstant tag pl
+
+and encode_tvar v =
+	let extra = match v.v_extra with
+		| None,_ -> VNull
+		| Some (pl,e),_ -> enc_obj [
+			"params",encode_type_params pl;
+			"expr",vopt encode_texpr e
+		]
+	in
+	enc_obj [
+		"id", VInt v.v_id;
+		"name", enc_string v.v_name;
+		"t", encode_type v.v_type;
+		"capture", VBool v.v_capture;
+		"extra", extra;
+	]
+
+and encode_type_params pl =
+	enc_array (List.map (fun (n,t) ->
+		enc_obj [
+			"name",enc_string n;
+			"t",encode_type t
+		]
+	) pl)
+
+and encode_module_type mt =
+	let tag,pl = match mt with
+		| TClassDecl c -> 0,[encode_clref c]
+		| TEnumDecl e -> 1,[encode_enref e]
+		| TTypeDecl t -> 2,[encode_ref t encode_ttype (fun () -> s_type_path t.t_path)]
+		| TAbstractDecl a -> 3,[encode_ref a encode_tabstract (fun () -> s_type_path a.a_path)]
+	in
+	enc_enum IModuleType tag pl
+
+and encode_tfunc func =
+	enc_obj [
+		"args",enc_array (List.map (fun (v,c) ->
+			enc_obj [
+				"v",encode_tvar v;
+				"value",match c with None -> VNull | Some c -> encode_tconst c
+			]
+		) func.tf_args);
+		"t",encode_type func.tf_type;
+		"expr",encode_texpr func.tf_expr
+	]
+
+and encode_field_access fa =
+	let tag,pl = match fa with
+		| FInstance(c,cf) -> 0,[encode_clref c;encode_cfield cf]
+		| FStatic(c,cf) -> 1,[encode_clref c;encode_cfield cf]
+		| FAnon(cf) -> 2,[encode_cfield cf]
+		| FDynamic(s) -> 3,[enc_string s]
+		| FClosure(co,cf) -> 4,[vopt encode_clref co;encode_cfield cf]
+		| FEnum(en,ef) -> 5,[encode_enref en;encode_efield ef]
+	in
+	enc_enum IFieldAccess tag pl
+
+and encode_texpr e =
+	let rec loop e =
+		let tag, pl = match e.eexpr with
+			| TConst c -> 0,[encode_tconst c]
+			| TLocal v -> 1,[encode_tvar v]
+			| TArray(e1,e2) -> 2,[loop e1; loop e2]
+			| TBinop(op,e1,e2) -> 3,[encode_binop op;loop e1;loop e2]
+			| TField(e1,fa) -> 4,[loop e1;encode_field_access fa]
+			| TTypeExpr mt -> 5,[encode_module_type mt]
+			| TParenthesis e1 -> 6,[loop e1]
+			| TObjectDecl fl -> 7, [enc_array (List.map (fun (f,e) ->
+				enc_obj [
+					"name",enc_string f;
+					"expr",loop e;
+				]) fl)]
+			| TArrayDecl el -> 8,[encode_texpr_list el]
+			| TCall(e1,el) -> 9,[loop e1;encode_texpr_list el]
+			| TNew(c,pl,el) -> 10,[encode_clref c;encode_tparams pl;encode_texpr_list el]
+			| TUnop(op,flag,e1) -> 11,[encode_unop op;VBool (flag = Postfix);loop e1]
+			| TFunction func -> 12,[encode_tfunc func]
+			| TVars vl -> 13,[enc_array (List.map (fun (v,e) ->
+				enc_obj [
+					"v",encode_tvar v;
+					"expr",vopt encode_texpr e
+				]) vl)]
+			| TBlock el -> 14,[encode_texpr_list el]
+			| TFor(v,e1,e2) -> 15,[encode_tvar v;loop e1;loop e2]
+			| TIf(eif,ethen,eelse) -> 16,[loop eif;loop ethen;vopt encode_texpr eelse]
+			| TWhile(econd,e1,flag) -> 17,[loop econd;loop e1;VBool (flag = NormalWhile)]
+			| TSwitch(e1,cases,edef) -> 18,[
+				loop e1;
+				enc_array (List.map (fun (el,e) -> enc_obj ["values",encode_texpr_list el;"expr",loop e]) cases);
+				vopt encode_texpr edef
+				]
+			| TPatMatch _ ->
+				assert false
+			| TTry(e1,catches) -> 20,[
+				loop e1;
+				enc_array (List.map (fun (v,e) ->
+					enc_obj [
+						"v",encode_tvar v;
+						"expr",loop e
+					]) catches
+				)]
+			| TReturn e1 -> 21,[vopt encode_texpr e1]
+			| TBreak -> 22,[]
+			| TContinue -> 23,[]
+			| TThrow e1 -> 24,[loop e1]
+			| TCast(e1,mt) -> 25,[loop e1;match mt with None -> VNull | Some mt -> encode_module_type mt]
+			| TMeta(m,e1) -> 26,[encode_meta_entry m;loop e1]
+			| TEnumParameter(e1,ef,i) -> 27,[loop e1;encode_efield ef;VInt i]
+		in
+		enc_obj [
+			"pos", encode_pos e.epos;
+			"expr", enc_enum ITypedExpr tag pl;
+			"t", encode_type e.etype
+		]
+	in
+	loop e
+
+and encode_texpr_list el =
+	enc_array (List.map encode_texpr el)
 
 (* ---------------------------------------------------------------------- *)
 (* TYPE DEFINITION *)
@@ -4592,4 +4741,5 @@ encode_expr_ref := encode_expr;
 decode_expr_ref := decode_expr;
 encode_clref_ref := encode_clref;
 enc_string_ref := enc_string;
-enc_hash_ref := enc_hash
+enc_hash_ref := enc_hash;
+encode_texpr_ref := encode_texpr
