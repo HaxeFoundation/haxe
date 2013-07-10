@@ -30,14 +30,20 @@ using haxe.macro.Tools;
 class Build {
 	macro static public function buildFakeEnum():Array<Field> {
 		var fields = Context.getBuildFields();
-		var ct = switch(Context.getLocalClass().get().kind) {
-			case KAbstractImpl(a): TAbstract(a, []).toComplexType();
+		var a = switch(Context.getLocalClass().get().kind) {
+			case KAbstractImpl(a): a;
 			case _: throw "";
 		}
+		var tThis = a.get().type;
+		var ctA = TAbstract(a, []).toComplexType();
 		for (field in fields) {
 			field.access = [AStatic,APublic,AInline];
 			switch(field.kind) {
-				case FVar(t, e): field.kind = FVar(ct, macro cast $e);
+				case FVar(t, e):
+					if (e == null) Context.error("Value required", field.pos);
+					var tE = Context.typeof(e);
+					if (!Context.unify(tE, tThis)) Context.error('${tE.toString()} should be ${tThis.toString()}', e.pos);
+					field.kind = FVar(ctA, macro cast $e);
 				case _:
 			}
 		}

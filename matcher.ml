@@ -737,9 +737,8 @@ let rec all_ctors mctx t =
 		List.iter (fun cf ->
 			ignore(follow cf.cf_type);
 			if not (Meta.has Meta.Impl cf.cf_meta) then match cf.cf_expr with
-				| None -> ()
 				| Some {eexpr = TConst c | TCast ({eexpr = TConst c},None)} -> h := PMap.add (CConst c) cf.cf_pos !h
-				| _ -> assert false
+				| _ -> ()
 		) c.cl_ordered_statics;
 		h,false
 	| TAbstract(a,pl) -> all_ctors mctx (Codegen.Abstract.get_underlying_type a pl)
