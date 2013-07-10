@@ -432,13 +432,13 @@ class TestMatch extends Test {
 		#if !macro
 		var a = unit.MyAbstract.FakeEnumAbstract.NotFound;
 		var r = switch(a) {
-			case unit.MyAbstract.FakeEnumAbstract.NotFound: 1;
+			case NotFound: 1;
 			case _: 2;
 		}
 		eq(r, 1);
 		
 		eq("Unmatched patterns: 405", getErrorMessage(switch(a) {
-			case unit.MyAbstract.FakeEnumAbstract.NotFound:
+			case NotFound:
 		}));
 		#end
 	}

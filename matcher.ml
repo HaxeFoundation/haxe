@@ -403,6 +403,14 @@ let to_pattern ctx e t =
 							| _ -> ());
 						let et = mk (TTypeExpr (TEnumDecl en)) (TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics en) }) p in
 						mk (TField (et,FEnum (en,ef))) (apply_params en.e_types pl ef.ef_type) p
+					| TAbstract({a_impl = Some c} as a,_) when Meta.has Meta.FakeEnum a.a_meta ->
+						let cf = PMap.find s c.cl_statics in
+						ignore(follow cf.cf_type);
+						let e = begin match cf.cf_expr with
+						| Some ({eexpr = TConst c | TCast({eexpr = TConst c},None)} as e) -> e
+						| _ -> print_endline "Not found"; raise Not_found
+						end in
+						e
 					| _ ->
 						let old = ctx.untyped in
 						ctx.untyped <- true;
@@ -420,7 +428,7 @@ let to_pattern ctx e t =
 							error (error_msg (Unify l)) p
 						end;
 						mk_con_pat (CEnum(en,ef)) [] t p
-                    | TConst c ->
+                    | TConst c | TCast({eexpr = TConst c},None) ->
                     	begin try unify_raise ctx ec.etype t ec.epos with Error (Unify _,_) -> raise Not_found end;
                         unify ctx ec.etype t p;
                         mk_con_pat (CConst c) [] t p
