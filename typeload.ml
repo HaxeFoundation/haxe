@@ -174,6 +174,7 @@ let make_module ctx mpath file tdecls loadp =
 				| (TClassDecl c,_) :: _ ->
 					(try c.cl_meta <- (Meta.get Meta.Build a.a_meta) :: c.cl_meta with Not_found -> ());
 					(try c.cl_meta <- (Meta.get Meta.CoreApi a.a_meta) :: c.cl_meta with Not_found -> ());
+					if Meta.has Meta.FakeEnum a.a_meta then c.cl_meta <- (Meta.Build,[ECall((EField((EField((EField((EConst(Ident "haxe"),p),"macro"),p),"Build"),p),"buildFakeEnum"),p),[]),p],p) :: c.cl_meta;
 					a.a_impl <- Some c;
 					c.cl_kind <- KAbstractImpl a
 				| _ -> assert false);
