@@ -725,7 +725,7 @@ and wait_loop boot_com host port =
 		Unix.close sin;
 		(* prevent too much fragmentation by doing some compactions every X run *)
 		incr run_count;
-		if !run_count mod 1 = 50 then begin
+		if !run_count mod 10 = 0 then begin
 			let t0 = get_time() in
 			Gc.compact();
 			if verbose then begin
