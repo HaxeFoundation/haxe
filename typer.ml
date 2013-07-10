@@ -1374,6 +1374,9 @@ let type_generic_function ctx (e,cf) el ?(using_param=None) with_type p =
 	add_constraint_checks ctx c.cl_types [] cf monos p;
 	let args,ret = match t,using_param with
 		| TFun((_,_,ta) :: args,ret),Some e ->
+			let ta = if not (Meta.has Meta.Impl cf.cf_meta) then ta
+			else match follow ta with TAbstract(a,tl) -> Codegen.Abstract.get_underlying_type a tl | _ -> assert false
+			in
 			(* manually unify first argument *)
 			unify ctx e.etype ta p;
 			args,ret
