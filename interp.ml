@@ -2292,6 +2292,10 @@ let macro_lib =
 		"s_type", Fun1 (fun v ->
 			VString (Type.s_type (print_context()) (decode_type v))
 		);
+		"s_expr", Fun2 (fun v b ->
+			let f = match b with VBool true -> Type.s_expr_pretty "" | _ -> Type.s_expr in
+			VString (f (Type.s_type (print_context())) (decode_texpr v))
+		);		
 		"is_fmt_string", Fun1 (fun v ->
 			match v with
 			| VAbstract (APos p) -> VBool(Lexer.is_fmt_string p)

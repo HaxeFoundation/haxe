@@ -248,7 +248,7 @@ enum TypedExprDef {
 	TObjectDecl(fields:Array<{name:String, expr:TypedExpr}>);
 	TArrayDecl(el:Array<TypedExpr>);
 	TCall(e:TypedExpr, el:Array<TypedExpr>);
-	TNew(c:Ref<ClassType>, params: Array<TypeParameter>, el:Array<TypedExpr>);
+	TNew(c:Ref<ClassType>, params: Array<Type>, el:Array<TypedExpr>);
 	TUnop(op:Expr.Unop, postFix:Bool, e:TypedExpr);
 	TFunction(tfunc:TFunc);
 	TVars(vl:Array<{v:TVar, expr:Null<TypedExpr>}>);
