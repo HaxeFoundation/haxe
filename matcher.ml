@@ -303,7 +303,7 @@ let to_pattern ctx e t =
 	let rec loop pctx e t =
 		let p = pos e in
 		match fst e with
-		| ECheckType(e, CTPath({tpackage=["haxe";"macro"]; tname="Expr"}), _) ->
+		| ECheckType(e, CTPath({tpackage=["haxe";"macro"]; tname="Expr"})) ->
 			let old = pctx.pc_reify in
 			pctx.pc_reify <- true;
 			let e = loop pctx e t in

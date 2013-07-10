@@ -3004,14 +3004,11 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			raise (DisplayTypes (ct :: List.map (fun f -> f.cf_type) f.cf_overloads))
 		| _ ->
 			error "Not a class" p)
-	| ECheckType (e,t,so) ->
+	| ECheckType (e,t) ->
 		let t = Typeload.load_complex_type ctx p t in
 		let e = type_expr ctx e (WithType t) in
 		let e = Codegen.Abstract.check_cast ctx t e p in
-		begin match so with
-			| None -> unify ctx e.etype t e.epos
-			| Some s -> try unify_raise ctx e.etype t e.epos with Error(Unify _,p) -> error s p
-		end;
+		unify ctx e.etype t e.epos;
 		if e.etype == t then e else mk (TCast (e,None)) t p
 	| EMeta (m,e) ->
 		let old = ctx.meta in
