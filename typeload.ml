@@ -139,9 +139,6 @@ let make_module ctx mpath file tdecls loadp =
 					| FProp _ when not stat ->
 						display_error ctx "Member property accessors must be get/set or never" p;
 						f
-					| FVar _ when not stat ->
-						display_error ctx "Cannot declare member variable in abstract" p;
-						f
 					| FFun fu when f.cff_name = "new" && not stat ->
 						let init p = (EVars ["this",Some this_t,None],p) in
 						let ret p = (EReturn (Some (EConst (Ident "this"),p)),p) in
@@ -1535,13 +1532,13 @@ let init_class ctx c p context_init herits fields =
 		let p = f.cff_pos in
 		let stat = List.mem AStatic f.cff_access in
 		let extern = Meta.has Meta.Extern f.cff_meta || c.cl_extern in
-		let allow_inline() =
+		let is_abstract,allow_inline =
 			match c.cl_kind, f.cff_kind with
-			| KAbstractImpl _, _ -> true
-			|_, FFun _ -> ctx.g.doinline || extern
-			| _ -> true
+			| KAbstractImpl _, _ -> true,true
+			|_, FFun _ -> false,ctx.g.doinline || extern
+			| _ -> false,true
 		in
-		let inline = List.mem AInline f.cff_access && allow_inline() in
+		let inline = List.mem AInline f.cff_access && allow_inline in
 		let override = List.mem AOverride f.cff_access in
 		let is_macro = Meta.has Meta.Macro f.cff_meta in
 		if is_macro then ctx.com.warning "@:macro should now be 'macro' accessor'" p;
@@ -1561,6 +1558,7 @@ let init_class ctx c p context_init herits fields =
 		} in
 		match f.cff_kind with
 		| FVar (t,e) ->
+			if not stat && is_abstract then error"Cannot declare member variable in abstract" p;
 			if inline && not stat then error "Inline variable must be static" p;
 			if inline && e = None then error "Inline variable must be initialized" p;
 
