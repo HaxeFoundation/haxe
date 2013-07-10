@@ -325,7 +325,7 @@ let to_pattern ctx e t =
 			let e = type_expr ctx e (WithType t) in
 			let e = match Optimizer.make_constant_expression ctx ~concat_strings:true e with Some e -> e | None -> e in
 			(match e.eexpr with
-			| TConst c -> mk_con_pat (CConst c) [] t p
+			| TConst c | TCast({eexpr = TConst c},None) -> mk_con_pat (CConst c) [] t p
 			| TTypeExpr mt -> mk_con_pat (CType mt) [] t p
 			| TField(_, FStatic(_,cf)) when is_value_type cf.cf_type ->
 				mk_con_pat (CExpr e) [] cf.cf_type p
@@ -732,6 +732,14 @@ let rec all_ctors mctx t =
 	| TAbstract({a_path = [],"Bool"},_) ->
 		h := PMap.add (CConst(TBool true)) Ast.null_pos !h;
 		h := PMap.add (CConst(TBool false)) Ast.null_pos !h;
+		h,false
+	| TAbstract({a_impl = Some c} as a,pl) when Meta.has Meta.FakeEnum a.a_meta ->
+		List.iter (fun cf ->
+			if not (Meta.has Meta.Impl cf.cf_meta) then match cf.cf_expr with
+				| None -> ()
+				| Some {eexpr = TConst c | TCast ({eexpr = TConst c},None)} -> h := PMap.add (CConst c) cf.cf_pos !h
+				| _ -> assert false
+		) c.cl_ordered_statics;
 		h,false
 	| TAbstract(a,pl) -> all_ctors mctx (Codegen.Abstract.get_underlying_type a pl)
 	| TInst({cl_path=[],"String"},_)
