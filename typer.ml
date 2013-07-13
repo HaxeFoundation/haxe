@@ -2654,25 +2654,35 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		mk (TThrow e) (mk_mono()) p
 	| ECall (((EConst (Ident s),_) as e),el) ->
 		(try
-			let t, e, pl = (match with_type with
+			let en,t = (match with_type with
 				| WithType t | WithTypeResume t ->
 					(match follow t with
-					| TEnum (e,pl) -> t, e, pl
+					| TEnum (e,pl) -> e,t
 					| _ -> raise Exit)
 				| _ -> raise Exit
 			) in
-			try
-				ignore(type_ident_raise ~imported_enums:false ctx s p MCall);
-				raise Exit
-			with Not_found -> try
-				let ef = PMap.find s e.e_constrs in
-				let et = apply_params e.e_types pl (monomorphs ef.ef_params ef.ef_type) in
-				let constr = mk (fast_enum_field e ef p) et p in
-				build_call ctx (AKExpr constr) el (match with_type with WithTypeResume _ -> WithTypeResume t | _ -> WithType t) p
+			let old = ctx.on_error in
+			ctx.m.module_types <- (TEnumDecl en) :: ctx.m.module_types;
+			let restore = fun () ->
+				ctx.m.module_types <- List.tl ctx.m.module_types;
+				ctx.on_error <- old;
+			in	
+			ctx.on_error <- (fun ctx msg ep ->
+				raise Not_found;
+			);			
+			begin try
+				let e = type_call ctx e el with_type p in
+				restore();
+				e
 			with Not_found ->
+				restore();
 				if ctx.untyped then raise Exit; (* __js__, etc. *)
-				with_type_error ctx with_type (string_error s e.e_names ("Identifier '" ^ s ^ "' is not part of enum " ^ s_type_path e.e_path)) p;
+				with_type_error ctx with_type (string_error s en.e_names ("Identifier '" ^ s ^ "' is not part of enum " ^ s_type_path en.e_path)) p;
 				mk (TConst TNull) t p
+			| err ->
+				restore();
+				raise err
+			end
 		with Exit ->
 			type_call ctx e el with_type p)
 	| ECall (e,el) ->
