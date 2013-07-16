@@ -1202,7 +1202,7 @@ and type_field ctx e i p mode =
 			let et = type_module_type ctx (TClassDecl c) None p in
 			let field_expr f t = mk (TField (et,FStatic (c,f))) t p in
 			(match mode, f.cf_kind with
-			| MGet, Var {v_read = AccCall } ->
+			| (MGet | MCall), Var {v_read = AccCall } ->
 				(* getter call *)
 				let f = PMap.find ("get_" ^ f.cf_name) c.cl_statics in
 				let t = field_type f in
@@ -1214,21 +1214,9 @@ and type_field ctx e i p mode =
 				let t = field_type f in
 				let ef = field_expr f t in
 				AKUsing (ef,c,f,e)
-			| MCall, Var {v_read = AccCall} ->
-				error (i ^ " cannot be called") p
-			| MGet, Var {v_read = AccNever} ->
+			| (MGet | MCall), Var {v_read = AccNever} ->
 				AKNo f.cf_name
-			| MCall, _ ->
-				let t = field_type f in
-				begin match follow t with
-					| TFun((_,_,t1) :: _,_) ->
-						(match f.cf_kind with Method MethMacro -> () | _ -> unify ctx (apply_params a.a_types pl a.a_this) t1 p)
-					| _ ->
-						error (i ^ " cannot be called") p
-				end;
-				let ef = field_expr f t in
-				AKUsing (ef,c,f,e)
-			| MGet, _ ->
+			| (MGet | MCall), _ ->
 				let t = field_type f in
 				let ef = field_expr f t in
 				AKUsing (ef,c,f,e)
