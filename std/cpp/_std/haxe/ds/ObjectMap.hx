@@ -47,7 +47,7 @@ class ObjectMap<K:haxe.Constraints.ObjectMapKey,V> implements Map.IMap<K,V> {
 
 	public function remove( key : K ) : Bool {
 		var id = untyped __global__.__hxcpp_obj_id(key);
-		return __Internal.remove(id);
+		__Internal.remove(id);
 		return __KeyRefs.remove(id);
 	}
 
