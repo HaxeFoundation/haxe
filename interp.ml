@@ -4490,7 +4490,6 @@ let rec make_ast e =
 	| TLocal v -> EConst (mk_ident v.v_name)
 	| TArray (e1,e2) -> EArray (make_ast e1,make_ast e2)
 	| TBinop (op,e1,e2) -> EBinop (op, make_ast e1, make_ast e2)
-	| TEnumParameter (e,_,i) -> assert false
 	| TField (e,f) -> EField (make_ast e, Type.field_name f)
 	| TTypeExpr t -> fst (mk_path (full_type_path t) e.epos)
 	| TParenthesis e -> EParenthesis (make_ast e)
@@ -4516,30 +4515,10 @@ let rec make_ast e =
 		) cases in
 		let def = match eopt def with None -> None | Some (EBlock [],_) -> Some None | e -> Some e in
 		ESwitch (make_ast e,cases,def)
-(* 	| TMatch (e,(en,_),cases,def) ->
-		let scases (idx,args,e) =
-			let p = e.epos in
-			let unused = (EConst (Ident "_"),p) in
-			let args = (match args with
-				| None -> None
-				| Some l -> Some (List.map (function None -> unused | Some v -> (EConst (Ident v.v_name),p)) l)
-			) in
-			let mk_args n =
-				match args with
-				| None -> [unused]
-				| Some args ->
-					args @ Array.to_list (Array.make (n - List.length args) unused)
-			in
-			List.map (fun i ->
-				let c = (try List.nth en.e_names i with _ -> assert false) in
-				let cfield = (try PMap.find c en.e_constrs with Not_found -> assert false) in
-				let c = (EConst (Ident c),p) in
-				(match follow cfield.ef_type with TFun (eargs,_) -> (ECall (c,mk_args (List.length eargs)),p) | _ -> c)
-			) idx, None, (match e.eexpr with TBlock [] -> None | _ -> Some (make_ast e))
-		in
-		let def = match eopt def with None -> None | Some (EBlock [],_) -> Some None | e -> Some e in
-		ESwitch (make_ast e,List.map scases cases,def) *)
-	| TPatMatch dt -> assert false
+	| TPatMatch _
+	| TEnumParameter _ ->
+		(* these are considered complex, so the AST is handled in TMeta(Meta.Ast) *)
+		assert false
 	| TTry (e,catches) -> ETry (make_ast e,List.map (fun (v,e) -> v.v_name, (try make_type v.v_type with Exit -> assert false), make_ast e) catches)
 	| TReturn e -> EReturn (eopt e)
 	| TBreak -> EBreak
@@ -4553,6 +4532,7 @@ let rec make_ast e =
 				Some (try make_type t with Exit -> assert false)
 		) in
 		ECast (make_ast e,t)
+	| TMeta ((Meta.Ast,[e1,_],_),_) -> e1
 	| TMeta (m,e) -> EMeta(m,make_ast e))
 	,e.epos)
 

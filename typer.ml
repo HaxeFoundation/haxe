@@ -2581,15 +2581,16 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		let cond = type_expr ctx cond Value in
 		unify ctx cond.etype ctx.t.tbool cond.epos;
 		mk (TWhile (cond,e,DoWhile)) ctx.t.tvoid p
-	| ESwitch (e,cases,def) ->
+	| ESwitch (e1,cases,def) ->
 		begin try
-			let dt = match_expr ctx e cases def with_type p in
-			if not ctx.in_macro && not (Common.defined ctx.com Define.Interp) && ctx.com.config.pf_pattern_matching then
-				mk (TPatMatch dt) dt.dt_type p
+			let dt = match_expr ctx e1 cases def with_type p in
+			let wrap e1 = if not dt.dt_is_complex then e1 else mk (TMeta((Meta.Ast,[e,p],p),e1)) e1.etype e1.epos in
+			if not ctx.in_macro && not (Common.defined ctx.com Define.Interp) && ctx.com.config.pf_pattern_matching && dt.dt_is_complex then
+				wrap (mk (TPatMatch dt) dt.dt_type p)
 			else
-				Codegen.PatternMatchConversion.to_typed_ast ctx dt p
+				wrap (Codegen.PatternMatchConversion.to_typed_ast ctx dt p)
 		with Exit ->
-			type_switch_old ctx e cases def with_type p
+			type_switch_old ctx e1 cases def with_type p
 		end	
 	| EReturn e ->
 		let e , t = (match e with

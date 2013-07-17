@@ -33,6 +33,7 @@ module Meta = struct
 		| Allow
 		| Annotation
 		| ArrayAccess
+		| Ast
 		| AutoBuild
 		| Bind
 		| Bitmap
