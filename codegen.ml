@@ -1468,7 +1468,7 @@ module Abstract = struct
 		let ef = mk (TField (ethis,(FStatic (c,cf)))) (map cf.cf_type) p in
 		make_call ctx ef args (map t) p
 
-	let rec check_cast ctx tleft eright p =
+	let rec do_check_cast ctx tleft eright p =
 		let tright = follow eright.etype in
 		let tleft = follow tleft in
 		if tleft == tright then eright else
@@ -1502,7 +1502,7 @@ module Abstract = struct
 				begin match find_to a pl t2 with
 					| tcf,None ->
 						let tcf = apply_params a.a_types pl tcf in
-						if type_iseq tcf tleft then eright else check_cast ctx tcf eright p
+						if type_iseq tcf tleft then eright else do_check_cast ctx tcf eright p
 					| _,Some cf ->
 						recurse cf (fun () -> make_static_call ctx c cf a pl [eright] tleft p)
 				end
@@ -1510,7 +1510,7 @@ module Abstract = struct
 				begin match find_from a pl t1 t2 with
 					| tcf,None ->
 						let tcf = apply_params a.a_types pl tcf in
-						if type_iseq tcf tleft then eright else check_cast ctx tcf eright p
+						if type_iseq tcf tleft then eright else do_check_cast ctx tcf eright p
 					| _,Some cf ->
 						recurse cf (fun () -> make_static_call ctx c cf a pl [eright] tleft p)
 				end
@@ -1518,6 +1518,9 @@ module Abstract = struct
 				eright)
 		with Not_found ->
 			eright
+
+	let check_cast ctx tleft eright p =
+		if ctx.com.display then eright else do_check_cast ctx tleft eright p
 
 	let handle_abstract_casts ctx e =
 		let rec loop ctx e = match e.eexpr with
