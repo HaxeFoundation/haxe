@@ -463,7 +463,7 @@ and gen_expr ctx e =
 		gen_value ctx e;
 		spr ctx ")";
 	| TMeta (_,e) ->
-		gen_value ctx e
+		gen_expr ctx e
 	| TReturn eo ->
 		if ctx.in_value <> None then unsupported e.epos;
 		(match eo with
@@ -741,13 +741,14 @@ and gen_value ctx e =
 	| TEnumParameter _
 	| TTypeExpr _
 	| TParenthesis _
-	| TMeta _
 	| TObjectDecl _
 	| TArrayDecl _
 	| TNew _
 	| TUnop _
 	| TFunction _ ->
 		gen_expr ctx e
+	| TMeta (_,e1) ->
+		gen_value ctx e1
 	| TCall (e,el) ->
 		gen_call ctx e el true
 	| TReturn _
