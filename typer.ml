@@ -1909,16 +1909,6 @@ and type_switch_old ctx e cases def with_type p =
 	let t = if with_type = NoValue then (mk_mono()) else unify_min ctx (List.rev !el) in
 	mk (TSwitch (eval,cases,def)) t p
 
-and type_switch ctx e cases def with_type p =
-	try
-		let dt = match_expr ctx e cases def with_type p in
-		if not ctx.in_macro && not (Common.defined ctx.com Define.Interp) && ctx.com.config.pf_pattern_matching then
-			mk (TPatMatch dt) dt.dt_type p
-		else
-			Codegen.PatternMatchConversion.to_typed_ast ctx dt p
-	with Exit ->
-		type_switch_old ctx e cases def with_type p
-
 and type_ident ctx i p mode =
 	try
 		type_ident_raise ctx i p mode
@@ -2592,7 +2582,15 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		unify ctx cond.etype ctx.t.tbool cond.epos;
 		mk (TWhile (cond,e,DoWhile)) ctx.t.tvoid p
 	| ESwitch (e,cases,def) ->
-		type_switch ctx e cases def with_type p
+		begin try
+			let dt = match_expr ctx e cases def with_type p in
+			if not ctx.in_macro && not (Common.defined ctx.com Define.Interp) && ctx.com.config.pf_pattern_matching then
+				mk (TPatMatch dt) dt.dt_type p
+			else
+				Codegen.PatternMatchConversion.to_typed_ast ctx dt p
+		with Exit ->
+			type_switch_old ctx e cases def with_type p
+		end	
 	| EReturn e ->
 		let e , t = (match e with
 			| None ->

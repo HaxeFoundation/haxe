@@ -304,6 +304,7 @@ and decision_tree = {
 	dt_first : int;
 	dt_type : t;
 	dt_var_init : (tvar * texpr option) list;
+	dt_is_complex : bool;
 }
 
 let alloc_var =

@@ -94,6 +94,7 @@ type pattern_ctx = {
 	mutable pc_locals : (string, pvar) PMap.t;
 	mutable pc_sub_vars : (string, pvar) PMap.t option;
 	mutable pc_reify : bool;
+	mutable pc_is_complex : bool;
 }
 
 type matcher = {
@@ -369,6 +370,7 @@ let to_pattern ctx e t =
 				in
 				let el = loop2 0 el tl in
 				List.iter2 (fun m (_,t) -> match follow m with TMono _ -> Type.unify m t | _ -> ()) monos ef.ef_params;
+				pctx.pc_is_complex <- true;
 				mk_con_pat (CEnum(en,ef)) el r p
 			| _ -> perror p)
 		| EConst(Ident "_") ->
@@ -457,6 +459,7 @@ let to_pattern ctx e t =
 				with Not_found ->
 					error (unify_error_msg (print_context()) (has_extra_field t n)) p
 			in
+			pctx.pc_is_complex <- true;
 			begin match follow t with
 			| TAnon {a_fields = fields} ->
 				List.iter (fun (n,(_,p)) -> is_valid_field_name fields n p) fl;
@@ -491,6 +494,7 @@ let to_pattern ctx e t =
 		| EArrayDecl [] ->
 			mk_con_pat (CArray 0) [] t p
 		| EArrayDecl el ->
+			pctx.pc_is_complex <- true;
 			begin match follow t with
 				| TInst({cl_path=[],"Array"},[t2]) ->
 					let pl = ExtList.List.mapi (fun i e ->
@@ -536,8 +540,10 @@ let to_pattern ctx e t =
 						pc_sub_vars = Some pctx.pc_locals;
 						pc_locals = old;
 						pc_reify = pctx.pc_reify;
+						pc_is_complex = pctx.pc_is_complex;
 					} in
 					let pat2 = loop pctx2 e2 t2 in
+					pctx.pc_is_complex <- pctx2.pc_is_complex;
 					PMap.iter (fun s (_,p) -> if not (PMap.mem s pctx2.pc_locals) then verror s p) pctx.pc_locals;
 					mk_pat (POr(pat1,pat2)) pat2.p_type (punion pat1.p_pos pat2.p_pos);
 			end
@@ -548,13 +554,14 @@ let to_pattern ctx e t =
 		pc_locals = PMap.empty;
 		pc_sub_vars = None;
 		pc_reify = false;
+		pc_is_complex = false;
 	} in
 	let x = loop pctx e t in
-	x, pctx.pc_locals
+	x, pctx.pc_locals, pctx.pc_is_complex
 
 let get_pattern_locals ctx e t =
 	try
-		let _,locals = to_pattern ctx e t in
+		let _,locals,_ = to_pattern ctx e t in
 		PMap.foldi (fun n (v,_) acc -> PMap.add n v acc) locals PMap.empty
 	with Unrecognized_pattern _ ->
 		PMap.empty
@@ -1039,8 +1046,10 @@ let match_expr ctx e cases def with_type p =
 		List.iter (fun e -> match fst e with EBinop(OpOr,_,_) -> mctx.toplevel_or <- true; | _ -> ()) el;
 		collapse_case el,eg,e
 	) cases in
-	let add_pattern_locals (pat,locals) =
+	let is_complex = ref false in
+	let add_pattern_locals (pat,locals,complex) =
 		PMap.iter (fun n (v,p) -> ctx.locals <- PMap.add n v ctx.locals) locals;
+		if complex then is_complex := true;
 		pat
 	in
 	(* evaluate patterns *)
@@ -1222,6 +1231,7 @@ let match_expr ctx e cases def with_type p =
 		dt_dt_lookup = DynArray.to_array lut;
 		dt_type = t;
 		dt_var_init = List.rev !var_inits;
+		dt_is_complex = !is_complex;
 	}
 ;;
 match_expr_ref := match_expr;
