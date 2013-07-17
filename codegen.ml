@@ -1542,7 +1542,6 @@ module Abstract = struct
 					{e with etype = m}
 				end
 			| TCall(e1, el) ->
-				let e1 = loop ctx e1 in
 				begin try
 					begin match e1.eexpr with
 						| TField(e2,fa) ->
