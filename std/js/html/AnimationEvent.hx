@@ -34,6 +34,6 @@ extern class AnimationEvent extends Event
 	/** The amount of time, in seconds, the animation had been running at the time the event occurred. */
 	var elapsedTime(default,null) : Float;
 
-	function new(type : String, canBubble : Bool = true, cancelable : Bool = true) : Void;
+	function new( type : String, canBubble : Bool = true, cancelable : Bool = true ) : Void;
 
 }

@@ -54,7 +54,7 @@ extern class Worker extends AbstractWorker
 <div id="section_7"><span id="Return_value"></span><h6 class="editable">Return value</h6>
 <p>A new <code>Worker</code>.</p>
 </div></div> */
-	function new() : Void;
+	function new( scriptUrl : String ) : Void;
 
 	function postMessage( message : Dynamic, ?messagePorts : Array<Dynamic> ) : Void;
 

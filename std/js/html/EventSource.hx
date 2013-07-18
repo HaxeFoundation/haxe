@@ -55,7 +55,7 @@ extern class EventSource extends EventTarget
 	/** Read only. */
 	var url(default,null) : String;
 
-	function new() : Void;
+	function new( scriptUrl : String ) : Void;
 
 	function close() : Void;
 

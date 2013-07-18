@@ -36,6 +36,6 @@ extern class Point
 <pre>let p = new Point(x, y);
 </pre>
 <p>The new point, <code>p</code>, has the specified X&nbsp;and Y&nbsp;coordinates.</p> */
-	function new(?arg0 : Dynamic, ?arg1 : Dynamic) : Void;
+	function new( ?arg0 : Dynamic, ?arg1 : Dynamic ) : Void;
 
 }

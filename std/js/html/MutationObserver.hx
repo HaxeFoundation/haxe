@@ -26,7 +26,7 @@ package js.html;
 @:native("MutationObserver")
 extern class MutationObserver
 {
-	function new(?arg0 : Dynamic) : Void;
+	function new( ?arg0 : Dynamic ) : Void;
 
 	function disconnect() : Void;
 

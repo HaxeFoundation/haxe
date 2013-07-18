@@ -44,7 +44,7 @@ extern class MessageEvent extends Event
 
 	var source(default,null) : DOMWindow;
 
-	function new(type : String, canBubble : Bool = true, cancelable : Bool = true) : Void;
+	function new( type : String, canBubble : Bool = true, cancelable : Bool = true ) : Void;
 
 	@:overload( function( typeArg : String, canBubbleArg : Bool, cancelableArg : Bool, dataArg : Dynamic, originArg : String, lastEventIdArg : String, sourceArg : DOMWindow, messagePorts : Array<Dynamic> ) :Void {} )
 	function initMessageEvent( typeArg : String, canBubbleArg : Bool, cancelableArg : Bool, dataArg : Dynamic, originArg : String, lastEventIdArg : String, sourceArg : DOMWindow, transferables : Array<Dynamic> ) : Void;

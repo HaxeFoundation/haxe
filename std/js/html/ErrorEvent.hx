@@ -32,6 +32,6 @@ extern class ErrorEvent extends Event
 
 	var message(default,null) : String;
 
-	function new(type : String, canBubble : Bool = true, cancelable : Bool = true) : Void;
+	function new( type : String, canBubble : Bool = true, cancelable : Bool = true ) : Void;
 
 }

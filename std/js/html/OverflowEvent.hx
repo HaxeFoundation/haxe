@@ -38,6 +38,6 @@ extern class OverflowEvent extends Event
 
 	var verticalOverflow(default,null) : Bool;
 
-	function new(type : String, canBubble : Bool = true, cancelable : Bool = true) : Void;
+	function new( type : String, canBubble : Bool = true, cancelable : Bool = true ) : Void;
 
 }

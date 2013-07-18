@@ -56,7 +56,7 @@ extern class PeerConnection extends js.html.EventTarget
 
 	var remoteStreams(default,null) : MediaStreamList;
 
-	function new() : Void;
+	function new( rtcIceServers : Dynamic, ?mediaConstraints : Dynamic ) : Void;
 
 	function addIceCandidate( candidate : IceCandidate ) : Void;
 
