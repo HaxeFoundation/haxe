@@ -374,6 +374,8 @@ module MetaInfo = struct
 		| SkipReflection -> ":skipReflection",("Used internally to annotate a field that shouldn't have its reflection data generated",[Platforms [Java;Cs]; UsedOn TClassField; Internal])
 		| Sound -> ":sound",( "Includes a given .wav or .mp3 file into the target Swf and associates it with the class (must extend flash.media.Sound)",[HasParam "File path";UsedOn TClass;Platform Flash])
 		| Struct -> ":struct",("Marks a class definition as a struct.",[Platform Cs; UsedOn TClass])
+		| ClassHeader -> ":csClassHeader",("Include C# code immediately before the class declaration",[Platform Cs; UsedOn TClass])
+                | FieldHeader -> ":csFieldHeader",("Include C# code immediately before a method/field declaration",[Platform Cs; UsedOn TClassField])
 		| SuppressWarnings -> ":suppressWarnings",("Adds a SuppressWarnings annotation for the generated Java class",[Platform Java; UsedOn TClass])
 		| Throws -> ":throws",("Adds a 'throws' declaration to the generated function.",[HasParam "Type as String"; Platform Java; UsedOn TClassField])
 		| To -> ":to",("Specifies that the field of the abstract is a cast operation to the type identified in the function",[UsedOn TAbstractField])

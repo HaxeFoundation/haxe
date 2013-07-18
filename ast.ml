@@ -117,6 +117,8 @@ module Meta = struct
 		| SkipReflection
 		| Sound
 		| Struct
+                | ClassHeader
+                | FieldHeader
 		| SuppressWarnings
 		| Throws
 		| To

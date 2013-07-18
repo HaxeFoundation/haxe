@@ -5945,7 +5945,7 @@ struct
         | TNew (cl, tparams, eparams) -> (try
           let is_overload, cf, sup, stl = choose_ctor gen cl tparams (List.map (fun e -> e.etype) eparams) maybe_empty_t e.epos in
           let handle e t1 t2 =
-            if true then
+            if is_overload then
               let ret = handle e t1 t2 in
               match ret.eexpr with
               | TCast _ -> ret

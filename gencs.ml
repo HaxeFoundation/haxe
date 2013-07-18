@@ -537,27 +537,29 @@ let reserved = let res = Hashtbl.create 120 in
 
 let dynamic_anon = TAnon( { a_fields = PMap.empty; a_status = ref Closed } )
 
-let rec get_class_modifiers meta cl_type cl_access cl_modifiers =
+let rec get_class_modifiers meta cl_prefix cl_type cl_access cl_modifiers =
   match meta with
-    | [] -> cl_type,cl_access,cl_modifiers
-    | (Meta.Struct,[],_) :: meta -> get_class_modifiers meta "struct" cl_access cl_modifiers
-    | (Meta.Protected,[],_) :: meta -> get_class_modifiers meta cl_type "protected" cl_modifiers
-    | (Meta.Internal,[],_) :: meta -> get_class_modifiers meta cl_type "internal" cl_modifiers
-    (* no abstract for now | (":abstract",[],_) :: meta -> get_class_modifiers meta cl_type cl_access ("abstract" :: cl_modifiers)
-    | (":static",[],_) :: meta -> get_class_modifiers meta cl_type cl_access ("static" :: cl_modifiers) TODO: support those types *)
-    | (Meta.Final,[],_) :: meta -> get_class_modifiers meta cl_type cl_access ("sealed" :: cl_modifiers)
-    | (Meta.Unsafe,[],_) :: meta -> get_class_modifiers meta cl_type cl_access ("unsafe" :: cl_modifiers)
-    | _ :: meta -> get_class_modifiers meta cl_type cl_access cl_modifiers
+    | [] -> cl_prefix,cl_type,cl_access,cl_modifiers
+    | (Meta.ClassHeader,[(EConst(String(s)), _)], _) :: meta -> get_class_modifiers meta s cl_type cl_access cl_modifiers
+    | (Meta.Struct,[],_) :: meta -> get_class_modifiers meta cl_prefix "struct" cl_access cl_modifiers
+    | (Meta.Protected,[],_) :: meta -> get_class_modifiers meta cl_prefix cl_type "protected" cl_modifiers
+    | (Meta.Internal,[],_) :: meta -> get_class_modifiers meta cl_prefix cl_type "internal" cl_modifiers
+    (* no abstract for now | (":abstract",[],_) :: meta -> get_class_modifiers meta cl_prefix cl_type cl_access ("abstract" :: cl_modifiers)
+    | (":static",[],_) :: meta -> get_class_modifiers meta cl_prefix cl_type cl_access ("static" :: cl_modifiers) TODO: support those types *)
+    | (Meta.Final,[],_) :: meta -> get_class_modifiers meta cl_prefix cl_type cl_access ("sealed" :: cl_modifiers)
+    | (Meta.Unsafe,[],_) :: meta -> get_class_modifiers meta cl_prefix cl_type cl_access ("unsafe" :: cl_modifiers)
+    | _ :: meta -> get_class_modifiers meta cl_prefix cl_type cl_access cl_modifiers
 
-let rec get_fun_modifiers meta access modifiers =
+let rec get_fun_modifiers meta prefix access modifiers =
   match meta with
-    | [] -> access,modifiers
-    | (Meta.Protected,[],_) :: meta -> get_fun_modifiers meta "protected" modifiers
-    | (Meta.Internal,[],_) :: meta -> get_fun_modifiers meta "internal" modifiers
-    | (Meta.ReadOnly,[],_) :: meta -> get_fun_modifiers meta access ("readonly" :: modifiers)
-    | (Meta.Unsafe,[],_) :: meta -> get_fun_modifiers meta access ("unsafe" :: modifiers)
-    | (Meta.Volatile,[],_) :: meta -> get_fun_modifiers meta access ("volatile" :: modifiers)
-    | _ :: meta -> get_fun_modifiers meta access modifiers
+    | [] -> prefix,access,modifiers
+    | (Meta.FieldHeader,[(EConst(String(s)), _)],_) :: meta -> get_fun_modifiers meta s access modifiers
+    | (Meta.Protected,[],_) :: meta -> get_fun_modifiers meta prefix "protected" modifiers
+    | (Meta.Internal,[],_) :: meta -> get_fun_modifiers meta prefix "internal" modifiers
+    | (Meta.ReadOnly,[],_) :: meta -> get_fun_modifiers meta prefix access ("readonly" :: modifiers)
+    | (Meta.Unsafe,[],_) :: meta -> get_fun_modifiers meta prefix access ("unsafe" :: modifiers)
+    | (Meta.Volatile,[],_) :: meta -> get_fun_modifiers meta prefix access ("volatile" :: modifiers)
+    | _ :: meta -> get_fun_modifiers meta prefix access modifiers
 
 (* this was the way I found to pass the generator context to be accessible across all functions here *)
 (* so 'configure' is almost 'top-level' and will have all functions needed to make this work *)
@@ -894,13 +896,15 @@ let configure gen =
         false in
 
   let last_line = ref (-1) in
+  let begin_block w = write w "{"; push_indent w; newline w; last_line := -1 in
+  let end_block w = pop_indent w; (if w.sw_has_content then newline w); write w "}"; newline w; last_line := -1 in
   let line_directive =
     if Common.defined gen.gcon Define.RealPosition then
       fun w p -> ()
     else fun w p ->
       let cur_line = Lexer.get_error_line p in
-      let is_relative_path = (String.sub p.pfile 0 1) = "." in
-      let file = if is_relative_path then Common.get_full_path p.pfile else p.pfile in
+      (* let is_relative_path = (String.sub p.pfile 0 1) = "." in *)
+      let file = (*if is_relative_path then *) Common.get_full_path p.pfile (* else p.pfile *) in
       if cur_line <> ((!last_line)+1) then begin print w "#line %d \"%s\"" cur_line (Ast.s_escape file); newline w end;
       last_line := cur_line
   in
@@ -1155,8 +1159,8 @@ let configure gen =
         | TBlock el ->
           begin_block w;
           List.iter (fun e ->
-            line_directive w e.epos;
             in_value := false;
+            line_directive w e.epos;
             expr_s w e;
             (if has_semicolon e then write w ";");
             newline w
@@ -1379,15 +1383,15 @@ let configure gen =
         (if is_overload || List.exists (fun cf -> cf.cf_expr <> None) cf.cf_overloads then
           gen.gcon.error "Only normal (non-dynamic) methods can be overloaded" cf.cf_pos);
         if not is_interface then begin
-          let access, modifiers = get_fun_modifiers cf.cf_meta "public" [] in
+          let prefix, access, modifiers = get_fun_modifiers cf.cf_meta "" "public" [] in
           let modifiers = modifiers @ modf in
           (match cf.cf_expr with
             | Some e ->
-              print w "%s %s%s %s %s = " access (if is_static then "static " else "") (String.concat " " modifiers) (t_s (run_follow gen cf.cf_type)) (change_field name);
+              print w "%s %s %s%s %s %s = " prefix access (if is_static then "static " else "") (String.concat " " modifiers) (t_s (run_follow gen cf.cf_type)) (change_field name);
               expr_s w e;
               write w ";"
             | None ->
-              print w "%s %s%s %s %s;" access (if is_static then "static " else "") (String.concat " " modifiers) (t_s (run_follow gen cf.cf_type)) (change_field name)
+              print w "%s %s %s%s %s %s;" prefix access (if is_static then "static " else "") (String.concat " " modifiers) (t_s (run_follow gen cf.cf_type)) (change_field name)
           )
         end (* TODO see how (get,set) variable handle when they are interfaces *)
       | Method _ when Type.is_extern_field cf || (match cl.cl_kind, cf.cf_expr with | KAbstractImpl _, None -> true | _ -> false) ->
@@ -1416,15 +1420,17 @@ let configure gen =
         let is_virtual = is_virtual && not (Meta.has Meta.Final cl.cl_meta) && not (is_interface) in
         let visibility = if is_interface then "" else "public" in
 
-        let visibility, modifiers = get_fun_modifiers cf.cf_meta visibility [] in
+        let prefix, visibility, modifiers = get_fun_modifiers cf.cf_meta "" visibility [] in
         let modifiers = modifiers @ modf in
         let visibility, is_virtual = if is_explicit_iface then "",false else visibility, is_virtual in
         let v_n = if is_static then "static " else if is_override && not is_interface then "override " else if is_virtual then "virtual " else "" in
         let cf_type = if is_override && not is_overload && not (Meta.has Meta.Overload cf.cf_meta) then match field_access gen (TInst(cl, List.map snd cl.cl_types)) cf.cf_name with | FClassField(_,_,_,_,_,actual_t,_) -> actual_t | _ -> assert false else cf.cf_type in
         let ret_type, args = match follow cf_type with | TFun (strbtl, t) -> (t, strbtl) | _ -> assert false in
 
+        line_directive w cf.cf_pos;
+
         (* public static void funcName *)
-        print w "%s %s %s %s %s" (visibility) v_n (String.concat " " modifiers) (if is_new then "" else rett_s (run_follow gen ret_type)) (change_field name);
+        print w "%s %s %s %s %s %s" (prefix) (visibility) v_n (String.concat " " modifiers) (if is_new then "" else rett_s (run_follow gen ret_type)) (change_field name);
         let params, params_ext = get_string_params cf.cf_params in
         (* <T>(string arg1, object arg2) with T : object *)
         (match cf.cf_expr with
@@ -1470,6 +1476,7 @@ let configure gen =
                           t()
                       );
                       begin_block w;
+                      line_directive w expr.epos;
                       write w "unchecked ";
                       let t = Common.timer "expression to string" in
                       expr_s w { expr with eexpr = TBlock(rest) };
@@ -1479,6 +1486,7 @@ let configure gen =
                     | _ -> assert false
                 end else begin
                   begin_block w;
+                  line_directive w expr.epos;
                   write w "unchecked ";
                   let t = Common.timer "expression to string" in
                   expr_s w expr;
@@ -1681,10 +1689,10 @@ let configure gen =
         | _ -> false
     in
 
-    let clt, access, modifiers = get_class_modifiers cl.cl_meta (if cl.cl_interface then "interface" else "class") "public" [] in
+    let prefix, clt, access, modifiers = get_class_modifiers cl.cl_meta "" (if cl.cl_interface then "interface" else "class") "public" [] in
     let is_final = clt = "struct" || Meta.has Meta.Final cl.cl_meta in
 
-    print w "%s %s %s %s" access (String.concat " " modifiers) clt (change_clname (snd cl.cl_path));
+    print w "%s %s %s %s %s" prefix access (String.concat " " modifiers) clt (change_clname (snd cl.cl_path));
     (* type parameters *)
     let params, params_ext = get_string_params cl.cl_types in
     let extends_implements = (match cl.cl_super with | None -> [] | Some (cl,p) -> [path_param_s (TClassDecl cl) cl.cl_path p]) @ (List.map (fun (cl,p) -> path_param_s (TClassDecl cl) cl.cl_path p) cl.cl_implements) in
