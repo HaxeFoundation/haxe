@@ -878,7 +878,12 @@ let gen_class_static_field ctx c f =
 			ctx.id_counter <- 0;
 			if ctx.js_flatten then
 				print ctx "var ";
-			print ctx "%s = " path;
+			print ctx "%s" path;
+			if ctx.js_flatten then
+				(* Also generate the dotted field under js_flatten, so calls on
+				 * Dynamic and reflection work. *)
+				print ctx " = %s%s" (s_path ctx c.cl_path) (static_field ctx true f.cf_name);
+			print ctx " = ";
 			gen_value ctx e;
 			ctx.separator <- false;
 			newline ctx;
@@ -1017,7 +1022,12 @@ let generate_enum ctx e =
 		let enum_var = p ^ (static_field ctx false f.ef_name) in
 		if ctx.js_flatten then
 			print ctx "var ";
-		print ctx "%s = " enum_var;
+		print ctx "%s" enum_var;
+		if ctx.js_flatten then
+			(* Also generate the dotted field under js_flatten, so calls on
+			 * Dynamic and reflection work. *)
+			print ctx " = %s%s" p (static_field ctx true f.ef_name);
+		print ctx " = ";
 		(match f.ef_type with
 		| TFun (args,_) ->
 			let sargs = String.concat "," (List.map (fun (n,_,_) -> ident n) args) in
