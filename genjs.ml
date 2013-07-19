@@ -861,7 +861,8 @@ let check_field_name c f =
 
 let gen_class_static_field ctx c f =
 	match f.cf_expr with
-	| None | Some { eexpr = TConst TNull } when not (has_feature ctx "Type.getClassFields") ->
+	(* Under js_flatten, all statics need to be explicitly defined, even when null *)
+	| None | Some { eexpr = TConst TNull } when not (has_feature ctx "Type.getClassFields") && not ctx.js_flatten ->
 		()
 	| None when is_extern_field f ->
 		()
