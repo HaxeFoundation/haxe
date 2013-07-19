@@ -945,6 +945,8 @@ let convert_switch ctx st cases loop =
 		mk (TField (e_st,quick_field t "length")) ctx.t.tint p
 	| TAbstract(a,_) when Meta.has Meta.FakeEnum a.a_meta ->
 		mk (TMeta((Meta.Exhaustive,[],p), e_st)) e_st.etype e_st.epos
+	| TAbstract({a_path = [],"Bool"},_) ->
+		mk (TMeta((Meta.Exhaustive,[],p), e_st)) e_st.etype e_st.epos		
 	| _ ->
 		e_st
 	in
