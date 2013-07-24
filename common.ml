@@ -279,6 +279,7 @@ module MetaInfo = struct
 		| TEnum
 		| TTypedef
 		| TAnyField
+		| TExpr
 
 	type meta_parameter =
 		| HasParam of string
@@ -366,7 +367,7 @@ module MetaInfo = struct
 		| Overload -> ":overload",("Allows the field to be called with different argument types",[HasParam "Function specification (no expression)";UsedOn TClassField])
 		| Public -> ":public",("Marks a class field as being public",[UsedOn TClassField])
 		| PublicFields -> ":publicFields",("Forces all class fields of inheriting classes to be public",[UsedOn TClass])
-		| PrivateAccess -> ":privateAccess",("Internally used by the typer to allow context-sensitive private access",[Internal])
+		| PrivateAccess -> ":privateAccess",("Allow private access to anything for the annotated expression",[UsedOn TExpr])
 		| Protected -> ":protected",("Marks a class field as being protected",[UsedOn TClassField])
 		| ReadOnly -> ":readOnly",("Generates a field with the 'readonly' native keyword",[Platform Cs; UsedOn TClassField])
 		| RealPath -> ":realPath",("Internally used on @:native types to retain original path information",[Internal])
