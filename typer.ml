@@ -3118,6 +3118,7 @@ and build_call ctx acc el (with_type:with_type) p =
 			let params,args,r = match t with
 				| TFun ((_,_,t1) :: args,r) ->
 					unify ctx tthis t1 eparam.epos;
+					let ef = prepare_using_field ef in
 					begin match unify_call_params ctx (Some (TInst(cl,[]),ef)) el args r p (ef.cf_kind = Method MethInline) with
 					| el,TFun(args,r) -> el,args,r
 					| _ -> assert false
