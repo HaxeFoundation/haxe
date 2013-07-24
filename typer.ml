@@ -279,10 +279,23 @@ let find_array_access a pl c t1 t2 is_set =
 			loop cfl
 		| cf :: cfl ->
 			match follow (apply_params a.a_types pl (monomorphs cf.cf_params cf.cf_type)) with
-			| TFun([(_,_,tab);(_,_,ta1);(_,_,ta2)],r) as tf when is_set && type_iseq tab ta && type_iseq ta1 t1 && type_iseq ta2 t2 ->
-				cf,tf,r
-			| TFun([(_,_,tab);(_,_,ta1)],r) as tf when not is_set && type_iseq tab ta && type_iseq ta1 t1 ->
-				cf,tf,r
+			| TFun([(_,_,tab);(_,_,ta1);(_,_,ta2)],r) as tf when is_set ->
+				begin try
+					Type.unify tab ta;
+					Type.unify t1 ta1;
+					Type.unify t2 ta2;
+					cf,tf,r
+				with Unify_error _ ->
+					loop cfl
+				end
+			| TFun([(_,_,tab);(_,_,ta1)],r) as tf when not is_set ->
+				begin try
+					Type.unify tab ta;
+					Type.unify t1 ta1;
+					cf,tf,r
+				with Unify_error _ ->
+					loop cfl
+				end
 			| _ -> loop cfl
 	in
 	loop a.a_array
