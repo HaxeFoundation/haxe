@@ -3048,7 +3048,7 @@ and type_call ctx e el (with_type:with_type) p =
 	let def () = (match e with
 		| EField ((EConst (Ident "super"),_),_) , _ -> ctx.in_super_call <- true
 		| _ -> ());
-		build_call ctx (type_access ctx (fst e) (snd e) MCall) el with_type p
+		build_call ctx e (type_access ctx (fst e) (snd e) MCall) el with_type p
 	in
 	match e, el with
 	| (EConst (Ident "trace"),p) , e :: el ->
@@ -3068,7 +3068,7 @@ and type_call ctx e el (with_type:with_type) p =
 		let ecb = try Some (type_ident_raise ctx "callback" p1 MCall) with Not_found -> None in
 		(match ecb with
 		| Some ecb ->
-			build_call ctx ecb args with_type p
+			build_call ctx e ecb args with_type p
 		| None ->
 			display_error ctx "callback syntax has changed to func.bind(args)" p;
 			let e = type_expr ctx e Value in
@@ -3107,7 +3107,7 @@ and type_call ctx e el (with_type:with_type) p =
 	| _ ->
 		def ()
 
-and build_call ctx acc el (with_type:with_type) p =
+and build_call ctx e acc el (with_type:with_type) p =
 	let fopts t f = match follow t with
 		| (TInst (c,pl) as t) -> Some (t,f)
 		| (TAnon a) as t -> (match !(a.a_status) with Statics c -> Some (TInst(c,[]),f) | _ -> Some (t,f))
@@ -3130,7 +3130,7 @@ and build_call ctx acc el (with_type:with_type) p =
 		begin match ef.cf_kind with
 		| Method MethMacro ->
 			let ethis = type_module_type ctx (TClassDecl cl) None p in
-			build_call ctx (AKMacro (ethis,ef)) (Interp.make_ast eparam :: el) with_type p
+			build_call ctx e (AKMacro (ethis,ef)) (e :: el) with_type p
 		| _ ->
 			let t = follow (field_type ctx cl [] ef p) in
 			(* for abstracts we have to apply their parameters to the static function *)
