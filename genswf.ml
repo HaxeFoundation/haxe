@@ -458,7 +458,7 @@ let remove_debug_infos as3 =
 
 let parse_swf com file =
 	let t = Common.timer "read swf" in
-	let is_swc = file_extension file = "swc" in
+	let is_swc = file_extension file = "swc" || file_extension file = "ane" in
 	let file = (try Common.find_file com file with Not_found -> failwith ((if is_swc then "SWC" else "SWF") ^ " Library not found : " ^ file)) in
 	let ch = if is_swc then begin
 		let zip = Zip.open_in file in
