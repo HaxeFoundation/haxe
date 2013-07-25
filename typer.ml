@@ -828,22 +828,27 @@ let field_access ctx mode f fmode t e p =
 	match f.cf_kind with
 	| Method m ->
 		if mode = MSet && m <> MethDynamic && not ctx.untyped then error "Cannot rebind this method : please use 'dynamic' before method declaration" p;
-		(match m, mode with
-		| _ when (match e.eexpr with TTypeExpr(TClassDecl ({cl_kind = KAbstractImpl a} as c)) -> c == ctx.curclass && ctx.curfun = FunMemberAbstract && Meta.has Meta.Impl f.cf_meta | _ -> false) ->
+		begin match e.eexpr with
+		| TTypeExpr(TClassDecl ({cl_kind = KAbstractImpl a} as c)) when c == ctx.curclass && ctx.curfun = FunMemberAbstract && Meta.has Meta.Impl f.cf_meta ->
 			let e = mk (TField(e,fmode)) t p in
-			AKUsing(e,ctx.curclass,f,get_this ctx p)
-		| MethInline, _ -> AKInline (e,f,fmode,t)
-		| MethMacro, MGet -> display_error ctx "Macro functions must be called immediately" p; normal()
-		| MethMacro, MCall -> AKMacro (e,f)
-		| _ , MGet ->
-			let cmode = (match fmode with
-				| FInstance (c,cf) -> FClosure (Some c,cf)
-				| FStatic _ | FEnum _ -> fmode
-				| FAnon f -> FClosure (None, f)
-				| FDynamic _ | FClosure _ -> assert false
-			) in
-			AKExpr (mk (TField (e,cmode)) t p)
-		| _ -> normal())
+			let ethis = get_this ctx p in
+			let ethis = {ethis with etype = TAbstract(a,List.map (fun _ -> mk_mono()) a.a_types)} in
+			AKUsing(e,ctx.curclass,f,ethis)
+		| _ ->
+			(match m, mode with
+			| MethInline, _ -> AKInline (e,f,fmode,t)
+			| MethMacro, MGet -> display_error ctx "Macro functions must be called immediately" p; normal()
+			| MethMacro, MCall -> AKMacro (e,f)
+			| _ , MGet ->
+				let cmode = (match fmode with
+					| FInstance (c,cf) -> FClosure (Some c,cf)
+					| FStatic _ | FEnum _ -> fmode
+					| FAnon f -> FClosure (None, f)
+					| FDynamic _ | FClosure _ -> assert false
+				) in
+				AKExpr (mk (TField (e,cmode)) t p)
+			| _ -> normal())
+		end
 	| Var v ->
 		match (match mode with MGet | MCall -> v.v_read | MSet -> v.v_write) with
 		| AccNo ->
