@@ -350,6 +350,8 @@ let rec default_value ctx t p =
 	| TAbstract ({ a_path = ([], "Void") }, _) -> "()"
 	| _ when is_nullable t ->
 		"None"
+	| _ ->
+		error "No default value for this type" p
 
 let rec s_tparams ctx params p =
 	if List.length params > 0 then
@@ -668,6 +670,12 @@ and gen_expr ctx e =
 		unwrap ctx e1;
 		print ctx " %s " (Ast.s_binop op);
 		unwrap ctx e2;
+	| TEnumParameter (e,_,i) ->
+		gen_value ctx e;
+		print ctx ".params[%i]" i;
+	| TMeta (_,e) ->
+		gen_value ctx e
+	| TPatMatch _ -> assert false
 	| TField( e, FStatic({ cl_path = ([], "Math") }, { cf_name = "PI" })) ->
 		spr ctx "3.1415926589f64"
 	| TField( e, FStatic({ cl_path = ([], "Math") }, { cf_name = "NaN" })) ->
@@ -1126,8 +1134,8 @@ let generate_field ctx static f =
 	let public = f.cf_public || Hashtbl.mem ctx.get_sets (f.cf_name,static) || (f.cf_name = "main" && static) || f.cf_name = "resolve" || Ast.Meta.has Ast.Meta.Public f.cf_meta in
 	let rights = (if public then "pub" else "priv") in
 	let p = ctx.curclass.cl_pos in
-	match f.cf_expr, f.cf_kind with
-	| Some { eexpr = TFunction fd }, Method (MethNormal | MethInline) ->
+	match f.cf_expr with
+	| Some { eexpr = TFunction fd } ->
 		soft_newline ctx;
 		print ctx "%s " rights;
 		let rec loop c =
@@ -1151,50 +1159,7 @@ let generate_field ctx static f =
 		if (not ctx.in_interface) && String.length code = 0 then
 			gen_expr ctx fd.tf_expr;
 		h()
-	| _ ->
-		let is_getset = (match f.cf_kind with Var { v_read = AccCall } | Var { v_write = AccCall } -> true | _ -> false) in
-		if ctx.curclass.cl_interface then
-			match follow f.cf_type with
-			| TFun (args,r) ->
-				let rec loop = function
-					| [] -> f.cf_name
-					| (Ast.Meta.Getter,[Ast.EConst (Ast.String name),_],_) :: _ -> "get_" ^ name
-					| (Ast.Meta.Setter,[Ast.EConst (Ast.String name),_],_) :: _ -> "set_" ^ name
-					| _ :: l -> loop l
-				in
-				print ctx "fn %s(" (loop f.cf_meta);
-				concat ctx "," (fun (arg,o,t) ->
-					let tstr = type_str ctx t p in
-					print ctx "%s : %s" arg tstr;
-				) args;
-				print ctx ") : %s" (type_str ctx r p);
-			| _ when is_getset ->
-				let t = type_str ctx f.cf_type p in
-				let id = s_ident f.cf_name in
-				(match f.cf_kind with
-				| Var v ->
-					(match v.v_read with
-					| AccNormal -> print ctx "fn get_%s() : %s" id t;
-					| AccCall -> print ctx "fn %s() : %s" id t;
-					| _ -> ());
-					(match v.v_write with
-					| AccNormal -> print ctx "fn set_%s( __v : %s )" id t;
-					| AccCall -> print ctx "fn %s( __v : %s ) : %s" id t t;
-					| _ -> ());
-				| _ -> assert false)
-			| _ when not static ->
-				print ctx "%s: %s" (s_ident f.cf_name) (type_str ctx f.cf_type p);
-				()
-			| _ when static ->
-				print ctx "%s static %s:%s = %s" rights (s_ident f.cf_name) (type_str ctx f.cf_type p) (default_value ctx f.cf_type ctx.curclass.cl_pos);
-				()
-			| _ -> ()
-		else
-		if not is_getset && not static then begin
-			print ctx "%s: %s" (s_ident f.cf_name) (type_str ctx f.cf_type p);
-		end else if not is_getset && static then begin
-			print ctx "%s static %s:%s = %s" rights (s_ident f.cf_name) (type_str ctx f.cf_type p) (default_value ctx f.cf_type ctx.curclass.cl_pos);
-		end
+	| _ -> ()
 
 let rec define_getset ctx stat c =
 	let def f name =
