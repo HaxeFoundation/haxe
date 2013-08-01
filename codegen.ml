@@ -1496,7 +1496,7 @@ module Abstract = struct
 					| Some cf ->
 						recurse cf (fun () -> make_static_call ctx c cf a pl [eright] tleft p)
 				end
-			| TDynamic _,_ | _,TDynamic _ ->
+			| TDynamic _,_ | _,TDynamic _ | _, TMono _ | TMono _, _ ->
 				eright
 			| TAbstract({a_impl = Some c} as a,pl),t2 when not (Meta.has Meta.MultiType a.a_meta) ->
 				begin match find_to a pl t2 with
