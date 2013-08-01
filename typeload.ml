@@ -1649,12 +1649,14 @@ let init_class ctx c p context_init herits fields =
 				name, c, t
 			) fd.f_args in
 			let t = TFun (fun_args args,ret) in
-			if constr && c.cl_interface then error "An interface cannot have a constructor" p;
 			if c.cl_interface && not stat && fd.f_expr <> None then error "An interface method cannot have a body" p;
-			if constr then (match fd.f_type with
-				| None | Some (CTPath { tpackage = []; tname = "Void" }) -> ()
-				| _ -> error "A class constructor can't have a return value" p
-			);
+			if constr then begin
+				if c.cl_interface then error "An interface cannot have a constructor" p;
+				if stat then error "A constructor must not be static" p;
+				match fd.f_type with
+					| None | Some (CTPath { tpackage = []; tname = "Void" }) -> ()
+					| _ -> error "A class constructor can't have a return value" p				
+			end; 
 			let cf = {
 				cf_name = name;
 				cf_doc = f.cff_doc;
