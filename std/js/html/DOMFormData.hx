@@ -26,7 +26,7 @@ package js.html;
 @:native("FormData")
 extern class DOMFormData
 {
-	function new(?arg0 : Dynamic) : Void;
+	function new( ?arg0 : Dynamic ) : Void;
 
 	function append( name : String, value : String, filename : String ) : Void;
 

@@ -30,6 +30,6 @@ extern class TransitionEvent extends Event
 
 	var propertyName(default,null) : String;
 
-	function new(type : String, canBubble : Bool = true, cancelable : Bool = true) : Void;
+	function new( type : String, canBubble : Bool = true, cancelable : Bool = true ) : Void;
 
 }

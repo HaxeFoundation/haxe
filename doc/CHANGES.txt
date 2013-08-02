@@ -1,3 +1,19 @@
+2013-??-??: 3.0.1
+	all : allowed null-patterns in pattern matching
+	all : optimized pattern matching output
+	all : added length field to BytesBuffer, BytesOutput, BytesInput and StringBuf
+	all : evaluate conditional expressions in @:require
+	all : allowed (expr : type) syntax (ECheckType)
+	all : support abstract types in haxe.rtti.XmlParser
+	all : allowed extending generic type parameter
+	all : added EnumValue.match
+	all : added Std.instance
+	all : allow recursive type parameter constraints
+	all : allow @:fakeEnum on abstracts
+	all : allow Class.new
+	macro : allowed $v{(c:Float|Int|String)}
+	macro : resolve error line number in external files
+
 2013-05-25: 3.0.0
 	all : added haxe.ds.BalancedTree
 	all : added haxe.ds.EnumValueMap

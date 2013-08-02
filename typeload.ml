@@ -139,9 +139,6 @@ let make_module ctx mpath file tdecls loadp =
 					| FProp _ when not stat ->
 						display_error ctx "Member property accessors must be get/set or never" p;
 						f
-					| FVar _ when not stat ->
-						display_error ctx "Cannot declare member variable in abstract" p;
-						f
 					| FFun fu when f.cff_name = "new" && not stat ->
 						let init p = (EVars ["this",Some this_t,None],p) in
 						let ret p = (EReturn (Some (EConst (Ident "this"),p)),p) in
@@ -177,6 +174,7 @@ let make_module ctx mpath file tdecls loadp =
 				| (TClassDecl c,_) :: _ ->
 					(try c.cl_meta <- (Meta.get Meta.Build a.a_meta) :: c.cl_meta with Not_found -> ());
 					(try c.cl_meta <- (Meta.get Meta.CoreApi a.a_meta) :: c.cl_meta with Not_found -> ());
+					if Meta.has Meta.FakeEnum a.a_meta then c.cl_meta <- (Meta.Build,[ECall((EField((EField((EField((EConst(Ident "haxe"),p),"macro"),p),"Build"),p),"buildFakeEnum"),p),[]),p],p) :: c.cl_meta;
 					a.a_impl <- Some c;
 					c.cl_kind <- KAbstractImpl a
 				| _ -> assert false);
@@ -214,7 +212,7 @@ let type_function_param ctx t e opt p =
 		t, e
 
 let type_var_field ctx t e stat p =
-	if stat then ctx.curfun <- FunStatic;
+	if stat then ctx.curfun <- FunStatic else ctx.curfun <- FunMember;
 	let e = type_expr ctx e (WithType t) in
 	unify ctx e.etype t p;
 	match t with
@@ -1535,13 +1533,13 @@ let init_class ctx c p context_init herits fields =
 		let p = f.cff_pos in
 		let stat = List.mem AStatic f.cff_access in
 		let extern = Meta.has Meta.Extern f.cff_meta || c.cl_extern in
-		let allow_inline() =
+		let is_abstract,allow_inline =
 			match c.cl_kind, f.cff_kind with
-			| KAbstractImpl _, _ -> true
-			|_, FFun _ -> ctx.g.doinline || extern
-			| _ -> true
+			| KAbstractImpl _, _ -> true,true
+			|_, FFun _ -> false,ctx.g.doinline || extern
+			| _ -> false,true
 		in
-		let inline = List.mem AInline f.cff_access && allow_inline() in
+		let inline = List.mem AInline f.cff_access && allow_inline in
 		let override = List.mem AOverride f.cff_access in
 		let is_macro = Meta.has Meta.Macro f.cff_meta in
 		if is_macro then ctx.com.warning "@:macro should now be 'macro' accessor'" p;
@@ -1561,6 +1559,7 @@ let init_class ctx c p context_init herits fields =
 		} in
 		match f.cff_kind with
 		| FVar (t,e) ->
+			if not stat && is_abstract then error"Cannot declare member variable in abstract" p;
 			if inline && not stat then error "Inline variable must be static" p;
 			if inline && e = None then error "Inline variable must be initialized" p;
 
@@ -1596,7 +1595,6 @@ let init_class ctx c p context_init herits fields =
 			if inline && c.cl_interface then error "You can't declare inline methods in interfaces" p;
 			if Meta.has Meta.Generic f.cff_meta then begin
 				if params = [] then error "Generic functions must have type parameters" p;
-				match c.cl_kind with KAbstractImpl _ -> error "Generic functions are not allowed on abstracts" p | _ -> ()
 			end;
 			let is_macro = is_macro || (is_class_macro && stat) in
 			let f, stat, fd = if not is_macro || stat then
@@ -1610,29 +1608,32 @@ let init_class ctx c p context_init herits fields =
 			in
 			let fd = if not is_macro then
 				fd
-			else if ctx.in_macro then
-				let texpr = CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = None } in
-				{
-					f_params = fd.f_params;
-					f_type = (match fd.f_type with None -> Some texpr | t -> t);
-					f_args = List.map (fun (a,o,t,e) -> a,o,(match t with None -> Some texpr | _ -> t),e) fd.f_args;
-					f_expr = fd.f_expr;
-				}
-			else
-				let tdyn = Some (CTPath { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None }) in
-				let to_dyn = function
-					| { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = Some ("ExprOf"); tparams = [TPType t] } -> Some t
-					| { tpackage = []; tname = ("ExprOf"); tsub = None; tparams = [TPType t] } -> Some t
-					| { tpackage = ["haxe"]; tname = ("PosInfos"); tsub = None; tparams = [] } -> error "haxe.PosInfos is not allowed on macro functions, use Context.currentPos() instead" p
-					| _ -> tdyn
-				in
-				{
-					f_params = fd.f_params;
-					f_type = (match fd.f_type with Some (CTPath t) -> to_dyn t | _ -> tdyn);
-					f_args = List.map (fun (a,o,t,_) -> a,o,(match t with Some (CTPath t) -> to_dyn t | _ -> tdyn),None) fd.f_args;
-					f_expr = None;
-				}
-			in
+			else begin
+				(* a class with a macro cannot be extern in macro context (issue #2015) *)
+				c.cl_extern <- false;
+				if ctx.in_macro then
+					let texpr = CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = None } in
+					{
+						f_params = fd.f_params;
+						f_type = (match fd.f_type with None -> Some texpr | t -> t);
+						f_args = List.map (fun (a,o,t,e) -> a,o,(match t with None -> Some texpr | _ -> t),e) fd.f_args;
+						f_expr = fd.f_expr;
+					}
+				else
+					let tdyn = Some (CTPath { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None }) in
+					let to_dyn = function
+						| { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = Some ("ExprOf"); tparams = [TPType t] } -> Some t
+						| { tpackage = []; tname = ("ExprOf"); tsub = None; tparams = [TPType t] } -> Some t
+						| { tpackage = ["haxe"]; tname = ("PosInfos"); tsub = None; tparams = [] } -> error "haxe.PosInfos is not allowed on macro functions, use Context.currentPos() instead" p
+						| _ -> tdyn
+					in
+					{
+						f_params = fd.f_params;
+						f_type = (match fd.f_type with Some (CTPath t) -> to_dyn t | _ -> tdyn);
+						f_args = List.map (fun (a,o,t,_) -> a,o,(match t with Some (CTPath t) -> to_dyn t | _ -> tdyn),None) fd.f_args;
+						f_expr = None;
+					}
+			end in
 			let parent = (if not stat then get_parent c name else None) in
 			let dynamic = List.mem ADynamic f.cff_access || (match parent with Some { cf_kind = Method MethDynamic } -> true | _ -> false) in
 			if inline && dynamic then error "You can't have both 'inline' and 'dynamic'" p;
@@ -2173,6 +2174,7 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 		let et = TEnum (e,List.map snd e.e_types) in
 		let names = ref [] in
 		let index = ref 0 in
+		let is_flat = ref true in
 		List.iter (fun c ->
 			let p = c.ec_pos in
 			let params = ref [] in
@@ -2193,6 +2195,7 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 			let t = (match c.ec_args with
 				| [] -> rt
 				| l ->
+					is_flat := false;
 					let pnames = ref PMap.empty in
 					TFun (List.map (fun (s,opt,t) ->
 						(match t with CTPath({tpackage=[];tname="Void"}) -> error "Arguments of type Void are not allowed in enum constructors" c.ec_pos | _ -> ());
@@ -2215,7 +2218,8 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 			names := c.ec_name :: !names;
 		) (!constructs);
 		e.e_names <- List.rev !names;
-		e.e_extern <- e.e_extern
+		e.e_extern <- e.e_extern;
+		if !is_flat then e.e_meta <- (Meta.FlatEnum,[],e.e_pos) :: e.e_meta;
 	| ETypedef d ->
 		let t = (match get_type d.d_name with TTypeDecl t -> t | _ -> assert false) in
 		let ctx = { ctx with type_params = t.t_types } in

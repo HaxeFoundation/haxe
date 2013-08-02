@@ -103,7 +103,7 @@ extern class Event
 	/** The name of the event (case-insensitive). */
 	var type(default,null) : String;
 
-	function new(type : String, canBubble : Bool = true, cancelable : Bool = true) : Void;
+	function new( type : String, canBubble : Bool = true, cancelable : Bool = true ) : Void;
 
 	function initEvent( eventTypeArg : String, canBubbleArg : Bool, cancelableArg : Bool ) : Void;
 

@@ -20,18 +20,34 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
-package js.html;
+package haxe;
 
-@:native("ErrorEvent")
-extern class ErrorEvent extends Event
-{
-	var filename(default,null) : String;
+/**
+	This type unifies with any function type.
+	
+	It is intended to be used as a type parameter constraint. If used as a real
+	type, the underlying type will be `Dynamic`.
+**/
+abstract Function(Dynamic) { }
 
-	var lineno(default,null) : Int;
+/**
+	This type unifies with an enum instance if all constructors of the enum
+	require no arguments.
+	
+	It is intended to be used as a type parameter constraint. If used as a real
+	type, the underlying type will be `Dynamic`.
+**/
+abstract FlatEnum(Dynamic) { }
 
-	var message(default,null) : String;
+/**
+	This type is compatible with both its type parameters.
+	
+	It is intended to be used as a type parameter constraint. If used as a real
+	type, the underlying type will be `Dynamic`.
+**/
+abstract Or<L,R>(Dynamic) from L to L from R to R { }
 
-	function new( type : String, canBubble : Bool = true, cancelable : Bool = true ) : Void;
-
-}
+/**
+	The types allowed as key to `haxe.ds.ObjectMap`.
+**/
+extern typedef ObjectMapKey = Or<Class<Dynamic>, {}>;

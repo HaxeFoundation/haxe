@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2013 Haxe Foundation
+ * Copyright (C)2005-2012 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,19 +19,34 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+package haxe.macro;
 
-// This file is generated, do not edit!
-package js.html;
+import haxe.macro.Context;
+import haxe.macro.Expr;
+import haxe.macro.Type;
 
-@:native("ErrorEvent")
-extern class ErrorEvent extends Event
-{
-	var filename(default,null) : String;
+using haxe.macro.Tools;
 
-	var lineno(default,null) : Int;
-
-	var message(default,null) : String;
-
-	function new( type : String, canBubble : Bool = true, cancelable : Bool = true ) : Void;
-
+class Build {
+	macro static public function buildFakeEnum():Array<Field> {
+		var fields = Context.getBuildFields();
+		var a = switch(Context.getLocalClass().get().kind) {
+			case KAbstractImpl(a): a;
+			case _: throw "";
+		}
+		var tThis = a.get().type;
+		var ctA = TAbstract(a, []).toComplexType();
+		for (field in fields) {
+			field.access = [AStatic,APublic,AInline];
+			switch(field.kind) {
+				case FVar(t, e):
+					if (e == null) Context.error("Value required", field.pos);
+					var tE = Context.typeof(e);
+					if (!Context.unify(tE, tThis)) Context.error('${tE.toString()} should be ${tThis.toString()}', e.pos);
+					field.kind = FVar(ctA, macro cast $e);
+				case _:
+			}
+		}
+		return fields;
+	}
 }

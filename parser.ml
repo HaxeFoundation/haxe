@@ -398,8 +398,8 @@ let reify in_macro =
 			expr "EDisplayNew" [to_tpath t p]
 		| ETernary (e1,e2,e3) ->
 			expr "ETernary" [loop e1;loop e2;loop e3]
-		| ECheckType (e1,ct,so) ->
-			expr "ECheckType" [loop e1; to_ctype ct p;to_opt to_string so p]
+		| ECheckType (e1,ct) ->
+			expr "ECheckType" [loop e1; to_ctype ct p]
 		| EMeta ((m,ml,p),e1) ->
 			match m, ml with
 			| Meta.Dollar ("" | "e"), _ ->
@@ -411,9 +411,9 @@ let reify in_macro =
 			(* TODO: can $v and $i be implemented better? *)
 			| Meta.Dollar "v", _ ->
 				begin match fst e1 with
-				| EParenthesis (ECheckType (e2, CTPath{tname="String";tpackage=[]},_),_) -> expr "EConst" [mk_enum "Constant" "CString" [e2] (pos e2)]
-				| EParenthesis (ECheckType (e2, CTPath{tname="Int";tpackage=[]},_),_) -> expr "EConst" [mk_enum "Constant" "CInt" [e2] (pos e2)]
-				| EParenthesis (ECheckType (e2, CTPath{tname="Float";tpackage=[]},_),_) -> expr "EConst" [mk_enum "Constant" "CFloat" [e2] (pos e2)]
+				| EParenthesis (ECheckType (e2, CTPath{tname="String";tpackage=[]}),_) -> expr "EConst" [mk_enum "Constant" "CString" [e2] (pos e2)]
+				| EParenthesis (ECheckType (e2, CTPath{tname="Int";tpackage=[]}),_) -> expr "EConst" [mk_enum "Constant" "CInt" [e2] (pos e2)]
+				| EParenthesis (ECheckType (e2, CTPath{tname="Float";tpackage=[]}),_) -> expr "EConst" [mk_enum "Constant" "CFloat" [e2] (pos e2)]
 				| _ -> (ECall ((EField ((EField ((EField ((EConst (Ident "haxe"),p),"macro"),p),"Context"),p),"makeExpr"),p),[e; to_pos (pos e)]),p)
 				end
 			| Meta.Dollar "i", _ ->
@@ -1076,18 +1076,18 @@ and inline_function = parser
 and reify_expr e =
 	let to_expr,_,_ = reify !in_macro in
 	let e = to_expr e in
-	(ECheckType (e,(CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = None; tparams = [] }),None),pos e)
+	(ECheckType (e,(CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = None; tparams = [] })),pos e)
 
 and parse_macro_expr p = parser
 	| [< '(DblDot,_); t = parse_complex_type >] ->
 		let _, to_type, _  = reify !in_macro in
 		let t = to_type t p in
-		(ECheckType (t,(CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = Some "ComplexType"; tparams = [] }),None),p)
+		(ECheckType (t,(CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = Some "ComplexType"; tparams = [] })),p)
 	| [< '(Kwd Var,p1); vl = psep Comma parse_var_decl >] ->
 		reify_expr (EVars vl,p1)
 	| [< d = parse_class None [] [] false >] ->
 		let _,_,to_type = reify !in_macro in
-		(ECheckType (to_type d,(CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = Some "TypeDefinition"; tparams = [] }),None),p)
+		(ECheckType (to_type d,(CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = Some "TypeDefinition"; tparams = [] })),p)
 	| [< e = secure_expr >] ->
 		reify_expr e
 
@@ -1126,7 +1126,7 @@ and expr = parser
 		| [< >] -> serror())
 	| [< '(POpen,p1); e = expr; s >] -> (match s with parser
 		| [< '(PClose,p2); s >] -> expr_next (EParenthesis e, punion p1 p2) s
-		| [< '(DblDot,_); t = parse_complex_type; '(PClose,p2); s >] -> expr_next (EParenthesis (ECheckType(e,t,None),punion p1 p2), punion p1 p2) s)
+		| [< '(DblDot,_); t = parse_complex_type; '(PClose,p2); s >] -> expr_next (EParenthesis (ECheckType(e,t),punion p1 p2), punion p1 p2) s)
 	| [< '(BkOpen,p1); l = parse_array_decl; '(BkClose,p2); s >] -> expr_next (EArrayDecl l, punion p1 p2) s
 	| [< inl, p1 = inline_function; name = popt dollar_ident; pl = parse_constraint_params; '(POpen,_); al = psep Comma parse_fun_param; '(PClose,_); t = parse_type_opt; s >] ->
 		let make e =

@@ -22,7 +22,7 @@
 package haxe.ds;
 
 @:coreApi
-class ObjectMap<K:{},V> implements Map.IMap<K,V> {
+class ObjectMap<K:haxe.Constraints.ObjectMapKey,V> implements Map.IMap<K,V> {
 	private var __Internal : IntMap<V>;
 	private var __KeyRefs : IntMap<K>;
 
@@ -47,7 +47,7 @@ class ObjectMap<K:{},V> implements Map.IMap<K,V> {
 
 	public function remove( key : K ) : Bool {
 		var id = untyped __global__.__hxcpp_obj_id(key);
-		return __Internal.remove(id);
+		__Internal.remove(id);
 		return __KeyRefs.remove(id);
 	}
 

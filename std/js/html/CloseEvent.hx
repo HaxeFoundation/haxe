@@ -37,6 +37,6 @@ extern class CloseEvent extends Event
 	/** Indicates whether or not the connection was cleanly closed. */
 	var wasClean(default,null) : Bool;
 
-	function new(type : String, canBubble : Bool = true, cancelable : Bool = true) : Void;
+	function new( type : String, canBubble : Bool = true, cancelable : Bool = true ) : Void;
 
 }

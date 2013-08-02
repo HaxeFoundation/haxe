@@ -59,7 +59,7 @@ extern class TextTrackCue extends EventTarget
 	/** Setter throws DOMException. */
 	var vertical : String;
 
-	function new() : Void;
+	function new( startTime : Float, endTime : Float, text : String ) : Void;
 
 	function getCueAsHTML() : DocumentFragment;
 

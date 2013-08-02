@@ -33,7 +33,7 @@ extern class CustomEvent extends Event
 	/** The data passed when initializing the event. */
 	var detail(default,null) : Dynamic;
 
-	function new(type : String, canBubble : Bool = true, cancelable : Bool = true) : Void;
+	function new( type : String, canBubble : Bool = true, cancelable : Bool = true ) : Void;
 
 	function initCustomEvent( typeArg : String, canBubbleArg : Bool, cancelableArg : Bool, detailArg : Dynamic ) : Void;
 

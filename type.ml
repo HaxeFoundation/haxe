@@ -304,6 +304,7 @@ and decision_tree = {
 	dt_first : int;
 	dt_type : t;
 	dt_var_init : (tvar * texpr option) list;
+	dt_is_complex : bool;
 }
 
 let alloc_var =
@@ -1155,6 +1156,10 @@ let rec unify a b =
 		| _ -> error [cannot_unify a b])
 	| TEnum _, TAbstract ({ a_path = [],"EnumValue" },[]) ->
 		()
+	| TEnum(en,_), TAbstract ({ a_path = ["haxe"],"FlatEnum" },[]) when Meta.has Meta.FlatEnum en.e_meta ->
+		()
+	| TFun _, TAbstract ({ a_path = ["haxe"],"Function" },[]) ->
+		()		
 	| TDynamic t , _ ->
 		if t == a then
 			()

@@ -138,7 +138,7 @@ private class MysqlResultSet implements ResultSet {
 				return untyped __call__("intval", v);
 			case "real":
 				return untyped __call__("floatval", v);
-			case "datetime", "date":
+			case "datetime", "date", "timestamp":
 				return Date.fromString(v);
 			case "blob":
 				return haxe.io.Bytes.ofData(cast v);

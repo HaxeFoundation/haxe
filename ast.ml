@@ -33,6 +33,7 @@ module Meta = struct
 		| Allow
 		| Annotation
 		| ArrayAccess
+		| Ast
 		| AutoBuild
 		| Bind
 		| Bitmap
@@ -60,6 +61,7 @@ module Meta = struct
 		| FakeEnum
 		| File
 		| Final
+		| FlatEnum
 		| Font
 		| From
 		| FunctionCode
@@ -313,7 +315,7 @@ and expr_def =
 	| EDisplay of expr * bool
 	| EDisplayNew of type_path
 	| ETernary of expr * expr * expr
-	| ECheckType of expr * complex_type * string option
+	| ECheckType of expr * complex_type
 	| EMeta of metadata_entry * expr
 
 and expr = expr_def * pos
@@ -676,7 +678,7 @@ let map_expr loop (e,p) =
 	| EDisplay (e,f) -> EDisplay (loop e,f)
 	| EDisplayNew t -> EDisplayNew (tpath t)
 	| ETernary (e1,e2,e3) -> ETernary (loop e1,loop e2,loop e3)
-	| ECheckType (e,t,so) -> ECheckType (loop e, ctype t,so)
+	| ECheckType (e,t) -> ECheckType (loop e, ctype t)
 	| EMeta (m,e) -> EMeta(m, loop e)
 	) in
 	(e,p)

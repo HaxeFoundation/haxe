@@ -75,7 +75,7 @@ extern class WebSocket extends EventTarget
 	/** The URL&nbsp;as resolved by the constructor. This is always an absolute URL. <strong>Read only.</strong> */
 	var url(default,null) : String;
 
-	function new(?arg0 : Dynamic) : Void;
+	function new( ?arg0 : Dynamic ) : Void;
 
 	function close( ?code : Int, ?reason : String ) : Void;
 

@@ -61,7 +61,7 @@ extern class StorageEvent extends Event
 	/** The URL of the document whose <code>key</code> changed. <strong>Read only.</strong> */
 	var url(default,null) : String;
 
-	function new(type : String, canBubble : Bool = true, cancelable : Bool = true) : Void;
+	function new( type : String, canBubble : Bool = true, cancelable : Bool = true ) : Void;
 
 	function initStorageEvent( typeArg : String, canBubbleArg : Bool, cancelableArg : Bool, keyArg : String, ?oldValueArg : String, ?newValueArg : String, urlArg : String, storageAreaArg : Storage ) : Void;
 

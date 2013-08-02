@@ -832,7 +832,8 @@ let configure gen =
       | 13 (* \r *) -> Buffer.add_string b "\\r"
       | 10 (* \n *) -> Buffer.add_string b "\\n"
       | 9 (* \t *) -> Buffer.add_string b "\\t"
-      | c when c < 32 || c >= 127 -> Buffer.add_string b (Printf.sprintf "\\u%.4x" c)
+      | c when c < 32 || (c >= 127 && c <= 0xFFFF) -> Buffer.add_string b (Printf.sprintf "\\u%.4x" c)
+      | c when c > 0xFFFF -> Buffer.add_string b (Printf.sprintf "\\U%.8x" c)
       | c -> Buffer.add_char b (Char.chr c)
   in
 

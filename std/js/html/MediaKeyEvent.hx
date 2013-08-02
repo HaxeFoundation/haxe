@@ -40,6 +40,6 @@ extern class MediaKeyEvent extends Event
 
 	var systemCode(default,null) : Int;
 
-	function new(type : String, canBubble : Bool = true, cancelable : Bool = true) : Void;
+	function new( type : String, canBubble : Bool = true, cancelable : Bool = true ) : Void;
 
 }

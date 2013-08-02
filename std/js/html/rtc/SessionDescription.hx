@@ -32,6 +32,6 @@ extern class SessionDescription
 	/** Setter throws DOMException. */
 	var type : String;
 
-	function new() : Void;
+	function new( dictionary : Dynamic ) : Void;
 
 }

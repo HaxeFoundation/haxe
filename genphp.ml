@@ -1244,7 +1244,7 @@ and gen_expr ctx e =
 			spr ctx ")"
 		);
 	| TMeta (_,e) ->
-		gen_value ctx e
+		gen_expr ctx e
 	| TReturn eo ->
 		(match eo with
 		| None ->
@@ -1725,7 +1725,6 @@ and gen_value ctx e =
 	| TEnumParameter _
 	| TField _
 	| TParenthesis _
-	| TMeta _
 	| TObjectDecl _
 	| TArrayDecl _
 	| TCall _
@@ -1733,6 +1732,8 @@ and gen_value ctx e =
 	| TNew _
 	| TFunction _ ->
 		gen_expr ctx e
+	| TMeta (_,e1) ->
+		gen_value ctx e1
 	| TBlock [] ->
 		()
 	| TCast (e, _)

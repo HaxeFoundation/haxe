@@ -279,10 +279,23 @@ let find_array_access a pl c t1 t2 is_set =
 			loop cfl
 		| cf :: cfl ->
 			match follow (apply_params a.a_types pl (monomorphs cf.cf_params cf.cf_type)) with
-			| TFun([(_,_,tab);(_,_,ta1);(_,_,ta2)],r) as tf when is_set && type_iseq tab ta && type_iseq ta1 t1 && type_iseq ta2 t2 ->
-				cf,tf,r
-			| TFun([(_,_,tab);(_,_,ta1)],r) as tf when not is_set && type_iseq tab ta && type_iseq ta1 t1 ->
-				cf,tf,r
+			| TFun([(_,_,tab);(_,_,ta1);(_,_,ta2)],r) as tf when is_set ->
+				begin try
+					Type.unify tab ta;
+					Type.unify t1 ta1;
+					Type.unify t2 ta2;
+					cf,tf,r
+				with Unify_error _ ->
+					loop cfl
+				end
+			| TFun([(_,_,tab);(_,_,ta1)],r) as tf when not is_set ->
+				begin try
+					Type.unify tab ta;
+					Type.unify t1 ta1;
+					cf,tf,r
+				with Unify_error _ ->
+					loop cfl
+				end
 			| _ -> loop cfl
 	in
 	loop a.a_array
@@ -815,22 +828,27 @@ let field_access ctx mode f fmode t e p =
 	match f.cf_kind with
 	| Method m ->
 		if mode = MSet && m <> MethDynamic && not ctx.untyped then error "Cannot rebind this method : please use 'dynamic' before method declaration" p;
-		(match m, mode with
-		| _ when (match e.eexpr with TTypeExpr(TClassDecl ({cl_kind = KAbstractImpl a} as c)) -> c == ctx.curclass && ctx.curfun = FunMemberAbstract && Meta.has Meta.Impl f.cf_meta | _ -> false) ->
+		begin match e.eexpr with
+		| TTypeExpr(TClassDecl ({cl_kind = KAbstractImpl a} as c)) when c == ctx.curclass && ctx.curfun = FunMemberAbstract && Meta.has Meta.Impl f.cf_meta ->
 			let e = mk (TField(e,fmode)) t p in
-			AKUsing(e,ctx.curclass,f,get_this ctx p)
-		| MethInline, _ -> AKInline (e,f,fmode,t)
-		| MethMacro, MGet -> display_error ctx "Macro functions must be called immediately" p; normal()
-		| MethMacro, MCall -> AKMacro (e,f)
-		| _ , MGet ->
-			let cmode = (match fmode with
-				| FInstance (c,cf) -> FClosure (Some c,cf)
-				| FStatic _ | FEnum _ -> fmode
-				| FAnon f -> FClosure (None, f)
-				| FDynamic _ | FClosure _ -> assert false
-			) in
-			AKExpr (mk (TField (e,cmode)) t p)
-		| _ -> normal())
+			let ethis = get_this ctx p in
+			let ethis = {ethis with etype = TAbstract(a,List.map (fun _ -> mk_mono()) a.a_types)} in
+			AKUsing(e,ctx.curclass,f,ethis)
+		| _ ->
+			(match m, mode with
+			| MethInline, _ -> AKInline (e,f,fmode,t)
+			| MethMacro, MGet -> display_error ctx "Macro functions must be called immediately" p; normal()
+			| MethMacro, MCall -> AKMacro (e,f)
+			| _ , MGet ->
+				let cmode = (match fmode with
+					| FInstance (c,cf) -> FClosure (Some c,cf)
+					| FStatic _ | FEnum _ -> fmode
+					| FAnon f -> FClosure (None, f)
+					| FDynamic _ | FClosure _ -> assert false
+				) in
+				AKExpr (mk (TField (e,cmode)) t p)
+			| _ -> normal())
+		end
 	| Var v ->
 		match (match mode with MGet | MCall -> v.v_read | MSet -> v.v_write) with
 		| AccNo ->
@@ -1202,7 +1220,7 @@ and type_field ctx e i p mode =
 			let et = type_module_type ctx (TClassDecl c) None p in
 			let field_expr f t = mk (TField (et,FStatic (c,f))) t p in
 			(match mode, f.cf_kind with
-			| MGet, Var {v_read = AccCall } ->
+			| (MGet | MCall), Var {v_read = AccCall } ->
 				(* getter call *)
 				let f = PMap.find ("get_" ^ f.cf_name) c.cl_statics in
 				let t = field_type f in
@@ -1214,21 +1232,9 @@ and type_field ctx e i p mode =
 				let t = field_type f in
 				let ef = field_expr f t in
 				AKUsing (ef,c,f,e)
-			| MCall, Var {v_read = AccCall} ->
-				error (i ^ " cannot be called") p
-			| MGet, Var {v_read = AccNever} ->
+			| (MGet | MCall), Var {v_read = AccNever} ->
 				AKNo f.cf_name
-			| MCall, _ ->
-				let t = field_type f in
-				begin match follow t with
-					| TFun((_,_,t1) :: _,_) ->
-						(match f.cf_kind with Method MethMacro -> () | _ -> unify ctx (apply_params a.a_types pl a.a_this) t1 p)
-					| _ ->
-						error (i ^ " cannot be called") p
-				end;
-				let ef = field_expr f t in
-				AKUsing (ef,c,f,e)
-			| MGet, _ ->
+			| (MGet | MCall), _ ->
 				let t = field_type f in
 				let ef = field_expr f t in
 				AKUsing (ef,c,f,e)
@@ -1374,6 +1380,9 @@ let type_generic_function ctx (e,cf) el ?(using_param=None) with_type p =
 	add_constraint_checks ctx c.cl_types [] cf monos p;
 	let args,ret = match t,using_param with
 		| TFun((_,_,ta) :: args,ret),Some e ->
+			let ta = if not (Meta.has Meta.Impl cf.cf_meta) then ta
+			else match follow ta with TAbstract(a,tl) -> Codegen.Abstract.get_underlying_type a tl | _ -> assert false
+			in
 			(* manually unify first argument *)
 			unify ctx e.etype ta p;
 			args,ret
@@ -1917,16 +1926,6 @@ and type_switch_old ctx e cases def with_type p =
 	let def = def() in
 	let t = if with_type = NoValue then (mk_mono()) else unify_min ctx (List.rev !el) in
 	mk (TSwitch (eval,cases,def)) t p
-
-and type_switch ctx e cases def with_type p =
-	try
-		let dt = match_expr ctx e cases def with_type p in
-		if not ctx.in_macro && not (Common.defined ctx.com Define.Interp) && ctx.com.config.pf_pattern_matching then
-			mk (TPatMatch dt) dt.dt_type p
-		else
-			Codegen.PatternMatchConversion.to_typed_ast ctx dt p
-	with Exit ->
-		type_switch_old ctx e cases def with_type p
 
 and type_ident ctx i p mode =
 	try
@@ -2600,8 +2599,17 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		let cond = type_expr ctx cond Value in
 		unify ctx cond.etype ctx.t.tbool cond.epos;
 		mk (TWhile (cond,e,DoWhile)) ctx.t.tvoid p
-	| ESwitch (e,cases,def) ->
-		type_switch ctx e cases def with_type p
+	| ESwitch (e1,cases,def) ->
+		begin try
+			let dt = match_expr ctx e1 cases def with_type p in
+			let wrap e1 = if not dt.dt_is_complex then e1 else mk (TMeta((Meta.Ast,[e,p],p),e1)) e1.etype e1.epos in
+			if not ctx.in_macro && not (Common.defined ctx.com Define.Interp) && ctx.com.config.pf_pattern_matching && dt.dt_is_complex then
+				wrap (mk (TPatMatch dt) dt.dt_type p)
+			else
+				wrap (Codegen.PatternMatchConversion.to_typed_ast ctx dt p)
+		with Exit ->
+			type_switch_old ctx e1 cases def with_type p
+		end	
 	| EReturn e ->
 		let e , t = (match e with
 			| None ->
@@ -2651,25 +2659,35 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		mk (TThrow e) (mk_mono()) p
 	| ECall (((EConst (Ident s),_) as e),el) ->
 		(try
-			let t, e, pl = (match with_type with
+			let en,t = (match with_type with
 				| WithType t | WithTypeResume t ->
 					(match follow t with
-					| TEnum (e,pl) -> t, e, pl
+					| TEnum (e,pl) -> e,t
 					| _ -> raise Exit)
 				| _ -> raise Exit
 			) in
-			try
-				ignore(type_ident_raise ~imported_enums:false ctx s p MCall);
-				raise Exit
-			with Not_found -> try
-				let ef = PMap.find s e.e_constrs in
-				let et = apply_params e.e_types pl (monomorphs ef.ef_params ef.ef_type) in
-				let constr = mk (fast_enum_field e ef p) et p in
-				build_call ctx (AKExpr constr) el (match with_type with WithTypeResume _ -> WithTypeResume t | _ -> WithType t) p
+			let old = ctx.on_error in
+			ctx.m.module_types <- (TEnumDecl en) :: ctx.m.module_types;
+			let restore = fun () ->
+				ctx.m.module_types <- List.tl ctx.m.module_types;
+				ctx.on_error <- old;
+			in	
+			ctx.on_error <- (fun ctx msg ep ->
+				raise Not_found;
+			);			
+			begin try
+				let e = type_call ctx e el with_type p in
+				restore();
+				e
 			with Not_found ->
+				restore();
 				if ctx.untyped then raise Exit; (* __js__, etc. *)
-				with_type_error ctx with_type (string_error s e.e_names ("Identifier '" ^ s ^ "' is not part of enum " ^ s_type_path e.e_path)) p;
+				with_type_error ctx with_type (string_error s en.e_names ("Identifier '" ^ s ^ "' is not part of enum " ^ s_type_path en.e_path)) p;
 				mk (TConst TNull) t p
+			| err ->
+				restore();
+				raise err
+			end
 		with Exit ->
 			type_call ctx e el with_type p)
 	| ECall (e,el) ->
@@ -3001,14 +3019,11 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			raise (DisplayTypes (ct :: List.map (fun f -> f.cf_type) f.cf_overloads))
 		| _ ->
 			error "Not a class" p)
-	| ECheckType (e,t,so) ->
+	| ECheckType (e,t) ->
 		let t = Typeload.load_complex_type ctx p t in
 		let e = type_expr ctx e (WithType t) in
 		let e = Codegen.Abstract.check_cast ctx t e p in
-		begin match so with
-			| None -> unify ctx e.etype t e.epos
-			| Some s -> try unify_raise ctx e.etype t e.epos with Error(Unify _,p) -> error s p
-		end;
+		unify ctx e.etype t e.epos;
 		if e.etype == t then e else mk (TCast (e,None)) t p
 	| EMeta (m,e) ->
 		let old = ctx.meta in
@@ -3115,12 +3130,13 @@ and build_call ctx acc el (with_type:with_type) p =
 			let t = follow (field_type ctx cl [] ef p) in
 			(* for abstracts we have to apply their parameters to the static function *)
 			let t,tthis = match follow eparam.etype with
-				| TAbstract(a,tl) -> apply_params a.a_types tl t,apply_params a.a_types tl a.a_this
+				| TAbstract(a,tl) when Meta.has Meta.Impl ef.cf_meta -> apply_params a.a_types tl t,apply_params a.a_types tl a.a_this
 				| te -> t,te
 			in
 			let params,args,r = match t with
 				| TFun ((_,_,t1) :: args,r) ->
 					unify ctx tthis t1 eparam.epos;
+					let ef = prepare_using_field ef in
 					begin match unify_call_params ctx (Some (TInst(cl,[]),ef)) el args r p (ef.cf_kind = Method MethInline) with
 					| el,TFun(args,r) -> el,args,r
 					| _ -> assert false
@@ -3672,7 +3688,7 @@ and flush_macro_context mint ctx =
 		mint
 	end else mint in
 	(* we should maybe ensure that all filters in Main are applied. Not urgent atm *)
-	(try Interp.add_types mint types (Codegen.post_process [Codegen.Abstract.handle_abstract_casts mctx; Codegen.captured_vars mctx.com; Codegen.rename_local_vars mctx.com])
+	(try Interp.add_types mint types (Codegen.post_process mctx [Codegen.Abstract.handle_abstract_casts mctx; Codegen.captured_vars mctx.com; Codegen.rename_local_vars mctx.com])
 	with Error (e,p) -> raise (Fatal_error(error_msg e,p)));
 	Codegen.post_process_end()
 

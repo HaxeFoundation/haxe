@@ -28,6 +28,6 @@ extern class PopStateEvent extends Event
 {
 	var state(default,null) : Dynamic;
 
-	function new(type : String, canBubble : Bool = true, cancelable : Bool = true) : Void;
+	function new( type : String, canBubble : Bool = true, cancelable : Bool = true ) : Void;
 
 }

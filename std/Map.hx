@@ -79,7 +79,7 @@ abstract Map<K,V>(IMap<K,V> ) {
 		1. the map has no mapping for `key`
 		2. the map has a mapping with a value of `null`
 		
-		If it is important to distinguish these cases, `exists()` should be 
+		If it is important to distinguish these cases, `exists()` should be
 		used.
 		
 		If `key` is null, the result is unspecified.
@@ -145,7 +145,7 @@ abstract Map<K,V>(IMap<K,V> ) {
 		return new EnumValueMap<K, V>();
 	}
 
-	@:to static inline function toObjectMap<K:{ }>(t:IMap<K,V>):ObjectMap<K,V> {
+	@:to static inline function toObjectMap<K:haxe.Constraints.ObjectMapKey>(t:IMap<K,V>):ObjectMap<K,V> {
 		return new ObjectMap<K, V>();
 	}
 	

@@ -70,7 +70,7 @@ extern class CSSMatrix
 
 	var m44 : Float;
 
-	function new() : Void;
+	function new( cssValue : String ) : Void;
 
 	function inverse() : CSSMatrix;
 
