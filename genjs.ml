@@ -60,7 +60,15 @@ type ctx = {
 }
 
 let dot_path = Ast.s_type_path
-let flat_path (p,s) = match p with [] -> s | _ -> String.concat "_" p ^ "_" ^ s
+
+let flat_path (p,s) =
+	(* Replace _ with _$ in paths to prevent name collisions. *)
+	let escape str = String.concat "_$" (ExtString.String.nsplit str "_") in
+
+	match p with
+	| [] -> escape s
+	| _ -> String.concat "_" (List.map escape p) ^ "_" ^ (escape s)
+
 let s_path ctx = if ctx.js_flatten then flat_path else dot_path
 
 let kwds =
