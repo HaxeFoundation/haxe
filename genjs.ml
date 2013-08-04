@@ -90,11 +90,8 @@ let valid_js_ident s =
 let field s = if Hashtbl.mem kwds s then "[\"" ^ s ^ "\"]" else "." ^ s
 let ident s = if Hashtbl.mem kwds s then "$" ^ s else s
 let anon_field s = if Hashtbl.mem kwds s || not (valid_js_ident s) then "'" ^ s ^ "'" else s
-
-let static_field ctx extern s =
-	if ctx.js_flatten && not extern then
-		"_$" ^ s
-	else match s with
+let static_field s =
+	match s with
 	| "length" | "name" -> ".$" ^ s
 	| s -> field s
 
@@ -461,11 +458,7 @@ and gen_expr ctx e =
 	| TField (x,f) ->
 		gen_value ctx x;
 		let name = field_name f in
-		let extern = (match f with
-			| FInstance (c,_) | FStatic (c,_) -> c.cl_extern
-			| FEnum (e,_) -> e.e_extern
-			| _ -> false) in
-		spr ctx (match f with FStatic _ | FEnum _ -> static_field ctx extern name | FInstance _ | FAnon _ | FDynamic _ | FClosure _ -> field name)
+		spr ctx (match f with FStatic _ | FEnum _ -> static_field name | FInstance _ | FAnon _ | FDynamic _ | FClosure _ -> field name)
 	| TTypeExpr t ->
 		spr ctx (ctx.type_accessor t)
 	| TParenthesis e ->
@@ -861,29 +854,19 @@ let check_field_name c f =
 
 let gen_class_static_field ctx c f =
 	match f.cf_expr with
-	(* Under js_flatten, all statics need to be explicitly defined, even when null *)
-	| None | Some { eexpr = TConst TNull } when not (has_feature ctx "Type.getClassFields") && not ctx.js_flatten ->
+	| None | Some { eexpr = TConst TNull } when not (has_feature ctx "Type.getClassFields") ->
 		()
 	| None when is_extern_field f ->
 		()
 	| None ->
-		if ctx.js_flatten then
-			print ctx "var ";
-		print ctx "%s%s = null" (s_path ctx c.cl_path) (static_field ctx false f.cf_name);
+		print ctx "%s%s = null" (s_path ctx c.cl_path) (static_field f.cf_name);
 		newline ctx
 	| Some e ->
 		match e.eexpr with
 		| TFunction _ ->
-			let path = (s_path ctx c.cl_path) ^ (static_field ctx false f.cf_name) in
+			let path = (s_path ctx c.cl_path) ^ (static_field f.cf_name) in
 			ctx.id_counter <- 0;
-			if ctx.js_flatten then
-				print ctx "var ";
-			print ctx "%s" path;
-			if ctx.js_flatten then
-				(* Also generate the dotted field under js_flatten, so calls on
-				 * Dynamic and reflection work. *)
-				print ctx " = %s%s" (s_path ctx c.cl_path) (static_field ctx true f.cf_name);
-			print ctx " = ";
+			print ctx "%s = " path;
 			gen_value ctx e;
 			ctx.separator <- false;
 			newline ctx;
@@ -1019,15 +1002,7 @@ let generate_enum ctx e =
 	newline ctx;
 	List.iter (fun n ->
 		let f = PMap.find n e.e_constrs in
-		let enum_var = p ^ (static_field ctx false f.ef_name) in
-		if ctx.js_flatten then
-			print ctx "var ";
-		print ctx "%s" enum_var;
-		if ctx.js_flatten then
-			(* Also generate the dotted field under js_flatten, so calls on
-			 * Dynamic and reflection work. *)
-			print ctx " = %s%s" p (static_field ctx true f.ef_name);
-		print ctx " = ";
+		print ctx "%s%s = " p (field f.ef_name);
 		(match f.ef_type with
 		| TFun (args,_) ->
 			let sargs = String.concat "," (List.map (fun (n,_,_) -> ident n) args) in
@@ -1035,9 +1010,9 @@ let generate_enum ctx e =
 		| _ ->
 			print ctx "[\"%s\",%d]" f.ef_name f.ef_index;
 			newline ctx;
-			print ctx "%s.toString = $estr" enum_var;
+			print ctx "%s%s.toString = $estr" p (field f.ef_name);
 			newline ctx;
-			print ctx "%s.__enum__ = %s" enum_var p;
+			print ctx "%s%s.__enum__ = %s" p (field f.ef_name) p;
 		);
 		newline ctx
 	) e.e_names;
@@ -1049,9 +1024,7 @@ let generate_enum ctx e =
 		newline ctx
 
 let generate_static ctx (c,f,e) =
-	if ctx.js_flatten then
-		print ctx "var ";
-	print ctx "%s%s = " (s_path ctx c.cl_path) (static_field ctx false f);
+	print ctx "%s%s = " (s_path ctx c.cl_path) (static_field f);
 	gen_value ctx e;
 	newline ctx
 
@@ -1103,14 +1076,7 @@ let alloc_ctx com =
 		separator = false;
 		found_expose = false;
 	} in
-	ctx.type_accessor <- (fun t ->
-		let extern = (match t with
-			| TClassDecl c -> c.cl_extern
-			| TEnumDecl e -> e.e_extern
-			| _ -> false) in
-		let pather = if extern then dot_path else s_path ctx in
-		pather (t_path t)
-	);
+	ctx.type_accessor <- (fun t -> s_path ctx (t_path t));
 	ctx
 
 let gen_single_expr ctx e expr =
