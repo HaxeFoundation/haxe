@@ -45,6 +45,7 @@ type ctx = {
 	packages : (string list,unit) Hashtbl.t;
 	smap : sourcemap;
 	js_modern : bool;
+	js_flatten : bool;
 	mutable current : tclass;
 	mutable statics : (tclass * string * texpr) list;
 	mutable inits : texpr list;
@@ -58,7 +59,17 @@ type ctx = {
 	mutable found_expose : bool;
 }
 
-let s_path ctx = Ast.s_type_path
+let dot_path = Ast.s_type_path
+
+let flat_path (p,s) =
+	(* Replace _ with _$ in paths to prevent name collisions. *)
+	let escape str = String.concat "_$" (ExtString.String.nsplit str "_") in
+
+	match p with
+	| [] -> escape s
+	| _ -> String.concat "_" (List.map escape p) ^ "_" ^ (escape s)
+
+let s_path ctx = if ctx.js_flatten then flat_path else dot_path
 
 let kwds =
 	let h = Hashtbl.create 0 in
@@ -898,18 +909,21 @@ let generate_class ctx c =
 	| [],"Function" -> error "This class redefine a native one" c.cl_pos
 	| _ -> ());
 	let p = s_path ctx c.cl_path in
-	generate_package_create ctx c.cl_path;
 	let hxClasses = has_feature ctx "Type.resolveClass" in
+	if ctx.js_flatten then
+		print ctx "var "
+	else
+		generate_package_create ctx c.cl_path;
 	if ctx.js_modern || not hxClasses then
 		print ctx "%s = " p
 	else
-		print ctx "%s = $hxClasses[\"%s\"] = " p p;
+		print ctx "%s = $hxClasses[\"%s\"] = " p (dot_path c.cl_path);
 	(match c.cl_constructor with
 	| Some { cf_expr = Some e } -> gen_expr ctx e
 	| _ -> print ctx "function() { }");
 	newline ctx;
 	if ctx.js_modern && hxClasses then begin
-		print ctx "$hxClasses[\"%s\"] = %s" p p;
+		print ctx "$hxClasses[\"%s\"] = %s" (dot_path c.cl_path) p;
 		newline ctx;
 	end;
 	handle_expose ctx p c.cl_meta;
@@ -983,10 +997,13 @@ let generate_class ctx c =
 
 let generate_enum ctx e =
 	let p = s_path ctx e.e_path in
-	generate_package_create ctx e.e_path;
 	let ename = List.map (fun s -> Printf.sprintf "\"%s\"" (Ast.s_escape s)) (fst e.e_path @ [snd e.e_path]) in
+	if ctx.js_flatten then
+		print ctx "var "
+	else
+		generate_package_create ctx e.e_path;
 	print ctx "%s = " p;
-	if has_feature ctx "Type.resolveEnum" then print ctx "$hxClasses[\"%s\"] = " p;
+	if has_feature ctx "Type.resolveEnum" then print ctx "$hxClasses[\"%s\"] = " (dot_path e.e_path);
 	print ctx "{";
 	if has_feature ctx "js.Boot.isEnum" then print ctx " __ename__ : %s," (if has_feature ctx "Type.getEnumName" then "[" ^ String.concat "," ename ^ "]" else "true");
 	print ctx " __constructs__ : [%s] }" (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" s) e.e_names));
@@ -1025,7 +1042,10 @@ let generate_type ctx = function
 		| None -> ()
 		| Some e ->
 			ctx.inits <- e :: ctx.inits);
-		if not c.cl_extern then generate_class ctx c else if Meta.has Meta.InitPackage c.cl_meta then generate_package_create ctx c.cl_path
+		if not c.cl_extern then
+			generate_class ctx c
+		else if not ctx.js_flatten && Meta.has Meta.InitPackage c.cl_meta then
+			generate_package_create ctx c.cl_path
 	| TEnumDecl e when e.e_extern ->
 		()
 	| TEnumDecl e -> generate_enum ctx e
@@ -1051,6 +1071,7 @@ let alloc_ctx com =
 			mappings = Buffer.create 16;
 		};
 		js_modern = not (Common.defined com Define.JsClassic);
+		js_flatten = Common.defined com Define.JsFlatten;
 		statics = [];
 		inits = [];
 		current = null_class;
