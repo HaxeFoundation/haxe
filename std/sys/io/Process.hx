@@ -21,6 +21,23 @@
  */
 package sys.io;
 
+/**
+Allows system process creation similar to Sys.command but with more finer control.
+
+Warning : 
+Whence the 'process' is created, you have to call exitCode() and retrieve it to terminate the call sequence.
+Warning :
+Whence the 'process' is created, it can starve if stderr and stdout are not emptied regularly. 
+System buffers can be pretty small so you might encounter starvation quick.
+Solution is either to work with programs that have very small sterr/stdout footprints, either launch threads to manage 
+the system channels and de-starve 'process'.
+Use with caution and prefer Sys.command if need be.
+
+@example
+var p = new sys.io.Process('ls','-lsa');
+p.exitCode();
+
+*/
 extern class Process {
 
 	var stdout(default,null) : haxe.io.Input;
@@ -29,7 +46,11 @@ extern class Process {
 
 	function new( cmd : String, args : Array<String> ) : Void;
 	function getPid() : Int;
-	function exitCode() : Int;
+	
+	/**
+	Retrieve process exit codes allowing its termination
+	*/
+	function exitCode() : Int; 
 	function close() : Void;
 	function kill() : Void;
 
