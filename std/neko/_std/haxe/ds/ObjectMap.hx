@@ -21,20 +21,18 @@
  */
 package haxe.ds;
 
-import haxe.Constraints;
-
 @:coreApi
-class ObjectMap<K:ObjectMapKey,V> implements Map.IMap<K,V> {
+class ObjectMap<K:{},V> implements Map.IMap<K,V> {
 
 	static var count = 0;
 	
-	static inline function assignId(obj:ObjectMapKey):Int {
+	static inline function assignId(obj: { } ):Int {
 		var newId = count++;
 		untyped obj.__id__ = newId;
 		return newId;
 	}
 	
-	static inline function getId(obj:ObjectMapKey):Int {
+	static inline function getId(obj: { } ):Int {
 		return untyped obj.__id__;
 	}
 	
