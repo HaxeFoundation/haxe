@@ -3599,7 +3599,9 @@ let gen_extern_enum common_ctx enum_def file_info =
 
 
 
-(* The common_ctx contains the haxe AST in the "types" field and the resources *)
+(*
+ The common_ctx contains the haxe AST in the "types" field and the resources
+*)
 let generate common_ctx =
 	make_base_directory common_ctx.file;
 
