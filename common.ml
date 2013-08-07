@@ -580,6 +580,7 @@ let get_config com =
 			pf_add_final_return = true;
 			pf_overload = false;
 			pf_pattern_matching = false;
+			pf_can_skip_non_nullable_argument = false;
 		}
 	| Cs ->
 		{
