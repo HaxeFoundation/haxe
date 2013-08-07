@@ -1638,6 +1638,8 @@ module PatternMatchConversion = struct
 		| DTGuard(e,dt1,dt2) ->
 			let ethen = convert_dt cctx dt1 in
 			mk (TIf(e,ethen,match dt2 with None -> None | Some dt -> Some (convert_dt cctx dt))) ethen.etype (punion e.epos ethen.epos)
+		| DTSwitch({eexpr = TMeta((Meta.Exhaustive,_,_),_)},[_,dt],None) ->
+			convert_dt cctx dt
 		| DTSwitch(e_st,cl,dto) ->
 			let def = match dto with None -> None | Some dt -> Some (convert_dt cctx dt) in
 			let cases = group_cases cl in
