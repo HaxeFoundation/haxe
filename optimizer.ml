@@ -349,9 +349,9 @@ let rec type_inline ctx cf f ethis params tret config p force =
 		let flag = flag && (not i.i_captured || is_constant e) in
 		(* force inlining if we modify 'this' *)
 		if i.i_write && snd i.i_var.v_extra then force := true;
-		(* force inlining of 'this' variable if the expression is writable *)
-		let flag = if not flag && snd i.i_var.v_extra then begin
-			if i.i_write && not (is_writable e) then error "Cannot modify the abstract value, store it into a local first" p;
+		(* force inlining of 'this' variable if it is written *)
+		let flag = if not flag && snd i.i_var.v_extra && i.i_write then begin
+			if not (is_writable e) then error "Cannot modify the abstract value, store it into a local first" p;
 			true
 		end else flag in
 		if flag then begin
