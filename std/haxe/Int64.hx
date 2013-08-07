@@ -54,6 +54,44 @@ abstract Int64(Int64Data) from Int64Data to Int64Data
 		}
 	}
 
+	public static function parse(str:String):Int64 {
+		var out          = fromInt( Std.parseInt( str ) );
+		var c            = toString( out );
+		if( c != str ) out = readDigits( str );
+		return out;
+	}
+
+	// taken and modified from Unserializer
+	inline static function readDigits( buf: String ):Int64
+	{
+		var k: Int64    = 0;
+		var s           = false;
+		var pos         = 0;
+		var fpos        = pos;
+
+		while( true )
+		{
+			var c = buf.charCodeAt( pos );
+			if( c == null )
+				break;
+			if( c == "-".code ) { // negative sign
+				if( pos != fpos )
+					break;
+				s = true;
+				pos++;
+				continue;
+			}
+			c -= "0".code;
+			if( c < 0 || c > 9 )
+				break;
+			k = ( k * 10 ) + c;
+			pos++;
+		}
+		if( s )
+			k = neg( k );
+		return k;
+	}
+
 	/*
 	 * warning: only valid if in the range [-2^53, 2^53]
 	 */
