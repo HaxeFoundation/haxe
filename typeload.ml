@@ -1464,19 +1464,16 @@ let init_class ctx c p context_init herits fields =
 					delay ctx PTypeField (fun() -> ignore(ctx.g.do_macro ctx MExpr c.cl_path cf.cf_name [] p))
 				else begin
 					cf.cf_type <- TLazy r;
-					delayed_expr := (ctx,Some r) :: !delayed_expr;
+					delayed_expr := (ctx,r) :: !delayed_expr;
 				end
 			end else begin
-				if not (is_full_type cf.cf_type) then begin
-					delayed_expr := (ctx, None) :: !delayed_expr;
-					cf.cf_type <- TLazy r;
-				end;
+				if not (is_full_type cf.cf_type) then cf.cf_type <- TLazy r;
 			end
 		end else if macro && not ctx.in_macro then
 			()
 		else begin
 			cf.cf_type <- TLazy r;
-			delayed_expr := (ctx,Some r) :: !delayed_expr;
+			delayed_expr := (ctx,r) :: !delayed_expr;
 		end
 	in
 
@@ -1658,8 +1655,8 @@ let init_class ctx c p context_init herits fields =
 				if stat then error "A constructor must not be static" p;
 				match fd.f_type with
 					| None | Some (CTPath { tpackage = []; tname = "Void" }) -> ()
-					| _ -> error "A class constructor can't have a return value" p
-			end;
+					| _ -> error "A class constructor can't have a return value" p				
+			end; 
 			let cf = {
 				cf_name = name;
 				cf_doc = f.cff_doc;
@@ -1916,8 +1913,10 @@ let init_class ctx c p context_init herits fields =
 	(*
 		make sure a default contructor with same access as super one will be added to the class structure at some point.
 	*)
-	(* add_constructor does not deal with overloads correctly *)
-	if not ctx.com.config.pf_overload then add_constructor ctx c p;
+
+  (* add_constructor does not deal with overloads correctly *)
+  if not ctx.com.config.pf_overload then
+  	add_constructor ctx c p;
 	(* check overloaded constructors *)
 	(if ctx.com.config.pf_overload then match c.cl_constructor with
 	| Some ctor ->
@@ -1932,9 +1931,7 @@ let init_class ctx c p context_init herits fields =
 	(* push delays in reverse order so they will be run in correct order *)
 	List.iter (fun (ctx,r) ->
 		ctx.pass <- PTypeField;
-		(match r with
-		| None -> ()
-		| Some r -> delay ctx PTypeField (fun() -> ignore((!r)())))
+		delay ctx PTypeField (fun() -> ignore((!r)()))
 	) !delayed_expr
 
 let resolve_typedef t =
