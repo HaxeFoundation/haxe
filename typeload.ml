@@ -318,7 +318,7 @@ let check_param_constraints ctx types t pl c p =
 					f (List.map (fun t -> apply_params types pl t) tl)
 				| _ -> ti
 			) in
-			try 
+			try
 				unify_raise ctx t ti p
 			with Error(Unify l,p) ->
 				if not ctx.untyped then display_error ctx (error_msg (Unify (Constraint_failure (s_type_path c.cl_path) :: l))) p;
@@ -1738,7 +1738,7 @@ let init_class ctx c p context_init herits fields =
 						| _ ->
 							if constr then FunConstructor else if stat then FunStatic else FunMember
 					) in
-					let display_field = f.cff_pos.pmin <= cp.pmin && f.cff_pos.pmax >= cp.pmax in
+					let display_field = display_file && (f.cff_pos.pmin <= cp.pmin && f.cff_pos.pmax >= cp.pmax) in
 					let e , fargs = type_function ctx args ret fmode fd display_field p in
 					let f = {
 						tf_args = fargs;
