@@ -96,6 +96,8 @@ type platform_config = {
 	pf_overload : bool;
 	(** does the platform generator handle pattern matching *)
 	pf_pattern_matching : bool;
+	(** can the platform use default values for non-nullable arguments *)
+	pf_can_skip_non_nullable_argument : bool;
 }
 
 type context = {
@@ -174,6 +176,7 @@ module Define = struct
 		| Interp
 		| JavaVer
 		| JsClassic
+		| JsFlatten
 		| Macro
 		| MacroTimes
 		| NekoSource
@@ -236,6 +239,7 @@ module Define = struct
 		| Interp -> ("interp","The code is compiled to be run with --interp")
 		| JavaVer -> ("java_ver", "<version:5-7> Sets the Java version to be targeted")
 		| JsClassic -> ("js_classic","Don't use a function wrapper and strict mode in JS output")
+		| JsFlatten -> ("js_flatten","Generate classes to use fewer object property lookups")
 		| Macro -> ("macro","Defined when we compile code in the macro context")
 		| MacroTimes -> ("macro_times","Display per-macro timing when used with --times")
 		| NekoSource -> ("neko_source","Output neko source instead of bytecode")
@@ -444,6 +448,7 @@ let default_config =
 		pf_add_final_return = false;
 		pf_overload = false;
 		pf_pattern_matching = false;
+		pf_can_skip_non_nullable_argument = true;
 	}
 
 let get_config com =
@@ -464,6 +469,7 @@ let get_config com =
 			pf_add_final_return = false;
 			pf_overload = false;
 			pf_pattern_matching = false;
+			pf_can_skip_non_nullable_argument = true;
 		}
 	| Js ->
 		{
@@ -478,6 +484,7 @@ let get_config com =
 			pf_add_final_return = false;
 			pf_overload = false;
 			pf_pattern_matching = false;
+			pf_can_skip_non_nullable_argument = true;
 		}
 	| Neko ->
 		{
@@ -492,6 +499,7 @@ let get_config com =
 			pf_add_final_return = false;
 			pf_overload = false;
 			pf_pattern_matching = false;
+			pf_can_skip_non_nullable_argument = true;
 		}
 	| Flash when defined Define.As3 ->
 		{
@@ -506,6 +514,7 @@ let get_config com =
 			pf_add_final_return = true;
 			pf_overload = false;
 			pf_pattern_matching = false;
+			pf_can_skip_non_nullable_argument = false;
 		}
 	| Flash ->
 		{
@@ -520,6 +529,7 @@ let get_config com =
 			pf_add_final_return = false;
 			pf_overload = false;
 			pf_pattern_matching = false;
+			pf_can_skip_non_nullable_argument = false;
 		}
 	| Php ->
 		{
@@ -539,6 +549,7 @@ let get_config com =
 			pf_add_final_return = false;
 			pf_overload = false;
 			pf_pattern_matching = false;
+			pf_can_skip_non_nullable_argument = true;
 		}
 	| Cpp ->
 		{
@@ -553,6 +564,7 @@ let get_config com =
 			pf_add_final_return = true;
 			pf_overload = false;
 			pf_pattern_matching = false;
+			pf_can_skip_non_nullable_argument = true;
 		}
 	| Rust
 	 ->
@@ -582,6 +594,7 @@ let get_config com =
 			pf_add_final_return = false;
 			pf_overload = true;
 			pf_pattern_matching = false;
+			pf_can_skip_non_nullable_argument = true;
 		}
 	| Java ->
 		{
@@ -596,6 +609,7 @@ let get_config com =
 			pf_add_final_return = false;
 			pf_overload = true;
 			pf_pattern_matching = false;
+			pf_can_skip_non_nullable_argument = true;
 		}
 
 let create v args =

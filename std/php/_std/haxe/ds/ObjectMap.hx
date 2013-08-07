@@ -22,11 +22,9 @@
 
 package haxe.ds;
 
-import haxe.Constraints;
-
 @:coreApi
-class ObjectMap <K:ObjectMapKey, V> implements Map.IMap<K,V> {
-	static function getId(key:ObjectMapKey):String {
+class ObjectMap <K:{ }, V> implements Map.IMap<K,V> {
+	static function getId(key: { } ):String {
 		return untyped __php__("spl_object_hash($key)");
 	}
 	

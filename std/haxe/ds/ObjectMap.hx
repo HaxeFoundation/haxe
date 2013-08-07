@@ -30,7 +30,7 @@ package haxe.ds;
 	
 	See `Map` for documentation details.
 **/
-extern class ObjectMap<K:haxe.Constraints.ObjectMapKey, V> implements Map.IMap<K,V> {
+extern class ObjectMap < K: { }, V > implements Map.IMap<K,V> {
 	
 	/**
 		Creates a new ObjectMap.
@@ -44,31 +44,31 @@ extern class ObjectMap<K:haxe.Constraints.ObjectMapKey, V> implements Map.IMap<K
 	
 	/**
 		See `Map.get`
-	**/
+	**/	
 	public function get(key:K):Null<V>;
 	
 	/**
 		See `Map.exists`
-	**/
+	**/	
 	public function exists(key:K):Bool;
 	
 	/**
 		See `Map.remove`
-	**/
+	**/	
 	public function remove(key:K):Bool;
 	
 	/**
 		See `Map.keys`
-	**/
+	**/	
 	public function keys():Iterator<K>;
 	
 	/**
 		See `Map.iterator`
-	**/
+	**/	
 	public function iterator():Iterator<V>;
 	
 	/**
 		See `Map.toString`
-	**/
+	**/	
 	public function toString():String;
 }

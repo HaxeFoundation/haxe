@@ -318,7 +318,7 @@ let check_param_constraints ctx types t pl c p =
 					f (List.map (fun t -> apply_params types pl t) tl)
 				| _ -> ti
 			) in
-			try 
+			try
 				unify_raise ctx t ti p
 			with Error(Unify l,p) ->
 				if not ctx.untyped then display_error ctx (error_msg (Unify (Constraint_failure (s_type_path c.cl_path) :: l))) p;
@@ -1464,16 +1464,19 @@ let init_class ctx c p context_init herits fields =
 					delay ctx PTypeField (fun() -> ignore(ctx.g.do_macro ctx MExpr c.cl_path cf.cf_name [] p))
 				else begin
 					cf.cf_type <- TLazy r;
-					delayed_expr := (ctx,r) :: !delayed_expr;
+					delayed_expr := (ctx,Some r) :: !delayed_expr;
 				end
 			end else begin
-				if not (is_full_type cf.cf_type) then cf.cf_type <- TLazy r;
+				if not (is_full_type cf.cf_type) then begin
+					delayed_expr := (ctx, None) :: !delayed_expr;
+					cf.cf_type <- TLazy r;
+				end;
 			end
 		end else if macro && not ctx.in_macro then
 			()
 		else begin
 			cf.cf_type <- TLazy r;
-			delayed_expr := (ctx,r) :: !delayed_expr;
+			delayed_expr := (ctx,Some r) :: !delayed_expr;
 		end
 	in
 
@@ -1649,12 +1652,14 @@ let init_class ctx c p context_init herits fields =
 				name, c, t
 			) fd.f_args in
 			let t = TFun (fun_args args,ret) in
-			if constr && c.cl_interface then error "An interface cannot have a constructor" p;
 			if c.cl_interface && not stat && fd.f_expr <> None then error "An interface method cannot have a body" p;
-			if constr then (match fd.f_type with
-				| None | Some (CTPath { tpackage = []; tname = "Void" }) -> ()
-				| _ -> error "A class constructor can't have a return value" p
-			);
+			if constr then begin
+				if c.cl_interface then error "An interface cannot have a constructor" p;
+				if stat then error "A constructor must not be static" p;
+				match fd.f_type with
+					| None | Some (CTPath { tpackage = []; tname = "Void" }) -> ()
+					| _ -> error "A class constructor can't have a return value" p
+			end;
 			let cf = {
 				cf_name = name;
 				cf_doc = f.cff_doc;
@@ -1736,7 +1741,7 @@ let init_class ctx c p context_init herits fields =
 						| _ ->
 							if constr then FunConstructor else if stat then FunStatic else FunMember
 					) in
-					let display_field = f.cff_pos.pmin <= cp.pmin && f.cff_pos.pmax >= cp.pmax in
+					let display_field = display_file && (f.cff_pos.pmin <= cp.pmin && f.cff_pos.pmax >= cp.pmax) in
 					let e , fargs = type_function ctx args ret fmode fd display_field p in
 					let f = {
 						tf_args = fargs;
@@ -1911,10 +1916,8 @@ let init_class ctx c p context_init herits fields =
 	(*
 		make sure a default contructor with same access as super one will be added to the class structure at some point.
 	*)
-
-  (* add_constructor does not deal with overloads correctly *)
-  if not ctx.com.config.pf_overload then
-  	add_constructor ctx c p;
+	(* add_constructor does not deal with overloads correctly *)
+	if not ctx.com.config.pf_overload then add_constructor ctx c p;
 	(* check overloaded constructors *)
 	(if ctx.com.config.pf_overload then match c.cl_constructor with
 	| Some ctor ->
@@ -1929,7 +1932,9 @@ let init_class ctx c p context_init herits fields =
 	(* push delays in reverse order so they will be run in correct order *)
 	List.iter (fun (ctx,r) ->
 		ctx.pass <- PTypeField;
-		delay ctx PTypeField (fun() -> ignore((!r)()))
+		(match r with
+		| None -> ()
+		| Some r -> delay ctx PTypeField (fun() -> ignore((!r)())))
 	) !delayed_expr
 
 let resolve_typedef t =

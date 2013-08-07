@@ -38,16 +38,3 @@ abstract Function(Dynamic) { }
 	type, the underlying type will be `Dynamic`.
 **/
 abstract FlatEnum(Dynamic) { }
-
-/**
-	This type is compatible with both its type parameters.
-	
-	It is intended to be used as a type parameter constraint. If used as a real
-	type, the underlying type will be `Dynamic`.
-**/
-abstract Or<L,R>(Dynamic) from L to L from R to R { }
-
-/**
-	The types allowed as key to `haxe.ds.ObjectMap`.
-**/
-extern typedef ObjectMapKey = Or<Class<Dynamic>, {}>;

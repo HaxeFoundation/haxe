@@ -72,21 +72,21 @@ class BytesBuffer {
 		#end
 	}
 
-	public inline function addByte( byte : Int ) {
+	public inline function addByte( byt : Int ) {
 		#if neko
-		untyped StringBuf.__add_char(b,byte);
+			untyped StringBuf.__add_char(b,byt);
 		#elseif flash9
-		b.writeByte(byte);
+			b.writeByte(byt);
 		#elseif php
-		b += untyped __call__("chr", byte);
+			b += untyped __call__("chr", byt);
 		#elseif cpp
-		b.push(untyped byte);
+			b.push(untyped byt);
 		#elseif cs
-		b.WriteByte(byte);
+			b.WriteByte(byt);
 		#elseif java
-		b.write(byte);
+			b.write(byt);
 		#else
-		b.push(byte);
+			b.push(byt);
 		#end
 	}
 

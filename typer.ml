@@ -533,13 +533,18 @@ let rec unify_call_params ctx ?(overloads=None) cf el args r p inline =
 		| ({ eexpr = TConst TNull },true) :: l -> no_opt l
 		| l -> l
 	in
-	let rec default_value t =
+	let rec default_value t po =
 		if is_pos_infos t then
 			let infos = mk_infos ctx p [] in
 			let e = type_expr ctx infos (WithType t) in
 			(e, true)
-		else
+		else begin
+			if not ctx.com.config.pf_can_skip_non_nullable_argument then begin match po with
+				| Some (name,p) when not (is_nullable t) -> display_error ctx ("Cannot skip non-nullable argument " ^ name) p
+				| _ -> ()
+			end;
 			(null (ctx.t.tnull t) p, true)
+		end
 	in
 	let rec loop acc l l2 skip =
 		match l , l2 with
@@ -558,9 +563,9 @@ let rec unify_call_params ctx ?(overloads=None) cf el args r p inline =
 			else
 				List.map fst args, tf
 		| [] , (_,false,_) :: _ ->
-			error (List.fold_left (fun acc (_,_,t) -> default_value t :: acc) acc l2) "Not enough"
+			error (List.fold_left (fun acc (_,_,t) -> default_value t None :: acc) acc l2) "Not enough"
 		| [] , (name,true,t) :: l ->
-			loop (default_value t :: acc) [] l skip
+			loop (default_value t None :: acc) [] l skip
 		| _ , [] ->
 			(match List.rev skip with
 			| [] -> error acc "Too many"
@@ -574,7 +579,7 @@ let rec unify_call_params ctx ?(overloads=None) cf el args r p inline =
 			with
 				WithTypeError (ul,p) ->
 					if opt then
-						loop (default_value t :: acc) (ee :: l) l2 ((name,ul) :: skip)
+						loop (default_value t (Some (name,p)) :: acc) (ee :: l) l2 ((name,ul) :: skip)
 					else
 						arg_error ul name false p
 	in
@@ -1275,8 +1280,8 @@ let type_bind ctx (e : texpr) params p =
 					ordered_args
 			in
 			loop args [] given_args missing_args a
-		| (n,o,t) :: _ , (EConst(Ident "_"),p) :: _ when ctx.com.platform = Flash && o && not (is_nullable t) ->
-			error "Usage of _ is currently not supported for optional non-nullable arguments on flash9" p
+		| (n,o,t) :: _ , (EConst(Ident "_"),p) :: _ when not ctx.com.config.pf_can_skip_non_nullable_argument && o && not (is_nullable t) ->
+			error "Usage of _ is not supported for optional non-nullable arguments" p
 		| (n,o,t) :: args , ([] as params)
 		| (n,o,t) :: args , (EConst(Ident "_"),_) :: params ->
 			let v = alloc_var (alloc_name n) (if o then ctx.t.tnull t else t) in
@@ -2609,7 +2614,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				wrap (Codegen.PatternMatchConversion.to_typed_ast ctx dt p)
 		with Exit ->
 			type_switch_old ctx e1 cases def with_type p
-		end	
+		end
 	| EReturn e ->
 		let e , t = (match e with
 			| None ->
@@ -2671,10 +2676,10 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			let restore = fun () ->
 				ctx.m.module_types <- List.tl ctx.m.module_types;
 				ctx.on_error <- old;
-			in	
+			in
 			ctx.on_error <- (fun ctx msg ep ->
 				raise Not_found;
-			);			
+			);
 			begin try
 				let e = type_call ctx e el with_type p in
 				restore();
@@ -3142,7 +3147,7 @@ and build_call ctx acc el (with_type:with_type) p =
 					| _ -> assert false
 					end
 				| _ -> assert false
-			in		
+			in
 			make_call ctx et (eparam :: params) r p
 		end
 	| AKMacro (ethis,f) ->
