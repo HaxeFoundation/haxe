@@ -425,9 +425,9 @@ let make_pass ?inf ctx f =
 		let t = (try
 			f v
 		with
-			| Fatal_error ->
+			| Fatal_error (e,p) ->
 				delay_tabs := old;
-				raise Fatal_error
+				raise (Fatal_error (e,p))
 			| exc when not (Common.raw_defined ctx.com "stack") ->
 				debug ctx ("FATAL " ^ Printexc.to_string exc);
 				delay_tabs := old;
@@ -474,8 +474,7 @@ let exc_protect ctx f (where:string) =
 			f r
 		with
 			| Error (m,p) ->
-				display_error ctx (error_msg m) p;
-				raise Fatal_error
+				raise (Fatal_error (error_msg m,p))
 	) in
 	r
 
