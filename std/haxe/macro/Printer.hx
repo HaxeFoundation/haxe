@@ -185,7 +185,7 @@ class Printer {
 						+ (c.expr != null ? (opt(c.expr, printExpr)) + ";" : ""))
 				.join('\n$tabs');
 			if (edef != null)
-				s += '\n${tabs}default: ' + (edef.expr == null ? "" : printExpr(edef)) + ";";
+				s += '\n${tabs}default: ' + (edef.expr == null ? "" : printExpr(edef) + ";");
 			tabs = old;
 			s + '\n$tabs}';
 		case ETry(e1, cl):
