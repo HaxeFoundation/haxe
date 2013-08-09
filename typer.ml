@@ -3130,6 +3130,7 @@ and build_call ctx e acc el (with_type:with_type) p =
 		begin match ef.cf_kind with
 		| Method MethMacro ->
 			let ethis = type_module_type ctx (TClassDecl cl) None p in
+			let e = match fst e with EField(e1,_) -> e1 | _ -> e in
 			build_call ctx e (AKMacro (ethis,ef)) (e :: el) with_type p
 		| _ ->
 			let t = follow (field_type ctx cl [] ef p) in
