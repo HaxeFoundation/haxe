@@ -3295,20 +3295,16 @@ let generate ctx =
 	and loop_abstract p a =
 		if a.a_path <> p then loop (TAbstractDecl a)
 
-	and walk_static_call p c name =
-		try
-			let f = PMap.find name c.cl_statics in
-			match f.cf_expr with
-			| None -> ()
-			| Some e ->
-				if PMap.mem (c.cl_path,name) (!statics) then
-					()
-				else begin
-					statics := PMap.add (c.cl_path,name) () (!statics);
-					walk_expr p e;
-				end
-		with
-			Not_found -> ()
+	and walk_static_field p c cf =
+		match cf.cf_expr with
+		| None -> ()
+		| Some e ->
+			if PMap.mem (c.cl_path,cf.cf_name) (!statics) then
+				()
+			else begin
+				statics := PMap.add (c.cl_path,cf.cf_name) () (!statics);
+				walk_expr p e;
+			end
 
 	and walk_expr p e =
 		match e.eexpr with
@@ -3335,23 +3331,9 @@ let generate ctx =
 				end
 			in
 			loop c
-(* 		| TMatch (_,(enum,_),_,_) ->
-			loop_enum p enum;
-			iter (walk_expr p) e *)
-		| TCall (f,_) ->
-			iter (walk_expr p) e;
-			(* static call for initializing a variable *)
-			let rec loop f =
-				match f.eexpr with
-				| TField ({ eexpr = TTypeExpr t },name) ->
-					(match t with
-					| TEnumDecl _ -> ()
-					| TAbstractDecl _ -> ()
-					| TTypeDecl _ -> assert false
-					| TClassDecl c -> walk_static_call p c (field_name name))
-				| _ -> ()
-			in
-			loop f
+		| TField(e1,FStatic(c,cf)) ->
+			walk_expr p e1;
+			walk_static_field p c cf;
 		| _ ->
 			iter (walk_expr p) e
 
