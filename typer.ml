@@ -3754,6 +3754,10 @@ let load_macro ctx cpath f p =
 	let t = macro_timer ctx "typing (+init)" in
 	let api, mctx = get_macro_context ctx p in
 	let mint = Interp.get_ctx() in
+	let cpath, sub = (match List.rev (fst cpath) with
+		| name :: pack when name.[0] >= 'A' && name.[0] <= 'Z' -> (List.rev pack,name), Some (snd cpath)
+		| _ -> cpath, None
+	) in
 	let m = (try Hashtbl.find ctx.g.types_module cpath with Not_found -> cpath) in
 	let mloaded = Typeload.load_module mctx m p in
 	mctx.m <- {
@@ -3764,7 +3768,7 @@ let load_macro ctx cpath f p =
 		wildcard_packages = [];
 	};
 	add_dependency ctx.m.curmod mloaded;
-	let cl, meth = (match Typeload.load_instance mctx { tpackage = fst cpath; tname = snd cpath; tparams = []; tsub = None } p true with
+	let cl, meth = (match Typeload.load_instance mctx { tpackage = fst cpath; tname = snd cpath; tparams = []; tsub = sub } p true with
 		| TInst (c,_) ->
 			finalize mctx;
 			c, (try PMap.find f c.cl_statics with Not_found -> error ("Method " ^ f ^ " not found on class " ^ s_type_path cpath) p)
@@ -3776,7 +3780,7 @@ let load_macro ctx cpath f p =
 	let call args =
 		let t = macro_timer ctx (s_type_path cpath ^ "." ^ f) in
 		incr stats.s_macros_called;
-		let r = Interp.call_path (Interp.get_ctx()) ((fst cpath) @ [snd cpath]) f args api in
+		let r = Interp.call_path (Interp.get_ctx()) ((fst cpath) @ [(match sub with None -> snd cpath | Some s -> s)]) f args api in
 		t();
 		r
 	in
