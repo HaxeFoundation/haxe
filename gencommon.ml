@@ -5947,6 +5947,8 @@ struct
             | _ -> Type.map_expr run e
           )
         (* the TNew and TSuper code was modified at r6497 *)
+        | TNew ({ cl_kind = KTypeParameter _ }, _, _) ->
+          Type.map_expr run e
         | TNew (cl, tparams, eparams) -> (try
           let is_overload, cf, sup, stl = choose_ctor gen cl tparams (List.map (fun e -> e.etype) eparams) maybe_empty_t e.epos in
           let handle e t1 t2 =
