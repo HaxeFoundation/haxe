@@ -2904,13 +2904,11 @@ struct
         let cltypes = List.map (fun cl -> (snd cl.cl_path, TInst(cl, []) )) tparams in
 
         (* create a new class that extends abstract function class, with a ctor implementation that will setup all captured variables *)
-        let buf = Buffer.create 72 in
-        ignore (Type.map_expr (fun e ->
-          Buffer.add_string buf (Marshal.to_string (ExprHashtblHelper.mk_type e) [Marshal.Closures]);
-          e
-        ) tfunc.tf_expr);
-        let digest = Digest.to_hex (Digest.string (Buffer.contents buf)) in
-        let path = (fst ft.fgen.gcurrent_path, "Fun_" ^ (String.sub digest 0 8)) in
+        let cfield = match ft.fgen.gcurrent_classfield with
+          | None -> "Anon"
+          | Some cf -> cf.cf_name
+        in
+        let path = (fst ft.fgen.gcurrent_path, snd ft.fgen.gcurrent_path ^ "_" ^ cfield ^ "__Fun") in
         let cls = mk_class (get ft.fgen.gcurrent_class).cl_module path tfunc.tf_expr.epos in
         cls.cl_module <- (get ft.fgen.gcurrent_class).cl_module;
         cls.cl_types <- cltypes;
