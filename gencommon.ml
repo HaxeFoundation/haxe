@@ -2908,7 +2908,8 @@ struct
           | None -> "Anon"
           | Some cf -> cf.cf_name
         in
-        let path = (fst ft.fgen.gcurrent_path, snd ft.fgen.gcurrent_path ^ "_" ^ cfield ^ "__Fun") in
+        let cur_line = Lexer.get_error_line fexpr.epos in
+        let path = (fst ft.fgen.gcurrent_path, Printf.sprintf "%s_%s_%d__Fun" (snd ft.fgen.gcurrent_path) cfield cur_line) in
         let cls = mk_class (get ft.fgen.gcurrent_class).cl_module path tfunc.tf_expr.epos in
         cls.cl_module <- (get ft.fgen.gcurrent_class).cl_module;
         cls.cl_types <- cltypes;
