@@ -45,7 +45,7 @@ private typedef ExprToken = {
 /**
 	Template provides a basic templating mechanism to replace values in a source
 	String, and to have some basic logic.
-	
+
 	A complete documentation of the supported syntax is available at:
 	http://haxe.org/doc/cross/template
 **/
@@ -71,12 +71,12 @@ class Template {
 
 	/**
 		Creates a new Template instance from `str`.
-		
+
 		`str` is parsed into tokens, which are stored for internal use. This
 		means that multiple execute() operations on a single Template instance
 		are more efficient than one execute() operations on multiple Template
 		instances.
-		
+
 		If `str` is null, the result is unspecified.
 	**/
 	public function new( str : String ) {
@@ -89,16 +89,16 @@ class Template {
 	/**
 		Executes `this` Template, taking into account `context` for
 		replacements and `macros` for callback functions.
-		
+
 		If `context` has a field 'name', its value replaces all occurrences of
 		::name:: in the Template. Otherwise Template.globals is checked instead,
 		If 'name' is not a field of that either, ::name:: is replaced with null.
-		
+
 		If `macros` has a field 'name', all occurrences of $$name(args) are
 		replaced with the result of calling that field. The first argument is
 		always the the resolve() method, followed by the given arguments.
 		If `macros` has no such field, the result is unspecified.
-		
+
 		If `context` is null, the result is unspecified. If `macros` is null,
 		no macros are used.
 	**/
@@ -237,7 +237,7 @@ class Template {
 		}
 		if( data.length != 0 )
 			l.add({ p : data, s : true });
-		var e;
+		var e:Void->Dynamic;
 		try {
 			e = makeExpr(l);
 			if( !l.isEmpty() )
