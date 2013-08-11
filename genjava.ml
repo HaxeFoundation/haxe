@@ -1774,7 +1774,7 @@ let configure gen =
   StubClosureImpl.configure gen (StubClosureImpl.default_implementation gen float_cl 10 (fun e _ _ -> e));*)
 
   FixOverrides.configure gen;
-  NormalizeType.configure gen;
+  Normalize.configure gen ~metas:(Hashtbl.create 0);
   AbstractImplementationFix.configure gen;
 
   IteratorsInterface.configure gen (fun e -> e);

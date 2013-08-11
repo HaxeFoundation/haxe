@@ -4582,7 +4582,7 @@ struct
       | _ -> e
 
   (* must be called in a statement. Will execute fn whenever an expression (not statement) is expected *)
-  let expr_stat_map fn (expr:texpr) =
+  let rec expr_stat_map fn (expr:texpr) =
     match (no_paren expr).eexpr with
       | TBinop ( (Ast.OpAssign as op), left_e, right_e )
       | TBinop ( (Ast.OpAssignOp _ as op), left_e, right_e ) ->
@@ -4614,6 +4614,8 @@ struct
       | TUnop (Ast.Increment, _, _)
       | TUnop (Ast.Decrement, _, _) (* unop is a special case because the haxe compiler won't let us generate complex expressions with Increment/Decrement *)
       | TBlock _ -> expr (* there is no expected expression here. Only statements *)
+      | TMeta(m,e) ->
+        { expr with eexpr = TMeta(m,expr_stat_map fn e) }
       | _ -> assert false (* we only expect valid statements here. other expressions aren't valid statements *)
 
   let is_expr = function | Expression _ -> true | _ -> false
@@ -10175,13 +10177,14 @@ struct
 end;;
 
 (* ******************************************* *)
-(* NormalizeType *)
+(* Normalize *)
 (* ******************************************* *)
 
 (*
 
   - Filters out enum constructor type parameters from the AST; See Issue #1796
   - Filters out monomorphs
+  - Filters out all non-whitelisted AST metadata
 
   dependencies:
     No dependencies; but it still should be one of the first filters to run,
@@ -10189,7 +10192,7 @@ end;;
 
 *)
 
-module NormalizeType =
+module Normalize =
 struct
 
   let name = "normalize_type"
@@ -10216,14 +10219,18 @@ struct
   | TDynamic _ -> t
   | TLazy f -> filter_param (!f())
 
-  let default_implementation gen =
+  let default_implementation gen ~metas =
     let rec run e =
-      map_expr_type (fun e -> run e) filter_param (fun v -> v.v_type <- filter_param v.v_type; v) e
+      match e.eexpr with
+      | TMeta(entry, e) when not (Hashtbl.mem metas entry) ->
+        run e
+      | _ ->
+        map_expr_type (fun e -> run e) filter_param (fun v -> v.v_type <- filter_param v.v_type; v) e
     in
     run
 
-  let configure gen =
-    let map e = Some(default_implementation gen e) in
+  let configure gen ~metas =
+    let map e = Some(default_implementation gen e ~metas:metas) in
     gen.gexpr_filters#add ~name:name ~priority:(PCustom priority) map
 
 end;;
