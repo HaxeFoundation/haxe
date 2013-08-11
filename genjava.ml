@@ -1172,7 +1172,15 @@ let configure gen =
           write w "synchronized(";
           expr_s w eobj;
           write w ")";
-          expr_s w (mk_block eblock)
+          (match eblock.eexpr with
+          | TBlock(_ :: _) ->
+            expr_s w eblock
+          | _ ->
+            begin_block w;
+            expr_s w eblock;
+            if has_semicolon eblock then write w ";";
+            end_block w;
+          )
         | TCall ({ eexpr = TLocal( { v_name = "__goto__" } ) }, [ { eexpr = TConst(TInt v) } ] ) ->
           print w "break label%ld" v
         | TCall ({ eexpr = TLocal( { v_name = "__label__" } ) }, [ { eexpr = TConst(TInt v) } ] ) ->
