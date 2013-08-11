@@ -1017,7 +1017,7 @@ let configure gen =
           write w " as ";
           write w (md_s md);
           write w " )"
-        | TCall ({ eexpr = TLocal( { v_name = "__as__" } ) }, [ expr ] ) ->
+        | TCall ({ eexpr = TLocal( { v_name = "__as__" } ) }, expr :: _ ) ->
           write w "( ";
           expr_s w expr;
           write w " as ";
