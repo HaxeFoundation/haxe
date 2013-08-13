@@ -28,13 +28,14 @@ open Typecore
 (* ---------------------------------------------------------------------- *)
 (* API OPTIMIZATIONS *)
 
+(* tells if an expression causes side effects. This does not account for potential null accesses (fields/arrays/ops) *)
 let has_side_effect e =
 	let rec loop e =
 		match e.eexpr with
-		| TConst _ | TLocal _ | TField (_,FEnum _) | TTypeExpr _ | TFunction _ -> ()
-		| TPatMatch _ | TNew _ | TCall _ | TField _ | TEnumParameter _ | TArray _ | TBinop ((OpAssignOp _ | OpAssign),_,_) | TUnop ((Increment|Decrement),_,_) -> raise Exit
+		| TConst _ | TLocal _ | TField _ | TTypeExpr _ | TFunction _ -> ()
+		| TPatMatch _ | TNew _ | TCall _ | TEnumParameter _ | TBinop ((OpAssignOp _ | OpAssign),_,_) | TUnop ((Increment|Decrement),_,_) -> raise Exit
 		| TReturn _ | TBreak | TContinue | TThrow _ | TCast (_,Some _) -> raise Exit
-		| TCast (_,None) | TBinop _ | TUnop _ | TParenthesis _ | TMeta _ | TWhile _ | TFor _ | TIf _ | TTry _ | TSwitch _ | TArrayDecl _ | TVars _ | TBlock _ | TObjectDecl _ -> Type.iter loop e
+		| TArray _ | TCast (_,None) | TBinop _ | TUnop _ | TParenthesis _ | TMeta _ | TWhile _ | TFor _ | TIf _ | TTry _ | TSwitch _ | TArrayDecl _ | TVars _ | TBlock _ | TObjectDecl _ -> Type.iter loop e
 	in
 	try
 		loop e; false
@@ -177,7 +178,11 @@ let rec type_inline ctx cf f ethis params tret config p force =
 	*)
 	let ethis = (match ethis.eexpr with TConst TSuper -> { ethis with eexpr = TConst TThis } | _ -> ethis) in
 	let vthis = alloc_var "_this" ethis.etype in
-	let inlined_vars = List.map2 (fun e (v,_) -> local v, e) (ethis :: loop params f.tf_args true) ((vthis,None) :: f.tf_args) in
+	let inlined_vars = List.map2 (fun e (v,_) ->
+		let l = local v in
+		if has_side_effect e then l.i_write <- true; (* force tmp var *)
+		l, e
+	) (ethis :: loop params f.tf_args true) ((vthis,None) :: f.tf_args) in
 	(*
 		here, we try to eliminate final returns from the expression tree.
 		However, this is not entirely correct since we don't yet correctly propagate
