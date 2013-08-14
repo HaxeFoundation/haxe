@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,215 +21,321 @@
  */
 package haxe;
 
-class Int64 {
+abstract Int64(Int64Data) from Int64Data to Int64Data
+{
+	inline function new(x:Int64Data) this = x;
 
-	var high : Int;
-	var low : Int;
+	inline static function RAW(x:Int64Data):Int64 return new Int64(x);
 
-	inline function new(high, low) {
-		this.high = i32(high);
-		this.low = i32(low);
+	public static var MAX_VALUE:Int64 = new Int64(Int64Data.make(0x7fffffff, -1));
+	public static var MIN_VALUE:Int64 = new Int64(Int64Data.make(0x80000000, 0));
+
+	static inline var TWO_32:Float =  4294967296.0;
+
+	public static inline function make(a:Int, b:Int) {
+		return RAW(Int64Data.make(a, b));
 	}
 
-	@:extern static inline function i32(i) {
-		#if (php || js || flash8)
-		return i | 0;
-		#else
-		return i;
-		#end
+	@:from public static inline function fromInt(x:Int):Int64 {
+		return RAW(Int64Data.ofInt(x));
 	}
 
-	@:extern static inline function i32mul(a:Int,b:Int) {
-		#if (php || js || flash8)
-		/*
-			We can't simply use i32(a*b) since we might overflow (52 bits precision in doubles)
-		*/
-		return i32(i32((a * (b >>> 16)) << 16) + (a * (b&0xFFFF)));
-		#else
-		return a * b;
-		#end
-	}
-	
-	#if as3 public #end function toString() {
-		if ((high|low) == 0 )
-			return "0";
-		var str = "";
-		var neg = false;
-		var i = this;
-		if( isNeg(i) ) {
-			neg = true;
-			i = Int64.neg(i);
+	@:from public static inline function fromFloat(x:Float):Int64 {
+
+		if (x > MAX_VALUE.toFloat()) throw "overflow";
+
+		if (x < 0)
+			return neg(fromFloat( -x));
+		else
+		{
+			var high = Std.int(x / TWO_32);
+			var low = Std.int(x - high * TWO_32);
+			return RAW(Int64Data.make(high, low));
 		}
-		var ten = ofInt(10);
-		while( !isZero(i) ) {
-			var r = divMod(i, ten);
-			str = r.modulus.low + str;
-			i = r.quotient;
-		}
-		if( neg ) str = "-" + str;
-		return str;
 	}
 
-	public static inline function make( high : Int, low : Int ) : Int64 {
-		return new Int64(high, low);
+	public static function parse(str:String):Int64 {
+		var out          = fromInt( Std.parseInt( str ) );
+		var c            = toString( out );
+		if( c != str ) out = readDigits( str );
+		return out;
 	}
 
-	public static inline function ofInt( x : Int ) : Int64 {
-		return new Int64(x >> 31,x);
-	}
+	// taken and modified from Unserializer
+	inline static function readDigits( buf: String ):Int64
+	{
+		var k: Int64    = 0;
+		var s           = false;
+		var pos         = 0;
+		var fpos        = pos;
 
-	public static function toInt( x : Int64 ) : Int {
-		if( x.high != 0 ) {
-			if( x.high < 0 )
-				return -toInt(neg(x));
-			throw "Overflow";
-		}
-		return x.low;
-	}
-
-	public static function getLow( x : Int64 ) : Int {
-		return x.low;
-	}
-
-	public static function getHigh( x : Int64 ) : Int {
-		return x.high;
-	}
-
-	public static function add( a : Int64, b : Int64 ) : Int64 {
-		var high = i32(a.high + b.high);
-		var low = i32(a.low + b.low);
-		if( uicompare(low,a.low) < 0 )
-			high++;
-		return new Int64(high, low);
-	}
-
-	public static function sub( a : Int64, b : Int64 ) : Int64 {
-		var high = a.high - b.high;
-		var low = a.low - b.low;
-		if( uicompare(a.low,b.low) < 0 )
-			high--;
-		return new Int64(high, low);
-	}
-
-	public static function mul( a : Int64, b : Int64 ) : Int64 {
-		var mask = 0xFFFF;
-		var al = a.low & mask, ah = a.low >>> 16;
-		var bl = b.low & mask, bh = b.low >>> 16;
-		var p00 = al * bl;
-		var p10 = ah * bl;
-		var p01 = al * bh;
-		var p11 = ah * bh;
-		var low = p00;
-		var high = i32(p11 + (p01 >>> 16) + (p10 >>> 16));
-		p01 = i32(p01 << 16); low = i32(low + p01); if( uicompare(low, p01) < 0 ) high = i32(high + 1);
-		p10 = i32(p10 << 16); low = i32(low + p10); if( uicompare(low, p10) < 0 ) high = i32(high + 1);
-		high = i32(high + i32mul(a.low,b.high));
-		high = i32(high + i32mul(a.high,b.low));
-		return new Int64(high, low);
-	}
-
-	static function divMod( modulus : Int64, divisor : Int64 ) {
-		var quotient = new Int64(0, 0);
-		var mask = new Int64(0, 1);
-		divisor = new Int64(divisor.high, divisor.low);
-		while( divisor.high >= 0 ) {
-			var cmp = ucompare(divisor, modulus);
-			divisor.high = (divisor.high << 1) | (divisor.low >>> 31);
-			divisor.low <<= 1;
-			mask.high = (mask.high << 1) | (mask.low >>> 31);
-			mask.low <<= 1;
-			if( cmp >= 0 ) break;
-		}
-		while( (mask.low | mask.high) != 0 ) {
-			if( ucompare(modulus, divisor) >= 0 ) {
-				quotient.high |= mask.high;
-				quotient.low |= mask.low;
-				modulus = sub(modulus,divisor);
+		while( true )
+		{
+			var c = buf.charCodeAt( pos );
+			if( c == null )
+				break;
+			if( c == "-".code ) { // negative sign
+				if( pos != fpos )
+					break;
+				s = true;
+				pos++;
+				continue;
 			}
-			mask.low = (mask.low >>> 1) | (mask.high << 31);
-			mask.high >>>= 1;
-
-			divisor.low = (divisor.low >>> 1) | (divisor.high << 31);
-			divisor.high >>>= 1;
+			c -= "0".code;
+			if( c < 0 || c > 9 )
+				break;
+			k = ( k * 10 ) + c;
+			pos++;
 		}
-		return { quotient : quotient, modulus : modulus };
+		if( s )
+			k = neg( k );
+		return k;
 	}
 
-	public static inline function div( a : Int64, b : Int64 ) : Int64 {
-		var sign = (a.high | b.high) < 0;
-		if( a.high < 0 ) a = neg(a);
-		if( b.high < 0 ) b = neg(b);
-		var q = divMod(a, b).quotient;
-		return sign ? neg(q) : q;
+	/*
+	 * warning: only valid if in the range [-2^53, 2^53]
+	 */
+	public inline function toFloat():Float {
+		var high:Float = Int64Data.getHigh(this)* TWO_32;
+		var low:Float = Int64Data.getLow(this);
+		return high + low;
 	}
 
-	public static inline function mod( a : Int64, b : Int64 ) : Int64 {
-		var sign = (a.high | b.high) < 0;
-		if( a.high < 0 ) a = neg(a);
-		if( b.high < 0 ) b = neg(b);
-		var m = divMod(a, b).modulus;
-		return sign ? neg(m) : m;
+	public inline function toInt():Int {
+		return Int64Data.toInt(this);
 	}
 
-	public static inline function shl( a : Int64, b : Int ) : Int64 {
-		return if( b & 63 == 0 ) a else if( b & 63 < 32 ) new Int64( (a.high << b) | (a.low >>> (32-(b&63))), a.low << b ) else new Int64( a.low << (b - 32), 0 );
+	@:op(A+B) public static inline function add(a:Int64, b:Int64):Int64 {
+		return RAW(Int64Data.add(a, b));
 	}
 
-	public static inline function shr( a : Int64, b : Int ) : Int64 {
-		return if( b & 63 == 0 ) a else if( b & 63 < 32 ) new Int64( a.high >> b, (a.low >>> b) | (a.high << (32 - (b&63))) ) else new Int64( a.high >> 31, a.high >> (b - 32) );
+	@:commutative @:op(A+B) public static inline function addf(a:Int64, b:Float):Int64 {
+		return add(a, fromFloat(b));
 	}
 
-	public static inline function ushr( a : Int64, b : Int ) : Int64 {
-		return if( b & 63 == 0 ) a else if( b & 63 < 32 ) new Int64( a.high >>> b, (a.low >>> b) | (a.high << (32 - (b&63))) ) else new Int64( 0, a.high >>> b - 32 );
+	@:commutative @:op(A+B) public static inline function addi(a:Int64, b:Int):Int64 {
+		return add(a, fromInt(b));
 	}
 
-	public static inline function and( a : Int64, b : Int64 ) : Int64 {
-		return new Int64( a.high & b.high, a.low & b.low );
+	@:op(A-B) public static inline function sub(a:Int64, b:Int64):Int64 {
+		return RAW(Int64Data.sub(a, b));
 	}
 
-	public static inline function or( a : Int64, b : Int64 ) : Int64 {
-		return new Int64( a.high | b.high, a.low | b.low );
+	@:op(A-B) public static inline function subf(a:Int64, b:Float):Int64 {
+		return sub(a, fromFloat(b));
 	}
 
-	public static inline function xor( a : Int64, b : Int64 ) : Int64 {
-		return new Int64( a.high ^ b.high, a.low ^ b.low );
+	@:op(A-B) public static inline function subi(a:Int64, b:Int):Int64 {
+		return sub(a, fromInt(b));
 	}
 
-	public static inline function neg( a : Int64 ) : Int64 {
-		var high = ~a.high;
-		var low = -a.low;
-		if( low == 0 )
-			high++;
-		return new Int64(high,low);
+	@:op(A-B) public static inline function fsub(a:Float, b:Int64):Int64 {
+		return sub(fromFloat(a), b);
 	}
 
-	public static inline function isNeg( a : Int64 ) : Bool {
-		return a.high < 0;
+	@:op(A-B) public static inline function isub(a:Int, b:Int64):Int64 {
+		return sub(fromInt(a), b);
 	}
 
-	public static inline function isZero( a : Int64 ) : Bool {
-		return (a.high | a.low) == 0;
+	@:op(-A) public static inline function neg(x:Int64):Int64 {
+		return RAW(Int64Data.neg(x));
 	}
 
-	static function uicompare( a : Int, b : Int ) {
-		return a < 0 ? (b < 0 ? ~b - ~a : 1) : (b < 0 ? -1 : a - b);
+	@:op(A*B) public static inline function mul(a:Int64, b:Int64):Int64 {
+		return RAW(Int64Data.mul(a, b));
 	}
 
-	public static inline function compare( a : Int64, b : Int64 ) : Int {
-		var v = a.high - b.high;
-		return if( v != 0 ) v else uicompare(a.low,b.low);
+	@:commutative @:op(A*B) public static inline function mulf(a:Int64, b:Float):Int64 {
+		return mul(a, fromFloat(b));
 	}
 
-	/**
-		Compare two Int64 in unsigned mode.
-	**/
-	public static inline function ucompare( a : Int64, b : Int64 ) : Int {
-		var v = uicompare(a.high,b.high);
-		return if( v != 0 ) v else uicompare(a.low, b.low);
+	@:commutative @:op(A*B) public static inline function muli(a:Int64, b:Int):Int64 {
+		return mul(a, fromInt(b));
 	}
 
-	public static inline function toStr( a : Int64 ) : String {
-		return a.toString();
+	@:op(A/B) public static inline function div(a:Int64, b:Int64):Int64 {
+		return RAW(Int64Data.div(a, b));
 	}
 
+	@:op(A/B) public static inline function divf(a:Int64, b:Float):Int64 {
+		return div(a, fromFloat(b));
+	}
+
+	@:op(A/B) public static inline function divi(a:Int64, b:Int):Int64 {
+		return div(a, fromInt(b));
+	}
+
+	@:op(A/B) public static inline function fdiv(a:Float, b:Int64):Int64 {
+		return div(fromFloat(a), b);
+	}
+
+	@:op(A/B) public static inline function idiv(a:Int, b:Int64):Int64 {
+		return div(fromInt(a), b);
+	}
+
+	@:op(A % B) public static inline function mod(a:Int64, b:Int64):Int64 {
+		return RAW(Int64Data.mod(a, b));
+	}
+
+	@:op(A%B) public static inline function modf(a:Int64, b:Float):Int64 {
+		return mod(a, fromFloat(b));
+	}
+
+	@:op(A%B) public static inline function modi(a:Int64, b:Int):Int64 {
+		return mod(a, fromInt(b));
+	}
+
+	@:op(A%B) public static inline function fmod(a:Float, b:Int64):Int64 {
+		return mod(fromFloat(a), b);
+	}
+
+	@:op(A%B) public static inline function imod(a:Int, b:Int64):Int64 {
+		return mod(fromInt(a), b);
+	}
+
+	@:op(A==B) public static inline function eq(a:Int64, b:Int64):Bool {
+		return Int64Data.compare(a, b) == 0;
+	}
+
+	@:commutative @:op(A==B) public static inline function eqf(a:Int64, b:Float):Bool {
+		return eq(a, fromFloat(b));
+	}
+
+	@:commutative @:op(A == B) public static inline function eqi(a:Int64, b:Int):Bool {
+		// check for special case when b == 0
+		return b == 0 ? Int64Data.isZero(a) : eq(a, fromInt(b));
+	}
+
+	@:op(A!=B) public static inline function neq(a:Int64, b:Int64):Bool {
+		return Int64Data.compare(a, b) != 0;
+	}
+
+	@:commutative @:op(A!=B) public static inline function neqf(a:Int64, b:Float):Bool {
+		return neq(a, fromFloat(b));
+	}
+
+	@:commutative @:op(A!=B) public static inline function neqi(a:Int64, b:Int):Bool {
+		// check for special case when b == 0
+		return b == 0 ? !Int64Data.isZero(a) : neq(a, fromInt(b));
+	}
+
+	@:op(A>B) public static inline function gt(a:Int64, b:Int64):Bool {
+		return Int64Data.compare(a, b) > 0;
+	}
+
+	@:op(A>B) public static inline function gtf(a:Int64, b:Float):Bool {
+		return gt(a, fromFloat(b));
+	}
+
+	@:op(A>B) public static inline function gti(a:Int64, b:Int):Bool {
+		return gt(a, fromInt(b));
+	}
+
+	@:op(A>B) public static inline function fgt(a:Float, b:Int64):Bool {
+		return gt(fromFloat(a), b);
+	}
+
+	@:op(A>B) public static inline function igt(a:Int, b:Int64):Bool {
+		return gt(fromInt(a), b);
+	}
+
+	@:op(A<B) public static inline function lt(a:Int64, b:Int64):Bool {
+		return Int64Data.compare(a, b) < 0;
+	}
+
+	@:op(A<B) public static inline function ltf(a:Int64, b:Float):Bool {
+		return lt(a, fromFloat(b));
+	}
+
+	@:op(A<B) public static inline function lti(a:Int64, b:Int):Bool {
+		return b == 0 ? Int64Data.isNeg(a) : lt(a, fromInt(b));
+	}
+
+	@:op(A<B) public static inline function flt(a:Float, b:Int64):Bool {
+		return lt(fromFloat(a), b);
+	}
+
+	@:op(A<B) public static inline function ilt(a:Int, b:Int64):Bool {
+		return lt(fromInt(a), b);
+	}
+
+	@:op(A>=B) public static inline function gte(a:Int64, b:Int64):Bool {
+		return Int64Data.compare(a, b) >= 0;
+	}
+
+	@:op(A>=B) public static inline function gtef(a:Int64, b:Float):Bool {
+		return gte(a, fromFloat(b));
+	}
+
+	@:op(A>=B) public static inline function gtei(a:Int64, b:Int):Bool {
+		return b == 0 ? !Int64Data.isNeg(a) : gte(a, fromInt(b));
+	}
+
+	@:op(A>=B) public static inline function fgte(a:Float, b:Int64):Bool {
+		return gte(fromFloat(a), b);
+	}
+
+	@:op(A>=B) public static inline function igte(a:Int, b:Int64):Bool {
+		return gte(fromInt(a), b);
+	}
+
+	@:op(A<=B) public static inline function lte(a:Int64, b:Int64):Bool {
+		return Int64Data.compare(a, b) <= 0;
+	}
+
+	@:op(A<=B) public static inline function ltef(a:Int64, b:Float):Bool {
+		return lte(a, fromFloat(b));
+	}
+
+	@:op(A<=B) public static inline function ltei(a:Int64, b:Int):Bool {
+		return lte(a, fromInt(b));
+	}
+
+	@:op(A<=B) public static inline function flte(a:Float, b:Int64):Bool {
+		return lte(fromFloat(a), b);
+	}
+
+	@:op(A<=B) public static inline function ilte(a:Int, b:Int64):Bool {
+		return lte(fromInt(a), b);
+	}
+
+	@:op(A<<B) public static inline function shl(a:Int64, b:Int):Int64 {
+		return RAW(Int64Data.shl(a, b));
+	}
+
+	@:op(A>>B) public static inline function shr(a:Int64, b:Int):Int64 {
+		return RAW(Int64Data.shr(a, b));
+	}
+
+	@:op(A>>>B) public static inline function ushr(a:Int64, b:Int):Int64 {
+		return RAW(Int64Data.ushr(a, b));
+	}
+
+	@:op(A&B) public static inline function and(a:Int64, b:Int64):Int64 {
+		return RAW(Int64Data.and(a, b));
+	}
+
+	@:commutative @:op(A&B) public static inline function andi(a:Int64, b:Int):Int64 {
+		return and(a, fromInt(b));
+	}
+
+	@:op(A|B) public static inline function or(a:Int64, b:Int64):Int64 {
+		return RAW(Int64Data.or(a, b));
+	}
+
+	@:commutative @:op(A|B) public static inline function ori(a:Int64, b:Int):Int64 {
+		return or(a, fromInt(b));
+	}
+
+	@:op(A^B) public static inline function xor(a:Int64, b:Int64):Int64 {
+		return RAW(Int64Data.xor(a, b));
+	}
+
+	@:commutative @:op(A^B) public static inline function xori(a:Int64, b:Int):Int64 {
+		return xor(a, fromInt(b));
+	}
+
+	public inline function toString():String {
+		return Int64Data.toStr(this);
+	}
 }
