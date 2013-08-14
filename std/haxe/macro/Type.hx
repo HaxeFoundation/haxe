@@ -39,6 +39,9 @@ enum Type {
 }
 
 typedef AnonType = {
+	/**
+		Warning: The order for these fields is unspecified!
+	**/
 	var fields : Array<ClassField>;
 	//var status : AnonStatus;
 }

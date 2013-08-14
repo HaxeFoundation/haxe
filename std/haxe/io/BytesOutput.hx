@@ -63,6 +63,16 @@ class BytesOutput extends Output {
 		return len;
 	}
 
+	#if cpp
+	// optimized operations
+
+	override function prepare( size : Int ) {
+		if( size > 0 )
+			untyped b.__Resize(size);
+	}
+
+	#end
+
 	#if flash9
 	// optimized operations
 
@@ -102,11 +112,7 @@ class BytesOutput extends Output {
 
 	override function prepare( size : Int ) {
 		if( size > 0 )
-	#if cpp
-			untyped b.__Resize(size);
-	#else
 			b[size-1] = b[size-1];
-	#end
 	}
 
 	override function writeString( s : String ) {
