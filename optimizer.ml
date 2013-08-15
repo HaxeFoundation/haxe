@@ -83,6 +83,7 @@ type in_local = {
 	mutable i_captured : bool;
 	mutable i_write : bool;
 	mutable i_read : int;
+	mutable i_force_temp : bool;
 }
 
 let inline_default_config cf t =
@@ -131,6 +132,7 @@ let rec type_inline ctx cf f ethis params tret config p force =
 				i_subst = alloc_var v.v_name v.v_type;
 				i_captured = false;
 				i_write = false;
+				i_force_temp = false;
 				i_read = 0;
 			} in
 			Hashtbl.add locals v.v_id i;
@@ -146,6 +148,7 @@ let rec type_inline ctx cf f ethis params tret config p force =
 				i_subst = v;
 				i_captured = false;
 				i_write = false;
+				i_force_temp = false;
 				i_read = 0;
 			}
 	in
@@ -180,7 +183,7 @@ let rec type_inline ctx cf f ethis params tret config p force =
 	let vthis = alloc_var "_this" ethis.etype in
 	let inlined_vars = List.map2 (fun e (v,_) ->
 		let l = local v in
-		if has_side_effect e then l.i_write <- true; (* force tmp var *)
+		if has_side_effect e then l.i_force_temp <- true; (* force tmp var *)
 		l, e
 	) (ethis :: loop params f.tf_args true) ((vthis,None) :: f.tf_args) in
 	(*
@@ -345,7 +348,7 @@ let rec type_inline ctx cf f ethis params tret config p force =
 	in
 	let force = ref force in
 	let vars = List.fold_left (fun acc (i,e) ->
-		let flag = (match e.eexpr with
+		let flag = not i.i_force_temp && (match e.eexpr with
 			| TLocal {v_extra = _,true} -> true
 			| TLocal _ | TConst _ -> not i.i_write
 			| TFunction _ -> if i.i_write then error "Cannot modify a closure parameter inside inline method" p; true
