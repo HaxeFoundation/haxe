@@ -2099,7 +2099,7 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 			let rec loop acc types = match types with
 				| td :: l ->
 					(match resolve_typedef td with
-					| TClassDecl c ->
+					| TClassDecl c | TAbstractDecl({a_impl = Some c}) ->
 						loop (c :: acc) l
 					| td ->
 						loop acc l)
