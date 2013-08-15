@@ -121,6 +121,7 @@ module Meta = struct
 		| Sound
 		| Struct
 		| SuppressWarnings
+		| This
 		| Throws
 		| To
 		| ToString

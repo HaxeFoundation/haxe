@@ -2286,6 +2286,7 @@ let type_module ctx m file tdecls p =
 			wildcard_packages = [];
 		};
 		meta = [];
+		this_stack = [];
 		pass = PBuildModule;
 		on_error = (fun ctx msg p -> ctx.com.error msg p);
 		macro_depth = ctx.macro_depth;

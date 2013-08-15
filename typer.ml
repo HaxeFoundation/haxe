@@ -3033,16 +3033,19 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		let e = Codegen.Abstract.check_cast ctx t e p in
 		unify ctx e.etype t e.epos;
 		if e.etype == t then e else mk (TCast (e,None)) t p
-	| EMeta (m,e) ->
+	| EMeta (m,e1) ->
 		let old = ctx.meta in
 		ctx.meta <- m :: ctx.meta;
-		let e = type_expr ctx e with_type in
+		let e () = type_expr ctx e1 with_type in
 		let e = match m with
 			| (Meta.ToString,_,_) ->
+				let e = e() in
 				(match follow e.etype with
 					| TAbstract({a_impl = Some c},_) when PMap.mem "toString" c.cl_statics -> call_to_string ctx c e
 					| _ -> e)
-			| _ -> e
+			| (Meta.This,_,_) ->
+				List.hd ctx.this_stack
+			| _ -> e()
 		in
 		ctx.meta <- old;
 		e
@@ -3051,7 +3054,7 @@ and type_call ctx e el (with_type:with_type) p =
 	let def () = (match e with
 		| EField ((EConst (Ident "super"),_),_) , _ -> ctx.in_super_call <- true
 		| _ -> ());
-		build_call ctx e (type_access ctx (fst e) (snd e) MCall) el with_type p
+		build_call ctx (type_access ctx (fst e) (snd e) MCall) el with_type p
 	in
 	match e, el with
 	| (EConst (Ident "trace"),p) , e :: el ->
@@ -3071,7 +3074,7 @@ and type_call ctx e el (with_type:with_type) p =
 		let ecb = try Some (type_ident_raise ctx "callback" p1 MCall) with Not_found -> None in
 		(match ecb with
 		| Some ecb ->
-			build_call ctx e ecb args with_type p
+			build_call ctx ecb args with_type p
 		| None ->
 			display_error ctx "callback syntax has changed to func.bind(args)" p;
 			let e = type_expr ctx e Value in
@@ -3110,11 +3113,16 @@ and type_call ctx e el (with_type:with_type) p =
 	| _ ->
 		def ()
 
-and build_call ctx e acc el (with_type:with_type) p =
+and build_call ctx acc el (with_type:with_type) p =
 	let fopts t f = match follow t with
 		| (TInst (c,pl) as t) -> Some (t,f)
 		| (TAnon a) as t -> (match !(a.a_status) with Statics c -> Some (TInst(c,[]),f) | _ -> Some (t,f))
 		| _ -> None
+	in
+	let push_this e =
+		ctx.this_stack <- e :: ctx.this_stack;
+		let er = EMeta((Meta.This,[],e.epos), (EConst(Ident "this"),e.epos)),e.epos in
+		er,fun () -> ctx.this_stack <- List.tl ctx.this_stack
 	in
 	match acc with
 	| AKInline (ethis,f,fmode,t) ->
@@ -3133,8 +3141,10 @@ and build_call ctx e acc el (with_type:with_type) p =
 		begin match ef.cf_kind with
 		| Method MethMacro ->
 			let ethis = type_module_type ctx (TClassDecl cl) None p in
-			let e = match fst e with EField(e1,_) -> e1 | _ -> e in
-			build_call ctx e (AKMacro (ethis,ef)) (e :: el) with_type p
+			let eparam,f = push_this eparam in
+			let e = build_call ctx (AKMacro (ethis,ef)) (eparam :: el) with_type p in
+			f();
+			e
 		| _ ->
 			let t = follow (field_type ctx cl [] ef p) in
 			(* for abstracts we have to apply their parameters to the static function *)
@@ -3978,6 +3988,7 @@ let rec create com =
 			wildcard_packages = [];
 		};
 		meta = [];
+		this_stack = [];
 		pass = PBuildModule;
 		macro_depth = 0;
 		untyped = false;
