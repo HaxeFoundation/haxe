@@ -2039,15 +2039,14 @@ let z_lib =
 
 (* convert float value to haxe expression, handling inf/-inf/nan *)
 let haxe_float f p =
-    let one = (Ast.EConst (Ast.Float ("1.0")), p) in
-    let negone = (Ast.EConst (Ast.Float ("-1.0")), p) in
-    let zero = (Ast.EConst (Ast.Float ("0.0")), p) in
+    let std = (Ast.EConst (Ast.Ident "std"), p) in
+    let math = (Ast.EField (std, "Math"), p) in
     if (f = infinity) then
-        (Ast.EBinop (Ast.OpDiv, one, zero), p)
+        (Ast.EField (math, "POSITIVE_INFINITY"), p)
     else if (f = neg_infinity) then
-        (Ast.EBinop (Ast.OpDiv, negone, zero), p)
+        (Ast.EField (math, "NEGATIVE_INFINITY"), p)
     else if (f <> f) then
-        (Ast.EBinop (Ast.OpDiv, zero, zero), p)
+        (Ast.EField (math, "NaN"), p)
     else
         (Ast.EConst (Ast.Float (string_of_float f)), p)
 
