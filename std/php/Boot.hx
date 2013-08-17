@@ -522,14 +522,7 @@ function _hx_set_method($o, $field, $func) {
 }
 
 function _hx_shift_right($v, $n) {
-	$z = 0x80000000;
-	if ($z & $v) {
-		$v = ($v>>1);
-		$v &= (~$z);
-		$v |= 0x40000000;
-		$v = ($v>>($n-1));
-	} else $v = ($v>>$n);
-	return $v;
+	return ($v >> $n) & (0x7fffffff >> ($n-1));
 }
 
 function _hx_string_call($s, $method, $params) {
