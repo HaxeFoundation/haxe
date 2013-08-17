@@ -34,6 +34,17 @@ class TestPhp extends Test
 		for( l in list ) {} // fails here
 		t(true);
 	}
+
+	function testIssue1828()
+	{
+        var x = try {
+            throw "foo";
+            false;
+        } catch (e:String) {
+            true;
+        }
+        t(x);
+	}
 }
 
 enum Annotation {
