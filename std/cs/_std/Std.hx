@@ -95,7 +95,7 @@ import cs.internal.Exceptions;
 					case '-'.code:
 						isNeg = true;
 						continue;
-					case ' '.code, '\t'.code, '\n'.code, '\r'.code:
+					case ' '.code, '\t'.code, '\n'.code, '\r'.code, '+'.code:
 						if (isNeg)
 							return null;
 						continue;
@@ -155,7 +155,7 @@ import cs.internal.Exceptions;
 					case '-'.code:
 						isNeg = true;
 						continue;
-					case ' '.code, '\t'.code, '\n'.code, '\r'.code:
+					case ' '.code, '\t'.code, '\n'.code, '\r'.code, '+'.code:
 						if (isNeg)
 							return Math.NaN;
 						continue;
