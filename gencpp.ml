@@ -1130,8 +1130,9 @@ let hx_stack_push ctx output clazz func_name pos =
    let qfile = "\"" ^ (Ast.s_escape stripped_file) ^ "\"" in
 	ctx.ctx_file_info := PMap.add qfile qfile !(ctx.ctx_file_info);
 	if (ctx.ctx_dump_stack_line) then
-		output ("HX_STACK_PUSH(\"" ^ clazz ^ "::" ^ func_name ^ "\"," ^ qfile ^ ","
-					^ (string_of_int (Lexer.get_error_line pos) ) ^ ");\n")
+		output ("HX_STACK_FRAME(\"" ^ clazz ^ "\",\"" ^ func_name ^ "\",\"" ^ 
+                clazz ^ "." ^ func_name ^ "\"," ^ qfile ^ "," ^
+			    (string_of_int (Lexer.get_error_line pos) ) ^ ")\n")
 ;;
 
 
@@ -1197,8 +1198,8 @@ let rec define_local_function_ctx ctx func_name func_def =
 		writer#begin_block;
       hx_stack_push ctx output_i "*" func_name func_def.tf_expr.epos;
 		if (has_this && ctx.ctx_dump_stack_line) then
-			output_i ("HX_STACK_THIS(__this.mPtr);\n");
-		List.iter (fun (v,_) -> output_i ("HX_STACK_ARG(" ^ (keyword_remap v.v_name) ^ ",\"" ^ v.v_name ^"\");\n") )
+			output_i ("HX_STACK_THIS(__this.mPtr)\n");
+		List.iter (fun (v,_) -> output_i ("HX_STACK_ARG(" ^ (keyword_remap v.v_name) ^ ",\"" ^ v.v_name ^"\")\n") )
             func_def.tf_args;
 
 		if (block) then begin
@@ -1943,10 +1944,19 @@ and gen_expression ctx retval expression =
 			);
 		end
 	| TTry (expression, catch_list) ->
-		output "try";
+		output "try\n";
+        output_i "{\n";
+        let counter = ref 0 in
+        List.iter (fun (v, e) ->
+			let type_name = type_string v.v_type in
+			    output_i ("HX_STACK_CATCHABLE(" ^ type_name ^ ", " ^ string_of_int !counter ^ ");\n");
+                counter := !counter + 1;)
+            catch_list;
+        output_i("");
 		(* Move this "inside" the try call ... *)
 		ctx.ctx_return_from_block <-return_from_internal_node;
 		gen_expression ctx false (to_block expression);
+        output_i "}\n";
 		if (List.length catch_list > 0 ) then begin
 			output_i "catch(Dynamic __e)";
 			ctx.ctx_writer#begin_block;
@@ -1969,15 +1979,18 @@ and gen_expression ctx retval expression =
 				else_str := "else ";
 				) catch_list;
 			if (not !seen_dynamic) then begin
-				output_i "else throw(__e);\n";
+				output_i "else {\n";
+                output_i "    HX_STACK_DO_THROW(__e);\n";
+                output_i "}\n";
 			end;
 			ctx.ctx_writer#end_block;
 		end;
 	| TBreak -> output "break"
 	| TContinue -> output "continue"
-	| TThrow expression -> output "hx::Throw (";
+	| TThrow expression -> 
+	        output "HX_STACK_DO_THROW(";
 			gen_expression ctx true expression;
-			output ")"
+			output ")";
 	| TCast (cast,None) ->
 		let void_cast = retval && ((type_string expression.etype)="Void" ) in
       if (void_cast) then output "Void(";
@@ -2066,8 +2079,8 @@ let gen_field ctx class_def class_name ptr_name is_static is_interface field =
 			ctx.ctx_dump_stack_line <- true;
 			(fun() ->
          hx_stack_push ctx output_i ptr_name field.cf_name function_def.tf_expr.epos;
-         if (not is_static) then output_i ("HX_STACK_THIS(this);\n");
-			List.iter (fun (v,_) -> output_i ("HX_STACK_ARG(" ^ (keyword_remap v.v_name) ^ ",\"" ^ v.v_name ^"\");\n") )
+         if (not is_static) then output_i ("HX_STACK_THIS(this)\n");
+			List.iter (fun (v,_) -> output_i ("HX_STACK_ARG(" ^ (keyword_remap v.v_name) ^ ",\"" ^ v.v_name ^"\")\n") )
             function_def.tf_args )
 		end in
 
@@ -2473,16 +2486,27 @@ let generate_files common_ctx file_info =
 	let base_dir = common_ctx.file in
 	let files_file = new_cpp_file base_dir ([],"__files__") in
 	let output_files = (files_file#write) in
+    let types = common_ctx.types in
 	output_files "#include <hxcpp.h>\n\n";
 	output_files "namespace hx {\n";
 	output_files "const char *__hxcpp_all_files[] = {\n";
 	output_files "#ifdef HXCPP_DEBUGGER\n";
-	List.iter ( fun file -> output_files ("	" ^ file ^ ",\n" ) ) ( List.sort String.compare ( pmap_keys !file_info) );
+	List.iter ( fun file -> output_files ("	HX_CSTRING(" ^ file ^ "),\n" ) ) ( List.sort String.compare ( pmap_keys !file_info) );
 	output_files "#endif\n";
 	output_files " 0 };\n";
-	output_files "const char *__hxcpp_class_path[] = {\n";
+    output_files "\n";
+    output_files "const char *__hxcpp_all_classes[] = {\n";
 	output_files "#ifdef HXCPP_DEBUGGER\n";
-	List.iter ( fun file -> output_files ("	\"" ^ file ^ "\",\n" ) ) (common_ctx.class_path @ common_ctx.std_path);
+    List.iter ( fun object_def ->
+                (match object_def with
+		         | TClassDecl class_def when class_def.cl_extern -> ( )
+		         | TClassDecl class_def when class_def.cl_interface -> ( )
+				 | TClassDecl class_def ->
+                   output_files("    HX_CSTRING(\"" ^ join_class_path class_def.cl_path "." ^ "\"),\n")
+                 | _ -> ( )
+                )
+              )
+              types;
 	output_files "#endif\n";
 	output_files " 0 };\n";
 	output_files "} // namespace hx\n";
@@ -2618,6 +2642,7 @@ let generate_enum_files common_ctx enum_def super_deps meta file_info =
 	output_cpp "};\n\n";
 
 	(* ENUM - Visit static as used by GC *)
+	output_cpp "#ifdef HXCPP_VISIT_ALLOCS\n";
 	output_cpp "static void sVisitStatic(HX_VISIT_PARAMS) {\n";
 	output_cpp ("	HX_VISIT_MEMBER_NAME(" ^ class_name ^ "::__mClass,\"__mClass\");\n");
 	PMap.iter (fun _ constructor ->
@@ -2626,7 +2651,8 @@ let generate_enum_files common_ctx enum_def super_deps meta file_info =
 		| TFun (_,_) -> ()
 		| _ -> output_cpp ("	HX_VISIT_MEMBER_NAME(" ^ class_name ^ "::" ^ name ^ ",\"" ^ name ^ "\");\n") )
 	enum_def.e_constrs;
-	output_cpp "};\n\n";
+	output_cpp "};\n";
+	output_cpp "#endif\n\n";
 
 	output_cpp "static ::String sMemberFields[] = { ::String(null()) };\n";
 
@@ -2639,7 +2665,8 @@ let generate_enum_files common_ctx enum_def super_deps meta file_info =
 	output_cpp ("\nhx::Static(__mClass) = hx::RegisterClass(" ^ text_name ^
 					", hx::TCanCast< " ^ class_name ^ " >,sStaticFields,sMemberFields,\n");
 	output_cpp ("	&__Create_" ^ class_name ^ ", &__Create,\n");
-	output_cpp ("	&super::__SGetClass(), &Create" ^ class_name ^ ", sMarkStatics, sVisitStatic);\n");
+	output_cpp ("	&super::__SGetClass(), &Create" ^ class_name ^ ", sMarkStatics\n");
+	output_cpp("#ifdef HXCPP_VISIT_ALLOCS\n    , sVisitStatic\n#endif\n);\n");
 	output_cpp ("}\n\n");
 
 	output_cpp ("void " ^ class_name ^ "::__boot()\n{\n");
@@ -2761,19 +2788,21 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 	if debug then print_endline ("Found class definition:" ^ ctx.ctx_class_name);
 
 	let ptr_name = "hx::ObjectPtr< " ^ class_name ^ " >" in
-	let constructor_type_var_list =
+	let constructor_arg_var_list =
 		match class_def.cl_constructor with
 		| Some definition ->
 					(match definition.cf_expr with
 						| Some { eexpr = TFunction function_def } ->
-							List.map (fun (v,o) -> gen_arg_type_name v.v_name o v.v_type "__o_")
+							List.map (fun (v,o) -> (v.v_name, gen_arg_type_name v.v_name o v.v_type "__o_"))
 									function_def.tf_args;
 						| _ ->
 							(match follow definition.cf_type with
-								| TFun (args,_) -> List.map (fun (a,_,t) -> (type_string t,a) )  args
+								| TFun (args,_) -> List.map (fun (a,_,t) -> (a, (type_string t, a)) )  args
 								| _ -> [])
 					)
 		| _ -> [] in
+	let constructor_type_var_list =
+	    List.map snd constructor_arg_var_list in
 	let constructor_var_list = List.map snd constructor_type_var_list in
 	let constructor_type_args = String.concat ","
 				(List.map (fun (t,a) -> t ^ " " ^ a) constructor_type_var_list) in
@@ -2821,6 +2850,8 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 					(match  definition.cf_expr with
 					| Some { eexpr = TFunction function_def } ->
       				hx_stack_push ctx output_cpp smart_class_name "new" function_def.tf_expr.epos;
+		            List.iter (fun (a,(t,o)) -> output_cpp ("\nHX_STACK_ARG(" ^ (keyword_remap o) ^ ",\"" ^ a ^"\")\n") ) constructor_arg_var_list;
+
 						if (has_default_values function_def.tf_args) then begin
 							generate_default_values ctx function_def.tf_args "__o_";
 							gen_expression ctx false (to_block function_def.tf_expr);
@@ -3083,6 +3114,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 	output_cpp "};\n\n";
 
 	(* Visit static variables *)
+	output_cpp "#ifdef HXCPP_VISIT_ALLOCS\n";
 	output_cpp "static void sVisitStatics(HX_VISIT_PARAMS) {\n";
 	output_cpp ("	HX_VISIT_MEMBER_NAME(" ^ class_name ^ "::__mClass,\"__mClass\");\n");
 	List.iter (fun field ->
@@ -3090,6 +3122,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 			output_cpp ("	HX_VISIT_MEMBER_NAME(" ^ class_name ^ "::" ^ (keyword_remap field.cf_name) ^ ",\"" ^  field.cf_name ^ "\");\n") )
 		implemented_fields;
 	output_cpp "};\n\n";
+	output_cpp "#endif\n\n";
 
    if (scriptable ) then begin
       let dump_script_field idx (field,f_args,return_t) =
@@ -3157,7 +3190,9 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 		output_cpp ("	hx::Static(__mClass) = hx::RegisterClass(" ^ (str class_name_text)  ^
 				", hx::TCanCast< " ^ class_name ^ "> ,sStaticFields,sMemberFields,\n");
 		output_cpp ("	&__CreateEmpty, &__Create,\n");
-		output_cpp ("	&super::__SGetClass(), 0, sMarkStatics, sVisitStatics);\n");
+		output_cpp ("	&super::__SGetClass(), 0, sMarkStatics\n");
+		output_cpp ("#ifdef HXCPP_VISIT_ALLOCS\n    , sVisitStatics\n#endif\n");
+		output_cpp (");\n");
       if (scriptable) then
             output_cpp ("  HX_SCRIPTABLE_REGISTER_CLASS(\""^class_name_text^"\"," ^ class_name ^ ");\n");
 		output_cpp ("}\n\n");
@@ -3171,7 +3206,9 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 		output_cpp ("	hx::Static(__mClass) = hx::RegisterClass(" ^ (str class_name_text)  ^
 				", hx::TCanCast< " ^ class_name ^ "> ,0,sMemberFields,\n");
 		output_cpp ("	0, 0,\n");
-		output_cpp ("	&super::__SGetClass(), 0, sMarkStatics, sVisitStatics);\n");
+		output_cpp ("	&super::__SGetClass(), 0, sMarkStatics\n");
+		output_cpp ("#ifdef HXCPP_VISIT_ALLOCS\n    , sVisitStatics\n#endif\n");
+		output_cpp (");\n");
       if (scriptable) then
          output_cpp ("  HX_SCRIPTABLE_REGISTER_INTERFACE(\""^class_name_text^"\"," ^ class_name ^ ");\n");
 		output_cpp ("}\n\n");
