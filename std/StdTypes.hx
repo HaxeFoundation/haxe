@@ -140,7 +140,7 @@ abstract UInt(Int) from Int {
 	@:op(A > B) public static inline function gt(a:UInt, b:UInt):Bool {
 		if (a.toInt() < 0) {
 			if (b.toInt() >= 0) {
-				return true;
+				return false;
 			}
 			else {
 				return a.toInt() > b.toInt();
@@ -151,7 +151,7 @@ abstract UInt(Int) from Int {
 				return a.toInt() > b.toInt();
 			}
 			else {
-				return false;
+				return true;
 			}
 		}
 	}
@@ -159,7 +159,7 @@ abstract UInt(Int) from Int {
 	@:op(A >= B) public static inline function gte(a:UInt, b:UInt):Bool {
 		if (a.toInt() < 0) {
 			if (b.toInt() >= 0) {
-				return true;
+				return false;
 			}
 			else {
 				return a.toInt() >= b.toInt();
@@ -170,7 +170,7 @@ abstract UInt(Int) from Int {
 				return a.toInt() >= b.toInt();
 			}
 			else {
-				return false;
+				return true;
 			}
 		}
 	}
