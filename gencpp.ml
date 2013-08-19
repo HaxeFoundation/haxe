@@ -389,6 +389,13 @@ let is_object type_string =
    not (is_numeric type_string || type_string="::String");
 ;;
 
+let is_interface_type t =
+	match follow t with
+	| TInst (klass,params) -> klass.cl_interface
+	| _ -> false
+;;
+
+
 
 (*  Get a string to represent a type.
 	 The "suffix" will be nothing or "_obj", depending if we want the name of the
@@ -482,6 +489,7 @@ and type_string haxe_type =
 and array_element_type haxe_type =
    match type_string haxe_type with
    | x when cant_be_null x -> x
+   | x when is_interface_type (follow haxe_type) -> x
    | "::String" -> "::String"
    | _ -> "::Dynamic"
 
@@ -547,12 +555,6 @@ let member_type ctx field_object member =
               else (type_string field_object.etype)) ^ "." ^ member in
 	try ( Hashtbl.find ctx.ctx_class_member_types name )
 	with Not_found -> "?";;
-
-let is_interface_type t =
-	match follow t with
-	| TInst (klass,params) -> klass.cl_interface
-	| _ -> false
-;;
 
 let is_interface obj = is_interface_type obj.etype;;
 
@@ -1464,6 +1466,7 @@ and gen_expression ctx retval expression =
 	   | TInst (klass,[element]) ->
          ( match type_string element with
            | x when cant_be_null x -> ()
+           | _ when is_interface_type element -> ()
            | "::String" | "Dynamic" -> ()
            | real_type -> gen_array_cast cast_name real_type call
          )
@@ -1473,6 +1476,7 @@ and gen_expression ctx retval expression =
    in
 	let rec check_array_cast array_type =
 	   match follow array_type with
+	   | x when is_interface_type x -> ()
 	   | TInst (klass,[element]) ->
          let name = type_string element in
          if ( is_object name ) then
