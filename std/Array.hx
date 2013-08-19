@@ -44,7 +44,7 @@ extern class Array<T> {
 		
 		If `a` is the empty Array `[]`, a copy of `this` Array is returned.
 		
-		The length of the returned Array is equal to the sum of `this.length` 
+		The length of the returned Array is equal to the sum of `this.length`
 		and `a.length`.
 		
 		If `a` is `null`, the result is unspecified.
@@ -58,7 +58,7 @@ extern class Array<T> {
 		The result of this operation is equal to `Std.string(this[0]) + sep +
 		Std.string(this[1]) + sep + ... + sep + Std.string(this[this.length-1])`
 		
-		If `this` is the empty Array `[]`, the result is the empty String `""`. 
+		If `this` is the empty Array `[]`, the result is the empty String `""`.
 		If `this` has exactly one element, the result is equal to a call to
 		`Std.string(this[0])`.
 		
@@ -73,14 +73,14 @@ extern class Array<T> {
 		
 		If `this` has at least one element, `this.length` will decrease by 1.
 		
-		If `this` is the empty Array `[]`, null is returned and the length 
+		If `this` is the empty Array `[]`, null is returned and the length
 		remains 0.
 	**/
 	function pop() : Null<T>;
 
 	/**
-		Adds the element `x` at the end of `this` Array and returns the offset
-		it was added at.
+		Adds the element `x` at the end of `this` Array and returns the new
+		length of `this` Array.
 		
 		This operation modifies `this` Array in place.
 		
@@ -105,7 +105,7 @@ extern class Array<T> {
 		If `this` has at least one element, `this`.length and the index of each
 		remaining element is decreased by 1.
 		
-		If `this` is the empty Array `[]`, `null` is returned and the length 
+		If `this` is the empty Array `[]`, `null` is returned and the length
 		remains 0.
 	**/
 	function shift() : Null<T>;
@@ -196,8 +196,8 @@ extern class Array<T> {
 		The offset is calculated like so:
 			
 		- If `pos` exceeds `this.length`, the offset is `this.length`.
-		- If `pos` is negative, the offset is calculated from the end of `this` 
-		  Array, i.e. `this.length + pos`. If this yields a negative value, the 
+		- If `pos` is negative, the offset is calculated from the end of `this`
+		  Array, i.e. `this.length + pos`. If this yields a negative value, the
 		  offset is 0.
 		- Otherwise, the offset is `pos`.
 		
@@ -225,7 +225,7 @@ extern class Array<T> {
 		Returns a shallow copy of `this` Array.
 		
 		The elements are not copied and retain their identity, so
-		`a[i] == a.copy()[i]` is true for any valid `i`. However, 
+		`a[i] == a.copy()[i]` is true for any valid `i`. However,
 		`a == a.copy()` is always false.
 	**/
 	function copy() : Array<T>;
@@ -241,7 +241,7 @@ extern class Array<T> {
 		The order of elements is preserved.
 		
 		If `f` is null, the result is unspecified.
-	**/	
+	**/
 	function map<S>( f : T -> S ) : Array<S>;
 	
 	/**
@@ -251,6 +251,6 @@ extern class Array<T> {
 		The individual elements are not duplicated and retain their identity.
 		
 		If `f` is null, the result is unspecified.
-	**/	
+	**/
 	function filter( f : T -> Bool ) : Array<T>;
 }
