@@ -2565,6 +2565,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 	| EIf (e,e1,e2) ->
 		let e = type_expr ctx e Value in
 		unify ctx e.etype ctx.t.tbool e.epos;
+		let e = Codegen.Abstract.check_cast ctx ctx.t.tbool e p in
 		let e1 = type_expr ctx e1 with_type in
 		(match e2 with
 		| None ->
@@ -2592,6 +2593,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		let old_loop = ctx.in_loop in
 		let cond = type_expr ctx cond Value in
 		unify ctx cond.etype ctx.t.tbool cond.epos;
+		let cond = Codegen.Abstract.check_cast ctx ctx.t.tbool cond p in
 		ctx.in_loop <- true;
 		let e = type_expr ctx e NoValue in
 		ctx.in_loop <- old_loop;
@@ -2603,6 +2605,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		ctx.in_loop <- old_loop;
 		let cond = type_expr ctx cond Value in
 		unify ctx cond.etype ctx.t.tbool cond.epos;
+		let cond = Codegen.Abstract.check_cast ctx ctx.t.tbool cond p in
 		mk (TWhile (cond,e,DoWhile)) ctx.t.tvoid p
 	| ESwitch (e1,cases,def) ->
 		begin try
