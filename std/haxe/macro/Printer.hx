@@ -70,7 +70,7 @@ class Printer {
 			+ "=";
 	}
 	public function printString(s:String) {
-		return "'" + s.split("\n").join("\\n").split("\t").join("\\t").split("'").join("\\'").split('"').join("\\\"") #if sys .split("\x00").join("\\x00") #end + "'";
+		return '"' + s.split("\n").join("\\n").split("\t").join("\\t").split("'").join("\\'").split('"').join("\\\"") #if sys .split("\x00").join("\\x00") #end + '"';
 	}
 	public function printConstant(c:Constant) return switch(c) {
 		case CString(s): printString(s);
