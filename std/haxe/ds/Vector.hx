@@ -20,7 +20,6 @@
  * DEALINGS IN THE SOFTWARE.
  */
 package haxe.ds;
-
 private typedef VectorData<T> = #if flash10
 	flash.Vector<T>
 #elseif neko
@@ -29,6 +28,8 @@ private typedef VectorData<T> = #if flash10
 	cs.NativeArray<T>
 #elseif java
 	java.NativeArray<T>
+#elseif js
+	Dynamic
 #else
 	Array<T>
 #end
@@ -38,6 +39,7 @@ private typedef VectorData<T> = #if flash10
 	targets, and is never slower.
 **/
 @:arrayAccess
+#if js @:multiType #end
 abstract Vector<T>(VectorData<T>) {
 	/**
 		Creates a new Vector of length `length`.
@@ -50,6 +52,9 @@ abstract Vector<T>(VectorData<T>) {
 
 		If `length` is less than or equal to 0, the result is unspecified.
 	**/
+	#if js
+	public function new(length:Int);
+	#else
 	public inline function new(length:Int) {
 		#if flash9
 			this = new flash.Vector<T>(length, true);
@@ -68,16 +73,15 @@ abstract Vector<T>(VectorData<T>) {
 			untyped this.length = length;
 		#end
 	}
-
+	#end
 	/**
 		Returns the value at index `index`.
 
 		If `index` is negative or exceeds `this.length`, the result is
 		unspecified.
 	**/
-	public inline function get(index:Int):Null<T> {
+	@:arrayAccess public inline function get(index:Int):Null<T>
 		return this[index];
-	}
 
 	/**
 		Sets the value at index `index` to `val`.
@@ -85,9 +89,8 @@ abstract Vector<T>(VectorData<T>) {
 		If `index` is negative or exceeds `this.length`, the result is
 		unspecified.
 	**/
-	public inline function set(index:Int, val:T):T {
+	@:arrayAccess public inline function set(index:Int, val:T):T
 		return this[index] = val;
-	}
 
 	/**
 		Returns the length of `this` Vector.
@@ -165,4 +168,23 @@ abstract Vector<T>(VectorData<T>) {
 			vec.set(i, array[i]);
 		return vec;
 	}
+	#if js
+	@:to static inline function toIntArray(t:VectorData<Int>, len:Int):js.html.Int32Array
+		return new js.html.Int32Array(len);
+
+	@:to static inline function toFloat64Array(t:VectorData<Float>, len:Int):js.html.Float64Array
+		return new js.html.Float64Array(len);
+
+	@:to static inline function toArray(t:Dynamic, len:Int):Array<Dynamic>
+		return [for(i in 0...len) null];
+
+	@:from static inline function fromIntArray(v:js.html.Int32Array):Vector<Int>
+		return v;
+
+	@:from static inline function fromFloat64Array(v:js.html.Float64Array):Vector<Int>
+		return v;
+
+	@:from static inline function fromArray<T>(v:Array<T>):Vector<T>
+		return v;
+	#end
 }

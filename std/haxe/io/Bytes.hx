@@ -117,6 +117,8 @@ class Bytes {
 		var newarr = new cs.NativeArray(len);
 		cs.system.Array.Copy(b, pos, newarr, 0, len);
 		return new Bytes(len, newarr);
+		#elseif js
+		return Bytes.ofData(b.subarray(pos, pos + len));
 		#else
 		return new Bytes(len,b.slice(pos,pos+len));
 		#end
@@ -243,9 +245,8 @@ class Bytes {
 		return s.toString();
 	}
 
-	public inline function getData() : BytesData {
+	public inline function getData() : BytesData
 		return b;
-	}
 
 	public static function alloc( length : Int ) : Bytes {
 		#if neko
@@ -264,6 +265,8 @@ class Bytes {
 		return new Bytes(length, new cs.NativeArray(length));
 		#elseif java
 		return new Bytes(length, new java.NativeArray(length));
+		#elseif js
+		return new Bytes(length, new js.html.Uint8Array(length));
 		#else
 		var a = new Array();
 		for( i in 0...length )
@@ -296,6 +299,36 @@ class Bytes {
 			return new Bytes(b.length, b);
 		}
 		catch (e:Dynamic) throw e;
+		#elseif js
+		var nbytes = 0;
+		for(i in 0...s.length) {
+			var c:Int = StringTools.fastCodeAt(s, i);
+			nbytes += if(c <= 0x7F) 1
+			else if(c <= 0x7FF) 2
+			else if(c <= 0xFFFF) 3
+			else 4;
+		}
+		var a = new js.html.Uint8Array(nbytes);
+		var ci = 0;
+		for(i in 0...s.length) {
+			var c : Int = StringTools.fastCodeAt(s,i);
+			if( c <= 0x7F )
+				a[ci++] = c;
+			else if( c <= 0x7FF ) {
+				a[ci++] = 0xC0 | (c >> 6);
+				a[ci++] = 0x80 | (c & 63);
+			} else if( c <= 0xFFFF ) {
+				a[ci++] = 0xE0 | (c >> 12);
+				a[ci++] = 0x80 | ((c >> 6) & 63);
+				a[ci++] = 0x80 | (c & 63);
+			} else {
+				a[ci++] = 0xF0 | (c >> 18);
+				a[ci++] = 0x80 | ((c >> 12) & 63);
+				a[ci++] =  0x80 | ((c >> 6) & 63);
+				a[ci++] = 0x80 | (c & 63);
+			}
+		}
+		return new Bytes(a.length, a);
 		#else
 		var a = new Array();
 		// utf8-decode
@@ -321,7 +354,7 @@ class Bytes {
 		#end
 	}
 
-	public static function ofData( b : BytesData ) {
+	public static inline function ofData( b : BytesData ) {
 		#if flash9
 		return new Bytes(b.length,b);
 		#elseif neko
