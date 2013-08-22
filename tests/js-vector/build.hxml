@@ -1,8 +1,0 @@
--main Test
--js test.js
--dce full
---next
--main Test
--neko test.n
--dce full
--cmd neko test.n

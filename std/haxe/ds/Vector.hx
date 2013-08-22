@@ -125,7 +125,11 @@ abstract Vector<T>(VectorData<T>) {
 		#elseif cs
 			cs.system.Array.Copy(cast src, srcPos,cast dest, destPos, len);
 		#elseif js
-			dest.toData().set(src.toData().subarray(srcPos, srcPos + len), destPos);
+			if(Std.is(dest.toData(), Array) || Std.is(src.toData(), Array))
+				for(i in 0...len)
+					dest[destPos + i] = src[srcPos + i];
+			else
+				dest.toData().set(src.toData().subarray(srcPos, srcPos + len), destPos);
 		#else
 			for (i in 0...len)
 			{
@@ -163,7 +167,7 @@ abstract Vector<T>(VectorData<T>) {
 
 		If `array` is null, the result is unspecified.
 	**/
-	static public inline function fromArrayCopy<T>(array:Array<T>):Vector<T> {
+	static public function fromArrayCopy<T>(array:Array<T>):Vector<T> {
 		// TODO: Optimize this for flash (and others?)
 		var vec = new Vector<T>(array.length);
 		for (i in 0...array.length)
@@ -177,7 +181,7 @@ abstract Vector<T>(VectorData<T>) {
 	@:to static inline function toFloat64Array(t:VectorData<Float>, len:Int):js.html.Float64Array
 		return new js.html.Float64Array(len);
 
-	@:to static inline function toArray(t:Dynamic, len:Int):Array<Dynamic>
+	@:to static function toArray(t:Dynamic, len:Int):Array<Dynamic>
 		return [for(i in 0...len) null];
 
 	@:from static inline function fromIntArray(v:js.html.Int32Array):Vector<Int>

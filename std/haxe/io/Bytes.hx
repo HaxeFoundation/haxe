@@ -80,6 +80,8 @@ class Bytes {
 		java.lang.System.arraycopy(src.b, srcpos, b, pos, len);
 		#elseif cs
 		cs.system.Array.Copy(src.b, srcpos, b, pos, len);
+		#elseif js
+		b.set(src.b.subarray(srcpos, srcpos + len), pos);
 		#else
 		var b1 = b;
 		var b2 = src.b;
