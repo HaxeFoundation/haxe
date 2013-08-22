@@ -30,6 +30,12 @@
 @:keep
 #end
 class StringTools {
+	/**
+		Returns a string with backslashes before characters that need to be quoted.
+	**/
+	public static function addSlashes( s : String ) : String {
+		return s.split("\n").join("\\n").split("\t").join("\\t").split("'").join("\\'").split('"').join("\\\"") #if sys .split("\x00").join("\\x00") #end;
+	}
 
 	/**
 		Encode an URL by using the standard format.
