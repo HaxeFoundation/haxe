@@ -151,7 +151,9 @@ class BytesBuffer {
 		var buf = b.toByteArray();
 		var bytes = new Bytes(buf.length, buf);
 		#elseif js
-		var bytes = new Bytes(b.length, new js.html.Uint8Array(b));
+		var bytes = Bytes.alloc(b.length);
+		for(i in 0...b.length)
+			bytes.set(i, b[i]);
 		#else
 		var bytes = new Bytes(b.length,b);
 		#end
