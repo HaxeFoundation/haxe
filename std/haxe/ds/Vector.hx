@@ -124,6 +124,8 @@ abstract Vector<T>(VectorData<T>) {
 			java.lang.System.arraycopy(src, srcPos, dest, destPos, len);
 		#elseif cs
 			cs.system.Array.Copy(cast src, srcPos,cast dest, destPos, len);
+		#elseif js
+			dest.toData().set(src.toData().subarray(srcPos, srcPos + len), destPos);
 		#else
 			for (i in 0...len)
 			{

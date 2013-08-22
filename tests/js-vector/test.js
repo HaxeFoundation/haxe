@@ -6,10 +6,6 @@ HxOverrides.cca = function(s,index) {
 	if(x != x) return undefined;
 	return x;
 }
-var Std = function() { }
-Std.random = function(x) {
-	if(x <= 0) return 0; else return Math.floor(Math.random() * x);
-}
 var Test = function() { }
 Test.main = function() {
 	var v = new Float64Array(10);
@@ -28,25 +24,18 @@ Test.main = function() {
 		var i = _g++;
 		ov[i] = i;
 	}
-	console.log(ov);
-	var sv;
-	var _g = [];
-	var _g1 = 0;
-	while(_g1 < 5) {
-		var i = _g1++;
-		_g.push(null);
-	}
-	sv = _g;
-	var _g1 = 0;
-	var _g = sv.length;
-	while(_g1 < _g) {
-		var i = _g1++;
-		var val = { name : "???", value : Std.random(10)};
-		sv[i] = val;
-	}
-	console.log(sv);
+	var nvs = new Int32Array(6);
+	nvs[0] = 9;
+	haxe.ds._Vector.Vector_Impl_.blit(ov,10,nvs,1,5);
+	console.log(nvs);
 }
 var haxe = {}
+haxe.ds = {}
+haxe.ds._Vector = {}
+haxe.ds._Vector.Vector_Impl_ = function() { }
+haxe.ds._Vector.Vector_Impl_.blit = function(src,srcPos,dest,destPos,len) {
+	dest.set(src.subarray(srcPos,srcPos + len),destPos);
+}
 haxe.io = {}
 haxe.io.Bytes = function(length,b) {
 	this.length = length;

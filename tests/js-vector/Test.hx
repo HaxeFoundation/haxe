@@ -11,10 +11,10 @@ class Test {
 		var ov = new Vector<Int>(20);
 		for(i in 0...20)
 			ov[i] = i;
-		trace(ov);
-		var sv = new Vector<{name: String, value:Int}>(5);
-		for(i in 0...sv.length)
-			sv[i] = {name: "???", value: Std.random(10)};
-		trace(sv);
+		var nvs = new Vector<Int>(6);
+		nvs[0] = 9;
+		Vector.blit(ov, 10, nvs, 1, 5);
+		trace(nvs);
+		//sould be 10...14
 	}
 }
