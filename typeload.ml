@@ -1545,7 +1545,7 @@ let init_class ctx c p context_init herits fields =
 		let inline = List.mem AInline f.cff_access && allow_inline in
 		let override = List.mem AOverride f.cff_access in
 		let is_macro = Meta.has Meta.Macro f.cff_meta in
-		if is_macro then ctx.com.warning "@:macro should now be 'macro' accessor'" p;
+		if is_macro then ctx.com.warning "@:macro should now be 'macro' accessor" p;
 		let is_macro = is_macro || List.mem AMacro f.cff_access in
 		List.iter (fun acc ->
 			match (acc, f.cff_kind) with
