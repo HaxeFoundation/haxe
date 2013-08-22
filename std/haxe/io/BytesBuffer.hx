@@ -150,6 +150,8 @@ class BytesBuffer {
 		#elseif java
 		var buf = b.toByteArray();
 		var bytes = new Bytes(buf.length, buf);
+		#elseif js
+		var bytes = new Bytes(b.length, new js.html.Uint8Array(b));
 		#else
 		var bytes = new Bytes(b.length,b);
 		#end

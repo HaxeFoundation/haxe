@@ -28,6 +28,9 @@ class BytesInput extends Input {
 	var len : Int;
 	var totlen : Int;
 	#end
+	#if js
+	var v : js.html.DataView;
+	#end
 	
 	/** The current position in the stream in bytes. */
 	public var position(get,set) : Int;
@@ -49,6 +52,12 @@ class BytesInput extends Input {
 		} else
 			this.b = ba;
 		this.b.endian = flash.utils.Endian.LITTLE_ENDIAN;
+		#elseif js
+		this.b = b.getData();
+		this.pos = pos;
+		this.len = len;
+		this.totlen = len;
+		this.v = new js.html.DataView(this.b.buffer);
 		#else
 		this.b = b.getData();
 		this.pos = pos;
@@ -96,6 +105,8 @@ class BytesInput extends Input {
 			return untyped b[pos++];
 			#elseif java
 			return untyped b[pos++] & 0xFF;
+			#elseif js
+			return v.getUint8(pos++);
 			#else
 			return b[pos++];
 			#end
@@ -136,6 +147,8 @@ class BytesInput extends Input {
 			try untyped __dollar__sblit(buf.getData(),pos,b,this.pos,len) catch( e : Dynamic ) throw Error.OutsideBounds;
 			#elseif php
 			untyped __php__("$buf->b = substr($buf->b, 0, $pos) . substr($this->b, $this->pos, $len) . substr($buf->b, $pos+$len)");
+			#elseif js
+			buf.getData().set(b.subarray(this.pos, this.pos + len), pos);
 			#else
 			var b1 = b;
 			var b2 = buf.getData();
@@ -147,8 +160,47 @@ class BytesInput extends Input {
 		#end
 		return len;
 	}
-
-	#if flash9
+	#if js
+	override function readInt8() {
+		try return v.getInt8(pos++)
+		catch(e:js.html.DOMError) throw new Eof();
+	}
+	override function readInt16() {
+		try {
+			var f:Int = v.getInt16(pos, !bigEndian);
+			pos += 2;
+			return f;
+		} catch(e:js.html.DOMError) throw new Eof();
+	}
+	override function readUInt16() {
+		try {
+			var f:Int = v.getUint16(pos, !bigEndian);
+			pos += 2;
+			return f;
+		} catch(e:js.html.DOMError) throw new Eof();
+	}
+	override function readInt32() {
+		try {
+			var f:Int = v.getInt32(pos, !bigEndian);
+			pos += 4;
+			return f;
+		} catch(e:js.html.DOMError) throw new Eof();
+	}
+	override function readFloat() {
+		try {
+			var f:Float = v.getFloat32(pos, !bigEndian);
+			pos += 4;
+			return f;
+		} catch(e:js.html.DOMError) throw new Eof();
+	}
+	override function readDouble() {
+		try {
+			var f:Float = v.getFloat64(pos, !bigEndian);
+			pos += 8;
+			return f;
+		} catch(e:js.html.DOMError) throw new Eof();
+	}
+	#elseif flash9
 	override function set_bigEndian(e) {
 		bigEndian = e;
 		b.endian = e ? flash.utils.Endian.BIG_ENDIAN : flash.utils.Endian.LITTLE_ENDIAN;
