@@ -1512,8 +1512,9 @@ and gen_expression ctx retval expression =
          ctx.ctx_dbgout "/* TField */";
          (* toString is the only internal member that can be set... *)
          let settingInternal = assigning && member="toString" in
+         let isString = (type_string field_object.etype)="::String" in
          if (is_internal_member member && not settingInternal) then begin
-				output ( "->" ^ member );
+				output ( (if isString then "." else "->") ^ member );
          end else if (settingInternal || is_dynamic_member_lookup_in_cpp ctx field_object member) then begin
             if assigning then
 				    output ( "->__FieldRef(" ^ (str member) ^ ")" )
@@ -1521,7 +1522,7 @@ and gen_expression ctx retval expression =
 				    output ( "->__Field(" ^ (str member) ^ ",true)" );
             already_dynamic := true;
          end else begin
-            if ((type_string field_object.etype)="::String" ) then
+            if (isString) then
 				   output ( "." ^ remap_name )
             else begin
                cast_if_required ctx field_object (type_string field_object.etype);
