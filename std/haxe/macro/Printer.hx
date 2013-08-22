@@ -69,9 +69,14 @@ class Printer {
 			printBinop(op)
 			+ "=";
 	}
-
+	public function printString(s:String) {
+		s = StringTools.replace(s, "\n", "\\n");
+		s = StringTools.replace(s, "\t", "\\t");
+		s = StringTools.replace(s, "\r", "\\r");
+		return '"$s"';
+	}
 	public function printConstant(c:Constant) return switch(c) {
-		case CString(s): '"$s"';
+		case CString(s): printString(s);
 		case CIdent(s),
 			CInt(s),
 			CFloat(s):
