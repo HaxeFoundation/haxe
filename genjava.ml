@@ -2187,11 +2187,23 @@ let generate con =
 
   let basic = con.basic in
   (* make the basic functions in java *)
+  let wait = mk_class_field "wait" (TFun([], basic.tvoid)) true Ast.null_pos (Method MethNormal) [] in
+  wait.cf_meta <- (Meta.Overload,[],wait.cf_pos) :: wait.cf_meta;
+  (try
+    let i64 = mt_to_t_dyn (get_type gen (["haxe"],"Int64")) in
+    wait.cf_overloads <- [
+      mk_class_field "wait" (TFun(["timeout",false,i64], basic.tvoid)) true Ast.null_pos (Method MethNormal) [];
+      mk_class_field "wait" (TFun(["timeout",false,i64; "nanos",false,basic.tint], basic.tvoid)) true Ast.null_pos (Method MethNormal) [];
+    ]
+  with | TypeNotFound _ -> ());
   let basic_fns =
   [
     mk_class_field "equals" (TFun(["obj",false,t_dynamic], basic.tbool)) true Ast.null_pos (Method MethNormal) [];
     mk_class_field "toString" (TFun([], basic.tstring)) true Ast.null_pos (Method MethNormal) [];
     mk_class_field "hashCode" (TFun([], basic.tint)) true Ast.null_pos (Method MethNormal) [];
+    mk_class_field "wait" (TFun([], basic.tvoid)) true Ast.null_pos (Method MethNormal) [];
+    mk_class_field "notify" (TFun([], basic.tvoid)) true Ast.null_pos (Method MethNormal) [];
+    mk_class_field "notifyAll" (TFun([], basic.tvoid)) true Ast.null_pos (Method MethNormal) [];
   ] in
   List.iter (fun cf -> gen.gbase_class_fields <- PMap.add cf.cf_name cf gen.gbase_class_fields) basic_fns;
 
