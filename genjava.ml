@@ -58,6 +58,10 @@ let rec t_has_type_param t = match follow t with
   | TFun(f,ret) -> t_has_type_param ret || List.exists (fun (_,_,t) -> t_has_type_param t) f
   | _ -> false
 
+let is_type_param t = match follow t with
+  | TInst({ cl_kind = KTypeParameter _ }, _) -> true
+  | _ -> false
+
 let rec t_has_type_param_shallow last t = match follow t with
   | TInst({ cl_kind = KTypeParameter _ }, []) -> true
   | TEnum(_, params)
@@ -531,7 +535,7 @@ struct
     let rec run e =
       match e.eexpr with
         (* for new NativeArray<T> issues *)
-        | TNew(({ cl_path = (["java"], "NativeArray") } as cl), [t], el) when t_has_type_param t ->
+        | TNew(({ cl_path = (["java"], "NativeArray") } as cl), [t], el) when is_type_param t ->
           mk_cast (TInst(cl,[t])) (mk_cast t_dynamic ({ e with eexpr = TNew(cl, [t_empty], List.map run el) }))
 
         (* Std.int() *)

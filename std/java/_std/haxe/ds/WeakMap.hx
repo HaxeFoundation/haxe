@@ -68,7 +68,7 @@ import java.lang.ref.ReferenceQueue;
 
 	private function cleanupRefs():Void
 	{
-		var x = null, nOccupied = nOccupied;
+		var x:Dynamic = null, nOccupied = nOccupied;
 		while (( x = queue.poll()) != null)
 		{
 			//even if not found on hashtable (already removed), release value
