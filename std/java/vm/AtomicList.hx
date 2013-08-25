@@ -3,7 +3,7 @@ package java.vm;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
-	A lock-free stack implementation
+	A lock-free queue implementation
 **/
 @:native('haxe.java.vm.AtomicList')
 @:nativeGen class AtomicList<T>

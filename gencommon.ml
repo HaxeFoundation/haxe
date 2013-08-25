@@ -5784,7 +5784,10 @@ struct
         in
         let error = error || (match follow actual_t with | TFun _ -> false | _ -> true) in
         if error then (* if error, ignore arguments *)
-          mk_cast ecall.etype { ecall with eexpr = TCall({ e1 with eexpr = TField(!ef, f) }, elist ) }
+          if is_void ecall.etype then
+            { ecall with eexpr = TCall({ e1 with eexpr = TField(!ef, f) }, elist ) }
+          else
+            mk_cast ecall.etype { ecall with eexpr = TCall({ e1 with eexpr = TField(!ef, f) }, elist ) }
         else begin
           (* infer arguments *)
           (* let called_t = TFun(List.map (fun e -> "arg",false,e.etype) elist, ecall.etype) in *)
