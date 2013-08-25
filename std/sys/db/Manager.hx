@@ -310,6 +310,8 @@ class Manager<T : Object> {
 		untyped __dollar__objsetproto(o, class_proto.prototype);
 		#else
 		var o : T = Type.createEmptyInstance(cast class_proto);
+		untyped o._manager = this;
+		#end
 		for( f in Reflect.fields(x) )
 		{
 			var val:Dynamic = Reflect.field(x, f), info = table_infos.hfields.get(f);
@@ -325,8 +327,6 @@ class Manager<T : Object> {
 			}
 			Reflect.setField(o, f, val);
 		}
-		untyped o._manager = this;
-		#end
 		Reflect.setField(o,cache_field,x);
 		addToCache(o);
 		untyped o._lock = lock;
@@ -526,6 +526,7 @@ class Manager<T : Object> {
 		var lock = r.lock;
 		if( manager == null || manager.table_keys == null ) throw ("Invalid manager for relation "+table_name+":"+r.prop);
 		if( manager.table_keys.length != 1 ) throw ("Relation " + r.prop + "(" + r.key + ") on a multiple key table");
+#if neko
 		Reflect.setField(class_proto.prototype,"get_"+r.prop,function() {
 			var othis = untyped __this__;
 			var f = Reflect.field(othis,hprop);
@@ -549,6 +550,7 @@ class Manager<T : Object> {
 			Reflect.setField(othis,hkey,Reflect.field(f,manager.table_keys[0]));
 			return f;
 		});
+#end
 	}
 
 	#if !neko
