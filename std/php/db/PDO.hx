@@ -251,11 +251,15 @@ private class DBNativeStrategy extends PHPNativeStrategy {
 		type = type.toLowerCase();
 		switch(type)
 		{
-			case "real":
+			case "real", "double", "float":
 				return "float";
 			case "integer":
 				return "int";
+			case "tinyint(1)":
+				return "bool";
 			default:
+				if (StringTools.startsWith(type, "tinyint"))
+					return "int";
 				return "string";
 		}
 	}
