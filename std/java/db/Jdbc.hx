@@ -22,7 +22,6 @@ private class JdbcConnection implements sys.db.Connection
 
 	private var cnx:java.sql.Connection;
 	private var _lastInsertId:Int;
-	private var transaction:java.sql.Savepoint;
 	//escape handling
 	private var escapeRegex:EReg;
 	private var escapes:Array<Dynamic>;
@@ -89,11 +88,9 @@ private class JdbcConnection implements sys.db.Connection
 
 	public function startTransaction()
 	{
-		if (transaction != null) throw "A transaction was already started!";
 		try
 		{
-			transaction = cnx.setSavepoint();
-			cnx.setAutoCommit(true);
+			cnx.setAutoCommit(false);
 		}
 		catch(e:Dynamic) throw e;
 	}
@@ -103,7 +100,6 @@ private class JdbcConnection implements sys.db.Connection
 		try
 		{
 			cnx.commit();
-			transaction = cnx.setSavepoint();
 		}
 		catch(e:Dynamic)
 		{
@@ -114,7 +110,7 @@ private class JdbcConnection implements sys.db.Connection
 	public function rollback()
 	{
 		try
-			cnx.rollback(transaction)
+			cnx.rollback()
 		catch(e:Dynamic) throw e;
 	}
 
