@@ -28,13 +28,19 @@ package sys.db;
 @:keepSub
 @:autoBuild(sys.db.RecordMacros.macroBuild()) @:skipFields
 class Object {
+#if !(neko || php)
+	var __cache__(default, null):Dynamic;
+#end
 
-	var _lock(default,never) : Bool;
-	var _manager(default,never) : sys.db.Manager<Dynamic>;
+	var _lock(default,null) : Bool;
+	var _manager(default,null) : sys.db.Manager<Dynamic>;
 
 	public function new() {
-		#if php
-		if( _manager == null ) untyped _manager = Type.getClass(this).manager;
+		#if !neko
+		if( _manager == null ) {
+			var cls:Dynamic = Type.getClass(this);
+			untyped _manager = cls.manager;
+		}
 		#end
 	}
 

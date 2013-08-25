@@ -7,24 +7,24 @@ import java.sql.Types;
 class Jdbc
 {
 
-	public static function open(str:String):sys.db.Connection
+	public static function create(cnx:java.sql.Connection):sys.db.Connection
 	{
-
+		return new JdbcConnection(cnx);
 	}
 
 }
 
+@:native('haxe.java.db.JdbcConnection')
 private class JdbcConnection implements sys.db.Connection
 {
-	private var ids = new AtomicInteger(0);
+	private static var ids = new AtomicInteger(0);
 	private var id:Int;
 
 	private var cnx:java.sql.Connection;
-	private var escapes:haxe.ds.WeakHashMap<String,Dynamic>;
 	private var _lastInsertId:Int;
 	private var transaction:java.sql.Savepoint;
 	//escape handling
-	private var escapeRegex:EReg = ~/@@HX_ESCAPE(\d+)_(\d+)@@/;
+	private var escapeRegex:EReg;
 	private var escapes:Array<Dynamic>;
 
 	public function new(cnx)
@@ -32,6 +32,7 @@ private class JdbcConnection implements sys.db.Connection
 		this.id = ids.getAndIncrement();
 		this.cnx = cnx;
 		this.escapes = [];
+		this.escapeRegex = ~/@@HX_ESCAPE(\d+)_(\d+)@@/;
 	}
 
 	public function close()
@@ -43,12 +44,12 @@ private class JdbcConnection implements sys.db.Connection
 
 	public function escape(s:String):String
 	{
-		return "@@HX_ESCAPE" + id + "_" +escapes.push(s) "@@";
+		return "@@HX_ESCAPE" + id + "_" +escapes.push(s) + "@@";
 	}
 
 	public function quote(s:String):String
 	{
-		return "@@HX_ESCAPE" + id + "_" +escapes.push(s) "@@";
+		return "@@HX_ESCAPE" + id + "_" +escapes.push(s) + "@@";
 	}
 
 	public function addValue(s:StringBuf, v:Dynamic)
@@ -59,7 +60,7 @@ private class JdbcConnection implements sys.db.Connection
 			v = new java.sql.Date(cast(d.getTime(), haxe.Int64));
 		} else if (Std.is(v, Bytes)) {
 			var bt:Bytes = v;
-			v = v.getData();
+			v = bt.getData();
 		}
 		s.add("@@HX_ESCAPE");
 		s.add(id);
@@ -75,13 +76,15 @@ private class JdbcConnection implements sys.db.Connection
 
 	public function dbName():String
 	{
-		var ret = cnx.getMetaData().getDriverName();
-		var retInsens = ret.toLowerCase();
-		if (retInses.indexOf("mysql") != -1)
-			return "MySQL";
-		else if (retInses.indexOf("sqlite") != -1)
-			return "SQLite";
-		return ret;
+		try {
+			var ret = cnx.getMetaData().getDriverName();
+			var retc = ret.toLowerCase();
+			if (retc.indexOf("mysql") != -1)
+				return "MySQL";
+			else if (retc.indexOf("sqlite") != -1)
+				return "SQLite";
+			return ret;
+		} catch(e:Dynamic) { throw e; }
 	}
 
 	public function startTransaction()
@@ -100,7 +103,7 @@ private class JdbcConnection implements sys.db.Connection
 		try
 		{
 			cnx.commit();
-			transaction = cnx.setSavePoint();
+			transaction = cnx.setSavepoint();
 		}
 		catch(e:Dynamic)
 		{
@@ -149,7 +152,7 @@ private class JdbcConnection implements sys.db.Connection
 			if (stmt.execute())
 			{
 				//is a result set
-				var rs = stmt.getResultSet()
+				var rs = stmt.getResultSet();
 				ret = new JdbcResultSet(rs, stmt.getMetaData());
 			} else {
 				//is an update
@@ -181,9 +184,10 @@ private class JdbcConnection implements sys.db.Connection
 
 }
 
+@:native('haxe.java.db.JdbcResultSet')
 private class JdbcResultSet implements sys.db.ResultSet
 {
-	public var length(get,null) : Int;
+	@:isVar public var length(get,null) : Int;
 	public var nfields(get,null) : Int;
 
 	private var rs:java.sql.ResultSet;
@@ -195,16 +199,35 @@ private class JdbcResultSet implements sys.db.ResultSet
 		this.rs = rs;
 		if (meta != null)
 		{
-			var count = meta.getColumnCount();
-			var names = [], types = new NativeArray(count);
-			for (i in 0...count)
-			{
-				names.push(meta.getColumnName(i+1));
-				types[i] = meta.getColumnType(i+1);
-			}
-			this.types = types;
-			this.names = names;
+			try {
+				var count = meta.getColumnCount();
+				var names = [], types = new NativeArray(count);
+				for (i in 0...count)
+				{
+					names.push(meta.getColumnName(i+1));
+					types[i] = meta.getColumnType(i+1);
+				}
+				this.types = types;
+				this.names = names;
+			} catch(e:Dynamic) throw e;
 		}
+	}
+
+	private function get_length():Int
+	{
+		if (length == 0)
+		{
+			var cur = rs.getRow();
+			rs.last();
+			this.length = rs.getRow();
+			rs.absolute(cur);
+		}
+		return length;
+	}
+
+	private function get_nfields():Int
+	{
+		return names == null ? 0 : names.length;
 	}
 
 	public function hasNext() : Bool
@@ -214,24 +237,28 @@ private class JdbcResultSet implements sys.db.ResultSet
 
 	public function next() : Dynamic
 	{
-		if (rs == null) return null;
-		var ret = {}, names = names, types = types;
-		for (i in 0...names.length)
-		{
-			var name = names[i], t = types[i], val:Dynamic;
-			if (t == Types.FLOAT)
+		try {
+			if (rs == null) return null;
+			var ret = {}, names = names, types = types;
+			for (i in 0...names.length)
 			{
-				val = rs.getDouble(i+1);
-			} else if (t == Types.DATE || t == Types.TIME) {
-				var d:java.sql.Date = rs.getDate(i+1);
-				val = Date.fromTime(cast d.getTime());
-			} else if (t == Types.LONGVARBINARY || t == VARBINARY || t == BINARY || t == BLOB) {
-				var b = rs.getBytes(i+1);
-				val = Bytes.ofData(b);
+				var name = names[i], t = types[i], val:Dynamic = null;
+				if (t == Types.FLOAT)
+				{
+					val = rs.getDouble(i+1);
+				} else if (t == Types.DATE || t == Types.TIME) {
+					var d:java.sql.Date = rs.getDate(i+1);
+					val = Date.fromTime(cast d.getTime());
+				} else if (t == Types.LONGVARBINARY || t == Types.VARBINARY || t == Types.BINARY || t == Types.BLOB) {
+					var b = rs.getBytes(i+1);
+					val = Bytes.ofData(b);
+				} else {
+					untyped __java__("val = rs.getObject(i + 1)"); //type parameter constraint + overloads
+				}
+				Reflect.setField(ret, name, val);
 			}
-			Reflect.setField(ret, name, val);
-		}
-		return ret;
+			return ret;
+		} catch(e:Dynamic) throw e;
 	}
 
 	public function results() : List<Dynamic>
@@ -239,8 +266,11 @@ private class JdbcResultSet implements sys.db.ResultSet
 		var l = new List();
 		if (rs == null) return l;
 
-		while(rs.next())
-			l.add(next());
+		try
+		{
+			while(rs.next())
+				l.add(next());
+		} catch(e:Dynamic) throw e;
 		return l;
 	}
 

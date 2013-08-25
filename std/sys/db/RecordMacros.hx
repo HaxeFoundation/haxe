@@ -1297,8 +1297,10 @@ class RecordMacros {
 							expr : Context.parse("return untyped "+tname+".manager.__set(this,'"+f.name+"','"+relKey+"',_v)",pos),
 						};
 						var meta = [{ name : ":hide", params : [], pos : pos }];
+						f.meta.push({ name : ":isVar", params : [], pos : pos });
 						fields.push({ name : "get_"+f.name, pos : pos, meta : meta, access : [APrivate], doc : null, kind : FFun(get) });
 						fields.push({ name : "set_"+f.name, pos : pos, meta : meta, access : [APrivate], doc : null, kind : FFun(set) });
+						fields.push({ name : relKey, pos : pos, meta : [{ name : ":skip", params : [], pos : pos }], access : [APrivate], doc : null, kind : FVar(TPath({ sub : null, params : [], pack : [], name : "Dynamic" })) });
 					default:
 						Context.error("Invalid relation field type", f.pos);
 					}
