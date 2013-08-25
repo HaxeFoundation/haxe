@@ -100,6 +100,13 @@ private class PDOConnection implements Connection {
 			pdo = untyped __call__("new PDO", dsn, user, password, arr);
 		}
 		dbname = dsn.split(':').shift();
+		switch(dbname)
+		{
+			case "sqlite":
+				dbname = "SQLite";
+			case "mysql":
+				dbname = "MySQL";
+		}
 	}
 
 	public function close() {
