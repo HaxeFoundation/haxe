@@ -28,26 +28,24 @@ class TestThreads extends Test
 #if java
 		ts.maxVal *= 10;
 #end
-		for (creatorWait in [.2, .5, 0])
+		for (creatorWait in [.02, .05, 0])
 			for (creatorLoad in [false, true])
-				for (consumerWait in [.2,.5,0])
+				for (consumerWait in [.02,.05,0])
 					for (useTls in [false,true])
 						for (q in [new QDeque() #if java, new QLockFree()#end])
-							for (lock1 in [new DequeSemaphore(), new LockSemaphore()])
-								for (lock2 in [new DequeSemaphore(), new LockSemaphore()])
+							for (lock in [ [new DequeSemaphore(), new LockSemaphore()], [new LockSemaphore(), new DequeSemaphore() ] ])
 								{
 									ts.creatorWait = creatorWait;
 									ts.creatorLoad = creatorLoad;
 									ts.consumerWait = consumerWait;
 									ts.useTls = useTls;
 									ts.queue = q;
+									var lock1 = lock[0], lock2 = lock[1];
 									ts.lock1 = lock1;
 									ts.lock2 = lock2;
 									try
 									{
 										ts.run();
-
-										trace('Passed: $creatorWait, $creatorLoad, $consumerWait, $useTls, $q, $lock1, $lock2');
 										t(true);
 									}
 									catch(e:Dynamic)
@@ -70,7 +68,7 @@ class ThreadSort
 	public var useTls:Bool = false;
 
 	public var nThreads:Int = 10;
-	public var maxVal:Int = 100000;
+	public var maxVal:Int = 1000;
 
 	public var queue:QueueStrategy<Int>;
 	public var lock1:SemaphoreStrategy;
@@ -84,6 +82,7 @@ class ThreadSort
 	public function run()
 	{
 		//spawning creators
+		lock1.reset(); lock2.reset(); queue.reset();
 		lock1.setReleaseCount(nThreads);
 		lock2.setReleaseCount(nThreads);
 		var finishedMutex = new Mutex();
@@ -102,8 +101,8 @@ class ThreadSort
 					{
 						queue.add(j);
 					}
-					if (j % 10000 == 0 && creatorLoad)
-						Sys.sleep(.1);
+					if (j % Std.int(maxVal / 10) == 0 && creatorLoad)
+						Sys.sleep(.01);
 				}
 				//creator thread finished
 				lock1.release();
@@ -130,8 +129,8 @@ class ThreadSort
 						finishedMutex.release();
 						break;
 					}
-					if (++i % 10000 == 0 && consumerLoad)
-						Sys.sleep(.1);
+					if (++i % Std.int(maxVal / 10) == 0 && consumerLoad)
+						Sys.sleep(.01);
 				}
 				lock2.release();
 			});
@@ -176,6 +175,7 @@ private interface SemaphoreStrategy //may be released by another thread
 	function block():Void; //block until all semaphores are released
 	function release():Void;
 	function setReleaseCount(i:Int):Void;
+	function reset():Void;
 }
 
 private class DequeSemaphore implements SemaphoreStrategy
@@ -206,6 +206,17 @@ private class DequeSemaphore implements SemaphoreStrategy
 	public function setReleaseCount(c:Int)
 	{
 		this.c = c;
+	}
+
+	public function reset()
+	{
+		this.d = new Deque();
+		this.c = 0;
+	}
+
+	@:keep public function toString()
+	{
+		return "DequeSemaphore";
 	}
 }
 
@@ -238,6 +249,17 @@ private class LockSemaphore implements SemaphoreStrategy
 	{
 		this.c = c;
 	}
+
+	public function reset()
+	{
+		this.l = new Lock();
+		this.c = 0;
+	}
+
+	@:keep public function toString()
+	{
+		return "LockSemaphore";
+	}
 }
 
 
@@ -245,6 +267,7 @@ private interface QueueStrategy<T>
 {
 	function add(t:T):Void;
 	function pop():Null<T>; //not blocking
+	function reset():Void;
 }
 
 private class QDeque<T> implements QueueStrategy<T>
@@ -263,6 +286,16 @@ private class QDeque<T> implements QueueStrategy<T>
 	public function pop():Null<T>
 	{
 		return this.q.pop(false);
+	}
+
+	public function reset()
+	{
+		this.q = new Deque();
+	}
+
+	@:keep public function toString()
+	{
+		return "QDeque";
 	}
 }
 
@@ -284,6 +317,16 @@ private class QLockFree<T> implements QueueStrategy<T>
 	public function pop():Null<T>
 	{
 		return this.q.pop();
+	}
+
+	public function reset()
+	{
+		this.q = new java.vm.AtomicList();
+	}
+
+	@:keep public function toString()
+	{
+		return "QLockFree";
 	}
 }
 #end
