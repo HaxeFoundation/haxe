@@ -1241,6 +1241,10 @@ and type_field ctx e i p mode =
 				AKNo f.cf_name
 			| (MGet | MCall), _ ->
 				let t = field_type f in
+				begin match follow t with
+					| TFun((_,_,t1) :: _,_) -> ()
+					| _ -> error ("Invalid call to static function " ^ i ^ " through abstract instance") p
+				end;
 				let ef = field_expr f t in
 				AKUsing (ef,c,f,e)
 			| MSet, _ ->
