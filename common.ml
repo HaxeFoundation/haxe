@@ -171,6 +171,7 @@ module Define = struct
 		| GencommonDebug
 		| HaxeBoot
 		| HaxeVer
+		| IncludePrefix
 		| Interp
 		| JavaVer
 		| JsClassic
@@ -233,6 +234,7 @@ module Define = struct
 		| GencommonDebug -> ("gencommon_debug","GenCommon internal")
 		| HaxeBoot -> ("haxe_boot","Given the name 'haxe' to the flash boot class instead of a generated name")
 		| HaxeVer -> ("haxe_ver","The current Haxe version value")
+		| IncludePrefix -> ("include_prefix","prepend path to generated include files")
 		| Interp -> ("interp","The code is compiled to be run with --interp")
 		| JavaVer -> ("java_ver", "<version:5-7> Sets the Java version to be targeted")
 		| JsClassic -> ("js_classic","Don't use a function wrapper and strict mode in JS output")
