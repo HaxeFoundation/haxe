@@ -212,16 +212,16 @@ let is_internal_class = function
 	|  ([],"Int") | ([],"Void") |  ([],"String") | ([], "Null") | ([], "Float")
 	|  ([],"Array") | ([], "Class") | ([], "Enum") | ([], "Bool")
    |  ([], "Dynamic") | ([], "ArrayAccess") | (["cpp"], "FastIterator")-> true
-	|  (["cpp"], "CppInt32__") | ([],"Math") | (["haxe";"io"], "Unsigned_char__") -> true
+	|  ([],"Math") | (["haxe";"io"], "Unsigned_char__") -> true
 	| _ -> false
 
 
 (* The internal header files are also defined in the hx/Object.h file, so you do
-	 #include them separately.  However, the Int32 and Math classes do have their
-	 own header files (these are under the hxcpp tree) so these should be included *)
+	 #include them separately.  However, Math classes has its
+	 own header file (under the hxcpp tree) so these should be included *)
 let include_class_header = function
 	| ([],"@Main") -> false
-	| (["cpp"], "CppInt32__") | ([],"Math") -> true
+	| ([],"Math") -> true
 	| path -> not ( is_internal_class path )
 
 
@@ -322,9 +322,7 @@ let add_include writer class_path =
 	 types for everything.  This way there is no problem with circular class references.
 *)
 let gen_forward_decl writer class_path =
-	if ( class_path = (["cpp"],"CppInt32__")) then
-		writer#add_include class_path
-	else begin
+	begin
 		let output = writer#write in
 		let name = fst (remap_class_path class_path) in
 		output ("HX_DECLARE_CLASS" ^ (string_of_int (List.length name ) ) ^ "(");
@@ -2308,7 +2306,6 @@ let find_referenced_types ctx obj super_deps constructor_deps header_only for_de
 		| TInst (klass,params) ->
 			(match klass.cl_path with
          | ([],"Array") | ([],"Class") | (["cpp"],"FastIterator") -> List.iter visit_type params
-         | (["cpp"],"CppInt32__") -> add_type klass.cl_path;
          | _ when klass.cl_extern -> add_extern_class klass
 			| _ -> (match klass.cl_kind with KTypeParameter _ -> () | _ -> add_type klass.cl_path);
 			)
