@@ -82,19 +82,31 @@ let keep_field dce cf =
 
 (* mark a field as kept *)
 let rec mark_field dce c cf stat =
-	let add () =
+	let add cf =
 		if not (Meta.has Meta.Used cf.cf_meta) then begin
 			cf.cf_meta <- (Meta.Used,[],cf.cf_pos) :: cf.cf_meta;
 			dce.added_fields <- (c,cf,stat) :: dce.added_fields;
 			dce.marked_fields <- cf :: dce.marked_fields
 		end
 	in
+	if cf.cf_name = "new" then begin
+		let rec loop c = match c.cl_super with
+			| None -> ()
+			| Some (csup,_) ->
+				begin match csup.cl_constructor with
+				| None -> ()
+				| Some cf -> add cf
+				end;
+				loop csup
+		in
+		loop c
+	end;
 	if not (PMap.mem cf.cf_name (if stat then c.cl_statics else c.cl_fields)) then begin
 		match c.cl_super with
-		| None -> add()
+		| None -> add cf
 		| Some (c,_) -> mark_field dce c cf stat
 	end else
-		add()
+		add cf
 
 let rec update_marked_class_fields dce c =
 	(* mark all :?used fields as surely :used now *)
@@ -270,11 +282,7 @@ and expr dce e =
 	match e.eexpr with
 	| TNew(c,pl,el) ->
 		mark_class dce c;
-		let rec loop c =
-			field dce c "new" false;
-			match c.cl_super with None -> () | Some (csup,_) -> loop csup
-		in
-		loop c;
+		field dce c "new" false;
 		List.iter (expr dce) el;
 		List.iter (mark_t dce) pl;
 	| TVars vl ->
