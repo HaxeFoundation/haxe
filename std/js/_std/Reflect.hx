@@ -19,7 +19,9 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-extern class Reflect {
+@:coreApi
+@:keepInit
+class Reflect {
 
 	public static inline function hasField( o : Dynamic, field : String ) : Bool
 		return untyped __js__("$hasOwnProperty").call(o, field);
@@ -47,9 +49,8 @@ extern class Reflect {
 	public static function fields( o : Dynamic ) : Array<String> {
 		var a = [];
 		if (o != null) untyped {
-			var hasOwnProperty = __js__("$hasOwnProperty");
 			__js__("for( var f in o ) {");
-			if( f != "__id__" && f != "hx__closures__" && hasOwnProperty.call(o, f) ) a.push(f);
+			if( f != "__id__" && f != "hx__closures__" && __js__("$hasOwnProperty").call(o, f) ) a.push(f);
 			__js__("}");
 		}
 		return a;
