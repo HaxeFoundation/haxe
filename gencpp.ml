@@ -48,7 +48,25 @@ let join_class_path path separator =
 		result;;
 
 
-class source_writer write_func close_func=
+(* The internal classes are implemented by the core hxcpp system, so the cpp
+	 classes should not be generated *)
+let is_internal_class = function
+	|  ([],"Int") | ([],"Void") |  ([],"String") | ([], "Null") | ([], "Float")
+	|  ([],"Array") | ([], "Class") | ([], "Enum") | ([], "Bool")
+   |  ([], "Dynamic") | ([], "ArrayAccess") | (["cpp"], "FastIterator")-> true
+	|  ([],"Math") | (["haxe";"io"], "Unsigned_char__") -> true
+	| _ -> false;;
+
+let get_include_prefix common_ctx =
+	try (Common.defined_value common_ctx Define.IncludePrefix) ^ "/" with Not_found -> "";;
+
+
+let should_prefix_include = function
+   | x when is_internal_class x -> false
+	|  ([],"hxMath") -> true
+   | _ -> false;;
+
+class source_writer common_ctx write_func close_func =
 	object(this)
 	val indent_str = "\t"
 	val mutable indent = ""
@@ -72,13 +90,14 @@ class source_writer write_func close_func=
 
 	method add_include class_path =
 		this#write ("#ifndef INCLUDED_" ^ (join_class_path class_path "_") ^ "\n");
-		this#write ("#include <" ^ (join_class_path class_path "/") ^ ".h>\n");
+		let prefix = if should_prefix_include class_path then "" else get_include_prefix common_ctx in
+		this#write ("#include <" ^ prefix ^ (join_class_path class_path "/") ^ ".h>\n");
 		this#write ("#endif\n")
 end;;
 
-let file_source_writer filename =
+let file_source_writer common_ctx filename =
 	let out_file = open_out filename in
-	new source_writer (output_string out_file) (fun ()-> close_out out_file);;
+	new source_writer common_ctx (output_string out_file) (fun ()-> close_out out_file);;
 
 
 let read_whole_file chan =
@@ -86,7 +105,7 @@ let read_whole_file chan =
 
 (* The cached_source_writer will not write to the file if it has not changed,
 	thus allowing the makefile dependencies to work correctly *)
-let cached_source_writer filename =
+let cached_source_writer common_ctx filename =
 	try
 		let in_file = open_in filename in
 		let old_contents = read_whole_file in_file in
@@ -101,9 +120,9 @@ let cached_source_writer filename =
 				close_out out_file;
 			end;
 		in
-		new source_writer (add_buf) (close);
+		new source_writer common_ctx (add_buf) (close);
 	with _ ->
-		file_source_writer filename;;
+		file_source_writer common_ctx filename;;
 
 let rec make_class_directories base dir_list =
 	( match dir_list with
@@ -120,20 +139,29 @@ let rec make_class_directories base dir_list =
 		make_class_directories (if (path="") then "/" else path) remaining
 	);;
 
+let make_base_directory dir =
+	make_class_directories "" ( ( Str.split_delim (Str.regexp "[\\/]+") dir ) );;
 
-let new_source_file base_dir sub_dir extension class_path =
-	make_class_directories base_dir ( sub_dir :: (fst class_path));
-	cached_source_writer
-		( base_dir ^ "/" ^ sub_dir ^ "/" ^ ( String.concat "/" (fst class_path) ) ^ "/" ^
-		(snd class_path) ^ extension);;
+let new_source_file common_ctx base_dir sub_dir extension class_path =
+	let include_prefix = get_include_prefix common_ctx in
+	let full_dir = 
+	   if (sub_dir="include") && (include_prefix<>"") then begin
+		   let dir = base_dir ^ "/include/" ^ include_prefix ^ ( String.concat "/" (fst class_path) )  in
+			make_base_directory dir;
+			dir
+		end else begin
+			make_class_directories base_dir ( sub_dir :: (fst class_path));
+			base_dir ^ "/" ^ sub_dir ^ "/" ^ ( String.concat "/" (fst class_path) ) 
+		end
+   in
+	cached_source_writer common_ctx (full_dir ^ "/" ^ ((snd class_path) ^ extension));;
 
 
-let new_cpp_file base_dir = new_source_file base_dir "src" ".cpp";;
+let new_cpp_file common_ctx base_dir = new_source_file common_ctx base_dir "src" ".cpp";;
 
-let new_header_file base_dir = new_source_file base_dir "include" ".h";;
+let new_header_file common_ctx base_dir =
+	new_source_file common_ctx base_dir "include" ".h";;
 
-let make_base_directory file =
-	make_class_directories "" ( ( Str.split_delim (Str.regexp "[\\/]+") file ) );
 
 
 (* CPP code generation context *)
@@ -206,22 +234,12 @@ let new_extern_context common_ctx writer debug file_info =
 ;;
 
 
-(* The internal classes are implemented by the core hxcpp system, so the cpp
-	 classes should not be generated *)
-let is_internal_class = function
-	|  ([],"Int") | ([],"Void") |  ([],"String") | ([], "Null") | ([], "Float")
-	|  ([],"Array") | ([], "Class") | ([], "Enum") | ([], "Bool")
-   |  ([], "Dynamic") | ([], "ArrayAccess") | (["cpp"], "FastIterator")-> true
-	|  (["cpp"], "CppInt32__") | ([],"Math") | (["haxe";"io"], "Unsigned_char__") -> true
-	| _ -> false
-
-
 (* The internal header files are also defined in the hx/Object.h file, so you do
-	 #include them separately.  However, the Int32 and Math classes do have their
-	 own header files (these are under the hxcpp tree) so these should be included *)
+	 #include them separately.  However, Math classes has its
+	 own header file (under the hxcpp tree) so these should be included *)
 let include_class_header = function
 	| ([],"@Main") -> false
-	| (["cpp"], "CppInt32__") | ([],"Math") -> true
+	| ([],"Math") -> true
 	| path -> not ( is_internal_class path )
 
 
@@ -322,9 +340,7 @@ let add_include writer class_path =
 	 types for everything.  This way there is no problem with circular class references.
 *)
 let gen_forward_decl writer class_path =
-	if ( class_path = (["cpp"],"CppInt32__")) then
-		writer#add_include class_path
-	else begin
+	begin
 		let output = writer#write in
 		let name = fst (remap_class_path class_path) in
 		output ("HX_DECLARE_CLASS" ^ (string_of_int (List.length name ) ) ^ "(");
@@ -2308,7 +2324,6 @@ let find_referenced_types ctx obj super_deps constructor_deps header_only for_de
 		| TInst (klass,params) ->
 			(match klass.cl_path with
          | ([],"Array") | ([],"Class") | (["cpp"],"FastIterator") -> List.iter visit_type params
-         | (["cpp"],"CppInt32__") -> add_type klass.cl_path;
          | _ when klass.cl_extern -> add_extern_class klass
 			| _ -> (match klass.cl_kind with KTypeParameter _ -> () | _ -> add_type klass.cl_path);
 			)
@@ -2426,7 +2441,7 @@ let generate_main common_ctx member_types super_deps class_def file_info =
    let depend_referenced = find_referenced_types common_ctx (TClassDecl class_def) super_deps (Hashtbl.create 0) false true false in
 	let generate_startup filename is_main =
 		(*make_class_directories base_dir ( "src" :: []);*)
-		let cpp_file = new_cpp_file common_ctx.file ([],filename) in
+		let cpp_file = new_cpp_file common_ctx common_ctx.file ([],filename) in
 		let output_main = (cpp_file#write) in
 
 		output_main "#include <hxcpp.h>\n\n";
@@ -2447,7 +2462,7 @@ let generate_main common_ctx member_types super_deps class_def file_info =
 
 let generate_dummy_main common_ctx =
 	let generate_startup filename is_main =
-		let main_file = new_cpp_file common_ctx.file ([],filename) in
+		let main_file = new_cpp_file common_ctx common_ctx.file ([],filename) in
 		let output_main = (main_file#write) in
 		output_main "#include <hxcpp.h>\n\n";
 		output_main "#include <stdio.h>\n\n";
@@ -2462,12 +2477,13 @@ let generate_dummy_main common_ctx =
 let generate_boot common_ctx boot_classes init_classes =
 	(* Write boot class too ... *)
 	let base_dir = common_ctx.file in
-	let boot_file = new_cpp_file base_dir ([],"__boot__") in
+	let boot_file = new_cpp_file common_ctx base_dir ([],"__boot__") in
 	let output_boot = (boot_file#write) in
 	output_boot "#include <hxcpp.h>\n\n";
 	List.iter ( fun class_path ->
+		let prefix = get_include_prefix common_ctx in
 		output_boot ("#include <" ^
-			( join_class_path class_path "/" ) ^ ".h>\n")
+			prefix ^ ( join_class_path class_path "/" ) ^ ".h>\n")
 			) boot_classes;
 
 	output_boot "\nvoid __boot_all()\n{\n";
@@ -2489,7 +2505,7 @@ let generate_boot common_ctx boot_classes init_classes =
 let generate_files common_ctx file_info =
 	(* Write __files__ class too ... *)
 	let base_dir = common_ctx.file in
-	let files_file = new_cpp_file base_dir ([],"__files__") in
+	let files_file = new_cpp_file common_ctx base_dir ([],"__files__") in
 	let output_files = (files_file#write) in
     let types = common_ctx.types in
 	output_files "#include <hxcpp.h>\n\n";
@@ -2530,13 +2546,14 @@ let end_header_file output_h def_string =
 
 let new_placed_cpp_file common_ctx class_path =
 	let base_dir = common_ctx.file in
+
 	if (Common.defined common_ctx Define.Vcproj ) then begin
 		make_class_directories base_dir ("src"::[]);
-		cached_source_writer
+		cached_source_writer common_ctx
 			( base_dir ^ "/src/" ^ ( String.concat "-" (fst class_path) ) ^ "-" ^
 			(snd class_path) ^ ".cpp")
 	end else
-		new_cpp_file common_ctx.file class_path;;
+		new_cpp_file common_ctx common_ctx.file class_path;;
 
 
 
@@ -2700,7 +2717,7 @@ let generate_enum_files common_ctx enum_def super_deps meta file_info =
 	gen_close_namespace output_cpp class_path;
 	cpp_file#close;
 
-	let h_file = new_header_file common_ctx.file class_path in
+	let h_file = new_header_file common_ctx common_ctx.file class_path in
 	let super = "hx::EnumBase_obj" in
 	let output_h = (h_file#write) in
 	let def_string = join_class_path class_path "_"  in
@@ -3229,7 +3246,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 	cpp_file#close;
 
 
-	let h_file = new_header_file common_ctx.file class_path in
+	let h_file = new_header_file common_ctx common_ctx.file class_path in
 	let super = match class_def.cl_super with
 		| Some (klass,params) -> (class_string klass "_obj" params)
 		| _ -> if (class_def.cl_interface) then "hx::Interface" else "hx::Object"
@@ -3244,13 +3261,15 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 	(match class_def.cl_super with
 	| Some super ->
 		let super_path = (fst super).cl_path in
-		output_h ("#include <" ^ ( join_class_path super_path "/" ) ^ ".h>\n")
+		let prefix = get_include_prefix common_ctx in
+		output_h ("#include <" ^ prefix ^ ( join_class_path super_path "/" ) ^ ".h>\n")
 	| _ -> () );
 
 	(* And any interfaces ... *)
 	List.iter (fun imp->
 		let imp_path = (fst imp).cl_path in
-		output_h ("#include <" ^ ( join_class_path imp_path "/" ) ^ ".h>\n") )
+		let prefix = get_include_prefix common_ctx in
+		output_h ("#include <" ^ prefix ^ ( join_class_path imp_path "/" ) ^ ".h>\n") )
 		(real_interfaces class_def.cl_implements);
 
    (* Only need to foreward-declare classes that are mentioned in the header file
@@ -3363,7 +3382,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 	depend_referenced;;
 
 let write_resources common_ctx =
-	let resource_file = new_cpp_file common_ctx.file ([],"__resources__") in
+	let resource_file = new_cpp_file common_ctx common_ctx.file ([],"__resources__") in
 	resource_file#write "#include <hxcpp.h>\n\n";
 
 	let idx = ref 0 in
@@ -3396,8 +3415,9 @@ let write_resources common_ctx =
 
 
 
-let write_build_data filename classes main_deps build_extra exe_name =
+let write_build_data common_ctx filename classes main_deps build_extra exe_name =
 	let buildfile = open_out filename in
+	let include_prefix = get_include_prefix common_ctx in
 	let add_class_to_buildfile class_def =
 		let class_path = fst class_def in
 		let deps = snd class_def in
@@ -3407,7 +3427,7 @@ let write_build_data filename classes main_deps build_extra exe_name =
 		List.iter (fun path-> output_string buildfile ("   <depend name=\"" ^
         ( match path with
          | (["@verbatim"],file) -> file
-         | _ -> "include/" ^ (join_class_path path "/") ^ ".h" )
+         | _ -> "include/" ^ include_prefix ^ (join_class_path path "/") ^ ".h" )
        ^ "\"/>\n") ) project_deps;
 		output_string buildfile ( "  </file>\n" )
 	in
@@ -3434,8 +3454,8 @@ let write_build_data filename classes main_deps build_extra exe_name =
 	output_string buildfile "</xml>\n";
 	close_out buildfile;;
 
-let write_build_options filename defines =
-	let writer = cached_source_writer filename in
+let write_build_options common_ctx filename defines =
+	let writer = cached_source_writer common_ctx filename in
 	writer#write ( defines ^ "\n");
 	let cmd = Unix.open_process_in "haxelib path hxcpp" in
 	writer#write (Pervasives.input_line cmd);
@@ -3542,7 +3562,7 @@ and s_type_params = function
 
 
 let gen_extern_class common_ctx class_def file_info =
-   let file = new_source_file common_ctx.file  "extern" ".hx" class_def.cl_path in
+   let file = new_source_file common_ctx common_ctx.file  "extern" ".hx" class_def.cl_path in
    let path = class_def.cl_path in
    let filterPath = fst path @ [snd path] in
    let rec remove_prefix field t = match t with
@@ -3617,7 +3637,7 @@ let gen_extern_class common_ctx class_def file_info =
 
 let gen_extern_enum common_ctx enum_def file_info =
 	let path = enum_def.e_path in
-   let file = new_source_file common_ctx.file  "extern" ".hx" path in
+   let file = new_source_file common_ctx common_ctx.file  "extern" ".hx" path in
    let output = file#write in
 
    let params = function [] -> "" | l ->  "<" ^ (String.concat "," (List.map (fun (n,t) -> n) l) ^ ">")  in
@@ -3724,12 +3744,12 @@ let generate common_ctx =
 	| Some path -> (snd path)
 	| _ -> "output" in
 
-	write_build_data (common_ctx.file ^ "/Build.xml") !exe_classes !main_deps !build_xml output_name;
+	write_build_data common_ctx (common_ctx.file ^ "/Build.xml") !exe_classes !main_deps !build_xml output_name;
 	let cmd_defines = ref "" in
 	PMap.iter ( fun name value -> match name with
         | "true" | "sys" | "dce" | "cpp" | "debug" -> ()
         | _ -> cmd_defines := !cmd_defines ^ " -D" ^ name ^ "=\"" ^ (escape_command value) ^ "\"" ) common_ctx.defines;
-	write_build_options (common_ctx.file ^ "/Options.txt") !cmd_defines;
+	write_build_options common_ctx (common_ctx.file ^ "/Options.txt") !cmd_defines;
 	if ( not (Common.defined common_ctx Define.NoCompilation) ) then begin
 		let old_dir = Sys.getcwd() in
 		Sys.chdir common_ctx.file;

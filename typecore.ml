@@ -93,6 +93,7 @@ and typer = {
 	t : basic_types;
 	g : typer_globals;
 	mutable meta : metadata;
+	mutable this_stack : texpr list;
 	(* variable *)
 	mutable pass : typer_pass;
 	(* per-module *)

@@ -1678,35 +1678,37 @@ let init_class ctx c p context_init herits fields =
 					let m = mk_mono() in
 					let ta = TAbstract(a, List.map (fun _ -> mk_mono()) a.a_types) in
 					let tthis = if Meta.has Meta.Impl f.cff_meta || Meta.has Meta.To f.cff_meta then monomorphs a.a_types a.a_this else a.a_this in
-					if Meta.has Meta.From f.cff_meta then begin
-						if is_macro then error "Macro cast functions are not supported" cf.cf_pos;
-						(* the return type of a from-function must be the abstract, not the underlying type *)
-						(try unify_raise ctx t (tfun [m] ta) f.cff_pos with Error (Unify l,p) -> error (error_msg (Unify l)) p);
-						a.a_from <- (follow m, Some cf) :: a.a_from
-					end else if Meta.has Meta.To f.cff_meta then begin
-						if is_macro then error "Macro cast functions are not supported" cf.cf_pos;
-						let args = if Meta.has Meta.MultiType a.a_meta then begin
-							(* the return type of multitype @:to functions must unify with a_this *)
-							delay ctx PFinal (fun () -> unify ctx m tthis f.cff_pos);
-							(* the arguments must be compatible with the original constructor, which we have to find at this point *)
-							try (match follow (monomorphs a.a_types (PMap.find "_new" c.cl_statics).cf_type) with
-								| TFun(args,_) -> List.map (fun (_,_,t) -> t) args
-								| _ -> assert false)
-							with Not_found ->
-								error "Constructor of multi-type abstract must be defined before the individual @:to-functions are" cf.cf_pos
-						end else [] in
-						(* the first argument of a to-function must be the underlying type, not the abstract *)
-						(try unify_raise ctx t (tfun (tthis :: args) m) f.cff_pos with Error (Unify l,p) -> error (error_msg (Unify l)) p);
-						if not (Meta.has Meta.Impl cf.cf_meta) then cf.cf_meta <- (Meta.Impl,[],cf.cf_pos) :: cf.cf_meta;
-						a.a_to <- (follow m, Some cf) :: a.a_to
-					end else if Meta.has Meta.ArrayAccess f.cff_meta then begin
-						if is_macro then error "Macro array-access functions are not supported" cf.cf_pos;
-						a.a_array <- cf :: a.a_array;
-					end else if f.cff_name = "_new" && Meta.has Meta.MultiType a.a_meta then
-						do_bind := false
-					else (try match Meta.get Meta.Op cf.cf_meta with
-						| _,[EBinop(op,_,_),_],_ ->
-							if is_macro then error "Macro operator functions are not supported" cf.cf_pos;
+					let rec loop ml = match ml with
+						| (Meta.From,_,_) :: _ ->
+							if is_macro then error "Macro cast functions are not supported" p;
+							(* the return type of a from-function must be the abstract, not the underlying type *)
+							(try type_eq EqStrict ret ta with Unify_error l -> error (error_msg (Unify l)) p);
+							let t = match t with
+								| TFun([_,_,t],_) -> t
+								| _ -> error "@:from cast functions must accept exactly one argument" p
+							in
+							a.a_from <- (t,Some cf) :: a.a_from;
+						| (Meta.To,_,_) :: _ ->
+							if is_macro then error "Macro cast functions are not supported" p;
+							let args = if Meta.has Meta.MultiType a.a_meta then begin
+								(* the return type of multitype @:to functions must unify with a_this *)
+								delay ctx PFinal (fun () -> unify ctx m tthis f.cff_pos);
+								(* the arguments must be compatible with the original constructor, which we have to find at this point *)
+								try (match follow (monomorphs a.a_types (PMap.find "_new" c.cl_statics).cf_type) with
+									| TFun(args,_) -> List.map (fun (_,_,t) -> t) args
+									| _ -> assert false)
+								with Not_found ->
+									error "Constructor of multi-type abstract must be defined before the individual @:to-functions are" cf.cf_pos
+							end else [] in
+							(* the first argument of a to-function must be the underlying type, not the abstract *)
+							(try unify_raise ctx t (tfun (tthis :: args) m) f.cff_pos with Error (Unify l,p) -> error (error_msg (Unify l)) p);
+							if not (Meta.has Meta.Impl cf.cf_meta) then cf.cf_meta <- (Meta.Impl,[],cf.cf_pos) :: cf.cf_meta;
+							a.a_to <- (follow m, Some cf) :: a.a_to
+						| (Meta.ArrayAccess,_,_) :: _ ->
+							if is_macro then error "Macro array-access functions are not supported" p;
+							a.a_array <- cf :: a.a_array;
+						| (Meta.Op,[EBinop(op,_,_),_],_) :: _ ->
+							if is_macro then error "Macro operator functions are not supported" p;
 							let targ = if Meta.has Meta.Impl f.cff_meta then tthis else ta in
 							let left_eq = type_iseq t (tfun [targ;m] (mk_mono())) in
 							let right_eq = type_iseq t (tfun [mk_mono();targ] (mk_mono())) in
@@ -1714,14 +1716,19 @@ let init_class ctx c p context_init herits fields =
 							if right_eq && Meta.has Meta.Commutative f.cff_meta then error ("@:commutative is only allowed if the right argument is not " ^ (s_type (print_context()) targ)) f.cff_pos;
 							a.a_ops <- (op,cf) :: a.a_ops;
 							if fd.f_expr = None then do_bind := false;
-						| _,[EUnop(op,flag,_),_],_ ->
-							if is_macro then error "Macro operator functions are not supported" cf.cf_pos;
+						| (Meta.Op,[EUnop(op,flag,_),_],_) :: _ ->
+							if is_macro then error "Macro operator functions are not supported" p;
 							let targ = if Meta.has Meta.Impl f.cff_meta then tthis else ta in
 							(try type_eq EqStrict t (tfun [targ] (mk_mono())) with Unify_error l -> raise (Error ((Unify l),f.cff_pos)));
 							a.a_unops <- (op,flag,cf) :: a.a_unops;
 							if fd.f_expr = None then do_bind := false;
-						| _ -> ()
-						with Not_found -> ())
+						| _ :: ml ->
+							loop ml
+						| [] ->
+							()
+					in
+					loop f.cff_meta;
+					if f.cff_name = "_new" && Meta.has Meta.MultiType a.a_meta then do_bind := false;
 				| _ ->
 					());
 			init_meta_overloads ctx cf;
@@ -2286,6 +2293,7 @@ let type_module ctx m file tdecls p =
 			wildcard_packages = [];
 		};
 		meta = [];
+		this_stack = [];
 		pass = PBuildModule;
 		on_error = (fun ctx msg p -> ctx.com.error msg p);
 		macro_depth = ctx.macro_depth;
