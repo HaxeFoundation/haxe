@@ -103,4 +103,22 @@ class TypeTools {
 	static public function toString( t : Type ) : String return new String(Context.load("s_type", 1)(t));
 	#end
 	
+	/**
+		Resolves the field named `name` on class `c`.
+		
+		If `isStatic` is true, the classes' static fields are checked. Otherwise
+		the classes' member fields are checked.
+		
+		If the field is found, it is returned. Otherwise if `c` has a super
+		class, `findField` recursively checks that super class. Otherwise null
+		is returned.
+		
+		If any argument is null, the result is unspecified.
+	**/
+	static public function findField(c:ClassType, name:String, isStatic:Bool = false):Null<ClassField> {
+		var field = (isStatic ? c.statics : c.fields).get().find(function(field) return field.name == name);
+		return if(field != null) field;
+			else if (c.superClass != null) findField(c.superClass.t.get(), name, isStatic);
+			else null;
+	}
 }
