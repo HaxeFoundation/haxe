@@ -49,4 +49,73 @@ class Build {
 		}
 		return fields;
 	}
+
+	macro static public function forwardAbstractFields(fieldExprs:Array<Expr>):Array<Field> {
+		var fields = Context.getBuildFields();
+		var a = switch(Context.getLocalClass().get().kind) {
+			case KAbstractImpl(a): a;
+			case _: throw "";
+		}
+		var tThis = a.get().type;
+		var map:Type->Type = function(t) return t;
+		var c = switch(tThis.follow()) {
+			case TInst(c, tl):
+				var c = c.get();
+				if (tl.length > 0) map = function(t) {
+					var t2 = t.applyTypeParameters(c.params, tl);
+					return t2;
+				}
+				c;
+			case _: Context.error("Underlying type of forwarding abstract must be a class", Context.currentPos());
+		}
+		function getIdentName(e) return switch(e.expr) {
+			case EConst(CIdent(s)): s;
+			case _: Context.error("Identifier expected", e.pos);
+		}
+		function toField(cf:ClassField) {
+			var name = cf.name;
+			return {
+				name: name,
+				doc: cf.doc,
+				access: [AStatic, APublic, AInline],
+				pos: cf.pos,
+				meta: [{name: ":impl", params: [], pos: cf.pos}],
+				kind: switch(cf.type.follow()) {
+					case TFun(args, ret):
+						var args = args.map(function(arg) return {
+							name: arg.name,
+							opt: arg.opt,
+							type: arg.t.toComplexType(),
+							value: null
+						});
+						var expr = macro return this.$name($a{args.map(function(arg) return macro $i{arg.name})});
+						args.unshift({name: "this", type: null, opt:false, value: null});
+						FFun({
+							args: args,
+							ret: ret.toComplexType(),
+							expr: expr,
+							params: cf.params.map(function(param) return {
+								name: param.name,
+								constraints: [],
+								params: []
+							})
+						});
+					case _: throw "";
+				}
+			}
+		}
+		for (fieldExpr in fieldExprs) {
+			var fieldName = getIdentName(fieldExpr);
+			var cField = c.findField(fieldName, false);
+			if (cField == null) Context.error('Underlying type has no field $fieldName', fieldExpr.pos);
+			switch(cField.kind) {
+				case FMethod(_):
+				case _: Context.error("Only function fields can be forwarded", fieldExpr.pos);
+			}
+			cField.type = map(cField.type);
+			var field = toField(cField);
+			fields.push(field);
+		}
+		return fields;
+	}
 }
