@@ -43,6 +43,7 @@
 /tests/unit/native_java/native.jar
 /tests/unit/unit.js.map
 /tests/unit/unit.n
+/tests/unit/db.db3
 
 /haxe.sublime*
 build.bat
