@@ -172,9 +172,14 @@ let make_module ctx mpath file tdecls loadp =
 				let acc = make_decl acc (EClass { d_name = d.d_name ^ "_Impl_"; d_flags = [HPrivate]; d_data = fields; d_doc = None; d_params = []; d_meta = [] },p) in
 				(match !decls with
 				| (TClassDecl c,_) :: _ ->
-					(try c.cl_meta <- (Meta.get Meta.Build a.a_meta) :: c.cl_meta with Not_found -> ());
-					(try c.cl_meta <- (Meta.get Meta.CoreApi a.a_meta) :: c.cl_meta with Not_found -> ());
-					if Meta.has Meta.FakeEnum a.a_meta then c.cl_meta <- (Meta.Build,[ECall((EField((EField((EField((EConst(Ident "haxe"),p),"macro"),p),"Build"),p),"buildFakeEnum"),p),[]),p],p) :: c.cl_meta;
+					List.iter (fun m -> match m with
+						| (Meta.Build,_,_) | (Meta.CoreApi,_,_) ->
+							c.cl_meta <- m :: c.cl_meta;
+						| (Meta.FakeEnum,_,_) ->
+							c.cl_meta <- (Meta.Build,[ECall((EField((EField((EField((EConst(Ident "haxe"),p),"macro"),p),"Build"),p),"buildFakeEnum"),p),[]),p],p) :: c.cl_meta;
+						| _ ->
+							()
+					) a.a_meta;
 					a.a_impl <- Some c;
 					c.cl_kind <- KAbstractImpl a
 				| _ -> assert false);
