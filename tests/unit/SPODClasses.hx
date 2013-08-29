@@ -18,19 +18,19 @@ class MySpodClass extends Object
   @:relation(rid) public var relation:OtherSpodClass;
   @:relation(rnid) public var relationNullable:Null<OtherSpodClass>;
 
-  // public var data:SData<Array<ComplexClass>>;
+  public var data:SData<Array<ComplexClass>>;
   // public var anEnum:SEnum<SpodEnum>;
 }
 
-// private class ComplexClass
-// {
-// 	public var val : { name:String, array:Array<String> };
-//
-// 	public function new(val)
-// 	{
-// 		this.val = val;
-// 	}
-// }
+class ComplexClass
+{
+	public var val : { name:String, array:Array<String> };
+
+	public function new(val)
+	{
+		this.val = val;
+	}
+}
 
 class OtherSpodClass extends Object
 {

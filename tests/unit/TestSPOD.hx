@@ -45,7 +45,7 @@ class TestSPOD extends Test
     scls.enumFlags.set(FirstValue);
     scls.enumFlags.set(ThirdValue);
 
-    // scls.data = [new ComplexClass( { name:"test", array:["this", "is", "a", "test"] } )];
+    scls.data = [new ComplexClass( { name:"test", array:["this", "is", "a", "test"] } )];
     // scls.anEnum = SecondValue;
 
     return scls;
@@ -95,12 +95,12 @@ class TestSPOD extends Test
 		f(cls1.enumFlags.has(SecondValue));
 		t(cls1.enumFlags.has(ThirdValue));
 
-		// t(Std.is(cls1.data, Array));
-		// t(Std.is(cls1.data[0], ComplexClass));
+		t(Std.is(cls1.data, Array));
+		t(Std.is(cls1.data[0], ComplexClass));
 
-		// eq(cls1.data[0].name, "test");
-		// eq(cls1.data[0].array.length, 4);
-		// eq(cls1.data[0].array[1], "is");
+		eq(cls1.data[0].val.name, "test");
+		eq(cls1.data[0].val.array.length, 4);
+		eq(cls1.data[0].val.array[1], "is");
 
 		eq(cls1.relation.name, "first spod");
 		eq(cls1.relationNullable.name, "second spod");
@@ -170,41 +170,41 @@ class TestSPOD extends Test
 		other1.delete();
 	}
 
-	// public function testData()
-	// {
-	// 	var other1 = new OtherSpodClass("required field");
-	// 	other1.insert();
+	public function testData()
+	{
+		var other1 = new OtherSpodClass("required field");
+		other1.insert();
 
-	// 	var c1 = getDefaultClass();
-	// 	c1.relation = other1;
-	// 	c1.insert();
+		var c1 = getDefaultClass();
+		c1.relation = other1;
+		c1.insert();
 
-	// 	eq(c1.data.length,1);
-	// 	c1.data.pop();
-	// 	c1.update();
+		eq(c1.data.length,1);
+		c1.data.pop();
+		c1.update();
 
-	// 	Manager.cleanup();
-	// 	c1 = null;
+		Manager.cleanup();
+		c1 = null;
 
-	// 	c1 = MySpodClass.manager.select($relation == other1);
-	// 	eq(c1.data.length, 0);
-	// 	c1.data.push({ name: "test1", array:["complex","field"] });
-	// 	c1.data.push(null);
-	// 	eq(c1.data.length, 2);
-	// 	c1.update();
+		c1 = MySpodClass.manager.select($relation == other1);
+		eq(c1.data.length, 0);
+		c1.data.push(new ComplexClass({ name: "test1", array:["complex","field"] }));
+		c1.data.push(null);
+		eq(c1.data.length, 2);
+		c1.update();
 
-	// 	Manager.cleanup();
-	// 	c1 = null;
+		Manager.cleanup();
+		c1 = null;
 
-	// 	c1 = MySpodClass.manager.select($relation == other1);
-	// 	eq(c1.data.length,2);
-	// 	eq(c1.data[0].name, "test1");
-	// 	eq(c1.data[0].array.length, 2);
-	// 	eq(c1.data[0].array[0], "complex");
-	// 	eq(c1.data[1], null);
+		c1 = MySpodClass.manager.select($relation == other1);
+		eq(c1.data.length,2);
+		eq(c1.data[0].val.name, "test1");
+		eq(c1.data[0].val.array.length, 2);
+		eq(c1.data[0].val.array[0], "complex");
+		eq(c1.data[1], null);
 
-	// 	c1.delete();
-	// 	other1.delete();
-	// }
+		c1.delete();
+		other1.delete();
+	}
 }
 

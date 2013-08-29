@@ -130,8 +130,14 @@ class Manager<T : Object> {
 		var fields = new List();
 		var values = new List();
 		for( f in table_infos.fields ) {
-			var name = f.name;
-			var v:Dynamic = Reflect.field(x,name);
+			var name = f.name, fieldName = f.name;
+			switch(f.t)
+			{
+				case DData:
+					fieldName = "data_" + name;
+				default:
+			}
+			var v:Dynamic = Reflect.field(x,fieldName);
 			if( v != null ) {
 				fields.add(quoteField(name));
 				switch( f.t ) {
@@ -200,10 +206,21 @@ class Manager<T : Object> {
 		s.add(table_name);
 		s.add(" SET ");
 		var cache = Reflect.field(x,cache_field);
+		if(cache == null)
+		{
+			cache = {};
+			Reflect.setField(x, cache_field, cache);
+		}
 		var mod = false;
 		for( f in table_infos.fields ) {
-			var name = f.name;
-			var v : Dynamic = Reflect.field(x,name);
+			var name = f.name, fieldName = f.name;
+			switch(f.t)
+			{
+				case DData:
+					fieldName = "data_" + name;
+				default:
+			}
+			var v : Dynamic = Reflect.field(x,fieldName);
 			var vc : Dynamic = Reflect.field(cache,name);
 			if( v != vc && (!isBinary(f.t) || hasBinaryChanged(v,vc)) ) {
 				switch( f.t ) {
@@ -323,6 +340,11 @@ class Manager<T : Object> {
 					val = haxe.io.Bytes.ofString(val);
 				case DBool if (Std.is(val, Int)):
 					val = val != 0;
+				case DData:
+					if (Std.is(val, String))
+						val = haxe.io.Bytes.ofString(val);
+					Reflect.setField(o, f + "_data", val);
+					continue;
 				default:
 			}
 			Reflect.setField(o, f, val);
