@@ -79,7 +79,7 @@ let kwds =
 		"finally"; "float"; "for"; "function"; "goto"; "if"; "implements"; "import"; "in"; "instanceof"; "int";
 		"interface"; "is"; "long"; "namespace"; "native"; "new"; "null"; "package"; "private"; "protected";
 		"public"; "return"; "short"; "static"; "super"; "switch"; "synchronized"; "this"; "throw"; "throws";
-		"transient"; "true"; "try"; "typeof"; "use"; "var"; "void"; "volatile"; "while"; "with"
+		"transient"; "true"; "try"; "typeof"; "use"; "var"; "void"; "volatile"; "while"; "window"; "with";
 	];
 	h
 
