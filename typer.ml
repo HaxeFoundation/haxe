@@ -2531,7 +2531,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 						let acc = (match acc.eexpr with TField (e,FClosure (c,f)) -> { acc with eexpr = TField (e,match c with None -> FAnon f | Some c -> FInstance (c,f)) } | _ -> acc) in
 						try
 							unify_raise ctx acc.etype (tfun [] t) acc.epos;
-							make_call ctx acc [] t e1.epos
+							make_call ctx acc [] (match follow acc.etype with TFun (_,r) -> r | _ -> t) e1.epos
 						with Error (Unify(l),p) ->
 							display_error ctx "Field iterator has an invalid type" acc.epos;
 							display_error ctx (error_msg (Unify l)) p;
