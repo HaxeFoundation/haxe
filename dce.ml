@@ -34,6 +34,7 @@ type dce = {
 	mutable marked_fields : tclass_field list;
 	mutable marked_maybe_fields : tclass_field list;
 	mutable t_stack : t list;
+	mutable ts_stack : t list;
 }
 
 (* checking *)
@@ -136,26 +137,32 @@ and mark_abstract dce a = if not (Meta.has Meta.Used a.a_meta) then
 	a.a_meta <- (Meta.Used,[],a.a_pos) :: a.a_meta
 
 (* mark a type as kept *)
-and mark_t dce t = match follow t with
-	| TInst({cl_kind = KTypeParameter tl} as c,pl) ->
-		if not (Meta.has Meta.Used c.cl_meta) then begin
-			c.cl_meta <- (Meta.Used,[],c.cl_pos) :: c.cl_meta;
-			List.iter (mark_t dce) tl;
+and mark_t dce t =
+	if not (List.exists (fun t2 -> Type.fast_eq t t2) dce.t_stack) then begin
+		dce.t_stack <- t :: dce.t_stack;
+		begin match follow t with
+		| TInst({cl_kind = KTypeParameter tl} as c,pl) ->
+			if not (Meta.has Meta.Used c.cl_meta) then begin
+				c.cl_meta <- (Meta.Used,[],c.cl_pos) :: c.cl_meta;
+				List.iter (mark_t dce) tl;
+			end;
+			List.iter (mark_t dce) pl
+		| TInst(c,pl) ->
+			mark_class dce c;
+			List.iter (mark_t dce) pl
+		| TFun(args,ret) ->
+			List.iter (fun (_,_,t) -> mark_t dce t) args;
+			mark_t dce ret
+		| TEnum(e,pl) ->
+			mark_enum dce e;
+			List.iter (mark_t dce) pl
+		| TAbstract(a,pl) ->
+			mark_abstract dce a;
+			List.iter (mark_t dce) pl
+		| TLazy _ | TDynamic _ | TAnon _ | TType _ | TMono _ -> ()
 		end;
-		List.iter (mark_t dce) pl
-	| TInst(c,pl) ->
-		mark_class dce c;
-		List.iter (mark_t dce) pl
-	| TFun(args,ret) ->
-		List.iter (fun (_,_,t) -> mark_t dce t) args;
-		mark_t dce ret
-	| TEnum(e,pl) ->
-		mark_enum dce e;
-		List.iter (mark_t dce) pl
-	| TAbstract(a,pl) ->
-		mark_abstract dce a;
-		List.iter (mark_t dce) pl
-	| TLazy _ | TDynamic _ | TAnon _ | TType _ | TMono _ -> ()
+		dce.t_stack <- List.tl dce.t_stack
+	end
 
 let mark_mt dce mt = match mt with
 	| TClassDecl c ->
@@ -198,11 +205,11 @@ let opt f e = match e with None -> () | Some e -> f e
 
 let rec to_string dce t =
 	let push t =
-		dce.t_stack <- t :: dce.t_stack;
-		fun () -> dce.t_stack <- List.tl dce.t_stack
+		dce.ts_stack <- t :: dce.ts_stack;
+		fun () -> dce.ts_stack <- List.tl dce.ts_stack
 	in
 	let t = follow t in
-	if not (List.exists (fun t2 -> Type.fast_eq t t2) dce.t_stack) then match follow t with
+	if not (List.exists (fun t2 -> Type.fast_eq t t2) dce.ts_stack) then match follow t with
 	| TInst(c,pl) as t ->
 		let pop = push t in
 		field dce c "toString" false;
@@ -355,6 +362,7 @@ let run com main full =
 		marked_fields = [];
 		marked_maybe_fields = [];
 		t_stack = [];
+		ts_stack = [];
 	} in
 	begin match main with
 		| Some {eexpr = TCall({eexpr = TField(e,(FStatic(c,cf)))},_)} ->
