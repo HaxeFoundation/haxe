@@ -420,13 +420,20 @@ let rec gen_call ctx e el in_value =
 		concat ctx "," (gen_value ctx) el;
 		spr ctx ")"
 
+and gen_object_value ctx e = match e.eexpr with
+	| TConst (TInt _) | TConst (TFloat _) ->
+		spr ctx "(";
+		gen_value ctx e;
+		spr ctx ")"
+	| _ -> gen_value ctx e
+
 and gen_expr ctx e =
 	add_mapping ctx e;
 	match e.eexpr with
 	| TConst c -> gen_constant ctx e.epos c
 	| TLocal v -> spr ctx (ident v.v_name)
 	| TArray (e1,{ eexpr = TConst (TString s) }) when valid_js_ident s ->
-		gen_value ctx e1;
+		gen_object_value ctx e1;
 		spr ctx (field s)
 	| TArray (e1,e2) ->
 		gen_value ctx e1;
