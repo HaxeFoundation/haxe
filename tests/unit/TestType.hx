@@ -860,4 +860,12 @@ class TestType extends Test {
 		var a:Array<unit.MyAbstract.MyInt> = [1, 2, 3];
 		var b:Array<unit.MyAbstract.MyInt2> = a;
 	}
+	
+	function testExposingAbstract() {
+		#if !macro
+		var ea = new unit.MyAbstract.ExposingAbstract();
+		ea.push(12);
+		eq(12, ea.pop());
+		#end
+	}
 }

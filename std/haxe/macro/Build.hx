@@ -50,7 +50,7 @@ class Build {
 		return fields;
 	}
 
-	macro static public function forwardAbstractFields(fieldExprs:Array<Expr>):Array<Field> {
+	macro static public function exposeUnderlyingFields(fieldExprs:Array<Expr>):Array<Field> {
 		var fields = Context.getBuildFields();
 		var a = switch(Context.getLocalClass().get().kind) {
 			case KAbstractImpl(a): a;
@@ -66,7 +66,7 @@ class Build {
 					return t2;
 				}
 				c;
-			case _: Context.error("Underlying type of forwarding abstract must be a class", Context.currentPos());
+			case _: Context.error("Underlying type of exposing abstract must be a class", Context.currentPos());
 		}
 		function getIdentName(e) return switch(e.expr) {
 			case EConst(CIdent(s)): s;
@@ -110,7 +110,7 @@ class Build {
 			if (cField == null) Context.error('Underlying type has no field $fieldName', fieldExpr.pos);
 			switch(cField.kind) {
 				case FMethod(_):
-				case _: Context.error("Only function fields can be forwarded", fieldExpr.pos);
+				case _: Context.error("Only function fields can be exposed", fieldExpr.pos);
 			}
 			cField.type = map(cField.type);
 			var field = toField(cField);
