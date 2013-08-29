@@ -2527,11 +2527,10 @@ and type_expr ctx (e,p) (with_type:with_type) =
 						unify_raise ctx e1.etype t e1.epos;
 						e1
 					with Error (Unify _,_) ->
-						let acc = acc_get ctx (type_field ctx e1 "iterator" e1.epos MCall) e1.epos in
-						let acc = (match acc.eexpr with TField (e,FClosure (c,f)) -> { acc with eexpr = TField (e,match c with None -> FAnon f | Some c -> FInstance (c,f)) } | _ -> acc) in
+						let acc = build_call ctx (type_field ctx e1 "iterator" e1.epos MCall) [] Value e1.epos in
 						try
-							unify_raise ctx acc.etype (tfun [] t) acc.epos;
-							make_call ctx acc [] (match follow acc.etype with TFun (_,r) -> r | _ -> t) e1.epos
+							unify_raise ctx acc.etype t acc.epos;
+							acc
 						with Error (Unify(l),p) ->
 							display_error ctx "Field iterator has an invalid type" acc.epos;
 							display_error ctx (error_msg (Unify l)) p;
