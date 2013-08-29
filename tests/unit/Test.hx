@@ -261,6 +261,9 @@ class Test #if swf_mark implements mt.Protect #end {
 			#if ( test_spod && (java || neko || (cpp && sqlite)) && !macro )
 			new TestSPOD(),
 			#end
+			#if ((java || cpp || neko) && !macro)
+			new TestThreads(),
+			#end
 			//new TestUnspecified(),
 			//new TestRemoting(),
 		];
