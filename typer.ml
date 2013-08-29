@@ -2649,7 +2649,6 @@ and type_expr ctx (e,p) (with_type:with_type) =
 					List.iter (fun pt ->
 						if pt != t_dynamic then error "Catch class parameter must be Dynamic" p;
 					) params;
-					add_feature ctx.com "typed_catch";
 					(match path with
 					| x :: _ , _ -> x
 					| [] , name -> name)
@@ -2845,7 +2844,6 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		let e = type_expr ctx e Value in
 		mk (TCast (e,None)) (mk_mono()) p
 	| ECast (e, Some t) ->
-		add_feature ctx.com "typed_cast";
 		let t = Typeload.load_complex_type ctx (pos e) t in
 		let texpr = (match follow t with
 		| TInst (_,params) | TEnum (_,params) ->

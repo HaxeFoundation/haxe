@@ -298,6 +298,7 @@ and expr dce e =
 			mark_t dce v.v_type;
 		) vl;
 	| TCast(e, Some mt) ->
+		add_feature dce.com "typed_cast";
 		mark_mt dce mt;
 		expr dce e;
 	| TTypeExpr mt ->
@@ -305,6 +306,7 @@ and expr dce e =
 	| TTry(e, vl) ->
 		expr dce e;
 		List.iter (fun (v,e) ->
+			if v.v_type != t_dynamic then add_feature dce.com "typed_catch";
 			expr dce e;
 			mark_t dce v.v_type;
 		) vl;
