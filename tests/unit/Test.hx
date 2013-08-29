@@ -258,6 +258,9 @@ class Test #if swf_mark implements mt.Protect #end {
 			#if ((dce == "full") && !interp && !as3)
 			new TestDCE(),
 			#end
+			#if ( test_spod && (java || neko || (cpp && sqlite)) && !macro )
+			new TestSPOD(),
+			#end
 			//new TestUnspecified(),
 			//new TestRemoting(),
 		];
