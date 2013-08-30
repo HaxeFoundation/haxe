@@ -47,6 +47,7 @@ module Meta = struct
 		| CoreType
 		| CppFileCode
 		| CppNamespaceCode
+		| Dce
 		| Debug
 		| Decl
 		| DefParam

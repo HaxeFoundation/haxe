@@ -169,7 +169,9 @@ let make_module ctx mpath file tdecls loadp =
 					| _ ->
 						f
 				) fields in
-				let acc = make_decl acc (EClass { d_name = d.d_name ^ "_Impl_"; d_flags = [HPrivate]; d_data = fields; d_doc = None; d_params = []; d_meta = [] },p) in
+				let meta = ref [] in
+				if has_meta Meta.Dce a.a_meta then meta := (Meta.Dce,[],p) :: !meta;
+				let acc = make_decl acc (EClass { d_name = d.d_name ^ "_Impl_"; d_flags = [HPrivate]; d_data = fields; d_doc = None; d_params = []; d_meta = !meta },p) in
 				(match !decls with
 				| (TClassDecl c,_) :: _ ->
 					List.iter (fun m -> match m with

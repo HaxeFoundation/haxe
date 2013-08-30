@@ -51,7 +51,7 @@ let is_std_file dce file =
 (* check if a class is kept entirely *)
 let keep_whole_class dce c =
 	Meta.has Meta.Keep c.cl_meta
-	|| not (dce.full || is_std_file dce c.cl_module.m_extra.m_file)
+	|| not (dce.full || is_std_file dce c.cl_module.m_extra.m_file || has_meta Meta.Dce c.cl_meta)
 	|| super_forces_keep c
 	|| (match c with
 		| { cl_extern = true; cl_path = ([],("Math"|"Array"))} when dce.com.platform = Js -> false
@@ -452,7 +452,7 @@ let run com main full =
 					if dce.debug then print_endline ("[DCE] Removed class " ^ (s_type_path c.cl_path));
 					loop acc l)
 			end
- 		| (TEnumDecl e) as mt :: l when Meta.has Meta.Used e.e_meta || Meta.has Meta.Keep e.e_meta || e.e_extern || not (dce.full || is_std_file dce e.e_module.m_extra.m_file) ->
+ 		| (TEnumDecl e) as mt :: l when Meta.has Meta.Used e.e_meta || Meta.has Meta.Keep e.e_meta || e.e_extern || not (dce.full || is_std_file dce e.e_module.m_extra.m_file || has_meta Meta.Dce e.e_meta) ->
 			loop (mt :: acc) l
 		| TEnumDecl e :: l ->
 			if dce.debug then print_endline ("[DCE] Removed enum " ^ (s_type_path e.e_path));
