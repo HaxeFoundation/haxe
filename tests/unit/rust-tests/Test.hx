@@ -1,13 +1,18 @@
-import rust.StdTypes;
 class Test {
-	public var val:Int;
-	public var tok:String;
-	function new(t:String) {
-		val = 40;
-		tok = t;
-	}
 	public static function main() {
-		Sys.println(Std.string(new Test("Hallo")));
-		Sys.println("Hello, world!");
+		var args = Sys.args();
+		switch(args) {
+			case ["fib", n]:
+				var r:Int = 1, l:Int = 0;
+				for(i in 1...Std.parseInt(n)) {
+					r += i + l;
+					l = r;
+				}
+				Sys.println('Fib($n) = $r');
+			case [z]:
+				Sys.println('Hello, $z!');
+			default:
+				throw 'Invalid arguments';
+		}
 	}
 }

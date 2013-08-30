@@ -171,3 +171,6 @@ clean_tools:
 	ocamllex $<
 
 .PHONY: haxe libs
+
+test:
+	cd tests/unit/rust-tests; haxe build.hxml; ./rust/main

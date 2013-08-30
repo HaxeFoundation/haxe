@@ -4614,7 +4614,7 @@ struct
       | TUnop (Ast.Increment, _, _)
       | TUnop (Ast.Decrement, _, _) (* unop is a special case because the haxe compiler won't let us generate complex expressions with Increment/Decrement *)
       | TBlock _ -> expr (* there is no expected expression here. Only statements *)
-      | _ -> assert false (* we only expect valid statements here. other expressions aren't valid statements *)
+      | _ -> error "Cannot compile into expression" expr.epos (* we only expect valid statements here. other expressions aren't valid statements *)
 
   let is_expr = function | Expression _ -> true | _ -> false
 

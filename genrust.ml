@@ -87,14 +87,9 @@ let is_package name =
 let reserved =
 	let h = Hashtbl.create 0 in
 	List.iter (fun l -> Hashtbl.add h l ())
-	(* these ones are defined in order to prevent recursion in some Std functions *)
-	["is";"as";"i32";"uint";"const";"getTimer";"typeof";"parseInt";"parseFloat";
-	(* Rust keywords which are not Haxe ones *)
-	"loop";"with";"int";"float";"extern";"let";"mod";"impl";"trait";"struct";"_";"i8";"ui8";"i16";"ui16";"fn";"match";
-	(* we don't include get+set since they are not 'real' keywords, but they can't be used as method names *)
-	"function";"class";"var";"if";"else";"while";"do";"for";"break";"continue";"return";"extends";"implements";
-	"import";"switch";"case";"default";"static";"public";"private";"try";"catch";"this";"throw";"interface";
-	"override";"package";"null";"true";"false";"()"
+	[
+		"curr";"self";"as";"break";"do";"else";"enum";"extern";"false";"fn";"for";"if";"impl";"let";"loop";"match";"mod";"mut";"priv";
+		"pub";"ref";"return";"self";"static";"struct";"super";"true";"trait";"type";"unsafe";"use";"while";
 	];
 	h
 
@@ -442,14 +437,16 @@ let class_path ctx c =
 	else
 		s_path ctx c.cl_path
 
-let gen_constant ctx p = function
+let rec gen_constant ctx p = function
 	| TInt i -> print ctx "%ld" i
 	| TFloat s -> print ctx "%s" s
 	| TString s -> print ctx "Some(~\"%s\")" (escape_bin (Ast.s_escape s))
 	| TBool b -> spr ctx (if b then "true" else "false")
 	| TNull -> spr ctx "None"
-	| TThis -> spr ctx "self"
-	| TSuper -> spr ctx "self.super()"
+	| TThis -> spr ctx (if ctx.constructor_block then "curr" else "self")
+	| TSuper ->
+		gen_constant ctx p (TThis);
+		spr ctx ".super"
 
 let gen_function_header ctx name f params p =
 	let old = ctx.in_value in
@@ -777,7 +774,7 @@ and gen_expr ctx e =
 			newline ctx;
 			let name = match ctx.curclass.cl_path with
 			| _, n -> n in
-			print ctx "let mut self = %s {" name;
+			print ctx "let mut curr = %s {" name;
 			let obj_fields = List.filter is_var c.cl_ordered_fields in
 			concat ctx ", " (fun f ->
 				print ctx "%s: %s" f.cf_name (default_value ctx f.cf_type e.epos);
@@ -787,7 +784,7 @@ and gen_expr ctx e =
 		List.iter (fun e -> newline ctx; gen_expr ctx e) el;
 		if ctx.constructor_block then (
 			newline ctx;
-			spr ctx "return Some(~self)";
+			spr ctx "return Some(~curr)";
 		);
 		bend();
 		newline ctx;
@@ -1132,12 +1129,12 @@ let generate_field ctx static f =
 		| _ -> ()
 	) f.cf_meta;
 	let public = f.cf_public || Hashtbl.mem ctx.get_sets (f.cf_name,static) || (f.cf_name = "main" && static) || f.cf_name = "resolve" || Ast.Meta.has Ast.Meta.Public f.cf_meta in
-	let rights = (if public then "pub" else "priv") in
+	let rights = if ctx.in_interface then "" else if public then "pub " else "priv " in
 	let p = ctx.curclass.cl_pos in
 	match f.cf_expr with
 	| Some { eexpr = TFunction fd } ->
 		soft_newline ctx;
-		print ctx "%s " rights;
+		print ctx "%s" rights;
 		let rec loop c =
 			match c.cl_super with
 			| None -> ()
@@ -1159,7 +1156,10 @@ let generate_field ctx static f =
 		if (not ctx.in_interface) && String.length code = 0 then
 			gen_expr ctx fd.tf_expr;
 		h()
-	| _ -> ()
+	| _ ->
+		soft_newline ctx;
+		print ctx "%s %s: %s" rights f.cf_name (type_str ctx f.cf_type p);
+		()
 
 let rec define_getset ctx stat c =
 	let def f name =
@@ -1180,10 +1180,10 @@ let rec define_getset ctx stat c =
 let generate_min_impl ctx ts =
 	print ctx "impl %s for %s {" (if ctx.path = ([], "lib") then "HxObject" else "lib::HxObject") ts;
 	let impl = open_block ctx in
-	soft_newline ctx;
-	spr ctx "pub fn toString(&self) -> Option<~str> {";
+	newline ctx;
+	spr ctx "fn toString(&self) -> Option<~str> {";
 	let func = open_block ctx in
-	soft_newline ctx;
+	newline ctx;
 	spr ctx "return Some(self.to_str())";
 	func();
 	newline ctx;
@@ -1205,7 +1205,7 @@ let generate_obj_impl ctx c =
 	ctx.in_interface <- c.cl_interface;
 	print ctx "impl%s %s for ~%s%s {" params (if ctx.path = ([], "lib") then "HxObject" else "lib::HxObject") full_path params;
 	let impl = open_block ctx in
-	soft_newline ctx;
+	newline ctx;
 	let tostrf = ref false in
 	List.iter (fun cf ->
 		(match cf with
@@ -1214,10 +1214,9 @@ let generate_obj_impl ctx c =
 		| _ -> ();
 		);
 	) obj_fields;
-	soft_newline ctx;
-	spr ctx "pub fn toString(&self) -> Option<~str> {";
+	spr ctx "fn toString(&self) -> Option<~str> {";
 	let tostr = open_block ctx in
-	soft_newline ctx;
+	newline ctx;
 	if !tostrf then (
 		spr ctx "return self.toString()";
 	) else (
@@ -1226,14 +1225,13 @@ let generate_obj_impl ctx c =
 			print ctx "%s: \"+self.%s.toString()+\"" f.cf_name f.cf_name;
 		) obj_fields;
 		spr ctx "}\")";
-		print ctx "// %s" (snd c.cl_path);
 	);
 	tostr();
-	soft_newline ctx;
+	newline ctx;
 	spr ctx "}";
 	if (has_feature ctx "Reflect.field") then (
 		soft_newline ctx;
-		spr ctx "pub fn __get_field(&self, &field:str)->Option<@HxObject> {";
+		spr ctx "fn __get_field(&self, &field:str)->Option<@HxObject> {";
 		let fn = open_block ctx in
 		soft_newline ctx;
 		if ((List.length obj_fields) = 0) then
@@ -1263,7 +1261,7 @@ let generate_obj_impl ctx c =
 	);
 	if (has_feature ctx "Reflect.setField") then (
 		soft_newline ctx;
-		spr ctx "pub fn __set_field(&mut self, field:~str, value:Option<~HxObject>) {";
+		spr ctx "fn __set_field(&mut self, field:~str, value:Option<~HxObject>) {";
 		let fn = open_block ctx in
 		if ((List.length obj_fields) > 0) then (
 			soft_newline ctx;
@@ -1285,7 +1283,7 @@ let generate_obj_impl ctx c =
 	);
 	if (has_feature ctx "Reflect.fields") then (
 		soft_newline ctx;
-		spr ctx "pub fn __fields(&mut self) -> Option<~[~str]> {";
+		spr ctx "fn __fields(&mut self) -> Option<~[~str]> {";
 		let fn = open_block ctx in
 		soft_newline ctx;
 		spr ctx "return __instance_fields()";
@@ -1295,7 +1293,7 @@ let generate_obj_impl ctx c =
 	);
 	if (has_feature ctx "Type.getInstanceFields") then (
 		soft_newline ctx;
-		spr ctx "pub fn __instance_fields() -> Option<~[~str]> {";
+		spr ctx "fn __instance_fields() -> Option<~[~str]> {";
 		let fn = open_block ctx in
 		soft_newline ctx;
 		spr ctx "return Some(~[";
@@ -1309,7 +1307,7 @@ let generate_obj_impl ctx c =
 	);
 	if (has_feature ctx "Type.getClassName") then (
 		soft_newline ctx;
-		spr ctx "pub fn __name() -> Option<~str> {";
+		spr ctx "fn __name() -> Option<~str> {";
 		let fn = open_block ctx in
 		soft_newline ctx;
 		print ctx "return Some(~\"%s\")" (s_type_path c.cl_path);
@@ -1347,7 +1345,6 @@ let generate_class ctx c =
 			spr ctx " {";
 			let st = open_block ctx in
 			concat ctx ", " (fun f ->
-				soft_newline ctx;
 				generate_field ctx false f;
 			) obj_fields;
 			st();
@@ -1446,23 +1443,23 @@ let generate_base_enum ctx com =
 	let trait = open_block ctx in
 	if has_feature ctx "Type.getEnumName" then (
 		newline ctx;
-		spr ctx "pub fn __name() -> Option<~str>";
+		spr ctx "fn __name() -> Option<~str>";
 	);
 	if has_feature ctx "Type.createEnumIndex" then (
 		newline ctx;
-		spr ctx "pub fn __get_index(ind:i32) -> Self";
+		spr ctx "fn __get_index(ind:i32) -> Self";
 	);
 	if has_feature ctx "Type.enumParameters" then (
 		newline ctx;
-		spr ctx "pub fn __parameters(&self) -> Option<~[~HxObject]>";
+		spr ctx "fn __parameters(&self) -> Option<~[~HxObject]>";
 	);
 	if has_feature ctx "Type.enumIndex" then (
 		newline ctx;
-		spr ctx "pub fn __index(&self) -> i32";
+		spr ctx "fn __index(&self) -> i32";
 	);
 	if has_feature ctx "Type.enumConstructor" then (
 		newline ctx;
-		spr ctx "pub fn __constructor(&self) -> ~str";
+		spr ctx "fn __constructor(&self) -> ~str";
 	);
 	trait();
 	soft_newline ctx;
@@ -1473,18 +1470,18 @@ let generate_base_object ctx com =
 	spr ctx "pub trait HxObject {";
 	let trait = open_block ctx in
 	soft_newline ctx;
-	spr ctx "pub fn toString(&self) -> Option<~str>";
+	spr ctx "fn toString(&self) -> Option<~str>";
 	if has_feature ctx "Type.getClassName" then (
 		newline ctx;
-		spr ctx "pub fn __name() -> Option<~str>";
+		spr ctx "fn __name() -> Option<~str>";
 	);
 	if has_feature ctx "Reflect.field" then (
 		newline ctx;
-		spr ctx "pub fn __field(&self, field:~str) -> Option<~HxObject>";
+		spr ctx "fn __field(&self, field:~str) -> Option<~HxObject>";
 	);
 	if has_feature ctx "Reflect.setField" then (
 		newline ctx;
-		spr ctx "pub fn __set_field(&mut self, field:~str, value:Option<~HxObject>) -> Option<~HxObject>";
+		spr ctx "fn __set_field(&mut self, field:~str, value:Option<~HxObject>) -> Option<~HxObject>";
 	);
 	trait();
 	newline ctx;
@@ -1556,6 +1553,6 @@ let generate com =
 	generate_main ctx com !inits;
 	close ctx;
 	let command cmd = try com.run_command cmd with _ -> -1 in
-	let opt = if (Common.defined com Define.Debug) then "" else "-O " in
-	if (command ("rustc "^opt^"\""^com.file^"/main.rs\"") <> 0) then
+	let opt = if (Common.defined com Define.Debug) then "-v " else "-O " in
+	if (command ("rustc "^ opt ^"\""^ com.file ^"/main.rs\"") <> 0) then
 		(failwith "Failed to compile Rust program");
