@@ -2904,13 +2904,12 @@ struct
         let cltypes = List.map (fun cl -> (snd cl.cl_path, TInst(cl, []) )) tparams in
 
         (* create a new class that extends abstract function class, with a ctor implementation that will setup all captured variables *)
-        let buf = Buffer.create 72 in
-        ignore (Type.map_expr (fun e ->
-          Buffer.add_string buf (Marshal.to_string (ExprHashtblHelper.mk_type e) [Marshal.Closures]);
-          e
-        ) tfunc.tf_expr);
-        let digest = Digest.to_hex (Digest.string (Buffer.contents buf)) in
-        let path = (fst ft.fgen.gcurrent_path, "Fun_" ^ (String.sub digest 0 8)) in
+        let cfield = match ft.fgen.gcurrent_classfield with
+          | None -> "Anon"
+          | Some cf -> cf.cf_name
+        in
+        let cur_line = Lexer.get_error_line fexpr.epos in
+        let path = (fst ft.fgen.gcurrent_path, Printf.sprintf "%s_%s_%d__Fun" (snd ft.fgen.gcurrent_path) cfield cur_line) in
         let cls = mk_class (get ft.fgen.gcurrent_class).cl_module path tfunc.tf_expr.epos in
         cls.cl_module <- (get ft.fgen.gcurrent_class).cl_module;
         cls.cl_types <- cltypes;
@@ -4614,7 +4613,9 @@ struct
       | TUnop (Ast.Increment, _, _)
       | TUnop (Ast.Decrement, _, _) (* unop is a special case because the haxe compiler won't let us generate complex expressions with Increment/Decrement *)
       | TBlock _ -> expr (* there is no expected expression here. Only statements *)
-      | _ -> error "Cannot compile into expression" expr.epos (* we only expect valid statements here. other expressions aren't valid statements *)
+      | TMeta(m,e) ->
+        { expr with eexpr = TMeta(m,expr_stat_map fn e) }
+      | _ -> assert false (* we only expect valid statements here. other expressions aren't valid statements *)
 
   let is_expr = function | Expression _ -> true | _ -> false
 

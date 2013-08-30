@@ -1,5 +1,7 @@
 package unit;
 
+using StringTools;
+
 class TestPhp extends Test
 {
 	var list : Array<Dynamic>;
@@ -33,6 +35,24 @@ class TestPhp extends Test
 		list = new Array<Dynamic>();
 		for( l in list ) {} // fails here
 		t(true);
+	}
+
+	function testIssue1828()
+	{
+        var x = try {
+            throw "foo";
+            false;
+        } catch (e:String) {
+            true;
+        }
+        t(x);
+	}
+
+	function testIssue1521()
+	{
+		var pattern = "$a$b";
+		var result = pattern.replace("$a","A").replace("$b","B");
+		eq("AB", result);
 	}
 }
 

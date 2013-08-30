@@ -223,6 +223,23 @@ class Lambda {
 		}
 		return -1;
 	}
+	
+	/**
+		Returns the first element of `it` for which `f` is true.
+		
+		This function returns true as soon as an element is found for which a
+		call to `f` returns true.
+		
+		If no such element is found, the result is null.
+		
+		If `f` is null, the result is unspecified.
+	**/
+	public static function find<T>( it : Iterable<T>, f : T -> Bool ) : Null<T> {
+		for( v in it ) {
+			if(f(v)) return v;
+		}
+		return null;
+	}
 
 	/**
 		Returns a new List containing all elements of Iterable `a` followed by

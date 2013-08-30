@@ -223,12 +223,12 @@ package java.internal;
 				{
 					long l1 = (v1 == null) ? 0L : v1c.longValue();
 					long l2 = (v2 == null) ? 0L : v2c.longValue();
-					return (int) (l1 - l2);
+          return (l1 < l2) ? -1 : (l1 > l2) ? 1 : 0;
 				} else {
 					double d1 = (v1 == null) ? 0.0 : v1c.doubleValue();
 					double d2 = (v2 == null) ? 0.0 : v2c.doubleValue();
 
-					return (int) (d1 - d2);
+          return (d1 < d2) ? -1 : (d1 > d2) ? 1 : 0;
 				}
 			}
 			//if it\'s not a number it must be a String

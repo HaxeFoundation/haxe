@@ -29,7 +29,7 @@ enum StackItem {
 	Module( m : String );
 	FilePos( s : Null<StackItem>, file : String, line : Int );
 	Method( classname : String, method : String );
-	Lambda( v : Int );
+	LocalFunction( v : Int );
 }
 
 /**
@@ -154,7 +154,7 @@ class CallStack {
 			b.add(cname);
 			b.add(".");
 			b.add(meth);
-		case Lambda(n):
+		case LocalFunction(n):
 			b.add("local function #");
 			b.add(n);
 		}
@@ -186,7 +186,7 @@ class CallStack {
 				var item;
 				if( meth == null ) {
 					if( rlambda.match(cl) )
-						item = Lambda(Std.parseInt(rlambda.matched(1)));
+						item = LocalFunction(Std.parseInt(rlambda.matched(1)));
 					else
 						item = Method(cl,"new");
 				} else

@@ -1241,6 +1241,10 @@ and type_field ctx e i p mode =
 				AKNo f.cf_name
 			| (MGet | MCall), _ ->
 				let t = field_type f in
+				begin match follow t with
+					| TFun((_,_,t1) :: _,_) -> ()
+					| _ -> error ("Invalid call to static function " ^ i ^ " through abstract instance") p
+				end;
 				let ef = field_expr f t in
 				AKUsing (ef,c,f,e)
 			| MSet, _ ->
@@ -1745,11 +1749,15 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 			| (o,cf) :: ops when is_assign_op && o = OpAssignOp(op) || o == op ->
 				(match follow (monomorphs cf.cf_params cf.cf_type) with
 				| TFun([(_,_,t1);(_,_,t2)],r) ->
-					let t1,t2 = if left || Meta.has Meta.Commutative cf.cf_meta then t1,t2 else t2,t1 in
-					if type_iseq t t2 && (if Meta.has Meta.Impl cf.cf_meta then type_iseq (apply_params a.a_types pl a.a_this) t1 else type_iseq (TAbstract(a,pl)) t1) then begin
-						if not (can_access ctx c cf true) then display_error ctx ("Cannot access operator function " ^ (s_type_path a.a_path) ^ "." ^ cf.cf_name) p;
-						cf,r,o = OpAssignOp(op),Meta.has Meta.Commutative cf.cf_meta
-					end else loop ops
+					let impl = Meta.has Meta.Impl cf.cf_meta in
+					(* implementation fields can only be used in left mode (issue #2130) *)
+					if impl && not left then loop ops else begin
+						let t1,t2 = if left || Meta.has Meta.Commutative cf.cf_meta then t1,t2 else t2,t1 in
+						if type_iseq t t2 && (if impl then type_iseq (apply_params a.a_types pl a.a_this) t1 else type_iseq (TAbstract(a,pl)) t1) then begin
+							if not (can_access ctx c cf true) then display_error ctx ("Cannot access operator function " ^ (s_type_path a.a_path) ^ "." ^ cf.cf_name) p;
+							cf,r,o = OpAssignOp(op),Meta.has Meta.Commutative cf.cf_meta
+						end else loop ops
+					end;
 				| _ -> loop ops)
 			| _ :: ops ->
 				loop ops
@@ -1791,8 +1799,8 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 			let f,r,assign,commutative = find_overload a pl c e1.etype false in
 			begin match f.cf_expr with
 				| None ->
-					let e1 = match follow e1.etype with TAbstract(a,pl) -> {e1 with etype = apply_params a.a_types pl a.a_this} | _ -> e1 in
 					let e1,e2 = if commutative then e2,e1 else e1,e2 in
+					let e1 = match follow e1.etype with TAbstract(a,pl) -> {e1 with etype = apply_params a.a_types pl a.a_this} | _ -> e1 in
 					cast_rec e1 {e2 with etype = apply_params a.a_types pl a.a_this} r
 				| Some _ ->
 					let e1,e2 = if commutative then e2,e1 else e1,e2 in
@@ -2523,11 +2531,10 @@ and type_expr ctx (e,p) (with_type:with_type) =
 						unify_raise ctx e1.etype t e1.epos;
 						e1
 					with Error (Unify _,_) ->
-						let acc = acc_get ctx (type_field ctx e1 "iterator" e1.epos MCall) e1.epos in
-						let acc = (match acc.eexpr with TField (e,FClosure (c,f)) -> { acc with eexpr = TField (e,match c with None -> FAnon f | Some c -> FInstance (c,f)) } | _ -> acc) in
+						let acc = build_call ctx (type_field ctx e1 "iterator" e1.epos MCall) [] Value e1.epos in
 						try
-							unify_raise ctx acc.etype (tfun [] t) acc.epos;
-							make_call ctx acc [] t e1.epos
+							unify_raise ctx acc.etype t acc.epos;
+							acc
 						with Error (Unify(l),p) ->
 							display_error ctx "Field iterator has an invalid type" acc.epos;
 							display_error ctx (error_msg (Unify l)) p;
@@ -2565,6 +2572,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 	| EIf (e,e1,e2) ->
 		let e = type_expr ctx e Value in
 		unify ctx e.etype ctx.t.tbool e.epos;
+		let e = Codegen.Abstract.check_cast ctx ctx.t.tbool e p in
 		let e1 = type_expr ctx e1 with_type in
 		(match e2 with
 		| None ->
@@ -2592,6 +2600,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		let old_loop = ctx.in_loop in
 		let cond = type_expr ctx cond Value in
 		unify ctx cond.etype ctx.t.tbool cond.epos;
+		let cond = Codegen.Abstract.check_cast ctx ctx.t.tbool cond p in
 		ctx.in_loop <- true;
 		let e = type_expr ctx e NoValue in
 		ctx.in_loop <- old_loop;
@@ -2603,6 +2612,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		ctx.in_loop <- old_loop;
 		let cond = type_expr ctx cond Value in
 		unify ctx cond.etype ctx.t.tbool cond.epos;
+		let cond = Codegen.Abstract.check_cast ctx ctx.t.tbool cond p in
 		mk (TWhile (cond,e,DoWhile)) ctx.t.tvoid p
 	| ESwitch (e1,cases,def) ->
 		begin try
@@ -2643,7 +2653,6 @@ and type_expr ctx (e,p) (with_type:with_type) =
 					List.iter (fun pt ->
 						if pt != t_dynamic then error "Catch class parameter must be Dynamic" p;
 					) params;
-					add_feature ctx.com "typed_catch";
 					(match path with
 					| x :: _ , _ -> x
 					| [] , name -> name)
@@ -2839,7 +2848,6 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		let e = type_expr ctx e Value in
 		mk (TCast (e,None)) (mk_mono()) p
 	| ECast (e, Some t) ->
-		add_feature ctx.com "typed_cast";
 		let t = Typeload.load_complex_type ctx (pos e) t in
 		let texpr = (match follow t with
 		| TInst (_,params) | TEnum (_,params) ->
@@ -3030,16 +3038,19 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		let e = Codegen.Abstract.check_cast ctx t e p in
 		unify ctx e.etype t e.epos;
 		if e.etype == t then e else mk (TCast (e,None)) t p
-	| EMeta (m,e) ->
+	| EMeta (m,e1) ->
 		let old = ctx.meta in
 		ctx.meta <- m :: ctx.meta;
-		let e = type_expr ctx e with_type in
+		let e () = type_expr ctx e1 with_type in
 		let e = match m with
 			| (Meta.ToString,_,_) ->
+				let e = e() in
 				(match follow e.etype with
 					| TAbstract({a_impl = Some c},_) when PMap.mem "toString" c.cl_statics -> call_to_string ctx c e
 					| _ -> e)
-			| _ -> e
+			| (Meta.This,_,_) ->
+				List.hd ctx.this_stack
+			| _ -> e()
 		in
 		ctx.meta <- old;
 		e
@@ -3063,7 +3074,7 @@ and type_call ctx e el (with_type:with_type) p =
 			mk (TCall (mk (TLocal (alloc_var "`trace" t_dynamic)) t_dynamic p,[e;infos])) ctx.t.tvoid p
 		else
 			let me = Meta.ToString,[],pos e in
-			type_expr ctx (ECall ((EField ((EField ((EConst (Ident "haxe"),p),"Log"),p),"trace"),p),[(EMeta (me,e),pos e);EUntyped infos,p]),p) NoValue
+			type_expr ctx (ECall ((EField ((EField ((EConst (Ident "haxe"),p),"Log"),p),"trace"),p),[(EMeta (me,e),pos e);infos]),p) NoValue
 	| (EConst(Ident "callback"),p1),args ->
 		let ecb = try Some (type_ident_raise ctx "callback" p1 MCall) with Not_found -> None in
 		(match ecb with
@@ -3113,6 +3124,11 @@ and build_call ctx acc el (with_type:with_type) p =
 		| (TAnon a) as t -> (match !(a.a_status) with Statics c -> Some (TInst(c,[]),f) | _ -> Some (t,f))
 		| _ -> None
 	in
+	let push_this e =
+		ctx.this_stack <- e :: ctx.this_stack;
+		let er = EMeta((Meta.This,[],e.epos), (EConst(Ident "this"),e.epos)),e.epos in
+		er,fun () -> ctx.this_stack <- List.tl ctx.this_stack
+	in
 	match acc with
 	| AKInline (ethis,f,fmode,t) ->
 		let params, tfunc = (match follow t with
@@ -3130,7 +3146,10 @@ and build_call ctx acc el (with_type:with_type) p =
 		begin match ef.cf_kind with
 		| Method MethMacro ->
 			let ethis = type_module_type ctx (TClassDecl cl) None p in
-			build_call ctx (AKMacro (ethis,ef)) (Interp.make_ast eparam :: el) with_type p
+			let eparam,f = push_this eparam in
+			let e = build_call ctx (AKMacro (ethis,ef)) (eparam :: el) with_type p in
+			f();
+			e
 		| _ ->
 			let t = follow (field_type ctx cl [] ef p) in
 			(* for abstracts we have to apply their parameters to the static function *)
@@ -3294,20 +3313,16 @@ let generate ctx =
 	and loop_abstract p a =
 		if a.a_path <> p then loop (TAbstractDecl a)
 
-	and walk_static_call p c name =
-		try
-			let f = PMap.find name c.cl_statics in
-			match f.cf_expr with
-			| None -> ()
-			| Some e ->
-				if PMap.mem (c.cl_path,name) (!statics) then
-					()
-				else begin
-					statics := PMap.add (c.cl_path,name) () (!statics);
-					walk_expr p e;
-				end
-		with
-			Not_found -> ()
+	and walk_static_field p c cf =
+		match cf.cf_expr with
+		| None -> ()
+		| Some e ->
+			if PMap.mem (c.cl_path,cf.cf_name) (!statics) then
+				()
+			else begin
+				statics := PMap.add (c.cl_path,cf.cf_name) () (!statics);
+				walk_expr p e;
+			end
 
 	and walk_expr p e =
 		match e.eexpr with
@@ -3334,23 +3349,9 @@ let generate ctx =
 				end
 			in
 			loop c
-(* 		| TMatch (_,(enum,_),_,_) ->
-			loop_enum p enum;
-			iter (walk_expr p) e *)
-		| TCall (f,_) ->
-			iter (walk_expr p) e;
-			(* static call for initializing a variable *)
-			let rec loop f =
-				match f.eexpr with
-				| TField ({ eexpr = TTypeExpr t },name) ->
-					(match t with
-					| TEnumDecl _ -> ()
-					| TAbstractDecl _ -> ()
-					| TTypeDecl _ -> assert false
-					| TClassDecl c -> walk_static_call p c (field_name name))
-				| _ -> ()
-			in
-			loop f
+		| TField(e1,FStatic(c,cf)) ->
+			walk_expr p e1;
+			walk_static_field p c cf;
 		| _ ->
 			iter (walk_expr p) e
 
@@ -3639,8 +3640,7 @@ let make_macro_api ctx p =
 			let m, tdef, pos = (try Interp.decode_type_def v with Interp.Invalid_expr -> Interp.exc (Interp.VString "Invalid type definition")) in
 			let mdep = Typeload.type_module ctx m ctx.m.curmod.m_extra.m_file [tdef,pos] pos in
 			mdep.m_extra.m_kind <- MFake;
-			mdep.m_extra.m_time <- -1.;
-			add_dependency ctx.m.curmod mdep;
+			add_dependency mdep ctx.m.curmod;
 		);
 		Interp.module_dependency = (fun mpath file ismacro ->
 			let m = typing_timer ctx (fun() -> Typeload.load_module ctx (parse_path mpath) p) in
@@ -3753,6 +3753,10 @@ let load_macro ctx cpath f p =
 	let t = macro_timer ctx "typing (+init)" in
 	let api, mctx = get_macro_context ctx p in
 	let mint = Interp.get_ctx() in
+	let cpath, sub = (match List.rev (fst cpath) with
+		| name :: pack when name.[0] >= 'A' && name.[0] <= 'Z' -> (List.rev pack,name), Some (snd cpath)
+		| _ -> cpath, None
+	) in
 	let m = (try Hashtbl.find ctx.g.types_module cpath with Not_found -> cpath) in
 	let mloaded = Typeload.load_module mctx m p in
 	mctx.m <- {
@@ -3763,7 +3767,7 @@ let load_macro ctx cpath f p =
 		wildcard_packages = [];
 	};
 	add_dependency ctx.m.curmod mloaded;
-	let cl, meth = (match Typeload.load_instance mctx { tpackage = fst cpath; tname = snd cpath; tparams = []; tsub = None } p true with
+	let cl, meth = (match Typeload.load_instance mctx { tpackage = fst cpath; tname = snd cpath; tparams = []; tsub = sub } p true with
 		| TInst (c,_) ->
 			finalize mctx;
 			c, (try PMap.find f c.cl_statics with Not_found -> error ("Method " ^ f ^ " not found on class " ^ s_type_path cpath) p)
@@ -3775,7 +3779,7 @@ let load_macro ctx cpath f p =
 	let call args =
 		let t = macro_timer ctx (s_type_path cpath ^ "." ^ f) in
 		incr stats.s_macros_called;
-		let r = Interp.call_path (Interp.get_ctx()) ((fst cpath) @ [snd cpath]) f args api in
+		let r = Interp.call_path (Interp.get_ctx()) ((fst cpath) @ [(match sub with None -> snd cpath | Some s -> s)]) f args api in
 		t();
 		r
 	in
@@ -3988,6 +3992,7 @@ let rec create com =
 			wildcard_packages = [];
 		};
 		meta = [];
+		this_stack = [];
 		pass = PBuildModule;
 		macro_depth = 0;
 		untyped = false;

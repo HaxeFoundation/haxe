@@ -159,7 +159,7 @@ class Boot {
 		return __interfLoop(cc.__super__,cl);
 	}
 
-	@:ifFeature("typed_catch") private static function __instanceof(o : Dynamic,cl : Dynamic) {
+	@:ifFeature("typed_catch", "typed_cast") private static function __instanceof(o : Dynamic,cl : Dynamic) {
 		if( cl == null )
 			return false;
 		switch( cl ) {

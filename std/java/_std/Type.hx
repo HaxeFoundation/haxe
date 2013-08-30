@@ -336,7 +336,10 @@
 	public static function getEnumConstructs( e : Enum<Dynamic> ) : Array<String> {
 		if (Reflect.hasField(e, "constructs"))
 			return untyped e.constructs.copy();
-		return getClassFields(cast e);
+    var vals:java.NativeArray<java.lang.Enum<Dynamic>> = untyped e.values(), ret = [];
+    for (i in 0...vals.length)
+      ret[i] = vals[i].name();
+    return ret;
 	}
 
 	@:functionCode('

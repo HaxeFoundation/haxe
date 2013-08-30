@@ -69,9 +69,11 @@ class Printer {
 			printBinop(op)
 			+ "=";
 	}
-
+	public function printString(s:String) {
+		return '"' + s.split("\n").join("\\n").split("\t").join("\\t").split("'").join("\\'").split('"').join("\\\"") #if sys .split("\x00").join("\\x00") #end + '"';
+	}
 	public function printConstant(c:Constant) return switch(c) {
-		case CString(s): '"$s"';
+		case CString(s): printString(s);
 		case CIdent(s),
 			CInt(s),
 			CFloat(s):
@@ -185,7 +187,7 @@ class Printer {
 						+ (c.expr != null ? (opt(c.expr, printExpr)) + ";" : ""))
 				.join('\n$tabs');
 			if (edef != null)
-				s += '\n${tabs}default: ' + (edef.expr == null ? "" : printExpr(edef)) + ";";
+				s += '\n${tabs}default: ' + (edef.expr == null ? "" : printExpr(edef) + ";");
 			tabs = old;
 			s + '\n$tabs}';
 		case ETry(e1, cl):

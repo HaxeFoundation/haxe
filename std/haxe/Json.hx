@@ -407,7 +407,7 @@ class Json {
 
 	public static function stringify( value : Dynamic, ?replacer:Dynamic -> Dynamic -> Dynamic ) : String {
 		#if (php && !haxeJSON)
-		return phpJsonEncode(value);
+		return phpJsonEncode(value, replacer);
 		#elseif (flash11 && !haxeJSON)
 		return null;
 		#else
@@ -444,7 +444,9 @@ class Json {
 			return val;
 	}
 
-	static function phpJsonEncode(val:Dynamic):String {
+	static function phpJsonEncode(val:Dynamic, ?replacer:Dynamic -> Dynamic -> Dynamic):String {
+		if(null != replacer)
+			return new Json().toString(val, replacer);
 		var json = untyped __call__("json_encode", convertBeforeEncode(val));
 		if (untyped __physeq__(json, false))
 			return throw "invalid json";

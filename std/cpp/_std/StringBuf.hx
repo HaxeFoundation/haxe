@@ -32,7 +32,8 @@ class StringBuf {
 
 	function get_length() : Int {
 		var len = 0;
-		for(s in b) len += s.length;
+		for(s in b)
+			len += s==null ? 4 : s.length;
 		return len;
 	}
 

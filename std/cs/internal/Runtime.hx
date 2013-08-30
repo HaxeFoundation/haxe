@@ -238,12 +238,11 @@ import cs.system.Type;
 					double d1 = (double) v1;
 					double d2 = cv2.ToDouble(null);
 
-					if (double.IsInfinity(d1) || double.IsInfinity(d2))
-						return (d1 < d2) ? -1 : (d1 > d2) ? 1 : 0;
-					else
-						return (int) (d1 - d2);
+          return (d1 < d2) ? -1 : (d1 > d2) ? 1 : 0;
 					default:
-						return ((int) (cv1.ToDouble(null) - cv2.ToDouble(null)));
+            double d1d = cv1.ToDouble(null);
+            double d2d = cv2.ToDouble(null);
+            return (d1d < d2d) ? -1 : (d1d > d2d) ? 1 : 0;
 				}
 			}
 

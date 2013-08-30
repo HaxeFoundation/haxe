@@ -47,6 +47,7 @@ module Meta = struct
 		| CoreType
 		| CppFileCode
 		| CppNamespaceCode
+		| Dce
 		| Debug
 		| Decl
 		| DefParam
@@ -121,6 +122,7 @@ module Meta = struct
 		| Sound
 		| Struct
 		| SuppressWarnings
+		| This
 		| Throws
 		| To
 		| ToString
