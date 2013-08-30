@@ -3640,8 +3640,7 @@ let make_macro_api ctx p =
 			let m, tdef, pos = (try Interp.decode_type_def v with Interp.Invalid_expr -> Interp.exc (Interp.VString "Invalid type definition")) in
 			let mdep = Typeload.type_module ctx m ctx.m.curmod.m_extra.m_file [tdef,pos] pos in
 			mdep.m_extra.m_kind <- MFake;
-			mdep.m_extra.m_time <- -1.;
-			add_dependency ctx.m.curmod mdep;
+			add_dependency mdep ctx.m.curmod;
 		);
 		Interp.module_dependency = (fun mpath file ismacro ->
 			let m = typing_timer ctx (fun() -> Typeload.load_module ctx (parse_path mpath) p) in
