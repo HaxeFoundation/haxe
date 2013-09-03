@@ -55,7 +55,7 @@ let keep_whole_class dce c =
 	|| not (dce.full || is_std_file dce c.cl_module.m_extra.m_file || has_meta Meta.Dce c.cl_meta)
 	|| super_forces_keep c
 	|| (match c with
-		| { cl_extern = true; cl_path = ([],("Math"|"Array"))} when dce.com.platform = Js -> false
+		| { cl_path = ([],("Math"|"Array"))} when dce.com.platform = Js -> false
 		| { cl_extern = true }
 		| { cl_path = ["flash";"_Boot"],"RealBoot" } -> true
 		| { cl_path = [],"String" }
