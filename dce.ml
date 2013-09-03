@@ -35,6 +35,7 @@ type dce = {
 	mutable marked_maybe_fields : tclass_field list;
 	mutable t_stack : t list;
 	mutable ts_stack : t list;
+	mutable checked_features : (string,bool) Hashtbl.t;
 }
 
 (* checking *)
@@ -61,28 +62,28 @@ let keep_whole_class dce c =
 		| { cl_path = [],"Array" } -> not (dce.com.platform = Js)
 		| _ -> false)
 
-(* check if a metadata contains @:ifFeature with a used feature argument *)
-let has_used_feature com meta =
-	try
-		let _,el,_ = Meta.get Meta.IfFeature meta in
-		List.exists (fun e -> match fst e with
-			| EConst(String s) when Common.has_feature com s -> true
-			| _ -> false
-		) el
-	with Not_found ->
-		false
-
 (* check if a field is kept *)
 let keep_field dce cf =
 	Meta.has Meta.Keep cf.cf_meta
 	|| Meta.has Meta.Used cf.cf_meta
 	|| cf.cf_name = "__init__"
-	|| has_used_feature dce.com cf.cf_meta
 
 (* marking *)
 
+let rec check_feature dce s =
+	if not (Hashtbl.mem dce.checked_features s) then begin
+		add_feature dce.com s;
+		Hashtbl.add dce.checked_features s true;
+		try
+			List.iter (fun (c,cf,stat) ->
+				mark_field dce c cf stat
+			) (Hashtbl.find dce.com.reverse_features s)
+		with Not_found ->
+			()
+	end
+
 (* mark a field as kept *)
-let rec mark_field dce c cf stat =
+and mark_field dce c cf stat =
 	let add cf =
 		if not (Meta.has Meta.Used cf.cf_meta) then begin
 			cf.cf_meta <- (Meta.Used,[],cf.cf_pos) :: cf.cf_meta;
@@ -298,7 +299,7 @@ and expr dce e =
 			mark_t dce v.v_type;
 		) vl;
 	| TCast(e, Some mt) ->
-		add_feature dce.com "typed_cast";
+		check_feature dce "typed_cast";
 		mark_mt dce mt;
 		expr dce e;
 	| TTypeExpr mt ->
@@ -306,12 +307,12 @@ and expr dce e =
 	| TTry(e, vl) ->
 		expr dce e;
 		List.iter (fun (v,e) ->
-			if v.v_type != t_dynamic then add_feature dce.com "typed_catch";
+			if v.v_type != t_dynamic then check_feature dce "typed_catch";
 			expr dce e;
 			mark_t dce v.v_type;
 		) vl;
 	| TCall ({eexpr = TLocal ({v_name = "__define_feature__"})},[{eexpr = TConst (TString ft)};e]) ->
-		Common.add_feature dce.com ft;
+		check_feature dce ft;
 		expr dce e
 	(* keep toString method when the class is argument to Std.string or haxe.Log.trace *)
 	| TCall ({eexpr = TField({eexpr = TTypeExpr (TClassDecl ({cl_path = (["haxe"],"Log")} as c))},FStatic (_,{cf_name="trace"}))} as ef, ([e2;_] as args))
@@ -365,6 +366,7 @@ let run com main full =
 		marked_maybe_fields = [];
 		t_stack = [];
 		ts_stack = [];
+		checked_features = Hashtbl.create 0;
 	} in
 	begin match main with
 		| Some {eexpr = TCall({eexpr = TField(e,(FStatic(c,cf)))},_)} ->
