@@ -908,7 +908,7 @@ and parse_class_field s =
 	match s with parser
 	| [< meta = parse_meta; al = parse_cf_rights true []; s >] ->
 		let name, pos, k = (match s with parser
-		| [< '(Kwd Var,p1); name, _ = ident; s >] ->
+		| [< '(Kwd Var,p1); name, _ = dollar_ident; s >] ->
 			(match s with parser
 			| [< '(POpen,_); i1 = property_ident; '(Comma,_); i2 = property_ident; '(PClose,_) >] ->
 				let t = (match s with parser
@@ -966,7 +966,7 @@ and parse_cf_rights allow_static l = parser
 	| [< >] -> l
 
 and parse_fun_name = parser
-	| [< '(Const (Ident name),_) >] -> name
+	| [< name,_ = dollar_ident >] -> name
 	| [< '(Kwd New,_) >] -> "new"
 
 and parse_fun_param = parser
