@@ -71,6 +71,7 @@ module Meta = struct
 		| FunctionCode
 		| FunctionTailCode
 		| Generic
+		| GenericBuild
 		| Getter
 		| Hack
 		| HaxeGeneric

@@ -361,6 +361,7 @@ module MetaInfo = struct
 		| FunctionCode -> ":functionCode",("",[Platform Cpp])
 		| FunctionTailCode -> ":functionTailCode",("",[Platform Cpp])
 		| Generic -> ":generic",("Marks a class or class field as generic so each type parameter combination generates its own type/field",[UsedOnEither [TClass;TClassField]])
+		| GenericBuild -> ":genericBuild",("Builds instances of a type using the specified macro",[UsedOn TClass])
 		| Getter -> ":getter",("Generates a native getter function on the given field",[HasParam "Class field name";UsedOn TClassField;Platform Flash])
 		| Hack -> ":hack",("Allows extending classes marked as @:final",[UsedOn TClass])
 		| HaxeGeneric -> ":haxeGeneric",("Used internally to annotate non-native generic classes",[Platform Cs; UsedOnEither[TClass;TEnum]; Internal])
