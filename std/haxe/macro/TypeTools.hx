@@ -127,6 +127,54 @@ class TypeTools {
 	}
 	
 	/**
+		Transforms `t` by calling `f` on each of its subtypes.
+		
+		If `t` is a compound type, `f` is called on each of its components.
+		
+		Otherwise `t` is returned unchanged.
+		
+		The following types are considered compound:
+			- TInst, TEnum, TType and TAbstract with type parameters
+			- TFun
+			- TAnonymous
+			
+		If `t` or `f` are null, the result is unspecified.
+	**/
+	static public function map(t:Type, f:Type -> Type):Type {
+		return switch(t) {
+			case TMono(tm):
+				switch(tm.get()) {
+					case null: t;
+					case t: f(t);
+				}
+			case TEnum(_, []) | TInst(_, []) | TType(_, []):
+				t;
+			case TEnum(en, tl):
+				TEnum(en, tl.map(f));
+			case TInst(cl, tl):
+				TInst(cl, tl.map(f));
+			case TType(t2, tl):
+				TType(t2, tl.map(f));
+			case TAbstract(a, tl):
+				TAbstract(a, tl.map(f));
+			case TFun(args, ret):
+				TFun(args.map(function(arg) return {
+					name: arg.name,
+					opt: arg.opt,
+					t: f(arg.t)
+				}), f(ret));
+			case TAnonymous(an):
+				t; // TODO: Ref?
+			case TDynamic(t2):
+				t == t2 ? t : TDynamic(f(t2));
+			case TLazy(ft):
+				var ft = ft();
+				var ft2 = f(ft);
+				ft == ft2 ? t : ft2;
+		}
+	}
+	
+	/**
 		Converts type `t` to a human-readable String representation.
 	**/
 	static public function toString( t : Type ) : String return new String(Context.load("s_type", 1)(t));
