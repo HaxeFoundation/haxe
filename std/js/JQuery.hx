@@ -56,7 +56,7 @@ typedef JqEvent = {
 	// propagation
 	function isDefaultPrevented() : Bool;
 	function isImmediatePropagationStopped() : Bool;
-	function isPropationStopped() : Bool;
+	function isPropagationStopped() : Bool;
 	function preventDefault() : Void;
 	function stopImmediatePropagation() : Void;
 	function stopPropagation() : Void;
