@@ -260,7 +260,7 @@ enum TypedExprDef {
 	TSwitch(e:TypedExpr, cases:Array<{values:Array<TypedExpr>, expr:TypedExpr}>, edef:Null<TypedExpr>);
 	TPatMatch;
 	TTry(e:TypedExpr, catches:Array<{v:TVar, expr:TypedExpr}>);
-	TReturn(e:TypedExpr);
+	TReturn(e:Null<TypedExpr>);
 	TBreak;
 	TContinue;
 	TThrow(e:TypedExpr);

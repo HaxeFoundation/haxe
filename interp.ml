@@ -261,7 +261,7 @@ let constants =
 	"constructs";"names";"superClass";"interfaces";"fields";"statics";"constructor";"init";"t";
 	"gid";"uid";"atime";"mtime";"ctime";"dev";"ino";"nlink";"rdev";"size";"mode";"pos";"len";
 	"binops";"unops";"from";"to";"array";"op";"isPostfix";"impl";
-	"id";"capture";"extra";"v";"ids";"vars";"en"];	
+	"id";"capture";"extra";"v";"ids";"vars";"en"];
 	h
 
 let h_get = hash "__get" and h_set = hash "__set"
@@ -2295,7 +2295,7 @@ let macro_lib =
 		"s_expr", Fun2 (fun v b ->
 			let f = match b with VBool true -> Type.s_expr_pretty "" | _ -> Type.s_expr in
 			VString (f (Type.s_type (print_context())) (decode_texpr v))
-		);		
+		);
 		"is_fmt_string", Fun1 (fun v ->
 			match v with
 			| VAbstract (APos p) -> VBool(Lexer.is_fmt_string p)
@@ -2440,10 +2440,8 @@ let macro_lib =
 			| _ -> error()
 		);
 		"get_typed_expr", Fun1 (fun e ->
-			match e with
-			| VAbstract (ATExpr e) ->
-				encode_expr (make_ast e)
-			| _ -> error()
+			let e = decode_texpr e in
+			encode_expr (make_ast e)
 		);
 		"get_output", Fun0 (fun() ->
 			VString (ccom()).file
@@ -3473,7 +3471,7 @@ type enum_index =
 	| ITypedExpr
 	| ITConstant
 	| IModuleType
-	| IFieldAccess	
+	| IFieldAccess
 
 let enum_name = function
 	| IExpr -> "ExprDef"
