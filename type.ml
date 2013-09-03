@@ -165,6 +165,7 @@ and tclass_kind =
 	| KGeneric
 	| KGenericInstance of tclass * tparams
 	| KMacroType
+	| KGenericBuild of class_field list
 	| KAbstractImpl of tabstract
 
 and metadata = Ast.metadata
@@ -1154,6 +1155,8 @@ let rec unify a b =
 		| EnumStatics e -> unify (TEnum (e,List.map (fun _ -> mk_mono()) e.e_types)) pt
 		| _ -> error [cannot_unify a b])
 	| TEnum _, TAbstract ({ a_path = [],"EnumValue" },[]) ->
+		()
+	| TFun _, TAbstract ({ a_path = ["haxe"],"Function" },[]) ->
 		()
 	| TDynamic t , _ ->
 		if t == a then

@@ -2065,7 +2065,7 @@ let macro_lib =
 			| VString s, VAbstract (APos p) ->
 				raise (Typecore.Fatal_error (s,p))
 			| _ -> error()
-		);		
+		);
 		"warning", Fun2 (fun msg p ->
 			match msg, p with
 			| VString s, VAbstract (APos p) ->
@@ -4227,6 +4227,7 @@ and encode_class_kind k =
 		| KGenericInstance (cl, params) -> 5, [encode_clref cl; encode_tparams params]
 		| KMacroType -> 6, []
 		| KAbstractImpl a -> 7, [encode_ref a encode_tabstract (fun() -> s_type_path a.a_path)]
+		| KGenericBuild cfl -> 8, []
 	) in
 	enc_enum IClassKind tag pl
 

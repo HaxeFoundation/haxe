@@ -3585,12 +3585,12 @@ let make_macro_api ctx p =
 		);
 		Interp.get_local_type = (fun() ->
 			match ctx.g.get_build_infos() with
-			| Some (mt,_) ->
+			| Some (mt,tl,_) ->
 				Some (match mt with
-					| TClassDecl c -> TInst (c,[])
-					| TEnumDecl e -> TEnum (e,[])
-					| TTypeDecl t -> TType (t,[])
-					| TAbstractDecl a -> TAbstract(a,[]))
+					| TClassDecl c -> TInst (c,tl)
+					| TEnumDecl e -> TEnum (e,tl)
+					| TTypeDecl t -> TType (t,tl)
+					| TAbstractDecl a -> TAbstract(a,tl))
 			| None ->
 				if ctx.curclass == null_class then
 					None
@@ -3609,7 +3609,7 @@ let make_macro_api ctx p =
 		Interp.get_build_fields = (fun() ->
 			match ctx.g.get_build_infos() with
 			| None -> Interp.VNull
-			| Some (_,fields) -> Interp.enc_array (List.map Interp.encode_field fields)
+			| Some (_,_,fields) -> Interp.enc_array (List.map Interp.encode_field fields)
 		);
 		Interp.get_pattern_locals = (fun e t ->
 			!get_pattern_locals_ref ctx e t
@@ -3865,7 +3865,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 						| Interp.VNull ->
 							(match ctx.g.get_build_infos() with
 							| None -> assert false
-							| Some (_,fields) -> fields)
+							| Some (_,_,fields) -> fields)
 						| _ ->
 							List.map Interp.decode_field (Interp.dec_array v)
 					) in

@@ -506,19 +506,22 @@ let build_metadata com t =
 (* -------------------------------------------------------------------------- *)
 (* MACRO TYPE *)
 
+let get_macro_path e args p =
+	let rec loop e =
+		match fst e with
+		| EField (e,f) -> f :: loop e
+		| EConst (Ident i) -> [i]
+		| _ -> error "Invalid macro call" p
+	in
+	(match loop e with
+	| meth :: cl :: path -> (List.rev path,cl), meth, args
+	| _ -> error "Invalid macro call" p)
+
 let build_macro_type ctx pl p =
 	let path, field, args = (match pl with
 		| [TInst ({ cl_kind = KExpr (ECall (e,args),_) },_)]
 		| [TInst ({ cl_kind = KExpr (EArrayDecl [ECall (e,args),_],_) },_)] ->
-			let rec loop e =
-				match fst e with
-				| EField (e,f) -> f :: loop e
-				| EConst (Ident i) -> [i]
-				| _ -> error "Invalid macro call" p
-			in
-			(match loop e with
-			| meth :: cl :: path -> (List.rev path,cl), meth, args
-			| _ -> error "Invalid macro call" p)
+			get_macro_path e args p
 		| _ ->
 			error "MacroType require a single expression call parameter" p
 	) in
@@ -530,6 +533,21 @@ let build_macro_type ctx pl p =
 	ctx.ret <- old;
 	t
 
+let build_macro_build ctx c pl cfl p =
+	let path, field, args = match Meta.get Meta.GenericBuild c.cl_meta with
+		| _,[ECall(e,args),_],_ -> get_macro_path e args p
+		| _ -> assert false
+	in
+	let old = ctx.ret,ctx.g.get_build_infos in
+	ctx.g.get_build_infos <- (fun() -> Some (TClassDecl c, pl, cfl));
+	let t = (match ctx.g.do_macro ctx MMacroType path field args p with
+		| None -> mk_mono()
+		| Some _ -> ctx.ret
+	) in
+	ctx.ret <- fst old;
+	ctx.g.get_build_infos <- snd old;
+	t
+
 (* -------------------------------------------------------------------------- *)
 (* API EVENTS *)
 
@@ -537,26 +555,24 @@ let build_instance ctx mtype p =
 	match mtype with
 	| TClassDecl c ->
 		if ctx.pass > PBuildClass then c.cl_build();
+		let build f s =
+			let r = exc_protect ctx (fun r ->
+				let t = mk_mono() in
+				r := (fun() -> t);
+				unify_raise ctx (f()) t p;
+				t
+			) s in
+			delay ctx PForce (fun() -> ignore ((!r)()));
+			TLazy r
+		in
 		let ft = (fun pl ->
 			match c.cl_kind with
 			| KGeneric ->
-				let r = exc_protect ctx (fun r ->
-					let t = mk_mono() in
-					r := (fun() -> t);
-					unify_raise ctx (build_generic ctx c p pl) t p;
-					t
-				) "build_generic" in
-				delay ctx PForce (fun() -> ignore ((!r)()));
-				TLazy r
+				build (fun () -> build_generic ctx c p pl) "build_generic"
 			| KMacroType ->
-				let r = exc_protect ctx (fun r ->
-					let t = mk_mono() in
-					r := (fun() -> t);
-					unify_raise ctx (build_macro_type ctx pl p) t p;
-					t
-				) "macro_type" in
-				delay ctx PForce (fun() -> ignore ((!r)()));
-				TLazy r
+				build (fun () -> build_macro_type ctx pl p) "macro_type"
+			| KGenericBuild cfl ->
+				build (fun () -> build_macro_build ctx c pl cfl p) "generic_build"
 			| _ ->
 				TInst (c,pl)
 		) in
