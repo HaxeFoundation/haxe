@@ -197,4 +197,79 @@ enum MethodKind {
 	MethMacro;
 }
 
-extern enum TypedExpr {}
+enum TConstant {
+	TInt(i:Int);
+	TFloat(s:String);
+	TString(s:String);
+	TBool(b:Bool);
+	TNull;
+	TThis;
+	TSuper;
+}
+
+typedef TVar = {
+	id: Int,
+	name: String,
+	t: Type,
+	capture: Bool,
+	extra: Null<{params: Array<TypeParameter>, expr: Null<TypedExpr>}>
+}
+
+enum ModuleType {
+	TClassDecl(c:Ref<ClassType>);
+	TEnumDecl(e:Ref<EnumType>);
+	TTypeDecl(t:Ref<DefType>);
+	TAbstract(a:Ref<AbstractType>);
+}
+
+typedef TFunc = {
+	args: Array<{v:TVar, value:Null<TConstant>}>,
+	t: Type,
+	expr: TypedExpr
+}
+
+enum FieldAccess {
+	FInstance(c:Ref<ClassType>, cf:ClassField);
+	FStatic(c:Ref<ClassType>, cf:ClassField);
+	FAnon(cf:ClassField);
+	FDynamic(s:String);
+	FClosure(c:Null<Ref<ClassType>>, cf:ClassField);
+	FEnum(e:Ref<EnumType>, ef:EnumField);
+}
+
+enum TypedExprDef {
+	TConst(c:TConstant);
+	TLocal(v:TVar);
+	TArray(e1:TypedExpr, e2:TypedExpr);
+	TBinop(op:Expr.Binop, e1:TypedExpr, e2:TypedExpr);
+	TField(e:TypedExpr, fa:FieldAccess);
+	TTypeExpr(m:ModuleType);
+	TParenthesis(e:TypedExpr);
+	TObjectDecl(fields:Array<{name:String, expr:TypedExpr}>);
+	TArrayDecl(el:Array<TypedExpr>);
+	TCall(e:TypedExpr, el:Array<TypedExpr>);
+	TNew(c:Ref<ClassType>, params: Array<Type>, el:Array<TypedExpr>);
+	TUnop(op:Expr.Unop, postFix:Bool, e:TypedExpr);
+	TFunction(tfunc:TFunc);
+	TVars(vl:Array<{v:TVar, expr:Null<TypedExpr>}>);
+	TBlock(el:Array<TypedExpr>);
+	TFor(v:TVar, e1:TypedExpr, e2:TypedExpr);
+	TIf(econd:TypedExpr, eif:TypedExpr, eelse:Null<TypedExpr>);
+	TWhile(econd:TypedExpr, e:TypedExpr, normalWhile:Bool);
+	TSwitch(e:TypedExpr, cases:Array<{values:Array<TypedExpr>, expr:TypedExpr}>, edef:Null<TypedExpr>);
+	TPatMatch;
+	TTry(e:TypedExpr, catches:Array<{v:TVar, expr:TypedExpr}>);
+	TReturn(e:TypedExpr);
+	TBreak;
+	TContinue;
+	TThrow(e:TypedExpr);
+	TCast(e:TypedExpr, m:Null<ModuleType>);
+	TMeta(m:Expr.Metadata, e1:TypedExpr);
+	TEnumParameter(e1:TypedExpr, ef:EnumField, index:Int);
+}
+
+typedef TypedExpr = {
+	expr: TypedExprDef,
+	pos: Expr.Position,
+	t: Type
+}

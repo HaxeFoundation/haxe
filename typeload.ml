@@ -1019,7 +1019,11 @@ let set_heritance ctx c herits p =
 		List.iter (fun m ->
 			match m with
 			| Meta.Final, _, _ -> if not (Meta.has Meta.Hack c.cl_meta || (match c.cl_kind with KTypeParameter _ -> true | _ -> false)) then error "Cannot extend a final class" p;
-			| Meta.AutoBuild, el, p -> c.cl_meta <- (Meta.Build,el,p) :: m :: c.cl_meta
+			| Meta.AutoBuild, el, p -> 
+				begin match el with
+				| _ :: (EConst(Ident "true"),_) :: _ when Meta.has Meta.Build c.cl_meta -> ()
+				| _ -> c.cl_meta <- (Meta.Build,el,p) :: m :: c.cl_meta
+				end
 			| _ -> ()
 		) csup.cl_meta
 	in
@@ -1340,7 +1344,7 @@ let build_module_def ctx mt meta fvars context_init fbuild =
 	let rec loop = function
 		| (Meta.Build,args,p) :: l ->
 			let epath, el = (match args with
-				| [ECall (epath,el),p] -> epath, el
+				| (ECall (epath,el),p) :: _ -> epath, el
 				| _ -> error "Invalid build parameters" p
 			) in
 			let s = try String.concat "." (List.rev (string_list_of_expr_path epath)) with Error (_,p) -> error "Build call parameter must be a class path" p in
