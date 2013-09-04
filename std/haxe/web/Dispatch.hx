@@ -59,7 +59,7 @@ enum DispatchError {
 	DETooManyValues;
 }
 
-private class Redirect {
+class Redirect {
 	public function new() {
 	}
 }
@@ -257,6 +257,9 @@ class Dispatch {
 						default: false;
 						}
 						return MRSpod(i.toString(), lock);
+					}
+					else if ( name == "haxe.web.Dispatch" ) {
+						return MRDispatch;
 					}
 					csup = csup.t.get().superClass;
 				}
