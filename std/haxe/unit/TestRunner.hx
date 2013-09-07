@@ -64,16 +64,18 @@ class TestRunner {
 		#elseif cpp
 			cpp.Lib.print(v);
 		#elseif js
-			if( untyped __js__('typeof document == "undefined"') ) {
-                process.stdout.write(js.Boot.__string_rec(v,""));
-			} else {
-    			var msg = StringTools.htmlEscape(js.Boot.__string_rec(v,"")).split("\n").join("<br/>");
-                var d = document.getElementById("haxe:trace");
-                if( d == null )
-                    alert("haxe:trace element not found")
-                else
-                    d.innerHTML += msg;
-            }
+  			var msg = js.Boot.__string_rec(v,""));
+			if( untyped __js__('typeof document != "undefined"')
+				&& ( d = document.getElementById("haxe:trace") ) != null ) {
+                d.innerHTML += StringTools.htmlEscape(msg).split("\n").join("<br/>");
+            } else if( untyped __js__('typeof process != "undefined"')
+            	&& untyped __js__('typeof process.stdout != "undefined"')
+            	&& untyped __js__('"write" in process.stdout') ) {
+                process.stdout.write(msg);
+			} else if( untyped __js__('typeof console != "undefined"') 
+				&& untyped __js__('"log" in console') ) {
+				untyped __js__('console.log(msg)');
+			}
 		#elseif cs
 			var str:String = v;
 			untyped __cs__("System.Console.Write(str)");
