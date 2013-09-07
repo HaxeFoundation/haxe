@@ -64,12 +64,16 @@ class TestRunner {
 		#elseif cpp
 			cpp.Lib.print(v);
 		#elseif js
-			var msg = StringTools.htmlEscape(js.Boot.__string_rec(v,"")).split("\n").join("<br/>");
-			var d = document.getElementById("haxe:trace");
-			if( d == null )
-				alert("haxe:trace element not found")
-			else
-				d.innerHTML += msg;
+			if( untyped __js__('typeof document == "undefined"') ) {
+                process.stdout.write(js.Boot.__string_rec(v,""));
+			} else {
+    			var msg = StringTools.htmlEscape(js.Boot.__string_rec(v,"")).split("\n").join("<br/>");
+                var d = document.getElementById("haxe:trace");
+                if( d == null )
+                    alert("haxe:trace element not found")
+                else
+                    d.innerHTML += msg;
+            }
 		#elseif cs
 			var str:String = v;
 			untyped __cs__("System.Console.Write(str)");
