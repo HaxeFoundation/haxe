@@ -69,12 +69,9 @@ class TestRunner {
 			if( untyped __js__('typeof document != "undefined"')
 				&& ( d = document.getElementById("haxe:trace") ) != null ) {
 				d.innerHTML += StringTools.htmlEscape(msg).split("\n").join("<br/>");
-			} else if( untyped __js__('typeof process != "undefined"')
-				&& untyped __js__('typeof process.stdout != "undefined"')
-				&& untyped __js__('"write" in process.stdout') ) {
+			} else if( untyped __js__('typeof process != "undefined"') ) {
 				process.stdout.write(msg);
-			} else if( untyped __js__('typeof console != "undefined"')
-				&& untyped __js__('"log" in console') ) {
+			} else if( untyped __js__('typeof console != "undefined"') ) {
 				untyped __js__('console.log(msg)');
 			}
 		#elseif cs
