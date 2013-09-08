@@ -54,6 +54,28 @@ class TestPhp extends Test
 		var result = pattern.replace("$a","A").replace("$b","B");
 		eq("AB", result);
 	}
+
+	function testIssue2146()
+	{
+		f(Class2146.test());
+	}
+}
+
+class Class2146 {
+    var array:Array<Class2146>;
+    function new() {
+        array = new Array<Class2146>();
+    }
+
+    public static function test() {
+        var a = new Class2146();
+        var b = new Class2146();
+        var c = new Class2146();
+        a.array.push(b);
+        b.array.push(a);
+        c.array.push(a);
+        return Lambda.has(c.array,b);
+    }
 }
 
 enum Annotation {
