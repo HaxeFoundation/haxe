@@ -2671,7 +2671,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 	| EThrow e ->
 		let e = type_expr ctx e Value in
 		mk (TThrow e) (mk_mono()) p
-	| ECall (((EConst (Ident s),_) as e),el) ->
+	| ECall (((EConst (Ident s),pc) as e),el) ->
 		(try
 			let en,t = (match with_type with
 				| WithType t | WithTypeResume t ->
@@ -2687,7 +2687,13 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				ctx.on_error <- old;
 			in
 			ctx.on_error <- (fun ctx msg ep ->
-				raise Not_found;
+				(* raise Not_found only if the error is actually about the outside identifier (issue #2148) *)
+				if ep = pc then
+					raise Not_found
+				else begin
+					restore();
+					ctx.on_error ctx msg ep;
+				end
 			);
 			begin try
 				let e = type_call ctx e el with_type p in
