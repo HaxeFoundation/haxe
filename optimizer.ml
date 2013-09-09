@@ -832,6 +832,16 @@ let rec reduce_loop ctx e =
 			| OpEq -> { e with eexpr = TConst (TBool true) }
 			| OpNotEq -> { e with eexpr = TConst (TBool false) }
 			| _ -> e)
+		| TFunction _, TConst TNull ->
+			(match op with
+			| OpEq -> { e with eexpr = TConst (TBool false) }
+			| OpNotEq -> { e with eexpr = TConst (TBool true) }
+			| _ -> e)
+		| TConst TNull, TFunction _ ->
+			(match op with
+			| OpEq -> { e with eexpr = TConst (TBool false) }
+			| OpNotEq -> { e with eexpr = TConst (TBool true) }
+			| _ -> e)
 		| TConst (TInt a), TConst (TInt b) ->
 			let opt f = try { e with eexpr = TConst (TInt (f a b)) } with Exit -> e in
 			let check_overflow f =
