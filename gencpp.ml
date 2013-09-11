@@ -1133,6 +1133,15 @@ let has_default_values args =
 
 exception PathFound of string;;
 
+let gen_hash seed str =
+	let h = ref (Int32.of_int seed) in
+	let cycle = Int32.of_int 223 in
+	for i = 0 to String.length str - 1 do
+		h := Int32.add (Int32.mul !h cycle) (Int32.of_int (int_of_char (String.unsafe_get str i)));
+	done;
+   Printf.sprintf "0x%08lx" !h
+;;
+
 let hx_stack_push ctx output clazz func_name pos =
    let file = pos.pfile in
 	let flen = String.length file in
@@ -1147,10 +1156,13 @@ let hx_stack_push ctx output clazz func_name pos =
 	with PathFound tail -> tail in
    let qfile = "\"" ^ (Ast.s_escape stripped_file) ^ "\"" in
 	ctx.ctx_file_info := PMap.add qfile qfile !(ctx.ctx_file_info);
-	if (ctx.ctx_dump_stack_line) then
-		output ("HX_STACK_FRAME(\"" ^ clazz ^ "\",\"" ^ func_name ^ "\",\"" ^ 
+	if (ctx.ctx_dump_stack_line) then begin
+      let hash_class_func = gen_hash 0 (clazz^"."^func_name) in
+      let hash_file_line = gen_hash (Lexer.get_error_line pos) stripped_file in
+		output ("HX_STACK_FRAME(\"" ^ clazz ^ "\",\"" ^ func_name ^ "\"," ^ hash_class_func ^ ",\"" ^
                 clazz ^ "." ^ func_name ^ "\"," ^ qfile ^ "," ^
-			    (string_of_int (Lexer.get_error_line pos) ) ^ ")\n")
+			    (string_of_int (Lexer.get_error_line pos) ) ^  "," ^ hash_file_line ^ ")\n")
+   end
 ;;
 
 
