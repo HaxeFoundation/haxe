@@ -2081,7 +2081,7 @@ let rec all_virtual_functions clazz =
 
 			   (* external mem  Dynamic & *)
 
-let gen_field ctx class_def class_name ptr_name is_static is_interface field =
+let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface field =
 	let output = ctx.ctx_output in
 	ctx.ctx_real_this_ptr <- not is_static;
 	let remap_name = keyword_remap field.cf_name in
@@ -2111,7 +2111,7 @@ let gen_field ctx class_def class_name ptr_name is_static is_interface field =
 		end else begin
 			ctx.ctx_dump_stack_line <- true;
 			(fun() ->
-         hx_stack_push ctx output_i ptr_name field.cf_name function_def.tf_expr.epos;
+         hx_stack_push ctx output_i dot_name field.cf_name function_def.tf_expr.epos;
          if (not is_static) then output_i ("HX_STACK_THIS(this)\n");
 			List.iter (fun (v,_) -> output_i ("HX_STACK_ARG(" ^ (keyword_remap v.v_name) ^ ",\"" ^ v.v_name ^"\")\n") )
             function_def.tf_args )
@@ -2807,6 +2807,7 @@ let access_str a = match a with
 let generate_class_files common_ctx member_types super_deps constructor_deps class_def file_info scriptable =
 	let class_path = class_def.cl_path in
 	let class_name = (snd class_path) ^ "_obj" in
+	let dot_name = join_class_path class_path "." in
 	let is_abstract_impl = match class_def.cl_kind with | KAbstractImpl _ -> true | _ -> false in
 	let smart_class_name =  (snd class_path)  in
 	(*let cpp_file = new_cpp_file common_ctx.file class_path in*)
@@ -2883,7 +2884,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 			| Some definition ->
 					(match  definition.cf_expr with
 					| Some { eexpr = TFunction function_def } ->
-      				hx_stack_push ctx output_cpp smart_class_name "new" function_def.tf_expr.epos;
+      				hx_stack_push ctx output_cpp dot_name "new" function_def.tf_expr.epos;
 		            List.iter (fun (a,(t,o)) -> output_cpp ("\nHX_STACK_ARG(" ^ (keyword_remap o) ^ ",\"" ^ a ^"\")\n") ) constructor_arg_var_list;
 
 						if (has_default_values function_def.tf_args) then begin
@@ -2932,7 +2933,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 	(match class_def.cl_init with
 	| Some expression ->
 		output_cpp ("void " ^ class_name^ "::__init__() {\n");
-      hx_stack_push ctx output_cpp smart_class_name "__init__" expression.epos;
+      hx_stack_push ctx output_cpp dot_name "__init__" expression.epos;
 		gen_expression (new_context common_ctx cpp_file debug file_info) false (to_block expression);
 		output_cpp "}\n\n";
 	| _ -> ());
@@ -2943,10 +2944,10 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
    let implemented_instance_fields = List.filter should_implement_field class_def.cl_ordered_fields in
 
 	List.iter
-		(gen_field ctx class_def class_name smart_class_name false class_def.cl_interface)
+		(gen_field ctx class_def class_name smart_class_name dot_name false class_def.cl_interface)
 		class_def.cl_ordered_fields;
 	List.iter
-		(gen_field ctx class_def class_name smart_class_name true class_def.cl_interface) statics_except_meta;
+		(gen_field ctx class_def class_name smart_class_name dot_name true class_def.cl_interface) statics_except_meta;
 	output_cpp "\n";
 
 
