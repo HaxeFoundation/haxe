@@ -623,8 +623,11 @@ let check_private_path ctx t = match t with
 		()
 
 (* Removes generic base classes *)
+
+let is_removable_class c = c.cl_kind = KGeneric && (has_ctor_constraint c || Meta.has Meta.Remove c.cl_meta)
+
 let remove_generic_base ctx t = match t with
-	| TClassDecl c when c.cl_kind = KGeneric && has_ctor_constraint c ->
+	| TClassDecl c when is_removable_class c ->
 		c.cl_extern <- true
 	| _ ->
 		()
@@ -1706,6 +1709,7 @@ let post_process ctx filters t =
 	if m.m_processed = 0 then m.m_processed <- !pp_counter;
 	if m.m_processed = !pp_counter then
 	match t with
+	| TClassDecl c when is_removable_class c -> ()
 	| TClassDecl c ->
 		let process_field f =
 			match f.cf_expr with
