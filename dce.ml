@@ -157,6 +157,8 @@ and mark_t dce t =
 		| TEnum(e,pl) ->
 			mark_enum dce e;
 			List.iter (mark_t dce) pl
+		| TAbstract(a,pl) when Meta.has Meta.MultiType a.a_meta ->
+			mark_t dce (snd (Codegen.Abstract.find_multitype_specialization a pl Ast.null_pos))
 		| TAbstract(a,pl) ->
 			mark_abstract dce a;
 			List.iter (mark_t dce) pl

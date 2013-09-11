@@ -1525,28 +1525,29 @@ module Abstract = struct
 	let check_cast ctx tleft eright p =
 		if ctx.com.display then eright else do_check_cast ctx tleft eright p
 
+	let find_multitype_specialization a pl p =
+		let m = mk_mono() in
+		let at = apply_params a.a_types pl a.a_this in
+		let _,cfo =
+			try find_to a pl m
+			with Not_found ->
+				let st = s_type (print_context()) at in
+				if has_mono at then
+					error ("Type parameters of multi type abstracts must be known (for " ^ st ^ ")") p
+				else
+					error ("Abstract " ^ (s_type_path a.a_path) ^ " has no @:to function that accepts " ^ st) p;
+		in
+		match cfo with
+			| None -> assert false
+			| Some cf -> cf, follow m
+
 	let handle_abstract_casts ctx e =
 		let rec loop ctx e = match e.eexpr with
 			| TNew({cl_kind = KAbstractImpl a} as c,pl,el) ->
-				(* a TNew of an abstract implementation is only generated if it is a generic abstract *)
-				let at = apply_params a.a_types pl a.a_this in
-				let m = mk_mono() in
-				let _,cfo =
-					try find_to a pl m
-					with Not_found ->
-						let st = s_type (print_context()) at in
-						if has_mono at then
-							error ("Type parameters of multi type abstracts must be known (for " ^ st ^ ")") e.epos
-						else
-							error ("Abstract " ^ (s_type_path a.a_path) ^ " has no @:to function that accepts " ^ st) e.epos;
-				in
-				begin match cfo with
-				| None -> assert false
-				| Some cf ->
-					let m = follow m in
-					let e = make_static_call ctx c cf a pl ((mk (TConst TNull) (TAbstract(a,pl)) e.epos) :: el) m e.epos in
-					{e with etype = m}
-				end
+				(* a TNew of an abstract implementation is only generated if it is a multi type abstract *)
+				let cf,m = find_multitype_specialization a pl e.epos in
+				let e = make_static_call ctx c cf a pl ((mk (TConst TNull) (TAbstract(a,pl)) e.epos) :: el) m e.epos in
+				{e with etype = m}
 			| TCall(e1, el) ->
 				begin try
 					begin match e1.eexpr with
