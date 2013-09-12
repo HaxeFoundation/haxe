@@ -3136,6 +3136,9 @@ and build_call ctx acc el (with_type:with_type) p =
 		er,fun () -> ctx.this_stack <- List.tl ctx.this_stack
 	in
 	match acc with
+	| AKInline (ethis,f,fmode,t) when Meta.has Meta.Generic f.cf_meta ->
+		let el,t,e = type_generic_function ctx (ethis,f) el with_type p in
+		make_call ctx e el t p
 	| AKInline (ethis,f,fmode,t) ->
 		let params, tfunc = (match follow t with
 			| TFun (args,r) -> unify_call_params ctx (fopts ethis.etype f) el args r p true
