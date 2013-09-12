@@ -1,5 +1,8 @@
 package unit;
+import haxe.ds.Option;
 import haxe.macro.Expr;
+
+using unit.TestMatch;
 
 enum Tree<T> {
 	Leaf(t:T);
@@ -21,14 +24,26 @@ enum NE {
 	A(?x:Int);
 }
 
-class TestMatch extends Test {
-	static macro function getErrorMessage(e:Expr) {
+enum MiniType {
+	MTString(t:MiniRef<String>, tl:Array<MiniType>);
+	MTInt(t:MiniRef<Int>, tl:Array<MiniType>);
+}
+
+typedef MiniRef<T> = {
+	public function get():T;
+}
+
+class TestMatchMacro {
+	static public macro function getErrorMessage(e:Expr) {
 		var result = try {
 			haxe.macro.Context.typeof(e);
 			"no error";
 		} catch (e:Dynamic) Std.string(e.message);
 		return macro $v{result};
 	}
+}
+
+class TestMatch extends Test {
 
 	static function switchNormal(e:Expr):String {
 		return switch(e.expr) {
@@ -314,58 +329,58 @@ class TestMatch extends Test {
 	}
 
 	function testNonExhaustiveness() {
-		eq("Unmatched patterns: false", getErrorMessage(switch(true) {
+		eq("Unmatched patterns: false", TestMatchMacro.getErrorMessage(switch(true) {
 			case true:
 		}));
-		eq("Unmatched patterns: OpNegBits | OpNeg", getErrorMessage(switch(OpIncrement) {
+		eq("Unmatched patterns: OpNegBits | OpNeg", TestMatchMacro.getErrorMessage(switch(OpIncrement) {
 			case OpIncrement:
 			case OpDecrement:
 			case OpNot:
 		}));
-		eq("Unmatched patterns: Node(Leaf(_),_)", getErrorMessage(switch(Leaf("foo")) {
+		eq("Unmatched patterns: Node(Leaf(_),_)", TestMatchMacro.getErrorMessage(switch(Leaf("foo")) {
 			case Node(Leaf("foo"), _):
 			case Leaf(_):
 		}));
-		eq("Unmatched patterns: Leaf", getErrorMessage(switch(Leaf("foo")) {
+		eq("Unmatched patterns: Leaf", TestMatchMacro.getErrorMessage(switch(Leaf("foo")) {
 			case Node(_, _):
 			case Leaf(_) if (false):
 		}));
-		eq("Unmatched patterns: Leaf(_)", getErrorMessage(switch(Leaf("foo")) {
+		eq("Unmatched patterns: Leaf(_)", TestMatchMacro.getErrorMessage(switch(Leaf("foo")) {
 			case Node(_, _):
 			case Leaf("foo"):
 		}));
-		eq("Unmatched patterns: [_,false,_]", getErrorMessage(switch [1, true, "foo"] {
+		eq("Unmatched patterns: [_,false,_]", TestMatchMacro.getErrorMessage(switch [1, true, "foo"] {
 			case [_, true, _]:
 		}));
 		//var x:Null<Bool> = true;
-		//eq("Unmatched patterns: null", getErrorMessage(switch x {
+		//eq("Unmatched patterns: null", TestMatchMacro.getErrorMessage(switch x {
 			//case true:
 			//case false:
 		//}));
 		//var t:Null<Tree<String>> = null;
-		//eq("Unmatched patterns: null", getErrorMessage(switch t {
+		//eq("Unmatched patterns: null", TestMatchMacro.getErrorMessage(switch t {
 			//case Leaf(_):
 			//case Node(_):
 		//}));
 	}
 
 	function testInvalidBinding() {
-		eq("Variable y must appear exactly once in each sub-pattern", getErrorMessage(switch(Leaf("foo")) {
+		eq("Variable y must appear exactly once in each sub-pattern", TestMatchMacro.getErrorMessage(switch(Leaf("foo")) {
 			case Leaf(x) | Leaf(y):
 		}));
-		eq("Variable y must appear exactly once in each sub-pattern", getErrorMessage(switch(Leaf("foo")) {
+		eq("Variable y must appear exactly once in each sub-pattern", TestMatchMacro.getErrorMessage(switch(Leaf("foo")) {
 			case Leaf(x) | Leaf(x) | Leaf(y):
 		}));
-		eq("Variable x must appear exactly once in each sub-pattern", getErrorMessage(switch(Leaf("foo")) {
+		eq("Variable x must appear exactly once in each sub-pattern", TestMatchMacro.getErrorMessage(switch(Leaf("foo")) {
 			case Leaf(x) | Leaf(x) | Leaf(_):
 		}));
-		eq("Variable l must appear exactly once in each sub-pattern", getErrorMessage(switch(Leaf("foo")) {
+		eq("Variable l must appear exactly once in each sub-pattern", TestMatchMacro.getErrorMessage(switch(Leaf("foo")) {
 			case Node(l = Leaf(x),_) | Node(Leaf(x), _):
 		}));
-		eq("Variable l must appear exactly once in each sub-pattern", getErrorMessage(switch(Leaf("foo")) {
+		eq("Variable l must appear exactly once in each sub-pattern", TestMatchMacro.getErrorMessage(switch(Leaf("foo")) {
 			case Node(l = Leaf(l), _):
 		}));
-		eq("String should be unit.Tree<String>", getErrorMessage(switch(Leaf("foo")) {
+		eq("String should be unit.Tree<String>", TestMatchMacro.getErrorMessage(switch(Leaf("foo")) {
 			case Node(l = Leaf(_), _) | Leaf(l):
 		}));
 	}
@@ -437,12 +452,136 @@ class TestMatch extends Test {
 		}
 		eq(r, 1);
 		
-		eq("Unmatched patterns: 405", getErrorMessage(switch(a) {
+		eq("Unmatched patterns: 405", TestMatchMacro.getErrorMessage(switch(a) {
 			case NotFound:
 		}));
 		#end
 	}
 
+	function testExtractors() {
+		function f(i) {
+			return switch(i) {
+				case 1,2,3: 1;
+				case even => true: 2;
+				case 4: throw "unreachable";
+				case _: 3;
+			}
+		}
+		
+		eq(1, f(1));
+		eq(1, f(2));
+		eq(1, f(3));
+		eq(2, f(4));
+		eq(3, f(5));
+		eq(3, f(7));
+		eq(3, f(9));
+		eq(2, f(6));
+		eq(2, f(8));
+		
+		function ref<T>(t:T):MiniRef<T> return {
+			get: function() return t
+		}
+		
+		function f(t:MiniType) {
+			return switch (t) {
+				case MTString(deref => "Foo", []): "Foo";
+				case MTString(deref => "Bar" | "Baz", _): "BarBaz";
+				case MTInt(deref => i, []): 'Int:$i';
+				case MTString(_): "OtherString";
+				case _: "Other";
+			}
+		}
+		
+		eq("Foo", f(MTString(ref("Foo"), [])));
+		eq("BarBaz", f(MTString(ref("Bar"), [])));
+		eq("BarBaz", f(MTString(ref("Baz"), [])));
+		eq("OtherString", f(MTString(ref("a"), [])));
+		eq("OtherString", f(MTString(ref(""), [])));
+		eq("Int:12", f(MTInt(ref(12), [])));
+		eq("Other", f(MTInt(ref(12), [MTInt(ref(10),[])])));
+		
+		function g(i : Array<Int>) {
+			return switch(i) {
+				case [x]: 1;
+				case isPair => Some(p) : p.a+p.b;
+				case arr: 3;
+			}
+		}
+
+		eq(3, g([]));
+		eq(1, g([1]));
+		eq(5, g([2, 3]));
+		eq(3, g([2, 3, 4]));
+		
+		var anon = {
+			odd: function(i) return i & 1 != 0
+		};
+		
+		var i = 9;
+		var r = switch(i) {
+			case 1: 1;
+			case anon.odd => true: 2;
+			case 9: 3;
+			case _: 4;
+		}
+		eq(2, r);
+		
+		function mul(i1,i2) return i1 * i2;
+		
+		function check(i) {
+			return switch(i) {
+				case 1: 1;
+				case mul.bind(4) => 8: 2;
+				case mul.bind(5) => 15: 3;
+				case _: 4;
+			}
+		}
+		
+		eq(1, check(1));
+		eq(2, check(2));
+		eq(3, check(3));
+		eq(4, check(4));
+		
+		function is<T>(pred : T -> Bool) return function (x : T) {
+			return pred(x)?Some(x):None;
+		}
+
+		function isNot<T>(pred : T -> Bool) return function (x : T) {
+			return (!pred(x))?Some(x):None;
+		}
+
+		function testArgs<T>(i:Int, s:String, t:T) {
+			return Std.string(t);
+		}
+		function h(i : Array<Int>) {
+			return switch(i) {
+				case [x]: 1;
+				case isPair => Some({ a : a, b : b }) if (a < 0): 42;
+				case isPair => Some({ a : is(even) => Some(a), b : b }) : a+b;
+				case isPair => Some({ a : isNot(even) => Some(a), b : b }) : a*b;
+				case testArgs.bind(1, "foo") => "[99,98,97]": 99;
+				case arr: 3;
+			}
+		}
+		
+		eq(3, h([]));
+		eq(1, h([1]));
+		eq(1, h([2]));
+		eq(5, h([2, 3]));
+		eq(3, h([1, 3]));
+		eq(3, h([2, 3, 4]));
+		eq(42, h([-1, 3]));
+		eq(99, h([99,98,97]));
+	}
+	
+	static function isPair<T>(t:Array<T>) return t.length == 2 ? Some({a:t[0], b:t[1]}) : None;
+	
+	static function even(i:Int) {
+		return i & 1 == 0;
+	}
+	
+	static function deref<T>(ref:MiniRef<T>) return ref.get();
+	
 	#if false
 	 //all lines marked as // unused should give an error
 	function testRedundance() {

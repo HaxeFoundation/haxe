@@ -106,6 +106,7 @@ type matcher = {
 	mutable outcomes : (pat list,out) PMap.t;
 	mutable toplevel_or : bool;
 	mutable used_paths : (int,bool) Hashtbl.t;
+	mutable has_extractor : bool;
 }
 
 exception Not_exhaustive of pat * st
@@ -946,7 +947,7 @@ let convert_switch ctx st cases loop =
 	| TAbstract(a,_) when Meta.has Meta.FakeEnum a.a_meta ->
 		mk (TMeta((Meta.Exhaustive,[],p), e_st)) e_st.etype e_st.epos
 	| TAbstract({a_path = [],"Bool"},_) ->
-		mk (TMeta((Meta.Exhaustive,[],p), e_st)) e_st.etype e_st.epos		
+		mk (TMeta((Meta.Exhaustive,[],p), e_st)) e_st.etype e_st.epos
 	| _ ->
 		e_st
 	in
@@ -974,6 +975,51 @@ let convert_switch ctx st cases loop =
 		DTGuard(econd,dt_null,Some dt)
 
 (* Decision tree compilation *)
+
+let transform_extractors mctx stl cases =
+	let rec loop cl = match cl with
+		| (epat,eg,e) :: cl ->
+			let ex = ref [] in
+			let exc = ref 0 in
+			let rec find_ex e = match fst e with
+				| EBinop(OpArrow, e1, e2) ->
+					let p = pos e in
+					let ec = EConst (Ident ("__ex" ^ string_of_int (!exc))),snd e in
+					let ecall = match fst e1 with
+						| EConst(Ident s) -> ECall((EField(ec,s),p),[]),p
+						| _ -> ECall(e1,[ec]),p
+					in
+					ex := (ecall,e2) :: !ex;
+					incr exc;
+					ec
+				| _ ->
+					Ast.map_expr find_ex e
+			in
+			let p = pos epat in
+			let epat = find_ex epat in
+			if !exc = 0 then (epat,eg,e) :: loop cl else begin
+				mctx.has_extractor <- true;
+				let esubjects = EArrayDecl (List.map fst !ex),p in
+				let case1 = [EArrayDecl (List.map snd !ex),p],eg,e in
+				let cases = match cl with
+					| [] -> [case1]
+					| [(EConst (Ident "_"),_),_,e] -> case1 :: [[(EConst (Ident "_"),p)],None,e]
+					| _ ->
+						let cl2 = List.map (fun (epat,eg,e) -> [epat],eg,e) (loop cl) in
+						let st = match stl with st :: stl -> st | _ -> error "Unsupported" p in
+						let subj = convert_st mctx.ctx st in
+						let e_subj = Interp.make_ast subj in
+						case1 :: [[(EConst (Ident "_"),p)],None,Some (ESwitch(e_subj,cl2,None),p)]
+				in
+				let eswitch = (ESwitch(esubjects,cases,None)),p in
+				(epat,None,Some eswitch) :: loop cl
+			end
+		| [] ->
+			[]
+	in
+	loop cases
+
+let extractor_depth = ref 0
 
 let match_expr ctx e cases def with_type p =
 	let need_val,with_type,tmono = match with_type with
@@ -1042,6 +1088,7 @@ let match_expr ctx e cases def with_type p =
 		dt_cache = Hashtbl.create 0;
 		dt_lut = DynArray.create ();
 		dt_count = 0;
+		has_extractor = false;
 	} in
 	(* flatten cases *)
 	let cases = List.map (fun (el,eg,e) ->
@@ -1049,6 +1096,8 @@ let match_expr ctx e cases def with_type p =
 		collapse_case el,eg,e
 	) cases in
 	let is_complex = ref false in
+	let cases = transform_extractors mctx stl cases in
+	if mctx.has_extractor then incr extractor_depth;
 	let add_pattern_locals (pat,locals,complex) =
 		PMap.iter (fun n (v,p) -> ctx.locals <- PMap.add n v ctx.locals) locals;
 		if complex then is_complex := true;
@@ -1116,7 +1165,7 @@ let match_expr ctx e cases def with_type p =
 	let check_unused () =
 		let unused p =
 			display_error ctx "This pattern is unused" p;
-			let old_error = ctx.on_error in
+ 			let old_error = ctx.on_error in
 			ctx.on_error <- (fun ctx s p -> ctx.on_error <- old_error; raise Exit);
 	 		let check_expr e p =
 				try begin match fst e with
@@ -1175,7 +1224,8 @@ let match_expr ctx e cases def with_type p =
 		error ("Unmatched patterns: " ^ (s_st_r true false st (s_pat pat))) st.st_pos
 	in
 	(* check for unused patterns *)
-	check_unused();
+	if !extractor_depth = 0 then check_unused();
+	if mctx.has_extractor then decr extractor_depth;
 	(* determine type of switch statement *)
 	let t = if not need_val then
 		mk_mono()

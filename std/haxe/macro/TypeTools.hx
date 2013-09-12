@@ -150,4 +150,14 @@ class TypeTools {
 			else if (c.superClass != null) findField(c.superClass.t.get(), name, isStatic);
 			else null;
 	}
+	
+	/**
+		Gets the value of a reference `r`.
+		
+		If `r` is null, the result is unspecified. Otherwise `r.get()` is
+		called.
+	**/
+	static inline function deref<T>(r:Ref<T>):T {
+		return r.get();
+	}
 }
