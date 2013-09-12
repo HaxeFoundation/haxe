@@ -35,7 +35,7 @@ type dce = {
 	mutable marked_maybe_fields : tclass_field list;
 	mutable t_stack : t list;
 	mutable ts_stack : t list;
-	mutable checked_features : (string,bool) Hashtbl.t;
+	mutable features : (string,(tclass * tclass_field * bool) list) Hashtbl.t;
 }
 
 (* checking *)
@@ -71,16 +71,14 @@ let keep_field dce cf =
 (* marking *)
 
 let rec check_feature dce s =
-	if not (Hashtbl.mem dce.checked_features s) then begin
-		add_feature dce.com s;
-		Hashtbl.add dce.checked_features s true;
-		try
-			List.iter (fun (c,cf,stat) ->
-				mark_field dce c cf stat
-			) (Hashtbl.find dce.com.reverse_features s)
-		with Not_found ->
-			()
-	end
+	try
+		let l = Hashtbl.find dce.features s in
+		List.iter (fun (c,cf,stat) ->
+			mark_field dce c cf stat
+		) l;
+		Hashtbl.remove dce.features s;
+	with Not_found ->
+		()
 
 (* mark a field as kept *)
 and mark_field dce c cf stat =
@@ -368,7 +366,7 @@ let run com main full =
 		marked_maybe_fields = [];
 		t_stack = [];
 		ts_stack = [];
-		checked_features = Hashtbl.create 0;
+		features = Hashtbl.create 0;
 	} in
 	begin match main with
 		| Some {eexpr = TCall({eexpr = TField(e,(FStatic(c,cf)))},_)} ->
@@ -376,6 +374,12 @@ let run com main full =
 		| _ ->
 			()
 	end;
+	List.iter (fun m ->
+		List.iter (fun (s,v) ->
+			if Hashtbl.mem dce.features s then Hashtbl.replace dce.features s (v :: Hashtbl.find dce.features s)
+			else Hashtbl.add dce.features s [v]
+		) m.m_extra.m_features;
+	) com.modules;
 	(* first step: get all entry points, which is the main method and all class methods which are marked with @:keep *)
 	List.iter (fun t -> match t with
 		| TClassDecl c ->

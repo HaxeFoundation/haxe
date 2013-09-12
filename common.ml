@@ -127,7 +127,6 @@ type context = {
 	mutable file : string;
 	mutable flash_version : float;
 	mutable features : (string,bool) Hashtbl.t;
-	mutable reverse_features : (string,(tclass * tclass_field * bool) list) Hashtbl.t;
 	mutable modules : Type.module_def list;
 	mutable main : Type.texpr option;
 	mutable types : Type.module_type list;
@@ -610,7 +609,6 @@ let create v args =
 		verbose = false;
 		foptimize = true;
 		features = Hashtbl.create 0;
-		reverse_features = Hashtbl.create 0;
 		platform = Cross;
 		config = default_config;
 		print = (fun s -> print_string s; flush stdout);
@@ -655,7 +653,7 @@ let log com str =
 
 let clone com =
 	let t = com.basic in
-	{ com with basic = { t with tvoid = t.tvoid }; main_class = None; features = Hashtbl.create 0; reverse_features = Hashtbl.create 0; }
+	{ com with basic = { t with tvoid = t.tvoid }; main_class = None; features = Hashtbl.create 0; }
 
 let file_time file =
 	try (Unix.stat file).Unix.st_mtime with _ -> 0.

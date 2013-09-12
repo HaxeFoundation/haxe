@@ -1884,9 +1884,7 @@ let init_class ctx c p context_init herits fields =
 				let _,args,_ = Meta.get Meta.IfFeature f.cf_meta in
 				List.iter (fun e -> match fst e with
 					| EConst(String s) ->
-						let fl,v = ctx.com.reverse_features,(c,f,is_static) in
-						if Hashtbl.mem fl s then Hashtbl.replace fl s (v :: Hashtbl.find fl s)
-						else Hashtbl.add fl s [v]
+						ctx.m.curmod.m_extra.m_features <- (s,(c,f,is_static)) :: ctx.m.curmod.m_extra.m_features;
 					| _ ->
 						error "String expected" (pos e)
 				) args
