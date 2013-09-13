@@ -26,7 +26,7 @@ class Reflect {
 	public static inline function hasField( o : Dynamic, field : String ) : Bool
 		return untyped __js__("$hasOwnProperty").call(o, field);
 
-	public static function field( o : Dynamic, field : String ) : Dynamic untyped {
+	public inline static function field( o : Dynamic, field : String ) : Dynamic untyped {
 		var v = null;
 		try {
 			v = o[field];
