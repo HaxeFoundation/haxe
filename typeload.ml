@@ -175,7 +175,7 @@ let make_module ctx mpath file tdecls loadp =
 				(match !decls with
 				| (TClassDecl c,_) :: _ ->
 					List.iter (fun m -> match m with
-						| (Meta.Build,_,_) | (Meta.CoreApi,_,_) ->
+						| ((Meta.Build | Meta.CoreApi | Meta.Allow | Meta.Access),_,_) ->
 							c.cl_meta <- m :: c.cl_meta;
 						| (Meta.FakeEnum,_,_) ->
 							c.cl_meta <- (Meta.Build,[ECall((EField((EField((EField((EConst(Ident "haxe"),p),"macro"),p),"Build"),p),"buildFakeEnum"),p),[]),p],p) :: c.cl_meta;

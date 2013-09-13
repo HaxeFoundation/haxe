@@ -205,8 +205,9 @@ let rec can_access ctx c cf stat =
 		true
 	else
 	(* has metadata path *)
-	let make_path c f =
-		fst c.cl_path @ [snd c.cl_path; f.cf_name]
+	let make_path c f = match c.cl_kind with
+		| KAbstractImpl a -> fst a.a_path @ [snd a.a_path; f.cf_name]
+		| _ -> fst c.cl_path @ [snd c.cl_path; f.cf_name]
 	in
 	let rec expr_path acc e =
 		match fst e with
