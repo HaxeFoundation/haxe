@@ -453,17 +453,21 @@ let to_pattern ctx e t =
 			end
 		| (EObjectDecl fl) ->
 			let is_matchable cf = match cf.cf_kind with Method _ | Var {v_read = AccCall} -> false | _ -> true in
-			let is_valid_field_name fields n p =
+			let is_valid_field_name fields co n p =
 				try
 					let cf = PMap.find n fields in
 					if not (is_matchable cf) then error ("Cannot match against method or property with getter " ^ n) p;
+					begin match co with
+					| Some c when not (Typer.can_access ctx c cf false) -> error ("Cannot match against private field " ^ n) p
+					| _ -> ()
+					end
 				with Not_found ->
-					error (unify_error_msg (print_context()) (has_extra_field t n)) p
+					error ((s_type t) ^ " has no field " ^ n ^ " that can be matched against") p;
 			in
 			pctx.pc_is_complex <- true;
 			begin match follow t with
 			| TAnon {a_fields = fields} ->
-				List.iter (fun (n,(_,p)) -> is_valid_field_name fields n p) fl;
+				List.iter (fun (n,(_,p)) -> is_valid_field_name fields None n p) fl;
 				let sl,pl,i = PMap.foldi (fun n cf (sl,pl,i) ->
 					if not (is_matchable cf) then
 						sl,pl,i
@@ -479,7 +483,7 @@ let to_pattern ctx e t =
 				) fields ([],[],0) in
 				mk_con_pat (CFields(i,sl)) pl t p
 			| TInst(c,tl) ->
-				List.iter (fun (n,(_,p)) -> is_valid_field_name c.cl_fields n p) fl;
+				List.iter (fun (n,(_,p)) -> is_valid_field_name c.cl_fields (Some c) n p) fl;
 				let sl,pl,i = PMap.foldi (fun n cf (sl,pl,i) ->
 					if not (is_matchable cf) then
 						sl,pl,i
