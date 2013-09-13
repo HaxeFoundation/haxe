@@ -1009,7 +1009,7 @@ and parse_class_herit = parser
 	| [< '(Kwd Implements,_); t = parse_type_path >] -> HImplements t
 
 and block1 = parser
-	| [< '(Const (Ident name),p); s >] -> block2 name (Ident name) p s
+	| [< name,p = dollar_ident; s >] -> block2 name (Ident name) p s
 	| [< '(Const (String name),p); s >] -> block2 (quote_ident name) (String name) p s
 	| [< b = block [] >] -> EBlock b
 
@@ -1272,7 +1272,7 @@ and parse_switch_cases eswitch cases = parser
 		List.rev cases , None
 
 and parse_catch etry = parser
-	| [< '(Kwd Catch,p); '(POpen,_); name, _ = ident; s >] ->
+	| [< '(Kwd Catch,p); '(POpen,_); name, _ = dollar_ident; s >] ->
 		match s with parser
 		| [< '(DblDot,_); t = parse_complex_type; '(PClose,_); s >] ->
 			(try

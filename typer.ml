@@ -2355,6 +2355,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			let rec loop (l,acc) (f,e) =
 				let f,add = object_field f in
 				if PMap.mem f acc then error ("Duplicate field in object declaration : " ^ f) p;
+				if f.[0] = '$' then error "Field names starting with a dollar are not allowed" p;
 				let e = type_expr ctx e Value in
 				(match follow e.etype with TAbstract({a_path=[],"Void"},_) -> error "Fields of type Void are not allowed in structures" e.epos | _ -> ());
 				let cf = mk_field f e.etype e.epos in
@@ -2370,6 +2371,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			let fl = List.map (fun (n, e) ->
 				let n,add = object_field n in
 				if PMap.mem n !fields then error ("Duplicate field in object declaration : " ^ n) p;
+				if n.[0] = '$' then error "Field names starting with a dollar are not allowed" p;
 				let e = try
 					let t = (PMap.find n a.a_fields).cf_type in
 					let e = Codegen.Abstract.check_cast ctx t (type_expr ctx e (match with_type with WithTypeResume _ -> WithTypeResume t | _ -> WithType t)) p in
@@ -2668,6 +2670,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				| TDynamic _ -> ""
 				| _ -> error "Catch type must be a class" p
 			) in
+			if v.[0] = '$' then display_error ctx "Catch variable names starting with a dollar are not allowed" p;
 			let locals = save_locals ctx in
 			let v = add_local ctx v t in
 			let e = type_expr ctx e with_type in
@@ -2814,7 +2817,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		let v = (match v with
 			| None -> None
 			| Some v ->
-				if v.[0] = '$' then display_error ctx "Variables names starting with a dollar are not allowed" p;
+				if v.[0] = '$' then display_error ctx "Variable names starting with a dollar are not allowed" p;
 				Some (add_local ctx v ft)
 		) in
 		let e , fargs = Typeload.type_function ctx args rt (match ctx.curfun with FunStatic -> FunStatic | _ -> FunMemberLocal) f false p in
