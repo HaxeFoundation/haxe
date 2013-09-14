@@ -312,6 +312,7 @@ and expr dce e =
 			mark_t dce v.v_type;
 		) vl;
 	| TCall ({eexpr = TLocal ({v_name = "__define_feature__"})},[{eexpr = TConst (TString ft)};e]) ->
+		Common.add_feature dce.com ft;
 		check_feature dce ft;
 		expr dce e
 	(* keep toString method when the class is argument to Std.string or haxe.Log.trace *)
