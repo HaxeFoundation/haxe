@@ -88,3 +88,38 @@ vec3[3] == 4;
 vec3[4] == 4;
 vec3[5] == 5;
 vec3[6] == 6;
+
+//js typed arrays blit
+#if js
+if (untyped __js__("typeof Uint8Array != undefined"))
+{
+	var vec3 = haxe.ds.Vector.fromData(untyped new js.html.Int32Array(7));
+	var vec4 = haxe.ds.Vector.fromData(untyped new js.html.Int32Array(5));
+	for (i in 0...vec3.length)
+		vec3[i] = i;
+
+	haxe.ds.Vector.blit(vec3, 0, vec4, 1, 3);
+	vec4[1] == 0;
+	vec4[2] == 1;
+	vec4[3] == 2;
+	vec4[4] == vNullInt;
+	vec4[0] == vNullInt;
+
+	haxe.ds.Vector.blit(vec3, 0, vec4, 0, 5);
+	vec4[0] == 0;
+	vec4[1] == 1;
+	vec4[2] == 2;
+	vec4[3] == 3;
+	vec4[4] == 4;
+
+	haxe.ds.Vector.blit(vec4, 1, vec3, 0, 4);
+	//vec3 should be [1,2,3,4,4,5,6]
+	vec3[0] == 1;
+	vec3[1] == 2;
+	vec3[2] == 3;
+	vec3[3] == 4;
+	vec3[4] == 4;
+	vec3[5] == 5;
+	vec3[6] == 6;
+}
+#end

@@ -43,7 +43,7 @@ abstract Vector<T>(VectorData<T>) {
 		Creates a new Vector of length `length`.
 
 		Initially `this` Vector contains `length` neutral elements:
-			
+
 		- always null on dynamic targets
 		- 0, 0.0 or false for Int, Float and Bool respectively on static targets
 		- null for other types on static targets
@@ -122,6 +122,14 @@ abstract Vector<T>(VectorData<T>) {
 		#elseif cs
 			cs.system.Array.Copy(cast src, srcPos,cast dest, destPos, len);
 		#else
+		#if js
+			if (untyped src.buffer != null && dest.buffer != null && untyped __js__("typeof Uint8Array != undefined"))
+			{
+				var dstu8 = new js.html.Uint8Array(cast dest, destPos, len);
+				var srcu8 = new js.html.Uint8Array(cast src, srcPos, len);
+				dstu8.set(srcu8);
+			} else
+		#end
 			for (i in 0...len)
 			{
 				dest[destPos + i] = src[srcPos + i];
