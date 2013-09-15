@@ -67,7 +67,7 @@ class ExternalConnection implements Connection implements Dynamic<Connection> {
 		#if flash
 			data = flash.external.ExternalInterface.call("haxe.remoting.ExternalConnection.doCall",__data.name,__path.join("."),params);
 		#elseif js
-			var fobj : Dynamic = (untyped js.Browser.document)[__data.flash]; // FIXME(bruno): Why is this necessary?
+			var fobj : Dynamic = (untyped js.Browser.document)[cast __data.flash]; // FIXME(bruno): Why is this necessary?
 			if( fobj == null ) fobj = js.Browser.document.getElementById(__data.flash);
 			if( fobj == null ) throw "Could not find flash object '"+__data.flash+"'";
 			try	data = fobj.externalRemotingCall(__data.name,__path.join("."),params) catch( e : Dynamic ) {};
