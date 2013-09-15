@@ -290,7 +290,6 @@ extern class Math
 		Math.NEGATIVE_INFINITY = Number["NEGATIVE_INFINITY"];
 		Math.POSITIVE_INFINITY = Number["POSITIVE_INFINITY"];
 	#else
-		__js__("Math").__name__ = ["Math"];
 		__js__("Math").NaN = Number["NaN"];
 		__js__("Math").NEGATIVE_INFINITY = Number["NEGATIVE_INFINITY"];
 		__js__("Math").POSITIVE_INFINITY = Number["POSITIVE_INFINITY"];

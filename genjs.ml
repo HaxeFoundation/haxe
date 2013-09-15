@@ -854,6 +854,7 @@ let generate_package_create ctx (p,_) =
 				else
 					print ctx "if(!%s) %s = {}" p p
 			);
+			ctx.separator <- true;
 			newline ctx;
 			loop (p :: acc) l
 	in
@@ -908,6 +909,17 @@ let gen_class_field ctx c f =
 		gen_value ctx e;
 		ctx.separator <- false
 
+let generate_class___name__ ctx c =
+	if has_feature ctx "js.Boot.isClass" then begin
+		let p = s_path ctx c.cl_path in
+		print ctx "%s.__name__ = " p;
+		if has_feature ctx "Type.getClassName" then
+			print ctx "[%s]" (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" (Ast.s_escape s)) (fst c.cl_path @ [snd c.cl_path])))
+		else
+			print ctx "true";
+		newline ctx;
+	end
+
 let generate_class ctx c =
 	ctx.current <- c;
 	ctx.id_counter <- 0;
@@ -933,14 +945,7 @@ let generate_class ctx c =
 		newline ctx;
 	end;
 	handle_expose ctx p c.cl_meta;
-	if has_feature ctx "js.Boot.isClass" then begin
-		print ctx "%s.__name__ = " p;
-		if has_feature ctx "Type.getClassName" then
-			print ctx "[%s]" (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" (Ast.s_escape s)) (fst c.cl_path @ [snd c.cl_path])))
-		else
-			print ctx "true";
-		newline ctx;
-	end;
+	generate_class___name__ ctx c;
 	(match c.cl_implements with
 	| [] -> ()
 	| l ->
@@ -1048,6 +1053,9 @@ let generate_type ctx = function
 		| None -> ()
 		| Some e ->
 			ctx.inits <- e :: ctx.inits);
+		(* Special case, want to add Math.__name__ only when required, handle here since Math is extern *)
+		let p = s_path ctx c.cl_path in
+		if p = "Math" then generate_class___name__ ctx c;
 		if not c.cl_extern then
 			generate_class ctx c
 		else if not ctx.js_flatten && Meta.has Meta.InitPackage c.cl_meta then
