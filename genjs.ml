@@ -233,7 +233,7 @@ let newline ctx =
 let newprop ctx =
 	match Buffer.nth ctx.buf (Buffer.length ctx.buf - 1) with
 	| '{' -> print ctx "\n%s" ctx.tabs
-	| _ -> print ctx "\n%s," ctx.tabs
+	| _ -> print ctx ",\n%s" ctx.tabs
 
 let semicolon ctx =
 	match Buffer.nth ctx.buf (Buffer.length ctx.buf - 1) with
