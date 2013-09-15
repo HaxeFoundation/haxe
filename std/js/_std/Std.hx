@@ -27,7 +27,7 @@ import js.Boot;
 	public static inline function is( v : Dynamic, t : Dynamic ) : Bool {
 		return untyped js.Boot.__instanceof(v,t);
 	}
-	
+
 	public static inline function instance<T>( v : { }, c : Class<T> ) : T {
 		return untyped __instanceof__(v, c) ? cast v : null;
 	}
@@ -110,6 +110,7 @@ import js.Boot;
 					return a;
 				}
 		);
+        __js__("var $ObjectPrototypeToString = Object.prototype.toString");
 	}
 
 }

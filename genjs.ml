@@ -1142,6 +1142,11 @@ let rec optimize_call tctx e = let recurse = optimize tctx e in
                     let teq = mk_local tctx "__js_teq__" (tfun [intt; intt] boolt) e.epos in
                     let lhs = mk (TBinop (Ast.OpOr, o, mk (TConst (TInt Int32.zero)) intt e.epos)) intt e.epos in
                     mk (TCall (teq, [lhs; o])) boolt e.epos
+                | TTypeExpr (TClassDecl ({ cl_path = [],"Array" })) ->
+                    let pstring = mk_local tctx "$ObjectPrototypeToString" t_dynamic e.epos in
+                    let pstring = mk (TField (pstring, FDynamic ("call"))) (tfun [o.etype] stringt) e.epos in
+                    let psof = mk (TCall (pstring, [o])) stringt e.epos in
+                    mk (TBinop (Ast.OpEq, psof, (mk (TConst (TString "[object Array]")) stringt e.epos))) boolt e.epos
                 | _ -> recurse
             )
         | _ -> recurse
