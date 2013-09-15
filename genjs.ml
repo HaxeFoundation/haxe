@@ -927,7 +927,7 @@ let generate_class ctx c =
 		print ctx "%s = $hxClasses[\"%s\"] = " p (dot_path c.cl_path);
 	(match c.cl_constructor with
 	| Some { cf_expr = Some e } -> gen_expr ctx e
-	| _ -> print ctx "function() { }");
+	| _ -> (print ctx "function() { }"); ctx.separator <- true);
 	newline ctx;
 	if ctx.js_modern && hxClasses then begin
 		print ctx "$hxClasses[\"%s\"] = %s" (dot_path c.cl_path) p;
