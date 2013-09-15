@@ -154,6 +154,7 @@ module Define = struct
 		| As3
 		| CheckXmlProxy
 		| CoreApi
+		| Cppia
 		| Dce
 		| DceDebug
 		| Debug
@@ -217,6 +218,7 @@ module Define = struct
 		| As3 -> ("as3","Defined when outputing flash9 as3 source code")
 		| CheckXmlProxy -> ("check_xml_proxy","Check the used fields of the xml proxy")
 		| CoreApi -> ("core_api","Defined in the core api context")
+		| Cppia -> ("cppia", "Generate experimental cpp instruction assembly")
 		| Dce -> ("dce","The current DCE mode")
 		| DceDebug -> ("dce_debug","Show DCE log")
 		| Debug -> ("debug","Activated when compiling with -debug")

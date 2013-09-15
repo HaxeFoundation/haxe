@@ -1142,18 +1142,23 @@ let gen_hash seed str =
    Printf.sprintf "0x%08lx" !h
 ;;
 
-let hx_stack_push ctx output clazz func_name pos =
-   let file = pos.pfile in
+let strip_file ctx file =
 	let flen = String.length file in
 	(* Not quite right - should probably test is file exists *)
-   let stripped_file = try
+   try
 		List.iter (fun path ->
 			let plen = String.length path in
 			if (flen>plen && path=(String.sub file 0 plen ))
 				then raise (PathFound (String.sub file plen (flen-plen)) ) )
-			 (ctx.ctx_common.class_path @ ctx.ctx_common.std_path);
+			 (ctx.class_path @ ctx.std_path);
 		file;
-	with PathFound tail -> tail in
+	with PathFound tail ->
+      tail
+;;
+
+
+let hx_stack_push ctx output clazz func_name pos =
+   let stripped_file = strip_file ctx.ctx_common pos.pfile in
    let qfile = "\"" ^ (Ast.s_escape stripped_file) ^ "\"" in
 	ctx.ctx_file_info := PMap.add qfile qfile !(ctx.ctx_file_info);
 	if (ctx.ctx_dump_stack_line) then begin
@@ -3672,12 +3677,409 @@ let gen_extern_enum common_ctx enum_def file_info =
 	file#close
 ;;
 
+let remove_parens expression = 
+   match expression.eexpr with
+   | TParenthesis e -> e
+   | TMeta(_,e) -> e
+   | _ -> expression
+;;
+
+let is_this expression =
+   match (remove_parens expression).eexpr with
+   | TConst TThis -> true
+   | _ -> false
+;;
+
+let is_assign_op op =
+   match op with
+   | OpAssign 
+   | OpAssignOp _ -> true
+   | _ -> false
+;;
+
+
+class script_writer common_ctx filename =
+	object(this)
+	val indent_str = "\t"
+	val mutable indent = ""
+	val mutable indents = []
+	val mutable just_finished_block = false
+	val mutable classCount = 0
+	val mutable enumCount = 0
+   val buffer = Buffer.create 0
+   val identTable = Hashtbl.create 0
+   val fileTable = Hashtbl.create 0
+   val identBuffer = Buffer.create 0
+	method stringId name = 
+      try ( Hashtbl.find identTable name )
+	   with Not_found -> begin
+         let size = Hashtbl.length identTable in
+         Hashtbl.add identTable name size;
+         Buffer.add_string identBuffer ((string_of_int (String.length name)) ^ " " ^ name ^ "\n");
+         size;
+      end
+	method incClasses = classCount <- classCount +1
+	method incEnums = enumCount <- enumCount + 1
+	method stringText name = (string_of_int (this#stringId name)) ^ " "
+   val typeTable = Hashtbl.create 0
+   val typeBuffer = Buffer.create 0
+   method typeId name = 
+      try ( Hashtbl.find typeTable name )
+	   with Not_found -> begin
+         let size = Hashtbl.length typeTable in
+         Hashtbl.add typeTable name size;
+         Buffer.add_string typeBuffer ((string_of_int (String.length name)) ^ " " ^ name ^ "\n");
+         size;
+      end
+	method typeText typeT = (string_of_int (this#typeId (type_string_suff "" typeT))) ^ " "
+	method writeType typeT = this#write (this#typeText typeT)
+	method boolText value = if value then "1" else "0"
+	method writeBool value = this#write (if value then "1 " else "0 ")
+	method staticText value = if value then "s" else "m"
+   method write str = Buffer.add_string buffer str ; just_finished_block <- false
+	method wint ival = this#write ((string_of_int ival)^" ")
+	method ident name = this#wint (this#stringId name)
+   method instText clazz = match clazz.cl_path with
+       | ([],"Array") -> string_of_int (this#typeId "Array< ::Dynamic >") ^ " "
+       | _ -> this#typeText (TInst(clazz,[]))
+   method instName clazz = this#write (this#instText clazz)
+   method enumText e = this#typeText (TEnum(e,[]))
+   method enumName e = this#write (this#enumText e)
+	method close = 
+      let out_file = open_out filename in
+      output_string out_file "CPPIA\n";
+      let idents =  Buffer.contents identBuffer in
+      output_string out_file ((string_of_int (Hashtbl.length identTable)) ^ "\n");
+      output_string out_file idents;
+      let types =  Buffer.contents typeBuffer in
+      output_string out_file ((string_of_int (Hashtbl.length typeTable)) ^ "\n");
+      output_string out_file types;
+      output_string out_file ( (string_of_int classCount) ^ " " ^ (string_of_int enumCount) ^ "\n" );
+      let contents = Buffer.contents buffer in
+      output_string out_file contents;
+      close_out out_file
+   method fileId file =
+      try ( Hashtbl.find fileTable file )
+	   with Not_found -> begin
+         let stripped_file = strip_file common_ctx file in
+         let result = this#stringId stripped_file in
+         Hashtbl.add fileTable file result;
+         result;
+      end
+   method constText c = match c with
+	| TInt i -> Printf.sprintf "i%ld " i
+	| TFloat f -> "f" ^ f ^ " "
+	| TString s -> "s" ^ (this#stringText s)
+	| TBool b -> if b then "TRUE " else "FALSE "
+	| TNull -> "NULL "
+	| TThis -> "THIS "
+	| TSuper -> "SUPER "
+
+   method fileText file = string_of_int (this#fileId file)
+	method indent_one = this#write indent_str
+	method push_indent = indents <- indent_str::indents; indent <- String.concat "" indents
+	method pop_indent = match indents with
+							| h::tail -> indents <- tail; indent <- String.concat "" indents
+							| [] -> indent <- "/*?*/";
+	method write_i x = this#write (indent ^ x)
+	method get_indent = indent
+	method begin_expr = this#push_indent
+	method end_expr = if not just_finished_block then this#write "\n"; this#pop_indent; just_finished_block <- true
+   method func isStatic funcName ret args isInterface fieldExpression =
+       this#write ("FUNCION " ^ (this#staticText isStatic) ^ " " ^ (this#stringText funcName) ^ " ");
+       this#write ((this#typeText ret) ^ (string_of_int (List.length args)) ^ " ");
+       List.iter (fun (name,opt,typ) -> this#write ( (this#stringText name) ^ (this#boolText opt) ^ " " ^ (this#typeText typ) ^ " " )) args;
+       this#write "\n";
+       if (not isInterface) then begin
+          match fieldExpression with
+          | Some ({ eexpr = TFunction function_def } as e) -> this#gen_expression e
+          | _ -> print_endline ("Missing function body for " ^ funcName );
+       end
+   method var readAcc writeAcc isStatic name varType =
+       this#write ("VAR " ^ (this#staticText isStatic) ^ " " ^ readAcc ^ " " ^ writeAcc ^ " " ^ (this#stringText name)^ (this#typeText varType) ^ "\n" )
+   method writeVar v =
+       this#ident v.v_name;
+       this#wint v.v_id;
+       this#writeBool v.v_capture;
+       this#writeType v.v_type;
+   method writeList prefix len = this#write (prefix ^" "  ^ (string_of_int (len)) ^ "\n");
+   method gen_expression expr =
+     let expression = remove_parens expr in
+     this#begin_expr;
+     this#write ((string_of_int (Lexer.get_error_line expression.epos) ) ^ "\t" ^ (this#fileText expression.epos.pfile) ^ indent);
+     (match expression.eexpr with
+     | TFunction function_def -> this#write ("FUN " ^ (this#typeText function_def.tf_type) ^ (string_of_int (List.length function_def.tf_args)) ^ "\n" );
+         List.iter (fun(arg,init) ->
+            this#write (indent ^ indent_str );
+            this#writeVar arg;
+            match init with
+            | Some const -> this#write ("1 " ^ (this#constText const) ^ "\n")
+            | _ -> this#write "0\n";
+         ) function_def.tf_args;
+         this#gen_expression function_def.tf_expr;
+     | TBlock expr_list -> this#writeList "BLOCK" (List.length expr_list);
+         List.iter this#gen_expression expr_list;
+     | TConst const -> this#write (this#constText const)
+     | TBreak -> this#write "BREAK ";
+     | TContinue -> this#write "CONT ";
+
+     | TBinop (op,e1,e2) when is_assign_op op->
+        let op_name = (Ast.s_binop op) ^ " " in
+        let expression = remove_parens e1 in
+        (match expression.eexpr with
+        | TField (obj, acc) ->
+           (match acc with
+           | FDynamic name -> this#write ("FNAME" ^ op_name ^ (this#stringText name) ^ "\n");
+                this#gen_expression obj;
+           | FStatic (class_def,field) -> this#write ("FSTATIC" ^ op_name^ (this#instText class_def) ^ " " ^ (this#stringText field.cf_name) ^ "\n");
+           | FInstance (_,field) when is_this obj -> this#write ("FTHIS" ^ op_name ^ (this#typeText obj.etype) ^ " " ^ (this#stringText field.cf_name) ^ "\n");
+           | FInstance (_,field) -> this#write ("FINST" ^ op_name ^ (this#typeText obj.etype) ^ " " ^ (this#stringText field.cf_name) ^ "\n");
+                this#gen_expression obj;
+           | FClosure (_,field)
+           | FAnon (field) -> this#write ("FNAME" ^ op_name ^ (this#stringText field.cf_name) ^ "\n");
+                this#gen_expression obj;
+           | FEnum (enum,field) -> this#write ("FENUM" ^ op_name  ^ (this#enumText enum) ^ " " ^ (this#stringText field.ef_name) ^ "\n");
+           )
+        | TArray (e1, e2) -> this#write ("ARRAYI" ^ op_name ^ (this#typeText expression.etype) ^ "\n");
+           this#gen_expression e1;
+           this#gen_expression e2;
+        | TLocal var -> this#write ("VAR" ^ op_name ^ (string_of_int var.v_id) ^ "\n");
+        | _ -> assert false
+        );
+        this#gen_expression e2;
+     | TBinop (OpEq ,e1, { eexpr = TConst TNull } ) -> this#write "ISNULL\n";
+        this#gen_expression e1;
+     | TBinop (OpNotEq ,e1, { eexpr = TConst TNull }) -> this#write "NOTNULL\n";
+        this#gen_expression e1;
+     | TBinop (OpEq , { eexpr = TConst TNull }, e1) -> this#write "ISNULL\n";
+        this#gen_expression e1;
+     | TBinop (OpNotEq, { eexpr = TConst TNull }, e1) -> this#write "NOTNULL\n";
+        this#gen_expression e1;
+     | TBinop (op,e1,e2) -> this#write ((Ast.s_binop op) ^ "\n");
+        this#gen_expression e1;
+        this#gen_expression e2;
+     | TThrow e -> this#write "THROW\n";
+        this#gen_expression e;
+     | TArrayDecl expr_list -> this#writeList "ADEF" (List.length expr_list);
+        List.iter this#gen_expression expr_list;
+     | TIf (e,e1,e2) ->
+        (match e2 with
+        | None ->
+           this#write "IF\n";
+           this#gen_expression e;
+           this#gen_expression e1;
+        | Some elze ->
+           this#write "IFELSE\n";
+           this#gen_expression e;
+           this#gen_expression e1;
+           this#gen_expression elze; )
+     | TCall (func, arg_list) ->
+        (match (remove_parens func).eexpr with
+        | TField (obj,FStatic (class_def,field) ) ->
+               this#write ("CALLSTATIC " ^ (this#instText class_def) ^ " " ^ (this#stringText field.cf_name) ^
+                  (string_of_int (List.length arg_list)) ^ "\n");
+        | TField (obj,FInstance (_,field) ) when is_this obj ->
+               this#write ("CALLTHIS " ^ (this#typeText obj.etype) ^ " " ^ (this#stringText field.cf_name) ^
+                  (string_of_int (List.length arg_list)) ^ "\n");
+        | TField (obj,FInstance (_,field) ) ->
+               this#write ("CALLMEMBER " ^ (this#typeText obj.etype) ^ " " ^ (this#stringText field.cf_name) ^
+                  (string_of_int (List.length arg_list)) ^ "\n");
+               this#gen_expression obj;
+        | _ -> this#writeList "CALL " (List.length arg_list);
+               this#gen_expression func;
+        );
+        List.iter this#gen_expression arg_list;
+     | TField (obj, acc) ->
+        (match acc with
+        | FDynamic name -> this#write ("FNAME " ^ (this#stringText name) ^ "\n");
+             this#gen_expression obj;
+        | FStatic (class_def,field) -> this#write ("FSTATIC " ^ (this#instText class_def) ^ " " ^ (this#stringText field.cf_name) );
+        | FInstance (_,field) when is_this obj -> this#write ("FTHIS " ^ (this#typeText obj.etype) ^ " " ^ (this#stringText field.cf_name) );
+        | FInstance (_,field) -> this#write ("FINST " ^ (this#typeText obj.etype) ^ " " ^ (this#stringText field.cf_name) ^ "\n");
+             this#gen_expression obj;
+        | FClosure (_,field)
+        | FAnon (field) -> this#write ("FNAME " ^ (this#stringText field.cf_name) ^ "\n");
+             this#gen_expression obj;
+        | FEnum (enum,field) -> this#write ("FENUM " ^ (this#enumText enum) ^ " " ^ (this#stringText field.ef_name) );
+        )
+     | TArray (e1, e2) -> this#write ("ARRAYI " ^ (this#typeText expression.etype) ^ "\n");
+        this#gen_expression e1;
+        this#gen_expression e2;
+     | TUnop (op, flag, e) ->
+        this#write ((match op,flag with
+        | Increment, Prefix -> "++"
+        | Increment, _ -> "+++"
+        | Decrement, Prefix -> "--"
+        | Decrement, _ -> "---"
+        | Not, _ -> "!"
+        | Neg, _ -> "NEG"
+        | NegBits, _ -> "~" ) ^ "\n");
+        this#gen_expression e;
+     (* TODO - lval op-assign local/member/array *)
+     | TLocal var -> this#write ("VAR " ^ (string_of_int var.v_id) );
+
+     | TVars var_list ->
+         List.iter (fun (tvar, optional_init) ->
+            match optional_init with
+            | None -> this#write "VARDECL ";
+                      this#writeVar tvar;
+            | Some init ->this#write "VARDECLI ";
+                      this#writeVar tvar;
+                      this#write "\n";
+                      this#gen_expression init;
+         ) var_list
+     | TNew (clazz,params,arg_list) -> this#writeList ("NEW " ^ (this#typeText (TInst(clazz,params)))) (List.length arg_list);
+         List.iter this#gen_expression arg_list;
+     | TReturn optval -> (match optval with
+         | None -> this#write "RETURN\n"
+         | Some value -> this#write "RETVAL\n";
+                       this#gen_expression value;
+         )
+     | TObjectDecl (
+        ("fileName" , { eexpr = (TConst (TString file)) }) ::
+           ("lineNumber" , { eexpr = (TConst (TInt line)) }) ::
+              ("className" , { eexpr = (TConst (TString class_name)) }) ::
+                 ("methodName", { eexpr = (TConst (TString meth)) }) :: [] ) ->
+            this#write ("POSINFO " ^ (this#stringText file) ^ (Printf.sprintf "%ld" line) ^ " " ^
+                         (this#stringText class_name) ^ " " ^  (this#stringText meth))
+ 
+     | TObjectDecl values ->this#write ("OBJDEF " ^ (string_of_int (List.length values)));
+         List.iter (fun (name,_) -> this#write (this#stringText name)  ) values;
+         this#write "\n";
+         List.iter (fun (_,e) -> this#gen_expression e ) values;
+     | TTypeExpr _ -> ()
+     | TWhile (e1,e2,flag) -> this#write ("WHILE " ^ (if flag=NormalWhile then "1" else "0" ) ^ "\n");
+         this#gen_expression e1;
+         this#gen_expression e2;
+     | TFor (tvar,init,loop) -> this#write ("FOR ");
+         this#writeVar tvar;
+         this#write "\n";
+         this#gen_expression init;
+         this#gen_expression loop;
+     | TEnumParameter (expr,_,i) ->
+         let enum = match follow expr.etype with TEnum(enum,_) -> expr.etype | _ -> assert false in
+         this#write ("ENUMI " ^ (this#typeText enum) ^ (string_of_int i) ^ "\n");
+         this#gen_expression expr;
+     | TSwitch (condition,cases,optional_default)  ->
+         this#write ("SWITCH " ^ (string_of_int (List.length cases)) ^ " " ^
+                            (match optional_default with None -> "0" | Some _ -> "1") ^ "\n");
+          List.iter (fun (cases_list,expression) ->
+             this#writeList ("\t\t\t"^indent) (List.length cases_list);
+             List.iter (fun value -> this#gen_expression value ) cases_list;
+             this#gen_expression expression;
+         ) cases;
+         (match optional_default with None -> () | Some expr -> this#gen_expression expr);
+     | TTry (e,catches)  ->
+         this#writeList "TRY " (List.length catches);
+         this#gen_expression e;
+         List.iter ( fun (tvar,catch_expr) ->
+             this#write ("\t\t\t"^indent);
+             this#writeVar tvar;
+             this#write "\n";
+             this#gen_expression catch_expr;
+         ) catches;
+     | TCast (cast,None) ->
+         this#write "VCAST\n";
+         this#gen_expression cast;
+     | TCast (cast,Some t) ->
+         let class_name = (join_class_path_remap (t_path t) "::" ) in
+         this#write ("CAST " ^ (string_of_int (this#typeId class_name)) ^ "\n");
+         this#gen_expression cast;
+
+     | TParenthesis _ | TMeta(_,_) | TPatMatch _ -> assert false
+     );
+     this#end_expr;
+end;;
+
+let generate_script_class common_ctx script class_def =
+   script#incClasses;
+   script#write (if class_def.cl_interface then "INTFERFACE " else "CLASS ");
+   script#instName class_def;
+   (match class_def.cl_super with
+      | None -> script#ident ""
+      | Some (c,_) -> script#instName c);
+   script#wint (List.length class_def.cl_implements);
+   List.iter (fun(c,_) -> script#instName c) class_def.cl_implements;
+   script#write "\n";
+   script#write ((string_of_int ( (List.length class_def.cl_ordered_fields) +
+                                  (List.length class_def.cl_ordered_statics))) ^ "\n");
+   let generate_field isStatic field =
+      match field.cf_kind, field.cf_type with
+	   | Var { v_read = AccInline; v_write = AccNever },_ ->
+         script#write "INLINE\n";
+	   | Var v,t ->
+         let mode_code mode = match mode with
+         | AccNormal -> "N"
+         | AccNo -> "!"
+         | AccNever -> "!"
+         | AccResolve -> "R"
+         | AccCall -> "C"
+         | AccInline	-> "N"
+         | AccRequire (_,_) -> "?"
+         in
+         script#var (mode_code v.v_read) (mode_code v.v_write) isStatic field.cf_name t
+	   | Method MethDynamic, TFun(a,r) ->
+         script#var "N" "N" isStatic field.cf_name (TFun(a,r))
+	   | Method _, TFun(args,ret) when field.cf_name="new" ->
+         script#func true "new" (TInst(class_def,[])) args false field.cf_expr
+	   | Method _, TFun (args,ret) ->
+         script#func isStatic field.cf_name ret args class_def.cl_interface field.cf_expr
+	   | Method _, _ -> print_endline ("Unknown method type " ^ (join_class_path class_def.cl_path "." ) ^field.cf_name);
+   in
+   List.iter (generate_field false) class_def.cl_ordered_fields;
+   List.iter (generate_field true) class_def.cl_ordered_statics;
+   script#write "\n";
+;;
+
+let generate_script_enum common_ctx script enum_def meta =
+   script#incEnums;
+   script#write "ENUM";
+   script#enumName enum_def;
+   script#write "\n"
+;;
+
+
+let generate_cppia common_ctx =
+	let script = new script_writer common_ctx common_ctx.file in
+   let debug = true in
+   ignore (script#stringId "");
+   ignore (script#typeId "");
+
+  	List.iter (fun object_def ->
+		(match object_def with
+		| TClassDecl class_def when class_def.cl_extern ->
+         () (*if (gen_externs) then gen_extern_class common_ctx class_def;*)
+		| TClassDecl class_def ->
+			let is_internal = is_internal_class class_def.cl_path in
+			let is_generic_def = match class_def.cl_kind with KGeneric -> true | _ -> false in
+			if (is_internal || (is_macro class_def.cl_meta) || is_generic_def) then
+				( if debug then print_endline (" internal class " ^ (join_class_path class_def.cl_path ".") ))
+			else begin
+				generate_script_class common_ctx script class_def
+			end
+		| TEnumDecl enum_def when enum_def.e_extern -> ()
+		| TEnumDecl enum_def ->
+			let is_internal = is_internal_class enum_def.e_path in
+			if (is_internal) then
+				(if debug then print_endline (" internal enum " ^ (join_class_path enum_def.e_path ".") ))
+			else begin
+				let meta = Codegen.build_metadata common_ctx object_def in
+				if (enum_def.e_extern) then
+					(if debug then print_endline ("external enum " ^  (join_class_path enum_def.e_path ".") ));
+				generate_script_enum common_ctx script enum_def meta
+			end
+		| TTypeDecl _ | TAbstractDecl _ -> (* already done *) ()
+		);
+	) common_ctx.types;
+
+   script#close
+;;
 
 
 (*
  The common_ctx contains the haxe AST in the "types" field and the resources
 *)
-let generate common_ctx =
+let generate_source common_ctx =
 	make_base_directory common_ctx.file;
 
 	let debug = false in
@@ -3775,5 +4177,11 @@ let generate common_ctx =
 	end
 	;;
 
+let generate common_ctx =
+   if (Common.defined common_ctx Define.Cppia) then
+      generate_cppia common_ctx
+   else
+      generate_source common_ctx
+;;
 
 
