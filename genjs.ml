@@ -338,9 +338,7 @@ let escape_bin s =
 let gen_constant ctx p = function
 	| TInt i -> print ctx "%ld" i
 	| TFloat s -> spr ctx s
-	| TString s ->
-		if String.contains s '\000' then error "A String cannot contain \\0 characters" p;
-		print ctx "\"%s\"" (escape_bin s)
+	| TString s -> print ctx "\"%s\"" (escape_bin s)
 	| TBool b -> spr ctx (if b then "true" else "false")
 	| TNull -> spr ctx "null"
 	| TThis -> spr ctx (this ctx)
