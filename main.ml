@@ -1214,10 +1214,14 @@ try
 		com.main <- main;
 		com.types <- types;
 		com.modules <- modules;
+		let platform_optimize = (match com.platform with
+			| Js -> Genjs.optimize
+			| _ -> fun ctx e -> e
+		) in
 		let filters = [
 			Codegen.Abstract.handle_abstract_casts tctx;
 			Codegen.promote_complex_rhs com;
-			if com.foptimize then (fun e -> Optimizer.reduce_expression tctx (Optimizer.inline_constructors tctx e)) else Optimizer.sanitize tctx;
+			if com.foptimize then (fun e -> Optimizer.reduce_expression tctx (platform_optimize tctx (Optimizer.inline_constructors tctx e))) else Optimizer.sanitize tctx;
 			Codegen.check_local_vars_init;
 			Codegen.captured_vars com;
 			Codegen.rename_local_vars com;

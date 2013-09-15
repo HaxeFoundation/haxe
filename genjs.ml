@@ -23,6 +23,7 @@
 open Ast
 open Type
 open Common
+open Typecore
 
 type pos = Ast.pos
 
@@ -400,6 +401,11 @@ let rec gen_call ctx e el in_value =
 			spr ctx "}"
 		) (Hashtbl.fold (fun name data acc -> (name,data) :: acc) ctx.com.resources []);
 		spr ctx "]";
+	| TLocal { v_name = "__js_teq__" } , [x;y] ->
+		spr ctx "(";
+		gen_value ctx x;
+		spr ctx ") === ";
+		gen_value ctx y;
 	| TLocal { v_name = "`trace" }, [e;infos] ->
 		if has_feature ctx "haxe.Log.trace" then begin
 			let t = (try List.find (fun t -> t_path t = (["haxe"],"Log")) ctx.com.types with _ -> assert false) in
@@ -1107,6 +1113,42 @@ let gen_single_expr ctx e expr =
 	Buffer.reset ctx.buf;
 	ctx.id_counter <- 0;
 	str
+
+let mk_local tctx n t pos =
+    mk (TLocal (try PMap.find n tctx.locals with _ -> add_local tctx n t)) t pos
+
+let rec optimize_call tctx e = let recurse = optimize tctx e in
+    match e.eexpr with
+    | TCall (ce, el) -> (match ce.eexpr, el with
+        | TField ({ eexpr = TTypeExpr (TClassDecl ({ cl_path = ["js"], "Boot" })) }, FStatic (_, ({ cf_name = "__instanceof" }))), [o;t] ->
+            let stringt = tctx.Typecore.com.basic.tstring in
+            let boolt = tctx.Typecore.com.basic.tbool in
+            let intt = tctx.Typecore.com.basic.tint in
+            let ctypeof = mk (TConst (TString "typeof")) stringt e.epos in
+            let js = mk_local tctx "__js__" (tfun [stringt] (tfun [o.etype] stringt)) e.epos in
+            let typeof = mk (TCall (js, [ctypeof])) (tfun [o.etype] stringt) e.epos in
+            let gettof = mk (TCall (typeof, [o])) stringt e.epos in
+            (match t.eexpr with
+                | TTypeExpr (TAbstractDecl ({ a_path = [],"Dynamic" })) ->
+                    mk (TConst (TBool true)) e.etype e.epos
+                | TTypeExpr (TAbstractDecl ({ a_path = [],"Bool" })) ->
+                    mk (TBinop (Ast.OpEq, gettof, (mk (TConst (TString "boolean")) stringt e.epos))) boolt e.epos
+                | TTypeExpr (TAbstractDecl ({ a_path = [],"Float" })) ->
+                    mk (TBinop (Ast.OpEq, gettof, (mk (TConst (TString "number")) stringt e.epos))) boolt e.epos
+                | TTypeExpr (TClassDecl ({ cl_path = [],"String" })) ->
+                    mk (TBinop (Ast.OpEq, gettof, (mk (TConst (TString "string")) stringt e.epos))) boolt e.epos
+                | TTypeExpr (TAbstractDecl ({ a_path = [],"Int" })) ->
+                    (* need to use ===, not == so tast is a bit more annoying, we leave this to the generator *)
+                    let teq = mk_local tctx "__js_teq__" (tfun [intt; intt] boolt) e.epos in
+                    let lhs = mk (TBinop (Ast.OpOr, o, mk (TConst (TInt Int32.zero)) intt e.epos)) intt e.epos in
+                    mk (TCall (teq, [lhs; o])) boolt e.epos
+                | _ -> recurse
+            )
+        | _ -> recurse
+    ) | _ -> recurse
+
+and optimize tctx e =
+    Type.map_expr (optimize_call tctx) e
 
 let generate com =
 	let t = Common.timer "generate js" in
