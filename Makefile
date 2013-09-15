@@ -90,7 +90,7 @@ codegen.cmx: optimizer.cmx typeload.cmx typecore.cmx type.cmx genxml.cmx common.
 
 common.cmx: type.cmx ast.cmx
 
-dce.cmx: ast.cmx common.cmx type.cmx
+dce.cmx: ast.cmx common.cmx codegen.cmx type.cmx
 
 genas3.cmx: type.cmx common.cmx codegen.cmx ast.cmx
 

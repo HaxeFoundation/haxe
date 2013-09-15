@@ -175,7 +175,7 @@ let make_module ctx mpath file tdecls loadp =
 				(match !decls with
 				| (TClassDecl c,_) :: _ ->
 					List.iter (fun m -> match m with
-						| (Meta.Build,_,_) | (Meta.CoreApi,_,_) ->
+						| ((Meta.Build | Meta.CoreApi | Meta.Allow | Meta.Access),_,_) ->
 							c.cl_meta <- m :: c.cl_meta;
 						| (Meta.FakeEnum,_,_) ->
 							c.cl_meta <- (Meta.Build,[ECall((EField((EField((EField((EConst(Ident "haxe"),p),"macro"),p),"Build"),p),"buildFakeEnum"),p),[]),p],p) :: c.cl_meta;
@@ -1543,6 +1543,7 @@ let init_class ctx c p context_init herits fields =
 	let loop_cf f =
 		let name = f.cff_name in
 		let p = f.cff_pos in
+		if name.[0] = '$' && not ctx.com.display then error "Field names starting with a dollar are not allowed" p;
 		let stat = List.mem AStatic f.cff_access in
 		let extern = Meta.has Meta.Extern f.cff_meta || c.cl_extern in
 		let is_abstract,allow_inline =
@@ -1879,6 +1880,15 @@ let init_class ctx c p context_init herits fields =
 			let fd , constr, f = loop_cf f in
 			let is_static = List.mem AStatic fd.cff_access in
 			if (is_static || constr) && c.cl_interface && f.cf_name <> "__init__" then error "You can't declare static fields in interfaces" p;
+			begin try
+				let _,args,_ = Meta.get Meta.IfFeature f.cf_meta in
+				List.iter (fun e -> match fst e with
+					| EConst(String s) ->
+						ctx.m.curmod.m_extra.m_features <- (s,(c,f,is_static)) :: ctx.m.curmod.m_extra.m_features;
+					| _ ->
+						error "String expected" (pos e)
+				) args
+			with Not_found -> () end;
 			let req = check_require fd.cff_meta in
 			let req = (match req with None -> if is_static || constr then cl_req else None | _ -> req) in
 			(match req with

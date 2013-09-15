@@ -97,6 +97,8 @@ type platform_config = {
 	pf_pattern_matching : bool;
 	(** can the platform use default values for non-nullable arguments *)
 	pf_can_skip_non_nullable_argument : bool;
+	(** generator ignores TCast(_,None) *)
+	pf_ignore_unsafe_cast : bool;
 }
 
 type context = {
@@ -154,6 +156,7 @@ module Define = struct
 		| As3
 		| CheckXmlProxy
 		| CoreApi
+		| Cppia
 		| Dce
 		| DceDebug
 		| Debug
@@ -217,6 +220,7 @@ module Define = struct
 		| As3 -> ("as3","Defined when outputing flash9 as3 source code")
 		| CheckXmlProxy -> ("check_xml_proxy","Check the used fields of the xml proxy")
 		| CoreApi -> ("core_api","Defined in the core api context")
+		| Cppia -> ("cppia", "Generate experimental cpp instruction assembly")
 		| Dce -> ("dce","The current DCE mode")
 		| DceDebug -> ("dce_debug","Show DCE log")
 		| Debug -> ("debug","Activated when compiling with -debug")
@@ -450,6 +454,7 @@ let default_config =
 		pf_overload = false;
 		pf_pattern_matching = false;
 		pf_can_skip_non_nullable_argument = true;
+		pf_ignore_unsafe_cast = false;
 	}
 
 let get_config com =
@@ -471,6 +476,7 @@ let get_config com =
 			pf_overload = false;
 			pf_pattern_matching = false;
 			pf_can_skip_non_nullable_argument = true;
+			pf_ignore_unsafe_cast = false;
 		}
 	| Js ->
 		{
@@ -486,6 +492,7 @@ let get_config com =
 			pf_overload = false;
 			pf_pattern_matching = false;
 			pf_can_skip_non_nullable_argument = true;
+			pf_ignore_unsafe_cast = true;
 		}
 	| Neko ->
 		{
@@ -501,6 +508,7 @@ let get_config com =
 			pf_overload = false;
 			pf_pattern_matching = false;
 			pf_can_skip_non_nullable_argument = true;
+			pf_ignore_unsafe_cast = true;
 		}
 	| Flash when defined Define.As3 ->
 		{
@@ -516,6 +524,7 @@ let get_config com =
 			pf_overload = false;
 			pf_pattern_matching = false;
 			pf_can_skip_non_nullable_argument = false;
+			pf_ignore_unsafe_cast = false;
 		}
 	| Flash ->
 		{
@@ -531,6 +540,7 @@ let get_config com =
 			pf_overload = false;
 			pf_pattern_matching = false;
 			pf_can_skip_non_nullable_argument = false;
+			pf_ignore_unsafe_cast = false;
 		}
 	| Php ->
 		{
@@ -551,6 +561,7 @@ let get_config com =
 			pf_overload = false;
 			pf_pattern_matching = false;
 			pf_can_skip_non_nullable_argument = true;
+			pf_ignore_unsafe_cast = false;
 		}
 	| Cpp ->
 		{
@@ -566,6 +577,7 @@ let get_config com =
 			pf_overload = false;
 			pf_pattern_matching = false;
 			pf_can_skip_non_nullable_argument = true;
+			pf_ignore_unsafe_cast = false;
 		}
 	| Cs ->
 		{
@@ -581,6 +593,7 @@ let get_config com =
 			pf_overload = true;
 			pf_pattern_matching = false;
 			pf_can_skip_non_nullable_argument = true;
+			pf_ignore_unsafe_cast = false;
 		}
 	| Java ->
 		{
@@ -596,6 +609,7 @@ let get_config com =
 			pf_overload = true;
 			pf_pattern_matching = false;
 			pf_can_skip_non_nullable_argument = true;
+			pf_ignore_unsafe_cast = false;
 		}
 
 let create v args =
@@ -762,10 +776,14 @@ let rec has_feature com f =
 			let r = (try
 				let path = List.rev pack, cl in
 				(match List.find (fun t -> t_path t = path && not (Ast.Meta.has Ast.Meta.RealPath (t_infos t).mt_meta)) com.types with
-				| t when meth = "*" -> (match t with TAbstractDecl a -> Ast.Meta.has Ast.Meta.ValueUsed a.a_meta | _ -> Ast.Meta.has Ast.Meta.Used (t_infos t).mt_meta)
-				| TClassDecl ({cl_extern = true} as c) -> Meta.has Meta.Used (try PMap.find meth c.cl_statics with Not_found -> PMap.find meth c.cl_fields).cf_meta
-				| TClassDecl c -> PMap.exists meth c.cl_statics || PMap.exists meth c.cl_fields
-				| _ -> false)
+				| t when meth = "*" -> (match t with TAbstractDecl a -> Ast.Meta.has Ast.Meta.ValueUsed a.a_meta | _ ->
+					Ast.Meta.has Ast.Meta.Used (t_infos t).mt_meta)
+				| TClassDecl ({cl_extern = true} as c) when com.platform <> Js || cl <> "Array" && cl <> "Math" ->
+					Meta.has Meta.Used (try PMap.find meth c.cl_statics with Not_found -> PMap.find meth c.cl_fields).cf_meta
+				| TClassDecl c ->
+					PMap.exists meth c.cl_statics || PMap.exists meth c.cl_fields
+				| _ ->
+					false)
 			with Not_found ->
 				false
 			) in

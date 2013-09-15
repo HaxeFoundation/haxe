@@ -33,7 +33,7 @@ package haxe;
 class Resource {
 
 	#if (java || cs)
-	static var content : Array<String>;
+	@:keep static var content : Array<String>;
 	#else
 	static var content : Array<{ name : String, data : String, str : String }>;
 	#end

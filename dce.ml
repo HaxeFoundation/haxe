@@ -35,6 +35,7 @@ type dce = {
 	mutable marked_maybe_fields : tclass_field list;
 	mutable t_stack : t list;
 	mutable ts_stack : t list;
+	mutable features : (string,(tclass * tclass_field * bool) list) Hashtbl.t;
 }
 
 (* checking *)
@@ -54,35 +55,33 @@ let keep_whole_class dce c =
 	|| not (dce.full || is_std_file dce c.cl_module.m_extra.m_file || has_meta Meta.Dce c.cl_meta)
 	|| super_forces_keep c
 	|| (match c with
-		| { cl_extern = true; cl_path = ([],("Math"|"Array"))} when dce.com.platform = Js -> false
+		| { cl_path = ([],("Math"|"Array"))} when dce.com.platform = Js -> false
 		| { cl_extern = true }
 		| { cl_path = ["flash";"_Boot"],"RealBoot" } -> true
 		| { cl_path = [],"String" }
 		| { cl_path = [],"Array" } -> not (dce.com.platform = Js)
 		| _ -> false)
 
-(* check if a metadata contains @:ifFeature with a used feature argument *)
-let has_used_feature com meta =
-	try
-		let _,el,_ = Meta.get Meta.IfFeature meta in
-		List.exists (fun e -> match fst e with
-			| EConst(String s) when Common.has_feature com s -> true
-			| _ -> false
-		) el
-	with Not_found ->
-		false
-
 (* check if a field is kept *)
 let keep_field dce cf =
 	Meta.has Meta.Keep cf.cf_meta
 	|| Meta.has Meta.Used cf.cf_meta
 	|| cf.cf_name = "__init__"
-	|| has_used_feature dce.com cf.cf_meta
 
 (* marking *)
 
+let rec check_feature dce s =
+	try
+		let l = Hashtbl.find dce.features s in
+		List.iter (fun (c,cf,stat) ->
+			mark_field dce c cf stat
+		) l;
+		Hashtbl.remove dce.features s;
+	with Not_found ->
+		()
+
 (* mark a field as kept *)
-let rec mark_field dce c cf stat =
+and mark_field dce c cf stat =
 	let add cf =
 		if not (Meta.has Meta.Used cf.cf_meta) then begin
 			cf.cf_meta <- (Meta.Used,[],cf.cf_pos) :: cf.cf_meta;
@@ -156,6 +155,8 @@ and mark_t dce t =
 		| TEnum(e,pl) ->
 			mark_enum dce e;
 			List.iter (mark_t dce) pl
+		| TAbstract(a,pl) when Meta.has Meta.MultiType a.a_meta ->
+			mark_t dce (snd (Codegen.Abstract.find_multitype_specialization a pl Ast.null_pos))
 		| TAbstract(a,pl) ->
 			mark_abstract dce a;
 			List.iter (mark_t dce) pl
@@ -298,7 +299,7 @@ and expr dce e =
 			mark_t dce v.v_type;
 		) vl;
 	| TCast(e, Some mt) ->
-		add_feature dce.com "typed_cast";
+		check_feature dce "typed_cast";
 		mark_mt dce mt;
 		expr dce e;
 	| TTypeExpr mt ->
@@ -306,12 +307,13 @@ and expr dce e =
 	| TTry(e, vl) ->
 		expr dce e;
 		List.iter (fun (v,e) ->
-			if v.v_type != t_dynamic then add_feature dce.com "typed_catch";
+			if v.v_type != t_dynamic then check_feature dce "typed_catch";
 			expr dce e;
 			mark_t dce v.v_type;
 		) vl;
 	| TCall ({eexpr = TLocal ({v_name = "__define_feature__"})},[{eexpr = TConst (TString ft)};e]) ->
 		Common.add_feature dce.com ft;
+		check_feature dce ft;
 		expr dce e
 	(* keep toString method when the class is argument to Std.string or haxe.Log.trace *)
 	| TCall ({eexpr = TField({eexpr = TTypeExpr (TClassDecl ({cl_path = (["haxe"],"Log")} as c))},FStatic (_,{cf_name="trace"}))} as ef, ([e2;_] as args))
@@ -365,6 +367,7 @@ let run com main full =
 		marked_maybe_fields = [];
 		t_stack = [];
 		ts_stack = [];
+		features = Hashtbl.create 0;
 	} in
 	begin match main with
 		| Some {eexpr = TCall({eexpr = TField(e,(FStatic(c,cf)))},_)} ->
@@ -372,6 +375,12 @@ let run com main full =
 		| _ ->
 			()
 	end;
+	List.iter (fun m ->
+		List.iter (fun (s,v) ->
+			if Hashtbl.mem dce.features s then Hashtbl.replace dce.features s (v :: Hashtbl.find dce.features s)
+			else Hashtbl.add dce.features s [v]
+		) m.m_extra.m_features;
+	) com.modules;
 	(* first step: get all entry points, which is the main method and all class methods which are marked with @:keep *)
 	List.iter (fun t -> match t with
 		| TClassDecl c ->

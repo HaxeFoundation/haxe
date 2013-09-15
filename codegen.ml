@@ -623,8 +623,11 @@ let check_private_path ctx t = match t with
 		()
 
 (* Removes generic base classes *)
+
+let is_removable_class c = c.cl_kind = KGeneric && (has_ctor_constraint c || Meta.has Meta.Remove c.cl_meta)
+
 let remove_generic_base ctx t = match t with
-	| TClassDecl c when c.cl_kind = KGeneric && has_ctor_constraint c ->
+	| TClassDecl c when is_removable_class c ->
 		c.cl_extern <- true
 	| _ ->
 		()
@@ -854,6 +857,8 @@ let promote_complex_rhs ctx e =
 			{ e with eexpr = TMeta(m,loop f e1)}
 		| TReturn _ | TThrow _ ->
 			find e
+		| TCast(e1,None) when ctx.config.pf_ignore_unsafe_cast ->
+			loop f e1
 		| _ ->
 			f (find e)
 	and block el =
@@ -1522,28 +1527,29 @@ module Abstract = struct
 	let check_cast ctx tleft eright p =
 		if ctx.com.display then eright else do_check_cast ctx tleft eright p
 
+	let find_multitype_specialization a pl p =
+		let m = mk_mono() in
+		let at = apply_params a.a_types pl a.a_this in
+		let _,cfo =
+			try find_to a pl m
+			with Not_found ->
+				let st = s_type (print_context()) at in
+				if has_mono at then
+					error ("Type parameters of multi type abstracts must be known (for " ^ st ^ ")") p
+				else
+					error ("Abstract " ^ (s_type_path a.a_path) ^ " has no @:to function that accepts " ^ st) p;
+		in
+		match cfo with
+			| None -> assert false
+			| Some cf -> cf, follow m
+
 	let handle_abstract_casts ctx e =
 		let rec loop ctx e = match e.eexpr with
 			| TNew({cl_kind = KAbstractImpl a} as c,pl,el) ->
-				(* a TNew of an abstract implementation is only generated if it is a generic abstract *)
-				let at = apply_params a.a_types pl a.a_this in
-				let m = mk_mono() in
-				let _,cfo =
-					try find_to a pl m
-					with Not_found ->
-						let st = s_type (print_context()) at in
-						if has_mono at then
-							error ("Type parameters of multi type abstracts must be known (for " ^ st ^ ")") e.epos
-						else
-							error ("Abstract " ^ (s_type_path a.a_path) ^ " has no @:to function that accepts " ^ st) e.epos;
-				in
-				begin match cfo with
-				| None -> assert false
-				| Some cf ->
-					let m = follow m in
-					let e = make_static_call ctx c cf a pl ((mk (TConst TNull) (TAbstract(a,pl)) e.epos) :: el) m e.epos in
-					{e with etype = m}
-				end
+				(* a TNew of an abstract implementation is only generated if it is a multi type abstract *)
+				let cf,m = find_multitype_specialization a pl e.epos in
+				let e = make_static_call ctx c cf a pl ((mk (TConst TNull) (TAbstract(a,pl)) e.epos) :: el) m e.epos in
+				{e with etype = m}
 			| TCall(e1, el) ->
 				begin try
 					begin match e1.eexpr with
@@ -1706,6 +1712,7 @@ let post_process ctx filters t =
 	if m.m_processed = 0 then m.m_processed <- !pp_counter;
 	if m.m_processed = !pp_counter then
 	match t with
+	| TClassDecl c when is_removable_class c -> ()
 	| TClassDecl c ->
 		let process_field f =
 			match f.cf_expr with
