@@ -601,7 +601,7 @@ and parse_type_decl s =
 and parse_class doc meta cflags need_name s =
 	let opt_name = if need_name then type_name else (fun s -> match popt type_name s with None -> "" | Some n -> n) in
 	match s with parser
-	| [< n , p1 = parse_class_flags; name = opt_name; tl = parse_constraint_params; hl = psep Comma parse_class_herit; '(BrOpen,_); fl, p2 = parse_class_fields false p1 >] ->
+	| [< n , p1 = parse_class_flags; name = opt_name; tl = parse_constraint_params; hl = psep Comma parse_class_herit; '(BrOpen,_); fl, p2 = parse_class_fields (not need_name) p1 >] ->
 		(EClass {
 			d_name = name;
 			d_doc = doc;
@@ -908,7 +908,7 @@ and parse_class_field s =
 	match s with parser
 	| [< meta = parse_meta; al = parse_cf_rights true []; s >] ->
 		let name, pos, k = (match s with parser
-		| [< '(Kwd Var,p1); name, _ = ident; s >] ->
+		| [< '(Kwd Var,p1); name, _ = dollar_ident; s >] ->
 			(match s with parser
 			| [< '(POpen,_); i1 = property_ident; '(Comma,_); i2 = property_ident; '(PClose,_) >] ->
 				let t = (match s with parser
@@ -966,7 +966,7 @@ and parse_cf_rights allow_static l = parser
 	| [< >] -> l
 
 and parse_fun_name = parser
-	| [< '(Const (Ident name),_) >] -> name
+	| [< name,_ = dollar_ident >] -> name
 	| [< '(Kwd New,_) >] -> "new"
 
 and parse_fun_param = parser
@@ -1009,7 +1009,7 @@ and parse_class_herit = parser
 	| [< '(Kwd Implements,_); t = parse_type_path >] -> HImplements t
 
 and block1 = parser
-	| [< '(Const (Ident name),p); s >] -> block2 name (Ident name) p s
+	| [< name,p = dollar_ident; s >] -> block2 name (Ident name) p s
 	| [< '(Const (String name),p); s >] -> block2 (quote_ident name) (String name) p s
 	| [< b = block [] >] -> EBlock b
 
@@ -1272,7 +1272,7 @@ and parse_switch_cases eswitch cases = parser
 		List.rev cases , None
 
 and parse_catch etry = parser
-	| [< '(Kwd Catch,p); '(POpen,_); name, _ = ident; s >] ->
+	| [< '(Kwd Catch,p); '(POpen,_); name, _ = dollar_ident; s >] ->
 		match s with parser
 		| [< '(DblDot,_); t = parse_complex_type; '(PClose,_); s >] ->
 			(try

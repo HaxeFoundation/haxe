@@ -205,8 +205,9 @@ let rec can_access ctx c cf stat =
 		true
 	else
 	(* has metadata path *)
-	let make_path c f =
-		fst c.cl_path @ [snd c.cl_path; f.cf_name]
+	let make_path c f = match c.cl_kind with
+		| KAbstractImpl a -> fst a.a_path @ [snd a.a_path; f.cf_name]
+		| _ -> fst c.cl_path @ [snd c.cl_path; f.cf_name]
 	in
 	let rec expr_path acc e =
 		match fst e with
@@ -230,13 +231,22 @@ let rec can_access ctx c cf stat =
 		in
 		loop c.cl_meta || loop f.cf_meta
 	in
-	let cur_path = make_path ctx.curclass ctx.curfield in
+	let cur_paths = ref [] in
+	let rec loop c =
+		cur_paths := make_path c ctx.curfield :: !cur_paths;
+		begin match c.cl_super with
+			| Some (csup,_) -> loop csup
+			| None -> ()
+		end;
+		List.iter (fun (c,_) -> loop c) c.cl_implements;
+	in
+	loop ctx.curclass;
 	let is_constr = cf.cf_name = "new" in
 	let rec loop c =
 		(try
 			(* if our common ancestor declare/override the field, then we can access it *)
 			let f = if is_constr then (match c.cl_constructor with None -> raise Not_found | Some c -> c) else PMap.find cf.cf_name (if stat then c.cl_statics else c.cl_fields) in
-			is_parent c ctx.curclass || has Meta.Allow c f cur_path
+			is_parent c ctx.curclass || (List.exists (has Meta.Allow c f) !cur_paths)
 		with Not_found ->
 			false
 		)
@@ -1749,11 +1759,15 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 			| (o,cf) :: ops when is_assign_op && o = OpAssignOp(op) || o == op ->
 				(match follow (monomorphs cf.cf_params cf.cf_type) with
 				| TFun([(_,_,t1);(_,_,t2)],r) ->
-					let t1,t2 = if left || Meta.has Meta.Commutative cf.cf_meta then t1,t2 else t2,t1 in
-					if type_iseq t t2 && (if Meta.has Meta.Impl cf.cf_meta then type_iseq (apply_params a.a_types pl a.a_this) t1 else type_iseq (TAbstract(a,pl)) t1) then begin
-						if not (can_access ctx c cf true) then display_error ctx ("Cannot access operator function " ^ (s_type_path a.a_path) ^ "." ^ cf.cf_name) p;
-						cf,r,o = OpAssignOp(op),Meta.has Meta.Commutative cf.cf_meta
-					end else loop ops
+					let impl = Meta.has Meta.Impl cf.cf_meta in
+					(* implementation fields can only be used in left mode (issue #2130) *)
+					if impl && not left then loop ops else begin
+						let t1,t2 = if left || Meta.has Meta.Commutative cf.cf_meta then t1,t2 else t2,t1 in
+						if type_iseq t t2 && (if impl then type_iseq (apply_params a.a_types pl a.a_this) t1 else type_iseq (TAbstract(a,pl)) t1) then begin
+							if not (can_access ctx c cf true) then display_error ctx ("Cannot access operator function " ^ (s_type_path a.a_path) ^ "." ^ cf.cf_name) p;
+							cf,r,o = OpAssignOp(op),Meta.has Meta.Commutative cf.cf_meta
+						end else loop ops
+					end;
 				| _ -> loop ops)
 			| _ :: ops ->
 				loop ops
@@ -2342,6 +2356,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			let rec loop (l,acc) (f,e) =
 				let f,add = object_field f in
 				if PMap.mem f acc then error ("Duplicate field in object declaration : " ^ f) p;
+				if f.[0] = '$' then error "Field names starting with a dollar are not allowed" p;
 				let e = type_expr ctx e Value in
 				(match follow e.etype with TAbstract({a_path=[],"Void"},_) -> error "Fields of type Void are not allowed in structures" e.epos | _ -> ());
 				let cf = mk_field f e.etype e.epos in
@@ -2357,6 +2372,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			let fl = List.map (fun (n, e) ->
 				let n,add = object_field n in
 				if PMap.mem n !fields then error ("Duplicate field in object declaration : " ^ n) p;
+				if n.[0] = '$' then error "Field names starting with a dollar are not allowed" p;
 				let e = try
 					let t = (PMap.find n a.a_fields).cf_type in
 					let e = Codegen.Abstract.check_cast ctx t (type_expr ctx e (match with_type with WithTypeResume _ -> WithTypeResume t | _ -> WithType t)) p in
@@ -2527,11 +2543,10 @@ and type_expr ctx (e,p) (with_type:with_type) =
 						unify_raise ctx e1.etype t e1.epos;
 						e1
 					with Error (Unify _,_) ->
-						let acc = acc_get ctx (type_field ctx e1 "iterator" e1.epos MCall) e1.epos in
-						let acc = (match acc.eexpr with TField (e,FClosure (c,f)) -> { acc with eexpr = TField (e,match c with None -> FAnon f | Some c -> FInstance (c,f)) } | _ -> acc) in
+						let acc = build_call ctx (type_field ctx e1 "iterator" e1.epos MCall) [] Value e1.epos in
 						try
-							unify_raise ctx acc.etype (tfun [] t) acc.epos;
-							make_call ctx acc [] t e1.epos
+							unify_raise ctx acc.etype t acc.epos;
+							acc
 						with Error (Unify(l),p) ->
 							display_error ctx "Field iterator has an invalid type" acc.epos;
 							display_error ctx (error_msg (Unify l)) p;
@@ -2650,13 +2665,13 @@ and type_expr ctx (e,p) (with_type:with_type) =
 					List.iter (fun pt ->
 						if pt != t_dynamic then error "Catch class parameter must be Dynamic" p;
 					) params;
-					add_feature ctx.com "typed_catch";
 					(match path with
 					| x :: _ , _ -> x
 					| [] , name -> name)
 				| TDynamic _ -> ""
 				| _ -> error "Catch type must be a class" p
 			) in
+			if v.[0] = '$' then display_error ctx "Catch variable names starting with a dollar are not allowed" p;
 			let locals = save_locals ctx in
 			let v = add_local ctx v t in
 			let e = type_expr ctx e with_type in
@@ -2669,7 +2684,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 	| EThrow e ->
 		let e = type_expr ctx e Value in
 		mk (TThrow e) (mk_mono()) p
-	| ECall (((EConst (Ident s),_) as e),el) ->
+	| ECall (((EConst (Ident s),pc) as e),el) ->
 		(try
 			let en,t = (match with_type with
 				| WithType t | WithTypeResume t ->
@@ -2685,7 +2700,13 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				ctx.on_error <- old;
 			in
 			ctx.on_error <- (fun ctx msg ep ->
-				raise Not_found;
+				(* raise Not_found only if the error is actually about the outside identifier (issue #2148) *)
+				if ep = pc then
+					raise Not_found
+				else begin
+					restore();
+					ctx.on_error ctx msg ep;
+				end
 			);
 			begin try
 				let e = type_call ctx e el with_type p in
@@ -2797,7 +2818,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		let v = (match v with
 			| None -> None
 			| Some v ->
-				if v.[0] = '$' then display_error ctx "Variables names starting with a dollar are not allowed" p;
+				if v.[0] = '$' then display_error ctx "Variable names starting with a dollar are not allowed" p;
 				Some (add_local ctx v ft)
 		) in
 		let e , fargs = Typeload.type_function ctx args rt (match ctx.curfun with FunStatic -> FunStatic | _ -> FunMemberLocal) f false p in
@@ -2846,7 +2867,6 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		let e = type_expr ctx e Value in
 		mk (TCast (e,None)) (mk_mono()) p
 	| ECast (e, Some t) ->
-		add_feature ctx.com "typed_cast";
 		let t = Typeload.load_complex_type ctx (pos e) t in
 		let texpr = (match follow t with
 		| TInst (_,params) | TEnum (_,params) ->
@@ -3073,7 +3093,7 @@ and type_call ctx e el (with_type:with_type) p =
 			mk (TCall (mk (TLocal (alloc_var "`trace" t_dynamic)) t_dynamic p,[e;infos])) ctx.t.tvoid p
 		else
 			let me = Meta.ToString,[],pos e in
-			type_expr ctx (ECall ((EField ((EField ((EConst (Ident "haxe"),p),"Log"),p),"trace"),p),[(EMeta (me,e),pos e);EUntyped infos,p]),p) NoValue
+			type_expr ctx (ECall ((EField ((EField ((EConst (Ident "haxe"),p),"Log"),p),"trace"),p),[(EMeta (me,e),pos e);infos]),p) NoValue
 	| (EConst(Ident "callback"),p1),args ->
 		let ecb = try Some (type_ident_raise ctx "callback" p1 MCall) with Not_found -> None in
 		(match ecb with
@@ -3129,6 +3149,9 @@ and build_call ctx acc el (with_type:with_type) p =
 		er,fun () -> ctx.this_stack <- List.tl ctx.this_stack
 	in
 	match acc with
+	| AKInline (ethis,f,fmode,t) when Meta.has Meta.Generic f.cf_meta ->
+		let el,t,e = type_generic_function ctx (ethis,f) el with_type p in
+		make_call ctx e el t p
 	| AKInline (ethis,f,fmode,t) ->
 		let params, tfunc = (match follow t with
 			| TFun (args,r) -> unify_call_params ctx (fopts ethis.etype f) el args r p true
@@ -3156,12 +3179,12 @@ and build_call ctx acc el (with_type:with_type) p =
 				| TAbstract(a,tl) when Meta.has Meta.Impl ef.cf_meta -> apply_params a.a_types tl t,apply_params a.a_types tl a.a_this
 				| te -> t,te
 			in
-			let params,args,r = match t with
+			let params,args,r,eparam = match t with
 				| TFun ((_,_,t1) :: args,r) ->
 					unify ctx tthis t1 eparam.epos;
 					let ef = prepare_using_field ef in
 					begin match unify_call_params ctx (Some (TInst(cl,[]),ef)) el args r p (ef.cf_kind = Method MethInline) with
-					| el,TFun(args,r) -> el,args,r
+					| el,TFun(args,r) -> el,args,r,Codegen.Abstract.check_cast ctx t1 eparam eparam.epos
 					| _ -> assert false
 					end
 				| _ -> assert false
@@ -3639,8 +3662,7 @@ let make_macro_api ctx p =
 			let m, tdef, pos = (try Interp.decode_type_def v with Interp.Invalid_expr -> Interp.exc (Interp.VString "Invalid type definition")) in
 			let mdep = Typeload.type_module ctx m ctx.m.curmod.m_extra.m_file [tdef,pos] pos in
 			mdep.m_extra.m_kind <- MFake;
-			mdep.m_extra.m_time <- -1.;
-			add_dependency ctx.m.curmod mdep;
+			add_dependency mdep ctx.m.curmod;
 		);
 		Interp.module_dependency = (fun mpath file ismacro ->
 			let m = typing_timer ctx (fun() -> Typeload.load_module ctx (parse_path mpath) p) in

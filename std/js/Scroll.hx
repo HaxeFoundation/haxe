@@ -21,11 +21,13 @@
  */
 package js;
 
+import js.Browser.*;
+
 class Scroll {
 
-	public static function getTop() : Int untyped {
+	public static function getTop() : Int {
 		var sy = window.pageYOffset;
-		if( __js__("typeof")(sy) == 'number' )
+		if( untyped __js__("typeof")(sy) == 'number' )
 			return sy;
 		if( document.body ) {
 			sy = document.body.scrollTop;
@@ -34,9 +36,9 @@ class Scroll {
 		return document.documentElement.scrollTop;
 	}
 
-	public static function getLeft() : Int untyped {
+	public static function getLeft() : Int {
 		var sx = window.pageXOffset;
-		if( __js__("typeof")(sx) == 'number' )
+		if( untyped __js__("typeof")(sx) == 'number' )
 			return sx;
 		if( document.body ) {
 			sx = document.body.scrollLeft;
@@ -45,7 +47,7 @@ class Scroll {
 		return document.documentElement.scrollLeft;
 	}
 
-	public static function set(left:Int,top:Int) untyped {
+	inline public static function set(left:Int,top:Int) {
 		window.scroll(left,top);
 	}
 

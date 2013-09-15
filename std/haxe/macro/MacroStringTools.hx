@@ -67,5 +67,20 @@ class MacroStringTools {
 		return Lambda.fold(sl, function(s, e) return e == null ? (macro $i{s}) : (macro $e.$s), null);
 	}
 	
+	/**
+		Converts a path given by package `pack` and name `name` to a `String`
+		separated by dots.
+		
+		If `pack` has no elements, the result is `name`.
+		
+		If `pack` is null, the result is unspecified.
+		
+		Otherwise the elements of `pack` are joined with a separating dot, with
+		an appended dot separating the result from `name`.
+	**/
+	static public function toDotPath(pack:Array<String>, name:String):String {
+		return if (pack.length == 0) name else pack.join(".") + "." +name;
+	}
+	
 	#end
 }

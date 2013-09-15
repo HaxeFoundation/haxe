@@ -285,6 +285,7 @@ and module_def_extra = {
 	mutable m_kind : module_kind;
 	mutable m_binded_res : (string, string) PMap.t;
 	mutable m_macro_calls : string list;
+	mutable m_features : (string *(tclass * tclass_field * bool)) list;
 }
 
 and module_kind =
@@ -382,6 +383,7 @@ let module_extra file sign time kind =
 		m_kind = kind;
 		m_binded_res = PMap.empty;
 		m_macro_calls = [];
+		m_features = [];
 	}
 
 
@@ -1159,7 +1161,7 @@ let rec unify a b =
 	| TEnum(en,_), TAbstract ({ a_path = ["haxe"],"FlatEnum" },[]) when Meta.has Meta.FlatEnum en.e_meta ->
 		()
 	| TFun _, TAbstract ({ a_path = ["haxe"],"Function" },[]) ->
-		()		
+		()
 	| TDynamic t , _ ->
 		if t == a then
 			()

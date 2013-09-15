@@ -34,6 +34,8 @@ type dce = {
 	mutable marked_fields : tclass_field list;
 	mutable marked_maybe_fields : tclass_field list;
 	mutable t_stack : t list;
+	mutable ts_stack : t list;
+	mutable features : (string,(tclass * tclass_field * bool) list) Hashtbl.t;
 }
 
 (* checking *)
@@ -50,38 +52,36 @@ let is_std_file dce file =
 (* check if a class is kept entirely *)
 let keep_whole_class dce c =
 	Meta.has Meta.Keep c.cl_meta
-	|| not (dce.full || is_std_file dce c.cl_module.m_extra.m_file)
+	|| not (dce.full || is_std_file dce c.cl_module.m_extra.m_file || has_meta Meta.Dce c.cl_meta)
 	|| super_forces_keep c
 	|| (match c with
-		| { cl_extern = true; cl_path = ([],("Math"|"Array"))} when dce.com.platform = Js -> false
+		| { cl_path = ([],("Math"|"Array"))} when dce.com.platform = Js -> false
 		| { cl_extern = true }
 		| { cl_path = ["flash";"_Boot"],"RealBoot" } -> true
 		| { cl_path = [],"String" }
 		| { cl_path = [],"Array" } -> not (dce.com.platform = Js)
 		| _ -> false)
 
-(* check if a metadata contains @:ifFeature with a used feature argument *)
-let has_used_feature com meta =
-	try
-		let _,el,_ = Meta.get Meta.IfFeature meta in
-		List.exists (fun e -> match fst e with
-			| EConst(String s) when Common.has_feature com s -> true
-			| _ -> false
-		) el
-	with Not_found ->
-		false
-
 (* check if a field is kept *)
 let keep_field dce cf =
 	Meta.has Meta.Keep cf.cf_meta
 	|| Meta.has Meta.Used cf.cf_meta
 	|| cf.cf_name = "__init__"
-	|| has_used_feature dce.com cf.cf_meta
 
 (* marking *)
 
+let rec check_feature dce s =
+	try
+		let l = Hashtbl.find dce.features s in
+		List.iter (fun (c,cf,stat) ->
+			mark_field dce c cf stat
+		) l;
+		Hashtbl.remove dce.features s;
+	with Not_found ->
+		()
+
 (* mark a field as kept *)
-let rec mark_field dce c cf stat =
+and mark_field dce c cf stat =
 	let add cf =
 		if not (Meta.has Meta.Used cf.cf_meta) then begin
 			cf.cf_meta <- (Meta.Used,[],cf.cf_pos) :: cf.cf_meta;
@@ -136,26 +136,34 @@ and mark_abstract dce a = if not (Meta.has Meta.Used a.a_meta) then
 	a.a_meta <- (Meta.Used,[],a.a_pos) :: a.a_meta
 
 (* mark a type as kept *)
-and mark_t dce t = match follow t with
-	| TInst({cl_kind = KTypeParameter tl} as c,pl) ->
-		if not (Meta.has Meta.Used c.cl_meta) then begin
-			c.cl_meta <- (Meta.Used,[],c.cl_pos) :: c.cl_meta;
-			List.iter (mark_t dce) tl;
+and mark_t dce t =
+	if not (List.exists (fun t2 -> Type.fast_eq t t2) dce.t_stack) then begin
+		dce.t_stack <- t :: dce.t_stack;
+		begin match follow t with
+		| TInst({cl_kind = KTypeParameter tl} as c,pl) ->
+			if not (Meta.has Meta.Used c.cl_meta) then begin
+				c.cl_meta <- (Meta.Used,[],c.cl_pos) :: c.cl_meta;
+				List.iter (mark_t dce) tl;
+			end;
+			List.iter (mark_t dce) pl
+		| TInst(c,pl) ->
+			mark_class dce c;
+			List.iter (mark_t dce) pl
+		| TFun(args,ret) ->
+			List.iter (fun (_,_,t) -> mark_t dce t) args;
+			mark_t dce ret
+		| TEnum(e,pl) ->
+			mark_enum dce e;
+			List.iter (mark_t dce) pl
+		| TAbstract(a,pl) when Meta.has Meta.MultiType a.a_meta ->
+			mark_t dce (snd (Codegen.Abstract.find_multitype_specialization a pl Ast.null_pos))
+		| TAbstract(a,pl) ->
+			mark_abstract dce a;
+			List.iter (mark_t dce) pl
+		| TLazy _ | TDynamic _ | TAnon _ | TType _ | TMono _ -> ()
 		end;
-		List.iter (mark_t dce) pl
-	| TInst(c,pl) ->
-		mark_class dce c;
-		List.iter (mark_t dce) pl
-	| TFun(args,ret) ->
-		List.iter (fun (_,_,t) -> mark_t dce t) args;
-		mark_t dce ret
-	| TEnum(e,pl) ->
-		mark_enum dce e;
-		List.iter (mark_t dce) pl
-	| TAbstract(a,pl) ->
-		mark_abstract dce a;
-		List.iter (mark_t dce) pl
-	| TLazy _ | TDynamic _ | TAnon _ | TType _ | TMono _ -> ()
+		dce.t_stack <- List.tl dce.t_stack
+	end
 
 let mark_mt dce mt = match mt with
 	| TClassDecl c ->
@@ -198,11 +206,11 @@ let opt f e = match e with None -> () | Some e -> f e
 
 let rec to_string dce t =
 	let push t =
-		dce.t_stack <- t :: dce.t_stack;
-		fun () -> dce.t_stack <- List.tl dce.t_stack
+		dce.ts_stack <- t :: dce.ts_stack;
+		fun () -> dce.ts_stack <- List.tl dce.ts_stack
 	in
 	let t = follow t in
-	if not (List.exists (fun t2 -> Type.fast_eq t t2) dce.t_stack) then match follow t with
+	if not (List.exists (fun t2 -> Type.fast_eq t t2) dce.ts_stack) then match follow t with
 	| TInst(c,pl) as t ->
 		let pop = push t in
 		field dce c "toString" false;
@@ -291,6 +299,7 @@ and expr dce e =
 			mark_t dce v.v_type;
 		) vl;
 	| TCast(e, Some mt) ->
+		check_feature dce "typed_cast";
 		mark_mt dce mt;
 		expr dce e;
 	| TTypeExpr mt ->
@@ -298,11 +307,13 @@ and expr dce e =
 	| TTry(e, vl) ->
 		expr dce e;
 		List.iter (fun (v,e) ->
+			if v.v_type != t_dynamic then check_feature dce "typed_catch";
 			expr dce e;
 			mark_t dce v.v_type;
 		) vl;
 	| TCall ({eexpr = TLocal ({v_name = "__define_feature__"})},[{eexpr = TConst (TString ft)};e]) ->
 		Common.add_feature dce.com ft;
+		check_feature dce ft;
 		expr dce e
 	(* keep toString method when the class is argument to Std.string or haxe.Log.trace *)
 	| TCall ({eexpr = TField({eexpr = TTypeExpr (TClassDecl ({cl_path = (["haxe"],"Log")} as c))},FStatic (_,{cf_name="trace"}))} as ef, ([e2;_] as args))
@@ -355,6 +366,8 @@ let run com main full =
 		marked_fields = [];
 		marked_maybe_fields = [];
 		t_stack = [];
+		ts_stack = [];
+		features = Hashtbl.create 0;
 	} in
 	begin match main with
 		| Some {eexpr = TCall({eexpr = TField(e,(FStatic(c,cf)))},_)} ->
@@ -362,6 +375,12 @@ let run com main full =
 		| _ ->
 			()
 	end;
+	List.iter (fun m ->
+		List.iter (fun (s,v) ->
+			if Hashtbl.mem dce.features s then Hashtbl.replace dce.features s (v :: Hashtbl.find dce.features s)
+			else Hashtbl.add dce.features s [v]
+		) m.m_extra.m_features;
+	) com.modules;
 	(* first step: get all entry points, which is the main method and all class methods which are marked with @:keep *)
 	List.iter (fun t -> match t with
 		| TClassDecl c ->
@@ -442,7 +461,7 @@ let run com main full =
 					if dce.debug then print_endline ("[DCE] Removed class " ^ (s_type_path c.cl_path));
 					loop acc l)
 			end
- 		| (TEnumDecl e) as mt :: l when Meta.has Meta.Used e.e_meta || Meta.has Meta.Keep e.e_meta || e.e_extern || not (dce.full || is_std_file dce e.e_module.m_extra.m_file) ->
+ 		| (TEnumDecl e) as mt :: l when Meta.has Meta.Used e.e_meta || Meta.has Meta.Keep e.e_meta || e.e_extern || not (dce.full || is_std_file dce e.e_module.m_extra.m_file || has_meta Meta.Dce e.e_meta) ->
 			loop (mt :: acc) l
 		| TEnumDecl e :: l ->
 			if dce.debug then print_endline ("[DCE] Removed enum " ^ (s_type_path e.e_path));

@@ -160,7 +160,8 @@ let make_path f =
 		| _ -> cl
 	) in
 	let error() =
-		let msg =
+		let msg = "Could not process argument " ^ f in
+		let msg = msg ^ "\n" ^
 			if String.length f == 0 then
 				"Class name must not be empty"
 			else match (List.hd (List.rev cl)).[0] with

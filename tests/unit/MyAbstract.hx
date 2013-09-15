@@ -314,4 +314,11 @@ abstract FakeEnumAbstract(Int) {
 	var NotFound = 404;
 	var MethodNotAllowed = 405;
 }
+
+@:expose(push, pop)
+abstract ExposingAbstract<S>(Array<S>) {
+	public inline function new() {
+		this = [];
+	}
+}
 #end
