@@ -997,7 +997,7 @@ let generate_class ctx c =
 
 		bend();
 		print ctx "\n}";
-		(match c.cl_super with None -> () | _ -> print ctx ")");
+		(match c.cl_super with None -> ctx.separator <- true | _ -> print ctx ")");
 		newline ctx
 	end
 
@@ -1131,7 +1131,7 @@ let generate com =
 	);
 	if List.exists (function TClassDecl { cl_extern = false; cl_super = Some _ } -> true | _ -> false) com.types then begin
 		print ctx "function $extend(from, fields) {
-	function inherit() {}; inherit.prototype = from; var proto = new inherit();
+	function Inherit() {} Inherit.prototype = from; var proto = new Inherit();
 	for (var name in fields) proto[name] = fields[name];
 	if( fields.toString !== Object.prototype.toString ) proto.toString = fields.toString;
 	return proto;
