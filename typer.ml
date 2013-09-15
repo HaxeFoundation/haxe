@@ -2908,6 +2908,9 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				if field_name fa = "bind" then (match follow e1.etype with
 					| TFun(args,ret) -> {e1 with etype = opt_args args ret}
 					| _ -> e)
+				else if field_name fa = "match" then (match follow e1.etype with
+					| TEnum _ as t -> {e1 with etype = tfun [t] ctx.t.tbool }
+					| _ -> e)
 				else if mode = "position" then (match extract_field fa with
 					| None -> e
 					| Some cf -> raise (Typecore.DisplayPosition [cf.cf_pos]))
@@ -2986,6 +2989,9 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				let t = opt_args args ret in
 				let cf = mk_field "bind" (tfun [t] t) p in
 				PMap.add "bind" cf PMap.empty
+			| TEnum(_) as t ->
+				let cf = mk_field "match" (tfun [t] ctx.t.tbool) p in
+				PMap.add "match" cf PMap.empty
 			| _ ->
 				PMap.empty
 		in
@@ -3112,6 +3118,15 @@ and type_call ctx e el (with_type:with_type) p =
 		let e = type_expr ctx e Value in
 		ctx.com.warning (s_type (print_context()) e.etype) e.epos;
 		e
+	| (EField(e,"match"),p), [epat] ->
+		let et = type_expr ctx e Value in
+		(match follow et.etype with
+			| TEnum _ as t ->
+				let e = match_expr ctx e [[epat],None,Some (EConst(Ident "true"),p)] (Some (Some (EConst(Ident "false"),p))) (WithType ctx.t.tbool) p in
+				let locals = !get_pattern_locals_ref ctx epat t in
+				PMap.iter (fun _ (_,p) -> display_error ctx "Capture variables are not allowed" p) locals;
+				Codegen.PatternMatchConversion.to_typed_ast ctx e p
+			| _ -> def ())
 	| (EConst (Ident "__unprotect__"),_) , [(EConst (String _),_) as e] ->
 		let e = type_expr ctx e Value in
 		if Common.platform ctx.com Flash then
