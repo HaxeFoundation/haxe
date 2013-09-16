@@ -3786,7 +3786,7 @@ class script_writer common_ctx filename =
 	method begin_expr = this#push_indent
 	method end_expr = if not just_finished_block then this#write "\n"; this#pop_indent; just_finished_block <- true
    method func isStatic funcName ret args isInterface fieldExpression =
-       this#write ("FUNCION " ^ (this#staticText isStatic) ^ " " ^ (this#stringText funcName) ^ " ");
+       this#write ("FUNCTION " ^ (this#staticText isStatic) ^ " " ^ (this#stringText funcName) ^ " ");
        this#write ((this#typeText ret) ^ (string_of_int (List.length args)) ^ " ");
        List.iter (fun (name,opt,typ) -> this#write ( (this#stringText name) ^ (this#boolText opt) ^ " " ^ (this#typeText typ) ^ " " )) args;
        this#write "\n";
@@ -4071,6 +4071,12 @@ let generate_cppia common_ctx =
 		| TTypeDecl _ | TAbstractDecl _ -> (* already done *) ()
 		);
 	) common_ctx.types;
+
+	(match common_ctx.main with
+	| None -> script#write "NOMAIN\n"
+	| Some e -> script#write "MAIN\n";
+         script#gen_expression e
+   );
 
    script#close
 ;;
