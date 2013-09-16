@@ -411,7 +411,7 @@ let to_pattern ctx e t =
 						ignore(follow cf.cf_type);
 						let e = begin match cf.cf_expr with
 						| Some ({eexpr = TConst c | TCast({eexpr = TConst c},None)} as e) -> e
-						| _ -> print_endline "Not found"; raise Not_found
+						| _ -> raise Not_found
 						end in
 						e
 					| _ ->
@@ -1067,8 +1067,6 @@ let match_expr ctx e cases def with_type p =
 	(* turn subjects to subterms and handle variable initialization where necessary *)
 	let stl = ExtList.List.mapi (fun i e ->
 		let rec loop e = match e.eexpr with
-			| TField (ef,s) when (match s with FEnum _ -> false | _ -> true) ->
-				mk_st (SField(loop ef,field_name s)) e.etype e.epos
 			| TParenthesis e | TMeta(_,e) ->
 				loop e
 			| TLocal v ->
