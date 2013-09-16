@@ -1273,11 +1273,22 @@ and unify_types a b tl1 tl2 =
 			type_eq EqRightDynamic t1 t2
 		with Unify_error l ->
 			let err = cannot_unify a b in
+			let allows_variance_to t (tf,cfo) = match cfo with
+				| None -> type_iseq tf t
+				| Some _ -> false
+			in
 			(try (match follow t1, follow t2 with
 				| TAbstract({a_impl = Some _} as a1,pl1),TAbstract({a_impl = Some _ } as a2,pl2) ->
-					type_eq EqStrict (apply_params a1.a_types pl1 a1.a_this) (apply_params a2.a_types pl2 a2.a_this)
-				| TAbstract({a_impl = Some _} as a,pl),t -> type_eq EqStrict (apply_params a.a_types pl a.a_this) t
-				| t,TAbstract({a_impl = Some _ } as a,pl) -> type_eq EqStrict t (apply_params a.a_types pl a.a_this)
+					let ta1 = apply_params a1.a_types pl1 a1.a_this in
+					let ta2 = apply_params a2.a_types pl2 a2.a_this in
+					type_eq EqStrict ta1 ta2;
+					if not (List.exists (allows_variance_to ta2) a1.a_to) && not (List.exists (allows_variance_to ta1) a2.a_from) then raise (Unify_error l)
+				| TAbstract({a_impl = Some _} as a,pl),t ->
+					type_eq EqStrict (apply_params a.a_types pl a.a_this) t;
+					if not (List.exists (allows_variance_to t) a.a_to) then raise (Unify_error l)
+				| t,TAbstract({a_impl = Some _ } as a,pl) ->
+					type_eq EqStrict t (apply_params a.a_types pl a.a_this);
+					if not (List.exists (allows_variance_to t) a.a_from) then raise (Unify_error l)
 				| _ -> raise (Unify_error l))
 			with Unify_error _ ->
 				error (err :: (Invariant_parameter (t1,t2)) :: l))
