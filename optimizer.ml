@@ -382,7 +382,7 @@ let rec type_inline ctx cf f ethis params tret config p force =
 
 		This could be fixed with better post process code cleanup (planed)
 	*)
-	if !cancel_inlining || (Common.platform ctx.com Js && not !force && (init <> None || !has_vars)) then
+	if !cancel_inlining then
 		None
 	else
 		let wrap e =
