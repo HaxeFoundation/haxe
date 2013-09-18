@@ -47,21 +47,6 @@ let error_msg = function
 let error m p = raise (Error (m,p))
 let display_error : (error_msg -> pos -> unit) ref = ref (fun _ _ -> assert false)
 
-let quoted_ident_prefix = "@$__hx__"
-
-let quote_ident s =
-	try
-		for i = 0 to String.length s - 1 do
-			match String.unsafe_get s i with
-			| 'a'..'z' | 'A'..'Z' | '_' -> ()
-			| '0'..'9' when i > 0 -> ()
-			| _ -> raise Exit
-		done;
-		if Hashtbl.mem Lexer.keywords s then raise Exit;
-		s
-	with Exit ->
-		quoted_ident_prefix ^ s
-
 let cache = ref (DynArray.create())
 let last_doc = ref None
 let use_doc = ref false
@@ -846,9 +831,8 @@ and parse_complex_type_next t = parser
 			CTFunction ([t] , t2))
 	| [< >] -> t
 
-and parse_type_anonymous opt = parser
-	| [< '(Question,_) when not opt; s >] -> parse_type_anonymous true s
-	| [< name, p1 = ident; '(DblDot,_); t = parse_complex_type; s >] ->
+and parse_type_anonymous opt =
+	let field name p1 t s =
 		let next p2 acc =
 			let t = if not opt then t else (match t with
 				| CTPath { tpackage = []; tname = "Null" } -> t
@@ -863,14 +847,18 @@ and parse_type_anonymous opt = parser
 				cff_pos = punion p1 p2;
 			} :: acc
 		in
-		match s with parser
+		(match s with parser
 		| [< '(BrClose,p2) >] -> next p2 []
 		| [< '(Comma,p2) >] ->
 			(match s with parser
 			| [< '(BrClose,_) >] -> next p2 []
 			| [< l = parse_type_anonymous false >] -> next p2 l
 			| [< >] -> serror());
-		| [< >] -> serror()
+		| [< >] -> serror())
+	in parser
+	| [< '(Question,_) when not opt; s >] -> parse_type_anonymous true s
+	| [< name, p1 = ident; '(DblDot,_); t = parse_complex_type; s >] -> field name p1 t s
+	| [< '(Const (String name), p1); '(DblDot,_); t = parse_complex_type; s >] -> field name p1 t s
 
 and parse_enum s =
 	let doc = get_doc s in
@@ -1010,7 +998,7 @@ and parse_class_herit = parser
 
 and block1 = parser
 	| [< name,p = dollar_ident; s >] -> block2 name (Ident name) p s
-	| [< '(Const (String name),p); s >] -> block2 (quote_ident name) (String name) p s
+	| [< '(Const (String name),p); s >] -> block2 name (String name) p s
 	| [< b = block [] >] -> EBlock b
 
 and block2 name ident p s =
@@ -1051,7 +1039,7 @@ and parse_obj_decl = parser
 	| [< '(Comma,_); s >] ->
 		(match s with parser
 		| [< name, _ = ident; '(DblDot,_); e = expr; l = parse_obj_decl >] -> (name,e) :: l
-		| [< '(Const (String name),_); '(DblDot,_); e = expr; l = parse_obj_decl >] -> (quote_ident name,e) :: l
+		| [< '(Const (String name),_); '(DblDot,_); e = expr; l = parse_obj_decl >] -> (name,e) :: l
 		| [< >] -> [])
 	| [< >] -> []
 
@@ -1204,6 +1192,7 @@ and expr_next e1 = parser
 		| [< '(Kwd Macro,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,"macro") , punion (pos e1) p2) s
 		| [< '(Kwd New,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,"new") , punion (pos e1) p2) s
 		| [< '(Const (Ident f),p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,f) , punion (pos e1) p2) s
+		| [< '(Const (String f),p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,f) , punion (pos e1) p2) s
 		| [< '(Dollar v,p2); s >] -> expr_next (EField (e1,"$"^v) , punion (pos e1) p2) s
 		| [< '(Binop OpOr,p2) when do_resume() >] ->
 			set_resume p;
