@@ -93,11 +93,6 @@ let rec classify t =
 	| TDynamic _ -> KDyn
 	| _ -> KOther
 
-let object_field f =
-	let pf = Parser.quoted_ident_prefix in
-	let pflen = String.length pf in
-	if String.length f >= pflen && String.sub f 0 pflen = pf then String.sub f pflen (String.length f - pflen), false else f, true
-
 let get_iterator_param t =
 	match follow t with
 	| TAnon a ->
@@ -2354,13 +2349,12 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		(match a with
 		| None ->
 			let rec loop (l,acc) (f,e) =
-				let f,add = object_field f in
 				if PMap.mem f acc then error ("Duplicate field in object declaration : " ^ f) p;
 				if f.[0] = '$' then error "Field names starting with a dollar are not allowed" p;
 				let e = type_expr ctx e Value in
 				(match follow e.etype with TAbstract({a_path=[],"Void"},_) -> error "Fields of type Void are not allowed in structures" e.epos | _ -> ());
 				let cf = mk_field f e.etype e.epos in
-				((f,e) :: l, if add then PMap.add f cf acc else acc)
+				((f,e) :: l, PMap.add f cf acc)
 			in
 			let fields , types = List.fold_left loop ([],PMap.empty) fl in
 			let x = ref Const in
@@ -2370,7 +2364,6 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			let fields = ref PMap.empty in
 			let extra_fields = ref [] in
 			let fl = List.map (fun (n, e) ->
-				let n,add = object_field n in
 				if PMap.mem n !fields then error ("Duplicate field in object declaration : " ^ n) p;
 				if n.[0] = '$' then error "Field names starting with a dollar are not allowed" p;
 				let e = try
@@ -2382,10 +2375,8 @@ and type_expr ctx (e,p) (with_type:with_type) =
 					extra_fields := n :: !extra_fields;
 					type_expr ctx e Value
 				in
-				if add then begin
-					let cf = mk_field n e.etype e.epos in
-					fields := PMap.add n cf !fields;
-				end;
+				let cf = mk_field n e.etype e.epos in
+				fields := PMap.add n cf !fields;
 				(n,e)
 			) fl in
 			let t = (TAnon { a_fields = !fields; a_status = ref Const }) in
