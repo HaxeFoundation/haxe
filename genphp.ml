@@ -314,12 +314,24 @@ let is_keyword n =
 	| "clone" | "instanceof" | "break" | "case" | "class" | "continue" | "default" | "do" | "else" | "extends" | "for" | "function" | "if" | "new" | "return" | "static" | "switch" | "var" | "while" | "interface" | "implements" | "public" | "private" | "try" | "catch" | "throw" -> true
 	| _ -> false
 
+let valid_php_ident s =
+	try
+		for i = 0 to String.length s - 1 do
+			match String.unsafe_get s i with
+			| 'a'..'z' | 'A'..'Z' | '_' -> ()
+			| '0'..'9' when i > 0 -> ()
+			| _ -> raise Exit
+		done;
+		true
+	with Exit ->
+		false
+
 let s_ident n =
 	let suf = "h" in
 	if (is_keyword n) then (suf ^ n) else n
 
 let s_ident_field n =
-	if (is_keyword n) then ("{\"" ^ (escape_bin n) ^ "\"}") else n
+	if (is_keyword n || not (valid_php_ident n)) then ("{\"" ^ (escape_bin n) ^ "\"}") else n
 
 let s_ident_local n =
 	let suf = "h" in
