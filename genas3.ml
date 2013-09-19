@@ -116,6 +116,18 @@ let reserved =
 
 	(* "each", "label" : removed (actually allowed in locals and fields accesses) *)
 
+let valid_as3_ident s =
+	try
+		for i = 0 to String.length s - 1 do
+			match String.unsafe_get s i with
+			| 'a'..'z' | 'A'..'Z' | '_' -> ()
+			| '0'..'9' when i > 0 -> ()
+			| _ -> raise Exit
+		done;
+		true
+	with Exit ->
+		false
+
 let s_ident n =
 	if Hashtbl.mem reserved n then "_" ^ n else n
 
@@ -537,7 +549,11 @@ and gen_field_access ctx t s =
 	| TAnon a ->
 		(match !(a.a_status) with
 		| Statics c -> field c
-		| _ -> print ctx ".%s" (s_ident s))
+		| _ ->
+			let name = s_ident s in
+			if (valid_as3_ident name)
+				then (print ctx ".%s" name)
+				else (print ctx "[\"%s\"]" name))
 	| _ ->
 		print ctx ".%s" (s_ident s)
 
@@ -704,7 +720,12 @@ and gen_expr ctx e =
 		handle_break();
 	| TObjectDecl fields ->
 		spr ctx "{ ";
-		concat ctx ", " (fun (f,e) -> print ctx "%s : " (s_ident f); gen_value ctx e) fields;
+		concat ctx ", " (fun (f,e) ->
+            let name = s_ident f in
+            (if (valid_as3_ident name)
+                then print ctx "%s : " name
+                else print ctx "\"%s\" : " name);
+            gen_value ctx e) fields;
 		spr ctx "}"
 	| TFor (v,it,e) ->
 		let handle_break = handle_break ctx e in
