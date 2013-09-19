@@ -129,37 +129,37 @@ end
 
 let rec mark_enum dce e = if not (Meta.has Meta.Used e.e_meta) then begin
 	e.e_meta <- (Meta.Used,[],e.e_pos) :: e.e_meta;
-	PMap.iter (fun _ ef -> mark_t dce ef.ef_type) e.e_constrs;
+	PMap.iter (fun _ ef -> mark_t dce ef.ef_pos ef.ef_type) e.e_constrs;
 end
 
 and mark_abstract dce a = if not (Meta.has Meta.Used a.a_meta) then
 	a.a_meta <- (Meta.Used,[],a.a_pos) :: a.a_meta
 
 (* mark a type as kept *)
-and mark_t dce t =
+and mark_t dce p t =
 	if not (List.exists (fun t2 -> Type.fast_eq t t2) dce.t_stack) then begin
 		dce.t_stack <- t :: dce.t_stack;
 		begin match follow t with
 		| TInst({cl_kind = KTypeParameter tl} as c,pl) ->
 			if not (Meta.has Meta.Used c.cl_meta) then begin
 				c.cl_meta <- (Meta.Used,[],c.cl_pos) :: c.cl_meta;
-				List.iter (mark_t dce) tl;
+				List.iter (mark_t dce p) tl;
 			end;
-			List.iter (mark_t dce) pl
+			List.iter (mark_t dce p) pl
 		| TInst(c,pl) ->
 			mark_class dce c;
-			List.iter (mark_t dce) pl
+			List.iter (mark_t dce p) pl
 		| TFun(args,ret) ->
-			List.iter (fun (_,_,t) -> mark_t dce t) args;
-			mark_t dce ret
+			List.iter (fun (_,_,t) -> mark_t dce p t) args;
+			mark_t dce p ret
 		| TEnum(e,pl) ->
 			mark_enum dce e;
-			List.iter (mark_t dce) pl
+			List.iter (mark_t dce p) pl
 		| TAbstract(a,pl) when Meta.has Meta.MultiType a.a_meta ->
-			mark_t dce (snd (Codegen.Abstract.find_multitype_specialization a pl Ast.null_pos))
+			mark_t dce p (snd (Codegen.Abstract.find_multitype_specialization a pl p))
 		| TAbstract(a,pl) ->
 			mark_abstract dce a;
-			List.iter (mark_t dce) pl
+			List.iter (mark_t dce p) pl
 		| TLazy _ | TDynamic _ | TAnon _ | TType _ | TMono _ -> ()
 		end;
 		dce.t_stack <- List.tl dce.t_stack
@@ -286,17 +286,17 @@ and field dce c n stat =
 		if dce.debug then prerr_endline ("[DCE] Field " ^ n ^ " not found on " ^ (s_type_path c.cl_path)) else ())
 
 and expr dce e =
-	mark_t dce e.etype;
+	mark_t dce e.epos e.etype;
 	match e.eexpr with
 	| TNew(c,pl,el) ->
 		mark_class dce c;
 		field dce c "new" false;
 		List.iter (expr dce) el;
-		List.iter (mark_t dce) pl;
+		List.iter (mark_t dce e.epos) pl;
 	| TVars vl ->
-		List.iter (fun (v,e) ->
-			opt (expr dce) e;
-			mark_t dce v.v_type;
+		List.iter (fun (v,e1) ->
+			opt (expr dce) e1;
+			mark_t dce e.epos v.v_type;
 		) vl;
 	| TCast(e, Some mt) ->
 		check_feature dce "typed_cast";
@@ -309,7 +309,7 @@ and expr dce e =
 		List.iter (fun (v,e) ->
 			if v.v_type != t_dynamic then check_feature dce "typed_catch";
 			expr dce e;
-			mark_t dce v.v_type;
+			mark_t dce e.epos v.v_type;
 		) vl;
 	| TCall ({eexpr = TLocal ({v_name = "__define_feature__"})},[{eexpr = TConst (TString ft)};e]) ->
 		Common.add_feature dce.com ft;
@@ -323,7 +323,7 @@ and expr dce e =
 		expr dce ef;
 		List.iter (expr dce) args;
 	| TCall ({eexpr = TConst TSuper} as e,el) ->
-		mark_t dce e.etype;
+		mark_t dce e.epos e.etype;
 		List.iter (expr dce) el;
 	| TField(e,fa) ->
 		begin match fa with
@@ -415,7 +415,7 @@ let run com main full =
 			List.iter (fun (c,cf,stat) ->
 				mark_class dce c;
 				mark_field dce c cf stat;
-				mark_t dce cf.cf_type
+				mark_t dce cf.cf_pos cf.cf_type
 			) cfl;
 			(* follow expressions to new types/fields *)
 			List.iter (fun (_,cf,_) ->
