@@ -37,6 +37,10 @@ class Lib {
 		untyped __js__("alert")(js.Boot.__string_rec(v,""));
 	}
 
+	public static function confirm( v : Dynamic ) : Bool {
+		return untyped __js__("confirm")(js.Boot.__string_rec(v,""));
+	}
+	
 	public static inline function eval( code : String ) : Dynamic {
 		return untyped __js__("eval")(code);
 	}
