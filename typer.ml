@@ -2356,11 +2356,13 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			let rec loop (l,acc) (f,e) =
 				let f,add = object_field f in
 				if PMap.mem f acc then error ("Duplicate field in object declaration : " ^ f) p;
-				if f.[0] = '$' then error "Field names starting with a dollar are not allowed" p;
 				let e = type_expr ctx e Value in
 				(match follow e.etype with TAbstract({a_path=[],"Void"},_) -> error "Fields of type Void are not allowed in structures" e.epos | _ -> ());
 				let cf = mk_field f e.etype e.epos in
-				((f,e) :: l, if add then PMap.add f cf acc else acc)
+				((f,e) :: l, if add then begin
+					if f.[0] = '$' then error "Field names starting with a dollar are not allowed" p;
+					PMap.add f cf acc
+				end else acc)
 			in
 			let fields , types = List.fold_left loop ([],PMap.empty) fl in
 			let x = ref Const in
@@ -2372,7 +2374,6 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			let fl = List.map (fun (n, e) ->
 				let n,add = object_field n in
 				if PMap.mem n !fields then error ("Duplicate field in object declaration : " ^ n) p;
-				if n.[0] = '$' then error "Field names starting with a dollar are not allowed" p;
 				let e = try
 					let t = (PMap.find n a.a_fields).cf_type in
 					let e = Codegen.Abstract.check_cast ctx t (type_expr ctx e (match with_type with WithTypeResume _ -> WithTypeResume t | _ -> WithType t)) p in
@@ -2383,6 +2384,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 					type_expr ctx e Value
 				in
 				if add then begin
+					if n.[0] = '$' then error "Field names starting with a dollar are not allowed" p;
 					let cf = mk_field n e.etype e.epos in
 					fields := PMap.add n cf !fields;
 				end;
