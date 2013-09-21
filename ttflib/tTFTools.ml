@@ -184,38 +184,24 @@ let map_char_code cc c4 =
 	end
 
 let parse_range_str str =
-	let len = String.length str in
-	let last = ref str.[0] in
-	let offset = ref 1 in
+	let last = ref (Char.code '\\') in
+	let range = ref false in
 	let lut = Hashtbl.create 0 in
-	if len = 1 then
-		Hashtbl.add lut (Char.code !last) true
-	else
-		while !offset < len do
-			let cur = str.[!offset] in
-			begin match cur with
-			| '-' when !last = '\\' ->
-				Hashtbl.replace lut (Char.code '-') true;
-				incr offset;
-			| c when !offset = len - 1 ->
-				Hashtbl.replace lut (Char.code !last) true;
-				Hashtbl.replace lut (Char.code cur) true;
-				incr offset
-			| '-' ->
-				let first, last = match Char.code !last, Char.code str.[!offset + 1] with
-					| first,last when first > last -> last,first
-					| first,last -> first,last
-				in
-				for i = first to last do
-					Hashtbl.add lut i true
-				done;
-				offset := !offset + 2;
-			| c ->
-				Hashtbl.replace lut (Char.code !last) true;
-				incr offset;
-			end;
-			last := cur;
-		done;
+	UTF8.iter (fun code ->
+		let code = UChar.code code in
+		if code = Char.code '-' && !last <> Char.code '\\' then
+			range := true
+		else if !range then begin
+			range := false;
+			for i = !last to code do
+				Hashtbl.replace lut i true;
+			done;
+		end else begin
+			Hashtbl.replace lut code true;
+			last := code;
+		end
+	) str;
+	if !range then Hashtbl.replace lut (Char.code '-') true;
 	lut
 
 let build_lut ttf range_str =
