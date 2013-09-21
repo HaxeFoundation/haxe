@@ -47,3 +47,4 @@
 /haxe.sublime*
 build.bat
 tests/unit/compile.php.hxml
+/doc/*.xml

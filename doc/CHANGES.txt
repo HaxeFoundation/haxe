@@ -15,6 +15,7 @@
 	js : added -D js-flatten
 	macro : allowed $v{(c:Float|Int|String)}
 	macro : resolve error line number in external files
+	flash : fixed font embedding with UTF8 chars
 
 2013-05-25: 3.0.0
 	all : added haxe.ds.BalancedTree
