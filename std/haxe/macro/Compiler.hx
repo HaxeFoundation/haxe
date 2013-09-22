@@ -154,6 +154,73 @@ class Compiler {
 	}
 
 	/**
+		Exclude multiple classes and packages from being generated.
+		Faster than invoke `exclude` multiple times.
+	**/
+	public static function multiExclude(moduleSet:Iterable<ExcludeEntry>):Void
+	{
+		// do not force exclusion when using completion
+		if( Context.defined("display") )
+			return;
+		var moduleNames =
+			#if haxe3
+				new haxe.ds.StringMap<Bool>();
+			#else
+				new Hash<Bool>();
+			#end
+		for (entry in moduleSet) {
+			var pack = entry.pack;
+			var rec = entry.rec;
+			if (rec == null) {
+				rec = true;
+			}
+			var classPaths = Context.getClassPath();
+			// normalize class path
+			for( i in 0...classPaths.length ) {
+				var cp = StringTools.replace(classPaths[i], "\\", "/");
+				if(StringTools.endsWith(cp, "/"))
+					cp = cp.substr(0, -1);
+				if( cp == "" )
+					cp = ".";
+				classPaths[i] = cp;
+			}
+			var prefix = pack == '' ? '' : pack + '.';
+			for( cp in classPaths ) {
+				var path = pack == '' ? cp : cp + "/" + pack.split(".").join("/");
+				function excludePackage(prefix, path) {
+					if( !sys.FileSystem.exists(path) || !sys.FileSystem.isDirectory(path) )
+						return;
+					for( file in sys.FileSystem.readDirectory(path) ) {
+						if( StringTools.endsWith(file, ".hx") ) {
+							var cl = prefix + file.substr(0, file.length - 3);
+							moduleNames.set(cl, true);
+						} else {
+							var subpath = path + "/" + file;
+							var subprefix = prefix + file;
+							if( rec && sys.FileSystem.isDirectory(subpath) )
+								excludePackage(subprefix, subpath);
+						}
+					}
+				}
+				excludePackage(prefix, path);
+			}
+		}
+		Context.onGenerate(function(types) {
+			for (type in types) {
+				var baseType =
+					switch (type) {
+						case TType(t, _): var b:BaseType = t.get(); b;
+						case TInst(t, _): t.get();
+						case TEnum(t, _): t.get();
+						default: continue;
+					}
+				if (moduleNames.get(baseType.module))
+					baseType.exclude();
+			}
+		});
+	}
+
+	/**
 		Exclude classes listed in an extern file (one per line) from being generated.
 	**/
 	public static function excludeFile( fileName : String ) {
@@ -311,5 +378,15 @@ class Compiler {
 		return { expr : EUntyped( { expr : ECall( { expr : EConst(CIdent("__js__")), pos : p }, [ { expr : EConst(CString(f)), pos : p } ]), pos : p } ), pos : p };
 	}
 	#end
+
+}
+
+typedef ExcludeEntry =
+{
+
+	var pack(default, never):String;
+
+	@:optional
+	var rec(default, never):Null<Bool>;
 
 }
