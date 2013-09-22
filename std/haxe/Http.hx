@@ -67,8 +67,8 @@ class Http {
 	public var async : Bool;
 #end
 	var postData : String;
-	var headers : haxe.ds.StringMap<String>;
-	var params : haxe.ds.StringMap<String>;
+	var headers : List<{ header:String, value:String }>;
+	var params : List<{ param:String, value:String }>;
 
 	#if sys
 	public static var PROXY : { host : String, port : Int, auth : { user : String, pass : String } } = null;
@@ -87,8 +87,9 @@ class Http {
 	**/
 	public function new( url : String ) {
 		this.url = url;
-		headers = new haxe.ds.StringMap();
-		params = new haxe.ds.StringMap();
+		headers = new List<{ header:String, value:String }>();
+		params = new List<{ param:String, value:String }>();
+		
 		#if js
 		async = true;
 		#elseif sys
@@ -107,10 +108,16 @@ class Http {
 		This method provides a fluent interface.
 	**/
 	public function setHeader( header : String, value : String ):Http {
-		headers.set(header, value);
+		headers = Lambda.filter(headers, function(h) return h.header != header);
+		headers.push({ header:header, value:value });
 		return this;
 	}
 
+	public function addHeader( header : String, value : String ):Http {
+		headers.push({ header:header, value:value });
+		return this;
+	}
+	
 	/**
 		Sets the parameter identified as `param` to value `value`.
 
@@ -119,10 +126,16 @@ class Http {
 		This method provides a fluent interface.
 	**/
 	public function setParameter( param : String, value : String ):Http {
-		params.set(param, value);
+		params = Lambda.filter(params, function(p) return p.param != param);
+		params.push({ param:param, value:value });
 		return this;
 	}
 
+	public function addParameter( param : String, value : String ):Http {
+		params.push({ param:param, value:value });
+		return this;
+	}
+	
 	#if !flash8
 	/**
 		Sets the post data of `this` Http request to `data`.
@@ -189,12 +202,12 @@ class Http {
 		var uri = postData;
 		if( uri != null )
 			post = true;
-		else for( p in params.keys() ) {
+		else for( p in params ) {
 			if( uri == null )
 				uri = "";
 			else
 				uri += "&";
-			uri += StringTools.urlEncode(p)+"="+StringTools.urlEncode(params.get(p));
+			uri += StringTools.urlEncode(p.param)+"="+StringTools.urlEncode(p.value);
 		}
 		try {
 			if( post )
@@ -209,11 +222,11 @@ class Http {
 			onError(e.toString());
 			return;
 		}
-		if( headers.get("Content-Type") == null && post && postData == null )
+		if( !Lambda.exists(headers, function(h) return h.header == "Content-Type") && post && postData == null )
 			r.setRequestHeader("Content-Type","application/x-www-form-urlencoded");
 
-		for( h in headers.keys() )
-			r.setRequestHeader(h,headers.get(h));
+		for( h in headers )
+			r.setRequestHeader(h.header,h.value);
 		r.send(uri);
 		if( !async )
 			onreadystatechange(null);
@@ -229,7 +242,7 @@ class Http {
 			if( e.status != 0 )
 				me.onStatus( e.status );
 		});
-		loader.addEventListener( "ioError", function(e:flash.events.IOErrorEvent) {
+		loader.addEventListener( "ioError", function(e:flash.events.IOErrorEvent){
 			me.responseData = loader.data;
 			me.onError(e.text);
 		});
@@ -240,9 +253,9 @@ class Http {
 		// headers
 		var param = false;
 		var vars = new flash.net.URLVariables();
-		for( k in params.keys() ){
+		for( p in params ){
 			param = true;
-			Reflect.setField(vars,k,params.get(k));
+			Reflect.setField(vars,p.param,p.value);
 		}
 		var small_url = url;
 		if( param && !post ){
@@ -256,8 +269,8 @@ class Http {
 		var bug = small_url.split("xxx");
 
 		var request = new flash.net.URLRequest( small_url );
-		for( k in headers.keys() )
-			request.requestHeaders.push( new flash.net.URLRequestHeader(k,headers.get(k)) );
+		for( h in headers )
+			request.requestHeaders.push( new flash.net.URLRequestHeader(h.header,h.value) );
 
 		if( postData != null ) {
 			request.data = postData;
@@ -293,12 +306,12 @@ class Http {
 		untyped ASSetPropFlags(r,"onHTTPStatus",7);
 		#end
 		untyped ASSetPropFlags(r,"onData",7);
-		for( h in headers.keys() )
-			r.addRequestHeader(h,headers.get(h));
+		for( h in headers )
+			r.addRequestHeader(h.header,h.value);
 		var param = false;
-		for( p in params.keys() ) {
+		for( p in params ) {
 			param = true;
-			Reflect.setField(r,p,params.get(p));
+			Reflect.setField(r,p.param,p.value);
 		}
 		var small_url = url;
 		if( param && !post ) {
@@ -377,16 +390,16 @@ class Http {
 			while( boundary.length < 38 )
 				boundary = "-" + boundary;
 			var b = new StringBuf();
-			for( p in params.keys() ) {
+			for( p in params ) {
 				b.add("--");
 				b.add(boundary);
 				b.add("\r\n");
 				b.add('Content-Disposition: form-data; name="');
-				b.add(p);
+				b.add(p.param);
 				b.add('"');
 				b.add("\r\n");
 				b.add("\r\n");
-				b.add(params.get(p));
+				b.add(p.value);
 				b.add("\r\n");
 			}
 			b.add("--");
@@ -401,12 +414,12 @@ class Http {
 			b.add("Content-Type: "+"application/octet-stream"+"\r\n"+"\r\n");
 			uri = b.toString();
 		} else {
-			for( p in params.keys() ) {
+			for( p in params ) {
 				if( uri == null )
 					uri = "";
 				else
 					uri += "&";
-				uri += StringTools.urlEncode(p)+"="+StringTools.urlEncode(params.get(p));
+				uri += StringTools.urlEncode(p.param)+"="+StringTools.urlEncode(p.value);
 			}
 		}
 
@@ -440,7 +453,7 @@ class Http {
 		if( postData != null )
 			b.add("Content-Length: "+postData.length+"\r\n");
 		else if( post && uri != null ) {
-			if( multipart || headers.get("Content-Type") == null ) {
+			if( multipart || !Lambda.exists(headers, function(h) return h.header == "Content-Type") ) {
 				b.add("Content-Type: ");
 				if( multipart ) {
 					b.add("multipart/form-data");
@@ -455,10 +468,10 @@ class Http {
 			else
 				b.add("Content-Length: "+uri.length+"\r\n");
 		}
-		for( h in headers.keys() ) {
-			b.add(h);
+		for( h in headers ) {
+			b.add(h.header);
 			b.add(": ");
-			b.add(headers.get(h));
+			b.add(h.value);
 			b.add("\r\n");
 		}
 		b.add("\r\n");
