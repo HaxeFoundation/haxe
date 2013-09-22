@@ -133,10 +133,10 @@ class Output {
 		}
 		var exp = Math.floor(Math.log(Math.abs(x)) / LN2);
 		var sig = (Math.floor(Math.abs(x) / Math.pow(2, exp) * (2 << 22)) & 0x7FFFFF);
-		var b1 = (exp + 0x7F) >> 1 | (exp>0 ? ((x<0) ? 1<<7 : 1<<6) : ((x<0) ? 1<<7 : 0)),
-			b2 = (exp + 0x7F) << 7 & 0xFF | (sig >> 16 & 0x7F),
-			b3 = (sig >> 8) & 0xFF,
-			b4 = sig & 0xFF;
+		var b4 = (exp + 0x7F) >> 1 | (exp>0 ? ((x<0) ? 1<<7 : 1<<6) : ((x<0) ? 1<<7 : 0)),
+			b3 = (exp + 0x7F) << 7 & 0xFF | (sig >> 16 & 0x7F),
+			b2 = (sig >> 8) & 0xFF,
+			b1 = sig & 0xFF;
 		if (bigEndian)
 		{
 			writeByte(b4); writeByte(b3); writeByte(b2); writeByte(b1);
@@ -204,14 +204,14 @@ class Output {
 		var sig : Int = Math.floor(Math.abs(x) / Math.pow(2, exp) * Math.pow(2, 52));
 		var sig_h = (sig & cast 34359738367);
 		var sig_l = Math.floor((sig / Math.pow(2,32)));
-		var b1 = (exp + 0x3FF) >> 4 | (exp>0 ? ((x<0) ? 1<<7 : 1<<6) : ((x<0) ? 1<<7 : 0)),
-			b2 = (exp + 0x3FF) << 4 & 0xFF | (sig_l >> 16 & 0xF),
-			b3 = (sig_l >> 8) & 0xFF,
-			b4 = sig_l & 0xFF,
-			b5 = (sig_h >> 24) & 0xFF,
-			b6 = (sig_h >> 16) & 0xFF,
-			b7 = (sig_h >> 8) & 0xFF,
-			b8 = sig_h & 0xFF;
+		var b8 = (exp + 0x3FF) >> 4 | (exp>0 ? ((x<0) ? 1<<7 : 1<<6) : ((x<0) ? 1<<7 : 0)),
+			b7 = (exp + 0x3FF) << 4 & 0xFF | (sig_l >> 16 & 0xF),
+			b6 = (sig_l >> 8) & 0xFF,
+			b5 = sig_l & 0xFF,
+			b4 = (sig_h >> 24) & 0xFF,
+			b3 = (sig_h >> 16) & 0xFF,
+			b2 = (sig_h >> 8) & 0xFF,
+			b1 = sig_h & 0xFF;
 		if (bigEndian)
 		{
 			writeByte(b8); writeByte(b7); writeByte(b6); writeByte(b5);
