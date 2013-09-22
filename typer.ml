@@ -494,6 +494,8 @@ let rec unify_call_params ctx ?(overloads=None) cf el args r p inline =
 		match cf, overloads with
 		| Some (TInst(c,pl),_), (ft,o) :: l ->
 			let o = { o with cf_type = ft } in
+      (* bugfix: static calls don't have a type parameter here, even though the class may have one *)
+      let pl = if List.length c.cl_types <> List.length pl then List.map (fun _ -> t_dynamic) c.cl_types else pl in
 			let args, ret = (match follow (apply_params c.cl_types pl (field_type ctx c pl o p)) with (* I'm getting non-followed types here. Should it happen? *)
 				| TFun (tl,t) -> tl, t
 				| _ -> assert false

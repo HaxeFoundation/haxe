@@ -44,6 +44,7 @@ unit.Test
 #neko
 --next
 -D neko_v2
+-D test_spod
 -main unit.Test
 -neko unit.n
 

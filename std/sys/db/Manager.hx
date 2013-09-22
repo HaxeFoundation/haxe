@@ -73,7 +73,7 @@ class Manager<T : Object> {
 		#end
 	}
 
-	public function all( ?lock: Bool ) : List<T> {
+	public function all( ?lock: Null<Bool> ) : List<T> {
 		return unsafeObjects("SELECT * FROM " + table_name,lock);
 	}
 
@@ -97,7 +97,7 @@ class Manager<T : Object> {
 		return RecordMacros.macroDelete(ethis, cond, options);
 	}
 
-	public function dynamicSearch( x : {}, ?lock : Bool ) : List<T> {
+	public function dynamicSearch( x : {}, ?lock : Null<Bool> ) : List<T> {
 		var s = new StringBuf();
 		s.add("SELECT * FROM ");
 		s.add(table_name);
@@ -130,8 +130,14 @@ class Manager<T : Object> {
 		var fields = new List();
 		var values = new List();
 		for( f in table_infos.fields ) {
-			var name = f.name;
-			var v = Reflect.field(x,name);
+			var name = f.name, fieldName = f.name;
+			switch(f.t)
+			{
+				case DData:
+					fieldName = "data_" + name;
+				default:
+			}
+			var v:Dynamic = Reflect.field(x,fieldName);
 			if( v != null ) {
 				fields.add(quoteField(name));
 				switch( f.t ) {
@@ -200,10 +206,21 @@ class Manager<T : Object> {
 		s.add(table_name);
 		s.add(" SET ");
 		var cache = Reflect.field(x,cache_field);
+		if(cache == null)
+		{
+			cache = {};
+			Reflect.setField(x, cache_field, cache);
+		}
 		var mod = false;
 		for( f in table_infos.fields ) {
-			var name = f.name;
-			var v : Dynamic = Reflect.field(x,name);
+			var name = f.name, fieldName = f.name;
+			switch(f.t)
+			{
+				case DData:
+					fieldName = "data_" + name;
+				default:
+			}
+			var v : Dynamic = Reflect.field(x,fieldName);
 			var vc : Dynamic = Reflect.field(cache,name);
 			if( v != vc && (!isBinary(f.t) || hasBinaryChanged(v,vc)) ) {
 				switch( f.t ) {
@@ -304,16 +321,34 @@ class Manager<T : Object> {
 
 	/* ---------------------------- INTERNAL API -------------------------- */
 
-	function cacheObject( x : T, lock : Bool ) {
+	function cacheObject( x : Dynamic, lock : Null<Bool> ) : T {
 		#if neko
 		var o = untyped __dollar__new(x);
 		untyped __dollar__objsetproto(o, class_proto.prototype);
 		#else
 		var o : T = Type.createEmptyInstance(cast class_proto);
-		for( f in Reflect.fields(x) )
-			Reflect.setField(o, f, Reflect.field(x, f));
 		untyped o._manager = this;
 		#end
+		for( f in Reflect.fields(x) )
+		{
+			var val:Dynamic = Reflect.field(x, f), info = table_infos.hfields.get(f);
+			if (val != null && info != null) switch(info.t)
+			{
+				case DDate, DDateTime if (!Std.is(val, Date)):
+					val = Date.fromString(Std.string(val));
+				case DSmallBinary, DLongBinary, DBinary, DBytes(_) if (Std.is(val, String)):
+					val = haxe.io.Bytes.ofString(val);
+				case DBool if (Std.is(val, Int)):
+					val = val != 0;
+				case DData:
+					if (Std.is(val, String))
+						val = haxe.io.Bytes.ofString(val);
+					Reflect.setField(o, f + "_data", val);
+					continue;
+				default:
+			}
+			Reflect.setField(o, f, val);
+		}
 		Reflect.setField(o,cache_field,x);
 		addToCache(o);
 		untyped o._lock = lock;
@@ -350,7 +385,7 @@ class Manager<T : Object> {
 		return getCnx().request(sql);
 	}
 
-	public function unsafeObject( sql : String, lock : Bool ) : T {
+	public function unsafeObject( sql : String, lock : Null<Bool> ) : T {
 		if( lock != false ) {
 			lock = true;
 			sql += getLockMode();
@@ -366,7 +401,7 @@ class Manager<T : Object> {
 		return r;
 	}
 
-	public function unsafeObjects( sql : String, lock : Bool ) : List<T> {
+	public function unsafeObjects( sql : String, lock : Null<Bool> ) : List<T> {
 		if( lock != false ) {
 			lock = true;
 			sql += getLockMode();
@@ -394,7 +429,7 @@ class Manager<T : Object> {
 		unsafeExecute(sql);
 	}
 
-	public function unsafeGet( id : Dynamic, ?lock : Bool ) : T {
+	public function unsafeGet( id : Dynamic, ?lock : Null<Bool> ) : T {
 		if( lock == null ) lock = true;
 		if( table_keys.length != 1 )
 			throw "Invalid number of keys";
@@ -413,7 +448,7 @@ class Manager<T : Object> {
 		return unsafeObject(s.toString(), lock);
 	}
 
-	public function unsafeGetWithKeys( keys : { }, ?lock : Bool ) : T {
+	public function unsafeGetWithKeys( keys : { }, ?lock : Null<Bool> ) : T {
 		if( lock == null ) lock = true;
 		var x : Dynamic = getFromCacheKey(makeCacheKey(cast keys));
 		if( x != null && (!lock || x._lock) )
@@ -513,6 +548,7 @@ class Manager<T : Object> {
 		var lock = r.lock;
 		if( manager == null || manager.table_keys == null ) throw ("Invalid manager for relation "+table_name+":"+r.prop);
 		if( manager.table_keys.length != 1 ) throw ("Relation " + r.prop + "(" + r.key + ") on a multiple key table");
+#if neko
 		Reflect.setField(class_proto.prototype,"get_"+r.prop,function() {
 			var othis = untyped __this__;
 			var f = Reflect.field(othis,hprop);
@@ -536,25 +572,43 @@ class Manager<T : Object> {
 			Reflect.setField(othis,hkey,Reflect.field(f,manager.table_keys[0]));
 			return f;
 		});
+#end
 	}
 
 	#if !neko
 
 	function __get( x : Dynamic, prop : String, key : String, lock ) {
+#if php
 		var v = Reflect.field(x,prop);
 		if( v != null )
 			return v.value;
 		var y = unsafeGet(Reflect.field(x, key), lock);
 		Reflect.setField(x,prop,{ value : y });
 		return y;
+#else
+		var v = Reflect.field(x,prop);
+		if( v != null )
+			return v;
+		var y = unsafeGet(Reflect.field(x, key), lock);
+		Reflect.setField(x,prop,y);
+		return y;
+#end
 	}
 
 	function __set( x : Dynamic, prop : String, key : String, v : T ) {
+#if php
 		Reflect.setField(x,prop,{ value : v });
 		if( v == null )
 			Reflect.setField(x,key,null);
 		else
 			Reflect.setField(x,key,Reflect.field(v,table_keys[0]));
+#else
+		Reflect.setField(x,prop,v);
+		if( v == null )
+			Reflect.setField(x,key,null);
+		else
+			Reflect.setField(x,key,Reflect.field(v,table_keys[0]));
+#end
 	}
 
 	#end

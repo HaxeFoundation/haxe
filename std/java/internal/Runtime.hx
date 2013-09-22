@@ -402,6 +402,9 @@ package java.internal;
 			{
 				cls[i] = java.lang.Number.class;
 				isNum = hasNumber = true;
+			} else if (o instanceof java.lang.Boolean) {
+				cls[i] = java.lang.Boolean.class;
+				isNum = true;
 			}
 
 			msl = realMsl;
@@ -428,7 +431,7 @@ package java.internal;
 
 		java.lang.reflect.Method found;
 		if (ms.length == 0 || (found = ms[0]) == null)
-			throw haxe.lang.HaxeException.wrap("No compatible method found for: " + field);
+			throw haxe.lang.HaxeException.wrap("No compatible method found for: " + field + " @ " + args);
 
 		if (hasNumber)
 		{

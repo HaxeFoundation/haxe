@@ -100,6 +100,13 @@ private class PDOConnection implements Connection {
 			pdo = untyped __call__("new PDO", dsn, user, password, arr);
 		}
 		dbname = dsn.split(':').shift();
+		switch(dbname)
+		{
+			case "sqlite":
+				dbname = "SQLite";
+			case "mysql":
+				dbname = "MySQL";
+		}
 	}
 
 	public function close() {
@@ -244,11 +251,15 @@ private class DBNativeStrategy extends PHPNativeStrategy {
 		type = type.toLowerCase();
 		switch(type)
 		{
-			case "real":
+			case "real", "double", "float":
 				return "float";
 			case "integer":
 				return "int";
+			case "tinyint(1)":
+				return "bool";
 			default:
+				if (StringTools.startsWith(type, "tinyint"))
+					return "int";
 				return "string";
 		}
 	}

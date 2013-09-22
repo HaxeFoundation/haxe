@@ -545,7 +545,7 @@ let apply_params cparams params t =
 		| [] , [] -> []
 		| (x,TLazy f) :: l1, _ -> loop ((x,(!f)()) :: l1) l2
 		| (_,t1) :: l1 , t2 :: l2 -> (t1,t2) :: loop l1 l2
-		| _ -> assert false
+    | _ -> print_endline (s_type (print_context()) t); Printf.printf "%d - %d\n" (List.length cparams) (List.length params); assert false
 	in
 	let subst = loop cparams params in
 	let rec loop t =
