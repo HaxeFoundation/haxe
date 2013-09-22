@@ -2039,6 +2039,19 @@ let z_lib =
 (* ---------------------------------------------------------------------- *)
 (* MACRO LIBRARY *)
 
+(* convert float value to haxe expression, handling inf/-inf/nan *)
+let haxe_float f p =
+    let std = (Ast.EConst (Ast.Ident "std"), p) in
+    let math = (Ast.EField (std, "Math"), p) in
+    if (f = infinity) then
+        (Ast.EField (math, "POSITIVE_INFINITY"), p)
+    else if (f = neg_infinity) then
+        (Ast.EField (math, "NEGATIVE_INFINITY"), p)
+    else if (f <> f) then
+        (Ast.EField (math, "NaN"), p)
+    else
+        (Ast.EConst (Ast.Float (string_of_float f)), p)
+
 let macro_lib =
 	let error() =
 		raise Builtin_error
@@ -2154,7 +2167,7 @@ let macro_lib =
 					| VBool b -> (Ast.EConst (Ast.Ident (if b then "true" else "false")),p)
 					| VInt i -> (Ast.EConst (Ast.Int (string_of_int i)),p)
 					| VInt32 i -> (Ast.EConst (Ast.Int (Int32.to_string i)),p)
-					| VFloat f -> (Ast.EConst (Ast.Float (string_of_float f)),p)
+					| VFloat f -> haxe_float f p
 					| VAbstract (APos p) ->
 						(Ast.EObjectDecl (
 							("fileName" , (Ast.EConst (Ast.String p.Ast.pfile) , p)) ::
