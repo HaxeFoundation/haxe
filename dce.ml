@@ -249,17 +249,15 @@ and field dce c n stat =
 		let prefix = String.sub n 0 4 in
 		let pn = String.sub n 4 l in
 		let cf = find_field pn in
-		if not (Meta.has Meta.Used cf.cf_meta) then begin
-			let keep () =
-				mark_dependent_fields dce c n stat;
-				field dce c pn stat
-			in
-			(match prefix,cf.cf_kind with
-				| "get_",Var {v_read = AccCall} when "get_" ^ cf.cf_name = n -> keep()
-				| "set_",Var {v_write = AccCall} when "set_" ^ cf.cf_name = n -> keep()
-				| _ -> raise Not_found
-			);
-		end;
+		let keep () =
+			mark_dependent_fields dce c n stat;
+			field dce c pn stat
+		in
+		(match prefix,cf.cf_kind with
+			| "get_",Var {v_read = AccCall} when "get_" ^ cf.cf_name = n -> keep()
+			| "set_",Var {v_write = AccCall} when "set_" ^ cf.cf_name = n -> keep()
+			| _ -> raise Not_found
+		);
 		raise Not_found
 	with Not_found -> try
 		if c.cl_interface then begin
