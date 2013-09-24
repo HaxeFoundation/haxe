@@ -442,11 +442,12 @@ let to_pattern ctx e t =
 					| _ ->
 						raise Not_found);
 			with Not_found ->
-				if not (is_lower_ident s) && s.[0] <> '`' then error "Capture variables must be lower-case" p;
 				begin match get_tuple_types t with
-					| Some _ ->
-						error "Cannot bind tuple" p
+					| Some tl ->
+						let s = String.concat "," (List.map (fun (_,_,t) -> s_type t) tl) in
+						error ("Pattern should be tuple [" ^ s ^ "]") p
 					| None ->
+						if not (is_lower_ident s) && s.[0] <> '`' then error "Capture variables must be lower-case" p;
 						let v = mk_var pctx s t p in
 						mk_pat (PVar (v,p)) v.v_type p
 				end
