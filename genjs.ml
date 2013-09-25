@@ -60,6 +60,24 @@ type ctx = {
 	mutable found_expose : bool;
 }
 
+type object_store = {
+    os_name : string;
+    mutable os_fields : object_store list;
+}
+
+let get_shallow ctx path meta =
+	let rec loop = function
+		| (Meta.ShallowExpose, args, pos) :: l when ctx.js_modern ->
+			(match args with
+				| [EConst (String s), _] -> [s]
+				| [] -> [path]
+				| _ -> error "Invalid @:shallowExpose parameters" pos
+			)
+		| _ :: l -> loop l
+		| [] -> []
+	in
+	loop meta
+
 let dot_path = Ast.s_type_path
 
 let flat_path (p,s) =
@@ -894,6 +912,7 @@ let gen_class_static_field ctx c f =
 			let path = (s_path ctx c.cl_path) ^ (static_field f.cf_name) in
 			ctx.id_counter <- 0;
 			print ctx "%s = " path;
+			(match (get_shallow ctx path f.cf_meta) with [s] -> print ctx "$__hx_shallows.%s = " s | _ -> ());
 			gen_value ctx e;
 			newline ctx;
 			handle_expose ctx path f.cf_meta
@@ -947,6 +966,7 @@ let generate_class ctx c =
 		print ctx "%s = " p
 	else
 		print ctx "%s = $hxClasses[\"%s\"] = " p (dot_path c.cl_path);
+	(match (get_shallow ctx p c.cl_meta) with [s] -> print ctx "$__hx_shallows.%s = " s | _ -> ());
 	(match c.cl_constructor with
 	| Some { cf_expr = Some e } -> gen_expr ctx e
 	| _ -> (print ctx "function() { }"); ctx.separator <- true);
@@ -1122,50 +1142,50 @@ let gen_single_expr ctx e expr =
 	str
 
 let mk_local tctx n t pos =
-    mk (TLocal (try PMap.find n tctx.locals with _ -> add_local tctx n t)) t pos
+	mk (TLocal (try PMap.find n tctx.locals with _ -> add_local tctx n t)) t pos
 
 let optimize_stdis tctx truth equal triple o t recurse =
-    let pos = o.epos in
-    let stringt = tctx.Typecore.com.basic.tstring in
-    let boolt = tctx.Typecore.com.basic.tbool in
-    let intt = tctx.Typecore.com.basic.tint in
-    let ctypeof = mk (TConst (TString "typeof")) stringt pos in
-    let js = mk_local tctx "__js__" (tfun [stringt] (tfun [o.etype] stringt)) pos in
-    let typeof = mk (TCall (js, [ctypeof])) (tfun [o.etype] stringt) pos in
-    let gettof = mk (TCall (typeof, [o])) stringt pos in
-    match t.eexpr with
-        | TTypeExpr (TAbstractDecl ({ a_path = [],"Dynamic" })) ->
-            mk (TConst (TBool truth)) boolt pos
-        | TTypeExpr (TAbstractDecl ({ a_path = [],"Bool" })) ->
-            mk (TBinop (equal, gettof, (mk (TConst (TString "boolean")) stringt pos))) boolt pos
-        | TTypeExpr (TAbstractDecl ({ a_path = [],"Float" })) ->
-            mk (TBinop (equal, gettof, (mk (TConst (TString "number")) stringt pos))) boolt pos
-        | TTypeExpr (TClassDecl ({ cl_path = [],"String" })) ->
-            mk (TBinop (equal, gettof, (mk (TConst (TString "string")) stringt pos))) boolt pos
-        | TTypeExpr (TAbstractDecl ({ a_path = [],"Int" })) ->
-            (* need to use ===/!==, not ==/!= so tast is a bit more annoying, we leave this to the generator *)
-            let teq = mk_local tctx triple (tfun [intt; intt] boolt) pos in
-            let lhs = mk (TBinop (Ast.OpOr, o, mk (TConst (TInt Int32.zero)) intt pos)) intt pos in
-            mk (TCall (teq, [lhs; o])) boolt pos
-        | TTypeExpr (TClassDecl ({ cl_path = [],"Array" })) ->
-            let pstring = mk_local tctx "$ObjectPrototypeToString" t_dynamic pos in
-            let pstring = mk (TField (pstring, FDynamic ("call"))) (tfun [o.etype] stringt) pos in
-            let psof = mk (TCall (pstring, [o])) stringt pos in
-            mk (TBinop (equal, psof, (mk (TConst (TString "[object Array]")) stringt pos))) boolt pos
-        | _ -> recurse
+	let pos = o.epos in
+	let stringt = tctx.Typecore.com.basic.tstring in
+	let boolt = tctx.Typecore.com.basic.tbool in
+	let intt = tctx.Typecore.com.basic.tint in
+	let ctypeof = mk (TConst (TString "typeof")) stringt pos in
+	let js = mk_local tctx "__js__" (tfun [stringt] (tfun [o.etype] stringt)) pos in
+	let typeof = mk (TCall (js, [ctypeof])) (tfun [o.etype] stringt) pos in
+	let gettof = mk (TCall (typeof, [o])) stringt pos in
+	match t.eexpr with
+		| TTypeExpr (TAbstractDecl ({ a_path = [],"Dynamic" })) ->
+			mk (TConst (TBool truth)) boolt pos
+		| TTypeExpr (TAbstractDecl ({ a_path = [],"Bool" })) ->
+			mk (TBinop (equal, gettof, (mk (TConst (TString "boolean")) stringt pos))) boolt pos
+		| TTypeExpr (TAbstractDecl ({ a_path = [],"Float" })) ->
+			mk (TBinop (equal, gettof, (mk (TConst (TString "number")) stringt pos))) boolt pos
+		| TTypeExpr (TClassDecl ({ cl_path = [],"String" })) ->
+			mk (TBinop (equal, gettof, (mk (TConst (TString "string")) stringt pos))) boolt pos
+		| TTypeExpr (TAbstractDecl ({ a_path = [],"Int" })) ->
+			(* need to use ===/!==, not ==/!= so tast is a bit more annoying, we leave this to the generator *)
+			let teq = mk_local tctx triple (tfun [intt; intt] boolt) pos in
+			let lhs = mk (TBinop (Ast.OpOr, o, mk (TConst (TInt Int32.zero)) intt pos)) intt pos in
+			mk (TCall (teq, [lhs; o])) boolt pos
+		| TTypeExpr (TClassDecl ({ cl_path = [],"Array" })) ->
+			let pstring = mk_local tctx "$ObjectPrototypeToString" t_dynamic pos in
+			let pstring = mk (TField (pstring, FDynamic ("call"))) (tfun [o.etype] stringt) pos in
+			let psof = mk (TCall (pstring, [o])) stringt pos in
+			mk (TBinop (equal, psof, (mk (TConst (TString "[object Array]")) stringt pos))) boolt pos
+		| _ -> recurse
 
 let rec optimize_call tctx e = let recurse = optimize tctx e in
-    match e.eexpr with
-    | TUnop (Ast.Not, _, { eexpr = TCall (ce, el) }) -> (match ce.eexpr, el with
-        | TField ({ eexpr = TTypeExpr (TClassDecl ({ cl_path = ["js"], "Boot" })) }, FStatic (_, ({ cf_name = "__instanceof" }))), [o;t] -> optimize_stdis tctx false Ast.OpNotEq "__js__tne" o t recurse
-        | _ -> recurse)
-    | TCall (ce, el) -> (match ce.eexpr, el with
-        | TField ({ eexpr = TTypeExpr (TClassDecl ({ cl_path = ["js"], "Boot" })) }, FStatic (_, ({ cf_name = "__instanceof" }))), [o;t] -> optimize_stdis tctx true Ast.OpEq "__js__teq" o t recurse
-        | _ -> recurse)
-    | _ -> recurse
+	match e.eexpr with
+	| TUnop (Ast.Not, _, { eexpr = TCall (ce, el) }) -> (match ce.eexpr, el with
+		| TField ({ eexpr = TTypeExpr (TClassDecl ({ cl_path = ["js"], "Boot" })) }, FStatic (_, ({ cf_name = "__instanceof" }))), [o;t] -> optimize_stdis tctx false Ast.OpNotEq "__js__tne" o t recurse
+		| _ -> recurse)
+	| TCall (ce, el) -> (match ce.eexpr, el with
+		| TField ({ eexpr = TTypeExpr (TClassDecl ({ cl_path = ["js"], "Boot" })) }, FStatic (_, ({ cf_name = "__instanceof" }))), [o;t] -> optimize_stdis tctx true Ast.OpEq "__js__teq" o t recurse
+		| _ -> recurse)
+	| _ -> recurse
 
 and optimize tctx e =
-    Type.map_expr (optimize_call tctx) e
+	Type.map_expr (optimize_call tctx) e
 
 let generate com =
 	let t = Common.timer "generate js" in
@@ -1177,11 +1197,52 @@ let generate com =
 	if has_feature ctx "Class" || has_feature ctx "Type.getClassName" then add_feature ctx "js.Boot.isClass";
 	if has_feature ctx "Enum" || has_feature ctx "Type.getEnumName" then add_feature ctx "js.Boot.isEnum";
 
+	let shallows = List.concat (List.map (fun t ->
+		match t with
+			| TClassDecl c ->
+				let path = s_path ctx c.cl_path in
+				let class_shallows = get_shallow ctx path c.cl_meta in
+				let static_shallows = List.map (fun f ->
+					get_shallow ctx (path ^ static_field f.cf_name) f.cf_meta
+				) c.cl_ordered_statics in
+				List.concat (class_shallows :: static_shallows)
+			| _ -> []
+		) com.types) in
+	let anyShallowExposed = (List.length shallows) > 0 in
+	let smap = ref (PMap.create String.compare) in
+	let shallowObject = { os_name = ""; os_fields = [] } in
+	List.iter (fun path -> (
+		let parts = ExtString.String.nsplit path "." in
+		let rec loop p pre = match p with
+			| f :: g :: ls ->
+				let path = match pre with "" -> f | pre -> (pre ^ "." ^ f) in
+				if not (PMap.exists path !smap) then (
+					let elts = { os_name = f; os_fields = [] } in
+					smap := PMap.add path elts !smap;
+					let cobject = match pre with "" -> shallowObject | pre -> PMap.find pre !smap in
+					cobject.os_fields <- elts :: cobject.os_fields
+				);
+				loop (g :: ls) path;
+			| _ -> ()
+		in loop parts "";
+	)) shallows;
+
 	if ctx.js_modern then begin
 		(* Additional ES5 strict mode keywords. *)
 		List.iter (fun s -> Hashtbl.replace kwds s ()) [ "arguments"; "eval" ];
 
-		(* Wrap output in a closure. *)
+		(* Wrap output in a closure. Exposing shallowExpose types to outside of closure *)
+		if anyShallowExposed then (
+			print ctx "var $__hx_shallows = ";
+			let rec print_obj { os_fields = fields } = (
+				print ctx "{";
+				concat ctx "," (fun ({ os_name = name } as f) -> print ctx "%s" (name ^ ":"); print_obj f) fields;
+				print ctx "}"
+			) in
+			print_obj shallowObject;
+			ctx.separator <- true;
+			newline ctx
+		);
 		print ctx "(function () { \"use strict\"";
 		newline ctx;
 	end;
@@ -1250,6 +1311,24 @@ let generate com =
 	if ctx.js_modern then begin
 		print ctx "})()";
 		newline ctx;
+		if anyShallowExposed then begin
+			let rec print_obj { os_fields = fields } = (
+				print ctx "{";
+				concat ctx "," (fun ({ os_name = name } as f) -> print ctx "%s" (name ^ ":"); print_obj f) fields;
+				print ctx "}"
+			) in
+			List.iter (fun ({ os_name = name } as f) ->
+				print ctx "var %s = " name;
+				print_obj f;
+				ctx.separator <- true;
+				newline ctx
+			) shallowObject.os_fields;
+			List.iter (fun path ->
+				if not (ExtString.String.contains path '.') then print ctx "var ";
+				print ctx "%s" (path ^ " = $__hx_shallows." ^ path);
+				newline ctx;
+			) shallows;
+		end
 	end;
 	if com.debug then write_mappings ctx else (try Sys.remove (com.file ^ ".map") with _ -> ());
 	let ch = open_out_bin com.file in
