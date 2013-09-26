@@ -15,6 +15,7 @@ INSTALL_DIR=/usr
 OUTPUT=haxe
 EXTENSION=
 OCAMLOPT=ocamlopt
+OCAMLC=ocamlc
 
 CFLAGS= -g -I libs/extlib -I libs/extc -I libs/neko -I libs/javalib -I libs/ziplib -I libs/swflib -I libs/xml-light -I libs/ttflib
 
@@ -39,14 +40,14 @@ export HAXE_STD_PATH=$(CURDIR)/std
 all: libs haxe
 
 libs:
-	make -C libs/extlib opt
-	make -C libs/extc native
-	make -C libs/neko
-	make -C libs/javalib
-	make -C libs/ziplib
-	make -C libs/swflib
-	make -C libs/xml-light xml-light.cmxa
-	make -C libs/ttflib
+	make -C libs/extlib opt OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC)
+	make -C libs/extc native OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC)
+	make -C libs/neko OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC)
+	make -C libs/javalib OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC)
+	make -C libs/ziplib OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC)
+	make -C libs/swflib OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC)
+	make -C libs/xml-light xml-light.cmxa OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC)
+	make -C libs/ttflib OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC)
 
 haxe: $(MODULES:=.cmx)
 	$(OCAMLOPT) -o $(OUTPUT) $(NATIVE_LIBS) $(LIBS) $(MODULES:=.cmx)
