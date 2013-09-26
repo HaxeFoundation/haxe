@@ -75,8 +75,8 @@ let kwds =
 	let h = Hashtbl.create 0 in
 	List.iter (fun s -> Hashtbl.add h s ()) [
 		(* JS reserved words: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Reserved_Words *)
-		"break"; "case"; "catch"; "class"; "continue"; "debugger"; "default"; "delete"; "do";
-		"else"; "enum"; "export"; "extends"; "finally"; "for"; "function"; "if"; "implements";
+		"break"; "case"; "catch"; "class"; "const"; "continue"; "debugger"; "default"; "delete";
+		"do"; "else"; "enum"; "export"; "extends"; "finally"; "for"; "function"; "if"; "implements";
 		"import"; "in"; "instanceof"; "interface"; "let"; "new"; "package"; "private"; "protected";
 		"public"; "return"; "static"; "super"; "switch"; "this"; "throw"; "try"; "typeof"; "var";
 		"void"; "while"; "with"; "yield";
