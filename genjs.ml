@@ -1181,6 +1181,8 @@ let rec optimize_call tctx e = let recurse = optimize tctx e in
 		| _ -> recurse)
 	| TCall (ce, el) -> (match ce.eexpr, el with
 		| TField ({ eexpr = TTypeExpr (TClassDecl ({ cl_path = ["js"], "Boot" })) }, FStatic (_, ({ cf_name = "__instanceof" }))), [o;t] -> optimize_stdis tctx true Ast.OpEq "__js__teq" o t recurse
+        | TField ({ eexpr = TTypeExpr (TClassDecl ({ cl_path = [], "Std" })) }, FStatic (_, ({ cf_name = "int" }))), [v] ->
+            mk (TBinop (Ast.OpOr, v, mk (TConst (TInt Int32.zero)) tctx.Typecore.com.basic.tint v.epos)) tctx.Typecore.com.basic.tbool v.epos
 		| _ -> recurse)
 	| _ -> recurse
 
