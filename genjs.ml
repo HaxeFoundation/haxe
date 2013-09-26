@@ -61,8 +61,8 @@ type ctx = {
 }
 
 type object_store = {
-    os_name : string;
-    mutable os_fields : object_store list;
+	os_name : string;
+	mutable os_fields : object_store list;
 }
 
 let get_shallow ctx path meta =
@@ -1181,8 +1181,8 @@ let rec optimize_call tctx e = let recurse = optimize tctx e in
 		| _ -> recurse)
 	| TCall (ce, el) -> (match ce.eexpr, el with
 		| TField ({ eexpr = TTypeExpr (TClassDecl ({ cl_path = ["js"], "Boot" })) }, FStatic (_, ({ cf_name = "__instanceof" }))), [o;t] -> optimize_stdis tctx true Ast.OpEq "__js__teq" o t recurse
-        | TField ({ eexpr = TTypeExpr (TClassDecl ({ cl_path = [], "Std" })) }, FStatic (_, ({ cf_name = "int" }))), [v] ->
-            mk (TBinop (Ast.OpOr, v, mk (TConst (TInt Int32.zero)) tctx.Typecore.com.basic.tint v.epos)) tctx.Typecore.com.basic.tbool v.epos
+		| TField ({ eexpr = TTypeExpr (TClassDecl ({ cl_path = [], "Std" })) }, FStatic (_, ({ cf_name = "int" }))), [v] ->
+			mk (TBinop (Ast.OpOr, v, mk (TConst (TInt Int32.zero)) tctx.Typecore.com.basic.tint v.epos)) tctx.Typecore.com.basic.tbool v.epos
 		| _ -> recurse)
 	| _ -> recurse
 
@@ -1296,7 +1296,7 @@ let generate com =
 	| None -> ()
 	| Some e -> gen_expr ctx e; newline ctx);
 	if ctx.found_expose then begin
-        (* TODO(bruno): Remove runtime branching when standard node haxelib is available *)
+		(* TODO(bruno): Remove runtime branching when standard node haxelib is available *)
 		print ctx
 "function $hxExpose(src, path) {
 	var o = typeof window != \"undefined\" ? window : exports;

@@ -58,7 +58,7 @@ module Meta = struct
 		| EnumConstructorParam
 		| Exhaustive
 		| Expose
-        | ShallowExpose
+		| ShallowExpose
 		| Extern
 		| FakeEnum
 		| File
