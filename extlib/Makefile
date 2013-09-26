@@ -1,4 +1,6 @@
 # Makefile contributed by Alain Frisch
+OCAMLOPT=ocamlopt
+OCAMLC=ocamlc
 
 MODULES = \
  enum bitSet dynArray extArray extHashtbl extList extString global IO option \
@@ -10,11 +12,11 @@ MLI = $(MODULES:=.mli)
 SRC = $(MLI) $(MODULES:=.ml) extLib.ml
 
 all:
-	ocamlc -a -o extLib.cma $(SRC)
+	$(OCAMLC) -a -o extLib.cma $(SRC)
 opt:
-	ocamlopt -g -a -o extLib.cmxa $(SRC)
+	$(OCAMLOPT) -g -a -o extLib.cmxa $(SRC)
 doc:
-	ocamlc -c $(MODULES:=.mli)
+	$(OCAMLC) -c $(MODULES:=.mli)
 	mkdir -p doc/
 	ocamldoc -sort -html -d doc/ $(MODULES:=.mli)
 	cp odoc_style.css doc/style.css
