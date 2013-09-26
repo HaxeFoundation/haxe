@@ -1084,8 +1084,7 @@ let generate_type ctx = function
 		| Some e ->
 			ctx.inits <- e :: ctx.inits);
 		(* Special case, want to add Math.__name__ only when required, handle here since Math is extern *)
-		let p = s_path ctx c.cl_path in
-		if p = "Math" then generate_class___name__ ctx c;
+		if c.cl_path = ([], "Math") then generate_class___name__ ctx c;
 		if not c.cl_extern then
 			generate_class ctx c
 		else if not ctx.js_flatten && Meta.has Meta.InitPackage c.cl_meta then
@@ -1207,7 +1206,7 @@ let generate com =
 				List.concat (class_shallows :: static_shallows)
 			| _ -> []
 		) com.types) in
-	let anyShallowExposed = (List.length shallows) > 0 in
+	let anyShallowExposed = shalows <> [] in
 	let smap = ref (PMap.create String.compare) in
 	let shallowObject = { os_name = ""; os_fields = [] } in
 	List.iter (fun path -> (
@@ -1313,11 +1312,11 @@ let generate com =
 		if anyShallowExposed then begin
 			let rec print_obj { os_fields = fields } = (
 				print ctx "{";
-				concat ctx "," (fun ({ os_name = name } as f) -> print ctx "%s" (name ^ ":"); print_obj f) fields;
+				concat ctx "," (fun f-> print ctx "%s" (f.os_name ^ ":"); print_obj f) fields;
 				print ctx "}"
 			) in
-			List.iter (fun ({ os_name = name } as f) ->
-				print ctx "var %s = " name;
+			List.iter (fun f ->
+				print ctx "var %s = " f.os_name;
 				print_obj f;
 				ctx.separator <- true;
 				newline ctx
