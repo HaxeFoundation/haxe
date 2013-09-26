@@ -12,6 +12,7 @@
 	all : allow @:fakeEnum on abstracts
 	all : allow Class.new
 	all : inlining a parameter which has side effects will not remove it even if not used
+	js : window and console are reserved words. Access them with __js__ instead of untyped.
 	js : added -D js-flatten
 	macro : allowed $v{(c:Float|Int|String)}
 	macro : resolve error line number in external files
