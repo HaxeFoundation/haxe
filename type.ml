@@ -479,18 +479,18 @@ and s_type_params ctx = function
 	| [] -> ""
 	| l -> "<" ^ String.concat ", " (List.map (s_type ctx) l) ^ ">"
 
-let s_access = function
+let s_access is_read = function
 	| AccNormal -> "default"
 	| AccNo -> "null"
 	| AccNever -> "never"
 	| AccResolve -> "resolve"
-	| AccCall -> "accessor"
+	| AccCall -> if is_read then "get" else "set"
 	| AccInline	-> "inline"
 	| AccRequire (n,_) -> "require " ^ n
 
 let s_kind = function
 	| Var { v_read = AccNormal; v_write = AccNormal } -> "var"
-	| Var v -> "(" ^ s_access v.v_read ^ "," ^ s_access v.v_write ^ ")"
+	| Var v -> "(" ^ s_access true v.v_read ^ "," ^ s_access false v.v_write ^ ")"
 	| Method m ->
 		match m with
 		| MethNormal -> "method"

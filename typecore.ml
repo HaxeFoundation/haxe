@@ -214,11 +214,11 @@ let unify_error_msg ctx = function
 		(match a, b with
 		| Var va, Var vb ->
 			let name, stra, strb = if va.v_read = vb.v_read then
-				"setter", s_access va.v_write, s_access vb.v_write
+				"setter", s_access false va.v_write, s_access false vb.v_write
 			else if va.v_write = vb.v_write then
-				"getter", s_access va.v_read, s_access vb.v_read
+				"getter", s_access true va.v_read, s_access true vb.v_read
 			else
-				"access", "(" ^ s_access va.v_read ^ "," ^ s_access va.v_write ^ ")", "(" ^ s_access vb.v_read ^ "," ^ s_access vb.v_write ^ ")"
+				"access", "(" ^ s_access true va.v_read ^ "," ^ s_access false va.v_write ^ ")", "(" ^ s_access true vb.v_read ^ "," ^ s_access false vb.v_write ^ ")"
 			in
 			"Inconsistent " ^ name ^ " for field " ^ f ^ " : " ^ stra ^ " should be " ^ strb
 		| _ ->
