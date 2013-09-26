@@ -166,6 +166,28 @@ let rec is_pos_infos = function
 	| _ ->
 		false
 
+let check_constraints ctx tname tpl tl map p =
+	List.iter2 (fun m (name,t) ->
+		match follow t with
+		| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] ->
+			delay ctx PCheckConstraint (fun() ->
+				List.iter (fun ct ->
+					try
+						Type.unify (map m) (map ct)
+					with Unify_error l ->
+						display_error ctx (error_msg (Unify (Constraint_failure (tname ^ "." ^ name) :: l))) p;
+				) constr
+			);
+		| _ ->
+			()
+	) tl tpl
+
+let enum_field_type ctx en ef tl_en tl_ef p =
+	let map t = apply_params en.e_types tl_en (apply_params ef.ef_params tl_ef t) in
+	check_constraints ctx (s_type_path en.e_path) en.e_types tl_en map p;
+	check_constraints ctx ef.ef_name ef.ef_params tl_ef map p;
+	map ef.ef_type
+
 let add_constraint_checks ctx ctypes pl f tl p =
 	List.iter2 (fun m (name,t) ->
 		match follow t with
@@ -1068,7 +1090,9 @@ let rec type_ident_raise ?(imported_enums=true) ctx i p mode =
 					try
 						let ef = PMap.find i e.e_constrs in
 						let et = type_module_type ctx t None p in
-						mk (TField (et,FEnum (e,ef))) (monomorphs ef.ef_params (monomorphs e.e_types ef.ef_type)) p
+						let monos = List.map (fun _ -> mk_mono()) e.e_types in
+						let monos2 = List.map (fun _ -> mk_mono()) ef.ef_params in
+						mk (TField (et,FEnum (e,ef))) (enum_field_type ctx e ef monos monos2 p) p
 					with
 						Not_found -> loop l
 		in
@@ -2287,7 +2311,8 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				| TEnum (e,pl) ->
 					(try
 						let ef = PMap.find s e.e_constrs in
-						mk (fast_enum_field e ef p) (apply_params e.e_types pl (monomorphs ef.ef_params ef.ef_type)) p
+						let monos = List.map (fun _ -> mk_mono()) ef.ef_params in
+						mk (fast_enum_field e ef p) (enum_field_type ctx e ef pl monos p) p
 					with Not_found ->
 						if ctx.untyped then raise Not_found;
 						with_type_error ctx with_type (string_error s e.e_names ("Identifier '" ^ s ^ "' is not part of enum " ^ s_type_path e.e_path)) p;
