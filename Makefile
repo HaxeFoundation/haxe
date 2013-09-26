@@ -33,11 +33,23 @@ EXPORT=../../../projects/motionTools/haxe
 
 MODULES=ast type lexer common genxml parser typecore optimizer typeload \
 codegen gencommon genas3 gencpp genjs genneko genphp genswf8 \
-	genswf9 genswf genjava gencs interp typer matcher dce main
+	genswf9 genswf genjava gencs interp typer matcher dce version main
+
+ADD_REVISION=0
 
 export HAXE_STD_PATH=$(CURDIR)/std
 
+ifneq ($(ADD_REVISION),0)
+	VERSION_EXTRA="let version_extra = \" (git build $(shell git rev-parse --abbrev-ref HEAD) @ $(shell git describe --always)) \""
+else
+	VERSION_EXTRA="let version_extra = \"\"" > version.ml
+endif
+
 all: libs haxe
+
+version.cmx:
+	echo $(VERSION_EXTRA) > version.ml
+	$(OCAMLOPT) $(CFLAGS) -c version.ml
 
 libs:
 	make -C libs/extlib opt OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC)
@@ -121,7 +133,7 @@ interp.cmx: typecore.cmx type.cmx lexer.cmx genneko.cmx common.cmx codegen.cmx a
 
 matcher.cmx: optimizer.cmx codegen.cmx typecore.cmx type.cmx typer.cmx common.cmx ast.cmx
 
-main.cmx: dce.cmx matcher.cmx typer.cmx typeload.cmx typecore.cmx type.cmx parser.cmx optimizer.cmx lexer.cmx interp.cmx genxml.cmx genswf.cmx genphp.cmx genneko.cmx genjs.cmx gencpp.cmx genas3.cmx common.cmx codegen.cmx ast.cmx gencommon.cmx genjava.cmx gencs.cmx
+main.cmx: dce.cmx matcher.cmx typer.cmx typeload.cmx typecore.cmx type.cmx parser.cmx optimizer.cmx lexer.cmx interp.cmx genxml.cmx genswf.cmx genphp.cmx genneko.cmx genjs.cmx gencpp.cmx genas3.cmx common.cmx codegen.cmx ast.cmx gencommon.cmx genjava.cmx gencs.cmx version.cmx
 
 optimizer.cmx: typecore.cmx type.cmx parser.cmx common.cmx ast.cmx
 
@@ -169,4 +181,4 @@ clean_tools:
 .mll.ml:
 	ocamllex $<
 
-.PHONY: haxe libs
+.PHONY: haxe libs version.cmx
