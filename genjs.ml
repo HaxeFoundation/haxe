@@ -82,7 +82,7 @@ let kwds =
 		"void"; "while"; "with"; "yield";
 
 		(* Identifiers Haxe reserves to make the JS output cleaner. *)
-		"window";
+		"console"; "window";
 	];
 
 
