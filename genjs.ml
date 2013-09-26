@@ -690,7 +690,7 @@ and gen_expr ctx e =
 	| TCast (e,None) ->
 		gen_expr ctx e
 	| TCast (e1,Some t) ->
-		spr ctx "js.Boot.__cast(";
+		print ctx "%s.__cast(" (ctx.type_accessor (TClassDecl { null_class with cl_path = ["js"],"Boot" }));
 		gen_expr ctx e1;
 		spr ctx " , ";
 		spr ctx (ctx.type_accessor t);
@@ -769,7 +769,7 @@ and gen_value ctx e =
 	| TCast (e1, None) ->
 		gen_value ctx e1
 	| TCast (e1, Some t) ->
-		spr ctx "js.Boot.__cast(";
+		print ctx "%s.__cast(" (ctx.type_accessor (TClassDecl { null_class with cl_path = ["js"],"Boot" }));
 		gen_value ctx e1;
 		spr ctx " , ";
 		spr ctx (ctx.type_accessor t);
@@ -1113,9 +1113,12 @@ let generate com =
 		newline ctx;
 	end;
 
+	(* TODO: fix $estr *)
 	let vars = [] in
 	let vars = (if has_feature ctx "Type.resolveClass" || has_feature ctx "Type.resolveEnum" then ("$hxClasses = " ^ (if ctx.js_modern then "{}" else "$hxClasses || {}")) :: vars else vars) in
-	let vars = (if List.exists (function TEnumDecl { e_extern = false } -> true | _ -> false) com.types then "$estr = function() { return js.Boot.__string_rec(this,''); }" :: vars else vars) in
+	let vars = (if List.exists (function TEnumDecl { e_extern = false } -> true | _ -> false) com.types
+		then ("$estr = function() { return " ^ (ctx.type_accessor (TClassDecl { null_class with cl_path = ["js"],"Boot" })) ^ ".__string_rec(this,''); }") :: vars
+		else vars) in
 	(match List.rev vars with
 	| [] -> ()
 	| vl ->
