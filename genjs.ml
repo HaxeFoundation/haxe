@@ -66,17 +66,14 @@ type object_store = {
 }
 
 let get_shallow ctx path meta =
-	let rec loop = function
-		| (Meta.ShallowExpose, args, pos) :: l when ctx.js_modern ->
-			(match args with
-				| [EConst (String s), _] -> [s]
-				| [] -> [path]
-				| _ -> error "Invalid @:shallowExpose parameters" pos
-			)
-		| _ :: l -> loop l
-		| [] -> []
-	in
-	loop meta
+	if not ctx.js_modern then []
+	else try
+		let (_, args, pos) = Meta.get Meta.ShallowExpose meta in
+		(match args with
+			| [ EConst (String s), _ ] -> [s]
+			| [] -> [path]
+			| _ -> error "Invalid @:shallowExpose parameters" pos)
+	with Not_found -> []
 
 let dot_path = Ast.s_type_path
 
