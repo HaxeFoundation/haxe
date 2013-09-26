@@ -42,7 +42,7 @@ export HAXE_STD_PATH=$(CURDIR)/std
 ifneq ($(ADD_REVISION),0)
 	VERSION_EXTRA="let version_extra = \" (git build $(shell git rev-parse --abbrev-ref HEAD) @ $(shell git describe --always)) \""
 else
-	VERSION_EXTRA="let version_extra = \"\"" > version.ml
+	VERSION_EXTRA="let version_extra = \"\""
 endif
 
 all: libs haxe
