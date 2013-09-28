@@ -43,7 +43,7 @@ extern class Math
 	**/
 #if js
 	static var NEGATIVE_INFINITY(get, null) : Float;
-	static inline function get_NEGATIVE_INFINITY() : Float return untyped __js__("$Number").NEGATIVE_INFINITY;
+	static inline function get_NEGATIVE_INFINITY() : Float return untyped __define_feature__("Math.INF/NAN", $Number).NEGATIVE_INFINITY;
 #else
 	static var NEGATIVE_INFINITY(default, null) : Float;
 #end
@@ -61,7 +61,7 @@ extern class Math
 	**/
 #if js
 	static var POSITIVE_INFINITY(get, null) : Float;
-	static inline function get_POSITIVE_INFINITY() : Float return untyped __js__("$Number").POSITIVE_INFINITY;
+	static inline function get_POSITIVE_INFINITY() : Float return untyped __define_feature__("Math.INF/NAN", $Number).POSITIVE_INFINITY;
 #else
 	static var POSITIVE_INFINITY(default, null) : Float;
 #end
@@ -86,7 +86,7 @@ extern class Math
 	**/
 #if js
 	static var NaN(get, null) : Float;
-	static inline function get_NaN() : Float return untyped __js__("$Number").NaN;
+	static inline function get_NaN() : Float return untyped __define_feature__("Math.INF/NAN", $Number).NaN;
 #else
 	static var NaN(default, null) : Float;
 #end
@@ -260,7 +260,7 @@ extern class Math
 		Otherwise the result is true.
 	**/
 #if js
-	static inline function isFinite( f : Float ) : Bool return untyped __js__("$isFinite")(f);
+	static inline function isFinite( f : Float ) : Bool return untyped __define_feature__("Math.isFinite", $isFinite)(f);
 #else
 	static function isFinite( f : Float ) : Bool;
 #end
@@ -274,7 +274,7 @@ extern class Math
 		NEGATIVE_INFINITY are not considered NaN.
 	**/
 #if js
-	static inline function isNaN( f : Float ) : Bool return untyped __js__("$isNaN")(f);
+	static inline function isNaN( f : Float ) : Bool return untyped __define_feature__("Math.isNaN", $isNaN)(f);
 #else
 	static function isNaN( f : Float ) : Bool;
 #end
@@ -296,9 +296,9 @@ extern class Math
 	#end
 	#if js
 		__feature__("Type.resolveClass",$hxClasses['Math'] = Math);
-		__js__("var $Number = Number");
-		__js__("var $isFinite = isFinite");
-		__js__("var $isNaN = isNaN");
+		__feature__("Math.INF/NAN", __js__("var $Number = Number"));
+		__feature__("Math.isFinite",__js__("var $isFinite = isFinite"));
+		__feature__("Math.isNaN",__js__("var $isNaN = isNaN"));
 	#end
 		#if js __js__("Math") #else Math #end.isFinite = function(i) {
 			return
