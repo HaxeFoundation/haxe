@@ -243,7 +243,7 @@ let build_class com c file =
 							| HVInt i | HVUInt i ->
 								Some (Int (Int32.to_string i))
 							| HVFloat f ->
-								Some (Float (string_of_float f))
+								Some (Float (float_repres f))
 							) in
 							match v with
 							| None -> None
@@ -542,7 +542,7 @@ let swf_ver = function
 	| 11.6 -> 19
 	| 11.7 -> 20
 	| 11.8 -> 21
-	| v -> failwith ("Invalid SWF version " ^ string_of_float v)
+	| v -> failwith ("Invalid SWF version " ^ float_repres v)
 
 let convert_header com (w,h,fps,bg) =
 	let high = (max w h) * 20 in
