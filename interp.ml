@@ -2050,7 +2050,7 @@ let haxe_float f p =
     else if (f <> f) then
         (Ast.EField (math, "NaN"), p)
     else
-        (Ast.EConst (Ast.Float (string_of_float f)), p)
+        (Ast.EConst (Ast.Float (float_repres f)), p)
 
 let macro_lib =
 	let error() =
@@ -3251,7 +3251,7 @@ let rec to_string ctx n v =
 	| VInt i -> string_of_int i
 	| VInt32 i -> Int32.to_string i
 	| VFloat f ->
-		let s = string_of_float f in
+		let s = float_repres f in
 		let len = String.length s in
 		if String.unsafe_get s (len - 1) = '.' then String.sub s 0 (len - 1) else s
 	| VString s -> s
