@@ -353,7 +353,7 @@ let to_pattern ctx e t =
 					| TFun(args,r) ->
 						unify ctx r t p;
 						List.map (fun (n,_,t) -> t) args,r
-					| _ -> error "Arguments expected" p
+					| _ -> error "No arguments expected" p
 				in
 				let rec loop2 i el tl = match el,tl with
 					| (EConst(Ident "_"),pany) :: [], t :: tl ->
