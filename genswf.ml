@@ -844,7 +844,7 @@ let build_swf9 com file swc =
 				| (Meta.Font,(EConst (String file),p) :: args,_) :: l ->
 					let file = try Common.find_file com file with Not_found -> file in
 					let ch = try open_in_bin file with _ -> error "File not found" p in
-					let ttf = TTFParser.parse ch in
+					let ttf = try TTFParser.parse ch with e -> error ("Error while parsing font " ^ file ^ " : " ^ Printexc.to_string e) p in
 					close_in ch;
 					let range_str = match args with
 						| [EConst (String str),_] -> str
