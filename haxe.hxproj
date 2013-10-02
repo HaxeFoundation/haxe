@@ -131,6 +131,7 @@
     <hidden path="version.obj" />
     <hidden path="version.cmi" />
     <hidden path="version.cmx" />
+    <hidden path="haxe.exe.manifest" />
   </hiddenPaths>
   <!-- Executed before build -->
   <preBuildCommand>make -j4 MSVC=1 FD_OUTPUT=1 -f Makefile.win kill haxe</preBuildCommand>
