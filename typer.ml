@@ -2317,6 +2317,15 @@ and type_expr ctx (e,p) (with_type:with_type) =
 						if ctx.untyped then raise Not_found;
 						with_type_error ctx with_type (string_error s e.e_names ("Identifier '" ^ s ^ "' is not part of enum " ^ s_type_path e.e_path)) p;
 						mk (TConst TNull) t p)
+				| TAbstract (a,pl) when has_meta Meta.FakeEnum a.a_meta ->
+					let cimpl = (match a.a_impl with None -> assert false | Some c -> c) in
+					(try
+						let cf = PMap.find s cimpl.cl_statics in
+						acc_get ctx (type_field ctx (mk (TTypeExpr (TClassDecl cimpl)) (TAnon { a_fields = PMap.add cf.cf_name cf PMap.empty; a_status = ref (Statics cimpl) }) p) s p MGet) p
+					with Not_found ->
+						if ctx.untyped then raise Not_found;
+						with_type_error ctx with_type (string_error s (List.map (fun f -> f.cf_name) cimpl.cl_ordered_statics) ("Identifier '" ^ s ^ "' is not part of enum " ^ s_type_path a.a_path)) p;
+						mk (TConst TNull) t p)
 				| _ -> raise Not_found)
 			| _ ->
 				raise Not_found)
