@@ -128,6 +128,9 @@
     <hidden path="matcher.obj" />
     <hidden path="matcher.cmx" />
     <hidden path="matcher.cmi" />
+    <hidden path="version.obj" />
+    <hidden path="version.cmi" />
+    <hidden path="version.cmx" />
   </hiddenPaths>
   <!-- Executed before build -->
   <preBuildCommand>make -j4 MSVC=1 FD_OUTPUT=1 -f Makefile.win kill haxe</preBuildCommand>
