@@ -735,7 +735,7 @@ let add_field_inits ctx t =
 				(cf2 :: inits, fields)
 			| _ -> (inits, cf :: fields)
 		) ([],[]) c.cl_ordered_fields in
-		c.cl_ordered_fields <- fields;
+		c.cl_ordered_fields <- (List.rev fields);
 		match inits with
 		| [] -> ()
 		| _ ->
