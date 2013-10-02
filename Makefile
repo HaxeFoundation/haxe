@@ -40,9 +40,9 @@ ADD_REVISION=0
 export HAXE_STD_PATH=$(CURDIR)/std
 
 ifneq ($(ADD_REVISION),0)
-	VERSION_EXTRA="let version_extra = \" (git build $(shell git rev-parse --abbrev-ref HEAD) @ $(shell git describe --always)) \""
+	VERSION_EXTRA="let version_extra = Some \" (git build $(shell git rev-parse --abbrev-ref HEAD) @ $(shell git describe --always)) \""
 else
-	VERSION_EXTRA="let version_extra = \"\""
+	VERSION_EXTRA="let version_extra = None
 endif
 
 all: libs haxe
