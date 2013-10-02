@@ -115,6 +115,7 @@ type extern_api = {
 	get_build_fields : unit -> value;
 	get_pattern_locals : Ast.expr -> Type.t -> (string,Type.tvar * Ast.pos) PMap.t;
 	define_type : value -> unit;
+	define_module : string -> value list -> unit;
 	module_dependency : string -> string -> bool -> unit;
 	current_module : unit -> module_def;
 	delayed_macro : int -> (unit -> (unit -> value));
@@ -2368,6 +2369,10 @@ let macro_lib =
 				VNull
 			| _ -> error()
 		);
+		"local_module", Fun0 (fun() ->
+			let m = (get_ctx()).curapi.current_module() in
+			VString (Ast.s_type_path m.m_path);
+		);
 		"local_type", Fun0 (fun() ->
 			match (get_ctx()).curapi.get_local_type() with
 			| None -> VNull
@@ -2408,6 +2413,14 @@ let macro_lib =
 		"define_type", Fun1 (fun v ->
 			(get_ctx()).curapi.define_type v;
 			VNull
+		);
+		"define_module", Fun2 (fun p v ->
+			match p, v with
+			| VString path, VArray vl ->
+				(get_ctx()).curapi.define_module path (Array.to_list vl);
+				VNull
+			| _ ->
+				error()
 		);
 		"add_class_path", Fun1 (fun v ->
 			match v with
@@ -4397,6 +4410,11 @@ let decode_type_def v =
 		EAbstract(mk flags fields)
 	| _ ->
 		raise Invalid_expr
+	) in
+	(* if our package ends with an uppercase letter, then it's the module name *)
+	let pack,name = (match List.rev pack with
+		| last :: l when not (is_lower_ident last) -> List.rev l, last
+		| _ -> pack, name
 	) in
 	(pack, name), tdef, pos
 

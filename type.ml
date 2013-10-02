@@ -292,6 +292,7 @@ and module_kind =
 	| MCode
 	| MMacro
 	| MFake
+	| MSub
 
 and dt =
 	| DTSwitch of texpr * (texpr * dt) list * dt option

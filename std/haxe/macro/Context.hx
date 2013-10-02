@@ -111,6 +111,13 @@ class Context {
 	}
 
 	/**
+		Returns the current module path in/on which the macro was called.
+	**/
+	public static function getLocalModule() : String {
+		return new String(load("local_module", 0)());
+	}
+	
+	/**
 		Returns the current type in/on which the macro was called.
 		
 		If no such type exists, null is returned.
@@ -344,6 +351,12 @@ class Context {
 		load("define_type", 1)(t);
 	}
 
+	/**
+		Defines a new module with several `TypeDefinition` `types`.
+	**/
+	public static function defineModule( modulePath : String, types : Array<TypeDefinition> ) : Void {
+		load("define_module", 2)(untyped modulePath.__s,untyped types.__neko());
+	}
 
 	/**
 		Returns a syntax-level expression corresponding to typed expression `t`.

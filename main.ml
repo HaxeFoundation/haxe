@@ -565,7 +565,7 @@ and wait_loop boot_com host port =
 			else try
 				if m.m_extra.m_mark <= start_mark then begin
 					(match m.m_extra.m_kind with
-					| MFake -> () (* don't get classpath *)
+					| MFake | MSub -> () (* don't get classpath *)
 					| MCode -> if not (check_module_path com2 m p) then raise Not_found;
 					| MMacro when ctx.Typecore.in_macro -> if not (check_module_path com2 m p) then raise Not_found;
 					| MMacro ->
@@ -609,7 +609,7 @@ and wait_loop boot_com host port =
 							a.a_meta <- List.filter (fun (m,_,_) -> m <> Ast.Meta.ValueUsed) a.a_meta
 						| _ -> ()
 					) m.m_types;
-					Typeload.add_module ctx m p;
+					if m.m_extra.m_kind <> MSub then Typeload.add_module ctx m p;
 					PMap.iter (Hashtbl.add com2.resources) m.m_extra.m_binded_res;
 					PMap.iter (fun _ m2 -> add_modules m0 m2) m.m_extra.m_deps);
 					List.iter (Typer.call_init_macro ctx) m.m_extra.m_macro_calls
