@@ -3188,6 +3188,54 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 	output_cpp "};\n\n";
 	output_cpp "#endif\n\n";
 
+   let script_type t optional = if optional then "o" else
+   match type_string t with
+   | "bool" -> "Int"
+   | "int" -> "Int"
+   | "Float" -> "Float"
+   | "::String" -> "String"
+   | "Null" -> "Void"
+   | "Void" -> "Void"
+   | _ -> "Object"
+   in
+   let script_signature t optional = match script_type t optional with
+   | "Bool" -> "b"
+   | "Int" -> "i"
+   | "Float" -> "f"
+   | "String" -> "s"
+   | "Void" -> "v"
+   | _ -> "o"
+   in
+   let script_size_type t optional = match script_type t optional with
+   | "Object" -> "void *"
+   | x -> x
+   in
+
+   let generate_script_function isStatic field scriptName callName = 
+		match follow field.cf_type  with
+		| TFun (args,return_type) ->
+         output_cpp ("\nstatic void " ^ scriptName ^ "(hx::CppiaCtx *ctx) {\n");
+         let ret = script_signature return_type false in
+         if (ret<>"v") then output_cpp ("ctx->return" ^ (script_type return_type false) ^ "(");
+         if isStatic then
+            output_cpp (class_name ^ "::" ^ callName ^ "(")
+         else
+            output_cpp ("((" ^  class_name ^ "*)ctx->getThis())->" ^  callName ^ "(");
+
+         let (signature,_,_) = List.fold_left (fun (signature,sep,size) (_,opt,t) ->
+             output_cpp (sep ^ "ctx->get" ^ (script_type t opt) ^ "(" ^ size ^ ")");
+             (signature ^ (script_signature t opt ), ",", (size^"+sizeof(" ^ (script_size_type t opt) ^ ")") ) ) (ret,"","sizeof(void*)")  args
+         in
+
+         output_cpp ")";
+         if (ret<>"v") then output_cpp (")");
+         output_cpp (";\n}\n");
+         signature;
+      | _ -> ""
+   in
+
+
+
    if (scriptable ) then begin
       let dump_script_field idx (field,f_args,return_t) =
         let args = if (class_def.cl_interface) then
@@ -3202,16 +3250,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
         let args_varray = (List.fold_left (fun l n -> l ^ ".Add(" ^ n ^ ")") "Array<Dynamic>()" names)  in
         (*let args_comma = List.fold_left (fun l n -> l ^ "," ^ n) "" names in*)
         output_cpp ("   " ^ return_type ^ " " ^ name ^ "( " ^ args ^ " ) { ");
-        let script_type t = match type_string t with
-        | "bool" -> "Bool"
-        | "int" -> "Int"
-        | "Float" -> "Float"
-        | "::String" -> "String"
-        | "Null" -> "Void"
-        | "Void" -> "Void"
-        | _ -> "Object"
-        in
-        if (class_def.cl_interface) then begin
+         if (class_def.cl_interface) then begin
            output_cpp (" " ^ ret ^ "mDelegate->__Field(HX_CSTRING(\"" ^ field.cf_name ^ "\"),false)");
            if (List.length names <= 5) then
               output_cpp ("->__run(" ^ (String.concat "," names) ^ ")")
@@ -3223,16 +3262,20 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
            output_cpp ("\t\thx::CppiaCtx *__ctx = hx::CppiaCtx::getCurrent();\n" );
            output_cpp ("\t\thx::AutoStack __as(__ctx);\n" );
            output_cpp ("\t\t__ctx->pushObject(this);\n" );
-           List.iter (fun (name,_ (* todo opt *), t ) ->
-              output_cpp ("\t\t__ctx->push" ^ (script_type t) ^ "(" ^ (keyword_remap name) ^ ");\n" );
+           List.iter (fun (name,opt, t ) ->
+              output_cpp ("\t\t__ctx->push" ^ (script_type t opt) ^ "(" ^ (keyword_remap name) ^ ");\n" );
            ) f_args;
-           output_cpp ("\t\t" ^ ret ^ "__ctx->run" ^ (script_type return_t) ^ "(" ^ vtable ^ ");\n" );
+           output_cpp ("\t\t" ^ ret ^ "__ctx->run" ^ (script_type return_t false) ^ "(" ^ vtable ^ ");\n" );
            output_cpp ("\t}  else " ^ ret ^ class_name ^ "::" ^ name ^ "(" ^ (String.concat "," names)^ "); return null(); }\n\n");
         end
       in
+      let not_toString = fun (field,_,_) -> field.cf_name<>"toString" in
+      let functions = List.filter not_toString (all_virtual_functions class_def) in
+      let new_sctipt_functions = List.filter (fun (f,_,_) -> not (is_override class_def f.cf_name) ) functions in
       let sctipt_name = class_name ^ "__scriptable" in
       output_cpp ("class " ^ sctipt_name ^ " : public " ^ class_name ^ " {\n" );
       output_cpp ("   typedef "^sctipt_name ^" __ME;\n");
+      output_cpp ("   typedef "^class_name ^" super;\n");
       if (class_def.cl_interface) then
          output_cpp ("   HX_DEFINE_SCRIPTABLE_INTERFACE\n")
       else begin
@@ -3240,21 +3283,28 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 	      if (not implement_dynamic) then
 			   output_cpp "	HX_DEFINE_SCRIPTABLE_DYNAMIC;\n";
       end;
-      let not_toString = fun (field,_,_) -> field.cf_name<>"toString" in
-      let functions = List.filter not_toString (all_virtual_functions class_def) in
 
 	   list_iteri dump_script_field functions;
       output_cpp ("};\n\n");
 
       if (not class_def.cl_interface) then begin
-         if (List.length functions) > 0 then begin
-            output_cpp "static String __scriptableFunctionNames[] = {\n";
-            List.iter (fun (f,_,_) -> output_cpp ("  HX_CSTRING(\"" ^ f.cf_name ^ "\"),\n" ) ) functions;
-            output_cpp "  String(null()) };\n";
+         if (List.length new_sctipt_functions) > 0 then begin
+            let sigs = Hashtbl.create 0 in
+            List.iter (fun (f,_,_) ->
+               let s = generate_script_function false f ("__s_" ^f.cf_name) (keyword_remap f.cf_name) in
+               Hashtbl.add sigs f.cf_name s
+            ) new_sctipt_functions;
+
+            output_cpp "static hx::ScriptNamedFunction __scriptableFunctions[] = {\n";
+            List.iter (fun (f,_,_) ->
+               let s = try Hashtbl.find sigs f.cf_name with Not_found -> "v" in
+               output_cpp ("  hx::ScriptNamedFunction(\"" ^ f.cf_name ^ "\",__s_" ^ f.cf_name ^ ",\"" ^ s ^ "\"),\n" ) ) new_sctipt_functions;
+            output_cpp "  hx::ScriptNamedFunction(0,0,0) };\n";
          end else
-            output_cpp "static String *__scriptableFunctionNames = 0;\n";
+            output_cpp "static hx::ScriptNamedFunction *__scriptableFunctions = 0;\n";
       end;
    end;
+
 
 
 
@@ -3265,6 +3315,15 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 			| path -> join_class_path path "." in
 
 		output_cpp ("Class " ^ class_name ^ "::__mClass;\n\n");
+      if (scriptable) then begin
+         (match class_def.cl_constructor with
+		        | Some field  ->
+                  let signature = generate_script_function false field "__script_construct_func" "__construct" in
+                  output_cpp ("hx::ScriptFunction " ^ class_name ^ "::__script_construct(__script_construct_func,\"" ^ signature ^ "\");\n");
+              | _ ->
+                  output_cpp ("hx::ScriptFunction " ^ class_name ^ "::__script_construct(0,0);\n");
+         );
+      end;
 
 		output_cpp ("void " ^ class_name ^ "::__register()\n{\n");
 		output_cpp ("	hx::Static(__mClass) = hx::RegisterClass(" ^ (str class_name_text)  ^
@@ -3358,6 +3417,8 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 		output_h ("		static " ^ptr_name^ " __new(" ^constructor_type_args ^");\n");
 		output_h ("		static Dynamic __CreateEmpty();\n");
 		output_h ("		static Dynamic __Create(hx::DynamicArray inArgs);\n");
+      if (scriptable) then
+		   output_h ("		static hx::ScriptFunction __script_construct;\n");
 		output_h ("		~" ^ class_name ^ "();\n\n");
 		output_h ("		HX_DO_RTTI;\n");
 		if (field_integer_dynamic) then output_h "		Dynamic __IField(int inFieldID);\n";
@@ -3739,6 +3800,24 @@ let is_assign_op op =
    | _ -> false
 ;;
 
+let script_type_string haxe_type =
+	match follow haxe_type with
+	| TType ({t_path = [],"Array"},params) -> "Array"
+   | TInst ({cl_path=[],"Array"},params) ->
+      (match params with
+      | [t] ->
+         (match type_string_suff "" t with
+           | "int" -> "Array.int"
+           | "Float" -> "Array.Float"
+           | "bool" -> "Array.bool"
+           | "::String" -> "Array.String"
+           | "unsigned char" -> "Array.unsigned char"
+           | _ -> "Array.Dynamic"
+         )
+      | _ -> "Array.Dynamic"
+      )
+   | t -> type_string_suff "" t
+;;
 
 class script_writer common_ctx filename =
 	object(this)
@@ -3773,7 +3852,7 @@ class script_writer common_ctx filename =
          Buffer.add_string typeBuffer ((string_of_int (String.length name)) ^ " " ^ name ^ "\n");
          size;
       end
-	method typeText typeT = (string_of_int (this#typeId (type_string_suff "" typeT))) ^ " "
+	method typeText typeT = (string_of_int (this#typeId (script_type_string typeT))) ^ " "
 	method writeType typeT = this#write (this#typeText typeT)
 	method boolText value = if value then "1" else "0"
 	method writeBool value = this#write (if value then "1 " else "0 ")
@@ -3882,7 +3961,8 @@ class script_writer common_ctx filename =
         this#gen_expression e2;
      | TThrow e -> this#write "THROW\n";
         this#gen_expression e;
-     | TArrayDecl expr_list -> this#writeList "ADEF" (List.length expr_list);
+     | TArrayDecl expr_list ->
+        this#write ("ADEF " ^ (this#typeText expression.etype) ^ " " ^(string_of_int (List.length expr_list))^"\n");
         List.iter this#gen_expression expr_list;
      | TIf (e,e1,e2) ->
         (match e2 with
@@ -3896,36 +3976,43 @@ class script_writer common_ctx filename =
            this#gen_expression e1;
            this#gen_expression elze; )
      | TCall (func, arg_list) ->
-        let arg_types = " " ^ (String.concat " " (List.map (fun t -> this#typeText t.etype)  arg_list)) in
+        let argN = (string_of_int (List.length arg_list)) ^ " " in
         (match (remove_parens func).eexpr with
         | TField (obj,FStatic (class_def,field) ) ->
                this#write ("CALLSTATIC " ^ (this#instText class_def) ^ " " ^ (this#stringText field.cf_name) ^
-                  (string_of_int (List.length arg_list)) ^ arg_types ^ "\n");
+                  argN ^ "\n");
         | TField (obj,FInstance (_,field) ) when is_this obj ->
                this#write ("CALLTHIS " ^ (this#typeText obj.etype) ^ " " ^ (this#stringText field.cf_name) ^
-                  (string_of_int (List.length arg_list)) ^ arg_types ^ "\n");
+                  argN ^ "\n");
         | TField (obj,FInstance (_,field) ) ->
                this#write ("CALLMEMBER " ^ (this#typeText obj.etype) ^ " " ^ (this#stringText field.cf_name) ^
-                  (string_of_int (List.length arg_list)) ^ arg_types ^ "\n");
+                  argN ^ "\n");
                this#gen_expression obj;
-        | _ -> this#write ("CALL " ^ (string_of_int (List.length arg_list)) ^ arg_types ^ "\n");
+        | TConst TSuper -> this#write ("CALLSUPER " ^ (this#typeText func.etype) ^ " " ^ argN ^ "\n");
+        | _ -> this#write ("CALL " ^ argN ^ "\n");
                this#gen_expression func;
         );
         List.iter this#gen_expression arg_list;
      | TField (obj, acc) ->
+        let typeText = this#typeText obj.etype in
         (match acc with
-        | FDynamic name -> this#write ("FNAME " ^ (this#stringText name) ^ "\n");
+        | FDynamic name -> this#write ("FNAME " ^ typeText ^ " " ^ (this#stringText name) ^ "\n");
              this#gen_expression obj;
         | FStatic (class_def,field) -> this#write ("FSTATIC " ^ (this#instText class_def) ^ " " ^ (this#stringText field.cf_name) );
-        | FInstance (_,field) when is_this obj -> this#write ("FTHISLINK " ^ (this#typeText obj.etype) ^ " " ^ (this#stringText field.cf_name) );
-        | FInstance (_,field) -> this#write ("FLINK " ^ (this#typeText obj.etype) ^ " " ^ (this#stringText field.cf_name) ^ "\n");
+        | FInstance (_,field) when is_this obj -> this#write ("FTHISINST " ^ typeText ^ " " ^ (this#stringText field.cf_name) );
+        | FInstance (_,field) -> this#write ("FLINK " ^ typeText ^ " " ^ (this#stringText field.cf_name) ^ "\n");
              this#gen_expression obj;
+
+        | FClosure (_,field) when is_this obj -> this#write ("FTHISNAME " ^typeText ^ " " ^  (this#stringText field.cf_name) ^ "\n")
+        | FAnon (field) when is_this obj -> this#write ("FTHISNAME " ^typeText ^ " " ^  (this#stringText field.cf_name) ^ "\n")
+
         | FClosure (_,field)
-        | FAnon (field) -> this#write ("FTHISNAME " ^ (this#stringText field.cf_name) ^ "\n");
+        | FAnon (field) -> this#write ("FNAME " ^typeText ^ " " ^  (this#stringText field.cf_name) ^ "\n");
              this#gen_expression obj;
+
         | FEnum (enum,field) -> this#write ("FENUM " ^ (this#enumText enum) ^ " " ^ (this#stringText field.ef_name) );
         )
-     | TArray (e1, e2) -> this#write ("ARRAYI " ^ (this#typeText expression.etype) ^ "\n");
+     | TArray (e1, e2) -> this#write ("ARRAYI " ^ (this#typeText e1.etype) ^ "\n");
         this#gen_expression e1;
         this#gen_expression e2;
      | TUnop (op, flag, e) ->
@@ -4028,9 +4115,12 @@ let generate_script_class common_ctx script class_def =
    List.iter (fun(c,_) -> script#instName c) class_def.cl_implements;
    script#write "\n";
    script#write ((string_of_int ( (List.length class_def.cl_ordered_fields) +
-                                  (List.length class_def.cl_ordered_statics))) ^ "\n");
+                                  (List.length class_def.cl_ordered_statics) +
+                                  (match class_def.cl_constructor with Some _ -> 1 | _ -> 0 ) ) )
+                                  ^ "\n");
+
    let generate_field isStatic field =
-      match field.cf_kind, field.cf_type with
+      match field.cf_kind, follow field.cf_type with
 	   | Var { v_read = AccInline; v_write = AccNever },_ ->
          script#write "INLINE\n";
 	   | Var v,t ->
@@ -4046,12 +4136,16 @@ let generate_script_class common_ctx script class_def =
          script#var (mode_code v.v_read) (mode_code v.v_write) isStatic field.cf_name t
 	   | Method MethDynamic, TFun(a,r) ->
          script#var "N" "N" isStatic field.cf_name (TFun(a,r))
-	   | Method _, TFun(args,ret) when field.cf_name="new" ->
+      | Method _, TFun(args,ret) when field.cf_name="new" ->
          script#func true "new" (TInst(class_def,[])) args false field.cf_expr
 	   | Method _, TFun (args,ret) ->
          script#func isStatic field.cf_name ret args class_def.cl_interface field.cf_expr
-	   | Method _, _ -> print_endline ("Unknown method type " ^ (join_class_path class_def.cl_path "." ) ^field.cf_name);
+	   | Method _, _ -> print_endline ("Unknown method type " ^ (join_class_path class_def.cl_path "." )
+                      ^ "." ^field.cf_name )
    in
+   (match class_def.cl_constructor with
+		| Some field  -> generate_field true field
+      | _ -> () );
    List.iter (generate_field false) class_def.cl_ordered_fields;
    List.iter (generate_field true) class_def.cl_ordered_statics;
    script#write "\n";
