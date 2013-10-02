@@ -3910,7 +3910,7 @@ let rec decode_path t =
 	{
 		tpackage = List.map dec_string (dec_array (field t "pack"));
 		tname = dec_string (field t "name");
-		tparams = List.map decode_tparam (dec_array (field t "params"));
+		tparams = (match field t "params" with VNull -> [] | a -> List.map decode_tparam (dec_array a));
 		tsub = opt dec_string (field t "sub");
 	}
 
@@ -3919,19 +3919,23 @@ and decode_tparam v =
 	| 0,[t] -> TPType (decode_ctype t)
 	| 1,[e] -> TPExpr (decode_expr e)
 	| _ -> raise Invalid_expr
+	
+and decode_tparams = function
+	| VNull -> []
+	| a -> List.map decode_tparam_decl (dec_array a)
 
 and decode_tparam_decl v =
 	{
 		tp_name = dec_string (field v "name");
 		tp_constraints = (match field v "constraints" with VNull -> [] | a -> List.map decode_ctype (dec_array a));
-		tp_params = (match field v "params" with VNull -> [] | a -> List.map decode_tparam_decl (dec_array a));
+		tp_params = decode_tparams (field v "params");
 	}
 
 and decode_fun v =
 	{
-		f_params = List.map decode_tparam_decl (dec_array (field v "params"));
+		f_params = decode_tparams (field v "params");
 		f_args = List.map (fun o ->
-			(dec_string (field o "name"),dec_bool (field o "opt"),opt decode_ctype (field o "type"),opt decode_expr (field o "value"))
+			(dec_string (field o "name"),(match field o "opt" with VNull -> false | v -> dec_bool v),opt decode_ctype (field o "type"),opt decode_expr (field o "value"))
 		) (dec_array (field v "args"));
 		f_type = opt decode_ctype (field v "ret");
 		f_expr = opt decode_expr (field v "expr");
@@ -3949,10 +3953,11 @@ and decode_access v =
 	| _ -> raise Invalid_expr
 
 and decode_meta_entry v =
-	MetaInfo.from_string (dec_string (field v "name")), List.map decode_expr (dec_array (field v "params")), decode_pos (field v "pos")
+	MetaInfo.from_string (dec_string (field v "name")), (match field v "params" with VNull -> [] | a -> List.map decode_expr (dec_array a)), decode_pos (field v "pos")
 
-and decode_meta_content v =
-	List.map decode_meta_entry (dec_array v)
+and decode_meta_content = function
+	| VNull -> []
+	| v -> List.map decode_meta_entry (dec_array v)
 
 and decode_field v =
 	let fkind = match decode_enum (field v "kind") with
@@ -4357,13 +4362,13 @@ let decode_type_def v =
 	let name = dec_string (field v "name") in
 	let meta = decode_meta_content (field v "meta") in
 	let pos = decode_pos (field v "pos") in
-	let isExtern = dec_bool (field v "isExtern") in
+	let isExtern = (match field v "isExtern" with VNull -> false | v -> dec_bool v) in
 	let fields = List.map decode_field (dec_array (field v "fields")) in
 	let mk fl dl =
 		{
 			d_name = name;
 			d_doc = None;
-			d_params = List.map decode_tparam_decl (dec_array (field v "params"));
+			d_params = decode_tparams (field v "params");
 			d_meta = meta;
 			d_flags = fl;
 			d_data = dl;
