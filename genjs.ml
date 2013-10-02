@@ -80,12 +80,16 @@ let kwds =
 		"import"; "in"; "instanceof"; "interface"; "let"; "new"; "package"; "private"; "protected";
 		"public"; "return"; "static"; "super"; "switch"; "this"; "throw"; "try"; "typeof"; "var";
 		"void"; "while"; "with"; "yield";
+	];
+	h
 
-		(* Identifiers Haxe reserves to make the JS output cleaner. *)
+(* Identifiers Haxe reserves to make the JS output cleaner. These can still be used in untyped code (TLocal),
+   but are escaped upon declaration. *)
+let kwds2 =
+	let h = Hashtbl.create 0 in
+	List.iter (fun s -> Hashtbl.add h s ()) [
 		"console"; "window";
 	];
-
-
 	h
 
 let valid_js_ident s =
@@ -102,6 +106,8 @@ let valid_js_ident s =
 
 let field s = if Hashtbl.mem kwds s then "[\"" ^ s ^ "\"]" else "." ^ s
 let ident s = if Hashtbl.mem kwds s then "$" ^ s else s
+let check_var_declaration v = if Hashtbl.mem kwds2 v.v_name then v.v_name <- "$" ^ v.v_name
+
 let anon_field s = if Hashtbl.mem kwds s || not (valid_js_ident s) then "'" ^ s ^ "'" else s
 let static_field s =
 	match s with
@@ -524,6 +530,7 @@ and gen_expr ctx e =
 	| TVars vl ->
 		spr ctx "var ";
 		concat ctx ", " (fun (v,e) ->
+			check_var_declaration v;
 			spr ctx (ident v.v_name);
 			match e with
 			| None -> ()
@@ -576,6 +583,7 @@ and gen_expr ctx e =
 		spr ctx "}";
 		ctx.separator <- true
 	| TFor (v,it,e) ->
+		check_var_declaration v;
 		let handle_break = handle_break ctx e in
 		let it = ident (match it.eexpr with
 			| TLocal v -> v.v_name
@@ -600,7 +608,7 @@ and gen_expr ctx e =
 	| TTry (e,catchs) ->
 		spr ctx "try ";
 		gen_expr ctx e;
-		let vname = (match catchs with [(v,_)] -> v.v_name | _ ->
+		let vname = (match catchs with [(v,_)] -> check_var_declaration v; v.v_name | _ ->
 			let id = ctx.id_counter in
 			ctx.id_counter <- ctx.id_counter + 1;
 			"$e" ^ string_of_int id
