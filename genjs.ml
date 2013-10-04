@@ -436,7 +436,7 @@ and gen_expr ctx e =
 	match e.eexpr with
 	| TConst c -> gen_constant ctx e.epos c
 	| TLocal v -> spr ctx (ident v.v_name)
-	| TArray (e1,{ eexpr = TConst (TString s) }) when valid_js_ident s ->
+	| TArray (e1,{ eexpr = TConst (TString s) }) when valid_js_ident s && (match e1.eexpr with TConst (TInt _|TFloat _) -> false | _ -> true) ->
 		gen_value ctx e1;
 		spr ctx (field s)
 	| TArray (e1,e2) ->
@@ -474,6 +474,8 @@ and gen_expr ctx e =
 	| TEnumParameter (x,_,i) ->
 		gen_value ctx x;
 		print ctx "[%i]" (i + 2)
+	| TField ({ eexpr = TConst (TInt _ | TFloat _) } as x,f) ->
+		gen_expr ctx { e with eexpr = TField(mk (TParenthesis x) x.etype x.epos,f) }
 	| TField (x,f) ->
 		gen_value ctx x;
 		let name = field_name f in
