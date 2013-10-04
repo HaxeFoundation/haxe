@@ -76,9 +76,15 @@ class CallStack {
 				}
 				return stack;
 			}
-			var a = makeStack(untyped __new__("Error").stack);
-			a.shift(); // remove Stack.callStack()
-			(untyped Error).prepareStackTrace = oldValue;
+			var a = null;
+			try{
+				throw untyped __new__("Error");
+			}
+			catch(error:Dynamic){
+				a = makeStack(error.stack);
+				a.shift(); // remove Stack.callStack()
+				(untyped Error).prepareStackTrace = oldValue;
+			}
 			return a;
 		#else
 			return []; // Unsupported
