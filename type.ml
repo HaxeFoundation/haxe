@@ -639,7 +639,10 @@ let rec is_nullable ?(no_lazy=false) = function
 
 	| TInst ({ cl_kind = KTypeParameter },_) -> false
 *)
-	| TAbstract (a,_) -> not (Meta.has Meta.NotNull a.a_meta)
+	| TAbstract (a,_) when Meta.has Meta.CoreType a.a_meta ->
+		not (Meta.has Meta.NotNull a.a_meta)
+	| TAbstract (a,tl) ->
+		is_nullable (apply_params a.a_types tl a.a_this)
 	| _ ->
 		true
 
