@@ -2843,6 +2843,8 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				| _ -> ())
 			in
 			loop t
+		| NoValue ->
+			if name = None then display_error ctx "Unnamed lvalue functions are not supported" p
 		| _ ->
 			());
 		let ft = TFun (fun_args args,rt) in
