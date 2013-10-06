@@ -10,6 +10,6 @@ package java.vm;
 	public static function stats() : { heap : Int, free : Int }
 	{
 		var r = java.lang.Runtime.getRuntime();
-		return { heap : r.totalMemory(), free : r.freeMemory() };
+		return { heap : cast r.totalMemory(), free : cast r.freeMemory() };
 	}
 }
