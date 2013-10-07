@@ -1153,7 +1153,7 @@ let optimize_stdis tctx equal triple o t recurse =
 	let stringt = tctx.Typecore.com.basic.tstring in
 	let boolt = tctx.Typecore.com.basic.tbool in
 	let intt = tctx.Typecore.com.basic.tint in
-	let tostring t = let pstring = mk_local tctx "$ObjectPrototypeToString" t_dynamic pos in
+	let tostring t = let pstring = (Common.add_feature tctx.Typecore.com "Std.is"; mk_local tctx "$ObjectPrototypeToString" t_dynamic pos) in
 					let pstring = mk (TField (pstring, FDynamic ("call"))) (tfun [o.etype] stringt) pos in
 					let psof = mk (TCall (pstring, [o])) stringt pos in
 					mk (TBinop (equal, psof, (mk (TConst (TString t)) stringt pos))) boolt pos

@@ -24,7 +24,7 @@
 class Reflect {
 
 	public static inline function hasField( o : Dynamic, field : String ) : Bool
-		return untyped __js__("$hasOwnProperty").call(o, field);
+		return untyped __define_feature__("hasOwnProperty", $hasOwnProperty).call(o, field);
 
 	public inline static function field( o : Dynamic, field : String ) : Dynamic untyped {
 		var v = null;
@@ -56,7 +56,7 @@ class Reflect {
 		var a = [];
 		if (o != null) untyped {
 			__js__("for( var f in o ) {");
-			if( f != "__id__" && f != "hx__closures__" && __js__("$hasOwnProperty").call(o, f) ) a.push(f);
+			if( f != "__id__" && f != "hx__closures__" && __define_feature__("hasOwnProperty", $hasOwnProperty).call(o, f) ) a.push(f);
 			__js__("}");
 		}
 		return a;
@@ -111,6 +111,6 @@ class Reflect {
 	}
 
 	static function __init__() : Void {
-		untyped __js__("var $hasOwnProperty = Object.prototype.hasOwnProperty");
+		untyped __feature__("hasOwnProperty", __js__("var $hasOwnProperty = Object.prototype.hasOwnProperty"));
 	}
 }

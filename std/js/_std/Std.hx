@@ -110,7 +110,7 @@ import js.Boot;
 					return a;
 				}
 		);
-        __js__("var $ObjectPrototypeToString = Object.prototype.toString");
+        __feature__("Std.is", __js__("var $ObjectPrototypeToString = Object.prototype.toString"));
 	}
 
 }
