@@ -834,9 +834,14 @@ and gen_value ctx e =
 		gen_value ctx e1
 	| TCast (e1,None) ->
 		let s = type_str ctx e.etype e1.epos in
-		if s = "*" then
+		begin match s with
+		| "*" ->
 			gen_value ctx e1
-		else begin
+		| "Function" ->
+			spr ctx "((";
+			gen_value ctx e1;
+			print ctx ") as %s)" s;
+		| _ ->
 			print ctx "%s(" s;
 			gen_value ctx e1;
 			spr ctx ")";

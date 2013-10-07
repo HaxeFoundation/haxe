@@ -8,6 +8,7 @@
 .*.swp
 
 
+/version.ml
 /haxe
 /haxelib*
 /haxedoc*
@@ -47,3 +48,4 @@
 /haxe.sublime*
 build.bat
 tests/unit/compile.php.hxml
+/doc/*.xml

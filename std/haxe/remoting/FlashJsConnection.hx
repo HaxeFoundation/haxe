@@ -141,7 +141,7 @@ class FlashJsConnection #if flash implements AsyncConnection implements Dynamic<
 
 	static function flashCall( flashObj : String, name : String, path : String, params : String ) : String {
 		try {
-			var fobj : Dynamic = (untyped js.Browser.document)[__data.flash]; // FIXME(bruno): Why is this necessary?
+			var fobj : Dynamic = untyped (untyped js.Browser.document)[__data.flash]; // FIXME(bruno): Why is this necessary?
 			if( fobj == null ) fobj = js.Browser.document.getElementById(flashObj);
 			if( fobj == null ) throw "Could not find flash object '"+flashObj+"'";
 			var data = null;

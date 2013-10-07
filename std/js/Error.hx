@@ -21,34 +21,48 @@
  */
 package js;
 
-import js.Browser.*;
+@:native("Error")
+extern class Error
+{
+	var message : String;
+	var name : String;
+	var stack(default,null) : String;
 
-class Scroll {
+	function new(?message : String) : Void;
+}
 
-	public static function getTop() : Int {
-		var sy = window.pageYOffset;
-		if( untyped __js__("typeof")(sy) == 'number' )
-			return sy;
-		if( document.body ) {
-			sy = document.body.scrollTop;
-			if( sy ) return sy;
-		}
-		return document.documentElement.scrollTop;
-	}
+@:native("EvalError")
+extern class EvalError extends Error
+{
+	function new(?message : String) : Void;
+}
 
-	public static function getLeft() : Int {
-		var sx = window.pageXOffset;
-		if( untyped __js__("typeof")(sx) == 'number' )
-			return sx;
-		if( document.body ) {
-			sx = document.body.scrollLeft;
-			if( sx ) return sx;
-		}
-		return document.documentElement.scrollLeft;
-	}
+@:native("RangeError")
+extern class RangeError extends Error
+{
+	function new(?message : String) : Void;
+}
 
-	inline public static function set(left:Int,top:Int) {
-		window.scroll(left,top);
-	}
+@:native("ReferenceError")
+extern class ReferenceError extends Error
+{
+	function new(?message : String) : Void;
+}
 
+@:native("SyntaxError")
+extern class SyntaxError extends Error
+{
+	function new(?message : String) : Void;
+}
+
+@:native("TypeError")
+extern class TypeError extends Error
+{
+	function new(?message : String) : Void;
+}
+
+@:native("URIError")
+extern class URIError extends Error
+{
+	function new(?message : String) : Void;
 }

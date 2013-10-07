@@ -292,6 +292,7 @@ and module_kind =
 	| MCode
 	| MMacro
 	| MFake
+	| MSub
 
 and dt =
 	| DTSwitch of texpr * (texpr * dt) list * dt option
@@ -479,18 +480,18 @@ and s_type_params ctx = function
 	| [] -> ""
 	| l -> "<" ^ String.concat ", " (List.map (s_type ctx) l) ^ ">"
 
-let s_access = function
+let s_access is_read = function
 	| AccNormal -> "default"
 	| AccNo -> "null"
 	| AccNever -> "never"
 	| AccResolve -> "resolve"
-	| AccCall -> "accessor"
+	| AccCall -> if is_read then "get" else "set"
 	| AccInline	-> "inline"
 	| AccRequire (n,_) -> "require " ^ n
 
 let s_kind = function
 	| Var { v_read = AccNormal; v_write = AccNormal } -> "var"
-	| Var v -> "(" ^ s_access v.v_read ^ "," ^ s_access v.v_write ^ ")"
+	| Var v -> "(" ^ s_access true v.v_read ^ "," ^ s_access false v.v_write ^ ")"
 	| Method m ->
 		match m with
 		| MethNormal -> "method"
@@ -638,7 +639,10 @@ let rec is_nullable ?(no_lazy=false) = function
 
 	| TInst ({ cl_kind = KTypeParameter },_) -> false
 *)
-	| TAbstract (a,_) -> not (Meta.has Meta.NotNull a.a_meta)
+	| TAbstract (a,_) when Meta.has Meta.CoreType a.a_meta ->
+		not (Meta.has Meta.NotNull a.a_meta)
+	| TAbstract (a,tl) ->
+		is_nullable (apply_params a.a_types tl a.a_this)
 	| _ ->
 		true
 
@@ -895,7 +899,7 @@ let abstract_cast_stack = ref []
 let is_extern_field f =
 	match f.cf_kind with
 	| Method _ -> false
-	| Var { v_read = AccNormal | AccNo } | Var { v_write = AccNormal | AccNo } -> false
+	| Var { v_read = AccNormal | AccInline | AccNo } | Var { v_write = AccNormal | AccNo } -> false
 	| _ -> not (Meta.has Meta.IsVar f.cf_meta)
 
 let field_type f =
@@ -1273,11 +1277,22 @@ and unify_types a b tl1 tl2 =
 			type_eq EqRightDynamic t1 t2
 		with Unify_error l ->
 			let err = cannot_unify a b in
+			let allows_variance_to t (tf,cfo) = match cfo with
+				| None -> type_iseq tf t
+				| Some _ -> false
+			in
 			(try (match follow t1, follow t2 with
 				| TAbstract({a_impl = Some _} as a1,pl1),TAbstract({a_impl = Some _ } as a2,pl2) ->
-					type_eq EqStrict (apply_params a1.a_types pl1 a1.a_this) (apply_params a2.a_types pl2 a2.a_this)
-				| TAbstract({a_impl = Some _} as a,pl),t -> type_eq EqStrict (apply_params a.a_types pl a.a_this) t
-				| t,TAbstract({a_impl = Some _ } as a,pl) -> type_eq EqStrict t (apply_params a.a_types pl a.a_this)
+					let ta1 = apply_params a1.a_types pl1 a1.a_this in
+					let ta2 = apply_params a2.a_types pl2 a2.a_this in
+					type_eq EqStrict ta1 ta2;
+					if not (List.exists (allows_variance_to ta2) a1.a_to) && not (List.exists (allows_variance_to ta1) a2.a_from) then raise (Unify_error l)
+				| TAbstract({a_impl = Some _} as a,pl),t ->
+					type_eq EqStrict (apply_params a.a_types pl a.a_this) t;
+					if not (List.exists (allows_variance_to t) a.a_to) then raise (Unify_error l)
+				| t,TAbstract({a_impl = Some _ } as a,pl) ->
+					type_eq EqStrict t (apply_params a.a_types pl a.a_this);
+					if not (List.exists (allows_variance_to t) a.a_from) then raise (Unify_error l)
 				| _ -> raise (Unify_error l))
 			with Unify_error _ ->
 				error (err :: (Invariant_parameter (t1,t2)) :: l))

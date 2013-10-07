@@ -142,7 +142,7 @@ let type_expr_ref : (typer -> Ast.expr -> with_type -> texpr) ref = ref (fun _ _
 let type_module_type_ref : (typer -> module_type -> t list option -> pos -> texpr) ref = ref (fun _ _ _ _ -> assert false)
 let unify_min_ref : (typer -> texpr list -> t) ref = ref (fun _ _ -> assert false)
 let match_expr_ref : (typer -> Ast.expr -> (Ast.expr list * Ast.expr option * Ast.expr option) list -> Ast.expr option option -> with_type -> Ast.pos -> decision_tree) ref = ref (fun _ _ _ _ _ _ -> assert false)
-let get_pattern_locals_ref : (typer -> Ast.expr -> Type.t -> (string, tvar) PMap.t) ref = ref (fun _ _ _ -> assert false)
+let get_pattern_locals_ref : (typer -> Ast.expr -> Type.t -> (string, tvar * pos) PMap.t) ref = ref (fun _ _ _ -> assert false)
 let get_constructor_ref : (typer -> tclass -> t list -> Ast.pos -> (t * tclass_field)) ref = ref (fun _ _ _ _ -> assert false)
 let check_abstract_cast_ref : (typer -> t -> texpr -> Ast.pos -> texpr) ref = ref (fun _ _ _ _ -> assert false)
 
@@ -214,11 +214,11 @@ let unify_error_msg ctx = function
 		(match a, b with
 		| Var va, Var vb ->
 			let name, stra, strb = if va.v_read = vb.v_read then
-				"setter", s_access va.v_write, s_access vb.v_write
+				"setter", s_access false va.v_write, s_access false vb.v_write
 			else if va.v_write = vb.v_write then
-				"getter", s_access va.v_read, s_access vb.v_read
+				"getter", s_access true va.v_read, s_access true vb.v_read
 			else
-				"access", "(" ^ s_access va.v_read ^ "," ^ s_access va.v_write ^ ")", "(" ^ s_access vb.v_read ^ "," ^ s_access vb.v_write ^ ")"
+				"access", "(" ^ s_access true va.v_read ^ "," ^ s_access false va.v_write ^ ")", "(" ^ s_access true vb.v_read ^ "," ^ s_access false vb.v_write ^ ")"
 			in
 			"Inconsistent " ^ name ^ " for field " ^ f ^ " : " ^ stra ^ " should be " ^ strb
 		| _ ->

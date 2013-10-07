@@ -82,5 +82,10 @@ class MacroStringTools {
 		return if (pack.length == 0) name else pack.join(".") + "." +name;
 	}
 	
+	static public function toComplex( path : String ) : ComplexType {
+		var pack = path.split(".");
+		return TPath( { pack : pack, name : pack.pop(), params : [] } );
+	}
+	
 	#end
 }

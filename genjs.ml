@@ -90,12 +90,21 @@ let s_path ctx = if ctx.js_flatten then flat_path else dot_path
 let kwds =
 	let h = Hashtbl.create 0 in
 	List.iter (fun s -> Hashtbl.add h s ()) [
-		"abstract"; "as"; "boolean"; "break"; "byte"; "case"; "catch"; "char"; "class"; "continue"; "const";
-		"debugger"; "default"; "delete"; "do"; "double"; "else"; "enum"; "export"; "extends"; "false"; "final";
-		"finally"; "float"; "for"; "function"; "goto"; "if"; "implements"; "import"; "in"; "instanceof"; "int";
-		"interface"; "long"; "namespace"; "native"; "new"; "null"; "package"; "private"; "protected";
-		"public"; "return"; "short"; "static"; "super"; "switch"; "synchronized"; "this"; "throw"; "throws";
-		"transient"; "true"; "try"; "typeof"; "var"; "void"; "volatile"; "while"; "with"
+		(* JS reserved words: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Reserved_Words *)
+		"break"; "case"; "catch"; "class"; "const"; "continue"; "debugger"; "default"; "delete";
+		"do"; "else"; "enum"; "export"; "extends"; "finally"; "for"; "function"; "if"; "implements";
+		"import"; "in"; "instanceof"; "interface"; "let"; "new"; "package"; "private"; "protected";
+		"public"; "return"; "static"; "super"; "switch"; "this"; "throw"; "try"; "typeof"; "var";
+		"void"; "while"; "with"; "yield";
+	];
+	h
+
+(* Identifiers Haxe reserves to make the JS output cleaner. These can still be used in untyped code (TLocal),
+   but are escaped upon declaration. *)
+let kwds2 =
+	let h = Hashtbl.create 0 in
+	List.iter (fun s -> Hashtbl.add h s ()) [
+		"console"; "window";
 	];
 	h
 
@@ -113,6 +122,8 @@ let valid_js_ident s =
 
 let field s = if Hashtbl.mem kwds s then "[\"" ^ s ^ "\"]" else "." ^ s
 let ident s = if Hashtbl.mem kwds s then "$" ^ s else s
+let check_var_declaration v = if Hashtbl.mem kwds2 v.v_name then v.v_name <- "$" ^ v.v_name
+
 let anon_field s = if Hashtbl.mem kwds s || not (valid_js_ident s) then "'" ^ s ^ "'" else s
 let static_field s =
 	match s with
@@ -446,20 +457,13 @@ let rec gen_call ctx e el in_value =
 		concat ctx "," (gen_value ctx) el;
 		spr ctx ")"
 
-and gen_object_value ctx e = match e.eexpr with
-	| TConst (TInt _) | TConst (TFloat _) ->
-		spr ctx "(";
-		gen_value ctx e;
-		spr ctx ")"
-	| _ -> gen_value ctx e
-
 and gen_expr ctx e =
 	add_mapping ctx e;
 	match e.eexpr with
 	| TConst c -> gen_constant ctx e.epos c
 	| TLocal v -> spr ctx (ident v.v_name)
-	| TArray (e1,{ eexpr = TConst (TString s) }) when valid_js_ident s ->
-		gen_object_value ctx e1;
+	| TArray (e1,{ eexpr = TConst (TString s) }) when valid_js_ident s && (match e1.eexpr with TConst (TInt _|TFloat _) -> false | _ -> true) ->
+		gen_value ctx e1;
 		spr ctx (field s)
 	| TArray (e1,e2) ->
 		gen_value ctx e1;
@@ -496,6 +500,8 @@ and gen_expr ctx e =
 	| TEnumParameter (x,_,i) ->
 		gen_value ctx x;
 		print ctx "[%i]" (i + 2)
+	| TField ({ eexpr = TConst (TInt _ | TFloat _) } as x,f) ->
+		gen_expr ctx { e with eexpr = TField(mk (TParenthesis x) x.etype x.epos,f) }
 	| TField (x,f) ->
 		gen_value ctx x;
 		let name = field_name f in
@@ -552,6 +558,7 @@ and gen_expr ctx e =
 	| TVars vl ->
 		spr ctx "var ";
 		concat ctx ", " (fun (v,e) ->
+			check_var_declaration v;
 			spr ctx (ident v.v_name);
 			match e with
 			| None -> ()
@@ -604,6 +611,7 @@ and gen_expr ctx e =
 		spr ctx "}";
 		ctx.separator <- true
 	| TFor (v,it,e) ->
+		check_var_declaration v;
 		let handle_break = handle_break ctx e in
 		let it = ident (match it.eexpr with
 			| TLocal v -> v.v_name
@@ -628,7 +636,7 @@ and gen_expr ctx e =
 	| TTry (e,catchs) ->
 		spr ctx "try ";
 		gen_expr ctx e;
-		let vname = (match catchs with [(v,_)] -> v.v_name | _ ->
+		let vname = (match catchs with [(v,_)] -> check_var_declaration v; v.v_name | _ ->
 			let id = ctx.id_counter in
 			ctx.id_counter <- ctx.id_counter + 1;
 			"$e" ^ string_of_int id
@@ -723,7 +731,7 @@ and gen_expr ctx e =
 	| TCast (e,None) ->
 		gen_expr ctx e
 	| TCast (e1,Some t) ->
-		spr ctx "js.Boot.__cast(";
+		print ctx "%s.__cast(" (ctx.type_accessor (TClassDecl { null_class with cl_path = ["js"],"Boot" }));
 		gen_expr ctx e1;
 		spr ctx " , ";
 		spr ctx (ctx.type_accessor t);
@@ -802,7 +810,7 @@ and gen_value ctx e =
 	| TCast (e1, None) ->
 		gen_value ctx e1
 	| TCast (e1, Some t) ->
-		spr ctx "js.Boot.__cast(";
+		print ctx "%s.__cast(" (ctx.type_accessor (TClassDecl { null_class with cl_path = ["js"],"Boot" }));
 		gen_value ctx e1;
 		spr ctx " , ";
 		spr ctx (ctx.type_accessor t);
@@ -1261,9 +1269,12 @@ let generate com =
 		newline ctx;
 	end;
 
+	(* TODO: fix $estr *)
 	let vars = [] in
 	let vars = (if has_feature ctx "Type.resolveClass" || has_feature ctx "Type.resolveEnum" then ("$hxClasses = " ^ (if ctx.js_modern then "{}" else "$hxClasses || {}")) :: vars else vars) in
-	let vars = (if List.exists (function TEnumDecl { e_extern = false } -> true | _ -> false) com.types then "$estr = function() { return js.Boot.__string_rec(this,''); }" :: vars else vars) in
+	let vars = (if List.exists (function TEnumDecl { e_extern = false } -> true | _ -> false) com.types
+		then ("$estr = function() { return " ^ (ctx.type_accessor (TClassDecl { null_class with cl_path = ["js"],"Boot" })) ^ ".__string_rec(this,''); }") :: vars
+		else vars) in
 	(match List.rev vars with
 	| [] -> ()
 	| vl ->

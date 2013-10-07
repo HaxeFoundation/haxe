@@ -46,8 +46,16 @@
 		}
 	}
 
-	public inline static function callMethod( o : Dynamic, func : Dynamic, args : Array<Dynamic> ) : Dynamic untyped {
-		return $call(func,o,args.__neko());
+	public static function callMethod( o : Dynamic, func : Dynamic, args : Array<Dynamic> ) : Dynamic untyped {
+		var a = args.__neko();
+		// pad missing args with null's
+		var n = $nargs(func);
+		if( n > $asize(a) ) {
+			var a2 = $amake(n);
+			$ablit(a2,0,a,0,$asize(a));
+			a = a2;
+		}
+		return $call(func,o,a);
 	}
 
 	public static function fields( o : Dynamic ) : Array<String> untyped {

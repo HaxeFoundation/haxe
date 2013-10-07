@@ -353,7 +353,7 @@ let to_pattern ctx e t =
 					| TFun(args,r) ->
 						unify ctx r t p;
 						List.map (fun (n,_,t) -> t) args,r
-					| _ -> error "Arguments expected" p
+					| _ -> error "No arguments expected" p
 				in
 				let rec loop2 i el tl = match el,tl with
 					| (EConst(Ident "_"),pany) :: [], t :: tl ->
@@ -411,7 +411,7 @@ let to_pattern ctx e t =
 						ignore(follow cf.cf_type);
 						let e = begin match cf.cf_expr with
 						| Some ({eexpr = TConst c | TCast({eexpr = TConst c},None)} as e) -> e
-						| _ -> print_endline "Not found"; raise Not_found
+						| _ -> raise Not_found
 						end in
 						e
 					| _ ->
@@ -442,11 +442,12 @@ let to_pattern ctx e t =
 					| _ ->
 						raise Not_found);
 			with Not_found ->
-				if not (is_lower_ident s) && s.[0] <> '`' then error "Capture variables must be lower-case" p;
 				begin match get_tuple_types t with
-					| Some _ ->
-						error "Cannot bind tuple" p
+					| Some tl ->
+						let s = String.concat "," (List.map (fun (_,_,t) -> s_type t) tl) in
+						error ("Pattern should be tuple [" ^ s ^ "]") p
 					| None ->
+						if not (is_lower_ident s) && s.[0] <> '`' then error "Capture variables must be lower-case" p;
 						let v = mk_var pctx s t p in
 						mk_pat (PVar (v,p)) v.v_type p
 				end
@@ -567,7 +568,7 @@ let to_pattern ctx e t =
 let get_pattern_locals ctx e t =
 	try
 		let _,locals,_ = to_pattern ctx e t in
-		PMap.foldi (fun n (v,_) acc -> PMap.add n v acc) locals PMap.empty
+		PMap.foldi (fun n v acc -> PMap.add n v acc) locals PMap.empty
 	with Unrecognized_pattern _ ->
 		PMap.empty
 
@@ -1067,8 +1068,6 @@ let match_expr ctx e cases def with_type p =
 	(* turn subjects to subterms and handle variable initialization where necessary *)
 	let stl = ExtList.List.mapi (fun i e ->
 		let rec loop e = match e.eexpr with
-			| TField (ef,s) when (match s with FEnum _ -> false | _ -> true) ->
-				mk_st (SField(loop ef,field_name s)) e.etype e.epos
 			| TParenthesis e | TMeta(_,e) ->
 				loop e
 			| TLocal v ->

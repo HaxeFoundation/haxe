@@ -184,7 +184,7 @@ class Input {
 			bytes.push(cast readByte());
 			bytes.push(cast readByte());
 			bytes.push(cast readByte());
-			if (bigEndian)
+			if (!bigEndian)
 				bytes.reverse();
 			var sign = 1 - ((bytes[0] >> 7) << 1);
 			var exp = (((bytes[0] << 1) & 0xFF) | (bytes[1] >> 7)) - 127;
@@ -213,7 +213,7 @@ class Input {
 		bytes.push(readByte());
 		bytes.push(readByte());
 		bytes.push(readByte());
-		if (bigEndian)
+		if (!bigEndian)
 			bytes.reverse();
 
 		var sign = 1 - ((bytes[0] >> 7) << 1); // sign = bit 0

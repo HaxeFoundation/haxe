@@ -150,7 +150,7 @@ class Socket {
 			socket_connect(__s, host.ip, port);
 		} catch( s : String ) {
 			if( s == "std@socket_connect" )
-				throw "Failed to connect on "+(try host.reverse() catch( e : Dynamic ) host.toString())+":"+port;
+				throw "Failed to connect on "+host.toString()+":"+port;
 			else
 				neko.Lib.rethrow(s);
 		}

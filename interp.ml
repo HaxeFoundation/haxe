@@ -113,8 +113,9 @@ type extern_api = {
 	get_local_using : unit -> tclass list;
 	get_local_vars : unit -> (string, Type.tvar) PMap.t;
 	get_build_fields : unit -> value;
-	get_pattern_locals : Ast.expr -> Type.t -> (string,Type.tvar) PMap.t;
+	get_pattern_locals : Ast.expr -> Type.t -> (string,Type.tvar * Ast.pos) PMap.t;
 	define_type : value -> unit;
+	define_module : string -> value list -> unit;
 	module_dependency : string -> string -> bool -> unit;
 	current_module : unit -> module_def;
 	delayed_macro : int -> (unit -> (unit -> value));
@@ -2039,6 +2040,19 @@ let z_lib =
 (* ---------------------------------------------------------------------- *)
 (* MACRO LIBRARY *)
 
+(* convert float value to haxe expression, handling inf/-inf/nan *)
+let haxe_float f p =
+    let std = (Ast.EConst (Ast.Ident "std"), p) in
+    let math = (Ast.EField (std, "Math"), p) in
+    if (f = infinity) then
+        (Ast.EField (math, "POSITIVE_INFINITY"), p)
+    else if (f = neg_infinity) then
+        (Ast.EField (math, "NEGATIVE_INFINITY"), p)
+    else if (f <> f) then
+        (Ast.EField (math, "NaN"), p)
+    else
+        (Ast.EConst (Ast.Float (float_repres f)), p)
+
 let macro_lib =
 	let error() =
 		raise Builtin_error
@@ -2060,7 +2074,7 @@ let macro_lib =
 			| VString s, VAbstract (APos p) ->
 				raise (Typecore.Fatal_error (s,p))
 			| _ -> error()
-		);		
+		);
 		"warning", Fun2 (fun msg p ->
 			match msg, p with
 			| VString s, VAbstract (APos p) ->
@@ -2154,7 +2168,7 @@ let macro_lib =
 					| VBool b -> (Ast.EConst (Ast.Ident (if b then "true" else "false")),p)
 					| VInt i -> (Ast.EConst (Ast.Int (string_of_int i)),p)
 					| VInt32 i -> (Ast.EConst (Ast.Int (Int32.to_string i)),p)
-					| VFloat f -> (Ast.EConst (Ast.Float (string_of_float f)),p)
+					| VFloat f -> haxe_float f p
 					| VAbstract (APos p) ->
 						(Ast.EObjectDecl (
 							("fileName" , (Ast.EConst (Ast.String p.Ast.pfile) , p)) ::
@@ -2355,6 +2369,10 @@ let macro_lib =
 				VNull
 			| _ -> error()
 		);
+		"local_module", Fun0 (fun() ->
+			let m = (get_ctx()).curapi.current_module() in
+			VString (Ast.s_type_path m.m_path);
+		);
 		"local_type", Fun0 (fun() ->
 			match (get_ctx()).curapi.get_local_type() with
 			| None -> VNull
@@ -2396,6 +2414,14 @@ let macro_lib =
 			(get_ctx()).curapi.define_type v;
 			VNull
 		);
+		"define_module", Fun2 (fun p v ->
+			match p, v with
+			| VString path, VArray vl ->
+				(get_ctx()).curapi.define_module path (Array.to_list vl);
+				VNull
+			| _ ->
+				error()
+		);
 		"add_class_path", Fun1 (fun v ->
 			match v with
 			| VString cp ->
@@ -2411,6 +2437,7 @@ let macro_lib =
 				let com = ccom() in
 				(match com.platform with
 				| Flash -> Genswf.add_swf_lib com file false
+				| Java -> Genjava.add_java_lib com file false
 				| _ -> failwith "Unsupported platform");
 				VNull
 			| _ ->
@@ -2454,7 +2481,7 @@ let macro_lib =
 		"pattern_locals", Fun2 (fun e t ->
 			let loc = (get_ctx()).curapi.get_pattern_locals (decode_expr e) (decode_type t) in
 			let h = Hashtbl.create 0 in
-			PMap.iter (fun n v -> Hashtbl.replace h (VString n) (encode_type v.v_type)) loc;
+			PMap.iter (fun n (v,_) -> Hashtbl.replace h (VString n) (encode_type v.v_type)) loc;
 			enc_hash h
 		);
 		"macro_context_reused", Fun1 (fun c ->
@@ -3238,7 +3265,7 @@ let rec to_string ctx n v =
 	| VInt i -> string_of_int i
 	| VInt32 i -> Int32.to_string i
 	| VFloat f ->
-		let s = string_of_float f in
+		let s = float_repres f in
 		let len = String.length s in
 		if String.unsafe_get s (len - 1) = '.' then String.sub s 0 (len - 1) else s
 	| VString s -> s
@@ -3884,7 +3911,7 @@ let rec decode_path t =
 	{
 		tpackage = List.map dec_string (dec_array (field t "pack"));
 		tname = dec_string (field t "name");
-		tparams = List.map decode_tparam (dec_array (field t "params"));
+		tparams = (match field t "params" with VNull -> [] | a -> List.map decode_tparam (dec_array a));
 		tsub = opt dec_string (field t "sub");
 	}
 
@@ -3894,18 +3921,22 @@ and decode_tparam v =
 	| 1,[e] -> TPExpr (decode_expr e)
 	| _ -> raise Invalid_expr
 
+and decode_tparams = function
+	| VNull -> []
+	| a -> List.map decode_tparam_decl (dec_array a)
+
 and decode_tparam_decl v =
 	{
 		tp_name = dec_string (field v "name");
 		tp_constraints = (match field v "constraints" with VNull -> [] | a -> List.map decode_ctype (dec_array a));
-		tp_params = (match field v "params" with VNull -> [] | a -> List.map decode_tparam_decl (dec_array a));
+		tp_params = decode_tparams (field v "params");
 	}
 
 and decode_fun v =
 	{
-		f_params = List.map decode_tparam_decl (dec_array (field v "params"));
+		f_params = decode_tparams (field v "params");
 		f_args = List.map (fun o ->
-			(dec_string (field o "name"),dec_bool (field o "opt"),opt decode_ctype (field o "type"),opt decode_expr (field o "value"))
+			(dec_string (field o "name"),(match field o "opt" with VNull -> false | v -> dec_bool v),opt decode_ctype (field o "type"),opt decode_expr (field o "value"))
 		) (dec_array (field v "args"));
 		f_type = opt decode_ctype (field v "ret");
 		f_expr = opt decode_expr (field v "expr");
@@ -3923,10 +3954,11 @@ and decode_access v =
 	| _ -> raise Invalid_expr
 
 and decode_meta_entry v =
-	MetaInfo.from_string (dec_string (field v "name")), List.map decode_expr (dec_array (field v "params")), decode_pos (field v "pos")
+	MetaInfo.from_string (dec_string (field v "name")), (match field v "params" with VNull -> [] | a -> List.map decode_expr (dec_array a)), decode_pos (field v "pos")
 
-and decode_meta_content v =
-	List.map decode_meta_entry (dec_array v)
+and decode_meta_content = function
+	| VNull -> []
+	| v -> List.map decode_meta_entry (dec_array v)
 
 and decode_field v =
 	let fkind = match decode_enum (field v "kind") with
@@ -4331,13 +4363,13 @@ let decode_type_def v =
 	let name = dec_string (field v "name") in
 	let meta = decode_meta_content (field v "meta") in
 	let pos = decode_pos (field v "pos") in
-	let isExtern = dec_bool (field v "isExtern") in
+	let isExtern = (match field v "isExtern" with VNull -> false | v -> dec_bool v) in
 	let fields = List.map decode_field (dec_array (field v "fields")) in
 	let mk fl dl =
 		{
 			d_name = name;
 			d_doc = None;
-			d_params = List.map decode_tparam_decl (dec_array (field v "params"));
+			d_params = decode_tparams (field v "params");
 			d_meta = meta;
 			d_flags = fl;
 			d_data = dl;
@@ -4384,6 +4416,11 @@ let decode_type_def v =
 		EAbstract(mk flags fields)
 	| _ ->
 		raise Invalid_expr
+	) in
+	(* if our package ends with an uppercase letter, then it's the module name *)
+	let pack,name = (match List.rev pack with
+		| last :: l when not (is_lower_ident last) -> List.rev l, last
+		| _ -> pack, name
 	) in
 	(pack, name), tdef, pos
 

@@ -353,10 +353,10 @@ let generate_type com t =
 			| l -> p "@%s(%s) " (fst (MetaInfo.to_string m)) (String.concat "," (List.map Ast.s_expr pl))
 		) ml
 	in
-	let access a =
+	let access is_read a =
 		match a, pack with
 		| AccNever, "flash" :: _ -> "null"
-		| _ -> s_access a
+		| _ -> s_access is_read a
 	in
 	let print_field stat f =
 		p "\t";
@@ -365,7 +365,7 @@ let generate_type com t =
 		(match f.cf_kind with
 		| Var v ->
 			p "var %s" f.cf_name;
-			if v.v_read <> AccNormal || v.v_write <> AccNormal then p "(%s,%s)" (access v.v_read) (access v.v_write);
+			if v.v_read <> AccNormal || v.v_write <> AccNormal then p "(%s,%s)" (access true v.v_read) (access false v.v_write);
 			p " : %s" (stype f.cf_type);
 		| Method m ->
 			let params, ret = (match follow f.cf_type with

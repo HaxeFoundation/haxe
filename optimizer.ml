@@ -382,7 +382,7 @@ let rec type_inline ctx cf f ethis params tret config p force =
 
 		This could be fixed with better post process code cleanup (planed)
 	*)
-	if !cancel_inlining || (Common.platform ctx.com Js && not !force && (init <> None || !has_vars)) then
+	if !cancel_inlining then
 		None
 	else
 		let wrap e =
@@ -807,7 +807,7 @@ let rec reduce_loop ctx e =
 	let e = Type.map_expr (reduce_loop ctx) e in
 	let check_float op f1 f2 =
 		let f = op f1 f2 in
-		let fstr = string_of_float f in
+		let fstr = float_repres f in
 		if (match classify_float f with FP_nan | FP_infinite -> false | _ -> float_of_string fstr = f) then { e with eexpr = TConst (TFloat fstr) } else e
 	in
 	sanitize_expr ctx.com (match e.eexpr with
@@ -946,7 +946,7 @@ let rec reduce_loop ctx e =
 		| NegBits, TConst (TInt i) -> { e with eexpr = TConst (TInt (Int32.lognot i)) }
 		| Neg, TConst (TFloat f) ->
 			let v = 0. -. float_of_string f in
-			let vstr = string_of_float v in
+			let vstr = float_repres v in
 			if float_of_string vstr = v then
 				{ e with eexpr = TConst (TFloat vstr) }
 			else

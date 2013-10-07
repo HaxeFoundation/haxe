@@ -1678,7 +1678,7 @@ let configure gen =
           begin_block w;
           write w "public static void Main()";
           begin_block w;
-          (if Hashtbl.mem gen.gtypes (["cs"], "Boot") then write w "cs.Boot.init();"; newline w);
+          (if Hashtbl.mem gen.gtypes (["cs"], "Boot") then write w "global::cs.Boot.init();"; newline w);
           expr_s w { eexpr = TTypeExpr(TClassDecl cl); etype = t_dynamic; epos = Ast.null_pos };
           write w ".main();";
           end_block w;
@@ -1716,7 +1716,7 @@ let configure gen =
     if is_main then begin
       write w "public static void Main()";
       begin_block w;
-      (if Hashtbl.mem gen.gtypes (["cs"], "Boot") then write w "cs.Boot.init();"; newline w);
+      (if Hashtbl.mem gen.gtypes (["cs"], "Boot") then write w "global::cs.Boot.init();"; newline w);
       write w "main();";
       end_block w
     end;

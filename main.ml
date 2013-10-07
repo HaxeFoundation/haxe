@@ -565,7 +565,7 @@ and wait_loop boot_com host port =
 			else try
 				if m.m_extra.m_mark <= start_mark then begin
 					(match m.m_extra.m_kind with
-					| MFake -> () (* don't get classpath *)
+					| MFake | MSub -> () (* don't get classpath *)
 					| MCode -> if not (check_module_path com2 m p) then raise Not_found;
 					| MMacro when ctx.Typecore.in_macro -> if not (check_module_path com2 m p) then raise Not_found;
 					| MMacro ->
@@ -609,7 +609,7 @@ and wait_loop boot_com host port =
 							a.a_meta <- List.filter (fun (m,_,_) -> m <> Ast.Meta.ValueUsed) a.a_meta
 						| _ -> ()
 					) m.m_types;
-					Typeload.add_module ctx m p;
+					if m.m_extra.m_kind <> MSub then Typeload.add_module ctx m p;
 					PMap.iter (Hashtbl.add com2.resources) m.m_extra.m_binded_res;
 					PMap.iter (fun _ m2 -> add_modules m0 m2) m.m_extra.m_deps);
 					List.iter (Typer.call_init_macro ctx) m.m_extra.m_macro_calls
@@ -778,8 +778,8 @@ and do_connect host port args =
 
 and init ctx =
 	let usage = Printf.sprintf
-		"Haxe Compiler %d.%d.%d - (C)2005-2013 Haxe Foundation\n Usage : haxe%s -main <class> [-swf|-js|-neko|-php|-cpp|-as3] <output> [options]\n Options :"
-		(version / 100) ((version mod 100)/10) (version mod 10) (if Sys.os_type = "Win32" then ".exe" else "")
+		"Haxe Compiler %d.%d.%d %s- (C)2005-2013 Haxe Foundation\n Usage : haxe%s -main <class> [-swf|-js|-neko|-php|-cpp|-as3] <output> [options]\n Options :"
+		(version / 100) ((version mod 100)/10) (version mod 10) (match Version.version_extra with None -> "" | Some v -> v) (if Sys.os_type = "Win32" then ".exe" else "")
 	in
 	let com = ctx.com in
 	let classes = ref [([],"Std")] in
@@ -796,7 +796,7 @@ try
 	let force_typing = ref false in
 	let pre_compilation = ref [] in
 	let interp = ref false in
-	Common.define_value com Define.HaxeVer (string_of_float (float_of_int version /. 100.));
+	Common.define_value com Define.HaxeVer (float_repres (float_of_int version /. 100.));
 	Common.raw_define com (if ((version / 10) land 1 == 0) then "haxe_release" else "haxe_svn");
 	Common.raw_define com "haxe3";
 	Common.define_value com Define.Dce "std";

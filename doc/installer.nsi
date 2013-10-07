@@ -1,4 +1,8 @@
 ; Haxe/Neko Install script
+; Instructions:
+; - put haxe files in resources/haxe
+; - put neko files in resources/neko
+; - run
 
 ;--------------------------------
 

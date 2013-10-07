@@ -243,7 +243,7 @@ let build_class com c file =
 							| HVInt i | HVUInt i ->
 								Some (Int (Int32.to_string i))
 							| HVFloat f ->
-								Some (Float (string_of_float f))
+								Some (Float (float_repres f))
 							) in
 							match v with
 							| None -> None
@@ -542,7 +542,7 @@ let swf_ver = function
 	| 11.6 -> 19
 	| 11.7 -> 20
 	| 11.8 -> 21
-	| v -> failwith ("Invalid SWF version " ^ string_of_float v)
+	| v -> failwith ("Invalid SWF version " ^ float_repres v)
 
 let convert_header com (w,h,fps,bg) =
 	let high = (max w h) * 20 in
@@ -844,7 +844,7 @@ let build_swf9 com file swc =
 				| (Meta.Font,(EConst (String file),p) :: args,_) :: l ->
 					let file = try Common.find_file com file with Not_found -> file in
 					let ch = try open_in_bin file with _ -> error "File not found" p in
-					let ttf = TTFParser.parse ch in
+					let ttf = try TTFParser.parse ch with e -> error ("Error while parsing font " ^ file ^ " : " ^ Printexc.to_string e) p in
 					close_in ch;
 					let range_str = match args with
 						| [EConst (String str),_] -> str
