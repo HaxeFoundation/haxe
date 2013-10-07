@@ -2437,6 +2437,7 @@ let macro_lib =
 				let com = ccom() in
 				(match com.platform with
 				| Flash -> Genswf.add_swf_lib com file false
+				| Java -> Genjava.add_java_lib com file false
 				| _ -> failwith "Unsupported platform");
 				VNull
 			| _ ->
@@ -3919,7 +3920,7 @@ and decode_tparam v =
 	| 0,[t] -> TPType (decode_ctype t)
 	| 1,[e] -> TPExpr (decode_expr e)
 	| _ -> raise Invalid_expr
-	
+
 and decode_tparams = function
 	| VNull -> []
 	| a -> List.map decode_tparam_decl (dec_array a)
