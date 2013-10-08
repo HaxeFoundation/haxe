@@ -272,8 +272,13 @@ let hash_keys hash =
 
 let pmap_keys pmap =
 	let key_list = ref [] in
-	PMap.iter (fun key value -> key_list :=  key :: !key_list ) pmap;
+	PMap.iter (fun key _ -> key_list :=  key :: !key_list ) pmap;
 	!key_list;;
+
+let pmap_values pmap =
+	let value_list = ref [] in
+	PMap.iter (fun _ value -> value_list :=  value :: !value_list ) pmap;
+	!value_list;;
 
 
 
@@ -2811,7 +2816,7 @@ let access_str a = match a with
 	| AccInline -> "AccInline"
 	| AccRequire(_,_) -> "AccRequire" ;;
 
-let generate_class_files common_ctx member_types super_deps constructor_deps class_def file_info scriptable =
+let generate_class_files common_ctx member_types super_deps constructor_deps class_def file_info inScriptable =
 	let class_path = class_def.cl_path in
 	let class_name = (snd class_path) ^ "_obj" in
 	let dot_name = join_class_path class_path "." in
@@ -2821,6 +2826,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 	let cpp_file = new_placed_cpp_file common_ctx class_path in
 	let output_cpp = (cpp_file#write) in
 	let debug = false in
+   let scriptable = inScriptable && not class_def.cl_private in
 	let ctx = new_context common_ctx cpp_file debug file_info in
 	ctx.ctx_class_name <- "::" ^ (join_class_path class_def.cl_path "::");
 	ctx.ctx_class_super_name <- (match class_def.cl_super with
@@ -3139,34 +3145,32 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 		List.iter dump_field_name  implemented_fields;
 		output_cpp "	String(null()) };\n\n";
 
+   	let dump_member_storage = (fun field ->
+         let storage = match type_string field.cf_type with
+         | "Bool" -> "hx::fsBool"
+         | "Int" -> "hx::fsInt"
+         | "Float" -> "hx::fsFloat"
+         | "::String" -> "hx::fsString"
+         | _ -> "hx::fsObject"
+         in
+         output_cpp ("	{" ^ storage ^ ",(int)offsetof(" ^ class_name ^"," ^ (keyword_remap field.cf_name) ^")," ^
+            (str field.cf_name) ^ "},\n")
+         )
+       in
+   	let stored_fields = List.filter is_data_member implemented_instance_fields in
+   	output_cpp "#if HXCPP_SCRIPTABLE\n";
+      if ( (List.length stored_fields) > 0) then begin
+   	   output_cpp "static hx::StorageInfo sMemberStorageInfo[] = {\n";
+   	   List.iter dump_member_storage stored_fields;
+   	   output_cpp "	{ hx::fsUnknown, 0, null()}\n};\n";
+      end else
+   	   output_cpp "static hx::StorageInfo *sMemberStorageInfo = 0;\n";
+   	output_cpp "#endif\n\n";
    end; (* cl_interface *)
 
 	output_cpp "static ::String sMemberFields[] = {\n";
 	List.iter dump_field_name  implemented_instance_fields;
 	output_cpp "	String(null()) };\n\n";
-
-
-	let dump_member_storage = (fun field ->
-      let storage = match type_string field.cf_type with
-      | "Bool" -> "hx::fsBool"
-      | "Int" -> "hx::fsInt"
-      | "Float" -> "hx::fsFloat"
-      | "::String" -> "hx::fsString"
-      | _ -> "hx::fsObject"
-      in
-      output_cpp ("	{" ^ storage ^ ",(int)offsetof(" ^ class_name ^"," ^ (keyword_remap field.cf_name) ^")," ^
-         (str field.cf_name) ^ "},\n")
-      )
-    in
-	let stored_fields = List.filter is_data_member implemented_instance_fields in
-	output_cpp "#if HXCPP_SCRIPTABLE\n";
-   if ( (List.length stored_fields) > 0) then begin
-	   output_cpp "static hx::StorageInfo sMemberStorageInfo[] = {\n";
-	   List.iter dump_member_storage stored_fields;
-	   output_cpp "	{ hx::fsUnknown, 0, null()}\n};\n";
-   end else
-	   output_cpp "static hx::StorageInfo *sMemberStorageInfo = 0;\n";
-	output_cpp "#endif\n\n";
 
 	(* Mark static variables as used *)
 	output_cpp "static void sMarkStatics(HX_MARK_PARAMS) {\n";
@@ -3188,7 +3192,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 	output_cpp "};\n\n";
 	output_cpp "#endif\n\n";
 
-   let script_type t optional = if optional then "o" else
+   let script_type t optional = if optional then "Object" else
    match type_string t with
    | "bool" -> "Int"
    | "int" -> "Int"
@@ -3235,7 +3239,6 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
    in
 
 
-
    if (scriptable ) then begin
       let dump_script_field idx (field,f_args,return_t) =
         let args = if (class_def.cl_interface) then
@@ -3247,29 +3250,30 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
         let ret = if (return_type="Void") then " " else "return " in
         let name = keyword_remap field.cf_name in
         let vtable =  "__scriptVTable[" ^ (string_of_int (idx+1) ) ^ "] " in
-        let args_varray = (List.fold_left (fun l n -> l ^ ".Add(" ^ n ^ ")") "Array<Dynamic>()" names)  in
-        (*let args_comma = List.fold_left (fun l n -> l ^ "," ^ n) "" names in*)
+        let args_varray = (List.fold_left (fun l n -> l ^ ".Add(" ^ n ^ ")") "Array<Dynamic>()" names) in
         output_cpp ("   " ^ return_type ^ " " ^ name ^ "( " ^ args ^ " ) { ");
-         if (class_def.cl_interface) then begin
-           output_cpp (" " ^ ret ^ "mDelegate->__Field(HX_CSTRING(\"" ^ field.cf_name ^ "\"),false)");
+        output_cpp ("\n\tif (" ^ vtable ^ ") {\n" );
+        output_cpp ("\t\thx::CppiaCtx *__ctx = hx::CppiaCtx::getCurrent();\n" );
+        output_cpp ("\t\thx::AutoStack __as(__ctx);\n" );
+        output_cpp ("\t\t__ctx->pushObject(" ^ (if class_def.cl_interface then "mDelegate.mPtr" else "this" ) ^");\n" );
+        List.iter (fun (name,opt, t ) ->
+           output_cpp ("\t\t__ctx->push" ^ (script_type t opt) ^ "(" ^ (keyword_remap name) ^ ");\n" );
+        ) f_args;
+        output_cpp ("\t\t" ^ ret ^ "__ctx->run" ^ (script_type return_t false) ^ "(" ^ vtable ^ ");\n" );
+        output_cpp ("\t}  else " ^ ret );
+
+        if (class_def.cl_interface) then begin
+           output_cpp (" mDelegate->__Field(HX_CSTRING(\"" ^ field.cf_name ^ "\"),false)");
            if (List.length names <= 5) then
-              output_cpp ("->__run(" ^ (String.concat "," names) ^ ")")
+              output_cpp ("->__run(" ^ (String.concat "," names) ^ ");")
            else
-              output_cpp ("->__Run(" ^ args_varray ^ ")");
-           output_cpp ";return null(); }\n\n";
-        end else begin
-           output_cpp ("\n\tif (" ^ vtable ^ ") {\n" );
-           output_cpp ("\t\thx::CppiaCtx *__ctx = hx::CppiaCtx::getCurrent();\n" );
-           output_cpp ("\t\thx::AutoStack __as(__ctx);\n" );
-           output_cpp ("\t\t__ctx->pushObject(this);\n" );
-           List.iter (fun (name,opt, t ) ->
-              output_cpp ("\t\t__ctx->push" ^ (script_type t opt) ^ "(" ^ (keyword_remap name) ^ ");\n" );
-           ) f_args;
-           output_cpp ("\t\t" ^ ret ^ "__ctx->run" ^ (script_type return_t false) ^ "(" ^ vtable ^ ");\n" );
-           output_cpp ("\t}  else " ^ ret ^ class_name ^ "::" ^ name ^ "(" ^ (String.concat "," names)^ "); return null(); }\n\n");
-        end
+              output_cpp ("->__Run(" ^ args_varray ^ ");");
+        end else
+          output_cpp (class_name ^ "::" ^ name ^ "(" ^ (String.concat "," names)^ ");");
+        output_cpp ("return null(); }\n\n");
       in
-      let not_toString = fun (field,_,_) -> field.cf_name<>"toString" in
+
+      let not_toString = fun (field,args,_) -> field.cf_name<>"toString" || class_def.cl_interface in
       let functions = List.filter not_toString (all_virtual_functions class_def) in
       let new_sctipt_functions = List.filter (fun (f,_,_) -> not (is_override class_def f.cf_name) ) functions in
       let sctipt_name = class_name ^ "__scriptable" in
@@ -3287,24 +3291,22 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 	   list_iteri dump_script_field functions;
       output_cpp ("};\n\n");
 
-      if (not class_def.cl_interface) then begin
-         if (List.length new_sctipt_functions) > 0 then begin
-            let sigs = Hashtbl.create 0 in
-            List.iter (fun (f,_,_) ->
-               let s = generate_script_function false f ("__s_" ^f.cf_name) (keyword_remap f.cf_name) in
-               Hashtbl.add sigs f.cf_name s
-            ) new_sctipt_functions;
+      if (List.length new_sctipt_functions) > 0 then begin
+         let sigs = Hashtbl.create 0 in
+         List.iter (fun (f,_,_) ->
+            let s = generate_script_function false f ("__s_" ^f.cf_name) (keyword_remap f.cf_name) in
+            Hashtbl.add sigs f.cf_name s
+         ) new_sctipt_functions;
 
-            output_cpp "static hx::ScriptNamedFunction __scriptableFunctions[] = {\n";
-            List.iter (fun (f,_,_) ->
-               let s = try Hashtbl.find sigs f.cf_name with Not_found -> "v" in
-               output_cpp ("  hx::ScriptNamedFunction(\"" ^ f.cf_name ^ "\",__s_" ^ f.cf_name ^ ",\"" ^ s ^ "\"),\n" ) ) new_sctipt_functions;
-            output_cpp "  hx::ScriptNamedFunction(0,0,0) };\n";
-         end else
-            output_cpp "static hx::ScriptNamedFunction *__scriptableFunctions = 0;\n";
-      end;
+         output_cpp "static hx::ScriptNamedFunction __scriptableFunctions[] = {\n";
+         List.iter (fun (f,_,_) ->
+            let s = try Hashtbl.find sigs f.cf_name with Not_found -> "v" in
+            output_cpp ("  hx::ScriptNamedFunction(\"" ^ f.cf_name ^ "\",__s_" ^ f.cf_name ^ ",\"" ^ s ^ "\"),\n" ) ) new_sctipt_functions;
+         output_cpp "  hx::ScriptNamedFunction(0,0,0) };\n";
+      end else
+         output_cpp "static hx::ScriptNamedFunction *__scriptableFunctions = 0;\n";
+
    end;
-
 
 
 
@@ -3826,7 +3828,6 @@ class script_writer common_ctx filename =
 	val mutable indents = []
 	val mutable just_finished_block = false
 	val mutable classCount = 0
-	val mutable enumCount = 0
    val buffer = Buffer.create 0
    val identTable = Hashtbl.create 0
    val fileTable = Hashtbl.create 0
@@ -3840,7 +3841,6 @@ class script_writer common_ctx filename =
          size;
       end
 	method incClasses = classCount <- classCount +1
-	method incEnums = enumCount <- enumCount + 1
 	method stringText name = (string_of_int (this#stringId name)) ^ " "
    val typeTable = Hashtbl.create 0
    val typeBuffer = Buffer.create 0
@@ -3875,7 +3875,7 @@ class script_writer common_ctx filename =
       let types =  Buffer.contents typeBuffer in
       output_string out_file ((string_of_int (Hashtbl.length typeTable)) ^ "\n");
       output_string out_file types;
-      output_string out_file ( (string_of_int classCount) ^ " " ^ (string_of_int enumCount) ^ "\n" );
+      output_string out_file ( (string_of_int classCount) ^ "\n" );
       let contents = Buffer.contents buffer in
       output_string out_file contents;
       close_out out_file
@@ -3924,6 +3924,15 @@ class script_writer common_ctx filename =
        this#writeBool v.v_capture;
        this#writeType v.v_type;
    method writeList prefix len = this#write (prefix ^" "  ^ (string_of_int (len)) ^ "\n");
+   method checkCast toType expr =
+     if (is_interface_type toType) && not (is_interface_type expr.etype) then begin
+        this#begin_expr;
+        this#write ((string_of_int (Lexer.get_error_line expr.epos) ) ^ "\t" ^ (this#fileText expr.epos.pfile) ^ indent);
+        this#write ("TOINTERFACE " ^ (this#typeText toType) ^ " " ^  (this#typeText expr.etype) ^"\n" );
+        this#gen_expression expr;
+        this#end_expr;
+     end else
+        this#gen_expression expr
    method gen_expression expr =
      let expression = remove_parens expr in
      this#begin_expr;
@@ -3945,9 +3954,9 @@ class script_writer common_ctx filename =
      | TContinue -> this#write "CONT ";
 
      | TBinop (op,e1,e2) when op=OpAssign ->
-        this#write ("SET " ^ (this#typeText e1.etype) ^ " " ^ (this#typeText e2.etype) ^ "\n");
+        this#write ("SET \n");
         this#gen_expression e1;
-        this#gen_expression e2;
+        this#checkCast e1.etype e2;
      | TBinop (OpEq ,e1, { eexpr = TConst TNull } ) -> this#write "ISNULL\n";
         this#gen_expression e1;
      | TBinop (OpNotEq ,e1, { eexpr = TConst TNull }) -> this#write "NOTNULL\n";
@@ -3989,6 +3998,7 @@ class script_writer common_ctx filename =
                   argN ^ "\n");
                this#gen_expression obj;
         | TConst TSuper -> this#write ("CALLSUPER " ^ (this#typeText func.etype) ^ " " ^ argN ^ "\n");
+        | TField (_,FEnum (enum,field)) -> this#write ("CREATEENUM " ^ (this#enumText enum) ^ " " ^ (this#stringText field.ef_name) ^ argN ^ "\n");
         | _ -> this#write ("CALL " ^ argN ^ "\n");
                this#gen_expression func;
         );
@@ -4037,11 +4047,10 @@ class script_writer common_ctx filename =
                       this#writeVar tvar;
                       this#write (" " ^ (this#typeText init.etype));
                       this#write "\n";
-                      this#gen_expression init;
+                      this#checkCast tvar.v_type init;
          ) var_list
      | TNew (clazz,params,arg_list) ->
-        let arg_types = (String.concat " " (List.map (fun t -> this#typeText t.etype)  arg_list)) ^ "\n" in
-        this#write ("NEW " ^ (this#typeText (TInst(clazz,params))) ^ (string_of_int (List.length arg_list)) ^ " " ^ arg_types);
+        this#write ("NEW " ^ (this#typeText (TInst(clazz,params))) ^ (string_of_int (List.length arg_list)) ^ "\n");
         List.iter this#gen_expression arg_list;
      | TReturn optval -> (match optval with
          | None -> this#write "RETURN\n"
@@ -4106,7 +4115,7 @@ end;;
 
 let generate_script_class common_ctx script class_def =
    script#incClasses;
-   script#write (if class_def.cl_interface then "INTFERFACE " else "CLASS ");
+   script#write (if class_def.cl_interface then "INTERFACE " else "CLASS ");
    script#instName class_def;
    (match class_def.cl_super with
       | None -> script#ident ""
@@ -4152,9 +4161,20 @@ let generate_script_class common_ctx script class_def =
 ;;
 
 let generate_script_enum common_ctx script enum_def meta =
-   script#incEnums;
-   script#write "ENUM";
-   script#enumName enum_def;
+   script#incClasses;
+	let sorted_items = List.sort (fun f1 f2 -> (f1.ef_index - f2.ef_index ) ) (pmap_values enum_def.e_constrs) in
+   script#writeList ("ENUM " ^ (script#enumText enum_def)) (List.length sorted_items);
+
+	List.iter (fun constructor ->
+		let name = script#stringText constructor.ef_name in
+		match constructor.ef_type with
+		| TFun (args,_) ->
+		   script#write ( name ^ " " ^ (string_of_int (List.length args)) );
+			List.iter (fun (arg,_,t) -> script#write ( " " ^ (script#stringText arg) ^ " " ^ (script#typeText t) ) ) args;
+		   script#write "\n";
+		| _ -> script#write ( name ^ " 0\n" )
+	) sorted_items;
+
    script#write "\n"
 ;;
 
