@@ -548,6 +548,7 @@ let rec unify_call_params ctx ?(overloads=None) cf el args r p inline =
 		let format_arg = (fun (name,opt,_) -> (if opt then "?" else "") ^ name) in
 		"Function " ^ (match cf with None -> "" | Some (_,f) -> "'" ^ f.cf_name ^ "' ") ^ "requires " ^ (if args = [] then "no arguments" else "arguments : " ^ String.concat ", " (List.map format_arg args))
 	in
+	let invalid_skips = ref [] in
 	let error acc txt =
 		match next() with
 		| Some l -> l
@@ -572,7 +573,7 @@ let rec unify_call_params ctx ?(overloads=None) cf el args r p inline =
 			(e, true)
 		else begin
 			if not ctx.com.config.pf_can_skip_non_nullable_argument then begin match po with
-				| Some (name,p) when not (is_nullable t) -> display_error ctx ("Cannot skip non-nullable argument " ^ name) p
+				| Some (name,p) when not (is_nullable t) -> invalid_skips := (name,p) :: !invalid_skips;
 				| _ -> ()
 			end;
 			(null (ctx.t.tnull t) p, true)
@@ -581,6 +582,10 @@ let rec unify_call_params ctx ?(overloads=None) cf el args r p inline =
 	let rec loop acc l l2 skip =
 		match l , l2 with
 		| [] , [] ->
+			begin match !invalid_skips with
+				| [] -> ()
+				| skips -> List.iter (fun (name,p) -> display_error ctx ("Cannot skip non-nullable argument " ^ name) p) skips
+			end;
 			let args,tf = if not (inline && ctx.g.doinline) && not ctx.com.config.pf_pad_nulls then
 				List.rev (no_opt acc), (TFun(args,r))
 			else
