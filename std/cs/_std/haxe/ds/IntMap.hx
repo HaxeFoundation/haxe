@@ -54,7 +54,7 @@ import cs.NativeArray;
 		cachedIndex = -1;
 	}
 
-	public function set( key : Int, value : T ) : Void
+	public function set( key : Int, value : T ) : T
 	{
 		var x:Int;
 		if (nOccupied >= upperBound)
@@ -108,6 +108,8 @@ import cs.NativeArray;
 			assert(_keys[x] == key);
 			vals[x] = value;
 		}
+
+		return value;
 	}
 
 	@:final private function lookup( key : Int ) : Int

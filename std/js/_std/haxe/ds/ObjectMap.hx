@@ -24,38 +24,38 @@ package haxe.ds;
 
 @:coreApi
 class ObjectMap<K:{ }, V> implements Map.IMap<K,V> {
-	
+
 	static var count = 0;
-	
+
 	static inline function assignId(obj: { } ):Int {
 		return untyped obj.__id__ = ++count;
 	}
-	
+
 	static inline function getId(obj: { } ):Int {
 		return untyped obj.__id__;
 	}
-	
+
 	var h : { };
-	
+
 	public function new() : Void {
 		h = { };
 		untyped h.__keys__ = { };
 	}
-	
-	public function set(key:K, value:V):Void untyped {
+
+	public function set(key:K, value:V):V untyped {
 		var id = key.__id__ != null ? key.__id__ : assignId(key);
-		h[id] = value;
 		h.__keys__[id] = key;
+		return h[id] = value;
 	}
-	
+
 	public inline function get(key:K):Null<V> {
 		return untyped h[getId(key)];
 	}
-	
+
 	public inline function exists(key:K):Bool {
 		return untyped h.hasOwnProperty(getId(key));
 	}
-	
+
 	public function remove( key : K ) : Bool {
 		var id = getId(key);
 		if ( untyped !h.hasOwnProperty(id) ) return false;
@@ -63,7 +63,7 @@ class ObjectMap<K:{ }, V> implements Map.IMap<K,V> {
 		untyped  __js__("delete")(h.__keys__[id]);
 		return true;
 	}
-	
+
 	public function keys() : Iterator<K> {
 		var a = [];
 		untyped {
@@ -74,7 +74,7 @@ class ObjectMap<K:{ }, V> implements Map.IMap<K,V> {
 		}
 		return a.iterator();
 	}
-	
+
 	public function iterator() : Iterator<V> {
 		return untyped {
 			ref : h,
@@ -83,7 +83,7 @@ class ObjectMap<K:{ }, V> implements Map.IMap<K,V> {
 			next : function() { var i = __this__.it.next(); return __this__.ref[getId(i)]; }
 		};
 	}
-	
+
 	public function toString() : String {
 		var s = new StringBuf();
 		s.add("{");

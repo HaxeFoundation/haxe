@@ -29,8 +29,9 @@ package haxe.ds;
 		h = untyped __global__.__int_hash_create();
 	}
 
-	public function set( key : Int, value : T ) : Void {
+	public function set( key : Int, value : T ) : T {
 		untyped __global__.__int_hash_set(h,key,value);
+		return value;
 	}
 
 	public function get( key : Int ) : Null<T> {

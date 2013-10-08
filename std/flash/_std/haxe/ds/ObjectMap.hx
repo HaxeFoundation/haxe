@@ -6,13 +6,13 @@ class ObjectMap<K:{},V> extends flash.utils.Dictionary implements Map.IMap<K,V> 
 	public function new() {
 		super(false);
 	}
-	
+
 	public inline function get( key : K ) : Null<V> {
 		return untyped this[key];
 	}
 
-	public inline function set( key : K, value : V ):Void {
-		untyped this[key] = value;
+	public inline function set( key : K, value : V ):V{
+		return untyped this[key] = value;
 	}
 
 	public inline function exists( key : K ) : Bool {
@@ -26,7 +26,7 @@ class ObjectMap<K:{},V> extends flash.utils.Dictionary implements Map.IMap<K,V> 
 	}
 
 	#if as3
-	
+
  	public function keys() : Iterator<K> {
 		return untyped __keys__(this).iterator();
  	}
@@ -38,7 +38,7 @@ class ObjectMap<K:{},V> extends flash.utils.Dictionary implements Map.IMap<K,V> 
 		return ret.iterator();
  	}
 	#else
-	
+
 	public function keys() : Iterator<K> {
 		return NativePropertyIterator.iterator(this);
 	}
@@ -46,7 +46,7 @@ class ObjectMap<K:{},V> extends flash.utils.Dictionary implements Map.IMap<K,V> 
 	public function iterator() : Iterator<V> {
 		return NativeValueIterator.iterator(this);
 	}
-	
+
 	#end
 
 	public function toString() : String {

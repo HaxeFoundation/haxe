@@ -28,8 +28,9 @@ package haxe.ds;
 		__Internal = {};
 	}
 
-	public function set( key : String, value : T ) : Void {
+	public function set( key : String, value : T ) : T {
 		untyped __Internal.__SetField(key,value,true);
+		return value;
 	}
 
 	public function get( key : String ) : Null<T> {

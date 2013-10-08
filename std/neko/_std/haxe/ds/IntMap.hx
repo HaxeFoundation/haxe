@@ -29,8 +29,9 @@ package haxe.ds;
 		h = untyped __dollar__hnew(0);
 	}
 
-	public inline function set( key : Int, value : T ) : Void {
+	public inline function set( key : Int, value : T ) : T {
 		untyped __dollar__hset(h,key,value,null);
+		return value;
 	}
 
 	public function get( key : Int ) : Null<T> {

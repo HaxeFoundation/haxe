@@ -23,7 +23,7 @@ package haxe.ds;
 
 /**
 	IntMap allows mapping of Int keys to arbitrary values.
-	
+
 	See `Map` for documentation details.
 **/
 extern class IntMap<T> implements Map.IMap<Int,T> {
@@ -36,8 +36,8 @@ extern class IntMap<T> implements Map.IMap<Int,T> {
 	/**
 		See `Map.set`
 	**/
-	public function set( key : Int, value : T ) : Void;
-	
+	public function set( key : Int, value : T ) : T;
+
 	/**
 		See `Map.get`
 	**/

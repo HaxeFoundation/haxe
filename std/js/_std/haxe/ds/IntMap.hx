@@ -29,8 +29,8 @@ package haxe.ds;
 		h = {};
 	}
 
-	public function set( key : Int, value : T ) : Void {
-		untyped h[key] = value;
+	public function set( key : Int, value : T ) : T {
+		return untyped h[key] = value;
 	}
 
 	public function get( key : Int ) : Null<T> {

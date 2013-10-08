@@ -28,8 +28,8 @@ package haxe.ds;
 		h = untyped __call__('array');
 	}
 
-	public function set( key : String, value : T ) : Void {
-		untyped h[key] = value;
+	public function set( key : String, value : T ) : T {
+		return untyped h[key] = value;
 	}
 
 	public function get( key : String ) : Null<T> {
