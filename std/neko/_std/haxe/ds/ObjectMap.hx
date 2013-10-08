@@ -25,29 +25,30 @@ package haxe.ds;
 class ObjectMap<K:{},V> implements Map.IMap<K,V> {
 
 	static var count = 0;
-	
+
 	static inline function assignId(obj: { } ):Int {
 		var newId = count++;
 		untyped obj.__id__ = newId;
 		return newId;
 	}
-	
+
 	static inline function getId(obj: { } ):Int {
 		return untyped obj.__id__;
 	}
-	
+
 	var h : { };
 	var k : { };
-	
+
 	public function new() : Void {
 		h = untyped __dollar__hnew(0);
 		k = untyped __dollar__hnew(0);
 	}
 
-	public inline function set( key : K, value : V ) : Void untyped {
+	public inline function set( key : K, value : V ) : V untyped {
 		var id = key.__id__ != null ? key.__id__ : assignId(key);
 		untyped __dollar__hset(h,id,value,null);
 		untyped __dollar__hset(k,id,key,null);
+		return value;
 	}
 
 	public function get( key : K ) : Null<V> {

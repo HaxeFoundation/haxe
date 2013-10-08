@@ -29,8 +29,8 @@ package haxe.ds;
 		h = untyped __new__(_global["Object"]);
 	}
 
-	public function set( key : Int, value : T ) : Void {
-		h[key] = value;
+	public function set( key : Int, value : T ) : T {
+		return h[key] = value;
 	}
 
 	public function get( key : Int ) : Null<T> {

@@ -31,10 +31,11 @@ class ObjectMap<K:{},V> implements Map.IMap<K,V> {
 		__KeyRefs = new IntMap<K>();
 	}
 
-	public function set( key : K, value : V ) : Void {
+	public function set( key : K, value : V ) : V {
 		var id = untyped __global__.__hxcpp_obj_id(key);
 		__Internal.set( id, value );
 		__KeyRefs.set( id, key );
+		return value;
 	}
 
 	public function get( key : K ) : Null<V> {

@@ -101,7 +101,7 @@ import java.lang.ref.ReferenceQueue;
 		}
 	}
 
-	public function set( key : K, value : V ) : Void
+	public function set( key : K, value : V ) : V
 	{
 		cleanupRefs();
 		var x:Int, k:Int;
@@ -163,6 +163,8 @@ import java.lang.ref.ReferenceQueue;
 
 		cachedIndex = x;
 		cachedEntry = entry;
+
+		return value;
 	}
 
 	@:final private function lookup( key : K ) : Int
