@@ -668,7 +668,7 @@ let rec has_mono t = match t with
 	| TFun(args,r) ->
 		has_mono r || List.exists (fun (_,_,t) -> has_mono t) args
 	| TAnon a ->
-		PMap.fold (fun cf b -> has_mono cf.cf_type && b) a.a_fields true
+		PMap.fold (fun cf b -> has_mono cf.cf_type || b) a.a_fields false
 	| TLazy r ->
 		has_mono (!r())
 
