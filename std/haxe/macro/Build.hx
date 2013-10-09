@@ -37,9 +37,12 @@ class Build {
 		var tThis = a.get().type;
 		var ctA = TAbstract(a, []).toComplexType();
 		for (field in fields) {
-			field.access = [AStatic,APublic,AInline];
+			// allow extra static fields
+			if( Lambda.has(field.access,AStatic) )
+				continue;
 			switch(field.kind) {
 				case FVar(t, e):
+					field.access = [AStatic,APublic,AInline];
 					if (e == null) Context.error("Value required", field.pos);
 					var tE = Context.typeof(e);
 					if (!Context.unify(tE, tThis)) Context.error('${tE.toString()} should be ${tThis.toString()}', e.pos);
