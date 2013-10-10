@@ -421,8 +421,8 @@ let is_lower_ident i =
 
 let pos = snd
 
-let is_postfix (e,_) = function
-	| Increment | Decrement -> (match e with EConst _ | EField _ | EArray _ -> true | _ -> false)
+let rec is_postfix (e,_) op = match op with
+	| Increment | Decrement -> (match e with EConst _ | EField _ | EArray _ -> true | EMeta(_,e1) -> is_postfix e1 op | _ -> false)
 	| Not | Neg | NegBits -> false
 
 let is_prefix = function
