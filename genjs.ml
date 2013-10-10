@@ -1022,6 +1022,7 @@ let generate_enum ctx e =
 	print ctx "{";
 	if has_feature ctx "js.Boot.isEnum" then print ctx " __ename__ : %s," (if has_feature ctx "Type.getEnumName" then "[" ^ String.concat "," ename ^ "]" else "true");
 	print ctx " __constructs__ : [%s] }" (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" s) e.e_names));
+	ctx.separator <- true;
 	newline ctx;
 	List.iter (fun n ->
 		let f = PMap.find n e.e_constrs in
@@ -1030,6 +1031,7 @@ let generate_enum ctx e =
 		| TFun (args,_) ->
 			let sargs = String.concat "," (List.map (fun (n,_,_) -> ident n) args) in
 			print ctx "function(%s) { var $x = [\"%s\",%d,%s]; $x.__enum__ = %s; $x.toString = $estr; return $x; }" sargs f.ef_name f.ef_index sargs p;
+			ctx.separator <- true;
 		| _ ->
 			print ctx "[\"%s\",%d]" f.ef_name f.ef_index;
 			newline ctx;
