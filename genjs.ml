@@ -1164,14 +1164,12 @@ let generate com =
 	if has_feature ctx "use.$iterator" then begin
 		add_feature ctx "use.$bind";
 		print ctx "function $iterator(o) { if( o instanceof Array ) return function() { return HxOverrides.iter(o); }; return typeof(o.iterator) == 'function' ? $bind(o,o.iterator) : o.iterator; }";
-		ctx.separator <- true;
 		newline ctx;
 	end;
 	if has_feature ctx "use.$bind" then begin
 		print ctx "var $_, $fid = 0";
 		newline ctx;
 		print ctx "function $bind(o,m) { if( m == null ) return null; if( m.__id__ == null ) m.__id__ = $fid++; var f; if( o.hx__closures__ == null ) o.hx__closures__ = {}; else f = o.hx__closures__[m.__id__]; if( f == null ) { f = function(){ return f.method.apply(f.scope, arguments); }; f.scope = o; f.method = m; o.hx__closures__[m.__id__] = f; } return f; }";
-		ctx.separator <- true;
 		newline ctx;
 	end;
 	List.iter (gen_block ~after:true ctx) (List.rev ctx.inits);
