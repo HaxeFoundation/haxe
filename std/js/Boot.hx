@@ -166,11 +166,11 @@ class Boot {
 		case Int:
 			return (untyped __js__("(o|0) === o"));
 		case Float:
-			return (untyped __js__("$ObjectPrototypeToString")).call(o) == "[object Number]";
+			return (untyped __define_feature__("Std.is", $ObjectPrototypeToString)).call(o) == "[object Number]";
 		case Bool:
-			return (untyped __js__("$ObjectPrototypeToString")).call(o) == "[object Boolean]";
+			return (untyped __define_feature__("Std.is", $ObjectPrototypeToString)).call(o) == "[object Boolean]";
 		case String:
-			return (untyped __js__("$ObjectPrototypeToString")).call(o) == "[object String]";
+			return (untyped __define_feature__("Std.is", $ObjectPrototypeToString)).call(o) == "[object String]";
 		case Dynamic:
 			return true;
 		default:
@@ -178,7 +178,7 @@ class Boot {
 				// Check if o is an instance of a Haxe class
 				if( (untyped __js__("typeof"))(cl) == "function" ) {
 					if( untyped __js__("o instanceof cl") ) {
-						if( (untyped __js__("$ObjectPrototypeToString")).call(o) == "[object Array]" )
+						if( (untyped __define_feature__("Std.is", $ObjectPrototypeToString)).call(o) == "[object Array]" )
 							return (o.__enum__ == null);
 						return true;
 					}
