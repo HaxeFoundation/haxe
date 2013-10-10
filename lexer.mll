@@ -29,6 +29,7 @@ type error_msg =
 	| Unterminated_string
 	| Unterminated_regexp
 	| Unclosed_comment
+	| Unclosed_code
 	| Invalid_escape
 	| Invalid_option
 
@@ -40,6 +41,7 @@ let error_msg = function
 	| Unterminated_string -> "Unterminated string"
 	| Unterminated_regexp -> "Unterminated regular expression"
 	| Unclosed_comment -> "Unclosed comment"
+	| Unclosed_code -> "Unclosed code string"
 	| Invalid_escape -> "Invalid escape sequence"
 	| Invalid_option -> "Invalid regular expression option"
 
@@ -157,7 +159,7 @@ let resolve_pos file =
 			f.lline <- f.lline + 1;
 			f.llines <- (p + i,f.lline) :: f.llines;
 			i
-		in		
+		in
 		let i = match input_char ch with
 			| '\n' -> inc 1
 			| '\r' ->
@@ -357,7 +359,42 @@ and string2 = parse
 	| "\\\\" { store lexbuf; string2 lexbuf }
 	| "\\'" { store lexbuf; string2 lexbuf }
 	| "'" { lexeme_end lexbuf }
-	| [^'\'' '\\' '\r' '\n']+ { store lexbuf; string2 lexbuf }
+	| "$$" | "\\$" | '$' { store lexbuf; string2 lexbuf }
+	| "${" {
+		let pmin = lexeme_start lexbuf in
+		store lexbuf;
+		(try code_string lexbuf with Exit -> error Unclosed_code pmin);
+		string2 lexbuf;
+	}
+	| [^'\'' '\\' '\r' '\n' '$']+ { store lexbuf; string2 lexbuf }
+	
+and code_string = parse
+	| eof { raise Exit }
+	| '\n' | '\r' | "\r\n" { newline lexbuf; store lexbuf; code_string lexbuf }
+	| '{' | '/' { store lexbuf; code_string lexbuf }
+	| '}' { store lexbuf; (* stop *) }
+	| '"' {
+		add "\"";
+		let pmin = lexeme_start lexbuf in
+		(try ignore(string lexbuf) with Exit -> error Unterminated_string pmin);
+		add "\"";
+		code_string lexbuf;
+	}
+	| "'" {
+		add "'";
+		let pmin = lexeme_start lexbuf in
+		let pmax = (try string2 lexbuf with Exit -> error Unterminated_string pmin) in
+		add "'";
+		fast_add_fmt_string { pfile = !cur.lfile; pmin = pmin; pmax = pmax };
+		code_string lexbuf;
+	}
+	| "/*" {
+		let pmin = lexeme_start lexbuf in
+		(try ignore(comment lexbuf) with Exit -> error Unclosed_comment pmin);
+		code_string lexbuf;
+	}
+	| "//" [^'\n' '\r']* { store lexbuf; code_string lexbuf; }
+	| [^'/' '"' '\'' '{' '}' '\n' '\r']+  { store lexbuf; code_string lexbuf; }
 
 and regexp = parse
 	| eof | '\n' | '\r' { raise Exit }
