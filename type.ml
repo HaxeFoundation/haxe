@@ -1066,7 +1066,7 @@ let rec unify a b =
 		let i = ref 0 in
 		(try
 			(match r2 with
-			| TAbstract ({a_path=[],"Void"},_) -> ()
+			| TAbstract ({a_path=[],"Void"},_) -> incr i
 			| _ -> unify r1 r2; incr i);
 			List.iter2 (fun (_,o1,t1) (_,o2,t2) ->
 				if o1 && not o2 then error [Cant_force_optional];
