@@ -115,7 +115,7 @@ gencs.cmx: type.cmx lexer.cmx gencommon.cmx common.cmx codegen.cmx ast.cmx
 
 genjava.cmx: type.cmx gencommon.cmx common.cmx codegen.cmx ast.cmx
 
-genjs.cmx: type.cmx optimizer.cmx lexer.cmx common.cmx codegen.cmx ast.cmx
+genjs.cmx: type.cmx optimizer.cmx lexer.cmx common.cmx codegen.cmx ast.cmx typecore.cmx
 
 genneko.cmx: type.cmx lexer.cmx common.cmx codegen.cmx ast.cmx
 
