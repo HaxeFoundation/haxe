@@ -20,14 +20,14 @@ class DCEClass {
 	// unused statics
 	static function staticUnused() { }
 	static var staticVarUnused = "bar";
-	static var staticPropUnused(get, set):Int = 1;
+	static var staticPropUnused(get, set):Int;
 	static function get_staticPropUnused() return 0;
 	static function set_staticPropUnused(i:Int) return 0;
 	
 	// unused members
 	function memberUnused() { }
 	var memberVarUnused = 1;
-	var memberPropUnused(get, set):Int = 1;
+	var memberPropUnused(get, set):Int;
 	function get_memberPropUnused() return 0;
 	function set_memberPropUnused(i:Int) return 0;
 	

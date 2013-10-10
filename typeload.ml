@@ -1523,6 +1523,9 @@ let init_class ctx c p context_init herits fields =
 							| Some e -> e
 							| None -> display_error ctx "Extern variable initialization must be a constant value" p; e
 						end
+					| Var v when is_extern_field cf ->
+						(* disallow initialization of non-physical fields (issue #1958) *)
+						display_error ctx "This field cannot be initialized because it is not a real variable" p; e
 					| Var v when not stat || (v.v_read = AccInline) ->
 						let e = match Optimizer.make_constant_expression ctx e with Some e -> check_cast e | None -> display_error ctx "Variable initialization must be a constant value" p; e in
 						e
