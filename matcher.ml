@@ -1224,7 +1224,29 @@ let match_expr ctx e cases def with_type p =
  				let len = match follow ef.ef_type with TFun(args,_) -> List.length args | _ -> 0 in
 				s_st_r false false st (Printf.sprintf "%s(%s)" ef.ef_name (st_args i (len - 1 - i) v))
 		in
-		error ("Unmatched patterns: " ^ (s_st_r true false st (s_pat pat))) st.st_pos
+		let pat = match follow st.st_type with
+			| TAbstract({a_impl = Some cl} as a,_) when Meta.has Meta.FakeEnum a.a_meta ->
+				let rec s_pat pat = match pat.p_def with
+					| PCon ({c_def = CConst c},[]) ->
+						let cf = List.find (fun cf ->
+							match cf.cf_expr with
+							| Some ({eexpr = TConst c2 | TCast({eexpr = TConst c2},None)}) -> c = c2
+							| _ -> false
+						) cl.cl_ordered_statics in
+						cf.cf_name
+					| PVar (v,_) -> v.v_name
+					| PCon (c,[]) -> s_con c
+					| PCon (c,pl) -> s_con c ^ "(" ^ (String.concat "," (List.map s_pat pl)) ^ ")"
+					| POr (pat1,pat2) -> s_pat pat1 ^ " | " ^ s_pat pat2
+					| PAny -> "_"
+					| PBind((v,_),pat) -> v.v_name ^ "=" ^ s_pat pat
+					| PTuple pl -> "(" ^ (String.concat " " (Array.to_list (Array.map s_pat pl))) ^ ")"
+				in
+				s_pat pat
+			| _ ->
+				s_pat pat
+		in
+		error ("Unmatched patterns: " ^ (s_st_r true false st pat)) st.st_pos
 	in
 	(* check for unused patterns *)
 	if !extractor_depth = 0 then check_unused();
