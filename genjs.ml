@@ -59,6 +59,21 @@ type ctx = {
 	mutable found_expose : bool;
 }
 
+type object_store = {
+	os_name : string;
+	mutable os_fields : object_store list;
+}
+
+let get_shallow ctx path meta =
+	if not ctx.js_modern then []
+	else try
+		let (_, args, pos) = Meta.get Meta.ShallowExpose meta in
+		(match args with
+			| [ EConst (String s), _ ] -> [s]
+			| [] -> [path]
+			| _ -> error "Invalid @:shallowExpose parameters" pos)
+	with Not_found -> []
+
 let dot_path = Ast.s_type_path
 
 let flat_path (p,s) =
@@ -892,6 +907,7 @@ let gen_class_static_field ctx c f =
 			print ctx "%s = " path;
 			gen_value ctx e;
 			ctx.separator <- false;
+			(match (get_shallow ctx path f.cf_meta) with [s] -> print ctx "$__hx_shallows.%s = " s | _ -> ());
 			newline ctx;
 			handle_expose ctx path f.cf_meta
 		| _ ->
@@ -933,6 +949,7 @@ let generate_class ctx c =
 		print ctx "%s = " p
 	else
 		print ctx "%s = $hxClasses[\"%s\"] = " p (dot_path c.cl_path);
+	(match (get_shallow ctx p c.cl_meta) with [s] -> print ctx "$__hx_shallows.%s = " s | _ -> ());
 	(match c.cl_constructor with
 	| Some { cf_expr = Some e } -> gen_expr ctx e
 	| _ -> print ctx "function() { }");
@@ -1119,11 +1136,52 @@ let generate com =
 	if has_feature ctx "Class" || has_feature ctx "Type.getClassName" then add_feature ctx "js.Boot.isClass";
 	if has_feature ctx "Enum" || has_feature ctx "Type.getEnumName" then add_feature ctx "js.Boot.isEnum";
 
+	let shallows = List.concat (List.map (fun t ->
+		match t with
+			| TClassDecl c ->
+				let path = s_path ctx c.cl_path in
+				let class_shallows = get_shallow ctx path c.cl_meta in
+				let static_shallows = List.map (fun f ->
+					get_shallow ctx (path ^ static_field f.cf_name) f.cf_meta
+				) c.cl_ordered_statics in
+				List.concat (class_shallows :: static_shallows)
+			| _ -> []
+		) com.types) in
+	let anyShallowExposed = shallows <> [] in
+	let smap = ref (PMap.create String.compare) in
+	let shallowObject = { os_name = ""; os_fields = [] } in
+	List.iter (fun path -> (
+		let parts = ExtString.String.nsplit path "." in
+		let rec loop p pre = match p with
+			| f :: g :: ls ->
+				let path = match pre with "" -> f | pre -> (pre ^ "." ^ f) in
+				if not (PMap.exists path !smap) then (
+					let elts = { os_name = f; os_fields = [] } in
+					smap := PMap.add path elts !smap;
+					let cobject = match pre with "" -> shallowObject | pre -> PMap.find pre !smap in
+					cobject.os_fields <- elts :: cobject.os_fields
+				);
+				loop (g :: ls) path;
+			| _ -> ()
+		in loop parts "";
+	)) shallows;
+
 	if ctx.js_modern then begin
 		(* Additional ES5 strict mode keywords. *)
 		List.iter (fun s -> Hashtbl.replace kwds s ()) [ "arguments"; "eval" ];
 
-		(* Wrap output in a closure. *)
+		(* Wrap output in a closure. Exposing shallowExpose types to outside of closure *)
+		if anyShallowExposed then (
+			print ctx "var $__hx_shallows = ";
+			let rec print_obj { os_fields = fields } = (
+				print ctx "{";
+				concat ctx "," (fun ({ os_name = name } as f) -> print ctx "%s" (name ^ ":"); print_obj f) fields;
+				print ctx "}"
+			) in
+			print_obj shallowObject;
+			ctx.separator <- true;
+			newline ctx
+		);
 		print ctx "(function () { \"use strict\"";
 		newline ctx;
 	end;
@@ -1197,6 +1255,24 @@ let generate com =
 	if ctx.js_modern then begin
 		print ctx "})()";
 		newline ctx;
+		if anyShallowExposed then begin
+			let rec print_obj { os_fields = fields } = (
+				print ctx "{";
+				concat ctx "," (fun f-> print ctx "%s" (f.os_name ^ ":"); print_obj f) fields;
+				print ctx "}"
+			) in
+			List.iter (fun f ->
+				print ctx "var %s = " f.os_name;
+				print_obj f;
+				ctx.separator <- true;
+				newline ctx
+			) shallowObject.os_fields;
+			List.iter (fun path ->
+				if not (ExtString.String.contains path '.') then print ctx "var ";
+				print ctx "%s" (path ^ " = $__hx_shallows." ^ path);
+				newline ctx;
+			) shallows;
+		end
 	end;
 	if com.debug then write_mappings ctx else (try Sys.remove (com.file ^ ".map") with _ -> ());
 	let ch = open_out_bin com.file in
