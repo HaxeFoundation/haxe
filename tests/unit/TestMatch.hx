@@ -452,7 +452,7 @@ class TestMatch extends Test {
 		}
 		eq(r, 1);
 		
-		eq("Unmatched patterns: 405", TestMatchMacro.getErrorMessage(switch(a) {
+		eq("Unmatched patterns: MethodNotAllowed", TestMatchMacro.getErrorMessage(switch(a) {
 			case NotFound:
 		}));
 		#end
