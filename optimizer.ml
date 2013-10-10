@@ -161,7 +161,7 @@ let rec type_inline ctx cf f ethis params tret config p force =
 				if we pass a Null<T> var to an inlined method that needs a T.
 				we need to force a local var to be created on some platforms.
 			*)
-			if ctx.com.config.pf_static && not (is_nullable v.v_type) && is_null e.etype then (local v).i_write <- true;
+			if ctx.com.config.pf_static && not (is_nullable v.v_type) && is_null e.etype then (local v).i_force_temp <- true;
 			(*
 				if we cast from Dynamic, create a local var as well to do the cast
 				once and allow DCE to perform properly.
