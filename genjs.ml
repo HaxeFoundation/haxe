@@ -862,6 +862,7 @@ let generate_package_create ctx (p,_) =
 				else
 					print ctx "if(!%s) %s = {}" p p
 			);
+			ctx.separator <- true;
 			newline ctx;
 			loop (p :: acc) l
 	in
