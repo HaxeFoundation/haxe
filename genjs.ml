@@ -891,7 +891,6 @@ let gen_class_static_field ctx c f =
 			ctx.id_counter <- 0;
 			print ctx "%s = " path;
 			gen_value ctx e;
-			ctx.separator <- false;
 			newline ctx;
 			handle_expose ctx path f.cf_meta
 		| _ ->
