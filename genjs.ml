@@ -1005,7 +1005,7 @@ let generate_class ctx c =
 
 		bend();
 		print ctx "\n}";
-		(match c.cl_super with None -> () | _ -> print ctx ")");
+		(match c.cl_super with None -> ctx.separator <- true | _ -> print ctx ")");
 		newline ctx
 	end
 
