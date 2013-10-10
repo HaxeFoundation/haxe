@@ -122,7 +122,7 @@ class Boot {
 				var str = "{\n";
 				s += "\t";
 				var hasp = (o.hasOwnProperty != null);
-				__js__("for( var k in o ) { ");
+				__js__("for( var k in o ) {");
 					if( hasp && !o.hasOwnProperty(k) )
 						__js__("continue");
 					if( k == "prototype" || k == "__class__" || k == "__super__" || k == "__interfaces__" || k == "__properties__" )
@@ -166,11 +166,11 @@ class Boot {
 		case Int:
 			return (untyped __js__("(o|0) === o"));
 		case Float:
-			return (untyped __js__("typeof"))(o) == "number";
+			return (untyped __js__("$ObjectPrototypeToString")).call(o) == "[object Number]";
 		case Bool:
-			return (untyped __js__("typeof"))(o) == "boolean";
+			return (untyped __js__("$ObjectPrototypeToString")).call(o) == "[object Boolean]";
 		case String:
-			return (untyped __js__("typeof"))(o) == "string";
+			return (untyped __js__("$ObjectPrototypeToString")).call(o) == "[object String]";
 		case Dynamic:
 			return true;
 		default:
@@ -178,7 +178,7 @@ class Boot {
 				// Check if o is an instance of a Haxe class
 				if( (untyped __js__("typeof"))(cl) == "function" ) {
 					if( untyped __js__("o instanceof cl") ) {
-						if( cl == Array )
+						if( (untyped __js__("$ObjectPrototypeToString")).call(o) == "[object Array]" )
 							return (o.__enum__ == null);
 						return true;
 					}
