@@ -24,19 +24,19 @@ import js.Boot;
 @:keepInit
 @:coreApi class Std {
 
-	public inline static function is( v : Dynamic, t : Dynamic ) : Bool {
+	public static inline function is( v : Dynamic, t : Dynamic ) : Bool {
 		return untyped js.Boot.__instanceof(v,t);
 	}
-
+	
 	public static inline function instance<T>( v : { }, c : Class<T> ) : T {
 		return untyped __instanceof__(v, c) ? cast v : null;
 	}
 
-	public inline static function string( s : Dynamic ) : String {
+	public static function string( s : Dynamic ) : String {
 		return untyped js.Boot.__string_rec(s,"");
 	}
 
-	public inline static function int( x : Float ) : Int {
+	public static inline function int( x : Float ) : Int {
 		return cast(x) | 0;
 	}
 
@@ -110,7 +110,6 @@ import js.Boot;
 					return a;
 				}
 		);
-        __feature__("Std.is", __js__("var $ObjectPrototypeToString = Object.prototype.toString"));
 	}
 
 }

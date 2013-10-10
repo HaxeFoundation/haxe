@@ -19,12 +19,11 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-@:coreApi
-@:keepInit
-class Reflect {
+@:coreApi class Reflect {
 
-	public static inline function hasField( o : Dynamic, field : String ) : Bool
-		return untyped __define_feature__("hasOwnProperty", $hasOwnProperty).call(o, field);
+	public static function hasField( o : Dynamic, field : String ) : Bool {
+		return untyped __js__('Object').prototype.hasOwnProperty.call(o, field);
+	}
 
 	public inline static function field( o : Dynamic, field : String ) : Dynamic untyped {
 		var v = null;
@@ -35,8 +34,9 @@ class Reflect {
 		return v;
 	}
 
-	public inline static function setField( o : Dynamic, field : String, value : Dynamic ) : Void
-		untyped o[field] = value;
+	public inline static function setField( o : Dynamic, field : String, value : Dynamic ) : Void untyped {
+		o[field] = value;
+	}
 
 	public static inline function getProperty( o : Dynamic, field : String ) : Dynamic untyped {
 		var tmp;
@@ -55,8 +55,9 @@ class Reflect {
 	public static function fields( o : Dynamic ) : Array<String> {
 		var a = [];
 		if (o != null) untyped {
+			var hasOwnProperty = __js__('Object').prototype.hasOwnProperty;
 			__js__("for( var f in o ) {");
-			if( f != "__id__" && f != "hx__closures__" && __define_feature__("hasOwnProperty", $hasOwnProperty).call(o, f) ) a.push(f);
+			if( f != "__id__" && f != "hx__closures__" && hasOwnProperty.call(o, f) ) a.push(f);
 			__js__("}");
 		}
 		return a;
@@ -84,7 +85,7 @@ class Reflect {
 		var t = __js__("typeof(v)");
 		return (t == "string" || (t == "object" && v.__enum__ == null)) || (t == "function" && (js.Boot.isClass(v) || js.Boot.isEnum(v)) != null);
 	}
-
+	
 	public static function isEnumValue( v : Dynamic ) : Bool {
 		return v != null && v.__enum__ != null;
 	}
@@ -110,7 +111,4 @@ class Reflect {
 		};
 	}
 
-	static function __init__() : Void {
-		untyped __feature__("hasOwnProperty", __js__("var $hasOwnProperty = Object.prototype.hasOwnProperty"));
-	}
 }

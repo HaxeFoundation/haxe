@@ -1214,21 +1214,11 @@ try
 		com.main <- main;
 		com.types <- types;
 		com.modules <- modules;
-		let foldMap = List.fold_left (fun f g x -> g (f x)) (fun x -> x) in
 		let filters = [
 			Codegen.Abstract.handle_abstract_casts tctx;
 			(match com.platform with Cpp -> Codegen.handle_side_effects com (Typecore.gen_local tctx) | _ -> fun e -> e);
 			Codegen.promote_complex_rhs com;
-			if com.foptimize then foldMap (
-				let reduce_expression = Optimizer.reduce_expression tctx in
-				let inline_constructors = Optimizer.inline_constructors tctx in
-				match com.platform with
-					| Js -> [inline_constructors;
-							 Genjs.optimize tctx;
-							 reduce_expression]
-					| _ -> [inline_constructors;
-							reduce_expression]
-			) else Optimizer.sanitize tctx;
+			if com.foptimize then (fun e -> Optimizer.reduce_expression tctx (Optimizer.inline_constructors tctx e)) else Optimizer.sanitize tctx;
 			Codegen.check_local_vars_init;
 			Codegen.captured_vars com;
 			Codegen.rename_local_vars com;
