@@ -8,15 +8,22 @@
 	all : allowed extending generic type parameter
 	all : added EnumValue.match
 	all : added Std.instance
-	all : allow recursive type parameter constraints
-	all : allow @:fakeEnum on abstracts
-	all : allow Class.new
+	all : allowed recursive type parameter constraints
+	all : allowed @:fakeEnum on abstracts
+	all : allowed Class.new
 	all : inlining a parameter which has side effects will not remove it even if not used
+	all : allowed using abstracts as static extension
+	all : allowed extractors in pattern matching
+	all : implemented constraints check on enum and enum field type parameters
 	js : window and console are reserved words. Access them with __js__ instead of untyped.
 	js : added -D js-flatten
+	js : improved inlining
+	cpp : improved side-effect detection
 	macro : allowed $v{(c:Float|Int|String)}
 	macro : resolve error line number in external files
+	macro : rewrote macros used as static extension
 	flash : fixed font embedding with UTF8 chars
+	flash : give error if non-nullable basic types are skipped in a call
 
 2013-09-25: 3.0.1
 	all : minor DCE bug fix
