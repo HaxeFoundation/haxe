@@ -650,7 +650,7 @@ let rec is_null = function
 	| TMono r ->
 		(match !r with None -> false | Some t -> is_null t)
 	| TType ({ t_path = ([],"Null") },[t]) ->
-		not (is_nullable t)
+		not (is_nullable (follow t))
 	| TLazy f ->
 		is_null (!f())
 	| TType (t,tl) ->
