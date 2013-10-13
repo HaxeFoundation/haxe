@@ -117,7 +117,6 @@ module Meta = struct
 		| Runtime
 		| RuntimeValue
 		| Setter
-		| ShallowExpose
 		| SkipCtor
 		| SkipReflection
 		| Sound

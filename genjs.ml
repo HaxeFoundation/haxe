@@ -64,14 +64,14 @@ type object_store = {
 	mutable os_fields : object_store list;
 }
 
-let get_shallow ctx path meta =
+let get_exposed ctx path meta =
 	if not ctx.js_modern then []
 	else try
-		let (_, args, pos) = Meta.get Meta.ShallowExpose meta in
+		let (_, args, pos) = Meta.get Meta.Expose meta in
 		(match args with
 			| [ EConst (String s), _ ] -> [s]
 			| [] -> [path]
-			| _ -> error "Invalid @:shallowExpose parameters" pos)
+			| _ -> error "Invalid @:expose parameters" pos)
 	with Not_found -> []
 
 let dot_path = Ast.s_type_path
@@ -324,22 +324,6 @@ let handle_break ctx e =
 				newline ctx;
 				spr ctx "} catch( e ) { if( e != \"__break__\" ) throw e; }";
 			)
-
-let handle_expose ctx path meta =
-	let rec loop = function
-		| (Meta.Expose, args, pos) :: l when ctx.js_modern ->
-			ctx.found_expose <- true;
-			let exposed_path = (match args with
-				| [EConst (String s), _] -> s
-				| [] -> path
-				| _ -> error "Invalid @:expose parameters" pos
-			) in
-			print ctx "$hxExpose(%s, \"%s\")" path exposed_path;
-			newline ctx
-		| _ :: l -> loop l
-		| [] -> ()
-	in
-	loop meta
 
 let this ctx = match ctx.in_value with None -> "this" | Some _ -> "$this"
 
@@ -905,11 +889,10 @@ let gen_class_static_field ctx c f =
 			let path = (s_path ctx c.cl_path) ^ (static_field f.cf_name) in
 			ctx.id_counter <- 0;
 			print ctx "%s = " path;
+			(match (get_exposed ctx path f.cf_meta) with [s] -> print ctx "$hx_exports.%s = " s | _ -> ());
 			gen_value ctx e;
 			ctx.separator <- false;
-			(match (get_shallow ctx path f.cf_meta) with [s] -> print ctx "$__hx_shallows.%s = " s | _ -> ());
 			newline ctx;
-			handle_expose ctx path f.cf_meta
 		| _ ->
 			ctx.statics <- (c,f.cf_name,e) :: ctx.statics
 
@@ -949,7 +932,7 @@ let generate_class ctx c =
 		print ctx "%s = " p
 	else
 		print ctx "%s = $hxClasses[\"%s\"] = " p (dot_path c.cl_path);
-	(match (get_shallow ctx p c.cl_meta) with [s] -> print ctx "$__hx_shallows.%s = " s | _ -> ());
+	(match (get_exposed ctx p c.cl_meta) with [s] -> print ctx "$hx_exports.%s = " s | _ -> ());
 	(match c.cl_constructor with
 	| Some { cf_expr = Some e } -> gen_expr ctx e
 	| _ -> print ctx "function() { }");
@@ -958,7 +941,6 @@ let generate_class ctx c =
 		print ctx "$hxClasses[\"%s\"] = %s" (dot_path c.cl_path) p;
 		newline ctx;
 	end;
-	handle_expose ctx p c.cl_meta;
 	if has_feature ctx "js.Boot.isClass" then begin
 		print ctx "%s.__name__ = " p;
 		if has_feature ctx "Type.getClassName" then
@@ -1136,54 +1118,65 @@ let generate com =
 	if has_feature ctx "Class" || has_feature ctx "Type.getClassName" then add_feature ctx "js.Boot.isClass";
 	if has_feature ctx "Enum" || has_feature ctx "Type.getEnumName" then add_feature ctx "js.Boot.isEnum";
 
-	let shallows = List.concat (List.map (fun t ->
+	let exposed = List.concat (List.map (fun t ->
 		match t with
 			| TClassDecl c ->
 				let path = s_path ctx c.cl_path in
-				let class_shallows = get_shallow ctx path c.cl_meta in
-				let static_shallows = List.map (fun f ->
-					get_shallow ctx (path ^ static_field f.cf_name) f.cf_meta
+				let class_exposed = get_exposed ctx path c.cl_meta in
+				let static_exposed = List.map (fun f ->
+					get_exposed ctx (path ^ static_field f.cf_name) f.cf_meta
 				) c.cl_ordered_statics in
-				List.concat (class_shallows :: static_shallows)
+				List.concat (class_exposed :: static_exposed)
 			| _ -> []
 		) com.types) in
-	let anyShallowExposed = shallows <> [] in
-	let smap = ref (PMap.create String.compare) in
-	let shallowObject = { os_name = ""; os_fields = [] } in
+	let anyExposed = exposed <> [] in
+	let exportMap = ref (PMap.create String.compare) in
+	let exposedObject = { os_name = ""; os_fields = [] } in
+	let toplevelExposed = ref [] in
 	List.iter (fun path -> (
 		let parts = ExtString.String.nsplit path "." in
 		let rec loop p pre = match p with
 			| f :: g :: ls ->
 				let path = match pre with "" -> f | pre -> (pre ^ "." ^ f) in
-				if not (PMap.exists path !smap) then (
+				if not (PMap.exists path !exportMap) then (
 					let elts = { os_name = f; os_fields = [] } in
-					smap := PMap.add path elts !smap;
-					let cobject = match pre with "" -> shallowObject | pre -> PMap.find pre !smap in
+					exportMap := PMap.add path elts !exportMap;
+					let cobject = match pre with "" -> exposedObject | pre -> PMap.find pre !exportMap in
 					cobject.os_fields <- elts :: cobject.os_fields
 				);
 				loop (g :: ls) path;
+			| f :: [] when pre = "" ->
+				toplevelExposed := f :: !toplevelExposed;
 			| _ -> ()
 		in loop parts "";
-	)) shallows;
+	)) exposed;
 
 	if ctx.js_modern then begin
 		(* Additional ES5 strict mode keywords. *)
 		List.iter (fun s -> Hashtbl.replace kwds s ()) [ "arguments"; "eval" ];
 
-		(* Wrap output in a closure. Exposing shallowExpose types to outside of closure *)
-		if anyShallowExposed then (
-			print ctx "var $__hx_shallows = ";
-			let rec print_obj { os_fields = fields } = (
-				print ctx "{";
-				concat ctx "," (fun ({ os_name = name } as f) -> print ctx "%s" (name ^ ":"); print_obj f) fields;
-				print ctx "}"
-			) in
-			print_obj shallowObject;
+		(* Wrap output in a closure *)
+		if (anyExposed && (Common.defined com Define.ShallowExpose)) then (
+			print ctx "var $hx_exports = {}";
 			ctx.separator <- true;
 			newline ctx
 		);
-		print ctx "(function () { \"use strict\"";
+		print ctx "(function (";
+		if (anyExposed && not (Common.defined com Define.ShallowExpose)) then print ctx "$hx_exports";
+		print ctx ") { \"use strict\"";
 		newline ctx;
+		let rec print_obj { os_fields = fields } = (
+			print ctx "{";
+			concat ctx "," (fun ({ os_name = name } as f) -> print ctx "%s" (name ^ ":"); print_obj f) fields;
+			print ctx "}";
+		)
+		in
+		List.iter (fun f ->
+			print ctx "$hx_exports.%s = " f.os_name;
+			print_obj f;
+			ctx.separator <- true;
+			newline ctx
+		) exposedObject.os_fields;
 	end;
 
 	(* TODO: fix $estr *)
@@ -1237,42 +1230,26 @@ let generate com =
 	(match com.main with
 	| None -> ()
 	| Some e -> gen_expr ctx e; newline ctx);
-	if ctx.found_expose then begin
-        (* TODO(bruno): Remove runtime branching when standard node haxelib is available *)
-		print ctx
-"function $hxExpose(src, path) {
-	var o = typeof window != \"undefined\" ? window : exports;
-	var parts = path.split(\".\");
-	for(var ii = 0; ii < parts.length-1; ++ii) {
-		var p = parts[ii];
-		if(typeof o[p] == \"undefined\") o[p] = {};
-		o = o[p];
-	}
-	o[parts[parts.length-1]] = src;
-}";
-		newline ctx;
-	end;
 	if ctx.js_modern then begin
-		print ctx "})()";
+		print ctx "})(";
+		if (anyExposed && not (Common.defined com Define.ShallowExpose)) then (
+			(* TODO(bruno): Remove runtime branching when standard node haxelib is available *)
+			print ctx "typeof window != \"undefined\" ? window : exports"
+		);
+		print ctx ")";
 		newline ctx;
-		if anyShallowExposed then begin
-			let rec print_obj { os_fields = fields } = (
-				print ctx "{";
-				concat ctx "," (fun f-> print ctx "%s" (f.os_name ^ ":"); print_obj f) fields;
-				print ctx "}"
-			) in
+		if (anyExposed && (Common.defined com Define.ShallowExpose)) then (
 			List.iter (fun f ->
-				print ctx "var %s = " f.os_name;
-				print_obj f;
+				print ctx "var %s = $hx_exports.%s" f.os_name f.os_name;
 				ctx.separator <- true;
 				newline ctx
-			) shallowObject.os_fields;
-			List.iter (fun path ->
-				if not (ExtString.String.contains path '.') then print ctx "var ";
-				print ctx "%s" (path ^ " = $__hx_shallows." ^ path);
-				newline ctx;
-			) shallows;
-		end
+			) exposedObject.os_fields;
+			List.iter (fun f ->
+				print ctx "var %s = $hx_exports.%s" f f;
+				ctx.separator <- true;
+				newline ctx
+			) !toplevelExposed
+		);
 	end;
 	if com.debug then write_mappings ctx else (try Sys.remove (com.file ^ ".map") with _ -> ());
 	let ch = open_out_bin com.file in

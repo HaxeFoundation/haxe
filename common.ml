@@ -197,6 +197,7 @@ module Define = struct
 		| RealPosition
 		| ReplaceFiles
 		| Scriptable
+		| ShallowExpose
 		| Swc
 		| SwfCompressLevel
 		| SwfDebugPassword
@@ -262,6 +263,7 @@ module Define = struct
 		| RealPosition -> ("real_position","Disables haxe source mapping when targetting C#")
 		| ReplaceFiles -> ("replace_files","GenCommon internal")
 		| Scriptable -> ("scriptable","GenCPP internal")
+		| ShallowExpose -> ("shallow-expose","Expose types to surrounding scope of Haxe generated closure without writing to window object")
 		| Swc -> ("swc","Output a SWC instead of a SWF")
 		| SwfCompressLevel -> ("swf_compress_level","<level:1-9> Set the amount of compression for the SWF output")
 		| SwfDebugPassword -> ("swf_debug_password", "Set a password for debugging.")
@@ -389,7 +391,6 @@ module MetaInfo = struct
 		| Runtime -> ":runtime",("?",[])
 		| RuntimeValue -> ":runtimeValue",("Marks an abstract as being a runtime value",[UsedOn TAbstract])
 		| Setter -> ":setter",("Generates a native getter function on the given field",[HasParam "Class field name";UsedOn TClassField;Platform Flash])
-		| ShallowExpose -> ":shallowExpose",("Similar to @:expose meta, but exposed only to the surrounding scope of the Haxe generated closure, instead of to global scope",[HasParam "?Name=Class path";UsedOn TClass;Platform Js])
 		| SkipCtor -> ":skipCtor",("Used internally to generate a constructor as if it were a native type (no __hx_ctor)",[Platforms [Java;Cs]; Internal])
 		| SkipReflection -> ":skipReflection",("Used internally to annotate a field that shouldn't have its reflection data generated",[Platforms [Java;Cs]; UsedOn TClassField; Internal])
 		| Sound -> ":sound",( "Includes a given .wav or .mp3 file into the target Swf and associates it with the class (must extend flash.media.Sound)",[HasParam "File path";UsedOn TClass;Platform Flash])
