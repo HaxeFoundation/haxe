@@ -3646,11 +3646,13 @@ let create_constructor_dependencies common_ctx =
 
 let rec s_type t =
    let result =
-	match follow t with
+	match t with
 	| TMono r -> (match !r with | None -> "Dynamic" | Some t -> s_type t)
 	| TEnum (e,tl) -> Ast.s_type_path e.e_path ^ s_type_params tl
 	| TInst (c,tl) -> Ast.s_type_path c.cl_path ^ s_type_params tl
 	| TType (t,tl) -> Ast.s_type_path t.t_path ^ s_type_params tl
+   | TAbstract (abs,pl) when abs.a_impl <> None ->
+		s_type (Codegen.Abstract.get_underlying_type abs pl);
 	| TAbstract (a,tl) -> Ast.s_type_path a.a_path ^ s_type_params tl
 	| TFun ([],t) -> "Void -> " ^ s_fun t false
 	| TFun (l,t) ->
@@ -3687,22 +3689,37 @@ and s_type_params = function
 let gen_extern_class common_ctx class_def file_info =
    let file = new_source_file common_ctx common_ctx.file  "extern" ".hx" class_def.cl_path in
    let path = class_def.cl_path in
-   let filterPath = fst path @ [snd path] in
-   let rec remove_prefix field t = match t with
-      | TInst ({cl_path=[f],suffix } as cval ,tl) when f=field ->
-            TInst ( { cval with cl_path = ([],suffix) }, List.map (remove_prefix field) tl)
-      | TInst ({cl_path=cpath,suffix } as cval ,tl) when cpath=filterPath ->
-            TInst ( { cval with cl_path = ([],suffix) }, List.map (remove_prefix field) tl)
-      | TInst (cval,tl) -> TInst ( cval, List.map (remove_prefix field) tl)
-      (*| TInst ({cl_path=prefix} as cval ,tl) ->
+
+   let rec remove_all_prefix class_def field t =
+      let path = class_def.cl_path in
+      let filterPath = fst path @ [snd path] in
+      let rec remove_prefix t = match t with
+         | TInst ({cl_path=[f],suffix } as cval ,tl) when f=field ->
+               TInst ( { cval with cl_path = ([],suffix) }, List.map remove_prefix tl)
+         | TInst ({cl_path=cpath,suffix } as cval ,tl) when cpath=filterPath ->
+               TInst ( { cval with cl_path = ([],suffix) }, List.map remove_prefix tl)
+         | TInst (cval,tl) -> TInst ( cval, List.map remove_prefix tl)
+         (*| TInst ({cl_path=prefix} as cval ,tl) ->
             TInst ( { cval with cl_path = ([],snd cval.cl_path) }, List.map (remove_prefix field) tl)*)
-      | t -> Type.map (remove_prefix field) t
+         | t -> Type.map remove_prefix t
       in
+      let t = remove_prefix t in
+      let superred = (match class_def.cl_super with
+         | Some (super,_) -> remove_all_prefix super field t
+         | _ -> t )
+      in
+      List.fold_left ( fun t (impl,_) -> remove_all_prefix impl field t ) superred class_def.cl_implements;
+      (*
+      remove_prefix t
+      *)
+   in
+
+
    let params = function [] -> "" | l ->  "<" ^ (String.concat "," (List.map (fun (n,t) -> n) l) ^ ">")  in
    let output = file#write in
 
    let print_field stat f =
-      let s_type t = s_type (remove_prefix f.cf_name t) in
+      let s_type t = s_type (remove_all_prefix class_def f.cf_name t) in
       let args  = function  TFun (args,_) ->
           String.concat "," (List.map (fun (name,opt,t) -> (if opt then "?" else "") ^ name ^":"^ (s_type t)) args) | _ -> "" in
       let ret  = function  TFun (_,ret) -> s_type ret | _ -> "Dynamic" in
@@ -3734,7 +3751,7 @@ let gen_extern_class common_ctx class_def file_info =
 		output ";\n\n";
 	in
 
-   let s_type t = s_type (remove_prefix "*" t) in
+   let s_type t = s_type (remove_all_prefix class_def "*" t) in
    let c = class_def in
 	output ( "package " ^ (String.concat "." (fst path)) ^ ";\n" );
 	output ( "@:include extern " ^ (if c.cl_private then "private " else "") ^ (if c.cl_interface then "interface" else "class")
@@ -3782,10 +3799,11 @@ let gen_extern_enum common_ctx enum_def file_info =
 	file#close
 ;;
 
-let remove_parens expression = 
+let rec remove_parens expression = 
    match expression.eexpr with
-   | TParenthesis e -> e
-   | TMeta(_,e) -> e
+   | TParenthesis e -> remove_parens e
+   | TMeta(_,e) -> remove_parens e
+   | TCast ( e,None) -> remove_parens e
    | _ -> expression
 ;;
 
@@ -3794,6 +3812,13 @@ let is_this expression =
    | TConst TThis -> true
    | _ -> false
 ;;
+
+let is_super expression =
+   match (remove_parens expression).eexpr with
+   | TConst TSuper -> true
+   | _ -> false
+;;
+
 
 let is_assign_op op =
    match op with
@@ -3867,7 +3892,7 @@ class script_writer common_ctx filename =
    method enumText e = this#typeText (TEnum(e,[]))
    method enumName e = this#write (this#enumText e)
 	method close = 
-      let out_file = open_out filename in
+      let out_file = open_out_bin filename in
       output_string out_file "CPPIA\n";
       let idents =  Buffer.contents identBuffer in
       output_string out_file ((string_of_int (Hashtbl.length identTable)) ^ "\n");
@@ -3924,15 +3949,18 @@ class script_writer common_ctx filename =
        this#writeBool v.v_capture;
        this#writeType v.v_type;
    method writeList prefix len = this#write (prefix ^" "  ^ (string_of_int (len)) ^ "\n");
-   method checkCast toType expr =
+   method checkCast toType expr forceCast =
      if (is_interface_type toType) && not (is_interface_type expr.etype) then begin
         this#begin_expr;
         this#write ((string_of_int (Lexer.get_error_line expr.epos) ) ^ "\t" ^ (this#fileText expr.epos.pfile) ^ indent);
         this#write ("TOINTERFACE " ^ (this#typeText toType) ^ " " ^  (this#typeText expr.etype) ^"\n" );
         this#gen_expression expr;
         this#end_expr;
-     end else
+     end else begin
+        if (forceCast) then
+           this#write ("CAST\n");
         this#gen_expression expr
+     end
    method gen_expression expr =
      let expression = remove_parens expr in
      this#begin_expr;
@@ -3951,12 +3979,12 @@ class script_writer common_ctx filename =
          List.iter this#gen_expression expr_list;
      | TConst const -> this#write (this#constText const)
      | TBreak -> this#write "BREAK ";
-     | TContinue -> this#write "CONT ";
+     | TContinue -> this#write "CONTINUE ";
 
      | TBinop (op,e1,e2) when op=OpAssign ->
         this#write ("SET \n");
         this#gen_expression e1;
-        this#checkCast e1.etype e2;
+        this#checkCast e1.etype e2 false;
      | TBinop (OpEq ,e1, { eexpr = TConst TNull } ) -> this#write "ISNULL\n";
         this#gen_expression e1;
      | TBinop (OpNotEq ,e1, { eexpr = TConst TNull }) -> this#write "NOTNULL\n";
@@ -3993,11 +4021,14 @@ class script_writer common_ctx filename =
         | TField (obj,FInstance (_,field) ) when is_this obj ->
                this#write ("CALLTHIS " ^ (this#typeText obj.etype) ^ " " ^ (this#stringText field.cf_name) ^
                   argN ^ "\n");
+        | TField (obj,FInstance (_,field) ) when is_super obj ->
+               this#write ("CALLSUPER " ^ (this#typeText obj.etype) ^ " " ^ (this#stringText field.cf_name) ^
+                  argN ^ "\n");
         | TField (obj,FInstance (_,field) ) ->
                this#write ("CALLMEMBER " ^ (this#typeText obj.etype) ^ " " ^ (this#stringText field.cf_name) ^
                   argN ^ "\n");
                this#gen_expression obj;
-        | TConst TSuper -> this#write ("CALLSUPER " ^ (this#typeText func.etype) ^ " " ^ argN ^ "\n");
+        | TConst TSuper -> this#write ("CALLSUPERNEW " ^ (this#typeText func.etype) ^ " " ^ argN ^ "\n");
         | TField (_,FEnum (enum,field)) -> this#write ("CREATEENUM " ^ (this#enumText enum) ^ " " ^ (this#stringText field.ef_name) ^ argN ^ "\n");
         | _ -> this#write ("CALL " ^ argN ^ "\n");
                this#gen_expression func;
@@ -4047,7 +4078,7 @@ class script_writer common_ctx filename =
                       this#writeVar tvar;
                       this#write (" " ^ (this#typeText init.etype));
                       this#write "\n";
-                      this#checkCast tvar.v_type init;
+                      this#checkCast tvar.v_type init false;
          ) var_list
      | TNew (clazz,params,arg_list) ->
         this#write ("NEW " ^ (this#typeText (TInst(clazz,params))) ^ (string_of_int (List.length arg_list)) ^ "\n");
@@ -4066,10 +4097,13 @@ class script_writer common_ctx filename =
                          (this#stringText class_name) ^ " " ^  (this#stringText meth))
  
      | TObjectDecl values ->this#write ("OBJDEF " ^ (string_of_int (List.length values)));
+         this#write " ";
          List.iter (fun (name,_) -> this#write (this#stringText name)  ) values;
          this#write "\n";
          List.iter (fun (_,e) -> this#gen_expression e ) values;
-     | TTypeExpr _ -> ()
+     | TTypeExpr type_expr ->
+         let klass = "::" ^ (join_class_path_remap (t_path type_expr) "::" ) in
+         this#write ("CLASSOF " ^ (string_of_int (this#typeId klass)))
      | TWhile (e1,e2,flag) -> this#write ("WHILE " ^ (if flag=NormalWhile then "1" else "0" ) ^ "\n");
          this#gen_expression e1;
          this#gen_expression e2;
@@ -4085,6 +4119,7 @@ class script_writer common_ctx filename =
      | TSwitch (condition,cases,optional_default)  ->
          this#write ("SWITCH " ^ (string_of_int (List.length cases)) ^ " " ^
                             (match optional_default with None -> "0" | Some _ -> "1") ^ "\n");
+          this#gen_expression condition;
           List.iter (fun (cases_list,expression) ->
              this#writeList ("\t\t\t"^indent) (List.length cases_list);
              List.iter (fun value -> this#gen_expression value ) cases_list;
@@ -4100,15 +4135,11 @@ class script_writer common_ctx filename =
              this#write "\n";
              this#gen_expression catch_expr;
          ) catches;
-     | TCast (cast,None) ->
-         this#write "VCAST\n";
-         this#gen_expression cast;
-     | TCast (cast,Some t) ->
-         let class_name = (join_class_path_remap (t_path t) "::" ) in
-         this#write ("CAST " ^ (string_of_int (this#typeId class_name)) ^ "\n");
-         this#gen_expression cast;
-
-     | TParenthesis _ | TMeta(_,_) | TPatMatch _ -> assert false
+     | TCast (cast,None) -> error "Unexpected cast" expression.epos
+     | TCast (cast,Some _) -> this#checkCast expression.etype cast true
+     | TParenthesis _ -> error "Unexpected parens" expression.epos
+     | TMeta(_,_) -> error "Unexpected meta" expression.epos
+     | TPatMatch _ ->  error "Unexpected pattern match" expression.epos
      );
      this#end_expr;
 end;;
@@ -4248,7 +4279,7 @@ let generate_source common_ctx =
 	List.iter (fun object_def ->
 		(match object_def with
 		| TClassDecl class_def when class_def.cl_extern ->
-         () (*if (gen_externs) then gen_extern_class common_ctx class_def;*)
+         (*if (gen_externs) then gen_extern_class common_ctx class_def file_info;*)();
 		| TClassDecl class_def ->
 			let name =  class_text class_def.cl_path in
          if (gen_externs) then gen_extern_class common_ctx class_def file_info;
