@@ -1145,10 +1145,16 @@ let optimize_stdis tctx equal triple o t recurse =
 			mk (TCall (teq, [lhs; o])) boolt pos
 		| TTypeExpr (TClassDecl ({ cl_path = [],"Array" })) ->
 			let iof = mk_local tctx "__instanceof__" (tfun [o.etype;t.etype] boolt) pos in
+			let iof = mk (TCall (iof, [o; t])) boolt pos in
+			let enum = mk (TField (o, FDynamic "__enum__")) (mk_mono()) pos in
+			let null = mk (TConst TNull) (mk_mono()) pos in
 			if (equal = Ast.OpEq) then
-				mk (TCall (iof, [o; t])) boolt pos
+				let not_enum = mk (TBinop (Ast.OpEq, enum, null)) boolt pos in
+				mk (TBinop (Ast.OpBoolAnd, iof, not_enum)) boolt pos
 			else
-				mk (TUnop (Ast.Not, Ast.Prefix, mk (TCall (iof, [o; t])) boolt pos)) boolt pos
+				let not_iof = mk (TUnop (Ast.Not, Ast.Prefix, iof)) boolt pos in
+				let is_enum = mk (TBinop (Ast.OpNotEq, enum, null)) boolt pos in
+				mk (TBinop (Ast.OpBoolOr, not_iof, is_enum)) boolt pos
 		| _ -> recurse
 
 let optimize_stdstring tctx v recurse =
