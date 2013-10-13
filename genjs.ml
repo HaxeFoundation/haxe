@@ -1123,6 +1123,12 @@ let gen_single_expr ctx e expr =
 let mk_local tctx n t pos =
 	mk (TLocal (try PMap.find n tctx.locals with _ -> add_local tctx n t)) t pos
 
+let is_trivial e =
+	match e.eexpr with
+		| TConst _ -> true
+		| TLocal _ -> true
+		| _ -> false
+
 let optimize_stdis tctx equal triple o t recurse =
 	let pos = o.epos in
 	let stringt = tctx.Typecore.com.basic.tstring in
@@ -1138,7 +1144,7 @@ let optimize_stdis tctx equal triple o t recurse =
 		| TTypeExpr (TAbstractDecl ({ a_path = [],"Bool" })) -> typeof "boolean"
 		| TTypeExpr (TAbstractDecl ({ a_path = [],"Float" })) -> typeof "number"
 		| TTypeExpr (TClassDecl ({ cl_path = [],"String" })) -> typeof "string"
-		| TTypeExpr (TAbstractDecl ({ a_path = [],"Int" })) ->
+		| TTypeExpr (TAbstractDecl ({ a_path = [],"Int" })) when is_trivial o ->
 			(* need to use ===/!==, not ==/!= so tast is a bit more annoying, we leave this to the generator *)
 			let teq = mk_local tctx triple (tfun [intt; intt] boolt) pos in
 			let lhs = mk (TBinop (Ast.OpOr, o, mk (TConst (TInt Int32.zero)) intt pos)) intt pos in
