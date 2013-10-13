@@ -278,7 +278,7 @@ extern enum XmlType {
 	            if(cur<names.length){
 	                return attributes[Std.parseInt(names[cur++])].name();
 	            }else {
-	                var ns:Namespace = nss[cur++ - names.length];
+	                var ns:flash.utils.Namespace = nss[cur++ - names.length];
 	                return "xmlns:"+ns.prefix;
 	            }
 	        }
