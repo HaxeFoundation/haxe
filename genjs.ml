@@ -23,6 +23,7 @@
 open Ast
 open Type
 open Common
+open Typecore
 
 type pos = Ast.pos
 
@@ -411,6 +412,16 @@ let rec gen_call ctx e el in_value =
 			spr ctx "}"
 		) (Hashtbl.fold (fun name data acc -> (name,data) :: acc) ctx.com.resources []);
 		spr ctx "]";
+	| TLocal { v_name = "__js__teq" } , [x;y] ->
+		spr ctx "(";
+		gen_value ctx x;
+		spr ctx ") === ";
+		gen_value ctx y;
+	| TLocal { v_name = "__js__tne" } , [x;y] ->
+		spr ctx "(";
+		gen_value ctx x;
+		spr ctx ") !== ";
+		gen_value ctx y;
 	| TLocal { v_name = "`trace" }, [e;infos] ->
 		if has_feature ctx "haxe.Log.trace" then begin
 			let t = (try List.find (fun t -> t_path t = (["haxe"],"Log")) ctx.com.types with _ -> assert false) in
@@ -1108,6 +1119,77 @@ let gen_single_expr ctx e expr =
 	Buffer.reset ctx.buf;
 	ctx.id_counter <- 0;
 	str
+
+let mk_local tctx n t pos =
+	mk (TLocal (try PMap.find n tctx.locals with _ -> add_local tctx n t)) t pos
+
+let optimize_stdis tctx equal triple o t recurse =
+	let pos = o.epos in
+	let stringt = tctx.Typecore.com.basic.tstring in
+	let boolt = tctx.Typecore.com.basic.tbool in
+	let intt = tctx.Typecore.com.basic.tint in
+	let typeof t =
+		let js = mk_local tctx "__js__" (tfun [stringt] (tfun [o.etype] stringt)) pos in
+		let tof = mk (TConst (TString "typeof")) stringt pos in
+		let tof = mk (TCall (js, [tof])) (tfun [o.etype] stringt) pos in
+		let tof = mk (TCall (tof, [o])) stringt pos in
+		mk (TBinop (equal, tof, (mk (TConst (TString t)) stringt pos))) boolt pos
+	in match t.eexpr with
+		| TTypeExpr (TAbstractDecl ({ a_path = [],"Bool" })) -> typeof "boolean"
+		| TTypeExpr (TAbstractDecl ({ a_path = [],"Float" })) -> typeof "number"
+		| TTypeExpr (TClassDecl ({ cl_path = [],"String" })) -> typeof "string"
+		| TTypeExpr (TAbstractDecl ({ a_path = [],"Int" })) ->
+			(* need to use ===/!==, not ==/!= so tast is a bit more annoying, we leave this to the generator *)
+			let teq = mk_local tctx triple (tfun [intt; intt] boolt) pos in
+			let lhs = mk (TBinop (Ast.OpOr, o, mk (TConst (TInt Int32.zero)) intt pos)) intt pos in
+			mk (TCall (teq, [lhs; o])) boolt pos
+		| TTypeExpr (TClassDecl ({ cl_path = [],"Array" })) ->
+			let iof = mk_local tctx "__instanceof__" (tfun [o.etype;t.etype] boolt) pos in
+			if (equal = Ast.OpEq) then
+				mk (TCall (iof, [o; t])) boolt pos
+			else
+				mk (TUnop (Ast.Not, Ast.Prefix, mk (TCall (iof, [o; t])) boolt pos)) boolt pos
+		| _ -> recurse
+
+let optimize_stdstring tctx v recurse =
+	let pos = v.epos in
+	let stringt = tctx.Typecore.com.basic.tstring in
+	let stringv = mk (TBinop (Ast.OpAdd, mk (TConst (TString "")) stringt pos, v)) stringt pos in
+	match (follow v.etype) with
+		| TInst ({ cl_path = [],"String" }, []) -> v
+		| TAbstract ({ a_path = [],"Float" }, []) -> stringv
+		| TAbstract ({ a_path = [],"Int" }, []) -> stringv
+		| TAbstract ({ a_path = [],"Bool" }, []) -> stringv
+		| _ -> recurse
+
+let rec optimize_call tctx e = let recurse = optimize_std tctx e in
+	match e.eexpr with
+	| TUnop (Ast.Not, _, { eexpr = TCall (ce, el) }) -> (match ce.eexpr, el with
+		(* Catch Std.is call, even if it was inlined *)
+		| TField ({ eexpr = TTypeExpr (TClassDecl ({ cl_path = ["js"], "Boot" })) }, FStatic (_, ({ cf_name = "__instanceof" }))), [o;t] ->
+			optimize_stdis tctx Ast.OpNotEq "__js__tne" o t recurse
+		| TField ({ eexpr = TTypeExpr (TClassDecl ({ cl_path = [],"Std" })) }, FStatic (_, ({ cf_name = "is" }))), [o;t] ->
+			optimize_stdis tctx Ast.OpNotEq "__js__tne" o t recurse
+		| _ -> recurse)
+	| TCall (ce, el) -> (match ce.eexpr, el with
+		(* Catch Std.is call, even if it was inlined *)
+		| TField ({ eexpr = TTypeExpr (TClassDecl ({ cl_path = ["js"], "Boot" })) }, FStatic (_, ({ cf_name = "__instanceof" }))), [o;t] ->
+			optimize_stdis tctx Ast.OpEq "__js__teq" o t recurse
+		| TField ({ eexpr = TTypeExpr (TClassDecl ({ cl_path = [],"Std" })) }, FStatic (_, ({ cf_name = "is" }))), [o;t] ->
+			optimize_stdis tctx Ast.OpEq "__js__teq" o t recurse
+		(* Catch Std.int when not inlined, if it was inlined there's no optimisation to be made *)
+		| TField ({ eexpr = TTypeExpr (TClassDecl ({ cl_path = [], "Std" })) }, FStatic (_, ({ cf_name = "int" }))), [v] ->
+			mk (TBinop (Ast.OpOr, v, mk (TConst (TInt Int32.zero)) tctx.Typecore.com.basic.tint v.epos)) tctx.Typecore.com.basic.tbool v.epos
+		(* Catch Std.string, even if it was inlined *)
+		| TField ({ eexpr = TTypeExpr (TClassDecl ({ cl_path = [], "Std" })) }, FStatic (_, ({ cf_name = "string" }))), [v] ->
+			optimize_stdstring tctx v recurse
+		| TField ({ eexpr = TTypeExpr (TClassDecl ({ cl_path = ["js"], "Boot" })) }, FStatic (_, ({ cf_name = "__string_rec" }))), [v; { eexpr = TConst (TString "") }] ->
+			optimize_stdstring tctx v recurse
+		| _ -> recurse)
+	| _ -> recurse
+
+and optimize_std tctx e =
+	Type.map_expr (optimize_call tctx) e
 
 let generate com =
 	let t = Common.timer "generate js" in
