@@ -757,7 +757,7 @@ let rec all_ctors mctx t =
 	| TAbstract({a_impl = Some c} as a,pl) when Meta.has Meta.FakeEnum a.a_meta ->
 		List.iter (fun cf ->
 			ignore(follow cf.cf_type);
-			if not (Meta.has Meta.Impl cf.cf_meta) then match cf.cf_expr with
+			if Meta.has Meta.Impl cf.cf_meta then match cf.cf_expr with
 				| Some {eexpr = TConst c | TCast ({eexpr = TConst c},None)} -> h := PMap.add (CConst c) cf.cf_pos !h
 				| _ -> ()
 		) c.cl_ordered_statics;
