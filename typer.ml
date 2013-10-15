@@ -2989,9 +2989,22 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			| _ ->
 				t
 		in
+		let merge_core_doc c =
+			let c_core = Typeload.load_core_class ctx c in
+			if c.cl_doc = None then c.cl_doc <- c_core.cl_doc;
+			let maybe_merge cf_map cf =
+				if cf.cf_doc = None then try cf.cf_doc <- (PMap.find cf.cf_name cf_map).cf_doc with Not_found -> ()
+			in
+			List.iter (maybe_merge c_core.cl_fields) c.cl_ordered_fields;
+			List.iter (maybe_merge c_core.cl_statics) c.cl_ordered_statics;
+			match c.cl_constructor,c_core.cl_constructor with
+				| Some ({cf_doc = None} as cf),Some cf2 -> cf.cf_doc <- cf2.cf_doc
+				| _ -> ()
+		in
 		let rec get_fields t =
 			match follow t with
 			| TInst (c,params) ->
+				if Meta.has Meta.CoreApi c.cl_meta then merge_core_doc c;
 				let priv = is_parent c ctx.curclass in
 				let merge ?(cond=(fun _ -> true)) a b =
 					PMap.foldi (fun k f m -> if cond f then PMap.add k f m else m) a b
@@ -3013,6 +3026,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				in
 				loop c params
 			| TAbstract({a_impl = Some c} as a,pl) ->
+				if Meta.has Meta.CoreApi c.cl_meta then merge_core_doc c;
 				ctx.m.module_using <- c :: ctx.m.module_using;
 				PMap.fold (fun f acc ->
 					if f.cf_name <> "_new" && can_access ctx c f true && Meta.has Meta.Impl f.cf_meta then begin
@@ -3025,6 +3039,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			| TAnon a ->
 				(match !(a.a_status) with
 				| Statics c ->
+					if Meta.has Meta.CoreApi c.cl_meta then merge_core_doc c;
 					let pm = match c.cl_constructor with None -> PMap.empty | Some cf -> PMap.add "new" cf PMap.empty in
 					PMap.fold (fun f acc -> if can_access ctx c f true then PMap.add f.cf_name { f with cf_public = true; cf_type = opt_type f.cf_type } acc else acc) a.a_fields pm
 				| _ ->

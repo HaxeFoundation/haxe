@@ -1169,10 +1169,10 @@ let hx_stack_push ctx output clazz func_name pos =
 	ctx.ctx_file_info := PMap.add qfile qfile !(ctx.ctx_file_info);
 	if (ctx.ctx_dump_stack_line) then begin
       let hash_class_func = gen_hash 0 (clazz^"."^func_name) in
-      let hash_file_line = gen_hash (Lexer.get_error_line pos) stripped_file in
+      let hash_file = gen_hash 0 stripped_file in
 		output ("HX_STACK_FRAME(\"" ^ clazz ^ "\",\"" ^ func_name ^ "\"," ^ hash_class_func ^ ",\"" ^
                 clazz ^ "." ^ func_name ^ "\"," ^ qfile ^ "," ^
-			    (string_of_int (Lexer.get_error_line pos) ) ^  "," ^ hash_file_line ^ ")\n")
+			    (string_of_int (Lexer.get_error_line pos) ) ^  "," ^ hash_file ^ ")\n")
    end
 ;;
 

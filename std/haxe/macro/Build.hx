@@ -46,6 +46,7 @@ class Build {
 					if (e == null) Context.error("Value required", field.pos);
 					var tE = Context.typeof(e);
 					if (!Context.unify(tE, tThis)) Context.error('${tE.toString()} should be ${tThis.toString()}', e.pos);
+					field.meta.push({name: ":impl", params: [], pos: field.pos});
 					field.kind = FVar(ctA, macro cast $e);
 				case _:
 			}

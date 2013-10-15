@@ -1199,7 +1199,7 @@ let type_function ctx args ret fmode f do_display p =
 	ctx.opened <- old_opened;
 	e , fargs
 
-let init_core_api ctx c =
+let load_core_class ctx c =
 	let ctx2 = (match ctx.g.core_api with
 		| None ->
 			let com2 = Common.clone ctx.com in
@@ -1222,75 +1222,79 @@ let init_core_api ctx c =
 	flush_pass ctx2 PFinal "core_final";
 	match t with
 	| TInst (ccore,_) | TAbstract({a_impl = Some ccore}, _) ->
-		begin try
-			List.iter2 (fun (n1,t1) (n2,t2) -> match follow t1, follow t2 with
-				| TInst({cl_kind = KTypeParameter l1},_),TInst({cl_kind = KTypeParameter l2},_) ->
-					begin try
-						List.iter2 (fun t1 t2 -> type_eq EqCoreType t2 t1) l1 l2
-					with
-						| Invalid_argument _ ->
-							error "Type parameters must have the same number of constraints as core type" c.cl_pos
-						| Unify_error l ->
-							display_error ctx ("Type parameter " ^ n2 ^ " has different constraint than in core type") c.cl_pos;
-							display_error ctx (error_msg (Unify l)) c.cl_pos
-					end
-				| t1,t2 ->
-					Printf.printf "%s %s" (s_type (print_context()) t1) (s_type (print_context()) t2);
-					assert false
-			) ccore.cl_types c.cl_types;
-		with Invalid_argument _ ->
-			error "Class must have the same number of type parameters as core type" c.cl_pos
-		end;
-		(match c.cl_doc with
-		| None -> c.cl_doc <- ccore.cl_doc
-		| Some _ -> ());
-		let compare_fields f f2 =
-			let p = (match f2.cf_expr with None -> c.cl_pos | Some e -> e.epos) in
-			(try
-				type_eq EqCoreType (apply_params ccore.cl_types (List.map snd c.cl_types) f.cf_type) f2.cf_type
-			with Unify_error l ->
-				display_error ctx ("Field " ^ f.cf_name ^ " has different type than in core type") p;
-				display_error ctx (error_msg (Unify l)) p);
-			if f2.cf_public <> f.cf_public then error ("Field " ^ f.cf_name ^ " has different visibility than core type") p;
-			(match f2.cf_doc with
-			| None -> f2.cf_doc <- f.cf_doc
-			| Some _ -> ());
-			if f2.cf_kind <> f.cf_kind then begin
-				match f2.cf_kind, f.cf_kind with
-				| Method MethInline, Method MethNormal -> () (* allow to add 'inline' *)
-				| Method MethNormal, Method MethInline -> () (* allow to disable 'inline' *)
-				| _ ->
-					error ("Field " ^ f.cf_name ^ " has different property access than core type") p;
-			end;
-			(match follow f.cf_type, follow f2.cf_type with
-			| TFun (pl1,_), TFun (pl2,_) ->
-				if List.length pl1 != List.length pl2 then error "Argument count mismatch" p;
-				List.iter2 (fun (n1,_,_) (n2,_,_) ->
-					if n1 <> n2 then error ("Method parameter name '" ^ n2 ^ "' should be '" ^ n1 ^ "'") p;
-				) pl1 pl2;
-			| _ -> ());
-		in
-		let check_fields fcore fl =
-			PMap.iter (fun i f ->
-				if not f.cf_public then () else
-				let f2 = try PMap.find f.cf_name fl with Not_found -> error ("Missing field " ^ i ^ " required by core type") c.cl_pos in
-				compare_fields f f2;
-			) fcore;
-			PMap.iter (fun i f ->
-				let p = (match f.cf_expr with None -> c.cl_pos | Some e -> e.epos) in
-				if f.cf_public && not (Meta.has Meta.Hack f.cf_meta) && not (PMap.mem f.cf_name fcore) && not (List.memq f c.cl_overrides) then error ("Public field " ^ i ^ " is not part of core type") p;
-			) fl;
-		in
-		check_fields ccore.cl_fields c.cl_fields;
-		check_fields ccore.cl_statics c.cl_statics;
-		(match ccore.cl_constructor, c.cl_constructor with
-		| None, None -> ()
-		| Some { cf_public = false }, _ -> ()
-		| Some f, Some f2 -> compare_fields f f2
-		| None, Some { cf_public = false } -> ()
-		| _ -> error "Constructor differs from core type" c.cl_pos)
+		ccore
+	| _ ->
+		assert false
 
-	| _ -> assert false
+let init_core_api ctx c =
+	let ccore = load_core_class ctx c in
+	begin try
+		List.iter2 (fun (n1,t1) (n2,t2) -> match follow t1, follow t2 with
+			| TInst({cl_kind = KTypeParameter l1},_),TInst({cl_kind = KTypeParameter l2},_) ->
+				begin try
+					List.iter2 (fun t1 t2 -> type_eq EqCoreType t2 t1) l1 l2
+				with
+					| Invalid_argument _ ->
+						error "Type parameters must have the same number of constraints as core type" c.cl_pos
+					| Unify_error l ->
+						display_error ctx ("Type parameter " ^ n2 ^ " has different constraint than in core type") c.cl_pos;
+						display_error ctx (error_msg (Unify l)) c.cl_pos
+				end
+			| t1,t2 ->
+				Printf.printf "%s %s" (s_type (print_context()) t1) (s_type (print_context()) t2);
+				assert false
+		) ccore.cl_types c.cl_types;
+	with Invalid_argument _ ->
+		error "Class must have the same number of type parameters as core type" c.cl_pos
+	end;
+	(match c.cl_doc with
+	| None -> c.cl_doc <- ccore.cl_doc
+	| Some _ -> ());
+	let compare_fields f f2 =
+		let p = (match f2.cf_expr with None -> c.cl_pos | Some e -> e.epos) in
+		(try
+			type_eq EqCoreType (apply_params ccore.cl_types (List.map snd c.cl_types) f.cf_type) f2.cf_type
+		with Unify_error l ->
+			display_error ctx ("Field " ^ f.cf_name ^ " has different type than in core type") p;
+			display_error ctx (error_msg (Unify l)) p);
+		if f2.cf_public <> f.cf_public then error ("Field " ^ f.cf_name ^ " has different visibility than core type") p;
+		(match f2.cf_doc with
+		| None -> f2.cf_doc <- f.cf_doc
+		| Some _ -> ());
+		if f2.cf_kind <> f.cf_kind then begin
+			match f2.cf_kind, f.cf_kind with
+			| Method MethInline, Method MethNormal -> () (* allow to add 'inline' *)
+			| Method MethNormal, Method MethInline -> () (* allow to disable 'inline' *)
+			| _ ->
+				error ("Field " ^ f.cf_name ^ " has different property access than core type") p;
+		end;
+		(match follow f.cf_type, follow f2.cf_type with
+		| TFun (pl1,_), TFun (pl2,_) ->
+			if List.length pl1 != List.length pl2 then error "Argument count mismatch" p;
+			List.iter2 (fun (n1,_,_) (n2,_,_) ->
+				if n1 <> n2 then error ("Method parameter name '" ^ n2 ^ "' should be '" ^ n1 ^ "'") p;
+			) pl1 pl2;
+		| _ -> ());
+	in
+	let check_fields fcore fl =
+		PMap.iter (fun i f ->
+			if not f.cf_public then () else
+			let f2 = try PMap.find f.cf_name fl with Not_found -> error ("Missing field " ^ i ^ " required by core type") c.cl_pos in
+			compare_fields f f2;
+		) fcore;
+		PMap.iter (fun i f ->
+			let p = (match f.cf_expr with None -> c.cl_pos | Some e -> e.epos) in
+			if f.cf_public && not (Meta.has Meta.Hack f.cf_meta) && not (PMap.mem f.cf_name fcore) && not (List.memq f c.cl_overrides) then error ("Public field " ^ i ^ " is not part of core type") p;
+		) fl;
+	in
+	check_fields ccore.cl_fields c.cl_fields;
+	check_fields ccore.cl_statics c.cl_statics;
+	(match ccore.cl_constructor, c.cl_constructor with
+	| None, None -> ()
+	| Some { cf_public = false }, _ -> ()
+	| Some f, Some f2 -> compare_fields f f2
+	| None, Some { cf_public = false } -> ()
+	| _ -> error "Constructor differs from core type" c.cl_pos)
 
 let patch_class ctx c fields =
 	let h = (try Some (Hashtbl.find ctx.g.type_patches c.cl_path) with Not_found -> None) in
