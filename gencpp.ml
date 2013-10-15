@@ -2090,6 +2090,14 @@ let rec all_virtual_functions clazz =
 ;;
 
 
+let field_arg_count field =
+   match follow field.cf_type, field.cf_kind  with
+		| _, Method MethDynamic -> -1
+		| TFun (args,return_type), Method _  -> List.length args
+      | _,_ -> -1
+;;
+
+
 			   (* external mem  Dynamic & *)
 
 let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface field =
@@ -3280,6 +3288,10 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
       output_cpp ("class " ^ sctipt_name ^ " : public " ^ class_name ^ " {\n" );
       output_cpp ("   typedef "^sctipt_name ^" __ME;\n");
       output_cpp ("   typedef "^class_name ^" super;\n");
+      let has_funky_toString = List.exists (fun f -> f.cf_name="toString") class_def.cl_ordered_statics  ||
+                               List.exists (fun f -> f.cf_name="toString" && field_arg_count f <> 0) class_def.cl_ordered_fields in
+      let super_string = if has_funky_toString then class_name ^ "::super" else class_name in
+      output_cpp ("   typedef "^ super_string ^" __superString;\n");
       if (class_def.cl_interface) then
          output_cpp ("   HX_DEFINE_SCRIPTABLE_INTERFACE\n")
       else begin
@@ -3305,7 +3317,6 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
          output_cpp "  hx::ScriptNamedFunction(0,0,0) };\n";
       end else
          output_cpp "static hx::ScriptNamedFunction *__scriptableFunctions = 0;\n";
-
    end;
 
 
@@ -3931,8 +3942,8 @@ class script_writer common_ctx filename =
 	method get_indent = indent
 	method begin_expr = this#push_indent
 	method end_expr = if not just_finished_block then this#write "\n"; this#pop_indent; just_finished_block <- true
-   method func isStatic funcName ret args isInterface fieldExpression =
-       this#write ("FUNCTION " ^ (this#staticText isStatic) ^ " " ^ (this#stringText funcName) ^ " ");
+   method func isStatic isDynamic funcName ret args isInterface fieldExpression =
+       this#write ("FUNCTION " ^ (this#staticText isStatic) ^ " " ^(this#boolText isDynamic) ^ " " ^(this#stringText funcName) ^ " ");
        this#write ((this#typeText ret) ^ (string_of_int (List.length args)) ^ " ");
        List.iter (fun (name,opt,typ) -> this#write ( (this#stringText name) ^ (this#boolText opt) ^ " " ^ (this#typeText typ) ^ " " )) args;
        this#write "\n";
@@ -3964,7 +3975,7 @@ class script_writer common_ctx filename =
    method gen_expression expr =
      let expression = remove_parens expr in
      this#begin_expr;
-     this#write ((string_of_int (Lexer.get_error_line expression.epos) ) ^ "\t" ^ (this#fileText expression.epos.pfile) ^ indent);
+     this#write ( (this#fileText expression.epos.pfile) ^ "\t" ^ (string_of_int (Lexer.get_error_line expression.epos) ) ^ indent);
      (match expression.eexpr with
      | TFunction function_def -> this#write ("FUN " ^ (this#typeText function_def.tf_type) ^ (string_of_int (List.length function_def.tf_args)) ^ "\n" );
          List.iter (fun(arg,init) ->
@@ -4174,12 +4185,12 @@ let generate_script_class common_ctx script class_def =
          | AccRequire (_,_) -> "?"
          in
          script#var (mode_code v.v_read) (mode_code v.v_write) isStatic field.cf_name t
-	   | Method MethDynamic, TFun(a,r) ->
-         script#var "N" "N" isStatic field.cf_name (TFun(a,r))
+	   | Method MethDynamic, TFun(args,ret) ->
+         script#func isStatic true field.cf_name ret args class_def.cl_interface field.cf_expr
       | Method _, TFun(args,ret) when field.cf_name="new" ->
-         script#func true "new" (TInst(class_def,[])) args false field.cf_expr
+         script#func true false "new" (TInst(class_def,[])) args false field.cf_expr
 	   | Method _, TFun (args,ret) ->
-         script#func isStatic field.cf_name ret args class_def.cl_interface field.cf_expr
+         script#func isStatic false field.cf_name ret args class_def.cl_interface field.cf_expr
 	   | Method _, _ -> print_endline ("Unknown method type " ^ (join_class_path class_def.cl_path "." )
                       ^ "." ^field.cf_name )
    in
