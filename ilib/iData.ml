@@ -16,6 +16,7 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *)
+open Printf;;
 
 type machine_type =
 	| TUnknown (* 0 - unmanaged PE files only *)
@@ -30,6 +31,8 @@ type machine_type =
 	| TSH3E (* 0x01a4 SH3E Little Endian *)
 	| TSH4 (* 0x01a6 SH4 Little Endian *)
 	| TARM (* 0x1c0 ARM Little Endian *)
+	| TARMN (* 0x1c4 ARMv7 (or higher) Thumb mode only Little Endian *)
+	| TARM64 (* 0xaa64 - ARMv8 in 64-bit mode *)
 	| TThumb (* 0x1c2 ARM processor with Thumb decompressor *)
 	| TAM33 (* 0x1d3 AM33 processor *)
 	| TPowerPC (* 0x01f0 IBM PowerPC Little Endian *)
@@ -42,6 +45,34 @@ type machine_type =
 	| TTriCore (* 0x0520 Infineon *)
 	| TAMD64 (* 0x8664 AMD x64 and Intel E64T *)
 	| TM32R (* 0x9041 M32R *)
+
+let machine_type_s m = match m with
+	| TUnknown -> "TUnknown"
+	| Ti386 -> "Ti386"
+	| TR3000 -> "TR3000"
+	| TR4000 -> "TR4000"
+	| TR10000 -> "TR10000"
+	| TWCEMIPSv2 -> "TWCEMIPSv2"
+	| TAlpha -> "TAlpha"
+	| TSH3 -> "TSH3"
+	| TSH3DSP -> "TSH3DSP"
+	| TSH3E -> "TSH3E"
+	| TSH4 -> "TSH4"
+	| TARM -> "TARM"
+	| TARMN -> "TARMN"
+	| TARM64 -> "TARM64"
+	| TThumb -> "TThumb"
+	| TAM33 -> "TAM33"
+	| TPowerPC -> "TPowerPC"
+	| TPowerPCFP -> "TPowerPCFP"
+	| TIA64 -> "TIA64"
+	| TMIPS16 -> "TMIPS16"
+	| TALPHA64 -> "TALPHA64"
+	| TMIPSFPU -> "TMIPSFPU"
+	| TMIPSFPU16 -> "TMIPSFPU16"
+	| TTriCore -> "TTriCore"
+	| TAMD64 -> "TAMD64"
+	| TM32R -> "TM32R"
 
 type pointer = int
 
@@ -75,10 +106,10 @@ type coff_prop =
 	| NetRunFromSwap (* 0x800 *)
 		(* If the image file is on a network, copy and run it from the swap file. *)
 		(* This flag should no be set for pure-IL MPE files *)
-	| System (* 0x1000 *)
+	| FileSystem (* 0x1000 *)
 		(* The image file is a system file (for example, a device driver) *)
 		(* This flag should not be set for pure-IL MPE files *)
-	| Dll (* 0x2000 *)
+	| FileDll (* 0x2000 *)
 		(* This image file is a DLL rather than an EXE. It cannot be directly run. *)
 	| UpSystemOnly (* 0x4000 *)
 		(* The image file should be run on an uniprocessor machine only. *)
@@ -86,6 +117,23 @@ type coff_prop =
 	| BytesReversedHI (* 0x8000 *)
 		(* Big endian *)
 		(* This flag should not be set for pure-IL MPE files *)
+
+let coff_prop_s p = match p with
+	| RelocsStripped -> "RelocsStripped"
+	| ExecutableImage -> "ExecutableImage"
+	| LineNumsStripped -> "LineNumsStripped"
+	| LocalSymsStripped -> "LocalSymsStripped"
+	| AgressiveWsTrim -> "AgressiveWsTrim"
+	| LargeAddressAware -> "LargeAddressAware"
+	| BytesReversedLO -> "BytesReversedLO"
+	| Machine32Bit -> "Machine32Bit"
+	| DebugStripped -> "DebugStripped"
+	| RemovableRunFromSwap -> "RemovableRunFromSwap"
+	| NetRunFromSwap -> "NetRunFromSwap"
+	| FileSystem -> "FileSystem"
+	| FileDll -> "FileDll"
+	| UpSystemOnly -> "UpSystemOnly"
+	| BytesReversedHI -> "BytesReversedHI"
 
 type coff_header = {
 	coff_machine : machine_type; (* offset 0 - size 2 . *)
@@ -101,9 +149,12 @@ type coff_header = {
 	coff_props : coff_prop list;
 }
 
+let coff_header_s h =
+	sprintf "#COFF_HEADER\n\tmachine: %s\n\tnsections: %d\n\ttimestamp: %ld\n\tsymbol_tbl_pointer: %d\n\tnsymbols: %d\n\toptheader_size: %d\n\tprops: [%s]\n" (machine_type_s h.coff_machine) h.coff_nsections h.coff_timestamp h.coff_symbol_table_pointer h.coff_nsymbols h.coff_optheader_size (String.concat ", " (List.map coff_prop_s h.coff_props))
+
 let coff_default_exe_props = [ ExecutableImage; LineNumsStripped; LocalSymsStripped; (* Machine32Bit; *) ]
 
-let coff_default_dll_props = [ ExecutableImage; LineNumsStripped; LocalSymsStripped; (* Machine32Bit; *) Dll ]
+let coff_default_dll_props = [ ExecutableImage; LineNumsStripped; LocalSymsStripped; (* Machine32Bit; *) FileDll ]
 
 (* The size of the PE header is not fixed. It depends on the number of data directories defined in the header *)
 (* and is specified in the optheader_size in the COFF header *)

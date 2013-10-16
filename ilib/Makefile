@@ -1,10 +1,14 @@
 OCAMLOPT=ocamlopt
 
-all: dump
+all: il.cmxa dump
+
+il.cmxa: iData.ml iReader.ml iWriter.ml
 	$(OCAMLOPT) -g -I ../extlib -a -o il.cmxa iData.ml iReader.ml iWriter.ml
 
-dump: dump.ml iData.ml iReader.ml iWriter.ml
-	$(OCAMLOPT) -g -I ../extlib -o dump ../extlib/extLib.cmxa iData.ml iReader.ml iWriter.ml dump.ml 
+dump: il.cmxa dump.ml
+	$(OCAMLOPT) -g -I ../extlib -o dump ../extlib/extLib.cmxa il.cmxa dump.ml
 	
 clean:
-	rm -f il.cmxa il.lib il.a $(wildcard *.cmx) $(wildcard *.obj) $(wildcard *.o) $(wildcard *.cmi)
+	rm -f il.cmxa il.lib il.a $(wildcard *.cmx) $(wildcard *.obj) $(wildcard *.o) $(wildcard *.cmi) dump
+
+.PHONY: all 
