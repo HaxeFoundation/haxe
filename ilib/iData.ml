@@ -105,7 +105,11 @@ let coff_default_exe_props = [ ExecutableImage; LineNumsStripped; LocalSymsStrip
 
 let coff_default_dll_props = [ ExecutableImage; LineNumsStripped; LocalSymsStripped; (* Machine32Bit; *) Dll ]
 
+(* The size of the PE header is not fixed. It depends on the number of data directories defined in the header *)
+(* and is specified in the optheader_size in the COFF header *)
 (* type pe_header = { *)
+(* 	(* Standard fields *) *)
+(*  *)
 (* } *)
 
 type ipath = (string list) * string

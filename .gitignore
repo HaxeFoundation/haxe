@@ -11,3 +11,5 @@
 /xml-light/xml_lexer.ml
 /xml-light/xml_parser.ml
 /xml-light/xml_parser.mli
+
+/ilib/dump
