@@ -74,8 +74,6 @@ let machine_type_s m = match m with
 	| TAMD64 -> "TAMD64"
 	| TM32R -> "TM32R"
 
-type pointer = int
-
 type coff_prop =
 	| RelocsStripped (* 0x1 *)
 		(* image file only. Indicates the file contains no base relocations and *)
@@ -135,12 +133,18 @@ let coff_prop_s p = match p with
 	| UpSystemOnly -> "UpSystemOnly"
 	| BytesReversedHI -> "BytesReversedHI"
 
+type pointer = int64
+
+type size_t = pointer
+
+type rva = int32
+
 type coff_header = {
 	coff_machine : machine_type; (* offset 0 - size 2 . *)
 		(* If the managed PE file is intended for various machine types (AnyCPU), it should be Ti386 *)
 	coff_nsections : int; (* O2S2 *)
 	coff_timestamp : int32; (* O4S4 *)
-	coff_symbol_table_pointer : pointer; (* O8S4 *)
+	coff_symbol_table_pointer : rva; (* O8S4 *)
 		(* File pointer of the COFF symbol table. In managed PE files, it is 0 *)
 	coff_nsymbols : int; (* O12S4 *)
 		(* Number of entries in the COFF symbol table. Should be 0 in managed PE files *)
@@ -150,18 +154,155 @@ type coff_header = {
 }
 
 let coff_header_s h =
-	sprintf "#COFF_HEADER\n\tmachine: %s\n\tnsections: %d\n\ttimestamp: %ld\n\tsymbol_tbl_pointer: %d\n\tnsymbols: %d\n\toptheader_size: %d\n\tprops: [%s]\n" (machine_type_s h.coff_machine) h.coff_nsections h.coff_timestamp h.coff_symbol_table_pointer h.coff_nsymbols h.coff_optheader_size (String.concat ", " (List.map coff_prop_s h.coff_props))
+	sprintf "#COFF_HEADER\n\tmachine: %s\n\tnsections: %d\n\ttimestamp: %ld\n\tsymbol_tbl_pointer: %ld\n\tnsymbols: %d\n\toptheader_size: %d\n\tprops: [%s]\n" (machine_type_s h.coff_machine) h.coff_nsections h.coff_timestamp h.coff_symbol_table_pointer h.coff_nsymbols h.coff_optheader_size (String.concat ", " (List.map coff_prop_s h.coff_props))
 
 let coff_default_exe_props = [ ExecutableImage; LineNumsStripped; LocalSymsStripped; (* Machine32Bit; *) ]
 
 let coff_default_dll_props = [ ExecutableImage; LineNumsStripped; LocalSymsStripped; (* Machine32Bit; *) FileDll ]
 
+type pe_magic =
+	| P32 (* 0x10b *)
+	| PROM (* 0x107 *)
+	| P64 (* 0x20b - called PE32+ on the docs *)
+		(* allows 64-bit address space while limiting the image size to 2 gb *)
+
+let pe_magic_s = function
+	| P32 -> "P32"
+	| PROM -> "PROM"
+	| P64 -> "P64"
+
+type subsystem =
+	| SUnknown (* 0 *)
+	| SNative (* 1 *)
+		(* Device drivers and native windows processes *)
+	| SWGui (* 2 *)
+		(* Windows GUI subsystem *)
+	| SWCui (* 3 *)
+		(* Windows character subsystem *)
+	| SPCui (* 7 *)
+		(* Posix character subsystem *)
+	| SWCeGui (* 9 *)
+		(* Windows CE subsystem *)
+	| SEfi (* 10 *)
+		(* EFI application *)
+	| SEfiBoot (* 11 *)
+		(* EFI driver with boot services *)
+	| SEfiRuntime (* 12 *)
+		(* EFI driver with run-time services *)
+	| SEfiRom (* 13 *)
+		(* EFI ROM Image *)
+	| SXbox (* 14 *)
+
+let subsystem_s = function
+	| SUnknown -> "SUnknown" (* 0 *)
+	| SNative -> "SNative" (* 1 *)
+	| SWGui -> "SWGui" (* 2 *)
+	| SWCui -> "SWCui" (* 3 *)
+	| SPCui -> "SPCui" (* 7 *)
+	| SWCeGui -> "SWCeGui" (* 9 *)
+	| SEfi -> "SEfi" (* 10 *)
+	| SEfiBoot -> "SEfiBoot" (* 11 *)
+	| SEfiRuntime -> "SEfiRuntime" (* 12 *)
+	| SEfiRom -> "SEfiRom" (* 13 *)
+	| SXbox -> "SXbox" (* 14 *)
+
+type dll_prop =
+	| DDynamicBase (* 0x0040 *)
+		(* DLL can be relocated at load time *)
+	| DForceIntegrity (* 0x0080 *)
+		(* Code integrity checks are enforced *)
+	| DNxCompat (* 0x0100 *)
+		(* Image is NX compatible *)
+	| DNoIsolation (* 0x0200 *)
+		(* Isolation-aware, but do not isolate the image *)
+	| DNoSeh (* 0x0400 *)
+		(* No structured exception handling *)
+	| DNoBind (* 0x0800 *)
+		(* Do not bind the image *)
+	| DWdmDriver (* 0x2000 *)
+		(* A WDM driver *)
+	| DTerminalServer (* 0x8000 *)
+		(* Terminal server aware *)
+
+let dll_prop_s = function
+	| DDynamicBase -> "DDynamicBase" (* 0x0040 *)
+	| DForceIntegrity -> "DForceIntegrity" (* 0x0080 *)
+	| DNxCompat -> "DNxCompat" (* 0x0100 *)
+	| DNoIsolation -> "DNoIsolation" (* 0x0200 *)
+	| DNoSeh -> "DNoSeh" (* 0x0400 *)
+	| DNoBind -> "DNoBind" (* 0x0800 *)
+	| DWdmDriver -> "DWdmDriver" (* 0x2000 *)
+	| DTerminalServer -> "DTerminalServer" (* 0x8000 *)
+
 (* The size of the PE header is not fixed. It depends on the number of data directories defined in the header *)
 (* and is specified in the optheader_size in the COFF header *)
-(* type pe_header = { *)
-(* 	(* Standard fields *) *)
-(*  *)
-(* } *)
+(* object files don't have this; but it's required for image files *)
+type pe_header = {
+	(* Standard fields *)
+	pe_magic : pe_magic;
+	pe_major : int;
+	pe_minor : int;
+	pe_codesize : int;
+		(* size of the code section (.text) or the sum of all code sections, *)
+		(* if multiple sections exist. The IL assembler always emits a single code section *)
+	pe_initsize : int;
+	pe_uinitsize : int;
+	pe_entry_addr : rva;
+		(* RVA of the beginning of the entry point function. For unmanaged DLLs, this can be 0 *)
+		(* For managed PE files, this always points to the CLR invocation stub *)
+	pe_base_code : rva;
+		(* The address that is relative to the image base of the beginning-of-code section *)
+		(* when it's loaded into memory *)
+	pe_base_data : rva;
+		(* The address that is relative to the image base of the beginning-of-data section *)
+		(* when it's loaded into memory *)
+
+	(* COFF Windows extension *)
+	pe_image_base : pointer;
+		(* The preferred address of the first byte of image when loaded into memory. *)
+		(* Should be a multiple of 64K *)
+	pe_section_alignment : int;
+		(* The alignment in bytes of sections when they are loaded into memory *)
+		(* It must be greater than or equal to FileAlignment. The default is the page size *)
+		(* for the architecture *)
+	pe_file_alignment : int;
+		(* The alignment factor in bytes that is used to align the raw data of sections *)
+		(* in the image file. The value should be a POT between 512 and 64K. *)
+		(* If secion_alignment is less than architecture's page size, file_alignment must match *)
+		(* secion_alignment *)
+	pe_major_osver : int;
+	pe_minor_osver : int;
+	pe_major_imgver : int;
+	pe_minor_imgver : int;
+	pe_major_subsysver : int;
+	pe_minor_subsysver : int;
+	pe_image_size : int;
+		(* the size of the image in bytes, as the image is loaded into memory *)
+		(* must be a multiple of section_alignment *)
+	pe_headers_size : int;
+		(* the combined size of an MSDOS stub, PE header, and section headers *)
+		(* rounded up to a multiple of FileAlignment *)
+	pe_checksum : int32;
+	pe_subsystem : subsystem;
+	pe_dll_props : dll_prop list;
+	pe_stack_reserve : size_t;
+		(* the size of the stack to reserve. Only pe_stack_commit is committed *)
+	pe_stack_commit : size_t;
+		(* the size of the stack to commit *)
+	pe_heap_reserve : size_t;
+		(* the size of the local heap space to reserve. Only pe_heap_commit is committed *)
+	pe_heap_commit : size_t;
+		(* the size of the heap to commit *)
+	pe_ndata_dir : int;
+		(* the number of data-directory entries in the remainder of the optional header *)
+}
+
+let pe_header_s h =
+	sprintf "#PE_HEADER\n\tmagic: %s\n\tmajor/minor %d/%d\n\tsubsystem: %s\n\tdll props: [%s]"
+		(pe_magic_s h.pe_magic)
+		h.pe_major h.pe_minor
+		(subsystem_s h.pe_subsystem)
+		(String.concat ", " (List.map dll_prop_s h.pe_dll_props))
 
 type ipath = (string list) * string
 

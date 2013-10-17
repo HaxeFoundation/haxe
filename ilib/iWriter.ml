@@ -77,3 +77,34 @@ let int_of_coff_props props = List.fold_left (fun acc prop ->
 			| BytesReversedHI -> 0x8000 (* 0x8000 *)
 		) lor acc
 	) 0 props
+
+let int_of_pe_magic m = match m with
+	| P32 -> 0x10b
+	| PROM -> 0x107
+	| P64 -> 0x20b
+
+let int_of_subsystem s = match s with
+	|  SUnknown -> 0 (* 0 *)
+	|  SNative -> 1 (* 1 *)
+	|  SWGui -> 2 (* 2 *)
+	|  SWCui -> 3 (* 3 *)
+	|  SPCui -> 7 (* 7 *)
+	|  SWCeGui -> 9 (* 9 *)
+	|  SEfi -> 10 (* 10 *)
+	|  SEfiBoot -> 11 (* 11 *)
+	|  SEfiRuntime -> 12 (* 12 *)
+	|  SEfiRom -> 13 (* 13 *)
+	|  SXbox -> 14 (* 14 *)
+
+let int_of_dll_props props = List.fold_left (fun acc prop ->
+		(match prop with
+		| DDynamicBase -> 0x0040 (* 0x0040 *)
+		| DForceIntegrity -> 0x0080 (* 0x0080 *)
+		| DNxCompat -> 0x0100 (* 0x0100 *)
+		| DNoIsolation -> 0x0200 (* 0x0200 *)
+		| DNoSeh -> 0x0400 (* 0x0400 *)
+		| DNoBind -> 0x0800 (* 0x0800 *)
+		| DWdmDriver -> 0x2000 (* 0x2000 *)
+		| DTerminalServer -> 0x8000 (* 0x8000 *)
+		) lor acc
+	) 0 props
