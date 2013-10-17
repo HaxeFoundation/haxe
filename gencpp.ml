@@ -4025,17 +4025,18 @@ class script_writer common_ctx filename =
            this#gen_expression elze; )
      | TCall (func, arg_list) ->
         let argN = (string_of_int (List.length arg_list)) ^ " " in
+        let is_real_function field = not (is_data_member field) in
         (match (remove_parens func).eexpr with
-        | TField (obj,FStatic (class_def,field) ) ->
+        | TField (obj,FStatic (class_def,field) ) when is_real_function field ->
                this#write ("CALLSTATIC " ^ (this#instText class_def) ^ " " ^ (this#stringText field.cf_name) ^
                   argN ^ "\n");
-        | TField (obj,FInstance (_,field) ) when is_this obj ->
+        | TField (obj,FInstance (_,field) ) when (is_this obj) && (is_real_function field) ->
                this#write ("CALLTHIS " ^ (this#typeText obj.etype) ^ " " ^ (this#stringText field.cf_name) ^
                   argN ^ "\n");
         | TField (obj,FInstance (_,field) ) when is_super obj ->
                this#write ("CALLSUPER " ^ (this#typeText obj.etype) ^ " " ^ (this#stringText field.cf_name) ^
                   argN ^ "\n");
-        | TField (obj,FInstance (_,field) ) ->
+        | TField (obj,FInstance (_,field) ) when is_real_function field ->
                this#write ("CALLMEMBER " ^ (this#typeText obj.etype) ^ " " ^ (this#stringText field.cf_name) ^
                   argN ^ "\n");
                this#gen_expression obj;
