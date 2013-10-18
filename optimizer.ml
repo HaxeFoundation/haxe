@@ -277,6 +277,13 @@ let rec type_inline ctx cf f ethis params tret config p force =
 		| TBlock l ->
 			let old = save_locals ctx in
 			let t = ref e.etype in
+			let has_return e =
+				let rec loop e = match e.eexpr with
+					| TReturn _ -> raise Exit
+					| _ -> Type.iter loop e
+				in
+				try loop e; false with Exit -> true
+			in
 			let rec loop = function
 				| [] when term ->
 					t := mk_mono();
@@ -286,6 +293,8 @@ let rec type_inline ctx cf f ethis params tret config p force =
 					let e = map term e in
 					if term then t := e.etype;
 					[e]
+				| ({ eexpr = TIf (cond,e1,None) } as e) :: l when term && has_return e1 ->
+					loop [{ e with eexpr = TIf (cond,e1,Some (mk (TBlock l) e.etype e.epos)); epos = punion e.epos (match List.rev l with e :: _ -> e.epos | [] -> assert false) }]
 				| e :: l ->
 					let e = map false e in
 					e :: loop l
