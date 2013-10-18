@@ -2934,13 +2934,20 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		mk (TCast (type_expr ctx e Value,Some texpr)) t p
 	| EDisplay (e,iscall) when Common.defined_value_safe ctx.com Define.DisplayMode = "usage" ->
 		let e = try type_expr ctx e Value with Error (Unknown_ident n,_) -> raise (Parser.TypePath ([n],None)) in
-		(match e.eexpr with
-		| TField(_,fa) -> (match extract_field fa with
-			| None -> e
-			| Some cf ->
-				cf.cf_meta <- (Meta.Usage,[],p) :: cf.cf_meta;
-				e)
-		| _ -> e)
+		begin match e.eexpr with
+		| TField(_,fa) ->
+			begin match extract_field fa with
+				| None ->
+					()
+				| Some cf ->
+					cf.cf_meta <- (Meta.Usage,[],p) :: cf.cf_meta;
+			end
+		| TLocal v ->
+			v.v_meta <- (Meta.Usage,[],p) :: v.v_meta;
+		| _ ->
+			()
+		end;
+		e
 	| EDisplay (e,iscall) ->
 		let old = ctx.in_display in
 		let opt_args args ret = TFun(List.map(fun (n,o,t) -> n,true,t) args,ret) in

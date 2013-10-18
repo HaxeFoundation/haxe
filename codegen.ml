@@ -1779,12 +1779,16 @@ let detect_usage com =
 		| TClassDecl c ->
 			let rec expr e = match e.eexpr with
 				| TField(_,fa) ->
-					(match extract_field fa with
+					begin match extract_field fa with
 						| Some cf when Meta.has Meta.Usage cf.cf_meta ->
 							let p = {e.epos with pmin = e.epos.pmax - (String.length cf.cf_name)} in
 							usage := p :: !usage;
-						| _ -> ());
+						| _ ->
+							()
+					end;
 					Type.iter expr e
+				| TLocal v when Meta.has Meta.Usage v.v_meta ->
+					usage := e.epos :: !usage
 				| _ -> Type.iter expr e
 			in
 			let field cf = match cf.cf_expr with None -> () | Some e -> expr e in
