@@ -18,32 +18,40 @@
  *)
 open Printf;;
 
+(*
+	This data is based on the
+		Microsoft Portable Executable and Common Object File Format Specification
+	Revision 8.3
+*)
+
 type machine_type =
 	| TUnknown (* 0 - unmanaged PE files only *)
 	| Ti386 (* 0x014c - i386 *)
 	| TR3000 (* 0x0162 - R3000 MIPS Little Endian *)
 	| TR4000 (* 0x0166 - R4000 MIPS Little Endian *)
 	| TR10000 (* 0x0168 - R10000 MIPS Little Endian *)
-	| TWCEMIPSv2 (* 0x0169 - MIPS Litlte Endian running MS Windows CE 2 *)
+	| TWCeMipsV2 (* 0x0169 - MIPS Little Endian running MS Windows CE 2 *)
 	| TAlpha (* 0x0184 - Alpha AXP *)
-	| TSH3 (* 0x01a2 - SH3 Little Endian *)
-	| TSH3DSP (* 0x01a3 SH3DSP Little Endian *)
-	| TSH3E (* 0x01a4 SH3E Little Endian *)
-	| TSH4 (* 0x01a6 SH4 Little Endian *)
-	| TARM (* 0x1c0 ARM Little Endian *)
-	| TARMN (* 0x1c4 ARMv7 (or higher) Thumb mode only Little Endian *)
-	| TARM64 (* 0xaa64 - ARMv8 in 64-bit mode *)
+	| TSh3 (* 0x01a2 - SH3 Little Endian *)
+	| TSh3Dsp (* 0x01a3 SH3DSP Little Endian *)
+	| TSh3e (* 0x01a4 SH3E Little Endian *)
+	| TSh4 (* 0x01a6 SH4 Little Endian *)
+	| TSh5 (* 0x01a8 SH5 *)
+	| TArm (* 0x1c0 ARM Little Endian *)
+	| TArmN (* 0x1c4 ARMv7 (or higher) Thumb mode only Little Endian *)
+	| TArm64 (* 0xaa64 - ARMv8 in 64-bit mode *)
+	| TEbc (* 0xebc - EFI byte code *)
 	| TThumb (* 0x1c2 ARM processor with Thumb decompressor *)
-	| TAM33 (* 0x1d3 AM33 processor *)
+	| TAm33 (* 0x1d3 AM33 processor *)
 	| TPowerPC (* 0x01f0 IBM PowerPC Little Endian *)
 	| TPowerPCFP (* 0x01f1 IBM PowerPC with FPU *)
-	| TIA64 (* 0x0200 Intel IA64 (Itanium( *)
-	| TMIPS16 (* 0x0266 MIPS *)
-	| TALPHA64 (* 0x0284 Alpha AXP64 *)
-	| TMIPSFPU (* 0x0366 MIPS with FPU *)
-	| TMIPSFPU16 (* 0x0466 MIPS16 with FPU *)
+	| TItanium64 (* 0x0200 Intel IA64 (Itanium) *)
+	| TMips16 (* 0x0266 MIPS *)
+	| TAlpha64 (* 0x0284 Alpha AXP64 *)
+	| TMipsFpu (* 0x0366 MIPS with FPU *)
+	| TMipsFpu16 (* 0x0466 MIPS16 with FPU *)
 	| TTriCore (* 0x0520 Infineon *)
-	| TAMD64 (* 0x8664 AMD x64 and Intel E64T *)
+	| TAmd64 (* 0x8664 AMD x64 and Intel E64T *)
 	| TM32R (* 0x9041 M32R *)
 
 let machine_type_s m = match m with
@@ -52,26 +60,28 @@ let machine_type_s m = match m with
 	| TR3000 -> "TR3000"
 	| TR4000 -> "TR4000"
 	| TR10000 -> "TR10000"
-	| TWCEMIPSv2 -> "TWCEMIPSv2"
+	| TWCeMipsV2 -> "TWCeMipsV2"
 	| TAlpha -> "TAlpha"
-	| TSH3 -> "TSH3"
-	| TSH3DSP -> "TSH3DSP"
-	| TSH3E -> "TSH3E"
-	| TSH4 -> "TSH4"
-	| TARM -> "TARM"
-	| TARMN -> "TARMN"
-	| TARM64 -> "TARM64"
+	| TSh3 -> "TSh3"
+	| TSh3Dsp -> "TSh3Dsp"
+	| TSh3e -> "TSh3e"
+	| TSh4 -> "TSh4"
+	| TSh5 -> "TSh5"
+	| TArm -> "TArm"
+	| TArmN -> "TArmN"
+	| TArm64 -> "TArm64"
+	| TEbc -> "TEbc"
 	| TThumb -> "TThumb"
-	| TAM33 -> "TAM33"
+	| TAm33 -> "TAm33"
 	| TPowerPC -> "TPowerPC"
 	| TPowerPCFP -> "TPowerPCFP"
-	| TIA64 -> "TIA64"
-	| TMIPS16 -> "TMIPS16"
-	| TALPHA64 -> "TALPHA64"
-	| TMIPSFPU -> "TMIPSFPU"
-	| TMIPSFPU16 -> "TMIPSFPU16"
+	| TItanium64 -> "TItanium64"
+	| TMips16 -> "TMips16"
+	| TAlpha64 -> "TAlpha64"
+	| TMipsFpu -> "TMipsFpu"
+	| TMipsFpu16 -> "TMipsFpu16"
 	| TTriCore -> "TTriCore"
-	| TAMD64 -> "TAMD64"
+	| TAmd64 -> "TAmd64"
 	| TM32R -> "TM32R"
 
 type coff_prop =
@@ -285,6 +295,8 @@ type pe_header = {
 	pe_checksum : int32;
 	pe_subsystem : subsystem;
 	pe_dll_props : dll_prop list;
+		(* in MPE files of v1.0, always set to 0; In MPE of v1.1 and later, *)
+		(* always set to 0x400 (DNoSeh) *)
 	pe_stack_reserve : size_t;
 		(* the size of the stack to reserve. Only pe_stack_commit is committed *)
 	pe_stack_commit : size_t;
@@ -295,10 +307,13 @@ type pe_header = {
 		(* the size of the heap to commit *)
 	pe_ndata_dir : int;
 		(* the number of data-directory entries in the remainder of the optional header *)
+		(* should be at least 16. Although is possible to emit more than 16 data directories, *)
+		(* all existing managed compilers emit exactly 16 data directories, with the last never *)
+		(* used (reserved *)
 }
 
 let pe_header_s h =
-	sprintf "#PE_HEADER\n\tmagic: %s\n\tmajor/minor %d/%d\n\tsubsystem: %s\n\tdll props: [%s]"
+	sprintf "#PE_HEADER\n\tmagic: %s\n\tmajor.minor %d.%d\n\tsubsystem: %s\n\tdll props: [%s]"
 		(pe_magic_s h.pe_magic)
 		h.pe_major h.pe_minor
 		(subsystem_s h.pe_subsystem)
