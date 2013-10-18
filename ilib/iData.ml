@@ -244,6 +244,55 @@ let dll_prop_s = function
 	| DWdmDriver -> "DWdmDriver" (* 0x2000 *)
 	| DTerminalServer -> "DTerminalServer" (* 0x8000 *)
 
+type directory_type_index =
+	| ExportTable (* .edata *)
+		(* contains information about four other tables, which hold data describing *)
+		(* unmanaged exports of the PE file. ILAsm and VC++ linker are capable of exposing *)
+		(* the managed PE file as unmanaged exports *)
+	| ImportTable (* .idata *)
+		(* data on unmanaged imports consumed by the PE file. Only the VC++ linker makes *)
+		(* use of this table, by marking the imported unmanaged external functions used by *)
+		(* the unmanaged native code embedded in the same assembly. Other compilers only *)
+		(* contain a single entry - that of the CLR entry function *)
+	| ResourceTable (* .rsrc *)
+		(* unmanaged resources embedded in the PE file. Managed resources don't use this *)
+	| ExceptionTable (* .pdata *)
+		(* unmanaged exceptions only *)
+	| CertificateTable
+		(* points to a table of attribute certificates, used for file authentication *)
+		(* the first field of this entry is a file pointer rather than an RVA *)
+	| RelocTable (* .reloc *)
+		(* relocation table. We need to be aware of it if we use native TLS. *)
+		(* only the VC++ linker uses native TLS' *)
+	| DebugTable
+		(* unmanaged debug data starting address and size. A managed PE file doesn't carry *)
+		(* embedded debug data, so this data is either all zero or points to a 30-byte debug dir entry *)
+		(* of type 2 (IMAGE_DEBUG_TYPE_CODEVIEW), which in turn points to a CodeView-style header, containing *)
+		(* the path to the PDB debug file. *)
+	| ArchitectureTable
+		(* for i386, Itanium64 or AMD64, this data is set to all zeros *)
+	| GlobalPointer
+		(* the RVA of the value to be stored in the global pointer register. Size must be 0. *)
+		(* if the target architecture (e.g. i386 or AMD64) don't use the concept of a global pointer, *)
+		(* it is set to all zeros *)
+	| TlsTable (* .tls *)
+		(* The thread-local storage data. Only the VC++ linker and IL assembler produce code that use it *)
+	| LoadConfigTable
+		(* data specific to Windows NT OS *)
+	| BoundImportTable
+		(* array of bound import descriptors, each of which describes a DLL this image was bound *)
+		(* at link-time, along with time stamps of the bindings. Iff they are up-to-date, the OS loader *)
+		(* uses these bindings as a "shortcut" for API import *)
+	| ImportAddressTable
+		(* referenced from the Import Directory table (data directory 1) *)
+	| DelayImport
+		(* delay-load imports are DLLs described as implicit imports but loaded as explicit imports *)
+		(* (via calls to the LoadLibrary API) *)
+	| ClrRuntimeHeader (* .cormeta *)
+		(* pointer to the clr_runtime_header *)
+	| Reserved
+		(* must be zero *)
+
 (* The size of the PE header is not fixed. It depends on the number of data directories defined in the header *)
 (* and is specified in the optheader_size in the COFF header *)
 (* object files don't have this; but it's required for image files *)
