@@ -346,7 +346,7 @@ let add_libs com libs =
 			| Some cache ->
 				(try
 					(* if we are compiling, really call haxelib since library path might have changed *)
-					if not com.display then raise Not_found;
+					if com.display = DMNone then raise Not_found;
 					Hashtbl.find cache.c_haxelib libs
 				with Not_found ->
 					let lines = call_haxelib() in
@@ -656,7 +656,7 @@ and wait_loop boot_com host port =
 			end;
 		in
 		let rec cache_context com =
-			if not com.display then begin
+			if com.display = DMNone then begin
 				List.iter cache_module com.modules;
 				if verbose then print_endline ("Cached " ^ string_of_int (List.length com.modules) ^ " modules");
 			end;
@@ -674,7 +674,7 @@ and wait_loop boot_com host port =
 			);
 			ctx.setup <- (fun() ->
 				Parser.display_error := (fun e p -> has_parse_error := true; ctx.com.error (Parser.error_msg e) p);
-				if ctx.com.display then begin
+				if ctx.com.display <> DMNone then begin
 					let file = (!Parser.resume_display).Ast.pfile in
 					let fkey = file ^ "!" ^ get_signature ctx.com in
 					(* force parsing again : if the completion point have been changed *)
@@ -691,7 +691,7 @@ and wait_loop boot_com host port =
 			Unix.clear_nonblock sin;
 			if verbose then print_endline ("Processing Arguments [" ^ String.concat "," data ^ "]");
 			(try
-				Common.display_default := false;
+				Common.display_default := DMNone;
 				Parser.resume_display := Ast.null_pos;
 				Typeload.return_partial_type := false;
 				measure_times := false;
@@ -804,7 +804,7 @@ try
 	com.error <- error ctx;
 	if !global_cache <> None then com.run_command <- run_command ctx;
 	Parser.display_error := (fun e p -> com.error (Parser.error_msg e) p);
-	Parser.use_doc := !Common.display_default || (!global_cache <> None);
+	Parser.use_doc := !Common.display_default <> DMNone || (!global_cache <> None);
 	(try
 		let p = Sys.getenv "HAXE_STD_PATH" in
 		let rec loop = function
@@ -984,9 +984,16 @@ try
 			| _ ->
 				let file, pos = try ExtString.String.split file_pos "@" with _ -> failwith ("Invalid format : " ^ file_pos) in
 				let file = unquote file in
+				let pos, mode = try ExtString.String.split pos "@" with _ -> pos,"" in
+				let mode = match mode with
+					| "position" -> DMPosition
+					| "usage" -> DMUsage
+					| "metadata" -> DMMetadata
+					| _ -> DMDefault
+				in
 				let pos = try int_of_string pos with _ -> failwith ("Invalid format : "  ^ pos) in
-				com.display <- true;
-				Common.display_default := true;
+				com.display <- mode;
+				Common.display_default := mode;
 				Common.define com Define.Display;
 				Parser.use_doc := true;
 				Parser.resume_display := {
@@ -1107,12 +1114,7 @@ try
 	process ctx.com.args;
 	process_libs();
 	(try ignore(Common.find_file com "mt/Include.hx"); Common.raw_define com "mt"; with Not_found -> ());
-	if com.display then begin
-		let mode = Common.defined_value_safe com Define.DisplayMode in
-		if mode = "usage" then begin
-			com.display <- false;
-			Common.display_default := false;
-		end;
+	if com.display <> DMNone then begin
 		com.warning <- message ctx;
 		com.error <- error ctx;
 		com.main_class <- None;
@@ -1184,7 +1186,7 @@ try
 			add_std "java"; "java"
 	) in
 	(* if we are at the last compilation step, allow all packages accesses - in case of macros or opening another project file *)
-	if com.display && not ctx.has_next then com.package_rules <- PMap.foldi (fun p r acc -> match r with Forbidden -> acc | _ -> PMap.add p r acc) com.package_rules PMap.empty;
+	if com.display <> DMNone && not ctx.has_next then com.package_rules <- PMap.foldi (fun p r acc -> match r with Forbidden -> acc | _ -> PMap.add p r acc) com.package_rules PMap.empty;
 	com.config <- get_config com; (* make sure to adapt all flags changes defined after platform *)
 
 	(* check file extension. In case of wrong commandline, we don't want
@@ -1205,9 +1207,12 @@ try
 		Typer.finalize tctx;
 		t();
 		if ctx.has_error then raise Abort;
-		if com.display then begin
-			if ctx.has_next then raise Abort;
-			failwith "No completion point was found";
+		begin match com.display with
+			| DMNone | DMUsage ->
+				()
+			| _ ->
+				if ctx.has_next then raise Abort;
+				failwith "No completion point was found";
 		end;
 		let t = Common.timer "filters" in
 		let main, types, modules = Typer.generate tctx in
@@ -1231,7 +1236,7 @@ try
 			Codegen.remove_generic_base tctx t;
 			Codegen.remove_extern_fields tctx t
 		) com.types;
-		if Common.defined_value_safe com Define.DisplayMode = "usage" then
+		if com.display = DMUsage then
 			Codegen.detect_usage com;
 		let dce_mode = (try Common.defined_value com Define.Dce with _ -> "no") in
 		if not (!gen_as3 || dce_mode = "no" || Common.defined com Define.DocGen) then Dce.run com main (dce_mode = "full" && not !interp);
@@ -1317,7 +1322,7 @@ with
 	| Parser.Error (m,p) ->
 		error ctx (Parser.error_msg m) p
 	| Typecore.Forbid_package ((pack,m,p),pl,pf)  ->
-		if !Common.display_default && ctx.has_next then begin
+		if !Common.display_default <> DMNone && ctx.has_next then begin
 			ctx.has_error <- false;
 			ctx.messages <- [];
 		end else begin

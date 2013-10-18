@@ -101,12 +101,19 @@ type platform_config = {
 	pf_ignore_unsafe_cast : bool;
 }
 
+type display_mode =
+	| DMNone
+	| DMDefault
+	| DMUsage
+	| DMMetadata
+	| DMPosition
+
 type context = {
 	(* config *)
 	version : int;
 	args : string list;
 	mutable sys_args : string list;
-	mutable display : bool;
+	mutable display : display_mode;
 	mutable debug : bool;
 	mutable verbose : bool;
 	mutable foptimize : bool;
@@ -146,7 +153,7 @@ type context = {
 
 exception Abort of string * Ast.pos
 
-let display_default = ref false
+let display_default = ref DMNone
 
 module Define = struct
 
@@ -161,7 +168,6 @@ module Define = struct
 		| DceDebug
 		| Debug
 		| Display
-		| DisplayMode
 		| DllExport
 		| DllImport
 		| DocGen
@@ -225,7 +231,6 @@ module Define = struct
 		| DceDebug -> ("dce_debug","Show DCE log")
 		| Debug -> ("debug","Activated when compiling with -debug")
 		| Display -> ("display","Activated during completion")
-		| DisplayMode -> ("display_mode", "The display mode to use (default, position, metadata, usage)")
 		| DllExport -> ("dll_export", "GenCPP experimental linking")
 		| DllImport -> ("dll_import", "GenCPP experimental linking")
 		| DocGen -> ("doc_gen","Do not perform any removal/change in order to correctly generate documentation")
@@ -630,7 +635,7 @@ let create v args =
 		std_path = [];
 		class_path = [];
 		main_class = None;
-		defines = PMap.add "true" "1" (if !display_default then PMap.add "display" "1" PMap.empty else PMap.empty);
+		defines = PMap.add "true" "1" (if !display_default <> DMNone then PMap.add "display" "1" PMap.empty else PMap.empty);
 		package_rules = PMap.empty;
 		file = "";
 		types = [];

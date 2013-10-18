@@ -1624,7 +1624,7 @@ module Abstract = struct
 			eright
 
 	let check_cast ctx tleft eright p =
-		if ctx.com.display then eright else do_check_cast ctx tleft eright p
+		if ctx.com.display <> DMNone then eright else do_check_cast ctx tleft eright p
 
 	let find_multitype_specialization a pl p =
 		let m = mk_mono() in

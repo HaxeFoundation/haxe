@@ -1408,7 +1408,7 @@ let init_class ctx c p context_init herits fields =
 		c.cl_extern <- true;
 		List.filter (fun f -> List.mem AStatic f.cff_access) fields, []
 	end else fields, herits in
-	if core_api && not ctx.com.display then delay ctx PForce (fun() -> init_core_api ctx c);
+	if core_api && ctx.com.display = DMNone then delay ctx PForce (fun() -> init_core_api ctx c);
 	let rec extends_public c =
 		Meta.has Meta.PublicFields c.cl_meta ||
 		match c.cl_super with
@@ -1456,7 +1456,7 @@ let init_class ctx c p context_init herits fields =
 
 	(* ----------------------- COMPLETION ----------------------------- *)
 
-	let display_file = if ctx.com.display then Common.unique_full_path p.pfile = (!Parser.resume_display).pfile else false in
+	let display_file = if ctx.com.display <> DMNone then Common.unique_full_path p.pfile = (!Parser.resume_display).pfile else false in
 
 	let cp = !Parser.resume_display in
 
@@ -1469,7 +1469,7 @@ let init_class ctx c p context_init herits fields =
 		| TAbstract _ | TInst _ | TEnum _ | TLazy _ | TDynamic _ | TAnon _ | TType _ -> true
 	in
 	let bind_type ctx cf r p macro =
-		if ctx.com.display then begin
+		if ctx.com.display <> DMNone then begin
 			let cp = !Parser.resume_display in
 			if display_file && (cp.pmin = 0 || (p.pmin <= cp.pmin && p.pmax >= cp.pmax)) then begin
 				if macro && not ctx.in_macro then
@@ -1550,7 +1550,7 @@ let init_class ctx c p context_init herits fields =
 	let loop_cf f =
 		let name = f.cff_name in
 		let p = f.cff_pos in
-		if name.[0] = '$' && not ctx.com.display then error "Field names starting with a dollar are not allowed" p;
+		if name.[0] = '$' && ctx.com.display = DMNone then error "Field names starting with a dollar are not allowed" p;
 		let stat = List.mem AStatic f.cff_access in
 		let extern = Meta.has Meta.Extern f.cff_meta || c.cl_extern in
 		let is_abstract,allow_inline =
@@ -1801,7 +1801,7 @@ let init_class ctx c p context_init herits fields =
 				| _ -> tfun [] ret, tfun [ret] ret
 			in
 			let check_method m t req_name =
-				if ctx.com.display then () else
+				if ctx.com.display <> DMNone then () else
 				try
 					let _, t2, f = (if stat then let f = PMap.find m c.cl_statics in Some c, f.cf_type, f else class_field c m) in
 					(* accessors must be public on As3 (issue #1872) *)

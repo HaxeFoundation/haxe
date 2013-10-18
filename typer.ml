@@ -800,7 +800,7 @@ let rec acc_get ctx g p =
 		ignore(follow f.cf_type); (* force computing *)
 		(match f.cf_expr with
 		| None ->
-			if ctx.com.display then
+			if ctx.com.display <> DMNone then
 				mk (TField (e,cmode)) t p
 			else
 				error "Recursive inline is not supported" p
@@ -1176,7 +1176,7 @@ and type_field ctx e i p mode =
 				This is a fix to deal with optimize_completion which will call iterator()
 				on the expression for/in, which vectors do no have.
 			*)
-			if ctx.com.display && i = "iterator" && c.cl_path = (["flash"],"Vector") then begin
+			if ctx.com.display <> DMNone && i = "iterator" && c.cl_path = (["flash"],"Vector") then begin
 				let it = TAnon {
 					a_fields = PMap.add "next" (mk_field "next" (TFun([],List.hd params)) p) PMap.empty;
 					a_status = ref Closed;
@@ -1999,7 +1999,7 @@ and type_ident ctx i p mode =
 			if ctx.curfun = FunStatic && PMap.mem i ctx.curclass.cl_fields then error ("Cannot access " ^ i ^ " in static function") p;
 			let err = Unknown_ident i in
 			if ctx.in_display then raise (Error (err,p));
-			if ctx.com.display then begin
+			if ctx.com.display <> DMNone then begin
 				display_error ctx (error_msg err) p;
 				let t = mk_mono() in
 				AKExpr (mk (TLocal (add_local ctx i t)) t p)
@@ -2198,7 +2198,7 @@ and type_vars ctx vl p in_block =
 					unify ctx e.etype t p;
 					Some (Codegen.Abstract.check_cast ctx t e p)
 			) in
-			if v.[0] = '$' && not ctx.com.display then error "Variables names starting with a dollar are not allowed" p;
+			if v.[0] = '$' && ctx.com.display = DMNone then error "Variables names starting with a dollar are not allowed" p;
 			add_local ctx v t, e
 		with
 			Error (e,p) ->
@@ -2932,7 +2932,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			error "Cast type must be a class or an enum" p
 		) in
 		mk (TCast (type_expr ctx e Value,Some texpr)) t p
-	| EDisplay (e,iscall) when Common.defined_value_safe ctx.com Define.DisplayMode = "usage" ->
+	| EDisplay (e,iscall) when ctx.com.display = DMUsage ->
 		let e = try type_expr ctx e Value with Error (Unknown_ident n,_) -> raise (Parser.TypePath ([n],None)) in
 		begin match e.eexpr with
 		| TField(_,fa) ->
@@ -2955,28 +2955,27 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		let e = (try type_expr ctx e Value with Error (Unknown_ident n,_) -> raise (Parser.TypePath ([n],None))) in
 		let e = match e.eexpr with
 			| TField (e1,fa) ->
-				let mode = Common.defined_value_safe ctx.com Define.DisplayMode in
 				if field_name fa = "bind" then (match follow e1.etype with
 					| TFun(args,ret) -> {e1 with etype = opt_args args ret}
 					| _ -> e)
 				else if field_name fa = "match" then (match follow e1.etype with
 					| TEnum _ as t -> {e1 with etype = tfun [t] ctx.t.tbool }
 					| _ -> e)
-				else if mode = "position" then (match extract_field fa with
+				else if ctx.com.display = DMPosition then (match extract_field fa with
 					| None -> e
 					| Some cf -> raise (Typecore.DisplayPosition [cf.cf_pos]))
-				else if mode = "metadata" then (match fa with
+				else if ctx.com.display = DMMetadata then (match fa with
 					| FStatic (c,cf) | FInstance (c,cf) | FClosure(Some c,cf) -> raise (DisplayMetadata (c.cl_meta @ cf.cf_meta))
 					| _ -> e)
 				else
 					e
-			| TTypeExpr mt when Common.defined_value_safe ctx.com Define.DisplayMode = "position" ->
+			| TTypeExpr mt when ctx.com.display = DMPosition ->
 				raise (DisplayPosition [match mt with
 					| TClassDecl c -> c.cl_pos
 					| TEnumDecl en -> en.e_pos
 					| TTypeDecl t -> t.t_pos
 					| TAbstractDecl a -> a.a_pos])
-			| TTypeExpr mt when Common.defined_value_safe ctx.com Define.DisplayMode = "metadata" ->
+			| TTypeExpr mt when ctx.com.display = DMMetadata ->
 				raise (DisplayMetadata (match mt with
 					| TClassDecl c -> c.cl_meta
 					| TEnumDecl en -> en.e_meta
@@ -3517,7 +3516,7 @@ let typing_timer ctx f =
 	(*
 		disable resumable errors... unless we are in display mode (we want to reach point of completion)
 	*)
-	if not ctx.com.display then ctx.com.error <- (fun e p -> raise (Error(Custom e,p)));
+	if ctx.com.display = DMNone then ctx.com.error <- (fun e p -> raise (Error(Custom e,p)));
 	if ctx.pass < PTypeField then ctx.pass <- PTypeField;
 	let exit() =
 		t();
@@ -3591,13 +3590,13 @@ let make_macro_api ctx p =
 			typing_timer ctx (fun() -> (type_expr ctx e Value).etype)
 		);
 		Interp.get_display = (fun s ->
-			let is_displaying = ctx.com.display in
+			let is_displaying = ctx.com.display <> DMNone in
 			let old_resume = !Parser.resume_display in
 			let old_error = ctx.on_error in
 			let restore () =
 				if not is_displaying then begin
 					ctx.com.defines <- PMap.remove (fst (Define.infos Define.Display)) ctx.com.defines;
-					ctx.com.display <- false
+					ctx.com.display <- DMNone
 				end;
 				Parser.resume_display := old_resume;
 				ctx.on_error <- old_error;
@@ -3605,7 +3604,7 @@ let make_macro_api ctx p =
 			(* temporarily enter display mode with a fake position *)
 			if not is_displaying then begin
 				Common.define ctx.com Define.Display;
-				ctx.com.display <- true;
+				ctx.com.display <- DMDefault;
 			end;
 			Parser.resume_display := {
 				Ast.pfile = "macro";
@@ -3864,7 +3863,7 @@ let get_macro_context ctx p =
 		ctx.com.get_macros <- (fun() -> Some com2);
 		com2.package_rules <- PMap.empty;
 		com2.main_class <- None;
-		com2.display <- false;
+		com2.display <- DMNone;
 		List.iter (fun p -> com2.defines <- PMap.remove (platform_name p) com2.defines) platforms;
 		com2.defines_signature <- None;
 		com2.class_path <- List.filter (fun s -> not (ExtString.String.exists s "/_std/")) com2.class_path;
@@ -4106,7 +4105,7 @@ let rec create com =
 			delayed = [];
 			debug_delayed = [];
 			delayed_macros = DynArray.create();
-			doinline = not (Common.defined com Define.NoInline || com.display);
+			doinline = not (Common.defined com Define.NoInline || com.display <> DMNone);
 			hook_generate = [];
 			get_build_infos = (fun() -> None);
 			std = null_module;
