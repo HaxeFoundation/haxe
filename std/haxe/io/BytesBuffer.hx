@@ -150,6 +150,10 @@ class BytesBuffer {
 		#elseif java
 		var buf = b.toByteArray();
 		var bytes = new Bytes(buf.length, buf);
+		#elseif js
+		var bytes = Bytes.alloc(b.length);
+		for(i in 0...b.length)
+			bytes.set(i, b[i]);
 		#else
 		var bytes = new Bytes(b.length,b);
 		#end
