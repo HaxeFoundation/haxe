@@ -81,15 +81,15 @@ let rec like_int t =
 
 let follow_once t =
   match t with
-	| TMono r ->
-		(match !r with
-		| Some t -> t
-		| _ -> t_dynamic (* avoid infinite loop / should be the same in this context *))
-	| TLazy f ->
-		!f()
-	| TType (t,tl) ->
-		apply_params t.t_types tl t.t_type
-	| _ -> t
+  | TMono r ->
+    (match !r with
+    | Some t -> t
+    | _ -> t_dynamic (* avoid infinite loop / should be the same in this context *))
+  | TLazy f ->
+    !f()
+  | TType (t,tl) ->
+    apply_params t.t_types tl t.t_type
+  | _ -> t
 
 let t_empty = TAnon({ a_fields = PMap.empty; a_status = ref (Closed) })
 
@@ -1004,7 +1004,7 @@ let dump_descriptor gen name path_s module_s =
       SourceWriter.newline w;
       SourceWriter.write w "end main";
       SourceWriter.newline w
-	| _ -> ()
+  | _ -> ()
   );
   SourceWriter.write w "begin resources";
   SourceWriter.newline w;
@@ -4581,7 +4581,7 @@ struct
       | _ -> e
 
   (* must be called in a statement. Will execute fn whenever an expression (not statement) is expected *)
-  let expr_stat_map fn (expr:texpr) =
+  let rec expr_stat_map fn (expr:texpr) =
     match (no_paren expr).eexpr with
       | TBinop ( (Ast.OpAssign as op), left_e, right_e )
       | TBinop ( (Ast.OpAssignOp _ as op), left_e, right_e ) ->
@@ -5784,7 +5784,10 @@ struct
         in
         let error = error || (match follow actual_t with | TFun _ -> false | _ -> true) in
         if error then (* if error, ignore arguments *)
-          mk_cast ecall.etype { ecall with eexpr = TCall({ e1 with eexpr = TField(!ef, f) }, elist ) }
+          if is_void ecall.etype then
+            { ecall with eexpr = TCall({ e1 with eexpr = TField(!ef, f) }, elist ) }
+          else
+            mk_cast ecall.etype { ecall with eexpr = TCall({ e1 with eexpr = TField(!ef, f) }, elist ) }
         else begin
           (* infer arguments *)
           (* let called_t = TFun(List.map (fun e -> "arg",false,e.etype) elist, ecall.etype) in *)
@@ -5946,6 +5949,8 @@ struct
             | _ -> Type.map_expr run e
           )
         (* the TNew and TSuper code was modified at r6497 *)
+        | TNew ({ cl_kind = KTypeParameter _ }, _, _) ->
+          Type.map_expr run e
         | TNew (cl, tparams, eparams) -> (try
           let is_overload, cf, sup, stl = choose_ctor gen cl tparams (List.map (fun e -> e.etype) eparams) maybe_empty_t e.epos in
           let handle e t1 t2 =
@@ -6828,13 +6833,13 @@ struct
           cl.cl_fields <- PMap.add cf.cf_name cf cl.cl_fields
         ) (delete :: new_fields);
 
-		(*
+    (*
         let rec last_ctor cl =
           match cl.cl_constructor with
             | None -> (match cl.cl_super with | None -> None | Some (cl,_) -> last_ctor cl)
             | Some c -> Some c
         in
-		*)
+    *)
         (*
           in order for the next to work, we need to execute our script before InitFunction, so the expressions inside the variables are initialized by the constructor
         *)
@@ -7349,7 +7354,7 @@ struct
     let gen = ctx.rcf_gen in
     let basic = gen.gcon.basic in
     let pos = cl.cl_pos in
-	(*
+  (*
     let rec has_no_dynamic cl =
       if is_some cl.cl_dynamic then
         false
@@ -7357,7 +7362,7 @@ struct
         | None -> true
         | Some(cl,_) -> has_no_dynamic cl
     in
-	*)
+  *)
     (* Type.getClassFields() *)
     if ctx.rcf_handle_statics then begin
       let name = gen.gmk_internal_name "hx" "classFields" in
@@ -10176,13 +10181,14 @@ struct
 end;;
 
 (* ******************************************* *)
-(* NormalizeType *)
+(* Normalize *)
 (* ******************************************* *)
 
 (*
 
   - Filters out enum constructor type parameters from the AST; See Issue #1796
   - Filters out monomorphs
+  - Filters out all non-whitelisted AST metadata
 
   dependencies:
     No dependencies; but it still should be one of the first filters to run,
@@ -10190,7 +10196,7 @@ end;;
 
 *)
 
-module NormalizeType =
+module Normalize =
 struct
 
   let name = "normalize_type"
@@ -10217,14 +10223,18 @@ struct
   | TDynamic _ -> t
   | TLazy f -> filter_param (!f())
 
-  let default_implementation gen =
+  let default_implementation gen ~metas =
     let rec run e =
-      map_expr_type (fun e -> run e) filter_param (fun v -> v.v_type <- filter_param v.v_type; v) e
+      match e.eexpr with
+      | TMeta(entry, e) when not (Hashtbl.mem metas entry) ->
+        run e
+      | _ ->
+        map_expr_type (fun e -> run e) filter_param (fun v -> v.v_type <- filter_param v.v_type; v) e
     in
     run
 
-  let configure gen =
-    let map e = Some(default_implementation gen e) in
+  let configure gen ~metas =
+    let map e = Some(default_implementation gen e ~metas:metas) in
     gen.gexpr_filters#add ~name:name ~priority:(PCustom priority) map
 
 end;;
