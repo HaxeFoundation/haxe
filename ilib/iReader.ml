@@ -129,6 +129,14 @@ let pe_magic_of_int i = match i with
 	| 0x20b -> P64
 	| _ -> error ("Unknown PE magic number: " ^ string_of_int i)
 
+let get_dir dir data =
+	let idx,name,_ = directory_type_info dir in
+	try
+		data.(idx)
+	with
+		| Invalid_argument _ ->
+			error (Printf.sprintf "The directory '%s' of index '%i' is required but is missing on this file" name idx)
+
 let read_rva = read_real_i32
 
 let read_pointer is64 i =
@@ -191,6 +199,16 @@ let read_pe_header i size =
 	let heap_commit = read_pointer i in
 	ignore (read_i32 i); (* reserved *)
 	let ndata_dir = read_i32 i in
+	let data_dirs = Array.make ndata_dir (Int32.zero,Int32.zero) in
+	let rec loop n =
+		if n < ndata_dir then begin
+			let addr = read_rva i in
+			let size = read_rva i in
+			Array.set data_dirs n (addr,size);
+			loop (n+1)
+		end
+	in
+	loop 0;
 	{
 		pe_magic = magic;
 		pe_major = major;
@@ -220,6 +238,7 @@ let read_pe_header i size =
 		pe_heap_reserve = heap_reserve;
 		pe_heap_commit = heap_commit;
 		pe_ndata_dir = ndata_dir;
+		pe_data_dirs = data_dirs;
 	}
 
 let read name ch =

@@ -149,6 +149,8 @@ type size_t = pointer
 
 type rva = int32
 
+type size_t_near = int32
+
 type coff_header = {
 	coff_machine : machine_type; (* offset 0 - size 2 . *)
 		(* If the managed PE file is intended for various machine types (AnyCPU), it should be Ti386 *)
@@ -244,7 +246,7 @@ let dll_prop_s = function
 	| DWdmDriver -> "DWdmDriver" (* 0x2000 *)
 	| DTerminalServer -> "DTerminalServer" (* 0x8000 *)
 
-type directory_type_index =
+type directory_type =
 	| ExportTable (* .edata *)
 		(* contains information about four other tables, which hold data describing *)
 		(* unmanaged exports of the PE file. ILAsm and VC++ linker are capable of exposing *)
@@ -292,6 +294,27 @@ type directory_type_index =
 		(* pointer to the clr_runtime_header *)
 	| Reserved
 		(* must be zero *)
+	| Custom of int
+
+let directory_type_info = function
+	| ExportTable -> 0, "ExportTable", Some ".edata"
+	| ImportTable -> 1, "ImportTable", Some ".idata"
+	| ResourceTable -> 2, "ResourceTable", Some ".rsrc"
+	| ExceptionTable -> 3, "ExceptionTable", Some ".pdata"
+	| CertificateTable -> 4, "CertificateTable", None
+	| RelocTable -> 5, "RelocTable", Some ".reloc"
+	| DebugTable -> 6, "DebugTable", Some ".debug"
+	| ArchitectureTable -> 7, "ArchTable", Some ".arch"
+	| GlobalPointer -> 8, "GlobalPointer", None
+	| TlsTable -> 9, "TlsTable", Some ".tls"
+	| LoadConfigTable -> 10, "LoadConfigTable", None
+	| BoundImportTable -> 11, "BuildImportTable", None
+	| ImportAddressTable -> 12, "ImportAddressTable", None
+	| DelayImport -> 13, "DelayImport", None
+	| ClrRuntimeHeader -> 14, "ClrRuntimeHeader", Some ".cormeta"
+	| Reserved -> 15, "Reserved", None
+	| Custom i -> i, "Custom" ^ (string_of_int i), None
+
 
 (* The size of the PE header is not fixed. It depends on the number of data directories defined in the header *)
 (* and is specified in the optheader_size in the COFF header *)
@@ -359,14 +382,16 @@ type pe_header = {
 		(* should be at least 16. Although is possible to emit more than 16 data directories, *)
 		(* all existing managed compilers emit exactly 16 data directories, with the last never *)
 		(* used (reserved *)
+	pe_data_dirs : (rva * size_t_near) array;
 }
 
 let pe_header_s h =
-	sprintf "#PE_HEADER\n\tmagic: %s\n\tmajor.minor %d.%d\n\tsubsystem: %s\n\tdll props: [%s]"
+	sprintf "#PE_HEADER\n\tmagic: %s\n\tmajor.minor %d.%d\n\tsubsystem: %s\n\tdll props: [%s]\n\tndata_dir: %i"
 		(pe_magic_s h.pe_magic)
 		h.pe_major h.pe_minor
 		(subsystem_s h.pe_subsystem)
 		(String.concat ", " (List.map dll_prop_s h.pe_dll_props))
+		h.pe_ndata_dir
 
 type ipath = (string list) * string
 
