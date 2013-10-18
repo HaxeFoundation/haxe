@@ -4581,7 +4581,7 @@ struct
       | _ -> e
 
   (* must be called in a statement. Will execute fn whenever an expression (not statement) is expected *)
-  let rec expr_stat_map fn (expr:texpr) =
+  let expr_stat_map fn (expr:texpr) =
     match (no_paren expr).eexpr with
       | TBinop ( (Ast.OpAssign as op), left_e, right_e )
       | TBinop ( (Ast.OpAssignOp _ as op), left_e, right_e ) ->
@@ -5784,10 +5784,7 @@ struct
         in
         let error = error || (match follow actual_t with | TFun _ -> false | _ -> true) in
         if error then (* if error, ignore arguments *)
-          if is_void ecall.etype then
-            { ecall with eexpr = TCall({ e1 with eexpr = TField(!ef, f) }, elist ) }
-          else
-            mk_cast ecall.etype { ecall with eexpr = TCall({ e1 with eexpr = TField(!ef, f) }, elist ) }
+          mk_cast ecall.etype { ecall with eexpr = TCall({ e1 with eexpr = TField(!ef, f) }, elist ) }
         else begin
           (* infer arguments *)
           (* let called_t = TFun(List.map (fun e -> "arg",false,e.etype) elist, ecall.etype) in *)
@@ -5949,8 +5946,6 @@ struct
             | _ -> Type.map_expr run e
           )
         (* the TNew and TSuper code was modified at r6497 *)
-        | TNew ({ cl_kind = KTypeParameter _ }, _, _) ->
-          Type.map_expr run e
         | TNew (cl, tparams, eparams) -> (try
           let is_overload, cf, sup, stl = choose_ctor gen cl tparams (List.map (fun e -> e.etype) eparams) maybe_empty_t e.epos in
           let handle e t1 t2 =
@@ -10181,14 +10176,13 @@ struct
 end;;
 
 (* ******************************************* *)
-(* Normalize *)
+(* NormalizeType *)
 (* ******************************************* *)
 
 (*
 
   - Filters out enum constructor type parameters from the AST; See Issue #1796
   - Filters out monomorphs
-  - Filters out all non-whitelisted AST metadata
 
   dependencies:
     No dependencies; but it still should be one of the first filters to run,
@@ -10196,7 +10190,7 @@ end;;
 
 *)
 
-module Normalize =
+module NormalizeType =
 struct
 
   let name = "normalize_type"
@@ -10223,18 +10217,14 @@ struct
   | TDynamic _ -> t
   | TLazy f -> filter_param (!f())
 
-  let default_implementation gen ~metas =
+  let default_implementation gen =
     let rec run e =
-      match e.eexpr with
-      | TMeta(entry, e) when not (Hashtbl.mem metas entry) ->
-        run e
-      | _ ->
-        map_expr_type (fun e -> run e) filter_param (fun v -> v.v_type <- filter_param v.v_type; v) e
+      map_expr_type (fun e -> run e) filter_param (fun v -> v.v_type <- filter_param v.v_type; v) e
     in
     run
 
-  let configure gen ~metas =
-    let map e = Some(default_implementation gen e ~metas:metas) in
+  let configure gen =
+    let map e = Some(default_implementation gen e) in
     gen.gexpr_filters#add ~name:name ~priority:(PCustom priority) map
 
 end;;

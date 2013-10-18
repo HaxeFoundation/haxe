@@ -20,7 +20,9 @@
  * DEALINGS IN THE SOFTWARE.
  */
 package haxe.ds;
-
+#if harmony
+typedef StringMap<T> = ObjectMap<String, T>;
+#else
 @:coreApi class StringMap<T> implements Map.IMap<String,T> {
 
 	private var h : Dynamic;
@@ -84,3 +86,4 @@ package haxe.ds;
 	}
 
 }
+#end

@@ -32,10 +32,15 @@ RELDIR=../../..
 EXPORT=../../../projects/motionTools/haxe
 
 MODULES=ast type lexer common genxml parser typecore optimizer typeload \
+<<<<<<< HEAD
 codegen gencommon genas3 gencpp genjs genneko genphp genswf8 \
 	genswf9 genswf genjava gencs interp typer matcher dce version main
 
 ADD_REVISION=0
+=======
+codegen gencommon genas3 gencpp genjs genneko genphp genswf8 genrust \
+	genswf9 genswf genjava gencs interp typer matcher dce main
+>>>>>>> 5c1a6f95284e992e41e12c19167641cf84055df3
 
 export HAXE_STD_PATH=$(CURDIR)/std
 
@@ -76,10 +81,10 @@ tools: haxelib haxedoc
 
 install:
 	cp haxe $(INSTALL_DIR)/bin/haxe
-	rm -rf $(INSTALL_DIR)/lib/haxe/std
-	-mkdir -p $(INSTALL_DIR)/lib/haxe
-	cp -rf std $(INSTALL_DIR)/lib/haxe/std
-	-mkdir -p $(INSTALL_DIR)/lib/haxe/lib
+	rm -rf $(INSTALL_DIR)/lib/haxe
+	-mkdir $(INSTALL_DIR)/lib/haxe
+	cp -r std/ $(INSTALL_DIR)/lib/haxe/std
+	-mkdir $(INSTALL_DIR)/lib/haxe/lib
 	chmod -R a+rx $(INSTALL_DIR)/lib/haxe
 	chmod 777 $(INSTALL_DIR)/lib/haxe/lib
 	cp std/tools/haxelib/haxelib.sh $(INSTALL_DIR)/bin/haxelib
@@ -126,6 +131,8 @@ genswf.cmx: type.cmx genswf9.cmx genswf8.cmx common.cmx ast.cmx
 genswf8.cmx: type.cmx lexer.cmx common.cmx codegen.cmx ast.cmx
 
 genswf9.cmx: type.cmx lexer.cmx genswf8.cmx common.cmx codegen.cmx ast.cmx
+
+genrust.cmx: type.cmx lexer.cmx common.cmx codegen.cmx ast.cmx
 
 genxml.cmx: type.cmx lexer.cmx common.cmx ast.cmx
 
@@ -181,4 +188,11 @@ clean_tools:
 .mll.ml:
 	ocamllex $<
 
+<<<<<<< HEAD
 .PHONY: haxe libs version.cmx
+=======
+.PHONY: haxe libs
+
+test:
+	cd tests/unit/rust-tests; haxe build.hxml; ./rust/main
+>>>>>>> 5c1a6f95284e992e41e12c19167641cf84055df3

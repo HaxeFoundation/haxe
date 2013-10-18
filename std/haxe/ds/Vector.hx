@@ -20,7 +20,6 @@
  * DEALINGS IN THE SOFTWARE.
  */
 package haxe.ds;
-
 private typedef VectorData<T> = #if flash10
 	flash.Vector<T>
 #elseif neko
@@ -29,6 +28,8 @@ private typedef VectorData<T> = #if flash10
 	cs.NativeArray<T>
 #elseif java
 	java.NativeArray<T>
+#elseif js
+	js.html.ArrayBufferView
 #else
 	Array<T>
 #end
@@ -38,6 +39,7 @@ private typedef VectorData<T> = #if flash10
 	targets, and is never slower.
 **/
 @:arrayAccess
+#if js @:multiType #end
 abstract Vector<T>(VectorData<T>) {
 	/**
 		Creates a new Vector of length `length`.
@@ -166,3 +168,4 @@ abstract Vector<T>(VectorData<T>) {
 		return vec;
 	}
 }
+#end

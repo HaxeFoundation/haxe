@@ -42,7 +42,7 @@
 **/
 @:coreType @:notNull @:runtimeValue abstract Int to Float { }
 
-#if (flash9 || flash9doc || cs)
+#if (flash9 || flash9doc || cs || rust)
 /**
 	The unsigned Int type is only defined for Flash9. It's currently
 	handled the same as a normal Int.
@@ -50,7 +50,7 @@
 @:coreType @:notNull @:runtimeValue abstract UInt to Int from Int { }
 #end
 
-#if (java || cs)
+#if (java || cs || rust)
 @:coreType @:notNull @:runtimeValue abstract Single to Float from Float {}
 #end
 
