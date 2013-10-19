@@ -38,7 +38,7 @@ type context = {
 	mutable tabs : string;
 	mutable in_value : tvar option;
 	mutable in_static : bool;
-	mutable imports : (string,string list list) Hashtbl.t;
+	mutable uses : (string,string list list) Hashtbl.t;
 	mutable gen_uid : int;
 	mutable local_types : t list;
 	mutable constructor_block : bool;
@@ -74,8 +74,11 @@ let protect name =
 
 let type_path (p, s) =
 	match p with [] -> s | _ -> String.concat "::" p ^ "::" ^ s
-let is_core path =
-	match path with
+
+let is_core type =
+	match (Type.follow path) with
+	| TInst (cl, ps) ->
+		true
 	| (["rust"], "Int8") | (["rust"], "Int16") | (["rust"], "Char16") | ([], "Math") | ([], "UInt") | ([], "Array") | ([], "ArrayAccess") | ([], "Int") | ([], "Float") | ([], "Single") | ([], "Void") | ([], "Dynamic") | ([], "Bool") | ([], "String") | (["rust"], "Tuple2") | (["rust"], "Tuple3") ->
 		true
 	| _ ->
@@ -110,8 +113,8 @@ let init infos path =
 	let dir = infos.com.file :: fst path in
 	create_dir [] dir;
 	let ch = open_out (String.concat "/" dir ^ "/" ^ snd path ^ ".rs") in
-	let imports = Hashtbl.create 0 in
-	Hashtbl.add imports (snd path) [fst path];
+	let uses = Hashtbl.create 0 in
+	Hashtbl.add uses (snd path) [fst path];
 	{
 		inf = infos;
 		tabs = "";
@@ -120,7 +123,7 @@ let init infos path =
 		buf = Buffer.create (1 lsl 14);
 		in_value = None;
 		in_static = false;
-		imports = imports;
+		uses = uses;
 		curclass = null_class;
 		gen_uid = 0;
 		local_types = [];
@@ -137,8 +140,8 @@ let s_path ctx path =
 	| (pack,name) ->
 		let notcore = not (is_core path) in
 		let name = protect name in
-		let packs = (try Hashtbl.find ctx.imports name with Not_found -> []) in
-		if not (List.mem pack packs) && notcore && not (is_package name) then Hashtbl.replace ctx.imports name (pack :: packs);
+		let packs = (try Hashtbl.find ctx.uses name with Not_found -> []) in
+		if not (List.mem pack packs) && notcore && not (is_package name) then Hashtbl.replace ctx.uses name (pack :: packs);
 		type_path path ^ (if (ctx.path = path) || (is_package name) then "" else "::" ^ name)
 
 let soft_newline ctx =
@@ -178,7 +181,7 @@ let close ctx =
 		| ([], "lib") -> true
 		| _ -> false
 	in
-	(*output_string ctx.ch "extern mod std;\n";*)
+	output_string ctx.ch "extern mod std;\n";
 	Hashtbl.iter (fun name paths ->
 		let path = ref ([], name) in
 		if List.length paths > 0 then
@@ -187,7 +190,7 @@ let close ctx =
 			) paths;
 		if not (is_mod path) && should_gen path then
 			output_string ctx.ch ("use " ^ type_path !path ^ "::" ^ name ^ ";\n");
-	) ctx.imports;
+	) ctx.uses;
 	if not is_lib then (
 		output_string ctx.ch "mod lib;\n";
 		Hashtbl.iter (fun name paths ->
@@ -198,7 +201,7 @@ let close ctx =
 				) paths;
 			if is_mod path && should_gen path then
 				output_string ctx.ch ("mod " ^ type_path !path ^ ";\n");
-		) ctx.imports;
+		) ctx.uses;
 	);
 	output_string ctx.ch (Buffer.contents ctx.buf);
 	close_out ctx.ch
@@ -233,8 +236,7 @@ let rec type_str ctx t p =
 		type_str ctx (apply_params a.a_types pl a.a_this) p
 	| TAbstract (a,_) ->
 		(match a.a_path with
-		| [], "UInt" -> "ui32"
-		| [], "Int" -> "i32"
+		| [], "Int" -> "int"
 		| ["rust"], "Int8" -> "i8"
 		| ["rust"], "Int16" -> "i16"
 		| ["rust"], "Char16" -> "char"
@@ -432,10 +434,7 @@ let generate_resources ctx infos =
 	end
 
 let class_path ctx c =
-	if c.cl_extern then
-		type_path c.cl_path
-	else
-		s_path ctx c.cl_path
+	s_path ctx c.cl_path
 
 let rec gen_constant ctx p = function
 	| TInt i -> print ctx "%ld" i
@@ -1222,7 +1221,7 @@ let generate_obj_impl ctx c =
 	) else (
 		print ctx "return Some(~\"%s: { " (snd c.cl_path);
 		concat ctx ", " (fun f ->
-			print ctx "%s: \"+self.%s.toString()+\"" f.cf_name f.cf_name;
+			print ctx "%s: \"+(self.%s as %sHxObject).toString().unwrap()+\"" f.cf_name f.cf_name (if is_core f.cf_type then "" else "&");
 		) obj_fields;
 		spr ctx "}\")";
 	);
@@ -1487,6 +1486,21 @@ let generate_base_object ctx com =
 	newline ctx;
 	spr ctx "}";
 	soft_newline ctx;
+	newline ctx;
+	spr ctx "impl<T:HxObject> HxObject for Option<~T> {";
+	let obj = open_block ctx in
+	soft_newline ctx;
+	spr ctx "fn toString(&self) -> Option<~str> {";
+	let func = open_block ctx in
+	soft_newline ctx;
+	spr ctx "return self.unwrap().toString();";
+	func();
+	soft_newline ctx;
+	spr ctx "}";
+	obj();
+	soft_newline ctx;
+	spr ctx "}";
+	soft_newline ctx;
 	List.iter(fun t ->
 		match t with
 		| TClassDecl c when c.cl_extern && not (is_package (snd c.cl_path)) && not (Meta.has Meta.NativeGen c.cl_meta) && Meta.has Meta.Native c.cl_meta ->
@@ -1496,7 +1510,7 @@ let generate_base_object ctx com =
 			generate_obj_impl ctx c
 		| _ -> ()
 	) com.types;
-	let core_types = ["i8";"i16";"i32";"i64";"int";"float";"f32";"f64";"~str"] in
+	let core_types = ["i8";"i16";"i32";"i64";"int";"f32";"f64";"~str"] in
 	List.iter(generate_min_impl ctx) core_types;
 	soft_newline ctx
 

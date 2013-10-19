@@ -2,7 +2,7 @@ package rust;
 import Array;
 import rust.io.*;
 /** Higher-level interfaces to libc.* functions and operating system services. */
-@:native("os") extern class OS {
+@:native("std.os") extern class OS {
 	public static var TMPBUF_SZ(default, null):Int;
 	public static function args():Array<String>;
 	public static function change_dir(p:Path):Bool;
@@ -46,7 +46,7 @@ import rust.io.*;
 	public static function walkdir(p:Path, f:Path->Bool):Void;
 }
 
-@:native("os.Pipe") extern class Pipe {
-	public var pin:Int;
-	public var pout:Int;
+@:native("std.os.Pipe") extern class Pipe {
+	public var input:Int;
+	public var out:Int;
 }
