@@ -95,6 +95,42 @@ let coff_props_of_int iprops = List.fold_left (fun acc i ->
 	else
 		acc) [] [0x1;0x2;0x4;0x8;0x10;0x20;0x80;0x100;0x200;0x400;0x800;0x1000;0x2000;0x4000;0x8000]
 
+let section_props_of_int32 props = List.fold_left (fun acc i ->
+	if (Int32.logand props i) = i then (match i with
+		| 0x8l -> SNoPad
+		| 0x20l -> SHasCode
+		| 0x40l -> SHasIData
+		| 0x80l -> SHasData
+		| 0x200l -> SHasLinkInfo
+		| 0x1000l -> SLinkRemove
+		| 0x8000l -> SGlobalRel
+		| 0x20000l -> SHas16BitMem
+		| 0x100000l -> SAlign1Bytes
+		| 0x200000l -> SAlign2Bytes
+		| 0x300000l -> SAlign4Bytes
+		| 0x400000l -> SAlign8Bytes
+		| 0x500000l -> SAlign16Bytes
+		| 0x600000l -> SAlign32Bytes
+		| 0x700000l -> SAlign64Bytes
+		| 0x800000l -> SAlign128Bytes
+		| 0x900000l -> SAlign256Bytes
+		| 0xA00000l -> SAlign512Bytes
+		| 0xB00000l -> SAlign1024Bytes
+		| 0xC00000l -> SAlign2048Bytes
+		| 0xD00000l -> SAlign4096Bytes
+		| 0xE00000l -> SAlign8192Bytes
+		| 0x1000000l -> SHasExtRelocs
+		| 0x02000000l -> SCanDiscard
+		| 0x04000000l -> SNotCached
+		| 0x08000000l -> SNotPaged
+		| 0x10000000l -> SShared
+		| 0x20000000l -> SExec
+		| 0x40000000l -> SRead
+		| 0x80000000l -> SWrite
+		| _ -> assert false) :: acc
+	else
+		acc) [] [ 0x8l;  0x20l;  0x40l;  0x80l;  0x200l;  0x1000l;  0x8000l;  0x20000l;  0x100000l;  0x200000l;  0x300000l;  0x400000l;  0x500000l;  0x600000l;  0x700000l;  0x800000l;  0x900000l;  0xA00000l;  0xB00000l;  0xC00000l;  0xD00000l;  0xE00000l;  0x1000000l;  0x02000000l;  0x04000000l;  0x08000000l;  0x10000000l;  0x20000000l;  0x40000000l;  0x80000000l; ]
+
 let subsystem_of_int i = match i with
 	|  0 -> SUnknown (* 0 *)
 	|  1 -> SNative (* 1 *)
@@ -130,7 +166,7 @@ let pe_magic_of_int i = match i with
 	| _ -> error ("Unknown PE magic number: " ^ string_of_int i)
 
 let get_dir dir data =
-	let idx,name,_ = directory_type_info dir in
+	let idx,name = directory_type_info dir in
 	try
 		data.(idx)
 	with
@@ -161,7 +197,9 @@ let read_coff_header i =
 		coff_props = props;
 	}
 
-let read_pe_header i size =
+let read_pe_header r header =
+	let i = r.i in
+	let sections_offset = (pos r) + header.coff_optheader_size in
 	let magic = pe_magic_of_int (read_ui16 i) in
 	let major = read_byte i in
 	let minor = read_byte i in
@@ -199,16 +237,45 @@ let read_pe_header i size =
 	let heap_commit = read_pointer i in
 	ignore (read_i32 i); (* reserved *)
 	let ndata_dir = read_i32 i in
-	let data_dirs = Array.make ndata_dir (Int32.zero,Int32.zero) in
-	let rec loop n =
-		if n < ndata_dir then begin
-			let addr = read_rva i in
-			let size = read_rva i in
-			Array.set data_dirs n (addr,size);
-			loop (n+1)
-		end
+	let data_dirs = Array.init ndata_dir (fun n ->
+		let addr = read_rva i in
+		let size = read_rva i in
+		addr,size)
 	in
-	loop 0;
+	(* sections *)
+	let nsections = header.coff_nsections in
+	seek r sections_offset;
+	let sections = Array.init nsections (fun n ->
+		let name = nread i 8 in
+		let name = try
+			let index = String.index name '\x00' in
+			String.sub name 0 index
+		with | Not_found ->
+				name
+		in
+		(*TODO check for slash names *)
+		let vsize = read_rva i in
+		let vaddr = read_rva i in
+		let rawsize = read_rva i in
+		let raw_pointer = read_rva i in
+		let reloc_pointer = read_rva i in
+		let line_num_pointer = read_rva i in
+		let nrelocs = read_ui16 i in
+		let nline_nums = read_ui16 i in
+		let props = section_props_of_int32 (read_rva i) in
+		{
+			s_name = name;
+			s_vsize =vsize;
+			s_vaddr =vaddr;
+			s_rawsize =rawsize;
+			s_raw_pointer =raw_pointer;
+			s_reloc_pointer =reloc_pointer;
+			s_line_num_pointer =line_num_pointer;
+			s_nrelocs =nrelocs;
+			s_nline_nums =nline_nums;
+			s_props =props;
+		}
+	) in
 	{
 		pe_magic = magic;
 		pe_major = major;
@@ -239,6 +306,7 @@ let read_pe_header i size =
 		pe_heap_commit = heap_commit;
 		pe_ndata_dir = ndata_dir;
 		pe_data_dirs = data_dirs;
+		pe_sections = sections;
 	}
 
 let read name ch =
@@ -258,8 +326,9 @@ let read name ch =
 		error "Invalid PE header signature: PE expected";
 	let header = read_coff_header i in
 	info r (fun () -> coff_header_s header);
-	let pe_header = read_pe_header i 0 in
+	let pe_header = read_pe_header r header in
 	info r (fun () -> pe_header_s pe_header)
+
 
 
 

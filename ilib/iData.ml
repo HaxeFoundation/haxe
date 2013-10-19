@@ -143,13 +143,21 @@ let coff_prop_s p = match p with
 	| UpSystemOnly -> "UpSystemOnly"
 	| BytesReversedHI -> "BytesReversedHI"
 
+(* represents a virtual address pointer. It's 64-bit on 64-bit executables, and 32-bit otherwise *)
 type pointer = int64
 
+(* represents a memory index address on the target architecture. It's 64-bit on 64-bit executables, and 32-bit otherwise *)
 type size_t = pointer
 
+(* relative virtual address. *)
+(* it's always 32-bit - which means that PE/COFF files are still limited to the 4GB size *)
 type rva = int32
 
-type size_t_near = int32
+(* represents a PE file-bound memory index *)
+type size_t_file = int32
+
+(* represents a file offset *)
+type pointer_file = int32
 
 type coff_header = {
 	coff_machine : machine_type; (* offset 0 - size 2 . *)
@@ -166,7 +174,14 @@ type coff_header = {
 }
 
 let coff_header_s h =
-	sprintf "#COFF_HEADER\n\tmachine: %s\n\tnsections: %d\n\ttimestamp: %ld\n\tsymbol_tbl_pointer: %ld\n\tnsymbols: %d\n\toptheader_size: %d\n\tprops: [%s]\n" (machine_type_s h.coff_machine) h.coff_nsections h.coff_timestamp h.coff_symbol_table_pointer h.coff_nsymbols h.coff_optheader_size (String.concat ", " (List.map coff_prop_s h.coff_props))
+	sprintf "#COFF_HEADER\n\tmachine: %s\n\tnsections: %d\n\ttimestamp: %ld\n\tsymbol_tbl_pointer: %ld\n\tnsymbols: %d\n\toptheader_size: %x\n\tprops: [%s]\n"
+		(machine_type_s h.coff_machine)
+		h.coff_nsections
+		h.coff_timestamp
+		h.coff_symbol_table_pointer
+		h.coff_nsymbols
+		h.coff_optheader_size
+		(String.concat ", " (List.map coff_prop_s h.coff_props))
 
 let coff_default_exe_props = [ ExecutableImage; LineNumsStripped; LocalSymsStripped; (* Machine32Bit; *) ]
 
@@ -297,24 +312,162 @@ type directory_type =
 	| Custom of int
 
 let directory_type_info = function
-	| ExportTable -> 0, "ExportTable", Some ".edata"
-	| ImportTable -> 1, "ImportTable", Some ".idata"
-	| ResourceTable -> 2, "ResourceTable", Some ".rsrc"
-	| ExceptionTable -> 3, "ExceptionTable", Some ".pdata"
-	| CertificateTable -> 4, "CertificateTable", None
-	| RelocTable -> 5, "RelocTable", Some ".reloc"
-	| DebugTable -> 6, "DebugTable", Some ".debug"
-	| ArchitectureTable -> 7, "ArchTable", Some ".arch"
-	| GlobalPointer -> 8, "GlobalPointer", None
-	| TlsTable -> 9, "TlsTable", Some ".tls"
-	| LoadConfigTable -> 10, "LoadConfigTable", None
-	| BoundImportTable -> 11, "BuildImportTable", None
-	| ImportAddressTable -> 12, "ImportAddressTable", None
-	| DelayImport -> 13, "DelayImport", None
-	| ClrRuntimeHeader -> 14, "ClrRuntimeHeader", Some ".cormeta"
-	| Reserved -> 15, "Reserved", None
-	| Custom i -> i, "Custom" ^ (string_of_int i), None
+	| ExportTable -> 0, "ExportTable"
+	| ImportTable -> 1, "ImportTable"
+	| ResourceTable -> 2, "ResourceTable"
+	| ExceptionTable -> 3, "ExceptionTable"
+	| CertificateTable -> 4, "CertificateTable"
+	| RelocTable -> 5, "RelocTable"
+	| DebugTable -> 6, "DebugTable"
+	| ArchitectureTable -> 7, "ArchTable"
+	| GlobalPointer -> 8, "GlobalPointer"
+	| TlsTable -> 9, "TlsTable"
+	| LoadConfigTable -> 10, "LoadConfigTable"
+	| BoundImportTable -> 11, "BuildImportTable"
+	| ImportAddressTable -> 12, "ImportAddressTable"
+	| DelayImport -> 13, "DelayImport"
+	| ClrRuntimeHeader -> 14, "ClrRuntimeHeader"
+	| Reserved -> 15, "Reserved"
+	| Custom i -> i, "Custom" ^ (string_of_int i)
 
+let directory_type_of_int = function
+	| 0 -> ExportTable
+	| 1 -> ImportTable
+	| 2 -> ResourceTable
+	| 3 -> ExceptionTable
+	| 4 -> CertificateTable
+	| 5 -> RelocTable
+	| 6 -> DebugTable
+	| 7 -> ArchitectureTable
+	| 8 -> GlobalPointer
+	| 9 -> TlsTable
+	| 10 -> LoadConfigTable
+	| 11 -> BoundImportTable
+	| 12 -> ImportAddressTable
+	| 13 -> DelayImport
+	| 14 -> ClrRuntimeHeader
+	| 15 -> Reserved
+	| i -> Custom i
+
+type section_prop =
+	| SNoPad (* 0x8 *)
+		(* the section should not be padded to the next boundary. *)
+		(* OBSOLETE - replaced by SAlign1Bytes *)
+	| SHasCode (* 0x20 *)
+		(* the section contains executable code *)
+	| SHasIData (* 0x40 *)
+		(* contains initialized data *)
+	| SHasData (* 0x80 *)
+		(* contains uninitialized data *)
+	| SHasLinkInfo (* 0x200 *)
+		(* contains comments or other information. only valid for object files *)
+	| SLinkRemove (* 0x1000 *)
+		(* this will not become part of the image. only valid for object files *)
+	| SGlobalRel (* 0x8000 *)
+		(* contains data referenced through the global pointer (GP) *)
+	| SHas16BitMem (* 0x20000 *)
+		(* for ARM architecture. The section contains Thumb code *)
+	| SAlign1Bytes (* 0x100000 *)
+		(* align data on a 1-byte boundary. valid only for object files *)
+	| SAlign2Bytes (* 0x200000 *)
+	| SAlign4Bytes (* 0x300000 *)
+	| SAlign8Bytes (* 0x400000 *)
+	| SAlign16Bytes (* 0x500000 *)
+	| SAlign32Bytes (* 0x600000 *)
+	| SAlign64Bytes (* 0x700000 *)
+	| SAlign128Bytes (* 0x800000 *)
+	| SAlign256Bytes (* 0x900000 *)
+	| SAlign512Bytes (* 0xA00000 *)
+	| SAlign1024Bytes (* 0xB00000 *)
+	| SAlign2048Bytes (* 0xC00000 *)
+	| SAlign4096Bytes (* 0xD00000 *)
+	| SAlign8192Bytes (* 0xE00000 *)
+	| SHasExtRelocs (* 0x1000000 *)
+		(* section contains extended relocations *)
+	| SCanDiscard (* 0x02000000 *)
+		(* section can be discarded as needed *)
+	| SNotCached (* 0x04000000 *)
+		(* section cannot be cached *)
+	| SNotPaged (* 0x08000000 *)
+		(* section is not pageable *)
+	| SShared (* 0x10000000 *)
+		(* section can be shared in memory *)
+	| SExec (* 0x20000000 *)
+		(* section can be executed as code *)
+	| SRead (* 0x40000000 *)
+		(* section can be read *)
+	| SWrite (* 0x80000000 *)
+		(* section can be written to *)
+
+let section_prop_s = function
+	| SNoPad -> "SNoPad"
+	| SHasCode -> "SHasCode"
+	| SHasIData -> "SHasIData"
+	| SHasData -> "SHasData"
+	| SHasLinkInfo -> "SHasLinkInfo"
+	| SLinkRemove -> "SLinkRemove"
+	| SGlobalRel -> "SGlobalRel"
+	| SHas16BitMem -> "SHas16BitMem"
+	| SAlign1Bytes -> "SAlign1Bytes"
+	| SAlign2Bytes -> "SAlign2Bytes"
+	| SAlign4Bytes -> "SAlign4Bytes"
+	| SAlign8Bytes -> "SAlign8Bytes"
+	| SAlign16Bytes -> "SAlign16Bytes"
+	| SAlign32Bytes -> "SAlign32Bytes"
+	| SAlign64Bytes -> "SAlign64Bytes"
+	| SAlign128Bytes -> "SAlign128Bytes"
+	| SAlign256Bytes -> "SAlign256Bytes"
+	| SAlign512Bytes -> "SAlign512Bytes"
+	| SAlign1024Bytes -> "SAlign1024Bytes"
+	| SAlign2048Bytes -> "SAlign2048Bytes"
+	| SAlign4096Bytes -> "SAlign4096Bytes"
+	| SAlign8192Bytes -> "SAlign8192Bytes"
+	| SHasExtRelocs -> "SHasExtRelocs"
+	| SCanDiscard -> "SCanDiscard"
+	| SNotCached -> "SNotCached"
+	| SNotPaged -> "SNotPaged"
+	| SShared -> "SShared"
+	| SExec -> "SExec"
+	| SRead -> "SRead"
+	| SWrite -> "SWrite"
+
+type pe_section = {
+	s_name : string;
+		(* an 8-byte, null-padded UTF-8 encoded string *)
+	s_vsize : size_t_file;
+		(* the total size of the section when loaded into memory. *)
+		(* if less than s_rawsize, the section is zero-padded *)
+		(* should be set to 0 on object files *)
+	s_vaddr : rva;
+		(* the RVA of the beginning of the section *)
+	s_rawsize : size_t_file;
+		(* the size of the initialized data on disk, rounded up to a multiple *)
+		(* of the file alignment value. If it's less than s_vsize, it should be *)
+		(* zero filled. It may happen that rawsize is greater than vsize. *)
+	s_raw_pointer : pointer_file;
+		(* the file pointer to the first page of the section within the COFF file *)
+		(* on executable images, this must be a multiple of file aignment value. *)
+		(* for object files, it should be aligned on a 4byte boundary *)
+	s_reloc_pointer : pointer_file;
+		(* the file pointer to the beginning of relocation entries for this section *)
+		(* this is set to zero for executable images or if there are no relocations *)
+	s_line_num_pointer : pointer_file;
+		(* the file pointer to the beginning of line-number entries for this section *)
+		(* must be 0 : COFF debugging image is deprecated *)
+	s_nrelocs : int;
+		(* number of relocation entries *)
+	s_nline_nums : int;
+		(* number of line number entries *)
+	s_props : section_prop list;
+		(* properties of the section *)
+}
+
+let pe_section_s s =
+	Printf.sprintf "\t%s :\n\t\trva: %lx\n\t\traw size: %lx\n\t\tprops: [%s]"
+		s.s_name
+		s.s_vaddr
+		s.s_rawsize
+		(String.concat ", " (List.map section_prop_s s.s_props))
 
 (* The size of the PE header is not fixed. It depends on the number of data directories defined in the header *)
 (* and is specified in the optheader_size in the COFF header *)
@@ -347,6 +500,8 @@ type pe_header = {
 		(* The alignment in bytes of sections when they are loaded into memory *)
 		(* It must be greater than or equal to FileAlignment. The default is the page size *)
 		(* for the architecture *)
+		(* x86 MPE files should have an alignment of 8KB, even though only 4KB would be needed *)
+		(* for compatibility with 64-bits *)
 	pe_file_alignment : int;
 		(* The alignment factor in bytes that is used to align the raw data of sections *)
 		(* in the image file. The value should be a POT between 512 and 64K. *)
@@ -381,17 +536,31 @@ type pe_header = {
 		(* the number of data-directory entries in the remainder of the optional header *)
 		(* should be at least 16. Although is possible to emit more than 16 data directories, *)
 		(* all existing managed compilers emit exactly 16 data directories, with the last never *)
-		(* used (reserved *)
-	pe_data_dirs : (rva * size_t_near) array;
+		(* used (reserved) *)
+	pe_data_dirs : (rva * size_t_file) array;
+		(* data directories are RVA's that point to sections on the PE that have special significance *)
+		(* see directory_type docs *)
+
+	(* sections *)
+	pe_sections : pe_section array;
 }
 
+let data_dirs_s a =
+	let lst = Array.to_list (Array.mapi (fun i (r,l) ->
+		let _,s = directory_type_info (directory_type_of_int i) in
+		Printf.sprintf "%s: %lx (%lx)" s r l
+	) a) in
+	String.concat "\n\t\t" lst
+
 let pe_header_s h =
-	sprintf "#PE_HEADER\n\tmagic: %s\n\tmajor.minor %d.%d\n\tsubsystem: %s\n\tdll props: [%s]\n\tndata_dir: %i"
+	sprintf "#PE_HEADER\n\tmagic: %s\n\tmajor.minor %d.%d\n\tsubsystem: %s\n\tdll props: [%s]\n\tndata_dir: %i\n\t\t%s\n#SECTIONS\n%s"
 		(pe_magic_s h.pe_magic)
 		h.pe_major h.pe_minor
 		(subsystem_s h.pe_subsystem)
 		(String.concat ", " (List.map dll_prop_s h.pe_dll_props))
 		h.pe_ndata_dir
+		(data_dirs_s h.pe_data_dirs)
+		(String.concat "\n" (List.map pe_section_s (Array.to_list h.pe_sections)))
 
 type ipath = (string list) * string
 

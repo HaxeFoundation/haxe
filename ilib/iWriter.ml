@@ -80,6 +80,41 @@ let int_of_coff_props props = List.fold_left (fun acc prop ->
 		) lor acc
 	) 0 props
 
+let int32_of_section_prop props = List.fold_left (fun acc prop ->
+		Int32.logor (match prop with
+			| SNoPad ->  0x8l (* 0x8 *)
+			| SHasCode ->  0x20l (* 0x20 *)
+			| SHasIData ->  0x40l (* 0x40 *)
+			| SHasData ->  0x80l (* 0x80 *)
+			| SHasLinkInfo ->  0x200l (* 0x200 *)
+			| SLinkRemove ->  0x1000l (* 0x1000 *)
+			| SGlobalRel ->  0x8000l (* 0x8000 *)
+			| SHas16BitMem ->  0x20000l (* 0x20000 *)
+			| SAlign1Bytes ->  0x100000l (* 0x100000 *)
+			| SAlign2Bytes ->  0x200000l (* 0x200000 *)
+			| SAlign4Bytes ->  0x300000l (* 0x300000 *)
+			| SAlign8Bytes ->  0x400000l (* 0x400000 *)
+			| SAlign16Bytes ->  0x500000l (* 0x500000 *)
+			| SAlign32Bytes ->  0x600000l (* 0x600000 *)
+			| SAlign64Bytes ->  0x700000l (* 0x700000 *)
+			| SAlign128Bytes ->  0x800000l (* 0x800000 *)
+			| SAlign256Bytes ->  0x900000l (* 0x900000 *)
+			| SAlign512Bytes ->  0xA00000l (* 0xA00000 *)
+			| SAlign1024Bytes ->  0xB00000l (* 0xB00000 *)
+			| SAlign2048Bytes ->  0xC00000l (* 0xC00000 *)
+			| SAlign4096Bytes ->  0xD00000l (* 0xD00000 *)
+			| SAlign8192Bytes ->  0xE00000l (* 0xE00000 *)
+			| SHasExtRelocs ->  0x1000000l (* 0x1000000 *)
+			| SCanDiscard ->  0x02000000l (* 0x02000000 *)
+			| SNotCached ->  0x04000000l (* 0x04000000 *)
+			| SNotPaged ->  0x08000000l (* 0x08000000 *)
+			| SShared ->  0x10000000l (* 0x10000000 *)
+			| SExec ->  0x20000000l (* 0x20000000 *)
+			| SRead ->  0x40000000l (* 0x40000000 *)
+			| SWrite ->  0x80000000l (* 0x80000000 *)
+		) acc
+	) 0l props
+
 let int_of_pe_magic m = match m with
 	| P32 -> 0x10b
 	| PROM -> 0x107
