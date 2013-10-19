@@ -25,10 +25,15 @@ open ExtList;;
 exception Error_message of string
 
 type reader_ctx = {
-	fname : string;
 	ch : Pervasives.in_channel;
 	i : IO.input;
 	verbose : bool;
+}
+
+type ctx = {
+	r : reader_ctx;
+	pe_header : pe_header;
+	read_word : IO.input -> pointer;
 }
 
 let error msg = raise (Error_message msg)
@@ -165,18 +170,18 @@ let pe_magic_of_int i = match i with
 	| 0x20b -> P64
 	| _ -> error ("Unknown PE magic number: " ^ string_of_int i)
 
-let get_dir dir data =
+let get_dir dir ctx =
 	let idx,name = directory_type_info dir in
 	try
-		data.(idx)
+		ctx.pe_header.pe_data_dirs.(idx)
 	with
 		| Invalid_argument _ ->
 			error (Printf.sprintf "The directory '%s' of index '%i' is required but is missing on this file" name idx)
 
 let read_rva = read_real_i32
 
-let read_pointer is64 i =
-	if is64 then read_i64 i else Int64.of_int32 (read_real_i32 i)
+let read_word is64 i =
+	if is64 then read_i64 i else Int64.logand (Int64.of_int32 (read_real_i32 i)) 0xFFFFFFFFL
 
 let read_coff_header i =
 	let machine = machine_type_of_int (read_ui16 i) in
@@ -208,15 +213,15 @@ let read_pe_header r header =
 	let uinitsize = read_i32 i in
 	let entry_addr = read_rva i in
 	let base_code = read_rva i in
-	let base_data, read_pointer = match magic with
+	let base_data, read_word = match magic with
 	| P32 | PRom ->
-		read_rva i, read_pointer false
+		read_rva i, read_word false
 	| P64 ->
-		Int32.zero, read_pointer true
+		Int32.zero, read_word true
 	in
 
 	(* COFF Windows extension *)
-	let image_base = read_pointer i in
+	let image_base = read_word i in
 	let section_alignment = read_i32 i in
 	let file_alignment = read_i32 i in
 	let major_osver = read_ui16 i in
@@ -231,10 +236,10 @@ let read_pe_header r header =
 	let checksum = read_real_i32 i in
 	let subsystem = subsystem_of_int (read_ui16 i) in
 	let dll_props = dll_props_of_int (read_ui16 i) in
-	let stack_reserve = read_pointer i in
-	let stack_commit = read_pointer i in
-	let heap_reserve = read_pointer i in
-	let heap_commit = read_pointer i in
+	let stack_reserve = read_word i in
+	let stack_commit = read_word i in
+	let heap_reserve = read_word i in
+	let heap_commit = read_word i in
 	ignore (read_i32 i); (* reserved *)
 	let ndata_dir = read_i32 i in
 	let data_dirs = Array.init ndata_dir (fun n ->
@@ -257,9 +262,9 @@ let read_pe_header r header =
 		let vsize = read_rva i in
 		let vaddr = read_rva i in
 		let rawsize = read_rva i in
-		let raw_pointer = read_rva i in
-		let reloc_pointer = read_rva i in
-		let line_num_pointer = read_rva i in
+		let raw_pointer = read_i32 i in
+		let reloc_pointer = read_i32 i in
+		let line_num_pointer = read_i32 i in
 		let nrelocs = read_ui16 i in
 		let nline_nums = read_ui16 i in
 		let props = section_props_of_int32 (read_rva i) in
@@ -310,14 +315,114 @@ let read_pe_header r header =
 		pe_sections = sections;
 	}
 
-let read name ch =
+let create_r ch props =
+	let verbose = PMap.mem "IL_VERBOSE" props in
 	let i = IO.input_channel ch in
-	let r = {
-		fname = name;
+	{
 		ch = ch;
 		i = i;
-		verbose = true;
-	} in
+		verbose = verbose;
+	}
+
+(* converts an RVA into a file offset. *)
+let convert_rva ctx rva =
+	let sections = ctx.pe_header.pe_sections in
+	let nsections = Array.length sections in
+	let sec =
+		(* linear search. TODO maybe binary search for many sections? *)
+		let rec loop n =
+			if n >= nsections then error (Printf.sprintf "The RVA %lx is outside sections bounds!" rva);
+			let sec = sections.(n) in
+			if rva >= sec.s_vaddr && (rva < (Int32.add sec.s_vaddr sec.s_rawsize)) then
+				sec
+			else
+				loop (n+1)
+		in
+		loop 0
+	in
+	let diff = Int32.to_int (Int32.sub rva sec.s_vaddr) in
+	sec.s_raw_pointer + diff
+
+let seek_rva ctx rva = seek ctx.r (convert_rva ctx rva)
+
+let read_cstring i =
+	let ret = Buffer.create 8 in
+	let rec loop () =
+		let chr = read i in
+		if chr = '\x00' then
+			Buffer.contents ret
+		else begin
+			Buffer.add_char ret chr;
+			loop()
+		end
+	in
+	loop()
+
+(* reads import data *)
+let read_idata ctx = match get_dir ImportTable ctx with
+	| 0l,_ | _,0l ->
+		[]
+	| rva,size ->
+		seek_rva ctx rva;
+		let i = ctx.r.i in
+		let rec loop acc =
+			let lookup_table = read_rva i in
+			if lookup_table = Int32.zero then
+				acc
+			else begin
+				let timestamp = read_real_i32 i in
+				let fchain = read_real_i32 i in
+				let name_rva = read_rva i in
+				let addr_table = read_rva i in
+				ignore addr_table; ignore fchain; ignore timestamp;
+				loop ((lookup_table,name_rva) :: acc)
+			end
+		in
+		let tables = loop [] in
+		List.rev_map (function (lookup_table,name_rva) ->
+			seek_rva ctx lookup_table;
+			let is_64 = ctx.pe_header.pe_magic = P64 in
+			let imports_data = if not is_64 then
+				let rec loop acc =
+					let flags = read_real_i32 i in
+					if flags = Int32.zero then
+						acc
+					else begin
+						let is_ordinal = Int32.logand flags 0x80000000l = 0x80000000l in
+						loop ( (is_ordinal, if is_ordinal then Int32.logand flags 0xFFFFl else Int32.logand flags 0x7FFFFFFFl) :: acc )
+					end
+				in
+				loop []
+			else
+				let rec loop acc =
+					let flags = read_i64 i in
+					if flags = Int64.zero then
+						acc
+					else begin
+						let is_ordinal = Int64.logand flags 0x8000000000000000L = 0x8000000000000000L in
+						loop ( (is_ordinal, Int64.to_int32 (if is_ordinal then Int64.logand flags 0xFFFFL else Int64.logand flags 0x7FFFFFFFL)) :: acc )
+					end
+				in
+				loop []
+			in
+			let imports = List.rev_map (function
+				| true, ord ->
+					SOrdinal (Int32.to_int ord)
+				| false, rva ->
+					seek_rva ctx rva;
+					let hint = read_ui16 i in
+					SName (hint, read_cstring i)
+			) imports_data in
+			seek_rva ctx name_rva;
+			let name = read_cstring i in
+			{
+				imp_name = name;
+				imp_imports = imports;
+			}
+		) tables
+
+let read r =
+	let i = r.i in
 	if read i <> 'M' || read i <> 'Z' then
 		error "MZ magic header not found: Is the target file really a PE?";
 	seek r 0x3c;
@@ -327,8 +432,13 @@ let read name ch =
 		error "Invalid PE header signature: PE expected";
 	let header = read_coff_header i in
 	(* info r (fun () -> coff_header_s header); *)
-	read_pe_header r header
+	let pe_header = read_pe_header r header in
 	(* info r (fun () -> pe_header_s pe_header) *)
+	{
+		r = r;
+		pe_header = pe_header;
+		read_word = read_word (pe_header.pe_magic = P64);
+	}
 
 
 

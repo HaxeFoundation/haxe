@@ -1,14 +1,18 @@
 open IDataDebug;;
 open IData;;
+open IReader;;
 
 let main () =
 	if Array.length Sys.argv <> 2 then
 		print_endline "Usage: dump <exe-path>"
 	else begin
-		let r = open_in Sys.argv.(1) in
-		let pe = IReader.read Sys.argv.(1) r in
+		let r = create_r (open_in Sys.argv.(1)) PMap.empty in
+		let ctx = read r in
+		let pe = ctx.pe_header in
 		print_endline (coff_header_s pe.pe_coff_header);
-		print_endline (pe_header_s pe)
+		print_endline (pe_header_s pe);
+		let idata = read_idata ctx in
+		List.iter (fun t -> print_endline (idata_table_s t)) idata;
 	end;;
 
 main()

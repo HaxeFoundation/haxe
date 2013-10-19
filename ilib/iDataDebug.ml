@@ -160,3 +160,11 @@ let pe_header_s h =
 		(data_dirs_s h.pe_data_dirs)
 		(String.concat "\n" (List.map pe_section_s (Array.to_list h.pe_sections)))
 
+let symbol_lookup_s = function
+	| SName (hint,s) -> "SName(" ^ string_of_int hint ^ ", " ^ s ^ ")"
+	| SOrdinal i -> "SOrdinal(" ^ string_of_int i ^ ")"
+
+let idata_table_s t =
+	sprintf "#IMPORT %s:\n\t%s"
+		t.imp_name
+		(String.concat "\n\t" (List.map symbol_lookup_s t.imp_imports))
