@@ -81,15 +81,15 @@ let rec like_int t =
 
 let follow_once t =
   match t with
-	| TMono r ->
-		(match !r with
-		| Some t -> t
-		| _ -> t_dynamic (* avoid infinite loop / should be the same in this context *))
-	| TLazy f ->
-		!f()
-	| TType (t,tl) ->
-		apply_params t.t_types tl t.t_type
-	| _ -> t
+  | TMono r ->
+    (match !r with
+    | Some t -> t
+    | _ -> t_dynamic (* avoid infinite loop / should be the same in this context *))
+  | TLazy f ->
+    !f()
+  | TType (t,tl) ->
+    apply_params t.t_types tl t.t_type
+  | _ -> t
 
 let t_empty = TAnon({ a_fields = PMap.empty; a_status = ref (Closed) })
 
@@ -1004,7 +1004,7 @@ let dump_descriptor gen name path_s module_s =
       SourceWriter.newline w;
       SourceWriter.write w "end main";
       SourceWriter.newline w
-	| _ -> ()
+  | _ -> ()
   );
   SourceWriter.write w "begin resources";
   SourceWriter.newline w;
@@ -6833,13 +6833,13 @@ struct
           cl.cl_fields <- PMap.add cf.cf_name cf cl.cl_fields
         ) (delete :: new_fields);
 
-		(*
+    (*
         let rec last_ctor cl =
           match cl.cl_constructor with
             | None -> (match cl.cl_super with | None -> None | Some (cl,_) -> last_ctor cl)
             | Some c -> Some c
         in
-		*)
+    *)
         (*
           in order for the next to work, we need to execute our script before InitFunction, so the expressions inside the variables are initialized by the constructor
         *)
@@ -7354,7 +7354,7 @@ struct
     let gen = ctx.rcf_gen in
     let basic = gen.gcon.basic in
     let pos = cl.cl_pos in
-	(*
+  (*
     let rec has_no_dynamic cl =
       if is_some cl.cl_dynamic then
         false
@@ -7362,7 +7362,7 @@ struct
         | None -> true
         | Some(cl,_) -> has_no_dynamic cl
     in
-	*)
+  *)
     (* Type.getClassFields() *)
     if ctx.rcf_handle_statics then begin
       let name = gen.gmk_internal_name "hx" "classFields" in

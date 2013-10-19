@@ -864,6 +864,9 @@ try
 		("-cpp",Arg.String (fun dir ->
 			set_platform Cpp dir;
 		),"<directory> : generate C++ code into target directory");
+		("-rust",Arg.String (fun dir ->
+			set_platform Rust dir;
+		),"<directory> : generate Rust code into target directory");
  		("-cs",Arg.String (fun dir ->
 			set_platform Cs dir;
 		),"<directory> : generate C# code into target directory");
@@ -1173,6 +1176,9 @@ try
 		| Cpp ->
 			add_std "cpp";
 			"cpp"
+		| Rust ->
+			add_std "rust";
+			"rust"
 		| Cs ->
 			Gencs.before_generate com;
 			add_std "cs"; "cs"
@@ -1297,6 +1303,9 @@ try
 		| Cpp ->
 			Common.log com ("Generating Cpp in : " ^ com.file);
 			Gencpp.generate com;
+		| Rust ->
+			Common.log com ("Generating Cpp in : " ^ com.file);
+			Genrust.generate com;
 		| Cs ->
 			Common.log com ("Generating Cs in : " ^ com.file);
 			Gencs.generate com;

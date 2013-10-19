@@ -32,7 +32,7 @@ class BytesOutput extends Output {
 	/** The length of the stream in bytes. **/
 	public var length(get,never) : Int;
 
-	public function new() {
+	public inline function new() {
 		#if flash9
 		b = new flash.utils.ByteArray();
 		b.endian = flash.utils.Endian.LITTLE_ENDIAN;

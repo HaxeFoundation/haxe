@@ -34,6 +34,8 @@ package haxe.io;
 	typedef BytesData = java.NativeArray<java.StdTypes.Int8>;
 #elseif cs
 	typedef BytesData = cs.NativeArray<cs.StdTypes.UInt8>;
+#elseif js
+	typedef BytesData = js.html.Uint8Array;
 #else
 	typedef BytesData = Array<Int>;
 #end

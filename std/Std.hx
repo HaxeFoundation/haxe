@@ -19,10 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-#if !(core_api || cross)
-#error "Please don't add haxe/std to your classpath, instead set HAXE_STD_PATH env var"
-#end
-
+/*
 /**
 	The Std class provides standard methods for manipulating basic types.
 **/

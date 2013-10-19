@@ -55,6 +55,7 @@ type platform =
 	| Flash
 	| Php
 	| Cpp
+	| Rust
 	| Cs
 	| Java
 
@@ -178,6 +179,7 @@ module Define = struct
 		| FlashUseStage
 		| FormatWarning
 		| GencommonDebug
+		| Harmony
 		| HaxeBoot
 		| HaxeVer
 		| IncludePrefix
@@ -241,6 +243,7 @@ module Define = struct
 		| FlashUseStage -> ("flash_use_stage","Keep the SWF library initial stage")
 		| FormatWarning -> ("format_warning","Print a warning for each formated string, for 2.x compatibility")
 		| GencommonDebug -> ("gencommon_debug","GenCommon internal")
+		| Harmony -> ("harmony","Enable experimental ES6 'Harmony' features")
 		| HaxeBoot -> ("haxe_boot","Given the name 'haxe' to the flash boot class instead of a generated name")
 		| HaxeVer -> ("haxe_ver","The current Haxe version value")
 		| IncludePrefix -> ("include_prefix","prepend path to generated include files")
@@ -490,7 +493,7 @@ let get_config com =
 			pf_locals_scope = false;
 			pf_captured_scope = false;
 			pf_unique_locals = false;
-			pf_can_init_member = (fun _ -> false);
+			pf_can_init_member = (fun _ -> (defined Define.Harmony));
 			pf_capture_policy = CPLoopVars;
 			pf_pad_nulls = false;
 			pf_add_final_return = false;
@@ -582,6 +585,23 @@ let get_config com =
 			pf_overload = false;
 			pf_pattern_matching = false;
 			pf_can_skip_non_nullable_argument = true;
+			pf_ignore_unsafe_cast = false;
+		}
+	| Rust
+	 ->
+		{
+			pf_static = true;
+			pf_sys = true;
+			pf_locals_scope = true;
+			pf_captured_scope = true;
+			pf_unique_locals = false;
+			pf_can_init_member = (fun _ -> false);
+			pf_capture_policy = CPWrapRef;
+			pf_pad_nulls = true;
+			pf_add_final_return = true;
+			pf_overload = false;
+			pf_pattern_matching = false;
+			pf_can_skip_non_nullable_argument = false;
 			pf_ignore_unsafe_cast = false;
 		}
 	| Cs ->
@@ -703,6 +723,7 @@ let platforms = [
 	Flash;
 	Php;
 	Cpp;
+	Rust;
 	Cs;
 	Java;
 ]
@@ -715,6 +736,7 @@ let platform_name = function
 	| Flash -> "flash"
 	| Php -> "php"
 	| Cpp -> "cpp"
+	| Rust -> "rust"
 	| Cs -> "cs"
 	| Java -> "java"
 

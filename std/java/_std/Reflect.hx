@@ -158,10 +158,7 @@ import java.Boot;
 		return v != null && (v instanceof haxe.lang.Enum || v instanceof java.lang.Enum);
 	')
 	public static function isEnumValue( v : Dynamic ) : Bool {
-		return switch(Type.typeof(v)) {
-			case TEnum(_): true;
-			case _: false;
-		}
+		return false;
 	}
 
 	@:functionCode('

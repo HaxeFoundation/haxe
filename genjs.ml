@@ -46,6 +46,7 @@ type ctx = {
 	smap : sourcemap;
 	js_modern : bool;
 	js_flatten : bool;
+	harmony : bool;
 	mutable current : tclass;
 	mutable statics : (tclass * string * texpr) list;
 	mutable inits : texpr list;
@@ -74,21 +75,12 @@ let s_path ctx = if ctx.js_flatten then flat_path else dot_path
 let kwds =
 	let h = Hashtbl.create 0 in
 	List.iter (fun s -> Hashtbl.add h s ()) [
-		(* JS reserved words: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Reserved_Words *)
-		"break"; "case"; "catch"; "class"; "const"; "continue"; "debugger"; "default"; "delete";
-		"do"; "else"; "enum"; "export"; "extends"; "finally"; "for"; "function"; "if"; "implements";
-		"import"; "in"; "instanceof"; "interface"; "let"; "new"; "package"; "private"; "protected";
-		"public"; "return"; "static"; "super"; "switch"; "this"; "throw"; "try"; "typeof"; "var";
-		"void"; "while"; "with"; "yield";
-	];
-	h
-
-(* Identifiers Haxe reserves to make the JS output cleaner. These can still be used in untyped code (TLocal),
-   but are escaped upon declaration. *)
-let kwds2 =
-	let h = Hashtbl.create 0 in
-	List.iter (fun s -> Hashtbl.add h s ()) [
-		"console"; "window";
+		"abstract"; "as"; "boolean"; "break"; "byte"; "case"; "catch"; "char"; "class"; "continue"; "const";
+		"debugger"; "default"; "delete"; "do"; "double"; "else"; "enum"; "export"; "extends"; "false"; "final";
+		"finally"; "float"; "for"; "function"; "goto"; "if"; "implements"; "import"; "in"; "instanceof"; "int";
+		"interface"; "is"; "long"; "namespace"; "native"; "new"; "null"; "package"; "private"; "protected";
+		"public"; "return"; "short"; "static"; "super"; "switch"; "synchronized"; "this"; "throw"; "throws";
+		"transient"; "true"; "try"; "typeof"; "use"; "var"; "void"; "volatile"; "while"; "window"; "with";
 	];
 	h
 
@@ -106,8 +98,6 @@ let valid_js_ident s =
 
 let field s = if Hashtbl.mem kwds s then "[\"" ^ s ^ "\"]" else "." ^ s
 let ident s = if Hashtbl.mem kwds s then "$" ^ s else s
-let check_var_declaration v = if Hashtbl.mem kwds2 v.v_name then v.v_name <- "$" ^ v.v_name
-
 let anon_field s = if Hashtbl.mem kwds s || not (valid_js_ident s) then "'" ^ s ^ "'" else s
 let static_field s =
 	match s with
@@ -436,7 +426,7 @@ and gen_expr ctx e =
 	match e.eexpr with
 	| TConst c -> gen_constant ctx e.epos c
 	| TLocal v -> spr ctx (ident v.v_name)
-	| TArray (e1,{ eexpr = TConst (TString s) }) when valid_js_ident s && (match e1.eexpr with TConst (TInt _|TFloat _) -> false | _ -> true) ->
+	| TArray (e1,{ eexpr = TConst (TString s) }) when valid_js_ident s ->
 		gen_value ctx e1;
 		spr ctx (field s)
 	| TArray (e1,e2) ->
@@ -444,6 +434,15 @@ and gen_expr ctx e =
 		spr ctx "[";
 		gen_value ctx e2;
 		spr ctx "]";
+	(* Some day...
+	| TBinop (OpMult,e1,e2) when ctx.harmony && (match e.etype with
+		| TAbstract ({ a_path = [],"Int" }, _) -> true
+		| _ -> false) ->
+		spr ctx "Math.imul(";
+		gen_value ctx e1;
+		spr ctx ", ";
+		gen_value ctx e2;
+		spr ctx ")"; *)
 	| TBinop (op,{ eexpr = TField (x,f) },e2) when field_name f = "iterator" ->
 		gen_value ctx x;
 		spr ctx (field "iterator");
@@ -474,8 +473,6 @@ and gen_expr ctx e =
 	| TEnumParameter (x,_,i) ->
 		gen_value ctx x;
 		print ctx "[%i]" (i + 2)
-	| TField ({ eexpr = TConst (TInt _ | TFloat _) } as x,f) ->
-		gen_expr ctx { e with eexpr = TField(mk (TParenthesis x) x.etype x.epos,f) }
 	| TField (x,f) ->
 		gen_value ctx x;
 		let name = field_name f in
@@ -513,8 +510,26 @@ and gen_expr ctx e =
 		let old = ctx.in_value, ctx.in_loop in
 		ctx.in_value <- None;
 		ctx.in_loop <- false;
-		print ctx "function(%s) " (String.concat "," (List.map ident (List.map arg_name f.tf_args)));
-		gen_expr ctx (fun_block ctx f e.epos);
+		if not ctx.harmony then
+			spr ctx "function";
+		spr ctx "(";
+		concat ctx "," (fun (v,c) ->
+			spr ctx v.v_name;
+			match c with
+			| Some c when ctx.harmony ->
+				spr ctx " = ";
+				gen_constant ctx e.epos c
+			| _ -> ()
+		) f.tf_args;
+		spr ctx ")";
+		(if ctx.harmony then (
+			spr ctx " => ";
+			let mapped = match f.tf_expr.eexpr with
+			| TReturn (Some e) -> e
+			| _ -> f.tf_expr in
+			gen_expr ctx mapped;
+		) else
+			gen_expr ctx (fun_block ctx f e.epos));
 		ctx.in_value <- fst old;
 		ctx.in_loop <- snd old;
 		ctx.separator <- true
@@ -530,9 +545,8 @@ and gen_expr ctx e =
 	| TVars [] ->
 		()
 	| TVars vl ->
-		spr ctx "var ";
+		spr ctx (if ctx.harmony then "let " else "var ");
 		concat ctx ", " (fun (v,e) ->
-			check_var_declaration v;
 			spr ctx (ident v.v_name);
 			match e with
 			| None -> ()
@@ -585,7 +599,6 @@ and gen_expr ctx e =
 		spr ctx "}";
 		ctx.separator <- true
 	| TFor (v,it,e) ->
-		check_var_declaration v;
 		let handle_break = handle_break ctx e in
 		let it = ident (match it.eexpr with
 			| TLocal v -> v.v_name
@@ -610,7 +623,7 @@ and gen_expr ctx e =
 	| TTry (e,catchs) ->
 		spr ctx "try ";
 		gen_expr ctx e;
-		let vname = (match catchs with [(v,_)] -> check_var_declaration v; v.v_name | _ ->
+		let vname = (match catchs with [(v,_)] -> v.v_name | _ ->
 			let id = ctx.id_counter in
 			ctx.id_counter <- ctx.id_counter + 1;
 			"$e" ^ string_of_int id
@@ -705,7 +718,7 @@ and gen_expr ctx e =
 	| TCast (e,None) ->
 		gen_expr ctx e
 	| TCast (e1,Some t) ->
-		print ctx "%s.__cast(" (ctx.type_accessor (TClassDecl { null_class with cl_path = ["js"],"Boot" }));
+		spr ctx "js.Boot.__cast(";
 		gen_expr ctx e1;
 		spr ctx " , ";
 		spr ctx (ctx.type_accessor t);
@@ -784,7 +797,7 @@ and gen_value ctx e =
 	| TCast (e1, None) ->
 		gen_value ctx e1
 	| TCast (e1, Some t) ->
-		print ctx "%s.__cast(" (ctx.type_accessor (TClassDecl { null_class with cl_path = ["js"],"Boot" }));
+		spr ctx "js.Boot.__cast(";
 		gen_value ctx e1;
 		spr ctx " , ";
 		spr ctx (ctx.type_accessor t);
@@ -917,17 +930,6 @@ let gen_class_field ctx c f =
 		gen_value ctx e;
 		ctx.separator <- false
 
-let generate_class___name__ ctx c =
-	if has_feature ctx "js.Boot.isClass" then begin
-		let p = s_path ctx c.cl_path in
-		print ctx "%s.__name__ = " p;
-		if has_feature ctx "Type.getClassName" then
-			print ctx "[%s]" (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" (Ast.s_escape s)) (fst c.cl_path @ [snd c.cl_path])))
-		else
-			print ctx "true";
-		newline ctx;
-	end
-
 let generate_class ctx c =
 	ctx.current <- c;
 	ctx.id_counter <- 0;
@@ -943,17 +945,24 @@ let generate_class ctx c =
 	if ctx.js_modern || not hxClasses then
 		print ctx "%s = " p
 	else
-		print ctx "%s = $hxClasses[\"%s\"] = " p (dot_path c.cl_path);
+		print ctx "%s = $hxClasses[\"%s\"] = " p p;
 	(match c.cl_constructor with
 	| Some { cf_expr = Some e } -> gen_expr ctx e
 	| _ -> print ctx "function() { }");
 	newline ctx;
 	if ctx.js_modern && hxClasses then begin
-		print ctx "$hxClasses[\"%s\"] = %s" (dot_path c.cl_path) p;
+		print ctx "$hxClasses[\"%s\"] = %s" p p;
 		newline ctx;
 	end;
 	handle_expose ctx p c.cl_meta;
-	generate_class___name__ ctx c;
+	if has_feature ctx "js.Boot.isClass" then begin
+		print ctx "%s.__name__ = " p;
+		if has_feature ctx "Type.getClassName" then
+			print ctx "[%s]" (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" (Ast.s_escape s)) (fst c.cl_path @ [snd c.cl_path])))
+		else
+			print ctx "true";
+		newline ctx;
+	end;
 	(match c.cl_implements with
 	| [] -> ()
 	| l ->
@@ -1061,13 +1070,7 @@ let generate_type ctx = function
 		| None -> ()
 		| Some e ->
 			ctx.inits <- e :: ctx.inits);
-		(* Special case, want to add Math.__name__ only when required, handle here since Math is extern *)
-		let p = s_path ctx c.cl_path in
-		if p = "Math" then generate_class___name__ ctx c;
-		if not c.cl_extern then
-			generate_class ctx c
-		else if not ctx.js_flatten && Meta.has Meta.InitPackage c.cl_meta then
-			generate_package_create ctx c.cl_path
+		if not c.cl_extern then generate_class ctx c else if Meta.has Meta.InitPackage c.cl_meta then generate_package_create ctx c.cl_path
 	| TEnumDecl e when e.e_extern ->
 		()
 	| TEnumDecl e -> generate_enum ctx e
@@ -1094,6 +1097,7 @@ let alloc_ctx com =
 		};
 		js_modern = not (Common.defined com Define.JsClassic);
 		js_flatten = Common.defined com Define.JsFlatten;
+		harmony = Common.defined com Define.Harmony;
 		statics = [];
 		inits = [];
 		current = null_class;
@@ -1135,12 +1139,9 @@ let generate com =
 		newline ctx;
 	end;
 
-	(* TODO: fix $estr *)
 	let vars = [] in
 	let vars = (if has_feature ctx "Type.resolveClass" || has_feature ctx "Type.resolveEnum" then ("$hxClasses = " ^ (if ctx.js_modern then "{}" else "$hxClasses || {}")) :: vars else vars) in
-	let vars = (if List.exists (function TEnumDecl { e_extern = false } -> true | _ -> false) com.types
-		then ("$estr = function() { return " ^ (ctx.type_accessor (TClassDecl { null_class with cl_path = ["js"],"Boot" })) ^ ".__string_rec(this,''); }") :: vars
-		else vars) in
+	let vars = (if List.exists (function TEnumDecl { e_extern = false } -> true | _ -> false) com.types then "$estr = function() { return js.Boot.__string_rec(this,''); }" :: vars else vars) in
 	(match List.rev vars with
 	| [] -> ()
 	| vl ->
@@ -1210,4 +1211,3 @@ let generate com =
 	output_string ch (Buffer.contents ctx.buf);
 	close_out ch);
 	t()
-

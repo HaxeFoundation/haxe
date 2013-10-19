@@ -16,6 +16,7 @@ Haxe allows you to compile for the following targets:
  * JavaScript
  * NekoVM
  * PHP
+ * Rust
 
 You can try Haxe directly from your browser at [try.haxe.org](http://try.haxe.org)!
 
@@ -44,7 +45,7 @@ The latest stable release is [Haxe v3.0](http://haxe.org/download). Pre-built bi
 
  1. Clone the repository using git. Be sure to initialize and fetch the submodules.
 
-        git clone git://github.com/HaxeFoundation/haxe.git
+        git clone git://github.com/TopHattedCoder/haxe-rust.git
         cd haxe
         git submodule init
         git submodule update
