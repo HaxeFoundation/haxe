@@ -3888,6 +3888,7 @@ class script_writer common_ctx filename =
          Buffer.add_string typeBuffer ((string_of_int (String.length name)) ^ " " ^ name ^ "\n");
          size;
       end
+	method typeTextString typeName = (string_of_int (this#typeId typeName)) ^ " "
 	method typeText typeT = (string_of_int (this#typeId (script_type_string typeT))) ^ " "
 	method writeType typeT = this#write (this#typeText typeT)
 	method boolText value = if value then "1" else "0"
@@ -3942,6 +3943,10 @@ class script_writer common_ctx filename =
 	method get_indent = indent
 	method begin_expr = this#push_indent
 	method end_expr = if not just_finished_block then this#write "\n"; this#pop_indent; just_finished_block <- true
+   method voidFunc isStatic isDynamic funcName fieldExpression =
+       this#write ("FUNCTION " ^ (this#staticText isStatic) ^ " " ^(this#boolText isDynamic) ^ " " ^(this#stringText funcName) ^ " ");
+       this#write ((this#typeTextString "Void") ^ "0\n");
+          this#gen_expression fieldExpression
    method func isStatic isDynamic funcName ret args isInterface fieldExpression =
        this#write ("FUNCTION " ^ (this#staticText isStatic) ^ " " ^(this#boolText isDynamic) ^ " " ^(this#stringText funcName) ^ " ");
        this#write ((this#typeText ret) ^ (string_of_int (List.length args)) ^ " ");
@@ -3952,8 +3957,12 @@ class script_writer common_ctx filename =
           | Some ({ eexpr = TFunction function_def } as e) -> this#gen_expression e
           | _ -> print_endline ("Missing function body for " ^ funcName );
        end
-   method var readAcc writeAcc isStatic name varType =
-       this#write ("VAR " ^ (this#staticText isStatic) ^ " " ^ readAcc ^ " " ^ writeAcc ^ " " ^ (this#stringText name)^ (this#typeText varType) ^ "\n" )
+   method var readAcc writeAcc isStatic name varType varExpr =
+       this#write ("VAR " ^ (this#staticText isStatic) ^ " " ^ readAcc ^ " " ^ writeAcc ^ " " ^ (this#stringText name)^ (this#typeText varType) ^
+          (match varExpr with Some _ -> "1\n" | _ -> "0\n" ) );
+       match varExpr with
+       | Some expression -> this#gen_expression expression
+       | _ -> ()
    method writeVar v =
        this#ident v.v_name;
        this#wint v.v_id;
@@ -4025,7 +4034,11 @@ class script_writer common_ctx filename =
            this#gen_expression elze; )
      | TCall (func, arg_list) ->
         let argN = (string_of_int (List.length arg_list)) ^ " " in
-        let is_real_function field = not (is_data_member field) in
+        let is_real_function field =
+           match field.cf_kind with
+           | Method MethNormal -> true
+           | _ -> false;
+        in
         (match (remove_parens func).eexpr with
         | TField (obj,FStatic (class_def,field) ) when is_real_function field ->
                this#write ("CALLSTATIC " ^ (this#instText class_def) ^ " " ^ (this#stringText field.cf_name) ^
@@ -4168,7 +4181,8 @@ let generate_script_class common_ctx script class_def =
    script#write "\n";
    script#write ((string_of_int ( (List.length class_def.cl_ordered_fields) +
                                   (List.length class_def.cl_ordered_statics) +
-                                  (match class_def.cl_constructor with Some _ -> 1 | _ -> 0 ) ) )
+                                  (match class_def.cl_constructor with Some _ -> 1 | _ -> 0 ) +
+                                  (match class_def.cl_init with Some _ -> 1 | _ -> 0 ) ) )
                                   ^ "\n");
 
    let generate_field isStatic field =
@@ -4185,7 +4199,7 @@ let generate_script_class common_ctx script class_def =
          | AccInline	-> "N"
          | AccRequire (_,_) -> "?"
          in
-         script#var (mode_code v.v_read) (mode_code v.v_write) isStatic field.cf_name t
+         script#var (mode_code v.v_read) (mode_code v.v_write) isStatic field.cf_name t field.cf_expr
 	   | Method MethDynamic, TFun(args,ret) ->
          script#func isStatic true field.cf_name ret args class_def.cl_interface field.cf_expr
       | Method _, TFun(args,ret) when field.cf_name="new" ->
@@ -4196,8 +4210,12 @@ let generate_script_class common_ctx script class_def =
                       ^ "." ^field.cf_name )
    in
    (match class_def.cl_constructor with
-		| Some field  -> generate_field true field
+      | Some field  -> generate_field true field
       | _ -> () );
+   (match class_def.cl_init with
+      | Some expression  -> script#voidFunc true false "__init__" expression
+      | _ -> () );
+
    List.iter (generate_field false) class_def.cl_ordered_fields;
    List.iter (generate_field true) class_def.cl_ordered_statics;
    script#write "\n";
