@@ -16,7 +16,6 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *)
-open Printf;;
 
 (*
 	This data is based on the
@@ -53,36 +52,6 @@ type machine_type =
 	| TTriCore (* 0x0520 Infineon *)
 	| TAmd64 (* 0x8664 AMD x64 and Intel E64T *)
 	| TM32R (* 0x9041 M32R *)
-
-let machine_type_s m = match m with
-	| TUnknown -> "TUnknown"
-	| Ti386 -> "Ti386"
-	| TR3000 -> "TR3000"
-	| TR4000 -> "TR4000"
-	| TR10000 -> "TR10000"
-	| TWCeMipsV2 -> "TWCeMipsV2"
-	| TAlpha -> "TAlpha"
-	| TSh3 -> "TSh3"
-	| TSh3Dsp -> "TSh3Dsp"
-	| TSh3e -> "TSh3e"
-	| TSh4 -> "TSh4"
-	| TSh5 -> "TSh5"
-	| TArm -> "TArm"
-	| TArmN -> "TArmN"
-	| TArm64 -> "TArm64"
-	| TEbc -> "TEbc"
-	| TThumb -> "TThumb"
-	| TAm33 -> "TAm33"
-	| TPowerPC -> "TPowerPC"
-	| TPowerPCFP -> "TPowerPCFP"
-	| TItanium64 -> "TItanium64"
-	| TMips16 -> "TMips16"
-	| TAlpha64 -> "TAlpha64"
-	| TMipsFpu -> "TMipsFpu"
-	| TMipsFpu16 -> "TMipsFpu16"
-	| TTriCore -> "TTriCore"
-	| TAmd64 -> "TAmd64"
-	| TM32R -> "TM32R"
 
 type coff_prop =
 	| RelocsStripped (* 0x1 *)
@@ -126,23 +95,6 @@ type coff_prop =
 		(* Big endian *)
 		(* This flag should not be set for pure-IL MPE files *)
 
-let coff_prop_s p = match p with
-	| RelocsStripped -> "RelocsStripped"
-	| ExecutableImage -> "ExecutableImage"
-	| LineNumsStripped -> "LineNumsStripped"
-	| LocalSymsStripped -> "LocalSymsStripped"
-	| AgressiveWsTrim -> "AgressiveWsTrim"
-	| LargeAddressAware -> "LargeAddressAware"
-	| BytesReversedLO -> "BytesReversedLO"
-	| Machine32Bit -> "Machine32Bit"
-	| DebugStripped -> "DebugStripped"
-	| RemovableRunFromSwap -> "RemovableRunFromSwap"
-	| NetRunFromSwap -> "NetRunFromSwap"
-	| FileSystem -> "FileSystem"
-	| FileDll -> "FileDll"
-	| UpSystemOnly -> "UpSystemOnly"
-	| BytesReversedHI -> "BytesReversedHI"
-
 (* represents a virtual address pointer. It's 64-bit on 64-bit executables, and 32-bit otherwise *)
 type pointer = int64
 
@@ -173,30 +125,15 @@ type coff_header = {
 	coff_props : coff_prop list;
 }
 
-let coff_header_s h =
-	sprintf "#COFF_HEADER\n\tmachine: %s\n\tnsections: %d\n\ttimestamp: %ld\n\tsymbol_tbl_pointer: %ld\n\tnsymbols: %d\n\toptheader_size: %x\n\tprops: [%s]\n"
-		(machine_type_s h.coff_machine)
-		h.coff_nsections
-		h.coff_timestamp
-		h.coff_symbol_table_pointer
-		h.coff_nsymbols
-		h.coff_optheader_size
-		(String.concat ", " (List.map coff_prop_s h.coff_props))
-
 let coff_default_exe_props = [ ExecutableImage; LineNumsStripped; LocalSymsStripped; (* Machine32Bit; *) ]
 
 let coff_default_dll_props = [ ExecutableImage; LineNumsStripped; LocalSymsStripped; (* Machine32Bit; *) FileDll ]
 
 type pe_magic =
 	| P32 (* 0x10b *)
-	| PROM (* 0x107 *)
+	| PRom (* 0x107 *)
 	| P64 (* 0x20b - called PE32+ on the docs *)
 		(* allows 64-bit address space while limiting the image size to 2 gb *)
-
-let pe_magic_s = function
-	| P32 -> "P32"
-	| PROM -> "PROM"
-	| P64 -> "P64"
 
 type subsystem =
 	| SUnknown (* 0 *)
@@ -220,19 +157,6 @@ type subsystem =
 		(* EFI ROM Image *)
 	| SXbox (* 14 *)
 
-let subsystem_s = function
-	| SUnknown -> "SUnknown" (* 0 *)
-	| SNative -> "SNative" (* 1 *)
-	| SWGui -> "SWGui" (* 2 *)
-	| SWCui -> "SWCui" (* 3 *)
-	| SPCui -> "SPCui" (* 7 *)
-	| SWCeGui -> "SWCeGui" (* 9 *)
-	| SEfi -> "SEfi" (* 10 *)
-	| SEfiBoot -> "SEfiBoot" (* 11 *)
-	| SEfiRuntime -> "SEfiRuntime" (* 12 *)
-	| SEfiRom -> "SEfiRom" (* 13 *)
-	| SXbox -> "SXbox" (* 14 *)
-
 type dll_prop =
 	| DDynamicBase (* 0x0040 *)
 		(* DLL can be relocated at load time *)
@@ -250,16 +174,6 @@ type dll_prop =
 		(* A WDM driver *)
 	| DTerminalServer (* 0x8000 *)
 		(* Terminal server aware *)
-
-let dll_prop_s = function
-	| DDynamicBase -> "DDynamicBase" (* 0x0040 *)
-	| DForceIntegrity -> "DForceIntegrity" (* 0x0080 *)
-	| DNxCompat -> "DNxCompat" (* 0x0100 *)
-	| DNoIsolation -> "DNoIsolation" (* 0x0200 *)
-	| DNoSeh -> "DNoSeh" (* 0x0400 *)
-	| DNoBind -> "DNoBind" (* 0x0800 *)
-	| DWdmDriver -> "DWdmDriver" (* 0x2000 *)
-	| DTerminalServer -> "DTerminalServer" (* 0x8000 *)
 
 type directory_type =
 	| ExportTable (* .edata *)
@@ -399,38 +313,6 @@ type section_prop =
 	| SWrite (* 0x80000000 *)
 		(* section can be written to *)
 
-let section_prop_s = function
-	| SNoPad -> "SNoPad"
-	| SHasCode -> "SHasCode"
-	| SHasIData -> "SHasIData"
-	| SHasData -> "SHasData"
-	| SHasLinkInfo -> "SHasLinkInfo"
-	| SLinkRemove -> "SLinkRemove"
-	| SGlobalRel -> "SGlobalRel"
-	| SHas16BitMem -> "SHas16BitMem"
-	| SAlign1Bytes -> "SAlign1Bytes"
-	| SAlign2Bytes -> "SAlign2Bytes"
-	| SAlign4Bytes -> "SAlign4Bytes"
-	| SAlign8Bytes -> "SAlign8Bytes"
-	| SAlign16Bytes -> "SAlign16Bytes"
-	| SAlign32Bytes -> "SAlign32Bytes"
-	| SAlign64Bytes -> "SAlign64Bytes"
-	| SAlign128Bytes -> "SAlign128Bytes"
-	| SAlign256Bytes -> "SAlign256Bytes"
-	| SAlign512Bytes -> "SAlign512Bytes"
-	| SAlign1024Bytes -> "SAlign1024Bytes"
-	| SAlign2048Bytes -> "SAlign2048Bytes"
-	| SAlign4096Bytes -> "SAlign4096Bytes"
-	| SAlign8192Bytes -> "SAlign8192Bytes"
-	| SHasExtRelocs -> "SHasExtRelocs"
-	| SCanDiscard -> "SCanDiscard"
-	| SNotCached -> "SNotCached"
-	| SNotPaged -> "SNotPaged"
-	| SShared -> "SShared"
-	| SExec -> "SExec"
-	| SRead -> "SRead"
-	| SWrite -> "SWrite"
-
 type pe_section = {
 	s_name : string;
 		(* an 8-byte, null-padded UTF-8 encoded string *)
@@ -462,17 +344,11 @@ type pe_section = {
 		(* properties of the section *)
 }
 
-let pe_section_s s =
-	Printf.sprintf "\t%s :\n\t\trva: %lx\n\t\traw size: %lx\n\t\tprops: [%s]"
-		s.s_name
-		s.s_vaddr
-		s.s_rawsize
-		(String.concat ", " (List.map section_prop_s s.s_props))
-
 (* The size of the PE header is not fixed. It depends on the number of data directories defined in the header *)
 (* and is specified in the optheader_size in the COFF header *)
 (* object files don't have this; but it's required for image files *)
 type pe_header = {
+	pe_coff_header : coff_header;
 	(* Standard fields *)
 	pe_magic : pe_magic;
 	pe_major : int;
@@ -545,26 +421,7 @@ type pe_header = {
 	pe_sections : pe_section array;
 }
 
-let data_dirs_s a =
-	let lst = Array.to_list (Array.mapi (fun i (r,l) ->
-		let _,s = directory_type_info (directory_type_of_int i) in
-		Printf.sprintf "%s: %lx (%lx)" s r l
-	) a) in
-	String.concat "\n\t\t" lst
-
-let pe_header_s h =
-	sprintf "#PE_HEADER\n\tmagic: %s\n\tmajor.minor %d.%d\n\tsubsystem: %s\n\tdll props: [%s]\n\tndata_dir: %i\n\t\t%s\n#SECTIONS\n%s"
-		(pe_magic_s h.pe_magic)
-		h.pe_major h.pe_minor
-		(subsystem_s h.pe_subsystem)
-		(String.concat ", " (List.map dll_prop_s h.pe_dll_props))
-		h.pe_ndata_dir
-		(data_dirs_s h.pe_data_dirs)
-		(String.concat "\n" (List.map pe_section_s (Array.to_list h.pe_sections)))
-
 type ipath = (string list) * string
-
-
 
 (*
 type jversion = int * int (* minor + major *)

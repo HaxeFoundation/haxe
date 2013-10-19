@@ -117,7 +117,7 @@ let int32_of_section_prop props = List.fold_left (fun acc prop ->
 
 let int_of_pe_magic m = match m with
 	| P32 -> 0x10b
-	| PROM -> 0x107
+	| PRom -> 0x107
 	| P64 -> 0x20b
 
 let int_of_subsystem s = match s with

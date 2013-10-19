@@ -161,7 +161,7 @@ let dll_props_of_int iprops = List.fold_left (fun acc i ->
 
 let pe_magic_of_int i = match i with
 	| 0x10b -> P32
-	| 0x107 -> PROM
+	| 0x107 -> PRom
 	| 0x20b -> P64
 	| _ -> error ("Unknown PE magic number: " ^ string_of_int i)
 
@@ -209,7 +209,7 @@ let read_pe_header r header =
 	let entry_addr = read_rva i in
 	let base_code = read_rva i in
 	let base_data, read_pointer = match magic with
-	| P32 | PROM ->
+	| P32 | PRom ->
 		read_rva i, read_pointer false
 	| P64 ->
 		Int32.zero, read_pointer true
@@ -277,6 +277,7 @@ let read_pe_header r header =
 		}
 	) in
 	{
+		pe_coff_header = header;
 		pe_magic = magic;
 		pe_major = major;
 		pe_minor = minor;
@@ -325,9 +326,9 @@ let read name ch =
 	if really_nread i 4 <> "PE\x00\x00" then
 		error "Invalid PE header signature: PE expected";
 	let header = read_coff_header i in
-	info r (fun () -> coff_header_s header);
-	let pe_header = read_pe_header r header in
-	info r (fun () -> pe_header_s pe_header)
+	(* info r (fun () -> coff_header_s header); *)
+	read_pe_header r header
+	(* info r (fun () -> pe_header_s pe_header) *)
 
 
 
