@@ -323,7 +323,7 @@ type pe_section = {
 		(* should be set to 0 on object files *)
 	s_vaddr : rva;
 		(* the RVA of the beginning of the section *)
-	s_rawsize : size_t_file;
+	s_raw_size : size_t_file;
 		(* the size of the initialized data on disk, rounded up to a multiple *)
 		(* of the file alignment value. If it's less than s_vsize, it should be *)
 		(* zero filled. It may happen that rawsize is greater than vsize. *)
@@ -354,11 +354,11 @@ type pe_header = {
 	pe_magic : pe_magic;
 	pe_major : int;
 	pe_minor : int;
-	pe_codesize : int;
+	pe_code_size : int;
 		(* size of the code section (.text) or the sum of all code sections, *)
 		(* if multiple sections exist. The IL assembler always emits a single code section *)
-	pe_initsize : int;
-	pe_uinitsize : int;
+	pe_init_size : int;
+	pe_uinit_size : int;
 	pe_entry_addr : rva;
 		(* RVA of the beginning of the entry point function. For unmanaged DLLs, this can be 0 *)
 		(* For managed PE files, this always points to the CLR invocation stub *)
@@ -452,3 +452,227 @@ type idata_table = {
 		(* ASCII string that contains the name of the DLL *)
 	imp_imports : symbol_lookup list;
 }
+
+type clr_flag =
+	| FIlOnly (* 0x1 *)
+		(* the image file contains IL code only, with nbo embedded native unmanaged code *)
+		(* this can cause some problems on WXP+, because the .reloc section is ignored when this flag is set *)
+		(* e.g. if native TLS support is used. In this case the VC++ compiler unsets this flag *)
+	| F32BitRequired (* 0x2 *)
+		(* the file can be only loaded into a 32-bit process *)
+	| FIlLibrary (* 0x4 *)
+		(* obsolete *)
+	| FSigned (* 0x8 *)
+		(* the image file is protected with a strong name signature *)
+	| FNativeEntry (* 0x16 *)
+		(* the executable's entry point is an unmanaged method. *)
+		(* the EntryPointToken / EntryPointRVA field of the CLR header *)
+		(* contains the RVA of this native method *)
+	| FTrackDebug (* 0x10000 *)
+		(* the CLR loader is required to track debug information about the methods. This flag is not used *)
+
+(* documentation purposes only *)
+type clr_header_raw = {
+	raw_clr_cb : int;
+		(* size of header *)
+	raw_clr_major : int;
+	raw_clr_minor : int;
+
+	(* symbol table and startup information *)
+	raw_clr_meta : rva * size_t_file;
+	raw_clr_flags : clr_flag list;
+	raw_clr_entry_point : int;
+		(* metadata identifier (token) of the entry point for the image file *)
+		(* can be 0 for DLL images. This field identifies a method belonging to this module *)
+		(* or a module containing the entry point method. This field may contain RVA of the *)
+		(* embedded native entry point method, if FNativeEntry flag is set *)
+
+	(* binding information *)
+	raw_clr_res : rva * size_t_file;
+		(* RVA of managed resources *)
+	raw_clr_sig : rva * size_t_file;
+		(* RVA of the hash data for this PE file, used by the loader for binding and versioning *)
+
+	(* regular fixup and binding information *)
+	raw_clr_codeman : rva * size_t_file;
+		(* code manager table - RESERVED and should be 0 *)
+	raw_clr_vtable_fix : rva * size_t_file;
+		(* RVA of an array of vtable fixups. Only VC++ linker and IL assembler produce data in this array *)
+	raw_clr_export_address : rva * size_t_file;
+		(* rva of addresses of jump thunks. obsolete and should be set to 0 *)
+}
+
+type clr_stream_header_raw = {
+	str_offset : pointer_file;
+		(* the (relative to the start of metadata) offset in the file for this stream *)
+	str_size : size_t_file;
+		(* the size of the stream in bytes *)
+	str_name : string;
+		(* name of the stream - a zero-terminated ASCII string no longer than 31 characters (plus 0 terminator) *)
+		(* if the stream name is smaller, it can be reduced - but must be padded to the 4-byte boundary *)
+}
+
+(* documentation purposes only *)
+type clr_meta_table_raw = {
+	(* storage signature *)
+	meta_magic : string;
+		(* always BSJB *)
+	meta_major : int;
+	meta_minor : int;
+	(* meta_extra : int; *)
+		(* reserved; always 0 *)
+	meta_ver : string;
+		(* encoded by first passing its length *)
+
+	(* storage header *)
+	(* meta_flags : int; *)
+		(* reserved; always 0 *)
+	meta_nstreams : int;
+		(* number of streams *)
+	meta_strings_stream : clr_stream_header_raw;
+		(* #Strings: a string heap containing the names of metadata items *)
+	meta_blob_stream : clr_stream_header_raw;
+		(* #Blob: blob heap containing internal metadata binary object, such as default values, signatures, etc *)
+	meta_guid_stream : clr_stream_header_raw;
+		(* #GUID: a GUID heap *)
+	meta_us_stream : clr_stream_header_raw;
+		(* #US: user-defined strings *)
+	meta_meta_stream : clr_stream_header_raw;
+		(* may be either: *)
+			(* #~: compressed (optimized) metadata stream *)
+			(* #-: uncompressed (unoptimized) metadata stream *)
+	meta_streams : clr_stream_header_raw list;
+		(* custom streams *)
+}
+
+type clr_meta_row =
+	| Module
+		(* the current module descriptor *)
+	| TypeRef
+		(* class reference descriptors *)
+	| TypeDef
+		(* class or interface definition descriptors *)
+	| FieldPtr
+		(* a class-to-fields lookup table - does not exist in optimized metadatas *)
+	| Field
+		(* field definition descriptors *)
+	| MethodPtr
+		(* a class-to-methods lookup table - does not exist in optimized metadatas *)
+	| Method
+		(* method definition descriptors *)
+	| ParamPtr
+		(* a method-to-parameters lookup table - does not exist in optimized metadatas *)
+	| Param
+		(* parameter definition descriptors *)
+	| InterfaceImpl
+		(* interface implementation descriptors *)
+	| MemberRef
+		(* member (field or method) reference descriptors *)
+	| Constant
+		(* constant value that map the default values stored in the #Blob stream to *)
+		(* respective fields, parameters and properties *)
+	| CustomAttribute
+		(* custom attribute descriptors *)
+	| FieldMarshal
+		(* field or parameter marshaling descriptors for managed/unmanaged interop *)
+	| DeclSecurity
+		(* security descriptors *)
+	| ClassLayout
+		(* class layout descriptors that hold information about how the loader should lay out respective classes *)
+	| FieldLayout
+		(* field layout descriptors that specify the offset or oridnal of individual fields *)
+	| StandAloneSig
+		(* stand-alone signature descriptors. used in two capacities: *)
+		(* as composite signatures of local variables of methods *)
+		(* and as parameters of the call indirect (calli) IL instruction *)
+	| EventMap
+		(* a class-to-events mapping table. exists also in optimized metadatas *)
+	| EventPtr
+		(* an event map-to-events lookup table - does not exist in optimized metadata *)
+	| Event
+		(* event descriptors *)
+	| PropertyMap
+		(* a class-to-properties mapping table. exists also in optimized metadatas *)
+	| PropertyPtr
+		(* a property map-to-properties lookup table - does not exist in optimized metadata *)
+	| Property
+		(* property descriptors *)
+	| MethodSemantics
+		(* method semantics descriptors that hold information about which method is associated *)
+		(* with a specific property or event and in what capacity *)
+	| MethodImpl
+		(* method implementation descriptors *)
+	| ModuleRef
+		(* module reference descriptors *)
+	| TypeSpec
+		(* Type specification descriptors *)
+	| ImplMap
+		(* implementation map descriptors used for platform invocation (P/Invoke) *)
+	| FieldRVA
+		(* field-to-data mapping descriptors *)
+	| ENCLog
+		(* edit-and-continue log descriptors that hold information about what changes *)
+		(* have been made to specific metadata items during in-memory editing *)
+		(* this table does not exist on optimized metadata *)
+	| ENCMap
+		(* edit-and-continue mapping descriptors. does not exist on optimized metadata *)
+	| Assembly
+		(* the current assembly descriptor, which should appear only in the prime module metadata *)
+	| AssemblyProcessor | AssemblyOS
+		(* unused *)
+	| AssemblyRef
+		(* assembly reference descriptors *)
+	| AssemblyRefProcessor | AssemblyRefOS
+		(* unused *)
+	| File
+		(* file descriptors that contain information about other files in the current assembly *)
+	| ExportedType
+		(* exported type descriptors that contain information about public classes *)
+		(* exported by the current assembly, which are declared in other modules of the assembly *)
+		(* only the prime module of the assembly should carry this table *)
+	| ManifestResource
+		(* managed resource descriptors *)
+	| NestedClass
+		(* nested class descriptors that provide mapping of nested classes to their respective enclosing classes *)
+	| GenericParam
+		(* type parameter descriptors for generic classes and methods *)
+	| MethodSpec
+		(* generic method instantiation descriptors *)
+	| GenericParamConstraint
+		(* descriptors of constraints specified for type parameters of generic classes and methods *)
+	| Custom of int
+
+type clr_meta_stream = {
+	(* smeta_reserved : int32; *)
+		(* reserved: always 0 *)
+	smeta_major : int;
+	smeta_minor : int;
+	(* smeta_heaps_sizes : int; *)
+		(* bitflag that annotates each table heaps, if offset can be 2-bytes (unset) or 4 bytes (set) *)
+		(* 0x1 - #String; 0x2 - #GUID; 0x4 - #Blob *)
+		(* if the meta stream is a #- stream, flag 0x20 indicates that the stream *)
+		(* contains only changes made during an edit-and-continue session, and flag 0x80 indicates *)
+		(* that the metadata might contain items marked as deleted *)
+		(* the next fields is the uncompressed version of these infos *)
+	smeta_size_string : int;
+	smeta_size_guid : int;
+	smeta_size_blob : int;
+	(* only valid for #- (uncompressed) metadata streams *)
+	smeta_edit_and_continue : bool;
+	smeta_has_deleted : bool;
+
+	(* smeta_max_record_index_bit : int; *)
+		(* byte that represents the bit width of the maximal record index to all tables of the metadata *)
+		(* doesn't seem to be needed *)
+	smeta_rows : clr_meta_row array;
+}
+
+(* only the useful information here *)
+(* TODO: parse / write resources, signature, .tls data *)
+(* type clr_header = { *)
+(* 	clr_major : int; *)
+(* 	clr_minor : int; *)
+(* 	clr_meta : clr_meta_table_raw; *)
+(* 	clr_flags : clr_flag list; *)
+(* 	clr_entry_point : int; *)
+(* } *)

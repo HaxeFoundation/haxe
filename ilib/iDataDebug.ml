@@ -140,7 +140,7 @@ let pe_section_s s =
 	Printf.sprintf "\t%s :\n\t\trva: %lx\n\t\traw size: %lx\n\t\tprops: [%s]"
 		s.s_name
 		s.s_vaddr
-		s.s_rawsize
+		s.s_raw_size
 		(String.concat ", " (List.map section_prop_s s.s_props))
 
 let data_dirs_s a =

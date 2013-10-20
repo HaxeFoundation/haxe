@@ -208,9 +208,9 @@ let read_pe_header r header =
 	let magic = pe_magic_of_int (read_ui16 i) in
 	let major = read_byte i in
 	let minor = read_byte i in
-	let codesize = read_i32 i in
-	let initsize = read_i32 i in
-	let uinitsize = read_i32 i in
+	let code_size = read_i32 i in
+	let init_size = read_i32 i in
+	let uinit_size = read_i32 i in
 	let entry_addr = read_rva i in
 	let base_code = read_rva i in
 	let base_data, read_word = match magic with
@@ -261,7 +261,7 @@ let read_pe_header r header =
 		(*TODO check for slash names *)
 		let vsize = read_rva i in
 		let vaddr = read_rva i in
-		let rawsize = read_rva i in
+		let raw_size = read_rva i in
 		let raw_pointer = read_i32 i in
 		let reloc_pointer = read_i32 i in
 		let line_num_pointer = read_i32 i in
@@ -272,7 +272,7 @@ let read_pe_header r header =
 			s_name = name;
 			s_vsize =vsize;
 			s_vaddr =vaddr;
-			s_rawsize =rawsize;
+			s_raw_size =raw_size;
 			s_raw_pointer =raw_pointer;
 			s_reloc_pointer =reloc_pointer;
 			s_line_num_pointer =line_num_pointer;
@@ -286,9 +286,9 @@ let read_pe_header r header =
 		pe_magic = magic;
 		pe_major = major;
 		pe_minor = minor;
-		pe_codesize = codesize;
-		pe_initsize = initsize;
-		pe_uinitsize = uinitsize;
+		pe_code_size = code_size;
+		pe_init_size = init_size;
+		pe_uinit_size = uinit_size;
 		pe_entry_addr = entry_addr;
 		pe_base_code = base_code;
 		pe_base_data = base_data;
@@ -333,7 +333,7 @@ let convert_rva ctx rva =
 		let rec loop n =
 			if n >= nsections then error (Printf.sprintf "The RVA %lx is outside sections bounds!" rva);
 			let sec = sections.(n) in
-			if rva >= sec.s_vaddr && (rva < (Int32.add sec.s_vaddr sec.s_rawsize)) then
+			if rva >= sec.s_vaddr && (rva < (Int32.add sec.s_vaddr sec.s_raw_size)) then
 				sec
 			else
 				loop (n+1)
@@ -439,7 +439,3 @@ let read r =
 		pe_header = pe_header;
 		read_word = read_word (pe_header.pe_magic = P64);
 	}
-
-
-
-
