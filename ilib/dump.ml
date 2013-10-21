@@ -1,6 +1,6 @@
-open IDataDebug;;
-open IData;;
-open IReader;;
+open PeDataDebug;;
+open PeData;;
+open PeReader;;
 
 let main () =
 	if Array.length Sys.argv <> 2 then
