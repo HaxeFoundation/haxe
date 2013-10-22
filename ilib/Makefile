@@ -2,8 +2,10 @@ OCAMLOPT=ocamlopt
 
 all: il.cmxa dump
 
-il.cmxa: peData.ml peReader.ml peWriter.ml
-	$(OCAMLOPT) -g -I ../extlib -a -o il.cmxa peData.ml peReader.ml peWriter.ml
+SRCS=peData.ml peReader.ml peWriter.ml ilMeta.mli ilMetaReader.ml
+
+il.cmxa:$(SRCS)
+	$(OCAMLOPT) -g -I ../extlib -a -o il.cmxa $(SRCS)
 
 dump: il.cmxa dump.ml peDataDebug.ml
 	$(OCAMLOPT) -g -I ../extlib -o dump ../extlib/extLib.cmxa il.cmxa peDataDebug.ml dump.ml

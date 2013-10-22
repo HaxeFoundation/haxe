@@ -122,6 +122,14 @@ type guid = string
 	(* reference from the #GUID stream *)
 type stringref = string
 	(* reference from the #Strings stream *)
+type id = stringref
+	(* a stringref that references an identifier. *)
+	(* must begin with an alphabetic character, or the following characters: *)
+		(* #, $, @, _ *)
+	(* and continue with alphanumeric characters or one of the following: *)
+		(* ?, $, @, _, ` *)
+
+type rid = int
 
 type clr_meta_stream = {
 	(* smeta_reserved : int32; *)
@@ -147,10 +155,83 @@ type clr_meta_stream = {
 		(* doesn't seem to be needed *)
 	smeta_tables : clr_meta_table array;
 }
-type meta_pointer = clr_meta_table * int
+type meta_pointer = clr_meta_table * rid
 	(* generic reference to the meta table *)
 
 type 'a delayed = 'a ref
+
+type ilpath = id * (id list)
+
+
+type ilsig =
+	(* primitive types *)
+	| SVoid (* 0x1 *)
+		(* obsolete: should not be used *)
+	| SBool (* 0x2 *)
+	| SChar (* 0x3 *)
+	| SInt8 (* 0x4 *)
+	| SUInt8 (* 0x5 *)
+	| SInt16 (* 0x6 *)
+	| SUInt16 (* 0x7 *)
+	| SInt32 (* 0x8 *)
+	| SUInt32 (* 0x9 *)
+	| SInt64 (* 0xA *)
+	| SUInt64 (* 0xB *)
+	| SFloat32 (* 0xC *)
+	| SFloat64 (* 0xD *)
+	| SString (* 0xE *)
+	| SPointer of ilsig (* 0xF *)
+		(* unmanaged pointer to type ( * ) *)
+	| SManagedPointer of ilsig (* 0x10 *)
+		(* managed pointer to type ( & ) *)
+	| SValueType of meta_pointer (*type_def_or_ref*) (* 0x11 *)
+		(* a value type modifier, followed by TypeDef or TypeRef token *)
+	| SClass of meta_pointer (* type_def_or_ref *) (* 0x12 *)
+		(* a class type modifier, followed by TypeDef or TypeRef token *)
+	| STypeParam of int (* 0x13 *)
+		(* generic parameter in a generic type definition. represented by a number *)
+	| SArray of (ilsig * int * int) list (* 0x14 *)
+		(* a multi-dimensional array type modifier *)
+		(* encoded like: *)
+			(* SArray <underlying type><rank><num_sizes><size1>...<sizeN>
+			          <num_lower_bounds><lower_bound1>...<lower_boundM> *)
+			(* <rank> is the number of dimensions (K>0) *)
+			(* <num_sizes> num of specified sizes for dimensions (N <= K) *)
+			(* <num_lower_bounds> num of lower bounds (M <= K) *)
+			(* all int values are compressed *)
+	| SGenericInst of ilsig * (ilsig list)
+		(* A generic type instantiation. encoded like: *)
+			(* SGenericInst <type> <type-arg-count> <type1>...<typeN> *)
+	| STypedReference (* 0x16 *)
+		(* typed reference, carrying both a reference to a type *)
+		(* and information identifying the referenced type *)
+	| SIntPtr (* 0x18 *)
+		(* pointer-sized managed integer *)
+	| SUIntPtr (* 0x19 *)
+		(* pointer-size managed unsigned integer *)
+	| SFunPtr of ilsig * (ilsig list) (* 0x1B *)
+		(* a pointer to a function, followed by full method signature *)
+	| SExtra of ilsig_extra
+	| SObsolete of ilsig_obsolete
+
+and ilsig_extra =
+	(* extra types *)
+	| SBStr (* 0x13 *)
+		(* unicode VB-style: used in COM operations *)
+	| SLPStr (* 0x14 *)
+		(* pointer to a zero-terminated ANSI string *)
+	| SLPWStr (* 0x15 *)
+		(* pointer to a zero-terminated Unicode string *)
+	| SLPTStr (* 0x16 *)
+		(* pointer to a zero-terminated ANSI or Unicode string - depends on platform *)
+
+and ilsig_obsolete =
+	| SSysChar (* 0x0D *)
+	| SVariant (* 0x0E *)
+	| SObsoletePointer (* 0x10 *)
+	| SDecimal (* 0x11 *)
+	| SDate (* 0x12 *)
+
 
 type typedef_or_ref = (* 64 *)
 	(* tag size: 2 *)
@@ -230,8 +311,8 @@ and method_def_or_ref = (* 71 *)
 
 and member_forwarded = (* 72 *)
 	(* tag size 1 *)
-	| MField of int (* 0 *)
-	| MMethod of int (* 1 *)
+	| FField of int (* 0 *)
+	| FMethod of int (* 1 *)
 	| MemberForwarded of meta_pointer
 
 and implementation = (* 73 *)
@@ -267,12 +348,10 @@ and type_or_method_def = (* 76 *)
 	| TMMethod of int (* 1 *)
 	| TypeOrMethodDef of meta_pointer
 
-and clr_module = {
-	module_idx : int;
-		(* extra: the actual index in the modules array *)
+type clr_module = {
 	m_generation : uint16;
 		(* used to annotate version if edit-and-continue mode is turned on *)
-	m_name : stringref;
+	m_name : id;
 		(* the module name, which is the same as the name of the executable file *)
 		(* with its extension but wihtout a path. The length should not exceed 512 bytes *)
 	m_uid : guid;
@@ -283,3 +362,99 @@ and clr_module = {
 		(* used only in edit-and-continue mode *)
 }
 
+type type_ref = {
+	tr_rscope : meta_pointer; (* ResolutionScope *)
+	tr_name : id;
+	tr_ns : id;
+}
+
+type type_def_vis =
+	(* visibility flags - mask 0x7 *)
+	| VPrivate (* 0x0 *)
+		(* type is not visible outside the assembly. default *)
+	| VPublic (* 0x1 *)
+		(* type visible outside the assembly *)
+	| VNestedPublic (* 0x2 *)
+		(* the nested type has public visibility *)
+	| VNestedPrivate (* 0x3 *)
+		(* nested type has private visibility - it's not visible outside the enclosing class *)
+	| VNestedFamily (* 0x4 *)
+		(* nested type has family visibility - it's visible to descendants of the enclosing class only *)
+	| VNestedAssembly (* 0x5 *)
+		(* nested type visible within the assembly only *)
+	| VNestedFamAndAssem (* 0x6 *)
+		(* nested type is visible to the descendants of the enclosing class residing in the same assembly *)
+	| VNestedFamOrAssem (* 0x7 *)
+		(* nested type is visible to the descendants of the enclosing class either within *)
+		(* or outside the assembly and to every type within the assembly *)
+	
+type type_def_layout =
+	(* layout flags - mask 0x18 *)
+	| LAuto (* 0x0 *)
+		(* type fields are laid out automatically *)
+	| LSequential (* 0x8 *)
+		(* loader must preserve the order of the instance fields *)
+	| LExplicit (* 0x10 *)
+		(* type layout is specified explicitly *)
+
+type type_def_semantics =
+	(* semantics flags - mask 0x5A0 *)
+	| SNormal (* 0x0 *)
+		(* either a class or a value type *)
+	| SInterface (* 0x20 *)
+		(* type is an interface. If specified, the default parent is set to nil *)
+	| SAbstract (* 0x80 *)
+	| SSealed (* 0x100 *)
+	| SSpecialName (* 0x400 *)
+		(* type has a special name. how special depends on the name itself *)
+		(* e.g. .ctor or .cctor *)
+
+type type_def_impl =
+	(* type implementation flags - mask 0x103000 *)
+	| IImport (* 0x1000 *)
+		(* the type is imported from a COM type library *)
+	| ISerializable (* 0x2000 *)
+		(* the type can be serialized into sequential data *)
+	| IBeforeFieldInit (* 0x00100000 *)
+		(* the type can be initialized any time before the first access *)
+		(* to a static field. *)
+	
+type type_def_string =
+	(* string formatting flags - mask 0x00030000 *)
+	| SAnsi (* 0x0 *)
+		(* managed strings are marshaled to and from ANSI strings *)
+	| SUnicode (* 0x00010000 *)
+		(* managed strings are marshaled to and from UTF-16 *)
+	| SAutoChar (* 0x00020000 *)
+		(* marshaling is defined by the underlying platform *)
+
+type type_def_flags = {
+	tdf_vis : type_def_vis;
+	tdf_layout : type_def_layout;
+	tdf_semantics : type_def_semantics;
+	tdf_impl : type_def_impl list;
+	tdf_string : type_def_string;
+}
+
+type type_def = {
+	td_flags : type_def_flags;
+	td_name : id;
+	td_ns : id;
+	td_extends : meta_pointer;
+	td_fields : meta_pointer; (* Field table *)
+		(* a record index in the Field table, marking *)
+		(* the start of the field records belonging to this type *)
+	td_methods : meta_pointer; (* Method table *)
+		(* a record index in the Method table, marking *)
+		(* the start of the method records belonging to this type *)
+}
+
+type field_ptr = {
+	fp_field : meta_pointer; (* Field table *)
+}
+
+(* type field = { *)
+	(* f_flags : field_flags; *)
+	(* f_name : id; *)
+	(* f_sig : blob; *)
+(* } *)
