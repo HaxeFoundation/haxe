@@ -47,6 +47,15 @@ type clr_meta_idx =
 	| IAssemblyRefProcessor | IAssemblyRefOS
 	| IFile | IExportedType | IManifestResource | INestedClass
 	| IGenericParam | IMethodSpec | IGenericParamConstraint
+	(* reserved metas *)
+	| IR0x2D | IR0x2E | IR0x2F
+	| IR0x30 | IR0x31 | IR0x32 | IR0x33 | IR0x34 | IR0x35 | IR0x36 | IR0x37 
+	| IR0x38 | IR0x39 | IR0x3A | IR0x3B | IR0x3C | IR0x3D | IR0x3E | IR0x3F
+	(* coded tokens *)
+	| ITypeDefOrRef | IHasConstant | IHasCustomAttribute
+	| IHasFieldMarshal | IHasDeclSecurity | IMemberRefParent
+	| IHasSemantics | IMethodDefOrRef | IMemberForwarded | IImplementation
+	| ICustomAttributeType | IResolutionScope | ITypeOrMethodDef
 
 type meta_pointer = clr_meta_idx * rid
 	(* generic reference to the meta table *)
@@ -64,6 +73,7 @@ and member_forwarded = clr_meta
 and implementation = clr_meta
 and custom_attribute_type = clr_meta
 and resolution_scope = clr_meta
+and type_or_method_def = clr_meta
 
 and clr_meta =
 	| Module of meta_module

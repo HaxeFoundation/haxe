@@ -45,6 +45,7 @@ type meta_ctx = {
 	mutable meta_has_deleted : bool;
 
 	tables : (clr_meta DynArray.t) array;
+	table_sizes : ( string -> int -> int * int ) array;
 	extra_streams : clr_stream_header list;
 }
 
@@ -66,8 +67,8 @@ let read_compressed_i32 s pos =
 	else
 		error (Printf.sprintf "Error reading compressed data. Invalid first byte: %x" v)
 
-let tbl_idx (idx : clr_meta_idx) : int = Obj.magic idx
-let idx_tbl (idx : int) : clr_meta_idx = Obj.magic idx
+let int_of_table (idx : clr_meta_idx) : int = Obj.magic idx
+let table_of_int (idx : int) : clr_meta_idx = Obj.magic idx
 
 let sread_i32 s pos =
 	let n1 = sget s pos in
@@ -129,6 +130,8 @@ let check_bounds ctx n nrows =
 			(DynArray.length dynarr)
 			nrows)
 
+let null_meta = UnknownMeta (-1)
+
 let null_module () =
 	{
 		m_generation = 0;
@@ -138,12 +141,21 @@ let null_module () =
 		m_encbase_id = empty;
 	}
 
+let null_type_ref () =
+	{
+		tr_resolution_scope = null_meta;
+		tr_name = empty;
+		tr_namespace = empty;
+	}
+
 let mk_null = function
 	| IModule -> Module (null_module())
+	| ITypeRef -> TypeRef (null_type_ref())
+	| IAssemblyRef -> AssemblyRef
 	| _ -> assert false
 
 let get_table ctx idx rid =
-	let cur = ctx.tables.(tbl_idx idx) in
+	let cur = ctx.tables.(int_of_table idx) in
 	let len = DynArray.length cur in
 	if len <= rid then begin
 		let rec loop n =
@@ -157,9 +169,87 @@ let get_table ctx idx rid =
 	DynArray.get cur rid
 
 (* special coded types  *)
-let read_resolution_scope ctx pos =
+let max_clr_meta_idx = 76
 
-let read_module ctx n pos = match get_table ctx IModule n with
+let coded_description = Array.init (max_clr_meta_idx - 63) (fun i ->
+	let i = 64 + i in
+	match table_of_int i with
+		| ITypeDefOrRef ->
+			Array.of_list [ITypeDef;ITypeRef;ITypeSpec], 2
+		| IHasConstant ->
+			Array.of_list [IField;IParam;IProperty], 2
+		| IHasCustomAttribute ->
+			Array.of_list
+			[IMethod;IField;ITypeRef;ITypeDef;IParam;IInterfaceImpl;IMemberRef;
+			 IModule;IDeclSecurity;IProperty;IEvent;IStandAloneSig;IModuleRef;
+			 ITypeSpec;IAssembly;IAssemblyRef;IFile;IExportedType;IManifestResource;
+			 IGenericParam;IGenericParamConstraint;IMethodSpec], 5
+		| IHasFieldMarshal ->
+			Array.of_list [IField;IParam], 1
+		| IHasDeclSecurity ->
+			Array.of_list [ITypeDef;IMethod;IAssembly], 2
+		| IMemberRefParent ->
+			Array.of_list [ITypeDef;ITypeRef;IModuleRef;IMethod;ITypeSpec], 3
+		| IHasSemantics ->
+			Array.of_list [IEvent;IProperty], 1
+		| IMethodDefOrRef ->
+			Array.of_list [IMethod;IMemberRef], 1
+		| IMemberForwarded ->
+			Array.of_list [IField;IMethod], 1
+		| IImplementation ->
+			Array.of_list [IFile;IAssemblyRef;IExportedType], 2
+		| ICustomAttributeType ->
+			Array.of_list [ITypeRef;ITypeDef;IMethod;IMemberRef(*;IString FIXME *)], 3
+		| IResolutionScope ->
+			Array.of_list [IModule;IModuleRef;IAssemblyRef;ITypeRef], 2
+		| ITypeOrMethodDef ->
+			Array.of_list [ITypeDef;IMethod], 1
+		| _ ->
+			print_endline ("Unknown coded index: " ^ string_of_int i);
+			assert false)
+
+let set_coded_sizes ctx rows =
+	let check i tbls max =
+		if List.exists (fun t ->
+			let _, nrows = rows.(int_of_table t) in
+			nrows >= max
+		) tbls then
+			ctx.table_sizes.(i) <- sread_i32
+	in
+	for i = 64 to (max_clr_meta_idx) do
+		let tbls, size = coded_description.(i - 64) in
+		let max = 1 lsl (16 - size) in
+		check i (Array.to_list tbls) max
+	done
+
+let sread_from_table ctx tbl s pos =
+	let i = int_of_table tbl in
+	let sread = ctx.table_sizes.(i) in
+	let pos, rid = sread s pos in
+	if i >= 64 then begin
+		let tbls,size = coded_description.(i-64) in
+		let mask = (1 lsl size) - 1 in
+		let mask = if mask = 0 then 1 else mask in
+		let tidx = rid land mask in
+		let real_rid = rid lsr size in
+		let real_tbl = tbls.(tidx) in
+		Printf.printf "rid 0x%x size 0x%x mask 0x%x tidx 0x%x real_rid 0x%x real_tbl 0x%x \n" rid size mask tidx real_rid (int_of_table real_tbl);
+		pos, get_table ctx real_tbl real_rid
+	end else
+		pos, get_table ctx tbl rid
+
+let read_table_at ctx tbl n pos = match get_table ctx tbl n with
+	| TypeRef tr ->
+		let s = ctx.meta_stream in
+		let pos, scope = sread_from_table ctx IResolutionScope s pos in
+		let pos, name = read_sstring_idx ctx pos in
+		let pos, ns = read_sstring_idx ctx pos in
+		tr.tr_resolution_scope <- scope;
+		tr.tr_name <- name;
+		tr.tr_namespace <- ns;
+		print_endline name;
+		print_endline ns;
+		pos, TypeRef tr
 	| Module m ->
 		let s = ctx.meta_stream in
 		let pos, gen = sread_ui16 s pos in
@@ -175,8 +265,7 @@ let read_module ctx n pos = match get_table ctx IModule n with
 		pos, Module m
 	| _ -> assert false
 
-let read_
-
+(* let read_ *)
 let read_meta ctx =
 	(* read header *)
 	let s = ctx.meta_stream in
@@ -208,27 +297,26 @@ let read_meta ctx =
 		(mask.(idx) lsr bit) land 0x1 = 0x1
 	) in
 	let pos = ref (pos + 8 + 8) in (* there is an extra 'sorted' field, which we do not use *)
-	let rows = Array.map (function
+	let rows = Array.mapi (fun i b -> match b with
 		| false -> false,0
 		| true ->
 			let nidx, nrows = sread_i32 s !pos in
+			if nrows > 0xFFFF then ctx.table_sizes.(i) <- sread_i32;
 			pos := nidx;
 			true,nrows
 	) set_table in
+	set_coded_sizes ctx rows;
 	Array.iteri (fun n r -> match r with
 		| false,_ -> ()
 		| true,nrows ->
 			check_bounds ctx n nrows;
-			let fn = match idx_tbl n with
-				| IModule ->
-					read_module
-				| _ -> assert false
-			in
+			print_endline (string_of_int n);
+			let fn = read_table_at ctx (table_of_int n) in
 			let rec loop_fn n =
 				if n = nrows then
 					()
 				else begin
-					let p, _ = fn ctx n !pos in
+					let p, _ = fn n !pos in
 					pos := p;
 					loop_fn (n+1)
 				end
@@ -236,8 +324,6 @@ let read_meta ctx =
 			loop_fn 0
 	) rows;
 	()
-
-
 
 let read_padded i npad =
 	let buf = Buffer.create 10 in
@@ -268,6 +354,7 @@ let read_meta_tables pctx header =
 	ignore (read_i32 i); (* reserved *)
 	let vlen = read_i32 i in
 	let ver = nread i vlen in
+	ignore ver;
 
 	(* meta storage header *)
 	ignore (read_ui16 i); (* reserved *)
@@ -338,7 +425,10 @@ let read_meta_tables pctx header =
 		meta_has_deleted = false;
 		extra_streams = !extra;
 		tables = tables;
+		table_sizes = Array.make (max_clr_meta_idx+1) sread_ui16;
 	} in
+	Printf.printf "%x\n" (int_of_table IR0x3F);
+	Printf.printf "%d\n" (int_of_table ITypeOrMethodDef);
 	read_meta ctx;
 	()
 
