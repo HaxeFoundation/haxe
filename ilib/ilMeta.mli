@@ -18,11 +18,57 @@
  *)
 
 (* useful types for describing CLI metadata *)
+type guid = string
+	(* reference from the #GUID stream *)
+type stringref = string
+	(* reference from the #Strings stream *)
+type id = stringref
+	(* a stringref that references an identifier. *)
+	(* must begin with an alphabetic character, or the following characters: *)
+		(* #, $, @, _ *)
+	(* and continue with alphanumeric characters or one of the following: *)
+		(* ?, $, @, _, ` *)
 
-type clr_meta_table =
-	| Module
+type rid = int
+	(* record id on a specified meta table *)
+
+type clr_meta_idx =
+	(* strongly-type each table index *)
+	| IModule | ITypeRef | ITypeDef | IFieldPtr
+	| IField | IMethodPtr | IMethod | IParamPtr
+	| IParam | IInterfaceImpl | IMemberRef | IConstant
+	| ICustomAttribute | IFieldMarshal | IDeclSecurity
+	| IClassLayout | IFieldLayout | IStandAloneSig
+	| IEventMap | IEventPtr | IEvent | IPropertyMap
+	| IPropertyPtr | IProperty | IMethodSemantics
+	| IMethodImpl | IModuleRef | ITypeSpec | IImplMap
+	| IFieldRVA | IENCLog | IENCMap | IAssembly
+	| IAssemblyProcessor | IAssemblyOS | IAssemblyRef
+	| IAssemblyRefProcessor | IAssemblyRefOS
+	| IFile | IExportedType | IManifestResource | INestedClass
+	| IGenericParam | IMethodSpec | IGenericParamConstraint
+
+type meta_pointer = clr_meta_idx * rid
+	(* generic reference to the meta table *)
+
+(* starting with all annotations of special coded types *)
+type type_def_or_ref = clr_meta
+and has_const = clr_meta
+and has_custom_attribute = clr_meta
+and has_field_marshal = clr_meta
+and has_decl_security = clr_meta
+and member_ref_parent = clr_meta
+and has_semantics = clr_meta
+and method_def_or_ref = clr_meta
+and member_forwarded = clr_meta
+and implementation = clr_meta
+and custom_attribute_type = clr_meta
+and resolution_scope = clr_meta
+
+and clr_meta =
+	| Module of meta_module
 		(* the current module descriptor *)
-	| TypeRef
+	| TypeRef of meta_type_ref
 		(* class reference descriptors *)
 	| TypeDef
 		(* class or interface definition descriptors *)
@@ -116,52 +162,19 @@ type clr_meta_table =
 		(* descriptors of constraints specified for type parameters of generic classes and methods *)
 	| UnknownMeta of int
 
-type uint16 = int
-
-type guid = string
-	(* reference from the #GUID stream *)
-type stringref = string
-	(* reference from the #Strings stream *)
-type id = stringref
-	(* a stringref that references an identifier. *)
-	(* must begin with an alphabetic character, or the following characters: *)
-		(* #, $, @, _ *)
-	(* and continue with alphanumeric characters or one of the following: *)
-		(* ?, $, @, _, ` *)
-
-type rid = int
-
-type clr_meta_stream = {
-	(* smeta_reserved : int32; *)
-		(* reserved: always 0 *)
-	smeta_major : int;
-	smeta_minor : int;
-	(* smeta_heaps_sizes : int; *)
-		(* bitflag that annotates each table heaps, if offset can be 2-bytes (unset) or 4 bytes (set) *)
-		(* 0x1 - #String; 0x2 - #GUID; 0x4 - #Blob *)
-		(* if the meta stream is a #- stream, flag 0x20 indicates that the stream *)
-		(* contains only changes made during an edit-and-continue session, and flag 0x80 indicates *)
-		(* that the metadata might contain items marked as deleted *)
-		(* the next fields is the uncompressed version of these infos *)
-	smeta_size_string : int;
-	smeta_size_guid : int;
-	smeta_size_blob : int;
-	(* only valid for #- (uncompressed) metadata streams *)
-	smeta_edit_and_continue : bool;
-	smeta_has_deleted : bool;
-
-	(* smeta_max_record_index_bit : int; *)
-		(* byte that represents the bit width of the maximal record index to all tables of the metadata *)
-		(* doesn't seem to be needed *)
-	smeta_tables : clr_meta_table array;
+and meta_module = {
+	mutable m_generation : int;
+	mutable m_name : stringref;
+	mutable m_vid : guid;
+	mutable m_encid : guid;
+	mutable m_encbase_id : guid;
 }
-type meta_pointer = clr_meta_table * rid
-	(* generic reference to the meta table *)
 
-type 'a delayed = 'a ref
-
-type ilpath = id * (id list)
-
+and meta_type_ref = {
+	mutable tr_resolution_scope : resolution_scope;
+	mutable tr_name : stringref;
+	mutable tr_namespace : stringref;
+}
 
 type ilsig =
 	(* primitive types *)
@@ -231,230 +244,3 @@ and ilsig_obsolete =
 	| SObsoletePointer (* 0x10 *)
 	| SDecimal (* 0x11 *)
 	| SDate (* 0x12 *)
-
-
-type typedef_or_ref = (* 64 *)
-	(* tag size: 2 *)
-	| TTypeDef of typedef_or_ref (* 0 *)
-	| TTypeRef of int (* 1 *)
-	| TTypeSpec of int (* 2 *)
-	| TypeDefOrRef of meta_pointer
-		(* this pointer will be replaced by the real instance once the whole table is loaded *)
-
-and has_constant = (* 65 *)
-	(* tag size: 2 *)
-	| CField of int (* 0 *)
-	| CParam of int (* 1 *)
-	| CProperty of int (* 2 *)
-	| HasConstant of meta_pointer
-		(* this pointer will be replaced by the real instance once the whole table is loaded *)
-
-and has_custom_attribute = (* 66 *)
-	(* tag size: 5 *)
-	| AMethod of int (* 0 *)
-	| AField of int (* 1 *)
-	| ATypeRef of int (* 2 *)
-	| ATypeDef of int (* 3 *)
-	| AParam of int (* 4 *)
-	| AInterfaceImpl of int (* 5 *)
-	| AMemberRef of int (* 6 *)
-	| AModule of int (* 7 *)
-	| ADeclSecurity of int (* 8 *)
-	| AProperty of int (* 9 *)
-	| AEvent of int (* 10 *)
-	| AStandAloneSig of int (* 11 *)
-	| AModuleRef of int (* 12 *)
-	| ATypeSpec of int (* 13 *)
-	| AAssembly of int (* 14 *)
-	| AAssemblyRef of int (* 15 *)
-	| AFile of int (* 16 *)
-	| AExportedType of int (* 17 *)
-	| AManifestResource of int (* 18 *)
-	| AGenericParam of int (* 19 *)
-	| AGenericParamConstraint of int (* 20 *)
-	| AMethodSpec of int (* 21 *)
-	| HasCustomAttribute of meta_pointer
-
-and has_field_marshal = (* 67 *)
-	(* tag size: 1 *)
-	| MField of int (* 0 *)
-	| MParam of int (* 1 *)
-	| HasFieldMarshal of meta_pointer
-
-and has_decl_security = (* 68 *)
-	(* tag size: 2 *)
-	| STypeDef of int (* 0 *)
-	| SMethod of int (* 1 *)
-	| SAssembly of int (* 2 *)
-	| HasDeclSecurity of meta_pointer
-
-and member_ref_parent = (* 69 *)
-	(* tag size: 3 *)
-	| PTypeDef of int (* 0 *)
-	| PTypeRef of int (* 1 *)
-	| PModuleRef of int (* 2 *)
-	| PMethod of int (* 3 *)
-	| PTypeSpec of int (* 4 *)
-	| MemberRefParent of meta_pointer
-
-and has_semantics = (* 70 *)
-	(* tag size: 1 *)
-	| SEvent of int (* 0 *)
-	| SProperty of int (* 1 *)
-	| HasSemantics of meta_pointer
-
-and method_def_or_ref = (* 71 *)
-	(* tag size: 1 *)
-	| MMethod of int (* 0 *)
-	| MMemberRef of int (* 1 *)
-	| MethodDefOrRef of meta_pointer
-
-and member_forwarded = (* 72 *)
-	(* tag size 1 *)
-	| FField of int (* 0 *)
-	| FMethod of int (* 1 *)
-	| MemberForwarded of meta_pointer
-
-and implementation = (* 73 *)
-	(* tag size 2 *)
-	| IFile of int (* 0 *)
-	| IAssemblyRef of int (* 1 *)
-	| IExportedType of int (* 2 *)
-	| Implementation of meta_pointer
-
-and custom_attribute_type = (* 74 *)
-	(* tag size 3 *)
-	| CTypeRef (* 0 *)
-		(* obsolete, must not be used *)
-	| CTypeDef (* 1 *)
-		(* obsolete, must not be used *)
-	| CMethod of int (* 2 *)
-	| CMemberRef of int (* 3 *)
-	| CString (* 4 *)
-		(* obsolete, must not be used *)
-	| CustomAttributeType of meta_pointer
-
-and resolution_scope = (* 75 *)
-	(* tag size 2 *)
-	| RModule of int (* 0 *)
-	| RModuleRef of int (* 1 *)
-	| RAssemblyRef of int (* 2 *)
-	| RTypeRef of int (* 3 *)
-	| ResolutionScope of meta_pointer
-
-and type_or_method_def = (* 76 *)
-	(* tag size 1 - only 2.0+ *)
-	| TMTypeDef of int (* 0 *)
-	| TMMethod of int (* 1 *)
-	| TypeOrMethodDef of meta_pointer
-
-type clr_module = {
-	m_generation : uint16;
-		(* used to annotate version if edit-and-continue mode is turned on *)
-	m_name : id;
-		(* the module name, which is the same as the name of the executable file *)
-		(* with its extension but wihtout a path. The length should not exceed 512 bytes *)
-	m_uid : guid;
-		(* a GUID from the #GUID stream *)
-	m_encid : guid;
-		(* used only in edit-and-continue mode *)
-	m_baseid : guid;
-		(* used only in edit-and-continue mode *)
-}
-
-type type_ref = {
-	tr_rscope : meta_pointer; (* ResolutionScope *)
-	tr_name : id;
-	tr_ns : id;
-}
-
-type type_def_vis =
-	(* visibility flags - mask 0x7 *)
-	| VPrivate (* 0x0 *)
-		(* type is not visible outside the assembly. default *)
-	| VPublic (* 0x1 *)
-		(* type visible outside the assembly *)
-	| VNestedPublic (* 0x2 *)
-		(* the nested type has public visibility *)
-	| VNestedPrivate (* 0x3 *)
-		(* nested type has private visibility - it's not visible outside the enclosing class *)
-	| VNestedFamily (* 0x4 *)
-		(* nested type has family visibility - it's visible to descendants of the enclosing class only *)
-	| VNestedAssembly (* 0x5 *)
-		(* nested type visible within the assembly only *)
-	| VNestedFamAndAssem (* 0x6 *)
-		(* nested type is visible to the descendants of the enclosing class residing in the same assembly *)
-	| VNestedFamOrAssem (* 0x7 *)
-		(* nested type is visible to the descendants of the enclosing class either within *)
-		(* or outside the assembly and to every type within the assembly *)
-	
-type type_def_layout =
-	(* layout flags - mask 0x18 *)
-	| LAuto (* 0x0 *)
-		(* type fields are laid out automatically *)
-	| LSequential (* 0x8 *)
-		(* loader must preserve the order of the instance fields *)
-	| LExplicit (* 0x10 *)
-		(* type layout is specified explicitly *)
-
-type type_def_semantics =
-	(* semantics flags - mask 0x5A0 *)
-	| SNormal (* 0x0 *)
-		(* either a class or a value type *)
-	| SInterface (* 0x20 *)
-		(* type is an interface. If specified, the default parent is set to nil *)
-	| SAbstract (* 0x80 *)
-	| SSealed (* 0x100 *)
-	| SSpecialName (* 0x400 *)
-		(* type has a special name. how special depends on the name itself *)
-		(* e.g. .ctor or .cctor *)
-
-type type_def_impl =
-	(* type implementation flags - mask 0x103000 *)
-	| IImport (* 0x1000 *)
-		(* the type is imported from a COM type library *)
-	| ISerializable (* 0x2000 *)
-		(* the type can be serialized into sequential data *)
-	| IBeforeFieldInit (* 0x00100000 *)
-		(* the type can be initialized any time before the first access *)
-		(* to a static field. *)
-	
-type type_def_string =
-	(* string formatting flags - mask 0x00030000 *)
-	| SAnsi (* 0x0 *)
-		(* managed strings are marshaled to and from ANSI strings *)
-	| SUnicode (* 0x00010000 *)
-		(* managed strings are marshaled to and from UTF-16 *)
-	| SAutoChar (* 0x00020000 *)
-		(* marshaling is defined by the underlying platform *)
-
-type type_def_flags = {
-	tdf_vis : type_def_vis;
-	tdf_layout : type_def_layout;
-	tdf_semantics : type_def_semantics;
-	tdf_impl : type_def_impl list;
-	tdf_string : type_def_string;
-}
-
-type type_def = {
-	td_flags : type_def_flags;
-	td_name : id;
-	td_ns : id;
-	td_extends : meta_pointer;
-	td_fields : meta_pointer; (* Field table *)
-		(* a record index in the Field table, marking *)
-		(* the start of the field records belonging to this type *)
-	td_methods : meta_pointer; (* Method table *)
-		(* a record index in the Method table, marking *)
-		(* the start of the method records belonging to this type *)
-}
-
-type field_ptr = {
-	fp_field : meta_pointer; (* Field table *)
-}
-
-(* type field = { *)
-	(* f_flags : field_flags; *)
-	(* f_name : id; *)
-	(* f_sig : blob; *)
-(* } *)
