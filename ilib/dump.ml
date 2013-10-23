@@ -14,7 +14,8 @@ let main () =
 		let idata = read_idata ctx in
 		List.iter (fun t -> print_endline (idata_table_s t)) idata;
 		let clr_header = read_clr_header ctx in
-		print_endline (clr_header_s (clr_header))
+		print_endline (clr_header_s (clr_header));
+		IlMetaReader.read_meta_tables ctx clr_header
 	end;;
 
 main()

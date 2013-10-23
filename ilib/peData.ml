@@ -501,6 +501,7 @@ type clr_header = {
 		(* rva of addresses of jump thunks. obsolete and should be set to 0 *)
 }
 
+(* unused structure: documentation purposes only *)
 type clr_stream_header = {
 	str_offset : pointer_file;
 		(* the (relative to the start of metadata) offset in the file for this stream *)
@@ -511,7 +512,7 @@ type clr_stream_header = {
 		(* if the stream name is smaller, it can be reduced - but must be padded to the 4-byte boundary *)
 }
 
-(* documentation purposes only *)
+(* unused structure: documentation purposes only *)
 type clr_meta_table = {
 	(* storage signature *)
 	meta_magic : string;
