@@ -455,7 +455,7 @@ type idata_table = {
 
 type clr_flag =
 	| FIlOnly (* 0x1 *)
-		(* the image file contains IL code only, with nbo embedded native unmanaged code *)
+		(* the image file contains IL code only, with no embedded native unmanaged code *)
 		(* this can cause some problems on WXP+, because the .reloc section is ignored when this flag is set *)
 		(* e.g. if native TLS support is used. In this case the VC++ compiler unsets this flag *)
 	| F32BitRequired (* 0x2 *)
@@ -464,45 +464,44 @@ type clr_flag =
 		(* obsolete *)
 	| FSigned (* 0x8 *)
 		(* the image file is protected with a strong name signature *)
-	| FNativeEntry (* 0x16 *)
+	| FNativeEntry (* 0x10 *)
 		(* the executable's entry point is an unmanaged method. *)
 		(* the EntryPointToken / EntryPointRVA field of the CLR header *)
 		(* contains the RVA of this native method *)
 	| FTrackDebug (* 0x10000 *)
 		(* the CLR loader is required to track debug information about the methods. This flag is not used *)
 
-(* documentation purposes only *)
-type clr_header_raw = {
-	raw_clr_cb : int;
+type clr_header = {
+	clr_cb : int;
 		(* size of header *)
-	raw_clr_major : int;
-	raw_clr_minor : int;
+	clr_major : int;
+	clr_minor : int;
 
 	(* symbol table and startup information *)
-	raw_clr_meta : rva * size_t_file;
-	raw_clr_flags : clr_flag list;
-	raw_clr_entry_point : int;
+	clr_meta : rva * size_t_file;
+	clr_flags : clr_flag list;
+	clr_entry_point : rva;
 		(* metadata identifier (token) of the entry point for the image file *)
 		(* can be 0 for DLL images. This field identifies a method belonging to this module *)
 		(* or a module containing the entry point method. This field may contain RVA of the *)
 		(* embedded native entry point method, if FNativeEntry flag is set *)
 
 	(* binding information *)
-	raw_clr_res : rva * size_t_file;
+	clr_res : rva * size_t_file;
 		(* RVA of managed resources *)
-	raw_clr_sig : rva * size_t_file;
+	clr_sig : rva * size_t_file;
 		(* RVA of the hash data for this PE file, used by the loader for binding and versioning *)
 
 	(* regular fixup and binding information *)
-	raw_clr_codeman : rva * size_t_file;
+	clr_codeman : rva * size_t_file;
 		(* code manager table - RESERVED and should be 0 *)
-	raw_clr_vtable_fix : rva * size_t_file;
+	clr_vtable_fix : rva * size_t_file;
 		(* RVA of an array of vtable fixups. Only VC++ linker and IL assembler produce data in this array *)
-	raw_clr_export_address : rva * size_t_file;
+	clr_export_address : rva * size_t_file;
 		(* rva of addresses of jump thunks. obsolete and should be set to 0 *)
 }
 
-type clr_stream_header_raw = {
+type clr_stream_header = {
 	str_offset : pointer_file;
 		(* the (relative to the start of metadata) offset in the file for this stream *)
 	str_size : size_t_file;
@@ -513,7 +512,7 @@ type clr_stream_header_raw = {
 }
 
 (* documentation purposes only *)
-type clr_meta_table_raw = {
+type clr_meta_table = {
 	(* storage signature *)
 	meta_magic : string;
 		(* always BSJB *)
@@ -529,18 +528,18 @@ type clr_meta_table_raw = {
 		(* reserved; always 0 *)
 	meta_nstreams : int;
 		(* number of streams *)
-	meta_strings_stream : clr_stream_header_raw;
+	meta_strings_stream : clr_stream_header;
 		(* #Strings: a string heap containing the names of metadata items *)
-	meta_blob_stream : clr_stream_header_raw;
+	meta_blob_stream : clr_stream_header;
 		(* #Blob: blob heap containing internal metadata binary object, such as default values, signatures, etc *)
-	meta_guid_stream : clr_stream_header_raw;
+	meta_guid_stream : clr_stream_header;
 		(* #GUID: a GUID heap *)
-	meta_us_stream : clr_stream_header_raw;
+	meta_us_stream : clr_stream_header;
 		(* #US: user-defined strings *)
-	meta_meta_stream : clr_stream_header_raw;
+	meta_meta_stream : clr_stream_header;
 		(* may be either: *)
 			(* #~: compressed (optimized) metadata stream *)
 			(* #-: uncompressed (unoptimized) metadata stream *)
-	meta_streams : clr_stream_header_raw list;
+	meta_streams : clr_stream_header list;
 		(* custom streams *)
 }

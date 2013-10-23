@@ -170,6 +170,18 @@ let pe_magic_of_int i = match i with
 	| 0x20b -> P64
 	| _ -> error ("Unknown PE magic number: " ^ string_of_int i)
 
+let clr_flags_of_int iprops = List.fold_left (fun acc i ->
+	if (iprops land i) = i then (match i with
+		| 0x1 -> FIlOnly (* 0x1 *)
+		| 0x2 -> F32BitRequired (* 0x2 *)
+		| 0x4 -> FIlLibrary (* 0x4 *)
+		| 0x8 -> FSigned (* 0x8 *)
+		| 0x10 -> FNativeEntry (* 0x10 *)
+		| 0x10000 -> FTrackDebug (* 0x10000 *)
+		| _ -> assert false) :: acc
+	else
+		acc) [] [0x1;0x2;0x4;0x8;0x10;0x10000]
+
 let get_dir dir ctx =
 	let idx,name = directory_type_info dir in
 	try
@@ -421,6 +433,48 @@ let read_idata ctx = match get_dir ImportTable ctx with
 			}
 		) tables
 
+let has_clr_header ctx = match get_dir ClrRuntimeHeader ctx with
+	| 0l,_ | _,0l ->
+		false
+	| _ ->
+		true
+
+let read_clr_header ctx = match get_dir ClrRuntimeHeader ctx with
+	| 0l,_ | _,0l ->
+		error "This PE file does not have managed content"
+	| rva,size ->
+		seek_rva ctx rva;
+		let i = ctx.r.i in
+		let cb = read_i32 i in
+		let major = read_ui16 i in
+		let minor = read_ui16 i in
+		let read_tbl i =
+			let rva = read_rva i in
+			let size = read_real_i32 i in
+			rva,size
+		in
+		let meta = read_tbl i in
+		let corflags = clr_flags_of_int (read_i32 i) in
+		let entry_point = read_rva i in
+		let res = read_tbl i in
+		let clrsig = read_tbl i in
+		let codeman = read_tbl i in
+		let vtable_fix = read_tbl i in
+		let export_addr = read_tbl i in
+		{
+			clr_cb = cb;
+			clr_major = major;
+			clr_minor = minor;
+			clr_meta = meta;
+			clr_flags = corflags;
+			clr_entry_point = entry_point;
+			clr_res = res;
+			clr_sig = clrsig;
+			clr_codeman = codeman;
+			clr_vtable_fix = vtable_fix;
+			clr_export_address = export_addr;
+		}
+
 let read r =
 	let i = r.i in
 	if read i <> 'M' || read i <> 'Z' then
@@ -431,9 +485,7 @@ let read r =
 	if really_nread i 4 <> "PE\x00\x00" then
 		error "Invalid PE header signature: PE expected";
 	let header = read_coff_header i in
-	(* info r (fun () -> coff_header_s header); *)
 	let pe_header = read_pe_header r header in
-	(* info r (fun () -> pe_header_s pe_header) *)
 	{
 		r = r;
 		pe_header = pe_header;

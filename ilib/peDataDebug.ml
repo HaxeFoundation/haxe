@@ -168,3 +168,17 @@ let idata_table_s t =
 	sprintf "#IMPORT %s:\n\t%s"
 		t.imp_name
 		(String.concat "\n\t" (List.map symbol_lookup_s t.imp_imports))
+
+let clr_flag_s = function
+	| FIlOnly -> "FIlOnly" (* 0x1 *)
+	| F32BitRequired -> "F32BitRequired" (* 0x2 *)
+	| FIlLibrary -> "FIlLibrary" (* 0x4 *)
+	| FSigned -> "FSigned" (* 0x8 *)
+	| FNativeEntry -> "FNativeEntry" (* 0x10 *)
+	| FTrackDebug -> "FTrackDebug" (* 0x10000 *)
+
+let clr_header_s h =
+	sprintf "#CLR v%d.%d\n\tflags: %s"
+		h.clr_major
+		h.clr_minor
+		(String.concat ", " (List.map clr_flag_s h.clr_flags))

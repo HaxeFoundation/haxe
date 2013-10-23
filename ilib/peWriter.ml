@@ -145,3 +145,14 @@ let int_of_dll_props props = List.fold_left (fun acc prop ->
 		| DTerminalServer -> 0x8000 (* 0x8000 *)
 		) lor acc
 	) 0 props
+
+let int_of_clr_flags props = List.fold_left (fun acc prop ->
+		(match prop with
+		| FIlOnly ->  0x1  (* 0x1 *)
+		| F32BitRequired ->  0x2  (* 0x2 *)
+		| FIlLibrary ->  0x4  (* 0x4 *)
+		| FSigned ->  0x8  (* 0x8 *)
+		| FNativeEntry ->  0x10  (* 0x10 *)
+		| FTrackDebug ->  0x10000  (* 0x10000 *)
+		) lor acc
+	) 0 props

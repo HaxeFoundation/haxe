@@ -37,3 +37,5 @@ type meta_ctx = {
 			(* #-: uncompressed (unoptimized) metadata stream *)
 	meta_optimized : bool;
 }
+
+(* let create_ctx *)
