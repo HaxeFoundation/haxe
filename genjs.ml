@@ -337,12 +337,19 @@ let is_dynamic_iterator ctx e =
 	| _ ->
 		false
 
+let escape_bin s =
+	let b = Buffer.create 0 in
+	for i = 0 to String.length s - 1 do
+		match Char.code (String.unsafe_get s i) with
+		| c when c < 32 -> Buffer.add_string b (Printf.sprintf "\\x%.2X" c)
+		| c -> Buffer.add_char b (Char.chr c)
+	done;
+	Buffer.contents b
+
 let gen_constant ctx p = function
 	| TInt i -> print ctx "%ld" i
 	| TFloat s -> spr ctx s
-	| TString s ->
-		if String.contains s '\000' then error "A String cannot contain \\0 characters" p;
-		print ctx "\"%s\"" (Ast.s_escape s)
+	| TString s -> print ctx "\"%s\"" (escape_bin s)
 	| TBool b -> spr ctx (if b then "true" else "false")
 	| TNull -> spr ctx "null"
 	| TThis -> spr ctx (this ctx)
