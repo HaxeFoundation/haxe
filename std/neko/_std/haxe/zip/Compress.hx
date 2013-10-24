@@ -26,7 +26,7 @@ class Compress {
 
 	var s : Dynamic;
 
-	public function new( level : Int ) {
+	public function new( level : Int ) : Void {
 		s = _deflate_init(level);
 	}
 
@@ -34,17 +34,17 @@ class Compress {
 		return _deflate_buffer(s,src.getData(),srcPos,dst.getData(),dstPos);
 	}
 
-	public function setFlushMode( f : FlushMode ) {
+	public function setFlushMode( f : FlushMode ) : Void {
 		_set_flush_mode(s,untyped Std.string(f).__s);
 	}
 
-	public function close() {
+	public function close() : Void {
 		_deflate_end(s);
 	}
 
 	public static function run( s : haxe.io.Bytes, level : Int ) : haxe.io.Bytes {
 		var c = new Compress(level);
-		c.setFlushMode(Flush.FINISH);
+		c.setFlushMode(FlushMode.FINISH);
 		var out = haxe.io.Bytes.alloc(_deflate_bound(c.s,s.length));
 		var r = c.execute(s,0,out,0);
 		c.close();

@@ -22,41 +22,47 @@
 package haxe.zip;
 
 @:coreApi
-class Compress {
+class Uncompress {
 
 	var s : Dynamic;
 
-	public function new( level : Int ) {
-		s = _deflate_init(level);
+	public function new( ?windowBits : Int ) : Void {
+		s = _inflate_init(windowBits);
 	}
 
 	public function execute( src : haxe.io.Bytes, srcPos : Int, dst : haxe.io.Bytes, dstPos : Int ) : { done : Bool, read : Int, write : Int } {
-		return _deflate_buffer(s,src.getData(),srcPos,dst.getData(),dstPos);
+		return _inflate_buffer(s,src.getData(),srcPos,dst.getData(),dstPos);
 	}
 
-	public function setFlushMode( f : FlushMode ) {
-		_set_flush_mode(s,Std.string(f));
+	public function setFlushMode( f : FlushMode ) : Void {
+		_set_flush_mode(s,untyped Std.string(f).__s);
 	}
 
-	public function close() {
-		_deflate_end(s);
+	public function close() : Void {
+		_inflate_end(s);
 	}
 
-	public static function run( s : haxe.io.Bytes, level : Int ) : haxe.io.Bytes {
-		var c = new Compress(level);
-		c.setFlushMode(Flush.FINISH);
-		var out = haxe.io.Bytes.alloc(_deflate_bound(c.s,s.length));
-		var r = c.execute(s,0,out,0);
-		c.close();
-		if( !r.done || r.read != s.length )
-			throw "Compression failed";
-		return out.sub(0,r.write);
+	public static function run( src : haxe.io.Bytes, ?bufsize : Int ) : haxe.io.Bytes {
+		var u = new Uncompress(null);
+		if( bufsize == null ) bufsize = 1 << 16; // 64K
+		var tmp = haxe.io.Bytes.alloc(bufsize);
+		var b = new haxe.io.BytesBuffer();
+		var pos = 0;
+		u.setFlushMode(FlushMode.SYNC);
+		while( true ) {
+			var r = u.execute(src,pos,tmp,0);
+			b.addBytes(tmp,0,r.write);
+			pos += r.read;
+			if( r.done )
+				break;
+		}
+		u.close();
+		return b.getBytes();
 	}
 
-	static var _deflate_init = cpp.Lib.load("zlib","deflate_init",1);
-	static var _deflate_bound = cpp.Lib.load("zlib","deflate_bound",2);
-	static var _deflate_buffer = cpp.Lib.load("zlib","deflate_buffer",5);
-	static var _deflate_end = cpp.Lib.load("zlib","deflate_end",1);
-	static var _set_flush_mode = cpp.Lib.load("zlib","set_flush_mode",2);
+	static var _inflate_init = neko.Lib.load("zlib","inflate_init",1);
+	static var _inflate_buffer = neko.Lib.load("zlib","inflate_buffer",5);
+	static var _inflate_end = neko.Lib.load("zlib","inflate_end",1);
+	static var _set_flush_mode = neko.Lib.load("zlib","set_flush_mode",2);
 
 }

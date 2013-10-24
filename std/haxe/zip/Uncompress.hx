@@ -23,7 +23,7 @@ package haxe.zip;
 
 class Uncompress {
 
-	public function new( windowBits : Int ) {
+	public function new( ?windowBits : Int ) {
 		throw "Not implemented for this platform";
 	}
 
@@ -37,8 +37,8 @@ class Uncompress {
 	public function close() {
 	}
 
-	public static function run( src : haxe.io.Bytes, ?bufsize ) : haxe.io.Bytes {
-		return InflateImpl.run(src,bufsize);
+	public static function run( src : haxe.io.Bytes, ?bufsize : Int ) : haxe.io.Bytes {
+		return InflateImpl.run(new haxe.io.BytesInput(src),bufsize);
 	}
 
 }

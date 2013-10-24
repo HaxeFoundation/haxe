@@ -25,31 +25,31 @@ package haxe.zip;
 class Uncompress {
 	var s : Dynamic;
 
-	public function new( windowBits : Null<Int> ) {
+	public function new( ?windowBits : Int ) : Void {
 		s = _inflate_init(windowBits);
 	}
 
-	public function this_run( src : haxe.io.Bytes, srcPos : Int, dst : haxe.io.Bytes, dstPos : Int ) : { done : Bool, read : Int, write : Int } {
+	public function execute( src : haxe.io.Bytes, srcPos : Int, dst : haxe.io.Bytes, dstPos : Int ) : { done : Bool, read : Int, write : Int } {
 		return _inflate_buffer(s,src.getData(),srcPos,dst.getData(),dstPos);
 	}
 
-	public function setFlushMode( f : FlushMode ) {
+	public function setFlushMode( f : FlushMode ) : Void {
 		_set_flush_mode(s,untyped f.__Tag());
 	}
 
-	public function close() {
+	public function close() : Void {
 		_inflate_end(s);
 	}
 
-	public static function run( src : haxe.io.Bytes, ?bufsize ) : haxe.io.Bytes {
+	public static function run( src : haxe.io.Bytes, ?bufsize : Int ) : haxe.io.Bytes {
 		var u = new Uncompress(null);
 		if( bufsize == null ) bufsize = 1 << 16; // 64K
 		var tmp = haxe.io.Bytes.alloc(bufsize);
 		var b = new haxe.io.BytesBuffer();
 		var pos = 0;
-		u.setFlushMode(Flush.SYNC);
+		u.setFlushMode(FlushMode.SYNC);
 		while( true ) {
-			var r = u.this_run(src,pos,tmp,0);
+			var r = u.execute(src,pos,tmp,0);
 			b.addBytes(tmp,0,r.write);
 			pos += r.read;
 			if( r.done )
