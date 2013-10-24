@@ -79,6 +79,22 @@ let type_def_flags_of_int i =
 		tdf_string = type_def_string_of_int i;
 	}
 
+let callconv_of_int i =
+	let basic = match i land 0x1F with
+		| 0x0 -> CallDefault (* 0x0 *)
+		| 0x5 -> CallVararg (* 0x5 *)
+		| 0x6 -> CallField (* 0x6 *)
+		| 0x7 -> CallLocal (* 0x7 *)
+		| 0x8 -> CallProp (* 0x8 *)
+		| 0x9 -> CallUnmanaged (* 0x9 *)
+		| _ -> assert false
+	in
+	match i land 0x20 with
+		| 0x20 ->
+			CallHasThis basic
+		| _ when i land 0x40 = 0x40 ->
+			CallExplicitThis basic
+		| _ -> basic
 
 (* TODO: convert from string to Bigstring if OCaml 4 is available *)
 type meta_ctx = {
@@ -127,6 +143,10 @@ let read_compressed_i32 s pos =
 
 let int_of_table (idx : clr_meta_idx) : int = Obj.magic idx
 let table_of_int (idx : int) : clr_meta_idx = Obj.magic idx
+
+let sread_ui8 s pos =
+	let n1 = sget s pos in
+	pos+1,n1
 
 let sread_i32 s pos =
 	let n1 = sget s pos in
@@ -387,19 +407,64 @@ let rec read_ilsig ctx s pos =
 		| 0x13 ->
 			let n = sget s pos in
 			pos + 1, STypeParam n
-		| 0x14 -> SArray of (ilsig * int * int) list (* 0x14 *)
-		| 0x15 -> SGenericInst of ilsig * (ilsig list) (* 0x15 *)
+		| 0x14 ->
+			let pos, ssig = read_ilsig ctx s pos in
+			let pos, rank = read_compressed_i32 s pos in
+			let pos, numsizes = read_compressed_i32 s pos in
+			let pos = ref pos in
+			let sizearray = Array.init numsizes (fun _ ->
+				let p, size = read_compressed_i32 s !pos in
+				pos := p;
+				size
+			) in
+			let pos, bounds = read_compressed_i32 s !pos in
+			let pos = ref pos in
+			let boundsarray = Array.init bounds (fun _ ->
+				let p, b = read_compressed_i32 s !pos in
+				pos := p;
+				let signed = b land 0x1 = 0x1 in
+				let b = b lsr 1 in
+				if signed then -b else b
+			) in
+			let ret = Array.init rank (fun i ->
+				(if i >= numsizes then None else Some sizearray.(i))
+				, (if i >= bounds then None else Some boundsarray.(i))
+			) in
+			!pos, SArray(ssig, ret)
 		| 0x16 -> pos, STypedReference (* 0x16 *)
 		| 0x18 -> pos, SIntPtr (* 0x18 *)
 		| 0x19 -> pos, SUIntPtr (* 0x19 *)
-		| 0x1B -> SFunPtr of ilsig * (ilsig list) (* 0x1B *)
+		| 0x1B ->
+			let pos, conv = read_compressed_i32 s pos in
+			let callconv = callconv_of_int conv in
+			let pos, ntypes = read_compressed_i32 s pos in
+			let pos, ret = read_ilsig ctx s pos in
+			let rec loop acc pos n =
+				if n >= ntypes then
+					pos, List.rev acc
+				else
+					let pos, ssig = read_ilsig ctx s pos in
+					loop (ssig :: acc) pos (n+1)
+			in
+			let pos, args = loop [] pos 1 in
+			pos, SFunPtr (callconv, ret, args)
 		| 0x1C -> pos, SObject (* 0x1C *)
-		| 0x1D -> SVector of ilsig (* 0x1D *)
-		| 0x1F -> SReqModifier of type_def_or_ref * ilsig (* 0x1F *)
-		| 0x20 -> SOptModifier of type_def_or_ref * ilsig (* 0x20 *)
+		| 0x1D ->
+			let pos, ssig = read_ilsig ctx s pos in
+			pos, SVector ssig
+		| 0x1F ->
+			let pos, tdef = sread_from_table ctx ITypeDefOrRef s pos in
+			let pos, ilsig = read_ilsig ctx s pos in
+			pos, SReqModifier (tdef, ilsig)
+		| 0x20 ->
+			let pos, tdef = sread_from_table ctx ITypeDefOrRef s pos in
+			let pos, ilsig = read_ilsig ctx s pos in
+			pos, SOptModifier (tdef, ilsig)
 		| 0x41 -> pos, SSentinel (* 0x41 *)
-		| 0x45 -> SPinned of ilsig (* 0x45 *)
-
+		| 0x45 ->
+			let pos, ssig = read_ilsig ctx s pos in
+			pos,SPinned ssig (* 0x45 *)
+		| _ -> assert false
 
 (* ******* META READING ********* *)
 
