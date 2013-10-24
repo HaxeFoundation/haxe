@@ -22,6 +22,64 @@ open PeReader;;
 open IlMeta;;
 open IO;;
 
+(* decoding helpers *)
+let type_def_vis_of_int i = match i land 0x7 with
+	(* visibility flags - mask 0x7 *)
+	| 0x0 -> VPrivate (* 0x0 *)
+	| 0x1 -> VPublic (* 0x1 *)
+	| 0x2 -> VNestedPublic (* 0x2 *)
+	| 0x3 -> VNestedPrivate (* 0x3 *)
+	| 0x4 -> VNestedFamily (* 0x4 *)
+	| 0x5 -> VNestedAssembly (* 0x5 *)
+	| 0x6 -> VNestedFamAndAssem (* 0x6 *)
+	| 0x7 -> VNestedFamOrAssem (* 0x7 *)
+	| _ -> assert false
+
+let type_def_layout_of_int i = match i land 0x18 with
+	(* layout flags - mask 0x18 *)
+	| 0x0 -> LAuto (* 0x0 *)
+	| 0x8 -> LSequential (* 0x8 *)
+	| 0x10 -> LExplicit (* 0x10 *)
+	| _ -> assert false
+
+let type_def_semantics_of_int iprops = List.fold_left (fun acc i ->
+	if (iprops land i) = i then (match i with
+		(* semantics flags - mask 0x5A0 *)
+		| 0x20 -> SInterface (* 0x20 *)
+		| 0x80 -> SAbstract (* 0x80 *)
+		| 0x100 -> SSealed (* 0x100 *)
+		| 0x400 -> SSpecialName (* 0x400 *)
+		| _ -> assert false) :: acc
+	else
+		acc) [] [0x20;0x80;0x100;0x400]
+
+let type_def_impl_of_int iprops = List.fold_left (fun acc i ->
+	if (iprops land i) = i then (match i with
+		(* type implementation flags - mask 0x103000 *)
+		| 0x1000 -> IImport (* 0x1000 *)
+		| 0x2000 -> ISerializable (* 0x2000 *)
+		| 0x00100000 -> IBeforeFieldInit (* 0x00100000 *)
+		| _ -> assert false) :: acc
+	else
+		acc) [] [0x1000;0x2000;0x00100000]
+
+let type_def_string_of_int i = match i land 0x00030000 with
+	(* string formatting flags - mask 0x00030000 *)
+	| 0x0 -> SAnsi (* 0x0 *)
+	| 0x00010000 -> SUnicode (* 0x00010000 *)
+	| 0x00020000 -> SAutoChar (* 0x00020000 *)
+	| _ -> assert false
+
+let type_def_flags_of_int i =
+	{
+		tdf_vis = type_def_vis_of_int i;
+		tdf_layout = type_def_layout_of_int i;
+		tdf_semantics = type_def_semantics_of_int i;
+		tdf_impl = type_def_impl_of_int i;
+		tdf_string = type_def_string_of_int i;
+	}
+
+
 (* TODO: convert from string to Bigstring if OCaml 4 is available *)
 type meta_ctx = {
 	compressed : bool;
@@ -148,9 +206,20 @@ let null_type_ref () =
 		tr_namespace = empty;
 	}
 
+let null_type_def () =
+	{
+		td_flags = type_def_flags_of_int 0;
+		td_name = empty;
+		td_namespace = empty;
+		td_extends = null_meta;
+		td_field_list = -1;
+		td_method_list = -1;
+	}
+
 let mk_null = function
 	| IModule -> Module (null_module())
 	| ITypeRef -> TypeRef (null_type_ref())
+	| ITypeDef -> TypeDef (null_type_def())
 	| IAssemblyRef -> AssemblyRef
 	| _ -> assert false
 
@@ -239,17 +308,6 @@ let sread_from_table ctx tbl s pos =
 		pos, get_table ctx tbl rid
 
 let read_table_at ctx tbl n pos = match get_table ctx tbl n with
-	| TypeRef tr ->
-		let s = ctx.meta_stream in
-		let pos, scope = sread_from_table ctx IResolutionScope s pos in
-		let pos, name = read_sstring_idx ctx pos in
-		let pos, ns = read_sstring_idx ctx pos in
-		tr.tr_resolution_scope <- scope;
-		tr.tr_name <- name;
-		tr.tr_namespace <- ns;
-		print_endline name;
-		print_endline ns;
-		pos, TypeRef tr
 	| Module m ->
 		let s = ctx.meta_stream in
 		let pos, gen = sread_ui16 s pos in
@@ -263,6 +321,35 @@ let read_table_at ctx tbl n pos = match get_table ctx tbl n with
 		m.m_encid <- encid;
 		m.m_encbase_id <- encbase_id;
 		pos, Module m
+	| TypeRef tr ->
+		let s = ctx.meta_stream in
+		let pos, scope = sread_from_table ctx IResolutionScope s pos in
+		let pos, name = read_sstring_idx ctx pos in
+		let pos, ns = read_sstring_idx ctx pos in
+		tr.tr_resolution_scope <- scope;
+		tr.tr_name <- name;
+		tr.tr_namespace <- ns;
+		print_endline name;
+		print_endline ns;
+		pos, TypeRef tr
+	| TypeDef td ->
+		let s = ctx.meta_stream in
+		let pos, flags = sread_i32 s pos in
+		let pos, name = read_sstring_idx ctx pos in
+		let pos, ns = read_sstring_idx ctx pos in
+		let pos, extends = sread_from_table ctx ITypeDefOrRef s pos in
+		let pos, flist = ctx.table_sizes.(int_of_table IField) s pos in
+		let pos, fmeth = ctx.table_sizes.(int_of_table IMethod) s pos in
+		td.td_flags <- type_def_flags_of_int flags;
+		td.td_name <- name;
+		td.td_namespace <- ns;
+		td.td_extends <- extends;
+		td.td_field_list <- flist;
+		td.td_method_list <- fmeth;
+		print_endline "Type Def!";
+		print_endline name;
+		print_endline ns;
+		pos, TypeDef td
 	| _ -> assert false
 
 (* let read_ *)

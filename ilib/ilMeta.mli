@@ -80,7 +80,7 @@ and clr_meta =
 		(* the current module descriptor *)
 	| TypeRef of meta_type_ref
 		(* class reference descriptors *)
-	| TypeDef
+	| TypeDef of meta_type_def
 		(* class or interface definition descriptors *)
 	| FieldPtr
 		(* a class-to-fields lookup table - does not exist in optimized metadatas *)
@@ -184,6 +184,83 @@ and meta_type_ref = {
 	mutable tr_resolution_scope : resolution_scope;
 	mutable tr_name : stringref;
 	mutable tr_namespace : stringref;
+}
+
+and meta_type_def = {
+	mutable td_flags : type_def_flags;
+	mutable td_name : stringref;
+	mutable td_namespace : stringref;
+	mutable td_extends : type_def_or_ref;
+	mutable td_field_list : rid;
+	mutable td_method_list : rid;
+}
+
+and type_def_vis =
+	(* visibility flags - mask 0x7 *)
+	| VPrivate (* 0x0 *)
+		(* type is not visible outside the assembly. default *)
+	| VPublic (* 0x1 *)
+		(* type visible outside the assembly *)
+	| VNestedPublic (* 0x2 *)
+		(* the nested type has public visibility *)
+	| VNestedPrivate (* 0x3 *)
+		(* nested type has private visibility - it's not visible outside the enclosing class *)
+	| VNestedFamily (* 0x4 *)
+		(* nested type has family visibility - it's visible to descendants of the enclosing class only *)
+	| VNestedAssembly (* 0x5 *)
+		(* nested type visible within the assembly only *)
+	| VNestedFamAndAssem (* 0x6 *)
+		(* nested type is visible to the descendants of the enclosing class residing in the same assembly *)
+	| VNestedFamOrAssem (* 0x7 *)
+		(* nested type is visible to the descendants of the enclosing class either within *)
+		(* or outside the assembly and to every type within the assembly *)
+	
+and type_def_layout =
+	(* layout flags - mask 0x18 *)
+	| LAuto (* 0x0 *)
+		(* type fields are laid out automatically *)
+	| LSequential (* 0x8 *)
+		(* loader must preserve the order of the instance fields *)
+	| LExplicit (* 0x10 *)
+		(* type layout is specified explicitly *)
+
+and type_def_semantics =
+	(* semantics flags - mask 0x5A0 *)
+	(* | SNormal (* 0x0 *) *)
+		(* either a class or a value type *)
+	| SInterface (* 0x20 *)
+		(* type is an interface. If specified, the default parent is set to nil *)
+	| SAbstract (* 0x80 *)
+	| SSealed (* 0x100 *)
+	| SSpecialName (* 0x400 *)
+		(* type has a special name. how special depends on the name itself *)
+		(* e.g. .ctor or .cctor *)
+
+and type_def_impl =
+	(* type implementation flags - mask 0x103000 *)
+	| IImport (* 0x1000 *)
+		(* the type is imported from a COM type library *)
+	| ISerializable (* 0x2000 *)
+		(* the type can be serialized into sequential data *)
+	| IBeforeFieldInit (* 0x00100000 *)
+		(* the type can be initialized any time before the first access *)
+		(* to a static field. *)
+	
+and type_def_string =
+	(* string formatting flags - mask 0x00030000 *)
+	| SAnsi (* 0x0 *)
+		(* managed strings are marshaled to and from ANSI strings *)
+	| SUnicode (* 0x00010000 *)
+		(* managed strings are marshaled to and from UTF-16 *)
+	| SAutoChar (* 0x00020000 *)
+		(* marshaling is defined by the underlying platform *)
+
+and type_def_flags = {
+	tdf_vis : type_def_vis;
+	tdf_layout : type_def_layout;
+	tdf_semantics : type_def_semantics list;
+	tdf_impl : type_def_impl list;
+	tdf_string : type_def_string;
 }
 
 type ilsig =
