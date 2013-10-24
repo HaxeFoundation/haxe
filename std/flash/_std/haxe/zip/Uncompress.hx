@@ -21,18 +21,28 @@
  */
 package haxe.zip;
 
-class Tools {
+@:coreApi
+class Uncompress {
 
-	public static function compress( f : Entry, level : Int ) {
-		if( f.compressed )
-			return;
-		// this should be optimized with a temp buffer
-		// that would discard the first two bytes
-		// (in order to prevent 2x mem usage for large files)
-		var data = haxe.zip.Compress.run( f.data, level );
-		f.compressed = true;
-		f.data = data.sub(2,data.length-6);
-		f.dataSize = f.data.length;
+	public function new( ?windowBits : Int ) : Void {
+		throw "Not implemented for this platform";
+	}
+
+	public function execute( src : haxe.io.Bytes, srcPos : Int, dst : haxe.io.Bytes, dstPos : Int ) : { done : Bool, read : Int, write : Int } {
+		return null;
+	}
+
+	public function setFlushMode( f : FlushMode ) : Void {
+	}
+
+	public function close() : Void {
+	}
+
+	public static function run( src : haxe.io.Bytes, ?bufsize : Int ) : haxe.io.Bytes {
+		var tmp = new flash.utils.ByteArray();
+		tmp.writeBytes(src.getData(),0,src.length);
+		tmp.uncompress();
+		return haxe.io.Bytes.ofData(tmp);
 	}
 
 }

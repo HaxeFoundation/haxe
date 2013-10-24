@@ -116,7 +116,7 @@ class BytesBuffer {
 		#if neko
 		try untyped StringBuf.__add_sub(b,src.getData(),pos,len) catch( e : Dynamic ) throw Error.OutsideBounds;
 		#elseif flash9
-		b.writeBytes(src.getData(),pos,len);
+		if( len > 0 ) b.writeBytes(src.getData(),pos,len);
 		#elseif php
 		b += untyped __call__("substr", src.b, pos, len);
 		#elseif cs
