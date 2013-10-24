@@ -50,6 +50,10 @@ class Adler32 {
 		return a.a1 == a1 && a.a2 == a2;
 	}
 
+	public function toString() {
+		return StringTools.hex(a2,8) + StringTools.hex(a1,8);
+	}
+	
 	public static function read( i : haxe.io.Input ) {
 		var a = new Adler32();
 		var a2a = i.readByte();
@@ -66,5 +70,6 @@ class Adler32 {
 		a.update(b,0,b.length);
 		return a.get();
 	}
+	
 
 }
