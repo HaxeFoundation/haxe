@@ -31,7 +31,7 @@ class Uncompress {
 		return null;
 	}
 
-	public function setFlushMode( f : Flush ) {
+	public function setFlushMode( f : FlushMode ) {
 	}
 
 	public function close() {

@@ -21,7 +21,7 @@
  */
 package haxe.zip;
 
-enum Flush {
+enum FlushMode {
 	NO;
 	SYNC;
 	FULL;

@@ -34,7 +34,7 @@ class Uncompress {
 		return _inflate_buffer(s,src.getData(),srcPos,dst.getData(),dstPos);
 	}
 
-	public function setFlushMode( f : Flush ) {
+	public function setFlushMode( f : FlushMode ) {
 		_set_flush_mode(s,untyped Std.string(f).__s);
 	}
 
