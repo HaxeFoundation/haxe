@@ -21,10 +21,4 @@
  */
 package cpp.zip;
 
-enum Flush {
-	NO;
-	SYNC;
-	FULL;
-	FINISH;
-	BLOCK;
-}
+typedef Flush = haxe.zip.Flush;

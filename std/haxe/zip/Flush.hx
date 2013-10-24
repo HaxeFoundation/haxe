@@ -19,6 +19,12 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package neko.zip;
+package haxe.zip;
 
-typedef Flush = haxe.zip.Flush;
+enum Flush {
+	NO;
+	SYNC;
+	FULL;
+	FINISH;
+	BLOCK;
+}

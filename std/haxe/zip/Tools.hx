@@ -26,17 +26,13 @@ class Tools {
 	public static function compress( f : Entry, level : Int ) {
 		if( f.compressed )
 			return;
-		#if neko
 		// this should be optimized with a temp buffer
 		// that would discard the first two bytes
 		// (in order to prevent 2x mem usage for large files)
-		var data = neko.zip.Compress.run( f.data, level );
+		var data = haxe.zip.Compress.run( f.data, level );
 		f.compressed = true;
 		f.data = data.sub(2,data.length-6);
 		f.dataSize = f.data.length;
-		#else
-		throw "No compress support";
-		#end
 	}
 
 }

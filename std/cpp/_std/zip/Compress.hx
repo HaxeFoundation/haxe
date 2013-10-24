@@ -19,48 +19,44 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package cpp.zip;
-
-class Uncompress {
+package haxe.zip;
+ 
+@:coreApi
+class Compress {
+ 
 	var s : Dynamic;
-
-	public function new( windowBits : Null<Int> ) {
-		s = _inflate_init(windowBits);
+ 
+	public function new( level : Int ) {
+		s = _deflate_init(level);
 	}
-
-	public function this_run( src : haxe.io.Bytes, srcPos : Int, dst : haxe.io.Bytes, dstPos : Int ) : { done : Bool, read : Int, write : Int } {
-		return _inflate_buffer(s,src.getData(),srcPos,dst.getData(),dstPos);
+ 
+	public function execute( src : haxe.io.Bytes, srcPos : Int, dst : haxe.io.Bytes, dstPos : Int ) : { done : Bool, read : Int, write : Int } {
+		return _deflate_buffer(s,src.getData(),srcPos,dst.getData(),dstPos);
 	}
-
+ 
 	public function setFlushMode( f : Flush ) {
-		_set_flush_mode(s,untyped f.__Tag());
+		_set_flush_mode(s,Std.string(f));
 	}
-
+ 
 	public function close() {
-		_inflate_end(s);
+		_deflate_end(s);
 	}
-
-	public static function run( src : haxe.io.Bytes, ?bufsize ) : haxe.io.Bytes {
-		var u = new Uncompress(null);
-		if( bufsize == null ) bufsize = 1 << 16; // 64K
-		var tmp = haxe.io.Bytes.alloc(bufsize);
-		var b = new haxe.io.BytesBuffer();
-		var pos = 0;
-		u.setFlushMode(Flush.SYNC);
-		while( true ) {
-			var r = u.this_run(src,pos,tmp,0);
-			b.addBytes(tmp,0,r.write);
-			pos += r.read;
-			if( r.done )
-				break;
-		}
-		u.close();
-		return b.getBytes();
+ 
+	public static function run( s : haxe.io.Bytes, level : Int ) : haxe.io.Bytes {
+		var c = new Compress(level);
+		c.setFlushMode(Flush.FINISH);
+		var out = haxe.io.Bytes.alloc(_deflate_bound(c.s,s.length));
+		var r = c.execute(s,0,out,0);
+		c.close();
+		if( !r.done || r.read != s.length )
+			throw "Compression failed";
+		return out.sub(0,r.write);
 	}
-
-	static var _inflate_init = cpp.Lib.load("zlib","inflate_init",1);
-	static var _inflate_buffer = cpp.Lib.load("zlib","inflate_buffer",5);
-	static var _inflate_end = cpp.Lib.load("zlib","inflate_end",1);
+ 
+	static var _deflate_init = cpp.Lib.load("zlib","deflate_init",1);
+	static var _deflate_bound = cpp.Lib.load("zlib","deflate_bound",2);
+	static var _deflate_buffer = cpp.Lib.load("zlib","deflate_buffer",5);
+	static var _deflate_end = cpp.Lib.load("zlib","deflate_end",1);
 	static var _set_flush_mode = cpp.Lib.load("zlib","set_flush_mode",2);
-
+ 
 }
