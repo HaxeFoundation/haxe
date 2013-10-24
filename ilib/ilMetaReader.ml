@@ -352,6 +352,57 @@ let read_table_at ctx tbl n pos = match get_table ctx tbl n with
 		pos, TypeDef td
 	| _ -> assert false
 
+(* ******* SIGNATURE READING ********* *)
+
+let rec read_ilsig ctx s pos =
+	let i = sget s pos in
+	let pos = pos + 1 in
+	match i with
+		| 0x1 -> pos, SVoid (* 0x1 *)
+		| 0x2 -> pos, SBool (* 0x2 *)
+		| 0x3 -> pos, SChar (* 0x3 *)
+		| 0x4 -> pos, SInt8 (* 0x4 *)
+		| 0x5 -> pos, SUInt8 (* 0x5 *)
+		| 0x6 -> pos, SInt16 (* 0x6 *)
+		| 0x7 -> pos, SUInt16 (* 0x7 *)
+		| 0x8 -> pos, SInt32 (* 0x8 *)
+		| 0x9 -> pos, SUInt32 (* 0x9 *)
+		| 0xA -> pos, SInt64 (* 0xA *)
+		| 0xB -> pos, SUInt64 (* 0xB *)
+		| 0xC -> pos, SFloat32 (* 0xC *)
+		| 0xD -> pos, SFloat64 (* 0xD *)
+		| 0xE -> pos, SString (* 0xE *)
+		| 0xF ->
+			let pos, s = read_ilsig ctx s pos in
+			pos, SPointer s
+		| 0x10 ->
+			let pos, s = read_ilsig ctx s pos in
+			pos, SManagedPointer s
+		| 0x11 ->
+			let pos, vt = sread_from_table ctx ITypeDefOrRef s pos in
+			pos, SValueType vt
+		| 0x12 ->
+			let pos, c = sread_from_table ctx ITypeDefOrRef s pos in
+			pos, SClass c
+		| 0x13 ->
+			let n = sget s pos in
+			pos + 1, STypeParam n
+		| 0x14 -> SArray of (ilsig * int * int) list (* 0x14 *)
+		| 0x15 -> SGenericInst of ilsig * (ilsig list) (* 0x15 *)
+		| 0x16 -> pos, STypedReference (* 0x16 *)
+		| 0x18 -> pos, SIntPtr (* 0x18 *)
+		| 0x19 -> pos, SUIntPtr (* 0x19 *)
+		| 0x1B -> SFunPtr of ilsig * (ilsig list) (* 0x1B *)
+		| 0x1C -> pos, SObject (* 0x1C *)
+		| 0x1D -> SVector of ilsig (* 0x1D *)
+		| 0x1F -> SReqModifier of type_def_or_ref * ilsig (* 0x1F *)
+		| 0x20 -> SOptModifier of type_def_or_ref * ilsig (* 0x20 *)
+		| 0x41 -> pos, SSentinel (* 0x41 *)
+		| 0x45 -> SPinned of ilsig (* 0x45 *)
+
+
+(* ******* META READING ********* *)
+
 (* let read_ *)
 let read_meta ctx =
 	(* read header *)
