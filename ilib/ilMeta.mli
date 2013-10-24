@@ -200,7 +200,8 @@ and meta_field_ptr = {
 }
 
 and meta_field = {
-	mutable f_flags : field_flags;
+	(* mutable f_flags : field_flags; *)
+	mutable f_flags : int;
 	mutable f_name : stringref;
 	mutable f_signature : ilsig;
 }

@@ -236,10 +236,24 @@ let null_type_def () =
 		td_method_list = -1;
 	}
 
+let null_field_ptr () =
+	{
+		fp_field = -1;
+	}
+
+let null_field () =
+	{
+		f_flags = -1;
+		f_name = empty;
+		f_signature = SVoid;
+	}
+
 let mk_null = function
 	| IModule -> Module (null_module())
 	| ITypeRef -> TypeRef (null_type_ref())
 	| ITypeDef -> TypeDef (null_type_def())
+	| IFieldPtr -> FieldPtr (null_field_ptr())
+	| IField -> Field (null_field())
 	| IAssemblyRef -> AssemblyRef
 	| _ -> assert false
 
@@ -370,6 +384,16 @@ let read_table_at ctx tbl n pos = match get_table ctx tbl n with
 		print_endline name;
 		print_endline ns;
 		pos, TypeDef td
+	| FieldPtr fp ->
+		let s = ctx.meta_stream in
+		let pos, field = ctx.table_sizes.(int_of_table IField) s pos in
+		fp.fp_field <- field;
+		pos, FieldPtr fp
+	| Field f ->
+		let s = ctx.meta_stream in
+		let pos, flags = sread_i32 s pos in
+		let pos, name = read_sstring_idx ctx pos in
+
 	| _ -> assert false
 
 (* ******* SIGNATURE READING ********* *)
