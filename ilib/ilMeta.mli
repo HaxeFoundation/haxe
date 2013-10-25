@@ -453,7 +453,7 @@ and ilsig =
 	| STypeParam of int (* 0x13 *)
 		(* generic parameter in a generic type definition. represented by a number *)
 	| SArray of ilsig * (int option * int option) array (* 0x14 *)
-		(* ilsig * ( size * bound ) *)
+		(* ilsig * ( bound * size ) *)
 		(* a multi-dimensional array type modifier *)
 		(* encoded like: *)
 			(* SArray <underlying type><rank><num_sizes><size1>...<sizeN>

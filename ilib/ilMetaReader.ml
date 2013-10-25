@@ -516,8 +516,8 @@ let rec read_ilsig ctx s pos =
 				if signed then -b else b
 			) in
 			let ret = Array.init rank (fun i ->
-				(if i >= numsizes then None else Some sizearray.(i))
-				, (if i >= bounds then None else Some boundsarray.(i))
+				(if i >= bounds then None else Some boundsarray.(i))
+				, (if i >= numsizes then None else Some sizearray.(i))
 			) in
 			!pos, SArray(ssig, ret)
 		| 0x15 ->
@@ -639,16 +639,19 @@ let rec ilsig_s = function (* TODO: delete me - leave only in ilMetaDebug *)
 	| SClass cl -> "classtype"
 	| STypeParam t -> "!" ^ string_of_int t
 	| SArray (s,opts) ->
-		ilsig_s s ^ String.concat "" (List.map (function
-			| None,None ->
-				"[]"
-			| Some i,None ->
-				"[" ^ string_of_int i ^"...]"
-			| None, Some i ->
-				"[..." ^ string_of_int i ^"]"
-			| Some s, Some b ->
-				"[" ^ string_of_int s ^ "..." ^ string_of_int b ^"]"
-		) (Array.to_list opts))
+		ilsig_s s ^ "[" ^ String.concat "," (List.map (function
+			| Some i,None when i <> 0 ->
+				string_of_int i ^ "..."
+			| None, Some i when i <> 0 ->
+				string_of_int i
+			| Some s, Some b when b = 0 && s <> 0 ->
+				string_of_int s ^ "..."
+			| Some s, Some b when s <> 0 || b <> 0 ->
+				let b = if b > 0 then b - 1 else b in
+				string_of_int s ^ "..." ^ string_of_int (s + b)
+			| _ ->
+				""
+		) (Array.to_list opts)) ^ "]"
 	| SGenericInst (t,tl) ->
 		"generic " ^ "<" ^ String.concat ", " (List.map ilsig_s tl) ^ ">"
 	| STypedReference -> "typedreference"
@@ -734,7 +737,6 @@ let read_table_at ctx tbl n pos = match get_table ctx tbl (n+1 (* indices start 
 		let pos, flags = sread_ui16 s pos in
 		let pos, name = read_sstring_idx ctx pos in
 		print_endline ("METHOD NAME " ^ name);
-		(* let pos, ilsig = read_ilsig_idx ctx pos in *)
 		let pos, ilsig = read_ilsig_method_idx ctx pos in
 		print_endline (ilsig_s ilsig);
 		let pos, paramlist = ctx.table_sizes.(int_of_table IParam) s pos in
