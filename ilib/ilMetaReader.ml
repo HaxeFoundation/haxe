@@ -121,6 +121,81 @@ let field_flags_of_int i =
 		ff_reserved = field_reserved_of_int i;
 	}
 
+let method_contract_of_int iprops = List.fold_left (fun acc i ->
+	if (iprops land i) = i then (match i with
+		(* contract flags - mask 0xF0 *)
+		| 0x10 -> CStatic (* 0x10 *)
+		| 0x20 -> CFinal (* 0x20 *)
+		| 0x40 -> CVirtual (* 0x40 *)
+		| 0x80 -> CHideBySig (* 0x80 *)
+		| _ -> assert false) :: acc
+	else
+		acc) [] [0x10;0x20;0x40;0x80]
+
+let method_vtable_of_int iprops = List.fold_left (fun acc i ->
+	if (iprops land i) = i then (match i with
+		(* vtable flags - mask 0x300 *)
+		| 0x100 -> VNewSlot (* 0x100 *)
+		| 0x200 -> VStrict (* 0x200 *)
+		| _ -> assert false) :: acc
+	else
+		acc) [] [0x100;0x200]
+
+let method_impl_of_int iprops = List.fold_left (fun acc i ->
+	if (iprops land i) = i then (match i with
+		(* implementation flags - mask 0x2C08 *)
+		| 0x0400 -> IAbstract (* 0x0400 *)
+		| 0x0800 -> ISpecialName (* 0x0800 *)
+		| 0x2000 -> IPInvokeImpl (* 0x2000 *)
+		| 0x0008 -> IUnmanagedExp (* 0x0008 *)
+		| _ -> assert false) :: acc
+	else
+		acc) [] [0x0400;0x0800;0x2000;0x0008]
+
+let method_reserved_of_int iprops = List.fold_left (fun acc i ->
+	if (iprops land i) = i then (match i with
+		(* reserved flags - cannot be set explicitly. mask 0xD000 *)
+		| 0x1000 -> RTSpecialName (* 0x1000 *)
+		| 0x4000 -> RHasSecurity (* 0x4000 *)
+		| 0x8000 -> RReqSecObj (* 0x8000 *)
+		| _ -> assert false) :: acc
+	else
+		acc) [] [0x1000;0x4000;0x8000]
+
+let method_code_type_of_int i = match i land 0x3 with
+	| 0x0 -> CCil (* 0x0 *)
+	| 0x1 -> CNative (* 0x1 *)
+	| 0x2 -> COptIl (* 0x2 *)
+	| 0x3 -> CRuntime (* 0x3 *)
+	| _ -> assert false
+
+let method_code_mngmt_of_int i = match i land 0x4 with
+	| 0x0 -> MManaged (* 0x0 *)
+	| 0x4 -> MUnmanaged (* 0x4 *)
+
+let method_interop_of_int iprops = List.fold_left (fun acc i ->
+	if (iprops land i) = i then (match i with
+		| 0x10 -> OForwardRef (* 0x10 *)
+		| 0x80 -> OPreserveSig (* 0x80 *)
+		| 0x1000 -> OInternalCall (* 0x1000 *)
+		| 0x20 -> OSynchronized (* 0x20 *)
+		| 0x08 -> ONoInlining (* 0x08 *)
+		| _ -> assert false) :: acc
+	else
+		acc) [] [0x10;0x80;0x1000;0x20;0x08]
+
+let method_flags_of_int iflags flags =
+	{
+		mf_access = field_access_of_int flags;
+		mf_contract = method_contract_of_int flags;
+		mf_vtable = method_vtable_of_int flags;
+		mf_impl = method_impl_of_int flags;
+		mf_reserved = method_reserved_of_int flags;
+		mf_code_type = method_code_type_of_int iflags;
+		mf_code_mngmt = method_code_mngmt_of_int iflags;
+		mf_interop = method_interop_of_int iflags;
+	}
+
 let callconv_of_int i =
 	let basic = match i land 0x1F with
 		| 0x0 -> CallDefault (* 0x0 *)
