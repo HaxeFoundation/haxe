@@ -289,12 +289,18 @@ let null_field () =
 		f_signature = SVoid;
 	}
 
+let null_method_ptr () =
+	{
+		mp_method = -1;
+	}
+
 let mk_null = function
 	| IModule -> Module (null_module())
 	| ITypeRef -> TypeRef (null_type_ref())
 	| ITypeDef -> TypeDef (null_type_def())
 	| IFieldPtr -> FieldPtr (null_field_ptr())
 	| IField -> Field (null_field())
+	| IMethodPtr -> MethodPtr (null_method_ptr())
 	| IAssemblyRef -> AssemblyRef
 	| ITypeSpec -> TypeSpec
 	| i -> Printf.printf "0x%x\n\n" (int_of_table i); assert false
@@ -381,9 +387,7 @@ let sread_from_table ctx in_blob tbl s pos =
 		let mask = if mask = 0 then 1 else mask in
 		let tidx = rid land mask in
 		let real_rid = rid lsr size in
-		Printf.printf "i %d - tidx 0x%x - mask 0x%x - rid 0x%x\n\n" i tidx mask rid;
 		let real_tbl = tbls.(tidx) in
-		Printf.printf "rid 0x%x size 0x%x mask 0x%x tidx 0x%x real_rid 0x%x real_tbl 0x%x \n" rid size mask tidx real_rid (int_of_table real_tbl);
 		pos, get_table ctx real_tbl real_rid
 	end else
 		pos, get_table ctx tbl rid
@@ -418,8 +422,6 @@ let rec read_ilsig ctx s pos =
 			let pos, vt = sread_from_table ctx true ITypeDefOrRef s pos in
 			pos, SValueType vt
 		| 0x12 ->
-			let _, x = read_compressed_i32 s pos in
-			Printf.printf "0x%x\n\n" x;
 			let pos, c = sread_from_table ctx true ITypeDefOrRef s pos in
 			pos, SClass c
 		| 0x13 ->
@@ -450,14 +452,9 @@ let rec read_ilsig ctx s pos =
 			) in
 			!pos, SArray(ssig, ret)
 		| 0x15 ->
-			for i = 0 to 20 do
-				Printf.printf "%x " (sget s (pos + i))
-			done;
-			Printf.printf "\nbefore sig\n";
 			(* let pos, c = sread_from_table ctx ITypeDefOrRef s pos in *)
 			let pos, ssig = read_ilsig ctx s pos in
 			let pos, ntypes = read_compressed_i32 s pos in
-			Printf.printf "ntypes 0x%x\n" ntypes;
 			let rec loop acc pos n =
 				if n >= ntypes then
 					pos, List.rev acc
@@ -633,6 +630,11 @@ let read_table_at ctx tbl n pos = match get_table ctx tbl n with
 		f.f_name <- name;
 		f.f_signature <- ilsig;
 		pos, Field f
+	| MethodPtr mp ->
+		let s = ctx.meta_stream in
+		let pos, m = ctx.table_sizes.(int_of_table IMethod) s pos in
+		mp.mp_method <- m;
+		pos, MethodPtr mp
 	| _ -> assert false
 
 (* ******* META READING ********* *)
@@ -799,8 +801,6 @@ let read_meta_tables pctx header =
 		tables = tables;
 		table_sizes = Array.make (max_clr_meta_idx+1) sread_ui16;
 	} in
-	Printf.printf "%x\n" (int_of_table IR0x3F);
-	Printf.printf "%d\n" (int_of_table ITypeOrMethodDef);
 	read_meta ctx;
 	()
 

@@ -86,7 +86,7 @@ and clr_meta =
 		(* a class-to-fields lookup table - does not exist in optimized metadatas *)
 	| Field of meta_field
 		(* field definition descriptors *)
-	| MethodPtr
+	| MethodPtr of meta_method_ptr
 		(* a class-to-methods lookup table - does not exist in optimized metadatas *)
 	| Method
 		(* method definition descriptors *)
@@ -203,6 +203,10 @@ and meta_field = {
 	mutable f_flags : field_flags;
 	mutable f_name : stringref;
 	mutable f_signature : ilsig;
+}
+
+and meta_method_ptr = {
+	mutable mp_method : rid;
 }
 
 and type_def_vis =
