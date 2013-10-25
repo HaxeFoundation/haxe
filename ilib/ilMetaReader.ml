@@ -79,6 +79,47 @@ let type_def_flags_of_int i =
 		tdf_string = type_def_string_of_int i;
 	}
 
+let field_access_of_int i = match i land 0x07 with
+	(* access flags - mask 0x07 *)
+	| 0x0 -> FAPrivateScope (* 0x0 *)
+	| 0x1 -> FAPrivate (* 0x1 *)
+	| 0x2 -> FAFamAndAssem (* 0x2 *)
+	| 0x3 -> FAAssembly (* 0x3 *)
+	| 0x4 -> FAFamily (* 0x4 *)
+	| 0x5 -> FAFamOrAssem (* 0x5 *)
+	| 0x6 -> FAPublic (* 0x6 *)
+	| _ -> assert false
+
+let field_contract_of_int iprops = List.fold_left (fun acc i ->
+	if (iprops land i) = i then (match i with
+		(* contract flags - mask 0x02F0 *)
+		| 0x10 -> CStatic (* 0x10 *)
+		| 0x20 -> CInitOnly (* 0x20 *)
+		| 0x40 -> CLiteral (* 0x40 *)
+		| 0x80 -> CNotSerialized (* 0x80 *)
+		| 0x200 -> CSpecialName (* 0x200 *)
+		| _ -> assert false) :: acc
+	else
+		acc) [] [0x10;0x20;0x40;0x80;0x200]
+
+let field_reserved_of_int iprops = List.fold_left (fun acc i ->
+	if (iprops land i) = i then (match i with
+		(* reserved flags - cannot be set explicitly. mask 0x9500 *)
+		| 0x400 -> RSpecialName (* 0x400 *)
+		| 0x1000 -> RMarshal (* 0x1000 *)
+		| 0x8000 -> RConstant (* 0x8000 *)
+		| 0x0100 -> RFieldRVA (* 0x0100 *)
+		| _ -> assert false) :: acc
+	else
+		acc) [] [0x400;0x1000;0x8000;0x100]
+
+let field_flags_of_int i =
+	{
+		ff_access = field_access_of_int i;
+		ff_contract = field_contract_of_int i;
+		ff_reserved = field_reserved_of_int i;
+	}
+
 let callconv_of_int i =
 	let basic = match i land 0x1F with
 		| 0x0 -> CallDefault (* 0x0 *)
@@ -243,7 +284,7 @@ let null_field_ptr () =
 
 let null_field () =
 	{
-		f_flags = -1;
+		f_flags = field_flags_of_int 0;
 		f_name = empty;
 		f_signature = SVoid;
 	}
@@ -255,7 +296,8 @@ let mk_null = function
 	| IFieldPtr -> FieldPtr (null_field_ptr())
 	| IField -> Field (null_field())
 	| IAssemblyRef -> AssemblyRef
-	| _ -> assert false
+	| ITypeSpec -> TypeSpec
+	| i -> Printf.printf "0x%x\n\n" (int_of_table i); assert false
 
 let get_table ctx idx rid =
 	let cur = ctx.tables.(int_of_table idx) in
@@ -325,9 +367,13 @@ let set_coded_sizes ctx rows =
 		check i (Array.to_list tbls) max
 	done
 
-let sread_from_table ctx tbl s pos =
+let sread_from_table ctx in_blob tbl s pos =
 	let i = int_of_table tbl in
-	let sread = ctx.table_sizes.(i) in
+	let sread = if in_blob then
+		read_compressed_i32
+	else
+		ctx.table_sizes.(i)
+	in
 	let pos, rid = sread s pos in
 	if i >= 64 then begin
 		let tbls,size = coded_description.(i-64) in
@@ -335,66 +381,12 @@ let sread_from_table ctx tbl s pos =
 		let mask = if mask = 0 then 1 else mask in
 		let tidx = rid land mask in
 		let real_rid = rid lsr size in
+		Printf.printf "i %d - tidx 0x%x - mask 0x%x - rid 0x%x\n\n" i tidx mask rid;
 		let real_tbl = tbls.(tidx) in
 		Printf.printf "rid 0x%x size 0x%x mask 0x%x tidx 0x%x real_rid 0x%x real_tbl 0x%x \n" rid size mask tidx real_rid (int_of_table real_tbl);
 		pos, get_table ctx real_tbl real_rid
 	end else
 		pos, get_table ctx tbl rid
-
-let read_table_at ctx tbl n pos = match get_table ctx tbl n with
-	| Module m ->
-		let s = ctx.meta_stream in
-		let pos, gen = sread_ui16 s pos in
-		let pos, name = read_sstring_idx ctx pos in
-		let pos, vid = read_sguid_idx ctx pos in
-		let pos, encid = read_sguid_idx ctx pos in
-		let pos, encbase_id = read_sguid_idx ctx pos in
-		m.m_generation <- gen;
-		m.m_name <- name;
-		m.m_vid <- vid;
-		m.m_encid <- encid;
-		m.m_encbase_id <- encbase_id;
-		pos, Module m
-	| TypeRef tr ->
-		let s = ctx.meta_stream in
-		let pos, scope = sread_from_table ctx IResolutionScope s pos in
-		let pos, name = read_sstring_idx ctx pos in
-		let pos, ns = read_sstring_idx ctx pos in
-		tr.tr_resolution_scope <- scope;
-		tr.tr_name <- name;
-		tr.tr_namespace <- ns;
-		print_endline name;
-		print_endline ns;
-		pos, TypeRef tr
-	| TypeDef td ->
-		let s = ctx.meta_stream in
-		let pos, flags = sread_i32 s pos in
-		let pos, name = read_sstring_idx ctx pos in
-		let pos, ns = read_sstring_idx ctx pos in
-		let pos, extends = sread_from_table ctx ITypeDefOrRef s pos in
-		let pos, flist = ctx.table_sizes.(int_of_table IField) s pos in
-		let pos, fmeth = ctx.table_sizes.(int_of_table IMethod) s pos in
-		td.td_flags <- type_def_flags_of_int flags;
-		td.td_name <- name;
-		td.td_namespace <- ns;
-		td.td_extends <- extends;
-		td.td_field_list <- flist;
-		td.td_method_list <- fmeth;
-		print_endline "Type Def!";
-		print_endline name;
-		print_endline ns;
-		pos, TypeDef td
-	| FieldPtr fp ->
-		let s = ctx.meta_stream in
-		let pos, field = ctx.table_sizes.(int_of_table IField) s pos in
-		fp.fp_field <- field;
-		pos, FieldPtr fp
-	| Field f ->
-		let s = ctx.meta_stream in
-		let pos, flags = sread_i32 s pos in
-		let pos, name = read_sstring_idx ctx pos in
-
-	| _ -> assert false
 
 (* ******* SIGNATURE READING ********* *)
 
@@ -423,10 +415,12 @@ let rec read_ilsig ctx s pos =
 			let pos, s = read_ilsig ctx s pos in
 			pos, SManagedPointer s
 		| 0x11 ->
-			let pos, vt = sread_from_table ctx ITypeDefOrRef s pos in
+			let pos, vt = sread_from_table ctx true ITypeDefOrRef s pos in
 			pos, SValueType vt
 		| 0x12 ->
-			let pos, c = sread_from_table ctx ITypeDefOrRef s pos in
+			let _, x = read_compressed_i32 s pos in
+			Printf.printf "0x%x\n\n" x;
+			let pos, c = sread_from_table ctx true ITypeDefOrRef s pos in
 			pos, SClass c
 		| 0x13 ->
 			let n = sget s pos in
@@ -455,6 +449,24 @@ let rec read_ilsig ctx s pos =
 				, (if i >= bounds then None else Some boundsarray.(i))
 			) in
 			!pos, SArray(ssig, ret)
+		| 0x15 ->
+			for i = 0 to 20 do
+				Printf.printf "%x " (sget s (pos + i))
+			done;
+			Printf.printf "\nbefore sig\n";
+			(* let pos, c = sread_from_table ctx ITypeDefOrRef s pos in *)
+			let pos, ssig = read_ilsig ctx s pos in
+			let pos, ntypes = read_compressed_i32 s pos in
+			Printf.printf "ntypes 0x%x\n" ntypes;
+			let rec loop acc pos n =
+				if n >= ntypes then
+					pos, List.rev acc
+				else
+					let pos, ssig = read_ilsig ctx s pos in
+					loop (ssig :: acc) pos (n+1)
+			in
+			let pos, args = loop [] pos 1 in
+			pos, SGenericInst (ssig, args)
 		| 0x16 -> pos, STypedReference (* 0x16 *)
 		| 0x18 -> pos, SIntPtr (* 0x18 *)
 		| 0x19 -> pos, SUIntPtr (* 0x19 *)
@@ -477,18 +489,151 @@ let rec read_ilsig ctx s pos =
 			let pos, ssig = read_ilsig ctx s pos in
 			pos, SVector ssig
 		| 0x1F ->
-			let pos, tdef = sread_from_table ctx ITypeDefOrRef s pos in
+			let pos, tdef = sread_from_table ctx true ITypeDefOrRef s pos in
 			let pos, ilsig = read_ilsig ctx s pos in
 			pos, SReqModifier (tdef, ilsig)
 		| 0x20 ->
-			let pos, tdef = sread_from_table ctx ITypeDefOrRef s pos in
+			let pos, tdef = sread_from_table ctx true ITypeDefOrRef s pos in
 			let pos, ilsig = read_ilsig ctx s pos in
 			pos, SOptModifier (tdef, ilsig)
 		| 0x41 -> pos, SSentinel (* 0x41 *)
 		| 0x45 ->
 			let pos, ssig = read_ilsig ctx s pos in
 			pos,SPinned ssig (* 0x45 *)
-		| _ -> assert false
+		| _ ->
+			Printf.printf "unknown ilsig 0x%x\n\n" i;
+			assert false
+
+let read_ilsig_idx ctx pos =
+	let s = ctx.meta_stream in
+	let metapos,i = if ctx.blob_offset  = 2 then
+		sread_ui16 s pos
+	else
+		sread_i32 s pos
+	in
+	let s = ctx.blob_stream in
+	let i, _ = read_compressed_i32 s i in
+	let _, ilsig = read_ilsig ctx s i in
+	metapos, ilsig
+
+let read_field_ilsig_idx ctx pos =
+	let s = ctx.meta_stream in
+	let metapos,i = if ctx.blob_offset  = 2 then
+		sread_ui16 s pos
+	else
+		sread_i32 s pos
+	in
+	let s = ctx.blob_stream in
+	let i, _ = read_compressed_i32 s i in
+	if sget s i <> 0x6 then error ("Invalid field signature: " ^ string_of_int (sget s i));
+	let _, ilsig = read_ilsig ctx s (i+1) in
+	metapos, ilsig
+
+let rec ilsig_s = function (* TODO: delete me - leave only in ilMetaDebug *)
+	| SVoid -> "void"
+	| SBool -> "bool"
+	| SChar -> "char"
+	| SInt8 -> "int8"
+	| SUInt8 -> "uint8"
+	| SInt16 -> "int16"
+	| SUInt16 -> "uint16"
+	| SInt32 -> "int32"
+	| SUInt32 -> "uint32"
+	| SInt64 -> "int64"
+	| SUInt64 -> "uint64"
+	| SFloat32 -> "float"
+	| SFloat64 -> "double"
+	| SString -> "string"
+	| SPointer s -> ilsig_s s ^ "*"
+	| SManagedPointer s -> ilsig_s s ^ "&"
+	| SValueType td -> "valuetype"
+	| SClass cl -> "classtype"
+	| STypeParam t -> "!" ^ string_of_int t
+	| SArray (s,opts) ->
+		ilsig_s s ^ String.concat "" (List.map (function
+			| None,None ->
+				"[]"
+			| Some i,None ->
+				"[" ^ string_of_int i ^"...]"
+			| None, Some i ->
+				"[..." ^ string_of_int i ^"]"
+			| Some s, Some b ->
+				"[" ^ string_of_int s ^ "..." ^ string_of_int b ^"]"
+		) (Array.to_list opts))
+	| SGenericInst (t,tl) ->
+		"generic " ^ "<" ^ String.concat ", " (List.map ilsig_s tl) ^ ">"
+	| STypedReference -> "typedreference"
+	| SIntPtr -> "native int"
+	| SUIntPtr -> "native unsigned int"
+	| SFunPtr (callconv,ret,args) ->
+		"function " ^ ilsig_s ret ^ "(" ^ String.concat ", " (List.map ilsig_s args) ^ ")"
+	| SObject -> "object"
+	| SVector s -> ilsig_s s ^ "[]"
+	| SReqModifier (_,s) -> "modreq() " ^ ilsig_s s
+	| SOptModifier (_,s) -> "modopt() " ^ ilsig_s s
+	| SSentinel -> "..."
+	| SPinned s -> "pinned " ^ ilsig_s s
+
+let read_table_at ctx tbl n pos = match get_table ctx tbl n with
+	| Module m ->
+		let s = ctx.meta_stream in
+		let pos, gen = sread_ui16 s pos in
+		let pos, name = read_sstring_idx ctx pos in
+		let pos, vid = read_sguid_idx ctx pos in
+		let pos, encid = read_sguid_idx ctx pos in
+		let pos, encbase_id = read_sguid_idx ctx pos in
+		m.m_generation <- gen;
+		m.m_name <- name;
+		m.m_vid <- vid;
+		m.m_encid <- encid;
+		m.m_encbase_id <- encbase_id;
+		pos, Module m
+	| TypeRef tr ->
+		let s = ctx.meta_stream in
+		let pos, scope = sread_from_table ctx false IResolutionScope s pos in
+		let pos, name = read_sstring_idx ctx pos in
+		let pos, ns = read_sstring_idx ctx pos in
+		tr.tr_resolution_scope <- scope;
+		tr.tr_name <- name;
+		tr.tr_namespace <- ns;
+		print_endline name;
+		print_endline ns;
+		pos, TypeRef tr
+	| TypeDef td ->
+		let s = ctx.meta_stream in
+		let pos, flags = sread_i32 s pos in
+		let pos, name = read_sstring_idx ctx pos in
+		let pos, ns = read_sstring_idx ctx pos in
+		let pos, extends = sread_from_table ctx false ITypeDefOrRef s pos in
+		let pos, flist = ctx.table_sizes.(int_of_table IField) s pos in
+		let pos, fmeth = ctx.table_sizes.(int_of_table IMethod) s pos in
+		td.td_flags <- type_def_flags_of_int flags;
+		td.td_name <- name;
+		td.td_namespace <- ns;
+		td.td_extends <- extends;
+		td.td_field_list <- flist;
+		td.td_method_list <- fmeth;
+		print_endline "Type Def!";
+		print_endline name;
+		print_endline ns;
+		pos, TypeDef td
+	| FieldPtr fp ->
+		let s = ctx.meta_stream in
+		let pos, field = ctx.table_sizes.(int_of_table IField) s pos in
+		fp.fp_field <- field;
+		pos, FieldPtr fp
+	| Field f ->
+		let s = ctx.meta_stream in
+		let pos, flags = sread_ui16 s pos in
+		let pos, name = read_sstring_idx ctx pos in
+		print_endline ("FIELD NAME " ^ name);
+		let pos, ilsig = read_field_ilsig_idx ctx pos in
+		print_endline (ilsig_s ilsig);
+		f.f_flags <- field_flags_of_int flags;
+		f.f_name <- name;
+		f.f_signature <- ilsig;
+		pos, Field f
+	| _ -> assert false
 
 (* ******* META READING ********* *)
 

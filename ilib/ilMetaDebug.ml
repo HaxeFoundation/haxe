@@ -49,6 +49,8 @@ let rec ilsig_s = function
 			| Some s, Some b ->
 				"[" ^ string_of_int s ^ "..." ^ string_of_int b ^"]"
 		) (Array.to_list opts))
+	| SGenericInst (t,tl) ->
+		"generic " ^ "<" ^ String.concat ", " (List.map ilsig_s tl) ^ ">"
 	| STypedReference -> "typedreference"
 	| SIntPtr -> "native int"
 	| SUIntPtr -> "native unsigned int"

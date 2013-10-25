@@ -200,8 +200,7 @@ and meta_field_ptr = {
 }
 
 and meta_field = {
-	(* mutable f_flags : field_flags; *)
-	mutable f_flags : int;
+	mutable f_flags : field_flags;
 	mutable f_name : stringref;
 	mutable f_signature : ilsig;
 }
@@ -368,8 +367,7 @@ and ilsig =
 			(* <num_sizes> num of specified sizes for dimensions (N <= K) *)
 			(* <num_lower_bounds> num of lower bounds (M <= K) *)
 			(* all int values are compressed *)
-	(* | SGenericInst of ilsig * (ilsig list) (* 0x15 *) *)
-		(* does not exist? *)
+	| SGenericInst of ilsig * (ilsig list) (* 0x15 *)
 		(* A generic type instantiation. encoded like: *)
 			(* SGenericInst <type> <type-arg-count> <type1>...<typeN> *)
 	| STypedReference (* 0x16 *)
