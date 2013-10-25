@@ -177,11 +177,11 @@ and clr_meta =
 (* all fields here need to be mutable, as they will first be initialized empty *)
 
 and meta_module = {
-	mutable m_generation : int;
-	mutable m_name : stringref;
-	mutable m_vid : guid;
-	mutable m_encid : guid;
-	mutable m_encbase_id : guid;
+	mutable md_generation : int;
+	mutable md_name : stringref;
+	mutable md_vid : guid;
+	mutable md_encid : guid;
+	mutable md_encbase_id : guid;
 }
 
 and meta_type_ref = {
@@ -349,11 +349,11 @@ and field_flags = {
 
 and method_contract =
 	(* contract flags - mask 0xF0 *)
-	| CStatic (* 0x10 *)
-	| CFinal (* 0x20 *)
+	| CMStatic (* 0x10 *)
+	| CMFinal (* 0x20 *)
 		(* must be paired with the virtual flag - otherwise it is meaningless *)
-	| CVirtual (* 0x40 *)
-	| CHideBySig (* 0x80 *)
+	| CMVirtual (* 0x40 *)
+	| CMHideBySig (* 0x80 *)
 		(* the method hides all methods of the parent classes that have a matching *)
 		(* signature and name (as opposed to having a matching name only). ignored by the CLR *)
 

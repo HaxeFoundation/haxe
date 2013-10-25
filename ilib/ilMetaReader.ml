@@ -124,10 +124,10 @@ let field_flags_of_int i =
 let method_contract_of_int iprops = List.fold_left (fun acc i ->
 	if (iprops land i) = i then (match i with
 		(* contract flags - mask 0xF0 *)
-		| 0x10 -> CStatic (* 0x10 *)
-		| 0x20 -> CFinal (* 0x20 *)
-		| 0x40 -> CVirtual (* 0x40 *)
-		| 0x80 -> CHideBySig (* 0x80 *)
+		| 0x10 -> CMStatic (* 0x10 *)
+		| 0x20 -> CMFinal (* 0x20 *)
+		| 0x40 -> CMVirtual (* 0x40 *)
+		| 0x80 -> CMHideBySig (* 0x80 *)
 		| _ -> assert false) :: acc
 	else
 		acc) [] [0x10;0x20;0x40;0x80]
@@ -172,6 +172,7 @@ let method_code_type_of_int i = match i land 0x3 with
 let method_code_mngmt_of_int i = match i land 0x4 with
 	| 0x0 -> MManaged (* 0x0 *)
 	| 0x4 -> MUnmanaged (* 0x4 *)
+	| _ -> assert false
 
 let method_interop_of_int iprops = List.fold_left (fun acc i ->
 	if (iprops land i) = i then (match i with
@@ -321,11 +322,11 @@ let null_meta = UnknownMeta (-1)
 
 let null_module () =
 	{
-		m_generation = 0;
-		m_name = empty;
-		m_vid = empty;
-		m_encid = empty;
-		m_encbase_id = empty;
+		md_generation = 0;
+		md_name = empty;
+		md_vid = empty;
+		md_encid = empty;
+		md_encbase_id = empty;
 	}
 
 let null_type_ref () =
@@ -362,6 +363,15 @@ let null_method_ptr () =
 		mp_method = -1;
 	}
 
+let null_method () =
+	{
+		m_rva = Int32.of_int (-1);
+		m_flags = method_flags_of_int 0 0;
+		m_name = empty;
+		m_signature = SVoid;
+		m_paramlist = -1;
+	}
+
 let mk_null = function
 	| IModule -> Module (null_module())
 	| ITypeRef -> TypeRef (null_type_ref())
@@ -369,6 +379,7 @@ let mk_null = function
 	| IFieldPtr -> FieldPtr (null_field_ptr())
 	| IField -> Field (null_field())
 	| IMethodPtr -> MethodPtr (null_method_ptr())
+	| IMethod -> Method (null_method())
 	| i ->
 		UnknownMeta (int_of_table i)
 
@@ -559,9 +570,32 @@ let rec read_ilsig ctx s pos =
 			Printf.printf "unknown ilsig 0x%x\n\n" i;
 			assert false
 
+let read_ilsig_method_idx ctx pos =
+	let s = ctx.meta_stream in
+	let metapos,i = if ctx.blob_offset = 2 then
+		sread_ui16 s pos
+	else
+		sread_i32 s pos
+	in
+	let s = ctx.blob_stream in
+	let pos, _ = read_compressed_i32 s i in
+	let pos, conv = read_compressed_i32 s pos in
+	let callconv = callconv_of_int conv in
+	let pos, ntypes = read_compressed_i32 s pos in
+	let pos, ret = read_ilsig ctx s pos in
+	let rec loop acc pos n =
+		if n >= ntypes then
+			pos, List.rev acc
+		else
+			let pos, ssig = read_ilsig ctx s pos in
+			loop (ssig :: acc) pos (n+1)
+	in
+	let pos, args = loop [] pos 1 in
+	metapos, SFunPtr (callconv, ret, args)
+
 let read_ilsig_idx ctx pos =
 	let s = ctx.meta_stream in
-	let metapos,i = if ctx.blob_offset  = 2 then
+	let metapos,i = if ctx.blob_offset = 2 then
 		sread_ui16 s pos
 	else
 		sread_i32 s pos
@@ -573,7 +607,7 @@ let read_ilsig_idx ctx pos =
 
 let read_field_ilsig_idx ctx pos =
 	let s = ctx.meta_stream in
-	let metapos,i = if ctx.blob_offset  = 2 then
+	let metapos,i = if ctx.blob_offset = 2 then
 		sread_ui16 s pos
 	else
 		sread_i32 s pos
@@ -637,11 +671,11 @@ let read_table_at ctx tbl n pos = match get_table ctx tbl (n+1 (* indices start 
 		let pos, vid = read_sguid_idx ctx pos in
 		let pos, encid = read_sguid_idx ctx pos in
 		let pos, encbase_id = read_sguid_idx ctx pos in
-		m.m_generation <- gen;
-		m.m_name <- name;
-		m.m_vid <- vid;
-		m.m_encid <- encid;
-		m.m_encbase_id <- encbase_id;
+		m.md_generation <- gen;
+		m.md_name <- name;
+		m.md_vid <- vid;
+		m.md_encid <- encid;
+		m.md_encbase_id <- encbase_id;
 		pos, Module m
 	| TypeRef tr ->
 		let s = ctx.meta_stream in
@@ -693,6 +727,23 @@ let read_table_at ctx tbl n pos = match get_table ctx tbl (n+1 (* indices start 
 		let pos, m = ctx.table_sizes.(int_of_table IMethod) s pos in
 		mp.mp_method <- m;
 		pos, MethodPtr mp
+	| Method m ->
+		let s = ctx.meta_stream in
+		let pos, rva = sread_i32 s pos in
+		let pos, iflags = sread_ui16 s pos in
+		let pos, flags = sread_ui16 s pos in
+		let pos, name = read_sstring_idx ctx pos in
+		print_endline ("METHOD NAME " ^ name);
+		(* let pos, ilsig = read_ilsig_idx ctx pos in *)
+		let pos, ilsig = read_ilsig_method_idx ctx pos in
+		print_endline (ilsig_s ilsig);
+		let pos, paramlist = ctx.table_sizes.(int_of_table IParam) s pos in
+		m.m_rva <- Int32.of_int rva;
+		m.m_flags <- method_flags_of_int iflags flags;
+		m.m_name <- name;
+		m.m_signature <- ilsig;
+		m.m_paramlist <- paramlist;
+		pos, Method m
 	| _ -> assert false
 
 (* ******* META READING ********* *)
