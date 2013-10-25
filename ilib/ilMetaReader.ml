@@ -21,6 +21,7 @@ open PeData;;
 open PeReader;;
 open IlMeta;;
 open IO;;
+open Printf;;
 
 (* decoding helpers *)
 let type_def_vis_of_int i = match i land 0x7 with
@@ -164,7 +165,7 @@ type meta_ctx = {
 	extra_streams : clr_stream_header list;
 }
 
-let empty = ""
+let empty = "<not initialized>"
 
 (* ******* Reading from Strings ********* *)
 
@@ -220,7 +221,7 @@ let read_sstring_idx ctx pos =
 	in
 	match i with
 	| 0 ->
-		metapos, empty
+		metapos, ""
 	| _ ->
 		metapos, read_cstring ctx i
 
@@ -233,7 +234,7 @@ let read_sguid_idx ctx pos =
 	in
 	match i with
 	| 0 ->
-		metapos, empty
+		metapos, ""
 	| _ ->
 		let s = ctx.guid_stream in
 		let i = i - 1 in
@@ -241,14 +242,6 @@ let read_sguid_idx ctx pos =
 		metapos, String.sub s pos 16
 
 (* ******* Metadata Tables ********* *)
-let check_bounds ctx n nrows =
-	let dynarr = ctx.tables.(n) in
-	if DynArray.length dynarr > nrows then
-		error (Printf.sprintf "Reading outside table array bounds detected for table %d: Index %d is greater than max, %d"
-			n
-			(DynArray.length dynarr)
-			nrows)
-
 let null_meta = UnknownMeta (-1)
 
 let null_module () =
@@ -301,22 +294,11 @@ let mk_null = function
 	| IFieldPtr -> FieldPtr (null_field_ptr())
 	| IField -> Field (null_field())
 	| IMethodPtr -> MethodPtr (null_method_ptr())
-	| IAssemblyRef -> AssemblyRef
-	| ITypeSpec -> TypeSpec
-	| i -> Printf.printf "0x%x\n\n" (int_of_table i); assert false
+	| i ->
+		UnknownMeta (int_of_table i)
 
 let get_table ctx idx rid =
 	let cur = ctx.tables.(int_of_table idx) in
-	let len = DynArray.length cur in
-	if len <= rid then begin
-		let rec loop n =
-			if n <= rid then begin
-				DynArray.add cur (mk_null idx);
-				loop (n+1)
-			end
-		in
-		loop len
-	end;
 	DynArray.get cur rid
 
 (* special coded types  *)
@@ -388,6 +370,7 @@ let sread_from_table ctx in_blob tbl s pos =
 		let tidx = rid land mask in
 		let real_rid = rid lsr size in
 		let real_tbl = tbls.(tidx) in
+		printf "rid 0x%x - table idx 0x%x - real_rid 0x%x\n\n" rid tidx real_rid;
 		pos, get_table ctx real_tbl real_rid
 	end else
 		pos, get_table ctx tbl rid
@@ -571,7 +554,7 @@ let rec ilsig_s = function (* TODO: delete me - leave only in ilMetaDebug *)
 	| SSentinel -> "..."
 	| SPinned s -> "pinned " ^ ilsig_s s
 
-let read_table_at ctx tbl n pos = match get_table ctx tbl n with
+let read_table_at ctx tbl n pos = match get_table ctx tbl (n+1 (* indices start at 1 *)) with
 	| Module m ->
 		let s = ctx.meta_stream in
 		let pos, gen = sread_ui16 s pos in
@@ -639,6 +622,13 @@ let read_table_at ctx tbl n pos = match get_table ctx tbl n with
 
 (* ******* META READING ********* *)
 
+let preset_sizes ctx rows =
+	Array.iteri (fun n r -> match r with
+		| false,_ -> ()
+		| true,nrows ->
+			ctx.tables.(n) <- DynArray.init (nrows+1) (fun _ -> mk_null (table_of_int n))
+	) rows
+
 (* let read_ *)
 let read_meta ctx =
 	(* read header *)
@@ -680,10 +670,11 @@ let read_meta ctx =
 			true,nrows
 	) set_table in
 	set_coded_sizes ctx rows;
+	(* pre-set all sizes *)
+	preset_sizes ctx rows;
 	Array.iteri (fun n r -> match r with
 		| false,_ -> ()
 		| true,nrows ->
-			check_bounds ctx n nrows;
 			print_endline (string_of_int n);
 			let fn = read_table_at ctx (table_of_int n) in
 			let rec loop_fn n =

@@ -209,6 +209,11 @@ and meta_method_ptr = {
 	mutable mp_method : rid;
 }
 
+(* and meta_method = { *)
+	(* mutable m_rva : rva; *)
+		(* must be 0 or point at a read-only section *)
+(* } *)
+
 and type_def_vis =
 	(* visibility flags - mask 0x7 *)
 	| VPrivate (* 0x0 *)
