@@ -24,6 +24,8 @@ type guid = string
 	(* reference from the #GUID stream *)
 type stringref = string
 	(* reference from the #Strings stream *)
+type blobref = string
+	(* reference from the #Blob stream *)
 type id = stringref
 	(* a stringref that references an identifier. *)
 	(* must begin with an alphabetic character, or the following characters: *)
@@ -178,7 +180,7 @@ and clr_meta =
 
 and meta_module = {
 	mutable md_generation : int;
-	mutable md_name : stringref;
+	mutable md_name : id;
 	mutable md_vid : guid;
 	mutable md_encid : guid;
 	mutable md_encbase_id : guid;
@@ -186,14 +188,14 @@ and meta_module = {
 
 and meta_type_ref = {
 	mutable tr_resolution_scope : resolution_scope;
-	mutable tr_name : stringref;
-	mutable tr_namespace : stringref;
+	mutable tr_name : id;
+	mutable tr_namespace : id;
 }
 
 and meta_type_def = {
 	mutable td_flags : type_def_flags;
-	mutable td_name : stringref;
-	mutable td_namespace : stringref;
+	mutable td_name : id;
+	mutable td_namespace : id;
 	mutable td_extends : type_def_or_ref;
 	mutable td_field_list : rid;
 	mutable td_method_list : rid;
@@ -205,7 +207,7 @@ and meta_field_ptr = {
 
 and meta_field = {
 	mutable f_flags : field_flags;
-	mutable f_name : stringref;
+	mutable f_name : id;
 	mutable f_signature : ilsig;
 }
 
@@ -216,7 +218,7 @@ and meta_method_ptr = {
 and meta_method = {
 	mutable m_rva : rva;
 	mutable m_flags : method_flags;
-	mutable m_name : stringref;
+	mutable m_name : id;
 	mutable m_signature : ilsig;
 	mutable m_paramlist : rid; (* rid: Param *)
 }
@@ -229,8 +231,247 @@ and meta_param = {
 	mutable p_flags : param_flags;
 	mutable p_sequence : int;
 		(* 0 means return value *)
-	mutable p_name : stringref;
+	mutable p_name : id;
 }
+
+and meta_interface_impl = {
+	mutable ii_class : rid; (* TypeDef rid *)
+	mutable ii_interface : type_def_or_ref;
+}
+
+and meta_member_ref = {
+	mutable memr_class : member_ref_parent;
+	mutable memr_name : id;
+	mutable memr_signature : ilsig;
+}
+
+and meta_constant = {
+	mutable c_type : constant_type;
+	mutable c_parent : has_const;
+	mutable c_value : to_det;
+}
+
+and meta_custom_attribute = {
+	mutable ca_parent : has_custom_attribute;
+	mutable ca_type : custom_attribute_type;
+	mutable ca_value : to_det option;
+		(* can be 0 *)
+}
+
+and meta_field_marshal = {
+	mutable fm_parent : has_field_marshal;
+	mutable fm_native_type : nativesig;
+}
+
+and meta_decl_security = {
+	mutable ds_action : to_det;
+	mutable ds_parent : has_decl_security;
+	mutable ds_permission_set : to_det;
+}
+
+and meta_class_layout = {
+	mutable cl_packing_size : int;
+		(* power of two; from 1 through 128 *)
+	mutable cl_class_size : int;
+	mutable cl_parent : rid; (* TypeDef rid *)
+}
+
+and meta_field_layout = {
+	mutable fl_offset : int;
+		(* offset in bytes or ordinal *)
+	mutable fl_field : rid; (* Field rid *)
+}
+
+and meta_stand_alone_sig = {
+	mutable sa_signature : ilsig;
+}
+
+and meta_event_map = {
+	mutable em_parent : rid; (* TypeDef rid *)
+	mutable em_event_list : rid; (* Event rid *)
+}
+
+and meta_event_ptr = {
+	mutable ep_event : rid; (* Event rid *)
+}
+
+and meta_event = {
+	mutable e_flags : to_det;
+	mutable e_name : stringref;
+	mutable e_event_type : type_def_or_ref;
+}
+
+and meta_property_map = {
+	mutable pm_parent : rid; (* TypeDef rid *)
+	mutable pm_property_list : rid; (* Property rid *)
+}
+
+and meta_property_ptr = {
+	mutable pp_property : rid; (* Property rid *)
+}
+
+and meta_property = {
+	mutable prop_flags : to_det;
+	mutable prop_name : stringref;
+	mutable prop_type : ilsig;
+}
+
+and meta_method_semantics = {
+	mutable ms_semantic : to_det;
+	mutable ms_method : rid; (* Method rid *)
+	mutable ms_association : has_semantics;
+}
+
+and meta_method_impl = {
+	mutable mi_class : rid; (* TypeDef rid *)
+	mutable mi_method_body : method_def_or_ref;
+		(* overriding method *)
+	mutable mi_method_declaration : method_def_or_ref;
+		(* overriden method *)
+}
+
+and meta_module_ref = {
+	mutable modr_name : stringref;
+}
+
+and meta_type_spec = {
+	mutable ts_signature : ilsig;
+}
+
+and meta_enc_log = {
+	mutable el_token : to_det;
+	mutable el_func_code : to_det;
+}
+
+and meta_impl_map = {
+	mutable im_flags : to_det; (* mapping_flags *)
+	mutable im_forwarded : member_forwarded; (* method only *)
+	mutable im_import_name : stringref;
+	mutable im_import_scope : rid; (* ModuleRef rid *)
+}
+
+and meta_enc_map = {
+	mutable em_token : to_det;
+}
+
+and meta_field_rva = {
+	mutable f_rva : rva;
+	mutable f_field : rid; (* Field rid *)
+}
+
+and meta_assembly = {
+	mutable a_hash_alg_id : to_det;
+	mutable a_major : int;
+	mutable a_minor : int;
+	mutable a_build : int;
+	mutable a_rev : int;
+	mutable a_flags : to_det; (* assembly_flags *)
+	mutable a_public_key : blobref;
+	mutable a_name : stringref;
+	mutable a_locale : stringref;
+}
+
+(* unused *)
+and meta_assembly_processor = {
+	mutable ap_processor : to_det;
+}
+
+(* unused *)
+and meta_assembly_os = {
+	mutable aos_platform_id : to_det;
+	mutable aos_major_version : to_det;
+	mutable aos_minor_version : to_det;
+}
+
+and meta_assembly_ref = {
+	mutable ar_major : int;
+	mutable ar_minor : int;
+	mutable ar_build : int;
+	mutable ar_rev : int;
+	mutable ar_flags : to_det; (* assembly_ref_flags *)
+	mutable ar_public_key : blobref;
+	mutable ar_name : stringref; (* no path, no extension *)
+	mutable ar_locale : stringref;
+	mutable ar_hash_value : blobref;
+}
+
+(* unused *)
+and meta_assembly_ref_processor = {
+	mutable arp_processor : to_det;
+	mutable arp_assembly_ref : rid; (* AssemblyRef rid *)
+}
+
+(* unused *)
+and meta_assembly_ref_os = {
+	mutable aros_platform_id : to_det;
+	mutable aros_major : int;
+	mutable aros_minor : int;
+	mutable aros_assembly_ref : rid; (* AssemblyRef rid *)
+}
+
+and meta_file = {
+	mutable file_flags : to_det; (* file_flags *)
+	mutable file_name : stringref; (* no path; only file name *)
+	mutable file_hash_value : blobref;
+}
+
+and meta_exported_type = {
+	mutable et_flags : to_det; (* exported_flags *)
+	mutable et_type_def_id : int;
+		(* TypeDef token in another module *)
+	mutable et_type_name : stringref;
+	mutable et_type_namespace : stringref;
+	mutable et_implementation : implementation;
+}
+
+and meta_manifest_resource = {
+	mutable mr_offset : int;
+	mutable mr_flags : to_det; (* manifest_resource_flags *)
+	mutable mr_name : stringref;
+	mutable mr_implementation : implementation option;
+}
+
+and meta_nested_class = {
+	mutable nc_nested : rid; (* TypeDef rid *)
+	mutable nc_enclosing : rid; (* TypeDef rid *)
+}
+
+and meta_generic_param = {
+	mutable gp_number : int; (* ordinal *)
+	mutable gp_flags : to_det; (* constraint_flags *)
+	mutable gp_owner : type_or_method_def;
+		(* generic type or method *)
+	mutable gp_name : stringref option;
+}
+
+and meta_method_spec = {
+	mutable mspec_method : method_def_or_ref;
+		(* instantiated method *)
+	mutable mspec_instantiation : ilsig;
+		(* instantiated signature *)
+}
+
+and meta_generic_param_constraint = {
+	mutable gc_owner : rid; (* GenericParam rid *)
+		(* constrained parameter *)
+	mutable gc_constraint : type_def_or_ref;
+		(* type the parameter must extend or implement *)
+}
+
+and to_det = int
+
+and constant_type =
+	| CInt8 (* 0x4 *)
+	| CInt16 (* 0x6 *)
+	| CInt64 (* 0xA *)
+	| CFloat32 (* 0xC *)
+	| CFloat64 (* 0xD *)
+	| CChar (* 0x3 *)
+	| CBool (* 0x2 *)
+	| CString (* 0xE *)
+	| CNullRef (* 0x12 *)
+		(* null object reference - the value of the constant *)
+		(* of this type must be a 4-byte integer containing 0 *)
 
 and type_def_vis =
 	(* visibility flags - mask 0x7 *)
