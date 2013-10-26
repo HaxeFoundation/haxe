@@ -92,9 +92,9 @@ and clr_meta =
 		(* a class-to-methods lookup table - does not exist in optimized metadatas *)
 	| Method of meta_method
 		(* method definition descriptors *)
-	| ParamPtr
+	| ParamPtr of meta_param_ptr
 		(* a method-to-parameters lookup table - does not exist in optimized metadatas *)
-	| Param
+	| Param of meta_param
 		(* parameter definition descriptors *)
 	| InterfaceImpl
 		(* interface implementation descriptors *)
@@ -219,6 +219,17 @@ and meta_method = {
 	mutable m_name : stringref;
 	mutable m_signature : ilsig;
 	mutable m_paramlist : rid; (* rid: Param *)
+}
+
+and meta_param_ptr = {
+	mutable pp_param : rid;
+}
+
+and meta_param = {
+	mutable p_flags : param_flags;
+	mutable p_sequence : int;
+		(* 0 means return value *)
+	mutable p_name : stringref;
 }
 
 and type_def_vis =
@@ -426,6 +437,25 @@ and method_flags = {
 	mf_interop : method_interop list;
 }
 
+and param_io =
+	(* input/output flags - mask 0x13 *)
+	| PIn (* 0x1 *)
+	| POut (* 0x2 *)
+	| POpt (* 0x10 *)
+
+and param_reserved =
+	(* reserved flags - mask 0xF000 *)
+	| PHasConstant (* 0x1000 *)
+		(* the parameter has an associated Constant record *)
+	| PMarshal (* 0x2000 *)
+		(* the parameter has an associated FieldMarshal record specifying how the parameter *)
+		(* must be marshaled when consumed by unmanaged code *)
+
+and param_flags = {
+	pf_io : param_io list;
+	pf_reserved : param_reserved list;
+}
+
 and ilsig =
 	(* primitive types *)
 	| SVoid (* 0x1 *)
@@ -480,6 +510,8 @@ and ilsig =
 		(* System.Object *)
 	| SVector of ilsig (* 0x1D *)
 		(* followed by the encoding of the underlying type *)
+	| SMethodTypeParam of int (* 0x1E *)
+		(* generic parameter in a generic method definition *)
 	| SReqModifier of type_def_or_ref * ilsig (* 0x1F *)
 		(* modreq: required custom modifier : indicate that the item to which they are attached *)
 		(* must be treated in a special way *)
@@ -503,6 +535,8 @@ and callconv =
 		(* property call *)
 	| CallUnmanaged (* 0x9 *)
 		(* unmanaged calling convention. not used *)
+	| CallGeneric of int (* 0x10 *)
+		(* also contains the number of generic arguments *)
 	| CallHasThis of callconv (* 0x20 *)
 		(* instance method that has an instance pointer (this) *)
 		(* as an implicit first argument - ilasm 'instance' *)

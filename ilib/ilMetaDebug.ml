@@ -37,7 +37,7 @@ let rec ilsig_s = function
 	| SManagedPointer s -> ilsig_s s ^ "&"
 	| SValueType td -> "valuetype"
 	| SClass cl -> "classtype"
-	| STypeParam t -> "!" ^ string_of_int t
+	| STypeParam t | SMethodTypeParam t -> "!" ^ string_of_int t
 	| SArray (s,opts) ->
 		ilsig_s s ^ "[" ^ String.concat "," (List.map (function
 			| Some i,None when i <> 0 ->

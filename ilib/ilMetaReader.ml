@@ -197,6 +197,31 @@ let method_flags_of_int iflags flags =
 		mf_interop = method_interop_of_int iflags;
 	}
 
+let param_io_of_int iprops = List.fold_left (fun acc i ->
+	if (iprops land i) = i then (match i with
+		(* input/output flags - mask 0x13 *)
+		| 0x1 -> PIn (* 0x1 *)
+		| 0x2 -> POut (* 0x2 *)
+		| 0x10 -> POpt (* 0x10 *)
+		| _ -> assert false) :: acc
+	else
+		acc) [] [0x1;0x2;0x10]
+
+let param_reserved_of_int iprops = List.fold_left (fun acc i ->
+	if (iprops land i) = i then (match i with
+		(* reserved flags - mask 0xF000 *)
+		| 0x1000 -> PHasConstant (* 0x1000 *)
+		| 0x2000 -> PMarshal (* 0x2000 *)
+		| _ -> assert false) :: acc
+	else
+		acc) [] [0x1000;0x2000]
+
+let param_flags_of_int i =
+	{
+		pf_io = param_io_of_int i;
+		pf_reserved = param_reserved_of_int i;
+	}
+
 let callconv_of_int i =
 	let basic = match i land 0x1F with
 		| 0x0 -> CallDefault (* 0x0 *)
@@ -205,7 +230,7 @@ let callconv_of_int i =
 		| 0x7 -> CallLocal (* 0x7 *)
 		| 0x8 -> CallProp (* 0x8 *)
 		| 0x9 -> CallUnmanaged (* 0x9 *)
-		| _ -> assert false
+		| i -> printf "error 0x%x\n\n" i; assert false
 	in
 	match i land 0x20 with
 		| 0x20 ->
@@ -317,6 +342,26 @@ let read_sguid_idx ctx pos =
 		let pos = i * 16 in
 		metapos, String.sub s pos 16
 
+let read_callconv ctx s pos =
+	let pos, conv = read_compressed_i32 s pos in
+	let pos, basic = match conv land 0x1F with
+		| 0x0 -> pos, CallDefault (* 0x0 *)
+		| 0x5 -> pos, CallVararg (* 0x5 *)
+		| 0x6 -> pos, CallField (* 0x6 *)
+		| 0x7 -> pos, CallLocal (* 0x7 *)
+		| 0x8 -> pos, CallProp (* 0x8 *)
+		| 0x9 -> pos, CallUnmanaged (* 0x9 *)
+		| 0x10 ->
+			let pos, nparams = read_compressed_i32 s pos in
+			pos, CallGeneric nparams
+		| i -> printf "error 0x%x\n\n" i; assert false
+	in
+	match conv land 0x20 with
+		| 0x20 ->
+			pos, CallHasThis basic
+		| _ when conv land 0x40 = 0x40 ->
+			pos, CallExplicitThis basic
+		| _ -> pos, basic
 (* ******* Metadata Tables ********* *)
 let null_meta = UnknownMeta (-1)
 
@@ -372,6 +417,18 @@ let null_method () =
 		m_paramlist = -1;
 	}
 
+let null_param_ptr () =
+	{
+		pp_param = -1;
+	}
+
+let null_param () =
+	{
+		p_flags = param_flags_of_int 0;
+		p_sequence = -1;
+		p_name = empty;
+	}
+
 let mk_null = function
 	| IModule -> Module (null_module())
 	| ITypeRef -> TypeRef (null_type_ref())
@@ -380,6 +437,8 @@ let mk_null = function
 	| IField -> Field (null_field())
 	| IMethodPtr -> MethodPtr (null_method_ptr())
 	| IMethod -> Method (null_method())
+	| IParamPtr -> ParamPtr (null_param_ptr())
+	| IParam -> Param (null_param())
 	| i ->
 		UnknownMeta (int_of_table i)
 
@@ -554,6 +613,9 @@ let rec read_ilsig ctx s pos =
 		| 0x1D ->
 			let pos, ssig = read_ilsig ctx s pos in
 			pos, SVector ssig
+		| 0x1E ->
+			let pos, conv = read_compressed_i32 s pos in
+			pos, SMethodTypeParam conv
 		| 0x1F ->
 			let pos, tdef = sread_from_table ctx true ITypeDefOrRef s pos in
 			let pos, ilsig = read_ilsig ctx s pos in
@@ -578,9 +640,12 @@ let read_ilsig_method_idx ctx pos =
 		sread_i32 s pos
 	in
 	let s = ctx.blob_stream in
+	for x = 0 to 20 do
+		printf "%x " (sget s (i+x))
+	done;
+	printf "\n";
 	let pos, _ = read_compressed_i32 s i in
-	let pos, conv = read_compressed_i32 s pos in
-	let callconv = callconv_of_int conv in
+	let pos, callconv = read_callconv ctx s pos in
 	let pos, ntypes = read_compressed_i32 s pos in
 	let pos, ret = read_ilsig ctx s pos in
 	let rec loop acc pos n =
@@ -637,7 +702,7 @@ let rec ilsig_s = function (* TODO: delete me - leave only in ilMetaDebug *)
 	| SManagedPointer s -> ilsig_s s ^ "&"
 	| SValueType td -> "valuetype"
 	| SClass cl -> "classtype"
-	| STypeParam t -> "!" ^ string_of_int t
+	| STypeParam t | SMethodTypeParam t -> "!" ^ string_of_int t
 	| SArray (s,opts) ->
 		ilsig_s s ^ "[" ^ String.concat "," (List.map (function
 			| Some i,None when i <> 0 ->
@@ -666,9 +731,10 @@ let rec ilsig_s = function (* TODO: delete me - leave only in ilMetaDebug *)
 	| SSentinel -> "..."
 	| SPinned s -> "pinned " ^ ilsig_s s
 
-let read_table_at ctx tbl n pos = match get_table ctx tbl (n+1 (* indices start at 1 *)) with
+let read_table_at ctx tbl n pos =
+	let s = ctx.meta_stream in
+	match get_table ctx tbl (n+1 (* indices start at 1 *)) with
 	| Module m ->
-		let s = ctx.meta_stream in
 		let pos, gen = sread_ui16 s pos in
 		let pos, name = read_sstring_idx ctx pos in
 		let pos, vid = read_sguid_idx ctx pos in
@@ -681,7 +747,6 @@ let read_table_at ctx tbl n pos = match get_table ctx tbl (n+1 (* indices start 
 		m.md_encbase_id <- encbase_id;
 		pos, Module m
 	| TypeRef tr ->
-		let s = ctx.meta_stream in
 		let pos, scope = sread_from_table ctx false IResolutionScope s pos in
 		let pos, name = read_sstring_idx ctx pos in
 		let pos, ns = read_sstring_idx ctx pos in
@@ -692,7 +757,6 @@ let read_table_at ctx tbl n pos = match get_table ctx tbl (n+1 (* indices start 
 		print_endline ns;
 		pos, TypeRef tr
 	| TypeDef td ->
-		let s = ctx.meta_stream in
 		let pos, flags = sread_i32 s pos in
 		let pos, name = read_sstring_idx ctx pos in
 		let pos, ns = read_sstring_idx ctx pos in
@@ -710,12 +774,10 @@ let read_table_at ctx tbl n pos = match get_table ctx tbl (n+1 (* indices start 
 		print_endline ns;
 		pos, TypeDef td
 	| FieldPtr fp ->
-		let s = ctx.meta_stream in
 		let pos, field = ctx.table_sizes.(int_of_table IField) s pos in
 		fp.fp_field <- field;
 		pos, FieldPtr fp
 	| Field f ->
-		let s = ctx.meta_stream in
 		let pos, flags = sread_ui16 s pos in
 		let pos, name = read_sstring_idx ctx pos in
 		print_endline ("FIELD NAME " ^ name);
@@ -726,17 +788,16 @@ let read_table_at ctx tbl n pos = match get_table ctx tbl (n+1 (* indices start 
 		f.f_signature <- ilsig;
 		pos, Field f
 	| MethodPtr mp ->
-		let s = ctx.meta_stream in
 		let pos, m = ctx.table_sizes.(int_of_table IMethod) s pos in
 		mp.mp_method <- m;
 		pos, MethodPtr mp
 	| Method m ->
-		let s = ctx.meta_stream in
 		let pos, rva = sread_i32 s pos in
 		let pos, iflags = sread_ui16 s pos in
 		let pos, flags = sread_ui16 s pos in
 		let pos, name = read_sstring_idx ctx pos in
 		print_endline ("METHOD NAME " ^ name);
+		printf "method n %d\n" n;
 		let pos, ilsig = read_ilsig_method_idx ctx pos in
 		print_endline (ilsig_s ilsig);
 		let pos, paramlist = ctx.table_sizes.(int_of_table IParam) s pos in
@@ -746,6 +807,18 @@ let read_table_at ctx tbl n pos = match get_table ctx tbl (n+1 (* indices start 
 		m.m_signature <- ilsig;
 		m.m_paramlist <- paramlist;
 		pos, Method m
+	| ParamPtr pp ->
+		let pos, p = ctx.table_sizes.(int_of_table IParam) s pos in
+		pp.pp_param <- p;
+		pos, ParamPtr pp
+	| Param p ->
+		let pos, flags = sread_ui16 s pos in
+		let pos, sequence = sread_ui16 s pos in
+		let pos, name = read_sstring_idx ctx pos in
+		p.p_flags <- param_flags_of_int flags;
+		p.p_sequence <- sequence;
+		p.p_name <- name;
+		pos, Param p
 	| _ -> assert false
 
 (* ******* META READING ********* *)
