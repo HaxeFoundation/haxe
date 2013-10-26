@@ -248,7 +248,7 @@ and meta_member_ref = {
 and meta_constant = {
 	mutable c_type : constant_type;
 	mutable c_parent : has_const;
-	mutable c_value : to_det;
+	mutable c_value : constant;
 }
 
 and meta_custom_attribute = {
@@ -460,14 +460,31 @@ and meta_generic_param_constraint = {
 
 and to_det = int
 
+and constant =
+	| IBool of bool
+	| IChar of int
+	| IByte of int
+	| IShort of int
+	| IInt of int32
+	| IInt64 of int64
+	| IFloat32 of float
+	| IFloat64 of float
+	| IString of string
+	| INull
+
 and constant_type =
+	| CBool (* 0x2 *)
+	| CChar (* 0x3 *)
 	| CInt8 (* 0x4 *)
+	| CUInt8 (* 0x5 *)
 	| CInt16 (* 0x6 *)
+	| CUInt16 (* 0x7 *)
+	| CInt32 (* 0x8 *)
+	| CUInt32 (* 0x9 *)
 	| CInt64 (* 0xA *)
+	| CUInt64 (* 0xB *)
 	| CFloat32 (* 0xC *)
 	| CFloat64 (* 0xD *)
-	| CChar (* 0x3 *)
-	| CBool (* 0x2 *)
 	| CString (* 0xE *)
 	| CNullRef (* 0x12 *)
 		(* null object reference - the value of the constant *)

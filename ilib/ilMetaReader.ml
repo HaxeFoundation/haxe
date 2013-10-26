@@ -311,6 +311,23 @@ let sread_i32 s pos =
 	let n4 = sget s (pos+3) in
 	pos+4, (n4 lsl 24) lor (n3 lsl 16) lor (n2 lsl 8) lor n1
 
+let sread_real_i32 s pos =
+	let n1 = sget s pos in
+	let n2 = sget s (pos+1) in
+	let n3 = sget s (pos+2) in
+	let n4 = Int32.of_int (sget s (pos+3)) in
+	let n = Int32.of_int ((n3 lsl 16) lor (n2 lsl 8) lor n1) in
+	let n4 = Int32.shift_left n4 24 in
+	pos+4, (Int32.logor n4 n)
+
+let sread_i64 s pos =
+	let pos, v1 = sread_real_i32 s (pos+1) in
+	let v1 = Int64.of_int32 v1 in
+	let pos, v2 = sread_real_i32 s pos in
+	let v2 = Int64.of_int32 v2 in
+	let v2 = Int64.shift_left v2 32 in
+	pos, (Int64.logor v1 v2)
+
 let sread_ui16 s pos =
 	let n1 = sget s pos in
 	let n2 = sget s (pos+1) in
@@ -375,6 +392,37 @@ let read_callconv ctx s pos =
 		| _ when conv land 0x40 = 0x40 ->
 			pos, CallExplicitThis basic
 		| _ -> pos, basic
+
+let read_constant ctx with_type s pos =
+	match with_type with
+	| CBool ->
+		IBool (sget s (pos+1) <> 0)
+	| CChar ->
+		let _, v = read_compressed_i32 s (pos+1) in
+		IChar v
+	| CInt8 | CUInt8 ->
+		IByte (sget s (pos+1))
+	| CInt16 | CUInt16 ->
+		let _, v = sread_ui16 s (pos+1) in
+		IShort v
+	| CInt32 | CUInt32 ->
+		let _, v = sread_real_i32 s (pos+1) in
+		IInt v
+	| CInt64 | CUInt64 ->
+		let _, v = sread_i64 s (pos+1) in
+		IInt64 v
+	| CFloat32 ->
+		let _, v1 = sread_real_i32 s (pos+1) in
+		IFloat32 (Int32.float_of_bits v1)
+	| CFloat64 ->
+		let _, v1 = sread_i64 s (pos+1) in
+		IFloat64 (Int64.float_of_bits v1)
+	| CString ->
+		let pos, len = read_compressed_i32 s pos in
+		IString (String.sub s pos len)
+	| CNullRef ->
+		INull
+
 (* ******* Metadata Tables ********* *)
 let null_meta = UnknownMeta (-1)
 
