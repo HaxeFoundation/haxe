@@ -254,7 +254,7 @@ and meta_constant = {
 and meta_custom_attribute = {
 	mutable ca_parent : has_custom_attribute;
 	mutable ca_type : custom_attribute_type;
-	mutable ca_value : to_det option;
+	mutable ca_value : (instance list * (string * instance) list) option;
 		(* can be 0 *)
 }
 
@@ -471,6 +471,11 @@ and constant =
 	| IFloat64 of float
 	| IString of string
 	| INull
+
+and instance =
+	| IConstant of constant
+	| IType of string
+	| IObject 
 
 and constant_type =
 	| CBool (* 0x2 *)
