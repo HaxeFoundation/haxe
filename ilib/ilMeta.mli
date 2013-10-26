@@ -254,7 +254,7 @@ and meta_constant = {
 and meta_custom_attribute = {
 	mutable ca_parent : has_custom_attribute;
 	mutable ca_type : custom_attribute_type;
-	mutable ca_value : (instance list * (string * instance) list) option;
+	mutable ca_value : not_implemented option;
 		(* can be 0 *)
 }
 
@@ -264,9 +264,10 @@ and meta_field_marshal = {
 }
 
 and meta_decl_security = {
-	mutable ds_action : to_det;
+	mutable ds_action : action_security;
 	mutable ds_parent : has_decl_security;
-	mutable ds_permission_set : to_det;
+	mutable ds_permission_set : blobref;
+		(* an xml with the permission set *)
 }
 
 and meta_class_layout = {
@@ -296,7 +297,7 @@ and meta_event_ptr = {
 }
 
 and meta_event = {
-	mutable e_flags : to_det;
+	mutable e_flags : event_flags;
 	mutable e_name : stringref;
 	mutable e_event_type : type_def_or_ref;
 }
@@ -311,13 +312,13 @@ and meta_property_ptr = {
 }
 
 and meta_property = {
-	mutable prop_flags : to_det;
+	mutable prop_flags : property_flags;
 	mutable prop_name : stringref;
 	mutable prop_type : ilsig;
 }
 
 and meta_method_semantics = {
-	mutable ms_semantic : to_det;
+	mutable ms_semantic : semantic_flags;
 	mutable ms_method : meta_method; (* Method rid *)
 	mutable ms_association : has_semantics;
 }
@@ -338,18 +339,20 @@ and meta_type_spec = {
 	mutable ts_signature : ilsig;
 }
 
+(* reserved ? *)
 and meta_enc_log = {
 	mutable el_token : to_det;
 	mutable el_func_code : to_det;
 }
 
 and meta_impl_map = {
-	mutable im_flags : to_det; (* mapping_flags *)
+	mutable im_flags : impl_flags; (* mapping_flags *)
 	mutable im_forwarded : member_forwarded; (* method only *)
 	mutable im_import_name : stringref;
 	mutable im_import_scope : meta_module_ref; (* ModuleRef rid *)
 }
 
+(* reserved ? *)
 and meta_enc_map = {
 	mutable em_token : to_det;
 }
@@ -360,12 +363,12 @@ and meta_field_rva = {
 }
 
 and meta_assembly = {
-	mutable a_hash_alg_id : to_det;
+	mutable a_hash_algo : hash_algo;
 	mutable a_major : int;
 	mutable a_minor : int;
 	mutable a_build : int;
 	mutable a_rev : int;
-	mutable a_flags : to_det; (* assembly_flags *)
+	mutable a_flags : assembly_flags; (* assembly_flags *)
 	mutable a_public_key : blobref;
 	mutable a_name : stringref;
 	mutable a_locale : stringref;
@@ -388,7 +391,7 @@ and meta_assembly_ref = {
 	mutable ar_minor : int;
 	mutable ar_build : int;
 	mutable ar_rev : int;
-	mutable ar_flags : to_det; (* assembly_ref_flags *)
+	mutable ar_flags : assembly_flags;
 	mutable ar_public_key : blobref;
 	mutable ar_name : stringref; (* no path, no extension *)
 	mutable ar_locale : stringref;
@@ -410,13 +413,13 @@ and meta_assembly_ref_os = {
 }
 
 and meta_file = {
-	mutable file_flags : to_det; (* file_flags *)
+	mutable file_flags : file_flag; (* file_flags *)
 	mutable file_name : stringref; (* no path; only file name *)
 	mutable file_hash_value : blobref;
 }
 
 and meta_exported_type = {
-	mutable et_flags : to_det; (* exported_flags *)
+	mutable et_flags : type_def_flags;
 	mutable et_type_def_id : int;
 		(* TypeDef token in another module *)
 	mutable et_type_name : stringref;
@@ -426,7 +429,7 @@ and meta_exported_type = {
 
 and meta_manifest_resource = {
 	mutable mr_offset : int;
-	mutable mr_flags : to_det; (* manifest_resource_flags *)
+	mutable mr_flags : manifest_resource_flag; (* manifest_resource_flags *)
 	mutable mr_name : stringref;
 	mutable mr_implementation : implementation option;
 }
@@ -438,7 +441,7 @@ and meta_nested_class = {
 
 and meta_generic_param = {
 	mutable gp_number : int; (* ordinal *)
-	mutable gp_flags : to_det; (* constraint_flags *)
+	mutable gp_flags : generic_flags;
 	mutable gp_owner : type_or_method_def;
 		(* generic type or method *)
 	mutable gp_name : stringref option;
@@ -459,6 +462,8 @@ and meta_generic_param_constraint = {
 }
 
 and to_det = int
+
+and not_implemented = int
 
 and constant =
 	| IBool of bool
@@ -717,6 +722,152 @@ and param_reserved =
 and param_flags = {
 	pf_io : param_io list;
 	pf_reserved : param_reserved list;
+}
+
+and event_flag =
+	| ESpecialName (* 0x0200 *)
+		(* event is special *)
+	| ERTSpecialName (* 0x0400 *)
+		(* CLI provides special behavior, depending on the name of the event *)
+
+and event_flags = event_flag list
+
+and property_flag =
+	| PSpecialName (* 0x0200 *)
+		(* property is special *)
+	| PRTSpecialName (* 0x0400 *)
+		(* runtime (intrinsic) should check name encoding *)
+	| PHasDefault (* 0x1000 *)
+		(* property has default *)
+	| PUnused (* 0xE9FF *)
+		(* reserved *)
+
+and property_flags = property_flag list
+
+and semantic_flag =
+	| SSetter (* 0x0001 *)
+		(* setter for property *)
+	| SGetter (* 0x0002 *)
+		(* getter for property *)
+	| SOther (* 0x0004 *)
+		(* other method for property or event *)
+	| SAddOn (* 0x0008 *)
+		(* addon method for event - refers to the required add_ method for events *)
+	| SRemoveOn (* 0x0010 *)
+		(* removeon method for event - refers to the required remove_ method for events *)
+	| SFire (* 0x0020 *)
+		(* fire method for event. this refers to the optional raise_ method for events *)
+
+and semantic_flags = semantic_flag list
+
+and action_security =
+	| SecRequest (* 0x1 *)
+	| SecDemand (* 0x2 *)
+	| SecAssert (* 0x3 *)
+	| SecDeny (* 0x4 *)
+	| SecPermitOnly (* 0x5 *)
+	| SecLinkCheck (* 0x6 *)
+	| SecInheritCheck (* 0x7 *)
+	| SecReqMin (* 0x8 *)
+	| SecReqOpt (* 0x9 *)
+	| SecReqRefuse (* 0xA *)
+	| SecPreJitGrant (* 0xB *)
+	| SecPreJitDeny (* 0xC *)
+	| SecNonCasDemand (* 0xD *)
+	| SecNonCasLinkDemand (* 0xE *)
+	| SecNonCasInheritance (* 0xF *)
+
+and impl_charset =
+	| IDefault (* 0x0 *)
+	| IAnsi (* 0x2 *)
+		(* method parameters of type string must be marshaled as ANSI zero-terminated *)
+		(* strings unless explicitly specified otherwise *)
+	| IUnicode (* 0x4 *)
+		(* method parameters of type string must be marshaled as Unicode strings *)
+	| IAutoChar (* 0x6 *)
+		(* method parameters of type string must be marshaled as ANSI or Unicode strings *)
+		(* depending on the platform *)
+
+and impl_callconv =
+	| IDefaultCall (* 0x0 *)
+	| IWinApi (* 0x100 *)
+		(* the native method uses the calling convention standard for the underlying platform *)
+	| ICDecl (* 0x200 *)
+		(* the native method uses the C/C++ style calling convention *)
+	| IStdCall (* 0x300 *)
+		(* native method uses the standard Win32 API calling convention *)
+	| IThisCall (* 0x400 *)
+		(* native method uses the C++ member method (non-vararg) calling convention *)
+	| IFastCall (* 0x500 *)
+
+and impl_flag =
+	| INoMangle (* 0x1 *)
+		(* exported method's name must be matched literally *)
+	| IBestFit (* 0x10 *)
+		(* allow "best fit" guessing when converting the strings *)
+	| IBestFitOff (* 0x20 *)
+		(* disallow "best fit" guessing *)
+	| ILastErr (* 0x40 *)
+		(* the native method supports the last error querying by the Win32 API GetLastError *)
+	| ICharMapError (* 0x1000 *)
+		(* throw an exception when an unmappable character is encountered in a string *)
+	| ICharMapErrorOff (* 0x2000 *)
+		(* don't throw an exception when an unmappable character is encountered *)
+	
+and impl_flags = {
+	if_charset : impl_charset;
+	if_callconv : impl_callconv;
+	if_flags : impl_flag list;
+}
+
+and hash_algo =
+	| HNone (* 0x0 *)
+	| HReserved (* 0x8003 *)
+		(* MD5 ? *)
+	| HSha1 (* 0x8004 *)
+		(* SHA1 *)
+
+and assembly_flag =
+	| APublicKey (* 0x1 *)
+		(* assembly reference holds the full (unhashed) public key *)
+	| ARetargetable (* 0x100 *)
+		(* implementation of this assembly used at runtime is not expected to match *)
+		(* the version seen at compile-time *)
+	| ADisableJitCompileOptimizer (* 0x4000 *)
+		(* Reserved *)
+	| AEnableJitCompileTracking (* 0x8000 *)
+		(* Reserved *)
+
+and assembly_flags = assembly_flag list
+
+and file_flag =
+	| ContainsMetadata (* 0x0 *)
+	| ContainsNoMetadata (* 0x1 *)
+
+and manifest_resource_flag =
+	(* mask 0x7 *)
+	| RNone (* 0x0 *)
+	| RPublic (* 0x1 *)
+	| RPrivate (* 0x2 *)
+
+and generic_variance =
+	(* mask 0x3 *)
+	| VNone (* 0x0 *)
+	| VCovariant (* 0x1 *)
+	| VContravariant (* 0x2 *)
+
+and generic_constraint =
+	(* mask 0x1C *)
+	| CInstanceType (* 0x4 *)
+		(* generic parameter has the special class constraint *)
+	| CValueType (* 0x8 *)
+		(* generic parameter has the special valuetype constraint *)
+	| CDefaultCtor (* 0x10 *)
+		(* has the special .ctor constraint *)
+
+and generic_flags = {
+	gf_variance : generic_variance;
+	gf_constraint : generic_constraint list;
 }
 
 and ilsig =
