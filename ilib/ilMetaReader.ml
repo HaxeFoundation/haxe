@@ -23,6 +23,19 @@ open IlMeta;;
 open IO;;
 open Printf;;
 
+(* *)
+let get_field = function
+	| Field f -> f
+	| _ -> assert false
+
+let get_method = function
+	| Method m -> m
+	| _ -> assert false
+
+let get_param = function
+	| Param p -> p
+	| _ -> assert false
+
 (* decoding helpers *)
 let type_def_vis_of_int i = match i land 0x7 with
 	(* visibility flags - mask 0x7 *)
@@ -365,7 +378,7 @@ let read_callconv ctx s pos =
 (* ******* Metadata Tables ********* *)
 let null_meta = UnknownMeta (-1)
 
-let null_module () =
+let mk_module () =
 	{
 		md_generation = 0;
 		md_name = empty;
@@ -374,14 +387,18 @@ let null_module () =
 		md_encbase_id = empty;
 	}
 
-let null_type_ref () =
+let null_module = mk_module()
+
+let mk_type_ref () =
 	{
 		tr_resolution_scope = null_meta;
 		tr_name = empty;
 		tr_namespace = empty;
 	}
 
-let null_type_def () =
+let null_type_ref = mk_type_ref()
+
+let mk_type_def () =
 	{
 		td_flags = type_def_flags_of_int 0;
 		td_name = empty;
@@ -391,24 +408,23 @@ let null_type_def () =
 		td_method_list = -1;
 	}
 
-let null_field_ptr () =
-	{
-		fp_field = -1;
-	}
-
-let null_field () =
+let mk_field () =
 	{
 		f_flags = field_flags_of_int 0;
 		f_name = empty;
 		f_signature = SVoid;
 	}
 
-let null_method_ptr () =
+let null_field = mk_field()
+
+let mk_field_ptr () =
 	{
-		mp_method = -1;
+		fp_field = null_field;
 	}
 
-let null_method () =
+let null_field_ptr = mk_field_ptr()
+
+let mk_method () =
 	{
 		m_rva = Int32.of_int (-1);
 		m_flags = method_flags_of_int 0 0;
@@ -417,28 +433,41 @@ let null_method () =
 		m_paramlist = -1;
 	}
 
-let null_param_ptr () =
+let null_method = mk_method()
+
+let mk_method_ptr () =
 	{
-		pp_param = -1;
+		mp_method = null_method;
 	}
 
-let null_param () =
+let null_method_ptr = mk_method_ptr()
+
+let mk_param () =
 	{
 		p_flags = param_flags_of_int 0;
 		p_sequence = -1;
 		p_name = empty;
 	}
 
-let mk_null = function
-	| IModule -> Module (null_module())
-	| ITypeRef -> TypeRef (null_type_ref())
-	| ITypeDef -> TypeDef (null_type_def())
-	| IFieldPtr -> FieldPtr (null_field_ptr())
-	| IField -> Field (null_field())
-	| IMethodPtr -> MethodPtr (null_method_ptr())
-	| IMethod -> Method (null_method())
-	| IParamPtr -> ParamPtr (null_param_ptr())
-	| IParam -> Param (null_param())
+let null_param = mk_param()
+
+let mk_param_ptr () =
+	{
+		pp_param = null_param;
+	}
+
+let null_param_ptr = mk_param_ptr()
+
+let mk_meta = function
+	| IModule -> Module (mk_module())
+	| ITypeRef -> TypeRef (mk_type_ref())
+	| ITypeDef -> TypeDef (mk_type_def())
+	| IFieldPtr -> FieldPtr (mk_field_ptr())
+	| IField -> Field (mk_field())
+	| IMethodPtr -> MethodPtr (mk_method_ptr())
+	| IMethod -> Method (mk_method())
+	| IParamPtr -> ParamPtr (mk_param_ptr())
+	| IParam -> Param (mk_param())
 	| i ->
 		UnknownMeta (int_of_table i)
 
@@ -774,7 +803,8 @@ let read_table_at ctx tbl n pos =
 		print_endline ns;
 		pos, TypeDef td
 	| FieldPtr fp ->
-		let pos, field = ctx.table_sizes.(int_of_table IField) s pos in
+		let pos, field = sread_from_table ctx false IField s pos in
+		let field = get_field field in
 		fp.fp_field <- field;
 		pos, FieldPtr fp
 	| Field f ->
@@ -788,7 +818,8 @@ let read_table_at ctx tbl n pos =
 		f.f_signature <- ilsig;
 		pos, Field f
 	| MethodPtr mp ->
-		let pos, m = ctx.table_sizes.(int_of_table IMethod) s pos in
+		let pos, m = sread_from_table ctx false IMethod s pos in
+		let m = get_method m in
 		mp.mp_method <- m;
 		pos, MethodPtr mp
 	| Method m ->
@@ -808,7 +839,8 @@ let read_table_at ctx tbl n pos =
 		m.m_paramlist <- paramlist;
 		pos, Method m
 	| ParamPtr pp ->
-		let pos, p = ctx.table_sizes.(int_of_table IParam) s pos in
+		let pos, p = sread_from_table ctx false IParam s pos in
+		let p = get_param p in
 		pp.pp_param <- p;
 		pos, ParamPtr pp
 	| Param p ->
@@ -827,7 +859,7 @@ let preset_sizes ctx rows =
 	Array.iteri (fun n r -> match r with
 		| false,_ -> ()
 		| true,nrows ->
-			ctx.tables.(n) <- DynArray.init (nrows+1) (fun _ -> mk_null (table_of_int n))
+			ctx.tables.(n) <- DynArray.init (nrows+1) (fun _ -> mk_meta (table_of_int n))
 	) rows
 
 (* let read_ *)

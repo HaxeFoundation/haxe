@@ -202,7 +202,7 @@ and meta_type_def = {
 }
 
 and meta_field_ptr = {
-	mutable fp_field : rid;
+	mutable fp_field : meta_field;
 }
 
 and meta_field = {
@@ -212,7 +212,7 @@ and meta_field = {
 }
 
 and meta_method_ptr = {
-	mutable mp_method : rid;
+	mutable mp_method : meta_method;
 }
 
 and meta_method = {
@@ -224,7 +224,7 @@ and meta_method = {
 }
 
 and meta_param_ptr = {
-	mutable pp_param : rid;
+	mutable pp_param : meta_param;
 }
 
 and meta_param = {
@@ -235,7 +235,7 @@ and meta_param = {
 }
 
 and meta_interface_impl = {
-	mutable ii_class : rid; (* TypeDef rid *)
+	mutable ii_class : meta_type_def; (* TypeDef rid *)
 	mutable ii_interface : type_def_or_ref;
 }
 
@@ -273,13 +273,13 @@ and meta_class_layout = {
 	mutable cl_packing_size : int;
 		(* power of two; from 1 through 128 *)
 	mutable cl_class_size : int;
-	mutable cl_parent : rid; (* TypeDef rid *)
+	mutable cl_parent : meta_type_def; (* TypeDef rid *)
 }
 
 and meta_field_layout = {
 	mutable fl_offset : int;
 		(* offset in bytes or ordinal *)
-	mutable fl_field : rid; (* Field rid *)
+	mutable fl_field : meta_field; (* Field rid *)
 }
 
 and meta_stand_alone_sig = {
@@ -287,12 +287,12 @@ and meta_stand_alone_sig = {
 }
 
 and meta_event_map = {
-	mutable em_parent : rid; (* TypeDef rid *)
-	mutable em_event_list : rid; (* Event rid *)
+	mutable em_parent : meta_type_def; (* TypeDef rid *)
+	mutable em_event_list : meta_event; (* Event rid *)
 }
 
 and meta_event_ptr = {
-	mutable ep_event : rid; (* Event rid *)
+	mutable ep_event : meta_event; (* Event rid *)
 }
 
 and meta_event = {
@@ -302,12 +302,12 @@ and meta_event = {
 }
 
 and meta_property_map = {
-	mutable pm_parent : rid; (* TypeDef rid *)
-	mutable pm_property_list : rid; (* Property rid *)
+	mutable pm_parent : meta_type_def; (* TypeDef rid *)
+	mutable pm_property_list : meta_property; (* Property rid *)
 }
 
 and meta_property_ptr = {
-	mutable pp_property : rid; (* Property rid *)
+	mutable pp_property : meta_property; (* Property rid *)
 }
 
 and meta_property = {
@@ -318,12 +318,12 @@ and meta_property = {
 
 and meta_method_semantics = {
 	mutable ms_semantic : to_det;
-	mutable ms_method : rid; (* Method rid *)
+	mutable ms_method : meta_method; (* Method rid *)
 	mutable ms_association : has_semantics;
 }
 
 and meta_method_impl = {
-	mutable mi_class : rid; (* TypeDef rid *)
+	mutable mi_class : meta_type_def; (* TypeDef rid *)
 	mutable mi_method_body : method_def_or_ref;
 		(* overriding method *)
 	mutable mi_method_declaration : method_def_or_ref;
@@ -347,7 +347,7 @@ and meta_impl_map = {
 	mutable im_flags : to_det; (* mapping_flags *)
 	mutable im_forwarded : member_forwarded; (* method only *)
 	mutable im_import_name : stringref;
-	mutable im_import_scope : rid; (* ModuleRef rid *)
+	mutable im_import_scope : meta_module_ref; (* ModuleRef rid *)
 }
 
 and meta_enc_map = {
@@ -356,7 +356,7 @@ and meta_enc_map = {
 
 and meta_field_rva = {
 	mutable f_rva : rva;
-	mutable f_field : rid; (* Field rid *)
+	mutable f_field : meta_field; (* Field rid *)
 }
 
 and meta_assembly = {
@@ -398,7 +398,7 @@ and meta_assembly_ref = {
 (* unused *)
 and meta_assembly_ref_processor = {
 	mutable arp_processor : to_det;
-	mutable arp_assembly_ref : rid; (* AssemblyRef rid *)
+	mutable arp_assembly_ref : meta_assembly_ref; (* AssemblyRef rid *)
 }
 
 (* unused *)
@@ -406,7 +406,7 @@ and meta_assembly_ref_os = {
 	mutable aros_platform_id : to_det;
 	mutable aros_major : int;
 	mutable aros_minor : int;
-	mutable aros_assembly_ref : rid; (* AssemblyRef rid *)
+	mutable aros_assembly_ref : meta_assembly_ref; (* AssemblyRef rid *)
 }
 
 and meta_file = {
@@ -432,8 +432,8 @@ and meta_manifest_resource = {
 }
 
 and meta_nested_class = {
-	mutable nc_nested : rid; (* TypeDef rid *)
-	mutable nc_enclosing : rid; (* TypeDef rid *)
+	mutable nc_nested : meta_type_def; (* TypeDef rid *)
+	mutable nc_enclosing : meta_type_def; (* TypeDef rid *)
 }
 
 and meta_generic_param = {
@@ -452,7 +452,7 @@ and meta_method_spec = {
 }
 
 and meta_generic_param_constraint = {
-	mutable gc_owner : rid; (* GenericParam rid *)
+	mutable gc_owner : meta_generic_param; (* GenericParam rid *)
 		(* constrained parameter *)
 	mutable gc_constraint : type_def_or_ref;
 		(* type the parameter must extend or implement *)
