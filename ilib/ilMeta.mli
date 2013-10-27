@@ -98,14 +98,14 @@ and clr_meta =
 		(* a method-to-parameters lookup table - does not exist in optimized metadatas *)
 	| Param of meta_param
 		(* parameter definition descriptors *)
-	| InterfaceImpl
+	| InterfaceImpl of meta_interface_impl
 		(* interface implementation descriptors *)
-	| MemberRef
+	| MemberRef of meta_member_ref
 		(* member (field or method) reference descriptors *)
-	| Constant
+	| Constant of meta_constant
 		(* constant value that map the default values stored in the #Blob stream to *)
 		(* respective fields, parameters and properties *)
-	| CustomAttribute
+	| CustomAttribute of meta_custom_attribute
 		(* custom attribute descriptors *)
 	| FieldMarshal
 		(* field or parameter marshaling descriptors for managed/unmanaged interop *)
@@ -138,7 +138,7 @@ and clr_meta =
 		(* method implementation descriptors *)
 	| ModuleRef
 		(* module reference descriptors *)
-	| TypeSpec
+	| TypeSpec of meta_type_spec
 		(* Type specification descriptors *)
 	| ImplMap
 		(* implementation map descriptors used for platform invocation (P/Invoke) *)
@@ -251,10 +251,12 @@ and meta_constant = {
 	mutable c_value : constant;
 }
 
+and named_attribute = bool * string * instance (* is_property * name * instance *)
+
 and meta_custom_attribute = {
 	mutable ca_parent : has_custom_attribute;
 	mutable ca_type : custom_attribute_type;
-	mutable ca_value : not_implemented option;
+	mutable ca_value : (instance list * named_attribute) option;
 		(* can be 0 *)
 }
 
@@ -478,9 +480,11 @@ and constant =
 	| INull
 
 and instance =
-	| IConstant of constant
-	| IType of string
-	| IObject 
+	| InstConstant of constant
+	| InstBoxed of constant
+	| InstType of string
+	| InstArray of instance list
+	| InstEnum of int
 
 and constant_type =
 	| CBool (* 0x2 *)

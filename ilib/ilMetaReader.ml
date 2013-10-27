@@ -22,6 +22,7 @@ open PeReader;;
 open IlMeta;;
 open IO;;
 open Printf;;
+open IlMetaTools;;
 
 (* *)
 let get_field = function
@@ -34,6 +35,10 @@ let get_method = function
 
 let get_param = function
 	| Param p -> p
+	| _ -> assert false
+
+let get_type_def = function
+	| TypeDef p -> p
 	| _ -> assert false
 
 (* decoding helpers *)
@@ -396,32 +401,65 @@ let read_callconv ctx s pos =
 let read_constant ctx with_type s pos =
 	match with_type with
 	| CBool ->
-		IBool (sget s (pos+1) <> 0)
+		pos+1, IBool (sget s (pos+1) <> 0)
 	| CChar ->
-		let _, v = read_compressed_i32 s (pos+1) in
-		IChar v
+		let pos, v = sread_ui16 s (pos+1) in
+		pos, IChar v
 	| CInt8 | CUInt8 ->
-		IByte (sget s (pos+1))
+		pos+1,IByte (sget s (pos+1))
 	| CInt16 | CUInt16 ->
-		let _, v = sread_ui16 s (pos+1) in
-		IShort v
+		let pos, v = sread_ui16 s (pos+1) in
+		pos, IShort v
 	| CInt32 | CUInt32 ->
-		let _, v = sread_real_i32 s (pos+1) in
-		IInt v
+		let pos, v = sread_real_i32 s (pos+1) in
+		pos, IInt v
 	| CInt64 | CUInt64 ->
-		let _, v = sread_i64 s (pos+1) in
-		IInt64 v
+		let pos, v = sread_i64 s (pos+1) in
+		pos, IInt64 v
 	| CFloat32 ->
-		let _, v1 = sread_real_i32 s (pos+1) in
-		IFloat32 (Int32.float_of_bits v1)
+		let pos, v1 = sread_real_i32 s (pos+1) in
+		pos, IFloat32 (Int32.float_of_bits v1)
 	| CFloat64 ->
-		let _, v1 = sread_i64 s (pos+1) in
-		IFloat64 (Int64.float_of_bits v1)
+		let pos, v1 = sread_i64 s (pos+1) in
+		pos, IFloat64 (Int64.float_of_bits v1)
 	| CString ->
 		let pos, len = read_compressed_i32 s pos in
-		IString (String.sub s pos len)
+		pos+len, IString (String.sub s pos len)
 	| CNullRef ->
-		INull
+		pos+1, INull
+
+let sig_to_const = function
+	| SBool -> CBool
+	| SChar -> CChar
+	| SInt8 -> CInt8
+	| SUInt8 -> CUInt8
+	| SInt16 -> CInt16
+	| SUInt16 -> CUInt16
+	| SInt32 -> CInt32
+	| SUInt32 -> CUInt32
+	| SInt64 -> CInt64
+	| SUInt64 -> CUInt64
+	| SFloat32 -> CFloat32
+	| SFloat64 -> CFloat64
+	| SString -> CString
+	| _ -> CNullRef
+
+let read_constant_type ctx s pos = match sget s pos with
+	| 0x2 -> pos+1, CBool (* 0x2 *)
+	| 0x3 -> pos+1, CChar (* 0x3 *)
+	| 0x4 -> pos+1, CInt8 (* 0x4 *)
+	| 0x5 -> pos+1, CUInt8 (* 0x5 *)
+	| 0x6 -> pos+1, CInt16 (* 0x6 *)
+	| 0x7 -> pos+1, CUInt16 (* 0x7 *)
+	| 0x8 -> pos+1, CInt32 (* 0x8 *)
+	| 0x9 -> pos+1, CUInt32 (* 0x9 *)
+	| 0xA -> pos+1, CInt64 (* 0xA *)
+	| 0xB -> pos+1, CUInt64 (* 0xB *)
+	| 0xC -> pos+1, CFloat32 (* 0xC *)
+	| 0xD -> pos+1, CFloat64 (* 0xD *)
+	| 0xE -> pos+1, CString (* 0xE *)
+	| 0x12 -> pos+1, CNullRef (* 0x12 *)
+	| _ -> assert false
 
 (* ******* Metadata Tables ********* *)
 let null_meta = UnknownMeta (-1)
@@ -455,6 +493,8 @@ let mk_type_def () =
 		td_field_list = -1;
 		td_method_list = -1;
 	}
+
+let null_type_def = mk_type_def()
 
 let mk_field () =
 	{
@@ -506,6 +546,41 @@ let mk_param_ptr () =
 
 let null_param_ptr = mk_param_ptr()
 
+let mk_interface_impl () =
+	{
+		ii_class = null_type_def; (* TypeDef rid *)
+		ii_interface = null_meta;
+	}
+
+let null_interface_impl = mk_interface_impl()
+
+let mk_member_ref () =
+	{
+		memr_class = null_meta;
+		memr_name = empty;
+		memr_signature = SVoid;
+	}
+
+let null_member_ref = mk_member_ref()
+
+let mk_constant () =
+	{
+		c_type = CNullRef;
+		c_parent = null_meta;
+		c_value = INull;
+	}
+
+let null_constant = mk_constant()
+
+let mk_custom_attribute () =
+	{
+		ca_parent = null_meta;
+		ca_type = null_meta;
+		ca_value = None;
+	}
+
+let null_custom_attribute = mk_custom_attribute()
+
 let mk_meta = function
 	| IModule -> Module (mk_module())
 	| ITypeRef -> TypeRef (mk_type_ref())
@@ -516,6 +591,14 @@ let mk_meta = function
 	| IMethod -> Method (mk_method())
 	| IParamPtr -> ParamPtr (mk_param_ptr())
 	| IParam -> Param (mk_param())
+	| IInterfaceImpl ->
+		InterfaceImpl (mk_interface_impl())
+	| IMemberRef ->
+		MemberRef (mk_member_ref())
+	| IConstant ->
+		Constant (mk_constant())
+	| ICustomAttribute ->
+		CustomAttribute (mk_custom_attribute())
 	| i ->
 		UnknownMeta (int_of_table i)
 
@@ -554,7 +637,7 @@ let coded_description = Array.init (max_clr_meta_idx - 63) (fun i ->
 		| IImplementation ->
 			Array.of_list [IFile;IAssemblyRef;IExportedType], 2
 		| ICustomAttributeType ->
-			Array.of_list [ITypeRef;ITypeDef;IMethod;IMemberRef(*;IString FIXME *)], 3
+			Array.of_list [ITypeRef(* unused ? *);ITypeDef (* unused ? *);IMethod;IMemberRef(*;IString FIXME *)], 3
 		| IResolutionScope ->
 			Array.of_list [IModule;IModuleRef;IAssemblyRef;ITypeRef], 2
 		| ITypeOrMethodDef ->
@@ -709,7 +792,7 @@ let rec read_ilsig ctx s pos =
 			Printf.printf "unknown ilsig 0x%x\n\n" i;
 			assert false
 
-let read_ilsig_method_idx ctx pos =
+let read_method_ilsig_idx ctx pos =
 	let s = ctx.meta_stream in
 	let metapos,i = if ctx.blob_offset = 2 then
 		sread_ui16 s pos
@@ -726,7 +809,7 @@ let read_ilsig_method_idx ctx pos =
 	let pos, ntypes = read_compressed_i32 s pos in
 	let pos, ret = read_ilsig ctx s pos in
 	let rec loop acc pos n =
-		if n >= ntypes then
+		if n > ntypes then
 			pos, List.rev acc
 		else
 			let pos, ssig = read_ilsig ctx s pos in
@@ -747,7 +830,7 @@ let read_ilsig_idx ctx pos =
 	let _, ilsig = read_ilsig ctx s i in
 	metapos, ilsig
 
-let read_field_ilsig_idx ctx pos =
+let read_field_ilsig_idx ?(force_field=true) ctx pos =
 	let s = ctx.meta_stream in
 	let metapos,i = if ctx.blob_offset = 2 then
 		sread_ui16 s pos
@@ -756,9 +839,90 @@ let read_field_ilsig_idx ctx pos =
 	in
 	let s = ctx.blob_stream in
 	let i, _ = read_compressed_i32 s i in
-	if sget s i <> 0x6 then error ("Invalid field signature: " ^ string_of_int (sget s i));
-	let _, ilsig = read_ilsig ctx s (i+1) in
-	metapos, ilsig
+	if sget s i <> 0x6 then
+		if force_field then
+			error ("Invalid field signature: " ^ string_of_int (sget s i))
+		else
+			read_method_ilsig_idx ctx pos
+	else
+		let _, ilsig = read_ilsig ctx s (i+1) in
+		metapos, ilsig
+
+let read_custom_attr ctx attr_type size s pos =
+	let pos, prolog = sread_ui16 s pos in
+	if prolog <> 0x0001 then error (sprintf "Error reading custom attribute: Expected prolog 0x0001 ; got 0x%x" prolog);
+	let isig = match attr_type with
+		| Method m -> m.m_signature
+		| MemberRef mr -> mr.memr_signature
+		| _ -> assert false
+	in
+	let args = match follow isig with
+		| SFunPtr (_,ret,args) -> args
+		| _ -> assert false
+	in
+	let rec read_instance ilsig pos = match follow ilsig with
+		| SBool | SChar	| SInt8 | SUInt8 | SInt16 | SUInt16
+		| SInt32 | SUInt32 | SInt64 | SUInt64 | SFloat32 | SFloat64 | SString ->
+			let pos, cons = read_constant ctx (sig_to_const ilsig) s pos in
+			pos, InstConstant (cons)
+		| SClass c when is_type ("System","Type") c ->
+			let pos, len = read_compressed_i32 s pos in
+			pos, InstType (String.sub s pos len)
+		| SObject -> (* boxed *)
+			let pos = if sget s pos = 0x51 then pos+1 else pos in
+			let pos, cons = read_constant_type ctx s pos in
+			let pos, boxed = read_constant ctx (sig_to_const ilsig) s pos in
+			pos, InstBoxed boxed
+		| SValueType _ -> (* enum *)
+			let pos, e = sread_i32 s pos in
+			pos, InstEnum e
+		| _ -> assert false
+	in
+	let rec read_fixed acc args pos = match args with
+		| [] -> pos, List.rev acc
+		| SVector isig :: args ->
+			let pos, nelem = sread_real_i32 s pos in
+			let pos, ret = if nelem = -1l then
+				pos, InstConstant INull
+			else
+				let nelem = Int32.to_int nelem in
+				let rec loop acc pos n =
+					if n = nelem then
+						pos, InstArray (List.rev acc)
+					else
+						let pos, inst = read_instance isig pos in
+						loop (inst :: acc) pos (n+1)
+				in
+				loop [] pos 0
+			in
+			read_fixed (ret :: acc) args pos
+		| isig :: args ->
+			let pos, i = read_instance isig pos in
+			read_fixed (i :: acc) args pos
+	in
+	let pos, fixed = read_fixed [] args pos in
+	let pos, nnamed = read_compressed_i32 s pos in
+	let rec read_named acc pos n =
+		if n = nnamed then
+			pos, List.rev acc
+		else
+			let pos, forp = sread_ui8 s pos in
+			let is_prop = if forp = 0x53 then
+					false
+				else if forp = 0x54 then
+					true
+				else
+					error (sprintf "named custom attribute error: expected 0x53 or 0x54 - got 0x%x" forp)
+			in
+			let pos, t = read_ilsig ctx s pos in
+			let pos, len = read_compressed_i32 s pos in
+			let name = String.sub s pos len in
+			let pos = pos+len in
+			let pos, inst = read_instance t pos in
+			read_named ( (is_prop, name, inst) :: acc ) pos (n+1)
+	in
+	let pos, named = read_named [] pos 0 in
+	pos, (fixed, named)
 
 let rec ilsig_s = function (* TODO: delete me - leave only in ilMetaDebug *)
 	| SVoid -> "void"
@@ -809,6 +973,7 @@ let rec ilsig_s = function (* TODO: delete me - leave only in ilMetaDebug *)
 	| SPinned s -> "pinned " ^ ilsig_s s
 
 let read_table_at ctx tbl n pos =
+	print_endline ("rr " ^ string_of_int n);
 	let s = ctx.meta_stream in
 	match get_table ctx tbl (n+1 (* indices start at 1 *)) with
 	| Module m ->
@@ -877,7 +1042,7 @@ let read_table_at ctx tbl n pos =
 		let pos, name = read_sstring_idx ctx pos in
 		print_endline ("METHOD NAME " ^ name);
 		printf "method n %d\n" n;
-		let pos, ilsig = read_ilsig_method_idx ctx pos in
+		let pos, ilsig = read_method_ilsig_idx ctx pos in
 		print_endline (ilsig_s ilsig);
 		let pos, paramlist = ctx.table_sizes.(int_of_table IParam) s pos in
 		m.m_rva <- Int32.of_int rva;
@@ -899,6 +1064,39 @@ let read_table_at ctx tbl n pos =
 		p.p_sequence <- sequence;
 		p.p_name <- name;
 		pos, Param p
+	| InterfaceImpl ii ->
+		let pos, cls = sread_from_table ctx false ITypeDef s pos in
+		let cls = get_type_def cls in
+		let pos, interface  = sread_from_table ctx false ITypeDefOrRef s pos in
+		ii.ii_class <- cls;
+		ii.ii_interface <- interface;
+		pos, InterfaceImpl ii
+	| MemberRef mr ->
+		let pos, cls = sread_from_table ctx false IMemberRefParent s pos in
+		let pos, name = read_sstring_idx ctx pos in
+		print_endline name;
+		(* let pos, signature = read_ilsig_idx ctx pos in *)
+		let pos, signature = read_field_ilsig_idx ~force_field:false ctx pos in
+		print_endline (ilsig_s signature);
+		mr.memr_class <- cls;
+		mr.memr_name <- name;
+		mr.memr_signature <- signature;
+		pos, MemberRef mr
+	| Constant c ->
+		let pos, ctype = read_constant_type ctx s pos in
+		let pos, parent = sread_from_table ctx false IHasConstant s pos in
+		let pos, blobpos = if ctx.blob_offset = 2 then
+				sread_ui16 s pos
+			else
+				sread_i32 s pos
+		in
+		let blob = ctx.blob_stream in
+		let blobpos, _ = read_compressed_i32 blob blobpos in
+		let _, value = read_constant ctx ctype blob blobpos in
+		c.c_type <- ctype;
+		c.c_parent <- parent;
+		c.c_value <- value;
+		pos, Constant c
 	| _ -> assert false
 
 (* ******* META READING ********* *)
