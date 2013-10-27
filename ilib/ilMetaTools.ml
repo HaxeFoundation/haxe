@@ -56,3 +56,39 @@ let rec get_path type_def_or_ref = match type_def_or_ref with
 		| _ -> "","")
 	| _ -> "","")
 	| _ -> assert false
+
+let constant_s = function
+	| IBool true -> "true"
+	| IBool false -> "false"
+	| IChar chr -> "'" ^ Char.escaped (Char.chr chr) ^ "'"
+	| IByte i ->
+		Printf.sprintf "(byte) 0x%x" i
+	| IShort i ->
+		Printf.sprintf "(short) 0x%x" i
+	| IInt i ->
+		Printf.sprintf "0x%lx" i
+	| IInt64 i ->
+		Printf.sprintf "0x%Lx" i
+	| IFloat32 f ->
+		Printf.sprintf "%ff" f
+	| IFloat64 f ->
+		Printf.sprintf "%fd" f
+	| IString s -> "\"" ^ s ^ "\""
+	| INull -> "null"
+
+let rec instance_s = function
+	| InstConstant c -> constant_s c
+	| InstBoxed b -> "boxed " ^ constant_s b
+	| InstType t -> "Type " ^ t
+	| InstArray il -> "[" ^ String.concat ", " (List.map instance_s il) ^ "]"
+	| InstEnum e -> "Enum " ^ string_of_int e
+
+let named_attribute_s (is_prop,name,inst) =
+	(if is_prop then
+		"/*prop*/ "
+	else
+		"")
+	^ name ^ " = " ^ instance_s inst
+
+let attributes_s (il,nal) =
+	"(" ^ (String.concat ", " (List.map instance_s il)) ^ (if nal <> [] then ", " ^ (String.concat ", " (List.map named_attribute_s nal)) else "") ^")"

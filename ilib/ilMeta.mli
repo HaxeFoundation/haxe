@@ -256,7 +256,7 @@ and named_attribute = bool * string * instance (* is_property * name * instance 
 and meta_custom_attribute = {
 	mutable ca_parent : has_custom_attribute;
 	mutable ca_type : custom_attribute_type;
-	mutable ca_value : (instance list * named_attribute) option;
+	mutable ca_value : (instance list * named_attribute list) option;
 		(* can be 0 *)
 }
 

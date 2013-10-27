@@ -401,26 +401,26 @@ let read_callconv ctx s pos =
 let read_constant ctx with_type s pos =
 	match with_type with
 	| CBool ->
-		pos+1, IBool (sget s (pos+1) <> 0)
+		pos+1, IBool (sget s (pos) <> 0)
 	| CChar ->
-		let pos, v = sread_ui16 s (pos+1) in
+		let pos, v = sread_ui16 s (pos) in
 		pos, IChar v
 	| CInt8 | CUInt8 ->
-		pos+1,IByte (sget s (pos+1))
+		pos+1,IByte (sget s (pos))
 	| CInt16 | CUInt16 ->
-		let pos, v = sread_ui16 s (pos+1) in
+		let pos, v = sread_ui16 s (pos) in
 		pos, IShort v
 	| CInt32 | CUInt32 ->
-		let pos, v = sread_real_i32 s (pos+1) in
+		let pos, v = sread_real_i32 s (pos) in
 		pos, IInt v
 	| CInt64 | CUInt64 ->
-		let pos, v = sread_i64 s (pos+1) in
+		let pos, v = sread_i64 s (pos) in
 		pos, IInt64 v
 	| CFloat32 ->
-		let pos, v1 = sread_real_i32 s (pos+1) in
+		let pos, v1 = sread_real_i32 s (pos) in
 		pos, IFloat32 (Int32.float_of_bits v1)
 	| CFloat64 ->
-		let pos, v1 = sread_i64 s (pos+1) in
+		let pos, v1 = sread_i64 s (pos) in
 		pos, IFloat64 (Int64.float_of_bits v1)
 	| CString ->
 		let pos, len = read_compressed_i32 s pos in
@@ -848,7 +848,7 @@ let read_field_ilsig_idx ?(force_field=true) ctx pos =
 		let _, ilsig = read_ilsig ctx s (i+1) in
 		metapos, ilsig
 
-let read_custom_attr ctx attr_type size s pos =
+let read_custom_attr ctx attr_type s pos =
 	let pos, prolog = sread_ui16 s pos in
 	if prolog <> 0x0001 then error (sprintf "Error reading custom attribute: Expected prolog 0x0001 ; got 0x%x" prolog);
 	let isig = match attr_type with
@@ -867,7 +867,7 @@ let read_custom_attr ctx attr_type size s pos =
 			pos, InstConstant (cons)
 		| SClass c when is_type ("System","Type") c ->
 			let pos, len = read_compressed_i32 s pos in
-			pos, InstType (String.sub s pos len)
+			pos+len, InstType (String.sub s pos len)
 		| SObject -> (* boxed *)
 			let pos = if sget s pos = 0x51 then pos+1 else pos in
 			let pos, cons = read_constant_type ctx s pos in
@@ -901,7 +901,12 @@ let read_custom_attr ctx attr_type size s pos =
 			read_fixed (i :: acc) args pos
 	in
 	let pos, fixed = read_fixed [] args pos in
+	for x = 0 to 10 do
+		printf "%x " (sget s (pos + x))
+	done;
+	printf "\n\n";
 	let pos, nnamed = read_compressed_i32 s pos in
+	let pos = if nnamed > 0 then pos+1 else pos in
 	let rec read_named acc pos n =
 		if n = nnamed then
 			pos, List.rev acc
@@ -923,6 +928,21 @@ let read_custom_attr ctx attr_type size s pos =
 	in
 	let pos, named = read_named [] pos 0 in
 	pos, (fixed, named)
+
+let read_custom_attr_idx ctx attr_type pos =
+	let s = ctx.meta_stream in
+	let metapos,i = if ctx.blob_offset = 2 then
+		sread_ui16 s pos
+	else
+		sread_i32 s pos
+	in
+	if i = 0 then
+		metapos, None
+	else
+		let s = ctx.blob_stream in
+		let i, _ = read_compressed_i32 s i in
+		let _, attr = read_custom_attr ctx attr_type s i in
+		metapos, Some attr
 
 let rec ilsig_s = function (* TODO: delete me - leave only in ilMetaDebug *)
 	| SVoid -> "void"
@@ -973,7 +993,7 @@ let rec ilsig_s = function (* TODO: delete me - leave only in ilMetaDebug *)
 	| SPinned s -> "pinned " ^ ilsig_s s
 
 let read_table_at ctx tbl n pos =
-	print_endline ("rr " ^ string_of_int n);
+	print_endline ("rr " ^ string_of_int (n+1));
 	let s = ctx.meta_stream in
 	match get_table ctx tbl (n+1 (* indices start at 1 *)) with
 	| Module m ->
@@ -995,8 +1015,8 @@ let read_table_at ctx tbl n pos =
 		tr.tr_resolution_scope <- scope;
 		tr.tr_name <- name;
 		tr.tr_namespace <- ns;
-		print_endline name;
-		print_endline ns;
+		(* print_endline name; *)
+		(* print_endline ns; *)
 		pos, TypeRef tr
 	| TypeDef td ->
 		let pos, flags = sread_i32 s pos in
@@ -1011,9 +1031,9 @@ let read_table_at ctx tbl n pos =
 		td.td_extends <- extends;
 		td.td_field_list <- flist;
 		td.td_method_list <- fmeth;
-		print_endline "Type Def!";
-		print_endline name;
-		print_endline ns;
+		(* print_endline "Type Def!"; *)
+		(* print_endline name; *)
+		(* print_endline ns; *)
 		pos, TypeDef td
 	| FieldPtr fp ->
 		let pos, field = sread_from_table ctx false IField s pos in
@@ -1023,9 +1043,9 @@ let read_table_at ctx tbl n pos =
 	| Field f ->
 		let pos, flags = sread_ui16 s pos in
 		let pos, name = read_sstring_idx ctx pos in
-		print_endline ("FIELD NAME " ^ name);
+		(* print_endline ("FIELD NAME " ^ name); *)
 		let pos, ilsig = read_field_ilsig_idx ctx pos in
-		print_endline (ilsig_s ilsig);
+		(* print_endline (ilsig_s ilsig); *)
 		f.f_flags <- field_flags_of_int flags;
 		f.f_name <- name;
 		f.f_signature <- ilsig;
@@ -1040,10 +1060,10 @@ let read_table_at ctx tbl n pos =
 		let pos, iflags = sread_ui16 s pos in
 		let pos, flags = sread_ui16 s pos in
 		let pos, name = read_sstring_idx ctx pos in
-		print_endline ("METHOD NAME " ^ name);
-		printf "method n %d\n" n;
+		(* print_endline ("METHOD NAME " ^ name); *)
+		(* printf "method n %d\n" n; *)
 		let pos, ilsig = read_method_ilsig_idx ctx pos in
-		print_endline (ilsig_s ilsig);
+		(* print_endline (ilsig_s ilsig); *)
 		let pos, paramlist = ctx.table_sizes.(int_of_table IParam) s pos in
 		m.m_rva <- Int32.of_int rva;
 		m.m_flags <- method_flags_of_int iflags flags;
@@ -1074,16 +1094,17 @@ let read_table_at ctx tbl n pos =
 	| MemberRef mr ->
 		let pos, cls = sread_from_table ctx false IMemberRefParent s pos in
 		let pos, name = read_sstring_idx ctx pos in
-		print_endline name;
+		(* print_endline name; *)
 		(* let pos, signature = read_ilsig_idx ctx pos in *)
 		let pos, signature = read_field_ilsig_idx ~force_field:false ctx pos in
-		print_endline (ilsig_s signature);
+		(* print_endline (ilsig_s signature); *)
 		mr.memr_class <- cls;
 		mr.memr_name <- name;
 		mr.memr_signature <- signature;
 		pos, MemberRef mr
 	| Constant c ->
 		let pos, ctype = read_constant_type ctx s pos in
+		let pos = pos+1 in
 		let pos, parent = sread_from_table ctx false IHasConstant s pos in
 		let pos, blobpos = if ctx.blob_offset = 2 then
 				sread_ui16 s pos
@@ -1097,6 +1118,17 @@ let read_table_at ctx tbl n pos =
 		c.c_parent <- parent;
 		c.c_value <- value;
 		pos, Constant c
+	| CustomAttribute ca ->
+		let pos, parent = sread_from_table ctx false IHasCustomAttribute s pos in
+		let pos, t = sread_from_table ctx false ICustomAttributeType s pos in
+		let pos, value = read_custom_attr_idx ctx t pos in
+		(match value with
+			| None -> print_endline "None"
+			| Some s -> print_endline (attributes_s s));
+		ca.ca_parent <- parent;
+		ca.ca_type <- t;
+		ca.ca_value <- value;
+		pos, CustomAttribute ca
 	| _ -> assert false
 
 (* ******* META READING ********* *)
