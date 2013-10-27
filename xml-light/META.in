@@ -1,4 +1,3 @@
 version="@VERSION@"
-directory="+xml-light"
 archive(byte)="xml-light.cma"
 archive(native)="xml-light.cmxa"
