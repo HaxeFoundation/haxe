@@ -1357,8 +1357,17 @@ let rec gen_expr_content ctx retval e =
 				| KType n when (match n with HMPath ([],"String") -> false | _ -> true) ->
 					(* for normal classes, we can use native cast *)
 					write ctx (HCast tid)
+				| KInt | KUInt ->
+					(* allow any number to be cast to int (will coerce) *)
+					write ctx HDup;
+					write ctx (HIsType (HMPath([],"Number")));
+					let j = jump ctx J3True in
+					write ctx (HString "Class cast error");
+					write ctx HThrow;
+					j();
+					write ctx (HCast tid)
 				| _ ->
-					(* we need to check with "is" first *)
+					(* we need to check with "is" first, to prevent convertion *)
 					write ctx HDup;
 					write ctx (HIsType tid);
 					let j = jump ctx J3True in
