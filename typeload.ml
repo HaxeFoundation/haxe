@@ -2385,6 +2385,12 @@ let resolve_module_file com m remap p =
 		if (try (Unix.stat file).Unix.st_size with _ -> 0) > 0 then file else raise Not_found
 	| _ -> file
 	) in
+	(* if we try to load a std.xxxx class and resolve a real std file, the package name is not valid, ignore *)
+	(match fst m with
+	| "std" :: _ ->
+		let file = Common.unique_full_path file in
+		if List.exists (fun path -> ExtString.String.starts_with file (try Common.unique_full_path path with _ -> path)) com.std_path then raise Not_found;
+	| _ -> ());
 	if !forbid then begin
 		let _, decls = (!parse_hook) com file p in
 		let meta = (match decls with
