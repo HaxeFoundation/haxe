@@ -26,12 +26,12 @@ package haxe;
 	Use -D haxeJSON to force usage of the Haxe implementation even if a native API is found : this will provide
 	extra encoding features such as enums (replaced by their index), Hashs and Iterable.
 **/
-#if (flash11 && !haxeJSON)
+#if ((flash11 || (js && !oldBrowser)) && !haxeJSON)
 @:native('JSON') extern
 #end
 class Json {
 
-#if (haxeJSON || !flash11)
+#if (haxeJSON || !(flash11 || (js && !oldBrowser)))
 	var buf : #if flash9 flash.utils.ByteArray #else StringBuf #end;
 	var str : String;
 	var pos : Int;
@@ -416,7 +416,7 @@ class Json {
 	}
 
 	#if !haxeJSON
-		#if js
+		#if (js && oldBrowser)
 		static function __init__() untyped {
 			if( __js__('typeof(JSON)') != 'undefined' )
 				Json = __js__('JSON');
