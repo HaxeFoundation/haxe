@@ -157,7 +157,7 @@ class Json {
 		addChar('"'.code);
 		var i = 0;
 		while( true ) {
-			var c = StringTools.fastCodeAt(s,i++);
+			var c = StringTools.fastCodeAt(s, i++);
 			if( StringTools.isEof(c) ) break;
 			switch( c ) {
 			case '"'.code: add('\\"');
@@ -167,7 +167,12 @@ class Json {
 			case '\t'.code: add('\\t');
 			case 8: add('\\b');
 			case 12: add('\\f');
-			default: addChar(c);
+			default:
+				#if flash9
+				if( c >= 128 ) add(String.fromCharCode(c)) else addChar(c);
+				#else
+				addChar(c);
+				#end
 			}
 		}
 		addChar('"'.code);
