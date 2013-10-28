@@ -582,6 +582,24 @@ let read_constant_type ctx s pos = match sget s pos with
 	| 0x12 -> pos+1, CNullRef (* 0x12 *)
 	| _ -> assert false
 
+let action_security_of_int = function
+	| 0x1 -> SecRequest (* 0x1 *)
+	| 0x2 -> SecDemand (* 0x2 *)
+	| 0x3 -> SecAssert (* 0x3 *)
+	| 0x4 -> SecDeny (* 0x4 *)
+	| 0x5 -> SecPermitOnly (* 0x5 *)
+	| 0x6 -> SecLinkCheck (* 0x6 *)
+	| 0x7 -> SecInheritCheck (* 0x7 *)
+	| 0x8 -> SecReqMin (* 0x8 *)
+	| 0x9 -> SecReqOpt (* 0x9 *)
+	| 0xA -> SecReqRefuse (* 0xA *)
+	| 0xB -> SecPreJitGrant (* 0xB *)
+	| 0xC -> SecPreJitDeny (* 0xC *)
+	| 0xD -> SecNonCasDemand (* 0xD *)
+	| 0xE -> SecNonCasLinkDemand (* 0xE *)
+	| 0xF -> SecNonCasInheritance (* 0xF *)
+	| _ -> assert false
+
 (* ******* Metadata Tables ********* *)
 let null_meta = UnknownMeta (-1)
 
@@ -942,16 +960,43 @@ let mk_meta = function
 	| IMethod -> Method (mk_method())
 	| IParamPtr -> ParamPtr (mk_param_ptr())
 	| IParam -> Param (mk_param())
-	| IInterfaceImpl ->
-		InterfaceImpl (mk_interface_impl())
-	| IMemberRef ->
-		MemberRef (mk_member_ref())
-	| IConstant ->
-		Constant (mk_constant())
-	| ICustomAttribute ->
-		CustomAttribute (mk_custom_attribute())
-	| i ->
-		UnknownMeta (int_of_table i)
+	| IInterfaceImpl -> InterfaceImpl (mk_interface_impl())
+	| IMemberRef -> MemberRef (mk_member_ref())
+	| IConstant -> Constant (mk_constant())
+	| ICustomAttribute -> CustomAttribute (mk_custom_attribute())
+	| IFieldMarshal -> FieldMarshal(mk_field_marshal())
+	| IDeclSecurity -> DeclSecurity(mk_decl_security())
+	| IClassLayout -> ClassLayout(mk_class_layout())
+	| IFieldLayout -> FieldLayout(mk_field_layout())
+	| IStandAloneSig -> StandAloneSig(mk_stand_alone_sig())
+	| IEventMap -> EventMap(mk_event_map())
+	| IEventPtr -> EventPtr(mk_event_ptr())
+	| IEvent -> Event(mk_event())
+	| IPropertyMap -> PropertyMap(mk_property_map())
+	| IPropertyPtr -> PropertyPtr(mk_property_ptr())
+	| IProperty -> Property(mk_property())
+	| IMethodSemantics -> MethodSemantics(mk_method_semantics())
+	| IMethodImpl -> MethodImpl(mk_method_impl())
+	| IModuleRef -> ModuleRef(mk_module_ref())
+	| ITypeSpec -> TypeSpec(mk_type_spec())
+	| IImplMap -> ImplMap(mk_impl_map())
+	| IFieldRVA -> FieldRVA(mk_field_rva())
+	| IENCLog -> ENCLog(mk_enc_log())
+	| IENCMap -> ENCMap(mk_enc_map())
+	| IAssembly -> Assembly(mk_assembly())
+	| IAssemblyProcessor -> AssemblyProcessor(mk_assembly_processor())
+	| IAssemblyOS -> AssemblyOS(mk_assembly_os())
+	| IAssemblyRef -> AssemblyRef(mk_assembly_ref())
+	| IAssemblyRefProcessor -> AssemblyRefProcessor(mk_assembly_ref_processor())
+	| IAssemblyRefOS -> AssemblyRefOS(mk_assembly_ref_os())
+	| IFile -> File(mk_file())
+	| IExportedType -> ExportedType(mk_exported_type())
+	| IManifestResource -> ManifestResource(mk_manifest_resource())
+	| INestedClass -> NestedClass(mk_nested_class())
+	| IGenericParam -> GenericParam(mk_generic_param())
+	| IMethodSpec -> MethodSpec(mk_method_spec())
+	| IGenericParamConstraint -> GenericParamConstraint(mk_generic_param_constraint())
+	| i -> UnknownMeta (int_of_table i)
 
 let get_table ctx idx rid =
 	let cur = ctx.tables.(int_of_table idx) in
@@ -1142,6 +1187,141 @@ let rec read_ilsig ctx s pos =
 		| _ ->
 			Printf.printf "unknown ilsig 0x%x\n\n" i;
 			assert false
+
+let rec read_variantsig ctx s pos =
+	let pos, b = sread_ui8 s pos in
+	match b with
+		| 0x00 -> pos, VT_EMPTY (* 0x00 *)
+		| 0x01 -> pos, VT_NULL (* 0x01 *)
+		| 0x02 -> pos, VT_I2 (* 0x02 *)
+		| 0x03 -> pos, VT_I4 (* 0x03 *)
+		| 0x04 -> pos, VT_R4 (* 0x04 *)
+		| 0x05 -> pos, VT_R8 (* 0x05 *)
+		| 0x06 -> pos, VT_CY (* 0x06 *)
+		| 0x07 -> pos, VT_DATE (* 0x07 *)
+		| 0x08 -> pos, VT_BSTR (* 0x08 *)
+		| 0x09 -> pos, VT_DISPATCH (* 0x09 *)
+		| 0x0A -> pos, VT_ERROR (* 0x0A *)
+		| 0x0B -> pos, VT_BOOL (* 0x0B *)
+		| 0x0C -> pos, VT_VARIANT (* 0x0C *)
+		| 0x0D -> pos, VT_UNKNOWN (* 0x0D *)
+		| 0x0E -> pos, VT_DECIMAL (* 0x0E *)
+		| 0x10 -> pos, VT_I1 (* 0x10 *)
+		| 0x11 -> pos, VT_UI1 (* 0x11 *)
+		| 0x12 -> pos, VT_UI2 (* 0x12 *)
+		| 0x13 -> pos, VT_UI4 (* 0x13 *)
+		| 0x14 -> pos, VT_I8 (* 0x14 *)
+		| 0x15 -> pos, VT_UI8 (* 0x15 *)
+		| 0x16 -> pos, VT_INT (* 0x16 *)
+		| 0x17 -> pos, VT_UINT (* 0x17 *)
+		| 0x18 -> pos, VT_VOID (* 0x18 *)
+		| 0x19 -> pos, VT_HRESULT (* 0x19 *)
+		| 0x1A -> pos, VT_PTR (* 0x1A *)
+		| 0x1B -> pos, VT_SAFEARRAY (* 0x1B *)
+		| 0x1C -> pos, VT_CARRAY (* 0x1C *)
+		| 0x1D -> pos, VT_USERDEFINED (* 0x1D *)
+		| 0x1E -> pos, VT_LPSTR (* 0x1E *)
+		| 0x1F -> pos, VT_LPWSTR (* 0x1F *)
+		| 0x24 -> pos, VT_RECORD (* 0x24 *)
+		| 0x40 -> pos, VT_FILETIME (* 0x40 *)
+		| 0x41 -> pos, VT_BLOB (* 0x41 *)
+		| 0x42 -> pos, VT_STREAM (* 0x42 *)
+		| 0x43 -> pos, VT_STORAGE (* 0x43 *)
+		| 0x44 -> pos, VT_STREAMED_OBJECT (* 0x44 *)
+		| 0x45 -> pos, VT_STORED_OBJECT (* 0x45 *)
+		| 0x46 -> pos, VT_BLOB_OBJECT (* 0x46 *)
+		| 0x47 -> pos, VT_CF (* 0x47 *)
+		| 0x48 -> pos, VT_CLSID (* 0x48 *)
+		| _ -> assert false
+
+let read_inline_str s pos =
+	let pos, len = read_compressed_i32 s pos in
+	let ret = String.sub s pos len in
+	pos+len,ret
+
+let rec read_nativesig ctx s pos : int * nativesig =
+	let pos, b = sread_ui8 s pos in
+	match b with
+		| 0x01 -> pos, NVoid (* 0x01 *)
+		| 0x02 -> pos, NBool (* 0x02 *)
+		| 0x03 -> pos, NInt8 (* 0x03 *)
+		| 0x4 -> pos, NUInt8 (* 0x4 *)
+		| 0x5 -> pos, NInt16 (* 0x5 *)
+		| 0x6 -> pos, NUInt16 (* 0x6 *)
+		| 0x7 -> pos, NInt32 (* 0x7 *)
+		| 0x8 -> pos, NUInt32 (* 0x8 *)
+		| 0x9 -> pos, NInt64 (* 0x9 *)
+		| 0xA -> pos, NUInt64 (* 0xA *)
+		| 0xB -> pos, NFloat32 (* 0xB *)
+		| 0xC -> pos, NFloat64 (* 0xC *)
+		| 0xD -> pos, NSysChar (* 0xD *)
+		| 0xE -> pos, NVariant (* 0xE *)
+		| 0xF -> pos, NCurrency (* 0xF *)
+		| 0x10 -> pos, NPointer (* 0x10 *)
+		| 0x11 -> pos, NDecimal (* 0x11 *)
+		| 0x12 -> pos, NDate (* 0x12 *)
+		| 0x13 -> pos, NBStr (* 0x13 *)
+		| 0x14 -> pos, NLPStr (* 0x14 *)
+		| 0x15 -> pos, NLPWStr (* 0x15 *)
+		| 0x16 -> pos, NLPTStr (* 0x16 *)
+		| 0x17 ->
+			let pos, size = read_compressed_i32 s pos in
+			pos, NFixedString size
+		| 0x18 -> pos, NObjectRef (* 0x18 *)
+		| 0x19 -> pos, NUnknown (* 0x19 *)
+		| 0x1A -> pos, NDispatch (* 0x1A *)
+		| 0x1B -> pos, NStruct (* 0x1B *)
+		| 0x1C -> pos, NInterface (* 0x1C *)
+		| 0x1D ->
+			let pos, v = read_variantsig ctx s pos in
+			pos, NSafeArray v
+		| 0x1E ->
+			let pos, size = read_compressed_i32 s pos in
+			let pos, t = read_variantsig ctx s pos in
+			pos, NFixedArray (size,t)
+		| 0x1F -> pos, NIntPointer (* 0x1F *)
+		| 0x20 -> pos, NUIntPointer (* 0x20 *)
+		| 0x21 -> pos, NNestedStruct (* 0x21 *)
+		| 0x22 -> pos, NByValStr (* 0x22 *)
+		| 0x23 -> pos, NAnsiBStr (* 0x23 *)
+		| 0x24 -> pos, NTBStr (* 0x24 *)
+		| 0x25 -> pos, NVariantBool (* 0x25 *)
+		| 0x26 -> pos, NFunctionPtr (* 0x26 *)
+		| 0x28 -> pos, NAsAny (* 0x28 *)
+		| 0x2A ->
+			let pos, elt = read_nativesig ctx s pos in
+			let pos, paramidx = read_compressed_i32 s pos in
+			let pos, size = read_compressed_i32 s pos in
+			let pos, param_mult = read_compressed_i32 s pos in
+			pos, NArray(elt,paramidx,size,param_mult)
+		| 0x2B -> pos, NLPStruct (* 0x2B *)
+		| 0x2C ->
+			let pos, guid_val = read_inline_str s pos in
+			let pos, unmanaged = read_inline_str s pos in
+			(* FIXME: read TypeRef *)
+			pos, NCustomMarshaler (guid_val,unmanaged)
+		| 0x2D -> pos, NError (* 0x2D *)
+		| _ -> assert false
+
+let read_blob_idx ctx s pos =
+	let metapos,i = if ctx.blob_offset = 2 then
+			sread_ui16 s pos
+		else
+			sread_i32 s pos
+	in
+	metapos, i
+
+
+let read_nativesig_idx ctx s pos =
+	let s = ctx.meta_stream in
+	let metapos,i = if ctx.blob_offset = 2 then
+		sread_ui16 s pos
+	else
+		sread_i32 s pos
+	in
+	let s = ctx.blob_stream in
+	let _, ret = read_nativesig ctx s i in
+	metapos, ret
 
 let read_method_ilsig_idx ctx pos =
 	let s = ctx.meta_stream in
@@ -1480,6 +1660,24 @@ let read_table_at ctx tbl n pos =
 		ca.ca_type <- t;
 		ca.ca_value <- value;
 		pos, CustomAttribute ca
+	| FieldMarshal fm ->
+		let pos, parent = sread_from_table ctx false IHasFieldMarshal s pos in
+		let pos, nativesig = read_nativesig_idx ctx s pos in
+		fm.fm_parent <- parent;
+		fm.fm_native_type <- nativesig;
+		pos, FieldMarshal fm
+	| DeclSecurity ds ->
+		let pos, action = sread_ui16 s pos in
+		let action = action_security_of_int action in
+		let pos, parent = sread_from_table ctx false IHasDeclSecurity s pos in
+		let pos, bpos = read_blob_idx ctx s pos in
+		let blob = ctx.blob_stream in
+		let bpos, len = read_compressed_i32 blob bpos in
+		let permission_set = String.sub blob bpos len in
+		ds.ds_action <- action;
+		ds.ds_parent <- parent;
+		ds.ds_permission_set <- permission_set;
+		pos, DeclSecurity ds
 	| _ -> assert false
 
 (* ******* META READING ********* *)
