@@ -257,7 +257,7 @@ let param_flags_of_int i =
 let null_param_flags = param_flags_of_int 0
 
 let callconv_of_int i =
-	let basic = match i land 0x1F with
+	let basic = match i land 0xF with
 		| 0x0 -> CallDefault (* 0x0 *)
 		| 0x5 -> CallVararg (* 0x5 *)
 		| 0x6 -> CallField (* 0x6 *)
@@ -268,10 +268,10 @@ let callconv_of_int i =
 	in
 	match i land 0x20 with
 		| 0x20 ->
-			CallHasThis basic
+			[CallHasThis;basic]
 		| _ when i land 0x40 = 0x40 ->
-			CallExplicitThis basic
-		| _ -> basic
+			[CallExplicitThis;basic]
+		| _ -> [basic]
 
 let event_flags_of_int iprops = List.fold_left (fun acc i ->
 	if (iprops land i) = i then (match i with
@@ -508,23 +508,28 @@ let read_sguid_idx ctx pos =
 
 let read_callconv ctx s pos =
 	let pos, conv = read_compressed_i32 s pos in
-	let pos, basic = match conv land 0x1F with
-		| 0x0 -> pos, CallDefault (* 0x0 *)
-		| 0x5 -> pos, CallVararg (* 0x5 *)
-		| 0x6 -> pos, CallField (* 0x6 *)
-		| 0x7 -> pos, CallLocal (* 0x7 *)
-		| 0x8 -> pos, CallProp (* 0x8 *)
-		| 0x9 -> pos, CallUnmanaged (* 0x9 *)
+	let basic = match conv land 0xF with
+		| 0x0 -> CallDefault (* 0x0 *)
+		| 0x5 -> CallVararg (* 0x5 *)
+		| 0x6 -> CallField (* 0x6 *)
+		| 0x7 -> CallLocal (* 0x7 *)
+		| 0x8 -> CallProp (* 0x8 *)
+		| 0x9 -> CallUnmanaged (* 0x9 *)
+		| i -> printf "error 0x%x\n" i; assert false
+	in
+	let basic = [basic] in
+	let pos, c = match conv land 0x10 with
 		| 0x10 ->
 			let pos, nparams = read_compressed_i32 s pos in
-			pos, CallGeneric nparams
-		| i -> printf "error 0x%x\n\n" i; assert false
+			pos, CallGeneric nparams :: basic
+		| _ ->
+			pos, basic
 	in
 	match conv land 0x20 with
 		| 0x20 ->
-			pos, CallHasThis basic
+			pos, CallHasThis :: basic
 		| _ when conv land 0x40 = 0x40 ->
-			pos, CallExplicitThis basic
+			pos, CallExplicitThis :: basic
 		| _ -> pos, basic
 
 let read_constant ctx with_type s pos =
@@ -1762,6 +1767,16 @@ let read_table_at ctx tbl n pos =
 		mi.mi_method_body <- method_body;
 		mi.mi_method_declaration <- method_declaration;
 		pos, MethodImpl mi
+	| ModuleRef modr ->
+		let pos, name = read_sstring_idx ctx pos in
+		modr.modr_name <- name;
+		print_endline name;
+		pos, ModuleRef modr
+	| TypeSpec ts ->
+		let pos, signature = read_ilsig_idx ctx pos in
+		print_endline (ilsig_s signature);
+		ts.ts_signature <- signature;
+		pos, TypeSpec ts
 	| _ -> assert false
 
 (* ******* META READING ********* *)
