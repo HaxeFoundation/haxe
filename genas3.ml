@@ -301,15 +301,6 @@ let handle_break ctx e =
 
 let this ctx = if ctx.in_value <> None then "$this" else "this"
 
-let escape_bin s =
-	let b = Buffer.create 0 in
-	for i = 0 to String.length s - 1 do
-		match Char.code (String.unsafe_get s i) with
-		| c when c < 32 -> Buffer.add_string b (Printf.sprintf "\\x%.2X" c)
-		| c -> Buffer.add_char b (Char.chr c)
-	done;
-	Buffer.contents b
-
 let generate_resources infos =
 	if Hashtbl.length infos.com.resources <> 0 then begin
 		let dir = (infos.com.file :: ["__res"]) in
@@ -347,7 +338,7 @@ let generate_resources infos =
 let gen_constant ctx p = function
 	| TInt i -> print ctx "%ld" i
 	| TFloat s -> spr ctx s
-	| TString s -> print ctx "\"%s\"" (escape_bin (Ast.s_escape s))
+	| TString s -> print ctx "\"%s\"" (Ast.s_escape s)
 	| TBool b -> spr ctx (if b then "true" else "false")
 	| TNull -> spr ctx "null"
 	| TThis -> spr ctx (this ctx)

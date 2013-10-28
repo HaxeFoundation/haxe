@@ -454,24 +454,17 @@ let parse_path s =
 	| [] -> failwith "Invalid empty path"
 	| x :: l -> List.rev l, x
 
-let s_escape s =
+let s_escape ?(hex=true) s =
 	let b = Buffer.create (String.length s) in
-	let utf8 = ref false in
 	for i = 0 to (String.length s) - 1 do
-		if !utf8 then begin
-			let c = s.[i] in
-			Buffer.add_char b c;
-			utf8 := int_of_char c >= 128;
-		end else match s.[i] with
+		match s.[i] with
 		| '\n' -> Buffer.add_string b "\\n"
 		| '\t' -> Buffer.add_string b "\\t"
 		| '\r' -> Buffer.add_string b "\\r"
 		| '"' -> Buffer.add_string b "\\\""
 		| '\\' -> Buffer.add_string b "\\\\"
-		| c when int_of_char c < 32 -> Buffer.add_string b (Printf.sprintf "\\x%.2X" (int_of_char c))
-		| c ->
-			if int_of_char c >= 128 then utf8 := true;
-			Buffer.add_char b c
+		| c when int_of_char c < 32 && hex -> Buffer.add_string b (Printf.sprintf "\\x%.2X" (int_of_char c))
+		| c -> Buffer.add_char b c
 	done;
 	Buffer.contents b
 

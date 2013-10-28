@@ -144,14 +144,14 @@ let make_base_directory dir =
 
 let new_source_file common_ctx base_dir sub_dir extension class_path =
 	let include_prefix = get_include_prefix common_ctx in
-	let full_dir = 
+	let full_dir =
 	   if (sub_dir="include") && (include_prefix<>"") then begin
 		   let dir = base_dir ^ "/include/" ^ include_prefix ^ ( String.concat "/" (fst class_path) )  in
 			make_base_directory dir;
 			dir
 		end else begin
 			make_class_directories base_dir ( sub_dir :: (fst class_path));
-			base_dir ^ "/" ^ sub_dir ^ "/" ^ ( String.concat "/" (fst class_path) ) 
+			base_dir ^ "/" ^ sub_dir ^ "/" ^ ( String.concat "/" (fst class_path) )
 		end
    in
 	cached_source_writer common_ctx (full_dir ^ "/" ^ ((snd class_path) ^ extension));;
@@ -712,7 +712,7 @@ let escape_command s =
 
 
 let str s =
-	let escaped = Ast.s_escape s in
+	let escaped = Ast.s_escape ~hex:false s in
 		("HX_CSTRING(\"" ^ (special_to_hex escaped) ^ "\")")
 ;;
 
@@ -2031,7 +2031,7 @@ and gen_expression ctx retval expression =
 		end;
 	| TBreak -> output "break"
 	| TContinue -> output "continue"
-	| TThrow expression -> 
+	| TThrow expression ->
 	        output "HX_STACK_DO_THROW(";
 			gen_expression ctx true expression;
 			output ")";
@@ -3223,7 +3223,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
    | x -> x
    in
 
-   let generate_script_function isStatic field scriptName callName = 
+   let generate_script_function isStatic field scriptName callName =
 		match follow field.cf_type  with
 		| TFun (args,return_type) ->
          output_cpp ("\nstatic void " ^ scriptName ^ "(hx::CppiaCtx *ctx) {\n");
@@ -3810,7 +3810,7 @@ let gen_extern_enum common_ctx enum_def file_info =
 	file#close
 ;;
 
-let rec remove_parens expression = 
+let rec remove_parens expression =
    match expression.eexpr with
    | TParenthesis e -> remove_parens e
    | TMeta(_,e) -> remove_parens e
@@ -3833,7 +3833,7 @@ let is_super expression =
 
 let is_assign_op op =
    match op with
-   | OpAssign 
+   | OpAssign
    | OpAssignOp _ -> true
    | _ -> false
 ;;
@@ -3896,7 +3896,7 @@ class script_writer common_ctx ctx filename =
    val identTable = Hashtbl.create 0
    val fileTable = Hashtbl.create 0
    val identBuffer = Buffer.create 0
-	method stringId name = 
+	method stringId name =
       try ( Hashtbl.find identTable name )
 	   with Not_found -> begin
          let size = Hashtbl.length identTable in
@@ -3908,7 +3908,7 @@ class script_writer common_ctx ctx filename =
 	method stringText name = (string_of_int (this#stringId name)) ^ " "
    val typeTable = Hashtbl.create 0
    val typeBuffer = Buffer.create 0
-   method typeId name = 
+   method typeId name =
       try ( Hashtbl.find typeTable name )
 	   with Not_found -> begin
          let size = Hashtbl.length typeTable in
@@ -3931,7 +3931,7 @@ class script_writer common_ctx ctx filename =
    method instName clazz = this#write (this#instText clazz)
    method enumText e = this#typeText (TEnum(e,[]))
    method enumName e = this#write (this#enumText e)
-	method close = 
+	method close =
       let out_file = open_out_bin filename in
       output_string out_file "CPPIA\n";
       let idents =  Buffer.contents identBuffer in
@@ -4010,7 +4010,7 @@ class script_writer common_ctx ctx filename =
         if (is_interface_type toType) && not (is_interface_type expr.etype) then begin
            write_cast ("TOINTERFACE " ^ (this#typeText toType) ^ " " ^ (this#typeText expr.etype) )
         end else begin
-           let rec get_array_type t = 
+           let rec get_array_type t =
               match follow t with
               | TInst ({cl_path=[],"Array"},[param]) ->
                   let typeName = type_string_suff "" param in
@@ -4027,7 +4027,7 @@ class script_writer common_ctx ctx filename =
               | _ -> ArrayNone
            in
            let get_array_expr_type expr =
-              if is_dynamic_in_cpp ctx expr then 
+              if is_dynamic_in_cpp ctx expr then
                  ArrayNone
               else
                  get_array_type expr.etype
@@ -4209,7 +4209,7 @@ class script_writer common_ctx ctx filename =
                  ("methodName", { eexpr = (TConst (TString meth)) }) :: [] ) ->
             this#write ("POSINFO " ^ (this#stringText file) ^ (Printf.sprintf "%ld" line) ^ " " ^
                          (this#stringText class_name) ^ " " ^  (this#stringText meth))
- 
+
      | TObjectDecl values ->this#write ("OBJDEF " ^ (string_of_int (List.length values)));
          this#write " ";
          List.iter (fun (name,_) -> this#write (this#stringText name)  ) values;
