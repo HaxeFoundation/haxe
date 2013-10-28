@@ -339,7 +339,14 @@ let generate_type com t =
 		| None ->
 			n ^ " : " ^ stype t
 		| Some (Ident "null") ->
-			"?" ^ n ^ " : " ^ stype (notnull t)
+			if is_null t then
+				"?" ^ n ^ " : " ^ stype (notnull t)
+			else
+				(* we have not found a default value stored in metadata, let's generate it *)
+				n ^ " : " ^ stype t ^ " = " ^ (match follow t with
+					| TAbstract ({ a_path = [],("Int"|"Float"|"UInt") },_) -> "0"
+					| TAbstract ({ a_path = [],"Bool" },_) -> "false"
+					| _ -> "null")
 		| Some v ->
 			n ^ " : " ^ stype t ^ " = " ^ (match s_constant v with "nan" -> "0./*NaN*/" | v -> v)
 	in
