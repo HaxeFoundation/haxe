@@ -44,10 +44,216 @@
 
 #if (flash9 || flash9doc || cs)
 /**
-	The unsigned Int type is only defined for Flash9. It's currently
+	The unsigned Int type is only defined for Flash9 and C#. It's currently
 	handled the same as a normal Int.
 **/
 @:coreType @:notNull @:runtimeValue abstract UInt to Int from Int { }
+#else
+/**
+	The unsigned Int type is only defined for Flash9 and C#. 
+	Simulate it for other platforms.
+**/
+abstract UInt(Int) from Int {
+
+	@:commutative @:op(A + B) public static inline function addWithFloat(a:UInt, b:Float):Float {
+		return a.toFloat() + b;
+	}
+
+	@:commutative @:op(A * B) public static inline function mulWithFloat(a:UInt, b:Float):Float {
+		return a.toFloat() * b;
+	}
+
+	@:op(A / B) public static inline function divFloat(a:UInt, b:Float):Float {
+		return a.toFloat() / b;
+	}
+
+	@:op(A / B) public static inline function floatDiv(a:Float, b:UInt):Float {
+		return a / b.toFloat();
+	}
+
+	@:op(A - B) public static inline function subFloat(a:UInt, b:Float):Float {
+		return a.toFloat() - b;
+	}
+
+	@:op(A - B) public static inline function floatSub(a:Float, b:UInt):Float {
+		return a - b.toFloat();
+	}
+
+	@:op(A > B) public static inline function gtFloat(a:UInt, b:Float):Bool {
+		return a.toFloat() > b;
+	}
+
+	@:op(A >= B) public static inline function gteFloat(a:UInt, b:Float):Bool {
+		return a.toFloat() >= b;
+	}
+
+
+	@:op(A > B) public static inline function floatGt(a:Float, b:UInt):Bool {
+		return a > b.toFloat();
+	}
+
+	@:op(A >= B) public static inline function floatGte(a:Float, b:UInt):Bool {
+		return a >= b.toFloat();
+	}
+
+	@:op(A < B) public static inline function ltFloat(a:UInt, b:Float):Bool {
+		return a.toFloat() < b;
+	}
+
+	@:op(A <= B) public static inline function lteFloat(a:UInt, b:Float):Bool {
+		return a.toFloat() <= b;
+	}
+
+
+	@:op(A < B) public static inline function floatLt(a:Float, b:UInt):Bool {
+		return a < b.toFloat();
+	}
+
+	@:op(A <= B) public static inline function floatLte(a:Float, b:UInt):Bool {
+		return a <= b.toFloat();
+	}
+
+	@:op(A % B) public static inline function modFloat(a:UInt, b:Float):Float {
+		return a.toFloat() % b;
+	}
+
+	@:op(A % B) public static inline function floatMod(a:Float, b:UInt):Float {
+		return a % b.toFloat();
+	}
+
+	@:op(A + B) public static inline function add(a:UInt, b:UInt):UInt {
+		return a.toInt() + b.toInt();
+	}
+
+	@:op(A / B) public static inline function div(a:UInt, b:UInt):Float {
+		return a.toInt() / b.toInt();
+	}
+
+	@:op(A * B) public static inline function mul(a:UInt, b:UInt):UInt {
+		return a.toInt() * b.toInt();
+	}
+
+	@:op(A - B) public static inline function sub(a:UInt, b:UInt):UInt {
+		return a.toInt() - b.toInt();
+	}
+
+	@:op(A > B) public static inline function gt(a:UInt, b:UInt):Bool {
+		if (a.toInt() < 0) {
+			if (b.toInt() >= 0) {
+				return false;
+			}
+			else {
+				return a.toInt() > b.toInt();
+			}
+		}
+		else {
+			if (b.toInt() >= 0) {
+				return a.toInt() > b.toInt();
+			}
+			else {
+				return true;
+			}
+		}
+	}
+
+	@:op(A >= B) public static inline function gte(a:UInt, b:UInt):Bool {
+		if (a.toInt() < 0) {
+			if (b.toInt() >= 0) {
+				return false;
+			}
+			else {
+				return a.toInt() >= b.toInt();
+			}
+		}
+		else {
+			if (b.toInt() >= 0) {
+				return a.toInt() >= b.toInt();
+			}
+			else {
+				return true;
+			}
+		}
+	}
+
+	@:op(A < B) public static inline function lt(a:UInt, b:UInt):Bool {
+		return gt(b, a);
+	}
+
+	@:op(A <= B) public static inline function lte(a:UInt, b:UInt):Bool {
+		return gte(b, a);
+	}
+
+	@:op(A & B) public static inline function and(a:UInt, b:UInt):UInt {
+		return a.toInt() & b.toInt();
+	}
+
+	@:op(A | B) public static inline function or(a:UInt, b:UInt):UInt {
+		return a.toInt() | b.toInt();
+	}
+
+	@:op(A ^ B) public static inline function xor(a:UInt, b:UInt):UInt {
+		return a.toInt() ^ b.toInt();
+	}
+
+	@:op(A << B) public static inline function shl(a:UInt, b:Int):UInt {
+		return a.toInt() << b;
+	}
+
+	@:op(A >> B) public static inline function shr(a:UInt, b:UInt):UInt {
+		return a.toInt() >> b;
+	}
+
+	@:op(A >>> B) public static inline function ushr(a:UInt, b:UInt):UInt {
+		return a.toInt() >>> b;
+	}
+
+	@:op(A % B) public static inline function mod(a:UInt, b:UInt):UInt {
+		return a.toInt() % b.toInt();
+	}
+
+	@:op(~A) public inline function negBits():UInt {
+		return ~this;
+	}
+
+	@:op(++A) public inline function prefixIncrement():UInt {
+		return ++this;
+	}
+
+	@:op(A++) public inline function postfixIncrement():UInt {
+		return this++;
+	}
+
+	@:op(--A) public inline function prefixDecrement():UInt {
+		return --this;
+	}
+
+	@:op(A--) public inline function postfixDecrement():UInt {
+		return this--;
+	}
+
+	public inline function toString():String {
+		return Std.string(toFloat());
+	}
+
+	@:to public inline function toDynamic():Dynamic {
+		return toFloat();
+	}
+
+	@:to public inline function toFloat():Float {
+		var int:Int = cast this;
+		if (int < 0) {
+			return 4294967296.0 + int;
+		}
+		else {
+			return int;
+		}
+	}
+
+	@:to public inline function toInt():Int {
+		return this;
+	}
+
+}
 #end
 
 #if (java || cs)
