@@ -1644,10 +1644,16 @@ let init_class ctx c p context_init herits fields =
 				c.cl_extern <- false;
 				if ctx.in_macro then
 					let texpr = CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = None } in
+					(* ExprOf type parameter might contain platform-specific type, let's replace it by Expr *)
+					let no_expr_of = function
+						| CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = Some ("ExprOf"); tparams = [TPType _] }
+						| CTPath { tpackage = []; tname = ("ExprOf"); tsub = None; tparams = [TPType _] } -> Some texpr
+						| t -> Some t
+					in
 					{
 						f_params = fd.f_params;
 						f_type = (match fd.f_type with None -> Some texpr | t -> t);
-						f_args = List.map (fun (a,o,t,e) -> a,o,(match t with None -> Some texpr | _ -> t),e) fd.f_args;
+						f_args = List.map (fun (a,o,t,e) -> a,o,(match t with None -> Some texpr | Some t -> no_expr_of t),e) fd.f_args;
 						f_expr = fd.f_expr;
 					}
 				else
