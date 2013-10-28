@@ -1331,16 +1331,17 @@ let read_method_ilsig_idx ctx pos =
 		sread_i32 s pos
 	in
 	let s = ctx.blob_stream in
-	for x = 0 to 20 do
+	let pos, len = read_compressed_i32 s i in
+	for x = 0 to len do
 		printf "%x " (sget s (i+x))
 	done;
+	let endpos = pos + len in
 	printf "\n";
-	let pos, _ = read_compressed_i32 s i in
 	let pos, callconv = read_callconv ctx s pos in
 	let pos, ntypes = read_compressed_i32 s pos in
 	let pos, ret = read_ilsig ctx s pos in
 	let rec loop acc pos n =
-		if n > ntypes then
+		if n > ntypes || pos >= endpos then
 			pos, List.rev acc
 		else
 			let pos, ssig = read_ilsig ctx s pos in
@@ -1671,13 +1672,33 @@ let read_table_at ctx tbl n pos =
 		let action = action_security_of_int action in
 		let pos, parent = sread_from_table ctx false IHasDeclSecurity s pos in
 		let pos, bpos = read_blob_idx ctx s pos in
-		let blob = ctx.blob_stream in
-		let bpos, len = read_compressed_i32 blob bpos in
+			let blob = ctx.blob_stream in
+			let bpos, len = read_compressed_i32 blob bpos in
 		let permission_set = String.sub blob bpos len in
 		ds.ds_action <- action;
 		ds.ds_parent <- parent;
 		ds.ds_permission_set <- permission_set;
 		pos, DeclSecurity ds
+	| ClassLayout cl ->
+		let pos, psize = sread_ui16 s pos in
+		let pos, csize = sread_i32 s pos in
+		let pos, parent = sread_from_table ctx false ITypeDef s pos in
+		let parent = get_type_def parent in
+		cl.cl_packing_size <- psize;
+		cl.cl_class_size <- csize;
+		cl.cl_parent <- parent;
+		pos, ClassLayout cl
+	| FieldLayout fl ->
+		let pos, offset = sread_i32 s pos in
+		let pos, field = sread_from_table ctx false IField s pos in
+		fl.fl_offset <- offset;
+		fl.fl_field <- get_field field;
+		pos, FieldLayout fl
+	| StandAloneSig sa ->
+		let pos, ilsig = read_field_ilsig_idx ~force_field:false ctx pos in
+		print_endline (ilsig_s ilsig);
+		sa.sa_signature <- ilsig;
+		pos, StandAloneSig sa
 	| _ -> assert false
 
 (* ******* META READING ********* *)
