@@ -650,8 +650,9 @@ let action_security_of_int = function
 (* ******* Metadata Tables ********* *)
 let null_meta = UnknownMeta (-1)
 
-let mk_module () =
+let mk_module id =
 	{
+		md_id = id;
 		md_generation = 0;
 		md_name = empty;
 		md_vid = empty;
@@ -659,47 +660,52 @@ let mk_module () =
 		md_encbase_id = empty;
 	}
 
-let null_module = mk_module()
+let null_module = mk_module (-1)
 
-let mk_type_ref () =
+let mk_type_ref id =
 	{
+		tr_id = id;
 		tr_resolution_scope = null_meta;
 		tr_name = empty;
 		tr_namespace = empty;
 	}
 
-let null_type_ref = mk_type_ref()
+let null_type_ref = mk_type_ref (-1)
 
-let mk_type_def () =
+let mk_type_def id =
 	{
+		td_id = id;
 		td_flags = null_type_def_flags;
 		td_name = empty;
 		td_namespace = empty;
 		td_extends = null_meta;
-		td_field_list = -1;
-		td_method_list = -1;
+		td_field_list = [];
+		td_method_list = [];
 	}
 
-let null_type_def = mk_type_def()
+let null_type_def = mk_type_def (-1)
 
-let mk_field () =
+let mk_field id =
 	{
+		f_id = id;
 		f_flags = null_field_flags;
 		f_name = empty;
 		f_signature = SVoid;
 	}
 
-let null_field = mk_field()
+let null_field = mk_field (-1)
 
-let mk_field_ptr () =
+let mk_field_ptr id =
 	{
+		fp_id = id;
 		fp_field = null_field;
 	}
 
-let null_field_ptr = mk_field_ptr()
+let null_field_ptr = mk_field_ptr (-1)
 
-let mk_method () =
+let mk_method id =
 	{
+		m_id = id;
 		m_rva = Int32.of_int (-1);
 		m_flags = null_method_flags;
 		m_name = empty;
@@ -707,192 +713,219 @@ let mk_method () =
 		m_paramlist = -1;
 	}
 
-let null_method = mk_method()
+let null_method = mk_method (-1)
 
-let mk_method_ptr () =
+let mk_method_ptr id =
 	{
+		mp_id = id;
 		mp_method = null_method;
 	}
 
-let null_method_ptr = mk_method_ptr()
+let null_method_ptr = mk_method_ptr (-1)
 
-let mk_param () =
+let mk_param id =
 	{
+		p_id = id;
 		p_flags = null_param_flags;
 		p_sequence = -1;
 		p_name = empty;
 	}
 
-let null_param = mk_param()
+let null_param = mk_param (-1)
 
-let mk_param_ptr () =
+let mk_param_ptr id =
 	{
+		pp_id = id;
 		pp_param = null_param;
 	}
 
-let null_param_ptr = mk_param_ptr()
+let null_param_ptr = mk_param_ptr (-1)
 
-let mk_interface_impl () =
+let mk_interface_impl id =
 	{
+		ii_id = id;
 		ii_class = null_type_def; (* TypeDef rid *)
 		ii_interface = null_meta;
 	}
 
-let null_interface_impl = mk_interface_impl()
+let null_interface_impl = mk_interface_impl (-1)
 
-let mk_member_ref () =
+let mk_member_ref id =
 	{
+		memr_id = id;
 		memr_class = null_meta;
 		memr_name = empty;
 		memr_signature = SVoid;
 	}
 
-let null_member_ref = mk_member_ref()
+let null_member_ref = mk_member_ref (-1)
 
-let mk_constant () =
+let mk_constant id =
 	{
+		c_id = id;
 		c_type = CNullRef;
 		c_parent = null_meta;
 		c_value = INull;
 	}
 
-let null_constant = mk_constant()
+let null_constant = mk_constant (-1)
 
-let mk_custom_attribute () =
+let mk_custom_attribute id =
 	{
+		ca_id = id;
 		ca_parent = null_meta;
 		ca_type = null_meta;
 		ca_value = None;
 	}
 
-let null_custom_attribute = mk_custom_attribute()
+let null_custom_attribute = mk_custom_attribute (-1)
 
-let mk_field_marshal () =
+let mk_field_marshal id =
 	{
+		fm_id = id;
 		fm_parent = null_meta;
 		fm_native_type = NVoid;
 	}
 
-let null_field_marshal = mk_field_marshal()
+let null_field_marshal = mk_field_marshal (-1)
 
-let mk_decl_security () =
+let mk_decl_security id =
 	{
+		ds_id = id;
 		ds_action = SecNull;
 		ds_parent = null_meta;
 		ds_permission_set = empty;
 	}
 
-let mk_class_layout () =
+let mk_class_layout id =
 	{
+		cl_id = id;
 		cl_packing_size = -1;
 		cl_class_size = -1;
 		cl_parent = null_type_def;
 	}
 
-let mk_field_layout () =
+let mk_field_layout id =
 	{
+		fl_id = id;
 		fl_offset = -1;
 		fl_field = null_field;
 	}
 
-let mk_stand_alone_sig () =
+let mk_stand_alone_sig id =
 	{
+		sa_id = id;
 		sa_signature = SVoid;
 	}
 
-let mk_event () =
+let mk_event id =
 	{
+		e_id = id;
 		e_flags = [];
 		e_name = empty;
 		e_event_type = null_meta;
 	}
 
-let null_event = mk_event()
+let null_event = mk_event (-1)
 
-let mk_event_map () =
+let mk_event_map id =
 	{
+		em_id = id;
 		em_parent = null_type_def;
-		em_event_list = null_event;
+		em_event_list = [];
 	}
 
-let mk_event_ptr () =
+let mk_event_ptr id =
 	{
+		ep_id = id;
 		ep_event = null_event;
 	}
 
-let mk_property () =
+let mk_property id =
 	{
+		prop_id = id;
 		prop_flags = [];
 		prop_name = empty;
 		prop_type = SVoid;
 	}
 
-let null_property = mk_property()
+let null_property = mk_property (-1)
 
-let mk_property_map () =
+let mk_property_map id =
 	{
+		pm_id = id;
 		pm_parent = null_type_def;
-		pm_property_list = null_property;
+		pm_property_list = [];
 	}
 
-let mk_property_ptr () =
+let mk_property_ptr id =
 	{
-		pp_property = null_property;
+		prp_id = id;
+		prp_property = null_property;
 	}
 
-let mk_method_semantics () =
+let mk_method_semantics id =
 	{
+		ms_id = id;
 		ms_semantic = [];
 		ms_method = null_method;
 		ms_association = null_meta;
 	}
 
-let mk_method_impl () =
+let mk_method_impl id =
 	{
+		mi_id = id;
 		mi_class = null_type_def;
 		mi_method_body = null_meta;
 		mi_method_declaration = null_meta;
 	}
 
-let mk_module_ref () =
+let mk_module_ref id =
 	{
+		modr_id = id;
 		modr_name = empty;
 	}
 
-let null_module_ref = mk_module_ref()
+let null_module_ref = mk_module_ref (-1)
 
-let mk_type_spec () =
+let mk_type_spec id =
 	{
+		ts_id = id;
 		ts_signature = SVoid;
 	}
 
-let mk_enc_log () =
+let mk_enc_log id =
 	{
+		el_id = id;
 		el_token = -1;
 		el_func_code = -1;
 	}
 
-let mk_impl_map () =
+let mk_impl_map id =
 	{
+		im_id = id;
 		im_flags = null_impl_flags;
 		im_forwarded = null_meta;
 		im_import_name = empty;
 		im_import_scope = null_module_ref;
 	}
 
-let mk_enc_map () =
+let mk_enc_map id =
 	{
-		em_token = -1;
+		encm_id = id;
+		encm_token = -1;
 	}
 
-let mk_field_rva () =
+let mk_field_rva id =
 	{
-		f_rva = Int32.zero;
-		f_field = null_field;
+		fr_id = id;
+		fr_rva = Int32.zero;
+		fr_field = null_field;
 	}
 
-let mk_assembly () =
+let mk_assembly id =
 	{
+		a_id = id;
 		a_hash_algo = HNone;
 		a_major = -1;
 		a_minor = -1;
@@ -904,20 +937,23 @@ let mk_assembly () =
 		a_locale = empty;
 	}
 
-let mk_assembly_processor () =
+let mk_assembly_processor id =
 	{
+		ap_id = id;
 		ap_processor = -1;
 	}
 
-let mk_assembly_os () =
+let mk_assembly_os id =
 	{
+		aos_id = id;
 		aos_platform_id = -1;
 		aos_major_version = -1;
 		aos_minor_version = -1;
 	}
 
-let mk_assembly_ref () =
+let mk_assembly_ref id =
 	{
+		ar_id = id;
 		ar_major = -1;
 		ar_minor = -1;
 		ar_build = -1;
@@ -929,31 +965,35 @@ let mk_assembly_ref () =
 		ar_hash_value = empty;
 	}
 
-let null_assembly_ref = mk_assembly_ref()
+let null_assembly_ref = mk_assembly_ref (-1)
 
-let mk_assembly_ref_processor () =
+let mk_assembly_ref_processor id =
 	{
+		arp_id = id;
 		arp_processor = -1;
 		arp_assembly_ref = null_assembly_ref;
 	}
 
-let mk_assembly_ref_os () =
+let mk_assembly_ref_os id =
 	{
+		aros_id = id;
 		aros_platform_id = -1;
 		aros_major = -1;
 		aros_minor = -1;
 		aros_assembly_ref = null_assembly_ref;
 	}
 
-let mk_file () =
+let mk_file id =
 	{
+		file_id = id;
 		file_flags = ContainsMetadata;
 		file_name = empty;
 		file_hash_value = empty;
 	}
 
-let mk_exported_type() =
+let mk_exported_type id =
 	{
+		et_id = id;
 		et_flags = null_type_def_flags;
 		et_type_def_id = -1;
 		et_type_name = empty;
@@ -961,88 +1001,93 @@ let mk_exported_type() =
 		et_implementation = null_meta;
 	}
 
-let mk_manifest_resource() =
+let mk_manifest_resource id =
 	{
+		mr_id = id;
 		mr_offset = -1;
 		mr_flags = RNone;
 		mr_name = empty;
 		mr_implementation = None;
 	}
 
-let mk_nested_class () =
+let mk_nested_class id =
 	{
+		nc_id = id;
 		nc_nested = null_type_def;
 		nc_enclosing = null_type_def;
 	}
 
-let mk_generic_param () =
+let mk_generic_param id =
 	{
+		gp_id = id;
 		gp_number = -1;
 		gp_flags = null_generic_flags;
 		gp_owner = null_meta;
 		gp_name = None;
 	}
 
-let null_generic_param = mk_generic_param()
+let null_generic_param = mk_generic_param (-1)
 
-let mk_method_spec () =
+let mk_method_spec id =
 	{
+		mspec_id = id;
 		mspec_method = null_meta;
 		mspec_instantiation = SVoid;
 	}
 
-let mk_generic_param_constraint () =
+let mk_generic_param_constraint id =
 	{
+		gc_id = id;
 		gc_owner = null_generic_param;
 		gc_constraint = null_meta;
 	}
 
-let mk_meta = function
-	| IModule -> Module (mk_module())
-	| ITypeRef -> TypeRef (mk_type_ref())
-	| ITypeDef -> TypeDef (mk_type_def())
-	| IFieldPtr -> FieldPtr (mk_field_ptr())
-	| IField -> Field (mk_field())
-	| IMethodPtr -> MethodPtr (mk_method_ptr())
-	| IMethod -> Method (mk_method())
-	| IParamPtr -> ParamPtr (mk_param_ptr())
-	| IParam -> Param (mk_param())
-	| IInterfaceImpl -> InterfaceImpl (mk_interface_impl())
-	| IMemberRef -> MemberRef (mk_member_ref())
-	| IConstant -> Constant (mk_constant())
-	| ICustomAttribute -> CustomAttribute (mk_custom_attribute())
-	| IFieldMarshal -> FieldMarshal(mk_field_marshal())
-	| IDeclSecurity -> DeclSecurity(mk_decl_security())
-	| IClassLayout -> ClassLayout(mk_class_layout())
-	| IFieldLayout -> FieldLayout(mk_field_layout())
-	| IStandAloneSig -> StandAloneSig(mk_stand_alone_sig())
-	| IEventMap -> EventMap(mk_event_map())
-	| IEventPtr -> EventPtr(mk_event_ptr())
-	| IEvent -> Event(mk_event())
-	| IPropertyMap -> PropertyMap(mk_property_map())
-	| IPropertyPtr -> PropertyPtr(mk_property_ptr())
-	| IProperty -> Property(mk_property())
-	| IMethodSemantics -> MethodSemantics(mk_method_semantics())
-	| IMethodImpl -> MethodImpl(mk_method_impl())
-	| IModuleRef -> ModuleRef(mk_module_ref())
-	| ITypeSpec -> TypeSpec(mk_type_spec())
-	| IImplMap -> ImplMap(mk_impl_map())
-	| IFieldRVA -> FieldRVA(mk_field_rva())
-	| IENCLog -> ENCLog(mk_enc_log())
-	| IENCMap -> ENCMap(mk_enc_map())
-	| IAssembly -> Assembly(mk_assembly())
-	| IAssemblyProcessor -> AssemblyProcessor(mk_assembly_processor())
-	| IAssemblyOS -> AssemblyOS(mk_assembly_os())
-	| IAssemblyRef -> AssemblyRef(mk_assembly_ref())
-	| IAssemblyRefProcessor -> AssemblyRefProcessor(mk_assembly_ref_processor())
-	| IAssemblyRefOS -> AssemblyRefOS(mk_assembly_ref_os())
-	| IFile -> File(mk_file())
-	| IExportedType -> ExportedType(mk_exported_type())
-	| IManifestResource -> ManifestResource(mk_manifest_resource())
-	| INestedClass -> NestedClass(mk_nested_class())
-	| IGenericParam -> GenericParam(mk_generic_param())
-	| IMethodSpec -> MethodSpec(mk_method_spec())
-	| IGenericParamConstraint -> GenericParamConstraint(mk_generic_param_constraint())
+let mk_meta tbl id = match tbl with
+	| IModule -> Module (mk_module id)
+	| ITypeRef -> TypeRef (mk_type_ref id)
+	| ITypeDef -> TypeDef (mk_type_def id)
+	| IFieldPtr -> FieldPtr (mk_field_ptr id)
+	| IField -> Field (mk_field id)
+	| IMethodPtr -> MethodPtr (mk_method_ptr id)
+	| IMethod -> Method (mk_method id)
+	| IParamPtr -> ParamPtr (mk_param_ptr id)
+	| IParam -> Param (mk_param id)
+	| IInterfaceImpl -> InterfaceImpl (mk_interface_impl id)
+	| IMemberRef -> MemberRef (mk_member_ref id)
+	| IConstant -> Constant (mk_constant id)
+	| ICustomAttribute -> CustomAttribute (mk_custom_attribute id)
+	| IFieldMarshal -> FieldMarshal(mk_field_marshal id)
+	| IDeclSecurity -> DeclSecurity(mk_decl_security id)
+	| IClassLayout -> ClassLayout(mk_class_layout id)
+	| IFieldLayout -> FieldLayout(mk_field_layout id)
+	| IStandAloneSig -> StandAloneSig(mk_stand_alone_sig id)
+	| IEventMap -> EventMap(mk_event_map id)
+	| IEventPtr -> EventPtr(mk_event_ptr id)
+	| IEvent -> Event(mk_event id)
+	| IPropertyMap -> PropertyMap(mk_property_map id)
+	| IPropertyPtr -> PropertyPtr(mk_property_ptr id)
+	| IProperty -> Property(mk_property id)
+	| IMethodSemantics -> MethodSemantics(mk_method_semantics id)
+	| IMethodImpl -> MethodImpl(mk_method_impl id)
+	| IModuleRef -> ModuleRef(mk_module_ref id)
+	| ITypeSpec -> TypeSpec(mk_type_spec id)
+	| IImplMap -> ImplMap(mk_impl_map id)
+	| IFieldRVA -> FieldRVA(mk_field_rva id)
+	| IENCLog -> ENCLog(mk_enc_log id)
+	| IENCMap -> ENCMap(mk_enc_map id)
+	| IAssembly -> Assembly(mk_assembly id)
+	| IAssemblyProcessor -> AssemblyProcessor(mk_assembly_processor id)
+	| IAssemblyOS -> AssemblyOS(mk_assembly_os id)
+	| IAssemblyRef -> AssemblyRef(mk_assembly_ref id)
+	| IAssemblyRefProcessor -> AssemblyRefProcessor(mk_assembly_ref_processor id)
+	| IAssemblyRefOS -> AssemblyRefOS(mk_assembly_ref_os id)
+	| IFile -> File(mk_file id)
+	| IExportedType -> ExportedType(mk_exported_type id)
+	| IManifestResource -> ManifestResource(mk_manifest_resource id)
+	| INestedClass -> NestedClass(mk_nested_class id)
+	| IGenericParam -> GenericParam(mk_generic_param id)
+	| IMethodSpec -> MethodSpec(mk_method_spec id)
+	| IGenericParamConstraint -> GenericParamConstraint(mk_generic_param_constraint id)
 	| i -> UnknownMeta (int_of_table i)
 
 let get_table ctx idx rid =
@@ -1603,14 +1648,14 @@ let read_table_at ctx tbl n pos =
 		let pos, name = read_sstring_idx ctx pos in
 		let pos, ns = read_sstring_idx ctx pos in
 		let pos, extends = sread_from_table ctx false ITypeDefOrRef s pos in
-		let pos, flist = ctx.table_sizes.(int_of_table IField) s pos in
-		let pos, fmeth = ctx.table_sizes.(int_of_table IMethod) s pos in
+		let pos, flist = sread_from_table ctx false IField s pos in
+		let pos, fmeth = sread_from_table ctx false IMethod s pos in
 		td.td_flags <- type_def_flags_of_int flags;
 		td.td_name <- name;
 		td.td_namespace <- ns;
 		td.td_extends <- extends;
-		td.td_field_list <- flist;
-		td.td_method_list <- fmeth;
+		td.td_field_list <- [get_field flist];
+		td.td_method_list <- [get_method fmeth];
 		(* print_endline "Type Def!"; *)
 		(* print_endline name; *)
 		(* print_endline ns; *)
@@ -1748,7 +1793,7 @@ let read_table_at ctx tbl n pos =
 		let pos, parent = sread_from_table ctx false ITypeDef s pos in
 		let pos, event_list = sread_from_table ctx false IEvent s pos in
 		em.em_parent <- get_type_def parent;
-		em.em_event_list <- get_event event_list;
+		em.em_event_list <- [get_event event_list];
 		pos, EventMap em
 	| EventPtr ep ->
 		let pos, event = sread_from_table ctx false IEvent s pos in
@@ -1767,11 +1812,11 @@ let read_table_at ctx tbl n pos =
 		let pos, parent = sread_from_table ctx false ITypeDef s pos in
 		let pos, property_list = sread_from_table ctx false IProperty s pos in
 		pm.pm_parent <- get_type_def parent;
-		pm.pm_property_list <- get_property property_list;
+		pm.pm_property_list <- [get_property property_list];
 		pos, PropertyMap pm
 	| PropertyPtr pp ->
 		let pos, property = sread_from_table ctx false IProperty s pos in
-		pp.pp_property <- get_property property;
+		pp.prp_property <- get_property property;
 		pos, PropertyPtr pp
 	| Property prop ->
 		let pos, flags = sread_ui16 s pos in
@@ -1828,13 +1873,13 @@ let read_table_at ctx tbl n pos =
 		pos, ImplMap im
 	| ENCMap em ->
 		let pos, token = sread_i32 s pos in
-		em.em_token <- token;
+		em.encm_token <- token;
 		pos, ENCMap em
 	| FieldRVA f ->
 		let pos, rva = sread_real_i32 s pos in
 		let pos, field = sread_from_table ctx false IField s pos in
-		f.f_rva <- rva;
-		f.f_field <- get_field field;
+		f.fr_rva <- rva;
+		f.fr_field <- get_field field;
 		pos, FieldRVA f
 	| Assembly a ->
 		let pos, hash_algo = sread_i32 s pos in
@@ -1996,7 +2041,8 @@ let preset_sizes ctx rows =
 	Array.iteri (fun n r -> match r with
 		| false,_ -> ()
 		| true,nrows ->
-			ctx.tables.(n) <- DynArray.init (nrows+1) (fun _ -> mk_meta (table_of_int n))
+			let tbl = table_of_int n in
+			ctx.tables.(n) <- DynArray.init (nrows+1) (fun id -> mk_meta tbl id)
 	) rows
 
 (* let read_ *)

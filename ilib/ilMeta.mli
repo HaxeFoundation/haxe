@@ -179,6 +179,7 @@ and clr_meta =
 (* all fields here need to be mutable, as they will first be initialized empty *)
 
 and meta_module = {
+	mutable md_id : int;
 	mutable md_generation : int;
 	mutable md_name : id;
 	mutable md_vid : guid;
@@ -187,35 +188,41 @@ and meta_module = {
 }
 
 and meta_type_ref = {
+	mutable tr_id : int;
 	mutable tr_resolution_scope : resolution_scope;
 	mutable tr_name : id;
 	mutable tr_namespace : id;
 }
 
 and meta_type_def = {
+	mutable td_id : int;
 	mutable td_flags : type_def_flags;
 	mutable td_name : id;
 	mutable td_namespace : id;
 	mutable td_extends : type_def_or_ref;
-	mutable td_field_list : rid;
-	mutable td_method_list : rid;
+	mutable td_field_list : meta_field list;
+	mutable td_method_list : meta_method list;
 }
 
 and meta_field_ptr = {
+	mutable fp_id : int;
 	mutable fp_field : meta_field;
 }
 
 and meta_field = {
+	mutable f_id : int;
 	mutable f_flags : field_flags;
 	mutable f_name : id;
 	mutable f_signature : ilsig;
 }
 
 and meta_method_ptr = {
+	mutable mp_id : int;
 	mutable mp_method : meta_method;
 }
 
 and meta_method = {
+	mutable m_id : int;
 	mutable m_rva : rva;
 	mutable m_flags : method_flags;
 	mutable m_name : id;
@@ -224,10 +231,12 @@ and meta_method = {
 }
 
 and meta_param_ptr = {
+	mutable pp_id : int;
 	mutable pp_param : meta_param;
 }
 
 and meta_param = {
+	mutable p_id : int;
 	mutable p_flags : param_flags;
 	mutable p_sequence : int;
 		(* 0 means return value *)
@@ -235,17 +244,20 @@ and meta_param = {
 }
 
 and meta_interface_impl = {
+	mutable ii_id : int;
 	mutable ii_class : meta_type_def; (* TypeDef rid *)
 	mutable ii_interface : type_def_or_ref;
 }
 
 and meta_member_ref = {
+	mutable memr_id : int;
 	mutable memr_class : member_ref_parent;
 	mutable memr_name : id;
 	mutable memr_signature : ilsig;
 }
 
 and meta_constant = {
+	mutable c_id : int;
 	mutable c_type : constant_type;
 	mutable c_parent : has_const;
 	mutable c_value : constant;
@@ -254,6 +266,7 @@ and meta_constant = {
 and named_attribute = bool * string * instance (* is_property * name * instance *)
 
 and meta_custom_attribute = {
+	mutable ca_id : int;
 	mutable ca_parent : has_custom_attribute;
 	mutable ca_type : custom_attribute_type;
 	mutable ca_value : (instance list * named_attribute list) option;
@@ -261,11 +274,13 @@ and meta_custom_attribute = {
 }
 
 and meta_field_marshal = {
+	mutable fm_id : int;
 	mutable fm_parent : has_field_marshal;
 	mutable fm_native_type : nativesig;
 }
 
 and meta_decl_security = {
+	mutable ds_id : int;
 	mutable ds_action : action_security;
 	mutable ds_parent : has_decl_security;
 	mutable ds_permission_set : blobref;
@@ -273,6 +288,7 @@ and meta_decl_security = {
 }
 
 and meta_class_layout = {
+	mutable cl_id : int;
 	mutable cl_packing_size : int;
 		(* power of two; from 1 through 128 *)
 	mutable cl_class_size : int;
@@ -280,52 +296,62 @@ and meta_class_layout = {
 }
 
 and meta_field_layout = {
+	mutable fl_id : int;
 	mutable fl_offset : int;
 		(* offset in bytes or ordinal *)
 	mutable fl_field : meta_field; (* Field rid *)
 }
 
 and meta_stand_alone_sig = {
+	mutable sa_id : int;
 	mutable sa_signature : ilsig;
 }
 
 and meta_event_map = {
+	mutable em_id : int;
 	mutable em_parent : meta_type_def; (* TypeDef rid *)
-	mutable em_event_list : meta_event; (* Event rid *)
+	mutable em_event_list : meta_event list; (* Event rid *)
 }
 
 and meta_event_ptr = {
+	mutable ep_id : int;
 	mutable ep_event : meta_event; (* Event rid *)
 }
 
 and meta_event = {
+	mutable e_id : int;
 	mutable e_flags : event_flags;
 	mutable e_name : stringref;
 	mutable e_event_type : type_def_or_ref;
 }
 
 and meta_property_map = {
+	mutable pm_id : int;
 	mutable pm_parent : meta_type_def; (* TypeDef rid *)
-	mutable pm_property_list : meta_property; (* Property rid *)
+	mutable pm_property_list : meta_property list; (* Property rid *)
 }
 
 and meta_property_ptr = {
-	mutable pp_property : meta_property; (* Property rid *)
+	mutable prp_id : int;
+	mutable prp_property : meta_property; (* Property rid *)
 }
 
 and meta_property = {
+	mutable prop_id : int;
 	mutable prop_flags : property_flags;
 	mutable prop_name : stringref;
 	mutable prop_type : ilsig;
 }
 
 and meta_method_semantics = {
+	mutable ms_id : int;
 	mutable ms_semantic : semantic_flags;
 	mutable ms_method : meta_method; (* Method rid *)
 	mutable ms_association : has_semantics;
 }
 
 and meta_method_impl = {
+	mutable mi_id : int;
 	mutable mi_class : meta_type_def; (* TypeDef rid *)
 	mutable mi_method_body : method_def_or_ref;
 		(* overriding method *)
@@ -334,20 +360,24 @@ and meta_method_impl = {
 }
 
 and meta_module_ref = {
+	mutable modr_id : int;
 	mutable modr_name : stringref;
 }
 
 and meta_type_spec = {
+	mutable ts_id : int;
 	mutable ts_signature : ilsig;
 }
 
 (* reserved ? *)
 and meta_enc_log = {
+	mutable el_id : int;
 	mutable el_token : to_det;
 	mutable el_func_code : to_det;
 }
 
 and meta_impl_map = {
+	mutable im_id : int;
 	mutable im_flags : impl_flags; (* mapping_flags *)
 	mutable im_forwarded : member_forwarded; (* method only *)
 	mutable im_import_name : stringref;
@@ -356,15 +386,18 @@ and meta_impl_map = {
 
 (* reserved ? *)
 and meta_enc_map = {
-	mutable em_token : to_det;
+	mutable encm_id : int;
+	mutable encm_token : to_det;
 }
 
 and meta_field_rva = {
-	mutable f_rva : rva;
-	mutable f_field : meta_field; (* Field rid *)
+	mutable fr_id : int;
+	mutable fr_rva : rva;
+	mutable fr_field : meta_field; (* Field rid *)
 }
 
 and meta_assembly = {
+	mutable a_id : int;
 	mutable a_hash_algo : hash_algo;
 	mutable a_major : int;
 	mutable a_minor : int;
@@ -378,17 +411,20 @@ and meta_assembly = {
 
 (* unused *)
 and meta_assembly_processor = {
+	mutable ap_id : int;
 	mutable ap_processor : to_det;
 }
 
 (* unused *)
 and meta_assembly_os = {
+	mutable aos_id : int;
 	mutable aos_platform_id : to_det;
 	mutable aos_major_version : to_det;
 	mutable aos_minor_version : to_det;
 }
 
 and meta_assembly_ref = {
+	mutable ar_id : int;
 	mutable ar_major : int;
 	mutable ar_minor : int;
 	mutable ar_build : int;
@@ -402,12 +438,14 @@ and meta_assembly_ref = {
 
 (* unused *)
 and meta_assembly_ref_processor = {
+	mutable arp_id : int;
 	mutable arp_processor : to_det;
 	mutable arp_assembly_ref : meta_assembly_ref; (* AssemblyRef rid *)
 }
 
 (* unused *)
 and meta_assembly_ref_os = {
+	mutable aros_id : int;
 	mutable aros_platform_id : to_det;
 	mutable aros_major : int;
 	mutable aros_minor : int;
@@ -415,12 +453,14 @@ and meta_assembly_ref_os = {
 }
 
 and meta_file = {
+	mutable file_id : int;
 	mutable file_flags : file_flag; (* file_flags *)
 	mutable file_name : stringref; (* no path; only file name *)
 	mutable file_hash_value : blobref;
 }
 
 and meta_exported_type = {
+	mutable et_id : int;
 	mutable et_flags : type_def_flags;
 	mutable et_type_def_id : int;
 		(* TypeDef token in another module *)
@@ -430,6 +470,7 @@ and meta_exported_type = {
 }
 
 and meta_manifest_resource = {
+	mutable mr_id : int;
 	mutable mr_offset : int;
 	mutable mr_flags : manifest_resource_flag; (* manifest_resource_flags *)
 	mutable mr_name : stringref;
@@ -437,11 +478,13 @@ and meta_manifest_resource = {
 }
 
 and meta_nested_class = {
+	mutable nc_id : int;
 	mutable nc_nested : meta_type_def; (* TypeDef rid *)
 	mutable nc_enclosing : meta_type_def; (* TypeDef rid *)
 }
 
 and meta_generic_param = {
+	mutable gp_id : int;
 	mutable gp_number : int; (* ordinal *)
 	mutable gp_flags : generic_flags;
 	mutable gp_owner : type_or_method_def;
@@ -450,6 +493,7 @@ and meta_generic_param = {
 }
 
 and meta_method_spec = {
+	mutable mspec_id : int;
 	mutable mspec_method : method_def_or_ref;
 		(* instantiated method *)
 	mutable mspec_instantiation : ilsig;
@@ -457,6 +501,7 @@ and meta_method_spec = {
 }
 
 and meta_generic_param_constraint = {
+	mutable gc_id : int;
 	mutable gc_owner : meta_generic_param; (* GenericParam rid *)
 		(* constrained parameter *)
 	mutable gc_constraint : type_def_or_ref;
