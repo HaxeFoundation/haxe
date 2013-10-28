@@ -1531,8 +1531,19 @@ let init_class ctx c p context_init herits fields =
 						(* disallow initialization of non-physical fields (issue #1958) *)
 						display_error ctx "This field cannot be initialized because it is not a real variable" p; e
 					| Var v when not stat || (v.v_read = AccInline) ->
-						let e = match Optimizer.make_constant_expression ctx e with Some e -> check_cast e | None -> display_error ctx "Variable initialization must be a constant value" p; e in
-						e
+						let e = match Optimizer.make_constant_expression ctx e with
+							| Some e -> e
+							| None ->
+								let rec has_this e = match e.eexpr with
+									| TConst TThis ->
+										display_error ctx "Cannot access this or other member field in variable initialization" e.epos;
+									| _ ->
+									Type.iter has_this e
+								in
+								has_this e;
+								e
+						in
+						check_cast e
 					| _ ->
 						e
 					) in
