@@ -1190,12 +1190,13 @@ let match_expr ctx e cases def with_type p =
 			ctx.on_error <- old_error;
 		in
  		PMap.iter (fun _ out -> if not (Hashtbl.mem mctx.used_paths out.o_id) then begin
-			if out.o_pos == p then display_error ctx "The default pattern is unused" p
-			else unused out.o_pos;
-			if mctx.toplevel_or then begin match evals with
-				| [{etype = t}] when (match follow t with TAbstract({a_path=[],"Int"},[]) -> true | _ -> false) ->
-					display_error ctx "Note: Int | Int is an or-pattern now" p;
-				| _ -> ()
+			if out.o_pos != p then begin
+				unused out.o_pos;
+				if mctx.toplevel_or then begin match evals with
+					| [{etype = t}] when (match follow t with TAbstract({a_path=[],"Int"},[]) -> true | _ -> false) ->
+						display_error ctx "Note: Int | Int is an or-pattern now" p;
+					| _ -> ()
+				end;
 			end;
 		end) mctx.outcomes;
 	in
