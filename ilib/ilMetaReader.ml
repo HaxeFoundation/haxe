@@ -41,6 +41,14 @@ let get_type_def = function
 	| TypeDef p -> p
 	| _ -> assert false
 
+let get_event = function
+	| Event e -> e
+	| _ -> assert false
+
+let get_property = function
+	| Property p -> p
+	| _ -> assert false
+
 (* decoding helpers *)
 let type_def_vis_of_int i = match i land 0x7 with
 	(* visibility flags - mask 0x7 *)
@@ -1699,6 +1707,61 @@ let read_table_at ctx tbl n pos =
 		print_endline (ilsig_s ilsig);
 		sa.sa_signature <- ilsig;
 		pos, StandAloneSig sa
+	| EventMap em ->
+		let pos, parent = sread_from_table ctx false ITypeDef s pos in
+		let pos, event_list = sread_from_table ctx false IEvent s pos in
+		em.em_parent <- get_type_def parent;
+		em.em_event_list <- get_event event_list;
+		pos, EventMap em
+	| EventPtr ep ->
+		let pos, event = sread_from_table ctx false IEvent s pos in
+		ep.ep_event <- get_event event;
+		pos, EventPtr ep
+	| Event e ->
+		let pos, flags = sread_ui16 s pos in
+		let pos, name = read_sstring_idx ctx pos in
+		let pos, event_type = sread_from_table ctx false ITypeDefOrRef s pos in
+		e.e_flags <- event_flags_of_int flags;
+		e.e_name <- name;
+		print_endline name;
+		e.e_event_type <- event_type;
+		pos, Event e
+	| PropertyMap pm ->
+		let pos, parent = sread_from_table ctx false ITypeDef s pos in
+		let pos, property_list = sread_from_table ctx false IProperty s pos in
+		pm.pm_parent <- get_type_def parent;
+		pm.pm_property_list <- get_property property_list;
+		pos, PropertyMap pm
+	| PropertyPtr pp ->
+		let pos, property = sread_from_table ctx false IProperty s pos in
+		pp.pp_property <- get_property property;
+		pos, PropertyPtr pp
+	| Property prop ->
+		let pos, flags = sread_ui16 s pos in
+		let pos, name = read_sstring_idx ctx pos in
+		let pos, t = read_field_ilsig_idx ~force_field:false ctx pos in
+		prop.prop_flags <- property_flags_of_int flags;
+		prop.prop_name <- name;
+		print_endline name;
+		prop.prop_type <- t;
+		print_endline (ilsig_s t);
+		pos, Property prop
+	| MethodSemantics ms ->
+		let pos, semantic = sread_ui16 s pos in
+		let pos, m = sread_from_table ctx false IMethod s pos in
+		let pos, association = sread_from_table ctx false IHasSemantics s pos in
+		ms.ms_semantic <- semantic_flags_of_int semantic;
+		ms.ms_method <- get_method m;
+		ms.ms_association <- association;
+		pos, MethodSemantics ms
+	| MethodImpl mi ->
+		let pos, cls = sread_from_table ctx false ITypeDef s pos in
+		let pos, method_body = sread_from_table ctx false IMethodDefOrRef s pos in
+		let pos, method_declaration = sread_from_table ctx false IMethodDefOrRef s pos in
+		mi.mi_class <- get_type_def cls;
+		mi.mi_method_body <- method_body;
+		mi.mi_method_declaration <- method_declaration;
+		pos, MethodImpl mi
 	| _ -> assert false
 
 (* ******* META READING ********* *)
