@@ -30,7 +30,7 @@
 	The standard Float type, this is a double-precision IEEE 64bit float.
 	
 	On static targets, null cannot be assigned to Float. If this is necessary,
-	`Null<Float>` can be used instead.	
+	`Null<Float>` can be used instead.
 **/
 @:coreType @:notNull @:runtimeValue abstract Float { }
 
@@ -50,7 +50,7 @@
 @:coreType @:notNull @:runtimeValue abstract UInt to Int from Int { }
 #else
 /**
-	The unsigned Int type is only defined for Flash9 and C#. 
+	The unsigned Int type is only defined for Flash9 and C#.
 	Simulate it for other platforms.
 **/
 abstract UInt(Int) from Int {
@@ -239,8 +239,8 @@ abstract UInt(Int) from Int {
 		return toFloat();
 	}
 
-	@:to private inline function toFloat():Float {
-		var int:Int = cast this;
+	@:to /*private*/ inline function toFloat():Float {
+		var int = toInt();
 		if (int < 0) {
 			return 4294967296.0 + int;
 		}
@@ -249,7 +249,7 @@ abstract UInt(Int) from Int {
 		}
 	}
 
-	@:to private inline function toInt():Int {
+	@:to /*private*/ inline function toInt():Int {
 		return this;
 	}
 
