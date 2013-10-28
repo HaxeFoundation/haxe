@@ -98,6 +98,8 @@ let type_def_flags_of_int i =
 		tdf_string = type_def_string_of_int i;
 	}
 
+let null_type_def_flags = type_def_flags_of_int 0
+
 let field_access_of_int i = match i land 0x07 with
 	(* access flags - mask 0x07 *)
 	| 0x0 -> FAPrivateScope (* 0x0 *)
@@ -138,6 +140,8 @@ let field_flags_of_int i =
 		ff_contract = field_contract_of_int i;
 		ff_reserved = field_reserved_of_int i;
 	}
+
+let null_field_flags = field_flags_of_int 0
 
 let method_contract_of_int iprops = List.fold_left (fun acc i ->
 	if (iprops land i) = i then (match i with
@@ -215,6 +219,8 @@ let method_flags_of_int iflags flags =
 		mf_interop = method_interop_of_int iflags;
 	}
 
+let null_method_flags = method_flags_of_int 0 0
+
 let param_io_of_int iprops = List.fold_left (fun acc i ->
 	if (iprops land i) = i then (match i with
 		(* input/output flags - mask 0x13 *)
@@ -240,6 +246,8 @@ let param_flags_of_int i =
 		pf_reserved = param_reserved_of_int i;
 	}
 
+let null_param_flags = param_flags_of_int 0
+
 let callconv_of_int i =
 	let basic = match i land 0x1F with
 		| 0x0 -> CallDefault (* 0x0 *)
@@ -256,6 +264,119 @@ let callconv_of_int i =
 		| _ when i land 0x40 = 0x40 ->
 			CallExplicitThis basic
 		| _ -> basic
+
+let event_flags_of_int iprops = List.fold_left (fun acc i ->
+	if (iprops land i) = i then (match i with
+		| 0x0200 -> ESpecialName (* 0x0200 *)
+		| 0x0400 -> ERTSpecialName (* 0x0400 *)
+		| _ -> assert false) :: acc
+	else
+		acc) [] [0x0200;0x0400]
+
+let property_flags_of_int iprops = List.fold_left (fun acc i ->
+	if (iprops land i) = i then (match i with
+		| 0x0200 -> PSpecialName (* 0x0200 *)
+		| 0x0400 -> PRTSpecialName (* 0x0400 *)
+		| 0x1000 -> PHasDefault (* 0x1000 *)
+		| 0xE9FF -> PUnused (* 0xE9FF *)
+		| _ -> assert false) :: acc
+	else
+		acc) [] [0x0200;0x0400;0x1000;0xE9FF]
+
+let semantic_flags_of_int iprops = List.fold_left (fun acc i ->
+	if (iprops land i) = i then (match i with
+		| 0x0001 -> SSetter (* 0x0001 *)
+		| 0x0002 -> SGetter (* 0x0002 *)
+		| 0x0004 -> SOther (* 0x0004 *)
+		| 0x0008 -> SAddOn (* 0x0008 *)
+		| 0x0010 -> SRemoveOn (* 0x0010 *)
+		| 0x0020 -> SFire (* 0x0020 *)
+		| _ -> assert false) :: acc
+	else
+		acc) [] [0x0001;0x0002;0x0004;0x0008;0x0010;0x0020]
+
+let impl_charset_of_int = function
+	| 0x0 -> IDefault (* 0x0 *)
+	| 0x2 -> IAnsi (* 0x2 *)
+	| 0x4 -> IUnicode (* 0x4 *)
+	| 0x6 -> IAutoChar (* 0x6 *)
+	| _ -> assert false
+
+let impl_callconv_of_int = function
+	| 0x0 -> IDefaultCall (* 0x0 *)
+	| 0x100 -> IWinApi (* 0x100 *)
+	| 0x200 -> ICDecl (* 0x200 *)
+	| 0x300 -> IStdCall (* 0x300 *)
+	| 0x400 -> IThisCall (* 0x400 *)
+	| 0x500 -> IFastCall (* 0x500 *)
+	| _ -> assert false
+
+let impl_flag_of_int iprops = List.fold_left (fun acc i ->
+	if (iprops land i) = i then (match i with
+		| 0x1 -> INoMangle (* 0x1 *)
+		| 0x10 -> IBestFit (* 0x10 *)
+		| 0x20 -> IBestFitOff (* 0x20 *)
+		| 0x40 -> ILastErr (* 0x40 *)
+		| 0x1000 -> ICharMapError (* 0x1000 *)
+		| 0x2000 -> ICharMapErrorOff (* 0x2000 *)
+		| _ -> assert false) :: acc
+	else
+		acc) [] [0x1;0x10;0x20;0x40;0x1000;0x2000]
+
+let impl_flags_of_int i =
+	{
+		if_charset = impl_charset_of_int (i land 0x6);
+		if_callconv = impl_callconv_of_int (i land 0x700);
+		if_flags = impl_flag_of_int i;
+	}
+
+let null_impl_flags = impl_flags_of_int 0
+
+let assembly_flags_of_int iprops = List.fold_left (fun acc i ->
+	if (iprops land i) = i then (match i with
+		| 0x1 -> APublicKey (* 0x1 *)
+		| 0x100 -> ARetargetable (* 0x100 *)
+		| 0x4000 -> ADisableJitCompileOptimizer (* 0x4000 *)
+		| 0x8000 -> AEnableJitCompileTracking (* 0x8000 *)
+		| _ -> assert false) :: acc
+	else
+		acc) [] [0x1;0x100;0x4000;0x8000]
+
+let file_flag_of_int = function
+	| 0x0 -> ContainsMetadata (* 0x0 *)
+	| 0x1 -> ContainsNoMetadata (* 0x1 *)
+	| _ -> assert false
+
+let manifest_resource_flag_of_int i = match i land 0x7 with
+	| 0x0 -> RNone (* 0x0 *)
+	| 0x1 -> RPublic (* 0x1 *)
+	| 0x2 -> RPrivate (* 0x2 *)
+	| _ -> assert false
+
+let generic_variance_of_int = function
+	(* mask 0x3 *)
+	| 0x0 -> VNone (* 0x0 *)
+	| 0x1 -> VCovariant (* 0x1 *)
+	| 0x2 -> VContravariant (* 0x2 *)
+	| _ -> assert false
+
+let generic_constraint_of_int iprops = List.fold_left (fun acc i ->
+	if (iprops land i) = i then (match i with
+		(* mask 0x1C *)
+		| 0x4 -> CInstanceType (* 0x4 *)
+		| 0x8 -> CValueType (* 0x8 *)
+		| 0x10 -> CDefaultCtor (* 0x10 *)
+		| _ -> assert false) :: acc
+	else
+		acc) [] [0x4;0x8;0x10]
+
+let generic_flags_of_int i =
+	{
+		gf_variance = generic_variance_of_int (i land 0x3);
+		gf_constraint = generic_constraint_of_int (i land 0x1C);
+	}
+
+let null_generic_flags = generic_flags_of_int 0
 
 (* TODO: convert from string to Bigstring if OCaml 4 is available *)
 type meta_ctx = {
@@ -486,7 +607,7 @@ let null_type_ref = mk_type_ref()
 
 let mk_type_def () =
 	{
-		td_flags = type_def_flags_of_int 0;
+		td_flags = null_type_def_flags;
 		td_name = empty;
 		td_namespace = empty;
 		td_extends = null_meta;
@@ -498,7 +619,7 @@ let null_type_def = mk_type_def()
 
 let mk_field () =
 	{
-		f_flags = field_flags_of_int 0;
+		f_flags = null_field_flags;
 		f_name = empty;
 		f_signature = SVoid;
 	}
@@ -515,7 +636,7 @@ let null_field_ptr = mk_field_ptr()
 let mk_method () =
 	{
 		m_rva = Int32.of_int (-1);
-		m_flags = method_flags_of_int 0 0;
+		m_flags = null_method_flags;
 		m_name = empty;
 		m_signature = SVoid;
 		m_paramlist = -1;
@@ -532,7 +653,7 @@ let null_method_ptr = mk_method_ptr()
 
 let mk_param () =
 	{
-		p_flags = param_flags_of_int 0;
+		p_flags = null_param_flags;
 		p_sequence = -1;
 		p_name = empty;
 	}
@@ -580,6 +701,236 @@ let mk_custom_attribute () =
 	}
 
 let null_custom_attribute = mk_custom_attribute()
+
+let mk_field_marshal () =
+	{
+		fm_parent = null_meta;
+		fm_native_type = NVoid;
+	}
+
+let null_field_marshal = mk_field_marshal()
+
+let mk_decl_security () =
+	{
+		ds_action = SecNull;
+		ds_parent = null_meta;
+		ds_permission_set = empty;
+	}
+
+let mk_class_layout () =
+	{
+		cl_packing_size = -1;
+		cl_class_size = -1;
+		cl_parent = null_type_def;
+	}
+
+let mk_field_layout () =
+	{
+		fl_offset = -1;
+		fl_field = null_field;
+	}
+
+let mk_stand_alone_sig () =
+	{
+		sa_signature = SVoid;
+	}
+
+let mk_event () =
+	{
+		e_flags = [];
+		e_name = empty;
+		e_event_type = null_meta;
+	}
+
+let null_event = mk_event()
+
+let mk_event_map () =
+	{
+		em_parent = null_type_def;
+		em_event_list = null_event;
+	}
+
+let mk_event_ptr () =
+	{
+		ep_event = null_event;
+	}
+
+let mk_property () =
+	{
+		prop_flags = [];
+		prop_name = empty;
+		prop_type = SVoid;
+	}
+
+let null_property = mk_property()
+
+let mk_property_map () =
+	{
+		pm_parent = null_type_def;
+		pm_property_list = null_property;
+	}
+
+let mk_property_ptr () =
+	{
+		pp_property = null_property;
+	}
+
+let mk_method_semantics () =
+	{
+		ms_semantic = [];
+		ms_method = null_method;
+		ms_association = null_meta;
+	}
+
+let mk_method_impl () =
+	{
+		mi_class = null_type_def;
+		mi_method_body = null_meta;
+		mi_method_declaration = null_meta;
+	}
+
+let mk_module_ref () =
+	{
+		modr_name = empty;
+	}
+
+let null_module_ref = mk_module_ref()
+
+let mk_type_spec () =
+	{
+		ts_signature = SVoid;
+	}
+
+let mk_enc_log () =
+	{
+		el_token = -1;
+		el_func_code = -1;
+	}
+
+let mk_impl_map () =
+	{
+		im_flags = null_impl_flags;
+		im_forwarded = null_meta;
+		im_import_name = empty;
+		im_import_scope = null_module_ref;
+	}
+
+let mk_enc_map () =
+	{
+		em_token = -1;
+	}
+
+let mk_field_rva () =
+	{
+		f_rva = Int32.zero;
+		f_field = null_field;
+	}
+
+let mk_assembly () =
+	{
+		a_hash_algo = HNone;
+		a_major = -1;
+		a_minor = -1;
+		a_build = -1;
+		a_rev = -1;
+		a_flags = [];
+		a_public_key = empty;
+		a_name = empty;
+		a_locale = empty;
+	}
+
+let mk_assembly_processor () =
+	{
+		ap_processor = -1;
+	}
+
+let mk_assembly_os () =
+	{
+		aos_platform_id = -1;
+		aos_major_version = -1;
+		aos_minor_version = -1;
+	}
+
+let mk_assembly_ref () =
+	{
+		ar_major = -1;
+		ar_minor = -1;
+		ar_build = -1;
+		ar_rev = -1;
+		ar_flags = [];
+		ar_public_key = empty;
+		ar_name = empty;
+		ar_locale = empty;
+		ar_hash_value = empty;
+	}
+
+let null_assembly_ref = mk_assembly_ref()
+
+let mk_assembly_ref_processor () =
+	{
+		arp_processor = -1;
+		arp_assembly_ref = null_assembly_ref;
+	}
+
+let mk_assembly_ref_os () =
+	{
+		aros_platform_id = -1;
+		aros_major = -1;
+		aros_minor = -1;
+		aros_assembly_ref = null_assembly_ref;
+	}
+
+let mk_file () =
+	{
+		file_flags = ContainsMetadata;
+		file_name = empty;
+		file_hash_value = empty;
+	}
+
+let mk_exported_type() =
+	{
+		et_flags = null_type_def_flags;
+		et_type_def_id = -1;
+		et_type_name = empty;
+		et_type_namespace = empty;
+		et_implementation = null_meta;
+	}
+
+let mk_manifest_resource() =
+	{
+		mr_offset = -1;
+		mr_flags = RNone;
+		mr_name = empty;
+		mr_implementation = None;
+	}
+
+let mk_nested_class () =
+	{
+		nc_nested = null_type_def;
+		nc_enclosing = null_type_def;
+	}
+
+let mk_generic_param () =
+	{
+		gp_number = -1;
+		gp_flags = null_generic_flags;
+		gp_owner = null_meta;
+		gp_name = None;
+	}
+
+let null_generic_param = mk_generic_param()
+
+let mk_method_spec () =
+	{
+		mspec_method = null_meta;
+		mspec_instantiation = SVoid;
+	}
+
+let mk_generic_param_constraint () =
+	{
+		gc_owner = null_generic_param;
+		gc_constraint = null_meta;
+	}
 
 let mk_meta = function
 	| IModule -> Module (mk_module())

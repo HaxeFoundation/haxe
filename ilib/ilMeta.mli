@@ -107,72 +107,72 @@ and clr_meta =
 		(* respective fields, parameters and properties *)
 	| CustomAttribute of meta_custom_attribute
 		(* custom attribute descriptors *)
-	| FieldMarshal
+	| FieldMarshal of meta_field_marshal
 		(* field or parameter marshaling descriptors for managed/unmanaged interop *)
-	| DeclSecurity
+	| DeclSecurity of meta_decl_security
 		(* security descriptors *)
-	| ClassLayout
+	| ClassLayout of meta_class_layout	
 		(* class layout descriptors that hold information about how the loader should lay out respective classes *)
-	| FieldLayout
+	| FieldLayout of meta_field_layout
 		(* field layout descriptors that specify the offset or oridnal of individual fields *)
-	| StandAloneSig
+	| StandAloneSig of meta_stand_alone_sig
 		(* stand-alone signature descriptors. used in two capacities: *)
 		(* as composite signatures of local variables of methods *)
 		(* and as parameters of the call indirect (calli) IL instruction *)
-	| EventMap
+	| EventMap of meta_event_map
 		(* a class-to-events mapping table. exists also in optimized metadatas *)
-	| EventPtr
+	| EventPtr of meta_event_ptr
 		(* an event map-to-events lookup table - does not exist in optimized metadata *)
-	| Event
+	| Event of meta_event
 		(* event descriptors *)
-	| PropertyMap
+	| PropertyMap of meta_property_map
 		(* a class-to-properties mapping table. exists also in optimized metadatas *)
-	| PropertyPtr
+	| PropertyPtr of meta_property_ptr
 		(* a property map-to-properties lookup table - does not exist in optimized metadata *)
-	| Property
+	| Property of meta_property
 		(* property descriptors *)
-	| MethodSemantics
+	| MethodSemantics of meta_method_semantics
 		(* method semantics descriptors that hold information about which method is associated *)
 		(* with a specific property or event and in what capacity *)
-	| MethodImpl
+	| MethodImpl of meta_method_impl
 		(* method implementation descriptors *)
-	| ModuleRef
+	| ModuleRef of meta_module_ref
 		(* module reference descriptors *)
 	| TypeSpec of meta_type_spec
 		(* Type specification descriptors *)
-	| ImplMap
+	| ImplMap of meta_impl_map
 		(* implementation map descriptors used for platform invocation (P/Invoke) *)
-	| FieldRVA
+	| FieldRVA of meta_field_rva
 		(* field-to-data mapping descriptors *)
-	| ENCLog
+	| ENCLog of meta_enc_log
 		(* edit-and-continue log descriptors that hold information about what changes *)
 		(* have been made to specific metadata items during in-memory editing *)
 		(* this table does not exist on optimized metadata *)
-	| ENCMap
+	| ENCMap of meta_enc_map
 		(* edit-and-continue mapping descriptors. does not exist on optimized metadata *)
-	| Assembly
+	| Assembly of meta_assembly
 		(* the current assembly descriptor, which should appear only in the prime module metadata *)
-	| AssemblyProcessor | AssemblyOS
+	| AssemblyProcessor of meta_assembly_processor | AssemblyOS of meta_assembly_os
 		(* unused *)
-	| AssemblyRef
+	| AssemblyRef of meta_assembly_ref
 		(* assembly reference descriptors *)
-	| AssemblyRefProcessor | AssemblyRefOS
+	| AssemblyRefProcessor of meta_assembly_ref_processor | AssemblyRefOS of meta_assembly_ref_os
 		(* unused *)
-	| File
+	| File of meta_file
 		(* file descriptors that contain information about other files in the current assembly *)
-	| ExportedType
+	| ExportedType of meta_exported_type
 		(* exported type descriptors that contain information about public classes *)
 		(* exported by the current assembly, which are declared in other modules of the assembly *)
 		(* only the prime module of the assembly should carry this table *)
-	| ManifestResource
+	| ManifestResource of meta_manifest_resource
 		(* managed resource descriptors *)
-	| NestedClass
+	| NestedClass of meta_nested_class
 		(* nested class descriptors that provide mapping of nested classes to their respective enclosing classes *)
-	| GenericParam
+	| GenericParam of meta_generic_param
 		(* type parameter descriptors for generic classes and methods *)
-	| MethodSpec
+	| MethodSpec of meta_method_spec
 		(* generic method instantiation descriptors *)
-	| GenericParamConstraint
+	| GenericParamConstraint of meta_generic_param_constraint
 		(* descriptors of constraints specified for type parameters of generic classes and methods *)
 	| UnknownMeta of int
 
@@ -765,6 +765,7 @@ and semantic_flag =
 and semantic_flags = semantic_flag list
 
 and action_security =
+	| SecNull
 	| SecRequest (* 0x1 *)
 	| SecDemand (* 0x2 *)
 	| SecAssert (* 0x3 *)
