@@ -954,6 +954,8 @@ and callconv =
 		(* property call *)
 	| CallUnmanaged (* 0x9 *)
 		(* unmanaged calling convention. not used *)
+	| CallGenericInst (* 0xA *)
+		(* generic instantiation - MethodSpec *)
 	| CallGeneric of int (* 0x10 *)
 		(* also contains the number of generic arguments *)
 	| CallHasThis (* 0x20 *)

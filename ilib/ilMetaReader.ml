@@ -49,6 +49,18 @@ let get_property = function
 	| Property p -> p
 	| _ -> assert false
 
+let get_module_ref = function
+	| ModuleRef r -> r
+	| _ -> assert false
+
+let get_assembly_ref = function
+	| AssemblyRef r -> r
+	| _ -> assert false
+
+let get_generic_param = function
+	| GenericParam p -> p
+	| _ -> assert false
+
 (* decoding helpers *)
 let type_def_vis_of_int i = match i land 0x7 with
 	(* visibility flags - mask 0x7 *)
@@ -350,6 +362,12 @@ let assembly_flags_of_int iprops = List.fold_left (fun acc i ->
 	else
 		acc) [] [0x1;0x100;0x4000;0x8000]
 
+let hash_algo_of_int = function
+	| 0x0 -> HNone (* 0x0 *)
+	| 0x8003 -> HReserved (* 0x8003 *)
+	| 0x8004 -> HSha1 (* 0x8004 *)
+	| _ -> assert false
+
 let file_flag_of_int = function
 	| 0x0 -> ContainsMetadata (* 0x0 *)
 	| 0x1 -> ContainsNoMetadata (* 0x1 *)
@@ -474,6 +492,7 @@ let read_cstring ctx pos =
 		| '\x00' -> en - pos
 		| _ -> loop (en+1)
 	in
+	printf "len 0x%x - pos 0x%x\n" (String.length s) pos;
 	let len = loop pos in
 	String.sub s pos len
 
@@ -489,6 +508,20 @@ let read_sstring_idx ctx pos =
 		metapos, ""
 	| _ ->
 		metapos, read_cstring ctx i
+
+let read_sblob_idx ctx pos =
+	let s = ctx.meta_stream in
+	let metapos, i = if ctx.blob_offset = 2 then
+		sread_ui16 s pos
+	else
+		sread_i32 s pos
+	in
+	match i with
+	| 0 ->
+		metapos,""
+	| _ ->
+		let bpos, len = read_compressed_i32 ctx.blob_stream i in
+		metapos, String.sub ctx.blob_stream bpos len
 
 let read_sguid_idx ctx pos =
 	let s = ctx.meta_stream in
@@ -515,6 +548,7 @@ let read_callconv ctx s pos =
 		| 0x7 -> CallLocal (* 0x7 *)
 		| 0x8 -> CallProp (* 0x8 *)
 		| 0x9 -> CallUnmanaged (* 0x9 *)
+		| 0xa -> CallGenericInst (* 0xA *)
 		| i -> printf "error 0x%x\n" i; assert false
 	in
 	let basic = [basic] in
@@ -1093,6 +1127,7 @@ let sread_from_table ctx in_blob tbl s pos =
 
 let rec read_ilsig ctx s pos =
 	let i = sget s pos in
+	printf "0x%x\n" i;
 	let pos = pos + 1 in
 	match i with
 		| 0x1 -> pos, SVoid (* 0x1 *)
@@ -1684,10 +1719,7 @@ let read_table_at ctx tbl n pos =
 		let pos, action = sread_ui16 s pos in
 		let action = action_security_of_int action in
 		let pos, parent = sread_from_table ctx false IHasDeclSecurity s pos in
-		let pos, bpos = read_blob_idx ctx s pos in
-			let blob = ctx.blob_stream in
-			let bpos, len = read_compressed_i32 blob bpos in
-		let permission_set = String.sub blob bpos len in
+		let pos, permission_set = read_sblob_idx ctx pos in
 		ds.ds_action <- action;
 		ds.ds_parent <- parent;
 		ds.ds_permission_set <- permission_set;
@@ -1777,6 +1809,185 @@ let read_table_at ctx tbl n pos =
 		print_endline (ilsig_s signature);
 		ts.ts_signature <- signature;
 		pos, TypeSpec ts
+	| ENCLog el ->
+		let pos, token = sread_i32 s pos in
+		let pos, func_code = sread_i32 s pos in
+		el.el_token <- token;
+		el.el_func_code <- func_code;
+		pos, ENCLog el
+	| ImplMap im ->
+		let pos, flags = sread_ui16 s pos in
+		let pos, forwarded = sread_from_table ctx false IMemberForwarded s pos in
+		let pos, import_name = read_sstring_idx ctx pos in
+		let pos, import_scope = sread_from_table ctx false IModuleRef s pos in
+		im.im_flags <- impl_flags_of_int flags;
+		im.im_forwarded <- forwarded;
+		im.im_import_name <- import_name;
+		print_endline import_name;
+		im.im_import_scope <- get_module_ref import_scope;
+		pos, ImplMap im
+	| ENCMap em ->
+		let pos, token = sread_i32 s pos in
+		em.em_token <- token;
+		pos, ENCMap em
+	| FieldRVA f ->
+		let pos, rva = sread_real_i32 s pos in
+		let pos, field = sread_from_table ctx false IField s pos in
+		f.f_rva <- rva;
+		f.f_field <- get_field field;
+		pos, FieldRVA f
+	| Assembly a ->
+		let pos, hash_algo = sread_i32 s pos in
+		let pos, major = sread_ui16 s pos in
+		let pos, minor = sread_ui16 s pos in
+		let pos, build = sread_ui16 s pos in
+		let pos, rev = sread_ui16 s pos in
+		let pos, flags = sread_i32 s pos in
+		let pos, public_key = read_sblob_idx ctx pos in
+		let pos, name = read_sstring_idx ctx pos in
+		let pos, locale = read_sstring_idx ctx pos in
+		a.a_hash_algo <- hash_algo_of_int hash_algo;
+		a.a_major <- major;
+		a.a_minor <- minor;
+		a.a_build <- build;
+		a.a_rev <- rev;
+		a.a_flags <- assembly_flags_of_int flags;
+		a.a_public_key <- public_key;
+		a.a_name <- name;
+		a.a_locale <- locale;
+		pos, Assembly a
+	| AssemblyProcessor ap ->
+		let pos, processor = sread_i32 s pos in
+		ap.ap_processor <- processor;
+		pos, AssemblyProcessor ap
+	| AssemblyOS aos ->
+		let pos, platform_id = sread_i32 s pos in
+		let pos, major = sread_i32 s pos in
+		let pos, minor = sread_i32 s pos in
+		aos.aos_platform_id <- platform_id;
+		aos.aos_major_version <- major;
+		aos.aos_minor_version <- minor;
+		pos, AssemblyOS aos
+	| AssemblyRef ar ->
+		let pos, major = sread_ui16 s pos in
+		let pos, minor = sread_ui16 s pos in
+		let pos, build = sread_ui16 s pos in
+		let pos, rev = sread_ui16 s pos in
+		let pos, flags = sread_i32 s pos in
+		let pos, public_key = read_sblob_idx ctx pos in
+		let pos, name = read_sstring_idx ctx pos in
+		let pos, locale = read_sstring_idx ctx pos in
+		let pos, hash_value = read_sblob_idx ctx pos in
+		ar.ar_major <- major;
+		ar.ar_minor <- minor;
+		ar.ar_build <- build;
+		ar.ar_rev <- rev;
+		ar.ar_flags <- assembly_flags_of_int flags;
+		ar.ar_public_key <- public_key;
+		ar.ar_name <- name;
+		print_endline name;
+		ar.ar_locale <- locale;
+		print_endline locale;
+		ar.ar_hash_value <- hash_value;
+		pos, AssemblyRef ar
+	| AssemblyRefProcessor arp ->
+		let pos, processor = sread_i32 s pos in
+		let pos, assembly_ref = sread_from_table ctx false IAssemblyRef s pos in
+		arp.arp_processor <- processor;
+		arp.arp_assembly_ref <- get_assembly_ref assembly_ref;
+		pos, AssemblyRefProcessor arp
+	| AssemblyRefOS aros ->
+		let pos, platform_id = sread_i32 s pos in
+		let pos, major = sread_i32 s pos in
+		let pos, minor = sread_i32 s pos in
+		let pos, assembly_ref = sread_from_table ctx false IAssemblyRef s pos in
+		aros.aros_platform_id <- platform_id;
+		aros.aros_major <- major;
+		aros.aros_minor <- minor;
+		aros.aros_assembly_ref <- get_assembly_ref assembly_ref;
+		pos, AssemblyRefOS aros
+	| File file ->
+		let pos, flags = sread_i32 s pos in
+		let pos, name = read_sstring_idx ctx pos in
+		let pos, hash_value = read_sblob_idx ctx pos in
+		file.file_flags <- file_flag_of_int flags;
+		file.file_name <- name;
+		print_endline ("file " ^ name);
+		file.file_hash_value <- hash_value;
+		pos, File file
+	| ExportedType et ->
+		let pos, flags = sread_i32 s pos in
+		let pos, type_def_id = sread_i32 s pos in
+		let pos, type_name = read_sstring_idx ctx pos in
+		let pos, type_namespace = read_sstring_idx ctx pos in
+		let pos, impl = sread_from_table ctx false IImplementation s pos in
+		et.et_flags <- type_def_flags_of_int flags;
+		et.et_type_def_id <- type_def_id;
+		et.et_type_name <- type_name;
+		et.et_type_namespace <- type_namespace;
+		et.et_implementation <- impl;
+		pos, ExportedType et
+	| ManifestResource mr ->
+		let pos, offset = sread_i32 s pos in
+		let pos, flags = sread_i32 s pos in
+		printf "offset 0x%x flags 0x%x\n" offset flags;
+		let pos, name = read_sstring_idx ctx pos in
+		let rpos, i = ctx.table_sizes.(int_of_table IImplementation) s pos in
+		let pos, impl =
+			if i = 0 then
+				rpos, None
+			else
+				let pos, ret = sread_from_table ctx false IImplementation s pos in
+				pos, Some ret
+		in
+		mr.mr_offset <- offset;
+		mr.mr_flags <- manifest_resource_flag_of_int flags;
+		mr.mr_name <- name;
+		print_endline name;
+		mr.mr_implementation <- impl;
+		pos, ManifestResource mr
+	| NestedClass nc ->
+		let pos, nested = sread_from_table ctx false ITypeDef s pos in
+		let pos, enclosing = sread_from_table ctx false ITypeDef s pos in
+		nc.nc_nested <- get_type_def nested;
+		nc.nc_enclosing <- get_type_def enclosing;
+		pos, NestedClass nc
+	| GenericParam gp ->
+		let pos, number = sread_ui16 s pos in
+		let pos, flags = sread_ui16 s pos in
+		let pos, owner = sread_from_table ctx false ITypeOrMethodDef s pos in
+		let spos, nidx =
+			if ctx.strings_offset = 2 then
+				sread_ui16 s pos
+			else
+				sread_i32 s pos
+		in
+		let pos, name =
+			if nidx = 0 then
+				spos, None
+			else
+				let pos, ret = read_sstring_idx ctx pos in
+				print_endline ret;
+				pos, Some ret
+		in
+		gp.gp_number <- number;
+		gp.gp_flags <- generic_flags_of_int flags;
+		gp.gp_owner <- owner;
+		gp.gp_name <- name;
+		pos, GenericParam gp
+	| MethodSpec mspec ->
+		let pos, meth = sread_from_table ctx false IMethodDefOrRef s pos in
+		let pos, instantiation = read_method_ilsig_idx ctx pos in
+		print_endline (ilsig_s instantiation);
+		mspec.mspec_method <- meth;
+		mspec.mspec_instantiation <- instantiation;
+		pos, MethodSpec mspec
+	| GenericParamConstraint gc ->
+		let pos, owner = sread_from_table ctx false IGenericParam s pos in
+		let pos, c = sread_from_table ctx false ITypeDefOrRef s pos in
+		gc.gc_owner <- get_generic_param owner;
+		gc.gc_constraint <- c;
+		pos, GenericParamConstraint gc
 	| _ -> assert false
 
 (* ******* META READING ********* *)
