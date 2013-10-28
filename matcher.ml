@@ -944,9 +944,9 @@ let convert_switch ctx st cases loop =
 	in
 	let e = match follow st.st_type with
 	| TEnum(_) ->
-		mk_index_call ()
+		mk_index_call()
 	| TAbstract(a,pl) when (match Codegen.Abstract.get_underlying_type a pl with TEnum(_) -> true | _ -> false) ->
-		mk_index_call ()
+		mk_index_call()
 	| TInst({cl_path = [],"Array"},_) as t ->
 		mk (TField (e_st,quick_field t "length")) ctx.t.tint p
 	| TAbstract(a,_) when Meta.has Meta.FakeEnum a.a_meta ->
@@ -954,7 +954,10 @@ let convert_switch ctx st cases loop =
 	| TAbstract({a_path = [],"Bool"},_) ->
 		mk (TMeta((Meta.Exhaustive,[],p), e_st)) e_st.etype e_st.epos
 	| _ ->
-		e_st
+		if List.exists (fun (con,_) -> match con.c_def with CEnum _ -> true | _ -> false) cases then
+			mk_index_call()
+		else
+			e_st
 	in
 	let null = ref None in
 	let def = ref None in
