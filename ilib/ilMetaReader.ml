@@ -678,7 +678,7 @@ let mk_type_def id =
 		td_flags = null_type_def_flags;
 		td_name = empty;
 		td_namespace = empty;
-		td_extends = null_meta;
+		td_extends = None;
 		td_field_list = [];
 		td_method_list = [];
 	}
@@ -1092,7 +1092,7 @@ let mk_meta tbl id = match tbl with
 
 let get_table ctx idx rid =
 	let cur = ctx.tables.(int_of_table idx) in
-	DynArray.get cur rid
+	DynArray.get cur (rid-1)
 
 (* special coded types  *)
 let max_clr_meta_idx = 76
@@ -1148,7 +1148,7 @@ let set_coded_sizes ctx rows =
 		check i (Array.to_list tbls) max
 	done
 
-let sread_from_table ctx in_blob tbl s pos =
+let sread_from_table_opt ctx in_blob tbl s pos =
 	let i = int_of_table tbl in
 	let sread = if in_blob then
 		read_compressed_i32
@@ -1164,9 +1164,18 @@ let sread_from_table ctx in_blob tbl s pos =
 		let real_rid = rid lsr size in
 		let real_tbl = tbls.(tidx) in
 		(* printf "rid 0x%x - table idx 0x%x - real_rid 0x%x\n\n" rid tidx real_rid; *)
-		pos, get_table ctx real_tbl real_rid
-	end else
-		pos, get_table ctx tbl rid
+		if real_rid = 0 then
+			pos, None
+		else
+			pos, Some (get_table ctx real_tbl real_rid)
+	end else if rid = 0 then
+		pos, None
+	else
+		pos, Some (get_table ctx tbl rid)
+
+let sread_from_table ctx in_blob tbl s pos =
+	let pos, opt = sread_from_table_opt ctx in_blob tbl s pos in
+	pos, Option.get opt
 
 (* ******* SIGNATURE READING ********* *)
 
@@ -1647,7 +1656,7 @@ let read_table_at ctx tbl n pos =
 		let pos, flags = sread_i32 s pos in
 		let pos, name = read_sstring_idx ctx pos in
 		let pos, ns = read_sstring_idx ctx pos in
-		let pos, extends = sread_from_table ctx false ITypeDefOrRef s pos in
+		let pos, extends = sread_from_table_opt ctx false ITypeDefOrRef s pos in
 		let pos, flist = sread_from_table ctx false IField s pos in
 		let pos, fmeth = sread_from_table ctx false IMethod s pos in
 		td.td_flags <- type_def_flags_of_int flags;
@@ -2042,7 +2051,7 @@ let preset_sizes ctx rows =
 		| false,_ -> ()
 		| true,nrows ->
 			let tbl = table_of_int n in
-			ctx.tables.(n) <- DynArray.init (nrows+1) (fun id -> mk_meta tbl id)
+			ctx.tables.(n) <- DynArray.init (nrows) (fun id -> mk_meta tbl id)
 	) rows
 
 (* let read_ *)

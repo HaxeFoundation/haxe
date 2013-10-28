@@ -199,7 +199,7 @@ and meta_type_def = {
 	mutable td_flags : type_def_flags;
 	mutable td_name : id;
 	mutable td_namespace : id;
-	mutable td_extends : type_def_or_ref;
+	mutable td_extends : type_def_or_ref option;
 	mutable td_field_list : meta_field list;
 	mutable td_method_list : meta_method list;
 }
