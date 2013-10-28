@@ -492,7 +492,7 @@ let read_cstring ctx pos =
 		| '\x00' -> en - pos
 		| _ -> loop (en+1)
 	in
-	printf "len 0x%x - pos 0x%x\n" (String.length s) pos;
+	(* printf "len 0x%x - pos 0x%x\n" (String.length s) pos; *)
 	let len = loop pos in
 	String.sub s pos len
 
@@ -1118,7 +1118,7 @@ let sread_from_table ctx in_blob tbl s pos =
 		let tidx = rid land mask in
 		let real_rid = rid lsr size in
 		let real_tbl = tbls.(tidx) in
-		printf "rid 0x%x - table idx 0x%x - real_rid 0x%x\n\n" rid tidx real_rid;
+		(* printf "rid 0x%x - table idx 0x%x - real_rid 0x%x\n\n" rid tidx real_rid; *)
 		pos, get_table ctx real_tbl real_rid
 	end else
 		pos, get_table ctx tbl rid
@@ -1127,7 +1127,7 @@ let sread_from_table ctx in_blob tbl s pos =
 
 let rec read_ilsig ctx s pos =
 	let i = sget s pos in
-	printf "0x%x\n" i;
+	(* printf "0x%x\n" i; *)
 	let pos = pos + 1 in
 	match i with
 		| 0x1 -> pos, SVoid (* 0x1 *)
@@ -1380,11 +1380,11 @@ let read_method_ilsig_idx ctx pos =
 	in
 	let s = ctx.blob_stream in
 	let pos, len = read_compressed_i32 s i in
-	for x = 0 to len do
-		printf "%x " (sget s (i+x))
-	done;
+	(* for x = 0 to len do *)
+	(* 	printf "%x " (sget s (i+x)) *)
+	(* done; *)
 	let endpos = pos + len in
-	printf "\n";
+	(* printf "\n"; *)
 	let pos, callconv = read_callconv ctx s pos in
 	let pos, ntypes = read_compressed_i32 s pos in
 	let pos, ret = read_ilsig ctx s pos in
@@ -1481,10 +1481,10 @@ let read_custom_attr ctx attr_type s pos =
 			read_fixed (i :: acc) args pos
 	in
 	let pos, fixed = read_fixed [] args pos in
-	for x = 0 to 10 do
-		printf "%x " (sget s (pos + x))
-	done;
-	printf "\n\n";
+	(* for x = 0 to 10 do *)
+	(* 	printf "%x " (sget s (pos + x)) *)
+	(* done; *)
+	(* printf "\n\n"; *)
 	let pos, nnamed = read_compressed_i32 s pos in
 	let pos = if nnamed > 0 then pos+1 else pos in
 	let rec read_named acc pos n =
@@ -1573,7 +1573,7 @@ let rec ilsig_s = function (* TODO: delete me - leave only in ilMetaDebug *)
 	| SPinned s -> "pinned " ^ ilsig_s s
 
 let read_table_at ctx tbl n pos =
-	print_endline ("rr " ^ string_of_int (n+1));
+	(* print_endline ("rr " ^ string_of_int (n+1)); *)
 	let s = ctx.meta_stream in
 	match get_table ctx tbl (n+1 (* indices start at 1 *)) with
 	| Module m ->
@@ -1702,9 +1702,9 @@ let read_table_at ctx tbl n pos =
 		let pos, parent = sread_from_table ctx false IHasCustomAttribute s pos in
 		let pos, t = sread_from_table ctx false ICustomAttributeType s pos in
 		let pos, value = read_custom_attr_idx ctx t pos in
-		(match value with
-			| None -> print_endline "None"
-			| Some s -> print_endline (attributes_s s));
+		(* (match value with *)
+		(* 	| None -> print_endline "None" *)
+		(* 	| Some s -> print_endline (attributes_s s)); *)
 		ca.ca_parent <- parent;
 		ca.ca_type <- t;
 		ca.ca_value <- value;
@@ -1741,7 +1741,7 @@ let read_table_at ctx tbl n pos =
 		pos, FieldLayout fl
 	| StandAloneSig sa ->
 		let pos, ilsig = read_field_ilsig_idx ~force_field:false ctx pos in
-		print_endline (ilsig_s ilsig);
+		(* print_endline (ilsig_s ilsig); *)
 		sa.sa_signature <- ilsig;
 		pos, StandAloneSig sa
 	| EventMap em ->
@@ -1760,7 +1760,7 @@ let read_table_at ctx tbl n pos =
 		let pos, event_type = sread_from_table ctx false ITypeDefOrRef s pos in
 		e.e_flags <- event_flags_of_int flags;
 		e.e_name <- name;
-		print_endline name;
+		(* print_endline name; *)
 		e.e_event_type <- event_type;
 		pos, Event e
 	| PropertyMap pm ->
@@ -1779,9 +1779,9 @@ let read_table_at ctx tbl n pos =
 		let pos, t = read_field_ilsig_idx ~force_field:false ctx pos in
 		prop.prop_flags <- property_flags_of_int flags;
 		prop.prop_name <- name;
-		print_endline name;
+		(* print_endline name; *)
 		prop.prop_type <- t;
-		print_endline (ilsig_s t);
+		(* print_endline (ilsig_s t); *)
 		pos, Property prop
 	| MethodSemantics ms ->
 		let pos, semantic = sread_ui16 s pos in
@@ -1802,11 +1802,11 @@ let read_table_at ctx tbl n pos =
 	| ModuleRef modr ->
 		let pos, name = read_sstring_idx ctx pos in
 		modr.modr_name <- name;
-		print_endline name;
+		(* print_endline name; *)
 		pos, ModuleRef modr
 	| TypeSpec ts ->
 		let pos, signature = read_ilsig_idx ctx pos in
-		print_endline (ilsig_s signature);
+		(* print_endline (ilsig_s signature); *)
 		ts.ts_signature <- signature;
 		pos, TypeSpec ts
 	| ENCLog el ->
@@ -1823,7 +1823,7 @@ let read_table_at ctx tbl n pos =
 		im.im_flags <- impl_flags_of_int flags;
 		im.im_forwarded <- forwarded;
 		im.im_import_name <- import_name;
-		print_endline import_name;
+		(* print_endline import_name; *)
 		im.im_import_scope <- get_module_ref import_scope;
 		pos, ImplMap im
 	| ENCMap em ->
@@ -1885,9 +1885,9 @@ let read_table_at ctx tbl n pos =
 		ar.ar_flags <- assembly_flags_of_int flags;
 		ar.ar_public_key <- public_key;
 		ar.ar_name <- name;
-		print_endline name;
+		(* print_endline name; *)
 		ar.ar_locale <- locale;
-		print_endline locale;
+		(* print_endline locale; *)
 		ar.ar_hash_value <- hash_value;
 		pos, AssemblyRef ar
 	| AssemblyRefProcessor arp ->
@@ -1912,7 +1912,7 @@ let read_table_at ctx tbl n pos =
 		let pos, hash_value = read_sblob_idx ctx pos in
 		file.file_flags <- file_flag_of_int flags;
 		file.file_name <- name;
-		print_endline ("file " ^ name);
+		(* print_endline ("file " ^ name); *)
 		file.file_hash_value <- hash_value;
 		pos, File file
 	| ExportedType et ->
@@ -1930,7 +1930,7 @@ let read_table_at ctx tbl n pos =
 	| ManifestResource mr ->
 		let pos, offset = sread_i32 s pos in
 		let pos, flags = sread_i32 s pos in
-		printf "offset 0x%x flags 0x%x\n" offset flags;
+		(* printf "offset 0x%x flags 0x%x\n" offset flags; *)
 		let pos, name = read_sstring_idx ctx pos in
 		let rpos, i = ctx.table_sizes.(int_of_table IImplementation) s pos in
 		let pos, impl =
@@ -1943,7 +1943,7 @@ let read_table_at ctx tbl n pos =
 		mr.mr_offset <- offset;
 		mr.mr_flags <- manifest_resource_flag_of_int flags;
 		mr.mr_name <- name;
-		print_endline name;
+		(* print_endline name; *)
 		mr.mr_implementation <- impl;
 		pos, ManifestResource mr
 	| NestedClass nc ->
@@ -1967,7 +1967,7 @@ let read_table_at ctx tbl n pos =
 				spos, None
 			else
 				let pos, ret = read_sstring_idx ctx pos in
-				print_endline ret;
+				(* print_endline ret; *)
 				pos, Some ret
 		in
 		gp.gp_number <- number;
@@ -1978,7 +1978,7 @@ let read_table_at ctx tbl n pos =
 	| MethodSpec mspec ->
 		let pos, meth = sread_from_table ctx false IMethodDefOrRef s pos in
 		let pos, instantiation = read_method_ilsig_idx ctx pos in
-		print_endline (ilsig_s instantiation);
+		(* print_endline (ilsig_s instantiation); *)
 		mspec.mspec_method <- meth;
 		mspec.mspec_instantiation <- instantiation;
 		pos, MethodSpec mspec
@@ -2045,7 +2045,7 @@ let read_meta ctx =
 	Array.iteri (fun n r -> match r with
 		| false,_ -> ()
 		| true,nrows ->
-			print_endline (string_of_int n);
+			(* print_endline (string_of_int n); *)
 			let fn = read_table_at ctx (table_of_int n) in
 			let rec loop_fn n =
 				if n = nrows then
