@@ -83,6 +83,7 @@ type out = {
 	o_guard : texpr option;
 	o_pos : pos;
 	o_id : int;
+	o_default : bool;
 }
 
 type pat_vec = pat array * out
@@ -128,12 +129,13 @@ let mk_st def t p = {
 	st_pos = p;
 }
 
-let mk_out mctx id e eg pl p =
+let mk_out mctx id e eg pl is_default p =
 	let out = {
 		o_expr = e;
 		o_guard = eg;
 		o_pos = p;
 		o_id = id;
+		o_default = is_default;
 	} in
 	mctx.outcomes <- PMap.add pl out mctx.outcomes;
 	out
@@ -1165,7 +1167,8 @@ let match_expr ctx e cases def with_type p =
 		in
 		List.iter (fun f -> f()) restore;
 		save();
-		let out = mk_out mctx i e eg pl (pos ep) in
+		let is_default = match fst ep with (EConst(Ident "_")) -> true | _ -> false in
+		let out = mk_out mctx i e eg pl is_default (pos ep) in
 		Array.of_list pl,out
 	) cases in
 	let check_unused () =
@@ -1192,16 +1195,16 @@ let match_expr ctx e cases def with_type p =
 			(match cases with (e,_,_) :: cl -> loop e cl | [] -> assert false);
 			ctx.on_error <- old_error;
 		in
- 		PMap.iter (fun _ out -> if not (Hashtbl.mem mctx.used_paths out.o_id) then begin
-			if out.o_pos != p then begin
+ 		PMap.iter (fun _ out ->
+ 			if not (Hashtbl.mem mctx.used_paths out.o_id || out.o_default) then begin
 				unused out.o_pos;
 				if mctx.toplevel_or then begin match evals with
 					| [{etype = t}] when (match follow t with TAbstract({a_path=[],"Int"},[]) -> true | _ -> false) ->
 						display_error ctx "Note: Int | Int is an or-pattern now" p;
 					| _ -> ()
 				end;
-			end;
-		end) mctx.outcomes;
+			end
+		) mctx.outcomes;
 	in
 	let dt = try
 		(* compile decision tree *)
