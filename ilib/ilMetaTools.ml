@@ -53,8 +53,8 @@ let rec get_path type_def_or_ref = match type_def_or_ref with
 	| SGenericInst(s,_) -> (match follow s with
 		| SClass c | SValueType c ->
 			get_path c
-		| _ -> "","")
-	| _ -> "","")
+		| _ -> [],"")
+	| _ -> [],"")
 	| _ -> assert false
 
 let constant_s = function

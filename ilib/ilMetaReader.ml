@@ -23,6 +23,7 @@ open IlMeta;;
 open IO;;
 open Printf;;
 open IlMetaTools;;
+open ExtString;;
 
 (* *)
 let get_field = function
@@ -667,7 +668,7 @@ let mk_type_ref id =
 		tr_id = id;
 		tr_resolution_scope = null_meta;
 		tr_name = empty;
-		tr_namespace = empty;
+		tr_namespace = [];
 	}
 
 let null_type_ref = mk_type_ref (-1)
@@ -677,7 +678,7 @@ let mk_type_def id =
 		td_id = id;
 		td_flags = null_type_def_flags;
 		td_name = empty;
-		td_namespace = empty;
+		td_namespace = [];
 		td_extends = None;
 		td_field_list = [];
 		td_method_list = [];
@@ -997,7 +998,7 @@ let mk_exported_type id =
 		et_flags = null_type_def_flags;
 		et_type_def_id = -1;
 		et_type_name = empty;
-		et_type_namespace = empty;
+		et_type_namespace = [];
 		et_implementation = null_meta;
 	}
 
@@ -1499,7 +1500,7 @@ let read_custom_attr ctx attr_type s pos =
 		| SInt32 | SUInt32 | SInt64 | SUInt64 | SFloat32 | SFloat64 | SString ->
 			let pos, cons = read_constant ctx (sig_to_const ilsig) s pos in
 			pos, InstConstant (cons)
-		| SClass c when is_type ("System","Type") c ->
+		| SClass c when is_type (["System"],"Type") c ->
 			let pos, len = read_compressed_i32 s pos in
 			pos+len, InstType (String.sub s pos len)
 		| SObject -> (* boxed *)
@@ -1666,6 +1667,8 @@ let read_list ctx table ptr_table begin_idx offset last pos =
 	let end_idx = read_next_index ctx offset table last pos in
 	get_rev_list ctx table ptr_table begin_idx end_idx
 
+let parse_ns id = String.nsplit id "."
+
 let read_table_at ctx tbl n last pos =
 	(* print_endline ("rr " ^ string_of_int (n+1)); *)
 	let s = ctx.meta_stream in
@@ -1688,7 +1691,7 @@ let read_table_at ctx tbl n last pos =
 		let pos, ns = read_sstring_idx ctx pos in
 		tr.tr_resolution_scope <- scope;
 		tr.tr_name <- name;
-		tr.tr_namespace <- ns;
+		tr.tr_namespace <- parse_ns ns;
 		(* print_endline name; *)
 		(* print_endline ns; *)
 		pos, TypeRef tr
@@ -1704,7 +1707,7 @@ let read_table_at ctx tbl n last pos =
 		let pos, mlist_begin = ctx.table_sizes.(int_of_table IMethod) s pos in
 		td.td_flags <- type_def_flags_of_int flags;
 		td.td_name <- name;
-		td.td_namespace <- ns;
+		td.td_namespace <- parse_ns ns;
 		td.td_extends <- extends;
 		td.td_field_list <- List.rev_map get_field (read_list ctx IField IFieldPtr flist_begin field_offset last pos);
 		td.td_method_list <- List.rev_map get_method (read_list ctx IMethod IMethodPtr mlist_begin method_offset last pos);
@@ -2025,7 +2028,7 @@ let read_table_at ctx tbl n last pos =
 		et.et_flags <- type_def_flags_of_int flags;
 		et.et_type_def_id <- type_def_id;
 		et.et_type_name <- type_name;
-		et.et_type_namespace <- type_namespace;
+		et.et_type_namespace <- parse_ns type_namespace;
 		et.et_implementation <- impl;
 		pos, ExportedType et
 	| ManifestResource mr ->

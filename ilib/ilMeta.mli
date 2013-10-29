@@ -33,6 +33,8 @@ type id = stringref
 	(* and continue with alphanumeric characters or one of the following: *)
 		(* ?, $, @, _, ` *)
 
+type ns = id list
+
 type rid = int
 	(* record id on a specified meta table *)
 
@@ -200,14 +202,14 @@ and meta_type_ref = {
 	mutable tr_id : int;
 	mutable tr_resolution_scope : resolution_scope;
 	mutable tr_name : id;
-	mutable tr_namespace : id;
+	mutable tr_namespace : ns;
 }
 
 and meta_type_def = {
 	mutable td_id : int;
 	mutable td_flags : type_def_flags;
 	mutable td_name : id;
-	mutable td_namespace : id;
+	mutable td_namespace : ns;
 	mutable td_extends : type_def_or_ref option;
 	mutable td_field_list : meta_field list;
 	mutable td_method_list : meta_method list;
@@ -474,7 +476,7 @@ and meta_exported_type = {
 	mutable et_type_def_id : int;
 		(* TypeDef token in another module *)
 	mutable et_type_name : stringref;
-	mutable et_type_namespace : stringref;
+	mutable et_type_namespace : ns;
 	mutable et_implementation : implementation;
 }
 
