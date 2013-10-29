@@ -239,7 +239,7 @@ abstract UInt(Int) from Int {
 		return toFloat();
 	}
 
-	@:to /*private*/ inline function toFloat():Float {
+	@:to private inline function toFloat():Float {
 		var int = toInt();
 		if (int < 0) {
 			return 4294967296.0 + int;
@@ -249,7 +249,7 @@ abstract UInt(Int) from Int {
 		}
 	}
 
-	@:to /*private*/ inline function toInt():Int {
+	@:to private inline function toInt():Int {
 		return this;
 	}
 

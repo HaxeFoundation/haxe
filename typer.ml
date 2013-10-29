@@ -226,6 +226,7 @@ let rec can_access ctx c cf stat =
 	if cf.cf_public then
 		true
 	else
+	(* TODO: should we add a c == ctx.curclass short check here? *)
 	(* has metadata path *)
 	let make_path c f = match c.cl_kind with
 		| KAbstractImpl a -> fst a.a_path @ [snd a.a_path; f.cf_name]
@@ -284,6 +285,7 @@ let rec can_access ctx c cf stat =
 			List.exists (fun t -> match follow t with TInst(c,_) -> loop c | _ -> false) tl
 		| _ -> false)
 	|| (Meta.has Meta.PrivateAccess ctx.meta) in
+	(* TODO: find out what this does and move it to genas3 *)
 	if b && Common.defined ctx.com Common.Define.As3 && not (Meta.has Meta.Public cf.cf_meta) then cf.cf_meta <- (Meta.Public,[],cf.cf_pos) :: cf.cf_meta;
 	b
 
@@ -1257,7 +1259,7 @@ and type_field ctx e i p mode =
 		(try
  			let c = (match a.a_impl with None -> raise Not_found | Some c -> c) in
 			let f = PMap.find i c.cl_statics in
-			if not (can_access ctx c f false) && not ctx.untyped then display_error ctx ("Cannot access private field " ^ i) p;
+			if not (can_access ctx c f true) && not ctx.untyped then display_error ctx ("Cannot access private field " ^ i) p;
 			let field_type f =
 				let t = field_type ctx c [] f p in
 				apply_params a.a_types pl t
