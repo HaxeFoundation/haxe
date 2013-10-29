@@ -70,3 +70,8 @@ and ilprop = {
 	mutable pget : ilmethod option;
 	mutable pset : ilmethod option;
 }
+
+type ilctx = {
+	il_tables : (clr_meta DynArray.t) array;
+	il_relations : (meta_pointer, clr_meta) Hashtbl.t;
+}

@@ -430,6 +430,7 @@ type meta_ctx = {
 	tables : (clr_meta DynArray.t) array;
 	table_sizes : ( string -> int -> int * int ) array;
 	extra_streams : clr_stream_header list;
+	relations : (meta_pointer, clr_meta) Hashtbl.t;
 }
 
 let empty = "<not initialized>"
@@ -1669,6 +1670,58 @@ let read_list ctx table ptr_table begin_idx offset last pos =
 
 let parse_ns id = String.nsplit id "."
 
+let get_meta_pointer = function
+	| Module r -> IModule, r.md_id
+	| TypeRef r -> ITypeRef, r.tr_id
+	| TypeDef r -> ITypeDef, r.td_id
+	| FieldPtr r -> IFieldPtr, r.fp_id
+	| Field r -> IField, r.f_id
+	| MethodPtr r -> IMethodPtr, r.mp_id
+	| Method r -> IMethod, r.m_id
+	| ParamPtr r -> IParamPtr, r.pp_id
+	| Param r -> IParam, r.p_id
+	| InterfaceImpl r -> IInterfaceImpl, r.ii_id
+	| MemberRef r -> IMemberRef, r.memr_id
+	| Constant r -> IConstant, r.c_id
+	| CustomAttribute r -> ICustomAttribute, r.ca_id
+	| FieldMarshal r -> IFieldMarshal, r.fm_id
+	| DeclSecurity r -> IDeclSecurity, r.ds_id
+	| ClassLayout r -> IClassLayout, r.cl_id
+	| FieldLayout r -> IFieldLayout, r.fl_id
+	| StandAloneSig r -> IStandAloneSig, r.sa_id
+	| EventMap r -> IEventMap, r.em_id
+	| EventPtr r -> IEventPtr, r.ep_id
+	| Event r -> IEvent, r.e_id
+	| PropertyMap r -> IPropertyMap, r.pm_id
+	| PropertyPtr r -> IPropertyPtr, r.prp_id
+	| Property r -> IProperty, r.prop_id
+	| MethodSemantics r -> IMethodSemantics, r.ms_id
+	| MethodImpl r -> IMethodImpl, r.mi_id
+	| ModuleRef r -> IModuleRef, r.modr_id
+	| TypeSpec r -> ITypeSpec, r.ts_id
+	| ImplMap r -> IImplMap, r.im_id
+	| FieldRVA r -> IFieldRVA, r.fr_id
+	| ENCLog r -> IENCLog, r.el_id
+	| ENCMap r -> IENCMap, r.encm_id
+	| Assembly r -> IAssembly, r.a_id
+	| AssemblyProcessor r -> IAssemblyProcessor, r.ap_id
+	| AssemblyOS r -> IAssemblyOS, r.aos_id
+	| AssemblyRef r -> IAssemblyRef, r.ar_id
+	| AssemblyRefProcessor r -> IAssemblyRefProcessor, r.arp_id
+	| AssemblyRefOS r -> IAssemblyRefOS, r.aros_id
+	| File r -> IFile, r.file_id
+	| ExportedType r -> IExportedType, r.et_id
+	| ManifestResource r -> IManifestResource, r.mr_id
+	| NestedClass r -> INestedClass, r.nc_id
+	| GenericParam r -> IGenericParam, r.gp_id
+	| MethodSpec r -> IMethodSpec, r.mspec_id
+	| GenericParamConstraint r -> IGenericParamConstraint, r.gc_id
+	| _ -> assert false
+
+let add_relation ctx key v =
+	let ptr = get_meta_pointer key in
+	Hashtbl.add ctx.relations ptr v
+
 let read_table_at ctx tbl n last pos =
 	(* print_endline ("rr " ^ string_of_int (n+1)); *)
 	let s = ctx.meta_stream in
@@ -1765,6 +1818,7 @@ let read_table_at ctx tbl n last pos =
 		pos, Param p
 	| InterfaceImpl ii ->
 		let pos, cls = sread_from_table ctx false ITypeDef s pos in
+		add_relation ctx cls (InterfaceImpl ii);
 		let cls = get_type_def cls in
 		let pos, interface  = sread_from_table ctx false ITypeDefOrRef s pos in
 		ii.ii_class <- cls;
@@ -1780,6 +1834,7 @@ let read_table_at ctx tbl n last pos =
 		mr.memr_class <- cls;
 		mr.memr_name <- name;
 		mr.memr_signature <- signature;
+		add_relation ctx cls (MemberRef mr);
 		pos, MemberRef mr
 	| Constant c ->
 		let pos, ctype = read_constant_type ctx s pos in
@@ -1796,23 +1851,23 @@ let read_table_at ctx tbl n last pos =
 		c.c_type <- ctype;
 		c.c_parent <- parent;
 		c.c_value <- value;
+		add_relation ctx parent (Constant c);
 		pos, Constant c
 	| CustomAttribute ca ->
 		let pos, parent = sread_from_table ctx false IHasCustomAttribute s pos in
 		let pos, t = sread_from_table ctx false ICustomAttributeType s pos in
 		let pos, value = read_custom_attr_idx ctx t pos in
-		(* (match value with *)
-		(* 	| None -> print_endline "None" *)
-		(* 	| Some s -> print_endline (attributes_s s)); *)
 		ca.ca_parent <- parent;
 		ca.ca_type <- t;
 		ca.ca_value <- value;
+		add_relation ctx parent (CustomAttribute ca);
 		pos, CustomAttribute ca
 	| FieldMarshal fm ->
 		let pos, parent = sread_from_table ctx false IHasFieldMarshal s pos in
 		let pos, nativesig = read_nativesig_idx ctx s pos in
 		fm.fm_parent <- parent;
 		fm.fm_native_type <- nativesig;
+		add_relation ctx parent (FieldMarshal fm);
 		pos, FieldMarshal fm
 	| DeclSecurity ds ->
 		let pos, action = sread_ui16 s pos in
@@ -1822,11 +1877,13 @@ let read_table_at ctx tbl n last pos =
 		ds.ds_action <- action;
 		ds.ds_parent <- parent;
 		ds.ds_permission_set <- permission_set;
+		add_relation ctx parent (DeclSecurity ds);
 		pos, DeclSecurity ds
 	| ClassLayout cl ->
 		let pos, psize = sread_ui16 s pos in
 		let pos, csize = sread_i32 s pos in
 		let pos, parent = sread_from_table ctx false ITypeDef s pos in
+		add_relation ctx parent (ClassLayout cl);
 		let parent = get_type_def parent in
 		cl.cl_packing_size <- psize;
 		cl.cl_class_size <- csize;
@@ -1837,6 +1894,7 @@ let read_table_at ctx tbl n last pos =
 		let pos, field = sread_from_table ctx false IField s pos in
 		fl.fl_offset <- offset;
 		fl.fl_field <- get_field field;
+		add_relation ctx field (FieldLayout fl);
 		pos, FieldLayout fl
 	| StandAloneSig sa ->
 		let pos, ilsig = read_field_ilsig_idx ~force_field:false ctx pos in
@@ -1850,6 +1908,7 @@ let read_table_at ctx tbl n last pos =
 		let pos, event_list = ctx.table_sizes.(int_of_table IEvent) s pos in
 		em.em_parent <- get_type_def parent;
 		em.em_event_list <- List.rev_map get_event (read_list ctx IEvent IEventPtr event_list offset last pos);
+		add_relation ctx parent (EventMap em);
 		pos, EventMap em
 	| EventPtr ep ->
 		let pos, event = sread_from_table ctx false IEvent s pos in
@@ -1863,6 +1922,7 @@ let read_table_at ctx tbl n last pos =
 		e.e_name <- name;
 		(* print_endline name; *)
 		e.e_event_type <- event_type;
+		add_relation ctx event_type (Event e);
 		pos, Event e
 	| PropertyMap pm ->
 		let startpos = pos in
@@ -1871,6 +1931,7 @@ let read_table_at ctx tbl n last pos =
 		let pos, property_list = ctx.table_sizes.(int_of_table IProperty) s pos in
 		pm.pm_parent <- get_type_def parent;
 		pm.pm_property_list <- List.rev_map get_property (read_list ctx IProperty IPropertyPtr property_list offset last pos);
+		add_relation ctx parent (PropertyMap pm);
 		pos, PropertyMap pm
 	| PropertyPtr pp ->
 		let pos, property = sread_from_table ctx false IProperty s pos in
@@ -1893,6 +1954,7 @@ let read_table_at ctx tbl n last pos =
 		ms.ms_semantic <- semantic_flags_of_int semantic;
 		ms.ms_method <- get_method m;
 		ms.ms_association <- association;
+		add_relation ctx m (MethodSemantics ms);
 		pos, MethodSemantics ms
 	| MethodImpl mi ->
 		let pos, cls = sread_from_table ctx false ITypeDef s pos in
@@ -1901,6 +1963,7 @@ let read_table_at ctx tbl n last pos =
 		mi.mi_class <- get_type_def cls;
 		mi.mi_method_body <- method_body;
 		mi.mi_method_declaration <- method_declaration;
+		add_relation ctx method_body (MethodImpl mi);
 		pos, MethodImpl mi
 	| ModuleRef modr ->
 		let pos, name = read_sstring_idx ctx pos in
@@ -1926,8 +1989,8 @@ let read_table_at ctx tbl n last pos =
 		im.im_flags <- impl_flags_of_int flags;
 		im.im_forwarded <- forwarded;
 		im.im_import_name <- import_name;
-		(* print_endline import_name; *)
 		im.im_import_scope <- get_module_ref import_scope;
+		add_relation ctx forwarded (ImplMap im);
 		pos, ImplMap im
 	| ENCMap em ->
 		let pos, token = sread_i32 s pos in
@@ -1938,6 +2001,7 @@ let read_table_at ctx tbl n last pos =
 		let pos, field = sread_from_table ctx false IField s pos in
 		f.fr_rva <- rva;
 		f.fr_field <- get_field field;
+		add_relation ctx field (FieldRVA f);
 		pos, FieldRVA f
 	| Assembly a ->
 		let pos, hash_algo = sread_i32 s pos in
@@ -2029,6 +2093,7 @@ let read_table_at ctx tbl n last pos =
 		et.et_type_name <- type_name;
 		et.et_type_namespace <- parse_ns type_namespace;
 		et.et_implementation <- impl;
+		add_relation ctx impl (ExportedType et);
 		pos, ExportedType et
 	| ManifestResource mr ->
 		let pos, offset = sread_i32 s pos in
@@ -2041,12 +2106,12 @@ let read_table_at ctx tbl n last pos =
 				rpos, None
 			else
 				let pos, ret = sread_from_table ctx false IImplementation s pos in
+				add_relation ctx ret (ManifestResource mr);
 				pos, Some ret
 		in
 		mr.mr_offset <- offset;
 		mr.mr_flags <- manifest_resource_flag_of_int flags;
 		mr.mr_name <- name;
-		(* print_endline name; *)
 		mr.mr_implementation <- impl;
 		pos, ManifestResource mr
 	| NestedClass nc ->
@@ -2054,6 +2119,8 @@ let read_table_at ctx tbl n last pos =
 		let pos, enclosing = sread_from_table ctx false ITypeDef s pos in
 		nc.nc_nested <- get_type_def nested;
 		nc.nc_enclosing <- get_type_def enclosing;
+		add_relation ctx nested (NestedClass nc);
+		add_relation ctx enclosing (NestedClass nc);
 		pos, NestedClass nc
 	| GenericParam gp ->
 		let pos, number = sread_ui16 s pos in
@@ -2077,6 +2144,7 @@ let read_table_at ctx tbl n last pos =
 		gp.gp_flags <- generic_flags_of_int flags;
 		gp.gp_owner <- owner;
 		gp.gp_name <- name;
+		add_relation ctx owner (GenericParam gp);
 		pos, GenericParam gp
 	| MethodSpec mspec ->
 		let pos, meth = sread_from_table ctx false IMethodDefOrRef s pos in
@@ -2084,12 +2152,14 @@ let read_table_at ctx tbl n last pos =
 		(* print_endline (ilsig_s instantiation); *)
 		mspec.mspec_method <- meth;
 		mspec.mspec_instantiation <- instantiation;
+		add_relation ctx meth (MethodSpec mspec);
 		pos, MethodSpec mspec
 	| GenericParamConstraint gc ->
 		let pos, owner = sread_from_table ctx false IGenericParam s pos in
 		let pos, c = sread_from_table ctx false ITypeDefOrRef s pos in
 		gc.gc_owner <- get_generic_param owner;
 		gc.gc_constraint <- c;
+		add_relation ctx owner (GenericParamConstraint gc);
 		pos, GenericParamConstraint gc
 	| _ -> assert false
 
@@ -2264,6 +2334,7 @@ let read_meta_tables pctx header =
 		meta_edit_continue = false;
 		meta_has_deleted = false;
 		extra_streams = !extra;
+		relations = Hashtbl.create 64;
 		tables = tables;
 		table_sizes = Array.make (max_clr_meta_idx+1) sread_ui16;
 	} in
