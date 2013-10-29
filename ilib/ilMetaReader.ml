@@ -711,7 +711,7 @@ let mk_method id =
 		m_flags = null_method_flags;
 		m_name = empty;
 		m_signature = SVoid;
-		m_paramlist = -1;
+		m_param_list = [];
 	}
 
 let null_method = mk_method (-1)
@@ -1736,20 +1736,19 @@ let read_table_at ctx tbl n last pos =
 		mp.mp_method <- m;
 		pos, MethodPtr mp
 	| Method m ->
+		let startpos = pos in
 		let pos, rva = sread_i32 s pos in
 		let pos, iflags = sread_ui16 s pos in
 		let pos, flags = sread_ui16 s pos in
 		let pos, name = read_sstring_idx ctx pos in
-		(* print_endline ("METHOD NAME " ^ name); *)
-		(* printf "method n %d\n" n; *)
 		let pos, ilsig = read_method_ilsig_idx ctx pos in
-		(* print_endline (ilsig_s ilsig); *)
+		let offset = pos - startpos in
 		let pos, paramlist = ctx.table_sizes.(int_of_table IParam) s pos in
 		m.m_rva <- Int32.of_int rva;
 		m.m_flags <- method_flags_of_int iflags flags;
 		m.m_name <- name;
 		m.m_signature <- ilsig;
-		m.m_paramlist <- paramlist;
+		m.m_param_list <- List.rev_map get_param (read_list ctx IParam IParamPtr paramlist offset last pos);
 		pos, Method m
 	| ParamPtr pp ->
 		let pos, p = sread_from_table ctx false IParam s pos in

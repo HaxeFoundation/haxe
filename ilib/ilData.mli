@@ -20,4 +20,53 @@ open IlMeta;;
 
 type ilpath = (string list) * string
 
+type ilsig = IlMeta.ilsig
+
 type ilversion = int * int (* minor + major *)
+
+type ilclass = {
+	cpath : ilpath;
+	cflags : type_def_flags;
+	csuper : ilsig option;
+	cfields : ilfield list;
+	cmethods : ilmethod list;
+	mutable cimplements : ilsig list;
+	mutable ctypes : type_param list;
+	mutable cprops : ilprop list;
+	(* cevents :  *)
+	mutable cenclosing : ilclass option;
+	mutable cnested : ilclass list;
+}
+
+and type_param = {
+	tnumber : int;
+	tflags : generic_flags;
+	tname : string option;
+	mutable tconstraints : ilsig list;
+}
+
+and ilfield = {
+	fname : string;
+	fflags : field_flags;
+	fsig : ilsig;
+}
+
+and ilmethod = {
+	mname : string;
+	mflags : method_flags;
+	msig : ilsig;
+	mutable mparams : ilmethod_param list;
+	mutable mret : ilsig;
+	mutable mis_override : bool; (* method_impl *)
+	mutable mtypes : type_param list;
+}
+
+and ilmethod_param = string * param_flags * ilsig
+
+and ilprop = {
+	pname : string;
+	psig : ilsig;
+	pflags : property_flags;
+	mutable pget : ilmethod option;
+	mutable pset : ilmethod option;
+}

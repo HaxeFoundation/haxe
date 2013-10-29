@@ -238,7 +238,7 @@ and meta_method = {
 	mutable m_flags : method_flags;
 	mutable m_name : id;
 	mutable m_signature : ilsig;
-	mutable m_paramlist : rid; (* rid: Param *)
+	mutable m_param_list : meta_param list; (* rid: Param *)
 }
 
 and meta_param_ptr = {
