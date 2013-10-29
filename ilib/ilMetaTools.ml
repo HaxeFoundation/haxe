@@ -92,3 +92,58 @@ let named_attribute_s (is_prop,name,inst) =
 
 let attributes_s (il,nal) =
 	"(" ^ (String.concat ", " (List.map instance_s il)) ^ (if nal <> [] then ", " ^ (String.concat ", " (List.map named_attribute_s nal)) else "") ^")"
+
+let meta_root m : meta_root = match m with
+	| Module r -> Obj.magic r
+	| TypeRef r -> Obj.magic r
+	| TypeDef r -> Obj.magic r
+	| FieldPtr r -> Obj.magic r
+	| Field r -> Obj.magic r
+	| MethodPtr r -> Obj.magic r
+	| Method r -> Obj.magic r
+	| ParamPtr r -> Obj.magic r
+	| Param r -> Obj.magic r
+	| InterfaceImpl r -> Obj.magic r
+	| MemberRef r -> Obj.magic r
+	| Constant r -> Obj.magic r
+	| CustomAttribute r -> Obj.magic r
+	| FieldMarshal r -> Obj.magic r
+	| DeclSecurity r -> Obj.magic r
+	| ClassLayout r -> Obj.magic r
+	| FieldLayout r -> Obj.magic r
+	| StandAloneSig r -> Obj.magic r
+	| EventMap r -> Obj.magic r
+	| EventPtr r -> Obj.magic r
+	| Event r -> Obj.magic r
+	| PropertyMap r -> Obj.magic r
+	| PropertyPtr r -> Obj.magic r
+	| Property r -> Obj.magic r
+	| MethodSemantics r -> Obj.magic r
+	| MethodImpl r -> Obj.magic r
+	| ModuleRef r -> Obj.magic r
+	| TypeSpec r -> Obj.magic r
+	| ImplMap r -> Obj.magic r
+	| FieldRVA r -> Obj.magic r
+	| ENCLog r -> Obj.magic r
+	| ENCMap r -> Obj.magic r
+	| Assembly r -> Obj.magic r
+	| AssemblyProcessor r -> Obj.magic r
+	| AssemblyOS r -> Obj.magic r
+	| AssemblyRef r -> Obj.magic r
+	| AssemblyRefProcessor r -> Obj.magic r
+	| AssemblyRefOS r -> Obj.magic r
+	| File r -> Obj.magic r
+	| ExportedType r -> Obj.magic r
+	| ManifestResource r -> Obj.magic r
+	| NestedClass r -> Obj.magic r
+	| GenericParam r -> Obj.magic r
+	| MethodSpec r -> Obj.magic r
+	| GenericParamConstraint r -> Obj.magic r
+	| _ -> assert false
+
+let meta_root_ptr p : meta_root_ptr = match p with
+	| FieldPtr r -> Obj.magic r
+	| MethodPtr r -> Obj.magic r
+	| ParamPtr r -> Obj.magic r
+	| EventPtr r -> Obj.magic r
+	| _ -> assert false

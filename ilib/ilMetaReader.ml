@@ -1626,7 +1626,47 @@ let rec ilsig_s = function (* TODO: delete me - leave only in ilMetaDebug *)
 	| SSentinel -> "..."
 	| SPinned s -> "pinned " ^ ilsig_s s
 
-let read_table_at ctx tbl n pos =
+let read_next_index ctx offset table last pos =
+	if last then
+		DynArray.length ctx.tables.(int_of_table table) + 1
+	else
+		let s = ctx.meta_stream in
+		let _, idx = ctx.table_sizes.(int_of_table table) s (pos+offset) in
+		idx
+
+let get_rev_list ctx table ptr_table begin_idx end_idx =
+	(* first check if index exists on pointer table *)
+	let ptr_table_t = ctx.tables.(int_of_table ptr_table) in
+	printf "table %d begin %d end %d\n" (int_of_table table) begin_idx end_idx;
+	match ctx.compressed, DynArray.length ptr_table_t with
+	| true, _ | _, 0 ->
+		(* use direct index *)
+		let rec loop idx acc =
+			if idx >= end_idx then
+				acc
+			else
+				loop (idx+1) (get_table ctx table idx :: acc)
+		in
+		loop begin_idx []
+	| _ ->
+		(* use indirect index *)
+		let rec loop idx acc =
+			if idx > end_idx then
+				acc
+			else
+				loop (idx+1) (get_table ctx ptr_table idx :: acc)
+		in
+		let ret = loop begin_idx [] in
+		List.map (fun meta ->
+			let p = meta_root_ptr meta in
+			get_table ctx table p.ptr_to.root_id
+		) ret
+
+let read_list ctx table ptr_table begin_idx offset last pos =
+	let end_idx = read_next_index ctx offset table last pos in
+	get_rev_list ctx table ptr_table begin_idx end_idx
+
+let read_table_at ctx tbl n last pos =
 	(* print_endline ("rr " ^ string_of_int (n+1)); *)
 	let s = ctx.meta_stream in
 	match get_table ctx tbl (n+1 (* indices start at 1 *)) with
@@ -1653,18 +1693,21 @@ let read_table_at ctx tbl n pos =
 		(* print_endline ns; *)
 		pos, TypeRef tr
 	| TypeDef td ->
+		let startpos = pos in
 		let pos, flags = sread_i32 s pos in
 		let pos, name = read_sstring_idx ctx pos in
 		let pos, ns = read_sstring_idx ctx pos in
 		let pos, extends = sread_from_table_opt ctx false ITypeDefOrRef s pos in
-		let pos, flist = sread_from_table ctx false IField s pos in
-		let pos, fmeth = sread_from_table ctx false IMethod s pos in
+		let field_offset = pos - startpos in
+		let pos, flist_begin = ctx.table_sizes.(int_of_table IField) s pos in
+		let method_offset = pos - startpos in
+		let pos, mlist_begin = ctx.table_sizes.(int_of_table IMethod) s pos in
 		td.td_flags <- type_def_flags_of_int flags;
 		td.td_name <- name;
 		td.td_namespace <- ns;
 		td.td_extends <- extends;
-		td.td_field_list <- [get_field flist];
-		td.td_method_list <- [get_method fmeth];
+		td.td_field_list <- List.rev_map get_field (read_list ctx IField IFieldPtr flist_begin field_offset last pos);
+		td.td_method_list <- List.rev_map get_method (read_list ctx IMethod IMethodPtr mlist_begin method_offset last pos);
 		(* print_endline "Type Def!"; *)
 		(* print_endline name; *)
 		(* print_endline ns; *)
@@ -1799,10 +1842,12 @@ let read_table_at ctx tbl n pos =
 		sa.sa_signature <- ilsig;
 		pos, StandAloneSig sa
 	| EventMap em ->
+		let startpos = pos in
 		let pos, parent = sread_from_table ctx false ITypeDef s pos in
-		let pos, event_list = sread_from_table ctx false IEvent s pos in
+		let offset = pos - startpos in
+		let pos, event_list = ctx.table_sizes.(int_of_table IEvent) s pos in
 		em.em_parent <- get_type_def parent;
-		em.em_event_list <- [get_event event_list];
+		em.em_event_list <- List.rev_map get_event (read_list ctx IEvent IEventPtr event_list offset last pos);
 		pos, EventMap em
 	| EventPtr ep ->
 		let pos, event = sread_from_table ctx false IEvent s pos in
@@ -1818,10 +1863,12 @@ let read_table_at ctx tbl n pos =
 		e.e_event_type <- event_type;
 		pos, Event e
 	| PropertyMap pm ->
+		let startpos = pos in
 		let pos, parent = sread_from_table ctx false ITypeDef s pos in
-		let pos, property_list = sread_from_table ctx false IProperty s pos in
+		let offset = pos - startpos in
+		let pos, property_list = ctx.table_sizes.(int_of_table IProperty) s pos in
 		pm.pm_parent <- get_type_def parent;
-		pm.pm_property_list <- [get_property property_list];
+		pm.pm_property_list <- List.rev_map get_property (read_list ctx IProperty IPropertyPtr property_list offset last pos);
 		pos, PropertyMap pm
 	| PropertyPtr pp ->
 		let pos, property = sread_from_table ctx false IProperty s pos in
@@ -2050,8 +2097,9 @@ let preset_sizes ctx rows =
 	Array.iteri (fun n r -> match r with
 		| false,_ -> ()
 		| true,nrows ->
+			printf "table %d nrows %d\n" n nrows;
 			let tbl = table_of_int n in
-			ctx.tables.(n) <- DynArray.init (nrows) (fun id -> mk_meta tbl id)
+			ctx.tables.(n) <- DynArray.init (nrows) (fun id -> mk_meta tbl (id+1))
 	) rows
 
 (* let read_ *)
@@ -2106,7 +2154,7 @@ let read_meta ctx =
 				if n = nrows then
 					()
 				else begin
-					let p, _ = fn n !pos in
+					let p, _ = fn n (n = (nrows-1)) !pos in
 					pos := p;
 					loop_fn (n+1)
 				end
@@ -2218,5 +2266,13 @@ let read_meta_tables pctx header =
 		table_sizes = Array.make (max_clr_meta_idx+1) sread_ui16;
 	} in
 	read_meta ctx;
+	DynArray.iter (function
+		| TypeDef td ->
+			print_endline td.td_name;
+			print_endline (string_of_int (List.length td.td_field_list));
+			print_endline (String.concat ", " (List.map (fun f -> string_of_int f.f_id ^ " " ^ f.f_name) td.td_field_list));
+			print_endline (String.concat ", " (List.map (fun f -> string_of_int f.m_id ^ " " ^ f.m_name) td.td_method_list));
+		| _ -> assert false
+	) ctx.tables.(int_of_table ITypeDef);
 	()
 

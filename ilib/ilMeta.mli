@@ -178,6 +178,15 @@ and clr_meta =
 
 (* all fields here need to be mutable, as they will first be initialized empty *)
 
+and meta_root = {
+	root_id : int;
+}
+
+and meta_root_ptr = {
+	ptr_id : int;
+	ptr_to : meta_root;
+}
+
 and meta_module = {
 	mutable md_id : int;
 	mutable md_generation : int;
