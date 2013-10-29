@@ -37,8 +37,8 @@ package haxe.ds;
 		return untyped h[key];
 	}
 
-	public function exists( key : Int ) : Bool {
-		return untyped h.hasOwnProperty(key);
+	public inline function exists( key : Int ) : Bool {
+		return untyped __in__(key,h);
 	}
 
 	public function remove( key : Int ) : Bool {
