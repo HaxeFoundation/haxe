@@ -24,6 +24,7 @@ open IO;;
 open Printf;;
 open IlMetaTools;;
 open ExtString;;
+open IlData;;
 
 (* *)
 let get_field = function
@@ -431,6 +432,7 @@ type meta_ctx = {
 	table_sizes : ( string -> int -> int * int ) array;
 	extra_streams : clr_stream_header list;
 	relations : (meta_pointer, clr_meta) Hashtbl.t;
+	typedefs : (string list * string, meta_type_def) Hashtbl.t;
 }
 
 let empty = "<not initialized>"
@@ -1753,6 +1755,8 @@ let read_table_at ctx tbl n last pos =
 		let pos, flags = sread_i32 s pos in
 		let pos, name = read_sstring_idx ctx pos in
 		let pos, ns = read_sstring_idx ctx pos in
+		let ns = parse_ns ns in
+		Hashtbl.add ctx.typedefs (ns,name) td;
 		let pos, extends = sread_from_table_opt ctx false ITypeDefOrRef s pos in
 		let field_offset = pos - startpos in
 		let pos, flist_begin = ctx.table_sizes.(int_of_table IField) s pos in
@@ -1760,7 +1764,7 @@ let read_table_at ctx tbl n last pos =
 		let pos, mlist_begin = ctx.table_sizes.(int_of_table IMethod) s pos in
 		td.td_flags <- type_def_flags_of_int flags;
 		td.td_name <- name;
-		td.td_namespace <- parse_ns ns;
+		td.td_namespace <- ns;
 		td.td_extends <- extends;
 		td.td_field_list <- List.rev_map get_field (read_list ctx IField IFieldPtr flist_begin field_offset last pos);
 		td.td_method_list <- List.rev_map get_method (read_list ctx IMethod IMethodPtr mlist_begin method_offset last pos);
@@ -1955,6 +1959,7 @@ let read_table_at ctx tbl n last pos =
 		ms.ms_method <- get_method m;
 		ms.ms_association <- association;
 		add_relation ctx m (MethodSemantics ms);
+		add_relation ctx association (MethodSemantics ms);
 		pos, MethodSemantics ms
 	| MethodImpl mi ->
 		let pos, cls = sread_from_table ctx false ITypeDef s pos in
@@ -2335,6 +2340,7 @@ let read_meta_tables pctx header =
 		meta_has_deleted = false;
 		extra_streams = !extra;
 		relations = Hashtbl.create 64;
+		typedefs = Hashtbl.create 64;
 		tables = tables;
 		table_sizes = Array.make (max_clr_meta_idx+1) sread_ui16;
 	} in
@@ -2347,5 +2353,9 @@ let read_meta_tables pctx header =
 			print_endline (String.concat ", " (List.map (fun f -> string_of_int f.m_id ^ " " ^ f.m_name) td.td_method_list));
 		| _ -> assert false
 	) ctx.tables.(int_of_table ITypeDef);
-	()
+	{
+		il_tables = ctx.tables;
+		il_relations = ctx.relations;
+		il_typedefs = ctx.typedefs;
+	}
 

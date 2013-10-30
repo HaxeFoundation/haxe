@@ -22,56 +22,80 @@ type ilpath = (string list) * string
 
 type ilsig = IlMeta.ilsig
 
+and ilsig_norm =
+	| TVoid | TBool | TChar
+	| TInt8 | TUInt8 | TInt16
+	| TUInt16 | TInt32 | TUInt32
+	| TInt64 | TUInt64 | TFloat32
+	| TFloat64 | TString | TObject
+	| TPointer of ilsig_norm
+	| TTypedReference | TIntPtr | TUIntPtr
+	| TManagedPointer of ilsig_norm
+	| TValueType of ilpath * ilsig_norm list
+	| TClass of ilpath * ilsig_norm list
+	| TTypeParam of int
+	| TMethodTypeParam of int
+	| TVector of ilsig_norm
+	| TArray of ilsig_norm * (int option * int option) array
+	| TMethod of callconv list * ilsig_norm * (ilsig_norm list)
+	| TSentinel
+
+and ilsig_t = {
+	snorm : ilsig_norm;
+	ssig : ilsig;
+}
+
 type ilversion = int * int (* minor + major *)
 
 type ilclass = {
 	cpath : ilpath;
 	cflags : type_def_flags;
-	csuper : ilsig option;
+	csuper : ilsig_t option;
 	cfields : ilfield list;
 	cmethods : ilmethod list;
-	mutable cimplements : ilsig list;
-	mutable ctypes : type_param list;
-	mutable cprops : ilprop list;
+	cimplements : ilsig_t list;
+	ctypes : type_param list;
+	cprops : ilprop list;
 	(* cevents :  *)
-	mutable cenclosing : ilclass option;
-	mutable cnested : ilclass list;
+	cenclosing : ilpath option;
+	cnested : ilpath list;
 }
 
 and type_param = {
 	tnumber : int;
 	tflags : generic_flags;
 	tname : string option;
-	mutable tconstraints : ilsig list;
+	tconstraints : ilsig_t list;
 }
 
 and ilfield = {
 	fname : string;
 	fflags : field_flags;
-	fsig : ilsig;
+	fsig : ilsig_t;
 }
 
 and ilmethod = {
 	mname : string;
 	mflags : method_flags;
-	msig : ilsig;
-	mutable mparams : ilmethod_param list;
-	mutable mret : ilsig;
-	mutable mis_override : bool; (* method_impl *)
-	mutable mtypes : type_param list;
+	msig : ilsig_t;
+	margs : ilmethod_arg list;
+	mret : ilsig_t;
+	mis_override : bool; (* method_impl *)
+	mtypes : type_param list;
 }
 
-and ilmethod_param = string * param_flags * ilsig
+and ilmethod_arg = string * param_flags * ilsig_t
 
 and ilprop = {
 	pname : string;
-	psig : ilsig;
+	psig : ilsig_t;
 	pflags : property_flags;
-	mutable pget : ilmethod option;
-	mutable pset : ilmethod option;
+	pget : string option;
+	pset : string option;
 }
 
 type ilctx = {
 	il_tables : (clr_meta DynArray.t) array;
 	il_relations : (meta_pointer, clr_meta) Hashtbl.t;
+	il_typedefs : (string list * string, meta_type_def) Hashtbl.t;
 }
