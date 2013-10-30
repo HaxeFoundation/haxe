@@ -1641,7 +1641,7 @@ let read_next_index ctx offset table last pos =
 let get_rev_list ctx table ptr_table begin_idx end_idx =
 	(* first check if index exists on pointer table *)
 	let ptr_table_t = ctx.tables.(int_of_table ptr_table) in
-	printf "table %d begin %d end %d\n" (int_of_table table) begin_idx end_idx;
+	(* printf "table %d begin %d end %d\n" (int_of_table table) begin_idx end_idx; *)
 	match ctx.compressed, DynArray.length ptr_table_t with
 	| true, _ | _, 0 ->
 		(* use direct index *)
@@ -2174,7 +2174,7 @@ let preset_sizes ctx rows =
 	Array.iteri (fun n r -> match r with
 		| false,_ -> ()
 		| true,nrows ->
-			printf "table %d nrows %d\n" n nrows;
+			(* printf "table %d nrows %d\n" n nrows; *)
 			let tbl = table_of_int n in
 			ctx.tables.(n) <- DynArray.init (nrows) (fun id -> mk_meta tbl (id+1))
 	) rows
@@ -2345,14 +2345,6 @@ let read_meta_tables pctx header =
 		table_sizes = Array.make (max_clr_meta_idx+1) sread_ui16;
 	} in
 	read_meta ctx;
-	DynArray.iter (function
-		| TypeDef td ->
-			print_endline td.td_name;
-			print_endline (string_of_int (List.length td.td_field_list));
-			print_endline (String.concat ", " (List.map (fun f -> string_of_int f.f_id ^ " " ^ f.f_name) td.td_field_list));
-			print_endline (String.concat ", " (List.map (fun f -> string_of_int f.m_id ^ " " ^ f.m_name) td.td_method_list));
-		| _ -> assert false
-	) ctx.tables.(int_of_table ITypeDef);
 	{
 		il_tables = ctx.tables;
 		il_relations = ctx.relations;
