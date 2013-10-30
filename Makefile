@@ -23,7 +23,7 @@ CC_CMD = $(OCAMLOPT) $(CFLAGS) -c $<
 CC_PARSER_CMD = $(OCAMLOPT) -pp camlp4o $(CFLAGS) -c parser.ml
 
 LIBS=unix.cmxa str.cmxa libs/extlib/extLib.cmxa libs/xml-light/xml-light.cmxa libs/swflib/swflib.cmxa \
-	libs/extc/extc.cmxa libs/neko/neko.cmxa libs/javalib/java.cmxa libs/ziplib/zip.cmxa libs/ttflib/ttf.cmxa
+	libs/extc/extc.cmxa libs/neko/neko.cmxa libs/javalib/java.cmxa libs/ziplib/zip.cmxa libs/ttflib/ttf.cmxa libs/ilib/il.cmxa
 
 NATIVE_LIBS=-cclib libs/extc/extc_stubs.o -cclib -lz
 
@@ -56,6 +56,7 @@ libs:
 	make -C libs/extc native OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC)
 	make -C libs/neko OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC)
 	make -C libs/javalib OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC)
+	make -C libs/ilib OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC)
 	make -C libs/ziplib OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC)
 	make -C libs/swflib OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC)
 	make -C libs/xml-light xml-light.cmxa OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC)
@@ -161,6 +162,7 @@ clean_libs:
 	make -C libs/neko clean
 	make -C libs/ziplib clean
 	make -C libs/javalib clean
+	make -C libs/ilib clean
 	make -C libs/swflib clean
 	make -C libs/xml-light clean
 	make -C libs/ttflib clean
