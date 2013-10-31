@@ -2377,6 +2377,7 @@ let hxpath_to_net ctx path =
 			[],[],"Not_found"
 
 let netpath_to_hx std = function
+	| [],[], cl -> [], cl
 	| ns,[], cl ->
 		let ns = (List.map String.lowercase ns) in
 		(if std then "cs" :: ns else ns), cl
@@ -2469,8 +2470,9 @@ let convert_ilenum ctx p ilcls =
 		| _ ->
       data := { ec_name = f.fname; ec_doc = None; ec_meta = []; ec_args = []; ec_pos = p; ec_params = []; ec_type = None; } :: !data;
   ) ilcls.cfields;
+	let _, c = netpath_to_hx ctx.nstd ilcls.cpath in
   EEnum {
-		d_name = netname_to_hx (get_cls ilcls.cpath);
+		d_name = netname_to_hx c;
 		d_doc = None;
 		d_params = []; (* enums never have type parameters *)
 		d_meta = !meta;
@@ -2536,13 +2538,14 @@ let convert_ilmethod ctx p m =
 				| _ -> name)
 		| name -> name
 	in
+	(* Printf.printf "name %s : %s\n" cff_name (IlMetaDebug.ilsig_s m.msig.ssig); *)
 	let acc = match m.mflags.mf_access with
 		| FAFamily | FAFamOrAssem -> APrivate
 		| FAPublic -> APublic
 		| _ -> raise Exit (* private instances aren't useful on externs *)
 	in
 	let acc, is_final = List.fold_left (fun (acc,is_final) -> function
-		| CMStatic -> AStatic :: acc, is_final
+		| CMStatic when cff_name <> "new" -> AStatic :: acc, is_final
 		| CMVirtual when is_final = None -> acc, Some false
 		| CMFinal -> acc, Some true
 		| _ -> acc, is_final
@@ -2661,9 +2664,9 @@ let convert_ilclass ctx p ilcls = match ilcls.csuper with
 			| _ -> ()
 		) ilcls.cflags.tdf_semantics;
 
-		(match ilcls.cflags.tdf_vis with
-			| VPublic | VNestedFamOrAssem | VNestedFamily -> ()
-			| _ -> raise Exit);
+		(* (match ilcls.cflags.tdf_vis with *)
+		(* 	| VPublic | VNestedFamOrAssem | VNestedFamily -> () *)
+		(* 	| _ -> raise Exit); *)
 		(match ilcls.csuper with
 			| Some { snorm = LClass ( (["System"],[],"Object"), [] ) } -> ()
 			| Some { snorm = LClass ( (["haxe";"lang"],[],"HxObject"), [] ) } ->
@@ -2704,15 +2707,15 @@ let convert_ilclass ctx p ilcls = match ilcls.csuper with
 					tp_constraints = [];
 				}) ilcls.ctypes
 			in
+			let _, c = netpath_to_hx ctx.nstd ilcls.cpath in
 			EClass {
-				d_name = netname_to_hx (get_cls ilcls.cpath);
+				d_name = netname_to_hx c;
 				d_doc = None;
 				d_params = params;
 				d_meta = !meta;
 				d_flags = !flags;
 				d_data = !fields;
 			}
-
 
 let add_net_lib com file std =
 	let ilctx = ref None in
@@ -2734,8 +2737,10 @@ let add_net_lib com file std =
 			let clr_header = PeReader.read_clr_header ctx in
 			let meta = IlMetaReader.read_meta_tables ctx clr_header in
 			close_in (r.PeReader.ch);
-			Hashtbl.iter (fun path _ ->
-				Hashtbl.add com.net_path_map (netpath_to_hx path) path
+			Hashtbl.iter (fun _ td ->
+				let path = IlMetaTools.get_path (TypeDef td) in
+				Hashtbl.add com.net_path_map (netpath_to_hx path) path;
+				Hashtbl.replace meta.il_typedefs path td
 			) meta.il_typedefs;
 			let meta = { nstd = std; ncom = com; nil = meta } in
 			ilctx := Some meta;
@@ -2744,8 +2749,8 @@ let add_net_lib com file std =
 	let lookup path =
 		try
 			let ctx = get_ctx() in
-			let ns, _, cl = hxpath_to_net ctx path in
-			let cls = IlMetaTools.convert_class ctx.nil (ns,[],cl) in
+			let ns, n, cl = hxpath_to_net ctx path in
+			let cls = IlMetaTools.convert_class ctx.nil (ns,n,cl) in
 			Some cls
 		with | Not_found ->
 			None
