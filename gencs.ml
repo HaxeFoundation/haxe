@@ -2376,14 +2376,27 @@ let hxpath_to_net ctx path =
 	 | Not_found ->
 			[],[],"Not_found"
 
+let add_cs = function
+	| "haxe" :: ns -> "haxe" :: ns
+	| "cs" :: ns -> "cs" :: ns
+	| ns -> "cs" :: ns
+
 let netpath_to_hx std = function
 	| [],[], cl -> [], cl
 	| ns,[], cl ->
 		let ns = (List.map String.lowercase ns) in
-		(if std then "cs" :: ns else ns), cl
+		(if std then add_cs ns else ns), cl
 	| ns,(nhd :: ntl as nested), cl ->
 		let ns = (List.map String.lowercase ns) @ [nhd] in
-		(if std then "cs" :: ns else ns), String.concat "_" nested ^ "_" ^ cl
+		(if std then add_cs ns else ns), String.concat "_" nested ^ "_" ^ cl
+
+let lookup_ilclass std com ilpath =
+  let path = netpath_to_hx std ilpath in
+  List.fold_right (fun (_,_,_,get_raw_class) acc ->
+    match acc with
+    | None -> get_raw_class path
+    | Some p -> acc
+  ) com.net_libs None
 
 let discard_nested = function
 	| (ns,_),cl -> (ns,[]),cl
@@ -2393,7 +2406,7 @@ let mk_type_path ctx path params =
 		| ns,[], cl ->
 			ns, None, cl
 		| ns, (nhd :: ntl as nested), cl ->
-			ns, Some nhd, String.concat "_" nested ^ "_" ^ cl
+			ns, Some (String.concat "_" nested ^ "_" ^ cl), nhd
 	in
   CTPath {
 		tpackage = fst (netpath_to_hx ctx.nstd (pack,[],""));
@@ -2408,15 +2421,15 @@ let rec convert_signature ctx p = function
 	| LBool ->
 		mk_type_path ctx ([],[],"Bool") []
 	| LChar ->
-		mk_type_path ctx (["cs"],["StdTypes"],"Char16") []
+		mk_type_path ctx (["cs";"types"],[],"Char16") []
 	| LInt8 ->
-		mk_type_path ctx (["cs"],["StdTypes"],"Int8") []
+		mk_type_path ctx (["cs";"types"],[],"Int8") []
 	| LUInt8 ->
-		mk_type_path ctx (["cs"],["StdTypes"],"UInt8") []
+		mk_type_path ctx (["cs";"types"],[],"UInt8") []
 	| LInt16 ->
-		mk_type_path ctx (["cs"],["StdTypes"],"Int16") []
+		mk_type_path ctx (["cs";"types"],[],"Int16") []
 	| LUInt16 ->
-		mk_type_path ctx (["cs"],["StdTypes"],"UInt16") []
+		mk_type_path ctx (["cs";"types"],[],"UInt16") []
 	| LInt32 ->
 		mk_type_path ctx ([],[],"Int") []
 	| LUInt32 ->
@@ -2424,7 +2437,7 @@ let rec convert_signature ctx p = function
 	| LInt64 ->
 		mk_type_path ctx (["haxe"],[],"Int64") []
 	| LUInt64 ->
-		mk_type_path ctx (["haxe"],[],"UInt64") []
+		mk_type_path ctx (["cs";"types"],[],"UInt64") []
 	| LFloat32 ->
 		mk_type_path ctx ([],[],"Single") []
 	| LFloat64 ->
@@ -2532,18 +2545,20 @@ let convert_ilmethod ctx p m =
 	let cff_name = match m.mname with
 		| ".ctor" -> "new"
 		| ".cctor"-> raise Exit (* __init__ field *)
+		| "Equals" | "GetHashCode" -> raise Exit
 		| name when String.length name > 5 ->
 				(match String.sub name 0 5 with
 				| "__hx_" -> raise Exit
 				| _ -> name)
 		| name -> name
 	in
-	(* Printf.printf "name %s : %s\n" cff_name (IlMetaDebug.ilsig_s m.msig.ssig); *)
 	let acc = match m.mflags.mf_access with
 		| FAFamily | FAFamOrAssem -> APrivate
+		(* | FAPrivate -> APrivate *)
 		| FAPublic -> APublic
-		| _ -> raise Exit (* private instances aren't useful on externs *)
+		| _ -> raise Exit
 	in
+	Printf.printf "\tname %s : %s\n" cff_name (IlMetaDebug.ilsig_s m.msig.ssig);
 	let acc, is_final = List.fold_left (fun (acc,is_final) -> function
 		| CMStatic when cff_name <> "new" -> AStatic :: acc, is_final
 		| CMVirtual when is_final = None -> acc, Some false
@@ -2565,7 +2580,12 @@ let convert_ilmethod ctx p m =
 
 	let kind =
 		let args = List.map (fun (name,flag,s) ->
-			let t = convert_signature ctx p s.snorm in
+			let t = match s.snorm with
+				| LManagedPointer s ->
+					mk_type_path ctx (["cs"],[],"Ref") [ TPType (convert_signature ctx p s) ]
+				| _ ->
+					convert_signature ctx p s.snorm
+			in
 			let t = if List.mem PIn flag.pf_io then
 					mk_type_path ctx (["cs"],[],"Ref") [ TPType t ]
 				else if List.mem POut flag.pf_io then
@@ -2597,6 +2617,16 @@ let convert_ilmethod ctx p m =
 			(Meta.Native, [EConst (String (name) ), cff_pos], cff_pos) :: meta
 		else
 			cff_name, meta
+	in
+	let acc = match m.moverride with
+		| None -> acc
+		| Some (path,s) -> match lookup_ilclass ctx.nstd ctx.ncom path with
+			| Some ilcls when not (List.mem SInterface ilcls.cflags.tdf_semantics) ->
+				AOverride :: acc
+			| None when ctx.ncom.verbose ->
+				prerr_endline ("(net-lib) A referenced assembly for path " ^ ilpath_s path ^ " was not found");
+				acc
+			| _ -> acc
 	in
 	{
 		cff_name = cff_name;
@@ -2646,12 +2676,23 @@ let convert_ilprop ctx p prop =
 
 let get_type_path ctx ct = match ct with | CTPath p -> p | _ -> assert false
 
+let is_explicit ctx ilcls i =
+	let s = match i with
+		| LClass(path,_) | LValueType(path,_) -> ilpath_s path
+		| _ -> assert false
+	in
+	let len = String.length s in
+	List.exists (fun m ->
+		String.length m.mname > len && String.sub m.mname 0 len = s
+	) ilcls.cmethods
+
 let convert_ilclass ctx p ilcls = match ilcls.csuper with
 	| Some { snorm = LClass ((["System"],[],"Enum"),[]) } ->
 		convert_ilenum ctx p ilcls
 	| _ ->
 		let flags = ref [HExtern] in
-		(* todo: instead of JavaNative, use more specific definitions *)
+		(* todo: instead of CsNative, use more specific definitions *)
+		print_endline ("converting " ^ ilpath_s ilcls.cpath);
 		let meta = ref [Meta.CsNative, [], p; Meta.Native, [EConst (String (ilpath_s ilcls.cpath) ), p], p] in
 
 		let is_interface = ref false in
@@ -2679,6 +2720,7 @@ let convert_ilclass ctx p ilcls = match ilcls.csuper with
 				match i.snorm with
 				| LClass ( (["haxe";"lang"],[], "IHxObject"), _ ) ->
 					meta := (Meta.HxGen,[],p) :: !meta
+				| i when is_explicit ctx ilcls i -> ()
 				| i -> flags :=
 					if !is_interface then
 						HExtends (get_type_path ctx (convert_signature ctx p i)) :: !flags
@@ -2696,7 +2738,12 @@ let convert_ilclass ctx p ilcls = match ilcls.csuper with
 						| Exit -> ()
 				) f
 			in
-			run_fields (convert_ilmethod ctx p) ilcls.cmethods;
+			let meths = if !is_interface then
+					List.filter (fun m -> m.moverride = None) ilcls.cmethods
+				else
+					ilcls.cmethods
+			in
+			run_fields (convert_ilmethod ctx p) meths;
 			run_fields (convert_ilfield ctx p) ilcls.cfields;
 			run_fields (convert_ilprop ctx p) ilcls.cprops;
 
@@ -2746,13 +2793,19 @@ let add_net_lib com file std =
 			ilctx := Some meta;
 			meta
 	in
+
+	let cache = Hashtbl.create 0 in
 	let lookup path =
 		try
+			Hashtbl.find cache path
+		with | Not_found -> try
 			let ctx = get_ctx() in
 			let ns, n, cl = hxpath_to_net ctx path in
 			let cls = IlMetaTools.convert_class ctx.nil (ns,n,cl) in
+			Hashtbl.add cache path (Some cls);
 			Some cls
 		with | Not_found ->
+			Hashtbl.add cache path None;
 			None
 	in
 
@@ -2763,7 +2816,7 @@ let add_net_lib com file std =
 	in
 
 	let build path =
-		let p = { pfile = !real_file; pmin = 0; pmax = 0; } in
+		let p = { pfile = !real_file ^ " @ " ^ path_s path; pmin = 0; pmax = 0; } in
 		let pack = match fst path with | ["haxe";"root"] -> [] | p -> p in
 		let cp = ref [] in
 		let rec build path = try
