@@ -90,6 +90,7 @@ and ilprop = {
 	pname : string;
 	psig : ilsig_t;
 	pflags : property_flags;
+	pmflags : method_flags option;
 	pget : string option;
 	pset : string option;
 }

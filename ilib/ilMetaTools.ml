@@ -282,23 +282,24 @@ let convert_prop ctx prop =
 	let name = prop.prop_name in
 	let flags = prop.prop_flags in
 	let psig = ilsig_t prop.prop_type in
-	let pget, pset =
-		List.fold_left (fun (get,set) -> function
+	let pget, pset, pmflags =
+		List.fold_left (fun (get,set,pmflags) -> function
 			| MethodSemantics ms when List.mem SGetter ms.ms_semantic ->
 				assert (get = None);
-				Some ms.ms_method.m_name, set
+				Some ms.ms_method.m_name, set,Some ms.ms_method.m_flags
 			| MethodSemantics ms when List.mem SSetter ms.ms_semantic ->
 				assert (set = None);
-				get, Some ms.ms_method.m_name
-			| _ -> get,set
+				get, Some ms.ms_method.m_name,Some ms.ms_method.m_flags
+			| _ -> get,set,pmflags
 		)
-		(None,None)
+		(None,None,None)
 		(Hashtbl.find_all ctx.il_relations (IProperty, prop.prop_id))
 	in
 	{
 		pname = name;
 		psig = psig;
-		pflags =  flags;
+		pflags = flags;
+		pmflags = pmflags;
 		pget = pget;
 		pset = pset;
 	}
