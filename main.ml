@@ -931,6 +931,9 @@ try
 		("-java-lib",Arg.String (fun file ->
 			Genjava.add_java_lib com file false
 		),"<file> : add an external JAR or class directory library");
+		("-net-lib",Arg.String (fun file ->
+			Gencs.add_net_lib com file true
+		),"<file> : add an external .NET DLL file");
 		("-x", Arg.String (fun file ->
 			let neko_file = file ^ ".n" in
 			set_platform Neko neko_file;

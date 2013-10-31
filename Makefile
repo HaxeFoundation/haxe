@@ -17,7 +17,7 @@ EXTENSION=
 OCAMLOPT=ocamlopt
 OCAMLC=ocamlc
 
-CFLAGS= -g -I libs/extlib -I libs/extc -I libs/neko -I libs/javalib -I libs/ziplib -I libs/swflib -I libs/xml-light -I libs/ttflib
+CFLAGS= -g -I libs/extlib -I libs/extc -I libs/neko -I libs/javalib -I libs/ziplib -I libs/swflib -I libs/xml-light -I libs/ttflib -I libs/ilib
 
 CC_CMD = $(OCAMLOPT) $(CFLAGS) -c $<
 CC_PARSER_CMD = $(OCAMLOPT) -pp camlp4o $(CFLAGS) -c parser.ml

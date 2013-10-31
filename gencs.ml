@@ -2354,3 +2354,194 @@ let generate con =
     con.error ("Error. Module '" ^ (path_s path) ^ "' is required and was not included in build.")  Ast.null_pos);
   debug_mode := false
 
+(* -net-lib implementation *)
+open IlData
+open IlMeta
+
+type net_lib_ctx = {
+	nstd : bool;
+	ncom : Common.context;
+	nil : IlData.ilctx;
+}
+
+let netname_to_hx name =
+	let len = String.length name in
+	let chr = String.get name 0 in
+	String.make 1 (Char.uppercase chr) ^ (String.sub name 1 (len-1))
+
+let hxpath_to_net ctx path =
+	try
+		Hashtbl.find path ctx.ncom.net_path_map
+	with
+	 | Not_found ->
+			 [],"Not_found"
+
+let netpath_to_hx std = function
+	| ns,[], cl ->
+		let ns = (List.map String.lowercase ns) in
+		(if std then "cs" :: ns else ns), cl
+	| ns,(nhd :: ntl as nested), cl ->
+		let ns = (List.map String.lowercase ns) @ [nhd] in
+		(if std then "cs" :: ns else ns), String.concat "_" nested ^ "_" ^ cl
+
+let discard_nested = function
+	| (ns,_),cl -> (ns,[]),cl
+
+let mk_type_path ctx path params =
+  let pack, sub, name = match path with
+		| ns,[], cl ->
+			ns, None, cl
+		| ns, (nhd :: ntl as nested), cl ->
+			ns, Some nhd, String.concat "_" nested ^ "_" ^ cl
+	in
+  CTPath {
+		tpackage = fst (netpath_to_hx ctx.nstd (pack,[],""));
+    Ast.tname = name;
+    tparams = params;
+    tsub = sub;
+  }
+
+let convert_signature ctx p = function
+	| _ -> mk_type_path ctx ( [],[], "Dynamic" ) []
+
+let ilpath_s = function
+	| ns,[], name -> path_s (ns,name)
+	| [],nested,name -> String.concat "#" nested ^ "." ^ name
+	| ns, nested, name -> String.concat "." ns ^ "." ^ String.concat "#" nested ^ "." ^ name
+
+let get_cls = function
+	| _,_,c -> c
+
+let convert_ilenum ctx p ilcls =
+  let meta = ref [Meta.Native, [EConst (String (ilpath_s ilcls.cpath) ), p], p ] in
+  let data = ref [] in
+  List.iter (fun f -> match f.fname with
+		| "value__" -> ()
+		| _ ->
+      data := { ec_name = f.fname; ec_doc = None; ec_meta = []; ec_args = []; ec_pos = p; ec_params = []; ec_type = None; } :: !data;
+  ) ilcls.cfields;
+  EEnum {
+		d_name = netname_to_hx (get_cls ilcls.cpath);
+		d_doc = None;
+		d_params = []; (* enums never have type parameters *)
+		d_meta = !meta;
+		d_flags = [EExtern];
+		d_data = !data;
+  }
+
+let convert_ilfield ctx p field =
+	let p = { p with pfile =  p.pfile ^" (" ^field.fname ^")" } in
+	let cff_doc = None in
+	let cff_pos = p in
+	let cff_meta = ref [] in
+	let cff_name = match field.fname with
+		(* | ".ctor" -> "new" *)
+		(* | ".cctor"-> raise Exit (* __init__ field *) *)
+		| name when String.length name > 5 ->
+				(match String.sub name 0 5 with
+				| "__hx_" -> raise Exit
+				| _ -> name)
+		| name -> name
+	in
+	let cff_access = match field.fflags.ff_access with
+		| FAFamily | FAFamOrAssem -> APrivate
+		| FAPublic -> APublic
+		| _ -> raise Exit (* private instances aren't useful on externs *)
+	in
+	let readonly, acc = List.fold_left (fun (readonly,acc) -> function
+		| CStatic -> readonly, AStatic :: acc
+		| CInitOnly | CLiteral -> true, acc
+		| _ -> readonly,acc
+	) (false,[cff_access]) field.fflags.ff_contract in
+	let kind = match readonly with
+		| true ->
+			FProp ("default", "never", Some (convert_signature ctx p field.fsig.snorm), None)
+		| false ->
+			FVar (Some (convert_signature ctx p field.fsig.snorm), None)
+	in
+	let cff_name, cff_meta =
+		if String.get cff_name 0 = '%' then
+			let name = (String.sub cff_name 1 (String.length cff_name - 1)) in
+			"_" ^ name,
+			(Meta.Native, [EConst (String (name) ), cff_pos], cff_pos) :: !cff_meta
+		else
+			cff_name, !cff_meta
+	in
+	{
+		cff_name = cff_name;
+		cff_doc = cff_doc;
+		cff_pos = cff_pos;
+		cff_meta = cff_meta;
+		cff_access = acc;
+		cff_kind = kind;
+	}
+
+let convert_ilclass ctx p ilcls = match ilcls.csuper with
+	| Some { snorm = LClass ((["System"],[],"Enum"),[]) } ->
+		convert_ilenum ctx p ilcls
+	| _ ->
+		convert_ilenum ctx p ilcls
+
+let add_net_lib com file std =
+	let ilctx = ref None in
+	let netpath_to_hx = netpath_to_hx std in
+	let get_ctx () =
+		match !ilctx with
+		| Some c ->
+			c
+		| None ->
+			let file = try Common.find_file com file with
+				| Not_found -> try Common.find_file com (file ^ ".dll") with
+				| Not_found ->
+					failwith (".NET lib " ^ file ^ " not found")
+			in
+			let r = PeReader.create_r (open_in file) com.defines in
+			let ctx = PeReader.read r in
+			let clr_header = PeReader.read_clr_header ctx in
+			let meta = IlMetaReader.read_meta_tables ctx clr_header in
+			Hashtbl.iter (fun path _ ->
+				Hashtbl.add com.net_path_map (netpath_to_hx path) path
+			) meta.il_typedefs;
+			let meta = { nstd = std; ncom = com; nil = meta } in
+			ilctx := Some meta;
+			meta
+	in
+	let lookup path =
+		try
+			let ctx = get_ctx() in
+			let path = hxpath_to_net ctx path in
+			let cls = IlMetaTools.convert_class ctx.nil (fst path,[],snd path) in
+			Some cls
+		with | Not_found ->
+			None
+	in
+
+	let all_files () =
+		Hashtbl.fold (fun path _ acc -> match path with
+			| _,_ :: _, _ -> acc
+			| _ -> netpath_to_hx path :: acc) (get_ctx()).nil.il_typedefs []
+	in
+	ignore lookup;
+	ignore all_files;
+
+	(* let build path p = try *)
+	(* 	Option.map (fun cls -> *)
+	(* 		let ctx = get_ctx() in *)
+	(* 	) (lookup path) *)
+	(* with | Not_found -> *)
+	(* 	None *)
+	(* in *)
+	()
+
+
+
+
+
+
+
+
+
+
+
+
+
