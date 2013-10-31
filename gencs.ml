@@ -2371,10 +2371,10 @@ let netname_to_hx name =
 
 let hxpath_to_net ctx path =
 	try
-		Hashtbl.find path ctx.ncom.net_path_map
+		Hashtbl.find ctx.ncom.net_path_map path
 	with
 	 | Not_found ->
-			 [],"Not_found"
+			[],[],"Not_found"
 
 let netpath_to_hx std = function
 	| ns,[], cl ->
@@ -2604,15 +2604,120 @@ let convert_ilmethod ctx p m =
 		cff_kind = kind;
 	}
 
+let convert_ilprop ctx p prop =
+	let p = { p with pfile =  p.pfile ^" (" ^prop.pname ^")" } in
+	let cff_access = match prop.pmflags with
+		| Some { mf_access = FAFamily | FAFamOrAssem } -> APrivate
+		| Some { mf_access = FAPublic } -> APublic
+		| _ -> raise Exit (* private instances aren't useful on externs *)
+	in
+	let cff_access = match prop.pmflags with
+		| Some m when List.mem CMStatic m.mf_contract ->
+			[AStatic;cff_access]
+		| _ -> [cff_access]
+	in
+	let get = match prop.pget with
+		| None -> "never"
+		| Some s when String.length s <= 4 || String.sub s 0 4 <> "get_" ->
+			raise Exit (* special (?) getter; not used *)
+		| Some _ -> "get"
+	in
+	let set = match prop.pget with
+		| None -> "never"
+		| Some s when String.length s <= 4 || String.sub s 0 4 <> "set_" ->
+			raise Exit (* special (?) getter; not used *)
+		| Some _ -> "set"
+	in
+
+	let kind =
+		FProp (get, set, Some(convert_signature ctx p prop.psig.snorm), None)
+	in
+	{
+		cff_name = prop.pname;
+		cff_doc = None;
+		cff_pos = p;
+		cff_meta = [];
+		cff_access = cff_access;
+		cff_kind = kind;
+	}
+
+let get_type_path ctx ct = match ct with | CTPath p -> p | _ -> assert false
+
 let convert_ilclass ctx p ilcls = match ilcls.csuper with
 	| Some { snorm = LClass ((["System"],[],"Enum"),[]) } ->
 		convert_ilenum ctx p ilcls
 	| _ ->
-		convert_ilenum ctx p ilcls
+		let flags = ref [HExtern] in
+		(* todo: instead of JavaNative, use more specific definitions *)
+		let meta = ref [Meta.CsNative, [], p; Meta.Native, [EConst (String (ilpath_s ilcls.cpath) ), p], p] in
+
+		let is_interface = ref false in
+		List.iter (fun f -> match f with
+			| SSealed -> meta := (Meta.Final, [], p) :: !meta
+			| SInterface ->
+				is_interface := true;
+				flags := HInterface :: !flags
+			| SAbstract -> meta := (Meta.Abstract, [], p) :: !meta
+			| _ -> ()
+		) ilcls.cflags.tdf_semantics;
+
+		(match ilcls.cflags.tdf_vis with
+			| VPublic | VNestedFamOrAssem | VNestedFamily -> ()
+			| _ -> raise Exit);
+		(match ilcls.csuper with
+			| Some { snorm = LClass ( (["System"],[],"Object"), [] ) } -> ()
+			| Some { snorm = LClass ( (["haxe";"lang"],[],"HxObject"), [] ) } ->
+				meta := (Meta.HxGen,[],p) :: !meta
+			| Some s ->
+				flags := HExtends (get_type_path ctx (convert_signature ctx p s.snorm)) :: !flags
+			| _ -> ());
+
+			List.iter (fun i ->
+				match i.snorm with
+				| LClass ( (["haxe";"lang"],[], "IHxObject"), _ ) ->
+					meta := (Meta.HxGen,[],p) :: !meta
+				| i -> flags :=
+					if !is_interface then
+						HExtends (get_type_path ctx (convert_signature ctx p i)) :: !flags
+					else
+						HImplements (get_type_path ctx (convert_signature ctx p i)) :: !flags
+			) ilcls.cimplements;
+
+			let fields = ref [] in
+
+			let run_fields fn f =
+				List.iter (fun f ->
+					try
+						fields := fn f :: !fields
+					with
+						| Exit -> ()
+				) f
+			in
+			run_fields (convert_ilmethod ctx p) ilcls.cmethods;
+			run_fields (convert_ilfield ctx p) ilcls.cfields;
+			run_fields (convert_ilprop ctx p) ilcls.cprops;
+
+			let params = List.map (fun p ->
+				{
+					tp_name = "T" ^ string_of_int p.tnumber;
+					tp_params = [];
+					tp_constraints = [];
+				}) ilcls.ctypes
+			in
+			EClass {
+				d_name = netname_to_hx (get_cls ilcls.cpath);
+				d_doc = None;
+				d_params = params;
+				d_meta = !meta;
+				d_flags = !flags;
+				d_data = !fields;
+			}
+
 
 let add_net_lib com file std =
 	let ilctx = ref None in
 	let netpath_to_hx = netpath_to_hx std in
+	let real_file = ref file in
 	let get_ctx () =
 		match !ilctx with
 		| Some c ->
@@ -2623,10 +2728,12 @@ let add_net_lib com file std =
 				| Not_found ->
 					failwith (".NET lib " ^ file ^ " not found")
 			in
+			real_file := file;
 			let r = PeReader.create_r (open_in file) com.defines in
 			let ctx = PeReader.read r in
 			let clr_header = PeReader.read_clr_header ctx in
 			let meta = IlMetaReader.read_meta_tables ctx clr_header in
+			close_in (r.PeReader.ch);
 			Hashtbl.iter (fun path _ ->
 				Hashtbl.add com.net_path_map (netpath_to_hx path) path
 			) meta.il_typedefs;
@@ -2637,8 +2744,8 @@ let add_net_lib com file std =
 	let lookup path =
 		try
 			let ctx = get_ctx() in
-			let path = hxpath_to_net ctx path in
-			let cls = IlMetaTools.convert_class ctx.nil (fst path,[],snd path) in
+			let ns, _, cl = hxpath_to_net ctx path in
+			let cls = IlMetaTools.convert_class ctx.nil (ns,[],cl) in
 			Some cls
 		with | Not_found ->
 			None
@@ -2649,27 +2756,33 @@ let add_net_lib com file std =
 			| _,_ :: _, _ -> acc
 			| _ -> netpath_to_hx path :: acc) (get_ctx()).nil.il_typedefs []
 	in
-	ignore lookup;
-	ignore all_files;
 
-	(* let build path p = try *)
-	(* 	Option.map (fun cls -> *)
-	(* 		let ctx = get_ctx() in *)
-	(* 	) (lookup path) *)
-	(* with | Not_found -> *)
-	(* 	None *)
-	(* in *)
-	()
-
-
-
-
-
-
-
-
-
-
-
-
+	let build path =
+		let p = { pfile = !real_file; pmin = 0; pmax = 0; } in
+		let pack = match fst path with | ["haxe";"root"] -> [] | p -> p in
+		let cp = ref [] in
+		let rec build path = try
+			match lookup path with
+			| Some cls ->
+				let ctx = get_ctx() in
+				let hxcls = convert_ilclass ctx p cls in
+				cp := (hxcls,p) :: !cp;
+				List.iter (fun ilpath ->
+					let path = netpath_to_hx ilpath in
+					build path
+				) cls.cnested
+			| _ -> ()
+		with | Not_found | Exit ->
+			()
+		in
+		build path;
+		match !cp with
+			| [] -> None
+			| cp -> Some (!real_file, (pack,cp))
+	in
+	let build path p =
+		build path
+	in
+  com.load_extern_type <- com.load_extern_type @ [build];
+  com.net_libs <- (file, std, all_files, lookup) :: com.net_libs
 
