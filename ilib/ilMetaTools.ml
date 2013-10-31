@@ -45,18 +45,32 @@ let rec is_type path = function
 	| _ -> assert false
 
 let rec get_path type_def_or_ref = match type_def_or_ref with
-	| TypeDef td ->
-		(td.td_namespace, td.td_name)
-	| TypeRef tr ->
-		(tr.tr_namespace, tr.tr_name)
+	| TypeDef td -> (match td.td_extra_enclosing with
+		| None ->
+			td.td_namespace,[], td.td_name
+		| Some t2 ->
+			let ns, nested = match get_path (TypeDef t2) with
+				| ns,nested, name ->
+					ns, nested @ [name]
+			in
+			ns,nested, td.td_name)
+	| TypeRef tr -> (match tr.tr_resolution_scope with
+		| TypeRef tr2 ->
+			let ns, nested = match get_path (TypeRef tr2) with
+				| ns,nested, name ->
+					ns, nested @ [name]
+			in
+			ns,nested, tr.tr_name
+		| _ ->
+			tr.tr_namespace,[],tr.tr_name)
 	| TypeSpec ts -> (match follow ts.ts_signature with
 	| SClass c | SValueType c ->
 		get_path c
 	| SGenericInst(s,_) -> (match follow s with
 		| SClass c | SValueType c ->
 			get_path c
-		| _ -> [],"")
-	| _ -> [],"")
+		| _ -> [],[],"")
+	| _ -> [],[],"")
 	| _ -> assert false
 
 let constant_s = function
@@ -151,42 +165,42 @@ let meta_root_ptr p : meta_root_ptr = match p with
 	| _ -> assert false
 
 let rec ilsig_norm = function
-	| SVoid -> TVoid
-	| SBool -> TBool
-	| SChar -> TChar
-	| SInt8 -> TInt8
-	| SUInt8 -> TUInt8
-	| SInt16 -> TInt16
-	| SUInt16 -> TUInt16
-	| SInt32 -> TInt32
-	| SUInt32 -> TUInt32
-	| SInt64 -> TInt64
-	| SUInt64 -> TUInt64
-	| SFloat32 -> TFloat32
-	| SFloat64 -> TFloat64
-	| SString -> TString
-	| SPointer p -> TPointer (ilsig_norm p)
-	| SManagedPointer p -> TManagedPointer (ilsig_norm p)
-	| SValueType v -> TValueType (get_path v, [])
-	| SClass v -> TClass (get_path v, [])
-	| STypeParam i -> TTypeParam i
-	| SArray (t, opts) -> TArray(ilsig_norm t, opts)
+	| SVoid -> LVoid
+	| SBool -> LBool
+	| SChar -> LChar
+	| SInt8 -> LInt8
+	| SUInt8 -> LUInt8
+	| SInt16 -> LInt16
+	| SUInt16 -> LUInt16
+	| SInt32 -> LInt32
+	| SUInt32 -> LUInt32
+	| SInt64 -> LInt64
+	| SUInt64 -> LUInt64
+	| SFloat32 -> LFloat32
+	| SFloat64 -> LFloat64
+	| SString -> LString
+	| SPointer p -> LPointer (ilsig_norm p)
+	| SManagedPointer p -> LManagedPointer (ilsig_norm p)
+	| SValueType v -> LValueType (get_path v, [])
+	| SClass v -> LClass (get_path v, [])
+	| STypeParam i -> LTypeParam i
+	| SArray (t, opts) -> LArray(ilsig_norm t, opts)
 	| SGenericInst (p,args) -> (match follow p with
 		| SClass v ->
-			TClass(get_path v, List.map ilsig_norm args)
+			LClass(get_path v, List.map ilsig_norm args)
 		| SValueType v ->
-			TValueType(get_path v, List.map ilsig_norm args)
+			LValueType(get_path v, List.map ilsig_norm args)
 		| _ -> assert false)
-	| STypedReference -> TTypedReference
-	| SIntPtr -> TIntPtr
-	| SUIntPtr -> TUIntPtr
-	| SFunPtr(conv,ret,args) -> TMethod(conv,ilsig_norm ret,List.map ilsig_norm args)
-	| SObject -> TObject
-	| SVector s -> TVector (ilsig_norm s)
-	| SMethodTypeParam i -> TMethodTypeParam i
+	| STypedReference -> LTypedReference
+	| SIntPtr -> LIntPtr
+	| SUIntPtr -> LUIntPtr
+	| SFunPtr(conv,ret,args) -> LMethod(conv,ilsig_norm ret,List.map ilsig_norm args)
+	| SObject -> LObject
+	| SVector s -> LVector (ilsig_norm s)
+	| SMethodTypeParam i -> LMethodTypeParam i
 	| SReqModifier (_,s) -> ilsig_norm s
 	| SOptModifier (_,s) -> ilsig_norm s
-	| SSentinel -> TSentinel
+	| SSentinel -> LSentinel
 	| SPinned s -> ilsig_norm s
 
 let ilsig_t s =
@@ -291,30 +305,28 @@ let convert_prop ctx prop =
 
 let convert_class ctx path =
 	let td = Hashtbl.find ctx.il_typedefs path in
-	let cpath = td.td_namespace, td.td_name in
+	let cpath = get_path (TypeDef td) in
 	let cflags = td.td_flags in
 	let csuper = Option.map (fun e -> ilsig_t (ilsig_of_tdef_ref e)) td.td_extends in
 	let cfields = List.map (convert_field ctx) td.td_field_list in
 	let cmethods = List.map (convert_method ctx) td.td_method_list in
-	let impl, types, enclosing, nested, props =
-		List.fold_left (fun (impl,types,enclosing,nested, props) -> function
+	let enclosing = Option.map (fun t -> get_path (TypeDef t)) td.td_extra_enclosing in
+	let impl, types, nested, props =
+		List.fold_left (fun (impl,types,nested, props) -> function
 			| InterfaceImpl ii ->
-				(ilsig_t (ilsig_of_tdef_ref ii.ii_interface)) :: impl,types,enclosing,nested, props
+				(ilsig_t (ilsig_of_tdef_ref ii.ii_interface)) :: impl,types,nested, props
 			| GenericParam gp ->
-				(impl, (convert_generic ctx gp) :: types, enclosing, nested, props)
-			| NestedClass nc when nc.nc_nested.td_id = td.td_id ->
-				assert (enclosing = None);
-				(impl, types, Some (get_path (TypeDef nc.nc_enclosing)), nested, props)
+				(impl, (convert_generic ctx gp) :: types, nested, props)
 			| NestedClass nc ->
 				assert (nc.nc_enclosing.td_id = td.td_id);
-				(impl,types,enclosing, (get_path (TypeDef nc.nc_nested)) :: nested, props)
+				(impl,types,(get_path (TypeDef nc.nc_nested)) :: nested, props)
 			| PropertyMap pm ->
 				assert (props = []);
-				impl,types,enclosing,nested,List.map (convert_prop ctx) pm.pm_property_list
+				impl,types,nested,List.map (convert_prop ctx) pm.pm_property_list
 			| _ ->
-				(impl,types,enclosing,nested,props)
+				(impl,types,nested,props)
 		)
-		([],[],None,[],[])
+		([],[],[],[])
 		(Hashtbl.find_all ctx.il_relations (ITypeDef, td.td_id))
 	in
 	{

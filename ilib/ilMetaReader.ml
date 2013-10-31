@@ -432,7 +432,7 @@ type meta_ctx = {
 	table_sizes : ( string -> int -> int * int ) array;
 	extra_streams : clr_stream_header list;
 	relations : (meta_pointer, clr_meta) Hashtbl.t;
-	typedefs : (string list * string, meta_type_def) Hashtbl.t;
+	typedefs : (ilpath, meta_type_def) Hashtbl.t;
 }
 
 let empty = "<not initialized>"
@@ -685,6 +685,7 @@ let mk_type_def id =
 		td_extends = None;
 		td_field_list = [];
 		td_method_list = [];
+		td_extra_enclosing = None;
 	}
 
 let null_type_def = mk_type_def (-1)
@@ -1670,7 +1671,9 @@ let read_list ctx table ptr_table begin_idx offset last pos =
 	let end_idx = read_next_index ctx offset table last pos in
 	get_rev_list ctx table ptr_table begin_idx end_idx
 
-let parse_ns id = String.nsplit id "."
+let parse_ns id = match String.nsplit id "." with
+	| [""] -> []
+	| ns -> ns
 
 let get_meta_pointer = function
 	| Module r -> IModule, r.md_id
@@ -1756,7 +1759,6 @@ let read_table_at ctx tbl n last pos =
 		let pos, name = read_sstring_idx ctx pos in
 		let pos, ns = read_sstring_idx ctx pos in
 		let ns = parse_ns ns in
-		Hashtbl.add ctx.typedefs (ns,name) td;
 		let pos, extends = sread_from_table_opt ctx false ITypeDefOrRef s pos in
 		let field_offset = pos - startpos in
 		let pos, flist_begin = ctx.table_sizes.(int_of_table IField) s pos in
@@ -1768,6 +1770,8 @@ let read_table_at ctx tbl n last pos =
 		td.td_extends <- extends;
 		td.td_field_list <- List.rev_map get_field (read_list ctx IField IFieldPtr flist_begin field_offset last pos);
 		td.td_method_list <- List.rev_map get_method (read_list ctx IMethod IMethodPtr mlist_begin method_offset last pos);
+		let path = get_path (TypeDef td) in
+		Hashtbl.add ctx.typedefs path td;
 		(* print_endline "Type Def!"; *)
 		(* print_endline name; *)
 		(* print_endline ns; *)
@@ -2124,7 +2128,9 @@ let read_table_at ctx tbl n last pos =
 		let pos, enclosing = sread_from_table ctx false ITypeDef s pos in
 		nc.nc_nested <- get_type_def nested;
 		nc.nc_enclosing <- get_type_def enclosing;
-		add_relation ctx nested (NestedClass nc);
+
+		assert (nc.nc_nested.td_extra_enclosing = None);
+		nc.nc_nested.td_extra_enclosing <- Some nc.nc_enclosing;
 		add_relation ctx enclosing (NestedClass nc);
 		pos, NestedClass nc
 	| GenericParam gp ->

@@ -18,27 +18,27 @@
  *)
 open IlMeta;;
 
-type ilpath = (string list) * string
+type ilpath = string list * string list * string
 
 type ilsig = IlMeta.ilsig
 
 and ilsig_norm =
-	| TVoid | TBool | TChar
-	| TInt8 | TUInt8 | TInt16
-	| TUInt16 | TInt32 | TUInt32
-	| TInt64 | TUInt64 | TFloat32
-	| TFloat64 | TString | TObject
-	| TPointer of ilsig_norm
-	| TTypedReference | TIntPtr | TUIntPtr
-	| TManagedPointer of ilsig_norm
-	| TValueType of ilpath * ilsig_norm list
-	| TClass of ilpath * ilsig_norm list
-	| TTypeParam of int
-	| TMethodTypeParam of int
-	| TVector of ilsig_norm
-	| TArray of ilsig_norm * (int option * int option) array
-	| TMethod of callconv list * ilsig_norm * (ilsig_norm list)
-	| TSentinel
+	| LVoid | LBool | LChar
+	| LInt8 | LUInt8 | LInt16
+	| LUInt16 | LInt32 | LUInt32
+	| LInt64 | LUInt64 | LFloat32
+	| LFloat64 | LString | LObject
+	| LPointer of ilsig_norm
+	| LTypedReference | LIntPtr | LUIntPtr
+	| LManagedPointer of ilsig_norm
+	| LValueType of ilpath * ilsig_norm list
+	| LClass of ilpath * ilsig_norm list
+	| LTypeParam of int
+	| LMethodTypeParam of int
+	| LVector of ilsig_norm
+	| LArray of ilsig_norm * (int option * int option) array
+	| LMethod of callconv list * ilsig_norm * (ilsig_norm list)
+	| LSentinel
 
 and ilsig_t = {
 	snorm : ilsig_norm;
@@ -97,5 +97,5 @@ and ilprop = {
 type ilctx = {
 	il_tables : (clr_meta DynArray.t) array;
 	il_relations : (meta_pointer, clr_meta) Hashtbl.t;
-	il_typedefs : (string list * string, meta_type_def) Hashtbl.t;
+	il_typedefs : (ilpath, meta_type_def) Hashtbl.t;
 }

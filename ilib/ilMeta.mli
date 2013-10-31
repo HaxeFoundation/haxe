@@ -213,6 +213,9 @@ and meta_type_def = {
 	mutable td_extends : type_def_or_ref option;
 	mutable td_field_list : meta_field list;
 	mutable td_method_list : meta_method list;
+
+	(* extra field *)
+	mutable td_extra_enclosing : meta_type_def option;
 }
 
 and meta_field_ptr = {

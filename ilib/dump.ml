@@ -21,10 +21,10 @@ let main () =
 		print_endline (clr_header_s (clr_header));
 		let meta = IlMetaReader.read_meta_tables ctx clr_header in
 		Hashtbl.iter (fun path _ ->
-			print_endline ("class " ^ String.concat "." (fst path) ^ "." ^ (snd path) ^ ":");
+			print_endline ("\n\nclass " ^ path_s path ^ ": ");
 			let cls = convert_class meta path in
 			List.iter (fun t -> printf "%d: <%s> " t.tnumber (if t.tname = None then "_" else Option.get t.tname)) cls.ctypes;
-			printf "\n";
+			printf "\n\tis nested: %s - %s\n" (string_of_bool (cls.cenclosing <> None)) (if cls.cenclosing = None then "None" else path_s (Option.get cls.cenclosing));
 			print_endline "\tfields:";
 			List.iter (fun f -> printf "\t\t%s : %s\n" f.fname (ilsig_s f.fsig.ssig)) cls.cfields;
 			print_endline "\tmethods:";

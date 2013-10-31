@@ -17,6 +17,13 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *)
 open IlMeta;;
+open IlMetaTools;;
+
+let path_s = function
+	| [],[], s -> s
+	| ns,[], s -> String.concat "." ns ^ "." ^ s
+	| [],enc, s -> String.concat "@" enc ^ "." ^ s
+	| ns,enc,s -> String.concat "." ns ^ "." ^ String.concat "@" enc ^ "." ^ s
 
 let rec ilsig_s = function
 	| SVoid -> "void"
@@ -35,8 +42,8 @@ let rec ilsig_s = function
 	| SString -> "string"
 	| SPointer s -> ilsig_s s ^ "*"
 	| SManagedPointer s -> ilsig_s s ^ "&"
-	| SValueType td -> "valuetype"
-	| SClass cl -> "classtype"
+	| SValueType td -> "valuetype " ^ path_s (get_path td)
+	| SClass cl -> "classtype " ^ path_s (get_path cl)
 	| STypeParam t | SMethodTypeParam t -> "!" ^ string_of_int t
 	| SArray (s,opts) ->
 		ilsig_s s ^ "[" ^ String.concat "," (List.map (function
