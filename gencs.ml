@@ -2764,6 +2764,67 @@ let convert_ilclass ctx p ilcls = match ilcls.csuper with
 				d_data = !fields;
 			}
 
+type il_any_field =
+	| IlField of ilfield
+	| IlMethod of ilmethod
+	| IlProp of ilprop
+
+let get_fname = function
+	| IlField f -> f.fname
+	| IlMethod m -> m.mname
+	| IlProp p -> p.pname
+
+let is_static = function
+	| IlField f ->
+		List.mem CStatic f.fflags.ff_contract
+	| IlMethod m ->
+		List.mem CMStatic m.mflags.mf_contract
+	| IlProp { pmflags = Some m } ->
+		List.mem CMStatic m.mf_contract
+	| _ -> false
+
+let change_name name = function
+	| IlField f -> IlField { f with fname = name }
+	| IlMethod m -> IlMethod { m with mname = name }
+	| IlProp p -> IlProp { p with pname = name }
+
+
+let normalize_ilcls ctx cls =
+  (* search static / non-static name clash *)
+  (* change field name to not collide with haxe keywords *)
+	let all_fields = List.map (fun f -> IlField f, f.fname, List.mem CStatic f.fflags.ff_contract) cls.cfields in
+	let all_fields = all_fields @ List.map (fun m -> IlMethod m, m.mname, List.mem CMStatic m.mflags.mf_contract) cls.cmethods in
+	let all_fields = all_fields @ List.map (function
+		| ({ pmflags = Some m } as p) ->
+			IlProp p, p.pname, List.mem CMStatic m.mf_contract
+		| p ->
+			IlProp p, p.pname, false
+	) cls.cprops in
+
+	let all_fields = ref (List.map (fun v -> ref v) all_fields) in
+  let iter_field v =
+		let f, name, is_static = !v in
+    let change = match name with
+    | "callback" | "cast" | "extern" | "function" | "in" | "typedef" | "using" | "var" | "untyped" | "inline" -> true
+    | _ -> is_static && List.exists (fun v -> match !v with | (f,n,false) -> name = n | _ -> false) !all_fields
+    in
+    if change then
+			let name = "%" ^ name in
+			v := change_name name f, name, is_static
+  in
+	List.iter iter_field !all_fields;
+
+	let all_fields = List.map (fun v -> !v) !all_fields in
+	let fields = List.filter (function | (IlField _,_,_) -> true | _ -> false) all_fields in
+	let methods = List.filter (function | (IlMethod _,_,_) -> true | _ -> false) all_fields in
+	let props = List.filter (function | (IlProp _,_,_) -> true | _ -> false) all_fields in
+	{ cls with
+		cfields = List.map (function | (IlField f,_,_) -> f | _ -> assert false) fields;
+		cmethods = List.map (function | (IlMethod f,_,_) -> f | _ -> assert false) methods;
+		cprops = List.map (function | (IlProp f,_,_) -> f | _ -> assert false) props;
+	}
+
+
 let add_net_lib com file std =
 	let ilctx = ref None in
 	let netpath_to_hx = netpath_to_hx std in
@@ -2802,6 +2863,7 @@ let add_net_lib com file std =
 			let ctx = get_ctx() in
 			let ns, n, cl = hxpath_to_net ctx path in
 			let cls = IlMetaTools.convert_class ctx.nil (ns,n,cl) in
+			let cls = normalize_ilcls ctx cls in
 			Hashtbl.add cache path (Some cls);
 			Some cls
 		with | Not_found ->
