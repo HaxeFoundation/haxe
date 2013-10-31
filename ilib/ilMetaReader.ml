@@ -716,6 +716,7 @@ let mk_method id =
 		m_name = empty;
 		m_signature = SVoid;
 		m_param_list = [];
+		m_declaring = None;
 	}
 
 let null_method = mk_method (-1)
@@ -1247,7 +1248,7 @@ let rec read_ilsig ctx s pos =
 			let pos, ssig = read_ilsig ctx s pos in
 			let pos, ntypes = read_compressed_i32 s pos in
 			let rec loop acc pos n =
-				if n >= ntypes then
+				if n > ntypes then
 					pos, List.rev acc
 				else
 					let pos, ssig = read_ilsig ctx s pos in
@@ -1770,6 +1771,7 @@ let read_table_at ctx tbl n last pos =
 		td.td_extends <- extends;
 		td.td_field_list <- List.rev_map get_field (read_list ctx IField IFieldPtr flist_begin field_offset last pos);
 		td.td_method_list <- List.rev_map get_method (read_list ctx IMethod IMethodPtr mlist_begin method_offset last pos);
+		List.iter (fun m -> m.m_declaring <- Some td) td.td_method_list;
 		let path = get_path (TypeDef td) in
 		Hashtbl.add ctx.typedefs path td;
 		(* print_endline "Type Def!"; *)

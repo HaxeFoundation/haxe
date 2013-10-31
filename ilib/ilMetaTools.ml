@@ -258,15 +258,24 @@ let convert_method ctx m =
 	| _ -> assert false
 	in
 
-	let is_override, types =
-		List.fold_left (fun (is_override,types) -> function
+	let override, types =
+		List.fold_left (fun (override,types) -> function
 		| MethodImpl mi ->
-			true, types
+			let declaring = match mi.mi_method_declaration with
+				| MemberRef mr ->
+					Some (get_path mr.memr_class, mr.memr_name)
+				| Method m -> (match m.m_declaring with
+					| Some td ->
+						Some (get_path (TypeDef td), m.m_name)
+					| None -> override)
+				| _ -> override
+			in
+			declaring, types
 		| GenericParam gp ->
-			true, (convert_generic ctx gp) :: types
+			override, (convert_generic ctx gp) :: types
 		| _ ->
-			is_override,types
-		) (false,[]) (Hashtbl.find_all ctx.il_relations (IMethod, m.m_id))
+			override,types
+		) (None,[]) (Hashtbl.find_all ctx.il_relations (IMethod, m.m_id))
 	in
 	{
 		mname = m.m_name;
@@ -274,7 +283,7 @@ let convert_method ctx m =
 		msig = msig;
 		margs = margs;
 		mret = ret;
-		mis_override = is_override;
+		moverride = override;
 		mtypes = types;
 	}
 

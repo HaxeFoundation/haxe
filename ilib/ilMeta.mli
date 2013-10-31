@@ -242,6 +242,9 @@ and meta_method = {
 	mutable m_name : id;
 	mutable m_signature : ilsig;
 	mutable m_param_list : meta_param list; (* rid: Param *)
+
+	(* extra field *)
+	mutable m_declaring : meta_type_def option;
 }
 
 and meta_param_ptr = {

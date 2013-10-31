@@ -60,7 +60,7 @@ let rec ilsig_s = function
 				""
 		) (Array.to_list opts)) ^ "]"
 	| SGenericInst (t,tl) ->
-		"generic " ^ "<" ^ String.concat ", " (List.map ilsig_s tl) ^ ">"
+		"generic " ^ (ilsig_s t) ^ "<" ^ String.concat ", " (List.map ilsig_s tl) ^ ">"
 	| STypedReference -> "typedreference"
 	| SIntPtr -> "native int"
 	| SUIntPtr -> "native unsigned int"

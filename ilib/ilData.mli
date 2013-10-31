@@ -80,7 +80,8 @@ and ilmethod = {
 	msig : ilsig_t;
 	margs : ilmethod_arg list;
 	mret : ilsig_t;
-	mis_override : bool; (* method_impl *)
+	moverride : (ilpath * string) option; (* method_impl *)
+		(* refers to the signature of the declaring class *)
 	mtypes : type_param list;
 }
 
