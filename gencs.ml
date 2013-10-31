@@ -2401,8 +2401,57 @@ let mk_type_path ctx path params =
     tsub = sub;
   }
 
-let convert_signature ctx p = function
-	| _ -> mk_type_path ctx ( [],[], "Dynamic" ) []
+let rec convert_signature ctx p = function
+	| LVoid ->
+		mk_type_path ctx ([],[],"Void") []
+	| LBool ->
+		mk_type_path ctx ([],[],"Bool") []
+	| LChar ->
+		mk_type_path ctx (["cs"],["StdTypes"],"Char16") []
+	| LInt8 ->
+		mk_type_path ctx (["cs"],["StdTypes"],"Int8") []
+	| LUInt8 ->
+		mk_type_path ctx (["cs"],["StdTypes"],"UInt8") []
+	| LInt16 ->
+		mk_type_path ctx (["cs"],["StdTypes"],"Int16") []
+	| LUInt16 ->
+		mk_type_path ctx (["cs"],["StdTypes"],"UInt16") []
+	| LInt32 ->
+		mk_type_path ctx ([],[],"Int") []
+	| LUInt32 ->
+		mk_type_path ctx ([],[],"UInt") []
+	| LInt64 ->
+		mk_type_path ctx (["haxe"],[],"Int64") []
+	| LUInt64 ->
+		mk_type_path ctx (["haxe"],[],"UInt64") []
+	| LFloat32 ->
+		mk_type_path ctx ([],[],"Single") []
+	| LFloat64 ->
+		mk_type_path ctx ([],[],"Float") []
+	| LString ->
+		mk_type_path ctx ([],[],"String") []
+	| LObject ->
+		mk_type_path ctx ([],[],"Dynamic") []
+	| LPointer s | LManagedPointer s ->
+		mk_type_path ctx (["cs"],[],"Pointer") [ TPType (convert_signature ctx p s) ]
+	| LTypedReference ->
+		mk_type_path ctx (["cs";"system"],[],"TypedReference") []
+	| LIntPtr ->
+		mk_type_path ctx (["cs";"system"],[],"IntPtr") []
+	| LUIntPtr ->
+		mk_type_path ctx (["cs";"system"],[],"UIntPtr") []
+	| LValueType (s,args) | LClass (s,args) ->
+		mk_type_path ctx s (List.map (fun s -> TPType (convert_signature ctx p s)) args)
+	| LTypeParam i ->
+		mk_type_path ctx ([],[],"T" ^ string_of_int i) []
+	| LMethodTypeParam i ->
+		mk_type_path ctx ([],[],"M" ^ string_of_int i) []
+	| LVector s ->
+		mk_type_path ctx (["cs"],[],"NativeArray") [TPType (convert_signature ctx p s)]
+	(* | LArray of ilsig_norm * (int option * int option) array *)
+	| LMethod (_,ret,args) ->
+		CTFunction (List.map (convert_signature ctx p) args, convert_signature ctx p ret)
+	| _ -> mk_type_path ctx ([],[], "Dynamic") []
 
 let ilpath_s = function
 	| ns,[], name -> path_s (ns,name)
@@ -2435,8 +2484,6 @@ let convert_ilfield ctx p field =
 	let cff_pos = p in
 	let cff_meta = ref [] in
 	let cff_name = match field.fname with
-		(* | ".ctor" -> "new" *)
-		(* | ".cctor"-> raise Exit (* __init__ field *) *)
 		| name when String.length name > 5 ->
 				(match String.sub name 0 5 with
 				| "__hx_" -> raise Exit
@@ -2466,6 +2513,87 @@ let convert_ilfield ctx p field =
 			(Meta.Native, [EConst (String (name) ), cff_pos], cff_pos) :: !cff_meta
 		else
 			cff_name, !cff_meta
+	in
+	{
+		cff_name = cff_name;
+		cff_doc = cff_doc;
+		cff_pos = cff_pos;
+		cff_meta = cff_meta;
+		cff_access = acc;
+		cff_kind = kind;
+	}
+
+let convert_ilmethod ctx p m =
+	let p = { p with pfile =  p.pfile ^" (" ^m.mname ^")" } in
+	let cff_doc = None in
+	let cff_pos = p in
+	let cff_name = match m.mname with
+		| ".ctor" -> "new"
+		| ".cctor"-> raise Exit (* __init__ field *)
+		| name when String.length name > 5 ->
+				(match String.sub name 0 5 with
+				| "__hx_" -> raise Exit
+				| _ -> name)
+		| name -> name
+	in
+	let acc = match m.mflags.mf_access with
+		| FAFamily | FAFamOrAssem -> APrivate
+		| FAPublic -> APublic
+		| _ -> raise Exit (* private instances aren't useful on externs *)
+	in
+	let acc, is_final = List.fold_left (fun (acc,is_final) -> function
+		| CMStatic -> AStatic :: acc, is_final
+		| CMVirtual when is_final = None -> acc, Some false
+		| CMFinal -> acc, Some true
+		| _ -> acc, is_final
+	) ([acc],None) m.mflags.mf_contract in
+
+	let meta = [Meta.Overload, [], p] in
+	let meta = match is_final with
+		| None | Some false ->
+			(Meta.Final, [], p) :: meta
+		| _ -> meta
+	in
+	(* let meta = if List.mem OSynchronized m.mflags.mf_interop then *)
+	(* 	(Meta.Synchronized,[],p) :: meta *)
+	(* else *)
+	(* 	meta *)
+	(* in *)
+
+	let kind =
+		let args = List.map (fun (name,flag,s) ->
+			let t = convert_signature ctx p s.snorm in
+			let t = if List.mem PIn flag.pf_io then
+					mk_type_path ctx (["cs"],[],"Ref") [ TPType t ]
+				else if List.mem POut flag.pf_io then
+					mk_type_path ctx (["cs"],[],"Out") [ TPType t ]
+				else
+					t
+			in
+			name,false,Some t,None) m.margs
+		in
+		let ret = convert_signature ctx p m.mret.snorm in
+		let types = List.map (fun t ->
+			{
+				tp_name = "M" ^ string_of_int t.tnumber;
+				tp_params = [];
+				tp_constraints = [];
+			}
+		) m.mtypes in
+		FFun {
+			f_params = types;
+			f_args = args;
+			f_type = Some ret;
+			f_expr = None;
+		}
+	in
+	let cff_name, cff_meta =
+		if String.get cff_name 0 = '%' then
+			let name = (String.sub cff_name 1 (String.length cff_name - 1)) in
+			"_" ^ name,
+			(Meta.Native, [EConst (String (name) ), cff_pos], cff_pos) :: meta
+		else
+			cff_name, meta
 	in
 	{
 		cff_name = cff_name;
