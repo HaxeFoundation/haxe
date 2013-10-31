@@ -2788,40 +2788,50 @@ let change_name name = function
 	| IlMethod m -> IlMethod { m with mname = name }
 	| IlProp p -> IlProp { p with pname = name }
 
+let compatible_methods m1 m2 = match m1,m2 with
+	| IlMethod { msig = { snorm = LMethod(_,ret1,args1) } }, IlMethod { msig = { snorm = LMethod(_,ret2,args2) } } ->
+		ret1 = ret2 && args1 = args2
+	| _ -> false
 
-let normalize_ilcls ctx cls =
-  (* search static / non-static name clash *)
-  (* change field name to not collide with haxe keywords *)
-	let all_fields = List.map (fun f -> IlField f, f.fname, List.mem CStatic f.fflags.ff_contract) cls.cfields in
-	let all_fields = all_fields @ List.map (fun m -> IlMethod m, m.mname, List.mem CMStatic m.mflags.mf_contract) cls.cmethods in
+let get_all_fields cls =
+	let all_fields = List.map (fun f -> IlField f, cls.cpath, f.fname, List.mem CStatic f.fflags.ff_contract) cls.cfields in
+	let all_fields = all_fields @ List.map (fun m -> IlMethod m, cls.cpath, m.mname, List.mem CMStatic m.mflags.mf_contract) cls.cmethods in
 	let all_fields = all_fields @ List.map (function
 		| ({ pmflags = Some m } as p) ->
-			IlProp p, p.pname, List.mem CMStatic m.mf_contract
+			IlProp p, cls.cpath, p.pname, List.mem CMStatic m.mf_contract
 		| p ->
-			IlProp p, p.pname, false
+			IlProp p, cls.cpath, p.pname, false
 	) cls.cprops in
+	all_fields
 
+let normalize_ilcls ctx cls =
+	let all_fields = get_all_fields cls in
 	let all_fields = ref (List.map (fun v -> ref v) all_fields) in
+
+	(* fix overrides *)
+
+  (* search static / non-static name clash *)
+  (* change field name to not collide with haxe keywords *)
   let iter_field v =
-		let f, name, is_static = !v in
+		let f, p, name, is_static = !v in
     let change = match name with
     | "callback" | "cast" | "extern" | "function" | "in" | "typedef" | "using" | "var" | "untyped" | "inline" -> true
-    | _ -> is_static && List.exists (fun v -> match !v with | (f,n,false) -> name = n | _ -> false) !all_fields
+    | _ -> is_static && List.exists (fun v -> match !v with | (f,_,n,false) -> name = n | _ -> false) !all_fields
     in
     if change then
 			let name = "%" ^ name in
-			v := change_name name f, name, is_static
+			v := change_name name f, p, name, is_static
   in
 	List.iter iter_field !all_fields;
 
 	let all_fields = List.map (fun v -> !v) !all_fields in
-	let fields = List.filter (function | (IlField _,_,_) -> true | _ -> false) all_fields in
-	let methods = List.filter (function | (IlMethod _,_,_) -> true | _ -> false) all_fields in
-	let props = List.filter (function | (IlProp _,_,_) -> true | _ -> false) all_fields in
+	let fields = List.filter (function | (IlField _,_,_,_) -> true | _ -> false) all_fields in
+	let methods = List.filter (function | (IlMethod _,_,_,_) -> true | _ -> false) all_fields in
+	let props = List.filter (function | (IlProp _,_,_,_) -> true | _ -> false) all_fields in
 	{ cls with
-		cfields = List.map (function | (IlField f,_,_) -> f | _ -> assert false) fields;
-		cmethods = List.map (function | (IlMethod f,_,_) -> f | _ -> assert false) methods;
-		cprops = List.map (function | (IlProp f,_,_) -> f | _ -> assert false) props;
+		cfields = List.map (function | (IlField f,_,_,_) -> f | _ -> assert false) fields;
+		cmethods = List.map (function | (IlMethod f,_,_,_) -> f | _ -> assert false) methods;
+		cprops = List.map (function | (IlProp f,_,_,_) -> f | _ -> assert false) props;
 	}
 
 
