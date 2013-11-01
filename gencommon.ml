@@ -1022,7 +1022,14 @@ let dump_descriptor gen name path_s module_s =
         SourceWriter.write w s;
         SourceWriter.newline w;
       end
-    ) gen.gcon.java_libs;
+    ) gen.gcon.java_libs
+	else if Common.platform gen.gcon Cs then
+    List.iter (fun (s,std,_,_) ->
+      if not std then begin
+        SourceWriter.write w s;
+        SourceWriter.newline w;
+      end
+    ) gen.gcon.net_libs;
   SourceWriter.write w "end libs";
 
   let contents = SourceWriter.contents w in
