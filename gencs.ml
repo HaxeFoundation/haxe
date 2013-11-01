@@ -578,7 +578,14 @@ let configure gen =
 
   let change_clname n = n in
 
-  let change_id name = try Hashtbl.find reserved name with | Not_found -> name in
+  let change_id name = try
+			Hashtbl.find reserved name
+		with | Not_found ->
+			if String.starts_with name "get_" || String.starts_with name "set_" then
+				"_" ^ name
+			else
+				name
+	in
 
   let change_ns md = if no_root then
     function
@@ -918,6 +925,12 @@ let configure gen =
       | _ -> (params, el)
   in
 
+	let is_extern_prop t name = match field_access gen t name with
+		| FClassField(_,_,decl,v,_,t,_) ->
+			Type.is_extern_field v && decl.cl_extern && not (is_hxgen (TClassDecl decl))
+		| _ -> false
+	in
+
   let expr_s w e =
     last_line := -1;
     in_value := false;
@@ -925,6 +938,36 @@ let configure gen =
       let was_in_value = !in_value in
       in_value := true;
       (match e.eexpr with
+				| TCall( ({ eexpr = TField(ef,f) } as e), [] ) when String.starts_with (field_name f) "get_" ->
+					let name = field_name f in
+					let propname = String.sub name 4 (String.length name - 4) in
+					if is_extern_prop (gen.greal_type ef.etype) propname then begin
+						expr_s w ef;
+						write w ".";
+						write_field w propname
+					end else
+						do_call w e []
+				| TCall( ({ eexpr = TField(ef,f) } as e), [v] ) when String.starts_with (field_name f) "set_" ->
+					let name = field_name f in
+					let propname = String.sub name 4 (String.length name - 4) in
+					if is_extern_prop (gen.greal_type ef.etype) propname then begin
+						write w "(";
+						expr_s w ef;
+						write w ".";
+						write_field w propname;
+						write w " = ";
+						expr_s w v;
+						write w ")"
+					end else
+						do_call w e [v]
+        | TField (e, (FStatic(_, cf) | FInstance(_, cf))) when Meta.has Meta.Native cf.cf_meta ->
+          let rec loop meta = match meta with
+            | (Meta.Native, [EConst (String s), _],_) :: _ ->
+              expr_s w e; write w "."; write_field w s
+            | _ :: tl -> loop tl
+            | [] -> expr_s w e; write w "."; write_field w (cf.cf_name)
+          in
+          loop cf.cf_meta
         | TConst c ->
           (match c with
             | TInt i32 ->
@@ -1385,29 +1428,17 @@ let configure gen =
 		| Var { v_read = AccCall } when is_interface ->
 			write w "get;";
 		| _ -> match get with
-			| Some { cf_expr = Some e }  ->
-				write w "get ";
-				begin_block w;
-				expr_s w e;
-				end_block w
+			| Some _  ->
+				print w "get { return _get_%s(); }" prop.cf_name;
+				newline w
 			| _ -> ());
 		(match prop.cf_kind with
 		| Var { v_write = AccCall } when is_interface ->
 			write w "set;";
 		| _ -> match set with
-			| Some { cf_expr = Some e }  ->
-				write w "set ";
-				let rec map = function
-					| { eexpr = TReturn (Some e) } ->
-						{ e with
-							eexpr = TBlock [e; { e with eexpr = TReturn None } ];
-						}
-					| e -> Type.map_expr map e
-				in
-				let e = map e in
-				begin_block w;
-				expr_s w e;
-				end_block w
+			| Some _  ->
+				print w "set { _set_%s(value); }" prop.cf_name;
+				newline w
 			| _ -> ());
 		end_block w;
 	in
@@ -1702,7 +1733,7 @@ let configure gen =
             begin_block w;
             write w "return ";
             expr_s w this;
-            print w ".get_%s();" f.cf_name;
+            print w "._get_%s();" f.cf_name;
             end_block w
           | _ -> ());
           (match v.v_write with
@@ -1710,14 +1741,14 @@ let configure gen =
             write w "set";
             begin_block w;
             expr_s w this;
-            print w ".set_%s(value);" f.cf_name;
+            print w "._set_%s(value);" f.cf_name;
             end_block w
           | _ -> ());
           end_block w;
         end
     in
     List.iter (handle_prop true) cl.cl_ordered_statics;
-    List.iter (handle_prop false) cl.cl_ordered_fields *)
+    List.iter (handle_prop false) cl.cl_ordered_fields*)
   in
 
   let gen_class w cl =
@@ -1805,32 +1836,30 @@ let configure gen =
 			let find_prop name = try
 					List.assoc name !props
 				with | Not_found -> match field_access gen t name with
-					| FClassField (_,_,_,v,_,t,_) when Type.is_extern_field v ->
+					| FClassField (_,_,decl,v,_,t,_) when Type.is_extern_field v && decl.cl_extern && not (is_hxgen (TClassDecl decl)) ->
 						let ret = ref (v,t,None,None) in
 						props := (name, ret) :: !props;
 						ret
 					| _ -> raise Not_found
 			in
 			(* get all functions that are getters/setters *)
-			let nonprops = List.filter (function
+			List.iter (function
 				| cf when String.starts_with cf.cf_name "get_" -> (try
 					(* find the property *)
 					let prop = find_prop (String.sub cf.cf_name 4 (String.length cf.cf_name - 4)) in
 					let v, t, get, set = !prop in
 					assert (get = None);
 					prop := (v,t,Some cf,set);
-					false
-				with | Not_found -> true)
+				with | Not_found -> ())
 				| cf when String.starts_with cf.cf_name "set_" -> (try
 					(* find the property *)
 					let prop = find_prop (String.sub cf.cf_name 4 (String.length cf.cf_name - 4)) in
 					let v, t, get, set = !prop in
 					assert (set = None);
 					prop := (v,t,get,Some cf);
-					false
-				with | Not_found -> true)
-				| _ -> true
-			) nonprops in
+				with | Not_found -> ())
+				| _ -> ()
+			) nonprops;
 			List.map (fun (_,v) -> !v) !props, nonprops
 		in
 
@@ -1842,7 +1871,7 @@ let configure gen =
 			List.iter (gen_prop w true cl is_final) sprops
 		end;
     List.iter (gen_class_field w false cl is_final) fnonprops;
-		List.iter (gen_prop w true cl is_final) fprops;
+		List.iter (gen_prop w false cl is_final) fprops;
     check_special_behaviors w cl;
     end_block w;
     if cl.cl_interface && cl.cl_ordered_statics <> [] then begin
