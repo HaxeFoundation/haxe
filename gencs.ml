@@ -2655,12 +2655,13 @@ let convert_ilprop ctx p prop =
 			raise Exit (* special (?) getter; not used *)
 		| Some _ -> "get"
 	in
-	let set = match prop.pget with
+	let set = match prop.pset with
 		| None -> "never"
 		| Some s when String.length s <= 4 || String.sub s 0 4 <> "set_" ->
 			raise Exit (* special (?) getter; not used *)
 		| Some _ -> "set"
 	in
+	Printf.printf "property %s (%s,%s)\n" prop.pname get set;
 
 	let kind =
 		FProp (get, set, Some(convert_signature ctx p prop.psig.snorm), None)
@@ -2886,7 +2887,16 @@ let normalize_ilcls ctx cls =
 	in
 	loop cls;
 	List.iter (fun v -> v := { !v with moverride = None }) !no_overrides;
-	let cls = { cls with cmethods = List.map (fun v -> !v) meths } in
+
+	(* filter out properties that were already declared *)
+	let props = List.filter (function
+		| ({ pmflags = Some m } as p) ->
+			let static = List.mem CMStatic m.mf_contract in
+			let name = p.pname in
+			not (List.exists (function (IlProp _,_,n,s) -> s = static && name = n | _ -> false) !all_fields)
+		| _ -> false
+	) cls.cprops in
+	let cls = { cls with cmethods = List.map (fun v -> !v) meths; cprops = props } in
 
 	let clsfields = get_all_fields cls in
 	all_fields := clsfields @ !all_fields;
