@@ -2844,21 +2844,32 @@ let get_all_fields cls =
 
 let normalize_ilcls ctx cls =
 	(* first filter out overloaded fields of same signature *)
-	let meths = List.filter
+	let rec loop acc = function
+		| [] -> acc
+		| m :: cmeths ->
+			let static = List.mem CMStatic m.mflags.mf_contract in
+			if List.exists (fun m2 -> m.mname = m2.mname && List.mem CMStatic m2.mflags.mf_contract = static && compatible_methods m.msig.snorm m2.msig.snorm) cmeths then
+				loop acc cmeths
+			else
+				loop (m :: acc) cmeths
+	in
+	let meths = loop [] cls.cmethods in
 	(* fix overrides *)
 	(* get only the methods that aren't declared as override, but may be *)
-	let meths = List.map (fun v -> ref v) cls.cmethods in
+	let meths = List.map (fun v -> ref v) meths in
 	let no_overrides = List.filter (fun m ->
 		let m = !m in
-		m.moverride = None && not (List.mem CMStatic m.mflags.mf_contract)
+		not (List.mem CMStatic m.mflags.mf_contract)
 	) meths in
 	let no_overrides = ref no_overrides in
 
 	let rec loop cls = try
 		match cls.csuper with
+		| Some { snorm = LClass((["System"],[],"Object"),_) }
 		| Some { snorm = LObject } | None -> ()
 		| Some s ->
 			let cls, params = ilcls_from_ilsig ctx s.snorm in
+			print_endline (ilpath_s cls.cpath);
 			let cls = ilcls_with_params ctx cls params in
 			no_overrides := List.filter (fun v ->
 				let m = !v in
@@ -2872,6 +2883,7 @@ let normalize_ilcls ctx cls =
 		with | Not_found -> ()
 	in
 	loop cls;
+	List.iter (fun v -> v := { !v with moverride = None }) !no_overrides;
 	let cls = { cls with cmethods = List.map (fun v -> !v) meths } in
 
 	let all_fields = get_all_fields cls in
