@@ -21,9 +21,9 @@
  */
 package cs;
 
-@:notNull @:runtimeValue @:coreType abstract Int8 from Int {}
-@:notNull @:runtimeValue @:coreType abstract Int16 from Int {}
+@:notNull @:runtimeValue @:coreType abstract Int8 to Int {}
+@:notNull @:runtimeValue @:coreType abstract Int16 to Int {}
 @:notNull @:runtimeValue @:coreType abstract Char16 from Int {}
-@:notNull @:runtimeValue @:coreType abstract UInt8 from Int {}
-@:notNull @:runtimeValue @:coreType abstract UInt16 from Int {}
+@:notNull @:runtimeValue @:coreType abstract UInt8 to Int from Int {}
+@:notNull @:runtimeValue @:coreType abstract UInt16 to Int {}
 @:notNull abstract UInt64(haxe.Int64) from haxe.Int64 {}

@@ -3168,8 +3168,12 @@ let add_net_lib com file std =
 			let clr_header = PeReader.read_clr_header ctx in
 			let meta = IlMetaReader.read_meta_tables ctx clr_header in
 			close_in (r.PeReader.ch);
+			if PMap.mem "net_loader_debug" com.defines then
+				print_endline ("for lib " ^ file);
 			Hashtbl.iter (fun _ td ->
 				let path = IlMetaTools.get_path (TypeDef td) in
+				if PMap.mem "net_loader_debug" com.defines then
+					Printf.printf "found %s\n" (path_s (netpath_to_hx path));
 				Hashtbl.add com.net_path_map (netpath_to_hx path) path;
 				Hashtbl.replace meta.il_typedefs path td
 			) meta.il_typedefs;
@@ -3205,6 +3209,8 @@ let add_net_lib com file std =
 		let pack = match fst path with | ["haxe";"root"] -> [] | p -> p in
 		let cp = ref [] in
 		let rec build path = try
+			if PMap.mem "net_loader_debug" com.defines then
+				Printf.printf "looking up %s\n" (path_s path);
 			match lookup path with
 			| Some cls ->
 				let ctx = get_ctx() in
@@ -3234,8 +3240,8 @@ let before_generate com =
 	let net_ver = try
 			int_of_string (PMap.find "net_ver" com.defines)
 		with | Not_found ->
-			Common.define_value com Define.NetVer "20";
-			20
+			Common.define_value com Define.NetVer "40";
+			40
 	in
 	if net_ver < 20 then
 		failwith (

@@ -21,6 +21,7 @@
  */
 package;
 import cs.system.DateTime;
+import cs.system.TimeSpan;
 import haxe.Int64;
 
 @:coreApi class Date
@@ -36,7 +37,7 @@ import haxe.Int64;
 
 	public inline function getTime() : Float
 	{
-		return (cast(date.Ticks, Float) / TimeSpan.TicksPerMillisecond);
+		return (cast(date.Ticks, Float) / cast(TimeSpan.TicksPerMillisecond, Float));
 	}
 
 	public inline function getHours() : Int
@@ -99,7 +100,7 @@ import haxe.Int64;
 	static public function fromTime( t : Float ) : Date
 	{
 		var d = new Date(0, 0, 0, 0, 0, 0);
-		d.date = new DateTime(cast(t * TimeSpan.TicksPerMillisecond, Int64));
+		d.date = new DateTime(cast(t * cast(TimeSpan.TicksPerMillisecond, Float), Int64));
 		return d;
 	}
 
