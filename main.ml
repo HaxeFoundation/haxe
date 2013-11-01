@@ -260,6 +260,18 @@ let rec read_type_path com p =
       loop path p
     ) (all_files())
   ) com.java_libs;
+  List.iter (fun (path,std,all_files,lookup) ->
+    List.iter (fun (path, name) ->
+      if path = p then classes := name :: !classes else
+      let rec loop p1 p2 =
+        match p1, p2 with
+        | [], _ -> ()
+        | x :: _, [] -> packages := x :: !packages
+        | a :: p1, b :: p2 -> if a = b then loop p1 p2
+      in
+      loop path p
+    ) (all_files())
+  ) com.net_libs;
 	unique !packages, unique !classes
 
 let delete_file f = try Sys.remove f with _ -> ()
@@ -865,6 +877,7 @@ try
 			set_platform Cpp dir;
 		),"<directory> : generate C++ code into target directory");
  		("-cs",Arg.String (fun dir ->
+			cp_libs := "hxcs" :: !cp_libs;
 			set_platform Cs dir;
 		),"<directory> : generate C# code into target directory");
 		("-java",Arg.String (fun dir ->
@@ -932,8 +945,11 @@ try
 			Genjava.add_java_lib com file false
 		),"<file> : add an external JAR or class directory library");
 		("-net-lib",Arg.String (fun file ->
-			Gencs.add_net_lib com file true
+			Gencs.add_net_lib com file false
 		),"<file> : add an external .NET DLL file");
+		("-net-std",Arg.String (fun file ->
+			Gencs.add_net_std com file
+		),"<file> : add a root std .NET DLL search path");
 		("-x", Arg.String (fun file ->
 			let neko_file = file ^ ".n" in
 			set_platform Neko neko_file;

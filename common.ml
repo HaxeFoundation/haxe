@@ -147,6 +147,7 @@ type context = {
 	mutable swf_libs : (string * (unit -> Swf.swf) * (unit -> ((string list * string),As3hl.hl_class) Hashtbl.t)) list;
 	mutable java_libs : (string * bool * (unit -> unit) * (unit -> (path list)) * (path -> ((JData.jclass * string * string) option))) list; (* (path,std,close,all_files,lookup) *)
 	mutable net_libs : (string * bool * (unit -> path list) * (path -> IlData.ilclass option)) list; (* (path,std,all_files,lookup) *)
+	mutable net_std : string list;
 	net_path_map : (path,string list * string list * string) Hashtbl.t;
 	mutable js_gen : (unit -> unit) option;
 	(* typing *)
@@ -192,6 +193,8 @@ module Define = struct
 		| NekoSource
 		| NekoV1
 		| NetworkSandbox
+		| NetVer
+		| NetTarget
 		| NoCompilation
 		| NoCOpt
 		| NoFlashOverride
@@ -252,6 +255,8 @@ module Define = struct
 		| JsFlatten -> ("js_flatten","Generate classes to use fewer object property lookups")
 		| Macro -> ("macro","Defined when we compile code in the macro context")
 		| MacroTimes -> ("macro_times","Display per-macro timing when used with --times")
+		| NetVer -> ("net_ver", "<version:20-45> Sets the .NET version to be targeted")
+		| NetTarget -> ("net_target", "<name> Sets the .NET target. Defaults to \"net\". xbox, micro (Micro Framework), compact (Compact Framework) are some valid values")
 		| NekoSource -> ("neko_source","Output neko source instead of bytecode")
 		| NekoV1 -> ("neko_v1","Keep Neko 1.x compatibility")
 		| NetworkSandbox -> ("network-sandbox","Use local network sandbox instead of local file access one")
@@ -652,6 +657,7 @@ let create v args =
 		swf_libs = [];
 		java_libs = [];
 		net_libs = [];
+		net_std = [];
 		net_path_map = Hashtbl.create 0;
 		neko_libs = [];
 		php_prefix = None;

@@ -2474,9 +2474,6 @@ let configure gen =
 
 (* end of configure function *)
 
-let before_generate con =
-  ()
-
 let generate con =
   (try
     let gen = new_ctx con in
@@ -3134,6 +3131,9 @@ let normalize_ilcls ctx cls =
 		cprops = List.map (function | (IlProp f,_,_,_) -> f | _ -> assert false) props;
 	}
 
+let add_net_std com file =
+	com.net_std <- file :: com.net_std
+
 let add_net_lib com file std =
 	let ilctx = ref None in
 	let netpath_to_hx = netpath_to_hx std in
@@ -3215,3 +3215,66 @@ let add_net_lib com file std =
   com.load_extern_type <- com.load_extern_type @ [build];
   com.net_libs <- (file, std, all_files, lookup) :: com.net_libs
 
+let before_generate com =
+	(* net version *)
+	let net_ver = try
+			int_of_string (PMap.find "net_ver" com.defines)
+		with | Not_found ->
+			Common.define_value com Define.NetVer "20";
+			20
+	in
+	if net_ver < 20 then
+		failwith (
+			".NET version is defined to target .NET "
+			^ string_of_int net_ver
+			^ ", but the compiler can only output code to versions equal or superior to .NET 2.0 (defined as 20)"
+		);
+	let rec loop = function
+		| v :: acc when v <= net_ver ->
+			Common.raw_define com ("NET_" ^ string_of_int v);
+			loop acc
+		| _ -> ()
+	in
+	loop [20;21;30;35;40;45];
+
+	(* net target *)
+	let net_target = try
+			String.lowercase (PMap.find "net_target" com.defines)
+		with | Not_found ->
+			"net"
+	in
+	Common.define_value com Define.NetTarget net_target;
+	Common.raw_define com net_target;
+
+	(* std dirs *)
+	let stds = match com.net_std with
+		| [] -> ["netlib"]
+		| s -> s
+	in
+	(* look for all dirs that have the digraph NET_TARGET-NET_VER *)
+	let digraph = net_target ^ "-" ^ string_of_int net_ver in
+	let matched = ref [] in
+	List.iter (fun f -> try
+		let f = Common.find_file com (f ^ "/" ^ digraph) in
+		matched := (f, Unix.opendir f) :: !matched
+	with | _ -> ()) stds;
+
+	if !matched = [] then failwith (
+		"No .NET std lib directory with the pattern '" ^ digraph ^ "' was found in the -net-std search path. " ^
+		"Try updating the hxcs lib to the latest version, or specifying another -net-std path.");
+	List.iter (fun (path,f) ->
+		let rec loop () =
+			try
+				let f = Unix.readdir f in
+				let finsens = String.lowercase f in
+				if String.ends_with finsens ".dll" then
+					add_net_lib com (path ^ "/" ^ f) true;
+				loop()
+			with | End_of_file ->
+				Unix.closedir f
+		in
+		loop()
+	) !matched;
+
+	(* now force all libraries to initialize *)
+	List.iter (function (_,_,_,lookup) -> ignore (lookup ([],""))) com.net_libs
