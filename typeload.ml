@@ -858,8 +858,10 @@ let rec check_interface ctx c intf params =
 				valid_redefinition ctx f2 t2 f (apply_params intf.cl_types params f.cf_type)
 			with
 				Unify_error l ->
-					display_error ctx ("Field " ^ i ^ " has different type than in " ^ s_type_path intf.cl_path) p;
-					display_error ctx (error_msg (Unify l)) p;
+					if not (Meta.has Meta.CsNative c.cl_meta && c.cl_extern) then begin
+						display_error ctx ("Field " ^ i ^ " has different type than in " ^ s_type_path intf.cl_path) p;
+						display_error ctx (error_msg (Unify l)) p;
+					end
 		with
 			| Not_found when not c.cl_interface ->
 				let msg = if !is_overload then

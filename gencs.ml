@@ -308,8 +308,11 @@ struct
 
   let traverse gen runtime_cl =
     let basic = gen.gcon.basic in
-    let tchar = match ( get_type gen (["cs"], "Char16") ) with | TTypeDecl t -> t | _ -> assert false in
-    let tchar = TType(tchar,[]) in
+		let tchar = match ( get_type gen (["cs"], "Char16") ) with
+			| TTypeDecl t -> TType(t,[])
+			| TAbstractDecl a -> TAbstract(a,[])
+			| _ -> assert false
+		in
     let string_ext = get_cl ( get_type gen (["haxe";"lang"], "StringExt")) in
 
     let is_string t = match follow t with | TInst({ cl_path = ([], "String") }, []) -> true | _ -> false in
@@ -2827,7 +2830,9 @@ let rec ilapply_params params = function
 	| LPointer s -> LPointer (ilapply_params params s)
 	| LValueType (p,pl) -> LValueType(p, List.map (ilapply_params params) pl)
 	| LClass (p,pl) -> LClass(p, List.map (ilapply_params params) pl)
-	| LTypeParam i -> List.nth params (i-1) (* TODO: maybe i - 1? *)
+	| LTypeParam i ->
+		Printf.printf "nth %d - len %d\n" (i-1) (List.length params);
+		List.nth params i (* TODO: maybe i - 1? *)
 	| LVector s -> LVector (ilapply_params params s)
 	| LArray (s,a) -> LArray (ilapply_params params s, a)
 	| LMethod (c,r,args) -> LMethod (c, ilapply_params params r, List.map (ilapply_params params) args)
@@ -2842,10 +2847,23 @@ let ilcls_with_params ctx cls params =
 			cmethods = List.map (fun m -> { m with msig = { m.msig with snorm = ilapply_params params m.msig.snorm } }) cls.cmethods;
 			cprops = List.map (fun p -> { p with psig = { p.psig with snorm = ilapply_params params p.psig.snorm } }) cls.cprops;
 			csuper = Option.map (fun s -> { s with snorm = ilapply_params params s.snorm } ) cls.csuper;
+			cimplements = List.map (fun s -> { s with snorm = ilapply_params params s.snorm } ) cls.cimplements;
 		}
 
 let compatible_methods m1 m2 = match m1, m2 with
 	| LMethod(_,r1,a1), LMethod(_,r2,a2) -> a1 = a2
+	| _ -> false
+
+let compatible_field f1 f2 = match f1, f2 with
+	| IlMethod { msig = { snorm = LMethod(_,_,a1) } },
+	  IlMethod { msig = { snorm = LMethod(_,_,a2) } } ->
+			a1 = a2
+	| IlProp p1, IlProp p2 ->
+			(* p1.psig.snorm = p2.psig.snorm *)
+			true
+	| IlField f1, IlField f2 ->
+			(* f1.fsig.snorm = f2.fsig.snorm *)
+			true
 	| _ -> false
 
 let get_all_fields cls =
@@ -2903,17 +2921,34 @@ let normalize_ilcls ctx cls =
 	in
 	loop cls;
 	List.iter (fun v -> v := { !v with moverride = None }) !no_overrides;
+	let added = ref [] in
 
+	let current_all = ref (get_all_fields cls @ !all_fields) in
 	(* look for interfaces and add missing implementations (some methods' implementation is optional) *)
-	(* let rec loop_interface cls iface = try *)
-	(* 	match iface.snorm with *)
-	(* 	| LClass((["System"],[],"Object"),_) | LObject | None -> () *)
-	(* 	| LClass(path,_) when path = cls.cpath -> () *)
-	(* 	| s -> *)
-	(* 		let cif, params = ilcls_from_ilsig ctx s in *)
-	(* 		let cif = ilcls_with_params ctx cif params in *)
-	(* 		List.iter (fun ) cif.cmethods; *)
-
+	let rec loop_interface cls iface = try
+		match iface.snorm with
+		| LClass((["System"],[],"Object"),_) | LObject -> ()
+		| LClass(path,_) when path = cls.cpath -> ()
+		| s ->
+			let cif, params = ilcls_from_ilsig ctx s in
+			let cif = ilcls_with_params ctx cif params in
+			List.iter (function
+				| (f,_,name,false) as ff ->
+					(* look for compatible fields *)
+					if not (List.exists (function
+						| (f2,_,name2,false) when name = name2 ->
+							compatible_field f f2
+						| _ -> false
+					) !current_all) then begin
+						current_all := ff :: !current_all;
+						added := ff :: !added
+					end
+				| _ -> ()
+			) (get_all_fields cif);
+			List.iter (loop_interface cif) cif.cimplements
+		with | Not_found -> ()
+	in
+	List.iter (loop_interface cls) cls.cimplements;
 
 	(* filter out properties that were already declared *)
 	let props = List.filter (function
@@ -2925,7 +2960,7 @@ let normalize_ilcls ctx cls =
 	) cls.cprops in
 	let cls = { cls with cmethods = List.map (fun v -> !v) meths; cprops = props } in
 
-	let clsfields = get_all_fields cls in
+	let clsfields = !added @ get_all_fields cls in
 	let super_fields = !all_fields in
 	all_fields := clsfields @ !all_fields;
 	let refclsfields = (List.map (fun v -> ref v) clsfields) in
