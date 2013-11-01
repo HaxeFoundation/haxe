@@ -28,6 +28,7 @@ open Gencommon.SourceWriter
 open Type
 open Printf
 open Option
+open ExtString
 
 let is_cs_basic_type t =
   match follow t with
@@ -1351,6 +1352,66 @@ let configure gen =
         (params, String.concat " " params_extends)
   in
 
+	let rec gen_prop w is_static cl is_final (prop,t,get,set) =
+    let is_interface = cl.cl_interface in
+		let fn_is_final = function
+			| None -> true
+			| Some ({ cf_kind = Method mkind } as m) ->
+				(match mkind with | MethInline -> true | _ -> false) || Meta.has Meta.Final m.cf_meta
+			| _ -> assert false
+		in
+		let is_virtual = not (is_final || Meta.has Meta.Final prop.cf_meta || fn_is_final get || fn_is_final set) in
+
+		let fn_is_override = function
+			| Some cf -> List.memq cf cl.cl_overrides
+			| None -> false
+		in
+		let is_override = fn_is_override get || fn_is_override set in
+		let visibility = if is_interface then "" else "public" in
+		let visibility, modifiers = get_fun_modifiers prop.cf_meta visibility [] in
+		let v_n = if is_static then "static " else if is_override && not is_interface then "override " else if is_virtual then "virtual " else "" in
+		print w "%s %s %s %s %s" (visibility) v_n (String.concat " " modifiers) (t_s (run_follow gen t)) (change_field prop.cf_name);
+		let check cf = match cf with
+			| Some ({ cf_overloads = o :: _ } as cf) ->
+					gen.gcon.error "Property functions with more than one overload is currently unsupported" cf.cf_pos;
+					gen.gcon.error "Property functions with more than one overload is currently unsupported" o.cf_pos
+			| _ -> ()
+		in
+		check get;
+		check set;
+
+		begin_block w;
+		(match prop.cf_kind with
+		| Var { v_read = AccCall } when is_interface ->
+			write w "get;";
+		| _ -> match get with
+			| Some { cf_expr = Some e }  ->
+				write w "get ";
+				begin_block w;
+				expr_s w e;
+				end_block w
+			| _ -> ());
+		(match prop.cf_kind with
+		| Var { v_write = AccCall } when is_interface ->
+			write w "set;";
+		| _ -> match set with
+			| Some { cf_expr = Some e }  ->
+				write w "set ";
+				let rec map = function
+					| { eexpr = TReturn (Some e) } ->
+						{ e with
+							eexpr = TBlock [e; { e with eexpr = TReturn None } ];
+						}
+					| e -> Type.map_expr map e
+				in
+				let e = map e in
+				begin_block w;
+				expr_s w e;
+				end_block w
+			| _ -> ());
+		end_block w;
+	in
+
   let rec gen_class_field w ?(is_overload=false) is_static cl is_final cf =
     let is_interface = cl.cl_interface in
     let name, is_new, is_explicit_iface = match cf.cf_name with
@@ -1729,9 +1790,59 @@ let configure gen =
       | Some init ->
         print w "static %s() " (snd cl.cl_path);
         expr_s w (mk_block init));
+
+		(* collect properties *)
+		let partition_props cl cflist =
+			let t = TInst(cl, List.map snd cl.cl_types) in
+			(* first get all vars declared as properties *)
+			let props, nonprops = List.partition (fun v -> match v.cf_kind with
+				| Var { v_read = AccCall } | Var { v_write = AccCall } ->
+					Type.is_extern_field v
+				| _ -> false
+			) cflist in
+			let props = ref (List.map (fun v -> (v.cf_name, ref (v,v.cf_type,None,None))) props) in
+
+			let find_prop name = try
+					List.assoc name !props
+				with | Not_found -> match field_access gen t name with
+					| FClassField (_,_,_,v,_,t,_) when Type.is_extern_field v ->
+						let ret = ref (v,t,None,None) in
+						props := (name, ret) :: !props;
+						ret
+					| _ -> raise Not_found
+			in
+			(* get all functions that are getters/setters *)
+			let nonprops = List.filter (function
+				| cf when String.starts_with cf.cf_name "get_" -> (try
+					(* find the property *)
+					let prop = find_prop (String.sub cf.cf_name 4 (String.length cf.cf_name - 4)) in
+					let v, t, get, set = !prop in
+					assert (get = None);
+					prop := (v,t,Some cf,set);
+					false
+				with | Not_found -> true)
+				| cf when String.starts_with cf.cf_name "set_" -> (try
+					(* find the property *)
+					let prop = find_prop (String.sub cf.cf_name 4 (String.length cf.cf_name - 4)) in
+					let v, t, get, set = !prop in
+					assert (set = None);
+					prop := (v,t,get,Some cf);
+					false
+				with | Not_found -> true)
+				| _ -> true
+			) nonprops in
+			List.map (fun (_,v) -> !v) !props, nonprops
+		in
+
+		let fprops, fnonprops = partition_props cl cl.cl_ordered_fields in
+		let sprops, snonprops = partition_props cl cl.cl_ordered_statics in
     (if is_some cl.cl_constructor then gen_class_field w false cl is_final (get cl.cl_constructor));
-    if not cl.cl_interface then List.iter (gen_class_field w true cl is_final) cl.cl_ordered_statics;
-    List.iter (gen_class_field w false cl is_final) cl.cl_ordered_fields;
+		if not cl.cl_interface then begin
+			List.iter (gen_class_field w true cl is_final) snonprops;
+			List.iter (gen_prop w true cl is_final) sprops
+		end;
+    List.iter (gen_class_field w false cl is_final) fnonprops;
+		List.iter (gen_prop w true cl is_final) fprops;
     check_special_behaviors w cl;
     end_block w;
     if cl.cl_interface && cl.cl_ordered_statics <> [] then begin
