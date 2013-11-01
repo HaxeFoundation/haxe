@@ -2582,8 +2582,7 @@ let convert_ilmethod ctx p m =
 	let ret =
 		if String.length cff_name > 4 && String.sub cff_name 0 4 = "set_" then
 			match m.mret.snorm, m.margs with
-			| LVoid, _ :: _ ->
-				let _,_,s = List.hd (List.rev m.margs) in
+			| LVoid, [_,_,s] ->
 				s.snorm
 			| _ -> m.mret.snorm
 		else
@@ -2842,10 +2841,11 @@ let ilcls_with_params ctx cls params =
 			cfields = List.map (fun f -> { f with fsig = { f.fsig with snorm = ilapply_params params f.fsig.snorm } }) cls.cfields;
 			cmethods = List.map (fun m -> { m with msig = { m.msig with snorm = ilapply_params params m.msig.snorm } }) cls.cmethods;
 			cprops = List.map (fun p -> { p with psig = { p.psig with snorm = ilapply_params params p.psig.snorm } }) cls.cprops;
+			csuper = Option.map (fun s -> { s with snorm = ilapply_params params s.snorm } ) cls.csuper;
 		}
 
 let compatible_methods m1 m2 = match m1, m2 with
-	| LMethod(_,r1,a1), LMethod(_,r2,a2) -> r1 = r2 && a1 = a2
+	| LMethod(_,r1,a1), LMethod(_,r2,a2) -> a1 = a2
 	| _ -> false
 
 let get_all_fields cls =
@@ -2903,6 +2903,17 @@ let normalize_ilcls ctx cls =
 	in
 	loop cls;
 	List.iter (fun v -> v := { !v with moverride = None }) !no_overrides;
+
+	(* look for interfaces and add missing implementations (some methods' implementation is optional) *)
+	(* let rec loop_interface cls iface = try *)
+	(* 	match iface.snorm with *)
+	(* 	| LClass((["System"],[],"Object"),_) | LObject | None -> () *)
+	(* 	| LClass(path,_) when path = cls.cpath -> () *)
+	(* 	| s -> *)
+	(* 		let cif, params = ilcls_from_ilsig ctx s in *)
+	(* 		let cif = ilcls_with_params ctx cif params in *)
+	(* 		List.iter (fun ) cif.cmethods; *)
+
 
 	(* filter out properties that were already declared *)
 	let props = List.filter (function
