@@ -561,7 +561,7 @@ class ChildJava2<T> extends ChildJava
 	{
 		super(Std.int(x));
 	}
-	@:overload private function new(b:haxe.io.Bytes)
+	@:overload public function new(b:haxe.io.Bytes)
 	{
 		super(b);
 	}
