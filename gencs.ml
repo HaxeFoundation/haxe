@@ -2579,6 +2579,17 @@ let convert_ilmethod ctx p m =
 	(* 	meta *)
 	(* in *)
 
+	let ret =
+		if String.length cff_name > 4 && String.sub cff_name 0 4 = "set_" then
+			match m.mret.snorm, m.margs with
+			| LVoid, _ :: _ ->
+				let _,_,s = List.hd (List.rev m.margs) in
+				s.snorm
+			| _ -> m.mret.snorm
+		else
+			m.mret.snorm
+	in
+
 	let kind =
 		let args = List.map (fun (name,flag,s) ->
 			let t = match s.snorm with
@@ -2596,7 +2607,7 @@ let convert_ilmethod ctx p m =
 			in
 			name,false,Some t,None) m.margs
 		in
-		let ret = convert_signature ctx p m.mret.snorm in
+		let ret = convert_signature ctx p ret in
 		let types = List.map (fun t ->
 			{
 				tp_name = "M" ^ string_of_int t.tnumber;
@@ -2664,8 +2675,8 @@ let convert_ilprop ctx p prop =
 	in
 	Printf.printf "property %s (%s,%s) : %s\n" prop.pname get set (IlMetaDebug.ilsig_s prop.psig.ssig);
 	let ilsig = match prop.psig.snorm with
-		| LMethod (_,ret,_) -> ret
-		| s -> s
+		| LMethod (_,ret,[]) -> ret
+		| s -> raise Exit
 	in
 
 	let kind =
