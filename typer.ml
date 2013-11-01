@@ -222,8 +222,10 @@ let class_field ctx c pl name p =
 	raw_class_field (fun f -> field_type ctx c pl f p) c name
 
 (* checks if we can access to a given class field using current context *)
-let rec can_access ctx c cf stat =
+let rec can_access ctx ?(in_overload=false) c cf stat =
 	if cf.cf_public then
+		true
+	else if not in_overload && ctx.com.config.pf_overload && Meta.has Meta.Overload cf.cf_meta then
 		true
 	else
 	(* TODO: should we add a c == ctx.curclass short check here? *)
@@ -502,9 +504,13 @@ let rec unify_call_params ctx ?(overloads=None) cf el args r p inline =
   (* it's used to correctly support an overload selection algorithm *)
 	let overloads, compatible, legacy = match cf, overloads with
 		| Some(TInst(c,pl),f), None when ctx.com.config.pf_overload && Meta.has Meta.Overload f.cf_meta ->
-				let overloads = List.filter (fun (_,f2) -> not (f == f2)) (Typeload.get_overloads c f.cf_name) in
+				let overloads = List.filter (fun (_,f2) ->
+					not (f == f2) && (f2.cf_public || can_access ctx ~in_overload:true c f2 false)
+				) (Typeload.get_overloads c f.cf_name) in
 				if overloads = [] then (* is static function *)
-					List.map (fun f -> f.cf_type, f) f.cf_overloads, [], false
+					let overloads = List.map (fun f -> f.cf_type, f) f.cf_overloads in
+					let is_static = f.cf_name <> "new" in
+					List.filter (fun (_,f) -> can_access ctx ~in_overload:true c f is_static) overloads, [], false
 				else
 					overloads, [], false
 		| Some(_,f), None ->
