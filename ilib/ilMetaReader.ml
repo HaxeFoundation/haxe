@@ -595,8 +595,11 @@ let read_constant ctx with_type s pos =
 		let pos, v1 = sread_i64 s (pos) in
 		pos, IFloat64 (Int64.float_of_bits v1)
 	| CString ->
-		let pos, len = read_compressed_i32 s pos in
-		pos+len, IString (String.sub s pos len)
+		if sget s pos = 0xff then
+			pos+1,IString ""
+		else
+			let pos, len = read_compressed_i32 s pos in
+			pos+len, IString (String.sub s pos len)
 	| CNullRef ->
 		pos+1, INull
 
@@ -631,7 +634,7 @@ let read_constant_type ctx s pos = match sget s pos with
 	| 0xD -> pos+1, CFloat64 (* 0xD *)
 	| 0xE -> pos+1, CString (* 0xE *)
 	| 0x12 -> pos+1, CNullRef (* 0x12 *)
-	| _ -> assert false
+	| i -> Printf.printf "0x%x\n" i; assert false
 
 let action_security_of_int = function
 	| 0x1 -> SecRequest (* 0x1 *)
@@ -1184,6 +1187,10 @@ let sread_from_table ctx in_blob tbl s pos =
 	pos, Option.get opt
 
 (* ******* SIGNATURE READING ********* *)
+let read_inline_str s pos =
+	let pos, len = read_compressed_i32 s pos in
+	let ret = String.sub s pos len in
+	pos+len,ret
 
 let rec read_ilsig ctx s pos =
 	let i = sget s pos in
@@ -1292,6 +1299,13 @@ let rec read_ilsig ctx s pos =
 		| 0x45 ->
 			let pos, ssig = read_ilsig ctx s pos in
 			pos,SPinned ssig (* 0x45 *)
+		(* special undocumented constants *)
+		| 0x50 -> pos, SType
+		| 0x51 -> pos, SBoxed
+		| 0x55 ->
+			let pos, vt = read_inline_str s pos in
+			print_endline vt;
+			pos, SEnum vt
 		| _ ->
 			Printf.printf "unknown ilsig 0x%x\n\n" i;
 			assert false
@@ -1341,11 +1355,6 @@ let rec read_variantsig ctx s pos =
 		| 0x47 -> pos, VT_CF (* 0x47 *)
 		| 0x48 -> pos, VT_CLSID (* 0x48 *)
 		| _ -> assert false
-
-let read_inline_str s pos =
-	let pos, len = read_compressed_i32 s pos in
-	let ret = String.sub s pos len in
-	pos+len,ret
 
 let rec read_nativesig ctx s pos : int * nativesig =
 	let pos, b = sread_ui8 s pos in
@@ -1508,12 +1517,20 @@ let read_custom_attr ctx attr_type s pos =
 		| SClass c when is_type (["System"],"Type") c ->
 			let pos, len = read_compressed_i32 s pos in
 			pos+len, InstType (String.sub s pos len)
-		| SObject -> (* boxed *)
+		| SType ->
+			let pos, len = read_compressed_i32 s pos in
+			pos+len, InstType (String.sub s pos len)
+		| SObject | SBoxed -> (* boxed *)
 			let pos = if sget s pos = 0x51 then pos+1 else pos in
-			let pos, cons = read_constant_type ctx s pos in
-			let pos, boxed = read_constant ctx (sig_to_const ilsig) s pos in
-			pos, InstBoxed boxed
-		| SValueType _ -> (* enum *)
+			let pos, ilsig = read_ilsig ctx s pos in
+			(match follow ilsig with
+			| SEnum _ ->
+				let pos, e = sread_i32 s pos in
+				pos, InstBoxed(InstEnum e)
+			| _ ->
+				let pos, boxed = read_constant ctx (sig_to_const ilsig) s pos in
+				pos, InstBoxed (InstConstant boxed))
+		| SValueType _ | SEnum _ -> (* enum *)
 			let pos, e = sread_i32 s pos in
 			pos, InstEnum e
 		| _ -> assert false
@@ -1583,54 +1600,6 @@ let read_custom_attr_idx ctx attr_type pos =
 		let i, _ = read_compressed_i32 s i in
 		let _, attr = read_custom_attr ctx attr_type s i in
 		metapos, Some attr
-
-let rec ilsig_s = function (* TODO: delete me - leave only in ilMetaDebug *)
-	| SVoid -> "void"
-	| SBool -> "bool"
-	| SChar -> "char"
-	| SInt8 -> "int8"
-	| SUInt8 -> "uint8"
-	| SInt16 -> "int16"
-	| SUInt16 -> "uint16"
-	| SInt32 -> "int32"
-	| SUInt32 -> "uint32"
-	| SInt64 -> "int64"
-	| SUInt64 -> "uint64"
-	| SFloat32 -> "float"
-	| SFloat64 -> "double"
-	| SString -> "string"
-	| SPointer s -> ilsig_s s ^ "*"
-	| SManagedPointer s -> ilsig_s s ^ "&"
-	| SValueType td -> "valuetype"
-	| SClass cl -> "classtype"
-	| STypeParam t | SMethodTypeParam t -> "!" ^ string_of_int t
-	| SArray (s,opts) ->
-		ilsig_s s ^ "[" ^ String.concat "," (List.map (function
-			| Some i,None when i <> 0 ->
-				string_of_int i ^ "..."
-			| None, Some i when i <> 0 ->
-				string_of_int i
-			| Some s, Some b when b = 0 && s <> 0 ->
-				string_of_int s ^ "..."
-			| Some s, Some b when s <> 0 || b <> 0 ->
-				let b = if b > 0 then b - 1 else b in
-				string_of_int s ^ "..." ^ string_of_int (s + b)
-			| _ ->
-				""
-		) (Array.to_list opts)) ^ "]"
-	| SGenericInst (t,tl) ->
-		"generic " ^ "<" ^ String.concat ", " (List.map ilsig_s tl) ^ ">"
-	| STypedReference -> "typedreference"
-	| SIntPtr -> "native int"
-	| SUIntPtr -> "native unsigned int"
-	| SFunPtr (callconv,ret,args) ->
-		"function " ^ ilsig_s ret ^ "(" ^ String.concat ", " (List.map ilsig_s args) ^ ")"
-	| SObject -> "object"
-	| SVector s -> ilsig_s s ^ "[]"
-	| SReqModifier (_,s) -> "modreq() " ^ ilsig_s s
-	| SOptModifier (_,s) -> "modopt() " ^ ilsig_s s
-	| SSentinel -> "..."
-	| SPinned s -> "pinned " ^ ilsig_s s
 
 let read_next_index ctx offset table last pos =
 	if last then

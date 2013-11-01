@@ -543,7 +543,7 @@ and constant =
 
 and instance =
 	| InstConstant of constant
-	| InstBoxed of constant
+	| InstBoxed of instance
 	| InstType of string
 	| InstArray of instance list
 	| InstEnum of int
@@ -1004,6 +1004,10 @@ and ilsig =
 		(* when a method is declared *)
 	| SPinned of ilsig (* 0x45 *)
 		(* pinned reference: it's only applicable to local variables only *)
+	(* special undocumented (yay) *)
+	| SType (* 0x50 *)
+	| SBoxed (* 0x51 *)
+	| SEnum of string (* 0x55 *)
 
 and callconv =
 	| CallDefault (* 0x0 *)

@@ -19,6 +19,7 @@
 open IlMeta;;
 open IlData;;
 open PeReader;;
+open ExtString;;
 
 let rec follow s = match s with
 	| SReqModifier (_,s)
@@ -94,7 +95,7 @@ let constant_s = function
 
 let rec instance_s = function
 	| InstConstant c -> constant_s c
-	| InstBoxed b -> "boxed " ^ constant_s b
+	| InstBoxed b -> "boxed " ^ instance_s b
 	| InstType t -> "Type " ^ t
 	| InstArray il -> "[" ^ String.concat ", " (List.map instance_s il) ^ "]"
 	| InstEnum e -> "Enum " ^ string_of_int e
@@ -202,6 +203,14 @@ let rec ilsig_norm = function
 	| SOptModifier (_,s) -> ilsig_norm s
 	| SSentinel -> LSentinel
 	| SPinned s -> ilsig_norm s
+	| SType -> LClass( (["System"],[],"Type"), [])
+	| SBoxed -> LObject
+	| SEnum e ->
+		let lst = String.nsplit e "." in
+		let rev = List.rev lst in
+		match rev with
+		| hd :: tl -> LValueType( (List.rev tl,[],hd), [] )
+		| _ -> assert false
 
 let ilsig_t s =
 	{

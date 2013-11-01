@@ -26,6 +26,9 @@ let path_s = function
 	| ns,enc,s -> String.concat "." ns ^ "." ^ String.concat "@" enc ^ "." ^ s
 
 let rec ilsig_s = function
+	| SBoxed -> "boxed"
+	| SEnum e -> "enum " ^ e
+	| SType -> "System.Type"
 	| SVoid -> "void"
 	| SBool -> "bool"
 	| SChar -> "char"
