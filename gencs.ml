@@ -2793,6 +2793,44 @@ let compatible_methods m1 m2 = match m1,m2 with
 		ret1 = ret2 && args1 = args2
 	| _ -> false
 
+let ilcls_from_ilsig ctx ilsig =
+	let path, params = match ilsig with
+		| LClass(path, params) | LValueType(path, params) ->
+			path, params
+		| LObject ->
+			(["System"],[],"Object"),[]
+		| _ -> raise Not_found (* all other types won't appear as superclass *)
+	in
+	match lookup_ilclass ctx.nstd ctx.ncom path with
+	| None -> raise Not_found
+	| Some c ->
+		c, params
+
+let rec ilapply_params params = function
+	| LManagedPointer s -> LManagedPointer (ilapply_params params s)
+	| LPointer s -> LPointer (ilapply_params params s)
+	| LValueType (p,pl) -> LValueType(p, List.map (ilapply_params params) pl)
+	| LClass (p,pl) -> LClass(p, List.map (ilapply_params params) pl)
+	| LTypeParam i -> List.nth params (i-1) (* TODO: maybe i - 1? *)
+	| LVector s -> LVector (ilapply_params params s)
+	| LArray (s,a) -> LArray (ilapply_params params s, a)
+	| LMethod (c,r,args) -> LMethod (c, ilapply_params params r, List.map (ilapply_params params) args)
+	| p -> p
+
+let ilcls_with_params ctx cls params =
+	match cls.ctypes with
+	| [] -> cls
+	| _ ->
+		{ cls with
+			cfields = List.map (fun f -> { f with fsig = { f.fsig with snorm = ilapply_params params f.fsig.snorm } }) cls.cfields;
+			cmethods = List.map (fun m -> { m with msig = { m.msig with snorm = ilapply_params params m.msig.snorm } }) cls.cmethods;
+			cprops = List.map (fun p -> { p with psig = { p.psig with snorm = ilapply_params params p.psig.snorm } }) cls.cprops;
+		}
+
+let compatible_methods m1 m2 = match m1, m2 with
+	| LMethod(_,r1,a1), LMethod(_,r2,a2) -> r1 = r2 && a1 = a2
+	| _ -> false
+
 let get_all_fields cls =
 	let all_fields = List.map (fun f -> IlField f, cls.cpath, f.fname, List.mem CStatic f.fflags.ff_contract) cls.cfields in
 	let all_fields = all_fields @ List.map (fun m -> IlMethod m, cls.cpath, m.mname, List.mem CMStatic m.mflags.mf_contract) cls.cmethods in
@@ -2805,11 +2843,39 @@ let get_all_fields cls =
 	all_fields
 
 let normalize_ilcls ctx cls =
+	(* first filter out overloaded fields of same signature *)
+	let meths = List.filter
+	(* fix overrides *)
+	(* get only the methods that aren't declared as override, but may be *)
+	let meths = List.map (fun v -> ref v) cls.cmethods in
+	let no_overrides = List.filter (fun m ->
+		let m = !m in
+		m.moverride = None && not (List.mem CMStatic m.mflags.mf_contract)
+	) meths in
+	let no_overrides = ref no_overrides in
+
+	let rec loop cls = try
+		match cls.csuper with
+		| Some { snorm = LObject } | None -> ()
+		| Some s ->
+			let cls, params = ilcls_from_ilsig ctx s.snorm in
+			let cls = ilcls_with_params ctx cls params in
+			no_overrides := List.filter (fun v ->
+				let m = !v in
+				let is_override_here = List.exists (fun m2 ->
+					m2.mname = m.mname && not (List.mem CMStatic m2.mflags.mf_contract) && compatible_methods m.msig.snorm m2.msig.snorm
+				) cls.cmethods in
+				if is_override_here then v := { m with moverride = Some(cls.cpath, m.mname) };
+				not is_override_here
+			) !no_overrides;
+			loop cls
+		with | Not_found -> ()
+	in
+	loop cls;
+	let cls = { cls with cmethods = List.map (fun v -> !v) meths } in
+
 	let all_fields = get_all_fields cls in
 	let all_fields = ref (List.map (fun v -> ref v) all_fields) in
-
-	(* fix overrides *)
-
   (* search static / non-static name clash *)
   (* change field name to not collide with haxe keywords *)
   let iter_field v =
@@ -2833,7 +2899,6 @@ let normalize_ilcls ctx cls =
 		cmethods = List.map (function | (IlMethod f,_,_,_) -> f | _ -> assert false) methods;
 		cprops = List.map (function | (IlProp f,_,_,_) -> f | _ -> assert false) props;
 	}
-
 
 let add_net_lib com file std =
 	let ilctx = ref None in

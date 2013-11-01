@@ -26,4 +26,4 @@ package cs;
 @:notNull @:runtimeValue @:coreType abstract Char16 from Int {}
 @:notNull @:runtimeValue @:coreType abstract UInt8 from Int {}
 @:notNull @:runtimeValue @:coreType abstract UInt16 from Int {}
-typedef UInt64 = haxe.Int64;
+@:notNull abstract UInt64(haxe.Int64) from haxe.Int64 {}
