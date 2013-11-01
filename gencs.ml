@@ -2863,6 +2863,7 @@ let normalize_ilcls ctx cls =
 	) meths in
 	let no_overrides = ref no_overrides in
 
+	let all_fields = ref [] in
 	let rec loop cls = try
 		match cls.csuper with
 		| Some { snorm = LClass((["System"],[],"Object"),_) }
@@ -2879,6 +2880,7 @@ let normalize_ilcls ctx cls =
 				if is_override_here then v := { m with moverride = Some(cls.cpath, m.mname) };
 				not is_override_here
 			) !no_overrides;
+			all_fields := get_all_fields cls @ !all_fields;
 			loop cls
 		with | Not_found -> ()
 	in
@@ -2886,26 +2888,27 @@ let normalize_ilcls ctx cls =
 	List.iter (fun v -> v := { !v with moverride = None }) !no_overrides;
 	let cls = { cls with cmethods = List.map (fun v -> !v) meths } in
 
-	let all_fields = get_all_fields cls in
-	let all_fields = ref (List.map (fun v -> ref v) all_fields) in
+	let clsfields = get_all_fields cls in
+	all_fields := clsfields @ !all_fields;
+	let clsfields = (List.map (fun v -> ref v) clsfields) in
   (* search static / non-static name clash *)
   (* change field name to not collide with haxe keywords *)
   let iter_field v =
 		let f, p, name, is_static = !v in
     let change = match name with
     | "callback" | "cast" | "extern" | "function" | "in" | "typedef" | "using" | "var" | "untyped" | "inline" -> true
-    | _ -> is_static && List.exists (fun v -> match !v with | (f,_,n,false) -> name = n | _ -> false) !all_fields
+    | _ -> is_static && List.exists (function | (f,_,n,false) -> name = n | _ -> false) !all_fields
     in
     if change then
 			let name = "%" ^ name in
 			v := change_name name f, p, name, is_static
   in
-	List.iter iter_field !all_fields;
+	List.iter iter_field clsfields;
 
-	let all_fields = List.map (fun v -> !v) !all_fields in
-	let fields = List.filter (function | (IlField _,_,_,_) -> true | _ -> false) all_fields in
-	let methods = List.filter (function | (IlMethod _,_,_,_) -> true | _ -> false) all_fields in
-	let props = List.filter (function | (IlProp _,_,_,_) -> true | _ -> false) all_fields in
+	let clsfields = List.map (fun v -> !v) clsfields in
+	let fields = List.filter (function | (IlField _,_,_,_) -> true | _ -> false) clsfields in
+	let methods = List.filter (function | (IlMethod _,_,_,_) -> true | _ -> false) clsfields in
+	let props = List.filter (function | (IlProp _,_,_,_) -> true | _ -> false) clsfields in
 	{ cls with
 		cfields = List.map (function | (IlField f,_,_,_) -> f | _ -> assert false) fields;
 		cmethods = List.map (function | (IlMethod f,_,_,_) -> f | _ -> assert false) methods;
