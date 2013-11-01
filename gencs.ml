@@ -2711,7 +2711,8 @@ let convert_ilmethod ctx p m =
 		| FAPublic -> APublic
 		| _ -> raise Exit
 	in
-	Printf.printf "\tname %s : %s\n" cff_name (IlMetaDebug.ilsig_s m.msig.ssig);
+	if PMap.mem "net_loader_debug" ctx.ncom.defines then
+		Printf.printf "\tname %s : %s\n" cff_name (IlMetaDebug.ilsig_s m.msig.ssig);
 	let acc, is_final = List.fold_left (fun (acc,is_final) -> function
 		| CMStatic when cff_name <> "new" -> AStatic :: acc, is_final
 		| CMVirtual when is_final = None -> acc, Some false
@@ -2825,7 +2826,8 @@ let convert_ilprop ctx p prop =
 			raise Exit (* special (?) getter; not used *)
 		| Some _ -> "set"
 	in
-	Printf.printf "property %s (%s,%s) : %s\n" prop.pname get set (IlMetaDebug.ilsig_s prop.psig.ssig);
+	if PMap.mem "net_loader_debug" ctx.ncom.defines then
+		Printf.printf "\tproperty %s (%s,%s) : %s\n" prop.pname get set (IlMetaDebug.ilsig_s prop.psig.ssig);
 	let ilsig = match prop.psig.snorm with
 		| LMethod (_,ret,[]) -> ret
 		| s -> raise Exit
@@ -2861,7 +2863,8 @@ let convert_ilclass ctx p ilcls = match ilcls.csuper with
 	| _ ->
 		let flags = ref [HExtern] in
 		(* todo: instead of CsNative, use more specific definitions *)
-		print_endline ("converting " ^ ilpath_s ilcls.cpath);
+		if PMap.mem "net_loader_debug" ctx.ncom.defines then
+			print_endline ("converting " ^ ilpath_s ilcls.cpath);
 		let meta = ref [Meta.CsNative, [], p; Meta.Native, [EConst (String (ilpath_s ilcls.cpath) ), p], p] in
 
 		let is_interface = ref false in
@@ -3054,7 +3057,6 @@ let normalize_ilcls ctx cls =
 		| Some { snorm = LObject } | None -> ()
 		| Some s ->
 			let cls, params = ilcls_from_ilsig ctx s.snorm in
-			print_endline (ilpath_s cls.cpath);
 			let cls = ilcls_with_params ctx cls params in
 			no_overrides := List.filter (fun v ->
 				let m = !v in
