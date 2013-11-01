@@ -30,7 +30,7 @@ import cs.internal.Exceptions;
 			return t == Dynamic;
 		if (t == null)
 			return false;
-		var clt:Class<Dynamic> = cast t;
+		var clt:cs.system.Type = cast t;
 		if (clt == null)
 			return false;
 		var name:String = cast clt;
@@ -47,9 +47,9 @@ import cs.internal.Exceptions;
 				return true;
 		}
 
-		var clv:Class<Dynamic> = untyped __cs__('v.GetType()');
+		var clv:cs.system.Type = untyped __cs__('v.GetType()');
 
-		return untyped clt.IsAssignableFrom(clv);
+		return clt.IsAssignableFrom(clv);
 	}
 
 	public static function string( s : Dynamic ) : String {

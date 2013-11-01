@@ -2634,7 +2634,18 @@ let convert_ilenum ctx p ilcls =
 		d_data = !data;
   }
 
+let rec has_unmanaged = function
+	| LPointer _ -> true
+	| LManagedPointer s -> has_unmanaged s
+	| LValueType (p,pl) -> List.exists (has_unmanaged) pl
+	| LClass (p,pl) -> List.exists (has_unmanaged) pl
+	| LVector s -> has_unmanaged s
+	| LArray (s,a) -> has_unmanaged s
+	| LMethod (c,r,args) -> has_unmanaged r || List.exists (has_unmanaged) args
+	| _ -> false
+
 let convert_ilfield ctx p field =
+	if not (Common.defined ctx.ncom Define.Unsafe) && has_unmanaged field.fsig.snorm then raise Exit;
 	let p = { p with pfile =  p.pfile ^" (" ^field.fname ^")" } in
 	let cff_doc = None in
 	let cff_pos = p in
@@ -2680,6 +2691,7 @@ let convert_ilfield ctx p field =
 	}
 
 let convert_ilmethod ctx p m =
+	if not (Common.defined ctx.ncom Define.Unsafe) && has_unmanaged m.msig.snorm then raise Exit;
 	let p = { p with pfile =  p.pfile ^" (" ^m.mname ^")" } in
 	let cff_doc = None in
 	let cff_pos = p in
@@ -2789,6 +2801,7 @@ let convert_ilmethod ctx p m =
 	}
 
 let convert_ilprop ctx p prop =
+	if not (Common.defined ctx.ncom Define.Unsafe) && has_unmanaged prop.psig.snorm then raise Exit;
 	let p = { p with pfile =  p.pfile ^" (" ^prop.pname ^")" } in
 	let cff_access = match prop.pmflags with
 		| Some { mf_access = FAFamily | FAFamOrAssem } -> APrivate
@@ -2968,7 +2981,6 @@ let rec ilapply_params params = function
 	| LValueType (p,pl) -> LValueType(p, List.map (ilapply_params params) pl)
 	| LClass (p,pl) -> LClass(p, List.map (ilapply_params params) pl)
 	| LTypeParam i ->
-		Printf.printf "nth %d - len %d\n" (i-1) (List.length params);
 		List.nth params i (* TODO: maybe i - 1? *)
 	| LVector s -> LVector (ilapply_params params s)
 	| LArray (s,a) -> LArray (ilapply_params params s, a)

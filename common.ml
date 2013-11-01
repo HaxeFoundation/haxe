@@ -219,6 +219,7 @@ module Define = struct
 		| SwfProtected
 		| SwfScriptTimeout
 		| Sys
+		| Unsafe
 		| UseNekoc
 		| UseRttiDoc
 		| Vcproj
@@ -285,6 +286,7 @@ module Define = struct
 		| SwfProtected -> ("swf_protected","Compile Haxe private as protected in the SWF instead of public")
 		| SwfScriptTimeout -> ("swf_script_timeout", "Maximum ActionScript processing time before script stuck dialog box displays (in seconds)")
 		| Sys -> ("sys","Defined for all system platforms")
+		| Unsafe -> ("unsafe","Allow unsafe code when targeting C#")
 		| UseNekoc -> ("use_nekoc","Use nekoc compiler instead of internal one")
 		| UseRttiDoc -> ("use_rtti_doc","Allows access to documentation during compilation")
 		| Vcproj -> ("vcproj","GenCPP internal")
