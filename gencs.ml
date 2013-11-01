@@ -1860,7 +1860,9 @@ let configure gen =
 				with | Not_found -> ())
 				| _ -> ()
 			) nonprops;
-			List.map (fun (_,v) -> !v) !props, nonprops
+			let ret = List.map (fun (_,v) -> !v) !props in
+			let ret = List.filter (function | (_,_,None,None) -> false | _ -> true) ret in
+			ret, nonprops
 		in
 
 		let fprops, fnonprops = partition_props cl cl.cl_ordered_fields in
@@ -2771,13 +2773,6 @@ let convert_ilmethod ctx p m =
 					mk_type_path ctx (["cs"],[],"Ref") [ TPType (convert_signature ctx p s) ]
 				| _ ->
 					convert_signature ctx p (change_sig s.snorm)
-			in
-			let t = if List.mem PIn flag.pf_io then
-					mk_type_path ctx (["cs"],[],"Ref") [ TPType t ]
-				else if List.mem POut flag.pf_io then
-					mk_type_path ctx (["cs"],[],"Out") [ TPType t ]
-				else
-					t
 			in
 			name,false,Some t,None) m.margs
 		in
