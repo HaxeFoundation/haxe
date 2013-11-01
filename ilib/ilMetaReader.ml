@@ -1304,7 +1304,6 @@ let rec read_ilsig ctx s pos =
 		| 0x51 -> pos, SBoxed
 		| 0x55 ->
 			let pos, vt = read_inline_str s pos in
-			print_endline vt;
 			pos, SEnum vt
 		| _ ->
 			Printf.printf "unknown ilsig 0x%x\n\n" i;
