@@ -2556,6 +2556,14 @@ let mk_type_path ctx path params =
     tsub = sub;
   }
 
+let raw_type_path ctx path params =
+	{
+		tpackage = fst path;
+		Ast.tname = snd path;
+		tparams = params;
+		tsub = None;
+	}
+
 let rec convert_signature ctx p = function
 	| LVoid ->
 		mk_type_path ctx ([],[],"Void") []
@@ -2713,8 +2721,9 @@ let convert_ilmethod ctx p m =
 	in
 	if PMap.mem "net_loader_debug" ctx.ncom.defines then
 		Printf.printf "\tname %s : %s\n" cff_name (IlMetaDebug.ilsig_s m.msig.ssig);
+	let is_static = ref false in
 	let acc, is_final = List.fold_left (fun (acc,is_final) -> function
-		| CMStatic when cff_name <> "new" -> AStatic :: acc, is_final
+		| CMStatic when cff_name <> "new" -> is_static := true; AStatic :: acc, is_final
 		| CMVirtual when is_final = None -> acc, Some false
 		| CMFinal -> acc, Some true
 		| _ -> acc, is_final
@@ -2732,6 +2741,19 @@ let convert_ilmethod ctx p m =
 	(* 	meta *)
 	(* in *)
 
+	let rec change_sig = function
+		| LManagedPointer s -> LManagedPointer (change_sig s)
+		| LPointer s -> LPointer (change_sig s)
+		| LValueType (p,pl) -> LValueType(p, List.map change_sig pl)
+		| LClass (p,pl) -> LClass(p, List.map change_sig pl)
+		| LTypeParam i -> LObject
+		| LVector s -> LVector (change_sig s)
+		| LArray (s,a) -> LArray (change_sig s, a)
+		| LMethod (c,r,args) -> LMethod (c, change_sig r, List.map change_sig args)
+		| p -> p
+	in
+	let change_sig = if !is_static then change_sig else (fun s -> s) in
+
 	let ret =
 		if String.length cff_name > 4 && String.sub cff_name 0 4 = "set_" then
 			match m.mret.snorm, m.margs with
@@ -2748,7 +2770,7 @@ let convert_ilmethod ctx p m =
 				| LManagedPointer s ->
 					mk_type_path ctx (["cs"],[],"Ref") [ TPType (convert_signature ctx p s) ]
 				| _ ->
-					convert_signature ctx p s.snorm
+					convert_signature ctx p (change_sig s.snorm)
 			in
 			let t = if List.mem PIn flag.pf_io then
 					mk_type_path ctx (["cs"],[],"Ref") [ TPType t ]
@@ -2759,7 +2781,7 @@ let convert_ilmethod ctx p m =
 			in
 			name,false,Some t,None) m.margs
 		in
-		let ret = convert_signature ctx p ret in
+		let ret = convert_signature ctx p (change_sig ret) in
 		let types = List.map (fun t ->
 			{
 				tp_name = "M" ^ string_of_int t.tnumber;
@@ -2900,8 +2922,17 @@ let convert_ilclass ctx p ilcls = match ilcls.csuper with
 						HImplements (get_type_path ctx (convert_signature ctx p i)) :: !flags
 			) ilcls.cimplements;
 
-			let fields = ref [] in
+			(* ArrayAccess *)
+			ignore (List.exists (function
+			| { psig = { snorm = LMethod(_,ret,[v]) } } ->
+				flags := if !is_interface then
+					(HExtends( raw_type_path ctx ([],"ArrayAccess") [ TPType (convert_signature ctx p ret) ]) :: !flags)
+				else
+					(HImplements( raw_type_path ctx ([],"ArrayAccess") [ TPType (convert_signature ctx p ret) ]) :: !flags);
+				true
+			| _ -> false) ilcls.cprops);
 
+			let fields = ref [] in
 			let run_fields fn f =
 				List.iter (fun f ->
 					try
@@ -3240,8 +3271,8 @@ let before_generate com =
 	let net_ver = try
 			int_of_string (PMap.find "net_ver" com.defines)
 		with | Not_found ->
-			Common.define_value com Define.NetVer "40";
-			40
+			Common.define_value com Define.NetVer "20";
+			20
 	in
 	if net_ver < 20 then
 		failwith (
