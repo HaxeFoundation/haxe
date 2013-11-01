@@ -2378,6 +2378,7 @@ let hxpath_to_net ctx path =
 
 let add_cs = function
 	| "haxe" :: ns -> "haxe" :: ns
+	| "std" :: ns -> "std" :: ns
 	| "cs" :: ns -> "cs" :: ns
 	| ns -> "cs" :: ns
 
@@ -2443,7 +2444,7 @@ let rec convert_signature ctx p = function
 	| LFloat64 ->
 		mk_type_path ctx ([],[],"Float") []
 	| LString ->
-		mk_type_path ctx ([],[],"String") []
+		mk_type_path ctx (["std"],[],"String") []
 	| LObject ->
 		mk_type_path ctx ([],[],"Dynamic") []
 	| LPointer s | LManagedPointer s ->
@@ -2661,10 +2662,14 @@ let convert_ilprop ctx p prop =
 			raise Exit (* special (?) getter; not used *)
 		| Some _ -> "set"
 	in
-	Printf.printf "property %s (%s,%s)\n" prop.pname get set;
+	Printf.printf "property %s (%s,%s) : %s\n" prop.pname get set (IlMetaDebug.ilsig_s prop.psig.ssig);
+	let ilsig = match prop.psig.snorm with
+		| LMethod (_,ret,_) -> ret
+		| s -> s
+	in
 
 	let kind =
-		FProp (get, set, Some(convert_signature ctx p prop.psig.snorm), None)
+		FProp (get, set, Some(convert_signature ctx p ilsig), None)
 	in
 	{
 		cff_name = prop.pname;
@@ -2899,23 +2904,30 @@ let normalize_ilcls ctx cls =
 	let cls = { cls with cmethods = List.map (fun v -> !v) meths; cprops = props } in
 
 	let clsfields = get_all_fields cls in
+	let super_fields = !all_fields in
 	all_fields := clsfields @ !all_fields;
-	let clsfields = (List.map (fun v -> ref v) clsfields) in
+	let refclsfields = (List.map (fun v -> ref v) clsfields) in
   (* search static / non-static name clash *)
   (* change field name to not collide with haxe keywords *)
   let iter_field v =
 		let f, p, name, is_static = !v in
     let change = match name with
     | "callback" | "cast" | "extern" | "function" | "in" | "typedef" | "using" | "var" | "untyped" | "inline" -> true
-    | _ -> is_static && List.exists (function | (f,_,n,false) -> name = n | _ -> false) !all_fields
+    | _ ->
+			(is_static && List.exists (function | (f,_,n,false) -> name = n | _ -> false) !all_fields) ||
+			not is_static && match f with (* filter methods that have the same name as fields *)
+			| IlMethod _ ->
+				List.exists (function | ( (IlProp _ | IlField _),_,n,false) -> name = n | _ -> false) super_fields ||
+				List.exists (function | ( (IlProp _ | IlField _),_,n,s) -> name = n | _ -> false) clsfields
+			| _ -> false
     in
     if change then
 			let name = "%" ^ name in
 			v := change_name name f, p, name, is_static
   in
-	List.iter iter_field clsfields;
+	List.iter iter_field refclsfields;
 
-	let clsfields = List.map (fun v -> !v) clsfields in
+	let clsfields = List.map (fun v -> !v) refclsfields in
 	let fields = List.filter (function | (IlField _,_,_,_) -> true | _ -> false) clsfields in
 	let methods = List.filter (function | (IlMethod _,_,_,_) -> true | _ -> false) clsfields in
 	let props = List.filter (function | (IlProp _,_,_,_) -> true | _ -> false) clsfields in
