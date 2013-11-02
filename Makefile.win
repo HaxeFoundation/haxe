@@ -5,6 +5,11 @@ EXTENSION=.exe
 
 OCAMLOPT=ocamlopt.opt
 
+# translate paths to windows with forward slashes, so haxe --cwd child process work properly
+ifeq ($(shell uname -o), Cygwin)
+    CURDIR := $(shell cygpath -m ${CURDIR})
+endif
+
 ifneq ($(ADD_REVISION),0)
 	VERSION_EXTRA=let version_extra = Some " (git build $(shell git rev-parse --abbrev-ref HEAD) @ $(shell git describe --always)) "
 else
