@@ -1201,7 +1201,7 @@ let mk_class_field name t public pos kind params =
 (* This is so we can use class parameters on function parameters, without running the risk of name clash *)
 (* between both *)
 let map_param cl =
-  let ret = mk_class cl.cl_module cl.cl_path cl.cl_pos in
+  let ret = mk_class cl.cl_module (fst cl.cl_path, snd cl.cl_path ^ "_c") cl.cl_pos in
   ret.cl_implements <- cl.cl_implements;
   ret.cl_kind <- cl.cl_kind;
   ret
@@ -2744,11 +2744,31 @@ struct
       * one that will actually handle the anonymous functions themselves.
       * one that will transform calling a dynamic function. So for example, dynFunc(arg1, arg2) might turn into dynFunc.apply2(arg1, arg2);
       ( suspended ) * an option to match papplied functions
+			* handling parameterized anonymous function declaration (optional - tparam_anon_decl and tparam_anon_acc)
   *)
 
-  let traverse gen (transform_closure:texpr->texpr->string->texpr) (handle_anon_func:texpr->tfunc->texpr) (dynamic_func_call:texpr->texpr) e =
+  let traverse gen ?tparam_anon_decl ?tparam_anon_acc (transform_closure:texpr->texpr->string->texpr) (handle_anon_func:texpr->tfunc->texpr) (dynamic_func_call:texpr->texpr) e =
     let rec run e =
       match e.eexpr with
+				(* parameterized functions handling *)
+				| TVars( vars ) -> (match tparam_anon_decl with
+					| None -> Type.map_expr run e
+					| Some tparam_anon_decl ->
+						let vars = List.filter (function
+							| ({ v_extra = Some( _ :: _, _) } as v), Some ({ eexpr = TFunction tf } as f)
+							| ({ v_extra = Some( _ :: _, _) } as v), Some { eexpr = TArrayDecl([{ eexpr = TFunction tf } as f]) } -> (* captured transformation *)
+								tparam_anon_decl v f { tf with tf_expr = run tf.tf_expr };
+								false
+							| _ -> true) vars
+						in
+						match vars with
+						| [] -> { e with eexpr = TBlock([]) }
+						| _ -> Type.map_expr run { e with eexpr = TVars(vars) })
+				| TLocal ({ v_extra = Some( _ :: _, _) } as v)
+				| TArray ({ eexpr = TLocal ({ v_extra = Some( _ :: _, _) } as v) }, _) -> (* captured transformation *)
+					(match tparam_anon_acc with
+					| None -> Type.map_expr run e
+					| Some tparam_anon_acc -> tparam_anon_acc v e)
         | TCall( { eexpr = TField(_, FEnum _) }, _ ) ->
           Type.map_expr run e
         (* if a TClosure is being call immediately, there's no need to convert it to a TClosure *)
@@ -2854,7 +2874,15 @@ struct
           check_params tf.tf_type;
           Type.iter traverse expr
         | TVars (vars) ->
-          List.iter (fun (v, opt) -> check_params v.v_type; Hashtbl.add ignored v.v_id v; ignore(Option.map traverse opt)) vars;
+          List.iter (fun (v, opt) ->
+						(match v.v_extra with
+						| Some(_ :: _, _) -> ()
+						| _ ->
+							check_params v.v_type);
+						Hashtbl.add ignored v.v_id v;
+						ignore(Option.map traverse opt)
+					) vars;
+        | TLocal { v_extra = Some(_ :: _,_) } -> ()
         | TLocal(( { v_capture = true } ) as v) ->
           (if not (Hashtbl.mem ignored v.v_id || Hashtbl.mem ret v.v_id) then begin check_params v.v_type; Hashtbl.replace ret v.v_id expr end);
         | _ -> Type.iter traverse expr
@@ -2895,147 +2923,175 @@ struct
     ) cfs;
 
     parent_func_class.cl_ordered_fields <- (List.filter (fun cf -> cf.cf_name <> "new") cfs) @ parent_func_class.cl_ordered_fields;
-
     ft.func_class <- parent_func_class;
+
+		let handle_anon_func fexpr tfunc : texpr * (tclass * texpr list) =
+			(* get all captured variables it uses *)
+			let captured_ht, tparams = get_captured fexpr in
+			let captured = Hashtbl.fold (fun _ e acc -> e :: acc) captured_ht [] in
+
+			(*let cltypes = List.map (fun cl -> (snd cl.cl_path, TInst(map_param cl, []) )) tparams in*)
+			let cltypes = List.map (fun cl -> (snd cl.cl_path, TInst(cl, []) )) tparams in
+
+			(* create a new class that extends abstract function class, with a ctor implementation that will setup all captured variables *)
+			let cfield = match ft.fgen.gcurrent_classfield with
+				| None -> "Anon"
+				| Some cf -> cf.cf_name
+			in
+			let cur_line = Lexer.get_error_line fexpr.epos in
+			let path = (fst ft.fgen.gcurrent_path, Printf.sprintf "%s_%s_%d__Fun" (snd ft.fgen.gcurrent_path) cfield cur_line) in
+			let cls = mk_class (get ft.fgen.gcurrent_class).cl_module path tfunc.tf_expr.epos in
+			cls.cl_module <- (get ft.fgen.gcurrent_class).cl_module;
+			cls.cl_types <- cltypes;
+
+			let mk_this v pos =
+				{
+					(mk_field_access gen { eexpr = TConst TThis; etype = TInst(cls, List.map snd cls.cl_types); epos = pos } v.v_name pos)
+					with etype = v.v_type
+				}
+			in
+
+			let mk_this_assign v pos =
+			{
+				eexpr = TBinop(OpAssign, mk_this v pos, { eexpr = TLocal(v); etype = v.v_type; epos = pos });
+				etype = v.v_type;
+				epos = pos
+			} in
+
+			(* mk_class_field name t public pos kind params *)
+			let ctor_args, ctor_sig, ctor_exprs = List.fold_left (fun (ctor_args, ctor_sig, ctor_exprs) lexpr ->
+				match lexpr.eexpr with
+					| TLocal(v) ->
+						let cf = mk_class_field v.v_name v.v_type false lexpr.epos (Var({ v_read = AccNormal; v_write = AccNormal; })) [] in
+						cls.cl_fields <- PMap.add v.v_name cf cls.cl_fields;
+						cls.cl_ordered_fields <- cf :: cls.cl_ordered_fields;
+
+						let ctor_v = alloc_var v.v_name v.v_type in
+						((ctor_v, None) :: ctor_args, (v.v_name, false, v.v_type) :: ctor_sig, (mk_this_assign v cls.cl_pos) :: ctor_exprs)
+					| _ -> assert false
+			) ([],[],[]) captured in
+
+			(* change all captured variables to this.capturedVariable *)
+			let rec change_captured e =
+				match e.eexpr with
+					| TLocal( ({ v_capture = true }) as v ) when Hashtbl.mem captured_ht v.v_id ->
+						mk_this v e.epos
+					| _ -> Type.map_expr change_captured e
+			in
+			let func_expr = change_captured tfunc.tf_expr in
+
+			let invoke_field, super_args = ft.closure_to_classfield { tfunc with tf_expr = func_expr } fexpr.etype fexpr.epos in
+
+
+			(* create the constructor *)
+			(* todo properly abstract how type var is set *)
+
+			cls.cl_super <- Some(parent_func_class, []);
+			let pos = cls.cl_pos in
+			let super_call =
+			{
+				eexpr = TCall({ eexpr = TConst(TSuper); etype = TInst(parent_func_class,[]); epos = pos }, super_args);
+				etype = ft.fgen.gcon.basic.tvoid;
+				epos = pos;
+			} in
+
+			let ctor_type = (TFun(ctor_sig, ft.fgen.gcon.basic.tvoid)) in
+			let ctor = mk_class_field "new" ctor_type true cls.cl_pos (Method(MethNormal)) [] in
+			ctor.cf_expr <- Some(
+			{
+				eexpr = TFunction(
+				{
+					tf_args = ctor_args;
+					tf_type = ft.fgen.gcon.basic.tvoid;
+					tf_expr = { eexpr = TBlock(super_call :: ctor_exprs); etype = ft.fgen.gcon.basic.tvoid; epos = cls.cl_pos }
+				});
+				etype = ctor_type;
+				epos = cls.cl_pos;
+			});
+			cls.cl_constructor <- Some(ctor);
+
+			(* add invoke function to the class *)
+			cls.cl_ordered_fields <- invoke_field :: cls.cl_ordered_fields;
+			cls.cl_fields <- PMap.add invoke_field.cf_name invoke_field cls.cl_fields;
+			cls.cl_overrides <- invoke_field :: cls.cl_overrides;
+
+			(* add this class to the module with gadd_to_module *)
+			ft.fgen.gadd_to_module (TClassDecl(cls)) priority;
+
+	(* if there are no captured variables, we can create a cache so subsequent calls don't need to create a new function *)
+	match captured, tparams with
+		| [], [] ->
+			let cache_var = ft.fgen.gmk_internal_name "hx" "current" in
+			let cache_cf = mk_class_field cache_var (TInst(cls,[])) false func_expr.epos (Var({ v_read = AccNormal; v_write = AccNormal })) [] in
+			cls.cl_ordered_statics <- cache_cf :: cls.cl_ordered_statics;
+			cls.cl_statics <- PMap.add cache_var cache_cf cls.cl_statics;
+
+			(* if (FuncClass.hx_current != null) FuncClass.hx_current; else (FuncClass.hx_current = new FuncClass()); *)
+
+			(* let mk_static_field_access cl field fieldt pos = *)
+			let hx_current = mk_static_field_access cls cache_var (TInst(cls,[])) func_expr.epos in
+
+			let pos = func_expr.epos in
+			{ fexpr with
+				eexpr = TIf(
+					{
+						eexpr = TBinop(OpNotEq, hx_current, null (TInst(cls,[])) pos);
+						etype = ft.fgen.gcon.basic.tbool;
+						epos = pos;
+					},
+					hx_current,
+					Some(
+					{
+						eexpr = TBinop(OpAssign, hx_current, { fexpr with eexpr = TNew(cls, [], captured) });
+						etype = (TInst(cls,[]));
+						epos = pos;
+					}))
+			}, (cls,captured)
+		| _ ->
+			(* change the expression so it will be a new "added class" ( captured variables arguments ) *)
+			{ fexpr with eexpr = TNew(cls, List.map (fun cl -> TInst(cl,[])) tparams, List.rev captured) }, (cls,captured)
+		in
+
+		let tvar_to_cdecl = Hashtbl.create 0 in
 
     traverse
       ft.fgen
+			~tparam_anon_decl:(fun v e fn ->
+				let _, info = handle_anon_func e fn in
+				Hashtbl.add tvar_to_cdecl v.v_id info
+			)
+			~tparam_anon_acc:(fun v e -> try
+				let cls, captured = Hashtbl.find tvar_to_cdecl v.v_id in
+				let types = match v.v_extra with
+					| Some(t,_) -> t
+					| _ -> assert false
+				in
+				let monos = List.map (fun _ -> mk_mono()) types in
+				let vt = match follow v.v_type with
+					| TInst({ cl_path=([],"Array") }, [v]) -> v
+					| v -> v
+				in
+				let original = apply_params types monos vt in
+				unify e.etype original;
+
+				let same_cl t1 t2 = match follow t1, follow t2 with
+					| TInst(c,_), TInst(c2,_) -> c == c2
+					| _ -> false
+				in
+				let passoc = List.map2 (fun (_,t) m -> t,m) types monos in
+				let cltparams = List.map (fun (_,t) ->
+					try
+						snd (List.find (fun (t2,_) -> same_cl t t2) passoc)
+					with | Not_found -> t) cls.cl_types
+				in
+				{ e with eexpr = TNew(cls, cltparams, captured) }
+			with | Not_found | Unify_error _ ->
+				gen.gcon.warning "This expression may be invalid" e.epos;
+				e
+			)
       (* (transform_closure:texpr->texpr->string->texpr) (handle_anon_func:texpr->tfunc->texpr) (dynamic_func_call:texpr->texpr->texpr list->texpr) *)
       ft.transform_closure
-      (fun fexpr tfunc -> (* (handle_anon_func:texpr->tfunc->texpr) *)
-        (* get all captured variables it uses *)
-        let captured_ht, tparams = get_captured fexpr in
-        let captured = Hashtbl.fold (fun _ e acc -> e :: acc) captured_ht [] in
-
-        (*let cltypes = List.map (fun cl -> (snd cl.cl_path, TInst(map_param cl, []) )) tparams in*)
-        let cltypes = List.map (fun cl -> (snd cl.cl_path, TInst(cl, []) )) tparams in
-
-        (* create a new class that extends abstract function class, with a ctor implementation that will setup all captured variables *)
-        let cfield = match ft.fgen.gcurrent_classfield with
-          | None -> "Anon"
-          | Some cf -> cf.cf_name
-        in
-        let cur_line = Lexer.get_error_line fexpr.epos in
-        let path = (fst ft.fgen.gcurrent_path, Printf.sprintf "%s_%s_%d__Fun" (snd ft.fgen.gcurrent_path) cfield cur_line) in
-        let cls = mk_class (get ft.fgen.gcurrent_class).cl_module path tfunc.tf_expr.epos in
-        cls.cl_module <- (get ft.fgen.gcurrent_class).cl_module;
-        cls.cl_types <- cltypes;
-
-        let mk_this v pos =
-          {
-            (mk_field_access gen { eexpr = TConst TThis; etype = TInst(cls, List.map snd cls.cl_types); epos = pos } v.v_name pos)
-            with etype = v.v_type
-          }
-        in
-
-        let mk_this_assign v pos =
-        {
-          eexpr = TBinop(OpAssign, mk_this v pos, { eexpr = TLocal(v); etype = v.v_type; epos = pos });
-          etype = v.v_type;
-          epos = pos
-        } in
-
-        (* mk_class_field name t public pos kind params *)
-        let ctor_args, ctor_sig, ctor_exprs = List.fold_left (fun (ctor_args, ctor_sig, ctor_exprs) lexpr ->
-          match lexpr.eexpr with
-            | TLocal(v) ->
-              let cf = mk_class_field v.v_name v.v_type false lexpr.epos (Var({ v_read = AccNormal; v_write = AccNormal; })) [] in
-              cls.cl_fields <- PMap.add v.v_name cf cls.cl_fields;
-              cls.cl_ordered_fields <- cf :: cls.cl_ordered_fields;
-
-              let ctor_v = alloc_var v.v_name v.v_type in
-              ((ctor_v, None) :: ctor_args, (v.v_name, false, v.v_type) :: ctor_sig, (mk_this_assign v cls.cl_pos) :: ctor_exprs)
-            | _ -> assert false
-        ) ([],[],[]) captured in
-
-        (* change all captured variables to this.capturedVariable *)
-        let rec change_captured e =
-          match e.eexpr with
-            | TLocal( ({ v_capture = true }) as v ) when Hashtbl.mem captured_ht v.v_id ->
-              mk_this v e.epos
-            | _ -> Type.map_expr change_captured e
-        in
-        let func_expr = change_captured tfunc.tf_expr in
-
-        let invoke_field, super_args = ft.closure_to_classfield { tfunc with tf_expr = func_expr } fexpr.etype fexpr.epos in
-
-
-        (* create the constructor *)
-        (* todo properly abstract how type var is set *)
-
-        cls.cl_super <- Some(parent_func_class, []);
-        let pos = cls.cl_pos in
-        let super_call =
-        {
-          eexpr = TCall({ eexpr = TConst(TSuper); etype = TInst(parent_func_class,[]); epos = pos }, super_args);
-          etype = ft.fgen.gcon.basic.tvoid;
-          epos = pos;
-        } in
-
-        let ctor_type = (TFun(ctor_sig, ft.fgen.gcon.basic.tvoid)) in
-        let ctor = mk_class_field "new" ctor_type true cls.cl_pos (Method(MethNormal)) [] in
-        ctor.cf_expr <- Some(
-        {
-          eexpr = TFunction(
-          {
-            tf_args = ctor_args;
-            tf_type = ft.fgen.gcon.basic.tvoid;
-            tf_expr = { eexpr = TBlock(super_call :: ctor_exprs); etype = ft.fgen.gcon.basic.tvoid; epos = cls.cl_pos }
-          });
-          etype = ctor_type;
-          epos = cls.cl_pos;
-        });
-        cls.cl_constructor <- Some(ctor);
-
-        (* add invoke function to the class *)
-        cls.cl_ordered_fields <- invoke_field :: cls.cl_ordered_fields;
-        cls.cl_fields <- PMap.add invoke_field.cf_name invoke_field cls.cl_fields;
-        cls.cl_overrides <- invoke_field :: cls.cl_overrides;
-
-        (* add this class to the module with gadd_to_module *)
-        ft.fgen.gadd_to_module (TClassDecl(cls)) priority;
-
-    (* if there are no captured variables, we can create a cache so subsequent calls don't need to create a new function *)
-    match captured, tparams with
-      | [], [] ->
-        let cache_var = ft.fgen.gmk_internal_name "hx" "current" in
-        let cache_cf = mk_class_field cache_var (TInst(cls,[])) false func_expr.epos (Var({ v_read = AccNormal; v_write = AccNormal })) [] in
-        cls.cl_ordered_statics <- cache_cf :: cls.cl_ordered_statics;
-        cls.cl_statics <- PMap.add cache_var cache_cf cls.cl_statics;
-
-        (* if (FuncClass.hx_current != null) FuncClass.hx_current; else (FuncClass.hx_current = new FuncClass()); *)
-
-        (* let mk_static_field_access cl field fieldt pos = *)
-        let hx_current = mk_static_field_access cls cache_var (TInst(cls,[])) func_expr.epos in
-
-        let pos = func_expr.epos in
-        {
-          fexpr with
-
-          eexpr = TIf(
-          {
-            eexpr = TBinop(OpNotEq, hx_current, null (TInst(cls,[])) pos);
-            etype = ft.fgen.gcon.basic.tbool;
-            epos = pos;
-          },
-
-          hx_current,
-
-          Some(
-          {
-            eexpr = TBinop(OpAssign, hx_current, { fexpr with eexpr = TNew(cls, [], captured) });
-            etype = (TInst(cls,[]));
-            epos = pos;
-          }))
-
-        }
-
-      | _ ->
-        (* change the expression so it will be a new "added class" ( captured variables arguments ) *)
-        { fexpr with eexpr = TNew(cls, List.map (fun cl -> TInst(cl,[])) tparams, List.rev captured) }
-
-
-      )
+			(fun e f -> fst (handle_anon_func e f))
       ft.dynamic_fun_call
       (* (dynamic_func_call:texpr->texpr->texpr list->texpr) *)
 
