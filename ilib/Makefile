@@ -1,6 +1,6 @@
 OCAMLOPT=ocamlopt
 
-all: il.cmxa dump
+all: il.cmxa
 
 SRCS=peData.ml peReader.ml peWriter.ml ilMeta.mli ilData.mli ilMetaTools.ml ilMetaReader.ml ilMetaDebug.ml
 
