@@ -3068,11 +3068,15 @@ struct
 				in
 				let monos = List.map (fun _ -> mk_mono()) types in
 				let vt = match follow v.v_type with
-					| TInst({ cl_path=([],"Array") }, [v]) -> v
+					| TInst(_, [v]) -> v
+					| v -> v
+				in
+				let et = match follow e.etype with
+					| TInst(_, [v]) -> v
 					| v -> v
 				in
 				let original = apply_params types monos vt in
-				unify e.etype original;
+				unify et original;
 
 				let same_cl t1 t2 = match follow t1, follow t2 with
 					| TInst(c,_), TInst(c2,_) -> c == c2
@@ -3085,7 +3089,12 @@ struct
 					with | Not_found -> t) cls.cl_types
 				in
 				{ e with eexpr = TNew(cls, cltparams, captured) }
-			with | Not_found | Unify_error _ ->
+			with
+				| Not_found ->
+				gen.gcon.warning "This expression may be invalid" e.epos;
+				e
+				| Unify_error el ->
+          List.iter (fun el -> gen.gcon.warning (Typecore.unify_error_msg (print_context()) el) e.epos) el;
 				gen.gcon.warning "This expression may be invalid" e.epos;
 				e
 			)
