@@ -3189,7 +3189,7 @@ let add_net_lib com file std =
 					failwith (".NET lib " ^ file ^ " not found")
 			in
 			real_file := file;
-			let r = PeReader.create_r (open_in file) com.defines in
+			let r = PeReader.create_r (open_in_bin file) com.defines in
 			let ctx = PeReader.read r in
 			let clr_header = PeReader.read_clr_header ctx in
 			let meta = IlMetaReader.read_meta_tables ctx clr_header in
