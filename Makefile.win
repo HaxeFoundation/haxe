@@ -5,10 +5,9 @@ EXTENSION=.exe
 
 OCAMLOPT=ocamlopt.opt
 
-ifneq ($(ADD_REVISION),0)
-	VERSION_EXTRA=let version_extra = Some " (git build $(shell git rev-parse --abbrev-ref HEAD) @ $(shell git describe --always)) "
-else
-	VERSION_EXTRA=let version_extra = None
+# translate paths to windows with forward slashes, so haxe --cwd child process work properly
+ifneq (,$(findstring /cygdrive/,$(CURDIR)))
+    CURDIR := $(shell cygpath -m ${CURDIR})
 endif
 
 kill:
