@@ -73,7 +73,7 @@ let write_constant ctx = function
 		b ctx 9;
 		write_string ctx s
 	| Int32 n ->
-		b ctx 10;
+		b ctx 5; (* same as Int *)
 		IO.write_real_i32 ctx.ch n
 
 let write_op ctx op =
