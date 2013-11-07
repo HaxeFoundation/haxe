@@ -1805,12 +1805,15 @@ let detect_usage com =
 	raise (Typecore.DisplayPosition usage)
 
 let update_cache_dependencies com =
-	let rec check_t m t = match follow t with
+	let rec check_t m t = match t with
 		| TInst(c,tl) ->
 			add_dependency m c.cl_module;
 			List.iter (check_t m) tl;
 		| TEnum(en,tl) ->
 			add_dependency m en.e_module;
+			List.iter (check_t m) tl;
+		| TType(t,tl) ->
+			add_dependency m t.t_module;
 			List.iter (check_t m) tl;
 		| TAbstract(a,tl) ->
 			add_dependency m a.a_module;
@@ -1820,7 +1823,13 @@ let update_cache_dependencies com =
 			check_t m tret;
 		| TAnon an ->
 			PMap.iter (fun _ cf -> check_field m cf) an.a_fields
-		| _ ->
+		| TMono r ->
+			(match !r with
+			| Some t -> check_t m t
+			| _ -> ())
+		| TLazy f ->
+			check_t m (!f())
+		| TDynamic _ ->
 			()
 	and check_field m cf =
 		check_t m cf.cf_type
