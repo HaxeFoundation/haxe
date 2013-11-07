@@ -1257,6 +1257,7 @@ try
 		) com.types;
 		if com.display = DMUsage then
 			Codegen.detect_usage com;
+		Codegen.update_cache_dependencies com;
 		let dce_mode = (try Common.defined_value com Define.Dce with _ -> "no") in
 		if not (!gen_as3 || dce_mode = "no" || Common.defined com Define.DocGen) then Dce.run com main (dce_mode = "full" && not !interp);
 		(* always filter empty abstract implementation classes (issue #1885) *)
