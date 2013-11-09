@@ -40,6 +40,7 @@ let make_module ctx mpath file tdecls loadp =
 		m_types = [];
 		m_extra = module_extra (Common.unique_full_path file) (Common.get_signature ctx.com) (file_time file) (if ctx.in_macro then MMacro else MCode);
 	} in
+	if ctx.g.std != null_module then add_dependency m ctx.g.std;
 	let pt = ref None in
 	let rec make_decl acc decl =
 		let p = snd decl in
@@ -567,6 +568,7 @@ and init_meta_overloads ctx cf =
 let hide_types ctx =
 	let old_m = ctx.m in
 	let old_type_params = ctx.type_params in
+	let old_deps = ctx.g.std.m_extra.m_deps in
 	ctx.m <- {
 		curmod = ctx.g.std;
 		module_types = [];
@@ -578,6 +580,8 @@ let hide_types ctx =
 	(fun() ->
 		ctx.m <- old_m;
 		ctx.type_params <- old_type_params;
+		(* restore dependencies that might be have been wronly inserted *)
+		ctx.g.std.m_extra.m_deps <- old_deps;
 	)
 
 (*
