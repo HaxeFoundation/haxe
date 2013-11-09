@@ -448,7 +448,8 @@ let run_command ctx cmd =
 	t();
 	r
 
-let display_memory() =
+let display_memory ctx =
+	let verbose = ctx.com.verbose in
 	let print = print_endline in
 	let fmt_size sz =
 		if sz < 1024 then
@@ -503,33 +504,47 @@ let display_memory() =
 			) mdeps;
 			let chk = Obj.repr Common.memory_marker :: PMap.fold (fun m acc -> Obj.repr m :: acc) !out [] in
 			let inf = Objsize.objsize m !deps chk in
-			(path,key,Objsize.size_with_headers inf, (m, inf.Objsize.reached,!deps,!out)) :: acc
+			(m,Objsize.size_with_headers inf, (inf.Objsize.reached,!deps,!out)) :: acc
 		) c.c_modules [] in
-		let cur_key = ref "" in
-		List.iter (fun (path,key,size,(m,reached,deps,out)) ->
+		let cur_key = ref "" and tcount = ref 0 in
+		List.iter (fun (m,size,(reached,deps,out)) ->
+			let key = m.m_extra.m_sign in
 			if key <> !cur_key then begin
 				print (Printf.sprintf ("    --- CONFIG %s ----------------------------") (Digest.to_hex key));
 				cur_key := key;
 			end;
-			print (Printf.sprintf "    %s : %s" (Ast.s_type_path path) (fmt_size size));
+			let sign md =
+				if md.m_extra.m_sign = key then "" else "(" ^ Digest.to_hex md.m_extra.m_sign ^ ")"
+			in
+			print (Printf.sprintf "    %s : %s" (Ast.s_type_path m.m_path) (fmt_size size));
 			(if reached then try
 				let lcount = ref 0 in
 				let leak l =
 					incr lcount;
+					incr tcount;
 					print (Printf.sprintf "      LEAK %s" l);
-					if !lcount >= 3 then begin
+					if !lcount >= 3 && !tcount >= 100 && not verbose then begin
 						print (Printf.sprintf "      ...");
 						raise Exit;
 					end;
 				in
 				if (Objsize.objsize m deps [Obj.repr Common.memory_marker]).Objsize.reached then leak "common";
 				PMap.iter (fun _ md ->
-					if (Objsize.objsize m deps [Obj.repr md]).Objsize.reached then leak (Ast.s_type_path md.m_path ^ "(" ^ Digest.to_hex md.m_extra.m_sign ^ ")");
+					if (Objsize.objsize m deps [Obj.repr md]).Objsize.reached then leak (Ast.s_type_path md.m_path ^ sign md);
 				) out;
 			with Exit ->
 				());
+			if verbose then begin
+				print (Printf.sprintf "      %d total deps" (List.length deps));
+				PMap.iter (fun _ md ->
+					print (Printf.sprintf "      dep %s%s" (Ast.s_type_path md.m_path) (sign md));
+				) m.m_extra.m_deps;
+			end;
 			flush stdout
-		) (List.sort (fun (_,k1,s1,_) (_,k2,s2,_) -> if k1 = k2 then s1 - s2 else if k1 > k2 then 1 else -1) modules);
+		) (List.sort (fun (m1,s1,_) (m2,s2,_) ->
+			let k1 = m1.m_extra.m_sign and k2 = m2.m_extra.m_sign in
+			if k1 = k2 then s1 - s2 else if k1 > k2 then 1 else -1
+		) modules);
 		print "Cache dump complete")
 
 	
@@ -596,7 +611,7 @@ let rec process_params create pl =
 	in
 	(* put --display in front if it was last parameter *)
 	let pl = (match List.rev pl with
-		| file :: "--display" :: pl -> "--display" :: file :: List.rev pl
+		| file :: "--display" :: pl when file <> "memory" -> "--display" :: file :: List.rev pl
 		| "use_rtti_doc" :: "-D" :: file :: "--display" :: pl -> "--display" :: file :: List.rev pl
 		| _ -> pl
 	) in
@@ -1087,7 +1102,7 @@ try
 				complete_fields (Hashtbl.fold (fun k _ acc -> (k,"","") :: acc) Lexer.keywords [])
 			| "memory" ->
 				did_something := true;
-				display_memory();
+				display_memory ctx;
 			| _ ->
 				let file, pos = try ExtString.String.split file_pos "@" with _ -> failwith ("Invalid format : " ^ file_pos) in
 				let file = unquote file in
