@@ -152,6 +152,7 @@ type context = {
 	mutable js_gen : (unit -> unit) option;
 	(* typing *)
 	mutable basic : basic_types;
+	memory_marker : float array;
 }
 
 exception Abort of string * Ast.pos
@@ -627,6 +628,8 @@ let get_config com =
 			pf_ignore_unsafe_cast = false;
 		}
 
+let memory_marker = [|Unix.time()|]
+
 let create v args =
 	let m = Type.mk_mono() in
 	{
@@ -678,6 +681,7 @@ let create v args =
 			tstring = m;
 			tarray = (fun _ -> assert false);
 		};
+		memory_marker = memory_marker;
 	}
 
 let log com str =
@@ -846,6 +850,9 @@ let normalize_path p =
 		| '\\' | '/' -> p
 		| _ -> p ^ "/"
 
+let mem_size v =
+	Objsize.size_with_headers (Objsize.objsize v [] [])
+		
 (* ------------------------- TIMERS ----------------------------- *)
 
 type timer_infos = {

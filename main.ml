@@ -448,6 +448,91 @@ let run_command ctx cmd =
 	t();
 	r
 
+let display_memory() =
+	let print = print_endline in
+	let fmt_size sz =
+		if sz < 1024 then
+			string_of_int sz ^ " B"
+		else if sz < 1024*1024 then
+			string_of_int (sz asr 10) ^ " KB"
+		else
+			Printf.sprintf "%.1f MB" ((float_of_int sz) /. (1024.*.1024.))
+	in
+	let size v =
+		fmt_size (mem_size v)
+	in
+	Gc.full_major();
+	Gc.compact();
+	let mem = Gc.stat() in
+	print ("Total Allocated Memory " ^ fmt_size (mem.Gc.heap_words * (Sys.word_size asr 8)));
+	print ("Free Memory " ^ fmt_size (mem.Gc.free_words * (Sys.word_size asr 8)));
+	(match !global_cache with
+	| None ->
+		print "No cache found";
+	| Some c ->
+		print ("Total cache size " ^ size c);
+		print ("  haxelib " ^ size c.c_haxelib);
+		print ("  parsed ast " ^ size c.c_files ^ " (" ^ string_of_int (Hashtbl.length c.c_files) ^ " files stored)");
+		print ("  typed modules " ^ size c.c_modules ^ " (" ^ string_of_int (Hashtbl.length c.c_modules) ^ " modules stored)");
+		let rec scan_module_deps m h =
+			if Hashtbl.mem h m.m_id then
+				()
+			else begin
+				Hashtbl.add h m.m_id m;
+				PMap.iter (fun _ m -> scan_module_deps m h) m.m_extra.m_deps
+			end
+		in
+		let all_modules = Hashtbl.fold (fun _ m acc -> PMap.add m.m_id m acc) c.c_modules PMap.empty in
+		let modules = Hashtbl.fold (fun (path,key) m acc ->
+			let mdeps = Hashtbl.create 0 in
+			scan_module_deps m mdeps;
+			let deps = ref [] in
+			let out = ref all_modules in
+			Hashtbl.iter (fun _ md ->
+				out := PMap.remove md.m_id !out;
+				if m == md then () else begin
+				deps := Obj.repr md :: !deps;
+				List.iter (fun t ->
+					match t with
+					| TClassDecl c -> deps := Obj.repr c :: !deps;
+					| TEnumDecl e -> deps := Obj.repr e :: !deps;
+					| TTypeDecl t -> deps := Obj.repr t :: !deps;
+					| TAbstractDecl a -> deps := Obj.repr a :: !deps;
+				) md.m_types;
+				end
+			) mdeps;
+			let chk = Obj.repr Common.memory_marker :: PMap.fold (fun m acc -> Obj.repr m :: acc) !out [] in
+			let inf = Objsize.objsize m !deps chk in
+			(path,key,Objsize.size_with_headers inf, (m, inf.Objsize.reached,!deps,!out)) :: acc
+		) c.c_modules [] in
+		let cur_key = ref "" in
+		List.iter (fun (path,key,size,(m,reached,deps,out)) ->
+			if key <> !cur_key then begin
+				print (Printf.sprintf ("    --- CONFIG %s ----------------------------") (Digest.to_hex key));
+				cur_key := key;
+			end;
+			print (Printf.sprintf "    %s : %s" (Ast.s_type_path path) (fmt_size size));
+			(if reached then try
+				let lcount = ref 0 in
+				let leak l =
+					incr lcount;
+					print (Printf.sprintf "      LEAK %s" l);
+					if !lcount >= 3 then begin
+						print (Printf.sprintf "      ...");
+						raise Exit;
+					end;
+				in
+				if (Objsize.objsize m deps [Obj.repr Common.memory_marker]).Objsize.reached then leak "common";
+				PMap.iter (fun _ m ->
+					if (Objsize.objsize m deps [Obj.repr m]).Objsize.reached then leak (Ast.s_type_path m.m_path ^ "(" ^ Digest.to_hex m.m_extra.m_sign ^ ")");
+				) out;
+			with Exit ->
+				());
+			flush stdout
+		) (List.sort (fun (_,k1,s1,_) (_,k2,s2,_) -> if k1 = k2 then s1 - s2 else if k1 > k2 then 1 else -1) modules);
+		print "Cache dump complete")
+
+	
 let default_flush ctx =
 	List.iter prerr_endline (List.rev ctx.messages);
 	if ctx.has_error && !prompt then begin
@@ -1000,6 +1085,9 @@ try
 				pre_compilation := (fun() -> raise (Parser.TypePath (["."],None))) :: !pre_compilation;
 			| "keywords" ->
 				complete_fields (Hashtbl.fold (fun k _ acc -> (k,"","") :: acc) Lexer.keywords [])
+			| "memory" ->
+				did_something := true;
+				display_memory();
 			| _ ->
 				let file, pos = try ExtString.String.split file_pos "@" with _ -> failwith ("Invalid format : " ^ file_pos) in
 				let file = unquote file in
