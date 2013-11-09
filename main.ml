@@ -506,7 +506,7 @@ let display_memory ctx =
 			let inf = Objsize.objsize m !deps chk in
 			(m,Objsize.size_with_headers inf, (inf.Objsize.reached,!deps,!out)) :: acc
 		) c.c_modules [] in
-		let cur_key = ref "" and tcount = ref 0 in
+		let cur_key = ref "" and tcount = ref 0 and mcount = ref 0 in
 		List.iter (fun (m,size,(reached,deps,out)) ->
 			let key = m.m_extra.m_sign in
 			if key <> !cur_key then begin
@@ -518,6 +518,7 @@ let display_memory ctx =
 			in
 			print (Printf.sprintf "    %s : %s" (Ast.s_type_path m.m_path) (fmt_size size));
 			(if reached then try
+				incr mcount;
 				let lcount = ref 0 in
 				let leak l =
 					incr lcount;
@@ -545,6 +546,7 @@ let display_memory ctx =
 			let k1 = m1.m_extra.m_sign and k2 = m2.m_extra.m_sign in
 			if k1 = k2 then s1 - s2 else if k1 > k2 then 1 else -1
 		) modules);
+		if !mcount > 0 then print ("*** " ^ string_of_int !mcount ^ " modules have leaks !");
 		print "Cache dump complete")
 
 	
