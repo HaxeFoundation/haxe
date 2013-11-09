@@ -13,3 +13,5 @@
 /xml-light/xml_parser.mli
 
 /ilib/dump
+*.cmo
+*.cma
