@@ -523,8 +523,8 @@ let display_memory() =
 					end;
 				in
 				if (Objsize.objsize m deps [Obj.repr Common.memory_marker]).Objsize.reached then leak "common";
-				PMap.iter (fun _ m ->
-					if (Objsize.objsize m deps [Obj.repr m]).Objsize.reached then leak (Ast.s_type_path m.m_path ^ "(" ^ Digest.to_hex m.m_extra.m_sign ^ ")");
+				PMap.iter (fun _ md ->
+					if (Objsize.objsize m deps [Obj.repr md]).Objsize.reached then leak (Ast.s_type_path md.m_path ^ "(" ^ Digest.to_hex md.m_extra.m_sign ^ ")");
 				) out;
 			with Exit ->
 				());
