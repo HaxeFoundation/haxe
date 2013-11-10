@@ -144,7 +144,7 @@ let rec type_inline ctx cf f ethis params tret config p force =
 			Hashtbl.find locals v.v_id
 		with Not_found -> try
 			(* if it's in our current local context, it's because we're inlining a local function *)
-			let v2 = PMap.find v.v_name ctx.locals in
+			let v2 = if v.v_name.[0] = '`' then v else PMap.find v.v_name ctx.locals in
 			if v != v2 then raise Not_found;
 			{
 				i_var = v;
