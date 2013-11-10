@@ -495,8 +495,13 @@ let display_memory ctx =
 				deps := Obj.repr md :: !deps;
 				List.iter (fun t ->
 					match t with
-					| TClassDecl c -> deps := Obj.repr c :: !deps;
-					| TEnumDecl e -> deps := Obj.repr e :: !deps;
+					| TClassDecl c ->
+						deps := Obj.repr c :: !deps;
+						List.iter (fun f -> deps := Obj.repr f :: !deps) c.cl_ordered_statics;
+						List.iter (fun f -> deps := Obj.repr f :: !deps) c.cl_ordered_fields;
+					| TEnumDecl e ->
+						deps := Obj.repr e :: !deps;
+						List.iter (fun n -> deps := Obj.repr (PMap.find n e.e_constrs) :: !deps) e.e_names;
 					| TTypeDecl t -> deps := Obj.repr t :: !deps;
 					| TAbstractDecl a -> deps := Obj.repr a :: !deps;
 				) md.m_types;
@@ -514,7 +519,7 @@ let display_memory ctx =
 				cur_key := key;
 			end;
 			let sign md =
-				if md.m_extra.m_sign = key then "" else "(" ^ Digest.to_hex md.m_extra.m_sign ^ ")"
+				if md.m_extra.m_sign = key then "" else "(" ^ (try Digest.to_hex md.m_extra.m_sign with _ -> "???" ^ md.m_extra.m_sign) ^ ")"
 			in
 			print (Printf.sprintf "    %s : %s" (Ast.s_type_path m.m_path) (fmt_size size));
 			(if reached then try
@@ -1104,7 +1109,7 @@ try
 				complete_fields (Hashtbl.fold (fun k _ acc -> (k,"","") :: acc) Lexer.keywords [])
 			| "memory" ->
 				did_something := true;
-				display_memory ctx;
+				(try display_memory ctx with e -> prerr_endline (Printexc.get_backtrace ()));
 			| _ ->
 				let file, pos = try ExtString.String.split file_pos "@" with _ -> failwith ("Invalid format : " ^ file_pos) in
 				let file = unquote file in
