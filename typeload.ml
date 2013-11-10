@@ -2342,11 +2342,6 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 let type_module ctx m file tdecls p =
 	let m, decls, tdecls = make_module ctx m file tdecls p in
 	add_module ctx m p;
-	if ctx.g.std != null_module then begin
-		add_dependency m ctx.g.std;
-		(* this will ensure both String and (indirectly) Array which are basic types which might be referenced *)
-		ignore(load_core_type ctx "String");
-	end;
 	(* define the per-module context for the next pass *)
 	let ctx = {
 		com = ctx.com;
@@ -2379,6 +2374,11 @@ let type_module ctx m file tdecls p =
 		opened = [];
 		vthis = None;
 	} in
+	if ctx.g.std != null_module then begin
+		add_dependency m ctx.g.std;
+		(* this will ensure both String and (indirectly) Array which are basic types which might be referenced *)
+		ignore(load_core_type ctx "String");
+	end;
 	(* here is an additional PASS 1 phase, which define the type parameters for all module types.
 		 Constraints are handled lazily (no other type is loaded) because they might be recursive anyway *)
 	List.iter (fun d ->
