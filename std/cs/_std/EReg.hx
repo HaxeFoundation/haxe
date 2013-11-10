@@ -19,9 +19,12 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-import cs.system.text.regularExpressions.Regex;
+import cs.system.text.regularexpressions.Regex;
+import cs.system.text.regularexpressions.Match;
+import cs.system.text.regularexpressions.RegexOptions;
+import cs.system.text.regularexpressions.*;
 
-@:coreApi class EReg {
+class EReg {
 
 	private var regex : Regex;
 	private var m : Match;

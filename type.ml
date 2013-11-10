@@ -77,8 +77,8 @@ and tvar = {
 	mutable v_name : string;
 	mutable v_type : t;
 	mutable v_capture : bool;
-	(* snd = true if abstract "this" argument *)
-	mutable v_extra : (type_params * texpr option) option * bool;
+	mutable v_extra : (type_params * texpr option) option;
+	mutable v_meta : metadata;
 }
 
 and tfunc = {
@@ -311,7 +311,7 @@ and decision_tree = {
 
 let alloc_var =
 	let uid = ref 0 in
-	(fun n t -> incr uid; { v_name = n; v_type = t; v_id = !uid; v_capture = false; v_extra = None,false })
+	(fun n t -> incr uid; { v_name = n; v_type = t; v_id = !uid; v_capture = false; v_extra = None; v_meta = [] })
 
 let alloc_mid =
 	let mid = ref 0 in

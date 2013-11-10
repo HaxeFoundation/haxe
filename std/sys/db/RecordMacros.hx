@@ -1109,11 +1109,19 @@ class RecordMacros {
 		var pos = Context.currentPos();
 		var inst = getManagerInfos(Context.typeof(em),pos);
 		econd = inst.checkKeys(econd);
+		elock = defaultFalse(elock);
 		switch( econd.expr ) {
 		case EObjectDecl(_):
 			return { expr : ECall({ expr : EField(em,"unsafeGetWithKeys"), pos : pos },[econd,elock]), pos : pos };
 		default:
 			return { expr : ECall({ expr : EField(em,"unsafeGet"), pos : pos },[econd,elock]), pos : pos };
+		}
+	}
+	
+	static function defaultFalse( e : Expr ) {
+		return switch( e.expr ) {
+		case EConst(CIdent("null")): { expr : EConst(CIdent("false")), pos : e.pos };
+		default: e;
 		}
 	}
 
@@ -1130,7 +1138,7 @@ class RecordMacros {
 		}
 		var sql = buildSQL(em, econd, "SELECT * FROM", eopt);
 		var pos = Context.currentPos();
-		var e = { expr : ECall( { expr : EField(em, "unsafeObjects"), pos : pos }, [sql,elock]), pos : pos };
+		var e = { expr : ECall( { expr : EField(em, "unsafeObjects"), pos : pos }, [sql,defaultFalse(elock)]), pos : pos };
 		if( single )
 			e = { expr : ECall( { expr : EField(e, "first"), pos : pos }, []), pos : pos };
 		return e;

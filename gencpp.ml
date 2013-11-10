@@ -144,14 +144,14 @@ let make_base_directory dir =
 
 let new_source_file common_ctx base_dir sub_dir extension class_path =
 	let include_prefix = get_include_prefix common_ctx in
-	let full_dir = 
+	let full_dir =
 	   if (sub_dir="include") && (include_prefix<>"") then begin
 		   let dir = base_dir ^ "/include/" ^ include_prefix ^ ( String.concat "/" (fst class_path) )  in
 			make_base_directory dir;
 			dir
 		end else begin
 			make_class_directories base_dir ( sub_dir :: (fst class_path));
-			base_dir ^ "/" ^ sub_dir ^ "/" ^ ( String.concat "/" (fst class_path) ) 
+			base_dir ^ "/" ^ sub_dir ^ "/" ^ ( String.concat "/" (fst class_path) )
 		end
    in
 	cached_source_writer common_ctx (full_dir ^ "/" ^ ((snd class_path) ^ extension));;
@@ -712,7 +712,7 @@ let escape_command s =
 
 
 let str s =
-	let escaped = Ast.s_escape s in
+	let escaped = Ast.s_escape ~hex:false s in
 		("HX_CSTRING(\"" ^ (special_to_hex escaped) ^ "\")")
 ;;
 
@@ -1169,10 +1169,10 @@ let hx_stack_push ctx output clazz func_name pos =
 	ctx.ctx_file_info := PMap.add qfile qfile !(ctx.ctx_file_info);
 	if (ctx.ctx_dump_stack_line) then begin
       let hash_class_func = gen_hash 0 (clazz^"."^func_name) in
-      let hash_file_line = gen_hash (Lexer.get_error_line pos) stripped_file in
+      let hash_file = gen_hash 0 stripped_file in
 		output ("HX_STACK_FRAME(\"" ^ clazz ^ "\",\"" ^ func_name ^ "\"," ^ hash_class_func ^ ",\"" ^
                 clazz ^ "." ^ func_name ^ "\"," ^ qfile ^ "," ^
-			    (string_of_int (Lexer.get_error_line pos) ) ^  "," ^ hash_file_line ^ ")\n")
+			    (string_of_int (Lexer.get_error_line pos) ) ^  "," ^ hash_file ^ ")\n")
    end
 ;;
 
@@ -2031,7 +2031,7 @@ and gen_expression ctx retval expression =
 		end;
 	| TBreak -> output "break"
 	| TContinue -> output "continue"
-	| TThrow expression -> 
+	| TThrow expression ->
 	        output "HX_STACK_DO_THROW(";
 			gen_expression ctx true expression;
 			output ")";
@@ -2087,6 +2087,14 @@ let rec all_virtual_functions clazz =
   @ (match clazz.cl_super with
    | Some def -> all_virtual_functions (fst def)
    | _ -> [] )
+;;
+
+
+let field_arg_count field =
+   match follow field.cf_type, field.cf_kind  with
+		| _, Method MethDynamic -> -1
+		| TFun (args,return_type), Method _  -> List.length args
+      | _,_ -> -1
 ;;
 
 
@@ -3215,7 +3223,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
    | x -> x
    in
 
-   let generate_script_function isStatic field scriptName callName = 
+   let generate_script_function isStatic field scriptName callName =
 		match follow field.cf_type  with
 		| TFun (args,return_type) ->
          output_cpp ("\nstatic void " ^ scriptName ^ "(hx::CppiaCtx *ctx) {\n");
@@ -3280,6 +3288,10 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
       output_cpp ("class " ^ sctipt_name ^ " : public " ^ class_name ^ " {\n" );
       output_cpp ("   typedef "^sctipt_name ^" __ME;\n");
       output_cpp ("   typedef "^class_name ^" super;\n");
+      let has_funky_toString = List.exists (fun f -> f.cf_name="toString") class_def.cl_ordered_statics  ||
+                               List.exists (fun f -> f.cf_name="toString" && field_arg_count f <> 0) class_def.cl_ordered_fields in
+      let super_string = if has_funky_toString then class_name ^ "::super" else class_name in
+      output_cpp ("   typedef "^ super_string ^" __superString;\n");
       if (class_def.cl_interface) then
          output_cpp ("   HX_DEFINE_SCRIPTABLE_INTERFACE\n")
       else begin
@@ -3305,7 +3317,6 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
          output_cpp "  hx::ScriptNamedFunction(0,0,0) };\n";
       end else
          output_cpp "static hx::ScriptNamedFunction *__scriptableFunctions = 0;\n";
-
    end;
 
 
@@ -3646,11 +3657,13 @@ let create_constructor_dependencies common_ctx =
 
 let rec s_type t =
    let result =
-	match follow t with
+	match t with
 	| TMono r -> (match !r with | None -> "Dynamic" | Some t -> s_type t)
 	| TEnum (e,tl) -> Ast.s_type_path e.e_path ^ s_type_params tl
 	| TInst (c,tl) -> Ast.s_type_path c.cl_path ^ s_type_params tl
 	| TType (t,tl) -> Ast.s_type_path t.t_path ^ s_type_params tl
+   | TAbstract (abs,pl) when abs.a_impl <> None ->
+		s_type (Codegen.Abstract.get_underlying_type abs pl);
 	| TAbstract (a,tl) -> Ast.s_type_path a.a_path ^ s_type_params tl
 	| TFun ([],t) -> "Void -> " ^ s_fun t false
 	| TFun (l,t) ->
@@ -3687,22 +3700,37 @@ and s_type_params = function
 let gen_extern_class common_ctx class_def file_info =
    let file = new_source_file common_ctx common_ctx.file  "extern" ".hx" class_def.cl_path in
    let path = class_def.cl_path in
-   let filterPath = fst path @ [snd path] in
-   let rec remove_prefix field t = match t with
-      | TInst ({cl_path=[f],suffix } as cval ,tl) when f=field ->
-            TInst ( { cval with cl_path = ([],suffix) }, List.map (remove_prefix field) tl)
-      | TInst ({cl_path=cpath,suffix } as cval ,tl) when cpath=filterPath ->
-            TInst ( { cval with cl_path = ([],suffix) }, List.map (remove_prefix field) tl)
-      | TInst (cval,tl) -> TInst ( cval, List.map (remove_prefix field) tl)
-      (*| TInst ({cl_path=prefix} as cval ,tl) ->
+
+   let rec remove_all_prefix class_def field t =
+      let path = class_def.cl_path in
+      let filterPath = fst path @ [snd path] in
+      let rec remove_prefix t = match t with
+         | TInst ({cl_path=[f],suffix } as cval ,tl) when f=field ->
+               TInst ( { cval with cl_path = ([],suffix) }, List.map remove_prefix tl)
+         | TInst ({cl_path=cpath,suffix } as cval ,tl) when cpath=filterPath ->
+               TInst ( { cval with cl_path = ([],suffix) }, List.map remove_prefix tl)
+         | TInst (cval,tl) -> TInst ( cval, List.map remove_prefix tl)
+         (*| TInst ({cl_path=prefix} as cval ,tl) ->
             TInst ( { cval with cl_path = ([],snd cval.cl_path) }, List.map (remove_prefix field) tl)*)
-      | t -> Type.map (remove_prefix field) t
+         | t -> Type.map remove_prefix t
       in
+      let t = remove_prefix t in
+      let superred = (match class_def.cl_super with
+         | Some (super,_) -> remove_all_prefix super field t
+         | _ -> t )
+      in
+      List.fold_left ( fun t (impl,_) -> remove_all_prefix impl field t ) superred class_def.cl_implements;
+      (*
+      remove_prefix t
+      *)
+   in
+
+
    let params = function [] -> "" | l ->  "<" ^ (String.concat "," (List.map (fun (n,t) -> n) l) ^ ">")  in
    let output = file#write in
 
    let print_field stat f =
-      let s_type t = s_type (remove_prefix f.cf_name t) in
+      let s_type t = s_type (remove_all_prefix class_def f.cf_name t) in
       let args  = function  TFun (args,_) ->
           String.concat "," (List.map (fun (name,opt,t) -> (if opt then "?" else "") ^ name ^":"^ (s_type t)) args) | _ -> "" in
       let ret  = function  TFun (_,ret) -> s_type ret | _ -> "Dynamic" in
@@ -3734,7 +3762,7 @@ let gen_extern_class common_ctx class_def file_info =
 		output ";\n\n";
 	in
 
-   let s_type t = s_type (remove_prefix "*" t) in
+   let s_type t = s_type (remove_all_prefix class_def "*" t) in
    let c = class_def in
 	output ( "package " ^ (String.concat "." (fst path)) ^ ";\n" );
 	output ( "@:include extern " ^ (if c.cl_private then "private " else "") ^ (if c.cl_interface then "interface" else "class")
@@ -3782,10 +3810,11 @@ let gen_extern_enum common_ctx enum_def file_info =
 	file#close
 ;;
 
-let remove_parens expression = 
+let rec remove_parens expression =
    match expression.eexpr with
-   | TParenthesis e -> e
-   | TMeta(_,e) -> e
+   | TParenthesis e -> remove_parens e
+   | TMeta(_,e) -> remove_parens e
+   | TCast ( e,None) -> remove_parens e
    | _ -> expression
 ;;
 
@@ -3795,33 +3824,68 @@ let is_this expression =
    | _ -> false
 ;;
 
+let is_super expression =
+   match (remove_parens expression).eexpr with
+   | TConst TSuper -> true
+   | _ -> false
+;;
+
+
 let is_assign_op op =
    match op with
-   | OpAssign 
+   | OpAssign
    | OpAssignOp _ -> true
    | _ -> false
 ;;
 
-let script_type_string haxe_type =
-	match follow haxe_type with
-	| TType ({t_path = [],"Array"},params) -> "Array"
-   | TInst ({cl_path=[],"Array"},params) ->
-      (match params with
-      | [t] ->
-         (match type_string_suff "" t with
-           | "int" -> "Array.int"
-           | "Float" -> "Array.Float"
-           | "bool" -> "Array.bool"
-           | "::String" -> "Array.String"
-           | "unsigned char" -> "Array.unsigned char"
-           | _ -> "Array.Dynamic"
+let rec script_type_string haxe_type =
+   match haxe_type with
+   | TType ({ t_path = ([],"Null") },[t]) ->
+      (match follow t with
+      | TAbstract ({ a_path = [],"Int" },_)
+      | TAbstract ({ a_path = [],"Float" },_)
+      | TAbstract ({ a_path = [],"Bool" },_)
+      | TInst ({ cl_path = [],"Int" },_)
+      | TInst ({ cl_path = [],"Float" },_)
+      | TEnum ({ e_path = [],"Bool" },_) -> "Dynamic"
+      | _ -> script_type_string t)
+   | _ ->
+      match follow haxe_type with
+
+      | TType ({t_path = [],"Array"},params) -> "Array"
+      | TInst ({cl_path=[],"Array"},params) ->
+         (match params with
+         | [t] ->
+            (match type_string_suff "" t with
+              | "int" -> "Array.int"
+              | "Float" -> "Array.Float"
+              | "bool" -> "Array.bool"
+              | "::String" -> "Array.String"
+              | "unsigned char" -> "Array.unsigned char"
+              | _ -> "Array.Dynamic"
+            )
+         | _ -> "Array.Dynamic"
          )
-      | _ -> "Array.Dynamic"
-      )
-   | t -> type_string_suff "" t
+      | TAbstract (abs,pl) when abs.a_impl <> None ->
+           script_type_string  (Codegen.Abstract.get_underlying_type abs pl);
+      | t ->
+         type_string_suff "" t
 ;;
 
-class script_writer common_ctx filename =
+type array_of =
+	| ArrayInterface of int
+	| ArrayData of string
+	| ArrayObject
+	| ArrayDynamic
+	| ArrayNone
+;;
+
+let is_template_type t =
+   false
+;;
+
+
+class script_writer common_ctx ctx filename =
 	object(this)
 	val indent_str = "\t"
 	val mutable indent = ""
@@ -3832,7 +3896,7 @@ class script_writer common_ctx filename =
    val identTable = Hashtbl.create 0
    val fileTable = Hashtbl.create 0
    val identBuffer = Buffer.create 0
-	method stringId name = 
+	method stringId name =
       try ( Hashtbl.find identTable name )
 	   with Not_found -> begin
          let size = Hashtbl.length identTable in
@@ -3844,7 +3908,7 @@ class script_writer common_ctx filename =
 	method stringText name = (string_of_int (this#stringId name)) ^ " "
    val typeTable = Hashtbl.create 0
    val typeBuffer = Buffer.create 0
-   method typeId name = 
+   method typeId name =
       try ( Hashtbl.find typeTable name )
 	   with Not_found -> begin
          let size = Hashtbl.length typeTable in
@@ -3852,6 +3916,7 @@ class script_writer common_ctx filename =
          Buffer.add_string typeBuffer ((string_of_int (String.length name)) ^ " " ^ name ^ "\n");
          size;
       end
+	method typeTextString typeName = (string_of_int (this#typeId typeName)) ^ " "
 	method typeText typeT = (string_of_int (this#typeId (script_type_string typeT))) ^ " "
 	method writeType typeT = this#write (this#typeText typeT)
 	method boolText value = if value then "1" else "0"
@@ -3866,8 +3931,8 @@ class script_writer common_ctx filename =
    method instName clazz = this#write (this#instText clazz)
    method enumText e = this#typeText (TEnum(e,[]))
    method enumName e = this#write (this#enumText e)
-	method close = 
-      let out_file = open_out filename in
+	method close =
+      let out_file = open_out_bin filename in
       output_string out_file "CPPIA\n";
       let idents =  Buffer.contents identBuffer in
       output_string out_file ((string_of_int (Hashtbl.length identTable)) ^ "\n");
@@ -3906,8 +3971,12 @@ class script_writer common_ctx filename =
 	method get_indent = indent
 	method begin_expr = this#push_indent
 	method end_expr = if not just_finished_block then this#write "\n"; this#pop_indent; just_finished_block <- true
-   method func isStatic funcName ret args isInterface fieldExpression =
-       this#write ("FUNCTION " ^ (this#staticText isStatic) ^ " " ^ (this#stringText funcName) ^ " ");
+   method voidFunc isStatic isDynamic funcName fieldExpression =
+       this#write ("FUNCTION " ^ (this#staticText isStatic) ^ " " ^(this#boolText isDynamic) ^ " " ^(this#stringText funcName) ^ " ");
+       this#write ((this#typeTextString "Void") ^ "0\n");
+          this#gen_expression fieldExpression
+   method func isStatic isDynamic funcName ret args isInterface fieldExpression =
+       this#write ("FUNCTION " ^ (this#staticText isStatic) ^ " " ^(this#boolText isDynamic) ^ " " ^(this#stringText funcName) ^ " ");
        this#write ((this#typeText ret) ^ (string_of_int (List.length args)) ^ " ");
        List.iter (fun (name,opt,typ) -> this#write ( (this#stringText name) ^ (this#boolText opt) ^ " " ^ (this#typeText typ) ^ " " )) args;
        this#write "\n";
@@ -3916,27 +3985,83 @@ class script_writer common_ctx filename =
           | Some ({ eexpr = TFunction function_def } as e) -> this#gen_expression e
           | _ -> print_endline ("Missing function body for " ^ funcName );
        end
-   method var readAcc writeAcc isStatic name varType =
-       this#write ("VAR " ^ (this#staticText isStatic) ^ " " ^ readAcc ^ " " ^ writeAcc ^ " " ^ (this#stringText name)^ (this#typeText varType) ^ "\n" )
+   method var readAcc writeAcc isStatic name varType varExpr =
+       this#write ("VAR " ^ (this#staticText isStatic) ^ " " ^ readAcc ^ " " ^ writeAcc ^ " " ^ (this#stringText name)^ (this#typeText varType) ^
+          (match varExpr with Some _ -> "1\n" | _ -> "0\n" ) );
+       match varExpr with
+       | Some expression -> this#gen_expression expression
+       | _ -> ()
    method writeVar v =
        this#ident v.v_name;
        this#wint v.v_id;
        this#writeBool v.v_capture;
        this#writeType v.v_type;
    method writeList prefix len = this#write (prefix ^" "  ^ (string_of_int (len)) ^ "\n");
-   method checkCast toType expr =
-     if (is_interface_type toType) && not (is_interface_type expr.etype) then begin
+   method checkCast toType expr forceCast =
+     let write_cast text =
         this#begin_expr;
         this#write ((string_of_int (Lexer.get_error_line expr.epos) ) ^ "\t" ^ (this#fileText expr.epos.pfile) ^ indent);
-        this#write ("TOINTERFACE " ^ (this#typeText toType) ^ " " ^  (this#typeText expr.etype) ^"\n" );
+        this#write (text ^"\n" );
         this#gen_expression expr;
         this#end_expr;
-     end else
-        this#gen_expression expr
+        true;
+     in
+     let was_cast =
+        if (is_interface_type toType) && not (is_interface_type expr.etype) then begin
+           write_cast ("TOINTERFACE " ^ (this#typeText toType) ^ " " ^ (this#typeText expr.etype) )
+        end else begin
+           let rec get_array_type t =
+              match follow t with
+              | TInst ({cl_path=[],"Array"},[param]) ->
+                  let typeName = type_string_suff "" param in
+                  (match typeName with
+                  | "::String"  -> ArrayData "String"
+                  | "int" | "Float" | "bool" | "String" | "unsigned char" ->
+                     ArrayData typeName
+                  | "Dynamic" -> ArrayDynamic
+                  | _ when is_interface_type param -> ArrayInterface (this#typeId (script_type_string param))
+                  | _ -> ArrayObject
+                  )
+              | TAbstract (abs,pl) when abs.a_impl <> None ->
+                    get_array_type  (Codegen.Abstract.get_underlying_type abs pl);
+              | _ -> ArrayNone
+           in
+           let get_array_expr_type expr =
+              if is_dynamic_in_cpp ctx expr then
+                 ArrayNone
+              else
+                 get_array_type expr.etype
+              in
+           match (get_array_type toType), (get_array_expr_type expr) with
+           | ArrayDynamic, ArrayNone
+           | ArrayDynamic, ArrayData _ -> write_cast ("TODYNARRAY")
+           | ArrayData t, ArrayNone
+           | ArrayData t, ArrayDynamic -> write_cast ("TODATAARRAY " ^ (this#typeTextString ("Array." ^ t)))
+           | ArrayInterface t, ArrayNone
+           | ArrayInterface t, ArrayDynamic -> write_cast ("TOINTERFACEARRAY " ^ (string_of_int t))
+           | _,_ -> (* a0,a1 ->
+                let arrayString a =
+                  match a with
+                  | ArrayNone -> "ArrayNone"
+                  | ArrayDynamic -> "ArrayDynamic"
+                  | ArrayObject -> "ArrayObject"
+                  | ArrayData _ -> "ArrayData"
+                  | ArrayInterface _ -> "ArrayInterface"
+              in
+              this#write ("NOCAST " ^ (arrayString a0) ^ "=" ^ (arrayString a1));  *)
+              false
+        end
+     in
+
+     if (not was_cast) then begin
+        if (forceCast) then
+           this#write ("CAST\n");
+        this#gen_expression expr;
+     end
    method gen_expression expr =
      let expression = remove_parens expr in
      this#begin_expr;
-     this#write ((string_of_int (Lexer.get_error_line expression.epos) ) ^ "\t" ^ (this#fileText expression.epos.pfile) ^ indent);
+     this#write ( (this#fileText expression.epos.pfile) ^ "\t" ^ (string_of_int (Lexer.get_error_line expression.epos) ) ^ indent);
      (match expression.eexpr with
      | TFunction function_def -> this#write ("FUN " ^ (this#typeText function_def.tf_type) ^ (string_of_int (List.length function_def.tf_args)) ^ "\n" );
          List.iter (fun(arg,init) ->
@@ -3951,12 +4076,12 @@ class script_writer common_ctx filename =
          List.iter this#gen_expression expr_list;
      | TConst const -> this#write (this#constText const)
      | TBreak -> this#write "BREAK ";
-     | TContinue -> this#write "CONT ";
+     | TContinue -> this#write "CONTINUE ";
 
      | TBinop (op,e1,e2) when op=OpAssign ->
         this#write ("SET \n");
         this#gen_expression e1;
-        this#checkCast e1.etype e2;
+        this#checkCast e1.etype e2 false;
      | TBinop (OpEq ,e1, { eexpr = TConst TNull } ) -> this#write "ISNULL\n";
         this#gen_expression e1;
      | TBinop (OpNotEq ,e1, { eexpr = TConst TNull }) -> this#write "NOTNULL\n";
@@ -3986,23 +4111,40 @@ class script_writer common_ctx filename =
            this#gen_expression elze; )
      | TCall (func, arg_list) ->
         let argN = (string_of_int (List.length arg_list)) ^ " " in
+        let is_real_function field =
+           match field.cf_kind with
+           | Method MethNormal -> true
+           | _ -> false;
+        in
         (match (remove_parens func).eexpr with
-        | TField (obj,FStatic (class_def,field) ) ->
+        | TField (obj,FStatic (class_def,field) ) when is_real_function field ->
                this#write ("CALLSTATIC " ^ (this#instText class_def) ^ " " ^ (this#stringText field.cf_name) ^
                   argN ^ "\n");
-        | TField (obj,FInstance (_,field) ) when is_this obj ->
+        | TField (obj,FInstance (_,field) ) when (is_this obj) && (is_real_function field) ->
                this#write ("CALLTHIS " ^ (this#typeText obj.etype) ^ " " ^ (this#stringText field.cf_name) ^
                   argN ^ "\n");
-        | TField (obj,FInstance (_,field) ) ->
+        | TField (obj,FInstance (_,field) ) when is_super obj ->
+               this#write ("CALLSUPER " ^ (this#typeText obj.etype) ^ " " ^ (this#stringText field.cf_name) ^
+                  argN ^ "\n");
+        | TField (obj,FInstance (_,field) ) when is_real_function field ->
                this#write ("CALLMEMBER " ^ (this#typeText obj.etype) ^ " " ^ (this#stringText field.cf_name) ^
                   argN ^ "\n");
                this#gen_expression obj;
-        | TConst TSuper -> this#write ("CALLSUPER " ^ (this#typeText func.etype) ^ " " ^ argN ^ "\n");
+        | TConst TSuper -> this#write ("CALLSUPERNEW " ^ (this#typeText func.etype) ^ " " ^ argN ^ "\n");
         | TField (_,FEnum (enum,field)) -> this#write ("CREATEENUM " ^ (this#enumText enum) ^ " " ^ (this#stringText field.ef_name) ^ argN ^ "\n");
         | _ -> this#write ("CALL " ^ argN ^ "\n");
                this#gen_expression func;
         );
-        List.iter this#gen_expression arg_list;
+        let matched_args = match func.etype with
+           | TFun (args,_) ->
+              ( try (
+                 List.iter2 (fun (_,_,protoT) arg -> this#checkCast protoT arg false )  args arg_list;
+                 true; )
+              with Invalid_argument _ -> (*print_endline "Bad count?";*) false )
+           | _ -> false
+        in
+        if not matched_args then
+           List.iter this#gen_expression arg_list;
      | TField (obj, acc) ->
         let typeText = this#typeText obj.etype in
         (match acc with
@@ -4039,15 +4181,18 @@ class script_writer common_ctx filename =
      | TLocal var -> this#write ("VAR " ^ (string_of_int var.v_id) );
 
      | TVars var_list ->
+         this#write ("TVARS " ^ (string_of_int (List.length var_list)) ^ "\n");
          List.iter (fun (tvar, optional_init) ->
-            match optional_init with
-            | None -> this#write "VARDECL ";
+            this#write ("\t\t" ^ indent);
+            (match optional_init with
+            | None -> this#write ("VARDECL ");
                       this#writeVar tvar;
-            | Some init ->this#write "VARDECLI ";
+            | Some init ->this#write ("VARDECLI ");
+                      let init = remove_parens init in
                       this#writeVar tvar;
                       this#write (" " ^ (this#typeText init.etype));
                       this#write "\n";
-                      this#checkCast tvar.v_type init;
+                      this#checkCast tvar.v_type init false);
          ) var_list
      | TNew (clazz,params,arg_list) ->
         this#write ("NEW " ^ (this#typeText (TInst(clazz,params))) ^ (string_of_int (List.length arg_list)) ^ "\n");
@@ -4064,12 +4209,15 @@ class script_writer common_ctx filename =
                  ("methodName", { eexpr = (TConst (TString meth)) }) :: [] ) ->
             this#write ("POSINFO " ^ (this#stringText file) ^ (Printf.sprintf "%ld" line) ^ " " ^
                          (this#stringText class_name) ^ " " ^  (this#stringText meth))
- 
+
      | TObjectDecl values ->this#write ("OBJDEF " ^ (string_of_int (List.length values)));
+         this#write " ";
          List.iter (fun (name,_) -> this#write (this#stringText name)  ) values;
          this#write "\n";
          List.iter (fun (_,e) -> this#gen_expression e ) values;
-     | TTypeExpr _ -> ()
+     | TTypeExpr type_expr ->
+         let klass = "::" ^ (join_class_path_remap (t_path type_expr) "::" ) in
+         this#write ("CLASSOF " ^ (string_of_int (this#typeId klass)))
      | TWhile (e1,e2,flag) -> this#write ("WHILE " ^ (if flag=NormalWhile then "1" else "0" ) ^ "\n");
          this#gen_expression e1;
          this#gen_expression e2;
@@ -4085,6 +4233,7 @@ class script_writer common_ctx filename =
      | TSwitch (condition,cases,optional_default)  ->
          this#write ("SWITCH " ^ (string_of_int (List.length cases)) ^ " " ^
                             (match optional_default with None -> "0" | Some _ -> "1") ^ "\n");
+          this#gen_expression condition;
           List.iter (fun (cases_list,expression) ->
              this#writeList ("\t\t\t"^indent) (List.length cases_list);
              List.iter (fun value -> this#gen_expression value ) cases_list;
@@ -4100,15 +4249,11 @@ class script_writer common_ctx filename =
              this#write "\n";
              this#gen_expression catch_expr;
          ) catches;
-     | TCast (cast,None) ->
-         this#write "VCAST\n";
-         this#gen_expression cast;
-     | TCast (cast,Some t) ->
-         let class_name = (join_class_path_remap (t_path t) "::" ) in
-         this#write ("CAST " ^ (string_of_int (this#typeId class_name)) ^ "\n");
-         this#gen_expression cast;
-
-     | TParenthesis _ | TMeta(_,_) | TPatMatch _ -> assert false
+     | TCast (cast,None) -> error "Unexpected cast" expression.epos
+     | TCast (cast,Some _) -> this#checkCast expression.etype cast true
+     | TParenthesis _ -> error "Unexpected parens" expression.epos
+     | TMeta(_,_) -> error "Unexpected meta" expression.epos
+     | TPatMatch _ ->  error "Unexpected pattern match" expression.epos
      );
      this#end_expr;
 end;;
@@ -4123,9 +4268,21 @@ let generate_script_class common_ctx script class_def =
    script#wint (List.length class_def.cl_implements);
    List.iter (fun(c,_) -> script#instName c) class_def.cl_implements;
    script#write "\n";
-   script#write ((string_of_int ( (List.length class_def.cl_ordered_fields) +
-                                  (List.length class_def.cl_ordered_statics) +
-                                  (match class_def.cl_constructor with Some _ -> 1 | _ -> 0 ) ) )
+   (* Looks like some map impl classes have their bodies discarded - not sure best way to filter *)
+   let non_dodgy_function field =
+      class_def.cl_interface ||
+      match field.cf_kind, field.cf_expr with
+	   | Var _, _ -> true
+	   | Method MethDynamic, _ -> true
+	   | Method _, Some _ -> true
+      | _ -> false
+   in
+   let ordered_statics = List.filter non_dodgy_function class_def.cl_ordered_statics in
+   let ordered_fields = List.filter non_dodgy_function class_def.cl_ordered_fields in
+   script#write ((string_of_int ( (List.length ordered_fields) +
+                                  (List.length ordered_statics) +
+                                  (match class_def.cl_constructor with Some _ -> 1 | _ -> 0 ) +
+                                  (match class_def.cl_init with Some _ -> 1 | _ -> 0 ) ) )
                                   ^ "\n");
 
    let generate_field isStatic field =
@@ -4142,21 +4299,25 @@ let generate_script_class common_ctx script class_def =
          | AccInline	-> "N"
          | AccRequire (_,_) -> "?"
          in
-         script#var (mode_code v.v_read) (mode_code v.v_write) isStatic field.cf_name t
-	   | Method MethDynamic, TFun(a,r) ->
-         script#var "N" "N" isStatic field.cf_name (TFun(a,r))
+         script#var (mode_code v.v_read) (mode_code v.v_write) isStatic field.cf_name t field.cf_expr
+	   | Method MethDynamic, TFun(args,ret) ->
+         script#func isStatic true field.cf_name ret args class_def.cl_interface field.cf_expr
       | Method _, TFun(args,ret) when field.cf_name="new" ->
-         script#func true "new" (TInst(class_def,[])) args false field.cf_expr
+         script#func true false "new" (TInst(class_def,[])) args false field.cf_expr
 	   | Method _, TFun (args,ret) ->
-         script#func isStatic field.cf_name ret args class_def.cl_interface field.cf_expr
+         script#func isStatic false field.cf_name ret args class_def.cl_interface field.cf_expr
 	   | Method _, _ -> print_endline ("Unknown method type " ^ (join_class_path class_def.cl_path "." )
                       ^ "." ^field.cf_name )
    in
    (match class_def.cl_constructor with
-		| Some field  -> generate_field true field
+      | Some field  -> generate_field true field
       | _ -> () );
-   List.iter (generate_field false) class_def.cl_ordered_fields;
-   List.iter (generate_field true) class_def.cl_ordered_statics;
+   (match class_def.cl_init with
+      | Some expression  -> script#voidFunc true false "__init__" expression
+      | _ -> () );
+
+   List.iter (generate_field false) ordered_fields;
+   List.iter (generate_field true) ordered_statics;
    script#write "\n";
 ;;
 
@@ -4180,14 +4341,17 @@ let generate_script_enum common_ctx script enum_def meta =
 
 
 let generate_cppia common_ctx =
-	let script = new script_writer common_ctx common_ctx.file in
    let debug = true in
+   let null_file = new source_writer common_ctx ignore (fun () -> () ) in
+   let ctx = new_context common_ctx null_file debug (ref PMap.empty) in
+	ctx.ctx_class_member_types <- ctx.ctx_class_member_types;
+	let script = new script_writer common_ctx ctx common_ctx.file in
    ignore (script#stringId "");
    ignore (script#typeId "");
 
   	List.iter (fun object_def ->
 		(match object_def with
-		| TClassDecl class_def when class_def.cl_extern ->
+		| TClassDecl class_def when class_def.cl_extern  ->
          () (*if (gen_externs) then gen_extern_class common_ctx class_def;*)
 		| TClassDecl class_def ->
 			let is_internal = is_internal_class class_def.cl_path in
@@ -4195,6 +4359,7 @@ let generate_cppia common_ctx =
 			if (is_internal || (is_macro class_def.cl_meta) || is_generic_def) then
 				( if debug then print_endline (" internal class " ^ (join_class_path class_def.cl_path ".") ))
 			else begin
+            ctx.ctx_class_name <- "::" ^ (join_class_path class_def.cl_path "::");
 				generate_script_class common_ctx script class_def
 			end
 		| TEnumDecl enum_def when enum_def.e_extern -> ()
@@ -4206,6 +4371,7 @@ let generate_cppia common_ctx =
 				let meta = Codegen.build_metadata common_ctx object_def in
 				if (enum_def.e_extern) then
 					(if debug then print_endline ("external enum " ^  (join_class_path enum_def.e_path ".") ));
+            ctx.ctx_class_name <- "*";
 				generate_script_enum common_ctx script enum_def meta
 			end
 		| TTypeDecl _ | TAbstractDecl _ -> (* already done *) ()
@@ -4248,7 +4414,7 @@ let generate_source common_ctx =
 	List.iter (fun object_def ->
 		(match object_def with
 		| TClassDecl class_def when class_def.cl_extern ->
-         () (*if (gen_externs) then gen_extern_class common_ctx class_def;*)
+         (*if (gen_externs) then gen_extern_class common_ctx class_def file_info;*)();
 		| TClassDecl class_def ->
 			let name =  class_text class_def.cl_path in
          if (gen_externs) then gen_extern_class common_ctx class_def file_info;

@@ -146,11 +146,18 @@ let make_module ctx mpath file tdecls loadp =
 							if List.mem AInline f.cff_access then error "MultiType constructors cannot be inline" f.cff_pos;
 							if fu.f_expr <> None then error "MultiType constructors cannot have a body" f.cff_pos;
 						end;
+						let has_call e =
+							let rec loop e = match fst e with
+								| ECall _ -> raise Exit
+								| _ -> Ast.map_expr loop e
+							in
+							try ignore(loop e); false with Exit -> true
+						in
 						let fu = {
 							fu with
 							f_expr = (match fu.f_expr with
 							| None -> if Meta.has Meta.MultiType a.a_meta then Some (EConst (Ident "null"),p) else None
-							| Some (EBlock [EBinop (OpAssign,(EConst (Ident "this"),_),e),_],_ | EBinop (OpAssign,(EConst (Ident "this"),_),e),_) ->
+							| Some (EBlock [EBinop (OpAssign,(EConst (Ident "this"),_),e),_],_ | EBinop (OpAssign,(EConst (Ident "this"),_),e),_) when not (has_call e) ->
 								Some (EReturn (Some e), pos e)
 							| Some (EBlock el,p) -> Some (EBlock (init p :: el @ [ret p]),p)
 							| Some e -> Some (EBlock [init p;e;ret p],p)
@@ -560,6 +567,7 @@ and init_meta_overloads ctx cf =
 let hide_types ctx =
 	let old_m = ctx.m in
 	let old_type_params = ctx.type_params in
+	let old_deps = ctx.g.std.m_extra.m_deps in
 	ctx.m <- {
 		curmod = ctx.g.std;
 		module_types = [];
@@ -571,6 +579,8 @@ let hide_types ctx =
 	(fun() ->
 		ctx.m <- old_m;
 		ctx.type_params <- old_type_params;
+		(* restore dependencies that might be have been wronly inserted *)
+		ctx.g.std.m_extra.m_deps <- old_deps;
 	)
 
 (*
@@ -580,6 +590,12 @@ let load_core_type ctx name =
 	let show = hide_types ctx in
 	let t = load_instance ctx { tpackage = []; tname = name; tparams = []; tsub = None; } null_pos false in
 	show();
+	add_dependency ctx.m.curmod (match t with
+	| TInst (c,_) -> c.cl_module
+	| TType (t,_) -> t.t_module
+	| TAbstract (a,_) -> a.a_module
+	| TEnum (e,_) -> e.e_module
+	| _ -> assert false);
 	t
 
 let t_iterator ctx =
@@ -587,6 +603,7 @@ let t_iterator ctx =
 	match load_type_def ctx null_pos { tpackage = []; tname = "Iterator"; tparams = []; tsub = None } with
 	| TTypeDecl t ->
 		show();
+		add_dependency ctx.m.curmod t.t_module;
 		if List.length t.t_types <> 1 then assert false;
 		let pt = mk_mono() in
 		apply_params t.t_types [pt] t.t_type, pt
@@ -851,8 +868,10 @@ let rec check_interface ctx c intf params =
 				valid_redefinition ctx f2 t2 f (apply_params intf.cl_types params f.cf_type)
 			with
 				Unify_error l ->
-					display_error ctx ("Field " ^ i ^ " has different type than in " ^ s_type_path intf.cl_path) p;
-					display_error ctx (error_msg (Unify l)) p;
+					if not (Meta.has Meta.CsNative c.cl_meta && c.cl_extern) then begin
+						display_error ctx ("Field " ^ i ^ " has different type than in " ^ s_type_path intf.cl_path) p;
+						display_error ctx (error_msg (Unify l)) p;
+					end
 		with
 			| Not_found when not c.cl_interface ->
 				let msg = if !is_overload then
@@ -1136,7 +1155,7 @@ let type_function ctx args ret fmode f do_display p =
 				| _ -> display_error ctx "Parameter default value should be constant" p; None
 		) in
 		let v,c = add_local ctx n t, c in
-		if n = "this" then v.v_extra <- None,true;
+		if n = "this" then v.v_meta <- (Meta.This,[],p) :: v.v_meta;
 		v,c
 	) args in
 	let old_ret = ctx.ret in
@@ -1199,7 +1218,7 @@ let type_function ctx args ret fmode f do_display p =
 	ctx.opened <- old_opened;
 	e , fargs
 
-let init_core_api ctx c =
+let load_core_class ctx c =
 	let ctx2 = (match ctx.g.core_api with
 		| None ->
 			let com2 = Common.clone ctx.com in
@@ -1222,75 +1241,79 @@ let init_core_api ctx c =
 	flush_pass ctx2 PFinal "core_final";
 	match t with
 	| TInst (ccore,_) | TAbstract({a_impl = Some ccore}, _) ->
-		begin try
-			List.iter2 (fun (n1,t1) (n2,t2) -> match follow t1, follow t2 with
-				| TInst({cl_kind = KTypeParameter l1},_),TInst({cl_kind = KTypeParameter l2},_) ->
-					begin try
-						List.iter2 (fun t1 t2 -> type_eq EqCoreType t2 t1) l1 l2
-					with
-						| Invalid_argument _ ->
-							error "Type parameters must have the same number of constraints as core type" c.cl_pos
-						| Unify_error l ->
-							display_error ctx ("Type parameter " ^ n2 ^ " has different constraint than in core type") c.cl_pos;
-							display_error ctx (error_msg (Unify l)) c.cl_pos
-					end
-				| t1,t2 ->
-					Printf.printf "%s %s" (s_type (print_context()) t1) (s_type (print_context()) t2);
-					assert false
-			) ccore.cl_types c.cl_types;
-		with Invalid_argument _ ->
-			error "Class must have the same number of type parameters as core type" c.cl_pos
-		end;
-		(match c.cl_doc with
-		| None -> c.cl_doc <- ccore.cl_doc
-		| Some _ -> ());
-		let compare_fields f f2 =
-			let p = (match f2.cf_expr with None -> c.cl_pos | Some e -> e.epos) in
-			(try
-				type_eq EqCoreType (apply_params ccore.cl_types (List.map snd c.cl_types) f.cf_type) f2.cf_type
-			with Unify_error l ->
-				display_error ctx ("Field " ^ f.cf_name ^ " has different type than in core type") p;
-				display_error ctx (error_msg (Unify l)) p);
-			if f2.cf_public <> f.cf_public then error ("Field " ^ f.cf_name ^ " has different visibility than core type") p;
-			(match f2.cf_doc with
-			| None -> f2.cf_doc <- f.cf_doc
-			| Some _ -> ());
-			if f2.cf_kind <> f.cf_kind then begin
-				match f2.cf_kind, f.cf_kind with
-				| Method MethInline, Method MethNormal -> () (* allow to add 'inline' *)
-				| Method MethNormal, Method MethInline -> () (* allow to disable 'inline' *)
-				| _ ->
-					error ("Field " ^ f.cf_name ^ " has different property access than core type") p;
-			end;
-			(match follow f.cf_type, follow f2.cf_type with
-			| TFun (pl1,_), TFun (pl2,_) ->
-				if List.length pl1 != List.length pl2 then error "Argument count mismatch" p;
-				List.iter2 (fun (n1,_,_) (n2,_,_) ->
-					if n1 <> n2 then error ("Method parameter name '" ^ n2 ^ "' should be '" ^ n1 ^ "'") p;
-				) pl1 pl2;
-			| _ -> ());
-		in
-		let check_fields fcore fl =
-			PMap.iter (fun i f ->
-				if not f.cf_public then () else
-				let f2 = try PMap.find f.cf_name fl with Not_found -> error ("Missing field " ^ i ^ " required by core type") c.cl_pos in
-				compare_fields f f2;
-			) fcore;
-			PMap.iter (fun i f ->
-				let p = (match f.cf_expr with None -> c.cl_pos | Some e -> e.epos) in
-				if f.cf_public && not (Meta.has Meta.Hack f.cf_meta) && not (PMap.mem f.cf_name fcore) && not (List.memq f c.cl_overrides) then error ("Public field " ^ i ^ " is not part of core type") p;
-			) fl;
-		in
-		check_fields ccore.cl_fields c.cl_fields;
-		check_fields ccore.cl_statics c.cl_statics;
-		(match ccore.cl_constructor, c.cl_constructor with
-		| None, None -> ()
-		| Some { cf_public = false }, _ -> ()
-		| Some f, Some f2 -> compare_fields f f2
-		| None, Some { cf_public = false } -> ()
-		| _ -> error "Constructor differs from core type" c.cl_pos)
+		ccore
+	| _ ->
+		assert false
 
-	| _ -> assert false
+let init_core_api ctx c =
+	let ccore = load_core_class ctx c in
+	begin try
+		List.iter2 (fun (n1,t1) (n2,t2) -> match follow t1, follow t2 with
+			| TInst({cl_kind = KTypeParameter l1},_),TInst({cl_kind = KTypeParameter l2},_) ->
+				begin try
+					List.iter2 (fun t1 t2 -> type_eq EqCoreType t2 t1) l1 l2
+				with
+					| Invalid_argument _ ->
+						error "Type parameters must have the same number of constraints as core type" c.cl_pos
+					| Unify_error l ->
+						display_error ctx ("Type parameter " ^ n2 ^ " has different constraint than in core type") c.cl_pos;
+						display_error ctx (error_msg (Unify l)) c.cl_pos
+				end
+			| t1,t2 ->
+				Printf.printf "%s %s" (s_type (print_context()) t1) (s_type (print_context()) t2);
+				assert false
+		) ccore.cl_types c.cl_types;
+	with Invalid_argument _ ->
+		error "Class must have the same number of type parameters as core type" c.cl_pos
+	end;
+	(match c.cl_doc with
+	| None -> c.cl_doc <- ccore.cl_doc
+	| Some _ -> ());
+	let compare_fields f f2 =
+		let p = (match f2.cf_expr with None -> c.cl_pos | Some e -> e.epos) in
+		(try
+			type_eq EqCoreType (apply_params ccore.cl_types (List.map snd c.cl_types) f.cf_type) f2.cf_type
+		with Unify_error l ->
+			display_error ctx ("Field " ^ f.cf_name ^ " has different type than in core type") p;
+			display_error ctx (error_msg (Unify l)) p);
+		if f2.cf_public <> f.cf_public then error ("Field " ^ f.cf_name ^ " has different visibility than core type") p;
+		(match f2.cf_doc with
+		| None -> f2.cf_doc <- f.cf_doc
+		| Some _ -> ());
+		if f2.cf_kind <> f.cf_kind then begin
+			match f2.cf_kind, f.cf_kind with
+			| Method MethInline, Method MethNormal -> () (* allow to add 'inline' *)
+			| Method MethNormal, Method MethInline -> () (* allow to disable 'inline' *)
+			| _ ->
+				error ("Field " ^ f.cf_name ^ " has different property access than core type") p;
+		end;
+		(match follow f.cf_type, follow f2.cf_type with
+		| TFun (pl1,_), TFun (pl2,_) ->
+			if List.length pl1 != List.length pl2 then error "Argument count mismatch" p;
+			List.iter2 (fun (n1,_,_) (n2,_,_) ->
+				if n1 <> n2 then error ("Method parameter name '" ^ n2 ^ "' should be '" ^ n1 ^ "'") p;
+			) pl1 pl2;
+		| _ -> ());
+	in
+	let check_fields fcore fl =
+		PMap.iter (fun i f ->
+			if not f.cf_public then () else
+			let f2 = try PMap.find f.cf_name fl with Not_found -> error ("Missing field " ^ i ^ " required by core type") c.cl_pos in
+			compare_fields f f2;
+		) fcore;
+		PMap.iter (fun i f ->
+			let p = (match f.cf_expr with None -> c.cl_pos | Some e -> e.epos) in
+			if f.cf_public && not (Meta.has Meta.Hack f.cf_meta) && not (PMap.mem f.cf_name fcore) && not (List.memq f c.cl_overrides) then error ("Public field " ^ i ^ " is not part of core type") p;
+		) fl;
+	in
+	check_fields ccore.cl_fields c.cl_fields;
+	check_fields ccore.cl_statics c.cl_statics;
+	(match ccore.cl_constructor, c.cl_constructor with
+	| None, None -> ()
+	| Some { cf_public = false }, _ -> ()
+	| Some f, Some f2 -> compare_fields f f2
+	| None, Some { cf_public = false } -> ()
+	| _ -> error "Constructor differs from core type" c.cl_pos)
 
 let patch_class ctx c fields =
 	let h = (try Some (Hashtbl.find ctx.g.type_patches c.cl_path) with Not_found -> None) in
@@ -1404,7 +1427,7 @@ let init_class ctx c p context_init herits fields =
 		c.cl_extern <- true;
 		List.filter (fun f -> List.mem AStatic f.cff_access) fields, []
 	end else fields, herits in
-	if core_api && not ctx.com.display then delay ctx PForce (fun() -> init_core_api ctx c);
+	if core_api && ctx.com.display = DMNone then delay ctx PForce (fun() -> init_core_api ctx c);
 	let rec extends_public c =
 		Meta.has Meta.PublicFields c.cl_meta ||
 		match c.cl_super with
@@ -1452,7 +1475,7 @@ let init_class ctx c p context_init herits fields =
 
 	(* ----------------------- COMPLETION ----------------------------- *)
 
-	let display_file = if ctx.com.display then Common.unique_full_path p.pfile = (!Parser.resume_display).pfile else false in
+	let display_file = if ctx.com.display <> DMNone then Common.unique_full_path p.pfile = (!Parser.resume_display).pfile else false in
 
 	let cp = !Parser.resume_display in
 
@@ -1465,7 +1488,7 @@ let init_class ctx c p context_init herits fields =
 		| TAbstract _ | TInst _ | TEnum _ | TLazy _ | TDynamic _ | TAnon _ | TType _ -> true
 	in
 	let bind_type ctx cf r p macro =
-		if ctx.com.display then begin
+		if ctx.com.display <> DMNone then begin
 			let cp = !Parser.resume_display in
 			if display_file && (cp.pmin = 0 || (p.pmin <= cp.pmin && p.pmax >= cp.pmax)) then begin
 				if macro && not ctx.in_macro then
@@ -1527,8 +1550,19 @@ let init_class ctx c p context_init herits fields =
 						(* disallow initialization of non-physical fields (issue #1958) *)
 						display_error ctx "This field cannot be initialized because it is not a real variable" p; e
 					| Var v when not stat || (v.v_read = AccInline) ->
-						let e = match Optimizer.make_constant_expression ctx e with Some e -> check_cast e | None -> display_error ctx "Variable initialization must be a constant value" p; e in
-						e
+						let e = match Optimizer.make_constant_expression ctx e with
+							| Some e -> e
+							| None ->
+								let rec has_this e = match e.eexpr with
+									| TConst TThis ->
+										display_error ctx "Cannot access this or other member field in variable initialization" e.epos;
+									| _ ->
+									Type.iter has_this e
+								in
+								has_this e;
+								e
+						in
+						check_cast e
 					| _ ->
 						e
 					) in
@@ -1546,7 +1580,7 @@ let init_class ctx c p context_init herits fields =
 	let loop_cf f =
 		let name = f.cff_name in
 		let p = f.cff_pos in
-		if name.[0] = '$' && not ctx.com.display then error "Field names starting with a dollar are not allowed" p;
+		if name.[0] = '$' && ctx.com.display = DMNone then error "Field names starting with a dollar are not allowed" p;
 		let stat = List.mem AStatic f.cff_access in
 		let extern = Meta.has Meta.Extern f.cff_meta || c.cl_extern in
 		let is_abstract,allow_inline =
@@ -1629,10 +1663,16 @@ let init_class ctx c p context_init herits fields =
 				c.cl_extern <- false;
 				if ctx.in_macro then
 					let texpr = CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = None } in
+					(* ExprOf type parameter might contain platform-specific type, let's replace it by Expr *)
+					let no_expr_of = function
+						| CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = Some ("ExprOf"); tparams = [TPType _] }
+						| CTPath { tpackage = []; tname = ("ExprOf"); tsub = None; tparams = [TPType _] } -> Some texpr
+						| t -> Some t
+					in
 					{
 						f_params = fd.f_params;
 						f_type = (match fd.f_type with None -> Some texpr | t -> t);
-						f_args = List.map (fun (a,o,t,e) -> a,o,(match t with None -> Some texpr | _ -> t),e) fd.f_args;
+						f_args = List.map (fun (a,o,t,e) -> a,o,(match t with None -> Some texpr | Some t -> no_expr_of t),e) fd.f_args;
 						f_expr = fd.f_expr;
 					}
 				else
@@ -1797,7 +1837,7 @@ let init_class ctx c p context_init herits fields =
 				| _ -> tfun [] ret, tfun [ret] ret
 			in
 			let check_method m t req_name =
-				if ctx.com.display then () else
+				if ctx.com.display <> DMNone then () else
 				try
 					let _, t2, f = (if stat then let f = PMap.find m c.cl_statics in Some c, f.cf_type, f else class_field c m) in
 					(* accessors must be public on As3 (issue #1872) *)
@@ -2334,6 +2374,11 @@ let type_module ctx m file tdecls p =
 		opened = [];
 		vthis = None;
 	} in
+	if ctx.g.std != null_module then begin
+		add_dependency m ctx.g.std;
+		(* this will ensure both String and (indirectly) Array which are basic types which might be referenced *)
+		ignore(load_core_type ctx "String");
+	end;
 	(* here is an additional PASS 1 phase, which define the type parameters for all module types.
 		 Constraints are handled lazily (no other type is loaded) because they might be recursive anyway *)
 	List.iter (fun d ->
@@ -2381,6 +2426,12 @@ let resolve_module_file com m remap p =
 		if (try (Unix.stat file).Unix.st_size with _ -> 0) > 0 then file else raise Not_found
 	| _ -> file
 	) in
+	(* if we try to load a std.xxxx class and resolve a real std file, the package name is not valid, ignore *)
+	(match fst m with
+	| "std" :: _ ->
+		let file = Common.unique_full_path file in
+		if List.exists (fun path -> ExtString.String.starts_with file (try Common.unique_full_path path with _ -> path)) com.std_path then raise Not_found;
+	| _ -> ());
 	if !forbid then begin
 		let _, decls = (!parse_hook) com file p in
 		let meta = (match decls with

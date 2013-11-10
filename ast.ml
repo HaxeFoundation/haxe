@@ -47,6 +47,7 @@ module Meta = struct
 		| CoreType
 		| CppFileCode
 		| CppNamespaceCode
+		| CsNative
 		| Dce
 		| Debug
 		| Decl
@@ -454,7 +455,7 @@ let parse_path s =
 	| [] -> failwith "Invalid empty path"
 	| x :: l -> List.rev l, x
 
-let s_escape s =
+let s_escape ?(hex=true) s =
 	let b = Buffer.create (String.length s) in
 	for i = 0 to (String.length s) - 1 do
 		match s.[i] with
@@ -463,6 +464,7 @@ let s_escape s =
 		| '\r' -> Buffer.add_string b "\\r"
 		| '"' -> Buffer.add_string b "\\\""
 		| '\\' -> Buffer.add_string b "\\\\"
+		| c when int_of_char c < 32 && hex -> Buffer.add_string b (Printf.sprintf "\\x%.2X" (int_of_char c))
 		| c -> Buffer.add_char b c
 	done;
 	Buffer.contents b

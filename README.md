@@ -44,10 +44,8 @@ The latest stable release is [Haxe v3.0](http://haxe.org/download). Pre-built bi
 
  1. Clone the repository using git. Be sure to initialize and fetch the submodules.
 
-        git clone git://github.com/HaxeFoundation/haxe.git
+        git clone --recursive git://github.com/HaxeFoundation/haxe.git
         cd haxe
-        git submodule init
-        git submodule update
 
  2. Follow the [documentation on building Haxe for your platform](http://haxe.org/doc/build).
 

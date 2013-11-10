@@ -1624,7 +1624,7 @@ module Abstract = struct
 			eright
 
 	let check_cast ctx tleft eright p =
-		if ctx.com.display then eright else do_check_cast ctx tleft eright p
+		if ctx.com.display <> DMNone then eright else do_check_cast ctx tleft eright p
 
 	let find_multitype_specialization a pl p =
 		let m = mk_mono() in
@@ -1779,12 +1779,16 @@ let detect_usage com =
 		| TClassDecl c ->
 			let rec expr e = match e.eexpr with
 				| TField(_,fa) ->
-					(match extract_field fa with
+					begin match extract_field fa with
 						| Some cf when Meta.has Meta.Usage cf.cf_meta ->
 							let p = {e.epos with pmin = e.epos.pmax - (String.length cf.cf_name)} in
 							usage := p :: !usage;
-						| _ -> ());
+						| _ ->
+							()
+					end;
 					Type.iter expr e
+				| TLocal v when Meta.has Meta.Usage v.v_meta ->
+					usage := e.epos :: !usage
 				| _ -> Type.iter expr e
 			in
 			let field cf = match cf.cf_expr with None -> () | Some e -> expr e in
@@ -1799,6 +1803,45 @@ let detect_usage com =
 		if c <> 0 then c else compare p1.pmin p2.pmin
 	) !usage in
 	raise (Typecore.DisplayPosition usage)
+
+let update_cache_dependencies com =
+	let rec check_t m t = match t with
+		| TInst(c,tl) ->
+			add_dependency m c.cl_module;
+			List.iter (check_t m) tl;
+		| TEnum(en,tl) ->
+			add_dependency m en.e_module;
+			List.iter (check_t m) tl;
+		| TType(t,tl) ->
+			add_dependency m t.t_module;
+			List.iter (check_t m) tl;
+		| TAbstract(a,tl) ->
+			add_dependency m a.a_module;
+			List.iter (check_t m) tl;
+		| TFun(targs,tret) ->
+			List.iter (fun (_,_,t) -> check_t m t) targs;
+			check_t m tret;
+		| TAnon an ->
+			PMap.iter (fun _ cf -> check_field m cf) an.a_fields
+		| TMono r ->
+			(match !r with
+			| Some t -> check_t m t
+			| _ -> ())
+		| TLazy f ->
+			check_t m (!f())
+		| TDynamic _ ->
+			()
+	and check_field m cf =
+		check_t m cf.cf_type
+	in
+	List.iter (fun t -> match t with
+		| TClassDecl c ->
+			List.iter (check_field c.cl_module) c.cl_ordered_statics;
+			List.iter (check_field c.cl_module) c.cl_ordered_fields;
+			(match c.cl_constructor with None -> () | Some cf -> check_field c.cl_module cf);
+		| _ ->
+			()
+	) com.types
 
 (* -------------------------------------------------------------------------- *)
 (* POST PROCESS *)

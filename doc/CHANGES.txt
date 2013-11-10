@@ -18,6 +18,7 @@
 	js : window and console are reserved words. Access them with __js__ instead of untyped.
 	js : added -D js-flatten
 	js : improved inlining
+	js : always use JSON extern (compile with -D old-browser to disable)
 	cpp : improved side-effect detection
 	macro : allowed $v{(c:Float|Int|String)}
 	macro : resolve error line number in external files

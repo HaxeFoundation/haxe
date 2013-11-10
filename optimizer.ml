@@ -142,7 +142,10 @@ let rec type_inline ctx cf f ethis params tret config p force =
 	let read_local v =
 		try
 			Hashtbl.find locals v.v_id
-		with Not_found ->
+		with Not_found -> try
+			(* if it's in our current local context, it's because we're inlining a local function *)
+			let v2 = if v.v_name.[0] = '`' then v else PMap.find v.v_name ctx.locals in
+			if v != v2 then raise Not_found;
 			{
 				i_var = v;
 				i_subst = v;
@@ -151,6 +154,9 @@ let rec type_inline ctx cf f ethis params tret config p force =
 				i_force_temp = false;
 				i_read = 0;
 			}
+		with Not_found ->
+			(* it's an unbound local, let's clone it *)
+			local v
 	in
 	(* use default values for null/unset arguments *)
 	let rec loop pl al first =
@@ -277,6 +283,13 @@ let rec type_inline ctx cf f ethis params tret config p force =
 		| TBlock l ->
 			let old = save_locals ctx in
 			let t = ref e.etype in
+			let has_return e =
+				let rec loop e = match e.eexpr with
+					| TReturn _ -> raise Exit
+					| _ -> Type.iter loop e
+				in
+				try loop e; false with Exit -> true
+			in
 			let rec loop = function
 				| [] when term ->
 					t := mk_mono();
@@ -286,6 +299,8 @@ let rec type_inline ctx cf f ethis params tret config p force =
 					let e = map term e in
 					if term then t := e.etype;
 					[e]
+				| ({ eexpr = TIf (cond,e1,None) } as e) :: l when term && has_return e1 ->
+					loop [{ e with eexpr = TIf (cond,e1,Some (mk (TBlock l) e.etype e.epos)); epos = punion e.epos (match List.rev l with e :: _ -> e.epos | [] -> assert false) }]
 				| e :: l ->
 					let e = map false e in
 					e :: loop l
@@ -349,16 +364,16 @@ let rec type_inline ctx cf f ethis params tret config p force =
 	let force = ref force in
 	let vars = List.fold_left (fun acc (i,e) ->
 		let flag = not i.i_force_temp && (match e.eexpr with
-			| TLocal {v_extra = _,true} -> true
+			| TLocal v when Meta.has Meta.This v.v_meta -> true
 			| TLocal _ | TConst _ -> not i.i_write
 			| TFunction _ -> if i.i_write then error "Cannot modify a closure parameter inside inline method" p; true
 			| _ -> not i.i_write && i.i_read <= 1
 		) in
 		let flag = flag && (not i.i_captured || is_constant e) in
 		(* force inlining if we modify 'this' *)
-		if i.i_write && snd i.i_var.v_extra then force := true;
+		if i.i_write && (Meta.has Meta.This i.i_var.v_meta) then force := true;
 		(* force inlining of 'this' variable if it is written *)
-		let flag = if not flag && snd i.i_var.v_extra && i.i_write then begin
+		let flag = if not flag && (Meta.has Meta.This i.i_var.v_meta) && i.i_write then begin
 			if not (is_writable e) then error "Cannot modify the abstract value, store it into a local first" p;
 			true
 		end else flag in

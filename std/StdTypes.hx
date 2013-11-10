@@ -30,7 +30,7 @@
 	The standard Float type, this is a double-precision IEEE 64bit float.
 	
 	On static targets, null cannot be assigned to Float. If this is necessary,
-	`Null<Float>` can be used instead.	
+	`Null<Float>` can be used instead.
 **/
 @:coreType @:notNull @:runtimeValue abstract Float { }
 
@@ -41,14 +41,6 @@
 	`Null<Int>` can be used instead.
 **/
 @:coreType @:notNull @:runtimeValue abstract Int to Float { }
-
-#if (flash9 || flash9doc || cs)
-/**
-	The unsigned Int type is only defined for Flash9. It's currently
-	handled the same as a normal Int.
-**/
-@:coreType @:notNull @:runtimeValue abstract UInt to Int from Int { }
-#end
 
 #if (java || cs)
 @:coreType @:notNull @:runtimeValue abstract Single to Float from Float {}

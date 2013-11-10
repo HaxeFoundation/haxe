@@ -1,2 +1,2 @@
 #!/bin/sh
-haxe --run tools.haxelib.Main $@
+exec haxe --run tools.haxelib.Main "$@"
