@@ -84,16 +84,10 @@ class HxOverrides {
 	}
 
 	static function remove<T>( a : Array<T>, obj : T ) {
-		var i = 0;
-		var l = a.length;
-		while( i < l ) {
-			if( a[i] == obj ) {
-				a.splice(i,1);
-				return true;
-			}
-			i++;
-		}
-		return false;
+		var i = untyped __define_feature__("Lambda.indexOf.Array", a.indexOf(obj));
+		if( i == -1 ) return false;
+		a.splice(i,1);
+		return true;
 	}
 
 	static function iter<T>( a : Array<T> ) : Iterator<T> untyped {
@@ -110,14 +104,6 @@ class HxOverrides {
 	}
 
 	static function __init__() untyped {
-		__feature__('HxOverrides.remove',
-			if( Array.prototype.indexOf ) __js__('HxOverrides').remove = function(a,o) {
-				var i = a.indexOf(o);
-				if( i == -1 ) return false;
-				a.splice(i,1);
-				return true;
-			}
-		);
 		#if mt
 		if( String.prototype.cca == null ) String.prototype.cca = String.prototype.charCodeAt;
 		#end
