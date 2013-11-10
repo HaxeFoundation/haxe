@@ -1114,6 +1114,25 @@ let gen_single_expr ctx e expr =
 	ctx.id_counter <- 0;
 	str
 
+let optimize com e =
+	let rec loop e =
+		match e.eexpr with
+
+		(* Translate Lambda.indexOf into native function call for arrays *)
+		| TCall ({ eexpr = TField ({ eexpr = TTypeExpr (TClassDecl { cl_path = [], "Lambda" } ) }, FStatic (_, { cf_name = "indexOf" })) }, [o; i])
+			when (match follow o.etype with TInst ({ cl_path = [], "Array" }, _) -> true | _ -> false) ->
+
+			(* add a feature so we generate indexOf for older runtimes *)
+			Common.add_feature com "Lambda.indexOf.Array";
+
+			let ft = tfun [i.etype] com.basic.tint in
+			let field = mk (TField (loop o, FDynamic "indexOf")) ft e.epos in
+			mk (TCall (field, [loop i])) com.basic.tint e.epos
+
+		| _ -> Type.map_expr loop e
+	in
+	loop e
+
 let generate com =
 	let t = Common.timer "generate js" in
 	(match com.js_gen with
@@ -1176,6 +1195,17 @@ let generate com =
 		print ctx "var $_, $fid = 0";
 		newline ctx;
 		print ctx "function $bind(o,m) { if( m == null ) return null; if( m.__id__ == null ) m.__id__ = $fid++; var f; if( o.hx__closures__ == null ) o.hx__closures__ = {}; else f = o.hx__closures__[m.__id__]; if( f == null ) { f = function(){ return f.method.apply(f.scope, arguments); }; f.scope = o; f.method = m; o.hx__closures__[m.__id__] = f; } return f; }";
+		ctx.separator <- true;
+		newline ctx;
+	end;
+	if has_feature ctx "Lambda.indexOf.Array" then begin
+		print ctx "if (!Array.prototype.indexOf)
+    Array.prototype.indexOf = function(obj, start) {
+         for (var i = (start || 0), j = this.length; i < j; i++) {
+         	if (this[i] === obj) return i;
+         }
+         return -1;
+    }";
 		ctx.separator <- true;
 		newline ctx;
 	end;

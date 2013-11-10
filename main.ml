@@ -1347,6 +1347,7 @@ try
 			Codegen.Abstract.handle_abstract_casts tctx;
 			(match com.platform with Cpp -> Codegen.handle_side_effects com (Typecore.gen_local tctx) | _ -> fun e -> e);
 			Codegen.promote_complex_rhs com;
+			(match com.platform with Js -> Genjs.optimize com | _ -> fun e -> e);
 			if com.foptimize then (fun e -> Optimizer.reduce_expression tctx (Optimizer.inline_constructors tctx e)) else Optimizer.sanitize tctx;
 			Codegen.check_local_vars_init;
 			Codegen.captured_vars com;
