@@ -1908,7 +1908,7 @@ and type_unop ctx op flag e p =
 				(match cf.cf_expr with
 				| None ->
 					let e = make {e with etype = apply_params a.a_types pl a.a_this} in
-					unify ctx r e.etype p;
+					(* unify ctx r e.etype p; *) (* TODO: I'm not sure why this was here (related to #2295) *)
 					{e with etype = r}
 				| Some _ ->
 					let et = type_module_type ctx (TClassDecl c) None p in
