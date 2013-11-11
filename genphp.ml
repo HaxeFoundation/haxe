@@ -312,6 +312,7 @@ let is_keyword n =
 	| "unset" | "use" | "__function__" | "__class__" | "__method__" | "final"
 	| "php_user_filter" | "protected" | "abstract" | "__set" | "__get" | "__call"
 	| "clone" | "instanceof" | "break" | "case" | "class" | "continue" | "default" | "do" | "else" | "extends" | "for" | "function" | "if" | "new" | "return" | "static" | "switch" | "var" | "while" | "interface" | "implements" | "public" | "private" | "try" | "catch" | "throw" -> true
+	| "goto"
 	| _ -> false
 
 let s_ident n =
