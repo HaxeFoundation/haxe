@@ -1829,8 +1829,11 @@ let update_cache_dependencies com =
 			| _ -> ())
 		| TLazy f ->
 			check_t m (!f())
-		| TDynamic _ ->
-			()
+		| TDynamic t ->
+			if t == t_dynamic then
+				()
+			else
+				check_t m t
 	and check_field m cf =
 		check_t m cf.cf_type
 	in
