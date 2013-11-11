@@ -1069,6 +1069,7 @@ let match_expr ctx e cases def with_type p =
 			[e]
 	in
 	let var_inits = ref [] in
+	let save = save_locals ctx in
 	let a = List.length evals in
 	(* turn subjects to subterms and handle variable initialization where necessary *)
 	let stl = ExtList.List.mapi (fun i e ->
@@ -1080,6 +1081,7 @@ let match_expr ctx e cases def with_type p =
 			| _ ->
 				let v = gen_local ctx e.etype in
 				var_inits := (v, Some e) :: !var_inits;
+				ctx.locals <- PMap.add v.v_name v ctx.locals;
 				mk_st (SVar v) e.etype e.epos
 		in
 		let st = loop e in
@@ -1255,6 +1257,7 @@ let match_expr ctx e cases def with_type p =
 		in
 		error ("Unmatched patterns: " ^ (s_st_r true false st pat)) st.st_pos
 	in
+	save();
 	(* check for unused patterns *)
 	if !extractor_depth = 0 then check_unused();
 	if mctx.has_extractor then decr extractor_depth;
