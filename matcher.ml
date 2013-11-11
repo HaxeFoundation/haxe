@@ -1053,7 +1053,7 @@ let match_expr ctx e cases def with_type p =
 	(* type subject(s) *)
 	let array_match = ref false in
 	let evals = match fst e with
-		| EArrayDecl el | EParenthesis(EArrayDecl el,_) ->
+		| EArrayDecl el | EParenthesis(EArrayDecl el,_) when (match el with [(EFor _ | EWhile _),_] -> false | _ -> true) ->
 			array_match := true;
 			List.map (fun e -> type_expr ctx e Value) el
 		| _ ->
