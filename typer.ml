@@ -222,10 +222,13 @@ let class_field ctx c pl name p =
 	raw_class_field (fun f -> field_type ctx c pl f p) c name
 
 (* checks if we can access to a given class field using current context *)
-let rec can_access ctx c cf stat =
+let rec can_access ctx ?(in_overload=false) c cf stat =
 	if cf.cf_public then
 		true
+	else if not in_overload && ctx.com.config.pf_overload && Meta.has Meta.Overload cf.cf_meta then
+		true
 	else
+	(* TODO: should we add a c == ctx.curclass short check here? *)
 	(* has metadata path *)
 	let make_path c f = match c.cl_kind with
 		| KAbstractImpl a -> fst a.a_path @ [snd a.a_path; f.cf_name]
@@ -284,6 +287,7 @@ let rec can_access ctx c cf stat =
 			List.exists (fun t -> match follow t with TInst(c,_) -> loop c | _ -> false) tl
 		| _ -> false)
 	|| (Meta.has Meta.PrivateAccess ctx.meta) in
+	(* TODO: find out what this does and move it to genas3 *)
 	if b && Common.defined ctx.com Common.Define.As3 && not (Meta.has Meta.Public cf.cf_meta) then cf.cf_meta <- (Meta.Public,[],cf.cf_pos) :: cf.cf_meta;
 	b
 
@@ -500,9 +504,13 @@ let rec unify_call_params ctx ?(overloads=None) cf el args r p inline =
   (* it's used to correctly support an overload selection algorithm *)
 	let overloads, compatible, legacy = match cf, overloads with
 		| Some(TInst(c,pl),f), None when ctx.com.config.pf_overload && Meta.has Meta.Overload f.cf_meta ->
-				let overloads = List.filter (fun (_,f2) -> not (f == f2)) (Typeload.get_overloads c f.cf_name) in
+				let overloads = List.filter (fun (_,f2) ->
+					not (f == f2) && (f2.cf_public || can_access ctx ~in_overload:true c f2 false)
+				) (Typeload.get_overloads c f.cf_name) in
 				if overloads = [] then (* is static function *)
-					List.map (fun f -> f.cf_type, f) f.cf_overloads, [], false
+					let overloads = List.map (fun f -> f.cf_type, f) f.cf_overloads in
+					let is_static = f.cf_name <> "new" in
+					List.filter (fun (_,f) -> can_access ctx ~in_overload:true c f is_static) overloads, [], false
 				else
 					overloads, [], false
 		| Some(_,f), None ->
@@ -999,7 +1007,13 @@ let rec using_field ctx mode e i p =
 			loop l
 	in
 	try loop ctx.m.module_using with Not_found ->
-	try loop ctx.g.global_using with Not_found ->
+	try
+		let acc = loop ctx.g.global_using in
+		(match acc with
+		| AKUsing (_,c,_,_) -> add_dependency ctx.m.curmod c.cl_module
+		| _ -> assert false);
+		acc
+	with Not_found ->
 	if not !check_constant_struct then raise Not_found;
 	remove_constant_flag e.etype (fun ok -> if ok then using_field ctx mode e i p else raise Not_found)
 
@@ -1257,7 +1271,7 @@ and type_field ctx e i p mode =
 		(try
  			let c = (match a.a_impl with None -> raise Not_found | Some c -> c) in
 			let f = PMap.find i c.cl_statics in
-			if not (can_access ctx c f false) && not ctx.untyped then display_error ctx ("Cannot access private field " ^ i) p;
+			if not (can_access ctx c f true) && not ctx.untyped then display_error ctx ("Cannot access private field " ^ i) p;
 			let field_type f =
 				let t = field_type ctx c [] f p in
 				apply_params a.a_types pl t

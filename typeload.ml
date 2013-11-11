@@ -146,11 +146,18 @@ let make_module ctx mpath file tdecls loadp =
 							if List.mem AInline f.cff_access then error "MultiType constructors cannot be inline" f.cff_pos;
 							if fu.f_expr <> None then error "MultiType constructors cannot have a body" f.cff_pos;
 						end;
+						let has_call e =
+							let rec loop e = match fst e with
+								| ECall _ -> raise Exit
+								| _ -> Ast.map_expr loop e
+							in
+							try ignore(loop e); false with Exit -> true
+						in
 						let fu = {
 							fu with
 							f_expr = (match fu.f_expr with
 							| None -> if Meta.has Meta.MultiType a.a_meta then Some (EConst (Ident "null"),p) else None
-							| Some (EBlock [EBinop (OpAssign,(EConst (Ident "this"),_),e),_],_ | EBinop (OpAssign,(EConst (Ident "this"),_),e),_) ->
+							| Some (EBlock [EBinop (OpAssign,(EConst (Ident "this"),_),e),_],_ | EBinop (OpAssign,(EConst (Ident "this"),_),e),_) when not (has_call e) ->
 								Some (EReturn (Some e), pos e)
 							| Some (EBlock el,p) -> Some (EBlock (init p :: el @ [ret p]),p)
 							| Some e -> Some (EBlock [init p;e;ret p],p)
@@ -560,6 +567,7 @@ and init_meta_overloads ctx cf =
 let hide_types ctx =
 	let old_m = ctx.m in
 	let old_type_params = ctx.type_params in
+	let old_deps = ctx.g.std.m_extra.m_deps in
 	ctx.m <- {
 		curmod = ctx.g.std;
 		module_types = [];
@@ -571,6 +579,8 @@ let hide_types ctx =
 	(fun() ->
 		ctx.m <- old_m;
 		ctx.type_params <- old_type_params;
+		(* restore dependencies that might be have been wronly inserted *)
+		ctx.g.std.m_extra.m_deps <- old_deps;
 	)
 
 (*
@@ -580,6 +590,12 @@ let load_core_type ctx name =
 	let show = hide_types ctx in
 	let t = load_instance ctx { tpackage = []; tname = name; tparams = []; tsub = None; } null_pos false in
 	show();
+	add_dependency ctx.m.curmod (match t with
+	| TInst (c,_) -> c.cl_module
+	| TType (t,_) -> t.t_module
+	| TAbstract (a,_) -> a.a_module
+	| TEnum (e,_) -> e.e_module
+	| _ -> assert false);
 	t
 
 let t_iterator ctx =
@@ -587,6 +603,7 @@ let t_iterator ctx =
 	match load_type_def ctx null_pos { tpackage = []; tname = "Iterator"; tparams = []; tsub = None } with
 	| TTypeDecl t ->
 		show();
+		add_dependency ctx.m.curmod t.t_module;
 		if List.length t.t_types <> 1 then assert false;
 		let pt = mk_mono() in
 		apply_params t.t_types [pt] t.t_type, pt
@@ -851,8 +868,10 @@ let rec check_interface ctx c intf params =
 				valid_redefinition ctx f2 t2 f (apply_params intf.cl_types params f.cf_type)
 			with
 				Unify_error l ->
-					display_error ctx ("Field " ^ i ^ " has different type than in " ^ s_type_path intf.cl_path) p;
-					display_error ctx (error_msg (Unify l)) p;
+					if not (Meta.has Meta.CsNative c.cl_meta && c.cl_extern) then begin
+						display_error ctx ("Field " ^ i ^ " has different type than in " ^ s_type_path intf.cl_path) p;
+						display_error ctx (error_msg (Unify l)) p;
+					end
 		with
 			| Not_found when not c.cl_interface ->
 				let msg = if !is_overload then
@@ -1531,8 +1550,19 @@ let init_class ctx c p context_init herits fields =
 						(* disallow initialization of non-physical fields (issue #1958) *)
 						display_error ctx "This field cannot be initialized because it is not a real variable" p; e
 					| Var v when not stat || (v.v_read = AccInline) ->
-						let e = match Optimizer.make_constant_expression ctx e with Some e -> check_cast e | None -> display_error ctx "Variable initialization must be a constant value" p; e in
-						e
+						let e = match Optimizer.make_constant_expression ctx e with
+							| Some e -> e
+							| None ->
+								let rec has_this e = match e.eexpr with
+									| TConst TThis ->
+										display_error ctx "Cannot access this or other member field in variable initialization" e.epos;
+									| _ ->
+									Type.iter has_this e
+								in
+								has_this e;
+								e
+						in
+						check_cast e
 					| _ ->
 						e
 					) in
@@ -1633,10 +1663,16 @@ let init_class ctx c p context_init herits fields =
 				c.cl_extern <- false;
 				if ctx.in_macro then
 					let texpr = CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = None } in
+					(* ExprOf type parameter might contain platform-specific type, let's replace it by Expr *)
+					let no_expr_of = function
+						| CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = Some ("ExprOf"); tparams = [TPType _] }
+						| CTPath { tpackage = []; tname = ("ExprOf"); tsub = None; tparams = [TPType _] } -> Some texpr
+						| t -> Some t
+					in
 					{
 						f_params = fd.f_params;
 						f_type = (match fd.f_type with None -> Some texpr | t -> t);
-						f_args = List.map (fun (a,o,t,e) -> a,o,(match t with None -> Some texpr | _ -> t),e) fd.f_args;
+						f_args = List.map (fun (a,o,t,e) -> a,o,(match t with None -> Some texpr | Some t -> no_expr_of t),e) fd.f_args;
 						f_expr = fd.f_expr;
 					}
 				else
@@ -2338,6 +2374,11 @@ let type_module ctx m file tdecls p =
 		opened = [];
 		vthis = None;
 	} in
+	if ctx.g.std != null_module then begin
+		add_dependency m ctx.g.std;
+		(* this will ensure both String and (indirectly) Array which are basic types which might be referenced *)
+		ignore(load_core_type ctx "String");
+	end;
 	(* here is an additional PASS 1 phase, which define the type parameters for all module types.
 		 Constraints are handled lazily (no other type is loaded) because they might be recursive anyway *)
 	List.iter (fun d ->

@@ -82,7 +82,7 @@ class BytesBuffer {
 		#elseif cpp
 		b.push(untyped byte);
 		#elseif cs
-		b.WriteByte(byte);
+		b.WriteByte(cast byte);
 		#elseif java
 		b.write(byte);
 		#else

@@ -260,6 +260,18 @@ let rec read_type_path com p =
       loop path p
     ) (all_files())
   ) com.java_libs;
+  List.iter (fun (path,std,all_files,lookup) ->
+    List.iter (fun (path, name) ->
+      if path = p then classes := name :: !classes else
+      let rec loop p1 p2 =
+        match p1, p2 with
+        | [], _ -> ()
+        | x :: _, [] -> packages := x :: !packages
+        | a :: p1, b :: p2 -> if a = b then loop p1 p2
+      in
+      loop path p
+    ) (all_files())
+  ) com.net_libs;
 	unique !packages, unique !classes
 
 let delete_file f = try Sys.remove f with _ -> ()
@@ -436,6 +448,113 @@ let run_command ctx cmd =
 	t();
 	r
 
+let display_memory ctx =
+	let verbose = ctx.com.verbose in
+	let print = print_endline in
+	let fmt_size sz =
+		if sz < 1024 then
+			string_of_int sz ^ " B"
+		else if sz < 1024*1024 then
+			string_of_int (sz asr 10) ^ " KB"
+		else
+			Printf.sprintf "%.1f MB" ((float_of_int sz) /. (1024.*.1024.))
+	in
+	let size v =
+		fmt_size (mem_size v)
+	in
+	Gc.full_major();
+	Gc.compact();
+	let mem = Gc.stat() in
+	print ("Total Allocated Memory " ^ fmt_size (mem.Gc.heap_words * (Sys.word_size asr 8)));
+	print ("Free Memory " ^ fmt_size (mem.Gc.free_words * (Sys.word_size asr 8)));
+	(match !global_cache with
+	| None ->
+		print "No cache found";
+	| Some c ->
+		print ("Total cache size " ^ size c);
+		print ("  haxelib " ^ size c.c_haxelib);
+		print ("  parsed ast " ^ size c.c_files ^ " (" ^ string_of_int (Hashtbl.length c.c_files) ^ " files stored)");
+		print ("  typed modules " ^ size c.c_modules ^ " (" ^ string_of_int (Hashtbl.length c.c_modules) ^ " modules stored)");
+		let rec scan_module_deps m h =
+			if Hashtbl.mem h m.m_id then
+				()
+			else begin
+				Hashtbl.add h m.m_id m;
+				PMap.iter (fun _ m -> scan_module_deps m h) m.m_extra.m_deps
+			end
+		in
+		let all_modules = Hashtbl.fold (fun _ m acc -> PMap.add m.m_id m acc) c.c_modules PMap.empty in
+		let modules = Hashtbl.fold (fun (path,key) m acc ->
+			let mdeps = Hashtbl.create 0 in
+			scan_module_deps m mdeps;
+			let deps = ref [] in
+			let out = ref all_modules in
+			Hashtbl.iter (fun _ md ->
+				out := PMap.remove md.m_id !out;
+				if m == md then () else begin
+				deps := Obj.repr md :: !deps;
+				List.iter (fun t ->
+					match t with
+					| TClassDecl c ->
+						deps := Obj.repr c :: !deps;
+						List.iter (fun f -> deps := Obj.repr f :: !deps) c.cl_ordered_statics;
+						List.iter (fun f -> deps := Obj.repr f :: !deps) c.cl_ordered_fields;
+					| TEnumDecl e ->
+						deps := Obj.repr e :: !deps;
+						List.iter (fun n -> deps := Obj.repr (PMap.find n e.e_constrs) :: !deps) e.e_names;
+					| TTypeDecl t -> deps := Obj.repr t :: !deps;
+					| TAbstractDecl a -> deps := Obj.repr a :: !deps;
+				) md.m_types;
+				end
+			) mdeps;
+			let chk = Obj.repr Common.memory_marker :: PMap.fold (fun m acc -> Obj.repr m :: acc) !out [] in
+			let inf = Objsize.objsize m !deps chk in
+			(m,Objsize.size_with_headers inf, (inf.Objsize.reached,!deps,!out)) :: acc
+		) c.c_modules [] in
+		let cur_key = ref "" and tcount = ref 0 and mcount = ref 0 in
+		List.iter (fun (m,size,(reached,deps,out)) ->
+			let key = m.m_extra.m_sign in
+			if key <> !cur_key then begin
+				print (Printf.sprintf ("    --- CONFIG %s ----------------------------") (Digest.to_hex key));
+				cur_key := key;
+			end;
+			let sign md =
+				if md.m_extra.m_sign = key then "" else "(" ^ (try Digest.to_hex md.m_extra.m_sign with _ -> "???" ^ md.m_extra.m_sign) ^ ")"
+			in
+			print (Printf.sprintf "    %s : %s" (Ast.s_type_path m.m_path) (fmt_size size));
+			(if reached then try
+				incr mcount;
+				let lcount = ref 0 in
+				let leak l =
+					incr lcount;
+					incr tcount;
+					print (Printf.sprintf "      LEAK %s" l);
+					if !lcount >= 3 && !tcount >= 100 && not verbose then begin
+						print (Printf.sprintf "      ...");
+						raise Exit;
+					end;
+				in
+				if (Objsize.objsize m deps [Obj.repr Common.memory_marker]).Objsize.reached then leak "common";
+				PMap.iter (fun _ md ->
+					if (Objsize.objsize m deps [Obj.repr md]).Objsize.reached then leak (Ast.s_type_path md.m_path ^ sign md);
+				) out;
+			with Exit ->
+				());
+			if verbose then begin
+				print (Printf.sprintf "      %d total deps" (List.length deps));
+				PMap.iter (fun _ md ->
+					print (Printf.sprintf "      dep %s%s" (Ast.s_type_path md.m_path) (sign md));
+				) m.m_extra.m_deps;
+			end;
+			flush stdout
+		) (List.sort (fun (m1,s1,_) (m2,s2,_) ->
+			let k1 = m1.m_extra.m_sign and k2 = m2.m_extra.m_sign in
+			if k1 = k2 then s1 - s2 else if k1 > k2 then 1 else -1
+		) modules);
+		if !mcount > 0 then print ("*** " ^ string_of_int !mcount ^ " modules have leaks !");
+		print "Cache dump complete")
+
+	
 let default_flush ctx =
 	List.iter prerr_endline (List.rev ctx.messages);
 	if ctx.has_error && !prompt then begin
@@ -499,7 +618,7 @@ let rec process_params create pl =
 	in
 	(* put --display in front if it was last parameter *)
 	let pl = (match List.rev pl with
-		| file :: "--display" :: pl -> "--display" :: file :: List.rev pl
+		| file :: "--display" :: pl when file <> "memory" -> "--display" :: file :: List.rev pl
 		| "use_rtti_doc" :: "-D" :: file :: "--display" :: pl -> "--display" :: file :: List.rev pl
 		| _ -> pl
 	) in
@@ -865,6 +984,7 @@ try
 			set_platform Cpp dir;
 		),"<directory> : generate C++ code into target directory");
  		("-cs",Arg.String (fun dir ->
+			cp_libs := "hxcs" :: !cp_libs;
 			set_platform Cs dir;
 		),"<directory> : generate C# code into target directory");
 		("-java",Arg.String (fun dir ->
@@ -931,6 +1051,12 @@ try
 		("-java-lib",Arg.String (fun file ->
 			Genjava.add_java_lib com file false
 		),"<file> : add an external JAR or class directory library");
+		("-net-lib",Arg.String (fun file ->
+			Gencs.add_net_lib com file false
+		),"<file> : add an external .NET DLL file");
+		("-net-std",Arg.String (fun file ->
+			Gencs.add_net_std com file
+		),"<file> : add a root std .NET DLL search path");
 		("-x", Arg.String (fun file ->
 			let neko_file = file ^ ".n" in
 			set_platform Neko neko_file;
@@ -981,6 +1107,9 @@ try
 				pre_compilation := (fun() -> raise (Parser.TypePath (["."],None))) :: !pre_compilation;
 			| "keywords" ->
 				complete_fields (Hashtbl.fold (fun k _ acc -> (k,"","") :: acc) Lexer.keywords [])
+			| "memory" ->
+				did_something := true;
+				(try display_memory ctx with e -> prerr_endline (Printexc.get_backtrace ()));
 			| _ ->
 				let file, pos = try ExtString.String.split file_pos "@" with _ -> failwith ("Invalid format : " ^ file_pos) in
 				let file = unquote file in
@@ -1238,6 +1367,7 @@ try
 		) com.types;
 		if com.display = DMUsage then
 			Codegen.detect_usage com;
+		Codegen.update_cache_dependencies com;
 		let dce_mode = (try Common.defined_value com Define.Dce with _ -> "no") in
 		if not (!gen_as3 || dce_mode = "no" || Common.defined com Define.DocGen) then Dce.run com main (dce_mode = "full" && not !interp);
 		(* always filter empty abstract implementation classes (issue #1885) *)

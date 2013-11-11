@@ -54,6 +54,9 @@ enum XmlType {
 		x._children = new Array();
 		var parser = {
 			cur : x,
+			add : function(x:Dynamic) {
+				untyped __this__.cur._children.push(x);
+			},
 			xml : function(name,att) {
 				var x : Dynamic = new Xml();
 				x._parent = untyped __this__.cur;
@@ -69,7 +72,7 @@ enum XmlType {
 						__dollar__objset(att,f[i], new String(__dollar__objget(att,f[i]))) ;
 						i++;
 					}
-					__this__.cur.addChild(x);
+					__this__.add(x);
 					__this__.cur = x;
 				}
 			},
@@ -78,14 +81,14 @@ enum XmlType {
 				x._parent = untyped __this__.cur;
 				x.nodeType = Xml.CData;
 				x._nodeValue = new String(text);
-				untyped __this__.cur.addChild(x);
+				untyped __this__.add(x);
 			},
 			pcdata : function(text) {
 				var x : Dynamic = new Xml();
 				x._parent = untyped __this__.cur;
 				x.nodeType = Xml.PCData;
 				x._nodeValue = new String(text);
-				untyped __this__.cur.addChild(x);
+				untyped __this__.add(x);
 			},
 			comment : function(text) {
 				var x : Dynamic = new Xml();
@@ -99,7 +102,7 @@ enum XmlType {
 					text = new String(text);
 				}
 				x._nodeValue = text;
-				untyped __this__.cur.addChild(x);
+				untyped __this__.add(x);
 			},
 			doctype : function(text) {
 				var x : Dynamic = new Xml();

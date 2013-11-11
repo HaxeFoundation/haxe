@@ -21,10 +21,9 @@
  */
 package cs;
 
-typedef Int8 = Int;
-typedef UInt8 = Int;
-typedef Int16 = Int;
-typedef UInt16 = Int;
-//UInt is top-level
-typedef UInt64 = haxe.Int64;
-typedef Char16 = Int;
+@:notNull @:runtimeValue @:coreType abstract Int8 to Int {}
+@:notNull @:runtimeValue @:coreType abstract Int16 to Int {}
+@:notNull @:runtimeValue @:coreType abstract Char16 from Int {}
+@:notNull @:runtimeValue @:coreType abstract UInt8 to Int from Int {}
+@:notNull @:runtimeValue @:coreType abstract UInt16 to Int {}
+@:notNull abstract UInt64(haxe.Int64) from haxe.Int64 {}

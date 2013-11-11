@@ -145,10 +145,14 @@ type context = {
 	mutable php_lib : string option;
 	mutable php_prefix : string option;
 	mutable swf_libs : (string * (unit -> Swf.swf) * (unit -> ((string list * string),As3hl.hl_class) Hashtbl.t)) list;
-	mutable java_libs : (string * bool * (unit -> unit) * (unit -> ((string list * string) list)) * ((string list * string) -> ((JData.jclass * string * string) option))) list;
+	mutable java_libs : (string * bool * (unit -> unit) * (unit -> (path list)) * (path -> ((JData.jclass * string * string) option))) list; (* (path,std,close,all_files,lookup) *)
+	mutable net_libs : (string * bool * (unit -> path list) * (path -> IlData.ilclass option)) list; (* (path,std,all_files,lookup) *)
+	mutable net_std : string list;
+	net_path_map : (path,string list * string list * string) Hashtbl.t;
 	mutable js_gen : (unit -> unit) option;
 	(* typing *)
 	mutable basic : basic_types;
+	memory_marker : float array;
 }
 
 exception Abort of string * Ast.pos
@@ -190,6 +194,8 @@ module Define = struct
 		| NekoSource
 		| NekoV1
 		| NetworkSandbox
+		| NetVer
+		| NetTarget
 		| NoCompilation
 		| NoCOpt
 		| NoFlashOverride
@@ -214,6 +220,7 @@ module Define = struct
 		| SwfProtected
 		| SwfScriptTimeout
 		| Sys
+		| Unsafe
 		| UseNekoc
 		| UseRttiDoc
 		| Vcproj
@@ -250,6 +257,8 @@ module Define = struct
 		| JsFlatten -> ("js_flatten","Generate classes to use fewer object property lookups")
 		| Macro -> ("macro","Defined when we compile code in the macro context")
 		| MacroTimes -> ("macro_times","Display per-macro timing when used with --times")
+		| NetVer -> ("net_ver", "<version:20-45> Sets the .NET version to be targeted")
+		| NetTarget -> ("net_target", "<name> Sets the .NET target. Defaults to \"net\". xbox, micro (Micro Framework), compact (Compact Framework) are some valid values")
 		| NekoSource -> ("neko_source","Output neko source instead of bytecode")
 		| NekoV1 -> ("neko_v1","Keep Neko 1.x compatibility")
 		| NetworkSandbox -> ("network-sandbox","Use local network sandbox instead of local file access one")
@@ -278,6 +287,7 @@ module Define = struct
 		| SwfProtected -> ("swf_protected","Compile Haxe private as protected in the SWF instead of public")
 		| SwfScriptTimeout -> ("swf_script_timeout", "Maximum ActionScript processing time before script stuck dialog box displays (in seconds)")
 		| Sys -> ("sys","Defined for all system platforms")
+		| Unsafe -> ("unsafe","Allow unsafe code when targeting C#")
 		| UseNekoc -> ("use_nekoc","Use nekoc compiler instead of internal one")
 		| UseRttiDoc -> ("use_rtti_doc","Allows access to documentation during compilation")
 		| Vcproj -> ("vcproj","GenCPP internal")
@@ -324,6 +334,7 @@ module MetaInfo = struct
 		| CoreType -> ":coreType",("Identifies an abstract as core type so that it requires no implementation",[UsedOn TAbstract])
 		| CppFileCode -> ":cppFileCode",("",[Platform Cpp])
 		| CppNamespaceCode -> ":cppNamespaceCode",("",[Platform Cpp])
+		| CsNative -> ":csNative",("Automatically added by -net-lib on classes generated from .NET DLL files",[Platform Cs; UsedOnEither[TClass;TEnum]; Internal])
 		| Dce -> ":dce",("Forces dead code elimination even when not -dce full is specified",[UsedOnEither [TClass;TEnum]])
 		| Debug -> ":debug",("Forces debug information to be generated into the Swf even without -debug",[UsedOnEither [TClass;TClassField]; Platform Flash])
 		| Decl -> ":decl",("",[Platform Cpp])
@@ -617,6 +628,8 @@ let get_config com =
 			pf_ignore_unsafe_cast = false;
 		}
 
+let memory_marker = [|Unix.time()|]
+
 let create v args =
 	let m = Type.mk_mono() in
 	{
@@ -648,6 +661,9 @@ let create v args =
 		php_lib = None;
 		swf_libs = [];
 		java_libs = [];
+		net_libs = [];
+		net_std = [];
+		net_path_map = Hashtbl.create 0;
 		neko_libs = [];
 		php_prefix = None;
 		js_gen = None;
@@ -665,6 +681,7 @@ let create v args =
 			tstring = m;
 			tarray = (fun _ -> assert false);
 		};
+		memory_marker = memory_marker;
 	}
 
 let log com str =
@@ -833,6 +850,9 @@ let normalize_path p =
 		| '\\' | '/' -> p
 		| _ -> p ^ "/"
 
+let mem_size v =
+	Objsize.size_with_headers (Objsize.objsize v [] [])
+		
 (* ------------------------- TIMERS ----------------------------- *)
 
 type timer_infos = {

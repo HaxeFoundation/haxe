@@ -130,7 +130,7 @@ import cs.internal.Runtime;
 		if (name.indexOf(".") == -1)
 			name = "haxe.root." + name;
 #end
-		var t:cs.system.Type = cs.system.Type.GetType(name);
+		var t:cs.system.Type = cs.system.Type._GetType(name);
 		if (t == null)
 		{
 			switch(name)
@@ -150,7 +150,7 @@ import cs.internal.Runtime;
 			{
 				i++;
 				ts += (i == 1 ? "" : ",") + "System.Object";
-				t = cs.system.Type.GetType(name + "`" + i + "[" + ts + "]");
+				t = cs.system.Type._GetType(name + "`" + i + "[" + ts + "]");
 			}
 
 			return Lib.fromNativeType(t);

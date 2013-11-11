@@ -1143,6 +1143,11 @@ let std_lib =
 			| VAbstract (ABuffer b) -> Buffer.reset b; VNull;
 			| _ -> error()
 		);
+		"buffer_get_length", Fun1 (fun b ->
+			match b with
+			| VAbstract (ABuffer b) -> VInt (Buffer.length b)
+			| _ -> error()
+		);
 	(* date *)
 		"date_now", Fun0 (fun () ->
 			make_date (Unix.time())
