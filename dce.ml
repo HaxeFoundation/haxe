@@ -86,7 +86,8 @@ and mark_field dce c cf stat =
 		if not (Meta.has Meta.Used cf.cf_meta) then begin
 			cf.cf_meta <- (Meta.Used,[],cf.cf_pos) :: cf.cf_meta;
 			dce.added_fields <- (c,cf,stat) :: dce.added_fields;
-			dce.marked_fields <- cf :: dce.marked_fields
+			dce.marked_fields <- cf :: dce.marked_fields;
+			check_feature dce (Printf.sprintf "%s.%s" (s_type_path c.cl_path) cf.cf_name);
 		end
 	in
 	if cf.cf_name = "new" then begin
