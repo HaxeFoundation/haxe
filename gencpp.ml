@@ -3155,11 +3155,11 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 
    	let dump_member_storage = (fun field ->
          let storage = match type_string field.cf_type with
-         | "Bool" -> "hx::fsBool"
-         | "Int" -> "hx::fsInt"
+         | "bool" -> "hx::fsBool"
+         | "int" -> "hx::fsInt"
          | "Float" -> "hx::fsFloat"
          | "::String" -> "hx::fsString"
-         | _ -> "hx::fsObject"
+         | str -> "hx::fsObject" ^ " /*" ^ str ^ "*/ "
          in
          output_cpp ("	{" ^ storage ^ ",(int)offsetof(" ^ class_name ^"," ^ (keyword_remap field.cf_name) ^")," ^
             (str field.cf_name) ^ "},\n")
