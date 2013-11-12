@@ -146,8 +146,6 @@ let rec type_inline ctx cf f ethis params tret config p force =
 		with Not_found ->
 			(* make sure to duplicate unbound inline variable to prevent dependency leak when unifying monomorph *)
 			if has_meta Meta.Unbound v.v_meta then local v else
-			let v = v in
-			prerr_endline v.v_name;
 			{
 				i_var = v;
 				i_subst = v;
