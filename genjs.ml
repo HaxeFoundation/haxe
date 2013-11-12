@@ -1105,7 +1105,13 @@ let alloc_ctx com =
 		separator = false;
 		found_expose = false;
 	} in
-	ctx.type_accessor <- (fun t -> s_path ctx (t_path t));
+	ctx.type_accessor <- (fun t -> 
+		let p = t_path t in
+		match t with
+		| TClassDecl { cl_extern = true } 
+		| TEnumDecl { e_extern = true }
+			-> dot_path p
+		| _ -> s_path ctx p);
 	ctx
 
 let gen_single_expr ctx e expr =
