@@ -108,7 +108,7 @@ common.cmx: type.cmx ast.cmx
 
 dce.cmx: ast.cmx common.cmx codegen.cmx type.cmx
 
-filters.cmx: ast.cmx common.cmx type.cmx dce.cmx
+filters.cmx: ast.cmx common.cmx type.cmx dce.cmx codegen.cmx typecore.cmx
 
 genas3.cmx: type.cmx common.cmx codegen.cmx ast.cmx
 
