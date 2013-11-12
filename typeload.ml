@@ -1442,7 +1442,7 @@ let init_class ctx c p context_init herits fields =
 			true
 		else match parent with
 			| Some { cf_public = p } -> p
-			| _ -> c.cl_extern || c.cl_interface || extends_public || (match c.cl_kind with KAbstractImpl _ -> true | _ -> false)
+			| _ -> c.cl_extern || c.cl_interface || extends_public || (ctx.com.version < 30200 && match c.cl_kind with KAbstractImpl _ -> true | _ -> false)
 	in
 	let rec get_parent c name =
 		match c.cl_super with
