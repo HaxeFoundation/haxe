@@ -414,15 +414,16 @@ int c_objsize(value v, value scan, value reach, size_t* headers, size_t* data, s
 	value v = Field(head,0);
 	header_t hd = Hd_val(v);
 	int col = Colornum_hd(hd);
+	head = Field(head,1);
+	if( col == Col_blue ) continue;
 	writecolor(col);
 	Hd_val(v) = Coloredhd_hd(hd, Col_blue);
-	head = Field(head,1);
  }
 
  acc_data = 0;
  acc_hdrs = 0;
  acc_depth = 0;
- if ( COND_BLOCK(v) )
+ if ( COND_BLOCK(v) && Colornum_hd(Hd_val(v)) != Col_blue )
   {
   c_rec_objsize(v, 0);
   };
@@ -431,6 +432,20 @@ int c_objsize(value v, value scan, value reach, size_t* headers, size_t* data, s
  *data = acc_data;
  *depth = acc_depth;
   }
+
+ rle_write_flush();
+ DBG(printf("COL reading\n"));
+ rle_init();
+
+  head = scan;
+ while( COND_BLOCK(head) ) {
+	value v = Field(head,0);
+	int col;
+	head = Field(head,1);
+	if( Colornum_hd(Hd_val(v)) != Col_blue ) continue;
+	col = readcolor();
+	Hd_val(v) = Coloredhd_hd(Hd_val(v), col);
+ }
 
   while( COND_BLOCK(reach) ) {
 	  value v = Field(reach,0);
@@ -441,19 +456,7 @@ int c_objsize(value v, value scan, value reach, size_t* headers, size_t* data, s
 	  reach = Field(reach,1);
   }
 
- rle_write_flush();
- DBG(printf("COL reading\n"));
- rle_init();
-
-  head = scan;
- while( COND_BLOCK(head) ) {
-	value v = Field(head,0);
-	int col = readcolor();
-	Hd_val(v) = Coloredhd_hd(Hd_val(v), col);
-	head = Field(head,1);
- }
-
- if ( COND_BLOCK(v) )
+ if ( COND_BLOCK(v) && Colornum_hd(Hd_val(v)) == Col_blue )
   {
   restore_colors(v);
   };
