@@ -917,7 +917,6 @@ try
 	let config_macros = ref [] in
 	let cp_libs = ref [] in
 	let added_libs = Hashtbl.create 0 in
-	let gen_as3 = ref false in
 	let no_output = ref false in
 	let did_something = ref false in
 	let force_typing = ref false in
@@ -978,7 +977,6 @@ try
 		("-swf",Arg.String (set_platform Flash),"<file> : compile code to Flash SWF file");
 		("-as3",Arg.String (fun dir ->
 			set_platform Flash dir;
-			gen_as3 := true;
 			Common.define com Define.As3;
 			Common.define com Define.NoInline;
 		),"<directory> : generate AS3 code into target directory");
@@ -1355,43 +1353,7 @@ try
 		com.main <- main;
 		com.types <- types;
 		com.modules <- modules;
-		let filters = [
-			Codegen.Abstract.handle_abstract_casts tctx;
-			(match com.platform with Cpp -> Codegen.handle_side_effects com (Typecore.gen_local tctx) | _ -> fun e -> e);
-			Codegen.promote_complex_rhs com;
-			if com.foptimize then (fun e -> Optimizer.reduce_expression tctx (Optimizer.inline_constructors tctx e)) else Optimizer.sanitize tctx;
-			Codegen.check_local_vars_init;
-			Codegen.captured_vars com;
-			Codegen.rename_local_vars com;
-		] in
-		List.iter (Codegen.post_process tctx filters) com.types;
-		Codegen.post_process_end();
-		List.iter (fun f -> f()) (List.rev com.filters);
-		List.iter (Codegen.save_class_state tctx) com.types;
-		List.iter (fun t ->
-			Codegen.remove_generic_base tctx t;
-			Codegen.remove_extern_fields tctx t
-		) com.types;
-		if com.display = DMUsage then
-			Codegen.detect_usage com;
-		Codegen.update_cache_dependencies com;
-		let dce_mode = (try Common.defined_value com Define.Dce with _ -> "no") in
-		if not (!gen_as3 || dce_mode = "no" || Common.defined com Define.DocGen) then Dce.run com main (dce_mode = "full" && not !interp);
-		(* always filter empty abstract implementation classes (issue #1885) *)
-		List.iter (fun mt -> match mt with
-			| TClassDecl({cl_kind = KAbstractImpl _} as c) when c.cl_ordered_statics = [] && c.cl_ordered_fields = [] -> c.cl_extern <- true
-			| _ -> ()
-		) com.types;
-		let type_filters = [
-			Codegen.check_private_path;
-			Codegen.apply_native_paths;
-			Codegen.add_rtti;
-			(match ctx.com.platform with | Java | Cs -> (fun _ _ -> ()) | _ -> Codegen.add_field_inits);
-			Codegen.add_meta_field;
-			Codegen.check_remove_metadata;
-			Codegen.check_void_field;
-		] in
-		List.iter (fun t -> List.iter (fun f -> f tctx t) type_filters) com.types;
+		Filters.run com tctx main;
 		if ctx.has_error then raise Abort;
 		(match !xml_out with
 		| None -> ()
@@ -1416,7 +1378,7 @@ try
 			end;
 		| Cross ->
 			()
-		| Flash8 | Flash when !gen_as3 ->
+		| Flash8 | Flash when Common.defined com Define.As3 ->
 			Common.log com ("Generating AS3 in : " ^ com.file);
 			Genas3.generate com;
 		| Flash8 | Flash ->
