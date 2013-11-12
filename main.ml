@@ -44,7 +44,12 @@ type cache = {
 exception Abort
 exception Completion of string
 
-let version = 310
+
+let version = 30100
+let version_major = version / 10000
+let version_minor = (version mod 10000) / 100
+let version_revision = (version mod 100)
+let version_is_stable = version_minor land 1 = 0
 
 let measure_times = ref false
 let prompt = ref false
@@ -56,6 +61,9 @@ let executable_path() =
 
 let is_debug_run() =
 	try Sys.getenv "HAXEDEBUG" = "1" with _ -> false
+
+let s_version =
+	Printf.sprintf "%d.%d.%d" version_major version_minor version_revision
 
 let format msg p =
 	if p = Ast.null_pos then
@@ -554,7 +562,7 @@ let display_memory ctx =
 		if !mcount > 0 then print ("*** " ^ string_of_int !mcount ^ " modules have leaks !");
 		print "Cache dump complete")
 
-	
+
 let default_flush ctx =
 	List.iter prerr_endline (List.rev ctx.messages);
 	if ctx.has_error && !prompt then begin
@@ -897,8 +905,8 @@ and do_connect host port args =
 
 and init ctx =
 	let usage = Printf.sprintf
-		"Haxe Compiler %d.%d.%d %s- (C)2005-2013 Haxe Foundation\n Usage : haxe%s -main <class> [-swf|-js|-neko|-php|-cpp|-as3] <output> [options]\n Options :"
-		(version / 100) ((version mod 100)/10) (version mod 10) (match Version.version_extra with None -> "" | Some v -> v) (if Sys.os_type = "Win32" then ".exe" else "")
+		"Haxe Compiler %s %s- (C)2005-2013 Haxe Foundation\n Usage : haxe%s -main <class> [-swf|-js|-neko|-php|-cpp|-as3] <output> [options]\n Options :"
+		s_version (match Version.version_extra with None -> "" | Some v -> v) (if Sys.os_type = "Win32" then ".exe" else "")
 	in
 	let com = ctx.com in
 	let classes = ref [([],"Std")] in
@@ -915,8 +923,7 @@ try
 	let force_typing = ref false in
 	let pre_compilation = ref [] in
 	let interp = ref false in
-	Common.define_value com Define.HaxeVer (float_repres (float_of_int version /. 100.));
-	Common.raw_define com (if ((version / 10) land 1 == 0) then "haxe_release" else "haxe_svn");
+	Common.define_value com Define.HaxeVer (float_repres (float_of_int version /. 10000.));
 	Common.raw_define com "haxe3";
 	Common.define_value com Define.Dce "std";
 	com.warning <- (fun msg p -> message ctx ("Warning : " ^ msg) p);
@@ -1176,7 +1183,7 @@ try
 			(try Unix.chdir dir with _ -> raise (Arg.Bad "Invalid directory"))
 		),"<dir> : set current working directory");
 		("-version",Arg.Unit (fun() ->
-			message ctx (Printf.sprintf "%d.%d.%d" (version / 100) ((version mod 100)/10) (version mod 10)) Ast.null_pos;
+			message ctx s_version Ast.null_pos;
 			did_something := true;
 		),": print version and exit");
 		("--help-defines", Arg.Unit (fun() ->
