@@ -209,6 +209,7 @@ module Define = struct
 		| RealPosition
 		| ReplaceFiles
 		| Scriptable
+		| ShallowExpose
 		| Swc
 		| SwfCompressLevel
 		| SwfDebugPassword
@@ -276,6 +277,7 @@ module Define = struct
 		| RealPosition -> ("real_position","Disables haxe source mapping when targetting C#")
 		| ReplaceFiles -> ("replace_files","GenCommon internal")
 		| Scriptable -> ("scriptable","GenCPP internal")
+		| ShallowExpose -> ("shallow-expose","Expose types to surrounding scope of Haxe generated closure without writing to window object")
 		| Swc -> ("swc","Output a SWC instead of a SWF")
 		| SwfCompressLevel -> ("swf_compress_level","<level:1-9> Set the amount of compression for the SWF output")
 		| SwfDebugPassword -> ("swf_debug_password", "Set a password for debugging.")
