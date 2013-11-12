@@ -130,6 +130,7 @@ module Meta = struct
 		| Transient
 		| ValueUsed
 		| Volatile
+		| Unbound
 		| UnifyMinDynamic
 		| Unreflective
 		| Unsafe

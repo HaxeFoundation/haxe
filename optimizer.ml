@@ -135,6 +135,7 @@ let rec type_inline ctx cf f ethis params tret config p force =
 				i_force_temp = false;
 				i_read = 0;
 			} in
+			i.i_subst.v_meta <- v.v_meta;
 			Hashtbl.add locals v.v_id i;
 			Hashtbl.add locals i.i_subst.v_id i;
 			i
@@ -142,10 +143,11 @@ let rec type_inline ctx cf f ethis params tret config p force =
 	let read_local v =
 		try
 			Hashtbl.find locals v.v_id
-		with Not_found -> try
-			(* if it's in our current local context, it's because we're inlining a local function *)
-			let v2 = if v.v_name.[0] = '`' then v else PMap.find v.v_name ctx.locals in
-			if v != v2 then raise Not_found;
+		with Not_found ->
+			(* make sure to duplicate unbound inline variable to prevent dependency leak when unifying monomorph *)
+			if has_meta Meta.Unbound v.v_meta then local v else
+			let v = v in
+			prerr_endline v.v_name;
 			{
 				i_var = v;
 				i_subst = v;
@@ -154,9 +156,6 @@ let rec type_inline ctx cf f ethis params tret config p force =
 				i_force_temp = false;
 				i_read = 0;
 			}
-		with Not_found ->
-			(* it's an unbound local, let's clone it *)
-			local v
 	in
 	(* use default values for null/unset arguments *)
 	let rec loop pl al first =

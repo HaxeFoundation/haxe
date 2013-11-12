@@ -2008,7 +2008,9 @@ and type_ident ctx i p mode =
 				AKExpr (mk (TConst TThis) ctx.tthis p)
 			else
 				let t = mk_mono() in
-				AKExpr (mk (TLocal (alloc_var i t)) t p)
+				let v = alloc_var i t in
+				v.v_meta <- [Meta.Unbound,[],p];
+				AKExpr (mk (TLocal v) t p)
 		end else begin
 			if ctx.curfun = FunStatic && PMap.mem i ctx.curclass.cl_fields then error ("Cannot access " ^ i ^ " in static function") p;
 			let err = Unknown_ident i in

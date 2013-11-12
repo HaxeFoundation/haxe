@@ -260,6 +260,7 @@ let generic_substitute_expr gctx e =
 			Hashtbl.find vars v.v_id
 		with Not_found ->
 			let v2 = alloc_var v.v_name (generic_substitute_type gctx v.v_type) in
+			v2.v_meta <- v.v_meta;
 			Hashtbl.add vars v.v_id v2;
 			v2
 	in
@@ -1092,7 +1093,9 @@ let captured_vars com e =
 		mk (TVars [av,Some (mk (TArrayDecl [mk (TLocal v) v.v_type pos]) av.v_type pos)]) t.tvoid pos
 
 	and mk_var v used =
-		alloc_var v.v_name (PMap.find v.v_id used)
+		let v2 = alloc_var v.v_name (PMap.find v.v_id used) in
+		v2.v_meta <- v.v_meta;
+		v2
 
 	and wrap used e =
 		match e.eexpr with
