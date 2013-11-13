@@ -1034,6 +1034,8 @@ let run com tctx main =
 		Codegen.Abstract.handle_abstract_casts tctx;
 		(match com.platform with Cpp -> handle_side_effects com (Typecore.gen_local tctx) | _ -> fun e -> e);
 		if com.foptimize then (fun e -> Optimizer.reduce_expression tctx (Optimizer.inline_constructors tctx e)) else Optimizer.sanitize tctx;
+		promote_complex_rhs com;
+		if com.config.pf_add_final_return then add_final_return else (fun e -> e);
 		check_local_vars_init;
 		captured_vars com;
 	] in
