@@ -4304,6 +4304,9 @@ and encode_clref c =
 and encode_enref en =
 	encode_ref en encode_tenum (fun() -> s_type_path en.e_path)
 
+and encode_cfref cf =
+	encode_ref cf encode_cfield (fun() -> cf.cf_name)
+
 and encode_type t =
 	let rec loop = function
 		| TMono r ->
@@ -4433,11 +4436,11 @@ and encode_tfunc func =
 
 and encode_field_access fa =
 	let tag,pl = match fa with
-		| FInstance(c,cf) -> 0,[encode_clref c;encode_cfield cf]
-		| FStatic(c,cf) -> 1,[encode_clref c;encode_cfield cf]
-		| FAnon(cf) -> 2,[encode_cfield cf]
+		| FInstance(c,cf) -> 0,[encode_clref c;encode_cfref cf]
+		| FStatic(c,cf) -> 1,[encode_clref c;encode_cfref cf]
+		| FAnon(cf) -> 2,[encode_cfref cf]
 		| FDynamic(s) -> 3,[enc_string s]
-		| FClosure(co,cf) -> 4,[vopt encode_clref co;encode_cfield cf]
+		| FClosure(co,cf) -> 4,[vopt encode_clref co;encode_cfref cf]
 		| FEnum(en,ef) -> 5,[encode_enref en;encode_efield ef]
 	in
 	enc_enum IFieldAccess tag pl
@@ -4587,11 +4590,11 @@ let decode_efield v =
 
 let decode_field_access v =
 	match decode_enum v with
-	| 0, [c;cf] -> FInstance(decode_ref c,decode_cfield cf)
-	| 1, [c;cf] -> FStatic(decode_ref c,decode_cfield cf)
-	| 2, [cf] -> FAnon(decode_cfield cf)
+	| 0, [c;cf] -> FInstance(decode_ref c,decode_ref cf)
+	| 1, [c;cf] -> FStatic(decode_ref c,decode_ref cf)
+	| 2, [cf] -> FAnon(decode_ref cf)
 	| 3, [s] -> FDynamic(dec_string s)
-	| 4, [co;cf] -> FClosure(opt decode_ref co,decode_cfield cf)
+	| 4, [co;cf] -> FClosure(opt decode_ref co,decode_ref cf)
 	| 5, [e;ef] -> FEnum(decode_ref e,decode_efield ef)
 	| _ -> raise Invalid_expr
 

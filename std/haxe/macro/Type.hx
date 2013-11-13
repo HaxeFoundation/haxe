@@ -116,7 +116,6 @@ typedef DefType = {> BaseType,
 	var type : Type;
 }
 
-
 typedef AbstractType = {>BaseType,
 	var type : Type;
 	var impl : Null<Ref<ClassType>>;
@@ -229,11 +228,11 @@ typedef TFunc = {
 }
 
 enum FieldAccess {
-	FInstance(c:Ref<ClassType>, cf:ClassField);
-	FStatic(c:Ref<ClassType>, cf:ClassField);
-	FAnon(cf:ClassField);
+	FInstance(c:Ref<ClassType>, cf:Ref<ClassField>);
+	FStatic(c:Ref<ClassType>, cf:Ref<ClassField>);
+	FAnon(cf:Ref<ClassField>);
 	FDynamic(s:String);
-	FClosure(c:Null<Ref<ClassType>>, cf:ClassField);
+	FClosure(c:Null<Ref<ClassType>>, cf:Ref<ClassField>);
 	FEnum(e:Ref<EnumType>, ef:EnumField);
 }
 
