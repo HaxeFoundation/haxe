@@ -1828,14 +1828,18 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 		if is_assign_op && not assign then mk (TField(ec,FDynamic ":needsAssign")) t_dynamic p else ec
 	in
 	let cast_rec e1t e2t r is_core_type =
-		let e = make e1t e2t in
-		(* we assume that someone declaring a @:coreType knows what he is doing with regards to operation return types (issue #2333) *)
-		if not is_core_type then begin try
-			unify_raise ctx e.etype r p
-		with Error (Unify _,_) ->
-			error ("The result of this operation (" ^ (s_type (print_context()) e.etype) ^ ") is not compatible with declared return type " ^ (s_type (print_context()) r)) p;
-		end;
-		{e with etype = r}
+		if is_core_type then
+			(* we assume that someone declaring a @:coreType knows what he is doing with regards to operation return types (issue #2333) *)
+			mk (TBinop(op,e1t,e2t)) r p
+		else begin
+			let e = make e1t e2t in
+			begin try
+				unify_raise ctx e.etype r p
+			with Error (Unify _,_) ->
+				error ("The result of this operation (" ^ (s_type (print_context()) e.etype) ^ ") is not compatible with declared return type " ^ (s_type (print_context()) r)) p;
+			end;
+			{e with etype = r}
+		end
 	in
 	try (match follow e1.etype with
 		| TAbstract ({a_impl = Some c} as a,pl) ->
