@@ -1059,7 +1059,8 @@ let match_expr ctx e cases def with_type p =
 		| _ ->
 			let e = type_expr ctx e Value in
 			begin match follow e.etype with
-			| TEnum(en,_) when PMap.is_empty en.e_constrs || Meta.has Meta.FakeEnum en.e_meta ->
+			(* TODO: get rid of the XmlType check *)
+			| TEnum(en,_) when (en.e_path = ([],"XmlType")) || Meta.has Meta.FakeEnum en.e_meta ->
 				raise Exit
 			| TAbstract({a_path=[],("Int" | "Float" | "Bool")},_) | TInst({cl_path = [],"String"},_) when (Common.defined ctx.com Common.Define.NoPatternMatching) ->
 				raise Exit;
