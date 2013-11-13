@@ -2322,7 +2322,8 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 					);
 				end else
 					error "Missing underlying type declaration or @:coreType declaration" p;
-			end;
+			end else if !is_type then
+				error "@:coreType abstracts cannot have an underlying type" p;
 			t
 		in
 		List.iter (function
@@ -2335,9 +2336,10 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 				a.a_this <- at;
 				is_type := true;
 			| APrivAbstract -> ()
-		) d.d_flags;
-		if not !is_type && (match a.a_impl with Some _ -> true | None -> not (Meta.has Meta.CoreType a.a_meta)) then
-			error "Abstract is missing underlying type declaration" a.a_pos
+		) d.d_flags
+		(* this was assuming that implementations imply underlying type, but that shouldn't be necessary (issue #2333) *)
+(* 		if not !is_type && (match a.a_impl with Some _ -> true | None -> not (Meta.has Meta.CoreType a.a_meta)) then
+			error "Abstract is missing underlying type declaration" a.a_pos *)
 
 let type_module ctx m file tdecls p =
 	let m, decls, tdecls = make_module ctx m file tdecls p in

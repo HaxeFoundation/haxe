@@ -1827,9 +1827,10 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 		(* obviously a hack to report back that we need an assignment *)
 		if is_assign_op && not assign then mk (TField(ec,FDynamic ":needsAssign")) t_dynamic p else ec
 	in
-	let cast_rec e1t e2t r =
+	let cast_rec e1t e2t r is_core_type =
 		let e = make e1t e2t in
-		begin try
+		(* we assume that someone declaring a @:coreType knows what he is doing with regards to operation return types (issue #2333) *)
+		if not is_core_type then begin try
 			unify_raise ctx e.etype r p
 		with Error (Unify _,_) ->
 			error ("The result of this operation (" ^ (s_type (print_context()) e.etype) ^ ") is not compatible with declared return type " ^ (s_type (print_context()) r)) p;
@@ -1842,7 +1843,7 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 			begin match f.cf_expr with
 				| None ->
 					let e2 = match follow e2.etype with TAbstract(a,pl) -> {e2 with etype = apply_params a.a_types pl a.a_this} | _ -> e2 in
-					cast_rec {e1 with etype = apply_params a.a_types pl a.a_this} e2 r
+					cast_rec {e1 with etype = apply_params a.a_types pl a.a_this} e2 r (Meta.has Meta.CoreType a.a_meta)
 				| Some _ ->
 					mk_cast_op c f a pl e1 e2 r assign
 			end
@@ -1855,7 +1856,7 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 				| None ->
 					let e1,e2 = if commutative then e2,e1 else e1,e2 in
 					let e1 = match follow e1.etype with TAbstract(a,pl) -> {e1 with etype = apply_params a.a_types pl a.a_this} | _ -> e1 in
-					cast_rec e1 {e2 with etype = apply_params a.a_types pl a.a_this} r
+					cast_rec e1 {e2 with etype = apply_params a.a_types pl a.a_this} r (Meta.has Meta.CoreType a.a_meta)
 				| Some _ ->
 					let e1,e2 = if commutative then e2,e1 else e1,e2 in
 					mk_cast_op c f a pl e1 e2 r assign
