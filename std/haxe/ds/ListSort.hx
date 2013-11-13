@@ -28,7 +28,7 @@ package haxe.ds;
 **/
 class ListSort {
 
-	// Note : we prefer [inline] over [@:generic] here since we want to inline the comparison function as well 
+	// Note : we prefer [inline] over [@:generic] here since we want to inline the comparison function as well
 	
 	/**
 		Sorts List `lst` according to the comparison function `cmp`, where
@@ -36,15 +36,16 @@ class ListSort {
 		negative Int if `x < y`.
 		
 		This operation modifies List `a` in place and returns its head once modified.
+		The `prev` of the head is set to the tail of the sorted list.
 		
-		If `list` or `cmp` are null, the result is unspecified.	
+		If `list` or `cmp` are null, the result is unspecified.
 	**/
 	public static inline function sort<T:{prev:T,next:T}>(list:T, cmp : T -> T -> Int) : T {
 		// ported from http://www.chiark.greenend.org.uk/~sgtatham/algorithms/listsort.html
 		if( list == null )
 			return null;
 		var insize = 1, nmerges, psize = 0, qsize = 0;
-		var p, q, e, tail : T;
+		var p, q, e, tail : T = null;
 		while( true ) {
 			p = list;
 			list = null;
@@ -88,6 +89,7 @@ class ListSort {
 				break;
 			insize *= 2;
 		}
+		list.prev = tail;
 		return list;
 	}
 
