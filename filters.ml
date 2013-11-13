@@ -167,6 +167,43 @@ let promote_complex_rhs ctx e =
 	in
 	find e
 
+(* Adds final returns to functions as required by some platforms *)
+let rec add_final_return e =
+	let rec loop e t =
+		let def_return p =
+			let c = (match follow t with
+				| TAbstract ({ a_path = [],"Int" },_) -> TInt 0l
+				| TAbstract ({ a_path = [],"Float" },_) -> TFloat "0."
+				| TAbstract ({ a_path = [],"Bool" },_) -> TBool false
+				| _ -> TNull
+			) in
+			{ eexpr = TReturn (Some { eexpr = TConst c; epos = p; etype = t }); etype = t; epos = p }
+		in
+		match e.eexpr with
+		| TBlock el ->
+			(match List.rev el with
+			| [] -> e
+			| elast :: el ->
+				match loop elast t with
+				| { eexpr = TBlock el2 } -> { e with eexpr = TBlock ((List.rev el) @ el2) }
+				| elast -> { e with eexpr = TBlock (List.rev (elast :: el)) })
+		| TReturn _ ->
+			e
+		| _ ->
+			{ e with eexpr = TBlock [e;def_return e.epos] }
+	in
+
+	let e = Type.map_expr add_final_return e in
+
+	match e.eexpr with
+		| TFunction f ->
+			let f = (match follow f.tf_type with
+				| TAbstract ({ a_path = [],"Void" },[]) -> f
+				| t -> { f with tf_expr = loop f.tf_expr t }
+			) in
+			{ e with eexpr = TFunction f }
+		| _ -> e
+
 (* -------------------------------------------------------------------------- *)
 (* CHECK LOCAL VARS INIT *)
 
@@ -996,11 +1033,9 @@ let run com tctx main =
  	let filters = [
 		Codegen.Abstract.handle_abstract_casts tctx;
 		(match com.platform with Cpp -> handle_side_effects com (Typecore.gen_local tctx) | _ -> fun e -> e);
-		promote_complex_rhs com;
 		if com.foptimize then (fun e -> Optimizer.reduce_expression tctx (Optimizer.inline_constructors tctx e)) else Optimizer.sanitize tctx;
 		check_local_vars_init;
 		captured_vars com;
-		rename_local_vars com;
 	] in
 	List.iter (post_process tctx filters) com.types;
 	post_process_end();
@@ -1009,7 +1044,9 @@ let run com tctx main =
 	List.iter (save_class_state tctx) com.types;
 	(* PASS 2: destructive type and expression filters *)
 	let filters = [
-
+		promote_complex_rhs com;
+		if com.config.pf_add_final_return then add_final_return else (fun e -> e);
+		rename_local_vars com; (* TODO: it shouldn't be necessary to have this here if promote_complex_rhs can generate proper variable names *)
 	] in
 	List.iter (fun t ->
 		remove_generic_base tctx t;
