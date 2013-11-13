@@ -2322,8 +2322,7 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 					);
 				end else
 					error "Missing underlying type declaration or @:coreType declaration" p;
-			end else if !is_type then
-				error "@:coreType abstracts cannot have an underlying type" p;
+			end;
 			t
 		in
 		List.iter (function
@@ -2331,6 +2330,7 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 			| AToType t -> a.a_to <- (load_type t false, None) :: a.a_to
 			| AIsType t ->
 				if a.a_impl = None then error "Abstracts with underlying type must have an implementation" a.a_pos;
+				if Meta.has Meta.CoreType a.a_meta then error "@:coreType abstracts cannot have an underlying type" p;
 				let at = load_complex_type ctx p t in
 				(match at with TAbstract(a2,_) when a == a2 -> error "Abstract underlying type cannot be recursive" a.a_pos | _ -> ());
 				a.a_this <- at;
