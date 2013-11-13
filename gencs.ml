@@ -1870,7 +1870,8 @@ let configure gen =
     (if is_some cl.cl_constructor then gen_class_field w false cl is_final (get cl.cl_constructor));
 		if not cl.cl_interface then begin
 			List.iter (gen_class_field w true cl is_final) snonprops;
-			List.iter (gen_prop w true cl is_final) sprops
+			(* we don't want to generate properties for abstrac implementation classes, because they don't have object to work with *)
+			if (match cl.cl_kind with KAbstractImpl _ -> false | _ -> true) then List.iter (gen_prop w true cl is_final) sprops
 		end;
     List.iter (gen_class_field w false cl is_final) fnonprops;
 		List.iter (gen_prop w false cl is_final) fprops;
