@@ -628,29 +628,6 @@ let rec need_parent e =
 	| TCast _ | TThrow _ | TReturn _ | TTry _ | TPatMatch _ | TSwitch _ | TFor _ | TIf _ | TWhile _ | TBinop _ | TContinue | TBreak
 	| TBlock _ | TVars _ | TFunction _ | TUnop _ -> true
 
-let rec add_final_return e t =
-	let def_return p =
-		let c = (match follow t with
-			| TAbstract ({ a_path = [],"Int" },_) -> TInt 0l
-			| TAbstract ({ a_path = [],"Float" },_) -> TFloat "0."
-			| TAbstract ({ a_path = [],"Bool" },_) -> TBool false
-			| _ -> TNull
-		) in
-		{ eexpr = TReturn (Some { eexpr = TConst c; epos = p; etype = t }); etype = t; epos = p }
-	in
-	match e.eexpr with
-	| TBlock el ->
-		(match List.rev el with
-		| [] -> e
-		| elast :: el ->
-			match add_final_return elast t with
-			| { eexpr = TBlock el2 } -> { e with eexpr = TBlock ((List.rev el) @ el2) }
-			| elast -> { e with eexpr = TBlock (List.rev (elast :: el)) })
-	| TReturn _ ->
-		e
-	| _ ->
-		{ e with eexpr = TBlock [e;def_return e.epos] }
-
 let sanitize_expr com e =
 	let parent e =
 		match e.eexpr with
@@ -725,11 +702,6 @@ let sanitize_expr com e =
 		let e2 = complex e2 in
 		{ e with eexpr = TFor (v,e1,e2) }
 	| TFunction f ->
-		let f = (match follow f.tf_type with
-			| TAbstract ({ a_path = [],"Void" },[]) -> f
-			| t ->
-				if com.config.pf_add_final_return then { f with tf_expr = add_final_return f.tf_expr t } else f
-		) in
 		let f = (match f.tf_expr.eexpr with
 			| TBlock _ -> f
 			| _ -> { f with tf_expr = block f.tf_expr }
