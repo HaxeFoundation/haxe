@@ -1659,9 +1659,9 @@ let init_class ctx c p context_init herits fields =
 			let fd = if not is_macro then
 				fd
 			else begin
-				(* a class with a macro cannot be extern in macro context (issue #2015) *)
-				c.cl_extern <- false;
-				if ctx.in_macro then
+				if ctx.in_macro then begin
+					(* a class with a macro cannot be extern in macro context (issue #2015) *)
+					c.cl_extern <- false;
 					let texpr = CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = None } in
 					(* ExprOf type parameter might contain platform-specific type, let's replace it by Expr *)
 					let no_expr_of = function
@@ -1675,7 +1675,7 @@ let init_class ctx c p context_init herits fields =
 						f_args = List.map (fun (a,o,t,e) -> a,o,(match t with None -> Some texpr | Some t -> no_expr_of t),e) fd.f_args;
 						f_expr = fd.f_expr;
 					}
-				else
+				end else
 					let tdyn = Some (CTPath { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None }) in
 					let to_dyn = function
 						| { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = Some ("ExprOf"); tparams = [TPType t] } -> Some t
