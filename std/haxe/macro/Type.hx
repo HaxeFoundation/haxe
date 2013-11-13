@@ -95,6 +95,7 @@ typedef ClassType = {> BaseType,
 	//var arrayAccess : Null<Type>;
 	var constructor : Null<Ref<ClassField>>;
 	var init : Null<TypedExpr>;
+	var overrides : Array<Ref<ClassField>>;
 }
 
 typedef EnumField = {

@@ -262,7 +262,7 @@ let constants =
 	"constructs";"names";"superClass";"interfaces";"fields";"statics";"constructor";"init";"t";
 	"gid";"uid";"atime";"mtime";"ctime";"dev";"ino";"nlink";"rdev";"size";"mode";"pos";"len";
 	"binops";"unops";"from";"to";"array";"op";"isPostfix";"impl";
-	"id";"capture";"extra";"v";"ids";"vars";"en"];
+	"id";"capture";"extra";"v";"ids";"vars";"en";"overrides"];
 	h
 
 let h_get = hash "__get" and h_set = hash "__set"
@@ -4279,8 +4279,9 @@ and encode_tclass c =
 		"interfaces", enc_array (List.map (fun (c,pl) -> enc_obj ["t",encode_clref c;"params",encode_tparams pl]) c.cl_implements);
 		"fields", encode_ref c.cl_ordered_fields (encode_array encode_cfield) (fun() -> "class fields");
 		"statics", encode_ref c.cl_ordered_statics (encode_array encode_cfield) (fun() -> "class fields");
-		"constructor", (match c.cl_constructor with None -> VNull | Some c -> encode_ref c encode_cfield (fun() -> "constructor"));
+		"constructor", (match c.cl_constructor with None -> VNull | Some cf -> encode_cfref cf);
 		"init", (match c.cl_init with None -> VNull | Some e -> encode_texpr e);
+		"overrides", (enc_array (List.map encode_cfref c.cl_overrides))
 	]
 
 and encode_ttype t =
