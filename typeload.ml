@@ -1731,6 +1731,16 @@ let init_class ctx c p context_init herits fields =
 					let m = mk_mono() in
 					let ta = TAbstract(a, List.map (fun _ -> mk_mono()) a.a_types) in
 					let tthis = if Meta.has Meta.Impl f.cff_meta || Meta.has Meta.To f.cff_meta then monomorphs a.a_types a.a_this else a.a_this in
+					let check_bind () =
+						if fd.f_expr = None then begin
+							if inline then error ("Inline functions must have an expression") f.cff_pos;
+							begin match fd.f_type with
+								| None -> error ("Functions without expressions must have an explicit return type") f.cff_pos
+								| Some _ -> ()
+							end;
+							do_bind := false
+						end
+					in
 					let rec loop ml = match ml with
 						| (Meta.From,_,_) :: _ ->
 							if is_macro then error "Macro cast functions are not supported" p;
@@ -1760,10 +1770,7 @@ let init_class ctx c p context_init herits fields =
 						| (Meta.ArrayAccess,_,_) :: _ ->
 							if is_macro then error "Macro array-access functions are not supported" p;
 							a.a_array <- cf :: a.a_array;
-							if fd.f_expr = None then begin
-								if inline then error ("Inline array access functions must have an expression") f.cff_pos;
-								do_bind := false
-							end;
+							check_bind();
 						| (Meta.Op,[EBinop(op,_,_),_],_) :: _ ->
 							if is_macro then error "Macro operator functions are not supported" p;
 							let targ = if Meta.has Meta.Impl f.cff_meta then tthis else ta in
@@ -1772,19 +1779,13 @@ let init_class ctx c p context_init herits fields =
 							if not (left_eq || right_eq) then error ("The left or right argument type must be " ^ (s_type (print_context()) targ)) f.cff_pos;
 							if right_eq && Meta.has Meta.Commutative f.cff_meta then error ("@:commutative is only allowed if the right argument is not " ^ (s_type (print_context()) targ)) f.cff_pos;
 							a.a_ops <- (op,cf) :: a.a_ops;
-							if fd.f_expr = None then begin
-								if inline then error ("Inline operator functions must have an expression") f.cff_pos;
-								do_bind := false
-							end;
+							check_bind();
 						| (Meta.Op,[EUnop(op,flag,_),_],_) :: _ ->
 							if is_macro then error "Macro operator functions are not supported" p;
 							let targ = if Meta.has Meta.Impl f.cff_meta then tthis else ta in
 							(try type_eq EqStrict t (tfun [targ] (mk_mono())) with Unify_error l -> raise (Error ((Unify l),f.cff_pos)));
 							a.a_unops <- (op,flag,cf) :: a.a_unops;
-							if fd.f_expr = None then begin
-								if inline then error ("Inline operator functions must have an expression") f.cff_pos;
-								do_bind := false
-							end;
+							check_bind();
 						| _ :: ml ->
 							loop ml
 						| [] ->
