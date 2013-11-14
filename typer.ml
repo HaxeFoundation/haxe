@@ -1526,9 +1526,15 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 				try find_array_access a pl c ekey.etype e2.etype true
 				with Not_found -> error ("No @:arrayAccess function accepts arguments of " ^ (s_type (print_context()) ekey.etype) ^ " and " ^ (s_type (print_context()) e2.etype)) p
 			in
-			let et = type_module_type ctx (TClassDecl c) None p in
-			let ef = mk (TField(et,(FStatic(c,cf)))) tf p in
-			make_call ctx ef [ebase;ekey;e2] r p
+			begin match cf.cf_expr with
+				| None ->
+					let ea = mk (TArray(ebase,ekey)) r p in
+					mk (TBinop(OpAssign,ea,e2)) r p
+				| Some _ ->
+					let et = type_module_type ctx (TClassDecl c) None p in
+					let ef = mk (TField(et,(FStatic(c,cf)))) tf p in
+					make_call ctx ef [ebase;ekey;e2] r p
+			end
 		| AKUsing(ef,_,_,et) ->
 			(* this must be an abstract setter *)
 			let ret = match follow ef.etype with
@@ -1611,14 +1617,22 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 				try find_array_access a pl c ekey.etype eget.etype true
 				with Not_found -> error ("No @:arrayAccess function accepts arguments of " ^ (s_type (print_context()) ekey.etype) ^ " and " ^ (s_type (print_context()) eget.etype)) p
 			in
-			let ef_set = mk (TField(et,(FStatic(c,cf_set)))) tf_set p in
-			(match l() with
-			| None -> make_call ctx ef_set [ebase;ekey;eget] r_set p
-			| Some e ->
-				mk (TBlock [
-					e;
-					make_call ctx ef_set [ebase;ekey;eget] r_set p
-				]) r_set p)
+			begin match cf_set.cf_expr,cf_get.cf_expr with
+				| None,None ->
+					let ea = mk (TArray(ebase,ekey)) r_get p in
+					mk (TBinop(OpAssignOp op,ea,type_expr ctx e2 (WithType r_get))) r_set p
+				| Some _,Some _ ->
+					let ef_set = mk (TField(et,(FStatic(c,cf_set)))) tf_set p in
+					(match l() with
+					| None -> make_call ctx ef_set [ebase;ekey;eget] r_set p
+					| Some e ->
+						mk (TBlock [
+							e;
+							make_call ctx ef_set [ebase;ekey;eget] r_set p
+						]) r_set p)
+				| _ ->
+					error "Invalid array access getter/setter combination" p
+			end;
 		| AKInline _ | AKMacro _ ->
 			assert false)
 	| _ ->
@@ -2169,16 +2183,23 @@ and type_access ctx e p mode =
 		let has_abstract_array_access = ref false in
 		(try (match follow e1.etype with
 		| TAbstract ({a_impl = Some c} as a,pl) when a.a_array <> [] ->
-			(match mode with
+			begin match mode with
 			| MSet ->
 				(* resolve later *)
 				AKAccess (e1, e2)
 			| _ ->
 				has_abstract_array_access := true;
 				let cf,tf,r = find_array_access a pl c e2.etype t_dynamic false in
-				let et = type_module_type ctx (TClassDecl c) None p in
-				let ef = mk (TField(et,(FStatic(c,cf)))) tf p in
-				AKExpr (make_call ctx ef [e1;e2] r p))
+				let e = match cf.cf_expr with
+					| None ->
+						mk (TArray(e1,e2)) r p
+					| Some _ ->
+						let et = type_module_type ctx (TClassDecl c) None p in
+						let ef = mk (TField(et,(FStatic(c,cf)))) tf p in
+						make_call ctx ef [e1;e2] r p
+				in
+				AKExpr e
+			end
 		| _ -> raise Not_found)
 		with Not_found ->
 		unify ctx e2.etype ctx.t.tint e2.epos;
