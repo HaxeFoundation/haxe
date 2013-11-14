@@ -1770,7 +1770,7 @@ let init_class ctx c p context_init herits fields =
 						| (Meta.ArrayAccess,_,_) :: _ ->
 							if is_macro then error "Macro array-access functions are not supported" p;
 							a.a_array <- cf :: a.a_array;
-							check_bind();
+							if Meta.has Meta.CoreType a.a_meta then check_bind();
 						| (Meta.Op,[EBinop(op,_,_),_],_) :: _ ->
 							if is_macro then error "Macro operator functions are not supported" p;
 							let targ = if Meta.has Meta.Impl f.cff_meta then tthis else ta in
