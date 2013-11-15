@@ -64,18 +64,39 @@ let handle_side_effects com gen_temp e =
 		| TObjectDecl fl ->
 			let el = ordered_list (List.map snd fl) in
 			{e with eexpr = TObjectDecl (List.map2 (fun (n,_) e -> n,e) fl el)}
+		| TBinop(OpBoolAnd | OpBoolOr as op,e1,e2) when Optimizer.has_side_effect e1 || Optimizer.has_side_effect e2 ->
+			let e1 = loop e1 in
+			let e_then = mk (TBlock (block loop [e2])) e2.etype e2.epos in
+			let e_if,e_else = if op = OpBoolOr then
+				mk (TUnop(Not,Prefix,e1)) com.basic.tbool e.epos,mk (TConst (TBool(true))) com.basic.tbool e.epos
+			else
+				e1,mk (TConst (TBool(false))) com.basic.tbool e.epos
+			in
+			mk (TIf(e_if,e_then,Some e_else)) com.basic.tbool e.epos
+ 		| TBinop(op,e1,e2) when (match op with OpAssign | OpAssignOp _ -> false | _ -> true) ->
+			begin match ordered_list [e1;e2] with
+				| [e1;e2] ->
+					{e with eexpr = TBinop(op,e1,e2)}
+				| _ ->
+					assert false
+			end
 		| _ ->
 			Type.map_expr loop e
 	and ordered_list el =
 		let had_side_effect = ref false in
+		let bind e =
+			if !had_side_effect then
+				declare_temp e.etype (Some (loop e)) e.epos
+			else begin
+				had_side_effect := true;
+				e
+			end
+		in
 		let rec no_side_effect e = match e.eexpr with
 			| TNew _ | TCall _ | TArrayDecl _ | TObjectDecl _ | TBinop ((OpAssignOp _ | OpAssign),_,_) | TUnop ((Increment|Decrement),_,_) ->
-				if !had_side_effect then
-					declare_temp e.etype (Some (loop e)) e.epos
-				else begin
-					had_side_effect := true;
-					e
-				end
+				bind e;
+			| TBinop(op,e1,e2) when Optimizer.has_side_effect e1 || Optimizer.has_side_effect e2 ->
+				bind e;
 			| TConst _ | TLocal _ | TTypeExpr _ | TFunction _
 			| TReturn _ | TBreak | TContinue | TThrow _ | TCast (_,Some _) ->
 				e
