@@ -2625,7 +2625,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				| _ ->
 					(try
 						unify_raise ctx e1.etype t e1.epos;
-						e1
+						Codegen.Abstract.check_cast ctx t e1 p
 					with Error (Unify _,_) ->
 						let acc = build_call ctx (type_field ctx e1 "iterator" e1.epos MCall) [] Value e1.epos in
 						try
