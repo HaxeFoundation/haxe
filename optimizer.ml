@@ -1012,6 +1012,11 @@ let inline_constructors ctx e =
 					| None -> ()
 					| Some ecst ->
 						let assigns = ref [] in
+						(* add field inits here because the filter has not run yet (issue #2336) *)
+						List.iter (fun cf -> match cf.cf_kind,cf.cf_expr with
+							| Var _,Some e -> assigns := (cf.cf_name,e,cf.cf_type) :: !assigns
+							| _ -> ()
+						) c.cl_ordered_fields;
 						(* make sure we only have v.field = expr calls *)
 						let rec get_assigns e =
 							match e.eexpr with
