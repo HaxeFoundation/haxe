@@ -1671,7 +1671,7 @@ let init_class ctx c p context_init herits fields =
 					in
 					{
 						f_params = fd.f_params;
-						f_type = (match fd.f_type with None -> Some texpr | t -> t);
+						f_type = (match fd.f_type with None -> Some texpr | Some t -> no_expr_of t);
 						f_args = List.map (fun (a,o,t,e) -> a,o,(match t with None -> Some texpr | Some t -> no_expr_of t),e) fd.f_args;
 						f_expr = fd.f_expr;
 					}
