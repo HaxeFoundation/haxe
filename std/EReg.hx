@@ -125,7 +125,7 @@ class EReg {
 		
 		This function expects `pos` and `len` to describe a valid substring of
 		`s`, or else the result is unspecified. To get more robust behavior,
-		`this.matchSub(s.substr(pos,len))` can be used instead.
+		`this.match(s.substr(pos,len))` can be used instead.
 		
 		This method modifies the internal state.
 		
