@@ -743,17 +743,22 @@ let make_call ctx e params t p =
 			| _ -> false
 		) in
 		let config = match cl with
-			| Some ({cl_kind = KAbstractImpl _ }) when Meta.has Meta.Impl f.cf_meta ->
-				(match if fname = "_new" then
+			| Some ({cl_kind = KAbstractImpl _}) when Meta.has Meta.Impl f.cf_meta ->
+				let t = if fname = "_new" then
 					t
 				else if params = [] then
 					error "Invalid abstract implementation function" f.cf_pos
 				else
-					follow (List.hd params).etype with
+					follow (List.hd params).etype
+				in
+				begin match t with
 					| TAbstract(a,pl) ->
-						Some (a.a_types <> [] || f.cf_params <> [], fun t -> apply_params a.a_types pl (monomorphs f.cf_params t))
+						let has_params = a.a_types <> [] || f.cf_params <> [] in
+						let map_type = fun t -> apply_params a.a_types pl (monomorphs f.cf_params t) in
+						Some (has_params,map_type)
 					| _ ->
-						None);
+						None
+				end
 			| _ ->
 				None
 		in
