@@ -936,7 +936,7 @@ let add_field_inits ctx t =
 		let inits,fields = List.fold_left (fun (inits,fields) cf ->
 			match cf.cf_kind,cf.cf_expr with
 			| Var _, Some _ ->
-				if ctx.com.config.pf_can_init_member cf then (inits, cf :: fields) else (cf :: inits, cf :: fields)
+				(cf :: inits, cf :: fields)
 			| Method MethDynamic, Some e when Common.defined ctx.com Define.As3 ->
 				(* TODO : this would have a better place in genSWF9 I think - NC *)
 				(* we move the initialization of dynamic functions to the constructor and also solve the
