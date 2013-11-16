@@ -3105,8 +3105,12 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				(match !(a.a_status) with
 				| Statics c ->
 					if Meta.has Meta.CoreApi c.cl_meta then merge_core_doc c;
+					let is_abstract_impl = match c.cl_kind with KAbstractImpl _ -> true | _ -> false in
 					let pm = match c.cl_constructor with None -> PMap.empty | Some cf -> PMap.add "new" cf PMap.empty in
-					PMap.fold (fun f acc -> if can_access ctx c f true then PMap.add f.cf_name { f with cf_public = true; cf_type = opt_type f.cf_type } acc else acc) a.a_fields pm
+					PMap.fold (fun f acc ->
+						if can_access ctx c f true && (not is_abstract_impl || not (Meta.has Meta.Impl f.cf_meta)) then
+							PMap.add f.cf_name { f with cf_public = true; cf_type = opt_type f.cf_type } acc else acc
+					) a.a_fields pm
 				| _ ->
 					a.a_fields)
 			| TFun (args,ret) ->
