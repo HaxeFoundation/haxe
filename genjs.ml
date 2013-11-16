@@ -978,10 +978,18 @@ let generate_class ctx c =
 	else
 		print ctx "%s = $hxClasses[\"%s\"] = " p (dot_path c.cl_path);
 	(match (get_exposed ctx p c.cl_meta) with [s] -> print ctx "$hx_exports.%s = " s | _ -> ());
-	(match c.cl_constructor with
-	| Some { cf_expr = Some e } -> gen_expr ctx e
-	| _ -> (print ctx "function() { }"); ctx.separator <- true);
+
+	(match c.cl_kind with
+	| KAbstractImpl _ -> 
+		(* abstract implementations only contain static members and don't need to have constructor functions *)
+		print ctx "{}"; ctx.separator <- true
+	| _ ->
+		(match c.cl_constructor with
+		| Some { cf_expr = Some e } -> gen_expr ctx e
+		| _ -> (print ctx "function() {}"); ctx.separator <- true)
+	);
 	newline ctx;
+
 	if ctx.js_modern && hxClasses then begin
 		print ctx "$hxClasses[\"%s\"] = %s" (dot_path c.cl_path) p;
 		newline ctx;
