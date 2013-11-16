@@ -275,6 +275,8 @@ let check_local_vars_init e =
 			loop vars e2;
 			(match eo with
 			| None -> vars := vbase
+			(* ignore else false cases (they are added by the side-effect handler) *)
+			| Some {eexpr = TConst (TBool(false))} -> ()
 			| Some e ->
 				let v1 = !vars in
 				vars := vbase;
