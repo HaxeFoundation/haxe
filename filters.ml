@@ -23,15 +23,11 @@ let rec blockify_ast e =
 	| _ ->
 		Type.map_expr blockify_ast e
 
-let handle_side_effects com gen_temp e =
+let mk_block_context com gen_temp =
 	let block_el = ref [] in
 	let push e = block_el := e :: !block_el in
 	let declare_temp t eo p =
 		let v = gen_temp t in
-		begin match follow t,eo with
-			| TAbstract({a_path=[],"Void"},_),Some e -> com.warning (s_expr (s_type (print_context())) e) p;
-			| _ -> ()
-		end;
 		let e = mk (TVars [v,eo]) com.basic.tvoid p in
 		push e;
 		mk (TLocal v) t p
@@ -51,12 +47,17 @@ let handle_side_effects com gen_temp e =
 		) el;
 		close()
 	in
+	block,declare_temp,fun () -> !block_el
+
+let handle_side_effects com gen_temp e =
+	let block,declare_temp,close_block = mk_block_context com gen_temp in
 	let rec loop e =
 		match e.eexpr with
 		| TBlock el ->
 			{e with eexpr = TBlock (block loop el)}
 		| TCall(e1,el) ->
-			{e with eexpr = TCall(loop e1,ordered_list el)}
+			let e1 = loop e1 in
+			{e with eexpr = TCall(e1,ordered_list el)}
 		| TNew(c,tl,el) ->
 			{e with eexpr = TNew(c,tl,ordered_list el)}
 		| TArrayDecl el ->
@@ -73,10 +74,17 @@ let handle_side_effects com gen_temp e =
 				e1,mk (TConst (TBool(false))) com.basic.tbool e.epos
 			in
 			mk (TIf(e_if,e_then,Some e_else)) com.basic.tbool e.epos
- 		| TBinop(op,e1,e2) when (match op with OpAssign | OpAssignOp _ -> false | _ -> true) ->
+ 		| TBinop(op,e1,e2) ->
 			begin match ordered_list [e1;e2] with
 				| [e1;e2] ->
 					{e with eexpr = TBinop(op,e1,e2)}
+				| _ ->
+					assert false
+			end
+		| TArray(e1,e2) ->
+			begin match ordered_list [e1;e2] with
+				| [e1;e2] ->
+					{e with eexpr = TArray(e1,e2)}
 				| _ ->
 					assert false
 			end
@@ -119,7 +127,7 @@ let handle_side_effects com gen_temp e =
 	in
 	let e = blockify_ast e in
 	let e = loop e in
-	match !block_el with
+	match close_block() with
 		| [] ->
 			e
 		| el ->

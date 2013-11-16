@@ -102,3 +102,17 @@ end() == "1_2_3_4";
 var end = begin();
 (a() + b()) >= 99 || (c() + d()) >= 99 || (e() + f()) >= 0;
 eq(end(), "1_2_3_4_5_6");
+
+// []
+
+function arr(x, y) {
+	return [];
+}
+
+function idx(x, y) {
+	return 0;
+}
+	
+var end = begin();
+(arr(a(), b()))[idx(c(), d())];
+eq(end(), "1_2_3_4");
