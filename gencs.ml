@@ -1576,7 +1576,7 @@ let configure gen =
                       let t = Common.timer "expression to string" in
                       expr_s w { expr with eexpr = TBlock(rest) };
                       t();
-                      write w "#line default";
+                      if not (Common.defined gen.gcon Define.RealPosition) then write w "#line default";
                       end_block w;
                     | _ -> assert false
                 end else begin
@@ -1585,7 +1585,7 @@ let configure gen =
                   let t = Common.timer "expression to string" in
                   expr_s w expr;
                   t();
-                  write w "#line default";
+                  if not (Common.defined gen.gcon Define.RealPosition) then write w "#line default";
                   end_block w;
                 end)
               | (Meta.FunctionCode, [Ast.EConst (Ast.String contents),_],_) :: tl ->
