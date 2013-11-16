@@ -1394,13 +1394,17 @@ let map_expr f e =
 	| TTypeExpr _ ->
 		e
 	| TArray (e1,e2) ->
-		{ e with eexpr = TArray (f e1,f e2) }
+		let e1 = f e1 in
+		{ e with eexpr = TArray (e1,f e2) }
 	| TBinop (op,e1,e2) ->
-		{ e with eexpr = TBinop (op,f e1,f e2) }
+		let e1 = f e1 in
+		{ e with eexpr = TBinop (op,e1,f e2) }
 	| TFor (v,e1,e2) ->
-		{ e with eexpr = TFor (v,f e1,f e2) }
+		let e1 = f e1 in
+		{ e with eexpr = TFor (v,e1,f e2) }
 	| TWhile (e1,e2,flag) ->
-		{ e with eexpr = TWhile (f e1,f e2,flag) }
+		let e1 = f e1 in
+		{ e with eexpr = TWhile (e1,f e2,flag) }
 	| TThrow e1 ->
 		{ e with eexpr = TThrow (f e1) }
 	| TEnumParameter (e1,ef,i) ->
@@ -1426,9 +1430,13 @@ let map_expr f e =
 	| TFunction fu ->
 		{ e with eexpr = TFunction { fu with tf_expr = f fu.tf_expr } }
 	| TIf (ec,e1,e2) ->
-		{ e with eexpr = TIf (f ec,f e1,match e2 with None -> None | Some e -> Some (f e)) }
+		let ec = f ec in
+		let e1 = f e1 in
+		{ e with eexpr = TIf (ec,e1,match e2 with None -> None | Some e -> Some (f e)) }
 	| TSwitch (e1,cases,def) ->
-		{ e with eexpr = TSwitch (f e1, List.map (fun (el,e2) -> List.map f el, f e2) cases, match def with None -> None | Some e -> Some (f e)) }
+		let e1 = f e1 in
+		let cases = List.map (fun (el,e2) -> List.map f el, f e2) cases in
+		{ e with eexpr = TSwitch (e1, cases, match def with None -> None | Some e -> Some (f e)) }
 	| TPatMatch dt ->
 		let rec loop dt = match dt with
 			| DTBind(vl,dt) -> DTBind(vl, loop dt)
@@ -1440,7 +1448,8 @@ let map_expr f e =
 		let vi = List.map (fun (v,eo) -> v, match eo with None -> None | Some e -> Some(f e)) dt.dt_var_init in
 		{ e with eexpr = TPatMatch({dt with dt_dt_lookup = Array.map loop dt.dt_dt_lookup; dt_var_init = vi})}
 	| TTry (e1,catches) ->
-		{ e with eexpr = TTry (f e1, List.map (fun (v,e) -> v, f e) catches) }
+		let e1 = f e1 in
+		{ e with eexpr = TTry (e1, List.map (fun (v,e) -> v, f e) catches) }
 	| TReturn eo ->
 		{ e with eexpr = TReturn (match eo with None -> None | Some e -> Some (f e)) }
 	| TCast (e1,t) ->
@@ -1458,13 +1467,18 @@ let map_expr_type f ft fv e =
 	| TLocal v ->
 		{ e with eexpr = TLocal (fv v); etype = ft e.etype }
 	| TArray (e1,e2) ->
-		{ e with eexpr = TArray (f e1,f e2); etype = ft e.etype }
+		let e1 = f e1 in
+		{ e with eexpr = TArray (e1,f e2); etype = ft e.etype }
 	| TBinop (op,e1,e2) ->
-		{ e with eexpr = TBinop (op,f e1,f e2); etype = ft e.etype }
+		let e1 = f e1 in
+		{ e with eexpr = TBinop (op,e1,f e2); etype = ft e.etype }
 	| TFor (v,e1,e2) ->
-		{ e with eexpr = TFor (fv v,f e1,f e2); etype = ft e.etype }
+		let v = fv v in
+		let e1 = f e1 in
+		{ e with eexpr = TFor (v,e1,f e2); etype = ft e.etype }
 	| TWhile (e1,e2,flag) ->
-		{ e with eexpr = TWhile (f e1,f e2,flag); etype = ft e.etype }
+		let e1 = f e1 in
+		{ e with eexpr = TWhile (e1,f e2,flag); etype = ft e.etype }
 	| TThrow e1 ->
 		{ e with eexpr = TThrow (f e1); etype = ft e.etype }
 	| TEnumParameter (e1,ef,i) ->
@@ -1487,7 +1501,8 @@ let map_expr_type f ft fv e =
 	| TObjectDecl el ->
 		{ e with eexpr = TObjectDecl (List.map (fun (v,e) -> v, f e) el); etype = ft e.etype }
 	| TCall (e1,el) ->
-		{ e with eexpr = TCall (f e1, List.map f el); etype = ft e.etype }
+		let e1 = f e1 in
+		{ e with eexpr = TCall (e1, List.map f el); etype = ft e.etype }
 	| TVars vl ->
 		{ e with eexpr = TVars (List.map (fun (v,e) -> fv v, match e with None -> None | Some e -> Some (f e)) vl); etype = ft e.etype }
 	| TFunction fu ->
@@ -1498,9 +1513,13 @@ let map_expr_type f ft fv e =
 		} in
 		{ e with eexpr = TFunction fu; etype = ft e.etype }
 	| TIf (ec,e1,e2) ->
-		{ e with eexpr = TIf (f ec,f e1,match e2 with None -> None | Some e -> Some (f e)); etype = ft e.etype }
+		let ec = f ec in
+		let e1 = f e1 in
+		{ e with eexpr = TIf (ec,e1,match e2 with None -> None | Some e -> Some (f e)); etype = ft e.etype }
 	| TSwitch (e1,cases,def) ->
-		{ e with eexpr = TSwitch (f e1, List.map (fun (el,e2) -> List.map f el, f e2) cases, match def with None -> None | Some e -> Some (f e)); etype = ft e.etype }
+		let e1 = f e1 in
+		let cases = List.map (fun (el,e2) -> List.map f el, f e2) cases in
+		{ e with eexpr = TSwitch (e1, cases, match def with None -> None | Some e -> Some (f e)); etype = ft e.etype }
 	| TPatMatch dt ->
 		let rec loop dt = match dt with
 			| DTBind(vl,dt) -> DTBind(vl, loop dt)
@@ -1512,7 +1531,8 @@ let map_expr_type f ft fv e =
 		let vi = List.map (fun (v,eo) -> v, match eo with None -> None | Some e -> Some(f e)) dt.dt_var_init in
 		{ e with eexpr = TPatMatch({dt with dt_dt_lookup = Array.map loop dt.dt_dt_lookup; dt_var_init = vi}); etype = ft e.etype}
 	| TTry (e1,catches) ->
-		{ e with eexpr = TTry (f e1, List.map (fun (v,e) -> fv v, f e) catches); etype = ft e.etype }
+		let e1 = f e1 in
+		{ e with eexpr = TTry (e1, List.map (fun (v,e) -> fv v, f e) catches); etype = ft e.etype }
 	| TReturn eo ->
 		{ e with eexpr = TReturn (match eo with None -> None | Some e -> Some (f e)); etype = ft e.etype }
 	| TCast (e1,t) ->
