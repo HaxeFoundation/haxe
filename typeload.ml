@@ -1639,7 +1639,7 @@ let init_class ctx c p context_init herits fields =
 			} in
 			ctx.curfield <- cf;
 			bind_var ctx cf e stat inline;
-			f, false, cf
+			f, false, cf, true
 		| FFun fd ->
 			let params = type_function_params ctx fd f.cff_name p in
 			if inline && c.cl_interface then error "You can't declare inline methods in interfaces" p;
@@ -1726,6 +1726,7 @@ let init_class ctx c p context_init herits fields =
 				cf_overloads = [];
 			} in
 			let do_bind = ref (((not c.cl_extern || inline) && not c.cl_interface) || cf.cf_name = "__init__") in
+			let do_add = ref true in
 			(match c.cl_kind with
 				| KAbstractImpl a ->
 					let m = mk_mono() in
@@ -1738,7 +1739,8 @@ let init_class ctx c p context_init herits fields =
 								| None -> error ("Functions without expressions must have an explicit return type") f.cff_pos
 								| Some _ -> ()
 							end;
-							do_bind := false
+							do_add := false;
+							do_bind := false;
 						end
 					in
 					let rec loop ml = match ml with
@@ -1829,7 +1831,7 @@ let init_class ctx c p context_init herits fields =
 				t
 			) "type_fun" in
 			if !do_bind then bind_type ctx cf r (match fd.f_expr with Some e -> snd e | None -> f.cff_pos) is_macro;
-			f, constr, cf
+			f, constr, cf, !do_add
 		| FProp (get,set,t,eo) ->
 			(match c.cl_kind with
 			| KAbstractImpl a when Meta.has Meta.Impl f.cff_meta ->
@@ -1906,7 +1908,7 @@ let init_class ctx c p context_init herits fields =
 			} in
 			ctx.curfield <- cf;
 			bind_var ctx cf eo stat inline;
-			f, false, cf
+			f, false, cf, true
 	in
 	let rec check_require = function
 		| [] -> None
@@ -1931,7 +1933,7 @@ let init_class ctx c p context_init herits fields =
 	List.iter (fun f ->
 		let p = f.cff_pos in
 		try
-			let fd , constr, f = loop_cf f in
+			let fd , constr, f, do_add = loop_cf f in
 			let is_static = List.mem AStatic fd.cff_access in
 			if (is_static || constr) && c.cl_interface && f.cf_name <> "__init__" then error "You can't declare static fields in interfaces" p;
 			begin try
@@ -1973,7 +1975,9 @@ let init_class ctx c p context_init herits fields =
 					else
 						display_error ctx ("Duplicate class field declaration : " ^ f.cf_name) p
 				else
-				if is_static then begin
+				if not do_add then
+					()
+				else if is_static then begin
 					c.cl_statics <- PMap.add f.cf_name f c.cl_statics;
 					c.cl_ordered_statics <- f :: c.cl_ordered_statics;
 				end else begin

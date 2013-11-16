@@ -1140,7 +1140,19 @@ and type_field ctx e i p mode =
 			| TInst({cl_kind = KAbstractImpl a},_) -> TAbstract(a,[])
 			| _ -> e.etype
 		in
-		if not ctx.untyped then display_error ctx (string_error i (string_source t) (s_type (print_context()) t ^ " has no field " ^ i)) p;
+		let has_special_field a =
+			List.exists (fun (_,cf) -> cf.cf_name = i) a.a_ops
+			|| List.exists (fun (_,_,cf) -> cf.cf_name = i) a.a_unops
+			|| List.exists (fun cf -> cf.cf_name = i) a.a_array
+		in
+		if not ctx.untyped then begin
+			match t with
+			| TAbstract(a,_) when has_special_field a ->
+				(* the abstract field is not part of the field list, which is only true when it has no expression (issue #2344) *)
+				display_error ctx ("Field " ^ i ^ " cannot be called directly because it has no expression") p;
+			| _ ->
+				display_error ctx (string_error i (string_source t) (s_type (print_context()) t ^ " has no field " ^ i)) p;
+		end;
 		AKExpr (mk (TField (e,FDynamic i)) (mk_mono()) p)
 	in
 	match follow e.etype with
