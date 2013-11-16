@@ -1736,7 +1736,7 @@ struct
       set_new_create_empty gen empty_ctor_expr;
 
       let basic = gen.gcon.basic in
-      let should_change cl = not cl.cl_interface && (not cl.cl_extern || is_hxgen (TClassDecl cl)) in
+      let should_change cl = not cl.cl_interface && (not cl.cl_extern || is_hxgen (TClassDecl cl)) && (match cl.cl_kind with KAbstractImpl _ -> false | _ -> true) in
       let static_ctor_name = gen.gmk_internal_name "hx" "ctor" in
       let msize = List.length gen.gcon.types in
       let processed, empty_ctors = Hashtbl.create msize, Hashtbl.create msize in
@@ -8282,6 +8282,12 @@ struct
           match md with
             | TClassDecl ( { cl_interface = true } as cl ) when cl.cl_path <> baseclass.cl_path && cl.cl_path <> baseinterface.cl_path && cl.cl_path <> basedynamic.cl_path ->
               cl.cl_implements <- (baseinterface, []) :: cl.cl_implements
+            | TClassDecl ({ cl_kind = KAbstractImpl _ } as cl) ->
+              (*
+                TODO: probably here is not the best place to add @:final to KAbstractImpl, also:
+                Doesn't it make sense to add @:final to KAbstractImpls on all platforms?
+              *)
+              if not (Meta.has Meta.Final cl.cl_meta) then cl.cl_meta <- (Meta.Final, [], cl.cl_pos) :: cl.cl_meta
             | TClassDecl ( { cl_super = None } as cl ) when cl.cl_path <> baseclass.cl_path && cl.cl_path <> baseinterface.cl_path && cl.cl_path <> basedynamic.cl_path ->
               if is_some cl.cl_dynamic then
                 cl.cl_super <- Some (basedynamic,[])
@@ -8313,7 +8319,7 @@ struct
   let configure ?slow_invoke ctx baseinterface =
     let gen = ctx.rcf_gen in
     let run = (fun md -> match md with
-      | TClassDecl cl when is_hxgen md && ( not cl.cl_interface || cl.cl_path = baseinterface.cl_path ) ->
+      | TClassDecl cl when is_hxgen md && ( not cl.cl_interface || cl.cl_path = baseinterface.cl_path ) && (match cl.cl_kind with KAbstractImpl _ -> false | _ -> true) ->
         (if Meta.has Meta.ReplaceReflection cl.cl_meta then replace_reflection ctx cl);
         (implement_dynamics ctx cl);
         (if not (PMap.mem (gen.gmk_internal_name "hx" "lookupField") cl.cl_fields) then implement_final_lookup ctx cl);
