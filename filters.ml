@@ -6,7 +6,7 @@ open Typecore
 (* PASS 1 begin *)
 
 (*
-	- wraps implicit blocks in TIf, TFor, TWhile, TFunction and TTry with real ones
+	Wraps implicit blocks in TIf, TFor, TWhile, TFunction and TTry with real ones
 *)
 let rec blockify_ast e =
 	match e.eexpr with
@@ -23,6 +23,13 @@ let rec blockify_ast e =
 	| _ ->
 		Type.map_expr blockify_ast e
 
+(*
+	Generates a block context which can be used to add temporary variables. It returns a tuple:
+
+	- a mapping function for expression lists to be used on TBlock elements
+	- the function to be called for declaring temporary variables
+	- the function to be called for closing the block, returning the block elements
+*)
 let mk_block_context com gen_temp =
 	let block_el = ref [] in
 	let push e = block_el := e :: !block_el in
@@ -49,6 +56,15 @@ let mk_block_context com gen_temp =
 	in
 	block,declare_temp,fun () -> !block_el
 
+(*
+	Moves expressions to temporary variables in order to ensure correct evaluation order. This effects
+
+	- call arguments (from TCall and TNew)
+	- array declaration arguments
+	- object fields
+	- binary operators (respects boolean short-circuit)
+	- array access
+*)
 let handle_side_effects com gen_temp e =
 	let block,declare_temp,close_block = mk_block_context com gen_temp in
 	let rec loop e =
