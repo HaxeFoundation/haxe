@@ -176,20 +176,20 @@ class EReg {
 	}
 
 	/**
-		For each occurence of the pattern in the string `s`, the function `f` is called and
-		can return the string that needs to be replaced. All occurences are matched anyway,
-		and setting the `g` flag might cause some incorrect behavior on some platforms.
+		Calls the function `f` for the substring of `s` which `this` EReg matches
+		and replaces that substring with the result of `f` call.
+
+		The `f` function takes `this` EReg object as its first argument and should
+		return a replacement string for the substring matched.
+
+		If `this` EReg does not match any substring, the result is `s`.
+
+		By default, this method replaces only the first matched substring. If
+		the global g modifier is in place, all matched substrings are replaced.
+
+		If `s` or `f` are null, the result is unspecified.
 	**/
 	public function map( s : String, f : EReg -> String ) : String {
-		var buf = new StringBuf();
-		while( true ) {
-			if( !match(s) )
-				break;
-			buf.add(matchedLeft());
-			buf.add(f(this));
-			s = matchedRight();
-		}
-		buf.add(s);
-		return buf.toString();
+		return null;
 	}
 }
