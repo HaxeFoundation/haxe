@@ -194,8 +194,8 @@ let make_module ctx mpath file tdecls loadp =
 					List.iter (fun m -> match m with
 						| ((Meta.Build | Meta.CoreApi | Meta.Allow | Meta.Access),_,_) ->
 							c.cl_meta <- m :: c.cl_meta;
-						| (Meta.FakeEnum,_,_) ->
-							c.cl_meta <- (Meta.Build,[ECall((EField((EField((EField((EConst(Ident "haxe"),p),"macro"),p),"Build"),p),"buildFakeEnum"),p),[]),p],p) :: c.cl_meta;
+						| (Meta.Enum,_,_) ->
+							c.cl_meta <- (Meta.Build,[ECall((EField((EField((EField((EConst(Ident "haxe"),p),"macro"),p),"Build"),p),"buildEnumAbstract"),p),[]),p],p) :: c.cl_meta;
 						| (Meta.Expose,el,_) ->
 							c.cl_meta <- (Meta.Build,[ECall((EField((EField((EField((EConst(Ident "haxe"),p),"macro"),p),"Build"),p),"exposeUnderlyingFields"),p),el),p],p) :: c.cl_meta;
 						| _ ->

@@ -2352,7 +2352,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 						if ctx.untyped then raise Not_found;
 						with_type_error ctx with_type (string_error s e.e_names ("Identifier '" ^ s ^ "' is not part of enum " ^ s_type_path e.e_path)) p;
 						mk (TConst TNull) t p)
-				| TAbstract (a,pl) when has_meta Meta.FakeEnum a.a_meta ->
+				| TAbstract (a,pl) when has_meta Meta.Enum a.a_meta ->
 					let cimpl = (match a.a_impl with None -> assert false | Some c -> c) in
 					(try
 						let cf = PMap.find s cimpl.cl_statics in

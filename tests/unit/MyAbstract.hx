@@ -309,7 +309,7 @@ abstract MyDebugString(String) to String {
 }
 
 #if !macro
-@:fakeEnum
+@:enum
 abstract FakeEnumAbstract(Int) {
 	var NotFound = 404;
 	var MethodNotAllowed = 405;

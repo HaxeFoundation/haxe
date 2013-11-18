@@ -28,7 +28,7 @@ import haxe.macro.Type;
 using haxe.macro.Tools;
 
 class Build {
-	macro static public function buildFakeEnum():Array<Field> {
+	macro static public function buildEnumAbstract():Array<Field> {
 		var fields = Context.getBuildFields();
 		var a = switch(Context.getLocalClass().get().kind) {
 			case KAbstractImpl(a): a;

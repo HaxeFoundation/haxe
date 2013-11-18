@@ -412,7 +412,7 @@ let to_pattern ctx e t =
 							| _ -> ());
 						let et = mk (TTypeExpr (TEnumDecl en)) (TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics en) }) p in
 						mk (TField (et,FEnum (en,ef))) (apply_params en.e_types pl ef.ef_type) p
-					| TAbstract({a_impl = Some c} as a,_) when Meta.has Meta.FakeEnum a.a_meta ->
+					| TAbstract({a_impl = Some c} as a,_) when Meta.has Meta.Enum a.a_meta ->
 						let cf = PMap.find s c.cl_statics in
 						ignore(follow cf.cf_type);
 						let e = begin match cf.cf_expr with
@@ -760,7 +760,7 @@ let rec all_ctors mctx t =
 		h := PMap.add (CConst(TBool true)) Ast.null_pos !h;
 		h := PMap.add (CConst(TBool false)) Ast.null_pos !h;
 		h,false
-	| TAbstract({a_impl = Some c} as a,pl) when Meta.has Meta.FakeEnum a.a_meta ->
+	| TAbstract({a_impl = Some c} as a,pl) when Meta.has Meta.Enum a.a_meta ->
 		List.iter (fun cf ->
 			ignore(follow cf.cf_type);
 			if Meta.has Meta.Impl cf.cf_meta then match cf.cf_expr with
@@ -950,7 +950,7 @@ let convert_switch ctx st cases loop =
 		mk_index_call()
 	| TInst({cl_path = [],"Array"},_) as t ->
 		mk (TField (e_st,quick_field t "length")) ctx.t.tint p
-	| TAbstract(a,_) when Meta.has Meta.FakeEnum a.a_meta ->
+	| TAbstract(a,_) when Meta.has Meta.Enum a.a_meta ->
 		mk (TMeta((Meta.Exhaustive,[],p), e_st)) e_st.etype e_st.epos
 	| TAbstract({a_path = [],"Bool"},_) ->
 		mk (TMeta((Meta.Exhaustive,[],p), e_st)) e_st.etype e_st.epos
@@ -1235,7 +1235,7 @@ let match_expr ctx e cases def with_type p =
 				s_st_r false false st (Printf.sprintf "%s(%s)" ef.ef_name (st_args i (len - 1 - i) v))
 		in
 		let pat = match follow st.st_type with
-			| TAbstract({a_impl = Some cl} as a,_) when Meta.has Meta.FakeEnum a.a_meta ->
+			| TAbstract({a_impl = Some cl} as a,_) when Meta.has Meta.Enum a.a_meta ->
 				let rec s_pat pat = match pat.p_def with
 					| PCon ({c_def = CConst c},[]) ->
 						let cf = List.find (fun cf ->
