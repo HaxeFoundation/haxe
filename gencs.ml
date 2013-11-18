@@ -3184,7 +3184,9 @@ let add_net_lib com file std =
 		| Some c ->
 			c
 		| None ->
-			let file = try Common.find_file com file with
+			let file = if Sys.file_exists file then
+				file
+			else try Common.find_file com file with
 				| Not_found -> try Common.find_file com (file ^ ".dll") with
 				| Not_found ->
 					failwith (".NET lib " ^ file ^ " not found")
