@@ -187,7 +187,7 @@ and tclass = {
 	mutable cl_doc : Ast.documentation;
 	mutable cl_meta : metadata;
 	mutable cl_types : type_params;
-
+	(* do not insert any fields above *)
 	mutable cl_kind : tclass_kind;
 	mutable cl_extern : bool;
 	mutable cl_interface : bool;
@@ -223,10 +223,10 @@ and tenum = {
 	e_pos : Ast.pos;
 	e_private : bool;
 	e_doc : Ast.documentation;
-	e_type : tdef;
 	mutable e_meta : metadata;
 	mutable e_types : type_params;
-
+	(* do not insert any fields above *)
+	e_type : tdef;
 	mutable e_extern : bool;
 	mutable e_constrs : (string , tenum_field) PMap.t;
 	mutable e_names : string list;
@@ -240,7 +240,7 @@ and tdef = {
 	t_doc : Ast.documentation;
 	mutable t_meta : metadata;
 	mutable t_types : type_params;
-
+	(* do not insert any fields above *)
 	mutable t_type : t;
 }
 
@@ -252,6 +252,7 @@ and tabstract = {
 	a_doc : Ast.documentation;
 	mutable a_meta : metadata;
 	mutable a_types : type_params;
+	(* do not insert any fields above *)
 	mutable a_ops : (Ast.binop * tclass_field) list;
 	mutable a_unops : (Ast.unop * unop_flag * tclass_field) list;
 	mutable a_impl : tclass option;
