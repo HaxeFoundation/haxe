@@ -2983,7 +2983,9 @@ let get_classes_zip zip =
   !ret
 
 let add_java_lib com file std =
-  let file = try Common.find_file com file with
+  let file = if Sys.file_exists file then
+		file
+	else try Common.find_file com file with
     | Not_found -> try Common.find_file com (file ^ ".jar") with
     | Not_found ->
       failwith ("Java lib " ^ file ^ " not found")
