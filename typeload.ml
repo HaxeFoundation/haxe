@@ -76,6 +76,16 @@ let make_module ctx mpath file tdecls loadp =
 				e_extern = List.mem EExtern d.d_flags;
 				e_constrs = PMap.empty;
 				e_names = [];
+				e_type = {
+					t_path = fst path, "#" ^ snd path;
+					t_module = m;
+					t_doc = None;
+					t_pos = p;
+					t_type = mk_mono();
+					t_private = true;
+					t_types = [];
+					t_meta = [];
+				};
 			} in
 			decls := (TEnumDecl e, decl) :: !decls;
 			acc
@@ -2264,6 +2274,7 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 		let names = ref [] in
 		let index = ref 0 in
 		let is_flat = ref true in
+		let fields = ref PMap.empty in
 		List.iter (fun c ->
 			let p = c.ec_pos in
 			let params = ref [] in
@@ -2294,7 +2305,7 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 					) l, rt)
 			) in
 			if PMap.mem c.ec_name e.e_constrs then error ("Duplicate constructor " ^ c.ec_name) p;
-			e.e_constrs <- PMap.add c.ec_name {
+			let f = {
 				ef_name = c.ec_name;
 				ef_type = t;
 				ef_pos = p;
@@ -2302,12 +2313,34 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 				ef_index = !index;
 				ef_params = params;
 				ef_meta = c.ec_meta;
-			} e.e_constrs;
+			} in
+			let cf = {
+				cf_name = f.ef_name;
+				cf_public = true;
+				cf_type = f.ef_type;
+				cf_kind = (match follow f.ef_type with
+					| TFun _ -> Method MethNormal
+					| _ -> Var { v_read = AccNormal; v_write = AccNo }
+				);
+				cf_pos = e.e_pos;
+				cf_doc = None;
+				cf_meta = no_meta;
+				cf_expr = None;
+				cf_params = f.ef_params;
+				cf_overloads = [];
+			} in
+			e.e_constrs <- PMap.add f.ef_name f e.e_constrs;
+			fields := PMap.add cf.cf_name cf !fields;
 			incr index;
 			names := c.ec_name :: !names;
 		) (!constructs);
 		e.e_names <- List.rev !names;
 		e.e_extern <- e.e_extern;
+		e.e_type.t_types <- e.e_types;
+		e.e_type.t_type <- TAnon {
+			a_fields = !fields;
+			a_status = ref (EnumStatics e);
+		};
 		if !is_flat then e.e_meta <- (Meta.FlatEnum,[],e.e_pos) :: e.e_meta;
 	| ETypedef d ->
 		let t = (match get_type d.d_name with TTypeDecl t -> t | _ -> assert false) in

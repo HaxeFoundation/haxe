@@ -653,37 +653,7 @@ let rec type_module_type ctx t tparams p =
 		mk (TTypeExpr (TClassDecl c)) (TType (t_tmp,[])) p
 	| TEnumDecl e ->
 		let types = (match tparams with None -> List.map (fun _ -> mk_mono()) e.e_types | Some l -> l) in
-		let fl = PMap.fold (fun f acc ->
-			PMap.add f.ef_name {
-				cf_name = f.ef_name;
-				cf_public = true;
-				cf_type = f.ef_type;
-				cf_kind = (match follow f.ef_type with
-					| TFun _ -> Method MethNormal
-					| _ -> Var { v_read = AccNormal; v_write = AccNo }
-				);
-				cf_pos = e.e_pos;
-				cf_doc = None;
-				cf_meta = no_meta;
-				cf_expr = None;
-				cf_params = f.ef_params;
-				cf_overloads = [];
-			} acc
-		) e.e_constrs PMap.empty in
-		let t_tmp = {
-			t_path = fst e.e_path, "#" ^ snd e.e_path;
-			t_module = e.e_module;
-			t_doc = None;
-			t_pos = e.e_pos;
-			t_type = TAnon {
-				a_fields = fl;
-				a_status = ref (EnumStatics e);
-			};
-			t_private = true;
-			t_types = e.e_types;
-			t_meta = no_meta;
-		} in
-		mk (TTypeExpr (TEnumDecl e)) (TType (t_tmp,types)) p
+		mk (TTypeExpr (TEnumDecl e)) (TType (e.e_type,types)) p
 	| TTypeDecl s ->
 		let t = apply_params s.t_types (List.map (fun _ -> mk_mono()) s.t_types) s.t_type in
 		(match follow t with

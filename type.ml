@@ -223,6 +223,7 @@ and tenum = {
 	e_pos : Ast.pos;
 	e_private : bool;
 	e_doc : Ast.documentation;
+	e_type : tdef;
 	mutable e_meta : metadata;
 	mutable e_types : type_params;
 
