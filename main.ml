@@ -1240,9 +1240,21 @@ try
 		),": print help for all compiler metadatas");
 	] in
 	let args_callback cl = classes := make_path cl :: !classes in
+	let all_args_spec = basic_args_spec @ adv_args_spec in
 	let process args =
 		let current = ref 0 in
-		Arg.parse_argv ~current (Array.of_list ("" :: List.map expand_env args)) (basic_args_spec @ adv_args_spec) args_callback usage
+		try
+			Arg.parse_argv ~current (Array.of_list ("" :: List.map expand_env args)) all_args_spec args_callback usage
+		with (Arg.Bad msg) as exc ->
+			let r = Str.regexp "unknown option `\\([-A-Za-z]+\\)'" in
+			try
+				ignore(Str.search_forward r msg 0);
+				let s = Str.matched_group 1 msg in
+				let sl = List.map (fun (s,_,_) -> s) all_args_spec in
+				let msg = Typecore.string_error_raise s sl (Printf.sprintf "Invalid command: %s" s) in
+				raise (Arg.Bad msg)
+			with Not_found ->
+				raise exc
 	in
 	process_ref := process;
 	process ctx.com.args;

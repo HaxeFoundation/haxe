@@ -175,7 +175,7 @@ let levenshtein a b =
 			done;
 			matrix.(m).(n)
 
-let string_error s sl msg =
+let string_error_raise s sl msg =
 	if sl = [] then msg else
 	let cl = List.map (fun s2 -> s2,levenshtein s s2) sl in
 	let cl = List.sort (fun (_,c1) (_,c2) -> compare c1 c2) cl in
@@ -184,9 +184,13 @@ let string_error s sl msg =
 		| _ -> []
 	in
 	match loop cl with
-		| [] -> msg
+		| [] -> raise Not_found
 		| [s] -> Printf.sprintf "%s (Suggestion: %s)" msg s
 		| sl -> Printf.sprintf "%s (Suggestions: %s)" msg (String.concat ", " sl)
+
+let string_error s sl msg =
+	try string_error_raise s sl msg
+	with Not_found -> msg
 
 let string_source t = match follow t with
 	| TInst(c,_) -> List.map (fun cf -> cf.cf_name) c.cl_ordered_fields
