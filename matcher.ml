@@ -414,7 +414,7 @@ let to_pattern ctx e t =
 						mk (TField (et,FEnum (en,ef))) (apply_params en.e_types pl ef.ef_type) p
 					| TAbstract({a_impl = Some c} as a,_) when Meta.has Meta.Enum a.a_meta ->
 						let cf = PMap.find s c.cl_statics in
-						ignore(follow cf.cf_type);
+						Type.unify (follow cf.cf_type) t;
 						let e = begin match cf.cf_expr with
 						| Some ({eexpr = TConst c | TCast({eexpr = TConst c},None)} as e) -> e
 						| _ -> raise Not_found
