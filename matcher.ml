@@ -1124,17 +1124,13 @@ let match_expr ctx e cases def with_type p =
 					let monos = List.map (fun _ -> mk_mono()) ctx.type_params in
 					let t = apply_params ctx.type_params monos t in
 					let pl = [add_pattern_locals (to_pattern ctx ep t)] in
-					let restore = match with_type with
-						| Value | NoValue -> []
-						| WithType _ | WithTypeResume _ ->
-							PMap.fold (fun v acc ->
-								(* apply context monomorphs to locals and replace them back after typing the case body *)
-								let t = v.v_type in
-								v.v_type <- apply_params ctx.type_params monos v.v_type;
-								(fun () -> v.v_type <- t) :: acc
-							) ctx.locals []
-					in
-					(* turn any still unknown types back into type parameters *)
+					let restore = PMap.fold (fun v acc ->
+						(* apply context monomorphs to locals and replace them back after typing the case body *)
+						let t = v.v_type in
+						v.v_type <- apply_params ctx.type_params monos v.v_type;
+						(fun () -> v.v_type <- t) :: acc
+					) ctx.locals [] in
+					(* turn any still unknown types back to type parameters *)
 					List.iter2 (fun m (_,t) -> match follow m with TMono _ -> Type.unify m t | _ -> ()) monos ctx.type_params;
 					pl,restore,(match with_type with
 						| WithType t -> WithType (apply_params ctx.type_params monos t)
