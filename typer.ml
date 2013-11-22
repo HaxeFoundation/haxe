@@ -3744,10 +3744,10 @@ let make_macro_api ctx p =
 			match ctx.g.get_build_infos() with
 			| Some (mt,_) ->
 				Some (match mt with
-					| TClassDecl c -> TInst (c,[])
-					| TEnumDecl e -> TEnum (e,[])
-					| TTypeDecl t -> TType (t,[])
-					| TAbstractDecl a -> TAbstract(a,[]))
+					| TClassDecl c -> TInst (c,List.map snd c.cl_types)
+					| TEnumDecl e -> TEnum (e,List.map snd e.e_types)
+					| TTypeDecl t -> TType (t,List.map snd t.t_types)
+					| TAbstractDecl a -> TAbstract(a,List.map snd a.a_types))
 			| None ->
 				if ctx.curclass == null_class then
 					None
