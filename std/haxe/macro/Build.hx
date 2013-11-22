@@ -34,8 +34,9 @@ class Build {
 			case KAbstractImpl(a): a;
 			case _: throw "";
 		}
-		var tThis = a.get().type;
-		var ctA = TAbstract(a, []).toComplexType();
+		var aT = a.get();
+		var tThis = aT.type;
+		var ctA = TAbstract(a, aT.params.map(function(tp) return tp.t));
 		for (field in fields) {
 			// allow extra static fields
 			if( Lambda.has(field.access,AStatic) )
@@ -44,10 +45,18 @@ class Build {
 				case FVar(t, e):
 					field.access = [AStatic,APublic,AInline];
 					if (e == null) Context.error("Value required", field.pos);
+					var monos = aT.params.map(function(_) return Context.typeof(macro null));
+					var tF = ctA.applyTypeParameters(aT.params, monos);
+					if (t != null) {
+						switch(t.toType().follow()) {
+							case t = TAbstract(a2, tl2) if (a.toString() == a2.toString()): tF = t;
+							case _: Context.error("Explicit field type must be " + ctA.toString(), field.pos);
+						}
+					}
 					var tE = Context.typeof(e);
 					if (!Context.unify(tE, tThis)) Context.error('${tE.toString()} should be ${tThis.toString()}', e.pos);
 					field.meta.push({name: ":impl", params: [], pos: field.pos});
-					field.kind = FVar(ctA, macro cast $e);
+					field.kind = FVar(tF.toComplexType(), macro cast $e);
 				case _:
 			}
 		}
