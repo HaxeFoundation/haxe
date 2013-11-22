@@ -1079,7 +1079,13 @@ let run com tctx main =
 	(* PASS 1: general expression filters *)
  	let filters = [
 		Codegen.Abstract.handle_abstract_casts tctx;
-		(match com.platform with Cpp -> handle_side_effects com (Typecore.gen_local tctx) | _ -> fun e -> e);
+		(match com.platform with
+			| Cpp -> (fun e ->
+				let save = save_locals tctx in
+				let e = handle_side_effects com (Typecore.gen_local tctx) e in
+				save();
+				e)
+			| _ -> fun e -> e);
 		if com.foptimize then (fun e -> Optimizer.reduce_expression tctx (Optimizer.inline_constructors tctx e)) else Optimizer.sanitize tctx;
 		check_local_vars_init;
 		captured_vars com;
