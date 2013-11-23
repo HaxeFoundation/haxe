@@ -23,7 +23,7 @@
 
  /**
  	Int32 provides a 32-bit integer with consistent overflow behavior across
- 	all platforms. 
+ 	all platforms.
  **/
 abstract Int32(Int) from Int to Int {
 	@:op(-A) public function negate():Int32;
@@ -149,7 +149,7 @@ abstract Int32(Int) from Int to Int {
 		return this;
 
 	#if php
-	static inline var extraBits : Int = untyped __php__("PHP_INT_SIZE") * 8 - 32;
+	static var extraBits : Int = untyped __php__("PHP_INT_SIZE") * 8 - 32;
 	#end
 
 	inline static function clamp( x : Int ) : Int {
