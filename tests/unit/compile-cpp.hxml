@@ -1,0 +1,4 @@
+compile-each.hxml
+-main unit.Test
+-cpp cpp
+-D NO_PRECOMPILED_HEADERS
