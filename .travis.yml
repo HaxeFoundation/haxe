@@ -1,16 +1,12 @@
 language: node_js
 
 before_install:
-  - sudo apt-get install python-software-properties -y # for the next command
-  # the following repo is not working. TODO: make neko from sources
-  # - sudo add-apt-repository ppa:eyecreate/haxe -y      # add the ubuntu ppa that contains neko
-  # - sudo apt-get update                                # pull info from ppa
-  # - sudo apt-get install neko -y
-  - sudo apt-get install ocaml zlib1g-dev -y
+  - sudo apt-get install ocaml zlib1g-dev libgc-dev -y
+  - git clone https://github.com/HaxeFoundation/neko.git ~/neko && cd ~/neko && make && sudo make install && cd $TRAVIS_BUILD_DIR
 
 script:
   - make
-  # - make tools
+  - make tools
   - sudo make install
   - cd tests/unit/
   - mkdir ~/haxelib && haxelib setup ~/haxelib
