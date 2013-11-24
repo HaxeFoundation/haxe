@@ -542,6 +542,7 @@ let swf_ver = function
 	| 11.6 -> 19
 	| 11.7 -> 20
 	| 11.8 -> 21
+	| 11.9 -> 22
 	| v -> failwith ("Invalid SWF version " ^ float_repres v)
 
 let convert_header com (w,h,fps,bg) =
