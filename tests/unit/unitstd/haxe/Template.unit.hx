@@ -20,4 +20,13 @@ function myfun( resolve : String -> Dynamic, title : String, p : Int ) {
 var t1 = new haxe.Template("Call macro : $$myfun(Hello,::param::)");
 var str = t1.execute({ param : 55, mult : 2 },{ myfun : myfun });
 str == "Call macro : [Hello=110]";
+
+// foreach Array
+var tpl = new haxe.Template("<ul>::foreach list::<li>::__current__::</li>::end::</ul>");
+var output = tpl.execute({list:[0,1,2,3]});
+output == "<ul><li>0</li><li>1</li><li>2</li><li>3</li></ul>";
+
+// foreach IntIterator
+var output = tpl.execute({list:0...3});
+output == "<ul><li>0</li><li>1</li><li>2</li></ul>";
 #end

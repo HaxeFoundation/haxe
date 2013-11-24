@@ -356,21 +356,35 @@ class Template {
 				run(e);
 		case OpForeach(e,loop):
 			var v : Dynamic = e();
-			try {
-				var x : Dynamic = v.iterator();
-				if( x.hasNext == null ) throw null;
-				v = x;
-			} catch( e : Dynamic ) try {
-				if( v.hasNext == null ) throw null;
-			} catch( e : Dynamic ) {
-				throw "Cannot iter on " + v;
-			}
-			stack.push(context);
-			var v : Iterator<Dynamic> = v;
-			for( ctx in v ) {
-				context = ctx;
-				run(loop);
-			}
+            if( Std.is(v, Array) ) {
+                stack.push(context);
+                for( ctx in cast(v, Array<Dynamic>) ) {
+                    context = ctx;
+                    run(loop);
+                }
+            } else if( Std.is(v, IntIterator) ) {
+                stack.push(context);
+                for( ctx in cast(v, IntIterator) ) {
+                    context = ctx;
+                    run(loop);
+                }
+            } else {
+                try {
+                    var x : Dynamic = v.iterator();
+                    if( x.hasNext == null ) throw null;
+                    v = x;
+                } catch( e : Dynamic ) try {
+                    if( v.hasNext == null ) throw null;
+                } catch( e : Dynamic ) {
+                    throw "Cannot iter on " + v;
+                }
+                stack.push(context);
+                var v : Iterator<Dynamic> = v;
+                for( ctx in v ) {
+                    context = ctx;
+                    run(loop);
+                }
+            }
 			context = stack.pop();
 		case OpMacro(m,params):
 			var v : Dynamic = Reflect.field(macros,m);
