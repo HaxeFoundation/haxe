@@ -1044,14 +1044,14 @@ let fix_override com c f fd =
 			let targs, tret = (match follow f2.cf_type with TFun (args,ret) -> args, ret | _ -> assert false) in
 			let changed_args = ref [] in
 			let prefix = "_tmp_" in
-			let nargs = List.map2 (fun ((v,c) as cur) (_,_,t2) ->
+			let nargs = List.map2 (fun ((v,ct) as cur) (_,_,t2) ->
 				try
-					type_eq EqStrict v.v_type t2;
+					type_eq EqStrict (monomorphs c.cl_types (monomorphs f.cf_params v.v_type)) t2;
 					cur
 				with Unify_error _ ->
 					let v2 = alloc_var (prefix ^ v.v_name) t2 in
 					changed_args := (v,v2) :: !changed_args;
-					v2,c
+					v2,ct
 			) fd.tf_args targs in
 			let fd2 = {
 				tf_args = nargs;
