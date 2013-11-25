@@ -995,7 +995,7 @@ let transform_extractors mctx stl cases =
 					let p = pos e in
 					let ec = EConst (Ident ("__ex" ^ string_of_int (!exc))),snd e in
 					let ecall = match fst e1 with
-						| EConst(Ident s) -> ECall((EField(ec,s),p),[]),p
+						| ECall((EField((EConst(Ident "_"),_),s),_), el) -> ECall((EField(ec,s),p),el),p
 						| _ -> ECall(e1,[ec]),p
 					in
 					ex := (ecall,e2) :: !ex;
