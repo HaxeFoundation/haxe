@@ -461,6 +461,9 @@ package java.internal;
 							} else if (name.equals("short") || name.equals("java.lang.Short"))
 							{
 								objs[i] = ((java.lang.Number)o).shortValue();
+							} else if (name.equals("long") || name.equals("java.lang.Long"))
+							{
+								objs[i] = ((java.lang.Number)o).longValue();
 							}
 						}
 					} //else varargs not handled TODO
