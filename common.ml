@@ -843,6 +843,20 @@ let normalize_path p =
 		| '\\' | '/' -> p
 		| _ -> p ^ "/"
 
+let rec mkdir_recursive base dir_list =
+	match dir_list with
+	| [] -> ()
+	| dir :: remaining ->
+		let path = match base with
+		           | "" ->  dir
+		           | "/" -> "/" ^ dir
+		           | _ -> base ^ "/" ^ dir
+		in
+		if not ( (path = "") || ( ((String.length path) = 2) && ((String.sub path 1 1) = ":") ) ) then
+			if not (Sys.file_exists path) then
+				Unix.mkdir path 0o755;
+		mkdir_recursive (if (path = "") then "/" else path) remaining
+
 let mem_size v =
 	Objsize.size_with_headers (Objsize.objsize v [] [])
 

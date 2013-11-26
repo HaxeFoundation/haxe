@@ -124,20 +124,7 @@ let cached_source_writer common_ctx filename =
 	with _ ->
 		file_source_writer common_ctx filename;;
 
-let rec make_class_directories base dir_list =
-	( match dir_list with
-	| [] -> ()
-	| dir :: remaining ->
-		let path = match base with
-                   | "" ->  dir
-                   | "/" -> "/" ^ dir
-                   | _ -> base ^ "/" ^ dir  in
-         if ( not ( (path="") ||
-           ( ((String.length path)=2) && ((String.sub path 1 1)=":") ) ) ) then
-		         if not (Sys.file_exists path) then
-			          Unix.mkdir path 0o755;
-		make_class_directories (if (path="") then "/" else path) remaining
-	);;
+let make_class_directories = Common.mkdir_recursive;;
 
 let make_base_directory dir =
 	make_class_directories "" ( ( Str.split_delim (Str.regexp "[\\/]+") dir ) );;
