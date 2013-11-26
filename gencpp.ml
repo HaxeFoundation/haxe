@@ -1148,8 +1148,9 @@ let gen_hash seed str =
    Printf.sprintf "0x%08lx" !h
 ;;
 
-let strip_file ctx file =
-	let flen = String.length file in
+let strip_file ctx file = (match Common.defined ctx Common.Define.AbsolutePath with
+   | true -> file
+   | false -> let flen = String.length file in
 	(* Not quite right - should probably test is file exists *)
    try
 		List.iter (fun path ->
@@ -1159,9 +1160,8 @@ let strip_file ctx file =
 			 (ctx.class_path @ ctx.std_path);
 		file;
 	with PathFound tail ->
-      tail
+      tail)
 ;;
-
 
 let hx_stack_push ctx output clazz func_name pos =
    let stripped_file = strip_file ctx.ctx_common pos.pfile in
