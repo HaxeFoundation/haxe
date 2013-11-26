@@ -87,7 +87,8 @@ class Resource {
 		var stream = new java.io.NativeInput(stream);
 		return stream.readAll().toString();
 		#elseif cs
-		var str:cs.system.io.Stream = untyped __cs__("typeof(haxe.Resource).Assembly.GetManifestResourceStream((string)getPaths().get(name).@value)");
+		var path = getPaths().get(name);
+		var str:cs.system.io.Stream = untyped __cs__("typeof(haxe.Resource).Assembly.GetManifestResourceStream(path)");
 		if (str != null)
 			return new cs.io.NativeInput(str).readAll().toString();
 		return null;
@@ -120,7 +121,8 @@ class Resource {
 		var stream = new java.io.NativeInput(stream);
 		return stream.readAll();
 		#elseif cs
-		var str:cs.system.io.Stream = untyped __cs__("typeof(haxe.Resource).Assembly.GetManifestResourceStream((string)getPaths().get(name).@value)");
+		var path = getPaths().get(name);
+		var str:cs.system.io.Stream = untyped __cs__("typeof(haxe.Resource).Assembly.GetManifestResourceStream(path)");
 		if (str != null)
 			return new cs.io.NativeInput(str).readAll();
 		return null;
