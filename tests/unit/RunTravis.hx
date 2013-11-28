@@ -4,6 +4,8 @@ class RunTravis {
 	static function runProcess(cmd:String, args:Array<String>):Void {
 		var p = new Process(cmd, args);
 		Sys.println(p.stdout.readAll().toString());
+		Sys.println(p.stderr.readAll().toString());
+		
 		var exitCode = p.exitCode();
 		Sys.println('Process exited with $exitCode: $cmd $args');
 
