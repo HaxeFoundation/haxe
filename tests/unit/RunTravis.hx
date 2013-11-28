@@ -5,7 +5,7 @@ class RunTravis {
 		var p = new Process(cmd, args);
 		Sys.println(p.stdout.readAll().toString());
 		Sys.println(p.stderr.readAll().toString());
-		
+
 		var exitCode = p.exitCode();
 		Sys.println('Process exited with $exitCode: $cmd $args');
 
@@ -22,7 +22,7 @@ class RunTravis {
 				runProcess("haxe", ["compile-neko.hxml"]);
 				runProcess("neko", ["unit.n"]);
 			case "php":
-				runProcess("sudo", ["apt-get", "install", "php", "-y"]);
+				runProcess("sudo", ["apt-get", "install", "php5", "-y"]);
 				runProcess("haxe", ["compile-php.hxml"]);
 				runProcess("php", ["php/index.php"]);
 			case target:

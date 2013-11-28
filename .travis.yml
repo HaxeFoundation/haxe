@@ -14,7 +14,7 @@ env:
 
 matrix:
   allow_failures:
-    - TARGET=php
+    - env: TARGET=php
 
 before_install:
   - sudo apt-get install ocaml zlib1g-dev libgc-dev -y
