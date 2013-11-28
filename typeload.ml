@@ -424,6 +424,8 @@ and load_complex_type ctx p t =
 		| TAnon a ->
 			let rec loop t =
 				match follow t with
+				| TInst ({cl_kind = KTypeParameter _},_) ->
+					error "Cannot structurally extend type parameters" p
 				| TInst (c,tl) ->
 					let c2 = mk_class null_module (fst c.cl_path,"+" ^ snd c.cl_path) p in
 					c2.cl_private <- true;
