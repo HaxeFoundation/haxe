@@ -2273,6 +2273,9 @@ let macro_lib =
 				| VClosure (vl,f) ->
 					let rl = ref [] in
 					let v2 = VClosure (Obj.magic rl, Obj.magic !cache_count) in
+					(* in ocaml 4.0+ it was reported some stack overflow, related to vl being GC'ed or mutated in do_cache.
+					   let's make sure to have a real pointer to it first. The fix will trigger an alloc which might have simply moved the problem away *)
+					let vl = VNull :: vl in
 					do_cache v v2;
 					rl := List.map loop vl;
 					v2
