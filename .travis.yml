@@ -6,7 +6,7 @@ env:
   # - TARGET=js
   - TARGET=neko
   - TARGET=macro
-  # - TARGET=php
+  - TARGET=php
   # - TARGET=as3
   # - TARGET=cpp
   # - TARGET=java
@@ -14,6 +14,8 @@ env:
 
 matrix:
   fast_finish: true
+  allow_failures:
+    - TARGET=php
 
 before_install:
   - sudo apt-get install ocaml zlib1g-dev libgc-dev -y

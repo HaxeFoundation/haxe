@@ -16,6 +16,10 @@ class RunTravis {
 			case "neko":
 				runProcess(new Process("haxe", ["compile-neko.hxml"]));
 				runProcess(new Process("neko", ["unit.n"]));
+			case "php":
+				runProcess(new Process("sudo", ["apt-get", "install", "php", "-y"]));
+				runProcess(new Process("haxe", ["compile-php.hxml"]));
+				runProcess(new Process("php", ["php/index.php"]));
 			case target:
 				throw "unknown target: " + target;
 		}
