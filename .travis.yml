@@ -1,14 +1,14 @@
 language: node_js
 
 env:
-  # - TARGET=flash8
-  # - TARGET=flash9
-  # - TARGET=js
   - TARGET=neko
   - TARGET=macro
   - TARGET=php
+  - TARGET=cpp
+  # - TARGET=flash8
+  # - TARGET=flash9
+  # - TARGET=js
   # - TARGET=as3
-  # - TARGET=cpp
   # - TARGET=java
   # - TARGET=cs
 

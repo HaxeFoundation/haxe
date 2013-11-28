@@ -25,6 +25,11 @@ class RunTravis {
 				runProcess("sudo", ["apt-get", "install", "php5", "-y"]);
 				runProcess("haxe", ["compile-php.hxml"]);
 				runProcess("php", ["php/index.php"]);
+			case "cpp":
+				runProcess("sudo", ["apt-get", "install", "gcc-multilib", "g++-multilib", "-y"]);
+				runProcess("haxelib", ["git", "hxcpp", "https://github.com/HaxeFoundation/hxcpp.git"]);
+				runProcess("haxe", ["compile-cpp.hxml"]);
+				runProcess("./cpp/Test-debug", []);
 			case target:
 				throw "unknown target: " + target;
 		}
