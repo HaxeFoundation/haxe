@@ -1,10 +1,13 @@
 import sys.io.Process;
 
 class RunTravis {
-	static function runProcess(p:Process):Void {
+	static function runProcess(cmd:String, args:Array<String>):Void {
+		var p = new Process(cmd, args);
 		Sys.println(p.stdout.readAll().toString());
+		var exitCode = p.exitCode();
+		Sys.println('Process exited with $exitCode: $cmd $args');
 
-		if (p.exitCode() != 0) {
+		if (exitCode != 0) {
 			Sys.exit(1);
 		}
 	}
@@ -12,14 +15,14 @@ class RunTravis {
 	static function main():Void {
 		switch (Sys.getEnv("TARGET")) {
 			case "macro":
-				runProcess(new Process("haxe", ["compile-macro.hxml"]));
+				runProcess("haxe", ["compile-macro.hxml"]);
 			case "neko":
-				runProcess(new Process("haxe", ["compile-neko.hxml"]));
-				runProcess(new Process("neko", ["unit.n"]));
+				runProcess("haxe", ["compile-neko.hxml"]);
+				runProcess("neko", ["unit.n"]);
 			case "php":
-				runProcess(new Process("sudo", ["apt-get", "install", "php", "-y"]));
-				runProcess(new Process("haxe", ["compile-php.hxml"]));
-				runProcess(new Process("php", ["php/index.php"]));
+				runProcess("sudo", ["apt-get", "install", "php", "-y"]);
+				runProcess("haxe", ["compile-php.hxml"]);
+				runProcess("php", ["php/index.php"]);
 			case target:
 				throw "unknown target: " + target;
 		}
