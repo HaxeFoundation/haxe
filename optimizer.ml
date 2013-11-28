@@ -232,11 +232,9 @@ let rec type_inline ctx cf f ethis params tret config p force =
 			if not term then error "Cannot inline a not final return" po;
 			(match eo with
 			| None -> mk (TConst TNull) f.tf_type p
-			| Some e -> has_return_value := true;
-				(* we can omit unsafe casts to retain the real type, the cast will be added back later anyway *)
-				(match e.eexpr with
-				| TCast(e1,None) -> map term e1
-				| _ -> map term e))
+			| Some e ->
+				has_return_value := true;
+				map term e)
 		| TFor (v,e1,e2) ->
 			let i = local v in
 			let e1 = map false e1 in
