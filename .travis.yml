@@ -1,5 +1,21 @@
 language: node_js
 
+env:
+  - TARGET=neko
+  - TARGET=macro
+  - TARGET=php
+  - TARGET=cpp
+  # - TARGET=flash8
+  # - TARGET=flash9
+  # - TARGET=js
+  # - TARGET=as3
+  # - TARGET=java
+  # - TARGET=cs
+
+matrix:
+  allow_failures:
+    - env: TARGET=php
+
 before_install:
   - sudo apt-get install ocaml zlib1g-dev libgc-dev -y
   - git clone https://github.com/HaxeFoundation/neko.git ~/neko && cd ~/neko && make && sudo make install && cd $TRAVIS_BUILD_DIR
@@ -11,3 +27,4 @@ script:
   - cd tests/unit/
   - mkdir ~/haxelib && haxelib setup ~/haxelib
   - haxe -version
+  - haxe -main RunTravis --interp
