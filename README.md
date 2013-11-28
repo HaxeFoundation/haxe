@@ -1,6 +1,8 @@
 ![Haxe logo](http://haxe.org/img/haxe2/logo.png)
 # [Haxe - The Cross-Platform Toolkit](http://haxe.org)
 
+[![Build Status](https://travis-ci.org/HaxeFoundation/haxe.png?branch=development)](https://travis-ci.org/HaxeFoundation/haxe)
+
 Haxe is an open source toolkit that allows you to easily build cross-platform tools and applications that target many mainstream platforms. The Haxe toolkit includes:
 
  * **The Haxe programming language**, a modern, high-level, strictly-typed programming language
