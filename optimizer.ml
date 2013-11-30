@@ -998,43 +998,56 @@ let rec make_constant_expression ctx ?(concat_strings=false) e =
 
 let inline_constructors ctx e =
 	let vars = ref PMap.empty in
+	let rec get_inline_ctor_info e = match e.eexpr with
+		| TNew ({ cl_constructor = Some ({ cf_kind = Method MethInline; cf_expr = Some { eexpr = TFunction f } } as cst) } as c,_,pl) ->
+			Some (f,cst,c,pl)
+		| TCast(e,None) | TParenthesis e ->
+			get_inline_ctor_info e
+		| _ ->
+			None
+	in
 	let rec find_locals e =
 		match e.eexpr with
 		| TVars vl ->
 			Type.iter find_locals e;
 			List.iter (fun (v,e) ->
 				match e with
-				| Some ({ eexpr = TNew ({ cl_constructor = Some ({ cf_kind = Method MethInline; cf_expr = Some { eexpr = TFunction f } } as cst) } as c,_,pl) } as n) ->
-					(* inline the constructor *)
-					(match (try type_inline ctx cst f (mk (TLocal v) v.v_type n.epos) pl ctx.t.tvoid None n.epos true with Error (Custom _,_) -> None) with
-					| None -> ()
-					| Some ecst ->
-						let assigns = ref [] in
-						(* add field inits here because the filter has not run yet (issue #2336) *)
-						List.iter (fun cf -> match cf.cf_kind,cf.cf_expr with
-							| Var _,Some e -> assigns := (cf.cf_name,e,cf.cf_type) :: !assigns
-							| _ -> ()
-						) c.cl_ordered_fields;
-						(* make sure we only have v.field = expr calls *)
-						let rec get_assigns e =
-							match e.eexpr with
-							| TBlock el ->
-								List.iter get_assigns el
-							| TBinop (OpAssign, { eexpr = TField ({ eexpr = TLocal vv },FInstance(_,cf)); etype = t }, e) when v == vv ->
-								assigns := (cf.cf_name,e,t) :: !assigns
-							| _ ->
-								raise Exit
-						in
-						try
-							get_assigns ecst;
-							(* mark variable as candidate for inlining *)
-							vars := PMap.add v.v_id (v,List.rev !assigns,c.cl_extern || Meta.has Meta.Extern cst.cf_meta,n.epos) !vars;
-							v.v_id <- -v.v_id; (* mark *)
-							(* recurse with the constructor code which will be inlined here *)
-							find_locals ecst
-						with Exit ->
-							())
-				| _ -> ()
+				| Some n ->
+					begin match get_inline_ctor_info n with
+					| Some (f,cst,c,pl) ->
+						(* inline the constructor *)
+						(match (try type_inline ctx cst f (mk (TLocal v) v.v_type n.epos) pl ctx.t.tvoid None n.epos true with Error (Custom _,_) -> None) with
+						| None -> ()
+						| Some ecst ->
+							let assigns = ref [] in
+							(* add field inits here because the filter has not run yet (issue #2336) *)
+							List.iter (fun cf -> match cf.cf_kind,cf.cf_expr with
+								| Var _,Some e -> assigns := (cf.cf_name,e,cf.cf_type) :: !assigns
+								| _ -> ()
+							) c.cl_ordered_fields;
+							(* make sure we only have v.field = expr calls *)
+							let rec get_assigns e =
+								match e.eexpr with
+								| TBlock el ->
+									List.iter get_assigns el
+								| TBinop (OpAssign, { eexpr = TField ({ eexpr = TLocal vv },FInstance(_,cf)); etype = t }, e) when v == vv ->
+									assigns := (cf.cf_name,e,t) :: !assigns
+								| _ ->
+									raise Exit
+							in
+							try
+								get_assigns ecst;
+								(* mark variable as candidate for inlining *)
+								vars := PMap.add v.v_id (v,List.rev !assigns,c.cl_extern || Meta.has Meta.Extern cst.cf_meta,n.epos) !vars;
+								v.v_id <- -v.v_id; (* mark *)
+								(* recurse with the constructor code which will be inlined here *)
+								find_locals ecst
+							with Exit ->
+								())
+					| None ->
+						()
+					end
+				| None -> ()
 			) vl
 		| TField ({ eexpr = TLocal _ },FInstance (_,{ cf_kind = Var _ })) ->
 			()
