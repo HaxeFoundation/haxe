@@ -349,7 +349,7 @@ class Http {
 
 #if sys
 
-	public function fileTransfert( argname : String, filename : String, file : haxe.io.Input, size : Int ) {
+	public function fileTransfer( argname : String, filename : String, file : haxe.io.Input, size : Int ) {
 		this.file = { param : argname, filename : filename, io : file, size : size };
 	}
 
