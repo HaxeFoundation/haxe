@@ -41,7 +41,7 @@ abstract Int32(Int) from Int to Int {
 		return this = clamp(--this);
 
 	@:op(A--) inline public function postDecrement():Int32 {
-		var ret = this++;
+		var ret = this--;
 		this = clamp(this);
 		return ret;
 	}
@@ -147,6 +147,15 @@ abstract Int32(Int) from Int to Int {
 
 	@:to public inline function toFloat():Float
 		return this;
+
+	/**
+		Compare two Int32 in unsigned mode.
+	**/
+	public static function ucompare( a : Int32, b : Int32 ) : Int {
+		if( a < 0 )
+			return b < 0 ? ( ~b - ~a ) : 1;
+		return b < 0 ? -1 : (a - b);
+	}
 
 	#if php
 	static var extraBits : Int = untyped __php__("PHP_INT_SIZE") * 8 - 32;

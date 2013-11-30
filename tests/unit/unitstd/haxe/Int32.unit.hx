@@ -6,7 +6,7 @@ var a:haxe.Int32 = 0x7fffffff;
 a++ == max;
 a == min;
 a-- == min;
-a = max;
+a == max;
 ++a == min;
 --a == max;
 
