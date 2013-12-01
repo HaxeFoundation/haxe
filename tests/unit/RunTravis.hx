@@ -38,6 +38,9 @@ class RunTravis {
 				
 				runProcess("haxe", ["compile-cpp.hxml"]);
 				runProcess("./cpp/Test-debug", []);
+			case "js":
+				runProcess("haxe", ["compile-js.hxml"]);
+				runProcess("node", ["-e", "var unit = require('./unit.js').unit; unit.Test.main(); process.exit(unit.Test.success ? 0 : 1);"]);
 			case target:
 				throw "unknown target: " + target;
 		}

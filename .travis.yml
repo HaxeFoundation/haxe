@@ -5,9 +5,9 @@ env:
   - TARGET=macro
   - TARGET=php
   - TARGET=cpp
+  - TARGET=js
   # - TARGET=flash8
   # - TARGET=flash9
-  # - TARGET=js
   # - TARGET=as3
   # - TARGET=java
   # - TARGET=cs
