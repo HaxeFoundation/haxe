@@ -12,9 +12,9 @@ env:
   # - TARGET=java
   # - TARGET=cs
 
-matrix:
-  allow_failures:
-    - env: TARGET=php
+# matrix:
+#   allow_failures:
+#     - env: TARGET=php
 
 before_install:
   - sudo apt-get install ocaml zlib1g-dev libgc-dev -y
