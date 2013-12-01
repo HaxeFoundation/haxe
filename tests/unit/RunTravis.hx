@@ -41,6 +41,10 @@ class RunTravis {
 			case "js":
 				runProcess("haxe", ["compile-js.hxml"]);
 				runProcess("node", ["-e", "var unit = require('./unit.js').unit; unit.Test.main(); process.exit(unit.Test.success ? 0 : 1);"]);
+			case "java":
+				runProcess("haxelib", ["git", "hxjava", "https://github.com/HaxeFoundation/hxjava.git"]);
+				runProcess("haxe", ["compile-java.hxml"]);
+				runProcess("java", ["-jar", "java/java.jar"]);
 			case target:
 				throw "unknown target: " + target;
 		}
