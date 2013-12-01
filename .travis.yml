@@ -7,14 +7,15 @@ env:
   - TARGET=cpp
   - TARGET=js
   - TARGET=java
+  - TARGET=cs
   # - TARGET=flash8
   # - TARGET=flash9
   # - TARGET=as3
-  # - TARGET=cs
 
 matrix:
   allow_failures:
     - env: TARGET=java
+    - env: TARGET=cs
 
 before_install:
   - sudo apt-get install ocaml zlib1g-dev libgc-dev -y
