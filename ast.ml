@@ -113,6 +113,7 @@ module Meta = struct
 		| RealPath
 		| Remove
 		| Require
+		| RequiresAssign
 		| ReplaceReflection
 		| Rtti
 		| Runtime

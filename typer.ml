@@ -1543,7 +1543,7 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 				unify ctx eop.etype e.etype p;
 				check_assign ctx e;
 				mk (TBinop (OpAssignOp op,e,e2)) e.etype p;
-			| TField(e2,FDynamic ":needsAssign") ->
+			| TMeta((Meta.RequiresAssign,_,_),e2) ->
 				unify ctx e2.etype e.etype p;
 				check_assign ctx e;
 				mk (TBinop (OpAssign,e,e2)) e.etype p;
@@ -1825,8 +1825,7 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 		let et = type_module_type ctx (TClassDecl c) None p in
 		let ef = mk (TField (et,FStatic (c,f))) t p in
 		let ec = make_call ctx ef [e1;e2] r p in
-		(* obviously a hack to report back that we need an assignment *)
-		if is_assign_op && not assign then mk (TField(ec,FDynamic ":needsAssign")) t_dynamic p else ec
+		if is_assign_op && not assign then mk (TMeta((Meta.RequiresAssign,[],ec.epos),ec)) ec.etype ec.epos else ec
 	in
 	let cast_rec e1t e2t r is_core_type =
 		if is_core_type then
