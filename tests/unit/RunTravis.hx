@@ -38,6 +38,22 @@ class RunTravis {
 				
 				runProcess("haxe", ["compile-cpp.hxml"]);
 				runProcess("./cpp/Test-debug", []);
+			case "js":
+				runProcess("haxe", ["compile-js.hxml"]);
+				runProcess("node", ["-e", "var unit = require('./unit.js').unit; unit.Test.main(); process.exit(unit.Test.success ? 0 : 1);"]);
+			case "java":
+				runProcess("haxelib", ["git", "hxjava", "https://github.com/HaxeFoundation/hxjava.git"]);
+				runProcess("haxe", ["compile-java.hxml"]);
+				runProcess("java", ["-jar", "java/java.jar"]);
+			case "cs":
+				runProcess("sudo", ["apt-get", "install", "mono-devel", "mono-mcs", "-y"]);
+				runProcess("haxelib", ["git", "hxcs", "https://github.com/HaxeFoundation/hxcs.git"]);
+				
+				runProcess("haxe", ["compile-cs.hxml"]);
+				runProcess("mono", ["cs/bin/Test-Debug.exe"]);
+
+				runProcess("haxe", ["compile-cs-unsafe.hxml"]);
+				runProcess("mono", ["cs_unsafe/bin/Test-Debug.exe"]);
 			case target:
 				throw "unknown target: " + target;
 		}
