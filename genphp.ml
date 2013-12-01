@@ -1377,9 +1377,9 @@ and gen_expr ctx e =
 		| _ ->
 			gen_call ctx ec el);
 	| TArrayDecl el ->
-		spr ctx "new _hx_array(array(";
+		spr ctx "(new _hx_array(array(";
 		concat ctx ", " (gen_value ctx) el;
-		spr ctx "))";
+		spr ctx ")))";
 	| TThrow e ->
 		spr ctx "throw new HException(";
 		gen_value ctx e;
