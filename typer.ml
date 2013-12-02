@@ -3372,16 +3372,6 @@ and build_call ctx acc el (with_type:with_type) p =
 		) in
 		mk (TCall (e,el)) t p
 
-and check_to_string ctx t =
-	match follow t with
-	| TInst (c,_) ->
-		(try
-			let _, _, f = Type.class_field c "toString" in
-			ignore(follow f.cf_type);
-		with Not_found ->
-			())
-	| _ -> ()
-
 (* ---------------------------------------------------------------------- *)
 (* FINALIZATION *)
 
