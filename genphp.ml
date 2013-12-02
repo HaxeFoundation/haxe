@@ -1384,23 +1384,19 @@ and gen_expr ctx e =
 		spr ctx "throw new HException(";
 		gen_value ctx e;
 		spr ctx ")";
-	| TVars [] ->
-		()
-	| TVars vl ->
+	| TVars (v,eo) ->
 		spr ctx "$";
-		concat ctx ("; $") (fun (v,e) ->
-			let restore = save_locals ctx in
-			let n = define_local ctx v.v_name in
-			let restore2 = save_locals ctx in
-			restore();
-			(match e with
-			| None ->
-				print ctx "%s = null" (s_ident_local n)
-			| Some e ->
-				print ctx "%s = " (s_ident_local n);
-				gen_value ctx e);
-			restore2()
-		) vl;
+		let restore = save_locals ctx in
+		let n = define_local ctx v.v_name in
+		let restore2 = save_locals ctx in
+		restore();
+		(match eo with
+		| None ->
+			print ctx "%s = null" (s_ident_local n)
+		| Some e ->
+			print ctx "%s = " (s_ident_local n);
+			gen_value ctx e);
+		restore2()
 	| TNew (c,_,el) ->
 		(match c.cl_path, el with
 		| ([], "String"), _ ->

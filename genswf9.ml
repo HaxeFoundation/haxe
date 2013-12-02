@@ -1024,16 +1024,14 @@ let rec gen_expr_content ctx retval e =
 		let b = open_block ctx retval in
 		loop el;
 		b();
-	| TVars vl ->
-		List.iter (fun (v,ei) ->
-			define_local ctx v e.epos;
-			(match ei with
-			| None -> ()
-			| Some e ->
-				let acc = gen_local_access ctx v e.epos Write in
-				gen_expr ctx true e;
-				setvar ctx acc None)
-		) vl
+	| TVars (v,ei) ->
+		define_local ctx v e.epos;
+		(match ei with
+		| None -> ()
+		| Some e ->
+			let acc = gen_local_access ctx v e.epos Write in
+			gen_expr ctx true e;
+			setvar ctx acc None)
 	| TReturn None ->
 		write ctx HRetVoid;
 		ctx.infos.icond <- true;

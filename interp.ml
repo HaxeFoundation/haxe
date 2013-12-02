@@ -4469,11 +4469,11 @@ and encode_texpr e =
 			| TNew(c,pl,el) -> 10,[encode_clref c;encode_tparams pl;encode_texpr_list el]
 			| TUnop(op,flag,e1) -> 11,[encode_unop op;VBool (flag = Postfix);loop e1]
 			| TFunction func -> 12,[encode_tfunc func]
-			| TVars vl -> 13,[enc_array (List.map (fun (v,e) ->
+			| TVars (v,eo) -> 13,[
 				enc_obj [
 					"v",encode_tvar v;
-					"expr",vopt encode_texpr e
-				]) vl)]
+					"expr",vopt encode_texpr eo
+				]]
 			| TBlock el -> 14,[encode_texpr_list el]
 			| TFor(v,e1,e2) -> 15,[encode_tvar v;loop e1;loop e2]
 			| TIf(eif,ethen,eelse) -> 16,[loop eif;loop ethen;vopt encode_texpr eelse]
@@ -4635,7 +4635,7 @@ let rec decode_texpr v =
 		| 10, [c;tl;vl] -> TNew(decode_ref c,List.map decode_type (dec_array tl),List.map loop (dec_array vl))
 		| 11, [op;pf;v1] -> TUnop(decode_unop op,(if dec_bool pf then Postfix else Prefix),loop v1)
 		| 12, [f] -> TFunction(decode_tfunc f)
-		| 13, [vl] -> TVars(List.map (fun v -> decode_tvar (field v "v"),opt loop (field v "expr")) (dec_array vl))
+		| 13, [v;eo] -> TVars(decode_tvar v,opt loop eo)
 		| 14, [vl] -> TBlock(List.map loop (dec_array vl))
 		| 15, [v;v1;v2] -> TFor(decode_tvar v,loop v1,loop v2)
 		| 16, [vif;vthen;velse] -> TIf(loop vif,loop vthen,opt loop velse)
@@ -4864,8 +4864,8 @@ let rec make_ast e =
 	| TFunction f ->
 		let arg (v,c) = v.v_name, false, mk_ot v.v_type, (match c with None -> None | Some c -> Some (EConst (mk_const c),e.epos)) in
 		EFunction (None,{ f_params = []; f_args = List.map arg f.tf_args; f_type = mk_ot f.tf_type; f_expr = Some (make_ast f.tf_expr) })
-	| TVars vl ->
-		EVars (List.map (fun (v,e) -> v.v_name, mk_ot v.v_type, eopt e) vl)
+	| TVars (v,eo) ->
+		EVars ([v.v_name, mk_ot v.v_type, eopt eo])
 	| TBlock el -> EBlock (List.map make_ast el)
 	| TFor (v,it,e) ->
 		let ein = (EIn ((EConst (Ident v.v_name),it.epos),make_ast it),it.epos) in

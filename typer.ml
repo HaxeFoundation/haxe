@@ -1559,7 +1559,7 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 			unify ctx get.etype t p;
 			l();
 			mk (TBlock [
-				mk (TVars [v,Some e]) ctx.t.tvoid p;
+				mk (TVars (v,Some e)) ctx.t.tvoid p;
 				make_call ctx (mk (TField (ev,quick_field_dynamic ev.etype ("set_" ^ cf.cf_name))) (tfun [t] t) p) [get] t p
 			]) t p
  		| AKUsing(ef,c,cf,et) ->
@@ -1578,7 +1578,7 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 			unify ctx get.etype ret p;
 			l();
 			mk (TBlock [
-				mk (TVars [v,Some et]) ctx.t.tvoid p;
+				mk (TVars (v,Some et)) ctx.t.tvoid p;
 				make_call ctx ef [ev;get] ret p
 			]) ret p
 		| AKAccess(ebase,ekey) ->
@@ -1595,7 +1595,7 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 					let save = save_locals ctx in
 					let v = gen_local ctx ekey.etype in
 					let e = mk (TLocal v) ekey.etype p in
-					e, fun () -> (save(); Some (mk (TVars [v,Some ekey]) ctx.t.tvoid p))
+					e, fun () -> (save(); Some (mk (TVars (v,Some ekey)) ctx.t.tvoid p))
 			in
 			let ast_call = ECall((EField(Interp.make_ast ebase,cf_get.cf_name),p),[Interp.make_ast ekey]),p in
 			let eget = type_binop ctx op ast_call e2 true p in
@@ -1943,7 +1943,7 @@ and type_unop ctx op flag e p =
 			unify ctx get.etype t p;
 			l();
 			mk (TBlock [
-				mk (TVars [v,Some e]) ctx.t.tvoid p;
+				mk (TVars (v,Some e)) ctx.t.tvoid p;
 				make_call ctx (mk (TField (ev,quick_field_dynamic ev.etype ("set_" ^ cf.cf_name))) (tfun [t] t) p) [get] t p
 			]) t p
 		| Postfix ->
@@ -1954,7 +1954,8 @@ and type_unop ctx op flag e p =
 			unify ctx get.etype t p;
 			l();
 			mk (TBlock [
-				mk (TVars [v,Some e; v2,Some get]) ctx.t.tvoid p;
+				mk (TVars (v,Some e)) ctx.t.tvoid p;
+				mk (TVars (v2,Some get)) ctx.t.tvoid p;
 				make_call ctx (mk (TField (ev,quick_field_dynamic ev.etype ("set_" ^ cf.cf_name))) (tfun [plusone.etype] t) p) [plusone] t p;
 				ev2
 			]) t p
@@ -2236,9 +2237,9 @@ and type_vars ctx vl p in_block =
 	save();
 
 	match vl with
-	| [v] -> mk (TVars vl) ctx.t.tvoid p
+	| [v,eo] -> mk (TVars (v,eo)) ctx.t.tvoid p
 	| _ ->
-		let e = mk (TBlock (List.map (fun (v,e) -> (mk (TVars [v,e]) ctx.t.tvoid p)) vl)) ctx.t.tvoid p in
+		let e = mk (TBlock (List.map (fun (v,e) -> (mk (TVars (v,e)) ctx.t.tvoid p)) vl)) ctx.t.tvoid p in
 		mk (TMeta((Meta.MergeBlock,[],p), e)) e.etype e.epos
 
 and with_type_error ctx with_type msg p =
@@ -2511,7 +2512,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		unify ctx v.v_type ea.etype p;
 		let efor = type_expr ctx e NoValue in
 		mk (TBlock [
-			mk (TVars [v,Some ea]) ctx.t.tvoid p;
+			mk (TVars (v,Some ea)) ctx.t.tvoid p;
 			efor;
 			mk (TLocal v) v.v_type p;
 		]) v.v_type p
@@ -2558,7 +2559,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				error "Expected a => b" (snd e)
 		) [] el in
 		let enew = mk (TNew(c,[tkey;tval],[])) tmap p in
-		let el = (mk (TVars [v,Some enew]) t_dynamic p) :: (List.rev el) in
+		let el = (mk (TVars (v,Some enew)) t_dynamic p) :: (List.rev el) in
 		mk (TBlock el) tmap p
 	| EArrayDecl el ->
 		let tp = (match with_type with
@@ -2646,13 +2647,13 @@ and type_expr ctx (e,p) (with_type:with_type) =
 					let tmp = gen_local ctx e1.etype in
 					let eit = mk (TLocal tmp) e1.etype p in
 					let ehasnext = make_call ctx (mk (TField (eit,FInstance (c, fhasnext))) (TFun([],ctx.t.tbool)) p) [] ctx.t.tbool p in
-					let enext = mk (TVars [i,Some (make_call ctx (mk (TField (eit,FDynamic "next")) (TFun ([],pt)) p) [] pt p)]) ctx.t.tvoid p in
+					let enext = mk (TVars (i,Some (make_call ctx (mk (TField (eit,FDynamic "next")) (TFun ([],pt)) p) [] pt p))) ctx.t.tvoid p in
 					let eblock = (match e2.eexpr with
 						| TBlock el -> { e2 with eexpr = TBlock (enext :: el) }
 						| _ -> mk (TBlock [enext;e2]) ctx.t.tvoid p
 					) in
 					mk (TBlock [
-						mk (TVars [tmp,Some e1]) ctx.t.tvoid p;
+						mk (TVars (tmp,Some e1)) ctx.t.tvoid p;
 						mk (TWhile (ehasnext,eblock,NormalWhile)) ctx.t.tvoid p
 					]) ctx.t.tvoid p
 				with Exit ->
@@ -2928,15 +2929,15 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			let decl = (if is_rec then begin
 				if inline then display_error ctx "Inline function cannot be recursive" e.epos;
 				let vnew = add_local ctx v.v_name ft in
-				mk (TVars [vnew,Some (mk (TBlock [
-					mk (TVars [v,Some (mk (TConst TNull) ft p)]) ctx.t.tvoid p;
+				mk (TVars (vnew,Some (mk (TBlock [
+					mk (TVars (v,Some (mk (TConst TNull) ft p))) ctx.t.tvoid p;
 					mk (TBinop (OpAssign,mk (TLocal v) ft p,e)) ft p;
 					mk (TLocal v) ft p
-				]) ft p)]) ctx.t.tvoid p
+				]) ft p))) ctx.t.tvoid p
 			end else if inline then
 				mk (TBlock []) ctx.t.tvoid p (* do not add variable since it will be inlined *)
 			else
-				mk (TVars [v,Some e]) ctx.t.tvoid p
+				mk (TVars (v,Some e)) ctx.t.tvoid p
 			) in
 			if with_type <> NoValue && not inline then mk (TBlock [decl;mk (TLocal v) v.v_type p]) v.v_type p else decl)
 	| EUntyped e ->

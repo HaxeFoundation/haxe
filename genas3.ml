@@ -648,18 +648,15 @@ and gen_expr ctx e =
 	| TThrow e ->
 		spr ctx "throw ";
 		gen_value ctx e;
-	| TVars [] ->
-		()
-	| TVars vl ->
+	| TVars (v,eo) ->
 		spr ctx "var ";
-		concat ctx ", " (fun (v,eo) ->
-			print ctx "%s : %s" (s_ident v.v_name) (type_str ctx v.v_type e.epos);
-			match eo with
-			| None -> ()
-			| Some e ->
-				spr ctx " = ";
-				gen_value ctx e
-		) vl;
+		print ctx "%s : %s" (s_ident v.v_name) (type_str ctx v.v_type e.epos);
+		begin match eo with
+		| None -> ()
+		| Some e ->
+			spr ctx " = ";
+			gen_value ctx e
+		end
 	| TNew (c,params,el) ->
 		(match c.cl_path, params with
 		| (["flash"],"Vector"), [pt] -> print ctx "new Vector.<%s>(" (type_str ctx pt e.epos)

@@ -270,9 +270,9 @@ and gen_expr ctx e =
 		call p (field p (gen_type_path p c.cl_path) "new") (List.map (gen_expr ctx) params)
 	| TUnop (op,flag,e) ->
 		gen_unop ctx p op flag e
-	| TVars vl ->
-		(EVars (List.map (fun (v,e) ->
-			let e = (match e with
+	| TVars (v,eo) ->
+		(EVars (
+			let e = (match eo with
 				| None ->
 					if v.v_capture then
 						Some (call p (builtin p "array") [null p])
@@ -285,8 +285,8 @@ and gen_expr ctx e =
 					else
 						Some e
 			) in
-			v.v_name , e
-		) vl),p)
+			[v.v_name, e]
+		),p)
 	| TFunction f ->
 		let inits = List.fold_left (fun acc (a,c) ->
 			let acc = if a.v_capture then

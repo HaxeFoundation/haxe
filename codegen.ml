@@ -788,10 +788,8 @@ module PatternMatchConversion = struct
 				else
 					((v,Some e) :: vl), el
 			) ([],[e]) bl in
-			mk (TBlock
-				((mk (TVars (vl)) cctx.ctx.t.tvoid e.epos)
-				:: el)
-			) e.etype e.epos
+			let el_v = List.map (fun (v,eo) -> mk (TVars (v,eo)) cctx.ctx.t.tvoid e.epos) vl in
+			mk (TBlock (el_v @ el)) e.etype e.epos
 		| DTGoto i ->
 			convert_dt cctx (cctx.dt_lookup.(i))
 		| DTExpr e ->
@@ -819,10 +817,8 @@ module PatternMatchConversion = struct
 		if dt.dt_var_init = [] then
 			e
 		else begin
-			mk (TBlock [
-				mk (TVars dt.dt_var_init) t_dynamic e.epos;
-				e;
-			]) dt.dt_type e.epos
+			let el_v = List.map (fun (v,eo) -> mk (TVars (v,eo)) cctx.ctx.t.tvoid p) dt.dt_var_init in
+			mk (TBlock (el_v @ [e])) dt.dt_type e.epos
 		end
 end
 
@@ -938,7 +934,7 @@ let stack_context_init com stack_var exc_var pos_var tmp_var use_add p =
 	let stack_return e =
 		let tmp = alloc_var tmp_var e.etype in
 		mk (TBlock [
-			mk (TVars [tmp, Some e]) t.tvoid e.epos;
+			mk (TVars (tmp, Some e)) t.tvoid e.epos;
 			stack_pop;
 			mk (TReturn (Some (mk (TLocal tmp) e.etype e.epos))) e.etype e.epos
 		]) e.etype e.epos
@@ -950,7 +946,7 @@ let stack_context_init com stack_var exc_var pos_var tmp_var use_add p =
 		stack_pos = p;
 		stack_expr = stack_e;
 		stack_pop = stack_pop;
-		stack_save_pos = mk (TVars [pos_var, Some (field stack_e "length" t.tint p)]) t.tvoid p;
+		stack_save_pos = mk (TVars (pos_var, Some (field stack_e "length" t.tint p))) t.tvoid p;
 		stack_push = stack_push;
 		stack_return = stack_return;
 		stack_restore = [
@@ -1062,10 +1058,10 @@ let fix_override com c f fd =
 						let e = fd.tf_expr in
 						let el = (match e.eexpr with TBlock el -> el | _ -> [e]) in
 						let p = (match el with [] -> e.epos | e :: _ -> e.epos) in
-						let v = mk (TVars (List.map (fun (v,v2) ->
-							(v,Some (mk (TCast (mk (TLocal v2) v2.v_type p,None)) v.v_type p))
-						) args)) com.basic.tvoid p in
-						{ e with eexpr = TBlock (v :: el) }
+						let el_v = List.map (fun (v,v2) ->
+							mk (TVars (v,Some (mk (TCast (mk (TLocal v2) v2.v_type p,None)) v.v_type p))) com.basic.tvoid p
+						) args in
+						{ e with eexpr = TBlock (el_v @ el) }
 				);
 			} in
 			(* as3 does not allow wider visibility, so the base method has to be made public *)
@@ -1269,7 +1265,7 @@ let default_cast ?(vtmp="$t") com e texpr t p =
 		| TTypeDecl _ -> assert false
 	in
 	let vtmp = alloc_var vtmp e.etype in
-	let var = mk (TVars [vtmp,Some e]) api.tvoid p in
+	let var = mk (TVars (vtmp,Some e)) api.tvoid p in
 	let vexpr = mk (TLocal vtmp) e.etype p in
 	let texpr = mk (TTypeExpr texpr) (mk_texpr texpr) p in
 	let std = (try List.find (fun t -> t_path t = ([],"Std")) com.types with Not_found -> assert false) in

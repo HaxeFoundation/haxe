@@ -524,19 +524,16 @@ and gen_expr ctx e =
 	| TThrow e ->
 		spr ctx "throw ";
 		gen_value ctx e;
-	| TVars [] ->
-		()
-	| TVars vl ->
+	| TVars (v,eo) ->
 		spr ctx "var ";
-		concat ctx ", " (fun (v,e) ->
-			check_var_declaration v;
-			spr ctx (ident v.v_name);
-			match e with
+		check_var_declaration v;
+		spr ctx (ident v.v_name);
+		begin match eo with
 			| None -> ()
 			| Some e ->
 				spr ctx " = ";
 				gen_value ctx e
-		) vl;
+		end
 	| TNew (c,_,el) ->
 		print ctx "new %s(" (ctx.type_accessor (TClassDecl c));
 		concat ctx "," (gen_value ctx) el;
