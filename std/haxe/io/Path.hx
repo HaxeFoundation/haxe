@@ -208,7 +208,7 @@ class Path {
 		
 		If `path` is null, the result is unspecified.
 	**/
-	@:require(haxe_ver >= 3.1)
+	@:require(haxe_ver >= 3.01)
 	public static function removeTrailingSlash ( path : String ) : String {
 		return switch(path.charCodeAt(path.length - 1)) {
 			case '/'.code | '\\'.code: path.substr(0, -1);
