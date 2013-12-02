@@ -349,7 +349,15 @@ class Http {
 
 #if sys
 
-	public function fileTransfert( argname : String, filename : String, file : haxe.io.Input, size : Int ) {
+	/**
+      Note: Deprecated in 4.0
+	 **/
+	@:noCompletion
+	inline public function fileTransfert( argname : String, filename : String, file : haxe.io.Input, size : Int ) {
+	    fileTransfer(argname, filename, file, size);
+    }
+
+	public function fileTransfer( argname : String, filename : String, file : haxe.io.Input, size : Int ) {
 		this.file = { param : argname, filename : filename, io : file, size : size };
 	}
 
@@ -639,7 +647,7 @@ class Http {
 					size -= len;
 				}
 			} catch( e : haxe.io.Eof ) {
-				throw "Transfert aborted";
+				throw "Transfer aborted";
 			}
 		}
 		if( chunked && (chunk_size != null || chunk_buf != null) )
