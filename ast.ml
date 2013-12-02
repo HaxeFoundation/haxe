@@ -90,6 +90,7 @@ module Meta = struct
 		| Meta
 		| Macro
 		| MaybeUsed
+		| MergeBlock
 		| MultiType
 		| Native
 		| NativeGen

@@ -1183,6 +1183,10 @@ let type_function ctx args ret fmode f do_display p =
 	with DisplayTypes [TMono _] | Parser.TypePath (_,None) | Exit ->
 		type_expr ctx e NoValue
 	in
+	let e = match e.eexpr with
+		| TMeta((Meta.MergeBlock,_,_), ({eexpr = TBlock el} as e1)) -> e1
+		| _ -> e
+	in
 	let rec loop e =
 		match e.eexpr with
 		| TReturn (Some e) -> (match follow e.etype with TAbstract({a_path = [],"Void"},[]) -> () | _ -> raise Exit)

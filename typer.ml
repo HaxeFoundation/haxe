@@ -2234,7 +2234,12 @@ and type_vars ctx vl p in_block =
 				add_local ctx v t_dynamic, None
 	) vl in
 	save();
-	mk (TVars vl) ctx.t.tvoid p
+
+	match vl with
+	| [v] -> mk (TVars vl) ctx.t.tvoid p
+	| _ ->
+		let e = mk (TBlock (List.map (fun (v,e) -> (mk (TVars [v,e]) ctx.t.tvoid p)) vl)) ctx.t.tvoid p in
+		mk (TMeta((Meta.MergeBlock,[],p), e)) e.etype e.epos
 
 and with_type_error ctx with_type msg p =
 	match with_type with
@@ -2328,6 +2333,37 @@ and format_string ctx s p =
 	| None -> assert false
 	| Some e -> e
 
+and type_block ctx el with_type p =
+	let merge e = match e.eexpr with
+		| TMeta((Meta.MergeBlock,_,_), {eexpr = TBlock el}) ->
+			el
+		| _ -> [e]
+	in
+	let rec loop = function
+		| [] -> []
+		| (EVars vl,p) :: l ->
+			let e = type_vars ctx vl p true in
+			merge e @ loop l
+		| [e] ->
+			(try
+				merge (type_expr ctx e with_type)
+			with
+				Error (e,p) -> display_error ctx (error_msg e) p; [])
+		| e :: l ->
+			try
+				let e = type_expr ctx e NoValue in
+				merge e @ loop l
+			with
+				Error (e,p) -> display_error ctx (error_msg e) p; loop l
+	in
+	let l = loop el in
+	let rec loop = function
+		| [] -> ctx.t.tvoid
+		| [e] -> e.etype
+		| _ :: l -> loop l
+	in
+	mk (TBlock l) (loop l) p
+
 and type_expr ctx (e,p) (with_type:with_type) =
 	match e with
 	| EField ((EConst (String s),p),"code") ->
@@ -2383,31 +2419,9 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		type_expr ctx (EObjectDecl [],p) with_type
 	| EBlock l ->
 		let locals = save_locals ctx in
-		let rec loop = function
-			| [] -> []
-			| (EVars vl,p) :: l ->
-				let e = type_vars ctx vl p true in
-				e :: loop l
-			| [e] ->
-				(try
-					[type_expr ctx e with_type]
-				with
-					Error (e,p) -> display_error ctx (error_msg e) p; [])
-			| e :: l ->
-				try
-					let e = type_expr ctx e NoValue in
-					e :: loop l
-				with
-					Error (e,p) -> display_error ctx (error_msg e) p; loop l
-		in
-		let l = loop l in
+		let e = type_block ctx l with_type p in
 		locals();
-		let rec loop = function
-			| [] -> ctx.t.tvoid
-			| [e] -> e.etype
-			| _ :: l -> loop l
-		in
-		mk (TBlock l) (loop l) p
+		e
 	| EParenthesis e ->
 		let e = type_expr ctx e with_type in
 		mk (TParenthesis e) e.etype p
@@ -3310,6 +3324,7 @@ and build_call ctx acc el (with_type:with_type) p =
 		| TTypeExpr (TClassDecl c) ->
 			(match ctx.g.do_macro ctx MExpr c.cl_path f.cf_name el p with
 			| None -> (fun() -> type_expr ctx (EConst (Ident "null"),p) Value)
+			| Some (EMeta((Meta.MergeBlock,_,_),(EBlock el,_)),_) -> (fun () -> let e = type_block ctx el with_type p in mk (TMeta((Meta.MergeBlock,[],p), e)) e.etype e.epos)
 			| Some (EVars vl,p) -> (fun() -> type_vars ctx vl p true)
 			| Some e -> (fun() -> type_expr ctx (EMeta((Meta.PrivateAccess,[],snd e),e),snd e) with_type))
 		| _ ->
