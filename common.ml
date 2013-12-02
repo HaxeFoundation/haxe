@@ -352,6 +352,7 @@ module MetaInfo = struct
 		| Final -> ":final",("Prevents a class from being extended",[UsedOn TClass])
 		| FlatEnum -> ":flatEnum",("Internally used to mark an enum as being flat, i.e. having no function constructors",[UsedOn TEnum; Internal])
 		| Font -> ":font",("Embeds the given TrueType font into the class (must extend flash.text.Font)",[HasParam "TTF path";HasParam "Range String";UsedOn TClass])
+		| Forward -> ":forward",("Forwards field access to underlying type",[HasParam "List of field names";UsedOn TAbstract])
 		| From -> ":from",("Specifies that the field of the abstract is a cast operation from the type identified in the function",[UsedOn TAbstractField])
 		| FunctionCode -> ":functionCode",("",[Platform Cpp])
 		| FunctionTailCode -> ":functionTailCode",("",[Platform Cpp])
