@@ -141,7 +141,6 @@ let handle_side_effects com gen_temp e =
 		in
 		List.map loop (loop2 [] (List.rev el))
 	in
-	let e = blockify_ast e in
 	let e = loop e in
 	match close_block() with
 		| [] ->
@@ -1073,6 +1072,7 @@ let run com tctx main =
 	(* PASS 1: general expression filters *)
  	let filters = [
 		Codegen.Abstract.handle_abstract_casts tctx;
+		blockify_ast;
 		(match com.platform with
 			| Cpp -> (fun e ->
 				let save = save_locals tctx in
