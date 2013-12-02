@@ -1836,7 +1836,11 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 			begin try
 				unify_raise ctx e.etype r p
 			with Error (Unify _,_) ->
-				error ("The result of this operation (" ^ (s_type (print_context()) e.etype) ^ ") is not compatible with declared return type " ^ (s_type (print_context()) r)) p;
+				match follow r with
+					| TAbstract(a,tl) when type_iseq (Codegen.Abstract.get_underlying_type a tl) e.etype ->
+						()
+					| _ ->
+						error ("The result of this operation (" ^ (s_type (print_context()) e.etype) ^ ") is not compatible with declared return type " ^ (s_type (print_context()) r)) p;
 			end;
 			{e with etype = r}
 		end
