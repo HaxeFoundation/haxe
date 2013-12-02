@@ -315,10 +315,25 @@ and expr dce e =
 		check_feature dce ft;
 		expr dce e
 	(* keep toString method when the class is argument to Std.string or haxe.Log.trace *)
-	| TCall ({eexpr = TField({eexpr = TTypeExpr (TClassDecl ({cl_path = (["haxe"],"Log")} as c))},FStatic (_,{cf_name="trace"}))} as ef, ([e2;_] as args))
-	| TCall ({eexpr = TField({eexpr = TTypeExpr (TClassDecl ({cl_path = ([],"Std")} as c))},FStatic (_,{cf_name="string"}))} as ef, ([e2] as args)) ->
+	| TCall ({eexpr = TField({eexpr = TTypeExpr (TClassDecl ({cl_path = (["haxe"],"Log")} as c))},FStatic (_,{cf_name="trace"}))} as ef, ((e2 :: el) as args))
+	| TCall ({eexpr = TField({eexpr = TTypeExpr (TClassDecl ({cl_path = ([],"Std")} as c))},FStatic (_,{cf_name="string"}))} as ef, ((e2 :: el) as args)) ->
 		mark_class dce c;
 		to_string dce e2.etype;
+		begin match el with
+			| [{eexpr = TObjectDecl fl}] ->
+				begin try
+					begin match List.assoc "customParams" fl with
+						| {eexpr = TArrayDecl el} ->
+							List.iter (fun e -> to_string dce e.etype) el
+						| _ ->
+							()
+					end
+				with Not_found ->
+					()
+				end
+			| _ ->
+				()
+		end;
 		expr dce ef;
 		List.iter (expr dce) args;
 	| TCall ({eexpr = TConst TSuper} as e,el) ->
