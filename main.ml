@@ -1058,15 +1058,15 @@ try
 		("-swf-lib-extern",Arg.String (fun file ->
 			Genswf.add_swf_lib com file true
 		),"<file> : use the SWF library for type checking");
-		("-java-lib",Arg.String (fun file ->
+(* 		("-java-lib",Arg.String (fun file ->
 			Genjava.add_java_lib com file false
 		),"<file> : add an external JAR or class directory library");
 		("-net-lib",Arg.String (fun file ->
 			Gencs.add_net_lib com file false
-		),"<file> : add an external .NET DLL file");
-		("-net-std",Arg.String (fun file ->
-			Gencs.add_net_std com file
-		),"<file> : add a root std .NET DLL search path");
+		),"<file> : add an external .NET DLL file"); *)
+(* 		("-net-std",Arg.String (fun file ->
+			Gencs.add_net_std com file *)
+		(* ),"<file> : add a root std .NET DLL search path"); *)
 		("-x", Arg.String (fun file ->
 			let neko_file = file ^ ".n" in
 			set_platform Neko neko_file;
@@ -1325,7 +1325,7 @@ try
 			add_std "cpp";
 			"cpp"
 		| Cs ->
-			Gencs.before_generate com;
+			(* Gencs.before_generate com; *)
 			add_std "cs"; "cs"
 		| Java ->
       let old_flush = ctx.flush in
@@ -1333,7 +1333,7 @@ try
         List.iter (fun (_,_,close,_,_) -> close()) com.java_libs;
         old_flush()
       );
-			Genjava.before_generate com;
+			(* Genjava.before_generate com; *)
 			add_std "java"; "java"
 	) in
 	(* if we are at the last compilation step, allow all packages accesses - in case of macros or opening another project file *)
@@ -1415,10 +1415,10 @@ try
 			Gencpp.generate com;
 		| Cs ->
 			Common.log com ("Generating Cs in : " ^ com.file);
-			Gencs.generate com;
+			(* Gencs.generate com; *)
 		| Java ->
 			Common.log com ("Generating Java in : " ^ com.file);
-			Genjava.generate com;
+			(* Genjava.generate com; *)
 		);
 	end;
 	Sys.catch_break false;
