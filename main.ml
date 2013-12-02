@@ -56,6 +56,12 @@ let prompt = ref false
 let start_time = ref (get_time())
 let global_cache = ref None
 
+let get_real_path p =
+	try
+		Extc.get_real_path p
+	with _ ->
+		p
+
 let executable_path() =
 	Extc.executable_path()
 
@@ -328,7 +334,7 @@ let lookup_classes com spath =
 		| [] -> []
 		| cp :: l ->
 			let cp = (if cp = "" then "./" else cp) in
-			let c = normalize_path (Extc.get_real_path (Common.unique_full_path cp)) in
+			let c = normalize_path (get_real_path (Common.unique_full_path cp)) in
 			let clen = String.length c in
 			if clen < String.length spath && String.sub spath 0 clen = c then begin
 				let path = String.sub spath clen (String.length spath - clen) in
@@ -947,7 +953,7 @@ try
 			if Sys.os_type = "Unix" then
 				com.class_path <- ["/usr/lib/haxe/std/";"/usr/local/lib/haxe/std/";"/usr/lib/haxe/extraLibs/";"/usr/local/lib/haxe/extraLibs/";"";"/"]
 			else
-				let base_path = normalize_path (Extc.get_real_path (try executable_path() with _ -> "./")) in
+				let base_path = normalize_path (get_real_path (try executable_path() with _ -> "./")) in
 				com.class_path <- [base_path ^ "std/";base_path ^ "extraLibs/";""]);
 	com.std_path <- List.filter (fun p -> ExtString.String.ends_with p "std/" || ExtString.String.ends_with p "std\\") com.class_path;
 	let set_platform pf file =
@@ -1263,7 +1269,7 @@ try
 		com.warning <- message ctx;
 		com.error <- error ctx;
 		com.main_class <- None;
-		let real = Extc.get_real_path (!Parser.resume_display).Ast.pfile in
+		let real = get_real_path (!Parser.resume_display).Ast.pfile in
 		classes := lookup_classes com real;
 		if !classes = [] then begin
 			if not (Sys.file_exists real) then failwith "Display file does not exist";
