@@ -109,7 +109,7 @@ struct
 
   let mk_heexpr = function
     | TConst _ -> 0 | TLocal _ -> 1 | TArray _ -> 3 | TBinop _ -> 4 | TField _ -> 5 | TTypeExpr _ -> 7 | TParenthesis _ -> 8 | TObjectDecl _ -> 9
-    | TArrayDecl _ -> 10 | TCall _ -> 11 | TNew _ -> 12 | TUnop _ -> 13 | TFunction _ -> 14 | TVars _ -> 15 | TBlock _ -> 16 | TFor _ -> 17 | TIf _ -> 18 | TWhile _ -> 19
+    | TArrayDecl _ -> 10 | TCall _ -> 11 | TNew _ -> 12 | TUnop _ -> 13 | TFunction _ -> 14 | TVar _ -> 15 | TBlock _ -> 16 | TFor _ -> 17 | TIf _ -> 18 | TWhile _ -> 19
     | TSwitch _ -> 20 | TPatMatch _ -> 21 | TTry _ -> 22 | TReturn _ -> 23 | TBreak -> 24 | TContinue -> 25 | TThrow _ -> 26 | TCast _ -> 27 | TMeta _ -> 28 | TEnumParameter _ -> 29
 
   let mk_heetype = function
@@ -1095,7 +1095,7 @@ let ensure_local gen block name e =
     | TLocal _ -> e
     | _ ->
       let var = mk_temp gen name e.etype in
-      block := { e with eexpr = TVars([ var, Some e ]); etype = gen.gcon.basic.tvoid; } :: !block;
+      block := { e with eexpr = TVar([ var, Some e ]); etype = gen.gcon.basic.tvoid; } :: !block;
       { e with eexpr = TLocal var }
 
 let reset_temps () = tmp_count := 0
@@ -1912,7 +1912,7 @@ struct
               let local = mk_local v e.epos in
               (match !add_expr with
                 | None ->
-                  add_expr := Some { e with eexpr = TVars([v, Some this]) }
+                  add_expr := Some { e with eexpr = TVar([v, Some this]) }
                 | Some _ -> ());
               local
             | TConst TSuper -> assert false
@@ -2138,11 +2138,11 @@ struct
                 let eleft, rest = match e1.eexpr with
                   | TField(ef, f) ->
                     let v = mk_temp gen "dynop" ef.etype in
-                    { e1 with eexpr = TField(mk_local v ef.epos, f) }, [ { eexpr = TVars([v,Some (run ef)]); etype = basic.tvoid; epos = ef.epos } ]
+                    { e1 with eexpr = TField(mk_local v ef.epos, f) }, [ { eexpr = TVar([v,Some (run ef)]); etype = basic.tvoid; epos = ef.epos } ]
                   | TArray(e1a, e2a) ->
                     let v = mk_temp gen "dynop" e1a.etype in
                     let v2 = mk_temp gen "dynopi" e2a.etype in
-                    { e1 with eexpr = TArray(mk_local v e1a.epos, mk_local v2 e2a.epos) }, [ { eexpr = TVars([v,Some (run e1a); v2, Some (run e2a)]); etype = basic.tvoid; epos = e1.epos } ]
+                    { e1 with eexpr = TArray(mk_local v e1a.epos, mk_local v2 e2a.epos) }, [ { eexpr = TVar([v,Some (run e1a); v2, Some (run e2a)]); etype = basic.tvoid; epos = e1.epos } ]
                   | _ -> assert false
                 in
                 { e with
@@ -2205,7 +2205,7 @@ struct
               | Prefix ->
                 let tvars = match tvars with
                   | [] -> []
-                  | _ -> [{ eexpr = TVars(tvars); etype = gen.gcon.basic.tvoid; epos = e.epos }]
+                  | _ -> [{ eexpr = TVar(tvars); etype = gen.gcon.basic.tvoid; epos = e.epos }]
                 in
                 let block = tvars @
                 [
@@ -2214,7 +2214,7 @@ struct
                 { eexpr = TBlock(block); etype = etype; epos = e.epos }
               | Postfix ->
                 let ret = mk_temp gen "ret" etype in
-                let tvars = { eexpr = TVars(tvars @ [ret, Some (mk_cast etype getvar)]); etype = gen.gcon.basic.tvoid; epos = e.epos } in
+                let tvars = { eexpr = TVar(tvars @ [ret, Some (mk_cast etype getvar)]); etype = gen.gcon.basic.tvoid; epos = e.epos } in
                 let retlocal = { eexpr = TLocal(ret); etype = etype; epos = e.epos } in
                 let block = tvars ::
                 [
@@ -2513,7 +2513,7 @@ struct
             let val_local = { earray with eexpr = TLocal(val_v) } in
             let ret_local = { earray with eexpr = TLocal(ret_v) } in
             (* var idx = 1; var val = x._get(idx); var ret = val++; x._set(idx, val); ret; *)
-            block := { eexpr = TVars(
+            block := { eexpr = TVar(
                 [
                   val_v, Some(mk_get earray arr_local idx_local); (* var val = x._get(idx) *)
                   ret_v, Some { e with eexpr = TUnop(op, flag, val_local) } (* var ret = val++ *)
@@ -2608,7 +2608,7 @@ struct
                   | None -> *) mk_temp gen "catchall" t_dynamic
                   (*| Some (v,_) -> v*)
                 in
-                let catchall_decl = { eexpr = TVars([catchall_var, Some(temp_local)]); etype=gen.gcon.basic.tvoid; epos = pos } in
+                let catchall_decl = { eexpr = TVar([catchall_var, Some(temp_local)]); etype=gen.gcon.basic.tvoid; epos = pos } in
                 let catchall_local = { eexpr = TLocal(catchall_var); etype = t_dynamic; epos = pos } in
                 (* if it is of type wrapper_type, unwrap it *)
                 let std_is = mk_static_field_access (get_cl (get_type gen ([],"Std"))) "is" (TFun(["v",false,t_dynamic;"cl",false,mt_to_t (get_type gen ([], "Class")) [t_dynamic]],gen.gcon.basic.tbool)) pos in
@@ -2620,13 +2620,13 @@ struct
                 let rec loop must_wrap_catches = match must_wrap_catches with
                   | (vcatch,catch) :: tl ->
                     { eexpr = TIf(mk_std_is vcatch.v_type catch.epos,
-                      { eexpr = TBlock({ eexpr=TVars([vcatch, Some(mk_cast vcatch.v_type catchall_local)]); etype=gen.gcon.basic.tvoid; epos=catch.epos } :: [catch] ); etype = catch.etype; epos = catch.epos },
+                      { eexpr = TBlock({ eexpr=TVar([vcatch, Some(mk_cast vcatch.v_type catchall_local)]); etype=gen.gcon.basic.tvoid; epos=catch.epos } :: [catch] ); etype = catch.etype; epos = catch.epos },
                       Some (loop tl));
                     etype = catch.etype; epos = catch.epos }
                   | [] ->
                     match catchall with
                       | Some (v,s) ->
-                        Codegen.concat { eexpr = TVars([v, Some(catchall_local)]); etype = gen.gcon.basic.tvoid; epos = pos } s
+                        Codegen.concat { eexpr = TVar([v, Some(catchall_local)]); etype = gen.gcon.basic.tvoid; epos = pos } s
                       | None ->
                         mk_block (rethrow_expr temp_local)
                 in
@@ -2751,7 +2751,7 @@ struct
     let rec run e =
       match e.eexpr with
 				(* parameterized functions handling *)
-				| TVars( vars ) -> (match tparam_anon_decl with
+				| TVar( vars ) -> (match tparam_anon_decl with
 					| None -> Type.map_expr run e
 					| Some tparam_anon_decl ->
 						let vars = List.filter (function
@@ -2763,7 +2763,7 @@ struct
 						in
 						match vars with
 						| [] -> { e with eexpr = TBlock([]) }
-						| _ -> Type.map_expr run { e with eexpr = TVars(vars) })
+						| _ -> Type.map_expr run { e with eexpr = TVar(vars) })
 				| TLocal ({ v_extra = Some( _ :: _, _) } as v)
 				| TArray ({ eexpr = TLocal ({ v_extra = Some( _ :: _, _) } as v) }, _) -> (* captured transformation *)
 					(match tparam_anon_acc with
@@ -2873,7 +2873,7 @@ struct
           List.iter (fun (v,_) -> check_params v.v_type; Hashtbl.add ignored v.v_id v) tf.tf_args;
           check_params tf.tf_type;
           Type.iter traverse expr
-        | TVars (vars) ->
+        | TVar (vars) ->
           List.iter (fun (v, opt) ->
 						(match v.v_extra with
 						| Some(_ :: _, _) -> ()
@@ -3224,7 +3224,7 @@ struct
           snd (List.fold_left (fun (count,acc) (v,const) ->
             (count + 1,
               {
-                eexpr = TVars([v, Some(mk_const const ( mk_varray count ) v.v_type)]);
+                eexpr = TVar([v, Some(mk_const const ( mk_varray count ) v.v_type)]);
                 etype = basic.tvoid;
                 epos = pos;
               } :: acc)
@@ -3241,7 +3241,7 @@ struct
             match args, fargs, dargs with
               | [], [], [] -> acc
               | (v,const) :: args, (vf,_) :: fargs, (vd,_) :: dargs ->
-                let acc = { eexpr = TVars([ v, Some(
+                let acc = { eexpr = TVar([ v, Some(
                   {
                     eexpr = TIf(
                       { eexpr = TBinop(Ast.OpEq, mk_local vd pos, undefined pos); etype = basic.tbool; epos = pos },
@@ -4217,7 +4217,7 @@ struct
                   epos = pos;
                 };
                 (* var new_me = /*special create empty with tparams construct*/ *)
-                { eexpr = TVars([new_me_var, Some(
+                { eexpr = TVar([new_me_var, Some(
                   gen.gtools.rf_create_empty cl params pos
                 )]); etype = gen.gcon.basic.tvoid; epos = pos };
                 { eexpr = TFor( (* for (field in Reflect.fields(this)) *)
@@ -4574,7 +4574,7 @@ struct
 
     helpers:
       try_call_unwrap_statement: (returns texpr option)
-        if underlying statement is TBinop(OpAssign/OpAssignOp), or TVars, with the right side being a Statement or a short circuit op, we can call apply_assign.
+        if underlying statement is TBinop(OpAssign/OpAssignOp), or TVar, with the right side being a Statement or a short circuit op, we can call apply_assign.
 
       apply_assign:
         if is TVar, first declare the tvar with default expression = null;
@@ -4615,7 +4615,7 @@ struct
 
       add_assign:
         see if the type is void. If it is, just add_statement the expression argument, and return a null value
-        else create a new variable, set TVars with Some() with the expression argument, add TVar with add_statement, and return the TLocal of this expression.
+        else create a new variable, set TVar with Some() with the expression argument, add TVar with add_statement, and return the TLocal of this expression.
 
       map_problematic_expr:
         call expr_stat_map on statement with problematic_expression_unwrap
@@ -4663,8 +4663,8 @@ struct
         { expr with eexpr = TCall(fn left_e, List.map fn params) }
       | TNew(cl, tparams, params) ->
         { expr with eexpr = TNew(cl, tparams, List.map fn params) }
-      | TVars(vars) ->
-        { expr with eexpr = TVars( List.map (fun (v,eopt) -> (v, Option.map fn eopt)) vars ) }
+      | TVar(vars) ->
+        { expr with eexpr = TVar( List.map (fun (v,eopt) -> (v, Option.map fn eopt)) vars ) }
       | TFor (v,cond,block) ->
         { expr with eexpr = TFor(v, fn cond, block) }
       | TIf(cond,eif,eelse) ->
@@ -4738,7 +4738,7 @@ struct
       | TParenthesis p | TMeta(_,p) -> shallow_expr_type p
       | TBlock ([e]) -> shallow_expr_type e
       | TCall _
-      | TVars _
+      | TVar _
       | TBlock _
       | TFor _
       | TWhile _
@@ -4856,7 +4856,7 @@ struct
         null expr.etype expr.epos
       | _ ->
         let var = mk_temp gen "stmt" expr.etype in
-        let tvars = { expr with eexpr = TVars([var,Some(expr)]) } in
+        let tvars = { expr with eexpr = TVar([var,Some(expr)]) } in
         let local = { expr with eexpr = TLocal(var) } in
         add_statement tvars;
         local
@@ -4899,7 +4899,7 @@ struct
       match expr.eexpr with
         | TBinop ( (Ast.OpBoolAnd as op), left, right) ->
           let var = mk_temp gen "boolv" right.etype in
-          let tvars = { right with eexpr = TVars([var, Some( { right with eexpr = TConst(TBool false); etype = gen.gcon.basic.tbool } )]); etype = gen.gcon.basic.tvoid } in
+          let tvars = { right with eexpr = TVar([var, Some( { right with eexpr = TConst(TBool false); etype = gen.gcon.basic.tbool } )]); etype = gen.gcon.basic.tvoid } in
           let local = { right with eexpr = TLocal(var) } in
 
           let mapped_left, ret_acc = loop ( (local, { right with eexpr = TBinop(Ast.OpAssign, local, right) } ) :: acc) left in
@@ -4914,7 +4914,7 @@ struct
           in
 
           let var = mk_temp gen "boolv" right.etype in
-          let tvars = { right with eexpr = TVars([var, Some( { right with eexpr = TConst(TBool false); etype = gen.gcon.basic.tbool } )]); etype = gen.gcon.basic.tvoid } in
+          let tvars = { right with eexpr = TVar([var, Some( { right with eexpr = TConst(TBool false); etype = gen.gcon.basic.tbool } )]); etype = gen.gcon.basic.tvoid } in
           let local = { right with eexpr = TLocal(var) } in
           add_statement tvars;
 
@@ -4922,7 +4922,7 @@ struct
         | _ when acc = [] -> assert false
         | _ ->
           let var = mk_temp gen "boolv" expr.etype in
-          let tvars = { expr with eexpr = TVars([var, Some( { expr with etype = gen.gcon.basic.tbool } )]); etype = gen.gcon.basic.tvoid } in
+          let tvars = { expr with eexpr = TVar([var, Some( { expr with etype = gen.gcon.basic.tbool } )]); etype = gen.gcon.basic.tvoid } in
           let local = { expr with eexpr = TLocal(var) } in
 
           let last_local = ref local in
@@ -4964,7 +4964,7 @@ struct
         | TBinop ( (Ast.OpBoolAnd as op), left, right)
         | TBinop ( (Ast.OpBoolOr as op), left, right) ->
           let var = mk_temp gen "boolv" left.etype in
-          let tvars = { left with eexpr = TVars([var, if is_first then Some(left) else Some( { left with eexpr = TConst(TBool false) } )]); etype = gen.gcon.basic.tvoid } in
+          let tvars = { left with eexpr = TVar([var, if is_first then Some(left) else Some( { left with eexpr = TConst(TBool false) } )]); etype = gen.gcon.basic.tvoid } in
           let local = { left with eexpr = TLocal(var) } in
           if not is_first then begin
             last_block := !last_block @ [ { left with eexpr = TBinop(Ast.OpAssign, local, left) } ]
@@ -4981,7 +4981,7 @@ struct
         | _ when is_first -> assert false
         | _ ->
           let var = mk_temp gen "boolv" expr.etype in
-          let tvars = { expr with eexpr = TVars([var, Some ( { expr with eexpr = TConst(TBool false) } ) ]); etype = gen.gcon.basic.tvoid } in
+          let tvars = { expr with eexpr = TVar([var, Some ( { expr with eexpr = TConst(TBool false) } ) ]); etype = gen.gcon.basic.tvoid } in
           let local = { expr with eexpr = TLocal(var) } in
           last_block := !last_block @ [ { expr with eexpr = TBinop(Ast.OpAssign, local, expr) } ];
           add_statement tvars;
@@ -5060,19 +5060,19 @@ struct
       | TBinop((Ast.OpAssignOp _ as op),left,({ eexpr = TBinop(Ast.OpBoolOr,_,_) } as right) ) ->
         let right = short_circuit_op_unwrap gen add_statement right in
         Some { expr with eexpr = TBinop(op, check_left left, right) }
-      | TVars([v,Some({ eexpr = TBinop(Ast.OpBoolAnd,_,_) } as right)])
-      | TVars([v,Some({ eexpr = TBinop(Ast.OpBoolOr,_,_) } as right)]) ->
+      | TVar([v,Some({ eexpr = TBinop(Ast.OpBoolAnd,_,_) } as right)])
+      | TVar([v,Some({ eexpr = TBinop(Ast.OpBoolOr,_,_) } as right)]) ->
         let right = short_circuit_op_unwrap gen add_statement right in
-        Some { expr with eexpr = TVars([v, Some(right)]) }
-      | TVars([v,Some(right)]) when shallow_expr_type right = Statement ->
-        add_statement ({ expr with eexpr = TVars([v, Some(null right.etype right.epos)]) });
+        Some { expr with eexpr = TVar([v, Some(right)]) }
+      | TVar([v,Some(right)]) when shallow_expr_type right = Statement ->
+        add_statement ({ expr with eexpr = TVar([v, Some(null right.etype right.epos)]) });
         handle_assign Ast.OpAssign { expr with eexpr = TLocal(v); etype = v.v_type } right
       (* TIf handling *)
       | TBinop((Ast.OpAssign as op),left, ({ eexpr = TIf _ } as right))
       | TBinop((Ast.OpAssignOp _ as op),left,({ eexpr = TIf _ } as right)) when is_problematic_if right ->
         handle_assign op left right
-      | TVars([v,Some({ eexpr = TIf _ } as right)]) when is_problematic_if right ->
-        add_statement ({ expr with eexpr = TVars([v, Some(null right.etype right.epos)]) });
+      | TVar([v,Some({ eexpr = TIf _ } as right)]) when is_problematic_if right ->
+        add_statement ({ expr with eexpr = TVar([v, Some(null right.etype right.epos)]) });
         handle_assign Ast.OpAssign { expr with eexpr = TLocal(v); etype = v.v_type } right
       | TWhile(cond, e1, flag) when is_problematic_if cond ->
         twhile_with_condition_statement gen add_statement expr cond e1 flag;
@@ -5126,8 +5126,8 @@ struct
           let rec process_statement e =
             let e = no_paren e in
             match e.eexpr, shallow_expr_type e with
-              | TVars( (hd1 :: hd2 :: _) as vars ), _ ->
-                List.iter (fun v -> process_statement { e with eexpr = TVars([v]) }) vars
+              | TVar( (hd1 :: hd2 :: _) as vars ), _ ->
+                List.iter (fun v -> process_statement { e with eexpr = TVar([v]) }) vars
               | TCall( { eexpr = TLocal v } as elocal, elist ), _ when String.get v.v_name 0 = '_' && Hashtbl.mem gen.gspecial_vars v.v_name ->
                 new_block := { e with eexpr = TCall( elocal, List.map (fun e ->
                   match e.eexpr with
@@ -6072,8 +6072,8 @@ struct
                   handle (e) (gen.greal_type e.etype) (gen.greal_type real_t)
               )
             | _ -> Type.map_expr run e)
-        | TVars (veopt_l) ->
-          { e with eexpr = TVars (List.map (fun (v,eopt) ->
+        | TVar (veopt_l) ->
+          { e with eexpr = TVar (List.map (fun (v,eopt) ->
             match eopt with
               | None -> (v,eopt)
               | Some e ->
@@ -6532,7 +6532,7 @@ struct
         *)
         let block =
         [
-          { eexpr = TVars([res, Some(ctx.rcf_hash_function hash_local fst_hash)]); etype = basic.tvoid; epos = pos };
+          { eexpr = TVar([res, Some(ctx.rcf_hash_function hash_local fst_hash)]); etype = basic.tvoid; epos = pos };
           { eexpr = TIf(gte, mk_return (mk_tarray fst_dynamics res_local), Some({
             eexpr = TBlock(
             [
@@ -6589,12 +6589,12 @@ struct
 
         let block =
         [
-          { eexpr = TVars([res, Some(ctx.rcf_hash_function hash_local fst_hash)]); etype = basic.tvoid; epos = pos };
+          { eexpr = TVar([res, Some(ctx.rcf_hash_function hash_local fst_hash)]); etype = basic.tvoid; epos = pos };
           {
             eexpr = TIf(gte,
               mk_return { eexpr = TBinop(Ast.OpAssign, mk_tarray fst_dynamics res_local, value_local); etype = value_local.etype; epos = pos },
               Some({ eexpr = TBlock([
-                { eexpr = TVars([ res2, Some(ctx.rcf_hash_function hash_local snd_hash)]); etype = basic.tvoid; epos = pos };
+                { eexpr = TVar([ res2, Some(ctx.rcf_hash_function hash_local snd_hash)]); etype = basic.tvoid; epos = pos };
                 {
                   eexpr = TIf(gte, { eexpr = TBlock([
                     mk_splice snd_hash res2_local;
@@ -6667,7 +6667,7 @@ struct
         return false;
       *)
       [
-        { eexpr = TVars([res,Some(ctx.rcf_hash_function local_switch_var hx_hashes)]); etype = basic.tvoid; epos = pos };
+        { eexpr = TVar([res,Some(ctx.rcf_hash_function local_switch_var hx_hashes)]); etype = basic.tvoid; epos = pos };
         {
           eexpr = TIf(gte, { eexpr = TBlock([
             mk_splice hx_hashes res_local;
@@ -6835,7 +6835,7 @@ struct
             change_exprs tl ((name,expr) :: acc)
           else begin
             let var = mk_temp gen "odecl" expr.etype in
-            exprs_before := { eexpr = TVars([var,Some expr]); etype = basic.tvoid; epos = expr.epos } :: !exprs_before;
+            exprs_before := { eexpr = TVar([var,Some expr]); etype = basic.tvoid; epos = expr.epos } :: !exprs_before;
             change_exprs tl ((name,mk_local var expr.epos) :: acc)
           end
         | [] -> acc
@@ -8637,7 +8637,7 @@ struct
           [], cond
         | _ ->
           let v = mk_temp gen "cond" cond.etype in
-          [ { eexpr = TVars([v, Some cond]); etype = gen.gcon.basic.tvoid; epos = cond.epos } ], mk_local v cond.epos
+          [ { eexpr = TVar([v, Some cond]); etype = gen.gcon.basic.tvoid; epos = cond.epos } ], mk_local v cond.epos
       in
       exprs_before, new_cond
 
@@ -8663,7 +8663,7 @@ struct
         | [] ->
             []
         | _ ->
-            [ { eexpr = TVars(tvars); etype = gen.gcon.basic.tvoid; epos = cond_local.epos } ]
+            [ { eexpr = TVar(tvars); etype = gen.gcon.basic.tvoid; epos = cond_local.epos } ]
 
     let traverse gen t opt_get_native_enum_tag =
       let rec run e =
@@ -8883,12 +8883,12 @@ struct
             let temp = mk_temp gen "iterator" in_expr.etype in
             let block =
             [
-              { eexpr = TVars([temp, Some(in_expr)]); etype = basic.tvoid; epos = in_expr.epos };
+              { eexpr = TVar([temp, Some(in_expr)]); etype = basic.tvoid; epos = in_expr.epos };
               {
                 eexpr = TWhile(
                   { eexpr = TCall(mk_access gen temp "hasNext" in_expr.epos, []); etype = basic.tbool; epos = in_expr.epos },
                   Codegen.concat ({
-                    eexpr = TVars([var, Some({ eexpr = TCall(mk_access gen temp "next" in_expr.epos, []); etype = var.v_type; epos = in_expr.epos })]);
+                    eexpr = TVar([var, Some({ eexpr = TCall(mk_access gen temp "next" in_expr.epos, []); etype = var.v_type; epos = in_expr.epos })]);
                     etype = basic.tvoid;
                     epos = in_expr.epos
                   }) ( run block ),
@@ -8966,7 +8966,7 @@ struct
                 let cond = run cond in
                 let cond = if should_cache then mk_cast cond_etype cond else cond in
 
-                mk_local var cond.epos, [ { eexpr = TVars([var,Some(cond)]); etype = basic.tvoid; epos = cond.epos } ]
+                mk_local var cond.epos, [ { eexpr = TVar([var,Some(cond)]); etype = basic.tvoid; epos = cond.epos } ]
             in
 
             let mk_eq cond =
@@ -9212,7 +9212,7 @@ struct
                               v, mk_local v e1.epos, e1
                           in
                           { e with eexpr = TBlock([
-                            { eexpr = TVars([v, Some evars ]); etype = gen.gcon.basic.tvoid; epos = e.epos };
+                            { eexpr = TVar([v, Some evars ]); etype = gen.gcon.basic.tvoid; epos = e.epos };
                             { e with eexpr = TBinop( Ast.OpAssign, e1, handle_wrap { e with eexpr = TBinop (op, handle_unwrap t1 e1, handle_unwrap t2 (run e2) ) } t1 ) }
                           ]) }
                       )
@@ -9695,7 +9695,7 @@ struct
         (* var v = (temp_var == null) ? const : cast temp_var; *)
         block :=
         {
-          eexpr = TVars([var, Some(
+          eexpr = TVar([var, Some(
           {
             eexpr = TIf(
               { eexpr = TBinop(Ast.OpEq, mk_local nullable_var pos, null nullable_var.v_type pos); etype = basic.tbool; epos = pos },
@@ -10233,7 +10233,7 @@ struct
                 f.cf_expr <- Some({ e with
                   eexpr = TFunction({ tf with
                     tf_args = List.rev new_args;
-                    tf_expr = Codegen.concat { eexpr = TVars(vardecl); etype = gen.gcon.basic.tvoid; epos = e.epos } tf.tf_expr
+                    tf_expr = Codegen.concat { eexpr = TVar(vardecl); etype = gen.gcon.basic.tvoid; epos = e.epos } tf.tf_expr
                   });
                 });
                 f

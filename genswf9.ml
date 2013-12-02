@@ -1024,7 +1024,7 @@ let rec gen_expr_content ctx retval e =
 		let b = open_block ctx retval in
 		loop el;
 		b();
-	| TVars (v,ei) ->
+	| TVar (v,ei) ->
 		define_local ctx v e.epos;
 		(match ei with
 		| None -> ()

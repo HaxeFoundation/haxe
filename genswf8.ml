@@ -997,7 +997,7 @@ and gen_expr_2 ctx retval e =
 		let b = open_block ctx in
 		loop el;
 		b()
-	| TVars (v,eo) ->
+	| TVar (v,eo) ->
 		define_var ctx v (match eo with None -> None | Some e -> Some (fun() -> gen_expr ctx true e));
 		if retval then push ctx [VNull]
 	| TArrayDecl el ->

@@ -803,7 +803,7 @@ let rec iter_retval f retval e =
 	| TCall (e,el) ->
 		f true e;
 		List.iter (f true) el
-	| TVars (_,eo) ->
+	| TVar (_,eo) ->
 		(match eo with None -> () | Some e -> f true e)
 	| TFunction fu ->
 		f false fu.tf_expr
@@ -892,7 +892,7 @@ let find_undeclared_variables_ctx ctx undeclared declarations this_suffix allow_
 	let output = ctx.ctx_output in
 	let rec find_undeclared_variables undeclared declarations this_suffix allow_this expression =
 		match expression.eexpr with
-		| TVars (tvar,optional_init) ->
+		| TVar (tvar,optional_init) ->
 				Hashtbl.add declarations (keyword_remap tvar.v_name) ();
 				if (ctx.ctx_debug) then
 					output ("/* found var " ^ tvar.v_name ^ "*/ ");
@@ -1852,7 +1852,7 @@ and gen_expression ctx retval expression =
 			output ("function " ^ func_name ^ " not found.");
 		)
 
-	| TVars (tvar,optional_init) ->
+	| TVar (tvar,optional_init) ->
 		let count = ref 1 in (* TODO: this section can be simplified *)
 		if (retval && !count==1) then
 			(match optional_init with
@@ -2389,7 +2389,7 @@ let find_referenced_types ctx obj super_deps constructor_deps header_only for_de
                with Not_found -> ();
                end
 				(* Must visit type too, Type.iter will visit the expressions ... *)
-				| TVars (v,_) ->
+				| TVar (v,_) ->
 					 visit_type v.v_type
 				(* Must visit args too, Type.iter will visit the expressions ... *)
 				| TFunction func_def ->
@@ -4176,7 +4176,7 @@ class script_writer common_ctx ctx filename =
      (* TODO - lval op-assign local/member/array *)
      | TLocal var -> this#write ("VAR " ^ (string_of_int var.v_id) );
 
-     | TVars (tvar,optional_init) ->
+     | TVar (tvar,optional_init) ->
          this#write ("TVARS " ^ (string_of_int (1)) ^ "\n");
             this#write ("\t\t" ^ indent);
             (match optional_init with

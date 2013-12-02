@@ -623,7 +623,7 @@ let build_dependencies t =
 			add_type v.v_type;
 			add_expr e1;
 			add_expr e2;
-		| TVars (v,eo) ->
+		| TVar (v,eo) ->
 				add_type v.v_type;
 			begin match eo with
 				| None -> ()

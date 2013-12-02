@@ -648,7 +648,7 @@ and gen_expr ctx e =
 	| TThrow e ->
 		spr ctx "throw ";
 		gen_value ctx e;
-	| TVars (v,eo) ->
+	| TVar (v,eo) ->
 		spr ctx "var ";
 		print ctx "%s : %s" (s_ident v.v_name) (type_str ctx v.v_type e.epos);
 		begin match eo with
@@ -844,7 +844,7 @@ and gen_value ctx e =
 	| TBreak
 	| TContinue ->
 		unsupported e.epos
-	| TVars _
+	| TVar _
 	| TFor _
 	| TWhile _
 	| TThrow _ ->

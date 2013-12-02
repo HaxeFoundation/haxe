@@ -60,7 +60,7 @@ class TypedExprTools {
 			case TBlock(el): with(e, TBlock(el.map(f)));
 			case TObjectDecl(fl): with(e, TObjectDecl(fl.map(function(field) return { name: field.name, expr: f(field.expr) })));
 			case TCall(e1, el): with(e, TCall(f(e1), el.map(f)));
-			case TVars(v,eo): with(e, TVars(v, eo == null ? null : f(eo)));
+			case TVar(v,eo): with(e, TVar(v, eo == null ? null : f(eo)));
 			case TFunction(fu): with(e, TFunction({ t: fu.t, args: fu.args, expr: f(fu.expr)}));
 			case TIf(e1, e2, e3): with(e, TIf(f(e1), f(e2), f(e3)));
 			case TSwitch(e1, cases, e2): with(e, TSwitch(e1, cases.map(function(c) return { values: c.values, expr: f(c.expr) }), e2 == null ? null : f(e2)));
@@ -99,7 +99,7 @@ class TypedExprTools {
 			case TBlock(el): with(e, TBlock(el.map(f)), ft(e.t));
 			case TObjectDecl(fl): with(e, TObjectDecl(fl.map(function(field) return { name: field.name, expr: f(field.expr) })), ft(e.t));
 			case TCall(e1, el): with(e, TCall(f(e1), el.map(f)), ft(e.t));
-			case TVars(v,eo): with(e, TVars(fv(v), eo == null ? null : f(eo)), ft(e.t));
+			case TVar(v,eo): with(e, TVar(fv(v), eo == null ? null : f(eo)), ft(e.t));
 			case TFunction(fu): with(e, TFunction({ t: ft(fu.t), args: fu.args.map(function(arg) return { v: fv(arg.v), value: arg.value }), expr: f(fu.expr)}), ft(e.t));
 			case TIf(e1, e2, e3): with(e, TIf(f(e1), f(e2), f(e3)), ft(e.t));
 			case TSwitch(e1, cases, e2): with(e, TSwitch(e1, cases.map(function(c) return { values: c.values, expr: f(c.expr) }), e2 == null ? null : f(e2)), ft(e.t));

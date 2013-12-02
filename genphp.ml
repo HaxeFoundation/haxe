@@ -1384,7 +1384,7 @@ and gen_expr ctx e =
 		spr ctx "throw new HException(";
 		gen_value ctx e;
 		spr ctx ")";
-	| TVars (v,eo) ->
+	| TVar (v,eo) ->
 		spr ctx "$";
 		let restore = save_locals ctx in
 		let n = define_local ctx v.v_name in
@@ -1772,7 +1772,7 @@ and gen_value ctx e =
 	| TBlock _
 	| TBreak
 	| TContinue
-	| TVars _
+	| TVar _
 	| TReturn _
 	| TWhile _
 	| TThrow _

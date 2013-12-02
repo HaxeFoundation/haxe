@@ -35,7 +35,7 @@ let has_side_effect e =
 		| TConst _ | TLocal _ | TField _ | TTypeExpr _ | TFunction _ -> ()
 		| TPatMatch _ | TNew _ | TCall _ | TBinop ((OpAssignOp _ | OpAssign),_,_) | TUnop ((Increment|Decrement),_,_) -> raise Exit
 		| TReturn _ | TBreak | TContinue | TThrow _ | TCast (_,Some _) -> raise Exit
-		| TArray _ | TEnumParameter _ | TCast (_,None) | TBinop _ | TUnop _ | TParenthesis _ | TMeta _ | TWhile _ | TFor _ | TIf _ | TTry _ | TSwitch _ | TArrayDecl _ | TVars _ | TBlock _ | TObjectDecl _ -> Type.iter loop e
+		| TArray _ | TEnumParameter _ | TCast (_,None) | TBinop _ | TUnop _ | TParenthesis _ | TMeta _ | TWhile _ | TFor _ | TIf _ | TTry _ | TSwitch _ | TArrayDecl _ | TVar _ | TBlock _ | TObjectDecl _ -> Type.iter loop e
 	in
 	try
 		loop e; false
@@ -222,9 +222,9 @@ let rec type_inline ctx cf f ethis params tret config p force =
 			let l = read_local vthis in
 			l.i_read <- l.i_read + (if !in_loop then 2 else 1);
 			{ e with eexpr = TLocal l.i_subst }
-		| TVars (v,eo) ->
+		| TVar (v,eo) ->
 			has_vars := true;
-			{ e with eexpr = TVars ((local v).i_subst,opt (map false) eo)}
+			{ e with eexpr = TVar ((local v).i_subst,opt (map false) eo)}
 		| TReturn eo when not !in_local_fun ->
 			if not term then error "Cannot inline a not final return" po;
 			(match eo with
@@ -422,10 +422,10 @@ let rec type_inline ctx cf f ethis params tret config p force =
 			| TBlock [e] , None -> wrap e
 			| _ , None -> wrap e
 			| TBlock l, Some vl ->
-				let el_v = List.map (fun (v,eo) -> mk (TVars (v,eo)) ctx.t.tvoid e.epos) vl in
+				let el_v = List.map (fun (v,eo) -> mk (TVar (v,eo)) ctx.t.tvoid e.epos) vl in
 				mk (TBlock (el_v @ l)) tret e.epos
 			| _, Some vl ->
-				let el_v = List.map (fun (v,eo) -> mk (TVars (v,eo)) ctx.t.tvoid e.epos) vl in
+				let el_v = List.map (fun (v,eo) -> mk (TVar (v,eo)) ctx.t.tvoid e.epos) vl in
 				mk (TBlock (el_v @ [e])) tret e.epos
 		) in
 		(* we need to replace type-parameters that were used in the expression *)
@@ -481,7 +481,7 @@ let rec optimize_for_loop ctx i e1 e2 p =
 		) in
 		let iexpr = mk (TLocal index) t_int p in
 		let e2 = type_expr ctx e2 NoValue in
-		let aget = mk (TVars (i,Some (mk (TArray (arr,iexpr)) pt p))) t_void p in
+		let aget = mk (TVar (i,Some (mk (TArray (arr,iexpr)) pt p))) t_void p in
 		let incr = mk (TUnop (Increment,Prefix,iexpr)) t_int p in
 		let block = match e2.eexpr with
 			| TBlock el -> mk (TBlock (aget :: incr :: el)) t_void e2.epos
@@ -502,8 +502,8 @@ let rec optimize_for_loop ctx i e1 e2 p =
 				NormalWhile
 			)) t_void p;
 		] in
-		let el = match avars with None -> el | Some (v,eo) -> (mk (TVars (v,eo)) t_void p) :: el in
-		let el = (mk (TVars (index,ivar)) t_void p) :: el in
+		let el = match avars with None -> el | Some (v,eo) -> (mk (TVar (v,eo)) t_void p) :: el in
+		let el = (mk (TVar (index,ivar)) t_void p) :: el in
 		lblock el
 	in
 	match e1.eexpr, follow e1.etype with
@@ -529,7 +529,7 @@ let rec optimize_for_loop ctx i e1 e2 p =
 		check e2;
 		let etmp = mk (TLocal tmp) t_int p in
 		let incr = mk (TUnop (Increment,Postfix,etmp)) t_int p in
-		let init = mk (TVars (i,Some incr)) t_void p in
+		let init = mk (TVar (i,Some incr)) t_void p in
 		let block = match e2.eexpr with
 			| TBlock el -> mk (TBlock (init :: el)) t_void e2.epos
 			| _ -> mk (TBlock [init;e2]) t_void p
@@ -544,7 +544,7 @@ let rec optimize_for_loop ctx i e1 e2 p =
 		(match max with
 		| None ->
 			lblock [
-				mk (TVars (tmp,Some i1)) t_void p;
+				mk (TVar (tmp,Some i1)) t_void p;
 				mk (TWhile (
 					mk (TBinop (OpLt, etmp, i2)) ctx.t.tbool p,
 					block,
@@ -553,8 +553,8 @@ let rec optimize_for_loop ctx i e1 e2 p =
 			]
 		| Some max ->
 			lblock [
-				mk (TVars (tmp,Some i1)) t_void p;
-				mk (TVars (max,Some i2)) t_void p;
+				mk (TVar (tmp,Some i1)) t_void p;
+				mk (TVar (max,Some i2)) t_void p;
 				mk (TWhile (
 					mk (TBinop (OpLt, etmp, mk (TLocal max) t_int p)) ctx.t.tbool p,
 					block,
@@ -574,14 +574,14 @@ let rec optimize_for_loop ctx i e1 e2 p =
 		let cell = gen_local ctx tcell in
 		let cexpr = mk (TLocal cell) tcell p in
 		let e2 = type_expr ctx e2 NoValue in
-		let evar = mk (TVars (i,Some (mk (mk_field cexpr "elt") t p))) t_void p in
+		let evar = mk (TVar (i,Some (mk (mk_field cexpr "elt") t p))) t_void p in
 		let enext = mk (TBinop (OpAssign,cexpr,mk (mk_field cexpr "next") tcell p)) tcell p in
 		let block = match e2.eexpr with
 			| TBlock el -> mk (TBlock (evar :: enext :: el)) t_void e2.epos
 			| _ -> mk (TBlock [evar;enext;e2]) t_void p
 		in
 		lblock [
-			mk (TVars (cell,Some (mk (mk_field e1 "head") tcell p))) t_void p;
+			mk (TVar (cell,Some (mk (mk_field e1 "head") tcell p))) t_void p;
 			mk (TWhile (
 				mk (TBinop (OpNotEq, cexpr, mk (TConst TNull) tcell p)) ctx.t.tbool p,
 				block,
@@ -627,7 +627,7 @@ let rec need_parent e =
 	| TConst _ | TLocal _ | TArray _ | TField _ | TEnumParameter _ | TParenthesis _ | TMeta _ | TCall _ | TNew _ | TTypeExpr _ | TObjectDecl _ | TArrayDecl _ -> false
 	| TCast (e,None) -> need_parent e
 	| TCast _ | TThrow _ | TReturn _ | TTry _ | TPatMatch _ | TSwitch _ | TFor _ | TIf _ | TWhile _ | TBinop _ | TContinue | TBreak
-	| TBlock _ | TVars _ | TFunction _ | TUnop _ -> true
+	| TBlock _ | TVar _ | TFunction _ | TUnop _ -> true
 
 let sanitize_expr com e =
 	let parent e =
@@ -643,7 +643,7 @@ let sanitize_expr com e =
 	let complex e =
 		(* complex expressions are the one that once generated to source consists in several expressions  *)
 		match e.eexpr with
-		| TVars _	(* needs to be put into blocks *)
+		| TVar _	(* needs to be put into blocks *)
 		| TFor _	(* a temp var is needed for holding iterator *)
 		| TPatMatch _	(* a temp var is needed for holding enum *)
 		| TCall ({ eexpr = TLocal { v_name = "__js__" } },_) (* we never know *)
@@ -1011,7 +1011,7 @@ let inline_constructors ctx e =
 	in
 	let rec find_locals e =
 		match e.eexpr with
-		| TVars (v,eo) ->
+		| TVar (v,eo) ->
 			Type.iter find_locals e;
 			begin match eo with
 				| Some n ->
@@ -1078,7 +1078,7 @@ let inline_constructors ctx e =
 		) vars in
 		let rec subst e =
 			match e.eexpr with
-			| TVars (v,eo) ->
+			| TVar (v,eo) ->
 				let v,eo = match eo with
 					| None -> (v,None)
 					| Some e when v.v_id < 0 ->
@@ -1087,7 +1087,7 @@ let inline_constructors ctx e =
 					| Some e ->
 						v,Some (subst e)
 				in
-				mk (TVars (v,eo)) e.etype e.epos
+				mk (TVar (v,eo)) e.etype e.epos
 			| TField ({ eexpr = TLocal v },FInstance (_,cf)) when v.v_id < 0 ->
 				let _, vars = PMap.find (-v.v_id) vfields in
 				(try

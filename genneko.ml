@@ -270,7 +270,7 @@ and gen_expr ctx e =
 		call p (field p (gen_type_path p c.cl_path) "new") (List.map (gen_expr ctx) params)
 	| TUnop (op,flag,e) ->
 		gen_unop ctx p op flag e
-	| TVars (v,eo) ->
+	| TVar (v,eo) ->
 		(EVars (
 			let e = (match eo with
 				| None ->

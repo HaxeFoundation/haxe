@@ -524,7 +524,7 @@ and gen_expr ctx e =
 	| TThrow e ->
 		spr ctx "throw ";
 		gen_value ctx e;
-	| TVars (v,eo) ->
+	| TVar (v,eo) ->
 		spr ctx "var ";
 		check_var_declaration v;
 		spr ctx (ident v.v_name);
@@ -783,7 +783,7 @@ and gen_value ctx e =
 		spr ctx " , ";
 		spr ctx (ctx.type_accessor t);
 		spr ctx ")"
-	| TVars _
+	| TVar _
 	| TFor _
 	| TWhile _
 	| TThrow _ ->

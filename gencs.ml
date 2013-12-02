@@ -209,7 +209,7 @@ struct
                 | TLocal(v) -> mk_is obj
                 | _ ->
                   let var = mk_temp gen "is" obj.etype in
-                  let added = { obj with eexpr = TVars([var, Some(obj)]); etype = basic.tvoid } in
+                  let added = { obj with eexpr = TVar([var, Some(obj)]); etype = basic.tvoid } in
                   let local = mk_local var obj.epos in
                   {
                     eexpr = TBlock([ added; mk_is local ]);
@@ -242,7 +242,7 @@ struct
 
           let mk_local obj =
             let var = mk_temp gen "opUshr" obj.etype in
-            let added = { obj with eexpr = TVars([var, Some(obj)]); etype = basic.tvoid } in
+            let added = { obj with eexpr = TVar([var, Some(obj)]); etype = basic.tvoid } in
             let local = mk_local var obj.epos in
             local, added
           in
@@ -459,7 +459,7 @@ let handle_type_params gen ifaces base_generic =
       let obj_v = mk_temp gen "obj" t_dynamic in
       let block = [
         {
-          eexpr = TVars(
+          eexpr = TVar(
           [
             new_v, Some( {
               eexpr = TNew(native_arr_cl, [new_param], [old_len] );
@@ -483,7 +483,7 @@ let handle_type_params gen ifaces base_generic =
             },
             { eexpr = TBlock [
               {
-                eexpr = TVars([obj_v, Some (mk_cast t_dynamic { eexpr = TArray(e, mk_local i e.epos); etype = old_param; epos = e.epos })]);
+                eexpr = TVar([obj_v, Some (mk_cast t_dynamic { eexpr = TArray(e, mk_local i e.epos); etype = old_param; epos = e.epos })]);
                 etype = basic.tvoid;
                 epos = e.epos
               };
@@ -1086,14 +1086,14 @@ let configure gen =
         | TCall ({ eexpr = TLocal( { v_name = "__fixed__" } ) }, [ e ] ) ->
           let first = ref true in
           let rec loop = function
-            | ({ eexpr = TVars([v, Some({ eexpr = TCast( { eexpr = TCast(e, _) }, _) }) ]) } as expr) :: tl when is_pointer v.v_type ->
+            | ({ eexpr = TVar([v, Some({ eexpr = TCast( { eexpr = TCast(e, _) }, _) }) ]) } as expr) :: tl when is_pointer v.v_type ->
               (if !first then first := false);
               write w "fixed(";
               let vf = mk_temp gen "fixed" v.v_type in
-              expr_s w { expr with eexpr = TVars([vf, Some e]) };
+              expr_s w { expr with eexpr = TVar([vf, Some e]) };
               write w ")";
               begin_block w;
-              expr_s w { expr with eexpr = TVars([v, Some (mk_local vf expr.epos)]) };
+              expr_s w { expr with eexpr = TVar([v, Some (mk_local vf expr.epos)]) };
               write w ";";
               loop tl;
               end_block w
@@ -1188,7 +1188,7 @@ let configure gen =
           (match flag with
             | Ast.Prefix -> write w ( " " ^ (Ast.s_unop op) ^ " (" ); expr_s w e; write w ") "
             | Ast.Postfix -> write w "("; expr_s w e; write w (") " ^ Ast.s_unop op))
-        | TVars (v_eop_l) ->
+        | TVar (v_eop_l) ->
           ignore (List.fold_left (fun acc (var, eopt) ->
             (if acc <> 0 then write w ", ");
             print w "%s " (t_s var.v_type);
@@ -2372,7 +2372,7 @@ let configure gen =
       | _ -> assert false
   ) true ) ;
 
-  ExpressionUnwrap.configure gen (ExpressionUnwrap.traverse gen (fun e -> Some { eexpr = TVars([mk_temp gen "expr" e.etype, Some e]); etype = gen.gcon.basic.tvoid; epos = e.epos }));
+  ExpressionUnwrap.configure gen (ExpressionUnwrap.traverse gen (fun e -> Some { eexpr = TVar([mk_temp gen "expr" e.etype, Some e]); etype = gen.gcon.basic.tvoid; epos = e.epos }));
 
   UnnecessaryCastsRemoval.configure gen;
 

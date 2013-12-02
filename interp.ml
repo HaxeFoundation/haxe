@@ -4469,7 +4469,7 @@ and encode_texpr e =
 			| TNew(c,pl,el) -> 10,[encode_clref c;encode_tparams pl;encode_texpr_list el]
 			| TUnop(op,flag,e1) -> 11,[encode_unop op;VBool (flag = Postfix);loop e1]
 			| TFunction func -> 12,[encode_tfunc func]
-			| TVars (v,eo) -> 13,[
+			| TVar (v,eo) -> 13,[
 				enc_obj [
 					"v",encode_tvar v;
 					"expr",vopt encode_texpr eo
@@ -4635,7 +4635,7 @@ let rec decode_texpr v =
 		| 10, [c;tl;vl] -> TNew(decode_ref c,List.map decode_type (dec_array tl),List.map loop (dec_array vl))
 		| 11, [op;pf;v1] -> TUnop(decode_unop op,(if dec_bool pf then Postfix else Prefix),loop v1)
 		| 12, [f] -> TFunction(decode_tfunc f)
-		| 13, [v;eo] -> TVars(decode_tvar v,opt loop eo)
+		| 13, [v;eo] -> TVar(decode_tvar v,opt loop eo)
 		| 14, [vl] -> TBlock(List.map loop (dec_array vl))
 		| 15, [v;v1;v2] -> TFor(decode_tvar v,loop v1,loop v2)
 		| 16, [vif;vthen;velse] -> TIf(loop vif,loop vthen,opt loop velse)
@@ -4864,7 +4864,7 @@ let rec make_ast e =
 	| TFunction f ->
 		let arg (v,c) = v.v_name, false, mk_ot v.v_type, (match c with None -> None | Some c -> Some (EConst (mk_const c),e.epos)) in
 		EFunction (None,{ f_params = []; f_args = List.map arg f.tf_args; f_type = mk_ot f.tf_type; f_expr = Some (make_ast f.tf_expr) })
-	| TVars (v,eo) ->
+	| TVar (v,eo) ->
 		EVars ([v.v_name, mk_ot v.v_type, eopt eo])
 	| TBlock el -> EBlock (List.map make_ast el)
 	| TFor (v,it,e) ->

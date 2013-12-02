@@ -1222,7 +1222,7 @@ let type_function ctx args ret fmode f do_display p =
 	locals();
 	let e = match ctx.curfun, ctx.vthis with
 		| (FunMember|FunConstructor), Some v ->
-			let ev = mk (TVars (v,Some (mk (TConst TThis) ctx.tthis p))) ctx.t.tvoid p in
+			let ev = mk (TVar (v,Some (mk (TConst TThis) ctx.tthis p))) ctx.t.tvoid p in
 			(match e.eexpr with
 			| TBlock l -> { e with eexpr = TBlock (ev::l) }
 			| _ -> mk (TBlock [ev;e]) e.etype p)
