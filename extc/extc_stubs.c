@@ -201,53 +201,18 @@ CAMLprim value get_full_path( value f ) {
 #endif
 }
 
-#ifdef _WIN32
-static void copyAscii( char *to, const char *from, int len ) {
-	while( len-- > 0 ) {
-		unsigned char c = *from;
-		if( c < 128 )
-			*to = c;
-		to++;
-		from++;
-	}
-}
-#endif
-
 CAMLprim value get_real_path( value path ) {
 #ifdef _WIN32
-	value path2 = caml_copy_string(String_val(path));
-	char *cur = String_val(path2);
-	if( cur[0] == '\\' && cur[1] == '\\' ) {
-		cur = strchr(cur,'\\');
-		if( cur != NULL ) cur++;
-	} else if( cur[0] != 0 && cur[1] == ':' ) {
-		char c = cur[0];
-		if( c >= 'a' && c <= 'z' )
-			cur[0] = c - 'a' + 'A';
-		cur += 2;
-		if( cur[0] == '\\' )
-			cur++;
-	}
-	while( cur ) {
-		char *next = strchr(cur,'\\');
-		SHFILEINFOA infos;
-		if( next != NULL )
-			*next = 0;
-		else if( *cur == 0 )
-			break;
-		if( SHGetFileInfoA( String_val(path2), 0, &infos, sizeof(infos), SHGFI_DISPLAYNAME ) != 0 ) {
-			// some special names might be expended to their localized name, so make sure we only
-			// change the casing and not the whole content
-			if( strcmpi(infos.szDisplayName,cur) == 0 )
-				copyAscii(cur,infos.szDisplayName,strlen(infos.szDisplayName)+1);
-		}
-		if( next != NULL ) {
-			*next = '\\';
-			cur = next + 1;
-		} else
-			cur = NULL;
-	}
-	return path2;
+	// this will ensure the full class path with proper casing
+	char tmp[MAX_PATH];
+	char out[MAX_PATH];
+	if( GetFullPathName(String_val(path),MAX_PATH,tmp,NULL) == 0 )
+		failwith("get_real_path");
+	if( GetLongPathName(tmp,out,MAX_PATH) == 0 )
+		failwith("get_real_path");
+	if( out[1] == ':' && out[0] >= 'a' && out[0] <= 'z' )
+		out[0] += 'A' - 'a';
+	return caml_copy_string(out);
 #else
 	return path;
 #endif
