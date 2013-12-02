@@ -747,9 +747,14 @@ and gen_expr ctx e =
 		);
 		spr ctx "}"
 	| TCast (e1,None) ->
-		spr ctx "((";
-		gen_expr ctx e1;
-		print ctx ") as %s)" (type_str ctx e.etype e.epos);
+		let s = type_str ctx e.etype e.epos in
+		if s = "*" then
+			gen_expr ctx e1
+		else begin
+			spr ctx "((";
+			gen_value ctx e1;
+			print ctx ") as %s)" s
+		end
 	| TCast (e1,Some t) ->
 		gen_expr ctx (Codegen.default_cast ctx.inf.com e1 t e.etype e.epos)
 
