@@ -1003,9 +1003,21 @@ let inline_constructors ctx e =
 	let vars = ref PMap.empty in
 	let rec get_inline_ctor_info e = match e.eexpr with
 		| TNew ({ cl_constructor = Some ({ cf_kind = Method MethInline; cf_expr = Some { eexpr = TFunction f } } as cst) } as c,_,pl) ->
-			Some (f,cst,c,pl)
+			Some (f,cst,c,pl,[])
 		| TCast(e,None) | TParenthesis e ->
 			get_inline_ctor_info e
+		| TBlock el ->
+			begin match List.rev el with
+				| e :: el ->
+					begin match get_inline_ctor_info e with
+						| Some(f,cst,c,pl,e_init) ->
+							Some(f,cst,c,pl,(List.rev el) @ e_init)
+						| None ->
+							None
+					end
+				| [] ->
+					None
+			end
 		| _ ->
 			None
 	in
@@ -1016,7 +1028,7 @@ let inline_constructors ctx e =
 			begin match eo with
 				| Some n ->
 					begin match get_inline_ctor_info n with
-					| Some (f,cst,c,pl) ->
+					| Some (f,cst,c,pl,el_init) ->
 						(* inline the constructor *)
 						(match (try type_inline ctx cst f (mk (TLocal v) v.v_type n.epos) pl ctx.t.tvoid None n.epos true with Error (Custom _,_) -> None) with
 						| None -> ()
@@ -1040,7 +1052,7 @@ let inline_constructors ctx e =
 							try
 								get_assigns ecst;
 								(* mark variable as candidate for inlining *)
-								vars := PMap.add v.v_id (v,List.rev !assigns,c.cl_extern || Meta.has Meta.Extern cst.cf_meta,n.epos) !vars;
+								vars := PMap.add v.v_id (v,el_init,List.rev !assigns,c.cl_extern || Meta.has Meta.Extern cst.cf_meta,n.epos) !vars;
 								v.v_id <- -v.v_id; (* mark *)
 								(* recurse with the constructor code which will be inlined here *)
 								find_locals ecst
@@ -1057,7 +1069,7 @@ let inline_constructors ctx e =
 			v.v_id <- -v.v_id;
 			(* error if the constructor is extern *)
 			(match PMap.find v.v_id !vars with
-			| _,_,true,p ->
+			| _,_,_,true,p ->
 				display_error ctx "Extern constructor could not be inlined" p;
 				error "Variable is used here" e.epos
 			| _ -> ());
@@ -1070,26 +1082,34 @@ let inline_constructors ctx e =
 	if PMap.is_empty vars then
 		e
 	else begin
-		let vfields = PMap.map (fun (v,assigns,_,_) ->
-			List.fold_left (fun (acc,map) (name,e,t) ->
+		let vfields = PMap.map (fun (v,el_init,assigns,_,_) ->
+			(List.fold_left (fun (acc,map) (name,e,t) ->
 				let vf = alloc_var (v.v_name ^ "_" ^ name) t in
 				((vf,e) :: acc, PMap.add name vf map)
-			) ([],PMap.empty) assigns
+			) ([],PMap.empty) assigns),el_init
 		) vars in
+		let el_b = ref [] in
 		let rec subst e =
 			match e.eexpr with
-			| TVar (v,eo) ->
-				let v,eo = match eo with
-					| None -> (v,None)
-					| Some e when v.v_id < 0 ->
-						let vars, _ = PMap.find (-v.v_id) vfields in
-						v, Some (subst e)
-					| Some e ->
-						v,Some (subst e)
+			| TBlock el ->
+				let old = !el_b in
+				el_b := [];
+				List.iter (fun e -> el_b := (subst e) :: !el_b) el;
+				let n = !el_b in
+				el_b := old;
+				{e with eexpr = TBlock (List.rev n)}
+			| TVar (v,Some e) when v.v_id < 0 ->
+				let (vars, _),el_init = PMap.find (-v.v_id) vfields in
+				el_b := el_init @ !el_b;
+				let (v_first,e_first),vars = match vars with
+					| v :: vl -> v,vl
+					| [] -> assert false
 				in
-				mk (TVar (v,eo)) e.etype e.epos
+				List.iter (fun (v,e) -> el_b := (mk (TVar(v,Some e)) ctx.t.tvoid e.epos) :: !el_b) (List.rev vars);
+				mk (TVar (v_first, Some (subst e_first))) ctx.t.tvoid e.epos
 			| TField ({ eexpr = TLocal v },FInstance (_,cf)) when v.v_id < 0 ->
-				let _, vars = PMap.find (-v.v_id) vfields in
+				let (_, vars),el_init = PMap.find (-v.v_id) vfields in
+				el_b := el_init @ !el_b;
 				(try
 					let v = PMap.find cf.cf_name vars in
 					mk (TLocal v) v.v_type e.epos
@@ -1100,7 +1120,7 @@ let inline_constructors ctx e =
 				Type.map_expr subst e
 		in
 		let e = (try subst e with Not_found -> assert false) in
-		PMap.iter (fun _ (v,_,_,_) -> v.v_id <- -v.v_id) vars;
+		PMap.iter (fun _ (v,_,_,_,_) -> v.v_id <- -v.v_id) vars;
 		e
 	end
 
