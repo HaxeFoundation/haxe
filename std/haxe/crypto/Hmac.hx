@@ -64,7 +64,7 @@ class Hmac {
 		return sb.getBytes();
 	}
 	
-	public function encode( key : haxe.io.Bytes, msg : haxe.io.Bytes ) : haxe.io.Bytes {
+	public function make( key : haxe.io.Bytes, msg : haxe.io.Bytes ) : haxe.io.Bytes {
 		if(key.length > blockSize) {
 			key = doHash(key);
 		}
