@@ -3333,6 +3333,7 @@ and build_call ctx acc el (with_type:with_type) p =
 	| AKMacro (ethis,f) ->
 		if ctx.macro_depth > 300 then error "Stack overflow" p;
 		ctx.macro_depth <- ctx.macro_depth + 1;
+		ctx.with_type_stack <- with_type :: ctx.with_type_stack;
 		let f = (match ethis.eexpr with
 		| TTypeExpr (TClassDecl c) ->
 			(match ctx.g.do_macro ctx MExpr c.cl_path f.cf_name el p with
@@ -3357,6 +3358,7 @@ and build_call ctx acc el (with_type:with_type) p =
 				loop c
 			| _ -> assert false)) in
 		ctx.macro_depth <- ctx.macro_depth - 1;
+		ctx.with_type_stack <- List.tl ctx.with_type_stack;
 		let old = ctx.on_error in
 		ctx.on_error <- (fun ctx msg ep ->
 			old ctx msg ep;
@@ -3778,6 +3780,11 @@ let make_macro_api ctx p =
 				else
 					Some (TInst (ctx.curclass,[]))
 		);
+		Interp.get_expected_type = (fun() ->
+			match ctx.with_type_stack with
+				| (WithType t | WithTypeResume t) :: _ -> Some t
+				| _ -> None
+		);
 		Interp.get_local_method = (fun() ->
 			ctx.curfield.cf_name;
 		);
@@ -4183,6 +4190,7 @@ let rec create com =
 		};
 		meta = [];
 		this_stack = [];
+		with_type_stack = [];
 		pass = PBuildModule;
 		macro_depth = 0;
 		untyped = false;
