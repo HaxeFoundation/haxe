@@ -1104,7 +1104,12 @@ let match_expr ctx e cases def with_type p =
 	(* flatten cases *)
 	let cases = List.map (fun (el,eg,e) ->
 		List.iter (fun e -> match fst e with EBinop(OpOr,_,_) -> mctx.toplevel_or <- true; | _ -> ()) el;
-		collapse_case el,eg,e
+		match el with
+			| [] ->
+				let p = match e with None -> p | Some e -> pos e in
+				error "case without a pattern is not allowed" p
+			| _ ->
+				collapse_case el,eg,e
 	) cases in
 	let is_complex = ref false in
 	let cases = transform_extractors mctx stl cases in
