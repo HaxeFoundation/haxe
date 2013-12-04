@@ -380,25 +380,29 @@ let parse_expr_string ctx s p inl =
 let rec base_types t =
 	let tl = ref [] in
 	let rec loop t = (match t with
-	| TInst(cl, params) ->
-		(match cl.cl_kind with
-		| KTypeParameter tl -> List.iter loop tl
-		| _ -> ());
-		List.iter (fun (ic, ip) ->
-			let t = apply_params cl.cl_types params (TInst (ic,ip)) in
-			loop t
-		) cl.cl_implements;
-		(match cl.cl_super with None -> () | Some (csup, pl) ->
-			let t = apply_params cl.cl_types params (TInst (csup,pl)) in
-			loop t);
-		tl := t :: !tl;
-	| TType (td,pl) ->
-		loop (apply_params td.t_types pl td.t_type);
-		(* prioritize the most generic definition *)
-		tl := t :: !tl;
-	| TLazy f -> loop (!f())
-	| TMono r -> (match !r with None -> () | Some t -> loop t)
-	| _ -> tl := t :: !tl) in
+		| TInst(cl, params) ->
+			(match cl.cl_kind with
+			| KTypeParameter tl -> List.iter loop tl
+			| _ -> ());
+			List.iter (fun (ic, ip) ->
+				let t = apply_params cl.cl_types params (TInst (ic,ip)) in
+				loop t
+			) cl.cl_implements;
+			(match cl.cl_super with None -> () | Some (csup, pl) ->
+				let t = apply_params cl.cl_types params (TInst (csup,pl)) in
+				loop t);
+			tl := t :: !tl;
+		| TEnum(en,(_ :: _ as tl2)) ->
+			tl := (TEnum(en,List.map (fun _ -> t_dynamic) tl2)) :: !tl;
+			tl := t :: !tl;
+		| TType (td,pl) ->
+			loop (apply_params td.t_types pl td.t_type);
+			(* prioritize the most generic definition *)
+			tl := t :: !tl;
+		| TLazy f -> loop (!f())
+		| TMono r -> (match !r with None -> () | Some t -> loop t)
+		| _ -> tl := t :: !tl)
+	in
 	loop t;
 	!tl
 
