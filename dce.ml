@@ -208,7 +208,7 @@ let opt f e = match e with None -> () | Some e -> f e
 let rec to_string dce t =
 	let push t =
 		dce.ts_stack <- t :: dce.ts_stack;
-		fun () -> dce.ts_stack <- List.tl dce.ts_stack
+		fun () -> ()
 	in
 	let t = follow t in
 	if not (List.exists (fun t2 -> Type.fast_eq t t2) dce.ts_stack) then match follow t with
