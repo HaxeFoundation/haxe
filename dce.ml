@@ -205,33 +205,30 @@ let rec mark_dependent_fields dce csup n stat =
 
 let opt f e = match e with None -> () | Some e -> f e
 
-let rec to_string dce t =
-	let push t =
-		dce.ts_stack <- t :: dce.ts_stack;
-		fun () -> ()
-	in
-	let t = follow t in
-	if not (List.exists (fun t2 -> Type.fast_eq t t2) dce.ts_stack) then match follow t with
-	| TInst(c,pl) as t ->
-		let pop = push t in
+let rec to_string dce t = match t with
+	| TInst(c,tl) ->
 		field dce c "toString" false;
-		List.iter (to_string dce) pl;
-		pop();
-	| TEnum(en,pl) as t ->
-		let pop = push t in
-		PMap.iter (fun _ ef -> to_string dce ef.ef_type) en.e_constrs;
-		List.iter (to_string dce) pl;
-		pop();
-	| TAnon a as t ->
-		let pop = push t in
-		PMap.iter (fun _ cf -> to_string dce cf.cf_type) a.a_fields;
-		pop();
-	| TFun(args,r) as t ->
-		let pop = push t in
-		List.iter (fun (_,_,t) -> to_string dce t) args;
-		to_string dce r;
-		pop();
-	| _ -> ()
+	| TType(tt,tl) ->
+		if not (List.exists (fun t2 -> Type.fast_eq t t2) dce.ts_stack) then begin
+			dce.ts_stack <- t :: dce.ts_stack;
+			to_string dce (apply_params tt.t_types tl tt.t_type)
+		end
+	| TAbstract(a,tl) ->
+		to_string dce (Codegen.Abstract.get_underlying_type a tl)
+	| TMono r ->
+		(match !r with
+		| Some t -> to_string dce t
+		| _ -> ())
+	| TLazy f ->
+		to_string dce (!f())
+	| TDynamic t ->
+		if t == t_dynamic then
+			()
+		else
+			to_string dce t
+	| TEnum _ | TFun _ | TAnon _ ->
+		(* if we to_string these it does not imply that we need all its sub-types *)
+		()
 
 and field dce c n stat =
 	let find_field n =
