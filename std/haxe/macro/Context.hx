@@ -260,7 +260,19 @@ class Context {
 	public static function onGenerate( callback : Array<Type> -> Void ) {
 		load("on_generate",1)(callback);
 	}
-
+	
+	/**
+		Adds a callback function `callback` which is invoked after the compiler
+		generation phase.
+		
+		Compilation has completed at this point and cannot be influenced
+		anymore. However, contextual information is still available.
+	**/
+	@:require(haxe_ver >= 3.01)
+	public static function onAfterGenerate( callback : Void -> Void ) {
+		load("after_generate",1)(callback);
+	}
+	
 	/**
 		Adds a callback function `callback` which is invoked when a type name
 		cannot be resolved.

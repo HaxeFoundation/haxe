@@ -27,6 +27,7 @@
 	js : always use JSON extern (compile with -D old-browser to disable)
 	cpp : improved side-effect detection
 	cs : added -net-lib
+	macro : add Context.onAfterGenerate
 	macro : allowed $v{(c:Float|Int|String)}
 	macro : resolve error line number in external files
 	macro : rewrote macros used as static extension

@@ -3608,6 +3608,13 @@ let make_macro_api ctx p =
 				t()
 			)
 		);
+		Interp.after_generate = (fun f ->
+			Common.add_final_filter ctx.com (fun() ->
+				let t = macro_timer ctx "afterGenerate" in
+				f();
+				t()
+			)
+		);
 		Interp.on_type_not_found = (fun f ->
 			ctx.com.load_extern_type <- ctx.com.load_extern_type @ [fun path p ->
 				match f (s_type_path path) with

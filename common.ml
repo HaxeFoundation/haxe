@@ -126,6 +126,7 @@ type context = {
 	mutable warning : string -> pos -> unit;
 	mutable load_extern_type : (path -> pos -> (string * Ast.package) option) list; (* allow finding types which are not in sources *)
 	mutable filters : (unit -> unit) list;
+	mutable final_filters : (unit -> unit) list;
 	mutable defines_signature : string option;
 	mutable print : string -> unit;
 	mutable get_macros : unit -> context option;
@@ -641,6 +642,7 @@ let create v args =
 		file = "";
 		types = [];
 		filters = [];
+		final_filters = [];
 		modules = [];
 		main = None;
 		flash_version = 10.;
@@ -813,6 +815,9 @@ let platform ctx p = ctx.platform = p
 
 let add_filter ctx f =
 	ctx.filters <- f :: ctx.filters
+
+let add_final_filter ctx f =
+	ctx.final_filters <- f :: ctx.final_filters
 
 let find_file ctx f =
 	let rec loop = function

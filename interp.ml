@@ -100,6 +100,7 @@ type extern_api = {
 	get_type : string -> Type.t option;
 	get_module : string -> Type.t list;
 	on_generate : (Type.t list -> unit) -> unit;
+	after_generate : (unit -> unit) -> unit;
 	on_type_not_found : (string -> value) -> unit;
 	parse_string : string -> Ast.pos -> bool -> Ast.expr;
 	typeof : Ast.expr -> Type.t;
@@ -2135,6 +2136,16 @@ let macro_lib =
 				let ctx = get_ctx() in
 				ctx.curapi.on_generate (fun tl ->
 					ignore(catch_errors ctx (fun() -> ctx.do_call VNull f [enc_array (List.map encode_type tl)] null_pos));
+				);
+				VNull
+			| _ -> error()
+		);
+		"after_generate", Fun1 (fun f ->
+			match f with
+			| VFunction (Fun0 _) ->
+				let ctx = get_ctx() in
+				ctx.curapi.after_generate (fun () ->
+					ignore(catch_errors ctx (fun() -> ctx.do_call VNull f [] null_pos));
 				);
 				VNull
 			| _ -> error()
