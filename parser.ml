@@ -1262,12 +1262,16 @@ and parse_switch_cases eswitch cases = parser
 		(match def with None -> () | Some _ -> error Duplicate_default p1);
 		l , Some b
 	| [< '(Kwd Case,p1); el = psep Comma expr; eg = popt parse_guard; '(DblDot,_); s >] ->
-		let b = (try block [] s with Display e -> display (ESwitch (eswitch,List.rev ((el,eg,Some e) :: cases),None),punion (pos eswitch) (pos e))) in
-		let b = match b with
-			| [] -> None
-			| _ -> Some ((EBlock b,p1))
-		in
-		parse_switch_cases eswitch ((el,eg,b) :: cases) s
+		(match el with
+		| [] -> error (Custom "case without a pattern is not allowed") p1
+		| _ -> 
+			let b = (try block [] s with Display e -> display (ESwitch (eswitch,List.rev ((el,eg,Some e) :: cases),None),punion (pos eswitch) (pos e))) in
+			let b = match b with
+				| [] -> None
+				| _ -> Some ((EBlock b,p1))
+			in
+			parse_switch_cases eswitch ((el,eg,b) :: cases) s
+		)
 	| [< >] ->
 		List.rev cases , None
 
