@@ -100,13 +100,13 @@ type matcher = {
 	ctx : typer;
 	need_val : bool;
 	dt_lut : dt DynArray.t;
+	dt_cache : (dt,int) Hashtbl.t;
 	mutable dt_count : int;
 	mutable outcomes : (pat list,out) PMap.t;
 	mutable toplevel_or : bool;
 	mutable used_paths : (int,bool) Hashtbl.t;
 	mutable has_extractor : bool;
 	mutable expr_map : (int,texpr * texpr option) PMap.t;
-	mutable first : int;
 }
 
 exception Not_exhaustive of pat * st
@@ -820,18 +820,22 @@ let bind_remaining out pv stl =
 	in
 	loop stl pv
 
-let get_cache mctx toplevel dt =
-	if toplevel then mctx.first <- mctx.dt_count;
-	mctx.dt_count <- mctx.dt_count + 1;
-	DynArray.add mctx.dt_lut dt;
-	dt
+let get_cache mctx dt =
+	match dt with Goto _ -> dt | _ ->
+		try
+			Goto (Hashtbl.find mctx.dt_cache dt)
+		with Not_found ->
+			Hashtbl.replace mctx.dt_cache dt mctx.dt_count;
+			mctx.dt_count <- mctx.dt_count + 1;
+			DynArray.add mctx.dt_lut dt;
+			dt
 
 let rec compile mctx stl pmat toplevel =
-	let guard id dt1 dt2 = get_cache mctx toplevel (Guard(id,dt1,dt2)) in
-	let expr id = get_cache mctx toplevel (Expr id) in
-	let bind bl dt = get_cache mctx toplevel (Bind(bl,dt)) in
-	let switch st cl = get_cache mctx toplevel (Switch(st,cl)) in
-	(match pmat with
+	let guard id dt1 dt2 = get_cache mctx (Guard(id,dt1,dt2)) in
+	let expr id = get_cache mctx (Expr id) in
+	let bind bl dt = get_cache mctx (Bind(bl,dt)) in
+	let switch st cl = get_cache mctx (Switch(st,cl)) in
+	get_cache mctx (match pmat with
 	| [] ->
 		(match stl with
 		| st :: stl ->
@@ -1096,10 +1100,10 @@ let match_expr ctx e cases def with_type p =
 		toplevel_or = false;
 		used_paths = Hashtbl.create 0;
 		dt_lut = DynArray.create ();
+		dt_cache = Hashtbl.create 0;
 		dt_count = 0;
 		has_extractor = false;
 		expr_map = PMap.empty;
-		first = 0;
 	} in
 	(* flatten cases *)
 	let cases = List.map (fun (el,eg,e) ->
@@ -1212,9 +1216,9 @@ let match_expr ctx e cases def with_type p =
 			end
 		) mctx.outcomes;
 	in
-	begin try
+	let dt = try
 		(* compile decision tree *)
-		ignore(compile mctx stl pl true)
+		compile mctx stl pl true
 	with Not_exhaustive(pat,st) ->
  		let rec s_st_r top pre st v = match st.st_def with
  			| SVar v1 ->
@@ -1260,7 +1264,7 @@ let match_expr ctx e cases def with_type p =
 				s_pat pat
 		in
 		error ("Unmatched patterns: " ^ (s_st_r true false st pat)) st.st_pos
-	end;
+	in
 	save();
 	(* check for unused patterns *)
 	if !extractor_depth = 0 then check_unused();
@@ -1282,7 +1286,8 @@ let match_expr ctx e cases def with_type p =
 	(* count usage *)
 	let usage = Array.make (DynArray.length mctx.dt_lut) 0 in
 	(* we always want to keep the first part *)
-	Array.set usage mctx.first 2;
+	let first = (match dt with Goto i -> i | _ -> Hashtbl.find mctx.dt_cache dt) in
+	Array.set usage first 2;
 	let rec loop dt = match dt with
 		| Goto i -> Array.set usage i ((Array.get usage i) + 1)
 		| Switch(st,cl) -> List.iter (fun (_,dt) -> loop dt) cl
@@ -1317,7 +1322,7 @@ let match_expr ctx e cases def with_type p =
 	in
 	let lut = DynArray.map loop lut in
 	{
-		dt_first = map.(mctx.first);
+		dt_first = map.(first);
 		dt_dt_lookup = DynArray.to_array lut;
 		dt_type = t;
 		dt_var_init = List.rev !var_inits;
