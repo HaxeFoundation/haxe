@@ -2454,7 +2454,7 @@ let macro_lib =
 				let com = ccom() in
 				(match com.platform with
 				| Flash -> Genswf.add_swf_lib com file false
-				(* | Java -> Genjava.add_java_lib com file false *)
+				| Java -> Genjava.add_java_lib com file false
 				| _ -> failwith "Unsupported platform");
 				VNull
 			| _ ->
