@@ -1140,12 +1140,20 @@ let inline_constructors ctx e =
 					mk (TConst TNull) e.etype e.epos)
 			| TArray ({eexpr = TLocal v},{eexpr = TConst (TInt i)}) when v.v_id < 0 ->
 				let (_, vars),_ = PMap.find (-v.v_id) vfields in
-				let v = PMap.find (Int32.to_string i) vars in
-				mk (TLocal v) v.v_type e.epos
+				(try
+					let v = PMap.find (Int32.to_string i) vars in
+					mk (TLocal v) v.v_type e.epos
+				with Not_found ->
+					(* probably out-of-bounds, assume null *)
+					mk (TConst TNull) e.etype e.epos)
 			| TField({eexpr = TLocal v},FAnon(cf)) when v.v_id < 0 ->
 				let (_, vars),_ = PMap.find (-v.v_id) vfields in
-				let v = PMap.find cf.cf_name vars in
-				mk (TLocal v) v.v_type e.epos
+				(try
+					let v = PMap.find cf.cf_name vars in
+					mk (TLocal v) v.v_type e.epos
+				with Not_found ->
+					(* this could happen in untyped code, assume null *)
+					mk (TConst TNull) e.etype e.epos)
 			| _ ->
 				Type.map_expr subst e
 		in
