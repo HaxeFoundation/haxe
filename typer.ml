@@ -1813,7 +1813,6 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 					if impl && not left then loop ops else begin
 						let t1,t2 = if left || Meta.has Meta.Commutative cf.cf_meta then t1,t2 else t2,t1 in
 						if type_iseq t t2 && (if impl then type_iseq (apply_params a.a_types pl a.a_this) t1 else type_iseq (TAbstract(a,pl)) t1) then begin
-							if not (can_access ctx c cf true) then display_error ctx ("Cannot access operator function " ^ (s_type_path a.a_path) ^ "." ^ cf.cf_name) p;
 							cf,r,o = OpAssignOp(op),Meta.has Meta.Commutative cf.cf_meta
 						end else loop ops
 					end;
@@ -1917,7 +1916,6 @@ and type_unop ctx op flag e p =
 					| _ :: opl -> loop opl
 				in
 				let cf,t,r = try loop a.a_unops with Not_found -> error "Invalid operation" p in
-				if not (can_access ctx c cf true) then error ("Cannot access " ^ cf.cf_name) p;
 				(match cf.cf_expr with
 				| None ->
 					let e = make {e with etype = apply_params a.a_types pl a.a_this} in
