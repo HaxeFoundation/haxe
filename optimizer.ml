@@ -1033,6 +1033,23 @@ let inline_constructors ctx e =
 		| _ ->
 			IKNone
 	in
+	let is_valid_field v s =
+		try
+			let (_,_,fields,_,_) = PMap.find (-v.v_id) !vars in
+			List.exists (fun (s2,_,_) -> s = s2) fields
+		with Not_found ->
+			false
+	in
+	let cancel v =
+		v.v_id <- -v.v_id;
+		(* error if the constructor is extern *)
+		(match PMap.find v.v_id !vars with
+		| _,_,_,true,p ->
+			display_error ctx "Extern constructor could not be inlined" p;
+			error "Variable is used here" e.epos
+		| _ -> ());
+		vars := PMap.remove v.v_id !vars;
+	in
 	let rec find_locals e =
 		match e.eexpr with
 		| TVar (v,eo) ->
@@ -1081,21 +1098,22 @@ let inline_constructors ctx e =
 					end
 				| None -> ()
 			end
-		| TField ({ eexpr = TLocal _ },FInstance (_,{ cf_kind = Var _ })) ->
+		| TField({eexpr = TLocal v}, (FInstance(_, {cf_kind = Var _; cf_name = s}) | FAnon({cf_kind = Var _; cf_name = s}))) ->
 			()
-		| TArray ({eexpr = TLocal _},{eexpr = TConst (TInt _)}) ->
+		| TArray ({eexpr = TLocal v},{eexpr = TConst (TInt i)}) ->
 			()
-		| TField({eexpr = TLocal _},FAnon({cf_kind = Var _})) ->
-			()
+		| TBinop((OpAssign | OpAssignOp _),e1,e2) ->
+			begin match e1.eexpr with
+				| TArray ({eexpr = TLocal v},{eexpr = TConst (TInt i)}) when v.v_id < 0 && not (is_valid_field v (Int32.to_string i)) ->
+					cancel v
+				| TField({eexpr = TLocal v}, (FInstance(_, {cf_kind = Var _; cf_name = s}) | FAnon({cf_kind = Var _; cf_name = s}))) when v.v_id < 0 && not (is_valid_field v s) ->
+					cancel v
+				| _ ->
+					find_locals e1
+			end;
+			find_locals e2
 		| TLocal v when v.v_id < 0 ->
-			v.v_id <- -v.v_id;
-			(* error if the constructor is extern *)
-			(match PMap.find v.v_id !vars with
-			| _,_,_,true,p ->
-				display_error ctx "Extern constructor could not be inlined" p;
-				error "Variable is used here" e.epos
-			| _ -> ());
-			vars := PMap.remove v.v_id !vars;
+			cancel v
 		| _ ->
 			Type.iter find_locals e
 	in
