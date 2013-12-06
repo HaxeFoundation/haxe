@@ -1,6 +1,7 @@
 language: node_js
 
 env:
+  - TARGET=flash9
   - TARGET=neko
   - TARGET=macro
   - TARGET=php
@@ -9,7 +10,6 @@ env:
   - TARGET=java
   - TARGET=cs
   # - TARGET=flash8
-  # - TARGET=flash9
   # - TARGET=as3
 
 matrix:

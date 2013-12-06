@@ -1,4 +1,5 @@
-import sys.io.Process;
+import sys.*;
+import sys.io.*;
 
 class RunTravis {
 	static function runProcess(cmd:String, args:Array<String>):Void {
@@ -54,6 +55,66 @@ class RunTravis {
 
 				runProcess("haxe", ["compile-cs-unsafe.hxml"]);
 				runProcess("mono", ["cs_unsafe/bin/Test-Debug.exe"]);
+			case "flash9":
+				//setup flash player debugger
+				Sys.putEnv("DISPLAY", ":99.0");
+				runProcess("sh", ["-e", "/etc/init.d/xvfb", "start"]);
+				Sys.putEnv("AUDIODEV", "null");
+				runProcess("sudo", ["apt-get", "install", "-qq", "libgd2-xpm", "ia32-libs", "ia32-libs-multiarch", "flashplugin-installer", "-y"]);
+				runProcess("wget", ["-nv", "http://fpdownload.macromedia.com/pub/flashplayer/updaters/11/flashplayer_11_sa_debug.i386.tar.gz"]);
+				runProcess("tar", ["-xvf", "flashplayer_11_sa_debug.i386.tar.gz"]);
+				File.saveContent(Sys.getEnv("HOME") + "/mm.cfg", "ErrorReportingEnable=1\nTraceOutputFileEnable=1");
+				runProcess("./flashplayerdebugger", ["-v"]);
+				
+				//compile and run
+				runProcess("haxe", ["compile-flash9.hxml", "-D", "fdb"]);
+				var flashplayerdebuggerProcess = new Process("./flashplayerdebugger", ["unit9.swf"]);
+
+				//wait a little until flashlog.txt is created
+				var flashlogPath = Sys.getEnv("HOME") + "/.macromedia/Flash_Player/Logs/flashlog.txt";
+				for (t in 0...5) {
+					if (FileSystem.exists(flashlogPath))
+						break;
+					else
+						runProcess("sleep", ["2"]); 
+				}				
+				if (!FileSystem.exists(flashlogPath)) {
+					//the flashplayerdebugger should has already exited with some error...
+					Sys.println(flashplayerdebuggerProcess.stdout.readAll().toString());
+					Sys.println(flashplayerdebuggerProcess.stderr.readAll().toString());
+
+					var exitCode = flashplayerdebuggerProcess.exitCode();
+					Sys.println('flashplayerdebuggerProcess exited with $exitCode');
+					Sys.exit(1);
+				}
+
+				//read flashlog.txt continously
+				var traceProcess = new Process("tail", ["-f", "-v", flashlogPath]);
+				var line = "";
+				while (true) {
+					try {
+						line = traceProcess.stdout.readLine();
+						Sys.println(line);
+						if (line.indexOf("SUCCESS: ") >= 0) {
+							Sys.exit(line.indexOf("SUCCESS: true") >= 0 ? 0 : 1);
+						}
+					} catch (e:haxe.io.Eof) {}
+				}
+				Sys.exit(1);
+				
+			// case "as3":
+			// 	//install Apache Flex
+			// 	//see https://cwiki.apache.org/confluence/display/FLEX/1.3+Setting+up+Linux+(if+having+trouble)
+			// 	runProcess("sudo", ["apt-get", "install", "ia32-libs", "-y"]); //AIR is 32-bit only
+			// 	runProcess("wget", ["http://update.devolo.com/linux/apt/pool/main/a/adobeair/adobeair_2.6.0.19170_amd64.deb"]);
+			// 	runProcess("sudo", ["dpkg", "-i", "adobeair_2.6.0.19170_amd64.deb"]);
+			// 	runProcess("wget", ["http://apache.communilink.net/flex/installer/2.7/binaries/apache-flex-sdk-installer-2.7.0-bin.deb"]);
+			// 	runProcess("sudo", ["dpkg", "-i", "--force-depends", "apache-flex-sdk-installer-2.7.0-bin.deb"]);
+			// 	Sys.setCwd("/opt/Apache Flex/Apache Flex SDK Installer/bin");
+			// 	runProcess("./Apache Flex SDK Installer", []);
+			// 	Sys.setCwd(cwd);
+
+			// 	runProcess("sudo", ["apt-get", "install", "flashplugin-installer", "-y"]);
 			case target:
 				throw "unknown target: " + target;
 		}
