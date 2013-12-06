@@ -33,8 +33,8 @@ RELDIR=../../..
 EXPORT=../../../projects/motionTools/haxe
 
 MODULES=ast type lexer common genxml parser typecore optimizer typeload \
-codegen genas3 gencpp genjs genneko genphp genswf8 \
-	genswf9 genswf interp dce filters typer matcher version main
+codegen gencommon genas3 gencpp genjs genneko genphp genswf8 \
+	genswf9 genswf genjava gencs interp dce filters typer matcher version main
 
 ADD_REVISION=0
 
@@ -112,11 +112,13 @@ filters.cmx: ast.cmx common.cmx type.cmx dce.cmx codegen.cmx typecore.cmx
 
 genas3.cmx: type.cmx common.cmx codegen.cmx ast.cmx
 
+gencommon.cmx: type.cmx common.cmx codegen.cmx ast.cmx
+
 gencpp.cmx: type.cmx lexer.cmx common.cmx codegen.cmx ast.cmx
 
-gencs.cmx: type.cmx lexer.cmx common.cmx codegen.cmx ast.cmx
+gencs.cmx: type.cmx lexer.cmx gencommon.cmx common.cmx codegen.cmx ast.cmx
 
-genjava.cmx: type.cmx common.cmx codegen.cmx ast.cmx
+genjava.cmx: type.cmx gencommon.cmx common.cmx codegen.cmx ast.cmx
 
 genjs.cmx: type.cmx optimizer.cmx lexer.cmx common.cmx codegen.cmx ast.cmx
 
@@ -132,11 +134,11 @@ genswf9.cmx: type.cmx lexer.cmx genswf8.cmx common.cmx codegen.cmx ast.cmx
 
 genxml.cmx: type.cmx lexer.cmx common.cmx ast.cmx
 
-interp.cmx: typecore.cmx type.cmx lexer.cmx genneko.cmx common.cmx codegen.cmx ast.cmx genswf.cmx parser.cmx
+interp.cmx: typecore.cmx type.cmx lexer.cmx genneko.cmx common.cmx codegen.cmx ast.cmx genswf.cmx genjava.cmx parser.cmx
 
 matcher.cmx: optimizer.cmx codegen.cmx typecore.cmx type.cmx typer.cmx common.cmx ast.cmx
 
-main.cmx: filters.cmx matcher.cmx typer.cmx typeload.cmx typecore.cmx type.cmx parser.cmx optimizer.cmx lexer.cmx interp.cmx genxml.cmx genswf.cmx genphp.cmx genneko.cmx genjs.cmx gencpp.cmx genas3.cmx common.cmx codegen.cmx ast.cmx version.cmx
+main.cmx: filters.cmx matcher.cmx typer.cmx typeload.cmx typecore.cmx type.cmx parser.cmx optimizer.cmx lexer.cmx interp.cmx genxml.cmx genswf.cmx genphp.cmx genneko.cmx genjs.cmx gencpp.cmx genas3.cmx common.cmx codegen.cmx ast.cmx gencommon.cmx genjava.cmx gencs.cmx version.cmx
 
 optimizer.cmx: typecore.cmx type.cmx parser.cmx common.cmx ast.cmx
 
