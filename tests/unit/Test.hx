@@ -326,6 +326,8 @@ class Test #if swf_mark implements mt.Protect #end {
 		}
 		#end
 
+		trace("SUCCESS: " + success);
+
 		#if sys
 		Sys.exit(success ? 0 : 1);
 		#end

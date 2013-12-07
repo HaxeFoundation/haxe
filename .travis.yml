@@ -1,19 +1,21 @@
 language: node_js
 
 env:
-  - TARGET=neko
   - TARGET=macro
+  - TARGET=neko
+  - TARGET=js
   - TARGET=php
   - TARGET=cpp
-  - TARGET=js
+  - TARGET=flash9
+  - TARGET=flash8
+  - TARGET=as3
   - TARGET=java
   - TARGET=cs
-  # - TARGET=flash8
-  # - TARGET=flash9
-  # - TARGET=as3
 
 matrix:
   allow_failures:
+    - env: TARGET=flash8
+    - env: TARGET=as3
     - env: TARGET=java
     - env: TARGET=cs
 
