@@ -17,7 +17,7 @@ class RunTravis {
 		Sys.putEnv("AUDIODEV", "null");
 		runCommand("sudo", ["apt-get", "install", "-qq", "libgd2-xpm", "ia32-libs", "ia32-libs-multiarch", "flashplugin-installer", "-y"]);
 		runCommand("wget", ["-nv", "http://fpdownload.macromedia.com/pub/flashplayer/updaters/11/flashplayer_11_sa_debug.i386.tar.gz"]);
-		runCommand("tar", ["-xvf", "flashplayer_11_sa_debug.i386.tar.gz"]);
+		runCommand("tar", ["-xf", "flashplayer_11_sa_debug.i386.tar.gz"]);
 		File.saveContent(Sys.getEnv("HOME") + "/mm.cfg", "ErrorReportingEnable=1\nTraceOutputFileEnable=1");
 		runCommand("./flashplayerdebugger", ["-v"]);
 	}
@@ -108,7 +108,7 @@ class RunTravis {
 
 				//setup flex sdk
 				runCommand("wget", ["http://mirror.cc.columbia.edu/pub/software/apache/flex/4.11.0/binaries/apache-flex-sdk-4.11.0-bin.tar.gz"]);
-				runCommand("tar", ["-xvf", "apache-flex-sdk-4.11.0-bin.tar.gz", "-C", Sys.getEnv("HOME")]);
+				runCommand("tar", ["-xf", "apache-flex-sdk-4.11.0-bin.tar.gz", "-C", Sys.getEnv("HOME")]);
 				var flexsdkPath = Sys.getEnv("HOME") + "/apache-flex-sdk-4.11.0-bin";
 				Sys.putEnv("PATH", Sys.getEnv("PATH") + ":" + flexsdkPath + "/bin");
 				var playerglobalswcFolder = flexsdkPath + "/player";
