@@ -2,13 +2,9 @@ import sys.*;
 import sys.io.*;
 
 class RunTravis {
-	static function runProcess(cmd:String, args:Array<String>):Void {
-		var p = new Process(cmd, args);
-		Sys.println(p.stdout.readAll().toString());
-		Sys.println(p.stderr.readAll().toString());
-
-		var exitCode = p.exitCode();
-		Sys.println('Process exited with $exitCode: $cmd $args');
+	static function runCommand(cmd:String, args:Array<String>):Void {
+		var exitCode = Sys.command(cmd, args);
+		Sys.println('Command exited with $exitCode: $cmd $args');
 
 		if (exitCode != 0) {
 			Sys.exit(1);
@@ -17,20 +13,20 @@ class RunTravis {
 
 	static function setupFlashPlayerDebugger():Void {
 		Sys.putEnv("DISPLAY", ":99.0");
-		runProcess("sh", ["-e", "/etc/init.d/xvfb", "start"]);
+		runCommand("sh", ["-e", "/etc/init.d/xvfb", "start"]);
 		Sys.putEnv("AUDIODEV", "null");
-		runProcess("sudo", ["apt-get", "install", "-qq", "libgd2-xpm", "ia32-libs", "ia32-libs-multiarch", "flashplugin-installer", "-y"]);
-		runProcess("wget", ["-nv", "http://fpdownload.macromedia.com/pub/flashplayer/updaters/11/flashplayer_11_sa_debug.i386.tar.gz"]);
-		runProcess("tar", ["-xvf", "flashplayer_11_sa_debug.i386.tar.gz"]);
+		runCommand("sudo", ["apt-get", "install", "-qq", "libgd2-xpm", "ia32-libs", "ia32-libs-multiarch", "flashplugin-installer", "-y"]);
+		runCommand("wget", ["-nv", "http://fpdownload.macromedia.com/pub/flashplayer/updaters/11/flashplayer_11_sa_debug.i386.tar.gz"]);
+		runCommand("tar", ["-xvf", "flashplayer_11_sa_debug.i386.tar.gz"]);
 		File.saveContent(Sys.getEnv("HOME") + "/mm.cfg", "ErrorReportingEnable=1\nTraceOutputFileEnable=1");
-		runProcess("./flashplayerdebugger", ["-v"]);
+		runCommand("./flashplayerdebugger", ["-v"]);
 	}
 
 	static function runFlash(flashplayerdebuggerProcess:Process):Void {
 		//wait a little until flashlog.txt is created
 		var flashlogPath = Sys.getEnv("HOME") + "/.macromedia/Flash_Player/Logs/flashlog.txt";
 		for (t in 0...5) {
-			runProcess("sleep", ["2"]);
+			runCommand("sleep", ["2"]);
 			if (FileSystem.exists(flashlogPath))
 				break;				
 		}				
@@ -62,66 +58,66 @@ class RunTravis {
 	static function main():Void {
 		var cwd = Sys.getCwd();
 		switch (Sys.getEnv("TARGET")) {
-			case "macro":
-				runProcess("haxe", ["compile-macro.hxml"]);
+			case "macro", null:
+				runCommand("haxe", ["compile-macro.hxml"]);
 			case "neko":
-				runProcess("haxe", ["compile-neko.hxml"]);
-				runProcess("neko", ["unit.n"]);
+				runCommand("haxe", ["compile-neko.hxml"]);
+				runCommand("neko", ["unit.n"]);
 			case "php":
-				runProcess("sudo", ["apt-get", "install", "php5", "-y"]);
-				runProcess("haxe", ["compile-php.hxml"]);
-				runProcess("php", ["php/index.php"]);
+				runCommand("sudo", ["apt-get", "install", "php5", "-y"]);
+				runCommand("haxe", ["compile-php.hxml"]);
+				runCommand("php", ["php/index.php"]);
 			case "cpp":
 				//hxcpp dependencies
-				runProcess("sudo", ["apt-get", "install", "gcc-multilib", "g++-multilib", "-y"]);
+				runCommand("sudo", ["apt-get", "install", "gcc-multilib", "g++-multilib", "-y"]);
 
 				//install and build hxcpp
-				runProcess("haxelib", ["git", "hxcpp", "https://github.com/HaxeFoundation/hxcpp.git"]);
+				runCommand("haxelib", ["git", "hxcpp", "https://github.com/HaxeFoundation/hxcpp.git"]);
 				Sys.setCwd(Sys.getEnv("HOME") + "/haxelib/hxcpp/git/runtime/");
-				runProcess("haxelib", ["run", "hxcpp", "BuildLibs.xml"]);
+				runCommand("haxelib", ["run", "hxcpp", "BuildLibs.xml"]);
 				Sys.setCwd(cwd);
 				
-				runProcess("haxe", ["compile-cpp.hxml"]);
-				runProcess("./cpp/Test-debug", []);
+				runCommand("haxe", ["compile-cpp.hxml"]);
+				runCommand("./cpp/Test-debug", []);
 			case "js":
-				runProcess("haxe", ["compile-js.hxml"]);
-				runProcess("node", ["-e", "var unit = require('./unit.js').unit; unit.Test.main(); process.exit(unit.Test.success ? 0 : 1);"]);
+				runCommand("haxe", ["compile-js.hxml"]);
+				runCommand("node", ["-e", "var unit = require('./unit.js').unit; unit.Test.main(); process.exit(unit.Test.success ? 0 : 1);"]);
 			case "java":
-				runProcess("haxelib", ["git", "hxjava", "https://github.com/HaxeFoundation/hxjava.git"]);
-				runProcess("haxe", ["compile-java.hxml"]);
-				runProcess("java", ["-jar", "java/java.jar"]);
+				runCommand("haxelib", ["git", "hxjava", "https://github.com/HaxeFoundation/hxjava.git"]);
+				runCommand("haxe", ["compile-java.hxml"]);
+				runCommand("java", ["-jar", "java/java.jar"]);
 			case "cs":
-				runProcess("sudo", ["apt-get", "install", "mono-devel", "mono-mcs", "-y"]);
-				runProcess("haxelib", ["git", "hxcs", "https://github.com/HaxeFoundation/hxcs.git"]);
+				runCommand("sudo", ["apt-get", "install", "mono-devel", "mono-mcs", "-y"]);
+				runCommand("haxelib", ["git", "hxcs", "https://github.com/HaxeFoundation/hxcs.git"]);
 				
-				runProcess("haxe", ["compile-cs.hxml"]);
-				runProcess("mono", ["cs/bin/Test-Debug.exe"]);
+				runCommand("haxe", ["compile-cs.hxml"]);
+				runCommand("mono", ["cs/bin/Test-Debug.exe"]);
 
-				runProcess("haxe", ["compile-cs-unsafe.hxml"]);
-				runProcess("mono", ["cs_unsafe/bin/Test-Debug.exe"]);
+				runCommand("haxe", ["compile-cs-unsafe.hxml"]);
+				runCommand("mono", ["cs_unsafe/bin/Test-Debug.exe"]);
 			case "flash9":
 				setupFlashPlayerDebugger();
-				runProcess("haxe", ["compile-flash9.hxml", "-D", "fdb"]);
+				runCommand("haxe", ["compile-flash9.hxml", "-D", "fdb"]);
 				runFlash(new Process("./flashplayerdebugger", ["unit9.swf"]));
 			case "flash8":
 				setupFlashPlayerDebugger();
-				runProcess("haxe", ["compile-flash8.hxml", "-D", "fdb"]);
+				runCommand("haxe", ["compile-flash8.hxml", "-D", "fdb"]);
 				runFlash(new Process("./flashplayerdebugger", ["unit8.swf"]));
 			case "as3":
 				setupFlashPlayerDebugger();
 
 				//setup flex sdk
-				runProcess("wget", ["http://apache.communilink.net/flex/4.11.0/binaries/apache-flex-sdk-4.11.0-bin.tar.gz"]);
-				runProcess("tar", ["-xvf", "apache-flex-sdk-4.11.0-bin.tar.gz", "-C", Sys.getEnv("HOME")]);
+				runCommand("wget", ["http://apache.communilink.net/flex/4.11.0/binaries/apache-flex-sdk-4.11.0-bin.tar.gz"]);
+				runCommand("tar", ["-xvf", "apache-flex-sdk-4.11.0-bin.tar.gz", "-C", Sys.getEnv("HOME")]);
 				var flexsdkPath = Sys.getEnv("HOME") + "/apache-flex-sdk-4.11.0-bin";
 				Sys.putEnv("PATH", Sys.getEnv("PATH") + ":" + flexsdkPath + "/bin");
 				var playerglobalswcFolder = flexsdkPath + "/player";
 				FileSystem.createDirectory(playerglobalswcFolder + "/11.1");
-				runProcess("wget", ["-nv", "http://download.macromedia.com/get/flashplayer/updaters/11/playerglobal11_1.swc", "-O", playerglobalswcFolder + "/11.1/playerglobal.swc"]);
+				runCommand("wget", ["-nv", "http://download.macromedia.com/get/flashplayer/updaters/11/playerglobal11_1.swc", "-O", playerglobalswcFolder + "/11.1/playerglobal.swc"]);
 				File.saveContent(flexsdkPath + "/env.properties", 'env.PLAYERGLOBAL_HOME=$playerglobalswcFolder');
-				runProcess("mxmlc", ["--version"]);
+				runCommand("mxmlc", ["--version"]);
 
-				runProcess("haxe", ["compile-as3.hxml", "-D", "fdb"]);
+				runCommand("haxe", ["compile-as3.hxml", "-D", "fdb"]);
 				runFlash(new Process("./flashplayerdebugger", ["unit9_as3.swf"]));
 			case target:
 				throw "unknown target: " + target;
