@@ -264,7 +264,7 @@ enum TypedExprDef {
 	TContinue;
 	TThrow(e:TypedExpr);
 	TCast(e:TypedExpr, m:Null<ModuleType>);
-	TMeta(m:Expr.Metadata, e1:TypedExpr);
+	TMeta(m:Expr.MetadataEntry, e1:TypedExpr);
 	TEnumParameter(e1:TypedExpr, ef:EnumField, index:Int);
 }
 
