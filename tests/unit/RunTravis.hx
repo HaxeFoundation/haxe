@@ -30,10 +30,9 @@ class RunTravis {
 		//wait a little until flashlog.txt is created
 		var flashlogPath = Sys.getEnv("HOME") + "/.macromedia/Flash_Player/Logs/flashlog.txt";
 		for (t in 0...5) {
+			runProcess("sleep", ["2"]);
 			if (FileSystem.exists(flashlogPath))
-				break;
-			else
-				runProcess("sleep", ["2"]); 
+				break;				
 		}				
 		if (!FileSystem.exists(flashlogPath)) {
 			//the flashplayerdebugger should has already exited with some error...
@@ -108,19 +107,22 @@ class RunTravis {
 				setupFlashPlayerDebugger();
 				runProcess("haxe", ["compile-flash8.hxml", "-D", "fdb"]);
 				runFlash(new Process("./flashplayerdebugger", ["unit8.swf"]));
-			// case "as3":
-			// 	//install Apache Flex
-			// 	//see https://cwiki.apache.org/confluence/display/FLEX/1.3+Setting+up+Linux+(if+having+trouble)
-			// 	runProcess("sudo", ["apt-get", "install", "ia32-libs", "-y"]); //AIR is 32-bit only
-			// 	runProcess("wget", ["http://update.devolo.com/linux/apt/pool/main/a/adobeair/adobeair_2.6.0.19170_amd64.deb"]);
-			// 	runProcess("sudo", ["dpkg", "-i", "adobeair_2.6.0.19170_amd64.deb"]);
-			// 	runProcess("wget", ["http://apache.communilink.net/flex/installer/2.7/binaries/apache-flex-sdk-installer-2.7.0-bin.deb"]);
-			// 	runProcess("sudo", ["dpkg", "-i", "--force-depends", "apache-flex-sdk-installer-2.7.0-bin.deb"]);
-			// 	Sys.setCwd("/opt/Apache Flex/Apache Flex SDK Installer/bin");
-			// 	runProcess("./Apache Flex SDK Installer", []);
-			// 	Sys.setCwd(cwd);
+			case "as3":
+				setupFlashPlayerDebugger();
 
-			// 	runProcess("sudo", ["apt-get", "install", "flashplugin-installer", "-y"]);
+				//setup flex sdk
+				runProcess("wget", ["http://apache.communilink.net/flex/4.11.0/binaries/apache-flex-sdk-4.11.0-bin.tar.gz"]);
+				runProcess("tar", ["-xvf", "apache-flex-sdk-4.11.0-bin.tar.gz", "-C", Sys.getEnv("HOME")]);
+				var flexsdkPath = Sys.getEnv("HOME") + "/apache-flex-sdk-4.11.0-bin";
+				Sys.putEnv("PATH", Sys.getEnv("PATH") + ":" + flexsdkPath + "/bin");
+				var playerglobalswcFolder = flexsdkPath + "/player";
+				FileSystem.createDirectory(playerglobalswcFolder + "/11.1");
+				runProcess("wget", ["-nv", "http://download.macromedia.com/get/flashplayer/updaters/11/playerglobal11_1.swc", "-O", playerglobalswcFolder + "/11.1/playerglobal.swc"]);
+				File.saveContent(flexsdkPath + "/env.properties", 'env.PLAYERGLOBAL_HOME=$playerglobalswcFolder');
+				runProcess("mxmlc", ["--version"]);
+
+				runProcess("haxe", ["compile-as3.hxml", "-D", "fdb"]);
+				runFlash(new Process("./flashplayerdebugger", ["unit9_as3.swf"]));
 			case target:
 				throw "unknown target: " + target;
 		}
