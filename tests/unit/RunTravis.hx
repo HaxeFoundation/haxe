@@ -107,7 +107,7 @@ class RunTravis {
 				setupFlashPlayerDebugger();
 
 				//setup flex sdk
-				runCommand("wget", ["http://apache.communilink.net/flex/4.11.0/binaries/apache-flex-sdk-4.11.0-bin.tar.gz"]);
+				runCommand("wget", ["http://mirror.cc.columbia.edu/pub/software/apache/flex/4.11.0/binaries/apache-flex-sdk-4.11.0-bin.tar.gz"]);
 				runCommand("tar", ["-xvf", "apache-flex-sdk-4.11.0-bin.tar.gz", "-C", Sys.getEnv("HOME")]);
 				var flexsdkPath = Sys.getEnv("HOME") + "/apache-flex-sdk-4.11.0-bin";
 				Sys.putEnv("PATH", Sys.getEnv("PATH") + ":" + flexsdkPath + "/bin");
