@@ -112,7 +112,7 @@ class TypedExprTools {
 	}
 	
 	static public function toString(t:TypedExpr, ?pretty = false):String {
-		return Context.load("s_expr", 2)(t, pretty);
+		return new String(Context.load("s_expr", 2)(t, pretty));
 	}
 	#end
 }
