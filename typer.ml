@@ -3242,6 +3242,11 @@ and type_call ctx e el (with_type:with_type) p =
 		let e = type_expr ctx e Value in
 		ctx.com.warning (s_type (print_context()) e.etype) e.epos;
 		e
+	| (EConst (Ident "$expr"),p) , [e] ->
+		let e = type_expr ctx e Value in
+		let s = s_expr_pretty "\t" (s_type (print_context())) e in 
+		ctx.com.warning s p;
+		e
 	| (EField(e,"match"),p), [epat] ->
 		let et = type_expr ctx e Value in
 		(match follow et.etype with
