@@ -22,6 +22,7 @@
 package haxe.macro;
 
 import haxe.macro.Expr;
+import haxe.macro.Type.TypedExpr;
 
 /**
 	Context provides an API for macro programming.
@@ -293,6 +294,16 @@ class Context {
 	**/
 	public static function typeof( e : Expr ) : Type {
 		return load("typeof", 1)(e);
+	}
+
+	/**
+		Types expression `e` and returns the corresponding `TypedExpr`.
+		
+		Typing the expression may result in an compiler error which can be
+		caught using `try ... catch`.
+	**/
+	public static function typeExpr( e : Expr ) : TypedExpr {
+		return load("type_expr", 1)(e);
 	}
 
 	/**

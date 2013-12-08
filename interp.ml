@@ -104,6 +104,7 @@ type extern_api = {
 	on_type_not_found : (string -> value) -> unit;
 	parse_string : string -> Ast.pos -> bool -> Ast.expr;
 	typeof : Ast.expr -> Type.t;
+	type_expr : Ast.expr -> Type.texpr;
 	get_display : string -> string;
 	allow_package : string -> unit;
 	type_patch : string -> string -> bool -> string option -> unit;
@@ -2321,6 +2322,9 @@ let macro_lib =
 		);
 		"typeof", Fun1 (fun v ->
 			encode_type ((get_ctx()).curapi.typeof (decode_expr v))
+		);
+		"type_expr", Fun1 (fun v ->
+			encode_texpr ((get_ctx()).curapi.type_expr (decode_expr v))
 		);
 		"s_type", Fun1 (fun v ->
 			VString (Type.s_type (print_context()) (decode_type v))
