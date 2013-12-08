@@ -1010,10 +1010,10 @@ let inline_constructors ctx e =
 	let rec get_inline_ctor_info e = match e.eexpr with
 		| TNew ({ cl_constructor = Some ({ cf_kind = Method MethInline; cf_expr = Some { eexpr = TFunction f } } as cst) } as c,_,pl) ->
 			IKCtor (f,cst,c,pl,[])
+		| TObjectDecl [] | TArrayDecl [] ->
+			IKNone
 		| TArrayDecl el ->
 			IKArray el
-		| TObjectDecl [] ->
-			IKNone
 		| TObjectDecl fl ->
 			IKStructure fl
 		| TCast(e,None) | TParenthesis e ->
