@@ -15,7 +15,7 @@ class RunTravis {
 		Sys.putEnv("DISPLAY", ":99.0");
 		runCommand("sh", ["-e", "/etc/init.d/xvfb", "start"]);
 		Sys.putEnv("AUDIODEV", "null");
-		runCommand("sudo", ["apt-get", "install", "-qq", "libgd2-xpm", "ia32-libs", "ia32-libs-multiarch", "flashplugin-installer", "-y"]);
+		runCommand("sudo", ["apt-get", "install", "-qq", "libgd2-xpm", "ia32-libs", "ia32-libs-multiarch", "-y"]);
 		runCommand("wget", ["-nv", "http://fpdownload.macromedia.com/pub/flashplayer/updaters/11/flashplayer_11_sa_debug.i386.tar.gz"]);
 		runCommand("tar", ["-xf", "flashplayer_11_sa_debug.i386.tar.gz"]);
 		File.saveContent(Sys.getEnv("HOME") + "/mm.cfg", "ErrorReportingEnable=1\nTraceOutputFileEnable=1");
