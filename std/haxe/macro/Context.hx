@@ -302,6 +302,7 @@ class Context {
 		Typing the expression may result in an compiler error which can be
 		caught using `try ... catch`.
 	**/
+	@:require(haxe_ver >= 3.01)
 	public static function typeExpr( e : Expr ) : TypedExpr {
 		return load("type_expr", 1)(e);
 	}
