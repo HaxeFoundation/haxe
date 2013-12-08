@@ -2319,6 +2319,9 @@ let macro_lib =
 			try Type.unify (decode_type t1) (decode_type t2); VBool true
 			with Unify_error _ -> VBool false
 		);
+		"typeof", Fun1 (fun v ->
+			encode_type ((get_ctx()).curapi.type_expr (decode_expr v)).etype
+		);
 		"type_expr", Fun1 (fun v ->
 			encode_texpr ((get_ctx()).curapi.type_expr (decode_expr v))
 		);

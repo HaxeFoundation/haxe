@@ -293,7 +293,7 @@ class Context {
 		caught using `try ... catch`.
 	**/
 	public static function typeof( e : Expr ) : Type {
-		return typeExpr(e).t;
+		return load("typeof", 1)(e);
 	}
 
 	/**
