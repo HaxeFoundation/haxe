@@ -623,13 +623,12 @@ let build_dependencies t =
 			add_type v.v_type;
 			add_expr e1;
 			add_expr e2;
-		| TVars vl ->
-			List.iter (fun (v,e) ->
+		| TVar (v,eo) ->
 				add_type v.v_type;
-				match e with
+			begin match eo with
 				| None -> ()
 				| Some e -> add_expr e
-			) vl
+			end
 		| _ ->
 			Type.iter add_expr e
 	and add_field f =

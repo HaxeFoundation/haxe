@@ -803,8 +803,8 @@ let rec iter_retval f retval e =
 	| TCall (e,el) ->
 		f true e;
 		List.iter (f true) el
-	| TVars vl ->
-		List.iter (fun (_,e) -> match e with None -> () | Some e -> f true e) vl
+	| TVar (_,eo) ->
+		(match eo with None -> () | Some e -> f true e)
 	| TFunction fu ->
 		f false fu.tf_expr
 	| TIf (e,e1,e2) ->
@@ -892,15 +892,13 @@ let find_undeclared_variables_ctx ctx undeclared declarations this_suffix allow_
 	let output = ctx.ctx_output in
 	let rec find_undeclared_variables undeclared declarations this_suffix allow_this expression =
 		match expression.eexpr with
-		| TVars var_list ->
-			List.iter (fun (tvar, optional_init) ->
+		| TVar (tvar,optional_init) ->
 				Hashtbl.add declarations (keyword_remap tvar.v_name) ();
 				if (ctx.ctx_debug) then
 					output ("/* found var " ^ tvar.v_name ^ "*/ ");
-				match optional_init with
+				(match optional_init with
 				| Some expression -> find_undeclared_variables undeclared declarations this_suffix allow_this expression
-				| _ -> ()
-				) var_list
+				| _ -> ())
 		| TFunction func -> List.iter ( fun (tvar, opt_val) ->
 				if (ctx.ctx_debug) then
 					output ("/* found arg " ^ tvar.v_name ^ " = " ^ (type_string tvar.v_type) ^ " */ ");
@@ -1854,28 +1852,26 @@ and gen_expression ctx retval expression =
 			output ("function " ^ func_name ^ " not found.");
 		)
 
-	| TVars var_list ->
-		let count = ref (List.length var_list) in
-		List.iter (fun (tvar, optional_init) ->
-			if (retval && !count==1) then
-				(match optional_init with
-				| None -> output "null()"
-				| Some expression -> gen_expression ctx true expression )
-			else begin
-            let type_name = (type_string tvar.v_type) in
-				output (if type_name="Void" then "Dynamic" else type_name );
-				let name = (keyword_remap tvar.v_name) in
-				output (" " ^ name );
-				(match optional_init with
-				| None -> ()
-				| Some expression -> output " = "; gen_expression ctx true expression);
-				count := !count -1;
-            if (ctx.ctx_dump_stack_line) then
-				   output (";\t\tHX_STACK_VAR(" ^name ^",\""^ tvar.v_name ^"\")");
-				if (!count > 0) then begin output ";\n"; output_i "" end
-			end
-		) var_list
-	| TFor (tvar, init, loop) ->
+	| TVar (tvar,optional_init) ->
+		let count = ref 1 in (* TODO: this section can be simplified *)
+		if (retval && !count==1) then
+			(match optional_init with
+			| None -> output "null()"
+			| Some expression -> gen_expression ctx true expression )
+		else begin
+        let type_name = (type_string tvar.v_type) in
+			output (if type_name="Void" then "Dynamic" else type_name );
+			let name = (keyword_remap tvar.v_name) in
+			output (" " ^ name );
+			(match optional_init with
+			| None -> ()
+			| Some expression -> output " = "; gen_expression ctx true expression);
+			count := !count -1;
+        if (ctx.ctx_dump_stack_line) then
+			   output (";\t\tHX_STACK_VAR(" ^name ^",\""^ tvar.v_name ^"\")");
+			if (!count > 0) then begin output ";\n"; output_i "" end
+		end
+| TFor (tvar, init, loop) ->
 		output ("for(::cpp::FastIterator_obj< " ^  (type_string tvar.v_type) ^
              " > *__it = ::cpp::CreateFastIterator< "^(type_string tvar.v_type) ^ " >(");
 		gen_expression ctx true init;
@@ -2393,8 +2389,8 @@ let find_referenced_types ctx obj super_deps constructor_deps header_only for_de
                with Not_found -> ();
                end
 				(* Must visit type too, Type.iter will visit the expressions ... *)
-				| TVars var_list ->
-					List.iter (fun (v, _) -> visit_type v.v_type) var_list
+				| TVar (v,_) ->
+					 visit_type v.v_type
 				(* Must visit args too, Type.iter will visit the expressions ... *)
 				| TFunction func_def ->
 					List.iter (fun (v,_) -> visit_type v.v_type) func_def.tf_args;
@@ -4180,9 +4176,8 @@ class script_writer common_ctx ctx filename =
      (* TODO - lval op-assign local/member/array *)
      | TLocal var -> this#write ("VAR " ^ (string_of_int var.v_id) );
 
-     | TVars var_list ->
-         this#write ("TVARS " ^ (string_of_int (List.length var_list)) ^ "\n");
-         List.iter (fun (tvar, optional_init) ->
+     | TVar (tvar,optional_init) ->
+         this#write ("TVARS " ^ (string_of_int (1)) ^ "\n");
             this#write ("\t\t" ^ indent);
             (match optional_init with
             | None -> this#write ("VARDECL ");
@@ -4193,7 +4188,6 @@ class script_writer common_ctx ctx filename =
                       this#write (" " ^ (this#typeText init.etype));
                       this#write "\n";
                       this#checkCast tvar.v_type init false);
-         ) var_list
      | TNew (clazz,params,arg_list) ->
         this#write ("NEW " ^ (this#typeText (TInst(clazz,params))) ^ (string_of_int (List.length arg_list)) ^ "\n");
         List.iter this#gen_expression arg_list;

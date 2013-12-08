@@ -114,7 +114,7 @@ and texpr_expr =
 	| TNew of tclass * tparams * texpr list
 	| TUnop of Ast.unop * Ast.unop_flag * texpr
 	| TFunction of tfunc
-	| TVars of (tvar * texpr option) list
+	| TVar of tvar * texpr option
 	| TBlock of texpr list
 	| TFor of tvar * texpr * texpr
 	| TIf of texpr * texpr * texpr option
@@ -1350,8 +1350,8 @@ let iter f e =
 	| TCall (e,el) ->
 		f e;
 		List.iter f el
-	| TVars vl ->
-		List.iter (fun (_,e) -> match e with None -> () | Some e -> f e) vl
+	| TVar (v,eo) ->
+		(match eo with None -> () | Some e -> f e)
 	| TFunction fu ->
 		f fu.tf_expr
 	| TIf (e,e1,e2) ->
@@ -1427,8 +1427,8 @@ let map_expr f e =
 		{ e with eexpr = TObjectDecl (List.map (fun (v,e) -> v, f e) el) }
 	| TCall (e1,el) ->
 		{ e with eexpr = TCall (f e1, List.map f el) }
-	| TVars vl ->
-		{ e with eexpr = TVars (List.map (fun (v,e) -> v , match e with None -> None | Some e -> Some (f e)) vl) }
+	| TVar (v,eo) ->
+		{ e with eexpr = TVar (v, match eo with None -> None | Some e -> Some (f e)) }
 	| TFunction fu ->
 		{ e with eexpr = TFunction { fu with tf_expr = f fu.tf_expr } }
 	| TIf (ec,e1,e2) ->
@@ -1505,8 +1505,8 @@ let map_expr_type f ft fv e =
 	| TCall (e1,el) ->
 		let e1 = f e1 in
 		{ e with eexpr = TCall (e1, List.map f el); etype = ft e.etype }
-	| TVars vl ->
-		{ e with eexpr = TVars (List.map (fun (v,e) -> fv v, match e with None -> None | Some e -> Some (f e)) vl); etype = ft e.etype }
+	| TVar (v,eo) ->
+		{ e with eexpr = TVar (fv v, match eo with None -> None | Some e -> Some (f e)); etype = ft e.etype }
 	| TFunction fu ->
 		let fu = {
 			tf_expr = f fu.tf_expr;
@@ -1558,7 +1558,7 @@ let s_expr_kind e =
 	| TNew (_,_,_) -> "New"
 	| TUnop (_,_,_) -> "Unop"
 	| TFunction _ -> "Function"
-	| TVars _ -> "Vars"
+	| TVar _ -> "Vars"
 	| TBlock _ -> "Block"
 	| TFor (_,_,_) -> "For"
 	| TIf (_,_,_) -> "If"
@@ -1627,8 +1627,8 @@ let rec s_expr s_type e =
 	| TFunction f ->
 		let args = slist (fun (v,o) -> sprintf "%s : %s%s" (s_var v) (s_type v.v_type) (match o with None -> "" | Some c -> " = " ^ s_const c)) f.tf_args in
 		sprintf "Function(%s) : %s = %s" args (s_type f.tf_type) (loop f.tf_expr)
-	| TVars vl ->
-		sprintf "Vars %s" (slist (fun (v,eo) -> sprintf "%s : %s%s" (s_var v) (s_type v.v_type) (match eo with None -> "" | Some e -> " = " ^ loop e)) vl)
+	| TVar (v,eo) ->
+		sprintf "Vars %s" (sprintf "%s : %s%s" (s_var v) (s_type v.v_type) (match eo with None -> "" | Some e -> " = " ^ loop e))
 	| TBlock el ->
 		sprintf "Block {\n%s}" (String.concat "" (List.map (fun e -> sprintf "%s;\n" (loop e)) el))
 	| TFor (v,econd,e) ->
@@ -1702,8 +1702,8 @@ let rec s_expr_pretty tabs s_type e =
 	| TFunction f ->
 		let args = slist (fun (v,o) -> sprintf "%s:%s%s" v.v_name (s_type v.v_type) (match o with None -> "" | Some c -> " = " ^ s_const c)) f.tf_args in
 		sprintf "function(%s) = %s" args (loop f.tf_expr)
-	| TVars vl ->
-		sprintf "var %s" (slist (fun (v,eo) -> sprintf "%s%s" v.v_name (match eo with None -> "" | Some e -> " = " ^ loop e)) vl)
+	| TVar (v,eo) ->
+		sprintf "var %s" (sprintf "%s%s" v.v_name (match eo with None -> "" | Some e -> " = " ^ loop e))
 	| TBlock el ->
 		let ntabs = tabs ^ "\t" in
 		let s = sprintf "{\n%s" (String.concat "" (List.map (fun e -> sprintf "%s%s;\n" ntabs (s_expr_pretty ntabs s_type e)) el)) in

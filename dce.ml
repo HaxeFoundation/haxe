@@ -289,11 +289,9 @@ and expr dce e =
 		field dce c "new" false;
 		List.iter (expr dce) el;
 		List.iter (mark_t dce e.epos) pl;
-	| TVars vl ->
-		List.iter (fun (v,e1) ->
-			opt (expr dce) e1;
-			mark_t dce e.epos v.v_type;
-		) vl;
+	| TVar (v,e1) ->
+		opt (expr dce) e1;
+		mark_t dce e.epos v.v_type;
 	| TCast(e, Some mt) ->
 		check_feature dce "typed_cast";
 		mark_mt dce mt;

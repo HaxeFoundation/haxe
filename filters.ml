@@ -35,7 +35,7 @@ let mk_block_context com gen_temp =
 	let push e = block_el := e :: !block_el in
 	let declare_temp t eo p =
 		let v = gen_temp t in
-		let e = mk (TVars [v,eo]) com.basic.tvoid p in
+		let e = mk (TVar (v,eo)) com.basic.tvoid p in
 		push e;
 		mk (TLocal v) t p
 	in
@@ -141,7 +141,6 @@ let handle_side_effects com gen_temp e =
 		in
 		List.map loop (loop2 [] (List.rev el))
 	in
-	let e = blockify_ast e in
 	let e = loop e in
 	match close_block() with
 		| [] ->
@@ -189,18 +188,16 @@ let promote_complex_rhs ctx e =
 		let r = ref [] in
 		List.iter (fun e ->
 			match e.eexpr with
-			| TVars(vl) ->
-				List.iter (fun (v,eo) ->
-					match eo with
+			| TVar(v,eo) ->
+				begin match eo with
 					| Some e when is_complex e ->
 						r := (loop (fun e -> mk (TBinop(OpAssign,mk (TLocal v) v.v_type e.epos,e)) v.v_type e.epos) e)
-							:: ((mk (TVars [v,None]) ctx.basic.tvoid e.epos))
+							:: ((mk (TVar (v,None)) ctx.basic.tvoid e.epos))
 							:: !r
 					| Some e ->
-						r := (mk (TVars [v,Some (find e)]) ctx.basic.tvoid e.epos) :: !r
-					| None -> r := (mk (TVars [v,None]) ctx.basic.tvoid e.epos) :: !r
-
-				) vl
+						r := (mk (TVar (v,Some (find e))) ctx.basic.tvoid e.epos) :: !r
+					| None -> r := (mk (TVar (v,None)) ctx.basic.tvoid e.epos) :: !r
+				end
 			| _ -> r := (find e) :: !r
 		) el;
 		List.rev !r
@@ -274,15 +271,15 @@ let check_local_vars_init e =
 				if v.v_name = "this" then error "Missing this = value" e.epos
 				else error ("Local variable " ^ v.v_name ^ " used without being initialized") e.epos
 			end
-		| TVars vl ->
-			List.iter (fun (v,eo) ->
+		| TVar (v,eo) ->
+			begin
 				match eo with
 				| None ->
 					declared := v.v_id :: !declared;
 					vars := PMap.add v.v_id false !vars
 				| Some e ->
 					loop vars e
-			) vl
+			end
 		| TBlock el ->
 			let old = !declared in
 			let old_vars = !vars in
@@ -412,11 +409,9 @@ let rec local_usage f e =
 	match e.eexpr with
 	| TLocal v ->
 		f (Use v)
-	| TVars l ->
-		List.iter (fun (v,e) ->
-			(match e with None -> () | Some e -> local_usage f e);
-			f (Declare v);
-		) l
+	| TVar (v,eo) ->
+		(match eo with None -> () | Some e -> local_usage f e);
+		f (Declare v);
 	| TFunction tf ->
 		let cc f =
 			List.iter (fun (v,_) -> f (Declare v)) tf.tf_args;
@@ -478,7 +473,7 @@ let captured_vars com e =
 	let t = com.basic in
 
 	let rec mk_init av v pos =
-		mk (TVars [av,Some (mk (TArrayDecl [mk (TLocal v) v.v_type pos]) av.v_type pos)]) t.tvoid pos
+		mk (TVar (av,Some (mk (TArrayDecl [mk (TLocal v) v.v_type pos]) av.v_type pos))) t.tvoid pos
 
 	and mk_var v used =
 		let v2 = alloc_var v.v_name (PMap.find v.v_id used) in
@@ -487,14 +482,14 @@ let captured_vars com e =
 
 	and wrap used e =
 		match e.eexpr with
-		| TVars vl ->
-			let vl = List.map (fun (v,ve) ->
+		| TVar (v,ve) ->
+			let v,ve =
 				if PMap.mem v.v_id used then
 					v, Some (mk (TArrayDecl (match ve with None -> [] | Some e -> [wrap used e])) v.v_type e.epos)
 				else
 					v, (match ve with None -> None | Some e -> Some (wrap used e))
-			) vl in
-			{ e with eexpr = TVars vl }
+			 in
+			{ e with eexpr = TVar (v,ve) }
 		| TLocal v when PMap.mem v.v_id used ->
 			mk (TArray ({ e with etype = v.v_type },mk (TConst (TInt 0l)) t.tint e.epos)) e.etype e.epos
 		| TFor (v,it,expr) when PMap.mem v.v_id used ->
@@ -735,12 +730,10 @@ let rename_local_vars com e =
 	in
 	let rec loop e =
 		match e.eexpr with
-		| TVars l ->
-			List.iter (fun (v,eo) ->
-				if not cfg.pf_locals_scope then declare v e.epos;
-				(match eo with None -> () | Some e -> loop e);
-				if cfg.pf_locals_scope then declare v e.epos;
-			) l
+		| TVar (v,eo) ->
+			if not cfg.pf_locals_scope then declare v e.epos;
+			(match eo with None -> () | Some e -> loop e);
+			if cfg.pf_locals_scope then declare v e.epos;
 		| TFunction tf ->
 			let old = save() in
 			List.iter (fun (v,_) -> declare v e.epos) tf.tf_args;
@@ -976,7 +969,7 @@ let add_field_inits ctx t =
 					end else
 						eassign;
 			) inits in
-			let el = if !need_this then (mk (TVars([v, Some ethis])) ethis.etype ethis.epos) :: el else el in
+			let el = if !need_this then (mk (TVar((v, Some ethis))) ethis.etype ethis.epos) :: el else el in
 			match c.cl_constructor with
 			| None ->
 				let ct = TFun([],ctx.com.basic.tvoid) in
@@ -1079,6 +1072,7 @@ let run com tctx main =
 	(* PASS 1: general expression filters *)
  	let filters = [
 		Codegen.Abstract.handle_abstract_casts tctx;
+		blockify_ast;
 		(match com.platform with
 			| Cpp -> (fun e ->
 				let save = save_locals tctx in
