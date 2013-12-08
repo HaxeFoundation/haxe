@@ -999,27 +999,56 @@ let rec make_constant_expression ctx ?(concat_strings=false) e =
 	We replace the variables by their fields lists, and the corresponding fields accesses as well
 *)
 
+type inline_kind =
+	| IKCtor of tfunc * tclass_field * tclass * texpr list * texpr list
+	| IKArray of texpr list
+	| IKStructure of (string * texpr) list
+	| IKNone
+
 let inline_constructors ctx e =
 	let vars = ref PMap.empty in
 	let rec get_inline_ctor_info e = match e.eexpr with
 		| TNew ({ cl_constructor = Some ({ cf_kind = Method MethInline; cf_expr = Some { eexpr = TFunction f } } as cst) } as c,_,pl) ->
-			Some (f,cst,c,pl,[])
+			IKCtor (f,cst,c,pl,[])
+		| TArrayDecl el ->
+			IKArray el
+		| TObjectDecl [] ->
+			IKNone
+		| TObjectDecl fl ->
+			IKStructure fl
 		| TCast(e,None) | TParenthesis e ->
 			get_inline_ctor_info e
 		| TBlock el ->
 			begin match List.rev el with
 				| e :: el ->
 					begin match get_inline_ctor_info e with
-						| Some(f,cst,c,pl,e_init) ->
-							Some(f,cst,c,pl,(List.rev el) @ e_init)
-						| None ->
-							None
+						| IKCtor(f,cst,c,pl,e_init) ->
+							IKCtor(f,cst,c,pl,(List.rev el) @ e_init)
+						| _ ->
+							IKNone
 					end
 				| [] ->
-					None
+					IKNone
 			end
 		| _ ->
-			None
+			IKNone
+	in
+	let is_valid_field v s =
+		try
+			let (_,_,fields,_,_) = PMap.find (-v.v_id) !vars in
+			List.exists (fun (s2,_,_) -> s = s2) fields
+		with Not_found ->
+			false
+	in
+	let cancel v =
+		v.v_id <- -v.v_id;
+		(* error if the constructor is extern *)
+		(match PMap.find v.v_id !vars with
+		| _,_,_,true,p ->
+			display_error ctx "Extern constructor could not be inlined" p;
+			error "Variable is used here" e.epos
+		| _ -> ());
+		vars := PMap.remove v.v_id !vars;
 	in
 	let rec find_locals e =
 		match e.eexpr with
@@ -1028,7 +1057,7 @@ let inline_constructors ctx e =
 			begin match eo with
 				| Some n ->
 					begin match get_inline_ctor_info n with
-					| Some (f,cst,c,pl,el_init) ->
+					| IKCtor (f,cst,c,pl,el_init) ->
 						(* inline the constructor *)
 						(match (try type_inline ctx cst f (mk (TLocal v) v.v_type n.epos) pl ctx.t.tvoid None n.epos true with Error (Custom _,_) -> None) with
 						| None -> ()
@@ -1058,22 +1087,33 @@ let inline_constructors ctx e =
 								find_locals ecst
 							with Exit ->
 								())
-					| None ->
+					| IKArray el ->
+						vars := PMap.add v.v_id (v,[],ExtList.List.mapi (fun i e -> string_of_int i,e,e.etype) el, false, n.epos) !vars;
+						v.v_id <- -v.v_id;
+					| IKStructure fl ->
+						vars := PMap.add v.v_id (v,[],List.map (fun (s,e) -> s,e,e.etype) fl, false, n.epos) !vars;
+						v.v_id <- -v.v_id;
+					| IKNone ->
 						()
 					end
 				| None -> ()
 			end
-		| TField ({ eexpr = TLocal _ },FInstance (_,{ cf_kind = Var _ })) ->
+		| TField({eexpr = TLocal v}, (FInstance(_, {cf_kind = Var _; cf_name = s}) | FAnon({cf_kind = Var _; cf_name = s}))) ->
 			()
+		| TArray ({eexpr = TLocal v},{eexpr = TConst (TInt i)}) ->
+			()
+		| TBinop((OpAssign | OpAssignOp _),e1,e2) ->
+			begin match e1.eexpr with
+				| TArray ({eexpr = TLocal v},{eexpr = TConst (TInt i)}) when v.v_id < 0 && not (is_valid_field v (Int32.to_string i)) ->
+					cancel v
+				| TField({eexpr = TLocal v}, (FInstance(_, {cf_kind = Var _; cf_name = s}) | FAnon({cf_kind = Var _; cf_name = s}))) when v.v_id < 0 && not (is_valid_field v s) ->
+					cancel v
+				| _ ->
+					find_locals e1
+			end;
+			find_locals e2
 		| TLocal v when v.v_id < 0 ->
-			v.v_id <- -v.v_id;
-			(* error if the constructor is extern *)
-			(match PMap.find v.v_id !vars with
-			| _,_,_,true,p ->
-				display_error ctx "Extern constructor could not be inlined" p;
-				error "Variable is used here" e.epos
-			| _ -> ());
-			vars := PMap.remove v.v_id !vars;
+			cancel v
 		| _ ->
 			Type.iter find_locals e
 	in
@@ -1115,6 +1155,22 @@ let inline_constructors ctx e =
 					mk (TLocal v) v.v_type e.epos
 				with Not_found ->
 					(* the variable was not set in the constructor, assume null *)
+					mk (TConst TNull) e.etype e.epos)
+			| TArray ({eexpr = TLocal v},{eexpr = TConst (TInt i)}) when v.v_id < 0 ->
+				let (_, vars),_ = PMap.find (-v.v_id) vfields in
+				(try
+					let v = PMap.find (Int32.to_string i) vars in
+					mk (TLocal v) v.v_type e.epos
+				with Not_found ->
+					(* probably out-of-bounds, assume null *)
+					mk (TConst TNull) e.etype e.epos)
+			| TField({eexpr = TLocal v},FAnon(cf)) when v.v_id < 0 ->
+				let (_, vars),_ = PMap.find (-v.v_id) vfields in
+				(try
+					let v = PMap.find cf.cf_name vars in
+					mk (TLocal v) v.v_type e.epos
+				with Not_found ->
+					(* this could happen in untyped code, assume null *)
 					mk (TConst TNull) e.etype e.epos)
 			| _ ->
 				Type.map_expr subst e
