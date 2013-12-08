@@ -381,6 +381,8 @@ let rec gen_call ctx e el in_value =
 		spr ctx "(";
 		concat ctx "," (gen_value ctx) params;
 		spr ctx ")";
+	| TLocal { v_name = "__js__" }, [{ eexpr = TConst (TString "this") }] ->
+		spr ctx (this ctx)
 	| TLocal { v_name = "__js__" }, [{ eexpr = TConst (TString code) }] ->
 		spr ctx (String.concat "\n" (ExtString.String.nsplit code "\r\n"))
 	| TLocal { v_name = "__instanceof__" },  [o;t] ->
