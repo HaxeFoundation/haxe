@@ -2513,20 +2513,14 @@ struct
             let val_local = { earray with eexpr = TLocal(val_v) } in
             let ret_local = { earray with eexpr = TLocal(ret_v) } in
             (* var idx = 1; var val = x._get(idx); var ret = val++; x._set(idx, val); ret; *)
-            block := [
-              { eexpr = TVar(
-                  val_v, Some(mk_get earray arr_local idx_local); (* var val = x._get(idx) *)
-                );
-                etype = gen.gcon.basic.tvoid;
-                epos = e2a.epos
-              };
-              { eexpr = TVar(
-                  ret_v, Some { e with eexpr = TUnop(op, flag, val_local) } (* var ret = val++ *)
-                );
-                etype = gen.gcon.basic.tvoid;
-                epos = e2a.epos
-              }
-            ] @ !block;
+            block := { eexpr = TVar(val_v, Some(mk_get earray arr_local idx_local)); (* var val = x._get(idx) *)
+                       etype = gen.gcon.basic.tvoid;
+                       epos = e2a.epos
+                     } :: !block;
+            block := { eexpr = TVar(ret_v, Some { e with eexpr = TUnop(op, flag, val_local) }); (* var ret = val++ *)
+                        etype = gen.gcon.basic.tvoid;
+                        epos = e2a.epos
+                     } :: !block;
             block := (mk_set e arr_local idx_local val_local) (*x._set(idx,val)*) :: !block;
             block := ret_local :: !block;
             { e with eexpr = TBlock (List.rev !block) }
