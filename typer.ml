@@ -3643,8 +3643,8 @@ let make_macro_api ctx p =
 			];
 		);
 		Interp.parse_string = parse_expr_string;
-		Interp.typeof = (fun e ->
-			typing_timer ctx (fun() -> (type_expr ctx e Value).etype)
+		Interp.type_expr = (fun e ->
+			typing_timer ctx (fun() -> (type_expr ctx e Value))
 		);
 		Interp.get_display = (fun s ->
 			let is_displaying = ctx.com.display <> DMNone in
