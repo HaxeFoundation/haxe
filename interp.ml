@@ -4480,11 +4480,7 @@ and encode_texpr e =
 			| TNew(c,pl,el) -> 10,[encode_clref c;encode_tparams pl;encode_texpr_list el]
 			| TUnop(op,flag,e1) -> 11,[encode_unop op;VBool (flag = Postfix);loop e1]
 			| TFunction func -> 12,[encode_tfunc func]
-			| TVar (v,eo) -> 13,[
-				enc_obj [
-					"v",encode_tvar v;
-					"expr",vopt encode_texpr eo
-				]]
+			| TVar (v,eo) -> 13,[encode_tvar v;vopt encode_texpr eo]
 			| TBlock el -> 14,[encode_texpr_list el]
 			| TFor(v,e1,e2) -> 15,[encode_tvar v;loop e1;loop e2]
 			| TIf(eif,ethen,eelse) -> 16,[loop eif;loop ethen;vopt encode_texpr eelse]
