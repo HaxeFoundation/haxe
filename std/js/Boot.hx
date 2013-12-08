@@ -176,7 +176,7 @@ class Boot {
 		default:
 			if( o != null ) {
 				// Check if o is an instance of a Haxe class
-				if( (untyped __js__("typeof"))(cl) == "function" ) {
+				if( (untyped __js__("typeof"))(cl) == "function" || (untyped __js__("typeof"))(cl) == "object" ) {
 					if( untyped __js__("o instanceof cl") ) {
 						if( cl == Array )
 							return (o.__enum__ == null);
