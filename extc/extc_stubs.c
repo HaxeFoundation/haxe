@@ -206,7 +206,11 @@ CAMLprim value get_real_path( value path ) {
 	// this will ensure the full class path with proper casing
 	char tmp[MAX_PATH];
 	char out[MAX_PATH];
-	if( GetFullPathName(String_val(path),MAX_PATH,tmp,NULL) == 0 )
+	if( GetFullPathName(String_val(path),MAX_PATH,out,NULL) == 0 )
+		failwith("get_real_path");
+	// GetLongPath name will ignore parts that are > 8 chars since it assume they are already "long" (sic)
+	// let's first reduce our path to short form before expanding it again
+	if( GetShortPathName(out,tmp,MAX_PATH) == 0 )
 		failwith("get_real_path");
 	if( GetLongPathName(tmp,out,MAX_PATH) == 0 )
 		failwith("get_real_path");
