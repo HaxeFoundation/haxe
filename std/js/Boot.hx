@@ -176,7 +176,7 @@ class Boot {
 		default:
 			if( o != null ) {
 				// Check if o is an instance of a Haxe class
-				if( (untyped __js__("typeof"))(cl) == "function" || (untyped __js__("typeof"))(cl) == "object" ) {
+				if( (untyped __js__("typeof"))(cl) == "function" ) {
 					if( untyped __js__("o instanceof cl") ) {
 						if( cl == Array )
 							return (o.__enum__ == null);
@@ -184,6 +184,10 @@ class Boot {
 					}
 					if( __interfLoop(getClass(o),cl) )
 						return true;
+				} else if( 	(untyped __js__("typeof"))(cl) == "object" &&
+							(untyped __js__("typeof"))(o) != "string" &&
+							(untyped __js__("(/^\\[object .*?Constructor\\]$/).test(cl)")) ) {
+					return untyped __js__("o instanceof cl");
 				}
 			} else {
 				return false;
