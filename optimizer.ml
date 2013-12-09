@@ -1145,7 +1145,7 @@ let inline_constructors ctx e =
 					| v :: vl -> v,vl
 					| [] -> assert false
 				in
-				List.iter (fun (v,e) -> el_b := (mk (TVar(v,Some e)) ctx.t.tvoid e.epos) :: !el_b) (List.rev vars);
+				List.iter (fun (v,e) -> el_b := (mk (TVar(v,Some (subst e))) ctx.t.tvoid e.epos) :: !el_b) (List.rev vars);
 				mk (TVar (v_first, Some (subst e_first))) ctx.t.tvoid e.epos
 			| TField ({ eexpr = TLocal v },FInstance (_,cf)) when v.v_id < 0 ->
 				let (_, vars),el_init = PMap.find (-v.v_id) vfields in
