@@ -2539,7 +2539,7 @@ let generate_files common_ctx file_info =
 	output_files "namespace hx {\n";
 	output_files "const char *__hxcpp_all_files[] = {\n";
 	output_files "#ifdef HXCPP_DEBUGGER\n";
-	List.iter ( fun file -> output_files ("	HX_CSTRING(" ^ file ^ "),\n" ) ) ( List.sort String.compare ( pmap_keys !file_info) );
+	List.iter ( fun file -> output_files ("	HX_CSTRING(" ^ Str.global_replace ( Str.regexp "\\\\" ) "/" file ^ "),\n" ) ) ( List.sort String.compare ( pmap_keys !file_info) );
 	output_files "#endif\n";
 	output_files " 0 };\n";
     output_files "\n";
