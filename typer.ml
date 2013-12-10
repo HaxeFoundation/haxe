@@ -2873,8 +2873,8 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		if params <> [] then begin
 			if name = None then display_error ctx "Type parameters not supported in unnamed local functions" p;
 			if with_type <> NoValue then error "Type parameters are not supported for rvalue functions" p
-		end else
-			List.iter (fun tp -> if tp.tp_constraints <> [] then display_error ctx "Type parameters constraints are not supported for local functions" p) f.f_params;
+		end;
+		List.iter (fun tp -> if tp.tp_constraints <> [] then display_error ctx "Type parameter constraints are not supported for local functions" p) f.f_params;
 		let old = ctx.type_params in
 		ctx.type_params <- params @ ctx.type_params;
 		let rt = Typeload.load_type_opt ctx p f.f_type in
