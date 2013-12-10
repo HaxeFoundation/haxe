@@ -329,7 +329,15 @@ let this ctx = match ctx.in_value with None -> "this" | Some _ -> "$this"
 
 let is_dynamic_iterator ctx e =
 	let check x =
-		has_feature ctx "HxOverrides.iter" && (match follow x.etype with TInst ({ cl_path = [],"Array" },_) | TAnon _ | TDynamic _ | TMono _ -> true | _ -> false)
+		has_feature ctx "HxOverrides.iter" && (match follow x.etype with
+			| TInst ({ cl_path = [],"Array" },_)
+			| TInst ({ cl_kind = KTypeParameter _}, _)
+			| TAnon _
+			| TDynamic _
+			| TMono _ ->
+				true
+			| _ -> false
+		)
 	in
 	match e.eexpr with
 	| TField (x,f) when field_name f = "iterator" -> check x
