@@ -1140,7 +1140,7 @@ let inline_constructors ctx e =
 				{e with eexpr = TBlock (List.rev n)}
 			| TVar (v,Some e) when v.v_id < 0 ->
 				let (vars, _),el_init = PMap.find (-v.v_id) vfields in
-				el_b := (List.map subst el_init) @ !el_b;
+				el_b := (List.rev_map subst el_init) @ !el_b;
 				let (v_first,e_first),vars = match vars with
 					| v :: vl -> v,vl
 					| [] -> assert false
