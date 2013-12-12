@@ -21,6 +21,7 @@
 	all : added haxe.xml.Printer
 	all : added haxe.Int32 as abstract type
 	all : improved inline constructors by detecting more cases where it can be applied
+	all : allow multiple structural extension using { > T1, > T2, fields }
 	js : window and console are reserved words. Access them with __js__ instead of untyped.
 	js : added -D js-flatten
 	js : improved inlining
@@ -32,6 +33,7 @@
 	macro : resolve error line number in external files
 	macro : rewrote macros used as static extension
 	macro : exposed typed AST
+	macro : [breaking] first argument of ComplexType.TExtend is now Array<TypePath> instead of TypePath
 	flash : fixed font embedding with UTF8 chars
 	flash : give error if non-nullable basic types are skipped in a call
 

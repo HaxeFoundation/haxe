@@ -231,7 +231,7 @@ enum ComplexType {
 	TFunction( args : Array<ComplexType>, ret : ComplexType );
 	TAnonymous( fields : Array<Field> );
 	TParent( t : ComplexType );
-	TExtend( p : TypePath, fields : Array<Field> );
+	TExtend( p : Array<TypePath>, fields : Array<Field> );
 	TOptional( t : ComplexType );
 }
 

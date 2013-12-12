@@ -230,7 +230,7 @@ let reify in_macro =
 		| CTFunction (args,ret) -> ct "TFunction" [to_array to_ctype args p; to_ctype ret p]
 		| CTAnonymous fields -> ct "TAnonymous" [to_array to_cfield fields p]
 		| CTParent t -> ct "TParent" [to_ctype t p]
-		| CTExtend (t,fields) -> ct "TExtend" [to_tpath t p; to_array to_cfield fields p]
+		| CTExtend (tl,fields) -> ct "TExtend" [to_array to_tpath tl p; to_array to_cfield fields p]
 		| CTOptional t -> ct "TOptional" [to_ctype t p]
 	and to_fun f p =
 		let farg (n,o,t,e) p =
@@ -765,16 +765,20 @@ and parse_complex_type s =
 	let t = parse_complex_type_inner s in
 	parse_complex_type_next t s
 
+and parse_structural_extension = parser
+	| [< '(Binop OpGt,_); t = parse_type_path; '(Comma,_); s >] ->
+		t
+
 and parse_complex_type_inner = parser
 	| [< '(POpen,_); t = parse_complex_type; '(PClose,_) >] -> CTParent t
 	| [< '(BrOpen,p1); s >] ->
 		(match s with parser
 		| [< l = parse_type_anonymous false >] -> CTAnonymous l
-		| [< '(Binop OpGt,_); t = parse_type_path; '(Comma,_); s >] ->
+		| [< t = parse_structural_extension; s>] ->
+			let tl = t :: plist parse_structural_extension s in
 			(match s with parser
-			| [< l = parse_type_anonymous false >] -> CTExtend (t,l)
-			| [< l, _ = parse_class_fields true p1 >] -> CTExtend (t,l)
-			| [< >] -> serror())
+			| [< l = parse_type_anonymous false >] -> CTExtend (tl,l)
+			| [< l, _ = parse_class_fields true p1 >] -> CTExtend (tl,l))
 		| [< l, _ = parse_class_fields true p1 >] -> CTAnonymous l
 		| [< >] -> serror())
 	| [< '(Question,_); t = parse_complex_type_inner >] ->
@@ -1264,7 +1268,7 @@ and parse_switch_cases eswitch cases = parser
 	| [< '(Kwd Case,p1); el = psep Comma expr; eg = popt parse_guard; '(DblDot,_); s >] ->
 		(match el with
 		| [] -> error (Custom "case without a pattern is not allowed") p1
-		| _ -> 
+		| _ ->
 			let b = (try block [] s with Display e -> display (ESwitch (eswitch,List.rev ((el,eg,Some e) :: cases),None),punion (pos eswitch) (pos e))) in
 			let b = match b with
 				| [] -> None

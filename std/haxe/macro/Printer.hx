@@ -99,7 +99,7 @@ class Printer {
 		case TAnonymous(fields): "{ " + [for (f in fields) printField(f) + "; "].join("") + "}";
 		case TParent(ct): "(" + printComplexType(ct) + ")";
 		case TOptional(ct): "?" + printComplexType(ct);
-		case TExtend(tp, fields): '{${printTypePath(tp)} >, ${fields.map(printField).join(", ")} }';
+		case TExtend(tpl, fields): '{${tpl.map(printTypePath).join(", ")} >, ${fields.map(printField).join(", ")} }';
 	}
 
 	public function printMetadata(meta:MetadataEntry) return

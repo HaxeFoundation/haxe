@@ -419,10 +419,10 @@ and load_complex_type ctx p t =
 	| CTParent t -> load_complex_type ctx p t
 	| CTPath t -> load_instance ctx t p false
 	| CTOptional _ -> error "Optional type not allowed here" p
-	| CTExtend (t,l) ->
+	| CTExtend (tl,l) ->
 		(match load_complex_type ctx p (CTAnonymous l) with
-		| TAnon a ->
-			let rec loop t =
+		| TAnon a as ta ->
+			let mk_extension t =
 				match follow t with
 				| TInst ({cl_kind = KTypeParameter _},_) ->
 					error "Cannot structurally extend type parameters" p
@@ -445,17 +445,31 @@ and load_complex_type ctx p t =
 					error "Loop found in cascading signatures definitions. Please change order/import" p
 				| TAnon a2 ->
 					PMap.iter (fun f _ ->
-						if PMap.mem f a2.a_fields then error ("Cannot redefine field " ^ f) p
+						if PMap.mem f a2.a_fields then error ("Cannot redefine field " ^ f) p;
 					) a.a_fields;
 					mk_anon (PMap.foldi PMap.add a.a_fields a2.a_fields)
 				| _ -> error "Can only extend classes and structures" p
 			in
-			let i = load_instance ctx t p false in
+			let loop t = match follow t with
+				| TAnon a2 ->
+					PMap.iter (fun f cf ->
+						if PMap.mem f a.a_fields then error ("Cannot redefine field " ^ f) p;
+						a.a_fields <- PMap.add f cf a.a_fields
+					) a2.a_fields
+				| _ ->
+					error "Multiple structural extension is only allowed for structures" p
+			in
+			let il = List.map (fun t -> load_instance ctx t p false) tl in
 			let tr = ref None in
 			let t = TMono tr in
 			let r = exc_protect ctx (fun r ->
 				r := (fun _ -> t);
-				tr := Some (loop i);
+				tr := Some (match il with
+					| [i] ->
+						mk_extension i
+					| _ ->
+						List.iter loop il;
+						ta);
 				t
 			) "constraint" in
 			delay ctx PForce (fun () -> ignore(!r()));

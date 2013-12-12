@@ -3728,8 +3728,8 @@ and encode_ctype t =
 		2, [enc_array (List.map encode_field fl)]
 	| CTParent t ->
 		3, [encode_ctype t]
-	| CTExtend (t,fields) ->
-		4, [encode_path t; enc_array (List.map encode_field fields)]
+	| CTExtend (tl,fields) ->
+		4, [enc_array (List.map encode_path tl); enc_array (List.map encode_field fields)]
 	| CTOptional t ->
 		5, [encode_ctype t]
 	in
@@ -4027,8 +4027,8 @@ and decode_ctype t =
 		CTAnonymous (List.map decode_field (dec_array fl))
 	| 3, [t] ->
 		CTParent (decode_ctype t)
-	| 4, [t;fl] ->
-		CTExtend (decode_path t, List.map decode_field (dec_array fl))
+	| 4, [tl;fl] ->
+		CTExtend (List.map decode_path (dec_array tl), List.map decode_field (dec_array fl))
 	| 5, [t] ->
 		CTOptional (decode_ctype t)
 	| _ ->
