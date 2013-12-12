@@ -541,7 +541,6 @@ let to_pattern ctx e t =
 					| Some t -> Type.map dup t)
 				| _ -> Type.map dup t
 			in
-			let t2 = dup t in
 			let pat1 = loop pctx e1 t in
 			begin match pat1.p_def with
 				| PAny | PVar _ ->
@@ -554,7 +553,7 @@ let to_pattern ctx e t =
 						pc_reify = pctx.pc_reify;
 						pc_is_complex = pctx.pc_is_complex;
 					} in
-					let pat2 = loop pctx2 e2 t2 in
+					let pat2 = loop pctx2 e2 t in
 					pctx.pc_is_complex <- pctx2.pc_is_complex;
 					PMap.iter (fun s (_,p) -> if not (PMap.mem s pctx2.pc_locals) then verror s p) pctx.pc_locals;
 					mk_pat (POr(pat1,pat2)) pat2.p_type (punion pat1.p_pos pat2.p_pos);
