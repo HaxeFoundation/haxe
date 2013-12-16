@@ -21,19 +21,27 @@
  */
 package haxe;
 
-/**
-	Crossplatform JSON API : it will automatically use the optimized native API if available.
-	Use -D haxeJSON to force usage of the Haxe implementation even if a native API is found : this will provide
-	extra encoding features such as enums (replaced by their index), Hashs and Iterable.
-**/
+@:coreApi
+#if (!haxeJSON && !old_browser)
+@:native("JSON") extern
+#end
 class Json {
 
-	public static inline function parse( text : String ) : Dynamic {
+	#if haxeJSON inline #end
+	public static function parse( text : String ) : Dynamic {
 		return haxe.format.JsonParser.parse(text);
 	}
 
-	public static inline function stringify( value : Dynamic, ?replacer:Dynamic -> Dynamic -> Dynamic ) : String {
+	#if haxeJSON inline #end
+	public static function stringify( value : Dynamic, ?replacer:Dynamic -> Dynamic -> Dynamic ) : String {
 		return haxe.format.JsonPrinter.print(value, replacer);
 	}
+
+	#if (!haxeJSON && old_browser)
+	static function __init__():Void untyped {
+		if( __js__('typeof(JSON)') != 'undefined' )
+			Json = __js__('JSON');
+	}
+	#end
 
 }
