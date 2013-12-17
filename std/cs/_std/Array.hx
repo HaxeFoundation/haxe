@@ -84,6 +84,32 @@ import cs.NativeArray;
 		this.length = len;
 	}
 
+	public function indexOf( x : T, ?fromIndex:Int ) : Int
+	{
+		var len = length, i:Int = (fromIndex == null) ? 0 : fromIndex;
+		if (i < 0)
+		{
+			i += len;
+			if (i < 0) i = 0;
+		}
+		return cs.system.Array._IndexOf(__a, x, i, len - i);
+	}
+
+	public function lastIndexOf( x : T, ?fromIndex:Int ) : Int
+	{
+		var len = length, i:Int = (fromIndex == null) ? len - 1 : fromIndex;
+		if (i >= len)
+		{
+			i = len - 1;
+		}
+		else if (i < 0)
+		{
+			i += len;
+			if (i < 0) return -1;
+		}
+		return cs.system.Array.LastIndexOf(__a, x, i, i + 1);
+	}
+
 	public function join( sep : String ) : String
 	{
 		var buf = new StringBuf();
