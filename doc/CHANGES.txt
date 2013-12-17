@@ -18,6 +18,7 @@
 	all : implemented constraints check on enum and enum field type parameters
 	all : fixed memory leak in compilation server and optimized caching in general
 	all : added UInt for all targets
+	all : added Array.indexOf and Array.lastIndexOf
 	all : added haxe.xml.Printer
 	all : added haxe.Int32 as abstract type
 	all : improved inline constructors by detecting more cases where it can be applied
