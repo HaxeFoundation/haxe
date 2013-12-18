@@ -955,13 +955,11 @@ let configure gen =
 					let name = field_name f in
 					let propname = String.sub name 4 (String.length name - 4) in
 					if is_extern_prop (gen.greal_type ef.etype) propname then begin
-						write w "(";
 						expr_s w ef;
 						write w ".";
 						write_field w propname;
 						write w " = ";
-						expr_s w v;
-						write w ")"
+						expr_s w v
 					end else
 						do_call w e [v]
         | TField (e, (FStatic(_, cf) | FInstance(_, cf))) when Meta.has Meta.Native cf.cf_meta ->
