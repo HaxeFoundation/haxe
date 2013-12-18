@@ -1,0 +1,4 @@
+-cp src
+-js testopt.js
+--macro Macro.register('Test')
+-dce std
