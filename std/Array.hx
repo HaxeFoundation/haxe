@@ -221,6 +221,36 @@ extern class Array<T> {
 	function remove( x : T ) : Bool;
 
 	/**
+		Returns position of the first occurense of `x` in `this` Array, searching front to back.
+
+		If `x` is found by checking standard equality, the function returns its index.
+
+		If `x` is not found, the function returns -1.
+
+		If `fromIndex` is specified, it will be used as the starting index to search from,
+		otherwise search starts with zero index. If it is negative, it will be taken as the
+		offset from the end of `this` Array to compute the starting index. If given or computed
+		starting index is less than 0, the whole array will be searched, if it is greater than
+		or equal to the length of `this` Array, the function returns -1.
+	**/
+	function indexOf( x : T, ?fromIndex:Int ) : Int;
+
+	/**
+		Returns position of the last occurense of `x` in `this` Array, searching back to front.
+
+		If `x` is found by checking standard equality, the function returns its index.
+
+		If `x` is not found, the function returns -1.
+
+		If `fromIndex` is specified, it will be used as the starting index to search from,
+		otherwise search starts with the last element index. If it is negative, it will be
+		taken as the offset from the end of `this` Array to compute the starting index. If
+		given or computed starting index is greater than or equal to the length of `this` Array,
+		the whole array will be searched, if it is less than 0, the function returns -1.
+	**/
+	function lastIndexOf( x : T, ?fromIndex:Int ) : Int;
+
+	/**
 		Returns a shallow copy of `this` Array.
 
 		The elements are not copied and retain their identity, so

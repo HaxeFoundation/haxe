@@ -42,7 +42,15 @@ extern class Array<T> {
 	}
 
 	inline function remove( x : T ) : Bool {
-		return untyped HxOverrides.remove(this,x);
+		return @:privateAccess HxOverrides.remove(this,x);
+	}
+
+	inline function indexOf( x : T, ?fromIndex:Int ) : Int {
+		return @:privateAccess HxOverrides.indexOf(this,x,(fromIndex!=null)?fromIndex:0);
+	}
+
+	inline function lastIndexOf( x : T, ?fromIndex:Int ) : Int {
+		return @:privateAccess HxOverrides.lastIndexOf(this,x,(fromIndex!=null)?fromIndex:length-1);
 	}
 
 	inline function copy() : Array<T> {

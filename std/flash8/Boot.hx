@@ -239,6 +239,34 @@ class Boot {
 				}
 				return false;
 			}
+			Array.prototype["indexOf"] = function(x, ?fromIndex) {
+				var len = __this__["length"], i = (fromIndex == null) ? 0 : fromIndex;
+				if (i < 0) {
+					i += len;
+					if (i < 0) i = 0;
+				}
+				while (i < len)
+				{
+					if (__this__[i] == x)
+						return i;
+					i++;
+				}
+				return -1;
+			}
+			Array.prototype["lastIndexOf"] = function(x, ?fromIndex) {
+				var len = __this__["length"], i = (fromIndex == null) ? len - 1 : fromIndex;
+				if (i >= len)
+					i = len - 1;
+				else if (i < 0)
+					i += len;
+				while (i >= 0)
+				{
+					if (__this__[i] == x)
+						return i;
+					i--;
+				}
+				return -1;
+			}
 			Array.prototype["iterator"] = function() {
 				return {
 					cur : 0,

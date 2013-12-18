@@ -362,6 +362,37 @@ import java.NativeArray;
 		return false;
 	}
 
+	public function indexOf(x : T, ?fromIndex:Int) : Int {
+		var len = length, a = __a, i:Int = (fromIndex == null) ? 0 : fromIndex;
+		if (i < 0)
+		{
+			i += len;
+			if (i < 0) i = 0;
+		}
+		while (i < len)
+		{
+			if (a[i] == x)
+				return i;
+			i++;
+		}
+		return -1;
+	}
+
+	public function lastIndexOf(x : T, ?fromIndex:Int) : Int {
+		var len = length, a = __a, i:Int = (fromIndex == null) ? len - 1 : fromIndex;
+		if (i >= len)
+			i = len - 1;
+		else if (i < 0)
+			i += len;
+		while (i >= 0)
+		{
+			if (a[i] == x)
+				return i;
+			i--;
+		}
+		return -1;
+	}
+
 	public function copy() : Array<T>
 	{
 		var len = length;

@@ -198,6 +198,41 @@ a == [i0, i1];
 a.remove(null) == false;
 a == [i0, i1];
 
+// indexOf
+[].indexOf(10) == -1;
+[10].indexOf(10) == 0;
+[10, 10].indexOf(10) == 0;
+[2, 10].indexOf(10) == 1;
+[2, 5].indexOf(10) == -1;
+["foo", "bar", "bar", "baz"].indexOf("bar") == 1;
+[1, 10, 10, 1].indexOf(10, 0) == 1;
+[1, 10, 10, 1].indexOf(10, 1) == 1;
+[1, 10, 10, 1].indexOf(10, 2) == 2;
+[1, 10, 10, 1].indexOf(10, 3) == -1;
+[1, 10, 10, 1].indexOf(10, 4) == -1;
+[1, 10, 10, 1].indexOf(10, -1) == -1;
+[1, 10, 10, 1].indexOf(10, -2) == 2;
+[1, 10, 10, 1].indexOf(10, -3) == 1;
+[1, 10, 10, 1].indexOf(10, -5) == 1;
+
+// lastIndexOf
+[].lastIndexOf(10) == -1;
+[10].lastIndexOf(10) == 0;
+[10, 10].lastIndexOf(10) == 1;
+[2, 10].lastIndexOf(10) == 1;
+[2, 5].lastIndexOf(10) == -1;
+["foo", "bar", "bar", "baz"].lastIndexOf("bar") == 2;
+[1, 10, 10, 1].lastIndexOf(10, 4) == 2;
+[1, 10, 10, 1].lastIndexOf(10, 3) == 2;
+[1, 10, 10, 1].lastIndexOf(10, 2) == 2;
+[1, 10, 10, 1].lastIndexOf(10, 1) == 1;
+[1, 10, 10, 1].lastIndexOf(10, 0) == -1;
+[1, 10, 10, 1].lastIndexOf(10, -1) == 2;
+[1, 10, 10, 1].lastIndexOf(10, -2) == 2;
+[1, 10, 10, 1].lastIndexOf(10, -3) == 1;
+[1, 10, 10, 1].lastIndexOf(10, -4) == -1;
+[1, 10, 10, 1].lastIndexOf(10, -5) == -1;
+
 // copy
 var i0 = new IntWrap(1);
 var i1 = new IntWrap(1);

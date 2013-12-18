@@ -145,6 +145,40 @@
 		return false;
 	}
 
+	public function indexOf(x : T, ?fromIndex:Int) : Int {
+		var len = length;
+		var i:Int = (fromIndex != null) ? fromIndex : 0;
+		var a = __a;
+		if (i < 0) {
+			i += len;
+			if (i < 0) i = 0;
+		}
+		while (i < len)
+		{
+			if (a[i] == x)
+				return i;
+			i++;
+		}
+		return -1;
+	}
+
+	public function lastIndexOf(x : T, ?fromIndex:Int) : Int {
+		var len = length;
+		var i:Int = (fromIndex != null) ? fromIndex : len - 1;
+		var a = __a;
+		if (i >= len)
+			i = len - 1;
+		else if (i < 0)
+			i += len;
+		while (i >= 0)
+		{
+			if (a[i] == x)
+				return i;
+			i--;
+		}
+		return -1;
+	}
+
 	public function reverse() : Void {
 		var i = 0;
 		var l = this.length;
