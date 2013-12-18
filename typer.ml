@@ -2494,7 +2494,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				| [] -> ()
 				| _ -> unify_error (List.map (fun n -> has_extra_field t n) !extra_fields) p);
 			end;
-			a.a_status := Closed;
+			if !(a.a_status) <> Const then a.a_status := Closed;
 			mk (TObjectDecl fl) t p)
 	| EArrayDecl [(EFor _,_) | (EWhile _,_) as e] ->
 		let v = gen_local ctx (mk_mono()) in
