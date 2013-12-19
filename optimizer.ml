@@ -62,6 +62,23 @@ let api_inline ctx c field params p =
 			Some { eexpr = TConst (TString (if b then "true" else "false")); epos = p; etype = ctx.t.tstring }
 		| _ ->
 			None)
+	| ([],"Std"),"string",[v] when ctx.com.platform = Js ->
+		let pos = v.epos in
+		let stringt = ctx.com.basic.tstring in
+		let stringv = mk (TBinop (Ast.OpAdd, mk (TConst (TString "")) stringt pos, v)) stringt pos in
+		(match follow v.etype with
+		| TInst ({ cl_path = [],"String" }, []) ->
+			Some v
+		| TAbstract ({ a_path = [],"Float" }, []) ->
+			Some stringv
+		| TAbstract ({ a_path = [],"Int" }, []) ->
+			Some stringv
+		| TAbstract ({ a_path = [],"UInt" }, []) ->
+			Some stringv
+		| TAbstract ({ a_path = [],"Bool" }, []) ->
+			Some stringv
+		| _ ->
+			None)
 	| ([],"Std"),"int",[{ eexpr = TConst (TFloat f) }] ->
 		let f = float_of_string f in
 		(match classify_float f with
