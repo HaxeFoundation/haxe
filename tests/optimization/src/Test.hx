@@ -78,7 +78,6 @@ class Test {
 		}
 		b.x = a;
 	}
-
 	@:js("var x = 10;\"\" + x;var x1 = 10;\"\" + x1;var x2 = 10.0;\"\" + x2;var x3 = \"10\";x3;var x4 = true;\"\" + x4;")
 	static function testStdString() {
         var x = 10;
@@ -91,5 +90,27 @@ class Test {
         Std.string(x);
         var x = true;
         Std.string(x);
+	}
+	
+	@:js('
+		var x_foo = 1;
+		var x_bar = 2;
+		var y = x_foo;
+		var z = x_bar;
+	')
+	static function testStructureInline1() {
+		var x = {
+			foo: 1,
+			bar: 2
+		}
+		var y = x.foo;
+		var z = x.bar;
+	}
+	
+	@:js('var x = { \'oh-my\' : "god"};')
+	static function testStructureInlineInvalidField() {
+        var x = {
+            "oh-my": "god"
+        };
 	}
 }

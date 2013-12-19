@@ -49,3 +49,4 @@
 build.bat
 tests/unit/compile.php.hxml
 /doc/*.xml
+tests/optimization/testopt.js
