@@ -54,11 +54,15 @@ class Macro {
 		}
 	}
 	
+	static function stripWhitespaces(s:String) {
+		return ~/[\r\n\t]/g.replace(s, "");
+	}
+	
 	static function extractJs(meta:Metadata) {
 		for (m in meta) {
 			if (m.name == ":js") {
 				switch(m.params[0]) {
-					case macro $v{(s:String)}: return s;
+					case macro $v{(s:String)}: return stripWhitespaces(s);
 					case e: Context.error("String expected", e.pos);
 				}
 			}
