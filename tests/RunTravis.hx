@@ -1,6 +1,10 @@
 import sys.*;
 import sys.io.*;
 
+/**
+	Will be run by TravisCI.
+	See ".travis.yml" at project root for TravisCI settings.
+*/
 class RunTravis {
 	static function runCommand(cmd:String, args:Array<String>):Void {
 		var exitCode = Sys.command(cmd, args);
@@ -57,6 +61,10 @@ class RunTravis {
 
 	static function main():Void {
 		var cwd = Sys.getCwd();
+		var unitDir = cwd + "unit/";
+		var optDir = cwd + "optimization/";
+
+		Sys.setCwd(unitDir);
 		switch (Sys.getEnv("TARGET")) {
 			case "macro", null:
 				runCommand("haxe", ["compile-macro.hxml"]);
@@ -75,7 +83,7 @@ class RunTravis {
 				runCommand("haxelib", ["git", "hxcpp", "https://github.com/HaxeFoundation/hxcpp.git"]);
 				Sys.setCwd(Sys.getEnv("HOME") + "/haxelib/hxcpp/git/runtime/");
 				runCommand("haxelib", ["run", "hxcpp", "BuildLibs.xml"]);
-				Sys.setCwd(cwd);
+				Sys.setCwd(unitDir);
 				
 				runCommand("haxe", ["compile-cpp.hxml"]);
 				runCommand("./cpp/Test-debug", []);
@@ -84,9 +92,8 @@ class RunTravis {
 				runCommand("node", ["-e", "var unit = require('./unit.js').unit; unit.Test.main(); process.exit(unit.Test.success ? 0 : 1);"]);
 
 				Sys.println("Test optimization:");
-				Sys.setCwd("../optimization/");
+				Sys.setCwd(optDir);
 				runCommand("haxe", ["run.hxml"]);
-				Sys.setCwd(cwd);
 			case "java":
 				runCommand("haxelib", ["git", "hxjava", "https://github.com/HaxeFoundation/hxjava.git"]);
 				runCommand("haxe", ["compile-java.hxml"]);
