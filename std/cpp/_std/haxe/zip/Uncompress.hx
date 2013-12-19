@@ -30,15 +30,21 @@ class Uncompress {
 	}
 
 	public function execute( src : haxe.io.Bytes, srcPos : Int, dst : haxe.io.Bytes, dstPos : Int ) : { done : Bool, read : Int, write : Int } {
-		return _inflate_buffer(s,src.getData(),srcPos,dst.getData(),dstPos);
+		if( s != null ) {
+			return _inflate_buffer(s,src.getData(),srcPos,dst.getData(),dstPos);
+		}
+		return { done : true, read : 0, write : 0 };
 	}
 
 	public function setFlushMode( f : FlushMode ) : Void {
-		_set_flush_mode(s,untyped f.__Tag());
+		if( s != null ) {
+			_set_flush_mode(s,untyped f.__Tag());
+		}
 	}
 
 	public function close() : Void {
 		_inflate_end(s);
+		s = null;
 	}
 
 	public static function run( src : haxe.io.Bytes, ?bufsize : Int ) : haxe.io.Bytes {
