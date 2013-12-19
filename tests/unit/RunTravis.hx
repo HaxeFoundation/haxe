@@ -82,6 +82,11 @@ class RunTravis {
 			case "js":
 				runCommand("haxe", ["compile-js.hxml"]);
 				runCommand("node", ["-e", "var unit = require('./unit.js').unit; unit.Test.main(); process.exit(unit.Test.success ? 0 : 1);"]);
+
+				Sys.println("Test optimization:");
+				Sys.setCwd("../optimization/");
+				runCommand("haxe", ["run.hxml"]);
+				Sys.setCwd(cwd);
 			case "java":
 				runCommand("haxelib", ["git", "hxjava", "https://github.com/HaxeFoundation/hxjava.git"]);
 				runCommand("haxe", ["compile-java.hxml"]);
