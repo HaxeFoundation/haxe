@@ -1,6 +1,10 @@
 import sys.*;
 import sys.io.*;
 
+/**
+	Will be run by TravisCI.
+	See ".travis.yml" at project root for TravisCI settings.
+*/
 class RunTravis {
 	static function runCommand(cmd:String, args:Array<String>):Void {
 		var exitCode = Sys.command(cmd, args);
@@ -17,26 +21,23 @@ class RunTravis {
 		Sys.putEnv("AUDIODEV", "null");
 		runCommand("sudo", ["apt-get", "install", "-qq", "libgd2-xpm", "ia32-libs", "ia32-libs-multiarch", "-y"]);
 		runCommand("wget", ["-nv", "http://fpdownload.macromedia.com/pub/flashplayer/updaters/11/flashplayer_11_sa_debug.i386.tar.gz"]);
-		runCommand("tar", ["-xf", "flashplayer_11_sa_debug.i386.tar.gz"]);
+		runCommand("tar", ["-xf", "flashplayer_11_sa_debug.i386.tar.gz", "-C", Sys.getEnv("HOME")]);
 		File.saveContent(Sys.getEnv("HOME") + "/mm.cfg", "ErrorReportingEnable=1\nTraceOutputFileEnable=1");
-		runCommand("./flashplayerdebugger", ["-v"]);
+		runCommand(Sys.getEnv("HOME") + "/flashplayerdebugger", ["-v"]);
 	}
 
-	static function runFlash(flashplayerdebuggerProcess:Process):Void {
+	static function runFlash(swf:String):Void {
+		Sys.command(Sys.getEnv("HOME") + "/flashplayerdebugger", [swf, "&"]);
+
 		//wait a little until flashlog.txt is created
 		var flashlogPath = Sys.getEnv("HOME") + "/.macromedia/Flash_Player/Logs/flashlog.txt";
 		for (t in 0...5) {
 			runCommand("sleep", ["2"]);
 			if (FileSystem.exists(flashlogPath))
 				break;				
-		}				
+		}
 		if (!FileSystem.exists(flashlogPath)) {
-			//the flashplayerdebugger should has already exited with some error...
-			Sys.println(flashplayerdebuggerProcess.stdout.readAll().toString());
-			Sys.println(flashplayerdebuggerProcess.stderr.readAll().toString());
-
-			var exitCode = flashplayerdebuggerProcess.exitCode();
-			Sys.println('flashplayerdebuggerProcess exited with $exitCode');
+			Sys.println('$flashlogPath not found.');
 			Sys.exit(1);
 		}
 
@@ -57,6 +58,10 @@ class RunTravis {
 
 	static function main():Void {
 		var cwd = Sys.getCwd();
+		var unitDir = cwd + "unit/";
+		var optDir = cwd + "optimization/";
+
+		Sys.setCwd(unitDir);
 		switch (Sys.getEnv("TARGET")) {
 			case "macro", null:
 				runCommand("haxe", ["compile-macro.hxml"]);
@@ -75,13 +80,17 @@ class RunTravis {
 				runCommand("haxelib", ["git", "hxcpp", "https://github.com/HaxeFoundation/hxcpp.git"]);
 				Sys.setCwd(Sys.getEnv("HOME") + "/haxelib/hxcpp/git/runtime/");
 				runCommand("haxelib", ["run", "hxcpp", "BuildLibs.xml"]);
-				Sys.setCwd(cwd);
+				Sys.setCwd(unitDir);
 				
 				runCommand("haxe", ["compile-cpp.hxml"]);
 				runCommand("./cpp/Test-debug", []);
 			case "js":
 				runCommand("haxe", ["compile-js.hxml"]);
 				runCommand("node", ["-e", "var unit = require('./unit.js').unit; unit.Test.main(); process.exit(unit.Test.success ? 0 : 1);"]);
+
+				Sys.println("Test optimization:");
+				Sys.setCwd(optDir);
+				runCommand("haxe", ["run.hxml"]);
 			case "java":
 				runCommand("haxelib", ["git", "hxjava", "https://github.com/HaxeFoundation/hxjava.git"]);
 				runCommand("haxe", ["compile-java.hxml"]);
@@ -98,11 +107,11 @@ class RunTravis {
 			case "flash9":
 				setupFlashPlayerDebugger();
 				runCommand("haxe", ["compile-flash9.hxml", "-D", "fdb"]);
-				runFlash(new Process("./flashplayerdebugger", ["unit9.swf"]));
+				runFlash("unit9.swf");
 			case "flash8":
 				setupFlashPlayerDebugger();
 				runCommand("haxe", ["compile-flash8.hxml", "-D", "fdb"]);
-				runFlash(new Process("./flashplayerdebugger", ["unit8.swf"]));
+				runFlash("unit8.swf");
 			case "as3":
 				setupFlashPlayerDebugger();
 
@@ -118,7 +127,7 @@ class RunTravis {
 				runCommand("mxmlc", ["--version"]);
 
 				runCommand("haxe", ["compile-as3.hxml", "-D", "fdb"]);
-				runFlash(new Process("./flashplayerdebugger", ["unit9_as3.swf"]));
+				runFlash("unit9_as3.swf");
 			case target:
 				throw "unknown target: " + target;
 		}

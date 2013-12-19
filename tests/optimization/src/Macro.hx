@@ -27,6 +27,7 @@ class Macro {
 		}
 		trace('Done $tests tests ($failures failures)');
 		trace("SUCCESS: " + (failures == 0));
+		Sys.exit(failures == 0 ? 0 : 1);
 	}
 	
 	static function test(className:String) {

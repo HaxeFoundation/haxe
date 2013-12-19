@@ -29,7 +29,7 @@ script:
   - make
   - make tools
   - sudo make install
-  - cd tests/unit/
+  - cd tests/
   - mkdir ~/haxelib && haxelib setup ~/haxelib
   - haxe -version
   - haxe -main RunTravis --interp
