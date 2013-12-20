@@ -89,6 +89,9 @@ class Build {
 		{
 			switch (fieldExprs[0].expr) {
 				case EUnop(OpNot, _, { expr : EArrayDecl(v) }): 
+					if (v.length == 0) {
+						Context.error("Non empty excluding List expected", x.pos);
+					}
 					function getIdent (x) return switch (x.expr) {
 						case EConst(CIdent(name)): name;
 						case _ : Context.error("List of Identifier expected", x.pos);
