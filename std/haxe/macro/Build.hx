@@ -82,54 +82,179 @@ class Build {
 				c;
 			case _: Context.error("Underlying type of exposing abstract must be a class", Context.currentPos());
 		}
-		function getIdentNames(e) return switch(e.expr) {
-			case EConst(CIdent(s)): { field : s, newField : s };
-			case EBinop(OpArrow, { expr : EConst(CIdent(s1))}, { expr: EConst(CIdent(s2))}): { field: s1, newField : s2 };
+		var isExcludePattern = false;
+		var excludeList = new Map();
+
+		var fieldExprs = if (fieldExprs.length == 1) 
+		{
+			switch (fieldExprs[0].expr) {
+				case EUnop(OpNot, _, { expr : EArrayDecl(v) }): 
+					function getIdent (x) return switch (x.expr) {
+						case EConst(CIdent(name)): name;
+						case _ : Context.error("List of Identifier expected", x.pos);
+					}
+					excludeList = [for (x in v) getIdent(x) => true ];
+					isExcludePattern = true;
+					[];
+				case _ : 
+					fieldExprs;
+			}
+		} else {
+			fieldExprs;
+		}
+
+		function getIdentNamePair(e) return switch(e.expr) {
+			case EConst(CIdent(s)): { baseName : s, newName : s };
+			case EBinop(OpArrow, { expr : EConst(CIdent(s1))}, { expr: EConst(CIdent(s2))}): { baseName: s1, newName : s2 };
 			case _: Context.error("Identifier or (Identifier => Identifier) expected", e.pos);
 		}
-		function toField(cf:ClassField, oldName:String, newName:String) {
-			return {
-				name: newName,
-				doc: cf.doc,
-				access: [AStatic, APublic, AInline],
-				pos: cf.pos,
-				meta: [{name: ":impl", params: [], pos: cf.pos}],
-				kind: switch(cf.type.follow()) {
-					case TFun(args, ret):
-						var args = args.map(function(arg) return {
-							name: arg.name,
-							opt: arg.opt,
-							type: arg.t.toComplexType(),
-							value: null
-						});
-						var expr = macro return this.$oldName($a{args.map(function(arg) return macro $i{arg.name})});
-						args.unshift({name: "this", type: null, opt:false, value: null});
-						FFun({
-							args: args,
-							ret: ret.toComplexType(),
-							expr: expr,
-							params: cf.params.map(function(param) return {
-								name: param.name,
-								constraints: [],
-								params: []
-							})
-						});
-					case _: throw "";
+
+		var thisType = {name: "this", type: tThis.follow().toComplexType(), opt:false, value: null};
+
+
+		function toFields(cf:ClassField, oldName:String, newName:String, pos) 
+		{
+			function mkField (kind:FieldType, ?access:Array<Access>, ?name:String, ?noCompletion = false):Field 
+			{
+				if (access == null) access = [AInline, APublic, AStatic];
+				if (name == null) name = newName;
+				var meta = [{name: ":impl", params: [], pos: cf.pos}];
+				if (noCompletion) {
+					meta.push({name: ":noCompletion", params: [], pos: cf.pos});
+				}
+				return {
+					name: name,
+					doc: cf.doc,
+					access: access,
+					pos: cf.pos,
+					meta: meta,
+					kind: kind
 				}
 			}
-		}
-		for (fieldExpr in fieldExprs) {
-			var fieldNames = getIdentNames(fieldExpr);
-			var fieldName = fieldNames.field;
-			var cField = c.findField(fieldName, false);
-			if (cField == null) Context.error('Underlying type has no field $fieldName', fieldExpr.pos);
-			switch(cField.kind) {
-				case FMethod(_):
-				case _: Context.error("Only function fields can be exposed", fieldExpr.pos);
+
+			var res = [];
+			var ct = cf.type.follow();
+			
+			switch(ct) {
+				case TFun(args, ret):
+					var args = args.map(function(arg) return {
+						name: arg.name,
+						opt: arg.opt,
+						type: arg.t.toComplexType(),
+						value: null
+					});
+					var expr = macro return this.$oldName($a{args.map(function(arg) return macro $i{arg.name})});
+					args.unshift(thisType);
+					var k = FieldType.FFun({
+						args: args,
+						ret: ret.toComplexType(),
+						expr: expr,
+						params: cf.params.map(function(param) return {
+							name: param.name,
+							constraints: [],
+							params: []
+						})
+					});
+					res.push(mkField(k));
+				case _:
+					switch (cf.kind) {
+						case FVar(read = AccNormal | AccInline | AccCall | AccRequire(_, _), write): // only read
+							var writeAccess = write.match(AccNormal | AccInline | AccCall);
+
+							/* add property and getter function */
+							var kprop = FieldType.FProp("get_" + newName, writeAccess ? "set_" + newName : "never", cf.type.toComplexType(), null);
+
+							var kget = FieldType.FFun({
+								args: [thisType],
+								ret: ct.toComplexType(),
+								expr: macro return this.$oldName,
+								params: cf.params.map(function(param) return {
+									name: param.name,
+									constraints: [],
+									params: []
+								})
+							});
+							
+							res.push(mkField(kprop, [APublic, AStatic], newName, false));
+							res.push(mkField(kget, [AInline, AStatic], "get_" + newName, true));
+
+							/* add setter function */
+							if (writeAccess) {
+								var kset = FieldType.FFun({
+									args: [thisType, {name: "val", type: null, opt:false, value: null}],
+									ret: ct.toComplexType(),
+									expr: macro return this.$oldName = val,
+									params: cf.params.map(function(param) return {
+										name: param.name,
+										constraints: [],
+										params: []
+									})
+								});
+								var f1 = mkField(kset, [AInline, AStatic], "set_" + newName, true);
+								res.push(f1);
+							}
+						case _ : throw "invalid";
+					}
+					
+				case _: throw "invalid";
 			}
-			cField.type = map(cField.type);
-			var field = toField(cField, fieldName, fieldNames.newField);
-			fields.push(field);
+
+			return res;
+		}
+
+		/* if we no fields are specified, all fields are forwarded */
+		function collectFields () 
+		{
+			// collect all fields and filter property accessors like get_x, set_x (no need to forward)
+			var fields1 = c.fields.get();
+			var filter = new Map();
+			var temp = [];
+			for (f in fields1) {
+				if (f.isPublic) {
+					temp.push({ expr : { expr : EConst(CIdent(f.name)), pos : Context.currentPos()}, name : f.name });
+
+					switch (f.kind) {
+						case FVar(r,w): 
+							if (r.match(AccCall)) filter.set("get_" + f.name, true);
+							if (w.match(AccCall)) filter.set("set_" + f.name, true);
+						case _:
+					}
+				}
+			}
+			/* filter fields by name */
+			return [for (f in temp) if (!filter.exists(f.name) && !excludeList.exists(f.name)) f.expr];
+		}
+
+		var forwardAll = fieldExprs.length == 0 && !isExcludePattern;
+
+		var fieldExprs = if (forwardAll) collectFields() else	fieldExprs;
+
+		var abstractFieldLookup = [for (f in fields) f.name=>true];
+
+		var curFieldLookup = if (forwardAll) [for (f in fields) f.name => true] else new Map();
+
+		for (fieldExpr in fieldExprs) 
+		{
+			var fieldNames = getIdentNamePair(fieldExpr);
+			var baseName = fieldNames.baseName;
+			var newName = fieldNames.newName;
+			if (!curFieldLookup.exists(newName)) {
+				
+				var cField = c.findField(baseName, false);
+				if (cField == null) Context.error('Underlying type has no field $baseName', fieldExpr.pos);
+				if (abstractFieldLookup.exists(fieldNames.newName)) {
+					var fieldStr = if (newName != baseName) '$baseName => $newName' else '$newName';
+					Context.error('Cannot forward field $fieldStr. Abstract already defines $newName.', fieldExpr.pos);
+				}
+				
+				cField.type = map(cField.type);
+				var newFields = toFields(cField, baseName, newName, fieldExpr.pos);
+				
+				for (f in newFields) {
+					fields.push(f);	
+				}
+			}
+			
 		}
 		return fields;
 	}
