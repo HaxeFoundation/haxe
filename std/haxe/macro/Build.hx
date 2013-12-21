@@ -240,7 +240,7 @@ class Build {
 			var fieldNames = getIdentNamePair(fieldExpr);
 			var baseName = fieldNames.baseName;
 			var newName = fieldNames.newName;
-			var fieldNameFree = !curAbstractFields.exists(newName);
+			var fieldNameFree = !abstractFieldLookup.exists(newName);
 			// in case of forwardAll we ignore if the field name is free because it could be a mapping.
 			// Additionally we can provide a better error message.
 			if (!forwardAll || fieldNameFree) {
