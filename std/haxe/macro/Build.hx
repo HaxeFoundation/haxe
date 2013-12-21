@@ -88,13 +88,13 @@ class Build {
 		var fieldExprs = if (fieldExprs.length == 1) 
 		{
 			switch (fieldExprs[0].expr) {
-				case EUnop(OpNot, _, { expr : EArrayDecl(v) }): 
+				case EUnop(OpNot, _, arr = { expr : EArrayDecl(v) }): 
 					if (v.length == 0) {
-						Context.error("Non empty excluding List expected", x.pos);
+						Context.error("Non empty excluding List expected", arr.pos);
 					}
 					function getIdent (x) return switch (x.expr) {
 						case EConst(CIdent(name)): name;
-						case _ : Context.error("List of Identifier expected", x.pos);
+						case _ : Context.error("List of Identifier expected", arr.pos);
 					}
 					excludeList = [for (x in v) getIdent(x) => true ];
 					isExcludePattern = true;
@@ -205,7 +205,7 @@ class Build {
 			return res;
 		}
 
-		/* if we no fields are specified, all fields are forwarded */
+		
 		function collectFields () 
 		{
 			// collect all fields and filter property accessors like get_x, set_x (no need to forward)
@@ -224,24 +224,26 @@ class Build {
 					}
 				}
 			}
-			/* filter fields by name */
+			/* filter property accessors and fields in excludeList */
 			return [for (f in temp) if (!filter.exists(f.name) && !excludeList.exists(f.name)) f.expr];
 		}
-
+		/* if @:forward have no parameters all fields are forwarded. */
 		var forwardAll = fieldExprs.length == 0 && !isExcludePattern;
 
 		var fieldExprs = if (forwardAll) collectFields() else	fieldExprs;
 
 		var abstractFieldLookup = [for (f in fields) f.name=>true];
 
-		var curFieldLookup = if (forwardAll) [for (f in fields) f.name => true] else new Map();
 
 		for (fieldExpr in fieldExprs) 
 		{
 			var fieldNames = getIdentNamePair(fieldExpr);
 			var baseName = fieldNames.baseName;
 			var newName = fieldNames.newName;
-			if (!curFieldLookup.exists(newName)) {
+			var fieldNameFree = !curAbstractFields.exists(newName);
+			// in case of forwardAll we ignore if the field name is free because it could be a mapping.
+			// Additionally we can provide a better error message.
+			if (!forwardAll || fieldNameFree) {
 				
 				var cField = c.findField(baseName, false);
 				if (cField == null) Context.error('Underlying type has no field $baseName', fieldExpr.pos);
