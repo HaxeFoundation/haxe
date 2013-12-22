@@ -2885,13 +2885,13 @@ let convert_ilprop ctx p prop =
 		| None -> "never"
 		| Some s when String.length s <= 4 || String.sub s 0 4 <> "get_" ->
 			raise Exit (* special (?) getter; not used *)
-		| Some _ -> "get"
+		| Some _ -> "default"
 	in
 	let set = match prop.pset with
 		| None -> "never"
 		| Some s when String.length s <= 4 || String.sub s 0 4 <> "set_" ->
 			raise Exit (* special (?) getter; not used *)
-		| Some _ -> "set"
+		| Some _ -> "default"
 	in
 	if PMap.mem "net_loader_debug" ctx.ncom.defines then
 		Printf.printf "\tproperty %s (%s,%s) : %s\n" prop.pname get set (IlMetaDebug.ilsig_s prop.psig.ssig);
