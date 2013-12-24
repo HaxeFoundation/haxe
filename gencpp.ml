@@ -703,6 +703,11 @@ let str s =
 		("HX_CSTRING(\"" ^ (special_to_hex escaped) ^ "\")")
 ;;
 
+let const_char_star s =
+	let escaped = Ast.s_escape ~hex:false s in
+   "\"" ^ special_to_hex escaped ^ "\"";
+;;
+
 
 
 (* When we are in a "real" object, we refer to ourselves as "this", but
@@ -1151,7 +1156,7 @@ let strip_file ctx file = (match Common.defined ctx Common.Define.AbsolutePath w
 let hx_stack_push ctx output clazz func_name pos =
    let stripped_file = strip_file ctx.ctx_common pos.pfile in
    let qfile = "\"" ^ (Ast.s_escape stripped_file) ^ "\"" in
-	ctx.ctx_file_info := PMap.add qfile qfile !(ctx.ctx_file_info);
+	ctx.ctx_file_info := PMap.add stripped_file pos.pfile !(ctx.ctx_file_info);
 	if (ctx.ctx_dump_stack_line) then begin
       let hash_class_func = gen_hash 0 (clazz^"."^func_name) in
       let hash_file = gen_hash 0 stripped_file in
@@ -2500,7 +2505,9 @@ let generate_boot common_ctx boot_classes init_classes =
 			prefix ^ ( join_class_path class_path "/" ) ^ ".h>\n")
 			) boot_classes;
 
+	output_boot "\nvoid __files__boot();\n";
 	output_boot "\nvoid __boot_all()\n{\n";
+	output_boot "__files__boot();\n";
 	output_boot "hx::RegisterResources( hx::GetResources() );\n";
 	List.iter ( fun class_path ->
 		output_boot ("::" ^ ( join_class_path_remap class_path "::" ) ^ "_obj::__register();\n") ) boot_classes;
@@ -2526,25 +2533,40 @@ let generate_files common_ctx file_info =
 	output_files "namespace hx {\n";
 	output_files "const char *__hxcpp_all_files[] = {\n";
 	output_files "#ifdef HXCPP_DEBUGGER\n";
-	List.iter ( fun file -> output_files ("	HX_CSTRING(" ^ file ^ "),\n" ) ) ( List.sort String.compare ( pmap_keys !file_info) );
+	List.iter ( fun file -> output_files ((const_char_star file)^",\n" ) )
+		( List.sort String.compare ( pmap_keys !file_info) );
 	output_files "#endif\n";
 	output_files " 0 };\n";
-    output_files "\n";
-    output_files "const char *__hxcpp_all_classes[] = {\n";
+	output_files "\n";
+
+	output_files "const char *__hxcpp_all_files_fullpath[] = {\n";
 	output_files "#ifdef HXCPP_DEBUGGER\n";
-    List.iter ( fun object_def ->
-                (match object_def with
-		         | TClassDecl class_def when class_def.cl_extern -> ( )
-		         | TClassDecl class_def when class_def.cl_interface -> ( )
-				 | TClassDecl class_def ->
-                   output_files("    HX_CSTRING(\"" ^ join_class_path class_def.cl_path "." ^ "\"),\n")
-                 | _ -> ( )
-                )
-              )
-              types;
+	List.iter ( fun file -> output_files ((const_char_star (
+      Common.get_full_path (try Common.find_file common_ctx file with Not_found -> file)
+		))^",\n" ) )
+		( List.sort String.compare ( pmap_keys !file_info) );
 	output_files "#endif\n";
 	output_files " 0 };\n";
+	output_files "\n";
+
+
+	output_files "const char *__hxcpp_all_classes[] = {\n";
+	output_files "#ifdef HXCPP_DEBUGGER\n";
+	List.iter ( fun object_def ->
+	(match object_def with
+		| TClassDecl class_def when class_def.cl_extern -> ( )
+		| TClassDecl class_def when class_def.cl_interface -> ( )
+		| TClassDecl class_def ->
+			output_files ((const_char_star (join_class_path class_def.cl_path "." )) ^ ",\n")
+		| _ -> ( )
+		)
+	) types;
+	output_files "#endif\n";
+	output_files " 0 };\n";
+
 	output_files "} // namespace hx\n";
+   output_files "void __files__boot() { __hxcpp_set_debugger_info(hx::__hxcpp_all_classes, hx::__hxcpp_all_files_fullpath); }\n";
+
 	files_file#close;;
 
 
