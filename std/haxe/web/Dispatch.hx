@@ -39,6 +39,7 @@ enum MatchRule {
 	MRBool;
 	MRFloat;
 	MRString;
+	MREnum( e : String );
 	MRDispatch;
 	MRSpod( c : String, lock : Bool );
 	MROpt( r : MatchRule );
@@ -166,6 +167,19 @@ class Dispatch {
 			return v;
 		case MRBool:
 			return v != null && v != "0" && v != "false" && v != "null";
+		case MREnum(e):
+			if( v == null ) throw DEMissing;
+			if( opt && v == "" ) return null;
+			if( v == "" ) throw DEMissing;
+			var en : Dynamic = Type.resolveEnum(e);
+			if( en == null ) throw "assert";
+			var ev:Dynamic;
+			if (v.charCodeAt(0) >= '0'.code && v.charCodeAt(0) <= '9'.code) {
+				ev = Type.createEnumIndex(en, Std.parseInt(v));
+			} else {
+				ev = Type.createEnum(en, v);
+			}
+			return ev;
 		case MRDispatch:
 			if( v != null )
 				parts.unshift(v);
@@ -270,7 +284,7 @@ class Dispatch {
 			case "Bool":
 				return MRBool;
 			default:
-				Context.error("Unsupported dispatch type "+e.toString(),p);
+				return MREnum(e.toString());
 			}
 		case TAbstract(a,_):
 			switch( a.toString() ) {
