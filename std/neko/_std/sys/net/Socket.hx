@@ -122,7 +122,7 @@ class Socket {
 	public var custom : Dynamic;
 
 	public function new() : Void {
-		__s = socket_new(false);
+		if( __s == null ) __s = socket_new(false);
 		input = new SocketInput(__s);
 		output = new SocketOutput(__s);
 	}
