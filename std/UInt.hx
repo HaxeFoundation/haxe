@@ -213,8 +213,8 @@ abstract UInt(Int) from Int {
 		return Std.string(toFloat());
 	}
 
-	@:to private inline function toDynamic():Dynamic {
-		return toFloat();
+	@:to private inline function toInt():Int {
+		return this;
 	}
 
 	@:to private inline function toFloat():Float {
@@ -226,9 +226,9 @@ abstract UInt(Int) from Int {
 			return int;
 		}
 	}
-
-	@:to private inline function toInt():Int {
-		return this;
+	
+	@:to private inline function toDynamic():Dynamic {
+		return toFloat();
 	}
 
 }
