@@ -1170,6 +1170,7 @@ let type_function_params ctx fd fname p =
 let type_function ctx args ret fmode f do_display p =
 	let locals = save_locals ctx in
 	let fargs = List.map (fun (n,c,t) ->
+		if n.[0] = '$' then error "Function argument names starting with a dollar are not allowed" p;
 		let c = (match c with
 			| None -> None
 			| Some e ->
