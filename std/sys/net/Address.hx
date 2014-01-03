@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,27 +22,35 @@
 package sys.net;
 
 /**
-	A UDP socket class
+	An address is used to represent a port on a given host ip. It is used by UdpSocket.
 **/
-class UdpSocket extends Socket {
-	
+class Address {
+	public var host : Int;
+	public var port : Int;
 	public function new() {
-		throw "Not available on this platform";
-		super();
+		host = 0;
+		port = 0;
 	}
-
-	/**
-		Sends data to the specified target host/port address.
-	**/
-	public function sendTo( buf : haxe.io.Bytes, pos : Int, len : Int, addr : Address ) : Int {
+	
+	public function getHost() {
+		var h = new Host("127.0.0.1");
+		untyped h.ip = host;
+		return h;
+	}
+	
+	public function compare( a : Address ) {
+		var dh = a.host - host;
+		if( dh != 0 ) return dh;
+		var dp = a.port - port;
+		if( dp != 0 ) return dp;
 		return 0;
 	}
 	
-	/**
-		Reads data from any incoming address and store the receiver address into the address parameter.
-	**/
-	public function readFrom( buf : haxe.io.Bytes, pos : Int, len : Int, addr : Address ) : Int {
-		return 0;
+	public function clone() {
+		var c = new Address();
+		c.host = host;
+		c.port = port;
+		return c;
 	}
-
+	
 }

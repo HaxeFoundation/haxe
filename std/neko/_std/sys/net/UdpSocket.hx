@@ -30,7 +30,7 @@ class UdpSocket extends Socket {
 		super();
 	}
 
-	public function sendTo( buf : haxe.io.Bytes, pos : Int, len : Int, addr : { host : Int, port : Int } ) : Int {
+	public function sendTo( buf : haxe.io.Bytes, pos : Int, len : Int, addr : Address ) : Int {
 		return try {
 			socket_send_to(__s, buf.getData(), pos, len, addr);
 		} catch( e : Dynamic ) {
@@ -41,7 +41,7 @@ class UdpSocket extends Socket {
 		}
 	}
 	
-	public function readFrom( buf : haxe.io.Bytes, pos : Int, len : Int, addr : { host : Int, port : Int } ) : Int {
+	public function readFrom( buf : haxe.io.Bytes, pos : Int, len : Int, addr : Address ) : Int {
 		var r;
 		try {
 			r = socket_recv_from(__s,buf.getData(),pos,len,addr);
