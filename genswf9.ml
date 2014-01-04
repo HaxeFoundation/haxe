@@ -1004,7 +1004,7 @@ let rec gen_expr_content ctx retval e =
 		gen_expr ctx retval e
 	| TObjectDecl fl ->
 		List.iter (fun (name,e) ->
-			write ctx (HString name);
+			write ctx (HString (reserved name));
 			gen_expr ctx true e
 		) fl;
 		write ctx (HObject (List.length fl))
