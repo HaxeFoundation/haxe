@@ -1106,8 +1106,9 @@ let rec type_ident_raise ?(imported_enums=true) ctx i p mode =
 		let e = type_module_type ctx t None p in
 		type_field ctx e name p mode
 
-and type_field ctx e i p mode =
+and type_field ?(resume=false) ctx e i p mode =
 	let no_field() =
+		if resume then raise Not_found;
 		let t = match follow e.etype with
 			| TAnon a -> (match !(a.a_status) with
 				| Statics {cl_kind = KAbstractImpl a} -> TAbstract(a,[])
@@ -2066,10 +2067,13 @@ and type_access ctx e p mode =
 			| _ -> error "Binding new is only allowed on class types" p
 		end;
 	| EField _ ->
-		let fields path e =
+		let fields ?(resume=false) path e =
+			let resume = ref resume in
 			List.fold_left (fun e (f,_,p) ->
 				let e = acc_get ctx (e MGet) p in
-				type_field ctx e f p
+				let f = type_field ~resume:(!resume) ctx e f p in
+				resume := false;
+				f
 			) e path
 		in
 		let type_path path =
@@ -2112,8 +2116,8 @@ and type_access ctx e p mode =
 					in
 					match path with
 					| (sname,true,p) :: path ->
-						let get_static t =
-							fields ((sname,true,p) :: path) (fun _ -> AKExpr (type_module_type ctx t None p))
+						let get_static resume t =
+							fields ~resume ((sname,true,p) :: path) (fun _ -> AKExpr (type_module_type ctx t None p))
 						in
 						let check_module m v =
 							try
@@ -2126,7 +2130,7 @@ and type_access ctx e p mode =
 								(* then look for main type statics *)
 									if fst m = [] then raise Not_found; (* ensure that we use def() to resolve local types first *)
 									let t = List.find (fun t -> not (t_infos t).mt_private && t_path t = m) md.m_types in
-									Some (get_static t)
+									Some (get_static false t)
 								with Not_found ->
 									None)
 							with Error (Module_not_found m2,_) when m = m2 ->
@@ -2144,7 +2148,8 @@ and type_access ctx e p mode =
 						| [] ->
 							(try
 								let t = List.find (fun t -> snd (t_infos t).mt_path = name) (ctx.m.curmod.m_types @ ctx.m.module_types) in
-								get_static t
+								(* if the static is not found, look for a subtype instead - #1916 *)
+								get_static true t
 							with Not_found ->
 								loop (fst ctx.m.curmod.m_path))
 						| _ ->
