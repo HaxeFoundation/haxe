@@ -65,6 +65,7 @@ class Http {
 	var file : { param : String, filename : String, io : haxe.io.Input, size : Int };
 #elseif js
 	public var async : Bool;
+	var file : { param : String, data : js.html.File };
 #end
 	var postData : String;
 	var headers : List<{ header:String, value:String }>;
@@ -152,6 +153,12 @@ class Http {
 		return this;
 	}
 	#end
+	
+	#if js
+	public function fileTransfer( argname : String, file : js.html.File ) {
+		this.file = { param : argname, data : file };
+	}
+	#end
 
 	/**
 		Sends `this` Http request to the Url specified by `this.url`.
@@ -200,7 +207,7 @@ class Http {
 		if( async )
 			r.onreadystatechange = onreadystatechange;
 		var uri = postData;
-		if( uri != null )
+		if( uri != null || file != null )
 			post = true;
 		else for( p in params ) {
 			if( uri == null )
@@ -222,12 +229,17 @@ class Http {
 			onError(e.toString());
 			return;
 		}
-		if( !Lambda.exists(headers, function(h) return h.header == "Content-Type") && post && postData == null )
+		if( !Lambda.exists(headers, function(h) return h.header == "Content-Type") && post && postData == null && file == null )
 			r.setRequestHeader("Content-Type","application/x-www-form-urlencoded");
 
 		for( h in headers )
 			r.setRequestHeader(h.header,h.value);
-		r.send(uri);
+		if( file == null ) r.send(uri);
+		else {
+			var fd = new js.html.DOMFormData();
+			fd.append(file.param,untyped file.data,file.data.name);
+			r.send(fd);
+		}
 		if( !async )
 			onreadystatechange(null);
 	#elseif flash9
