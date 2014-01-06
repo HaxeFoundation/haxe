@@ -238,6 +238,8 @@ class Http {
 		else {
 			var fd = new js.html.DOMFormData();
 			fd.append(file.param,untyped file.data,file.data.name);
+			for( p in params )
+				fd.append(p.param,p.value,null);
 			r.send(fd);
 		}
 		if( !async )
