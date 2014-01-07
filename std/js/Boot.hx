@@ -186,7 +186,7 @@ class Boot {
 						return true;
 				} else if( 	(untyped __js__("typeof"))(cl) == "object" &&
 							(untyped __js__("typeof"))(o) != "string" &&
-							(untyped __js__("(/^\\[object .*?Constructor\\]$/).test(cl)")) ) {
+							(untyped __js__("(/^\\[object .*?Element.*?\\]$/).test(cl)")) ) {
 					return untyped __js__("o instanceof cl");
 				}
 			} else {
