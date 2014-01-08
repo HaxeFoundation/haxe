@@ -28,15 +28,22 @@ package haxe;
 	The intended usage is to create an instance of the Timer class with a given
 	interval, set its run() method to a custom function to be invoked and
 	eventually call stop() to stop the Timer.
+
+	Note that a running Timer may or may not prevent the program to exit 
+	automatically when main() returns.
 	
 	It is also possible to extend this class and override its run() method in
 	the child class.
 **/
 class Timer {
-	#if (neko || php || cpp)
-	#else
+	#if (flash || js || java)
 
-	private var id : Null<Int>;
+	#if (flash || js)
+		private var id : Null<Int>;
+	#elseif java
+		private var timer : java.util.Timer;
+		private var task : java.util.TimerTask;
+	#end
 
 	/**
 		Creates a new timer that will run every `time_ms` milliseconds.
@@ -59,6 +66,9 @@ class Timer {
 		#elseif js
 			var me = this;
 			id = untyped setInterval(function() me.run(),time_ms);
+		#elseif java
+			timer = new java.util.Timer();
+			timer.scheduleAtFixedRate(task = new TimerTask(this), haxe.Int64.ofInt(time_ms), haxe.Int64.ofInt(time_ms));
 		#end
 	}
 
@@ -71,16 +81,22 @@ class Timer {
 		It is not possible to restart `this` Timer once stopped.
 	**/
 	public function stop() {
-		if( id == null )
-			return;
-		#if flash9
-			untyped __global__["flash.utils.clearInterval"](id);
-		#elseif flash
-			untyped _global["clearInterval"](id);
-		#elseif js
-			untyped clearInterval(id);
+		#if (flash || js)
+			if( id == null )
+				return;
+			#if flash9
+				untyped __global__["flash.utils.clearInterval"](id);
+			#elseif flash
+				untyped _global["clearInterval"](id);
+			#elseif js
+				untyped clearInterval(id);
+			#end
+			id = null;
+		#elseif java
+			timer.cancel();
+			timer = null;
+			task = null;
 		#end
-		id = null;
 	}
 
 	/**
@@ -159,3 +175,18 @@ class Timer {
 	}
 
 }
+
+#if java
+@:nativeGen
+private class TimerTask extends java.util.TimerTask {
+	var timer:Timer;
+	public function new(timer:Timer):Void {
+		super();
+		this.timer = timer;
+	}
+
+	@:overload public function run():Void {
+		timer.run();
+	}
+}
+#end
