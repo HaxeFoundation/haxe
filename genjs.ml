@@ -244,6 +244,11 @@ let write_mappings ctx =
 	output_string channel ("\"sources\":[" ^
 		(String.concat "," (List.map (fun s -> "\"" ^ to_url s ^ "\"") sources)) ^
 		"],\n");
+	if Common.defined ctx.com Define.SourceMapContent then begin
+		output_string channel ("\"sourcesContent\":[" ^
+			(String.concat "," (List.map (fun s -> "\"" ^ Ast.s_escape (Std.input_file ~bin:true s) ^ "\"") sources)) ^
+			"],\n");
+	end;
 	output_string channel "\"names\":[],\n";
 	output_string channel "\"mappings\":\"";
 	Buffer.output_buffer channel ctx.smap.mappings;

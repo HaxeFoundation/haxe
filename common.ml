@@ -209,6 +209,7 @@ module Define = struct
 		| ReplaceFiles
 		| Scriptable
 		| ShallowExpose
+		| SourceMapContent
 		| Swc
 		| SwfCompressLevel
 		| SwfDebugPassword
@@ -277,6 +278,7 @@ module Define = struct
 		| ReplaceFiles -> ("replace_files","GenCommon internal")
 		| Scriptable -> ("scriptable","GenCPP internal")
 		| ShallowExpose -> ("shallow-expose","Expose types to surrounding scope of Haxe generated closure without writing to window object")
+		| SourceMapContent -> ("source-map-content","Include the hx sources as part of the JS source map")
 		| Swc -> ("swc","Output a SWC instead of a SWF")
 		| SwfCompressLevel -> ("swf_compress_level","<level:1-9> Set the amount of compression for the SWF output")
 		| SwfDebugPassword -> ("swf_debug_password", "Set a password for debugging.")
