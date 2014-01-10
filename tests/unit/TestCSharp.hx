@@ -89,6 +89,16 @@ class TestCSharp extends Test
 
 	#end
 
+	// test these because C# generator got a special filter for these expressions
+	public function testNullConstEq()
+	{
+		var a:Null<Int> = 10;
+		f(a == null);
+		f(null == a);
+		t(a != null);
+		f(null != a);
+	}
+
 	#end
 }
 
