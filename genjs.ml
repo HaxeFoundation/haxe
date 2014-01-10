@@ -246,7 +246,7 @@ let write_mappings ctx =
 		"],\n");
 	if Common.defined ctx.com Define.SourceMapContent then begin
 		output_string channel ("\"sourcesContent\":[" ^
-			(String.concat "," (List.map (fun s -> "\"" ^ Ast.s_escape (Std.input_file ~bin:true s) ^ "\"") sources)) ^
+			(String.concat "," (List.map (fun s -> try "\"" ^ Ast.s_escape (Std.input_file ~bin:true s) ^ "\"" with _ -> "null") sources)) ^
 			"],\n");
 	end;
 	output_string channel "\"names\":[],\n";
