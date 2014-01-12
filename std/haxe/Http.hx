@@ -603,6 +603,7 @@ class Http {
 			var hname = a.shift();
 			var hval = if( a.length == 1 ) a[0] else a.join(": ");
 			responseHeaders.set(hname, hval);
+			hval = StringTools.ltrim( StringTools.rtrim( hval ) );
 			switch(hname.toLowerCase())
 			{
 				case "content-length":
