@@ -43,7 +43,7 @@ class ObjectMap<K:{ }, V> implements Map.IMap<K,V> {
 	}
 	
 	public function set(key:K, value:V):Void untyped {
-		var id = key.__id__ != null ? key.__id__ : assignId(key);
+		var id : Int = untyped key.__id__ || assignId(key);
 		h[id] = value;
 		h.__keys__[id] = key;
 	}
@@ -53,12 +53,12 @@ class ObjectMap<K:{ }, V> implements Map.IMap<K,V> {
 	}
 	
 	public inline function exists(key:K):Bool {
-		return untyped h.hasOwnProperty(getId(key));
+		return untyped h.__keys__[getId(key)] != null;
 	}
 	
 	public function remove( key : K ) : Bool {
 		var id = getId(key);
-		if ( untyped !h.hasOwnProperty(id) ) return false;
+		if ( untyped h.__keys__[id] == null ) return false;
 		untyped  __js__("delete")(h[id]);
 		untyped  __js__("delete")(h.__keys__[id]);
 		return true;
