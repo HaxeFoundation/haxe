@@ -166,6 +166,15 @@ class Http {
 			if( r.readyState != 4 )
 				return;
 			var s = try r.status catch( e : Dynamic ) null;
+			if ( s != null ) {
+			    // If the request is local and we have data: assume a success (jQuery approach):
+                var protocol = js.Browser.location.protocol.toLowerCase();
+                var rlocalProtocol = ~/^(?:about|app|app-storage|.+-extension|file|res|widget):$/;
+                var isLocal = rlocalProtocol.match( protocol );
+                if ( isLocal ) {
+                    s = r.responseText != null ? 200 : 404;
+                }
+            }
 			if( s == untyped __js__("undefined") )
 				s = null;
 			if( s != null )
