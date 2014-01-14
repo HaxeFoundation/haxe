@@ -15,6 +15,21 @@ class TestCSharp extends Test
 		out = x * 2;
 	}
 
+    // test for https://github.com/HaxeFoundation/haxe/issues/2528
+    public function testDynObjectSetField()
+    {
+        var a:Dynamic = {};
+        a.status = 10;
+        var b:{status:Int} = a;
+        b.status = 15;
+
+        eq(a, b);
+        eq(Reflect.fields(a).length, 1);
+        eq(Reflect.fields(b).length, 1);
+        eq(a.status, 15);
+        eq(b.status, 15);
+    }
+
 	public function testRef()
 	{
 		var i = 10;
