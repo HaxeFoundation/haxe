@@ -927,6 +927,7 @@ try
 	let force_typing = ref false in
 	let pre_compilation = ref [] in
 	let interp = ref false in
+	let swf_version = ref false in
 	Common.define_value com Define.HaxeVer (float_repres (float_of_int version /. 10000.));
 	Common.raw_define com "haxe3";
 	Common.define_value com Define.Dce "std";
@@ -1037,7 +1038,8 @@ try
 			Common.define_value com Define.Dce mode
 		),"[std|full|no] : set the dead code elimination mode");
 		("-swf-version",Arg.Float (fun v ->
-			com.flash_version <- v;
+			if not !swf_version || com.flash_version < v then com.flash_version <- v;
+			swf_version := true;
 		),"<version> : change the SWF version (6 to 10)");
 		("-swf-header",Arg.String (fun h ->
 			try
