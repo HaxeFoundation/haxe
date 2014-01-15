@@ -525,26 +525,6 @@ let tag ?(ext=false) d = {
 	tdata = d;
 }
 
-let swf_ver = function
-	| 6. -> 6
-	| 7. -> 7
-	| 8. -> 8
-	| 9. -> 9
-	| 10. | 10.1 -> 10
-	| 10.2 -> 11
-	| 10.3 -> 12
-	| 11. -> 13
-	| 11.1 -> 14
-	| 11.2 -> 15
-	| 11.3 -> 16
-	| 11.4 -> 17
-	| 11.5 -> 18
-	| 11.6 -> 19
-	| 11.7 -> 20
-	| 11.8 -> 21
-	| 11.9 -> 22
-	| v -> failwith ("Invalid SWF version " ^ float_repres v)
-
 let convert_header com (w,h,fps,bg) =
 	let high = (max w h) * 20 in
 	let rec loop b =
@@ -552,7 +532,7 @@ let convert_header com (w,h,fps,bg) =
 	in
 	let bits = loop 0 in
 	{
-		h_version = swf_ver com.flash_version;
+		h_version = Common.flash_version_tag com.flash_version;
 		h_size = {
 			rect_nbits = bits + 1;
 			left = 0;
@@ -1031,7 +1011,7 @@ let build_swf9 com file swc =
 
 let merge com file priority (h1,tags1) (h2,tags2) =
   (* prioritize header+bgcolor for first swf *)
-	let header = if priority then { h2 with h_version = max h2.h_version (swf_ver com.flash_version) } else h1 in
+	let header = if priority then { h2 with h_version = max h2.h_version (Common.flash_version_tag com.flash_version) } else h1 in
 	let tags1 = if priority then List.filter (function { tdata = TSetBgColor _ } -> false | _ -> true) tags1 else tags1 in
   (* remove unused tags *)
 	let use_stage = priority && Common.defined com Define.FlashUseStage in

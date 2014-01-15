@@ -4,5 +4,6 @@ package flash.net.drm;
 	var authenticationMethod(default,null) : String;
 	var displayName(default,null) : String;
 	var domain(default,null) : String;
+	var policyID(default,null) : String;
 	function new() : Void;
 }

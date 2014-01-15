@@ -8,6 +8,7 @@ package flash.display3D;
 	function createCubeTexture(size : Int, format : Context3DTextureFormat, optimizeForRenderToTexture : Bool, streamingLevels : Int = 0) : flash.display3D.textures.CubeTexture;
 	function createIndexBuffer(numIndices : Int) : IndexBuffer3D;
 	function createProgram() : Program3D;
+	@:require(flash11_8) function createRectangleTexture(width : Int, height : Int, format : Context3DTextureFormat, optimizeForRenderToTexture : Bool) : flash.display3D.textures.RectangleTexture;
 	function createTexture(width : Int, height : Int, format : Context3DTextureFormat, optimizeForRenderToTexture : Bool, streamingLevels : Int = 0) : flash.display3D.textures.Texture;
 	function createVertexBuffer(numVertices : Int, data32PerVertex : Int) : VertexBuffer3D;
 	function dispose(recreate : Bool = true) : Void;

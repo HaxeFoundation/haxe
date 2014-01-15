@@ -5,4 +5,5 @@ package flash.events;
 	function new(type : String, bubbles : Bool = false, cancelable : Bool = false, ?device : flash.ui.GameInputDevice) : Void;
 	static var DEVICE_ADDED : String;
 	static var DEVICE_REMOVED : String;
+	static var DEVICE_UNUSABLE : String;
 }

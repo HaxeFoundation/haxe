@@ -732,7 +732,33 @@ let flash_versions = List.map (fun v ->
 	let maj = int_of_float v in
 	let min = int_of_float (mod_float (v *. 10.) 10.) in
 	v, string_of_int maj ^ (if min = 0 then "" else "_" ^ string_of_int min)
-) [9.;10.;10.1;10.2;10.3;11.;11.1;11.2;11.3;11.4;11.5;11.6;11.7;11.8]
+) [9.;10.;10.1;10.2;10.3;11.;11.1;11.2;11.3;11.4;11.5;11.6;11.7;11.8;11.9;12.0;12.1;12.2;12.3;12.4;12.5]
+
+let flash_version_tag = function
+	| 6. -> 6
+	| 7. -> 7
+	| 8. -> 8
+	| 9. -> 9
+	| 10. | 10.1 -> 10
+	| 10.2 -> 11
+	| 10.3 -> 12
+	| 11. -> 13
+	| 11.1 -> 14
+	| 11.2 -> 15
+	| 11.3 -> 16
+	| 11.4 -> 17
+	| 11.5 -> 18
+	| 11.6 -> 19
+	| 11.7 -> 20
+	| 11.8 -> 21
+	| 11.9 -> 22
+	| 12.0 -> 23
+	| 12.1 -> 24
+	| 12.2 -> 25
+	| 12.3 -> 26
+	| 12.4 -> 27
+	| 12.5 -> 28
+	| v -> failwith ("Invalid SWF version " ^ string_of_float v)
 
 let raw_defined ctx v =
 	PMap.mem v ctx.defines
