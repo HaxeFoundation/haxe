@@ -81,7 +81,7 @@ and pat = {
 type out = {
 	mutable o_pos : pos;
 	o_id : int;
-	o_default : bool;
+	o_catch_all : bool;
 	mutable o_num_paths : int;
 }
 
@@ -103,7 +103,7 @@ type matcher = {
 	dt_lut : dt DynArray.t;
 	dt_cache : (dt,int) Hashtbl.t;
 	mutable dt_count : int;
-	mutable outcomes : (pat list,out) PMap.t;
+	mutable outcomes : out list;
 	mutable toplevel_or : bool;
 	mutable has_extractor : bool;
 	mutable expr_map : (int,texpr * texpr option) PMap.t;
@@ -128,20 +128,20 @@ let mk_st def t p = {
 	st_pos = p;
 }
 
-let mk_out mctx id e eg pl is_default p =
+let mk_out mctx id e eg is_catch_all p =
 	let out = {
 		o_pos = p;
 		o_id = id;
-		o_default = is_default;
+		o_catch_all = is_catch_all;
 		o_num_paths = 0;
 	} in
-	mctx.outcomes <- PMap.add pl out mctx.outcomes;
+	mctx.outcomes <- out :: mctx.outcomes;
 	mctx.expr_map <- PMap.add id (e,eg) mctx.expr_map;
 	out
 
-let clone_out mctx out pl p =
+let clone_out mctx out p =
  	let out = {out with o_pos = p; } in
- 	mctx.outcomes <- PMap.add pl out mctx.outcomes;
+ 	mctx.outcomes <- out :: mctx.outcomes;
 	out
 
 let get_guard mctx id =
@@ -687,13 +687,13 @@ let expand_or mctx pmat =
 			let rec loop2 pv out = match pv.(0) with
 				| {p_def = POr(pat1,pat2)} ->
 					out.o_pos <- pat1.p_pos;
-					let out2 = clone_out mctx out [pat2] pat2.p_pos in
+					let out2 = clone_out mctx out pat2.p_pos in
 					let tl = array_tl pv in
 					loop2 (Array.append [|pat2|] tl) out2;
 					loop2 (Array.append [|pat1|] tl) out;
 				| {p_def = PBind(v,{p_def = POr(pat1,pat2)})} as pat ->
 					out.o_pos <- pat1.p_pos;
-					let out2 = clone_out mctx out [pat2] pat2.p_pos in
+					let out2 = clone_out mctx out pat2.p_pos in
 					let tl = array_tl pv in
 					loop2 (Array.append [|{pat with p_def = PBind(v,pat2)}|] tl) out2;
 					loop2 (Array.append [|{pat with p_def = PBind(v,pat1)}|] tl) out;
@@ -1098,7 +1098,7 @@ let match_expr ctx e cases def with_type p =
 	let mctx = {
 		ctx = ctx;
 		need_val = need_val;
-		outcomes = PMap.empty;
+		outcomes = [];
 		toplevel_or = false;
 		dt_lut = DynArray.create ();
 		dt_cache = Hashtbl.create 0;
@@ -1154,6 +1154,10 @@ let match_expr ctx e cases def with_type p =
 			with Unrecognized_pattern (e,p) ->
 				error "Case expression must be a constant value or a pattern, not an arbitrary expression" p
 		in
+		let is_catch_all = match pl with
+			| [{p_def = PAny | PVar _}] -> true
+			| _ -> false
+		in
 		(* type case body *)
 		let e = match e with
 			| None -> mk (TBlock []) ctx.com.basic.tvoid (pos ep)
@@ -1178,8 +1182,7 @@ let match_expr ctx e cases def with_type p =
 		in
 		List.iter (fun f -> f()) restore;
 		save();
-		let is_default = match fst ep with (EConst(Ident "_")) -> true | _ -> false in
-		let out = mk_out mctx i e eg pl is_default (pos ep) in
+		let out = mk_out mctx i e eg is_catch_all (pos ep) in
 		Array.of_list pl,out
 	) cases in
 	let check_unused () =
@@ -1206,8 +1209,11 @@ let match_expr ctx e cases def with_type p =
 			(match cases with (e,_,_) :: cl -> loop e cl | [] -> assert false);
 			ctx.on_error <- old_error;
 		in
- 		PMap.iter (fun _ out ->
- 			if not (out.o_num_paths > 0 || out.o_default) then begin
+		let had_catch_all = ref false in
+ 		List.iter (fun out ->
+ 			if out.o_catch_all && not !had_catch_all then
+ 				had_catch_all := true
+ 			else if out.o_num_paths = 0 then begin
 				unused out.o_pos;
 				if mctx.toplevel_or then begin match evals with
 					| [{etype = t}] when (match follow t with TAbstract({a_path=[],"Int"},[]) -> true | _ -> false) ->
@@ -1215,7 +1221,7 @@ let match_expr ctx e cases def with_type p =
 					| _ -> ()
 				end;
 			end
-		) mctx.outcomes;
+		) (List.rev mctx.outcomes);
 	in
 	let dt = try
 		(* compile decision tree *)
