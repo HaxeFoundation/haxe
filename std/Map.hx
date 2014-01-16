@@ -41,7 +41,7 @@ import haxe.ds.EnumValueMap;
 	
 	Map is an abstract type, it is not available at runtime.
 **/
-@:multiType
+@:multiType(K)
 abstract Map<K,V>(IMap<K,V> ) {
 	
 	/**
@@ -79,7 +79,7 @@ abstract Map<K,V>(IMap<K,V> ) {
 		1. the map has no mapping for `key`
 		2. the map has a mapping with a value of `null`
 		
-		If it is important to distinguish these cases, `exists()` should be 
+		If it is important to distinguish these cases, `exists()` should be
 		used.
 		
 		If `key` is null, the result is unspecified.

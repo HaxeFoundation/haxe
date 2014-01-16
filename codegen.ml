@@ -684,10 +684,21 @@ module Abstract = struct
 
 	let find_multitype_specialization a pl p =
 		let m = mk_mono() in
-		let at = apply_params a.a_types pl a.a_this in
+		let tl = match Meta.get Meta.MultiType a.a_meta with
+			| _,[],_ -> pl
+			| _,el,_ ->
+				let relevant = Hashtbl.create 0 in
+				List.iter (fun e -> match fst e with
+					| EConst(Ident s) -> Hashtbl.replace relevant s true
+					| _ -> error "Type parameter expected" (pos e)
+				) el;
+				let tl = List.map2 (fun (n,_) t -> if Hashtbl.mem relevant n || not (has_mono t) then t else t_dynamic) a.a_types pl in
+				tl
+		in
 		let _,cfo =
-			try find_to a pl m
+			try find_to a tl m
 			with Not_found ->
+				let at = apply_params a.a_types pl a.a_this in
 				let st = s_type (print_context()) at in
 				if has_mono at then
 					error ("Type parameters of multi type abstracts must be known (for " ^ st ^ ")") p
