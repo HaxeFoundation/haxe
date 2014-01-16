@@ -6578,6 +6578,11 @@ struct
 
         let res2 = alloc_var "res2" basic.tint in
         let res2_local = mk_local res2 pos in
+        let gte2 = {
+          eexpr = TBinop(Ast.OpGte, res2_local, { eexpr = TConst(TInt(Int32.zero)); etype = basic.tint; epos = pos });
+          etype = basic.tbool;
+          epos = pos;
+        } in
 
         let block =
         [
@@ -6588,7 +6593,7 @@ struct
               Some({ eexpr = TBlock([
                 { eexpr = TVar( res2, Some(ctx.rcf_hash_function hash_local snd_hash)); etype = basic.tvoid; epos = pos };
                 {
-                  eexpr = TIf(gte, { eexpr = TBlock([
+                  eexpr = TIf(gte2, { eexpr = TBlock([
                     mk_splice snd_hash res2_local;
                     mk_splice snd_dynamics res2_local
                   ]); etype = t_dynamic; epos = pos }, None);
