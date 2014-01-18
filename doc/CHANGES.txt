@@ -23,6 +23,7 @@
 	all : added haxe.Int32 as abstract type
 	all : improved inline constructors by detecting more cases where it can be applied
 	all : allow multiple structural extension using { > T1, > T2, fields }
+	all : fixed unfounded lowercase class name error on windows
 	js : window and console are reserved words. Access them with __js__ instead of untyped.
 	js : added -D js-flatten
 	js : improved inlining
