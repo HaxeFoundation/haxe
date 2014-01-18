@@ -7,6 +7,14 @@ Std.is(unknown, String) == false;
 Std.is(null, String) == false;
 Std.is("foo", null) == false;
 
+Std.is("", String) == true;
+Std.is(false, Bool) == true;
+Std.is(1, Int) == true;
+Std.is(1.5, Int) == false;
+Std.is(1.5, Float) == true;
+Std.is([], Array) == true;
+Std.is(unit.MyEnum.A, Array) == false;
+
 // instance
 #if !js
 Std.instance("", String) == "";
