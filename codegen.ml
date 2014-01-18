@@ -1152,10 +1152,9 @@ let set_default ctx a c p =
 	mk (TIf (mk_parent (mk cond ctx.basic.tbool p), mk (TBinop (OpAssign,ve,mk (TConst c) t p)) t p,None)) ctx.basic.tvoid p
 
 let bytes_serialize data =
-	let b64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789%:" in
+	let b64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/" in
 	let tbl = Array.init (String.length b64) (fun i -> String.get b64 i) in
-	let str = Base64.str_encode ~tbl data in
-	"s" ^ string_of_int (String.length str) ^ ":" ^ str
+	Base64.str_encode ~tbl data
 
 (*
 	Tells if the constructor might be called without any issue whatever its parameters

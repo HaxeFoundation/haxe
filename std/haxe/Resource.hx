@@ -99,7 +99,7 @@ class Resource {
 				return new String(x.data);
 				#else
 				if( x.str != null ) return x.str;
-				var b : haxe.io.Bytes = haxe.Unserializer.run(x.data);
+				var b : haxe.io.Bytes = haxe.crypto.Base64.decode(x.data);
 				return b.toString();
 				#end
 			}
@@ -133,7 +133,7 @@ class Resource {
 				return haxe.io.Bytes.ofData(cast x.data);
 				#else
 				if( x.str != null ) return haxe.io.Bytes.ofString(x.str);
-				return haxe.Unserializer.run(x.data);
+				return haxe.crypto.Base64.decode(x.data);
 				#end
 			}
 		return null;
