@@ -672,7 +672,7 @@ let rename_local_vars com e =
 	in
 	let save() =
 		let old = !vars in
-		if cfg.pf_unique_locals then (fun() -> ()) else (fun() -> vars := if !rebuild_vars then rebuild old else old)
+		if cfg.pf_unique_locals || not cfg.pf_locals_scope then (fun() -> ()) else (fun() -> vars := if !rebuild_vars then rebuild old else old)
 	in
 	let rename vars v =
 		let count = ref 1 in
