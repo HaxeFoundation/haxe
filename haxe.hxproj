@@ -134,6 +134,8 @@
     <hidden path="haxe.exe.manifest" />
     <hidden path="obj" />
     <hidden path="filters.obj" />
+    <hidden path="filters.cmi" />
+    <hidden path="filters.cmx" />
   </hiddenPaths>
   <!-- Executed before build -->
   <preBuildCommand>make -j4 MSVC=1 FD_OUTPUT=1 -f Makefile.win kill haxe</preBuildCommand>
