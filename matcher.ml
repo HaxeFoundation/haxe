@@ -521,12 +521,6 @@ let to_pattern ctx e t =
 			loop pctx (EBinop(OpOr,e1,(EBinop(OpOr,e2,e3),p2)),p) t
 		| EBinop(OpOr,e1,e2) ->
 			let old = pctx.pc_locals in
-			let rec dup t = match t with
-				| TMono r -> (match !r with
-					| None -> mk_mono()
-					| Some t -> Type.map dup t)
-				| _ -> Type.map dup t
-			in
 			let pat1 = loop pctx e1 t in
 			begin match pat1.p_def with
 				| PAny | PVar _ ->
