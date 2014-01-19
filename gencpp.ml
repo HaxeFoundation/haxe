@@ -3527,12 +3527,13 @@ let write_resources common_ctx =
 	let idx = ref 0 in
 	Hashtbl.iter (fun _ data ->
 		resource_file#write_i ("static unsigned char __res_" ^ (string_of_int !idx) ^ "[] = {\n");
+		resource_file#write_i "0xff, 0xff, 0xff, 0xff,\n";
 		for i = 0 to String.length data - 1 do
 		let code = Char.code (String.unsafe_get data i) in
 			resource_file#write  (Printf.sprintf "0x%.2x, " code);
 			if ( (i mod 10) = 9) then resource_file#write "\n";
 		done;
-		resource_file#write ("};\n");
+		resource_file#write ("0x00 };\n");
 		incr idx;
 	) common_ctx.resources;
 
@@ -3542,7 +3543,7 @@ let write_resources common_ctx =
 	Hashtbl.iter (fun name data ->
 		resource_file#write_i
 			("{ " ^ (str name) ^ "," ^ (string_of_int (String.length data)) ^ "," ^
-				"__res_" ^ (string_of_int !idx) ^ " },\n");
+				"__res_" ^ (string_of_int !idx) ^ " + 4 },\n");
 		incr idx;
 	) common_ctx.resources;
 
@@ -3572,6 +3573,7 @@ let write_build_data common_ctx filename classes main_deps build_extra exe_name 
 	in
 
 	output_string buildfile "<xml>\n";
+	output_string buildfile "<set name=\"HXCPP_API_LEVEL\" value=\"1\" />\n";
 	output_string buildfile "<files id=\"haxe\">\n";
 	output_string buildfile "<compilerflag value=\"-Iinclude\"/>\n";
 	List.iter add_class_to_buildfile classes;
