@@ -696,9 +696,9 @@ let expand_or mctx pmat =
 					 	| POr(pat1,pat2) ->
 							let out2 = clone_out mctx out pat2.p_pos in
 							let a1 = Array.copy tl in
-							tl.(0) <- pat1;
+							a1.(0) <- pat1;
 							let a2 = Array.copy tl in
-							tl.(0) <- pat2;
+							a2.(0) <- pat2;
 							let tl = array_tl pv in
 							loop2 (Array.append [|{pat with p_def = PTuple a2}|] tl) out2;
 							loop2 (Array.append [|{pat with p_def = PTuple a1}|] tl) out;
