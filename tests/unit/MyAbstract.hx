@@ -321,4 +321,19 @@ abstract ExposingAbstract<S>(Array<S>) {
 		this = [];
 	}
 }
+
+@:forward(![push])
+abstract ExposingAbstract2<S>(Array<S>) {
+	public inline function new() {
+		this = [];
+	}
+}
+
+@:forward(length, pop)
+abstract ExposingAbstract3<S>(Array<S>) {
+	public inline function new() {
+		this = [];
+	}
+}
+
 #end
