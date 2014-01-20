@@ -871,6 +871,7 @@ let field_access ctx mode f fmode t e p =
 			| MethMacro, MCall -> AKMacro (e,f)
 			| _ , MGet ->
 				let cmode = (match fmode with
+					| FInstance(_, cf) | FStatic(_, cf) when Meta.has Meta.Generic cf.cf_meta -> display_error ctx "Cannot create closure on generic function" p; fmode
 					| FInstance (c,cf) -> FClosure (Some c,cf)
 					| FStatic _ | FEnum _ -> fmode
 					| FAnon f -> FClosure (None, f)
