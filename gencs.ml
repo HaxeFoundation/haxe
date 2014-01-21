@@ -422,7 +422,7 @@ struct
           } in
 
           if needs_cast then mk_cast e.etype ret else ret
-        | TCast(expr, _) when is_string e.etype ->
+        | TCast(expr, _) when (is_string e.etype) && (not (is_string expr.etype)) ->
           { e with eexpr = TCall( mk_static_field_access_infer runtime_cl "toString" expr.epos [], [run expr] ) }
         | TBinop( (Ast.OpNotEq as op), e1, e2)
         | TBinop( (Ast.OpEq as op), e1, e2) when is_string e1.etype || is_string e2.etype ->
