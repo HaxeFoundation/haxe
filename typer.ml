@@ -1298,6 +1298,13 @@ and type_field ?(resume=false) ctx e i p mode =
 			| MSet, _ ->
 				error "This operation is unsupported" p)
 		with Not_found -> try
+			let _,el,_ = Meta.get Meta.Forward a.a_meta in
+			if not (List.exists (fun e -> match fst e with
+				| EConst(Ident s | String s) -> s = i
+				| _ -> error "Identifier or string expected as argument to @:forward" (pos e)
+			) el) && el <> [] then raise Not_found;
+			type_field ctx {e with etype = apply_params a.a_types pl a.a_this} i p mode;
+		with Not_found -> try
 			using_field ctx mode e i p
 		with Not_found -> try
 			(match ctx.curfun, e.eexpr with
@@ -3090,6 +3097,22 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			| TAbstract({a_impl = Some c} as a,pl) ->
 				if Meta.has Meta.CoreApi c.cl_meta then merge_core_doc c;
 				ctx.m.module_using <- c :: ctx.m.module_using;
+				let fields = try
+					let _,el,_ = Meta.get Meta.Forward a.a_meta in
+					let sl = ExtList.List.filter_map (fun e -> match fst e with
+						| EConst(Ident s) -> Some s
+						| _ -> None
+					) el in
+					let fields = get_fields (apply_params a.a_types pl a.a_this) in
+					if sl = [] then fields else PMap.fold (fun cf acc ->
+						if List.mem cf.cf_name sl then
+							PMap.add cf.cf_name cf acc
+						else
+							acc
+					) fields PMap.empty
+				with Not_found ->
+					PMap.empty
+				in
 				PMap.fold (fun f acc ->
 					if f.cf_name <> "_new" && can_access ctx c f true && Meta.has Meta.Impl f.cf_meta && not (Meta.has Meta.Enum f.cf_meta) then begin
 						let f = prepare_using_field f in
@@ -3097,7 +3120,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 						PMap.add f.cf_name { f with cf_public = true; cf_type = opt_type t } acc
 					end else
 						acc
-				) c.cl_statics PMap.empty
+				) c.cl_statics fields
 			| TAnon a ->
 				(match !(a.a_status) with
 				| Statics c ->
