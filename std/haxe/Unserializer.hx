@@ -361,9 +361,8 @@ class Unserializer {
 			pos++;
 			return h;
 		case "v".code:
-			var d = Date.fromString(buf.substr(pos,19));
+			var d = Date.fromTime(readDigits());
 			cache.push(d);
-			pos += 19;
 			return d;
  		case "s".code:
  			var len = readDigits();

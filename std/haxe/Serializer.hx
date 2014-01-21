@@ -292,7 +292,7 @@ class Serializer {
 			case #if (neko || cs) "Date" #else cast Date #end:
 				var d : Date = v;
 				buf.add("v");
-				buf.add(d.toString());
+				buf.add(Std.string(d.getTime()));
 			case #if (neko || cs) "haxe.ds.StringMap" #else cast haxe.ds.StringMap #end:
 				buf.add("b");
 				var v : haxe.ds.StringMap<Dynamic> = v;
