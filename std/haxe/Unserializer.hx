@@ -168,6 +168,19 @@ class Unserializer {
  			k *= -1;
  		return k;
  	}
+	
+	function readFloat() {
+		var p1 = pos;
+ 		while( true ) {
+ 			var c = get(pos);
+ 			// + - . , 0-9
+ 			if( (c >= 43 && c < 58) || c == "e".code || c == "E".code )
+ 				pos++;
+ 			else
+ 				break;
+ 		}
+ 		return Std.parseFloat(buf.substr(p1,pos-p1));
+	}
 
 	function unserializeObject(o) {
  		while( true ) {
@@ -229,16 +242,7 @@ class Unserializer {
  		case "i".code:
  			return readDigits();
  		case "d".code:
- 			var p1 = pos;
- 			while( true ) {
- 				var c = get(pos);
- 				// + - . , 0-9
- 				if( (c >= 43 && c < 58) || c == "e".code || c == "E".code )
- 					pos++;
- 				else
- 					break;
- 			}
- 			return Std.parseFloat(buf.substr(p1,pos-p1));
+ 			return readFloat();
 		case "y".code:
  			var len = readDigits();
  			if( get(pos++) != ":".code || length - pos < len )
@@ -361,7 +365,7 @@ class Unserializer {
 			pos++;
 			return h;
 		case "v".code:
-			var d = Date.fromTime(readDigits());
+			var d = Date.fromTime(readFloat());
 			cache.push(d);
 			return d;
  		case "s".code:
