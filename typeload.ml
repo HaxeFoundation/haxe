@@ -196,8 +196,6 @@ let make_module ctx mpath file tdecls loadp =
 							c.cl_meta <- m :: c.cl_meta;
 						| (Meta.Enum,_,_) ->
 							c.cl_meta <- (Meta.Build,[ECall((EField((EField((EField((EConst(Ident "haxe"),p),"macro"),p),"Build"),p),"buildEnumAbstract"),p),[]),p],p) :: c.cl_meta;
-						| (Meta.Forward,el,_) ->
-							c.cl_meta <- (Meta.Build,[ECall((EField((EField((EField((EConst(Ident "haxe"),p),"macro"),p),"Build"),p),"exposeUnderlyingFields"),p),el),p],p) :: c.cl_meta;
 						| _ ->
 							()
 					) a.a_meta;
