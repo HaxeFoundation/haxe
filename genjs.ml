@@ -517,7 +517,7 @@ and gen_expr ctx e =
 	| TBlock el ->
 		print ctx "{";
 		let bend = open_block ctx in
-		List.iter (gen_block ctx) el;
+		List.iter (gen_block_element ctx) el;
 		bend();
 		newline ctx;
 		print ctx "}";
@@ -611,7 +611,7 @@ and gen_expr ctx e =
 		let bend = open_block ctx in
 		newline ctx;
 		print ctx "var %s = %s.next()" (ident v.v_name) it;
-		gen_block ctx e;
+		gen_block_element ctx e;
 		bend();
 		newline ctx;
 		spr ctx "}";
@@ -651,7 +651,7 @@ and gen_expr ctx e =
 					newline ctx;
 					print ctx "var %s = %s" v.v_name vname;
 				end;
-				gen_block ctx e;
+				gen_block_element ctx e;
 				if !else_block then begin
 					newline ctx;
 					print ctx "}";
@@ -666,7 +666,7 @@ and gen_expr ctx e =
 					newline ctx;
 					print ctx "var %s = %s" v.v_name vname;
 				end;
-				gen_block ctx e;
+				gen_block_element ctx e;
 				bend();
 				newline ctx;
 				spr ctx "} else ";
@@ -693,7 +693,7 @@ and gen_expr ctx e =
 					spr ctx ":"
 			) el;
 			let bend = open_block ctx in
-			gen_block ctx e2;
+			gen_block_element ctx e2;
 			if not (has_return e2) then begin
 				newline ctx;
 				print ctx "break";
@@ -706,7 +706,7 @@ and gen_expr ctx e =
 		| Some e ->
 			spr ctx "default:";
 			let bend = open_block ctx in
-			gen_block ctx e;
+			gen_block_element ctx e;
 			bend();
 			newline ctx;
 		);
@@ -721,17 +721,19 @@ and gen_expr ctx e =
 		spr ctx ")"
 
 
-and gen_block ?(after=false) ctx e =
+and gen_block_element ?(after=false) ctx e =
 	match e.eexpr with
 	| TBlock el ->
-		List.iter (gen_block ~after ctx) el
+		List.iter (gen_block_element ~after ctx) el
 	| TCall ({ eexpr = TLocal { v_name = "__feature__" } }, { eexpr = TConst (TString f) } :: eif :: eelse) ->
 		if has_feature ctx f then
-			gen_block ~after ctx eif
+			gen_block_element ~after ctx eif
 		else (match eelse with
 			| [] -> ()
-			| [e] -> gen_block ~after ctx e
+			| [e] -> gen_block_element ~after ctx e
 			| _ -> assert false)
+	| TFunction _ ->
+		gen_block_element ~after ctx (mk (TParenthesis e) e.etype e.epos)
 	| _ ->
 		if not after then newline ctx;
 		gen_expr ctx e;
@@ -1250,7 +1252,7 @@ let generate com =
 		print ctx "function $bind(o,m) { if( m == null ) return null; if( m.__id__ == null ) m.__id__ = $fid++; var f; if( o.hx__closures__ == null ) o.hx__closures__ = {}; else f = o.hx__closures__[m.__id__]; if( f == null ) { f = function(){ return f.method.apply(f.scope, arguments); }; f.scope = o; f.method = m; o.hx__closures__[m.__id__] = f; } return f; }";
 		newline ctx;
 	end;
-	List.iter (gen_block ~after:true ctx) (List.rev ctx.inits);
+	List.iter (gen_block_element ~after:true ctx) (List.rev ctx.inits);
 	List.iter (generate_static ctx) (List.rev ctx.statics);
 	(match com.main with
 	| None -> ()
