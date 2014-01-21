@@ -271,7 +271,7 @@ import cs.internal.Runtime;
 	public static function getEnumConstructs( e : Enum<Dynamic> ) : Array<String> {
 		if (Reflect.hasField(e, "constructs"))
 			return untyped e.constructs.copy();
-		return untyped __cs__("new Array<object>(System.Enum.GetNames(e))");
+		return cs.Lib.array(cs.system.Enum.GetNames(cs.Lib.nativeType(e)));
 	}
 
 	@:functionCode('

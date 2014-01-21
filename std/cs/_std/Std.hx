@@ -47,9 +47,7 @@ import cs.internal.Exceptions;
 				return true;
 		}
 
-		var clv:cs.system.Type = untyped __cs__('v.GetType()');
-
-		return clt.IsAssignableFrom(clv);
+		return clt.IsAssignableFrom(cs.Lib.nativeType(v));
 	}
 
 	public static function string( s : Dynamic ) : String {

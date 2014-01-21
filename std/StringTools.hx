@@ -33,7 +33,7 @@ class StringTools {
 	/**
 		Encode an URL by using the standard format.
 	**/
-	public static function urlEncode( s : String ) : String untyped {
+	#if !java inline #end public static function urlEncode( s : String ) : String untyped {
 		#if flash9
 			return __global__["encodeURIComponent"](s);
 		#elseif flash
@@ -49,7 +49,7 @@ class StringTools {
 				return untyped __java__("java.net.URLEncoder.encode(s, \"UTF-8\")")
 			catch (e:Dynamic) throw e;
 		#elseif cs
-			return untyped __cs__("System.Uri.EscapeUriString(s)");
+			return cs.system.Uri.EscapeUriString(s);
 		#else
 			return null;
 		#end
@@ -58,7 +58,7 @@ class StringTools {
 	/**
 		Decode an URL using the standard format.
 	**/
-	public static function urlDecode( s : String ) : String untyped {
+	#if !java inline #end public static function urlDecode( s : String ) : String untyped {
 		#if flash9
 			return __global__["decodeURIComponent"](s.split("+").join(" "));
 		#elseif flash
@@ -74,7 +74,7 @@ class StringTools {
 				return untyped __java__("java.net.URLDecoder.decode(s, \"UTF-8\")")
 			catch (e:Dynamic) throw e;
 		#elseif cs
-			return untyped __cs__("System.Uri.UnescapeDataString(s)");
+			return cs.system.Uri.UnescapeDataString(s);
 		#else
 			return null;
 		#end

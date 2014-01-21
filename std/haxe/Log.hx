@@ -90,7 +90,7 @@ class Log {
 				str = v;
 			}
 			#if cs
-			untyped __cs__("System.Console.WriteLine(str)");
+			cs.system.Console.WriteLine(str);
 			#elseif java
 			untyped __java__("java.lang.System.out.println(str)");
 			#end
