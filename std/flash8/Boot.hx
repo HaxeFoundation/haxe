@@ -224,8 +224,13 @@ class Boot {
 		if( !g.haxeInitDone ) {
 			g.haxeInitDone = true;
 			Array.prototype["copy"] = Array.prototype["slice"];
+			var splice:Dynamic = Array.prototype["splice"];
+			Array.prototype["splice"] = function(p, l) {
+				if (l <= 0) return [];
+				return splice.call(__this__, p, l);
+			}
 			Array.prototype["insert"] = function(i,x) {
-				__this__["splice"](i,0,x);
+				splice.call(__this__, i, 0, x);
 			};
 			Array.prototype["remove"] = function(obj) {
 				var i = 0;
