@@ -99,7 +99,7 @@ class Printer {
 		case TAnonymous(fields): "{ " + [for (f in fields) printField(f) + "; "].join("") + "}";
 		case TParent(ct): "(" + printComplexType(ct) + ")";
 		case TOptional(ct): "?" + printComplexType(ct);
-		case TExtend(tpl, fields): '{${tpl.map(printTypePath).join(", ")} >, ${fields.map(printField).join(", ")} }';
+		case TExtend(tpl, fields): '{> ${tpl.map(printTypePath).join(" >, ")}, ${fields.map(printField).join(", ")} }';
 	}
 
 	public function printMetadata(meta:MetadataEntry) return
@@ -118,7 +118,7 @@ class Printer {
 	
 	public function printField(field:Field) return
 		(field.doc != null && field.doc != "" ? "/**\n" + tabs + tabString + StringTools.replace(field.doc, "\n", "\n" + tabs + tabString) + "\n" + tabs + "**/\n" + tabs : "")
-		+ (field.meta != null && field.meta.length > 0 ? field.meta.map(printMetadata).join(" ") + " " : "")
+		+ (field.meta != null && field.meta.length > 0 ? field.meta.map(printMetadata).join('\n$tabs') + '\n$tabs' : "")
 		+ (field.access != null && field.access.length > 0 ? field.access.map(printAccess).join(" ") + " " : "")
 		+ switch(field.kind) {
 		  case FVar(t, eo): 'var ${field.name}' + opt(t, printComplexType, " : ") + opt(eo, printExpr, " = ");
@@ -165,7 +165,7 @@ class Printer {
 		case EFunction(no, func) if (no != null): 'function $no' + printFunction(func);
 		case EFunction(_, func): "function " +printFunction(func);
 		case EVars(vl): "var " +vl.map(printVar).join(", ");
-		case EBlock([]): '{\n$tabs}';
+		case EBlock([]): '{ }';
 		case EBlock(el):
 			var old = tabs;
 			tabs += tabString;
@@ -211,6 +211,16 @@ class Printer {
 		return el.map(printExpr).join(sep);
 	}
 	
+	function printExtension(tpl:Array<TypePath>, fields: Array<Field>) {
+		return '{\n$tabs>' + tpl.map(printTypePath).join(',\n$tabs>') + ","
+		    + (fields.length > 0 ? ('\n$tabs' + fields.map(printField).join(';\n$tabs') + ";\n}") : ("\n}"));
+	}
+	
+	function printStructure(fields:Array<Field>) {
+		return fields.length == 0 ? "{ }" :
+			'{\n$tabs' + fields.map(printField).join(';\n$tabs') + ";\n}";
+	}
+	
 	public function printTypeDefinition(t:TypeDefinition, printPackage = true):String {
 		var old = tabs;
 		tabs = tabString;
@@ -252,7 +262,11 @@ class Printer {
 					+ "\n}";
 				case TDAlias(ct):
 					"typedef " + t.name + (t.params.length > 0 ? "<" + t.params.map(printTypeParamDecl).join(", ") + ">" : "") + " = "
-					+ printComplexType(ct)
+					+ (switch(ct) {
+						case TExtend(tpl, fields): printExtension(tpl, fields);
+						case TAnonymous(fields): printStructure(fields);
+						case _: printComplexType(ct);
+					})
 					+ ";";
 				case TDAbstract(tthis, from, to):
 					"abstract " + t.name
