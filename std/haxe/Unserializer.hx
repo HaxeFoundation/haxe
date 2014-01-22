@@ -365,7 +365,13 @@ class Unserializer {
 			pos++;
 			return h;
 		case "v".code:
-			var d = Date.fromTime(readFloat());
+			var d;
+			if(get(pos + 13) == ":".code) {
+				// Included for backwards compatibility
+				d = Date.fromString(buf.substr(pos,19));
+				pos += 19;
+			} else
+				d = Date.fromTime(readFloat());
 			cache.push(d);
 			return d;
  		case "s".code:
