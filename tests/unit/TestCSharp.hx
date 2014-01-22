@@ -111,7 +111,7 @@ class TestCSharp extends Test
 		f(a == null);
 		f(null == a);
 		t(a != null);
-		f(null != a);
+		t(null != a);
 	}
 
 	#end
