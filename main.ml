@@ -1272,6 +1272,10 @@ try
 		com.error <- error ctx;
 		com.main_class <- None;
 		let real = get_real_path (!Parser.resume_display).Ast.pfile in
+		(* try to fix issue on windows when get_real_path fails (8.3 DOS names disabled) *)
+		let real = (match List.rev (ExtString.String.nsplit real "\\") with
+		| file :: path when String.length file > 0 && file.[0] >= 'a' && file.[1] <= 'z' -> file.[0] <- char_of_int (int_of_char file.[0] - int_of_char 'a' + int_of_char 'A'); String.concat "\\" (List.rev (file :: path))
+		| _ -> real) in
 		classes := lookup_classes com real;
 		if !classes = [] then begin
 			if not (Sys.file_exists real) then failwith "Display file does not exist";
