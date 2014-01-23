@@ -89,17 +89,21 @@ let rec has_properties c =
 		match f.cf_kind with
 		| Var { v_read = AccCall } -> true
 		| Var { v_write = AccCall } -> true
+		| _ when Meta.has Meta.Accessor f.cf_meta -> true
 		| _ -> false
 	) c.cl_ordered_fields || (match c.cl_super with Some (c,_) -> has_properties c | _ -> false)
 
 let get_properties fields =
 	List.fold_left (fun acc f ->
-		let acc = (match f.cf_kind with
-		| Var { v_read = AccCall } -> ("get_" ^ f.cf_name , "get_" ^ f.cf_name) :: acc
-		| _ -> acc) in
-		match f.cf_kind with
-		| Var { v_write = AccCall } -> ("set_" ^ f.cf_name , "set_" ^ f.cf_name) :: acc
-		| _ -> acc
+		if Meta.has Meta.Accessor f.cf_meta then
+			(f.cf_name, f.cf_name) :: acc
+		else
+			let acc = (match f.cf_kind with
+			| Var { v_read = AccCall } -> ("get_" ^ f.cf_name , "get_" ^ f.cf_name) :: acc
+			| _ -> acc) in
+			match f.cf_kind with
+			| Var { v_write = AccCall } -> ("set_" ^ f.cf_name , "set_" ^ f.cf_name) :: acc
+			| _ -> acc
 	) [] fields
 
 let add_property_field com c =

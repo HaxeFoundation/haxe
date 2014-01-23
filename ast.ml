@@ -30,6 +30,7 @@ module Meta = struct
 	type strict_meta =
 		| Abstract
 		| Access
+		| Accessor
 		| Allow
 		| Annotation
 		| ArrayAccess

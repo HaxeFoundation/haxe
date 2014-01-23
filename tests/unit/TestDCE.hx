@@ -116,6 +116,20 @@ class TestDCE extends Test {
 		nhf(bc, "get_x");
 	}
 	
+	public function testProperty2() {
+        var a = new RemovePropertyKeepAccessors();
+        a.test = 3;
+        eq(a.test, 3);
+        Reflect.setProperty(a, "test", 2);
+        eq(a.test, 2);
+		
+		var c = Type.resolveClass("unit.RemovePropertyKeepAccessors");
+		hf(c, "get_test");
+		hf(c, "set_test");
+		hf(c, "_test");
+		nhf(c, "test");
+	}
+	
 	public function testClasses() {
 		t(Type.resolveClass("unit.UsedConstructed") != null);
 		t(Type.resolveClass("unit.UsedReferenced") != null);
@@ -211,4 +225,16 @@ class InterfaceMethodFromBaseClassChild extends InterfaceMethodFromBaseClass imp
 class ThrownWithToString {
 	public function new() { }
 	public function toString() { return "I was thrown today"; }
+}
+
+
+class RemovePropertyKeepAccessors
+{
+    public function new() {}
+
+    var _test:Float;
+    public var test(get, set):Float;
+
+    public function get_test():Float return _test;
+    public function set_test(a:Float):Float { _test = a; return _test; }
 }

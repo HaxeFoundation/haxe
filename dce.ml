@@ -440,12 +440,38 @@ let run com main full =
 		| (TClassDecl c) as mt :: l when keep_whole_class dce c ->
 			loop (mt :: acc) l
 		| (TClassDecl c) as mt :: l ->
+			let check_property cf stat =
+				let add_accessor_metadata cf =
+					if not (Meta.has Meta.Accessor cf.cf_meta) then cf.cf_meta <- (Meta.Accessor,[],c.cl_pos) :: cf.cf_meta
+				in
+				begin match cf.cf_kind with
+				| Var {v_read = AccCall} ->
+					begin try
+						add_accessor_metadata (PMap.find ("get_" ^ cf.cf_name) (if stat then c.cl_statics else c.cl_fields))
+					with Not_found ->
+						()
+					end
+				| _ ->
+					()
+				end;
+				begin match cf.cf_kind with
+				| Var {v_write = AccCall} ->
+					begin try
+						add_accessor_metadata (PMap.find ("set_" ^ cf.cf_name) (if stat then c.cl_statics else c.cl_fields))
+					with Not_found ->
+						()
+					end
+				| _ ->
+					()
+				end;
+			in
 			(* add :keep so subsequent filter calls do not process class fields again *)
 			c.cl_meta <- (Meta.Keep,[],c.cl_pos) :: c.cl_meta;
  			c.cl_ordered_statics <- List.filter (fun cf ->
 				let b = keep_field dce cf in
 				if not b then begin
 					if dce.debug then print_endline ("[DCE] Removed field " ^ (s_type_path c.cl_path) ^ "." ^ (cf.cf_name));
+					check_property cf true;
 					c.cl_statics <- PMap.remove cf.cf_name c.cl_statics;
 				end;
 				b
@@ -454,6 +480,7 @@ let run com main full =
 				let b = keep_field dce cf in
 				if not b then begin
 					if dce.debug then print_endline ("[DCE] Removed field " ^ (s_type_path c.cl_path) ^ "." ^ (cf.cf_name));
+					check_property cf false;
 					c.cl_fields <- PMap.remove cf.cf_name c.cl_fields;
 				end;
 				b
