@@ -116,6 +116,7 @@ class TestDCE extends Test {
 		nhf(bc, "get_x");
 	}
 	
+	#if !cpp
 	public function testProperty2() {
         var a = new RemovePropertyKeepAccessors();
         a.test = 3;
@@ -129,6 +130,7 @@ class TestDCE extends Test {
 		hf(c, "_test");
 		nhf(c, "test");
 	}
+	#end
 	
 	public function testClasses() {
 		t(Type.resolveClass("unit.UsedConstructed") != null);
