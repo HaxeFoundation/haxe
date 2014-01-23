@@ -366,7 +366,12 @@ class Unserializer {
 			return h;
 		case "v".code:
 			var d;
-			if(get(pos + 13) == ":".code) {
+			if(	get(pos) >= '0'.code && get(pos) <= '9'.code &&
+				get(pos + 1) >= '0'.code && get(pos + 1) <= '9'.code &&
+				get(pos + 2) >= '0'.code && get(pos + 2) <= '9'.code &&
+				get(pos + 3) >= '0'.code && get(pos + 3) <= '9'.code &&
+				get(pos + 4) == '-'.code
+				) {
 				// Included for backwards compatibility
 				d = Date.fromString(buf.substr(pos,19));
 				pos += 19;
