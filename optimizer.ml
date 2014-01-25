@@ -79,6 +79,45 @@ let api_inline ctx c field params p =
 			Some stringv
 		| _ ->
 			None)
+	| ([],"Std"),"is",[o;t] | (["js"],"Boot"),"__instanceof",[o;t] when ctx.com.platform = Js ->
+		let mk_local ctx n t pos = mk (TLocal (try PMap.find n ctx.locals with _ -> add_local ctx n t)) t pos in
+
+		let tstring = ctx.com.basic.tstring in
+		let tbool = ctx.com.basic.tbool in
+		let tint = ctx.com.basic.tint in
+
+		let is_trivial e =
+			match e.eexpr with
+			| TConst _ | TLocal _ -> true
+			| _ -> false
+		in
+
+		let typeof t =
+			let tof = mk_local ctx "__typeof__" (tfun [o.etype] tstring) p in
+			let tof = mk (TCall (tof, [o])) tstring p in
+			mk (TBinop (Ast.OpEq, tof, (mk (TConst (TString t)) tstring p))) tbool p
+		in
+
+		(match t.eexpr with
+		(* generate simple typeof checks for basic types *)
+		| TTypeExpr (TClassDecl ({ cl_path = [],"String" })) -> Some (typeof "string")
+		| TTypeExpr (TAbstractDecl ({ a_path = [],"Bool" })) -> Some (typeof "boolean")
+		| TTypeExpr (TAbstractDecl ({ a_path = [],"Float" })) -> Some (typeof "number")
+		| TTypeExpr (TAbstractDecl ({ a_path = [],"Int" })) when is_trivial o ->
+			(* generate (o|0) === o check *)
+			let teq = mk_local ctx "__strict_eq__" (tfun [tint; tint] tbool) p in
+			let lhs = mk (TBinop (Ast.OpOr, o, mk (TConst (TInt Int32.zero)) tint p)) tint p in
+			Some (mk (TCall (teq, [lhs; o])) tbool p)
+		| TTypeExpr (TClassDecl ({ cl_path = [],"Array" })) ->
+			(* generate (o instanceof Array) && o.__enum__ == null check *)
+			let iof = mk_local ctx "__instanceof__" (tfun [o.etype;t.etype] tbool) p in
+			let iof = mk (TCall (iof, [o; t])) tbool p in
+			let enum = mk (TField (o, FDynamic "__enum__")) (mk_mono()) p in
+			let null = mk (TConst TNull) (mk_mono()) p in
+			let not_enum = mk (TBinop (Ast.OpEq, enum, null)) tbool p in
+			Some (mk (TBinop (Ast.OpBoolAnd, iof, not_enum)) tbool p)
+		| _ ->
+			None)
 	| ([],"Std"),"int",[{ eexpr = TConst (TFloat f) }] ->
 		let f = float_of_string f in
 		(match classify_float f with

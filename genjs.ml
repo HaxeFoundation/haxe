@@ -404,6 +404,24 @@ let rec gen_call ctx e el in_value =
 		print ctx " instanceof ";
 		gen_value ctx t;
 		spr ctx ")";
+	| TLocal { v_name = "__typeof__" },  [o] ->
+		spr ctx "typeof(";
+		gen_value ctx o;
+		spr ctx ")";
+	| TLocal { v_name = "__strict_eq__" } , [x;y] ->
+		(* add extra parenthesis here because of operator precedence *)
+		spr ctx "((";
+		gen_value ctx x;
+		spr ctx ") === ";
+		gen_value ctx y;
+		spr ctx ")";
+	| TLocal { v_name = "__strict_neq__" } , [x;y] ->
+		(* add extra parenthesis here because of operator precedence *)
+		spr ctx "((";
+		gen_value ctx x;
+		spr ctx ") !== ";
+		gen_value ctx y;
+		spr ctx ")";
 	| TLocal ({v_name = "__define_feature__"}), [_;e] ->
 		gen_expr ctx e
 	| TLocal { v_name = "__feature__" }, { eexpr = TConst (TString f) } :: eif :: eelse ->
