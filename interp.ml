@@ -3254,7 +3254,7 @@ and call ctx vthis vfun pl p =
 	ctx.vthis <- vthis;
 	ctx.callstack <- { cpos = p; cthis = oldthis; cstack = stackpos; cenv = oldenv } :: ctx.callstack;
 	ctx.callsize <- oldsize + 1;
-	if oldsize > 400 then exc (VString "Stack overflow");
+	if oldsize > 600 then exc (VString "Stack overflow");
 	let ret = (try
 		(match vfun with
 		| VClosure (vl,f) ->
