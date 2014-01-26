@@ -349,6 +349,21 @@ class Context {
 	}
 
 	/**
+		Returns a map of all registered resources for this compilation unit.
+
+		Modifying the returned map has no effect on the compilation, use
+		`haxe.macro.Context.addResource` to add new resources to the compilation unit.
+	**/
+	public static function getResources():haxe.ds.StringMap<haxe.io.Bytes> {
+		var x:haxe.ds.StringMap<neko.NativeString> = load("get_resources",0)();
+		var r = new haxe.ds.StringMap();
+		for (k in x.keys()) {
+			r.set(k, haxe.io.Bytes.ofData(x.get(k)));
+		} 
+		return r;
+	}
+
+	/**
 		Makes resource `data` available as `name`.
 		
 		The resource is then available using the `haxe.macro.Resource` API.

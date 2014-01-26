@@ -2400,6 +2400,12 @@ let macro_lib =
 				VNull
 			| _ -> error()
 		);
+        "get_resources", Fun0 (fun() ->
+			let res = (ccom()).resources in
+			let h = Hashtbl.create 0 in
+			Hashtbl.iter (fun n v -> Hashtbl.replace h (VString n) (VString v)) res;
+			enc_hash h
+		);
 		"local_module", Fun0 (fun() ->
 			let m = (get_ctx()).curapi.current_module() in
 			VString (Ast.s_type_path m.m_path);
