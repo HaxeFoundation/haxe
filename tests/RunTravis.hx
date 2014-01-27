@@ -88,6 +88,16 @@ class RunTravis {
 				runCommand("haxe", ["compile-js.hxml"]);
 				runCommand("node", ["-e", "var unit = require('./unit.js').unit; unit.Test.main(); process.exit(unit.Test.success ? 0 : 1);"]);
 
+				if (Sys.getEnv("TRAVIS_SECURE_ENV_VARS") == "true") {
+					//https://saucelabs.com/opensource/travis
+					runCommand("npm", ["install", "wd"]);
+					runCommand("curl", ["https://gist.github.com/santiycr/5139565/raw/sauce_connect_setup.sh", "|", "bash"]);
+					runCommand("haxelib", ["install", "nodejs"]);
+					runCommand("haxe", ["compile-saucelabs-runner.hxml"]);
+					runCommand("nekotools", ["server", "&"]);
+					runCommand("node", ["RunSauceLabs.js"]);
+				}
+
 				Sys.println("Test optimization:");
 				Sys.setCwd(optDir);
 				runCommand("haxe", ["run.hxml"]);
