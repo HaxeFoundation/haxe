@@ -779,7 +779,19 @@ and parse_complex_type_inner = parser
 			(match s with parser
 			| [< l = parse_type_anonymous false >] -> CTExtend (tl,l)
 			| [< l, _ = parse_class_fields true p1 >] -> CTExtend (tl,l))
-		| [< l, _ = parse_class_fields true p1 >] -> CTAnonymous l
+		| [< l, _ = parse_class_fields true p1 >] ->
+			(* @:optional field meta works the same as ? mark in struct syntax,
+			   which means they should be implicitly nullable. iterate over parsed
+			   fields and ensure that @:optional fields are nullable *)
+			List.iter (fun cf -> (
+				let opt = Meta.has Meta.Optional cf.cff_meta in
+				match opt, cf.cff_kind with
+				| true, FVar(t, e) ->
+					let t = match t with None -> t | Some t -> Some (ensure_nullable t) in
+					cf.cff_kind <- FVar(t, e)
+				| _ -> ()
+			)) l;
+			CTAnonymous l
 		| [< >] -> serror())
 	| [< '(Question,_); t = parse_complex_type_inner >] ->
 		CTOptional t
@@ -850,14 +862,16 @@ and parse_complex_type_next t = parser
 			CTFunction ([t] , t2))
 	| [< >] -> t
 
+and ensure_nullable t =
+	match t with
+	| CTPath { tpackage = []; tname = "Null" } -> t
+	| _ -> CTPath { tpackage = []; tname = "Null"; tsub = None; tparams = [TPType t] }
+
 and parse_type_anonymous opt = parser
 	| [< '(Question,_) when not opt; s >] -> parse_type_anonymous true s
 	| [< name, p1 = ident; '(DblDot,_); t = parse_complex_type; s >] ->
 		let next p2 acc =
-			let t = if not opt then t else (match t with
-				| CTPath { tpackage = []; tname = "Null" } -> t
-				| _ -> CTPath { tpackage = []; tname = "Null"; tsub = None; tparams = [TPType t] }
-			) in
+			let t = if not opt then t else ensure_nullable t in
 			{
 				cff_name = name;
 				cff_meta = if opt then [Meta.Optional,[],p1] else [];
