@@ -34,9 +34,20 @@ extern class Std {
 	public static function is( v : Dynamic, t : Dynamic ) : Bool;
 	
 	/**
-		Check if an object is an instance of the given class, then cast it.
-		Returns null if the object is not an instance of the class.
-		Is not guaranteed to work with interfaces or core types such as String, Array and Date.
+		Checks if object `value` is an instance of class `c`.
+		
+		Compiles only if the class specified by `c` can be assigned to the type
+		of `value`.
+		
+		This method checks if a downcast is possible. That is, if the runtime
+		type of `value` is assignable to the class specified by `c`, `value` is
+		returned. Otherwise null is returned.
+		
+		This method is not guaranteed to work with interfaces or core types such
+		as String, Array and Date.
+		
+		If `value` is null, the result is null. If `c` is null, the result is
+		unspecified.
 	**/
 	public static function instance<T:{},S:T>( value : T, c : Class<S> ) : S;
 
