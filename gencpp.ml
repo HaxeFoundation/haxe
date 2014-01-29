@@ -287,7 +287,7 @@ let keyword_remap name =
 	| "BIG_ENDIAN" | "LITTLE_ENDIAN" | "assert" | "NULL" | "wchar_t" | "EOF"
 	| "bool" | "const_cast" | "dynamic_cast" | "explicit" | "export" | "mutable" | "namespace"
 	| "reinterpret_cast" | "static_cast" | "typeid" | "typename" | "virtual"
-	| "_Complex"
+	| "_Complex" | "INFINITY"
 	| "struct" -> "_" ^ name
 	| "asm" -> "_asm_"
 	| x -> x
