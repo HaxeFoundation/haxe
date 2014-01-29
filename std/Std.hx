@@ -38,7 +38,7 @@ extern class Std {
 		Returns null if the object is not an instance of the class.
 		Is not guaranteed to work with interfaces or core types such as String, Array and Date.
 	**/
-	public static function instance<T>( v : {}, c : Class<T> ) : T;
+	public static function instance<T:{},S:T>( value : T, c : Class<S> ) : S;
 
 	/**
 		Converts any value to a String.

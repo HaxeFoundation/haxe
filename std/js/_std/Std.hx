@@ -28,7 +28,7 @@ import js.Boot;
 		return untyped js.Boot.__instanceof(v,t);
 	}
 	
-	public static inline function instance<T>( v : { }, c : Class<T> ) : T {
+	public static inline function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
 		return untyped __instanceof__(v, c) ? cast v : null;
 	}
 

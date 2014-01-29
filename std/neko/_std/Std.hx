@@ -26,8 +26,8 @@
 		return untyped neko.Boot.__instanceof(v,t);
 	}
 	
-	public static function instance<T>( v : { }, c : Class<T> ) : T {
-		return Std.is(v, c) ? cast v : null;
+	public static function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
+		return Std.is(value, c) ? cast value : null;
 	}
 
 	public static function string( s : Dynamic ) : String {
