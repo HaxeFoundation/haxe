@@ -226,16 +226,19 @@ let make_generic ctx ps pt p =
 	in
 	let name =
 		String.concat "_" (List.map2 (fun (s,_) t ->
-			let path = (match follow t with
-				| TInst (ct,_) -> ct.cl_path
-				| TEnum (e,_) -> e.e_path
-				| TAbstract (a,_) when Meta.has Meta.RuntimeValue a.a_meta -> a.a_path
+			let s_type_path_underscore (p,s) = match p with [] -> s | _ -> String.concat "_" p ^ "_" ^ s in
+			let rec loop top t = match follow t with
+				| TInst(c,tl) -> (s_type_path_underscore c.cl_path) ^ (loop_tl tl)
+				| TEnum(en,tl) -> (s_type_path_underscore en.e_path) ^ (loop_tl tl)
+				| TAbstract(a,tl) -> (s_type_path_underscore a.a_path) ^ (loop_tl tl)
+				| _ when not top -> "_" (* allow unknown/incompatible types as type parameters to retain old behavior *)
 				| TMono _ -> raise (Generic_Exception (("Could not determine type for parameter " ^ s), p))
 				| t -> raise (Generic_Exception (("Type parameter must be a class or enum instance (found " ^ (s_type (print_context()) t) ^ ")"), p))
-			) in
-			match path with
-			| [] , name -> name
-			| l , name -> String.concat "_" l ^ "_" ^ name
+			and loop_tl tl = match tl with
+				| [] -> ""
+				| tl -> "_" ^ String.concat "_" (List.map (loop false) tl)
+			in
+			loop true t
 		) ps pt)
 	in
 	{
