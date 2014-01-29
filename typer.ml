@@ -4452,7 +4452,7 @@ let rec create com =
 						);
 						TLazy r
 				in
-				ctx.t.tnull <- if not com.config.pf_static then (fun t -> t) else mk_null;
+				ctx.t.tnull <- if com.config.pf_nullable_basic_types then (fun t -> t) else mk_null;
 			| _ -> ());
 	) ctx.g.std.m_types;
 	let m = Typeload.load_module ctx ([],"String") null_pos in

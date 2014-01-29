@@ -241,7 +241,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 				if we pass a Null<T> var to an inlined method that needs a T.
 				we need to force a local var to be created on some platforms.
 			*)
-			if ctx.com.config.pf_static && not (is_nullable v.v_type) && is_null e.etype then (local v).i_force_temp <- true;
+			if not ctx.com.config.pf_nullable_basic_types && not (is_nullable v.v_type) && is_null e.etype then (local v).i_force_temp <- true;
 			(*
 				if we cast from Dynamic, create a local var as well to do the cast
 				once and allow DCE to perform properly.
@@ -774,7 +774,7 @@ let sanitize_expr com e =
 	in
 	match e.eexpr with
 	| TConst TNull ->
-		if com.config.pf_static && not (is_nullable e.etype) then begin
+		if not com.config.pf_nullable_basic_types && not (is_nullable e.etype) then begin
 			let rec loop t = match follow t with
 				| TMono _ -> () (* in these cases the null will cast to default value *)
 				| TFun _ -> () (* this is a bit a particular case, maybe flash-specific actually *)

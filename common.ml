@@ -74,8 +74,8 @@ type capture_policy =
 	| CPLoopVars
 
 type platform_config = {
-	(** has a static type system, with not-nullable basic types (Int/Float/Bool) *)
-	pf_static : bool;
+	(** has nullable basic types (Int/Float/Bool), often found on dynamic platforms *)
+	pf_nullable_basic_types : bool;
 	(** has access to the "sys" package *)
 	pf_sys : bool;
 	(** local variables are block-scoped *)
@@ -484,7 +484,7 @@ let stats =
 
 let default_config =
 	{
-		pf_static = true;
+		pf_nullable_basic_types = false;
 		pf_sys = true;
 		pf_locals_scope = true;
 		pf_captured_scope = true;
@@ -505,7 +505,7 @@ let get_config com =
 		default_config
 	| Flash8 ->
 		{
-			pf_static = false;
+			pf_nullable_basic_types = true;
 			pf_sys = false;
 			pf_locals_scope = com.flash_version > 6.;
 			pf_captured_scope = false;
@@ -520,7 +520,7 @@ let get_config com =
 		}
 	| Js ->
 		{
-			pf_static = false;
+			pf_nullable_basic_types = true;
 			pf_sys = false;
 			pf_locals_scope = false;
 			pf_captured_scope = false;
@@ -535,7 +535,7 @@ let get_config com =
 		}
 	| Neko ->
 		{
-			pf_static = false;
+			pf_nullable_basic_types = true;
 			pf_sys = true;
 			pf_locals_scope = true;
 			pf_captured_scope = true;
@@ -550,7 +550,7 @@ let get_config com =
 		}
 	| Flash when defined Define.As3 ->
 		{
-			pf_static = true;
+			pf_nullable_basic_types = false;
 			pf_sys = false;
 			pf_locals_scope = false;
 			pf_captured_scope = true;
@@ -565,7 +565,7 @@ let get_config com =
 		}
 	| Flash ->
 		{
-			pf_static = true;
+			pf_nullable_basic_types = false;
 			pf_sys = false;
 			pf_locals_scope = true;
 			pf_captured_scope = true; (* handled by genSwf9 *)
@@ -580,7 +580,7 @@ let get_config com =
 		}
 	| Php ->
 		{
-			pf_static = false;
+			pf_nullable_basic_types = true;
 			pf_sys = true;
 			pf_locals_scope = false; (* some duplicate work is done in genPhp *)
 			pf_captured_scope = false;
@@ -595,7 +595,7 @@ let get_config com =
 		}
 	| Cpp ->
 		{
-			pf_static = true;
+			pf_nullable_basic_types = false;
 			pf_sys = true;
 			pf_locals_scope = true;
 			pf_captured_scope = true;
@@ -610,7 +610,7 @@ let get_config com =
 		}
 	| Cs ->
 		{
-			pf_static = true;
+			pf_nullable_basic_types = false;
 			pf_sys = true;
 			pf_locals_scope = false;
 			pf_captured_scope = true;
@@ -625,7 +625,7 @@ let get_config com =
 		}
 	| Java ->
 		{
-			pf_static = true;
+			pf_nullable_basic_types = false;
 			pf_sys = true;
 			pf_locals_scope = false;
 			pf_captured_scope = true;

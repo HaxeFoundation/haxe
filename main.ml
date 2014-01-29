@@ -1377,7 +1377,7 @@ try
 			| _ -> failwith ("Invalid value for platform setting: " ^ k ^ "(should be true/false)")
 		in
 		match k with
-		| "static" -> com.config <- { com.config with pf_static = get_bool }
+		| "nullable_basic_types" -> com.config <- { com.config with pf_nullable_basic_types = get_bool }
 		| "sys" -> com.config <- { com.config with pf_sys = get_bool }
 		| _ -> failwith ("Invalid platform setting override: " ^ k)
 	) !pf_overrides;
