@@ -96,7 +96,7 @@ install_tools: tools
 	chmod a+rx $(INSTALL_DIR)/bin/haxelib $(INSTALL_DIR)/bin/haxedoc
 
 uninstall:
-	rm -rf $(INSTALL_DIR)/bin/haxe $(INSTALL_DIR)/bin/haxelib $(INSTALL_DIR)/lib/haxe
+	rm -rf $(INSTALL_DIR)/bin/haxe $(INSTALL_DIR)/bin/haxelib $(INSTALL_DIR)/lib/haxe $(INSTALL_DIR)/bin/haxedoc
 
 export:
 	cp haxe*.exe doc/CHANGES.txt $(EXPORT)
