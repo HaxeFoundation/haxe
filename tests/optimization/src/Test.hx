@@ -100,4 +100,14 @@ class Test {
             "oh-my": "god"
         };
 	}
+	
+	@:js('
+		var a_0 = 1;
+		var a_1 = 2;
+		var b = 2;
+	')
+	static function testArrayInline() {
+		var a = [1, 2];
+		var b = a.length;
+	}
 }

@@ -1223,14 +1223,19 @@ let inline_constructors ctx e =
 				in
 				List.iter (fun (v,e) -> el_b := (mk (TVar(v,Some (subst e))) ctx.t.tvoid e.epos) :: !el_b) (List.rev vars);
 				mk (TVar (v_first, Some (subst e_first))) ctx.t.tvoid e.epos
-			| TField ({ eexpr = TLocal v },FInstance (_,cf)) when v.v_id < 0 ->
+			| TField ({ eexpr = TLocal v },FInstance (c,cf)) when v.v_id < 0 ->
 				let (_, vars),el_init = PMap.find (-v.v_id) vfields in
 				(try
 					let v = PMap.find cf.cf_name vars in
 					mk (TLocal v) v.v_type e.epos
 				with Not_found ->
-					(* the variable was not set in the constructor, assume null *)
-					mk (TConst TNull) e.etype e.epos)
+					if (c.cl_path = ([],"Array") && cf.cf_name = "length") then begin
+						(* this can only occur for inlined array declarations, so we can use the statically known length here (issue #2568)*)
+						let l = PMap.fold (fun _ i -> i + 1) vars 0 in
+						mk (TConst (TInt (Int32.of_int l))) ctx.t.tint e.epos
+					end else
+						(* the variable was not set in the constructor, assume null *)
+						mk (TConst TNull) e.etype e.epos)
 			| TArray ({eexpr = TLocal v},{eexpr = TConst (TInt i)}) when v.v_id < 0 ->
 				let (_, vars),_ = PMap.find (-v.v_id) vfields in
 				(try
