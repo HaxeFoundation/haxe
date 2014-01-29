@@ -96,6 +96,44 @@ class RunSauceLabs {
 			if (browsers.length == 0) {
 				Sys.exit(success ? 0 : 1);
 			} else {
+				function testBrowser(caps:Dynamic, retries = 3):Void {
+					function handleError(err:String, ?pos:haxe.PosInfos):Bool {
+						if (err != null) {
+							console.log('${pos.fileName}:${pos.lineNumber}: $err');
+							if (retries > 0)
+								testBrowser(caps, retries - 1);
+							else
+								throw err;
+							return false;
+						}
+						return true;
+					}
+
+					console.log('========================================================');
+					console.log('${caps.browserName} ${caps.version} on ${caps.platform}:');
+					browser.init(caps, function(err) {
+						if (!handleError(err)) return;
+						browser.get("http://localhost:2000/unit-js.html", function(err) {
+							if (!handleError(err)) return;
+							browser.text("body", function(err, re) {
+								if (!handleError(err)) return;
+								console.log(re);
+								browser.eval("unit.Test.success", function(err, re) {
+									if (!handleError(err)) return;
+									success = success && re;
+									browser.sauceJobUpdate({ passed: re }, function(err) {
+										if (!handleError(err)) return;
+										browser.quit(function(err) {
+											if (!handleError(err)) return;
+											testBrowsers(browsers);
+										});
+									});
+								});
+							});
+						});
+					});
+				}
+
 				var caps = browsers.shift();
 				caps.setField("name", "haxe");
 				caps.setField("tags", tags);
@@ -103,27 +141,7 @@ class RunSauceLabs {
 					caps.setField("tunnel-identifier", Sys.getEnv("TRAVIS_JOB_NUMBER"));
 					caps.setField("build", Sys.getEnv("TRAVIS_BUILD_NUMBER"));
 				}
-
-				console.log('========================================================');
-				console.log('${caps.browserName} ${caps.version} on ${caps.platform}:');
-				browser.init(caps, function() {
-					browser.get("http://localhost:2000/unit-js.html", function() {
-						browser.text("body", function(err, re) {
-							if (err != null) throw err;
-							console.log(re);
-							browser.eval("unit.Test.success", function(err, re) {
-								if (err != null) throw err;
-								success = success && re;
-								browser.sauceJobUpdate({ passed: re },function(err) {
-									browser.quit(function(err) {
-										if (err != null) throw err;
-										testBrowsers(browsers);
-									});
-								});
-							});
-						});
-					});
-				});
+				testBrowser(caps);
 			}
 		}
 		testBrowsers(browsers);
