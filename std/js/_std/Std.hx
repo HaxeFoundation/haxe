@@ -29,7 +29,7 @@ import js.Boot;
 	}
 	
 	public static inline function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
-		return untyped __instanceof__(v, c) ? cast v : null;
+		return untyped __instanceof__(value, c) ? cast value : null;
 	}
 
 	public static function string( s : Dynamic ) : String {
