@@ -21,10 +21,7 @@ Std.instance("", String) == "";
 #end
 var a = [];
 Std.instance(a, Array) == a;
-Std.instance("", Array) == null;
-Std.instance([], String) == null;
 Std.instance(new MyClass.MyChild1(), MyClass.MyParent) != null;
-Std.instance(new MyClass.MyChild1(), MyClass) == null;
 
 // string
 var cwts = new ClassWithToString();
