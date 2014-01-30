@@ -109,7 +109,6 @@ let deprecated = [
 	"Identifier 'CType' is not part of enum haxe.macro.Constant","CType has been removed, use CIdent instead";
 	"Class not found : haxe.rtti.Infos","Use @:rtti instead of implementing haxe.rtti.Infos";
 	"Class not found : haxe.rtti.Generic","Use @:generic instead of implementing haxe.Generic";
-	"Class not found : haxe.Int32","haxe.Int32 has been removed, use normal Int instead";
 	"Class not found : flash.utils.TypedDictionary","flash.utils.TypedDictionary has been removed, use Map instead";
 	"Class not found : haxe.Stack", "haxe.Stack has been renamed to haxe.CallStack";
 	"Class not found : neko.zip.Reader", "neko.zip.Reader has been removed, use haxe.zip.Reader instead";
