@@ -774,13 +774,18 @@ let sanitize_expr com e =
 	in
 	match e.eexpr with
 	| TConst TNull ->
-		if not com.config.pf_nullable_basic_types && not (is_nullable e.etype) then begin
+		let force_notnullable_basic_types = Common.defined com Define.ForbidNullOnBasicTypes in
+		if ((not com.config.pf_nullable_basic_types) || force_notnullable_basic_types) && not (is_nullable e.etype) then begin
 			let rec loop t = match follow t with
 				| TMono _ -> () (* in these cases the null will cast to default value *)
 				| TFun _ -> () (* this is a bit a particular case, maybe flash-specific actually *)
 				(* TODO: this should use get_underlying_type, but we do not have access to Codegen here.  *)
 				| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) -> loop (apply_params a.a_types tl a.a_this)
-				| _ -> com.error ("On static platforms, null can't be used as basic type " ^ s_type (print_context()) e.etype) e.epos
+				| _ ->
+					if force_notnullable_basic_types then
+						com.error ("null can't be used as basic type " ^ (s_type (print_context()) e.etype) ^ " (explicitly forbidden by compiler configuration)") e.epos
+					else
+						com.error ("On static platforms, null can't be used as basic type " ^ s_type (print_context()) e.etype) e.epos
 			in
 			loop e.etype
 		end;

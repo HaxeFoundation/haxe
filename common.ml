@@ -181,6 +181,7 @@ module Define = struct
 		| Fdb
 		| FlashStrict
 		| FlashUseStage
+		| ForbidNullOnBasicTypes
 		| FormatWarning
 		| GencommonDebug
 		| HaxeBoot
@@ -254,6 +255,7 @@ module Define = struct
 		| Fdb -> ("fdb","Enable full flash debug infos for FDB interactive debugging")
 		| FlashStrict -> ("flash_strict","More strict typing for flash target")
 		| FlashUseStage -> ("flash_use_stage","Keep the SWF library initial stage")
+		| ForbidNullOnBasicTypes -> ("forbid_null_on_basic_types","Forbid usage of null for basic types even if platform supports it")
 		| FormatWarning -> ("format_warning","Print a warning for each formated string, for 2.x compatibility")
 		| GencommonDebug -> ("gencommon_debug","GenCommon internal")
 		| HaxeBoot -> ("haxe_boot","Given the name 'haxe' to the flash boot class instead of a generated name")
