@@ -104,17 +104,17 @@ private class ProcessInput extends java.io.NativeInput
 	{
 		if (chained != null)
 			return chained.readByte();
+		var ret = 0;
 		try
 		{
-			return stream.read();
+			ret = stream.read();
 		}
-		catch (e:EOFException) {
-			throw new Eof();
-		}
-
 		catch (e:IOException) {
 			throw haxe.io.Error.Custom(e);
 		}
+		if ( ret == -1 )
+			throw new Eof();
+		return ret;
 	}
 
 	override public function readBytes(s:Bytes, pos:Int, len:Int):Int
