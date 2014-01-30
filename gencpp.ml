@@ -1446,8 +1446,22 @@ and gen_expression ctx retval expression =
 		if ( cast <> "") then output ")";
 		if (op <> "=") then output ")";
 	in
+	let rec is_const_string_term expr =
+		match expr.eexpr with
+		| TConst( TString _ ) -> true
+		| TBinop (OpAdd,e1,e2) -> (is_const_string_term e1) && (is_const_string_term e2 )
+		| _ -> false
+	in
+	let rec combine_string_terms expr =
+		match expr.eexpr with
+		| TConst( TString s ) -> s
+		| TBinop (OpAdd,e1,e2) -> (combine_string_terms e1) ^ (combine_string_terms e2 )
+		| _ -> ""
+	in
 	let rec gen_bin_op op expr1 expr2 =
 		match op with
+		| Ast.OpAdd when (is_const_string_term expr1) && (is_const_string_term expr2) ->
+			output (str ((combine_string_terms expr1) ^ (combine_string_terms expr2)) )
 		| Ast.OpAssign -> ctx.ctx_assigning <- true;
 								gen_bin_op_string expr1 "=" expr2
 		| Ast.OpUShr ->
