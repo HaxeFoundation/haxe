@@ -182,6 +182,7 @@ exception Continue
 exception Break of value
 exception Return of value
 exception Invalid_expr
+exception Sys_exit of int
 
 (* ---------------------------------------------------------------------- *)
 (* UTILS *)
@@ -1648,7 +1649,7 @@ let std_lib =
 		);
 		"sys_exit", Fun1 (fun code ->
 			if (get_ctx()).curapi.use_cache() then raise (Typecore.Fatal_error ("",Ast.null_pos));
-			exit (vint code);
+			raise (Sys_exit(vint code));
 		);
 		"sys_exists", Fun1 (fun file ->
 			VBool (Sys.file_exists (vstring file))

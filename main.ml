@@ -1541,6 +1541,9 @@ with
 				raise (Completion c)
 			| _ ->
 				error ctx ("Could not load module " ^ (Ast.s_type_path (p,c))) Ast.null_pos)
+	| Interp.Sys_exit i ->
+		ctx.flush();
+		exit i
 	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" || !global_cache <> None with _ -> true) && not (is_debug_run()) ->
 		error ctx (Printexc.to_string e) Ast.null_pos
 
