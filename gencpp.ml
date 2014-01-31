@@ -3047,16 +3047,20 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 			| Some { eexpr = TFunction function_def } -> is_dynamic_haxe_method field
 			| _ -> true)
 		in
-      let is_readable field =
-			(match field.cf_kind with | Var { v_read = AccNever } | Var { v_read = AccInline } -> false
+		let is_readable field =
+			(match field.cf_kind with
+			| Var { v_read = AccNever } when (is_extern_field field) -> false
+			| Var { v_read = AccInline } -> false
 			| Var _ when is_abstract_impl -> false
 			| _ -> true) in
-      let is_writable field =
-			(match field.cf_kind with | Var { v_write = AccNever } | Var { v_read = AccInline } -> false
+		let is_writable field =
+			(match field.cf_kind with
+			| Var { v_write = AccNever } when (is_extern_field field) -> false
+			| Var { v_read = AccInline } -> false
 			| Var _ when is_abstract_impl -> false
 			| _ -> true) in
 
-      let reflective field = not (Meta.has Meta.Unreflective field.cf_meta) in
+		let reflective field = not (Meta.has Meta.Unreflective field.cf_meta) in
 		let reflect_fields = List.filter reflective (statics_except_meta @ class_def.cl_ordered_fields) in
 		let reflect_writable = List.filter is_writable reflect_fields in
 		let reflect_readable = List.filter is_readable reflect_fields in
