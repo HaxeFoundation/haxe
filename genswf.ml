@@ -568,7 +568,8 @@ let build_dependencies t =
 			(match c.cl_kind with KTypeParameter _ -> () | _ -> add_path c.cl_path DKType);
 			List.iter (add_type_rec (t::l)) pl;
 		| TAbstract (a,pl) ->
-			add_path a.a_path DKType;
+			if Meta.has Meta.CoreType a.a_meta then
+				add_path a.a_path DKType;
 			List.iter (add_type_rec (t::l)) pl;
 		| TFun (pl,t2) ->
 			List.iter (fun (_,_,t2) -> add_type_rec (t::l) t2) pl;
