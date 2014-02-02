@@ -4274,9 +4274,16 @@ let rec create com =
 	| [TClassDecl c] -> ctx.t.tstring <- TInst (c,[])
 	| _ -> assert false);
 	let m = Typeload.load_module ctx ([],"Array") null_pos in
-	(match m.m_types with
-	| [TClassDecl c] -> ctx.t.tarray <- (fun t -> TInst (c,[t]))
-	| _ -> assert false);
+	(try
+		List.iter (fun t -> (
+			match t with
+			| TClassDecl ({cl_path = ([],"Array")} as c) ->
+				ctx.t.tarray <- (fun t -> TInst (c,[t]));
+				raise Exit
+			| _ -> ()
+		)) m.m_types;
+		assert false
+	with Exit -> ());
 	let m = Typeload.load_module ctx (["haxe"],"EnumTools") null_pos in
 	(match m.m_types with
 	| [TClassDecl c1;TClassDecl c2] -> ctx.g.global_using <- c1 :: c2 :: ctx.g.global_using
