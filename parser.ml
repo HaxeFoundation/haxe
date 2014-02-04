@@ -1451,6 +1451,12 @@ let parse ctx code =
 			(match Lexer.token code with
 			| (Const (String s),p) -> error (Custom s) p
 			| _ -> error Unimplemented (snd tk))
+		| Sharp "warning" ->
+			(match Lexer.token code with
+			| (Const (String s),p) ->
+				ctx.Common.warning s p;
+				next_token()
+			| _ -> error Unimplemented (snd tk))
 		| Sharp "line" ->
 			let line = (match next_token() with
 				| (Const (Int s),_) -> int_of_string s
