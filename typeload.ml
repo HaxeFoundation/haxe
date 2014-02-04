@@ -192,10 +192,8 @@ let make_module ctx mpath file tdecls loadp =
 				(match !decls with
 				| (TClassDecl c,_) :: _ ->
 					List.iter (fun m -> match m with
-						| ((Meta.Build | Meta.CoreApi | Meta.Allow | Meta.Access),_,_) ->
+						| ((Meta.Build | Meta.CoreApi | Meta.Allow | Meta.Access | Meta.Enum),_,_) ->
 							c.cl_meta <- m :: c.cl_meta;
-						| (Meta.Enum,_,_) ->
-							c.cl_meta <- (Meta.Build,[ECall((EField((EField((EField((EConst(Ident "haxe"),p),"macro"),p),"Build"),p),"buildEnumAbstract"),p),[]),p],p) :: c.cl_meta;
 						| _ ->
 							()
 					) a.a_meta;
@@ -1388,6 +1386,26 @@ let rec string_list_of_expr_path (e,p) =
 	| EField (e,f) -> f :: string_list_of_expr_path e
 	| _ -> error "Invalid path" p
 
+let build_enum_abstract ctx c a fields p =
+	List.iter (fun field ->
+		match field.cff_kind with
+		| FVar(ct,eo) when not (List.mem AStatic field.cff_access) ->
+			begin match ct with
+				| Some _ -> error "Type hints on enum abstract fields are not allowed" field.cff_pos
+				| None -> ()
+			end;
+			field.cff_access <- [AStatic;APublic;AInline];
+			field.cff_meta <- (Meta.Enum,[],field.cff_pos) :: (Meta.Impl,[],field.cff_pos) :: field.cff_meta;
+ 			let e = match eo with
+				| None -> error "Value required" field.cff_pos
+				| Some e -> (ECast(e,None),field.cff_pos)
+			in
+			field.cff_kind <- FVar(ct,Some e)
+		| _ ->
+			()
+	) fields;
+	EVars ["",Some (CTAnonymous fields),None],p
+
 let build_module_def ctx mt meta fvars context_init fbuild =
 	let rec loop = function
 		| (Meta.Build,args,p) :: l ->
@@ -1405,6 +1423,16 @@ let build_module_def ctx mt meta fvars context_init fbuild =
 			(match r with
 			| None -> error "Build failure" p
 			| Some e -> fbuild e; loop l)
+		| (Meta.Enum,_,p) :: l ->
+			begin match mt with
+				| TClassDecl ({cl_kind = KAbstractImpl a} as c) ->
+					context_init();
+					let e = build_enum_abstract ctx c a (fvars()) p in
+					fbuild e;
+					loop l
+				| _ ->
+					loop l
+			end
 		| _ :: l -> loop l
 		| [] -> ()
 	in
@@ -1594,6 +1622,16 @@ let init_class ctx c p context_init herits fields =
 						check_cast e
 					| Var v when v.v_read = AccInline ->
 						let e = require_constant_expression e "Inline variable initialization must be a constant value" in
+						begin match c.cl_kind with
+							| KAbstractImpl a when Meta.has Meta.Enum cf.cf_meta && Meta.has Meta.Enum a.a_meta ->
+								unify ctx (TAbstract(a,(List.map (fun _ -> mk_mono()) a.a_types))) t p;
+								begin match e.eexpr with
+									| TCast(e1,None) -> unify ctx e1.etype a.a_this e1.epos
+									| _ -> assert false
+								end
+							| _ ->
+								()
+						end;
 						check_cast e
 					| _ ->
 						e
