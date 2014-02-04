@@ -164,7 +164,7 @@ let inline_default_config cf t =
 	let tparams = fst tparams @ cf.cf_params in
 	tparams <> [], apply_params tparams tmonos
 
-let rec type_inline ctx cf f ethis params tret config p force =
+let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=false) force =
 	(* perform some specific optimization before we inline the call since it's not possible to detect at final optimization time *)
 	try
 		let cl = (match follow ethis.etype with
@@ -262,9 +262,10 @@ let rec type_inline ctx cf f ethis params tret config p force =
 	let cancel_inlining = ref false in
 	let has_return_value = ref false in
 	let ret_val = (match follow f.tf_type with TAbstract ({ a_path = ([],"Void") },[]) -> false | _ -> true) in
+	let map_pos = if self_calling_closure then (fun e -> e) else (fun e -> { e with epos = p }) in
 	let rec map term e =
 		let po = e.epos in
-		let e = { e with epos = p } in
+		let e = map_pos e in
 		match e.eexpr with
 		| TLocal v ->
 			let l = read_local v in
@@ -1002,7 +1003,7 @@ let rec reduce_loop ctx e =
 		let cf = mk_field "" ef.etype e.epos in
 		let ethis = mk (TConst TThis) t_dynamic e.epos in
 		let rt = (match follow ef.etype with TFun (_,rt) -> rt | _ -> assert false) in
-		let inl = (try type_inline ctx cf func ethis el rt None e.epos false with Error (Custom _,_) -> None) in
+		let inl = (try type_inline ctx cf func ethis el rt None e.epos ~self_calling_closure:true false with Error (Custom _,_) -> None) in
 		(match inl with
 		| None -> reduce_expr ctx e
 		| Some e -> reduce_loop ctx e)
