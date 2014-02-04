@@ -23,15 +23,18 @@ package haxe;
 
 /**
 	Crossplatform JSON API : it will automatically use the optimized native API if available.
-	Use -D haxeJSON to force usage of the Haxe implementation even if a native API is found : this will provide
+	Use -D (haxeJSON || haxe_json) to force usage of the Haxe implementation even if a native API is found : this will provide
 	extra encoding features such as enums (replaced by their index), Hashs and Iterable.
 **/
-#if ((flash11 || (js && !old_browser)) && !haxeJSON)
+#if haxeJSON
+#warning "haxeJSON is deprecated and has been renamed to haxe_json"
+#end
+#if ((flash11 || (js && !old_browser)) && !(haxeJSON || haxe_json))
 @:native('JSON') extern
 #end
 class Json {
 
-#if (haxeJSON || !(flash11 || (js && !old_browser)))
+#if ((haxeJSON || haxe_json) || !(flash11 || (js && !old_browser)))
 	var buf : #if flash9 flash.utils.ByteArray #else StringBuf #end;
 	var str : String;
 	var pos : Int;
@@ -401,9 +404,9 @@ class Json {
 #end
 
 	public static function parse( text : String ) : Dynamic {
-		#if (php && !haxeJSON)
+		#if (php && !(haxeJSON || haxe_json))
 		return phpJsonDecode(text);
-		#elseif (flash11 && !haxeJSON)
+		#elseif (flash11 && !(haxeJSON || haxe_json))
 		return null;
 		#else
 		return new Json().doParse(text);
@@ -411,16 +414,16 @@ class Json {
 	}
 
 	public static function stringify( value : Dynamic, ?replacer:Dynamic -> Dynamic -> Dynamic ) : String {
-		#if (php && !haxeJSON)
+		#if (php && !(haxeJSON || haxe_json))
 		return phpJsonEncode(value, replacer);
-		#elseif (flash11 && !haxeJSON)
+		#elseif (flash11 && !(haxeJSON || haxe_json))
 		return null;
 		#else
 		return new Json().toString(value, replacer);
 		#end
 	}
 
-	#if !haxeJSON
+	#if !(haxeJSON || haxe_json)
 		#if (js && old_browser)
 		static function __init__() untyped {
 			if( __js__('typeof(JSON)') != 'undefined' )
