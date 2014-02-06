@@ -50,6 +50,9 @@
 	public static function now() : Date {
 		return fromTime( untyped __global__.__hxcpp_date_now()*1000.0);
 	}
+  	private static function new1(t : Dynamic) : Date {
+		return  new Date(2005,1,1,0,0,0);
+	}
 
 	public static function fromTime( t : Float ) : Date {
 		var result = new Date(0,0,0,0,0,0);
