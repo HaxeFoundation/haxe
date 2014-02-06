@@ -157,7 +157,11 @@ and mark_t dce p t =
 			mark_enum dce e;
 			List.iter (mark_t dce p) pl
 		| TAbstract(a,pl) when Meta.has Meta.MultiType a.a_meta ->
-			mark_t dce p (snd (Codegen.Abstract.find_multitype_specialization a pl p))
+			begin try
+				mark_t dce p (snd (Codegen.Abstract.find_multitype_specialization a pl p))
+			with Typecore.Error _ ->
+				()
+			end
 		| TAbstract(a,pl) ->
 			mark_abstract dce a;
 			List.iter (mark_t dce p) pl
