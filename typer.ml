@@ -1817,9 +1817,11 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 		let rec loop ops = match ops with
 			| [] -> raise Not_found
 			| (o,cf) :: ops when is_assign_op && o = OpAssignOp(op) || o == op ->
-				(match follow (monomorphs cf.cf_params cf.cf_type) with
+				let impl = Meta.has Meta.Impl cf.cf_meta in
+				let tcf = monomorphs cf.cf_params cf.cf_type in
+				let tcf = if impl then apply_params a.a_types pl tcf else tcf in
+				(match follow tcf with
 				| TFun([(_,_,t1);(_,_,t2)],r) ->
-					let impl = Meta.has Meta.Impl cf.cf_meta in
 					(* implementation fields can only be used in left mode (issue #2130) *)
 					if impl && not left then loop ops else begin
 						let t1,t2 = if left || Meta.has Meta.Commutative cf.cf_meta then t1,t2 else t2,t1 in
