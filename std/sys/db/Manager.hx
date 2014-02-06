@@ -205,7 +205,7 @@ class Manager<T : Object> {
 			var name = f.name;
 			var v : Dynamic = Reflect.field(x,name);
 			var vc : Dynamic = Reflect.field(cache,name);
-			if( v != vc && (!isBinary(f.t) || hasBinaryChanged(v,vc)) ) {
+			if( cache == null || (v != vc && (!isBinary(f.t) || hasBinaryChanged(v,vc))) ) {
 				switch( f.t ) {
 				case DData:
 					v = doUpdateCache(x, name, v);
