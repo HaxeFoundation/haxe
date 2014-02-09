@@ -527,6 +527,7 @@ and load_complex_type ctx p t =
 					let t = (match t with None -> error "Type required for structure property" p | Some t -> t) in
 					load_complex_type ctx p t, Var { v_read = access i1 true; v_write = access i2 false }
 			) in
+			let t = if Meta.has Meta.Optional f.cff_meta then ctx.t.tnull t else t in
 			let cf = {
 				cf_name = n;
 				cf_type = t;
@@ -536,7 +537,7 @@ and load_complex_type ctx p t =
 				cf_params = !params;
 				cf_expr = None;
 				cf_doc = f.cff_doc;
-			cf_meta = f.cff_meta;
+				cf_meta = f.cff_meta;
 				cf_overloads = [];
 			} in
 			init_meta_overloads ctx cf;
