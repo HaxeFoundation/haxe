@@ -321,3 +321,8 @@ type ttf = {
 	ttf_os2 : os2;
 	ttf_kern : kern option;
 }
+
+type ttf_config = {
+	mutable ttfc_range_str : string;
+	mutable ttfc_font_name : string option;
+}
