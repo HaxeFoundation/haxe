@@ -2801,11 +2801,11 @@ and type_expr ctx (e,p) (with_type:with_type) =
 					| _ -> raise Exit)
 				| _ -> raise Exit
 			) in
-			let old = ctx.on_error in
-			ctx.m.module_types <- (TEnumDecl en) :: ctx.m.module_types;
+			let old = ctx.on_error,ctx.m.curmod.m_types in
+			ctx.m.curmod.m_types <- ctx.m.curmod.m_types @ [(TEnumDecl en)];
 			let restore = fun () ->
-				ctx.m.module_types <- List.tl ctx.m.module_types;
-				ctx.on_error <- old;
+				ctx.m.curmod.m_types <- snd old;
+				ctx.on_error <- fst old;
 			in
 			ctx.on_error <- (fun ctx msg ep ->
 				(* raise Not_found only if the error is actually about the outside identifier (issue #2148) *)
