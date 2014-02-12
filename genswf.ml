@@ -777,6 +777,8 @@ let detect_format data p =
 	| _ ->
 		error "Unknown file format" p
 
+open TTFData
+
 let build_swf9 com file swc =
 	let boot_name = if swc <> None || Common.defined com Define.HaxeBoot then "haxe" else "boot_" ^ (String.sub (Digest.to_hex (Digest.string (Filename.basename file))) 0 4) in
 	let code = Genswf9.generate com boot_name in
@@ -827,11 +829,31 @@ let build_swf9 com file swc =
 					let ch = try open_in_bin file with _ -> error "File not found" p in
 					let ttf = try TTFParser.parse ch with e -> error ("Error while parsing font " ^ file ^ " : " ^ Printexc.to_string e) p in
 					close_in ch;
-					let range_str = match args with
-						| [EConst (String str),_] -> str
-						| _ -> ""
+					let get_string e = match fst e with
+						| EConst (String s) -> Some s
+						| _ -> raise Not_found
 					in
-					let ttf_swf = TTFSwfWriter.to_swf ttf range_str in
+					let ttf_config = {
+						ttfc_range_str = "";
+						ttfc_font_name = None;
+					} in
+					begin match args with
+						| (EConst (String str),_) :: _ -> ttf_config.ttfc_range_str <- str;
+						| _ -> ()
+					end;
+					begin match args with
+						| _ :: [e] ->
+							begin match fst e with
+								| EObjectDecl fl ->
+									begin try ttf_config.ttfc_font_name <- get_string (List.assoc "fontName" fl)
+									with Not_found -> () end
+								| _ ->
+									()
+							end
+						| _ ->
+							()
+					end;
+					let ttf_swf = TTFSwfWriter.to_swf ttf ttf_config in
 					let ch = IO.output_string () in
 					let b = IO.output_bits ch in
 					TTFSwfWriter.write_font2 ch b ttf_swf;
