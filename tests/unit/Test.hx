@@ -270,7 +270,6 @@ class Test #if swf_mark implements mt.Protect #end {
 			new TestMatch(),
 			#end
 			new TestSpecification(),
-			new unit.issues.TestIssues(),
 			#if cs
 			new TestCSharp(),
 			#end
@@ -292,6 +291,7 @@ class Test #if swf_mark implements mt.Protect #end {
 			//new TestUnspecified(),
 			//new TestRemoting(),
 		];
+		TestIssues.addIssueClasses();
 		var current = null;
 		#if (!fail_eager)
 		try
