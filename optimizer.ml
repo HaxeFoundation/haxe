@@ -245,6 +245,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 		if has_side_effect e then l.i_force_temp <- true; (* force tmp var *)
 		l, e
 	) (ethis :: loop params f.tf_args true) ((vthis,None) :: f.tf_args) in
+	let inlined_vars = List.rev inlined_vars in
 	(*
 		here, we try to eliminate final returns from the expression tree.
 		However, this is not entirely correct since we don't yet correctly propagate
