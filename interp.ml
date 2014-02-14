@@ -110,6 +110,7 @@ type extern_api = {
 	meta_patch : string -> string -> string option -> bool -> unit;
 	set_js_generator : (value -> unit) -> unit;
 	get_local_type : unit -> t option;
+	get_expected_type : unit -> t option;
 	get_local_method : unit -> string;
 	get_local_using : unit -> tclass list;
 	get_local_vars : unit -> (string, Type.tvar) PMap.t;
@@ -2413,6 +2414,11 @@ let macro_lib =
 		);
 		"local_type", Fun0 (fun() ->
 			match (get_ctx()).curapi.get_local_type() with
+			| None -> VNull
+			| Some t -> encode_type t
+		);
+		"expected_type", Fun0 (fun() ->
+			match (get_ctx()).curapi.get_expected_type() with
 			| None -> VNull
 			| Some t -> encode_type t
 		);
