@@ -1174,9 +1174,12 @@ let type_function ctx args ret fmode f do_display p =
 				let p = pos e in
 				let e = ctx.g.do_optimize ctx (type_expr ctx e (WithType t)) in
 				unify ctx e.etype t p;
-				match e.eexpr with
-				| TConst c -> Some c
-				| _ -> display_error ctx "Parameter default value should be constant" p; None
+				let rec loop e = match e.eexpr with
+					| TConst c -> Some c
+					| TCast(e,None) -> loop e
+					| _ -> display_error ctx "Parameter default value should be constant" p; None
+				in
+				loop e
 		) in
 		let v,c = add_local ctx n t, c in
 		if n = "this" then v.v_meta <- (Meta.This,[],p) :: v.v_meta;
