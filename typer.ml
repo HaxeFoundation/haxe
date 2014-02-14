@@ -3366,6 +3366,7 @@ and build_call ctx acc el (with_type:with_type) p =
 	| AKMacro (ethis,f) ->
 		if ctx.macro_depth > 300 then error "Stack overflow" p;
 		ctx.macro_depth <- ctx.macro_depth + 1;
+		ctx.with_type_stack <- with_type :: ctx.with_type_stack;
 		let f = (match ethis.eexpr with
 		| TTypeExpr (TClassDecl c) ->
 			(match ctx.g.do_macro ctx MExpr c.cl_path f.cf_name el p with
@@ -3390,6 +3391,7 @@ and build_call ctx acc el (with_type:with_type) p =
 				loop c
 			| _ -> assert false)) in
 		ctx.macro_depth <- ctx.macro_depth - 1;
+		ctx.with_type_stack <- List.tl ctx.with_type_stack;
 		let old = ctx.on_error in
 		ctx.on_error <- (fun ctx msg ep ->
 			old ctx msg ep;
@@ -3799,17 +3801,22 @@ let make_macro_api ctx p =
 		);
 		Interp.get_local_type = (fun() ->
 			match ctx.g.get_build_infos() with
-			| Some (mt,_) ->
+			| Some (mt,tl,_) ->
 				Some (match mt with
-					| TClassDecl c -> TInst (c,List.map snd c.cl_types)
-					| TEnumDecl e -> TEnum (e,List.map snd e.e_types)
-					| TTypeDecl t -> TType (t,List.map snd t.t_types)
-					| TAbstractDecl a -> TAbstract(a,List.map snd a.a_types))
+					| TClassDecl c -> TInst (c,tl)
+					| TEnumDecl e -> TEnum (e,tl)
+					| TTypeDecl t -> TType (t,tl)
+					| TAbstractDecl a -> TAbstract(a,tl))
 			| None ->
 				if ctx.curclass == null_class then
 					None
 				else
 					Some (TInst (ctx.curclass,[]))
+		);
+		Interp.get_expected_type = (fun() ->
+			match ctx.with_type_stack with
+				| (WithType t | WithTypeResume t) :: _ -> Some t
+				| _ -> None
 		);
 		Interp.get_local_method = (fun() ->
 			ctx.curfield.cf_name;
@@ -3823,7 +3830,7 @@ let make_macro_api ctx p =
 		Interp.get_build_fields = (fun() ->
 			match ctx.g.get_build_infos() with
 			| None -> Interp.VNull
-			| Some (_,fields) -> Interp.enc_array (List.map Interp.encode_field fields)
+			| Some (_,_,fields) -> Interp.enc_array (List.map Interp.encode_field fields)
 		);
 		Interp.get_pattern_locals = (fun e t ->
 			!get_pattern_locals_ref ctx e t
@@ -4113,7 +4120,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 						| Interp.VNull ->
 							(match ctx.g.get_build_infos() with
 							| None -> assert false
-							| Some (_,fields) -> fields)
+							| Some (_,_,fields) -> fields)
 						| _ ->
 							List.map Interp.decode_field (Interp.dec_array v)
 					) in
@@ -4216,6 +4223,7 @@ let rec create com =
 		};
 		meta = [];
 		this_stack = [];
+		with_type_stack = [];
 		pass = PBuildModule;
 		macro_depth = 0;
 		untyped = false;

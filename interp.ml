@@ -110,6 +110,7 @@ type extern_api = {
 	meta_patch : string -> string -> string option -> bool -> unit;
 	set_js_generator : (value -> unit) -> unit;
 	get_local_type : unit -> t option;
+	get_expected_type : unit -> t option;
 	get_local_method : unit -> string;
 	get_local_using : unit -> tclass list;
 	get_local_vars : unit -> (string, Type.tvar) PMap.t;
@@ -2416,6 +2417,11 @@ let macro_lib =
 			| None -> VNull
 			| Some t -> encode_type t
 		);
+		"expected_type", Fun0 (fun() ->
+			match (get_ctx()).curapi.get_expected_type() with
+			| None -> VNull
+			| Some t -> encode_type t
+		);
 		"local_method", Fun0 (fun() ->
 			VString ((get_ctx()).curapi.get_local_method())
 		);
@@ -4286,6 +4292,7 @@ and encode_class_kind k =
 		| KGenericInstance (cl, params) -> 5, [encode_clref cl; encode_tparams params]
 		| KMacroType -> 6, []
 		| KAbstractImpl a -> 7, [encode_ref a encode_tabstract (fun() -> s_type_path a.a_path)]
+		| KGenericBuild cfl -> 8, []
 	) in
 	enc_enum IClassKind tag pl
 

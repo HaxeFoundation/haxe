@@ -98,6 +98,22 @@ class Context {
 	}
 
 	/**
+		Returns the type which is expected at the place the macro is called.
+		
+		This affects usages such as `var x:Int = macroCall()`, where the
+		expected type will be reported as Int.
+		
+		Might return null if no specific type is expected or if the calling
+		macro is not an expression-macro.
+	**/
+	@:require(haxe_ver >= 3.01)
+	public static function getExpectedType():Null<Type> {
+		var l : Type = load("expected_type", 0)();
+		if( l == null ) return null;
+		return l;
+	}
+	
+	/**
 		Returns the current class in which the macro was called.
 		
 		If no such class exists, null is returned.
