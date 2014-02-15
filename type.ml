@@ -1046,7 +1046,10 @@ let rec unify a b =
 	| _ , TAbstract ({a_path=[],"Void"},_) ->
 		error [cannot_unify a b]
 	| TAbstract (a1,tl1) , TAbstract (a2,tl2) ->
-		if not (List.exists (unify_to_field a1 tl1 b) a1.a_to) && not (List.exists (unify_from_field a2 tl2 a b) a2.a_from) then error [cannot_unify a b]
+		let f1 = unify_to_field a1 tl1 b in
+		let f2 = unify_from_field a2 tl2 a b in
+		if not (List.exists (f1 ~allow_transitive_cast:false) a1.a_to) && not (List.exists (f2 ~allow_transitive_cast:false) a2.a_from)
+		    && not (List.exists f1 a1.a_to) && not (List.exists f2 a2.a_from) then error [cannot_unify a b]
 	| TInst (c1,tl1) , TInst (c2,tl2) ->
 		let rec loop c tl =
 			if c == c2 then begin
@@ -1219,10 +1222,10 @@ let rec unify a b =
 	| _ , _ ->
 		error [cannot_unify a b]
 
-and unify_from_field ab tl a b (t,cfo) =
+and unify_from_field ab tl a b ?(allow_transitive_cast=true) (t,cfo) =
 	if (List.exists (fun (a2,b2) -> fast_eq a a2 && fast_eq b b2) (!abstract_cast_stack)) then false else begin
 	abstract_cast_stack := (a,b) :: !abstract_cast_stack;
-	let unify_func = match follow a with TAbstract({a_impl = Some _},_) when ab.a_impl <> None -> type_eq EqStrict | _ -> unify in
+	let unify_func = match follow a with TAbstract({a_impl = Some _},_) when ab.a_impl <> None || not allow_transitive_cast -> type_eq EqStrict | _ -> unify in
 	let b = try begin match cfo with
 		| Some cf -> (match follow cf.cf_type with
 			| TFun(_,r) ->
@@ -1241,11 +1244,11 @@ and unify_from_field ab tl a b (t,cfo) =
 	b
 	end
 
-and unify_to_field ab tl b (t,cfo) =
+and unify_to_field ab tl b ?(allow_transitive_cast=true) (t,cfo) =
 	let a = TAbstract(ab,tl) in
 	if (List.exists (fun (b2,a2) -> fast_eq a a2 && fast_eq b b2) (!abstract_cast_stack)) then false else begin
 	abstract_cast_stack := (b,a) :: !abstract_cast_stack;
-	let unify_func = match follow b with TAbstract({a_impl = Some _},_) when ab.a_impl <> None -> type_eq EqStrict | _ -> unify in
+	let unify_func = match follow b with TAbstract({a_impl = Some _},_) when ab.a_impl <> None || not allow_transitive_cast -> type_eq EqStrict | _ -> unify in
 	let b = try begin match cfo with
 		| Some cf -> (match follow cf.cf_type with
 			| TFun((_,_,ta) :: _,_) ->
