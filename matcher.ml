@@ -559,9 +559,17 @@ let get_pattern_locals ctx e t =
 
 (* Match compilation *)
 
+let expr_eq e1 e2 = e1 == e2 || match e1.eexpr,e2.eexpr with
+	| TConst ct1,TConst ct2 ->
+		ct1 = ct2
+	| TField(_,FStatic(c1,cf1)),TField(_,FStatic(c2,cf2)) ->
+		c1 == c2 && cf1.cf_name = cf2.cf_name
+	| _ ->
+		false
+
 let unify_con con1 con2 = match con1.c_def,con2.c_def with
 	| CExpr e1, CExpr e2 ->
-		e1 == e2
+		expr_eq e1 e2
 	| CConst c1,CConst c2 ->
 		c1 = c2
 	| CEnum(e1,ef1),CEnum(e2,ef2) ->
