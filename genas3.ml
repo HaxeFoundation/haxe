@@ -119,6 +119,22 @@ let reserved =
 let s_ident n =
 	if Hashtbl.mem reserved n then "_" ^ n else n
 
+let valid_as3_ident s =
+	try
+		for i = 0 to String.length s - 1 do
+			match String.unsafe_get s i with
+			| 'a'..'z' | 'A'..'Z' | '$' | '_' -> ()
+			| '0'..'9' when i > 0 -> ()
+			| _ -> raise Exit
+		done;
+		true
+	with Exit ->
+		false
+
+let anon_field s =
+	let s = s_ident s in
+	if not (valid_as3_ident s) then "\"" ^ s ^ "\"" else s
+
 let rec create_dir acc = function
 	| [] -> ()
 	| d :: l ->
@@ -696,7 +712,7 @@ and gen_expr ctx e =
 		handle_break();
 	| TObjectDecl fields ->
 		spr ctx "{ ";
-		concat ctx ", " (fun (f,e) -> print ctx "%s : " (s_ident f); gen_value ctx e) fields;
+		concat ctx ", " (fun (f,e) -> print ctx "%s : " (anon_field f); gen_value ctx e) fields;
 		spr ctx "}"
 	| TFor (v,it,e) ->
 		let handle_break = handle_break ctx e in
