@@ -220,6 +220,7 @@ module Define = struct
 		| SwfPreloaderFrame
 		| SwfProtected
 		| SwfScriptTimeout
+		| SwfUseDoAbc
 		| Sys
 		| Unsafe
 		| UseNekoc
@@ -289,6 +290,7 @@ module Define = struct
 		| SwfPreloaderFrame -> ("swf_preloader_frame", "Insert empty first frame in swf")
 		| SwfProtected -> ("swf_protected","Compile Haxe private as protected in the SWF instead of public")
 		| SwfScriptTimeout -> ("swf_script_timeout", "Maximum ActionScript processing time before script stuck dialog box displays (in seconds)")
+		| SwfUseDoAbc -> ("swf_use_doabc", "Use DoAbc swf-tag instead of DoAbcDefine")
 		| Sys -> ("sys","Defined for all system platforms")
 		| Unsafe -> ("unsafe","Allow unsafe code when targeting C#")
 		| UseNekoc -> ("use_nekoc","Use nekoc compiler instead of internal one")
