@@ -527,6 +527,16 @@ and load_complex_type ctx p t =
 					let t = (match t with None -> error "Type required for structure property" p | Some t -> t) in
 					load_complex_type ctx p t, Var { v_read = access i1 true; v_write = access i2 false }
 			) in
+
+			(* if type is an abstract with @:optional meta, make the field optional *)
+			if not (Meta.has Meta.Optional f.cff_meta) then (
+				match t with
+				| TAbstract (a,_) when (Meta.has Meta.Optional a.a_meta) ->
+					f.cff_meta <- (Meta.Optional,[],p) :: f.cff_meta
+				| _ ->
+					()
+			);
+
 			let t = if Meta.has Meta.Optional f.cff_meta then ctx.t.tnull t else t in
 			let cf = {
 				cf_name = n;

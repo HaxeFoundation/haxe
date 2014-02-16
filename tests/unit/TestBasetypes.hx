@@ -487,4 +487,14 @@ class TestBasetypes extends Test {
 		var a = new unit.MyAbstract.MySpecialString("My debugging abstract");
 		eq("debugging abstract", a.substr(3));
 	}
+
+	function testAbstractOptional() {
+		var s:OptionalAbstractStruct = {};
+		eq(s.a.get(10), 10);
+		s.a = 15;
+		eq(s.a.get(10), 15);
+	}
 }
+
+@:optional private abstract OptionalAbstract<T>(T) from T { public function get(d:T):T return this != null ? this : d; }
+private typedef OptionalAbstractStruct = { a:OptionalAbstract<Int> }
