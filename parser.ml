@@ -215,12 +215,17 @@ let reify in_macro =
 		) in
 		mk_enum "TypeParam" n [v] p
 	and to_tpath t p =
-		let fields = [
-			("pack", to_array to_string t.tpackage p);
-			("name", to_string t.tname p);
-			("params", to_array to_tparam t.tparams p);
-		] in
-		to_obj (match t.tsub with None -> fields | Some s -> fields @ ["sub",to_string s p]) p
+		let len = String.length t.tname in
+		if t.tpackage = [] && len > 1 && t.tname.[0] = '$' then
+			(EConst (Ident (String.sub t.tname 1 (len - 1))),p)
+		else begin
+			let fields = [
+				("pack", to_array to_string t.tpackage p);
+				("name", to_string t.tname p);
+				("params", to_array to_tparam t.tparams p);
+			] in
+			to_obj (match t.tsub with None -> fields | Some s -> fields @ ["sub",to_string s p]) p
+		end
 	and to_ctype t p =
 		let ct n vl = mk_enum "ComplexType" n vl p in
 		match t with
