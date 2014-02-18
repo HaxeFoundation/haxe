@@ -3,6 +3,7 @@ package flash.display3D;
 @:final extern class Context3D extends flash.events.EventDispatcher {
 	var driverInfo(default,null) : String;
 	var enableErrorChecking : Bool;
+	@:require(flash12) var profile : String;
 	function clear(red : Float = 0, green : Float = 0, blue : Float = 0, alpha : Float = 1, depth : Float = 1, stencil : UInt = 0, mask : UInt = 0xFFFFFFFF) : Void;
 	function configureBackBuffer(width : Int, height : Int, antiAlias : Int, enableDepthAndStencil : Bool = true, wantsBestResolution : Bool = false) : Void;
 	function createCubeTexture(size : Int, format : Context3DTextureFormat, optimizeForRenderToTexture : Bool, streamingLevels : Int = 0) : flash.display3D.textures.CubeTexture;
