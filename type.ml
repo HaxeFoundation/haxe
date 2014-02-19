@@ -165,6 +165,7 @@ and tclass_kind =
 	| KGeneric
 	| KGenericInstance of tclass * tparams
 	| KMacroType
+	| KGenericBuild of class_field list
 	| KAbstractImpl of tabstract
 
 and metadata = Ast.metadata

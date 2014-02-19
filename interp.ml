@@ -4292,6 +4292,7 @@ and encode_class_kind k =
 		| KGenericInstance (cl, params) -> 5, [encode_clref cl; encode_tparams params]
 		| KMacroType -> 6, []
 		| KAbstractImpl a -> 7, [encode_ref a encode_tabstract (fun() -> s_type_path a.a_path)]
+		| KGenericBuild cfl -> 8, []
 	) in
 	enc_enum IClassKind tag pl
 
