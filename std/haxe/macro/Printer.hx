@@ -134,18 +134,18 @@ class Printer {
 	public function printFunctionArg(arg:FunctionArg) return
 		(arg.opt ? "?" : "")
 		+ arg.name
-		+ opt(arg.type, printComplexType, " : ")
+		+ opt(arg.type, printComplexType, ":")
 		+ opt(arg.value, printExpr, " = ");
 
 	public function printFunction(func:Function) return
 		(func.params.length > 0 ? "<" + func.params.map(printTypeParamDecl).join(", ") + ">" : "")
-		+ "( " + func.args.map(printFunctionArg).join(", ") + " )"
+		+ "(" + func.args.map(printFunctionArg).join(", ") + ")"
 		+ opt(func.ret, printComplexType, " : ")
 		+ opt(func.expr, printExpr, " ");
 
 	public function printVar(v:Var) return
 		v.name
-		+ opt(v.type, printComplexType, " : ")
+		+ opt(v.type, printComplexType, ":")
 		+ opt(v.expr, printExpr, " = ");
 
 
@@ -163,7 +163,7 @@ class Printer {
 		case EUnop(op, true, e1): printExpr(e1) + printUnop(op);
 		case EUnop(op, false, e1): printUnop(op) + printExpr(e1);
 		case EFunction(no, func) if (no != null): 'function $no' + printFunction(func);
-		case EFunction(_, func): "function " +printFunction(func);
+		case EFunction(_, func): "function" +printFunction(func);
 		case EVars(vl): "var " +vl.map(printVar).join(", ");
 		case EBlock([]): '{ }';
 		case EBlock(el):
@@ -172,11 +172,12 @@ class Printer {
 			var s = '{\n$tabs' + printExprs(el, ';\n$tabs');
 			tabs = old;
 			s + ';\n$tabs}';
-		case EFor(e1, e2): 'for(${printExpr(e1)}) ${printExpr(e2)}';
+		case EFor(e1, e2): 'for (${printExpr(e1)}) ${printExpr(e2)}';
 		case EIn(e1, e2): '${printExpr(e1)} in ${printExpr(e2)}';
-		case EIf(econd, eif, eelse): 'if(${printExpr(econd)}) ${printExpr(eif)} ${opt(eelse,printExpr,"else ")}';
-		case EWhile(econd, e1, true): 'while(${printExpr(econd)}) ${printExpr(e1)}';
-		case EWhile(econd, e1, false): 'do ${printExpr(e1)} while(${printExpr(econd)})';
+		case EIf(econd, eif, null): 'if (${printExpr(econd)}) ${printExpr(eif)}';
+		case EIf(econd, eif, eelse): 'if (${printExpr(econd)}) ${printExpr(eif)} else ${printExpr(eelse)}';
+		case EWhile(econd, e1, true): 'while (${printExpr(econd)}) ${printExpr(e1)}';
+		case EWhile(econd, e1, false): 'do ${printExpr(e1)} while (${printExpr(econd)})';
 		case ESwitch(e1, cl, edef):
 			var old = tabs;
 			tabs += tabString;
@@ -192,7 +193,7 @@ class Printer {
 			s + '\n$tabs}';
 		case ETry(e1, cl):
 			'try ${printExpr(e1)}'
-			+ cl.map(function(c) return ' catch(${c.name} : ${printComplexType(c.type)}) ${printExpr(c.expr)}').join("");
+			+ cl.map(function(c) return ' catch(${c.name}:${printComplexType(c.type)}) ${printExpr(c.expr)}').join("");
 		case EReturn(eo): "return" + opt(eo, printExpr, " ");
 		case EBreak: "break";
 		case EContinue: "continue";
