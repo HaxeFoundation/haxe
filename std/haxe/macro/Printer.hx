@@ -156,7 +156,7 @@ class Printer {
 		case EField(e1, n): '${printExpr(e1)}.$n';
 		case EParenthesis(e1): '(${printExpr(e1)})';
 		case EObjectDecl(fl):
-			"{ " + fl.map(function(fld) return '${fld.field} : ${printExpr(fld.expr)} ').join(",") + "}";
+			"{ " + fl.map(function(fld) return '${fld.field} : ${printExpr(fld.expr)}').join(", ") + " }";
 		case EArrayDecl(el): '[${printExprs(el, ", ")}]';
 		case ECall(e1, el): '${printExpr(e1)}(${printExprs(el,", ")})';
 		case ENew(tp, el): 'new ${printTypePath(tp)}(${printExprs(el,", ")})';
