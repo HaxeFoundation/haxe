@@ -625,7 +625,10 @@ module Abstract = struct
 			let _ = find_to a pl m in
 			follow m
 		with Not_found ->
-			apply_params a.a_types pl a.a_this
+			if Meta.has Meta.CoreType a.a_meta then
+				t_dynamic
+			else
+				apply_params a.a_types pl a.a_this
 
 	let make_static_call ctx c cf a pl args t p =
 		let ta = TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) } in
