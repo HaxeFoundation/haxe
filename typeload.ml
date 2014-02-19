@@ -2445,11 +2445,12 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 				is_type := true;
 			| APrivAbstract -> ()
 		) d.d_flags;
-		if not !is_type && not (Meta.has Meta.CoreType a.a_meta) then
-			error "Abstract is missing underlying type declaration" a.a_pos
-		(* this was assuming that implementations imply underlying type, but that shouldn't be necessary (issue #2333) *)
-(* 		if not !is_type && (match a.a_impl with Some _ -> true | None -> not (Meta.has Meta.CoreType a.a_meta)) then
-			error "Abstract is missing underlying type declaration" a.a_pos *)
+		if not !is_type then begin
+			if Meta.has Meta.CoreType a.a_meta then
+				a.a_this <- TAbstract(a,List.map snd a.a_types)
+			else
+				error "Abstract is missing underlying type declaration" a.a_pos
+		end
 
 let type_module ctx m file tdecls p =
 	let m, decls, tdecls = make_module ctx m file tdecls p in
