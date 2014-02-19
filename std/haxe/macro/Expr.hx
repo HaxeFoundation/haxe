@@ -132,6 +132,7 @@ enum Binop {
 		`|=`
 		`&=`
 		`^=`
+		`%=`
 	**/
 	OpAssignOp( op : Binop );
 	/**
