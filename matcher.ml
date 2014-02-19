@@ -789,7 +789,7 @@ let rec all_ctors mctx t =
 				| _ -> ()
 		) c.cl_ordered_statics;
 		h,false
-	| TAbstract(a,pl) -> all_ctors mctx (Codegen.Abstract.get_underlying_type a pl)
+	| TAbstract(a,pl) when not (Meta.has Meta.CoreType a.a_meta) -> all_ctors mctx (Codegen.Abstract.get_underlying_type a pl)
 	| TInst({cl_path=[],"String"},_)
 	| TInst({cl_path=[],"Array"},_) ->
 		h,true

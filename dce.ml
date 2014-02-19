@@ -221,8 +221,11 @@ let rec to_string dce t = match t with
 			dce.ts_stack <- t :: dce.ts_stack;
 			to_string dce (apply_params tt.t_types tl tt.t_type)
 		end
-	| TAbstract(a,tl) ->
-		to_string dce (Codegen.Abstract.get_underlying_type a tl)
+	| TAbstract({a_impl = Some c} as a,tl) ->
+		if Meta.has Meta.CoreType a.a_meta then
+			field dce c "toString" false
+		else
+			to_string dce (Codegen.Abstract.get_underlying_type a tl)
 	| TMono r ->
 		(match !r with
 		| Some t -> to_string dce t
@@ -234,7 +237,7 @@ let rec to_string dce t = match t with
 			()
 		else
 			to_string dce t
-	| TEnum _ | TFun _ | TAnon _ ->
+	| TEnum _ | TFun _ | TAnon _ | TAbstract({a_impl = None},_) ->
 		(* if we to_string these it does not imply that we need all its sub-types *)
 		()
 

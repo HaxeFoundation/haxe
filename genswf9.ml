@@ -205,7 +205,7 @@ let rec follow_basic t =
 		t
 	| TType (t,tl) ->
 		follow_basic (apply_params t.t_types tl t.t_type)
-	| TAbstract (a,pl) when a.a_impl <> None ->
+	| TAbstract (a,pl) when not (Meta.has Meta.CoreType a.a_meta) ->
 		follow_basic (apply_params a.a_types pl a.a_this)
 	| _ -> t
 
