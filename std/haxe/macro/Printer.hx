@@ -140,7 +140,7 @@ class Printer {
 	public function printFunction(func:Function) return
 		(func.params.length > 0 ? "<" + func.params.map(printTypeParamDecl).join(", ") + ">" : "")
 		+ "(" + func.args.map(printFunctionArg).join(", ") + ")"
-		+ opt(func.ret, printComplexType, " : ")
+		+ opt(func.ret, printComplexType, ":")
 		+ opt(func.expr, printExpr, " ");
 
 	public function printVar(v:Var) return
@@ -235,7 +235,7 @@ class Printer {
 						tabs + (field.doc != null && field.doc != "" ? "/**\n" + tabs + tabString + StringTools.replace(field.doc, "\n", "\n" + tabs + tabString) + "\n" + tabs + "**/\n" + tabs : "")
 						+ (field.meta != null && field.meta.length > 0 ? field.meta.map(printMetadata).join(" ") + " " : "")
 						+ (switch(field.kind) {
-							case FVar(_, _): field.name;
+							case FVar(t, _): field.name + opt(t, printComplexType, ":");
 							case FProp(_, _, _, _): throw "FProp is invalid for TDEnum.";
 							case FFun(func): field.name + printFunction(func);
 						}) + ";"
@@ -271,8 +271,8 @@ class Printer {
 					+ ";";
 				case TDAbstract(tthis, from, to):
 					"abstract " + t.name
-					+ (tthis == null ? "" : "(" + printComplexType(tthis) + ")")
 					+ (t.params.length > 0 ? "<" + t.params.map(printTypeParamDecl).join(", ") + ">" : "")
+					+ (tthis == null ? "" : "(" + printComplexType(tthis) + ")")
 					+ (from == null ? "" : [for (f in from) " from " + printComplexType(f)].join(""))
 					+ (to == null ? "" : [for (t in to) " to " + printComplexType(t)].join(""))
 					+ " {\n"
