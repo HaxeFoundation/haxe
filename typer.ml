@@ -3307,7 +3307,7 @@ and type_call ctx e el (with_type:with_type) p =
 and build_call ctx acc el (with_type:with_type) p =
 	let fopts t f = match follow t with
 		| (TInst (c,pl) as t) -> Some (t,f)
-		| (TAnon a) as t -> (match !(a.a_status) with Statics c -> Some (TInst(c,[]),f) | _ -> Some (t,f))
+		| (TAnon a) as t -> (match !(a.a_status) with Statics c -> Some (TInst(c,List.map snd c.cl_types),f) | _ -> Some (t,f))
 		| _ -> None
 	in
 	let push_this e =
