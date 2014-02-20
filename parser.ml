@@ -62,6 +62,11 @@ let quote_ident s =
 	with Exit ->
 		quoted_ident_prefix ^ s
 
+let unquote_ident f =
+	let pf = quoted_ident_prefix in
+	let pflen = String.length pf in
+	if String.length f >= pflen && String.sub f 0 pflen = pf then String.sub f pflen (String.length f - pflen), false else f, true
+
 let cache = ref (DynArray.create())
 let last_doc = ref None
 let use_doc = ref false

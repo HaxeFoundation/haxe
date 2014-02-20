@@ -93,11 +93,6 @@ let rec classify t =
 	| TDynamic _ -> KDyn
 	| _ -> KOther
 
-let object_field f =
-	let pf = Parser.quoted_ident_prefix in
-	let pflen = String.length pf in
-	if String.length f >= pflen && String.sub f 0 pflen = pf then String.sub f pflen (String.length f - pflen), false else f, true
-
 let get_iterator_param t =
 	match follow t with
 	| TAnon a ->
@@ -2460,7 +2455,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		(match a with
 		| None ->
 			let rec loop (l,acc) (f,e) =
-				let f,add = object_field f in
+				let f,add = Parser.unquote_ident f in
 				if PMap.mem f acc then error ("Duplicate field in object declaration : " ^ f) p;
 				let e = type_expr ctx e Value in
 				(match follow e.etype with TAbstract({a_path=[],"Void"},_) -> error "Fields of type Void are not allowed in structures" e.epos | _ -> ());
@@ -2478,7 +2473,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			let fields = ref PMap.empty in
 			let extra_fields = ref [] in
 			let fl = List.map (fun (n, e) ->
-				let n,add = object_field n in
+				let n,add = Parser.unquote_ident n in
 				if PMap.mem n !fields then error ("Duplicate field in object declaration : " ^ n) p;
 				let e = try
 					let t = (PMap.find n a.a_fields).cf_type in
