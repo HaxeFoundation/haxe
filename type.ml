@@ -1233,6 +1233,11 @@ and unify_from_field ab tl a b ?(allow_transitive_cast=true) (t,cfo) =
 				let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
 				let map t = apply_params ab.a_types tl (apply_params cf.cf_params monos t) in
 				unify_func a (map t);
+				List.iter2 (fun m (name,t) -> match follow t with
+					| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] ->
+						List.iter (fun tc -> match follow m with TMono _ -> raise (Unify_error []) | _ -> unify m (map tc) ) constr
+					| _ -> ()
+				) monos cf.cf_params;
 				unify (map r) b;
 			| _ -> assert false)
 		| _ ->
