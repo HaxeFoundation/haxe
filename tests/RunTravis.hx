@@ -91,7 +91,7 @@ class RunTravis {
 				if (Sys.getEnv("TRAVIS_SECURE_ENV_VARS") == "true") {
 					//https://saucelabs.com/opensource/travis
 					runCommand("npm", ["install", "wd"]);
-					runCommand("curl", ["https://gist.github.com/santiycr/5139565/raw/sauce_connect_setup.sh", "|", "bash"]);
+					runCommand("curl", ["https://gist.github.com/santiycr/5139565/raw/sauce_connect_setup.sh", "-L", "|", "bash"]);
 					runCommand("haxelib", ["install", "nodejs"]);
 					runCommand("haxe", ["compile-saucelabs-runner.hxml"]);
 					runCommand("nekotools", ["server", "&"]);
