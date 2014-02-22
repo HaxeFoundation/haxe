@@ -402,9 +402,9 @@ let rec build_generic ctx c p tl =
 		cg.cl_kind <- KGenericInstance (c,tl);
 		cg.cl_interface <- c.cl_interface;
 		cg.cl_constructor <- (match cg.cl_constructor, c.cl_constructor, c.cl_super with
+			| _, Some c, _ -> Some (build_field c)
 			| Some ctor, _, _ -> Some ctor
 			| None, None, None -> None
-			| None, Some c, _ -> Some (build_field c)
 			| _ -> error "Please define a constructor for this class in order to use it as generic" c.cl_pos
 		);
 		cg.cl_implements <- List.map (fun (i,tl) ->
