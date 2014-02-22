@@ -184,11 +184,11 @@ class Printer {
 			var s = 'switch ${printExpr(e1)} {\n$tabs' +
 				cl.map(function(c)
 					return 'case ${printExprs(c.values, ", ")}'
-						+ (c.guard != null ? ' if(${printExpr(c.guard)}): ' : ":")
+						+ (c.guard != null ? ' if (${printExpr(c.guard)}):' : ":")
 						+ (c.expr != null ? (opt(c.expr, printExpr)) + ";" : ""))
 				.join('\n$tabs');
 			if (edef != null)
-				s += '\n${tabs}default: ' + (edef.expr == null ? "" : printExpr(edef) + ";");
+				s += '\n${tabs}default:' + (edef.expr == null ? "" : printExpr(edef) + ";");
 			tabs = old;
 			s + '\n$tabs}';
 		case ETry(e1, cl):
