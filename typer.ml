@@ -587,6 +587,10 @@ let rec unify_call_params ctx ?(overloads=None) cf el args r p inline =
 			(null (ctx.t.tnull t) p, true)
 		end
 	in
+	let extern = match cf with
+		| Some(TInst(c,_),_) -> c.cl_extern
+		| _ -> false
+	in
 	let rec loop acc l l2 skip =
 		match l , l2 with
 		| [] , [] ->
@@ -594,7 +598,7 @@ let rec unify_call_params ctx ?(overloads=None) cf el args r p inline =
 				| [] -> ()
 				| skips -> List.iter (fun (name,p) -> display_error ctx ("Cannot skip non-nullable argument " ^ name) p) skips
 			end;
-			let args,tf = if not (inline && ctx.g.doinline) && not ctx.com.config.pf_pad_nulls then
+			let args,tf = if not (inline && (ctx.g.doinline || extern)) && not ctx.com.config.pf_pad_nulls then
 				List.rev (no_opt acc), (TFun(args,r))
 			else
 				List.rev (acc), (TFun(args,r))
