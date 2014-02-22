@@ -499,6 +499,13 @@ let unify_min ctx el =
 		if not ctx.untyped then display_error ctx (error_msg (Unify l)) p;
 		(List.hd el).etype
 
+let is_forced_inline c cf =
+	match c with
+	| Some { cl_extern = true } -> true
+	| Some { cl_kind = KAbstractImpl _ } -> true
+	| _ when Meta.has Meta.Extern cf.cf_meta -> true
+	| _ -> false
+
 let rec unify_call_params ctx ?(overloads=None) cf el args r p inline =
   (* 'overloads' will carry a ( return_result ) list, called 'compatible' *)
   (* it's used to correctly support an overload selection algorithm *)
@@ -587,10 +594,7 @@ let rec unify_call_params ctx ?(overloads=None) cf el args r p inline =
 			(null (ctx.t.tnull t) p, true)
 		end
 	in
-	let extern = match cf with
-		| Some(TInst(c,_),_) -> c.cl_extern
-		| _ -> false
-	in
+	let force_inline = match cf with Some(TInst(c,_),f) -> is_forced_inline (Some c) f | _ -> false in
 	let rec loop acc l l2 skip =
 		match l , l2 with
 		| [] , [] ->
@@ -598,7 +602,7 @@ let rec unify_call_params ctx ?(overloads=None) cf el args r p inline =
 				| [] -> ()
 				| skips -> List.iter (fun (name,p) -> display_error ctx ("Cannot skip non-nullable argument " ^ name) p) skips
 			end;
-			let args,tf = if not (inline && (ctx.g.doinline || extern)) && not ctx.com.config.pf_pad_nulls then
+			let args,tf = if not (inline && (ctx.g.doinline || force_inline)) && not ctx.com.config.pf_pad_nulls then
 				List.rev (no_opt acc), (TFun(args,r))
 			else
 				List.rev (acc), (TFun(args,r))
@@ -710,12 +714,6 @@ let make_call ctx e params t p =
 			| _ -> raise Exit
 		) in
 		if f.cf_kind <> Method MethInline then raise Exit;
-		let is_extern = (match cl with
-			| Some { cl_extern = true } -> true
-			| Some { cl_kind = KAbstractImpl _ } -> true
-			| _ when Meta.has Meta.Extern f.cf_meta -> true
-			| _ -> false
-		) in
 		let config = match cl with
 			| Some ({cl_kind = KAbstractImpl _}) when Meta.has Meta.Impl f.cf_meta ->
 				let t = if fname = "_new" then
@@ -738,11 +736,12 @@ let make_call ctx e params t p =
 		in
 		ignore(follow f.cf_type); (* force evaluation *)
 		let params = List.map (ctx.g.do_optimize ctx) params in
+		let force_inline = is_forced_inline cl f in
 		(match f.cf_expr with
 		| Some { eexpr = TFunction fd } ->
-			(match Optimizer.type_inline ctx f fd ethis params t config p is_extern with
+			(match Optimizer.type_inline ctx f fd ethis params t config p force_inline with
 			| None ->
-				if is_extern then error "Inline could not be done" p;
+				if force_inline then error "Inline could not be done" p;
 				raise Exit;
 			| Some e -> e)
 		| _ ->
