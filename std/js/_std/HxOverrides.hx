@@ -114,7 +114,7 @@ class HxOverrides {
 	}
 
 	static function remove<T>( a : Array<T>, obj : T ) {
-		var i = indexOf(a, obj, 0);
+		var i = a.indexOf(obj);
 		if( i == -1 ) return false;
 		a.splice(i,1);
 		return true;
@@ -134,11 +134,14 @@ class HxOverrides {
 	}
 
 	static function __init__() untyped {
+#if !js_es5
 		__feature__('HxOverrides.indexOf', if( Array.prototype.indexOf ) __js__("HxOverrides").indexOf = function(a,o,i) return Array.prototype.indexOf.call(a, o, i));
 		__feature__('HxOverrides.lastIndexOf', if( Array.prototype.lastIndexOf ) __js__("HxOverrides").lastIndexOf = function(a,o,i) return Array.prototype.lastIndexOf.call(a, o, i));
-		#if mt
+#end
+
+#if mt
 		if( String.prototype.cca == null ) String.prototype.cca = String.prototype.charCodeAt;
-		#end
+#end
 	}
 
 }

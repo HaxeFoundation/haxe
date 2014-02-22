@@ -187,6 +187,7 @@ module Define = struct
 		| Interp
 		| JavaVer
 		| JsClassic
+		| JsEs5
 		| JsFlatten
 		| Macro
 		| MacroTimes
@@ -256,6 +257,7 @@ module Define = struct
 		| Interp -> ("interp","The code is compiled to be run with --interp")
 		| JavaVer -> ("java_ver", "<version:5-7> Sets the Java version to be targeted")
 		| JsClassic -> ("js_classic","Don't use a function wrapper and strict mode in JS output")
+		| JsEs5 -> ("js_es5","Generate JS for ES5-compliant runtimes")
 		| JsFlatten -> ("js_flatten","Generate classes to use fewer object property lookups")
 		| Macro -> ("macro","Defined when we compile code in the macro context")
 		| MacroTimes -> ("macro_times","Display per-macro timing when used with --times")
