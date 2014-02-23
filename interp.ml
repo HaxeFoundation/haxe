@@ -1776,7 +1776,6 @@ let std_lib =
 				incr pos;
 				if !pos >= p && !pos < p + l then UTF8.Buf.add_char buf c;
 			) (vstring s);
-			if !pos < p + l then error();
 			VString (UTF8.Buf.contents buf)
 		);
 		"utf8_get", Fun2 (fun s p ->
