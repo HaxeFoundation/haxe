@@ -2906,12 +2906,17 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		| WithType t | WithTypeResume t ->
 			let rec loop t =
 				(match follow t with
-				| TFun (args2,_) when List.length args2 = List.length args ->
+				| TFun (args2,tr) when List.length args2 = List.length args ->
 					List.iter2 (fun (_,_,t1) (_,_,t2) ->
 						match follow t1 with
 						| TMono _ -> unify ctx t2 t1 p
 						| _ -> ()
 					) args args2;
+					(* unify for top-down inference unless we are expecting Void *)
+					begin match follow tr with
+						| TAbstract({a_path = [],"Void"},_) -> ()
+						| _ -> unify ctx rt tr p
+					end
 				| TAbstract(a,tl) ->
 					loop (Codegen.Abstract.get_underlying_type a tl)
 				| _ -> ())
