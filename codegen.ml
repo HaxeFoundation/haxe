@@ -639,7 +639,7 @@ module Abstract = struct
 		let maybe_recurse t =
 			underlying_type_stack := a :: !underlying_type_stack;
 			let t = match follow t with
-				| TAbstract(a,tl) ->
+				| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
 					if List.mem a !underlying_type_stack then begin
 						let s = String.concat " -> " (List.map (fun a -> s_type_path a.a_path) (List.rev (a :: !underlying_type_stack))) in
 						(* technically this should be done at type declaration level *)
