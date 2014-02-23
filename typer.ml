@@ -2078,12 +2078,16 @@ and type_access ctx e p mode =
 	| EField _ ->
 		let fields ?(resume=false) path e =
 			let resume = ref resume in
-			List.fold_left (fun e (f,_,p) ->
+			let force = ref false in
+			let e = List.fold_left (fun e (f,_,p) ->
 				let e = acc_get ctx (e MGet) p in
 				let f = type_field ~resume:(!resume) ctx e f p in
+				force := !resume;
 				resume := false;
 				f
-			) e path
+			) e path in
+			if !force then ignore(e MGet);
+			e
 		in
 		let type_path path =
 			let rec loop acc path =
