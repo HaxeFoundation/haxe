@@ -51,6 +51,7 @@ type context = {
 	mutable nenv : int;
 	mutable stack : int;
 	mutable loop_limit : int;
+	mutable loop_traps : int;
 	mutable limit : int;
 	mutable traps : int list;
 	mutable breaks : ((unit -> unit) * pos) list;
@@ -200,18 +201,21 @@ let save_breaks ctx =
 	let oldc = ctx.continues in
 	let oldb = ctx.breaks in
 	let oldl = ctx.loop_limit in
+	let oldt = ctx.loop_traps in
+	ctx.loop_traps <- List.length ctx.traps;
 	ctx.loop_limit <- ctx.stack;
 	ctx.breaks <- [];
 	ctx.continues <- [];
-	(ctx , oldc, oldb , oldl)
+	(ctx , oldc, oldb , oldl, oldt)
 
-let process_continues (ctx,oldc,_,_) =
+let process_continues (ctx,oldc,_,_,_) =
 	List.iter (fun (f,_) -> f()) ctx.continues;
 	ctx.continues <- oldc
 
-let process_breaks (ctx,_,oldb,oldl) =
+let process_breaks (ctx,_,oldb,oldl, oldt) =
 	List.iter (fun (f,_) -> f()) ctx.breaks;
 	ctx.loop_limit <- oldl;
+	ctx.loop_traps <- oldt;
 	ctx.breaks <- oldb
 
 let check_breaks ctx =
@@ -570,6 +574,7 @@ and compile_function main params e =
 		env = PMap.empty;
 		nenv = 0;
 		traps = [];
+		loop_traps = 0;
 		limit = main.stack;
 		(* // dup *)
 		version = main.version;
@@ -841,16 +846,8 @@ and compile ctx tail (e,p) =
 			jend())
 	| ETry (e,v,ecatch) ->
 		let trap = trap ctx in
-		let breaks = ctx.breaks in
-		let continues = ctx.continues in
-		ctx.breaks <- [];
-		ctx.continues <- [];
 		ctx.traps <- ctx.stack :: ctx.traps;
 		compile ctx false e;
-		if ctx.breaks <> [] then error "Break in try...catch is not allowed" p;
-		if ctx.continues <> [] then error "Continue in try...catch is not allowed" p;
-		ctx.breaks <- breaks;
-		ctx.continues <- continues;
 		write ctx EndTrap;
 		ctx.traps <- (match ctx.traps with [] -> assert false | _ :: l -> l);
 		let jend = jmp ctx in
@@ -877,18 +874,28 @@ and compile ctx tail (e,p) =
 		(match e with
 		| None -> ()
 		| Some e -> compile ctx false e);
-		if ctx.loop_limit <> ctx.stack then begin
-			let s = ctx.stack in
-			write ctx (Pop(ctx.stack - ctx.loop_limit));
-			ctx.stack <- s;
-		end;
+		let s = ctx.stack in
+		let n = List.length ctx.traps - ctx.loop_traps in
+		List.iteri (fun i t ->
+			if i < n then begin
+				if ctx.stack > t then write ctx (Pop(ctx.stack - t));
+				write ctx EndTrap;
+			end
+		) ctx.traps;
+		if ctx.loop_limit <> ctx.stack then write ctx (Pop(ctx.stack - ctx.loop_limit));
+		ctx.stack <- s;
 		ctx.breaks <- (jmp ctx , p) :: ctx.breaks
 	| EContinue ->
-		if ctx.loop_limit <> ctx.stack then begin
-			let s = ctx.stack in
-			write ctx (Pop(ctx.stack - ctx.loop_limit));
-			ctx.stack <- s;
-		end;
+		let s = ctx.stack in
+		let n = List.length ctx.traps - ctx.loop_traps in
+		List.iteri (fun i t ->
+			if i < n then begin
+				if ctx.stack > t then write ctx (Pop(ctx.stack - t));
+				write ctx EndTrap;
+			end
+		) ctx.traps;
+		if ctx.loop_limit <> ctx.stack then write ctx (Pop(ctx.stack - ctx.loop_limit));
+		ctx.stack <- s;
 		ctx.continues <- (jmp ctx , p) :: ctx.continues
 	| EFunction (params,e) ->
 		compile_function ctx params e
@@ -993,6 +1000,7 @@ let compile version ast =
 		version = version;
 		stack = 0;
 		loop_limit = 0;
+		loop_traps = 0;
 		limit = -1;
 		locals = PMap.empty;
 		ops = DynArray.create();
