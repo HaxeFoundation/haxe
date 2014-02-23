@@ -157,7 +157,7 @@ class JsonParser {
 		return buf.toString();
 	}
 
-	inline function parseNumber( c : Int ) {
+	inline function parseNumber( c : Int ) : Dynamic {
 		var start = pos - 1;
 		var minus = c == '-'.code, digit = !minus, zero = c == '0'.code;
 		var point = false, e = false, pm = false, end = false;
