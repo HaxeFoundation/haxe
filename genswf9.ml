@@ -2034,7 +2034,24 @@ let generate_field_kind ctx f c stat =
 			hlv_value = HVNone;
 			hlv_const = false;
 		})
-
+		
+let check_constructor ctx c f =
+	(*
+		check that we don't assign a super Float var before we call super() : will result in NaN
+	*)
+	let rec loop e =
+		Type.iter loop e;
+		match e.eexpr with
+		| TCall ({ eexpr = TConst TSuper },_) -> raise Exit
+		| TBinop (OpAssign,{ eexpr = TField({ eexpr = TConst TThis },FInstance (cc,cf)) },_) when c != cc && classify ctx cf.cf_type = KFloat ->
+			error "You cannot assign a super class Float before calling super() in flash, this will reset it to NaN" e.epos
+		| _ -> ()
+	in
+	try
+		loop f.tf_expr
+	with Exit ->
+		()
+		
 let generate_class ctx c =
 	let name = type_path ctx c.cl_path in
 	ctx.cur_class <- c;
@@ -2057,6 +2074,7 @@ let generate_class ctx c =
 			| Some { eexpr = TFunction fdata } ->
 				let old = do_debug ctx f.cf_meta in
 				let m = generate_construct ctx fdata c in
+				check_constructor ctx c fdata;
 				old();
 				m
 			| _ -> assert false
