@@ -35,4 +35,6 @@ haxe.Utf8.compare(haxe.Utf8.sub(str, 0, 2), "あé") == 0;
 haxe.Utf8.compare(haxe.Utf8.sub(str, 1, 2), "éい") == 0;
 haxe.Utf8.compare(haxe.Utf8.sub(str, 0, 0), "") == 0;
 haxe.Utf8.compare(haxe.Utf8.sub(str, 1, 0), "") == 0;
-haxe.Utf8.compare(haxe.Utf8.sub(str, 9, 0), "") == 0;
+
+// unspecify outside of range Utf8.sub
+// haxe.Utf8.compare(haxe.Utf8.sub(str, 9, 0), "") == 0;
