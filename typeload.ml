@@ -2410,7 +2410,10 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 		(*
 			we exceptionnaly allow follow here because we don't care the type we get as long as it's not our own
 		*)
-		if t.t_type == follow tt then error "Recursive typedef is not allowed" p;
+		(match d.d_data with
+		| CTExtend _ -> ()
+		| _ ->
+			if t.t_type == follow tt then error "Recursive typedef is not allowed" p);
 		(match t.t_type with
 		| TMono r ->
 			(match !r with
