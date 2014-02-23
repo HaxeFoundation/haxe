@@ -633,18 +633,35 @@ module Abstract = struct
 	let find_from ab pl a b = List.find (Type.unify_from_field ab pl a b) ab.a_from
 
 	let cast_stack = ref []
+	let underlying_type_stack = ref []
 
-	let get_underlying_type a pl =
+	let rec get_underlying_type a pl =
+		let maybe_recurse t =
+			underlying_type_stack := a :: !underlying_type_stack;
+			let t = match follow t with
+				| TAbstract(a,tl) ->
+					if List.mem a !underlying_type_stack then begin
+						let s = String.concat " -> " (List.map (fun a -> s_type_path a.a_path) (List.rev (a :: !underlying_type_stack))) in
+						(* technically this should be done at type declaration level *)
+						error ("Abstract chain detected: " ^ s) a.a_pos
+					end;
+					get_underlying_type a tl
+				| _ ->
+					t
+			in
+			underlying_type_stack := List.tl !underlying_type_stack;
+			t
+		in
 		try
 			if not (Meta.has Meta.MultiType a.a_meta) then raise Not_found;
 			let m = mk_mono() in
 			let _ = find_to a pl m in
-			follow m
+			maybe_recurse (follow m)
 		with Not_found ->
 			if Meta.has Meta.CoreType a.a_meta then
 				t_dynamic
 			else
-				apply_params a.a_types pl a.a_this
+				maybe_recurse (apply_params a.a_types pl a.a_this)
 
 	let make_static_call ctx c cf a pl args t p =
 		let ta = TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) } in
