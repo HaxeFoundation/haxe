@@ -875,9 +875,10 @@ and compile ctx tail (e,p) =
 		| None -> ()
 		| Some e -> compile ctx false e);
 		let s = ctx.stack in
-		let n = List.length ctx.traps - ctx.loop_traps in
-		List.iteri (fun i t ->
-			if i < n then begin
+		let n = ref (List.length ctx.traps - ctx.loop_traps) in
+		List.iter (fun t ->
+			if !n > 0 then begin
+				decr n;
 				if ctx.stack > t then write ctx (Pop(ctx.stack - t));
 				write ctx EndTrap;
 			end
@@ -887,9 +888,10 @@ and compile ctx tail (e,p) =
 		ctx.breaks <- (jmp ctx , p) :: ctx.breaks
 	| EContinue ->
 		let s = ctx.stack in
-		let n = List.length ctx.traps - ctx.loop_traps in
-		List.iteri (fun i t ->
-			if i < n then begin
+		let n = ref (List.length ctx.traps - ctx.loop_traps) in
+		List.iter (fun t ->
+			if !n > 0 then begin
+				decr n;
 				if ctx.stack > t then write ctx (Pop(ctx.stack - t));
 				write ctx EndTrap;
 			end
