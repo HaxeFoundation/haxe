@@ -1,43 +1,64 @@
 2013-??-??: 3.1.0
+
+	New features:
+
 	all : allowed null-patterns in pattern matching
-	all : optimized pattern matching output
 	all : allowed extractors in pattern matching using => syntax
-	all : added length field to BytesBuffer, BytesOutput, BytesInput and StringBuf
-	all : evaluate conditional expressions in @:require
-	all : allowed (expr : type) syntax (ECheckType)
-	all : support abstract types in haxe.rtti.XmlParser
 	all : allowed extending generic type parameters
-	all : added EnumValue.match
-	all : added Std.instance
-	all : allowed recursive type parameter constraints
+	all : allowed (expr : type) syntax (ECheckType)
 	all : allowed @:enum and @:forward on abstracts
-	all : improved support of custom @:coreType abstracts
 	all : allowed using abstracts as static extension
 	all : allowed Class.new
-	all : inlining a parameter which has side effects will not remove it even if not used
-	all : implemented constraints check on enum and enum field type parameters
-	all : fixed memory leak in compilation server and optimized caching in general
+	all : added EnumValue.match
+	all : allow multiple structural extension using { > T1, > T2, fields }
+	all : inline array and structure declarations if possible
+	cs : added -net-lib
+	js : added -D js-flatten
+
+	Standard Library:
+
+	all : support abstract types in haxe.rtti.XmlParser
+	all : added Std.instance
+	all : added length field to BytesBuffer, BytesOutput, BytesInput and StringBuf
 	all : added UInt for all targets
 	all : added Array.indexOf and Array.lastIndexOf
 	all : added haxe.xml.Printer
 	all : added haxe.Int32 as abstract type
+	all : added haxe.format.JsonParser/Printer
+
+	General improvements and optimizations:
+
+	all : optimized pattern matching output
+	all : allowed recursive type parameter constraints
+	all : improved support of custom @:coreType abstracts
+	all : evaluate conditional expressions in @:require
 	all : improved inline constructors by detecting more cases where it can be applied
-	all : allow multiple structural extension using { > T1, > T2, fields }
-	all : fixed issue with invalid lowercase class name in Windows completion
-	js : window and console are reserved words. Access them with __js__ instead of untyped.
-	js : added -D js-flatten
 	js : improved inlining
 	js : always use JSON extern (compile with -D old-browser to disable)
 	cpp : improved side-effect detection
-	cs : added -net-lib
+
+	Bugfixes:
+
+	all : inlining a parameter which has side effects will not remove it even if not used
+	all : implemented constraints check on enum and enum field type parameters
+	all : fixed memory leak in compilation server and optimized caching in general
+	all : fixed issue with invalid lowercase class name in Windows completion
+	js : window and console are reserved words. Access them with __js__ instead of untyped.
+	flash : fixed font embedding with UTF8 chars
+	flash : give error if non-nullable basic types are skipped in a call
+
+	Macro features and changes:
+
 	macro : add Context.onAfterGenerate
+	macro : add Context.typeExpr
+	macro : add Context.getExpectedType
 	macro : allowed $v{(c:Float|Int|String)}
 	macro : resolve error line number in external files
 	macro : rewrote macros used as static extension
 	macro : exposed typed AST
+	macro : added @:genericBuild
 	macro : [breaking] first argument of ComplexType.TExtend is now Array<TypePath> instead of TypePath
-	flash : fixed font embedding with UTF8 chars
-	flash : give error if non-nullable basic types are skipped in a call
+	macro : improved expression printing
 
 2013-09-25: 3.0.1
 	all : minor DCE bug fix
