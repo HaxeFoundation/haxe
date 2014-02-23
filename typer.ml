@@ -2908,8 +2908,8 @@ and type_expr ctx (e,p) (with_type:with_type) =
 						| TMono _ -> unify ctx t2 t1 p
 						| _ -> ()
 					) args args2;
-				| TAbstract({a_this = ta} as a,tl) ->
-					loop (apply_params a.a_types tl ta)
+				| TAbstract(a,tl) ->
+					loop (Codegen.Abstract.get_underlying_type a tl)
 				| _ -> ())
 			in
 			loop t
