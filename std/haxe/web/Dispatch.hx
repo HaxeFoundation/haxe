@@ -309,7 +309,7 @@ class Dispatch {
 		case TAnonymous(a):
 			for( f in a.get().fields ) {
 				var r = getType(f.type, f.pos);
-				var opt = false;
+				var opt = f.meta.has(":optional");
 				switch( f.type ) {
 				case TType(t, _):
 					if( t.get().name == "Null" ) opt = true;
