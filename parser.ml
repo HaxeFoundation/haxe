@@ -714,6 +714,9 @@ and parse_class_field_resume tdecl s =
 		in
 		let rec loop k =
 			match List.rev_map fst (Stream.npeek k s) with
+			(* metadata *)
+			| Kwd _ :: At :: _ | Kwd _ :: DblDot :: At :: _ ->
+				loop (k + 1)
 			(* field declaration *)
 			| Const _ :: Kwd Function :: _
 			| Kwd New :: Kwd Function :: _ ->
