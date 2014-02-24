@@ -154,6 +154,9 @@ class TestDCE extends Test {
 		try {
 			throw c;
 		} catch (_:Dynamic) { }
+		#if js
+		if (!js.Browser.supported || js.Browser.navigator.userAgent.indexOf('MSIE 8') == -1)
+		#end
 		hf(ThrownWithToString, "toString");
 	}
 }
