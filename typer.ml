@@ -3682,8 +3682,14 @@ let make_macro_api ctx p =
 		Interp.get_type = (fun s ->
 			typing_timer ctx (fun() ->
 				let path = parse_path s in
+				let tp = match List.rev (fst path) with
+					| s :: sl when String.length s > 0 && (match s.[0] with 'A'..'Z' -> true | _ -> false) ->
+						{ tpackage = List.rev sl; tname = s; tparams = []; tsub = Some (snd path) }
+					| _ ->
+						{ tpackage = fst path; tname = snd path; tparams = []; tsub = None }
+				in
 				try
-					let m = Some (Typeload.load_instance ctx { tpackage = fst path; tname = snd path; tparams = []; tsub = None } p true) in
+					let m = Some (Typeload.load_instance ctx tp p true) in
 					m
 				with Error (Module_not_found _,p2) when p == p2 ->
 					None
