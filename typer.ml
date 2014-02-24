@@ -502,7 +502,7 @@ let unify_min ctx el =
 let is_forced_inline c cf =
 	match c with
 	| Some { cl_extern = true } -> true
-	| Some { cl_kind = KAbstractImpl _ } -> Meta.has Meta.AssignsThis cf.cf_meta
+	| Some { cl_kind = KAbstractImpl _ } -> Meta.has Meta.AssignsThis cf.cf_meta || Meta.has Meta.Extern cf.cf_meta
 	| _ when Meta.has Meta.Extern cf.cf_meta -> true
 	| _ -> false
 
