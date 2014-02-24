@@ -71,6 +71,8 @@ let handle_side_effects com gen_temp e =
 		match e.eexpr with
 		| TBlock el ->
 			{e with eexpr = TBlock (block loop el)}
+		| TCall({eexpr = TLocal v},_) when Meta.has Meta.Unbound v.v_meta ->
+			e
 		| TCall(e1,el) ->
 			let e1 = loop e1 in
 			{e with eexpr = TCall(e1,ordered_list el)}
@@ -119,13 +121,18 @@ let handle_side_effects com gen_temp e =
 		let rec no_side_effect e = match e.eexpr with
 			| TNew _ | TCall _ | TArrayDecl _ | TObjectDecl _ | TBinop ((OpAssignOp _ | OpAssign),_,_) | TUnop ((Increment|Decrement),_,_) ->
 				bind e;
+			| TIf _ | TTry _ | TSwitch _ ->
+				(* Technically these are not side-effects, but we have to move them out anyway because their blocks code have side-effects.
+				   This also probably improves readability of the generated code. We can ignore TWhile and TFor because their type is Void,
+				   so they could never appear in a place where side-effects matter. *)
+				bind e
 			| TBinop(op,e1,e2) when Optimizer.has_side_effect e1 || Optimizer.has_side_effect e2 ->
 				bind e;
 			| TConst _ | TLocal _ | TTypeExpr _ | TFunction _
 			| TReturn _ | TBreak | TContinue | TThrow _ | TCast (_,Some _) ->
 				e
 			| TBlock _ ->
-				loop e
+				bind e
 			| _ ->
 				Type.map_expr no_side_effect e
 		in
