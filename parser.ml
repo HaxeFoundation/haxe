@@ -540,7 +540,11 @@ let semicolon s =
 let rec	parse_file s =
 	last_doc := None;
 	match s with parser
-	| [< '(Kwd Package,_); p = parse_package; _ = semicolon; l = parse_type_decls p []; '(Eof,_) >] -> p , l
+	| [< '(Kwd Package,_); pack = parse_package; s >] ->
+		begin match s with parser
+		| [< '(Const(Ident _),p) when pack = [] >] -> error (Custom "Package name must start with a lowercase character") p
+		| [< _ = semicolon; l = parse_type_decls pack []; '(Eof,_) >] -> pack , l
+		end
 	| [< l = parse_type_decls [] []; '(Eof,_) >] -> [] , l
 
 and parse_type_decls pack acc s =
