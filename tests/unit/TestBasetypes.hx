@@ -464,9 +464,18 @@ class TestBasetypes extends Test {
 		eq(2, i + i);
 		i = i + i;
 		eq(2, i);
+		
+		var s = "";
+		function getString() {
+			s += "b";
+			return s;
+		}
+		
 		var r:unit.MyAbstract.MyInt = 5;
 		eq("aaaaa", r * "a");
 		eq("aaaaa", "a" * r);
+		eq("bbbbb", r * getString());
+		eq("bbbbbbbbbb", getString() * r);
 		
 		var v:unit.MyAbstract.MyInt = 5;
 		eq("abcde", "abcdefghijk" / v);

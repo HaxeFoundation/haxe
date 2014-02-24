@@ -1655,7 +1655,7 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 			make_call ctx acc [e] ctx.t.tstring e.epos
 		| KInt | KFloat | KString -> e
 	in
-	let mk_op t =
+	let mk_op e1 e2 t =
 		if op = OpAdd && (classify t) = KString then
 			let e1 = to_string e1 in
 			let e2 = to_string e2 in
@@ -1665,7 +1665,7 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 	in
 	let make e1 e2 = match op with
 	| OpAdd ->
-		mk_op (match classify e1.etype, classify e2.etype with
+		mk_op e1 e2 (match classify e1.etype, classify e2.etype with
 		| KInt , KInt ->
 			tint
 		| KFloat , KInt
@@ -1725,7 +1725,7 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 		let i = tint in
 		unify ctx e1.etype i e1.epos;
 		unify ctx e2.etype i e2.epos;
-		mk_op i
+		mk_op e1 e2 i
 	| OpMod
 	| OpMult
 	| OpDiv
@@ -1753,7 +1753,7 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 			let ok2 = unify_int ctx e2 k2 in
 			if not ok1 || not ok2  then result := tfloat;
 		);
-		mk_op !result
+		mk_op e1 e2 !result
 	| OpEq
 	| OpNotEq ->
 		(try
@@ -1762,7 +1762,7 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 			(match follow e2.etype with TAbstract({a_path=[],"Void"},_) -> error "Cannot compare Void" p | _ -> ())
 		with
 			Error (Unify _,_) -> unify ctx e2.etype e1.etype p);
-		mk_op ctx.t.tbool
+		mk_op e1 e2 ctx.t.tbool
 	| OpGt
 	| OpGte
 	| OpLt
@@ -1795,13 +1795,13 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 			let pr = print_context() in
 			error ("Cannot compare " ^ s_type pr e1.etype ^ " and " ^ s_type pr e2.etype) p
 		);
-		mk_op ctx.t.tbool
+		mk_op e1 e2 ctx.t.tbool
 	| OpBoolAnd
 	| OpBoolOr ->
 		let b = ctx.t.tbool in
 		unify ctx e1.etype b p;
 		unify ctx e2.etype b p;
-		mk_op b
+		mk_op e1 e2 b
 	| OpInterval ->
 		let t = Typeload.load_core_type ctx "IntIterator" in
 		unify ctx e1.etype tint e1.epos;
@@ -1825,9 +1825,18 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 					(* implementation fields can only be used in left mode (issue #2130) *)
 					if impl && not left then loop ops else begin
 						let t1,t2 = if left || Meta.has Meta.Commutative cf.cf_meta then t1,t2 else t2,t1 in
-						if type_iseq t t2 && (if impl then type_iseq (apply_params a.a_types pl a.a_this) t1 else type_iseq (TAbstract(a,pl)) t1) then begin
-							cf,r,o = OpAssignOp(op),Meta.has Meta.Commutative cf.cf_meta
-						end else loop ops
+						begin try
+							begin
+								if impl then
+									type_eq EqStrict (Codegen.Abstract.get_underlying_type a pl) t1
+								else
+									type_eq EqStrict (TAbstract(a,pl)) t1;
+							end;
+							Type.unify t t2;
+							cf,t2,r,o = OpAssignOp(op),Meta.has Meta.Commutative cf.cf_meta
+						with Unify_error _ ->
+							loop ops
+						end
 					end;
 				| _ -> loop ops)
 			| _ :: ops ->
@@ -1863,7 +1872,8 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 	in
 	try (match follow e1.etype with
 		| TAbstract ({a_impl = Some c} as a,pl) ->
-			let f,r,assign,commutative = find_overload a pl c e2.etype true in
+			let f,t2,r,assign,_ = find_overload a pl c e2.etype true in
+			let e2 = Codegen.Abstract.check_cast ctx t2 e2 e2.epos in
 			begin match f.cf_expr with
 				| None ->
 					let e2 = match follow e2.etype with TAbstract(a,pl) -> {e2 with etype = apply_params a.a_types pl a.a_this} | _ -> e2 in
@@ -1875,15 +1885,37 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 			raise Not_found)
 	with Not_found -> try (match follow e2.etype with
 		| TAbstract ({a_impl = Some c} as a,pl) ->
-			let f,r,assign,commutative = find_overload a pl c e1.etype false in
-			begin match f.cf_expr with
+			let f,t2,r,assign,commutative = find_overload a pl c e1.etype false in
+			(* let e1,e2 = if commutative then  else e1,Codegen.Abstract.check_cast ctx t2 e2 e2.epos in *)
+			let e1,e2,init = if not commutative then
+				e1,Codegen.Abstract.check_cast ctx t2 e2 e2.epos,None
+			else if not (Optimizer.has_side_effect e1) && not (Optimizer.has_side_effect e2) then
+				e2,Codegen.Abstract.check_cast ctx t2 e1 e1.epos,None
+			else begin
+				let v1,v2 = gen_local ctx e1.etype, gen_local ctx e2.etype in
+				let mk_var v e =
+					mk (TVar(v,Some e)) ctx.t.tvoid e.epos,mk (TLocal v) e.etype e.epos
+				in
+				let v1 = mk_var v1 (Codegen.Abstract.check_cast ctx t2 e1 e1.epos) in
+				let v2 = mk_var v2 e2 in
+				snd v2,snd v1,Some(fst v1,fst v2)
+			end in
+			let e = match f.cf_expr with
 				| None ->
-					let e1,e2 = if commutative then e2,e1 else e1,e2 in
 					let e1 = match follow e1.etype with TAbstract(a,pl) -> {e1 with etype = apply_params a.a_types pl a.a_this} | _ -> e1 in
 					cast_rec e1 {e2 with etype = apply_params a.a_types pl a.a_this} r (Meta.has Meta.CoreType a.a_meta)
 				| Some _ ->
-					let e1,e2 = if commutative then e2,e1 else e1,e2 in
 					mk_cast_op c f a pl e1 e2 r assign
+			in
+			begin match init with
+				| None ->
+					e
+				| Some(e1,e2) ->
+					mk (TBlock [
+						e1;
+						e2;
+						e
+					]) e.etype e.epos
 			end
 		| _ ->
 			raise Not_found)
