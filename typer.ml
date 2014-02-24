@@ -502,7 +502,7 @@ let unify_min ctx el =
 let is_forced_inline c cf =
 	match c with
 	| Some { cl_extern = true } -> true
-	| Some { cl_kind = KAbstractImpl _ } -> true
+	| Some { cl_kind = KAbstractImpl _ } -> Meta.has Meta.AssignsThis cf.cf_meta
 	| _ when Meta.has Meta.Extern cf.cf_meta -> true
 	| _ -> false
 
@@ -1013,7 +1013,9 @@ let rec type_ident_raise ?(imported_enums=true) ctx i p mode =
 		(match mode, ctx.curclass.cl_kind with
 		| MSet, KAbstractImpl _ ->
 			(match ctx.curfield.cf_kind with
-			| Method MethInline -> ()
+			| Method MethInline ->
+				if not (Meta.has Meta.AssignsThis ctx.curfield.cf_meta) then
+					ctx.curfield.cf_meta <- (Meta.AssignsThis,[],ctx.curfield.cf_pos) :: ctx.curfield.cf_meta;
 			| Method _ when ctx.curfield.cf_name = "_new" -> ()
 			| _ -> error "You can only modify 'this' inside an inline function" p);
 			AKExpr (get_this ctx p)
