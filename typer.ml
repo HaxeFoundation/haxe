@@ -2987,25 +2987,28 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		mk (TCast (e,None)) (mk_mono()) p
 	| ECast (e, Some t) ->
 		let t = Typeload.load_complex_type ctx (pos e) t in
-		let texpr = (match follow t with
-		| TInst (_,params) | TEnum (_,params) ->
-			List.iter (fun pt ->
-				if follow pt != t_dynamic then error "Cast type parameters must be Dynamic" p;
-			) params;
-			(match follow t with
-			| TInst (c,_) ->
-				(match c.cl_kind with KTypeParameter _ -> error "Can't cast to a type parameter" p | _ -> ());
-				TClassDecl c
-			| TEnum (e,_) -> TEnumDecl e
-			| _ -> assert false);
-		| TAbstract (a,params) when Meta.has Meta.RuntimeValue a.a_meta ->
-			List.iter (fun pt ->
-				if follow pt != t_dynamic then error "Cast type parameters must be Dynamic" p;
-			) params;
-			TAbstractDecl a
-		| _ ->
-			error "Cast type must be a class or an enum" p
-		) in
+		let rec loop t = match follow t with
+			| TInst (_,params) | TEnum (_,params) ->
+				List.iter (fun pt ->
+					if follow pt != t_dynamic then error "Cast type parameters must be Dynamic" p;
+				) params;
+				(match follow t with
+				| TInst (c,_) ->
+					(match c.cl_kind with KTypeParameter _ -> error "Can't cast to a type parameter" p | _ -> ());
+					TClassDecl c
+				| TEnum (e,_) -> TEnumDecl e
+				| _ -> assert false);
+			| TAbstract (a,params) when Meta.has Meta.RuntimeValue a.a_meta ->
+				List.iter (fun pt ->
+					if follow pt != t_dynamic then error "Cast type parameters must be Dynamic" p;
+				) params;
+				TAbstractDecl a
+			| TAbstract (a,params) ->
+				loop (Codegen.Abstract.get_underlying_type a params)
+			| _ ->
+				error "Cast type must be a class or an enum" p
+		in
+		let texpr = loop t in
 		mk (TCast (type_expr ctx e Value,Some texpr)) t p
 	| EDisplay (e,iscall) when ctx.com.display = DMUsage ->
 		let e = try type_expr ctx e Value with Error (Unknown_ident n,_) -> raise (Parser.TypePath ([n],None)) in
