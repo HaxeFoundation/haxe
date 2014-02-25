@@ -4333,7 +4333,7 @@ and encode_anon_status s =
 	let tag, pl = (match s with
 		| Closed -> 0, []
 		| Opened -> 1, []
-		| Const -> 2, []
+		| Type.Const -> 2, []
 		| Statics cl -> 3, [encode_clref cl]
 		| EnumStatics en -> 4, [encode_enref en]
 		| AbstractStatics ab -> 5, [encode_abref ab]
