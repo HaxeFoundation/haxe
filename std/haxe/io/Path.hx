@@ -199,20 +199,23 @@ class Path {
 	}
 	
 	/**
-		Removes a trailing slash from `path` if it exists.
+		Removes trailing slashes from `path`.
 		
 		If `path` does not end with a `/` or `\`, `path` is returned unchanged.
 		
-		Otherwise the substring of `path` excluding the trailing slash or
-		backslash is returned.
+		Otherwise the substring of `path` excluding the trailing slashes or
+		backslashes is returned.
 		
 		If `path` is null, the result is unspecified.
 	**/
 	@:require(haxe_ver >= 3.01)
-	public static function removeTrailingSlash ( path : String ) : String {
-		return switch(path.charCodeAt(path.length - 1)) {
-			case '/'.code | '\\'.code: path.substr(0, -1);
-			case _: path;
+	public static function removeTrailingSlashes ( path : String ) : String {
+		while (true) {
+			switch(path.charCodeAt(path.length - 1)) {
+				case '/'.code | '\\'.code: path = path.substr(0, -1);
+				case _: break;
+			}
 		}
+		return path;
 	}
 }
