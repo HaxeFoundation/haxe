@@ -21,12 +21,10 @@ env:
 matrix:
   allow_failures:
     - env: TARGET=flash8
-    - env: TARGET=as3
     - env: TARGET=java
     - env: TARGET=cs
 
 before_install:
-  - export TRAVIS_BUILD_DIR=$(pwd) #tmp fix, see https://github.com/travis-ci/travis-build/pull/182
   - sudo apt-get update
   - sudo apt-get install ocaml zlib1g-dev libgc-dev -y
   - git clone https://github.com/HaxeFoundation/neko.git ~/neko && cd ~/neko && make && sudo make install && cd $TRAVIS_BUILD_DIR
