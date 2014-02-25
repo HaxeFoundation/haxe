@@ -40,7 +40,16 @@ enum Type {
 
 typedef AnonType = {
 	var fields : Array<ClassField>;
-	//var status : AnonStatus;
+	var status : AnonStatus;
+}
+
+enum AnonStatus {
+	AClosed;
+	AOpened;
+	AConst;
+	AClassStatics( t : Ref<ClassType> );
+	AEnumStatics( t : Ref<EnumType> );
+	AAbstractStatics( t : Ref<AbstractType> );
 }
 
 typedef TypeParameter = {
