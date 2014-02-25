@@ -31,7 +31,7 @@ private enum FileKind {
 class FileSystem {
 
 	public static function exists( path : String ) : Bool {
-		return sys_exists(untyped path.__s);
+		return sys_exists(untyped (haxe.io.Path.removeTrailingSlashes(path)).__s);
 	}
 
 	public static function rename( path : String, newPath : String ) : Void {
