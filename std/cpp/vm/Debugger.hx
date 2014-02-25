@@ -191,8 +191,8 @@ class Debugger
 
     /**
      * Returns the full paths of the set of source files known to the debugger.
-     * This is a copy * of the original array and could be quite large.The caller should
-     * It is possiblw that this set will be empty, in which case the full paths are not known.
+     * This is a copy of the original array and could be quite large.
+     * It is possible that this set will be empty, in which case the full paths are not known.
      * The index of these files matches the index from "getFiles", so the full path for
      * a given short path can be calculated.
      *
