@@ -27,11 +27,11 @@ class RunSauceLabs {
 			// 	"platform": "Windows XP",
 			// 	"version": "7"
 			// },
-			// {
-			// 	"browserName": "internet explorer",
-			// 	"platform": "Windows XP",
-			// 	"version": "8"
-			// },
+			{
+				"browserName": "internet explorer",
+				"platform": "Windows XP",
+				"version": "8"
+			},
 			{
 				"browserName": "internet explorer",
 				"platform": "Windows 7",
