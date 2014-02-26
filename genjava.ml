@@ -1901,6 +1901,8 @@ let configure gen =
   TArrayTransform.configure gen (TArrayTransform.default_implementation gen (
   fun e ->
     match e.eexpr with
+      | TArray ({ eexpr = TLocal { v_extra = Some( _ :: _, _) } }, _) -> (* captured transformation *)
+        false
       | TArray(e1, e2) ->
         ( match run_follow gen e1.etype with
           | TInst({ cl_path = (["java"], "NativeArray") }, _) -> false
