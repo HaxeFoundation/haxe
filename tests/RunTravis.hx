@@ -79,8 +79,7 @@ class RunTravis {
 				//install and build hxcpp
 				runCommand("haxelib", ["git", "hxcpp", "https://github.com/HaxeFoundation/hxcpp.git"]);
 				Sys.setCwd(Sys.getEnv("HOME") + "/haxelib/hxcpp/git/project/");
-				runCommand("haxelib", ["run", "hxcpp", "Build.xml"]);
-				runCommand("haxelib", ["run", "hxcpp", "Build.xml", "-DHXCPP_M64"]);
+				runCommand("neko", ["build.n"]);
 				Sys.setCwd(unitDir);
 				
 				runCommand("haxe", ["compile-cpp.hxml"]);
