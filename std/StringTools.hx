@@ -49,7 +49,7 @@ class StringTools {
 				return untyped __java__("java.net.URLEncoder.encode(s, \"UTF-8\")")
 			catch (e:Dynamic) throw e;
 		#elseif cs
-			return untyped __cs__("System.Uri.EscapeUriString(s)");
+			return untyped __cs__("System.Uri.EscapeDataString(s)");
 		#else
 			return null;
 		#end
