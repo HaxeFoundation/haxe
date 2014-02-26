@@ -205,7 +205,7 @@ let rec follow_basic t =
 		t
 	| TType (t,tl) ->
 		follow_basic (apply_params t.t_types tl t.t_type)
-	| TAbstract (a,pl) when a.a_impl <> None ->
+	| TAbstract (a,pl) when not (Meta.has Meta.CoreType a.a_meta) ->
 		follow_basic (apply_params a.a_types pl a.a_this)
 	| _ -> t
 
@@ -1626,7 +1626,10 @@ and gen_binop ctx retval op e1 e2 t p =
 			let k1 = classify ctx e1.etype in
 			let k2 = classify ctx e2.etype in
 			(match k1, k2 with
-			| KInt, KInt | KUInt, KUInt | KInt, KUInt | KUInt, KInt -> write ctx (HOp iop)
+			| KInt, KInt | KUInt, KUInt | KInt, KUInt | KUInt, KInt ->
+				write ctx (HOp iop);
+				let ret = classify ctx t in
+				if ret <> KInt then coerce ctx ret
 			| _ ->
 				write ctx (HOp op);
 				(* add is a generic operation, so let's make sure we don't loose our type in the process *)
@@ -2031,7 +2034,24 @@ let generate_field_kind ctx f c stat =
 			hlv_value = HVNone;
 			hlv_const = false;
 		})
-
+		
+let check_constructor ctx c f =
+	(*
+		check that we don't assign a super Float var before we call super() : will result in NaN
+	*)
+	let rec loop e =
+		Type.iter loop e;
+		match e.eexpr with
+		| TCall ({ eexpr = TConst TSuper },_) -> raise Exit
+		| TBinop (OpAssign,{ eexpr = TField({ eexpr = TConst TThis },FInstance (cc,cf)) },_) when c != cc && (match classify ctx cf.cf_type with KFloat | KDynamic -> true | _ -> false) ->
+			error "You cannot assign some super class vars before calling super() in flash, this will reset them to default value" e.epos
+		| _ -> ()
+	in
+	try
+		loop f.tf_expr
+	with Exit ->
+		()
+		
 let generate_class ctx c =
 	let name = type_path ctx c.cl_path in
 	ctx.cur_class <- c;
@@ -2054,6 +2074,7 @@ let generate_class ctx c =
 			| Some { eexpr = TFunction fdata } ->
 				let old = do_debug ctx f.cf_meta in
 				let m = generate_construct ctx fdata c in
+				check_constructor ctx c fdata;
 				old();
 				m
 			| _ -> assert false

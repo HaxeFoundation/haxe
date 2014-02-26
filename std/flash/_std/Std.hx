@@ -27,8 +27,8 @@ import flash.Boot;
 		return untyped flash.Boot.__instanceof(v,t);
 	}
 
-	public inline static function instance<T>( v : { }, c : Class<T> ) : T {
-		return flash.Lib.as(v, c);
+	public static inline function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
+		return flash.Lib.as(value, c);
 	}
 
 	public static function string( s : Dynamic ) : String {

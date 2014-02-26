@@ -287,7 +287,7 @@ let keyword_remap name =
 	| "BIG_ENDIAN" | "LITTLE_ENDIAN" | "assert" | "NULL" | "wchar_t" | "EOF"
 	| "bool" | "const_cast" | "dynamic_cast" | "explicit" | "export" | "mutable" | "namespace"
 	| "reinterpret_cast" | "static_cast" | "typeid" | "typename" | "virtual"
-	| "_Complex"
+	| "_Complex" | "INFINITY"
 	| "struct" -> "_" ^ name
 	| "asm" -> "_asm_"
 	| x -> x
@@ -1446,8 +1446,22 @@ and gen_expression ctx retval expression =
 		if ( cast <> "") then output ")";
 		if (op <> "=") then output ")";
 	in
+	let rec is_const_string_term expr =
+		match expr.eexpr with
+		| TConst( TString _ ) -> true
+		| TBinop (OpAdd,e1,e2) -> (is_const_string_term e1) && (is_const_string_term e2 )
+		| _ -> false
+	in
+	let rec combine_string_terms expr =
+		match expr.eexpr with
+		| TConst( TString s ) -> s
+		| TBinop (OpAdd,e1,e2) -> (combine_string_terms e1) ^ (combine_string_terms e2 )
+		| _ -> ""
+	in
 	let rec gen_bin_op op expr1 expr2 =
 		match op with
+		| Ast.OpAdd when (is_const_string_term expr1) && (is_const_string_term expr2) ->
+			output (str ((combine_string_terms expr1) ^ (combine_string_terms expr2)) )
 		| Ast.OpAssign -> ctx.ctx_assigning <- true;
 								gen_bin_op_string expr1 "=" expr2
 		| Ast.OpUShr ->
@@ -3033,16 +3047,20 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 			| Some { eexpr = TFunction function_def } -> is_dynamic_haxe_method field
 			| _ -> true)
 		in
-      let is_readable field =
-			(match field.cf_kind with | Var { v_read = AccNever } | Var { v_read = AccInline } -> false
+		let is_readable field =
+			(match field.cf_kind with
+			| Var { v_read = AccNever } when (is_extern_field field) -> false
+			| Var { v_read = AccInline } -> false
 			| Var _ when is_abstract_impl -> false
 			| _ -> true) in
-      let is_writable field =
-			(match field.cf_kind with | Var { v_write = AccNever } | Var { v_read = AccInline } -> false
+		let is_writable field =
+			(match field.cf_kind with
+			| Var { v_write = AccNever } when (is_extern_field field) -> false
+			| Var { v_read = AccInline } -> false
 			| Var _ when is_abstract_impl -> false
 			| _ -> true) in
 
-      let reflective field = not (Meta.has Meta.Unreflective field.cf_meta) in
+		let reflective field = not (Meta.has Meta.Unreflective field.cf_meta) in
 		let reflect_fields = List.filter reflective (statics_except_meta @ class_def.cl_ordered_fields) in
 		let reflect_writable = List.filter is_writable reflect_fields in
 		let reflect_readable = List.filter is_readable reflect_fields in
@@ -3527,12 +3545,13 @@ let write_resources common_ctx =
 	let idx = ref 0 in
 	Hashtbl.iter (fun _ data ->
 		resource_file#write_i ("static unsigned char __res_" ^ (string_of_int !idx) ^ "[] = {\n");
+		resource_file#write_i "0xff, 0xff, 0xff, 0xff,\n";
 		for i = 0 to String.length data - 1 do
 		let code = Char.code (String.unsafe_get data i) in
 			resource_file#write  (Printf.sprintf "0x%.2x, " code);
 			if ( (i mod 10) = 9) then resource_file#write "\n";
 		done;
-		resource_file#write ("};\n");
+		resource_file#write ("0x00 };\n");
 		incr idx;
 	) common_ctx.resources;
 
@@ -3542,7 +3561,7 @@ let write_resources common_ctx =
 	Hashtbl.iter (fun name data ->
 		resource_file#write_i
 			("{ " ^ (str name) ^ "," ^ (string_of_int (String.length data)) ^ "," ^
-				"__res_" ^ (string_of_int !idx) ^ " },\n");
+				"__res_" ^ (string_of_int !idx) ^ " + 4 },\n");
 		incr idx;
 	) common_ctx.resources;
 
@@ -3572,6 +3591,7 @@ let write_build_data common_ctx filename classes main_deps build_extra exe_name 
 	in
 
 	output_string buildfile "<xml>\n";
+	output_string buildfile "<set name=\"HXCPP_API_LEVEL\" value=\"1\" />\n";
 	output_string buildfile "<files id=\"haxe\">\n";
 	output_string buildfile "<compilerflag value=\"-Iinclude\"/>\n";
 	List.iter add_class_to_buildfile classes;

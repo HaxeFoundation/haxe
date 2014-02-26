@@ -562,6 +562,8 @@ struct
             | _ ->
               { e with eexpr = TCall(run efield, List.map run args) }
           )
+        | TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, { cf_name = ("toString" as field) })) }, [] ) ->
+          run ef
 
         | TCast(expr, m) when is_boxed_type e.etype ->
           (* let unboxed_type gen t tbyte tshort tchar tfloat = match follow t with *)
@@ -1899,6 +1901,8 @@ let configure gen =
   TArrayTransform.configure gen (TArrayTransform.default_implementation gen (
   fun e ->
     match e.eexpr with
+      | TArray ({ eexpr = TLocal { v_extra = Some( _ :: _, _) } }, _) -> (* captured transformation *)
+        false
       | TArray(e1, e2) ->
         ( match run_follow gen e1.etype with
           | TInst({ cl_path = (["java"], "NativeArray") }, _) -> false

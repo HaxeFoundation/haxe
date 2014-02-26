@@ -7,6 +7,9 @@
 *.exe
 .*.swp
 
+/doc/hxclasses
+/doc/*.swf
+/doc/*.swc
 
 /version.ml
 /haxe

@@ -79,9 +79,10 @@ and pat = {
 }
 
 type out = {
-	o_pos : pos;
+	mutable o_pos : pos;
 	o_id : int;
-	o_default : bool;
+	o_catch_all : bool;
+	mutable o_num_paths : int;
 }
 
 type pat_vec = pat array * out
@@ -102,9 +103,8 @@ type matcher = {
 	dt_lut : dt DynArray.t;
 	dt_cache : (dt,int) Hashtbl.t;
 	mutable dt_count : int;
-	mutable outcomes : (pat list,out) PMap.t;
+	mutable outcomes : out list;
 	mutable toplevel_or : bool;
-	mutable used_paths : (int,bool) Hashtbl.t;
 	mutable has_extractor : bool;
 	mutable expr_map : (int,texpr * texpr option) PMap.t;
 }
@@ -128,18 +128,20 @@ let mk_st def t p = {
 	st_pos = p;
 }
 
-let mk_out mctx id e eg pl is_default p =
+let mk_out mctx id e eg is_catch_all p =
 	let out = {
 		o_pos = p;
 		o_id = id;
-		o_default = is_default;
+		o_catch_all = is_catch_all;
+		o_num_paths = 0;
 	} in
-	mctx.outcomes <- PMap.add pl out mctx.outcomes;
+	mctx.outcomes <- out :: mctx.outcomes;
 	mctx.expr_map <- PMap.add id (e,eg) mctx.expr_map;
 	out
 
-let clone_out mctx out pl p =
-	let out = {out with o_pos = p; } in
+let clone_out mctx out p =
+ 	let out = {out with o_pos = p; } in
+ 	mctx.outcomes <- out :: mctx.outcomes;
 	out
 
 let get_guard mctx id =
@@ -160,17 +162,9 @@ let mk_con cdef t p = {
 	c_pos = p;
 }
 
-let mk_con_pat cdef pl t p = {
-	p_def = PCon(mk_con cdef t p,pl);
-	p_type = t;
-	p_pos = p;
-}
+let mk_con_pat cdef pl t p = mk_pat (PCon(mk_con cdef t p,pl)) t p
 
-let mk_any t p = {
-	p_def = PAny;
-	p_type = t;
-	p_pos = p;
-}
+let mk_any t p = mk_pat PAny t p
 
 let any = mk_any t_dynamic Ast.null_pos
 
@@ -384,11 +378,7 @@ let to_pattern ctx e t =
 			begin match get_tuple_types t with
 			| Some tl ->
 				let pl = List.map (fun (_,_,t) -> mk_any t p) tl in
-				{
-					p_def = PTuple (Array.of_list pl);
-					p_pos = p;
-					p_type = t_dynamic;
-				}
+				mk_pat (PTuple (Array.of_list pl)) t_dynamic p
 			| None ->
 				mk_any t p
 			end
@@ -519,11 +509,7 @@ let to_pattern ctx e t =
 					with Invalid_argument _ ->
 						error ("Invalid number of arguments: expected " ^ (string_of_int (List.length tl)) ^ ", found " ^ (string_of_int (List.length el))) p
 					in
-					{
-						p_def = PTuple (Array.of_list pl);
-						p_pos = p;
-						p_type = t_dynamic;
-					}
+					mk_pat (PTuple (Array.of_list pl)) t_dynamic p
 				| _ ->
 					error ((s_type t) ^ " should be Array") p
 			end
@@ -535,12 +521,6 @@ let to_pattern ctx e t =
 			loop pctx (EBinop(OpOr,e1,(EBinop(OpOr,e2,e3),p2)),p) t
 		| EBinop(OpOr,e1,e2) ->
 			let old = pctx.pc_locals in
-			let rec dup t = match t with
-				| TMono r -> (match !r with
-					| None -> mk_mono()
-					| Some t -> Type.map dup t)
-				| _ -> Type.map dup t
-			in
 			let pat1 = loop pctx e1 t in
 			begin match pat1.p_def with
 				| PAny | PVar _ ->
@@ -579,9 +559,17 @@ let get_pattern_locals ctx e t =
 
 (* Match compilation *)
 
+let expr_eq e1 e2 = e1 == e2 || match e1.eexpr,e2.eexpr with
+	| TConst ct1,TConst ct2 ->
+		ct1 = ct2
+	| TField(_,FStatic(c1,cf1)),TField(_,FStatic(c2,cf2)) ->
+		c1 == c2 && cf1.cf_name = cf2.cf_name
+	| _ ->
+		false
+
 let unify_con con1 con2 = match con1.c_def,con2.c_def with
 	| CExpr e1, CExpr e2 ->
-		e1 == e2
+		expr_eq e1 e2
 	| CConst c1,CConst c2 ->
 		c1 = c2
 	| CEnum(e1,ef1),CEnum(e2,ef2) ->
@@ -616,15 +604,12 @@ let spec mctx con pmat =
 			()
 		| PAny | PVar _->
 			add (Array.append (Array.make a (mk_any (pv.(0).p_type) (pv.(0).p_pos))) (array_tl pv)) out
- 		| POr(pat1,pat2) ->
-			let tl = array_tl pv in
-			let out2 = clone_out mctx out [pat2] pat2.p_pos in
-			loop2 (Array.append [|pat1|] tl) out;
-			loop2 (Array.append [|pat2|] tl) out2;
 		| PBind(_,pat) ->
 			loop2 (Array.append [|pat|] (array_tl pv)) out
 		| PTuple tl ->
 			loop2 tl out
+ 		| POr _ ->
+			assert false
 	in
 	let rec loop pmat = match pmat with
 		| (pv,out) :: pl ->
@@ -646,15 +631,12 @@ let default mctx pmat =
 			()
 		| PAny | PVar _->
 			add (array_tl pv) out
- 		| POr(pat1,pat2) ->
-			let tl = array_tl pv in
-			let out2 = clone_out mctx out [pat2] pat2.p_pos in
-			loop2 (Array.append [|pat1|] tl) out;
-			loop2 (Array.append [|pat2|] tl) out2;
 		| PBind(_,pat) ->
 			loop2 (Array.append [|pat|] (array_tl pv)) out
 		| PTuple tl ->
 			loop2 tl out
+ 		| POr _ ->
+			assert false
 	in
  	let rec loop pmat = match pmat with
 		| (pv,out) :: pl ->
@@ -700,6 +682,48 @@ let swap_columns i (row : 'a list) : 'a list =
 	| _ ->
 		[]
 
+let expand_or mctx pmat =
+	let rec loop pmat = match pmat with
+		| (pv,out) :: pmat ->
+			let acc = ref [] in
+			let rec loop2 pv out = match pv.(0) with
+				| {p_def = POr(pat1,pat2)} ->
+					out.o_pos <- pat1.p_pos;
+					let out2 = clone_out mctx out pat2.p_pos in
+					let tl = array_tl pv in
+					loop2 (Array.append [|pat2|] tl) out2;
+					loop2 (Array.append [|pat1|] tl) out;
+				| {p_def = PBind(v,{p_def = POr(pat1,pat2)})} as pat ->
+					out.o_pos <- pat1.p_pos;
+					let out2 = clone_out mctx out pat2.p_pos in
+					let tl = array_tl pv in
+					loop2 (Array.append [|{pat with p_def = PBind(v,pat2)}|] tl) out2;
+					loop2 (Array.append [|{pat with p_def = PBind(v,pat1)}|] tl) out;
+				| {p_def = PTuple tl} as pat ->
+					begin match tl.(0).p_def with
+					 	| POr(pat1,pat2) ->
+							let out2 = clone_out mctx out pat2.p_pos in
+							let a1 = Array.copy tl in
+							a1.(0) <- pat1;
+							let a2 = Array.copy tl in
+							a2.(0) <- pat2;
+							let tl = array_tl pv in
+							loop2 (Array.append [|{pat with p_def = PTuple a2}|] tl) out2;
+							loop2 (Array.append [|{pat with p_def = PTuple a1}|] tl) out;
+					 	| _ ->
+					 		acc := (pv,out) :: !acc
+					 end
+				| _ ->
+					acc := (pv,out) :: !acc
+			in
+			let r = loop pmat in
+			loop2 pv out;
+			!acc @ r
+		| [] ->
+			[]
+	in
+	loop pmat
+
 let column_sigma mctx st pmat =
 	let acc = ref [] in
 	let bindings = ref [] in
@@ -716,10 +740,6 @@ let column_sigma mctx st pmat =
 			let rec loop2 out = function
 				| PCon (c,_) ->
 					add c ((get_guard mctx out.o_id) <> None);
-				| POr(pat1,pat2) ->
-					let out2 = clone_out mctx out [pat2] pat2.p_pos in
-					loop2 out pat1.p_def;
-					loop2 out2 pat2.p_def;
 				| PVar v ->
 					bind_st out st v;
 				| PBind(v,pat) ->
@@ -729,6 +749,8 @@ let column_sigma mctx st pmat =
 					()
 				| PTuple tl ->
 					loop2 out tl.(0).p_def
+				| POr _ ->
+					assert false
 			in
 			loop2 out pv.(0).p_def;
 			loop pr
@@ -767,7 +789,7 @@ let rec all_ctors mctx t =
 				| _ -> ()
 		) c.cl_ordered_statics;
 		h,false
-	| TAbstract(a,pl) -> all_ctors mctx (Codegen.Abstract.get_underlying_type a pl)
+	| TAbstract(a,pl) when not (Meta.has Meta.CoreType a.a_meta) -> all_ctors mctx (Codegen.Abstract.get_underlying_type a pl)
 	| TInst({cl_path=[],"String"},_)
 	| TInst({cl_path=[],"Array"},_) ->
 		h,true
@@ -792,11 +814,7 @@ let rec collapse_pattern pl = match pl with
 		pat
 	| pat :: pl ->
 		let pat2 = collapse_pattern pl in
-		{
-			p_def = POr(pat,pat2);
-			p_pos = punion pat.p_pos pat2.p_pos;
-			p_type = pat.p_type
-		}
+		mk_pat (POr(pat,pat2)) pat.p_type (punion pat.p_pos pat2.p_pos)
 	| [] ->
 		assert false
 
@@ -854,7 +872,7 @@ let rec compile mctx stl pmat toplevel =
 	| (pv,out) :: pl ->
 		let i = pick_column pmat in
 		if i = -1 then begin
-			Hashtbl.replace mctx.used_paths out.o_id true;
+			out.o_num_paths <- out.o_num_paths + 1;
 			let bl = bind_remaining out pv stl in
 			let dt = match (get_guard mctx out.o_id) with
 				| None -> expr out.o_id
@@ -867,6 +885,7 @@ let rec compile mctx stl pmat toplevel =
 			compile mctx stls pmat toplevel
 		end else begin
 			let st_head,st_tail = match stl with st :: stl -> st,stl | _ -> assert false in
+			let pmat = expand_or mctx pmat in
 			let sigma,bl = column_sigma mctx st_head pmat in
 			let all,inf = all_ctors mctx st_head.st_type in
 			let cases = List.map (fun (c,g) ->
@@ -1095,9 +1114,8 @@ let match_expr ctx e cases def with_type p =
 	let mctx = {
 		ctx = ctx;
 		need_val = need_val;
-		outcomes = PMap.empty;
+		outcomes = [];
 		toplevel_or = false;
-		used_paths = Hashtbl.create 0;
 		dt_lut = DynArray.create ();
 		dt_cache = Hashtbl.create 0;
 		dt_count = 0;
@@ -1152,6 +1170,10 @@ let match_expr ctx e cases def with_type p =
 			with Unrecognized_pattern (e,p) ->
 				error "Case expression must be a constant value or a pattern, not an arbitrary expression" p
 		in
+		let is_catch_all = match pl with
+			| [{p_def = PAny | PVar _}] -> true
+			| _ -> false
+		in
 		(* type case body *)
 		let e = match e with
 			| None -> mk (TBlock []) ctx.com.basic.tvoid (pos ep)
@@ -1176,8 +1198,7 @@ let match_expr ctx e cases def with_type p =
 		in
 		List.iter (fun f -> f()) restore;
 		save();
-		let is_default = match fst ep with (EConst(Ident "_")) -> true | _ -> false in
-		let out = mk_out mctx i e eg pl is_default (pos ep) in
+		let out = mk_out mctx i e eg is_catch_all (pos ep) in
 		Array.of_list pl,out
 	) cases in
 	let check_unused () =
@@ -1204,8 +1225,11 @@ let match_expr ctx e cases def with_type p =
 			(match cases with (e,_,_) :: cl -> loop e cl | [] -> assert false);
 			ctx.on_error <- old_error;
 		in
- 		PMap.iter (fun _ out ->
- 			if not (Hashtbl.mem mctx.used_paths out.o_id || out.o_default) then begin
+		let had_catch_all = ref false in
+ 		List.iter (fun out ->
+ 			if out.o_catch_all && not !had_catch_all then
+ 				had_catch_all := true
+ 			else if out.o_num_paths = 0 then begin
 				unused out.o_pos;
 				if mctx.toplevel_or then begin match evals with
 					| [{etype = t}] when (match follow t with TAbstract({a_path=[],"Int"},[]) -> true | _ -> false) ->
@@ -1213,7 +1237,7 @@ let match_expr ctx e cases def with_type p =
 					| _ -> ()
 				end;
 			end
-		) mctx.outcomes;
+		) (List.rev mctx.outcomes);
 	in
 	let dt = try
 		(* compile decision tree *)

@@ -339,7 +339,7 @@ let generate_type com t =
 		| None ->
 			n ^ " : " ^ stype t
 		| Some (Ident "null") ->
-			if is_null t then
+			if is_nullable (notnull t) then
 				"?" ^ n ^ " : " ^ stype (notnull t)
 			else
 				(* we have not found a default value stored in metadata, let's generate it *)
@@ -353,7 +353,7 @@ let generate_type com t =
 	let print_meta ml =
 		List.iter (fun (m,pl,_) ->
 			match m with
-			| Meta.DefParam | Meta.CoreApi | Meta.Used | Meta.MaybeUsed -> ()
+			| Meta.DefParam | Meta.CoreApi | Meta.Used | Meta.MaybeUsed | Meta.FlatEnum -> ()
 			| _ ->
 			match pl with
 			| [] -> p "@%s " (fst (MetaInfo.to_string m))

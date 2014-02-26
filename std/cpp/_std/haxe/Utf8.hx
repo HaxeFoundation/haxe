@@ -90,7 +90,9 @@ class Utf8
 
 	public static function sub( s : String, pos : Int, len : Int ) : String {
       var array:Array<Int> = untyped __global__.__hxcpp_utf8_string_to_char_array(s);
-      var sub = array.slice(pos,len);
+      var last = len < 0 ? array.length : pos+len;
+      if (last>array.length) last = array.length;
+      var sub = array.slice(pos,last);
 		return untyped __global__.__hxcpp_char_array_to_utf8_string(sub);
 	}
 

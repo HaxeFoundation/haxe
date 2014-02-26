@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2013 Haxe Foundation
+ * Copyright (C)2005-2012 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,11 +19,21 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+package haxe;
 
-// This file is generated, do not edit!
-package js.html;
+@:coreApi
+#if (!haxeJSON && flash11)
+@:native("JSON") extern
+#end
+class Json {
 
-@:native("DOMStringMap")
-extern class DOMStringMap
-{
+	#if (haxeJSON || !flash11) inline #end
+	public static function parse( text : String ) : Dynamic {
+		return haxe.format.JsonParser.parse(text);
+	}
+
+	#if (haxeJSON || !flash11) inline #end
+	public static function stringify( value : Dynamic, ?replacer:Dynamic -> Dynamic -> Dynamic ) : String {
+		return haxe.format.JsonPrinter.print(value, replacer);
+	}
 }

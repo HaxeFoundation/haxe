@@ -879,7 +879,7 @@ flash.globalization.StringTools.lastOperationStatus : LastOperationStatus;
 @:require(flash10_2) flash.media.Microphone.enhancedOptions;
 @:require(flash10_2) static flash.media.Microphone.getEnhancedMicrophone;
 
-@:require(flash10_2) static flash.system.Capabilities.allowsFullScreen;
+@:require(flash11) static flash.system.Capabilities.allowsFullScreen;
 
 @:require(flash10_2) static flash.ui.Keyboard.AUDIO;
 @:require(flash10_2) static flash.ui.Keyboard.BACK;
@@ -1149,7 +1149,6 @@ flash.display.JPEGXREncoderOptions.colorSpace : BitmapEncodingColorSpace;
 
 // 11.4
 
-@:require(flash11_4) flash.display3D.Context3D.createRectangleTexture
 @:require(flash11_4) flash.display.BitmapData.copyPixelsToByteArray;
 
 @:require(flash11_4) flash.concurrent.Mutex;
@@ -1221,4 +1220,7 @@ flash.display3D.Context3D.$mipfilter : Context3DMipFilter;
 @:require(flash11_7) flash.system.AuthorizedFeatures.enableHLSPlayback;
 @:require(flash11_7) flash.system.AuthorizedFeaturesLoader.loadAuthorizedFeaturesFromData;
 
+
+@:require(flash11_8) flash.display.DisplayObjectContainer.stopAllMovieClips
+@:require(flash11_8) flash.display3D.Context3D.createRectangleTexture
 

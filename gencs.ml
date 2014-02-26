@@ -402,6 +402,8 @@ struct
         | TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, { cf_name = ("substring" as field) })) }, args )
         | TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, { cf_name = ("substr" as field) })) }, args ) ->
           { e with eexpr = TCall(mk_static_field_access_infer string_ext field e.epos [], [run ef] @ (List.map run args)) }
+        | TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, { cf_name = ("toString" as field) })) }, [] ) ->
+          run ef
         | TNew( { cl_path = ([], "String") }, [], [p] ) -> run p (* new String(myString) -> myString *)
 
         | TCast(expr, _) when is_int_float e.etype && not (is_int_float expr.etype) && not (is_null e.etype) ->
@@ -2293,7 +2295,17 @@ let configure gen =
   DynamicOperators.configure gen
     (DynamicOperators.abstract_implementation gen (fun e -> match e.eexpr with
       | TBinop (Ast.OpEq, e1, e2)
-      | TBinop (Ast.OpNotEq, e1, e2) -> should_handle_opeq e1.etype or should_handle_opeq e2.etype
+      | TBinop (Ast.OpNotEq, e1, e2) ->
+        (
+          (* dont touch (v == null) and (null == v) comparisons because they are handled by HardNullableSynf later *)
+          match e1.eexpr, e2.eexpr with
+          | TConst(TNull), _ when is_null_expr e2 ->
+            false
+          | _, TConst(TNull) when is_null_expr e1 ->
+            false
+          | _ ->
+            should_handle_opeq e1.etype or should_handle_opeq e2.etype
+        )
       | TBinop (Ast.OpAssignOp Ast.OpAdd, e1, e2) ->
         is_dynamic_expr e1 || is_null_expr e1 || is_string e.etype
       | TBinop (Ast.OpAdd, e1, e2) -> is_dynamic e1.etype or is_dynamic e2.etype or is_type_param e1.etype or is_type_param e2.etype or is_string e1.etype or is_string e2.etype or is_string e.etype

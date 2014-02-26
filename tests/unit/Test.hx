@@ -204,7 +204,7 @@ class Test #if swf_mark implements mt.Protect #end {
 	}
 
 	static function resetTimer() {
-		#if (neko || php || cpp)
+		#if (neko || php || cpp || java || cs)
 		#else
 		if( timer != null ) timer.stop();
 		timer = new haxe.Timer(10000);
@@ -270,7 +270,7 @@ class Test #if swf_mark implements mt.Protect #end {
 			new TestMatch(),
 			#end
 			new TestSpecification(),
-			#if (cs && false)
+			#if cs
 			new TestCSharp(),
 			#end
 			#if java
@@ -291,6 +291,7 @@ class Test #if swf_mark implements mt.Protect #end {
 			//new TestUnspecified(),
 			//new TestRemoting(),
 		];
+		TestIssues.addIssueClasses();
 		var current = null;
 		#if (!fail_eager)
 		try

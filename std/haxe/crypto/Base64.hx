@@ -32,7 +32,7 @@ class Base64 {
 	public static function encode( bytes : haxe.io.Bytes, complement = true ) : String {
 		var str = new BaseCode(BYTES).encodeBytes(bytes).toString();
 		if( complement )
-			for( i in 0...(bytes.length*4)%3 )
+			for( i in 0...(3-(bytes.length*4)%3)%3 )
 				str += "=";
 		return str;
 	}

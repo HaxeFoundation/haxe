@@ -173,6 +173,7 @@ abstract Vector<T>(VectorData<T>) {
 
 		If `array` is null, the result is unspecified.
 	**/
+	#if as3 @:extern #end
 	static public inline function fromArrayCopy<T>(array:Array<T>):Vector<T> {
 		// TODO: Optimize this for flash (and others?)
 		var vec = new Vector<T>(array.length);

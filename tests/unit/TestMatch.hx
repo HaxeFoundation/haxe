@@ -613,7 +613,6 @@ class TestMatch extends Test {
 		switch({s:"foo"}) {
 			case { s : "foo" } :
 			case { s : a } :
-			case _: // unused
 		}
 
 		switch( { s:"foo", t:"bar" } ) {

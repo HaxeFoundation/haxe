@@ -79,6 +79,45 @@ let api_inline ctx c field params p =
 			Some stringv
 		| _ ->
 			None)
+	| ([],"Std"),"is",[o;t] | (["js"],"Boot"),"__instanceof",[o;t] when ctx.com.platform = Js ->
+		let mk_local ctx n t pos = mk (TLocal (try PMap.find n ctx.locals with _ -> add_local ctx n t)) t pos in
+
+		let tstring = ctx.com.basic.tstring in
+		let tbool = ctx.com.basic.tbool in
+		let tint = ctx.com.basic.tint in
+
+		let is_trivial e =
+			match e.eexpr with
+			| TConst _ | TLocal _ -> true
+			| _ -> false
+		in
+
+		let typeof t =
+			let tof = mk_local ctx "__typeof__" (tfun [o.etype] tstring) p in
+			let tof = mk (TCall (tof, [o])) tstring p in
+			mk (TBinop (Ast.OpEq, tof, (mk (TConst (TString t)) tstring p))) tbool p
+		in
+
+		(match t.eexpr with
+		(* generate simple typeof checks for basic types *)
+		| TTypeExpr (TClassDecl ({ cl_path = [],"String" })) -> Some (typeof "string")
+		| TTypeExpr (TAbstractDecl ({ a_path = [],"Bool" })) -> Some (typeof "boolean")
+		| TTypeExpr (TAbstractDecl ({ a_path = [],"Float" })) -> Some (typeof "number")
+		| TTypeExpr (TAbstractDecl ({ a_path = [],"Int" })) when is_trivial o ->
+			(* generate (o|0) === o check *)
+			let teq = mk_local ctx "__strict_eq__" (tfun [tint; tint] tbool) p in
+			let lhs = mk (TBinop (Ast.OpOr, o, mk (TConst (TInt Int32.zero)) tint p)) tint p in
+			Some (mk (TCall (teq, [lhs; o])) tbool p)
+		| TTypeExpr (TClassDecl ({ cl_path = [],"Array" })) ->
+			(* generate (o instanceof Array) && o.__enum__ == null check *)
+			let iof = mk_local ctx "__instanceof__" (tfun [o.etype;t.etype] tbool) p in
+			let iof = mk (TCall (iof, [o; t])) tbool p in
+			let enum = mk (TField (o, FDynamic "__enum__")) (mk_mono()) p in
+			let null = mk (TConst TNull) (mk_mono()) p in
+			let not_enum = mk (TBinop (Ast.OpEq, enum, null)) tbool p in
+			Some (mk (TBinop (Ast.OpBoolAnd, iof, not_enum)) tbool p)
+		| _ ->
+			None)
 	| ([],"Std"),"int",[{ eexpr = TConst (TFloat f) }] ->
 		let f = float_of_string f in
 		(match classify_float f with
@@ -125,7 +164,7 @@ let inline_default_config cf t =
 	let tparams = fst tparams @ cf.cf_params in
 	tparams <> [], apply_params tparams tmonos
 
-let rec type_inline ctx cf f ethis params tret config p force =
+let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=false) force =
 	(* perform some specific optimization before we inline the call since it's not possible to detect at final optimization time *)
 	try
 		let cl = (match follow ethis.etype with
@@ -206,6 +245,7 @@ let rec type_inline ctx cf f ethis params tret config p force =
 		if has_side_effect e then l.i_force_temp <- true; (* force tmp var *)
 		l, e
 	) (ethis :: loop params f.tf_args true) ((vthis,None) :: f.tf_args) in
+	let inlined_vars = List.rev inlined_vars in
 	(*
 		here, we try to eliminate final returns from the expression tree.
 		However, this is not entirely correct since we don't yet correctly propagate
@@ -223,9 +263,10 @@ let rec type_inline ctx cf f ethis params tret config p force =
 	let cancel_inlining = ref false in
 	let has_return_value = ref false in
 	let ret_val = (match follow f.tf_type with TAbstract ({ a_path = ([],"Void") },[]) -> false | _ -> true) in
+	let map_pos = if self_calling_closure then (fun e -> e) else (fun e -> { e with epos = p }) in
 	let rec map term e =
 		let po = e.epos in
-		let e = { e with epos = p } in
+		let e = map_pos e in
 		match e.eexpr with
 		| TLocal v ->
 			let l = read_local v in
@@ -406,7 +447,7 @@ let rec type_inline ctx cf f ethis params tret config p force =
 
 		This could be fixed with better post process code cleanup (planed)
 	*)
-	if !cancel_inlining then
+	if !cancel_inlining || (Common.platform ctx.com Js && not !force && (init <> None || !has_vars)) then
 		None
 	else
 		let wrap e =
@@ -963,7 +1004,7 @@ let rec reduce_loop ctx e =
 		let cf = mk_field "" ef.etype e.epos in
 		let ethis = mk (TConst TThis) t_dynamic e.epos in
 		let rt = (match follow ef.etype with TFun (_,rt) -> rt | _ -> assert false) in
-		let inl = (try type_inline ctx cf func ethis el rt None e.epos false with Error (Custom _,_) -> None) in
+		let inl = (try type_inline ctx cf func ethis el rt None e.epos ~self_calling_closure:true false with Error (Custom _,_) -> None) in
 		(match inl with
 		| None -> reduce_expr ctx e
 		| Some e -> reduce_loop ctx e)
@@ -1184,14 +1225,19 @@ let inline_constructors ctx e =
 				in
 				List.iter (fun (v,e) -> el_b := (mk (TVar(v,Some (subst e))) ctx.t.tvoid e.epos) :: !el_b) (List.rev vars);
 				mk (TVar (v_first, Some (subst e_first))) ctx.t.tvoid e.epos
-			| TField ({ eexpr = TLocal v },FInstance (_,cf)) when v.v_id < 0 ->
+			| TField ({ eexpr = TLocal v },FInstance (c,cf)) when v.v_id < 0 ->
 				let (_, vars),el_init = PMap.find (-v.v_id) vfields in
 				(try
 					let v = PMap.find cf.cf_name vars in
 					mk (TLocal v) v.v_type e.epos
 				with Not_found ->
-					(* the variable was not set in the constructor, assume null *)
-					mk (TConst TNull) e.etype e.epos)
+					if (c.cl_path = ([],"Array") && cf.cf_name = "length") then begin
+						(* this can only occur for inlined array declarations, so we can use the statically known length here (issue #2568)*)
+						let l = PMap.fold (fun _ i -> i + 1) vars 0 in
+						mk (TConst (TInt (Int32.of_int l))) ctx.t.tint e.epos
+					end else
+						(* the variable was not set in the constructor, assume null *)
+						mk (TConst TNull) e.etype e.epos)
 			| TArray ({eexpr = TLocal v},{eexpr = TConst (TInt i)}) when v.v_id < 0 ->
 				let (_, vars),_ = PMap.find (-v.v_id) vfields in
 				(try

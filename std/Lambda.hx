@@ -227,8 +227,8 @@ class Lambda {
 	/**
 		Returns the first element of `it` for which `f` is true.
 
-		This function returns true as soon as an element is found for which a
-		call to `f` returns true.
+		This function returns as soon as an element is found for which a call to
+		`f` returns true.
 
 		If no such element is found, the result is null.
 

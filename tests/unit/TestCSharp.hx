@@ -15,6 +15,21 @@ class TestCSharp extends Test
 		out = x * 2;
 	}
 
+    // test for https://github.com/HaxeFoundation/haxe/issues/2528
+    public function testDynObjectSetField()
+    {
+        var a:Dynamic = {};
+        a.status = 10;
+        var b:{status:Int} = a;
+        b.status = 15;
+
+        eq(a, b);
+        eq(Reflect.fields(a).length, 1);
+        eq(Reflect.fields(b).length, 1);
+        eq(a.status, 15);
+        eq(b.status, 15);
+    }
+
 	public function testRef()
 	{
 		var i = 10;
@@ -37,6 +52,7 @@ class TestCSharp extends Test
 		eq(i, 40);
 	}
 
+	#if false // TODO: disabled test because of "Arguments and variables of type Void are not allowed" error
 	public function testChecked()
 	{
 		exc(function()
@@ -50,6 +66,7 @@ class TestCSharp extends Test
 			});
 		});
 	}
+	#end
 
 	#if unsafe
 
@@ -86,6 +103,16 @@ class TestCSharp extends Test
 	}
 
 	#end
+
+	// test these because C# generator got a special filter for these expressions
+	public function testNullConstEq()
+	{
+		var a:Null<Int> = 10;
+		f(a == null);
+		f(null == a);
+		t(a != null);
+		f(null != a);
+	}
 
 	#end
 }

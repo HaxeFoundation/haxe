@@ -525,26 +525,6 @@ let tag ?(ext=false) d = {
 	tdata = d;
 }
 
-let swf_ver = function
-	| 6. -> 6
-	| 7. -> 7
-	| 8. -> 8
-	| 9. -> 9
-	| 10. | 10.1 -> 10
-	| 10.2 -> 11
-	| 10.3 -> 12
-	| 11. -> 13
-	| 11.1 -> 14
-	| 11.2 -> 15
-	| 11.3 -> 16
-	| 11.4 -> 17
-	| 11.5 -> 18
-	| 11.6 -> 19
-	| 11.7 -> 20
-	| 11.8 -> 21
-	| 11.9 -> 22
-	| v -> failwith ("Invalid SWF version " ^ float_repres v)
-
 let convert_header com (w,h,fps,bg) =
 	let high = (max w h) * 20 in
 	let rec loop b =
@@ -552,7 +532,7 @@ let convert_header com (w,h,fps,bg) =
 	in
 	let bits = loop 0 in
 	{
-		h_version = swf_ver com.flash_version;
+		h_version = Common.flash_version_tag com.flash_version;
 		h_size = {
 			rect_nbits = bits + 1;
 			left = 0;
@@ -588,7 +568,8 @@ let build_dependencies t =
 			(match c.cl_kind with KTypeParameter _ -> () | _ -> add_path c.cl_path DKType);
 			List.iter (add_type_rec (t::l)) pl;
 		| TAbstract (a,pl) ->
-			add_path a.a_path DKType;
+			if Meta.has Meta.CoreType a.a_meta then
+				add_path a.a_path DKType;
 			List.iter (add_type_rec (t::l)) pl;
 		| TFun (pl,t2) ->
 			List.iter (fun (_,_,t2) -> add_type_rec (t::l) t2) pl;
@@ -796,6 +777,8 @@ let detect_format data p =
 	| _ ->
 		error "Unknown file format" p
 
+open TTFData
+
 let build_swf9 com file swc =
 	let boot_name = if swc <> None || Common.defined com Define.HaxeBoot then "haxe" else "boot_" ^ (String.sub (Digest.to_hex (Digest.string (Filename.basename file))) 0 4) in
 	let code = Genswf9.generate com boot_name in
@@ -820,7 +803,7 @@ let build_swf9 com file swc =
 				hls_fields = [|f|];
 			}
 		) code in
-		[tag (TActionScript3 (None,As3hlparse.flatten inits))]
+		[tag (TActionScript3 ((if Common.defined com Define.SwfUseDoAbc then Some(1,boot_name) else None), As3hlparse.flatten inits))]
 	) in
 	let cid = ref 0 in
 	let classes = ref [{ f9_cid = None; f9_classname = boot_name }] in
@@ -846,11 +829,31 @@ let build_swf9 com file swc =
 					let ch = try open_in_bin file with _ -> error "File not found" p in
 					let ttf = try TTFParser.parse ch with e -> error ("Error while parsing font " ^ file ^ " : " ^ Printexc.to_string e) p in
 					close_in ch;
-					let range_str = match args with
-						| [EConst (String str),_] -> str
-						| _ -> ""
+					let get_string e = match fst e with
+						| EConst (String s) -> Some s
+						| _ -> raise Not_found
 					in
-					let ttf_swf = TTFSwfWriter.to_swf ttf range_str in
+					let ttf_config = {
+						ttfc_range_str = "";
+						ttfc_font_name = None;
+					} in
+					begin match args with
+						| (EConst (String str),_) :: _ -> ttf_config.ttfc_range_str <- str;
+						| _ -> ()
+					end;
+					begin match args with
+						| _ :: [e] ->
+							begin match fst e with
+								| EObjectDecl fl ->
+									begin try ttf_config.ttfc_font_name <- get_string (List.assoc "fontName" fl)
+									with Not_found -> () end
+								| _ ->
+									()
+							end
+						| _ ->
+							()
+					end;
+					let ttf_swf = TTFSwfWriter.to_swf ttf ttf_config in
 					let ch = IO.output_string () in
 					let b = IO.output_bits ch in
 					TTFSwfWriter.write_font2 ch b ttf_swf;
@@ -1031,7 +1034,7 @@ let build_swf9 com file swc =
 
 let merge com file priority (h1,tags1) (h2,tags2) =
   (* prioritize header+bgcolor for first swf *)
-	let header = if priority then { h2 with h_version = max h2.h_version (swf_ver com.flash_version) } else h1 in
+	let header = if priority then { h2 with h_version = max h2.h_version (Common.flash_version_tag com.flash_version) } else h1 in
 	let tags1 = if priority then List.filter (function { tdata = TSetBgColor _ } -> false | _ -> true) tags1 else tags1 in
   (* remove unused tags *)
 	let use_stage = priority && Common.defined com Define.FlashUseStage in

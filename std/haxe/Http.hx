@@ -153,6 +153,30 @@ class Http {
 	}
 	#end
 
+	#if (js || flash9)
+
+	#if js
+	var req:js.html.XMLHttpRequest;
+	#elseif flash9
+	var req:flash.net.URLLoader;
+	#end
+	
+	/**
+		Cancels `this` Http request if `request` has been called and a response 
+		has not yet been received.
+	**/
+	public function cancel()
+	{
+		if (req == null) return;
+		#if js
+		req.abort();
+		#elseif flash9
+		req.close();
+		#end
+		req = null;
+	}
+	#end
+
 	/**
 		Sends `this` Http request to the Url specified by `this.url`.
 
@@ -174,7 +198,7 @@ class Http {
 		var me = this;
 	#if js
 		me.responseData = null;
-		var r = js.Browser.createXMLHttpRequest();
+		var r = req = js.Browser.createXMLHttpRequest();
 		var onreadystatechange = function(_) {
 			if( r.readyState != 4 )
 				return;
@@ -183,16 +207,23 @@ class Http {
 				s = null;
 			if( s != null )
 				me.onStatus(s);
-			if( s != null && s >= 200 && s < 400 )
+			if( s != null && s >= 200 && s < 400 ) {
+				me.req = null;
 				me.onData(me.responseData = r.responseText);
-			else if ( s == null )
-				me.onError("Failed to connect or resolve host")
+			}
+			else if ( s == null ) {
+				me.req = null;
+				me.onError("Failed to connect or resolve host");
+			}
 			else switch( s ) {
 			case 12029:
+				me.req = null;
 				me.onError("Failed to connect to host");
 			case 12007:
+				me.req = null;
 				me.onError("Unknown host");
 			default:
+				me.req = null;
 				me.responseData = r.responseText;
 				me.onError("Http Error #"+r.status);
 			}
@@ -219,6 +250,7 @@ class Http {
 			} else
 				r.open("GET",url,async);
 		} catch( e : Dynamic ) {
+			me.req = null;
 			onError(e.toString());
 			return;
 		}
@@ -232,8 +264,9 @@ class Http {
 			onreadystatechange(null);
 	#elseif flash9
 		me.responseData = null;
-		var loader = new flash.net.URLLoader();
+		var loader = req = new flash.net.URLLoader();
 		loader.addEventListener( "complete", function(e) {
+			me.req = null;
 			me.responseData = loader.data;
 			me.onData( loader.data );
 		});
@@ -243,10 +276,12 @@ class Http {
 				me.onStatus( e.status );
 		});
 		loader.addEventListener( "ioError", function(e:flash.events.IOErrorEvent){
+			me.req = null;
 			me.responseData = loader.data;
 			me.onError(e.text);
 		});
 		loader.addEventListener( "securityError", function(e:flash.events.SecurityErrorEvent){
+			me.req = null;
 			me.onError(e.text);
 		});
 
@@ -283,6 +318,7 @@ class Http {
 		try {
 			loader.load( request );
 		}catch( e : Dynamic ){
+			me.req = null;
 			onError("Exception: "+Std.string(e));
 		}
 	#elseif flash
@@ -602,6 +638,7 @@ class Http {
 			var a = hline.split(": ");
 			var hname = a.shift();
 			var hval = if( a.length == 1 ) a[0] else a.join(": ");
+			hval = StringTools.ltrim( StringTools.rtrim( hval ) );
 			responseHeaders.set(hname, hval);
 			switch(hname.toLowerCase())
 			{

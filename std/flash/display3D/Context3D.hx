@@ -3,11 +3,13 @@ package flash.display3D;
 @:final extern class Context3D extends flash.events.EventDispatcher {
 	var driverInfo(default,null) : String;
 	var enableErrorChecking : Bool;
+	@:require(flash12) var profile : String;
 	function clear(red : Float = 0, green : Float = 0, blue : Float = 0, alpha : Float = 1, depth : Float = 1, stencil : UInt = 0, mask : UInt = 0xFFFFFFFF) : Void;
 	function configureBackBuffer(width : Int, height : Int, antiAlias : Int, enableDepthAndStencil : Bool = true, wantsBestResolution : Bool = false) : Void;
 	function createCubeTexture(size : Int, format : Context3DTextureFormat, optimizeForRenderToTexture : Bool, streamingLevels : Int = 0) : flash.display3D.textures.CubeTexture;
 	function createIndexBuffer(numIndices : Int) : IndexBuffer3D;
 	function createProgram() : Program3D;
+	@:require(flash11_8) function createRectangleTexture(width : Int, height : Int, format : Context3DTextureFormat, optimizeForRenderToTexture : Bool) : flash.display3D.textures.RectangleTexture;
 	function createTexture(width : Int, height : Int, format : Context3DTextureFormat, optimizeForRenderToTexture : Bool, streamingLevels : Int = 0) : flash.display3D.textures.Texture;
 	function createVertexBuffer(numVertices : Int, data32PerVertex : Int) : VertexBuffer3D;
 	function dispose(recreate : Bool = true) : Void;

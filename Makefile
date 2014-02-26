@@ -96,7 +96,7 @@ install_tools: tools
 	chmod a+rx $(INSTALL_DIR)/bin/haxelib $(INSTALL_DIR)/bin/haxedoc
 
 uninstall:
-	rm -rf $(INSTALL_DIR)/bin/haxe $(INSTALL_DIR)/bin/haxelib $(INSTALL_DIR)/lib/haxe
+	rm -rf $(INSTALL_DIR)/bin/haxe $(INSTALL_DIR)/bin/haxelib $(INSTALL_DIR)/lib/haxe $(INSTALL_DIR)/bin/haxedoc
 
 export:
 	cp haxe*.exe doc/CHANGES.txt $(EXPORT)
@@ -172,7 +172,7 @@ clean_libs:
 	make -C libs/ttflib clean
 
 clean_haxe:
-	rm -f $(MODULES:=.obj) $(MODULES:=.o) $(MODULES:=.cmx) $(MODULES:=.cmi) lexer.ml
+	rm -f $(MODULES:=.obj) $(MODULES:=.o) $(MODULES:=.cmx) $(MODULES:=.cmi) lexer.ml haxe.exe
 
 clean_tools:
 	rm -f $(OUTPUT) haxelib haxedoc

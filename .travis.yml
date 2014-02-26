@@ -1,26 +1,30 @@
 language: node_js
 
 env:
-  - TARGET=macro
-  - TARGET=neko
-  - TARGET=js
-  - TARGET=php
-  - TARGET=cpp
-  - TARGET=flash9
-  - TARGET=flash8
-  - TARGET=as3
-  - TARGET=java
-  - TARGET=cs
+  global:
+    # SAUCE_USERNAME
+    - secure: SjyKefmjUEXi0IKHGGpcbLAajU0mLHONg8aA8LoY7Q9nAkSN6Aql+fzS38Boq7w1jWn+2FOpr+4jy0l6wVd/bftsF+huFfYpFJmdh8BlKmE0K71zZAral0H1c7YxkuQpPiJCIFGXqtkvev7SWTy0z31u7kuuQeEyW27boXe5cDA=
+    # SAUCE_ACCESS_KEY
+    - secure: sUvWUjCyPuWht4seNa4f2VG9DkvXkhZyLZfjJO9TUAHB2JndS16E2j/qrvKEjycyH6w8tU/B9vnjDRvvGrYXxEXcBEwsJVfkorFnRl9uwGCGIYrzjMhssEl3fMYZK7P304f+gAp5ULrDBX2gIaKeSa8lUNRtz2PsZOieE4kMdhk=
+  matrix:
+    - TARGET=macro
+    - TARGET=neko
+    - TARGET=js
+    - TARGET=php
+    - TARGET=cpp
+    - TARGET=flash9
+    - TARGET=flash8
+    - TARGET=as3
+    - TARGET=java
+    - TARGET=cs
 
 matrix:
   allow_failures:
     - env: TARGET=flash8
-    - env: TARGET=as3
     - env: TARGET=java
     - env: TARGET=cs
 
 before_install:
-  - export TRAVIS_BUILD_DIR=$(pwd) #tmp fix, see https://github.com/travis-ci/travis-build/pull/182
   - sudo apt-get update
   - sudo apt-get install ocaml zlib1g-dev libgc-dev -y
   - git clone https://github.com/HaxeFoundation/neko.git ~/neko && cd ~/neko && make && sudo make install && cd $TRAVIS_BUILD_DIR

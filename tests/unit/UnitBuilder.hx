@@ -29,7 +29,7 @@ using StringTools;
 
 class UnitBuilder {
 	
-	static public macro function build(basePath:String):Array<Field> {
+	static public macro function build(basePath:String, filter:String = ".unit.hx"):Array<Field> {
 		var ret = Context.getBuildFields();
 		var numFiles = 0;
 			
@@ -38,7 +38,7 @@ class UnitBuilder {
 			path = path.endsWith("\\") || path.endsWith("/") ? path : path + "/";
 			for (file in dir) {
 				var filePath = path + file;
-				if (file.endsWith(".unit.hx")) {
+				if (file.endsWith(filter)) {
 					numFiles++;
 					var func = {
 						args: [],

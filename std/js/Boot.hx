@@ -68,7 +68,10 @@ class Boot {
 	}
 
 	static inline function getClass(o:Dynamic) : Dynamic {
-		return untyped __define_feature__("js.Boot.getClass", o.__class__);
+		if (Std.is(o, Array))
+			return Array;
+		else
+			return untyped __define_feature__("js.Boot.getClass", o.__class__);
 	}
 
 	@:ifFeature("has_enum")
@@ -171,6 +174,8 @@ class Boot {
 			return (untyped __js__("typeof"))(o) == "boolean";
 		case String:
 			return (untyped __js__("typeof"))(o) == "string";
+		case Array:
+			return (untyped __js__("(o instanceof Array)")) && o.__enum__ == null;
 		case Dynamic:
 			return true;
 		default:
@@ -178,8 +183,6 @@ class Boot {
 				// Check if o is an instance of a Haxe class
 				if( (untyped __js__("typeof"))(cl) == "function" ) {
 					if( untyped __js__("o instanceof cl") ) {
-						if( cl == Array )
-							return (o.__enum__ == null);
 						return true;
 					}
 					if( __interfLoop(getClass(o),cl) )

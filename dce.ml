@@ -62,6 +62,10 @@ let keep_whole_class dce c =
 		| { cl_path = [],"Array" } -> not (dce.com.platform = Js)
 		| _ -> false)
 
+let keep_whole_enum dce en =
+	Meta.has Meta.Keep en.e_meta
+	|| not (dce.full || is_std_file dce en.e_module.m_extra.m_file || has_meta Meta.Dce en.e_meta)
+
 (* check if a field is kept *)
 let keep_field dce cf =
 	Meta.has Meta.Keep cf.cf_meta
@@ -157,7 +161,11 @@ and mark_t dce p t =
 			mark_enum dce e;
 			List.iter (mark_t dce p) pl
 		| TAbstract(a,pl) when Meta.has Meta.MultiType a.a_meta ->
-			mark_t dce p (snd (Codegen.Abstract.find_multitype_specialization a pl p))
+			begin try
+				mark_t dce p (snd (Codegen.Abstract.find_multitype_specialization a pl p))
+			with Typecore.Error _ ->
+				()
+			end
 		| TAbstract(a,pl) ->
 			mark_abstract dce a;
 			List.iter (mark_t dce p) pl
@@ -213,8 +221,11 @@ let rec to_string dce t = match t with
 			dce.ts_stack <- t :: dce.ts_stack;
 			to_string dce (apply_params tt.t_types tl tt.t_type)
 		end
-	| TAbstract(a,tl) ->
-		to_string dce (Codegen.Abstract.get_underlying_type a tl)
+	| TAbstract({a_impl = Some c} as a,tl) ->
+		if Meta.has Meta.CoreType a.a_meta then
+			field dce c "toString" false
+		else
+			to_string dce (Codegen.Abstract.get_underlying_type a tl)
 	| TMono r ->
 		(match !r with
 		| Some t -> to_string dce t
@@ -226,7 +237,7 @@ let rec to_string dce t = match t with
 			()
 		else
 			to_string dce t
-	| TEnum _ | TFun _ | TAnon _ ->
+	| TEnum _ | TFun _ | TAnon _ | TAbstract({a_impl = None},_) ->
 		(* if we to_string these it does not imply that we need all its sub-types *)
 		()
 
@@ -403,6 +414,8 @@ let run com main full =
 				| Some cf -> loop false cf
 				| None -> ()
 			end
+		| TEnumDecl en when keep_whole_enum dce en ->
+			mark_enum dce en
 		| _ ->
 			()
 	) com.types;
@@ -440,12 +453,38 @@ let run com main full =
 		| (TClassDecl c) as mt :: l when keep_whole_class dce c ->
 			loop (mt :: acc) l
 		| (TClassDecl c) as mt :: l ->
+			let check_property cf stat =
+				let add_accessor_metadata cf =
+					if not (Meta.has Meta.Accessor cf.cf_meta) then cf.cf_meta <- (Meta.Accessor,[],c.cl_pos) :: cf.cf_meta
+				in
+				begin match cf.cf_kind with
+				| Var {v_read = AccCall} ->
+					begin try
+						add_accessor_metadata (PMap.find ("get_" ^ cf.cf_name) (if stat then c.cl_statics else c.cl_fields))
+					with Not_found ->
+						()
+					end
+				| _ ->
+					()
+				end;
+				begin match cf.cf_kind with
+				| Var {v_write = AccCall} ->
+					begin try
+						add_accessor_metadata (PMap.find ("set_" ^ cf.cf_name) (if stat then c.cl_statics else c.cl_fields))
+					with Not_found ->
+						()
+					end
+				| _ ->
+					()
+				end;
+			in
 			(* add :keep so subsequent filter calls do not process class fields again *)
 			c.cl_meta <- (Meta.Keep,[],c.cl_pos) :: c.cl_meta;
  			c.cl_ordered_statics <- List.filter (fun cf ->
 				let b = keep_field dce cf in
 				if not b then begin
 					if dce.debug then print_endline ("[DCE] Removed field " ^ (s_type_path c.cl_path) ^ "." ^ (cf.cf_name));
+					check_property cf true;
 					c.cl_statics <- PMap.remove cf.cf_name c.cl_statics;
 				end;
 				b
@@ -454,6 +493,7 @@ let run com main full =
 				let b = keep_field dce cf in
 				if not b then begin
 					if dce.debug then print_endline ("[DCE] Removed field " ^ (s_type_path c.cl_path) ^ "." ^ (cf.cf_name));
+					check_property cf false;
 					c.cl_fields <- PMap.remove cf.cf_name c.cl_fields;
 				end;
 				b
@@ -470,7 +510,7 @@ let run com main full =
 					if dce.debug then print_endline ("[DCE] Removed class " ^ (s_type_path c.cl_path));
 					loop acc l)
 			end
- 		| (TEnumDecl e) as mt :: l when Meta.has Meta.Used e.e_meta || Meta.has Meta.Keep e.e_meta || e.e_extern || not (dce.full || is_std_file dce e.e_module.m_extra.m_file || has_meta Meta.Dce e.e_meta) ->
+ 		| (TEnumDecl en) as mt :: l when Meta.has Meta.Used en.e_meta || en.e_extern || keep_whole_enum dce en ->
 			loop (mt :: acc) l
 		| TEnumDecl e :: l ->
 			if dce.debug then print_endline ("[DCE] Removed enum " ^ (s_type_path e.e_path));

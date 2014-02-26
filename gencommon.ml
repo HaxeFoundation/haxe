@@ -2766,7 +2766,7 @@ struct
 				| TArray ({ eexpr = TLocal ({ v_extra = Some( _ :: _, _) } as v) }, _) -> (* captured transformation *)
 					(match tparam_anon_acc with
 					| None -> Type.map_expr run e
-					| Some tparam_anon_acc -> tparam_anon_acc v e)
+          | Some tparam_anon_acc -> tparam_anon_acc v e)
         | TCall( { eexpr = TField(_, FEnum _) }, _ ) ->
           Type.map_expr run e
         (* if a TClosure is being call immediately, there's no need to convert it to a TClosure *)
@@ -2878,7 +2878,8 @@ struct
   						check_params v.v_type);
 					Hashtbl.add ignored v.v_id v;
 					ignore(Option.map traverse opt)
-        | TLocal { v_extra = Some(_ :: _,_) } -> ()
+        | TLocal { v_extra = Some( (_ :: _ as tparams),_) } ->
+          ()
         | TLocal(( { v_capture = true } ) as v) ->
           (if not (Hashtbl.mem ignored v.v_id || Hashtbl.mem ret v.v_id) then begin check_params v.v_type; Hashtbl.replace ret v.v_id expr end);
         | _ -> Type.iter traverse expr
@@ -3073,6 +3074,8 @@ struct
 				in
 				let original = apply_params types monos vt in
 				unify et original;
+
+        let monos = List.map (fun t -> apply_params types (List.map (fun _ -> t_dynamic) types) t) monos in
 
 				let same_cl t1 t2 = match follow t1, follow t2 with
 					| TInst(c,_), TInst(c2,_) -> c == c2
@@ -6578,6 +6581,11 @@ struct
 
         let res2 = alloc_var "res2" basic.tint in
         let res2_local = mk_local res2 pos in
+        let gte2 = {
+          eexpr = TBinop(Ast.OpGte, res2_local, { eexpr = TConst(TInt(Int32.zero)); etype = basic.tint; epos = pos });
+          etype = basic.tbool;
+          epos = pos;
+        } in
 
         let block =
         [
@@ -6588,7 +6596,7 @@ struct
               Some({ eexpr = TBlock([
                 { eexpr = TVar( res2, Some(ctx.rcf_hash_function hash_local snd_hash)); etype = basic.tvoid; epos = pos };
                 {
-                  eexpr = TIf(gte, { eexpr = TBlock([
+                  eexpr = TIf(gte2, { eexpr = TBlock([
                     mk_splice snd_hash res2_local;
                     mk_splice snd_dynamics res2_local
                   ]); etype = t_dynamic; epos = pos }, None);

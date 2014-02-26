@@ -89,17 +89,21 @@ let rec has_properties c =
 		match f.cf_kind with
 		| Var { v_read = AccCall } -> true
 		| Var { v_write = AccCall } -> true
+		| _ when Meta.has Meta.Accessor f.cf_meta -> true
 		| _ -> false
 	) c.cl_ordered_fields || (match c.cl_super with Some (c,_) -> has_properties c | _ -> false)
 
 let get_properties fields =
 	List.fold_left (fun acc f ->
-		let acc = (match f.cf_kind with
-		| Var { v_read = AccCall } -> ("get_" ^ f.cf_name , "get_" ^ f.cf_name) :: acc
-		| _ -> acc) in
-		match f.cf_kind with
-		| Var { v_write = AccCall } -> ("set_" ^ f.cf_name , "set_" ^ f.cf_name) :: acc
-		| _ -> acc
+		if Meta.has Meta.Accessor f.cf_meta then
+			(f.cf_name, f.cf_name) :: acc
+		else
+			let acc = (match f.cf_kind with
+			| Var { v_read = AccCall } -> ("get_" ^ f.cf_name , "get_" ^ f.cf_name) :: acc
+			| _ -> acc) in
+			match f.cf_kind with
+			| Var { v_write = AccCall } -> ("set_" ^ f.cf_name , "set_" ^ f.cf_name) :: acc
+			| _ -> acc
 	) [] fields
 
 let add_property_field com c =
@@ -222,16 +226,19 @@ let make_generic ctx ps pt p =
 	in
 	let name =
 		String.concat "_" (List.map2 (fun (s,_) t ->
-			let path = (match follow t with
-				| TInst (ct,_) -> ct.cl_path
-				| TEnum (e,_) -> e.e_path
-				| TAbstract (a,_) when Meta.has Meta.RuntimeValue a.a_meta -> a.a_path
+			let s_type_path_underscore (p,s) = match p with [] -> s | _ -> String.concat "_" p ^ "_" ^ s in
+			let rec loop top t = match follow t with
+				| TInst(c,tl) -> (s_type_path_underscore c.cl_path) ^ (loop_tl tl)
+				| TEnum(en,tl) -> (s_type_path_underscore en.e_path) ^ (loop_tl tl)
+				| TAbstract(a,tl) -> (s_type_path_underscore a.a_path) ^ (loop_tl tl)
+				| _ when not top -> "_" (* allow unknown/incompatible types as type parameters to retain old behavior *)
 				| TMono _ -> raise (Generic_Exception (("Could not determine type for parameter " ^ s), p))
 				| t -> raise (Generic_Exception (("Type parameter must be a class or enum instance (found " ^ (s_type (print_context()) t) ^ ")"), p))
-			) in
-			match path with
-			| [] , name -> name
-			| l , name -> String.concat "_" l ^ "_" ^ name
+			and loop_tl tl = match tl with
+				| [] -> ""
+				| tl -> "_" ^ String.concat "_" (List.map (loop false) tl)
+			in
+			loop true t
 		) ps pt)
 	in
 	{
@@ -395,9 +402,9 @@ let rec build_generic ctx c p tl =
 		cg.cl_kind <- KGenericInstance (c,tl);
 		cg.cl_interface <- c.cl_interface;
 		cg.cl_constructor <- (match cg.cl_constructor, c.cl_constructor, c.cl_super with
+			| _, Some c, _ -> Some (build_field c)
 			| Some ctor, _, _ -> Some ctor
 			| None, None, None -> None
-			| None, Some c, _ -> Some (build_field c)
 			| _ -> error "Please define a constructor for this class in order to use it as generic" c.cl_pos
 		);
 		cg.cl_implements <- List.map (fun (i,tl) ->
@@ -507,19 +514,22 @@ let build_metadata com t =
 (* -------------------------------------------------------------------------- *)
 (* MACRO TYPE *)
 
+let get_macro_path e args p =
+	let rec loop e =
+		match fst e with
+		| EField (e,f) -> f :: loop e
+		| EConst (Ident i) -> [i]
+		| _ -> error "Invalid macro call" p
+	in
+	(match loop e with
+	| meth :: cl :: path -> (List.rev path,cl), meth, args
+	| _ -> error "Invalid macro call" p)
+
 let build_macro_type ctx pl p =
 	let path, field, args = (match pl with
 		| [TInst ({ cl_kind = KExpr (ECall (e,args),_) },_)]
 		| [TInst ({ cl_kind = KExpr (EArrayDecl [ECall (e,args),_],_) },_)] ->
-			let rec loop e =
-				match fst e with
-				| EField (e,f) -> f :: loop e
-				| EConst (Ident i) -> [i]
-				| _ -> error "Invalid macro call" p
-			in
-			(match loop e with
-			| meth :: cl :: path -> (List.rev path,cl), meth, args
-			| _ -> error "Invalid macro call" p)
+			get_macro_path e args p
 		| _ ->
 			error "MacroType require a single expression call parameter" p
 	) in
@@ -531,6 +541,21 @@ let build_macro_type ctx pl p =
 	ctx.ret <- old;
 	t
 
+let build_macro_build ctx c pl cfl p =
+	let path, field, args = match Meta.get Meta.GenericBuild c.cl_meta with
+		| _,[ECall(e,args),_],_ -> get_macro_path e args p
+		| _ -> assert false
+	in
+	let old = ctx.ret,ctx.g.get_build_infos in
+	ctx.g.get_build_infos <- (fun() -> Some (TClassDecl c, pl, cfl));
+	let t = (match ctx.g.do_macro ctx MMacroType path field args p with
+		| None -> mk_mono()
+		| Some _ -> ctx.ret
+	) in
+	ctx.ret <- fst old;
+	ctx.g.get_build_infos <- snd old;
+	t
+
 (* -------------------------------------------------------------------------- *)
 (* API EVENTS *)
 
@@ -538,26 +563,24 @@ let build_instance ctx mtype p =
 	match mtype with
 	| TClassDecl c ->
 		if ctx.pass > PBuildClass then c.cl_build();
+		let build f s =
+			let r = exc_protect ctx (fun r ->
+				let t = mk_mono() in
+				r := (fun() -> t);
+				unify_raise ctx (f()) t p;
+				t
+			) s in
+			delay ctx PForce (fun() -> ignore ((!r)()));
+			TLazy r
+		in
 		let ft = (fun pl ->
 			match c.cl_kind with
 			| KGeneric ->
-				let r = exc_protect ctx (fun r ->
-					let t = mk_mono() in
-					r := (fun() -> t);
-					unify_raise ctx (build_generic ctx c p pl) t p;
-					t
-				) "build_generic" in
-				delay ctx PForce (fun() -> ignore ((!r)()));
-				TLazy r
+				build (fun () -> build_generic ctx c p pl) "build_generic"
 			| KMacroType ->
-				let r = exc_protect ctx (fun r ->
-					let t = mk_mono() in
-					r := (fun() -> t);
-					unify_raise ctx (build_macro_type ctx pl p) t p;
-					t
-				) "macro_type" in
-				delay ctx PForce (fun() -> ignore ((!r)()));
-				TLazy r
+				build (fun () -> build_macro_type ctx pl p) "macro_type"
+			| KGenericBuild cfl ->
+				build (fun () -> build_macro_build ctx c pl cfl p) "generic_build"
 			| _ ->
 				TInst (c,pl)
 		) in
@@ -610,15 +633,35 @@ module Abstract = struct
 	let find_from ab pl a b = List.find (Type.unify_from_field ab pl a b) ab.a_from
 
 	let cast_stack = ref []
+	let underlying_type_stack = ref []
 
-	let get_underlying_type a pl =
+	let rec get_underlying_type a pl =
+		let maybe_recurse t =
+			underlying_type_stack := a :: !underlying_type_stack;
+			let t = match follow t with
+				| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
+					if List.mem a !underlying_type_stack then begin
+						let s = String.concat " -> " (List.map (fun a -> s_type_path a.a_path) (List.rev (a :: !underlying_type_stack))) in
+						(* technically this should be done at type declaration level *)
+						error ("Abstract chain detected: " ^ s) a.a_pos
+					end;
+					get_underlying_type a tl
+				| _ ->
+					t
+			in
+			underlying_type_stack := List.tl !underlying_type_stack;
+			t
+		in
 		try
 			if not (Meta.has Meta.MultiType a.a_meta) then raise Not_found;
 			let m = mk_mono() in
 			let _ = find_to a pl m in
-			follow m
+			maybe_recurse (follow m)
 		with Not_found ->
-			apply_params a.a_types pl a.a_this
+			if Meta.has Meta.CoreType a.a_meta then
+				t_dynamic
+			else
+				maybe_recurse (apply_params a.a_types pl a.a_this)
 
 	let make_static_call ctx c cf a pl args t p =
 		let ta = TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) } in
@@ -684,10 +727,21 @@ module Abstract = struct
 
 	let find_multitype_specialization a pl p =
 		let m = mk_mono() in
-		let at = apply_params a.a_types pl a.a_this in
+		let tl = match Meta.get Meta.MultiType a.a_meta with
+			| _,[],_ -> pl
+			| _,el,_ ->
+				let relevant = Hashtbl.create 0 in
+				List.iter (fun e -> match fst e with
+					| EConst(Ident s) -> Hashtbl.replace relevant s true
+					| _ -> error "Type parameter expected" (pos e)
+				) el;
+				let tl = List.map2 (fun (n,_) t -> if Hashtbl.mem relevant n || not (has_mono t) then t else t_dynamic) a.a_types pl in
+				tl
+		in
 		let _,cfo =
-			try find_to a pl m
+			try find_to a tl m
 			with Not_found ->
+				let at = apply_params a.a_types pl a.a_this in
 				let st = s_type (print_context()) at in
 				if has_mono at then
 					error ("Type parameters of multi type abstracts must be known (for " ^ st ^ ")") p
@@ -1141,10 +1195,9 @@ let set_default ctx a c p =
 	mk (TIf (mk_parent (mk cond ctx.basic.tbool p), mk (TBinop (OpAssign,ve,mk (TConst c) t p)) t p,None)) ctx.basic.tvoid p
 
 let bytes_serialize data =
-	let b64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789%:" in
+	let b64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/" in
 	let tbl = Array.init (String.length b64) (fun i -> String.get b64 i) in
-	let str = Base64.str_encode ~tbl data in
-	"s" ^ string_of_int (String.length str) ^ ":" ^ str
+	Base64.str_encode ~tbl data
 
 (*
 	Tells if the constructor might be called without any issue whatever its parameters

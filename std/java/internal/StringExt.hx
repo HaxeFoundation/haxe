@@ -169,6 +169,11 @@ private typedef NativeString = String;
 		return null;
 	}
 
+	public static function toString(me:NativeString):NativeString
+	{
+		return me;
+	}
+
 	@:functionCode('
 			return me.toLowerCase();
 	')

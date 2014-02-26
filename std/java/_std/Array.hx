@@ -402,15 +402,9 @@ import java.NativeArray;
 		return ofNative(newarr);
 	}
 
-	public function iterator() : Iterator<T>
+	public inline function iterator() : Iterator<T>
 	{
-		var i = 0;
-		var len = length;
-		return
-		{
-			hasNext:function() return i < len,
-			next:function() return __a[i++]
-		};
+		return new ArrayIterator<T>(this);
 	}
 
 	public function map<S>( f : T -> S ) : Array<S> {
@@ -466,4 +460,22 @@ import java.NativeArray;
 	{
 		return __a[idx] = val;
 	}
+}
+
+@:final
+private class ArrayIterator<T>
+{
+	var arr:Array<T>;
+	var len:Int;
+	var i:Int;
+
+	public inline function new(a:Array<T>)
+	{
+		arr = a;
+		len = a.length;
+		i = 0;
+	}
+
+	public inline function hasNext():Bool return i < len;
+	public inline function next():T return arr[i++];
 }

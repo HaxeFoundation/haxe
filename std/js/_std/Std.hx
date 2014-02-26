@@ -28,8 +28,8 @@ import js.Boot;
 		return untyped js.Boot.__instanceof(v,t);
 	}
 	
-	public static inline function instance<T>( v : { }, c : Class<T> ) : T {
-		return untyped __instanceof__(v, c) ? cast v : null;
+	public static inline function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
+		return untyped __instanceof__(value, c) ? cast value : null;
 	}
 
 	public static function string( s : Dynamic ) : String {
@@ -61,7 +61,7 @@ import js.Boot;
 	static function __init__() : Void untyped {
 		__feature__("js.Boot.getClass",String.prototype.__class__ = __feature__("Type.resolveClass",$hxClasses["String"] = String,String));
 		__feature__("js.Boot.isClass",String.__name__ = __feature__("Type.getClassName",["String"],true));
-		__feature__("js.Boot.getClass",Array.prototype.__class__ = __feature__("Type.resolveClass",$hxClasses["Array"] = Array,Array));
+		__feature__("Type.resolveClass",$hxClasses["Array"] = Array);
 		__feature__("js.Boot.isClass",Array.__name__ = __feature__("Type.getClassName",["Array"],true));
 		__feature__("Date.*", {
 			__feature__("js.Boot.getClass",__js__('Date').prototype.__class__ = __feature__("Type.resolveClass",$hxClasses["Date"] = __js__('Date'),__js__('Date')));

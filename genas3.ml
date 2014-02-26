@@ -119,6 +119,22 @@ let reserved =
 let s_ident n =
 	if Hashtbl.mem reserved n then "_" ^ n else n
 
+let valid_as3_ident s =
+	try
+		for i = 0 to String.length s - 1 do
+			match String.unsafe_get s i with
+			| 'a'..'z' | 'A'..'Z' | '$' | '_' -> ()
+			| '0'..'9' when i > 0 -> ()
+			| _ -> raise Exit
+		done;
+		true
+	with Exit ->
+		false
+
+let anon_field s =
+	let s = s_ident s in
+	if not (valid_as3_ident s) then "\"" ^ s ^ "\"" else s
+
 let rec create_dir acc = function
 	| [] -> ()
 	| d :: l ->
@@ -246,7 +262,7 @@ let rec type_str ctx t p =
 	| TInst (c,_) ->
 		(match c.cl_kind with
 		| KNormal | KGeneric | KGenericInstance _ | KAbstractImpl _ -> s_path ctx false c.cl_path p
-		| KTypeParameter _ | KExtension _ | KExpr _ | KMacroType -> "*")
+		| KTypeParameter _ | KExtension _ | KExpr _ | KMacroType | KGenericBuild _ -> "*")
 	| TFun _ ->
 		"Function"
 	| TMono r ->
@@ -696,7 +712,7 @@ and gen_expr ctx e =
 		handle_break();
 	| TObjectDecl fields ->
 		spr ctx "{ ";
-		concat ctx ", " (fun (f,e) -> print ctx "%s : " (s_ident f); gen_value ctx e) fields;
+		concat ctx ", " (fun (f,e) -> print ctx "%s : " (anon_field f); gen_value ctx e) fields;
 		spr ctx "}"
 	| TFor (v,it,e) ->
 		let handle_break = handle_break ctx e in
@@ -930,7 +946,11 @@ let generate_field ctx static f =
 			print ctx "]";
 		| _ -> ()
 	) f.cf_meta;
-	let public = f.cf_public || Hashtbl.mem ctx.get_sets (f.cf_name,static) || (f.cf_name = "main" && static) || f.cf_name = "resolve" || Ast.Meta.has Ast.Meta.Public f.cf_meta in
+	let public = f.cf_public || Hashtbl.mem ctx.get_sets (f.cf_name,static) || (f.cf_name = "main" && static)
+	    || f.cf_name = "resolve" || Ast.Meta.has Ast.Meta.Public f.cf_meta
+	    (* consider all abstract methods public to avoid issues with inlined private access *)
+	    || (match ctx.curclass.cl_kind with KAbstractImpl _ -> true | _ -> false)
+	in
 	let rights = (if static then "static " else "") ^ (if public then "public" else "protected") in
 	let p = ctx.curclass.cl_pos in
 	match f.cf_expr, f.cf_kind with
