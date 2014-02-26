@@ -976,11 +976,18 @@ let quick_field t n =
 	| TAnon a ->
 		(match !(a.a_status) with
 		| EnumStatics e ->
-			assert false (* to replace with FEnum later *)
+			let ef = PMap.find n e.e_constrs in
+			FEnum(e,ef)
 		| Statics c ->
 			FStatic (c,PMap.find n c.cl_statics)
-		| AbstractStatics _ ->
-			assert false
+		| AbstractStatics a ->
+			begin match a.a_impl with
+				| Some c ->
+					let cf = PMap.find n c.cl_statics in
+					FStatic(c,cf) (* is that right? *)
+				| _ ->
+					raise Not_found
+			end
 		| _ ->
 			FAnon (PMap.find n a.a_fields))
 	| TDynamic _ ->
@@ -1495,7 +1502,14 @@ let map_expr_type f ft fv e =
 	| TEnumParameter (e1,ef,i) ->
 		{ e with eexpr = TEnumParameter(f e1,ef,i); etype = ft e.etype }
 	| TField (e1,v) ->
-		{ e with eexpr = TField (f e1,v); etype = ft e.etype }
+		let e1 = f e1 in
+		let v = try
+			let n = field_name v in
+			quick_field e1.etype n
+		with Not_found ->
+			v
+		in
+		{ e with eexpr = TField (e1,v); etype = ft e.etype }
 	| TParenthesis e1 ->
 		{ e with eexpr = TParenthesis (f e1); etype = ft e.etype }
 	| TUnop (op,pre,e1) ->
