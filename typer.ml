@@ -2800,7 +2800,30 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		mk TContinue t_dynamic p
 	| ETry (e1,catches) ->
 		let e1 = type_expr ctx e1 with_type in
-		let catches = List.map (fun (v,t,e) ->
+		let rec check_unreachable cases t p = match cases with
+			| (v,e) :: cases ->
+				let unreachable () =
+					display_error ctx "This block is unreachable" p;
+					let st = s_type (print_context()) in
+					display_error ctx (Printf.sprintf "%s can be assigned to %s, which is handled here" (st t) (st v.v_type)) e.epos
+				in
+				begin try
+					begin match follow t,follow v.v_type with
+						| TDynamic _, TDynamic _ ->
+							unreachable()
+						| TDynamic _,_ ->
+							()
+						| _ ->
+							Type.unify t v.v_type;
+							unreachable()
+					end
+				with Unify_error _ ->
+					check_unreachable cases t p
+				end
+			| [] ->
+				()
+		in
+		let catches = List.fold_left (fun acc (v,t,e) ->
 			let t = Typeload.load_complex_type ctx (pos e) t in
 			let name = (match follow t with
 				| TInst ({ cl_path = path },params) | TEnum ({ e_path = path },params) ->
@@ -2814,15 +2837,16 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				| _ -> error "Catch type must be a class" p
 			) in
 			if v.[0] = '$' then display_error ctx "Catch variable names starting with a dollar are not allowed" p;
+			check_unreachable acc t (pos e);
 			let locals = save_locals ctx in
 			let v = add_local ctx v t in
 			let e = type_expr ctx e with_type in
 			locals();
 			if with_type <> NoValue then unify ctx e.etype e1.etype e.epos;
 			if PMap.mem name ctx.locals then error ("Local variable " ^ name ^ " is preventing usage of this type here") e.epos;
-			v , e
-		) catches in
-		mk (TTry (e1,catches)) (if with_type = NoValue then ctx.t.tvoid else e1.etype) p
+			(v , e) :: acc
+		) [] catches in
+		mk (TTry (e1,List.rev catches)) (if with_type = NoValue then ctx.t.tvoid else e1.etype) p
 	| EThrow e ->
 		let e = type_expr ctx e Value in
 		mk (TThrow e) (mk_mono()) p
