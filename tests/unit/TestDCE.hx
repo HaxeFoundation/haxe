@@ -116,7 +116,7 @@ class TestDCE extends Test {
 		nhf(bc, "get_x");
 	}
 	
-	#if !cpp
+	#if (!cpp && !java && !cs)
 	public function testProperty2() {
         var a = new RemovePropertyKeepAccessors();
         a.test = 3;
