@@ -1,3 +1,4 @@
 compile-each.hxml
 -main unit.Test
 -cs cs
+-D dump
