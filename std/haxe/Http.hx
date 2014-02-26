@@ -371,7 +371,9 @@ class Http {
 			me.responseData = output.getBytes().toString();
 			#end
 			err = true;
-			old(e);
+			// Resetting back onError before calling it allows for a second "retry" request to be sent without onError being wrapped twice
+			onError = old;
+			onError(e);
 		}
 		customRequest(post,output);
 		if( !err )
