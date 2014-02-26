@@ -1504,7 +1504,12 @@ let map_expr_type f ft fv e =
 	| TField (e1,v) ->
 		let e1 = f e1 in
 		let v = try
-			let n = field_name v in
+			let n = match v with
+				| FClosure _ -> raise Not_found
+				| FAnon f | FInstance (_,f) | FStatic (_,f) | FClosure (_,f) -> f.cf_name
+				| FEnum (_,f) -> f.ef_name
+				| FDynamic n -> n
+			in
 			quick_field e1.etype n
 		with Not_found ->
 			v
