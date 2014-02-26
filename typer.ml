@@ -2825,17 +2825,20 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		in
 		let catches = List.fold_left (fun acc (v,t,e) ->
 			let t = Typeload.load_complex_type ctx (pos e) t in
-			let name = (match follow t with
+			let rec loop t = match follow t with
 				| TInst ({ cl_path = path },params) | TEnum ({ e_path = path },params) ->
 					List.iter (fun pt ->
 						if pt != t_dynamic then error "Catch class parameter must be Dynamic" p;
 					) params;
 					(match path with
 					| x :: _ , _ -> x
-					| [] , name -> name)
-				| TDynamic _ -> ""
-				| _ -> error "Catch type must be a class" p
-			) in
+					| [] , name -> name),t
+				| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
+					loop (Codegen.Abstract.get_underlying_type a tl)
+				| TDynamic _ -> "",t
+				| _ -> error "Catch type must be a class, an enum or Dynamic" (pos e)
+			in
+			let name,t = loop t in
 			if v.[0] = '$' then display_error ctx "Catch variable names starting with a dollar are not allowed" p;
 			check_unreachable acc t (pos e);
 			let locals = save_locals ctx in
