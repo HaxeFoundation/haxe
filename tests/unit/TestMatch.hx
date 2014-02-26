@@ -462,7 +462,7 @@ class TestMatch extends Test {
 		function f(i) {
 			return switch(i) {
 				case 1,2,3: 1;
-				case even => true: 2;
+				case _.even() => true: 2;
 				case 4: throw "unreachable";
 				case _: 3;
 			}
@@ -484,9 +484,9 @@ class TestMatch extends Test {
 		
 		function f(t:MiniType) {
 			return switch (t) {
-				case MTString(deref => "Foo", []): "Foo";
-				case MTString(deref => "Bar" | "Baz", _): "BarBaz";
-				case MTInt(deref => i, []): 'Int:$i';
+				case MTString(_.deref() => "Foo", []): "Foo";
+				case MTString(_.deref() => "Bar" | "Baz", _): "BarBaz";
+				case MTInt(_.deref() => i, []): 'Int:$i';
 				case MTString(_): "OtherString";
 				case _: "Other";
 			}
@@ -503,7 +503,7 @@ class TestMatch extends Test {
 		function g(i : Array<Int>) {
 			return switch(i) {
 				case [x]: 1;
-				case isPair => Some(p) : p.a+p.b;
+				case isPair(_) => Some(p) : p.a+p.b;
 				case arr: 3;
 			}
 		}
@@ -520,7 +520,7 @@ class TestMatch extends Test {
 		var i = 9;
 		var r = switch(i) {
 			case 1: 1;
-			case anon.odd => true: 2;
+			case anon.odd(_) => true: 2;
 			case 9: 3;
 			case _: 4;
 		}
@@ -531,8 +531,8 @@ class TestMatch extends Test {
 		function check(i) {
 			return switch(i) {
 				case 1: 1;
-				case mul.bind(4) => 8: 2;
-				case mul.bind(5) => 15: 3;
+				case mul(_, 4) => 8: 2;
+				case mul(_, 5) => 15: 3;
 				case _: 4;
 			}
 		}
@@ -556,10 +556,10 @@ class TestMatch extends Test {
 		function h(i : Array<Int>) {
 			return switch(i) {
 				case [x]: 1;
-				case isPair => Some({ a : a, b : b }) if (a < 0): 42;
-				case isPair => Some({ a : is(even) => Some(a), b : b }) : a+b;
-				case isPair => Some({ a : isNot(even) => Some(a), b : b }) : a*b;
-				case testArgs.bind(1, "foo") => "[99,98,97]": 99;
+				case isPair(_) => Some({ a : a, b : b }) if (a < 0): 42;
+				case isPair(_) => Some({ a : is(even)(_) => Some(a), b : b }) : a+b;
+				case isPair(_) => Some({ a : isNot(even)(_) => Some(a), b : b }) : a*b;
+				case testArgs(1, "foo", _) => "[99,98,97]": 99;
 				case arr: 3;
 			}
 		}
