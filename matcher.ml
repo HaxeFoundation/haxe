@@ -1012,7 +1012,10 @@ let transform_extractors mctx stl cases =
 		| (epat,eg,e) :: cl ->
 			let ex = ref [] in
 			let exc = ref 0 in
+			let in_or = ref false in
 			let rec find_ex e = match fst e with
+				| EBinop(OpArrow,_,_) when !in_or ->
+					error "Extractors in or patterns are not allowed" (pos e)
 				| EBinop(OpArrow, e1, e2) ->
 					let p = pos e in
 					let ec = EConst (Ident ("__ex" ^ string_of_int (!exc))),snd e in
@@ -1023,6 +1026,13 @@ let transform_extractors mctx stl cases =
 					ex := (ecall,e2) :: !ex;
 					incr exc;
 					ec
+				| EBinop(OpOr,e1,e2) ->
+					let old = !in_or in
+					in_or := true;
+					let e1 = find_ex e1 in
+					let e2 = find_ex e2 in
+					in_or := old;
+					(EBinop(OpOr,e1,e2)),(pos e)
 				| _ ->
 					Ast.map_expr find_ex e
 			in
