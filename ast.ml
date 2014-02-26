@@ -34,7 +34,6 @@ module Meta = struct
 		| Allow
 		| Annotation
 		| ArrayAccess
-		| AssignsThis
 		| Ast
 		| AutoBuild
 		| Bind

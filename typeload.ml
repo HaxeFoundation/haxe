@@ -1655,7 +1655,7 @@ let init_class ctx c p context_init herits fields =
 		let extern = Meta.has Meta.Extern f.cff_meta || c.cl_extern in
 		let is_abstract,allow_inline =
 			match c.cl_kind, f.cff_kind with
-			| KAbstractImpl _, _ -> true,ctx.g.doinline || Meta.has Meta.Impl f.cff_meta || extern
+			| KAbstractImpl _, _ -> true,true
 			|_, FFun _ -> false,ctx.g.doinline || extern
 			| _ -> false,true
 		in

@@ -1506,7 +1506,7 @@ let map_expr_type f ft fv e =
 		let v = try
 			let n = match v with
 				| FClosure _ -> raise Not_found
-				| FAnon f | FInstance (_,f) | FStatic (_,f) | FClosure (_,f) -> f.cf_name
+				| FAnon f | FInstance (_,f) | FStatic (_,f) -> f.cf_name
 				| FEnum (_,f) -> f.ef_name
 				| FDynamic n -> n
 			in
