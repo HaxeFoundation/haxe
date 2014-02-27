@@ -560,6 +560,7 @@ class XmlParser {
 			var args = new List();
 			var aname = x.att.a.split(":");
 			var eargs = aname.iterator();
+			var evalues = x.has.v ? x.att.v.split(":").iterator() : null;
 			for( e in x.elements ) {
 				var opt = false;
 				var a = eargs.next();
@@ -569,10 +570,12 @@ class XmlParser {
 					opt = true;
 					a = a.substr(1);
 				}
+				var v = evalues == null ? null : evalues.next();
 				args.add({
 					name : a,
 					opt : opt,
 					t : xtype(e),
+					value : v
 				});
 			}
 			var ret = args.last();
