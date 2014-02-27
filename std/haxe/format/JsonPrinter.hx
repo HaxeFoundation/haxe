@@ -39,6 +39,8 @@ class JsonPrinter {
 		case TClass(c):
 			if( c == String )
 				quote(v);
+			else if( c == Date )
+				quote(cast(v, Date).toString());
 			else if( c == Array ) {
 				var v : Array<Dynamic> = v;
 				addChar('['.code);
