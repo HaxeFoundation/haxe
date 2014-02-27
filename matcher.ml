@@ -1007,14 +1007,14 @@ let convert_switch ctx st cases loop =
 
 (* Decision tree compilation *)
 
-let transform_extractors mctx stl cases =
-	let rec loop cl = match cl with
-		| (epat,eg,e) :: cl ->
+let transform_extractors eval cases p =
+	let has_extractor = ref false in
+	let rec loop cases = match cases with
+		| (epat,eg,e) :: cases ->
 			let ex = ref [] in
 			let exc = ref 0 in
-			let in_or = ref false in
-			let rec find_ex e = match fst e with
-				| EBinop(OpArrow,_,_) when !in_or ->
+			let rec find_ex in_or e = match fst e with
+				| EBinop(OpArrow,_,_) when in_or ->
 					error "Extractors in or patterns are not allowed" (pos e)
 				| EBinop(OpArrow, e1, e2) ->
 					let ec = EConst (Ident ("__ex" ^ string_of_int (!exc))),snd e in
@@ -1025,40 +1025,39 @@ let transform_extractors mctx stl cases =
 					let ecall = map_left e1 in
 					ex := (ecall,e2) :: !ex;
 					incr exc;
+					has_extractor := true;
 					ec
 				| EBinop(OpOr,e1,e2) ->
-					let old = !in_or in
-					in_or := true;
-					let e1 = find_ex e1 in
-					let e2 = find_ex e2 in
-					in_or := old;
+					let e1 = find_ex true e1 in
+					let e2 = find_ex true e2 in
 					(EBinop(OpOr,e1,e2)),(pos e)
 				| _ ->
-					Ast.map_expr find_ex e
+					Ast.map_expr (find_ex in_or) e
 			in
-			let p = pos epat in
-			let epat = find_ex epat in
-			if !exc = 0 then (epat,eg,e) :: loop cl else begin
-				mctx.has_extractor <- true;
+			let p = match e with None -> p | Some e -> pos e in
+			let epat = match epat with
+				| [epat] -> [find_ex false epat]
+				| _ -> List.map (find_ex true) epat
+			in
+			let cases = loop cases in
+			if !exc = 0 then
+				(epat,eg,e) :: cases
+			else begin
 				let esubjects = EArrayDecl (List.map fst !ex),p in
 				let case1 = [EArrayDecl (List.map snd !ex),p],eg,e in
-				let cases = match cl with
+				let cases2 = match cases with
 					| [] -> [case1]
-					| [(EConst (Ident "_"),_),_,e] -> case1 :: [[(EConst (Ident "_"),p)],None,e]
+					| [[EConst (Ident "_"),_],_,e] -> case1 :: [[(EConst (Ident "_"),p)],None,e]
 					| _ ->
-						let cl2 = List.map (fun (epat,eg,e) -> [epat],eg,e) (loop cl) in
-						let st = match stl with st :: stl -> st | _ -> error "Unsupported" p in
-						let subj = convert_st mctx.ctx st in
-						let e_subj = Interp.make_ast subj in
-						case1 :: [[(EConst (Ident "_"),p)],None,Some (ESwitch(e_subj,cl2,None),p)]
+						case1 :: [[(EConst (Ident "_"),p)],None,Some (ESwitch(eval,cases,None),p)]
 				in
-				let eswitch = (ESwitch(esubjects,cases,None)),p in
-				(epat,None,Some eswitch) :: loop cl
+				let eswitch = (ESwitch(esubjects,cases2,None)),p in
+				(epat,None,Some eswitch) :: cases
 			end
 		| [] ->
 			[]
 	in
-	loop cases
+	loop cases,!has_extractor
 
 let extractor_depth = ref 0
 
@@ -1081,6 +1080,7 @@ let match_expr ctx e cases def with_type p =
 			cases @ [[(EConst(Ident "_")),p],None,def]
 		| _ -> cases
 	in
+	let cases,has_extractor = transform_extractors e cases p in
 	(* type subject(s) *)
 	let array_match = ref false in
 	let evals = match fst e with
@@ -1129,7 +1129,7 @@ let match_expr ctx e cases def with_type p =
 		dt_lut = DynArray.create ();
 		dt_cache = Hashtbl.create 0;
 		dt_count = 0;
-		has_extractor = false;
+		has_extractor = has_extractor;
 		expr_map = PMap.empty;
 	} in
 	(* flatten cases *)
@@ -1143,7 +1143,6 @@ let match_expr ctx e cases def with_type p =
 				collapse_case el,eg,e
 	) cases in
 	let is_complex = ref false in
-	let cases = transform_extractors mctx stl cases in
 	if mctx.has_extractor then incr extractor_depth;
 	let add_pattern_locals (pat,locals,complex) =
 		PMap.iter (fun n (v,p) -> ctx.locals <- PMap.add n v ctx.locals) locals;
