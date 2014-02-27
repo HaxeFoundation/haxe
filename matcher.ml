@@ -524,7 +524,7 @@ let to_pattern ctx e t =
 			let pat1 = loop pctx e1 t in
 			begin match pat1.p_def with
 				| PAny | PVar _ ->
-					ctx.com.warning "This pattern is unused" (pos e2);
+					display_error ctx "This pattern is unused" (pos e2);
 					pat1
 				| _ ->
 					let pctx2 = {
@@ -682,47 +682,44 @@ let swap_columns i (row : 'a list) : 'a list =
 	| _ ->
 		[]
 
-let expand_or mctx pmat =
-	let rec loop pmat = match pmat with
+let expand_or mctx (pmat : pat_matrix) =
+	let rec loop pat = match pat.p_def with
+		| POr(pat1,pat2) ->
+			let pat1 = loop pat1 in
+			let pat2 = loop pat2 in
+			pat1 @ pat2
+		| PBind(v,pat1) ->
+			let pat1 = loop pat1 in
+			List.map (fun pat1 ->
+				{pat with p_def = PBind(v,pat1)}
+			) pat1
+		| PTuple(pl) ->
+			let pat1 = loop pl.(0) in
+			List.map (fun pat1 ->
+				let a1 = Array.copy pl in
+				a1.(0) <- pat1;
+				{pat with p_def = PTuple a1}
+			) pat1
+		| _ ->
+			[pat]
+	in
+	let rec loop2 pmat = match pmat with
 		| (pv,out) :: pmat ->
-			let acc = ref [] in
-			let rec loop2 pv out = match pv.(0) with
-				| {p_def = POr(pat1,pat2)} ->
-					out.o_pos <- pat1.p_pos;
-					let out2 = clone_out mctx out pat2.p_pos in
-					let tl = array_tl pv in
-					loop2 (Array.append [|pat2|] tl) out2;
-					loop2 (Array.append [|pat1|] tl) out;
-				| {p_def = PBind(v,{p_def = POr(pat1,pat2)})} as pat ->
-					out.o_pos <- pat1.p_pos;
-					let out2 = clone_out mctx out pat2.p_pos in
-					let tl = array_tl pv in
-					loop2 (Array.append [|{pat with p_def = PBind(v,pat2)}|] tl) out2;
-					loop2 (Array.append [|{pat with p_def = PBind(v,pat1)}|] tl) out;
-				| {p_def = PTuple tl} as pat ->
-					begin match tl.(0).p_def with
-					 	| POr(pat1,pat2) ->
-							let out2 = clone_out mctx out pat2.p_pos in
-							let a1 = Array.copy tl in
-							a1.(0) <- pat1;
-							let a2 = Array.copy tl in
-							a2.(0) <- pat2;
-							let tl = array_tl pv in
-							loop2 (Array.append [|{pat with p_def = PTuple a2}|] tl) out2;
-							loop2 (Array.append [|{pat with p_def = PTuple a1}|] tl) out;
-					 	| _ ->
-					 		acc := (pv,out) :: !acc
-					 end
-				| _ ->
-					acc := (pv,out) :: !acc
-			in
-			let r = loop pmat in
-			loop2 pv out;
-			!acc @ r
+			let pat = loop pv.(0) in
+			let pat' = ExtList.List.mapi (fun i pat ->
+				(* TODO: This should really be active, but currently causes problems with or-patterns in
+				   tuples (issue #2610). We will disable this for the 3.1.0 release, which means issue
+				   #2508 is open again. *)
+				(* let out = if i = 0 then out else clone_out mctx out pat.p_pos in *)
+				let a1 = Array.copy pv in
+				a1.(0) <- pat;
+				a1,out
+			) pat in
+			pat' @ (loop2 pmat)
 		| [] ->
 			[]
 	in
-	loop pmat
+	loop2 pmat
 
 let column_sigma mctx st pmat =
 	let acc = ref [] in
