@@ -558,7 +558,7 @@ class XmlParser {
 			CAbstract(mkPath(x.att.path),xtypeparams(x));
 		case "f":
 			var args = new List();
-			var aname = x.att.a.split(":");
+			var aname = x.has.a ? x.att.a.split(":") : ["",""]; // Void -> Void
 			var eargs = aname.iterator();
 			var evalues = x.has.v ? x.att.v.split(":").iterator() : null;
 			for( e in x.elements ) {
