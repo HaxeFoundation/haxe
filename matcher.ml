@@ -1008,6 +1008,8 @@ let convert_switch ctx st cases loop =
 (* Decision tree compilation *)
 
 let transform_extractors eval cases p =
+	let efail = (EThrow(EConst(Ident "false"),p)),p in
+	let cfail = [(EConst (Ident "_"),p)],None,Some efail in
 	let has_extractor = ref false in
 	let rec loop cases = match cases with
 		| (epat,eg,e) :: cases ->
@@ -1052,7 +1054,13 @@ let transform_extractors eval cases p =
 						case1 :: [[(EConst (Ident "_"),p)],None,Some (ESwitch(eval,cases,None),p)]
 				in
 				let eswitch = (ESwitch(esubjects,cases2,None)),p in
-				(epat,None,Some eswitch) :: cases
+				let case = epat,None,Some eswitch in
+				begin match epat with
+					| [EConst(Ident _),_] ->
+						[case;cfail]
+					| _ ->
+						case :: cases
+				end
 			end
 		| [] ->
 			[]
