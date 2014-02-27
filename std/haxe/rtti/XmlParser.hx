@@ -575,7 +575,7 @@ class XmlParser {
 					name : a,
 					opt : opt,
 					t : xtype(e),
-					value : v
+					value : v == "" ? null : v
 				});
 			}
 			var ret = args.last();
