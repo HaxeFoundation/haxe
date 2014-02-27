@@ -184,19 +184,10 @@ class Path {
 	}
 
 	/**
-		Normalize a given `path` (e.g. make '/your/fancy/../path' to '/your/path')
+		Normalize a given `path` (e.g. make '/usr/local/../lib' to '/usr/lib')
 	**/
-	public static function normalize( path : String, ?forceSlash : Bool = false ) : String {
+	public static function normalize( path : String) : String {
 		var slash = '/';
-
-		if( this.backslash && !forceSlash ) {
-			slash = '\\';
-		}
-
-		if( forceSlash ) {
-			// replace backslashes
-			path = StringUtils.replace(path, '\\', '/');
-		}
 
 		if( path == null || path == slash ) {
 			return slash;
@@ -229,7 +220,6 @@ class Path {
 
 		return (prependSlash ? slash : '') + result;
 	}
-
 
 	/**
 		Adds a trailing slash to `path`, if it does not have one already.
