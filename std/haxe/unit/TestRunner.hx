@@ -80,8 +80,7 @@ class TestRunner {
 				__js__("console").log(msg); // document-less js (which may include a line break)
 
 		#elseif cs
-			var str:String = v;
-			untyped __cs__("System.Console.Write(str)");
+			cs.system.Console.Write(v);
 		#elseif java
 			var str:String = v;
 			untyped __java__("java.lang.System.out.print(str)");

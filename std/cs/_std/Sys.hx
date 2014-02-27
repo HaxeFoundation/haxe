@@ -161,16 +161,15 @@ class Sys {
 		return Environment.TickCount / 1000;
 	}
 
-	public static function executablePath() : String
+	public static inline function executablePath() : String
 	{
-		//TODO: add extern references
-		return untyped __cs__('System.Reflection.Assembly.GetExecutingAssembly().GetName().CodeBase');
+		return cs.system.reflection.Assembly.GetExecutingAssembly().GetName().CodeBase;
 	}
 
 	public static function getChar( echo : Bool ) : Int
 	{
 		#if !(Xbox || CF || MF) //Xbox, Compact Framework, Micro Framework
-		return untyped __cs__('((int) System.Console.ReadKey(!echo).KeyChar)');
+		return cast(cs.system.Console.ReadKey(!echo).KeyChar, Int);
 		#else
 		return -1;
 		#end
