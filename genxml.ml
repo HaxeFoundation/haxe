@@ -98,7 +98,6 @@ let rec gen_type ?(tfunc=None) t =
 	| TInst (c,params) -> gen_type_decl "c" (TClassDecl c) params
 	| TAbstract (a,params) -> gen_type_decl "x" (TAbstractDecl a) params
 	| TType (t,params) -> gen_type_decl "t" (TTypeDecl t) params
-	| TFun ([],r) -> node "f" [] [(node "x" ["path","Void"] []);gen_type r]
 	| TFun (args,r) ->
 		let s_const ct = match ct with
 			| TString s -> Printf.sprintf "'%s'" (Ast.s_escape s)
