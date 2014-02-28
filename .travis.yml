@@ -21,7 +21,6 @@ env:
 matrix:
   allow_failures:
     - env: TARGET=flash8
-    - env: TARGET=java
     - env: TARGET=cs
 
 before_install:
