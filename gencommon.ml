@@ -3127,16 +3127,15 @@ struct
 
       let func_args_i i =
 
-        let rec loop i (acc1,acc2) =
-          if i = 0 then (acc1,acc2) else begin
+        let rec loop i (acc) =
+          if i = 0 then (acc) else begin
             let vfloat = alloc_var (gen.gmk_internal_name "fn" ("float" ^ string_of_int i)) basic.tfloat in
             let vdyn = alloc_var (gen.gmk_internal_name "fn" ("dyn" ^ string_of_int i)) t_dynamic in
 
-            loop (i - 1) ((vfloat, None) :: acc1 , (vdyn, None) :: acc2)
+            loop (i - 1) ((vfloat, None) :: (vdyn, None) :: acc)
           end
         in
-        let acc1, acc2 = loop i ([],[]) in
-        acc1 @ acc2
+        loop i []
 
       in
 
@@ -3150,16 +3149,15 @@ struct
 
       let func_sig_i i =
 
-        let rec loop i (acc1,acc2) =
-          if i = 0 then (acc1,acc2) else begin
+        let rec loop i acc =
+          if i = 0 then acc else begin
             let vfloat = gen.gmk_internal_name "fn" ("float" ^ string_of_int i) in
             let vdyn = gen.gmk_internal_name "fn" ("dyn" ^ string_of_int i) in
 
-            loop (i - 1) ((vfloat, false, basic.tfloat) :: acc1 , (vdyn, false, t_dynamic) :: acc2)
+            loop (i - 1) ( (vfloat,false,basic.tfloat) :: (vdyn,false,t_dynamic) :: acc )
           end
         in
-        let acc1, acc2 = loop i ([],[]) in
-        acc1 @ acc2
+        loop i []
 
       in
 
@@ -3185,13 +3183,12 @@ struct
         if List.length el >= max_arity then
           [{ eexpr = TArrayDecl el; etype = basic.tarray t_dynamic; epos = pos }]
         else begin
-          let acc1,acc2 = List.fold_left (fun (acc_f,acc_d) e ->
+          List.fold_left (fun acc e ->
                                             if like_float (gen.greal_type e.etype) then
-                                              ( e :: acc_f, undefined e.epos :: acc_d )
+                                              ( e :: undefined e.epos :: acc )
                                             else
-                                              ( null basic.tfloat e.epos :: acc_f, e :: acc_d )
-          ) ([],[]) (List.rev el) in
-          acc1 @ acc2
+                                              ( null basic.tfloat e.epos :: e :: acc )
+          ) ([]) (List.rev el)
         end
       in
 
@@ -3230,7 +3227,7 @@ struct
           ) (0,[]) args)
         end else begin
           let _, dyn_args, float_args = List.fold_left (fun (count,fargs, dargs) arg ->
-            if count > arity then
+            if count land 1 = 0 then
               (count + 1, fargs, arg :: dargs)
             else
               (count + 1, arg :: fargs, dargs)
@@ -3404,8 +3401,8 @@ struct
           (* only cast if needed *)
           let mk_cast tto efrom = gen.ghandle_cast (gen.greal_type tto) (gen.greal_type efrom.etype) efrom in
           let api i t const =
-            let vf, _ = List.nth args i in
-            let vo, _ = List.nth args (i + arity) in
+            let vf, _ = List.nth args (i * 2) in
+            let vo, _ = List.nth args (i * 2 + 1) in
 
             let needs_cast, is_float = match t, like_float t with
               | TInst({ cl_path = ([], "Float") }, []), _
@@ -3556,14 +3553,13 @@ struct
 
         let rec mk_dyn_call arity api =
           let zero = { eexpr = TConst(TFloat("0.0")); etype = basic.tfloat; epos = pos } in
-          let rec loop i (acc1,acc2) =
-            if i = 0 then (acc1,acc2) else begin
+          let rec loop i acc =
+            if i = 0 then acc else begin
               let arr = api (i-1) t_dynamic None in
-              loop (i - 1) (zero :: acc1, arr :: acc2)
+              loop (i - 1) (zero :: arr :: acc)
             end
           in
-          let acc1, acc2 = loop arity ([],[]) in
-          acc1 @ acc2
+          loop arity ([])
         in
 
         let mk_invoke_switch i (api:(int->t->tconstant option->texpr)) =
