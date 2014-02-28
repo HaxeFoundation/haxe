@@ -2883,25 +2883,30 @@ let convert_ilmethod ctx p m =
 let convert_ilprop ctx p prop =
 	if not (Common.defined ctx.ncom Define.Unsafe) && has_unmanaged prop.psig.snorm then raise Exit;
 	let p = { p with pfile =  p.pfile ^" (" ^prop.pname ^")" } in
-	let cff_access = match prop.pmflags with
+  let pmflags = match prop.pget, prop.pset with
+    | Some(_,fl1), _ -> Some fl1
+    | _, Some(_,fl2) -> Some fl2
+    | _ -> None
+  in
+	let cff_access = match pmflags with
 		| Some { mf_access = FAFamily | FAFamOrAssem } -> APrivate
 		| Some { mf_access = FAPublic } -> APublic
-		| _ -> raise Exit (* private instances aren't useful on externs *)
+    | _ -> raise Exit (* non-public / protected fields don't interest us *)
 	in
-	let cff_access = match prop.pmflags with
+	let cff_access = match pmflags with
 		| Some m when List.mem CMStatic m.mf_contract ->
 			[AStatic;cff_access]
 		| _ -> [cff_access]
 	in
 	let get = match prop.pget with
 		| None -> "never"
-		| Some s when String.length s <= 4 || String.sub s 0 4 <> "get_" ->
+		| Some(s,_) when String.length s <= 4 || String.sub s 0 4 <> "get_" ->
 			raise Exit (* special (?) getter; not used *)
 		| Some _ -> "get"
 	in
 	let set = match prop.pset with
 		| None -> "never"
-		| Some s when String.length s <= 4 || String.sub s 0 4 <> "set_" ->
+		| Some(s,_) when String.length s <= 4 || String.sub s 0 4 <> "set_" ->
 			raise Exit (* special (?) getter; not used *)
 		| Some _ -> "set"
 	in
@@ -3039,8 +3044,11 @@ let is_static = function
 		List.mem CStatic f.fflags.ff_contract
 	| IlMethod m ->
 		List.mem CMStatic m.mflags.mf_contract
-	| IlProp { pmflags = Some m } ->
-		List.mem CMStatic m.mf_contract
+	| IlProp p ->
+    List.exists (function
+     | None -> false
+     | Some (_,m) -> List.mem CMStatic m.mf_contract
+    ) [p.pget;p.pset]
 	| _ -> false
 
 let change_name name = function
@@ -3110,10 +3118,8 @@ let get_all_fields cls =
 	let all_fields = List.map (fun f -> IlField f, cls.cpath, f.fname, List.mem CStatic f.fflags.ff_contract) cls.cfields in
 	let all_fields = all_fields @ List.map (fun m -> IlMethod m, cls.cpath, m.mname, List.mem CMStatic m.mflags.mf_contract) cls.cmethods in
 	let all_fields = all_fields @ List.map (function
-		| ({ pmflags = Some m } as p) ->
-			IlProp p, cls.cpath, p.pname, List.mem CMStatic m.mf_contract
 		| p ->
-			IlProp p, cls.cpath, p.pname, false
+			IlProp p, cls.cpath, p.pname, is_static (IlProp p)
 	) cls.cprops in
 	all_fields
 
@@ -3191,8 +3197,8 @@ let normalize_ilcls ctx cls =
 
 	(* filter out properties that were already declared *)
 	let props = List.filter (function
-		| ({ pmflags = Some m } as p) ->
-			let static = List.mem CMStatic m.mf_contract in
+		| p ->
+			let static = is_static (IlProp p) in
 			let name = p.pname in
 			not (List.exists (function (IlProp _,_,n,s) -> s = static && name = n | _ -> false) !all_fields)
 		| _ -> false
