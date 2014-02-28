@@ -409,6 +409,8 @@ class Http {
 			if( secure ) {
 				#if php
 				sock = new php.net.SslSocket();
+				#elseif java
+				sock = new java.net.SslSocket();
 				#elseif hxssl
 				sock = new neko.tls.Socket();
 				#else
