@@ -9608,11 +9608,11 @@ struct
 
           let block, k = process_expr block in
           if java_mode then
-            match get_constant_expr cond, !has_break with
-              | Some (TBool true), false ->
+            match get_constant_expr cond, flag, !has_break with
+              | Some (TBool true), _, false ->
                 has_break := last_has_break;
                 { expr with eexpr = TWhile(cond, block, flag) }, BreaksFunction
-              | Some (TBool false), _ ->
+              | Some (TBool false), NormalWhile, _ ->
                 has_break := last_has_break;
                 do_warn expr.epos;
                 null expr.etype expr.epos, Normal
