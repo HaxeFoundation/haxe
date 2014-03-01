@@ -627,13 +627,14 @@ let configure gen =
 
   let no_root = Common.defined gen.gcon Define.NoRoot in
 
-  let change_clname n = n in
-
   let change_id name = try
 			Hashtbl.find reserved name
 		with | Not_found ->
-      String.concat "." (String.nsplit name "#")
+      let ret = String.concat "." (String.nsplit name "#") in
+      List.hd (String.nsplit ret "`")
 	in
+
+  let change_clname n = change_id n in
 
   let change_ns md = if no_root then
     function
@@ -2588,14 +2589,21 @@ let add_cs = function
   | "system" :: ns -> "cs" :: "system" :: ns
 	| ns -> ns
 
+let netcl_to_hx cl =
+  try
+    let cl, nargs = String.split cl "`" in
+    cl ^ "_" ^ nargs
+  with | Invalid_string ->
+    cl
+
 let netpath_to_hx std = function
-	| [],[], cl -> [], cl
+	| [],[], cl -> [], netcl_to_hx cl
 	| ns,[], cl ->
 		let ns = (List.map String.lowercase ns) in
-		add_cs ns, cl
+		add_cs ns, netcl_to_hx cl
 	| ns,(nhd :: ntl as nested), cl ->
 		let ns = (List.map String.lowercase ns) @ [nhd] in
-		add_cs ns, String.concat "_" nested ^ "_" ^ cl
+		add_cs ns, String.concat "_" nested ^ "_" ^ netcl_to_hx cl
 
 let lookup_ilclass std com ilpath =
   let path = netpath_to_hx std ilpath in
@@ -2611,9 +2619,9 @@ let discard_nested = function
 let mk_type_path ctx path params =
   let pack, sub, name = match path with
 		| ns,[], cl ->
-			ns, None, cl
+			ns, None, netcl_to_hx cl
 		| ns, (nhd :: ntl as nested), cl ->
-			ns, Some (String.concat "_" nested ^ "_" ^ cl), nhd
+			ns, Some (String.concat "_" nested ^ "_" ^ netcl_to_hx cl), nhd
 	in
   CTPath {
 		tpackage = fst (netpath_to_hx ctx.nstd (pack,[],""));

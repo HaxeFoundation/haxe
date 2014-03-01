@@ -38,13 +38,12 @@ class TestCSharp extends Test
 
 	function testGenerics()
 	{
-		var jcl:cs.system.Type = cast Base_InnerClass_InnerInnerClass;
-		t(haxe.test.GenericHelper.staticTypedGeneric(jcl) != null);
+		t(haxe.test.GenericHelper.staticTypedGeneric(new Base_InnerClass_InnerInnerClass()) != null);
 
 		var helper = new haxe.test.GenericHelper();
 
 		var val = new Base_InnerClass();
-		var g1 = new haxe.test.Generic1(val);
+		var g1 = new haxe.test.Generic1_1(val);
 		g1.complexTypeParameterOfTypeParameter(new Base_InnerClass_InnerInnerClass());
 		//if no compile-time error, we're fine!
 		t(true);
