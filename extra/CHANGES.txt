@@ -52,6 +52,7 @@
 	macro : add Context.onAfterGenerate
 	macro : add Context.typeExpr
 	macro : add Context.getExpectedType
+	macro : add ExprTools.getValue
 	macro : allowed $v{(c:Float|Int|String)}
 	macro : resolve error line number in external files
 	macro : rewrote macros used as static extension
