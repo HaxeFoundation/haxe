@@ -2379,7 +2379,7 @@ struct
     change_expr (expr) (field_access_expr) (field) (setting expr) (is_unsafe) : changes the expression
     call_expr (expr) (field_access_expr) (field) (call_params) : changes a call expression
   *)
-  let abstract_implementation gen (is_dynamic:texpr->texpr->string->bool) (change_expr:texpr->texpr->string->texpr option->bool->texpr) (call_expr:texpr->texpr->string->texpr list->texpr) =
+  let abstract_implementation gen (is_dynamic:texpr->texpr->Type.tfield_access->bool) (change_expr:texpr->texpr->string->texpr option->bool->texpr) (call_expr:texpr->texpr->string->texpr list->texpr) =
     let rec run e =
       match e.eexpr with
         (* class types *)
@@ -2397,10 +2397,13 @@ struct
               | TAbstractDecl _ -> (* abstracts don't have TFields *) assert false
               | TTypeDecl _ -> (* anon_class doesn't return TTypeDecl *) assert false
             with
-              | Not_found ->
+              | Not_found -> match f with
+                | FStatic(cl,cf) when Meta.has Meta.Extern cf.cf_meta ->
+                  { e with eexpr = TField({ fexpr with eexpr = TTypeExpr decl }, FStatic(cl, cf)) }
+                | _ ->
                   change_expr e { fexpr with eexpr = TTypeExpr decl } (field_name f) None true
           )
-        | TField(fexpr, f) when is_dynamic e fexpr (field_name f) ->
+        | TField(fexpr, f) when is_dynamic e fexpr (f) ->
           change_expr e (run fexpr) (field_name f) None true
         | TCall(
           { eexpr = TField(_, FStatic({ cl_path = ([], "Reflect") }, { cf_name = "field" })) } ,
@@ -2412,7 +2415,7 @@ struct
             [obj; { eexpr = TConst(TString(field)) }; evalue]
           ) ->
           change_expr (mk_field_access gen obj field obj.epos) (run obj) field (Some (run evalue)) false
-        | TBinop(OpAssign, ({eexpr = TField(fexpr, f)}), evalue) when is_dynamic e fexpr (field_name f) ->
+        | TBinop(OpAssign, ({eexpr = TField(fexpr, f)}), evalue) when is_dynamic e fexpr (f) ->
           change_expr e (run fexpr) (field_name f) (Some (run evalue)) true
         | TBinop(OpAssign, { eexpr = TField(fexpr, f) }, evalue) ->
             (match field_access_esp gen fexpr.etype (f) with
@@ -2421,11 +2424,11 @@ struct
               | _ -> Type.map_expr run e
             )
 (* #if debug *)
-        | TBinop(OpAssignOp op, ({eexpr = TField(fexpr, f)}), evalue) when is_dynamic e fexpr (field_name f) -> assert false (* this case shouldn't happen *)
+        | TBinop(OpAssignOp op, ({eexpr = TField(fexpr, f)}), evalue) when is_dynamic e fexpr (f) -> assert false (* this case shouldn't happen *)
         | TUnop(Increment, _, ({eexpr = TField( ( { eexpr=TLocal(local) } as fexpr ), f)}))
-        | TUnop(Decrement, _, ({eexpr = TField( ( { eexpr=TLocal(local) } as fexpr ), f)})) when is_dynamic e fexpr (field_name f) -> assert false (* this case shouldn't happen *)
+        | TUnop(Decrement, _, ({eexpr = TField( ( { eexpr=TLocal(local) } as fexpr ), f)})) when is_dynamic e fexpr (f) -> assert false (* this case shouldn't happen *)
 (* #end *)
-        | TCall( ({ eexpr = TField(fexpr, f) }), params ) when is_dynamic e fexpr (field_name f) ->
+        | TCall( ({ eexpr = TField(fexpr, f) }), params ) when is_dynamic e fexpr (f) ->
           call_expr e (run fexpr) (field_name f) (List.map run params)
         | _ -> Type.map_expr run e
     in run
@@ -8181,11 +8184,7 @@ struct
   let configure_dynamic_field_access ctx is_synf =
     let gen = ctx.rcf_gen in
     let is_dynamic expr fexpr field =
-      match (match expr.eexpr with
-        | TField(_,f) ->
-        field_access_esp gen (gen.greal_type fexpr.etype) f
-        | _ ->
-        field_access gen (gen.greal_type fexpr.etype) field) with
+      match (field_access_esp gen (gen.greal_type fexpr.etype) field) with
       | FEnumField _
       | FClassField _ -> false
       | _ -> true
