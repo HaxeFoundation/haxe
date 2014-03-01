@@ -641,6 +641,9 @@ let configure gen =
   let change_ns md = if no_root then
     function
       | [] when is_hxgen md -> ["haxe";"root"]
+      | [] -> (match md with
+        | TClassDecl { cl_path = ([],"Std" | [],"Math") } -> ["haxe";"root"]
+        | _ -> [])
       | ns -> List.map change_id ns
   else List.map change_id in
 
