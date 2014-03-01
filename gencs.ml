@@ -2231,7 +2231,7 @@ let configure gen =
   ) "__get" "__set" );
 
   let field_is_dynamic t field =
-    match field_access gen (gen.greal_type t) field with
+    match field_access_esp gen (gen.greal_type t) field with
       | FEnumField _
       | FClassField _ -> false
       | _ -> true
@@ -2243,7 +2243,7 @@ let configure gen =
   in
 
   let is_dynamic_expr e = is_dynamic e.etype || match e.eexpr with
-    | TField(tf, f) -> field_is_dynamic tf.etype (field_name f)
+    | TField(tf, f) -> field_is_dynamic tf.etype (f)
     | _ -> false
   in
 
@@ -2273,7 +2273,7 @@ let configure gen =
   in
 
   let is_null_expr e = is_null e.etype || match e.eexpr with
-    | TField(tf, f) -> (match field_access gen (real_type tf.etype) (field_name f) with
+    | TField(tf, f) -> (match field_access_esp gen (real_type tf.etype) (f) with
       | FClassField(_,_,_,_,_,actual_t,_) -> is_null actual_t
       | _ -> false)
     | _ -> false

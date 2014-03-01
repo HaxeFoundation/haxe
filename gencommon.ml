@@ -1338,6 +1338,19 @@ let field_access gen (t:t) (field:string) : (tfield_access) =
     | TMono _ -> FDynamicField t_dynamic
     | _ -> FNotFound
 
+let field_access_esp gen t field = match field with
+  | FStatic(cl,cf) | FInstance(cl,cf) when Meta.has Meta.Extern cf.cf_meta ->
+    let static = match field with
+      | FStatic _ -> true
+      | _ -> false
+    in
+    let p = match follow (run_follow gen t) with
+      | TInst(_,p) -> p
+      | _ -> List.map snd cl.cl_types
+    in
+    FClassField(cl,p,cl,cf,static,cf.cf_type,cf.cf_type)
+  | _ -> field_access gen t (field_name field)
+
 let mk_field_access gen expr field pos =
   match field_access gen expr.etype field with
     | FClassField(c,p,dc,cf,false,at,_) ->
@@ -2285,7 +2298,7 @@ struct
                     { e with eexpr = TField(ef, FEnum(en,field)) }
               )
           | TField(({ eexpr = TTypeExpr _ } as tf), f) ->
-            (match field_access gen tf.etype (field_name f) with
+            (match field_access_esp gen tf.etype (f) with
               | FClassField(_,_,_,cf,_,_,_) ->
                 (match cf.cf_kind with
                   | Method(MethDynamic)
@@ -2402,7 +2415,7 @@ struct
         | TBinop(OpAssign, ({eexpr = TField(fexpr, f)}), evalue) when is_dynamic e fexpr (field_name f) ->
           change_expr e (run fexpr) (field_name f) (Some (run evalue)) true
         | TBinop(OpAssign, { eexpr = TField(fexpr, f) }, evalue) ->
-            (match field_access gen fexpr.etype (field_name f) with
+            (match field_access_esp gen fexpr.etype (f) with
               | FClassField(_,_,_,cf,false,t,_) when (try PMap.find cf.cf_name gen.gbase_class_fields == cf with Not_found -> false) ->
                   change_expr e (run fexpr) (field_name f) (Some (run evalue)) true
               | _ -> Type.map_expr run e
@@ -2773,7 +2786,7 @@ struct
         | TCall(( { eexpr = TField(ecl,f) } as e1), params) ->
           (* check to see if called field is known and if it is a MethNormal (only MethNormal fields can be called directly) *)
           let name = field_name f in
-          (match field_access gen (gen.greal_type ecl.etype) name with
+          (match field_access_esp gen (gen.greal_type ecl.etype) f with
             | FClassField(_,_,_,cf,_,_,_) ->
               (match cf.cf_kind with
                 | Method MethNormal
@@ -5283,7 +5296,7 @@ struct
           handle r e.etype e1.etype
         | TBinop ( (Ast.OpAssign as op),({ eexpr = TField(tf, f) } as e1), e2 )
         | TBinop ( (Ast.OpAssignOp _ as op),({ eexpr = TField(tf, f) } as e1), e2 ) ->
-          (match field_access gen (gen.greal_type tf.etype) (field_name f) with
+          (match field_access_esp gen (gen.greal_type tf.etype) (f) with
             | FClassField(cl,params,_,_,is_static,actual_t,_) ->
               let actual_t = if is_static then actual_t else apply_params cl.cl_types params actual_t in
               let e1 = extract_expr (run e1) in
@@ -5799,7 +5812,7 @@ struct
 
     let real_type = gen.greal_type ef.etype in
     (* this part was rewritten at roughly r6477 in order to correctly support overloads *)
-    (match field_access gen real_type (field_name f) with
+    (match field_access_esp gen real_type (f) with
     | FClassField (cl, params, _, cf, is_static, actual_t, declared_t) when e <> None && (cf.cf_kind = Method MethNormal || cf.cf_kind = Method MethInline) ->
         (* C# target changes params with a real_type function *)
         let params = match follow clean_ef.etype with
@@ -8167,7 +8180,12 @@ struct
 
   let configure_dynamic_field_access ctx is_synf =
     let gen = ctx.rcf_gen in
-    let is_dynamic expr fexpr field = match field_access gen (gen.greal_type fexpr.etype) field with
+    let is_dynamic expr fexpr field =
+      match (match expr.eexpr with
+        | TField(_,f) ->
+        field_access_esp gen (gen.greal_type fexpr.etype) f
+        | _ ->
+        field_access gen (gen.greal_type fexpr.etype) field) with
       | FEnumField _
       | FClassField _ -> false
       | _ -> true
