@@ -38,7 +38,12 @@ codegen gencommon genas3 gencpp genjs genneko genphp genswf8 \
 
 ADD_REVISION=0
 
+# using $(CURDIR) on Windows will not work since it might be a Cygwin path
+ifdef SYSTEMROOT
+EXTENSION=.exe
+else
 export HAXE_STD_PATH=$(CURDIR)/std
+endif
 
 ifneq ($(ADD_REVISION),0)
 	VERSION_EXTRA="let version_extra = Some \" (git build $(shell git rev-parse --abbrev-ref HEAD) @ $(shell git describe --always)) \""
@@ -68,14 +73,10 @@ haxe: $(MODULES:=.cmx)
 	$(OCAMLOPT) -o $(OUTPUT) $(NATIVE_LIBS) $(LIBS) $(MODULES:=.cmx)
 
 haxelib:
-	$(CURDIR)/$(OUTPUT) --cwd "$(CURDIR)/std/tools/haxelib" haxelib.hxml
-	cp std/tools/haxelib/haxelib$(EXTENSION) haxelib$(EXTENSION)
+	(cd $(CURDIR)/extra/haxelib_src && $(CURDIR)/$(OUTPUT) haxelib.hxml && nekotools boot bin/haxelib.n)
+	cp extra/haxelib_src/bin/haxelib$(EXTENSION) haxelib$(EXTENSION)
 
-haxedoc:
-	$(CURDIR)/$(OUTPUT) --cwd "$(CURDIR)/std/tools/haxedoc" haxedoc.hxml
-	cp std/tools/haxedoc/haxedoc$(EXTENSION) haxedoc$(EXTENSION)
-
-tools: haxelib haxedoc
+tools: haxelib
 
 install:
 	cp haxe $(INSTALL_DIR)/bin/haxe
@@ -83,20 +84,20 @@ install:
 	-mkdir -p $(INSTALL_DIR)/lib/haxe
 	cp -rf std $(INSTALL_DIR)/lib/haxe/std
 	-mkdir -p $(INSTALL_DIR)/lib/haxe/lib
+	-mkdir -p $(INSTALL_DIR)/lib/haxe/std/tools/haxelib
+	cp -rf extra/haxelib_src/src/tools/haxelib $(INSTALL_DIR)/lib/haxe/std/tools/haxelib
 	chmod -R a+rx $(INSTALL_DIR)/lib/haxe
 	chmod 777 $(INSTALL_DIR)/lib/haxe/lib
-	cp std/tools/haxelib/haxelib.sh $(INSTALL_DIR)/bin/haxelib
-	cp std/tools/haxedoc/haxedoc.sh $(INSTALL_DIR)/bin/haxedoc
-	chmod a+rx $(INSTALL_DIR)/bin/haxe $(INSTALL_DIR)/bin/haxelib $(INSTALL_DIR)/bin/haxedoc
+	cp extra/haxelib_src/haxelib_script.sh $(INSTALL_DIR)/bin/haxelib
+	chmod a+rx $(INSTALL_DIR)/bin/haxe $(INSTALL_DIR)/bin/haxelib
 
 # will install native version of the tools instead of script ones
 install_tools: tools
 	cp haxelib ${INSTALL_DIR}/bin/haxelib
-	cp haxedoc ${INSTALL_DIR}/bin/haxedoc
-	chmod a+rx $(INSTALL_DIR)/bin/haxelib $(INSTALL_DIR)/bin/haxedoc
+	chmod a+rx $(INSTALL_DIR)/bin/haxelib
 
 uninstall:
-	rm -rf $(INSTALL_DIR)/bin/haxe $(INSTALL_DIR)/bin/haxelib $(INSTALL_DIR)/lib/haxe $(INSTALL_DIR)/bin/haxedoc
+	rm -rf $(INSTALL_DIR)/bin/haxe $(INSTALL_DIR)/bin/haxelib $(INSTALL_DIR)/lib/haxe
 
 export:
 	cp haxe*.exe doc/CHANGES.txt $(EXPORT)
@@ -175,7 +176,7 @@ clean_haxe:
 	rm -f $(MODULES:=.obj) $(MODULES:=.o) $(MODULES:=.cmx) $(MODULES:=.cmi) lexer.ml haxe.exe
 
 clean_tools:
-	rm -f $(OUTPUT) haxelib haxedoc
+	rm -f $(OUTPUT) haxelib
 
 # SUFFIXES
 .ml.cmx:
@@ -187,4 +188,4 @@ clean_tools:
 .mll.ml:
 	ocamllex $<
 
-.PHONY: haxe libs version.cmx
+.PHONY: haxe libs version.cmx haxelib
