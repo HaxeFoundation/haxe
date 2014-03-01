@@ -49,6 +49,48 @@ class TestCSharp extends Test
 		t(true);
 	}
 
+	function testOverloadOverride()
+	{
+		var c = new TestMyClass();
+		c.normalOverload(true);
+		t(c.boolCalled);
+		c.normalOverload(10);
+		t(c.intCalled);
+		c.normalOverload(haxe.Int64.ofInt(0));
+		t(c.int64Called);
+		c.normalOverload("");
+		t(c.stringCalled);
+		c.normalOverload({});
+		t(c.dynamicCalled);
+
+		var c = new TestMyClass("");
+		t(c.alternativeCtorCalled);
+		var b:haxe.test.MyClass = c;
+		b.normalOverload(true);
+		t(c.boolCalled);
+		b.normalOverload(10);
+		t(c.intCalled);
+		b.normalOverload(haxe.Int64.ofInt(0));
+		t(c.int64Called);
+		b.normalOverload("");
+		t(c.stringCalled);
+		b.normalOverload({});
+		t(c.dynamicCalled);
+	}
+
+	function testEnum()
+	{
+		var e = TEnum.TA;
+		switch(e)
+		{
+			case TA:
+				t(true);
+			case _:
+				t(false);
+		}
+		eq("TA",Type.enumConstructor(e));
+	}
+
 	@:skipReflection private function refTest(i:cs.Ref<Int>):Void
 	{
 		i *= 2;
@@ -189,5 +231,51 @@ private class HxClass extends NativeClass
 	{
 		super.refTest(i);
 		i *= 2;
+	}
+}
+
+private class TestMyClass extends haxe.test.MyClass
+{
+	@:overload public function new()
+	{
+		super();
+	}
+
+	@:overload public function new(str:String)
+	{
+		super();
+		alternativeCtorCalled = true;
+	}
+
+	public var alternativeCtorCalled:Bool;
+	public var boolCalled:Bool;
+	public var intCalled:Bool;
+	public var int64Called:Bool;
+	public var stringCalled:Bool;
+	public var dynamicCalled:Bool;
+
+	@:overload override public function normalOverload(b:Bool):Void
+	{
+		this.boolCalled = true;
+	}
+
+	@:overload override public function normalOverload(i:Int):Void
+	{
+		this.intCalled = true;
+	}
+
+	@:overload override public function normalOverload(i64:haxe.Int64):Void
+	{
+		this.int64Called = true;
+	}
+
+	@:overload override public function normalOverload(str:String):Void
+	{
+		this.stringCalled = true;
+	}
+
+	@:overload override public function normalOverload(dyn:Dynamic):Void
+	{
+		this.dynamicCalled = true;
 	}
 }

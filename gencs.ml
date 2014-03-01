@@ -2713,7 +2713,7 @@ let convert_ilenum ctx p ilcls =
 		d_params = []; (* enums never have type parameters *)
 		d_meta = !meta;
 		d_flags = [EExtern];
-		d_data = !data;
+		d_data = List.rev !data;
   }
 
 let rec has_unmanaged = function
