@@ -197,7 +197,7 @@ class Manager<T : Object> {
 			var vc : Dynamic = Reflect.field(cache,name);
 			if( cache == null || v != vc ) {
 				switch( f.t ) {
-				case DSmallBinary, DNekoSerialized, DLongBinary, DBytes(_), DBinary: true;
+				case DSmallBinary, DNekoSerialized, DLongBinary, DBytes(_), DBinary:
 					if ( !hasBinaryChanged(v,vc) )
 						continue;
 				case DData:
