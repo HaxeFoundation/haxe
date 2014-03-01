@@ -45,6 +45,9 @@
 /tests/unit/native_java/obj
 /tests/unit/native_java/cmd
 /tests/unit/native_java/native.jar
+/tests/unit/native_cs/obj
+/tests/unit/native_cs/cmd
+/tests/unit/native_cs/bin
 /tests/unit/unit.js.map
 /tests/unit/unit.n
 
