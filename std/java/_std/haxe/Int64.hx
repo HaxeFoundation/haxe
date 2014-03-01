@@ -127,7 +127,7 @@ private typedef NativeInt64 = Int;
 
 	public static inline function compare( a : Int64, b : Int64 ) : Int
 	{
-		return cast(a.asNative() - b.asNative(), Int);
+		return (a.asNative() < b.asNative()) ? -1 : (a.asNative() > b.asNative()) ? 1 : 0;
 	}
 
 	public static function ucompare( a : Int64, b : Int64 ) : Int

@@ -127,9 +127,9 @@ using haxe.Int64;
 
 	public static inline function compare( a : Int64, b : Int64 ) : Int
 	{
-		return cast (a.asNative() - b.asNative());
+		return (a.asNative() < b.asNative()) ? -1 : (a.asNative() > b.asNative()) ? 1 : 0;
 	}
-	
+
 	public static function ucompare( a : Int64, b : Int64 ) : Int
 	{
 		if (a.asNative() < 0.mkNative())
