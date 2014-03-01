@@ -632,7 +632,7 @@ let configure gen =
   let change_id name = try
 			Hashtbl.find reserved name
 		with | Not_found ->
-      name
+      String.concat "." (String.nsplit name "#")
 	in
 
   let change_ns md = if no_root then
@@ -2585,16 +2585,17 @@ let add_cs = function
 	| "haxe" :: ns -> "haxe" :: ns
 	| "std" :: ns -> "std" :: ns
 	| "cs" :: ns -> "cs" :: ns
-	| ns -> "cs" :: ns
+  | "system" :: ns -> "cs" :: "system" :: ns
+	| ns -> ns
 
 let netpath_to_hx std = function
 	| [],[], cl -> [], cl
 	| ns,[], cl ->
 		let ns = (List.map String.lowercase ns) in
-		(if std then add_cs ns else ns), cl
+		add_cs ns, cl
 	| ns,(nhd :: ntl as nested), cl ->
 		let ns = (List.map String.lowercase ns) @ [nhd] in
-		(if std then add_cs ns else ns), String.concat "_" nested ^ "_" ^ cl
+		add_cs ns, String.concat "_" nested ^ "_" ^ cl
 
 let lookup_ilclass std com ilpath =
   let path = netpath_to_hx std ilpath in

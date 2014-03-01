@@ -5,10 +5,10 @@ public class Base
 {
 	//some haxe-specific keywords
 
-	const int inline = 42;
+	public static readonly int inline = 42;
 	public static readonly int callback = 43;
 	public static readonly int cast = 44;
-	public static readonly int untyped = 45;
+	public static int untyped = 45;
 
 	//final + static variable = inline var in Haxe
 	const int inlineNumber = 42;
@@ -26,7 +26,7 @@ public class Base
 		return -1;
 	}
 
-	public int nameClash()
+	public virtual int nameClash()
 	{
 		return 1;
 	}
@@ -66,7 +66,7 @@ public class Base
 			return privateField;
 		}
 
-		public int nameClash()
+		public override int nameClash()
 		{
 			return 10;
 		}
