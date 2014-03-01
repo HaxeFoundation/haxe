@@ -562,8 +562,8 @@ struct
             | _ ->
               { e with eexpr = TCall(run efield, List.map run args) }
           )
-        | TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, { cf_name = ("toString" as field) })) }, [] ) ->
-          run ef
+(*         | TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, { cf_name = ("toString") })) }, [] ) ->
+          run ef *)
 
         | TCast(expr, m) when is_boxed_type e.etype ->
           (* let unboxed_type gen t tbyte tshort tchar tfloat = match follow t with *)

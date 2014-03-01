@@ -402,7 +402,7 @@ struct
         | TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, { cf_name = ("substring" as field) })) }, args )
         | TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, { cf_name = ("substr" as field) })) }, args ) ->
           { e with eexpr = TCall(mk_static_field_access_infer string_ext field e.epos [], [run ef] @ (List.map run args)) }
-        | TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, { cf_name = ("toString" as field) })) }, [] ) ->
+        | TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, { cf_name = ("toString") })) }, [] ) ->
           run ef
         | TNew( { cl_path = ([], "String") }, [], [p] ) -> run p (* new String(myString) -> myString *)
 
@@ -3052,7 +3052,7 @@ let is_static = function
      | None -> false
      | Some (_,m) -> List.mem CMStatic m.mf_contract
     ) [p.pget;p.pset]
-	| _ -> false
+	(* | _ -> false *)
 
 let change_name name = function
 	| IlField f -> IlField { f with fname = name }
@@ -3204,7 +3204,7 @@ let normalize_ilcls ctx cls =
 			let static = is_static (IlProp p) in
 			let name = p.pname in
 			not (List.exists (function (IlProp _,_,n,s) -> s = static && name = n | _ -> false) !all_fields)
-		| _ -> false
+		(* | _ -> false *)
 	) cls.cprops in
 	let cls = { cls with cmethods = List.map (fun v -> !v) meths; cprops = props } in
 

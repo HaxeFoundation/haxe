@@ -2788,7 +2788,7 @@ struct
         (* if a TClosure is being call immediately, there's no need to convert it to a TClosure *)
         | TCall(( { eexpr = TField(ecl,f) } as e1), params) ->
           (* check to see if called field is known and if it is a MethNormal (only MethNormal fields can be called directly) *)
-          let name = field_name f in
+          (* let name = field_name f in *)
           (match field_access_esp gen (gen.greal_type ecl.etype) f with
             | FClassField(_,_,_,cf,_,_,_) ->
               (match cf.cf_kind with
@@ -2894,7 +2894,7 @@ struct
   						check_params v.v_type);
 					Hashtbl.add ignored v.v_id v;
 					ignore(Option.map traverse opt)
-        | TLocal { v_extra = Some( (_ :: _ as tparams),_) } ->
+        | TLocal { v_extra = Some( (_ :: _ ),_) } ->
           ()
         | TLocal(( { v_capture = true } ) as v) ->
           (if not (Hashtbl.mem ignored v.v_id || Hashtbl.mem ret v.v_id) then begin check_params v.v_type; Hashtbl.replace ret v.v_id expr end);
@@ -3409,7 +3409,7 @@ struct
 
         let mk_invoke_complete_i i is_float =
 
-          let arity = i in
+          (* let arity = i in *)
           let args = func_args_i i in
 
           (* api fn *)
