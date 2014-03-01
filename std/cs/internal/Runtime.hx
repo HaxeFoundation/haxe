@@ -98,13 +98,33 @@ import cs.system.Type;
 				if (t1 == t2)
 					return v1c.Equals(v2c);
 
+				if (t1 == System.TypeCode.String || t2 == System.TypeCode.String)
+					return false;
+
 				switch(t1)
 				{
+					case System.TypeCode.Decimal:
+						return v1c.ToDecimal(null) == v2c.ToDecimal(null);
 					case System.TypeCode.Int64:
 					case System.TypeCode.UInt64:
-						return v1c.ToUInt64(null) == v2c.ToUInt64(null);
+						if (t2 == System.TypeCode.Decimal)
+							return v1c.ToDecimal(null) == v2c.ToDecimal(null);
+						else
+							return v1c.ToUInt64(null) == v2c.ToUInt64(null);
 					default:
-						return v1c.ToDouble(null) == v2c.ToDouble(null);
+						switch(t2)
+						{
+							case System.TypeCode.Decimal:
+								return v1c.ToDecimal(null) == v2c.ToDecimal(null);
+							case System.TypeCode.Int64:
+							case System.TypeCode.UInt64:
+								if (t2 == System.TypeCode.Decimal)
+									return v1c.ToDecimal(null) == v2c.ToDecimal(null);
+								else
+									return v1c.ToUInt64(null) == v2c.ToUInt64(null);
+							default:
+								return v1c.ToDouble(null) == v2c.ToDouble(null);
+						}
 				}
 			}
 
