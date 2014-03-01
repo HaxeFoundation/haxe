@@ -13,9 +13,20 @@ private interface ITest
 {
 	var field(default,null):Int;
 }
-private class TestImpl implements ITest
+
+private class TestImpl extends BaseTest implements ITest
 {
-	public var field(default,null):Int = 5;
+	public var field(default,null):Int;
+	public function new()
+	{
+		super();
+		field = 5;
+	}
+}
+
+@:nativeGen
+private class BaseTest
+{
 	public function new()
 	{
 

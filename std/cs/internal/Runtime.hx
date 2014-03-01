@@ -681,7 +681,7 @@ import cs.system.Type;
 		if (hxObj != null)
 			return hxObj.__hx_getField_f(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, throwErrors, false);
 
-		return (double)slowGetField(obj, field, throwErrors);
+		return toDouble(slowGetField(obj, field, throwErrors));
 
 	')
 	public static function getField_f(obj:Dynamic, field:String, fieldHash:Int, throwErrors:Bool):Float
@@ -709,7 +709,7 @@ import cs.system.Type;
 		if (hxObj != null)
 			return hxObj.__hx_setField_f(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, value, false);
 
-		return (double)slowSetField(obj, field, value);
+		return toDouble(slowSetField(obj, field, value));
 
 	')
 	public static function setField_f(obj:Dynamic, field:String, fieldHash:Int, value:Float):Float
