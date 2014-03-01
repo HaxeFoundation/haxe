@@ -79,16 +79,21 @@ haxelib:
 tools: haxelib
 
 install:
-	cp haxe $(INSTALL_DIR)/bin/haxe
-	rm -rf $(INSTALL_DIR)/lib/haxe/std
+	-rm -f $(INSTALL_DIR)/lib/haxe
 	-mkdir -p $(INSTALL_DIR)/lib/haxe
+	rm -rf $(INSTALL_DIR)/lib/haxe/std
 	cp -rf std $(INSTALL_DIR)/lib/haxe/std
+	cp -rf extra $(INSTALL_DIR)/lib/haxe
 	-mkdir -p $(INSTALL_DIR)/lib/haxe/lib
-	-mkdir -p $(INSTALL_DIR)/lib/haxe/std/tools/haxelib
-	cp -rf extra/haxelib_src/src/tools/haxelib $(INSTALL_DIR)/lib/haxe/std/tools/haxelib
+	# -mkdir -p $(INSTALL_DIR)/lib/haxe/std/tools/haxelib
+	rm -f $(INSTALL_DIR)/bin/haxe
+	cp haxe $(INSTALL_DIR)/lib/haxe
+	ln -s $(INSTALL_DIR)/lib/haxe/haxe $(INSTALL_DIR)/bin/haxe
 	chmod -R a+rx $(INSTALL_DIR)/lib/haxe
 	chmod 777 $(INSTALL_DIR)/lib/haxe/lib
-	cp extra/haxelib_src/haxelib_script.sh $(INSTALL_DIR)/bin/haxelib
+	# cp extra/haxelib_src/haxelib_script.sh $(INSTALL_DIR)/bin/haxelib
+	echo "#!/bin/sh" > $(INSTALL_DIR)/bin/haxelib
+	echo "exec haxe -cp $(INSTALL_DIR)/lib/haxe/extra/haxelib_src/src --run tools.haxelib.Main \"$$@\"" >> $(INSTALL_DIR)/bin/haxelib
 	chmod a+rx $(INSTALL_DIR)/bin/haxe $(INSTALL_DIR)/bin/haxelib
 
 # will install native version of the tools instead of script ones
