@@ -394,6 +394,10 @@ package java.internal;
 		for (int i = 0; i < len; i++)
 		{
 			Object o = args.__get(i);
+			if (o == null)
+			{
+				continue; //can be anything
+			}
 			objs[i]= o;
 			cls[i] = o.getClass();
 			boolean isNum = false;
