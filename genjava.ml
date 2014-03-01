@@ -2384,8 +2384,11 @@ let convert_java_enum ctx p pe =
   let meta = ref [Meta.Native, [EConst (String (real_java_path ctx pe.cpath) ), p], p ] in
   let data = ref [] in
   List.iter (fun f ->
-    if List.mem JEnum f.jf_flags then
+    (* if List.mem JEnum f.jf_flags then *)
+    match f.jf_vmsignature with
+    | TObject( path, [] ) when path = pe.cpath && List.mem JStatic f.jf_flags && List.mem JFinal f.jf_flags ->
       data := { ec_name = f.jf_name; ec_doc = None; ec_meta = []; ec_args = []; ec_pos = p; ec_params = []; ec_type = None; } :: !data;
+    | _ -> ()
   ) pe.cfields;
 
   EEnum {
@@ -2394,7 +2397,7 @@ let convert_java_enum ctx p pe =
     d_params = []; (* enums never have type parameters *)
     d_meta = !meta;
     d_flags = [EExtern];
-    d_data = !data;
+    d_data = List.rev !data;
   }
 
   let convert_java_field ctx p jc field =
