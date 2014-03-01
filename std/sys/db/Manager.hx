@@ -125,7 +125,6 @@ class Manager<T : Object> {
 	}
 
 	function doInsert( x : T ) {
-		unmake(x);
 		var s = new StringBuf();
 		var fields = new List();
 		var values = new List();
@@ -179,14 +178,6 @@ class Manager<T : Object> {
 		addToCache(x);
 	}
 
-	inline function isBinary( t : RecordInfos.RecordType ) {
-		return switch( t ) {
-			case DSmallBinary, DNekoSerialized, DLongBinary, DBytes(_), DBinary: true;
-			//case DData: true // -- disabled for implementation purposes
-			default: false;
-		};
-	}
-
 	inline function hasBinaryChanged( a : haxe.io.Bytes, b : haxe.io.Bytes ) {
 		return a != b && (a == null || b == null || a.compare(b) != 0);
 	}
@@ -194,7 +185,6 @@ class Manager<T : Object> {
 	function doUpdate( x : T ) {
 		if( untyped !x._lock )
 			throw "Cannot update a not locked object";
-		unmake(x);
 		var s = new StringBuf();
 		s.add("UPDATE ");
 		s.add(table_name);
@@ -205,8 +195,11 @@ class Manager<T : Object> {
 			var name = f.name;
 			var v : Dynamic = Reflect.field(x,name);
 			var vc : Dynamic = Reflect.field(cache,name);
-			if( cache == null || (v != vc && (!isBinary(f.t) || hasBinaryChanged(v,vc))) ) {
+			if( cache == null || v != vc ) {
 				switch( f.t ) {
+				case DSmallBinary, DNekoSerialized, DLongBinary, DBytes(_), DBinary: true;
+					if ( !hasBinaryChanged(v,vc) )
+						continue;
 				case DData:
 					v = doUpdateCache(x, name, v);
 					if( !hasBinaryChanged(v,vc) )
@@ -220,7 +213,8 @@ class Manager<T : Object> {
 				s.add(quoteField(name));
 				s.add(" = ");
 				getCnx().addValue(s,v);
-				Reflect.setField(cache,name,v);
+				if ( cache!=null )
+					Reflect.setField(cache,name,v);
 			}
 		}
 		if( !mod )
@@ -320,12 +314,6 @@ class Manager<T : Object> {
 		return o;
 	}
 
-	function make( x : T ) {
-	}
-
-	function unmake( x : T ) {
-	}
-
 	function quoteField(f : String) {
 		return KEYWORDS.exists(f.toLowerCase()) ? "`"+f+"`" : f;
 	}
@@ -362,7 +350,6 @@ class Manager<T : Object> {
 		if( c != null )
 			return c;
 		r = cacheObject(r,lock);
-		make(r);
 		return r;
 	}
 
@@ -379,7 +366,6 @@ class Manager<T : Object> {
 				l2.add(c);
 			else {
 				x = cacheObject(x,lock);
-				make(x);
 				l2.add(x);
 			}
 		}
@@ -608,8 +594,6 @@ class Manager<T : Object> {
 			#end
 			// use the new object as our cache of fields
 			Reflect.setField(c,cache_field,x);
-			// remake object
-			make(c);
 		}
 		return c;
 	}
