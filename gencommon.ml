@@ -2177,7 +2177,7 @@ struct
               | OpNotEq -> (* != -> !equals() *)
                 mk_paren { eexpr = TUnop(Ast.Not, Prefix, (equals_handler (run e1) (run e2))); etype = gen.gcon.basic.tbool; epos = e.epos }
               | OpAdd  ->
-                if handle_strings && (is_string e.etype or is_string e1.etype or is_string e2.etype) then
+                if handle_strings && (is_string e.etype || is_string e1.etype || is_string e2.etype) then
                   { e with eexpr = TBinop(op, mk_cast gen.gcon.basic.tstring (run e1), mk_cast gen.gcon.basic.tstring (run e2)) }
                 else
                   dyn_plus_handler e (run e1) (run e2)

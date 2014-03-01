@@ -288,7 +288,7 @@ let escape_bin s =
 	let b = Buffer.create 0 in
 	for i = 0 to String.length s - 1 do
 		match Char.code (String.unsafe_get s i) with
-		| c when c = Char.code('\\') or c = Char.code('"') or c = Char.code('$') ->
+		| c when c = Char.code('\\') || c = Char.code('"') || c = Char.code('$') ->
 			Buffer.add_string b "\\";
 			Buffer.add_char b (Char.chr c)
 		| c when c < 32 ->
@@ -2221,7 +2221,7 @@ let generate com =
 							if static then
 								(n = (prefixed_name false))
 							else
-								((n = (prefixed_name false)) or (n = (prefixed_name true)))
+								((n = (prefixed_name false)) || (n = (prefixed_name true)))
 						) !lc_names in
 						unsupported ("method '" ^ (s_type_path c.cl_path) ^ "." ^ cf.cf_name ^ "' already exists here '" ^ (fst lc) ^ "' (different case?)") c.cl_pos
 					with Not_found ->
@@ -2300,7 +2300,7 @@ let generate com =
 					newline ctx;
 					gen_expr ctx e);
 				List.iter (generate_static_field_assign ctx c.cl_path) c.cl_ordered_statics;
-				if c.cl_path = (["php"], "Boot") & com.debug then begin
+				if c.cl_path = (["php"], "Boot") && com.debug then begin
 					newline ctx;
 					print ctx "$%s = new _hx_array(array())" ctx.stack.Codegen.stack_var;
 					newline ctx;

@@ -1976,7 +1976,7 @@ let configure gen =
   in
 
   let module_gen w md_def =
-    List.fold_left (fun should md -> module_type_gen w md or should) false md_def.m_types
+    List.fold_left (fun should md -> module_type_gen w md || should) false md_def.m_types
   in
 
   (* generate source code *)
@@ -2307,16 +2307,16 @@ let configure gen =
           | _, TConst(TNull) when is_null_expr e1 ->
             false
           | _ ->
-            should_handle_opeq e1.etype or should_handle_opeq e2.etype
+            should_handle_opeq e1.etype || should_handle_opeq e2.etype
         )
       | TBinop (Ast.OpAssignOp Ast.OpAdd, e1, e2) ->
         is_dynamic_expr e1 || is_null_expr e1 || is_string e.etype
-      | TBinop (Ast.OpAdd, e1, e2) -> is_dynamic e1.etype or is_dynamic e2.etype or is_type_param e1.etype or is_type_param e2.etype or is_string e1.etype or is_string e2.etype or is_string e.etype
+      | TBinop (Ast.OpAdd, e1, e2) -> is_dynamic e1.etype || is_dynamic e2.etype || is_type_param e1.etype || is_type_param e2.etype || is_string e1.etype || is_string e2.etype || is_string e.etype
       | TBinop (Ast.OpLt, e1, e2)
       | TBinop (Ast.OpLte, e1, e2)
       | TBinop (Ast.OpGte, e1, e2)
-      | TBinop (Ast.OpGt, e1, e2) -> is_dynamic e.etype or is_dynamic_expr e1 or is_dynamic_expr e2 or is_string e1.etype or is_string e2.etype
-      | TBinop (_, e1, e2) -> is_dynamic e.etype or is_dynamic_expr e1 or is_dynamic_expr e2
+      | TBinop (Ast.OpGt, e1, e2) -> is_dynamic e.etype || is_dynamic_expr e1 || is_dynamic_expr e2 || is_string e1.etype || is_string e2.etype
+      | TBinop (_, e1, e2) -> is_dynamic e.etype || is_dynamic_expr e1 || is_dynamic_expr e2
       | TUnop (_, _, e1) -> is_dynamic_expr e1 || is_null_expr e1 (* we will see if the expression is Null<T> also, as the unwrap from Unop will be the same *)
       | _ -> false)
     (fun e1 e2 ->
