@@ -325,7 +325,7 @@ class Template {
 			default: throw "Unknown operation "+p.p;
 			}
 		case "!":
-			var e = makeExpr(l);
+			var e : Void->Dynamic = makeExpr(l);
 			return function() {
 				var v : Dynamic = e();
 				return (v == null || v == false);
