@@ -632,10 +632,7 @@ let configure gen =
   let change_id name = try
 			Hashtbl.find reserved name
 		with | Not_found ->
-			if String.starts_with name "get_" || String.starts_with name "set_" then
-				"_" ^ name
-			else
-				name
+      name
 	in
 
   let change_ns md = if no_root then
@@ -981,7 +978,7 @@ let configure gen =
 
 	let is_extern_prop t name = match field_access gen t name with
 		| FClassField(_,_,decl,v,_,t,_) ->
-			Type.is_extern_field v && decl.cl_extern && not (is_hxgen (TClassDecl decl))
+			Type.is_extern_field v && (Meta.has Meta.Property v.cf_meta || (decl.cl_extern && not (is_hxgen (TClassDecl decl))))
 		| _ -> false
 	in
 
@@ -1876,7 +1873,7 @@ let configure gen =
 			(* first get all vars declared as properties *)
 			let props, nonprops = List.partition (fun v -> match v.cf_kind with
 				| Var { v_read = AccCall } | Var { v_write = AccCall } ->
-					Type.is_extern_field v
+					Type.is_extern_field v && Meta.has Meta.Property v.cf_meta
 				| _ -> false
 			) cflist in
 			let props = ref (List.map (fun v -> (v.cf_name, ref (v,v.cf_type,None,None))) props) in
@@ -1884,7 +1881,7 @@ let configure gen =
 			let find_prop name = try
 					List.assoc name !props
 				with | Not_found -> match field_access gen t name with
-					| FClassField (_,_,decl,v,_,t,_) when Type.is_extern_field v && decl.cl_extern && not (is_hxgen (TClassDecl decl)) ->
+					| FClassField (_,_,decl,v,_,t,_) when is_extern_prop (TInst(cl,List.map snd cl.cl_types)) name ->
 						let ret = ref (v,t,None,None) in
 						props := (name, ret) :: !props;
 						ret
@@ -2112,6 +2109,7 @@ let configure gen =
   EnumToClass.configure gen (Some (fun e -> mk_cast gen.gcon.basic.tint e)) false true (get_cl (get_type gen (["haxe";"lang"],"Enum")) ) true false;
 
   InterfaceVarsDeleteModf.configure gen;
+  InterfaceProps.configure gen;
 
   let dynamic_object = (get_cl (get_type gen (["haxe";"lang"],"DynamicObject")) ) in
 

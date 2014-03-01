@@ -9839,6 +9839,57 @@ struct
 end;;
 
 (* ******************************************* *)
+(* InterfaceProps *)
+(* ******************************************* *)
+
+(*
+
+  This module filter will go through all declared properties, and see if they are conforming to a native interface.
+  If they are, it will add Meta.Property to it
+
+  dependencies:
+
+*)
+
+module InterfaceProps =
+struct
+  let name = "interface_props"
+
+  let priority = solve_deps name []
+
+  let run gen =
+    let run md = match md with
+      | TClassDecl ( { cl_interface = false; cl_extern = false } as cl ) ->
+        let vars = List.fold_left (fun acc (iface,_) ->
+          if Meta.has Meta.CsNative iface.cl_meta then
+            List.filter (fun cf -> match cf.cf_kind with
+              | Var { v_read = AccCall } | Var { v_write = AccCall } ->
+                true
+              | _ -> false
+            ) iface.cl_ordered_fields @ acc
+          else
+            acc
+        ) [] cl.cl_implements in
+        let vars = List.map (fun cf -> cf.cf_name) vars in
+        if vars <> [] then
+          List.iter (fun cf -> match cf.cf_kind with
+            | Var { v_read = AccCall } | Var { v_write = AccCall } when List.mem cf.cf_name vars ->
+              cf.cf_meta <- (Meta.Property, [], Ast.null_pos) :: cf.cf_meta
+            | _ -> ()
+          ) cl.cl_ordered_fields;
+
+        md
+      | _ -> md
+    in
+    run
+
+  let configure gen =
+    let run = run gen in
+    let map md = Some(run md) in
+    gen.gmodule_filters#add ~name:name ~priority:(PCustom priority) map
+end;;
+
+(* ******************************************* *)
 (* Int Division Synf *)
 (* ******************************************* *)
 

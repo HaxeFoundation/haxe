@@ -110,6 +110,7 @@ module Meta = struct
 		| Optional
 		| Overload
 		| PrivateAccess
+		| Property
 		| Protected
 		| Public
 		| PublicFields
