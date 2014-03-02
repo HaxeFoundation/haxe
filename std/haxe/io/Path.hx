@@ -173,13 +173,23 @@ class Path {
 	}
 
 	/**
-		Join two paths together and normalize them
-
-		e.g. 'assets/maps' and '../textures/img.png' = 'assets/textures/img.png'
+		Joins all paths in `paths` together.
+		
+		If `paths` is empty, the empty String `""` is returned. Otherwise the
+		paths are joined with a slash between them.
+		
+		If `paths` is null, the result is unspecified.
 	**/
-	public static function join(path1 : String, path2 : String ) : String {
-		path1 = Path.addTrailingSlash(path1);
-		return Path.normalize(path1 + path2);
+	public static function join(paths:Array<String>) : String {
+		if (paths.length == 0) {
+			return "";
+		}
+		var path = paths[0];
+		for (i in 1...paths.length) {
+			path = addTrailingSlash(path);
+			path += paths[i];
+		}
+		return normalize(path);
 	}
 
 	/**
