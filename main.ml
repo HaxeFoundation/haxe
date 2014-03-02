@@ -929,6 +929,7 @@ try
 	let interp = ref false in
 	let swf_version = ref false in
 	Common.define_value com Define.HaxeVer (float_repres (float_of_int version /. 10000.));
+	Common.define_value com Define.HxcppApiLevel "310";
 	Common.raw_define com "haxe3";
 	Common.define_value com Define.Dce "std";
 	com.warning <- (fun msg p -> message ctx ("Warning : " ^ msg) p);
