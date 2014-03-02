@@ -46,9 +46,12 @@ class Json {
 		If `replacer` is given and is not null, it is used to retrieve
 		actual object to be encoded. The `replacer` function two parameters,
 		the key and the value being encoded. Initial key value is an empty string.
+		
+		If `space` is given and is not null, the result will be pretty-printed.
+		Successive levels will be indented by this string.
 	**/
-	public static inline function stringify( value : Dynamic, ?replacer:Dynamic -> Dynamic -> Dynamic ) : String {
-		return haxe.format.JsonPrinter.print(value, replacer);
+	public static inline function stringify( value : Dynamic, ?replacer:Dynamic -> Dynamic -> Dynamic, ?space : String ) : String {
+		return haxe.format.JsonPrinter.print(value, replacer, space);
 	}
 
 }

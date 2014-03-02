@@ -33,8 +33,8 @@ class Json {
 	}
 
 	#if haxeJSON inline #end
-	public static function stringify( value : Dynamic, ?replacer:Dynamic -> Dynamic -> Dynamic ) : String {
-		return haxe.format.JsonPrinter.print(value, replacer);
+	public static function stringify( value : Dynamic, ?replacer:Dynamic -> Dynamic -> Dynamic, ?space:String ) : String {
+		return haxe.format.JsonPrinter.print(value, replacer, space);
 	}
 
 	#if (!haxeJSON && old_browser)
