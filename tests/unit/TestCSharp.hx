@@ -51,6 +51,10 @@ class TestCSharp extends Test
 
 	function testOverloadOverride()
 	{
+		var c = new haxe.test.MyClass();
+		eq(42,c.SomeProp);
+		eq(42,c.SomeProp2);
+
 		var c = new TestMyClass();
 		c.normalOverload(true);
 		t(c.boolCalled);
@@ -62,6 +66,9 @@ class TestCSharp extends Test
 		t(c.stringCalled);
 		c.normalOverload({});
 		t(c.dynamicCalled);
+		eq(21,c.SomeProp);
+		t(c.getCalled);
+		eq(21,c.SomeProp2);
 
 		var c = new TestMyClass("");
 		t(c.alternativeCtorCalled);
@@ -76,6 +83,9 @@ class TestCSharp extends Test
 		t(c.stringCalled);
 		b.normalOverload({});
 		t(c.dynamicCalled);
+		eq(21,c.SomeProp);
+		t(c.getCalled);
+		eq(21,c.SomeProp2);
 	}
 
 	function testEnum()
@@ -253,6 +263,7 @@ private class TestMyClass extends haxe.test.MyClass
 	public var int64Called:Bool;
 	public var stringCalled:Bool;
 	public var dynamicCalled:Bool;
+	public var getCalled:Bool;
 
 	@:overload override public function normalOverload(b:Bool):Void
 	{
@@ -277,5 +288,16 @@ private class TestMyClass extends haxe.test.MyClass
 	@:overload override public function normalOverload(dyn:Dynamic):Void
 	{
 		this.dynamicCalled = true;
+	}
+
+	@:overload override private function get_SomeProp():Int
+	{
+		getCalled = true;
+		return 21;
+	}
+
+	@:overload override private function get_SomeProp2():Int
+	{
+		return Std.int(super.get_SomeProp2() / 2);
 	}
 }

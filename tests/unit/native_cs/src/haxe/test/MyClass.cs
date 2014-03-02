@@ -42,6 +42,17 @@ public class MyClass
 	{
 		
 	}
+
+	virtual public int SomeProp
+	{
+		get { return 42; }
+	}
+
+	virtual public int SomeProp2
+	{
+		get { return 42; }
+	}
+
 }
 
 }
