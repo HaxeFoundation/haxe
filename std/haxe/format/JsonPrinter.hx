@@ -58,6 +58,9 @@ class JsonPrinter {
 				for( k in v.keys() )
 					Reflect.setField(o,k,v.get(k));
 				objString(o);
+			} else if( c == Date ) {
+				var v : Date = v;
+				quote(v.toString());
 			} else
 				#if flash9
 				classString(v);
