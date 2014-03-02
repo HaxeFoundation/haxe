@@ -45,6 +45,11 @@ extern class Array<T> {
 		return @:privateAccess HxOverrides.remove(this,x);
 	}
 
+#if js_es5
+	function indexOf( x : T, ?fromIndex:Int ) : Int;
+	function lastIndexOf( x : T, ?fromIndex:Int ) : Int;
+
+#else
 	inline function indexOf( x : T, ?fromIndex:Int ) : Int {
 		return @:privateAccess HxOverrides.indexOf(this,x,(fromIndex!=null)?fromIndex:0);
 	}
@@ -52,6 +57,7 @@ extern class Array<T> {
 	inline function lastIndexOf( x : T, ?fromIndex:Int ) : Int {
 		return @:privateAccess HxOverrides.lastIndexOf(this,x,(fromIndex!=null)?fromIndex:length-1);
 	}
+#end
 
 	inline function copy() : Array<T> {
 		return (untyped this).slice();
