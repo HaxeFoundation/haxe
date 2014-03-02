@@ -2286,6 +2286,8 @@ struct
           (match clos with
             | Some (clos, e1, s) -> { e with eexpr = TCall({ clos with eexpr = TClosure(run e1, s) }, List.map run args ) }
             | None -> Type.map_expr run e)*)
+          | TCall({ eexpr = TLocal{ v_name = "__delegate__" } } as local, [del]) ->
+            { e with eexpr = TCall(local, [Type.map_expr run del]) }
           | TCall(({ eexpr = TField(_, _) } as ef), params) ->
             { e with eexpr = TCall(Type.map_expr run ef, List.map run params) }
           | TField(ef, FEnum(en, field)) ->
@@ -2768,22 +2770,27 @@ struct
     | TCast(e,_) -> cleanup_delegate e
     | _ -> e
 
-  let rec change_after_field fn e = match e.eexpr with
-    | TField(ef,f) -> { e with eexpr = TField(fn ef,f) }
-    | _ -> Type.map_expr (change_after_field fn) e
-
-  let traverse gen ?tparam_anon_decl ?tparam_anon_acc (transform_closure:texpr->texpr->string->texpr) (handle_anon_func:texpr->tfunc->texpr) (dynamic_func_call:texpr->texpr) e =
+  let traverse gen ?tparam_anon_decl ?tparam_anon_acc (transform_closure:texpr->texpr->string->texpr) (handle_anon_func:texpr->tfunc->t option->texpr) (dynamic_func_call:texpr->texpr) e =
     let rec run e =
       match e.eexpr with
-        | TCast({ eexpr = TCall({ eexpr = TLocal{ v_name = "__delegate__" } }, [del] ) }, _) ->
+        | TCast({ eexpr = TCall({ eexpr = TLocal{ v_name = "__delegate__" } } as local, [del] ) } as e2, _) ->
+          let e2 = { e2 with etype = e.etype } in
+          let replace_delegate ex =
+            { e with eexpr = TCast({ e2 with eexpr = TCall(local, [ex]) }, None) }
+          in
           (* found a delegate; let's see if it's a closure or not *)
           let clean = cleanup_delegate del in
           (match clean.eexpr with
-            | TField( _, FClosure _) | TField( _, FStatic _) ->
+            | TField( ef, (FClosure _ as f)) | TField( ef, (FStatic _ as f)) ->
               (* a closure; let's leave this unchanged for FilterClosures to handle it *)
-              change_after_field run e
+              replace_delegate { clean with eexpr = TField( run ef, f ) }
             | TFunction tf ->
               (* handle like we'd handle a normal function, but create an unchanged closure field for it *)
+              let ret = handle_anon_func clean { tf with tf_expr = run tf.tf_expr } (Some e.etype) in
+              replace_delegate ret
+            | _ -> (* FIXME: conversion function *)
+              gen.gcon.error "This delegate construct is unsupported" e.epos;
+              replace_delegate (run clean))
 
 				(* parameterized functions handling *)
 				| TVar(vv, ve) -> (match tparam_anon_decl with
@@ -2838,7 +2845,7 @@ struct
         | TField(ecl, FClosure (_,cf)) ->
           transform_closure e (run ecl) cf.cf_name
         | TFunction tf ->
-          handle_anon_func e { tf with tf_expr = run tf.tf_expr }
+          handle_anon_func e { tf with tf_expr = run tf.tf_expr } None
         | TCall({ eexpr = TConst(TSuper) }, _) ->
           Type.map_expr run e
         | TCall({ eexpr = TLocal(v) }, args) when String.get v.v_name 0 = '_' && Hashtbl.mem gen.gspecial_vars v.v_name ->
@@ -2957,7 +2964,7 @@ struct
     parent_func_class.cl_ordered_fields <- (List.filter (fun cf -> cf.cf_name <> "new") cfs) @ parent_func_class.cl_ordered_fields;
     ft.func_class <- parent_func_class;
 
-		let handle_anon_func fexpr tfunc : texpr * (tclass * texpr list) =
+		let handle_anon_func fexpr tfunc delegate_type : texpr * (tclass * texpr list) =
 			(* get all captured variables it uses *)
 			let captured_ht, tparams = get_captured fexpr in
 			let captured = Hashtbl.fold (fun _ e acc -> e :: acc) captured_ht [] in
@@ -3012,8 +3019,39 @@ struct
 			in
 			let func_expr = change_captured tfunc.tf_expr in
 
-			let invoke_field, super_args = ft.closure_to_classfield { tfunc with tf_expr = func_expr } fexpr.etype fexpr.epos in
-
+			let invokecf, invoke_field, super_args = match delegate_type with
+        | None -> (* no delegate *)
+          let ifield, sa = ft.closure_to_classfield { tfunc with tf_expr = func_expr } fexpr.etype fexpr.epos in
+          ifield,ifield,sa
+        | Some _ ->
+          let pos = cls.cl_pos in
+          let cf = mk_class_field "Delegate" (TFun(fun_args tfunc.tf_args, tfunc.tf_type)) true pos (Method MethNormal) [] in
+          cf.cf_expr <- Some { fexpr with eexpr = TFunction { tfunc with tf_expr = func_expr }; };
+          cf.cf_meta <- (Meta.Final,[],pos) :: cf.cf_meta;
+          cls.cl_ordered_fields <- cf :: cls.cl_ordered_fields;
+          cls.cl_fields <- PMap.add cf.cf_name cf cls.cl_fields;
+          (* invoke function body: call Delegate function *)
+          let ibody = {
+            eexpr = TCall({
+              eexpr = TField({
+                eexpr = TConst TThis;
+                etype = TInst(cls, List.map snd cls.cl_types);
+                epos = pos;
+              }, FInstance(cls, cf));
+              etype = cf.cf_type;
+              epos = pos;
+            }, List.map (fun (v,_) -> mk_local v pos) tfunc.tf_args);
+            etype = tfunc.tf_type;
+            epos = pos
+          } in
+          let ibody = if not (is_void tfunc.tf_type) then
+            { ibody with eexpr = TReturn( Some ibody ) }
+          else
+            ibody
+          in
+          let ifield, sa = ft.closure_to_classfield { tfunc with tf_expr = ibody } fexpr.etype fexpr.epos in
+          cf,ifield,sa
+      in
 
 			(* create the constructor *)
 			(* todo properly abstract how type var is set *)
@@ -3050,38 +3088,49 @@ struct
 			(* add this class to the module with gadd_to_module *)
 			ft.fgen.gadd_to_module (TClassDecl(cls)) priority;
 
-	(* if there are no captured variables, we can create a cache so subsequent calls don't need to create a new function *)
-	match captured, tparams with
-		| [], [] ->
-			let cache_var = ft.fgen.gmk_internal_name "hx" "current" in
-			let cache_cf = mk_class_field cache_var (TInst(cls,[])) false func_expr.epos (Var({ v_read = AccNormal; v_write = AccNormal })) [] in
-			cls.cl_ordered_statics <- cache_cf :: cls.cl_ordered_statics;
-			cls.cl_statics <- PMap.add cache_var cache_cf cls.cl_statics;
+      (* if there are no captured variables, we can create a cache so subsequent calls don't need to create a new function *)
+      let expr, clscapt =
+        match captured, tparams with
+        | [], [] ->
+          let cache_var = ft.fgen.gmk_internal_name "hx" "current" in
+          let cache_cf = mk_class_field cache_var (TInst(cls,[])) false func_expr.epos (Var({ v_read = AccNormal; v_write = AccNormal })) [] in
+          cls.cl_ordered_statics <- cache_cf :: cls.cl_ordered_statics;
+          cls.cl_statics <- PMap.add cache_var cache_cf cls.cl_statics;
 
-			(* if (FuncClass.hx_current != null) FuncClass.hx_current; else (FuncClass.hx_current = new FuncClass()); *)
+          (* if (FuncClass.hx_current != null) FuncClass.hx_current; else (FuncClass.hx_current = new FuncClass()); *)
 
-			(* let mk_static_field_access cl field fieldt pos = *)
-			let hx_current = mk_static_field_access cls cache_var (TInst(cls,[])) func_expr.epos in
+          (* let mk_static_field_access cl field fieldt pos = *)
+          let hx_current = mk_static_field_access cls cache_var (TInst(cls,[])) func_expr.epos in
 
-			let pos = func_expr.epos in
-			{ fexpr with
-				eexpr = TIf(
-					{
-						eexpr = TBinop(OpNotEq, hx_current, null (TInst(cls,[])) pos);
-						etype = ft.fgen.gcon.basic.tbool;
-						epos = pos;
-					},
-					hx_current,
-					Some(
-					{
-						eexpr = TBinop(OpAssign, hx_current, { fexpr with eexpr = TNew(cls, [], captured) });
-						etype = (TInst(cls,[]));
-						epos = pos;
-					}))
-			}, (cls,captured)
-		| _ ->
-			(* change the expression so it will be a new "added class" ( captured variables arguments ) *)
-			{ fexpr with eexpr = TNew(cls, List.map (fun cl -> TInst(cl,[])) tparams, List.rev captured) }, (cls,captured)
+          let pos = func_expr.epos in
+          { fexpr with
+            eexpr = TIf(
+              {
+                eexpr = TBinop(OpNotEq, hx_current, null (TInst(cls,[])) pos);
+                etype = ft.fgen.gcon.basic.tbool;
+                epos = pos;
+              },
+              hx_current,
+              Some(
+              {
+                eexpr = TBinop(OpAssign, hx_current, { fexpr with eexpr = TNew(cls, [], captured) });
+                etype = (TInst(cls,[]));
+                epos = pos;
+              }))
+          }, (cls,captured)
+        | _ ->
+          (* change the expression so it will be a new "added class" ( captured variables arguments ) *)
+          { fexpr with eexpr = TNew(cls, List.map (fun cl -> TInst(cl,[])) tparams, List.rev captured) }, (cls,captured)
+      in
+      match delegate_type with
+      | None ->
+        expr,clscapt
+      | Some _ ->
+        {
+          eexpr = TField(expr, FClosure(Some cls,invokecf));
+          etype = invokecf.cf_type;
+          epos = cls.cl_pos
+        }, clscapt
 		in
 
 		let tvar_to_cdecl = Hashtbl.create 0 in
@@ -3089,7 +3138,7 @@ struct
     traverse
       ft.fgen
 			~tparam_anon_decl:(fun v e fn ->
-				let _, info = handle_anon_func e fn in
+				let _, info = handle_anon_func e fn None in
 				Hashtbl.add tvar_to_cdecl v.v_id info
 			)
 			~tparam_anon_acc:(fun v e -> try
@@ -3134,7 +3183,7 @@ struct
 			)
       (* (transform_closure:texpr->texpr->string->texpr) (handle_anon_func:texpr->tfunc->texpr) (dynamic_func_call:texpr->texpr->texpr list->texpr) *)
       ft.transform_closure
-			(fun e f -> fst (handle_anon_func e f))
+			(fun e f delegate_type -> fst (handle_anon_func e f delegate_type))
       ft.dynamic_fun_call
       (* (dynamic_func_call:texpr->texpr->texpr list->texpr) *)
 
@@ -3307,7 +3356,7 @@ struct
             let ret_t = if is_dynamic_func then t_dynamic else ret_t in
 
             (TFun(args_real_to_func_sig _sig, ret_t), arity, type_n, ret_t, is_void ret, is_dynamic_func)
-          | _ -> (trace (s_type (print_context()) (follow old_sig) )); assert false
+          | _ -> (print_endline (s_type (print_context()) (follow old_sig) )); assert false
         in
 
         let tf_expr = if is_void then begin
@@ -6000,6 +6049,9 @@ struct
       let was_in_value = !in_value in
       in_value := true;
       match e.eexpr with
+        | TCast( { eexpr = TCall( { eexpr = TLocal { v_name = "__delegate__" } } as local, [del] ) } as e2, _) ->
+          { e with eexpr = TCast({ e2 with eexpr = TCall(local, [Type.map_expr run del]) }, None) }
+
         | TBinop ( (Ast.OpAssign | Ast.OpAssignOp _ as op), e1, e2 ) ->
           { e with eexpr = TBinop(op, run ~just_type:true e1, run e2) }
         | TField(ef, f) ->

@@ -49,9 +49,27 @@ class TestCSharp extends Test
 		t(true);
 	}
 
+	function testDelegates()
+	{
+		var run = false;
+		var v:haxe.test.VoidVoid = function () run = true;
+		f(run);
+		v.Invoke();
+		t(run);
+		f(didRun);
+		v = doRun;
+		v.Invoke();
+		t(didRun);
+	}
+
+	var didRun = false;
+	function doRun()
+	{
+		didRun = true;
+	}
+
 	function testOverloadOverride()
 	{
-		var v:haxe.test.VoidVoid = function() { trace("ha"); };
 		var c = new haxe.test.MyClass();
 		eq(42,c.SomeProp);
 		eq(42,c.SomeProp2);

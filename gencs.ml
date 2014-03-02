@@ -1103,6 +1103,8 @@ let configure gen =
             acc + 1
           ) 0 el);
           write w "}"
+        | TCall ({ eexpr = TLocal { v_name = "__delegate__" } }, [del]) ->
+          expr_s w del
         | TCall ({ eexpr = TLocal( { v_name = "__is__" } ) }, [ expr; { eexpr = TTypeExpr(md) } ] ) ->
           write w "( ";
           expr_s w expr;
