@@ -612,6 +612,7 @@ let rec get_fun_modifiers meta access modifiers =
     | (Meta.ReadOnly,[],_) :: meta -> get_fun_modifiers meta access ("readonly" :: modifiers)
     | (Meta.Unsafe,[],_) :: meta -> get_fun_modifiers meta access ("unsafe" :: modifiers)
     | (Meta.Volatile,[],_) :: meta -> get_fun_modifiers meta access ("volatile" :: modifiers)
+    | (Meta.Custom "?prop_impl",[],_) :: meta -> get_fun_modifiers meta "private" modifiers
     | _ :: meta -> get_fun_modifiers meta access modifiers
 
 (* this was the way I found to pass the generator context to be accessible across all functions here *)
@@ -1474,16 +1475,18 @@ let configure gen =
 		| Var { v_read = AccCall } when is_interface ->
 			write w "get;";
 		| _ -> match get with
-			| Some _  ->
+			| Some cf  ->
 				print w "get { return _get_%s(); }" prop.cf_name;
+        cf.cf_meta <- (Meta.Custom "?prop_impl", [], null_pos) :: cf.cf_meta;
 				newline w
 			| _ -> ());
 		(match prop.cf_kind with
 		| Var { v_write = AccCall } when is_interface ->
 			write w "set;";
 		| _ -> match set with
-			| Some _  ->
+			| Some cf  ->
 				print w "set { _set_%s(value); }" prop.cf_name;
+        cf.cf_meta <- (Meta.Custom "?prop_impl", [], null_pos) :: cf.cf_meta;
 				newline w
 			| _ -> ());
 		end_block w;
@@ -1503,7 +1506,10 @@ let configure gen =
         let unop = PMap.find name unops_names in
         "operator " ^ s_unop unop, false, false
       with | Not_found ->
-        name, false, false
+        if Meta.has (Meta.Custom "?prop_impl") cf.cf_meta then
+          "_" ^ name, false, false
+        else
+          name, false, false
     in
     let rec loop_static cl =
       match is_static, cl.cl_super with
@@ -1560,13 +1566,14 @@ let configure gen =
           | "GetHashCode", TFun([],_) -> true
           | _ -> false
         in
+        let is_override = if Meta.has (Meta.Custom "?prop_impl") cf.cf_meta then false else is_override in
 
         let is_virtual = is_virtual && not (Meta.has Meta.Final cl.cl_meta) && not (is_interface) in
         let visibility = if is_interface then "" else "public" in
 
         let visibility, modifiers = get_fun_modifiers cf.cf_meta visibility [] in
         let modifiers = modifiers @ modf in
-        let visibility, is_virtual = if is_explicit_iface then "",false else visibility, is_virtual in
+        let visibility, is_virtual = if is_explicit_iface then "",false else if visibility = "private" then "private",false else visibility, is_virtual in
         let v_n = if is_static then "static " else if is_override && not is_interface then "override " else if is_virtual then "virtual " else "" in
         let cf_type = if is_override && not is_overload && not (Meta.has Meta.Overload cf.cf_meta) then match field_access gen (TInst(cl, List.map snd cl.cl_types)) cf.cf_name with | FClassField(_,_,_,_,_,actual_t,_) -> actual_t | _ -> assert false else cf.cf_type in
         let ret_type, args = match follow cf_type with | TFun (strbtl, t) -> (t, strbtl) | _ -> assert false in
@@ -1915,12 +1922,12 @@ let configure gen =
 		let sprops, snonprops = partition_props cl cl.cl_ordered_statics in
     (if is_some cl.cl_constructor then gen_class_field w false cl is_final (get cl.cl_constructor));
 		if not cl.cl_interface then begin
-			List.iter (gen_class_field w true cl is_final) snonprops;
 			(* we don't want to generate properties for abstrac implementation classes, because they don't have object to work with *)
-			if (match cl.cl_kind with KAbstractImpl _ -> false | _ -> true) then List.iter (gen_prop w true cl is_final) sprops
+      if (match cl.cl_kind with KAbstractImpl _ -> false | _ -> true) then List.iter (gen_prop w true cl is_final) sprops;
+			List.iter (gen_class_field w true cl is_final) snonprops
 		end;
-    List.iter (gen_class_field w false cl is_final) fnonprops;
 		List.iter (gen_prop w false cl is_final) fprops;
+    List.iter (gen_class_field w false cl is_final) fnonprops;
     check_special_behaviors w cl;
     end_block w;
     if cl.cl_interface && cl.cl_ordered_statics <> [] then begin
