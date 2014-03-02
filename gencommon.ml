@@ -2768,10 +2768,23 @@ struct
     | TCast(e,_) -> cleanup_delegate e
     | _ -> e
 
+  let rec change_after_field fn e = match e.eexpr with
+    | TField(ef,f) -> { e with eexpr = TField(fn ef,f) }
+    | _ -> Type.map_expr (change_after_field fn) e
+
   let traverse gen ?tparam_anon_decl ?tparam_anon_acc (transform_closure:texpr->texpr->string->texpr) (handle_anon_func:texpr->tfunc->texpr) (dynamic_func_call:texpr->texpr) e =
     let rec run e =
       match e.eexpr with
-        | TCast({ eexpr = TCall({},  ) }, _)
+        | TCast({ eexpr = TCall({ eexpr = TLocal{ v_name = "__delegate__" } }, [del] ) }, _) ->
+          (* found a delegate; let's see if it's a closure or not *)
+          let clean = cleanup_delegate del in
+          (match clean.eexpr with
+            | TField( _, FClosure _) | TField( _, FStatic _) ->
+              (* a closure; let's leave this unchanged for FilterClosures to handle it *)
+              change_after_field run e
+            | TFunction tf ->
+              (* handle like we'd handle a normal function, but create an unchanged closure field for it *)
+
 				(* parameterized functions handling *)
 				| TVar(vv, ve) -> (match tparam_anon_decl with
 					| None -> Type.map_expr run e
