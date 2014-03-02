@@ -177,31 +177,33 @@ class Path {
 
 		e.g. 'assets/maps' and '../textures/img.png' = 'assets/textures/img.png'
 	**/
-	public static function join( path1 : String, path2 : String ) : String {
+	public static function join(path1 : String, path2 : String ) : String {
 		path1 = Path.addTrailingSlash(path1);
-
 		return Path.normalize(path1 + path2);
 	}
 
 	/**
-		Normalize a given `path` (e.g. make '/usr/local/../lib' to '/usr/lib')
+		Normalize a given `path` (e.g. make '/usr/local/../lib' to '/usr/lib').
+		
+		Also replaces backslashes \ with slashes / and afterwards turns
+		multiple slashes into a single one.
+		
+		If `path` is null, the result is unspecified.
 	**/
-	public static function normalize( path : String) : String {
+	public static function normalize(path : String) : String {
 		var slash = '/';
-
+		path = path.split("\\").join("/");
 		if( path == null || path == slash ) {
 			return slash;
 		}
 
-		var prependSlash = (path.charAt(0) == slash ||
-			path.charAt(0) == '.');
+		var prependSlash = (path.charAt(0) == slash || path.charAt(0) == '.');
 		var target = [];
 		var src;
 		var parts;
 		var token;
 
 		src = path.split(slash);
-
 		for( i in 0...src.length ) {
 			token = src[i];
 
@@ -211,13 +213,9 @@ class Path {
 				target.push(token);
 			}
 		}
-
-		var regex = ~/[\/]{2,}/g;
-
+		var regex = ~/\/\//g;
 		var tmp = target.join(slash);
-
 		var result = regex.replace(tmp, slash);
-
 		return (prependSlash ? slash : '') + result;
 	}
 
