@@ -2958,7 +2958,106 @@ let is_explicit ctx ilcls i =
 		String.length m.mname > len && String.sub m.mname 0 len = s
 	) ilcls.cmethods
 
+let mke e p = (e,p)
+
+let mk_special_call name p args =
+  mke (ECast( mke (EUntyped( mke (ECall( mke (EConst(Ident name)) p, args )) p )) p , None)) p
+
+let mk_metas metas p =
+  List.map (fun m -> m,[],p) metas
+
+let mk_abstract_fun name p kind metas acc =
+  let metas = mk_metas metas p in
+  {
+    cff_name = name;
+    cff_doc = None;
+    cff_pos = p;
+    cff_meta = metas;
+    cff_access = acc;
+    cff_kind = kind;
+  }
+
+let convert_delegate ctx p ilcls =
+  (* will have the following methods: *)
+  (* - new (haxeType:Func) *)
+  (* - FromHaxeFunction(haxeType) *)
+  (* - Invoke() *)
+  (* - AsDelegate():Super *)
+  let invoke = List.find (fun m -> m.mname = "Invoke") ilcls.cmethods in
+  let haxe_type = convert_signature ctx p invoke.msig.snorm in
+  let types = List.map (fun t ->
+    {
+      tp_name = "T" ^ string_of_int t.tnumber;
+      tp_params = [];
+      tp_constraints = [];
+    }
+  ) ilcls.ctypes in
+  let ret,args = match invoke.msig.snorm with
+    | LMethod (_,ret,args) -> ret,args
+    | _ -> assert false
+  in
+
+  let fn_new = FFun {
+    f_params = [];
+    f_args = ["hxfunc",false,Some haxe_type,None];
+    f_type = None;
+    f_expr = Some ( EBinop(Ast.OpAssign, (EConst(Ident "this"),p), (mk_special_call "__delegate__" p [EConst(Ident "hxfunc"),p]) ), p );
+  } in
+  let fn_from_hx = FFun {
+    f_params = types;
+    f_args = ["hxfunc",false,Some haxe_type,None];
+    f_type = Some(
+      mk_type_path ctx ilcls.cpath (List.map (fun s ->
+        TPType (mk_type_path ctx ([],[],s.tp_name) [])
+      ) types) );
+    f_expr = Some( EReturn( Some (mk_special_call "__delegate__" p [EConst(Ident "hxfunc"),p] )), p);
+  } in
+  let i = ref 0 in
+  let j = ref 0 in
+  let fn_invoke = FFun {
+    f_params = [];
+    f_args = List.map (fun arg ->
+      incr i;
+      "arg" ^ string_of_int !i, false, Some (convert_signature ctx p arg), None
+    ) args;
+    f_type = Some(convert_signature ctx p ret);
+    f_expr = Some(
+      EReturn( Some (
+        mk_special_call "__call__" p ( [EConst(Ident "this"),p] @ List.map (fun arg ->
+          incr j; (EConst( Ident ("arg" ^ string_of_int !j) ), p)
+        ) args )
+      )), p
+    );
+  } in
+  let fn_asdel = FFun {
+    f_params = [];
+    f_args = [];
+    f_type = Some( convert_signature ctx p (Option.get ilcls.csuper).snorm );
+    f_expr = Some(
+      EReturn( Some ( EUntyped( EConst(Ident "this"), p ), p ) ), p
+    );
+  } in
+  let fn_new = mk_abstract_fun "new" p fn_new [Meta.Extern] [APublic;AInline] in
+  let fn_from_hx = mk_abstract_fun "FromHaxeFunction" p fn_from_hx [Meta.Extern;Meta.From] [APublic;AInline;AStatic] in
+  let fn_invoke = mk_abstract_fun "Invoke" p fn_invoke [Meta.Extern] [APublic;AInline] in
+  let fn_asdel = mk_abstract_fun "AsDelegate" p fn_asdel [Meta.Extern] [APublic;AInline] in
+  let _, c = netpath_to_hx ctx.nstd ilcls.cpath in
+  EAbstract {
+    d_name = netname_to_hx c;
+    d_doc = None;
+    d_params = types;
+    d_meta = mk_metas [Meta.Delegate;Meta.Extern;Meta.CoreType;Meta.RuntimeValue] p;
+    d_flags = [];
+    d_data = [fn_new;fn_from_hx;fn_invoke;fn_asdel];
+  }
+
 let convert_ilclass ctx p ilcls = match ilcls.csuper with
+  | Some { snorm = LClass ((["System"],[],"Delegate"),[]) }
+  | Some { snorm = LClass ((["System"],[],"MulticastDelegate"),[]) }
+    when List.mem SSealed ilcls.cflags.tdf_semantics -> (try
+      convert_delegate ctx p ilcls
+    with | Not_found ->
+      raise Exit)
 	| Some { snorm = LClass ((["System"],[],"Enum"),[]) } ->
 		convert_ilenum ctx p ilcls
 	| _ ->

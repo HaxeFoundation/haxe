@@ -53,6 +53,7 @@ module Meta = struct
 		| Debug
 		| Decl
 		| DefParam
+    | Delegate
 		| Depend
 		| Deprecated
 		| DynamicObject

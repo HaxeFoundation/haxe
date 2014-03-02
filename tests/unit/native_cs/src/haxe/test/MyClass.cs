@@ -43,6 +43,11 @@ public class MyClass
 		
 	}
 
+	virtual public void normalOverload(VoidVoid a)
+	{
+
+	}
+
 	virtual public int SomeProp
 	{
 		get { return 42; }
@@ -54,5 +59,7 @@ public class MyClass
 	}
 
 }
+
+public delegate void VoidVoid();
 
 }

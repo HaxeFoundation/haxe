@@ -51,6 +51,7 @@ class TestCSharp extends Test
 
 	function testOverloadOverride()
 	{
+		var v:haxe.test.VoidVoid = function() { trace("ha"); };
 		var c = new haxe.test.MyClass();
 		eq(42,c.SomeProp);
 		eq(42,c.SomeProp2);
