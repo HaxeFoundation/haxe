@@ -2763,9 +2763,15 @@ struct
 			* handling parameterized anonymous function declaration (optional - tparam_anon_decl and tparam_anon_acc)
   *)
 
+  let rec cleanup_delegate e = match e.eexpr with
+    | TParenthesis e | TMeta(_,e)
+    | TCast(e,_) -> cleanup_delegate e
+    | _ -> e
+
   let traverse gen ?tparam_anon_decl ?tparam_anon_acc (transform_closure:texpr->texpr->string->texpr) (handle_anon_func:texpr->tfunc->texpr) (dynamic_func_call:texpr->texpr) e =
     let rec run e =
       match e.eexpr with
+        | TCast({ eexpr = TCall({},  ) }, _)
 				(* parameterized functions handling *)
 				| TVar(vv, ve) -> (match tparam_anon_decl with
 					| None -> Type.map_expr run e
