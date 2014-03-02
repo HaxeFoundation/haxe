@@ -2,7 +2,7 @@ package haxe.format;
 
 class JsonPrinter {
 
-	static public function print(o:Dynamic, replacer:Dynamic -> Dynamic -> Dynamic) : String {
+	static public function print(o:Dynamic, ?replacer:Dynamic -> Dynamic -> Dynamic) : String {
 		var printer = new JsonPrinter(replacer);
 		printer.write("", o);
 		return printer.buf.toString();
