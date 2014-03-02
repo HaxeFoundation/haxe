@@ -2003,6 +2003,8 @@ let configure gen =
   Hashtbl.add gen.gspecial_vars "__valueOf__" true;
   Hashtbl.add gen.gspecial_vars "__sizeof__" true;
 
+  Hashtbl.add gen.gspecial_vars "__delegate__" true;
+
   Hashtbl.add gen.gsupported_conversions (["haxe"; "lang"], "Null") (fun t1 t2 -> true);
   let last_needs_box = gen.gneeds_box in
   gen.gneeds_box <- (fun t -> match t with | TInst( { cl_path = (["haxe"; "lang"], "Null") }, _ ) -> true | _ -> last_needs_box t);
@@ -2963,6 +2965,9 @@ let mke e p = (e,p)
 let mk_special_call name p args =
   mke (ECast( mke (EUntyped( mke (ECall( mke (EConst(Ident name)) p, args )) p )) p , None)) p
 
+let mk_this_call name p args =
+  mke (ECall( mke (EField(mke (EConst(Ident "this")) p ,name)) p, args )) p
+
 let mk_metas metas p =
   List.map (fun m -> m,[],p) metas
 
@@ -2978,6 +2983,7 @@ let mk_abstract_fun name p kind metas acc =
   }
 
 let convert_delegate ctx p ilcls =
+	let p = { p with pfile =  p.pfile ^" abstract delegate" } in
   (* will have the following methods: *)
   (* - new (haxeType:Func) *)
   (* - FromHaxeFunction(haxeType) *)
@@ -2992,6 +2998,13 @@ let convert_delegate ctx p ilcls =
       tp_constraints = [];
     }
   ) ilcls.ctypes in
+  let params = (List.map (fun s ->
+    TPType (mk_type_path ctx ([],[],s.tp_name) [])
+  ) types) in
+  let underlying_type = match ilcls.cpath with
+    | ns,inner,name ->
+      mk_type_path ctx (ns,inner,"Delegate_" ^ name) params
+  in
   let ret,args = match invoke.msig.snorm with
     | LMethod (_,ret,args) -> ret,args
     | _ -> assert false
@@ -3006,10 +3019,7 @@ let convert_delegate ctx p ilcls =
   let fn_from_hx = FFun {
     f_params = types;
     f_args = ["hxfunc",false,Some haxe_type,None];
-    f_type = Some(
-      mk_type_path ctx ilcls.cpath (List.map (fun s ->
-        TPType (mk_type_path ctx ([],[],s.tp_name) [])
-      ) types) );
+    f_type = Some( mk_type_path ctx ilcls.cpath params );
     f_expr = Some( EReturn( Some (mk_special_call "__delegate__" p [EConst(Ident "hxfunc"),p] )), p);
   } in
   let i = ref 0 in
@@ -3023,7 +3033,7 @@ let convert_delegate ctx p ilcls =
     f_type = Some(convert_signature ctx p ret);
     f_expr = Some(
       EReturn( Some (
-        mk_special_call "__call__" p ( [EConst(Ident "this"),p] @ List.map (fun arg ->
+        mk_this_call "Invoke" p (List.map (fun arg ->
           incr j; (EConst( Ident ("arg" ^ string_of_int !j) ), p)
         ) args )
       )), p
@@ -3032,7 +3042,7 @@ let convert_delegate ctx p ilcls =
   let fn_asdel = FFun {
     f_params = [];
     f_args = [];
-    f_type = Some( convert_signature ctx p (Option.get ilcls.csuper).snorm );
+    f_type = None;
     f_expr = Some(
       EReturn( Some ( EUntyped( EConst(Ident "this"), p ), p ) ), p
     );
@@ -3046,18 +3056,12 @@ let convert_delegate ctx p ilcls =
     d_name = netname_to_hx c;
     d_doc = None;
     d_params = types;
-    d_meta = mk_metas [Meta.Delegate;Meta.Extern;Meta.CoreType;Meta.RuntimeValue] p;
-    d_flags = [];
+    d_meta = mk_metas [Meta.Delegate] p;
+    d_flags = [AIsType underlying_type];
     d_data = [fn_new;fn_from_hx;fn_invoke;fn_asdel];
   }
 
-let convert_ilclass ctx p ilcls = match ilcls.csuper with
-  | Some { snorm = LClass ((["System"],[],"Delegate"),[]) }
-  | Some { snorm = LClass ((["System"],[],"MulticastDelegate"),[]) }
-    when List.mem SSealed ilcls.cflags.tdf_semantics -> (try
-      convert_delegate ctx p ilcls
-    with | Not_found ->
-      raise Exit)
+let convert_ilclass ctx p ?(delegate=false) ilcls = match ilcls.csuper with
 	| Some { snorm = LClass ((["System"],[],"Enum"),[]) } ->
 		convert_ilenum ctx p ilcls
 	| _ ->
@@ -3135,7 +3139,12 @@ let convert_ilclass ctx p ilcls = match ilcls.csuper with
 					tp_constraints = [];
 				}) ilcls.ctypes
 			in
-			let _, c = netpath_to_hx ctx.nstd ilcls.cpath in
+      let path = match ilcls.cpath with
+        | ns,inner,name when delegate ->
+          ns,inner,"Delegate_"^name
+        | _ -> ilcls.cpath
+      in
+			let _, c = netpath_to_hx ctx.nstd path in
 			EClass {
 				d_name = netname_to_hx c;
 				d_doc = None;
@@ -3424,6 +3433,16 @@ let add_net_lib com file std =
 			if PMap.mem "net_loader_debug" com.defines then
 				Printf.printf "looking up %s\n" (path_s path);
 			match lookup path with
+      | Some({csuper = Some{snorm = LClass( (["System"],[],("Delegate"|"MulticastDelegate")),_)}} as cls)
+        when List.mem SSealed cls.cflags.tdf_semantics ->
+        let ctx = get_ctx() in
+        let hxcls = convert_ilclass ctx p ~delegate:true cls in
+        let delegate = convert_delegate ctx p cls in
+        cp := (hxcls,p) :: (delegate,p) :: !cp;
+				List.iter (fun ilpath ->
+					let path = netpath_to_hx ilpath in
+					build path
+				) cls.cnested
 			| Some cls ->
 				let ctx = get_ctx() in
 				let hxcls = convert_ilclass ctx p cls in
