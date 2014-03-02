@@ -205,8 +205,11 @@ class Manager<T : Object> {
 			var name = f.name;
 			var v : Dynamic = Reflect.field(x,name);
 			var vc : Dynamic = Reflect.field(cache,name);
-			if( v != vc && (!isBinary(f.t) || hasBinaryChanged(v,vc)) ) {
+			if( cache == null || v != vc ) {
 				switch( f.t ) {
+				case DSmallBinary, DNekoSerialized, DLongBinary, DBytes(_), DBinary: 
+					if ( hasBinaryChanged(v,vc) )
+						continue;
 				case DData:
 					v = doUpdateCache(x, name, v);
 					if( !hasBinaryChanged(v,vc) )
@@ -220,7 +223,8 @@ class Manager<T : Object> {
 				s.add(quoteField(name));
 				s.add(" = ");
 				getCnx().addValue(s,v);
-				Reflect.setField(cache,name,v);
+				if ( cache != null )
+					Reflect.setField(cache,name,v);
 			}
 		}
 		if( !mod )
