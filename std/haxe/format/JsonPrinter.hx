@@ -39,10 +39,7 @@ class JsonPrinter {
 		case TClass(c):
 			if( c == String )
 				quote(v);
-			else if( c == Date ) {
-				var v : Date = v;
-				quote(v.toString());
-			} else if( c == Array ) {
+			else if( c == Array ) {
 				var v : Array<Dynamic> = v;
 				addChar('['.code);
 				var len = v.length;
@@ -61,6 +58,9 @@ class JsonPrinter {
 				for( k in v.keys() )
 					Reflect.setField(o,k,v.get(k));
 				objString(o);
+			} else if( c == Date ) {
+				var v : Date = v;
+				quote(v.toString());
 			} else
 				#if flash9
 				classString(v);
