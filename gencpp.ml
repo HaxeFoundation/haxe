@@ -2823,6 +2823,34 @@ let list_iteri func in_list =
    List.iter (fun elem -> func !idx elem; idx := !idx + 1 ) in_list
 ;;
 
+let has_new_gc_references class_def =
+   match class_def.cl_dynamic with
+   | Some _ -> true
+   | _ -> (
+      let is_gc_reference field =
+      (should_implement_field field) && (is_data_member field) &&
+         match type_string field.cf_type with
+            | "bool" | "int" | "Float" -> false
+            | _ -> true
+      in
+      List.exists is_gc_reference class_def.cl_ordered_fields
+      )
+;;
+
+
+let rec has_gc_references class_def =
+   ( match class_def.cl_super with
+     | Some def when has_gc_references (fst def) -> true
+     | _ -> false )
+    || has_new_gc_references class_def
+;;
+
+let rec find_next_super_iteration class_def =
+   match class_def.cl_super with
+   | Some  (klass,params) when has_new_gc_references klass -> class_string klass "_obj" params
+   | Some  (klass,_) -> find_next_super_iteration klass
+   | _ -> "";
+;;
 
 let has_init_field class_def =
 	match class_def.cl_init with
@@ -2943,7 +2971,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 			output_cpp "}\n\n";
 
 		(* Destructor goes in the cpp file so we can "see" the full definition of the member vars *)
-		output_cpp ( class_name ^ "::~" ^ class_name ^ "() { }\n\n");
+		output_cpp ( "//" ^ class_name ^ "::~" ^ class_name ^ "() { }\n\n");
 		output_cpp ("Dynamic " ^ class_name ^ "::__CreateEmpty() { return  new " ^ class_name ^ "; }\n");
 
 		output_cpp (ptr_name ^ " " ^ class_name ^ "::__new(" ^constructor_type_args ^")\n");
@@ -2990,6 +3018,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 		(gen_field ctx class_def class_name smart_class_name dot_name true class_def.cl_interface) statics_except_meta;
 	output_cpp "\n";
 
+	let override_iteration = has_new_gc_references class_def in
 
 	(* Initialise non-static variables *)
 	if (not class_def.cl_interface) then begin
@@ -3023,23 +3052,31 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 		in
 
 
-		(* MARK function - explicitly mark all child pointers *)
-		output_cpp ("void " ^ class_name ^ "::__Mark(HX_MARK_PARAMS)\n{\n");
-		output_cpp ("	HX_MARK_BEGIN_CLASS(" ^ smart_class_name ^ ");\n");
-		if (implement_dynamic) then
-			output_cpp "	HX_MARK_DYNAMIC;\n";
-		List.iter (dump_field_iterator "HX_MARK_MEMBER_NAME") implemented_instance_fields;
-		(match  class_def.cl_super with Some _ -> output_cpp "	super::__Mark(HX_MARK_ARG);\n" | _ -> () );
-		output_cpp "	HX_MARK_END_CLASS();\n";
-		output_cpp "}\n\n";
+		if (override_iteration) then begin
+			let super_needs_iteration = find_next_super_iteration class_def in
+			(* MARK function - explicitly mark all child pointers *)
+			output_cpp ("void " ^ class_name ^ "::__Mark(HX_MARK_PARAMS)\n{\n");
+			output_cpp ("	HX_MARK_BEGIN_CLASS(" ^ smart_class_name ^ ");\n");
+			if (implement_dynamic) then
+				output_cpp "	HX_MARK_DYNAMIC;\n";
+			List.iter (dump_field_iterator "HX_MARK_MEMBER_NAME") implemented_instance_fields;
+			(match super_needs_iteration with
+           | "" -> ()
+           | super -> output_cpp ("	" ^ super^"::__Mark(HX_MARK_ARG);\n" ) );
+			output_cpp "	HX_MARK_END_CLASS();\n";
+			output_cpp "}\n\n";
 
-		(* Visit function - explicitly visit all child pointers *)
-		output_cpp ("void " ^ class_name ^ "::__Visit(HX_VISIT_PARAMS)\n{\n");
-		if (implement_dynamic) then
-			output_cpp "	HX_VISIT_DYNAMIC;\n";
-		List.iter (dump_field_iterator "HX_VISIT_MEMBER_NAME") implemented_instance_fields;
-		(match  class_def.cl_super with Some _ -> output_cpp "	super::__Visit(HX_VISIT_ARG);\n" | _ -> () );
-		output_cpp "}\n\n";
+			(* Visit function - explicitly visit all child pointers *)
+			output_cpp ("void " ^ class_name ^ "::__Visit(HX_VISIT_PARAMS)\n{\n");
+			if (implement_dynamic) then
+				output_cpp "	HX_VISIT_DYNAMIC;\n";
+			List.iter (dump_field_iterator "HX_VISIT_MEMBER_NAME") implemented_instance_fields;
+			(match super_needs_iteration with
+           | "" -> ()
+           | super -> output_cpp ("	" ^ super ^ "::__Visit(HX_VISIT_ARG);\n") );
+			output_cpp "}\n\n";
+		end;
+
 
 
 		let variable_field field =
@@ -3450,12 +3487,15 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 		output_h ("		" ^ class_name ^  "();\n");
 		output_h ("		Void __construct(" ^ constructor_type_args ^ ");\n");
 		output_h "\n	public:\n";
+		let new_arg = if (has_gc_references class_def) then "true" else "false" in
+		output_h ("		inline void *operator new( size_t inSize, bool inContainer=" ^ new_arg ^")\n" );
+		output_h ("			{ return hx::Object::operator new(inSize,inContainer); }\n" );
 		output_h ("		static " ^ptr_name^ " __new(" ^constructor_type_args ^");\n");
 		output_h ("		static Dynamic __CreateEmpty();\n");
 		output_h ("		static Dynamic __Create(hx::DynamicArray inArgs);\n");
       if (scriptable) then
 		   output_h ("		static hx::ScriptFunction __script_construct;\n");
-		output_h ("		~" ^ class_name ^ "();\n\n");
+		output_h ("		//~" ^ class_name ^ "();\n\n");
 		output_h ("		HX_DO_RTTI;\n");
 		if (field_integer_dynamic) then output_h "		Dynamic __IField(int inFieldID);\n";
 		if (field_integer_numeric) then output_h "		double __INumField(int inFieldID);\n";
@@ -3463,8 +3503,10 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 			output_h ("		HX_DECLARE_IMPLEMENT_DYNAMIC;\n");
 		output_h ("		static void __boot();\n");
 		output_h ("		static void __register();\n");
-		output_h ("		void __Mark(HX_MARK_PARAMS);\n");
-		output_h ("		void __Visit(HX_VISIT_PARAMS);\n");
+		if (override_iteration) then begin
+			output_h ("		void __Mark(HX_MARK_PARAMS);\n");
+			output_h ("		void __Visit(HX_VISIT_PARAMS);\n");
+		end;
 
 		List.iter (fun interface_name ->
 			output_h ("		inline operator " ^ interface_name ^ "_obj *()\n			" ^
