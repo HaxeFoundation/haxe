@@ -218,6 +218,25 @@ class TestCSharp extends Test
 		eq("Type description test", attrib.Description);
 	}
 
+	public function testEvents()
+	{
+		var x = new haxe.test.MyClass();
+		var hasFired = false;
+		f(hasFired);
+		var fn:haxe.test.VoidVoid = function() hasFired = true;
+		x.add_voidvoid( fn );
+		f(hasFired);
+		x.dispatch();
+		t(hasFired);
+		hasFired = false;
+		x.dispatch();
+		t(hasFired);
+		hasFired = false;
+		x.remove_voidvoid( fn );
+		x.dispatch();
+		f(hasFired);
+	}
+
 #if unsafe
 
 	@:unsafe public function testUnsafe()

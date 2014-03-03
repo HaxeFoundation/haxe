@@ -45,7 +45,12 @@ public class MyClass
 
 	virtual public void normalOverload(VoidVoid a)
 	{
+	}
 
+	public void dispatch()
+	{
+		if (voidvoid != null)
+			this.voidvoid.Invoke();
 	}
 
 	virtual public int SomeProp
@@ -57,6 +62,8 @@ public class MyClass
 	{
 		get { return 42; }
 	}
+
+	public event VoidVoid voidvoid;
 
 }
 

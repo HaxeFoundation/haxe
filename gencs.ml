@@ -1005,6 +1005,14 @@ let configure gen =
 		| _ -> false
 	in
 
+	let is_event t name = match follow (run_follow gen t), field_access gen t name with
+		| TInst({ cl_interface = true; cl_extern = true } as cl, _), FNotFound ->
+			not (is_hxgen (TClassDecl cl))
+		| _, FClassField(_,_,decl,v,_,_,_) ->
+			Meta.has Meta.Event v.cf_meta
+		| _ -> false
+	in
+
   let expr_s w e =
     last_line := -1;
     in_value := false;
@@ -1012,6 +1020,28 @@ let configure gen =
       let was_in_value = !in_value in
       in_value := true;
       (match e.eexpr with
+				| TCall( ({ eexpr = TField(ef,f) } as e), [ev] ) when String.starts_with (field_name f) "add_" ->
+					let name = field_name f in
+					let propname = String.sub name 4 (String.length name - 4) in
+					if is_event (gen.greal_type ef.etype) propname then begin
+						expr_s w ef;
+						write w ".";
+						write_field w propname;
+						write w " += ";
+						expr_s w ev
+					end else
+						do_call w e []
+				| TCall( ({ eexpr = TField(ef,f) } as e), [ev] ) when String.starts_with (field_name f) "remove_" ->
+					let name = field_name f in
+					let propname = String.sub name 7 (String.length name - 7) in
+					if is_event (gen.greal_type ef.etype) propname then begin
+						expr_s w ef;
+						write w ".";
+						write_field w propname;
+						write w " -= ";
+						expr_s w ev
+					end else
+						do_call w e []
 				| TCall( ({ eexpr = TField(ef,f) } as e), [] ) when String.starts_with (field_name f) "get_" ->
 					let name = field_name f in
 					let propname = String.sub name 4 (String.length name - 4) in
@@ -2898,6 +2928,32 @@ let convert_ilfield ctx p field =
 		cff_kind = kind;
 	}
 
+let convert_ilevent ctx p ev =
+	let p = { p with pfile =  p.pfile ^" (" ^ev.ename ^")" } in
+  let name = ev.ename in
+  let kind = FVar (Some (convert_signature ctx p ev.esig.snorm), None) in
+	let meta = [Meta.Event, [], p; Meta.Keep,[],p; Meta.SkipReflection,[],p] in
+  let acc = [APrivate] in
+  let add_m acc m = match m with
+    | None -> acc
+    | Some (name,flags) ->
+      if List.mem (CMStatic) flags.mf_contract then
+        AStatic :: acc
+      else
+        acc
+  in
+  let acc = add_m acc ev.eadd in
+  let acc = add_m acc ev.eremove in
+  let acc = add_m acc ev.eraise in
+  {
+    cff_name = name;
+    cff_doc = None;
+    cff_pos = p;
+    cff_meta = meta;
+    cff_access = acc;
+    cff_kind = kind;
+  }
+
 let convert_ilmethod ctx p m =
 	if not (Common.defined ctx.ncom Define.Unsafe) && has_unmanaged m.msig.snorm then raise Exit;
 	let p = { p with pfile =  p.pfile ^" (" ^m.mname ^")" } in
@@ -3248,6 +3304,7 @@ let convert_ilclass ctx p ?(delegate=false) ilcls = match ilcls.csuper with
 			run_fields (convert_ilmethod ctx p) meths;
 			run_fields (convert_ilfield ctx p) ilcls.cfields;
 			run_fields (convert_ilprop ctx p) ilcls.cprops;
+			run_fields (convert_ilevent ctx p) ilcls.cevents;
 
 			let params = List.map (fun p ->
 				{
