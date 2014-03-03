@@ -144,6 +144,13 @@ let is_string t =
     | TInst( { cl_path = ([], "String") }, [] ) -> true
     | _ -> false
 
+let change_md = function
+  | TAbstractDecl( { a_impl = Some impl } as a) when Meta.has Meta.Delegate a.a_meta ->
+    TClassDecl impl
+  | TClassDecl( { cl_kind = KAbstractImpl ({ a_this = TInst(impl,_) } as a) } as cl) when Meta.has Meta.Delegate a.a_meta ->
+    TClassDecl impl
+  | md -> md
+
 (* ******************************************* *)
 (* CSharpSpecificESynf *)
 (* ******************************************* *)
@@ -192,6 +199,7 @@ struct
             { eexpr = TField( _, FStatic({ cl_path = ([], "Std") }, { cf_name = "is"}) ) },
             [ obj; { eexpr = TTypeExpr(md) }]
           ) ->
+          let md = change_md md in
           let mk_is obj md =
             { e with eexpr = TCall( { eexpr = TLocal is_var; etype = t_dynamic; epos = e.epos }, [
               obj;
@@ -693,6 +701,7 @@ let configure gen =
       | _ -> None);
 
   let module_s md =
+    let md = change_md md in
     let path = (t_infos md).mt_path in
     match path with
     | ([], "String") -> "string"
@@ -2417,11 +2426,8 @@ let configure gen =
     { e with eexpr = TCall( { eexpr = TLocal( alloc_var "__typeof__" t_dynamic ); etype = t_dynamic; epos = e.epos }, [e] ) }
   in
 
-  ClassInstance.configure gen (ClassInstance.traverse gen (fun e mt -> match mt with
-    | TAbstractDecl( { a_impl = Some impl } as a) when Meta.has Meta.Delegate a.a_meta ->
-      get_typeof { e with eexpr = TTypeExpr( TClassDecl impl ) }
-    | _ ->
-      get_typeof e
+  ClassInstance.configure gen (ClassInstance.traverse gen (fun e mt ->
+    get_typeof e
   ));
 
   CastDetect.configure gen (CastDetect.default_implementation gen (Some (TEnum(empty_e, []))) true ~native_string_cast:false ~overloads_cast_to_base:true);
