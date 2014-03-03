@@ -65,6 +65,23 @@ class RunTravis {
 		switch (Sys.getEnv("TARGET")) {
 			case "macro", null:
 				runCommand("haxe", ["compile-macro.hxml"]);
+
+
+				//generate documentation
+				runCommand("haxelib", ["git", "hxparse", "https://github.com/Simn/hxparse", "development", "src"]);
+				runCommand("haxelib", ["git", "hxtemplo", "https://github.com/Simn/hxtemplo", "master", "src"]);
+				runCommand("haxelib", ["git", "hxargs", "https://github.com/Simn/hxargs.git"]);
+				runCommand("haxelib", ["git", "markdown", "https://github.com/dpeek/haxe-markdown.git", "master", "src"]);
+
+				runCommand("haxelib", ["git", "hxcpp", "https://github.com/HaxeFoundation/hxcpp.git"]);
+				runCommand("haxelib", ["git", "hxjava", "https://github.com/HaxeFoundation/hxjava.git"]);
+				runCommand("haxelib", ["git", "hxcs", "https://github.com/HaxeFoundation/hxcs.git"]);
+
+				runCommand("haxelib", ["git", "dox", "https://github.com/dpeek/dox.git"]);
+				Sys.setCwd(Sys.getEnv("HOME") + "/haxelib/dox/git/");
+				runCommand("haxe", ["run.hxml"]);
+				runCommand("haxe", ["gen.hxml"]);
+				runCommand("haxe", ["std.hxml"]);
 			case "neko":
 				runCommand("haxe", ["compile-neko.hxml"]);
 				runCommand("neko", ["unit.n"]);
