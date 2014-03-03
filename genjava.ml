@@ -2844,6 +2844,7 @@ let normalize_jclass com cls =
   let cmethods = ref methods in
   let all_methods = ref methods in
   let all_fields = ref cls.cfields in
+  let super_fields = ref [] in
   let super_methods = ref [] in
   (* fix overrides *)
   let rec loop cls = try
@@ -2856,6 +2857,7 @@ let normalize_jclass com cls =
       super_methods := cls.cmethods @ !super_methods;
       all_methods := cls.cmethods @ !all_methods;
       all_fields := cls.cfields @ !all_fields;
+      super_fields := cls.cfields @ !super_fields;
       let overriden = ref [] in
       cmethods := List.map (fun jm ->
         (* TODO rewrite/standardize empty spaces *)
@@ -2878,6 +2880,7 @@ let normalize_jclass com cls =
   if not (List.mem JInterface cls.cflags) then begin
     cmethods := List.filter (fun f -> List.exists (function | JPublic | JProtected -> true | _ -> false) f.jf_flags) !cmethods;
     all_fields := List.filter (fun f -> List.exists (function | JPublic | JProtected -> true | _ -> false) f.jf_flags) !all_fields;
+    super_fields := List.filter (fun f -> List.exists (function | JPublic | JProtected -> true | _ -> false) f.jf_flags) !super_fields;
   end;
   loop cls;
   (* look for interfaces and add missing implementations (may happen on abstracts or by vmsig differences *)
@@ -2945,6 +2948,13 @@ let normalize_jclass com cls =
       not (List.exists (filter_field f) cmethods)
     else
       not (List.exists (filter_field f) !nonstatics) && not (List.exists (fun f2 -> f != f2 && f.jf_name = f2.jf_name && not (List.mem JStatic f2.jf_flags)) !all_fields) ) cfields
+  in
+  (* now filter any method that clashes with a field - on a superclass *)
+  let cmethods = List.filter (fun f ->
+    if List.mem JStatic f.jf_flags then
+      true
+    else
+      not (List.exists (filter_field f) !super_fields) ) cmethods
   in
   (* removing duplicate fields. They are there because of return type covariance in Java *)
   (* Also, if a method overrides a previous definition, and changes a type parameters' variance, *)
