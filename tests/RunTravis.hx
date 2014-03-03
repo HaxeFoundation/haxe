@@ -34,7 +34,7 @@ class RunTravis {
 		for (t in 0...5) {
 			runCommand("sleep", ["2"]);
 			if (FileSystem.exists(flashlogPath))
-				break;				
+				break;
 		}
 		if (!FileSystem.exists(flashlogPath)) {
 			Sys.println('$flashlogPath not found.');
@@ -81,7 +81,7 @@ class RunTravis {
 				Sys.setCwd(Sys.getEnv("HOME") + "/haxelib/dox/git/");
 				runCommand("haxe", ["run.hxml"]);
 				runCommand("haxe", ["gen.hxml"]);
-				runCommand("haxe", ["std.hxml"]);
+				runCommand("haxelib", ["run", "dox", "-o", "bin/api.zip", "-i", "bin/xml"]);
 			case "neko":
 				runCommand("haxe", ["compile-neko.hxml"]);
 				runCommand("neko", ["unit.n"]);
