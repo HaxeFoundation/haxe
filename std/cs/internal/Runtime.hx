@@ -177,6 +177,14 @@ import cs.system.Type;
 	}
 
 	@:functionCode('
+		return (obj == null) ? 0 : (obj is long) ? (long)obj : ((System.IConvertible) obj).ToInt64(null);
+	')
+	public static function toLong(obj:Dynamic):haxe.Int64
+	{
+		return 0;
+	}
+
+	@:functionCode('
 			System.IConvertible cv1 = obj as System.IConvertible;
 			if (cv1 != null)
 			{
