@@ -960,13 +960,14 @@ let configure gen =
         false in
 
   let last_line = ref (-1) in
+  let begin_block w = write w "{"; push_indent w; newline w; last_line := -1 in
+  let end_block w = pop_indent w; (if w.sw_has_content then newline w); write w "}"; newline w; last_line := -1 in
   let line_directive =
     if Common.defined gen.gcon Define.RealPosition then
       fun w p -> ()
     else fun w p ->
       let cur_line = Lexer.get_error_line p in
-      let is_relative_path = (String.sub p.pfile 0 1) = "." in
-      let file = if is_relative_path then Common.get_full_path p.pfile else p.pfile in
+      let file = Common.get_full_path p.pfile in
       if cur_line <> ((!last_line)+1) then begin print w "#line %d \"%s\"" cur_line (Ast.s_escape file); newline w end;
       last_line := cur_line
   in
