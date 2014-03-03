@@ -1435,6 +1435,66 @@ let configure gen =
     expr_s w e
   in
 
+  let rec gen_fpart_attrib w = function
+    | EConst( Ident i ), _ ->
+      write w i
+    | EField( ef, f ), _ ->
+      gen_fpart_attrib w ef;
+      write w ".";
+      write w f
+    | _, p ->
+      gen.gcon.error "Invalid expression inside @:meta metadata" p
+  in
+
+  let rec gen_spart w = function
+    | EConst c, p -> (match c with
+      | Int s | Float s | Ident s ->
+        write w s
+      | String s ->
+        write w "\"";
+        write w (escape s);
+        write w "\""
+      | _ -> gen.gcon.error "Invalid expression inside @:meta metadata" p)
+    | EField( ef, f ), _ ->
+      gen_spart w ef;
+      write w ".";
+      write w f
+    | EBinop( Ast.OpAssign, (EConst (Ident s), _), e2 ), _ ->
+      write w s;
+      write w " = ";
+      gen_spart w e2
+    | EArrayDecl( el ), _ ->
+      write w "new[] {";
+      let fst = ref true in
+      List.iter (fun e ->
+        if !fst then fst := false else write w ", ";
+        gen_spart w e
+      ) el;
+      write w "}"
+    | ECall(fpart,args), _ ->
+      gen_fpart_attrib w fpart;
+      write w "(";
+      let fst = ref true in
+      List.iter (fun e ->
+        if !fst then fst := false else write w ", ";
+        gen_spart w e
+      ) args;
+      write w ")"
+    | _, p ->
+      gen.gcon.error "Invalid expression inside @:meta metadata" p
+  in
+
+  let gen_attributes w metadata =
+    List.iter (function
+      | Meta.Meta, [meta], _ ->
+        write w "[";
+        gen_spart w meta;
+        write w "]";
+        newline w
+      | _ -> ()
+    ) metadata
+  in
+
   let get_string_params cl_types =
     match cl_types with
       | [] ->
@@ -1454,6 +1514,7 @@ let configure gen =
   in
 
 	let rec gen_prop w is_static cl is_final (prop,t,get,set) =
+    gen_attributes w prop.cf_meta;
     let is_interface = cl.cl_interface in
 		let fn_is_final = function
 			| None -> true
@@ -1504,6 +1565,7 @@ let configure gen =
 	in
 
   let rec gen_class_field w ?(is_overload=false) is_static cl is_final cf =
+    gen_attributes w cf.cf_meta;
     let is_interface = cl.cl_interface in
     let name, is_new, is_explicit_iface = match cf.cf_name with
       | "new" -> snd cl.cl_path, true, false
@@ -1825,6 +1887,7 @@ let configure gen =
         begin_block w;
         true
     in
+    gen_attributes w cl.cl_meta;
 
     let is_main =
       match gen.gcon.main_class with
@@ -1959,6 +2022,7 @@ let configure gen =
         begin_block w;
         true
     in
+    gen_attributes w e.e_meta;
 
     print w "public enum %s" (change_clname (snd e.e_path));
     begin_block w;

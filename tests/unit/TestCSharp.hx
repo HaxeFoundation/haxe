@@ -201,6 +201,15 @@ class TestCSharp extends Test
 				});
 	}
 
+	public function testUncheckedAttribute()
+	{
+		var cls = cs.Lib.toNativeType( TestMyClass ),
+				attribType = cs.Lib.toNativeType( cs.system.componentmodel.DescriptionAttribute );
+		var attrib:cs.system.componentmodel.DescriptionAttribute = cast cs.system.Attribute.GetCustomAttribute(cls,attribType,true);
+		t(attrib != null);
+		eq("MyClass Description", attrib.Description);
+	}
+
 #if unsafe
 
 	@:unsafe public function testUnsafe()
@@ -283,6 +292,7 @@ private class HxClass extends NativeClass
 	}
 }
 
+@:meta(System.ComponentModel.Description("MyClass Description"))
 private class TestMyClass extends haxe.test.MyClass
 {
 	@:overload public function new()
@@ -296,6 +306,7 @@ private class TestMyClass extends haxe.test.MyClass
 		alternativeCtorCalled = true;
 	}
 
+	@:meta(System.ComponentModel.Description("Shows if the alternative ctor was called"))
 	public var alternativeCtorCalled:Bool;
 	public var boolCalled:Bool;
 	public var intCalled:Bool;
