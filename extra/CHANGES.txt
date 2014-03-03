@@ -15,6 +15,7 @@
 	cs : added -net-lib
 	cs : support for native delegates
 	cs : support for attributes
+	cs : support for events
 	js : added -D js-flatten
 
 	Standard Library:
