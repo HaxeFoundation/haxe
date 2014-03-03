@@ -75,7 +75,7 @@ let rec like_float t =
 let rec like_int t =
   match follow t with
     | TAbstract({ a_path = ([], "Int") },[]) -> true
-    | TAbstract(a, _) -> List.exists (fun (t,_) -> like_int t) a.a_from || List.exists (fun (t,_) -> like_float t) a.a_to
+    | TAbstract(a, _) -> List.exists (fun (t,_) -> like_int t) a.a_from || List.exists (fun (t,_) -> like_int t) a.a_to
     | _ -> false
 
 

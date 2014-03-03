@@ -35,15 +35,14 @@ package java;
 
 		If equalLengthRequired is true, the result might be a copy of an array with the correct size.
 	**/
-	public static function nativeArray<T>(arr:Array<T>, equalLengthRequired:Bool):NativeArray<T>
+	@:generic public static function nativeArray<T>(arr:Array<T>, equalLengthRequired:Bool):NativeArray<T>
 	{
-		var native:NativeArray<T> = untyped arr.__a;
-		if (native.length == arr.length)
+		var ret = new NativeArray(arr.length);
+		for (i in 0...arr.length)
 		{
-			return native;
-		} else {
-			return null;
+			ret[i] = arr[i];
 		}
+		return ret;
 	}
 
 	/**

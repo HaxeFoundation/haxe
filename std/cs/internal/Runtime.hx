@@ -752,6 +752,10 @@ import cs.system.Type;
 			return (To)(object) toDouble(obj);
 		else if (typeof(To) == typeof(int))
 			return (To)(object) toInt(obj);
+		else if (typeof(To) == typeof(float))
+			return (To)(object)(float)toDouble(obj);
+		else if (typeof(To) == typeof(long))
+			return (To)(object)(long)toDouble(obj);
 		else
 			return (To) obj;
 	')
