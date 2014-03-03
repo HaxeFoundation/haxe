@@ -9365,13 +9365,13 @@ struct
             | Ast.OpEq | Ast.OpNotEq ->
               (match e1.eexpr, e2.eexpr with
                 | TConst(TNull), _ when is_some e2_t ->
-                  let e = has_value e2 in
+                  let e = has_value (run e2) in
                   if op = Ast.OpEq then
                     { e with eexpr = TUnop(Ast.Not, Ast.Prefix, e) }
                   else
                     e
                 | _, TConst(TNull) when is_some e1_t ->
-                  let e = has_value e1 in
+                  let e = has_value (run e1) in
                   if op = Ast.OpEq then
                     { e with eexpr = TUnop(Ast.Not, Ast.Prefix, e) }
                   else
