@@ -3297,10 +3297,12 @@ struct
 
       in
 
-      let rettype_real_to_func t =
-        if like_float t then
+      let rettype_real_to_func t = match run_follow gen t with
+        | TType({ t_path = [],"Null" }, _) ->
+          0,t_dynamic
+        | _ when like_float t ->
           (1, basic.tfloat)
-        else
+        | _ ->
           (0, t_dynamic)
       in
 
