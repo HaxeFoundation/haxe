@@ -147,7 +147,7 @@ let is_string t =
 let change_md = function
   | TAbstractDecl( { a_impl = Some impl } as a) when Meta.has Meta.Delegate a.a_meta ->
     TClassDecl impl
-  | TClassDecl( { cl_kind = KAbstractImpl ({ a_this = TInst(impl,_) } as a) } as cl) when Meta.has Meta.Delegate a.a_meta ->
+  | TClassDecl( { cl_kind = KAbstractImpl ({ a_this = TInst(impl,_) } as a) }) when Meta.has Meta.Delegate a.a_meta ->
     TClassDecl impl
   | md -> md
 
@@ -889,15 +889,6 @@ let configure gen =
       | _ -> t_s t
   in
 
-  let argt_s t =
-    match t with
-      | TType ({ t_path = (["cs"], "Ref") }, [t])
-      | TAbstract ({ a_path = (["cs"], "Ref") },[t]) -> "ref " ^ t_s t
-      | TType ({ t_path = (["cs"], "Out") }, [t])
-      | TAbstract ({ a_path = (["cs"], "Out") },[t]) -> "out " ^ t_s t
-      | _ -> t_s t
-  in
-
   let escape ichar b =
     match ichar with
       | 92 (* \ *) -> Buffer.add_string b "\\\\"
@@ -1495,6 +1486,36 @@ let configure gen =
     ) metadata
   in
 
+  let argt_s t =
+    let w = new_source_writer () in
+    let rec run t =
+      match t with
+        | TType (tdef,p) ->
+          gen_attributes w tdef.t_meta;
+          run (follow_once t)
+        | TMono r ->
+          (match !r with
+          | Some t -> run t
+          | _ -> () (* avoid infinite loop / should be the same in this context *))
+        | TLazy f ->
+          run (!f())
+        | _ -> ()
+    in
+    run t;
+    let ret = match run_follow gen t with
+      | TType ({ t_path = (["cs"], "Ref") }, [t])
+      | TAbstract ({ a_path = (["cs"], "Ref") },[t]) -> "ref " ^ t_s t
+      | TType ({ t_path = (["cs"], "Out") }, [t])
+      | TAbstract ({ a_path = (["cs"], "Out") },[t]) -> "out " ^ t_s t
+      | t -> t_s t
+    in
+    let c = contents w in
+    if c <> "" then
+      c ^ " " ^ ret
+    else
+      ret
+  in
+
   let get_string_params cl_types =
     match cl_types with
       | [] ->
@@ -1657,9 +1678,9 @@ let configure gen =
         (* <T>(string arg1, object arg2) with T : object *)
         (match cf.cf_expr with
         | Some { eexpr = TFunction tf } ->
-            print w "%s(%s)%s" (params) (String.concat ", " (List.map2 (fun (var, _) (_,_,t) -> sprintf "%s %s" (argt_s (run_follow gen t)) (change_id var.v_name)) tf.tf_args args)) (params_ext)
+            print w "%s(%s)%s" (params) (String.concat ", " (List.map2 (fun (var, _) (_,_,t) -> sprintf "%s %s" (argt_s t) (change_id var.v_name)) tf.tf_args args)) (params_ext)
         | _ ->
-            print w "%s(%s)%s" (params) (String.concat ", " (List.map (fun (name, _, t) -> sprintf "%s %s" (argt_s (run_follow gen t)) (change_id name)) args)) (params_ext)
+            print w "%s(%s)%s" (params) (String.concat ", " (List.map (fun (name, _, t) -> sprintf "%s %s" (argt_s t) (change_id name)) args)) (params_ext)
         );
         if is_interface then
           write w ";"

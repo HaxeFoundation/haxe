@@ -272,6 +272,9 @@ class TestCSharp extends Test
 	}
 }
 
+@:meta(System.ComponentModel.Description("Type description test"))
+typedef StringWithDescription = String;
+
 private class HxClass extends NativeClass
 {
 	public function new()
@@ -314,6 +317,10 @@ private class TestMyClass extends haxe.test.MyClass
 	public var stringCalled:Bool;
 	public var dynamicCalled:Bool;
 	public var getCalled:Bool;
+
+	@:keep public function argumentDescription(arg:StringWithDescription)
+	{
+	}
 
 	@:overload override public function normalOverload(b:Bool):Void
 	{
