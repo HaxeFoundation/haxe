@@ -2770,6 +2770,43 @@ struct
     | TCast(e,_) -> cleanup_delegate e
     | _ -> e
 
+  let funct gen t = match follow (run_follow gen t) with
+    | TFun(args,ret) -> args,ret
+    | _ -> raise Not_found
+
+  let mk_conversion_fun gen e =
+    let args, ret = funct gen e.etype in
+    let tf_args = List.map (fun (n,o,t) -> alloc_var n t,None) args in
+    let block, local = match e.eexpr with
+      | TLocal v ->
+        v.v_capture <- true;
+        [],e
+      | _ ->
+        let tmp = mk_temp gen "delegate_conv" e.etype in
+        tmp.v_capture <- true;
+        [{ eexpr = TVar(tmp,Some e); etype = gen.gcon.basic.tvoid; epos = e.epos }], mk_local tmp e.epos
+    in
+    let body = {
+      eexpr = TCall(local, List.map (fun (v,_) -> mk_local v e.epos) tf_args);
+      etype = ret;
+      epos = e.epos;
+    } in
+    let body = if not (is_void ret) then
+      { body with eexpr = TReturn( Some body ) }
+    else
+      body
+    in
+    let body = {
+      eexpr = TBlock(block @ [body]);
+      etype = body.etype;
+      epos = body.epos;
+    } in
+    {
+      tf_args = tf_args;
+      tf_expr = body;
+      tf_type = ret;
+    }
+
   let traverse gen ?tparam_anon_decl ?tparam_anon_acc (transform_closure:texpr->texpr->string->texpr) (handle_anon_func:texpr->tfunc->t option->texpr) (dynamic_func_call:texpr->texpr) e =
     let rec run e =
       match e.eexpr with
@@ -2788,7 +2825,11 @@ struct
               (* handle like we'd handle a normal function, but create an unchanged closure field for it *)
               let ret = handle_anon_func clean { tf with tf_expr = run tf.tf_expr } (Some e.etype) in
               replace_delegate ret
-            | _ -> (* FIXME: conversion function *)
+            | _ -> try
+              let tf = mk_conversion_fun gen del in
+              let ret = handle_anon_func del { tf with tf_expr = run tf.tf_expr } (Some e.etype) in
+              replace_delegate ret
+            with Not_found ->
               gen.gcon.error "This delegate construct is unsupported" e.epos;
               replace_delegate (run clean))
 

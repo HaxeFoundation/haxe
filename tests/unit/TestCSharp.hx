@@ -60,6 +60,23 @@ class TestCSharp extends Test
 		v = doRun;
 		v.Invoke();
 		t(didRun);
+
+		run = false;
+		var someFunc = function() run = true;
+		f(run);
+		v = someFunc;
+		f(run);
+		v.Invoke();
+		t(run);
+
+		var someFunc2 = someFunc;
+		var getFun = function() return someFunc2;
+		run = false;
+		f(run);
+		v = { var x = "complex body"; getFun(); };
+		f(run);
+		v.Invoke();
+		t(run);
 	}
 
 	var didRun = false;
