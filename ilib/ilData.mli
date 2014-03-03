@@ -56,6 +56,7 @@ type ilclass = {
 	cimplements : ilsig_t list;
 	ctypes : type_param list;
 	cprops : ilprop list;
+	cevents : ilevent list;
 	(* cevents :  *)
 	cenclosing : ilpath option;
 	cnested : ilpath list;
@@ -66,6 +67,15 @@ and type_param = {
 	tflags : generic_flags;
 	tname : string option;
 	tconstraints : ilsig_t list;
+}
+
+and ilevent = {
+	ename : string;
+	eflags : event_flags;
+	eadd : (string * method_flags) option;
+	eremove : (string * method_flags) option;
+	eraise : (string * method_flags) option;
+	esig : ilsig_t;
 }
 
 and ilfield = {

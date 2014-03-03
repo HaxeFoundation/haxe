@@ -321,6 +321,36 @@ let convert_prop ctx prop =
 		pset = pset;
 	}
 
+let convert_event ctx event =
+	let name = event.e_name in
+	let flags = event.e_flags in
+	let esig = ilsig_of_tdef_ref event.e_event_type in
+	let esig = ilsig_t esig in
+	let add, remove, eraise =
+		List.fold_left (fun (add, remove, eraise) -> function
+			| MethodSemantics ms when List.mem SAddOn ms.ms_semantic ->
+				assert (add = None);
+				Some (ms.ms_method.m_name, ms.ms_method.m_flags), remove, eraise
+			| MethodSemantics ms when List.mem SRemoveOn ms.ms_semantic ->
+				assert (remove = None);
+				add, Some (ms.ms_method.m_name,ms.ms_method.m_flags), eraise
+			| MethodSemantics ms when List.mem SFire ms.ms_semantic ->
+				assert (eraise = None);
+				add, remove, Some (ms.ms_method.m_name, ms.ms_method.m_flags)
+			| _ -> add, remove, eraise
+		)
+		(None,None,None)
+		(Hashtbl.find_all ctx.il_relations (IEvent, event.e_id))
+	in
+	{
+		ename = name;
+		eflags = flags;
+		esig = esig;
+		eadd = add;
+		eremove = remove;
+		eraise = eraise;
+	}
+
 let convert_class ctx path =
 	let td = Hashtbl.find ctx.il_typedefs path in
 	let cpath = get_path (TypeDef td) in
@@ -329,22 +359,25 @@ let convert_class ctx path =
 	let cfields = List.map (convert_field ctx) td.td_field_list in
 	let cmethods = List.map (convert_method ctx) td.td_method_list in
 	let enclosing = Option.map (fun t -> get_path (TypeDef t)) td.td_extra_enclosing in
-	let impl, types, nested, props =
-		List.fold_left (fun (impl,types,nested, props) -> function
+	let impl, types, nested, props, events =
+		List.fold_left (fun (impl,types,nested,props,events) -> function
 			| InterfaceImpl ii ->
-				(ilsig_t (ilsig_of_tdef_ref ii.ii_interface)) :: impl,types,nested, props
+				(ilsig_t (ilsig_of_tdef_ref ii.ii_interface)) :: impl,types,nested, props, events
 			| GenericParam gp ->
-				(impl, (convert_generic ctx gp) :: types, nested, props)
+				(impl, (convert_generic ctx gp) :: types, nested, props,events)
 			| NestedClass nc ->
 				assert (nc.nc_enclosing.td_id = td.td_id);
-				(impl,types,(get_path (TypeDef nc.nc_nested)) :: nested, props)
+				(impl,types,(get_path (TypeDef nc.nc_nested)) :: nested, props,events)
 			| PropertyMap pm ->
 				assert (props = []);
-				impl,types,nested,List.map (convert_prop ctx) pm.pm_property_list
+				impl,types,nested,List.map (convert_prop ctx) pm.pm_property_list,events
+			| EventMap em ->
+				assert (events = []);
+				(impl,types,nested,props,List.map (convert_event ctx) em.em_event_list)
 			| _ ->
-				(impl,types,nested,props)
+				(impl,types,nested,props,events)
 		)
-		([],[],[],[])
+		([],[],[],[],[])
 		(Hashtbl.find_all ctx.il_relations (ITypeDef, td.td_id))
 	in
 	{
@@ -353,6 +386,7 @@ let convert_class ctx path =
 		csuper = csuper;
 		cfields = cfields;
 		cmethods = cmethods;
+		cevents = events;
 		cprops = props;
 		cimplements = impl;
 		ctypes = types;
