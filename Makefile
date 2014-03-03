@@ -179,7 +179,7 @@ clean_libs:
 	make -C libs/ttflib clean
 
 clean_haxe:
-	rm -f $(MODULES:=.obj) $(MODULES:=.o) $(MODULES:=.cmx) $(MODULES:=.cmi) lexer.ml haxe.exe
+	rm -f $(MODULES:=.obj) $(MODULES:=.o) $(MODULES:=.cmx) $(MODULES:=.cmi) lexer.ml $(OUTPUT)
 
 clean_tools:
 	rm -f $(OUTPUT) haxelib
