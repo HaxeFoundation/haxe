@@ -992,8 +992,10 @@ let configure gen =
       | _ -> (params, el)
   in
 
-	let is_extern_prop t name = match field_access gen t name with
-		| FClassField(_,_,decl,v,_,t,_) ->
+	let is_extern_prop t name = match follow (run_follow gen t), field_access gen t name with
+    | TInst({ cl_interface = true; cl_extern = true } as cl, _), FNotFound ->
+      not (is_hxgen (TClassDecl cl))
+		| _, FClassField(_,_,decl,v,_,t,_) ->
 			Type.is_extern_field v && (Meta.has Meta.Property v.cf_meta || (decl.cl_extern && not (is_hxgen (TClassDecl decl))))
 		| _ -> false
 	in
