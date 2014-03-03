@@ -13,6 +13,8 @@
 	all : allow multiple structural extension using { > T1, > T2, fields }
 	all : inline array and structure declarations if possible
 	cs : added -net-lib
+	cs : support for native delegates
+	cs : support for attributes
 	js : added -D js-flatten
 
 	Standard Library:

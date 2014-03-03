@@ -208,6 +208,14 @@ class TestCSharp extends Test
 		var attrib:cs.system.componentmodel.DescriptionAttribute = cast cs.system.Attribute.GetCustomAttribute(cls,attribType,true);
 		t(attrib != null);
 		eq("MyClass Description", attrib.Description);
+
+		attrib = cast cs.system.Attribute.GetCustomAttribute(cls.GetMethod("argumentDescription"), attribType,true);
+		t(attrib != null);
+		eq("Argument description", attrib.Description);
+
+		attrib = cast cs.system.Attribute.GetCustomAttribute(cls.GetMethod("argumentDescription").GetParameters()[0], attribType,true);
+		t(attrib != null);
+		eq("Type description test", attrib.Description);
 	}
 
 #if unsafe
@@ -309,7 +317,6 @@ private class TestMyClass extends haxe.test.MyClass
 		alternativeCtorCalled = true;
 	}
 
-	@:meta(System.ComponentModel.Description("Shows if the alternative ctor was called"))
 	public var alternativeCtorCalled:Bool;
 	public var boolCalled:Bool;
 	public var intCalled:Bool;
@@ -318,6 +325,7 @@ private class TestMyClass extends haxe.test.MyClass
 	public var dynamicCalled:Bool;
 	public var getCalled:Bool;
 
+	@:meta(System.ComponentModel.Description("Argument description"))
 	@:keep public function argumentDescription(arg:StringWithDescription)
 	{
 	}
