@@ -80,4 +80,8 @@ extern class Math
 	static inline function isNaN( f : Float ) : Bool {
 		return (untyped __js__("isNaN"))(f);
 	}
+
+	static function __init__() : Void {
+		untyped __feature__("Type.resolveClass", $hxClasses["Math"] = Math);
+	}
 }
