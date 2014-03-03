@@ -11,6 +11,8 @@
 .SUFFIXES : .ml .mli .cmo .cmi .cmx .mll .mly
 
 INSTALL_DIR=/usr
+INSTALL_BIN_DIR=$(INSTALL_DIR)/bin
+INSTALL_LIB_DIR=$(INSTALL_DIR)/lib/haxe
 
 OUTPUT=haxe
 EXTENSION=
@@ -79,30 +81,29 @@ haxelib:
 tools: haxelib
 
 install:
-	-rm -f $(INSTALL_DIR)/lib/haxe
-	-mkdir -p $(INSTALL_DIR)/lib/haxe
-	rm -rf $(INSTALL_DIR)/lib/haxe/std
-	cp -rf std $(INSTALL_DIR)/lib/haxe/std
-	cp -rf extra $(INSTALL_DIR)/lib/haxe
-	-mkdir -p $(INSTALL_DIR)/lib/haxe/lib
-	# -mkdir -p $(INSTALL_DIR)/lib/haxe/std/tools/haxelib
-	rm -f $(INSTALL_DIR)/bin/haxe
-	cp haxe $(INSTALL_DIR)/lib/haxe
-	ln -s $(INSTALL_DIR)/lib/haxe/haxe $(INSTALL_DIR)/bin/haxe
-	chmod -R a+rx $(INSTALL_DIR)/lib/haxe
-	chmod 777 $(INSTALL_DIR)/lib/haxe/lib
+	-rm -f $(INSTALL_LIB_DIR)
+	-mkdir -p $(INSTALL_LIB_DIR)
+	rm -rf $(INSTALL_LIB_DIR)/std
+	cp -rf std $(INSTALL_LIB_DIR)/std
+	cp -rf extra $(INSTALL_LIB_DIR)
+	-mkdir -p $(INSTALL_LIB_DIR)/lib
+	rm -f $(INSTALL_BIN_DIR)/haxe
+	cp haxe $(INSTALL_LIB_DIR)
+	ln -s $(INSTALL_LIB_DIR)/haxe $(INSTALL_BIN_DIR)/haxe
+	chmod -R a+rx $(INSTALL_LIB_DIR)
+	chmod 777 $(INSTALL_LIB_DIR)/lib
 	# cp extra/haxelib_src/haxelib_script.sh $(INSTALL_DIR)/bin/haxelib
-	echo "#!/bin/sh" > $(INSTALL_DIR)/bin/haxelib
-	echo "exec haxe -cp $(INSTALL_DIR)/lib/haxe/extra/haxelib_src/src --run tools.haxelib.Main \"\$$@\"" >> $(INSTALL_DIR)/bin/haxelib
-	chmod a+rx $(INSTALL_DIR)/bin/haxe $(INSTALL_DIR)/bin/haxelib
+	echo "#!/bin/sh" > $(INSTALL_BIN_DIR)/haxelib
+	echo "exec haxe -cp $(INSTALL_LIB_DIR)/extra/haxelib_src/src --run tools.haxelib.Main \"\$$@\"" >> $(INSTALL_BIN_DIR)/haxelib
+	chmod a+rx $(INSTALL_BIN_DIR)/haxe $(INSTALL_BIN_DIR)/haxelib
 
 # will install native version of the tools instead of script ones
 install_tools: tools
-	cp haxelib ${INSTALL_DIR}/bin/haxelib
-	chmod a+rx $(INSTALL_DIR)/bin/haxelib
+	cp haxelib ${INSTALL_BIN_DIR}/haxelib
+	chmod a+rx $(INSTALL_BIN_DIR)/haxelib
 
 uninstall:
-	rm -rf $(INSTALL_DIR)/bin/haxe $(INSTALL_DIR)/bin/haxelib $(INSTALL_DIR)/lib/haxe
+	rm -rf $(INSTALL_BIN_DIR)/haxe $(INSTALL_BIN_DIR)/haxelib $(INSTALL_LIB_DIR)
 
 export:
 	cp haxe*.exe doc/CHANGES.txt $(EXPORT)
