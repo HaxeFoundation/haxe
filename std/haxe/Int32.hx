@@ -26,130 +26,153 @@
  	all platforms.
  **/
 abstract Int32(Int) from Int to Int {
-	@:op(-A) public function negate():Int32;
+	@:op(-A) private function negate():Int32;
 
-	@:op(++A) public inline function preIncrement():Int32
+	@:op(++A) private inline function preIncrement():Int32
 		return this = clamp(++this);
 
-	@:op(A++) public inline function postIncrement():Int32 {
+	@:op(A++) private inline function postIncrement():Int32 {
 		var ret = this++;
 		this = clamp(this);
 		return ret;
 	}
 
-	@:op(--A) inline public function preDecrement():Int32
+	@:op(--A) private inline function preDecrement():Int32
 		return this = clamp(--this);
 
-	@:op(A--) inline public function postDecrement():Int32 {
+	@:op(A--) private inline function postDecrement():Int32 {
 		var ret = this--;
 		this = clamp(this);
 		return ret;
 	}
 
-	@:op(A + B) inline public static function add(a:Int32, b:Int32):Int32
+	@:op(A + B) private static inline function add(a:Int32, b:Int32):Int32
 		return clamp( a + b );
 
-	@:op(A + B) inline public static function addInt(a:Int32, b:Int):Int32
+	@:op(A + B) @:commutative private static inline function addInt(a:Int32, b:Int):Int32
 		return clamp( (a : Int) + b );
 
-	@:op(A + B) public static function addFloat(a:Int32, b:Float):Float;
+	@:op(A + B) @:commutative private static function addFloat(a:Int32, b:Float):Float;
 
-	@:op(A - B) inline public static function sub(a:Int32, b:Int32):Int32
+	@:op(A - B) private static inline function sub(a:Int32, b:Int32):Int32
 		return clamp( a - b );
 
-	@:op(A - B) public static function subInt(a:Int32, b:Int):Int32
+	@:op(A - B) private static inline function subInt(a:Int32, b:Int):Int32
 		return clamp( (a : Int) - b );
 
-	@:op(A - B) public static function subFloat(a:Int32, b:Int32):Float;
+	@:op(A - B) private static inline function intSub(a:Int, b:Int32):Int32
+		return clamp( a - (b : Int) );
+
+	@:op(A - B) private static function subFloat(a:Int32, b:Float):Float;
+
+	@:op(A - B) public static function floatSub(a:Float, b:Int32):Float;
 
 	#if (as3 || flash8 || js || php)
 
-	@:op(A * B) inline public static function mul(a:Int32, b:Int32):Int32
+	@:op(A * B) private static function mul(a:Int32, b:Int32):Int32
 		return clamp( a * (b & 0xFFFF) + clamp( a * (b >>> 16) << 16 ) );
 
-	@:op(A * B) inline public static function mulInt(a:Int32, b:Int):Int32
+	@:op(A * B) @:commutative private static inline function mulInt(a:Int32, b:Int):Int32
 		return mul(a, b);
 
 	#else
 
-	@:op(A * B) public static function mul(a:Int32, b:Int32):Int32;
-	@:op(A * B) @:commutative public static function mulInt(a:Int32, b:Int):Int32;
+	@:op(A * B) private static function mul(a:Int32, b:Int32):Int32;
+	@:op(A * B) @:commutative private static function mulInt(a:Int32, b:Int):Int32;
 
 	#end
 
-	@:op(A * B) @:commutative public static function mulFloat(a:Int32, b:Float):Float;
+	@:op(A * B) @:commutative private static function mulFloat(a:Int32, b:Float):Float;
 
-	@:op(A / B) public static function div(a:Int32, b:Int32):Float;
-	@:op(A / B) @:commutative public static function divInt(a:Int32, b:Int):Float;
-	@:op(A / B) @:commutative public static function divFloat(a:Int32, b:Float):Float;
+	@:op(A / B) private static function div(a:Int32, b:Int32):Float;
+	@:op(A / B) private static function divInt(a:Int32, b:Int):Float;
+	@:op(A / B) private static function intDiv(a:Int, b:Int32):Float;
+	@:op(A / B) private static function divFloat(a:Int32, b:Float):Float;
+	@:op(A / B) private static function floatDiv(a:Float, b:Int32):Float;
 
-	@:op(A % B) public static function mod(a:Int32, b:Int32):Int32;
-	@:op(A % B) @:commutative public static function modInt(a:Int32, b:Int):Int;
-	@:op(A % B) @:commutative public static function modFloat(a:Int32, b:Float):Float;
+	@:op(A % B) private static function mod(a:Int32, b:Int32):Int32;
+	@:op(A % B) private static function modInt(a:Int32, b:Int):Int;
+	@:op(A % B) private static function intMod(a:Int, b:Int32):Int;
+	@:op(A % B) private static function modFloat(a:Int32, b:Float):Float;
+	@:op(A % B) private static function floatMod(a:Float, b:Int32):Float;
 
-	@:op(A == B) public static function eq(a:Int32, b:Int32):Bool;
-	@:op(A == B) @:commutative public static function eqInt(a:Int32, b:Int):Bool;
-	@:op(A == B) @:commutative public static function eqFloat(a:Int32, b:Float):Bool;
+	@:op(A == B) private static function eq(a:Int32, b:Int32):Bool;
+	@:op(A == B) @:commutative private static function eqInt(a:Int32, b:Int):Bool;
+	@:op(A == B) @:commutative private static function eqFloat(a:Int32, b:Float):Bool;
 
-	@:op(A != B) public static function neq(a:Int32, b:Int32):Bool;
-	@:op(A != B) @:commutative public static function neqInt(a:Int32, b:Int):Bool;
-	@:op(A != B) @:commutative public static function neqFloat(a:Int32, b:Float):Bool;
+	@:op(A != B) private static function neq(a:Int32, b:Int32):Bool;
+	@:op(A != B) @:commutative private static function neqInt(a:Int32, b:Int):Bool;
+	@:op(A != B) @:commutative private static function neqFloat(a:Int32, b:Float):Bool;
 
-	@:op(A < B) public static function lt(a:Int32, b:Int32):Bool;
-	@:op(A < B) @:commutative public static function ltInt(a:Int32, b:Int):Bool;
-	@:op(A < B) @:commutative public static function ltFloat(a:Int32, b:Float):Bool;
+	@:op(A < B) private static function lt(a:Int32, b:Int32):Bool;
+	@:op(A < B) private static function ltInt(a:Int32, b:Int):Bool;
+	@:op(A < B) private static function intLt(a:Int, b:Int32):Bool;
+	@:op(A < B) private static function ltFloat(a:Int32, b:Float):Bool;
+	@:op(A < B) private static function floatLt(a:Float, b:Int32):Bool;
 
-	@:op(A <= B) public static function lte(a:Int32, b:Int32):Bool;
-	@:op(A <= B) @:commutative public static function lteInt(a:Int32, b:Int):Bool;
-	@:op(A <= B) @:commutative public static function lteFloat(a:Int32, b:Float):Bool;
+	@:op(A <= B) private static function lte(a:Int32, b:Int32):Bool;
+	@:op(A <= B) private static function lteInt(a:Int32, b:Int):Bool;
+	@:op(A <= B) private static function intLte(a:Int, b:Int32):Bool;
+	@:op(A <= B) private static function lteFloat(a:Int32, b:Float):Bool;
+	@:op(A <= B) private static function floatLte(a:Float, b:Int32):Bool;
 
-	@:op(A > B) public static function gt(a:Int32, b:Int32):Bool;
-	@:op(A > B) @:commutative public static function gtInt(a:Int32, b:Int):Bool;
-	@:op(A > B) @:commutative public static function gtFloat(a:Int32, b:Float):Bool;
+	@:op(A > B) private static function gt(a:Int32, b:Int32):Bool;
+	@:op(A > B) private static function gtInt(a:Int32, b:Int):Bool;
+	@:op(A > B) private static function intGt(a:Int, b:Int32):Bool;
+	@:op(A > B) private static function gtFloat(a:Int32, b:Float):Bool;
+	@:op(A > B) private static function floatGt(a:Float, b:Int32):Bool;
 
-	@:op(A >= B) public static function gte(a:Int32, b:Int32):Bool;
-	@:op(A >= B) @:commutative public static function gteInt(a:Int32, b:Int):Bool;
-	@:op(A >= B) @:commutative public static function gteFloat(a:Int32, b:Float):Bool;
+	@:op(A >= B) private static function gte(a:Int32, b:Int32):Bool;
+	@:op(A >= B) private static function gteInt(a:Int32, b:Int):Bool;
+	@:op(A >= B) private static function intGte(a:Int, b:Int32):Bool;
+	@:op(A >= B) private static function gteFloat(a:Int32, b:Float):Bool;
+	@:op(A >= B) private static function floatGte(a:Float, b:Int32):Bool;
 
-	@:op(~A) public function complement():Int32;
+	@:op(~A) private function complement():Int32;
 
-	@:op(A & B) public static function and(a:Int32, b:Int32):Int32;
-	@:op(A & B) @:commutative public static function andInt(a:Int32, b:Int):Int32;
+	@:op(A & B) private static function and(a:Int32, b:Int32):Int32;
+	@:op(A & B) @:commutative private static function andInt(a:Int32, b:Int):Int32;
 
-	@:op(A | B) public static function or(a:Int32, b:Int32):Int32;
-	@:op(A | B) @:commutative public static function orInt(a:Int32, b:Int):Int32;
+	@:op(A | B) private static function or(a:Int32, b:Int32):Int32;
+	@:op(A | B) @:commutative private static function orInt(a:Int32, b:Int):Int32;
 
-	@:op(A ^ B) public static function xor(a:Int32, b:Int32):Int32;
-	@:op(A ^ B) @:commutative public static function xorInt(a:Int32, b:Int):Int32;
+	@:op(A ^ B) private static function xor(a:Int32, b:Int32):Int32;
+	@:op(A ^ B) @:commutative private static function xorInt(a:Int32, b:Int):Int32;
 
 
-	@:op(A >> B) public static function shr(a:Int32, b:Int32):Int32;
-	@:op(A >> B) @:commutative public static function shrInt(a:Int32, b:Int):Int32;
+	@:op(A >> B) private static function shr(a:Int32, b:Int32):Int32;
+	@:op(A >> B) private static function shrInt(a:Int32, b:Int):Int32;
+	@:op(A >> B) private static function intShr(a:Int, b:Int32):Int32;
 
-	@:op(A >>> B) public static function ushr(a:Int32, b:Int32):Int32;
-	@:op(A >>> B) @:commutative public static function ushrInt(a:Int32, b:Int):Int32;
+	@:op(A >>> B) private static function ushr(a:Int32, b:Int32):Int32;
+	@:op(A >>> B) private static function ushrInt(a:Int32, b:Int):Int32;
+	@:op(A >>> B) private static function intUshr(a:Int, b:Int32):Int32;
 
 	#if php
 
 	// PHP may be 64-bit, so shifts must be clamped
-	@:op(A << B) public static function shl(a:Int32, b:Int32):Int32
+	@:op(A << B) private static inline function shl(a:Int32, b:Int32):Int32
 		return clamp( a << b );
 
-	@:op(A << B) @:commutative public static function shlInt(a:Int32, b:Int):Int32
+	@:op(A << B) private static inline function shlInt(a:Int32, b:Int):Int32
+		return clamp( a << b );
+
+	@:op(A << B) private static inline function intShl(a:Int32, b:Int):Int32
 		return clamp( a << b );
 
 	#else
 
-	@:op(A << B) public static function shl(a:Int32, b:Int32):Int32;
-	@:op(A << B) @:commutative public static function shlInt(a:Int32, b:Int):Int32;
+	@:op(A << B) private static function shl(a:Int32, b:Int32):Int32;
+	@:op(A << B) private static function shlInt(a:Int32, b:Int):Int32;
+	@:op(A << B) private static function intShl(a:Int, b:Int32):Int32;
 
 	#end
 
-	@:to public inline function toFloat():Float
+	@:to private inline function toFloat():Float
 		return this;
 
 	/**
-		Compare two Int32 in unsigned mode.
+		Compare `a` and `b` in unsigned mode.
 	**/
 	public static function ucompare( a : Int32, b : Int32 ) : Int {
 		if( a < 0 )
@@ -161,7 +184,7 @@ abstract Int32(Int) from Int to Int {
 	static var extraBits : Int = untyped __php__("PHP_INT_SIZE") * 8 - 32;
 	#end
 
-	inline static function clamp( x : Int ) : Int {
+	static inline function clamp( x : Int ) : Int {
 		// force to-int conversion on platforms that require it
 		#if (as3 || flash8 || js)
 		return x | 0;
