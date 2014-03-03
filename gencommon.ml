@@ -4526,9 +4526,20 @@ struct
         match e.eexpr with
             | TCast(cast_expr, _) ->
               (* see if casting to a native generic class *)
-              let t = follow (gen.greal_type e.etype) in
-              (match t with
-                | TInst(cl, p1 :: pl) when is_hxgeneric (TClassDecl cl) ->
+              let t = gen.greal_type e.etype in
+              let unifies =
+                let ctype = gen.greal_type cast_expr.etype in
+                match follow ctype with
+                | TInst(cl,_) -> (try
+                  unify ctype t;
+                  true
+                with | Unify_error el ->
+                  false)
+                | _ -> false
+              in
+              let unifies = unifies && not (PMap.mem "cs_safe_casts" gen.gcon.defines) in
+              (match follow t with
+                | TInst(cl, p1 :: pl) when is_hxgeneric (TClassDecl cl) && not unifies ->
                   let iface = Hashtbl.find ifaces cl.cl_path in
                   mk_cast e.etype (change_expr (Type.map_expr run cast_expr) cl iface (p1 :: pl))
                 | _ -> Type.map_expr run e
@@ -6237,7 +6248,11 @@ struct
             | _ -> None
           in
           (match get_null expr with
-          | Some enull -> { enull with etype = e.etype }
+          | Some enull ->
+              if gen.gcon.platform = Cs then
+                { enull with etype = gen.greal_type e.etype }
+              else
+                mk_cast (gen.greal_type e.etype) enull
           | _ ->
             let last_unsafe = gen.gon_unsafe_cast in
             gen.gon_unsafe_cast <- (fun t t2 pos -> ());

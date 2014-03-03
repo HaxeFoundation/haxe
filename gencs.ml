@@ -30,7 +30,7 @@ open Printf
 open Option
 open ExtString
 
-let is_cs_basic_type t =
+let rec is_cs_basic_type t =
   match follow t with
     | TInst( { cl_path = (["haxe"], "Int32") }, [] )
     | TInst( { cl_path = (["haxe"], "Int64") }, [] )
@@ -43,6 +43,8 @@ let is_cs_basic_type t =
       true
     | TAbstract _ when like_float t ->
       true
+    | TAbstract({ a_impl = Some _ } as a,pl) ->
+      is_cs_basic_type (Codegen.Abstract.get_underlying_type a pl)
     | TEnum(e, _) when not (Meta.has Meta.Class e.e_meta) -> true
     | TInst(cl, _) when Meta.has Meta.Struct cl.cl_meta -> true
     | _ -> false
@@ -787,7 +789,9 @@ let configure gen =
   *)
   change_param_type md tl =
     let is_hxgeneric = (TypeParams.RealTypeParams.is_hxgeneric md) in
-    let ret t = match is_hxgeneric, real_type t with
+    let ret t =
+      let t_changed = real_type t in
+      match is_hxgeneric, t_changed with
       | false, _ -> t
       (*
         Because Null<> types need a special compiler treatment for many operations (e.g. boxing/unboxing),
@@ -797,9 +801,10 @@ let configure gen =
       | true, TInst ( { cl_kind = KTypeParameter _ }, _ ) -> t
       | true, TInst _
       | true, TEnum _
-      | true, TAbstract _ when is_cs_basic_type t -> t
+      | true, TAbstract _ when is_cs_basic_type t_changed -> t
       | true, TDynamic _ -> t
-      | true, _ -> dynamic_anon
+      | true, x ->
+        dynamic_anon
     in
     if is_hxgeneric && List.exists (fun t -> match follow t with | TDynamic _ -> true | _ -> false) tl then
       List.map (fun _ -> t_dynamic) tl
