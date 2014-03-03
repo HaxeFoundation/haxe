@@ -2417,8 +2417,11 @@ let configure gen =
     { e with eexpr = TCall( { eexpr = TLocal( alloc_var "__typeof__" t_dynamic ); etype = t_dynamic; epos = e.epos }, [e] ) }
   in
 
-  ClassInstance.configure gen (ClassInstance.traverse gen (fun e mt ->
-    get_typeof e
+  ClassInstance.configure gen (ClassInstance.traverse gen (fun e mt -> match mt with
+    | TAbstractDecl( { a_impl = Some impl } as a) when Meta.has Meta.Delegate a.a_meta ->
+      get_typeof { e with eexpr = TTypeExpr( TClassDecl impl ) }
+    | _ ->
+      get_typeof e
   ));
 
   CastDetect.configure gen (CastDetect.default_implementation gen (Some (TEnum(empty_e, []))) true ~native_string_cast:false ~overloads_cast_to_base:true);
