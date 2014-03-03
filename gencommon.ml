@@ -9835,7 +9835,9 @@ struct
         } :: !block;
         (nullable_var, opt)
 
-  let change_func gen cf =
+  let rec change_func gen cf =
+    List.iter (change_func gen) cf.cf_overloads;
+    let is_ctor = cf.cf_name = "new" in
     let basic = gen.gcon.basic in
     match cf.cf_kind, follow cf.cf_type with
       | Var _, _ | Method MethDynamic, _ -> ()
@@ -9848,11 +9850,62 @@ struct
           | true, Some ({ eexpr = TFunction tf } as texpr) ->
             let block = ref [] in
             let tf_args = List.map (add_opt gen block tf.tf_expr.epos) tf.tf_args in
+            let arg_assoc = List.map2 (fun (v,o) (v2,_) -> v,(v2,o) ) tf.tf_args tf_args in
+            let rec extract_super e = match e.eexpr with
+              | TBlock(({ eexpr = TCall({ eexpr = TConst TSuper }, _) } as e2) :: tl) ->
+                e2, tl
+              | TBlock(hd :: tl) ->
+                let e2, tl2 = extract_super hd in
+                e2, tl2 @ tl
+              | _ -> raise Not_found
+            in
+            let block = try
+              if not is_ctor then raise Not_found;
+              (* issue #2570 *)
+              (* check if the class really needs the super as the first statement -
+              just to make sure we don't inadvertently break any existing code *)
+              let rec check cl =
+                if not (is_hxgen (TClassDecl cl)) then
+                  ()
+                else match cl.cl_super with
+                  | None ->
+                    raise Not_found
+                  | Some (cl,_) ->
+                    check cl
+              in
+              (match gen.gcurrent_class with
+                | Some cl -> check cl
+                | _ -> ());
+              let super, tl = extract_super tf.tf_expr in
+              (match super.eexpr with
+                | TCall({ eexpr = TConst TSuper } as e1, args) ->
+                  (* any super argument will be replaced by an inlined version of the check *)
+                  let found = ref false in
+                  let rec replace_args e = match e.eexpr with
+                    | TLocal(v) -> (try
+                      let v2,o = List.assq v arg_assoc in
+                      let e = { e with eexpr = TLocal v2; etype = basic.tnull e.etype } in
+                      let const = mk_cast e.etype { e with eexpr = TConst(Option.get o); etype = v.v_type } in
+                      found := true;
+                      { e with eexpr = TIf({
+                        eexpr = TBinop(Ast.OpEq, e, null e.etype e.epos);
+                        etype = basic.tbool;
+                        epos = e.epos
+                      }, const, Some e) }
+                    with | Not_found -> e)
+                    | _ -> Type.map_expr replace_args e
+                  in
+                  let args = List.map (replace_args) args in
+                  { tf.tf_expr with eexpr = TBlock((if !found then { super with eexpr = TCall(e1,args) } else super) :: !block @ tl) }
+                | _ -> assert false)
+              with | Not_found ->
+                Codegen.concat { tf.tf_expr with eexpr = TBlock(!block); etype = basic.tvoid } tf.tf_expr
+            in
 
             args := fun_args tf_args;
             cf.cf_expr <- Some( {texpr with eexpr = TFunction( { tf with
               tf_args = tf_args;
-              tf_expr = Codegen.concat { tf.tf_expr with eexpr = TBlock(!block); etype = basic.tvoid } tf.tf_expr
+              tf_expr = block
             } ); etype = TFun(!args, ret) } );
             cf.cf_type <- TFun(!args, ret)
 
