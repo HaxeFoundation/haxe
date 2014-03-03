@@ -37,16 +37,18 @@ let is_boxed_type t = match follow t with
 	| TInst ({ cl_path = (["java";"lang"], "Integer") }, [])
 	| TInst ({ cl_path = (["java";"lang"], "Byte") }, [])
 	| TInst ({ cl_path = (["java";"lang"], "Short") }, [])
+	| TInst ({ cl_path = (["java";"lang"], "Long") }, [])
 	| TInst ({ cl_path = (["java";"lang"], "Character") }, [])
 	| TInst ({ cl_path = (["java";"lang"], "Float") }, []) -> true
 	| _ -> false
 
-let unboxed_type gen t tbyte tshort tchar tfloat = match follow t with
+let unboxed_type gen t tbyte tshort tlong tchar tfloat = match follow t with
 	| TInst ({ cl_path = (["java";"lang"], "Boolean") }, []) -> gen.gcon.basic.tbool
 	| TInst ({ cl_path = (["java";"lang"], "Double") }, []) -> gen.gcon.basic.tfloat
 	| TInst ({ cl_path = (["java";"lang"], "Integer") }, []) -> gen.gcon.basic.tint
 	| TInst ({ cl_path = (["java";"lang"], "Byte") }, []) -> tbyte
 	| TInst ({ cl_path = (["java";"lang"], "Short") }, []) -> tshort
+	| TInst ({ cl_path = (["java";"lang"], "Long") }, []) -> tlong
 	| TInst ({ cl_path = (["java";"lang"], "Character") }, []) -> tchar
 	| TInst ({ cl_path = (["java";"lang"], "Float") }, []) -> tfloat
 	| _ -> assert false
@@ -71,8 +73,8 @@ let rec t_has_type_param_shallow last t = match follow t with
 
 let is_java_basic_type t =
 	match follow t with
-		| TInst( { cl_path = (["haxe"], "Int32") }, [] )
-		| TInst( { cl_path = (["haxe"], "Int64") }, [] )
+		| TInst( { cl_path = (["haxe"], "Int32") }, [] ) | TAbstract( { a_path = (["haxe"], "Int32") }, [] )
+		| TInst( { cl_path = (["haxe"], "Int64") }, [] ) | TAbstract( { a_path = (["haxe"], "Int64") }, [] )
 		| TAbstract( { a_path = ([], "Single") }, [] )
 		| TAbstract( { a_path = (["java"], ("Int8" | "Int16" | "Char16")) }, [] )
 		| TInst( { cl_path = ([], "Int") }, [] ) | TAbstract( { a_path =	([], "Int") }, [] )
@@ -90,8 +92,8 @@ let is_bool t =
 
 let is_int_float gen t =
 	match follow (gen.greal_type t) with
-		| TInst( { cl_path = (["haxe"], "Int64") }, [] )
-		| TInst( { cl_path = (["haxe"], "Int32") }, [] )
+		| TInst( { cl_path = (["haxe"], "Int64") }, [] ) | TAbstract( { a_path = (["haxe"], "Int64") }, [] )
+		| TInst( { cl_path = (["haxe"], "Int32") }, [] ) | TAbstract( { a_path = (["haxe"], "Int32") }, [] )
 		| TInst( { cl_path = ([], "Int") }, [] ) | TAbstract( { a_path =	([], "Int") }, [] )
 		| TInst( { cl_path = ([], "Float") }, [] ) | TAbstract( { a_path =	([], "Float") }, [] ) ->
 			true
@@ -209,7 +211,9 @@ struct
 								epos = e.epos
 							}
 						| TClassDecl{ cl_path = ([], "Int") }
-						| TAbstractDecl{ a_path = ([], "Int") } ->
+						| TAbstractDecl{ a_path = ([], "Int") }
+						| TClassDecl{ cl_path = ([], "Int32") }
+						| TAbstractDecl{ a_path = ([], "Int32") } ->
 							{
 								eexpr = TCall(
 									mk_static_field_access_infer runtime_cl "isInt" e.epos [],
@@ -229,7 +233,8 @@ struct
 							mk_is true obj i16_md
 						| TAbstractDecl{ a_path = (["java"], "Char16") } ->
 							mk_is true obj c16_md
-						| TClassDecl{ cl_path = (["haxe"], "Int64") } ->
+						| TClassDecl{ cl_path = (["haxe"], "Int64") }
+						| TAbstractDecl{ a_path = (["haxe"], "Int64") } ->
 							mk_is true obj i64_md
 						| TAbstractDecl{ a_path = ([], "Dynamic") }
 						| TClassDecl{ cl_path = ([], "Dynamic") } ->
@@ -527,6 +532,7 @@ struct
 		let tchar = mt_to_t_dyn ( get_type gen (["java"], "Char16") ) in
 		let tbyte = mt_to_t_dyn ( get_type gen (["java"], "Int8") ) in
 		let tshort = mt_to_t_dyn ( get_type gen (["java"], "Int16") ) in
+		let tlong = mt_to_t_dyn ( get_type gen (["haxe"], "Int64") ) in
 		let tsingle = mt_to_t_dyn ( get_type gen ([], "Single") ) in
 		let string_ext = get_cl ( get_type gen (["haxe";"lang"], "StringExt")) in
 
@@ -566,8 +572,8 @@ struct
 					run ef *)
 
 				| TCast(expr, m) when is_boxed_type e.etype ->
-					(* let unboxed_type gen t tbyte tshort tchar tfloat = match follow t with *)
-					run { e with etype = unboxed_type gen e.etype tbyte tshort tchar tsingle }
+					(* let unboxed_type gen t tbyte tshort tlong tchar tfloat = match follow t with *)
+					run { e with etype = unboxed_type gen e.etype tbyte tshort tlong tchar tsingle }
 
 				| TCast(expr, _) when is_bool e.etype ->
 					{
@@ -580,19 +586,23 @@ struct
 					}
 
 				| TCast(expr, _) when is_int_float gen e.etype && not (is_int_float gen expr.etype) ->
-					let needs_cast = match gen.gfollow#run_f e.etype with
-						| TInst _ -> false
-						| _ -> true
-					in
+					let t = gen.gfollow#run_f e.etype in
 
-					let fun_name = if like_int e.etype then "toInt" else "toDouble" in
+					let needs_cast,ret_type,fun_name = match t with
+						| TAbstract( { a_path = (["haxe";"_Int64"], "NativeInt64") }, [] )
+						| TAbstract( { a_path = (["haxe"], "Int64") }, [] ) ->
+							(true, t, "toLong")
+						| TAbstract _ when like_int e.etype -> (true, basic.tint, "toInt")
+						| TAbstract _ -> (true, basic.tfloat, "toDouble")
+						| _ -> (false, basic.tfloat, "toDouble")
+					in
 
 					let ret = {
 						eexpr = TCall(
 							mk_static_field_access_infer runtime_cl fun_name expr.epos [],
 							[ run expr ]
 						);
-						etype = if fun_name = "toDouble" then basic.tfloat else basic.tint;
+						etype = ret_type;
 						epos = expr.epos
 					} in
 
@@ -695,7 +705,7 @@ let configure gen =
 
 	(*let string_ref = get_cl ( get_type gen (["haxe";"lang"], "StringRefl")) in*)
 
-	let ti64 = match ( get_type gen (["haxe";"_Int64"], "NativeInt64") ) with | TTypeDecl t -> TType(t,[]) | _ -> assert false in
+	let ti64 = match ( get_type gen (["haxe";"_Int64"], "NativeInt64") ) with | TTypeDecl t -> TType(t,[]) | TAbstractDecl a -> TAbstract(a,[]) | _ -> assert false in
 
 	let has_tdynamic params =
 		List.exists (fun e -> match run_follow gen e with | TDynamic _ -> true | _ -> false) params
@@ -720,7 +730,9 @@ let configure gen =
 									| TInst ({ cl_path = ([],"Float") },[])
 									| TAbstract ({ a_path = ([],"Float") },[])
 									| TInst ({ cl_path = ["haxe"],"Int32" },[])
+									| TAbstract ({ a_path = ["haxe"],"Int32" },[])
 									| TInst ({ cl_path = ["haxe"],"Int64" },[])
+									| TAbstract ({ a_path = ["haxe"],"Int64" },[])
 									| TInst ({ cl_path = ([],"Int") },[])
 									| TAbstract ({ a_path = ([],"Int") },[])
 									| TType ({ t_path = ["haxe";"_Int64"], "NativeInt64" },[])
@@ -767,7 +779,9 @@ let configure gen =
 			| TInst ({ cl_path = ([],"Int") },[])
 			| TAbstract ({ a_path = ([],"Int") },[])
 			| TInst( { cl_path = (["haxe"], "Int32") }, [] )
+			| TAbstract( { a_path = (["haxe"], "Int32") }, [] )
 			| TInst( { cl_path = (["haxe"], "Int64") }, [] )
+			| TAbstract( { a_path = (["haxe"], "Int64") }, [] )
 			| TType ({ t_path = ["haxe";"_Int64"], "NativeInt64" },[])
 			| TAbstract ({ a_path = ["haxe";"_Int64"], "NativeInt64" },[])
 			| TType ({ t_path = ["java"],"Int8" },[])
@@ -1084,8 +1098,11 @@ let configure gen =
 						| TNull ->
 							(match real_type e.etype with
 								| TType( { t_path = (["haxe";"_Int64"], "NativeInt64") }, [] )
-								| TInst( { cl_path = (["haxe"], "Int64") }, [] ) -> write w "0L"
+								| TAbstract( { a_path = (["haxe";"_Int64"], "NativeInt64") }, [] )
+								| TInst( { cl_path = (["haxe"], "Int64") }, [] )
+								| TAbstract( { a_path = (["haxe"], "Int64") }, [] ) -> write w "0L"
 								| TInst( { cl_path = (["haxe"], "Int32") }, [] )
+								| TAbstract( { a_path = (["haxe"], "Int32") }, [] )
 								| TInst({ cl_path = ([], "Int") },[])
 								| TAbstract ({ a_path = ([], "Int") },[]) -> expr_s w ({ e with eexpr = TConst(TInt Int32.zero) })
 								| TInst({ cl_path = ([], "Float") },[])
@@ -1128,9 +1145,11 @@ let configure gen =
 					loop cf.cf_meta
 				| TField (e, s) ->
 					expr_s w e; write w "."; write_field w (field_name s)
-				| TTypeExpr (TClassDecl { cl_path = (["haxe"], "Int32") }) ->
+				| TTypeExpr (TClassDecl { cl_path = (["haxe"], "Int32") })
+				| TTypeExpr (TAbstractDecl { a_path = (["haxe"], "Int32") }) ->
 					write w (path_s_import e.epos (["haxe"], "Int32"))
-				| TTypeExpr (TClassDecl { cl_path = (["haxe"], "Int64") }) ->
+				| TTypeExpr (TClassDecl { cl_path = (["haxe"], "Int64") })
+				| TTypeExpr (TAbstractDecl { a_path = (["haxe"], "Int64") }) ->
 					write w (path_s_import e.epos (["haxe"], "Int64"))
 				| TTypeExpr mt -> write w (md_s e.epos mt)
 				| TParenthesis e ->
@@ -1942,7 +1961,9 @@ let configure gen =
 				| TInst({ cl_path = ([], "Float") }, [])
 				| TAbstract ({ a_path = ([], "Float") },[])
 				| TInst({ cl_path = (["haxe"], "Int32")}, [] )
+				| TAbstract({ a_path = (["haxe"], "Int32")}, [] )
 				| TInst({ cl_path = (["haxe"], "Int64")}, [] )
+				| TAbstract({ a_path = (["haxe"], "Int64")}, [] )
 				| TInst({ cl_path = ([], "Int") }, [])
 				| TAbstract ({ a_path = ([], "Int") },[])
 				| TEnum({ e_path = ([], "Bool") }, [])
@@ -1982,7 +2003,9 @@ let configure gen =
 					| TInst({ cl_path = ([], "Float") },[]), _
 					| TAbstract ({ a_path = ([], "Float") },[]) , _
 					| TInst( { cl_path = (["haxe"], "Int32") }, [] ), _
+					| TAbstract( { a_path = (["haxe"], "Int32") }, [] ), _
 					| TInst( { cl_path = (["haxe"], "Int64") }, [] ), _
+					| TAbstract( { a_path = (["haxe"], "Int64") }, [] ), _
 					| TInst({ cl_path = ([], "Int") },[]), _
 					| TAbstract ({ a_path = ([], "Int") },[]) , _
 					| TEnum({ e_path = ([], "Bool") },[]), _
@@ -1992,7 +2015,9 @@ let configure gen =
 					| _, TInst({ cl_path = ([], "Int") },[])
 					| _, TAbstract ({ a_path = ([], "Int") },[])
 					| _, TInst( { cl_path = (["haxe"], "Int32") }, [] )
+					| _, TAbstract( { a_path = (["haxe"], "Int32") }, [] )
 					| _, TInst( { cl_path = (["haxe"], "Int64") }, [] )
+					| _, TAbstract( { a_path = (["haxe"], "Int64") }, [] )
 					| _, TEnum({ e_path = ([], "Bool") },[])
 					| _, TAbstract ({ a_path = ([], "Bool") },[])
 					| TInst( { cl_kind = KTypeParameter _ }, [] ), _

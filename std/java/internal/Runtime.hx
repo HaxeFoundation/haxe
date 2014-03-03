@@ -144,6 +144,14 @@ package java.internal;
 	}
 
 	@:functionCode('
+		return (obj == null) ? 0L : ((java.lang.Number) obj).longValue();
+	')
+	public static function toLong(obj:Dynamic):haxe.Int64
+	{
+		return 0;
+	}
+
+	@:functionCode('
 		if (obj != null && obj instanceof java.lang.Number)
 		{
 			return true;
