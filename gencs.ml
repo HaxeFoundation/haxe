@@ -512,6 +512,7 @@ let handle_type_params gen ifaces base_generic =
       let i = mk_temp gen "i" basic.tint in
       let old_len = mk_field_access gen e "Length" e.epos in
       let obj_v = mk_temp gen "obj" t_dynamic in
+      let check_null = {eexpr = TBinop(Ast.OpNotEq, e, null e.etype e.epos); etype = basic.tbool; epos = e.epos} in
       let block = [
         {
           eexpr = TVar(
@@ -573,7 +574,19 @@ let handle_type_params gen ifaces base_generic =
         };
         mk_local new_v e.epos
       ] in
-      { eexpr = TBlock(block); etype = to_t; epos = e.epos }
+      {
+        eexpr = TIf(
+          check_null,
+          {
+            eexpr = TBlock(block);
+            etype = to_t;
+            epos = e.epos;
+          },
+          Some(null new_v.v_type e.epos)
+        );
+        etype = to_t;
+        epos = e.epos;
+      }
     in
 
     Hashtbl.add gen.gtparam_cast (["cs"], "NativeArray") gtparam_cast_native_array;
