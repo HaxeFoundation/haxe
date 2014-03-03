@@ -2974,7 +2974,6 @@ let mk_metas metas p =
   List.map (fun m -> m,[],p) metas
 
 let mk_abstract_fun name p kind metas acc =
-  let p = { p with pfile = p.pfile ^ " (" ^ name ^ ")" } in
   let metas = mk_metas metas p in
   {
     cff_name = name;
@@ -2985,12 +2984,8 @@ let mk_abstract_fun name p kind metas acc =
     cff_kind = kind;
   }
 
-let convert_delegate ctx p ilcls hxcls =
+let convert_delegate ctx p ilcls =
 	let p = { p with pfile =  p.pfile ^" abstract delegate" } in
-  let change_pos fun_name =
-    { p with pfile = p.pfile ^ " (" ^ fun_name ^ ")" }
-  in
-  let restore () = p in
   (* will have the following methods: *)
   (* - new (haxeType:Func) *)
   (* - FromHaxeFunction(haxeType) *)
@@ -3017,56 +3012,20 @@ let convert_delegate ctx p ilcls hxcls =
     | _ -> assert false
   in
 
-  let pos = change_pos "new" in
   let fn_new = FFun {
     f_params = [];
     f_args = ["hxfunc",false,Some haxe_type,None];
     f_type = None;
     f_expr = Some ( EBinop(Ast.OpAssign, (EConst(Ident "this"),p), (mk_special_call "__delegate__" p [EConst(Ident "hxfunc"),p]) ), p );
   } in
-  let pos = change_pos "FromHaxeFunction" in
   let fn_from_hx = FFun {
     f_params = types;
     f_args = ["hxfunc",false,Some haxe_type,None];
     f_type = Some( mk_type_path ctx ilcls.cpath params );
     f_expr = Some( EReturn( Some (mk_special_call "__delegate__" p [EConst(Ident "hxfunc"),p] )), p);
   } in
-  let allfuns = match hxcls with
-    | EClass c -> List.filter (fun cff -> cff.cff_name <> "new") c.d_data
-    | _ -> assert false
-  in
-  let allfuns = List.map (fun cff ->
-    let p = change_pos cff.cff_name in
-    let metas = mk_metas [Meta.Extern] p @ cff.cff_meta in
-    let access = AInline :: cff.cff_access in
-    let access = if List.mem APrivate cff.cff_access then
-      access
-    else
-      APublic :: access
-    in
-    let i = ref 0 in
-    let j = ref 0 in
-    let kind = match cff.cff_kind with
-      | FFun f -> { f with
-        f_expr = Some(
-          EReturn( Some(
-            mk_this_call cff.cff_name p (List.map (fun (n,_,_) ->
-              EConst( Ident n ), p
-            ) f.f_args)
-          )), p
-        );
-      }
-      | k -> k
-    in
-    { cff with
-      cff_meta = metas;
-      cff_access = access;
-      cff_kind = kind;
-      cff_pos = p; }
-  ) allfuns in
   let i = ref 0 in
   let j = ref 0 in
-  let pos = change_pos "Invoke" in
   let fn_invoke = FFun {
     f_params = [];
     f_args = List.map (fun arg ->
@@ -3090,7 +3049,6 @@ let convert_delegate ctx p ilcls hxcls =
       EReturn( Some ( EUntyped( EConst(Ident "this"), p ), p ) ), p
     );
   } in
-  let p = restore() in
   let fn_new = mk_abstract_fun "new" p fn_new [Meta.Extern] [APublic;AInline] in
   let fn_from_hx = mk_abstract_fun "FromHaxeFunction" p fn_from_hx [Meta.Extern;Meta.From] [APublic;AInline;AStatic] in
   let fn_invoke = mk_abstract_fun "Invoke" p fn_invoke [Meta.Extern] [APublic;AInline] in
@@ -3102,7 +3060,7 @@ let convert_delegate ctx p ilcls hxcls =
     d_params = types;
     d_meta = mk_metas [Meta.Delegate] p;
     d_flags = [AIsType underlying_type];
-    d_data = all_funs @ [fn_new;fn_from_hx;fn_asdel];
+    d_data = [fn_new;fn_from_hx;fn_invoke;fn_asdel];
   }
 
 let convert_ilclass ctx p ?(delegate=false) ilcls = match ilcls.csuper with
@@ -3481,7 +3439,7 @@ let add_net_lib com file std =
         when List.mem SSealed cls.cflags.tdf_semantics ->
         let ctx = get_ctx() in
         let hxcls = convert_ilclass ctx p ~delegate:true cls in
-        let delegate = convert_delegate ctx p cls hxcls in
+        let delegate = convert_delegate ctx p cls in
         cp := (hxcls,p) :: (delegate,p) :: !cp;
 				List.iter (fun ilpath ->
 					let path = netpath_to_hx ilpath in
