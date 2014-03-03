@@ -9294,8 +9294,31 @@ struct
     in
 
     let is_null_t = is_null_t gen in
+    let cur_block = ref [] in
+    let add_tmp v e p =
+      cur_block := { eexpr = TVar(v,e); etype = gen.gcon.basic.tvoid; epos = p } :: !cur_block
+    in
+    let get_local e = match e.eexpr with
+      | TLocal _ ->
+        e, e
+      | _ ->
+        let v = mk_temp gen "nulltmp" e.etype in
+        add_tmp v (Some (null e.etype e.epos)) e.epos;
+        let local = { e with eexpr = TLocal(v) } in
+        mk_paren { e with eexpr = TBinop(Ast.OpAssign, local, e) }, local
+    in
     let rec run e =
       match e.eexpr with
+        | TBlock(bl) ->
+          let lst = !cur_block in
+          cur_block := [];
+          List.iter (fun e ->
+            let e = run e in
+            cur_block := (e :: !cur_block)
+          ) bl;
+          let ret = !cur_block in
+          cur_block := lst;
+          { e with eexpr = TBlock(List.rev ret) }
         | TCast(v, _) ->
           let null_et = is_null_t e.etype in
           let null_vt = is_null_t v.etype in
@@ -9312,6 +9335,17 @@ struct
               handle_wrap (run v) et
             | Some(vt), Some(et) when handle_cast ->
               handle_wrap (gen.ghandle_cast et vt (handle_unwrap vt (run v))) et
+            | Some(vt), Some(et) when not (type_iseq (run_follow gen vt) (run_follow gen et)) ->
+              (* check if has value and convert *)
+              let vlocal_fst, vlocal = get_local (run v) in
+              {
+                eexpr = TIf(
+                  has_value vlocal_fst,
+                  handle_wrap (mk_cast et (unwrap_null vlocal)) et,
+                  Some( handle_wrap (null et e.epos) et ));
+                etype = e.etype;
+                epos = e.epos
+              }
             | _ ->
               Type.map_expr run e
           )
@@ -9411,6 +9445,15 @@ struct
           )
         (*| TUnop( (Ast.Increment as op)*)
         | _ -> Type.map_expr run e
+    in
+    let run e = match e.eexpr with
+      | TFunction tf ->
+        run { e with eexpr = TFunction { tf with tf_expr = mk_block tf.tf_expr } }
+      | TBlock _ ->
+        run e
+      | _ -> match run (mk_block e) with
+        | { eexpr = TBlock([e]) } -> e
+        | e -> e
     in
     run
 
