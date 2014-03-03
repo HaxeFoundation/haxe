@@ -6090,6 +6090,9 @@ struct
       let was_in_value = !in_value in
       in_value := true;
       match e.eexpr with
+        | TConst ( TInt _ | TFloat _ | TBool _ ) ->
+          (* take off any Null<> that it may have *)
+          { e with etype = follow (run_follow gen e.etype) }
         | TCast( { eexpr = TCall( { eexpr = TLocal { v_name = "__delegate__" } } as local, [del] ) } as e2, _) ->
           { e with eexpr = TCast({ e2 with eexpr = TCall(local, [Type.map_expr run del]) }, None) }
 
@@ -6202,19 +6205,26 @@ struct
         | TIf (econd, ethen, Some(eelse)) when was_in_value ->
           { e with eexpr = TIf (handle (run econd) gen.gcon.basic.tbool econd.etype, handle (run ethen) e.etype ethen.etype, Some( handle (run eelse) e.etype eelse.etype ) ) }
         | TIf (econd, ethen, eelse) ->
-          { e with eexpr = TIf (handle (run econd) gen.gcon.basic.tbool econd.etype, run (mk_block ethen), Option.map (fun e -> run (mk_block e)) eelse) }
+          { e with eexpr = TIf (handle (run econd) gen.gcon.basic.tbool econd.etype, (in_value := false; run (mk_block ethen)), Option.map (fun e -> in_value := false; run (mk_block e)) eelse) }
         | TWhile (econd, e1, flag) ->
-          { e with eexpr = TWhile (handle (run econd) gen.gcon.basic.tbool econd.etype, run (mk_block e1), flag) }
+          { e with eexpr = TWhile (handle (run econd) gen.gcon.basic.tbool econd.etype, (in_value := false; run (mk_block e1)), flag) }
         | TSwitch (cond, el_e_l, edef) ->
-          { e with eexpr = TSwitch(run cond, List.map (fun (el,e) -> (List.map run el, run (mk_block e))) el_e_l, Option.map (fun e -> run (mk_block e)) edef) }
+          { e with eexpr = TSwitch(run cond, List.map (fun (el,e) -> (List.map run el, (in_value := false; run (mk_block e)))) el_e_l, Option.map (fun e -> in_value := false; run (mk_block e)) edef) }
 (*         | TMatch (cond, en, il_vl_e_l, edef) ->
           { e with eexpr = TMatch(run cond, en, List.map (fun (il, vl, e) -> (il, vl, run (mk_block e))) il_vl_e_l, Option.map (fun e -> run (mk_block e)) edef) } *)
         | TFor (v,cond,e1) ->
-          { e with eexpr = TFor(v, run cond, run (mk_block e1)) }
+          { e with eexpr = TFor(v, run cond, (in_value := false; run (mk_block e1))) }
         | TTry (e, ve_l) ->
-          { e with eexpr = TTry(run (mk_block e), List.map (fun (v,e) -> (v, run (mk_block e))) ve_l) }
+          { e with eexpr = TTry((in_value := false; run (mk_block e)), List.map (fun (v,e) -> in_value := false; (v, run (mk_block e))) ve_l) }
         | TBlock el ->
-          { e with eexpr = TBlock ( List.map (fun e -> in_value := false; run e) el ) }
+          let i = ref 0 in
+          let len = List.length el in
+          { e with eexpr = TBlock ( List.map (fun e ->
+            incr i;
+            if !i <> len || not was_in_value then
+              in_value := false;
+            run e
+          ) el ) }
         | TCast (expr, md) when is_void (follow e.etype) ->
           run expr
         | TCast (expr, md) ->
@@ -6238,6 +6248,9 @@ struct
         (*| TCast _ ->
           (* if there is already a cast, we should skip this cast check *)
           Type.map_expr run e*)
+        | TFunction f ->
+          in_value := false;
+          Type.map_expr run e
         | _ -> Type.map_expr run e
     in
     run
