@@ -1,12 +1,9 @@
 package haxe.format;
 
 class JsonPrinter {
-	
-	public static var INDENT = '  ';
-	public static var NL = '\n';
 
-	static public function print(o:Dynamic, ?replacer:Dynamic -> Dynamic -> Dynamic, ?pretty:Bool = false) : String {
-		var printer = new JsonPrinter(replacer, pretty);
+	static public function print(o:Dynamic, ?replacer:Dynamic -> Dynamic -> Dynamic, ?space:String) : String {
+		var printer = new JsonPrinter(replacer, space);
 		printer.write("", o);
 		return printer.buf.toString();
 	}
@@ -18,11 +15,11 @@ class JsonPrinter {
 	var pretty:Bool;
 	var nind:Int;
 	
-	function new(replacer:Dynamic -> Dynamic -> Dynamic, pretty:Bool) {
+	function new(replacer:Dynamic -> Dynamic -> Dynamic, space:String) {
 		this.replacer = replacer;
-		this.indent = INDENT;
-		this.nl = NL;
-		this.pretty = pretty;
+		this.indent = space;
+		this.nl = '\n';
+		this.pretty = space != null;
 		this.nind = 0;
 
 		#if flash9
