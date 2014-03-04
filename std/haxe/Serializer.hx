@@ -226,6 +226,7 @@ class Serializer {
 		case TNull:
 			buf.add("n");
 		case TInt:
+			var v : Int = v;
 			if( v == 0 ) {
 				buf.add("z");
 				return;
@@ -233,6 +234,7 @@ class Serializer {
 			buf.add("i");
 			buf.add(v);
 		case TFloat:
+			var v : Float = v;
 			if( Math.isNaN(v) )
 				buf.add("k");
 			else if( !Math.isFinite(v) )
@@ -362,17 +364,17 @@ class Serializer {
 				buf.add(":");
 				buf.add(chars);
 			default:
-				cache.pop();
+				if( useCache ) cache.pop();
 				if( #if flash9 try v.hxSerialize != null catch( e : Dynamic ) false #elseif (cs || java) Reflect.hasField(v, "hxSerialize") #else v.hxSerialize != null #end  ) {
 					buf.add("C");
 					serializeString(Type.getClassName(c));
-					cache.push(v);
+					if( useCache ) cache.push(v);
 					v.hxSerialize(this);
 					buf.add("g");
 				} else {
 					buf.add("c");
 					serializeString(Type.getClassName(c));
-					cache.push(v);
+					if( useCache ) cache.push(v);
 					#if flash9
 					serializeClassFields(v,c);
 					#else
@@ -386,9 +388,11 @@ class Serializer {
 			buf.add("o");
 			serializeFields(v);
 		case TEnum(e):
-			if( useCache && serializeRef(v) )
-				return;
-			cache.pop();
+			if( useCache ) {
+				if( serializeRef(v) )
+					return;
+				cache.pop();
+			}
 			buf.add(useEnumIndex?"j":"w");
 			serializeString(Type.getEnumName(e));
 			#if neko
@@ -480,7 +484,7 @@ class Serializer {
 			for( i in 2...l )
 				serialize(v[i]);
 			#end
-			cache.push(v);
+			if( useCache ) cache.push(v);
 		case TFunction:
 			throw "Cannot serialize function";
 		default:
