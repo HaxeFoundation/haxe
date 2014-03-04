@@ -22,7 +22,7 @@
 @:coreApi
 class StringBuf {
 
-	private var b : Array<Dynamic>;
+	private var b : Array<String>;
 
 	public var length(get,never) : Int;
 
@@ -38,7 +38,7 @@ class StringBuf {
 	}
 
 	public function add<T>( x : T ) : Void {
-		b.push(x);
+		b.push(Std.string(x));
 	}
 
 	public inline function addSub( s : String, pos : Int, ?len : Int ) : Void {
