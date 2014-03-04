@@ -207,7 +207,6 @@ class Path {
 			return slash;
 		}
 
-		var prependSlash = (path.charAt(0) == slash || path.charAt(0) == '.');
 		var target = [];
 		var src;
 		var parts;
@@ -219,14 +218,15 @@ class Path {
 
 			if(token == '..') {
 				target.pop();
-			} else if(token != '' && token != '.') {
+			} else if(token != '.') {
 				target.push(token);
 			}
 		}
-		var regex = ~/\/\//g;
+		
+		var regex = ~/([^:])\/+/g;
 		var tmp = target.join(slash);
-		var result = regex.replace(tmp, slash);
-		return (prependSlash ? slash : '') + result;
+		var result = regex.replace(tmp, "$1" +slash);
+		return result;
 	}
 
 	/**
