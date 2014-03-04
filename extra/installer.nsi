@@ -16,6 +16,7 @@
 
 ; Define version info
 !define VERSION "%%VERSION%%"
+!define VERSTRING "%%VERSTRING%%"
 
 ; Define Neko info
 !define NEKO_VERSION "2.0.0"
@@ -30,14 +31,14 @@ VIAddVersionKey "FileVersion" "${VERSION}.0"
 VIProductVersion "${VERSION}.0"
 
 ; The name of the installer
-Name "Haxe ${VERSION}"
+Name "Haxe ${VERSTRING}"
 
 ; The captions of the installer
-Caption "Haxe ${VERSION} Setup"
-UninstallCaption "Haxe ${VERSION} Uninstall"
+Caption "Haxe ${VERSTRING} Setup"
+UninstallCaption "Haxe ${VERSTRING} Uninstall"
 
 ; The file to write
-OutFile "haxe-${VERSION}-win.exe"
+OutFile "haxe-${VERSTRING}-win.exe"
 
 ; Default installation folder
 InstallDir "C:\HaxeToolkit\"
@@ -69,7 +70,7 @@ XPStyle on
 !define MUI_HEADERIMAGE_BITMAP "images\Banner.bmp"
 !define MUI_WELCOMEFINISHPAGE_BITMAP "images\Wizard.bmp"
 !define MUI_UNWELCOMEFINISHPAGE_BITMAP "images\Wizard.bmp"
-!define MUI_PAGE_HEADER_SUBTEXT "Please view the license before installing Haxe ${VERSION}."
+!define MUI_PAGE_HEADER_SUBTEXT "Please view the license before installing Haxe ${VERSTRING}."
 !define MUI_WELCOMEPAGE_TEXT "This wizard will guide you through the installation of $(^NameDA).\r\n\r\nIt is recommended that you close all other applications before starting Setup. This will make it possible to update relevant system files without having to reboot your computer.\r\n\r\n$_CLICK"
 
 ;--------------------------------
@@ -115,7 +116,7 @@ FunctionEnd
 !define env_hklm 'HKLM "SYSTEM\CurrentControlSet\Control\Session Manager\Environment"'
 !define env_hkcu 'HKCU "Environment"'
 
-Section "Haxe ${VERSION}" Main
+Section "Haxe ${VERSTRING}" Main
 
 	SectionIn 1 2 RO
 	SetOverwrite on
