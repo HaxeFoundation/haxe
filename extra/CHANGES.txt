@@ -16,7 +16,6 @@
 	cs : support for native delegates
 	cs : support for attributes
 	cs : support for events
-	js : added -D js-flatten
 
 	Standard Library:
 
@@ -38,6 +37,8 @@
 	all : improved inline constructors by detecting more cases where it can be applied
 	js : improved inlining
 	js : always use JSON extern (compile with -D old-browser to disable)
+	js : added -D js-flatten
+	js : added -D js-es5
 	cpp : improved side-effect detection
 
 	Bugfixes:
