@@ -64,9 +64,9 @@ int WINAPI WinMain( HINSTANCE inst, HINSTANCE prev, LPSTR lpCmdLine, int nCmdSho
 	DWORD unused;
 	SendMessageTimeout(HWND_BROADCAST,WM_SETTINGCHANGE, 0, (LPARAM)"Environment", SMTO_ABORTIFHUNG, 5000, &unused );
 
-	delete kdata;
-	// register 
-	if( strcmp(lpCmdLine,"-silent") != 0 )
-		MessageBox(NULL,"Setup completed, you can start using Haxe now","haxesetup",MB_OK | MB_ICONINFORMATION);
+	// delete kdata;
+	// // register 
+	// if( strcmp(lpCmdLine,"-silent") != 0 )
+	// 	MessageBox(NULL,"Setup completed, you can start using Haxe now","haxesetup",MB_OK | MB_ICONINFORMATION);
 	return 0;
 }
