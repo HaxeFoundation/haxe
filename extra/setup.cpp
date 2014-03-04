@@ -42,7 +42,7 @@ int WINAPI WinMain( HINSTANCE inst, HINSTANCE prev, LPSTR lpCmdLine, int nCmdSho
 	DWORD ksize = 16000;
 	char *kdata = new char[16000];
 	memset(kdata,0,ksize);
-	RegOpenKey(HKEY_CURRENT_USER,"Environment",&k);	
+	RegOpenKey(HKEY_LOCAL_MACHINE,"SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment",&k);	
 	RegQueryValueEx(k,"PATH",NULL,&ktype,(LPBYTE)kdata,&ksize);
 	if( strstr(kdata,"%HAXEPATH%") == NULL ) {
 		char *s = kdata + strlen(kdata);
