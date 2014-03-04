@@ -65,6 +65,7 @@ haxe.io.Path.normalize("dir1/dir2/../dir3") == "dir1/dir3";
 haxe.io.Path.normalize("/dir1/dir2/../../test.foo") == "/test.foo";
 haxe.io.Path.normalize("dir1/dir2/dir3/dir4/../../../dir5") == "dir1/dir5";
 haxe.io.Path.normalize("C:\\Windows\\..\\Users/Waneck on Windows///.haxelib") == "C:/Users/Waneck on Windows/.haxelib";
+haxe.io.Path.normalize("http://haxe.org/downloads") == "http://haxe.org/downloads";
 
 // join
 haxe.io.Path.join(["dir1/dir2", "dir3/dir4"]) == "dir1/dir2/dir3/dir4";

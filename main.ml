@@ -45,9 +45,9 @@ exception Abort
 exception Completion of string
 
 
-let version = 30100
-let version_major = version / 10000
-let version_minor = (version mod 10000) / 100
+let version = 3100
+let version_major = version / 1000
+let version_minor = (version mod 1000) / 100
 let version_revision = (version mod 100)
 let version_is_stable = version_minor land 1 = 0
 
@@ -927,7 +927,7 @@ try
 	let pre_compilation = ref [] in
 	let interp = ref false in
 	let swf_version = ref false in
-	Common.define_value com Define.HaxeVer (float_repres (float_of_int version /. 10000.));
+	Common.define_value com Define.HaxeVer (float_repres (float_of_int version /. 1000.));
 	Common.define_value com Define.HxcppApiLevel "310";
 	Common.raw_define com "haxe3";
 	Common.define_value com Define.Dce "std";

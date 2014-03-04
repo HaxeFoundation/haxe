@@ -26,11 +26,11 @@ import haxe.macro.Type.TypedExpr;
 
 /**
 	Context provides an API for macro programming.
-	
+
 	It contains common functions that interact with the macro interpreter to
 	query or set information. Other API functions are available in the tools
 	classes:
-		
+
 	- `haxe.macro.ComplexTypeTools`
 	- `haxe.macro.ExprTools`
 	- `haxe.macro.TypeTools`
@@ -46,7 +46,7 @@ class Context {
 	public static function error( msg : String, pos : Position ) : Dynamic {
 		return load("error",2)(untyped msg.__s, pos);
 	}
-	
+
 	/**
 		Displays a compilation error `msg` at the given `Position` `pos`
 		and aborts the compilation.
@@ -64,10 +64,10 @@ class Context {
 
 	/**
 		Resolves a file name `file` based on the current class paths.
-		
+
 		The resolution follows the usual class path rules where the last
 		declared class path has priority.
-		
+
 		If a class path was declared relative, this method returns the relative
 		file path. Otherwise it returns the absolute file path.
 	**/
@@ -78,7 +78,7 @@ class Context {
 	/**
 		Returns an `Array` of current class paths in the order of their
 		declaration.
-		
+
 		Modifying the returned array has no effect on the compiler. Class paths
 		can be added using `haxe.macro.Compiler.addClassPath`.
 	**/
@@ -99,23 +99,23 @@ class Context {
 
 	/**
 		Returns the type which is expected at the place the macro is called.
-		
+
 		This affects usages such as `var x:Int = macroCall()`, where the
 		expected type will be reported as Int.
-		
+
 		Might return null if no specific type is expected or if the calling
 		macro is not an expression-macro.
 	**/
-	@:require(haxe_ver >= 3.01)
+	@:require(haxe_ver >= 3.1)
 	public static function getExpectedType():Null<Type> {
 		var l : Type = load("expected_type", 0)();
 		if( l == null ) return null;
 		return l;
 	}
-	
+
 	/**
 		Returns the current class in which the macro was called.
-		
+
 		If no such class exists, null is returned.
 	**/
 	public static function getLocalClass() : Null<Type.Ref<Type.ClassType>> {
@@ -133,10 +133,10 @@ class Context {
 	public static function getLocalModule() : String {
 		return new String(load("local_module", 0)());
 	}
-	
+
 	/**
 		Returns the current type in/on which the macro was called.
-		
+
 		If no such type exists, null is returned.
 	**/
 	public static function getLocalType() : Null<Type> {
@@ -147,7 +147,7 @@ class Context {
 
 	/**
 		Returns the name of the method from which the macro was called.
-		
+
 		If no such method exists, null is returned.
 	**/
 	public static function getLocalMethod() : Null<String> {
@@ -159,7 +159,7 @@ class Context {
 	/**
 		Returns an `Array` of classes which are available for `using` usage in
 		the context the macro was called.
-		
+
 		Modifying the returned array has no effect on the compiler.
 	**/
 	public static function getLocalUsing() :  Array<Type.Ref<Type.ClassType>> {
@@ -169,10 +169,10 @@ class Context {
 	/**
 		Returns a map of local variables accessible in the context the macro was
 		called.
-		
+
 		The keys of the returned map are the variable names, the values are
 		their types.
-		
+
 		Modifying the returned map has no effect on the compiler.
 	**/
 	public static function getLocalVars() : haxe.ds.StringMap<Type> {
@@ -181,7 +181,7 @@ class Context {
 
 	/**
 		Tells if compiler directive `s` has been set.
-		
+
 		Compiler directives are set using the `-D` command line parameter, or
 		by calling `haxe.macro.Compiler.define`.
 	**/
@@ -191,12 +191,12 @@ class Context {
 
 	/**
 		Returns the value defined for compiler directive `key`.
-		
+
 		If no value is defined for `key`, null is returned.
-		
+
 		Compiler directive values are set using the `-D key=value` command line
 		parameter, or by calling `haxe.macro.Compiler.define`.
-		
+
 		The default value is `"1"`.
 	**/
 	public static function definedValue( key : String ) : String {
@@ -206,10 +206,10 @@ class Context {
 
 	/**
 		Resolves a type identified by `name`.
-		
+
 		The resolution follows the usual class path rules where the last
 		declared class path has priority.
-		
+
 		If no type can be found, null is returned.
 	**/
 	public static function getType( name : String ) : Type {
@@ -219,10 +219,10 @@ class Context {
 	/**
 		Resolves a module identified by `name` and returns an `Array` of all
 		its contained types.
-		
+
 		The resolution follows the usual class path rules where the last
 		declared class path has priority.
-		
+
 		If no module can be found, null is returned.
 	**/
 	public static function getModule( name : String ) : Array<Type> {
@@ -231,7 +231,7 @@ class Context {
 
 	/**
 		Parses `expr` as haxe code, returning the corresponding AST.
-		
+
 		The provided `Position` `pos` is used for all generated inner AST nodes.
 	**/
 	public static function parse( expr : String, pos : Position ) : Expr {
@@ -248,11 +248,11 @@ class Context {
 
 	/**
 		Builds an expression from `v`.
-		
+
 		This method generates AST nodes depending on the macro-runtime value of
 		`v`. As such, only basic types and enums are supported and the behavior
 		for other types is undefined.
-		
+
 		The provided `Position` `pos` is used for all generated inner AST nodes.
 	**/
 	public static function makeExpr( v : Dynamic, pos : Position ) : Expr {
@@ -269,7 +269,7 @@ class Context {
 	/**
 		Adds a callback function `callback` which is invoked after the
 		compiler's typing phase, just before its generation phase.
-		
+
 		The callback receives an `Array` containing all types which are about
 		to be generated. Modifications are limited to metadata, it is mainly
 		intended to obtain information.
@@ -277,23 +277,23 @@ class Context {
 	public static function onGenerate( callback : Array<Type> -> Void ) {
 		load("on_generate",1)(callback);
 	}
-	
+
 	/**
 		Adds a callback function `callback` which is invoked after the compiler
 		generation phase.
-		
+
 		Compilation has completed at this point and cannot be influenced
 		anymore. However, contextual information is still available.
 	**/
-	@:require(haxe_ver >= 3.01)
+	@:require(haxe_ver >= 3.1)
 	public static function onAfterGenerate( callback : Void -> Void ) {
 		load("after_generate",1)(callback);
 	}
-	
+
 	/**
 		Adds a callback function `callback` which is invoked when a type name
 		cannot be resolved.
-		
+
 		The callback may return a type definition, which is then used for the
 		expected type. If it returns null, the type is considered to still not
 		exist.
@@ -304,7 +304,7 @@ class Context {
 
 	/**
 		Types expression `e` and returns its type.
-		
+
 		Typing the expression may result in an compiler error which can be
 		caught using `try ... catch`.
 	**/
@@ -314,18 +314,18 @@ class Context {
 
 	/**
 		Types expression `e` and returns the corresponding `TypedExpr`.
-		
+
 		Typing the expression may result in an compiler error which can be
 		caught using `try ... catch`.
 	**/
-	@:require(haxe_ver >= 3.01)
+	@:require(haxe_ver >= 3.1)
 	public static function typeExpr( e : Expr ) : TypedExpr {
 		return load("type_expr", 1)(e);
 	}
 
 	/**
 		Returns the `ComplexType` corresponding to the given `Type` `t`.
-		
+
 		See `haxe.macro.TypeTools.toComplexType` for details.
 	**/
 	public static function toComplexType( t : Type ) : Null<ComplexType> {
@@ -341,7 +341,7 @@ class Context {
 
 	/**
 		Follows a type.
-		
+
 		See `haxe.macro.TypeTools.follow` for details.
 	**/
 	public static function follow( t : Type, ?once : Bool ) : Type {
@@ -375,15 +375,15 @@ class Context {
 		var r = new haxe.ds.StringMap();
 		for (k in x.keys()) {
 			r.set(k, haxe.io.Bytes.ofData(x.get(k)));
-		} 
+		}
 		return r;
 	}
 
 	/**
 		Makes resource `data` available as `name`.
-		
+
 		The resource is then available using the `haxe.macro.Resource` API.
-		
+
 		If a previous resource was bound to `name`, it is overwritten.
 	**/
 	public static function addResource( name : String, data : haxe.io.Bytes ) {
@@ -392,7 +392,7 @@ class Context {
 
 	/**
 		Returns an `Array` of fields of the class which is to be built.
-		
+
 		This is only defined for `@:build/@:autoBuild` macros.
 	**/
 	public static function getBuildFields() : Array<Field> {
@@ -415,7 +415,7 @@ class Context {
 
 	/**
 		Returns a syntax-level expression corresponding to typed expression `t`.
-		
+
 		This process may lose some information.
 	**/
 	public static function getTypedExpr( t : Type.TypedExpr ) : Expr {
@@ -425,10 +425,10 @@ class Context {
 	/**
 		Manually adds a dependency between module `modulePath` and an external
 		file `externFile`.
-		
+
 		This affects the compilation cache, causing the module to be typed if
 		`externFile` has changed.
-		
+
 		Has no effect if the compilation cache is not used.
 	**/
 	public static function registerModuleDependency( modulePath : String, externFile : String ) {
@@ -441,7 +441,7 @@ class Context {
 	public static function registerModuleReuseCall( modulePath : String, macroCall : String ) {
 		load("module_reuse_call", 2)(untyped modulePath.__s,untyped macroCall.__s);
 	}
-	
+
 	/**
 		Register a callback function that will be called everytime the macro context cached is reused with a new
 		compilation. This enable to reset some static vars since the code might have been changed. If the callback
