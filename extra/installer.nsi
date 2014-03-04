@@ -162,8 +162,8 @@ SectionEnd
 Section "un.Haxe" UninstMain
 
 	RMDir /r "$INSTDIR\haxe"
-	${un.EnvVarUpdate} $0 "PATH" "R" "HKCU" "%HAXEPATH%"
-	DeleteRegValue ${env_hkcu} HAXEPATH
+	${un.EnvVarUpdate} $0 "PATH" "R" "HKLM" "%HAXEPATH%"
+	DeleteRegValue ${env_hklm} HAXEPATH
 	SendMessage ${HWND_BROADCAST} ${WM_WININICHANGE} 0 "STR:Environment" /TIMEOUT=5000
 
 SectionEnd
@@ -171,8 +171,8 @@ SectionEnd
 Section "un.Neko" UninstNeko
 
 	RMDir /r "$INSTDIR\neko"
-	${un.EnvVarUpdate} $0 "PATH" "R" "HKCU" "%NEKO_INSTPATH%"
-	DeleteRegValue ${env_hkcu} NEKO_INSTPATH
+	${un.EnvVarUpdate} $0 "PATH" "R" "HKLM" "%NEKO_INSTPATH%"
+	DeleteRegValue ${env_hklm} NEKO_INSTPATH
 	SendMessage ${HWND_BROADCAST} ${WM_WININICHANGE} 0 "STR:Environment" /TIMEOUT=5000
 
 SectionEnd
