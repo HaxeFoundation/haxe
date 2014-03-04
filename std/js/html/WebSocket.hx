@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2013 Haxe Foundation
+ * Copyright (C)2005-2014 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -75,7 +75,7 @@ extern class WebSocket extends EventTarget
 	/** The URL&nbsp;as resolved by the constructor. This is always an absolute URL. <strong>Read only.</strong> */
 	var url(default,null) : String;
 
-	function new(?arg0 : Dynamic) : Void;
+	function new( ?arg0 : Dynamic ) : Void;
 
 	function close( ?code : Int, ?reason : String ) : Void;
 

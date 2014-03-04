@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html>
 <head>
 	<meta http-equiv="Content-Type" content="text/html;charset=UTF-8" />
@@ -35,13 +36,12 @@ iframe {
   white-space: pre;
 }
 	</style>
-	<script type="text/javascript" src="unit.js"></script>
 </head>
 <body>
 <p>Note : These tests need to be run from a local domain called <code>dev.unit-tests</code> which is running mod_neko in this directory.</p>
 <div class="window">
   <div class="label">JavaScript</div>
-  <div id="haxe:trace" class="cont"></div>
+  <div id="js_container" class="cont"><iframe src="unit-js.html"></iframe></div>
 </div>
 <div class="window">
   <div class="label">Neko</div>
@@ -143,10 +143,7 @@ iframe {
 </div>
 <div class="window">
   <div class="label">C#-unsafe</div>
-  <div id="csharp_container" class="cont"><iframe src="runexe.n?cs_unsafe/bin/cs_unsafe"></iframe></div>
+  <div id="csharp_unsafe_container" class="cont"><iframe src="runexe.n?cs_unsafe/bin/cs_unsafe"></iframe></div>
 </div>
-<script type="text/javascript">
-setTimeout('unit.Test.main()', 1000)
-</script>
 </body>
 </html>

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2013 Haxe Foundation
+ * Copyright (C)2005-2014 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -40,6 +40,6 @@ extern class MediaStream extends js.html.EventTarget
 
 	var videoTracks(default,null) : MediaStreamTrackList;
 
-	function new() : Void;
+	function new( audioTracks : MediaStreamTrackList, videoTracks : MediaStreamTrackList ) : Void;
 
 }

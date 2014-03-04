@@ -1,0 +1,5 @@
+compile-each.hxml
+-main unit.Test
+-swf-header 300:300:30:FFFFFF
+-swf-version 8
+-swf unit8.swf

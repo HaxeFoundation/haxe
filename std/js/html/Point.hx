@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2013 Haxe Foundation
+ * Copyright (C)2005-2014 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -36,6 +36,6 @@ extern class Point
 <pre>let p = new Point(x, y);
 </pre>
 <p>The new point, <code>p</code>, has the specified X&nbsp;and Y&nbsp;coordinates.</p> */
-	function new(?arg0 : Dynamic, ?arg1 : Dynamic) : Void;
+	function new( ?arg0 : Dynamic, ?arg1 : Dynamic ) : Void;
 
 }

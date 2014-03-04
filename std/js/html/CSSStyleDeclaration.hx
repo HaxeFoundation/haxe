@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2013 Haxe Foundation
+ * Copyright (C)2005-2014 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -475,8 +475,11 @@ Negative value are also allowed. */
 	/** The<code> overflow </code>CSS property specifies whether to clip content, render scroll bars or display overflow content of a block-level element. */
 	var overflow : String;
 
-	/** The <code>overflow-x </code><a title="CSS" rel="internal" href="https://developer.mozilla.org/en/CSS">CSS</a> property specifies whether to clip content, render a scroll bar or display overflow content of a block-level element, when it overflows at the left and right edges. */
+	/** The <code>overflow-x </code><a title="CSS" rel="internal" href="https://developer.mozilla.org/en/CSS">CSS</a> property specifies whether to clip content, render a scroll bar, or display overflow content of a block-level element, when it overflows at the left and right edges. */
 	var overflowX : String;
+
+	/** The <code>overflow-y </code><a title="CSS" rel="internal" href="https://developer.mozilla.org/en/CSS">CSS</a> property specifies whether to clip content, render a scroll bar, or display overflow content of a block-level element, when it overflows at the top and bottom edges. */
+	var overflowY : String;
 
 	/** The<code> padding </code>CSS property sets the required padding space on all sides of an element. The <a title="http://developer.mozilla.org/en/CSS/Box_model#padding" rel="internal" href="https://developer.mozilla.org/en/CSS/Box_model#padding">padding area</a> is the space between the content of the element and its border. Negative values are not allowed. */
 	var padding : String;

@@ -22,11 +22,6 @@
 import java.lang.System;
 import java.NativeArray;
 
-/**
-	An Array is a storage for values. You can access it using indexes or
-	with its API. On the server side, it's often better to use a [List] which
-	is less memory and CPU consuming, unless you really need indexed access.
-**/
 @:classCode('
 	public Array(T[] _native)
 	{
@@ -36,9 +31,6 @@ import java.NativeArray;
 ')
 @:final @:coreApi class Array<T> implements ArrayAccess<T> {
 
-	/**
-		The length of the Array
-	**/
 	public var length(default,null) : Int;
 
 	private var __a:NativeArray<T>;
@@ -59,18 +51,12 @@ import java.NativeArray;
 		return null;
 	}
 
-	/**
-		Creates a new Array.
-	**/
 	public function new() : Void
 	{
 		this.length = 0;
 		this.__a = new NativeArray(0);
 	}
 
-	/**
-		Returns a new Array by appending [a] to [this].
-	**/
 	public function concat( a : Array<T> ) : Array<T>
 	{
 		var length = length;
@@ -101,9 +87,6 @@ import java.NativeArray;
 		this.length = len;
 	}
 
-	/**
-		Returns a representation of an array with [sep] for separating each element.
-	**/
 	public function join( sep : String ) : String
 	{
 		var buf = new StringBuf();
@@ -123,9 +106,6 @@ import java.NativeArray;
 		return buf.toString();
 	}
 
-	/**
-		Removes the last element of the array and returns it.
-	**/
 	public function pop() : Null<T>
 	{
 		var __a = __a;
@@ -142,9 +122,6 @@ import java.NativeArray;
 		}
 	}
 
-	/**
-		Adds the element [x] at the end of the array.
-	**/
 	public function push(x : T) : Int
 	{
 		var length = length;
@@ -161,9 +138,6 @@ import java.NativeArray;
 		return ++this.length;
 	}
 
-	/**
-		Reverse the order of elements of the Array.
-	**/
 	public function reverse() : Void
 	{
 		var i = 0;
@@ -180,9 +154,6 @@ import java.NativeArray;
 		}
 	}
 
-	/**
-		Removes the first element and returns it.
-	**/
 	public function shift() : Null<T>
 	{
 		var l = this.length;
@@ -199,12 +170,6 @@ import java.NativeArray;
 		return x;
 	}
 
-	/**
-		Copies the range of the array starting at [pos] up to,
-		but not including, [end]. Both [pos] and [end] can be
-		negative to count from the end: -1 is the last item in
-		the array.
-	**/
 	public function slice( pos : Int, ?end : Int ) : Array<T>
 	{
 		if( pos < 0 ){
@@ -227,11 +192,6 @@ import java.NativeArray;
 		return ofNative(newarr);
 	}
 
-	/**
-		Sort the Array according to the comparison public function [f].
-		[f(x,y)] should return [0] if [x == y], [>0] if [x > y]
-		and [<0] if [x < y].
-	**/
 	public function sort( f : T -> T -> Int ) : Void
 	{
 		if (length == 0)
@@ -239,10 +199,6 @@ import java.NativeArray;
 		quicksort(0, length - 1, f);
 	}
 
-	/**
-		quicksort author: tong disktree
-		http://blog.disktree.net/2008/10/26/array-sort-performance.html
-	 */
 	private function quicksort( lo : Int, hi : Int, f : T -> T -> Int ) : Void
 	{
         var buf = __a;
@@ -264,9 +220,6 @@ import java.NativeArray;
         if( i < hi ) quicksort( i, hi, f );
 	}
 
-	/**
-		Removes [len] elements starting from [pos] an returns them.
-	**/
 	public function splice( pos : Int, len : Int ) : Array<T>
 	{
 		if( len < 0 ) return new Array();
@@ -318,9 +271,6 @@ import java.NativeArray;
 			a[this.length + len] = null;
 	}
 
-	/**
-		Returns a displayable representation of the Array content.
-	**/
 	public function toString() : String
 	{
 		var ret = new StringBuf();
@@ -340,9 +290,6 @@ import java.NativeArray;
 		return ret.toString();
 	}
 
-	/**
-		Adds the element [x] at the start of the array.
-	**/
 	public function unshift( x : T ) : Void
 	{
 		var __a = __a;
@@ -362,10 +309,6 @@ import java.NativeArray;
 		++this.length;
 	}
 
-	/**
-		Inserts the element [x] at the position [pos].
-		All elements after [pos] are moved one index ahead.
-	**/
 	public function insert( pos : Int, x : T ) : Void
 	{
 		var l = this.length;
@@ -400,11 +343,6 @@ import java.NativeArray;
 		}
 	}
 
-	/**
-		Removes the first occurence of [x].
-		Returns false if [x] was not present.
-		Elements are compared by using standard equality.
-	**/
 	public function remove( x : T ) : Bool
 	{
 		var __a = __a;
@@ -424,10 +362,37 @@ import java.NativeArray;
 		return false;
 	}
 
-	/**
-		Returns a copy of the Array. The values are not
-		copied, only the Array structure.
-	**/
+	public function indexOf(x : T, ?fromIndex:Int) : Int {
+		var len = length, a = __a, i:Int = (fromIndex == null) ? 0 : fromIndex;
+		if (i < 0)
+		{
+			i += len;
+			if (i < 0) i = 0;
+		}
+		while (i < len)
+		{
+			if (a[i] == x)
+				return i;
+			i++;
+		}
+		return -1;
+	}
+
+	public function lastIndexOf(x : T, ?fromIndex:Int) : Int {
+		var len = length, a = __a, i:Int = (fromIndex == null) ? len - 1 : fromIndex;
+		if (i >= len)
+			i = len - 1;
+		else if (i < 0)
+			i += len;
+		while (i >= 0)
+		{
+			if (a[i] == x)
+				return i;
+			i--;
+		}
+		return -1;
+	}
+
 	public function copy() : Array<T>
 	{
 		var len = length;
@@ -437,18 +402,9 @@ import java.NativeArray;
 		return ofNative(newarr);
 	}
 
-	/**
-		Returns an iterator of the Array values.
-	**/
-	public function iterator() : Iterator<T>
+	public inline function iterator() : Iterator<T>
 	{
-		var i = 0;
-		var len = length;
-		return
-		{
-			hasNext:function() return i < len,
-			next:function() return __a[i++]
-		};
+		return new ArrayIterator<T>(this);
 	}
 
 	public function map<S>( f : T -> S ) : Array<S> {
@@ -504,4 +460,22 @@ import java.NativeArray;
 	{
 		return __a[idx] = val;
 	}
+}
+
+@:final
+private class ArrayIterator<T>
+{
+	var arr:Array<T>;
+	var len:Int;
+	var i:Int;
+
+	public inline function new(a:Array<T>)
+	{
+		arr = a;
+		len = a.length;
+		i = 0;
+	}
+
+	public inline function hasNext():Bool return i < len;
+	public inline function next():T return arr[i++];
 }

@@ -81,32 +81,47 @@ let rec follow_param t =
 	| _ ->
 		t
 
-let rec sexpr (e,_) =
-	match e with
-	| EConst c -> s_constant c
-	| EParenthesis e -> "(" ^ (sexpr e) ^ ")"
-	| EArrayDecl el -> "[" ^ (String.concat "," (List.map sexpr el)) ^ "]"
-	| EObjectDecl fl -> "{" ^ (String.concat "," (List.map (fun (n,e) -> n ^ ":" ^ (sexpr e)) fl)) ^ "}"
-	| _ -> "'???'"
-
 let gen_meta meta =
 	let meta = List.filter (fun (m,_,_) -> match m with Meta.Used | Meta.MaybeUsed | Meta.RealPath -> false | _ -> true) meta in
 	match meta with
 	| [] -> []
 	| _ ->
 		let nodes = List.map (fun (m,el,_) ->
-			node "m" ["n",fst (MetaInfo.to_string m)] (List.map (fun e -> node "e" [] [gen_string (sexpr e)]) el)
+			node "m" ["n",fst (MetaInfo.to_string m)] (List.map (fun e -> node "e" [] [gen_string (Ast.s_expr e)]) el)
 		) meta in
 		[node "meta" [] nodes]
 
-let rec gen_type t =
+let rec gen_type ?(tfunc=None) t =
 	match t with
 	| TMono m -> (match !m with None -> tag "unknown" | Some t -> gen_type t)
 	| TEnum (e,params) -> gen_type_decl "e" (TEnumDecl e) params
 	| TInst (c,params) -> gen_type_decl "c" (TClassDecl c) params
 	| TAbstract (a,params) -> gen_type_decl "x" (TAbstractDecl a) params
 	| TType (t,params) -> gen_type_decl "t" (TTypeDecl t) params
-	| TFun (args,r) -> node "f" ["a",String.concat ":" (List.map gen_arg_name args)] (List.map gen_type (List.map (fun (_,opt,t) -> if opt then follow_param t else t) args @ [r]))
+	| TFun (args,r) ->
+		let s_const ct = match ct with
+			| TString s -> Printf.sprintf "'%s'" (Ast.s_escape s)
+			| _ -> s_const ct
+		in
+		let names = String.concat ":" (List.map gen_arg_name args) in
+		let values = match tfunc with
+			| None ->
+				[]
+			| Some tfunc ->
+				let has_value = ref false in
+				let values = List.map (fun (_,cto) -> match cto with
+					| None ->
+						""
+					| Some ct ->
+						has_value := true;
+						s_const ct
+				) tfunc.tf_args in
+				if !has_value then
+					["v",String.concat ":" values]
+				else
+					[]
+		in
+		node "f" (("a",names) :: values) (List.map gen_type (List.map (fun (_,opt,t) -> if opt then follow_param t else t) args @ [r]))
 	| TAnon a -> node "a" [] (pmap (fun f -> gen_field [] { f with cf_public = false }) a.a_fields)
 	| TDynamic t2 -> node "d" [] (if t == t2 then [] else [gen_type t2])
 	| TLazy f -> gen_type (!f())
@@ -133,7 +148,15 @@ and gen_field att f =
 			| MethInline -> ("get", "inline") :: ("set","null") :: att)
 	) in
 	let att = (match f.cf_params with [] -> att | l -> ("params", String.concat ":" (List.map (fun (n,_) -> n) l)) :: att) in
-	node f.cf_name (if f.cf_public then ("public","1") :: att else att) (gen_type f.cf_type :: gen_meta f.cf_meta @ gen_doc_opt f.cf_doc)
+	let overloads = match List.map (gen_field []) f.cf_overloads with
+		| [] -> []
+		| nl -> [node "overloads" [] nl]
+	in
+	let tfunc = match f.cf_expr with
+		| Some ({eexpr = TFunction tf}) -> Some tf
+		| _ -> None
+	in
+	node f.cf_name (if f.cf_public then ("public","1") :: att else att) (gen_type ~tfunc:tfunc f.cf_type :: gen_meta f.cf_meta @ gen_doc_opt f.cf_doc @ overloads)
 
 let gen_constr e =
 	let doc = gen_doc_opt e.ef_doc in
@@ -145,6 +168,15 @@ let gen_constr e =
 			[] , doc
 	) in
 	node e.ef_name args t
+
+let gen_ordered_constr e =
+	let rec loop el = match el with
+		| n :: el ->
+			gen_constr (PMap.find n e.e_constrs) :: loop el
+		| [] ->
+			[]
+	in
+	loop e.e_names
 
 let gen_type_params ipos priv path params pos m =
 	let mpriv = (if priv then [("private","1")] else []) in
@@ -161,7 +193,7 @@ let rec exists f c =
 			| None -> false
 			| Some (csup,_) -> exists f csup
 
-let gen_type_decl com pos t =
+let rec gen_type_decl com pos t =
 	let m = (t_infos t).mt_module in
 	match t with
 	| TClassDecl c ->
@@ -189,7 +221,7 @@ let gen_type_decl com pos t =
 	| TEnumDecl e ->
 		let doc = gen_doc_opt e.e_doc in
 		let meta = gen_meta e.e_meta in
-		node "enum" (gen_type_params pos e.e_private (tpath t) e.e_types e.e_pos m) (pmap gen_constr e.e_constrs @ doc @ meta)
+		node "enum" (gen_type_params pos e.e_private (tpath t) e.e_types e.e_pos m) (gen_ordered_constr e  @ doc @ meta)
 	| TTypeDecl t ->
 		let doc = gen_doc_opt t.t_doc in
 		let meta = gen_meta t.t_meta in
@@ -198,9 +230,12 @@ let gen_type_decl com pos t =
 	| TAbstractDecl a ->
 		let doc = gen_doc_opt a.a_doc in
 		let meta = gen_meta a.a_meta in
-		let sub = (match a.a_from with [] -> [] | l -> [node "from" [] (List.map (fun (t,_) -> gen_type t) l)]) in
-		let super = (match a.a_to with [] -> [] | l -> [node "to" [] (List.map (fun (t,_) -> gen_type t) l)]) in
-		node "abstract" (gen_type_params pos a.a_private (tpath t) a.a_types a.a_pos m) (sub @ super @ doc @ meta)
+		let mk_cast (t,cfo) = node "icast" (match cfo with None -> [] | Some cf -> ["field",cf.cf_name]) [gen_type t] in
+		let sub = (match a.a_from with [] -> [] | l -> [node "from" [] (List.map mk_cast l)]) in
+		let super = (match a.a_to with [] -> [] | l -> [node "to" [] (List.map mk_cast l)]) in
+		let impl = (match a.a_impl with None -> [] | Some c -> [node "impl" [] [gen_type_decl com pos (TClassDecl c)]]) in
+		let this = [node "this" [] [gen_type a.a_this]] in
+		node "abstract" (gen_type_params pos a.a_private (tpath t) a.a_types a.a_pos m) (sub @ this @ super @ doc @ meta @ impl)
 
 let att_str att =
 	String.concat "" (List.map (fun (a,v) -> Printf.sprintf " %s=\"%s\"" a v) att)
@@ -331,24 +366,31 @@ let generate_type com t =
 		| None ->
 			n ^ " : " ^ stype t
 		| Some (Ident "null") ->
-			"?" ^ n ^ " : " ^ stype (notnull t)
+			if is_nullable (notnull t) then
+				"?" ^ n ^ " : " ^ stype (notnull t)
+			else
+				(* we have not found a default value stored in metadata, let's generate it *)
+				n ^ " : " ^ stype t ^ " = " ^ (match follow t with
+					| TAbstract ({ a_path = [],("Int"|"Float"|"UInt") },_) -> "0"
+					| TAbstract ({ a_path = [],"Bool" },_) -> "false"
+					| _ -> "null")
 		| Some v ->
 			n ^ " : " ^ stype t ^ " = " ^ (match s_constant v with "nan" -> "0./*NaN*/" | v -> v)
 	in
 	let print_meta ml =
 		List.iter (fun (m,pl,_) ->
 			match m with
-			| Meta.DefParam | Meta.CoreApi | Meta.Used | Meta.MaybeUsed -> ()
+			| Meta.DefParam | Meta.CoreApi | Meta.Used | Meta.MaybeUsed | Meta.FlatEnum -> ()
 			| _ ->
 			match pl with
 			| [] -> p "@%s " (fst (MetaInfo.to_string m))
-			| l -> p "@%s(%s) " (fst (MetaInfo.to_string m)) (String.concat "," (List.map sexpr pl))
+			| l -> p "@%s(%s) " (fst (MetaInfo.to_string m)) (String.concat "," (List.map Ast.s_expr pl))
 		) ml
 	in
-	let access a =
+	let access is_read a =
 		match a, pack with
 		| AccNever, "flash" :: _ -> "null"
-		| _ -> s_access a
+		| _ -> s_access is_read a
 	in
 	let print_field stat f =
 		p "\t";
@@ -357,7 +399,7 @@ let generate_type com t =
 		(match f.cf_kind with
 		| Var v ->
 			p "var %s" f.cf_name;
-			if v.v_read <> AccNormal || v.v_write <> AccNormal then p "(%s,%s)" (access v.v_read) (access v.v_write);
+			if v.v_read <> AccNormal || v.v_write <> AccNormal then p "(%s,%s)" (access true v.v_read) (access false v.v_write);
 			p " : %s" (stype f.cf_type);
 		| Method m ->
 			let params, ret = (match follow f.cf_type with

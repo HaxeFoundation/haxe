@@ -24,11 +24,17 @@ class StringBuf {
 
 	private var b : cs.StringBuilder;
 
+	public var length(get,never) : Int;
+
 	public function new() : Void {
 		b = new cs.StringBuilder();
 	}
 
-	public inline function add( x : Dynamic ) : Void {
+	inline function get_length() : Int {
+		return b.Length;
+	}
+
+	public inline function add<T>( x : T ) : Void {
 		b.Append(Std.string(x));
 	}
 

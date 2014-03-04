@@ -21,7 +21,7 @@
  */
 import java.util.regex.*;
 
-@:coreType class EReg {
+@:coreApi class EReg {
 
 	private var pattern:String;
 	private var matcher:Matcher;
@@ -136,12 +136,12 @@ import java.util.regex.*;
 		}
 	}
 
-	inline function start(group:Int)
+	inline function start(group:Int) : Int
 	{
 		return matcher.start(group);
 	}
 
-	inline function len(group:Int)
+	inline function len(group:Int) : Int
 	{
 		return matcher.end(group) - matcher.start(group);
 	}

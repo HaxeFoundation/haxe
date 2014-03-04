@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2013 Haxe Foundation
+ * Copyright (C)2005-2014 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -59,7 +59,7 @@ extern class TextTrackCue extends EventTarget
 	/** Setter throws DOMException. */
 	var vertical : String;
 
-	function new() : Void;
+	function new( startTime : Float, endTime : Float, text : String ) : Void;
 
 	function getCueAsHTML() : DocumentFragment;
 

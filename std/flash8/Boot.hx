@@ -27,7 +27,7 @@ class Boot {
 	private static var def_color = 0;
 	private static var exception = null;
 
-	private static function __string_rec(o : Dynamic,s : String) {
+	public static function __string_rec(o : Dynamic,s : String) {
 		untyped {
 			if( s.length >= 20 )
 				return "<...>"; // too much deep recursion
@@ -224,8 +224,13 @@ class Boot {
 		if( !g.haxeInitDone ) {
 			g.haxeInitDone = true;
 			Array.prototype["copy"] = Array.prototype["slice"];
+			var splice:Dynamic = Array.prototype["splice"];
+			Array.prototype["splice"] = function(p, l) {
+				if (l <= 0) return [];
+				return splice.call(__this__, p, l);
+			}
 			Array.prototype["insert"] = function(i,x) {
-				__this__["splice"](i,0,x);
+				splice.call(__this__, i, 0, x);
 			};
 			Array.prototype["remove"] = function(obj) {
 				var i = 0;
@@ -238,6 +243,34 @@ class Boot {
 					i++;
 				}
 				return false;
+			}
+			Array.prototype["indexOf"] = function(x, ?fromIndex) {
+				var len = __this__["length"], i = (fromIndex == null) ? 0 : fromIndex;
+				if (i < 0) {
+					i += len;
+					if (i < 0) i = 0;
+				}
+				while (i < len)
+				{
+					if (__this__[i] == x)
+						return i;
+					i++;
+				}
+				return -1;
+			}
+			Array.prototype["lastIndexOf"] = function(x, ?fromIndex) {
+				var len = __this__["length"], i = (fromIndex == null) ? len - 1 : fromIndex;
+				if (i >= len)
+					i = len - 1;
+				else if (i < 0)
+					i += len;
+				while (i >= 0)
+				{
+					if (__this__[i] == x)
+						return i;
+					i--;
+				}
+				return -1;
 			}
 			Array.prototype["iterator"] = function() {
 				return {

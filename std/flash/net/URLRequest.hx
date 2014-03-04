@@ -8,4 +8,5 @@ package flash.net;
 	var requestHeaders : Array<URLRequestHeader>;
 	var url : String;
 	function new(?url : String) : Void;
+	function useRedirectedURL(sourceRequest : URLRequest, wholeURL : Bool = false, ?pattern : Dynamic, ?replace : String) : Void;
 }

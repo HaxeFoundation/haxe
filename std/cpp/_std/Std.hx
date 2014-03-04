@@ -20,27 +20,31 @@
  * DEALINGS IN THE SOFTWARE.
  */
 @:coreApi class Std {
-	public static function is( v : Dynamic, t : Dynamic ) : Bool {
+	@:keep public static function is( v : Dynamic, t : Dynamic ) : Bool {
 		return untyped __global__.__instanceof(v,t);
 	}
 
-	public static function string( s : Dynamic ) : String {
+	@:keep public static function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
+		return Std.is(value, c) ? cast value : null;
+	}
+
+	@:keep public static function string( s : Dynamic ) : String {
 		return untyped s==null ? "null" : s.toString();
 	}
 
-	public static function int( x : Float ) : Int {
+	@:keep public static function int( x : Float ) : Int {
 		return untyped __global__.__int__(x);
 	}
 
-	public static function parseInt( x : String ) : Null<Int> {
+	@:keep public static function parseInt( x : String ) : Null<Int> {
 		return untyped __global__.__hxcpp_parse_int(x);
 	}
 
-	public static function parseFloat( x : String ) : Float {
+	@:keep public static function parseFloat( x : String ) : Float {
 		return untyped __global__.__hxcpp_parse_float(x);
 	}
 
-	public static function random( x : Int ) : Int {
+	@:keep public static function random( x : Int ) : Int {
 		if (x <= 0) return 0;
 		return untyped __global__.__hxcpp_irand(x);
 	}

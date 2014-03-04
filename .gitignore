@@ -7,7 +7,11 @@
 *.exe
 .*.swp
 
+/extra/hxclasses
+/extra/*.swf
+/extra/*.swc
 
+/version.ml
 /haxe
 /haxelib*
 /haxedoc*
@@ -31,6 +35,7 @@
 /tests/unit/runjava.n
 /tests/unit/unit8.swf
 /tests/unit/unit9.swf
+/tests/unit/unit9_as3.swf
 /tests/unit/unit.js
 /tests/unit/php
 /tests/unit/cs
@@ -40,5 +45,14 @@
 /tests/unit/native_java/obj
 /tests/unit/native_java/cmd
 /tests/unit/native_java/native.jar
+/tests/unit/native_cs/obj
+/tests/unit/native_cs/cmd
+/tests/unit/native_cs/bin
 /tests/unit/unit.js.map
 /tests/unit/unit.n
+
+/haxe.sublime*
+build.bat
+tests/unit/compile.php.hxml
+/extra/*.xml
+tests/optimization/testopt.js

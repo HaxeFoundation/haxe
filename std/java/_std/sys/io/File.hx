@@ -21,9 +21,6 @@
  */
 package sys.io;
 
-/**
-	API for reading and writing to files.
-**/
 @:coreApi
 class File {
 
@@ -106,14 +103,14 @@ class File {
 		}
 	}
 
-	public static function copy( src : String, dst : String ) : Void
+	public static function copy( srcPath : String, dstPath : String ) : Void
 	{
 		var r:FileInput = null;
 		var w:FileOutput = null;
 		try
 		{
-			r = read(src);
-			w = write(dst);
+			r = read(srcPath);
+			w = write(dstPath);
 			w.writeInput(r);
 		}
 

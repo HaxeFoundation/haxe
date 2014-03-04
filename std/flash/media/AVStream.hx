@@ -19,12 +19,15 @@ extern class AVStream extends flash.events.EventDispatcher {
 	var volume : Float;
 	function new(source : AVSource) : Void;
 	function dispose() : Void;
+	function fastForward(rate : Float) : AVResult;
 	function pause() : AVResult;
 	function play() : AVResult;
 	function resume() : Bool;
+	function rewind(rate : Float) : AVResult;
 	function seek(offset : Float, inBufferSeek : Bool = true) : AVResult;
 	function seekToLivePoint() : AVResult;
 	function seekToLocalTime(periodIndex : Int, time : Float) : AVResult;
+	function setPlaySpeed(speed : Float, reserved : Float) : Void;
 	function step(frames : Int) : AVResult;
 	static var HARDWARE : String;
 	static var SOFTWARE : String;

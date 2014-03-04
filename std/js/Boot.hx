@@ -41,8 +41,8 @@ class Boot {
 			var d;
 			if( __js__("typeof")(document) != "undefined" && (d = document.getElementById("haxe:trace")) != null )
 				d.innerHTML += __unhtml(msg)+"<br/>";
-			else if( __js__("typeof")(console) != "undefined" && console.log != null )
-				console.log(msg);
+			else if( __js__("typeof console") != "undefined" && __js__("console").log != null )
+				__js__("console").log(msg);
 			#end
 		}
 	}
@@ -68,7 +68,10 @@ class Boot {
 	}
 
 	static inline function getClass(o:Dynamic) : Dynamic {
-		return untyped __define_feature__("js.Boot.getClass", o.__class__);
+		if (Std.is(o, Array))
+			return Array;
+		else
+			return untyped __define_feature__("js.Boot.getClass", o.__class__);
 	}
 
 	@:ifFeature("has_enum")
@@ -122,7 +125,7 @@ class Boot {
 				var str = "{\n";
 				s += "\t";
 				var hasp = (o.hasOwnProperty != null);
-				__js__("for( var k in o ) { ");
+				__js__("for( var k in o ) {");
 					if( hasp && !o.hasOwnProperty(k) )
 						__js__("continue");
 					if( k == "prototype" || k == "__class__" || k == "__super__" || k == "__interfaces__" || k == "__properties__" )
@@ -171,6 +174,8 @@ class Boot {
 			return (untyped __js__("typeof"))(o) == "boolean";
 		case String:
 			return (untyped __js__("typeof"))(o) == "string";
+		case Array:
+			return (untyped __js__("(o instanceof Array)")) && o.__enum__ == null;
 		case Dynamic:
 			return true;
 		default:
@@ -178,8 +183,6 @@ class Boot {
 				// Check if o is an instance of a Haxe class
 				if( (untyped __js__("typeof"))(cl) == "function" ) {
 					if( untyped __js__("o instanceof cl") ) {
-						if( cl == Array )
-							return (o.__enum__ == null);
 						return true;
 					}
 					if( __interfLoop(getClass(o),cl) )

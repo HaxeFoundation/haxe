@@ -90,3 +90,9 @@ evm.exists(EVME(null)) == true;
 evm.exists(EVME()) == true;
 evm.get(EVME(null)) == 99;
 evm.get(EVME()) == 99;
+
+evm.set(EVMF([EVMA, EVMB()]), 12);
+evm.exists(EVMF([EVMA, EVMB()])) == true;
+evm.exists(EVMF([EVMA, EVMB(null)])) == true;
+evm.get(EVMF([EVMA, EVMB()])) == 12;
+evm.get(EVMF([EVMA, EVMB(null)])) == 12;

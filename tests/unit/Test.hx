@@ -12,15 +12,20 @@ class Test #if swf_mark implements mt.Protect #end {
 
 	function eq<T>( v : T, v2 : T, ?pos ) {
 		count++;
-		if( v != v2 ) report(Std.string(v)+" should be "+Std.string(v2),pos);
+		if( v != v2 ) {
+			report(Std.string(v)+" should be "+Std.string(v2),pos);
+			success = false;
+		}
 	}
 
 	function feq( v : Float, v2 : Float, ?pos ) {
 		count++;
 		if (!Math.isFinite(v) || !Math.isFinite(v2))
 			eq(v, v2, pos);
-		else if ( Math.abs(v - v2) > 1e-15 )
+		else if ( Math.abs(v - v2) > 1e-10 ) {
 			report(v+" should be "+v2,pos);
+			success = false;
+		}
 	}
 
 	function t( v, ?pos ) {
@@ -40,6 +45,7 @@ class Test #if swf_mark implements mt.Protect #end {
 		try {
 			f();
 			report("No exception occured",pos);
+			success = false;
 		} catch( e : Dynamic ) {
 		}
 	}
@@ -58,30 +64,39 @@ class Test #if swf_mark implements mt.Protect #end {
 			if( v == v2 )
 				return;
 		report(v+" not in "+Std.string(values),pos);
+		success = false;
 	}
 
 	function hf(c:Class<Dynamic>, n:String, ?pos:haxe.PosInfos) {
 		Test.count++;
-		if (!Lambda.has(Type.getInstanceFields(c), n))
+		if (!Lambda.has(Type.getInstanceFields(c), n)) {
 			Test.report(Type.getClassName(c) + " should have member field " +n, pos);
+			success = false;
+		}
 	}
 
 	function nhf(c:Class<Dynamic>, n:String, ?pos:haxe.PosInfos) {
 		Test.count++;
-		if (Lambda.has(Type.getInstanceFields(c), n))
+		if (Lambda.has(Type.getInstanceFields(c), n)) {
 			Test.report(Type.getClassName(c) + " should not have member field " +n, pos);
+			success = false;
+		}
 	}
 
 	function hsf(c:Class<Dynamic> , n:String, ?pos:haxe.PosInfos) {
 		Test.count++;
-		if (!Lambda.has(Type.getClassFields(c), n))
+		if (!Lambda.has(Type.getClassFields(c), n)) {
 			Test.report(Type.getClassName(c) + " should have static field " +n, pos);
+			success = false;
+		}
 	}
 
 	function nhsf(c:Class<Dynamic> , n:String, ?pos:haxe.PosInfos) {
 		Test.count++;
-		if (Lambda.has(Type.getClassFields(c), n))
+		if (Lambda.has(Type.getClassFields(c), n)) {
 			Test.report(Type.getClassName(c) + " should not have static field " +n, pos);
+			success = false;
+		}
 	}
 
 	function infos( m : String ) {
@@ -98,10 +113,13 @@ class Test #if swf_mark implements mt.Protect #end {
 			count++;
 			if( !asyncWaits.remove(pos) ) {
 				report("Double async result",pos);
+				success = false;
 				return;
 			}
-			if( v != v2 )
+			if( v != v2 ) {
 				report(v2+" should be "+v,pos);
+				success = false;
+			}
 			checkDone();
 		});
 	}
@@ -116,16 +134,21 @@ class Test #if swf_mark implements mt.Protect #end {
 			count++;
 			if( asyncWaits.remove(pos) )
 				checkDone();
-			else
+			else {
 				report("Multiple async events",pos);
+				success = false;
+			}
 		});
 		f(args,function(v) {
 			count++;
 			if( asyncWaits.remove(pos) ) {
 				report("No exception occured",pos);
+				success = false;
 				checkDone();
-			} else
+			} else {
 				report("Multiple async events",pos);
+				success = false;
+			}
 		});
 	}
 
@@ -141,6 +164,7 @@ class Test #if swf_mark implements mt.Protect #end {
 	static var asyncCache = new Array<Void -> Void>();
 	static var AMAX = 3;
 	static var timer : haxe.Timer;
+	static var success = true;
 
 	dynamic static function report( msg : String, ?pos : haxe.PosInfos ) {
 		if( reportInfos != null ) {
@@ -171,14 +195,16 @@ class Test #if swf_mark implements mt.Protect #end {
 	static function asyncTimeout() {
 		if( asyncWaits.length == 0 )
 			return;
-		for( pos in asyncWaits )
+		for( pos in asyncWaits ) {
 			report("TIMEOUT",pos);
+			success = false;
+		}
 		asyncWaits = new Array();
 		checkDone();
 	}
 
 	static function resetTimer() {
-		#if (neko || php || cpp)
+		#if (neko || php || cpp || java || cs)
 		#else
 		if( timer != null ) timer.stop();
 		timer = new haxe.Timer(10000);
@@ -196,6 +222,7 @@ class Test #if swf_mark implements mt.Protect #end {
 		try msg = Std.string(e) catch( e : Dynamic ) {};
 		reportCount = 0;
 		report("ABORTED : "+msg+" in "+context);
+		success = false;
 		reportInfos = null;
 		trace("STACK :\n"+stack);
 	}
@@ -238,6 +265,7 @@ class Test #if swf_mark implements mt.Protect #end {
 			new TestType(),
 			new TestOrder(),
 			new TestGADT(),
+			new TestGeneric(),
 			#if !no_pattern_matching
 			new TestMatch(),
 			#end
@@ -257,9 +285,13 @@ class Test #if swf_mark implements mt.Protect #end {
 			#if ((dce == "full") && !interp && !as3)
 			new TestDCE(),
 			#end
+			#if ( (java || neko) && !macro && !interp)
+			new TestThreads(),
+			#end
 			//new TestUnspecified(),
 			//new TestRemoting(),
 		];
+		TestIssues.addIssueClasses();
 		var current = null;
 		#if (!fail_eager)
 		try
@@ -293,6 +325,12 @@ class Test #if swf_mark implements mt.Protect #end {
 			asyncWaits.remove(null);
 			onError(e,"ABORTED",Type.getClassName(current));
 		}
+		#end
+
+		trace("SUCCESS: " + success);
+
+		#if sys
+		Sys.exit(success ? 0 : 1);
 		#end
 	}
 

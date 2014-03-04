@@ -31,12 +31,12 @@ private enum FileKind {
 class FileSystem {
 
 	public static inline function exists( path : String ) : Bool {
-		return sys_exists(path);
+		return sys_exists(haxe.io.Path.removeTrailingSlashes(path));
 	}
 
-	public static function rename( path : String, newpath : String ) : Void {
-		if (sys_rename(path,newpath)==null)
-         throw "Could not rename:" + path + " to " + newpath;
+	public static function rename( path : String, newPath : String ) : Void {
+		if (sys_rename(path,newPath)==null)
+         throw "Could not rename:" + path + " to " + newPath;
 	}
 
 	public static function stat( path : String ) : FileStat {
@@ -49,12 +49,12 @@ class FileSystem {
 		return s;
 	}
 
-	public static function fullPath( relpath : String ) : String {
-		return new String(file_full_path(relpath));
+	public static function fullPath( relPath : String ) : String {
+		return new String(file_full_path(relPath));
 	}
 
 	static function kind( path : String ) : FileKind {
-		var k:String = sys_file_type(path);
+		var k:String = sys_file_type(haxe.io.Path.removeTrailingSlashes(path));
 		return switch(k) {
 		case "file": kfile;
 		case "dir": kdir;

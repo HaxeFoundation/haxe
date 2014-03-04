@@ -28,8 +28,9 @@ open Gencommon.SourceWriter
 open Type
 open Printf
 open Option
+open ExtString
 
-let is_cs_basic_type t =
+let rec is_cs_basic_type t =
   match follow t with
     | TInst( { cl_path = (["haxe"], "Int32") }, [] )
     | TInst( { cl_path = (["haxe"], "Int64") }, [] )
@@ -42,6 +43,8 @@ let is_cs_basic_type t =
       true
     | TAbstract _ when like_float t ->
       true
+    | TAbstract({ a_impl = Some _ } as a,pl) ->
+      is_cs_basic_type (Codegen.Abstract.get_underlying_type a pl)
     | TEnum(e, _) when not (Meta.has Meta.Class e.e_meta) -> true
     | TInst(cl, _) when Meta.has Meta.Struct cl.cl_meta -> true
     | _ -> false
@@ -143,6 +146,13 @@ let is_string t =
     | TInst( { cl_path = ([], "String") }, [] ) -> true
     | _ -> false
 
+let change_md = function
+  | TAbstractDecl( { a_impl = Some impl } as a) when Meta.has Meta.Delegate a.a_meta ->
+    TClassDecl impl
+  | TClassDecl( { cl_kind = KAbstractImpl ({ a_this = TInst(impl,_) } as a) }) when Meta.has Meta.Delegate a.a_meta ->
+    TClassDecl impl
+  | md -> md
+
 (* ******************************************* *)
 (* CSharpSpecificESynf *)
 (* ******************************************* *)
@@ -168,6 +178,11 @@ struct
       | TInst(cl,_) -> cl
       | _ -> assert false
 
+  let get_ab_from_t t =
+    match follow t with
+      | TAbstract(ab,_) -> ab
+      | _ -> assert false
+
   let traverse gen runtime_cl =
     let basic = gen.gcon.basic in
     let uint = match get_type gen ([], "UInt") with | TTypeDecl t -> TType(t, []) | TAbstractDecl a -> TAbstract(a, []) | _ -> assert false in
@@ -186,46 +201,87 @@ struct
             { eexpr = TField( _, FStatic({ cl_path = ([], "Std") }, { cf_name = "is"}) ) },
             [ obj; { eexpr = TTypeExpr(md) }]
           ) ->
+          let md = change_md md in
           let mk_is obj md =
             { e with eexpr = TCall( { eexpr = TLocal is_var; etype = t_dynamic; epos = e.epos }, [
               obj;
               { eexpr = TTypeExpr md; etype = t_dynamic (* this is after all a syntax filter *); epos = e.epos }
             ] ) }
           in
+
+          let mk_or a b =
+            {
+              eexpr = TBinop(Ast.OpBoolOr, a, b);
+              etype = basic.tbool;
+              epos = e.epos
+            }
+          in
+
+          let wrap_if_needed obj f =
+            (* introduce temp variable for complex expressions *)
+            match obj.eexpr with
+              | TLocal(v) -> f obj
+              | _ ->
+                let var = mk_temp gen "is" obj.etype in
+                let added = { obj with eexpr = TVar(var, Some(obj)); etype = basic.tvoid } in
+                let local = mk_local var obj.epos in
+                {
+                  eexpr = TBlock([ added; f local ]);
+                  etype = basic.tbool;
+                  epos = e.epos
+                }
+          in
+
           let obj = run obj in
           (match follow_module follow md with
-            | TClassDecl{ cl_path = ([], "Float") } ->
+            | TAbstractDecl{ a_path = ([], "Float") } ->
               (* on the special case of seeing if it is a Float, we need to test if both it is a float and if it is an Int *)
               let mk_is local =
-                mk_paren {
-                  eexpr = TBinop(Ast.OpBoolOr, mk_is local md, mk_is local (TClassDecl (get_cl_from_t basic.tint)));
+                (* we check if it float or int or uint *)
+                let eisint = mk_is local (TAbstractDecl (get_ab_from_t basic.tint)) in
+                let eisuint = mk_is local (TAbstractDecl (get_ab_from_t uint)) in
+                let eisfloat = mk_is local md in
+                mk_paren (mk_or eisfloat (mk_or eisint eisuint))
+              in
+              wrap_if_needed obj mk_is
+
+            | TAbstractDecl{ a_path = ([], "Int") } ->
+              (* int can be stored in double variable because of anonymous functions, check that case *)
+              let mk_isint_call local =
+                {
+                  eexpr = TCall(
+                    mk_static_field_access_infer runtime_cl "isInt" e.epos [],
+                    [ local ]
+                  );
                   etype = basic.tbool;
                   epos = e.epos
                 }
               in
-
-              let ret = match obj.eexpr with
-                | TLocal(v) -> mk_is obj
-                | _ ->
-                  let var = mk_temp gen "is" obj.etype in
-                  let added = { obj with eexpr = TVars([var, Some(obj)]); etype = basic.tvoid } in
-                  let local = mk_local var obj.epos in
-                  {
-                    eexpr = TBlock([ added; mk_is local ]);
-                    etype = basic.tbool;
-                    epos = e.epos
-                  }
+              let mk_is local =
+                let eisint = mk_is local (TAbstractDecl (get_ab_from_t basic.tint)) in
+                let eisuint = mk_is local (TAbstractDecl (get_ab_from_t uint)) in
+                mk_paren (mk_or (mk_or eisint eisuint) (mk_isint_call local))
               in
-              ret
-            | TClassDecl{ cl_path = ([], "Int") } ->
-              {
-                eexpr = TCall(
-                  mk_static_field_access_infer runtime_cl "isInt" e.epos [],
-                  [ obj ]
-                );
-                etype = basic.tbool;
-                epos = e.epos
-              }
+              wrap_if_needed obj mk_is
+
+            | TAbstractDecl{ a_path = ([], "UInt") } ->
+              (* uint can be stored in double variable because of anonymous functions, check that case *)
+              let mk_isuint_call local =
+                {
+                  eexpr = TCall(
+                    mk_static_field_access_infer runtime_cl "isUInt" e.epos [],
+                    [ local ]
+                  );
+                  etype = basic.tbool;
+                  epos = e.epos
+                }
+              in
+              let mk_is local =
+                let eisuint = mk_is local (TAbstractDecl (get_ab_from_t uint)) in
+                mk_paren (mk_or eisuint (mk_isuint_call local))
+              in
+              wrap_if_needed obj mk_is
+
             | _ ->
               mk_is obj md
           )
@@ -241,7 +297,7 @@ struct
 
           let mk_local obj =
             let var = mk_temp gen "opUshr" obj.etype in
-            let added = { obj with eexpr = TVars([var, Some(obj)]); etype = basic.tvoid } in
+            let added = { obj with eexpr = TVar(var, Some(obj)); etype = basic.tvoid } in
             let local = mk_local var obj.epos in
             local, added
           in
@@ -308,8 +364,11 @@ struct
 
   let traverse gen runtime_cl =
     let basic = gen.gcon.basic in
-    let tchar = match ( get_type gen (["cs"], "Char16") ) with | TTypeDecl t -> t | _ -> assert false in
-    let tchar = TType(tchar,[]) in
+		let tchar = match ( get_type gen (["cs"], "Char16") ) with
+			| TTypeDecl t -> TType(t,[])
+			| TAbstractDecl a -> TAbstract(a,[])
+			| _ -> assert false
+		in
     let string_ext = get_cl ( get_type gen (["haxe";"lang"], "StringExt")) in
 
     let is_string t = match follow t with | TInst({ cl_path = ([], "String") }, []) -> true | _ -> false in
@@ -353,6 +412,8 @@ struct
         | TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, { cf_name = ("substring" as field) })) }, args )
         | TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, { cf_name = ("substr" as field) })) }, args ) ->
           { e with eexpr = TCall(mk_static_field_access_infer string_ext field e.epos [], [run ef] @ (List.map run args)) }
+        | TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, { cf_name = ("toString") })) }, [] ) ->
+          run ef
         | TNew( { cl_path = ([], "String") }, [], [p] ) -> run p (* new String(myString) -> myString *)
 
         | TCast(expr, _) when is_int_float e.etype && not (is_int_float expr.etype) && not (is_null e.etype) ->
@@ -373,7 +434,7 @@ struct
           } in
 
           if needs_cast then mk_cast e.etype ret else ret
-        | TCast(expr, _) when is_string e.etype ->
+        | TCast(expr, _) when (is_string e.etype) && (not (is_string expr.etype)) ->
           { e with eexpr = TCall( mk_static_field_access_infer runtime_cl "toString" expr.epos [], [run expr] ) }
         | TBinop( (Ast.OpNotEq as op), e1, e2)
         | TBinop( (Ast.OpEq as op), e1, e2) when is_string e1.etype || is_string e2.etype ->
@@ -453,19 +514,24 @@ let handle_type_params gen ifaces base_generic =
       let i = mk_temp gen "i" basic.tint in
       let old_len = mk_field_access gen e "Length" e.epos in
       let obj_v = mk_temp gen "obj" t_dynamic in
+      let check_null = {eexpr = TBinop(Ast.OpNotEq, e, null e.etype e.epos); etype = basic.tbool; epos = e.epos} in
       let block = [
         {
-          eexpr = TVars(
-          [
+          eexpr = TVar(
             new_v, Some( {
               eexpr = TNew(native_arr_cl, [new_param], [old_len] );
               etype = to_t;
               epos = e.epos
-            } );
-            i, Some( mk_int gen (-1) e.epos )
-          ]);
+            } )
+          );
           etype = basic.tvoid;
-          epos = e.epos };
+          epos = e.epos
+        };
+        {
+          eexpr = TVar(i, Some( mk_int gen (-1) e.epos ));
+          etype = basic.tvoid;
+          epos = e.epos
+        };
         {
           eexpr = TWhile(
             {
@@ -479,7 +545,7 @@ let handle_type_params gen ifaces base_generic =
             },
             { eexpr = TBlock [
               {
-                eexpr = TVars([obj_v, Some (mk_cast t_dynamic { eexpr = TArray(e, mk_local i e.epos); etype = old_param; epos = e.epos })]);
+                eexpr = TVar(obj_v, Some (mk_cast t_dynamic { eexpr = TArray(e, mk_local i e.epos); etype = old_param; epos = e.epos }));
                 etype = basic.tvoid;
                 epos = e.epos
               };
@@ -510,7 +576,19 @@ let handle_type_params gen ifaces base_generic =
         };
         mk_local new_v e.epos
       ] in
-      { eexpr = TBlock(block); etype = to_t; epos = e.epos }
+      {
+        eexpr = TIf(
+          check_null,
+          {
+            eexpr = TBlock(block);
+            etype = to_t;
+            epos = e.epos;
+          },
+          Some(null new_v.v_type e.epos)
+        );
+        etype = to_t;
+        epos = e.epos;
+      }
     in
 
     Hashtbl.add gen.gtparam_cast (["cs"], "NativeArray") gtparam_cast_native_array;
@@ -557,6 +635,7 @@ let rec get_fun_modifiers meta access modifiers =
     | (Meta.ReadOnly,[],_) :: meta -> get_fun_modifiers meta access ("readonly" :: modifiers)
     | (Meta.Unsafe,[],_) :: meta -> get_fun_modifiers meta access ("unsafe" :: modifiers)
     | (Meta.Volatile,[],_) :: meta -> get_fun_modifiers meta access ("volatile" :: modifiers)
+    | (Meta.Custom "?prop_impl",[],_) :: meta -> get_fun_modifiers meta "private" modifiers
     | _ :: meta -> get_fun_modifiers meta access modifiers
 
 (* this was the way I found to pass the generator context to be accessible across all functions here *)
@@ -572,13 +651,21 @@ let configure gen =
 
   let no_root = Common.defined gen.gcon Define.NoRoot in
 
-  let change_clname n = n in
+  let change_id name = try
+			Hashtbl.find reserved name
+		with | Not_found ->
+      let ret = String.concat "." (String.nsplit name "#") in
+      List.hd (String.nsplit ret "`")
+	in
 
-  let change_id name = try Hashtbl.find reserved name with | Not_found -> name in
+  let change_clname n = change_id n in
 
   let change_ns md = if no_root then
     function
       | [] when is_hxgen md -> ["haxe";"root"]
+      | [] -> (match md with
+        | TClassDecl { cl_path = ([],"Std" | [],"Math") } -> ["haxe";"root"]
+        | _ -> [])
       | ns -> List.map change_id ns
   else List.map change_id in
 
@@ -629,6 +716,7 @@ let configure gen =
       | _ -> None);
 
   let module_s md =
+    let md = change_md md in
     let path = (t_infos md).mt_path in
     match path with
     | ([], "String") -> "string"
@@ -701,7 +789,9 @@ let configure gen =
   *)
   change_param_type md tl =
     let is_hxgeneric = (TypeParams.RealTypeParams.is_hxgeneric md) in
-    let ret t = match is_hxgeneric, real_type t with
+    let ret t =
+      let t_changed = real_type t in
+      match is_hxgeneric, t_changed with
       | false, _ -> t
       (*
         Because Null<> types need a special compiler treatment for many operations (e.g. boxing/unboxing),
@@ -711,9 +801,10 @@ let configure gen =
       | true, TInst ( { cl_kind = KTypeParameter _ }, _ ) -> t
       | true, TInst _
       | true, TEnum _
-      | true, TAbstract _ when is_cs_basic_type t -> t
+      | true, TAbstract _ when is_cs_basic_type t_changed -> t
       | true, TDynamic _ -> t
-      | true, _ -> dynamic_anon
+      | true, x ->
+        dynamic_anon
     in
     if is_hxgeneric && List.exists (fun t -> match follow t with | TDynamic _ -> true | _ -> false) tl then
       List.map (fun _ -> t_dynamic) tl
@@ -722,7 +813,8 @@ let configure gen =
   in
 
   let is_dynamic t = match real_type t with
-    | TMono _ | TDynamic _ -> true
+    | TMono _ | TDynamic _
+    | TInst({ cl_kind = KTypeParameter _ }, _) -> true
     | TAnon anon ->
       (match !(anon.a_status) with
         | EnumStatics _ | Statics _ -> false
@@ -815,15 +907,6 @@ let configure gen =
       | _ -> t_s t
   in
 
-  let argt_s t =
-    match t with
-      | TType ({ t_path = (["cs"], "Ref") }, [t])
-      | TAbstract ({ a_path = (["cs"], "Ref") },[t]) -> "ref " ^ t_s t
-      | TType ({ t_path = (["cs"], "Out") }, [t])
-      | TAbstract ({ a_path = (["cs"], "Out") },[t]) -> "out " ^ t_s t
-      | _ -> t_s t
-  in
-
   let escape ichar b =
     match ichar with
       | 92 (* \ *) -> Buffer.add_string b "\\\\"
@@ -832,7 +915,8 @@ let configure gen =
       | 13 (* \r *) -> Buffer.add_string b "\\r"
       | 10 (* \n *) -> Buffer.add_string b "\\n"
       | 9 (* \t *) -> Buffer.add_string b "\\t"
-      | c when c < 32 || c >= 127 -> Buffer.add_string b (Printf.sprintf "\\u%.4x" c)
+      | c when c < 32 || (c >= 127 && c <= 0xFFFF) -> Buffer.add_string b (Printf.sprintf "\\u%.4x" c)
+      | c when c > 0xFFFF -> Buffer.add_string b (Printf.sprintf "\\U%.8x" c)
       | c -> Buffer.add_char b (Char.chr c)
   in
 
@@ -850,7 +934,7 @@ let configure gen =
 
   let has_semicolon e =
     match e.eexpr with
-      | TBlock _ | TFor _ | TSwitch _ | TMatch _ | TTry _ | TIf _ -> false
+      | TBlock _ | TFor _ | TSwitch _ | TPatMatch _ | TTry _ | TIf _ -> false
       | TWhile (_,_,flag) when flag = Ast.NormalWhile -> false
       | _ -> true
   in
@@ -882,7 +966,7 @@ let configure gen =
     match e.eexpr with
       | TLocal _ -> e
       | TCast(e,_)
-      | TParenthesis e -> ensure_local e explain
+      | TParenthesis e | TMeta(_,e) -> ensure_local e explain
       | _ -> gen.gcon.error ("This function argument " ^ explain ^ " must be a local variable.") e.epos; e
   in
 
@@ -894,13 +978,14 @@ let configure gen =
         false in
 
   let last_line = ref (-1) in
+  let begin_block w = write w "{"; push_indent w; newline w; last_line := -1 in
+  let end_block w = pop_indent w; (if w.sw_has_content then newline w); write w "}"; newline w; last_line := -1 in
   let line_directive =
     if Common.defined gen.gcon Define.RealPosition then
       fun w p -> ()
     else fun w p ->
       let cur_line = Lexer.get_error_line p in
-      let is_relative_path = (String.sub p.pfile 0 1) = "." in
-      let file = if is_relative_path then Common.get_full_path p.pfile else p.pfile in
+      let file = Common.get_full_path p.pfile in
       if cur_line <> ((!last_line)+1) then begin print w "#line %d \"%s\"" cur_line (Ast.s_escape file); newline w end;
       last_line := cur_line
   in
@@ -912,6 +997,22 @@ let configure gen =
       | _ -> (params, el)
   in
 
+	let is_extern_prop t name = match follow (run_follow gen t), field_access gen t name with
+    | TInst({ cl_interface = true; cl_extern = true } as cl, _), FNotFound ->
+      not (is_hxgen (TClassDecl cl))
+		| _, FClassField(_,_,decl,v,_,t,_) ->
+			Type.is_extern_field v && (Meta.has Meta.Property v.cf_meta || (decl.cl_extern && not (is_hxgen (TClassDecl decl))))
+		| _ -> false
+	in
+
+	let is_event t name = match follow (run_follow gen t), field_access gen t name with
+		| TInst({ cl_interface = true; cl_extern = true } as cl, _), FNotFound ->
+			not (is_hxgen (TClassDecl cl))
+		| _, FClassField(_,_,decl,v,_,_,_) ->
+			Meta.has Meta.Event v.cf_meta
+		| _ -> false
+	in
+
   let expr_s w e =
     last_line := -1;
     in_value := false;
@@ -919,6 +1020,56 @@ let configure gen =
       let was_in_value = !in_value in
       in_value := true;
       (match e.eexpr with
+				| TCall( ({ eexpr = TField(ef,f) } as e), [ev] ) when String.starts_with (field_name f) "add_" ->
+					let name = field_name f in
+					let propname = String.sub name 4 (String.length name - 4) in
+					if is_event (gen.greal_type ef.etype) propname then begin
+						expr_s w ef;
+						write w ".";
+						write_field w propname;
+						write w " += ";
+						expr_s w ev
+					end else
+						do_call w e []
+				| TCall( ({ eexpr = TField(ef,f) } as e), [ev] ) when String.starts_with (field_name f) "remove_" ->
+					let name = field_name f in
+					let propname = String.sub name 7 (String.length name - 7) in
+					if is_event (gen.greal_type ef.etype) propname then begin
+						expr_s w ef;
+						write w ".";
+						write_field w propname;
+						write w " -= ";
+						expr_s w ev
+					end else
+						do_call w e []
+				| TCall( ({ eexpr = TField(ef,f) } as e), [] ) when String.starts_with (field_name f) "get_" ->
+					let name = field_name f in
+					let propname = String.sub name 4 (String.length name - 4) in
+					if is_extern_prop (gen.greal_type ef.etype) propname then begin
+						expr_s w ef;
+						write w ".";
+						write_field w propname
+					end else
+						do_call w e []
+				| TCall( ({ eexpr = TField(ef,f) } as e), [v] ) when String.starts_with (field_name f) "set_" ->
+					let name = field_name f in
+					let propname = String.sub name 4 (String.length name - 4) in
+					if is_extern_prop (gen.greal_type ef.etype) propname then begin
+						expr_s w ef;
+						write w ".";
+						write_field w propname;
+						write w " = ";
+						expr_s w v
+					end else
+						do_call w e [v]
+        | TField (e, (FStatic(_, cf) | FInstance(_, cf))) when Meta.has Meta.Native cf.cf_meta ->
+          let rec loop meta = match meta with
+            | (Meta.Native, [EConst (String s), _],_) :: _ ->
+              expr_s w e; write w "."; write_field w s
+            | _ :: tl -> loop tl
+            | [] -> expr_s w e; write w "."; write_field w (cf.cf_name)
+          in
+          loop cf.cf_meta
         | TConst c ->
           (match c with
             | TInt i32 ->
@@ -992,6 +1143,8 @@ let configure gen =
           )
         | TParenthesis e ->
           write w "("; expr_s w e; write w ")"
+        | TMeta (_,e) ->
+            expr_s w e
         | TArrayDecl el ->
           print w "new %s" (t_s e.etype);
           write w "{";
@@ -1001,6 +1154,8 @@ let configure gen =
             acc + 1
           ) 0 el);
           write w "}"
+        | TCall ({ eexpr = TLocal { v_name = "__delegate__" } }, [del]) ->
+          expr_s w del
         | TCall ({ eexpr = TLocal( { v_name = "__is__" } ) }, [ expr; { eexpr = TTypeExpr(md) } ] ) ->
           write w "( ";
           expr_s w expr;
@@ -1013,7 +1168,7 @@ let configure gen =
           write w " as ";
           write w (md_s md);
           write w " )"
-        | TCall ({ eexpr = TLocal( { v_name = "__as__" } ) }, [ expr ] ) ->
+        | TCall ({ eexpr = TLocal( { v_name = "__as__" } ) }, expr :: _ ) ->
           write w "( ";
           expr_s w expr;
           write w " as ";
@@ -1035,14 +1190,14 @@ let configure gen =
         | TCall ({ eexpr = TLocal( { v_name = "__fixed__" } ) }, [ e ] ) ->
           let first = ref true in
           let rec loop = function
-            | ({ eexpr = TVars([v, Some({ eexpr = TCast( { eexpr = TCast(e, _) }, _) }) ]) } as expr) :: tl when is_pointer v.v_type ->
+            | ({ eexpr = TVar(v, Some({ eexpr = TCast( { eexpr = TCast(e, _) }, _) }) ) } as expr) :: tl when is_pointer v.v_type ->
               (if !first then first := false);
               write w "fixed(";
               let vf = mk_temp gen "fixed" v.v_type in
-              expr_s w { expr with eexpr = TVars([vf, Some e]) };
+              expr_s w { expr with eexpr = TVar(vf, Some e) };
               write w ")";
               begin_block w;
-              expr_s w { expr with eexpr = TVars([v, Some (mk_local vf expr.epos)]) };
+              expr_s w { expr with eexpr = TVar(v, Some (mk_local vf expr.epos)) };
               write w ";";
               loop tl;
               end_block w
@@ -1116,6 +1271,8 @@ let configure gen =
             acc + 1
           ) 0 el);
           write w ")"
+        | TNew ({ cl_kind = KTypeParameter _ } as cl, params, el) ->
+          print w "default(%s) /* This code should never be reached. It was produced by the use of @:generic on a new type parameter instance: %s */" (t_s (TInst(cl,params))) (path_param_s (TClassDecl cl) cl.cl_path params)
         | TNew (cl, params, el) ->
           write w "new ";
           write w (path_param_s (TClassDecl cl) cl.cl_path params);
@@ -1135,21 +1292,17 @@ let configure gen =
           (match flag with
             | Ast.Prefix -> write w ( " " ^ (Ast.s_unop op) ^ " (" ); expr_s w e; write w ") "
             | Ast.Postfix -> write w "("; expr_s w e; write w (") " ^ Ast.s_unop op))
-        | TVars (v_eop_l) ->
-          ignore (List.fold_left (fun acc (var, eopt) ->
-            (if acc <> 0 then write w ", ");
-            print w "%s " (t_s var.v_type);
-            write_id w var.v_name;
-            (match eopt with
-              | None ->
-                write w " = ";
-                expr_s w (null var.v_type e.epos)
-              | Some e ->
-                write w " = ";
-                expr_s w e
-            );
-            acc + 1
-          ) 0 v_eop_l);
+        | TVar (var, eopt) ->
+          print w "%s " (t_s var.v_type);
+          write_id w var.v_name;
+          (match eopt with
+            | None ->
+              write w " = ";
+              expr_s w (null var.v_type e.epos)
+            | Some e ->
+              write w " = ";
+              expr_s w e
+          )
         | TBlock [e] when was_in_value ->
           expr_s w e
         | TBlock el ->
@@ -1261,7 +1414,8 @@ let configure gen =
           if !strict_mode then assert false
         | TObjectDecl _ -> write w "[ obj decl not supported ]"; if !strict_mode then assert false
         | TFunction _ -> write w "[ func decl not supported ]"; if !strict_mode then assert false
-        | TMatch _ -> write w "[ match not supported ]"; if !strict_mode then assert false
+        | TPatMatch _ -> write w "[ match not supported ]"; if !strict_mode then assert false
+        | TEnumParameter _ -> write w "[ enum parameter not supported ]"; if !strict_mode then assert false
     )
     and do_call w e el =
       let params, el = extract_tparams [] el in
@@ -1323,6 +1477,96 @@ let configure gen =
     expr_s w e
   in
 
+  let rec gen_fpart_attrib w = function
+    | EConst( Ident i ), _ ->
+      write w i
+    | EField( ef, f ), _ ->
+      gen_fpart_attrib w ef;
+      write w ".";
+      write w f
+    | _, p ->
+      gen.gcon.error "Invalid expression inside @:meta metadata" p
+  in
+
+  let rec gen_spart w = function
+    | EConst c, p -> (match c with
+      | Int s | Float s | Ident s ->
+        write w s
+      | String s ->
+        write w "\"";
+        write w (escape s);
+        write w "\""
+      | _ -> gen.gcon.error "Invalid expression inside @:meta metadata" p)
+    | EField( ef, f ), _ ->
+      gen_spart w ef;
+      write w ".";
+      write w f
+    | EBinop( Ast.OpAssign, (EConst (Ident s), _), e2 ), _ ->
+      write w s;
+      write w " = ";
+      gen_spart w e2
+    | EArrayDecl( el ), _ ->
+      write w "new[] {";
+      let fst = ref true in
+      List.iter (fun e ->
+        if !fst then fst := false else write w ", ";
+        gen_spart w e
+      ) el;
+      write w "}"
+    | ECall(fpart,args), _ ->
+      gen_fpart_attrib w fpart;
+      write w "(";
+      let fst = ref true in
+      List.iter (fun e ->
+        if !fst then fst := false else write w ", ";
+        gen_spart w e
+      ) args;
+      write w ")"
+    | _, p ->
+      gen.gcon.error "Invalid expression inside @:meta metadata" p
+  in
+
+  let gen_attributes w metadata =
+    List.iter (function
+      | Meta.Meta, [meta], _ ->
+        write w "[";
+        gen_spart w meta;
+        write w "]";
+        newline w
+      | _ -> ()
+    ) metadata
+  in
+
+  let argt_s t =
+    let w = new_source_writer () in
+    let rec run t =
+      match t with
+        | TType (tdef,p) ->
+          gen_attributes w tdef.t_meta;
+          run (follow_once t)
+        | TMono r ->
+          (match !r with
+          | Some t -> run t
+          | _ -> () (* avoid infinite loop / should be the same in this context *))
+        | TLazy f ->
+          run (!f())
+        | _ -> ()
+    in
+    run t;
+    let ret = match run_follow gen t with
+      | TType ({ t_path = (["cs"], "Ref") }, [t])
+      | TAbstract ({ a_path = (["cs"], "Ref") },[t]) -> "ref " ^ t_s t
+      | TType ({ t_path = (["cs"], "Out") }, [t])
+      | TAbstract ({ a_path = (["cs"], "Out") },[t]) -> "out " ^ t_s t
+      | t -> t_s t
+    in
+    let c = contents w in
+    if c <> "" then
+      c ^ " " ^ ret
+    else
+      ret
+  in
+
   let get_string_params cl_types =
     match cl_types with
       | [] ->
@@ -1341,7 +1585,59 @@ let configure gen =
         (params, String.concat " " params_extends)
   in
 
+	let rec gen_prop w is_static cl is_final (prop,t,get,set) =
+    gen_attributes w prop.cf_meta;
+    let is_interface = cl.cl_interface in
+		let fn_is_final = function
+			| None -> true
+			| Some ({ cf_kind = Method mkind } as m) ->
+				(match mkind with | MethInline -> true | _ -> false) || Meta.has Meta.Final m.cf_meta
+			| _ -> assert false
+		in
+		let is_virtual = not (is_final || Meta.has Meta.Final prop.cf_meta || fn_is_final get || fn_is_final set) in
+
+		let fn_is_override = function
+			| Some cf -> List.memq cf cl.cl_overrides
+			| None -> false
+		in
+		let is_override = fn_is_override get || fn_is_override set in
+		let visibility = if is_interface then "" else "public" in
+		let visibility, modifiers = get_fun_modifiers prop.cf_meta visibility [] in
+		let v_n = if is_static then "static " else if is_override && not is_interface then "override " else if is_virtual then "virtual " else "" in
+		print w "%s %s %s %s %s" (visibility) v_n (String.concat " " modifiers) (t_s (run_follow gen t)) (change_field prop.cf_name);
+		let check cf = match cf with
+			| Some ({ cf_overloads = o :: _ } as cf) ->
+					gen.gcon.error "Property functions with more than one overload is currently unsupported" cf.cf_pos;
+					gen.gcon.error "Property functions with more than one overload is currently unsupported" o.cf_pos
+			| _ -> ()
+		in
+		check get;
+		check set;
+
+		begin_block w;
+		(match prop.cf_kind with
+		| Var { v_read = AccCall } when is_interface ->
+			write w "get;";
+		| _ -> match get with
+			| Some cf  ->
+				print w "get { return _get_%s(); }" prop.cf_name;
+        cf.cf_meta <- (Meta.Custom "?prop_impl", [], null_pos) :: cf.cf_meta;
+				newline w
+			| _ -> ());
+		(match prop.cf_kind with
+		| Var { v_write = AccCall } when is_interface ->
+			write w "set;";
+		| _ -> match set with
+			| Some cf  ->
+				print w "set { _set_%s(value); }" prop.cf_name;
+        cf.cf_meta <- (Meta.Custom "?prop_impl", [], null_pos) :: cf.cf_meta;
+				newline w
+			| _ -> ());
+		end_block w;
+	in
+
   let rec gen_class_field w ?(is_overload=false) is_static cl is_final cf =
+    gen_attributes w cf.cf_meta;
     let is_interface = cl.cl_interface in
     let name, is_new, is_explicit_iface = match cf.cf_name with
       | "new" -> snd cl.cl_path, true, false
@@ -1355,7 +1651,10 @@ let configure gen =
         let unop = PMap.find name unops_names in
         "operator " ^ s_unop unop, false, false
       with | Not_found ->
-        name, false, false
+        if Meta.has (Meta.Custom "?prop_impl") cf.cf_meta then
+          "_" ^ name, false, false
+        else
+          name, false, false
     in
     let rec loop_static cl =
       match is_static, cl.cl_super with
@@ -1412,13 +1711,14 @@ let configure gen =
           | "GetHashCode", TFun([],_) -> true
           | _ -> false
         in
+        let is_override = if Meta.has (Meta.Custom "?prop_impl") cf.cf_meta then false else is_override in
 
         let is_virtual = is_virtual && not (Meta.has Meta.Final cl.cl_meta) && not (is_interface) in
         let visibility = if is_interface then "" else "public" in
 
         let visibility, modifiers = get_fun_modifiers cf.cf_meta visibility [] in
         let modifiers = modifiers @ modf in
-        let visibility, is_virtual = if is_explicit_iface then "",false else visibility, is_virtual in
+        let visibility, is_virtual = if is_explicit_iface then "",false else if visibility = "private" then "private",false else visibility, is_virtual in
         let v_n = if is_static then "static " else if is_override && not is_interface then "override " else if is_virtual then "virtual " else "" in
         let cf_type = if is_override && not is_overload && not (Meta.has Meta.Overload cf.cf_meta) then match field_access gen (TInst(cl, List.map snd cl.cl_types)) cf.cf_name with | FClassField(_,_,_,_,_,actual_t,_) -> actual_t | _ -> assert false else cf.cf_type in
         let ret_type, args = match follow cf_type with | TFun (strbtl, t) -> (t, strbtl) | _ -> assert false in
@@ -1429,9 +1729,9 @@ let configure gen =
         (* <T>(string arg1, object arg2) with T : object *)
         (match cf.cf_expr with
         | Some { eexpr = TFunction tf } ->
-            print w "%s(%s)%s" (params) (String.concat ", " (List.map2 (fun (var, _) (_,_,t) -> sprintf "%s %s" (argt_s (run_follow gen t)) (change_id var.v_name)) tf.tf_args args)) (params_ext)
+            print w "%s(%s)%s" (params) (String.concat ", " (List.map2 (fun (var, _) (_,_,t) -> sprintf "%s %s" (argt_s t) (change_id var.v_name)) tf.tf_args args)) (params_ext)
         | _ ->
-            print w "%s(%s)%s" (params) (String.concat ", " (List.map (fun (name, _, t) -> sprintf "%s %s" (argt_s (run_follow gen t)) (change_id name)) args)) (params_ext)
+            print w "%s(%s)%s" (params) (String.concat ", " (List.map (fun (name, _, t) -> sprintf "%s %s" (argt_s t) (change_id name)) args)) (params_ext)
         );
         if is_interface then
           write w ";"
@@ -1474,7 +1774,7 @@ let configure gen =
                       let t = Common.timer "expression to string" in
                       expr_s w { expr with eexpr = TBlock(rest) };
                       t();
-                      write w "#line default";
+                      if not (Common.defined gen.gcon Define.RealPosition) then write w "#line default";
                       end_block w;
                     | _ -> assert false
                 end else begin
@@ -1483,7 +1783,7 @@ let configure gen =
                   let t = Common.timer "expression to string" in
                   expr_s w expr;
                   t();
-                  write w "#line default";
+                  if not (Common.defined gen.gcon Define.RealPosition) then write w "#line default";
                   end_block w;
                 end)
               | (Meta.FunctionCode, [Ast.EConst (Ast.String contents),_],_) :: tl ->
@@ -1631,7 +1931,7 @@ let configure gen =
             begin_block w;
             write w "return ";
             expr_s w this;
-            print w ".get_%s();" f.cf_name;
+            print w "._get_%s();" f.cf_name;
             end_block w
           | _ -> ());
           (match v.v_write with
@@ -1639,14 +1939,14 @@ let configure gen =
             write w "set";
             begin_block w;
             expr_s w this;
-            print w ".set_%s(value);" f.cf_name;
+            print w "._set_%s(value);" f.cf_name;
             end_block w
           | _ -> ());
           end_block w;
         end
     in
     List.iter (handle_prop true) cl.cl_ordered_statics;
-    List.iter (handle_prop false) cl.cl_ordered_fields *)
+    List.iter (handle_prop false) cl.cl_ordered_fields*)
   in
 
   let gen_class w cl =
@@ -1659,6 +1959,7 @@ let configure gen =
         begin_block w;
         true
     in
+    gen_attributes w cl.cl_meta;
 
     let is_main =
       match gen.gcon.main_class with
@@ -1671,7 +1972,7 @@ let configure gen =
           begin_block w;
           write w "public static void Main()";
           begin_block w;
-          (if Hashtbl.mem gen.gtypes (["cs"], "Boot") then write w "cs.Boot.init();"; newline w);
+          (if Hashtbl.mem gen.gtypes (["cs"], "Boot") then write w "global::cs.Boot.init();"; newline w);
           expr_s w { eexpr = TTypeExpr(TClassDecl cl); etype = t_dynamic; epos = Ast.null_pos };
           write w ".main();";
           end_block w;
@@ -1709,7 +2010,7 @@ let configure gen =
     if is_main then begin
       write w "public static void Main()";
       begin_block w;
-      (if Hashtbl.mem gen.gtypes (["cs"], "Boot") then write w "cs.Boot.init();"; newline w);
+      (if Hashtbl.mem gen.gtypes (["cs"], "Boot") then write w "global::cs.Boot.init();"; newline w);
       write w "main();";
       end_block w
     end;
@@ -1719,9 +2020,60 @@ let configure gen =
       | Some init ->
         print w "static %s() " (snd cl.cl_path);
         expr_s w (mk_block init));
+
+		(* collect properties *)
+		let partition_props cl cflist =
+			let t = TInst(cl, List.map snd cl.cl_types) in
+			(* first get all vars declared as properties *)
+			let props, nonprops = List.partition (fun v -> match v.cf_kind with
+				| Var { v_read = AccCall } | Var { v_write = AccCall } ->
+					Type.is_extern_field v && Meta.has Meta.Property v.cf_meta
+				| _ -> false
+			) cflist in
+			let props = ref (List.map (fun v -> (v.cf_name, ref (v,v.cf_type,None,None))) props) in
+
+			let find_prop name = try
+					List.assoc name !props
+				with | Not_found -> match field_access gen t name with
+					| FClassField (_,_,decl,v,_,t,_) when is_extern_prop (TInst(cl,List.map snd cl.cl_types)) name ->
+						let ret = ref (v,t,None,None) in
+						props := (name, ret) :: !props;
+						ret
+					| _ -> raise Not_found
+			in
+			(* get all functions that are getters/setters *)
+			List.iter (function
+				| cf when String.starts_with cf.cf_name "get_" -> (try
+					(* find the property *)
+					let prop = find_prop (String.sub cf.cf_name 4 (String.length cf.cf_name - 4)) in
+					let v, t, get, set = !prop in
+					assert (get = None);
+					prop := (v,t,Some cf,set);
+				with | Not_found -> ())
+				| cf when String.starts_with cf.cf_name "set_" -> (try
+					(* find the property *)
+					let prop = find_prop (String.sub cf.cf_name 4 (String.length cf.cf_name - 4)) in
+					let v, t, get, set = !prop in
+					assert (set = None);
+					prop := (v,t,get,Some cf);
+				with | Not_found -> ())
+				| _ -> ()
+			) nonprops;
+			let ret = List.map (fun (_,v) -> !v) !props in
+			let ret = List.filter (function | (_,_,None,None) -> false | _ -> true) ret in
+			ret, nonprops
+		in
+
+		let fprops, fnonprops = partition_props cl cl.cl_ordered_fields in
+		let sprops, snonprops = partition_props cl cl.cl_ordered_statics in
     (if is_some cl.cl_constructor then gen_class_field w false cl is_final (get cl.cl_constructor));
-    if not cl.cl_interface then List.iter (gen_class_field w true cl is_final) cl.cl_ordered_statics;
-    List.iter (gen_class_field w false cl is_final) cl.cl_ordered_fields;
+		if not cl.cl_interface then begin
+			(* we don't want to generate properties for abstrac implementation classes, because they don't have object to work with *)
+      if (match cl.cl_kind with KAbstractImpl _ -> false | _ -> true) then List.iter (gen_prop w true cl is_final) sprops;
+			List.iter (gen_class_field w true cl is_final) snonprops
+		end;
+		List.iter (gen_prop w false cl is_final) fprops;
+    List.iter (gen_class_field w false cl is_final) fnonprops;
     check_special_behaviors w cl;
     end_block w;
     if cl.cl_interface && cl.cl_ordered_statics <> [] then begin
@@ -1742,6 +2094,7 @@ let configure gen =
         begin_block w;
         true
     in
+    gen_attributes w e.e_meta;
 
     print w "public enum %s" (change_clname (snd e.e_path));
     begin_block w;
@@ -1775,7 +2128,7 @@ let configure gen =
   in
 
   let module_gen w md_def =
-    List.fold_left (fun should md -> module_type_gen w md or should) false md_def.m_types
+    List.fold_left (fun should md -> module_type_gen w md || should) false md_def.m_types
   in
 
   (* generate source code *)
@@ -1796,6 +2149,8 @@ let configure gen =
   Hashtbl.add gen.gspecial_vars "__addressOf__" true;
   Hashtbl.add gen.gspecial_vars "__valueOf__" true;
   Hashtbl.add gen.gspecial_vars "__sizeof__" true;
+
+  Hashtbl.add gen.gspecial_vars "__delegate__" true;
 
   Hashtbl.add gen.gsupported_conversions (["haxe"; "lang"], "Null") (fun t1 t2 -> true);
   let last_needs_box = gen.gneeds_box in
@@ -1898,7 +2253,7 @@ let configure gen =
     path_param_s (TClassDecl c) c.cl_path tl ^ "." ^ fname
   in
   FixOverrides.configure ~explicit_fn_name:explicit_fn_name gen;
-  NormalizeType.configure gen;
+  Normalize.configure gen ~metas:(Hashtbl.create 0);
 
   AbstractImplementationFix.configure gen;
 
@@ -1911,6 +2266,7 @@ let configure gen =
   EnumToClass.configure gen (Some (fun e -> mk_cast gen.gcon.basic.tint e)) false true (get_cl (get_type gen (["haxe";"lang"],"Enum")) ) true false;
 
   InterfaceVarsDeleteModf.configure gen;
+  InterfaceProps.configure gen;
 
   let dynamic_object = (get_cl (get_type gen (["haxe";"lang"],"DynamicObject")) ) in
 
@@ -2033,7 +2389,7 @@ let configure gen =
   ) "__get" "__set" );
 
   let field_is_dynamic t field =
-    match field_access gen (gen.greal_type t) field with
+    match field_access_esp gen (gen.greal_type t) field with
       | FEnumField _
       | FClassField _ -> false
       | _ -> true
@@ -2045,7 +2401,7 @@ let configure gen =
   in
 
   let is_dynamic_expr e = is_dynamic e.etype || match e.eexpr with
-    | TField(tf, f) -> field_is_dynamic tf.etype (field_name f)
+    | TField(tf, f) -> field_is_dynamic tf.etype (f)
     | _ -> false
   in
 
@@ -2075,7 +2431,7 @@ let configure gen =
   in
 
   let is_null_expr e = is_null e.etype || match e.eexpr with
-    | TField(tf, f) -> (match field_access gen (real_type tf.etype) (field_name f) with
+    | TField(tf, f) -> (match field_access_esp gen (real_type tf.etype) (f) with
       | FClassField(_,_,_,_,_,actual_t,_) -> is_null actual_t
       | _ -> false)
     | _ -> false
@@ -2097,15 +2453,25 @@ let configure gen =
   DynamicOperators.configure gen
     (DynamicOperators.abstract_implementation gen (fun e -> match e.eexpr with
       | TBinop (Ast.OpEq, e1, e2)
-      | TBinop (Ast.OpNotEq, e1, e2) -> should_handle_opeq e1.etype or should_handle_opeq e2.etype
+      | TBinop (Ast.OpNotEq, e1, e2) ->
+        (
+          (* dont touch (v == null) and (null == v) comparisons because they are handled by HardNullableSynf later *)
+          match e1.eexpr, e2.eexpr with
+          | TConst(TNull), _ when is_null_expr e2 ->
+            false
+          | _, TConst(TNull) when is_null_expr e1 ->
+            false
+          | _ ->
+            should_handle_opeq e1.etype || should_handle_opeq e2.etype
+        )
       | TBinop (Ast.OpAssignOp Ast.OpAdd, e1, e2) ->
         is_dynamic_expr e1 || is_null_expr e1 || is_string e.etype
-      | TBinop (Ast.OpAdd, e1, e2) -> is_dynamic e1.etype or is_dynamic e2.etype or is_type_param e1.etype or is_type_param e2.etype or is_string e1.etype or is_string e2.etype or is_string e.etype
+      | TBinop (Ast.OpAdd, e1, e2) -> is_dynamic e1.etype || is_dynamic e2.etype || is_type_param e1.etype || is_type_param e2.etype || is_string e1.etype || is_string e2.etype || is_string e.etype
       | TBinop (Ast.OpLt, e1, e2)
       | TBinop (Ast.OpLte, e1, e2)
       | TBinop (Ast.OpGte, e1, e2)
-      | TBinop (Ast.OpGt, e1, e2) -> is_dynamic e.etype or is_dynamic_expr e1 or is_dynamic_expr e2 or is_string e1.etype or is_string e2.etype
-      | TBinop (_, e1, e2) -> is_dynamic e.etype or is_dynamic_expr e1 or is_dynamic_expr e2
+      | TBinop (Ast.OpGt, e1, e2) -> is_dynamic e.etype || is_dynamic_expr e1 || is_dynamic_expr e2 || is_string e1.etype || is_string e2.etype
+      | TBinop (_, e1, e2) -> is_dynamic e.etype || is_dynamic_expr e1 || is_dynamic_expr e2
       | TUnop (_, _, e1) -> is_dynamic_expr e1 || is_null_expr e1 (* we will see if the expression is Null<T> also, as the unwrap from Unop will be the same *)
       | _ -> false)
     (fun e1 e2 ->
@@ -2219,7 +2585,7 @@ let configure gen =
       | _ -> assert false
   ) true ) ;
 
-  ExpressionUnwrap.configure gen (ExpressionUnwrap.traverse gen (fun e -> Some { eexpr = TVars([mk_temp gen "expr" e.etype, Some e]); etype = gen.gcon.basic.tvoid; epos = e.epos }));
+  ExpressionUnwrap.configure gen (ExpressionUnwrap.traverse gen (fun e -> Some { eexpr = TVar(mk_temp gen "expr" e.etype, Some e); etype = gen.gcon.basic.tvoid; epos = e.epos }));
 
   UnnecessaryCastsRemoval.configure gen;
 
@@ -2260,7 +2626,13 @@ let configure gen =
     Hashtbl.iter (fun name v ->
       res := { eexpr = TConst(TString name); etype = gen.gcon.basic.tstring; epos = Ast.null_pos } :: !res;
 
-      let f = open_out (gen.gcon.file ^ "/src/Resources/" ^ name) in
+      let full_path = gen.gcon.file ^ "/src/Resources/" ^ name in
+      let parts = Str.split_delim (Str.regexp "[\\/]+") full_path in
+      let dir_list = List.rev (List.tl (List.rev parts)) in
+
+      Common.mkdir_recursive "" dir_list;
+
+      let f = open_out full_path in
       output_string f v;
       close_out f
     ) gen.gcon.resources;
@@ -2324,9 +2696,6 @@ let configure gen =
 
 (* end of configure function *)
 
-let before_generate con =
-  ()
-
 let generate con =
   (try
     let gen = new_ctx con in
@@ -2347,3 +2716,990 @@ let generate con =
     con.error ("Error. Module '" ^ (path_s path) ^ "' is required and was not included in build.")  Ast.null_pos);
   debug_mode := false
 
+(* -net-lib implementation *)
+open IlData
+open IlMeta
+
+type net_lib_ctx = {
+	nstd : bool;
+	ncom : Common.context;
+	nil : IlData.ilctx;
+}
+
+let netname_to_hx name =
+	let len = String.length name in
+	let chr = String.get name 0 in
+	String.make 1 (Char.uppercase chr) ^ (String.sub name 1 (len-1))
+
+let hxpath_to_net ctx path =
+	try
+		Hashtbl.find ctx.ncom.net_path_map path
+	with
+	 | Not_found ->
+			[],[],"Not_found"
+
+let add_cs = function
+	| "haxe" :: ns -> "haxe" :: ns
+	| "std" :: ns -> "std" :: ns
+	| "cs" :: ns -> "cs" :: ns
+  | "system" :: ns -> "cs" :: "system" :: ns
+	| ns -> ns
+
+let netcl_to_hx cl =
+  try
+    let cl, nargs = String.split cl "`" in
+    cl ^ "_" ^ nargs
+  with | Invalid_string ->
+    cl
+
+let netpath_to_hx std = function
+	| [],[], cl -> [], netcl_to_hx cl
+	| ns,[], cl ->
+		let ns = (List.map String.lowercase ns) in
+		add_cs ns, netcl_to_hx cl
+	| ns,(nhd :: ntl as nested), cl ->
+		let ns = (List.map String.lowercase ns) @ [nhd] in
+		add_cs ns, String.concat "_" nested ^ "_" ^ netcl_to_hx cl
+
+let lookup_ilclass std com ilpath =
+  let path = netpath_to_hx std ilpath in
+  List.fold_right (fun (_,_,_,get_raw_class) acc ->
+    match acc with
+    | None -> get_raw_class path
+    | Some p -> acc
+  ) com.net_libs None
+
+let discard_nested = function
+	| (ns,_),cl -> (ns,[]),cl
+
+let mk_type_path ctx path params =
+  let pack, sub, name = match path with
+		| ns,[], cl ->
+			ns, None, netcl_to_hx cl
+		| ns, (nhd :: ntl as nested), cl ->
+			ns, Some (String.concat "_" nested ^ "_" ^ netcl_to_hx cl), nhd
+	in
+  CTPath {
+		tpackage = fst (netpath_to_hx ctx.nstd (pack,[],""));
+    Ast.tname = name;
+    tparams = params;
+    tsub = sub;
+  }
+
+let raw_type_path ctx path params =
+	{
+		tpackage = fst path;
+		Ast.tname = snd path;
+		tparams = params;
+		tsub = None;
+	}
+
+let rec convert_signature ctx p = function
+	| LVoid ->
+		mk_type_path ctx ([],[],"Void") []
+	| LBool ->
+		mk_type_path ctx ([],[],"Bool") []
+	| LChar ->
+		mk_type_path ctx (["cs";"types"],[],"Char16") []
+	| LInt8 ->
+		mk_type_path ctx (["cs";"types"],[],"Int8") []
+	| LUInt8 ->
+		mk_type_path ctx (["cs";"types"],[],"UInt8") []
+	| LInt16 ->
+		mk_type_path ctx (["cs";"types"],[],"Int16") []
+	| LUInt16 ->
+		mk_type_path ctx (["cs";"types"],[],"UInt16") []
+	| LInt32 ->
+		mk_type_path ctx ([],[],"Int") []
+	| LUInt32 ->
+		mk_type_path ctx ([],[],"UInt") []
+	| LInt64 ->
+		mk_type_path ctx (["haxe"],[],"Int64") []
+	| LUInt64 ->
+		mk_type_path ctx (["cs";"types"],[],"UInt64") []
+	| LFloat32 ->
+		mk_type_path ctx ([],[],"Single") []
+	| LFloat64 ->
+		mk_type_path ctx ([],[],"Float") []
+	| LString ->
+		mk_type_path ctx (["std"],[],"String") []
+	| LObject ->
+		mk_type_path ctx ([],[],"Dynamic") []
+	| LPointer s | LManagedPointer s ->
+		mk_type_path ctx (["cs"],[],"Pointer") [ TPType (convert_signature ctx p s) ]
+	| LTypedReference ->
+		mk_type_path ctx (["cs";"system"],[],"TypedReference") []
+	| LIntPtr ->
+		mk_type_path ctx (["cs";"system"],[],"IntPtr") []
+	| LUIntPtr ->
+		mk_type_path ctx (["cs";"system"],[],"UIntPtr") []
+	| LValueType (s,args) | LClass (s,args) ->
+		mk_type_path ctx s (List.map (fun s -> TPType (convert_signature ctx p s)) args)
+	| LTypeParam i ->
+		mk_type_path ctx ([],[],"T" ^ string_of_int i) []
+	| LMethodTypeParam i ->
+		mk_type_path ctx ([],[],"M" ^ string_of_int i) []
+	| LVector s ->
+		mk_type_path ctx (["cs"],[],"NativeArray") [TPType (convert_signature ctx p s)]
+	(* | LArray of ilsig_norm * (int option * int option) array *)
+	| LMethod (_,ret,args) ->
+		CTFunction (List.map (convert_signature ctx p) args, convert_signature ctx p ret)
+	| _ -> mk_type_path ctx ([],[], "Dynamic") []
+
+let ilpath_s = function
+	| ns,[], name -> path_s (ns,name)
+	| [],nested,name -> String.concat "#" nested ^ "." ^ name
+	| ns, nested, name -> String.concat "." ns ^ "." ^ String.concat "#" nested ^ "." ^ name
+
+let get_cls = function
+	| _,_,c -> c
+
+let convert_ilenum ctx p ilcls =
+  let meta = ref [Meta.Native, [EConst (String (ilpath_s ilcls.cpath) ), p], p ] in
+  let data = ref [] in
+  List.iter (fun f -> match f.fname with
+		| "value__" -> ()
+		| _ ->
+      data := { ec_name = f.fname; ec_doc = None; ec_meta = []; ec_args = []; ec_pos = p; ec_params = []; ec_type = None; } :: !data;
+  ) ilcls.cfields;
+	let _, c = netpath_to_hx ctx.nstd ilcls.cpath in
+  EEnum {
+		d_name = netname_to_hx c;
+		d_doc = None;
+		d_params = []; (* enums never have type parameters *)
+		d_meta = !meta;
+		d_flags = [EExtern];
+		d_data = List.rev !data;
+  }
+
+let rec has_unmanaged = function
+	| LPointer _ -> true
+	| LManagedPointer s -> has_unmanaged s
+	| LValueType (p,pl) -> List.exists (has_unmanaged) pl
+	| LClass (p,pl) -> List.exists (has_unmanaged) pl
+	| LVector s -> has_unmanaged s
+	| LArray (s,a) -> has_unmanaged s
+	| LMethod (c,r,args) -> has_unmanaged r || List.exists (has_unmanaged) args
+	| _ -> false
+
+let convert_ilfield ctx p field =
+	if not (Common.defined ctx.ncom Define.Unsafe) && has_unmanaged field.fsig.snorm then raise Exit;
+	let p = { p with pfile =  p.pfile ^" (" ^field.fname ^")" } in
+	let cff_doc = None in
+	let cff_pos = p in
+	let cff_meta = ref [] in
+	let cff_name = match field.fname with
+		| name when String.length name > 5 ->
+				(match String.sub name 0 5 with
+				| "__hx_" -> raise Exit
+				| _ -> name)
+		| name -> name
+	in
+	let cff_access = match field.fflags.ff_access with
+		| FAFamily | FAFamOrAssem -> APrivate
+		| FAPublic -> APublic
+		| _ -> raise Exit (* private instances aren't useful on externs *)
+	in
+	let readonly, acc = List.fold_left (fun (readonly,acc) -> function
+		| CStatic -> readonly, AStatic :: acc
+		| CInitOnly | CLiteral -> true, acc
+		| _ -> readonly,acc
+	) (false,[cff_access]) field.fflags.ff_contract in
+	let kind = match readonly with
+		| true ->
+			FProp ("default", "never", Some (convert_signature ctx p field.fsig.snorm), None)
+		| false ->
+			FVar (Some (convert_signature ctx p field.fsig.snorm), None)
+	in
+	let cff_name, cff_meta =
+		if String.get cff_name 0 = '%' then
+			let name = (String.sub cff_name 1 (String.length cff_name - 1)) in
+			"_" ^ name,
+			(Meta.Native, [EConst (String (name) ), cff_pos], cff_pos) :: !cff_meta
+		else
+			cff_name, !cff_meta
+	in
+	{
+		cff_name = cff_name;
+		cff_doc = cff_doc;
+		cff_pos = cff_pos;
+		cff_meta = cff_meta;
+		cff_access = acc;
+		cff_kind = kind;
+	}
+
+let convert_ilevent ctx p ev =
+	let p = { p with pfile =  p.pfile ^" (" ^ev.ename ^")" } in
+  let name = ev.ename in
+  let kind = FVar (Some (convert_signature ctx p ev.esig.snorm), None) in
+	let meta = [Meta.Event, [], p; Meta.Keep,[],p; Meta.SkipReflection,[],p] in
+  let acc = [APrivate] in
+  let add_m acc m = match m with
+    | None -> acc
+    | Some (name,flags) ->
+      if List.mem (CMStatic) flags.mf_contract then
+        AStatic :: acc
+      else
+        acc
+  in
+  let acc = add_m acc ev.eadd in
+  let acc = add_m acc ev.eremove in
+  let acc = add_m acc ev.eraise in
+  {
+    cff_name = name;
+    cff_doc = None;
+    cff_pos = p;
+    cff_meta = meta;
+    cff_access = acc;
+    cff_kind = kind;
+  }
+
+let convert_ilmethod ctx p m =
+	if not (Common.defined ctx.ncom Define.Unsafe) && has_unmanaged m.msig.snorm then raise Exit;
+	let p = { p with pfile =  p.pfile ^" (" ^m.mname ^")" } in
+	let cff_doc = None in
+	let cff_pos = p in
+	let cff_name = match m.mname with
+		| ".ctor" -> "new"
+		| ".cctor"-> raise Exit (* __init__ field *)
+		| "Equals" | "GetHashCode" -> raise Exit
+		| name when String.length name > 5 ->
+				(match String.sub name 0 5 with
+				| "__hx_" -> raise Exit
+				| _ -> name)
+		| name -> name
+	in
+	let acc = match m.mflags.mf_access with
+		| FAFamily | FAFamOrAssem -> APrivate
+		(* | FAPrivate -> APrivate *)
+		| FAPublic -> APublic
+		| _ -> raise Exit
+	in
+	if PMap.mem "net_loader_debug" ctx.ncom.defines then
+		Printf.printf "\tname %s : %s\n" cff_name (IlMetaDebug.ilsig_s m.msig.ssig);
+	let is_static = ref false in
+	let acc, is_final = List.fold_left (fun (acc,is_final) -> function
+		| CMStatic when cff_name <> "new" -> is_static := true; AStatic :: acc, is_final
+		| CMVirtual when is_final = None -> acc, Some false
+		| CMFinal -> acc, Some true
+		| _ -> acc, is_final
+	) ([acc],None) m.mflags.mf_contract in
+
+	let meta = [Meta.Overload, [], p] in
+	let meta = match is_final with
+		| None | Some false ->
+			(Meta.Final, [], p) :: meta
+		| _ -> meta
+	in
+	(* let meta = if List.mem OSynchronized m.mflags.mf_interop then *)
+	(* 	(Meta.Synchronized,[],p) :: meta *)
+	(* else *)
+	(* 	meta *)
+	(* in *)
+
+	let rec change_sig = function
+		| LManagedPointer s -> LManagedPointer (change_sig s)
+		| LPointer s -> LPointer (change_sig s)
+		| LValueType (p,pl) -> LValueType(p, List.map change_sig pl)
+		| LClass (p,pl) -> LClass(p, List.map change_sig pl)
+		| LTypeParam i -> LObject
+		| LVector s -> LVector (change_sig s)
+		| LArray (s,a) -> LArray (change_sig s, a)
+		| LMethod (c,r,args) -> LMethod (c, change_sig r, List.map change_sig args)
+		| p -> p
+	in
+	let change_sig = if !is_static then change_sig else (fun s -> s) in
+
+	let ret =
+		if String.length cff_name > 4 && String.sub cff_name 0 4 = "set_" then
+			match m.mret.snorm, m.margs with
+			| LVoid, [_,_,s] ->
+				s.snorm
+			| _ -> m.mret.snorm
+		else
+			m.mret.snorm
+	in
+
+	let kind =
+		let args = List.map (fun (name,flag,s) ->
+			let t = match s.snorm with
+				| LManagedPointer s ->
+					mk_type_path ctx (["cs"],[],"Ref") [ TPType (convert_signature ctx p s) ]
+				| _ ->
+					convert_signature ctx p (change_sig s.snorm)
+			in
+			name,false,Some t,None) m.margs
+		in
+		let ret = convert_signature ctx p (change_sig ret) in
+		let types = List.map (fun t ->
+			{
+				tp_name = "M" ^ string_of_int t.tnumber;
+				tp_params = [];
+				tp_constraints = [];
+			}
+		) m.mtypes in
+		FFun {
+			f_params = types;
+			f_args = args;
+			f_type = Some ret;
+			f_expr = None;
+		}
+	in
+	let cff_name, cff_meta =
+		if String.get cff_name 0 = '%' then
+			let name = (String.sub cff_name 1 (String.length cff_name - 1)) in
+			"_" ^ name,
+			(Meta.Native, [EConst (String (name) ), cff_pos], cff_pos) :: meta
+		else
+			cff_name, meta
+	in
+	let acc = match m.moverride with
+		| None -> acc
+		| Some (path,s) -> match lookup_ilclass ctx.nstd ctx.ncom path with
+			| Some ilcls when not (List.mem SInterface ilcls.cflags.tdf_semantics) ->
+				AOverride :: acc
+			| None when ctx.ncom.verbose ->
+				prerr_endline ("(net-lib) A referenced assembly for path " ^ ilpath_s path ^ " was not found");
+				acc
+			| _ -> acc
+	in
+	{
+		cff_name = cff_name;
+		cff_doc = cff_doc;
+		cff_pos = cff_pos;
+		cff_meta = cff_meta;
+		cff_access = acc;
+		cff_kind = kind;
+	}
+
+let convert_ilprop ctx p prop =
+	if not (Common.defined ctx.ncom Define.Unsafe) && has_unmanaged prop.psig.snorm then raise Exit;
+	let p = { p with pfile =  p.pfile ^" (" ^prop.pname ^")" } in
+  let pmflags = match prop.pget, prop.pset with
+    | Some(_,fl1), _ -> Some fl1
+    | _, Some(_,fl2) -> Some fl2
+    | _ -> None
+  in
+	let cff_access = match pmflags with
+		| Some { mf_access = FAFamily | FAFamOrAssem } -> APrivate
+		| Some { mf_access = FAPublic } -> APublic
+    | _ -> raise Exit (* non-public / protected fields don't interest us *)
+	in
+	let cff_access = match pmflags with
+		| Some m when List.mem CMStatic m.mf_contract ->
+			[AStatic;cff_access]
+		| _ -> [cff_access]
+	in
+	let get = match prop.pget with
+		| None -> "never"
+		| Some(s,_) when String.length s <= 4 || String.sub s 0 4 <> "get_" ->
+			raise Exit (* special (?) getter; not used *)
+		| Some _ -> "get"
+	in
+	let set = match prop.pset with
+		| None -> "never"
+		| Some(s,_) when String.length s <= 4 || String.sub s 0 4 <> "set_" ->
+			raise Exit (* special (?) getter; not used *)
+		| Some _ -> "set"
+	in
+	if PMap.mem "net_loader_debug" ctx.ncom.defines then
+		Printf.printf "\tproperty %s (%s,%s) : %s\n" prop.pname get set (IlMetaDebug.ilsig_s prop.psig.ssig);
+	let ilsig = match prop.psig.snorm with
+		| LMethod (_,ret,[]) -> ret
+		| s -> raise Exit
+	in
+
+	let kind =
+		FProp (get, set, Some(convert_signature ctx p ilsig), None)
+	in
+	{
+		cff_name = prop.pname;
+		cff_doc = None;
+		cff_pos = p;
+		cff_meta = [];
+		cff_access = cff_access;
+		cff_kind = kind;
+	}
+
+let get_type_path ctx ct = match ct with | CTPath p -> p | _ -> assert false
+
+let is_explicit ctx ilcls i =
+	let s = match i with
+		| LClass(path,_) | LValueType(path,_) -> ilpath_s path
+		| _ -> assert false
+	in
+	let len = String.length s in
+	List.exists (fun m ->
+		String.length m.mname > len && String.sub m.mname 0 len = s
+	) ilcls.cmethods
+
+let mke e p = (e,p)
+
+let mk_special_call name p args =
+  mke (ECast( mke (EUntyped( mke (ECall( mke (EConst(Ident name)) p, args )) p )) p , None)) p
+
+let mk_this_call name p args =
+  mke (ECall( mke (EField(mke (EConst(Ident "this")) p ,name)) p, args )) p
+
+let mk_metas metas p =
+  List.map (fun m -> m,[],p) metas
+
+let mk_abstract_fun name p kind metas acc =
+  let metas = mk_metas metas p in
+  {
+    cff_name = name;
+    cff_doc = None;
+    cff_pos = p;
+    cff_meta = metas;
+    cff_access = acc;
+    cff_kind = kind;
+  }
+
+let convert_delegate ctx p ilcls =
+	let p = { p with pfile =  p.pfile ^" abstract delegate" } in
+  (* will have the following methods: *)
+  (* - new (haxeType:Func) *)
+  (* - FromHaxeFunction(haxeType) *)
+  (* - Invoke() *)
+  (* - AsDelegate():Super *)
+  let invoke = List.find (fun m -> m.mname = "Invoke") ilcls.cmethods in
+  let haxe_type = convert_signature ctx p invoke.msig.snorm in
+  let types = List.map (fun t ->
+    {
+      tp_name = "T" ^ string_of_int t.tnumber;
+      tp_params = [];
+      tp_constraints = [];
+    }
+  ) ilcls.ctypes in
+  let params = (List.map (fun s ->
+    TPType (mk_type_path ctx ([],[],s.tp_name) [])
+  ) types) in
+  let underlying_type = match ilcls.cpath with
+    | ns,inner,name ->
+      mk_type_path ctx (ns,inner,"Delegate_" ^ name) params
+  in
+  let ret,args = match invoke.msig.snorm with
+    | LMethod (_,ret,args) -> ret,args
+    | _ -> assert false
+  in
+
+  let fn_new = FFun {
+    f_params = [];
+    f_args = ["hxfunc",false,Some haxe_type,None];
+    f_type = None;
+    f_expr = Some ( EBinop(Ast.OpAssign, (EConst(Ident "this"),p), (mk_special_call "__delegate__" p [EConst(Ident "hxfunc"),p]) ), p );
+  } in
+  let fn_from_hx = FFun {
+    f_params = types;
+    f_args = ["hxfunc",false,Some haxe_type,None];
+    f_type = Some( mk_type_path ctx ilcls.cpath params );
+    f_expr = Some( EReturn( Some (mk_special_call "__delegate__" p [EConst(Ident "hxfunc"),p] )), p);
+  } in
+  let i = ref 0 in
+  let j = ref 0 in
+  let fn_invoke = FFun {
+    f_params = [];
+    f_args = List.map (fun arg ->
+      incr i;
+      "arg" ^ string_of_int !i, false, Some (convert_signature ctx p arg), None
+    ) args;
+    f_type = Some(convert_signature ctx p ret);
+    f_expr = Some(
+      EReturn( Some (
+        mk_this_call "Invoke" p (List.map (fun arg ->
+          incr j; (EConst( Ident ("arg" ^ string_of_int !j) ), p)
+        ) args )
+      )), p
+    );
+  } in
+  let fn_asdel = FFun {
+    f_params = [];
+    f_args = [];
+    f_type = None;
+    f_expr = Some(
+      EReturn( Some ( EUntyped( EConst(Ident "this"), p ), p ) ), p
+    );
+  } in
+  let fn_new = mk_abstract_fun "new" p fn_new [Meta.Extern] [APublic;AInline] in
+  let fn_from_hx = mk_abstract_fun "FromHaxeFunction" p fn_from_hx [Meta.Extern;Meta.From] [APublic;AInline;AStatic] in
+  let fn_invoke = mk_abstract_fun "Invoke" p fn_invoke [Meta.Extern] [APublic;AInline] in
+  let fn_asdel = mk_abstract_fun "AsDelegate" p fn_asdel [Meta.Extern] [APublic;AInline] in
+  let _, c = netpath_to_hx ctx.nstd ilcls.cpath in
+  EAbstract {
+    d_name = netname_to_hx c;
+    d_doc = None;
+    d_params = types;
+    d_meta = mk_metas [Meta.Delegate] p;
+    d_flags = [AIsType underlying_type];
+    d_data = [fn_new;fn_from_hx;fn_invoke;fn_asdel];
+  }
+
+let convert_ilclass ctx p ?(delegate=false) ilcls = match ilcls.csuper with
+	| Some { snorm = LClass ((["System"],[],"Enum"),[]) } ->
+		convert_ilenum ctx p ilcls
+	| _ ->
+		let flags = ref [HExtern] in
+		(* todo: instead of CsNative, use more specific definitions *)
+		if PMap.mem "net_loader_debug" ctx.ncom.defines then
+			print_endline ("converting " ^ ilpath_s ilcls.cpath);
+		let meta = ref [Meta.CsNative, [], p; Meta.Native, [EConst (String (ilpath_s ilcls.cpath) ), p], p] in
+
+		let is_interface = ref false in
+		List.iter (fun f -> match f with
+			| SSealed -> meta := (Meta.Final, [], p) :: !meta
+			| SInterface ->
+				is_interface := true;
+				flags := HInterface :: !flags
+			| SAbstract -> meta := (Meta.Abstract, [], p) :: !meta
+			| _ -> ()
+		) ilcls.cflags.tdf_semantics;
+
+		(* (match ilcls.cflags.tdf_vis with *)
+		(* 	| VPublic | VNestedFamOrAssem | VNestedFamily -> () *)
+		(* 	| _ -> raise Exit); *)
+		(match ilcls.csuper with
+			| Some { snorm = LClass ( (["System"],[],"Object"), [] ) } -> ()
+			| Some { snorm = LClass ( (["haxe";"lang"],[],"HxObject"), [] ) } ->
+				meta := (Meta.HxGen,[],p) :: !meta
+			| Some s ->
+				flags := HExtends (get_type_path ctx (convert_signature ctx p s.snorm)) :: !flags
+			| _ -> ());
+
+			List.iter (fun i ->
+				match i.snorm with
+				| LClass ( (["haxe";"lang"],[], "IHxObject"), _ ) ->
+					meta := (Meta.HxGen,[],p) :: !meta
+				| i when is_explicit ctx ilcls i -> ()
+				| i -> flags :=
+					if !is_interface then
+						HExtends (get_type_path ctx (convert_signature ctx p i)) :: !flags
+					else
+						HImplements (get_type_path ctx (convert_signature ctx p i)) :: !flags
+			) ilcls.cimplements;
+
+			(* ArrayAccess *)
+			ignore (List.exists (function
+			| { psig = { snorm = LMethod(_,ret,[v]) } } ->
+				flags := if !is_interface then
+					(HExtends( raw_type_path ctx ([],"ArrayAccess") [ TPType (convert_signature ctx p ret) ]) :: !flags)
+				else
+					(HImplements( raw_type_path ctx ([],"ArrayAccess") [ TPType (convert_signature ctx p ret) ]) :: !flags);
+				true
+			| _ -> false) ilcls.cprops);
+
+			let fields = ref [] in
+			let run_fields fn f =
+				List.iter (fun f ->
+					try
+						fields := fn f :: !fields
+					with
+						| Exit -> ()
+				) f
+			in
+			let meths = if !is_interface then
+					List.filter (fun m -> m.moverride = None) ilcls.cmethods
+				else
+					ilcls.cmethods
+			in
+			run_fields (convert_ilmethod ctx p) meths;
+			run_fields (convert_ilfield ctx p) ilcls.cfields;
+			run_fields (convert_ilprop ctx p) ilcls.cprops;
+			run_fields (convert_ilevent ctx p) ilcls.cevents;
+
+			let params = List.map (fun p ->
+				{
+					tp_name = "T" ^ string_of_int p.tnumber;
+					tp_params = [];
+					tp_constraints = [];
+				}) ilcls.ctypes
+			in
+      let path = match ilcls.cpath with
+        | ns,inner,name when delegate ->
+          ns,inner,"Delegate_"^name
+        | _ -> ilcls.cpath
+      in
+			let _, c = netpath_to_hx ctx.nstd path in
+			EClass {
+				d_name = netname_to_hx c;
+				d_doc = None;
+				d_params = params;
+				d_meta = !meta;
+				d_flags = !flags;
+				d_data = !fields;
+			}
+
+type il_any_field =
+	| IlField of ilfield
+	| IlMethod of ilmethod
+	| IlProp of ilprop
+
+let get_fname = function
+	| IlField f -> f.fname
+	| IlMethod m -> m.mname
+	| IlProp p -> p.pname
+
+let is_static = function
+	| IlField f ->
+		List.mem CStatic f.fflags.ff_contract
+	| IlMethod m ->
+		List.mem CMStatic m.mflags.mf_contract
+	| IlProp p ->
+    List.exists (function
+     | None -> false
+     | Some (_,m) -> List.mem CMStatic m.mf_contract
+    ) [p.pget;p.pset]
+	(* | _ -> false *)
+
+let change_name name = function
+	| IlField f -> IlField { f with fname = name }
+	| IlMethod m -> IlMethod { m with mname = name }
+	| IlProp p -> IlProp { p with pname = name }
+
+let compatible_methods m1 m2 = match m1,m2 with
+	| IlMethod { msig = { snorm = LMethod(_,ret1,args1) } }, IlMethod { msig = { snorm = LMethod(_,ret2,args2) } } ->
+		ret1 = ret2 && args1 = args2
+	| _ -> false
+
+let ilcls_from_ilsig ctx ilsig =
+	let path, params = match ilsig with
+		| LClass(path, params) | LValueType(path, params) ->
+			path, params
+		| LObject ->
+			(["System"],[],"Object"),[]
+		| _ -> raise Not_found (* all other types won't appear as superclass *)
+	in
+	match lookup_ilclass ctx.nstd ctx.ncom path with
+	| None -> raise Not_found
+	| Some c ->
+		c, params
+
+let rec ilapply_params params = function
+	| LManagedPointer s -> LManagedPointer (ilapply_params params s)
+	| LPointer s -> LPointer (ilapply_params params s)
+	| LValueType (p,pl) -> LValueType(p, List.map (ilapply_params params) pl)
+	| LClass (p,pl) -> LClass(p, List.map (ilapply_params params) pl)
+	| LTypeParam i ->
+		List.nth params i (* TODO: maybe i - 1? *)
+	| LVector s -> LVector (ilapply_params params s)
+	| LArray (s,a) -> LArray (ilapply_params params s, a)
+	| LMethod (c,r,args) -> LMethod (c, ilapply_params params r, List.map (ilapply_params params) args)
+	| p -> p
+
+let ilcls_with_params ctx cls params =
+	match cls.ctypes with
+	| [] -> cls
+	| _ ->
+		{ cls with
+			cfields = List.map (fun f -> { f with fsig = { f.fsig with snorm = ilapply_params params f.fsig.snorm } }) cls.cfields;
+			cmethods = List.map (fun m -> { m with msig = { m.msig with snorm = ilapply_params params m.msig.snorm } }) cls.cmethods;
+			cprops = List.map (fun p -> { p with psig = { p.psig with snorm = ilapply_params params p.psig.snorm } }) cls.cprops;
+			csuper = Option.map (fun s -> { s with snorm = ilapply_params params s.snorm } ) cls.csuper;
+			cimplements = List.map (fun s -> { s with snorm = ilapply_params params s.snorm } ) cls.cimplements;
+		}
+
+let compatible_methods m1 m2 = match m1, m2 with
+	| LMethod(_,r1,a1), LMethod(_,r2,a2) -> a1 = a2
+	| _ -> false
+
+let compatible_field f1 f2 = match f1, f2 with
+	| IlMethod { msig = { snorm = LMethod(_,_,a1) } },
+	  IlMethod { msig = { snorm = LMethod(_,_,a2) } } ->
+			a1 = a2
+	| IlProp p1, IlProp p2 ->
+			(* p1.psig.snorm = p2.psig.snorm *)
+			true
+	| IlField f1, IlField f2 ->
+			(* f1.fsig.snorm = f2.fsig.snorm *)
+			true
+	| _ -> false
+
+let get_all_fields cls =
+	let all_fields = List.map (fun f -> IlField f, cls.cpath, f.fname, List.mem CStatic f.fflags.ff_contract) cls.cfields in
+	let all_fields = all_fields @ List.map (fun m -> IlMethod m, cls.cpath, m.mname, List.mem CMStatic m.mflags.mf_contract) cls.cmethods in
+	let all_fields = all_fields @ List.map (function
+		| p ->
+			IlProp p, cls.cpath, p.pname, is_static (IlProp p)
+	) cls.cprops in
+	all_fields
+
+let normalize_ilcls ctx cls =
+	(* first filter out overloaded fields of same signature *)
+	let rec loop acc = function
+		| [] -> acc
+		| m :: cmeths ->
+			let static = List.mem CMStatic m.mflags.mf_contract in
+			if List.exists (fun m2 -> m.mname = m2.mname && List.mem CMStatic m2.mflags.mf_contract = static && compatible_methods m.msig.snorm m2.msig.snorm) cmeths then
+				loop acc cmeths
+			else
+				loop (m :: acc) cmeths
+	in
+	let meths = loop [] cls.cmethods in
+	(* fix overrides *)
+	(* get only the methods that aren't declared as override, but may be *)
+	let meths = List.map (fun v -> ref v) meths in
+	let no_overrides = List.filter (fun m ->
+		let m = !m in
+		not (List.mem CMStatic m.mflags.mf_contract)
+	) meths in
+	let no_overrides = ref no_overrides in
+
+	let all_fields = ref [] in
+	let rec loop cls = try
+		match cls.csuper with
+		| Some { snorm = LClass((["System"],[],"Object"),_) }
+		| Some { snorm = LObject } | None -> ()
+		| Some s ->
+			let cls, params = ilcls_from_ilsig ctx s.snorm in
+			let cls = ilcls_with_params ctx cls params in
+			no_overrides := List.filter (fun v ->
+				let m = !v in
+				let is_override_here = List.exists (fun m2 ->
+					m2.mname = m.mname && not (List.mem CMStatic m2.mflags.mf_contract) && compatible_methods m.msig.snorm m2.msig.snorm
+				) cls.cmethods in
+				if is_override_here then v := { m with moverride = Some(cls.cpath, m.mname) };
+				not is_override_here
+			) !no_overrides;
+			all_fields := get_all_fields cls @ !all_fields;
+			loop cls
+		with | Not_found -> ()
+	in
+	loop cls;
+	List.iter (fun v -> v := { !v with moverride = None }) !no_overrides;
+	let added = ref [] in
+
+	let current_all = ref (get_all_fields cls @ !all_fields) in
+	(* look for interfaces and add missing implementations (some methods' implementation is optional) *)
+	let rec loop_interface cls iface = try
+		match iface.snorm with
+		| LClass((["System"],[],"Object"),_) | LObject -> ()
+		| LClass(path,_) when path = cls.cpath -> ()
+		| s ->
+			let cif, params = ilcls_from_ilsig ctx s in
+			let cif = ilcls_with_params ctx cif params in
+			List.iter (function
+				| (f,_,name,false) as ff ->
+					(* look for compatible fields *)
+					if not (List.exists (function
+						| (f2,_,name2,false) when name = name2 ->
+							compatible_field f f2
+						| _ -> false
+					) !current_all) then begin
+						current_all := ff :: !current_all;
+						added := ff :: !added
+					end
+				| _ -> ()
+			) (get_all_fields cif);
+			List.iter (loop_interface cif) cif.cimplements
+		with | Not_found -> ()
+	in
+	List.iter (loop_interface cls) cls.cimplements;
+
+	(* filter out properties that were already declared *)
+	let props = List.filter (function
+		| p ->
+			let static = is_static (IlProp p) in
+			let name = p.pname in
+			not (List.exists (function (IlProp _,_,n,s) -> s = static && name = n | _ -> false) !all_fields)
+		(* | _ -> false *)
+	) cls.cprops in
+	let cls = { cls with cmethods = List.map (fun v -> !v) meths; cprops = props } in
+
+	let clsfields = !added @ get_all_fields cls in
+	let super_fields = !all_fields in
+	all_fields := clsfields @ !all_fields;
+	let refclsfields = (List.map (fun v -> ref v) clsfields) in
+  (* search static / non-static name clash *)
+  (* change field name to not collide with haxe keywords *)
+  let iter_field v =
+		let f, p, name, is_static = !v in
+    let change = match name with
+    | "callback" | "cast" | "extern" | "function" | "in" | "typedef" | "using" | "var" | "untyped" | "inline" -> true
+    | _ ->
+			(is_static && List.exists (function | (f,_,n,false) -> name = n | _ -> false) !all_fields) ||
+			not is_static && match f with (* filter methods that have the same name as fields *)
+			| IlMethod _ ->
+				List.exists (function | ( (IlProp _ | IlField _),_,n,false) -> name = n | _ -> false) super_fields ||
+				List.exists (function | ( (IlProp _ | IlField _),_,n,s) -> name = n | _ -> false) clsfields
+			| _ -> false
+    in
+    if change then
+			let name = "%" ^ name in
+			v := change_name name f, p, name, is_static
+  in
+	List.iter iter_field refclsfields;
+
+	let clsfields = List.map (fun v -> !v) refclsfields in
+	let fields = List.filter (function | (IlField _,_,_,_) -> true | _ -> false) clsfields in
+	let methods = List.filter (function | (IlMethod _,_,_,_) -> true | _ -> false) clsfields in
+	let props = List.filter (function | (IlProp _,_,_,_) -> true | _ -> false) clsfields in
+	{ cls with
+		cfields = List.map (function | (IlField f,_,_,_) -> f | _ -> assert false) fields;
+		cmethods = List.map (function | (IlMethod f,_,_,_) -> f | _ -> assert false) methods;
+		cprops = List.map (function | (IlProp f,_,_,_) -> f | _ -> assert false) props;
+	}
+
+let add_net_std com file =
+	com.net_std <- file :: com.net_std
+
+let add_net_lib com file std =
+	let ilctx = ref None in
+	let netpath_to_hx = netpath_to_hx std in
+	let real_file = ref file in
+	let get_ctx () =
+		match !ilctx with
+		| Some c ->
+			c
+		| None ->
+			let file = if Sys.file_exists file then
+				file
+			else try Common.find_file com file with
+				| Not_found -> try Common.find_file com (file ^ ".dll") with
+				| Not_found ->
+					failwith (".NET lib " ^ file ^ " not found")
+			in
+			real_file := file;
+			let r = PeReader.create_r (open_in_bin file) com.defines in
+			let ctx = PeReader.read r in
+			let clr_header = PeReader.read_clr_header ctx in
+			let meta = IlMetaReader.read_meta_tables ctx clr_header in
+			close_in (r.PeReader.ch);
+			if PMap.mem "net_loader_debug" com.defines then
+				print_endline ("for lib " ^ file);
+			Hashtbl.iter (fun _ td ->
+				let path = IlMetaTools.get_path (TypeDef td) in
+				if PMap.mem "net_loader_debug" com.defines then
+					Printf.printf "found %s\n" (path_s (netpath_to_hx path));
+				Hashtbl.add com.net_path_map (netpath_to_hx path) path;
+				Hashtbl.replace meta.il_typedefs path td
+			) meta.il_typedefs;
+			let meta = { nstd = std; ncom = com; nil = meta } in
+			ilctx := Some meta;
+			meta
+	in
+
+	let cache = Hashtbl.create 0 in
+	let lookup path =
+		try
+			Hashtbl.find cache path
+		with | Not_found -> try
+			let ctx = get_ctx() in
+			let ns, n, cl = hxpath_to_net ctx path in
+			let cls = IlMetaTools.convert_class ctx.nil (ns,n,cl) in
+			let cls = normalize_ilcls ctx cls in
+			Hashtbl.add cache path (Some cls);
+			Some cls
+		with | Not_found ->
+			Hashtbl.add cache path None;
+			None
+	in
+
+	let all_files () =
+		Hashtbl.fold (fun path _ acc -> match path with
+			| _,_ :: _, _ -> acc
+			| _ -> netpath_to_hx path :: acc) (get_ctx()).nil.il_typedefs []
+	in
+
+	let build path =
+		let p = { pfile = !real_file ^ " @ " ^ path_s path; pmin = 0; pmax = 0; } in
+		let pack = match fst path with | ["haxe";"root"] -> [] | p -> p in
+		let cp = ref [] in
+		let rec build path = try
+			if PMap.mem "net_loader_debug" com.defines then
+				Printf.printf "looking up %s\n" (path_s path);
+			match lookup path with
+      | Some({csuper = Some{snorm = LClass( (["System"],[],("Delegate"|"MulticastDelegate")),_)}} as cls)
+        when List.mem SSealed cls.cflags.tdf_semantics ->
+        let ctx = get_ctx() in
+        let hxcls = convert_ilclass ctx p ~delegate:true cls in
+        let delegate = convert_delegate ctx p cls in
+        cp := (hxcls,p) :: (delegate,p) :: !cp;
+				List.iter (fun ilpath ->
+					let path = netpath_to_hx ilpath in
+					build path
+				) cls.cnested
+			| Some cls ->
+				let ctx = get_ctx() in
+				let hxcls = convert_ilclass ctx p cls in
+				cp := (hxcls,p) :: !cp;
+				List.iter (fun ilpath ->
+					let path = netpath_to_hx ilpath in
+					build path
+				) cls.cnested
+			| _ -> ()
+		with | Not_found | Exit ->
+			()
+		in
+		build path;
+		match !cp with
+			| [] -> None
+			| cp -> Some (!real_file, (pack,cp))
+	in
+	let build path p =
+		build path
+	in
+  com.load_extern_type <- com.load_extern_type @ [build];
+  com.net_libs <- (file, std, all_files, lookup) :: com.net_libs
+
+let before_generate com =
+	(* net version *)
+	let net_ver = try
+			int_of_string (PMap.find "net_ver" com.defines)
+		with | Not_found ->
+			Common.define_value com Define.NetVer "20";
+			20
+	in
+	if net_ver < 20 then
+		failwith (
+			".NET version is defined to target .NET "
+			^ string_of_int net_ver
+			^ ", but the compiler can only output code to versions equal or superior to .NET 2.0 (defined as 20)"
+		);
+	let rec loop = function
+		| v :: acc when v <= net_ver ->
+			Common.raw_define com ("NET_" ^ string_of_int v);
+			loop acc
+		| _ -> ()
+	in
+	loop [20;21;30;35;40;45];
+
+	(* net target *)
+	let net_target = try
+			String.lowercase (PMap.find "net_target" com.defines)
+		with | Not_found ->
+			"net"
+	in
+	Common.define_value com Define.NetTarget net_target;
+	Common.raw_define com net_target;
+
+	(* std dirs *)
+	let stds = match com.net_std with
+		| [] -> ["netlib"]
+		| s -> s
+	in
+	(* look for all dirs that have the digraph NET_TARGET-NET_VER *)
+	let digraph = net_target ^ "-" ^ string_of_int net_ver in
+	let matched = ref [] in
+	List.iter (fun f -> try
+		let f = Common.find_file com (f ^ "/" ^ digraph) in
+		matched := (f, Unix.opendir f) :: !matched
+	with | _ -> ()) stds;
+
+	if !matched = [] then failwith (
+		"No .NET std lib directory with the pattern '" ^ digraph ^ "' was found in the -net-std search path. " ^
+		"Try updating the hxcs lib to the latest version, or specifying another -net-std path.");
+	List.iter (fun (path,f) ->
+		let rec loop () =
+			try
+				let f = Unix.readdir f in
+				let finsens = String.lowercase f in
+				if String.ends_with finsens ".dll" then
+					add_net_lib com (path ^ "/" ^ f) true;
+				loop()
+			with | End_of_file ->
+				Unix.closedir f
+		in
+		loop()
+	) !matched;
+
+	(* now force all libraries to initialize *)
+	List.iter (function (_,_,_,lookup) -> ignore (lookup ([],""))) com.net_libs

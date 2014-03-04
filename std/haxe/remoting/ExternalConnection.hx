@@ -67,8 +67,8 @@ class ExternalConnection implements Connection implements Dynamic<Connection> {
 		#if flash
 			data = flash.external.ExternalInterface.call("haxe.remoting.ExternalConnection.doCall",__data.name,__path.join("."),params);
 		#elseif js
-			var fobj : Dynamic = untyped window.document[__data.flash];
-			if( fobj == null ) fobj = untyped window.document.getElementById(__data.flash);
+			var fobj : Dynamic = (untyped js.Browser.document)[cast __data.flash]; // FIXME(bruno): Why is this necessary?
+			if( fobj == null ) fobj = js.Browser.document.getElementById(__data.flash);
 			if( fobj == null ) throw "Could not find flash object '"+__data.flash+"'";
 			try	data = fobj.externalRemotingCall(__data.name,__path.join("."),params) catch( e : Dynamic ) {};
 		#end
@@ -78,7 +78,7 @@ class ExternalConnection implements Connection implements Dynamic<Connection> {
 			try {
 				// check that swf in on the same domain
 				domain = fobj.src.split("/")[2];
-				pageDomain = js.Browser.window.location.host;
+				pageDomain = js.Browser.location.host;
 			} catch( e : Dynamic ) {
 				domain = null;
 				pageDomain = null;

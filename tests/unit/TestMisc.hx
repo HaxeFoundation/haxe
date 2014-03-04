@@ -497,6 +497,7 @@ class TestMisc extends Test {
 
 	function testStringBuf() {
 		var b = new StringBuf();
+		eq(b.length, 0);
 		b.add( -45);
 		b.add(1.456);
 		b.add(null);
@@ -506,6 +507,7 @@ class TestMisc extends Test {
 		b.addSub("Bla", 1, 2);
 		b.addChar("R".code);
 		eq(b.toString(), "-451.456nulltruefalseHello!laR");
+		eq(b.length, 30);
 	}
 
 	function testToString():Void
@@ -603,5 +605,13 @@ class TestMisc extends Test {
 		eq(b.s, "test2");
 		eq(b.i, -6);
 		eq(b.b, true);
+	}
+	
+	function testNoReturnThrow() {
+		function test():String {
+			throw "never call me";
+		};
+		var s = try test() catch(e:String) e;
+		eq(s,"never call me");
 	}
 }

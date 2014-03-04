@@ -83,17 +83,41 @@ class HxOverrides {
 		return (untyped s).substr(pos, len);
 	}
 
-	static function remove<T>( a : Array<T>, obj : T ) {
-		var i = 0;
-		var l = a.length;
-		while( i < l ) {
-			if( a[i] == obj ) {
-				a.splice(i,1);
-				return true;
-			}
+	static function indexOf<T>( a : Array<T>, obj : T, i : Int) {
+		var len = a.length;
+		if (i < 0) {
+			i += len;
+			if (i < 0) i = 0;
+		}
+		while (i < len)
+		{
+			if (untyped __js__("a[i] === obj"))
+				return i;
 			i++;
 		}
-		return false;
+		return -1;
+	}
+
+	static function lastIndexOf<T>( a : Array<T>, obj : T, i : Int) {
+		var len = a.length;
+		if (i >= len)
+			i = len - 1;
+		else if (i < 0)
+			i += len;
+		while (i >= 0)
+		{
+			if (untyped __js__("a[i] === obj"))
+				return i;
+			i--;
+		}
+		return -1;
+	}
+
+	static function remove<T>( a : Array<T>, obj : T ) {
+		var i = a.indexOf(obj);
+		if( i == -1 ) return false;
+		a.splice(i,1);
+		return true;
 	}
 
 	static function iter<T>( a : Array<T> ) : Iterator<T> untyped {
@@ -110,17 +134,14 @@ class HxOverrides {
 	}
 
 	static function __init__() untyped {
-		__feature__('HxOverrides.remove',
-			if( Array.prototype.indexOf ) __js__('HxOverrides').remove = function(a,o) {
-				var i = a.indexOf(o);
-				if( i == -1 ) return false;
-				a.splice(i,1);
-				return true;
-			}
-		);
-		#if mt
+#if !js_es5
+		__feature__('HxOverrides.indexOf', if( Array.prototype.indexOf ) __js__("HxOverrides").indexOf = function(a,o,i) return Array.prototype.indexOf.call(a, o, i));
+		__feature__('HxOverrides.lastIndexOf', if( Array.prototype.lastIndexOf ) __js__("HxOverrides").lastIndexOf = function(a,o,i) return Array.prototype.lastIndexOf.call(a, o, i));
+#end
+
+#if mt
 		if( String.prototype.cca == null ) String.prototype.cca = String.prototype.charCodeAt;
-		#end
+#end
 	}
 
 }

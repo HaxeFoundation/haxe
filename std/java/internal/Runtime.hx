@@ -223,12 +223,12 @@ package java.internal;
 				{
 					long l1 = (v1 == null) ? 0L : v1c.longValue();
 					long l2 = (v2 == null) ? 0L : v2c.longValue();
-					return (int) (l1 - l2);
+          return (l1 < l2) ? -1 : (l1 > l2) ? 1 : 0;
 				} else {
 					double d1 = (v1 == null) ? 0.0 : v1c.doubleValue();
 					double d2 = (v2 == null) ? 0.0 : v2c.doubleValue();
 
-					return (int) (d1 - d2);
+          return (d1 < d2) ? -1 : (d1 > d2) ? 1 : 0;
 				}
 			}
 			//if it\'s not a number it must be a String
@@ -373,7 +373,7 @@ package java.internal;
 		java.lang.Class[] cls = new java.lang.Class[len];
 		java.lang.Object[] objs = new java.lang.Object[len];
 
-		java.lang.reflect.Method[] ms = cl.getDeclaredMethods();
+		java.lang.reflect.Method[] ms = cl.getMethods();
 		int msl = ms.length;
 		int realMsl = 0;
 		for(int i =0; i < msl; i++)
@@ -394,6 +394,10 @@ package java.internal;
 		for (int i = 0; i < len; i++)
 		{
 			Object o = args.__get(i);
+			if (o == null)
+			{
+				continue; //can be anything
+			}
 			objs[i]= o;
 			cls[i] = o.getClass();
 			boolean isNum = false;
@@ -461,6 +465,9 @@ package java.internal;
 							} else if (name.equals("short") || name.equals("java.lang.Short"))
 							{
 								objs[i] = ((java.lang.Number)o).shortValue();
+							} else if (name.equals("long") || name.equals("java.lang.Long"))
+							{
+								objs[i] = ((java.lang.Number)o).longValue();
 							}
 						}
 					} //else varargs not handled TODO

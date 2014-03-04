@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2013 Haxe Foundation
+ * Copyright (C)2005-2014 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -31,7 +31,7 @@ extern class ArrayBuffer
 	/** The size, in bytes, of the array. This is established when the array is constructed and cannot be changed. <strong>Read only.</strong> */
 	var byteLength(default,null) : Int;
 
-	function new(?arg0 : Dynamic) : Void;
+	function new( ?arg0 : Dynamic ) : Void;
 
 	function slice( begin : Int, ?end : Int ) : ArrayBuffer;
 

@@ -28,7 +28,7 @@ import haxe.macro.Type;
 typedef JSGenApi = {
 	/** the file in which the JS code can be generated **/
 	var outputFile : String;
-	/** all the types that were compiled by haXe **/
+	/** all the types that were compiled by Haxe **/
 	var types : Array<Type>;
 	/** the main call expression, if a -main class is defined **/
 	var main : Null<TypedExpr>;

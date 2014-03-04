@@ -23,7 +23,7 @@ import cs.Lib;
 import cs.internal.HxObject;
 import cs.internal.Runtime;
 /*
- * Copyright (c) 2005, The haXe Project Contributors
+ * Copyright (c) 2005, The Haxe Project Contributors
  * All rights reserved.
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -130,7 +130,7 @@ import cs.internal.Runtime;
 		if (name.indexOf(".") == -1)
 			name = "haxe.root." + name;
 #end
-		var t:cs.system.Type = cs.system.Type.GetType(name);
+		var t:cs.system.Type = cs.system.Type._GetType(name);
 		if (t == null)
 		{
 			switch(name)
@@ -150,7 +150,7 @@ import cs.internal.Runtime;
 			{
 				i++;
 				ts += (i == 1 ? "" : ",") + "System.Object";
-				t = cs.system.Type.GetType(name + "`" + i + "[" + ts + "]");
+				t = cs.system.Type._GetType(name + "`" + i + "[" + ts + "]");
 			}
 
 			return Lib.fromNativeType(t);
@@ -271,7 +271,7 @@ import cs.internal.Runtime;
 	public static function getEnumConstructs( e : Enum<Dynamic> ) : Array<String> {
 		if (Reflect.hasField(e, "constructs"))
 			return untyped e.constructs.copy();
-		return untyped __cs__("new Array<object>(System.Enum.GetNames(e))");
+		return cs.Lib.array(cs.system.Enum.GetNames(cs.Lib.nativeType(e)));
 	}
 
 	@:functionCode('

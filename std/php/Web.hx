@@ -210,6 +210,9 @@ class Web {
 			for(k in h.keys()) {
 				if(k.substr(0,5) == "HTTP_") {
 					_client_headers.add({ header : k.substr(5), value : h.get(k)});
+				// this is also a valid prefix (issue #1883)
+				} else if(k.substr(0,8) == "CONTENT_") {
+					_client_headers.add({ header : k, value : h.get(k)});
 				}
 			}
 		}

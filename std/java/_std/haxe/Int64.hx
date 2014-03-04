@@ -37,7 +37,7 @@ private typedef NativeInt64 = Int;
 
 	public static inline function getLow( x : Int64 ) : Int
 	{
-		return cast (x.asNative() & untyped __java__("0xFFFFFFFFL"));
+		return cast (x.asNative() & untyped __java__("0xFFFFFFFFL"), Int);
 	}
 
 	public static inline function getHigh( x : Int64 ) : Int
@@ -127,12 +127,9 @@ private typedef NativeInt64 = Int;
 
 	public static inline function compare( a : Int64, b : Int64 ) : Int
 	{
-		return cast(a.asNative() - b.asNative(), Int);
+		return (a.asNative() < b.asNative()) ? -1 : (a.asNative() > b.asNative()) ? 1 : 0;
 	}
 
-	/**
-		Compare two Int64 in unsigned mode.
-	**/
 	public static function ucompare( a : Int64, b : Int64 ) : Int
 	{
 		if (a.asNative() < 0.mkNative())
@@ -144,5 +141,3 @@ private typedef NativeInt64 = Int;
 		return a + "";
 	}
 }
-
-

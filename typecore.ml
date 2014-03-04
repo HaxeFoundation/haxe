@@ -67,7 +67,7 @@ type typer_globals = {
 	mutable std : module_def;
 	mutable hook_generate : (unit -> unit) list;
 	type_patches : (path, (string * bool, type_patch) Hashtbl.t * type_patch) Hashtbl.t;
-	mutable get_build_infos : unit -> (module_type * Ast.class_field list) option;
+	mutable get_build_infos : unit -> (module_type * t list * Ast.class_field list) option;
 	delayed_macros : (unit -> unit) DynArray.t;
 	mutable global_using : tclass list;
 	(* api *)
@@ -93,6 +93,8 @@ and typer = {
 	t : basic_types;
 	g : typer_globals;
 	mutable meta : metadata;
+	mutable this_stack : texpr list;
+	mutable with_type_stack : with_type list;
 	(* variable *)
 	mutable pass : typer_pass;
 	(* per-module *)
@@ -126,7 +128,7 @@ type error_msg =
 	| Unknown_ident of string
 	| Stack of error_msg * error_msg
 
-exception Fatal_error
+exception Fatal_error of string * Ast.pos
 
 exception Forbid_package of (string * path * pos) * pos list * string
 
@@ -138,9 +140,10 @@ exception DisplayPosition of Ast.pos list
 
 let make_call_ref : (typer -> texpr -> texpr list -> t -> pos -> texpr) ref = ref (fun _ _ _ _ _ -> assert false)
 let type_expr_ref : (typer -> Ast.expr -> with_type -> texpr) ref = ref (fun _ _ _ -> assert false)
+let type_module_type_ref : (typer -> module_type -> t list option -> pos -> texpr) ref = ref (fun _ _ _ _ -> assert false)
 let unify_min_ref : (typer -> texpr list -> t) ref = ref (fun _ _ -> assert false)
-let match_expr_ref : (typer -> Ast.expr -> (Ast.expr list * Ast.expr option * Ast.expr option) list -> Ast.expr option option -> with_type -> Ast.pos -> texpr) ref = ref (fun _ _ _ _ _ _ -> assert false)
-let get_pattern_locals_ref : (typer -> Ast.expr -> Type.t -> (string, tvar) PMap.t) ref = ref (fun _ _ _ -> assert false)
+let match_expr_ref : (typer -> Ast.expr -> (Ast.expr list * Ast.expr option * Ast.expr option) list -> Ast.expr option option -> with_type -> Ast.pos -> decision_tree) ref = ref (fun _ _ _ _ _ _ -> assert false)
+let get_pattern_locals_ref : (typer -> Ast.expr -> Type.t -> (string, tvar * pos) PMap.t) ref = ref (fun _ _ _ -> assert false)
 let get_constructor_ref : (typer -> tclass -> t list -> Ast.pos -> (t * tclass_field)) ref = ref (fun _ _ _ _ -> assert false)
 let check_abstract_cast_ref : (typer -> t -> texpr -> Ast.pos -> texpr) ref = ref (fun _ _ _ _ -> assert false)
 
@@ -173,7 +176,7 @@ let levenshtein a b =
 			done;
 			matrix.(m).(n)
 
-let string_error s sl msg =
+let string_error_raise s sl msg =
 	if sl = [] then msg else
 	let cl = List.map (fun s2 -> s2,levenshtein s s2) sl in
 	let cl = List.sort (fun (_,c1) (_,c2) -> compare c1 c2) cl in
@@ -182,9 +185,13 @@ let string_error s sl msg =
 		| _ -> []
 	in
 	match loop cl with
-		| [] -> msg
+		| [] -> raise Not_found
 		| [s] -> Printf.sprintf "%s (Suggestion: %s)" msg s
 		| sl -> Printf.sprintf "%s (Suggestions: %s)" msg (String.concat ", " sl)
+
+let string_error s sl msg =
+	try string_error_raise s sl msg
+	with Not_found -> msg
 
 let string_source t = match follow t with
 	| TInst(c,_) -> List.map (fun cf -> cf.cf_name) c.cl_ordered_fields
@@ -212,11 +219,11 @@ let unify_error_msg ctx = function
 		(match a, b with
 		| Var va, Var vb ->
 			let name, stra, strb = if va.v_read = vb.v_read then
-				"setter", s_access va.v_write, s_access vb.v_write
+				"setter", s_access false va.v_write, s_access false vb.v_write
 			else if va.v_write = vb.v_write then
-				"getter", s_access va.v_read, s_access vb.v_read
+				"getter", s_access true va.v_read, s_access true vb.v_read
 			else
-				"access", "(" ^ s_access va.v_read ^ "," ^ s_access va.v_write ^ ")", "(" ^ s_access vb.v_read ^ "," ^ s_access vb.v_write ^ ")"
+				"access", "(" ^ s_access true va.v_read ^ "," ^ s_access false va.v_write ^ ")", "(" ^ s_access true vb.v_read ^ "," ^ s_access false vb.v_write ^ ")"
 			in
 			"Inconsistent " ^ name ^ " for field " ^ f ^ " : " ^ stra ^ " should be " ^ strb
 		| _ ->
@@ -340,8 +347,7 @@ let exc_protect ctx f (where:string) =
 			f r
 		with
 			| Error (m,p) ->
-				display_error ctx (error_msg m) p;
-				raise Fatal_error
+				raise (Fatal_error ((error_msg m),p))
 	) in
 	r
 
@@ -425,9 +431,9 @@ let make_pass ?inf ctx f =
 		let t = (try
 			f v
 		with
-			| Fatal_error ->
+			| Fatal_error (e,p) ->
 				delay_tabs := old;
-				raise Fatal_error
+				raise (Fatal_error (e,p))
 			| exc when not (Common.raw_defined ctx.com "stack") ->
 				debug ctx ("FATAL " ^ Printexc.to_string exc);
 				delay_tabs := old;
@@ -474,8 +480,7 @@ let exc_protect ctx f (where:string) =
 			f r
 		with
 			| Error (m,p) ->
-				display_error ctx (error_msg m) p;
-				raise Fatal_error
+				raise (Fatal_error (error_msg m,p))
 	) in
 	r
 

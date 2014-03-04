@@ -35,6 +35,7 @@ type context = {
 	mutable curclass : string;
 	mutable curmethod : string;
 	mutable inits : (tclass * texpr) list;
+	mutable label_count : int;
 }
 
 let files = Hashtbl.create 0
@@ -50,20 +51,25 @@ let pos ctx p =
 		| false ->
 			try
 				Hashtbl.find files p.pfile
-			with Not_found -> try
-				(* lookup relative path *)
-				let len = String.length p.pfile in
-				let base = List.find (fun path ->
-					let l = String.length path in
-					len > l && String.sub p.pfile 0 l = path
-				) ctx.com.Common.class_path in
-				let l = String.length base in
-				let path = String.sub p.pfile l (len - l) in
+			with Not_found ->
+				let path = (match Common.defined ctx.com Common.Define.AbsolutePath with
+				| true -> if (Filename.is_relative p.pfile)
+					then Filename.concat (Sys.getcwd()) p.pfile
+					else p.pfile
+				| false -> try
+					(* lookup relative path *)
+					let len = String.length p.pfile in
+					let base = List.find (fun path ->
+						let l = String.length path in
+						len > l && String.sub p.pfile 0 l = path
+					) ctx.com.Common.class_path in
+					let l = String.length base in
+					String.sub p.pfile l (len - l)
+
+					with Not_found -> p.pfile
+				) in
 				Hashtbl.add files p.pfile path;
 				path
-			with Not_found ->
-				Hashtbl.add files p.pfile p.pfile;
-				p.pfile
 	) in
 	{
 		psource = file;
@@ -242,12 +248,16 @@ and gen_expr ctx e =
 					call p (ident p ("@closure" ^ string_of_int n)) [tmp;ident p "@fun"]
 			] , p
 		| _ -> assert false)
+	| TEnumParameter (e,_,i) ->
+		EArray (field p (gen_expr ctx e) "args",int p i),p
 	| TField (e,f) ->
 		field p (gen_expr ctx e) (field_name f)
 	| TTypeExpr t ->
 		gen_type_path p (t_path t)
 	| TParenthesis e ->
 		(EParenthesis (gen_expr ctx e),p)
+	| TMeta (_,e) ->
+		gen_expr ctx e
 	| TObjectDecl fl ->
 		let hasToString = ref false in
 		let fl = List.map (fun (f,e) -> if f = "toString" then hasToString := (match follow e.etype with TFun ([],_) -> true | _ -> false); f , gen_expr ctx e) fl in
@@ -260,9 +270,9 @@ and gen_expr ctx e =
 		call p (field p (gen_type_path p c.cl_path) "new") (List.map (gen_expr ctx) params)
 	| TUnop (op,flag,e) ->
 		gen_unop ctx p op flag e
-	| TVars vl ->
-		(EVars (List.map (fun (v,e) ->
-			let e = (match e with
+	| TVar (v,eo) ->
+		(EVars (
+			let e = (match eo with
 				| None ->
 					if v.v_capture then
 						Some (call p (builtin p "array") [null p])
@@ -275,8 +285,8 @@ and gen_expr ctx e =
 					else
 						Some e
 			) in
-			v.v_name , e
-		) vl),p)
+			[v.v_name, e]
+		),p)
 	| TFunction f ->
 		let inits = List.fold_left (fun acc (a,c) ->
 			let acc = if a.v_capture then
@@ -359,64 +369,74 @@ and gen_expr ctx e =
 		gen_expr ctx e
 	| TCast (e1,Some t) ->
 		gen_expr ctx (Codegen.default_cast ~vtmp:"@tmp" ctx.com e1 t e.etype e.epos)
-	| TMatch (e,_,cases,eo) ->
-		let p = pos ctx e.epos in
-		let etmp = (EVars ["@tmp",Some (gen_expr ctx e)],p) in
-		let eindex = field p (ident p "@tmp") "index" in
-		let gen_params params e =
-			match params with
-			| None ->
-				gen_expr ctx e
-			| Some el ->
-				let count = ref (-1) in
-				let vars = List.fold_left (fun acc v ->
-					incr count;
-					match v with
-					| None ->
-						acc
-					| Some v ->
-						let e = (EArray (ident p "@tmp",int p (!count)),p) in
-						let e = (if v.v_capture then call p (builtin p "array") [e] else e) in
-						(v.v_name , Some e) :: acc
-				) [] el in
-				let e = gen_expr ctx e in
-				(EBlock [
-					(EVars ["@tmp",Some (field p (ident p "@tmp") "args")],p);
-					(match vars with [] -> null p | _ -> EVars vars,p);
-					e
-				],p)
+ 	| TPatMatch dt ->
+		let num_labels = Array.length dt.dt_dt_lookup in
+		let lc = ctx.label_count in
+		ctx.label_count <- ctx.label_count + num_labels + 1;
+		let get_label i ="label_" ^ (string_of_int (lc + i)) in
+		let goto i = call p (builtin p "goto") [ident p (get_label i)] in
+		let state = Hashtbl.create 0 in
+		let v_name v = "v" ^ (string_of_int v.v_id) in
+		let get_locals e =
+			let locals = Hashtbl.create 0 in
+			let rec loop e = match e.eexpr with
+				| TLocal v -> Hashtbl.replace locals v true
+				| _ -> Type.iter loop e
+			in
+			loop e;
+			Hashtbl.fold (fun v _ l -> if Hashtbl.mem locals v then (v.v_name, Some (field p (ident p "@state") (v_name v))) :: l else l) state []
 		in
-		(try
-		  (EBlock [
-			etmp;
-			(ESwitch (
-				eindex,
-				List.map (fun (cl,params,e2) ->
-					let cond = match cl with
-						| [s] -> int p s
-						| _ -> raise Exit
-					in
-					cond , gen_params params e2
-				) cases,
-				(match eo with None -> None | Some e -> Some (gen_expr ctx e))
-			),p)
-		  ],p)
-		with
-			Exit ->
-				(EBlock [
-					etmp;
-					(EVars ["@index",Some eindex],p);
-					List.fold_left (fun acc (cl,params,e2) ->
-						let cond = (match cl with
-							| [] -> assert false
-							| c :: l ->
-								let eq c = (EBinop ("==",ident p "@index",int p c),p) in
-								List.fold_left (fun acc c -> (EBinop ("||",acc,eq c),p)) (eq c) l
-						) in
-						EIf (cond,gen_params params e2,Some acc),p
-					) (match eo with None -> null p | Some e -> (gen_expr ctx e)) (List.rev cases)
-				],p)
-		)
+		let rec loop d = match d with
+			| DTGoto i ->
+				goto i
+			| DTBind (bl,dt) ->
+				let block = List.map (fun ((v,_),est) ->
+					let est = gen_expr ctx est in
+					let field = field p (ident p "@state") (v_name v) in
+					Hashtbl.replace state v field;
+					(EBinop ("=",field,est),p)
+				) bl in
+				EBlock (block @ [loop dt]),p
+			| DTExpr e ->
+				let block = [
+					(EBinop ("=",ident p "@ret",gen_expr ctx e),p);
+					goto num_labels;
+				] in
+				(match get_locals e with [] -> EBlock block,p | el -> EBlock ((EVars(el),p) :: block),p)
+			| DTGuard (e,dt1,dt2) ->
+				let eg = match dt2 with
+ 					| None -> (EIf (gen_expr ctx e,loop dt1,None),p)
+					| Some dt -> (EIf (gen_expr ctx e,loop dt1,Some (loop dt)),p)
+				in
+				(match get_locals e with [] -> eg | el -> EBlock [(EVars(el),p);eg],p)
+			| DTSwitch (e,cl,dto) ->
+				let e = gen_expr ctx e in
+				let def = match dto with None -> None | Some dt -> Some (loop dt) in
+				let cases = List.map (fun (e,dt) -> gen_expr ctx e,loop dt) cl in
+				EBlock [
+					(ESwitch (e,cases,def),p);
+					goto num_labels;
+				],p
+		in
+		let acc = DynArray.create () in
+		for i = num_labels -1 downto 0 do
+			let e = loop dt.dt_dt_lookup.(i) in
+			DynArray.add acc (ELabel (get_label i),p);
+			DynArray.add acc e;
+		done;
+		DynArray.add acc (ELabel (get_label num_labels),p);
+		DynArray.add acc (ident p "@ret");
+		let el = DynArray.to_list acc in
+		let var_init = List.fold_left (fun acc (v,eo) -> (v.v_name,(match eo with None -> None | Some e -> Some (gen_expr ctx e))) :: acc) [] dt.dt_var_init in
+		let state_init = Hashtbl.fold (fun v _ l -> (v_name v,null p) :: l) state [] in
+		let init = match var_init,state_init with
+			| [], [] -> []
+			| el, [] -> el
+			| [], vl -> ["@state",Some (EObject vl,p)]
+			| el, vl -> ("@state",Some (EObject vl,p)) :: el
+		in
+		let el = match init with [] -> (goto dt.dt_first) :: el | _ -> (EVars init,p) :: (goto dt.dt_first) :: el in
+		EBlock el,p
 	| TSwitch (e,cases,eo) ->
 		let e = gen_expr ctx e in
 		let eo = (match eo with None -> None | Some e -> Some (gen_expr ctx e)) in
@@ -686,7 +706,7 @@ let gen_name ctx acc t =
 		in
 		setname :: setconstrs :: meta @ acc
 	| TClassDecl c ->
-		if c.cl_extern then
+		if c.cl_extern || (match c.cl_kind with KTypeParameter _ -> true | _ -> false) then
 			acc
 		else
 			let p = pos ctx c.cl_pos in
@@ -729,7 +749,7 @@ let generate_libs_init = function
 				"@b", Some (EIf (op "==" es (str p "Windows"),
 					op "+" (call p (ident p "@env") [str p "HAXEPATH"]) (str p "\\lib\\"),
 					Some (ETry (
-						op "+" (call p (loadp "file_contents" 1) [op "+" (call p (ident p "@env") [str p "HOME"]) (str p "./haxelib")]) (str p "/"),
+						op "+" (call p (loadp "file_contents" 1) [op "+" (call p (ident p "@env") [str p "HOME"]) (str p "/.haxelib")]) (str p "/"),
 						"e",
 						(EIf (op "==" es (str p "Linux"),
 							str p "/usr/lib/haxe/lib/",
@@ -763,6 +783,7 @@ let new_context com ver macros =
 		curclass = "$boot";
 		curmethod = "$init";
 		inits = [];
+		label_count = 0;
 	}
 
 let header() =
@@ -831,8 +852,9 @@ let generate com =
 			Nbytecode.write ch (Ncompile.compile ctx.version e);
 			IO.close_out ch;
 		with Ncompile.Error (msg,pos) ->
+			let pfile = Common.find_file com pos.psource in
 			let rec loop p =
-				let pp = { pfile = pos.psource; pmin = p; pmax = p; } in
+				let pp = { pfile = pfile; pmin = p; pmax = p; } in
 				if Lexer.get_error_line pp >= pos.pline then
 					pp
 				else

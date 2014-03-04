@@ -29,6 +29,7 @@ type error_msg =
 	| Unterminated_string
 	| Unterminated_regexp
 	| Unclosed_comment
+	| Unclosed_code
 	| Invalid_escape
 	| Invalid_option
 
@@ -40,6 +41,7 @@ let error_msg = function
 	| Unterminated_string -> "Unterminated string"
 	| Unterminated_regexp -> "Unterminated regular expression"
 	| Unclosed_comment -> "Unclosed comment"
+	| Unclosed_code -> "Unclosed code string"
 	| Invalid_escape -> "Invalid escape sequence"
 	| Invalid_option -> "Invalid regular expression option"
 
@@ -148,9 +150,36 @@ let find_line p f =
 	in
 	loop 0 (Array.length f.lalines)
 
+(* resolve a position within a non-haxe file by counting newlines *)
+let resolve_pos file =
+	let ch = open_in_bin file in
+	let f = make_file file in
+	let rec loop p =
+		let inc i () =
+			f.lline <- f.lline + 1;
+			f.llines <- (p + i,f.lline) :: f.llines;
+			i
+		in
+		let i = match input_char ch with
+			| '\n' -> inc 1
+			| '\r' ->
+				ignore(input_char ch);
+				inc 2
+			| _ -> fun () -> 1
+		in
+		loop (p + i())
+	in
+	try
+		loop 0
+	with End_of_file ->
+		close_in ch;
+		f
+
+let find_file file =
+	try Hashtbl.find all_files file with Not_found -> try resolve_pos file with Sys_error _ -> make_file file
+
 let find_pos p =
-	let file = (try Hashtbl.find all_files p.pfile with Not_found -> make_file p.pfile) in
-	find_line p.pmin file
+	find_line p.pmin (find_file p.pfile)
 
 let get_error_line p =
 	let l, _ = find_pos p in
@@ -160,7 +189,7 @@ let get_error_pos printer p =
 	if p.pmin = -1 then
 		"(unknown)"
 	else
-		let file = (try Hashtbl.find all_files p.pfile with Not_found -> make_file p.pfile) in
+		let file = find_file p.pfile in
 		let l1, p1 = find_line p.pmin file in
 		let l2, p2 = find_line p.pmax file in
 		if l1 = l2 then begin
@@ -330,7 +359,42 @@ and string2 = parse
 	| "\\\\" { store lexbuf; string2 lexbuf }
 	| "\\'" { store lexbuf; string2 lexbuf }
 	| "'" { lexeme_end lexbuf }
-	| [^'\'' '\\' '\r' '\n']+ { store lexbuf; string2 lexbuf }
+	| "$$" | "\\$" | '$' { store lexbuf; string2 lexbuf }
+	| "${" {
+		let pmin = lexeme_start lexbuf in
+		store lexbuf;
+		(try code_string lexbuf with Exit -> error Unclosed_code pmin);
+		string2 lexbuf;
+	}
+	| [^'\'' '\\' '\r' '\n' '$']+ { store lexbuf; string2 lexbuf }
+	
+and code_string = parse
+	| eof { raise Exit }
+	| '\n' | '\r' | "\r\n" { newline lexbuf; store lexbuf; code_string lexbuf }
+	| '{' | '/' { store lexbuf; code_string lexbuf }
+	| '}' { store lexbuf; (* stop *) }
+	| '"' {
+		add "\"";
+		let pmin = lexeme_start lexbuf in
+		(try ignore(string lexbuf) with Exit -> error Unterminated_string pmin);
+		add "\"";
+		code_string lexbuf;
+	}
+	| "'" {
+		add "'";
+		let pmin = lexeme_start lexbuf in
+		let pmax = (try string2 lexbuf with Exit -> error Unterminated_string pmin) in
+		add "'";
+		fast_add_fmt_string { pfile = !cur.lfile; pmin = pmin; pmax = pmax };
+		code_string lexbuf;
+	}
+	| "/*" {
+		let pmin = lexeme_start lexbuf in
+		(try ignore(comment lexbuf) with Exit -> error Unclosed_comment pmin);
+		code_string lexbuf;
+	}
+	| "//" [^'\n' '\r']* { store lexbuf; code_string lexbuf; }
+	| [^'/' '"' '\'' '{' '}' '\n' '\r']+  { store lexbuf; code_string lexbuf; }
 
 and regexp = parse
 	| eof | '\n' | '\r' { raise Exit }

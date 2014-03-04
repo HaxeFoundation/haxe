@@ -240,7 +240,7 @@ class Boot extends flash.display.MovieClip {
 		aproto.setPropertyIsEnumerable("insert", false);
 		aproto.setPropertyIsEnumerable("remove", false);
 		aproto.setPropertyIsEnumerable("iterator", false);
-		#if as3
+		#if (as3 || no_flash_override)
 		aproto.filterHX = function(f) {
 			var ret = [];
 			var i = 0;
@@ -266,7 +266,7 @@ class Boot extends flash.display.MovieClip {
 		aproto.setPropertyIsEnumerable("filterHX", false);
 		String.prototype.charCodeAtHX = function(i) : Null<Int> {
 		#else
-		aproto.filter = function(f) {
+		aproto["filter"] = function(f) {
 			var ret = [];
 			var i = 0;
 			var l = __this__.length;
@@ -277,7 +277,7 @@ class Boot extends flash.display.MovieClip {
 			}
 			return ret;
 		};
-		aproto.map = function(f) {
+		aproto["map"] = function(f) {
 			var ret = [];
 			var i = 0;
 			var l = __this__.length;

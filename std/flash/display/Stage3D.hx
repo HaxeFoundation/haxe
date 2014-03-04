@@ -6,4 +6,5 @@ package flash.display;
 	var x : Float;
 	var y : Float;
 	function requestContext3D(?context3DRenderMode : String, ?profile : flash.display3D.Context3DProfile) : Void;
+	@:require(flash12) function requestContext3DMatchingProfiles(profiles:Vector<String>) : Void;
 }

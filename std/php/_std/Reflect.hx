@@ -99,7 +99,7 @@
 		
 	public static function deleteField( o : Dynamic, field : String ) : Bool {
 		if(!hasField(o,field)) return false;
-		untyped __php__("if(isset($o->__dynamics[$field])) unset($o->__dynamics[$field]); else if($o instanceof _hx_anonymous) unset($o->$f); else $o->$f = null");
+		untyped __php__("if(isset($o->__dynamics[$field])) unset($o->__dynamics[$field]); else if($o instanceof _hx_anonymous) unset($o->$field); else $o->$field = null");
 		return true;
 	}
 

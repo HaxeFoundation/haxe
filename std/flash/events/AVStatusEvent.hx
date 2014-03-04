@@ -18,5 +18,6 @@ extern class AVStatusEvent extends Event {
 	static var SEEK_COMPLETE : String;
 	static var STEP_COMPLETE : String;
 	static var STREAM_SWITCH : String;
+	static var TRICKPLAY_ENDED : String;
 	static var WARNING : String;
 }

@@ -297,7 +297,7 @@ abstract MyDebugString(String) to String {
 }
 
 @:multiType abstract MySpecialString(String) {
-	public function new(value:String);	
+	public function new(value:String);
 
 	public inline function substr(i:Int, ?len:Int) {
 		return len == null ? this.substr(i) : this.substr(i, len);
@@ -305,5 +305,20 @@ abstract MyDebugString(String) to String {
 	
 	@:to static inline public function toNormal(t:String, value:String) {
 		return new MyDebugString(value);
-	}	
+	}
 }
+
+#if !macro
+@:enum
+abstract FakeEnumAbstract(Int) {
+	var NotFound = 404;
+	var MethodNotAllowed = 405;
+}
+
+@:forward(push, pop)
+abstract ExposingAbstract<S>(Array<S>) {
+	public inline function new() {
+		this = [];
+	}
+}
+#end

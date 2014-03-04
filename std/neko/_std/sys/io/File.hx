@@ -24,9 +24,6 @@ package sys.io;
 enum FileHandle {
 }
 
-/**
-	API for reading and writing to files.
-**/
 @:coreApi class File {
 
 	public static function getContent( path : String ) : String {
@@ -61,9 +58,9 @@ enum FileHandle {
 		return untyped new FileOutput(file_open(path.__s,(if( binary ) "ab" else "a").__s));
 	}
 
-	public static function copy( src : String, dst : String ) : Void {
-		var s = read(src,true);
-		var d = write(dst,true);
+	public static function copy( srcPath : String, dstPath : String ) : Void {
+		var s = read(srcPath,true);
+		var d = write(dstPath,true);
 		d.writeInput(s);
 		s.close();
 		d.close();

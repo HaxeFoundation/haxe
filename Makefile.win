@@ -5,6 +5,12 @@ EXTENSION=.exe
 
 OCAMLOPT=ocamlopt.opt
 
+ifneq ($(ADD_REVISION),0)
+	VERSION_EXTRA=let version_extra = Some " (git build $(shell git rev-parse --abbrev-ref HEAD) @ $(shell git describe --always)) "
+else
+	VERSION_EXTRA=let version_extra = None
+endif
+
 kill:
 	-@taskkill /F /IM haxe.exe 2>/dev/null
 
@@ -14,7 +20,7 @@ NATIVE_LIBS += -I "c:/program files/mingw/lib/"
 # use make MSVC=1 -f Makefile.win to build for OCaml/MSVC
 
 ifeq (${MSVC}, 1)
-NATIVE_LIBS = shell32.lib libs/extc/extc_stubs.obj libs/extc/zlib/zlib.lib
+NATIVE_LIBS = shell32.lib libs/extc/extc_stubs.obj libs/extc/zlib/zlib.lib libs/objsize/c_objsize.obj
 endif
 
 ifeq (${MSVC_OUTPUT}, 1)

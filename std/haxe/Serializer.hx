@@ -26,17 +26,18 @@ package haxe;
 	from which the Unserializer class can recreate the original representation.
 
 	This class can be used in two ways:
-		- create a new Serializer() instance, call its serialize() method with
+	
+	- create a new Serializer() instance, call its serialize() method with
 		any argument and finally retrieve the String representation from
 		toString()
-		- call Serializer.run() to obtain the serialized representation of a
+	- call Serializer.run() to obtain the serialized representation of a
 		single argument
 
 	Serialization is guaranteed to work for all haxe-defined classes, but may
 	or may not work for instances of external/native classes.
 
 	The specification of the serialization format can be found here:
-		http://haxe.org/manual/serialization/format
+	`http://haxe.org/manual/serialization/format`
 **/
 class Serializer {
 
@@ -73,14 +74,14 @@ class Serializer {
 	var scount : Int;
 
 	/**
-		The individual cache setting for [this] Serializer instance.
+		The individual cache setting for `this` Serializer instance.
 
 		See USE_CACHE for a complete description.
 	**/
 	public var useCache : Bool;
 
 	/**
-		The individual enum index setting for [this] Serializer instance.
+		The individual enum index setting for `this` Serializer instance.
 
 		See USE_ENUM_INDEX for a complete description.
 	**/
@@ -89,11 +90,11 @@ class Serializer {
 	/**
 		Creates a new Serializer instance.
 
-		Subsequent calls to [this].serialize() will append values to the
+		Subsequent calls to `this.serialize` will append values to the
 		internal buffer of this String. Once complete, the contents can be
-		retrieved through a call to [this].toString() .
+		retrieved through a call to `this.toString`.
 
-		Each Serializer instance maintains its own cache if [this].useCache is
+		Each Serializer instance maintains its own cache if this.useCache` is
 		true.
 	**/
 	public function new() {
@@ -106,7 +107,7 @@ class Serializer {
 	}
 
 	/**
-		Return the String representation of [this] Serializer.
+		Return the String representation of `this` Serializer.
 
 		The exact format specification can be found here:
 		http://haxe.org/manual/serialization/format
@@ -211,13 +212,13 @@ class Serializer {
 	}
 
 	/**
-		Serializes [v].
+		Serializes `v`.
 
 		All haxe-defined values and objects with the exception of functions can
 		be serialized. Serialization of external/native objects is not
 		guaranteed to work.
 
-		The values of [this].useCache and [this].useEnumIndex may affect
+		The values of `this.useCache` and `this.useEnumIndex` may affect
 		serialization output.
 	**/
 	public function serialize( v : Dynamic ) {
@@ -225,6 +226,7 @@ class Serializer {
 		case TNull:
 			buf.add("n");
 		case TInt:
+			var v : Int = v;
 			if( v == 0 ) {
 				buf.add("z");
 				return;
@@ -232,6 +234,7 @@ class Serializer {
 			buf.add("i");
 			buf.add(v);
 		case TFloat:
+			var v : Float = v;
 			if( Math.isNaN(v) )
 				buf.add("k");
 			else if( !Math.isFinite(v) )
@@ -361,17 +364,17 @@ class Serializer {
 				buf.add(":");
 				buf.add(chars);
 			default:
-				cache.pop();
+				if( useCache ) cache.pop();
 				if( #if flash9 try v.hxSerialize != null catch( e : Dynamic ) false #elseif (cs || java) Reflect.hasField(v, "hxSerialize") #else v.hxSerialize != null #end  ) {
 					buf.add("C");
 					serializeString(Type.getClassName(c));
-					cache.push(v);
+					if( useCache ) cache.push(v);
 					v.hxSerialize(this);
 					buf.add("g");
 				} else {
 					buf.add("c");
 					serializeString(Type.getClassName(c));
-					cache.push(v);
+					if( useCache ) cache.push(v);
 					#if flash9
 					serializeClassFields(v,c);
 					#else
@@ -385,9 +388,11 @@ class Serializer {
 			buf.add("o");
 			serializeFields(v);
 		case TEnum(e):
-			if( useCache && serializeRef(v) )
-				return;
-			cache.pop();
+			if( useCache ) {
+				if( serializeRef(v) )
+					return;
+				cache.pop();
+			}
 			buf.add(useEnumIndex?"j":"w");
 			serializeString(Type.getEnumName(e));
 			#if neko
@@ -479,7 +484,7 @@ class Serializer {
 			for( i in 2...l )
 				serialize(v[i]);
 			#end
-			cache.push(v);
+			if( useCache ) cache.push(v);
 		case TFunction:
 			throw "Cannot serialize function";
 		default:
@@ -511,10 +516,10 @@ class Serializer {
 	}
 
 	/**
-		Serializes [v] and returns the String representation.
+		Serializes `v` and returns the String representation.
 
 		This is a convenience function for creating a new instance of
-		Serializer, serialize [v] into it and obtain the result through a call
+		Serializer, serialize `v` into it and obtain the result through a call
 		to toString().
 	**/
 	public static function run( v : Dynamic ) {

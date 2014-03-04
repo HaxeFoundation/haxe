@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2013 Haxe Foundation
+ * Copyright (C)2005-2014 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -55,7 +55,7 @@ extern class DataView extends ArrayBufferView
 <dl> <dt><code>INDEX_SIZE_ERR</code></dt> <dd>The <code>byteOffset</code> and <code>byteLength</code> result in the specified view extending past the end of the buffer.</dd>
 </dl>
 </div> */
-	function new(?arg0 : Dynamic, ?arg1 : Dynamic, ?arg2 : Dynamic) : Void;
+	function new( ?arg0 : Dynamic, ?arg1 : Dynamic, ?arg2 : Dynamic ) : Void;
 
 	function getFloat32( byteOffset : Int, ?littleEndian : Bool ) : Float;
 

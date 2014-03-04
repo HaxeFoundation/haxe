@@ -39,6 +39,7 @@ enum MatchRule {
 	MRBool;
 	MRFloat;
 	MRString;
+	MREnum( e : String );
 	MRDispatch;
 	MRSpod( c : String, lock : Bool );
 	MROpt( r : MatchRule );
@@ -59,7 +60,7 @@ enum DispatchError {
 	DETooManyValues;
 }
 
-private class Redirect {
+class Redirect {
 	public function new() {
 	}
 }
@@ -166,6 +167,19 @@ class Dispatch {
 			return v;
 		case MRBool:
 			return v != null && v != "0" && v != "false" && v != "null";
+		case MREnum(e):
+			if( v == null ) throw DEMissing;
+			if( opt && v == "" ) return null;
+			if( v == "" ) throw DEMissing;
+			var en : Dynamic = Type.resolveEnum(e);
+			if( en == null ) throw "assert";
+			var ev:Dynamic;
+			if (v.charCodeAt(0) >= '0'.code && v.charCodeAt(0) <= '9'.code) {
+				ev = Type.createEnumIndex(en, Std.parseInt(v));
+			} else {
+				ev = Type.createEnum(en, v);
+			}
+			return ev;
 		case MRDispatch:
 			if( v != null )
 				parts.unshift(v);
@@ -258,6 +272,9 @@ class Dispatch {
 						}
 						return MRSpod(i.toString(), lock);
 					}
+					else if ( name == "haxe.web.Dispatch" ) {
+						return MRDispatch;
+					}
 					csup = csup.t.get().superClass;
 				}
 				Context.error("Unsupported dispatch type '"+i.toString()+"'",p);
@@ -267,7 +284,7 @@ class Dispatch {
 			case "Bool":
 				return MRBool;
 			default:
-				Context.error("Unsupported dispatch type "+e.toString(),p);
+				return MREnum(e.toString());
 			}
 		case TAbstract(a,_):
 			switch( a.toString() ) {
@@ -292,7 +309,7 @@ class Dispatch {
 		case TAnonymous(a):
 			for( f in a.get().fields ) {
 				var r = getType(f.type, f.pos);
-				var opt = false;
+				var opt = f.meta.has(":optional");
 				switch( f.type ) {
 				case TType(t, _):
 					if( t.get().name == "Null" ) opt = true;
@@ -396,7 +413,7 @@ class Dispatch {
 		return null;
 	}
 
-	static var PARAMS = null;
+	static var PARAMS:Array<Dynamic> = null;
 
 	static function buildParams(_) {
 		var rules = [];

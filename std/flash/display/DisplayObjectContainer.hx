@@ -18,6 +18,7 @@ extern class DisplayObjectContainer extends InteractiveObject {
 	function removeChildAt(index : Int) : DisplayObject;
 	@:require(flash11) function removeChildren(beginIndex : Int = 0, endIndex : Int = 2147483647) : Void;
 	function setChildIndex(child : DisplayObject, index : Int) : Void;
+	@:require(flash11_8) function stopAllMovieClips() : Void;
 	function swapChildren(child1 : DisplayObject, child2 : DisplayObject) : Void;
 	function swapChildrenAt(index1 : Int, index2 : Int) : Void;
 }

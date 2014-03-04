@@ -34,8 +34,8 @@ class FileSystem {
 		return untyped __call__("file_exists", path);
 	}
 
-	public static inline function rename( path : String, newpath : String ) : Void {
-		untyped __call__("rename", path, newpath);
+	public static inline function rename( path : String, newPath : String ) : Void {
+		untyped __call__("rename", path, newPath);
 	}
 
 	public static function stat( path : String ) : FileStat {
@@ -55,8 +55,8 @@ class FileSystem {
 		};
 	}
 
-	public static inline function fullPath( relpath : String ) : String {
-		var p = untyped __call__("realpath", relpath);
+	public static inline function fullPath( relPath : String ) : String {
+		var p = untyped __call__("realpath", relPath);
 		if (untyped __physeq__(p, false))
 			return null;
 		else

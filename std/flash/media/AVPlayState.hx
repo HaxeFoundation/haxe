@@ -9,6 +9,7 @@ extern class AVPlayState {
 	static var PLAYING : Int;
 	static var READY : Int;
 	static var SUSPENDED : Int;
+	static var TRICK_PLAY : Int;
 	static var UNINITIALIZED : Int;
 	static var UNRECOVERABLE_ERROR : Int;
 }

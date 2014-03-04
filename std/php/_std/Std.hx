@@ -24,6 +24,10 @@
 	public static function is( v : Dynamic, t : Dynamic ) : Bool {
 		return untyped untyped __call__("_hx_instanceof", v,t);
 	}
+	
+	public static function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
+		return Std.is(value, c) ? cast value : null;
+	}
 
 	public static function string( s : Dynamic ) : String {
 		return untyped __call__("_hx_string_rec", s, '');

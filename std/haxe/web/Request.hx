@@ -32,7 +32,7 @@ class Request {
 		#elseif php
 		return php.Web.getParams();
 		#elseif js
-		var get : String = untyped window.location.search.substr(1);
+		var get : String = js.Browser.location.search.substr(1);
 		var params = new haxe.ds.StringMap();
 		for( p in ~/[&;]/g.split(get) ) {
 			var pl = p.split("=");
@@ -53,7 +53,7 @@ class Request {
 		#elseif php
 		return php.Web.getHostName();
 		#elseif js
-		return untyped window.location.host; // includes port
+		return js.Browser.location.host; // includes port
 		#end
 	}
 
@@ -66,7 +66,7 @@ class Request {
 		#elseif php
 		return php.Web.getURI();
 		#elseif js
-		return untyped window.location.pathname;
+		return js.Browser.location.pathname;
 		#end
 	}
 

@@ -1,0 +1,10 @@
+#cs native build
+-cmd "haxelib run hxcs native_cs/hxcs_build.txt"
+
+--next
+
+compile-each.hxml
+-main unit.Test
+-D unsafe
+-cs cs_unsafe
+-net-lib native_cs/bin/native_cs.dll

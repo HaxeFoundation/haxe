@@ -23,6 +23,11 @@ package cpp.vm;
 
 class Gc
 {
+   public static inline var MEM_INFO_USAGE = 0;
+   public static inline var MEM_INFO_RESERVED = 1;
+   public static inline var MEM_INFO_CURRENT = 2;
+   public static inline var MEM_INFO_LARGE = 3;
+
    static public function enable(inEnable:Bool) : Void
    {
       untyped __global__.__hxcpp_enable(inEnable);
@@ -38,9 +43,21 @@ class Gc
       untyped __global__.__hxcpp_gc_compact();
    }
 
+   // Introduced hxcpp_api_level 310
+   // Returns stats on memory usage:
+   //   MEM_INFO_USAGE - estimate of how much is needed by program (at last collect)
+   //   MEM_INFO_RESERVED - memory allocated for possible use
+   //   MEM_INFO_CURRENT - memory in use, includes uncollected garbage.
+   //     This will generally saw-tooth between USAGE and RESERVED
+   //   MEM_INFO_LARGE - Size of separate pool used for large allocs.  Included in all the above.
+   static public function memInfo(inWhatInfo:Int) : Int
+   {
+      return untyped __global__.__hxcpp_gc_mem_info(inWhatInfo);
+   }
+
    static public function memUsage() : Int
    {
-      return untyped __global__.__hxcpp_gc_used_bytes();
+      return untyped __global__.__hxcpp_gc_mem_info(MEM_INFO_USAGE);
    }
 
    static public function trace(sought:Class<Dynamic>,printInstances:Bool=true) : Int

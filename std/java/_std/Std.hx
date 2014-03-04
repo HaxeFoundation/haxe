@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 import java.Boot;
 import java.Lib;
 import java.internal.Exceptions;
@@ -90,6 +91,7 @@ import java.internal.Exceptions;
 					case \'-\':
 						isNeg = true;
 						continue;
+          case \'+\':
 					case \'\\n\':
 					case \'\\t\':
 					case \'\\r\':
@@ -154,6 +156,7 @@ import java.internal.Exceptions;
 					case \'-\':
 						isNeg = true;
 						continue;
+          case \'+\':
 					case \'\\n\':
 					case \'\\t\':
 					case \'\\r\':
@@ -235,6 +238,10 @@ import java.internal.Exceptions;
 	')
 	public static function parseFloat( x : String ) : Float {
 		return 0.0;
+	}
+
+	public static function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
+		return Std.is(value, c) ? cast value : null;
 	}
 
 	public static function random( x : Int ) : Int {

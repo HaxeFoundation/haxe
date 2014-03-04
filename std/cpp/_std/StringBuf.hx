@@ -24,12 +24,21 @@ class StringBuf {
 
 	private var b : Array<String>;
 
+	public var length(get,never) : Int;
+
 	public function new() : Void {
 		b = new Array();
 	}
 
-	public function add( x : Dynamic ) : Void {
-		b.push(x);
+	function get_length() : Int {
+		var len = 0;
+		for(s in b)
+			len += s==null ? 4 : s.length;
+		return len;
+	}
+
+	public function add<T>( x : T ) : Void {
+		b.push(Std.string(x));
 	}
 
 	public inline function addSub( s : String, pos : Int, ?len : Int ) : Void {

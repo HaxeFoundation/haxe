@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2013 Haxe Foundation
+ * Copyright (C)2005-2014 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -61,7 +61,7 @@ extern class StorageEvent extends Event
 	/** The URL of the document whose <code>key</code> changed. <strong>Read only.</strong> */
 	var url(default,null) : String;
 
-	function new(type : String, canBubble : Bool = true, cancelable : Bool = true) : Void;
+	function new( type : String, canBubble : Bool = true, cancelable : Bool = true ) : Void;
 
 	function initStorageEvent( typeArg : String, canBubbleArg : Bool, cancelableArg : Bool, keyArg : String, ?oldValueArg : String, ?newValueArg : String, urlArg : String, storageAreaArg : Storage ) : Void;
 

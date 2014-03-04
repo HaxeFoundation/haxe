@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2013 Haxe Foundation
+ * Copyright (C)2005-2014 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -70,7 +70,7 @@ extern class CSSMatrix
 
 	var m44 : Float;
 
-	function new() : Void;
+	function new( cssValue : String ) : Void;
 
 	function inverse() : CSSMatrix;
 

@@ -63,4 +63,5 @@ extern class NetStream extends flash.events.EventDispatcher {
 	function togglePause() : Void;
 	@:require(flash10) static var CONNECT_TO_FMS : String;
 	@:require(flash10) static var DIRECT_CONNECTIONS : String;
+	static function resetDRMVouchers() : Void;
 }

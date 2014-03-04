@@ -23,9 +23,9 @@
 /**
 	An abstract type that represents an Enum type.
 	
-	The corresponding enum instance type is EnumValue.
+	The corresponding enum instance type is `EnumValue`.
 	
-	See [Type] for the haXe Reflection API.
+	See `Type` for the Haxe Reflection API.
 **/
 @:coreType @:runtimeValue abstract Enum<T> {
 }

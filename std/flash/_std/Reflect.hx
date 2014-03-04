@@ -37,7 +37,7 @@
 	public static function getProperty( o : Dynamic, field : String ) : Dynamic untyped {
 		try {
 			return o["get_" + field]();
-		} catch( e : Dynamic ) {
+		} catch( e : Dynamic ) try {
 			return o[field];
 		} catch( e : Dynamic ) {
 			return null;

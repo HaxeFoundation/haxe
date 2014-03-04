@@ -184,7 +184,7 @@ class Input {
 			bytes.push(cast readByte());
 			bytes.push(cast readByte());
 			bytes.push(cast readByte());
-			if (bigEndian)
+			if (!bigEndian)
 				bytes.reverse();
 			var sign = 1 - ((bytes[0] >> 7) << 1);
 			var exp = (((bytes[0] << 1) & 0xFF) | (bytes[1] >> 7)) - 127;
@@ -213,7 +213,7 @@ class Input {
 		bytes.push(readByte());
 		bytes.push(readByte());
 		bytes.push(readByte());
-		if (bigEndian)
+		if (!bigEndian)
 			bytes.reverse();
 
 		var sign = 1 - ((bytes[0] >> 7) << 1); // sign = bit 0
@@ -312,7 +312,15 @@ class Input {
 		var ch2 = readByte();
 		var ch3 = readByte();
 		var ch4 = readByte();
+#if php
+        // php will overflow integers.  Convert them back to signed 32-bit ints.
+        var n = bigEndian ? ch4 | (ch3 << 8) | (ch2 << 16) | (ch1 << 24) : ch1 | (ch2 << 8) | (ch3 << 16) | (ch4 << 24);
+        if (n & 0x80000000 != 0)
+            return ( n | 0x80000000);
+        else return n;
+#else
 		return bigEndian ? ch4 | (ch3 << 8) | (ch2 << 16) | (ch1 << 24) : ch1 | (ch2 << 8) | (ch3 << 16) | (ch4 << 24);
+#end
 	}
 
 	public function readString( len : Int ) : String {

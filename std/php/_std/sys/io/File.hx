@@ -56,8 +56,8 @@ enum FileHandle {
 		return untyped new FileOutput(untyped __call__('fopen', path, binary ? "ab" : "a"));
 	}
 
-	public static function copy( src : String, dst : String ) : Void {
-		untyped __call__("copy", src, dst);
+	public static function copy( srcPath : String, dstPath : String ) : Void {
+		untyped __call__("copy", srcPath, dstPath);
 	}
 
 }

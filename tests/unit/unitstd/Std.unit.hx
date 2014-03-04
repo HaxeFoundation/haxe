@@ -1,12 +1,31 @@
 // is
 var known:String = null;
 Std.is(known, String) == false;
-		
+
 var unknown = null;
 Std.is(unknown, String) == false;
 Std.is(null, String) == false;
 Std.is("foo", null) == false;
-	
+
+Std.is("", String) == true;
+Std.is(false, Bool) == true;
+Std.is(1, Int) == true;
+Std.is(1.5, Int) == false;
+Std.is(1.5, Float) == true;
+Std.is([], Array) == true;
+Std.is(cast unit.MyEnum.A, Array) == false;
+
+// instance
+#if !js
+Std.instance("", String) == "";
+#end
+var a = [];
+Std.instance(a, Array) == a;
+var parent:unit.MyClass.MyParent = new MyClass.MyChild1();
+Std.instance(parent, unit.MyClass.MyChild1) != null;
+Std.instance(null, Array) == null;
+Std.instance(null, String) == null;
+
 // string
 var cwts = new ClassWithToString();
 var cwtsc = new ClassWithToStringChild();
@@ -30,7 +49,7 @@ Std.int(-0.7) == 0;
 Std.int(-0.2) == 0;
 Std.int(0.7) == 0;
 Std.int(0.2) == 0;
-	
+
 // parseInt
 Std.parseInt("0") == 0;
 Std.parseInt("   5") == 5;
@@ -47,10 +66,10 @@ Std.parseInt(null) == null;
 Std.parseInt("0xFF") == 255;
 Std.parseInt("0x123") == 291;
 Std.parseInt("0XFF") == 255;
-Std.parseInt("0X123") == 291;	
+Std.parseInt("0X123") == 291;
 Std.parseInt("0X01") == 1;
 Std.parseInt("0x01") == 1;
-	
+
 // parseFloat
 Std.parseFloat("0") == 0.;
 Std.parseFloat("   5.3") == 5.3;
@@ -65,7 +84,7 @@ Math.isNaN(Std.parseFloat(null)) == true;
 Std.parseFloat("5.3 ") == 5.3;
 Std.parseFloat("0.0") == 0.;
 Std.parseFloat("5.3 1") == 5.3;
-	
+
 // random
 var x = Std.random(2);
 x in [0,1];

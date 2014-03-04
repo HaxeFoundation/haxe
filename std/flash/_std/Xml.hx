@@ -264,19 +264,25 @@ extern enum XmlType {
 	}
 
 	public function attributes() : Iterator<String> {
-		if( nodeType != Xml.Element )
-			throw "bad nodeType";
-		var attributes :XMLList = _node.attributes();
-		var names = Reflect.fields(attributes);
-		var cur = 0;
-		return {
-			hasNext : function(){
-				return cur < names.length;
-			},
-			next : function(){
-				return attributes[Std.parseInt(names[cur++])].name();
-			}
-		}
+	    if( nodeType != Xml.Element )
+	        throw "bad nodeType";
+	    var attributes :XMLList = _node.attributes();
+	    var names = Reflect.fields(attributes);
+	    var cur = 0;
+	    var nss = _node.namespaceDeclarations();
+	    return {
+	        hasNext : function(){
+	            return cur < names.length + nss.length;
+	        },
+	        next : function() {
+	            if(cur<names.length){
+	                return attributes[Std.parseInt(names[cur++])].name();
+	            }else {
+	                var ns:flash.utils.Namespace = nss[cur++ - names.length];
+	                return "xmlns:"+ns.prefix;
+	            }
+	        }
+	    }
 	}
 
 	public function iterator() : Iterator<Xml> {

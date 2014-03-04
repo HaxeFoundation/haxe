@@ -19,7 +19,10 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-import cs.system.text.regularExpressions.Regex;
+import cs.system.text.regularexpressions.Regex;
+import cs.system.text.regularexpressions.Match;
+import cs.system.text.regularexpressions.RegexOptions;
+import cs.system.text.regularexpressions.*;
 
 class EReg {
 
@@ -86,12 +89,12 @@ class EReg {
 		return untyped [s.Substring(0, m.Index), s.Substring(m.Index + m.Length)];
 	}
 
-	inline function start(group:Int)
+	inline function start(group:Int) : Int
 	{
 		return m.Groups[group].Index;
 	}
 
-	inline function len(group:Int)
+	inline function len(group:Int) : Int
 	{
 		return m.Groups[group].Length;
 	}

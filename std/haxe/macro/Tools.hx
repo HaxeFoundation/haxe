@@ -28,3 +28,5 @@ package haxe.macro;
 typedef TExprTools = ExprTools;
 typedef TComplexTypeTools = ComplexTypeTools;
 typedef TTypeTools = TypeTools;
+typedef TMacroStringTools = MacroStringTools;
+typedef TTypedExprTools = TypedExprTools;

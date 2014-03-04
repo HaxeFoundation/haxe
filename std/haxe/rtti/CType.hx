@@ -25,12 +25,13 @@ typedef Path = String
 
 typedef Platforms = List<String>
 
+typedef FunctionArgument = { name : String, opt : Bool, t : CType, ?value:String }
 enum CType {
 	CUnknown;
 	CEnum( name : Path, params : List<CType> );
 	CClass( name : Path, params : List<CType> );
 	CTypedef( name : Path, params : List<CType> );
-	CFunction( args : List<{ name : String, opt : Bool, t : CType }>, ret : CType );
+	CFunction( args : List<FunctionArgument>, ret : CType );
 	CAnonymous( fields : List<ClassField> );
 	CDynamic( ?t : CType );
 	CAbstract( name : Path, params : List<CType> );
@@ -66,6 +67,7 @@ typedef ClassField = {
 	var platforms : Platforms;
 	var meta : MetaData;
 	var line : Null<Int>;
+	var overloads : Null<List<ClassField>>;
 }
 
 typedef TypeInfos = {
@@ -108,8 +110,10 @@ typedef Typedef = {> TypeInfos,
 }
 
 typedef Abstractdef = {> TypeInfos,
-	var subs : Array<CType>;
-	var supers : Array<CType>;
+	var to : Array<{t:CType, field:Null<String>}>;
+	var from : Array<{t:CType, field:Null<String>}>;
+	var impl : Classdef;
+	var athis : CType;
 }
 
 enum TypeTree {
@@ -202,7 +206,7 @@ class TypeApi {
 		case CFunction(args,ret):
 			switch( t2 ) {
 			case CFunction(args2,ret2):
-				return leq(function(a,b) {
+				return leq(function(a:FunctionArgument,b:FunctionArgument) {
 					return a.name == b.name && a.opt == b.opt && typeEq(a.t,b.t);
 				},args,args2) && typeEq(ret,ret2);
 			default:

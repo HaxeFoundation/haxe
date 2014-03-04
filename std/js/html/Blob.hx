@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2013 Haxe Foundation
+ * Copyright (C)2005-2014 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -40,7 +40,7 @@ extern class Blob
 	/** An ASCII-encoded string, in all lower case, indicating the MIME&nbsp;type of the data contained in the <code>Blob</code>. If the type is unknown, this string is empty. <strong>Read only.</strong> */
 	var type(default,null) : String;
 
-	function new(?arg0 : Dynamic, ?arg1 : Dynamic) : Void;
+	function new( ?arg0 : Dynamic, ?arg1 : Dynamic ) : Void;
 
 	function slice( ?start : Int, ?end : Int, ?contentType : String ) : Blob;
 

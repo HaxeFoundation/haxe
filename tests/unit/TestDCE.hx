@@ -20,14 +20,14 @@ class DCEClass {
 	// unused statics
 	static function staticUnused() { }
 	static var staticVarUnused = "bar";
-	static var staticPropUnused(get, set):Int = 1;
+	static var staticPropUnused(get, set):Int;
 	static function get_staticPropUnused() return 0;
 	static function set_staticPropUnused(i:Int) return 0;
 	
 	// unused members
 	function memberUnused() { }
 	var memberVarUnused = 1;
-	var memberPropUnused(get, set):Int = 1;
+	var memberPropUnused(get, set):Int;
 	function get_memberPropUnused() return 0;
 	function set_memberPropUnused(i:Int) return 0;
 	
@@ -116,6 +116,22 @@ class TestDCE extends Test {
 		nhf(bc, "get_x");
 	}
 	
+	#if (!cpp && !java && !cs)
+	public function testProperty2() {
+        var a = new RemovePropertyKeepAccessors();
+        a.test = 3;
+        eq(a.test, 3);
+        Reflect.setProperty(a, "test", 2);
+        eq(a.test, 2);
+		
+		var c = Type.resolveClass("unit.RemovePropertyKeepAccessors");
+		hf(c, "get_test");
+		hf(c, "set_test");
+		hf(c, "_test");
+		nhf(c, "test");
+	}
+	#end
+	
 	public function testClasses() {
 		t(Type.resolveClass("unit.UsedConstructed") != null);
 		t(Type.resolveClass("unit.UsedReferenced") != null);
@@ -138,6 +154,9 @@ class TestDCE extends Test {
 		try {
 			throw c;
 		} catch (_:Dynamic) { }
+		#if js
+		if (!js.Browser.supported || js.Browser.navigator.userAgent.indexOf('MSIE 8') == -1)
+		#end
 		hf(ThrownWithToString, "toString");
 	}
 }
@@ -211,4 +230,16 @@ class InterfaceMethodFromBaseClassChild extends InterfaceMethodFromBaseClass imp
 class ThrownWithToString {
 	public function new() { }
 	public function toString() { return "I was thrown today"; }
+}
+
+
+class RemovePropertyKeepAccessors
+{
+    public function new() {}
+
+    var _test:Float;
+    public var test(get, set):Float;
+
+    public function get_test():Float return _test;
+    public function set_test(a:Float):Float { _test = a; return _test; }
 }

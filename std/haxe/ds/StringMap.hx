@@ -23,52 +23,49 @@
 package haxe.ds;
 
 /**
-	Hashtable over a set of elements, using [String] as keys.
-	Other kind of keys are not possible on all platforms since they
-	can't always be implemented efficiently.
+	StringMap allows mapping of String keys to arbitrary values.
+	
+	See `Map` for documentation details.
 **/
 extern class StringMap<T> implements Map.IMap<String,T> {
 
 	/**
-		Creates a new empty hashtable.
+		Creates a new StringMap.
 	**/
 	public function new() : Void;
 
 	/**
-		Set a value for the given key.
+		See `Map.set`
 	**/
 	public function set( key : String, value : T ) : Void;
 
 	/**
-		Get a value for the given key.
+		See `Map.get`
 	**/
 	public function get( key : String ) : Null<T>;
 
 	/**
-		Tells if a value exists for the given key.
-		In particular, it's useful to tells if a key has
-		a [null] value versus no value.
+		See `Map.exists`
 	**/
 	public function exists( key : String ) : Bool;
 
 	/**
-		Removes a hashtable entry. Returns [true] if
-		there was such entry.
+		See `Map.remove`
 	**/
 	public function remove( key : String ) : Bool;
 
 	/**
-		Returns an iterator of all keys in the hashtable.
+		See `Map.keys`
 	**/
 	public function keys() : Iterator<String>;
 
 	/**
-		Returns an iterator of all values in the hashtable.
+		See `Map.iterator`
 	**/
 	public function iterator() : Iterator<T>;
 
 	/**
-		Returns an displayable representation of the hashtable content.
+		See `Map.toString`
 	**/
 	public function toString() : String;
 

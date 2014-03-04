@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2013 Haxe Foundation
+ * Copyright (C)2005-2014 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -54,7 +54,7 @@ extern class Worker extends AbstractWorker
 <div id="section_7"><span id="Return_value"></span><h6 class="editable">Return value</h6>
 <p>A new <code>Worker</code>.</p>
 </div></div> */
-	function new() : Void;
+	function new( scriptUrl : String ) : Void;
 
 	function postMessage( message : Dynamic, ?messagePorts : Array<Dynamic> ) : Void;
 

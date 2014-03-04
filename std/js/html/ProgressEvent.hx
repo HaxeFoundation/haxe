@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2013 Haxe Foundation
+ * Copyright (C)2005-2014 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -48,6 +48,6 @@ extern class ProgressEvent extends Event
 	/** The total number of bytes of content that will be transferred during the operation. If the total size is unknown, this value is zero. <strong>Read only.</strong> */
 	var total(default,null) : Int;
 
-	function new(type : String, canBubble : Bool = true, cancelable : Bool = true) : Void;
+	function new( type : String, canBubble : Bool = true, cancelable : Bool = true ) : Void;
 
 }

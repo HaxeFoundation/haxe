@@ -1,9 +1,5 @@
 package flash.text;
 
-#if !flash8
-"This class is only accesible in Flash8"
-#end
-
 extern class TextRenderer {
 
 	static var maxLevel : Float;

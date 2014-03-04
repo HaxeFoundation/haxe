@@ -39,6 +39,9 @@ class BytesBuffer {
 	var b : Array<Int>;
 	#end
 
+	/** The length of the buffer in bytes. **/
+	public var length(get,never) : Int;
+
 	public function new() {
 		#if neko
 		b = untyped StringBuf.__make();
@@ -57,6 +60,18 @@ class BytesBuffer {
 		#end
 	}
 
+	inline function get_length() : Int {
+		#if neko
+		return untyped __dollar__ssize( StringBuf.__to_string(b) );
+		#elseif cs
+		return haxe.Int64.toInt( b.Length );
+		#elseif java
+		return b.size();
+		#else
+		return b.length;
+		#end
+	}
+
 	public inline function addByte( byte : Int ) {
 		#if neko
 		untyped StringBuf.__add_char(b,byte);
@@ -67,7 +82,7 @@ class BytesBuffer {
 		#elseif cpp
 		b.push(untyped byte);
 		#elseif cs
-		b.WriteByte(byte);
+		b.WriteByte(cast byte);
 		#elseif java
 		b.write(byte);
 		#else
@@ -101,7 +116,7 @@ class BytesBuffer {
 		#if neko
 		try untyped StringBuf.__add_sub(b,src.getData(),pos,len) catch( e : Dynamic ) throw Error.OutsideBounds;
 		#elseif flash9
-		b.writeBytes(src.getData(),pos,len);
+		if( len > 0 ) b.writeBytes(src.getData(),pos,len);
 		#elseif php
 		b += untyped __call__("substr", src.b, pos, len);
 		#elseif cs

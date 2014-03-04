@@ -25,31 +25,19 @@ import cs.system.io.File;
 import cs.system.io.Directory;
 import cs.system.io.FileInfo;
 
-/**
-	This class allows you to get informations about the files and directories.
-**/
 @:coreApi
 class FileSystem {
 
-	/**
-		Tells if the given file or directory exists.
-	**/
 	public static function exists( path : String ) : Bool
 	{
 		return (File.Exists(path) || Directory.Exists(path));
 	}
 
-	/**
-		Rename the corresponding file or directory, allow to move it accross directories as well.
-	**/
-	public static function rename( path : String, newpath : String ) : Void
+	public static function rename( path : String, newPath : String ) : Void
 	{
-		Directory.Move(path, newpath);
+		Directory.Move(path, newPath);
 	}
 
-	/**
-		Returns informations for the given file/directory.
-	**/
 	public static function stat( path : String ) : FileStat
 	{
 		if (File.Exists(path))
@@ -89,17 +77,11 @@ class FileSystem {
 
 	}
 
-	/**
-		Returns the full path for the given path which is relative to the current working directory.
-	**/
-	public static function fullPath( relpath : String ) : String
+	public static function fullPath( relPath : String ) : String
 	{
-		return new FileInfo(relpath).FullName;
+		return new FileInfo(relPath).FullName;
 	}
 
-	/**
-		Tells if the given path is a directory. Throw an exception if it does not exists or is not accesible.
-	**/
 	public static function isDirectory( path : String ) : Bool
 	{
 		var isdir = Directory.Exists(path);
@@ -108,33 +90,21 @@ class FileSystem {
 		throw "Path '" + path + "' doesn't exist";
 	}
 
-	/**
-		Create the given directory. Not recursive : the parent directory must exists.
-	**/
 	public static function createDirectory( path : String ) : Void
 	{
 		Directory.CreateDirectory(path);
 	}
 
-	/**
-		Delete a given file.
-	**/
 	public static function deleteFile( path : String ) : Void
 	{
 		File.Delete(path);
 	}
 
-	/**
-		Delete a given directory.
-	**/
 	public static function deleteDirectory( path : String ) : Void
 	{
 		Directory.Delete(path);
 	}
 
-	/**
-		Read all the files/directories stored into the given directory.
-	**/
 	public static function readDirectory( path : String ) : Array<String>
 	{
 		var ret = Directory.GetFileSystemEntries(path);

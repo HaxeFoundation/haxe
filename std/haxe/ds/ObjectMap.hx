@@ -22,13 +22,53 @@
 
 package haxe.ds;
 
+/**
+	ObjectMap allows mapping of object keys to arbitrary values.
+	
+	On static targets, the keys are considered to be strong references. Refer
+	to `haxe.ds.WeakMap` for a weak reference version.
+	
+	See `Map` for documentation details.
+**/
 extern class ObjectMap < K: { }, V > implements Map.IMap<K,V> {
+	
+	/**
+		Creates a new ObjectMap.
+	**/
 	public function new():Void;
+	
+	/**
+		See `Map.set`
+	**/
 	public function set(key:K, value:V):Void;
+	
+	/**
+		See `Map.get`
+	**/	
 	public function get(key:K):Null<V>;
+	
+	/**
+		See `Map.exists`
+	**/	
 	public function exists(key:K):Bool;
+	
+	/**
+		See `Map.remove`
+	**/	
 	public function remove(key:K):Bool;
+	
+	/**
+		See `Map.keys`
+	**/	
 	public function keys():Iterator<K>;
+	
+	/**
+		See `Map.iterator`
+	**/	
 	public function iterator():Iterator<V>;
+	
+	/**
+		See `Map.toString`
+	**/	
 	public function toString():String;
 }

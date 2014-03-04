@@ -22,12 +22,18 @@
 @:coreApi class StringBuf {
 	private var b : String;
 
+	public var length(get,never) : Int;
+
 	public function new() : Void {
 		b = "";
 	}
 
-	public function add( x : Dynamic ) : Void {
-		untyped if( __call__('is_null',x) ) x = 'null' else if( __call__('is_bool',x) ) x = x?'true':'false';
+	inline function get_length() : Int {
+		return b.length;
+	}
+
+	public function add<T>( x : T ) : Void {
+		untyped if( __call__('is_null',x) ) x = cast 'null' else if( __call__('is_bool',x) ) x = cast (x?'true':'false');
 		b += x;
 	}
 

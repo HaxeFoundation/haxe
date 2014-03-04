@@ -23,34 +23,22 @@ package sys;
 import java.io.File;
 import java.Lib;
 
-/**
-	This class allows you to get informations about the files and directories.
-**/
 @:coreApi
 class FileSystem {
 
-	/**
-		Tells if the given file or directory exists.
-	**/
 	public static function exists( path : String ) : Bool
 	{
 		return new File(path).exists();
 	}
 
-	/**
-		Rename the corresponding file or directory, allow to move it accross directories as well.
-	**/
-	public static function rename( path : String, newpath : String ) : Void
+	public static function rename( path : String, newPath : String ) : Void
 	{
-		if (!new File(path).renameTo(new File(newpath)))
+		if (!new File(path).renameTo(new File(newPath)))
 		{
-			throw "Cannot rename " + path + " to " + newpath;
+			throw "Cannot rename " + path + " to " + newPath;
 		}
 	}
 
-	/**
-		Returns informations for the given file/directory.
-	**/
 	public static function stat( path : String ) : FileStat
 	{
 		var f = new File(path);
@@ -71,17 +59,11 @@ class FileSystem {
 		};
 	}
 
-	/**
-		Returns the full path for the given path which is relative to the current working directory.
-	**/
-	public static function fullPath( relpath : String ) : String
+	public static function fullPath( relPath : String ) : String
 	{
-		return new File(relpath).getAbsolutePath();
+		return new File(relPath).getAbsolutePath();
 	}
 
-	/**
-		Tells if the given path is a directory. Throw an exception if it does not exists or is not accesible.
-	**/
 	public static function isDirectory( path : String ) : Bool
 	{
 		var f = new File(path);
@@ -90,36 +72,24 @@ class FileSystem {
 		return f.isDirectory();
 	}
 
-	/**
-		Create the given directory. Not recursive : the parent directory must exists.
-	**/
 	public static function createDirectory( path : String ) : Void
 	{
 		if (!new File(path).mkdirs())
 			throw "Cannot create dir " + path;
 	}
 
-	/**
-		Delete a given file.
-	**/
 	public static function deleteFile( path : String ) : Void
 	{
 		if (!new File(path).delete())
 			throw "Cannot delete file " + path;
 	}
 
-	/**
-		Delete a given directory.
-	**/
 	public static function deleteDirectory( path : String ) : Void
 	{
 		if (!new File(path).delete())
 			throw "Cannot delete directory " + path;
 	}
 
-	/**
-		Read all the files/directories stored into the given directory.
-	**/
 	public static function readDirectory( path : String ) : Array<String>
 	{
 		var f = new File(path);
@@ -127,5 +97,4 @@ class FileSystem {
 			throw "Path " + path + " doesn't exist";
 		return Lib.array( f.list() );
 	}
-
 }

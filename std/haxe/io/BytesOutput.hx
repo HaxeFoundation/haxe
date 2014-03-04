@@ -29,6 +29,9 @@ class BytesOutput extends Output {
 	var b : BytesBuffer;
 	#end
 
+	/** The length of the stream in bytes. **/
+	public var length(get,never) : Int;
+
 	public function new() {
 		#if flash9
 		b = new flash.utils.ByteArray();
@@ -36,6 +39,10 @@ class BytesOutput extends Output {
 		#else
 		b = new BytesBuffer();
 		#end
+	}
+
+	inline function get_length() : Int {
+		return b.length;
 	}
 
 	override function writeByte(c) {
@@ -94,12 +101,7 @@ class BytesOutput extends Output {
 	}
 
 	override function prepare( size : Int ) {
-		if( size > 0 )
-	#if cpp
-			untyped b.__Resize(size);
-	#else
-			b[size-1] = b[size-1];
-	#end
+		if( size > 0 ) b[size-1] = b[size-1];
 	}
 
 	override function writeString( s : String ) {

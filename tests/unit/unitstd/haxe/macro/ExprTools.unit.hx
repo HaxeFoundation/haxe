@@ -136,3 +136,57 @@ check(ecall);
 //check(efunction);
 //check(eswitch);
 check(ereturn);
+
+// getValue
+var getValue = haxe.macro.ExprTools.getValue;
+
+1 == getValue(macro 1);
+"1" == getValue(macro "1");
+12.2 == getValue(macro 12.2);
+true == getValue(macro true);
+false == getValue(macro false);
+null == getValue(macro null);
+null == getValue(macro (null));
+null == getValue(macro untyped null);
+null == getValue(macro @:meta null);
+
+var obj = getValue(macro { f1: 1, f2: "foo" });
+1 == obj.f1;
+"foo" == obj.f2;
+
+var a:Array<Dynamic> = getValue(macro [1, "foo", true]);
+1 == a[0];
+"foo" == a[1];
+true == a[2];
+
+-1 == getValue(macro -1);
+false == getValue(macro !true);
+true == getValue(macro !false);
+
+5 == getValue(macro 2 + 3);
+-1 == getValue(macro 2 - 3);
+6 == getValue(macro 2 * 3);
+2 == getValue(macro 4 / 2);
+1 == getValue(macro 3 % 2);
+true == getValue(macro 1 == 1);
+false == getValue(macro 1 != 1);
+true == getValue(macro 1 > 0);
+false == getValue(macro 0 > 1);
+true == getValue(macro 0 < 1);
+false == getValue(macro 1 < 0);
+true == getValue(macro 1 >= 0);
+true == getValue(macro 1 >= 1);
+false == getValue(macro 0 >= 1);
+true == getValue(macro 0 <= 1);
+true == getValue(macro 1 <= 1);
+false == getValue(macro 1 <= 0);
+7 == getValue(macro 5 | 2);
+1 == getValue(macro 5 & 3);
+6 == getValue(macro 5 ^ 3);
+true == getValue(macro true && true);
+false == getValue(macro true && false);
+true == getValue(macro true || false);
+false == getValue(macro false || false);
+8 == getValue(macro 4 << 1);
+4 == getValue(macro 8 >> 1);
+4 == getValue(macro 8 >>> 1);

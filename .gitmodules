@@ -1,3 +1,6 @@
 [submodule "libs"]
 	path = libs
-	url = git://github.com/HaxeFoundation/ocamllibs.git
+	url = https://github.com/HaxeFoundation/ocamllibs.git
+[submodule "extra/haxelib_src"]
+	path = extra/haxelib_src
+	url = https://github.com/HaxeFoundation/haxelib.git
