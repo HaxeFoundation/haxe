@@ -46,7 +46,6 @@
 	all : implemented constraints check on enum and enum field type parameters
 	all : fixed memory leak in compilation server and optimized caching in general
 	all : fixed issue with invalid lowercase class name in Windows completion
-	js : window and console are reserved words. Access them with __js__ instead of untyped.
 	flash : fixed font embedding with UTF8 chars
 	flash : give error if non-nullable basic types are skipped in a call
 	flash : give error if assigned parent class field values would be overwritten by super()
