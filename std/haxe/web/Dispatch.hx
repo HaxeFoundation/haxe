@@ -39,6 +39,7 @@ enum MatchRule {
 	MRBool;
 	MRFloat;
 	MRString;
+	MRDate;
 	MREnum( e : String );
 	MRDispatch;
 	MRSpod( c : String, lock : Bool );
@@ -167,6 +168,13 @@ class Dispatch {
 			return v;
 		case MRBool:
 			return v != null && v != "0" && v != "false" && v != "null";
+		case MRDate:
+			if( v == null ) throw DEMissing;
+			try{
+				return Date.fromString(v);
+			} catch (e:Dynamic) {
+				throw DEInvalidValue;
+			}
 		case MREnum(e):
 			if( v == null ) throw DEMissing;
 			if( opt && v == "" ) return null;
@@ -258,6 +266,8 @@ class Dispatch {
 				return MRFloat;
 			case "String":
 				return MRString;
+			case "Date":
+				return MRDate;
 			case "haxe.web.Dispatch":
 				return MRDispatch;
 			default:
