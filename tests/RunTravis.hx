@@ -98,12 +98,12 @@ class RunTravis {
 				Sys.setCwd(Sys.getEnv("HOME") + "/haxelib/hxcpp/git/project/");
 				runCommand("neko", ["build.n"]);
 				Sys.setCwd(unitDir);
-				
+
 				runCommand("haxe", ["compile-cpp.hxml"]);
 				runCommand("./cpp/Test-debug", []);
 
 				runCommand("rm", ["-rf", "cpp"]);
-				
+
 				runCommand("haxe", ["compile-cpp.hxml", "-D", "HXCPP_M64"]);
 				runCommand("./cpp/Test-debug", []);
 			case "js":
@@ -126,11 +126,11 @@ class RunTravis {
 			case "java":
 				runCommand("haxelib", ["git", "hxjava", "https://github.com/HaxeFoundation/hxjava.git"]);
 				runCommand("haxe", ["compile-java.hxml"]);
-				runCommand("java", ["-jar", "java/java.jar"]);
+				runCommand("java", ["-jar", "java/Test-Debug.jar"]);
 			case "cs":
 				runCommand("sudo", ["apt-get", "install", "mono-devel", "mono-mcs", "-y"]);
 				runCommand("haxelib", ["git", "hxcs", "https://github.com/HaxeFoundation/hxcs.git"]);
-				
+
 				runCommand("haxe", ["compile-cs.hxml"]);
 				runCommand("mono", ["cs/bin/Test-Debug.exe"]);
 
