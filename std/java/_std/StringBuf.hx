@@ -35,10 +35,10 @@ class StringBuf {
 		return b.length();
 	}
 
-	public function add( x : Dynamic ) : Void {
+	public function add<T>( x : T ) : Void {
 		if (Std.is(x, Int))
 		{
-			var x:Int = x;
+			var x:Int = cast x;
 			var xd:Dynamic = x;
 			b.append(xd);
 		} else {

@@ -32,8 +32,8 @@
 		return b.length;
 	}
 
-	public function add( x : Dynamic ) : Void {
-		untyped if( __call__('is_null',x) ) x = 'null' else if( __call__('is_bool',x) ) x = x?'true':'false';
+	public function add<T>( x : T ) : Void {
+		untyped if( __call__('is_null',x) ) x = cast 'null' else if( __call__('is_bool',x) ) x = cast (x?'true':'false');
 		b += x;
 	}
 

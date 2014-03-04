@@ -33,7 +33,7 @@
 		return __get_length == null ? untyped __dollar__ssize( __to_string(b) ) : __get_length(b);
 	}
 
-	public inline function add( x : Dynamic ) : Void {
+	public inline function add<T>( x : T ) : Void {
 		__add(b,x);
 	}
 

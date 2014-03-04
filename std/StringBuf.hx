@@ -59,7 +59,7 @@ class StringBuf {
 		
 		If `x` is null, the String "null" is appended.
 	**/
-	public inline function add( x : Dynamic ) : Void {
+	public inline function add<T>( x : T ) : Void {
 		b += x;
 	}
 

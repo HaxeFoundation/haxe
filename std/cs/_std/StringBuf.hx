@@ -34,7 +34,7 @@ class StringBuf {
 		return b.Length;
 	}
 
-	public inline function add( x : Dynamic ) : Void {
+	public inline function add<T>( x : T ) : Void {
 		b.Append(Std.string(x));
 	}
 
