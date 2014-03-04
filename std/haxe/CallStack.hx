@@ -80,6 +80,25 @@ class CallStack {
 			a.shift(); // remove Stack.callStack()
 			(untyped Error).prepareStackTrace = oldValue;
 			return a;
+		#elseif java
+			var stack = [];
+			for ( el in java.lang.Thread.currentThread().getStackTrace() ) {
+				var className = el.getClassName();
+				var methodName = el.getMethodName();
+				var fileName = el.getFileName();
+				var lineNumber = el.getLineNumber();
+				var method = Method( className, methodName );
+				if ( fileName != null || lineNumber >= 0 ) {
+					stack.push( FilePos( method, fileName, lineNumber ) );
+				}
+				else {
+					stack.push( method );
+				}
+			}
+			stack.shift();
+			stack.shift();
+			stack.pop();
+			return stack;
 		#else
 			return []; // Unsupported
 		#end
@@ -117,6 +136,25 @@ class CallStack {
 		#elseif cpp
 			var s:Array<String> = untyped __global__.__hxcpp_get_exception_stack();
 			return makeStack(s);
+		#elseif java
+			var stack = [];
+			for ( el in java.internal.Exceptions.currentException().getStackTrace() ) {
+				var className = el.getClassName();
+				var methodName = el.getMethodName();
+				var fileName = el.getFileName();
+				var lineNumber = el.getLineNumber();
+				var method = Method( className, methodName );
+				if ( fileName != null || lineNumber >= 0 ) {
+					stack.push( FilePos( method, fileName, lineNumber ) );
+				}
+				else {
+					stack.push( method );
+				}
+			}
+			// stack.shift();
+			stack.shift();
+			stack.pop();
+			return stack;
 		#else
 			return []; // Unsupported
 		#end
