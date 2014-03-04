@@ -58,7 +58,7 @@ class JsonPrinter {
 			else if( c == Array ) {
 				var v : Array<Dynamic> = v;
 				addChar('['.code);
-				if (pretty) add(nl);
+				newl();
 				nind++;
 				var len = v.length;
 				if( len > 0 ) {
