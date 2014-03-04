@@ -754,24 +754,13 @@ let sanitize_expr com e =
 		let e2 = if loop e2 false then parent e2 else e2 in
 		{ e with eexpr = TBinop (op,e1,e2) }
 	| TUnop (op,mode,e1) ->
-		let unop op mode e1 =
-			let rec loop ee =
-				match ee.eexpr with
-				| TBinop _ | TIf _ -> parent e1
-				| TCast (e,None) -> loop e
-				| _ -> e1
-			in
-			{ e with eexpr = TUnop (op,mode,loop e1)}
+		let rec loop ee =
+			match ee.eexpr with
+			| TBinop _ | TIf _ | TUnop _ -> parent e1
+			| TCast (e,None) -> loop e
+			| _ -> e1
 		in
-		let rec loop e = match e.eexpr with
-			| TUnop((Not | Neg | NegBits) as op2,Prefix,e2) when op = op2 ->
-				e2
-			| TCast(e1,None) | TParenthesis(e1) | TMeta(_, e1) ->
-				loop e1
-			| _ ->
-				unop op mode e1
-		in
-		loop e1
+		{ e with eexpr = TUnop (op,mode,loop e1)}
 	| TIf (e1,e2,eelse) ->
 		let e1 = parent e1 in
 		let e2 = (if (eelse <> None && has_if e2) || (match e2.eexpr with TIf _ -> true | _ -> false) then block e2 else complex e2) in
