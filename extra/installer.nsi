@@ -15,7 +15,7 @@
 ;--------------------------------
 
 ; Define version info
-!define VERSION "3.0.1"
+!define VERSION "%%VERSION%%"
 
 ; Define Neko info
 !define NEKO_VERSION "2.0.0"
