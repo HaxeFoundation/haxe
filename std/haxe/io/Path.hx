@@ -181,10 +181,22 @@ class Path {
 		If `paths` is null, the result is unspecified.
 	**/
 	public static function join(paths:Array<String>) : String {
+		// remove "null" from paths array
+		while (Lambda.indexOf(paths, null) > -1) {
+			paths.remove(null);
+		}
+
+		// remove empty string from paths array
+		while (Lambda.indexOf(paths, "") > -1) {
+			paths.remove("");
+		}
+
 		if (paths.length == 0) {
 			return "";
 		}
+
 		var path = paths[0];
+
 		for (i in 1...paths.length) {
 			path = addTrailingSlash(path);
 			path += paths[i];
