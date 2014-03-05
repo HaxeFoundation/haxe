@@ -38,7 +38,9 @@ For the complete Haxe licenses, please see http://haxe.org/doc/license or [doc/L
 The latest stable release is [Haxe v3.1.0](http://haxe.org/download). Pre-built binaries are available for your platform:
 
  * **[Windows installer](http://haxe.org/file/haxe-3.1.0-win.exe)**
+ * **[Windows binaries](http://haxe.org/file/haxe-3.1.0-win.zip)**
  * **[OSX installer](http://haxe.org/file/haxe-3.1.0-osx-installer.pkg)**
+ * **[OSX binaries](http://haxe.org/file/haxe-3.1.0-osx.tar.gz)**
  * **[Linux 32-bit binaries](http://haxe.org/file/haxe-3.1.0-linux32.tar.gz)**
  * **[Linux 64-bit binaries](http://haxe.org/file/haxe-3.1.0-linux64.tar.gz)**
  
