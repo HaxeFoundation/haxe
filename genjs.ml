@@ -95,6 +95,8 @@ let kwds =
 		"import"; "in"; "instanceof"; "interface"; "let"; "new"; "package"; "private"; "protected";
 		"public"; "return"; "static"; "super"; "switch"; "this"; "throw"; "try"; "typeof"; "var";
 		"void"; "while"; "with"; "yield";
+		(* reserved by closure compiler *)
+		"final"
 	];
 	h
 
