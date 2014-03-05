@@ -72,6 +72,12 @@ haxe.io.Path.join(["dir1/dir2", "dir3/dir4"]) == "dir1/dir2/dir3/dir4";
 haxe.io.Path.join(["dir1/dir2/bad_dir/", "../dir3/dir4"]) == "dir1/dir2/dir3/dir4";
 haxe.io.Path.join([]) == "";
 haxe.io.Path.join(["dir1/dir2"]) == "dir1/dir2";
+haxe.io.Path.join(["", "dir1"]) == "dir1";
+haxe.io.Path.join(["dir1", ""]) == "dir1";
+haxe.io.Path.join([null, "dir1"]) == "dir1";
+haxe.io.Path.join(["dir1", null]) == "dir1";
+haxe.io.Path.join([null]) == "";
+haxe.io.Path.join([""]) == "";
 
 // addTrailingSlash
 haxe.io.Path.addTrailingSlash("") == "/";
