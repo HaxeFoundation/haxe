@@ -181,25 +181,27 @@ class Path {
 		If `paths` is null, the result is unspecified.
 	**/
 	public static function join(paths:Array<String>) : String {
+		var _paths = paths.copy();
+
 		// remove "null" from paths array
-		while (paths.indexOf(null) > -1) {
-			paths.remove(null);
+		while (_paths.indexOf(null) > -1) {
+			_paths.remove(null);
 		}
 
 		// remove empty string from paths array
-		while (paths.indexOf("") > -1) {
-			paths.remove("");
+		while (_paths.indexOf("") > -1) {
+			_paths.remove("");
 		}
 
-		if (paths.length == 0) {
+		if (_paths.length == 0) {
 			return "";
 		}
 
-		var path = paths[0];
+		var path = _paths[0];
 
-		for (i in 1...paths.length) {
+		for (i in 1..._paths.length) {
 			path = addTrailingSlash(path);
-			path += paths[i];
+			path += _paths[i];
 		}
 		return normalize(path);
 	}
