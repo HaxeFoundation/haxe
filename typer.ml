@@ -3416,16 +3416,16 @@ and build_call ctx acc el (with_type:with_type) p =
 		| _ ->
 			let t = follow (field_type ctx cl [] ef p) in
 			(* for abstracts we have to apply their parameters to the static function *)
-			let t,tthis = match follow eparam.etype with
-				| TAbstract(a,tl) when Meta.has Meta.Impl ef.cf_meta -> apply_params a.a_types tl t,apply_params a.a_types tl a.a_this
-				| te -> t,te
+			let t,tthis,is_abstract_impl_call = match follow eparam.etype with
+				| TAbstract(a,tl) when Meta.has Meta.Impl ef.cf_meta -> apply_params a.a_types tl t,apply_params a.a_types tl a.a_this,true
+				| te -> t,te,false
 			in
 			let params,args,r,eparam = match t with
 				| TFun ((_,_,t1) :: args,r) ->
 					unify ctx tthis t1 eparam.epos;
 					let ef = prepare_using_field ef in
 					begin match unify_call_params ctx (Some (TInst(cl,[]),ef)) el args r p (ef.cf_kind = Method MethInline) with
-					| el,TFun(args,r) -> el,args,r,Codegen.Abstract.check_cast ctx t1 eparam eparam.epos
+					| el,TFun(args,r) -> el,args,r,(if is_abstract_impl_call then eparam else Codegen.Abstract.check_cast ctx t1 eparam eparam.epos)
 					| _ -> assert false
 					end
 				| _ -> assert false
