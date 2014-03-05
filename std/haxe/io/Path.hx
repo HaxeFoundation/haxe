@@ -181,6 +181,7 @@ class Path {
 		If `paths` is null, the result is unspecified.
 	**/
 	public static function join(paths:Array<String>) : String {
+		var paths = paths.filter(function(s) return s != null && s != "");
 		if (paths.length == 0) {
 			return "";
 		}
