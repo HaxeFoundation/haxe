@@ -182,12 +182,12 @@ class Path {
 	**/
 	public static function join(paths:Array<String>) : String {
 		// remove "null" from paths array
-		while (Lambda.indexOf(paths, null) > -1) {
+		while (paths.indexOf(null) > -1) {
 			paths.remove(null);
 		}
 
 		// remove empty string from paths array
-		while (Lambda.indexOf(paths, "") > -1) {
+		while (paths.indexOf("") > -1) {
 			paths.remove("");
 		}
 
