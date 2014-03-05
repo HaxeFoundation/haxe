@@ -33,7 +33,7 @@
 **/
 abstract UInt(Int) from Int {
 
-		@:op(A + B) private static inline function add(a:UInt, b:UInt):UInt {
+	@:op(A + B) private static inline function add(a:UInt, b:UInt):UInt {
 		return a.toInt() + b.toInt();
 	}
 
@@ -227,10 +227,5 @@ abstract UInt(Int) from Int {
 			return int;
 		}
 	}
-	
-	@:to private inline function toDynamic():Dynamic {
-		return toFloat();
-	}
-
 }
 #end
