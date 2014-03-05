@@ -1988,6 +1988,7 @@ let init_class ctx c p context_init herits fields =
 				| e :: l ->
 					let sc = match fst e with
 						| EConst (Ident s) -> s
+						| EBinop ((OpEq|OpNotEq|OpGt|OpGte|OpLt|OpLte) as op,(EConst (Ident s),_),(EConst ((Int _ | Float _ | String _) as c),_)) -> s ^ s_binop op ^ s_constant c
 						| _ -> ""
 					in
 					if not (Parser.is_true (Parser.eval ctx.com e)) then
