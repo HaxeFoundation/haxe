@@ -1017,10 +1017,12 @@ try
 			Common.raw_define com l;
 		),"<library[:version]> : use a haxelib library");
 		("-D",Arg.String (fun var ->
-			if var = fst (Define.infos Define.UseRttiDoc) then Parser.use_doc := true;
-			if var = fst (Define.infos Define.NoOpt) then com.foptimize <- false;
-			if List.mem var reserved_flags then raise (Arg.Bad (var ^ " is a reserved compiler flag and cannot be defined from command line"));
-			Common.raw_define com var
+			begin match var with
+				| "no_copt" | "no-copt" -> com.foptimize <- false;
+				| "use_rtti_doc" | "use-rtti-doc" -> Parser.use_doc := true;
+				| _ -> 	if List.mem var reserved_flags then raise (Arg.Bad (var ^ " is a reserved compiler flag and cannot be defined from command line"));
+			end;
+			Common.raw_define com var;
 		),"<var> : define a conditional compilation flag");
 		("-v",Arg.Unit (fun () ->
 			com.verbose <- true
