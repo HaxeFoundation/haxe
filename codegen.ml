@@ -629,8 +629,17 @@ let promote_abstract_parameters ctx t = match t with
 
 module Abstract = struct
 
-	let find_to ab pl b = List.find (Type.unify_to_field ab pl b) ab.a_to
-	let find_from ab pl a b = List.find (Type.unify_from_field ab pl a b) ab.a_from
+	let find_to ab pl b =
+		if follow b == t_dynamic then
+			List.find (fun (t,_) -> t == t_dynamic) ab.a_to
+		else
+			List.find (Type.unify_to_field ab pl b) ab.a_to
+
+	let find_from ab pl a b =
+		if follow a == t_dynamic then
+			List.find (fun (t,_) -> t == t_dynamic) ab.a_from
+		else
+			List.find (Type.unify_from_field ab pl a b) ab.a_from
 
 	let cast_stack = ref []
 	let underlying_type_stack = ref []
@@ -699,7 +708,7 @@ module Abstract = struct
 					| Some cf ->
 						recurse cf (fun () -> make_static_call ctx c cf a pl [eright] tleft p)
 				end
-			| TDynamic _,_ | _,TDynamic _ | _, TMono _ | TMono _, _ ->
+			| _, TMono _ | TMono _, _ ->
 				eright
 			| TAbstract({a_impl = Some c} as a,pl),t2 when not (Meta.has Meta.MultiType a.a_meta) ->
 				begin match find_to a pl t2 with
