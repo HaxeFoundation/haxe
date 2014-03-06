@@ -1838,7 +1838,11 @@ let init_class ctx c p context_init herits fields =
 							(* the first argument of a to-function must be the underlying type, not the abstract *)
 							(try unify_raise ctx t (tfun (tthis :: args) m) f.cff_pos with Error (Unify l,p) -> error (error_msg (Unify l)) p);
 							if not (Meta.has Meta.Impl cf.cf_meta) then cf.cf_meta <- (Meta.Impl,[],cf.cf_pos) :: cf.cf_meta;
-							a.a_to <- (follow m, Some cf) :: a.a_to
+							let m = match follow m with
+								| TMono _ when (match cf.cf_type with TFun(_,r) -> r == t_dynamic | _ -> false) -> t_dynamic
+								| m -> m
+							in
+							a.a_to <- (m, Some cf) :: a.a_to
 						| (Meta.ArrayAccess,_,_) :: _ ->
 							if is_macro then error "Macro array-access functions are not supported" p;
 							a.a_array <- cf :: a.a_array;
