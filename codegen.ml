@@ -1106,6 +1106,14 @@ let fix_override com c f fd =
 			let nargs = List.map2 (fun ((v,ct) as cur) (_,_,t2) ->
 				try
 					type_eq EqStrict (monomorphs c.cl_types (monomorphs f.cf_params v.v_type)) t2;
+					(* Flash generates type parameters with a single constraint as that constraint type, so we
+					   have to detect this case and change the variable (issue #2712). *)
+					begin match follow v.v_type with
+						| TInst({cl_kind = KTypeParameter [tc]} as cp,_) when com.platform = Flash ->
+							if List.mem_assoc (snd cp.cl_path) c.cl_types then raise (Unify_error [])
+						| _ ->
+							()
+					end;
 					cur
 				with Unify_error _ ->
 					let v2 = alloc_var (prefix ^ v.v_name) t2 in
