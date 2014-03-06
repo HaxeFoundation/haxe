@@ -224,7 +224,7 @@ let parse_cmap_table ctx =
 				let start_code = Array.init seg_count (fun _ -> rdu16 ch) in
 				let id_delta = Array.init seg_count (fun _ -> rdu16 ch) in
 				let id_range_offset = Array.init seg_count (fun _ -> rdu16 ch) in
-				let count = length - (8 * seg_count + 16) / 2 in
+				let count = (length - (8 * seg_count + 16)) / 2 in
 				let glyph_index = Array.init count (fun _ -> rdu16 ch) in
 				Cmap4 {
 					c4_format = format;
