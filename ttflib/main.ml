@@ -62,7 +62,11 @@ let process args =
 		("-swf",Arg.String (fun dir ->
 			mk_dir_rec dir;
  			let f ttf range_str =
-				let f2 = TTFSwfWriter.to_swf ttf range_str in
+ 				let config = {
+ 					ttfc_range_str = range_str;
+ 					ttfc_font_name = None;
+ 				} in
+				let f2 = TTFSwfWriter.to_swf ttf config in
 				let ch = IO.output_channel (open_out_bin (dir ^ "/" ^ ttf.ttf_font_name ^ ".dat")) in
 				let b = IO.output_bits ch in
 				IO.write_i16 ch 1;
