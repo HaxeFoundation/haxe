@@ -3385,9 +3385,13 @@ and build_call ctx acc el (with_type:with_type) p =
 		| _ -> None
 	in
 	let push_this e =
-		ctx.this_stack <- e :: ctx.this_stack;
-		let er = EMeta((Meta.This,[],e.epos), (EConst(Ident "this"),e.epos)),e.epos in
-		er,fun () -> ctx.this_stack <- List.tl ctx.this_stack
+		match e.eexpr with
+			| TConst (TInt _ | TFloat _ | TString _ | TBool _) ->
+				(Interp.make_ast e),fun () -> ()
+			| _ ->
+				ctx.this_stack <- e :: ctx.this_stack;
+				let er = EMeta((Meta.This,[],e.epos), (EConst(Ident "this"),e.epos)),e.epos in
+				er,fun () -> ctx.this_stack <- List.tl ctx.this_stack
 	in
 	match acc with
 	| AKInline (ethis,f,fmode,t) when Meta.has Meta.Generic f.cf_meta ->
