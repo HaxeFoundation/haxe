@@ -1261,8 +1261,13 @@ and unify_to_field ab tl b ?(allow_transitive_cast=true) (t,cfo) =
 	let a = TAbstract(ab,tl) in
 	if (List.exists (fun (b2,a2) -> fast_eq a a2 && fast_eq b b2) (!abstract_cast_stack)) then false else begin
 	abstract_cast_stack := (b,a) :: !abstract_cast_stack;
-	let unify_func = match follow b with TAbstract({a_impl = Some _},_) when ab.a_impl <> None || not allow_transitive_cast -> type_eq EqStrict | _ -> unify in
-	let b = try begin match cfo with
+	let unify_func = match follow b with
+		| TAbstract(ab2,_) when not (Meta.has Meta.CoreType ab.a_meta) || not (Meta.has Meta.CoreType ab2.a_meta) || not allow_transitive_cast ->
+			type_eq EqStrict
+		| _ ->
+			unify
+	in
+	let r = try begin match cfo with
 		| Some cf -> (match follow cf.cf_type with
 			| TFun((_,_,ta) :: _,_) ->
 				let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
@@ -1286,7 +1291,7 @@ and unify_to_field ab tl b ?(allow_transitive_cast=true) (t,cfo) =
 	with Unify_error _ -> false
 	in
 	abstract_cast_stack := List.tl !abstract_cast_stack;
-	b
+	r
 	end
 
 and unify_with_variance t1 t2 =
@@ -1302,8 +1307,10 @@ and unify_with_variance t1 t2 =
 	| TAbstract(a1,pl1),TAbstract(a2,pl2) ->
 		let ta1 = apply_params a1.a_types pl1 a1.a_this in
 		let ta2 = apply_params a2.a_types pl2 a2.a_this in
-		type_eq EqStrict ta1 ta2;
-		if not (List.exists (allows_variance_to ta2) a1.a_to) && not (List.exists (allows_variance_to ta1) a2.a_from) then error [cannot_unify t1 t2]
+		if not (Meta.has Meta.CoreType a1.a_meta) && not (Meta.has Meta.CoreType a2.a_meta) then
+			type_eq EqStrict ta1 ta2;
+		if not (List.exists (allows_variance_to ta2) a1.a_to) && not (List.exists (allows_variance_to ta1) a2.a_from) then
+			error [cannot_unify t1 t2]
 	| TAbstract(a,pl),t ->
 		type_eq EqStrict (apply_params a.a_types pl a.a_this) t;
 		if not (List.exists (allows_variance_to t) a.a_to) then error [cannot_unify t1 t2]
