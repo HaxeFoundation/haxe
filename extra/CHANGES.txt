@@ -1,3 +1,11 @@
+2014-??-??: 3.1.1
+
+	Bugfixes:
+
+	all : fixed wrong handling of "" and null in haxe.io.Path.join
+	all : fixed invalid cast-to-self generation on some abstracts
+	all : removed @:to Dynamic from UInt to avoid issues in the Map selection algorithm
+
 2014-03-04: 3.1.0
 
 	New features:
