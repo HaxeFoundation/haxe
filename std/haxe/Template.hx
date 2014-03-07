@@ -63,6 +63,19 @@ class Template {
 	**/
 	public static var globals : Dynamic = {};
 
+	/**
+		Callback function will be called if resolver cant find
+		field in current [context].
+		Also it can be used as custom (emergency) resolver.
+
+		e.g.:
+		var t = new Template(" ::name:: ");
+		t.fallback = function(value:String, ctx:Dynamic):Dynamic
+			return Reflect.getProperty(ctx, value);
+	**/
+	public var fallback:String -> Dynamic -> Dynamic;
+
+
 	var expr : TemplateExpr;
 	var context : Dynamic;
 	var macros : Dynamic;
@@ -102,8 +115,9 @@ class Template {
 		If `context` is null, the result is unspecified. If `macros` is null,
 		no macros are used.
 	**/
-	public function execute( context : Dynamic, ?macros : Dynamic ):String {
+	public function execute( context : Dynamic, ?macros : Dynamic, ?fallback:String -> Dynamic -> Dynamic):String {
 		this.macros = if( macros == null ) {} else macros;
+		this.fallback = fallback;
 		this.context = context;
 		stack = new List();
 		buf = new StringBuf();
@@ -111,15 +125,23 @@ class Template {
 		return buf.toString();
 	}
 
-	function resolve( v : String ) : Dynamic {
+	function resolve(v:String):Dynamic
+	{
+		function callFallIfNeed(key:String, resolved:Dynamic, ctx:Dynamic):Dynamic
+		{
+			if(resolved == null && this.fallback != null)
+				return this.fallback(key, ctx);
+			return resolved;
+		}
+
 		if( Reflect.hasField(context,v) )
-			return Reflect.field(context,v);
+			return callFallIfNeed(v, Reflect.field(context, v), context);
 		for( ctx in stack )
 			if( Reflect.hasField(ctx,v) )
-				return Reflect.field(ctx,v);
+				return callFallIfNeed(v, Reflect.field(ctx, v), ctx);
 		if( v == "__current__" )
 			return context;
-		return Reflect.field(globals,v);
+		return callFallIfNeed(v, Reflect.field(globals, v), globals);
 	}
 
 	function parseTokens( data : String ) {
