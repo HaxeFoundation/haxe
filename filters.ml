@@ -1081,7 +1081,7 @@ let run com tctx main =
 		Codegen.Abstract.handle_abstract_casts tctx;
 		blockify_ast;
 		(match com.platform with
-			| Cpp -> (fun e ->
+			| Cpp | Flash8 -> (fun e ->
 				let save = save_locals tctx in
 				let e = handle_side_effects com (Typecore.gen_local tctx) e in
 				save();
