@@ -963,6 +963,13 @@ let add_field_inits ctx t =
 		match inits with
 		| [] -> ()
 		| _ ->
+			let cf_ctor = match c.cl_constructor with
+				| None ->
+					List.iter (fun cf -> display_error ctx "Cannot initialize member fields on classes that do not have a constructor" cf.cf_pos) inits;
+					error "Could not initialize member fields" c.cl_pos;
+				| Some cf ->
+					cf
+			in
 			let el = List.map (fun cf ->
 				match cf.cf_expr with
 				| None -> assert false
@@ -977,25 +984,13 @@ let add_field_inits ctx t =
 						eassign;
 			) inits in
 			let el = if !need_this then (mk (TVar((v, Some ethis))) ethis.etype ethis.epos) :: el else el in
-			match c.cl_constructor with
-			| None ->
-				let ct = TFun([],ctx.com.basic.tvoid) in
-				let ce = mk (TFunction {
-					tf_args = [];
-					tf_type = ctx.com.basic.tvoid;
-					tf_expr = mk (TBlock el) ctx.com.basic.tvoid c.cl_pos;
-				}) ct c.cl_pos in
-				let ctor = mk_field "new" ct c.cl_pos in
-				ctor.cf_kind <- Method MethNormal;
-				c.cl_constructor <- Some { ctor with cf_expr = Some ce };
-			| Some cf ->
-				match cf.cf_expr with
-				| Some { eexpr = TFunction f } ->
-					let bl = match f.tf_expr with {eexpr = TBlock b } -> b | x -> [x] in
-					let ce = mk (TFunction {f with tf_expr = mk (TBlock (el @ bl)) ctx.com.basic.tvoid c.cl_pos }) cf.cf_type cf.cf_pos in
-					c.cl_constructor <- Some {cf with cf_expr = Some ce }
-				| _ ->
-					assert false
+			match cf_ctor.cf_expr with
+			| Some { eexpr = TFunction f } ->
+				let bl = match f.tf_expr with {eexpr = TBlock b } -> b | x -> [x] in
+				let ce = mk (TFunction {f with tf_expr = mk (TBlock (el @ bl)) ctx.com.basic.tvoid c.cl_pos }) cf_ctor.cf_type cf_ctor.cf_pos in
+				c.cl_constructor <- Some {cf_ctor with cf_expr = Some ce }
+			| _ ->
+				assert false
 	in
 	match t with
 	| TClassDecl c ->

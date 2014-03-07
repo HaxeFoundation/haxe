@@ -6,7 +6,9 @@
 	all : fixed invalid cast-to-self generation on some abstracts
 	all : removed @:to Dynamic from UInt to avoid issues in the Map selection algorithm
 	all : fixed various issues with member/static extension macros
+	all : disallowed member field initialization of classes without constructors
 	flash : fixed invalid override involving single-constraint type parameters
+	flash8: fixed various bugs
 	js : disable Std.string optimization of basic type to avoid problems with null values
 
 2014-03-04: 3.1.0
