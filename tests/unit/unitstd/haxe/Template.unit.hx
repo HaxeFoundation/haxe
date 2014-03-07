@@ -8,6 +8,12 @@ output == "My name is <strong>John</strong> and I'm <em>33</em> years old.";
 var output2 = tpl.execute( { } );
 output2 == "My name is <strong>null</strong> and I'm <em>null</em> years old.";
 
+// not existent with custom resolver
+var tpl = new haxe.Template("My name is <strong>::name::</strong> and I'm <em>::age::</em> years old.");
+var ctx = {_name : "John", _age : 33 };
+var output2 = tpl.execute( ctx, null, function(field, context) { return Reflect.field(ctx, "_" + field); });
+output2 ==  "My name is <strong>John</strong> and I'm <em>33</em> years old.";
+
 // globals
 haxe.Template.globals = { name : "John", age : 33 };
 var output2 = tpl.execute( { } );

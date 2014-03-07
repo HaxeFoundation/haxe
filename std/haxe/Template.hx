@@ -72,6 +72,7 @@ class Template {
 		var t = new Template(" ::name:: ");
 		t.fallback = function(value:String, ctx:Dynamic):Dynamic
 			return Reflect.getProperty(ctx, value);
+		t.execute({});
 	**/
 	public var fallback:String -> Dynamic -> Dynamic;
 
