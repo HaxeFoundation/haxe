@@ -115,6 +115,14 @@ let rec is_int_float t =
     | TInst( { cl_path = (["haxe"; "lang"], "Null") }, [t] ) -> is_int_float t
     | _ -> false
 
+let is_bool t =
+  match follow t with
+    | TEnum( { e_path = ([], "Bool") }, [] )
+    | TAbstract ({ a_path = ([], "Bool") },[]) ->
+      true
+    | _ -> false
+
+
 let rec is_null t =
   match t with
     | TInst( { cl_path = (["haxe"; "lang"], "Null") }, _ )
@@ -416,6 +424,15 @@ struct
           run ef
         | TNew( { cl_path = ([], "String") }, [], [p] ) -> run p (* new String(myString) -> myString *)
 
+        | TCast(expr, _) when is_bool e.etype ->
+          {
+            eexpr = TCall(
+              mk_static_field_access_infer runtime_cl "toBool" expr.epos [],
+              [ run expr ]
+            );
+            etype = basic.tbool;
+            epos = e.epos
+          }
         | TCast(expr, _) when is_int_float e.etype && not (is_int_float expr.etype) && not (is_null e.etype) ->
           let needs_cast = match gen.gfollow#run_f e.etype with
             | TInst _ -> false
