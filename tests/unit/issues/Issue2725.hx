@@ -6,7 +6,6 @@ class Issue2725 extends unit.Test
 	{
 		var x:Dynamic = null;
 		var b:Bool = x;
-		f(b);
 		t(!b);
 	}
 }
