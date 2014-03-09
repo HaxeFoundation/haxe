@@ -766,17 +766,16 @@ let check_overloads ctx c =
 		) (f :: f.cf_overloads)) (c.cl_ordered_fields @ c.cl_ordered_statics)
 
 let check_overriding ctx c =
-	let p = c.cl_pos in
 	match c.cl_super with
 	| None ->
 		(match c.cl_overrides with
 		| [] -> ()
 		| i :: _ ->
-			display_error ctx ("Field " ^ i.cf_name ^ " is declared 'override' but doesn't override any field") p)
+			display_error ctx ("Field " ^ i.cf_name ^ " is declared 'override' but doesn't override any field") i.cf_pos)
 	| Some (csup,params) ->
 		PMap.iter (fun i f ->
+			let p = f.cf_pos in
 			let check_field f get_super_field is_overload = try
-				let p = f.cf_pos in
 				(if is_overload && not (Meta.has Meta.Overload f.cf_meta) then
 					display_error ctx ("Missing @:overload declaration for field " ^ i) p);
 				let t, f2 = get_super_field csup i in
@@ -1838,7 +1837,11 @@ let init_class ctx c p context_init herits fields =
 							(* the first argument of a to-function must be the underlying type, not the abstract *)
 							(try unify_raise ctx t (tfun (tthis :: args) m) f.cff_pos with Error (Unify l,p) -> error (error_msg (Unify l)) p);
 							if not (Meta.has Meta.Impl cf.cf_meta) then cf.cf_meta <- (Meta.Impl,[],cf.cf_pos) :: cf.cf_meta;
-							a.a_to <- (follow m, Some cf) :: a.a_to
+							let m = match follow m with
+								| TMono _ when (match cf.cf_type with TFun(_,r) -> r == t_dynamic | _ -> false) -> t_dynamic
+								| m -> m
+							in
+							a.a_to <- (m, Some cf) :: a.a_to
 						| (Meta.ArrayAccess,_,_) :: _ ->
 							if is_macro then error "Macro array-access functions are not supported" p;
 							a.a_array <- cf :: a.a_array;
@@ -1988,6 +1991,7 @@ let init_class ctx c p context_init herits fields =
 				| e :: l ->
 					let sc = match fst e with
 						| EConst (Ident s) -> s
+						| EBinop ((OpEq|OpNotEq|OpGt|OpGte|OpLt|OpLte) as op,(EConst (Ident s),_),(EConst ((Int _ | Float _ | String _) as c),_)) -> s ^ s_binop op ^ s_constant c
 						| _ -> ""
 					in
 					if not (Parser.is_true (Parser.eval ctx.com e)) then

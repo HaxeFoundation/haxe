@@ -393,8 +393,9 @@ class TestType extends Test {
 		eq(c.b, true);
 		eq(c.t, String);
 
-		var c = Type.createInstance(InitWithoutCtor, []);
-		eq(c.i, 2);
+		// TODO: disallowed (issue #2722)
+		//var c = Type.createInstance(InitWithoutCtor, []);
+		//eq(c.i, 2);
 
 		var c = new InitProperties();
 		eq(c.accNull, 3);

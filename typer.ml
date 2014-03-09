@@ -3385,9 +3385,13 @@ and build_call ctx acc el (with_type:with_type) p =
 		| _ -> None
 	in
 	let push_this e =
-		ctx.this_stack <- e :: ctx.this_stack;
-		let er = EMeta((Meta.This,[],e.epos), (EConst(Ident "this"),e.epos)),e.epos in
-		er,fun () -> ctx.this_stack <- List.tl ctx.this_stack
+		match e.eexpr with
+			| TConst (TInt _ | TFloat _ | TString _ | TBool _) ->
+				(Interp.make_ast e),fun () -> ()
+			| _ ->
+				ctx.this_stack <- e :: ctx.this_stack;
+				let er = EMeta((Meta.This,[],e.epos), (EConst(Ident "this"),e.epos)),e.epos in
+				er,fun () -> ctx.this_stack <- List.tl ctx.this_stack
 	in
 	match acc with
 	| AKInline (ethis,f,fmode,t) when Meta.has Meta.Generic f.cf_meta ->
@@ -3416,29 +3420,30 @@ and build_call ctx acc el (with_type:with_type) p =
 		| _ ->
 			let t = follow (field_type ctx cl [] ef p) in
 			(* for abstracts we have to apply their parameters to the static function *)
-			let t,tthis = match follow eparam.etype with
-				| TAbstract(a,tl) when Meta.has Meta.Impl ef.cf_meta -> apply_params a.a_types tl t,apply_params a.a_types tl a.a_this
-				| te -> t,te
+			let t,tthis,is_abstract_impl_call = match follow eparam.etype with
+				| TAbstract(a,tl) when Meta.has Meta.Impl ef.cf_meta -> apply_params a.a_types tl t,apply_params a.a_types tl a.a_this,true
+				| te -> t,te,false
 			in
 			let params,args,r,eparam = match t with
 				| TFun ((_,_,t1) :: args,r) ->
 					unify ctx tthis t1 eparam.epos;
 					let ef = prepare_using_field ef in
 					begin match unify_call_params ctx (Some (TInst(cl,[]),ef)) el args r p (ef.cf_kind = Method MethInline) with
-					| el,TFun(args,r) -> el,args,r,Codegen.Abstract.check_cast ctx t1 eparam eparam.epos
+					| el,TFun(args,r) -> el,args,r,(if is_abstract_impl_call then eparam else Codegen.Abstract.check_cast ctx t1 eparam eparam.epos)
 					| _ -> assert false
 					end
 				| _ -> assert false
 			in
 			make_call ctx et (eparam :: params) r p
 		end
-	| AKMacro (ethis,f) ->
+	| AKMacro (ethis,cf) ->
 		if ctx.macro_depth > 300 then error "Stack overflow" p;
 		ctx.macro_depth <- ctx.macro_depth + 1;
 		ctx.with_type_stack <- with_type :: ctx.with_type_stack;
+		let ethis_f = ref (fun () -> ()) in
 		let f = (match ethis.eexpr with
 		| TTypeExpr (TClassDecl c) ->
-			(match ctx.g.do_macro ctx MExpr c.cl_path f.cf_name el p with
+			(match ctx.g.do_macro ctx MExpr c.cl_path cf.cf_name el p with
 			| None -> (fun() -> type_expr ctx (EConst (Ident "null"),p) Value)
 			| Some (EMeta((Meta.MergeBlock,_,_),(EBlock el,_)),_) -> (fun () -> let e = type_block ctx el with_type p in mk (TMeta((Meta.MergeBlock,[],p), e)) e.etype e.epos)
 			| Some (EVars vl,p) -> (fun() -> type_vars ctx vl p true)
@@ -3448,17 +3453,22 @@ and build_call ctx acc el (with_type:with_type) p =
 			(match follow ethis.etype with
 			| TInst (c,_) ->
 				let rec loop c =
-					if PMap.mem f.cf_name c.cl_fields then
-						match ctx.g.do_macro ctx MExpr c.cl_path f.cf_name (Interp.make_ast ethis :: el) p with
-						| None -> (fun() -> type_expr ctx (EConst (Ident "null"),p) Value)
-						| Some e -> (fun() -> type_expr ctx e Value)
+					if PMap.mem cf.cf_name c.cl_fields then
+						let eparam,f = push_this ethis in
+						ethis_f := f;
+						let e = match ctx.g.do_macro ctx MExpr c.cl_path cf.cf_name (eparam :: el) p with
+							| None -> (fun() -> type_expr ctx (EConst (Ident "null"),p) Value)
+							| Some e -> (fun() -> type_expr ctx e Value)
+						in
+						e
 					else
 						match c.cl_super with
 						| None -> assert false
 						| Some (csup,_) -> loop csup
 				in
 				loop c
-			| _ -> assert false)) in
+			| _ -> assert false))
+		in
 		ctx.macro_depth <- ctx.macro_depth - 1;
 		ctx.with_type_stack <- List.tl ctx.with_type_stack;
 		let old = ctx.on_error in
@@ -3467,8 +3477,15 @@ and build_call ctx acc el (with_type:with_type) p =
 			(* display additional info in the case the error is not part of our original call *)
 			if ep.pfile <> p.pfile || ep.pmax < p.pmin || ep.pmin > p.pmax then old ctx "Called from macro here" p
 		);
-		let e = try f() with Error (m,p) -> ctx.on_error <- old; raise (Fatal_error ((error_msg m),p)) in
+		let e = try
+			f()
+		with Error (m,p) ->
+			ctx.on_error <- old;
+			!ethis_f();
+			raise (Fatal_error ((error_msg m),p))
+		in
 		ctx.on_error <- old;
+		!ethis_f();
 		e
 	| AKNo _ | AKSet _ | AKAccess _ ->
 		ignore(acc_get ctx acc p);

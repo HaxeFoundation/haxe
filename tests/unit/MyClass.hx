@@ -135,9 +135,10 @@ class InitChildWithCtor extends InitBase {
 	}
 }
 
-class InitWithoutCtor {
-	public var i = 2;
-}
+// TODO: disallowed (issue #2722)
+//class InitWithoutCtor {
+	//public var i = 2;
+//}
 
 class InitProperties {
 	public var accNull(default, null):Int = 3;

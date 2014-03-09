@@ -590,7 +590,7 @@ let rec gen_access ?(read_write=false) ctx forcall e =
 		VarClosure
 	| TEnumParameter(e,_,i) ->
 		gen_expr ctx true e;
-		push ctx [VInt i];
+		push ctx [VInt (i + 2)];
 		VarObj
 	| TField (e2,f) ->
 		gen_expr ctx true e2;

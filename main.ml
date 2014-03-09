@@ -909,7 +909,7 @@ and do_connect host port args =
 
 and init ctx =
 	let usage = Printf.sprintf
-		"Haxe Compiler %s %s- (C)2005-2013 Haxe Foundation\n Usage : haxe%s -main <class> [-swf|-js|-neko|-php|-cpp|-as3] <output> [options]\n Options :"
+		"Haxe Compiler %s %s- (C)2005-2014 Haxe Foundation\n Usage : haxe%s -main <class> [-swf|-js|-neko|-php|-cpp|-as3] <output> [options]\n Options :"
 		s_version (match Version.version_extra with None -> "" | Some v -> v) (if Sys.os_type = "Win32" then ".exe" else "")
 	in
 	let com = ctx.com in
@@ -1017,10 +1017,12 @@ try
 			Common.raw_define com l;
 		),"<library[:version]> : use a haxelib library");
 		("-D",Arg.String (fun var ->
-			if var = fst (Define.infos Define.UseRttiDoc) then Parser.use_doc := true;
-			if var = fst (Define.infos Define.NoOpt) then com.foptimize <- false;
-			if List.mem var reserved_flags then raise (Arg.Bad (var ^ " is a reserved compiler flag and cannot be defined from command line"));
-			Common.raw_define com var
+			begin match var with
+				| "no_copt" | "no-copt" -> com.foptimize <- false;
+				| "use_rtti_doc" | "use-rtti-doc" -> Parser.use_doc := true;
+				| _ -> 	if List.mem var reserved_flags then raise (Arg.Bad (var ^ " is a reserved compiler flag and cannot be defined from command line"));
+			end;
+			Common.raw_define com var;
 		),"<var> : define a conditional compilation flag");
 		("-v",Arg.Unit (fun () ->
 			com.verbose <- true

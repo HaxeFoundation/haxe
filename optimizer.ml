@@ -69,7 +69,7 @@ let api_inline ctx c field params p =
 			Some { eexpr = TConst (TString (if b then "true" else "false")); epos = p; etype = ctx.t.tstring }
 		| _ ->
 			None)
-	| ([],"Std"),"string",[v] when ctx.com.platform = Js || ctx.com.platform = Flash ->
+(* 	| ([],"Std"),"string",[v] when ctx.com.platform = Js || ctx.com.platform = Flash ->
 		let pos = v.epos in
 		let stringt = ctx.com.basic.tstring in
 		let stringv = mk (TBinop (Ast.OpAdd, mk (TConst (TString "")) stringt pos, v)) stringt pos in
@@ -85,7 +85,7 @@ let api_inline ctx c field params p =
 		| TAbstract ({ a_path = [],"Bool" }, []) ->
 			Some stringv
 		| _ ->
-			None)
+			None) *)
 	| ([],"Std"),"is",[o;t] | (["js"],"Boot"),"__instanceof",[o;t] when ctx.com.platform = Js ->
 		let mk_local ctx n t pos = mk (TLocal (try PMap.find n ctx.locals with _ -> add_local ctx n t)) t pos in
 

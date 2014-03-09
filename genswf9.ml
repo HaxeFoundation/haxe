@@ -753,15 +753,20 @@ let begin_fun ctx args tret el stat p =
 		ignore(alloc_reg ctx (classify ctx v.v_type)));
 
 	let dparams = (match !dparams with None -> None | Some l -> Some (List.rev l)) in
+	let is_not_rethrow (_,e) =
+		match e.eexpr with
+		| TBlock [{ eexpr = TThrow { eexpr = TNew (_,_,[]) } }] -> false
+		| _ -> true
+	in
 	let rec loop_try e =
 		match e.eexpr with
 		| TFunction _ -> ()
-		| TTry _ -> raise Exit
+		| TTry (_,catches) when List.exists is_not_rethrow catches -> raise Exit
 		| _ -> Type.iter loop_try e
 	in
 	ctx.try_scope_reg <- (try List.iter loop_try el; None with Exit -> Some (alloc_reg ctx KDynamic));
 	(fun () ->
-		let hasblock = ctx.block_vars <> [] || ctx.trys <> [] in
+		let hasblock = ctx.block_vars <> [] || ctx.try_scope_reg <> None in
 		let code = DynArray.to_list ctx.code in
 		let extra = (
 			if hasblock then begin
@@ -992,11 +997,13 @@ let rec gen_expr_content ctx retval e =
 		gen_constant ctx c e.etype e.epos
 	| TThrow e ->
 		ctx.infos.icond <- true;
-		getvar ctx (VGlobal (type_path ctx (["flash"],"Boot")));
-		let id = type_path ctx (["flash";"errors"],"Error") in
-		write ctx (HFindPropStrict id);
-		write ctx (HConstructProperty (id,0));
-		setvar ctx (VId (ident "lastError")) None;
+		if has_feature ctx.com "haxe.CallStack.exceptionStack" then begin
+			getvar ctx (VGlobal (type_path ctx (["flash"],"Boot")));
+			let id = type_path ctx (["flash";"errors"],"Error") in
+			write ctx (HFindPropStrict id);
+			write ctx (HConstructProperty (id,0));
+			setvar ctx (VId (ident "lastError")) None;
+		end;
 		gen_expr ctx true e;
 		write ctx HThrow;
 		no_value ctx retval;
@@ -1124,8 +1131,11 @@ let rec gen_expr_content ctx retval e =
 				if ctx.infos.imax < ctx.infos.istack then ctx.infos.imax <- ctx.infos.istack;
 				write ctx HThis;
 				write ctx HScope;
-				write ctx (HReg (match ctx.try_scope_reg with None -> assert false | Some r -> r.rid));
-				write ctx HScope;
+				(match ctx.try_scope_reg with
+				| None -> ()
+				| Some r ->
+					write ctx (HReg r.rid);
+					write ctx HScope);
 				(* store the exception into local var, using a tmp register if needed *)
 				define_local ctx v e.epos;
 				let r = (match snd (try PMap.find v.v_id ctx.locals with Not_found -> assert false) with
@@ -1146,7 +1156,7 @@ let rec gen_expr_content ctx retval e =
 					| _ -> Type.iter call_loop e
 				in
 				let has_call = (try call_loop e; false with Exit -> true) in
-				if has_call then begin
+				if has_call && has_feature ctx.com "haxe.CallStack.exceptionStack" then begin
 					getvar ctx (gen_local_access ctx v e.epos Read);
 					write ctx (HAsType (type_path ctx (["flash";"errors"],"Error")));
 					let j = jump ctx J3False in

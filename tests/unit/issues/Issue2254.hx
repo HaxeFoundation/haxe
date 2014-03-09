@@ -3,6 +3,8 @@ import unit.Test;
 import haxe.Template;
 
 class Issue2254 extends Test {
+	#if !flash8
+
 	function test()
 	{
 		var str = 'HI, IT IS ::if !isIt::NOT::end::';
@@ -10,4 +12,6 @@ class Issue2254 extends Test {
 		eq("HI, IT IS ", t.execute({ isIt:true }));
 		eq("HI, IT IS NOT", t.execute({ isIt:false }));
 	}
+	
+	#end
 }
