@@ -16,4 +16,8 @@ M haxe.test.GenericHelper
 C haxe.test.GenericHelper
 M haxe.test.StaticAndInstanceClash
 C haxe.test.StaticAndInstanceClash
+M haxe.UpperCasePackage.SomeClass
+C haxe.UpperCasePackage.SomeClass
+M haxe.UpperCasePackage.lowercase
+C haxe.UpperCasePackage.lowercase
 end modules
