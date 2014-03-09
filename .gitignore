@@ -48,6 +48,7 @@
 /tests/unit/native_cs/obj
 /tests/unit/native_cs/cmd
 /tests/unit/native_cs/bin
+/tests/unit/native_cs/native_cs.csproj
 /tests/unit/unit.js.map
 /tests/unit/unit.n
 
