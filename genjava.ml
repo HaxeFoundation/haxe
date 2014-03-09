@@ -681,6 +681,7 @@ let rec get_fun_modifiers meta access modifiers =
     (*| (Meta.Unsafe,[],_) :: meta -> get_fun_modifiers meta access ("unsafe" :: modifiers)*)
     | (Meta.Volatile,[],_) :: meta -> get_fun_modifiers meta access ("volatile" :: modifiers)
     | (Meta.Transient,[],_) :: meta -> get_fun_modifiers meta access ("transient" :: modifiers)
+    | (Meta.Native,[],_) :: meta -> get_fun_modifiers meta access ("native" :: modifiers)
     | _ :: meta -> get_fun_modifiers meta access modifiers
 
 (* this was the way I found to pass the generator context to be accessible across all functions here *)
@@ -1527,7 +1528,7 @@ let configure gen =
           | _ ->
               print w "(%s)" (String.concat ", " (List.map (fun (name, _, t) -> sprintf "%s %s" (t_s cf.cf_pos (run_follow gen t)) (change_id name)) args))
         );
-        if is_interface then
+        if is_interface || List.mem "native" modifiers then
           write w ";"
         else begin
           let rec loop meta =
