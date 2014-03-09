@@ -3414,8 +3414,17 @@ let ilcls_with_params ctx cls params =
 			cimplements = List.map (fun s -> { s with snorm = ilapply_params params s.snorm } ) cls.cimplements;
 		}
 
+let rec compatible_types t1 t2 = match t1,t2 with
+  | LManagedPointer(s1), LManagedPointer(s2) -> compatible_types s1 s2
+  | LManagedPointer(s1), s2 | s1, LManagedPointer(s2) ->
+    compatible_types s1 s2
+  | _ -> t1 = t2
+
 let compatible_methods m1 m2 = match m1, m2 with
-	| LMethod(_,r1,a1), LMethod(_,r2,a2) -> a1 = a2
+	| LMethod(_,r1,a1), LMethod(_,r2,a2) -> (try
+    List.for_all2 (fun a1 a2 -> compatible_types a1 a2) a1 a2
+  with | Invalid_argument _ ->
+    false)
 	| _ -> false
 
 let compatible_field f1 f2 = match f1, f2 with
