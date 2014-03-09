@@ -115,6 +115,14 @@ let rec is_int_float t =
     | TInst( { cl_path = (["haxe"; "lang"], "Null") }, [t] ) -> is_int_float t
     | _ -> false
 
+let is_bool t =
+  match follow t with
+    | TEnum( { e_path = ([], "Bool") }, [] )
+    | TAbstract ({ a_path = ([], "Bool") },[]) ->
+      true
+    | _ -> false
+
+
 let rec is_null t =
   match t with
     | TInst( { cl_path = (["haxe"; "lang"], "Null") }, _ )
@@ -416,6 +424,15 @@ struct
           run ef
         | TNew( { cl_path = ([], "String") }, [], [p] ) -> run p (* new String(myString) -> myString *)
 
+        | TCast(expr, _) when is_bool e.etype ->
+          {
+            eexpr = TCall(
+              mk_static_field_access_infer runtime_cl "toBool" expr.epos [],
+              [ run expr ]
+            );
+            etype = basic.tbool;
+            epos = e.epos
+          }
         | TCast(expr, _) when is_int_float e.etype && not (is_int_float expr.etype) && not (is_null e.etype) ->
           let needs_cast = match gen.gfollow#run_f e.etype with
             | TInst _ -> false
@@ -3397,8 +3414,17 @@ let ilcls_with_params ctx cls params =
 			cimplements = List.map (fun s -> { s with snorm = ilapply_params params s.snorm } ) cls.cimplements;
 		}
 
+let rec compatible_types t1 t2 = match t1,t2 with
+  | LManagedPointer(s1), LManagedPointer(s2) -> compatible_types s1 s2
+  | LManagedPointer(s1), s2 | s1, LManagedPointer(s2) ->
+    compatible_types s1 s2
+  | _ -> t1 = t2
+
 let compatible_methods m1 m2 = match m1, m2 with
-	| LMethod(_,r1,a1), LMethod(_,r2,a2) -> a1 = a2
+	| LMethod(_,r1,a1), LMethod(_,r2,a2) -> (try
+    List.for_all2 (fun a1 a2 -> compatible_types a1 a2) a1 a2
+  with | Invalid_argument _ ->
+    false)
 	| _ -> false
 
 let compatible_field f1 f2 = match f1, f2 with

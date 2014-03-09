@@ -21,6 +21,12 @@ class TestJava extends Test
     catch(e:Dynamic) throw e; //shouldn't throw any exception
   }
 
+	function testNameCase()
+	{
+		t(haxe.uppercasepackage.SomeClass.SomeClassFound);
+		t(haxe.uppercasepackage.Lowercase.lowercaseFound);
+	}
+
 	function testHaxeKeywords()
 	{
 		eq(Base._inline, 42);
