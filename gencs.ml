@@ -987,6 +987,14 @@ let configure gen =
       | _ -> gen.gcon.error ("This function argument " ^ explain ^ " must be a local variable.") e.epos; e
   in
 
+  let rec ensure_refout e explain =
+    match e.eexpr with
+      | TField _ | TLocal _ -> e
+      | TCast(e,_)
+      | TParenthesis e | TMeta(_,e) -> ensure_refout e explain
+      | _ -> gen.gcon.error ("This function argument " ^ explain ^ " must be a local variable.") e.epos; e
+  in
+
   let is_pointer t = match follow t with
     | TInst({ cl_path = (["cs"], "Pointer") }, _)
     | TAbstract ({ a_path = (["cs"], "Pointer") },_) ->
@@ -1463,12 +1471,12 @@ let configure gen =
             (match real_type t with
               | TType({ t_path = (["cs"], "Ref") }, _)
               | TAbstract ({ a_path = (["cs"], "Ref") },_) ->
-                let e = ensure_local e "of type cs.Ref" in
+                let e = ensure_refout e "of type cs.Ref" in
                 write w "ref ";
                 expr_s w e
               | TType({ t_path = (["cs"], "Out") }, _)
               | TAbstract ({ a_path = (["cs"], "Out") },_) ->
-                let e = ensure_local e "of type cs.Out" in
+                let e = ensure_refout e "of type cs.Out" in
                 write w "out ";
                 expr_s w e
               | _ ->
