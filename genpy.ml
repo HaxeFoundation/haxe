@@ -365,7 +365,6 @@ module Printer = struct
 				handle_keywords v.v_name
 			| TEnumParameter(e1,_,index) ->
 				Printf.sprintf "%s.params[%i]" (print_expr pctx e1) index
-			(* TODO: two TCall cases in Haxe sources should be handled by print_call *)
 			| TArray(e1,e2) ->
 				Printf.sprintf "_hx_array_get(%s, %s)" (print_expr pctx e1) (print_expr pctx e2)
 			| TBinop(OpAssign,{eexpr = TArray(e1,e2)},e3) ->
@@ -610,6 +609,24 @@ module Printer = struct
 				Printf.sprintf "int.parse(%s)" (print_expr pctx (List.hd el))
 			| "__double_parse__" ->
 				Printf.sprintf "double.parse(%s)" (print_expr pctx (List.hd el))
+			| "__instanceof__" ->
+				begin match el with
+					| [e1;e2] ->
+						Printf.sprintf "_hx_c.Std._hx_is%s,%s" (print_expr pctx e1) (print_expr pctx e2)
+					| _ ->
+						assert false
+				end
+			| "__strict_eq__" ->
+				begin match el with
+					| [e2;e3] ->
+						let e2 = match e2.eexpr with
+							| TBinop(OpOr,a,_) -> a
+							| _ -> e2
+						in
+						print_expr pctx {e1 with eexpr = TBinop(OpEq,e2,e3)}
+					| _ ->
+						assert false
+				end
 			| _ ->
 				Printf.sprintf "%s(%s)" id (print_exprs pctx ", " el)
 
