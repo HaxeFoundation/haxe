@@ -2,6 +2,26 @@ open Ast
 open Type
 open Common
 
+module KeywordHandler = struct
+	let kwds =
+		let h = Hashtbl.create 0 in
+		List.iter (fun s -> Hashtbl.add h s ()) [
+			"and"; "as"; "assert"; "break"; "class"; "continue"; "def"; "del"; "elif"; "else"; "except"; "exec"; "finally"; "for";
+			"from"; "global"; "if"; "import"; "in"; "is"; "lambda"; "not"; "or"; "pass"; "print";" raise"; "return"; "try"; "while";
+			"with"; "yield"; "float";
+		];
+		h
+
+	let handle_keywords s =
+		if Hashtbl.mem kwds s then "_hx_" ^ s else s
+
+	let unhandle_keywords s =
+		if String.length s > 4 && String.sub s 0 4 = "_hx_" then
+			String.sub s 4 (String.length s - 4)
+		else
+			s
+end
+
 module Transformer = struct
 	type adjusted_expr = {
 		a_expr : texpr;
@@ -215,8 +235,7 @@ module Printer = struct
 		| Some v -> s ^ (f v)
 
 	let handle_keywords s =
-		(* TODO *)
-		s
+		KeywordHandler.handle_keywords s
 
 	let print_unop = function
 		| Increment | Decrement -> assert false
@@ -581,7 +600,7 @@ module Printer = struct
 		String.concat sep (List.map (fun (s,e) -> Printf.sprintf "%s = %s" s (print_expr pctx e)) fl)
 
 	let handle_keywords s =
-		s
+		KeywordHandler.handle_keywords s
 end
 
 module Generator = struct
