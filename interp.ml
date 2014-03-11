@@ -59,7 +59,6 @@ and vabstract =
 	| AZipD of zlib
 	| AUtf8 of UTF8.Buf.buf
 	| ASocket of Unix.file_descr
-	| ATExpr of texpr
 	| ATDecl of module_type
 	| AUnsafe of Obj.t
 	| ALazyType of (unit -> Type.t) ref

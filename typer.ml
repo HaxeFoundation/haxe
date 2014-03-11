@@ -3849,11 +3849,9 @@ let make_macro_api ctx p =
 					"types", Interp.enc_array (List.map (fun t -> Interp.encode_type (make_instance t)) ctx.com.types);
 					"main", (match ctx.com.main with None -> Interp.VNull | Some e -> Interp.encode_texpr e);
 					"generateValue", Interp.VFunction (Interp.Fun1 (fun v ->
-						match v with
-						| Interp.VAbstract (Interp.ATExpr e) ->
-							let str = Genjs.gen_single_expr js_ctx e false in
-							Interp.enc_string str
-						| _ -> failwith "Invalid expression";
+						let e = Interp.decode_texpr v in
+						let str = Genjs.gen_single_expr js_ctx e false in
+						Interp.enc_string str
 					));
 					"isKeyword", Interp.VFunction (Interp.Fun1 (fun v ->
 						Interp.VBool (Hashtbl.mem Genjs.kwds (Interp.dec_string v))
@@ -3867,11 +3865,9 @@ let make_macro_api ctx p =
 						| Some e -> Interp.encode_texpr e
 					));
 					"generateStatement", Interp.VFunction (Interp.Fun1 (fun v ->
-						match v with
-						| Interp.VAbstract (Interp.ATExpr e) ->
-							let str = Genjs.gen_single_expr js_ctx e true in
-							Interp.enc_string str
-						| _ -> failwith "Invalid expression";
+						let e = Interp.decode_texpr v in
+						let str = Genjs.gen_single_expr js_ctx e true in
+						Interp.enc_string str
 					));
 					"setTypeAccessor", Interp.VFunction (Interp.Fun1 (fun callb ->
 						js_ctx.Genjs.type_accessor <- (fun t ->

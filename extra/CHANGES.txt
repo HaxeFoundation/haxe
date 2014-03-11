@@ -7,9 +7,11 @@
 	all : removed @:to Dynamic from UInt to avoid issues in the Map selection algorithm
 	all : fixed various issues with member/static extension macros
 	all : disallowed member field initialization of classes without constructors
+	all : added -D deprecation-warnings
 	flash : fixed invalid override involving single-constraint type parameters
 	flash8: fixed various bugs
 	js : disable Std.string optimization of basic type to avoid problems with null values
+	js : fixed custom generators
 
 2014-03-04: 3.1.0
 
