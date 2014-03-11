@@ -195,8 +195,70 @@ end
 
 module Printer = struct
 
-	let create_context indent =
-		""
+	type print_context = {
+		pc_indent : string;
+		pc_next_anon_func : unit -> string;
+	}
+
+	let create_context =
+		let n = ref (-1) in
+		(fun indent -> {
+				pc_indent = indent;
+				pc_next_anon_func = (fun () -> incr n; Printf.sprintf "anon_%i" !n);
+			}
+		)
+
+	let tabs = ref ""
+
+	let opt o f s = match o with
+		| None -> ""
+		| Some v -> s ^ (f v)
+
+	let handle_keywords s =
+		(* TODO *)
+		s
+
+	let print_unop = function
+		| Increment | Decrement -> assert false
+		| Not -> "not "
+		| Neg -> "-";
+		| NegBits -> "~"
+
+	let print_binop = function
+		| OpAdd -> "+"
+		| OpSub -> "-"
+		| OpMult -> "*"
+		| OpDiv -> "/"
+		| OpAssign -> "="
+		| OpEq -> "=="
+		| OpNotEq -> "!="
+		| OpGt -> ">"
+		| OpGte -> ">="
+		| OpLt -> "<"
+		| OpLte -> "<="
+		| OpAnd -> "&"
+		| OpOr -> "|"
+		| OpXor -> "^"
+		| OpBoolAnd -> "and"
+		| OpBoolOr -> "or"
+		| OpShl -> "<<"
+		| OpShr -> ">>"
+		| OpUShr -> ">>"
+		| OpMod -> "%"
+		| OpInterval | OpArrow | OpAssignOp _ -> assert false
+
+	let print_string s =
+		Printf.sprintf "\"%s\"" (Ast.s_escape s)
+
+	let print_constant = function
+		| TThis -> "self"
+		| TNull -> "None"
+		| TBool(true) -> "True"
+		| TBool(false) -> "False"
+		| TString(s) -> print_string s
+		| TInt(i) -> Int32.to_string i
+		| TFloat s -> s
+		| TSuper -> "super"
 
 	let print_base_type tp =
 		try
@@ -208,11 +270,315 @@ module Printer = struct
 			(* let pre = if is_definition then "" else "_hx_c." in *)
 			(s_type_path tp.mt_path)
 
-	let print_function f pctx name =
+	let print_module_type mt = print_base_type (t_infos mt)
+
+	let print_metadata (name,_,_) =
+		Printf.sprintf "@%s" name
+
+	let print_args args =
+		let sl = List.map (fun (v,cto) ->
+			let name = handle_keywords v.v_name in
+			let arg_string = match follow v.v_type with
+				| TAbstract({a_path = [],"KwdArgs"},_) -> "**" ^ name
+				| _ -> name
+			in
+			let arg_value = match cto with
+				| None -> ""
+				| Some ct -> Printf.sprintf " = %s" (print_constant ct)
+			in
+			Printf.sprintf "%s%s" arg_string arg_value
+		) args in
+		String.concat "," sl
+
+	let print_op_assign_right e pctx =
+		(* TODO: I don't understand Haxe sources with regards to missing else *)
 		""
 
-	let print_expr e pctx =
+	let rec print_var pctx v eo =
+		match eo with
+			| Some {eexpr = TFunction tf} ->
+				print_function pctx tf (Some v.v_name)
+			| _ ->
+				let s_init = match eo with
+					| None -> "None"
+					| Some e -> print_op_assign_right e pctx
+				in
+				Printf.sprintf "%s = %s" (handle_keywords v.v_name) s_init
+
+	and print_function pctx tf name =
+		let s_name = match name with
+			| None -> pctx.pc_next_anon_func()
+			| Some s -> s
+		in
+		let s_args = print_args tf.tf_args in
+		let s_expr = print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} tf.tf_expr in
+		Printf.sprintf "def %s(%s):\n%s\t%s" s_name s_args pctx.pc_indent s_expr
+
+	and print_expr pctx e =
+		let indent = pctx.pc_indent in
+		let print_expr_indented e = print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} e in
+		match e.eexpr with
+			| TConst ct ->
+				print_constant ct
+			| TTypeExpr mt ->
+				print_module_type mt
+			| TLocal v ->
+				handle_keywords v.v_name
+			| TEnumParameter(e1,_,index) ->
+				Printf.sprintf "%s.params[%i]" (print_expr pctx e1) index
+			(* TODO: two TCall cases in Haxe sources should be handled by print_call *)
+			| TArray(e1,e2) ->
+				Printf.sprintf "_hx_array_get(%s, %s)" (print_expr pctx e1) (print_expr pctx e2)
+			| TBinop(OpAssign,{eexpr = TArray(e1,e2)},e3) ->
+				Printf.sprintf "_hx_array_set(%s,%s,%s)" (print_expr pctx e1) (print_expr pctx e2) (print_expr pctx e3)
+			| TBinop(OpAssign,{eexpr = TField(ef1,fa)},e2) ->
+				Printf.sprintf "%s = %s" (print_field pctx ef1 fa true) (print_op_assign_right pctx e2)
+			| TBinop(OpAssign,e1,e2) ->
+				Printf.sprintf "%s = %s" (print_expr pctx e1) (print_expr pctx e2)
+			| TBinop(OpEq,{eexpr = TCall({eexpr = TLocal {v_name = "__typeof__"}},[e1])},e2) ->
+				begin match e2.eexpr with
+					| TConst(TString s) ->
+						begin match s with
+							| "string" -> Printf.sprintf "_hx_c.Std._hx_is(%s, _hx_builtin.str)" (print_expr pctx e1)
+							| "boolean" -> Printf.sprintf "_hx_c.Std._hx_is(%s, _hx_builtin.bool)" (print_expr pctx e1)
+							| "number" -> Printf.sprintf "_hx_c.Std._hx_is(%s, _hx_builtin.float)" (print_expr pctx e1)
+							| _ -> assert false
+						end
+					| _ ->
+						assert false
+				end
+			| TBinop(OpEq,e1,({eexpr = TConst TNull} as e2)) ->
+				Printf.sprintf "%s is %s" (print_expr pctx e1) (print_expr pctx e2)
+			| TBinop(OpNotEq,e1,({eexpr = TConst TNull} as e2)) ->
+				Printf.sprintf "%s is not %s" (print_expr pctx e1) (print_expr pctx e2)
+			(* TODO: OpMod cases *)
+			| TBinop(OpUShr,e1,e2) ->
+				Printf.sprintf "_hx_rshift(%s, %s)" (print_expr pctx e1) (print_expr pctx e2)
+			(* TODO: OpAdd cases *)
+			| TBinop(op,e1,e2) ->
+				Printf.sprintf "%s %s %s" (print_expr pctx e1) (print_binop op) (print_expr pctx e2)
+			| TField(e1,fa) ->
+				print_field pctx e1 fa false
+			| TParenthesis e1 ->
+				Printf.sprintf "(%s)" (print_expr pctx e1)
+			| TObjectDecl fl ->
+				Printf.sprintf "_hx_c._hx_AnonObject(%s)" (print_exprs_named pctx ", " fl)
+			| TArrayDecl el ->
+				Printf.sprintf "[%s]" (print_exprs pctx ", " el)
+			(* TODO: toUpperCase special case?! *)
+			| TCall(e1,el) ->
+				print_call pctx e1 el
+			| TNew(c,_,el) ->
+				let id = print_base_type (t_infos (TClassDecl c)) in
+				Printf.sprintf "%s(%s)" id (print_exprs pctx ", " el)
+			| TUnop(op,Postfix,e1) ->
+				Printf.sprintf "%s%s" (print_expr pctx e1) (print_unop op)
+			| TUnop(op,Prefix,e1) ->
+				Printf.sprintf "%s%s" (print_unop op) (print_expr pctx e1)
+			| TFunction tf ->
+				print_function pctx tf None
+			| TVar (v,eo) ->
+				print_var pctx v eo
+			| TBlock [] ->
+				Printf.sprintf "pass\n%s" indent
+			| TBlock el ->
+				let old = !tabs in
+				tabs := pctx.pc_indent;
+				let s = print_exprs pctx ("\n" ^ !tabs) el in
+				tabs := old;
+				Printf.sprintf "%s\n%s" s !tabs
+			| TFor(v,e1,e2) ->
+				let pctx2 = {pctx with pc_indent = "\t" ^ pctx.pc_indent} in
+				let ind1 = pctx.pc_indent in
+				let ind2 = pctx2.pc_indent in
+				Printf.sprintf "_it = %s\n%swhile _it.hasNext():\n%s%s = _it.next()\n%s%s" (print_expr pctx e1) ind1 ind2 v.v_name ind2 (print_expr pctx2 e2)
+			| TIf(econd,eif,(Some {eexpr = TIf _} as eelse)) ->
+				print_if_else pctx econd eif eelse true
+			| TIf(econd,eif,eelse) ->
+				print_if_else pctx econd eif eelse false
+			| TWhile(econd,e1,NormalWhile) ->
+				Printf.sprintf "while %s:\n%s\t%s" (print_expr pctx econd) indent (print_expr_indented e1)
+			| TWhile(econd,e1,DoWhile) ->
+				error "Currently not supported" e.epos
+			| TTry _ ->
+				(* TODO *)
+				""
+			| TReturn eo ->
+				Printf.sprintf "return%s" (opt eo (print_op_assign_right pctx) " ")
+			| TBreak ->
+				"break"
+			| TContinue ->
+				"continue"
+			| TThrow e1 ->
+				Printf.sprintf "raise _HxException(%s)" (print_expr pctx e1)
+			| TCast(e1,_) ->
+				(* TODO: safe cast *)
+				print_expr pctx e1
+			| TMeta((Meta.Custom ":ternaryIf",_,_),{eexpr = TIf(econd,eif,Some eelse)}) ->
+				Printf.sprintf "%s if %s else %s" (print_expr pctx eif) (print_expr pctx econd) (print_expr pctx eelse)
+			| TMeta(_,e1) ->
+				print_expr pctx e1
+			| TPatMatch _ | TSwitch _ ->
+				assert false
+
+	and print_if_else pctx econd eif eelse as_elif =
+		let econd1 = match econd.eexpr with
+			| TParenthesis e -> e
+			| _ -> econd
+		in
+		let if_str = print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} eif in
+		let indent = pctx.pc_indent in
+		(* TODO: double check this *)
+		(* TODO: triple check it *)
+		let else_str = if as_elif then
+			opt eelse (print_expr pctx) "el"
+		else
+			opt eelse (print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent}) (Printf.sprintf "else:\n%s\t" indent)
+		in
+		Printf.sprintf "if %s:\n%s\t%s\n%s%s" (print_expr pctx econd1) indent if_str indent else_str
+
+	and print_field pctx e fa is_assign =
+		(* TODO: Haxe source looks scary *)
 		""
+
+	and print_call pctx e1 el =
+		let id = print_expr pctx e1 in
+		match id with
+			| "super" ->
+				let s_el = print_exprs pctx ", " el in
+				Printf.sprintf "super().__init__(%s)" s_el
+			| "__python_kwargs__" ->
+				"**" ^ (print_expr pctx (List.hd el))
+			| "__python_varargs__" ->
+				"*" ^ (print_expr pctx (List.hd el))
+			| "__python__" ->
+				begin match (List.hd el) with
+					| {eexpr = TConst (TString s)} -> s
+					| e -> print_expr pctx e
+				end
+			| "__named_arg__" ->
+				let name,e2 = match el with
+					| [{eexpr = TConst (TString s)};e2] -> s,e2
+					| e -> assert false
+				in
+				Printf.sprintf "%s=%s" name (print_expr pctx e2)
+			| "__feature__" ->
+				""
+			| "__named__" ->
+				let res,fields = match List.rev el with
+					| {eexpr = TObjectDecl fields} :: el ->
+						List.rev el,fields
+					| _ ->
+						assert false
+				in
+				begin match res with
+					| e1 :: el ->
+						Printf.sprintf "%s(%s, %s)" (print_expr pctx e1) (print_exprs pctx ", " el) (print_exprs_named pctx ", " fields)
+					| [] ->
+						Printf.sprintf "%s(%s)" (print_expr pctx e1) (print_exprs_named pctx ", " fields)
+				end
+			| "__define_feature__" ->
+				print_expr pctx (List.hd el)
+			| "__call__" ->
+				begin match el with
+					| e1 :: el ->
+						Printf.sprintf "%s(%s)" (print_expr pctx e1) (print_exprs pctx ", " el)
+					| _ ->
+						assert false
+				end
+			| "__field__" ->
+				begin match el with
+					| [e1;{eexpr = TConst(TString id)}] ->
+						Printf.sprintf "%s.%s" (print_expr pctx e1) id
+					| _ ->
+						assert false
+				end
+			| "__python_tuple__" ->
+				Printf.sprintf "(%s)" (print_exprs pctx ", " el)
+			| "__python_array_get__" ->
+				Printf.sprintf "%s[%s]" (print_expr pctx e1) (print_exprs pctx ":" el)
+			| "__python_in__" ->
+				begin match el with
+					| [e1;e2] ->
+						Printf.sprintf "%s in %s" (print_expr pctx e1) (print_expr pctx e2)
+					| _ ->
+						assert false
+				end
+			| "__python_for__" ->
+				begin match el with
+					| [{eexpr = TBlock [{eexpr = TVar(v1,_)};e2;block]}] ->
+						let f1 = v1.v_name in
+						let pctx = {pctx with pc_indent = "\t" ^ pctx.pc_indent} in
+						let i = pctx.pc_indent in
+						Printf.sprintf "for %s in %s:\n%s%s" f1 (print_expr pctx e2) i (print_expr pctx block)
+					| _ ->
+						assert false
+				end
+			| "__python_del__" ->
+				Printf.sprintf "del %s" (print_expr pctx (List.hd el))
+			| "__python_binop__" ->
+				begin match el with
+					| [e0;{eexpr = TConst(TString id)};e2] ->
+						Printf.sprintf "%s %s %s" (print_expr pctx e0) id (print_expr pctx e2)
+					| _ ->
+						assert false
+				end
+			| "__python_array_set__" ->
+				begin match el with
+					| [e1;e2;e3] ->
+						Printf.sprintf "%s[%s] = %s" (print_expr pctx e1) (print_expr pctx e2) (print_expr pctx e3)
+					| _ ->
+						assert false
+				end
+			| "__assert__" ->
+				Printf.sprintf "assert(%s)" (print_exprs pctx ", " el)
+			| "__new_named__" ->
+				begin match el with
+					| e1 :: el ->
+						Printf.sprintf "new %s(%s)" (print_expr pctx e1) (print_exprs pctx ", " el)
+					| _ ->
+						assert false
+				end
+			| "__new__" ->
+				begin match el with
+					| e1 :: el ->
+						Printf.sprintf "%s(%s)" (print_expr pctx e1) (print_exprs pctx ", " el)
+					| _ ->
+						assert false
+				end
+			| "__call_global__" ->
+				begin match el with
+					| {eexpr = TConst(TString s)} :: el ->
+						Printf.sprintf "%s(%s)" s (print_exprs pctx ", " el)
+					| _ ->
+						assert false
+				end
+			| "__is__" ->
+				begin match el with
+					| [e1;e2] ->
+						Printf.sprintf "%s is %s" (print_expr pctx e1) (print_expr pctx e2)
+					| _ ->
+						assert false
+				end
+			| "__as__" ->
+				begin match el with
+					| [e1;e2] ->
+						Printf.sprintf "%s as %s" (print_expr pctx e1) (print_expr pctx e2)
+					| _ ->
+						assert false
+				end
+			| "__int_parse__" ->
+				Printf.sprintf "int.parse(%s)" (print_expr pctx (List.hd el))
+			| "__double_parse__" ->
+				Printf.sprintf "double.parse(%s)" (print_expr pctx (List.hd el))
+			| _ ->
+				Printf.sprintf "%s(%s)" id (print_exprs pctx ", " el)
+
+	and print_exprs pctx sep el =
+		String.concat sep (List.map (print_expr pctx) el)
+
+	and print_exprs_named pctx sep fl =
+		String.concat sep (List.map (fun (s,e) -> Printf.sprintf "%s = %s" s (print_expr pctx e)) fl)
 
 	let handle_keywords s =
 		s
@@ -260,10 +626,10 @@ module Generator = struct
 		Printer.print_base_type mt
 
 	let tfunc_str f pctx name =
-		Printer.print_function f pctx name
+		Printer.print_function pctx f name
 
 	let texpr_str e pctx =
-		Printer.print_expr e pctx
+		Printer.print_expr pctx e
 
 	let handle_keywords s =
 		Printer.handle_keywords s
@@ -420,7 +786,7 @@ module Generator = struct
 		in
 		let expr_string = match expr1.eexpr with
 			| TFunction f ->
-				tfunc_str f pctx field_name
+				tfunc_str f pctx (Some field_name)
 			| _ ->
 				Printf.sprintf "%s = %s" field_name (texpr_str expr1 pctx)
 		in
