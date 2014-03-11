@@ -309,18 +309,22 @@ module Printer = struct
 		) args in
 		String.concat "," sl
 
-	let print_op_assign_right e pctx =
-		(* TODO: I don't understand Haxe sources with regards to missing else *)
-		""
+	let rec print_op_assign_right pctx e =
+		match e.eexpr with
+			| TIf({eexpr = TParenthesis econd},eif,Some eelse)
+			| TIf(econd,eif,Some eelse) ->
+				Printf.sprintf "%s if %s else %s" (print_expr pctx eif) (print_expr pctx econd) (print_expr pctx eelse)
+			| _ ->
+				print_expr pctx e
 
-	let rec print_var pctx v eo =
+	and print_var pctx v eo =
 		match eo with
 			| Some {eexpr = TFunction tf} ->
 				print_function pctx tf (Some v.v_name)
 			| _ ->
 				let s_init = match eo with
 					| None -> "None"
-					| Some e -> print_op_assign_right e pctx
+					| Some e -> print_op_assign_right pctx e
 				in
 				Printf.sprintf "%s = %s" (handle_keywords v.v_name) s_init
 
