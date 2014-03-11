@@ -306,8 +306,8 @@ module Printer = struct
 				| _ -> raise Not_found
 			end
 		with Not_found ->
-			(* let pre = if is_definition then "" else "_hx_c." in *)
-			(s_type_path tp.mt_path)
+			let pack,name = tp.mt_path in
+			(String.concat "_" pack) ^ (if pack = [] then name else "_" ^ name)
 
 	let print_module_type mt = print_base_type (t_infos mt)
 
@@ -537,8 +537,8 @@ module Printer = struct
 				do_default()
 
 	and print_try pctx e1 catches =
-		let indent = pctx.pc_indent in
-		let print_catch i (v,e) =
+		let print_catch pctx i (v,e) =
+			let indent = pctx.pc_indent in
 			let handle_base_type bt =
 				let t = print_base_type bt in
 				let res = if t = "String" then
@@ -561,11 +561,12 @@ module Printer = struct
 				| _ ->
 					assert false
 		in
+		let indent = pctx.pc_indent in
 		let print_expr_indented e = print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} e in
 		let try_str = Printf.sprintf "try:\n%s\t%s\n%s" indent (print_expr_indented e1) indent in
 		let except = Printf.sprintf "except Exception as _hx_e:\n%s\t_hx_e1 = _hx_e.val if isInstance(_hx_e, _HxException) else _hx_e\n%s\t" indent indent in
-		let catch_str = String.concat (Printf.sprintf "\n%s\n" indent) (ExtList.List.mapi (fun i catch -> print_catch i catch) catches) in
-		let except_end = Printf.sprintf "\n%s\telse:\n%s\t\trraise _hx_e" indent indent in
+		let catch_str = String.concat (Printf.sprintf "\n%s\n" indent) (ExtList.List.mapi (fun i catch -> print_catch {pctx with pc_indent = "\t" ^ pctx.pc_indent} i catch) catches) in
+		let except_end = Printf.sprintf "\n%s\telse:\n%s\t\traise _hx_e" indent indent in
 		Printf.sprintf "%s%s%s%s" try_str except catch_str except_end
 
 	and print_call pctx e1 el =
@@ -938,7 +939,10 @@ module Generator = struct
 		gen_py_metas ctx metas indent;
 		spr ctx indent;
 		spr ctx expr_string;
-		if stat then print ctx "%s.%s = %s" (get_path (t_infos (TClassDecl c))) name field_name
+		if stat then begin
+			newline ctx;
+			print ctx "%s.%s = %s" (get_path (t_infos (TClassDecl c))) name field_name
+		end
 
 	let gen_class_constructor ctx c = match c.cl_constructor with
 		| None ->
@@ -1019,27 +1023,26 @@ module Generator = struct
 		spr ctx ")"
 
 	let gen_class_metadata ctx c p =
-		(* TODO: can we use Codegen.make_meta? *)
-		print ctx "%s._hx_meta = _hx_c._hx_AnonObject(" p;
-		spr ctx "obj=";
-		spr ctx (get_meta_entries c.cl_meta);
-		spr ctx ",statics=";
-		gen_meta_members ctx c.cl_ordered_statics;
-		spr ctx ",fields=";
-		let fields = match c.cl_constructor with
-			| None -> c.cl_ordered_fields
-			| Some cf -> cf :: c.cl_ordered_fields
-		in
-		gen_meta_members ctx fields;
-		spr ctx ")\n"
+		let meta = Codegen.build_metadata ctx.com (TClassDecl c) in
+		match meta with
+			| None ->
+				()
+			| Some e ->
+				gen_expr ctx e "" "";
+				newline ctx
 
 	let gen_enum_metadata ctx en p =
-		(* TODO: can we use Codegen.make_meta? *)
-		()
+		let meta = Codegen.build_metadata ctx.com (TEnumDecl en) in
+		match meta with
+			| None ->
+				()
+			| Some e ->
+				gen_expr ctx e "" "";
+				newline ctx
 
 	let gen_class_empty_constructor ctx p cfl =
 		let s_name = p ^ "_hx_empty_init" in
-		print ctx "def %s (_hx_o):" s_name;
+		print ctx "def %s (_hx_o):\n" s_name;
 		let found_fields = ref false in
 		List.iter (fun cf -> match cf.cf_kind with
 				| Var ({v_read = AccResolve | AccCall}) ->
@@ -1050,9 +1053,9 @@ module Generator = struct
 				| _ ->
 					()
 		) cfl;
-		if !found_fields then
+		if not !found_fields then
 			spr ctx "\tpass\n";
-		print ctx "%s._hx_empty_init = %s" p s_name
+		print ctx "%s._hx_empty_init = %s\n" p s_name
 
 	let gen_class_statics ctx c p =
 		let f = fun () ->
