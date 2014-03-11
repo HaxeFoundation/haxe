@@ -250,6 +250,10 @@ module Printer = struct
 			| _ -> false
 		)
 
+	let is_underlying_string t = match follow t with
+		| TAbstract(a,tl) -> (is_type1 "" "String")(Codegen.Abstract.get_underlying_type a tl)
+		| _ -> false
+
 	let handle_keywords s =
 		KeywordHandler.handle_keywords s
 
@@ -395,7 +399,17 @@ module Printer = struct
 				Printf.sprintf "_hx_modf(%s, %s)" (print_expr pctx e1) (print_expr pctx e1)
 			| TBinop(OpUShr,e1,e2) ->
 				Printf.sprintf "_hx_rshift(%s, %s)" (print_expr pctx e1) (print_expr pctx e2)
-			(* TODO: OpAdd cases *)
+			| TBinop(OpAdd,e1,e2) when (is_type1 "" "String")(e.etype) || is_underlying_string e.etype ->
+				let safe_string ex =
+					match ex.eexpr with
+						| TConst(TString _) -> print_expr pctx ex
+						| _ -> Printf.sprintf "Std.string(%s)" (print_expr pctx ex)
+				in
+				let e1_str = safe_string e1 in
+				let e2_str = safe_string e2 in
+				Printf.sprintf "%s + %s" e1_str e2_str
+			| TBinop(OpAdd,e1,e2) when (match follow e.etype with TDynamic _ -> true | _ -> false) ->
+				Printf.sprintf "python_Boot._add_dynamic(%s,%s)" (print_expr pctx e1) (print_expr pctx e2);
 			| TBinop(op,e1,e2) ->
 				Printf.sprintf "%s %s %s" (print_expr pctx e1) (print_binop op) (print_expr pctx e2)
 			| TField(e1,fa) ->
