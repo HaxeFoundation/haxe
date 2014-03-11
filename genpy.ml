@@ -491,9 +491,50 @@ module Printer = struct
 		in
 		Printf.sprintf "if %s:\n%s\t%s\n%s%s" (print_expr pctx econd1) indent if_str indent else_str
 
-	and print_field pctx e fa is_assign =
-		(* TODO: Haxe source looks scary *)
-		""
+	and print_field pctx e1 fa is_assign =
+		let obj = match e1.eexpr with
+			| TConst TSuper -> "super()"
+			| _ -> print_expr pctx e1
+		in
+		let name = field_name fa in
+		let do_default () =
+			Printf.sprintf "%s.%s" obj (handle_keywords name)
+		in
+		match fa with
+			| FInstance(c,{cf_name = "length" | "get_length"}) when (is_type "" "list")(TClassDecl c) ->
+				Printf.sprintf "_hx_builtin.len(%s)" (print_expr pctx e1)
+			| FInstance(c,{cf_name = "toUpperCase"}) when (is_type "" "String")(TClassDecl c) ->
+				Printf.sprintf "%s.toUpper" (print_expr pctx e1)
+			| FInstance(c,{cf_name = "toLowerCase"}) when (is_type "" "String")(TClassDecl c) ->
+				Printf.sprintf "%s.toLower" (print_expr pctx e1)
+			| FInstance _ | FStatic _ ->
+				do_default ()
+			| FAnon cf when name = "iterator" && not is_assign ->
+				begin match follow cf.cf_type with
+					| TFun([],_) ->
+						Printf.sprintf "_hx_functools.partial(HxOverrides_iterator, %s)" obj
+					| _ ->
+						do_default()
+				end
+			| FAnon cf when name = "shift" && not is_assign ->
+				begin match follow cf.cf_type with
+					| TFun([],_) ->
+						Printf.sprintf "_hx_functools.partial(HxOverrides_shift, %s)" obj
+					| _ ->
+						do_default()
+				end
+			| FAnon _ ->
+				do_default()
+			| FDynamic "iterator" ->
+				Printf.sprintf "_hx_functools.partial(HxOverrides_iterator, %s)" obj
+			| FDynamic "length" when not is_assign ->
+				Printf.sprintf "HxOverrides_length(%s)" obj
+			| FDynamic "filter" when not is_assign ->
+				Printf.sprintf "_hx_functools.partial(HxOverrides_filter, %s)" obj
+			| FDynamic "map" when not is_assign ->
+				Printf.sprintf "_hx_functools.partial(HxOverrides_map, %s)" obj
+			| _ ->
+				do_default()
 
 	and print_try pctx e1 catches =
 		let indent = pctx.pc_indent in
