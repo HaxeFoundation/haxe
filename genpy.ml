@@ -455,9 +455,8 @@ module Printer = struct
 				Printf.sprintf "while %s:\n%s\t%s" (print_expr pctx econd) indent (print_expr_indented e1)
 			| TWhile(econd,e1,DoWhile) ->
 				error "Currently not supported" e.epos
-			| TTry _ ->
-				(* TODO *)
-				""
+			| TTry(e1,catches) ->
+				print_try pctx e1 catches
 			| TReturn eo ->
 				Printf.sprintf "return%s" (opt eo (print_op_assign_right pctx) " ")
 			| TBreak ->
@@ -495,6 +494,38 @@ module Printer = struct
 	and print_field pctx e fa is_assign =
 		(* TODO: Haxe source looks scary *)
 		""
+
+	and print_try pctx e1 catches =
+		let indent = pctx.pc_indent in
+		let print_catch i (v,e) =
+			let handle_base_type bt =
+				let t = print_base_type bt in
+				let res = if t = "String" then
+					Printf.sprintf "if isinstance(_hx_e1, str):\n%s\t%s = _hx_e1\n%s\t%s" indent v.v_name indent (print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} e)
+				else
+					Printf.sprintf "if isinstance(_hx_e1, %s):\n%s\t%s = _hx_e1\n%s\t%s" t indent v.v_name indent (print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} e)
+				in
+				if i > 0 then
+					"el" ^ res
+				else
+					res
+			in
+			match follow v.v_type with
+				| TDynamic _ ->
+					Printf.sprintf "if True:\n%s\t%s = _hx_e1\n%s\t%s" indent v.v_name indent (print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} e)
+				| TInst(c,_) ->
+					handle_base_type (t_infos (TClassDecl c))
+				| TEnum(en,_) ->
+					handle_base_type (t_infos (TEnumDecl en))
+				| _ ->
+					assert false
+		in
+		let print_expr_indented e = print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} e in
+		let try_str = Printf.sprintf "try:\n%s\t%s\n%s" indent (print_expr_indented e1) indent in
+		let except = Printf.sprintf "except Exception as _hx_e:\n%s\t_hx_e1 = _hx_e.val if isInstance(_hx_e, _HxException) else _hx_e\n%s\t" indent indent in
+		let catch_str = String.concat (Printf.sprintf "\n%s\n" indent) (ExtList.List.mapi (fun i catch -> print_catch i catch) catches) in
+		let except_end = Printf.sprintf "\n%s\telse:\n%s\t\trraise _hx_e" indent indent in
+		Printf.sprintf "%s%s%s%s" try_str except catch_str except_end
 
 	and print_call pctx e1 el =
 		let id = print_expr pctx e1 in
