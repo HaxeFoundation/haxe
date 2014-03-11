@@ -234,6 +234,22 @@ module Printer = struct
 		| None -> ""
 		| Some v -> s ^ (f v)
 
+	(* TODO: both of these are crazy *)
+
+	let is_type p t =
+		(fun r ->
+			let x = t_infos r in
+			(String.concat "." (fst x.mt_path)) = p && (snd x.mt_path) = t
+		)
+
+	let is_type1 p s =
+		(fun t -> match follow t with
+			| TInst(c,_) -> (is_type p s)(TClassDecl c)
+			| TAbstract(a,_) -> (is_type p s)(TAbstractDecl a)
+			| TEnum(en,_) -> (is_type p s)(TEnumDecl en)
+			| _ -> false
+		)
+
 	let handle_keywords s =
 		KeywordHandler.handle_keywords s
 
