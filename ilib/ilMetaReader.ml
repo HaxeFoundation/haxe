@@ -1508,7 +1508,9 @@ let read_custom_attr ctx attr_type s pos =
 		| SFunPtr (_,ret,args) -> args
 		| _ -> assert false
 	in
-	let rec read_instance ilsig pos = match follow ilsig with
+	let rec read_instance ilsig pos =
+		(* print_endline (IlMetaDebug.ilsig_s ilsig); *)
+		match follow ilsig with
 		| SBool | SChar	| SInt8 | SUInt8 | SInt16 | SUInt16
 		| SInt32 | SUInt32 | SInt64 | SUInt64 | SFloat32 | SFloat64 | SString ->
 			let pos, cons = read_constant ctx (sig_to_const ilsig) s pos in
@@ -1524,7 +1526,7 @@ let read_custom_attr ctx attr_type s pos =
 			let pos, ilsig = read_ilsig ctx s pos in
 			(match follow ilsig with
 			| SEnum _ ->
-				let pos, e = sread_i32 s pos in
+				let pos,e = read_compressed_i32 s pos in
 				pos, InstBoxed(InstEnum e)
 			| _ ->
 				let pos, boxed = read_constant ctx (sig_to_const ilsig) s pos in
@@ -1535,7 +1537,8 @@ let read_custom_attr ctx attr_type s pos =
 		| _ -> assert false
 	in
 	let rec read_fixed acc args pos = match args with
-		| [] -> pos, List.rev acc
+		| [] ->
+			pos, List.rev acc
 		| SVector isig :: args ->
 			let pos, nelem = sread_real_i32 s pos in
 			let pos, ret = if nelem = -1l then
@@ -1556,11 +1559,17 @@ let read_custom_attr ctx attr_type s pos =
 			let pos, i = read_instance isig pos in
 			read_fixed (i :: acc) args pos
 	in
+	(* let tpos = pos in *)
 	let pos, fixed = read_fixed [] args pos in
+	(* printf "fixed %d : " (List.length args); *)
+	(* for x = tpos to pos do *)
+	(* 	printf "%x " (sget s x) *)
+	(* done; *)
+	(* printf "\n"; *)
 	(* for x = 0 to 10 do *)
 	(* 	printf "%x " (sget s (pos + x)) *)
 	(* done; *)
-	(* printf "\n\n"; *)
+	(* printf "\n"; *)
 	let pos, nnamed = read_compressed_i32 s pos in
 	let pos = if nnamed > 0 then pos+1 else pos in
 	let rec read_named acc pos n =
