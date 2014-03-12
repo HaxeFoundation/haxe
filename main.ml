@@ -1074,7 +1074,7 @@ try
 				| _ -> raise Exit
 			in
 			Gencs.add_net_lib com file is_std
-    ),"<file>[@std] : add an external .NET DLL file");
+		),"<file>[@std] : add an external .NET DLL file");
 		("-net-std",Arg.String (fun file ->
 			Gencs.add_net_std com file
 		),"<file> : add a root std .NET DLL search path");
