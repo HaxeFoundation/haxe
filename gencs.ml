@@ -3599,7 +3599,8 @@ let add_net_lib com file std =
 			let r = PeReader.create_r (open_in_bin file) com.defines in
 			let ctx = PeReader.read r in
 			let clr_header = PeReader.read_clr_header ctx in
-			let meta = IlMetaReader.read_meta_tables ctx clr_header in
+			let cache = IlMetaReader.create_cache () in
+			let meta = IlMetaReader.read_meta_tables ctx clr_header cache in
 			close_in (r.PeReader.ch);
 			if PMap.mem "net_loader_debug" com.defines then
 				print_endline ("for lib " ^ file);
