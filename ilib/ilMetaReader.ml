@@ -1522,11 +1522,12 @@ let read_custom_attr ctx attr_type s pos =
 			let pos, len = read_compressed_i32 s pos in
 			pos+len, InstType (String.sub s pos len)
 		| SObject | SBoxed -> (* boxed *)
+			let is_boxed = follow ilsig = SBoxed in
 			let pos = if sget s pos = 0x51 then pos+1 else pos in
 			let pos, ilsig = read_ilsig ctx s pos in
 			(match follow ilsig with
 			| SEnum _ ->
-				let pos,e = read_compressed_i32 s pos in
+				let pos,e = if is_boxed then sread_i32 s pos else read_compressed_i32 s pos in
 				pos, InstBoxed(InstEnum e)
 			| _ ->
 				let pos, boxed = read_constant ctx (sig_to_const ilsig) s pos in
@@ -1540,6 +1541,7 @@ let read_custom_attr ctx attr_type s pos =
 		| [] ->
 			pos, List.rev acc
 		| SVector isig :: args ->
+			(* print_endline "vec"; *)
 			let pos, nelem = sread_real_i32 s pos in
 			let pos, ret = if nelem = -1l then
 				pos, InstConstant INull
