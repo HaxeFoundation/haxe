@@ -1066,8 +1066,15 @@ try
 			Genjava.add_java_lib com file false
 		),"<file> : add an external JAR or class directory library");
 		("-net-lib",Arg.String (fun file ->
-			Gencs.add_net_lib com file false
-		),"<file> : add an external .NET DLL file");
+			let file, is_std = match ExtString.String.nsplit file "@" with
+				| [file] ->
+					file,false
+				| [file;"std"] ->
+					file,true
+				| _ -> raise Exit
+			in
+			Gencs.add_net_lib com file is_std
+    ),"<file>[@std] : add an external .NET DLL file");
 		("-net-std",Arg.String (fun file ->
 			Gencs.add_net_std com file
 		),"<file> : add a root std .NET DLL search path");
