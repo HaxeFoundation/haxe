@@ -2787,7 +2787,9 @@ let netpath_to_hx std = function
 		let ns = (List.map String.lowercase ns) in
 		add_cs ns, netcl_to_hx cl
 	| ns,(nhd :: ntl as nested), cl ->
+		let nested = List.map (netcl_to_hx) nested in
 		let ns = (List.map String.lowercase ns) @ [nhd] in
+		let nhd = netcl_to_hx nhd in
 		add_cs ns, String.concat "_" nested ^ "_" ^ netcl_to_hx cl
 
 let lookup_ilclass std com ilpath =
@@ -2806,6 +2808,8 @@ let mk_type_path ctx path params =
 		| ns,[], cl ->
 			ns, None, netcl_to_hx cl
 		| ns, (nhd :: ntl as nested), cl ->
+			let nhd = netcl_to_hx nhd in
+			let nested = List.map (netcl_to_hx) nested in
 			ns, Some (String.concat "_" nested ^ "_" ^ netcl_to_hx cl), nhd
 	in
   CTPath {
