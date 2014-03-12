@@ -2789,7 +2789,6 @@ let netpath_to_hx std = function
 	| ns,(nhd :: ntl as nested), cl ->
 		let nested = List.map (netcl_to_hx) nested in
 		let ns = (List.map String.lowercase ns) @ [nhd] in
-		let nhd = netcl_to_hx nhd in
 		add_cs ns, String.concat "_" nested ^ "_" ^ netcl_to_hx cl
 
 let lookup_ilclass std com ilpath =
@@ -3424,7 +3423,11 @@ let ilcls_with_params ctx cls params =
 	| _ ->
 		{ cls with
 			cfields = List.map (fun f -> { f with fsig = { f.fsig with snorm = ilapply_params params f.fsig.snorm } }) cls.cfields;
-			cmethods = List.map (fun m -> { m with msig = { m.msig with snorm = ilapply_params params m.msig.snorm } }) cls.cmethods;
+			cmethods = List.map (fun m -> { m with
+				msig = { m.msig with snorm = ilapply_params params m.msig.snorm };
+				margs = List.map (fun (n,f,s) -> (n,f,{ s with snorm = ilapply_params params s.snorm })) m.margs;
+				mret = { m.mret with snorm = ilapply_params params m.mret.snorm };
+			}) cls.cmethods;
 			cprops = List.map (fun p -> { p with psig = { p.psig with snorm = ilapply_params params p.psig.snorm } }) cls.cprops;
 			csuper = Option.map (fun s -> { s with snorm = ilapply_params params s.snorm } ) cls.csuper;
 			cimplements = List.map (fun s -> { s with snorm = ilapply_params params s.snorm } ) cls.cimplements;
