@@ -2,17 +2,25 @@ package haxe.format;
 
 class JsonPrinter {
 
-	static public function print(o:Dynamic, ?replacer:Dynamic -> Dynamic -> Dynamic) : String {
-		var printer = new JsonPrinter(replacer);
+	static public function print(o:Dynamic, ?replacer:Dynamic -> Dynamic -> Dynamic, ?space:String) : String {
+		var printer = new JsonPrinter(replacer, space);
 		printer.write("", o);
 		return printer.buf.toString();
 	}
 
 	var buf : #if flash9 flash.utils.ByteArray #else StringBuf #end;
 	var replacer : Dynamic -> Dynamic -> Dynamic;
+	var indent:String;
+	var nl:String;
+	var pretty:Bool;
+	var nind:Int;
 	
-	function new(replacer:Dynamic -> Dynamic -> Dynamic) {
+	function new(replacer:Dynamic -> Dynamic -> Dynamic, space:String) {
 		this.replacer = replacer;
+		this.indent = space;
+		this.nl = '\n';
+		this.pretty = space != null;
+		this.nind = 0;
 
 		#if flash9
 		buf = new flash.utils.ByteArray();
@@ -21,6 +29,14 @@ class JsonPrinter {
 		#else
 		buf = new StringBuf();
 		#end
+	}
+	
+	inline function ipad ():Void {
+		if (pretty) add(StringTools.lpad('', indent, nind * indent.length));
+	}
+	
+	inline function newl ():Void {
+		if (pretty) add(nl);
 	}
 
 	function write(k:Dynamic, v:Dynamic) {
@@ -42,15 +58,23 @@ class JsonPrinter {
 			else if( c == Array ) {
 				var v : Array<Dynamic> = v;
 				addChar('['.code);
+				nind++;
 				var len = v.length;
 				if( len > 0 ) {
+					newl();
+					ipad();
 					write(0, v[0]);
 					var i = 1;
 					while( i < len ) {
 						addChar(','.code);
+						newl();
+						ipad();
 						write(i, v[i++]);
 					}
 				}
+				nind--;
+				newl();
+				ipad();
 				addChar(']'.code);
 			} else if( c == haxe.ds.StringMap ) {
 				var v : haxe.ds.StringMap<Dynamic> = v;
@@ -107,14 +131,21 @@ class JsonPrinter {
 	function fieldsString( v : Dynamic, fields : Array<String> ) {
 		var first = true;
 		addChar('{'.code);
+		nind++;
 		for( f in fields ) {
 			var value = Reflect.field(v,f);
 			if( Reflect.isFunction(value) ) continue;
 			if( first ) first = false else addChar(','.code);
+			newl();
+			ipad();
 			quote(f);
 			addChar(':'.code);
+			if (pretty) addChar(' '.code);
 			write(f, value);
 		}
+		nind--;
+		newl();
+		ipad();
 		addChar('}'.code);
 	}
 
