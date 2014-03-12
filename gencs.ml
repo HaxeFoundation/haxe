@@ -3005,7 +3005,8 @@ let convert_ilmethod ctx p m =
 		| FAFamily | FAFamOrAssem -> APrivate
 		(* | FAPrivate -> APrivate *)
 		| FAPublic -> APublic
-		| _ -> raise Exit
+		| _ ->
+			raise Exit
 	in
 	if PMap.mem "net_loader_debug" ctx.ncom.defines then
 		Printf.printf "\tname %s : %s\n" cff_name (IlMetaDebug.ilsig_s m.msig.ssig);
@@ -3187,15 +3188,27 @@ let mk_abstract_fun name p kind metas acc =
     cff_kind = kind;
   }
 
+let convert_fun_arg ctx p = function
+	| LManagedPointer s ->
+		mk_type_path ctx (["cs"],[],"Ref") [ TPType (convert_signature ctx p s) ]
+	| s ->
+		convert_signature ctx p s
+
+let convert_fun ctx p ret args =
+	let args = List.map (convert_fun_arg ctx p) args in
+	CTFunction(args, convert_signature ctx p ret)
+
 let convert_delegate ctx p ilcls =
-	let p = { p with pfile =  p.pfile ^" abstract delegate" } in
+	let p = { p with pfile =  p.pfile ^" (abstract delegate)" } in
   (* will have the following methods: *)
   (* - new (haxeType:Func) *)
   (* - FromHaxeFunction(haxeType) *)
   (* - Invoke() *)
   (* - AsDelegate():Super *)
   let invoke = List.find (fun m -> m.mname = "Invoke") ilcls.cmethods in
-  let haxe_type = convert_signature ctx p invoke.msig.snorm in
+	let ret = invoke.mret.snorm in
+	let args = List.map (fun (_,_,s) -> s.snorm) invoke.margs in
+	let haxe_type = convert_fun ctx p ret args in
   let types = List.map (fun t ->
     {
       tp_name = "T" ^ string_of_int t.tnumber;
@@ -3209,10 +3222,6 @@ let convert_delegate ctx p ilcls =
   let underlying_type = match ilcls.cpath with
     | ns,inner,name ->
       mk_type_path ctx (ns,inner,"Delegate_" ^ name) params
-  in
-  let ret,args = match invoke.msig.snorm with
-    | LMethod (_,ret,args) -> ret,args
-    | _ -> assert false
   in
 
   let fn_new = FFun {
@@ -3233,7 +3242,7 @@ let convert_delegate ctx p ilcls =
     f_params = [];
     f_args = List.map (fun arg ->
       incr i;
-      "arg" ^ string_of_int !i, false, Some (convert_signature ctx p arg), None
+      "arg" ^ string_of_int !i, false, Some (convert_fun_arg ctx p arg), None
     ) args;
     f_type = Some(convert_signature ctx p ret);
     f_expr = Some(
@@ -3531,13 +3540,26 @@ let normalize_ilcls ctx cls =
 					) !current_all) then begin
 						current_all := ff :: !current_all;
 						added := ff :: !added
-					end
+					end else
+						(* ensure it's public *)
+						List.iter (fun mref -> match !mref with
+							| m when m.mname = name && compatible_field f (IlMethod m) ->
+								mref := { m with mflags = { m.mflags with mf_access = FAPublic } }
+							| _ -> ()
+						) meths
 				| _ -> ()
 			) (get_all_fields cif);
 			List.iter (loop_interface cif) cif.cimplements
 		with | Not_found -> ()
 	in
 	List.iter (loop_interface cls) cls.cimplements;
+	let added = List.map (function
+		| (IlMethod m,a,name,b) ->
+			(IlMethod { m with mflags = { m.mflags with mf_access = FAPublic } },a,name,b)
+		| (IlField f,a,name,b) ->
+			(IlField { f with fflags = { f.fflags with ff_access = FAPublic } },a,name,b)
+		| s -> s
+	) !added in
 
 	(* filter out properties that were already declared *)
 	let props = List.filter (function
@@ -3549,7 +3571,7 @@ let normalize_ilcls ctx cls =
 	) cls.cprops in
 	let cls = { cls with cmethods = List.map (fun v -> !v) meths; cprops = props } in
 
-	let clsfields = !added @ get_all_fields cls in
+	let clsfields = added @ (get_all_fields cls) in
 	let super_fields = !all_fields in
 	all_fields := clsfields @ !all_fields;
 	let refclsfields = (List.map (fun v -> ref v) clsfields) in
@@ -3577,10 +3599,11 @@ let normalize_ilcls ctx cls =
 	let fields = List.filter (function | (IlField _,_,_,_) -> true | _ -> false) clsfields in
 	let methods = List.filter (function | (IlMethod _,_,_,_) -> true | _ -> false) clsfields in
 	let props = List.filter (function | (IlProp _,_,_,_) -> true | _ -> false) clsfields in
+	let methods = List.map (function | (IlMethod f,_,_,_) -> f | _ -> assert false) methods in
 	{ cls with
 		cfields = List.map (function | (IlField f,_,_,_) -> f | _ -> assert false) fields;
-		cmethods = List.map (function | (IlMethod f,_,_,_) -> f | _ -> assert false) methods;
 		cprops = List.map (function | (IlProp f,_,_,_) -> f | _ -> assert false) props;
+		cmethods = methods;
 	}
 
 let add_net_std com file =
