@@ -19,7 +19,8 @@ let main () =
 		List.iter (fun t -> print_endline (idata_table_s t)) idata;
 		let clr_header = read_clr_header ctx in
 		print_endline (clr_header_s (clr_header));
-		let meta = IlMetaReader.read_meta_tables ctx clr_header in
+		let cache = IlMetaReader.create_cache () in
+		let meta = IlMetaReader.read_meta_tables ctx clr_header cache in
 		Hashtbl.iter (fun path _ ->
 			print_endline ("\n\nclass " ^ path_s path ^ ": ");
 			let cls = convert_class meta path in

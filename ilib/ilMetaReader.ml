@@ -428,14 +428,31 @@ type meta_ctx = {
 	mutable meta_edit_continue : bool;
 	mutable meta_has_deleted : bool;
 
+  module_cache : meta_cache;
 	tables : (clr_meta DynArray.t) array;
 	table_sizes : ( string -> int -> int * int ) array;
 	extra_streams : clr_stream_header list;
 	relations : (meta_pointer, clr_meta) Hashtbl.t;
 	typedefs : (ilpath, meta_type_def) Hashtbl.t;
+
+	mutable delays : (unit -> unit) list;
+}
+
+and meta_cache = {
+	mutable lookups : (string -> meta_ctx option) list;
+	mutable mcache : (meta_module * meta_ctx) list;
 }
 
 let empty = "<not initialized>"
+
+let create_cache () =
+	{
+		lookups = [];
+		mcache = [];
+	}
+
+let add_lookup cache fn =
+	cache.lookups <- fn :: cache.lookups
 
 (* ******* Reading from Strings ********* *)
 
@@ -1496,6 +1513,42 @@ let read_field_ilsig_idx ?(force_field=true) ctx pos =
 		let _, ilsig = read_ilsig ctx s (i+1) in
 		metapos, ilsig
 
+let get_underlying_enum_type ctx name =
+  (* first try to get a typedef *)
+	let ns, name = match List.rev (String.nsplit name ".") with
+		| name :: ns -> List.rev ns, name
+		| _ -> assert false
+	in
+	try
+		let tdefs = ctx.tables.(int_of_table ITypeDef) in
+		let len = DynArray.length tdefs in
+		let rec loop_find idx =
+			if idx >= len then
+				raise Not_found
+			else
+				let tdef = match DynArray.get tdefs idx with | TypeDef td -> td | _ -> assert false in
+				if tdef.td_name = name && tdef.td_namespace = ns then
+					tdef
+				else
+					loop_find (idx+1)
+		in
+		let tdef = loop_find 1 in
+		(* now find the first static field associated with it *)
+		try
+			let nonstatic = List.find (fun f ->
+				not (List.mem CStatic f.f_flags.ff_contract)
+			) tdef.td_field_list in
+			nonstatic.f_signature
+		with | Not_found -> assert false (* should never happen! *)
+	with | Not_found ->
+		(* FIXME: in order to correctly handle SEnum, we need to look it up *)
+		(* from either this assembly or from any other assembly that we reference *)
+		(* this is tricky - specially since this reader does not intend to handle file system *)
+		(* operations by itself. For now, if an enum is referenced from another module, *)
+		(* we won't handle it. The `cache` structure is laid out to deal with these problems *)
+		(* but isn't implemented yet *)
+		raise Exit
+
 let read_custom_attr ctx attr_type s pos =
 	let pos, prolog = sread_ui16 s pos in
 	if prolog <> 0x0001 then error (sprintf "Error reading custom attribute: Expected prolog 0x0001 ; got 0x%x" prolog);
@@ -1522,17 +1575,22 @@ let read_custom_attr ctx attr_type s pos =
 			let pos, len = read_compressed_i32 s pos in
 			pos+len, InstType (String.sub s pos len)
 		| SObject | SBoxed -> (* boxed *)
-			let is_boxed = follow ilsig = SBoxed in
 			let pos = if sget s pos = 0x51 then pos+1 else pos in
 			let pos, ilsig = read_ilsig ctx s pos in
-			(match follow ilsig with
-			| SEnum _ ->
-				let pos,e = if is_boxed then sread_i32 s pos else read_compressed_i32 s pos in
-				pos, InstBoxed(InstEnum e)
-			| _ ->
-				let pos, boxed = read_constant ctx (sig_to_const ilsig) s pos in
-				pos, InstBoxed (InstConstant boxed))
-		| SValueType _ | SEnum _ -> (* enum *)
+			let pos, ret = read_instance ilsig pos in
+			pos, InstBoxed( ret )
+			(* (match follow ilsig with *)
+			(* | SEnum e -> *)
+			(* 		let ilsig = get_underlying_enum_type ctx e; *)
+			(* 	let pos,e = if is_boxed then sread_i32 s pos else read_compressed_i32 s pos in *)
+			(* 	pos, InstBoxed(InstEnum e) *)
+			(* | _ -> *)
+			(* 	let pos, boxed = read_constant ctx (sig_to_const ilsig) s pos in *)
+			(* 	pos, InstBoxed (InstConstant boxed)) *)
+		| SEnum e ->
+			let ilsig = get_underlying_enum_type ctx e in
+			read_instance ilsig pos
+		| SValueType _ -> (* enum *)
 			let pos, e = sread_i32 s pos in
 			pos, InstEnum e
 		| _ -> assert false
@@ -1596,7 +1654,7 @@ let read_custom_attr ctx attr_type s pos =
 	let pos, named = read_named [] pos 0 in
 	pos, (fixed, named)
 
-let read_custom_attr_idx ctx attr_type pos =
+let read_custom_attr_idx ctx ca attr_type pos =
 	let s = ctx.meta_stream in
 	let metapos,i = if ctx.blob_offset = 2 then
 		sread_ui16 s pos
@@ -1604,12 +1662,18 @@ let read_custom_attr_idx ctx attr_type pos =
 		sread_i32 s pos
 	in
 	if i = 0 then
-		metapos, None
+		metapos
 	else
 		let s = ctx.blob_stream in
 		let i, _ = read_compressed_i32 s i in
-		let _, attr = read_custom_attr ctx attr_type s i in
-		metapos, Some attr
+		ctx.delays <- (fun () ->
+			try
+				let _, attr = read_custom_attr ctx attr_type s i in
+				ca.ca_value <- Some attr
+			with | Exit ->
+				()
+		) :: ctx.delays;
+		metapos
 
 let read_next_index ctx offset table last pos =
 	if last then
@@ -1845,10 +1909,10 @@ let read_table_at ctx tbl n last pos =
 	| CustomAttribute ca ->
 		let pos, parent = sread_from_table ctx false IHasCustomAttribute s pos in
 		let pos, t = sread_from_table ctx false ICustomAttributeType s pos in
-		let pos, value = read_custom_attr_idx ctx t pos in
+		let pos = read_custom_attr_idx ctx ca t pos in
 		ca.ca_parent <- parent;
 		ca.ca_type <- t;
-		ca.ca_value <- value;
+		ca.ca_value <- None; (* this will be delayed by read_custom_attr_idx *)
 		add_relation ctx parent (CustomAttribute ca);
 		pos, CustomAttribute ca
 	| FieldMarshal fm ->
@@ -2245,7 +2309,7 @@ let read_padded i npad =
 	in
 	loop 1
 
-let read_meta_tables pctx header =
+let read_meta_tables pctx header module_cache =
 	let i = pctx.r.i in
 	seek_rva pctx (fst header.clr_meta);
 	let magic = nread i 4 in
@@ -2325,13 +2389,21 @@ let read_meta_tables pctx header =
 		meta_stream = !smeta;
 		meta_edit_continue = false;
 		meta_has_deleted = false;
+
+    module_cache = module_cache;
 		extra_streams = !extra;
 		relations = Hashtbl.create 64;
 		typedefs = Hashtbl.create 64;
 		tables = tables;
 		table_sizes = Array.make (max_clr_meta_idx+1) sread_ui16;
+
+		delays = [];
 	} in
 	read_meta ctx;
+	let delays = ctx.delays in
+	ctx.delays <- [];
+	List.iter (fun fn -> fn()) delays;
+	assert (ctx.delays = []);
 	{
 		il_tables = ctx.tables;
 		il_relations = ctx.relations;
