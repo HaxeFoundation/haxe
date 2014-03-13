@@ -106,7 +106,7 @@ uninstall:
 	rm -rf $(INSTALL_BIN_DIR)/haxe $(INSTALL_BIN_DIR)/haxelib $(INSTALL_LIB_DIR)
 
 export:
-	cp haxe*.exe doc/CHANGES.txt $(EXPORT)
+	cp haxe*.exe extra/CHANGES.txt $(EXPORT)
 	rsync -a --exclude .svn --exclude *.n --exclude std/libs --delete std $(EXPORT)
 
 codegen.cmx: optimizer.cmx typeload.cmx typecore.cmx type.cmx genxml.cmx common.cmx ast.cmx
