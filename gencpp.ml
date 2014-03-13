@@ -2334,6 +2334,10 @@ let path_of_string verbatim path =
    | head :: rest -> (List.rev rest, head)
 ;;
 
+let is_extern_class class_def =
+   class_def.cl_extern || (has_meta_key class_def.cl_meta Meta.Extern)
+;;
+
 (*
   Get a list of all classes referred to by the class/enum definition
   These are used for "#include"ing the appropriate header files,
@@ -2367,7 +2371,7 @@ let find_referenced_types ctx obj super_deps constructor_deps header_only for_de
 		| TInst (klass,params) ->
 			(match klass.cl_path with
          | ([],"Array") | ([],"Class") | (["cpp"],"FastIterator") -> List.iter visit_type params
-         | _ when klass.cl_extern -> add_extern_class klass
+         | _ when is_extern_class klass -> add_extern_class klass
 			| _ -> (match klass.cl_kind with KTypeParameter _ -> () | _ -> add_type klass.cl_path);
 			)
 		| TFun (args,haxe_type) -> visit_type haxe_type;
@@ -2382,7 +2386,7 @@ let find_referenced_types ctx obj super_deps constructor_deps header_only for_de
 			(* Expand out TTypeExpr (ie, the name of a class, as used for static access etc ... *)
 			(match expression.eexpr with
 				| TTypeExpr type_def -> ( match type_def with
-               | TClassDecl class_def when class_def.cl_extern -> add_extern_class class_def
+               | TClassDecl class_def when is_extern_class class_def -> add_extern_class class_def
 	            | _ -> add_type (t_path type_def)
                )
 
@@ -2578,7 +2582,7 @@ let generate_files common_ctx file_info =
 	output_files "#ifdef HXCPP_DEBUGGER\n";
 	List.iter ( fun object_def ->
 	(match object_def with
-		| TClassDecl class_def when class_def.cl_extern -> ( )
+		| TClassDecl class_def when is_extern_class class_def -> ( )
 		| TClassDecl class_def when class_def.cl_interface -> ( )
 		| TClassDecl class_def ->
 			output_files ((const_char_star (join_class_path class_def.cl_path "." )) ^ ",\n")
@@ -4489,7 +4493,7 @@ let generate_source common_ctx =
 
 	List.iter (fun object_def ->
 		(match object_def with
-		| TClassDecl class_def when class_def.cl_extern ->
+		| TClassDecl class_def when is_extern_class class_def ->
          (*if (gen_externs) then gen_extern_class common_ctx class_def file_info;*)();
 		| TClassDecl class_def ->
 			let name =  class_text class_def.cl_path in
