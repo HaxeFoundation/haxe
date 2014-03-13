@@ -89,14 +89,12 @@ let s_path ctx = if ctx.js_flatten then flat_path else dot_path
 let kwds =
 	let h = Hashtbl.create 0 in
 	List.iter (fun s -> Hashtbl.add h s ()) [
-		(* JS reserved words: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Reserved_Words *)
-		"break"; "case"; "catch"; "class"; "const"; "continue"; "debugger"; "default"; "delete";
-		"do"; "else"; "enum"; "export"; "extends"; "finally"; "for"; "function"; "if"; "implements";
-		"import"; "in"; "instanceof"; "interface"; "let"; "new"; "package"; "private"; "protected";
-		"public"; "return"; "static"; "super"; "switch"; "this"; "throw"; "try"; "typeof"; "var";
-		"void"; "while"; "with"; "yield";
-		(* reserved by closure compiler *)
-		"final"
+		"abstract"; "as"; "boolean"; "break"; "byte"; "case"; "catch"; "char"; "class"; "continue"; "const";
+		"debugger"; "default"; "delete"; "do"; "double"; "else"; "enum"; "export"; "extends"; "false"; "final";
+		"finally"; "float"; "for"; "function"; "goto"; "if"; "implements"; "import"; "in"; "instanceof"; "int";
+		"interface"; "is"; "let"; "long"; "namespace"; "native"; "new"; "null"; "package"; "private"; "protected";
+		"public"; "return"; "short"; "static"; "super"; "switch"; "synchronized"; "this"; "throw"; "throws";
+		"transient"; "true"; "try"; "typeof"; "use"; "var"; "void"; "volatile"; "while"; "with"; "yield"
 	];
 	h
 
