@@ -69,23 +69,31 @@ let api_inline ctx c field params p =
 			Some { eexpr = TConst (TString (if b then "true" else "false")); epos = p; etype = ctx.t.tstring }
 		| _ ->
 			None)
-(* 	| ([],"Std"),"string",[v] when ctx.com.platform = Js || ctx.com.platform = Flash ->
+	| ([],"Std"),"string",[{ eexpr = TIf (_,{ eexpr = TConst (TString _)},Some { eexpr = TConst (TString _) }) } as e] ->
+		Some e
+ 	| ([],"Std"),"string",[{ eexpr = TLocal _ | TField({ eexpr = TLocal _ },_) } as v] when ctx.com.platform = Js || ctx.com.platform = Flash ->
 		let pos = v.epos in
-		let stringt = ctx.com.basic.tstring in
-		let stringv = mk (TBinop (Ast.OpAdd, mk (TConst (TString "")) stringt pos, v)) stringt pos in
+		let stringv() =
+			let to_str = mk (TBinop (Ast.OpAdd, mk (TConst (TString "")) ctx.t.tstring pos, v)) ctx.t.tstring pos in
+			if ctx.com.platform = Js || is_nullable v.etype then
+				let chk_null = mk (TBinop (Ast.OpEq, v, mk (TConst TNull) v.etype pos)) ctx.t.tbool pos in
+				mk (TIf (chk_null, mk (TConst (TString "null")) ctx.t.tstring pos, Some to_str)) ctx.t.tstring pos
+			else
+				to_str
+		in
 		(match follow v.etype with
 		| TInst ({ cl_path = [],"String" }, []) ->
-			Some v
+			Some (stringv())
 		| TAbstract ({ a_path = [],"Float" }, []) ->
-			Some stringv
+			Some (stringv())
 		| TAbstract ({ a_path = [],"Int" }, []) ->
-			Some stringv
+			Some (stringv())
 		| TAbstract ({ a_path = [],"UInt" }, []) ->
-			Some stringv
+			Some (stringv())
 		| TAbstract ({ a_path = [],"Bool" }, []) ->
-			Some stringv
+			Some (stringv())
 		| _ ->
-			None) *)
+			None)
 	| ([],"Std"),"is",[o;t] | (["js"],"Boot"),"__instanceof",[o;t] when ctx.com.platform = Js ->
 		let mk_local ctx n t pos = mk (TLocal (try PMap.find n ctx.locals with _ -> add_local ctx n t)) t pos in
 

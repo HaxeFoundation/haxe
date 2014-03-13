@@ -413,7 +413,8 @@ class Serializer {
 			#elseif flash9
 			if( useEnumIndex ) {
 				buf.add(":");
-				buf.add(v.index);
+				var i : Int = v.index;
+				buf.add(i);
 			} else
 				serializeString(v.tag);
 			buf.add(":");
