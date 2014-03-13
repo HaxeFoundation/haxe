@@ -315,6 +315,12 @@ let has_meta_key meta key =
 ;;
 
 
+let get_field_access_meta field_access key =
+match field_access with
+	| FInstance(_,class_field) 
+	| FStatic(_,class_field) -> get_meta_string class_field.cf_meta key
+	| _ -> ""
+;;
 
 let get_code meta key =
 	let code = get_meta_string meta key in
@@ -1538,11 +1544,15 @@ and gen_expression ctx retval expression =
 		(match field_object.eexpr with
 		(* static access ... *)
 		| TTypeExpr type_def ->
-			let class_name = "::" ^ (join_class_path_remap (t_path type_def) "::" ) in
-			if (class_name="::String") then
-				output ("::String::" ^ remap_name)
-			else
-				output (class_name ^ "_obj::" ^ remap_name);
+			(match get_field_access_meta field Meta.Native with
+         | "" ->
+				let class_name = "::" ^ (join_class_path_remap (t_path type_def) "::" ) in
+				if (class_name="::String") then
+					output ("::String::" ^ remap_name)
+				else
+					output (class_name ^ "_obj::" ^ remap_name);
+         | native -> output native
+         )
 		(* Special internal access *)
 		| TLocal { v_name = "__global__" } ->
 			output ("::" ^ member )
