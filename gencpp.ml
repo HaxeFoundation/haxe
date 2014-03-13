@@ -53,7 +53,7 @@ let join_class_path path separator =
 let is_internal_class = function
 	|  ([],"Int") | ([],"Void") |  ([],"String") | ([], "Null") | ([], "Float")
 	|  ([],"Array") | ([], "Class") | ([], "Enum") | ([], "Bool")
-   |  ([], "Dynamic") | ([], "ArrayAccess") | (["cpp"], "FastIterator")-> true
+   |  ([], "Dynamic") | ([], "ArrayAccess") | (["cpp"], "FastIterator") | (["cpp"],"Pointer") -> true
 	|  ([],"Math") | (["haxe";"io"], "Unsigned_char__") -> true
 	| _ -> false;;
 
@@ -423,6 +423,8 @@ let rec class_string klass suffix params =
 	(* FastIterator class *)
 	|  (["cpp"],"FastIterator") -> "::cpp::FastIterator" ^ suffix ^ "< " ^ (String.concat ","
 					 (List.map type_string  params) ) ^ " >"
+	|  (["cpp"],"Pointer") -> "::cpp::Pointer" ^ suffix ^ "< " ^ (String.concat ","
+					 (List.map type_string  params) ) ^ " >"
 	| _ when (match klass.cl_kind with KTypeParameter _ -> true | _ -> false) -> "Dynamic"
 	|  ([],"#Int") -> "/* # */int"
 	|  (["haxe";"io"],"Unsigned_char__") -> "unsigned char"
@@ -481,6 +483,10 @@ and type_string_suff suffix haxe_type =
 			(match params with
 			| [t] -> "::cpp::FastIterator< " ^ (type_string (follow t) ) ^ " >"
 			| _ -> assert false)
+		| ["cpp"] , "Pointer" ->
+			(match params with
+			| [t] -> "::cpp::Pointer< " ^ (type_string (follow t) ) ^ " >"
+			| _ -> assert false)
 		| _ ->  type_string_suff suffix (apply_params type_def.t_types params type_def.t_type)
 		)
 	| TFun (args,haxe_type) -> "Dynamic" ^ suffix
@@ -537,6 +543,20 @@ let is_array haxe_type =
 	| _ -> false
 	;;
 
+
+let is_pointer haxe_type =
+	match follow haxe_type with
+	| TInst (klass,params) ->
+		(match klass.cl_path with
+		| ["cpp"] , "Pointer" -> true
+		| _ -> false )
+	| TType (type_def,params) ->
+		(match type_def.t_path with
+		| ["cpp"] , "Pointer" -> true
+		| _ -> false )
+	| _ -> false
+	;;
+
 let is_array_implementer haxe_type =
 	match follow haxe_type with
 	| TInst (klass,params) ->
@@ -585,6 +605,12 @@ let is_internal_member member =
 	| "__GetRealObject"
 			-> true
    | _ -> false;;
+
+
+let is_extern_class class_def =
+   class_def.cl_extern || (has_meta_key class_def.cl_meta Meta.Extern)
+;;
+
 
 
 let rec is_dynamic_accessor name acc field class_def =
@@ -968,12 +994,12 @@ let rec is_dynamic_in_cpp ctx expr =
 		| TField( obj, field ) ->
 			let name = field_name field in
 			ctx.ctx_dbgout ("/* ?tfield "^name^" */");
-				if (is_dynamic_member_lookup_in_cpp ctx obj name) then
+				if (is_dynamic_member_lookup_in_cpp ctx obj field) then
             (
                ctx.ctx_dbgout "/* tf=dynobj */";
                true
             )
-            else if (is_dynamic_member_return_in_cpp ctx obj name)  then
+            else if (is_dynamic_member_return_in_cpp ctx obj field)  then
             (
                ctx.ctx_dbgout "/* tf=dynret */";
                true
@@ -1005,9 +1031,11 @@ let rec is_dynamic_in_cpp ctx expr =
 		result
 	end
 
-and is_dynamic_member_lookup_in_cpp ctx field_object member =
+and is_dynamic_member_lookup_in_cpp ctx field_object field =
+   let member = field_name field in
    ctx.ctx_dbgout ("/*mem."^member^".*/");
 	if (is_internal_member member) then false else
+	if (is_pointer field_object.etype) then false else
 	if (match field_object.eexpr with | TTypeExpr _ -> ctx.ctx_dbgout "/*!TTypeExpr*/"; true | _ -> false) then false else
 	if (is_dynamic_in_cpp ctx field_object) then true else
 	if (is_array field_object.etype) then false else (
@@ -1025,7 +1053,8 @@ and is_dynamic_member_lookup_in_cpp ctx field_object member =
 					false )
 				with Not_found -> true
    )
-and is_dynamic_member_return_in_cpp ctx field_object member =
+and is_dynamic_member_return_in_cpp ctx field_object field =
+   let member = field_name field in
 	if (is_array field_object.etype) then false else
 	if (is_internal_member member) then false else
    match field_object.eexpr with
@@ -1568,7 +1597,7 @@ and gen_expression ctx retval expression =
          let isString = (type_string field_object.etype)="::String" in
          if (is_internal_member member && not settingInternal) then begin
 				output ( (if isString then "." else "->") ^ member );
-         end else if (settingInternal || is_dynamic_member_lookup_in_cpp ctx field_object member) then begin
+         end else if (settingInternal || is_dynamic_member_lookup_in_cpp ctx field_object field) then begin
             if assigning then
 				    output ( "->__FieldRef(" ^ (str member) ^ ")" )
             else
@@ -2334,9 +2363,6 @@ let path_of_string verbatim path =
    | head :: rest -> (List.rev rest, head)
 ;;
 
-let is_extern_class class_def =
-   class_def.cl_extern || (has_meta_key class_def.cl_meta Meta.Extern)
-;;
 
 (*
   Get a list of all classes referred to by the class/enum definition
@@ -2370,7 +2396,7 @@ let find_referenced_types ctx obj super_deps constructor_deps header_only for_de
 			for the Array or Class class, for which we do a fully typed object *)
 		| TInst (klass,params) ->
 			(match klass.cl_path with
-         | ([],"Array") | ([],"Class") | (["cpp"],"FastIterator") -> List.iter visit_type params
+         | ([],"Array") | ([],"Class") | (["cpp"],"FastIterator") | (["cpp"],"Pointer")-> List.iter visit_type params
          | _ when is_extern_class klass -> add_extern_class klass
 			| _ -> (match klass.cl_kind with KTypeParameter _ -> () | _ -> add_type klass.cl_path);
 			)
