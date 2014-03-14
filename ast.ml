@@ -625,7 +625,9 @@ let unescape s =
 					      _ -> try
 						assert (s.[i+1] = '{');
 						let l = String.index_from s (i+3) '}' - (i+2) in
-						(int_of_string ("0x" ^ String.sub s (i+2) l), l+2)
+						let u = int_of_string ("0x" ^ String.sub s (i+2) l) in
+						assert (u <= 0x10FFFF);
+						(u, l+2)
 					      with _ -> raise Exit) in
 					let ub = UTF8.Buf.create 0 in
 					UTF8.Buf.add_char ub (UChar.uchar_of_int u);
