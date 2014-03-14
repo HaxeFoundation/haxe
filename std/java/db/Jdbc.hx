@@ -259,15 +259,21 @@ private class JdbcResultSet implements sys.db.ResultSet
 				} else if (t == Types.DATE || t == Types.TIME) {
 					if (dbName == "SQLite")
 					{
-						var d:Date = Date.fromString(rs.getString(i+1));
-						val = d;
+						var str = rs.getString(i+1);
+						if (str != null)
+						{
+							var d:Date = Date.fromString(str);
+							val = d;
+						}
 					} else {
 						var d:java.sql.Date = rs.getDate(i+1);
-						val = Date.fromTime(cast d.getTime());
+						if (d != null)
+							val = Date.fromTime(cast d.getTime());
 					}
 				} else if (t == Types.LONGVARBINARY || t == Types.VARBINARY || t == Types.BINARY || t == Types.BLOB) {
 					var b = rs.getBytes(i+1);
-					val = Bytes.ofData(b);
+					if (b != null)
+						val = Bytes.ofData(b);
 				} else {
 					untyped __java__("val = rs.getObject(i + 1)"); //type parameter constraint + overloads
 				}
