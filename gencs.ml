@@ -2580,7 +2580,14 @@ let configure gen =
       )
       (base_exception_t)
       (hx_exception_t)
-      (fun v e -> e)
+      (fun v e ->
+
+        let exc_cl = get_cl (get_type gen (["haxe";"lang"],"Exceptions")) in
+        let exc_field = mk_static_field_access_infer exc_cl "exception" e.epos [] in
+        let esetstack = mk (TBinop(Ast.OpAssign, exc_field, mk_local v e.epos)) v.v_type e.epos in
+
+        Codegen.concat esetstack e;
+      )
   );
 
   let get_typeof e =

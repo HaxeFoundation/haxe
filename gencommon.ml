@@ -2599,10 +2599,10 @@ struct
               match follow v.v_type with
                 | TDynamic _ ->
                   assert (is_none catchall);
-                  (nowrap_catches, must_wrap_catches, Some(v,catch_map v (run catch)))
+                  (nowrap_catches, must_wrap_catches, Some(v,run catch))
                 (* see if we should unwrap it *)
                 | _ when should_wrap (follow v.v_type) ->
-                  (nowrap_catches, (v,catch_map v (run catch)) :: must_wrap_catches, catchall)
+                  (nowrap_catches, (v,run catch) :: must_wrap_catches, catchall)
                 | _ ->
                   ( (v,catch_map v (run catch)) :: nowrap_catches, must_wrap_catches, catchall )
             ) ([], [], None) catches
@@ -2648,7 +2648,7 @@ struct
                       | None ->
                         mk_block (rethrow_expr temp_local)
                 in
-                [ ( temp_var, { e with eexpr = TBlock([ catchall_decl; if_is_wrapper_expr; loop must_wrap_catches ]) } ) ]
+                [ ( temp_var, catch_map temp_var { e with eexpr = TBlock([ catchall_decl; if_is_wrapper_expr; loop must_wrap_catches ]) } ) ]
               | _ ->
                 []
             in
