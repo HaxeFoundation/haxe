@@ -730,9 +730,22 @@ let escape_command s =
    Buffer.contents b;;
 
 
+let max_str_length = 16380 / 2
+
 let str s =
-	let escaped = Ast.s_escape ~hex:false s in
-		("HX_CSTRING(\"" ^ (special_to_hex escaped) ^ "\")")
+	let rec loop s =
+		if String.length s > max_str_length then
+			(String.sub s 0 max_str_length) :: (loop (String.sub s max_str_length (String.length s - max_str_length)))
+		else
+			[s]
+	in
+	let sl = loop s in
+	let print_str s =
+		let escaped = Ast.s_escape ~hex:false s in
+		let s_escaped = special_to_hex escaped in
+		"\"" ^ s_escaped ^ "\""
+	in
+	("HX_CSTRING(" ^ (String.concat " " (List.map print_str sl)) ^ ")")
 ;;
 
 let const_char_star s =
