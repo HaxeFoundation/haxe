@@ -9,7 +9,7 @@
 	all : disallowed member field initialization of classes without constructors
 	all : added -D deprecation-warnings
 	flash : fixed invalid override involving single-constraint type parameters
-	flash8: fixed various bugs
+	flash8 : fixed various bugs
 	js : disable Std.string optimization of basic type to avoid problems with null values
 	js : fixed custom generators
 
