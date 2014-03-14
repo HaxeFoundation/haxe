@@ -38,7 +38,7 @@ abstract UInt(Int) from Int to Int {
 	}
 
 	@:op(A / B) private static inline function div(a:UInt, b:UInt):Float {
-		return a.toInt() / b.toInt();
+		return a.toFloat() / b.toFloat();
 	}
 
 	@:op(A * B) private static inline function mul(a:UInt, b:UInt):UInt {
@@ -50,41 +50,19 @@ abstract UInt(Int) from Int to Int {
 	}
 
 	@:op(A > B) private static inline function gt(a:UInt, b:UInt):Bool {
-		if (a.toInt() < 0) {
-			if (b.toInt() >= 0) {
-				return false;
-			}
-			else {
-				return a.toInt() > b.toInt();
-			}
-		}
-		else {
-			if (b.toInt() >= 0) {
-				return a.toInt() > b.toInt();
-			}
-			else {
-				return true;
-			}
-		}
+		var aNeg = a.toInt() < 0;
+		var bNeg = b.toInt() < 0;
+		return
+			if( aNeg != bNeg ) aNeg;
+			else a.toInt() > b.toInt();
 	}
 
 	@:op(A >= B) private static inline function gte(a:UInt, b:UInt):Bool {
-		if (a.toInt() < 0) {
-			if (b.toInt() >= 0) {
-				return false;
-			}
-			else {
-				return a.toInt() >= b.toInt();
-			}
-		}
-		else {
-			if (b.toInt() >= 0) {
-				return a.toInt() >= b.toInt();
-			}
-			else {
-				return true;
-			}
-		}
+		var aNeg = a.toInt() < 0;
+		var bNeg = b.toInt() < 0;
+		return
+			if( aNeg != bNeg ) aNeg;
+			else a.toInt() >= b.toInt();
 	}
 
 	@:op(A < B) private static inline function lt(a:UInt, b:UInt):Bool {
@@ -120,7 +98,7 @@ abstract UInt(Int) from Int to Int {
 	}
 
 	@:op(A % B) private static inline function mod(a:UInt, b:UInt):UInt {
-		return a.toInt() % b.toInt();
+		return Std.int( a.toFloat() % b.toFloat() );
 	}
 	
 	@:commutative @:op(A + B) private static inline function addWithFloat(a:UInt, b:Float):Float {
@@ -150,6 +128,14 @@ abstract UInt(Int) from Int to Int {
 	@:op(A > B) private static inline function gtFloat(a:UInt, b:Float):Bool {
 		return a.toFloat() > b;
 	}
+
+	@:commutative @:op(A == B) private static inline function equalsFloat(a:UInt, b:Float):Bool {
+        return a.toFloat() == b;
+    }
+
+    @:commutative @:op(A != B) private static inline function notEqualsFloat(a:UInt, b:Float):Bool {
+        return a.toFloat() != b;
+    }
 
 	@:op(A >= B) private static inline function gteFloat(a:UInt, b:Float):Bool {
 		return a.toFloat() >= b;
@@ -224,7 +210,9 @@ abstract UInt(Int) from Int to Int {
 			return 4294967296.0 + int;
 		}
 		else {
-			return int;
+			// + 0.0 here to make sure we promote to Float on some platforms
+			// In particular, PHP was having issues when comparing to Int in the == op.
+			return int + 0.0;
 		}
 	}
 }
