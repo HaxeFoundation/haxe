@@ -1,15 +1,15 @@
-1. Make sure CHANGES.txt has a proper date set.
-2. Make sure `version` in main.ml has the correct value.
-3. Merge development branch into master.
-4. Wait for Travis to greenlight master.
-5. Tag master.
-6. Wait for builds.haxe.org to build master.
-7. If required, tell Caue to fix builds.haxe.org.
-8. Get https://github.com/waneck/hxbuilds/tree/master/release-helper
-9. Run it with the fileName corresponding to the latest master file name on builds.haxe.org.
-10. Upload generated files to some place.
-11. Update Haxe download page.
-12. Double-check that you got the links right.
-13. Regenerate and upload API documentation.
-14. Write announcement post.
-15. Post announcement post.
+- Make sure CHANGES.txt has a proper date set.
+- Make sure `version` in main.ml has the correct value.
+- Merge development branch into master.
+- Wait for Travis to greenlight master.
+- Tag master.
+- Wait for builds.haxe.org to build master.
+- If required, tell Caue to fix builds.haxe.org.
+- Get https://github.com/waneck/hxbuilds/tree/master/release-helper
+- Run it with the fileName corresponding to the latest master file name on builds.haxe.org.
+- Upload generated files to some place.
+- Update Haxe download page.
+- Double-check that you got the links right.
+- Regenerate and upload API documentation.
+- Write announcement post.
+- Post announcement post.

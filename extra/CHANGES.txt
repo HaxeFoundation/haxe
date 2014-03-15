@@ -1,17 +1,25 @@
-2014-??-??: 3.1.1
+2014-03-15: 3.1.1
+
+	New features:
+
+	all : added -D deprecation-warnings
+	all : allowed \u escape sequences in strings
+	cs : implemented haxe.CallStack
 
 	Bugfixes:
 
 	all : fixed wrong handling of "" and null in haxe.io.Path.join
 	all : fixed invalid cast-to-self generation on some abstracts
 	all : removed @:to Dynamic from UInt to avoid issues in the Map selection algorithm
+	all : fixed various issues with UInt
+	all : fixed position setter in haxe.io.BytesInput
 	all : fixed various issues with member/static extension macros
-	all : disallowed member field initialization of classes without constructors
-	all : added -D deprecation-warnings
 	flash : fixed invalid override involving single-constraint type parameters
 	flash8 : fixed various bugs
-	js : disable Std.string optimization of basic type to avoid problems with null values
+	js : fixed a problem with Std.string(null) being optimized incorrectly
 	js : fixed custom generators
+	cpp : dealt with string literals that are too long for MSVC
+	cs : fixed various issues with -net-lib
 
 2014-03-04: 3.1.0
 
