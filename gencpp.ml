@@ -729,10 +729,24 @@ let escape_command s =
    String.iter (fun ch -> if (ch=='"' || ch=='\\' ) then Buffer.add_string b "\\";  Buffer.add_char b ch ) s;
    Buffer.contents b;;
 
-
 let str s =
+	let rec split s plus =
+		let escaped = Ast.s_escape ~hex:false s in
+		let hexed = (special_to_hex escaped) in
+		if (String.length hexed <= 16000 ) then
+			plus ^ " HX_CSTRING(\"" ^ hexed ^ "\")"
+		else begin
+			let len = String.length s in
+			let half = len lsr 1 in
+			(split (String.sub s 0 half) plus ) ^ (split (String.sub s half (len-half)) "+" )
+		end
+	in
 	let escaped = Ast.s_escape ~hex:false s in
-		("HX_CSTRING(\"" ^ (special_to_hex escaped) ^ "\")")
+	let hexed = (special_to_hex escaped) in
+	if (String.length hexed <= 16000 ) then
+		"HX_CSTRING(\"" ^ hexed ^ "\")"
+	else
+		"(" ^ (split s "" ) ^ ")"
 ;;
 
 let const_char_star s =
