@@ -22,6 +22,13 @@
 package cs.internal;
 import cs.system.Exception;
 
+@:nativeGen @:keep @:native("haxe.lang.Exceptions") class Exceptions {
+
+	@:allow(haxe.CallStack)
+	@:meta(System.ThreadStaticAttribute)
+	static var exception:cs.system.Exception;
+}
+
 //should NOT be usable inside haxe code
 @:nativeGen @:keep @:native("haxe.lang.HaxeException") private class HaxeException extends Exception
 {

@@ -174,6 +174,10 @@ class TestCSharp extends Test
 		var cl:NativeClass = new HxClass();
 		cl.refTest(i);
 		eq(i, 80);
+
+		cl.test = 100;
+		cl.refTest(cl.test);
+		eq(cl.test,400);
 	}
 
 	public function testOut()
@@ -185,6 +189,10 @@ class TestCSharp extends Test
 		var cl:NativeClass = new HxClass();
 		cl.outTest(i, 10);
 		eq(i, 40);
+
+		cl.test = 20;
+		cl.outTest(cl.test, 10);
+		eq(cl.test,40);
 	}
 
 	public function testChecked()
@@ -288,6 +296,7 @@ class TestCSharp extends Test
 
 @:nativeGen private class NativeClass
 {
+	public var test:Int;
 	public function outTest(out:cs.Out<Int>, x:Int):Void
 	{
 		out = x * 2;
@@ -304,6 +313,7 @@ typedef StringWithDescription = String;
 
 private class HxClass extends NativeClass
 {
+
 	public function new()
 	{
 

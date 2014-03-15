@@ -115,6 +115,14 @@ let rec is_int_float t =
     | TInst( { cl_path = (["haxe"; "lang"], "Null") }, [t] ) -> is_int_float t
     | _ -> false
 
+let is_bool t =
+  match follow t with
+    | TEnum( { e_path = ([], "Bool") }, [] )
+    | TAbstract ({ a_path = ([], "Bool") },[]) ->
+      true
+    | _ -> false
+
+
 let rec is_null t =
   match t with
     | TInst( { cl_path = (["haxe"; "lang"], "Null") }, _ )
@@ -416,6 +424,15 @@ struct
           run ef
         | TNew( { cl_path = ([], "String") }, [], [p] ) -> run p (* new String(myString) -> myString *)
 
+        | TCast(expr, _) when is_bool e.etype ->
+          {
+            eexpr = TCall(
+              mk_static_field_access_infer runtime_cl "toBool" expr.epos [],
+              [ run expr ]
+            );
+            etype = basic.tbool;
+            epos = e.epos
+          }
         | TCast(expr, _) when is_int_float e.etype && not (is_int_float expr.etype) && not (is_null e.etype) ->
           let needs_cast = match gen.gfollow#run_f e.etype with
             | TInst _ -> false
@@ -970,6 +987,14 @@ let configure gen =
       | _ -> gen.gcon.error ("This function argument " ^ explain ^ " must be a local variable.") e.epos; e
   in
 
+  let rec ensure_refout e explain =
+    match e.eexpr with
+      | TField _ | TLocal _ -> e
+      | TCast(e,_)
+      | TParenthesis e | TMeta(_,e) -> ensure_refout e explain
+      | _ -> gen.gcon.error ("This function argument " ^ explain ^ " must be a local variable.") e.epos; e
+  in
+
   let is_pointer t = match follow t with
     | TInst({ cl_path = (["cs"], "Pointer") }, _)
     | TAbstract ({ a_path = (["cs"], "Pointer") },_) ->
@@ -1446,12 +1471,12 @@ let configure gen =
             (match real_type t with
               | TType({ t_path = (["cs"], "Ref") }, _)
               | TAbstract ({ a_path = (["cs"], "Ref") },_) ->
-                let e = ensure_local e "of type cs.Ref" in
+                let e = ensure_refout e "of type cs.Ref" in
                 write w "ref ";
                 expr_s w e
               | TType({ t_path = (["cs"], "Out") }, _)
               | TAbstract ({ a_path = (["cs"], "Out") },_) ->
-                let e = ensure_local e "of type cs.Out" in
+                let e = ensure_refout e "of type cs.Out" in
                 write w "out ";
                 expr_s w e
               | _ ->
@@ -2378,13 +2403,16 @@ let configure gen =
 
   InitFunction.configure gen true;
   TArrayTransform.configure gen (TArrayTransform.default_implementation gen (
-  fun e ->
+  fun e binop ->
     match e.eexpr with
       | TArray(e1, e2) ->
         ( match follow e1.etype with
           | TDynamic _ | TAnon _ | TMono _ -> true
           | TInst({ cl_kind = KTypeParameter _ }, _) -> true
-          | _ -> false )
+          | _ -> match binop, change_param_type (t_to_md e1.etype) [e.etype] with
+            | Some(Ast.OpAssignOp _), ([TDynamic _] | [TAnon _]) ->
+              true
+            | _ -> false)
       | _ -> assert false
   ) "__get" "__set" );
 
@@ -2555,7 +2583,14 @@ let configure gen =
       )
       (base_exception_t)
       (hx_exception_t)
-      (fun v e -> e)
+      (fun v e ->
+
+        let exc_cl = get_cl (get_type gen (["haxe";"lang"],"Exceptions")) in
+        let exc_field = mk_static_field_access_infer exc_cl "exception" e.epos [] in
+        let esetstack = mk (TBinop(Ast.OpAssign, exc_field, mk_local v e.epos)) v.v_type e.epos in
+
+        Codegen.concat esetstack e;
+      )
   );
 
   let get_typeof e =
@@ -2617,15 +2652,10 @@ let configure gen =
   mkdir gen.gcon.file;
   mkdir (gen.gcon.file ^ "/src");
 
-  (* add resources array *)
-  (try
-    let res = get_cl (Hashtbl.find gen.gtypes (["haxe"], "Resource")) in
+  (* copy resource files *)
+  if Hashtbl.length gen.gcon.resources > 0 then begin
     mkdir (gen.gcon.file ^ "/src/Resources");
-    let cf = PMap.find "content" res.cl_statics in
-    let res = ref [] in
     Hashtbl.iter (fun name v ->
-      res := { eexpr = TConst(TString name); etype = gen.gcon.basic.tstring; epos = Ast.null_pos } :: !res;
-
       let full_path = gen.gcon.file ^ "/src/Resources/" ^ name in
       let parts = Str.split_delim (Str.regexp "[\\/]+") full_path in
       let dir_list = List.rev (List.tl (List.rev parts)) in
@@ -2635,6 +2665,15 @@ let configure gen =
       let f = open_out full_path in
       output_string f v;
       close_out f
+    ) gen.gcon.resources;
+  end;
+  (* add resources array *)
+  (try
+    let res = get_cl (Hashtbl.find gen.gtypes (["haxe"], "Resource")) in
+    let cf = PMap.find "content" res.cl_statics in
+    let res = ref [] in
+    Hashtbl.iter (fun name v ->
+      res := { eexpr = TConst(TString name); etype = gen.gcon.basic.tstring; epos = Ast.null_pos } :: !res;
     ) gen.gcon.resources;
     cf.cf_expr <- Some ({ eexpr = TArrayDecl(!res); etype = gen.gcon.basic.tarray gen.gcon.basic.tstring; epos = Ast.null_pos })
   with | Not_found -> ());
@@ -2758,6 +2797,7 @@ let netpath_to_hx std = function
 		let ns = (List.map String.lowercase ns) in
 		add_cs ns, netcl_to_hx cl
 	| ns,(nhd :: ntl as nested), cl ->
+		let nested = List.map (netcl_to_hx) nested in
 		let ns = (List.map String.lowercase ns) @ [nhd] in
 		add_cs ns, String.concat "_" nested ^ "_" ^ netcl_to_hx cl
 
@@ -2777,6 +2817,8 @@ let mk_type_path ctx path params =
 		| ns,[], cl ->
 			ns, None, netcl_to_hx cl
 		| ns, (nhd :: ntl as nested), cl ->
+			let nhd = netcl_to_hx nhd in
+			let nested = List.map (netcl_to_hx) nested in
 			ns, Some (String.concat "_" nested ^ "_" ^ netcl_to_hx cl), nhd
 	in
   CTPath {
@@ -2954,7 +2996,7 @@ let convert_ilevent ctx p ev =
     cff_kind = kind;
   }
 
-let convert_ilmethod ctx p m =
+let convert_ilmethod ctx p m is_explicit_impl =
 	if not (Common.defined ctx.ncom Define.Unsafe) && has_unmanaged m.msig.snorm then raise Exit;
 	let p = { p with pfile =  p.pfile ^" (" ^m.mname ^")" } in
 	let cff_doc = None in
@@ -2973,7 +3015,8 @@ let convert_ilmethod ctx p m =
 		| FAFamily | FAFamOrAssem -> APrivate
 		(* | FAPrivate -> APrivate *)
 		| FAPublic -> APublic
-		| _ -> raise Exit
+		| _ ->
+			raise Exit
 	in
 	if PMap.mem "net_loader_debug" ctx.ncom.defines then
 		Printf.printf "\tname %s : %s\n" cff_name (IlMetaDebug.ilsig_s m.msig.ssig);
@@ -2990,6 +3033,11 @@ let convert_ilmethod ctx p m =
 		| None | Some false ->
 			(Meta.Final, [], p) :: meta
 		| _ -> meta
+	in
+	let meta = if is_explicit_impl then
+			(Meta.NoCompletion,[],p) :: (Meta.SkipReflection,[],p) :: meta
+		else
+			meta
 	in
 	(* let meta = if List.mem OSynchronized m.mflags.mf_interop then *)
 	(* 	(Meta.Synchronized,[],p) :: meta *)
@@ -3072,7 +3120,7 @@ let convert_ilmethod ctx p m =
 		cff_kind = kind;
 	}
 
-let convert_ilprop ctx p prop =
+let convert_ilprop ctx p prop is_explicit_impl =
 	if not (Common.defined ctx.ncom Define.Unsafe) && has_unmanaged prop.psig.snorm then raise Exit;
 	let p = { p with pfile =  p.pfile ^" (" ^prop.pname ^")" } in
   let pmflags = match prop.pget, prop.pset with
@@ -3109,6 +3157,12 @@ let convert_ilprop ctx p prop =
 		| s -> raise Exit
 	in
 
+	let meta = if is_explicit_impl then
+			[ Meta.NoCompletion,[],p; Meta.SkipReflection,[],p ]
+		else
+			[]
+	in
+
 	let kind =
 		FProp (get, set, Some(convert_signature ctx p ilsig), None)
 	in
@@ -3116,7 +3170,7 @@ let convert_ilprop ctx p prop =
 		cff_name = prop.pname;
 		cff_doc = None;
 		cff_pos = p;
-		cff_meta = [];
+		cff_meta = meta;
 		cff_access = cff_access;
 		cff_kind = kind;
 	}
@@ -3155,15 +3209,27 @@ let mk_abstract_fun name p kind metas acc =
     cff_kind = kind;
   }
 
+let convert_fun_arg ctx p = function
+	| LManagedPointer s ->
+		mk_type_path ctx (["cs"],[],"Ref") [ TPType (convert_signature ctx p s) ]
+	| s ->
+		convert_signature ctx p s
+
+let convert_fun ctx p ret args =
+	let args = List.map (convert_fun_arg ctx p) args in
+	CTFunction(args, convert_signature ctx p ret)
+
 let convert_delegate ctx p ilcls =
-	let p = { p with pfile =  p.pfile ^" abstract delegate" } in
+	let p = { p with pfile =  p.pfile ^" (abstract delegate)" } in
   (* will have the following methods: *)
   (* - new (haxeType:Func) *)
   (* - FromHaxeFunction(haxeType) *)
   (* - Invoke() *)
   (* - AsDelegate():Super *)
   let invoke = List.find (fun m -> m.mname = "Invoke") ilcls.cmethods in
-  let haxe_type = convert_signature ctx p invoke.msig.snorm in
+	let ret = invoke.mret.snorm in
+	let args = List.map (fun (_,_,s) -> s.snorm) invoke.margs in
+	let haxe_type = convert_fun ctx p ret args in
   let types = List.map (fun t ->
     {
       tp_name = "T" ^ string_of_int t.tnumber;
@@ -3177,10 +3243,6 @@ let convert_delegate ctx p ilcls =
   let underlying_type = match ilcls.cpath with
     | ns,inner,name ->
       mk_type_path ctx (ns,inner,"Delegate_" ^ name) params
-  in
-  let ret,args = match invoke.msig.snorm with
-    | LMethod (_,ret,args) -> ret,args
-    | _ -> assert false
   in
 
   let fn_new = FFun {
@@ -3201,7 +3263,7 @@ let convert_delegate ctx p ilcls =
     f_params = [];
     f_args = List.map (fun arg ->
       incr i;
-      "arg" ^ string_of_int !i, false, Some (convert_signature ctx p arg), None
+      "arg" ^ string_of_int !i, false, Some (convert_fun_arg ctx p arg), None
     ) args;
     f_type = Some(convert_signature ctx p ret);
     f_expr = Some(
@@ -3301,9 +3363,13 @@ let convert_ilclass ctx p ?(delegate=false) ilcls = match ilcls.csuper with
 				else
 					ilcls.cmethods
 			in
-			run_fields (convert_ilmethod ctx p) meths;
+			run_fields (fun m ->
+				convert_ilmethod ctx p m (List.exists (fun m2 -> m != m2 && String.get m2.mname 0 <> '.' && String.ends_with m2.mname ("." ^ m.mname)) meths)
+			) meths;
 			run_fields (convert_ilfield ctx p) ilcls.cfields;
-			run_fields (convert_ilprop ctx p) ilcls.cprops;
+			run_fields (fun prop ->
+				convert_ilprop ctx p prop (List.exists (fun p2 -> prop != p2 && String.get p2.pname 0 <> '.' && String.ends_with p2.pname ("." ^ prop.pname)) ilcls.cprops)
+			) ilcls.cprops;
 			run_fields (convert_ilevent ctx p) ilcls.cevents;
 
 			let params = List.map (fun p ->
@@ -3391,14 +3457,27 @@ let ilcls_with_params ctx cls params =
 	| _ ->
 		{ cls with
 			cfields = List.map (fun f -> { f with fsig = { f.fsig with snorm = ilapply_params params f.fsig.snorm } }) cls.cfields;
-			cmethods = List.map (fun m -> { m with msig = { m.msig with snorm = ilapply_params params m.msig.snorm } }) cls.cmethods;
+			cmethods = List.map (fun m -> { m with
+				msig = { m.msig with snorm = ilapply_params params m.msig.snorm };
+				margs = List.map (fun (n,f,s) -> (n,f,{ s with snorm = ilapply_params params s.snorm })) m.margs;
+				mret = { m.mret with snorm = ilapply_params params m.mret.snorm };
+			}) cls.cmethods;
 			cprops = List.map (fun p -> { p with psig = { p.psig with snorm = ilapply_params params p.psig.snorm } }) cls.cprops;
 			csuper = Option.map (fun s -> { s with snorm = ilapply_params params s.snorm } ) cls.csuper;
 			cimplements = List.map (fun s -> { s with snorm = ilapply_params params s.snorm } ) cls.cimplements;
 		}
 
+let rec compatible_types t1 t2 = match t1,t2 with
+  | LManagedPointer(s1), LManagedPointer(s2) -> compatible_types s1 s2
+  | LManagedPointer(s1), s2 | s1, LManagedPointer(s2) ->
+    compatible_types s1 s2
+  | _ -> t1 = t2
+
 let compatible_methods m1 m2 = match m1, m2 with
-	| LMethod(_,r1,a1), LMethod(_,r2,a2) -> a1 = a2
+	| LMethod(_,r1,a1), LMethod(_,r2,a2) -> (try
+    List.for_all2 (fun a1 a2 -> compatible_types a1 a2) a1 a2
+  with | Invalid_argument _ ->
+    false)
 	| _ -> false
 
 let compatible_field f1 f2 = match f1, f2 with
@@ -3486,13 +3565,26 @@ let normalize_ilcls ctx cls =
 					) !current_all) then begin
 						current_all := ff :: !current_all;
 						added := ff :: !added
-					end
+					end else
+						(* ensure it's public *)
+						List.iter (fun mref -> match !mref with
+							| m when m.mname = name && compatible_field f (IlMethod m) ->
+								mref := { m with mflags = { m.mflags with mf_access = FAPublic } }
+							| _ -> ()
+						) meths
 				| _ -> ()
 			) (get_all_fields cif);
 			List.iter (loop_interface cif) cif.cimplements
 		with | Not_found -> ()
 	in
 	List.iter (loop_interface cls) cls.cimplements;
+	let added = List.map (function
+		| (IlMethod m,a,name,b) ->
+			(IlMethod { m with mflags = { m.mflags with mf_access = FAPublic } },a,name,b)
+		| (IlField f,a,name,b) ->
+			(IlField { f with fflags = { f.fflags with ff_access = FAPublic } },a,name,b)
+		| s -> s
+	) !added in
 
 	(* filter out properties that were already declared *)
 	let props = List.filter (function
@@ -3504,7 +3596,7 @@ let normalize_ilcls ctx cls =
 	) cls.cprops in
 	let cls = { cls with cmethods = List.map (fun v -> !v) meths; cprops = props } in
 
-	let clsfields = !added @ get_all_fields cls in
+	let clsfields = added @ (get_all_fields cls) in
 	let super_fields = !all_fields in
 	all_fields := clsfields @ !all_fields;
 	let refclsfields = (List.map (fun v -> ref v) clsfields) in
@@ -3532,10 +3624,11 @@ let normalize_ilcls ctx cls =
 	let fields = List.filter (function | (IlField _,_,_,_) -> true | _ -> false) clsfields in
 	let methods = List.filter (function | (IlMethod _,_,_,_) -> true | _ -> false) clsfields in
 	let props = List.filter (function | (IlProp _,_,_,_) -> true | _ -> false) clsfields in
+	let methods = List.map (function | (IlMethod f,_,_,_) -> f | _ -> assert false) methods in
 	{ cls with
 		cfields = List.map (function | (IlField f,_,_,_) -> f | _ -> assert false) fields;
-		cmethods = List.map (function | (IlMethod f,_,_,_) -> f | _ -> assert false) methods;
 		cprops = List.map (function | (IlProp f,_,_,_) -> f | _ -> assert false) props;
+		cmethods = methods;
 	}
 
 let add_net_std com file =
@@ -3561,7 +3654,8 @@ let add_net_lib com file std =
 			let r = PeReader.create_r (open_in_bin file) com.defines in
 			let ctx = PeReader.read r in
 			let clr_header = PeReader.read_clr_header ctx in
-			let meta = IlMetaReader.read_meta_tables ctx clr_header in
+			let cache = IlMetaReader.create_cache () in
+			let meta = IlMetaReader.read_meta_tables ctx clr_header cache in
 			close_in (r.PeReader.ch);
 			if PMap.mem "net_loader_debug" com.defines then
 				print_endline ("for lib " ^ file);

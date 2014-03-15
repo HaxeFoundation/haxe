@@ -681,6 +681,7 @@ let rec get_fun_modifiers meta access modifiers =
     (*| (Meta.Unsafe,[],_) :: meta -> get_fun_modifiers meta access ("unsafe" :: modifiers)*)
     | (Meta.Volatile,[],_) :: meta -> get_fun_modifiers meta access ("volatile" :: modifiers)
     | (Meta.Transient,[],_) :: meta -> get_fun_modifiers meta access ("transient" :: modifiers)
+    | (Meta.Native,[],_) :: meta -> get_fun_modifiers meta access ("native" :: modifiers)
     | _ :: meta -> get_fun_modifiers meta access modifiers
 
 (* this was the way I found to pass the generator context to be accessible across all functions here *)
@@ -1527,7 +1528,7 @@ let configure gen =
           | _ ->
               print w "(%s)" (String.concat ", " (List.map (fun (name, _, t) -> sprintf "%s %s" (t_s cf.cf_pos (run_follow gen t)) (change_id name)) args))
         );
-        if is_interface then
+        if is_interface || List.mem "native" modifiers then
           write w ";"
         else begin
           let rec loop meta =
@@ -1899,7 +1900,7 @@ let configure gen =
 
   InitFunction.configure gen true;
   TArrayTransform.configure gen (TArrayTransform.default_implementation gen (
-  fun e ->
+  fun e _ ->
     match e.eexpr with
       | TArray ({ eexpr = TLocal { v_extra = Some( _ :: _, _) } }, _) -> (* captured transformation *)
         false
@@ -2229,10 +2230,24 @@ exception ConversionError of string * pos
 let error s p = raise (ConversionError (s, p))
 
 let jname_to_hx name =
+  let name =
+    if name <> "" && (String.get name 0 < 'A' || String.get name 0 > 'Z') then
+      Char.escaped (Char.uppercase (String.get name 0)) ^ String.sub name 1 (String.length name - 1)
+    else
+      name
+  in
   (* handle non-inner classes with same final name as non-inner *)
   let name = String.concat "__" (String.nsplit name "_") in
   (* handle with inner classes *)
   String.map (function | '$' -> '_' | c -> c) name
+
+let normalize_pack pack =
+  List.map (function
+    | "" -> ""
+    | str when String.get str 0 >= 'A' && String.get str 0 <= 'Z' ->
+      String.lowercase str
+    | str -> str
+  ) pack
 
 let jpath_to_hx (pack,name) = match pack, name with
   | ["haxe";"root"], name -> [], name
@@ -2240,8 +2255,8 @@ let jpath_to_hx (pack,name) = match pack, name with
   | "javax" :: _, _
   | "org" :: ("ietf" | "jcp" | "omg" | "w3c" | "xml") :: _, _
   | "sun" :: _, _
-  | "sunw" :: _, _ -> "java" :: pack, jname_to_hx name
-  | pack, name -> pack, jname_to_hx name
+  | "sunw" :: _, _ -> "java" :: normalize_pack pack, jname_to_hx name
+  | pack, name -> normalize_pack pack, jname_to_hx name
 
 let hxname_to_j name =
   let name = String.implode (List.rev (String.explode name)) in
@@ -3010,17 +3025,30 @@ let add_java_lib com file std =
     | Not_found ->
       failwith ("Java lib " ^ file ^ " not found")
   in
+  let hxpack_to_jpack = Hashtbl.create 16 in
   let get_raw_class, close, list_all_files =
     (* check if it is a directory or jar file *)
     match (Unix.stat file).st_kind with
     | S_DIR -> (* open classes directly from directory *)
+      let rec iter_files pack dir path = try
+        let file = Unix.readdir dir in
+        if String.ends_with file ".class" then
+          let file = String.sub file 0 (String.length file - 6) in
+          Hashtbl.add hxpack_to_jpack (jpath_to_hx(pack,file)) (pack,file)
+        else if (Unix.stat file).st_kind = S_DIR then
+          let path = path ^"/"^ file in
+          let pack = pack @ [file] in
+          iter_files (pack @ [file]) (Unix.opendir path) path
+      with | End_of_file | Unix.Unix_error _ ->
+        Unix.closedir dir
+      in
+      iter_files [] (Unix.opendir file) file;
+
       (fun (pack, name) ->
-        let pack, name = hxpath_to_j (pack,name) in
+        (* let pack, name = hxpath_to_j (pack,name) in *)
         let real_path = file ^ "/" ^ (String.concat "/" pack) ^ "/" ^ (name ^ ".class") in
         try
           let data = Std.input_file ~bin:true real_path in
-
-
           Some(JReader.parse_class (IO.input_string data), real_path, real_path)
         with
           | _ -> None), (fun () -> ()), (fun () -> let ret = ref [] in get_classes_dir [] file ret; !ret)
@@ -3034,8 +3062,19 @@ let add_java_lib com file std =
           closed := false
         end
       in
+      List.iter (function
+        | { Zip.is_directory = false; Zip.filename = filename } when String.ends_with filename ".class" ->
+          let pack = String.nsplit filename "/" in
+          (match List.rev pack with
+            | [] -> ()
+            | name :: pack ->
+              let name = String.sub name 0 (String.length name - 6) in
+              let pack = List.rev pack in
+              Hashtbl.add hxpack_to_jpack (jpath_to_hx (pack,name)) (pack,name))
+        | _ -> ()
+      ) (Zip.entries !zip);
       (fun (pack, name) ->
-        let pack, name = hxpath_to_j (pack,name) in
+        (* let pack, name = hxpath_to_j (pack,name) in *)
         check_open();
         try
           let location = (String.concat "/" (pack @ [name]) ^ ".class") in
@@ -3053,15 +3092,23 @@ let add_java_lib com file std =
     try
       Hashtbl.find cached_types path
     with | Not_found ->
-      match get_raw_class path with
-      | None ->
-          Hashtbl.add cached_types path None;
-          None
-      | Some (i, p1, p2) ->
-          Hashtbl.add cached_types path (Some(i,p1,p2)); (* type loop normalization *)
-          let ret = Some (normalize_jclass com i, p1, p2) in
-          Hashtbl.replace cached_types path ret;
-          ret
+      let pack, name = hxpath_to_j path in
+      let try_file (pack,name) =
+        match get_raw_class (pack,name) with
+        | None ->
+            Hashtbl.add cached_types path None;
+            None
+        | Some (i, p1, p2) ->
+            Hashtbl.add cached_types path (Some(i,p1,p2)); (* type loop normalization *)
+            let ret = Some (normalize_jclass com i, p1, p2) in
+            Hashtbl.replace cached_types path ret;
+            ret
+      in
+      let ret = try_file (pack,name) in
+      if ret = None && Hashtbl.mem hxpack_to_jpack path then
+        try_file (Hashtbl.find hxpack_to_jpack path)
+      else
+        ret
   in
   let rec build ctx path p types =
     try

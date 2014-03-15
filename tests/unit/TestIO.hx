@@ -136,4 +136,23 @@ class TestIO extends Test {
 		exc( function() i.readBytes(tmp,0,7) );
 	}
 
+	function testBytesInputSeek() {
+		var b = haxe.io.Bytes.ofString("0123456789abcdef");
+		var i = new haxe.io.BytesInput( b );
+		i.position = 15;
+		eq( i.readByte(), "f".code );
+		exc( i.readByte );
+		i.position = 1;
+		eq( i.readByte(), "1".code );
+		eq( i.readByte(), "2".code );
+		var tmp = haxe.io.Bytes.alloc(14);
+		eq( i.readBytes(tmp,0,13), 13 );
+		exc( i.readByte );
+		i.position = -10;
+		eq( i.position, 0 );
+		eq( i.readByte(), "0".code );
+		i.position = 999;
+		eq( i.position, i.length );
+		exc( i.readByte );
+	}
 }

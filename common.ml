@@ -170,6 +170,7 @@ module Define = struct
 		| Dce
 		| DceDebug
 		| Debug
+		| DeprecationWarnings
 		| Display
 		| DllExport
 		| DllImport
@@ -241,6 +242,7 @@ module Define = struct
 		| Dce -> ("dce","The current DCE mode")
 		| DceDebug -> ("dce_debug","Show DCE log")
 		| Debug -> ("debug","Activated when compiling with -debug")
+		| DeprecationWarnings -> ("deprecation-warnings","Warn if fields annotated with @:deprecated are used")
 		| Display -> ("display","Activated during completion")
 		| DllExport -> ("dll_export", "GenCPP experimental linking")
 		| DllImport -> ("dll_import", "GenCPP experimental linking")

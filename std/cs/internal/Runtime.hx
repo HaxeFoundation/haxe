@@ -772,6 +772,14 @@ import cs.system.Type;
 		return null;
 	}
 
+	@:functionCode('
+		return dyn == null ? false : ((bool) dyn);
+	')
+	public static function toBool(dyn:Dynamic):Bool
+	{
+		return false;
+	}
+
 
 	//TODO: change from genericCast to getConverter, so we don't need to handle extra boxing associated with it
 	/*@:functionCode('

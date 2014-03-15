@@ -181,6 +181,7 @@ class Path {
 		If `paths` is null, the result is unspecified.
 	**/
 	public static function join(paths:Array<String>) : String {
+		var paths = paths.filter(function(s) return s != null && s != "");
 		if (paths.length == 0) {
 			return "";
 		}
@@ -223,9 +224,32 @@ class Path {
 			}
 		}
 
-		var regex = ~/([^:])\/+/g;
 		var tmp = target.join(slash);
+		#if !flash8
+		var regex = ~/([^:])\/+/g;
 		var result = regex.replace(tmp, "$1" +slash);
+		#else
+		var acc = new StringBuf();
+		var colon = false;
+		var slashes = false;
+		for (i in 0...tmp.length) {
+			switch (tmp.charCodeAt(i)) {
+				case ":".code:
+					acc.add(":");
+					colon = true;
+				case "/".code if (colon == false):
+					slashes = true;
+				case i:
+					colon = false;
+					if (slashes) {
+						acc.add("/");
+						slashes = false;
+					}
+					acc.add(String.fromCharCode(i));
+			}
+		}
+		var result = acc.toString();
+		#end
 		return result;
 	}
 

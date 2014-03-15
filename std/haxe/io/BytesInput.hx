@@ -74,9 +74,12 @@ class BytesInput extends Input {
 	}
 	
 	function set_position( p : Int ) : Int {
+		if( p < 0 ) p = 0;
+		else if( p > length ) p = length;
 		#if flash9
 		return b.position = p;
 		#else
+		len = totlen - p;
 		return pos = p;
 		#end
 	}
