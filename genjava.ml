@@ -1900,7 +1900,7 @@ let configure gen =
 
   InitFunction.configure gen true;
   TArrayTransform.configure gen (TArrayTransform.default_implementation gen (
-  fun e ->
+  fun e _ ->
     match e.eexpr with
       | TArray ({ eexpr = TLocal { v_extra = Some( _ :: _, _) } }, _) -> (* captured transformation *)
         false

@@ -2403,13 +2403,16 @@ let configure gen =
 
   InitFunction.configure gen true;
   TArrayTransform.configure gen (TArrayTransform.default_implementation gen (
-  fun e ->
+  fun e binop ->
     match e.eexpr with
       | TArray(e1, e2) ->
         ( match follow e1.etype with
           | TDynamic _ | TAnon _ | TMono _ -> true
           | TInst({ cl_kind = KTypeParameter _ }, _) -> true
-          | _ -> false )
+          | _ -> match binop, change_param_type (t_to_md e1.etype) [e.etype] with
+            | Some(Ast.OpAssignOp _), ([TDynamic _] | [TAnon _]) ->
+              true
+            | _ -> false)
       | _ -> assert false
   ) "__get" "__set" );
 
