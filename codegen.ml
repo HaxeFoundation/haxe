@@ -531,7 +531,7 @@ let build_macro_type ctx pl p =
 		| [TInst ({ cl_kind = KExpr (EArrayDecl [ECall (e,args),_],_) },_)] ->
 			get_macro_path e args p
 		| _ ->
-			error "MacroType require a single expression call parameter" p
+			error "MacroType requires a single expression call parameter" p
 	) in
 	let old = ctx.ret in
 	let t = (match ctx.g.do_macro ctx MMacroType path field args p with
@@ -544,7 +544,7 @@ let build_macro_type ctx pl p =
 let build_macro_build ctx c pl cfl p =
 	let path, field, args = match Meta.get Meta.GenericBuild c.cl_meta with
 		| _,[ECall(e,args),_],_ -> get_macro_path e args p
-		| _ -> assert false
+		| _ -> error "genericBuild requires a single expression call parameter" p
 	in
 	let old = ctx.ret,ctx.g.get_build_infos in
 	ctx.g.get_build_infos <- (fun() -> Some (TClassDecl c, pl, cfl));
