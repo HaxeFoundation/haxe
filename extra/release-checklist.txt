@@ -11,5 +11,6 @@
 - Update Haxe download page.
 - Double-check that you got the links right.
 - Regenerate and upload API documentation.
+- Update http://haxe.org/file/CHANGES.txt
 - Write announcement post.
 - Post announcement post.
