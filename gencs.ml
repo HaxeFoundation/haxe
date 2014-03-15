@@ -2996,7 +2996,7 @@ let convert_ilevent ctx p ev =
     cff_kind = kind;
   }
 
-let convert_ilmethod ctx p m =
+let convert_ilmethod ctx p m is_explicit_impl =
 	if not (Common.defined ctx.ncom Define.Unsafe) && has_unmanaged m.msig.snorm then raise Exit;
 	let p = { p with pfile =  p.pfile ^" (" ^m.mname ^")" } in
 	let cff_doc = None in
@@ -3033,6 +3033,11 @@ let convert_ilmethod ctx p m =
 		| None | Some false ->
 			(Meta.Final, [], p) :: meta
 		| _ -> meta
+	in
+	let meta = if is_explicit_impl then
+			(Meta.NoCompletion,[],p) :: (Meta.SkipReflection,[],p) :: meta
+		else
+			meta
 	in
 	(* let meta = if List.mem OSynchronized m.mflags.mf_interop then *)
 	(* 	(Meta.Synchronized,[],p) :: meta *)
@@ -3115,7 +3120,7 @@ let convert_ilmethod ctx p m =
 		cff_kind = kind;
 	}
 
-let convert_ilprop ctx p prop =
+let convert_ilprop ctx p prop is_explicit_impl =
 	if not (Common.defined ctx.ncom Define.Unsafe) && has_unmanaged prop.psig.snorm then raise Exit;
 	let p = { p with pfile =  p.pfile ^" (" ^prop.pname ^")" } in
   let pmflags = match prop.pget, prop.pset with
@@ -3152,6 +3157,12 @@ let convert_ilprop ctx p prop =
 		| s -> raise Exit
 	in
 
+	let meta = if is_explicit_impl then
+			[ Meta.NoCompletion,[],p; Meta.SkipReflection,[],p ]
+		else
+			[]
+	in
+
 	let kind =
 		FProp (get, set, Some(convert_signature ctx p ilsig), None)
 	in
@@ -3159,7 +3170,7 @@ let convert_ilprop ctx p prop =
 		cff_name = prop.pname;
 		cff_doc = None;
 		cff_pos = p;
-		cff_meta = [];
+		cff_meta = meta;
 		cff_access = cff_access;
 		cff_kind = kind;
 	}
@@ -3352,9 +3363,13 @@ let convert_ilclass ctx p ?(delegate=false) ilcls = match ilcls.csuper with
 				else
 					ilcls.cmethods
 			in
-			run_fields (convert_ilmethod ctx p) meths;
+			run_fields (fun m ->
+				convert_ilmethod ctx p m (List.exists (fun m2 -> m != m2 && String.get m2.mname 0 <> '.' && String.ends_with m2.mname ("." ^ m.mname)) meths)
+			) meths;
 			run_fields (convert_ilfield ctx p) ilcls.cfields;
-			run_fields (convert_ilprop ctx p) ilcls.cprops;
+			run_fields (fun prop ->
+				convert_ilprop ctx p prop (List.exists (fun p2 -> prop != p2 && String.get p2.pname 0 <> '.' && String.ends_with p2.pname ("." ^ prop.pname)) ilcls.cprops)
+			) ilcls.cprops;
 			run_fields (convert_ilevent ctx p) ilcls.cevents;
 
 			let params = List.map (fun p ->
