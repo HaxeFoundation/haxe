@@ -2,6 +2,7 @@ package unit.issues;
 
 class Issue2754 extends unit.Test
 {
+#if (cs || java)
 	public function testClass()
 	{
 		var tc = new TestClass();
@@ -127,6 +128,7 @@ class Issue2754 extends unit.Test
 		eq(tc.nullArrayInt[0], 42);
 		eq(tc.nullArrayNullInt[0], 441);
 	}
+#end
 
 	private static inline function complexGetNull<T>():Null<T>
 	{
