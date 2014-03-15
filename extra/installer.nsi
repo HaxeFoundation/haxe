@@ -122,6 +122,7 @@ Section "Haxe ${VERSION}" Main
 	SectionIn 1 2 RO
 	SetOverwrite on
 
+	RMDir /r /REBOOTOK "$INSTDIR\haxe\std"
 	SetOutPath "$INSTDIR\haxe"
 
 	File /r /x .svn /x *.db /x Exceptions.log /x .local /x .multi /x *.pdb /x *.vshost.exe /x *.vshost.exe.config /x *.vshost.exe.manifest "resources\haxe\*.*"
