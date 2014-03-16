@@ -24,7 +24,7 @@ class RunTravis {
 
 			if (exitCode == 0) {
 				return;
-			} else {
+			} else if (trials > 0) {
 				Sys.println('Command will be re-run...');
 			}
 		}
@@ -131,7 +131,7 @@ class RunTravis {
 					//https://saucelabs.com/opensource/travis
 					runCommand("npm", ["install", "wd"], true);
 					runCommand("curl", ["https://gist.github.com/santiycr/5139565/raw/sauce_connect_setup.sh", "-L", "|", "bash"], true);
-					runCommand("haxelib", ["git", "nodejs", "https://github.com/dionjwa/nodejs-std.git", "src"], true);
+					runCommand("haxelib", ["git", "nodejs", "https://github.com/dionjwa/nodejs-std.git", "master", "src"], true);
 					runCommand("haxe", ["compile-saucelabs-runner.hxml"]);
 					runCommand("nekotools", ["server", "&"]);
 					runCommand("node", ["RunSauceLabs.js"]);
