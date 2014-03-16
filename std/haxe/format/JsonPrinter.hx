@@ -10,7 +10,7 @@ class JsonPrinter {
 
 	var buf : #if flash9 flash.utils.ByteArray #else StringBuf #end;
 	var replacer : Dynamic -> Dynamic -> Dynamic;
-	
+
 	function new(replacer:Dynamic -> Dynamic -> Dynamic) {
 		this.replacer = replacer;
 

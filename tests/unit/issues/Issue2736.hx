@@ -16,12 +16,12 @@ class Issue2736 extends Test {
         f(a == b); t(a != b);
         t(a > b); t(a >= b);
         f(a < b); f(a <= b);
-        
+
         // UInt vs Float comparisons
         f( a == 1.0 ); t( b == 50000.0 );
         t( a > 1.0 ); t( a >= 1.0 );
         f( a < -1.0 ); f( a <= 1.0 );
-        
+
         /* These are currently broken but should be fixed in the future:
 		 * Currently we don't allow UInt vs Int comparisons.
          * trace(a == -1794967296);

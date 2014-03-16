@@ -12,7 +12,7 @@ class Issue2676 extends Test {
 				case _: 4;
 			}
 		}
-		
+
 		eq(1, match1("foo"));
 		eq(4, match1("foo2"));
 		eq(2, match1("bAr"));
@@ -21,19 +21,19 @@ class Issue2676 extends Test {
 		eq(4, match1("barz"));
 		eq(3, match1("abc"));
 		eq(4, match1("ab"));
-		
+
 		// check side effect handling
 		function func(i1:Int, i2:Int, i3:Int) {
 			return '$i1;$i2;$i3';
 		}
-		
+
 		var i = 0;
-		
+
 		var s = switch(9) {
 			case func(i++, i++, i++) => "0;1;2": "ok";
 			case _: "not ok";
 		}
-		
+
 		eq("ok", s);
 	}
 }

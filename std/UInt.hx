@@ -100,7 +100,7 @@ abstract UInt(Int) from Int to Int {
 	@:op(A % B) private static inline function mod(a:UInt, b:UInt):UInt {
 		return Std.int( a.toFloat() % b.toFloat() );
 	}
-	
+
 	@:commutative @:op(A + B) private static inline function addWithFloat(a:UInt, b:Float):Float {
 		return a.toFloat() + b;
 	}

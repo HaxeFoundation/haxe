@@ -95,7 +95,7 @@ class Bytes {
 			b1[i+pos] = b2[i+srcpos];
 		#end
 	}
-	
+
 	public function fill( pos : Int, len : Int, value : Int ) {
 		#if flash9
 		var v4 = value&0xFF;
@@ -103,7 +103,7 @@ class Bytes {
 		v4 |= v4<<16;
 		b.position = pos;
 		for( i in 0...len>>2 )
-			b.writeUnsignedInt(v4);		
+			b.writeUnsignedInt(v4);
 		pos += len&~3;
 		for( i in 0...len&3 )
 			set(pos++,value);

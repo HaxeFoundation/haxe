@@ -12,11 +12,11 @@ class Issue2685 extends Test {
 		eq(2, func1(a));
 		eq(4, func2(a));
 	}
-	
+
 	static function func1(a:Dynamic) {
 		return a;
 	}
-	
+
 	static function func2(a:Int) {
 		return a;
 	}

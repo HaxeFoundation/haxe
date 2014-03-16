@@ -1,7 +1,7 @@
 class InlineCtor {
 	public var x:Int;
 	public var y:String;
-	
+
 	public inline function new(x, y) {
 		this.x = x;
 		this.y = y;
@@ -16,7 +16,7 @@ class Test {
 		{}
 		3;
 	}
-	
+
 	@:js('
 		var a = 3;
 		var b = 27;
@@ -25,7 +25,7 @@ class Test {
 		var a = 1 + 2;
 		var b = 9 * 3;
 	}
-	
+
 	@:js('
 		var c_x = 12;
 		var c_y = "foo";
@@ -41,7 +41,7 @@ class Test {
 		x = c.x;
 		var y = c.y;
 	}
-	
+
 	@:js('
 		var a = 0;
 		a = 1;
@@ -59,7 +59,7 @@ class Test {
 		}
 		a = c.x;
 	}
-	
+
 	@:js('
 		var a = 0;
 		var c_x = 1;
@@ -78,7 +78,7 @@ class Test {
 		}
 		b.x = a;
 	}
-	
+
 	@:js('
 		var x_foo = 1;
 		var x_bar = 2;
@@ -93,14 +93,14 @@ class Test {
 		var y = x.foo;
 		var z = x.bar;
 	}
-	
+
 	@:js('var x = { \'oh-my\' : "god"};')
 	static function testStructureInlineInvalidField() {
         var x = {
             "oh-my": "god"
         };
 	}
-	
+
 	@:js('
 		var a_0 = 1;
 		var a_1 = 2;

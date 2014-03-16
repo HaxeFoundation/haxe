@@ -93,7 +93,7 @@
 	public static function isObject( v : Dynamic ) : Bool untyped {
 		return $typeof(v) == $tobject && v.__enum__ == null;
 	}
-	
+
 	public static function isEnumValue( v : Dynamic ) : Bool untyped {
 		return $typeof(v) == $tobject && v.__enum__ != null;
 	}

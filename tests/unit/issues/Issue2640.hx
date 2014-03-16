@@ -5,7 +5,7 @@ abstract A<T>(Int) {
 	public function new(i) {
 		this = i;
 	}
-	
+
 	macro public function test(self) {
 		var t = haxe.macro.Context.typeof(self);
 		return macro $v{haxe.macro.TypeTools.toString(t)};

@@ -35,18 +35,18 @@ using Lambda;
 **/
 class TypeTools {
 	#if macro
-	
+
 	/**
 		Follows all typedefs of `t` to reach the actual type.
-		
+
 		If `once` is true, this function does not call itself recursively,
 		otherwise it does. This can be useful in cases where intermediate
 		typedefs might be of interest.
-		
+
 		Affected types are monomorphs `TMono` and typedefs `TType(t,pl)`.
-		
+
 		If `t` is null, an internal exception is thrown.
-		
+
 		Usage example:
 			var t = Context.typeof(macro null); // TMono(<mono>)
 			var ts = Context.typeof(macro "foo"); //TInst(String,[])
@@ -56,30 +56,30 @@ class TypeTools {
 	**/
 	static public inline function follow( t : Type, ?once : Bool ) : Type
 		return Context.follow(t, once);
-		
+
 	/**
 		Returns true if `t1` and `t2` unify, false otherwise.
 	**/
 	static public inline function unify( t1 : Type, t2:Type ) : Bool
 		return Context.unify(t1, t2);
-		
+
 	/**
 		Returns a syntax-level type corresponding to Type `t`.
-		
+
 		This function is mostly inverse to `ComplexTypeTools.toType`, but may
 		lose some information on types that do not have a corresponding syntax
 		version, such as monomorphs. In these cases, the result is null.
-		
+
 		If `t` is null, an internal exception is thrown.
 	**/
 	static public inline function toComplexType( t : Type ) : ComplexType
 		return Context.toComplexType(t);
-		
+
 	/**
 		Tries to extract the class instance stored inside `t`.
-		
+
 		If `t` is a class instance `TInst(c,pl)`, c is returned.
-		
+
 		If `t` is of a different type, an exception of type String is thrown.
 
 		If `t` is null, the result is null.
@@ -88,12 +88,12 @@ class TypeTools {
 		case TInst(c, _): c.get();
 		case _: throw "Class instance expected";
 	}
-	
+
 	/**
 		Tries to extract the enum instance stored inside `t`.
-		
+
 		If `t` is an enum instance `TEnum(e,pl)`, e is returned.
-		
+
 		If `t` is of a different type, an exception of type String is thrown.
 
 		If `t` is null, the result is null.
@@ -106,16 +106,16 @@ class TypeTools {
 	/**
 		Applies the type parameters `typeParameters` to type `t` with the given
 		types `concreteTypes`.
-		
+
 		This function replaces occurences of type parameters in `t` if they are
 		part of `typeParameters`. The array index of such a type parameter is
 		then used to lookup the concrete type in `concreteTypes`.
-		
+
 		If `typeParameters.length` is not equal to `concreteTypes.length`, an
 		exception of type `String` is thrown.
-		
+
 		If `typeParameters.length` is 0, `t` is returned unchanged.
-		
+
 		If either argument is `null`, the result is unspecified.
 	**/
 	static public function applyTypeParameters(t:Type, typeParameters:Array<TypeParameter>, concreteTypes:Array<Type>):Type {
@@ -125,19 +125,19 @@ class TypeTools {
 			return t;
 		return Context.load("apply_params", 3)(typeParameters.map(function(tp) return {name:untyped tp.name.__s, t:tp.t}), concreteTypes, t);
 	}
-	
+
 	/**
 		Transforms `t` by calling `f` on each of its subtypes.
-		
+
 		If `t` is a compound type, `f` is called on each of its components.
-		
+
 		Otherwise `t` is returned unchanged.
-		
+
 		The following types are considered compound:
 			- TInst, TEnum, TType and TAbstract with type parameters
 			- TFun
 			- TAnonymous
-			
+
 		If `t` or `f` are null, the result is unspecified.
 	**/
 	static public function map(t:Type, f:Type -> Type):Type {
@@ -173,23 +173,23 @@ class TypeTools {
 				ft == ft2 ? t : ft2;
 		}
 	}
-	
+
 	/**
 		Converts type `t` to a human-readable String representation.
 	**/
 	static public function toString( t : Type ) : String return new String(Context.load("s_type", 1)(t));
 	#end
-	
+
 	/**
 		Resolves the field named `name` on class `c`.
-		
+
 		If `isStatic` is true, the classes' static fields are checked. Otherwise
 		the classes' member fields are checked.
-		
+
 		If the field is found, it is returned. Otherwise if `c` has a super
 		class, `findField` recursively checks that super class. Otherwise null
 		is returned.
-		
+
 		If any argument is null, the result is unspecified.
 	**/
 	static public function findField(c:ClassType, name:String, isStatic:Bool = false):Null<ClassField> {

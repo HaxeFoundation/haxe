@@ -41,7 +41,7 @@ private typedef AbstractSocket = {
 /**
 	This class can be used to handle Http requests consistently across
 	platforms. There are two intended usages:
-	
+
 	- call haxe.Http.requestUrl(url) and receive the result as a String (not
 	available on flash)
 	- create a new haxe.Http(url), register your callbacks for onData, onError
@@ -89,7 +89,7 @@ class Http {
 		this.url = url;
 		headers = new List<{ header:String, value:String }>();
 		params = new List<{ param:String, value:String }>();
-		
+
 		#if js
 		async = true;
 		#elseif sys
@@ -117,7 +117,7 @@ class Http {
 		headers.push({ header:header, value:value });
 		return this;
 	}
-	
+
 	/**
 		Sets the parameter identified as `param` to value `value`.
 
@@ -135,7 +135,7 @@ class Http {
 		params.push({ param:param, value:value });
 		return this;
 	}
-	
+
 	#if !flash8
 	/**
 		Sets the post data of `this` Http request to `data`.
@@ -160,9 +160,9 @@ class Http {
 	#elseif flash9
 	var req:flash.net.URLLoader;
 	#end
-	
+
 	/**
-		Cancels `this` Http request if `request` has been called and a response 
+		Cancels `this` Http request if `request` has been called and a response
 		has not yet been received.
 	**/
 	public function cancel()

@@ -36,7 +36,7 @@ class Browser {
 
 	public static var navigator(get, never):js.html.Navigator;
 	inline static function get_navigator() return untyped __js__("window.navigator");
-	
+
 	/**
 	 * True if a window object exists, false otherwise.
 	 *
@@ -45,7 +45,7 @@ class Browser {
 	 */
 	public static var supported(get, never):Bool;
 	public static function get_supported() return untyped __js__("typeof window != \"undefined\"");
-	
+
 	/**
 	 * Safely gets the browser's local storage, or returns null if localStorage is unsupported or
 	 * disabled.

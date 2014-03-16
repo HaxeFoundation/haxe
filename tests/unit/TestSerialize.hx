@@ -98,7 +98,7 @@ class TestSerialize extends Test {
 			t(v.i == 8 || v.i == 9);
 		}
 		f(nothing);
-		
+
 		// bytes
 		doTestBytes(haxe.io.Bytes.alloc(0));
 		doTestBytes(haxe.io.Bytes.ofString("A"));

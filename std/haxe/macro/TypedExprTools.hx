@@ -27,7 +27,7 @@ import haxe.macro.Type;
 
 class TypedExprTools {
 	#if macro
-	
+
 	static function with(e:TypedExpr, ?edef:TypedExprDef, ?t:Type) {
 		return {
 			expr: edef == null ? e.expr : edef,
@@ -35,10 +35,10 @@ class TypedExprTools {
 			t: t == null ? e.t : t
 		}
 	}
-	
+
 	/**
 		Transforms the sub-expressions of [e] by calling [f] on each of them.
-		
+
 		See `haxe.macro.ExprTools.map` for details on expression mapping in
 		general. This function works the same way, but with a different data
 		structure.
@@ -71,12 +71,12 @@ class TypedExprTools {
 			case TMeta(m, e1): with(e, TMeta(m, f(e1)));
 		}
 	}
-	
+
 	/**
 		Transforms the sub-expressions of [e] by calling [f] on each of them.
 		Additionally, types are mapped using `ft` and variables are mapped using
 		`fv`.
-		
+
 		See `haxe.macro.ExprTools.map` for details on expression mapping in
 		general. This function works the same way, but with a different data
 		structure.
@@ -110,7 +110,7 @@ class TypedExprTools {
 			case TMeta(m, e1): with(e, TMeta(m, f(e1)), ft(e.t));
 		}
 	}
-	
+
 	static public function toString(t:TypedExpr, ?pretty = false):String {
 		return new String(Context.load("s_expr", 2)(t, pretty));
 	}

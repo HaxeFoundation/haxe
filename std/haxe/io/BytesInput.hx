@@ -28,7 +28,7 @@ class BytesInput extends Input {
 	var len : Int;
 	var totlen : Int;
 	#end
-	
+
 	/** The current position in the stream in bytes. */
 	public var position(get,set) : Int;
 
@@ -56,7 +56,7 @@ class BytesInput extends Input {
 		this.totlen = len;
 		#end
 	}
-	
+
 	inline function get_position() : Int {
 		#if flash9
 		return b.position;
@@ -72,7 +72,7 @@ class BytesInput extends Input {
 		return totlen;
 		#end
 	}
-	
+
 	function set_position( p : Int ) : Int {
 		if( p < 0 ) p = 0;
 		else if( p > length ) p = length;
@@ -83,7 +83,7 @@ class BytesInput extends Input {
 		return pos = p;
 		#end
 	}
-	
+
 	public override function readByte() : Int {
 		#if flash9
 			return try b.readUnsignedByte() catch( e : Dynamic ) throw new Eof();

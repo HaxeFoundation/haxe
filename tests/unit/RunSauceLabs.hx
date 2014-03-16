@@ -8,7 +8,7 @@ class RunSauceLabs {
 		var browser:Dynamic = webdriver.remote(
 			"localhost",
 			4445,
-			Sys.getEnv("SAUCE_USERNAME"), 
+			Sys.getEnv("SAUCE_USERNAME"),
 			Sys.getEnv("SAUCE_ACCESS_KEY")
 		);
 

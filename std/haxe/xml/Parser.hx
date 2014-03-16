@@ -58,14 +58,14 @@ class Parser
 		h.set("nbsp", String.fromCharCode(160));
 		h;
 	}
-	
+
 	static public function parse(str:String)
 	{
 		var doc = Xml.createDocument();
 		doParse(str, 0, doc);
 		return doc;
 	}
-	
+
 	static function doParse(str:String, p:Int = 0, ?parent:Xml):Int
 	{
 		var xml:Xml = null;
@@ -323,23 +323,23 @@ class Parser
 			}
 			c = str.fastCodeAt(++p);
 		}
-		
+
 		if (state == S.BEGIN)
 		{
 			start = p;
 			state = S.PCDATA;
 		}
-		
+
 		if (state == S.PCDATA)
 		{
 			if (p != start || nsubs == 0)
 				parent.addChild(Xml.createPCData(buf.toString() + str.substr(start, p - start)));
 			return p;
 		}
-		
+
 		throw "Unexpected end";
 	}
-	
+
 	static inline function isValidChar(c) {
 		return (c >= 'a'.code && c <= 'z'.code) || (c >= 'A'.code && c <= 'Z'.code) || (c >= '0'.code && c <= '9'.code) || c == ':'.code || c == '.'.code || c == '_'.code || c == '-'.code;
 	}

@@ -29,19 +29,19 @@
 package haxe.xml;
 
 class Printer {
-	
+
 	static public function print(xml:Xml) {
 		var printer = new Printer();
 		printer.writeNode(xml, "");
 		return printer.output.toString();
 	}
-	
+
 	var output:StringBuf;
-	
+
 	function new() {
 		output = new StringBuf();
 	}
-	
+
 	function writeNode(value:Xml, tabs:String) {
 		switch (value.nodeType) {
 			case Xml.CData:
@@ -89,15 +89,15 @@ class Printer {
 				}
 			}
 	}
-	
+
 	inline function write(input:String) {
 		output.add(input);
 	}
-	
+
 	inline function newline() {
 		output.add("\n");
 	}
-	
+
 	function hasChildren(value:Xml):Bool {
 		for (child in value) {
 			switch (child.nodeType) {

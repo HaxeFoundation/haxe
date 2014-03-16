@@ -15,7 +15,7 @@ class TestOrder extends Test {
 	public function testUsing() {
 		// Latest using should be used
 		eq("foo".usingTest(), "3");
-		
+
 		// Latest enum should be used
 		var c:E2 = E2.C1;
 		TestType.typedAs(C1, c);

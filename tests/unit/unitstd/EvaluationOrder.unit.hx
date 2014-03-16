@@ -112,7 +112,7 @@ function arr(x, y) {
 function idx(x, y) {
 	return 0;
 }
-	
+
 var end = begin();
 (arr(a(), b()))[idx(c(), d())];
 eq(end(), "1_2_3_4");

@@ -18,14 +18,14 @@ static function main() {
 			var args = Sys.args();
 			if (args.length > 0) rel_path = args[0];
 		}
-		
+
 		if (rel_path == "") {
 			neko.Lib.print("error:no path to executable specified");
 			return;
 		}
-		
+
 		var p = new sys.io.Process(neko.Web.getCwd() + rel_path, []);
-		
+
 		try {
 			while ( true ) {
 				var c = p.stdout.readByte();

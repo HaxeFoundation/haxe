@@ -6,7 +6,7 @@ class WeakMap<K:{},V> extends flash.utils.Dictionary implements Map.IMap<K,V> {
 	public function new() {
 		super(true);
 	}
-	
+
 	public inline function get( key : K ) : Null<V> {
 		return untyped this[key];
 	}
@@ -26,7 +26,7 @@ class WeakMap<K:{},V> extends flash.utils.Dictionary implements Map.IMap<K,V> {
 	}
 
 	#if as3
-	
+
  	public function keys() : Iterator<K> {
 		return untyped __keys__(this).iterator();
  	}
@@ -38,7 +38,7 @@ class WeakMap<K:{},V> extends flash.utils.Dictionary implements Map.IMap<K,V> {
 		return ret.iterator();
  	}
 	#else
-	
+
 	public function keys() : Iterator<K> {
 		return NativePropertyIterator.iterator(this);
 	}
@@ -46,7 +46,7 @@ class WeakMap<K:{},V> extends flash.utils.Dictionary implements Map.IMap<K,V> {
 	public function iterator() : Iterator<V> {
 		return NativeValueIterator.iterator(this);
 	}
-	
+
 	#end
 
 	public function toString() : String {

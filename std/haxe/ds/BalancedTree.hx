@@ -26,36 +26,36 @@ package haxe.ds;
 	BalancedTree allows key-value mapping with arbitrary keys, as long as they
 	can be ordered. By default, `Reflect.compare` is used in the `compare`
 	method, which can be overridden in subclasses.
-	
+
 	Operations have a logarithmic average and worst-case cost.
-	
+
 	Iteration over keys and values, using `keys` and `iterator` respectively,
 	are in-order.
 **/
 class BalancedTree<K,V> {
 	var root:TreeNode<K,V>;
-	
+
 	/**
 		Creates a new BalancedTree, which is initially empty.
 	**/
 	public function new() { }
-	
+
 	/**
 		Binds `key` to `value`.
-		
+
 		If `key` is already bound to a value, that binding disappears.
-		
+
 		If `key` is null, the result is unspecified.
 	**/
 	public function set(key:K, value:V) {
 		root = setLoop(key, value, root);
 	}
-	
+
 	/**
 		Returns the value `key` is bound to.
-		
+
 		If `key` is not bound to any value, `null` is returned.
-		
+
 		If `key` is null, the result is unspecified.
 	**/
 	public function get(key:K):Null<V> {
@@ -68,15 +68,15 @@ class BalancedTree<K,V> {
 		}
 		return null;
 	}
-	
+
 	/**
 		Removes the current binding of `key`.
-		
+
 		If `key` has no binding, `this` BalancedTree is unchanged and false is
 		returned.
-		
+
 		Otherwise the binding of `key` is removed and true is returned.
-		
+
 		If `key` is null, the result is unspecified.
 	**/
 	public function remove(key:K) {
@@ -88,12 +88,12 @@ class BalancedTree<K,V> {
 			return false;
 		}
 	}
-	
+
 	/**
 		Tells if `key` is bound to a value.
-		
+
 		This method returns true even if `key` is bound to null.
-		
+
 		If `key` is null, the result is unspecified.
 	**/
 	public function exists(key:K) {
@@ -106,10 +106,10 @@ class BalancedTree<K,V> {
 		}
 		return false;
 	}
-	
+
 	/**
 		Iterates over the bound values of `this` BalancedTree.
-		
+
 		This operation is performed in-order.
 	**/
 	public function iterator():Iterator<V> {
@@ -117,10 +117,10 @@ class BalancedTree<K,V> {
 		iteratorLoop(root, ret);
 		return ret.iterator();
 	}
-	
+
 	/**
 		Iterates over the keys of `this` BalancedTree.
-		
+
 		This operation is performed in-order.
 	**/
 	public function keys():Iterator<K> {
@@ -128,7 +128,7 @@ class BalancedTree<K,V> {
 		keysLoop(root, ret);
 		return ret.iterator();
 	}
-	
+
 	function setLoop(k:K, v:V, node:TreeNode<K,V>) {
 		if (node == null) return new TreeNode<K,V>(null, k, v, null);
 		var c = compare(k, node.key);
@@ -141,7 +141,7 @@ class BalancedTree<K,V> {
 			balance(node.left, node.key, node.value, nr);
 		}
 	}
-		
+
 	function removeLoop(k:K, node:TreeNode<K,V>) {
 		if (node == null) throw "Not_found";
 		var c = compare(k, node.key);
@@ -149,7 +149,7 @@ class BalancedTree<K,V> {
 		else if (c < 0) balance(removeLoop(k, node.left), node.key, node.value, node.right);
 		else balance(node.left, node.key, node.value, removeLoop(k, node.right));
 	}
-	
+
 	function iteratorLoop(node:TreeNode<K,V>, acc:Array<V>) {
 		if (node != null) {
 			iteratorLoop(node.left, acc);
@@ -157,7 +157,7 @@ class BalancedTree<K,V> {
 			iteratorLoop(node.right, acc);
 		}
 	}
-	
+
 	function keysLoop(node:TreeNode<K,V>, acc:Array<K>) {
 		if (node != null) {
 			keysLoop(node.left, acc);
@@ -165,25 +165,25 @@ class BalancedTree<K,V> {
 			keysLoop(node.right, acc);
 		}
 	}
-	
+
 	function merge(t1, t2) {
 		if (t1 == null) return t2;
 		if (t2 == null) return t1;
 		var t = minBinding(t2);
 		return balance(t1, t.key, t.value, removeMinBinding(t2));
 	}
-	
+
 	function minBinding(t:TreeNode<K,V>) {
 		return if (t == null) throw "Not_found";
 		else if (t.left == null) t;
 		else minBinding(t.left);
 	}
-	
+
 	function removeMinBinding(t:TreeNode<K,V>) {
 		return if (t.left == null) t.right;
 		else balance(removeMinBinding(t.left), t.key, t.value, t.right);
 	}
-		
+
 	function balance(l:TreeNode<K,V>, k:K, v:V, r:TreeNode<K,V>):TreeNode<K,V> {
 		var hl = l.get_height();
 		var hr = r.get_height();
@@ -197,11 +197,11 @@ class BalancedTree<K,V> {
 			new TreeNode<K,V>(l, k, v, r, (hl > hr ? hl : hr) + 1);
 		}
 	}
-	
+
 	function compare(k1:K, k2:K) {
 		return Reflect.compare(k1, k2);
 	}
-	
+
 	public function toString() {
 		return '{${root.toString()}}';
 	}
@@ -216,7 +216,7 @@ class TreeNode<K,V> {
 	public
 	#end
 	var _height : Int;
-	
+
 	public function new(l, k, v, r, h = -1) {
 		left = l;
 		key = k;
@@ -227,9 +227,9 @@ class TreeNode<K,V> {
 		else
 			_height = h;
 	}
-	
+
 	@:extern public inline function get_height() return this == null ? 0 : _height;
-	
+
 	public function toString() {
 		return (left == null ? "" : left.toString() + ", ") + '$key=$value' + (right == null ? "" : ", " +right.toString());
 	}

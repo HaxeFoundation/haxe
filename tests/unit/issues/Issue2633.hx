@@ -13,7 +13,7 @@ class Issue2633 extends Test {
        eq(2, match(2));
        eq(2, match(3));
 	}
-	
+
 	function match(i) {
 		return switch [WorldRegion.MiddleCenter, i] {
             case [WorldRegion.MiddleCenter, 1]|[WorldRegion.MiddleCenter, 0]:

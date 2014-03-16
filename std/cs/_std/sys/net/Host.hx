@@ -12,11 +12,11 @@ import haxe.io.BytesInput;
 /**
 	A given IP host name.
 **/
-@:coreapi 
+@:coreapi
 class Host {
 	public var hostEntry(default, null) : IPHostEntry;
 	public var ipAddress(default, null) : IPAddress;
-	
+
 	/**
 		The actual IP corresponding to the host.
 	**/
@@ -24,7 +24,7 @@ class Host {
 	private function get_ip() : Int {
 		return new BytesInput(Bytes.ofData( ipAddress.GetAddressBytes() )).readInt32();
 	}
-	
+
 	/**
 		Creates a new Host : the name can be an IP in the form "127.0.0.1" or an host name such as "google.com", in which case
 		the corresponding IP address is resolved using DNS. An exception occur if the host name could not be found.

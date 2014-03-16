@@ -84,13 +84,13 @@ class StringTools {
 		Escapes HTML special characters of the string `s`.
 
 		The following replacements are made:
-			
+
 		- `&` becomes `&amp`;
 		- `<` becomes `&lt`;
 		- `>` becomes `&gt`;
-		
+
 		If `quotes` is true, the following characters are also replaced:
-		
+
 		- `"` becomes `&quot`;
 		- `'` becomes `&#039`;
 	**/
@@ -106,7 +106,7 @@ class StringTools {
 		holds: htmlUnescape(htmlEscape(s)) == s
 
 		The replacements follow:
-			
+
 		- `&amp;` becomes `&`
 		- `&lt;` becomes `<`
 		- `&gt;` becomes `>`

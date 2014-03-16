@@ -43,7 +43,7 @@ abstract Vector<T>(VectorData<T>) {
 		Creates a new Vector of length `length`.
 
 		Initially `this` Vector contains `length` neutral elements:
-			
+
 		- always null on dynamic targets
 		- 0, 0.0 or false for Int, Float and Bool respectively on static targets
 		- null for other types on static targets
@@ -143,7 +143,7 @@ abstract Vector<T>(VectorData<T>) {
 			a[i] = get(i);
 		return a;
 	}
-		
+
 	/**
 		Extracts the data of `this` Vector.
 

@@ -138,7 +138,7 @@ abstract MyVector(MyPoint3) from MyPoint3 to MyPoint3 {
 	public function set_x(x) return this.x = x;
 	public function set_y(y) return this.y = y;
 	public function set_z(z) return this.z = z;
-	
+
 	@:op(A + B) static public inline function add(lhs:MyVector, rhs:MyVector):MyVector {
 		return new MyPoint3(lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z);
 	}
@@ -153,11 +153,11 @@ abstract MyVector(MyPoint3) from MyPoint3 to MyPoint3 {
 	@:op(A * B) static public inline function scalar(lhs:MyVector, rhs:Float):MyVector {
 		return new MyPoint3(lhs.x * rhs, lhs.y * rhs, lhs.z * rhs);
 	}
-	
+
 	@:op(-A) static public inline function invert(t:MyVector):MyVector {
 		return new MyPoint3( -t.x, -t.y, -t.z);
 	}
-	
+
 	public inline function get():MyPoint3
 		return this;
 
@@ -175,7 +175,7 @@ abstract MyInt(Int) from Int to Int {
 			s.add(rhs);
 		return s.toString();
 	}
-	
+
 	@:op(A / B) static public function cut(lhs:String, rhs:MyInt) {
 		return lhs.substr(0, rhs);
 	}
@@ -185,15 +185,15 @@ abstract MyInt2(Int){
 	public inline function new(v) {
 		this = v;
 	}
-	
+
 	public function get():Int {
 		return this;
 	}
-	
+
 	@:op(-x) public inline function invert():MyInt2 {
 		return new MyInt2(-this);
 	}
-	
+
 	@:op(++x) public inline function incr() {
 		++this;
 	}
@@ -221,7 +221,7 @@ abstract MyReflect({}) from {} {
 	@:arrayAccess public inline function arrayAccess(key:String):Dynamic {
 		return Reflect.field(this, key);
 	}
-	
+
 	@:arrayAccess public inline function arrayWrite<T>(key:String, value:T):T {
 		Reflect.setField(this, key, value);
 		return value;
@@ -232,31 +232,31 @@ abstract MyAbstractClosure(String){
 	public function new(value:String) {
 		this = value;
 	}
-	
+
 	public function test() {
 		var fn = function(){
 			return this;
 		}
 		return fn;
 	}
-	
+
 	public inline function setVal(v) {
 		this = v;
 	}
 }
 
 abstract MyAbstractSetter(Dynamic) {
-	
+
 	public var value(get,set):String;
-	
+
 	public inline function new() {
 		this = {};
 	}
-	
+
 	inline function get_value() {
 		return this.value;
 	}
-	
+
 	inline function set_value(s:String) {
 		this.value = s;
 		return s;
@@ -273,7 +273,7 @@ abstract MyAbstractCounter(Int) {
 	@:from inline static public function fromInt(v:Int) {
 		return new MyAbstractCounter(v);
 	}
-	
+
 	inline public function getValue():Int return this + 1;
 }
 
@@ -290,7 +290,7 @@ abstract MyDebugString(String) to String {
 	public inline function new(s:String) {
 		this = s;
 	}
-	
+
 	public inline function substr(i:Int, ?len:Null<Int>) {
 		return this.substr(i);
 	}
@@ -302,7 +302,7 @@ abstract MyDebugString(String) to String {
 	public inline function substr(i:Int, ?len:Int) {
 		return len == null ? this.substr(i) : this.substr(i, len);
 	}
-	
+
 	@:to static inline public function toNormal(t:String, value:String) {
 		return new MyDebugString(value);
 	}

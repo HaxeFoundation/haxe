@@ -15,7 +15,7 @@ class TestType extends Test {
 	static public macro function getCompilationDate() {
 		return macro $v { Std.string(Date.now()) };
 	}
-	
+
 	static public macro function typedAs(actual:haxe.macro.Expr, expected:haxe.macro.Expr) {
 		var tExpected = haxe.macro.Context.typeof(expected);
 		var tActual = haxe.macro.Context.typeof(actual);
@@ -855,12 +855,12 @@ class TestType extends Test {
 		eq(func1(), "foo");
 		eq(s.test()(), "bar");
 	}
-	
+
 	function testAbstractTypeParameterVariance() {
 		var a:Array<unit.MyAbstract.MyInt> = [1, 2, 3];
 		var b:Array<unit.MyAbstract.MyInt2> = a;
 	}
-	
+
 	function testExposingAbstract() {
 		#if !macro
 		var ea = new unit.MyAbstract.ExposingAbstract();

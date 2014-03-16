@@ -28,11 +28,11 @@ import haxe.macro.Type;
 using StringTools;
 
 class UnitBuilder {
-	
+
 	static public macro function build(basePath:String, filter:String = ".unit.hx"):Array<Field> {
 		var ret = Context.getBuildFields();
 		var numFiles = 0;
-			
+
 		function readDir(path) {
 			var dir = sys.FileSystem.readDirectory(path);
 			path = path.endsWith("\\") || path.endsWith("/") ? path : path + "/";
@@ -63,7 +63,7 @@ class UnitBuilder {
 		//trace("Added " +numFiles + " .unit.hx files");
 		return ret;
 	}
-	
+
 	#if macro
 	static function collapseToOrExpr(el:Array<Expr>) {
 		return switch(el) {
@@ -74,7 +74,7 @@ class UnitBuilder {
 			{ expr: EBinop(OpBoolOr, e, collapseToOrExpr(el)), pos: e.pos }
 		}
 	}
-	
+
 	static function mkEq(e1, e2, p) {
 		function isFloat(e) {
 			try return switch(Context.follow(Context.typeof(e))) {

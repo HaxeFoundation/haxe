@@ -80,7 +80,7 @@
 		var t = __js__("typeof(v)");
 		return (t == "string" || (t == "object" && v.__enum__ == null)) || (t == "function" && (js.Boot.isClass(v) || js.Boot.isEnum(v)) != null);
 	}
-	
+
 	public static function isEnumValue( v : Dynamic ) : Bool {
 		return v != null && v.__enum__ != null;
 	}

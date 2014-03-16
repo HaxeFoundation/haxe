@@ -12,6 +12,6 @@ class Issue2254 extends Test {
 		eq("HI, IT IS ", t.execute({ isIt:true }));
 		eq("HI, IT IS NOT", t.execute({ isIt:false }));
 	}
-	
+
 	#end
 }

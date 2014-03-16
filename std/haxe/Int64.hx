@@ -21,7 +21,7 @@
  */
 package haxe;
 
-class Int64 { 
+class Int64 {
 
 	var high : Int;
 	var low : Int;
@@ -33,10 +33,10 @@ class Int64 {
 
 	#if php
 	/*
-		private function to correctly handle 32-bit integer overflow on php 
+		private function to correctly handle 32-bit integer overflow on php
 		see: http://stackoverflow.com/questions/300840/force-php-integer-overflow
 	*/
-	private static function i32php(value:Int):Int { 
+	private static function i32php(value:Int):Int {
 			value = (value & untyped __php__("0xFFFFFFFF"));
  		    if ( (value & untyped __php__("0x80000000"))!=0 )
 		        value = -(((~value) & untyped __php__("0xFFFFFFFF")) + 1);
@@ -48,7 +48,7 @@ class Int64 {
 		private function to correctly handle 32-bit ushr on php
 		see: https://github.com/HaxeFoundation/haxe/commit/1a878aa90708040a41b0dd59f518d83b09ede209
 	*/
-	private static inline function ushr32(v:Int,n:Int):Int { 
+	private static inline function ushr32(v:Int,n:Int):Int {
 		#if php
 		 	return (v >> n) & (untyped __php__("0x7fffffff") >> (n-1));
 		#else
@@ -60,7 +60,7 @@ class Int64 {
 		#if (js || flash8)
 			return i | 0;
 		#elseif php
-			return i32php(i); // handle overflow of 32-bit integers correctly 
+			return i32php(i); // handle overflow of 32-bit integers correctly
 		#else
 			return i;
 		#end
@@ -76,7 +76,7 @@ class Int64 {
 		return a * b;
 		#end
 	}
-	
+
 	#if as3 public #end function toString() {
 		if ((high|low) == 0 )
 			return "0";
@@ -90,15 +90,15 @@ class Int64 {
 		var ten = ofInt(10);
 		while( !isZero(i) ) {
 			var r = divMod(i, ten);
-			str = r.modulus.low + str; 
-			i = r.quotient; 
+			str = r.modulus.low + str;
+			i = r.quotient;
 		}
 		if( neg ) str = "-" + str;
 		return str;
 	}
 
 	public static inline function make( high : Int, low : Int ) : Int64 {
-		return new Int64(high, low); 
+		return new Int64(high, low);
 	}
 
 	public static inline function ofInt( x : Int ) : Int64 {
@@ -111,7 +111,7 @@ class Int64 {
 				return -toInt(neg(x));
 			throw "Overflow";
 		}
-		return x.low; 
+		return x.low;
 	}
 
 	public static function getLow( x : Int64 ) : Int {
@@ -140,8 +140,8 @@ class Int64 {
 
 	public static function mul( a : Int64, b : Int64 ) : Int64 {
 		var mask = 0xFFFF;
-		var al = a.low & mask, ah = ushr32(a.low , 16); 
-		var bl = b.low & mask, bh = ushr32(b.low , 16); 
+		var al = a.low & mask, ah = ushr32(a.low , 16);
+		var bl = b.low & mask, bh = ushr32(b.low , 16);
 		var p00 = al * bl;
 		var p10 = ah * bl;
 		var p01 = al * bh;
@@ -159,35 +159,35 @@ class Int64 {
 		var quotient = new Int64(0, 0);
 		var mask = new Int64(0, 1);
 		divisor = new Int64(divisor.high, divisor.low);
-		while( divisor.high >= 0 ) { 
+		while( divisor.high >= 0 ) {
 			var cmp = ucompare(divisor, modulus);
-			divisor.high = i32( i32(divisor.high << 1) | ushr32(divisor.low , 31) ); 
-			divisor.low = i32(divisor.low << 1); 
-			mask.high = i32( i32(mask.high << 1) | ushr32(mask.low , 31) ); 
+			divisor.high = i32( i32(divisor.high << 1) | ushr32(divisor.low , 31) );
+			divisor.low = i32(divisor.low << 1);
+			mask.high = i32( i32(mask.high << 1) | ushr32(mask.low , 31) );
 			mask.low = i32(mask.low << 1);
 			if( cmp >= 0 ) break;
 		}
-		while( i32(mask.low | mask.high) != 0 ) { 
+		while( i32(mask.low | mask.high) != 0 ) {
 			if( ucompare(modulus, divisor) >= 0 ) {
-				quotient.high= i32(quotient.high | mask.high); 
-				quotient.low= i32(quotient.low | mask.low); 
+				quotient.high= i32(quotient.high | mask.high);
+				quotient.low= i32(quotient.low | mask.low);
 				modulus = sub(modulus,divisor);
 			}
-			mask.low = i32( ushr32(mask.low , 1) | i32(mask.high << 31) ); 
-			mask.high = ushr32(mask.high , 1); 
+			mask.low = i32( ushr32(mask.low , 1) | i32(mask.high << 31) );
+			mask.high = ushr32(mask.high , 1);
 
-			divisor.low = i32( ushr32(divisor.low , 1) | i32(divisor.high << 31) ); 
-			divisor.high = ushr32(divisor.high , 1); 
+			divisor.low = i32( ushr32(divisor.low , 1) | i32(divisor.high << 31) );
+			divisor.high = ushr32(divisor.high , 1);
 		}
 		return { quotient : quotient, modulus : modulus };
 	}
 
-	public static function div( a : Int64, b : Int64 ) : Int64 { 
+	public static function div( a : Int64, b : Int64 ) : Int64 {
 		if(b.high==0) // handle special cases of 0 and 1
 			switch(b.low) {
 			case 0:	throw "divide by zero";
 			case 1: return new Int64(a.high,a.low);
-			} 
+			}
 		var sign = ((a.high<0) || (b.high<0)) && (!( (a.high<0) && (b.high<0))); // make sure we get the correct sign
 		if( a.high < 0 ) a = neg(a);
 		if( b.high < 0 ) b = neg(b);
@@ -233,8 +233,8 @@ class Int64 {
 	}
 
 	public static inline function neg( a : Int64 ) : Int64 {
-		var high = i32(~a.high); 
-		var low = i32(-a.low); 
+		var high = i32(~a.high);
+		var low = i32(-a.low);
 		if( low == 0 )
 			high++;
 		return new Int64(high,low);
@@ -253,7 +253,7 @@ class Int64 {
 	}
 
 	public static inline function compare( a : Int64, b : Int64 ) : Int {
-		var v = i32(a.high - b.high); 
+		var v = i32(a.high - b.high);
 		return if( v != 0 ) v else uicompare(a.low,b.low);
 	}
 
