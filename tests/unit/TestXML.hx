@@ -204,6 +204,14 @@ class TestXML extends Test {
 		values[5] = String.fromCharCode(65440);
 		#end
 
+		#if neko
+		// neko uses StringTools.htmlUnescape(), so <, >, ", ' and & are supported
+		values[0] = '<';
+		values[1] = '>';
+		values[2] = '"';
+		values[3] = '&';
+		#end
+
 		#if php
 		// &nbsp; and &euro; creates an invalid entity error (first time I see PHP being strict !)
 		entities[5] = "x";
@@ -216,6 +224,28 @@ class TestXML extends Test {
 			infos(entities[i]);
 			eq( Xml.parse(entities[i]).firstChild().nodeValue, values[i] );
 		}
+	}
+
+	function testEntityRoundTrip() {
+		var simpleContent = "My &amp; &lt;You&gt;";
+
+		// With default parser
+		var node1 = Xml.parse(simpleContent).firstChild();
+		eq( node1.toString(), simpleContent );
+
+		// With custom parser
+		var node2 = haxe.xml.Parser.parse(simpleContent).firstChild();
+		eq( node2.toString(), simpleContent );
+
+		var content2 = "&laquo;&#64;&raquo;";
+
+		// With default parser
+		var node3 = Xml.parse(content2).firstChild();
+		eq( node3.toString(), content2 );
+
+		// With custom parser
+		var node4 = haxe.xml.Parser.parse(content2).firstChild();
+		eq( node4.toString(), content2 );
 	}
 
 	function testCustomXmlParser() {

@@ -87,7 +87,7 @@ enum XmlType {
 				var x : Dynamic = new Xml();
 				x._parent = untyped __this__.cur;
 				x.nodeType = Xml.PCData;
-				x._nodeValue = new String(text);
+				x._nodeValue = StringTools.htmlUnescape(new String(text));
 				untyped __this__.add(x);
 			},
 			comment : function(text) {
