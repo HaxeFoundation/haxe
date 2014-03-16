@@ -204,7 +204,7 @@ class Bytes {
 		var fcc = String.fromCharCode;
 		var i = pos;
 		var max = pos+len;
-		// utf8-encode
+		// utf8-decode and utf16-encode
 		while( i < max ) {
 			var c = b[i++];
 			if( c < 0x80 ) {
@@ -218,7 +218,10 @@ class Bytes {
 			} else {
 				var c2 = b[i++];
 				var c3 = b[i++];
-				s += fcc( ((c & 0x0F) << 18) | ((c2 & 0x7F) << 12) | ((c3 << 6) & 0x7F) | (b[i++] & 0x7F) );
+				var u = ((c & 0x0F) << 18) | ((c2 & 0x7F) << 12) | ((c3 & 0x7F) << 6) | (b[i++] & 0x7F);
+				// surrogate pair
+				s += fcc( (u >> 10) + 0xD7C0 );
+				s += fcc( (u & 0x3FF) | 0xDC00 );
 			}
 		}
 		return s;
@@ -315,9 +318,13 @@ class Bytes {
 		catch (e:Dynamic) throw e;
 		#else
 		var a = new Array();
-		// utf8-decode
-		for( i in 0...s.length ) {
-			var c : Int = StringTools.fastCodeAt(s,i);
+		// utf16-decode and utf8-encode
+		var i = 0;
+		while( i < s.length ) {
+			var c : Int = StringTools.fastCodeAt(s,i++);
+			// surrogate pair
+			if( 0xD800 <= c && c <= 0xDBFF )
+			       c = (c - 0xD7C0 << 10) | (StringTools.fastCodeAt(s,i++) & 0x3FF);
 			if( c <= 0x7F )
 				a.push(c);
 			else if( c <= 0x7FF ) {
