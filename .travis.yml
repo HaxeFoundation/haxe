@@ -13,12 +13,13 @@ env:
     - TARGET=php
     - TARGET=cpp
     - TARGET=flash9
-    - TARGET=flash8
     - TARGET=as3
     - TARGET=java
     - TARGET=cs
+    - TARGET=flash8
 
 matrix:
+  fast_finish: true
   allow_failures:
     - env: TARGET=flash8
 
