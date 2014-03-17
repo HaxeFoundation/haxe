@@ -131,6 +131,7 @@ type context = {
 	mutable print : string -> unit;
 	mutable get_macros : unit -> context option;
 	mutable run_command : string -> int;
+	file_lookup_cache : (string,string option) Hashtbl.t;
 	(* output *)
 	mutable file : string;
 	mutable flash_version : float;
@@ -687,6 +688,7 @@ let create v args =
 			tstring = m;
 			tarray = (fun _ -> assert false);
 		};
+		file_lookup_cache = Hashtbl.create 0;
 		memory_marker = memory_marker;
 	}
 
@@ -695,7 +697,12 @@ let log com str =
 
 let clone com =
 	let t = com.basic in
-	{ com with basic = { t with tvoid = t.tvoid }; main_class = None; features = Hashtbl.create 0; }
+	{ com with
+		basic = { t with tvoid = t.tvoid };
+		main_class = None;
+		features = Hashtbl.create 0;
+		file_lookup_cache = Hashtbl.create 0;
+	}
 
 let file_time file =
 	try (Unix.stat file).Unix.st_mtime with _ -> 0.
@@ -862,16 +869,28 @@ let add_final_filter ctx f =
 	ctx.final_filters <- f :: ctx.final_filters
 
 let find_file ctx f =
-	let rec loop = function
-		| [] -> raise Not_found
-		| p :: l ->
-			let file = p ^ f in
-			if Sys.file_exists file then
-				file
-			else
-				loop l
-	in
-	loop ctx.class_path
+	try
+		(match Hashtbl.find ctx.file_lookup_cache f with
+		| None -> raise Exit
+		| Some f -> f)
+	with Exit ->
+		raise Not_found
+	| Not_found ->
+		let rec loop = function
+			| [] -> raise Not_found
+			| p :: l ->
+				let file = p ^ f in
+				if Sys.file_exists file then
+					file
+				else
+					loop l
+		in
+		let r = (try Some (loop ctx.class_path) with Not_found -> None) in
+		Hashtbl.add ctx.file_lookup_cache f r;
+		(match r with
+		| None -> raise Not_found
+		| Some f -> f)
+		
 
 let get_full_path f = try Extc.get_full_path f with _ -> f
 

@@ -2469,6 +2469,7 @@ let macro_lib =
 			| VString cp ->
 				let com = ccom() in
 				com.class_path <- (Common.normalize_path cp) :: com.class_path;
+				Hashtbl.clear com.file_lookup_cache;
 				VNull
 			| _ ->
 				error()
