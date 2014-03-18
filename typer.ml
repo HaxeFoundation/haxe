@@ -2089,7 +2089,7 @@ and type_access ctx e p mode =
 				resume := false;
 				f
 			) e path in
-			if !force then ignore(e MGet);
+			if !force then ignore(e MCall); (* not necessarily a call, but prevent #2602 among others *)
 			e
 		in
 		let type_path path =
