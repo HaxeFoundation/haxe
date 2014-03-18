@@ -118,15 +118,23 @@ class RunSauceLabs {
 							browser.text("body", function(err, re) {
 								if (!handleError(err)) return;
 								console.log(re);
-								browser.eval("unit.Test.success", function(err, re) {
+
+								//check if test is successful or not
+								var test = false;
+								for (line in re.split("\n")) {
+									if (line.indexOf("SUCCESS: ") >= 0) {
+										test = line.indexOf("SUCCESS: true") >= 0;
+										break;
+									}
+								}
+								success = success && test;
+
+								//let saucelabs knows the result
+								browser.sauceJobUpdate({ passed: test }, function(err) {
 									if (!handleError(err)) return;
-									success = success && re;
-									browser.sauceJobUpdate({ passed: re }, function(err) {
+									browser.quit(function(err) {
 										if (!handleError(err)) return;
-										browser.quit(function(err) {
-											if (!handleError(err)) return;
-											testBrowsers(browsers);
-										});
+										testBrowsers(browsers);
 									});
 								});
 							});
