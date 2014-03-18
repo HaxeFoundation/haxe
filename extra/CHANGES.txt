@@ -1,8 +1,12 @@
 2014-??-??: 3.1.2
 
+	Bugfixes:
+
+	all : properly disallowed usage of super as value
+
 	General improvements and optimizations:
 
-	all : cache file exist checks to speed up compilations with a lot of class paths
+	all : cached file exist checks to speed up compilations with a lot of class paths
 
 2014-03-15: 3.1.1
 
