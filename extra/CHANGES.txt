@@ -3,6 +3,7 @@
 	Bugfixes:
 
 	all : properly disallowed usage of super as value
+	all : disallowed spaces between >>, >>>, >>= and >>>=
 
 	General improvements and optimizations:
 
