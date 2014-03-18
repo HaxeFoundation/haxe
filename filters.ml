@@ -321,12 +321,12 @@ let check_local_vars_init e =
 				vars := intersect !vars v1)
 		| TWhile (cond,e,flag) ->
 			(match flag with
-			| NormalWhile ->
+			| NormalWhile when (match cond.eexpr with TParenthesis {eexpr = TConst (TBool true)} -> false | _ -> true) ->
 				loop vars cond;
 				let old = !vars in
 				loop vars e;
 				vars := old;
-			| DoWhile ->
+			| _ ->
 				loop vars e;
 				loop vars cond)
 		| TTry (e,catches) ->
