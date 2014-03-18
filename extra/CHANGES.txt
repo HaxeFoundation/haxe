@@ -9,6 +9,7 @@
 	General improvements and optimizations:
 
 	all : cached file exist checks to speed up compilations with a lot of class paths
+	all : allowed iterating on abstract which have get_length and @:arrayAccess fields
 
 2014-03-15: 3.1.1
 
