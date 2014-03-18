@@ -19,7 +19,7 @@ class TestType extends Test {
 	static public macro function typedAs(actual:haxe.macro.Expr, expected:haxe.macro.Expr) {
 		var tExpected = haxe.macro.Context.typeof(expected);
 		var tActual = haxe.macro.Context.typeof(actual);
-		return haxe.macro.Context.parse("{Test.count++; eq('" +Std.string(tActual) + "', '" +Std.string(tExpected) + "');}", haxe.macro.Context.currentPos());
+		return haxe.macro.Context.parse("eq('" +Std.string(tActual) + "', '" +Std.string(tExpected) + "')", haxe.macro.Context.currentPos());
 	}
 
 	static public macro function typeError(e:haxe.macro.Expr) {
