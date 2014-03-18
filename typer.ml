@@ -303,35 +303,6 @@ let prepare_using_field cf = match cf.cf_type with
 		{cf with cf_overloads = loop [] cf.cf_overloads; cf_type = TFun(args,ret)}
 	| _ -> cf
 
-let find_array_access a pl c t1 t2 is_set =
-	let ta = apply_params a.a_types pl a.a_this in
-	let rec loop cfl = match cfl with
-		| [] -> raise Not_found
-		| cf :: cfl when not (Meta.has Meta.ArrayAccess cf.cf_meta) ->
-			loop cfl
-		| cf :: cfl ->
-			match follow (apply_params a.a_types pl (monomorphs cf.cf_params cf.cf_type)) with
-			| TFun([(_,_,tab);(_,_,ta1);(_,_,ta2)],r) as tf when is_set ->
-				begin try
-					Type.unify tab ta;
-					Type.unify t1 ta1;
-					Type.unify t2 ta2;
-					cf,tf,r
-				with Unify_error _ ->
-					loop cfl
-				end
-			| TFun([(_,_,tab);(_,_,ta1)],r) as tf when not is_set ->
-				begin try
-					Type.unify tab ta;
-					Type.unify t1 ta1;
-					cf,tf,r
-				with Unify_error _ ->
-					loop cfl
-				end
-			| _ -> loop cfl
-	in
-	loop a.a_array
-
 let parse_string ctx s p inlined =
 	let old = Lexer.save() in
 	let old_file = (try Some (Hashtbl.find Lexer.all_files p.pfile) with Not_found -> None) in
@@ -1523,7 +1494,7 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 		| AKAccess(ebase,ekey) ->
 			let a,pl,c = match follow ebase.etype with TAbstract({a_impl = Some c} as a,pl) -> a,pl,c | _ -> error "Invalid operation" p in
 			let cf,tf,r =
-				try find_array_access a pl c ekey.etype e2.etype true
+				try find_array_access a pl ekey.etype e2.etype true
 				with Not_found -> error ("No @:arrayAccess function accepts arguments of " ^ (s_type (print_context()) ekey.etype) ^ " and " ^ (s_type (print_context()) e2.etype)) p
 			in
 			begin match cf.cf_expr with
@@ -1598,7 +1569,7 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 			let a,pl,c = match follow ebase.etype with TAbstract({a_impl = Some c} as a,pl) -> a,pl,c | _ -> error "Invalid operation" p in
 			let et = type_module_type ctx (TClassDecl c) None p in
 			let cf_get,tf_get,r_get =
-				try find_array_access a pl c ekey.etype t_dynamic false
+				try find_array_access a pl ekey.etype t_dynamic false
 				with Not_found -> error ("No @:arrayAccess function accepts an argument of " ^ (s_type (print_context()) ekey.etype)) p
 			in
 			(* bind complex keys to a variable so they do not make it into the output twice *)
@@ -1614,7 +1585,7 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 			let eget = type_binop ctx op ast_call e2 true p in
 			unify ctx eget.etype r_get p;
 			let cf_set,tf_set,r_set =
-				try find_array_access a pl c ekey.etype eget.etype true
+				try find_array_access a pl ekey.etype eget.etype true
 				with Not_found -> error ("No @:arrayAccess function accepts arguments of " ^ (s_type (print_context()) ekey.etype) ^ " and " ^ (s_type (print_context()) eget.etype)) p
 			in
 			begin match cf_set.cf_expr,cf_get.cf_expr with
@@ -2233,7 +2204,7 @@ and type_access ctx e p mode =
 				AKAccess (e1, e2)
 			| _ ->
 				has_abstract_array_access := true;
-				let cf,tf,r = find_array_access a pl c e2.etype t_dynamic false in
+				let cf,tf,r = find_array_access a pl e2.etype t_dynamic false in
 				let e = match cf.cf_expr with
 					| None ->
 						mk (TArray(e1,e2)) r p

@@ -1531,6 +1531,37 @@ let map_expr_type f ft fv e =
 	| TMeta (m,e1) ->
 		{e with eexpr = TMeta(m, f e1); etype = ft e.etype }
 
+(* ======= Miscellaneous ======= *)
+
+let find_array_access a pl t1 t2 is_set =
+	let ta = apply_params a.a_types pl a.a_this in
+	let rec loop cfl = match cfl with
+		| [] -> raise Not_found
+		| cf :: cfl when not (Meta.has Meta.ArrayAccess cf.cf_meta) ->
+			loop cfl
+		| cf :: cfl ->
+			match follow (apply_params a.a_types pl (monomorphs cf.cf_params cf.cf_type)) with
+			| TFun([(_,_,tab);(_,_,ta1);(_,_,ta2)],r) as tf when is_set ->
+				begin try
+					unify tab ta;
+					unify t1 ta1;
+					unify t2 ta2;
+					cf,tf,r
+				with Unify_error _ ->
+					loop cfl
+				end
+			| TFun([(_,_,tab);(_,_,ta1)],r) as tf when not is_set ->
+				begin try
+					unify tab ta;
+					unify t1 ta1;
+					cf,tf,r
+				with Unify_error _ ->
+					loop cfl
+				end
+			| _ -> loop cfl
+	in
+	loop a.a_array
+
 (* ======= Printing ======= *)
 
 let print_context() = ref []
