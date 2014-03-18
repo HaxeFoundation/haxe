@@ -673,12 +673,7 @@ module Abstract = struct
 				maybe_recurse (apply_params a.a_types pl a.a_this)
 
 	let make_static_call ctx c cf a pl args t p =
-		let ta = TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) } in
-		let ethis = mk (TTypeExpr (TClassDecl c)) ta p in
-	  	let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
-		let map t = apply_params a.a_types pl (apply_params cf.cf_params monos t) in
-		let ef = mk (TField (ethis,(FStatic (c,cf)))) (map cf.cf_type) p in
-		make_call ctx ef args (map t) p
+		make_static_call ctx c cf (apply_params a.a_types pl) args t p
 
 	let rec do_check_cast ctx tleft eright p =
 		let tright = follow eright.etype in
