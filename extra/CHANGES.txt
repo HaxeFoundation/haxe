@@ -1,3 +1,9 @@
+2014-??-??: 3.1.2
+
+	General improvements and optimizations:
+
+	all : cache file exist checks to speed up compilations with a lot of class paths
+
 2014-03-15: 3.1.1
 
 	New features:
