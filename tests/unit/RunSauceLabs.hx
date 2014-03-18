@@ -13,7 +13,8 @@ class RunSauceLabs {
 		);
 
 		var tags = [];
-		if (Sys.getEnv("TRAVIS") != null) tags.push("TravisCI");
+		if (Sys.getEnv("TRAVIS") != null)
+			tags.push("TravisCI");
 
 		//https://saucelabs.com/platforms
 		var browsers = [
@@ -143,7 +144,7 @@ class RunSauceLabs {
 				}
 
 				var caps = browsers.shift();
-				caps.setField("name", "haxe");
+				caps.setField("name", Sys.getEnv("TRAVIS") != null ? Sys.getEnv("TRAVIS_REPO_SLUG") : "haxe");
 				caps.setField("tags", tags);
 				if (Sys.getEnv("TRAVIS") != null) {
 					caps.setField("tunnel-identifier", Sys.getEnv("TRAVIS_JOB_NUMBER"));
