@@ -4,6 +4,7 @@
 
 	all : properly disallowed usage of super as value
 	all : disallowed spaces between >>, >>>, >>= and >>>=
+	cpp : fixed bug in side-effect handler which caused incorrect behavior of while loops
 
 	General improvements and optimizations:
 

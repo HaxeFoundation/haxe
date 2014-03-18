@@ -106,6 +106,15 @@ let handle_side_effects com gen_temp e =
 				| _ ->
 					assert false
 			end
+		| TWhile(e1,e2,flag) when (match e1.eexpr with TParenthesis {eexpr = TConst(TBool true)} -> false | _ -> true) ->
+			let p = e.epos in
+			let e_break = mk TBreak t_dynamic p in
+			let e_not = mk (TUnop(Not,Prefix,Codegen.mk_parent e1)) e1.etype e1.epos in
+			let e_if = mk (TIf(e_not,e_break,None)) com.basic.tvoid p in
+			let e_block = if flag = NormalWhile then Codegen.concat e_if e2 else Codegen.concat e2 e_if in
+			let e_true = mk (TConst (TBool true)) com.basic.tbool p in
+			let e = mk (TWhile(Codegen.mk_parent e_true,e_block,NormalWhile)) e.etype p in
+			loop e
 		| _ ->
 			Type.map_expr loop e
 	and ordered_list el =
