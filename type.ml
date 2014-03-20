@@ -615,6 +615,7 @@ let extract_field = function
 let is_extern_field f =
 	match f.cf_kind with
 	| Method _ -> false
+	| Var { v_read = AccCall; v_write = AccNo } -> not (Meta.has Meta.IsVar f.cf_meta)
 	| Var { v_read = AccNormal | AccInline | AccNo } | Var { v_write = AccNormal | AccNo } -> false
 	| _ -> not (Meta.has Meta.IsVar f.cf_meta)
 
