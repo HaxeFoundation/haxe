@@ -76,7 +76,7 @@ let api_inline ctx c field params p =
 		let stringv() =
 			let to_str = mk (TBinop (Ast.OpAdd, mk (TConst (TString "")) ctx.t.tstring pos, v)) ctx.t.tstring pos in
 			if ctx.com.platform = Js || is_nullable v.etype then
-				let chk_null = mk (TBinop (Ast.OpEq, v, mk (TConst TNull) v.etype pos)) ctx.t.tbool pos in
+				let chk_null = mk (TBinop (Ast.OpEq, v, mk (TConst TNull) t_dynamic pos)) ctx.t.tbool pos in
 				mk (TIf (chk_null, mk (TConst (TString "null")) ctx.t.tstring pos, Some to_str)) ctx.t.tstring pos
 			else
 				to_str
