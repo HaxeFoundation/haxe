@@ -66,6 +66,13 @@ let mk_block_context com gen_temp =
 	- array access
 *)
 let handle_side_effects com gen_temp e =
+	let has_direct_side_effect e = match e.eexpr with
+		| TConst _ | TLocal _ | TField _ | TTypeExpr _ | TFunction _ -> false
+		| TPatMatch _ | TNew _ | TCall _ | TBinop ((OpAssignOp _ | OpAssign),_,_) | TUnop ((Increment|Decrement),_,_) -> true
+		| TReturn _ | TBreak | TContinue | TThrow _ | TCast (_,Some _) -> true
+		| TIf _ | TTry _ | TSwitch _ -> true
+		| TArray _ | TEnumParameter _ | TCast (_,None) | TBinop _ | TUnop _ | TParenthesis _ | TMeta _ | TWhile _ | TFor _ | TArrayDecl _ | TVar _ | TBlock _ | TObjectDecl _ -> false
+	in
 	let block,declare_temp,close_block = mk_block_context com gen_temp in
 	let rec loop e =
 		match e.eexpr with
@@ -128,16 +135,10 @@ let handle_side_effects com gen_temp e =
 			end
 		in
 		let rec no_side_effect e =
-			match e.eexpr with
-				| _ when Optimizer.has_side_effect e ->
-					bind e
-				(* Technically these are not side-effects, but we have to move them out anyway because their blocks code have side-effects.
-				   This also probably improves readability of the generated code. We can ignore TWhile and TFor because their type is Void,
-				   so they could never appear in a place where side-effects matter. *)
-				| TIf _ | TTry _ | TSwitch _ ->
-					bind e
-				| _ ->
-					e
+			if has_direct_side_effect e then
+				bind e
+			else
+				Type.map_expr no_side_effect e
 		in
 		let rec loop2 acc el = match el with
 			| e :: el ->
