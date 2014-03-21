@@ -127,23 +127,17 @@ let handle_side_effects com gen_temp e =
 				e
 			end
 		in
-		let rec no_side_effect e = match e.eexpr with
-			| TNew _ | TCall _ | TArrayDecl _ | TObjectDecl _ | TBinop ((OpAssignOp _ | OpAssign),_,_) | TUnop ((Increment|Decrement),_,_) ->
-				bind e;
-			| TIf _ | TTry _ | TSwitch _ ->
+		let rec no_side_effect e =
+			match e.eexpr with
+				| _ when Optimizer.has_side_effect e ->
+					bind e
 				(* Technically these are not side-effects, but we have to move them out anyway because their blocks code have side-effects.
 				   This also probably improves readability of the generated code. We can ignore TWhile and TFor because their type is Void,
 				   so they could never appear in a place where side-effects matter. *)
-				bind e
-			| TBinop(op,e1,e2) when Optimizer.has_side_effect e1 || Optimizer.has_side_effect e2 ->
-				bind e;
-			| TConst _ | TLocal _ | TTypeExpr _ | TFunction _
-			| TReturn _ | TBreak | TContinue | TThrow _ | TCast (_,Some _) ->
-				e
-			| TBlock _ ->
-				bind e
-			| _ ->
-				Type.map_expr no_side_effect e
+				| TIf _ | TTry _ | TSwitch _ ->
+					bind e
+				| _ ->
+					e
 		in
 		let rec loop2 acc el = match el with
 			| e :: el ->
