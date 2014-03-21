@@ -33,7 +33,7 @@ class StringTools {
 	/**
 		Encode an URL by using the standard format.
 	**/
-	#if !java inline #end public static function urlEncode( s : String ) : String untyped {
+	#if (!java && !cpp) inline #end public static function urlEncode( s : String ) : String untyped {
 		#if flash9
 			return __global__["encodeURIComponent"](s);
 		#elseif flash
@@ -58,7 +58,7 @@ class StringTools {
 	/**
 		Decode an URL using the standard format.
 	**/
-	#if !java inline #end public static function urlDecode( s : String ) : String untyped {
+	#if (!java && !cpp) inline #end public static function urlDecode( s : String ) : String untyped {
 		#if flash9
 			return __global__["decodeURIComponent"](s.split("+").join(" "));
 		#elseif flash
