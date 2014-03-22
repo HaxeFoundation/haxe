@@ -3307,6 +3307,8 @@ and type_call ctx e el (with_type:with_type) p =
 			display_error ctx "callback syntax has changed to func.bind(args)" p;
 			let e = type_expr ctx e Value in
 			type_bind ctx e args p)
+	| (EField ((EConst (Ident "super"),_),_),_), _ ->
+		def()
 	| (EField (e,"bind"),p), args ->
 		let e = type_expr ctx e Value in
 		(match follow e.etype with
