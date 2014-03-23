@@ -70,16 +70,16 @@ module Transformer = struct
 		}
 
 
-	let to_tvar ?(capture = false) n t = 
+	let to_tvar ?(capture = false) n t =
 		{ v_name = n; v_type = t; v_id = 0; v_capture = capture; v_extra = None; v_meta = [] }
 
-	let create_non_local n pos = 
+	let create_non_local n pos =
 		let s = "nonlocal " ^ n in
 		let id = mk (TLocal (to_tvar "__python__" t_dynamic ) ) !t_void pos in
 		let id2 = mk (TLocal( to_tvar s t_dynamic )) !t_void pos in
 		mk (TCall(id, [id2])) t_dynamic pos
 
-	let to_tlocal_expr ?(capture = false) n t p = 
+	let to_tlocal_expr ?(capture = false) n t p =
 		mk (TLocal (to_tvar ~capture:capture n t)) t p
 
 	let add_non_locals_to_func e =
@@ -87,10 +87,10 @@ module Transformer = struct
 		| TFunction f ->
 			let local_vars_list = List.map (fun (tvar, _) -> tvar.v_name) f.tf_args in
 			let local_vars =
-				let f acc x = 
-					Hashtbl.add acc x x; 
-					acc 
-				in 
+				let f acc x =
+					Hashtbl.add acc x x;
+					acc
+				in
 				List.fold_left f (Hashtbl.create 0) local_vars_list in
 			let non_locals = Hashtbl.create 0 in
 
@@ -98,20 +98,20 @@ module Transformer = struct
 				let maybe_continue x =
 					match x.eexpr with
 					| TFunction(_) -> ()
-					| _ -> 
-						Type.iter (it (Hashtbl.copy lv)) x; 
+					| _ ->
+						Type.iter (it (Hashtbl.copy lv)) x;
 						()
 				in
 				match e.eexpr with
-				| TVar(v,expr) -> 
+				| TVar(v,expr) ->
 					(match expr with
 					| Some x -> maybe_continue x; ()
 					| None -> ());
-					
+
 					Hashtbl.add lv v.v_name v.v_name;
 					()
 				| TBinop(OpAssign , { eexpr = TLocal( { v_name = x })}, e2) ->
-					if not (Hashtbl.mem lv x) then 
+					if not (Hashtbl.mem lv x) then
 						Hashtbl.add non_locals x x;
 					maybe_continue e2;
 					()
@@ -191,18 +191,18 @@ module Transformer = struct
 				) el;
 				lift_expr (mk (TBlock (List.rev !res)) tb p)
 
-	and transform_switch ae is_value e1 cases edef = 
+	and transform_switch ae is_value e1 cases edef =
 		assert false
 
-	and transform_op_assign_op ae e1 op operand is_value post = 
+	and transform_op_assign_op ae e1 op operand is_value post =
 		assert false
 
-	and var_to_treturn_expr ?(capture = false) n t p = 
-		let x = mk (TLocal (to_tvar ~capture:capture n t)) t p in 
-		mk (TReturn (Some x)) t p 
+	and var_to_treturn_expr ?(capture = false) n t p =
+		let x = mk (TLocal (to_tvar ~capture:capture n t)) t p in
+		mk (TReturn (Some x)) t p
 
 	and exprs_to_func exprs name base =
-		let convert_return_expr (expr:texpr) = 
+		let convert_return_expr (expr:texpr) =
 			match expr.eexpr with
 			| TFunction(f) ->
 				let ret = var_to_treturn_expr name f.tf_type f.tf_expr.epos in
@@ -210,29 +210,29 @@ module Transformer = struct
 			| TBinop(OpAssign, l, r) ->
 				let r = { l with eexpr = TReturn(Some l) } in
 				[expr; r]
-			| x -> 
+			| x ->
 				let ret_expr = { expr with eexpr = TReturn( Some(expr) )} in
 				[ret_expr]
-		in 
-		let def = 
+		in
+		let def =
 			(let ex = match exprs with
 			| [] -> assert false
-			| [x] -> 
-				(let exs = convert_return_expr x in 
+			| [x] ->
+				(let exs = convert_return_expr x in
 				match exs with
 				| [] -> assert false
 				| [x] -> x
-				| x -> 
+				| x ->
 					match List.rev x with
 					| x::xs ->
 						mk (TBlock exs) x.etype base.a_expr.epos
 					| _ -> assert false)
-					
-			| x -> 
+
+			| x ->
 				match List.rev x with
-				| x::xs -> 
+				| x::xs ->
 					(let ret = x in
-					let block = List.append exprs (convert_return_expr ret) in 
+					let block = List.append exprs (convert_return_expr ret) in
 					match List.rev block with
 					| x::xs ->
 						mk (TBlock block) x.etype base.a_expr.epos
@@ -241,7 +241,7 @@ module Transformer = struct
 			in
 			let f1 = { tf_args = []; tf_type = ex.etype; tf_expr = ex} in
 			let fexpr = mk (TFunction f1) ex.etype ex.epos in
-			let fvar = to_tvar name fexpr.etype in 
+			let fvar = to_tvar name fexpr.etype in
 			let f = add_non_locals_to_func fexpr in
 			let assign = { ex with eexpr = TVar(fvar, Some(f))} in
 			let call_expr = (mk (TLocal fvar) fexpr.etype ex.epos ) in
@@ -252,13 +252,13 @@ module Transformer = struct
 		| [x] ->
 			(match x.eexpr with
 			| TFunction({ tf_args = []}) -> def
-			| TFunction(f) -> 
+			| TFunction(f) ->
 				let l = to_tlocal_expr name f.tf_type f.tf_expr.epos in
 				let substitute = mk (TCall(l, [])) f.tf_type f.tf_expr.epos in
 				lift_expr ~blocks:[x] substitute
 			| _ -> def)
 		| _ -> def
-		
+
 
 	and transform1 ae : adjusted_expr = match ae.a_is_value,ae.a_expr.eexpr with
 		| (is_value,TBlock [x]) ->
@@ -328,12 +328,12 @@ module Transformer = struct
 			(match x1.a_blocks with
 				| [] ->
 					lift_expr ~next_id:( Some ae.a_next_id) ~is_value:true { ae.a_expr with eexpr = TReturn(Some x1.a_expr) }
-				| _ -> 
+				| _ ->
 					ae)
 		| (_, TParenthesis(e1)) ->
 			let e1 = transform_expr ~is_value:true ~next_id:(Some ae.a_next_id) e1 in
 			let p = { ae.a_expr with eexpr = TParenthesis(e1.a_expr)} in
-			lift_expr ~is_value:true ~next_id:(Some ae.a_next_id) ~blocks:e1.a_blocks p 
+			lift_expr ~is_value:true ~next_id:(Some ae.a_next_id) ~blocks:e1.a_blocks p
 		| (true, TIf(econd, eif, eelse)) ->
 			(let econd1 = transform_expr ~is_value:true ~next_id:(Some ae.a_next_id) econd in
 			let eif1 = transform_expr ~is_value:true ~next_id:(Some ae.a_next_id) eif in
@@ -342,39 +342,39 @@ module Transformer = struct
 				| None -> None
 			in
 			let blocks = [] in
-			let eif2, blocks = 
+			let eif2, blocks =
 				match eif1.a_blocks with
 				| [] -> eif1.a_expr, blocks
-				| x -> 
-					let regular = 
+				| x ->
+					let regular =
 						let fname = eif1.a_next_id () in
 						let f = exprs_to_func (List.append eif1.a_blocks [eif1.a_expr]) fname ae in
 						f.a_expr, List.append blocks f.a_blocks
 					in
-					match eif1.a_blocks with 
-					| [{ eexpr = TVar(_, Some({ eexpr = TFunction(_)}))} as b] -> 
+					match eif1.a_blocks with
+					| [{ eexpr = TVar(_, Some({ eexpr = TFunction(_)}))} as b] ->
 						eif1.a_expr, List.append blocks [b]
 					| _ -> regular
 			in
-			let eelse2, blocks = 
+			let eelse2, blocks =
 				match eelse1 with
 				| None -> None, blocks
 				| Some({ a_blocks = []} as x) -> Some(x.a_expr), blocks
-				| Some({ a_blocks = b} as eelse1) -> 
-					let regular = 
+				| Some({ a_blocks = b} as eelse1) ->
+					let regular =
 						let fname = eelse1.a_next_id () in
 						let f = exprs_to_func (List.append eelse1.a_blocks [eelse1.a_expr]) fname ae in
 						Some(f.a_expr), List.append blocks f.a_blocks
 					in
-					match b with 
-					| [{ eexpr = TVar(_, Some({ eexpr = TFunction(f)}))} as b] -> 
+					match b with
+					| [{ eexpr = TVar(_, Some({ eexpr = TFunction(f)}))} as b] ->
 						Some(eif1.a_expr), List.append blocks [b]
 					| _ -> regular
 			in
 			let blocks = List.append econd1.a_blocks blocks in
 			let new_if = { ae.a_expr with eexpr = TIf(econd1.a_expr, eif2, eelse2) } in
 			match blocks with
-			| [] -> 
+			| [] ->
 				let meta = Meta.Custom(":ternaryIf"), [], ae.a_expr.epos in
 				let ternary = { ae.a_expr with eexpr = TMeta(meta, new_if) } in
 				lift_expr ~blocks:blocks ternary
@@ -411,8 +411,8 @@ module Transformer = struct
 		| (is_value, TSwitch(e, cases, edef)) ->
 			transform_switch ae is_value e cases edef
 
-		| (is_value, TUnop(OpIncrement, Postfix, e)) -> assert false
-		| (is_value, TUnop(OpDecrement, Postfix, e)) -> assert false
+		| (is_value, TUnop(Increment, Postfix, e)) -> assert false
+		| (is_value, TUnop(Decrement, Postfix, e)) -> assert false
 		| (_, TUnop(op, Prefix, e)) -> assert false
 		| (true, TBinop(OpAssign, left, right))-> assert false
 		| (false, TBinop(OpAssign, left, right))-> assert false
@@ -421,7 +421,7 @@ module Transformer = struct
 		| (true, TThrow(x)) -> assert false
 		| (false, TThrow(x)) -> assert false
 		| (_, TNew(c, tp, params)) -> assert false
-		| (_, TCall({ eexpr : TLocal({v_name = "__python_for__"})} as x, [param])) -> assert false
+		| (_, TCall({ eexpr = TLocal({v_name = "__python_for__"})} as x, [param])) -> assert false
 		| (_, TCall(e, params)) -> assert false
 		| (true, TArray(e1, e2)) -> assert false
 		| (false, TTry(etry, catches)) -> assert false
@@ -434,7 +434,7 @@ module Transformer = struct
 		| _ ->
 			lift_expr ae.a_expr
 
-	
+
 
 	and transform e =
 		to_expr (transform1 (lift_expr e))
@@ -442,15 +442,15 @@ module Transformer = struct
 	and forward_transform e base =
 		transform1 (lift_expr ~is_value:base.a_is_value ~next_id:(Some base.a_next_id) ~blocks:base.a_blocks e)
 
-	
 
 
 
-	
 
-	
 
-		
+
+
+
+
 
 end
 
