@@ -32,8 +32,6 @@ NATIVE_LIBS=-cclib libs/extc/extc_stubs.o -cclib -lz -cclib libs/objsize/c_objsi
 
 RELDIR=../../..
 
-EXPORT=../../../projects/motionTools/haxe
-
 MODULES=ast type lexer common genxml parser typecore optimizer typeload \
 codegen gencommon genas3 gencpp genjs genneko genphp genswf8 \
 	genswf9 genswf genjava gencs genpy interp dce filters typer matcher version main
@@ -104,10 +102,6 @@ install_tools: tools
 
 uninstall:
 	rm -rf $(INSTALL_BIN_DIR)/haxe $(INSTALL_BIN_DIR)/haxelib $(INSTALL_LIB_DIR)
-
-export:
-	cp haxe*.exe doc/CHANGES.txt $(EXPORT)
-	rsync -a --exclude .svn --exclude *.n --exclude std/libs --delete std $(EXPORT)
 
 codegen.cmx: optimizer.cmx typeload.cmx typecore.cmx type.cmx genxml.cmx common.cmx ast.cmx
 

@@ -102,7 +102,7 @@
 		}
 		return (t == "string");
 	}
-	
+
 	public static function isEnumValue( v : Dynamic ) : Bool {
 		#if as3
 		return try Type.getEnum(v) != null catch ( e: Dynamic) false;

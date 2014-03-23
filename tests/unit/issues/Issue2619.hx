@@ -17,14 +17,14 @@ class Issue2619 extends Test {
 			e;
 		}
 		eq("foo", s);
-		
+
 		var s:String = try {
 			throw new A("foo");
 		} catch(e:String) {
 			e;
 		}
 		eq("foo", s);
-		
+
 		t(unit.TestType.typeError(
 			try { }
 			catch(e:A) { }

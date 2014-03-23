@@ -8,7 +8,7 @@ class DCEClass {
 	@:isVar static var staticPropUsed(get, set):Int = 1;
 	static function get_staticPropUsed() return staticPropUsed;
 	static function set_staticPropUsed(i:Int) return 0;
-	
+
 	// used members
 	function memberUsed() { }
 	@:keep function memberKeep() { }
@@ -16,45 +16,45 @@ class DCEClass {
 	@:isVar var memberPropUsed(get, set):Int = 1;
 	function get_memberPropUsed() return memberPropUsed;
 	function set_memberPropUsed(i:Int) return 0;
-	
+
 	// unused statics
 	static function staticUnused() { }
 	static var staticVarUnused = "bar";
 	static var staticPropUnused(get, set):Int;
 	static function get_staticPropUnused() return 0;
 	static function set_staticPropUnused(i:Int) return 0;
-	
+
 	// unused members
 	function memberUnused() { }
 	var memberVarUnused = 1;
 	var memberPropUnused(get, set):Int;
 	function get_memberPropUnused() return 0;
 	function set_memberPropUnused(i:Int) return 0;
-	
+
 	static var c :Array<Dynamic> = [null, unit.UsedReferenced2];
-	
+
 	public function new() {
 		staticUsed();
 		staticVarUsed;
 		staticPropUsed = 1;
 		staticPropUsed;
-		
+
 		memberUsed();
 		memberVarUsed;
 		memberPropUsed = 2;
 		memberPropUsed;
-		
+
 		new UsedConstructed();
-		
+
 		try cast (null, UsedReferenced) catch(e:Dynamic) { }
-				
+
 		new UsedAsBaseChild();
 		c.length;
 	}
 }
 
 class TestDCE extends Test {
-	
+
 	public function testFields() {
 		var dce = new DCEClass();
 		var c = Type.getClass(dce);
@@ -64,34 +64,34 @@ class TestDCE extends Test {
 		hf(c, "memberPropUsed");
 		hf(c, "get_memberPropUsed");
 		hf(c, "set_memberPropUsed");
-		
+
 		hsf(c, "staticKeep");
 		hsf(c, "staticUsed");
 		hsf(c, "staticVarUsed");
 		hsf(c, "staticPropUsed");
 		hsf(c, "get_staticPropUsed");
 		hsf(c, "set_staticPropUsed");
-		
+
 		nhf(c, "memberUnused");
 		nhf(c, "memberVarUnused");
 		nhf(c, "memberPropUnused");
 		nhf(c, "get_memberPropUnused");
 		nhf(c, "set_memberPropUnused");
-		
+
 		nhsf(c, "staticUnused");
 		nhsf(c, "staticVarUnused");
 		nhsf(c, "staticPropUnused");
 		nhsf(c, "get_staticPropUnused");
 		nhsf(c, "set_staticPropUnused");
 	}
-	
+
 	public function testInterface() {
 		var l:UsedInterface = new UsedThroughInterface();
 		var l2:UsedInterface = new InterfaceMethodFromBaseClassChild();
 		var ic = Type.resolveClass("unit.UsedInterface");
 		var c = Type.getClass(l);
 		var bc = Type.resolveClass("unit.InterfaceMethodFromBaseClass");
-		
+
 		l.usedInterfaceFunc();
 		hf(ic, "usedInterfaceFunc");
 		hf(c, "usedInterfaceFunc");
@@ -100,13 +100,13 @@ class TestDCE extends Test {
 		nhf(c, "unusedInterfaceFunc");
 		nhf(bc, "unusedInterfaceFunc");
 	}
-	
+
 	public function testProperty() {
 		var l:PropertyInterface = new PropertyAccessorsFromBaseClassChild();
 		var ic = Type.resolveClass("unit.PropertyInterface");
 		var c = Type.getClass(l);
 		var bc = Type.resolveClass("unit.PropertyAccessorsFromBaseClass");
-		
+
 		l.x = "bar";
 		hf(c, "set_x");
 		hf(bc, "set_x");
@@ -115,7 +115,7 @@ class TestDCE extends Test {
 		nhf(c, "get_x");
 		nhf(bc, "get_x");
 	}
-	
+
 	#if (!cpp && !java && !cs)
 	public function testProperty2() {
         var a = new RemovePropertyKeepAccessors();
@@ -123,7 +123,7 @@ class TestDCE extends Test {
         eq(a.test, 3);
         Reflect.setProperty(a, "test", 2);
         eq(a.test, 2);
-		
+
 		var c = Type.resolveClass("unit.RemovePropertyKeepAccessors");
 		hf(c, "get_test");
 		hf(c, "set_test");
@@ -131,7 +131,7 @@ class TestDCE extends Test {
 		nhf(c, "test");
 	}
 	#end
-	
+
 	public function testClasses() {
 		t(Type.resolveClass("unit.UsedConstructed") != null);
 		t(Type.resolveClass("unit.UsedReferenced") != null);
@@ -140,14 +140,14 @@ class TestDCE extends Test {
 		t(Type.resolveClass("unit.UsedThroughInterface") != null);
 		t(Type.resolveClass("unit.UsedAsBase") != null);
 		t(Type.resolveClass("unit.UsedAsBaseChild") != null);
-		
+
 		t(Type.resolveClass("unit.Unused") == null);
 		t(Type.resolveClass("unit.UnusedChild") == null);
 		t(Type.resolveClass("unit.UnusedImplements") == null);
 		t(Type.resolveClass("unit.UsedConstructedChild") == null);
 		t(Type.resolveClass("unit.UsedReferencedChild") == null);
 	}
-	
+
 	public function testThrow() {
 		// class has to be known for this to work
 		var c = new ThrownWithToString();
@@ -169,11 +169,11 @@ class UsedReferenced { }
 class UsedReferenced2 { }
 
 class UsedConstructedChild extends UsedConstructed {
-	
+
 }
 
 class UsedReferencedChild extends UsedReferenced {
-	
+
 }
 
 interface UsedInterface {
@@ -194,7 +194,7 @@ class UsedAsBaseChild extends UsedAsBase {
 }
 
 class Unused {
-	
+
 }
 
 class UnusedChild extends Unused { }

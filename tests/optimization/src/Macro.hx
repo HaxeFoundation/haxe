@@ -10,7 +10,7 @@ class Macro {
 	static var lines;
 	static var tests = 0;
 	static var failures = 0;
-	
+
 	static function register(className:String) {
 		if (classes.length == 0) {
 			Context.onAfterGenerate(run);
@@ -18,7 +18,7 @@ class Macro {
 		Context.getType(className);
 		classes.push(className);
 	}
-	
+
 	static function run() {
 		output = sys.io.File.getContent(haxe.macro.Compiler.getOutput());
 		lines = output.replace("\r", "").split("\n");
@@ -29,7 +29,7 @@ class Macro {
 		trace("SUCCESS: " + (failures == 0));
 		Sys.exit(failures == 0 ? 0 : 1);
 	}
-	
+
 	static function test(className:String) {
 		var c = switch(Context.getType(className)) {
 			case TInst(c, _): c.get();
@@ -54,11 +54,11 @@ class Macro {
 			}
 		}
 	}
-	
+
 	static function stripWhitespaces(s:String) {
 		return ~/[\r\n\t]/g.replace(s, "");
 	}
-	
+
 	static function extractJs(meta:Metadata) {
 		for (m in meta) {
 			if (m.name == ":js") {
@@ -70,7 +70,7 @@ class Macro {
 		}
 		throw false;
 	}
-	
+
 	static function getOutput(identifier:String) {
 		var buf = new StringBuf();
 		for (i in 0...lines.length) {

@@ -45,7 +45,7 @@ enum XmlType {
 	var _children : Array<Xml>;
 	var _parent : Xml;
 	var _fromCustomParser:Bool;
-	
+
 	private static var build : Xml;
 	private static function __start_element_handler(parser : Dynamic, name : String, attribs : ArrayAccess<String>) : Void {
 		var node = createElement(name);
@@ -142,7 +142,7 @@ enum XmlType {
 		r.set_nodeValue( data );
 		return r;
 	}
-	
+
 	public static function createElement( name : String ) : Xml {
 		var r = new Xml();
 		r.nodeType = Xml.Element;

@@ -170,6 +170,25 @@ let any = mk_any t_dynamic Ast.null_pos
 
 let fake_tuple_type = TInst(mk_class null_module ([],"-Tuple") null_pos, [])
 
+let mk_type_pat ctx mt t p =
+	let rec loop = function
+		| TClassDecl _ -> "Class"
+		| TEnumDecl _ -> "Enum"
+		| TAbstractDecl a when Meta.has Meta.RuntimeValue a.a_meta -> "Class"
+		| TTypeDecl t ->
+			begin match follow (monomorphs t.t_types t.t_type) with
+				| TInst(c,_) -> loop (TClassDecl c)
+				| TEnum(en,_) -> loop (TEnumDecl en)
+				| TAbstract(a,_) -> loop (TAbstractDecl a)
+				| _ -> error "Cannot use this type as a value" p
+			end
+		| _ -> error "Cannot use this type as a value" p
+	in
+	let tcl = Typeload.load_instance ctx {tname=loop mt;tpackage=[];tsub=None;tparams=[]} p true in
+	let t2 = match tcl with TAbstract(a,_) -> TAbstract(a,[mk_mono()]) | _ -> assert false in
+	unify ctx t t2 p;
+	mk_con_pat (CType mt) [] t2 p
+
 let mk_subs st con =
 	let map = match follow st.st_type with
 		| TInst(c,pl) -> apply_params c.cl_types pl
@@ -327,8 +346,10 @@ let to_pattern ctx e t =
 			let e = type_expr ctx e (WithType t) in
 			let e = match Optimizer.make_constant_expression ctx ~concat_strings:true e with Some e -> e | None -> e in
 			(match e.eexpr with
-			| TConst c | TCast({eexpr = TConst c},None) -> mk_con_pat (CConst c) [] t p
-			| TTypeExpr mt -> mk_con_pat (CType mt) [] t p
+			| TConst c | TCast({eexpr = TConst c},None) ->
+				mk_con_pat (CConst c) [] t p
+			| TTypeExpr mt ->
+				mk_type_pat ctx mt t p
 			| TField(_, FStatic(_,cf)) when is_value_type cf.cf_type ->
 				mk_con_pat (CExpr e) [] cf.cf_type p
 			| TField(_, FEnum(en,ef)) ->
@@ -427,14 +448,12 @@ let to_pattern ctx e t =
 							error (error_msg (Unify l)) p
 						end;
 						mk_con_pat (CEnum(en,ef)) [] t p
-                    | TConst c | TCast({eexpr = TConst c},None) ->
-                    	begin try unify_raise ctx ec.etype t ec.epos with Error (Unify _,_) -> raise Not_found end;
-                        unify ctx ec.etype t p;
+					| TConst c | TCast({eexpr = TConst c},None) ->
+						begin try unify_raise ctx ec.etype t ec.epos with Error (Unify _,_) -> raise Not_found end;
+						unify ctx ec.etype t p;
                         mk_con_pat (CConst c) [] t p
 					| TTypeExpr mt ->
-						let tcl = Typeload.load_instance ctx {tname="Class";tpackage=[];tsub=None;tparams=[]} p true in
-						let t2 = match tcl with TAbstract(a,_) -> TAbstract(a,[mk_mono()]) | _ -> assert false in
-						mk_con_pat (CType mt) [] t2 p
+						mk_type_pat ctx mt t p
 					| _ ->
 						raise Not_found);
 			with Not_found ->

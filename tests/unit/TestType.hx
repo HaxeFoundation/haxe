@@ -15,11 +15,11 @@ class TestType extends Test {
 	static public macro function getCompilationDate() {
 		return macro $v { Std.string(Date.now()) };
 	}
-	
+
 	static public macro function typedAs(actual:haxe.macro.Expr, expected:haxe.macro.Expr) {
 		var tExpected = haxe.macro.Context.typeof(expected);
 		var tActual = haxe.macro.Context.typeof(actual);
-		return haxe.macro.Context.parse("{Test.count++; eq('" +Std.string(tActual) + "', '" +Std.string(tExpected) + "');}", haxe.macro.Context.currentPos());
+		return haxe.macro.Context.parse("eq('" +Std.string(tActual) + "', '" +Std.string(tExpected) + "')", haxe.macro.Context.currentPos());
 	}
 
 	static public macro function typeError(e:haxe.macro.Expr) {
@@ -393,9 +393,8 @@ class TestType extends Test {
 		eq(c.b, true);
 		eq(c.t, String);
 
-		// TODO: disallowed (issue #2722)
-		//var c = Type.createInstance(InitWithoutCtor, []);
-		//eq(c.i, 2);
+		var c = Type.createInstance(InitWithoutCtor, []);
+		eq(c.i, 2);
 
 		var c = new InitProperties();
 		eq(c.accNull, 3);
@@ -856,12 +855,12 @@ class TestType extends Test {
 		eq(func1(), "foo");
 		eq(s.test()(), "bar");
 	}
-	
+
 	function testAbstractTypeParameterVariance() {
 		var a:Array<unit.MyAbstract.MyInt> = [1, 2, 3];
 		var b:Array<unit.MyAbstract.MyInt2> = a;
 	}
-	
+
 	function testExposingAbstract() {
 		#if !macro
 		var ea = new unit.MyAbstract.ExposingAbstract();

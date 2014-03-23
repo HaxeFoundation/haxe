@@ -127,7 +127,7 @@ StringTools.fastCodeAt(String.fromCharCode(255), 0) == 255;
 StringTools.isEof(StringTools.fastCodeAt(str, 2)) == false;
 StringTools.isEof(StringTools.fastCodeAt(str, 3)) == true;
 StringTools.isEof(StringTools.fastCodeAt("", 0)) == true;
-		
+
 // isEOF
 #if neko
 StringTools.isEof(null) == true;

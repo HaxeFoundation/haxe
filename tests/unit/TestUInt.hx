@@ -93,5 +93,5 @@ class TestUInt extends TestCase
     var f:Float = m;
     assertTrue(i != f);
   }
-	
+
 }

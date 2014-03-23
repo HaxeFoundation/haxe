@@ -6,21 +6,38 @@ import sys.io.*;
 	See ".travis.yml" at project root for TravisCI settings.
 */
 class RunTravis {
-	static function runCommand(cmd:String, args:Array<String>):Void {
-		var exitCode = Sys.command(cmd, args);
-		Sys.println('Command exited with $exitCode: $cmd $args');
+	/**
+		Run a command using `Sys.command()`.
+		If the command exits with non-zero code, exit the whole script with the same code.
 
-		if (exitCode != 0) {
-			Sys.exit(1);
+		If `useRetry` is `true`, the command will be re-run if it exits with non-zero code (3 trials).
+		It is useful for running network-dependent commands.
+	*/
+	static function runCommand(cmd:String, args:Array<String>, useRetry:Bool = false):Void {
+		var trials = useRetry ? 3 : 1;
+		var exitCode:Int = 1;
+
+		while (trials-->0) {
+			Sys.println('Command: $cmd $args');
+			exitCode = Sys.command(cmd, args);
+			Sys.println('Command exited with $exitCode: $cmd $args');
+
+			if (exitCode == 0) {
+				return;
+			} else if (trials > 0) {
+				Sys.println('Command will be re-run...');
+			}
 		}
+
+		Sys.exit(exitCode);
 	}
 
 	static function setupFlashPlayerDebugger():Void {
 		Sys.putEnv("DISPLAY", ":99.0");
 		runCommand("sh", ["-e", "/etc/init.d/xvfb", "start"]);
 		Sys.putEnv("AUDIODEV", "null");
-		runCommand("sudo", ["apt-get", "install", "-qq", "libgd2-xpm", "ia32-libs", "ia32-libs-multiarch", "-y"]);
-		runCommand("wget", ["-nv", "http://fpdownload.macromedia.com/pub/flashplayer/updaters/11/flashplayer_11_sa_debug.i386.tar.gz"]);
+		runCommand("sudo", ["apt-get", "install", "-qq", "libgd2-xpm", "ia32-libs", "ia32-libs-multiarch", "-y"], true);
+		runCommand("wget", ["-nv", "http://fpdownload.macromedia.com/pub/flashplayer/updaters/11/flashplayer_11_sa_debug.i386.tar.gz"], true);
 		runCommand("tar", ["-xf", "flashplayer_11_sa_debug.i386.tar.gz", "-C", Sys.getEnv("HOME")]);
 		File.saveContent(Sys.getEnv("HOME") + "/mm.cfg", "ErrorReportingEnable=1\nTraceOutputFileEnable=1");
 		runCommand(Sys.getEnv("HOME") + "/flashplayerdebugger", ["-v"]);
@@ -68,16 +85,16 @@ class RunTravis {
 
 
 				//generate documentation
-				runCommand("haxelib", ["git", "hxparse", "https://github.com/Simn/hxparse", "development", "src"]);
-				runCommand("haxelib", ["git", "hxtemplo", "https://github.com/Simn/hxtemplo", "master", "src"]);
-				runCommand("haxelib", ["git", "hxargs", "https://github.com/Simn/hxargs.git"]);
-				runCommand("haxelib", ["git", "markdown", "https://github.com/dpeek/haxe-markdown.git", "master", "src"]);
+				runCommand("haxelib", ["git", "hxparse", "https://github.com/Simn/hxparse", "development", "src"], true);
+				runCommand("haxelib", ["git", "hxtemplo", "https://github.com/Simn/hxtemplo", "master", "src"], true);
+				runCommand("haxelib", ["git", "hxargs", "https://github.com/Simn/hxargs.git"], true);
+				runCommand("haxelib", ["git", "markdown", "https://github.com/dpeek/haxe-markdown.git", "master", "src"], true);
 
-				runCommand("haxelib", ["git", "hxcpp", "https://github.com/HaxeFoundation/hxcpp.git"]);
-				runCommand("haxelib", ["git", "hxjava", "https://github.com/HaxeFoundation/hxjava.git"]);
-				runCommand("haxelib", ["git", "hxcs", "https://github.com/HaxeFoundation/hxcs.git"]);
+				runCommand("haxelib", ["git", "hxcpp", "https://github.com/HaxeFoundation/hxcpp.git"], true);
+				runCommand("haxelib", ["git", "hxjava", "https://github.com/HaxeFoundation/hxjava.git"], true);
+				runCommand("haxelib", ["git", "hxcs", "https://github.com/HaxeFoundation/hxcs.git"], true);
 
-				runCommand("haxelib", ["git", "dox", "https://github.com/dpeek/dox.git"]);
+				runCommand("haxelib", ["git", "dox", "https://github.com/dpeek/dox.git"], true);
 				Sys.setCwd(Sys.getEnv("HOME") + "/haxelib/dox/git/");
 				runCommand("haxe", ["run.hxml"]);
 				runCommand("haxe", ["gen.hxml"]);
@@ -86,15 +103,15 @@ class RunTravis {
 				runCommand("haxe", ["compile-neko.hxml"]);
 				runCommand("neko", ["unit.n"]);
 			case "php":
-				runCommand("sudo", ["apt-get", "install", "php5", "-y"]);
+				runCommand("sudo", ["apt-get", "install", "php5", "-y"], true);
 				runCommand("haxe", ["compile-php.hxml"]);
 				runCommand("php", ["php/index.php"]);
 			case "cpp":
 				//hxcpp dependencies
-				runCommand("sudo", ["apt-get", "install", "gcc-multilib", "g++-multilib", "-y"]);
+				runCommand("sudo", ["apt-get", "install", "gcc-multilib", "g++-multilib", "-y"], true);
 
 				//install and build hxcpp
-				runCommand("haxelib", ["git", "hxcpp", "https://github.com/HaxeFoundation/hxcpp.git"]);
+				runCommand("haxelib", ["git", "hxcpp", "https://github.com/HaxeFoundation/hxcpp.git"], true);
 				Sys.setCwd(Sys.getEnv("HOME") + "/haxelib/hxcpp/git/project/");
 				runCommand("neko", ["build.n"]);
 				Sys.setCwd(unitDir);
@@ -112,9 +129,9 @@ class RunTravis {
 
 				if (Sys.getEnv("TRAVIS_SECURE_ENV_VARS") == "true") {
 					//https://saucelabs.com/opensource/travis
-					runCommand("npm", ["install", "wd"]);
-					runCommand("curl", ["https://gist.github.com/santiycr/5139565/raw/sauce_connect_setup.sh", "-L", "|", "bash"]);
-					runCommand("haxelib", ["install", "nodejs"]);
+					runCommand("npm", ["install", "wd"], true);
+					runCommand("curl", ["https://gist.github.com/santiycr/5139565/raw/sauce_connect_setup.sh", "-L", "|", "bash"], true);
+					runCommand("haxelib", ["git", "nodejs", "https://github.com/dionjwa/nodejs-std.git", "master", "src"], true);
 					runCommand("haxe", ["compile-saucelabs-runner.hxml"]);
 					runCommand("nekotools", ["server", "&"]);
 					runCommand("node", ["RunSauceLabs.js"]);
@@ -124,12 +141,12 @@ class RunTravis {
 				Sys.setCwd(optDir);
 				runCommand("haxe", ["run.hxml"]);
 			case "java":
-				runCommand("haxelib", ["git", "hxjava", "https://github.com/HaxeFoundation/hxjava.git"]);
+				runCommand("haxelib", ["git", "hxjava", "https://github.com/HaxeFoundation/hxjava.git"], true);
 				runCommand("haxe", ["compile-java.hxml"]);
 				runCommand("java", ["-jar", "java/Test-Debug.jar"]);
 			case "cs":
-				runCommand("sudo", ["apt-get", "install", "mono-devel", "mono-mcs", "-y"]);
-				runCommand("haxelib", ["git", "hxcs", "https://github.com/HaxeFoundation/hxcs.git"]);
+				runCommand("sudo", ["apt-get", "install", "mono-devel", "mono-mcs", "-y"], true);
+				runCommand("haxelib", ["git", "hxcs", "https://github.com/HaxeFoundation/hxcs.git"], true);
 
 				runCommand("haxe", ["compile-cs.hxml"]);
 				runCommand("mono", ["cs/bin/Test-Debug.exe"]);
@@ -148,13 +165,13 @@ class RunTravis {
 				setupFlashPlayerDebugger();
 
 				//setup flex sdk
-				runCommand("wget", ["http://mirror.cc.columbia.edu/pub/software/apache/flex/4.11.0/binaries/apache-flex-sdk-4.11.0-bin.tar.gz"]);
-				runCommand("tar", ["-xf", "apache-flex-sdk-4.11.0-bin.tar.gz", "-C", Sys.getEnv("HOME")]);
-				var flexsdkPath = Sys.getEnv("HOME") + "/apache-flex-sdk-4.11.0-bin";
+				runCommand("wget", ["http://mirror.cc.columbia.edu/pub/software/apache/flex/4.12.0/binaries/apache-flex-sdk-4.12.0-bin.tar.gz"], true);
+				runCommand("tar", ["-xf", "apache-flex-sdk-4.12.0-bin.tar.gz", "-C", Sys.getEnv("HOME")]);
+				var flexsdkPath = Sys.getEnv("HOME") + "/apache-flex-sdk-4.12.0-bin";
 				Sys.putEnv("PATH", Sys.getEnv("PATH") + ":" + flexsdkPath + "/bin");
 				var playerglobalswcFolder = flexsdkPath + "/player";
 				FileSystem.createDirectory(playerglobalswcFolder + "/11.1");
-				runCommand("wget", ["-nv", "http://download.macromedia.com/get/flashplayer/updaters/11/playerglobal11_1.swc", "-O", playerglobalswcFolder + "/11.1/playerglobal.swc"]);
+				runCommand("wget", ["-nv", "http://download.macromedia.com/get/flashplayer/updaters/11/playerglobal11_1.swc", "-O", playerglobalswcFolder + "/11.1/playerglobal.swc"], true);
 				File.saveContent(flexsdkPath + "/env.properties", 'env.PLAYERGLOBAL_HOME=$playerglobalswcFolder');
 				runCommand("mxmlc", ["--version"]);
 

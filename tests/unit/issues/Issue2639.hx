@@ -10,7 +10,7 @@ private abstract A<T>(Int) {
     @:from static public inline function fromT<T:Measurable>(t:T) {
         return new A(t.length);
     }
-	
+
 	public function get() {
 		return this;
 	}

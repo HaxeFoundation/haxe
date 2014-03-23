@@ -24,7 +24,7 @@ package haxe.ds;
 
 /**
 	StringMap allows mapping of String keys to arbitrary values.
-	
+
 	See `Map` for documentation details.
 **/
 extern class StringMap<T> implements Map.IMap<String,T> {

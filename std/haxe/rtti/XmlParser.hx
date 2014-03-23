@@ -333,7 +333,7 @@ class XmlParser {
 		}
 		return ml;
 	}
-	
+
 	function xoverloads( x : Fast ) : List<ClassField> {
 		var l = new List();
 		for ( m in x.elements ) {

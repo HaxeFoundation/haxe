@@ -166,7 +166,7 @@ class TestBasetypes extends Test {
 		#if (js || flash)
 		eq( Std.int( -10000000000.7), 0xABF41C00 );
 		eq( Std.int( 10000000000.7), 0x540BE400 );
-		
+
 		eq( Std.int( -4294967296.7), 0 );
 		eq( Std.int( -4294967296.001), 0 );
 		eq( Std.int( 4294967296.7), 0 );
@@ -184,7 +184,7 @@ class TestBasetypes extends Test {
 		eq( Std.int( -2147483647.001), 0x80000001 );
 		eq( Std.int( 2147483647.7), 0x7FFFFFFF );
 		eq( Std.int( 2147483647.001), 0x7FFFFFFF );
-		
+
 
 		#if (flash9 && !as3)
 		eq( Math.floor( -10000000000.7), 0xABF41BFF);
@@ -270,7 +270,7 @@ class TestBasetypes extends Test {
 		t( h.remove(1) );
 		f( h.remove(1) );
 	}
-	
+
 	function testMap() {
 		var i = new Map();
 		i[1] = 0;
@@ -385,14 +385,14 @@ class TestBasetypes extends Test {
 		var arr:Array<String> = [tpl];
 		eq(arr[0], "Abstract casting really works!");
 		#end
-		
+
 		// cast to return
 		function returnAbstractCast():String {
 			return new unit.MyAbstract.Meter(12.2);
 		}
-		
+
 		eq(returnAbstractCast(), "12.2m");
-		
+
 		// switch
 		function switchMe(b):String {
 			return switch(b) {
@@ -400,16 +400,16 @@ class TestBasetypes extends Test {
 				default: new unit.MyAbstract.Meter(2.4);
 			}
 		}
-		
+
 		eq(switchMe(true), "12.2m");
 		eq(switchMe(false), "2.4m");
-		
+
 		// ctor
 		var m:unit.MyAbstract.Meter = 3000;
 		var c = new unit.MyAbstract.MyClassWithAbstractArgCtor(m);
 		feq(c.km, 3);
 	}
-	
+
 	function testAbstractToAbstractCast() {
 		var m:unit.MyAbstract.Meter = 122.2;
 		var km:unit.MyAbstract.Kilometer = m;
@@ -433,7 +433,7 @@ class TestBasetypes extends Test {
 		eq("Distance: 12.5km", "Distance: " + km);
 		eq("Distance: 12.5m", "Distance: " + m);
 	}
-	
+
 	function testAbstractInline() {
 		eq(getAbstractValue(1), 2);
 		eq(unit.MyAbstract.MyAbstractCounter.counter, 1);
@@ -442,7 +442,7 @@ class TestBasetypes extends Test {
 		eq(getAbstractValue(3), 4);
 		eq(unit.MyAbstract.MyAbstractCounter.counter, 3);
 	}
-	
+
 	inline function getAbstractValue(a:unit.MyAbstract.MyAbstractCounter) {
 		return a.getValue();
 	}
@@ -464,34 +464,34 @@ class TestBasetypes extends Test {
 		eq(2, i + i);
 		i = i + i;
 		eq(2, i);
-		
+
 		var s = "";
 		function getString() {
 			s += "b";
 			return s;
 		}
-		
+
 		var r:unit.MyAbstract.MyInt = 5;
 		eq("aaaaa", r * "a");
 		eq("aaaaa", "a" * r);
 		eq("bbbbb", r * getString());
 		eq("bbbbbbbbbb", getString() * r);
-		
+
 		var v:unit.MyAbstract.MyInt = 5;
 		eq("abcde", "abcdefghijk" / v);
 	}
-	
+
 	function testAbstractSetter() {
 		var as = new unit.MyAbstract.MyAbstractSetter();
 		as.value = "foo";
 		eq(as.value, "foo");
 	}
-	
+
 	function testAbstractMemberCall() {
 		var as = new MyAbstract.MyAbstractThatCallsAMember(2);
 		eq(3, as);
 	}
-	
+
 	function testAbstractMultitypeInline() {
 		var a = new unit.MyAbstract.MySpecialString("My debugging abstract");
 		eq("debugging abstract", a.substr(3));

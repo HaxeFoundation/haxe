@@ -52,6 +52,7 @@
 
 	private function codePointAt( idx : Int ) : Int;
 
+	@:overload(function() : haxe.io.BytesData { })
 	private function getBytes(encoding:String) : haxe.io.BytesData;
 
 	static function fromCharCode( code : Int ) : String;

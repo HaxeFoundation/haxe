@@ -33,7 +33,7 @@ class StringTools {
 	/**
 		Encode an URL by using the standard format.
 	**/
-	#if !java inline #end public static function urlEncode( s : String ) : String untyped {
+	#if (!java && !cpp) inline #end public static function urlEncode( s : String ) : String untyped {
 		#if flash9
 			return __global__["encodeURIComponent"](s);
 		#elseif flash
@@ -58,7 +58,7 @@ class StringTools {
 	/**
 		Decode an URL using the standard format.
 	**/
-	#if !java inline #end public static function urlDecode( s : String ) : String untyped {
+	#if (!java && !cpp) inline #end public static function urlDecode( s : String ) : String untyped {
 		#if flash9
 			return __global__["decodeURIComponent"](s.split("+").join(" "));
 		#elseif flash
@@ -84,13 +84,13 @@ class StringTools {
 		Escapes HTML special characters of the string `s`.
 
 		The following replacements are made:
-			
+
 		- `&` becomes `&amp`;
 		- `<` becomes `&lt`;
 		- `>` becomes `&gt`;
-		
+
 		If `quotes` is true, the following characters are also replaced:
-		
+
 		- `"` becomes `&quot`;
 		- `'` becomes `&#039`;
 	**/
@@ -106,7 +106,7 @@ class StringTools {
 		holds: htmlUnescape(htmlEscape(s)) == s
 
 		The replacements follow:
-			
+
 		- `&amp;` becomes `&`
 		- `&lt;` becomes `<`
 		- `&gt;` becomes `>`

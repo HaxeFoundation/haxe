@@ -37,13 +37,12 @@ private typedef VectorData<T> = #if flash10
 	A Vector is a storage of fixed size. It can be faster than Array on some
 	targets, and is never slower.
 **/
-@:arrayAccess
 abstract Vector<T>(VectorData<T>) {
 	/**
 		Creates a new Vector of length `length`.
 
 		Initially `this` Vector contains `length` neutral elements:
-			
+
 		- always null on dynamic targets
 		- 0, 0.0 or false for Int, Float and Bool respectively on static targets
 		- null for other types on static targets
@@ -75,7 +74,7 @@ abstract Vector<T>(VectorData<T>) {
 		If `index` is negative or exceeds `this.length`, the result is
 		unspecified.
 	**/
-	public inline function get(index:Int):Null<T> {
+	@:arrayAccess public inline function get(index:Int):Null<T> {
 		return this[index];
 	}
 
@@ -85,7 +84,7 @@ abstract Vector<T>(VectorData<T>) {
 		If `index` is negative or exceeds `this.length`, the result is
 		unspecified.
 	**/
-	public inline function set(index:Int, val:T):T {
+	@:arrayAccess public inline function set(index:Int, val:T):T {
 		return this[index] = val;
 	}
 
@@ -143,7 +142,7 @@ abstract Vector<T>(VectorData<T>) {
 			a[i] = get(i);
 		return a;
 	}
-		
+
 	/**
 		Extracts the data of `this` Vector.
 

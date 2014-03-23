@@ -24,11 +24,11 @@ package haxe.crypto;
 class Crc32 {
 
 	var crc : Int;
-	
+
 	public function new() {
 		crc = 0xFFFFFFFF;
 	}
-	
+
 	public function byte( b : Int ) {
 		var tmp = (crc ^ b) & 0xFF;
 		for( j in 0...8 ) {
@@ -39,7 +39,7 @@ class Crc32 {
 		}
 		crc = (crc >>> 8) ^ tmp;
 	}
-	
+
 	public function update( b : haxe.io.Bytes, pos, len ) {
 		var b = b.getData();
 		for( i in pos...pos+len ) {
@@ -53,11 +53,11 @@ class Crc32 {
 			crc = (crc >>> 8) ^ tmp;
 		}
 	}
-	
+
 	public function get() {
 		return crc ^ 0xFFFFFFFF;
 	}
-	
+
 	/**
 		Calculates the CRC32 of the given data bytes
 	**/

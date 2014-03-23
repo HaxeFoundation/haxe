@@ -40,7 +40,7 @@ class UdpSocket extends Socket {
 				throw Custom(e);
 		}
 	}
-	
+
 	public function readFrom( buf : haxe.io.Bytes, pos : Int, len : Int, addr : Address ) : Int {
 		var r;
 		try {
@@ -55,8 +55,8 @@ class UdpSocket extends Socket {
 			throw new haxe.io.Eof();
 		return r;
 	}
-	
+
 	static var socket_recv_from = neko.Lib.loadLazy("std", "socket_recv_from", 5);
 	static var socket_send_to = neko.Lib.loadLazy("std", "socket_send_to", 5);
-	
+
 }

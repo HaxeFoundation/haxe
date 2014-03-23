@@ -58,12 +58,12 @@ package unit;
 		eq(getMeta(@foo a).name, "foo");
 		eq(getMeta(@foo("a") b).name, "foo");
 		eq(getMeta(@foo ("a")).name, "foo");
-		
+
 		var m = getMeta(@bar("1", "foo") null);
 		eq(m.name, "bar");
 		eq(m.args[0], "1");
 		eq(m.args[1], "foo");
-		
+
 		eq(getMeta(@foo ("1")).args.length, 0);
 		eq(getMeta(@foo("1") "2").args.length, 1);
 	}

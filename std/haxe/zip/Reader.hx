@@ -186,7 +186,7 @@ class Reader {
 		}
 		return l;
 	}
-	
+
 	public static function readZip( i : haxe.io.Input ) {
 		var r = new Reader(i);
 		return r.read();

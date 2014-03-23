@@ -115,7 +115,7 @@ class Printer {
 		case ADynamic: "dynamic";
 		case AMacro: "macro";
 	}
-	
+
 	public function printField(field:Field) return
 		(field.doc != null && field.doc != "" ? "/**\n" + tabs + tabString + StringTools.replace(field.doc, "\n", "\n" + tabs + tabString) + "\n" + tabs + "**/\n" + tabs : "")
 		+ (field.meta != null && field.meta.length > 0 ? field.meta.map(printMetadata).join('\n$tabs') + '\n$tabs' : "")
@@ -211,21 +211,21 @@ class Printer {
 	public function printExprs(el:Array<Expr>, sep:String) {
 		return el.map(printExpr).join(sep);
 	}
-	
+
 	function printExtension(tpl:Array<TypePath>, fields: Array<Field>) {
 		return '{\n$tabs>' + tpl.map(printTypePath).join(',\n$tabs>') + ","
 		    + (fields.length > 0 ? ('\n$tabs' + fields.map(printField).join(';\n$tabs') + ";\n}") : ("\n}"));
 	}
-	
+
 	function printStructure(fields:Array<Field>) {
 		return fields.length == 0 ? "{ }" :
 			'{\n$tabs' + fields.map(printField).join(';\n$tabs') + ";\n}";
 	}
-	
+
 	public function printTypeDefinition(t:TypeDefinition, printPackage = true):String {
 		var old = tabs;
 		tabs = tabString;
-		
+
 		var str = t == null ? "#NULL" :
 			(printPackage && t.pack.length > 0 && t.pack[0] != "" ? "package " + t.pack.join(".") + ";\n" : "") +
 			(t.meta != null && t.meta.length > 0 ? t.meta.map(printMetadata).join(" ") + " " : "") + (t.isExtern ? "extern " : "") + switch (t.kind) {
@@ -286,7 +286,7 @@ class Printer {
 					}].join("\n")
 					+ "\n}";
 			}
-		
+
 		tabs = old;
 		return str;
 	}

@@ -25,7 +25,7 @@ package haxe;
 	A typed interface for bit flags. This is not a real object, only a typed
 	interface for an actual Int. Each flag can be tested/set with the
 	corresponding enum instance. Up to 32 flags can be stored that way.
-	
+
 	Enum constructor indices are preserved from haxe syntax, so the first
 	declared is index 0, the next index 1 etc. The methods are optimized if the
 	enum instance is passed directly, e.g. as has(EnumCtor). Otherwise
@@ -42,10 +42,10 @@ abstract EnumFlags<T:EnumValue>(Int) {
 
 	/**
 		Checks if the index of enum instance `v` is set.
-		
+
 		This method is optimized if `v` is an enum instance expression such as
 		SomeEnum.SomeCtor.
-		
+
 		If `v` is null, the result is unspecified.
 	**/
 	public inline function has( v : T ) : Bool {
@@ -54,10 +54,10 @@ abstract EnumFlags<T:EnumValue>(Int) {
 
 	/**
 		Sets the index of enum instance `v`.
-		
+
 		This method is optimized if `v` is an enum instance expression such as
 		SomeEnum.SomeCtor.
-		
+
 		If `v` is null, the result is unspecified.
 	**/
 	public inline function set( v : T ) : Void {
@@ -66,10 +66,10 @@ abstract EnumFlags<T:EnumValue>(Int) {
 
 	/**
 		Unsets the index of enum instance `v`.
-		
+
 		This method is optimized if `v` is an enum instance expression such as
 		SomeEnum.SomeCtor.
-		
+
 		If `v` is null, the result is unspecified.
 	**/
 	public inline function unset( v : T ) : Void {

@@ -1240,17 +1240,17 @@ and expr_next e1 = parser
 		| [< >] -> serror())
 	| [< '(BkOpen,_); e2 = expr; '(BkClose,p2); s >] ->
 		expr_next (EArray (e1,e2), punion (pos e1) p2) s
-	| [< '(Binop OpGt,_); s >] ->
+	| [< '(Binop OpGt,p1); s >] ->
 		(match s with parser
-		| [< '(Binop OpGt,_); s >] ->
+		| [< '(Binop OpGt,p2) when p1.pmax = p2.pmin; s >] ->
 			(match s with parser
-			| [< '(Binop OpGt,_) >] ->
+			| [< '(Binop OpGt,p3) when p2.pmax = p3.pmin >] ->
 				(match s with parser
-				| [< '(Binop OpAssign,_); e2 = expr >] -> make_binop (OpAssignOp OpUShr) e1 e2
+				| [< '(Binop OpAssign,p4) when p3.pmax = p4.pmin; e2 = expr >] -> make_binop (OpAssignOp OpUShr) e1 e2
 				| [< e2 = secure_expr >] -> make_binop OpUShr e1 e2)
-			| [< '(Binop OpAssign,_); e2 = expr >] -> make_binop (OpAssignOp OpShr) e1 e2
+			| [< '(Binop OpAssign,p3) when p2.pmax = p3.pmin; e2 = expr >] -> make_binop (OpAssignOp OpShr) e1 e2
 			| [< e2 = secure_expr >] -> make_binop OpShr e1 e2)
-		| [< '(Binop OpAssign,_); s >] ->
+		| [< '(Binop OpAssign,p2) when p1.pmax = p2.pmin; s >] ->
 			make_binop OpGte e1 (secure_expr s)
 		| [< e2 = secure_expr >] ->
 			make_binop OpGt e1 e2)
