@@ -26,7 +26,7 @@ package haxe;
 	from which the Unserializer class can recreate the original representation.
 
 	This class can be used in two ways:
-	
+
 	- create a new Serializer() instance, call its serialize() method with
 		any argument and finally retrieve the String representation from
 		toString()
@@ -413,7 +413,8 @@ class Serializer {
 			#elseif flash9
 			if( useEnumIndex ) {
 				buf.add(":");
-				buf.add(v.index);
+				var i : Int = v.index;
+				buf.add(i);
 			} else
 				serializeString(v.tag);
 			buf.add(":");

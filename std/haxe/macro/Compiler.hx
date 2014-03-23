@@ -26,7 +26,7 @@ import haxe.macro.Expr;
 	All these methods can be called for compiler configuration macros.
 **/
 class Compiler {
-	
+
 	macro static public function getDefine( key : String ) {
 		return macro $v{haxe.macro.Context.definedValue(key)};
 	}
@@ -39,7 +39,7 @@ class Compiler {
 	public static function allowPackage( v : String ) {
 		untyped load("allow_package", 1)(v.__s);
 	}
-	
+
 	public static function define( flag : String, ?value : String ) untyped {
 		var v = flag + (value == null ? "" : "= " + value);
 		load("define", 1)(v.__s);
@@ -233,7 +233,7 @@ class Compiler {
 
 	/**
 		Mark a class (or array of classes) with the metadata @:keep.
-		
+
 		Note that this does not imply inclusion of the class(es): If a class is
 		neither referenced nor added via [Compiler.include], it will not be part
 		of the output even if @:keep was added.

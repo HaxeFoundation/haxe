@@ -30,25 +30,25 @@ import haxe.macro.Expr;
 	additional methods on haxe.macro.Expr.ComplexType instances.
 **/
 class ComplexTypeTools {
-	
+
 	/**
 		Converts type [c] to a human-readable String representation.
-		
+
 		The result is guaranteed to be valid haxe code, but there may be
 		differences from the original lexical syntax.
 	**/
 	static public function toString( c : ComplexType ) : String
 		return new Printer().printComplexType(c);
-		
+
 	#if macro
-	
+
 	/**
 		Returns a type corresponding to [c].
-		
+
 		If [c] is null, the result is null.
 	**/
 	static public function toType( c : ComplexType ) : Null<Type>
 		return c == null ? null : haxe.macro.Context.typeof( { expr: ECheckType(macro null, c), pos: Context.currentPos() } );
-		
+
 	#end
 }

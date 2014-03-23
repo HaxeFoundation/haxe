@@ -32,20 +32,20 @@ extern class Std {
 		Tells if a value v is of the type t. Returns false if v or t are null.
 	**/
 	public static function is( v : Dynamic, t : Dynamic ) : Bool;
-	
+
 	/**
 		Checks if object `value` is an instance of class `c`.
-		
+
 		Compiles only if the class specified by `c` can be assigned to the type
 		of `value`.
-		
+
 		This method checks if a downcast is possible. That is, if the runtime
 		type of `value` is assignable to the class specified by `c`, `value` is
 		returned. Otherwise null is returned.
-		
+
 		This method is not guaranteed to work with interfaces or core types such
 		as String, Array and Date.
-		
+
 		If `value` is null, the result is null. If `c` is null, the result is
 		unspecified.
 	**/

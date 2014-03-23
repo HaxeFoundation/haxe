@@ -32,7 +32,7 @@ typedef TypeResolver = {
 	a serialization String and creates objects from the contained data.
 
 	This class can be used in two ways:
-	
+
 	- create a new Unserializer() instance with a given serialization
 		String, then call its unserialize() method until all values are
 		extracted
@@ -48,7 +48,7 @@ class Unserializer {
 		default, the haxe Type Api is used.
 
 		A type resolver must provide two methods:
-		
+
 		1. resolveClass(name:String):Class<Dynamic> is called to determine a
 				Class from a class name
 		2. resolveEnum(name:String):Enum<Dynamic> is called to determine an

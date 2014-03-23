@@ -2482,7 +2482,8 @@ struct
 
   let priority_as_synf = solve_deps name [DBefore DynamicOperators.priority_as_synf; DBefore DynamicFieldAccess.priority_as_synf]
 
-  let default_implementation gen (should_change:texpr->bool) (get_fun:string) (set_fun:string) =
+  (* should change signature: tarray expr -> binop operation -> should change? *)
+  let default_implementation gen (should_change:texpr->Ast.binop option->bool) (get_fun:string) (set_fun:string) =
     let basic = gen.gcon.basic in
     let mk_get e e1 e2 =
       let efield = mk_field_access gen e1 get_fun e.epos in
@@ -2496,10 +2497,10 @@ struct
       match e.eexpr with
         | TArray(e1, e2) ->
           (* e1 should always be a var; no need to map there *)
-          if should_change e then mk_get e (run e1) (run e2) else Type.map_expr run e
-        | TBinop (Ast.OpAssign, ({ eexpr = TArray(e1a,e2a) } as earray), evalue) when should_change earray ->
+          if should_change e None then mk_get e (run e1) (run e2) else Type.map_expr run e
+        | TBinop (Ast.OpAssign, ({ eexpr = TArray(e1a,e2a) } as earray), evalue) when should_change earray (Some Ast.OpAssign) ->
           mk_set e (run e1a) (run e2a) (run evalue)
-        | TBinop (Ast.OpAssignOp op,({ eexpr = TArray(e1a,e2a) } as earray) , evalue) when should_change earray ->
+        | TBinop (Ast.OpAssignOp op,({ eexpr = TArray(e1a,e2a) } as earray) , evalue) when should_change earray (Some (Ast.OpAssignOp op)) ->
           (* cache all arguments in vars so they don't get executed twice *)
           (* let ensure_local gen block name e = *)
           let block = ref [] in
@@ -2510,7 +2511,7 @@ struct
 
           { e with eexpr = TBlock (List.rev !block) }
         | TUnop(op, flag, ({ eexpr = TArray(e1a, e2a) } as earray)) ->
-          if should_change earray && match op with | Not | Neg -> false | _ -> true then begin
+          if should_change earray None && match op with | Not | Neg -> false | _ -> true then begin
 
             let block = ref [] in
 
@@ -2599,10 +2600,10 @@ struct
               match follow v.v_type with
                 | TDynamic _ ->
                   assert (is_none catchall);
-                  (nowrap_catches, must_wrap_catches, Some(v,catch_map v (run catch)))
+                  (nowrap_catches, must_wrap_catches, Some(v,run catch))
                 (* see if we should unwrap it *)
                 | _ when should_wrap (follow v.v_type) ->
-                  (nowrap_catches, (v,catch_map v (run catch)) :: must_wrap_catches, catchall)
+                  (nowrap_catches, (v,run catch) :: must_wrap_catches, catchall)
                 | _ ->
                   ( (v,catch_map v (run catch)) :: nowrap_catches, must_wrap_catches, catchall )
             ) ([], [], None) catches
@@ -2648,7 +2649,7 @@ struct
                       | None ->
                         mk_block (rethrow_expr temp_local)
                 in
-                [ ( temp_var, { e with eexpr = TBlock([ catchall_decl; if_is_wrapper_expr; loop must_wrap_catches ]) } ) ]
+                [ ( temp_var, catch_map temp_var { e with eexpr = TBlock([ catchall_decl; if_is_wrapper_expr; loop must_wrap_catches ]) } ) ]
               | _ ->
                 []
             in
@@ -9386,7 +9387,7 @@ struct
                 | Some t1, Some t2 ->
                   (match op with
                     | Ast.OpAssign ->
-                      { e with eexpr = TBinop( op, run e1, handle_wrap ( handle_unwrap t2 (run e2) ) t1 ) }
+                      Type.map_expr run e
                     | Ast.OpAssignOp op ->
                       (match e1.eexpr with
                         | TLocal _ ->

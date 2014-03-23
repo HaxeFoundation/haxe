@@ -31,13 +31,13 @@ class Address {
 		host = 0;
 		port = 0;
 	}
-	
+
 	public function getHost() {
 		var h = new Host("127.0.0.1");
 		untyped h.ip = host;
 		return h;
 	}
-	
+
 	public function compare( a : Address ) {
 		var dh = a.host - host;
 		if( dh != 0 ) return dh;
@@ -45,12 +45,12 @@ class Address {
 		if( dp != 0 ) return dp;
 		return 0;
 	}
-	
+
 	public function clone() {
 		var c = new Address();
 		c.host = host;
 		c.port = port;
 		return c;
 	}
-	
+
 }

@@ -17,10 +17,10 @@ import haxe.io.Output;
 /**
 	A TCP socket class : allow you to both connect to a given server and exchange messages or start your own server and wait for connections.
 **/
-@:coreapi 
+@:coreapi
 class Socket {
 	private var sock : cs.system.net.sockets.Socket = null;
-	
+
 	/**
 		The stream on which you can read available data. By default the stream is blocking until the requested data is available,
 		use [setBlocking(false)] or [setTimeout] to prevent infinite waiting.
@@ -156,14 +156,14 @@ class Socket {
 			Thread.Sleep(5);
 		}
 	}
-	
+
 	/**
 		Change the blocking mode of the socket. A blocking socket is the default behavior. A non-blocking socket will abort blocking operations immediatly by throwing a haxe.io.Error.Blocking value.
 	**/
 	public function setBlocking( b : Bool ) : Void {
 		sock.Blocking = b;
 	}
-	
+
 	/**
 		Allows the socket to immediatly send the data when written to its output : this will cause less ping but might increase the number of packets / data size, especially when doing a lot of small writes.
 	**/

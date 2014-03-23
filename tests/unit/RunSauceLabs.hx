@@ -8,12 +8,13 @@ class RunSauceLabs {
 		var browser:Dynamic = webdriver.remote(
 			"localhost",
 			4445,
-			Sys.getEnv("SAUCE_USERNAME"), 
+			Sys.getEnv("SAUCE_USERNAME"),
 			Sys.getEnv("SAUCE_ACCESS_KEY")
 		);
 
 		var tags = [];
-		if (Sys.getEnv("TRAVIS") != null) tags.push("TravisCI");
+		if (Sys.getEnv("TRAVIS") != null)
+			tags.push("TravisCI");
 
 		//https://saucelabs.com/platforms
 		var browsers = [
@@ -118,15 +119,23 @@ class RunSauceLabs {
 							browser.text("body", function(err, re) {
 								if (!handleError(err)) return;
 								console.log(re);
-								browser.eval("unit.Test.success", function(err, re) {
+
+								//check if test is successful or not
+								var test = false;
+								for (line in re.split("\n")) {
+									if (line.indexOf("SUCCESS: ") >= 0) {
+										test = line.indexOf("SUCCESS: true") >= 0;
+										break;
+									}
+								}
+								success = success && test;
+
+								//let saucelabs knows the result
+								browser.sauceJobUpdate({ passed: test }, function(err) {
 									if (!handleError(err)) return;
-									success = success && re;
-									browser.sauceJobUpdate({ passed: re }, function(err) {
+									browser.quit(function(err) {
 										if (!handleError(err)) return;
-										browser.quit(function(err) {
-											if (!handleError(err)) return;
-											testBrowsers(browsers);
-										});
+										testBrowsers(browsers);
 									});
 								});
 							});
@@ -135,7 +144,7 @@ class RunSauceLabs {
 				}
 
 				var caps = browsers.shift();
-				caps.setField("name", "haxe");
+				caps.setField("name", Sys.getEnv("TRAVIS") != null ? Sys.getEnv("TRAVIS_REPO_SLUG") : "haxe");
 				caps.setField("tags", tags);
 				if (Sys.getEnv("TRAVIS") != null) {
 					caps.setField("tunnel-identifier", Sys.getEnv("TRAVIS_JOB_NUMBER"));

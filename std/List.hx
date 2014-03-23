@@ -43,7 +43,7 @@ class List<T> {
 
 	/**
 		Adds element `item` at the end of `this` List.
-		
+
 		`this.length` increases by 1.
 	**/
 	public function add( item : T ) {
@@ -58,7 +58,7 @@ class List<T> {
 
 	/**
 		Adds element `item` at the beginning of `this` List.
-		
+
 		`this.length` increases by 1.
 	**/
 	public function push( item : T ) {
@@ -75,7 +75,7 @@ class List<T> {
 
 	/**
 		Returns the first element of `this` List, or null if no elements exist.
-		
+
 		This function does not modify `this` List.
 	**/
 	public function first() : Null<T> {
@@ -84,7 +84,7 @@ class List<T> {
 
 	/**
 		Returns the last element of `this` List, or null if no elements exist.
-		
+
 		This function does not modify `this` List.
 	**/
 	public function last() : Null<T> {
@@ -94,7 +94,7 @@ class List<T> {
 
 	/**
 		Returns the first element of `this` List, or null if no elements exist.
-		
+
 		The element is removed from `this` List.
 	**/
 	public function pop() : Null<T> {
@@ -117,7 +117,7 @@ class List<T> {
 
 	/**
 		Empties `this` List.
-		
+
 		This function does not traverse the elements, but simply sets the
 		internal references to null and `this.length` to 0.
 	**/
@@ -129,10 +129,10 @@ class List<T> {
 
 	/**
 		Removes the first occurence of `v` in `this` List.
-		
+
 		If `v` is found by checking standard equality, it is removed from `this`
 		List and the function returns true.
-		
+
 		Otherwise, false is returned.
 	**/
 	public function remove( v : T ) : Bool {
@@ -196,7 +196,7 @@ class List<T> {
 
 	/**
 		Returns a string representation of `this` List.
-		
+
 		The result is enclosed in { } with the individual elements being
 		separated by a comma.
 	**/

@@ -384,7 +384,7 @@ extern enum XmlType {
 		if( nodeType != Xml.Element && nodeType != Xml.Document )
 			throw "bad nodeType";
 		if (x.parent != null)
-			x.parent.removeChild(x);			
+			x.parent.removeChild(x);
 		var children:XMLList = _node.children();
 		if( pos < children.length() )
 			_node.insertChildBefore(children[pos], x._node);

@@ -1,5 +1,5 @@
 package unit;
 
-interface MyInterface 
+interface MyInterface
 {
 }

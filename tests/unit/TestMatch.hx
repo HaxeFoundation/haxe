@@ -284,7 +284,7 @@ class TestMatch extends Test {
 		eq("unit.MyClass", switchClass(MyClass));
 		eq("other: unit.TestMatch", switchClass(TestMatch));
 	}
-	
+
 	function testOr() {
 		var i1 = macro 1;
 		var i2 = macro 2;
@@ -294,23 +294,23 @@ class TestMatch extends Test {
 		eq("12", orMatch(i1, i2));
 		eq("13.9", orMatch(i1, f1));
 		eq("14.8", orMatch(i1, f2));
-		
+
 		eq("21", orMatch(i2, i1));
 		eq("22", orMatch(i2, i2));
 		eq("23.9", orMatch(i2, f1));
 		eq("24.8", orMatch(i2, f2));
-		
+
 		eq("3.91", orMatch(f1, i1));
 		eq("3.92", orMatch(f1, i2));
 		eq("3.93.9", orMatch(f1, f1));
 		eq("3.94.8", orMatch(f1, f2));
-		
+
 		eq("4.81", orMatch(f2, i1));
 		eq("4.82", orMatch(f2, i2));
 		eq("4.83.9", orMatch(f2, f1));
 		eq("4.84.8", orMatch(f2, f2));
 	}
-	
+
 	function testStaticNull() {
 		var v = A();
 		var r = switch(v) {
@@ -320,7 +320,7 @@ class TestMatch extends Test {
 		}
 		eq("null", r);
 	}
-	
+
 	static function orMatch(e1, e2) {
 		return switch([e1.expr, e2.expr]) {
 			case [EConst(CFloat(a) | CInt(a)), EConst(CFloat(b) | CInt(b))]: a + b;
@@ -384,7 +384,7 @@ class TestMatch extends Test {
 			case Node(l = Leaf(_), _) | Leaf(l):
 		}));
 	}
-	
+
 	function testNullPattern() {
 		var i:Null<Int> = null;
 		var r = switch(i) {
@@ -393,14 +393,14 @@ class TestMatch extends Test {
 			case _: 3;
 		}
 		eq(2, r);
-		
+
 		// this should not compile because the argument is not explicitly Null
 		//var e = EConst(null);
 		//var r = switch(e) {
 			//case EConst(null): 1;
 			//case _: 2;
 		//}
-		
+
 		var t:Null<Tree<String>> = null;
 		var r = switch(t) {
 			case Leaf(_): 1;
@@ -409,7 +409,7 @@ class TestMatch extends Test {
 			case Node(_): 4;
 		}
 		eq(r, 3);
-		
+
 		var e1 = macro if (1) 2;
 		var e2 = macro if (1) 2 else 3;
 		function matchIf(e) {
@@ -421,7 +421,7 @@ class TestMatch extends Test {
 		}
 		eq(1, matchIf(e1));
 		eq(2, matchIf(e2));
-		
+
 		var t = Leaf("foo");
 		function f(t) return switch(t) {
 			case Leaf(null): "null";
@@ -429,7 +429,7 @@ class TestMatch extends Test {
 			case Node(_): "default";
 		}
 		eq(f(t), "foo");
-		
+
 		function f(a) {
 			return switch(a:{a: Int}) {
 				case {a: 1}: 1;
@@ -437,12 +437,12 @@ class TestMatch extends Test {
 				default: 3;
 			}
 		}
-		
+
 		eq(f(null), 2);
 		eq(f({a: 1}), 1);
 		eq(f({a: 2}), 3);
 	}
-	
+
 	function testFakeEnumAbstract() {
 		#if !macro
 		var a = unit.MyAbstract.FakeEnumAbstract.NotFound;
@@ -451,7 +451,7 @@ class TestMatch extends Test {
 			case _: 2;
 		}
 		eq(r, 1);
-		
+
 		eq("Unmatched patterns: MethodNotAllowed", TestMatchMacro.getErrorMessage(switch(a) {
 			case NotFound:
 		}));
@@ -467,7 +467,7 @@ class TestMatch extends Test {
 				case _: 3;
 			}
 		}
-		
+
 		eq(1, f(1));
 		eq(1, f(2));
 		eq(1, f(3));
@@ -477,11 +477,11 @@ class TestMatch extends Test {
 		eq(3, f(9));
 		eq(2, f(6));
 		eq(2, f(8));
-		
+
 		function ref<T>(t:T):MiniRef<T> return {
 			get: function() return t
 		}
-		
+
 		function f(t:MiniType) {
 			return switch (t) {
 				case MTString(_.deref() => "Foo", []): "Foo";
@@ -491,7 +491,7 @@ class TestMatch extends Test {
 				case _: "Other";
 			}
 		}
-		
+
 		eq("Foo", f(MTString(ref("Foo"), [])));
 		eq("BarBaz", f(MTString(ref("Bar"), [])));
 		eq("BarBaz", f(MTString(ref("Baz"), [])));
@@ -499,7 +499,7 @@ class TestMatch extends Test {
 		eq("OtherString", f(MTString(ref(""), [])));
 		eq("Int:12", f(MTInt(ref(12), [])));
 		eq("Other", f(MTInt(ref(12), [MTInt(ref(10),[])])));
-		
+
 		function g(i : Array<Int>) {
 			return switch(i) {
 				case [x]: 1;
@@ -512,11 +512,11 @@ class TestMatch extends Test {
 		eq(1, g([1]));
 		eq(5, g([2, 3]));
 		eq(3, g([2, 3, 4]));
-		
+
 		var anon = {
 			odd: function(i) return i & 1 != 0
 		};
-		
+
 		var i = 9;
 		var r = switch(i) {
 			case 1: 1;
@@ -525,9 +525,9 @@ class TestMatch extends Test {
 			case _: 4;
 		}
 		eq(2, r);
-		
+
 		function mul(i1,i2) return i1 * i2;
-		
+
 		function check(i) {
 			return switch(i) {
 				case 1: 1;
@@ -536,12 +536,12 @@ class TestMatch extends Test {
 				case _: 4;
 			}
 		}
-		
+
 		eq(1, check(1));
 		eq(2, check(2));
 		eq(3, check(3));
 		eq(4, check(4));
-		
+
 		function is<T>(pred : T -> Bool) return function (x : T) {
 			return pred(x)?Some(x):None;
 		}
@@ -563,7 +563,7 @@ class TestMatch extends Test {
 				case arr: 3;
 			}
 		}
-		
+
 		eq(3, h([]));
 		eq(1, h([1]));
 		eq(1, h([2]));
@@ -573,15 +573,15 @@ class TestMatch extends Test {
 		eq(42, h([-1, 3]));
 		eq(99, h([99,98,97]));
 	}
-	
+
 	static function isPair<T>(t:Array<T>) return t.length == 2 ? Some({a:t[0], b:t[1]}) : None;
-	
+
 	static function even(i:Int) {
 		return i & 1 == 0;
 	}
-	
+
 	static function deref<T>(ref:MiniRef<T>) return ref.get();
-	
+
 	#if false
 	 //all lines marked as // unused should give an error
 	function testRedundance() {

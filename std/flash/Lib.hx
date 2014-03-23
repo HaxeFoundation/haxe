@@ -73,7 +73,7 @@ class Lib {
 	public inline static function as<T>( v : Dynamic, c : Class<T> ) : Null<T> {
 		return untyped __as__(v,c);
 	}
-	
+
 	public static function redirectTraces() {
 		if (flash.external.ExternalInterface.available)
 			haxe.Log.trace = traceToConsole;

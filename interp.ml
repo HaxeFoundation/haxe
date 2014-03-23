@@ -59,7 +59,6 @@ and vabstract =
 	| AZipD of zlib
 	| AUtf8 of UTF8.Buf.buf
 	| ASocket of Unix.file_descr
-	| ATExpr of texpr
 	| ATDecl of module_type
 	| AUnsafe of Obj.t
 	| ALazyType of (unit -> Type.t) ref
@@ -2470,6 +2469,7 @@ let macro_lib =
 			| VString cp ->
 				let com = ccom() in
 				com.class_path <- (Common.normalize_path cp) :: com.class_path;
+				Hashtbl.clear com.file_lookup_cache;
 				VNull
 			| _ ->
 				error()

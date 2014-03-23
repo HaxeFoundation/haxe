@@ -1117,7 +1117,7 @@ class RecordMacros {
 			return { expr : ECall({ expr : EField(em,"unsafeGet"), pos : pos },[econd,elock]), pos : pos };
 		}
 	}
-	
+
 	static function defaultTrue( e : Expr ) {
 		return switch( e.expr ) {
 		case EConst(CIdent("null")): { expr : EConst(CIdent("true")), pos : e.pos };

@@ -69,7 +69,7 @@ extern class JQueryHelper {
 	public static inline function J( html : String ) : JQuery {
 		return new JQuery(html);
 	}
-	
+
 	public static var JTHIS(get, null) : JQuery;
 
 	static inline function get_JTHIS() : JQuery {

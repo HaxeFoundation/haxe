@@ -28,7 +28,7 @@ class Base64 {
 
 	public static var CHARS(default,null) = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 	public static var BYTES(default,null) = haxe.io.Bytes.ofString(CHARS);
-	
+
 	public static function encode( bytes : haxe.io.Bytes, complement = true ) : String {
 		var str = new BaseCode(BYTES).encodeBytes(bytes).toString();
 		if( complement )
@@ -36,7 +36,7 @@ class Base64 {
 				str += "=";
 		return str;
 	}
-	
+
 	public static function decode( str : String, complement = true ) : haxe.io.Bytes {
 		if( complement )
 			while( str.charCodeAt(str.length-1) == "=".code )

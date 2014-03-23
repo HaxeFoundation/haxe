@@ -41,7 +41,7 @@
 		else if(v == POSITIVE_INFINITY)
 			return POSITIVE_INFINITY;
 		else
-			return 0.0;	
+			return 0.0;
 	}
 	public static function log(v : Float) : Float      { return untyped __call__("log", v); }
 	public static function sqrt(v : Float) : Float     { return untyped __call__("sqrt", v); }
@@ -55,7 +55,7 @@
 	public static function random() : Float    { return untyped __call__("mt_rand") / __call__("mt_getrandmax"); }
 	public static function isNaN(f : Float) : Bool     { return untyped __call__("is_nan", f); }
 	public static function isFinite(f : Float) : Bool  { return untyped __call__("is_finite", f); }
-	
+
 	public static function fround(v : Float) : Float      { return untyped __call__("floor", v + 0.5); }
 	public static function ffloor(v : Float) : Float      { return untyped __call__("floor", v); }
 	public static function fceil(v : Float) : Float       { return untyped __call__("ceil", v); }

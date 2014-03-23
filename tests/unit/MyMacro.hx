@@ -9,7 +9,7 @@ class MyRestMacro {
 			ret.push(e);
 		return macro $a{ret};
 	}
-	
+
 	static public macro function testRest2(e1:Expr, e2:Expr, r:Array<Expr>) {
 		var ret = [e1,e2];
 		for (e in r)

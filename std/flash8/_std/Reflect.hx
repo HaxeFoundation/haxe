@@ -92,7 +92,7 @@
 		var t = __typeof__(v);
 		return (t == "string" || (t == "object" && v.__enum__ == null) || (t == "function" && v.__name__ != null));
 	}
-	
+
 	public static function isEnumValue( v : Dynamic ) : Bool {
 		return v.__enum__ != null;
 	}

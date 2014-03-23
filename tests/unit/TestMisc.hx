@@ -606,7 +606,7 @@ class TestMisc extends Test {
 		eq(b.i, -6);
 		eq(b.b, true);
 	}
-	
+
 	function testNoReturnThrow() {
 		function test():String {
 			throw "never call me";

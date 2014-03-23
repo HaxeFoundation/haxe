@@ -27,7 +27,7 @@ import js.Boot;
 	public static inline function is( v : Dynamic, t : Dynamic ) : Bool {
 		return untyped js.Boot.__instanceof(v,t);
 	}
-	
+
 	public static inline function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
 		return untyped __instanceof__(value, c) ? cast value : null;
 	}

@@ -14,7 +14,7 @@ class TestUnspecified extends Test
 			t(Math.isNaN(1 % 0));
 		#end
 	}
-	
+
 	public function testMonoAdd()
 	{
 		var x : Array<Dynamic> = ["4", 1];

@@ -10,7 +10,7 @@ class Issue2634 extends Test {
 		var t = mkNew("haxe.Template", "bar");
 		eq(t.execute({}), "bar");
 	}
-	
+
 	macro static function mkNew(dotPath:String, args:Array<Expr>) {
 		var split = dotPath.split(".");
 		var name = split.pop();

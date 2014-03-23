@@ -23,14 +23,14 @@
  /**
 	The Date class provides a basic structure for date and time related
 	information. Date instances can be created by
-	
+
 	- `new Date()` for a specific date,
 	- `Date.now()` to obtain information about the current time,
 	- `Date.fromTime()` with a given timestamp or
 	- `Date.fromString()` by parsing from a String.
-	
+
 	There is some extra functions available in the `DateTools` class.
-	
+
 	In the context of haxe dates, a timestamp is defined as the number of
 	milliseconds elapsed since 1st January 1970.
 **/
@@ -38,10 +38,10 @@ extern class Date
 {
 	/**
 		Creates a new date object from the given arguments.
-		
+
 		The behaviour of a Date instance is only consistent across platforms if
 		the the arguments describe a valid date.
-		
+
 		- month: 0 to 11
 		- day: 1 to 31
 		- hour: 0 to 23
@@ -111,11 +111,11 @@ extern class Date
 	/**
 		Returns a Date from a formated string `s`, with the following accepted
 		formats:
-		
+
 		- `"YYYY-MM-DD hh:mm:ss"`
 		- `"YYYY-MM-DD"`
 		- `"hh:mm:ss"`
-		
+
 		The first two formats are expressed in local time, the third in UTC
 		Epoch.
 	**/

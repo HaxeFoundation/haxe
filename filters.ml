@@ -66,6 +66,13 @@ let mk_block_context com gen_temp =
 	- array access
 *)
 let handle_side_effects com gen_temp e =
+	let has_direct_side_effect e = match e.eexpr with
+		| TConst _ | TLocal _ | TField _ | TTypeExpr _ | TFunction _ -> false
+		| TPatMatch _ | TNew _ | TCall _ | TBinop ((OpAssignOp _ | OpAssign),_,_) | TUnop ((Increment|Decrement),_,_) -> true
+		| TReturn _ | TBreak | TContinue | TThrow _ | TCast (_,Some _) -> true
+		| TIf _ | TTry _ | TSwitch _ -> true
+		| TArray _ | TEnumParameter _ | TCast (_,None) | TBinop _ | TUnop _ | TParenthesis _ | TMeta _ | TWhile _ | TFor _ | TArrayDecl _ | TVar _ | TBlock _ | TObjectDecl _ -> false
+	in
 	let block,declare_temp,close_block = mk_block_context com gen_temp in
 	let rec loop e =
 		match e.eexpr with
@@ -106,6 +113,15 @@ let handle_side_effects com gen_temp e =
 				| _ ->
 					assert false
 			end
+		| TWhile(e1,e2,flag) when (match e1.eexpr with TParenthesis {eexpr = TConst(TBool true)} -> false | _ -> true) ->
+			let p = e.epos in
+			let e_break = mk TBreak t_dynamic p in
+			let e_not = mk (TUnop(Not,Prefix,Codegen.mk_parent e1)) e1.etype e1.epos in
+			let e_if = mk (TIf(e_not,e_break,None)) com.basic.tvoid p in
+			let e_block = if flag = NormalWhile then Codegen.concat e_if e2 else Codegen.concat e2 e_if in
+			let e_true = mk (TConst (TBool true)) com.basic.tbool p in
+			let e = mk (TWhile(Codegen.mk_parent e_true,e_block,NormalWhile)) e.etype p in
+			loop e
 		| _ ->
 			Type.map_expr loop e
 	and ordered_list el =
@@ -118,22 +134,10 @@ let handle_side_effects com gen_temp e =
 				e
 			end
 		in
-		let rec no_side_effect e = match e.eexpr with
-			| TNew _ | TCall _ | TArrayDecl _ | TObjectDecl _ | TBinop ((OpAssignOp _ | OpAssign),_,_) | TUnop ((Increment|Decrement),_,_) ->
-				bind e;
-			| TIf _ | TTry _ | TSwitch _ ->
-				(* Technically these are not side-effects, but we have to move them out anyway because their blocks code have side-effects.
-				   This also probably improves readability of the generated code. We can ignore TWhile and TFor because their type is Void,
-				   so they could never appear in a place where side-effects matter. *)
+		let rec no_side_effect e =
+			if has_direct_side_effect e then
 				bind e
-			| TBinop(op,e1,e2) when Optimizer.has_side_effect e1 || Optimizer.has_side_effect e2 ->
-				bind e;
-			| TConst _ | TLocal _ | TTypeExpr _ | TFunction _
-			| TReturn _ | TBreak | TContinue | TThrow _ | TCast (_,Some _) ->
-				e
-			| TBlock _ ->
-				bind e
-			| _ ->
+			else
 				Type.map_expr no_side_effect e
 		in
 		let rec loop2 acc el = match el with
@@ -312,12 +316,12 @@ let check_local_vars_init e =
 				vars := intersect !vars v1)
 		| TWhile (cond,e,flag) ->
 			(match flag with
-			| NormalWhile ->
+			| NormalWhile when (match cond.eexpr with TParenthesis {eexpr = TConst (TBool true)} -> false | _ -> true) ->
 				loop vars cond;
 				let old = !vars in
 				loop vars e;
 				vars := old;
-			| DoWhile ->
+			| _ ->
 				loop vars e;
 				loop vars cond)
 		| TTry (e,catches) ->
@@ -807,6 +811,72 @@ let rename_local_vars com e =
 	loop e;
 	e
 
+let check_deprecation com =
+	let curclass = ref null_class in
+	let definition_positions = (Common.defined_value_safe com Define.DeprecationWarnings) = "def-pos" in
+	let warned_positions = Hashtbl.create 0 in
+	let get_deprecation_message meta s p_usage p_definition =
+		try
+			let s = match Meta.get Meta.Deprecated meta with
+				| _,[EConst(String s),_],_ -> s
+				| _ -> Printf.sprintf "Usage of this %s is deprecated" s
+			in
+			if not (Hashtbl.mem warned_positions p_usage) then begin
+				Hashtbl.replace warned_positions p_usage true;
+				com.warning s p_usage;
+			end;
+			if definition_positions then com.warning "Defined here" p_definition
+		with Not_found ->
+			()
+	in
+	let check_cf cf p = get_deprecation_message cf.cf_meta "field" p cf.cf_pos in
+	let check_class c p = if c != !curclass then get_deprecation_message c.cl_meta "class" p c.cl_pos in
+	let check_enum en p = get_deprecation_message en.e_meta "enum" p en.e_pos in
+	let check_ef ef p = get_deprecation_message ef.ef_meta "enum field" p ef.ef_pos in
+	let check_module_type mt p = match mt with
+		| TClassDecl c -> check_class c p
+		| TEnumDecl en -> check_enum en p
+		| _ -> ()
+	in
+	let rec expr e = match e.eexpr with
+		| TField(e1,fa) ->
+			expr e1;
+			begin match fa with
+				| FStatic(c,cf) | FInstance(c,cf) ->
+					check_class c e.epos;
+					check_cf cf e.epos
+				| FAnon cf ->
+					check_cf cf e.epos
+				| FClosure(co,cf) ->
+					(match co with None -> () | Some c -> check_class c e.epos);
+					check_cf cf e.epos
+				| FEnum(en,ef) ->
+					check_enum en e.epos;
+					check_ef ef e.epos;
+				| _ ->
+					()
+			end
+		| TNew(c,_,el) ->
+			List.iter expr el;
+			check_class c e.epos;
+			(match c.cl_constructor with None -> () | Some cf -> check_cf cf e.epos)
+		| TTypeExpr(mt) | TCast(_,Some mt) ->
+			check_module_type mt e.epos
+		| _ ->
+			Type.iter expr e
+	in
+	List.iter (fun t -> match t with
+		| TClassDecl c ->
+			curclass := c;
+			let field cf = match cf.cf_expr with None -> () | Some e -> expr e in
+			(match c.cl_constructor with None -> () | Some cf -> field cf);
+			(match c.cl_init with None -> () | Some e -> expr e);
+			List.iter field c.cl_ordered_statics;
+			List.iter field c.cl_ordered_fields;
+		| _ ->
+			()
+	) com.types
+
 (* PASS 1 end *)
 
 (* Saves a class state so it can be restored later, e.g. after DCE or native path rewrite *)
@@ -963,13 +1033,6 @@ let add_field_inits ctx t =
 		match inits with
 		| [] -> ()
 		| _ ->
-			let cf_ctor = match c.cl_constructor with
-				| None ->
-					List.iter (fun cf -> display_error ctx "Cannot initialize member fields on classes that do not have a constructor" cf.cf_pos) inits;
-					error "Could not initialize member fields" c.cl_pos;
-				| Some cf ->
-					cf
-			in
 			let el = List.map (fun cf ->
 				match cf.cf_expr with
 				| None -> assert false
@@ -984,13 +1047,25 @@ let add_field_inits ctx t =
 						eassign;
 			) inits in
 			let el = if !need_this then (mk (TVar((v, Some ethis))) ethis.etype ethis.epos) :: el else el in
-			match cf_ctor.cf_expr with
-			| Some { eexpr = TFunction f } ->
-				let bl = match f.tf_expr with {eexpr = TBlock b } -> b | x -> [x] in
-				let ce = mk (TFunction {f with tf_expr = mk (TBlock (el @ bl)) ctx.com.basic.tvoid c.cl_pos }) cf_ctor.cf_type cf_ctor.cf_pos in
-				c.cl_constructor <- Some {cf_ctor with cf_expr = Some ce }
-			| _ ->
-				assert false
+			match c.cl_constructor with
+			| None ->
+				let ct = TFun([],ctx.com.basic.tvoid) in
+				let ce = mk (TFunction {
+					tf_args = [];
+					tf_type = ctx.com.basic.tvoid;
+					tf_expr = mk (TBlock el) ctx.com.basic.tvoid c.cl_pos;
+				}) ct c.cl_pos in
+				let ctor = mk_field "new" ct c.cl_pos in
+				ctor.cf_kind <- Method MethNormal;
+				c.cl_constructor <- Some { ctor with cf_expr = Some ce };
+			| Some cf ->
+				match cf.cf_expr with
+				| Some { eexpr = TFunction f } ->
+					let bl = match f.tf_expr with {eexpr = TBlock b } -> b | x -> [x] in
+					let ce = mk (TFunction {f with tf_expr = mk (TBlock (el @ bl)) ctx.com.basic.tvoid c.cl_pos }) cf.cf_type cf.cf_pos in
+					c.cl_constructor <- Some {cf with cf_expr = Some ce }
+				| _ ->
+					assert false
 	in
 	match t with
 	| TClassDecl c ->
@@ -1071,17 +1146,20 @@ let post_process_end() =
 let run com tctx main =
 	if com.display = DMUsage then
 		Codegen.detect_usage com;
+	if Common.defined com Define.DeprecationWarnings then
+		check_deprecation com;
+
 	(* PASS 1: general expression filters *)
  	let filters = [
 		Codegen.Abstract.handle_abstract_casts tctx;
 		blockify_ast;
-		(match com.platform with
+(* 		(match com.platform with
 			| Cpp | Flash8 -> (fun e ->
 				let save = save_locals tctx in
 				let e = handle_side_effects com (Typecore.gen_local tctx) e in
 				save();
 				e)
-			| _ -> fun e -> e);
+			| _ -> fun e -> e); *)
 		if com.foptimize then (fun e -> Optimizer.reduce_expression tctx (Optimizer.inline_constructors tctx e)) else Optimizer.sanitize tctx;
 		check_local_vars_init;
 		captured_vars com;

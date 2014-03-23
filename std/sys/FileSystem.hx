@@ -103,7 +103,7 @@ extern class FileSystem {
 	static function deleteDirectory( path : String ) : Void;
 
 	/**
-		Returns the names of all files and directory in the directory specified
+		Returns the names of all files and directories in the directory specified
 		by `path`.
 
 		If `path` does not denote a valid directory, an exception is thrown.

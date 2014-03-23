@@ -44,13 +44,13 @@ private class GenericStackIterator<T> extends cpp.FastIterator<T> {
 
 /**
 	A stack of elements.
-	
+
 	This class is generic, which means one type is generated for each type
 	parameter T on static targets. For example:
-		
+
 	- `new GenericStack<Int>()` generates `GenericStack_Int`
 	- `new GenericStack<String>()` generates `GenericStack_String`
-	
+
 	The generated name is an implementation detail and should not be relied
 	upon.
 **/
@@ -76,7 +76,7 @@ class GenericStack<T> {
 
 	/**
 		Returns the topmost stack element without removing it.
-		
+
 		If the stack is empty, null is returned.
 	**/
 	public inline function first() : Null<T> {
@@ -85,7 +85,7 @@ class GenericStack<T> {
 
 	/**
 		Returns the topmost stack element and removes it.
-		
+
 		If the stack is empty, null is returned.
 	**/
 	public inline function pop() : Null<T> {
@@ -108,10 +108,10 @@ class GenericStack<T> {
 	/**
 		Removes the first element which is equal to `v` according to the `==`
 		operator.
-		
+
 		This method traverses the stack until it finds a matching element and
 		unlinks it, returning true.
-		
+
 		If no matching element is found, false is returned.
 	**/
 	public function remove( v : T ) : Bool {
