@@ -933,13 +933,13 @@ module Printer = struct
 					Printf.sprintf "if isinstance(_hx_e1, %s):\n%s\t%s = _hx_e1\n%s\t%s" t indent v.v_name indent (print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} e)
 				in
 				if i > 0 then
-					"el" ^ res
+					indent ^ "el" ^ res
 				else
 					res
 			in
 			match follow v.v_type with
 				| TDynamic _ ->
-					Printf.sprintf "if True:\n%s\t%s = _hx_e1\n%s\t%s" indent v.v_name indent (print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} e)
+					Printf.sprintf "%sif True:\n%s\t%s = _hx_e1\n%s\t%s" (if i > 0 then indent else "") indent v.v_name indent (print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} e)
 				| TInst(c,_) ->
 					handle_base_type (t_infos (TClassDecl c))
 				| TEnum(en,_) ->
@@ -1297,7 +1297,7 @@ module Generator = struct
 				if field = "" then
 					spr ctx expr_string_2
 				else
-					print ctx "%s %s = %s" indent field expr_string_2
+					print ctx "%s%s = %s" indent field expr_string_2
 
 	let gen_func_expr ctx e c name metas extra_args indent stat =
 		let pctx = Printer.create_context indent in
@@ -1505,7 +1505,7 @@ module Generator = struct
 					print ctx "%s.%s = _%s_statics_%s\n" p f p f;
 				| _ ->
 					(* TODO: haxe source has api.quoteString for ef.ef_name *)
-					print ctx "%s.%s = %s(%s, %i, list())\n" p f p ef.ef_name ef.ef_index
+					print ctx "%s.%s = %s(\"%s\", %i, list())\n" p f p ef.ef_name ef.ef_index
 			end;
 			newline ctx;
 			ef :: acc
