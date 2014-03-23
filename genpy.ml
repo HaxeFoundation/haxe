@@ -1306,7 +1306,7 @@ module Generator = struct
 				let args = List.map (fun s ->
 					alloc_var s t_dynamic,None
 				) extra_args in
-				{e with eexpr = TFunction {f with tf_args = args}}
+				{e with eexpr = TFunction {f with tf_args = args @ f.tf_args}}
 			| _ ->
 				e
 		in
