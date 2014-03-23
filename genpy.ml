@@ -68,7 +68,8 @@ module Transformer = struct
 			a_next_id = next_id;
 			a_is_value = is_value
 		}
-
+	let lift_expr1 is_value next_id blocks e = 
+		lift_expr ~is_value:is_value ~next_id:(Some next_id) ~blocks:blocks e
 
 	let to_tvar ?(capture = false) n t = 
 		{ v_name = n; v_type = t; v_id = 0; v_capture = capture; v_extra = None; v_meta = [] }
@@ -158,7 +159,7 @@ module Transformer = struct
 			let new_var = alloc_var new_name tf.tf_type in
 			let new_local = mk (TLocal new_var) fn.etype p in
 			let def = mk (TVar(new_var,Some fn)) fn.etype p in
-			lift_expr ~next_id:(Some ae.a_next_id) ~blocks:[def] new_local
+			lift_expr1 false ae.a_next_id [def] new_local
 		end else
 			lift_expr fn
 
@@ -167,7 +168,7 @@ module Transformer = struct
 			| None ->
 				[],None
 			| Some e1 ->
-				let f = transform_expr ~is_value:true ~next_id:(Some ae.a_next_id) e1 in
+				let f = transform_expr1 true ae.a_next_id [] e1 in
 				let b = f.a_blocks in
 				b,Some(f.a_expr)
 		in
@@ -178,7 +179,7 @@ module Transformer = struct
 		transform1 (lift_expr ~is_value ~next_id ~blocks e)
 
 	and transform_expr1 is_value next_id blocks e = 
-		transform_expr ~is_value:is_value ~next_id:(Some next_id) ~blocks:blocks e
+		transform_expr ~is_value ~next_id:(Some next_id) ~blocks e
 
 	and transform_exprs_to_block el tb is_value p next_id =
 		match el with
@@ -263,9 +264,12 @@ module Transformer = struct
 		| _ -> def
 		
 
-	and transform1 ae : adjusted_expr = match ae.a_is_value,ae.a_expr.eexpr with
+	and transform1 ae : adjusted_expr = 
+		let trans is_value blocks e = transform_expr1 is_value ae.a_next_id blocks e in
+		let lift is_value blocks e = lift_expr1 is_value ae.a_next_id blocks e in
+		match ae.a_is_value,ae.a_expr.eexpr with
 		| (is_value,TBlock [x]) ->
-			transform_expr ~is_value:is_value ~next_id:(Some ae.a_next_id) x
+			trans is_value [] x
 		| (_,TBlock []) ->
 			lift_expr (mk (TConst TNull) ae.a_expr.etype ae.a_expr.epos)
 		| (false,TBlock el) ->
@@ -305,15 +309,15 @@ module Transformer = struct
 		| (_,TVar(v,eo)) ->
 			transform_var_expr ae eo v
 		| (_,TFor(v,e1,e2)) ->
-			let e1 = transform_expr ~is_value:true ~next_id:(Some ae.a_next_id) e1 in
-			let e2 = to_expr (transform_expr ~is_value:false ~next_id:(Some ae.a_next_id) e2) in
+			let e1 = trans true [] e1 in
+			let e2 = to_expr (trans false [] e2) in
 			let new_expr = mk (TFor(v,e1.a_expr,e2)) ae.a_expr.etype ae.a_expr.epos in
-			lift_expr ~blocks:e1.a_blocks new_expr
+			lift_expr ~blocks: e1.a_blocks new_expr
 		| (_,TReturn None) ->
 			ae
 		| (_,TReturn (Some ({eexpr = TFunction f} as ef))) ->
 			let n = ae.a_next_id() in
-			let e1 = to_expr (transform_expr ~next_id:(Some ae.a_next_id) f.tf_expr) in
+			let e1 = to_expr (trans false [] f.tf_expr) in
 			let f = mk (TFunction {
 				tf_args = f.tf_args;
 				tf_type = f.tf_type;
@@ -324,24 +328,24 @@ module Transformer = struct
 			let f1_assign = mk (TVar(var_n,Some f1)) !t_void f1.epos in
 			let var_local = mk (TLocal var_n) ef.etype f1.epos in
 			let er = mk (TReturn (Some var_local)) t_dynamic  ae.a_expr.epos in
-			lift_expr ~is_value:true ~next_id:(Some ae.a_next_id) ~blocks:[f1_assign] er
+			lift true [f1_assign] er
 
 		| (_,TReturn Some(x)) ->
-			let x1 = transform_expr ~is_value:true ~next_id:(Some ae.a_next_id) x in
+			let x1 = trans true [] x in
 			(match x1.a_blocks with
 				| [] ->
-					lift_expr ~next_id:( Some ae.a_next_id) ~is_value:true { ae.a_expr with eexpr = TReturn(Some x1.a_expr) }
+					lift true [] { ae.a_expr with eexpr = TReturn(Some x1.a_expr) }
 				| _ -> 
 					ae)
 		| (_, TParenthesis(e1)) ->
-			let e1 = transform_expr ~is_value:true ~next_id:(Some ae.a_next_id) e1 in
+			let e1 = trans true [] e1 in
 			let p = { ae.a_expr with eexpr = TParenthesis(e1.a_expr)} in
-			lift_expr ~is_value:true ~next_id:(Some ae.a_next_id) ~blocks:e1.a_blocks p 
+			lift true e1.a_blocks p 
 		| (true, TIf(econd, eif, eelse)) ->
-			(let econd1 = transform_expr ~is_value:true ~next_id:(Some ae.a_next_id) econd in
-			let eif1 = transform_expr ~is_value:true ~next_id:(Some ae.a_next_id) eif in
+			(let econd1 = trans true [] econd in
+			let eif1 = trans true [] eif in
 			let eelse1 = match eelse with
-				| Some x -> Some(transform_expr ~is_value:true ~next_id:(Some ae.a_next_id) x)
+				| Some x -> Some(trans true [] x)
 				| None -> None
 			in
 			let blocks = [] in
@@ -385,21 +389,21 @@ module Transformer = struct
 				let f = exprs_to_func (List.append blocks [new_if]) (ae.a_next_id ()) ae in
 				lift_expr ~blocks:f.a_blocks f.a_expr)
 		| (false, TIf(econd, eif, eelse)) ->
-			let econd = transform_expr ~is_value:true ~next_id:(Some ae.a_next_id) econd in
-			let eif = to_expr (transform_expr ~is_value:false ~next_id:(Some ae.a_next_id) eif) in
+			let econd = trans true [] econd in
+			let eif = to_expr (trans false [] eif) in
 			let eelse = match eelse with
-			| Some(x) -> Some(to_expr (transform_expr ~is_value:false ~next_id:(Some ae.a_next_id) x))
+			| Some(x) -> Some(to_expr (trans false [] x))
 			| None -> None
 			in
 			let new_if = { ae.a_expr with eexpr = TIf(econd.a_expr, eif, eelse) } in
-			lift_expr ~blocks:econd.a_blocks ~is_value:false ~next_id:(Some ae.a_next_id) new_if
+			lift false econd.a_blocks new_if
 		| (true, TWhile(econd, ebody, NormalWhile)) ->
-			let econd = transform_expr ~is_value:true ~next_id:(Some ae.a_next_id) econd in
-			let ebody = to_expr (transform_expr ~is_value:false ~next_id:(Some ae.a_next_id) ebody) in
+			let econd = trans true [] econd in
+			let ebody = to_expr (trans false [] ebody) in
 			let ewhile = { ae.a_expr with eexpr = TWhile(econd.a_expr, ebody, NormalWhile) } in
 			let eval = { ae.a_expr with eexpr = TConst(TNull) } in
 			let f = exprs_to_func (List.append econd.a_blocks [ewhile; eval]) (ae.a_next_id ()) ae in
-			lift_expr ~is_value:true ~next_id:(Some ae.a_next_id) ~blocks:f.a_blocks f.a_expr
+			lift true f.a_blocks f.a_expr
 		| (false, TWhile(econd, ebody, DoWhile)) ->
 			let not_expr = { econd with eexpr = TUnop(Not, Prefix, econd) } in
 			let break_expr = mk TBreak !t_void econd.epos in
@@ -443,7 +447,7 @@ module Transformer = struct
 		to_expr (transform1 (lift_expr e))
 
 	and forward_transform e base =
-		transform1 (lift_expr ~is_value:base.a_is_value ~next_id:(Some base.a_next_id) ~blocks:base.a_blocks e)
+		transform1 (lift_expr1 base.a_is_value base.a_next_id base.a_blocks e)
 
 	
 
