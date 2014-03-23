@@ -139,17 +139,27 @@ class Template {
 			// macro parse
 			var parp = p.pos + p.len;
 			var npar = 1;
-			while( npar > 0 ) {
+			var params = [];
+			var part = "";
+			while( true ) {
 				var c = data.charCodeAt(parp);
-				if( c == 40 )
-					npar++;
-				else if( c == 41 )
-					npar--;
-				else if( c == null )
-					throw "Unclosed macro parenthesis";
 				parp++;
+				if( c == 40 ) {
+					npar++;
+				} else if( c == 41 ) {
+					npar--;
+					if (npar <= 0) break;
+				} else if( c == null ){
+					throw "Unclosed macro parenthesis";
+				}
+				if ( c == 44 && npar == 1) {
+					params.push(part);
+					part = "";
+				} else {
+					part += String.fromCharCode(c);
+				}
 			}
-			var params = data.substr(p.pos+p.len,parp - (p.pos+p.len) - 1).split(",");
+			params.push(part);
 			tokens.add({ p : splitter.matched(2), s : false, l : params });
 			data = data.substr(parp,data.length - parp);
 		}
