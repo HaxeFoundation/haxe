@@ -267,6 +267,7 @@ module Transformer = struct
 	and transform1 ae : adjusted_expr = 
 		let trans is_value blocks e = transform_expr1 is_value ae.a_next_id blocks e in
 		let lift is_value blocks e = lift_expr1 is_value ae.a_next_id blocks e in
+		let a_expr = ae.a_expr in
 		match ae.a_is_value,ae.a_expr.eexpr with
 		| (is_value,TBlock [x]) ->
 			trans is_value [] x
@@ -418,15 +419,50 @@ module Transformer = struct
 		| (is_value, TSwitch(e, cases, edef)) ->
 			transform_switch ae is_value e cases edef
 
-		| (is_value, TUnop(Increment, Postfix, e)) -> assert false
-		| (is_value, TUnop(Decrement, Postfix, e)) -> assert false
-		| (_, TUnop(op, Prefix, e)) -> assert false
-		| (true, TBinop(OpAssign, left, right))-> assert false
-		| (false, TBinop(OpAssign, left, right))-> assert false
-		| (is_value, TBinop(OpAssignOp(x), left, right))-> assert false
-		| (_, TBinop(op, left, right))-> assert false
-		| (true, TThrow(x)) -> assert false
-		| (false, TThrow(x)) -> assert false
+		| (is_value, TUnop( (Increment | Decrement) as unop, op, e)) -> 
+			let one = { ae.a_expr with eexpr = TConst(TInt(Int32.of_int(1)))} in
+			let is_postfix = match op with
+			| Postfix -> true
+			| Prefix -> false in
+			let op = match unop with
+			| Increment -> OpAdd
+			| Decrement -> OpSub
+			| _ -> assert false in
+			transform_op_assign_op ae e op one is_value is_postfix
+		| (_, TUnop(op, Prefix, e)) -> 
+			let e1 = trans true [] e in
+			let r = { a_expr with eexpr = TUnop(op, Prefix, e1.a_expr) } in
+			lift_expr ~blocks:e1.a_blocks r
+
+		| (is_value, TBinop(OpAssign, left, right))-> 
+			(let left = trans true [] left in
+			let right = trans true [] right in
+			let r = { a_expr with eexpr = TBinop(OpAssign, left.a_expr, right.a_expr)} in
+			if is_value then
+				(let blocks = List.concat [left.a_blocks; right.a_blocks; [r]] in
+				let f = exprs_to_func blocks (ae.a_next_id ()) ae in
+				lift true f.a_blocks f.a_expr)
+			else
+				lift false (List.append left.a_blocks right.a_blocks) r)
+		| (is_value, TBinop(OpAssignOp(x), left, right)) -> 
+			let right = trans true [] right in
+			let v = right.a_expr in
+			let res = transform_op_assign_op ae left x v is_value false in
+			lift true (List.append right.a_blocks res.a_blocks) res.a_expr
+		| (_, TBinop(op, left, right))-> 
+			(let left = trans true [] left in
+			let right = trans true [] right in
+			let r = { a_expr with eexpr = TBinop(op, left.a_expr, right.a_expr)} in
+			lift false (List.append left.a_blocks right.a_blocks) r)
+
+		| (true, TThrow(x)) -> 
+			let block = TBlock([a_expr; { a_expr with eexpr = TConst(TNull) }]) in
+			let r = { a_expr with eexpr = block } in
+			forward_transform r ae
+		| (false, TThrow(x)) -> 
+			let x = trans true [] x in
+			let r = { a_expr with eexpr = TThrow(x.a_expr)} in
+			lift false x.a_blocks r
 		| (_, TNew(c, tp, params)) -> assert false
 		| (_, TCall({ eexpr = TLocal({v_name = "__python_for__" })} as x, [param])) -> assert false
 		| (_, TCall(e, params)) -> assert false
