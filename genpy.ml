@@ -381,9 +381,22 @@ module Transformer = struct
 			| b ->
 				let f = exprs_to_func (List.append blocks [new_if]) (ae.a_next_id ()) ae in
 				lift_expr ~blocks:f.a_blocks f.a_expr)
-
-
-
+		| (false, TIf(econd, eif, eelse)) ->
+			let econd = transform_expr ~is_value:true ~next_id:(Some ae.a_next_id) econd in
+			let eif = to_expr (transform_expr ~is_value:false ~next_id:(Some ae.a_next_id) eif) in
+			let eelse = match eelse with
+			| Some(x) -> Some(to_expr (transform_expr ~is_value:false ~next_id:(Some ae.a_next_id) x))
+			| None -> None
+			in
+			let new_if = { ae.a_expr with eexpr = TIf(econd.a_expr, eif, eelse) } in
+			lift_expr ~blocks:econd.a_blocks ~is_value:false ~next_id:(Some ae.a_next_id) new_if
+		| (true, TWhile(econd, ebody, NormalWhile)) ->
+			let econd = transform_expr ~is_value:true ~next_id:(Some ae.a_next_id) econd in
+			let ebody = to_expr (transform_expr ~is_value:false ~next_id:(Some ae.a_next_id) ebody) in
+			let ewhile = { ae.a_expr with eexpr = TWhile(econd.a_expr, ebody, NormalWhile) } in
+			let eval = { ae.a_expr with eexpr = TConst(TNull) } in
+			let f = exprs_to_func (List.append econd.a_blocks [ewhile; eval]) (ae.a_next_id ()) ae in
+			lift_expr ~is_value:true ~next_id:(Some ae.a_next_id) ~blocks:f.a_blocks f.a_expr
 
 
 			(* TODO: tell frabbit to complete this mess *)
