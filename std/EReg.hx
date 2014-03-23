@@ -33,8 +33,20 @@
 	EReg instances maintain an internal state, which is affected by several of
 	its methods.
 	
+	**Supported operations**
+	 - `.` any character
+	 - `*` repeat zero-or-more
+	 - `+` repeat one-or-more
+	 - `?` optional zero-or-one
+	 - `[A-Z0-9]` character ranges
+	 - `[^\r\n\t]` character not-in-range
+	 - `(...)` parenthesis to match groups of characters
+	 - `^` beginning of the string (beginning of a line in multiline matching mode)
+	 - `$` end of the string (end of a line in multiline matching mode)
+	 - `|` "OR" statement.
+	 
 	A detailed explanation of the supported operations is available at
-	http://haxe.org/doc/cross/regexp
+	[http://haxe.org/doc/cross/regexp]
 **/
 class EReg {
 
