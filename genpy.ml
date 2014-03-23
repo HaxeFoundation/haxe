@@ -69,8 +69,62 @@ module Transformer = struct
 			a_is_value = is_value
 		}
 
+
+	let to_tvar ?(capture = false) n t = 
+		{ v_name = n; v_type = t; v_id = 0; v_capture = capture; v_extra = None; v_meta = [] }
+
+	let create_non_local n pos = 
+		let s = "nonlocal " ^ n in
+		let id = mk (TLocal (to_tvar "__python__" t_dynamic ) ) !t_void pos in
+		let id2 = mk (TLocal( to_tvar s t_dynamic )) !t_void pos in
+		mk (TCall(id, [id2])) t_dynamic pos
+
+	let to_tlocal_expr ?(capture = false) n t p = 
+		mk (TLocal (to_tvar ~capture:capture n t)) t p
+
 	let add_non_locals_to_func e =
-		e
+		match e.eexpr with
+		| TFunction f ->
+			let local_vars_list = List.map (fun (tvar, _) -> tvar.v_name) f.tf_args in
+			let local_vars =
+				let f acc x = 
+					Hashtbl.add acc x x; 
+					acc 
+				in 
+				List.fold_left f (Hashtbl.create 0) local_vars_list in
+			let non_locals = Hashtbl.create 0 in
+
+			let rec it lv e =
+				let maybe_continue x =
+					match x.eexpr with
+					| TFunction(_) -> ()
+					| _ -> 
+						Type.iter (it (Hashtbl.copy lv)) x; 
+						()
+				in
+				match e.eexpr with
+				| TVar(v,expr) -> 
+					(match expr with
+					| Some x -> maybe_continue x; ()
+					| None -> ());
+					
+					Hashtbl.add lv v.v_name v.v_name;
+					()
+				| TBinop(OpAssign , { eexpr = TLocal( { v_name = x })}, e2) ->
+					if not (Hashtbl.mem lv x) then 
+						Hashtbl.add non_locals x x;
+					maybe_continue e2;
+					()
+				| TFunction(_) -> ()
+				| _ -> Type.iter (it (Hashtbl.copy lv)) e; ()
+			in
+			Type.iter (it local_vars) f.tf_expr;
+			let keys = Hashtbl.fold (fun k _ acc -> k :: acc) non_locals [] in
+			let non_local_exprs = List.map (fun (k) -> create_non_local k f.tf_expr.epos) keys in
+			let new_exprs = List.append non_local_exprs [f.tf_expr] in
+			let f = { f with tf_expr = { f.tf_expr with eexpr = TBlock(new_exprs)}} in
+			{e with eexpr = TFunction f }
+		| _ -> assert false
 
 	let rec transform_function tf ae is_value =
 		let p = tf.tf_expr.epos in
@@ -119,6 +173,92 @@ module Transformer = struct
 		in
 		let e = mk (TVar(v,new_expr)) ae.a_expr.etype ae.a_expr.epos in
 		lift_expr ~next_id:(Some ae.a_next_id) ~blocks:b e
+
+	and transform_expr ?(is_value = false) ?(next_id = None) ?(blocks = []) (e : texpr) : adjusted_expr =
+		transform1 (lift_expr ~is_value ~next_id ~blocks e)
+
+	and transform_exprs_to_block el tb is_value p next_id =
+		match el with
+			| [e] ->
+				transform_expr ~is_value ~next_id:(Some next_id) e
+			| _ ->
+				let res = ref [] in
+				List.iter (fun e ->
+					(* TODO: urgh *)
+					let ae = transform_expr ~is_value ~next_id:(Some next_id) e in
+					res := ae.a_expr :: !res;
+					res := ae.a_blocks @ !res;
+				) el;
+				lift_expr (mk (TBlock (List.rev !res)) tb p)
+
+	and transform_switch ae is_value e1 cases edef = 
+		assert false
+
+	and transform_op_assign_op ae e1 op operand is_value post = 
+		assert false
+
+	and var_to_treturn_expr ?(capture = false) n t p = 
+		let x = mk (TLocal (to_tvar ~capture:capture n t)) t p in 
+		mk (TReturn (Some x)) t p 
+
+	and exprs_to_func exprs name base =
+		let convert_return_expr (expr:texpr) = 
+			match expr.eexpr with
+			| TFunction(f) ->
+				let ret = var_to_treturn_expr name f.tf_type f.tf_expr.epos in
+				[expr;ret]
+			| TBinop(OpAssign, l, r) ->
+				let r = { l with eexpr = TReturn(Some l) } in
+				[expr; r]
+			| x -> 
+				let ret_expr = { expr with eexpr = TReturn( Some(expr) )} in
+				[ret_expr]
+		in 
+		let def = 
+			(let ex = match exprs with
+			| [] -> assert false
+			| [x] -> 
+				(let exs = convert_return_expr x in 
+				match exs with
+				| [] -> assert false
+				| [x] -> x
+				| x -> 
+					match List.rev x with
+					| x::xs ->
+						mk (TBlock exs) x.etype base.a_expr.epos
+					| _ -> assert false)
+					
+			| x -> 
+				match List.rev x with
+				| x::xs -> 
+					(let ret = x in
+					let block = List.append exprs (convert_return_expr ret) in 
+					match List.rev block with
+					| x::xs ->
+						mk (TBlock block) x.etype base.a_expr.epos
+					| _ -> assert false)
+				| _ -> assert false
+			in
+			let f1 = { tf_args = []; tf_type = ex.etype; tf_expr = ex} in
+			let fexpr = mk (TFunction f1) ex.etype ex.epos in
+			let fvar = to_tvar name fexpr.etype in 
+			let f = add_non_locals_to_func fexpr in
+			let assign = { ex with eexpr = TVar(fvar, Some(f))} in
+			let call_expr = (mk (TLocal fvar) fexpr.etype ex.epos ) in
+			let substitute = mk (TCall(call_expr, [])) ex.etype ex.epos in
+			lift_expr ~blocks:[assign] substitute)
+		in
+		match exprs with
+		| [x] ->
+			(match x.eexpr with
+			| TFunction({ tf_args = []}) -> def
+			| TFunction(f) -> 
+				let l = to_tlocal_expr name f.tf_type f.tf_expr.epos in
+				let substitute = mk (TCall(l, [])) f.tf_type f.tf_expr.epos in
+				lift_expr ~blocks:[x] substitute
+			| _ -> def)
+		| _ -> def
+		
 
 	and transform1 ae : adjusted_expr = match ae.a_is_value,ae.a_expr.eexpr with
 		| (is_value,TBlock [x]) ->
@@ -182,34 +322,135 @@ module Transformer = struct
 			let var_local = mk (TLocal var_n) ef.etype f1.epos in
 			let er = mk (TReturn (Some var_local)) t_dynamic  ae.a_expr.epos in
 			lift_expr ~is_value:true ~next_id:(Some ae.a_next_id) ~blocks:[f1_assign] er
-(* 		| (_,TReturn x) ->
+
+		| (_,TReturn Some(x)) ->
 			let x1 = transform_expr ~is_value:true ~next_id:(Some ae.a_next_id) x in
-			let res = match x1.a_blocks with
+			(match x1.a_blocks with
 				| [] ->
-					let f = expr_t *)
-			(* TODO: tell frabbit to complete this mess *)
+					lift_expr ~next_id:( Some ae.a_next_id) ~is_value:true { ae.a_expr with eexpr = TReturn(Some x1.a_expr) }
+				| _ -> 
+					ae)
+		| (_, TParenthesis(e1)) ->
+			let e1 = transform_expr ~is_value:true ~next_id:(Some ae.a_next_id) e1 in
+			let p = { ae.a_expr with eexpr = TParenthesis(e1.a_expr)} in
+			lift_expr ~is_value:true ~next_id:(Some ae.a_next_id) ~blocks:e1.a_blocks p 
+		| (true, TIf(econd, eif, eelse)) ->
+			(let econd1 = transform_expr ~is_value:true ~next_id:(Some ae.a_next_id) econd in
+			let eif1 = transform_expr ~is_value:true ~next_id:(Some ae.a_next_id) eif in
+			let eelse1 = match eelse with
+				| Some x -> Some(transform_expr ~is_value:true ~next_id:(Some ae.a_next_id) x)
+				| None -> None
+			in
+			let blocks = [] in
+			let eif2, blocks = 
+				match eif1.a_blocks with
+				| [] -> eif1.a_expr, blocks
+				| x -> 
+					let regular = 
+						let fname = eif1.a_next_id () in
+						let f = exprs_to_func (List.append eif1.a_blocks [eif1.a_expr]) fname ae in
+						f.a_expr, List.append blocks f.a_blocks
+					in
+					match eif1.a_blocks with 
+					| [{ eexpr = TVar(_, Some({ eexpr = TFunction(_)}))} as b] -> 
+						eif1.a_expr, List.append blocks [b]
+					| _ -> regular
+			in
+			let eelse2, blocks = 
+				match eelse1 with
+				| None -> None, blocks
+				| Some({ a_blocks = []} as x) -> Some(x.a_expr), blocks
+				| Some({ a_blocks = b} as eelse1) -> 
+					let regular = 
+						let fname = eelse1.a_next_id () in
+						let f = exprs_to_func (List.append eelse1.a_blocks [eelse1.a_expr]) fname ae in
+						Some(f.a_expr), List.append blocks f.a_blocks
+					in
+					match b with 
+					| [{ eexpr = TVar(_, Some({ eexpr = TFunction(f)}))} as b] -> 
+						Some(eif1.a_expr), List.append blocks [b]
+					| _ -> regular
+			in
+			let blocks = List.append econd1.a_blocks blocks in
+			let new_if = { ae.a_expr with eexpr = TIf(econd1.a_expr, eif2, eelse2) } in
+			match blocks with
+			| [] -> 
+				let meta = Meta.Custom(":ternaryIf"), [], ae.a_expr.epos in
+				let ternary = { ae.a_expr with eexpr = TMeta(meta, new_if) } in
+				lift_expr ~blocks:blocks ternary
+			| b ->
+				let f = exprs_to_func (List.append blocks [new_if]) (ae.a_next_id ()) ae in
+				lift_expr ~blocks:f.a_blocks f.a_expr)
+		| (false, TIf(econd, eif, eelse)) ->
+			let econd = transform_expr ~is_value:true ~next_id:(Some ae.a_next_id) econd in
+			let eif = to_expr (transform_expr ~is_value:false ~next_id:(Some ae.a_next_id) eif) in
+			let eelse = match eelse with
+			| Some(x) -> Some(to_expr (transform_expr ~is_value:false ~next_id:(Some ae.a_next_id) x))
+			| None -> None
+			in
+			let new_if = { ae.a_expr with eexpr = TIf(econd.a_expr, eif, eelse) } in
+			lift_expr ~blocks:econd.a_blocks ~is_value:false ~next_id:(Some ae.a_next_id) new_if
+		| (true, TWhile(econd, ebody, NormalWhile)) ->
+			let econd = transform_expr ~is_value:true ~next_id:(Some ae.a_next_id) econd in
+			let ebody = to_expr (transform_expr ~is_value:false ~next_id:(Some ae.a_next_id) ebody) in
+			let ewhile = { ae.a_expr with eexpr = TWhile(econd.a_expr, ebody, NormalWhile) } in
+			let eval = { ae.a_expr with eexpr = TConst(TNull) } in
+			let f = exprs_to_func (List.append econd.a_blocks [ewhile; eval]) (ae.a_next_id ()) ae in
+			lift_expr ~is_value:true ~next_id:(Some ae.a_next_id) ~blocks:f.a_blocks f.a_expr
+		| (false, TWhile(econd, ebody, DoWhile)) ->
+			let not_expr = { econd with eexpr = TUnop(Not, Prefix, econd) } in
+			let break_expr = mk TBreak !t_void econd.epos in
+			let if_expr = mk (TIf(not_expr, break_expr, None)) (!t_void) econd.epos in
+			let new_e = match ebody.eexpr with
+			| TBlock(exprs) -> { econd with eexpr = TBlock( List.append exprs [if_expr]) }
+			| _ -> { econd with eexpr = TBlock( List.append [if_expr] [ebody]) } in
+			let true_expr = mk (TConst(TBool(true))) econd.etype ae.a_expr.epos in
+			let new_expr = { ae.a_expr with eexpr = TWhile( true_expr, new_e, NormalWhile) } in
+			forward_transform new_expr ae
+
+		| (is_value, TSwitch(e, cases, edef)) ->
+			transform_switch ae is_value e cases edef
+
+		| (is_value, TUnop(OpIncrement, Postfix, e)) -> assert false
+		| (is_value, TUnop(OpDecrement, Postfix, e)) -> assert false
+		| (_, TUnop(op, Prefix, e)) -> assert false
+		| (true, TBinop(OpAssign, left, right))-> assert false
+		| (false, TBinop(OpAssign, left, right))-> assert false
+		| (is_value, TBinop(OpAssignOp(x), left, right))-> assert false
+		| (_, TBinop(op, left, right))-> assert false
+		| (true, TThrow(x)) -> assert false
+		| (false, TThrow(x)) -> assert false
+		| (_, TNew(c, tp, params)) -> assert false
+		| (_, TCall({ eexpr : TLocal({v_name = "__python_for__"})} as x, [param])) -> assert false
+		| (_, TCall(e, params)) -> assert false
+		| (true, TArray(e1, e2)) -> assert false
+		| (false, TTry(etry, catches)) -> assert false
+		| (true, TTry(etry, catches)) -> assert false
+		| (_, TObjectDecl(fields)) -> assert false
+		| (_, TArrayDecl(fields)) -> assert false
+		| (_, TCast(e,t)) -> assert false
+		| (_, TField(e,f)) -> assert false
+		| (is_value, TMeta(m,e)) -> assert false
 		| _ ->
-			ae
+			lift_expr ae.a_expr
 
-	and transform_expr ?(is_value = false) ?(next_id = None) ?(blocks = []) (e : texpr) : adjusted_expr =
-		transform1 (lift_expr ~is_value ~next_id ~blocks e)
+	
 
-	and transform_exprs_to_block el tb is_value p next_id =
-		match el with
-			| [e] ->
-				transform_expr ~is_value ~next_id:(Some next_id) e
-			| _ ->
-				let res = ref [] in
-				List.iter (fun e ->
-					(* TODO: urgh *)
-					let ae = transform_expr ~is_value ~next_id:(Some next_id) e in
-					res := ae.a_expr :: !res;
-					res := ae.a_blocks @ !res;
-				) el;
-				lift_expr (mk (TBlock (List.rev !res)) tb p)
-
-	let transform e =
+	and transform e =
 		to_expr (transform1 (lift_expr e))
+
+	and forward_transform e base =
+		transform1 (lift_expr ~is_value:base.a_is_value ~next_id:(Some base.a_next_id) ~blocks:base.a_blocks e)
+
+	
+
+
+
+	
+
+	
+
+		
 
 end
 
