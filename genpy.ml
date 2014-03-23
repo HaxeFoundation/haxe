@@ -182,11 +182,14 @@ module Transformer = struct
 			let var_local = mk (TLocal var_n) ef.etype f1.epos in
 			let er = mk (TReturn (Some var_local)) t_dynamic  ae.a_expr.epos in
 			lift_expr ~is_value:true ~next_id:(Some ae.a_next_id) ~blocks:[f1_assign] er
-(* 		| (_,TReturn x) ->
+
+		(*| (_,TReturn x) ->
 			let x1 = transform_expr ~is_value:true ~next_id:(Some ae.a_next_id) x in
 			let res = match x1.a_blocks with
 				| [] ->
-					let f = expr_t *)
+					let f = expr_t
+				| _ -> 
+		*)
 			(* TODO: tell frabbit to complete this mess *)
 		| _ ->
 			ae
@@ -210,6 +213,80 @@ module Transformer = struct
 
 	let transform e =
 		to_expr (transform1 (lift_expr e))
+
+	let forward_transform e base =
+		transform1 (lift_expr ~is_value:base.a_is_value ~next_id:(Some base.a_next_id) ~blocks:base.a_blocks e)
+
+	let to_tvar ?(capture = false) n t = 
+		{ v_name = n; v_type = t; v_id = 0; v_capture = capture; v_extra = None; v_meta = [] }
+
+	let to_tlocal_expr ?(capture = false) n t p = 
+		mk (TLocal (to_tvar ~capture:capture n t)) t p
+
+	let var_to_treturn_expr ?(capture = false) n t p = 
+		let x = mk (TLocal (to_tvar ~capture:capture n t)) t p in 
+		mk (TReturn (Some x)) t p 
+
+	let exprs_to_func exprs name base =
+		let convert_return_expr (expr:texpr) = 
+			match expr.eexpr with
+			| TFunction(f) ->
+				let ret = var_to_treturn_expr name f.tf_type f.tf_expr.epos in
+				[expr;ret]
+			| TBinop(OpAssign, l, r) ->
+				let r = { l with eexpr = TReturn(Some l) } in
+				[expr; r]
+			| x -> 
+				let ret_expr = { expr with eexpr = TReturn( Some(expr) )} in
+				[ret_expr]
+		in 
+		let def = 
+			(let ex = match exprs with
+			| [] -> assert false
+			| [x] -> 
+				(let exs = convert_return_expr x in 
+				match exs with
+				| [] -> assert false
+				| [x] -> x
+				| x -> 
+					match List.rev x with
+					| x::xs ->
+						mk (TBlock exs) x.etype base.a_expr.epos
+					| _ -> assert false)
+					
+			| x -> 
+				match List.rev x with
+				| x::xs -> 
+					(let ret = x in
+					let block = List.append exprs (convert_return_expr ret) in 
+					match List.rev block with
+					| x::xs ->
+						mk (TBlock block) x.etype base.a_expr.epos
+					| _ -> assert false)
+				| _ -> assert false
+			in
+			let f1 = { tf_args = []; tf_type = ex.etype; tf_expr = ex} in
+			let fexpr = mk (TFunction f1) ex.etype ex.epos in
+			let fvar = to_tvar name fexpr.etype in 
+			let f = add_non_locals_to_func fexpr in
+			let assign = { ex with eexpr = TVar(fvar, Some(f))} in
+			let call_expr = (mk (TLocal fvar) fexpr.etype ex.epos ) in
+			let substitute = mk (TCall(call_expr, [])) ex.etype ex.epos in
+			lift_expr ~blocks:[assign] substitute)
+		in
+		match exprs with
+		| [x] ->
+			match x.eexpr with
+			| TFunction({ tf_args = []}) -> def
+			| TFunction(f) -> 
+				let l = to_tlocal_expr name f.tf_type f.tf_expr.epos in
+				let substitute = mk (TCall(l, [])) f.tf_type f.tf_expr.epos in
+				lift_expr ~blocks:[x] substitute
+			| _ -> def
+		| _ -> def 
+		
+
+		
 
 end
 
