@@ -70,6 +70,18 @@ module Transformer = struct
 		}
 
 
+	let to_tvar ?(capture = false) n t = 
+		{ v_name = n; v_type = t; v_id = 0; v_capture = capture; v_extra = None; v_meta = [] }
+
+	let create_non_local n pos = 
+		let s = "nonlocal " ^ n in
+		let id = mk (TLocal (to_tvar "__python__" t_dynamic ) ) !t_void pos in
+		let id2 = mk (TLocal( to_tvar s t_dynamic )) !t_void pos in
+		mk (TCall(id, [id2])) t_dynamic pos
+
+	let to_tlocal_expr ?(capture = false) n t p = 
+		mk (TLocal (to_tvar ~capture:capture n t)) t p
+
 	let add_non_locals_to_func e =
 		e
 
@@ -222,17 +234,7 @@ module Transformer = struct
 
 
 
-	let to_tvar ?(capture = false) n t = 
-		{ v_name = n; v_type = t; v_id = 0; v_capture = capture; v_extra = None; v_meta = [] }
-
-	let create_non_local n pos = 
-		let s = "nonlocal " ^ n in
-		let id = mk (TLocal (to_tvar "__python__" t_dynamic ) ) !t_void pos in
-		let id2 = mk (TLocal( to_tvar s t_dynamic )) !t_void pos in
-		mk (TCall(id, [id2])) t_dynamic pos
-
-	let to_tlocal_expr ?(capture = false) n t p = 
-		mk (TLocal (to_tvar ~capture:capture n t)) t p
+	
 
 	let var_to_treturn_expr ?(capture = false) n t p = 
 		let x = mk (TLocal (to_tvar ~capture:capture n t)) t p in 
@@ -287,14 +289,14 @@ module Transformer = struct
 		in
 		match exprs with
 		| [x] ->
-			match x.eexpr with
+			(match x.eexpr with
 			| TFunction({ tf_args = []}) -> def
 			| TFunction(f) -> 
 				let l = to_tlocal_expr name f.tf_type f.tf_expr.epos in
 				let substitute = mk (TCall(l, [])) f.tf_type f.tf_expr.epos in
 				lift_expr ~blocks:[x] substitute
-			| _ -> def
-		| _ -> def 
+			| _ -> def)
+		| _ -> def
 		
 
 		
