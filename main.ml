@@ -56,6 +56,8 @@ let prompt = ref false
 let start_time = ref (get_time())
 let global_cache = ref None
 
+let path_sep = if Sys.os_type = "Unix" then "/" else "\\"
+
 let get_real_path p =
 	try
 		Extc.get_real_path p
@@ -1282,13 +1284,13 @@ try
 		com.main_class <- None;
 		let real = get_real_path (!Parser.resume_display).Ast.pfile in
 		(* try to fix issue on windows when get_real_path fails (8.3 DOS names disabled) *)
-		let real = (match List.rev (ExtString.String.nsplit real "\\") with
-		| file :: path when String.length file > 0 && file.[0] >= 'a' && file.[1] <= 'z' -> file.[0] <- char_of_int (int_of_char file.[0] - int_of_char 'a' + int_of_char 'A'); String.concat "\\" (List.rev (file :: path))
+		let real = (match List.rev (ExtString.String.nsplit real path_sep) with
+		| file :: path when String.length file > 0 && file.[0] >= 'a' && file.[1] <= 'z' -> file.[0] <- char_of_int (int_of_char file.[0] - int_of_char 'a' + int_of_char 'A'); String.concat path_sep (List.rev (file :: path))
 		| _ -> real) in
 		classes := lookup_classes com real;
 		if !classes = [] then begin
 			if not (Sys.file_exists real) then failwith "Display file does not exist";
-			(match List.rev (ExtString.String.nsplit real "\\") with
+			(match List.rev (ExtString.String.nsplit real path_sep) with
 			| file :: _ when file.[0] >= 'a' && file.[1] <= 'z' -> failwith ("Display file '" ^ file ^ "' should not start with a lowercase letter")
 			| _ -> ());
 			failwith "Display file was not found in class path";
