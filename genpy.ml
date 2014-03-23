@@ -397,18 +397,49 @@ module Transformer = struct
 			let eval = { ae.a_expr with eexpr = TConst(TNull) } in
 			let f = exprs_to_func (List.append econd.a_blocks [ewhile; eval]) (ae.a_next_id ()) ae in
 			lift_expr ~is_value:true ~next_id:(Some ae.a_next_id) ~blocks:f.a_blocks f.a_expr
+		| (false, TWhile(econd, ebody, DoWhile)) ->
+			let not_expr = { econd with eexpr = TUnop(Not, Prefix, econd) } in
+			let break_expr = mk TBreak !t_void econd.epos in
+			let if_expr = mk (TIf(not_expr, break_expr, None)) (!t_void) econd.epos in
+			let new_e = match ebody.eexpr with
+			| TBlock(exprs) -> { econd with eexpr = TBlock( List.append exprs [if_expr]) }
+			| _ -> { econd with eexpr = TBlock( List.append [if_expr] [ebody]) } in
+			let true_expr = mk (TConst(TBool(true))) econd.etype ae.a_expr.epos in
+			let new_expr = { ae.a_expr with eexpr = TWhile( true_expr, new_e, NormalWhile) } in
+			forward_transform new_expr ae
 
+		| (is_value, TSwitch(e, cases, edef)) ->
+			transform_switch ae is_value e cases edef
 
-			(* TODO: tell frabbit to complete this mess *)
+		| (is_value, TUnop(OpIncrement, Postfix, e)) -> assert false
+		| (is_value, TUnop(OpDecrement, Postfix, e)) -> assert false
+		| (_, TUnop(op, Prefix, e)) -> assert false
+		| (true, TBinop(OpAssign, left, right))-> assert false
+		| (false, TBinop(OpAssign, left, right))-> assert false
+		| (is_value, TBinop(OpAssignOp(x), left, right))-> assert false
+		| (_, TBinop(op, left, right))-> assert false
+		| (true, TThrow(x)) -> assert false
+		| (false, TThrow(x)) -> assert false
+		| (_, TNew(c, tp, params)) -> assert false
+		| (_, TCall({ eexpr : TLocal({v_name = "__python_for__"})} as x, [param])) -> assert false
+		| (_, TCall(e, params)) -> assert false
+		| (true, TArray(e1, e2)) -> assert false
+		| (false, TTry(etry, catches)) -> assert false
+		| (true, TTry(etry, catches)) -> assert false
+		| (_, TObjectDecl(fields)) -> assert false
+		| (_, TArrayDecl(fields)) -> assert false
+		| (_, TCast(e,t)) -> assert false
+		| (_, TField(e,f)) -> assert false
+		| (is_value, TMeta(m,e)) -> assert false
 		| _ ->
-			ae
+			lift_expr ae.a_expr
 
 	
 
-	let transform e =
+	and transform e =
 		to_expr (transform1 (lift_expr e))
 
-	let forward_transform e base =
+	and forward_transform e base =
 		transform1 (lift_expr ~is_value:base.a_is_value ~next_id:(Some base.a_next_id) ~blocks:base.a_blocks e)
 
 	
