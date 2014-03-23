@@ -153,7 +153,7 @@ module KeywordHandler = struct
 		List.iter (fun s -> Hashtbl.add h s ()) [
 			"and"; "as"; "assert"; "break"; "class"; "continue"; "def"; "del"; "elif"; "else"; "except"; "exec"; "finally"; "for";
 			"from"; "global"; "if"; "import"; "in"; "is"; "lambda"; "not"; "or"; "pass"; "print";" raise"; "return"; "try"; "while";
-			"with"; "yield"; "float";
+			"with"; "yield"; "float"; "None"
 		];
 		h
 
@@ -737,7 +737,7 @@ module Printer = struct
 	and print_function pctx tf name =
 		let s_name = match name with
 			| None -> pctx.pc_next_anon_func()
-			| Some s -> s
+			| Some s -> handle_keywords s
 		in
 		let s_args = print_args tf.tf_args in
 		let s_expr = print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} tf.tf_expr in
@@ -1110,7 +1110,7 @@ module Printer = struct
 		String.concat sep (List.map (print_expr pctx) el)
 
 	and print_exprs_named pctx sep fl =
-		String.concat sep (List.map (fun (s,e) -> Printf.sprintf "%s = %s" s (print_expr pctx e)) fl)
+		String.concat sep (List.map (fun (s,e) -> Printf.sprintf "%s = %s" (handle_keywords s) (print_expr pctx e)) fl)
 
 	let handle_keywords s =
 		KeywordHandler.handle_keywords s
@@ -1498,7 +1498,7 @@ module Generator = struct
 			let f = handle_keywords ef.ef_name in
 			begin match follow ef.ef_type with
 				| TFun(args,_) ->
-					let param_str = String.concat "," (List.map (fun (n,o,_) -> Printf.sprintf "%s%s" (handle_keywords n) (if o then " = None" else "")) args) in
+					let param_str = (String.concat "," (List.map (fun (n,o,_) -> Printf.sprintf "%s%s" (handle_keywords n) (if o then " = None" else "")) args)) in
 					let args_str = String.concat "," (List.map (fun (n,_,_) -> handle_keywords n) args) in
 					print ctx "def _%s_statics_%s (%s):\n" p f param_str;
 					print ctx "\treturn %s(\"%s\", %i, [%s])\n" p ef.ef_name ef.ef_index args_str;
