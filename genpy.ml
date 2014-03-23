@@ -69,6 +69,7 @@ module Transformer = struct
 			a_is_value = is_value
 		}
 
+
 	let add_non_locals_to_func e =
 		e
 
@@ -217,8 +218,18 @@ module Transformer = struct
 	let forward_transform e base =
 		transform1 (lift_expr ~is_value:base.a_is_value ~next_id:(Some base.a_next_id) ~blocks:base.a_blocks e)
 
+	
+
+
+
 	let to_tvar ?(capture = false) n t = 
 		{ v_name = n; v_type = t; v_id = 0; v_capture = capture; v_extra = None; v_meta = [] }
+
+	let create_non_local n pos = 
+		let s = "nonlocal " ^ n in
+		let id = mk (TLocal (to_tvar "__python__" t_dynamic ) ) !t_void pos in
+		let id2 = mk (TLocal( to_tvar s t_dynamic )) !t_void pos in
+		mk (TCall(id, [id2])) t_dynamic pos
 
 	let to_tlocal_expr ?(capture = false) n t p = 
 		mk (TLocal (to_tvar ~capture:capture n t)) t p
