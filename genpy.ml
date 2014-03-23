@@ -177,6 +177,9 @@ module Transformer = struct
 	and transform_expr ?(is_value = false) ?(next_id = None) ?(blocks = []) (e : texpr) : adjusted_expr =
 		transform1 (lift_expr ~is_value ~next_id ~blocks e)
 
+	and transform_expr1 is_value next_id blocks e = 
+		transform_expr ~is_value:is_value ~next_id:(Some next_id) ~blocks:blocks e
+
 	and transform_exprs_to_block el tb is_value p next_id =
 		match el with
 			| [e] ->
@@ -411,8 +414,8 @@ module Transformer = struct
 		| (is_value, TSwitch(e, cases, edef)) ->
 			transform_switch ae is_value e cases edef
 
-		| (is_value, TUnop(OpIncrement, Postfix, e)) -> assert false
-		| (is_value, TUnop(OpDecrement, Postfix, e)) -> assert false
+		| (is_value, TUnop(Increment, Postfix, e)) -> assert false
+		| (is_value, TUnop(Decrement, Postfix, e)) -> assert false
 		| (_, TUnop(op, Prefix, e)) -> assert false
 		| (true, TBinop(OpAssign, left, right))-> assert false
 		| (false, TBinop(OpAssign, left, right))-> assert false
@@ -421,7 +424,7 @@ module Transformer = struct
 		| (true, TThrow(x)) -> assert false
 		| (false, TThrow(x)) -> assert false
 		| (_, TNew(c, tp, params)) -> assert false
-		| (_, TCall({ eexpr : TLocal({v_name = "__python_for__"})} as x, [param])) -> assert false
+		| (_, TCall({ eexpr = TLocal({v_name = "__python_for__" })} as x, [param])) -> assert false
 		| (_, TCall(e, params)) -> assert false
 		| (true, TArray(e1, e2)) -> assert false
 		| (false, TTry(etry, catches)) -> assert false
