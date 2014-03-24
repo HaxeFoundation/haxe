@@ -213,7 +213,7 @@ module Transformer = struct
 			a_next_id = next_id;
 			a_is_value = is_value
 		}
-	let lift_expr1 is_value next_id blocks e = 
+	let lift_expr1 is_value next_id blocks e =
 		lift_expr ~is_value:is_value ~next_id:(Some next_id) ~blocks:blocks e
 
 	let to_tvar ?(capture = false) n t =
@@ -323,7 +323,7 @@ module Transformer = struct
 	and transform_expr ?(is_value = false) ?(next_id = None) ?(blocks = []) (e : texpr) : adjusted_expr =
 		transform1 (lift_expr ~is_value ~next_id ~blocks e)
 
-	and transform_expr1 is_value next_id blocks e = 
+	and transform_expr1 is_value next_id blocks e =
 		transform_expr ~is_value ~next_id:(Some next_id) ~blocks e
 
 	and transform_exprs_to_block el tb is_value p next_id =
@@ -452,7 +452,7 @@ module Transformer = struct
 		| _ -> def
 
 
-	and transform1 ae : adjusted_expr = 
+	and transform1 ae : adjusted_expr =
 		let trans is_value blocks e = transform_expr1 is_value ae.a_next_id blocks e in
 		let lift is_value blocks e = lift_expr1 is_value ae.a_next_id blocks e in
 		let a_expr = ae.a_expr in
@@ -524,12 +524,12 @@ module Transformer = struct
 			(match x1.a_blocks with
 				| [] ->
 					lift true [] { ae.a_expr with eexpr = TReturn(Some x1.a_expr) }
-				| _ -> 
+				| _ ->
 					ae)
 		| (_, TParenthesis(e1)) ->
 			let e1 = trans true [] e1 in
 			let p = { ae.a_expr with eexpr = TParenthesis(e1.a_expr)} in
-			lift true e1.a_blocks p 
+			lift true e1.a_blocks p
 		| (true, TIf(econd, eif, eelse)) ->
 			(let econd1 = trans true [] econd in
 			let eif1 = trans true [] eif in
@@ -606,7 +606,7 @@ module Transformer = struct
 
 		| (is_value, TSwitch(e, cases, edef)) ->
 			transform_switch ae is_value e cases edef
-		| (is_value, TUnop( (Increment | Decrement) as unop, op, e)) -> 
+		| (is_value, TUnop( (Increment | Decrement) as unop, op, e)) ->
 			let one = { ae.a_expr with eexpr = TConst(TInt(Int32.of_int(1)))} in
 			let is_postfix = match op with
 			| Postfix -> true
@@ -616,12 +616,12 @@ module Transformer = struct
 			| Decrement -> OpSub
 			| _ -> assert false in
 			transform_op_assign_op ae e op one is_value is_postfix
-		| (_, TUnop(op, Prefix, e)) -> 
+		| (_, TUnop(op, Prefix, e)) ->
 			let e1 = trans true [] e in
 			let r = { a_expr with eexpr = TUnop(op, Prefix, e1.a_expr) } in
 			lift_expr ~blocks:e1.a_blocks r
 
-		| (is_value, TBinop(OpAssign, left, right))-> 
+		| (is_value, TBinop(OpAssign, left, right))->
 			(let left = trans true [] left in
 			let right = trans true [] right in
 			let r = { a_expr with eexpr = TBinop(OpAssign, left.a_expr, right.a_expr)} in
@@ -631,36 +631,36 @@ module Transformer = struct
 				lift true f.a_blocks f.a_expr)
 			else
 				lift false (List.append left.a_blocks right.a_blocks) r)
-		| (is_value, TBinop(OpAssignOp(x), left, right)) -> 
+		| (is_value, TBinop(OpAssignOp(x), left, right)) ->
 			let right = trans true [] right in
 			let v = right.a_expr in
 			let res = transform_op_assign_op ae left x v is_value false in
 			lift true (List.append right.a_blocks res.a_blocks) res.a_expr
-		| (_, TBinop(op, left, right))-> 
+		| (_, TBinop(op, left, right))->
 			(let left = trans true [] left in
 			let right = trans true [] right in
 			let r = { a_expr with eexpr = TBinop(op, left.a_expr, right.a_expr)} in
 			lift false (List.append left.a_blocks right.a_blocks) r)
 
-		| (true, TThrow(x)) -> 
+		| (true, TThrow(x)) ->
 			let block = TBlock([a_expr; { a_expr with eexpr = TConst(TNull) }]) in
 			let r = { a_expr with eexpr = block } in
 			forward_transform r ae
-		| (false, TThrow(x)) -> 
+		| (false, TThrow(x)) ->
 			let x = trans true [] x in
 			let r = { a_expr with eexpr = TThrow(x.a_expr)} in
 			lift false x.a_blocks r
-		| (_, TNew(c, tp, params)) -> 
+		| (_, TNew(c, tp, params)) ->
 			let params = List.map (trans true []) params in
 			let blocks = List.flatten (List.map (fun (p) -> p.a_blocks) params) in
 			let params = List.map (fun (p) -> p.a_expr) params in
 			let e = { a_expr with eexpr = TNew(c, tp, params) } in
 			lift false blocks e
-		| (_, TCall({ eexpr = TLocal({v_name = "__python_for__" })} as x, [param])) -> 
+		| (_, TCall({ eexpr = TLocal({v_name = "__python_for__" })} as x, [param])) ->
 			let param = trans false [] param in
 			let call = { a_expr with eexpr = TCall(x, [param.a_expr])} in
 			lift_expr call
-		| (_, TCall(e, params)) -> 
+		| (_, TCall(e, params)) ->
 			let e = trans true [] e in
 			let params = List.map (trans true []) params in
 			let blocks = List.flatten (List.map (fun (p) -> p.a_blocks) params) in
@@ -668,13 +668,13 @@ module Transformer = struct
 			let e = { a_expr with eexpr = TCall(e.a_expr, params) } in
 			lift_expr ~blocks:blocks e
 
-		| (true, TArray(e1, e2)) -> 
+		| (true, TArray(e1, e2)) ->
 			let e1 = trans true [] e1 in
 			let e2 = trans true [] e2 in
 			let r = { a_expr with eexpr = TArray(e1.a_expr, e2.a_expr)} in
 			let blocks = List.append e1.a_blocks e2.a_blocks in
 			lift_expr ~blocks:blocks r
-		| (false, TTry(etry, catches)) -> 
+		| (false, TTry(etry, catches)) ->
 			let etry = trans false [] etry in
 			let catches = List.map (fun(v,e) -> v, trans false [] e) catches in
 			let blocks = List.flatten (List.map (fun (_,e) -> e.a_blocks) catches) in
@@ -682,8 +682,8 @@ module Transformer = struct
 			let r = { a_expr with eexpr = TTry(etry.a_expr, catches)} in
 			let blocks = List.append etry.a_blocks blocks in
 			lift false blocks r
-		| (true, TTry(etry, catches)) -> 
-			
+		| (true, TTry(etry, catches)) ->
+
 			let id = ae.a_next_id () in
 			let temp_var = to_tvar id a_expr.etype in
 			let temp_var_def = { a_expr with eexpr = TVar(temp_var, None) } in
@@ -695,27 +695,27 @@ module Transformer = struct
 			let block = [temp_var_def; new_try; temp_local] in
 			let new_block = { a_expr with eexpr = TBlock(block)} in
 			forward_transform new_block ae
-		| (_, TObjectDecl(fields)) -> 
+		| (_, TObjectDecl(fields)) ->
 			let fields = List.map (fun (name,ex) -> name, trans true [] ex) fields in
 			let blocks = List.flatten (List.map (fun (_,ex) -> ex.a_blocks) fields) in
 			let fields = List.map (fun (name,ex) -> name, ex.a_expr) fields in
 			let r = { a_expr with eexpr = (TObjectDecl(fields) )} in
 			lift_expr ~blocks r
-		| (_, TArrayDecl(values)) -> 
-			let values = List.map (trans true []) values in 
+		| (_, TArrayDecl(values)) ->
+			let values = List.map (trans true []) values in
 			let blocks = List.flatten (List.map (fun (v) -> v.a_blocks) values) in
 			let exprs = List.map (fun (v) -> v.a_expr) values in
 			let r = { a_expr with eexpr = TArrayDecl exprs } in
 			lift_expr ~blocks:blocks r
-		| (_, TCast(e,t)) -> 
+		| (_, TCast(e,t)) ->
 			let e = trans true [] e in
 			let r = { a_expr with eexpr = TCast(e.a_expr, t) } in
 			lift_expr ~blocks:e.a_blocks r
-		| (_, TField(e,f)) -> 
+		| (_, TField(e,f)) ->
 			let e = trans true [] e in
 			let r = { a_expr with eexpr = TField(e.a_expr, f) } in
 			lift_expr ~blocks:e.a_blocks r
-		| (is_value, TMeta(m,e)) -> 
+		| (is_value, TMeta(m,e)) ->
 			let e = trans true [] e in
 			let r = { a_expr with eexpr = TMeta(m, e.a_expr) } in
 			lift_expr ~blocks:e.a_blocks r
