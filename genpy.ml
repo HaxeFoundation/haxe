@@ -802,7 +802,8 @@ module Transformer = struct
 	and forward_transform e base =
 		transform1 (lift_expr1 base.a_is_value base.a_next_id base.a_blocks e)
 
-
+	let transform_to_value e =
+		to_expr (transform1 (lift_expr e ~is_value:true))
 
 
 
@@ -1364,8 +1365,7 @@ module Generator = struct
 		Transformer.transform e
 
 	let transform_to_value e =
-		(* TODO *)
-		e
+		Transformer.transform_to_value e
 
 	(* Printer interface *)
 
