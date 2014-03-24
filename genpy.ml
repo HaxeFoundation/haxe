@@ -1670,6 +1670,17 @@ module Generator = struct
 		in
 		ctx.static_inits <- f :: ctx.static_inits
 
+	let gen_class_init ctx c =
+		match c.cl_init with
+			| None ->
+				()
+			| Some e ->
+				let f = fun () ->
+					let e = transform_expr e in
+					spr_line ctx (texpr_str e (Printer.create_context ""));
+				in
+				ctx.static_inits <- f :: ctx.static_inits
+
 	let gen_class ctx c =
 		gen_pre_code_meta ctx c.cl_meta;
 		print ctx "# print %s.%s\n" (s_type_path c.cl_module.m_path) (snd c.cl_path);
@@ -1704,7 +1715,8 @@ module Generator = struct
 			gen_class_metadata ctx c p;
 			gen_class_empty_constructor ctx p c.cl_ordered_fields;
 			gen_class_statics ctx c p;
-		end
+		end;
+		gen_class_init ctx c
 
 	let gen_enum ctx en =
 		let mt = (t_infos (TEnumDecl en)) in
