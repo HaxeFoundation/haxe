@@ -331,14 +331,13 @@ module Transformer = struct
 			| [e] ->
 				transform_expr ~is_value ~next_id:(Some next_id) e
 			| _ ->
-				let res = ref [] in
+				let res = DynArray.create () in
 				List.iter (fun e ->
-					(* TODO: urgh *)
 					let ae = transform_expr ~is_value ~next_id:(Some next_id) e in
-					res := ae.a_expr :: !res;
-					res := ae.a_blocks @ !res;
+					List.iter (DynArray.add res) ae.a_blocks;
+					DynArray.add res ae.a_expr
 				) el;
-				lift_expr (mk (TBlock (List.rev !res)) tb p)
+				lift_expr (mk (TBlock (DynArray.to_list res)) tb p)
 
 	and transform_switch ae is_value e1 cases edef =
 		let case_functions = ref [] in
