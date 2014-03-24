@@ -639,7 +639,19 @@ module Transformer = struct
 			let r = { a_expr with eexpr = TTry(etry.a_expr, catches)} in
 			let blocks = List.append etry.a_blocks blocks in
 			lift false blocks r
-		| (true, TTry(etry, catches)) -> assert false
+		| (true, TTry(etry, catches)) -> 
+			
+			let id = ae.a_next_id () in
+			let temp_var = to_tvar id a_expr.etype in
+			let temp_var_def = { a_expr with eexpr = TVar(temp_var, None) } in
+			let temp_local = { a_expr with eexpr = TLocal(temp_var)} in
+			let mk_temp_assign right = { a_expr with eexpr = TBinop(OpAssign, temp_local, right)} in
+			let etry = mk_temp_assign etry in
+			let catches = List.map (fun (v,e)-> v, mk_temp_assign e) catches in
+			let new_try = { a_expr with eexpr = TTry(etry, catches)} in
+			let block = [temp_var_def; new_try; temp_local] in
+			let new_block = { a_expr with eexpr = TBlock(block)} in
+			forward_transform new_block ae
 		| (_, TObjectDecl(fields)) -> 
 			let fields = List.map (fun (name,ex) -> name, trans true [] ex) fields in
 			let blocks = List.flatten (List.map (fun (_,ex) -> ex.a_blocks) fields) in
