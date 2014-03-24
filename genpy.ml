@@ -607,7 +607,12 @@ module Transformer = struct
 			let x = trans true [] x in
 			let r = { a_expr with eexpr = TThrow(x.a_expr)} in
 			lift false x.a_blocks r
-		| (_, TNew(c, tp, params)) -> assert false
+		| (_, TNew(c, tp, params)) -> 
+			let params = List.map (trans true []) params in
+			let blocks = List.flatten (List.map (fun (p) -> p.a_blocks) params) in
+			let params = List.map (fun (p) -> p.a_expr) params in
+			let e = { a_expr with eexpr = TNew(c, tp, params) } in
+			lift false blocks e
 		| (_, TCall({ eexpr = TLocal({v_name = "__python_for__" })} as x, [param])) -> 
 			let param = trans false [] param in
 			let call = { a_expr with eexpr = TCall(x, [param.a_expr])} in
