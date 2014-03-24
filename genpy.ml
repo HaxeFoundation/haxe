@@ -386,8 +386,80 @@ module Transformer = struct
 		in
 		forward_transform res ae
 
-	and transform_op_assign_op ae e1 op operand is_value post =
-		assert false
+	and transform_op_assign_op ae e1 op one is_value post =
+		let e1_ = transform_expr e1 ~is_value:true ~next_id:(Some ae.a_next_id) in
+		let handle_as_local temp_local =
+			let ex = ae.a_expr in
+			let res_var = alloc_var (ae.a_next_id()) ex.etype in
+			let res_local = {ex with eexpr = TLocal res_var} in
+			let plus = {ex with eexpr = TBinop(op,temp_local,one)} in
+			let var_expr = {ex with eexpr = TVar(res_var,Some temp_local)} in
+			let assign_expr = {ex with eexpr = TBinop(OpAssign,e1_.a_expr,plus)} in
+			let blocks = if post then
+				[var_expr;assign_expr;res_local]
+			else
+				[assign_expr;temp_local]
+			in
+			(* TODO: block is ignored in the else case? *)
+			let block = e1_.a_blocks @ blocks in
+			if is_value then begin
+				let f = exprs_to_func block (ae.a_next_id()) ae in
+				lift_expr f.a_expr ~is_value:true ~next_id:(Some ae.a_next_id) ~blocks:f.a_blocks
+			end else begin
+				let block = e1_.a_blocks @ [assign_expr] in
+				transform_exprs_to_block block ex.etype false ex.epos ae.a_next_id
+			end
+		in
+		match e1_.a_expr.eexpr with
+			| TArray({eexpr = TLocal _},{eexpr = TLocal _})
+			| TField({eexpr = TLocal _},_)
+			| TLocal _ ->
+				handle_as_local e1_.a_expr
+			| TArray(e1,e2) ->
+				let id = ae.a_next_id() in
+				let temp_var_l = alloc_var id e1.etype in
+				let temp_local_l = {e1 with eexpr = TLocal temp_var_l} in
+				let temp_var_l = {e1 with eexpr = TVar(temp_var_l,Some e1)} in
+
+				let id = ae.a_next_id() in
+				let temp_var_r = alloc_var id e2.etype in
+				let temp_local_r = {e2 with eexpr = TLocal temp_var_r} in
+				let temp_var_r = {e2 with eexpr = TVar(temp_var_r,Some e2)} in
+
+				let id = ae.a_next_id() in
+				let temp_var = alloc_var id e1_.a_expr.etype in
+				let temp_local = {e1_.a_expr with eexpr = TLocal temp_var} in
+				let temp_var_expr = {e1_.a_expr with eexpr = TArray(temp_local_l,temp_local_r)} in
+				let temp_var = {e1_.a_expr with eexpr = TVar(temp_var,Some temp_var_expr)} in
+
+				let plus = {ae.a_expr with eexpr = TBinop(op,temp_local,one)} in
+				let assign_expr = {ae.a_expr with eexpr = TBinop(OpAssign,temp_var_expr,plus)} in
+				let block = e1_.a_blocks @ [temp_var_l;temp_var_r;temp_var;assign_expr;if post then temp_local else temp_var_expr] in
+				if is_value then begin
+					let f = exprs_to_func block (ae.a_next_id()) ae in
+					lift_expr f.a_expr ~is_value:true ~next_id:(Some ae.a_next_id) ~blocks:f.a_blocks
+				end else
+					transform_exprs_to_block block ae.a_expr.etype false ae.a_expr.epos ae.a_next_id
+			| TField(e1,fa) ->
+				let temp_var_l = alloc_var (ae.a_next_id()) e1.etype in
+				let temp_local_l = {e1 with eexpr = TLocal temp_var_l} in
+				let temp_var_l = {e1 with eexpr = TVar(temp_var_l,Some e1)} in
+
+				let temp_var = alloc_var (ae.a_next_id()) e1_.a_expr.etype in
+				let temp_local = {e1_.a_expr with eexpr = TLocal temp_var} in
+				let temp_var_expr = {e1_.a_expr with eexpr = TField(temp_local_l,fa)} in
+				let temp_var = {e1_.a_expr with eexpr = TVar(temp_var,Some temp_var_expr)} in
+
+				let plus = {ae.a_expr with eexpr = TBinop(op,temp_local,one)} in
+				let assign_expr = {ae.a_expr with eexpr = TBinop(OpAssign,temp_var_expr,plus)} in
+				let block = e1_.a_blocks @ [temp_var_l;temp_var;assign_expr;if post then temp_local else temp_var_expr] in
+				if is_value then begin
+					let f = exprs_to_func block (ae.a_next_id()) ae in
+					lift_expr f.a_expr ~is_value:true ~next_id:(Some ae.a_next_id) ~blocks:f.a_blocks
+				end else
+					transform_exprs_to_block block ae.a_expr.etype false ae.a_expr.epos ae.a_next_id
+			| _ ->
+				assert false
 
 	and var_to_treturn_expr ?(capture = false) n t p =
 		let x = mk (TLocal (to_tvar ~capture:capture n t)) t p in
