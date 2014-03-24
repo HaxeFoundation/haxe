@@ -626,7 +626,14 @@ module Transformer = struct
 			let r = { a_expr with eexpr = TArray(e1.a_expr, e2.a_expr)} in
 			let blocks = List.append e1.a_blocks e2.a_blocks in
 			lift_expr ~blocks:blocks r
-		| (false, TTry(etry, catches)) -> assert false
+		| (false, TTry(etry, catches)) -> 
+			let etry = trans false [] etry in
+			let catches = List.map (fun(v,e) -> v, trans false [] e) catches in
+			let blocks = List.flatten (List.map (fun (_,e) -> e.a_blocks) catches) in
+			let catches = List.map (fun(v,e) -> v, e.a_expr) catches in
+			let r = { a_expr with eexpr = TTry(etry.a_expr, catches)} in
+			let blocks = List.append etry.a_blocks blocks in
+			lift false blocks r
 		| (true, TTry(etry, catches)) -> assert false
 		| (_, TObjectDecl(fields)) -> 
 			let fields = List.map (fun (name,ex) -> name, trans true [] ex) fields in
