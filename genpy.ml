@@ -341,7 +341,50 @@ module Transformer = struct
 				lift_expr (mk (TBlock (List.rev !res)) tb p)
 
 	and transform_switch ae is_value e1 cases edef =
-		assert false
+		let case_functions = ref [] in
+		let case_to_if (el,e) eelse =
+			let val_reversed = List.rev el in
+			let mk_eq e = mk (TBinop(OpEq,e1,e)) !t_bool (punion e1.epos e.epos) in
+			let cond = match val_reversed with
+				| [] ->
+					assert false
+				| [e] ->
+					mk_eq e
+				| e :: el ->
+					List.fold_left (fun eelse e -> mk (TBinop(OpOr,eelse,mk_eq e)) !t_bool (punion eelse.epos e.epos)) (mk_eq e) el
+			in
+			let eif = if is_value then begin
+				let name = ae.a_next_id() in
+				let func = exprs_to_func [e] name ae in
+				case_functions := !case_functions @ func.a_blocks;
+				let call = func.a_expr in
+				mk (TIf(cond,call,eelse)) ae.a_expr.etype ae.a_expr.epos
+			end else
+				mk (TIf(cond,e,eelse)) ae.a_expr.etype e.epos
+			in
+			eif
+		in
+		let rev_cases = List.rev cases in
+		let edef = Some (match edef with
+			| None ->
+				mk (TBlock []) ae.a_expr.etype ae.a_expr.epos
+			| Some e ->
+				e)
+		in
+		let res = match rev_cases with
+			| [] ->
+				assert false
+			| [case] ->
+				case_to_if case edef
+			| case :: cases ->
+				List.fold_left (fun acc case -> case_to_if case (Some acc)) (case_to_if case edef) cases
+		in
+		let res = if is_value then
+			mk (TBlock ((List.rev (res :: !case_functions)))) res.etype res.epos
+		else
+			res
+		in
+		forward_transform res ae
 
 	and transform_op_assign_op ae e1 op operand is_value post =
 		assert false
