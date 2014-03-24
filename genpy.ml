@@ -596,7 +596,8 @@ module Transformer = struct
 				| [] ->
 					lift true [] { ae.a_expr with eexpr = TReturn(Some x1.a_expr) }
 				| _ ->
-					ae)
+					let f = exprs_to_func (x1.a_blocks @ [x1.a_expr]) (ae.a_next_id()) ae in
+					lift true f.a_blocks {ae.a_expr with eexpr = TReturn (Some f.a_expr)})
 		| (_, TParenthesis(e1)) ->
 			let e1 = trans true [] e1 in
 			let p = { ae.a_expr with eexpr = TParenthesis(e1.a_expr)} in
