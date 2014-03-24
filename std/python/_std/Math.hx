@@ -32,7 +32,7 @@ extern class Math
 {
 	static var PI(get,null) : Float;
 
-	static inline function get_PI():Float return untyped Math.pi;	
+	static inline function get_PI():Float return untyped Math.pi;
 	/**
 		A special Float constant which denotes negative infinity.
 		
@@ -125,7 +125,7 @@ extern class Math
 		
 		If `a` and `b` are NEGATIVE_INFINITY, the result is NEGATIVE_INFINITY.
 	**/
-	public static inline function max(a:Float, b:Float):Float 
+	public static inline function max(a:Float, b:Float):Float
 	{
 		return if (isNaN(a)) a else if (isNaN(b)) b else Builtin.max(a,b);
 	}
@@ -170,7 +170,7 @@ extern class Math
 		
 		If `v` is NaN, the result is NaN.
 	**/
-	public static inline function exp(v:Float):Float 
+	public static inline function exp(v:Float):Float
 	{
 		if (v == NEGATIVE_INFINITY) {
 			return 0.0;
@@ -224,14 +224,14 @@ extern class Math
 		
 		TODO: need spec
 	**/
-	public static inline function round(v:Float):Int {
+	public static /*inline*/ function round(v:Float):Int {
 		return Math.floor(v + 0.5);
 	}
 	
 	/**
 		Returns the largest Int value that is not greater than `v`.
 		
-		If v is outside of the signed Int32 range, or is NaN, NEGATIVE_INFINITY or POSITIVE_INFINITY, the result is unspecified.		
+		If v is outside of the signed Int32 range, or is NaN, NEGATIVE_INFINITY or POSITIVE_INFINITY, the result is unspecified.
 		
 		TODO: need spec
 	**/
@@ -256,21 +256,21 @@ extern class Math
 	
 	
 	
-	static inline function ffloor( v : Float ) : Float 
+	static inline function ffloor( v : Float ) : Float
 	{
 		if (v == POSITIVE_INFINITY || v == NEGATIVE_INFINITY) return v;
 		if (isNaN(v)) return NaN;
 		return floor(v);
 	}
 
-	static inline function fceil( v : Float ) : Float 
+	static inline function fceil( v : Float ) : Float
 	{
 		if (v == POSITIVE_INFINITY || v == NEGATIVE_INFINITY) return v;
 		if (isNaN(v)) return NaN;
 		return ceil(v);
 	}
 
-	static inline function fround( v : Float ) : Float 
+	static inline function fround( v : Float ) : Float
 	{
 		if (v == POSITIVE_INFINITY || v == NEGATIVE_INFINITY) return v;
 		if (isNaN(v)) return NaN;
