@@ -3060,7 +3060,13 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		let old = ctx.in_display in
 		let opt_args args ret = TFun(List.map(fun (n,o,t) -> n,true,t) args,ret) in
 		ctx.in_display <- true;
-		let e = (try type_expr ctx e Value with Error (Unknown_ident n,_) -> raise (Parser.TypePath ([n],None))) in
+		let e = try
+			type_expr ctx e Value
+		with Error (Unknown_ident n,_) when not iscall ->
+			raise (Parser.TypePath ([n],None))
+		| Error (Unknown_ident "trace",_) ->
+			raise (DisplayTypes [tfun [t_dynamic] ctx.com.basic.tvoid])
+		in
 		let e = match e.eexpr with
 			| TField (e1,fa) ->
 				if field_name fa = "bind" then (match follow e1.etype with
