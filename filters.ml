@@ -984,6 +984,7 @@ let add_rtti ctx t =
 
 (* Adds member field initializations as assignments to the constructor *)
 let add_field_inits ctx t =
+	let is_as3 = Common.defined ctx.com Define.As3 && not ctx.in_macro in
 	let apply c =
 		let ethis = mk (TConst TThis) (TInst (c,List.map snd c.cl_types)) c.cl_pos in
 		(* TODO: we have to find a variable name which is not used in any of the functions *)
@@ -992,8 +993,8 @@ let add_field_inits ctx t =
 		let inits,fields = List.fold_left (fun (inits,fields) cf ->
 			match cf.cf_kind,cf.cf_expr with
 			| Var _, Some _ ->
-				if Common.defined ctx.com Define.As3 then (inits, cf :: fields) else (cf :: inits, cf :: fields)
-			| Method MethDynamic, Some e when Common.defined ctx.com Define.As3 ->
+				if is_as3 then (inits, cf :: fields) else (cf :: inits, cf :: fields)
+			| Method MethDynamic, Some e when is_as3 ->
 				(* TODO : this would have a better place in genSWF9 I think - NC *)
 				(* we move the initialization of dynamic functions to the constructor and also solve the
 				   'this' problem along the way *)
@@ -1026,7 +1027,7 @@ let add_field_inits ctx t =
 					let lhs = mk (TField(ethis,FInstance (c,cf))) cf.cf_type e.epos in
 					cf.cf_expr <- None;
 					let eassign = mk (TBinop(OpAssign,lhs,e)) e.etype e.epos in
-					if Common.defined ctx.com Define.As3 then begin
+					if is_as3 then begin
 						let echeck = mk (TBinop(OpEq,lhs,(mk (TConst TNull) lhs.etype e.epos))) ctx.com.basic.tbool e.epos in
 						mk (TIf(echeck,eassign,None)) eassign.etype e.epos
 					end else
