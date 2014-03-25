@@ -617,7 +617,7 @@ let rec type_module_type ctx t tparams p =
 	match t with
 	| TClassDecl c ->
 		let t_tmp = {
-			t_path = fst c.cl_path, "Class<" ^ (snd c.cl_path) ^ ">" ;
+			t_path = [],"Class<" ^ (s_type_path c.cl_path) ^ ">" ;
 			t_module = c.cl_module;
 			t_doc = None;
 			t_pos = c.cl_pos;
@@ -649,7 +649,7 @@ let rec type_module_type ctx t tparams p =
 	| TAbstractDecl a ->
 		if not (Meta.has Meta.RuntimeValue a.a_meta) then error (s_type_path a.a_path ^ " is not a value") p;
 		let t_tmp = {
-			t_path = fst a.a_path, "Abstract<" ^ (snd a.a_path) ^ ">";
+			t_path = [],"Abstract<" ^ (s_type_path a.a_path) ^ ">";
 			t_module = a.a_module;
 			t_doc = None;
 			t_pos = a.a_pos;
