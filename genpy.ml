@@ -1165,7 +1165,7 @@ module Printer = struct
 		let indent = pctx.pc_indent in
 		let print_expr_indented e = print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} e in
 		let try_str = Printf.sprintf "try:\n%s\t%s\n%s" indent (print_expr_indented e1) indent in
-		let except = Printf.sprintf "except Exception as _hx_e:\n%s\t_hx_e1 = _hx_e.val if isInstance(_hx_e, _HxException) else _hx_e\n%s\t" indent indent in
+		let except = Printf.sprintf "except Exception as _hx_e:\n%s\t_hx_e1 = _hx_e.val if isinstance(_hx_e, _HxException) else _hx_e\n%s\t" indent indent in
 		let catch_str = String.concat (Printf.sprintf "\n%s\n" indent) (ExtList.List.mapi (fun i catch -> print_catch {pctx with pc_indent = "\t" ^ pctx.pc_indent} i catch) catches) in
 		let except_end = Printf.sprintf "\n%s\telse:\n%s\t\traise _hx_e" indent indent in
 		Printf.sprintf "%s%s%s%s" try_str except catch_str except_end
