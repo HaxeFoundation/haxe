@@ -1849,8 +1849,15 @@ let init_class ctx c p context_init herits fields =
 						| (Meta.Op,[EBinop(op,_,_),_],_) :: _ ->
 							if is_macro then error "Macro operator functions are not supported" p;
 							let targ = if Meta.has Meta.Impl f.cff_meta then tthis else ta in
-							let left_eq = type_iseq t (tfun [targ;m] (mk_mono())) in
-							let right_eq = type_iseq t (tfun [mk_mono();targ] (mk_mono())) in
+							let left_eq,right_eq = match follow t with
+								| TFun([(_,_,t1);(_,_,t2)],_) ->
+									type_iseq targ t1,type_iseq targ t2
+								| _ ->
+									if Meta.has Meta.Impl cf.cf_meta then
+										error "Member @:op functions must accept exactly one argument" cf.cf_pos
+									else
+										error "Static @:op functions must accept exactly two arguments" cf.cf_pos
+							in
 							if not (left_eq || right_eq) then error ("The left or right argument type must be " ^ (s_type (print_context()) targ)) f.cff_pos;
 							if right_eq && Meta.has Meta.Commutative f.cff_meta then error ("@:commutative is only allowed if the right argument is not " ^ (s_type (print_context()) targ)) f.cff_pos;
 							a.a_ops <- (op,cf) :: a.a_ops;
