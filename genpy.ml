@@ -500,14 +500,15 @@ module Transformer = struct
 				match List.rev x with
 				| x::xs ->
 					(let ret = x in
-					let block = List.append exprs (convert_return_expr ret) in
+					let tail = List.rev xs in
+					let block = tail @ (convert_return_expr ret) in
 					match List.rev block with
-					| x::xs ->
+					| x::_ ->
 						mk (TBlock block) x.etype base.a_expr.epos
 					| _ -> assert false)
 				| _ -> assert false
 			in
-			let f1 = { tf_args = []; tf_type = ex.etype; tf_expr = ex} in
+			let f1 = { tf_args = []; tf_type = TFun([],ex.etype); tf_expr = ex} in
 			let fexpr = mk (TFunction f1) ex.etype ex.epos in
 			let fvar = to_tvar name fexpr.etype in
 			let f = add_non_locals_to_func fexpr in
@@ -517,18 +518,16 @@ module Transformer = struct
 			lift_expr ~blocks:[assign] substitute)
 		in
 		match exprs with
-		| [x] ->
-			(match x.eexpr with
-			| TFunction({ tf_args = []}) -> def
-			| TFunction(f) ->
-				let l = to_tlocal_expr name f.tf_type f.tf_expr.epos in
-				let substitute = mk (TCall(l, [])) f.tf_type f.tf_expr.epos in
-				lift_expr ~blocks:[x] substitute
-			| _ -> def)
+		| [{ eexpr = TFunction({ tf_args = []} as f) } as x] ->
+			let l = to_tlocal_expr name f.tf_type f.tf_expr.epos in
+			let substitute = mk (TCall(l, [])) f.tf_type f.tf_expr.epos in
+			lift_expr ~blocks:[x] substitute
 		| _ -> def
 
-
+	
+	
 	and transform1 ae : adjusted_expr =
+		
 		let trans is_value blocks e = transform_expr1 is_value ae.a_next_id blocks e in
 		let lift is_value blocks e = lift_expr1 is_value ae.a_next_id blocks e in
 		let a_expr = ae.a_expr in
@@ -600,9 +599,9 @@ module Transformer = struct
 			(match x1.a_blocks with
 				| [] ->
 					lift true [] { ae.a_expr with eexpr = TReturn(Some x1.a_expr) }
-				| _ ->
-					let f = exprs_to_func (x1.a_blocks @ [x1.a_expr]) (ae.a_next_id()) ae in
-					lift true f.a_blocks {ae.a_expr with eexpr = TReturn (Some f.a_expr)})
+				| blocks ->
+					let f = exprs_to_func (blocks @ [x1.a_expr]) (ae.a_next_id()) ae in
+					lift true f.a_blocks {a_expr with eexpr = TReturn (Some f.a_expr)})
 		| (_, TParenthesis(e1)) ->
 			let e1 = trans true [] e1 in
 			let p = { ae.a_expr with eexpr = TParenthesis(e1.a_expr)} in
@@ -812,14 +811,6 @@ module Transformer = struct
 
 	let transform_to_value e =
 		to_expr (transform1 (lift_expr e ~is_value:true))
-
-
-
-
-
-
-
-
 
 end
 
