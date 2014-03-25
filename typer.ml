@@ -3992,7 +3992,13 @@ and flush_macro_context mint ctx =
 		mint
 	end else mint in
 	(* we should maybe ensure that all filters in Main are applied. Not urgent atm *)
-	(try Interp.add_types mint types (Filters.post_process mctx [Codegen.Abstract.handle_abstract_casts mctx; Filters.captured_vars mctx.com; Filters.rename_local_vars mctx.com])
+	let expr_filters = [Codegen.Abstract.handle_abstract_casts mctx; Filters.captured_vars mctx.com; Filters.rename_local_vars mctx.com] in
+	let type_filters = [Filters.add_field_inits mctx] in
+	let ready = fun t ->
+		Filters.post_process mctx expr_filters t;
+		List.iter (fun f -> f t) type_filters
+	in
+	(try Interp.add_types mint types ready
 	with Error (e,p) -> raise (Fatal_error(error_msg e,p)));
 	Filters.post_process_end()
 
