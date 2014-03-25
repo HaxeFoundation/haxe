@@ -66,13 +66,6 @@ let mk_block_context com gen_temp =
 	- array access
 *)
 let handle_side_effects com gen_temp e =
-	let has_direct_side_effect e = match e.eexpr with
-		| TConst _ | TLocal _ | TField _ | TTypeExpr _ | TFunction _ -> false
-		| TPatMatch _ | TNew _ | TCall _ | TBinop ((OpAssignOp _ | OpAssign),_,_) | TUnop ((Increment|Decrement),_,_) -> true
-		| TReturn _ | TBreak | TContinue | TThrow _ | TCast (_,Some _) -> true
-		| TIf _ | TTry _ | TSwitch _ -> true
-		| TArray _ | TEnumParameter _ | TCast (_,None) | TBinop _ | TUnop _ | TParenthesis _ | TMeta _ | TWhile _ | TFor _ | TArrayDecl _ | TVar _ | TBlock _ | TObjectDecl _ -> false
-	in
 	let block,declare_temp,close_block = mk_block_context com gen_temp in
 	let rec loop e =
 		match e.eexpr with
@@ -99,6 +92,15 @@ let handle_side_effects com gen_temp e =
 				e1,mk (TConst (TBool(false))) com.basic.tbool e.epos
 			in
 			mk (TIf(e_if,e_then,Some e_else)) com.basic.tbool e.epos
+		| TBinop((OpAssign | OpAssignOp _) as op,{eexpr = TArray(e11,e12)},e2) ->
+			let e1 = match ordered_list [e11;e12] with
+				| [e1;e2] ->
+					{e with eexpr = TArray(e1,e2)}
+				| _ ->
+					assert false
+			in
+			let e2 = loop e2 in
+			{e with eexpr = TBinop(op,e1,e2)}
  		| TBinop(op,e1,e2) ->
 			begin match ordered_list [e1;e2] with
 				| [e1;e2] ->
@@ -125,32 +127,16 @@ let handle_side_effects com gen_temp e =
 		| _ ->
 			Type.map_expr loop e
 	and ordered_list el =
-		let had_side_effect = ref false in
 		let bind e =
-			if !had_side_effect then
-				declare_temp e.etype (Some (loop e)) e.epos
-			else begin
-				had_side_effect := true;
-				e
-			end
+			declare_temp e.etype (Some (loop e)) e.epos
 		in
 		let rec no_side_effect e =
-			if has_direct_side_effect e then
+			if Optimizer.has_side_effect e then
 				bind e
 			else
-				Type.map_expr no_side_effect e
+				e
 		in
-		let rec loop2 acc el = match el with
-			| e :: el ->
-				let e = no_side_effect e in
-				if !had_side_effect then
-					(List.map no_side_effect (List.rev el)) @ e :: acc
-				else
-					loop2 (e :: acc) el
-			| [] ->
-				acc
-		in
-		List.map loop (loop2 [] (List.rev el))
+		List.map no_side_effect el
 	in
 	let e = loop e in
 	match close_block() with
@@ -1153,13 +1139,13 @@ let run com tctx main =
  	let filters = [
 		Codegen.Abstract.handle_abstract_casts tctx;
 		blockify_ast;
-(* 		(match com.platform with
+		(match com.platform with
 			| Cpp | Flash8 -> (fun e ->
 				let save = save_locals tctx in
 				let e = handle_side_effects com (Typecore.gen_local tctx) e in
 				save();
 				e)
-			| _ -> fun e -> e); *)
+			| _ -> fun e -> e);
 		if com.foptimize then (fun e -> Optimizer.reduce_expression tctx (Optimizer.inline_constructors tctx e)) else Optimizer.sanitize tctx;
 		check_local_vars_init;
 		captured_vars com;
