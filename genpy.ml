@@ -659,10 +659,10 @@ module Transformer = struct
 			let new_if = { ae.a_expr with eexpr = TIf(econd.a_expr, eif, eelse) } in
 			lift false econd.a_blocks new_if
 		| (false, TWhile(econd, e1, NormalWhile)) ->
-			let econd1 = transform_expr econd ~is_value:true ~next_id:(Some ae.a_next_id) in
-			let e11 = to_expr (transform_expr e1 ~is_value:false ~next_id:(Some ae.a_next_id)) in
-			let new_while = mk (TWhile(econd1.a_expr,e11,NormalWhile)) ae.a_expr.etype ae.a_expr.epos in
-			lift_expr new_while ~is_value:false ~next_id:(Some ae.a_next_id) ~blocks:econd1.a_blocks
+			let econd1 = trans true [] econd in
+			let e11 = to_expr (trans false [] e1) in
+			let new_while = mk (TWhile(econd1.a_expr,e11,NormalWhile)) a_expr.etype a_expr.epos in
+			lift false econd1.a_blocks new_while
 		| (true, TWhile(econd, ebody, NormalWhile)) ->
 			let econd = trans true [] econd in
 			let ebody = to_expr (trans false [] ebody) in
