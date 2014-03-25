@@ -182,6 +182,11 @@ module Transformer = struct
 		t_bool := com.basic.tbool;
 		t_void := com.basic.tvoid
 
+	and debug_expr e = 
+		let s_type = Type.s_type (print_context()) in
+		let s = Type.s_expr_pretty "\t" s_type e in
+		Printf.printf "%s\n" s
+
 	let new_counter () =
 		let n = ref (-1) in
 		(fun () ->
