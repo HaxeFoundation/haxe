@@ -11,6 +11,7 @@ env:
     - TARGET=neko
     - TARGET=js
     - TARGET=php
+    - TARGET=python
     - TARGET=cpp
     - TARGET=flash9
     - TARGET=as3
