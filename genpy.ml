@@ -1181,7 +1181,7 @@ module Printer = struct
 		let except_end = Printf.sprintf "\n%s\telse:\n%s\t\traise _hx_e" indent indent in
 		Printf.sprintf "%s%s%s%s" try_str except catch_str except_end
 
-	and print_call pctx e1 el =
+	and print_call2 pctx e1 el =
 		let id = print_expr pctx e1 in
 		match id,el with
 			| "super",_ ->
@@ -1262,6 +1262,14 @@ module Printer = struct
 				print_expr pctx {e1 with eexpr = TBinop(OpEq,e2,e3)}
 			| _,el ->
 				Printf.sprintf "%s(%s)" id (print_exprs pctx ", " el)
+
+	and print_call pctx e1 el =
+		match e1.eexpr with
+			| TField(e1,FAnon {cf_name = "toUpperCase"}) ->
+				(* TODO: toLowerCase and other string methods? *)
+				Printf.sprintf "_hx_toUpperCase(%s)" (print_expr pctx e1)
+			| _ ->
+				print_call2 pctx e1 el
 
 	and print_exprs pctx sep el =
 		String.concat sep (List.map (print_expr pctx) el)
