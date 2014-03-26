@@ -1348,6 +1348,18 @@ module Generator = struct
 			cfd_methods = DynArray.to_list methods;
 		}
 
+	let collect_class_statics_data cfl =
+		let fields = DynArray.create () in
+		List.iter (fun cf ->
+			match cf.cf_kind with
+				| Var({v_read = AccResolve}) ->
+					()
+(* 				| Var({v_read = AccCall}) when Meta.has Meta.IsVar cf.cf_meta ->
+					DynArray.add fields cf.cf_name *)
+				| _ ->
+					DynArray.add fields cf.cf_name
+		) cfl;
+		DynArray.to_list fields
 
 	let filter_py_metas metas =
 		List.filter (fun (n,_,_) -> match n with Meta.Custom ":python" -> true | _ -> false) metas
@@ -1542,6 +1554,10 @@ module Generator = struct
 		let field_str = String.concat "," (List.map (fun s -> "\"" ^ s ^ "\"") cfd.cfd_fields) in
 		let props_str = String.concat "," (List.map (fun s -> "\"" ^ s ^ "\"") cfd.cfd_props) in
 		let method_str = String.concat "," (List.map (fun s -> "\"" ^ s ^ "\"") cfd.cfd_methods) in
+		let statics_str =
+			let statics = collect_class_statics_data c.cl_ordered_statics in
+			String.concat "," (List.map (fun s -> "\"" ^ s ^ "\"") statics)
+		in
 		newline ctx;
 		print ctx "%s._hx_class = %s\n" p p;
 		print ctx "%s._hx_class_name = \"%s\"\n" p p_name;
@@ -1550,7 +1566,8 @@ module Generator = struct
 		print ctx "%s._hx_fields = [%s]\n" p field_str;
 		print ctx "%s._hx_props = [%s]\n" p props_str;
 		print ctx "%s._hx_methods = [%s]\n" p method_str;
-		(* TODO: statics *)
+		(* TODO: It seems strange to have a separation for member fields but a plain _hx_statics for static ones *)
+		print ctx "%s._hx_statics = [%s]\n" p statics_str;
 		print ctx "%s._hx_interfaces = [%s]\n" p (String.concat "," p_interfaces);
 		match p_super with
 			| None ->
