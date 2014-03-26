@@ -641,7 +641,7 @@ let get_config com =
 			pf_locals_scope = false;
 			pf_captured_scope = false;
 			pf_unique_locals = false;
-			pf_capture_policy = CPLoopVars;
+			pf_capture_policy = CPWrapRef;
 			pf_pad_nulls = false;
 			pf_add_final_return = false;
 			pf_overload = false;
@@ -907,7 +907,7 @@ let find_file ctx f =
 		(match r with
 		| None -> raise Not_found
 		| Some f -> f)
-		
+
 
 let get_full_path f = try Extc.get_full_path f with _ -> f
 
