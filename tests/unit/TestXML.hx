@@ -194,7 +194,7 @@ class TestXML extends Test {
 	function testEntities() {
 		var entities = ["&lt;", "&gt;", "&quot;", "&amp;", "&apos;", "&nbsp;", "&euro;", "&#64;", "&#244;", "&#x3F;", "&#xFF;"];
 		var values = entities.copy();
-		#if (flash || js || cs || java)
+		#if (flash || js || cs || java || python)
 		// flash parser does support XML + some HTML entities (nbsp only ?) + character codes entities
 		values = ['<', '>', '"', '&', "'", String.fromCharCode(160), '&euro;', '@', 'ô', '?', 'ÿ'];
 		#end
