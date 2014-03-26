@@ -131,7 +131,7 @@ StringTools.isEof(StringTools.fastCodeAt("", 0)) == true;
 // isEOF
 #if neko
 StringTools.isEof(null) == true;
-#elseif (cs || java)
+#elseif (cs || java || python)
 StringTools.isEof( -1) == true;
 #elseif js
 // how do I test this here?
