@@ -204,7 +204,7 @@ class Test #if swf_mark implements mt.Protect #end {
 	}
 
 	static function resetTimer() {
-		#if (neko || php || cpp || java || cs)
+		#if (neko || php || cpp || java || cs || python)
 		#else
 		if( timer != null ) timer.stop();
 		timer = new haxe.Timer(10000);
