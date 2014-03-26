@@ -1214,7 +1214,7 @@ module Printer = struct
 						Printf.sprintf "%s(%s)" (print_expr pctx e1) (print_exprs_named pctx ", " fields)
 				end
 			| "__define_feature__" ->
-				print_expr pctx (List.hd el)
+				print_expr pctx (match el with [_;e] -> e | _ -> assert false)
 			| "__call__" ->
 				begin match el with
 					| e1 :: el ->
