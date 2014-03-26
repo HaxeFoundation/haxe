@@ -299,7 +299,7 @@ module Transformer = struct
 				tf.tf_expr
 			| _ ->
 				let eb = mk (TBlock (List.rev assigns)) t_dynamic p in
-				Codegen.concat tf.tf_expr eb
+				Codegen.concat eb tf.tf_expr
 		in
 		let e1 = to_expr (transform_expr ~next_id:(Some ae.a_next_id) body) in
 		let fn = mk (TFunction({
