@@ -640,7 +640,7 @@ module Transformer = struct
 					in
 					match b with
 					| [{ eexpr = TVar(_, Some({ eexpr = TFunction(f)}))} as b] ->
-						Some(eif1.a_expr), List.append blocks [b]
+						Some(eelse1.a_expr), List.append blocks [b]
 					| _ -> regular
 			in
 			let blocks = List.append econd1.a_blocks blocks in
