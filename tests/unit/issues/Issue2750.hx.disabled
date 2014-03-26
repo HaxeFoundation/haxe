@@ -9,6 +9,12 @@ private class Parent extends Test {
 	function foo() {
 		return 1;
 	}
+	function bind() {
+		return 1;
+	}
+	function match() {
+		return 1;
+	}
 }
 
 class Issue2750 extends Parent {
@@ -19,6 +25,8 @@ class Issue2750 extends Parent {
     public function new() {
         super();
 		eq(3, foo());
+		eq(3, bind());
+		eq(3, match());
 		call(this);
 		t(unit.TestType.typeError(var x = super));
 		t(unit.TestType.typeError(call(super)));
@@ -28,6 +36,14 @@ class Issue2750 extends Parent {
 	
 	override function foo() {
 		return 2 + super.foo();
+	}
+
+	override function bind() {
+		return 2 + super.bind();
+	}
+
+	override function match() {
+		return 2 + super.match();
 	}
 	
 	function call(c:Parent) { }

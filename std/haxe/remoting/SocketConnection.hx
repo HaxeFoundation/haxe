@@ -110,8 +110,6 @@ class SocketConnection implements AsyncConnection implements Dynamic<AsyncConnec
 		if( f.onResult != null ) f.onResult(ret);
 	}
 
-	#if (flash || js || neko)
-
 	function defaultLog(path,args,e) {
 		// exception inside the called method
 		var astr, estr;
@@ -177,7 +175,5 @@ class SocketConnection implements AsyncConnection implements Dynamic<AsyncConnec
 		#end
 		return sc;
 	}
-
-	#end
 
 }
