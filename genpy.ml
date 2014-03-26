@@ -1370,10 +1370,6 @@ module Generator = struct
 			| _ -> false
 		) c.cl_ordered_fields
 
-	let get_meta_entries meta =
-		(* TODO *)
-		""
-
 	(* Printing *)
 
 	let spr ctx s =
@@ -1574,31 +1570,6 @@ module Generator = struct
 			| Some ps ->
 				print ctx "%s._hx_super = %s\n" p ps
 
-	let gen_meta_members ctx fields =
-		spr ctx "_hx_c._hx_AnonObject(";
-		List.iter (fun cf ->
-			()
-		) fields;
-		spr ctx ")"
-
-	let gen_class_metadata ctx c p =
-		let meta = Codegen.build_metadata ctx.com (TClassDecl c) in
-		match meta with
-			| None ->
-				()
-			| Some e ->
-				gen_expr ctx e "" "";
-				newline ctx
-
-	let gen_enum_metadata ctx en p =
-		let meta = Codegen.build_metadata ctx.com (TEnumDecl en) in
-		match meta with
-			| None ->
-				()
-			| Some e ->
-				gen_expr ctx e "" "";
-				newline ctx
-
 	let gen_class_empty_constructor ctx p cfl =
 		let s_name = p ^ "_hx_empty_init" in
 		print ctx "def %s (_hx_o):\n" s_name;
@@ -1665,11 +1636,20 @@ module Generator = struct
 			if use_pass then spr_line ctx "\tpass";
 			close_block ctx;
 			gen_class_data ctx c x p_super p_interfaces p p_name;
-			gen_class_metadata ctx c p;
 			gen_class_empty_constructor ctx p c.cl_ordered_fields;
 			gen_class_statics ctx c p;
 		end;
 		gen_class_init ctx c
+
+    let gen_enum_metadata ctx en p =
+        let meta = Codegen.build_metadata ctx.com (TEnumDecl en) in
+        match meta with
+            | None ->
+                ()
+            | Some e ->
+            	print ctx "%s.__meta__ = " p;
+                gen_expr ctx e "" "";
+                newline ctx
 
 	let gen_enum ctx en =
 		let mt = (t_infos (TEnumDecl en)) in
