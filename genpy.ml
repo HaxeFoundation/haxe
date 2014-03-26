@@ -304,6 +304,7 @@ module Transformer = struct
 			tf_args = tf.tf_args;
 			tf_type = tf.tf_type;
 		})) ae.a_expr.etype p in
+		let fn = add_non_locals_to_func fn in
 		if is_value then begin
 			let new_name = ae.a_next_id() in
 			let new_var = alloc_var new_name tf.tf_type in
