@@ -22,6 +22,8 @@ package python.internal;
  * DEALINGS IN THE SOFTWARE.
  */
 
+
+
 import python.lib.FuncTools;
 import python.lib.Builtin;
 
@@ -44,7 +46,7 @@ class ArrayImpl {
 
 	@:keep public static inline function iterator<T>(x:Array<T>) : Iterator<T> 
 	{
-		return python.Lib.toHaxeIterator(x.__iter__());
+		return python.Lib.toHaxeIterator(untyped x.__iter__());
 	}
 
 	//public static function insert( pos : Int, x : T ) : Void;
@@ -135,7 +137,7 @@ class ArrayImpl {
 	}
 
 	@:keep public static inline function map<S,T>(x:Array<T>, f : T -> S ) : Array<S> {
-		return Builtin.list(Builtin.map(f,x));
+		return Builtin.list(Builtin.map(f,cast x));
 	}
 
 	@:keep public static inline function filter<T>(x:Array<T>, f : T -> Bool ) : Array<T> {
