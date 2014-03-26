@@ -34,8 +34,12 @@ class StringImpl {
 	}
 
 	public static inline function fromCharCode( code : Int ) : String {
+		#if doc_gen 
+		return "";
+		#else
 		var c = code;
-		return untyped (''.join)(Builtin.map(Builtin.chr, [c]));
+		return (untyped (''.join)(Builtin.map(Builtin.chr, [c])):String);
+		#end
 	}
 	
 }

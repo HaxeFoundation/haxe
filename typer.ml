@@ -617,7 +617,7 @@ let rec type_module_type ctx t tparams p =
 	match t with
 	| TClassDecl c ->
 		let t_tmp = {
-			t_path = fst c.cl_path, "Class<" ^ (snd c.cl_path) ^ ">" ;
+			t_path = [],"Class<" ^ (s_type_path c.cl_path) ^ ">" ;
 			t_module = c.cl_module;
 			t_doc = None;
 			t_pos = c.cl_pos;
@@ -649,7 +649,7 @@ let rec type_module_type ctx t tparams p =
 	| TAbstractDecl a ->
 		if not (Meta.has Meta.RuntimeValue a.a_meta) then error (s_type_path a.a_path ^ " is not a value") p;
 		let t_tmp = {
-			t_path = fst a.a_path, "Abstract<" ^ (snd a.a_path) ^ ">";
+			t_path = [],"Abstract<" ^ (s_type_path a.a_path) ^ ">";
 			t_module = a.a_module;
 			t_doc = None;
 			t_pos = a.a_pos;
@@ -1132,16 +1132,16 @@ and type_field ?(resume=false) ctx e i p mode =
 				| MCall,Var {v_read = AccCall } ->
 					()
 				| MCall, Var _ ->
-					error "Cannot access superclass variable for calling: needs to be a proper method" p
+					display_error ctx "Cannot access superclass variable for calling: needs to be a proper method" p
 				| MCall, _ ->
 					()
 				| MGet,Var _
 				| MSet,Var _ when (match c2 with Some { cl_extern = true; cl_path = ("flash" :: _,_) } -> true | _ -> false) ->
 					()
 				| _, Method _ ->
-					error "Cannot create closure on super method" p
+					display_error ctx "Cannot create closure on super method" p
 				| _ ->
-					error "Normal variables cannot be accessed with 'super', use 'this' instead" p);
+					display_error ctx "Normal variables cannot be accessed with 'super', use 'this' instead" p);
 			if not (can_access ctx c f false) && not ctx.untyped then display_error ctx ("Cannot access private field " ^ i) p;
 			field_access ctx mode f (match c2 with None -> FAnon f | Some c -> FInstance (c,f)) (apply_params c.cl_types params t) e p
 		with Not_found -> try
@@ -2401,7 +2401,8 @@ and type_expr ctx (e,p) (with_type:with_type) =
 	| EField(_,n) when n.[0] = '$' ->
 		error "Field names starting with $ are not allowed" p
 	| EConst (Ident s) ->
-		if s = "super" && with_type <> NoValue then error "Cannot use super as value" p;
+		(* TODO: let's deal with this later *)
+		(* if s = "super" && with_type <> NoValue then error "Cannot use super as value" p; *)
 		(try
 			acc_get ctx (type_ident_raise ~imported_enums:false ctx s p MGet) p
 		with Not_found -> try
@@ -3059,7 +3060,13 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		let old = ctx.in_display in
 		let opt_args args ret = TFun(List.map(fun (n,o,t) -> n,true,t) args,ret) in
 		ctx.in_display <- true;
-		let e = (try type_expr ctx e Value with Error (Unknown_ident n,_) -> raise (Parser.TypePath ([n],None))) in
+		let e = try
+			type_expr ctx e Value
+		with Error (Unknown_ident n,_) when not iscall ->
+			raise (Parser.TypePath ([n],None))
+		| Error (Unknown_ident "trace",_) ->
+			raise (DisplayTypes [tfun [t_dynamic] ctx.com.basic.tvoid])
+		in
 		let e = match e.eexpr with
 			| TField (e1,fa) ->
 				if field_name fa = "bind" then (match follow e1.etype with
@@ -3307,6 +3314,8 @@ and type_call ctx e el (with_type:with_type) p =
 			display_error ctx "callback syntax has changed to func.bind(args)" p;
 			let e = type_expr ctx e Value in
 			type_bind ctx e args p)
+	| (EField ((EConst (Ident "super"),_),_),_), _ ->
+		def()
 	| (EField (e,"bind"),p), args ->
 		let e = type_expr ctx e Value in
 		(match follow e.etype with
@@ -3983,7 +3992,13 @@ and flush_macro_context mint ctx =
 		mint
 	end else mint in
 	(* we should maybe ensure that all filters in Main are applied. Not urgent atm *)
-	(try Interp.add_types mint types (Filters.post_process mctx [Codegen.Abstract.handle_abstract_casts mctx; Filters.captured_vars mctx.com; Filters.rename_local_vars mctx.com])
+	let expr_filters = [Codegen.Abstract.handle_abstract_casts mctx; Filters.captured_vars mctx.com; Filters.rename_local_vars mctx.com] in
+	let type_filters = [Filters.add_field_inits mctx] in
+	let ready = fun t ->
+		Filters.post_process mctx expr_filters t;
+		List.iter (fun f -> f t) type_filters
+	in
+	(try Interp.add_types mint types ready
 	with Error (e,p) -> raise (Fatal_error(error_msg e,p)));
 	Filters.post_process_end()
 

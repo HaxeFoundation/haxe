@@ -19,10 +19,11 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
+#if !macro
 import python.lib.Builtin;
 import python.internal.ArrayImpl;
 import python.lib.Types;
+#end
 
 @:native("list")
 extern class Array<T> implements ArrayAccess<T> extends ArrayImpl {

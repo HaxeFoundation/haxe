@@ -84,7 +84,7 @@ extern class Builtin {
 	//public static function bytearray():Void;
 	//public static function float():Void;
 	
-
+	@:overload(function <T>(f:Array<T>):Array<T> {})
 	@:overload(function (f:String):Array<String> {})
 	@:overload(function <G>(f:Tuple<G>):Array<G> {})
 	public static function list<T>(i:PyIterable<T>):Array<T>;
