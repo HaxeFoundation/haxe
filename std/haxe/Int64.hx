@@ -61,6 +61,8 @@ class Int64 {
 			return i | 0;
 		#elseif php
 			return i32php(i); // handle overflow of 32-bit integers correctly
+		#elseif python
+			return untyped __python__("(i + 2**31) % 2**32 - 2**31");
 		#else
 			return i;
 		#end
