@@ -1716,12 +1716,12 @@ module Generator = struct
 			let first = ref true in
 			Hashtbl.iter (fun k v ->
 				let prefix = if !first then begin
-					first := true;
+					first := false;
 					"";
 				end else
 					","
 				in
-				print ctx "%s'%s':'%s'" prefix k v
+				print ctx "%s'%s':'''%s'''" prefix k (Codegen.bytes_serialize v)
 			) ctx.com.resources;
 			spr ctx "}\n"
 		end
