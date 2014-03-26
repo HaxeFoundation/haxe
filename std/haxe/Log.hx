@@ -98,14 +98,14 @@ class Log {
 			var str:String = null;
 			if (infos != null) {
 				str = infos.fileName + ":" + Std.string(infos.lineNumber) + ": " + v;
-				if (python.lib.Builtin.hasattr(infos, "customParams"))
+				if (python.lib.Builtin.hasattr(infos, "customParams") && infos.customParams != null)
 				{
 					str += "," + infos.customParams.join(",");
 				}
 			} else {
 				str = v;
 			}
-			untyped __python__('print(str)');
+			Sys.println(str);
 		#end
 	}
 
