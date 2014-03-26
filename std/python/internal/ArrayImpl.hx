@@ -28,23 +28,24 @@ import python.lib.FuncTools;
 import python.lib.Builtin;
 
 @:allow(Array)
+@:keep
 class ArrayImpl {
 
 
 	public static inline function get_length <T>(x:Array<T>):Int return python.lib.Builtin.len(x);
 	
 
-	public static inline function concat<T>( a1:Array<T>, a2 : Array<T>) : Array<T> 
+	public static inline function concat<T>( a1:Array<T>, a2 : Array<T>) : Array<T>
 	{
 		return untyped (untyped a1) + (untyped a2);
 	}
 
-	public static inline function copy<T>(x:Array<T>) : Array<T> 
+	public static inline function copy<T>(x:Array<T>) : Array<T>
 	{
 		return Builtin.list(x);
 	}
 
-	@:keep public static inline function iterator<T>(x:Array<T>) : Iterator<T> 
+	@:keep public static inline function iterator<T>(x:Array<T>) : Iterator<T>
 	{
 		return python.Lib.toHaxeIterator(untyped x.__iter__());
 	}
@@ -53,9 +54,9 @@ class ArrayImpl {
 
 
 	public static function indexOf<T>(a:Array<T>, x : T, ?fromIndex:Int) : Int {
-		var l = 
+		var l =
 			if (fromIndex == null) 0
-			else if (fromIndex < 0) a.length + fromIndex 
+			else if (fromIndex < 0) a.length + fromIndex
 			else fromIndex;
 		if (l < 0) l = 0;
 		for (i in l...a.length) {
@@ -65,8 +66,8 @@ class ArrayImpl {
 	}
 
 	public static function lastIndexOf<T>(a:Array<T>, x : T, ?fromIndex:Int) : Int {
-		var l = 
-			if (fromIndex == null) a.length 
+		var l =
+			if (fromIndex == null) a.length
 			else if (fromIndex < 0) a.length + fromIndex + 1
 			else fromIndex+1;
 		if (l > a.length) l = a.length;
@@ -151,7 +152,7 @@ class ArrayImpl {
 		var _hx_a = x;
 		if (idx >= _hx_a.length || idx < 0)
 			return null;
-		else 
+		else
 			return x[idx];
 	}
 
