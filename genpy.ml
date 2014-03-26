@@ -154,6 +154,7 @@ module KeywordHandler = struct
 			"and"; "as"; "assert"; "break"; "class"; "continue"; "def"; "del"; "elif"; "else"; "except"; "exec"; "finally"; "for";
 			"from"; "global"; "if"; "import"; "in"; "is"; "lambda"; "not"; "or"; "pass"; "print";" raise"; "return"; "try"; "while";
 			"with"; "yield"; "float"; "None"
+			;"__b" (* TODO: hack to deal with haxe.Utf8 error *)
 		];
 		h
 
