@@ -359,7 +359,7 @@ module Transformer = struct
 				| [e] ->
 					mk_eq e
 				| e :: el ->
-					List.fold_left (fun eelse e -> mk (TBinop(OpOr,eelse,mk_eq e)) !t_bool (punion eelse.epos e.epos)) (mk_eq e) el
+					List.fold_left (fun eelse e -> mk (TBinop(OpBoolOr,eelse,mk_eq e)) !t_bool (punion eelse.epos e.epos)) (mk_eq e) el
 			in
 			let eif = if is_value then begin
 				let name = ae.a_next_id() in
