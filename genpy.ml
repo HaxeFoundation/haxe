@@ -749,11 +749,10 @@ module Transformer = struct
 		| (_, TCall(e, params)) ->
 			let e = trans true [] e in
 			let params = List.map (trans true []) params in
-			let blocks = List.flatten (List.map (fun (p) -> p.a_blocks) params) in
+			let blocks = e.a_blocks @ (List.flatten (List.map (fun (p) -> p.a_blocks) params)) in
 			let params = List.map (fun (p) -> p.a_expr) params in
 			let e = { a_expr with eexpr = TCall(e.a_expr, params) } in
 			lift_expr ~blocks:blocks e
-
 		| (true, TArray(e1, e2)) ->
 			let e1 = trans true [] e1 in
 			let e2 = trans true [] e2 in
