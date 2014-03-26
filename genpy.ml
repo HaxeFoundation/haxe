@@ -379,13 +379,15 @@ module Transformer = struct
 			| Some e ->
 				e)
 		in
-		let res = match rev_cases with
-			| [] ->
-				(* TODO: this can be handled better *)
-				null ae.a_expr.etype ae.a_expr.epos
-			| [case] ->
+		let res = match rev_cases,edef with
+			| [],Some edef ->
+				edef
+			| [],None ->
+				(* I don't think that can happen? *)
+				assert false
+			| [case],_ ->
 				case_to_if case edef
-			| case :: cases ->
+			| case :: cases,_ ->
 				List.fold_left (fun acc case -> case_to_if case (Some acc)) (case_to_if case edef) cases
 		in
 		let res = if is_value then
