@@ -31,9 +31,10 @@ package;
 	String can be concatenated by using the + operator. If an operand is not a
 	String, it is passed through Std.string() first.
 **/
+#if !macro
 import python.internal.StringImpl;
 import python.lib.Builtin;
-
+#end
 extern class String extends StringImpl {
 
 
