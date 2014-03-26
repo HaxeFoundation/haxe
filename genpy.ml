@@ -182,7 +182,7 @@ module Transformer = struct
 		t_bool := com.basic.tbool;
 		t_void := com.basic.tvoid
 
-	and debug_expr e = 
+	and debug_expr e =
 		let s_type = Type.s_type (print_context()) in
 		let s = Type.s_expr_pretty "\t" s_type e in
 		Printf.printf "%s\n" s
@@ -236,7 +236,7 @@ module Transformer = struct
 	let add_non_locals_to_func e =
 		match e.eexpr with
 		| TFunction f ->
-			
+
 			let local_vars =
 				let h = Hashtbl.create 0 in
 				let fn (tvar, _) =
@@ -529,10 +529,10 @@ module Transformer = struct
 			lift_expr ~blocks:[x] substitute
 		| _ -> def
 
-	
-	
+
+
 	and transform1 ae : adjusted_expr =
-		
+
 		let trans is_value blocks e = transform_expr1 is_value ae.a_next_id blocks e in
 		let lift is_value blocks e = lift_expr1 is_value ae.a_next_id blocks e in
 		let a_expr = ae.a_expr in
@@ -1426,7 +1426,7 @@ module Generator = struct
 	let get_members_with_init_expr c =
 		List.filter (fun cf -> match cf.cf_kind with
 			| Var({v_read = AccResolve | AccCall _}) -> false
-			| Var _ when cf.cf_expr <> None -> true
+			| Var _ when cf.cf_expr = None -> true
 			| _ -> false
 		) c.cl_ordered_fields
 
@@ -1561,9 +1561,14 @@ module Generator = struct
 			newline ctx;
 			let py_metas = filter_py_metas cf.cf_meta in
 			begin match member_inits,cf.cf_expr with
-				| _,Some {eexpr = TFunction f} ->
-					(* TODO: what's going on here? *)
-					()
+				| _,Some ({eexpr = TFunction f} as ef) ->
+					let ethis = mk (TConst TThis) (TInst(c,List.map snd c.cl_types)) cf.cf_pos in
+					let member_data = List.map (fun cf ->
+						let ef = mk (TField(ethis,FDynamic cf.cf_name)) cf.cf_type cf.cf_pos in
+						mk (TBinop(OpAssign,ef,null ef.etype ef.epos)) ef.etype ef.epos
+					) member_inits in
+					let e = {f.tf_expr with eexpr = TBlock (member_data @ [f.tf_expr])} in
+					cf.cf_expr <- Some {ef with eexpr = TFunction {f with tf_expr = e}};
 				| _ ->
 					(* TODO: is this correct? *)
 					()
