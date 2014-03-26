@@ -1002,7 +1002,7 @@ module Printer = struct
 			| TBinop(OpMod,e1,e2) when (is_type1 "" "Int")(e1.etype) && (is_type1 "" "Int")(e2.etype) ->
 				Printf.sprintf "%s %% %s" (print_expr pctx e1) (print_expr pctx e2)
 			| TBinop(OpMod,e1,e2) ->
-				Printf.sprintf "_hx_modf(%s, %s)" (print_expr pctx e1) (print_expr pctx e1)
+				Printf.sprintf "_hx_modf(%s, %s)" (print_expr pctx e1) (print_expr pctx e2)
 			| TBinop(OpUShr,e1,e2) ->
 				Printf.sprintf "_hx_rshift(%s, %s)" (print_expr pctx e1) (print_expr pctx e2)
 			| TBinop(OpAdd,e1,e2) when (is_type1 "" "_hx_c_String")(e.etype) || is_underlying_string e.etype ->
