@@ -4,7 +4,7 @@ package python.internal;
 import python.lib.Builtin;
 
 @:keep
-@:native("_hx_c_String")
+@:native("HxString")
 class StringImpl {
 
 	public static function split (s:String, d:String) {
@@ -36,7 +36,7 @@ class StringImpl {
 	}
 
 	public static inline function fromCharCode( code : Int ) : String {
-		#if doc_gen 
+		#if doc_gen
 		return "";
 		#else
 		var c = code;

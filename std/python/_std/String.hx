@@ -36,7 +36,6 @@ import python.internal.StringImpl;
 import python.lib.Builtin;
 #end
 @:coreApi
-@:native("_hx_c_String")
 extern class String extends StringImpl {
 
 

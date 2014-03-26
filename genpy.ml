@@ -856,7 +856,7 @@ module Printer = struct
 		)
 
 	let is_underlying_string t = match follow t with
-		| TAbstract(a,tl) -> (is_type1 "" "_hx_c_String")(Codegen.Abstract.get_underlying_type a tl)
+		| TAbstract(a,tl) -> (is_type1 "" "String")(Codegen.Abstract.get_underlying_type a tl)
 		| _ -> false
 
 	let handle_keywords s =
@@ -1004,7 +1004,7 @@ module Printer = struct
 				Printf.sprintf "_hx_modf(%s, %s)" (print_expr pctx e1) (print_expr pctx e2)
 			| TBinop(OpUShr,e1,e2) ->
 				Printf.sprintf "_hx_rshift(%s, %s)" (print_expr pctx e1) (print_expr pctx e2)
-			| TBinop(OpAdd,e1,e2) when (is_type1 "" "_hx_c_String")(e.etype) || is_underlying_string e.etype ->
+			| TBinop(OpAdd,e1,e2) when (is_type1 "" "String")(e.etype) || is_underlying_string e.etype ->
 				let safe_string ex =
 					match ex.eexpr with
 						| TConst(TString _) -> print_expr pctx ex
@@ -1108,12 +1108,14 @@ module Printer = struct
 		match fa with
 			| FInstance(c,{cf_name = "length" | "get_length"}) when (is_type "" "list")(TClassDecl c) ->
 				Printf.sprintf "_hx_builtin.len(%s)" (print_expr pctx e1)
-			| FInstance(c,{cf_name = "toUpperCase"}) when (is_type "" "_hx_c_String")(TClassDecl c) ->
+			| FInstance(c,{cf_name = "toUpperCase"}) when (is_type "" "String")(TClassDecl c) ->
 				Printf.sprintf "%s.toUpper" (print_expr pctx e1)
-			| FInstance(c,{cf_name = "toLowerCase"}) when (is_type "" "_hx_c_String")(TClassDecl c) ->
+			| FInstance(c,{cf_name = "toLowerCase"}) when (is_type "" "String")(TClassDecl c) ->
 				Printf.sprintf "%s.toLower" (print_expr pctx e1)
-			| FInstance(c,{cf_name = "length"}) when (is_type "" "_hx_c_String")(TClassDecl c) ->
+			| FInstance(c,{cf_name = "length"}) when (is_type "" "String")(TClassDecl c) ->
 				Printf.sprintf "_hx_builtin.len(%s)" (print_expr pctx e1)
+			| FStatic(c,{cf_name = "fromCharCode"}) when (is_type "" "String")(TClassDecl c) ->
+				Printf.sprintf "HxString.fromCharCode"
 			| FInstance _ | FStatic _ ->
 				do_default ()
 			| FAnon cf when name = "iterator" && not is_assign ->
@@ -1148,7 +1150,7 @@ module Printer = struct
 			let indent = pctx.pc_indent in
 			let handle_base_type bt =
 				let t = print_base_type bt in
-				let res = if t = "_hx_c_String" then
+				let res = if t = "String" then
 					Printf.sprintf "if isinstance(_hx_e1, str):\n%s\t%s = _hx_e1\n%s\t%s" indent v.v_name indent (print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} e)
 				else
 					Printf.sprintf "if isinstance(_hx_e1, %s):\n%s\t%s = _hx_e1\n%s\t%s" t indent v.v_name indent (print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} e)
