@@ -94,6 +94,18 @@ class Log {
 			#elseif java
 			untyped __java__("java.lang.System.out.println(str)");
 			#end
+		#elseif (python)
+			var str:String = null;
+			if (infos != null) {
+				str = infos.fileName + ":" + Std.string(infos.lineNumber) + ": " + v;
+				if (python.lib.Builtin.hasattr(infos, "customParams"))
+				{
+					str += "," + infos.customParams.join(",");
+				}
+			} else {
+				str = v;
+			}
+			untyped __python__('print(str)');
 		#end
 	}
 
