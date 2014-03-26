@@ -1113,6 +1113,8 @@ module Printer = struct
 				Printf.sprintf "%s.toUpper" (print_expr pctx e1)
 			| FInstance(c,{cf_name = "toLowerCase"}) when (is_type "" "String")(TClassDecl c) ->
 				Printf.sprintf "%s.toLower" (print_expr pctx e1)
+			| FInstance(c,{cf_name = "length"}) when (is_type "" "String")(TClassDecl c) ->
+				Printf.sprintf "_hx_builtin.len(%s)" (print_expr pctx e1)
 			| FInstance _ | FStatic _ ->
 				do_default ()
 			| FAnon cf when name = "iterator" && not is_assign ->

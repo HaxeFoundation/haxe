@@ -35,13 +35,14 @@ package;
 import python.internal.StringImpl;
 import python.lib.Builtin;
 #end
+@:coreApi
 extern class String extends StringImpl {
 
 
 	/**
 		The number of characters in [this] String.
 	**/
-	var length(get,null) : Int;
+	var length(default,null) : Int;
 
 	private inline function get_length ():Int {
 		return python.lib.Builtin.len(this);
@@ -205,5 +206,5 @@ extern class String extends StringImpl {
 		//untyped __python__("String = __builtin__.str");
 	}
 
-    
+
 }
