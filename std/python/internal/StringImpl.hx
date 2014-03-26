@@ -3,6 +3,8 @@ package python.internal;
 
 import python.lib.Builtin;
 
+@:keep
+@:native("_hx_c_String")
 class StringImpl {
 
 	public static function split (s:String, d:String) {
