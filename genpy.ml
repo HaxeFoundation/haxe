@@ -381,7 +381,8 @@ module Transformer = struct
 		in
 		let res = match rev_cases with
 			| [] ->
-				assert false
+				(* TODO: this can be handled better *)
+				null ae.a_expr.etype ae.a_expr.epos
 			| [case] ->
 				case_to_if case edef
 			| case :: cases ->
