@@ -182,6 +182,11 @@ module Transformer = struct
 		t_bool := com.basic.tbool;
 		t_void := com.basic.tvoid
 
+	and debug_expr e = 
+		let s_type = Type.s_type (print_context()) in
+		let s = Type.s_expr_pretty "\t" s_type e in
+		Printf.printf "%s\n" s
+
 	let new_counter () =
 		let n = ref (-1) in
 		(fun () ->
@@ -495,14 +500,15 @@ module Transformer = struct
 				match List.rev x with
 				| x::xs ->
 					(let ret = x in
-					let block = List.append exprs (convert_return_expr ret) in
+					let tail = List.rev xs in
+					let block = tail @ (convert_return_expr ret) in
 					match List.rev block with
-					| x::xs ->
+					| x::_ ->
 						mk (TBlock block) x.etype base.a_expr.epos
 					| _ -> assert false)
 				| _ -> assert false
 			in
-			let f1 = { tf_args = []; tf_type = ex.etype; tf_expr = ex} in
+			let f1 = { tf_args = []; tf_type = TFun([],ex.etype); tf_expr = ex} in
 			let fexpr = mk (TFunction f1) ex.etype ex.epos in
 			let fvar = to_tvar name fexpr.etype in
 			let f = add_non_locals_to_func fexpr in
@@ -512,18 +518,16 @@ module Transformer = struct
 			lift_expr ~blocks:[assign] substitute)
 		in
 		match exprs with
-		| [x] ->
-			(match x.eexpr with
-			| TFunction({ tf_args = []}) -> def
-			| TFunction(f) ->
-				let l = to_tlocal_expr name f.tf_type f.tf_expr.epos in
-				let substitute = mk (TCall(l, [])) f.tf_type f.tf_expr.epos in
-				lift_expr ~blocks:[x] substitute
-			| _ -> def)
+		| [{ eexpr = TFunction({ tf_args = []} as f) } as x] ->
+			let l = to_tlocal_expr name f.tf_type f.tf_expr.epos in
+			let substitute = mk (TCall(l, [])) f.tf_type f.tf_expr.epos in
+			lift_expr ~blocks:[x] substitute
 		| _ -> def
 
-
+	
+	
 	and transform1 ae : adjusted_expr =
+		
 		let trans is_value blocks e = transform_expr1 is_value ae.a_next_id blocks e in
 		let lift is_value blocks e = lift_expr1 is_value ae.a_next_id blocks e in
 		let a_expr = ae.a_expr in
@@ -595,9 +599,9 @@ module Transformer = struct
 			(match x1.a_blocks with
 				| [] ->
 					lift true [] { ae.a_expr with eexpr = TReturn(Some x1.a_expr) }
-				| _ ->
-					let f = exprs_to_func (x1.a_blocks @ [x1.a_expr]) (ae.a_next_id()) ae in
-					lift true f.a_blocks {ae.a_expr with eexpr = TReturn (Some f.a_expr)})
+				| blocks ->
+					let f = exprs_to_func (blocks @ [x1.a_expr]) (ae.a_next_id()) ae in
+					lift true f.a_blocks {a_expr with eexpr = TReturn (Some f.a_expr)})
 		| (_, TParenthesis(e1)) ->
 			let e1 = trans true [] e1 in
 			let p = { ae.a_expr with eexpr = TParenthesis(e1.a_expr)} in
@@ -636,7 +640,7 @@ module Transformer = struct
 					in
 					match b with
 					| [{ eexpr = TVar(_, Some({ eexpr = TFunction(f)}))} as b] ->
-						Some(eif1.a_expr), List.append blocks [b]
+						Some(eelse1.a_expr), List.append blocks [b]
 					| _ -> regular
 			in
 			let blocks = List.append econd1.a_blocks blocks in
@@ -659,10 +663,10 @@ module Transformer = struct
 			let new_if = { ae.a_expr with eexpr = TIf(econd.a_expr, eif, eelse) } in
 			lift false econd.a_blocks new_if
 		| (false, TWhile(econd, e1, NormalWhile)) ->
-			let econd1 = transform_expr econd ~is_value:true ~next_id:(Some ae.a_next_id) in
-			let e11 = to_expr (transform_expr e1 ~is_value:false ~next_id:(Some ae.a_next_id)) in
-			let new_while = mk (TWhile(econd1.a_expr,e11,NormalWhile)) ae.a_expr.etype ae.a_expr.epos in
-			lift_expr new_while ~is_value:false ~next_id:(Some ae.a_next_id) ~blocks:econd1.a_blocks
+			let econd1 = trans true [] econd in
+			let e11 = to_expr (trans false [] e1) in
+			let new_while = mk (TWhile(econd1.a_expr,e11,NormalWhile)) a_expr.etype a_expr.epos in
+			lift false econd1.a_blocks new_while
 		| (true, TWhile(econd, ebody, NormalWhile)) ->
 			let econd = trans true [] econd in
 			let ebody = to_expr (trans false [] ebody) in
@@ -793,13 +797,11 @@ module Transformer = struct
 			let r = { a_expr with eexpr = TField(e.a_expr, f) } in
 			lift_expr ~blocks:e.a_blocks r
 		| (is_value, TMeta(m,e)) ->
-			let e = trans true [] e in
+			let e = trans is_value [] e in
 			let r = { a_expr with eexpr = TMeta(m, e.a_expr) } in
 			lift_expr ~blocks:e.a_blocks r
 		| _ ->
 			lift_expr ae.a_expr
-
-
 
 	and transform e =
 		to_expr (transform1 (lift_expr e))
@@ -809,14 +811,6 @@ module Transformer = struct
 
 	let transform_to_value e =
 		to_expr (transform1 (lift_expr e ~is_value:true))
-
-
-
-
-
-
-
-
 
 end
 
@@ -1171,7 +1165,7 @@ module Printer = struct
 		let indent = pctx.pc_indent in
 		let print_expr_indented e = print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} e in
 		let try_str = Printf.sprintf "try:\n%s\t%s\n%s" indent (print_expr_indented e1) indent in
-		let except = Printf.sprintf "except Exception as _hx_e:\n%s\t_hx_e1 = _hx_e.val if isInstance(_hx_e, _HxException) else _hx_e\n%s\t" indent indent in
+		let except = Printf.sprintf "except Exception as _hx_e:\n%s\t_hx_e1 = _hx_e.val if isinstance(_hx_e, _HxException) else _hx_e\n%s\t" indent indent in
 		let catch_str = String.concat (Printf.sprintf "\n%s\n" indent) (ExtList.List.mapi (fun i catch -> print_catch {pctx with pc_indent = "\t" ^ pctx.pc_indent} i catch) catches) in
 		let except_end = Printf.sprintf "\n%s\telse:\n%s\t\traise _hx_e" indent indent in
 		Printf.sprintf "%s%s%s%s" try_str except catch_str except_end
@@ -1231,7 +1225,11 @@ module Printer = struct
 			| "__python_tuple__" ->
 				Printf.sprintf "(%s)" (print_exprs pctx ", " el)
 			| "__python_array_get__" ->
-				Printf.sprintf "%s[%s]" (print_expr pctx e1) (print_exprs pctx ":" el)
+				let e1, tail = match el with
+					| e1::tail -> e1,tail
+					| _ -> assert false
+				in
+				Printf.sprintf "%s[%s]" (print_expr pctx e1) (print_exprs pctx ":" tail)
 			| "__python_in__" ->
 				begin match el with
 					| [e1;e2] ->
