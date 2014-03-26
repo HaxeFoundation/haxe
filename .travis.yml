@@ -7,17 +7,7 @@ env:
     # SAUCE_ACCESS_KEY
     - secure: sUvWUjCyPuWht4seNa4f2VG9DkvXkhZyLZfjJO9TUAHB2JndS16E2j/qrvKEjycyH6w8tU/B9vnjDRvvGrYXxEXcBEwsJVfkorFnRl9uwGCGIYrzjMhssEl3fMYZK7P304f+gAp5ULrDBX2gIaKeSa8lUNRtz2PsZOieE4kMdhk=
   matrix:
-    - TARGET=macro
-    - TARGET=neko
-    - TARGET=js
-    - TARGET=php
     - TARGET=python
-    - TARGET=cpp
-    - TARGET=flash9
-    - TARGET=as3
-    - TARGET=java
-    - TARGET=cs
-    - TARGET=flash8
 
 matrix:
   fast_finish: true
