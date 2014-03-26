@@ -1225,7 +1225,11 @@ module Printer = struct
 			| "__python_tuple__" ->
 				Printf.sprintf "(%s)" (print_exprs pctx ", " el)
 			| "__python_array_get__" ->
-				Printf.sprintf "%s[%s]" (print_expr pctx e1) (print_exprs pctx ":" el)
+				let e1, tail = match el with
+					| e1::tail -> e1,tail
+					| _ -> assert false
+				in
+				Printf.sprintf "%s[%s]" (print_expr pctx e1) (print_exprs pctx ":" tail)
 			| "__python_in__" ->
 				begin match el with
 					| [e1;e2] ->
