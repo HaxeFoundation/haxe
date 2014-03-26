@@ -203,7 +203,7 @@ class Input {
 		#elseif php
 			var a = untyped __call__('unpack', 'd', readString(8));
 			return a[1];
-		#elseif (flash || js)
+		#elseif (flash || js || python)
 		var bytes = [];
 		bytes.push(readByte());
 		bytes.push(readByte());
@@ -344,7 +344,7 @@ class Input {
 	static var _double_of_bytes = cpp.Lib.load("std","double_of_bytes",2);
 #end
 
-#if (flash || js)
+#if (flash || js || python)
 	function getDoubleSig(bytes:Array<Int>)
     {
         return (((bytes[1]&0xF) << 16) | (bytes[2] << 8) | bytes[3] ) * 4294967296. +
