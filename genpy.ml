@@ -236,13 +236,16 @@ module Transformer = struct
 	let add_non_locals_to_func e =
 		match e.eexpr with
 		| TFunction f ->
-			let local_vars_list = List.map (fun (tvar, _) -> tvar.v_name) f.tf_args in
+			
 			let local_vars =
-				let f acc x =
-					Hashtbl.add acc x x;
-					acc
+				let h = Hashtbl.create 0 in
+				let fn (tvar, _) =
+					let x = tvar.v_name in
+					Hashtbl.add h x x;
 				in
-				List.fold_left f (Hashtbl.create 0) local_vars_list in
+				List.iter fn f.tf_args;
+				h
+			in
 			let non_locals = Hashtbl.create 0 in
 
 			let rec it lv e =
@@ -258,10 +261,9 @@ module Transformer = struct
 					(match expr with
 					| Some x -> maybe_continue x; ()
 					| None -> ());
-
 					Hashtbl.add lv v.v_name v.v_name;
 					()
-				| TBinop(OpAssign , { eexpr = TLocal( { v_name = x })}, e2) ->
+				| TBinop( (OpAssign | OpAssignOp(_)) , { eexpr = TLocal( { v_name = x })}, e2) ->
 					if not (Hashtbl.mem lv x) then
 						Hashtbl.add non_locals x x;
 					maybe_continue e2;
@@ -269,6 +271,7 @@ module Transformer = struct
 				| TFunction(_) -> ()
 				| _ -> Type.iter (it (Hashtbl.copy lv)) e; ()
 			in
+
 			Type.iter (it local_vars) f.tf_expr;
 			let keys = Hashtbl.fold (fun k _ acc -> k :: acc) non_locals [] in
 			let non_local_exprs = List.map (fun (k) -> create_non_local k f.tf_expr.epos) keys in
