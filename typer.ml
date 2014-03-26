@@ -1582,6 +1582,7 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 					e, fun () -> (save(); Some (mk (TVar (v,Some ekey)) ctx.t.tvoid p))
 			in
 			let ast_call = ECall((EField(Interp.make_ast ebase,cf_get.cf_name),p),[Interp.make_ast ekey]),p in
+			let ast_call = (EMeta((Meta.PrivateAccess,[],pos ast_call),ast_call),pos ast_call) in
 			let eget = type_binop ctx op ast_call e2 true p in
 			unify ctx eget.etype r_get p;
 			let cf_set,tf_set,r_set =
