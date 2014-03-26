@@ -107,9 +107,9 @@ class RunTravis {
 				runCommand("haxe", ["compile-php.hxml"]);
 				runCommand("php", ["php/index.php"]);
 			case "python":
-				runCommand("sudo", ["apt-get", "install", "python3.3", "-y"], true);
+				runCommand("sudo", ["apt-get", "install", "python3", "-y"], true);
 				runCommand("haxe", ["compile-python.hxml"]);
-				runCommand("python3.3", ["unit.py"]);
+				runCommand("python3", ["unit.py"]);
 			case "cpp":
 				//hxcpp dependencies
 				runCommand("sudo", ["apt-get", "install", "gcc-multilib", "g++-multilib", "-y"], true);
