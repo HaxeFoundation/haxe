@@ -1179,28 +1179,24 @@ module Printer = struct
 
 	and print_call pctx e1 el =
 		let id = print_expr pctx e1 in
-		match id with
-			| "super" ->
+		match id,el with
+			| "super",_ ->
 				let s_el = print_exprs pctx ", " el in
 				Printf.sprintf "super().__init__(%s)" s_el
-			| "__python_kwargs__" ->
-				"**" ^ (print_expr pctx (List.hd el))
-			| "__python_varargs__" ->
-				"*" ^ (print_expr pctx (List.hd el))
-			| "__python__" ->
-				begin match (List.hd el) with
-					| {eexpr = TConst (TString s)} -> s
-					| e -> print_expr pctx e
+			| "__python_kwargs__",[e1] ->
+				"**" ^ (print_expr pctx e1)
+			| "__python_varargs__",[e1] ->
+				"*" ^ (print_expr pctx e1)
+			| "__python__",[e1] ->
+				begin match e1.eexpr with
+					| TConst (TString s) -> s
+					| e -> print_expr pctx e1
 				end
-			| "__named_arg__" ->
-				let name,e2 = match el with
-					| [{eexpr = TConst (TString s)};e2] -> s,e2
-					| e -> assert false
-				in
+			| "__named_arg__",[{eexpr = TConst (TString name)};e2] ->
 				Printf.sprintf "%s=%s" name (print_expr pctx e2)
-			| "__feature__" ->
+			| "__feature__",_ ->
 				""
-			| "__named__" ->
+			| "__named__",el ->
 				let res,fields = match List.rev el with
 					| {eexpr = TObjectDecl fields} :: el ->
 						List.rev el,fields
@@ -1213,123 +1209,54 @@ module Printer = struct
 					| [] ->
 						Printf.sprintf "%s(%s)" (print_expr pctx e1) (print_exprs_named pctx ", " fields)
 				end
-			| "__define_feature__" ->
-				print_expr pctx (match el with [_;e] -> e | _ -> assert false)
-			| "__call__" ->
-				begin match el with
-					| e1 :: el ->
-						Printf.sprintf "%s(%s)" (print_expr pctx e1) (print_exprs pctx ", " el)
-					| _ ->
-						assert false
-				end
-			| "__field__" ->
-				begin match el with
-					| [e1;{eexpr = TConst(TString id)}] ->
-						Printf.sprintf "%s.%s" (print_expr pctx e1) id
-					| _ ->
-						assert false
-				end
-			| "__python_tuple__" ->
+			| "__define_feature__",[_;e1] ->
+				print_expr pctx e1
+			| "__call__" ,e1 :: el->
+				Printf.sprintf "%s(%s)" (print_expr pctx e1) (print_exprs pctx ", " el)
+			| "__field__",[e1;{eexpr = TConst(TString id)}] ->
+				Printf.sprintf "%s.%s" (print_expr pctx e1) id
+			| "__python_tuple__",el ->
 				Printf.sprintf "(%s)" (print_exprs pctx ", " el)
-			| "__python_array_get__" ->
-				let e1, tail = match el with
-					| e1::tail -> e1,tail
-					| _ -> assert false
-				in
+			| "__python_array_get__",e1::tail ->
 				Printf.sprintf "%s[%s]" (print_expr pctx e1) (print_exprs pctx ":" tail)
-			| "__python_in__" ->
-				begin match el with
-					| [e1;e2] ->
-						Printf.sprintf "%s in %s" (print_expr pctx e1) (print_expr pctx e2)
-					| _ ->
-						assert false
-				end
-			| "__python_for__" ->
-				begin match el with
-					| [{eexpr = TBlock [{eexpr = TVar(v1,_)};e2;block]}] ->
-						let f1 = v1.v_name in
-						let pctx = {pctx with pc_indent = "\t" ^ pctx.pc_indent} in
-						let i = pctx.pc_indent in
-						Printf.sprintf "for %s in %s:\n%s%s" f1 (print_expr pctx e2) i (print_expr pctx block)
-					| _ ->
-						assert false
-				end
-			| "__python_del__" ->
-				Printf.sprintf "del %s" (print_expr pctx (List.hd el))
-			| "__python_binop__" ->
-				begin match el with
-					| [e0;{eexpr = TConst(TString id)};e2] ->
-						Printf.sprintf "%s %s %s" (print_expr pctx e0) id (print_expr pctx e2)
-					| _ ->
-						assert false
-				end
-			| "__python_array_set__" ->
-				begin match el with
-					| [e1;e2;e3] ->
-						Printf.sprintf "%s[%s] = %s" (print_expr pctx e1) (print_expr pctx e2) (print_expr pctx e3)
-					| _ ->
-						assert false
-				end
-			| "__assert__" ->
+			| "__python_in__",[e1;e2] ->
+				Printf.sprintf "%s in %s" (print_expr pctx e1) (print_expr pctx e2)
+			| "__python_for__",[{eexpr = TBlock [{eexpr = TVar(v1,_)};e2;block]}] ->
+				let f1 = v1.v_name in
+				let pctx = {pctx with pc_indent = "\t" ^ pctx.pc_indent} in
+				let i = pctx.pc_indent in
+				Printf.sprintf "for %s in %s:\n%s%s" f1 (print_expr pctx e2) i (print_expr pctx block)
+			| "__python_del__",[e1] ->
+				Printf.sprintf "del %s" (print_expr pctx e1)
+			| "__python_binop__",[e0;{eexpr = TConst(TString id)};e2] ->
+				Printf.sprintf "%s %s %s" (print_expr pctx e0) id (print_expr pctx e2)
+			| "__python_array_set__",[e1;e2;e3] ->
+				Printf.sprintf "%s[%s] = %s" (print_expr pctx e1) (print_expr pctx e2) (print_expr pctx e3)
+			| "__assert__",el ->
 				Printf.sprintf "assert(%s)" (print_exprs pctx ", " el)
-			| "__new_named__" ->
-				begin match el with
-					| e1 :: el ->
-						Printf.sprintf "new %s(%s)" (print_expr pctx e1) (print_exprs pctx ", " el)
-					| _ ->
-						assert false
-				end
-			| "__new__" ->
-				begin match el with
-					| e1 :: el ->
-						Printf.sprintf "%s(%s)" (print_expr pctx e1) (print_exprs pctx ", " el)
-					| _ ->
-						assert false
-				end
-			| "__call_global__" ->
-				begin match el with
-					| {eexpr = TConst(TString s)} :: el ->
-						Printf.sprintf "%s(%s)" s (print_exprs pctx ", " el)
-					| _ ->
-						assert false
-				end
-			| "__is__" ->
-				begin match el with
-					| [e1;e2] ->
-						Printf.sprintf "%s is %s" (print_expr pctx e1) (print_expr pctx e2)
-					| _ ->
-						assert false
-				end
-			| "__as__" ->
-				begin match el with
-					| [e1;e2] ->
-						Printf.sprintf "%s as %s" (print_expr pctx e1) (print_expr pctx e2)
-					| _ ->
-						assert false
-				end
-			| "__int_parse__" ->
-				Printf.sprintf "int.parse(%s)" (print_expr pctx (List.hd el))
-			| "__double_parse__" ->
-				Printf.sprintf "double.parse(%s)" (print_expr pctx (List.hd el))
-			| "__instanceof__" ->
-				begin match el with
-					| [e1;e2] ->
-						Printf.sprintf "_hx_c.Std._hx_is%s,%s" (print_expr pctx e1) (print_expr pctx e2)
-					| _ ->
-						assert false
-				end
-			| "__strict_eq__" ->
-				begin match el with
-					| [e2;e3] ->
-						let e2 = match e2.eexpr with
-							| TBinop(OpOr,a,_) -> a
-							| _ -> e2
-						in
-						print_expr pctx {e1 with eexpr = TBinop(OpEq,e2,e3)}
-					| _ ->
-						assert false
-				end
-			| _ ->
+			| "__new_named__",e1::el ->
+				Printf.sprintf "new %s(%s)" (print_expr pctx e1) (print_exprs pctx ", " el)
+			| "__new__",e1::el ->
+				Printf.sprintf "%s(%s)" (print_expr pctx e1) (print_exprs pctx ", " el)
+			| "__call_global__",{eexpr = TConst(TString s)} :: el ->
+				Printf.sprintf "%s(%s)" s (print_exprs pctx ", " el)
+			| "__is__",[e1;e2] ->
+				Printf.sprintf "%s is %s" (print_expr pctx e1) (print_expr pctx e2)
+			| "__as__",[e1;e2] ->
+				Printf.sprintf "%s as %s" (print_expr pctx e1) (print_expr pctx e2)
+			| "__int_parse__",[e1] ->
+				Printf.sprintf "int.parse(%s)" (print_expr pctx e1)
+			| "__double_parse__",[e1] ->
+				Printf.sprintf "double.parse(%s)" (print_expr pctx e1)
+			| "__instanceof__",[e1;e2] ->
+				Printf.sprintf "_hx_c.Std._hx_is%s,%s" (print_expr pctx e1) (print_expr pctx e2)
+			| "__strict_eq__",[e2;e3] ->
+				let e2 = match e2.eexpr with
+					| TBinop(OpOr,a,_) -> a
+					| _ -> e2
+				in
+				print_expr pctx {e1 with eexpr = TBinop(OpEq,e2,e3)}
+			| _,el ->
 				Printf.sprintf "%s(%s)" id (print_exprs pctx ", " el)
 
 	and print_exprs pctx sep el =
