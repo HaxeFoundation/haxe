@@ -1352,13 +1352,8 @@ module Generator = struct
 	let collect_class_statics_data cfl =
 		let fields = DynArray.create () in
 		List.iter (fun cf ->
-			match cf.cf_kind with
-				| Var({v_read = AccResolve}) ->
-					()
-(* 				| Var({v_read = AccCall}) when Meta.has Meta.IsVar cf.cf_meta ->
-					DynArray.add fields cf.cf_name *)
-				| _ ->
-					DynArray.add fields cf.cf_name
+			if not (is_extern_field cf) then
+				DynArray.add fields cf.cf_name
 		) cfl;
 		DynArray.to_list fields
 
