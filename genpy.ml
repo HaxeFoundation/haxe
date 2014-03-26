@@ -686,8 +686,9 @@ module Transformer = struct
 			let break_expr = mk TBreak !t_void econd.epos in
 			let if_expr = mk (TIf(not_expr, break_expr, None)) (!t_void) econd.epos in
 			let new_e = match ebody.eexpr with
-			| TBlock(exprs) -> { econd with eexpr = TBlock( List.append exprs [if_expr]) }
-			| _ -> { econd with eexpr = TBlock( List.append [if_expr] [ebody]) } in
+				| TBlock(exprs) -> { econd with eexpr = TBlock( List.append exprs [if_expr]) }
+				| _ -> { econd with eexpr = TBlock( List.append [ebody] [if_expr]) }
+			in
 			let true_expr = mk (TConst(TBool(true))) econd.etype ae.a_expr.epos in
 			let new_expr = { ae.a_expr with eexpr = TWhile( true_expr, new_e, NormalWhile) } in
 			forward_transform new_expr ae
