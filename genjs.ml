@@ -1078,6 +1078,16 @@ let generate_enum ctx e =
 		);
 		newline ctx
 	) e.e_names;
+	if has_feature ctx "Type.allEnums" then begin
+		let ctors_without_args = List.filter (fun s ->
+			let ef = PMap.find s e.e_constrs in
+			match follow ef.ef_type with
+				| TFun _ -> false
+				| _ -> true
+		) e.e_names in
+		print ctx "%s.__empty_constructs__ = [%s]" p (String.concat "," (List.map (fun s -> Printf.sprintf "%s.%s" p s) ctors_without_args));
+		newline ctx
+	end;
 	match Codegen.build_metadata ctx.com (TEnumDecl e) with
 	| None -> ()
 	| Some e ->
