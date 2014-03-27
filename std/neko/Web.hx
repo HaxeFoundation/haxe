@@ -271,6 +271,43 @@ class Web {
 			function(buf,pos,len) { onData(untyped new haxe.io.Bytes(__dollar__ssize(buf),buf),pos,len); }
 		);
 	}
+	
+	static var _multipartParams	: haxe.ds.StringMap<Dynamic>;
+	public static function getMultipartParams() {
+		if( _multipartParams == null ){
+			var key		= null;
+			var isFile	= false;
+			var params	= new haxe.ds.StringMap<Dynamic>();
+			var bbuf	= null;
+			function onPart( k : String, ?filename : String ) {
+				key		= k;
+				if ( filename == null ) {
+					isFile	= false;
+				}else {
+					isFile	= true;
+					bbuf	= new haxe.io.BytesBuffer();
+					params.set( key, { fileName : filename, bbuf : bbuf } );
+				}
+			}
+			function onData( bytes : haxe.io.Bytes, start : Int, end : Int ) {
+				if ( isFile )
+					bbuf.add( bytes.sub( start, end ) );
+				else
+					params.set( key, bytes.readString( start, end ) );
+			}
+			parseMultipart( onPart, onData );
+			_multipartParams	= new haxe.ds.StringMap<Dynamic>();
+			for ( k in params.keys() ) {
+				var p	= params.get( k );
+				if( Std.is( p, String ) ){
+					_multipartParams.set( k, p );
+				}else {
+					_multipartParams.set( k, { filename : p.fileName, bytes : p.bbuf.getBytes() } );
+				}
+			}
+		}
+		return _multipartParams;
+	}
 
 	/**
 		Flush the data sent to the client. By default on Apache, outgoing data is buffered so

@@ -75,19 +75,36 @@ class HttpConnection implements Connection implements Dynamic<Connection> {
 
 	#if neko
 	public static function handleRequest( ctx : Context ) {
-		var v = neko.Web.getParams().get("__x");
-		if( neko.Web.getClientHeader("X-Haxe-Remoting") == null || v == null )
-			return false;
-		neko.Lib.print(processRequest(v,ctx));
-		return true;
+		var v	= null;		
+		if ( neko.Web.getClientHeader( "X-Haxe-Remoting" ) != null ) {
+			var ct	= neko.Web.getClientHeader( "Content-Type" );
+			if ( ct != null && ct.indexOf( "multipart/form-data" ) != -1 )
+				v	= neko.Web.getMultipartParams().get( "__x" );
+			else
+				v	= neko.Web.getParams().get( "__x" );
+			if ( v != null ) {
+				neko.Lib.print( processRequest( v, ctx ) );
+				return true;
+			}
+		}
+		
+		return false;
 	}
 	#elseif php
 	public static function handleRequest( ctx : Context ) {
-		var v = php.Web.getParams().get("__x");
-		if( php.Web.getClientHeader("X-Haxe-Remoting") == null || v == null )
-			return false;
-		php.Lib.print(processRequest(v,ctx));
-		return true;
+		var v	= null;		
+		if ( php.Web.getClientHeader( "X-Haxe-Remoting" ) != null ) {
+			var ct	= php.Web.getClientHeader( "Content-Type" );
+			if ( ct != null && ct.indexOf( "multipart/form-data" ) != -1 )
+				v	= php.Web.getMultipartParams().get( "__x" );
+			else
+				v	= php.Web.getParams().get( "__x" );
+			if ( v != null ) {
+				php.Lib.print( processRequest( v, ctx ) );
+				return true;
+			}
+		}
+		return false;
 	}
 	#end
 
