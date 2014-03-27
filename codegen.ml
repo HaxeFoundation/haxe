@@ -1531,3 +1531,86 @@ struct
 
 			List.map fst (loop [] !rated)
 end;;
+
+
+module UnificationCallback = struct
+	let tf_stack = ref []
+
+	let check_call_params f el tl =
+		let rec loop acc el tl = match el,tl with
+			| e :: el, (n,_,t) :: tl ->
+				loop ((f e t) :: acc) el tl
+			| [], [] ->
+				acc
+			| [],_ ->
+				acc
+			| e :: el, [] ->
+				loop (e :: acc) el []
+		in
+		List.rev (loop [] el tl)
+
+	let check_call f el t = match follow t with
+		| TFun(args,_) ->
+			check_call_params f el args
+		| _ ->
+			el
+
+	let rec run f e =
+		let f e t =
+			if not (type_iseq e.etype t) then f e t else e
+		in
+		let check e = match e.eexpr with
+			| TBinop((OpAssign | OpAssignOp _ as op),e1,e2) ->
+				let e2 = f e2 e1.etype in
+				{e with eexpr = TBinop(op,e1,e2)}
+			| TVar(v,Some e) ->
+				let eo = Some (f e v.v_type) in
+				{ e with eexpr = TVar(v,eo) }
+			| TCall(e1,el) ->
+				let el = check_call f el e1.etype in
+				{e with eexpr = TCall(e1,el)}
+			| TNew(c,tl,el) ->
+				begin try
+					let tcf,_ = get_constructor (fun cf -> apply_params c.cl_types tl cf.cf_type) c in
+					let el = check_call f el tcf in
+					{e with eexpr = TNew(c,tl,el)}
+				with Not_found ->
+					e
+				end
+			| TArrayDecl el ->
+				begin match follow e.etype with
+					| TInst({cl_path=[],"Array"},[t]) -> {e with eexpr = TArrayDecl(List.map (fun e -> f e t) el)}
+					| _ -> e
+				end
+			| TObjectDecl fl ->
+				begin match follow e.etype with
+					| TAnon an ->
+						let fl = List.map (fun (n,e) ->
+							let e = try
+								let t = (PMap.find n an.a_fields).cf_type in
+								f e t
+							with Not_found ->
+								e
+							in
+							n,e
+						) fl in
+						{ e with eexpr = TObjectDecl fl }
+					| _ -> e
+				end
+			| TReturn (Some e1) ->
+				begin match !tf_stack with
+					| tf :: _ -> { e with eexpr = TReturn (Some (f e1 tf.tf_type))}
+					| _ -> e
+				end
+			| _ ->
+				e
+		in
+		match e.eexpr with
+			| TFunction tf ->
+				tf_stack := tf :: !tf_stack;
+				let etf = {e with eexpr = TFunction({tf with tf_expr = run f tf.tf_expr})} in
+				tf_stack := List.tl !tf_stack;
+				etf
+			| _ ->
+				check (Type.map_expr (run f) e)
+end;;
