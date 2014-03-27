@@ -730,10 +730,14 @@ let rec acc_get ctx g p =
 	| AKNo f -> error ("Field " ^ f ^ " cannot be accessed for reading") p
 	| AKExpr e -> e
 	| AKSet _ | AKAccess _ -> assert false
-	| AKUsing (et,_,_,e) ->
+	| AKUsing (et,_,cf,e) ->
 		(* build a closure with first parameter applied *)
 		(match follow et.etype with
 		| TFun (_ :: args,ret) ->
+			begin match follow e.etype,cf.cf_kind with
+				| TAbstract _,Method MethInline -> error "Cannot create closure on abstract inline method" e.epos
+				| _ -> ()
+			end;
 			let tcallb = TFun (args,ret) in
 			let twrap = TFun ([("_e",false,e.etype)],tcallb) in
 			(* arguments might not have names in case of variable fields of function types, so we generate one (issue #2495) *)
