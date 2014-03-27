@@ -24,7 +24,7 @@ package haxe.remoting;
 interface AsyncConnection implements Dynamic<AsyncConnection> {
 
 	function resolve( name : String ) : AsyncConnection;
-	function call( params : Array<Dynamic>, ?result : Dynamic -> Void ) : Void;
+	function call( params : Array<Dynamic>, ?result : Dynamic -> Void, ?parts : Array<{ param : String, filename : String, bytes : haxe.io.Bytes, ?mimeType : String }> ) : Void;
 	function setErrorHandler( error : Dynamic -> Void ) : Void;
 
 }

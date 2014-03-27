@@ -65,10 +65,12 @@ class Http {
 	var file : { param : String, filename : String, io : haxe.io.Input, size : Int, mimeType : String };
 #elseif js
 	public var async : Bool;
+	var parts : List<{ param : String, filename : String, bytes : haxe.io.Bytes, ?mimeType : String }>;
 #end
 	var postData : String;
 	var headers : List<{ header:String, value:String }>;
 	var params : List<{ param:String, value:String }>;
+	//
 
 	#if sys
 	public static var PROXY : { host : String, port : Int, auth : { user : String, pass : String } } = null;
@@ -89,6 +91,9 @@ class Http {
 		this.url = url;
 		headers = new List<{ header:String, value:String }>();
 		params = new List<{ param:String, value:String }>();
+		#if js
+		parts = new List<{ param : String, filename : String, bytes : haxe.io.Bytes, ?mimeType : String }>();
+		#end
 
 		#if js
 		async = true;
@@ -117,6 +122,18 @@ class Http {
 		headers.push({ header:header, value:value });
 		return this;
 	}
+	
+	#if js
+	public function setPart( param : String, filename : String, bytes : haxe.io.Bytes, ?mimeType : String ) : Http {
+		parts	= Lambda.filter( parts, function( p ) return p.param != param );
+		parts.push( { param : param, filename : filename, bytes : bytes, mimeType : mimeType } );
+		return this;
+	}
+	public function addPart( param : String, filename : String, bytes : haxe.io.Bytes, ?mimeType : String ) : Http {
+		parts.push( { param : param, filename : filename, bytes : bytes, mimeType : mimeType } );
+		return this;
+	}
+	#end
 
 	/**
 		Sets the parameter identified as `param` to value `value`.
@@ -231,9 +248,38 @@ class Http {
 		if( async )
 			r.onreadystatechange = onreadystatechange;
 		var uri = postData;
+		var isMultipart		= !parts.isEmpty();
+		var multipartData	= [];
+		function encodeData( p : Dynamic ) {
+			if ( Std.is( p, String ) )
+				for ( i in 0...p.length )	multipartData.push( p.charCodeAt( i ) & 0xff );
+			else
+				for ( i in 0...p.length )	multipartData.push( p.get( i ) & 0xff );
+		}
 		if( uri != null )
 			post = true;
-		else for( p in params ) {
+		else if ( isMultipart ) {
+			post = true;
+			var boundary = Std.string(Std.random(1000))+Std.string(Std.random(1000))+Std.string(Std.random(1000))+Std.string(Std.random(1000));
+			headers.add( { header : 'Content-Type', value : 'multipart/form-data; boundary=$boundary' } );
+			for ( part in parts ) {
+				var mimeType	= part.mimeType;
+				if ( mimeType == null ){
+					mimeType	= switch( part.filename.substr( part.filename.lastIndexOf( "." ) + 1 ) ) {
+						case 'gif'			: 'image/gif';
+						case 'jpg', 'jpeg'	: 'image/jpeg';
+						case 'png'			: 'image/png';
+						case 'txt'			: 'text/plain';
+						default				: 'application/octet-stream';
+					}
+				}
+				encodeData( '--$boundary\r\nContent-Disposition: form-data; name="${ part.param }"; filename="${ part.filename }"\r\nContent-Type: $mimeType\r\n\r\n' );
+				encodeData( part.bytes );
+				encodeData( '\r\n ' );
+			}
+			for ( param in params )	encodeData( '--$boundary\r\nContent-Disposition: form-data; name="${ param.param }"\r\n\r\n${ param.value }\r\n' );
+			encodeData( '--$boundary--' );
+		}else for( p in params ) {
 			if( uri == null )
 				uri = "";
 			else
@@ -249,17 +295,22 @@ class Http {
 				uri = null;
 			} else
 				r.open("GET",url,async);
-		} catch( e : Dynamic ) {
+		} catch ( e : Dynamic ) {
 			me.req = null;
 			onError(e.toString());
 			return;
 		}
-		if( !Lambda.exists(headers, function(h) return h.header == "Content-Type") && post && postData == null )
+		if ( !Lambda.exists(headers, function(h) return h.header == "Content-Type") && post && postData == null && parts.isEmpty() )
 			r.setRequestHeader("Content-Type","application/x-www-form-urlencoded");
 
 		for( h in headers )
-			r.setRequestHeader(h.header,h.value);
-		r.send(uri);
+			r.setRequestHeader(h.header, h.value);
+			
+		if ( isMultipart ) {
+			r.send( new js.html.Uint8Array( multipartData ) );
+		}else{
+			r.send(uri);
+		}
 		if( !async )
 			onreadystatechange(null);
 	#elseif flash9
