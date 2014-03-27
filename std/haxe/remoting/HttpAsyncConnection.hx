@@ -52,9 +52,9 @@ class HttpAsyncConnection implements AsyncConnection implements Dynamic<AsyncCon
 			var p	= params[ i ];
 			if ( p.param != null && p.filename != null && p.bytes != null ) {
 				files.add( p );
-				params.splice( i, 1 );
-			}else
-				i++;
+				params[ i ]	= '__file__${ p.param }';
+			}
+			i++;
 		}
 		var s = new haxe.Serializer();
 		s.serialize(__path);
