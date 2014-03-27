@@ -219,6 +219,7 @@ module Transformer = struct
 			a_next_id = next_id;
 			a_is_value = is_value
 		}
+
 	let lift_expr1 is_value next_id blocks e =
 		lift_expr ~is_value:is_value ~next_id:(Some next_id) ~blocks:blocks e
 
@@ -233,6 +234,15 @@ module Transformer = struct
 
 	let to_tlocal_expr ?(capture = false) n t p =
 		mk (TLocal (to_tvar ~capture:capture n t)) t p
+
+	let check_unification e t = match follow e.etype,follow t with
+		| TAnon an1, TAnon an2 ->
+			PMap.iter (fun s cf ->
+				if not (PMap.mem s an1.a_fields) then an1.a_fields <- PMap.add s cf an1.a_fields
+			) an2.a_fields;
+			e
+		| _ ->
+			e
 
 	let add_non_locals_to_func e =
 		match e.eexpr with
@@ -1321,9 +1331,11 @@ module Generator = struct
 	(* Transformer interface *)
 
 	let transform_expr e =
+		let e = Codegen.UnificationCallback.run Transformer.check_unification e in
 		Transformer.transform e
 
 	let transform_to_value e =
+		let e = Codegen.UnificationCallback.run Transformer.check_unification e in
 		Transformer.transform_to_value e
 
 	(* Printer interface *)

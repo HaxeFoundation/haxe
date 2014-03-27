@@ -1085,7 +1085,7 @@ let rec unify a b =
 						if not (link (ref None) a f2.cf_type) then error [];
 						a1.a_fields <- PMap.add n f2 a1.a_fields
 					| Const when Meta.has Meta.Optional f2.cf_meta ->
-						a1.a_fields <- PMap.add f2.cf_name f2 a1.a_fields;
+						()
 					| _ ->
 						error [has_no_field a n];
 			) a2.a_fields;
