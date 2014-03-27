@@ -126,8 +126,12 @@ class HttpConnection implements Connection implements Dynamic<Connection> {
 			var args : Array<Dynamic> = cast u.unserialize();
 			for ( i in 0...args.length ) {
 				var arg	= args[ i ];
-				if( Std.is( arg, String )  && StringTools.startsWith( arg, "__file__" ) )
-					args[ i ]	= #if neko neko.Web.getMultipartParams().get( arg.substr( 8 ) ); #elseif php php.Web.getMultipartParams().get( arg.substr( 8 ) ); #end
+				if ( Std.is( arg, String ) && StringTools.startsWith( arg, "__file__" ) )
+					#if neko
+						args[ i ]	= neko.Web.getMultipartParams().get( arg.substr( 8 ) );
+					#elseif php
+						args[ i ]	= php.Web.getMultipartParams().get( arg.substr( 8 ) );
+					#end
 			}
 			var data = ctx.call(path,args);
 			var s = new haxe.Serializer();
