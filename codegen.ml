@@ -1557,7 +1557,9 @@ module UnificationCallback = struct
 
 	let rec run f e =
 		let f e t =
-			if not (type_iseq e.etype t) then f e t else e
+			(* TODO: I don't think this should cause errors on Flash target *)
+			(* if not (type_iseq e.etype t) then f e t else e *)
+			f e t
 		in
 		let check e = match e.eexpr with
 			| TBinop((OpAssign | OpAssignOp _ as op),e1,e2) ->
