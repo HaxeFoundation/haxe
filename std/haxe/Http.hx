@@ -70,7 +70,6 @@ class Http {
 	var postData : String;
 	var headers : List<{ header:String, value:String }>;
 	var params : List<{ param:String, value:String }>;
-	//
 
 	#if sys
 	public static var PROXY : { host : String, port : Int, auth : { user : String, pass : String } } = null;
@@ -300,7 +299,7 @@ class Http {
 			onError(e.toString());
 			return;
 		}
-		if ( !Lambda.exists(headers, function(h) return h.header == "Content-Type") && post && postData == null && parts.isEmpty() )
+		if ( !Lambda.exists(headers, function(h) return h.header == "Content-Type") && post && postData == null && !isMultipart )
 			r.setRequestHeader("Content-Type","application/x-www-form-urlencoded");
 
 		for( h in headers )

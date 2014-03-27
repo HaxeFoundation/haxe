@@ -49,8 +49,8 @@ class HttpAsyncConnection implements AsyncConnection implements Dynamic<AsyncCon
 		var s = new haxe.Serializer();
 		s.serialize(__path);
 		s.serialize(params);
-		h.setHeader("X-Haxe-Remoting", "1");
-		h.setParameter("__x", s.toString());
+		h.setHeader("X-Haxe-Remoting","1");
+		h.setParameter("__x",s.toString());
 		if ( parts != null ) 
 			for ( part in parts )	h.addPart( part.param, part.filename, part.bytes, part.mimeType );
 		
