@@ -38,7 +38,7 @@ class HttpConnection implements Connection implements Dynamic<Connection> {
 		c.__path.push(name);
 		return c;
 	}
-
+	
 	public function call( params : Array<Dynamic> ) : Dynamic {
 		var data = null;
 		var h = new haxe.Http(__url);
@@ -51,11 +51,22 @@ class HttpConnection implements Connection implements Dynamic<Connection> {
 		#if (neko || php || cpp)
 			h.cnxTimeout = TIMEOUT;
 		#end
+		var files	= new List();
+		var i		= 0;
+		while ( i < params.length ) {
+			var p	= params[ i ];
+			if ( p.param != null && p.filename != null && p.bytes != null ) {
+				files.add( p );
+				params.splice( i, 1 );
+			}else
+				i++;
+		}
 		var s = new haxe.Serializer();
 		s.serialize(__path);
 		s.serialize(params);
 		h.setHeader("X-Haxe-Remoting","1");
-		h.setParameter("__x",s.toString());
+		h.setParameter("__x", s.toString());
+		for ( file in files )	h.addFileTransfer( file.param, file.filename, file.bytes, file.mimeType );
 		h.onData = function(d) { data = d; };
 		h.onError = function(e) { throw e; };
 		h.request(true);
