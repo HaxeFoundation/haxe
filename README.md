@@ -31,7 +31,7 @@ The Haxe project has several licenses, covering different parts of the projects.
  * The Haxe libraries are released under a "two-clause" BSD license.
  * The Neko runtime is licensed under the GNU Lesser General Public License version 2.1 or any later version.
 
-For the complete Haxe licenses, please see http://haxe.org/doc/license or [doc/LICENSE.txt](doc/LICENSE.txt).
+For the complete Haxe licenses, please see http://haxe.org/doc/license or [extra/LICENSE.txt](extra/LICENSE.txt).
 
 ## Installing Haxe
 
