@@ -79,7 +79,7 @@ class HttpConnection implements Connection implements Dynamic<Connection> {
 		if ( neko.Web.getClientHeader( "X-Haxe-Remoting" ) != null ) {
 			var ct	= neko.Web.getClientHeader( "Content-Type" );
 			if ( ct != null && ct.indexOf( "multipart/form-data" ) != -1 )
-				v	= neko.Web.getMultipartParams().get( "__x" );
+				v	= neko.Web.getMultipart( neko.Web.getClientHeader( "Content-Length" ) ).get( "__x" );
 			else
 				v	= neko.Web.getParams().get( "__x" );
 			if ( v != null ) {
@@ -96,7 +96,7 @@ class HttpConnection implements Connection implements Dynamic<Connection> {
 		if ( php.Web.getClientHeader( "X-Haxe-Remoting" ) != null ) {
 			var ct	= php.Web.getClientHeader( "Content-Type" );
 			if ( ct != null && ct.indexOf( "multipart/form-data" ) != -1 )
-				v	= php.Web.getMultipartParams().get( "__x" );
+				v	= php.Web.getMultipart( php.Web.getClientHeader( "Content-Length" ) ).get( "__x" );
 			else
 				v	= php.Web.getParams().get( "__x" );
 			if ( v != null ) {
