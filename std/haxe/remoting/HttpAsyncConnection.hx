@@ -41,7 +41,8 @@ class HttpAsyncConnection implements AsyncConnection implements Dynamic<AsyncCon
 		__data.error = h;
 	}
 
-	public function call( params : Array<Dynamic>, ?onResult : Dynamic -> Void, ?parts : Array<{ param : String, filename : String, bytes : haxe.io.Bytes, ?mimeType : String }> ) {
+	//public function call( params : Array<Dynamic>, ?onResult : Dynamic -> Void, ?files : Array<{ param : String, filename : String, bytes : haxe.io.Bytes, ?mimeType : String }> ) {
+	public function call( params : Array<Dynamic>, ?onResult : Dynamic -> Void, ?files : Array<{ param : String, filename : String, bytes : haxe.io.Bytes, ?mimeType : String }> ) {
 		var h = new haxe.Http(__data.url);
 		#if (neko && no_remoting_shutdown)
 			h.noShutdown = true;
@@ -51,9 +52,8 @@ class HttpAsyncConnection implements AsyncConnection implements Dynamic<AsyncCon
 		s.serialize(params);
 		h.setHeader("X-Haxe-Remoting","1");
 		h.setParameter("__x",s.toString());
-		if ( parts != null ) 
-			for ( part in parts )	h.addPart( part.param, part.filename, part.bytes, part.mimeType );
-		
+		/*if ( files != null ) 
+			for ( file in files )	h.addFileTransfer( file.param, file.filename, file.bytes, file.mimeType );*/
 		var error = __data.error;
 		h.onData = function( response : String ) {
 			var ok = true;
