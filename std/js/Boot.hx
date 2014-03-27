@@ -74,7 +74,7 @@ class Boot {
 			return untyped __define_feature__("js.Boot.getClass", o.__class__);
 	}
 
-	@:ifFeature("has_enum")
+	@:ifFeature("may_print_enum")
 	private static function __string_rec(o,s:String) {
 		untyped {
 			if( o == null )

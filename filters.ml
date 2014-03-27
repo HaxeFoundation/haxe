@@ -863,6 +863,15 @@ let check_deprecation com =
 			()
 	) com.types
 
+let check_unification com e t =
+	begin match follow e.etype,follow t with
+		| TEnum _,TDynamic _ ->
+			add_feature com "may_print_enum";
+		| _ ->
+			()
+	end;
+	e
+
 (* PASS 1 end *)
 
 (* Saves a class state so it can be restored later, e.g. after DCE or native path rewrite *)
@@ -1138,6 +1147,7 @@ let run com tctx main =
 
 	(* PASS 1: general expression filters *)
  	let filters = [
+ 		Codegen.UnificationCallback.run (check_unification com);
 		Codegen.Abstract.handle_abstract_casts tctx;
 		blockify_ast;
 		(match com.platform with
