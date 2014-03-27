@@ -119,8 +119,9 @@ class Http {
 		return this;
 	}
 	
-	public function addFileTransfer( argname : String, filename : String, bytes : haxe.io.Bytes, mimeType = "application/octet-stream" ) {
+	public function addFileTransfer( argname : String, filename : String, bytes : haxe.io.Bytes, mimeType = "application/octet-stream" ) : Http {
 		files.add( { param : argname, filename : filename, bytes : bytes, mimeType : mimeType } );
+		return this;
 	}
 
 	/**

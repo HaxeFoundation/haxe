@@ -41,19 +41,27 @@ class HttpAsyncConnection implements AsyncConnection implements Dynamic<AsyncCon
 		__data.error = h;
 	}
 
-	//public function call( params : Array<Dynamic>, ?onResult : Dynamic -> Void, ?files : Array<{ param : String, filename : String, bytes : haxe.io.Bytes, ?mimeType : String }> ) {
 	public function call( params : Array<Dynamic>, ?onResult : Dynamic -> Void ) {
 		var h = new haxe.Http(__data.url);
 		#if (neko && no_remoting_shutdown)
 			h.noShutdown = true;
 		#end
+		var files	= new List();
+		var i		= 0;
+		while ( i < params.length ) {
+			var p	= params[ i ];
+			if ( p.param != null && p.filename != null && p.bytes != null ) {
+				files.add( p );
+				params.splice( i, 1 );
+			}else
+				i++;
+		}
 		var s = new haxe.Serializer();
 		s.serialize(__path);
 		s.serialize(params);
 		h.setHeader("X-Haxe-Remoting","1");
-		h.setParameter("__x",s.toString());
-		/*if ( files != null ) 
-			for ( file in files )	h.addFileTransfer( file.param, file.filename, file.bytes, file.mimeType );*/
+		h.setParameter("__x", s.toString());
+		for ( file in files )	h.addFileTransfer( file.param, file.filename, file.bytes, file.mimeType );
 		var error = __data.error;
 		h.onData = function( response : String ) {
 			var ok = true;
