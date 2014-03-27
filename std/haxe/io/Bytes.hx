@@ -177,6 +177,30 @@ class Bytes {
 		#end
 	}
 
+	public function readDouble( pos : Int ) : Float {
+		#if neko
+		return untyped Input._double_of_bytes(sub(pos,8).b,false);
+		#elseif flash9
+		b.position = pos;
+		return b.readDouble();
+		#else
+		var b = new haxe.io.BytesInput(this,pos,8);
+		return b.readDouble();
+		#end
+	}
+
+	public function readFloat( pos : Int ) : Float {
+		#if neko
+		return untyped Input._float_of_bytes(sub(pos,4).b,false);
+		#elseif flash9
+		b.position = pos;
+		return b.readFloat();
+		#else
+		var b = new haxe.io.BytesInput(this,pos,4);
+		return b.readFloat();
+		#end
+	}
+
 	public function readString( pos : Int, len : Int ) : String {
 		#if !neko
 		if( pos < 0 || len < 0 || pos + len > length ) throw Error.OutsideBounds;
