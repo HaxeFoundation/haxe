@@ -1067,17 +1067,32 @@ let generate_enum ctx e =
 		(match f.ef_type with
 		| TFun (args,_) ->
 			let sargs = String.concat "," (List.map (fun (n,_,_) -> ident n) args) in
-			print ctx "function(%s) { var $x = [\"%s\",%d,%s]; $x.__enum__ = %s; $x.toString = $estr; return $x; }" sargs f.ef_name f.ef_index sargs p;
+			print ctx "function(%s) { var $x = [\"%s\",%d,%s]; $x.__enum__ = %s;" sargs f.ef_name f.ef_index sargs p;
+			if has_feature ctx "may_print_enum" then
+				spr ctx " $x.toString = $estr;";
+			spr ctx " return $x; }";
 			ctx.separator <- true;
 		| _ ->
 			print ctx "[\"%s\",%d]" f.ef_name f.ef_index;
 			newline ctx;
-			print ctx "%s%s.toString = $estr" p (field f.ef_name);
-			newline ctx;
+			if has_feature ctx "may_print_enum" then begin
+				print ctx "%s%s.toString = $estr" p (field f.ef_name);
+				newline ctx;
+			end;
 			print ctx "%s%s.__enum__ = %s" p (field f.ef_name) p;
 		);
 		newline ctx
 	) e.e_names;
+	if has_feature ctx "Type.allEnums" then begin
+		let ctors_without_args = List.filter (fun s ->
+			let ef = PMap.find s e.e_constrs in
+			match follow ef.ef_type with
+				| TFun _ -> false
+				| _ -> true
+		) e.e_names in
+		print ctx "%s.__empty_constructs__ = [%s]" p (String.concat "," (List.map (fun s -> Printf.sprintf "%s.%s" p s) ctors_without_args));
+		newline ctx
+	end;
 	match Codegen.build_metadata ctx.com (TEnumDecl e) with
 	| None -> ()
 	| Some e ->
@@ -1233,9 +1248,9 @@ let generate com =
 	(* TODO: fix $estr *)
 	let vars = [] in
 	let vars = (if has_feature ctx "Type.resolveClass" || has_feature ctx "Type.resolveEnum" then ("$hxClasses = " ^ (if ctx.js_modern then "{}" else "$hxClasses || {}")) :: vars else vars) in
-	let vars = (if List.exists (function TEnumDecl { e_extern = false } -> true | _ -> false) com.types
+	let vars = if has_feature ctx "may_print_enum"
 		then ("$estr = function() { return " ^ (ctx.type_accessor (TClassDecl { null_class with cl_path = ["js"],"Boot" })) ^ ".__string_rec(this,''); }") :: vars
-		else vars) in
+		else vars in
 	(match List.rev vars with
 	| [] -> ()
 	| vl ->

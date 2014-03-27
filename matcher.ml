@@ -107,6 +107,7 @@ type matcher = {
 	mutable toplevel_or : bool;
 	mutable has_extractor : bool;
 	mutable expr_map : (int,texpr * texpr option) PMap.t;
+	mutable is_exhaustive : bool;
 }
 
 exception Not_exhaustive of pat * st
@@ -919,6 +920,8 @@ let rec compile mctx stl pmat toplevel =
 			| _ when not inf && PMap.is_empty !all ->
 				switch st_head cases
 			| [],_ when inf && not mctx.need_val && toplevel ->
+				(* ignore exhaustiveness, but mark context so we do not generate @:exhaustive metadata *)
+				mctx.is_exhaustive <- false;
 				switch st_head cases
 			| [],_ when inf ->
 				raise (Not_exhaustive(any,st_head))
@@ -970,7 +973,8 @@ let convert_con ctx con = match con.c_def with
 	| CArray i -> mk_const ctx con.c_pos (TInt (Int32.of_int i))
 	| CAny | CFields _ -> assert false
 
-let convert_switch ctx st cases loop =
+let convert_switch mctx st cases loop =
+	let ctx = mctx.ctx in
 	let e_st = convert_st ctx st in
 	let p = e_st.epos in
 	let mk_index_call () =
@@ -979,19 +983,25 @@ let convert_switch ctx st cases loop =
 		let ec = (!type_module_type_ref) ctx (TClassDecl ttype) None p in
 		let ef = mk (TField(ec, FStatic(ttype,cf))) (tfun [e_st.etype] ctx.t.tint) p in
 		let e = make_call ctx ef [e_st] ctx.t.tint p in
-		mk (TMeta((Meta.Exhaustive,[],p), e)) e.etype e.epos
+		e
+	in
+	let wrap_exhaustive e =
+		if mctx.is_exhaustive then
+			mk (TMeta((Meta.Exhaustive,[],e.epos),e)) e.etype e.epos
+		else
+			e
 	in
 	let e = match follow st.st_type with
 	| TEnum(_) ->
-		mk_index_call()
+		wrap_exhaustive (mk_index_call())
 	| TAbstract(a,pl) when (match Codegen.Abstract.get_underlying_type a pl with TEnum(_) -> true | _ -> false) ->
-		mk_index_call()
+		wrap_exhaustive (mk_index_call())
 	| TInst({cl_path = [],"Array"},_) as t ->
 		mk (TField (e_st,quick_field t "length")) ctx.t.tint p
 	| TAbstract(a,_) when Meta.has Meta.Enum a.a_meta ->
-		mk (TMeta((Meta.Exhaustive,[],p), e_st)) e_st.etype e_st.epos
+		wrap_exhaustive (e_st)
 	| TAbstract({a_path = [],"Bool"},_) ->
-		mk (TMeta((Meta.Exhaustive,[],p), e_st)) e_st.etype e_st.epos
+		wrap_exhaustive (e_st)
 	| _ ->
 		if List.exists (fun (con,_) -> match con.c_def with CEnum _ -> true | _ -> false) cases then
 			mk_index_call()
@@ -1155,6 +1165,7 @@ let match_expr ctx e cases def with_type p =
 		dt_count = 0;
 		has_extractor = has_extractor;
 		expr_map = PMap.empty;
+		is_exhaustive = true;
 	} in
 	(* flatten cases *)
 	let cases = List.map (fun (el,eg,e) ->
@@ -1371,7 +1382,7 @@ let match_expr ctx e cases def with_type p =
 	(* reindex *)
 	let rec loop dt = match dt with
 		| Goto i -> if usage.(i) > 1 then DTGoto (map.(i)) else loop (DynArray.get mctx.dt_lut i)
-		| Switch(st,cl) -> convert_switch ctx st cl loop
+		| Switch(st,cl) -> convert_switch mctx st cl loop
 		| Bind(bl,dt) -> DTBind(List.map (fun (v,st) -> v,convert_st ctx st) bl,loop dt)
 		| Expr id -> DTExpr (get_expr mctx id)
 		| Guard(id,dt1,dt2) -> DTGuard((match get_guard mctx id with Some e -> e | None -> assert false),loop dt1, match dt2 with None -> None | Some dt -> Some (loop dt))

@@ -20,4 +20,17 @@ function myfun( resolve : String -> Dynamic, title : String, p : Int ) {
 var t1 = new haxe.Template("Call macro : $$myfun(Hello,::param::)");
 var str = t1.execute({ param : 55, mult : 2 },{ myfun : myfun });
 str == "Call macro : [Hello=110]";
+
+var mcr = {
+	a : function (resolver, s) { return "#" + s; },
+	b : function (resolver, s1, s2) { return "_" + s1 + ":" + s2; }
+};
+
+tpl = new haxe.Template( "$$b(a,$$a(b))" );
+var out3 = tpl.execute({}, mcr);
+out3 == "_a:#b";
+
+tpl = new haxe.Template( "$$a($$b(::a::,b))" );
+var out4 = tpl.execute({a:"abc"}, mcr);
+out4 == "#_abc:b";
 #end
