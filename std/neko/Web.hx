@@ -261,7 +261,8 @@ class Web {
 	
 	/**
 		Get the multipart parameters as an hashtable.
-		Values are String or { filename : String, bytes : haxe.io.Bytes }
+		Values are String, { filename : String, bytes : haxe.io.Bytes }
+		or Array<{ filename : String, bytes : haxe.io.Bytes }> (if multiple files with same name)
 	**/
 	static var _multipartParams	: haxe.ds.StringMap<Dynamic>;
 	public static function getMultipartParams() : haxe.ds.StringMap<Dynamic> {
