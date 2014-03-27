@@ -1726,12 +1726,15 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 		mk_op e1 e2 !result
 	| OpEq
 	| OpNotEq ->
-		(try
+		let e1,e2 = try
 			unify_raise ctx e1.etype e2.etype p;
 			(* we only have to check one type here, because unification fails if one is Void and the other is not *)
-			(match follow e2.etype with TAbstract({a_path=[],"Void"},_) -> error "Cannot compare Void" p | _ -> ())
-		with
-			Error (Unify _,_) -> unify ctx e2.etype e1.etype p);
+			(match follow e2.etype with TAbstract({a_path=[],"Void"},_) -> error "Cannot compare Void" p | _ -> ());
+			Codegen.Abstract.check_cast ctx e2.etype e1 p,e2
+		with Error (Unify _,_) ->
+			unify ctx e2.etype e1.etype p;
+			e1,Codegen.Abstract.check_cast ctx e1.etype e2 p
+		in
 		mk_op e1 e2 ctx.t.tbool
 	| OpGt
 	| OpGte
