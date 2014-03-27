@@ -340,7 +340,7 @@ class Web {
 							_multipartParams.set( curname, { filename : curFilename, bytes : buf.getBytes() } );
 						}
 					}else
-						_multipartParams.set(curname,neko.Lib.stringReference(buf.getBytes()));
+						_multipartParams.set(curname,buf.getBytes().toString());
 				curname 	= p;
 				curIsFile	= filename != null;
 				curFilename	= filename;
@@ -359,7 +359,7 @@ class Web {
 						_multipartParams.set( curname, { filename : curFilename, bytes : buf.getBytes() } );
 					}
 				}else
-						_multipartParams.set(curname,neko.Lib.stringReference(buf.getBytes()));
+						_multipartParams.set(curname,buf.getBytes().toString());
 		}
 		return _multipartParams;
 	}
