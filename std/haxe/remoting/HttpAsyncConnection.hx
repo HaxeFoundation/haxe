@@ -42,7 +42,7 @@ class HttpAsyncConnection implements AsyncConnection implements Dynamic<AsyncCon
 	}
 
 	//public function call( params : Array<Dynamic>, ?onResult : Dynamic -> Void, ?files : Array<{ param : String, filename : String, bytes : haxe.io.Bytes, ?mimeType : String }> ) {
-	public function call( params : Array<Dynamic>, ?onResult : Dynamic -> Void, ?files : Array<{ param : String, filename : String, bytes : haxe.io.Bytes, ?mimeType : String }> ) {
+	public function call( params : Array<Dynamic>, ?onResult : Dynamic -> Void ) {
 		var h = new haxe.Http(__data.url);
 		#if (neko && no_remoting_shutdown)
 			h.noShutdown = true;
