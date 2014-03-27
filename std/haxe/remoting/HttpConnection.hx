@@ -57,9 +57,9 @@ class HttpConnection implements Connection implements Dynamic<Connection> {
 			var p	= params[ i ];
 			if ( p.param != null && p.filename != null && p.bytes != null ) {
 				files.add( p );
-				params.splice( i, 1 );
-			}else
-				i++;
+				params[ i ]	= '__file__${ p.param }';
+			}
+			i++;
 		}
 		var s = new haxe.Serializer();
 		s.serialize(__path);
@@ -123,7 +123,12 @@ class HttpConnection implements Connection implements Dynamic<Connection> {
 		try {
 			var u = new haxe.Unserializer(requestData);
 			var path = u.unserialize();
-			var args = u.unserialize();
+			var args : Array<Dynamic> = cast u.unserialize();
+			for ( i in 0...args.length ) {
+				var arg	= args[ i ];
+				if( Std.is( arg, String )  && StringTools.startsWith( arg, "__file__" ) )
+					args[ i ]	= #if neko neko.Web.getMultipartParams().get( arg.substr( 8 ) ); #elseif php php.Web.getMultipartParams().get( arg.substr( 8 ) ); #end
+			}
 			var data = ctx.call(path,args);
 			var s = new haxe.Serializer();
 			s.serialize(data);
