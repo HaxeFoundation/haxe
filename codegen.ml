@@ -763,6 +763,18 @@ module Abstract = struct
 				let cf,m = find_multitype_specialization a pl e.epos in
 				let e = make_static_call ctx c cf a pl ((mk (TConst TNull) (TAbstract(a,pl)) e.epos) :: el) m e.epos in
 				{e with etype = m}
+			| TCall({eexpr = TField(_,FStatic({cl_path=[],"Std"},{cf_name = "string"}))},[e1]) when (match follow e1.etype with TAbstract({a_impl = Some _},_) -> true | _ -> false) ->
+				begin match follow e1.etype with
+					| TAbstract({a_impl = Some c} as a,_) ->
+						begin try
+							let cf = PMap.find "toString" c.cl_statics in
+							make_static_call ctx c cf a [] [e1] ctx.t.tstring e.epos
+						with Not_found ->
+							e
+						end
+					| _ ->
+						assert false
+				end
 			| TCall(e1, el) ->
 				begin try
 					begin match e1.eexpr with
