@@ -4,6 +4,7 @@ package python;
 import python.lib.Builtin;
 import python.internal.EnumImpl;
 import python.internal.HxOverrides;
+import python.internal.HxException;
 
 @:keep class Boot {
 

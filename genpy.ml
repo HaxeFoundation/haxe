@@ -15,19 +15,6 @@ _hx_c = _hx_AnonObject()
 _hx_c._hx_AnonObject = _hx_AnonObject
 
 import functools as _hx_functools
-
-class _HxException(Exception):
-    # String tag;
-    # int index;
-    # List params;
-    def __init__(self, val):
-        try:
-            message = _hx_c.Std.string(val)
-        except Exception:
-            message = '_HxException'
-        Exception.__init__(self, message)
-        self.val = val
-
 import math as _hx_math
 "
 
