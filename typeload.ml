@@ -1056,6 +1056,7 @@ let rec add_constructor ctx c force_constructor p =
 		cf.cf_expr <- Some constr;
 		cf.cf_type <- constr.etype;
 		cf.cf_meta <- [Meta.CompilerGenerated,[],p];
+		cf.cf_kind <- Method MethNormal;
 		c.cl_constructor <- Some cf;
 	| _ ->
 		(* nothing to do *)
