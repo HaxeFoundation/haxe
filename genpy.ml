@@ -28,28 +28,6 @@ class _HxException(Exception):
         Exception.__init__(self, message)
         self.val = val
 
-def _hx_rshift(val, n):
-    return (val % 0x100000000) >> n
-def _hx_modf(a,b):
-    return float('nan') if (b == 0.0) else a % b if a > 0 else -(-a % b)
-def _hx_array_get(a,i):
-    return a[i] if (i < len(a) and i > -1) else None
-def _hx_array_set(a,i,v):
-    l = len(a)
-    while l < i:
-        a.append(None)
-        l+=1
-    if l == i:
-        a.append(v)
-    else:
-        a[i] = v
-    return v
-
-def _hx_toUpperCase (x):
-    if isinstance(x, str):
-        return x.upper()
-    return x.toUpperCase()
-
 import math as _hx_math
 "
 
@@ -895,9 +873,9 @@ module Printer = struct
 			| TEnumParameter(e1,_,index) ->
 				Printf.sprintf "%s.params[%i]" (print_expr pctx e1) index
 			| TArray(e1,e2) ->
-				Printf.sprintf "_hx_array_get(%s, %s)" (print_expr pctx e1) (print_expr pctx e2)
+				Printf.sprintf "HxOverrides.hx_array_get(%s, %s)" (print_expr pctx e1) (print_expr pctx e2)
 			| TBinop(OpAssign,{eexpr = TArray(e1,e2)},e3) ->
-				Printf.sprintf "_hx_array_set(%s,%s,%s)" (print_expr pctx e1) (print_expr pctx e2) (print_expr pctx e3)
+				Printf.sprintf "HxOverrides.hx_array_set(%s,%s,%s)" (print_expr pctx e1) (print_expr pctx e2) (print_expr pctx e3)
 			| TBinop(OpAssign,{eexpr = TField(ef1,fa)},e2) ->
 				Printf.sprintf "%s = %s" (print_field pctx ef1 fa true) (print_op_assign_right pctx e2)
 			| TBinop(OpAssign,e1,e2) ->
@@ -921,9 +899,9 @@ module Printer = struct
 			| TBinop(OpMod,e1,e2) when (is_type1 "" "Int")(e1.etype) && (is_type1 "" "Int")(e2.etype) ->
 				Printf.sprintf "%s %% %s" (print_expr pctx e1) (print_expr pctx e2)
 			| TBinop(OpMod,e1,e2) ->
-				Printf.sprintf "_hx_modf(%s, %s)" (print_expr pctx e1) (print_expr pctx e2)
+				Printf.sprintf "HxOverrides.hx_modf(%s, %s)" (print_expr pctx e1) (print_expr pctx e2)
 			| TBinop(OpUShr,e1,e2) ->
-				Printf.sprintf "_hx_rshift(%s, %s)" (print_expr pctx e1) (print_expr pctx e2)
+				Printf.sprintf "HxOverrides.hx_rshift(%s, %s)" (print_expr pctx e1) (print_expr pctx e2)
 			| TBinop(OpAdd,e1,e2) when (is_type1 "" "String")(e.etype) || is_underlying_string e.etype ->
 				let safe_string ex =
 					match ex.eexpr with
@@ -1193,7 +1171,7 @@ module Printer = struct
 		match e1.eexpr with
 			| TField(e1,FAnon {cf_name = "toUpperCase"}) ->
 				(* TODO: toLowerCase and other string methods? *)
-				Printf.sprintf "_hx_toUpperCase(%s)" (print_expr pctx e1)
+				Printf.sprintf "HxOverrides.hx_toUpperCase(%s)" (print_expr pctx e1)
 			| _ ->
 				print_call2 pctx e1 el
 
