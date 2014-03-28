@@ -3,6 +3,7 @@ package python;
 
 import python.lib.Builtin;
 import python.internal.EnumImpl;
+import python.internal.HxOverrides;
 
 @:keep class Boot {
 

@@ -51,37 +51,6 @@ def _hx_toUpperCase (x):
     return x.toUpperCase()
 
 import math as _hx_math
-
-
-def HxOverrides_iterator(x):
-    if isinstance(x, list):
-        return _hx_c.python_internal_ArrayImpl.iterator(x)
-    else:
-        return x.iterator()
-
-def HxOverrides_shift(x):
-    if isinstance(x, list):
-        return _hx_c.python_internal_ArrayImpl.shift(x)
-    else:
-        return x.shift()
-
-def HxOverrides_filter(x, f):
-    if isinstance(x, list):
-        return _hx_c.python_internal_ArrayImpl.filter(x,f)
-    else:
-        return x.filter(f)
-
-def HxOverrides_map(x, f):
-    if isinstance(x, list):
-        return _hx_c.python_internal_ArrayImpl.map(x,f)
-    else:
-        return x.filter(f)
-
-def HxOverrides_length(x):
-    if isinstance(x, list) or isinstance(x, str):
-        return _hx_builtin.len(x)
-    else:
-        return x.length
 "
 
 module KeywordHandler = struct
@@ -1081,27 +1050,27 @@ module Printer = struct
 			| FAnon cf when name = "iterator" && not is_assign ->
 				begin match follow cf.cf_type with
 					| TFun([],_) ->
-						Printf.sprintf "_hx_functools.partial(HxOverrides_iterator, %s)" obj
+						Printf.sprintf "_hx_functools.partial(HxOverrides.iterator, %s)" obj
 					| _ ->
 						do_default()
 				end
 			| FAnon cf when name = "shift" && not is_assign ->
 				begin match follow cf.cf_type with
 					| TFun([],_) ->
-						Printf.sprintf "_hx_functools.partial(HxOverrides_shift, %s)" obj
+						Printf.sprintf "_hx_functools.partial(HxOverrides.shift, %s)" obj
 					| _ ->
 						do_default()
 				end
 			| FAnon _ ->
 				do_default()
 			| FDynamic "iterator" ->
-				Printf.sprintf "_hx_functools.partial(HxOverrides_iterator, %s)" obj
+				Printf.sprintf "_hx_functools.partial(HxOverrides.iterator, %s)" obj
 			| FDynamic "length" when not is_assign ->
-				Printf.sprintf "HxOverrides_length(%s)" obj
+				Printf.sprintf "HxOverrides.length(%s)" obj
 			| FDynamic "filter" when not is_assign ->
-				Printf.sprintf "_hx_functools.partial(HxOverrides_filter, %s)" obj
+				Printf.sprintf "_hx_functools.partial(HxOverrides.filter, %s)" obj
 			| FDynamic "map" when not is_assign ->
-				Printf.sprintf "_hx_functools.partial(HxOverrides_map, %s)" obj
+				Printf.sprintf "_hx_functools.partial(HxOverrides.map, %s)" obj
 			| _ ->
 				do_default()
 
@@ -1726,6 +1695,7 @@ _hx_c.Bool = Bool	 *)
 		in
 		gen_type ctx (find_type (["python"],"Boot"));
 		gen_type ctx (find_type ([],"Enum"));
+		gen_type ctx (find_type ([],"HxOverrides"));
 		List.iter (fun mt ->
 			if not (Hashtbl.mem used_paths (t_infos mt).mt_path) then
 				gen_type ctx mt
