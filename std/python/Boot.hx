@@ -2,6 +2,7 @@
 package python;
 
 import python.lib.Builtin;
+import python.internal.EnumImpl;
 
 @:keep class Boot {
 
@@ -12,7 +13,7 @@ import python.lib.Builtin;
 		Macros.importAs("inspect", "inspect");
 		Boot.inspect = untyped __python__("inspect");
 		Boot.builtin = untyped __python__("_hx_builtin");
-		
+
 
 	}
 
@@ -26,25 +27,25 @@ import python.lib.Builtin;
     }
 
 
-    @:keep private static function _add_dynamic(a:Dynamic,b:Dynamic):Dynamic 
+    @:keep private static function _add_dynamic(a:Dynamic,b:Dynamic):Dynamic
     {
 		if (builtin.isinstance(a, untyped __python__("str")) || builtin.isinstance(b, untyped __python__("str"))) {
 			return __string_rec(a,"") + __string_rec(b,"");
 		}
 		return untyped __python__("a+b");
     }
-	
+
 	@:keep private static function __string_rec(o:Dynamic,s:String):String {
-		
-		
+
+
 
 		if (s == null) s = "";
 		if( o == null ) return "null";
-		
+
 		if( s.length >= 5 ) return "<...>"; // too much deep recursion
-		
-		
-		
+
+
+
 
 		if (builtin.isinstance(o, untyped __python__("str"))) return o;
 
@@ -58,7 +59,7 @@ import python.lib.Builtin;
 		if (builtin.isinstance(o, untyped __python__("float"))) {
 			try {
 				if (o == Builtin.int(o)) {
-					return builtin.str(Math.round(o));	
+					return builtin.str(Math.round(o));
 				} else {
 					return builtin.str(o);
 				}
@@ -66,18 +67,18 @@ import python.lib.Builtin;
 				return builtin.str(o);
 			}
 		}
-		
+
 
 		if (inspect.isfunction(o) || inspect.ismethod(o)) return "<function>";
-		
-		
-		
-		
-		if (builtin.isinstance(o, Array)) 
+
+
+
+
+		if (builtin.isinstance(o, Array))
 		{
 			var o1:Array<Dynamic> = o;
 			var l = o1.length;
-			
+
 			var st = "[";
 			s += "\t";
 			for( i in 0...l ) {
@@ -97,37 +98,37 @@ import python.lib.Builtin;
 		} catch (e:Dynamic) {
 
 		}
-		
-		if (builtin.hasattr(o, "__class__")) 
+
+		if (builtin.hasattr(o, "__class__"))
 		{
 
-			if (builtin.isinstance(o, untyped __python__("_hx_c._hx_AnonObject"))) 
+			if (builtin.isinstance(o, untyped __python__("_hx_c._hx_AnonObject")))
 			{
 				var toStr = null;
-				try 
+				try
 				{
 					var fields = Reflect.fields(o);
 					var fieldsStr = [for (f in fields) '$f : ${__string_rec(Reflect.field(o,f), s+"\t")}'];
-					
+
 					toStr = "{ " + fieldsStr.join(", ") + " }";
-				} 
+				}
 				catch (e:Dynamic) {
 					trace(e);
 				}
 
-				if (toStr == null) 
+				if (toStr == null)
 				{
-					return "{ ... }";	
-				} 
-				else 
-				{
-					return toStr;	
+					return "{ ... }";
 				}
-				
+				else
+				{
+					return toStr;
+				}
+
 			}
 			if (builtin.isinstance(o, untyped __python__("_hx_c.Enum"))) {
-				
-				
+
+
 				var l = builtin.len(o.params);
 				var hasParams = l > 0;
 				if (hasParams) {
@@ -150,7 +151,7 @@ import python.lib.Builtin;
 
 				var fields = Type.getInstanceFields(o);
 				var fieldsStr = [for (f in fields) '$f : ${__string_rec(Reflect.field(o,f), s+"\t")}'];
-				
+
 				var toStr = o._hx_class_name + "( " + fieldsStr.join(", ") + " )";
 				return toStr;
 			}
@@ -159,21 +160,21 @@ import python.lib.Builtin;
 
 				var fields = Type.getClassFields(o);
 				var fieldsStr = [for (f in fields) '$f : ${__string_rec(Reflect.field(o,f), s+"\t")}'];
-					
+
 				var toStr = "#" + o._hx_class_name + "( " + fieldsStr.join(", ") + " )";
 				return toStr;
 			}
 			if (o == String) {
 				return "#String";
 			}
-			
+
 			//if (builtin.hasattr(o, "_hx_name")) {
 			//	return "#" + untyped o._hx_name;
 			//}
 			if (o == Array) {
 				return "#Array";
 			}
-			
+
 			if (builtin.callable(o)) {
 				return "function";
 			}
@@ -192,8 +193,8 @@ import python.lib.Builtin;
 			}
 			return "???";
 
-			
-			
+
+
 
 
 
@@ -205,10 +206,10 @@ import python.lib.Builtin;
 				return "???";
 			}
 		}
-	
-	
-			
-		
+
+
+
+
 	}
 
 }

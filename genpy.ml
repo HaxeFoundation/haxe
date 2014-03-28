@@ -14,29 +14,7 @@ _hx_c = _hx_AnonObject()
 
 _hx_c._hx_AnonObject = _hx_AnonObject
 
-
 import functools as _hx_functools
-
-class Enum:
-    # String tag;
-    # int index;
-    # List params;
-    def __init__(self, tag, index, params):
-        self.tag = tag
-        self.index = index
-        self.params = params
-
-    def __str__(self):
-        if self.params == None:
-            res = self.tag
-        else:
-            res = self.tag + '(' + ','.join(self.params) + ')'
-        res
-
-Enum._hx_class_name = 'Enum'
-Enum._hx_class = Enum
-_hx_classes['Enum'] = Enum
-_hx_c.Enum = Enum
 
 class _HxException(Exception):
     # String tag;
@@ -49,47 +27,6 @@ class _HxException(Exception):
             message = '_HxException'
         Exception.__init__(self, message)
         self.val = val
-
-class Int:
-    pass
-
-Int._hx_class_name = 'Int'
-Int._hx_class = Int
-_hx_classes['Int'] = Int
-_hx_c.Int = Int
-
-class Bool:
-    pass
-
-Bool._hx_class_name = 'Bool'
-Bool._hx_class = Bool
-
-_hx_classes['Bool'] = Bool
-_hx_c.Bool = Bool
-
-class Float:
-    pass
-
-Float._hx_class_name = 'Float'
-Float._hx_class = Float
-_hx_classes['Float'] = Float
-_hx_c.Float = Float
-
-class Dynamic:
-    pass
-
-Dynamic._hx_class_name = 'Dynamic'
-Dynamic._hx_class = Dynamic
-_hx_classes['Dynamic'] = Dynamic
-_hx_c.Dynamic = Dynamic
-
-class Class:
-    pass
-
-Class._hx_class_name = 'Class'
-Class._hx_class = Class
-_hx_classes['Class'] = Class
-_hx_c.Class = Class
 
 def _hx_rshift(val, n):
     return (val % 0x100000000) >> n
@@ -1519,28 +1456,25 @@ module Generator = struct
 			print ctx "%s.%s = %s" (get_path (t_infos (TClassDecl c))) name field_name
 		end
 
-	let gen_class_constructor ctx c = match c.cl_constructor with
-		| None ->
-			()
-		| Some cf ->
-			let member_inits = get_members_with_init_expr c in
-			newline ctx;
-			let py_metas = filter_py_metas cf.cf_meta in
-			begin match member_inits,cf.cf_expr with
-				| _,Some ({eexpr = TFunction f} as ef) ->
-					let ethis = mk (TConst TThis) (TInst(c,List.map snd c.cl_types)) cf.cf_pos in
-					let member_data = List.map (fun cf ->
-						let ef = mk (TField(ethis,FDynamic cf.cf_name)) cf.cf_type cf.cf_pos in
-						mk (TBinop(OpAssign,ef,null ef.etype ef.epos)) ef.etype ef.epos
-					) member_inits in
-					let e = {f.tf_expr with eexpr = TBlock (member_data @ [f.tf_expr])} in
-					cf.cf_expr <- Some {ef with eexpr = TFunction {f with tf_expr = e}};
-				| _ ->
-					(* TODO: is this correct? *)
-					()
-			end;
-			gen_func_expr ctx (match cf.cf_expr with None -> assert false | Some e -> e) c "__init__" py_metas ["self"] "\t" false;
-			newline ctx
+	let gen_class_constructor ctx c cf =
+		let member_inits = get_members_with_init_expr c in
+		newline ctx;
+		let py_metas = filter_py_metas cf.cf_meta in
+		begin match member_inits,cf.cf_expr with
+			| _,Some ({eexpr = TFunction f} as ef) ->
+				let ethis = mk (TConst TThis) (TInst(c,List.map snd c.cl_types)) cf.cf_pos in
+				let member_data = List.map (fun cf ->
+					let ef = mk (TField(ethis,FDynamic cf.cf_name)) cf.cf_type cf.cf_pos in
+					mk (TBinop(OpAssign,ef,null ef.etype ef.epos)) ef.etype ef.epos
+				) member_inits in
+				let e = {f.tf_expr with eexpr = TBlock (member_data @ [f.tf_expr])} in
+				cf.cf_expr <- Some {ef with eexpr = TFunction {f with tf_expr = e}};
+			| _ ->
+				(* TODO: is this correct? *)
+				()
+		end;
+		gen_func_expr ctx (match cf.cf_expr with None -> assert false | Some e -> e) c "__init__" py_metas ["self"] "\t" false;
+		newline ctx
 
 	let gen_class_field ctx c p cf =
 		let field = handle_keywords cf.cf_name in
@@ -1656,7 +1590,10 @@ module Generator = struct
 			) c.cl_implements in
 			spr ctx ":";
 			open_block ctx;
-			gen_class_constructor ctx c;
+			begin match c.cl_constructor with
+				| Some cf -> gen_class_constructor ctx c cf;
+				| None -> ()
+			end;
 			List.iter (fun cf -> gen_class_field ctx c p cf) c.cl_ordered_fields;
 			let x = collect_class_field_data c.cl_ordered_fields in
 			let use_pass = match x.cfd_methods with
@@ -1715,9 +1652,42 @@ module Generator = struct
 		print ctx "_hx_c.%s = %s\n" p p;
 		gen_enum_metadata ctx en p
 
+	let gen_abstract ctx a =
+		gen_pre_code_meta ctx a.a_meta;
+		print ctx "# print %s.%s\n" (s_type_path a.a_module.m_path) (snd a.a_path);
+		let mt = (t_infos (TAbstractDecl a)) in
+		let p = get_path mt in
+		let p_name = get_full_name mt in
+		print ctx "class %s" p;
+		spr ctx ":";
+		open_block ctx;
+		begin match a.a_impl with
+			| Some c ->
+				List.iter (fun cf ->
+					if cf.cf_name = "_new" then
+						gen_class_constructor ctx c cf
+					else
+						gen_class_field ctx c p cf
+				) c.cl_ordered_statics;
+			| None ->
+				spr_line ctx "\tpass";
+		end;
+		close_block ctx;
+		print ctx "%s._hx_class = %s\n" p p;
+		print ctx "%s._hx_class_name = \"%s\"\n" p p_name;
+		print ctx "_hx_classes[\"%s\"] = %s\n" p_name p;
+		print ctx "_hx_c.%s = %s\n" p p
+
+(* 	Bool._hx_class_name = 'Bool'
+Bool._hx_class = Bool
+
+_hx_classes['Bool'] = Bool
+_hx_c.Bool = Bool	 *)
+
 	let gen_type ctx mt = match mt with
 		| TClassDecl c -> gen_class ctx c
 		| TEnumDecl en -> gen_enum ctx en
+		| TAbstractDecl a when Meta.has Meta.CoreType a.a_meta -> gen_abstract ctx a
 		| _ -> ()
 
 	(* Generator parts *)
@@ -1742,18 +1712,22 @@ module Generator = struct
 		(* TODO: ... *)
 		spr ctx bootcode
 
-	let gen_boot_class ctx =
-		let boot = List.find (fun mt -> match mt with
-			| TClassDecl {cl_path = ["python"],"Boot"} -> true
-			| _ -> false
-		) ctx.com.types in
-		gen_type ctx boot
-
 	let gen_types ctx =
-		List.iter (fun mt -> match mt with
-			| TClassDecl {cl_path = ["python"],"Boot"} ->
-				()
-			| _ ->
+		let used_paths = Hashtbl.create 0 in
+		let find_type path =
+			Hashtbl.add used_paths path true;
+			try
+				List.find (fun mt -> match mt with
+					| TAbstractDecl _ -> false
+					| _ -> (t_infos mt).mt_path = path
+				) ctx.com.types
+			with Not_found ->
+				error (Printf.sprintf "Could not find type %s\n" (s_type_path path)) null_pos;
+		in
+		gen_type ctx (find_type (["python"],"Boot"));
+		gen_type ctx (find_type ([],"Enum"));
+		List.iter (fun mt ->
+			if not (Hashtbl.mem used_paths (t_infos mt).mt_path) then
 				gen_type ctx mt
 		) ctx.com.types
 
@@ -1773,7 +1747,7 @@ module Generator = struct
 		let ctx = mk_context com in
 		gen_resources ctx;
 		gen_boot_code ctx;
-		gen_boot_class ctx;
+		(* gen_boot_class ctx; *)
 		gen_types ctx;
 		gen_static_inits ctx;
 		gen_main ctx;
