@@ -2589,7 +2589,7 @@ let configure gen =
         let exc_field = mk_static_field_access_infer exc_cl "exception" e.epos [] in
         let esetstack = mk (TBinop(Ast.OpAssign, exc_field, mk_local v e.epos)) v.v_type e.epos in
 
-        Codegen.concat esetstack e;
+        Type.concat esetstack e;
       )
   );
 

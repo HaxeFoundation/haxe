@@ -47,15 +47,6 @@ let binop op a b t p =
 let index com e index t p =
 	mk (TArray (e,mk (TConst (TInt (Int32.of_int index))) com.basic.tint p)) t p
 
-let concat e1 e2 =
-	let e = (match e1.eexpr, e2.eexpr with
-		| TBlock el1, TBlock el2 -> TBlock (el1@el2)
-		| TBlock el, _ -> TBlock (el @ [e2])
-		| _, TBlock el -> TBlock (e1 :: el)
-		| _ , _ -> TBlock [e1;e2]
-	) in
-	mk e e2.etype (punion e1.epos e2.epos)
-
 let type_constant com c p =
 	let t = com.basic in
 	match c with

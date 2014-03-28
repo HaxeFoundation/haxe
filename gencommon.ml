@@ -2056,7 +2056,7 @@ struct
                           { e with eexpr = TBlock( (add_fn hd) :: tl ) }
                         | _ ->
                           { e with eexpr = TBlock( funs @ (hd :: tl) ) })
-                      | _ -> Codegen.concat { e with eexpr = TBlock(funs) } e
+                      | _ -> Type.concat { e with eexpr = TBlock(funs) } e
                     in
                     let tf_expr = add_fn (mk_block tf.tf_expr) in
                     { e with eexpr = TFunction({ tf with tf_expr = tf_expr }) }
@@ -2645,7 +2645,7 @@ struct
                   | [] ->
                     match catchall with
                       | Some (v,s) ->
-                        Codegen.concat { eexpr = TVar(v, Some(catchall_local)); etype = gen.gcon.basic.tvoid; epos = pos } s
+                        Type.concat { eexpr = TVar(v, Some(catchall_local)); etype = gen.gcon.basic.tvoid; epos = pos } s
                       | None ->
                         mk_block (rethrow_expr temp_local)
                 in
@@ -3430,7 +3430,7 @@ struct
         *)
         let real_get_args = gen.gexpr_filters#run_f { eexpr = TBlock(get_args); etype = basic.tvoid; epos = pos } in
 
-        let func_expr = Codegen.concat real_get_args tf_expr in
+        let func_expr = Type.concat real_get_args tf_expr in
 
         (* set invoke function *)
         (* todo properly abstract how naming for invoke is made *)
@@ -5133,7 +5133,7 @@ struct
     let block = if flag = Ast.NormalWhile then
       { e1 with eexpr = TIf(cond, e1, Some({ e1 with eexpr = TBreak; etype = basic.tvoid })) }
     else
-      Codegen.concat e1 { e1 with
+      Type.concat e1 { e1 with
         eexpr = TIf({
           eexpr = TUnop(Ast.Not, Ast.Prefix, mk_paren cond);
           etype = basic.tbool;
@@ -9043,7 +9043,7 @@ struct
               {
                 eexpr = TWhile(
                   { eexpr = TCall(mk_access gen temp "hasNext" in_expr.epos, []); etype = basic.tbool; epos = in_expr.epos },
-                  Codegen.concat ({
+                  Type.concat ({
                     eexpr = TVar(var, Some({ eexpr = TCall(mk_access gen temp "next" in_expr.epos, []); etype = var.v_type; epos = in_expr.epos }));
                     etype = basic.tvoid;
                     epos = in_expr.epos
@@ -9720,7 +9720,7 @@ struct
       (fun (expr,kind) ->
         match kind with
           | Normal when has_fallback expr -> expr
-          | Normal -> Codegen.concat expr (mk_sbreak expr.epos)
+          | Normal -> Type.concat expr (mk_sbreak expr.epos)
           | BreaksLoop | BreaksFunction -> expr
       )
     else
@@ -9759,7 +9759,7 @@ struct
         | TFunction tf ->
           let changed, kind = process_expr tf.tf_expr in
           let changed = if handle_not_final_returns && not (is_void tf.tf_type) && kind <> BreaksFunction then
-            Codegen.concat changed { eexpr = TReturn( Some (null tf.tf_type expr.epos) ); etype = basic.tvoid; epos = expr.epos }
+            Type.concat changed { eexpr = TReturn( Some (null tf.tf_type expr.epos) ); etype = basic.tvoid; epos = expr.epos }
           else
             changed
           in
@@ -9977,7 +9977,7 @@ struct
                   { tf.tf_expr with eexpr = TBlock((if !found then { super with eexpr = TCall(e1,args) } else super) :: !block @ tl) }
                 | _ -> assert false)
               with | Not_found ->
-                Codegen.concat { tf.tf_expr with eexpr = TBlock(!block); etype = basic.tvoid } tf.tf_expr
+                Type.concat { tf.tf_expr with eexpr = TBlock(!block); etype = basic.tvoid } tf.tf_expr
             in
 
             args := fun_args tf_args;
@@ -10541,7 +10541,7 @@ struct
                 f.cf_expr <- Some({ e with
                   eexpr = TFunction({ tf with
                     tf_args = List.rev new_args;
-                    tf_expr = Codegen.concat { eexpr = TBlock(List.map (fun (v,ve) -> { eexpr = TVar(v,ve); etype = gen.gcon.basic.tvoid; epos = e.epos }) vardecl); etype = gen.gcon.basic.tvoid; epos = e.epos } tf.tf_expr
+                    tf_expr = Type.concat { eexpr = TBlock(List.map (fun (v,ve) -> { eexpr = TVar(v,ve); etype = gen.gcon.basic.tvoid; epos = e.epos }) vardecl); etype = gen.gcon.basic.tvoid; epos = e.epos } tf.tf_expr
                   });
                 });
                 f

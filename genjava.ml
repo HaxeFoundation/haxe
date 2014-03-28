@@ -486,8 +486,8 @@ struct
             Some conds, hashed_exprs
           | _ -> assert false
       ) (None,[]) el in
-      let e = if has_default then Codegen.concat execute_def_set e else e in
-      let e = if !has_conflict then Codegen.concat e { e with eexpr = TBreak; etype = basic.tvoid } else e in
+      let e = if has_default then Type.concat execute_def_set e else e in
+      let e = if !has_conflict then Type.concat e { e with eexpr = TBreak; etype = basic.tvoid } else e in
       let e = {
         eexpr = TIf(get conds, e, None);
         etype = basic.tvoid;
