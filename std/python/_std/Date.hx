@@ -25,8 +25,7 @@
 package;
 
 import python.lib.datetime.DateTime;
-
-
+import python.lib.datetime.TimeDelta;
 
 @:coreApi class Date
 {
@@ -39,13 +38,12 @@ import python.lib.datetime.DateTime;
 	{
 		if (year < DateTime.min.year) year = DateTime.min.year;
 		if (day == 0) day = 1;
-		date = new DateTime(year, month+1, day, hour, min, sec);
+		date = new DateTime(year, month+1, day, hour, min, sec, 0, python.lib.datetime.Timezone.utc);
 	}
 
 	public inline function getTime() : Float
 	{
-			
-		return date.timestamp()*1000.0;
+		return datetimeTimestamp(date);
 	}
 
 	public inline function getHours() : Int
@@ -110,13 +108,20 @@ import python.lib.datetime.DateTime;
 	static public function fromTime( t : Float ) : Date
 	{
 		var d = new Date(1970, 0, 1, 0, 0, 0);
-		d.date = DateTime.fromtimestamp(t/1000.0);
+		d.date = DateTime.fromtimestamp(t/1000.0, python.lib.datetime.Timezone.utc);
 		return d;
 	}
 
 	static function UTC( year : Int, month : Int, day : Int, hour : Int, min : Int, sec : Int ) : Float
 	{
-		return new DateTime(year, month+1, day, hour, min, sec, 0, python.lib.datetime.Timezone.utc).timestamp()*1000.0;
+		var dt = new DateTime(year, month+1, day, hour, min, sec, 0, python.lib.datetime.Timezone.utc);
+		return datetimeTimestamp(dt);
+	}
+
+	static function datetimeTimestamp(dt:DateTime):Int {
+		var dt2 = new DateTime(1970, 1, 1, 0, 0, 0, 0, python.lib.datetime.Timezone.utc);
+		var timedelta = new TimeDelta(0, 1);
+		return untyped __python__("(dt - dt2) * 1000 / timedelta");
 	}
 
 	static public function fromString( s : String ) : Date

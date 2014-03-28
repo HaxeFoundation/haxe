@@ -19,12 +19,12 @@ extern class DateTime {
 	public var microsecond : Int;
 	public var tzinfo : TzInfo;
 
-	
+
 
 	public static function today ():DateTime;
 	public static function now (?tzinfo:TzInfo):DateTime;
 	public static function utcnow ():DateTime;
-	public static function fromtimestamp (timestamp:Float):DateTime;
+	public static function fromtimestamp (timestamp:Float, tzInfo:TzInfo=null):DateTime;
 	public static function utcfromtimestamp (timestamp:Int):DateTime;
 	public static function fromordinal (ordinal:Int):DateTime;
 
@@ -38,7 +38,7 @@ extern class DateTime {
 	// python 3.3
 	public function timestamp ():Float;
 
-	static function __init__ ():Void 
+	static function __init__ ():Void
 	{
 		python.Macros.importFromAs("datetime", "datetime", "python.lib.datetime.DateTime");
 	}
