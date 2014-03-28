@@ -118,7 +118,8 @@ class HttpConnection implements Connection implements Dynamic<Connection> {
 		return false;
 	}
 	#end
-
+	
+	#if neko
 	public static function processRequest( requestData : String, ctx : Context ) : String {
 		try {
 			var u = new haxe.Unserializer(requestData);
@@ -127,11 +128,7 @@ class HttpConnection implements Connection implements Dynamic<Connection> {
 			for ( i in 0...args.length ) {
 				var arg	= args[ i ];
 				if ( Std.is( arg, String ) && StringTools.startsWith( arg, "__file__" ) )
-					#if neko
-						args[ i ]	= neko.Web.getMultipartParams().get( arg.substr( 8 ) );
-					#elseif php
-						args[ i ]	= php.Web.getMultipartParams().get( arg.substr( 8 ) );
-					#end
+					args[ i ]	= neko.Web.getMultipartParams().get( arg.substr( 8 ) );
 			}
 			var data = ctx.call(path,args);
 			var s = new haxe.Serializer();
@@ -143,5 +140,27 @@ class HttpConnection implements Connection implements Dynamic<Connection> {
 			return "hxr" + s.toString();
 		}
 	}
+	#elseif php
+	public static function processRequest( requestData : String, ctx : Context ) : String {
+		try {
+			var u = new haxe.Unserializer(requestData);
+			var path = u.unserialize();
+			var args : Array<Dynamic> = cast u.unserialize();
+			for ( i in 0...args.length ) {
+				var arg	= args[ i ];
+				if ( Std.is( arg, String ) && StringTools.startsWith( arg, "__file__" ) )
+					args[ i ]	= php.Web.getMultipartParams().get( arg.substr( 8 ) );
+			}
+			var data = ctx.call(path,args);
+			var s = new haxe.Serializer();
+			s.serialize(data);
+			return "hxr" + s.toString();
+		} catch( e : Dynamic ) {
+			var s = new haxe.Serializer();
+			s.serializeException(e);
+			return "hxr" + s.toString();
+		}
+	}
+	#end
 
 }
