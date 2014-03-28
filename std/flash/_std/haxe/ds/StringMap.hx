@@ -43,7 +43,7 @@ package haxe.ds;
 
 	public function remove( key : String ) : Bool {
 		key = "$"+key;
-		if( untyped !h.hasOwnProperty(key) ) return false;
+		if( untyped !__in__(key,h) ) return false;
 		untyped __delete__(h,key);
 		return true;
 	}

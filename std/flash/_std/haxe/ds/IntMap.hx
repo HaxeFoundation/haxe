@@ -42,7 +42,7 @@ package haxe.ds;
 	}
 
 	public function remove( key : Int ) : Bool {
-		if( untyped !h.hasOwnProperty(key) ) return false;
+		if( !exists(key) ) return false;
 		untyped __delete__(h,key);
 		return true;
 	}
