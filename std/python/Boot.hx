@@ -12,10 +12,10 @@ import builtins as _hx_builtin
 _hx_classes = dict()
 
 class _hx_AnonObject(object):
-    def __init__(self, **kwargs):
-        self.__dict__.update(kwargs)
+    def __init__(self, fields):
+        self.__dict__ = fields
 
-_hx_c = _hx_AnonObject()
+_hx_c = _hx_AnonObject({})
 
 _hx_c._hx_AnonObject = _hx_AnonObject
 

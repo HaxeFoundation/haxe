@@ -1150,7 +1150,8 @@ module Printer = struct
 		String.concat sep (List.map (print_expr pctx) el)
 
 	and print_exprs_named pctx sep fl =
-		String.concat sep (List.map (fun (s,e) -> Printf.sprintf "%s = %s" (handle_keywords s) (print_expr pctx e)) fl)
+		let args = String.concat sep (List.map (fun (s,e) -> Printf.sprintf "'%s': %s" (handle_keywords s) (print_expr pctx e)) fl) in
+		Printf.sprintf "{%s}" args
 
 	let handle_keywords s =
 		KeywordHandler.handle_keywords s
