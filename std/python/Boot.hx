@@ -6,6 +6,23 @@ import python.internal.EnumImpl;
 import python.internal.HxOverrides;
 import python.internal.HxException;
 
+@:preCode("
+import builtins as _hx_builtin
+
+_hx_classes = dict()
+
+class _hx_AnonObject(object):
+    def __init__(self, **kwargs):
+        self.__dict__.update(kwargs)
+
+_hx_c = _hx_AnonObject()
+
+_hx_c._hx_AnonObject = _hx_AnonObject
+
+import functools as _hx_functools
+import math as _hx_math
+"
+)
 @:keep class Boot {
 
 	static var inspect:Dynamic;

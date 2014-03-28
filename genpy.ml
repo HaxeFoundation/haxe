@@ -2,22 +2,6 @@ open Ast
 open Type
 open Common
 
-let bootcode = "import builtins as _hx_builtin
-
-_hx_classes = dict()
-
-class _hx_AnonObject(object):
-    def __init__(self, **kwargs):
-        self.__dict__.update(kwargs)
-
-_hx_c = _hx_AnonObject()
-
-_hx_c._hx_AnonObject = _hx_AnonObject
-
-import functools as _hx_functools
-import math as _hx_math
-"
-
 module KeywordHandler = struct
 	let kwds =
 		let h = Hashtbl.create 0 in
@@ -1642,10 +1626,6 @@ _hx_c.Bool = Bool	 *)
 			spr ctx "}\n"
 		end
 
-	let gen_boot_code ctx =
-		(* TODO: ... *)
-		spr ctx bootcode
-
 	let gen_types ctx =
 		let used_paths = Hashtbl.create 0 in
 		let find_type path =
@@ -1681,8 +1661,6 @@ _hx_c.Bool = Bool	 *)
 	let run com =
 		let ctx = mk_context com in
 		gen_resources ctx;
-		gen_boot_code ctx;
-		(* gen_boot_class ctx; *)
 		gen_types ctx;
 		gen_static_inits ctx;
 		gen_main ctx;
