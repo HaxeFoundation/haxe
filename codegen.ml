@@ -389,7 +389,7 @@ let rec build_generic ctx c p tl =
 					| _ -> assert false)
 				| _ -> Some(cs,pl)
 		);
-		Typeload.add_constructor ctx cg p;
+		Typeload.add_constructor ctx cg false p;
 		cg.cl_kind <- KGenericInstance (c,tl);
 		cg.cl_interface <- c.cl_interface;
 		cg.cl_constructor <- (match cg.cl_constructor, c.cl_constructor, c.cl_super with
