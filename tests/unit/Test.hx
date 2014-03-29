@@ -276,6 +276,9 @@ class Test #if swf_mark implements mt.Protect #end {
 			#if java
 			new TestJava(),
 			#end
+			#if python
+			new TestPython(),
+			#end
 			#if php
 			new TestPhp(),
 			#end

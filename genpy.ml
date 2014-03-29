@@ -345,6 +345,9 @@ module Transformer = struct
 	and exprs_to_func exprs name base =
 		let convert_return_expr (expr:texpr) =
 			match expr.eexpr with
+			| TWhile(_,_,_) ->
+				let ret = { expr with eexpr = TReturn (None) } in
+				[expr; ret]
 			| TFunction(f) ->
 				let ret = var_to_treturn_expr name f.tf_type f.tf_expr.epos in
 				[expr;ret]
@@ -622,7 +625,7 @@ module Transformer = struct
 			let params = List.map (fun (p) -> p.a_expr) params in
 			let e = { a_expr with eexpr = TCall(e.a_expr, params) } in
 			lift_expr ~blocks:blocks e
-		| (true, TArray(e1, e2)) ->
+		| (_, TArray(e1, e2)) ->
 			let e1 = trans true [] e1 in
 			let e2 = trans true [] e2 in
 			let r = { a_expr with eexpr = TArray(e1.a_expr, e2.a_expr)} in
@@ -673,8 +676,22 @@ module Transformer = struct
 			let e = trans is_value [] e in
 			let r = { a_expr with eexpr = TMeta(m, e.a_expr) } in
 			lift_expr ~blocks:e.a_blocks r
-		| _ ->
-			lift_expr ae.a_expr
+		| ( _, TPatMatch _ ) -> assert false
+		| ( _, TLocal _ ) -> lift_expr a_expr
+			
+		| ( _, TConst _ ) -> lift_expr a_expr
+		| ( _, TTypeExpr _ ) -> lift_expr a_expr
+		| ( _, TEnumParameter _ ) -> lift_expr a_expr
+		| ( _, TUnop _ ) -> assert false
+		| ( true, TWhile(econd, ebody, DoWhile) ) -> 
+			let new_expr = trans false [] a_expr in
+			let f = exprs_to_func (new_expr.a_blocks @ [new_expr.a_expr]) (ae.a_next_id()) ae in
+			lift_expr ~is_value:true ~blocks:f.a_blocks f.a_expr
+			
+		| ( _, TBreak ) | ( _, TContinue ) ->
+			lift_expr a_expr
+		(*| _ ->
+			lift_expr ae.a_expr*)
 
 	and transform e =
 		to_expr (transform1 (lift_expr e))
