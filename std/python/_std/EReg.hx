@@ -3,22 +3,20 @@ import python.lib.Re;
 import python.lib.Re.MatchObject;
 import python.lib.Re.Pattern;
 
+@:coreApi
 class EReg {
 
 	/**
 		Creates a new regular expression with pattern `r` and modifiers `opt`.
-		
+
 		This is equivalent to the shorthand syntax `~/r/opt`
-		
+
 		If `r` or `opt` are null, the result is unspecified.
 	**/
 
 	var pattern:Regex;
 	var matchObj:MatchObject;
 	var global:Bool;
-	
-
-
 
 	public function new( r : String, opt : String ) {
 		global = false;
@@ -36,9 +34,9 @@ class EReg {
 
 	/**
 		Tells if `this` regular expression matches String `s`.
-		
+
 		This method modifies the internal state.
-		
+
 		If `s` is `null`, the result is unspecified.
 	**/
 	public function match( s : String ) : Bool {
@@ -48,13 +46,13 @@ class EReg {
 
 	/**
 		Returns the matched sub-group `n` of `this` EReg.
-		
+
 		This method should only be called after `this.match` or
 		`this.matchSub`, and then operates on the String of that operation.
-		
+
 		The index `n` corresponds to the n-th set of parentheses in the pattern
 		of `this` EReg. If no such sub-group exists, an exception is thrown.
-		
+
 		If `n` equals 0, the whole matched substring is returned.
 	**/
 	public function matched( n : Int ) : String {
@@ -63,13 +61,13 @@ class EReg {
 
 	/**
 		Returns the part to the left of the last matched substring.
-		
+
 		If the most recent call to `this.match` or `this.matchSub` did not
 		match anything, the result is unspecified.
-		
+
 		If the global g modifier was in place for the matching, only the
 		substring to the left of the leftmost match is returned.
-		
+
 		The result does not include the matched part.
 	**/
 	public function matchedLeft() : String {
@@ -78,13 +76,13 @@ class EReg {
 
 	/**
 		Returns the part to the right of the last matched substring.
-		
+
 		If the most recent call to `this.match` or `this.matchSub` did not
 		match anything, the result is unspecified.
-		
+
 		If the global g modifier was in place for the matching, only the
 		substring to the right of the leftmost match is returned.
-		
+
 		The result does not include the matched part.
 	**/
 	public function matchedRight() : String {
@@ -95,10 +93,10 @@ class EReg {
 		Returns the position and length of the last matched substring, within
 		the String which was last used as argument to `this.match` or
 		`this.matchSub`.
-		
+
 		If the most recent call to `this.match` or `this.matchSub` did not
 		match anything, the result is unspecified.
-		
+
 		If the global g modifier was in place for the matching, the position and
 		length of the leftmost substring is returned.
 	**/
@@ -108,13 +106,13 @@ class EReg {
 
 	/**
 		Tells if `this` regular expression matches a substring of String `s`.
-		
+
 		This function expects `pos` and `len` to describe a valid substring of
 		`s`, or else the result is unspecified. To get more robust behavior,
 		`this.matchSub(s.substr(pos,len))` can be used instead.
-		
+
 		This method modifies the internal state.
-		
+
 		If `s` is null, the result is unspecified.
 	**/
 	public function matchSub( s : String, pos : Int, ?len : Int):Bool {
@@ -123,34 +121,34 @@ class EReg {
 		} else {
 			matchObj = pattern.search(s, pos);
 		}
-		
+
 		return this.matchObj != null;
-		
+
 	}
 
 	/**
 		Splits String `s` at all substrings `this` EReg matches.
-		
+
 		If a match is found at the start of `s`, the result contains a leading
 		empty String "" entry.
-		
+
 		If a match is found at the end of `s`, the result contains a trailing
 		empty String "" entry.
-		
+
 		If two matching substrings appear next to each other, the result
 		contains the empty String "" between them.
-		
+
 		By default, this method splits `s` into two parts at the first matched
 		substring. If the global g modifier is in place, `s` is split at each
 		matched substring.
-		
+
 		If `s` is null, the result is unspecified.
 	**/
 	public function split( s : String ) : Array<String> {
 		return if (global) {
 			var ret = [];
 			var lastEnd = 0;
-			
+
 			for (x in Re.finditer(pattern, s)) {
 
 				ret.push(s.substring(lastEnd, x.start() ));
@@ -161,7 +159,7 @@ class EReg {
 		} else {
 			this.match(s);
 			if (matchObj == null) {
-				
+
 				return [s];
 			} else {
 				return [ s.substring(0, matchObj.start()), s.substr(matchObj.end()) ];
@@ -172,19 +170,19 @@ class EReg {
 
 	/**
 		Replaces the first substring of `s` which `this` EReg matches with `by`.
-		
+
 		If `this` EReg does not match any substring, the result is `s`.
-		
+
 		By default, this method replaces only the first matched substring. If
 		the global g modifier is in place, all matched substrings are replaced.
-		
+
 		If `by` contains `$1` to `$9`, the digit corresponds to number of a
 		matched sub-group and its value is used instead. If no such sub-group
 		exists, the replacement is unspecified. The string `$$` becomes `$`.
-		
+
 		If `s` or `by` are null, the result is unspecified.
 	**/
-	public function replace( s : String, by : String ) : String 
+	public function replace( s : String, by : String ) : String
 	{
 		var by = by.split("$$").join("_hx_#repl#__");
 		function replace (x:MatchObject) {
@@ -206,14 +204,14 @@ class EReg {
 		and setting the `g` flag might cause some incorrect behavior on some platforms.
 	**/
 	public function map( s : String, f : EReg -> String ) : String {
-		
+
 		var buf = new StringBuf();
 		var pos = 0;
 		var right = s;
-		
+
 		var cur = this;
 		while( pos < s.length ) {
-			
+
 			if (matchObj == null) {
 				matchObj = Re.search(pattern, s);
 			} else {
@@ -222,8 +220,8 @@ class EReg {
 
 			if( matchObj == null )
 				break;
-			
-			
+
+
 
 			var pos1 = matchObj.end();
 
@@ -234,14 +232,14 @@ class EReg {
 			buf.add(f(cur));
 
 			right = cur.matchedRight();
-			
-			
+
+
 
 			if (!global) {
 				buf.add(right);
 				return buf.toString();
 			}
-			
+
 			if (curPos.len == 0) {
 				buf.add(s.charAt(pos1));
 				right = right.substr(1);
@@ -250,7 +248,7 @@ class EReg {
 				pos = pos1;
 			}
 
-			
+
 		}
 		buf.add(right);
 		return buf.toString();
