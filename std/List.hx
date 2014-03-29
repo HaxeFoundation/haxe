@@ -159,7 +159,7 @@ class List<T> {
 		Returns an iterator on the elements of the list.
 	**/
 	public function iterator() : Iterator<T> {
-		#if (java || cs)
+		#if (java || cs || python)
 		var h = h;
 		return cast {
 			hasNext : function() {
