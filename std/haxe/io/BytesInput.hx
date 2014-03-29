@@ -55,6 +55,7 @@ class BytesInput extends Input {
 		this.len = len;
 		this.totlen = len;
 		#end
+		bigEndian = false;
 	}
 
 	inline function get_position() : Int {
