@@ -438,14 +438,16 @@ module Transformer = struct
 			transform_function f ae is_value
 		| (_,TVar(v,None)) ->
 			transform_var_expr ae None v
-(* 		| (false, TVar(v,Some({ eexpr = TUnop((Increment | Decrement as unop),post_fix,({eexpr = TLocal _ | TField({eexpr = TConst TThis},_)} as ve))} as e1))) ->
+ 		| (false, TVar(v,Some({ eexpr = TUnop((Increment | Decrement as unop),post_fix,({eexpr = TLocal _ | TField({eexpr = TConst TThis},_)} as ve))} as e1))) ->
 			let one = {e1 with eexpr = TConst (TInt (Int32.of_int 1))} in
 			let op = if unop = Increment then OpAdd else OpSub in
 			let inc = {e1 with eexpr = TBinop(op,ve,one)} in
 			let inc_assign = {e1 with eexpr = TBinop(OpAssign,ve,inc)} in
 			let var_assign = {e1 with eexpr = TVar(v,Some ve)} in
-			let block = if post_fix = Postfix then [var_assign;inc_assign] else [inc_assign;var_assign] in
-			transform_exprs_to_block block ae.a_expr.etype false ae.a_expr.epos ae.a_next_id *)
+			if post_fix = Postfix then 
+				lift true [var_assign] inc_assign 
+			else 
+				lift true [inc_assign] var_assign
 		| (_,TVar(v,eo)) ->
 			transform_var_expr ae eo v
 		| (_,TFor(v,e1,e2)) ->
