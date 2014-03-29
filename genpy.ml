@@ -930,6 +930,8 @@ module Printer = struct
 				Printf.sprintf "%s(%s)" id (print_exprs pctx ", " el)
 			| TUnop(op,Postfix,e1) ->
 				Printf.sprintf "%s%s" (print_expr pctx e1) (print_unop op)
+			| TUnop(OpNot,Prefix,e1) ->
+				Printf.sprintf "(%s%s)" (print_unop op) (print_expr pctx e1)
 			| TUnop(op,Prefix,e1) ->
 				Printf.sprintf "%s%s" (print_unop op) (print_expr pctx e1)
 			| TFunction tf ->
