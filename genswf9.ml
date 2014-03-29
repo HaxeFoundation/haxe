@@ -2016,7 +2016,7 @@ let generate_field_kind ctx f c stat =
 			Some (HFMethod {
 				hlm_type = m;
 				hlm_final = stat || (Meta.has Meta.Final f.cf_meta);
-				hlm_override = not stat && loop c f.cf_name; (* use real field name to check for overrides (issue #2785) *)
+				hlm_override = not stat && loop c name;
 				hlm_kind = kind;
 			})
 		);
@@ -2044,7 +2044,7 @@ let generate_field_kind ctx f c stat =
 			hlv_value = HVNone;
 			hlv_const = false;
 		})
-
+		
 let check_constructor ctx c f =
 	(*
 		check that we don't assign a super Float var before we call super() : will result in NaN
@@ -2061,7 +2061,7 @@ let check_constructor ctx c f =
 		loop f.tf_expr
 	with Exit ->
 		()
-
+		
 let generate_class ctx c =
 	let name = type_path ctx c.cl_path in
 	ctx.cur_class <- c;
