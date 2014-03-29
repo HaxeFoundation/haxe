@@ -31,8 +31,6 @@ class StringImpl {
 				return i;
 			}
 		}
-
-		
 	}
 
 	public static inline function fromCharCode( code : Int ) : String {
@@ -40,8 +38,8 @@ class StringImpl {
 		return "";
 		#else
 		var c = code;
-		return (untyped (''.join)(Builtin.map(Builtin.chr, [c])):String);
+		return (untyped (''.join)(Builtin.map(Builtin.chr, cast [c])):String); // TODO: check cast
 		#end
 	}
-	
+
 }

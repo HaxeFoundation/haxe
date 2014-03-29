@@ -26,18 +26,19 @@ import python.lib.Types;
 #end
 
 @:native("list")
+@:coreApi
 extern class Array<T> implements ArrayAccess<T> extends ArrayImpl {
 
-	public var length(get,null) : Int;
+	public var length(default,null) : Int;
 
 	private inline function get_length ():Int return ArrayImpl.get_length(this);
-	
+
 
 	public function new() : Void;
 
 
 	public inline function concat( a : Array<T>) : Array<T> {
-		
+
 		return ArrayImpl.concat(this, a);
 	}
 
@@ -82,7 +83,7 @@ extern class Array<T> implements ArrayAccess<T> extends ArrayImpl {
 
 	public inline function remove(x : T) : Bool {
 		return ArrayImpl.remove(this,x);
-		
+
 	}
 
 	public function reverse() : Void;
@@ -112,7 +113,7 @@ extern class Array<T> implements ArrayAccess<T> extends ArrayImpl {
 	}
 
 
-	
+
 	@:keep private inline function __get(idx:Int):T
 	{
 		return ArrayImpl.__get(this, idx);
@@ -133,7 +134,5 @@ extern class Array<T> implements ArrayAccess<T> extends ArrayImpl {
 		return ArrayImpl.__unsafe_set(this, idx,val);
 	}
 
-	@:noCompletion public function __iter__ ():PyIterator<T>;
-
-	
+	@:noCompletion private function __iter__ ():PyIterator<T>;
 }
