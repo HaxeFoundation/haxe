@@ -11,18 +11,18 @@ abstract Choice <A,B>(Dynamic) {
 	@:from public static inline function fromB <A,B>(x:B):Choice<A,B> return cast x;
 }
 
-abstract KwArgs (Dict<String, Dynamic>) to Dict<String, Dynamic> from Dict<String, Dynamic> 
+abstract KwArgs (Dict<String, Dynamic>) to Dict<String, Dynamic> from Dict<String, Dynamic>
 {
-	
-	public function get <V>(key:String, def:V):V 
+
+	public function get <V>(key:String, def:V):V
 	{
 		return this.get(key, def);
 	}
 }
 
-abstract VarArgs (Array<Dynamic>) to Array<Dynamic> from Array<Dynamic> 
+abstract VarArgs (Array<Dynamic>) to Array<Dynamic> from Array<Dynamic>
 {
-	
+
 }
 
 
@@ -35,7 +35,7 @@ extern class Bytes {
 	public inline function get_length ():Int return Builtin.len(this);
 	public function decode(encoding:String="utf-8", errors:String="strict"):String;
 
-	static function __init__ ():Void 
+	static function __init__ ():Void
 	{
 		Macros.importFromAs("builtins", "bytes", "python.lib.Bytes");
 	}
@@ -43,7 +43,7 @@ extern class Bytes {
 
 }
 
-typedef Variant<A,B> = Dynamic; 
+typedef Variant<A,B> = Dynamic;
 typedef Variant3<A,B,C> = Dynamic;
 typedef Variant4<A,B,C,D> = Dynamic;
 
@@ -56,13 +56,13 @@ abstract PyIterator <T>(NativeIterator<T>) to NativeIterator<T> to PyIterable<T>
 
 abstract PyIterable <T>(NativeIterable<T>) to NativeIterable<T> from NativeIterable<T> {
 	@:to public static inline function toHaxeIterable <T>(p:NativeIterable<T>):HaxeIterable<T> return python.Lib.toHaxeIterable(p);
-	
+
 	//@:from public static inline function fromArray <T>(p:Array<T>):PyIterable<T> return cast p;
 
 	public inline function iterator <T>() return IterHelper.iterableToIterator(this);
 	public function getNativeIterable <T>():NativeIterable<T> return this;
 	public function getNativeIterator <T>():NativeIterator<T> return this.__iter__();
-	
+
 }
 
 class IterHelper {
@@ -79,7 +79,7 @@ typedef NativeIterator<T> = {
 
 typedef NativeIterable<T> = {
 	function __iter__():PyIterator<T>;
-	
+
 }
 
 typedef List<T> = Array<T>;
@@ -95,7 +95,7 @@ typedef Equal = {
 }
 
 typedef Comparable = {
-	
+
 	public function __cmp__(other:Dynamic):Int;
 }
 
@@ -113,13 +113,13 @@ extern class FileDescriptor {
 //}
 
 //@:native("set")
-extern class Set <T> 
+extern class Set <T>
 {
 
 	@:overload(function (?array:Array<T>):Void {})
 	public function new (?iterable:python.lib.Types.PyIterable<T>):Void;
 
-	public inline function length ():Int 
+	public inline function length ():Int
 	{
 		return python.lib.Builtin.len(this);
 	}
@@ -134,7 +134,7 @@ extern class Set <T>
 		return untyped __python_binop__(this, "+", other);
 	}
 
-	static function __init__ ():Void 
+	static function __init__ ():Void
 	{
 		Macros.importFromAs("builtins", "set", "python.lib.Set");
 	}
@@ -148,13 +148,18 @@ extern class Set <T>
 }
 
 extern class DictView<T> {
-	public inline function iter ():PyIterator<T> 
+	public inline function iter ():PyIterator<T>
 	{
 		return Builtin.iter(this);
 	}
-	public inline function length ():Int 
+	public inline function length ():Int
 	{
 		return Builtin.len(this);
+	}
+
+	public inline function iterator ():Iterator<T>
+	{
+		return iter();
 	}
 }
 
@@ -164,7 +169,7 @@ extern class Dict <K, V>
 {
 	public function new ():Void;
 
-	public inline function length ():Int 
+	public inline function length ():Int
 	{
 		return python.lib.Builtin.len(this);
 	}
@@ -187,10 +192,10 @@ extern class Dict <K, V>
 		return DictImpl.fromObject(x);
 	}
 	public inline function set (key:K, val:V):Void {
-		DictImpl.set(this, key, val);	
+		DictImpl.set(this, key, val);
 	}
-	
-	public inline function remove (key:K):Void 
+
+	public inline function remove (key:K):Void
 	{
 		DictImpl.remove(this, key);
 	}
@@ -200,7 +205,7 @@ extern class Dict <K, V>
 		return values().iter();
 	}
 
-	static function __init__ ():Void 
+	static function __init__ ():Void
 	{
 		Macros.importFromAs("builtins", "dict", "python.lib.Dict");
 	}
@@ -236,7 +241,7 @@ extern class Tuple<X> implements ArrayAccess<X> {
 		return Builtin.tuple();
 	}
 
-	
+
 
 	public static inline function fromArray<X>(a:Array<X>):Tuple<X> {
 		return Builtin.tuple(a);
@@ -309,7 +314,7 @@ extern class Tup5 <A,B,C,D,E> extends Tuple<Dynamic>
 
 
 @:native("BaseException")
-extern class BaseException 
+extern class BaseException
 {
 	public function new (msg:String):Void;
 }
@@ -319,23 +324,23 @@ extern class BaseException
 @:native("BufferError")
 extern class BufferError extends BaseException
 {
-	
+
 }
 
 @:native("GeneratorExit")
 extern class GeneratorExit extends BaseException
 {
-	
+
 }
 
 @:native("KeyboardInterrupt")
 extern class KeyboardInterrupt extends BaseException
 {
-	
+
 }
 
 @:native("Exception")
-extern class Exception extends BaseException 
+extern class Exception extends BaseException
 {
 
 }
@@ -343,7 +348,7 @@ extern class Exception extends BaseException
 @:native("SyntaxError")
 extern class SyntaxError extends Exception
 {
-	
+
 }
 
 @:native("StopIteration")
@@ -355,69 +360,69 @@ extern class StopIteration extends Exception
 @:native("RuntimeError")
 extern class RuntimeError extends Exception
 {
-	
+
 }
 
 @:native("NotImplementedError")
 extern class NotImplementedError extends RuntimeError
 {
-	
+
 }
 
 @:native("IndentationError")
 extern class IndentationError extends SyntaxError
 {
-	
+
 }
 
 @:native("EnvironmentError")
 extern class EnvironmentError extends Exception
 {
-	
+
 }
 
 @:native("OSError")
 extern class OSError extends EnvironmentError
 {
-	
+
 }
 
 @:native("BlockingIOError")
 extern class BlockingIOError extends OSError
 {
-	
+
 }
 
 @:native("ChildProcessError")
 extern class ChildProcessError extends OSError
 {
-	
+
 }
 
 @:native("ConnectionError")
 extern class ConnectionError extends OSError
 {
-	
+
 }
 
 @:native("BrokenPipeError")
 extern class BrokenPipeError extends ConnectionError
 {
-	
+
 }
 
 @:native("ConnectionAbortedError")
-extern class ConnectionAbortedError extends ConnectionError 
+extern class ConnectionAbortedError extends ConnectionError
 {
 
 }
 @:native("ConnectionRefusedError")
-extern class ConnectionRefusedError extends ConnectionError 
+extern class ConnectionRefusedError extends ConnectionError
 {
 
 }
 @:native("ConnectionResetError")
-extern class ConnectionResetError extends ConnectionError 
+extern class ConnectionResetError extends ConnectionError
 {
 
 }
@@ -467,43 +472,43 @@ extern class TimeoutError extends OSError
 @:native("NameError")
 extern class NameError extends Exception
 {
-	
+
 }
 
 @:native("UnboundLocalError")
 extern class UnboundLocalError extends NameError
 {
-	
+
 }
 
 @:native("MemoryError")
 extern class MemoryError extends Exception
 {
-	
+
 }
 
 @:native("AssertionError")
 extern class AssertionError extends Exception
 {
-	
+
 }
 
 @:native("AttributeError")
 extern class AttributeError extends Exception
 {
-	
+
 }
 
 @:native("EOFError")
 extern class EOFError extends Exception
 {
-	
+
 }
 
 @:native("ArithmeticError")
 extern class ArithmeticError extends Exception
 {
-	
+
 }
 
 
@@ -511,20 +516,20 @@ extern class ArithmeticError extends Exception
 @:native("FloatingPointError")
 extern class FloatingPointError extends ArithmeticError
 {
-	
+
 }
 
 @:native("OverflowError")
 extern class OverflowError extends ArithmeticError
 {
-	
+
 }
 
 
 @:native("ZeroDivisionError")
 extern class ZeroDivisionError extends ArithmeticError
 {
-	
+
 }
 
 
@@ -532,25 +537,25 @@ extern class ZeroDivisionError extends ArithmeticError
 @:native("ImportError")
 extern class ImportError extends Exception
 {
-	
+
 }
 
 @:native("LookupError")
 extern class LookupError extends Exception
 {
-	
+
 }
 
 @:native("IndexError")
 extern class IndexError extends LookupError
 {
-	
+
 }
 
 @:native("KeyError")
 extern class KeyError extends LookupError
 {
-	
+
 }
 
 
@@ -562,19 +567,19 @@ extern class KeyError extends LookupError
 @:native("IOError")
 extern class IOError extends EnvironmentError
 {
-	
+
 }
 
 @:native("VMSError")
 extern class VMSError extends OSError
 {
-	
+
 }
 
 @:native("WindowsError")
 extern class WindowsError extends OSError
 {
-	
+
 }
 
 
@@ -585,7 +590,7 @@ extern class WindowsError extends OSError
 @:native("ValueError")
 extern class ValueError extends Exception
 {
-	
+
 }
 
 @:native("UnicodeError")
@@ -616,52 +621,52 @@ extern class Warning extends Exception
 }
 
 @:native("DeprecationWarning")
-extern class DeprecationWarning extends Warning 
+extern class DeprecationWarning extends Warning
 {
 
 }
 @:native("PendingDeprecationWarning")
-extern class PendingDeprecationWarning extends Warning 
+extern class PendingDeprecationWarning extends Warning
 {
 
 }
 @:native("RuntimeWarning")
-extern class RuntimeWarning extends Warning 
+extern class RuntimeWarning extends Warning
 {
 
 }
 @:native("SyntaxWarning")
-extern class SyntaxWarning extends Warning 
+extern class SyntaxWarning extends Warning
 {
 
 }
 @:native("UserWarning")
-extern class UserWarning extends Warning 
+extern class UserWarning extends Warning
 {
 
 }
 @:native("FutureWarning")
-extern class FutureWarning extends Warning 
+extern class FutureWarning extends Warning
 {
 
 }
 @:native("ImportWarning")
-extern class ImportWarning extends Warning 
+extern class ImportWarning extends Warning
 {
 
 }
 @:native("UnicodeWarning")
-extern class UnicodeWarning extends Warning 
+extern class UnicodeWarning extends Warning
 {
 
 }
 @:native("BytesWarning")
-extern class BytesWarning extends Warning 
+extern class BytesWarning extends Warning
 {
 
 }
 @:native("ResourceWarning")
-extern class ResourceWarning extends Warning 
+extern class ResourceWarning extends Warning
 {
 
 }

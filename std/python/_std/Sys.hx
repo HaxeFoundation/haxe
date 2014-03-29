@@ -4,6 +4,8 @@ import python.lib.Time;
 @:coreApi
 class Sys {
 
+	static var environ:haxe.ds.StringMap<String>;
+
 	public static function time():Float {
 		return Time.time()/1000;
 	}
@@ -23,21 +25,20 @@ class Sys {
 	}
 
 	public static function args() : Array<String> {
-		return python.lib.Sys.argv;
+		var argv = python.lib.Sys.argv;
+		return argv.slice(1);
 	}
 
 	public static function getEnv( s : String ) : String {
-		return python.lib.Os.environ.get(s, null);
+		return environ.get(s);
 	}
 
 	public static function putEnv( s : String, v : String ) : Void {
-		python.lib.Os.environ.set(s, v);
+		environ.set(s, v);
 	}
 
 	public static function environment() : haxe.ds.StringMap<String> {
-		var map = new haxe.ds.StringMap();
-		untyped map.h = python.lib.Os.environ;
-		return map;
+		return environ;
 	}
 
 	public static function sleep( seconds : Float ) : Void {
@@ -70,7 +71,7 @@ class Sys {
 	}
 
 	public static function executablePath() : String {
-		return "";
+		return python.lib.Sys.argv[0];
 	}
 
 	public static function getChar( echo : Bool ) : Int {
@@ -87,5 +88,13 @@ class Sys {
 
 	public static function stderr() : haxe.io.Output {
 		return null;
+	}
+
+	static function __init__():Void {
+		environ = new haxe.ds.StringMap();
+		var env = python.lib.Os.environ;
+		for (key in env.keys()) {
+			environ.set(key, env.get(key, null));
+		}
 	}
 }
