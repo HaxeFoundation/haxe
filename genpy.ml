@@ -938,8 +938,11 @@ module Printer = struct
 				print_function pctx tf None
 			| TVar (v,eo) ->
 				print_var pctx v eo
+			
 			| TBlock [] ->
 				Printf.sprintf "pass\n%s" indent
+			| TBlock [{ eexpr = TBlock _} as b] ->
+				print_expr pctx b
 			| TBlock el ->
 				let old = !tabs in
 				tabs := pctx.pc_indent;
@@ -1294,16 +1297,6 @@ module Generator = struct
 	let newline ctx =
 		spr ctx "\n"
 
-	let open_block ctx =
-		newline ctx;
-		ctx.indent_count <- ctx.indent_count + 1;
-		newline ctx
-
-	let close_block ctx =
-		ctx.indent_count <- ctx.indent_count - 1;
-		newline ctx;
-		newline ctx;
-		newline ctx
 
 	(* Generating functions *)
 
@@ -1356,7 +1349,7 @@ module Generator = struct
 			| Some e1,e2 ->
 				let expr_string_1 = texpr_str e1 pctx in
 				let expr_string_2 = texpr_str e2 pctx in
-				print ctx "%sdef %s():\n\t%s\n" indent name expr_string_1;
+				print ctx "%sdef %s():\n\t%s" indent name expr_string_1;
 				print ctx "%s%s = %s" indent field expr_string_2;
 			| None,e2 ->
 				let expr_string_2 = texpr_str e2 pctx in
@@ -1392,7 +1385,6 @@ module Generator = struct
 		spr ctx indent;
 		spr ctx expr_string;
 		if stat then begin
-			newline ctx;
 			print ctx "%s.%s = %s" (get_path (t_infos (TClassDecl c))) name field_name
 		end
 
@@ -1420,16 +1412,16 @@ module Generator = struct
 		let field = handle_keywords cf.cf_name in
 		begin match cf.cf_expr with
 			| None ->
-				print ctx "\t# var %s" field
+				()(* print ctx "\t# var %s" field *)
 			| Some e ->
 				match cf.cf_kind with
 					| Method _ ->
 						let py_metas = filter_py_metas cf.cf_meta in
 						gen_func_expr ctx e c field py_metas ["self"] "\t" false;
-						newline ctx
+						
 					| _ ->
 						gen_expr ctx e (Printf.sprintf "# var %s" field) "\t";
-						newline ctx
+						
 		end;
 		newline ctx
 
@@ -1457,7 +1449,7 @@ module Generator = struct
 			let statics = collect_class_statics_data c.cl_ordered_statics in
 			String.concat "," (List.map (fun s -> "\"" ^ s ^ "\"") statics)
 		in
-		newline ctx;
+		
 		print ctx "%s._hx_class = %s\n" p p;
 		print ctx "%s._hx_class_name = \"%s\"\n" p p_name;
 		print ctx "_hx_classes[\"%s\"] = %s\n" p_name p;
@@ -1511,11 +1503,12 @@ module Generator = struct
 
 	let gen_class ctx c =
 		gen_pre_code_meta ctx c.cl_meta;
-		print ctx "# print %s.%s\n" (s_type_path c.cl_module.m_path) (snd c.cl_path);
+		(* print ctx "# print %s.%s\n" (s_type_path c.cl_module.m_path) (snd c.cl_path); *)
 		if not c.cl_extern then begin
 			let mt = (t_infos (TClassDecl c)) in
 			let p = get_path mt in
 			let p_name = get_full_name mt in
+			newline ctx;
 			print ctx "class %s" p;
 			let p_super = match c.cl_super with
 				| None ->
@@ -1529,7 +1522,7 @@ module Generator = struct
 				get_path (t_infos (TClassDecl c))
 			) c.cl_implements in
 			spr ctx ":";
-			open_block ctx;
+			spr ctx "\n";
 			begin match c.cl_constructor with
 				| Some cf -> gen_class_constructor ctx c cf;
 				| None -> ()
@@ -1540,8 +1533,8 @@ module Generator = struct
 				| [] -> c.cl_constructor = None
 				| _ -> c.cl_interface
 			in
-			if use_pass then spr_line ctx "\tpass";
-			close_block ctx;
+			if use_pass then spr_line ctx "\tpass\n";
+			
 			gen_class_data ctx c x p_super p_interfaces p p_name;
 			gen_class_empty_constructor ctx p c.cl_ordered_fields;
 			gen_class_statics ctx c p;
@@ -1562,10 +1555,10 @@ module Generator = struct
 		let mt = (t_infos (TEnumDecl en)) in
 		let p = get_path mt in
 		let p_name = get_full_name mt in
+		newline ctx;
 		print ctx "class %s(_hx_c.Enum):\n" p;
 		spr ctx "\tdef __init__(self, t, i, p):\n";
-		print ctx "\t\tsuper(%s,self).__init__(t, i, p)" p;
-		newline ctx;
+		print ctx "\t\tsuper(%s,self).__init__(t, i, p)\n" p;
 		let enum_constructs = PMap.foldi (fun k ef acc ->
 			let f = handle_keywords ef.ef_name in
 			begin match follow ef.ef_type with
@@ -1594,13 +1587,13 @@ module Generator = struct
 
 	let gen_abstract ctx a =
 		gen_pre_code_meta ctx a.a_meta;
-		print ctx "# print %s.%s\n" (s_type_path a.a_module.m_path) (snd a.a_path);
+		(* print ctx "# print %s.%s\n" (s_type_path a.a_module.m_path) (snd a.a_path); *)
+		newline ctx;
 		let mt = (t_infos (TAbstractDecl a)) in
 		let p = get_path mt in
 		let p_name = get_full_name mt in
 		print ctx "class %s" p;
 		spr ctx ":";
-		open_block ctx;
 		begin match a.a_impl with
 			| Some c ->
 				List.iter (fun cf ->
@@ -1610,9 +1603,9 @@ module Generator = struct
 						gen_class_field ctx c p cf
 				) c.cl_ordered_statics;
 			| None ->
-				spr_line ctx "\tpass";
+				spr_line ctx "\n\tpass\n";
 		end;
-		close_block ctx;
+		
 		print ctx "%s._hx_class = %s\n" p p;
 		print ctx "%s._hx_class_name = \"%s\"\n" p p_name;
 		print ctx "_hx_classes[\"%s\"] = %s\n" p_name p;
