@@ -1422,16 +1422,17 @@ module Generator = struct
 			| None ->
 				()(* print ctx "\t# var %s" field *)
 			| Some e ->
-				match cf.cf_kind with
+				begin match cf.cf_kind with
 					| Method _ ->
 						let py_metas = filter_py_metas cf.cf_meta in
 						gen_func_expr ctx e c field py_metas ["self"] "\t" false;
 						
 					| _ ->
 						gen_expr ctx e (Printf.sprintf "# var %s" field) "\t";
-						
-		end;
-		newline ctx
+				newline ctx;
+				end
+		end
+		
 
 	let gen_static_field ctx c p cf =
 		let p = get_path (t_infos (TClassDecl c)) in
