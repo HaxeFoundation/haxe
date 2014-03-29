@@ -14,4 +14,8 @@ class TestPython extends Test {
 		eq(3, x);
 	}
 
+	public function testKeywords () {
+		var list = new Array();
+	}
+
 }

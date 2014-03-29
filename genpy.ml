@@ -1007,8 +1007,13 @@ module Printer = struct
 			| _ -> print_expr pctx e1
 		in
 		let name = field_name fa in
+		let is_extern = (match fa with
+		| FInstance(c,_) -> c.cl_extern
+		| FStatic(c,_) -> c.cl_extern
+		| _ -> false)
+		in
 		let do_default () =
-			Printf.sprintf "%s.%s" obj (handle_keywords name)
+			Printf.sprintf "%s.%s" obj (if is_extern then name else (handle_keywords name))
 		in
 		match fa with
 			| FInstance(c,{cf_name = "length" | "get_length"}) when (is_type "" "list")(TClassDecl c) ->
