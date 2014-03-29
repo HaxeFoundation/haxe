@@ -252,14 +252,14 @@ class Serializer {
 			}
 			if( useCache && serializeRef(v) )
 				return;
-			switch( #if (neko || cs) Type.getClassName(c) #else c #end ) {
-			case #if (neko || cs) "Array" #else cast Array #end:
+			switch( #if (neko || cs || python) Type.getClassName(c) #else c #end ) {
+			case #if (neko || cs || python) "Array" #else cast Array #end:
 				var ucount = 0;
 				buf.add("a");
-				#if flash9
+				#if (flash9 || python)
 				var v : Array<Dynamic> = v;
 				#end
-				var l = #if (neko || flash9 || php || cs || java) v.length #elseif cpp v.__length() #else v[untyped "length"] #end;
+				var l = #if (neko || flash9 || php || cs || java || python) v.length #elseif cpp v.__length() #else v[untyped "length"] #end;
 				for( i in 0...l ) {
 					if( v[i] == null )
 						ucount++;
@@ -285,17 +285,17 @@ class Serializer {
 					}
 				}
 				buf.add("h");
-			case #if (neko || cs) "List" #else cast List #end:
+			case #if (neko || cs || python) "List" #else cast List #end:
 				buf.add("l");
 				var v : List<Dynamic> = v;
 				for( i in v )
 					serialize(i);
 				buf.add("h");
-			case #if (neko || cs) "Date" #else cast Date #end:
+			case #if (neko || cs || python) "Date" #else cast Date #end:
 				var d : Date = v;
 				buf.add("v");
 				buf.add(d.toString());
-			case #if (neko || cs) "haxe.ds.StringMap" #else cast haxe.ds.StringMap #end:
+			case #if (neko || cs || python) "haxe.ds.StringMap" #else cast haxe.ds.StringMap #end:
 				buf.add("b");
 				var v : haxe.ds.StringMap<Dynamic> = v;
 				for( k in v.keys() ) {
@@ -303,7 +303,7 @@ class Serializer {
 					serialize(v.get(k));
 				}
 				buf.add("h");
-			case #if (neko || cs) "haxe.ds.IntMap" #else cast haxe.ds.IntMap #end:
+			case #if (neko || cs || python) "haxe.ds.IntMap" #else cast haxe.ds.IntMap #end:
 				buf.add("q");
 				var v : haxe.ds.IntMap<Dynamic> = v;
 				for( k in v.keys() ) {
@@ -312,7 +312,7 @@ class Serializer {
 					serialize(v.get(k));
 				}
 				buf.add("h");
-			case #if (neko || cs) "haxe.ds.ObjectMap" #else cast haxe.ds.ObjectMap #end:
+			case #if (neko || cs || python) "haxe.ds.ObjectMap" #else cast haxe.ds.ObjectMap #end:
 				buf.add("M");
 				var v : haxe.ds.ObjectMap<Dynamic,Dynamic> = v;
 				for ( k in v.keys() ) {
@@ -327,7 +327,7 @@ class Serializer {
 					serialize(v.get(k));
 				}
 				buf.add("h");
-			case #if (neko || cs) "haxe.io.Bytes" #else cast haxe.io.Bytes #end:
+			case #if (neko || cs || python) "haxe.io.Bytes" #else cast haxe.io.Bytes #end:
 				var v : haxe.io.Bytes = v;
 				#if neko
 				var chars = new String(base_encode(v.getData(),untyped BASE64.__s));
@@ -365,7 +365,7 @@ class Serializer {
 				buf.add(chars);
 			default:
 				if( useCache ) cache.pop();
-				if( #if flash9 try v.hxSerialize != null catch( e : Dynamic ) false #elseif (cs || java) Reflect.hasField(v, "hxSerialize") #else v.hxSerialize != null #end  ) {
+				if( #if flash9 try v.hxSerialize != null catch( e : Dynamic ) false #elseif (cs || java || python) Reflect.hasField(v, "hxSerialize") #else v.hxSerialize != null #end  ) {
 					buf.add("C");
 					serializeString(Type.getClassName(c));
 					if( useCache ) cache.push(v);
@@ -456,7 +456,7 @@ class Serializer {
 				for( i in 0...l )
 					serialize(untyped __field__(v, __php__("params"), i));
 			}
-			#elseif (java || cs)
+			#elseif (java || cs || python)
 			if( useEnumIndex ) {
 				buf.add(":");
 				buf.add(Type.enumIndex(v));
