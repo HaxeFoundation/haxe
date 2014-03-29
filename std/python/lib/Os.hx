@@ -38,6 +38,8 @@ extern class Os {
 	public static function unlink (path:String):Void;
 	public static function remove (path:String):Void;
 
+	public static function getcwd():String;
+
 	public static function getcwdb():Bytes;
 
 	public static function removedirs (path:String):Void;
@@ -56,16 +58,14 @@ extern class Os {
 
 	public static function walk (top:String, topdown:Bool = true, onerror:OSError->Void = null, followlinks:Bool = false):Tup3<String, Array<String>, Array<String>>;
 
-	//public static inline function environ ():Dict<String, String>;
-
 	public static var sep(default, null) : String;
 	public static var pathsep(default, null):String;
-	
+
 	public static function makedirs (path:String, mode : Int = 511 /* Oktal 777 */, exist_ok:Bool = false):Void;
 
 	public static function mkdir (path:String, mode : Int = 511 /* Oktal 777 */):Void;
 
-	static function __init__ ():Void 
+	static function __init__ ():Void
 	{
 		python.Macros.importAs("os", "python.lib.Os");
 	}

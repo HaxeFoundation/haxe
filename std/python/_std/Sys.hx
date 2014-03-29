@@ -23,23 +23,25 @@ class Sys {
 	}
 
 	public static function args() : Array<String> {
-		return [];
+		return python.lib.Sys.argv;
 	}
 
 	public static function getEnv( s : String ) : String {
-		return "";
+		return python.lib.Os.environ.get(s, null);
 	}
 
 	public static function putEnv( s : String, v : String ) : Void {
-
+		python.lib.Os.environ.set(s, v);
 	}
 
 	public static function environment() : haxe.ds.StringMap<String> {
-		return new haxe.ds.StringMap();
+		var map = new haxe.ds.StringMap();
+		untyped map.h = python.lib.Os.environ;
+		return map;
 	}
 
 	public static function sleep( seconds : Float ) : Void {
-
+		python.lib.Time.sleep(seconds);
 	}
 
 	public static function setTimeLocale( loc : String ) : Bool {
@@ -47,10 +49,11 @@ class Sys {
 	}
 
 	public static function getCwd() : String {
-		return "";
+		return python.lib.Os.getcwd();
 	}
 
 	public static function setCwd( s : String ) : Void {
+		python.lib.Os.chdir(s);
 	}
 
 	public static function systemName() : String {
@@ -58,7 +61,8 @@ class Sys {
 	}
 
 	public static function command( cmd : String, ?args : Array<String> ) : Int {
-		return 0;
+		var args = args == null ? [cmd] : [cmd].concat(args);
+		return python.lib.Subprocess.call(args);
 	}
 
 	public static function cpuTime() : Float {

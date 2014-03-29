@@ -25,9 +25,11 @@ extern class Subprocess {
 
 	public static var PIPE:Dynamic;
 
-	public static var STDOUT:Dynamic;	
+	public static var STDOUT:Dynamic;
 
-	static function __init__ ():Void 
+	public static function call(args:Array<String>):Int;
+
+	static function __init__ ():Void
 	{
 		python.Macros.importAs("subprocess", "python.lib.Subprocess");
 	}
