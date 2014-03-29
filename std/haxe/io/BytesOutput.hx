@@ -39,6 +39,7 @@ class BytesOutput extends Output {
 		#else
 		b = new BytesBuffer();
 		#end
+		bigEndian = false;
 	}
 
 	inline function get_length() : Int {
