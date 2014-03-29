@@ -50,6 +50,9 @@ class StringTools {
 			catch (e:Dynamic) throw e;
 		#elseif cs
 			return cs.system.Uri.EscapeUriString(s);
+		#elseif python
+			__python__("from urllib.parse import quote");
+			return untyped quote(s);
 		#else
 			return null;
 		#end
@@ -75,6 +78,9 @@ class StringTools {
 			catch (e:Dynamic) throw e;
 		#elseif cs
 			return cs.system.Uri.UnescapeDataString(s);
+		#elseif python
+			__python__("from urllib.parse import unquote");
+			return untyped unquote(s);
 		#else
 			return null;
 		#end
@@ -163,6 +169,9 @@ class StringTools {
 		`s`, the result is false.
 	**/
 	public static function isSpace( s : String, pos : Int ) : Bool {
+		#if python
+		if (s.length == 0 || pos < 0 || pos >= s.length) return false;
+		#end
 		var c = s.charCodeAt( pos );
 		return (c > 8 && c < 14) || c == 32;
 	}
@@ -323,9 +332,18 @@ class StringTools {
 				n >>>= 4;
 			} while( n > 0 );
 		#end
+		#if python
+		if (digits != null && s.length < digits) {
+			var diff = digits - s.length;
+			for (_ in 0...diff) {
+				s = "0" + s;
+			}
+		}
+		#else
 		if( digits != null )
 			while( s.length < digits )
 				s = "0"+s;
+		#end
 		return s;
 	}
 
@@ -358,6 +376,8 @@ class StringTools {
 			#else
 		return (untyped s).charCodeAt(index);
 			#end
+		#elseif python
+		return if (index >= s.length) -1 else untyped(ord(untyped s[index]));
 		#else
 		return s.cca(index);
 		#end
@@ -378,6 +398,8 @@ class StringTools {
 		#elseif cs
 		return c == -1;
 		#elseif java
+		return c == -1;
+		#elseif python
 		return c == -1;
 		#else
 		return false;
