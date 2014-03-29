@@ -864,12 +864,15 @@ module Printer = struct
 				Printf.sprintf "%s.params[%i]" (print_expr pctx e1) index
 			| TArray(e1,e2) ->
 				Printf.sprintf "HxOverrides.hx_array_get(%s, %s)" (print_expr pctx e1) (print_expr pctx e2)
+
 			| TBinop(OpAssign,{eexpr = TArray(e1,e2)},e3) ->
 				Printf.sprintf "HxOverrides.hx_array_set(%s,%s,%s)" (print_expr pctx e1) (print_expr pctx e2) (print_expr pctx e3)
 			| TBinop(OpAssign,{eexpr = TField(ef1,fa)},e2) ->
 				Printf.sprintf "%s = %s" (print_field pctx ef1 fa true) (print_op_assign_right pctx e2)
 			| TBinop(OpAssign,e1,e2) ->
 				Printf.sprintf "%s = %s" (print_expr pctx e1) (print_expr pctx e2)
+			| TBinop(op,e1,({eexpr = TBinop(_,_,_)} as e2)) ->
+				print_expr pctx { e with eexpr = TBinop(op, e1, { e2 with eexpr = TParenthesis(e2) })}
 			| TBinop(OpEq,{eexpr = TCall({eexpr = TLocal {v_name = "__typeof__"}},[e1])},e2) ->
 				begin match e2.eexpr with
 					| TConst(TString s) ->
