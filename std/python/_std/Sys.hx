@@ -96,6 +96,9 @@ class Sys {
 			case x :
 				throw "platform " + x + " not supported";
 		}
+		if (echo) {
+			python.Lib.print(String.fromCharCode(ch));
+		}
 		return ch;
 	}
 
