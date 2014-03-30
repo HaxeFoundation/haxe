@@ -54,4 +54,12 @@ class TestPython extends Test {
 		d.maybeValue += 9;
 		eq(21, d.maybeValue);
 	}
+
+	function testNonOptionalArgumentAfterOptionalArgument() {
+		function skip(a:Int = 1, b:String) {
+			return Std.string(a) + b;
+		}
+		eq("12a", skip(12, "a"));
+		eq("1a", skip("a"));
+	}
 }

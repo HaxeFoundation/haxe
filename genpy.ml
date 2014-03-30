@@ -887,6 +887,7 @@ module Printer = struct
 		Printf.sprintf "@%s" name
 
 	let print_args args =
+		let had_value = ref false in
 		let sl = List.map (fun (v,cto) ->
 			let name = handle_keywords v.v_name in
 			let arg_string = match follow v.v_type with
@@ -894,8 +895,11 @@ module Printer = struct
 				| _ -> name
 			in
 			let arg_value = match cto with
+				| None when !had_value -> " = None"
 				| None -> ""
-				| Some ct -> Printf.sprintf " = %s" (print_constant ct)
+				| Some ct ->
+					had_value := true;
+					Printf.sprintf " = %s" (print_constant ct)
 			in
 			Printf.sprintf "%s%s" arg_string arg_value
 		) args in
