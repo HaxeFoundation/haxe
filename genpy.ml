@@ -1710,6 +1710,7 @@ module Generator = struct
 	(* Entry point *)
 
 	let run com =
+		Transformer.init com;
 		let ctx = mk_context com in
 		gen_resources ctx;
 		gen_types ctx;
