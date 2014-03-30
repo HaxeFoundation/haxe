@@ -2,6 +2,47 @@ open Ast
 open Type
 open Common
 
+module Utils = struct
+	let class_of_module_type mt = match mt with
+		| TClassDecl c -> c
+		| _ -> failwith ("Not a class: " ^ (s_type_path (t_infos mt).mt_path))
+
+	let find_type com path =
+		try
+			List.find (fun mt -> match mt with
+				| TAbstractDecl _ -> false
+				| _ -> (t_infos mt).mt_path = path
+			) com.types
+		with Not_found ->
+			error (Printf.sprintf "Could not find type %s\n" (s_type_path path)) null_pos
+
+	let mk_static_field c cf p =
+			let ta = TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) } in
+			let ethis = mk (TTypeExpr (TClassDecl c)) ta p in
+			let t = monomorphs cf.cf_params cf.cf_type in
+			mk (TField (ethis,(FStatic (c,cf)))) t p
+
+	let mk_static_call c cf el p =
+		let ef = mk_static_field c cf p in
+		let tr = match follow ef.etype with
+			| TFun(args,tr) -> tr
+			| _ -> assert false
+		in
+		mk (TCall(ef,el)) tr p
+
+	let resolve_static_field c n =
+		try
+			PMap.find n c.cl_statics
+		with Not_found ->
+			failwith (Printf.sprintf "Class %s has no field %s" (s_type_path c.cl_path) n)
+
+	let mk_static_field_2 c n p =
+		mk_static_field c (resolve_static_field c n) p
+
+	let mk_static_call_2 c n el p =
+		mk_static_call c (resolve_static_field c n) el p
+end
+
 module KeywordHandler = struct
 	let kwds =
 		let h = Hashtbl.create 0 in
@@ -1646,13 +1687,7 @@ module Generator = struct
 		let used_paths = Hashtbl.create 0 in
 		let find_type path =
 			Hashtbl.add used_paths path true;
-			try
-				List.find (fun mt -> match mt with
-					| TAbstractDecl _ -> false
-					| _ -> (t_infos mt).mt_path = path
-				) ctx.com.types
-			with Not_found ->
-				error (Printf.sprintf "Could not find type %s\n" (s_type_path path)) null_pos;
+			Utils.find_type ctx.com path
 		in
 		gen_type ctx (find_type (["python"],"Boot"));
 		gen_type ctx (find_type ([],"Enum"));
