@@ -75,7 +75,7 @@ class Sys {
 	public static function getChar( echo : Bool ) : Int {
 		trace(python.lib.Sys.platform);
 		var ch = switch (python.lib.Sys.platform) {
-			case "linux" | "darwin":
+			case x if (StringTools.startsWith(x, "linux") || x =="darwin"):
 				var fd = python.lib.Sys.stdin.fileno();
 				var old = python.lib.Termios.tcgetattr(fd);
 
