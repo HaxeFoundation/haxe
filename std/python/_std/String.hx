@@ -58,9 +58,9 @@ extern class String extends StringImpl {
 
 		Affects the characters [a-z]. Other characters remain unchanged.
 	**/
-    @:runtime public inline function toUpperCase() : String {
-    	return StringImpl.toUpperCase(this);
-    }
+	@:runtime public inline function toUpperCase() : String {
+		return StringImpl.toUpperCase(this);
+	}
 
 	/**
 		Returns a String where all characters of [this] String are lower case.
@@ -78,9 +78,9 @@ extern class String extends StringImpl {
 		is returned.
 	**/
 	inline public function charAt(index : Int) : String
-    {
-        return StringImpl.charAt(this, index);
-    }
+	{
+		return StringImpl.charAt(this, index);
+	}
 
 	/**
 		Returns the character code at position [index] of [this] String.
@@ -92,9 +92,9 @@ extern class String extends StringImpl {
 		only works on String literals of length 1.
 	**/
 	inline public function charCodeAt( index : Int) : Null<Int>
-    {
-        return StringImpl.charCodeAt(this, index);
-    }
+	{
+		return StringImpl.charCodeAt(this, index);
+	}
 
 	/**
 		Returns the position of the leftmost occurence of [str] within [this]
@@ -122,9 +122,9 @@ extern class String extends StringImpl {
 
 		If [str] cannot be found, -1 is returned.
 	**/
-    inline function lastIndexOf( str : String, ?startIndex : Int ) : Int {
-    	return StringImpl.lastIndexOf(this, str, startIndex);
-    }
+	inline function lastIndexOf( str : String, ?startIndex : Int ) : Int {
+		return StringImpl.lastIndexOf(this, str, startIndex);
+	}
 
 	/**
 		Splits [this] String at each occurence of [delimiter].
@@ -163,9 +163,9 @@ extern class String extends StringImpl {
 		If [len] is negative, the result is unspecified.
 	**/
 	inline public function substr( pos : Int, ?len : Int ) : String
-    {
-    	return StringImpl.substr(this, pos, len);
-    }
+	{
+		return StringImpl.substr(this, pos, len);
+	}
 
 	/**
 		Returns the part of [this] String from [startIndex] to [endIndex].
