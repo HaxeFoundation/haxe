@@ -20,6 +20,8 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+import python.internal.StringImpl;
+import python.internal.ArrayImpl;
 
 import python.lib.Builtin;
 import python.lib.Inspect;
@@ -63,24 +65,53 @@ class Reflect {
 		return Builtin.hasattr(o, field);
 	}
 
+	static inline function isString (o:Dynamic):Bool {
+		return Builtin.isinstance(o, String);
+	}
+	static inline function isArray (o:Dynamic):Bool {
+		return Builtin.isinstance(o, Array);
+	}
+
 	@:keep public static function field( o : Dynamic, field : String ) : Dynamic
 	{
 		if (field == null) return null;
 
-		if (Builtin.isinstance(o, String)) {
-			switch (field) {
-				case "length": return Builtin.len.bind(o);
-				case "toLowerCase": return python.internal.StringImpl.toLowerCase.bind(o);
-				case "toUpperCase": return python.internal.StringImpl.toUpperCase.bind(o);
-			}
-		} else if (Builtin.isinstance(o, Array)) {
+		switch (field) {
+			case "length" if (isString(o)): return StringImpl.get_length(o);
+			case "length" if (isArray(o)): return ArrayImpl.get_length(o);
 
-			switch (field) {
-				case "map": return python.internal.ArrayImpl.map.bind(o);
-				case "filter": return python.internal.ArrayImpl.filter.bind(o);
-				case "length": return python.internal.ArrayImpl.get_length(o);
-			}
+			case "toLowerCase" if (isString(o)): return StringImpl.toLowerCase.bind(o);
+			case "toUpperCase" if (isString(o)): return StringImpl.toUpperCase.bind(o);
+			case "charAt" if (isString(o)): return StringImpl.charAt.bind(o);
+			case "charCodeAt" if (isString(o)): return StringImpl.charCodeAt.bind(o);
+			case "indexOf" if (isString(o)): return StringImpl.indexOf.bind(o);
+			case "lastIndexOf" if (isString(o)): return StringImpl.lastIndexOf.bind(o);
+			case "split" if (isString(o)): return StringImpl.split.bind(o);
+			case "substr" if (isString(o)): return StringImpl.substr.bind(o);
+			case "substring" if (isString(o)): return StringImpl.substring.bind(o);
+			case "toString" if (isString(o)): return StringImpl.toString.bind(o);
+
+			case "map" if (isArray(o)): return ArrayImpl.map.bind(o);
+			case "filter" if (isArray(o)): return ArrayImpl.filter.bind(o);
+			case "concat" if (isArray(o)): return ArrayImpl.concat.bind(o);
+			case "copy" if (isArray(o)): return ArrayImpl.copy.bind(o);
+			case "iterator" if (isArray(o)): return ArrayImpl.iterator.bind(o);
+			case "insert" if (isArray(o)): return ArrayImpl.insert.bind(o);
+			case "join" if (isArray(o)): return ArrayImpl.join.bind(o);
+			case "toString" if (isArray(o)): return ArrayImpl.toString.bind(o);
+			case "pop" if (isArray(o)): return ArrayImpl.pop.bind(o);
+			case "push" if (isArray(o)): return ArrayImpl.push.bind(o);
+			case "unshift" if (isArray(o)): return ArrayImpl.unshift.bind(o);
+			case "indexOf" if (isArray(o)): return ArrayImpl.indexOf.bind(o);
+			case "lastIndexOf" if (isArray(o)): return ArrayImpl.lastIndexOf.bind(o);
+			case "remove" if (isArray(o)): return ArrayImpl.remove.bind(o);
+			case "reverse" if (isArray(o)): return ArrayImpl.reverse.bind(o);
+			case "shift" if (isArray(o)): return ArrayImpl.shift.bind(o);
+			case "slice" if (isArray(o)): return ArrayImpl.slice.bind(o);
+			case "sort" if (isArray(o)): return ArrayImpl.sort.bind(o);
+			case "splice" if (isArray(o)): return ArrayImpl.splice.bind(o);
 		}
+
 		var field = handleKeywords(field);
 		return if (Builtin.hasattr(o, field)) Builtin.getattr(o, field) else null;
 	}

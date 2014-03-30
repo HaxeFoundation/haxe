@@ -50,7 +50,9 @@ extern class Array<T> implements ArrayAccess<T> extends ArrayImpl {
 		return ArrayImpl.iterator(this);
 	}
 
-	public function insert( pos : Int, x : T ) : Void;
+	public inline function insert( pos : Int, x : T ) : Void {
+		return ArrayImpl.insert(this, pos, x);
+	}
 
 
 	public inline function join( sep : String ) : String {
@@ -86,7 +88,9 @@ extern class Array<T> implements ArrayAccess<T> extends ArrayImpl {
 
 	}
 
-	public function reverse() : Void;
+	public inline function reverse() : Void {
+		return ArrayImpl.reverse(this);
+	}
 
 	@:runtime public inline function shift() : Null<T> {
 		return ArrayImpl.shift(this);

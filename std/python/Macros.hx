@@ -64,6 +64,11 @@ class Macros {
         }
     }
 
+    @:noUsing macro public static function callField (o:Expr, field:ExprOf<String>, params:Array<Expr>):haxe.macro.Expr {
+        var field = macro untyped __field__($o, $field);
+        return macro untyped __call__($a{[field].concat(params)});
+    }
+
     #if !macro macro #end public static function callNamed (e:Expr, args:Expr):haxe.macro.Expr {
         var fArgs = switch (Context.typeof(e)) {
             case TFun(args, ret): args;

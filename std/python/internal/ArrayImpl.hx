@@ -33,7 +33,7 @@ class ArrayImpl {
 
 
 	public static inline function get_length <T>(x:Array<T>):Int return python.lib.Builtin.len(x);
-	
+
 
 	public static inline function concat<T>( a1:Array<T>, a2 : Array<T>) : Array<T>
 	{
@@ -90,8 +90,8 @@ class ArrayImpl {
 	}
 
 	public static inline function push<T>(x:Array<T>, e:T) : Int {
-		untyped x.append(e);
-		
+		Macros.callField(x, "append", e);
+
 		return get_length(x);
 	}
 
@@ -101,7 +101,7 @@ class ArrayImpl {
 
 	@:keep public static function remove<T>(x:Array<T>,e : T) : Bool {
 		try {
-			untyped __field__(x, "remove")(e);
+			Macros.callField(x, "remove", e);
 			return true;
 		} catch (e:Dynamic) {
 			return false;
@@ -120,7 +120,7 @@ class ArrayImpl {
 	}
 
 	public static inline function sort<T>(x:Array<T>, f:T->T->Int) : Void {
-		return untyped __field__(x, "sort")( (untyped __named_arg__)("key", python.lib.FuncTools.cmp_to_key(f)));
+		untyped __field__(x, "sort")( (untyped __named_arg__)("key", python.lib.FuncTools.cmp_to_key(f)));
 	}
 	/*
 	b = [i0, i1, i3, i0, i2];
@@ -145,8 +145,17 @@ class ArrayImpl {
 		return Builtin.list(Builtin.filter(f, x));
 	}
 
+	public static inline function insert<T>(a:Array<T>, pos : Int, x : T ) : Void
+	{
+		return Macros.callField(a, "insert", pos, x);
 
-	
+	}
+	public static inline function reverse<T>(a:Array<T>) : Void
+	{
+		return Macros.callField(a, "reverse");
+	}
+
+
 	@:keep private static inline function __get<T>(x:Array<T>, idx:Int):T
 	{
 		var _hx_a = x;
@@ -174,5 +183,5 @@ class ArrayImpl {
 		x[idx] = val;
 		return val;
 	}
-	
+
 }

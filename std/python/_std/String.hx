@@ -45,7 +45,7 @@ extern class String extends StringImpl {
 	var length(default,null) : Int;
 
 	private inline function get_length ():Int {
-		return python.lib.Builtin.len(this);
+		return StringImpl.get_length(this);
 	}
 
 	/**
@@ -59,7 +59,7 @@ extern class String extends StringImpl {
 		Affects the characters [a-z]. Other characters remain unchanged.
 	**/
     @:runtime public inline function toUpperCase() : String {
-    	return untyped this.upper();
+    	return StringImpl.toUpperCase(this);
     }
 
 	/**
@@ -68,7 +68,7 @@ extern class String extends StringImpl {
 		Affects the characters [A-Z]. Other characters remain unchanged.
 	**/
 	@:runtime public inline function toLowerCase() : String {
-		return untyped this.lower();
+		return StringImpl.toLowerCase(this);
 	}
 
 	/**
@@ -108,10 +108,7 @@ extern class String extends StringImpl {
 		If [str] cannot be found, -1 is returned.
 	**/
 	inline function indexOf( str : String, ?startIndex : Int ) : Int {
-		if (startIndex == null)
-			return untyped this.find(str)
-		else
-			return untyped this.find(str, startIndex);
+		return StringImpl.indexOf(this, str, startIndex);
 	}
 
 	/**
@@ -146,7 +143,9 @@ extern class String extends StringImpl {
 		result Array contains a leading (or trailing) empty String "" element.
 		Two subsequent delimiters also result in an empty String "" element.
 	**/
-	inline function split( delimiter : String ) : Array<String> return StringImpl.split(this, delimiter);
+	inline function split( delimiter : String ) : Array<String> {
+		return StringImpl.split(this, delimiter);
+	}
 
 	/**
 		Returns [len] characters of [this] String, starting at position [pos].
@@ -165,7 +164,7 @@ extern class String extends StringImpl {
 	**/
 	inline public function substr( pos : Int, ?len : Int ) : String
     {
-        return python.Tools.substr(this, pos, len);
+    	return StringImpl.substr(this, pos, len);
     }
 
 	/**
@@ -182,13 +181,13 @@ extern class String extends StringImpl {
 		String "" is returned.
 	**/
 	inline function substring( startIndex : Int, ?endIndex : Int ) : String {
-		return python.Tools.substring(this, startIndex, endIndex);
+		return StringImpl.substring(this, startIndex, endIndex);
 	}
 
 	/**
 		Returns the String itself.
 	**/
-	inline function toString() : String return this;
+	inline function toString() : String return StringImpl.toString(this);
 
 	/**
 		Returns the String corresponding to the character code [code].
@@ -201,9 +200,7 @@ extern class String extends StringImpl {
 	}
 
 	static function __init__ ():Void {
-
 		python.Macros.importFromAs("builtins", "str", "String");
-		//untyped __python__("String = __builtin__.str");
 	}
 
 

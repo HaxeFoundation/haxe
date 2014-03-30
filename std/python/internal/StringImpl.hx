@@ -8,7 +8,7 @@ import python.lib.Builtin;
 class StringImpl {
 
 	public static function split (s:String, d:String) {
-		return if (d == "") Builtin.list(s) else (s:Dynamic).split(d);
+		return if (d == "") Builtin.list(s) else Macros.callField(s, "split", d);
 	}
 
 	public static function charCodeAt(s:String, index:Int) {
@@ -34,10 +34,32 @@ class StringImpl {
 	}
 
 	public static function toUpperCase (s:String) {
-		return s.toUpperCase();
+		return Macros.callField(s, "upper");
 	}
+
 	public static function toLowerCase (s:String) {
-		return s.toLowerCase();
+		return Macros.callField(s, "lower");
+	}
+	public static function indexOf (s:String, str:String, ?startIndex:Int) {
+		if (startIndex == null)
+			return Macros.callField(s, "find", str);
+		else
+			return Macros.callField(s, "find", str, startIndex);
+	}
+	public static function substr (s:String, pos:Int, ?len:Int) {
+		return python.Tools.substr(s, pos, len);
+	}
+	public static function toString (s:String) {
+		return s;
+	}
+
+	public static function get_length (s:String) {
+		return python.lib.Builtin.len(s);
+	}
+
+	public static function substring (s:String, startIndex:Int, ?endIndex:Int) {
+		return python.Tools.substring(s, startIndex, endIndex);
+
 	}
 
 	public static inline function fromCharCode( code : Int ) : String {
