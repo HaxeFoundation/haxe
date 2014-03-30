@@ -1,10 +1,10 @@
 package python;
 
-
+#if macro
 import haxe.macro.Expr;
 
 import haxe.macro.Context;
-#if macro
+
 import haxe.macro.ExprTools;
 #end
 #if !macro
@@ -19,9 +19,9 @@ class Macros {
 		return macro untyped __python__($v{"import " + module});
 	}
 
-	@:noUsing macro public static function importAs (module:String, className : String):haxe.macro.Expr 
+	@:noUsing macro public static function importAs (module:String, className : String):haxe.macro.Expr
     {
-        
+
         var n = className.split(".").join("_");
 
         var e = "import " + module + " as " + n;
@@ -34,14 +34,14 @@ class Macros {
         }
     }
 
-    
-    @:noUsing macro public static function pyFor <T>(v:Expr, it:Expr, b:Expr):haxe.macro.Expr 
+
+    @:noUsing macro public static function pyFor <T>(v:Expr, it:Expr, b:Expr):haxe.macro.Expr
     {
         var id = switch (v.expr) {
             case EConst(CIdent(x)):x;
             case _ : Context.error("unexpected " + ExprTools.toString(v) + ": const ident expected", v.pos);
         }
-        
+
 
 
         var res = macro @:pos(it.pos) {
@@ -53,7 +53,7 @@ class Macros {
     }
 
     @:noUsing macro public static function importFromAs (from:String, module:String, className : String):haxe.macro.Expr {
-        
+
         var n = className.split(".").join("_");
 
         var e = "from " + from + " import " + module + " as " + n;
@@ -78,7 +78,7 @@ class Macros {
                         if (found) break;
                     }
                     if (!found) {
-                        haxe.macro.Context.error("field " + f.field + " is not a valid argument (valid names " + [for (a in fArgs) a.name].join(",") + ")", args.pos);   
+                        haxe.macro.Context.error("field " + f.field + " is not a valid argument (valid names " + [for (a in fArgs) a.name].join(",") + ")", args.pos);
                     }
                 }
                 // TODO check at least if fields are valid (maybe if types match);
