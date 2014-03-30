@@ -15,7 +15,7 @@ class StringMap<T> implements Map.IMap<String, T> {
 
 	public function get( key : String ) : Null<T> {
 		return h.get("$"+key, null);
-		
+
 	}
 
 	public function exists( key : String ) : Bool {
@@ -31,12 +31,12 @@ class StringMap<T> implements Map.IMap<String, T> {
 	}
 
 	public function keys() : Iterator<String> {
-		
+
 		var a = [];
-		
+
 		untyped __python__("for key in self.h:");
 		untyped __python__("	a.append(key[1:])");
-		
+
 		return a.iterator();
 	}
 	public function iterator() : Iterator<T> {
@@ -47,7 +47,7 @@ class StringMap<T> implements Map.IMap<String, T> {
 			next : function() { var i = iter.next(); return ref.get("$"+i, null); }
 		};
 	}
-	
+
 	public function toString() : String {
 
 		var s = new StringBuf();

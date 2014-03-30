@@ -303,7 +303,7 @@ extern class Math
 		NEGATIVE_INFINITY = __python__("float")('-inf');
 		POSITIVE_INFINITY = __python__("float")('inf');
 		NaN = __python__("float")('nan');
-		PI = Math.pi;
+		PI = Reflect.field(Math, "pi");
 	}
 
 }

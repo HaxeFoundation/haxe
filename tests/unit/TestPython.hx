@@ -1,5 +1,9 @@
 package unit;
 
+private typedef T = {
+	var value:Int;
+	@:optional var maybeValue:Int;
+}
 class TestPython extends Test {
 
 	public function testDoWhileAsExpression () {
@@ -33,6 +37,24 @@ class TestPython extends Test {
 
 	public function testX() {
 		trace(sys.io.File.getBytes("res1.txt"));
+	}
 
+	public function testOptionalStructureFields() {
+		var v:T = haxe.Json.parse('{"value": 1 }');
+		eq(1, v.value);
+		eq(null, v.maybeValue);
+		v.maybeValue = 12;
+		eq(12, v.maybeValue);
+		v.maybeValue += 9;
+		eq(21, v.maybeValue);
+
+		var v:T = haxe.Json.parse('{"value": 1 }');
+		var d:Dynamic = v;
+		eq(1, d.value);
+		eq(null, d.maybeValue);
+		d.maybeValue = 12;
+		eq(12, d.maybeValue);
+		d.maybeValue += 9;
+		eq(21, d.maybeValue);
 	}
 }

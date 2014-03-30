@@ -1,12 +1,3 @@
-import Map;
-import haxe.ds.StringMap;
-import python.internal.KeywordHandler;
-import python.lib.Builtin;
-import python.lib.Inspect;
-import python.lib.Types;
-
-
-
 /*
  * Copyright (C)2005-2012 Haxe Foundation
  *
@@ -28,35 +19,37 @@ import python.lib.Types;
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-@:coreApi class Reflect {
 
-	public static function hasField( o : Dynamic, field : String ) : Bool 
+import python.internal.KeywordHandler;
+import python.lib.Builtin;
+import python.lib.Inspect;
+import python.lib.Types;
+
+@:coreApi
+class Reflect {
+
+	public static function hasField( o : Dynamic, field : String ) : Bool
 	{
 		var field = KeywordHandler.handleKeywords(field);
-		//return untyped __js__('Object').prototype.hasOwnProperty.call(o, field);
 		return Builtin.hasattr(o, field);
-		
 	}
 
-	public static function field( o : Dynamic, field : String ) : Dynamic 
+	@:keep public static function field( o : Dynamic, field : String ) : Dynamic
 	{
 		if (field == null) return null;
-		var field = KeywordHandler.handleKeywords(field);	
+		var field = KeywordHandler.handleKeywords(field);
 		return if (Builtin.hasattr(o, field)) Builtin.getattr(o, field) else null;
-		
 	}
 
-	public inline static function setField( o : Dynamic, field : String, value : Dynamic ) : Void untyped 
+	@:keep public static function setField( o : Dynamic, field : String, value : Dynamic ) : Void untyped
 	{
 		var field = KeywordHandler.handleKeywords(field);
 		return __define_feature__("Reflect.setField",Builtin.setattr(o,field,value));
 	}
 
-	public static function getProperty( o : Dynamic, field : String ) : Dynamic 
+	public static function getProperty( o : Dynamic, field : String ) : Dynamic
 	{
 		var field = KeywordHandler.handleKeywords(field);
-		//var tmp;
-		//return if( o == null ) __define_feature__("Reflect.getProperty",null) else if( o.__properties__ && (tmp=o.__properties__["get_"+field]) ) o[tmp]() else o[field];
 		var tmp = null;
 		if (o == null) {
 			return null;
@@ -68,11 +61,10 @@ import python.lib.Types;
 				return Reflect.field(o, field);
 			}
 		}
-		//return if (o == null) null else if ( (tmp=Reflect.field(o, "get_" + field)) != null && Builtin.callable(tmp)) tmp() else Reflect.field(o, field);
 	}
 
-	public static inline function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void {
-		
+	public static function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void {
+
 		var field = KeywordHandler.handleKeywords(field);
 
 		return if (Builtin.hasattr(o,"set_"+field)) {
@@ -80,39 +72,36 @@ import python.lib.Types;
 			tmp(value);
 		}
 		else Builtin.setattr(o,field, untyped __define_feature__("Reflect.setProperty",value));
-		
-		
-		
 	}
 
-	public static function callMethod( o : Dynamic, func : Dynamic, args : Array<Dynamic> ) : Dynamic 
+	public static function callMethod( o : Dynamic, func : Dynamic, args : Array<Dynamic> ) : Dynamic
 	{
 		var args:VarArgs = args;
 		return if (Builtin.callable(func)) func(untyped __python_varargs__(args)) else null;
 	}
 
-	public static function fields( o : Dynamic ) : Array<String> 
+	public static function fields( o : Dynamic ) : Array<String>
 	{
 		var a = [];
-		if (o != null) 
+		if (o != null)
 		{
-			if (Builtin.hasattr(o, "_hx_fields")) 
+			if (Builtin.hasattr(o, "_hx_fields"))
 			{
-				
+
 				var fields:Array<String> = o._hx_fields;
 				return fields.copy();
 			}
-			if (Builtin.isinstance(o, untyped __python__("_hx_c._hx_AnonObject"))) 
+			if (Builtin.isinstance(o, untyped __python__("_hx_c._hx_AnonObject")))
 			{
-				
+
 				var d:Dict<String, Dynamic> = Builtin.getattr(o, "__dict__");
 				var keys  = d.keys();
 				var handler = python.internal.KeywordHandler.unhandleKeywords;
 				untyped __python__("for k in keys:");
 				untyped __python__("	a.append(handler(k))");
-				
-			} 
-			else if (Builtin.hasattr(o, "__dict__")) 
+
+			}
+			else if (Builtin.hasattr(o, "__dict__"))
 			{
 				var a = [];
 				var d:Dict<String, Dynamic> = Builtin.getattr(o, "__dict__");
@@ -123,20 +112,18 @@ import python.lib.Types;
 			}
 		}
 		return a;
-
 	}
 
-	public static function isFunction( f : Dynamic ) : Bool 
+	public static function isFunction( f : Dynamic ) : Bool
 	{
 		return Inspect.isfunction(f) || Inspect.ismethod(f);
 	}
 
 	public static function compare<T>( a : T, b : T ) : Int {
 		if (a == null && b == null) return 0;
-		return 
+		return
 		if (a == null) 1 else if (b == null) -1 else
 		( a == b ) ? 0 : (((cast a) > (cast b)) ? 1 : -1);
-		//return throw "not implemented";
 	}
 
 	public static function compareMethods( f1 : Dynamic, f2 : Dynamic ) : Bool {
@@ -144,7 +131,7 @@ import python.lib.Types;
 			return true;
 		if( !isFunction(f1) || !isFunction(f2) )
 			return false;
-		
+
 		return false;
 	}
 
@@ -154,9 +141,8 @@ import python.lib.Types;
 			case TObject, TClass(_): true;
 			case _ : false;
 		}
-
 	}
-	
+
 	public static function isEnumValue( v : Dynamic ) : Bool {
 		return v != Enum && Builtin.isinstance(v, untyped Enum);
 	}
@@ -177,7 +163,6 @@ import python.lib.Types;
 	@:overload(function( f : Array<Dynamic> -> Void ) : Dynamic {})
 	public static function makeVarArgs( f : Array<Dynamic> -> Dynamic ) : Dynamic {
 		return throw "not implemented";
-		
 	}
 
 }

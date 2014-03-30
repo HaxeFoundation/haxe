@@ -1,8 +1,3 @@
-package;
-
-import python.lib.Builtin;
-import python.lib.Inspect;
-import python.Boot;
 /*
  * Copyright (C)2005-2012 Haxe Foundation
  *
@@ -24,7 +19,12 @@ import python.Boot;
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-//import flash.Boot;
+
+package;
+
+import python.lib.Builtin;
+import python.lib.Inspect;
+import python.Boot;
 
 @:keepInit
 @:coreApi /*extern*/ class Std {
@@ -85,8 +85,6 @@ import python.Boot;
 
         if (t == Class) return false; // && !Builtin.isinstance(v, untyped Enum) && Builtin.hasattr(v, "__class__") && untyped Builtin.hasattr(v.__class__, "_hx_class_name") && !untyped Builtin.hasattr(v.__class__, "_hx_constructs")) return true;
 
-
-
         if (try Builtin.isinstance(v, t) catch (e:Dynamic) false) {
             return true;
         }
@@ -117,12 +115,7 @@ import python.Boot;
         } else {
             return false;
         }
-        //return untyped __is__(v , t);  //TODO(av) macro to check t is a Type and not null as dart only perfomrs "is" at compile time despite having a runtime Type
     }
-
-//    public static inline function instance<T>( v : {}, c : Class<T> ) : T {
-//        return untyped __as__(v, c);
-//    }
 
     @:access(python.Boot)
     @:keep
@@ -169,8 +162,6 @@ import python.Boot;
                 return r;
             }
         }
-
-
     }
 
     static function shortenPossibleNumber (x:String):String

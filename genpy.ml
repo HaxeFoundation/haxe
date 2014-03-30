@@ -74,10 +74,14 @@ module Transformer = struct
 
 	let t_bool = ref t_dynamic
 	let t_void = ref t_dynamic
+	let t_string= ref t_dynamic
+	let c_reflect = ref null_class
 
 	let init com =
 		t_bool := com.basic.tbool;
-		t_void := com.basic.tvoid
+		t_void := com.basic.tvoid;
+		t_string := com.basic.tstring;
+		c_reflect := Utils.class_of_module_type (Utils.find_type com ([],"Reflect"))
 
 	and debug_expr e =
 		let s_type = Type.s_type (print_context()) in
@@ -139,6 +143,25 @@ module Transformer = struct
 			e
 		| _ ->
 			e
+
+	let dynamic_field_read e s =
+		Utils.mk_static_call_2 !c_reflect "field" [e;mk (TConst (TString s)) !t_string e.epos] e.epos
+
+	let dynamic_field_write e1 s e2 =
+		Utils.mk_static_call_2 !c_reflect "setField" [e1;mk (TConst (TString s)) !t_string e1.epos;e2] e1.epos
+
+	let dynamic_field_read_write next_id e1 s op e2 =
+		let id = next_id() in
+		let temp_var = to_tvar id e1.etype in
+		let temp_var_def = mk (TVar(temp_var,Some e1)) e1.etype e1.epos in
+		let temp_local = mk (TLocal temp_var) e1.etype e1.epos in
+		let e_field = dynamic_field_read temp_local s in
+		let e_op = mk (TBinop(op,e_field,e2)) e_field.etype e_field.epos in
+		let e_set_field = dynamic_field_write temp_local s e_op in
+		mk (TBlock [
+			temp_var_def;
+			e_set_field;
+		]) e_set_field.etype e_set_field.epos
 
 	let add_non_locals_to_func e =
 		match e.eexpr with
@@ -621,7 +644,24 @@ module Transformer = struct
 			let e1 = trans true [] e in
 			let r = { a_expr with eexpr = TUnop(op, Prefix, e1.a_expr) } in
 			lift_expr ~blocks:e1.a_blocks r
-
+		| (_, TField(e,FAnon cf)) when Meta.has Meta.Optional cf.cf_meta ->
+			let e = dynamic_field_read e cf.cf_name in
+			transform_expr e
+		| (_, TBinop(OpAssign,{eexpr = TField(e1,FAnon cf)},e2)) when Meta.has Meta.Optional cf.cf_meta ->
+			let e = dynamic_field_write e1 cf.cf_name e2 in
+			transform_expr e
+		| (_, TBinop(OpAssignOp op,{eexpr = TField(e1,FAnon cf)},e2)) when Meta.has Meta.Optional cf.cf_meta ->
+			let e = dynamic_field_read_write ae.a_next_id e1 cf.cf_name op e2 in
+			transform_expr e
+		| (_, TField(e,FDynamic s)) ->
+			let e = dynamic_field_read e s in
+			transform_expr e
+		| (_, TBinop(OpAssign,{eexpr = TField(e1,FDynamic s)},e2)) ->
+			let e = dynamic_field_write e1 s e2 in
+			transform_expr e
+		| (_, TBinop(OpAssignOp op,{eexpr = TField(e1,FDynamic s)},e2)) ->
+			let e = dynamic_field_read_write ae.a_next_id e1 s op e2 in
+			transform_expr e
 		| (is_value, TBinop(OpAssign, left, right))->
 			(let left = trans true [] left in
 			let right = trans true [] right in
@@ -733,8 +773,6 @@ module Transformer = struct
 
 		| ( _, TBreak ) | ( _, TContinue ) ->
 			lift_expr a_expr
-		(*| _ ->
-			lift_expr ae.a_expr*)
 
 	and transform e =
 		to_expr (transform1 (lift_expr e))
@@ -1444,7 +1482,7 @@ module Generator = struct
 			| _,Some ({eexpr = TFunction f} as ef) ->
 				let ethis = mk (TConst TThis) (TInst(c,List.map snd c.cl_types)) cf.cf_pos in
 				let member_data = List.map (fun cf ->
-					let ef = mk (TField(ethis,FDynamic cf.cf_name)) cf.cf_type cf.cf_pos in
+					let ef = mk (TField(ethis,FInstance(c, cf))) cf.cf_type cf.cf_pos in
 					mk (TBinop(OpAssign,ef,null ef.etype ef.epos)) ef.etype ef.epos
 				) member_inits in
 				let e = {f.tf_expr with eexpr = TBlock (member_data @ [f.tf_expr])} in
