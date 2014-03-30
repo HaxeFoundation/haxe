@@ -93,7 +93,7 @@ class Sys {
 				}
 
 			case "win32" | "cygwin":
-				python.lib.Msvrt.getch();
+				python.lib.Msvcrt.getch();
 			case x :
 				throw "platform " + x + " not supported";
 		}
