@@ -152,7 +152,7 @@ class BytesBuffer {
 		var bytes = new Bytes(buf.length, buf);
 		#elseif python
 		var buf = python.lib.Builtin.bytearray(b);
-		var bytes = new Bytes(ba.length, buf);
+		var bytes = new Bytes(buf.length, buf);
 		#else
 		var bytes = new Bytes(b.length,b);
 		#end
