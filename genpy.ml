@@ -951,7 +951,7 @@ module Printer = struct
 				tabs := pctx.pc_indent;
 				let s = print_exprs pctx ("\n" ^ !tabs) el in
 				tabs := old;
-				Printf.sprintf "%s\n%s" s !tabs
+				Printf.sprintf "%s\n" s
 			| TFor(v,e1,e2) ->
 				let pctx2 = {pctx with pc_indent = "\t" ^ pctx.pc_indent} in
 				let ind1 = pctx.pc_indent in
