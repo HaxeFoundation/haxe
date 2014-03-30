@@ -33,6 +33,13 @@ class StringImpl {
 		}
 	}
 
+	public static function toUpperCase (s:String) {
+		return s.toUpperCase();
+	}
+	public static function toLowerCase (s:String) {
+		return s.toLowerCase();
+	}
+
 	public static inline function fromCharCode( code : Int ) : String {
 		#if doc_gen
 		return "";

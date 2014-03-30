@@ -66,6 +66,21 @@ class Reflect {
 	@:keep public static function field( o : Dynamic, field : String ) : Dynamic
 	{
 		if (field == null) return null;
+
+		if (Builtin.isinstance(o, String)) {
+			switch (field) {
+				case "length": return Builtin.len.bind(o);
+				case "toLowerCase": return python.internal.StringImpl.toLowerCase.bind(o);
+				case "toUpperCase": return python.internal.StringImpl.toUpperCase.bind(o);
+			}
+		} else if (Builtin.isinstance(o, Array)) {
+
+			switch (field) {
+				case "map": return python.internal.ArrayImpl.map.bind(o);
+				case "filter": return python.internal.ArrayImpl.filter.bind(o);
+				case "length": return python.internal.ArrayImpl.get_length(o);
+			}
+		}
 		var field = handleKeywords(field);
 		return if (Builtin.hasattr(o, field)) Builtin.getattr(o, field) else null;
 	}

@@ -93,6 +93,7 @@ class Sys {
 	static function __init__():Void {
 		environ = new haxe.ds.StringMap();
 		var env = python.lib.Os.environ;
+
 		for (key in env.keys()) {
 			environ.set(key, env.get(key, null));
 		}
