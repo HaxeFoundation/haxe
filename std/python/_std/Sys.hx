@@ -87,9 +87,8 @@ class Sys {
 					restore();
 					ch;
 				} catch (e:Dynamic) {
-					trace("error" + e);
 					restore();
-					String.fromCharCode(0);
+					throw e;
 				}
 
 			case "win32" | "cygwin":
