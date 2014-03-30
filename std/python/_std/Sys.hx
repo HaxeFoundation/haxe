@@ -92,7 +92,7 @@ class Sys {
 				}
 
 			case "win32" | "cygwin":
-				python.lib.Msvcrt.getch();
+				python.lib.Msvcrt.getch().decode("utf-8").charCodeAt(0);
 			case x :
 				throw "platform " + x + " not supported";
 		}
