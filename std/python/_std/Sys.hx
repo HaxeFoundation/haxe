@@ -32,7 +32,7 @@ class Sys {
 	}
 
 	public static function putEnv( s : String, v : String ) : Void {
-		python.lib.Sys.putenv(s, v);
+		python.lib.Os.putenv(s, v);
 		environ.set(s, v);
 	}
 
