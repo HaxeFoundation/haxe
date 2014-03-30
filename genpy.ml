@@ -1004,7 +1004,6 @@ module Printer = struct
 				Printf.sprintf "_hx_c._hx_AnonObject(%s)" (print_exprs_named pctx ", " !fl2)
 			| TArrayDecl el ->
 				Printf.sprintf "[%s]" (print_exprs pctx ", " el)
-			(* TODO: toUpperCase special case?! *)
 			| TCall(e1,el) ->
 				print_call pctx e1 el
 			| TNew(c,_,el) ->
@@ -1121,16 +1120,6 @@ module Printer = struct
 					| _ ->
 						do_default()
 				end
-			| FAnon _ ->
-				do_default()
-			| FDynamic "iterator" ->
-				Printf.sprintf "_hx_functools.partial(HxOverrides.iterator, %s)" obj
-			| FDynamic "length" when not is_assign ->
-				Printf.sprintf "HxOverrides.length(%s)" obj
-			| FDynamic "filter" when not is_assign ->
-				Printf.sprintf "_hx_functools.partial(HxOverrides.filter, %s)" obj
-			| FDynamic "map" when not is_assign ->
-				Printf.sprintf "_hx_functools.partial(HxOverrides.map, %s)" obj
 			| _ ->
 				do_default()
 
