@@ -1,26 +1,36 @@
 
 package sys.io;
 
+import python.lib.Subprocess;
+import python.lib.subprocess.Popen;
+
 class Process {
 
-	var stdout(default,null) : haxe.io.Input;
-	var stderr(default,null) : haxe.io.Input;
-	var stdin(default,null) : haxe.io.Output;
+	public var stdout(default,null) : haxe.io.Input;
+	public var stderr(default,null) : haxe.io.Input;
+	public var stdin(default,null) : haxe.io.Output;
 
-	function new( cmd : String, args : Array<String> ) : Void {
-		throw "not implemented";
+	var p:Popen;
+
+	public function new( cmd : String, args : Array<String> ) : Void {
+
+		p = Popen.create(args, { bufsize : 1, executable : cmd, stdin : Subprocess.PIPE, stdout: Subprocess.PIPE, stderr : Subprocess.PIPE });
+		this.stdout = new FileInput (cast p.stdout);
+		this.stderr = new FileInput (cast p.stderr);
+		this.stdin =  new FileOutput(cast p.stdin);
 	}
-	function getPid() : Int {
-		return throw "not implemented";
+
+	public function getPid() : Int {
+		return p.pid;
 	}
-	function exitCode() : Int {
-		return throw "not implemented";
+	public function exitCode() : Int {
+		return p.returncode;
 	}
-	function close() : Void {
-		throw "not implemented";
+	public function close() : Void {
+		p.terminate();
 	}
-	function kill() : Void {
-		throw "not implemented";
+	public function kill() : Void {
+		p.kill();
 	}
 
 }

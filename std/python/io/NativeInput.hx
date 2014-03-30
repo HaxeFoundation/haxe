@@ -36,9 +36,12 @@ class NativeInput extends Input{
 
 	override public function readByte():Int
 	{
-		var ret = cast stream.read(1);
-		if (ret == null) throw new Eof();
-		return ret;
+
+		var ret = stream.read(1);
+		trace(ret);
+		if (ret.length == 0) throw new Eof();
+
+		return ret.get(0);
 	}
 
 	public function seek( p : Int, pos : sys.io.FileSeek ) : Void

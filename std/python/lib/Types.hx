@@ -31,6 +31,11 @@ extern class ByteArray implements ArrayAccess<Int> {
 	public inline function get_length ():Int {
 		return Builtin.len(this);
 	}
+
+	public inline function get(i:Int):Int {
+		return untyped __python_array_get__(this, i);
+	}
+
 	public function decode(encoding:String="utf-8", errors:String="strict"):String;
 }
 

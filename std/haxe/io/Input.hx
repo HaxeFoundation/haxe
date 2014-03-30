@@ -129,8 +129,10 @@ class Input {
 		var last : Int;
 		var s;
 		try {
-			while( (last = readByte()) != 10 )
+			while( (last = readByte()) != 10 ) {
+				trace("read" + last);
 				buf.addChar( last );
+			}
 			s = buf.toString();
 			if( s.charCodeAt(s.length-1) == 13 ) s = s.substr(0,-1);
 		} catch( e : Eof ) {

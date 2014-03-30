@@ -23,9 +23,9 @@ extern class Subprocess {
 
 	//public static var CREATE_NEW_PROCESS_GROUP;
 
-	public static var PIPE:Dynamic;
+	public static var PIPE:Int;
 
-	public static var STDOUT:Dynamic;
+	public static var STDOUT:Int;
 
 	public static function call(args:Array<String>):Int;
 
