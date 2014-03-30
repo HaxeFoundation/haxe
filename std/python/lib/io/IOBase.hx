@@ -1,6 +1,12 @@
 
 package python.lib.io;
 
+@:enum abstract SeekSet(Int) {
+	var SeekStart = 0;
+	var SeekCur = 1;
+	var SeekEnd = 2;
+}
+
 extern class IOBase {
 
 	public function close():Void;
@@ -13,5 +19,6 @@ extern class IOBase {
 	public function writable():Bool;
 	public function seekable():Bool;
 	public function fileno():Int;
-
+	public function seek(offset:Int, whence:SeekSet):Int;
+	public function truncate (size:Int):Int;
 }

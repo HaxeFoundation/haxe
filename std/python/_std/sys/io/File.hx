@@ -21,6 +21,8 @@
  */
 package sys.io;
 
+import sys.io.FileInput;
+
 /**
 	API for reading and writing to files.
 
@@ -58,15 +60,23 @@ class File {
 	}
 
 	public static function read( path : String, binary : Bool = true ) : FileInput {
-		return throw "not implemented";
+		var mode = if (binary) "rb" else "r";
+		var f:python.lib.io.RawIOBase = cast python.lib.Builtin.open(path, mode, -1);
+		return new FileInput(f);
 	}
 
 	public static function write( path : String, binary : Bool = true ) : FileOutput {
-		return throw "not implemented";
+		var mode = if (binary) "wb" else "w";
+		var f:python.lib.io.RawIOBase = cast python.lib.Builtin.open(path, mode, -1);
+
+		return new FileOutput(f);
 	}
 
 	public static function append( path : String, binary : Bool = true ) : FileOutput {
-		return throw "not implemented";
+		var mode = if (binary) "ab" else "a";
+		var f:python.lib.io.RawIOBase = cast python.lib.Builtin.open(path, mode, -1);
+
+		return new FileOutput(f);
 	}
 
 	public static function copy( srcPath : String, dstPath : String ) : Void

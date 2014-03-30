@@ -1,5 +1,6 @@
 package python.lib;
 
+import python.lib.io.FileIO;
 import python.lib.io.RawIOBase;
 import python.lib.io.TextIOBase;
 import python.lib.Types;
@@ -17,7 +18,7 @@ extern class Sys {
 
 	public static var stdout(default, never):TextIOBase;
 	public static var stdin(default, never):TextIOBase;
-
+	public static var stderr(default, never):TextIOBase;
 
 	public static function getsizeof (t:Dynamic):Int;
 

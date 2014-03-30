@@ -28,7 +28,9 @@ extern class Stat {
 	@:optional public var st_creator:Int;
 	@:optional public var st_type:Int;
 }
-
+@:preCode(
+	python.Macros.importAs("os", "python.lib.Os")
+)
 extern class Os {
 
 	public static var environ : Dict<String, String>;

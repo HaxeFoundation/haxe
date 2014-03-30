@@ -1,5 +1,6 @@
 import python.lib.Time;
-
+import sys.io.FileInput;
+import sys.io.FileOutput;
 
 @:coreApi
 class Sys {
@@ -111,15 +112,15 @@ class Sys {
 	}
 
 	public static function stdin() : haxe.io.Input {
-		return null;
+		return new FileInput(cast python.lib.Sys.stdin.buffer);
 	}
 
 	public static function stdout() : haxe.io.Output {
-		return null;
+		return new FileOutput(cast python.lib.Sys.stdout.buffer);
 	}
 
 	public static function stderr() : haxe.io.Output {
-		return null;
+		return new FileOutput(cast python.lib.Sys.stderr.buffer);
 	}
 
 	static function __init__():Void {
