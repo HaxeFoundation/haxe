@@ -31,24 +31,30 @@ class File {
 
 	public static function getContent( path : String ) : String
 	{
-		var f = python.lib.Builtin.open(path, "r", -1, "utf-8");
+		var f:python.lib.io.TextIOBase = cast python.lib.Builtin.open(path, "r", 0, "utf-8");
 		var content = f.read(-1);
 		f.close();
 		return content;
 	}
 
 	public static function saveContent( path : String, content : String ) : Void {
-		var f = python.lib.Builtin.open(path, "w", -1, "utf-8");
+		var f:python.lib.io.TextIOBase = cast python.lib.Builtin.open(path, "w", 0, "utf-8");
 		f.write(content);
 		f.close();
 	}
 
 	public static function getBytes( path : String ) : haxe.io.Bytes {
-		return throw "not implemented";
+		var f:python.lib.io.RawIOBase = cast python.lib.Builtin.open(path, "rb", 0);
+		var size = f.readall();
+		var b = haxe.io.Bytes.ofData(size);
+		f.close();
+		return b;
 	}
 
 	public static function saveBytes( path : String, bytes : haxe.io.Bytes ) : Void {
-		throw "not implemented";
+		var f:python.lib.io.RawIOBase = cast python.lib.Builtin.open(path, "wb", 0);
+		f.write(bytes.getData());
+		f.close();
 	}
 
 	public static function read( path : String, binary : Bool = true ) : FileInput {

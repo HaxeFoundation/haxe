@@ -42,6 +42,8 @@ class Bytes {
 		return untyped b[pos];
 		#elseif java
 		return untyped b[pos] & 0xFF;
+		#elseif python
+		return untyped __python_array_get__(b, pos);
 		#else
 		return b[pos];
 		#end
@@ -60,6 +62,8 @@ class Bytes {
 		b[pos] = cast v;
 		#elseif cs
 		b[pos] = cast v;
+		#elseif python
+		untyped __python_array_set__(b, pos, v & 0xFF);
 		#else
 		b[pos] = v & 0xFF;
 		#end
@@ -80,6 +84,8 @@ class Bytes {
 		java.lang.System.arraycopy(src.b, srcpos, b, pos, len);
 		#elseif cs
 		cs.system.Array.Copy(src.b, srcpos, b, pos, len);
+		#elseif python
+		untyped __python__("self.b[pos:pos+len] = src.b[srcpos:srcpos+len]");
 		#else
 		var b1 = b;
 		var b2 = src.b;
@@ -134,6 +140,8 @@ class Bytes {
 		var newarr = new cs.NativeArray(len);
 		cs.system.Array.Copy(b, pos, newarr, 0, len);
 		return new Bytes(len, newarr);
+		#elseif python
+		return new Bytes(len, untyped __python_array_get__(b, pos, pos+len) );
 		#else
 		return new Bytes(len,b.slice(pos,pos+len));
 		#end
@@ -284,6 +292,8 @@ class Bytes {
 		return new Bytes(length, new cs.NativeArray(length));
 		#elseif java
 		return new Bytes(length, new java.NativeArray(length));
+		#elseif python
+		return new Bytes(length, python.lib.Builtin.bytearray(length));
 		#else
 		var a = new Array();
 		for( i in 0...length )
@@ -316,6 +326,11 @@ class Bytes {
 			return new Bytes(b.length, b);
 		}
 		catch (e:Dynamic) throw e;
+
+		#elseif python
+			var b:BytesData = python.lib.Builtin.bytearray(s, "UTF-8");
+			return new Bytes(b.length, b);
+
 		#else
 		var a = new Array();
 		// utf16-decode and utf8-encode

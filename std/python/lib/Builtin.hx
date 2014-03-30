@@ -2,7 +2,7 @@
 package python.lib;
 
 
-import python.lib.io.TextIOBase;
+import python.lib.io.IOBase;
 import python.lib.Types;
 
 
@@ -38,10 +38,11 @@ extern class Builtin {
 	@:overload(function (f:Dict<Dynamic, Dynamic>):Int {})
 	@:overload(function (f:Bytes):Int {})
 	@:overload(function (f:DictView<Dynamic>):Int {})
+	@:overload(function (f:ByteArray):Int {})
 	@:overload(function (f:Tuple<Dynamic>):Int {})
 	public static function len(x:String):Int;
 
-	public static function open(file:String, mode:String, ?buffering:Int = -1, ?encoding:String = null, ?errors : String, ?newline:String, ?closefd:Bool, ?opener:String->Int->FileDescriptor):TextIOBase;
+	public static function open(file:String, mode:String, ?buffering:Int = -1, ?encoding:String = null, ?errors : String, ?newline:String, ?closefd:Bool, ?opener:String->Int->FileDescriptor):IOBase;
 
 	//public static function divmod():Void;
 	//public static function input():Void;
@@ -81,7 +82,10 @@ extern class Builtin {
 
 	//public static function range():Void;
 	//public static function type():Void;
-	//public static function bytearray():Void;
+	@:overload(function (it:Array<Int>):python.lib.Types.ByteArray {})
+	@:overload(function (it:PyIterable<Int>):python.lib.Types.ByteArray {})
+	@:overload(function (size:Int):python.lib.Types.ByteArray {})
+	public static function bytearray(source:String,encoding:String,?errors:Dynamic):python.lib.Types.ByteArray;
 	//public static function float():Void;
 
 	@:overload(function <T>(f:Array<T>):Array<T> {})

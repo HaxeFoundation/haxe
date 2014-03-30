@@ -26,14 +26,17 @@ abstract VarArgs (Array<Dynamic>) to Array<Dynamic> from Array<Dynamic>
 }
 
 
-extern class ByteArray {
+extern class ByteArray implements ArrayAccess<Int> {
+	public var length(get, null):Int;
+	public inline function get_length ():Int {
+		return Builtin.len(this);
+	}
 	public function decode(encoding:String="utf-8", errors:String="strict"):String;
 }
 
-extern class Bytes {
-	public var length(get, null):Int;
-	public inline function get_length ():Int return Builtin.len(this);
-	public function decode(encoding:String="utf-8", errors:String="strict"):String;
+extern class Bytes extends ByteArray {
+
+	//public function decode(encoding:String="utf-8", errors:String="strict"):String;
 
 	static function __init__ ():Void
 	{
