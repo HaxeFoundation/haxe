@@ -18,4 +18,17 @@ class TestPython extends Test {
 		var list = new Array();
 	}
 
+	public function testStringMethod() {
+		var d:Dynamic = "foo";
+		eq("FOO", d.toUpperCase());
+
+		var o:{function toUpperCase():String;} = "foo";
+		eq("FOO", o.toUpperCase());
+
+		var d:Dynamic = "FOO";
+		eq("foo", d.toLowerCase());
+
+		var o:{function toLowerCase():String;} = "FOO";
+		eq("foo", o.toLowerCase());
+	}
 }

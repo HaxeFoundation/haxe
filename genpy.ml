@@ -1172,9 +1172,8 @@ module Printer = struct
 
 	and print_call pctx e1 el =
 		match e1.eexpr with
-			| TField(e1,FAnon {cf_name = "toUpperCase"}) ->
-				(* TODO: toLowerCase and other string methods? *)
-				Printf.sprintf "HxOverrides.hx_toUpperCase(%s)" (print_expr pctx e1)
+			| TField(e1,((FAnon {cf_name = ("toUpperCase" | "toLowerCase" as s)}) | FDynamic ("toUpperCase" | "toLowerCase" as s))) ->
+				Printf.sprintf "HxOverrides.hx_%s(%s)" s (print_expr pctx e1)
 			| _ ->
 				print_call2 pctx e1 el
 
@@ -1618,12 +1617,6 @@ module Generator = struct
 		print ctx "%s._hx_class_name = \"%s\"\n" p p_name;
 		print ctx "_hx_classes[\"%s\"] = %s\n" p_name p;
 		print ctx "_hx_c.%s = %s\n" p p
-
-(* 	Bool._hx_class_name = 'Bool'
-Bool._hx_class = Bool
-
-_hx_classes['Bool'] = Bool
-_hx_c.Bool = Bool	 *)
 
 	let gen_type ctx mt = match mt with
 		| TClassDecl c -> gen_class ctx c

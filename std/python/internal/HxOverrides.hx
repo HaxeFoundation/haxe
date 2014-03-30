@@ -75,4 +75,12 @@ class HxOverrides {
 			return x.toUpperCase();
 		}
 	}
+
+	static public function hx_toLowerCase(x) {
+		if (Std.is(x, String)) {
+			return x.lower();
+		} else {
+			return x.toLowerCase();
+		}
+	}
 }
