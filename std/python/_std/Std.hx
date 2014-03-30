@@ -92,7 +92,7 @@ import python.Boot;
 
             function loop (intf)
             {
-                var f:Array<Dynamic> = Reflect.field(intf, "_hx_interfaces");
+                var f:Array<Dynamic> = if (Builtin.hasattr(intf,"_hx_interfaces")) Builtin.getattr(intf, "_hx_interfaces") else [];
                 if (f != null) {
                     for (i in f) {
                         if ( i == t) {
