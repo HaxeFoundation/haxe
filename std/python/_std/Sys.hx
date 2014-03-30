@@ -15,13 +15,11 @@ class Sys {
 	}
 
 	public static function print(v:Dynamic):Void {
-		var str = Std.string(v);
-		untyped __python__('sys.stdout.buffer.write(("%s"%str).encode(\'utf-8\'))');
+		python.Lib.print(v);
 	}
 
 	public static function println(v:Dynamic):Void {
-		var str = Std.string(v);
-		untyped __python__('sys.stdout.buffer.write(("%s\\n"%str).encode(\'utf-8\'))');
+		python.Lib.println(v);
 	}
 
 	public static function args() : Array<String> {

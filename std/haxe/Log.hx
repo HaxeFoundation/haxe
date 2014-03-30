@@ -105,7 +105,7 @@ class Log {
 			} else {
 				str = v;
 			}
-			python.Lib.println([str]);
+			python.Lib.println(str);
 		#end
 	}
 

@@ -66,18 +66,15 @@ class Lib
     }
     */
 
-    public static function print(v:Dynamic)
-    {
-       python.lib.Sys.stdout.write(Std.string(v));
-       python.lib.Sys.stdout.flush();
-    }
+  public static function print(v:Dynamic):Void {
+    var str = Std.string(v);
+    untyped __python__('sys.stdout.buffer.write(("%s"%str).encode(\'utf-8\'))');
+  }
 
-    public static function println(v:Array<Dynamic>)
-    {
-       for (e in v) {
-          untyped __python__("print")(Std.string(e));
-       }
-    }
+  public static function println(v:Dynamic):Void {
+    var str = Std.string(v);
+    untyped __python__('sys.stdout.buffer.write(("%s\\n"%str).encode(\'utf-8\'))');
+  }
 
     public static function toPythonIterable <T>(it:Iterable<T>):python.lib.Types.NativeIterable<T>
     {
