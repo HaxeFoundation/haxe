@@ -193,13 +193,12 @@ class RunTravis {
 				//runCommand("haxelib", ["install", "openfl"]);
 				//runCommand("haxelib", ["git", "openfl-validation", "https://github.com/openfl/openfl-validation"]);
 			case "polygonal-ds":
-				runCommand("haxelib", ["git", "polygonal-ds", "https://github.com/polygonal/ds"]);
+				runCommand("haxelib", ["git", "polygonal-ds", "https://github.com/Simn/ds"]);
 				runCommand("haxelib", ["git", "polygonal-core", "https://github.com/polygonal/core", "master", "src"]);
 				runCommand("haxelib", ["git", "polygonal-printf", "https://github.com/polygonal/printf", "master", "src"]);
 				changeDirectory(getHaxelibPath("polygonal-ds"));
-				runCommand("haxe", ["-cp", "src", "-cp", "test", "-lib", "polygonal-core", "-lib", "polygonal-printf", "UnitTest", "-js", "unit.js", "--macro", "addMetadata(\"@:expose\", \"UnitTest\")"]);
-				// TODO: find a way to communicate the fail state from haxe.unit.TestRunner
-				runCommand("node", ["-e", "var unit = require('./unit.js'); unit.UnitTest.main(); process.exit(unit.UnitTest.success ? 0 : 0);"]);
+				runCommand("haxe", ["-cp", "src", "-cp", "test", "-lib", "polygonal-core", "-lib", "polygonal-printf", "-main", "UnitTest", "-js", "unit.js"]);
+				runCommand("node", ["unit.js"]);
 			//case "flambe":
 				//runCommand("haxelib", ["git", "flambe", "https://github.com/aduros/flambe", "master", "src"]);
 				//runCommand("haxelib", ["git", "flambe-server", "https://github.com/aduros/flambe-server", "master", "src"]);
