@@ -11,7 +11,7 @@ import python.lib.Types;
 @:native("_hx_builtin")
 extern class Builtin {
 
-	
+
 
 	@:overload(function (f:Int):Int {})
 	public static function abs(x:Float):Float;
@@ -24,14 +24,14 @@ extern class Builtin {
 	public static function callable(x:Dynamic):Bool;
 
 
-	
+
 
 	@:overload(function (obj:Dynamic, f:Tuple<Dynamic>):Bool {})
 	public static function isinstance(obj:Dynamic, cl:Class<Dynamic>):Bool;
 
 	public static function hasattr(obj:Dynamic, attr:String):Bool;
 	public static function getattr(obj:Dynamic, attr:String):Dynamic;
-	
+
 	@:overload(function (f:Set<Dynamic>):Int {})
 	@:overload(function (f:StringBuf):Int {})
 	@:overload(function (f:Array<Dynamic>):Int {})
@@ -41,11 +41,11 @@ extern class Builtin {
 	@:overload(function (f:Tuple<Dynamic>):Int {})
 	public static function len(x:String):Int;
 
-	public static function open(file:String, mode:String, ?encoding:String = null, ?errors : String, ?newline:String, ?closefd:Bool, ?opener:String->Int->FileDescriptor):TextIOBase;
+	public static function open(file:String, mode:String, ?buffering:Int = -1, ?encoding:String = null, ?errors : String, ?newline:String, ?closefd:Bool, ?opener:String->Int->FileDescriptor):TextIOBase;
 
 	//public static function divmod():Void;
 	//public static function input():Void;
-	
+
 	//public static function staticmethod():Void;
 	//public static function enumerate():Void;
 
@@ -55,35 +55,35 @@ extern class Builtin {
 		return untyped __field__(Builtin, "str")(o);
 	}
 	//public static function eval():Void;
-	
+
 	//public static function pow():Void;
 	//public static function sum():Void;
 	//public static function basestring():Void;
 	//public static function execfile():Void;
-	
+
 	public static inline function print(o:Dynamic):Void {
 		return untyped __field__(Builtin, "print")(o);
 	}
-	
+
 	//public static function super():Void;
 	//public static function bin():Void;
 	//public static function file():Void;
 	public static function iter<X>(d:DictView<X>):PyIterator<X>;
 	//public static function property():Void;
-	
+
 
 
 	@:overload(function <X>():Tuple<X> {})
 	public static function tuple<X>(a:Array<X>):Tuple<X>;
 
-	
-	
-	
+
+
+
 	//public static function range():Void;
 	//public static function type():Void;
 	//public static function bytearray():Void;
 	//public static function float():Void;
-	
+
 	@:overload(function <T>(f:Array<T>):Array<T> {})
 	@:overload(function (f:String):Array<String> {})
 	@:overload(function <G>(f:Tuple<G>):Array<G> {})
@@ -92,7 +92,7 @@ extern class Builtin {
 	public static function filter<A>(f:A->Bool, i:Choice<Array<A>, PyIterable<A>>):PyIterator<A>;
 	//public static function raw_input():Void;
 	//public static function unichr():Void;
-	
+
 	//public static function format():Void;
 	//public static function locals():Void;
 	//public static function reduce():Void;
@@ -103,7 +103,7 @@ extern class Builtin {
 	//public static function reload():Void;
 	//public static function vars():Void;
 	//public static function classmethod():Void;
-	
+
 	public static function map<A,B>(fn:A->B, it:PyIterable<A>):PyIterator<B>;
 	//public static function repr():Void;
 	//public static function xrange():Void;
@@ -114,7 +114,7 @@ extern class Builtin {
 	//public static function reversed():Void;
 	//public static function zip():Void;
 	//public static function compile():Void;
-	
+
 	//public static function memoryview():Void;
 	public static function round(f:Float):Int;
 	//public static function __import__():Void;

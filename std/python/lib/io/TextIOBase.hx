@@ -8,4 +8,6 @@ extern class TextIOBase extends IOBase {
 	public var encoding:String;
 
 	public function write (s:String):Int;
+
+	public function read (n:Int):String;
 }
