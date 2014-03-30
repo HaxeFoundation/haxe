@@ -32,6 +32,13 @@ class RunTravis {
 		Sys.exit(exitCode);
 	}
 
+	static function getHaxelibPath(libName:String) {
+		var proc = new sys.io.Process("haxelib", ["path", libName]);
+		var result = proc.stdout.readLine();
+		proc.close();
+		return result;
+	}
+
 	static function setupFlashPlayerDebugger():Void {
 		Sys.putEnv("DISPLAY", ":99.0");
 		runCommand("sh", ["-e", "/etc/init.d/xvfb", "start"]);
@@ -82,7 +89,6 @@ class RunTravis {
 		switch (Sys.getEnv("TARGET")) {
 			case "macro", null:
 				runCommand("haxe", ["compile-macro.hxml"]);
-
 
 				//generate documentation
 				runCommand("haxelib", ["git", "hxparse", "https://github.com/Simn/hxparse", "development", "src"], true);
@@ -177,6 +183,24 @@ class RunTravis {
 
 				runCommand("haxe", ["compile-as3.hxml", "-D", "fdb"]);
 				runFlash("unit9_as3.swf");
+			//case "openfl":
+				//runCommand("haxelib", ["install", "munit"]);
+				//runCommand("haxelib", ["install", "openfl"]);
+				//runCommand("haxelib", ["git", "openfl-validation", "https://github.com/openfl/openfl-validation"]);
+			case "polygonal-ds":
+				runCommand("haxelib", ["git", "polygonal-ds", "https://github.com/polygonal/ds"]);
+				runCommand("haxelib", ["git", "polygonal-core", "https://github.com/polygonal/core", "master", "src"]);
+				runCommand("haxelib", ["git", "polygonal-printf", "https://github.com/polygonal/printf", "master", "src"]);
+				Sys.setCwd(getHaxelibPath("polygonal-ds"));
+				runCommand("haxe", ["-cp", "src", "-cp", "test", "-lib", "polygonal-core", "-lib", "polygonal-printf", "UnitTest", "-js", "unit.js", "--macro", "addMetadata(\"@:expose\", \"UnitTest\")"]);
+				// TODO: find a way to communicate the fail state from haxe.unit.TestRunner
+				runCommand("node", ["-e", "var unit = require('./unit.js'); unit.UnitTest.main(); process.exit(unit.UnitTest.success ? 0 : 0);"]);
+			case "flambe":
+				runCommand("haxelib", ["git", "flambe", "https://github.com/aduros/flambe", "master", "src"]);
+				runCommand("haxelib", ["git", "flambe-server", "https://github.com/aduros/flambe-server", "master", "src"]);
+				Sys.setCwd(haxe.io.Path.join([getHaxelibPath("flambe"), "..", "tests", "unit"]));
+				// TODO: same problem as with polygonal
+				runCommand("sh", ["run-tests"]);
 			case target:
 				throw "unknown target: " + target;
 		}
