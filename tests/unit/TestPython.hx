@@ -35,9 +35,6 @@ class TestPython extends Test {
 		eq("foo", o.toLowerCase());
 	}
 
-	public function testX() {
-		trace(sys.io.File.getBytes("res1.txt"));
-	}
 
 	public function testOptionalStructureFields() {
 		var v:T = haxe.Json.parse('{"value": 1 }');
