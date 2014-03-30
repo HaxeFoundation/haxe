@@ -4,18 +4,18 @@ import python.lib.Types;
 
 
 
-class HaxeIterable<T> 
+class HaxeIterable<T>
 {
   var x :NativeIterable<T>;
   public inline function new (x:NativeIterable<T>) {
     this.x = x;
-    
+
   }
 
   public inline function iterator ():HaxeIterator<T> return new HaxeIterator(x.__iter__());
 }
 
-class HaxeIterator<T> 
+class HaxeIterator<T>
 {
   var it :NativeIterator<T>;
   var x:Null<T> = null;
@@ -45,9 +45,9 @@ class HaxeIterator<T>
         x = null;
       }
       checked = true;
-      return has;  
+      return has;
     }
-    
+
   }
 }
 
@@ -79,7 +79,7 @@ class Lib
        }
     }
 
-    public static function toPythonIterable <T>(it:Iterable<T>):python.lib.Types.NativeIterable<T> 
+    public static function toPythonIterable <T>(it:Iterable<T>):python.lib.Types.NativeIterable<T>
     {
       return {
         __iter__ : function () {
@@ -100,16 +100,16 @@ class Lib
       }
     }
 
-    public static inline function toHaxeIterable <T>(it:NativeIterable<T>):HaxeIterable<T> 
+    public static inline function toHaxeIterable <T>(it:NativeIterable<T>):HaxeIterable<T>
     {
       return new HaxeIterable(it);
     }
 
-    public static inline function toHaxeIterator <T>(it:NativeIterator<T>):HaxeIterator<T> 
+    public static inline function toHaxeIterator <T>(it:NativeIterator<T>):HaxeIterator<T>
     {
       return new HaxeIterator(it);
     }
 
 
-    
+
 }

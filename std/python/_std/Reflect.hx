@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-import python.internal.KeywordHandler;
+
 import python.lib.Builtin;
 import python.lib.Inspect;
 import python.lib.Types;
@@ -28,28 +28,57 @@ import python.lib.Types;
 @:coreApi
 class Reflect {
 
+	static var keywords:Set<String> = new Set(
+    [
+        "and",       "del",       "from",      "not",       "while",
+        "as",        "elif",      "global",    "or",        "with",
+        "assert",    "else",      "if",        "pass",      "yield",
+        "break",     "except",    "import",    "print",     "float",
+        "class",     "exec",      "in",        "raise",
+        "continue",  "finally",   "is",        "return",
+        "def",       "for",       "lambda",    "try",
+        "None",      "list"
+    ]);
+
+	static inline function handleKeywords(name:String):String
+    {
+        if (keywords.has(name)) {
+            return "_hx_" + name;
+        }
+        return name;
+    }
+
+    static function unhandleKeywords(name:String):String
+    {
+    	if (name.substr(0,4) == "_hx_") {
+    		var real = name.substr(4);
+    		if (keywords.has(real)) return real;
+    	}
+    	return name;
+    }
+
 	public static function hasField( o : Dynamic, field : String ) : Bool
 	{
-		var field = KeywordHandler.handleKeywords(field);
+		var field = handleKeywords(field);
 		return Builtin.hasattr(o, field);
 	}
 
 	@:keep public static function field( o : Dynamic, field : String ) : Dynamic
 	{
 		if (field == null) return null;
-		var field = KeywordHandler.handleKeywords(field);
+		var field = handleKeywords(field);
 		return if (Builtin.hasattr(o, field)) Builtin.getattr(o, field) else null;
 	}
 
 	@:keep public static function setField( o : Dynamic, field : String, value : Dynamic ) : Void untyped
 	{
-		var field = KeywordHandler.handleKeywords(field);
+		var field = handleKeywords(field);
 		return __define_feature__("Reflect.setField",Builtin.setattr(o,field,value));
 	}
 
 	public static function getProperty( o : Dynamic, field : String ) : Dynamic
 	{
-		var field = KeywordHandler.handleKeywords(field);
+		var field = handleKeywords(field);
 		var tmp = null;
 		if (o == null) {
 			return null;
@@ -65,7 +94,7 @@ class Reflect {
 
 	public static function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void {
 
-		var field = KeywordHandler.handleKeywords(field);
+		var field = handleKeywords(field);
 
 		return if (Builtin.hasattr(o,"set_"+field)) {
 			var tmp = Builtin.getattr(o,"set_"+field);
@@ -96,7 +125,7 @@ class Reflect {
 
 				var d:Dict<String, Dynamic> = Builtin.getattr(o, "__dict__");
 				var keys  = d.keys();
-				var handler = python.internal.KeywordHandler.unhandleKeywords;
+				var handler = unhandleKeywords;
 				untyped __python__("for k in keys:");
 				untyped __python__("	a.append(handler(k))");
 
