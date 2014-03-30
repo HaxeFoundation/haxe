@@ -56,7 +56,14 @@ class Sys {
 	}
 
 	public static function systemName() : String {
-		return "";
+		return switch (python.lib.Sys.platform) {
+			case x if (StringTools.startsWith(x, "linux")):
+				"Linux";
+			case "darwin": "Mac";
+			case "win32" | "cygwin" : "Windows";
+			case _ :
+				throw "not supported platform";
+		}
 	}
 
 	public static function command( cmd : String, ?args : Array<String> ) : Int {
@@ -74,8 +81,8 @@ class Sys {
 
 	public static function getChar( echo : Bool ) : Int {
 
-		var ch = switch (python.lib.Sys.platform) {
-			case x if (StringTools.startsWith(x, "linux") || x =="darwin"):
+		var ch = switch (systemName()) {
+			case "Linux" | "Mac":
 				var fd = python.lib.Sys.stdin.fileno();
 				var old = python.lib.Termios.tcgetattr(fd);
 
@@ -91,7 +98,7 @@ class Sys {
 					throw e;
 				}
 
-			case "win32" | "cygwin":
+			case "Windows":
 				python.lib.Msvcrt.getch().decode("utf-8").charCodeAt(0);
 			case x :
 				throw "platform " + x + " not supported";
