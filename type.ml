@@ -600,6 +600,15 @@ let rec has_mono t = match t with
 	| TLazy r ->
 		has_mono (!r())
 
+let concat e1 e2 =
+	let e = (match e1.eexpr, e2.eexpr with
+		| TBlock el1, TBlock el2 -> TBlock (el1@el2)
+		| TBlock el, _ -> TBlock (el @ [e2])
+		| _, TBlock el -> TBlock (e1 :: el)
+		| _ , _ -> TBlock [e1;e2]
+	) in
+	mk e e2.etype (punion e1.epos e2.epos)
+
 (* ======= Field utility ======= *)
 
 let field_name f =

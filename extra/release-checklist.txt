@@ -1,8 +1,8 @@
-- Make sure CHANGES.txt has a proper date set.
+- Make sure CHANGES.txt has a proper date set!
 - Make sure `version` in main.ml has the correct value.
 - Merge development branch into master.
 - Wait for Travis to greenlight master.
-- Tag master.
+- Tag master as MAJOR.MINOR.PATCH.
 - Wait for builds.haxe.org to build master.
 - If required, tell Caue to fix builds.haxe.org.
 - Get https://github.com/waneck/hxbuilds/tree/master/release-helper

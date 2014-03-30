@@ -47,15 +47,6 @@ let binop op a b t p =
 let index com e index t p =
 	mk (TArray (e,mk (TConst (TInt (Int32.of_int index))) com.basic.tint p)) t p
 
-let concat e1 e2 =
-	let e = (match e1.eexpr, e2.eexpr with
-		| TBlock el1, TBlock el2 -> TBlock (el1@el2)
-		| TBlock el, _ -> TBlock (el @ [e2])
-		| _, TBlock el -> TBlock (e1 :: el)
-		| _ , _ -> TBlock [e1;e2]
-	) in
-	mk e e2.etype (punion e1.epos e2.epos)
-
 let type_constant com c p =
 	let t = com.basic in
 	match c with
@@ -398,7 +389,7 @@ let rec build_generic ctx c p tl =
 					| _ -> assert false)
 				| _ -> Some(cs,pl)
 		);
-		Typeload.add_constructor ctx cg p;
+		Typeload.add_constructor ctx cg false p;
 		cg.cl_kind <- KGenericInstance (c,tl);
 		cg.cl_interface <- c.cl_interface;
 		cg.cl_constructor <- (match cg.cl_constructor, c.cl_constructor, c.cl_super with
@@ -514,14 +505,28 @@ let build_metadata com t =
 (* -------------------------------------------------------------------------- *)
 (* MACRO TYPE *)
 
-let get_macro_path e args p =
+let get_macro_path ctx e args p =
 	let rec loop e =
 		match fst e with
 		| EField (e,f) -> f :: loop e
 		| EConst (Ident i) -> [i]
 		| _ -> error "Invalid macro call" p
 	in
-	(match loop e with
+	let path = match e with
+		| (EConst(Ident i)),_ ->
+			let path = try
+				if not (PMap.mem i ctx.curclass.cl_statics) then raise Not_found;
+				ctx.curclass.cl_path
+			with Not_found -> try
+				(t_infos (fst (PMap.find i ctx.m.module_globals))).mt_path
+			with Not_found ->
+				error "Invalid macro call" p
+			in
+			i :: (snd path) :: (fst path)
+		| _ ->
+			loop e
+	in
+	(match path with
 	| meth :: cl :: path -> (List.rev path,cl), meth, args
 	| _ -> error "Invalid macro call" p)
 
@@ -529,7 +534,7 @@ let build_macro_type ctx pl p =
 	let path, field, args = (match pl with
 		| [TInst ({ cl_kind = KExpr (ECall (e,args),_) },_)]
 		| [TInst ({ cl_kind = KExpr (EArrayDecl [ECall (e,args),_],_) },_)] ->
-			get_macro_path e args p
+			get_macro_path ctx e args p
 		| _ ->
 			error "MacroType requires a single expression call parameter" p
 	) in
@@ -543,7 +548,7 @@ let build_macro_type ctx pl p =
 
 let build_macro_build ctx c pl cfl p =
 	let path, field, args = match Meta.get Meta.GenericBuild c.cl_meta with
-		| _,[ECall(e,args),_],_ -> get_macro_path e args p
+		| _,[ECall(e,args),_],_ -> get_macro_path ctx e args p
 		| _ -> error "genericBuild requires a single expression call parameter" p
 	in
 	let old = ctx.ret,ctx.g.get_build_infos in

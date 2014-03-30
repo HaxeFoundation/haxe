@@ -992,7 +992,7 @@ let check_extends ctx c t p = match follow t with
 		end
 	| _ -> error "Should extend by using a class" p
 
-let rec add_constructor ctx c p =
+let rec add_constructor ctx c force_constructor p =
 	match c.cl_constructor, c.cl_super with
 	| None, Some ({ cl_constructor = Some cfsup } as csup,cparams) when not c.cl_extern ->
 		let cf = {
@@ -1046,6 +1046,18 @@ let rec add_constructor ctx c p =
 		cf.cf_type <- TLazy r;
 		c.cl_constructor <- Some cf;
 		delay ctx PForce (fun() -> ignore((!r)()));
+	| None,_ when force_constructor ->
+		let constr = mk (TFunction {
+			tf_args = [];
+			tf_type = ctx.t.tvoid;
+			tf_expr = mk (TBlock []) ctx.t.tvoid p;
+		}) (tfun [] ctx.t.tvoid) p in
+		let cf = mk_field "new" constr.etype p in
+		cf.cf_expr <- Some constr;
+		cf.cf_type <- constr.etype;
+		cf.cf_meta <- [Meta.CompilerGenerated,[],p];
+		cf.cf_kind <- Method MethNormal;
+		c.cl_constructor <- Some cf;
 	| _ ->
 		(* nothing to do *)
 		()
@@ -1219,16 +1231,34 @@ let type_function ctx args ret fmode f do_display p =
 	in
 	let has_super_constr() =
 		match ctx.curclass.cl_super with
-		| None -> false
-		| Some (csup,_) ->
-			try ignore(get_constructor (fun f->f.cf_type) csup); true with Not_found -> false
+		| None ->
+			None
+		| Some (csup,tl) ->
+			try
+				let _,cf = get_constructor (fun f->f.cf_type) csup in
+				Some (Meta.has Meta.CompilerGenerated cf.cf_meta,TInst(csup,tl))
+			with Not_found ->
+				None
 	in
-	if fmode = FunConstructor && has_super_constr() then
-		(try
-			loop e;
-			display_error ctx "Missing super constructor call" p
-		with
-			Exit -> ());
+	let e = if fmode <> FunConstructor then
+		e
+	else match has_super_constr() with
+		| Some (was_forced,t_super) ->
+			(try
+				loop e;
+				if was_forced then
+					let e_super = mk (TConst TSuper) t_super e.epos in
+					let e_super_call = mk (TCall(e_super,[])) ctx.t.tvoid e.epos in
+					concat e_super_call e
+				else begin
+					display_error ctx "Missing super constructor call" p;
+					e
+				end
+			with
+				Exit -> e);
+		| None ->
+			e
+	in
 	locals();
 	let e = match ctx.curfun, ctx.vthis with
 		| (FunMember|FunConstructor), Some v ->
@@ -1568,6 +1598,8 @@ let init_class ctx c p context_init herits fields =
 		end
 	in
 
+	let force_constructor = ref false in
+
 	let bind_var ctx cf e stat inline =
 		let p = cf.cf_pos in
 		if not stat && has_field cf.cf_name c.cl_super then error ("Redefinition of variable " ^ cf.cf_name ^ " in subclass is not allowed") p;
@@ -1640,6 +1672,7 @@ let init_class ctx c p context_init herits fields =
 				end;
 				t
 			) "bind_var" in
+			if not stat then force_constructor := true;
 			bind_type ctx cf r (snd e) false
 	in
 
@@ -2082,7 +2115,7 @@ let init_class ctx c p context_init herits fields =
 		make sure a default contructor with same access as super one will be added to the class structure at some point.
 	*)
 	(* add_constructor does not deal with overloads correctly *)
-	if not ctx.com.config.pf_overload then add_constructor ctx c p;
+	if not ctx.com.config.pf_overload then add_constructor ctx c !force_constructor p;
 	(* check overloaded constructors *)
 	(if ctx.com.config.pf_overload then match c.cl_constructor with
 	| Some ctor ->

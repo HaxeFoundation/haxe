@@ -12,7 +12,7 @@ else
 endif
 
 kill:
-	-@taskkill /F /IM haxe.exe 2>/dev/null
+	-@taskkill /F /IM haxe.exe
 
 # allow Ocaml/Mingw as well
 NATIVE_LIBS += -I "c:/program files/mingw/lib/"

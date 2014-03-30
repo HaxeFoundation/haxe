@@ -343,6 +343,12 @@ let to_pattern ctx e t =
 			unify ctx e.etype t p;
 			let c = match e.eexpr with TConst c -> c | _ -> assert false in
 			mk_con_pat (CConst c) [] t p
+		| EMeta((Meta.Macro,[],_),(ECall (e1,args),_)) ->
+			let path, field, args = Codegen.get_macro_path ctx e1 args p in
+			begin match ctx.g.do_macro ctx MExpr path field args p with
+				| Some e ->	loop pctx e t
+				| None -> error "Macro failure" p
+			end
 		| EField _ ->
 			let e = type_expr ctx e (WithType t) in
 			let e = match Optimizer.make_constant_expression ctx ~concat_strings:true e with Some e -> e | None -> e in

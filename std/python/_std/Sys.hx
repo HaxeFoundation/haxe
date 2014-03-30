@@ -7,7 +7,7 @@ class Sys {
 	static var environ:haxe.ds.StringMap<String>;
 
 	public static function time():Float {
-		return Time.time()/1000;
+		return Time.time();
 	}
 
 	public static function exit(code:Int):Void {

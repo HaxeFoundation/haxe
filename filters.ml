@@ -120,7 +120,7 @@ let handle_side_effects com gen_temp e =
 			let e_break = mk TBreak t_dynamic p in
 			let e_not = mk (TUnop(Not,Prefix,Codegen.mk_parent e1)) e1.etype e1.epos in
 			let e_if = mk (TIf(e_not,e_break,None)) com.basic.tvoid p in
-			let e_block = if flag = NormalWhile then Codegen.concat e_if e2 else Codegen.concat e2 e_if in
+			let e_block = if flag = NormalWhile then Type.concat e_if e2 else Type.concat e2 e_if in
 			let e_true = mk (TConst (TBool true)) com.basic.tbool p in
 			let e = mk (TWhile(Codegen.mk_parent e_true,e_block,NormalWhile)) e.etype p in
 			loop e
@@ -493,13 +493,13 @@ let captured_vars com e =
 			let vtmp = mk_var v used in
 			let it = wrap used it in
 			let expr = wrap used expr in
-			mk (TFor (vtmp,it,Codegen.concat (mk_init v vtmp e.epos) expr)) e.etype e.epos
+			mk (TFor (vtmp,it,Type.concat (mk_init v vtmp e.epos) expr)) e.etype e.epos
 		| TTry (expr,catchs) ->
 			let catchs = List.map (fun (v,e) ->
 				let e = wrap used e in
 				try
 					let vtmp = mk_var v used in
-					vtmp, Codegen.concat (mk_init v vtmp e.epos) e
+					vtmp, Type.concat (mk_init v vtmp e.epos) e
 				with Not_found ->
 					v, e
 			) catchs in
@@ -547,7 +547,7 @@ let captured_vars com e =
 			let fargs = List.map (fun (v,o) ->
 				if PMap.mem v.v_id used then
 					let vtmp = mk_var v used in
-					fexpr := Codegen.concat (mk_init v vtmp e.epos) !fexpr;
+					fexpr := Type.concat (mk_init v vtmp e.epos) !fexpr;
 					vtmp, o
 				else
 					v, o

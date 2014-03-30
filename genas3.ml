@@ -417,9 +417,11 @@ let rec gen_call ctx e el r =
 		spr ctx " is ";
 		gen_value ctx e2;
 	| TLocal { v_name = "__in__" } , [e1;e2] ->
+		spr ctx "(";
 		gen_value ctx e1;
 		spr ctx " in ";
 		gen_value ctx e2;
+		spr ctx ")"
 	| TLocal { v_name = "__as__" }, [e1;e2] ->
 		gen_value ctx e1;
 		spr ctx " as ";
