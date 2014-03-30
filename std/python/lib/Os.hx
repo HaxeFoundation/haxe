@@ -33,6 +33,8 @@ extern class Os {
 
 	public static var environ : Dict<String, String>;
 
+	public static function putenv (name:String, value:String):Void;
+
 	public static function chdir (path:String):Void;
 
 	public static function unlink (path:String):Void;
@@ -49,6 +51,7 @@ extern class Os {
 	public static function renames (oldName:String, newName:String):Void;
 
 	public static function rmdir (path:String):Void;
+
 
 	public static function stat (path:String):Stat;
 
