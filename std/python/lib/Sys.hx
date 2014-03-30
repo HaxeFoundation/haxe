@@ -13,8 +13,10 @@ extern class Sys {
 	public static function getfilesystemencoding():String;
 
 	public static var version:String;
+	public static var platform:String;
 
 	public static var stdout(default, never):TextIOBase;
+	public static var stdin(default, never):TextIOBase;
 
 
 	public static function getsizeof (t:Dynamic):Int;

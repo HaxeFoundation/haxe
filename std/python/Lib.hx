@@ -58,11 +58,13 @@ class Lib
     var str = Std.string(v);
 
     untyped __python__('_hx_sys.stdout.buffer.write(("%s"%str).encode(\'utf-8\'))');
+    untyped __python__('_hx_sys.stdout.flush()');
   }
 
   public static function println(v:Dynamic):Void {
     var str = Std.string(v);
     untyped __python__('_hx_sys.stdout.buffer.write(("%s\\n"%str).encode(\'utf-8\'))');
+    untyped __python__('_hx_sys.stdout.flush()');
   }
 
     public static function toPythonIterable <T>(it:Iterable<T>):python.lib.Types.NativeIterable<T>

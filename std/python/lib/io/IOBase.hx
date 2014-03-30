@@ -12,5 +12,6 @@ extern class IOBase {
 	public function tell():Int;
 	public function writable():Bool;
 	public function seekable():Bool;
+	public function fileno():Int;
 
 }

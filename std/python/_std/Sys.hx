@@ -73,7 +73,31 @@ class Sys {
 	}
 
 	public static function getChar( echo : Bool ) : Int {
-		return 0;
+		trace(python.lib.Sys.platform);
+		var ch = switch (python.lib.Sys.platform) {
+			case "linux" | "darwin":
+				var fd = python.lib.Sys.stdin.fileno();
+				var old = python.lib.Termios.tcgetattr(fd);
+
+				var restore = python.lib.Termios.tcsetattr.bind(fd, python.lib.Termios.TCSADRAIN, old);
+
+				try {
+					python.lib.Tty.setraw(fd);
+					var ch = python.lib.Sys.stdin.read(1);
+					restore();
+					ch;
+				} catch (e:Dynamic) {
+					trace("error" + e);
+					restore();
+					String.fromCharCode(0);
+				}
+
+			case "win32" | "cygwin":
+				python.lib.Msvrt.getch();
+			case x :
+				throw "platform " + x + " not supported";
+		}
+		return ch.charCodeAt(0);
 	}
 
 	public static function stdin() : haxe.io.Input {
