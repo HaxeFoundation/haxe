@@ -1,26 +1,29 @@
 package python.internal;
 
-import haxe.ds.StringMap;
 
-using Lambda;
+import python.lib.Types.Set;
+
 
 class KeywordHandler {
 
-	static var keywords:StringMap<Bool> = [
-		"and" => true,       "del" => true,       "from" => true,      "not" => true,       "while" => true,
-		"as" => true,        "elif" => true,      "global" => true,    "or" => true,        "with" => true,
-		"assert" => true,    "else" => true,      "if" => true,        "pass" => true,      "yield" => true,
-		"break" => true,     "except" => true,    "import" => true,    "print" => true,		"float" => true,
-		"class" => true,     "exec" => true,      "in" => true,        "raise" => true,
-		"continue" => true,  "finally" => true,   "is" => true,        "return" => true,
-		"def" => true,       "for" => true,       "lambda" => true,    "try" => true,
-		"None" => true,      "list" => true
-	];
+
+	static var keywords:Set<String> = new Set(
+    [
+        "and",       "del",       "from",      "not",       "while",
+        "as",        "elif",      "global",    "or",        "with",
+        "assert",    "else",      "if",        "pass",      "yield",
+        "break",     "except",    "import",    "print",     "float",
+        "class",     "exec",      "in",        "raise",
+        "continue",  "finally",   "is",        "return",
+        "def",       "for",       "lambda",    "try",
+        "None",      "list"
+    ]);
 
 	public static inline function handleKeywords(name:String)
     {
-        if(keywords.exists(name))
+        if (keywords.has(name)) {
             return "_hx_" + name;
+        }
         return name;
     }
 
@@ -28,7 +31,7 @@ class KeywordHandler {
     {
     	if (name.substr(0,4) == "_hx_") {
     		var real = name.substr(4);
-    		if (keywords.exists(real)) return real;
+    		if (keywords.has(real)) return real;
     	}
     	return name;
     }

@@ -127,6 +127,11 @@ extern class Set <T>
 		return python.lib.Builtin.len(this);
 	}
 
+	public inline function has (v:T):Bool
+	{
+		return untyped __python_in__(v, this);
+	}
+
 
 	public inline function minus (other:Set<T>):Set<T>
 	{
