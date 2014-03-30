@@ -83,9 +83,9 @@ class Sys {
 
 				try {
 					python.lib.Tty.setraw(fd);
-					var ch = python.lib.Sys.stdin.read(1);
+					var x = python.lib.Sys.stdin.read(1);
 					restore();
-					ch;
+					x.charCodeAt(0);
 				} catch (e:Dynamic) {
 					restore();
 					throw e;
@@ -96,7 +96,7 @@ class Sys {
 			case x :
 				throw "platform " + x + " not supported";
 		}
-		return ch.charCodeAt(0);
+		return ch;
 	}
 
 	public static function stdin() : haxe.io.Input {

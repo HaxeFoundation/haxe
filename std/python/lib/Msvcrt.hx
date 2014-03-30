@@ -3,7 +3,7 @@ package python.lib;
 
 extern class Msvcrt {
 
-	public static function getch ():String;
+	public static function getch ():Int;
 
 	static function __init__ ():Void
 	{
