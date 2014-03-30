@@ -444,9 +444,9 @@ module Transformer = struct
 			let inc = {e1 with eexpr = TBinop(op,ve,one)} in
 			let inc_assign = {e1 with eexpr = TBinop(OpAssign,ve,inc)} in
 			let var_assign = {e1 with eexpr = TVar(v,Some ve)} in
-			if post_fix = Postfix then 
-				lift true [var_assign] inc_assign 
-			else 
+			if post_fix = Postfix then
+				lift true [var_assign] inc_assign
+			else
 				lift true [inc_assign] var_assign
 		| (_,TVar(v,eo)) ->
 			transform_var_expr ae eo v
@@ -680,16 +680,16 @@ module Transformer = struct
 			lift_expr ~blocks:e.a_blocks r
 		| ( _, TPatMatch _ ) -> assert false
 		| ( _, TLocal _ ) -> lift_expr a_expr
-			
+
 		| ( _, TConst _ ) -> lift_expr a_expr
 		| ( _, TTypeExpr _ ) -> lift_expr a_expr
 		| ( _, TEnumParameter _ ) -> lift_expr a_expr
 		| ( _, TUnop _ ) -> assert false
-		| ( true, TWhile(econd, ebody, DoWhile) ) -> 
+		| ( true, TWhile(econd, ebody, DoWhile) ) ->
 			let new_expr = trans false [] a_expr in
 			let f = exprs_to_func (new_expr.a_blocks @ [new_expr.a_expr]) (ae.a_next_id()) ae in
 			lift_expr ~is_value:true ~blocks:f.a_blocks f.a_expr
-			
+
 		| ( _, TBreak ) | ( _, TContinue ) ->
 			lift_expr a_expr
 		(*| _ ->
@@ -941,7 +941,7 @@ module Printer = struct
 				print_function pctx tf None
 			| TVar (v,eo) ->
 				print_var pctx v eo
-			
+
 			| TBlock [] ->
 				Printf.sprintf "pass\n%s" indent
 			| TBlock [{ eexpr = TBlock _} as b] ->
@@ -1061,9 +1061,9 @@ module Printer = struct
 			let handle_base_type bt =
 				let t = print_base_type bt in
 				let res = if t = "String" then
-					Printf.sprintf "if isinstance(_hx_e1, str):\n%s\t%s = _hx_e1\n%s\t%s" indent v.v_name indent (print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} e)
+					Printf.sprintf "if _hx_builtin.isinstance(_hx_e1, str):\n%s\t%s = _hx_e1\n%s\t%s" indent v.v_name indent (print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} e)
 				else
-					Printf.sprintf "if isinstance(_hx_e1, %s):\n%s\t%s = _hx_e1\n%s\t%s" t indent v.v_name indent (print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} e)
+					Printf.sprintf "if _hx_builtin.isinstance(_hx_e1, %s):\n%s\t%s = _hx_e1\n%s\t%s" t indent v.v_name indent (print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} e)
 				in
 				if i > 0 then
 					indent ^ "el" ^ res
@@ -1426,13 +1426,13 @@ module Generator = struct
 					| Method _ ->
 						let py_metas = filter_py_metas cf.cf_meta in
 						gen_func_expr ctx e c field py_metas ["self"] "\t" false;
-						
+
 					| _ ->
 						gen_expr ctx e (Printf.sprintf "# var %s" field) "\t";
 				newline ctx;
 				end
 		end
-		
+
 
 	let gen_static_field ctx c p cf =
 		let p = get_path (t_infos (TClassDecl c)) in
@@ -1458,7 +1458,7 @@ module Generator = struct
 			let statics = collect_class_statics_data c.cl_ordered_statics in
 			String.concat "," (List.map (fun s -> "\"" ^ s ^ "\"") statics)
 		in
-		
+
 		print ctx "%s._hx_class = %s\n" p p;
 		print ctx "%s._hx_class_name = \"%s\"\n" p p_name;
 		print ctx "_hx_classes[\"%s\"] = %s\n" p_name p;
@@ -1495,7 +1495,6 @@ module Generator = struct
 	let gen_class_statics ctx c p =
 		let f = fun () ->
 			List.iter (fun cf -> gen_static_field ctx c p cf) c.cl_ordered_statics;
-			spr ctx "\n";
 		in
 		ctx.static_inits <- f :: ctx.static_inits
 
@@ -1543,7 +1542,7 @@ module Generator = struct
 				| _ -> c.cl_interface
 			in
 			if use_pass then spr_line ctx "\tpass\n";
-			
+
 			gen_class_data ctx c x p_super p_interfaces p p_name;
 			gen_class_empty_constructor ctx p c.cl_ordered_fields;
 			gen_class_statics ctx c p;
@@ -1614,7 +1613,7 @@ module Generator = struct
 			| None ->
 				spr_line ctx "\n\tpass\n";
 		end;
-		
+
 		print ctx "%s._hx_class = %s\n" p p;
 		print ctx "%s._hx_class_name = \"%s\"\n" p p_name;
 		print ctx "_hx_classes[\"%s\"] = %s\n" p_name p;
