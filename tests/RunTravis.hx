@@ -200,12 +200,11 @@ class RunTravis {
 				runCommand("haxe", ["-cp", "src", "-cp", "test", "-lib", "polygonal-core", "-lib", "polygonal-printf", "UnitTest", "-js", "unit.js", "--macro", "addMetadata(\"@:expose\", \"UnitTest\")"]);
 				// TODO: find a way to communicate the fail state from haxe.unit.TestRunner
 				runCommand("node", ["-e", "var unit = require('./unit.js'); unit.UnitTest.main(); process.exit(unit.UnitTest.success ? 0 : 0);"]);
-			case "flambe":
-				runCommand("haxelib", ["git", "flambe", "https://github.com/aduros/flambe", "master", "src"]);
-				runCommand("haxelib", ["git", "flambe-server", "https://github.com/aduros/flambe-server", "master", "src"]);
-				changeDirectory(haxe.io.Path.join([getHaxelibPath("flambe"), "..", "tests", "unit"]));
-				// TODO: same problem as with polygonal
-				runCommand("sh", ["run-tests"]);
+			//case "flambe":
+				//runCommand("haxelib", ["git", "flambe", "https://github.com/aduros/flambe", "master", "src"]);
+				//runCommand("haxelib", ["git", "flambe-server", "https://github.com/aduros/flambe-server", "master", "src"]);
+				//changeDirectory(haxe.io.Path.join([getHaxelibPath("flambe"), "..", "tests", "unit"]));
+				//runCommand("sh", ["run-tests"]);
 			case target:
 				throw "unknown target: " + target;
 		}
