@@ -30,4 +30,9 @@ class TestPython extends Test {
 		var o:{function toLowerCase():String;} = "FOO";
 		eq("foo", o.toLowerCase());
 	}
+
+	public function testX() {
+		trace(sys.io.File.getBytes("res1.txt"));
+
+	}
 }

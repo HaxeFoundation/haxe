@@ -45,7 +45,7 @@ class File {
 
 	public static function getBytes( path : String ) : haxe.io.Bytes {
 		var f:python.lib.io.RawIOBase = cast python.lib.Builtin.open(path, "rb", -1);
-		var size = f.readall();
+		var size = f.read(-1);
 		var b = haxe.io.Bytes.ofData(size);
 		f.close();
 		return b;
