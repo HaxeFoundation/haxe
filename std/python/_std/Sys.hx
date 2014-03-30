@@ -1,6 +1,6 @@
 import python.lib.Time;
 
-@:preCode("import sys")
+
 @:coreApi
 class Sys {
 
