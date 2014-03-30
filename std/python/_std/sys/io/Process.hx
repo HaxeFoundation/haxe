@@ -14,7 +14,9 @@ class Process {
 
 	public function new( cmd : String, args : Array<String> ) : Void {
 
-		p = Popen.create(args, { bufsize : 1, executable : cmd, stdin : Subprocess.PIPE, stdout: Subprocess.PIPE, stderr : Subprocess.PIPE });
+		p = Popen.create([cmd].concat(args), { stdin : Subprocess.PIPE, stdout: Subprocess.PIPE, stderr : Subprocess.PIPE });
+
+
 		this.stdout = new FileInput (cast p.stdout);
 		this.stderr = new FileInput (cast p.stderr);
 		this.stdin =  new FileOutput(cast p.stdin);

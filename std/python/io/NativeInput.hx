@@ -38,7 +38,7 @@ class NativeInput extends Input{
 	{
 
 		var ret = stream.read(1);
-		trace(ret);
+
 		if (ret.length == 0) throw new Eof();
 
 		return ret.get(0);

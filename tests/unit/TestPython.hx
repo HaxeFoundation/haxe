@@ -1,5 +1,8 @@
 package unit;
 
+import sys.io.File;
+import sys.io.Process;
+
 private typedef T = {
 	var value:Int;
 	@:optional var maybeValue:Int;
@@ -62,4 +65,15 @@ class TestPython extends Test {
 		eq("12a", skip(12, "a"));
 		eq("1a", skip("a"));
 	}
+
+	/*
+	function testSys () {
+
+		var p = new Process("/bin/ls", ["-l"]);
+
+		trace(p.stdout.readLine());
+		trace(p.stdout.readLine());
+	}
+	*/
+
 }
