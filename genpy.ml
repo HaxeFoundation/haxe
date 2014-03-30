@@ -1619,12 +1619,6 @@ module Generator = struct
 		print ctx "_hx_classes[\"%s\"] = %s\n" p_name p;
 		print ctx "_hx_c.%s = %s\n" p p
 
-(* 	Bool._hx_class_name = 'Bool'
-Bool._hx_class = Bool
-
-_hx_classes['Bool'] = Bool
-_hx_c.Bool = Bool	 *)
-
 	let gen_type ctx mt = match mt with
 		| TClassDecl c -> gen_class ctx c
 		| TEnumDecl en -> gen_enum ctx en
