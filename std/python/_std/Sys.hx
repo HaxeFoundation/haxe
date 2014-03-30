@@ -72,7 +72,7 @@ class Sys {
 	}
 
 	public static function cpuTime() : Float {
-		return 0.0;
+		return python.lib.Time.clock();
 	}
 
 	public static function executablePath() : String {
