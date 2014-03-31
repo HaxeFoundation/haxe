@@ -3007,7 +3007,8 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 					(match  definition.cf_expr with
 					| Some { eexpr = TFunction function_def } ->
       				hx_stack_push ctx output_cpp dot_name "new" function_def.tf_expr.epos;
-		            List.iter (fun (a,(t,o)) -> output_cpp ("\nHX_STACK_ARG(" ^ (keyword_remap o) ^ ",\"" ^ a ^"\")\n") ) constructor_arg_var_list;
+					output_cpp "HX_STACK_THIS(this)\n";
+		            List.iter (fun (a,(t,o)) -> output_cpp ("HX_STACK_ARG(" ^ (keyword_remap o) ^ ",\"" ^ a ^"\")\n") ) constructor_arg_var_list;
 
 						if (has_default_values function_def.tf_args) then begin
 							generate_default_values ctx function_def.tf_args "__o_";
