@@ -217,6 +217,21 @@ class RunTravis {
 			case "flambe":
 				runCommand("git", ["clone", "https://github.com/aduros/flambe"]);
 				runCommand("sh", ["flambe/bin/run-travis"]);
+			case "hxtemplo":
+				getJavaDependencies();
+				getPhpDependencies();
+				getCppDependencies(unitDir);
+				runCommand("haxelib", ["git", "hxtemplo", "https://github.com/Simn/hxparse"]);
+				runCommand("haxelib", ["git", "hxtemplo", "https://github.com/Simn/hxtemplo"]);
+
+				changeDirectory(getHaxelibPath("hxtemplo"));
+				runCommand("haxe", ["build.hxml"]);
+
+				runCommand("node", ["bin/hxtemplo.js"]);
+				runCommand("neko", ["bin/hxtemplo.n"]);
+				runCommand("java", ["-jar", "bin/java/Test.jar"]);
+				runCommand("php", ["bin/php/index.php"]);
+				runCommand(".bin/cpp/Test", []);
 			case target:
 				throw "unknown target: " + target;
 		}
