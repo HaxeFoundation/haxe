@@ -9154,11 +9154,15 @@ struct
               | (conds,e) :: tl ->
                 { eexpr = TIf(mk_many_cond conds, run e, Some(loop tl)); etype = e.etype; epos = e.epos }
               | [] -> match default with
-                | None -> gen.gcon.error "Empty switch" e.epos; assert false
+                | None ->
+									raise Exit
                 | Some d -> run d
             in
 
-            { e with eexpr = TBlock(fst_block @ [loop cases]) }
+						try
+							{ e with eexpr = TBlock(fst_block @ [loop cases]) }
+						with | Exit ->
+							{ e with eexpr = TBlock [] }
           end
         | _ -> Type.map_expr run e
     in
