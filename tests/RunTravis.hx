@@ -227,7 +227,7 @@ class RunTravis {
 				getJavaDependencies();
 				getPhpDependencies();
 				getCppDependencies(unitDir);
-				runCommand("haxelib", ["git", "hxparse", "https://github.com/Simn/hxparse"]);
+				runCommand("haxelib", ["git", "hxparse", "https://github.com/Simn/hxparse", "development", "src"]);
 				runCommand("haxelib", ["git", "hxtemplo", "https://github.com/Simn/hxtemplo"]);
 
 				changeDirectory(getHaxelibPath("hxtemplo"));
@@ -237,7 +237,7 @@ class RunTravis {
 				runCommand("neko", ["bin/hxtemplo.n"]);
 				runCommand("java", ["-jar", "bin/java/Test.jar"]);
 				runCommand("php", ["bin/php/index.php"]);
-				runCommand(".bin/cpp/Test", []);
+				runCommand("./bin/cpp/Test", []);
 			case target:
 				throw "unknown target: " + target;
 		}
