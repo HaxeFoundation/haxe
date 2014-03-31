@@ -1,5 +1,3 @@
-package python.internal;
-
 /*
  * Copyright (C)2005-2012 Haxe Foundation
  *
@@ -22,7 +20,7 @@ package python.internal;
  * DEALINGS IN THE SOFTWARE.
  */
 
-
+package python.internal;
 
 import python.lib.FuncTools;
 import python.lib.Builtin;
@@ -31,27 +29,19 @@ import python.lib.Builtin;
 @:keep
 class ArrayImpl {
 
-
 	public static inline function get_length <T>(x:Array<T>):Int return python.lib.Builtin.len(x);
 
-
-	public static inline function concat<T>( a1:Array<T>, a2 : Array<T>) : Array<T>
-	{
+	public static inline function concat<T>( a1:Array<T>, a2 : Array<T>) : Array<T> {
 		return untyped (untyped a1) + (untyped a2);
 	}
 
-	public static inline function copy<T>(x:Array<T>) : Array<T>
-	{
+	public static inline function copy<T>(x:Array<T>) : Array<T> {
 		return Builtin.list(x);
 	}
 
-	@:keep public static inline function iterator<T>(x:Array<T>) : Iterator<T>
-	{
+	@:keep public static inline function iterator<T>(x:Array<T>) : Iterator<T> {
 		return python.Lib.toHaxeIterator(untyped x.__iter__());
 	}
-
-	//public static function insert( pos : Int, x : T ) : Void;
-
 
 	public static function indexOf<T>(a:Array<T>, x : T, ?fromIndex:Int) : Int {
 		var l =
@@ -91,7 +81,6 @@ class ArrayImpl {
 
 	public static inline function push<T>(x:Array<T>, e:T) : Int {
 		Macros.callField(x, "append", e);
-
 		return get_length(x);
 	}
 
@@ -108,8 +97,6 @@ class ArrayImpl {
 		}
 	}
 
-	// public static function reverse<T>(x:Array<T>) : Void;
-
 	public static inline function shift<T>(x:Array<T>) : Null<T> {
 		if (x.length == 0) return null;
 		return untyped __field__(x, "pop")(0);
@@ -122,13 +109,7 @@ class ArrayImpl {
 	public static inline function sort<T>(x:Array<T>, f:T->T->Int) : Void {
 		untyped __field__(x, "sort")( (untyped __named_arg__)("key", python.lib.FuncTools.cmp_to_key(f)));
 	}
-	/*
-	b = [i0, i1, i3, i0, i2];
-	a = b.splice( -2, 2);
-	b == [i0, i1, i3];
-	trace(a);
-	a == [i0, i2];
-	*/
+
 	public static inline function splice<T>(x:Array<T>, pos : Int, len : Int ) : Array<T> {
 		if (pos < 0) pos = x.length+pos;
 		if (pos < 0) pos = 0;
@@ -145,19 +126,15 @@ class ArrayImpl {
 		return Builtin.list(Builtin.filter(f, x));
 	}
 
-	public static inline function insert<T>(a:Array<T>, pos : Int, x : T ) : Void
-	{
+	public static inline function insert<T>(a:Array<T>, pos : Int, x : T ) : Void {
 		return Macros.callField(a, "insert", pos, x);
 
 	}
-	public static inline function reverse<T>(a:Array<T>) : Void
-	{
+	public static inline function reverse<T>(a:Array<T>) : Void {
 		return Macros.callField(a, "reverse");
 	}
 
-
-	@:keep private static inline function __get<T>(x:Array<T>, idx:Int):T
-	{
+	@:keep private static inline function __get<T>(x:Array<T>, idx:Int):T {
 		var _hx_a = x;
 		if (idx >= _hx_a.length || idx < 0)
 			return null;
@@ -165,23 +142,19 @@ class ArrayImpl {
 			return x[idx];
 	}
 
-	@:keep private static inline function __set<T>(x:Array<T>, idx:Int, v:T):T
-	{
+	@:keep private static inline function __set<T>(x:Array<T>, idx:Int, v:T):T {
 		var _hx_a = x;
 
 		_hx_a[idx] = v;
 		return v;
 	}
 
-	@:keep private static inline function __unsafe_get<T>(x:Array<T>,idx:Int):T
-	{
+	@:keep private static inline function __unsafe_get<T>(x:Array<T>,idx:Int):T {
 		return x[idx];
 	}
 
-	@:keep private static inline function __unsafe_set<T>(x:Array<T>,idx:Int, val:T):T
-	{
+	@:keep private static inline function __unsafe_set<T>(x:Array<T>,idx:Int, val:T):T {
 		x[idx] = val;
 		return val;
 	}
-
 }
