@@ -221,7 +221,7 @@ class RunTravis {
 				getJavaDependencies();
 				getPhpDependencies();
 				getCppDependencies(unitDir);
-				runCommand("haxelib", ["git", "hxtemplo", "https://github.com/Simn/hxparse"]);
+				runCommand("haxelib", ["git", "hxparse", "https://github.com/Simn/hxparse"]);
 				runCommand("haxelib", ["git", "hxtemplo", "https://github.com/Simn/hxtemplo"]);
 
 				changeDirectory(getHaxelibPath("hxtemplo"));
