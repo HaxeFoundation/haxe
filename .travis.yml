@@ -21,11 +21,13 @@ env:
     - TARGET=flambe
     - TARGET=hxtemplo
     - TARGET=munit
+    - TARGET=openfl-samples
 
 matrix:
   fast_finish: true
   allow_failures:
     - env: TARGET=flash8
+    - env: TARGET=openfl-samples
 
 before_install:
   - travis_retry sudo apt-get update
@@ -39,5 +41,6 @@ script:
   - sudo make install
   - cd tests/
   - mkdir ~/haxelib && haxelib setup ~/haxelib
+  - haxelib git hx-yaml https://github.com/mikestead/hx-yaml master src
   - haxe -version
-  - haxe -main RunTravis --interp
+  - haxe -main RunTravis -lib hx-yaml --interp

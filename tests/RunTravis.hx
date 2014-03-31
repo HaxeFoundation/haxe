@@ -1,5 +1,14 @@
+using StringTools;
+
+import yaml.*;
+
 import sys.*;
 import sys.io.*;
+
+private typedef TravisConfig = {
+	before_install: Array<String>,
+	script: Array<String>
+}
 
 /**
 	Will be run by TravisCI.
@@ -34,8 +43,14 @@ class RunTravis {
 
 	static function getHaxelibPath(libName:String) {
 		var proc = new sys.io.Process("haxelib", ["path", libName]);
-		var result = proc.stdout.readLine();
+		var result;
 		var code = proc.exitCode();
+		while(true) {
+			result = proc.stdout.readLine();
+			if (!result.startsWith("-L")) {
+				break;
+			}
+		}
 		proc.close();
 		if (code != 0) {
 			Sys.println(result);
@@ -89,6 +104,69 @@ class RunTravis {
 			} catch (e:haxe.io.Eof) {}
 		}
 		Sys.exit(1);
+	}
+
+	static function parseCommand(cmd:String) {
+		var args = [];
+		var offset = 0;
+		var cur = new StringBuf();
+		var inString = false;
+
+		while(true) {
+			switch(cmd.fastCodeAt(offset++)) {
+				case '"'.code:
+					inString = !inString;
+				case ' '.code if (!inString):
+					if (cur.length > 0) {
+						args.push(cur.toString());
+						cur = new StringBuf();
+					}
+				case '\\'.code:
+					cur.addChar(cmd.fastCodeAt(offset++));
+				case "$".code:
+					switch (cmd.fastCodeAt(offset)) {
+						case '('.code:
+							++offset;
+							var env = new StringBuf();
+							while(true) {
+								switch(cmd.fastCodeAt(offset++)) {
+									case ')'.code:
+										break;
+									case c:
+										env.addChar(c);
+								}
+							}
+							cur.add(Sys.getEnv(env.toString()));
+						case _:
+							cur.addChar("$".code);
+					}
+				case c:
+					cur.addChar(c);
+			}
+			if (offset == cmd.length) {
+				break;
+			}
+		}
+		if (cur.length > 0) {
+			args.push(cur.toString());
+		}
+		return args;
+	}
+
+	static function parseTravisFile(path:String, ignoreBeforeInstall = false) {
+		var yaml:TravisConfig = yaml.Yaml.read(path, Parser.options().useObjects());
+		if (!ignoreBeforeInstall) {
+			for (code in yaml.before_install) {
+				var args = parseCommand(code);
+				var cmd = args.shift();
+				runCommand(cmd, args);
+			}
+		}
+		for (code in yaml.script) {
+			var args = parseCommand(code);
+			var cmd = args.shift();
+			runCommand(cmd, args);
+		}
 	}
 
 	static function getPhpDependencies() {
@@ -209,10 +287,26 @@ class RunTravis {
 
 				runCommand("haxe", ["compile-as3.hxml", "-D", "fdb"]);
 				runFlash("unit9_as3.swf");
-			//case "openfl":
-				//runCommand("haxelib", ["install", "munit"]);
-				//runCommand("haxelib", ["install", "openfl"]);
-				//runCommand("haxelib", ["git", "openfl-validation", "https://github.com/openfl/openfl-validation"]);
+			case "openfl-samples":
+				runCommand("haxelib", ["git", "openfl", "https://github.com/openfl/openfl"]);
+				runCommand("haxelib", ["git", "lime", "https://github.com/openfl/lime"]);
+				runCommand("haxelib", ["git", "lime-tools", "https://github.com/openfl/lime-tools"]);
+				runCommand("haxelib", ["git", "hxlibc", "https://github.com/openfl/hxlibc"]);
+				runCommand("haxelib", ["git", "openfl-native", "https://github.com/openfl/openfl-native"]);
+				runCommand("haxelib", ["git", "actuate", "https://github.com/jgranick/actuate"]);
+				runCommand("haxelib", ["git", "box2d", "https://github.com/jgranick/box2d"]);
+				runCommand("haxelib", ["git", "swf", "https://github.com/openfl/swf"]);
+				runCommand("haxelib", ["git", "layout", "https://github.com/jgranick/layout"]);
+				runCommand("haxelib", ["git", "format", "https://github.com/HaxeFoundation/format"]);
+				runCommand("haxelib", ["git", "openfl-samples", "https://github.com/openfl/openfl-samples"]);
+				runCommand("haxelib", ["git", "svg", "https://github.com/openfl/svg"]);
+				changeDirectory(getHaxelibPath("lime-tools"));
+				runCommand("haxe", ["build.hxml"]);
+				var path = getHaxelibPath("openfl-samples");
+				var old = Sys.getEnv("pwd");
+				Sys.putEnv("pwd", path);
+				parseTravisFile(haxe.io.Path.join([path, ".travis.yml"]), true);
+				Sys.putEnv("pwd", old);
 			case "polygonal-ds":
 				runCommand("haxelib", ["git", "polygonal-ds", "https://github.com/Simn/ds"]);
 				runCommand("haxelib", ["git", "polygonal-core", "https://github.com/polygonal/core", "master", "src"]);
