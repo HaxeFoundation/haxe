@@ -662,6 +662,9 @@ module Transformer = struct
 		| (_, TBinop(OpAssignOp op,{eexpr = TField(e1,FDynamic s)},e2)) ->
 			let e = dynamic_field_read_write ae.a_next_id e1 s op e2 in
 			transform_expr e
+		| (_, TField(e1, FClosure(Some {cl_path = [],("String" | "list")},cf))) ->
+			let e = dynamic_field_read e1 cf.cf_name in
+			transform_expr e
 		| (is_value, TBinop(OpAssign, left, right))->
 			(let left = trans true [] left in
 			let right = trans true [] right in
@@ -1100,10 +1103,6 @@ module Printer = struct
 		match fa with
 			| FInstance(c,{cf_name = "length" | "get_length"}) when (is_type "" "list")(TClassDecl c) ->
 				Printf.sprintf "_hx_builtin.len(%s)" (print_expr pctx e1)
-			| FInstance(c,{cf_name = "toUpperCase"}) when (is_type "" "String")(TClassDecl c) ->
-				Printf.sprintf "%s.toUpper" (print_expr pctx e1)
-			| FInstance(c,{cf_name = "toLowerCase"}) when (is_type "" "String")(TClassDecl c) ->
-				Printf.sprintf "%s.toLower" (print_expr pctx e1)
 			| FInstance(c,{cf_name = "length"}) when (is_type "" "String")(TClassDecl c) ->
 				Printf.sprintf "_hx_builtin.len(%s)" (print_expr pctx e1)
 			| FStatic(c,{cf_name = "fromCharCode"}) when (is_type "" "String")(TClassDecl c) ->

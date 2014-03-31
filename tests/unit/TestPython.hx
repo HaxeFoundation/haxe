@@ -66,6 +66,17 @@ class TestPython extends Test {
 		eq("1a", skip("a"));
 	}
 
+	function testNativeClosures() {
+        var s = "foo";
+        var f = s.toUpperCase;
+		eq("FOO", f());
+
+		var a = [];
+		var f = a.push;
+		f(12);
+		eq(12, a[0]);
+	}
+
 	/*
 	function testSys () {
 
