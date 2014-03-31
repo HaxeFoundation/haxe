@@ -1566,7 +1566,7 @@ module Generator = struct
 		let f = fun () ->
 			List.iter (fun cf -> gen_static_field ctx c p cf) c.cl_ordered_statics;
 		in
-		ctx.static_inits <- f :: ctx.static_inits
+		ctx.static_inits <- ctx.static_inits @ [f]
 
 	let gen_class_init ctx c =
 		match c.cl_init with
@@ -1577,7 +1577,7 @@ module Generator = struct
 					let e = transform_expr e in
 					spr_line ctx (texpr_str e (Printer.create_context ""));
 				in
-				ctx.static_inits <- f :: ctx.static_inits
+				ctx.static_inits <- ctx.static_inits @ [f]
 
 	let gen_class ctx c =
 		gen_pre_code_meta ctx c.cl_meta;
