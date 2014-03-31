@@ -18,6 +18,7 @@ env:
     - TARGET=cs
     - TARGET=flash8
     - TARGET=polygonal-ds
+    - TARGET=flambe
 
 matrix:
   fast_finish: true

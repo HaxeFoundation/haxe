@@ -199,11 +199,9 @@ class RunTravis {
 				changeDirectory(getHaxelibPath("polygonal-ds"));
 				runCommand("haxe", ["-cp", "src", "-cp", "test", "-lib", "polygonal-core", "-lib", "polygonal-printf", "-main", "UnitTest", "-js", "unit.js"]);
 				runCommand("node", ["unit.js"]);
-			//case "flambe":
-				//runCommand("haxelib", ["git", "flambe", "https://github.com/aduros/flambe", "master", "src"]);
-				//runCommand("haxelib", ["git", "flambe-server", "https://github.com/aduros/flambe-server", "master", "src"]);
-				//changeDirectory(haxe.io.Path.join([getHaxelibPath("flambe"), "..", "tests", "unit"]));
-				//runCommand("sh", ["run-tests"]);
+			case "flambe":
+				runCommand("git", ["clone", "https://github.com/aduros/flambe"]);
+				runCommand("sh", ["flambe/bin/run-travis"]);
 			case target:
 				throw "unknown target: " + target;
 		}
