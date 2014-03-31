@@ -19,7 +19,7 @@ env:
     - TARGET=flash8
     - TARGET=polygonal-ds
     - TARGET=flambe
-	- TARGET=hxtemplo
+    - TARGET=hxtemplo
 
 matrix:
   fast_finish: true
