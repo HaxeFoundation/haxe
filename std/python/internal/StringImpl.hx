@@ -46,20 +46,13 @@ class StringImpl {
 		else
 			return Macros.callField(s, "find", str, startIndex);
 	}
-	public static function substr (s:String, pos:Int, ?len:Int) {
-		return python.Tools.substr(s, pos, len);
-	}
+
 	public static function toString (s:String) {
 		return s;
 	}
 
 	public static function get_length (s:String) {
 		return python.lib.Builtin.len(s);
-	}
-
-	public static function substring (s:String, startIndex:Int, ?endIndex:Int) {
-		return python.Tools.substring(s, startIndex, endIndex);
-
 	}
 
 	public static inline function fromCharCode( code : Int ) : String {
@@ -71,4 +64,30 @@ class StringImpl {
 		#end
 	}
 
+	public static function substring( s:String, startIndex : Int, ?endIndex : Int ) : String {
+		if (startIndex < 0) startIndex = 0;
+		if (endIndex == null) {
+			return untyped __python__("s[startIndex:]");
+		} else {
+			if (endIndex < 0) endIndex = 0;
+			if (endIndex < startIndex) {
+
+				return untyped __python__("s[endIndex:startIndex]");
+			} else {
+
+				return untyped __python__("s[startIndex:endIndex]");
+			}
+
+		}
+	}
+
+	public static function substr( s:String, startIndex : Int, ?len : Int ) : String {
+		if (len == null) {
+			return untyped __python__("s[startIndex:]");
+		} else {
+			if (len == 0) return "";
+			return untyped __python__("s[startIndex:startIndex+len]");
+		}
+
+	}
 }
