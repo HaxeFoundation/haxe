@@ -85,6 +85,30 @@ class RunTravis {
 		Sys.exit(1);
 	}
 
+	static function getPhpDependencies() {
+		runCommand("sudo", ["apt-get", "install", "php5", "-y"], true);
+	}
+
+	static function getCppDependencies(unitDir:String) {
+		//hxcpp dependencies
+		runCommand("sudo", ["apt-get", "install", "gcc-multilib", "g++-multilib", "-y"], true);
+
+		//install and build hxcpp
+		runCommand("haxelib", ["git", "hxcpp", "https://github.com/HaxeFoundation/hxcpp.git"], true);
+		Sys.setCwd(Sys.getEnv("HOME") + "/haxelib/hxcpp/git/project/");
+		runCommand("neko", ["build.n"]);
+		Sys.setCwd(unitDir);
+	}
+
+	static function getJavaDependencies() {
+		runCommand("haxelib", ["git", "hxjava", "https://github.com/HaxeFoundation/hxjava.git"], true);
+	}
+
+	static function getCsDependencies() {
+		runCommand("sudo", ["apt-get", "install", "mono-devel", "mono-mcs", "-y"], true);
+		runCommand("haxelib", ["git", "hxcs", "https://github.com/HaxeFoundation/hxcs.git"], true);
+	}
+
 	static function main():Void {
 		var cwd = Sys.getCwd();
 		var unitDir = cwd + "unit/";
@@ -114,19 +138,11 @@ class RunTravis {
 				runCommand("haxe", ["compile-neko.hxml"]);
 				runCommand("neko", ["unit.n"]);
 			case "php":
-				runCommand("sudo", ["apt-get", "install", "php5", "-y"], true);
+				getPhpDependencies();
 				runCommand("haxe", ["compile-php.hxml"]);
 				runCommand("php", ["php/index.php"]);
 			case "cpp":
-				//hxcpp dependencies
-				runCommand("sudo", ["apt-get", "install", "gcc-multilib", "g++-multilib", "-y"], true);
-
-				//install and build hxcpp
-				runCommand("haxelib", ["git", "hxcpp", "https://github.com/HaxeFoundation/hxcpp.git"], true);
-				Sys.setCwd(Sys.getEnv("HOME") + "/haxelib/hxcpp/git/project/");
-				runCommand("neko", ["build.n"]);
-				Sys.setCwd(unitDir);
-
+				getCppDependencies(unitDir);
 				runCommand("haxe", ["compile-cpp.hxml"]);
 				runCommand("./cpp/Test-debug", []);
 
@@ -152,12 +168,11 @@ class RunTravis {
 				Sys.setCwd(optDir);
 				runCommand("haxe", ["run.hxml"]);
 			case "java":
-				runCommand("haxelib", ["git", "hxjava", "https://github.com/HaxeFoundation/hxjava.git"], true);
+				getJavaDependencies();
 				runCommand("haxe", ["compile-java.hxml"]);
 				runCommand("java", ["-jar", "java/Test-Debug.jar"]);
 			case "cs":
-				runCommand("sudo", ["apt-get", "install", "mono-devel", "mono-mcs", "-y"], true);
-				runCommand("haxelib", ["git", "hxcs", "https://github.com/HaxeFoundation/hxcs.git"], true);
+				getCsDependencies();
 
 				runCommand("haxe", ["compile-cs.hxml"]);
 				runCommand("mono", ["cs/bin/Test-Debug.exe"]);
