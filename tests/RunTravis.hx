@@ -35,7 +35,13 @@ class RunTravis {
 	static function getHaxelibPath(libName:String) {
 		var proc = new sys.io.Process("haxelib", ["path", libName]);
 		var result = proc.stdout.readLine();
+		var code = proc.exitCode();
 		proc.close();
+		if (code != 0) {
+			Sys.println(result);
+			Sys.exit(code);
+		}
+		trace('Haxelib path for $libName: $result');
 		return result;
 	}
 
