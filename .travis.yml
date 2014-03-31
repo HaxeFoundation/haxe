@@ -20,6 +20,7 @@ env:
     - TARGET=polygonal-ds
     - TARGET=flambe
     - TARGET=hxtemplo
+    - TARGET=munit
 
 matrix:
   fast_finish: true

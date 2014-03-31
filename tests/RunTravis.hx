@@ -238,6 +238,16 @@ class RunTravis {
 				runCommand("java", ["-jar", "bin/java/Test.jar"]);
 				runCommand("php", ["bin/php/index.php"]);
 				runCommand("./bin/cpp/Test", []);
+			case "munit":
+				runCommand("haxelib", ["git", "mconsole", "https://github.com/massiveinteractive/mconsole", "master", "src"]);
+				runCommand("haxelib", ["git", "mcover", "https://github.com/massiveinteractive/MassiveCover", "master", "src"]);
+				runCommand("haxelib", ["git", "mlib", "https://github.com/massiveinteractive/MassiveLib", "master", "src"]);
+				runCommand("haxelib", ["git", "munit", "https://github.com/massiveinteractive/MassiveUnit", "master", "src"]);
+				changeDirectory(haxe.io.Path.join([getHaxelibPath("munit"), "..", "tool"]));
+				runCommand("haxe", ["build.hxml"]);
+				runCommand("haxelib", ["run", "munit", "test", "-result-exit-code", "-neko"]);
+				changeDirectory("../");
+				runCommand("haxelib", ["run", "munit", "test", "-result-exit-code", "-neko"]);
 			case target:
 				throw "unknown target: " + target;
 		}
