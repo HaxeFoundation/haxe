@@ -1,22 +1,16 @@
 
 package python;
 
-import python.BootHelper;
+
 import python.internal.ArrayImpl;
 import python.internal.StringImpl;
-import python.lib.Builtin;
 import python.internal.EnumImpl;
 import python.internal.HxOverrides;
 import python.internal.HxException;
-import python.lib.Inspect;
-import python.Macros;
 import python.internal.AnonObject;
-import StdTypes;
 
-import python.internal.EnumImpl;
 import python.Macros;
-import python.internal.AnonObject;
-import StdTypes;
+
 
 private extern class Set <T>
 {
