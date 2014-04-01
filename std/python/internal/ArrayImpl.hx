@@ -23,24 +23,28 @@
 package python.internal;
 
 import python.lib.FuncTools;
-import python.lib.Builtin;
+//import python.lib.Builtin;
+
+private abstract Builtin(Dynamic) {}
 
 @:allow(Array)
 @:keep
 class ArrayImpl {
 
-	public static inline function get_length <T>(x:Array<T>):Int return python.lib.Builtin.len(x);
+	static inline function builtin():Builtin return untyped __python__("_hx_builtin");
+
+	public static inline function get_length <T>(x:Array<T>):Int return Macros.field(builtin(), "len")(x);
 
 	public static inline function concat<T>( a1:Array<T>, a2 : Array<T>) : Array<T> {
 		return untyped (untyped a1) + (untyped a2);
 	}
 
 	public static inline function copy<T>(x:Array<T>) : Array<T> {
-		return Builtin.list(x);
+		return Macros.field(builtin(), "list")(x);
 	}
 
 	@:keep public static inline function iterator<T>(x:Array<T>) : Iterator<T> {
-		return python.Lib.toHaxeIterator(untyped x.__iter__());
+		return new HaxeIterator(untyped x.__iter__());
 	}
 
 	public static function indexOf<T>(a:Array<T>, x : T, ?fromIndex:Int) : Int {
@@ -67,12 +71,13 @@ class ArrayImpl {
 		return -1;
 	}
 
+	@:access(python.Boot)
 	public static inline function join<T>(x:Array<T>, sep : String ) : String {
-		return untyped sep.join(x.map(Std.string));
+		return Macros.field(sep, "join")(x.map(python.Boot.toString));
 	}
 
 	public static inline function toString<T>(x:Array<T>) : String {
-		return "[" + x.join(",") + "]";
+		return "[" + join(x, ",") + "]";
 	}
 
 	public static inline function pop<T>(x:Array<T>) : Null<T> {
@@ -119,11 +124,11 @@ class ArrayImpl {
 	}
 
 	@:keep public static inline function map<S,T>(x:Array<T>, f : T -> S ) : Array<S> {
-		return Builtin.list(Builtin.map(f,cast x));
+		return Macros.field(builtin(), "list")(Macros.field(builtin(), "map")(f,cast x));
 	}
 
 	@:keep public static inline function filter<T>(x:Array<T>, f : T -> Bool ) : Array<T> {
-		return Builtin.list(Builtin.filter(f, x));
+		return Macros.field(builtin(), "list")(Macros.field(builtin(), "filter")(f, x));
 	}
 
 	public static inline function insert<T>(a:Array<T>, pos : Int, x : T ) : Void {

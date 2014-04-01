@@ -1,13 +1,17 @@
 package python.internal;
 
-import python.lib.Builtin;
 
 @:keep
 @:native("HxString")
 class StringImpl {
 
+
+
+	static inline function builtin ():Dynamic return untyped __python__("_hx_builtin");
+
+
 	public static function split (s:String, d:String) {
-		return if (d == "") Builtin.list(s) else Macros.callField(s, "split", d);
+		return if (d == "") Macros.field(builtin(), "list")(s) else Macros.callField(s, "split", d);
 	}
 
 	public static function charCodeAt(s:String, index:Int) {
@@ -22,7 +26,7 @@ class StringImpl {
 		} else {
 
 			var i = (untyped s.rfind)(str, 0, startIndex+1);
-			var startLeft = i == -1 ? Math.max(0,startIndex+1-str.length) : i+1;
+			var startLeft = i == -1 ? Macros.field(builtin(), "max")(0,startIndex+1-str.length) : i+1;
 			var check = (untyped s.find)(str, startLeft, s.length);
 			if (check > i && check <= startIndex) {
 				return check;
@@ -51,7 +55,7 @@ class StringImpl {
 	}
 
 	public static function get_length (s:String) {
-		return python.lib.Builtin.len(s);
+		return Macros.field(builtin(), "len")(s);
 	}
 
 	public static inline function fromCharCode( code : Int ) : String {
@@ -59,7 +63,7 @@ class StringImpl {
 		return "";
 		#else
 		var c = code;
-		return (untyped (''.join)(Builtin.map(Builtin.chr, cast [c])):String); // TODO: check cast
+		return (Macros.field('', "join")(Macros.field(builtin(), "map")(Macros.field(builtin(), "chr"), cast [c])):String); // TODO: check cast
 		#end
 	}
 

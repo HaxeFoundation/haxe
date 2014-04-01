@@ -2,7 +2,6 @@
 package python.lib;
 
 
-import python.Lib;
 import python.lib.Builtin;
 import python.lib.io.IOBase;
 
@@ -57,13 +56,13 @@ typedef Variant4<A,B,C,D> = Dynamic;
 
 abstract PyIterator <T>(NativeIterator<T>) to NativeIterator<T> to PyIterable<T> {
 	public inline function new (p:NativeIterator<T>) this = p;
-	@:to public static inline function toHaxeIterator <T>(p:NativeIterator<T>):HaxeIterator<T> return python.Lib.toHaxeIterator(p);
+	@:to public static inline function toHaxeIterator <T>(p:NativeIterator<T>):HaxeIterator<T> return new HaxeIterator(p);
 	@:to public static inline function toPyIterable <T>(p:NativeIterator<T>):PyIterable<T> return p;
 	public function getNativeIterator <T>():NativeIterator<T> return this;
 }
 
 abstract PyIterable <T>(NativeIterable<T>) to NativeIterable<T> from NativeIterable<T> {
-	@:to public static inline function toHaxeIterable <T>(p:NativeIterable<T>):HaxeIterable<T> return python.Lib.toHaxeIterable(p);
+	@:to public static inline function toHaxeIterable <T>(p:NativeIterable<T>):HaxeIterable<T> return new HaxeIterable(p);
 
 	//@:from public static inline function fromArray <T>(p:Array<T>):PyIterable<T> return cast p;
 

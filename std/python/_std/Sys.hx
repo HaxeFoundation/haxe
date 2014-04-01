@@ -1,11 +1,21 @@
 import python.lib.Time;
+import python.lib.Os;
 import sys.io.FileInput;
 import sys.io.FileOutput;
 
 @:coreApi
 class Sys {
 
-	static var environ:haxe.ds.StringMap<String>;
+	static var environ:haxe.ds.StringMap<String> = {
+		environ = new haxe.ds.StringMap();
+
+		var env = Os.environ;
+
+		for (key in env.keys()) {
+			environ.set(key, env.get(key, null));
+		}
+		environ;
+	}
 
 	public static function time():Float {
 		return Time.time();
@@ -123,12 +133,5 @@ class Sys {
 		return new FileOutput(cast python.lib.Sys.stderr.buffer);
 	}
 
-	static function __init__():Void {
-		environ = new haxe.ds.StringMap();
-		var env = python.lib.Os.environ;
 
-		for (key in env.keys()) {
-			environ.set(key, env.get(key, null));
-		}
-	}
 }

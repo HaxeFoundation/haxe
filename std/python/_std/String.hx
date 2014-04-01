@@ -36,7 +36,7 @@ import python.internal.StringImpl;
 import python.lib.Builtin;
 #end
 @:coreApi
-extern class String extends StringImpl {
+extern class String {
 
 
 	/**
@@ -199,7 +199,7 @@ extern class String extends StringImpl {
 		return StringImpl.fromCharCode(code);
 	}
 
-	static function __init__ ():Void {
+	@:keep static function __init__ ():Void {
 		python.Macros.importFromAs("builtins", "str", "String");
 	}
 

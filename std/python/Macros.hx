@@ -7,10 +7,7 @@ import haxe.macro.Context;
 
 import haxe.macro.ExprTools;
 #end
-#if !macro
 
-import python.lib.Types.PyIterator;
-#end
 
 
 class Macros {
@@ -34,6 +31,10 @@ class Macros {
         }
     }
 
+    @:noUsing macro public static function pyBinop <T>(a:Expr, op:String, b:Expr):haxe.macro.Expr
+    {
+        return macro untyped __python_binop__($a, $v{op}, $b);
+    }
 
     @:noUsing macro public static function pyFor <T>(v:Expr, it:Expr, b:Expr):haxe.macro.Expr
     {
@@ -67,6 +68,11 @@ class Macros {
     @:noUsing macro public static function callField (o:Expr, field:ExprOf<String>, params:Array<Expr>):haxe.macro.Expr {
         var field = macro untyped __field__($o, $field);
         return macro untyped __call__($a{[field].concat(params)});
+    }
+
+    @:noUsing macro public static function field (o:Expr, field:ExprOf<String>):haxe.macro.Expr
+    {
+        return macro untyped __field__($o, $field);
     }
 
     #if !macro macro #end public static function callNamed (e:Expr, args:Expr):haxe.macro.Expr {

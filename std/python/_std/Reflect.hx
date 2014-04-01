@@ -27,36 +27,17 @@ import python.lib.Builtin;
 import python.lib.Inspect;
 import python.lib.Types;
 
+@:access(python.Boot)
 @:coreApi
 class Reflect {
 
-	static var keywords:Set<String> = new Set(
-    [
-        "and",       "del",       "from",      "not",       "while",
-        "as",        "elif",      "global",    "or",        "with",
-        "assert",    "else",      "if",        "pass",      "yield",
-        "break",     "except",    "import",    "print",     "float",
-        "class",     "exec",      "in",        "raise",
-        "continue",  "finally",   "is",        "return",
-        "def",       "for",       "lambda",    "try",
-        "None",      "list"
-    ]);
 
-	static inline function handleKeywords(name:String):String
-    {
-        if (keywords.has(name)) {
-            return "_hx_" + name;
-        }
-        return name;
+	static inline function handleKeywords(name:String):String {
+        return python.Boot.handleKeywords(name);
     }
 
-    static function unhandleKeywords(name:String):String
-    {
-    	if (name.substr(0,4) == "_hx_") {
-    		var real = name.substr(4);
-    		if (keywords.has(real)) return real;
-    	}
-    	return name;
+    static function unhandleKeywords(name:String):String {
+    	return python.Boot.unhandleKeywords(name);
     }
 
 	public static function hasField( o : Dynamic, field : String ) : Bool
@@ -71,9 +52,11 @@ class Reflect {
 	static inline function isArray (o:Dynamic):Bool {
 		return Builtin.isinstance(o, Array);
 	}
-
+	@:access(python.Boot)
 	@:keep public static function field( o : Dynamic, field : String ) : Dynamic
 	{
+		return python.Boot.field(o, field);
+		/*
 		if (field == null) return null;
 
 		switch (field) {
@@ -114,6 +97,7 @@ class Reflect {
 
 		var field = handleKeywords(field);
 		return if (Builtin.hasattr(o, field)) Builtin.getattr(o, field) else null;
+		*/
 	}
 
 	@:keep public static function setField( o : Dynamic, field : String, value : Dynamic ) : Void untyped

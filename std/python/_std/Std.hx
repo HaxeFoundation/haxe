@@ -121,8 +121,7 @@ import python.Boot;
     @:keep
     public static function string( s : Dynamic ) : String
     {
-
-        return python.Boot.__string_rec(s, "");
+        return python.Boot.toString(s);
     }
 
     public static inline function int( x : Float ) : Int
