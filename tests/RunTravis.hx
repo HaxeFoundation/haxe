@@ -288,25 +288,29 @@ class RunTravis {
 				runCommand("haxe", ["compile-as3.hxml", "-D", "fdb"]);
 				runFlash("unit9_as3.swf");
 			case "openfl-samples":
-				runCommand("haxelib", ["git", "openfl", "https://github.com/openfl/openfl"]);
-				runCommand("haxelib", ["git", "lime", "https://github.com/openfl/lime"]);
-				runCommand("haxelib", ["git", "lime-tools", "https://github.com/openfl/lime-tools"]);
+				getCppDependencies(unitDir);
 				runCommand("haxelib", ["git", "hxlibc", "https://github.com/openfl/hxlibc"]);
-				runCommand("haxelib", ["git", "openfl-native", "https://github.com/openfl/openfl-native"]);
 				runCommand("haxelib", ["git", "actuate", "https://github.com/jgranick/actuate"]);
 				runCommand("haxelib", ["git", "box2d", "https://github.com/jgranick/box2d"]);
 				runCommand("haxelib", ["git", "swf", "https://github.com/openfl/swf"]);
 				runCommand("haxelib", ["git", "layout", "https://github.com/jgranick/layout"]);
 				runCommand("haxelib", ["git", "format", "https://github.com/HaxeFoundation/format"]);
-				runCommand("haxelib", ["git", "openfl-samples", "https://github.com/openfl/openfl-samples"]);
 				runCommand("haxelib", ["git", "svg", "https://github.com/openfl/svg"]);
-				changeDirectory(getHaxelibPath("lime-tools"));
-				runCommand("haxe", ["build.hxml"]);
+				runCommand("haxelib", ["git", "lime", "https://github.com/openfl/lime"]);
+				runCommand("haxelib", ["git", "lime-build", "https://github.com/openfl/lime-build"]);
+				runCommand("haxelib", ["git", "lime-tools", "https://github.com/openfl/lime-tools"]);
+				runCommand("haxelib", ["git", "openfl-native", "https://github.com/openfl/openfl-native"]);
+				runCommand("haxelib", ["git", "openfl", "https://github.com/openfl/openfl"]);
+				runCommand("haxelib", ["git", "openfl-samples", "https://github.com/Simn/openfl-samples"]);
+				runCommand("haxelib", ["run", "openfl", "rebuild", "linux"]);
+				runCommand("haxelib", ["run", "openfl", "rebuild", "tools"]);
 				var path = getHaxelibPath("openfl-samples");
 				var old = Sys.getEnv("pwd");
 				Sys.putEnv("pwd", path);
 				parseTravisFile(haxe.io.Path.join([path, ".travis.yml"]), true);
-				Sys.putEnv("pwd", old);
+				if (old != null) {
+					Sys.putEnv("pwd", old);
+				}
 			case "polygonal-ds":
 				runCommand("haxelib", ["git", "polygonal-ds", "https://github.com/Simn/ds"]);
 				runCommand("haxelib", ["git", "polygonal-core", "https://github.com/polygonal/core", "master", "src"]);
