@@ -27,7 +27,6 @@ matrix:
   fast_finish: true
   allow_failures:
     - env: TARGET=flash8
-    - env: TARGET=openfl-samples
 
 before_install:
   - travis_retry sudo apt-get update
