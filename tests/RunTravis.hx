@@ -1,5 +1,14 @@
+using StringTools;
+
+import yaml.*;
+
 import sys.*;
 import sys.io.*;
+
+private typedef TravisConfig = {
+	before_install: Array<String>,
+	script: Array<String>
+}
 
 /**
 	Will be run by TravisCI.
@@ -34,8 +43,20 @@ class RunTravis {
 
 	static function getHaxelibPath(libName:String) {
 		var proc = new sys.io.Process("haxelib", ["path", libName]);
-		var result = proc.stdout.readLine();
+		var result;
+		var code = proc.exitCode();
+		while(true) {
+			result = proc.stdout.readLine();
+			if (!result.startsWith("-L")) {
+				break;
+			}
+		}
 		proc.close();
+		if (code != 0) {
+			Sys.println(result);
+			Sys.exit(code);
+		}
+		trace('Haxelib path for $libName: $result');
 		return result;
 	}
 
@@ -85,6 +106,93 @@ class RunTravis {
 		Sys.exit(1);
 	}
 
+	static function parseCommand(cmd:String) {
+		var args = [];
+		var offset = 0;
+		var cur = new StringBuf();
+		var inString = false;
+
+		while(true) {
+			switch(cmd.fastCodeAt(offset++)) {
+				case '"'.code:
+					inString = !inString;
+				case ' '.code if (!inString):
+					if (cur.length > 0) {
+						args.push(cur.toString());
+						cur = new StringBuf();
+					}
+				case '\\'.code:
+					cur.addChar(cmd.fastCodeAt(offset++));
+				case "$".code:
+					switch (cmd.fastCodeAt(offset)) {
+						case '('.code:
+							++offset;
+							var env = new StringBuf();
+							while(true) {
+								switch(cmd.fastCodeAt(offset++)) {
+									case ')'.code:
+										break;
+									case c:
+										env.addChar(c);
+								}
+							}
+							cur.add(Sys.getEnv(env.toString()));
+						case _:
+							cur.addChar("$".code);
+					}
+				case c:
+					cur.addChar(c);
+			}
+			if (offset == cmd.length) {
+				break;
+			}
+		}
+		if (cur.length > 0) {
+			args.push(cur.toString());
+		}
+		return args;
+	}
+
+	static function parseTravisFile(path:String, ignoreBeforeInstall = false) {
+		var yaml:TravisConfig = yaml.Yaml.read(path, Parser.options().useObjects());
+		if (!ignoreBeforeInstall) {
+			for (code in yaml.before_install) {
+				var args = parseCommand(code);
+				var cmd = args.shift();
+				runCommand(cmd, args);
+			}
+		}
+		for (code in yaml.script) {
+			var args = parseCommand(code);
+			var cmd = args.shift();
+			runCommand(cmd, args);
+		}
+	}
+
+	static function getPhpDependencies() {
+		runCommand("sudo", ["apt-get", "install", "php5", "-y"], true);
+	}
+
+	static function getCppDependencies(unitDir:String) {
+		//hxcpp dependencies
+		runCommand("sudo", ["apt-get", "install", "gcc-multilib", "g++-multilib", "-y"], true);
+
+		//install and build hxcpp
+		runCommand("haxelib", ["git", "hxcpp", "https://github.com/HaxeFoundation/hxcpp.git"], true);
+		Sys.setCwd(Sys.getEnv("HOME") + "/haxelib/hxcpp/git/project/");
+		runCommand("neko", ["build.n"]);
+		Sys.setCwd(unitDir);
+	}
+
+	static function getJavaDependencies() {
+		runCommand("haxelib", ["git", "hxjava", "https://github.com/HaxeFoundation/hxjava.git"], true);
+	}
+
+	static function getCsDependencies() {
+		runCommand("sudo", ["apt-get", "install", "mono-devel", "mono-mcs", "-y"], true);
+		runCommand("haxelib", ["git", "hxcs", "https://github.com/HaxeFoundation/hxcs.git"], true);
+	}
+
 	static function main():Void {
 		var cwd = Sys.getCwd();
 		var unitDir = cwd + "unit/";
@@ -114,7 +222,7 @@ class RunTravis {
 				runCommand("haxe", ["compile-neko.hxml"]);
 				runCommand("neko", ["unit.n"]);
 			case "php":
-				runCommand("sudo", ["apt-get", "install", "php5", "-y"], true);
+				getPhpDependencies();
 				runCommand("haxe", ["compile-php.hxml"]);
 				runCommand("php", ["php/index.php"]);
 			case "python":
@@ -122,15 +230,7 @@ class RunTravis {
 				runCommand("haxe", ["compile-python.hxml"]);
 				runCommand("python3", ["unit.py"]);
 			case "cpp":
-				//hxcpp dependencies
-				runCommand("sudo", ["apt-get", "install", "gcc-multilib", "g++-multilib", "-y"], true);
-
-				//install and build hxcpp
-				runCommand("haxelib", ["git", "hxcpp", "https://github.com/HaxeFoundation/hxcpp.git"], true);
-				Sys.setCwd(Sys.getEnv("HOME") + "/haxelib/hxcpp/git/project/");
-				runCommand("neko", ["build.n"]);
-				Sys.setCwd(unitDir);
-
+				getCppDependencies(unitDir);
 				runCommand("haxe", ["compile-cpp.hxml"]);
 				runCommand("./cpp/Test-debug", []);
 
@@ -156,12 +256,11 @@ class RunTravis {
 				Sys.setCwd(optDir);
 				runCommand("haxe", ["run.hxml"]);
 			case "java":
-				runCommand("haxelib", ["git", "hxjava", "https://github.com/HaxeFoundation/hxjava.git"], true);
+				getJavaDependencies();
 				runCommand("haxe", ["compile-java.hxml"]);
 				runCommand("java", ["-jar", "java/Test-Debug.jar"]);
 			case "cs":
-				runCommand("sudo", ["apt-get", "install", "mono-devel", "mono-mcs", "-y"], true);
-				runCommand("haxelib", ["git", "hxcs", "https://github.com/HaxeFoundation/hxcs.git"], true);
+				getCsDependencies();
 
 				runCommand("haxe", ["compile-cs.hxml"]);
 				runCommand("mono", ["cs/bin/Test-Debug.exe"]);
@@ -192,10 +291,30 @@ class RunTravis {
 
 				runCommand("haxe", ["compile-as3.hxml", "-D", "fdb"]);
 				runFlash("unit9_as3.swf");
-			//case "openfl":
-				//runCommand("haxelib", ["install", "munit"]);
-				//runCommand("haxelib", ["install", "openfl"]);
-				//runCommand("haxelib", ["git", "openfl-validation", "https://github.com/openfl/openfl-validation"]);
+			case "openfl-samples":
+				getCppDependencies(unitDir);
+				runCommand("haxelib", ["git", "hxlibc", "https://github.com/openfl/hxlibc"]);
+				runCommand("haxelib", ["git", "actuate", "https://github.com/jgranick/actuate"]);
+				runCommand("haxelib", ["git", "box2d", "https://github.com/jgranick/box2d"]);
+				runCommand("haxelib", ["git", "swf", "https://github.com/openfl/swf"]);
+				runCommand("haxelib", ["git", "layout", "https://github.com/jgranick/layout"]);
+				runCommand("haxelib", ["git", "format", "https://github.com/HaxeFoundation/format"]);
+				runCommand("haxelib", ["git", "svg", "https://github.com/openfl/svg"]);
+				runCommand("haxelib", ["git", "lime", "https://github.com/openfl/lime"]);
+				runCommand("haxelib", ["git", "lime-build", "https://github.com/openfl/lime-build"]);
+				runCommand("haxelib", ["git", "lime-tools", "https://github.com/openfl/lime-tools"]);
+				runCommand("haxelib", ["git", "openfl-native", "https://github.com/openfl/openfl-native"]);
+				runCommand("haxelib", ["git", "openfl", "https://github.com/openfl/openfl"]);
+				runCommand("haxelib", ["git", "openfl-samples", "https://github.com/Simn/openfl-samples"]);
+				runCommand("haxelib", ["run", "openfl", "rebuild", "linux"]);
+				runCommand("haxelib", ["run", "openfl", "rebuild", "tools"]);
+				var path = getHaxelibPath("openfl-samples");
+				var old = Sys.getEnv("pwd");
+				Sys.putEnv("pwd", path);
+				parseTravisFile(haxe.io.Path.join([path, ".travis.yml"]), true);
+				if (old != null) {
+					Sys.putEnv("pwd", old);
+				}
 			case "polygonal-ds":
 				runCommand("haxelib", ["git", "polygonal-ds", "https://github.com/Simn/ds"]);
 				runCommand("haxelib", ["git", "polygonal-core", "https://github.com/polygonal/core", "master", "src"]);
@@ -203,11 +322,34 @@ class RunTravis {
 				changeDirectory(getHaxelibPath("polygonal-ds"));
 				runCommand("haxe", ["-cp", "src", "-cp", "test", "-lib", "polygonal-core", "-lib", "polygonal-printf", "-main", "UnitTest", "-js", "unit.js"]);
 				runCommand("node", ["unit.js"]);
-			//case "flambe":
-				//runCommand("haxelib", ["git", "flambe", "https://github.com/aduros/flambe", "master", "src"]);
-				//runCommand("haxelib", ["git", "flambe-server", "https://github.com/aduros/flambe-server", "master", "src"]);
-				//changeDirectory(haxe.io.Path.join([getHaxelibPath("flambe"), "..", "tests", "unit"]));
-				//runCommand("sh", ["run-tests"]);
+			case "flambe":
+				runCommand("git", ["clone", "https://github.com/aduros/flambe"]);
+				runCommand("sh", ["flambe/bin/run-travis"]);
+			case "hxtemplo":
+				getJavaDependencies();
+				getPhpDependencies();
+				getCppDependencies(unitDir);
+				runCommand("haxelib", ["git", "hxparse", "https://github.com/Simn/hxparse", "development", "src"]);
+				runCommand("haxelib", ["git", "hxtemplo", "https://github.com/Simn/hxtemplo"]);
+
+				changeDirectory(getHaxelibPath("hxtemplo"));
+				runCommand("haxe", ["build.hxml"]);
+
+				runCommand("node", ["bin/hxtemplo.js"]);
+				runCommand("neko", ["bin/hxtemplo.n"]);
+				runCommand("java", ["-jar", "bin/java/Test.jar"]);
+				runCommand("php", ["bin/php/index.php"]);
+				runCommand("./bin/cpp/Test", []);
+			case "munit":
+				runCommand("haxelib", ["git", "mconsole", "https://github.com/massiveinteractive/mconsole", "master", "src"]);
+				runCommand("haxelib", ["git", "mcover", "https://github.com/massiveinteractive/MassiveCover", "master", "src"]);
+				runCommand("haxelib", ["git", "mlib", "https://github.com/massiveinteractive/MassiveLib", "master", "src"]);
+				runCommand("haxelib", ["git", "munit", "https://github.com/massiveinteractive/MassiveUnit", "master", "src"]);
+				changeDirectory(haxe.io.Path.join([getHaxelibPath("munit"), "..", "tool"]));
+				runCommand("haxe", ["build.hxml"]);
+				runCommand("haxelib", ["run", "munit", "test", "-result-exit-code", "-neko"]);
+				changeDirectory("../");
+				runCommand("haxelib", ["run", "munit", "test", "-result-exit-code", "-neko"]);
 			case target:
 				throw "unknown target: " + target;
 		}

@@ -185,7 +185,7 @@ class Bytes {
 		#end
 	}
 
-	public function readDouble( pos : Int ) : Float {
+	public function getDouble( pos : Int ) : Float {
 		#if neko
 		return untyped Input._double_of_bytes(sub(pos,8).b,false);
 		#elseif flash9
@@ -197,7 +197,7 @@ class Bytes {
 		#end
 	}
 
-	public function readFloat( pos : Int ) : Float {
+	public function getFloat( pos : Int ) : Float {
 		#if neko
 		return untyped Input._float_of_bytes(sub(pos,4).b,false);
 		#elseif flash9
@@ -206,6 +206,28 @@ class Bytes {
 		#else
 		var b = new haxe.io.BytesInput(this,pos,4);
 		return b.readFloat();
+		#end
+	}
+	
+	public function setDouble( pos : Int, v : Float ) : Void {
+		#if neko
+		untyped $sblit(b, pos, Output._double_bytes(v,false), 0, 8);
+		#elseif flash9
+		b.position = pos;
+		b.writeDouble(v);
+		#else
+		throw "Not supported";
+		#end
+	}
+
+	public function setFloat( pos : Int, v : Float ) : Void {
+		#if neko
+		untyped $sblit(b, pos, Output._float_bytes(v,false), 0, 4);
+		#elseif flash9
+		b.position = pos;
+		b.writeFloat(v);
+		#else
+		throw "Not supported";
 		#end
 	}
 

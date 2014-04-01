@@ -8,6 +8,9 @@ env:
     - secure: sUvWUjCyPuWht4seNa4f2VG9DkvXkhZyLZfjJO9TUAHB2JndS16E2j/qrvKEjycyH6w8tU/B9vnjDRvvGrYXxEXcBEwsJVfkorFnRl9uwGCGIYrzjMhssEl3fMYZK7P304f+gAp5ULrDBX2gIaKeSa8lUNRtz2PsZOieE4kMdhk=
   matrix:
     - TARGET=python
+    - TARGET=polygonal-ds
+    - TARGET=hxtemplo
+    - TARGET=munit
 
 matrix:
   fast_finish: true
@@ -26,5 +29,6 @@ script:
   - sudo make install
   - cd tests/
   - mkdir ~/haxelib && haxelib setup ~/haxelib
+  - haxelib git hx-yaml https://github.com/mikestead/hx-yaml master src
   - haxe -version
-  - haxe -main RunTravis --interp
+  - haxe -main RunTravis -lib hx-yaml --interp

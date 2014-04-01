@@ -29,11 +29,11 @@ package haxe.ds;
 		h = new flash.utils.Dictionary();
 	}
 
-	public function set( key : Int, value : T ) : Void {
+	public inline function set( key : Int, value : T ) : Void {
 		untyped h[key] = value;
 	}
 
-	public function get( key : Int ) : Null<T> {
+	public inline function get( key : Int ) : Null<T> {
 		return untyped h[key];
 	}
 
