@@ -193,6 +193,11 @@ class RunTravis {
 		runCommand("haxelib", ["git", "hxcs", "https://github.com/HaxeFoundation/hxcs.git"], true);
 	}
 
+	static function getPythonDependencies() {
+		runCommand("sudo", ["apt-get", "install", "python3", "-y"], true);
+		runCommand("python", ["-V"]);
+	}
+
 	static function main():Void {
 		var cwd = Sys.getCwd();
 		var unitDir = cwd + "unit/";
@@ -226,8 +231,7 @@ class RunTravis {
 				runCommand("haxe", ["compile-php.hxml"]);
 				runCommand("php", ["php/index.php"]);
 			case "python":
-				runCommand("sudo", ["apt-get", "install", "python3", "-y"], true);
-				runCommand("python", ["-V"]);
+				getPythonDependencies();
 				runCommand("haxe", ["compile-python.hxml"]);
 				runCommand("python3", ["unit.py"]);
 			case "cpp":
@@ -317,13 +321,14 @@ class RunTravis {
 					Sys.putEnv("pwd", old);
 				}
 			case "polygonal-ds":
+				getPythonDependencies();
 				runCommand("haxelib", ["git", "polygonal-ds", "https://github.com/Simn/ds", "python-support"]);
 				runCommand("haxelib", ["git", "polygonal-core", "https://github.com/polygonal/core", "master", "src"]);
 				runCommand("haxelib", ["git", "polygonal-printf", "https://github.com/polygonal/printf", "master", "src"]);
 				changeDirectory(getHaxelibPath("polygonal-ds"));
 				runCommand("haxe", ["build.hxml"]);
 				runCommand("node", ["unit.js"]);
-				runCommand("python", ["unit.py"]);
+				runCommand("python3", ["unit.py"]);
 			case "flambe":
 				runCommand("git", ["clone", "https://github.com/aduros/flambe"]);
 				runCommand("sh", ["flambe/bin/run-travis"]);
