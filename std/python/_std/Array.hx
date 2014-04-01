@@ -55,7 +55,7 @@ extern class Array<T> implements ArrayAccess<T> extends ArrayImpl {
 	}
 
 
-	public inline function join( sep : String ) : String {
+	@:runtime public inline function join( sep : String ) : String {
 		return ArrayImpl.join(this, sep);
 	}
 

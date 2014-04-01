@@ -227,6 +227,7 @@ class RunTravis {
 				runCommand("php", ["php/index.php"]);
 			case "python":
 				runCommand("sudo", ["apt-get", "install", "python3", "-y"], true);
+				runCommand("python", ["-V"]);
 				runCommand("haxe", ["compile-python.hxml"]);
 				runCommand("python3", ["unit.py"]);
 			case "cpp":
