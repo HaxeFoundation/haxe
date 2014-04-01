@@ -47,6 +47,7 @@ class BytesBuffer {
 		b = untyped StringBuf.__make();
 		#elseif flash9
 		b = new flash.utils.ByteArray();
+		b.endian = flash.utils.Endian.LITTLE_ENDIAN;
 		#elseif php
 		b = "";
 		#elseif cpp
