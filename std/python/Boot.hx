@@ -36,8 +36,7 @@ _hx_c._hx_AnonObject = _hx_AnonObject
 
 import functools as _hx_functools
 import math as _hx_math
-"
-)
+")
 @:keep class Boot {
 
 	@:keep static function __init__ () {
