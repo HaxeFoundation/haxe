@@ -1265,6 +1265,7 @@ module Generator = struct
 		buf : Buffer.t;
 		packages : (string,int) Hashtbl.t;
 		mutable static_inits : (unit -> unit) list;
+		mutable class_inits : (unit -> unit) list;
 		mutable indent_count : int;
 		transform_time : float;
 		print_time : float;
@@ -1281,6 +1282,7 @@ module Generator = struct
 		buf = Buffer.create 16000;
 		packages = Hashtbl.create 0;
 		static_inits = [];
+		class_inits = [];
 		indent_count = 0;
 		transform_time = 0.;
 		print_time = 0.;
@@ -1517,8 +1519,11 @@ module Generator = struct
 						gen_func_expr ctx e c field py_metas [] "" true;
 						newline ctx
 					| _ ->
-						gen_expr ctx e (Printf.sprintf "%s.%s" p field) "";
-						newline ctx
+						(let f = fun () ->
+							gen_expr ctx e (Printf.sprintf "%s.%s" p field) "";
+							newline ctx
+						in
+						ctx.static_inits <- f :: ctx.static_inits;)
 
 	let gen_class_data ctx c cfd p_super p_interfaces p p_name =
 		let field_str = String.concat "," (List.map (fun s -> "\"" ^ s ^ "\"") cfd.cfd_fields) in
@@ -1563,10 +1568,8 @@ module Generator = struct
 		print ctx "%s._hx_empty_init = %s\n" p s_name
 
 	let gen_class_statics ctx c p =
-		let f = fun () ->
-			List.iter (fun cf -> gen_static_field ctx c p cf) c.cl_ordered_statics;
-		in
-		ctx.static_inits <- ctx.static_inits @ [f]
+		List.iter (fun cf -> gen_static_field ctx c p cf) c.cl_ordered_statics
+
 
 	let gen_class_init ctx c =
 		match c.cl_init with
@@ -1577,7 +1580,7 @@ module Generator = struct
 					let e = transform_expr e in
 					spr_line ctx (texpr_str e (Printer.create_context ""));
 				in
-				ctx.static_inits <- ctx.static_inits @ [f]
+				ctx.class_inits <- f :: ctx.class_inits
 
 	let gen_class ctx c =
 		gen_pre_code_meta ctx c.cl_meta;
@@ -1618,6 +1621,7 @@ module Generator = struct
 			gen_class_statics ctx c p;
 		end;
 		gen_class_init ctx c
+
 
     let gen_enum_metadata ctx en p =
         let meta = Codegen.build_metadata ctx.com (TEnumDecl en) in
@@ -1730,6 +1734,9 @@ module Generator = struct
 	let gen_static_inits ctx =
 		List.iter (fun f -> f()) (List.rev ctx.static_inits)
 
+	let gen_class_inits ctx =
+		List.iter (fun f -> f()) (List.rev ctx.class_inits)
+
 	let gen_main ctx =
 		match ctx.com.main with
 			| None ->
@@ -1744,6 +1751,7 @@ module Generator = struct
 		let ctx = mk_context com in
 		gen_resources ctx;
 		gen_types ctx;
+		gen_class_inits ctx;
 		gen_static_inits ctx;
 		gen_main ctx;
 
