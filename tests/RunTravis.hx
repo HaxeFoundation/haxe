@@ -154,19 +154,19 @@ class RunTravis {
 	}
 
 	static function parseTravisFile(path:String, ignoreBeforeInstall = false) {
-		var yaml:TravisConfig = yaml.Yaml.read(path, Parser.options().useObjects());
-		if (!ignoreBeforeInstall) {
-			for (code in yaml.before_install) {
-				var args = parseCommand(code);
-				var cmd = args.shift();
-				runCommand(cmd, args);
-			}
-		}
-		for (code in yaml.script) {
-			var args = parseCommand(code);
-			var cmd = args.shift();
-			runCommand(cmd, args);
-		}
+		//var yaml:TravisConfig = yaml.Yaml.read(path, Parser.options().useObjects());
+		//if (!ignoreBeforeInstall) {
+			//for (code in yaml.before_install) {
+				//var args = parseCommand(code);
+				//var cmd = args.shift();
+				//runCommand(cmd, args);
+			//}
+		//}
+		//for (code in yaml.script) {
+			//var args = parseCommand(code);
+			//var cmd = args.shift();
+			//runCommand(cmd, args);
+		//}
 	}
 
 	static function getPhpDependencies() {
@@ -316,12 +316,13 @@ class RunTravis {
 					Sys.putEnv("pwd", old);
 				}
 			case "polygonal-ds":
-				runCommand("haxelib", ["git", "polygonal-ds", "https://github.com/Simn/ds"]);
+				runCommand("haxelib", ["git", "polygonal-ds", "https://github.com/Simn/ds", "python-support"]);
 				runCommand("haxelib", ["git", "polygonal-core", "https://github.com/polygonal/core", "master", "src"]);
 				runCommand("haxelib", ["git", "polygonal-printf", "https://github.com/polygonal/printf", "master", "src"]);
 				changeDirectory(getHaxelibPath("polygonal-ds"));
-				runCommand("haxe", ["-cp", "src", "-cp", "test", "-lib", "polygonal-core", "-lib", "polygonal-printf", "-main", "UnitTest", "-js", "unit.js"]);
+				runCommand("haxe", ["build.hxml"]);
 				runCommand("node", ["unit.js"]);
+				runCommand("python", ["unit.py"]);
 			case "flambe":
 				runCommand("git", ["clone", "https://github.com/aduros/flambe"]);
 				runCommand("sh", ["flambe/bin/run-travis"]);
