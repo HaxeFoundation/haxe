@@ -1,8 +1,5 @@
 language: node_js
 
-python:
-  - "3.3"
-
 env:
   global:
     # SAUCE_USERNAME
