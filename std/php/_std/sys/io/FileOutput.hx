@@ -35,7 +35,7 @@ class FileOutput extends haxe.io.Output {
 	}
 
 	public override function writeBytes( b : haxe.io.Bytes, p : Int, l : Int ) : Int {
-		var s = b.readString(p, l);
+		var s = b.getString(p, l);
 		if(untyped __call__('feof', __f)) return throw new haxe.io.Eof();
 		var r = untyped __call__('fwrite', __f, s, l);
 		if(untyped __physeq__(r, false)) return throw haxe.io.Error.Custom('An error occurred');
