@@ -507,6 +507,11 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 				let el_v = List.map (fun (v,eo) -> mk (TVar (v,eo)) ctx.t.tvoid e.epos) vl in
 				mk (TBlock (el_v @ [e])) tret e.epos
 		) in
+		let inline_meta e meta = match meta with
+			| Meta.Deprecated,_,_ -> mk (TMeta(meta,e)) e.etype e.epos
+			| _ -> e
+		in
+		let e = List.fold_left inline_meta e cf.cf_meta in
 		(* we need to replace type-parameters that were used in the expression *)
 		if not has_params then
 			Some e
