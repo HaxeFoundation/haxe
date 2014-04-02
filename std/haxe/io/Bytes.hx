@@ -200,7 +200,7 @@ class Bytes {
 		return b.readFloat();
 		#end
 	}
-	
+
 	public function setDouble( pos : Int, v : Float ) : Void {
 		#if neko
 		untyped $sblit(b, pos, Output._double_bytes(v,false), 0, 8);
@@ -223,7 +223,7 @@ class Bytes {
 		#end
 	}
 
-	public function readString( pos : Int, len : Int ) : String {
+	public function getString( pos : Int, len : Int ) : String {
 		#if !neko
 		if( pos < 0 || len < 0 || pos + len > length ) throw Error.OutsideBounds;
 		#end
@@ -272,6 +272,13 @@ class Bytes {
 		}
 		return s;
 		#end
+	}
+
+	@:deprecated("readString is deprecated, use getString instead")
+	@:noCompletion
+	// TODO: add inline if/when issue #2837 is resolved
+	public /*inline*/ function readString(pos:Int, len:Int):String {
+		return getString(pos, len);
 	}
 
 	public function toString() : String {
