@@ -4621,7 +4621,7 @@ let generate_source common_ctx =
 		let cmd = ref "haxelib run hxcpp Build.xml haxe" in
 		if (common_ctx.debug) then cmd := !cmd ^ " -Ddebug";
 		cmd := !cmd ^ !cmd_defines;
-		cmd := List.fold_left (fun cmd path -> cmd ^ " -I" ^ (escape_command path) ) !cmd common_ctx.class_path;
+		cmd := List.fold_left (fun cmd path -> cmd ^ " -I\"" ^ (escape_command path) ^ "\"" ) !cmd common_ctx.class_path;
 		print_endline !cmd;
 		if common_ctx.run_command !cmd <> 0 then failwith "Build failed";
 		Sys.chdir old_dir;
