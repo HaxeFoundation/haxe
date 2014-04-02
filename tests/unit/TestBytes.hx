@@ -60,13 +60,13 @@ class TestBytes extends Test {
 		// readString
 		var bs = haxe.io.Bytes.ofString("One é accent");
 		bs.set(3,0); // cut betwen "One" and "é"
-		eq(bs.readString(0,3),"One");
-		eq(bs.readString(4,bs.length-4),"é accent");
-		eq(bs.readString(4,2),"é");
-		exc(function() bs.readString(-1,1));
-		exc(function() bs.readString(1,20));
-		unspec(function() bs.readString(4,1)); // might not allow to cut UTF8 char
-		unspec(function() bs.readString(1,5)); // the handling of \0 might vary
+		eq(bs.getString(0,3),"One");
+		eq(bs.getString(4,bs.length-4),"é accent");
+		eq(bs.getString(4,2),"é");
+		exc(function() bs.getString(-1,1));
+		exc(function() bs.getString(1,20));
+		unspec(function() bs.getString(4,1)); // might not allow to cut UTF8 char
+		unspec(function() bs.getString(1,5)); // the handling of \0 might vary
 		/**
 		 	HANDLING of 0x00 in string :
 				Flash8 : ignore

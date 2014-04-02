@@ -298,7 +298,7 @@ class Bytes {
 		}
 		catch (e:Dynamic) throw e;
 		#else
-		return readString(0,length);
+		return getString(0,length);
 		#end
 	}
 
