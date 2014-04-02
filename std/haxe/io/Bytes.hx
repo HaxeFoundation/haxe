@@ -276,8 +276,7 @@ class Bytes {
 
 	@:deprecated("readString is deprecated, use getString instead")
 	@:noCompletion
-	// TODO: add inline if/when issue #2837 is resolved
-	public /*inline*/ function readString(pos:Int, len:Int):String {
+	public inline function readString(pos:Int, len:Int):String {
 		return getString(pos, len);
 	}
 
