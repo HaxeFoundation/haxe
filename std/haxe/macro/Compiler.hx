@@ -249,8 +249,8 @@ class Compiler {
 		including the containing module has to be used
 		(e.g. msignal.Signal.Signal0).
 
-		@param path A package or module dot path to keep.
-		@param paths An Array of package or module paths to keep.
+		@param path A package, module or sub-type dot path to keep.
+		@param paths An Array of package, module or sub-type dot paths to keep.
 		@param recursive If true, recurses into sub-packages for package paths.
 	**/
 	public static function keep(?path : String, ?paths : Array<String>, ?recursive:Bool = true)
