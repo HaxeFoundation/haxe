@@ -240,45 +240,82 @@ class Compiler {
 	}
 
 	/**
-		Mark a class (or array of classes) with the metadata @:keep.
-
-		Note that this does not imply inclusion of the class(es): If a class is
-		neither referenced nor added via [Compiler.include], it will not be part
-		of the output even if @:keep was added.
+		Mark a (or array of) package or class or subtype of a module with the metadata @:keep.
+		Keep will also include the class. Keeping a subtype of a module will also include the whole module by default.
+		To keep a subtype of a module, you need to set the module path plus the subtype like for imports, like this: msignal.Signal.Signal0 (msignal.Signal being the module, and Signal0 the sub type).
 	**/
-	public static function keep(?path : String, ?paths : Array<String>, rec = false)
+	public static function keep(?path : String, ?paths : Array<String>, ?recursive:Bool = true)
 	{
 		if (null == paths)
 			paths = [];
 		if (null != path)
 			paths.push(path);
-		for (path in paths)
-		{
-			for ( p in Context.getClassPath() ) {
-				var p = p + path.split(".").join("/");
-				if (sys.FileSystem.exists(p) && sys.FileSystem.isDirectory(p))
-				{
-					for( file in sys.FileSystem.readDirectory(p) ) {
+		for (path in paths) {
+			var found:Bool = false;
+			var moduleRoot = (path.indexOf(".") < 0)?"":path.substring(0, path.lastIndexOf("."));
+			
+			for ( classPath in Context.getClassPath() ) {
+				var moduleRootPath = (moduleRoot == "")?"":(classPath + moduleRoot.split(".").join("/") + ".hx");
+				var fullPath = classPath + path.split(".").join("/");
+				var isValidDirectory:Bool = (sys.FileSystem.exists(fullPath) && sys.FileSystem.isDirectory(fullPath));
+				var isValidModule:Bool = !isValidDirectory && sys.FileSystem.exists(fullPath + ".hx");
+				var isValidSubType:Bool = !isValidModule && (moduleRootPath != "" && sys.FileSystem.exists(moduleRootPath));
+				if ( !isValidDirectory && !isValidModule && !isValidSubType)
+					continue;
+				else
+					found = true;
+					
+				if(isValidDirectory) {
+					for( file in sys.FileSystem.readDirectory(fullPath) ) {
 						if( StringTools.endsWith(file, ".hx") ) {
 							var module = path + "." + file.substr(0, file.length - 3);
-							var types = Context.getModule(module);
-							for (type in types)
-							{
-								switch(type)
-								{
-									case TInst(cls, _):
-										addMetadata("@:keep", cls.toString());
-									default:
-										//
-								}
-							}
-						} else if( rec && sys.FileSystem.isDirectory(p + "/" + file) )
+							keepModule(module);
+						} else if( recursive && sys.FileSystem.isDirectory(fullPath + "/" + file) )
 							keep(path + "." + file, true);
 					}
-				} else {
-					addMetadata("@:keep", path);
-					break;
+				} else if(isValidModule){
+					keepModule(path);
+				} else if(isValidSubType){
+					keepSubType(path);
 				}
+			}
+			
+			if (!found)
+				Context.warning("file or directory not found, can't keep: "+path, Context.currentPos());
+		}
+	}
+
+	private static function keepSubType( path : String ) 
+	{				
+		var module = path.substring(0, path.lastIndexOf("."));
+		var subType = module.substring(0, module.lastIndexOf(".")) + "." + path.substring(path.lastIndexOf(".") + 1);
+		var types = Context.getModule(module);
+		var found:Bool = false;
+		for (type in types) {
+			switch(type) {
+				case TInst(cls, _):
+					if (cls.toString() == subType) {
+						found = true;
+						cls.get().meta.add(":keep", [], cls.get().pos);
+					}
+				default:
+					//
+			}
+		}
+		
+		if (!found)
+			Context.warning("subtype not found, can't keep: "+path, Context.currentPos());
+	}
+	
+	private static function keepModule( path : String ) 
+	{				
+		var types = Context.getModule(path);
+		for (type in types) {
+			switch(type) {
+				case TInst(cls, _):
+					cls.get().meta.add(":keep", [], cls.get().pos);
+				default:
+					//
 			}
 		}
 	}
