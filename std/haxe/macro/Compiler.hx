@@ -240,9 +240,18 @@ class Compiler {
 	}
 
 	/**
-		Mark a (or array of) package or class or subtype of a module with the metadata @:keep.
-		Keep will also include the class. Keeping a subtype of a module will also include the whole module by default.
-		To keep a subtype of a module, you need to set the module path plus the subtype like for imports, like this: msignal.Signal.Signal0 (msignal.Signal being the module, and Signal0 the sub type).
+		Marks types or packages to be kept by DCE and includes them for
+		compilation.
+
+		This also extends to the sub-types of resolved modules.
+
+		In order to include module sub-types directly, their full dot path
+		including the containing module has to be used
+		(e.g. msignal.Signal.Signal0).
+
+		@param path A package or module dot path to keep.
+		@param paths An Array of package or module paths to keep.
+		@param recursive If true, recurses into sub-packages for package paths.
 	**/
 	public static function keep(?path : String, ?paths : Array<String>, ?recursive:Bool = true)
 	{
@@ -253,7 +262,7 @@ class Compiler {
 		for (path in paths) {
 			var found:Bool = false;
 			var moduleRoot = (path.indexOf(".") < 0)?"":path.substring(0, path.lastIndexOf("."));
-			
+
 			for ( classPath in Context.getClassPath() ) {
 				var moduleRootPath = (moduleRoot == "")?"":(classPath + moduleRoot.split(".").join("/") + ".hx");
 				var fullPath = classPath + path.split(".").join("/");
@@ -264,7 +273,7 @@ class Compiler {
 					continue;
 				else
 					found = true;
-					
+
 				if(isValidDirectory) {
 					for( file in sys.FileSystem.readDirectory(fullPath) ) {
 						if( StringTools.endsWith(file, ".hx") ) {
@@ -279,14 +288,14 @@ class Compiler {
 					keepSubType(path);
 				}
 			}
-			
+
 			if (!found)
 				Context.warning("file or directory not found, can't keep: "+path, Context.currentPos());
 		}
 	}
 
-	private static function keepSubType( path : String ) 
-	{				
+	private static function keepSubType( path : String )
+	{
 		var module = path.substring(0, path.lastIndexOf("."));
 		var subType = module.substring(0, module.lastIndexOf(".")) + "." + path.substring(path.lastIndexOf(".") + 1);
 		var types = Context.getModule(module);
@@ -302,13 +311,13 @@ class Compiler {
 					//
 			}
 		}
-		
+
 		if (!found)
 			Context.warning("subtype not found, can't keep: "+path, Context.currentPos());
 	}
-	
-	private static function keepModule( path : String ) 
-	{				
+
+	private static function keepModule( path : String )
+	{
 		var types = Context.getModule(path);
 		for (type in types) {
 			switch(type) {
