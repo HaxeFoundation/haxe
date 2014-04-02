@@ -165,12 +165,10 @@ type context =
 	mutable ctx_tcall_expand_args : bool;
 	(* This is for returning from the child nodes of TMatch, TSwitch && TTry *)
 	mutable ctx_return_from_internal_node : bool;
-	mutable ctx_debug : bool;
-	mutable ctx_debug_type : bool;
+	mutable ctx_debug_level : int;
 	mutable ctx_real_this_ptr : bool;
 	mutable ctx_dynamic_this_ptr : bool;
 	mutable ctx_dump_src_pos : unit -> unit;
-	mutable ctx_dump_stack_line : bool;
 	mutable ctx_static_id_curr : int;
 	mutable ctx_static_id_used : int;
 	mutable ctx_static_id_depth : int;
@@ -189,13 +187,11 @@ let new_context common_ctx writer debug file_info =
 	ctx_common = common_ctx;
 	ctx_writer = writer;
 	ctx_output = (writer#write);
-	ctx_dbgout = if debug then (writer#write) else (fun _ -> ());
+	ctx_dbgout = if debug>0 then (writer#write) else (fun _ -> ());
 	ctx_calling = false;
 	ctx_assigning = false;
-	ctx_debug = debug;
-	ctx_debug_type = debug;
+	ctx_debug_level = debug;
 	ctx_dump_src_pos = (fun() -> ());
-	ctx_dump_stack_line = true;
 	ctx_return_from_block = false;
 	ctx_tcall_expand_args = false;
 	ctx_return_from_internal_node = false;
@@ -932,13 +928,13 @@ let find_undeclared_variables_ctx ctx undeclared declarations this_suffix allow_
 		match expression.eexpr with
 		| TVar (tvar,optional_init) ->
 				Hashtbl.add declarations (keyword_remap tvar.v_name) ();
-				if (ctx.ctx_debug) then
+				if (ctx.ctx_debug_level>1) then
 					output ("/* found var " ^ tvar.v_name ^ "*/ ");
 				(match optional_init with
 				| Some expression -> find_undeclared_variables undeclared declarations this_suffix allow_this expression
 				| _ -> ())
 		| TFunction func -> List.iter ( fun (tvar, opt_val) ->
-				if (ctx.ctx_debug) then
+				if (ctx.ctx_debug_level>1) then
 					output ("/* found arg " ^ tvar.v_name ^ " = " ^ (type_string tvar.v_type) ^ " */ ");
 				Hashtbl.add declarations (keyword_remap tvar.v_name) () ) func.tf_args;
 				find_undeclared_variables undeclared declarations this_suffix false func.tf_expr
@@ -1203,15 +1199,17 @@ let strip_file ctx file = (match Common.defined ctx Common.Define.AbsolutePath w
 ;;
 
 let hx_stack_push ctx output clazz func_name pos =
-   let stripped_file = strip_file ctx.ctx_common pos.pfile in
-   let qfile = "\"" ^ (Ast.s_escape stripped_file) ^ "\"" in
-	ctx.ctx_file_info := PMap.add stripped_file pos.pfile !(ctx.ctx_file_info);
-	if (ctx.ctx_dump_stack_line) then begin
-      let hash_class_func = gen_hash 0 (clazz^"."^func_name) in
-      let hash_file = gen_hash 0 stripped_file in
-		output ("HX_STACK_FRAME(\"" ^ clazz ^ "\",\"" ^ func_name ^ "\"," ^ hash_class_func ^ ",\"" ^
-                clazz ^ "." ^ func_name ^ "\"," ^ qfile ^ "," ^
-			    (string_of_int (Lexer.get_error_line pos) ) ^  "," ^ hash_file ^ ")\n")
+   if ctx.ctx_debug_level > 0 then begin
+      let stripped_file = strip_file ctx.ctx_common pos.pfile in
+      let qfile = "\"" ^ (Ast.s_escape stripped_file) ^ "\"" in
+	   ctx.ctx_file_info := PMap.add stripped_file pos.pfile !(ctx.ctx_file_info);
+	   if (ctx.ctx_debug_level>0) then begin
+         let hash_class_func = gen_hash 0 (clazz^"."^func_name) in
+         let hash_file = gen_hash 0 stripped_file in
+		   output ("HX_STACK_FRAME(\"" ^ clazz ^ "\",\"" ^ func_name ^ "\"," ^ hash_class_func ^ ",\"" ^
+                   clazz ^ "." ^ func_name ^ "\"," ^ qfile ^ "," ^
+			       (string_of_int (Lexer.get_error_line pos) ) ^  "," ^ hash_file ^ ")\n")
+      end
    end
 ;;
 
@@ -1241,7 +1239,7 @@ let rec define_local_function_ctx ctx func_name func_def =
 		Hashtbl.add declarations "__trace" ();
 		(* Add args as defined variables *)
 		List.iter ( fun (arg_var, opt_val) ->
-			if (ctx.ctx_debug) then
+			if (ctx.ctx_debug_level>1) then
 				output ("/* found arg " ^ arg_var.v_name ^ " = " ^ (type_string arg_var.v_type) ^" */ ");
 			Hashtbl.add declarations (keyword_remap arg_var.v_name) () ) func_def.tf_args;
 		find_undeclared_variables_ctx ctx undeclared declarations "" true func_def.tf_expr;
@@ -1276,11 +1274,13 @@ let rec define_local_function_ctx ctx func_name func_def =
 		let pop_real_this_ptr = clear_real_this_ptr ctx true in
 
 		writer#begin_block;
-      hx_stack_push ctx output_i "*" func_name func_def.tf_expr.epos;
-		if (has_this && ctx.ctx_dump_stack_line) then
-			output_i ("HX_STACK_THIS(__this.mPtr)\n");
-		List.iter (fun (v,_) -> output_i ("HX_STACK_ARG(" ^ (keyword_remap v.v_name) ^ ",\"" ^ v.v_name ^"\")\n") )
+		if (ctx.ctx_debug_level>0) then begin
+      	hx_stack_push ctx output_i "*" func_name func_def.tf_expr.epos;
+			if (has_this && ctx.ctx_debug_level>0) then
+				output_i ("HX_STACK_THIS(__this.mPtr)\n");
+				List.iter (fun (v,_) -> output_i ("HX_STACK_ARG(" ^ (keyword_remap v.v_name) ^ ",\"" ^ v.v_name ^"\")\n") )
             func_def.tf_args;
+      end;
 
 		if (block) then begin
 			output_i "";
@@ -1460,10 +1460,10 @@ and gen_expression ctx retval expression =
 
 	(* Annotate source code with debug - can get a bit verbose.  Mainly for debugging code gen,
 		rather than the run time *)
-	if (ctx.ctx_debug) then begin
+	if (ctx.ctx_debug_level>1) then begin
 		(*if calling then output "/* Call */";*)
 		(*if ctx.ctx_real_this_ptr then output "/* this */" else output "/* FAKE __this */";*)
-		output (debug_expression expression ctx.ctx_debug_type);
+		output (debug_expression expression (ctx.ctx_debug_level>1) );
 	end;
 
 	(* Write comma separated list of variables - useful for function args. *)
@@ -1696,7 +1696,7 @@ and gen_expression ctx retval expression =
          (not (is_scalar cpp_type)) && (
             let fixed = (cpp_type<>"?") && (expr_type<>"Dynamic") && (cpp_type<>"Dynamic") &&
                (cpp_type<>expr_type) && (expr_type<>"Void") in
-            if (fixed && ctx.ctx_debug_type ) then begin
+            if (fixed && (ctx.ctx_debug_level>1) ) then begin
                output ("/* " ^ (cpp_type) ^ " != " ^ expr_type ^ " -> cast */");
                (* print_endline (cpp_type ^ " != " ^ expr_type ^ " -> cast"); *)
             end;
@@ -1706,7 +1706,7 @@ and gen_expression ctx retval expression =
 		| _ -> false
       in
       let is_super = (match func.eexpr with | TConst TSuper -> true | _ -> false ) in
-		if (ctx.ctx_debug_type) then output ("/* TCALL ret=" ^ expr_type ^ "*/");
+		if (ctx.ctx_debug_level>1) then output ("/* TCALL ret=" ^ expr_type ^ "*/");
 		let is_block_call = call_has_side_effects func arg_list in
       let cast_result =  (not is_super) && (is_fixed_override func) in
       if (cast_result) then output ("hx::TCast< " ^ expr_type ^ " >::cast(");
@@ -1749,7 +1749,7 @@ and gen_expression ctx retval expression =
 			List.iter (fun expression ->
 				let want_value = (return_from_block && !remaining = 1) in
 				find_local_functions_and_return_blocks_ctx ctx want_value expression;
-				if (ctx.ctx_dump_stack_line) then
+				if (ctx.ctx_debug_level>0) then
 				   output_i ("HX_STACK_LINE(" ^ (string_of_int (Lexer.get_error_line expression.epos)) ^ ")\n" );
 				output_i "";
 				ctx.ctx_return_from_internal_node <- return_from_internal_node;
@@ -1926,7 +1926,7 @@ and gen_expression ctx retval expression =
 			| None -> ()
 			| Some expression -> output " = "; gen_expression ctx true expression);
 			count := !count -1;
-        if (ctx.ctx_dump_stack_line) then
+        if (ctx.ctx_debug_level>0) then
 			   output (";\t\tHX_STACK_VAR(" ^name ^",\""^ tvar.v_name ^"\")");
 			if (!count > 0) then begin output ";\n"; output_i "" end
 		end
@@ -2179,11 +2179,11 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
 		let is_void = (type_string function_def.tf_type ) = "Void" in
 		let ret = if is_void  then "(void)" else "return " in
 		let output_i = ctx.ctx_writer#write_i in
-		let dump_src = if (Meta.has Meta.NoStack field.cf_meta) then begin
-			ctx.ctx_dump_stack_line <- false;
+		let orig_debug = ctx.ctx_debug_level in
+		let dump_src = if ((Meta.has Meta.NoStack field.cf_meta)||(Meta.has Meta.NoDebug field.cf_meta) || orig_debug<1) then begin
+			ctx.ctx_debug_level <- 0;
 			(fun()->())
 		end else begin
-			ctx.ctx_dump_stack_line <- true;
 			(fun() ->
          hx_stack_push ctx output_i dot_name field.cf_name function_def.tf_expr.epos;
          if (not is_static) then output_i ("HX_STACK_THIS(this)\n");
@@ -2252,7 +2252,8 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
 
 			if (is_static) then
 				output ( "Dynamic " ^ class_name ^ "::" ^ remap_name ^ ";\n\n");
-		end
+      end;
+		ctx.ctx_debug_level <- orig_debug
 
 	(* Data field *)
 	| _ when has_decl ->
@@ -2538,7 +2539,7 @@ let generate_main common_ctx member_types super_deps class_def file_info =
 		output_main "\n\n";
 
 		output_main ( if is_main then "HX_BEGIN_MAIN\n\n" else "HX_BEGIN_LIB_MAIN\n\n" );
-		gen_expression (new_context common_ctx cpp_file false file_info) false main_expression;
+		gen_expression (new_context common_ctx cpp_file 1 file_info) false main_expression;
 		output_main ";\n";
 		output_main ( if is_main then "HX_END_MAIN\n\n" else "HX_END_LIB_MAIN\n\n" );
 		cpp_file#close;
@@ -2669,10 +2670,12 @@ let generate_enum_files common_ctx enum_def super_deps meta file_info =
 	(*let cpp_file = new_cpp_file common_ctx.file class_path in*)
 	let cpp_file = new_placed_cpp_file common_ctx class_path in
 	let output_cpp = (cpp_file#write) in
-	let debug = false in
+	let debug = if (has_meta_key enum_def.e_meta Meta.NoDebug) || ( Common.defined  common_ctx Define.NoDebug)
+      then 0 else 1 in
+
 	let ctx = new_context common_ctx cpp_file debug file_info in
 
-	if (debug) then
+	if (debug>1) then
 		print_endline ("Found enum definition:" ^ (join_class_path  class_path "::" ));
 
 	output_cpp "#include <hxcpp.h>\n\n";
@@ -2799,7 +2802,7 @@ let generate_enum_files common_ctx enum_def super_deps meta file_info =
 	output_cpp ("void " ^ class_name ^ "::__boot()\n{\n");
 	(match meta with
 		| Some expr ->
-			let ctx = new_context common_ctx cpp_file false file_info in
+			let ctx = new_context common_ctx cpp_file 1 file_info in
 			find_local_functions_and_return_blocks_ctx ctx true expr;
 			output_cpp ("__mClass->__meta__ = ");
 			gen_expression ctx true expr;
@@ -2934,7 +2937,8 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 	(*let cpp_file = new_cpp_file common_ctx.file class_path in*)
 	let cpp_file = new_placed_cpp_file common_ctx class_path in
 	let output_cpp = (cpp_file#write) in
-	let debug = false in
+	let debug = if (has_meta_key class_def.cl_meta Meta.NoDebug) || ( Common.defined  common_ctx Define.NoDebug)
+      then 0 else 1 in
    let scriptable = inScriptable && not class_def.cl_private in
 	let ctx = new_context common_ctx cpp_file debug file_info in
 	ctx.ctx_class_name <- "::" ^ (join_class_path class_def.cl_path "::");
@@ -2942,7 +2946,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
       | Some (klass, params) -> class_string klass "_obj" params
       | _ -> "");
 	ctx.ctx_class_member_types <- member_types;
-	if debug then print_endline ("Found class definition:" ^ ctx.ctx_class_name);
+	if (debug>1) then print_endline ("Found class definition:" ^ ctx.ctx_class_name);
 
 	let ptr_name = "hx::ObjectPtr< " ^ class_name ^ " >" in
 	let constructor_arg_var_list =
@@ -3006,8 +3010,11 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 			| Some definition ->
 					(match  definition.cf_expr with
 					| Some { eexpr = TFunction function_def } ->
-      				hx_stack_push ctx output_cpp dot_name "new" function_def.tf_expr.epos;
-		            List.iter (fun (a,(t,o)) -> output_cpp ("\nHX_STACK_ARG(" ^ (keyword_remap o) ^ ",\"" ^ a ^"\")\n") ) constructor_arg_var_list;
+                  if has_meta_key definition.cf_meta Meta.NoDebug then ctx.ctx_debug_level <- 0;
+                  if ctx.ctx_debug_level >0 then begin
+							hx_stack_push ctx output_cpp dot_name "new" function_def.tf_expr.epos;
+							List.iter (fun (a,(t,o)) -> output_cpp ("\nHX_STACK_ARG(" ^ (keyword_remap o) ^ ",\"" ^ a ^"\")\n") ) constructor_arg_var_list;
+                  end;
 
 						if (has_default_values function_def.tf_args) then begin
 							generate_default_values ctx function_def.tf_args "__o_";
@@ -3017,7 +3024,8 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 							gen_expression ctx false (to_block function_def.tf_expr);
 							output_cpp ";\n";
 							(*gen_expression (new_context common_ctx cpp_file debug ) false function_def.tf_expr;*)
-						end
+                  end;
+                  ctx.ctx_debug_level <- debug;
 					| _ -> ()
 					)
 			| _ -> ());
@@ -3872,7 +3880,7 @@ let gen_extern_class common_ctx class_def file_info =
 	   | Var { v_read = AccInline; v_write = AccNever },_ ->
            (match f.cf_expr with Some expr ->
               output ("inline var " ^ f.cf_name ^ ":" ^ (s_type f.cf_type) ^ "=" );
-              let ctx = (new_extern_context common_ctx file false file_info) in
+              let ctx = (new_extern_context common_ctx file 1 file_info) in
               gen_expression ctx true expr;
            | _ -> ()  )
 	   | Var { v_read = AccNormal; v_write = AccNormal },_ -> output ("var " ^ f.cf_name ^ ":" ^ (s_type f.cf_type))
@@ -4461,7 +4469,7 @@ let generate_script_enum common_ctx script enum_def meta =
 
 
 let generate_cppia common_ctx =
-   let debug = true in
+   let debug = 1 in
    let null_file = new source_writer common_ctx ignore (fun () -> () ) in
    let ctx = new_context common_ctx null_file debug (ref PMap.empty) in
 	ctx.ctx_class_member_types <- ctx.ctx_class_member_types;
@@ -4477,7 +4485,7 @@ let generate_cppia common_ctx =
 			let is_internal = is_internal_class class_def.cl_path in
 			let is_generic_def = match class_def.cl_kind with KGeneric -> true | _ -> false in
 			if (is_internal || (is_macro class_def.cl_meta) || is_generic_def) then
-				( if debug then print_endline (" internal class " ^ (join_class_path class_def.cl_path ".") ))
+				( if (debug>1) then print_endline (" internal class " ^ (join_class_path class_def.cl_path ".") ))
 			else begin
             ctx.ctx_class_name <- "::" ^ (join_class_path class_def.cl_path "::");
 				generate_script_class common_ctx script class_def
@@ -4486,11 +4494,11 @@ let generate_cppia common_ctx =
 		| TEnumDecl enum_def ->
 			let is_internal = is_internal_class enum_def.e_path in
 			if (is_internal) then
-				(if debug then print_endline (" internal enum " ^ (join_class_path enum_def.e_path ".") ))
+				(if (debug>1) then print_endline (" internal enum " ^ (join_class_path enum_def.e_path ".") ))
 			else begin
 				let meta = Codegen.build_metadata common_ctx object_def in
 				if (enum_def.e_extern) then
-					(if debug then print_endline ("external enum " ^  (join_class_path enum_def.e_path ".") ));
+					(if (debug>1) then print_endline ("external enum " ^  (join_class_path enum_def.e_path ".") ));
             ctx.ctx_class_name <- "*";
 				generate_script_enum common_ctx script enum_def meta
 			end
@@ -4514,7 +4522,7 @@ let generate_cppia common_ctx =
 let generate_source common_ctx =
 	make_base_directory common_ctx.file;
 
-	let debug = false in
+	let debug = 1 in
 	let exe_classes = ref [] in
 	let boot_classes = ref [] in
 	let init_classes = ref [] in
@@ -4541,7 +4549,7 @@ let generate_source common_ctx =
 			let is_internal = is_internal_class class_def.cl_path in
 			let is_generic_def = match class_def.cl_kind with KGeneric -> true | _ -> false in
 			if (is_internal || (is_macro class_def.cl_meta) || is_generic_def) then
-				( if debug then print_endline (" internal class " ^ name ))
+				( if (debug>1) then print_endline (" internal class " ^ name ))
 			else begin
 				build_xml := !build_xml ^ (get_code class_def.cl_meta Meta.BuildXml);
 				boot_classes := class_def.cl_path ::  !boot_classes;
@@ -4557,11 +4565,11 @@ let generate_source common_ctx =
          if (gen_externs) then gen_extern_enum common_ctx enum_def file_info;
 			let is_internal = is_internal_class enum_def.e_path in
 			if (is_internal) then
-				(if debug then print_endline (" internal enum " ^ name ))
+				(if (debug>1) then print_endline (" internal enum " ^ name ))
 			else begin
 				let meta = Codegen.build_metadata common_ctx object_def in
 				if (enum_def.e_extern) then
-					(if debug then print_endline ("external enum " ^ name ));
+					(if (debug>1) then print_endline ("external enum " ^ name ));
 				boot_classes := enum_def.e_path :: !boot_classes;
 				let deps = generate_enum_files common_ctx enum_def super_deps meta file_info in
 				exe_classes := (enum_def.e_path, deps) :: !exe_classes;

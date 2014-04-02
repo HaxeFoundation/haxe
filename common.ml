@@ -202,6 +202,7 @@ module Define = struct
 		| NoCompilation
 		| NoCOpt
 		| NoFlashOverride
+		| NoDebug
 		| NoInline
 		| NoOpt
 		| NoPatternMatching
@@ -273,6 +274,7 @@ module Define = struct
 		| NetworkSandbox -> ("network-sandbox","Use local network sandbox instead of local file access one")
 		| NoCompilation -> ("no-compilation","Disable CPP final compilation")
 		| NoCOpt -> ("no_copt","Disable completion optimization (for debug purposes)")
+		| NoDebug -> ("no_debug","Remove all debug macros from cpp output")
 		| NoFlashOverride -> ("no-flash-override", "Change overrides on some basic classes into HX suffixed methods, flash only")
 		| NoOpt -> ("no_opt","Disable optimizations")
 		| NoPatternMatching -> ("no_pattern_matching","Disable pattern matching")
