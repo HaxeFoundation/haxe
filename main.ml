@@ -1367,6 +1367,7 @@ try
 			("--help", Arg.Unit (fun () -> ()),": show extended help information");
 			("--help-defines", Arg.Unit (fun () -> ()),": print help for all compiler specific defines");
 			("--help-metas", Arg.Unit (fun () -> ()),": print help for all compiler metadatas");
+			("<dot-path>", Arg.Unit (fun () -> ()),": compile the module specified by dot-path");
 		] in
 		if !cmds = [] && not !did_something then Arg.usage help_spec usage;
 	end else begin
