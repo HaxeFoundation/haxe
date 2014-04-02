@@ -90,7 +90,15 @@ class Compiler {
 	}
 
 	/**
-		Include for compilation all classes defined in the given package excluding the ones referenced in the ignore list.
+		Includes all modules in package `pack` in the compilation.
+
+		In order to include single modules, their paths can be listed directly
+		on command line: `haxe ... ModuleName pack.ModuleName`.
+
+		@param rec If true, recursively adds all sub-packages.
+		@param ignore Array of module names to ignore for inclusion.
+		@param classPaths Array of additional class paths to check. This can be
+		    used to add packages outside the usual class paths.
 	**/
 	public static function include( pack : String, ?rec = true, ?ignore : Array<String>, ?classPaths : Array<String> ) {
 		var skip = if( ignore == null ) {
