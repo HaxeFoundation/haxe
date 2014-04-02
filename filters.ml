@@ -799,7 +799,6 @@ let rename_local_vars com e =
 
 let check_deprecation com =
 	let curclass = ref null_class in
-	let definition_positions = (Common.defined_value_safe com Define.DeprecationWarnings) = "def-pos" in
 	let warned_positions = Hashtbl.create 0 in
 	let get_deprecation_message meta s p_usage p_definition =
 		try
@@ -811,7 +810,6 @@ let check_deprecation com =
 				Hashtbl.replace warned_positions p_usage true;
 				com.warning s p_usage;
 			end;
-			if definition_positions then com.warning "Defined here" p_definition
 		with Not_found ->
 			()
 	in
@@ -1142,7 +1140,7 @@ let post_process_end() =
 let run com tctx main =
 	if com.display = DMUsage then
 		Codegen.detect_usage com;
-	if Common.defined com Define.DeprecationWarnings then
+	if not (Common.defined com Define.NoDeprecationWarnings) then
 		check_deprecation com;
 
 	(* PASS 1: general expression filters *)

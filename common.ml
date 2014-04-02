@@ -171,7 +171,6 @@ module Define = struct
 		| Dce
 		| DceDebug
 		| Debug
-		| DeprecationWarnings
 		| Display
 		| DllExport
 		| DllImport
@@ -201,6 +200,7 @@ module Define = struct
 		| NetTarget
 		| NoCompilation
 		| NoCOpt
+		| NoDeprecationWarnings
 		| NoFlashOverride
 		| NoDebug
 		| NoInline
@@ -244,7 +244,6 @@ module Define = struct
 		| Dce -> ("dce","The current DCE mode")
 		| DceDebug -> ("dce_debug","Show DCE log")
 		| Debug -> ("debug","Activated when compiling with -debug")
-		| DeprecationWarnings -> ("deprecation-warnings","Warn if fields annotated with @:deprecated are used")
 		| Display -> ("display","Activated during completion")
 		| DllExport -> ("dll_export", "GenCPP experimental linking")
 		| DllImport -> ("dll_import", "GenCPP experimental linking")
@@ -275,6 +274,7 @@ module Define = struct
 		| NoCompilation -> ("no-compilation","Disable CPP final compilation")
 		| NoCOpt -> ("no_copt","Disable completion optimization (for debug purposes)")
 		| NoDebug -> ("no_debug","Remove all debug macros from cpp output")
+		| NoDeprecationWarnings -> ("no-deprecation-warnings","Do not warn if fields annotated with @:deprecated are used")
 		| NoFlashOverride -> ("no-flash-override", "Change overrides on some basic classes into HX suffixed methods, flash only")
 		| NoOpt -> ("no_opt","Disable optimizations")
 		| NoPatternMatching -> ("no_pattern_matching","Disable pattern matching")
@@ -892,7 +892,7 @@ let find_file ctx f =
 		(match r with
 		| None -> raise Not_found
 		| Some f -> f)
-		
+
 
 let get_full_path f = try Extc.get_full_path f with _ -> f
 
