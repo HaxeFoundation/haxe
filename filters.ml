@@ -800,23 +800,26 @@ let rename_local_vars com e =
 let check_deprecation com =
 	let curclass = ref null_class in
 	let warned_positions = Hashtbl.create 0 in
-	let get_deprecation_message meta s p_usage p_definition =
+	let print_deprecation_message meta s p_usage =
+		let s = match meta with
+			| _,[EConst(String s),_],_ -> s
+			| _ -> Printf.sprintf "Usage of this %s is deprecated" s
+		in
+		if not (Hashtbl.mem warned_positions p_usage) then begin
+			Hashtbl.replace warned_positions p_usage true;
+			com.warning s p_usage;
+		end
+	in
+	let check_meta meta s p_usage =
 		try
-			let s = match Meta.get Meta.Deprecated meta with
-				| _,[EConst(String s),_],_ -> s
-				| _ -> Printf.sprintf "Usage of this %s is deprecated" s
-			in
-			if not (Hashtbl.mem warned_positions p_usage) then begin
-				Hashtbl.replace warned_positions p_usage true;
-				com.warning s p_usage;
-			end;
+			print_deprecation_message (Meta.get Meta.Deprecated meta) s p_usage;
 		with Not_found ->
 			()
 	in
-	let check_cf cf p = get_deprecation_message cf.cf_meta "field" p cf.cf_pos in
-	let check_class c p = if c != !curclass then get_deprecation_message c.cl_meta "class" p c.cl_pos in
-	let check_enum en p = get_deprecation_message en.e_meta "enum" p en.e_pos in
-	let check_ef ef p = get_deprecation_message ef.ef_meta "enum field" p ef.ef_pos in
+	let check_cf cf p = check_meta cf.cf_meta "field" p in
+	let check_class c p = if c != !curclass then check_meta c.cl_meta "class" p in
+	let check_enum en p = check_meta en.e_meta "enum" p in
+	let check_ef ef p = check_meta ef.ef_meta "enum field" p in
 	let check_module_type mt p = match mt with
 		| TClassDecl c -> check_class c p
 		| TEnumDecl en -> check_enum en p
@@ -846,6 +849,9 @@ let check_deprecation com =
 			(match c.cl_constructor with None -> () | Some cf -> check_cf cf e.epos)
 		| TTypeExpr(mt) | TCast(_,Some mt) ->
 			check_module_type mt e.epos
+		| TMeta((Meta.Deprecated,_,_) as meta,e1) ->
+			print_deprecation_message meta "field" e1.epos;
+			expr e1;
 		| _ ->
 			Type.iter expr e
 	in
