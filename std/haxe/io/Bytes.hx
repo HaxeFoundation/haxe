@@ -151,15 +151,25 @@ class Bytes {
 		var b2 = other.b;
 		b1.position = 0;
 		b2.position = 0;
+		b1.endian = flash.utils.Endian.BIG_ENDIAN;
+		b2.endian = flash.utils.Endian.BIG_ENDIAN;
 		for( i in 0...len>>2 )
 			if( b1.readUnsignedInt() != b2.readUnsignedInt() ) {
 				b1.position -= 4;
 				b2.position -= 4;
-				return b1.readUnsignedInt() - b2.readUnsignedInt();
+				var d = b1.readUnsignedInt() - b2.readUnsignedInt();
+				b1.endian = flash.utils.Endian.LITTLE_ENDIAN;
+				b2.endian = flash.utils.Endian.LITTLE_ENDIAN;
+				return d;
 			}
 		for( i in 0...len & 3 )
-			if( b1.readUnsignedByte() != b2.readUnsignedByte() )
+			if( b1.readUnsignedByte() != b2.readUnsignedByte() ) {
+				b1.endian = flash.utils.Endian.LITTLE_ENDIAN;
+				b2.endian = flash.utils.Endian.LITTLE_ENDIAN;
 				return b1[b1.position-1] - b2[b2.position-1];
+			}
+		b1.endian = flash.utils.Endian.LITTLE_ENDIAN;
+		b2.endian = flash.utils.Endian.LITTLE_ENDIAN;
 		return length - other.length;
 		#elseif php
 		return untyped __php__("$this->b < $other->b ? -1 : ($this->b == $other->b ? 0 : 1)");
