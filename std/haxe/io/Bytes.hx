@@ -29,6 +29,9 @@ class Bytes {
 	function new(length,b) {
 		this.length = length;
 		this.b = b;
+		#if flash9
+		b.endian = flash.utils.Endian.LITTLE_ENDIAN;
+		#end
 	}
 
 	public inline function get( pos : Int ) : Int {
