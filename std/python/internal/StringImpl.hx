@@ -7,7 +7,7 @@ class StringImpl {
 
 
 
-	static inline function builtin ():Dynamic return untyped __python__("_hx_builtin");
+	static inline function builtin ():Dynamic return Syntax.untypedPython("_hx_builtin");
 
 
 	public static function split (s:String, d:String) {
@@ -15,19 +15,21 @@ class StringImpl {
 	}
 
 	public static function charCodeAt(s:String, index:Int) {
-		return if (s == null || s.length == 0 || index < 0 || index >= s.length) null else untyped ord(untyped __python_array_get__(s, index));
+		return
+			if (s == null || s.length == 0 || index < 0 || index >= s.length) null
+			else Syntax.callField(builtin(), "ord", Syntax.arrayAccess(s, index));
 	}
 	public static inline function charAt(s:String, index:Int) {
-		return if (index < 0 || index >= s.length) "" else untyped __python_array_get__(s,index);
+		return if (index < 0 || index >= s.length) "" else Syntax.arrayAccess(s,index);
 	}
 	public static inline function lastIndexOf(s:String, str:String, ?startIndex:Int):Int {
 		if (startIndex == null) {
-			return (untyped s.rfind)(str, 0, s.length);
+			return Syntax.callField(s, "rfind", str, 0, s.length);
 		} else {
 
-			var i = (untyped s.rfind)(str, 0, startIndex+1);
-			var startLeft = i == -1 ? Syntax.field(builtin(), "max")(0,startIndex+1-str.length) : i+1;
-			var check = (untyped s.find)(str, startLeft, s.length);
+			var i = Syntax.callField(s, "rfind", str, 0, startIndex+1);
+			var startLeft = i == -1 ? Syntax.callField(builtin(), "max", 0,startIndex+1-str.length) : i+1;
+			var check = Syntax.callField(s,"find", str, startLeft, s.length);
 			if (check > i && check <= startIndex) {
 				return check;
 			} else {
@@ -63,33 +65,33 @@ class StringImpl {
 		return "";
 		#else
 		var c = code;
-		return (Syntax.field('', "join")(Syntax.field(builtin(), "map")(Syntax.field(builtin(), "chr"), cast [c])):String); // TODO: check cast
+		return Syntax.callField('', "join",
+			Syntax.callField(builtin(), "map", Syntax.field(builtin(), "chr"), [c])); // TODO: check cast
 		#end
 	}
 
 	public static function substring( s:String, startIndex : Int, ?endIndex : Int ) : String {
 		if (startIndex < 0) startIndex = 0;
 		if (endIndex == null) {
-			return untyped __python__("s[startIndex:]");
+			return Syntax.arrayAccessWithLeadingColon(s, startIndex);
 		} else {
 			if (endIndex < 0) endIndex = 0;
 			if (endIndex < startIndex) {
 
-				return untyped __python__("s[endIndex:startIndex]");
+				return Syntax.arrayAccess(s, endIndex, startIndex);
 			} else {
 
-				return untyped __python__("s[startIndex:endIndex]");
+				return Syntax.arrayAccess(s, startIndex, endIndex);
 			}
-
 		}
 	}
 
 	public static function substr( s:String, startIndex : Int, ?len : Int ) : String {
 		if (len == null) {
-			return untyped __python__("s[startIndex:]");
+			return Syntax.arrayAccessWithLeadingColon(s, startIndex);
 		} else {
 			if (len == 0) return "";
-			return untyped __python__("s[startIndex:startIndex+len]");
+			return Syntax.arrayAccess(s, startIndex, startIndex+len);
 		}
 
 	}

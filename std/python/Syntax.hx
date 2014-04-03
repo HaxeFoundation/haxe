@@ -37,12 +37,17 @@ class Syntax {
 
     @:noUsing macro public static function isIn <T>(a:Expr, b:Expr):haxe.macro.Expr
     {
-        return macro untyped __python_in__($a, $b);
+        return macro (untyped __python_in__)($a, $b);
     }
 
-    @:noUsing macro public static function pyBinop <T>(a:Expr, op:String, b:Expr):haxe.macro.Expr
+    @:noUsing macro public static function delete <T>(a:Expr):haxe.macro.Expr
     {
-        return macro untyped __python_binop__($a, $v{op}, $b);
+        return macro (untyped __python_del__)($a);
+    }
+
+    @:noUsing macro public static function binop <T>(a:Expr, op:String, b:Expr):haxe.macro.Expr
+    {
+        return macro (untyped __python_binop__)($a, $v{op}, $b);
     }
 
 
@@ -50,12 +55,17 @@ class Syntax {
     #if (!macro) macro #end
     public static function untypedPython <T>(b:String):haxe.macro.ExprOf<Dynamic>
     {
-        return macro untyped __python__($v{b});
+        return macro (untyped __python__)($v{b});
     }
 
     @:noUsing macro public static function arrayAccess <T>(x:Expr, rest:Array<Expr>):haxe.macro.ExprOf<Dynamic>
     {
-        return macro untyped __python_array_get__($a{[x].concat(rest)});
+        return macro (untyped __python_array_get__)($a{[x].concat(rest)});
+    }
+
+    @:noUsing macro public static function arrayAccessWithLeadingColon <T>(x:Expr, rest:Array<Expr>):haxe.macro.ExprOf<Dynamic>
+    {
+        return macro (untyped __python_array_access_leading_colon__)($a{[x].concat(rest)});
     }
 
     @:noUsing macro public static function pyFor <T>(v:Expr, it:Expr, b:Expr):haxe.macro.Expr
@@ -92,23 +102,25 @@ class Syntax {
         var field = python.Syntax.field(o, field);
         var params = [field].concat(params);
 
-        return macro untyped __call__($a{params});
+        return macro (untyped __call__)($a{params});
     }
 
     @:noUsing
     #if !macro macro #end
     public static function field (o:Expr, field:ExprOf<String>):haxe.macro.Expr
     {
-        return macro untyped __field__($o, $field);
+        return macro (untyped __field__)($o, $field);
     }
 
     @:noUsing
     #if !macro macro #end
     public static function callNamed (e:Expr, args:Expr):haxe.macro.Expr {
+
         var fArgs = switch (Context.typeof(e)) {
             case TFun(args, ret): args;
             case _ : haxe.macro.Context.error("e must be of type function", e.pos);
         }
+
         switch (args.expr) {
             case EObjectDecl(fields):
                 for (f in fields) {
@@ -124,7 +136,12 @@ class Syntax {
                 // TODO check at least if fields are valid (maybe if types match);
             case _ : haxe.macro.Context.error("args must be an ObjectDeclaration like { name : 1 }", args.pos);
         }
-        return macro @:pos(e.pos) untyped __named__($e, $args);
+        return macro @:pos(e.pos) (untyped __named__)($e, $args);
+    }
+
+    macro public static function callNamedUntyped (e:Expr, args:Expr):haxe.macro.Expr
+    {
+        return macro @:pos(e.pos) (untyped __named__)($e, $args);
     }
 
 

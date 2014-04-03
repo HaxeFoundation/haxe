@@ -137,7 +137,7 @@ import math as _hx_math
 		if (isInstance(a, String) || isInstance(b, String)) {
 			return toString1(a,"") + toString1(b,"");
 		}
-		return Syntax.pyBinop(a, "+", b);
+		return Syntax.binop(a, "+", b);
     }
 
     @:keep static function toString (o:Dynamic) {

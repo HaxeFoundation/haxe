@@ -31,12 +31,12 @@ private abstract Builtin(Dynamic) {}
 @:keep
 class ArrayImpl {
 
-	static inline function builtin():Builtin return untyped __python__("_hx_builtin");
+	static inline function builtin():Builtin return Syntax.untypedPython("_hx_builtin");
 
-	public static inline function get_length <T>(x:Array<T>):Int return Syntax.field(builtin(), "len")(x);
+	public static inline function get_length <T>(x:Array<T>):Int return Syntax.callField(builtin(), "len", x);
 
 	public static inline function concat<T>( a1:Array<T>, a2 : Array<T>) : Array<T> {
-		return untyped (untyped a1) + (untyped a2);
+		return Syntax.binop(a1, "+", a2);
 	}
 
 	public static inline function copy<T>(x:Array<T>) : Array<T> {
@@ -44,7 +44,7 @@ class ArrayImpl {
 	}
 
 	@:keep public static inline function iterator<T>(x:Array<T>) : Iterator<T> {
-		return new HaxeIterator(untyped x.__iter__());
+		return new HaxeIterator(Syntax.callField(x, "__iter__"));
 	}
 
 	public static function indexOf<T>(a:Array<T>, x : T, ?fromIndex:Int) : Int {
@@ -81,7 +81,7 @@ class ArrayImpl {
 	}
 
 	public static inline function pop<T>(x:Array<T>) : Null<T> {
-		return if (x.length == 0) null else untyped __field__(x, "pop")();
+		return if (x.length == 0) null else Syntax.callField(x, "pop");
 	}
 
 	public static inline function push<T>(x:Array<T>, e:T) : Int {
@@ -104,27 +104,27 @@ class ArrayImpl {
 
 	public static inline function shift<T>(x:Array<T>) : Null<T> {
 		if (x.length == 0) return null;
-		return untyped __field__(x, "pop")(0);
+		return Syntax.callField(x, "pop", 0);
 	}
 
 	public static inline function slice<T>(x:Array<T>, pos : Int, ?end : Int ) : Array<T> {
-		return untyped __python_array_get__(x, pos, end);
+		return Syntax.arrayAccess(x, pos, end);
 	}
 
 	public static inline function sort<T>(x:Array<T>, f:T->T->Int) : Void {
-		untyped __field__(x, "sort")( (untyped __named_arg__)("key", python.lib.FuncTools.cmp_to_key(f)));
+		Syntax.callNamedUntyped(Syntax.field(x, "sort"), { key : python.lib.FuncTools.cmp_to_key(f) });
 	}
 
 	public static inline function splice<T>(x:Array<T>, pos : Int, len : Int ) : Array<T> {
 		if (pos < 0) pos = x.length+pos;
 		if (pos < 0) pos = 0;
-		var res = untyped __python_array_get__(x, pos, pos+len);
-		untyped __python_del__(untyped __python_array_get__(x, pos, pos+len));
+		var res = Syntax.arrayAccess(x, pos, pos+len);
+		Syntax.delete((Syntax.arrayAccess(x, pos, pos+len)));
 		return res;
 	}
 
 	@:keep public static inline function map<S,T>(x:Array<T>, f : T -> S ) : Array<S> {
-		return Syntax.field(builtin(), "list")(Syntax.field(builtin(), "map")(f,cast x));
+		return Syntax.field(builtin(), "list")(Syntax.field(builtin(), "map")(f, x));
 	}
 
 	@:keep public static inline function filter<T>(x:Array<T>, f : T -> Bool ) : Array<T> {
@@ -140,26 +140,25 @@ class ArrayImpl {
 	}
 
 	@:keep private static inline function __get<T>(x:Array<T>, idx:Int):T {
-		var _hx_a = x;
-		if (idx >= _hx_a.length || idx < 0)
+
+		if (idx >= x.length || idx < 0)
 			return null;
 		else
 			return x[idx];
 	}
 
 	@:keep private static inline function __set<T>(x:Array<T>, idx:Int, v:T):T {
-		var _hx_a = x;
 
-		_hx_a[idx] = v;
+		x[idx] = v;
 		return v;
 	}
 
 	@:keep private static inline function __unsafe_get<T>(x:Array<T>,idx:Int):T {
-		return x[idx];
+		return Syntax.arrayAccess(x, idx);
 	}
 
 	@:keep private static inline function __unsafe_set<T>(x:Array<T>,idx:Int, val:T):T {
-		x[idx] = val;
+		Syntax.binop(Syntax.arrayAccess(x, idx), "=", val);
 		return val;
 	}
 }
