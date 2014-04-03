@@ -11,9 +11,12 @@ import haxe.macro.ExprTools;
 
 
 class Macros {
+    #if macro
+    static var self = macro python.Macros;
+    #end
 
 	@:noUsing macro public static function importModule (module:String):haxe.macro.Expr {
-		return macro untyped __python__($v{"import " + module});
+		return macro $self.untypedPython($v{"import " + module});
 	}
 
 	@:noUsing macro public static function importAs (module:String, className : String):haxe.macro.Expr
@@ -25,15 +28,34 @@ class Macros {
         var e1 = "_hx_c."+n+" = "+n;
 
 
+
 	    return macro{
-            untyped __python__($v{e});
-            untyped __python__($v{e1});
+            $self.untypedPython($v{e});
+            $self.untypedPython($v{e1});
         }
+    }
+
+    @:noUsing macro public static function isIn <T>(a:Expr, b:Expr):haxe.macro.Expr
+    {
+        return macro untyped __python_in__($a, $b);
     }
 
     @:noUsing macro public static function pyBinop <T>(a:Expr, op:String, b:Expr):haxe.macro.Expr
     {
         return macro untyped __python_binop__($a, $v{op}, $b);
+    }
+
+
+    @:noUsing
+    #if (!macro) macro #end
+    public static function untypedPython <T>(b:String):haxe.macro.ExprOf<Dynamic>
+    {
+        return macro untyped __python__($v{b});
+    }
+
+    @:noUsing macro public static function arrayAccess <T>(x:Expr, rest:Array<Expr>):haxe.macro.ExprOf<Dynamic>
+    {
+        return macro untyped __python_array_get__($a{[x].concat(rest)});
     }
 
     @:noUsing macro public static function pyFor <T>(v:Expr, it:Expr, b:Expr):haxe.macro.Expr
@@ -60,22 +82,29 @@ class Macros {
         var e = "from " + from + " import " + module + " as " + n;
         var e1 = "_hx_c."+n+" = " + n;
 	    return macro {
-            untyped __python__($v{e});
-            untyped __python__($v{e1});
+            $self.untypedPython($v{e});
+            $self.untypedPython($v{e1});
         }
     }
 
     @:noUsing macro public static function callField (o:Expr, field:ExprOf<String>, params:Array<Expr>):haxe.macro.Expr {
-        var field = macro untyped __field__($o, $field);
-        return macro untyped __call__($a{[field].concat(params)});
+
+        var field = python.Macros.field(o, field);
+        var params = [field].concat(params);
+
+        return macro untyped __call__($a{params});
     }
 
-    @:noUsing macro public static function field (o:Expr, field:ExprOf<String>):haxe.macro.Expr
+    @:noUsing
+    #if !macro macro #end
+    public static function field (o:Expr, field:ExprOf<String>):haxe.macro.Expr
     {
         return macro untyped __field__($o, $field);
     }
 
-    #if !macro macro #end public static function callNamed (e:Expr, args:Expr):haxe.macro.Expr {
+    @:noUsing
+    #if !macro macro #end
+    public static function callNamed (e:Expr, args:Expr):haxe.macro.Expr {
         var fArgs = switch (Context.typeof(e)) {
             case TFun(args, ret): args;
             case _ : haxe.macro.Context.error("e must be of type function", e.pos);

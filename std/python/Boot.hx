@@ -41,9 +41,9 @@ import math as _hx_math
 
 	@:keep static function __init__ () {
 		Macros.importAs("inspect", "_hx_boot_inspect");
-		Boot.inspect = untyped __python__("_hx_boot_inspect");
+		Boot.inspect = Macros.untypedPython("_hx_boot_inspect");
 
-		Boot.builtin = untyped __python__("_hx_builtin");
+		Boot.builtin = Macros.untypedPython("_hx_builtin");
 	}
 
 	static function mkSet <T>(a:Array<T>):Set<T> return Macros.callField(builtin, "set", a);
@@ -80,6 +80,17 @@ import math as _hx_math
 	static function builtinGetAttr(o:Dynamic, x:String):Dynamic {
 		return Macros.callField(builtin, "getattr", o, x);
 	}
+
+	static function isPyBool(o:Dynamic):Bool {
+		return isInstance(o, Macros.field(builtin, "bool"));
+	}
+	static function isPyInt(o:Dynamic):Bool {
+		return isInstance(o, Macros.field(builtin, "int"));
+	}
+	static function isPyFloat(o:Dynamic):Bool {
+		return isInstance(o, Macros.field(builtin, "float"));
+	}
+
 
 	static function builtinLen(o:Dynamic):Int {
 		return Macros.callField(builtin, "len", o);
@@ -142,14 +153,14 @@ import math as _hx_math
 
 		if (isInstance(o, String)) return o;
 
-		if (isInstance(o, untyped __python__("bool"))) {
-			if (untyped o) return "true" else return "false";
+		if (isPyBool(o)) {
+			if ((o:Bool)) return "true" else return "false";
 		}
-		if (isInstance(o, untyped __python__("int"))) {
+		if (isPyInt(o)) {
 			return builtinStr(o);
 		}
 		// 1.0 should be printed as 1
-		if (isInstance(o, untyped __python__("float"))) {
+		if (isPyFloat(o)) {
 			try {
 				if (o == builtinInt(o)) {
 					return builtinStr(Math.round(o));
@@ -218,7 +229,7 @@ import math as _hx_math
 				}
 
 			}
-			if (isInstance(o, untyped __python__("_hx_c.Enum"))) {
+			if (isInstance(o, Enum)) {
 
 
 				var l = builtinLen(o.params);
@@ -239,7 +250,7 @@ import math as _hx_math
 			}
 
 
-			if (builtinHasAttr(o, "_hx_class_name") && o.__class__.__name__ != "type") {
+			if (builtinHasAttr(o, "_hx_class_name") && Macros.field(Macros.field(o, "__class__"), "__name__") != "type") {
 
 				var fields = getInstanceFields(o);
 				var fieldsStr = [for (f in fields) '$f : ${toString1(field(o,f), s+"\t")}'];
@@ -248,7 +259,7 @@ import math as _hx_math
 				return toStr;
 			}
 
-			if (builtinHasAttr(o, "_hx_class_name") && o.__class__.__name__ == "type") {
+			if (builtinHasAttr(o, "_hx_class_name") && Macros.field(Macros.field(o, "__class__"), "__name__") == "type") {
 
 				var fields = getClassFields(o);
 				var fieldsStr = [for (f in fields) '$f : ${toString1(field(o,f), s+"\t")}'];
@@ -272,16 +283,16 @@ import math as _hx_math
 			}
 			try {
 				if (builtinHasAttr(o, "__repr__")) {
-					return untyped o.__repr__();
+					return Macros.callField(o, "__repr__");
 				}
 			} catch (e:Dynamic) {}
 
 			if (builtinHasAttr(o, "__str__")) {
-				return untyped o.__str__();
+				return Macros.callField(o, "__str__", []);
 			}
 
 			if (builtinHasAttr(o, "__name__")) {
-				return untyped o.__name__;
+				return Macros.field(o, "__name__");
 			}
 			return "???";
 		} else {
@@ -300,26 +311,26 @@ import math as _hx_math
 		{
 			if (builtinHasAttr(o, "_hx_fields"))
 			{
-
-				var fields:Array<String> = o._hx_fields;
+				var fields:Array<String> = Macros.field(o, "_hx_fields");
 				return fields.copy();
 			}
-			if (isInstance(o, untyped __python__("_hx_c._hx_AnonObject")))
+			if (isInstance(o, AnonObject))
 			{
 
-				var d:Dynamic = builtinGetAttr(o, "__dict__");
+				var d:Dynamic = Macros.field(o, "__dict__");
 				var keys  = d.keys();
 				var handler = unhandleKeywords;
-				untyped __python__("for k in keys:");
-				untyped __python__("	a.append(handler(k))");
+
+				Macros.untypedPython("for k in keys:");
+				Macros.untypedPython("	a.append(handler(k))");
 			}
 			else if (builtinHasAttr(o, "__dict__"))
 			{
 				var a = [];
-				var d:Dynamic = builtinGetAttr(o, "__dict__");
+				var d:Dynamic = Macros.field(o, "__dict__");
 				var keys  = d.keys();
-				untyped __python__("for k in keys:");
-				untyped __python__("	a.append(k)");
+				Macros.untypedPython("for k in keys:");
+				Macros.untypedPython("	a.append(k)");
 
 			}
 		}
@@ -378,10 +389,9 @@ import math as _hx_math
 
 
 	static function getInstanceFields( c : Class<Dynamic> ) : Array<String> {
-		// dict((name, getattr(f, name)) for name in dir(c) if not name.startswith('__'))
 		var f = if (builtinHasAttr(c, "_hx_fields")) {
-			var x:Array<String> = untyped c._hx_fields;
-			var x2:Array<String> = untyped c._hx_methods;
+			var x:Array<String> = Macros.field(c, "_hx_fields");
+			var x2:Array<String> = Macros.field(c, "_hx_methods");
 			x.concat(x2);
 		} else {
 			[];
@@ -403,20 +413,17 @@ import math as _hx_math
 
 			return scArr;
 		}
-
-
-		//return throw "getInstanceFields not implemented";
 	}
 
-	static function getSuperClass( c : Class<Dynamic> ) : Class<Dynamic> untyped {
+	static function getSuperClass( c : Class<Dynamic> ) : Class<Dynamic> {
 		if( c == null )
 			return null;
 
 		try {
 			if (builtinHasAttr(c, "_hx_super")) {
-				return untyped c._hx_super;
+				return Macros.field(c, "_hx_super");
 			}
-			return untyped __python_array_get(c.__bases__,0);
+			return Macros.arrayAccess(Macros.field("c", "__bases__"), 0);
 		} catch (e:Dynamic) {
 
 		}
@@ -426,7 +433,7 @@ import math as _hx_math
 
 	static function getClassFields( c : Class<Dynamic> ) : Array<String> {
 		if (builtinHasAttr(c, "_hx_statics")) {
-			var x:Array<String> = untyped c._hx_statics;
+			var x:Array<String> = Macros.field(c, "_hx_statics");
 			return x.copy();
 		} else {
 			return [];
