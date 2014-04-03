@@ -1203,6 +1203,8 @@ module Printer = struct
 				Printf.sprintf "(%s)" (print_exprs pctx ", " el)
 			| "__python_array_get__",e1::tail ->
 				Printf.sprintf "%s[%s]" (print_expr pctx e1) (print_exprs pctx ":" tail)
+			| "__python_array_access_leading_colon__", e1::tail ->
+				Printf.sprintf "%s[%s:]" (print_expr pctx e1) (print_exprs pctx ":" tail)
 			| "__python_in__",[e1;e2] ->
 				Printf.sprintf "%s in %s" (print_expr pctx e1) (print_expr pctx e2)
 			| "__python_for__",[{eexpr = TBlock [{eexpr = TVar(v1,_)};e2;block]}] ->
