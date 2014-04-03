@@ -70,7 +70,7 @@ class ThreadRemotingServer extends ThreadServer<haxe.remoting.SocketConnection,S
 		var msgLen = cnx.getProtocol().messageLength(buf.get(pos),buf.get(pos+1));
 		if( msgLen == null ) {
 			if( buf.get(pos) != 60 )
-				throw "Invalid remoting message '"+buf.readString(pos,len)+"'";
+				throw "Invalid remoting message '"+buf.getString(pos,len)+"'";
 			var p = pos;
 			while( p < len ) {
 				if( buf.get(p) == 0 )
@@ -81,7 +81,7 @@ class ThreadRemotingServer extends ThreadServer<haxe.remoting.SocketConnection,S
 				return null;
 			p -= pos;
 			return {
-				msg : buf.readString(pos,p),
+				msg : buf.getString(pos,p),
 				bytes : p + 1,
 			};
 		}
@@ -90,7 +90,7 @@ class ThreadRemotingServer extends ThreadServer<haxe.remoting.SocketConnection,S
 		if( buf.get(pos + msgLen-1) != 0 )
 			throw "Truncated message";
 		return {
-			msg : buf.readString(pos+2,msgLen-3),
+			msg : buf.getString(pos+2,msgLen-3),
 			bytes : msgLen,
 		};
 	}

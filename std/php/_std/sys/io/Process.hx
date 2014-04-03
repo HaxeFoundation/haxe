@@ -42,7 +42,7 @@ private class Stdin extends haxe.io.Output {
 	}
 
 	public override function writeBytes( b : haxe.io.Bytes, pos : Int, l : Int ) : Int {
-		var s = b.readString(pos, l);
+		var s = b.getString(pos, l);
 		if(untyped __call__('feof', p)) return throw new haxe.io.Eof();
 		var r = untyped __call__('fwrite', p, s, l);
 		if(untyped __physeq__(r, false)) return throw haxe.io.Error.Custom('An error occurred');
