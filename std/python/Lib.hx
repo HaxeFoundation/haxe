@@ -5,7 +5,6 @@ import python.lib.Types;
 typedef PySys = python.lib.Sys;
 typedef PyStringTools = python.lib.StringTools;
 
-@:preCode("import sys as _hx_sys")
 class Lib {
 
 	public static function print(v:Dynamic):Void {
