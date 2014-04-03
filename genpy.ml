@@ -750,9 +750,9 @@ module Transformer = struct
 			let exprs = List.map (fun (v) -> v.a_expr) values in
 			let r = { a_expr with eexpr = TArrayDecl exprs } in
 			lift_expr ~blocks:blocks r
-		| (_, TCast(e,t)) ->
-			let e = trans true [] e in
-			let r = { a_expr with eexpr = TCast(e.a_expr, t) } in
+		| (is_value, TCast(e,t)) ->
+			let e = trans is_value [] e in
+			let r = { a_expr with eexpr = e.a_expr.eexpr } in
 			lift_expr ~blocks:e.a_blocks r
 		| (_, TField(e,f)) ->
 			let e = trans true [] e in
