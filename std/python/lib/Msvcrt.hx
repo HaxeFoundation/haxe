@@ -8,7 +8,7 @@ extern class Msvcrt {
 	static function __init__ ():Void
 	{
 		try {
-			python.Macros.importAs("msvcrt", "python.lib.Msvcrt");
+			python.Syntax.importAs("msvcrt", "python.lib.Msvcrt");
 		} catch (e:Dynamic) {}
 	}
 

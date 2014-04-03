@@ -26,7 +26,7 @@ extern class Sys {
 
 	static function __init__ ():Void
 	{
-		python.Macros.importAs("sys", "python.lib.Sys");
+		python.Syntax.importAs("sys", "python.lib.Sys");
 	}
 
 }

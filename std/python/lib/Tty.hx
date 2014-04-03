@@ -8,7 +8,7 @@ extern class Tty {
 	static function __init__ ():Void
 	{
 		try {
-			python.Macros.importAs("tty", "python.lib.Tty");
+			python.Syntax.importAs("tty", "python.lib.Tty");
 		} catch (e:Dynamic) {}
 
 	}

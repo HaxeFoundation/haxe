@@ -74,7 +74,7 @@ extern class Popen {
 
 	static function __init__ ():Void
 	{
-		python.Macros.importFromAs("subprocess", "Popen", "python.lib.subprocess.Popen");
+		python.Syntax.importFromAs("subprocess", "Popen", "python.lib.subprocess.Popen");
 	}
 
 }

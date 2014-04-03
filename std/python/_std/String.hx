@@ -200,7 +200,7 @@ extern class String {
 	}
 
 	@:keep static function __init__ ():Void {
-		python.Macros.importFromAs("builtins", "str", "String");
+		python.Syntax.importFromAs("builtins", "str", "String");
 	}
 
 

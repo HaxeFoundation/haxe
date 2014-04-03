@@ -8,7 +8,7 @@ extern class Random {
 	public static function random ():Float;
 
 	static function __init__ ():Void {
-		Macros.importAs("random", "python.lib.Random");
+		Syntax.importAs("random", "python.lib.Random");
 	}
 
 }

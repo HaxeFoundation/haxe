@@ -299,7 +299,7 @@ extern class Math
 	}
 
 	static function __init__():Void untyped {
-		python.Macros.importAs("math", "_hx_math");
+		python.Syntax.importAs("math", "_hx_math");
 		NEGATIVE_INFINITY = __python__("float")('-inf');
 		POSITIVE_INFINITY = __python__("float")('inf');
 		NaN = __python__("float")('nan');

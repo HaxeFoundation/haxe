@@ -31,6 +31,6 @@ extern class Subprocess {
 
 	static function __init__ ():Void
 	{
-		python.Macros.importAs("subprocess", "python.lib.Subprocess");
+		python.Syntax.importAs("subprocess", "python.lib.Subprocess");
 	}
 }

@@ -14,6 +14,6 @@ extern class ShUtil {
 	public static function copy2 (src:String, dst:String):Void;
 
 	static function __init__ ():Void {
-		Macros.importAs("shutil", "python.lib.ShUtil");
+		Syntax.importAs("shutil", "python.lib.ShUtil");
 	}
 }

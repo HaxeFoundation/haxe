@@ -11,7 +11,7 @@ class StringImpl {
 
 
 	public static function split (s:String, d:String) {
-		return if (d == "") Macros.field(builtin(), "list")(s) else Macros.callField(s, "split", d);
+		return if (d == "") Syntax.field(builtin(), "list")(s) else Syntax.callField(s, "split", d);
 	}
 
 	public static function charCodeAt(s:String, index:Int) {
@@ -26,7 +26,7 @@ class StringImpl {
 		} else {
 
 			var i = (untyped s.rfind)(str, 0, startIndex+1);
-			var startLeft = i == -1 ? Macros.field(builtin(), "max")(0,startIndex+1-str.length) : i+1;
+			var startLeft = i == -1 ? Syntax.field(builtin(), "max")(0,startIndex+1-str.length) : i+1;
 			var check = (untyped s.find)(str, startLeft, s.length);
 			if (check > i && check <= startIndex) {
 				return check;
@@ -37,17 +37,17 @@ class StringImpl {
 	}
 
 	public static function toUpperCase (s:String) {
-		return Macros.callField(s, "upper");
+		return Syntax.callField(s, "upper");
 	}
 
 	public static function toLowerCase (s:String) {
-		return Macros.callField(s, "lower");
+		return Syntax.callField(s, "lower");
 	}
 	public static function indexOf (s:String, str:String, ?startIndex:Int) {
 		if (startIndex == null)
-			return Macros.callField(s, "find", str);
+			return Syntax.callField(s, "find", str);
 		else
-			return Macros.callField(s, "find", str, startIndex);
+			return Syntax.callField(s, "find", str, startIndex);
 	}
 
 	public static function toString (s:String) {
@@ -55,7 +55,7 @@ class StringImpl {
 	}
 
 	public static function get_length (s:String) {
-		return Macros.field(builtin(), "len")(s);
+		return Syntax.field(builtin(), "len")(s);
 	}
 
 	public static inline function fromCharCode( code : Int ) : String {
@@ -63,7 +63,7 @@ class StringImpl {
 		return "";
 		#else
 		var c = code;
-		return (Macros.field('', "join")(Macros.field(builtin(), "map")(Macros.field(builtin(), "chr"), cast [c])):String); // TODO: check cast
+		return (Syntax.field('', "join")(Syntax.field(builtin(), "map")(Syntax.field(builtin(), "chr"), cast [c])):String); // TODO: check cast
 		#end
 	}
 

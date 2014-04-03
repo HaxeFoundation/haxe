@@ -1,13 +1,13 @@
 
 package python.lib;
 
-import python.Macros;
+import python.Syntax;
 
 extern class Inspect {
 
-	static function __init__ ():Void 
+	static function __init__ ():Void
 	{
-		python.Macros.importAs("inspect", "python.lib.Inspect");
+		python.Syntax.importAs("inspect", "python.lib.Inspect");
 	}
 
 	static function getmembers (value:Dynamic, ?filter:Dynamic->Bool):Bool;
@@ -16,5 +16,5 @@ extern class Inspect {
 
 	static function isfunction(value:Dynamic):Bool;
 
-	
+
 }

@@ -70,7 +70,7 @@ extern class Os {
 
 	static function __init__ ():Void
 	{
-		python.Macros.importAs("os", "python.lib.Os");
+		python.Syntax.importAs("os", "python.lib.Os");
 	}
 
 }

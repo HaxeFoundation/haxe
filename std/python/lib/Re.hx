@@ -14,10 +14,10 @@ typedef Repl = Choice<String, MatchObject->String>;
 
 
 
-extern class MatchObject 
+extern class MatchObject
 {
-	
-	public var pos(default, null):Int;	
+
+	public var pos(default, null):Int;
 	public var endpos(default, null):Int;
 	public var lastindex(default, null):Int;
 	public var lastgroup(default, null):Int;
@@ -40,11 +40,11 @@ extern class MatchObject
 	}
 
 	public inline function startById(s:String):Int {
-		return start(untyped s);	
+		return start(untyped s);
 	}
 
 	public inline function endById(s:String):Int {
-		return end(untyped s);	
+		return end(untyped s);
 	}
 
 }
@@ -61,15 +61,15 @@ private class RegexHelper {
 		} else {
 			return untyped __field__(r, "findall")(string, pos, endpos);
 		}
-		
-	}	
+
+	}
 }
 
-extern class Regex 
+extern class Regex
 {
 	public function search(string:String, pos:Int = 0, ?endpos:Int):Null<MatchObject>;
 	public function match(string:String, pos:Int = 0, ?endpos:Int):Null<MatchObject>;
-	
+
 	public function split(string:String, maxsplit:Int=0):Array<String>;
 
 	public inline function findallString(string:String, ?pos:Int, ?endpos:Int):Array<String>
@@ -94,10 +94,10 @@ extern class Regex
 	}
 
 	public function finditer(string:String, ?pos:Int, ?endpos:Int):PyIterator<MatchObject>;
-	
+
 	public function sub(repl:Repl, string:String, count:Int=0):String;
 	public function subn(repl:Repl, string:String, count:Int=0):String;
-	
+
 	public var flags(default, null):Int;
 	public var groups(default, null):Int;
 	public var groupindex(default, null):Dict<String, Int>;
@@ -106,7 +106,7 @@ extern class Regex
 
 
 
-extern class Re 
+extern class Re
 {
 
 	public static var A:Int;
@@ -130,13 +130,13 @@ extern class Re
 	public static var U:Int;
 	public static var UNICODE:Int;
 
-	
-	
+
+
 	public static function compile (pattern:String, ?flags:Int = 0):Regex;
 
 	public static function match (pattern:Pattern, string:String, flags:Int = 0):Null<MatchObject>;
 
-	public static function search (pattern:Pattern, string:String, flags:Int = 0):Null<MatchObject>;	
+	public static function search (pattern:Pattern, string:String, flags:Int = 0):Null<MatchObject>;
 
 	public static function split(pattern:Pattern, string:String, 	   maxsplit:Int=0, flags:Int=0):Array<String>;
 
@@ -144,7 +144,7 @@ extern class Re
 	{
 		return untyped __field__(pattern, "findall")(string, flags);
 	}
-	
+
 
 	public static inline function findallString(pattern:Pattern, string:String,    flags:Int=0):Array<String>
 	{
@@ -163,7 +163,7 @@ extern class Re
 
 	public static function finditer(pattern:Pattern, string:String,   flags:Int=0):PyIterator<MatchObject>;
 
-	
+
 	@:overload(function (pattern:Pattern, repl:String, string:String,  ?count:Int=0, ?flags:Int=0):String {})
 	public static function sub(pattern:Pattern, repl:MatchObject->String, string:String,  ?count:Int=0, ?flags:Int=0):String;
 
@@ -174,6 +174,6 @@ extern class Re
 	public static function purge():Void;
 
 	static function __init__ ():Void {
-		python.Macros.importAs("re", "python.lib.Re");
+		python.Syntax.importAs("re", "python.lib.Re");
 	}
 }

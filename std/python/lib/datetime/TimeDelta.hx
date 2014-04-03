@@ -17,6 +17,6 @@ extern class TimeDelta {
 
 	static function __init__ ():Void
 	{
-		python.Macros.importFromAs("datetime", "timedelta", "python.lib.datetime.TimeDelta");
+		python.Syntax.importFromAs("datetime", "timedelta", "python.lib.datetime.TimeDelta");
 	}
 }

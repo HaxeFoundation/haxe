@@ -21,7 +21,7 @@ extern class Element {
 
 	public function copy ():Element;
 
-	public function keys ():Array<String>;	
+	public function keys ():Array<String>;
 	public function items ():Array<Tup2<String, String>>;
 
 	public function iter (tag:String):PyIterable<Element>;
@@ -29,9 +29,9 @@ extern class Element {
 	public function find (match:String, namespaces:Dict<String,String> = null):Null<Element>;
 	public function findall (match:String, namespaces:Dict<String,String> = null):Array<Element>;
 
-	static function __init__ ():Void 
+	static function __init__ ():Void
 	{
-		Macros.importFromAs("xml.etree.ElementTree", "Element", "python.lib.xml.etree.Element");
+		Syntax.importFromAs("xml.etree.ElementTree", "Element", "python.lib.xml.etree.Element");
 	}
 }
 
@@ -49,9 +49,9 @@ extern class ElementTree {
 
 
 
-	static function __init__ ():Void 
+	static function __init__ ():Void
 	{
-		Macros.importAs("xml.etree.ElementTree", "python.lib.xml.etree.ElementTree");
+		Syntax.importAs("xml.etree.ElementTree", "python.lib.xml.etree.ElementTree");
 	}
 
 }

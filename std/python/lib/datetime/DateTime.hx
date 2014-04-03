@@ -40,6 +40,6 @@ extern class DateTime {
 
 	static function __init__ ():Void
 	{
-		python.Macros.importFromAs("datetime", "datetime", "python.lib.datetime.DateTime");
+		python.Syntax.importFromAs("datetime", "datetime", "python.lib.datetime.DateTime");
 	}
 }

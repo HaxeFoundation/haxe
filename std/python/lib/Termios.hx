@@ -15,7 +15,7 @@ extern class Termios {
 	static function __init__ ():Void
 	{
 		try {
-			python.Macros.importAs("termios", "python.lib.Termios");
+			python.Syntax.importAs("termios", "python.lib.Termios");
 		}
 		catch (e:Dynamic) {}
 	}

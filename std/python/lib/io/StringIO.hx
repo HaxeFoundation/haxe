@@ -2,9 +2,9 @@
 package python.lib.io;
 
 import python.lib.io.TextIOBase;
-import python.Macros;
+import python.Syntax;
 
-extern class StringIO extends TextIOBase 
+extern class StringIO extends TextIOBase
 {
 	public function new (?s:String):Void;
 	public function getvalue():String;
@@ -12,6 +12,6 @@ extern class StringIO extends TextIOBase
 
 
 	static function __init__ ():Void {
-		Macros.importFromAs("io", "StringIO", "python.lib.io.StringIO");
+		Syntax.importFromAs("io", "StringIO", "python.lib.io.StringIO");
 	}
 }

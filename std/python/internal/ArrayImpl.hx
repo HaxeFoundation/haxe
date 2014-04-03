@@ -33,14 +33,14 @@ class ArrayImpl {
 
 	static inline function builtin():Builtin return untyped __python__("_hx_builtin");
 
-	public static inline function get_length <T>(x:Array<T>):Int return Macros.field(builtin(), "len")(x);
+	public static inline function get_length <T>(x:Array<T>):Int return Syntax.field(builtin(), "len")(x);
 
 	public static inline function concat<T>( a1:Array<T>, a2 : Array<T>) : Array<T> {
 		return untyped (untyped a1) + (untyped a2);
 	}
 
 	public static inline function copy<T>(x:Array<T>) : Array<T> {
-		return Macros.field(builtin(), "list")(x);
+		return Syntax.field(builtin(), "list")(x);
 	}
 
 	@:keep public static inline function iterator<T>(x:Array<T>) : Iterator<T> {
@@ -73,7 +73,7 @@ class ArrayImpl {
 
 	@:access(python.Boot)
 	public static inline function join<T>(x:Array<T>, sep : String ) : String {
-		return Macros.field(sep, "join")(x.map(python.Boot.toString));
+		return Syntax.field(sep, "join")(x.map(python.Boot.toString));
 	}
 
 	public static inline function toString<T>(x:Array<T>) : String {
@@ -85,7 +85,7 @@ class ArrayImpl {
 	}
 
 	public static inline function push<T>(x:Array<T>, e:T) : Int {
-		Macros.callField(x, "append", e);
+		Syntax.callField(x, "append", e);
 		return get_length(x);
 	}
 
@@ -95,7 +95,7 @@ class ArrayImpl {
 
 	@:keep public static function remove<T>(x:Array<T>,e : T) : Bool {
 		try {
-			Macros.callField(x, "remove", e);
+			Syntax.callField(x, "remove", e);
 			return true;
 		} catch (e:Dynamic) {
 			return false;
@@ -124,19 +124,19 @@ class ArrayImpl {
 	}
 
 	@:keep public static inline function map<S,T>(x:Array<T>, f : T -> S ) : Array<S> {
-		return Macros.field(builtin(), "list")(Macros.field(builtin(), "map")(f,cast x));
+		return Syntax.field(builtin(), "list")(Syntax.field(builtin(), "map")(f,cast x));
 	}
 
 	@:keep public static inline function filter<T>(x:Array<T>, f : T -> Bool ) : Array<T> {
-		return Macros.field(builtin(), "list")(Macros.field(builtin(), "filter")(f, x));
+		return Syntax.field(builtin(), "list")(Syntax.field(builtin(), "filter")(f, x));
 	}
 
 	public static inline function insert<T>(a:Array<T>, pos : Int, x : T ) : Void {
-		return Macros.callField(a, "insert", pos, x);
+		return Syntax.callField(a, "insert", pos, x);
 
 	}
 	public static inline function reverse<T>(a:Array<T>) : Void {
-		return Macros.callField(a, "reverse");
+		return Syntax.callField(a, "reverse");
 	}
 
 	@:keep private static inline function __get<T>(x:Array<T>, idx:Int):T {

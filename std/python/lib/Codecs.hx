@@ -35,7 +35,7 @@ extern class StreamReaderWriterText implements StreamReader implements StreamWri
 
 	public function write(object:Dynamic):Void;
 	public function writelines(list:Array<String>):Void;
-	
+
 	public function close():Void;
 
 	public function encode(input:Dynamic, ?errors:String = "strict"):Tup2<String, Int>;
@@ -48,6 +48,6 @@ extern class Codecs {
 	public static function open(filename:String, mode:String, ?encoding:String, ?errors:String, ?buffering:Bool):StreamReaderWriterText;
 
 	static function __init__ ():Void {
-		Macros.importAs("codecs", "python.lib.Codecs");
+		Syntax.importAs("codecs", "python.lib.Codecs");
 	}
 }

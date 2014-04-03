@@ -36,7 +36,7 @@ extern class Path {
 
 	public static function dirname (path:String):String;
 
-	
+
 
 	public static function islink (path:String):Bool;
 
@@ -61,8 +61,8 @@ extern class Path {
 	public static function supports_unicode_filenames ():Bool;
 
 
-	static function __init__ ():Void 
+	static function __init__ ():Void
 	{
-		python.Macros.importFromAs("os", "path", "python.lib.os.Path");
+		python.Syntax.importFromAs("os", "path", "python.lib.os.Path");
 	}
 }

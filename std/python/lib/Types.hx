@@ -44,7 +44,7 @@ extern class Bytes extends ByteArray {
 
 	static function __init__ ():Void
 	{
-		Macros.importFromAs("builtins", "bytes", "python.lib.Bytes");
+		Syntax.importFromAs("builtins", "bytes", "python.lib.Bytes");
 	}
 
 
@@ -148,7 +148,7 @@ extern class Set <T>
 
 	static function __init__ ():Void
 	{
-		Macros.importFromAs("builtins", "set", "python.lib.Set");
+		Syntax.importFromAs("builtins", "set", "python.lib.Set");
 	}
 
 	function __iter__ ():PyIterator<T>;
@@ -219,7 +219,7 @@ extern class Dict <K, V>
 
 	static function __init__ ():Void
 	{
-		Macros.importFromAs("builtins", "dict", "python.lib.Dict");
+		Syntax.importFromAs("builtins", "dict", "python.lib.Dict");
 	}
 
 }
