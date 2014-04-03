@@ -143,8 +143,6 @@ extern class Builtin {
 	//public static function oct():Void;
 	//public static function sorted():Void;
 	//public static function intern():Void;
-	static function __init__ ():Void {
-		python.Macros.importAs("builtins", "python.lib.Builtin");
-	}
+
 
 }
