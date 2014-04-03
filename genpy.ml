@@ -1215,7 +1215,9 @@ module Printer = struct
 			| "__python_del__",[e1] ->
 				Printf.sprintf "del %s" (print_expr pctx e1)
 			| "__python_binop__",[e0;{eexpr = TConst(TString id)};e2] ->
-				Printf.sprintf "%s %s %s" (print_expr pctx e0) id (print_expr pctx e2)
+				Printf.sprintf "(%s %s %s)" (print_expr pctx e0) id (print_expr pctx e2)
+			| "__python_assign__",[e0;e1] ->
+				Printf.sprintf "%s = %s" (print_expr pctx e0) (print_expr pctx e1)
 			| "__python_array_set__",[e1;e2;e3] ->
 				Printf.sprintf "%s[%s] = %s" (print_expr pctx e1) (print_expr pctx e2) (print_expr pctx e3)
 			| "__assert__",el ->

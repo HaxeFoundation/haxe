@@ -47,7 +47,12 @@ class Syntax {
 
     @:noUsing macro public static function binop <T>(a:Expr, op:String, b:Expr):haxe.macro.Expr
     {
-        return macro (untyped __python_binop__)($a, $v{op}, $b);
+        return macro ((untyped __python_binop__)($a, $v{op}, $b));
+    }
+
+    @:noUsing macro public static function assign <T>(a:Expr, b:Expr):haxe.macro.Expr
+    {
+        return macro (untyped __python_assign__)($a, $b);
     }
 
 
