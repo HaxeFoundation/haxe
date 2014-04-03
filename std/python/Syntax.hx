@@ -8,9 +8,8 @@ import haxe.macro.Context;
 import haxe.macro.ExprTools;
 #end
 
-
-
 class Syntax {
+
     #if macro
     static var self = macro python.Syntax;
     #end
@@ -21,13 +20,9 @@ class Syntax {
 
 	@:noUsing macro public static function importAs (module:String, className : String):haxe.macro.Expr
     {
-
         var n = className.split(".").join("_");
-
         var e = "import " + module + " as " + n;
         var e1 = "_hx_c."+n+" = "+n;
-
-
 
 	    return macro{
             $self.untypedPython($v{e});
