@@ -26,6 +26,7 @@ package;
 
 import python.lib.datetime.DateTime;
 import python.lib.datetime.TimeDelta;
+import python.Syntax;
 
 @:coreApi class Date
 {
@@ -118,10 +119,10 @@ import python.lib.datetime.TimeDelta;
 		return datetimeTimestamp(dt);
 	}
 
-	static function datetimeTimestamp(dt:DateTime):Int {
+	static function datetimeTimestamp(dt:DateTime):Float {
 		var dt2 = new DateTime(1970, 1, 1, 0, 0, 0, 0, python.lib.datetime.Timezone.utc);
 		var timedelta = new TimeDelta(0, 1);
-		return untyped __python__("(dt - dt2) * 1000 / timedelta");
+		return Syntax.binop(Syntax.binop(dt, "-", dt2) * 1000, "/", timedelta);
 	}
 
 	static public function fromString( s : String ) : Date

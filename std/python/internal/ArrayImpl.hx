@@ -158,7 +158,7 @@ class ArrayImpl {
 	}
 
 	@:keep private static inline function __unsafe_set<T>(x:Array<T>,idx:Int, val:T):T {
-		Syntax.binop(Syntax.arrayAccess(x, idx), "=", val);
+		Syntax.assign(Syntax.arrayAccess(x, idx), val);
 		return val;
 	}
 }
