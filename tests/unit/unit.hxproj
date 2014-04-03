@@ -21,6 +21,7 @@
   <build>
     <option directives="" />
     <option flashStrict="False" />
+    <option noInlineOnDebug="False" />
     <option mainClass="unit.Test" />
     <option enabledebug="False" />
     <option additional="" />
@@ -58,6 +59,7 @@
     <hidden path="runexe.n" />
     <hidden path="runjava.n" />
     <hidden path="server.bat" />
+    <hidden path="obj" />
   </hiddenPaths>
   <!-- Executed before build -->
   <preBuildCommand>"$(CompilerPath)/haxe" compile.hxml</preBuildCommand>
