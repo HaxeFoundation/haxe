@@ -768,12 +768,46 @@ let rec acc_get ctx g p =
 			else
 				error "Recursive inline is not supported" p
 		| Some { eexpr = TFunction _ } ->
-			let chk_class c = if (c.cl_extern || Meta.has Meta.Extern f.cf_meta) && not (Meta.has Meta.Runtime f.cf_meta) then display_error ctx "Can't create closure on an inline extern method" p in
-			(match follow e.etype with
-			| TInst (c,_) -> chk_class c
-			| TAnon a -> (match !(a.a_status) with Statics c -> chk_class c | _ -> ())
-			| _ -> ());
-			mk (TField (e,cmode)) t p
+			let chk_class c = (c.cl_extern || Meta.has Meta.Extern f.cf_meta) && not (Meta.has Meta.Runtime f.cf_meta) in
+			let wrap_extern c =
+				let c2 =
+					let m = c.cl_module in
+					let mpath = (fst m.m_path @ ["_" ^ snd m.m_path],(snd m.m_path) ^ "_Impl_") in
+					try
+						let rec loop mtl = match mtl with
+							| (TClassDecl c) :: _ when c.cl_path = mpath -> c
+							| _ :: mtl -> loop mtl
+							| [] -> raise Not_found
+						in
+						loop c.cl_module.m_types
+					with Not_found ->
+						let c2 = mk_class c.cl_module mpath c.cl_pos in
+						c.cl_module.m_types <- (TClassDecl c2) :: c.cl_module.m_types;
+						c2
+				in
+				let cf = try
+					PMap.find f.cf_name c2.cl_statics
+				with Not_found ->
+					let cf = {f with cf_kind = Method MethNormal} in
+					c2.cl_statics <- PMap.add cf.cf_name cf c2.cl_statics;
+					c2.cl_ordered_statics <- cf :: c2.cl_ordered_statics;
+					cf
+				in
+				let e_t = type_module_type ctx (TClassDecl c2) None p in
+				mk (TField(e_t,FStatic(c2,cf))) t p
+			in
+			let e_def = mk (TField (e,cmode)) t p in
+			begin match follow e.etype with
+				| TInst (c,_) when chk_class c ->
+					display_error ctx "Can't create closure on an extern inline member method" p;
+					e_def
+				| TAnon a ->
+					begin match !(a.a_status) with
+						| Statics c when chk_class c -> wrap_extern c
+						| _ -> e_def
+					end
+				| _ -> e_def
+			end
 		| Some e ->
 			let rec loop e = Type.map_expr loop { e with epos = p } in
 			loop e)

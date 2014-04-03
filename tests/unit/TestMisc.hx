@@ -151,11 +151,7 @@ class TestMisc extends Test {
 		var o = { add : c.add };
 		eq( o.add(1,2), 103 );
 		eq( o.add, o.add ); // we shouldn't create a new closure here
-		#if python 
-		var o = { cos : function (x) return Math.cos(x) };
-		#else
 		var o = { cos : Math.cos };
-		#end
 		eq( o.cos(0), 1. );
 
 		// check enum
