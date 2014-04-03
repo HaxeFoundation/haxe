@@ -1186,10 +1186,12 @@ module Printer = struct
 						assert false
 				in
 				begin match res with
+					| e1 :: [] ->
+						Printf.sprintf "%s(%s)" (print_expr pctx e1) (print_params_named pctx ", " fields)
 					| e1 :: el ->
-						Printf.sprintf "%s(%s, %s)" (print_expr pctx e1) (print_exprs pctx ", " el) (print_exprs_named pctx ", " fields)
+						Printf.sprintf "%s(%s, %s)" (print_expr pctx e1) (print_exprs pctx ", " el) (print_params_named pctx ", " fields)
 					| [] ->
-						Printf.sprintf "%s(%s)" (print_expr pctx e1) (print_exprs_named pctx ", " fields)
+						Printf.sprintf "%s(%s)" (print_expr pctx e1) (print_params_named pctx ", " fields)
 				end
 			| "__define_feature__",[_;e1] ->
 				print_expr pctx e1
@@ -1254,7 +1256,9 @@ module Printer = struct
 	and print_exprs_named pctx sep fl =
 		let args = String.concat sep (List.map (fun (s,e) -> Printf.sprintf "'%s': %s" (handle_keywords s) (print_expr pctx e)) fl) in
 		Printf.sprintf "{%s}" args
-
+	and print_params_named pctx sep fl =
+		let args = String.concat sep (List.map (fun (s,e) -> Printf.sprintf "%s= %s" (handle_keywords s) (print_expr pctx e)) fl) in
+		Printf.sprintf "%s" args
 	let handle_keywords s =
 		KeywordHandler.handle_keywords s
 end
