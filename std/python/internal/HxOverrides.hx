@@ -11,18 +11,18 @@ class HxOverrides {
 	// this two cases iterator and shift are like all methods in String and Array and are already handled in Reflect
 	// we need to modify the transformer to call Reflect directly
 
-	inline static public function iterator(x) {
+	static public function iterator(x) {
 		return Reflect.callMethod(null, Reflect.field(x, "iterator"), []);
 	}
 
-	inline static public function shift(x) {
+	static public function shift(x) {
 		return Reflect.callMethod(null, Reflect.field(x, "shift"), []);
 	}
-	inline static public function toUpperCase(x) {
+	static public function toUpperCase(x) {
 		return Reflect.callMethod(null, Reflect.field(x, "toUpperCase"), []);
 	}
 
-	inline static public function toLowerCase(x) {
+	static public function toLowerCase(x) {
 		return Reflect.callMethod(null, Reflect.field(x, "toLowerCase"), []);
 	}
 
