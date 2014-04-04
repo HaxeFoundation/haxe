@@ -107,10 +107,10 @@ enum ValueType {
 		if (name == "Math") return Math;
 		if (name == "String") return String;
 		var cl : Class<Dynamic> = (untyped _hx_classes : python.lib.Types.Dict<String, Class<Dynamic>>).get(name, null);
-        // ensure that this is a class
-        if( cl == null || !python.Boot.isClass(cl) )
-                return null;
-        return cl;
+		// ensure that this is a class
+		if( cl == null || !python.Boot.isClass(cl) )
+				return null;
+		return cl;
 	}
 
 	public static function resolveEnum( name : String ) : Enum<Dynamic> {
@@ -275,17 +275,17 @@ enum ValueType {
 	}
 
 	public static function allEnums<T>( e : Enum<T> ) : Array<T>
-    {
-            var ctors = getEnumConstructs(e);
-            var ret = [];
-            for (ctor in ctors)
-            {
-                    var v = Reflect.field(e, ctor);
-                    if (Std.is(v, e))
-                            ret.push(v);
-            }
+	{
+			var ctors = getEnumConstructs(e);
+			var ret = [];
+			for (ctor in ctors)
+			{
+					var v = Reflect.field(e, ctor);
+					if (Std.is(v, e))
+							ret.push(v);
+			}
 
-            return ret;
-    }
+			return ret;
+	}
 
 }

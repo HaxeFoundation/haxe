@@ -138,25 +138,25 @@ extern class Re
 
 	public static function search (pattern:Pattern, string:String, flags:Int = 0):Null<MatchObject>;
 
-	public static function split(pattern:Pattern, string:String, 	   maxsplit:Int=0, flags:Int=0):Array<String>;
+	public static function split(pattern:Pattern, string:String, maxsplit:Int=0, flags:Int=0):Array<String>;
 
-	public static inline function findallDynamic(pattern:Pattern, string:String,    flags:Int=0):Array<Dynamic>
+	public static inline function findallDynamic(pattern:Pattern, string:String, flags:Int=0):Array<Dynamic>
 	{
 		return python.Syntax.field(pattern, "findall")(string, flags);
 	}
 
 
-	public static inline function findallString(pattern:Pattern, string:String,    flags:Int=0):Array<String>
+	public static inline function findallString(pattern:Pattern, string:String,	flags:Int=0):Array<String>
 	{
 		return python.Syntax.field(pattern, "findall")(string, flags);
 	}
 
-	public static inline function findallTuple(pattern:Pattern, string:String,    flags:Int=0):Array<Tuple<String>>
+	public static inline function findallTuple(pattern:Pattern, string:String, flags:Int=0):Array<Tuple<String>>
 	{
 		return python.Syntax.field(pattern, "findall")(string, flags);
 	}
 
-	public static inline function findallArray(pattern:Pattern, string:String,    flags:Int=0):Array<Array<String>>
+	public static inline function findallArray(pattern:Pattern, string:String, flags:Int=0):Array<Array<String>>
 	{
 		return findallTuple(pattern, string,flags).map(function (t) return t.toArray());
 	}

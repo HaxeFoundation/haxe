@@ -34,17 +34,17 @@ class FileSystem {
 	public static function stat( path : String ) : sys.FileStat {
 		var s = Os.stat(path);
 		return {
-	        gid : s.st_gid,
-	        uid : s.st_uid,
-	        atime : Date.fromTime(s.st_atime),
-	        mtime : Date.fromTime(s.st_mtime),
-	        ctime : Date.fromTime(s.st_ctime),
-	        size : s.st_size,
-	        dev : s.st_dev,
-	        ino : s.st_ino,
-	        nlink : s.st_nlink,
-	        rdev : s.st_rdev,
-	        mode : s.st_mode
+			gid : s.st_gid,
+			uid : s.st_uid,
+			atime : Date.fromTime(s.st_atime),
+			mtime : Date.fromTime(s.st_mtime),
+			ctime : Date.fromTime(s.st_ctime),
+			size : s.st_size,
+			dev : s.st_dev,
+			ino : s.st_ino,
+			nlink : s.st_nlink,
+			rdev : s.st_rdev,
+			mode : s.st_mode
 		}
 	}
 

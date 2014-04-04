@@ -35,12 +35,12 @@ class Reflect {
 
 
 	static inline function handleKeywords(name:String):String {
-        return python.Boot.handleKeywords(name);
-    }
+		return python.Boot.handleKeywords(name);
+	}
 
-    static function unhandleKeywords(name:String):String {
-    	return python.Boot.unhandleKeywords(name);
-    }
+	static function unhandleKeywords(name:String):String {
+		return python.Boot.unhandleKeywords(name);
+	}
 
 	public static function hasField( o : Dynamic, field : String ) : Bool
 	{

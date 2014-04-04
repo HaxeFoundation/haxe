@@ -26,8 +26,8 @@ import builtins as _hx_builtin
 _hx_classes = dict()
 
 class _hx_AnonObject(object):
-    def __init__(self, fields):
-        self.__dict__ = fields
+	def __init__(self, fields):
+		self.__dict__ = fields
 
 _hx_c = _hx_AnonObject({})
 
@@ -49,16 +49,16 @@ import math as _hx_math
 	static function mkSet <T>(a:Array<T>):Set<T> return Syntax.callField(builtin, "set", a);
 
 	static var keywords:Set<String> = mkSet(
-    [
-        "and",       "del",       "from",      "not",       "while",
-        "as",        "elif",      "global",    "or",        "with",
-        "assert",    "else",      "if",        "pass",      "yield",
-        "break",     "except",    "import",    "print",     "float",
-        "class",     "exec",      "in",        "raise",
-        "continue",  "finally",   "is",        "return",
-        "def",       "for",       "lambda",    "try",
-        "None",      "list"
-    ]);
+	[
+		"and",	   "del",	   "from",	  "not",	   "while",
+		"as",		"elif",	  "global",	"or",		"with",
+		"assert",	"else",	  "if",		"pass",	  "yield",
+		"break",	 "except",	"import",	"print",	 "float",
+		"class",	 "exec",	  "in",		"raise",
+		"continue",  "finally",   "is",		"return",
+		"def",	   "for",	   "lambda",	"try",
+		"None",	  "list"
+	]);
 
 	static function arrayJoin <T>(x:Array<T>, sep:String):String {
 		return Syntax.field(sep, "join")(x.map(python.Boot.toString));
@@ -124,25 +124,25 @@ import math as _hx_math
 
 	@:keep static inline function isClass(o:Dynamic) : Bool {
 		return o != null && (o == String || inspectIsClass(o));
-        //return untyped __define_feature__("python.Boot.isClass", o._hx_class);
-    }
+		//return untyped __define_feature__("python.Boot.isClass", o._hx_class);
+	}
 
-    @:keep static function isAnonObject (o:Dynamic) {
-    	return isInstance(o, AnonObject);
-    }
+	@:keep static function isAnonObject (o:Dynamic) {
+		return isInstance(o, AnonObject);
+	}
 
 
-    @:keep private static function _add_dynamic(a:Dynamic,b:Dynamic):Dynamic
-    {
+	@:keep private static function _add_dynamic(a:Dynamic,b:Dynamic):Dynamic
+	{
 		if (isInstance(a, String) || isInstance(b, String)) {
 			return toString1(a,"") + toString1(b,"");
 		}
 		return Syntax.binop(a, "+", b);
-    }
+	}
 
-    @:keep static function toString (o:Dynamic) {
-    	return toString1(o, "");
-    }
+	@:keep static function toString (o:Dynamic) {
+		return toString1(o, "");
+	}
 
 	@:keep private static function toString1(o:Dynamic,s:String):String {
 
@@ -443,20 +443,20 @@ import math as _hx_math
 
 
 	static inline function handleKeywords(name:String):String
-    {
-        if (keywords.has(name)) {
-            return "_hx_" + name;
-        }
-        return name;
-    }
+	{
+		if (keywords.has(name)) {
+			return "_hx_" + name;
+		}
+		return name;
+	}
 
-    static function unhandleKeywords(name:String):String
-    {
-    	if (name.substr(0,4) == "_hx_") {
-    		var real = name.substr(4);
-    		if (keywords.has(real)) return real;
-    	}
-    	return name;
-    }
+	static function unhandleKeywords(name:String):String
+	{
+		if (name.substr(0,4) == "_hx_") {
+			var real = name.substr(4);
+			if (keywords.has(real)) return real;
+		}
+		return name;
+	}
 
 }

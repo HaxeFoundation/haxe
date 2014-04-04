@@ -25,10 +25,10 @@ import python.lib.io.StringIO;
 /**
 	A String buffer is an efficient way to build a big string by appending small
 	elements together.
-	
+
 	Its cross-platform implementation uses String concatenation internally, but
 	StringBuf may be optimized for different targets.
-	
+
 	Unlike String, an instance of StringBuf is not immutable in the sense that
 	it can be passed as argument to functions which modify it by appending more
 	values. However, the internal buffer cannot be modified.
@@ -39,72 +39,72 @@ class StringBuf {
 
 	/**
 		Creates a new StringBuf instance.
-		
+
 		This may involve initialization of the internal buffer.
 	**/
 
 	private var b : StringIO;
 
-    public function new():Void {
-    	this.b = new StringIO();
-    }
+	public function new():Void {
+		this.b = new StringIO();
+	}
 
-    public var length(get, never):Int;
+	public var length(get, never):Int;
 
-    public inline function get_length ():Int {
-    	// TODO improve implementation
-    	return toString().length;
-    }
+	public inline function get_length ():Int {
+		// TODO improve implementation
+		return toString().length;
+	}
 
 	/**
 		Appends the representation of [x] to [this] StringBuf.
-		
+
 		The exact representation of [x] may vary per platform. To get more
 		consistent behavior, this function should be called with
 		Std.string(x).
-		
+
 		If [x] is null, the String "null" is appended.
 	**/
-    public inline function add<T>( x : T ) : Void {
-        add1(Std.string(x));
-    }
+	public inline function add<T>( x : T ) : Void {
+		add1(Std.string(x));
+	}
 
-    inline function add1(s:String):Void {
-    	untyped b.write(s);
-    }
+	inline function add1(s:String):Void {
+		untyped b.write(s);
+	}
 
 /**
 		Appends the character identified by [c] to [this] StringBuf.
-		
+
 		If [c] is negative or has another invalid value, the result is
 		unspecified.
 	**/
-    public inline function addChar( c : Int ) : Void {
-        add1(String.fromCharCode(c));
-    }
+	public inline function addChar( c : Int ) : Void {
+		add1(String.fromCharCode(c));
+	}
 
 /**
 		Appends a substring of [s] to [this] StringBuf.
-		
+
 		This function expects [pos] and [len] to describe a valid substring of
 		[s], or else the result is unspecified. To get more robust behavior,
 		[this].add(s.substr(pos,len)) can be used instead.
-		
+
 		If [s] or [pos] are null, the result is unspecified.
-		
+
 		If [len] is omitted or null, the substring ranges from [pos] to the end
 		of [s].
 	**/
-    public inline function addSub( s : String, pos : Int, ?len : Int) : Void {
-        add1((len == null ? s.substr(pos) : s.substr(pos, len)));
-    }
+	public inline function addSub( s : String, pos : Int, ?len : Int) : Void {
+		add1((len == null ? s.substr(pos) : s.substr(pos, len)));
+	}
 
 /**
 		Returns the content of [this] StringBuf as String.
-		
+
 		The buffer is not emptied by this operation.
 	**/
-    public inline function toString() : String {
-    	return untyped b.getvalue();
-    }
+	public inline function toString() : String {
+		return untyped b.getvalue();
+	}
 }
