@@ -34,6 +34,8 @@ class Resource {
 
 	#if (java || cs)
 	@:keep static var content : Array<String>;
+	#elseif python
+	static var content : python.lib.Types.Dict<String, String>;
 	#else
 	static var content : Array<{ name : String, data : String, str : String }>;
 	#end
@@ -67,6 +69,9 @@ class Resource {
 		#if (java || cs)
 		for ( x in content )
 			names.push(x);
+		#elseif python
+		for ( k in content.keys().iter())
+			names.push(k);
 		#else
 		for ( x in content )
 			names.push(x.name);
@@ -91,6 +96,14 @@ class Resource {
 		var str = cs.Lib.toNativeType(haxe.Resource).Assembly.GetManifestResourceStream(path);
 		if (str != null)
 			return new cs.io.NativeInput(str).readAll().toString();
+		return null;
+		#elseif python
+		for( k in content.keys().iter() )
+			if( k == name ) {
+				var b : haxe.io.Bytes = haxe.crypto.Base64.decode(content.get(k, null));
+				return b.toString();
+
+			}
 		return null;
 		#else
 		for( x in content )
@@ -126,6 +139,14 @@ class Resource {
 		if (str != null)
 			return new cs.io.NativeInput(str).readAll();
 		return null;
+		#elseif python
+		for( k in content.keys().iter() )
+			if( k == name ) {
+				var b : haxe.io.Bytes = haxe.crypto.Base64.decode(content.get(k, null));
+				return b;
+
+			}
+		return null;
 		#else
 		for( x in content )
 			if( x.name == name ) {
@@ -150,6 +171,8 @@ class Resource {
 		null;
 		#elseif (java || cs)
 		//do nothing
+		#elseif python
+		content = untyped _hx_resources__();
 		#else
 		content = untyped __resources__();
 		#end

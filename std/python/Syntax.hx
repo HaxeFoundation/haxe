@@ -61,7 +61,7 @@ extern class Syntax {
 
 	static function _arrayAccess(a:Dynamic, args:Array<Dynamic>):Dynamic { return null; }
 
-	static function arraySet(a:Dynamic, i:Dynamic, v:Dynamic):Dynamic { return null; }
+	public static function arraySet(a:Dynamic, i:Dynamic, v:Dynamic):Dynamic { return null; }
 
 	@:noUsing macro public static function arrayAccessWithLeadingColon<T>(x:Expr, rest:Array<Expr>):haxe.macro.ExprOf<Dynamic>
 	{
