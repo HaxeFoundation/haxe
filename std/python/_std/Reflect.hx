@@ -63,7 +63,7 @@ class Reflect {
 	@:keep public static function setField( o : Dynamic, field : String, value : Dynamic ) : Void
 	{
 		var field = handleKeywords(field);
-		return untyped __define_feature__("Reflect.setField",Builtin.setattr(o,field,value));
+		return Builtin.setattr(o,field,value);
 	}
 
 	public static function getProperty( o : Dynamic, field : String ) : Dynamic
@@ -90,7 +90,7 @@ class Reflect {
 			var tmp = Builtin.getattr(o,"set_"+field);
 			tmp(value);
 		}
-		else Builtin.setattr(o,field, untyped __define_feature__("Reflect.setProperty",value));
+		else Builtin.setattr(o,field, value);
 	}
 
 	public static function callMethod( o : Dynamic, func : Dynamic, args : Array<Dynamic> ) : Dynamic

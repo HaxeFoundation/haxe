@@ -1184,10 +1184,6 @@ module Printer = struct
 			| "super",_ ->
 				let s_el = print_exprs pctx ", " el in
 				Printf.sprintf "super().__init__(%s)" s_el
-			| "__feature__",_ ->
-				""
-			| "__define_feature__",[_;e1] ->
-				print_expr pctx e1
 			| ("python_Syntax.pythonCode"),[e1] ->
 				begin match e1.eexpr with
 					| TConst (TString s) -> s
