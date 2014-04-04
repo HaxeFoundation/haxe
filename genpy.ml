@@ -163,6 +163,7 @@ module Transformer = struct
 			e_set_field;
 		]) e_set_field.etype e_set_field.epos
 
+
 	let add_non_locals_to_func e =
 		match e.eexpr with
 		| TFunction f ->
@@ -400,6 +401,7 @@ module Transformer = struct
 				end else
 					transform_exprs_to_block block ae.a_expr.etype false ae.a_expr.epos ae.a_next_id
 			| _ ->
+				debug_expr e1_.a_expr;
 				assert false
 
 	and var_to_treturn_expr ?(capture = false) n t p =
@@ -630,6 +632,29 @@ module Transformer = struct
 
 		| (is_value, TSwitch(e, cases, edef)) ->
 			transform_switch ae is_value e cases edef
+
+		(* anon field access on optional params *)
+		| (_, TField(e,FAnon cf)) when Meta.has Meta.Optional cf.cf_meta ->
+			let e = dynamic_field_read e cf.cf_name in
+			transform_expr e
+		| (_, TBinop(OpAssign,{eexpr = TField(e1,FAnon cf)},e2)) when Meta.has Meta.Optional cf.cf_meta ->
+			let e = dynamic_field_write e1 cf.cf_name e2 in
+			transform_expr e
+		| (_, TBinop(OpAssignOp op,{eexpr = TField(e1,FAnon cf)},e2)) when Meta.has Meta.Optional cf.cf_meta ->
+			let e = dynamic_field_read_write ae.a_next_id e1 cf.cf_name op e2 in
+			transform_expr e
+		(* TODO we need to deal with Increment, Decrement too!
+
+		| (_, TUnop( (Increment | Decrement) as unop, op,{eexpr = TField(e1,FAnon cf)})) when Meta.has Meta.Optional cf.cf_meta  ->
+			let  = dynamic_field_read e cf.cf_name in
+
+			let e = dynamic_field_read_write_unop ae.a_next_id e1 cf.cf_name unop op in
+			Printf.printf "dyn read write\n";
+			transform_expr e
+		*)
+		(*
+			anon field access with non optional members like iterator, length, split must be handled too, we need to Reflect on them too when it's a runtime method
+		*)
 		| (is_value, TUnop( (Increment | Decrement) as unop, op, e)) ->
 			let one = { ae.a_expr with eexpr = TConst(TInt(Int32.of_int(1)))} in
 			let is_postfix = match op with
@@ -644,15 +669,7 @@ module Transformer = struct
 			let e1 = trans true [] e in
 			let r = { a_expr with eexpr = TUnop(op, Prefix, e1.a_expr) } in
 			lift_expr ~blocks:e1.a_blocks r
-		| (_, TField(e,FAnon cf)) when Meta.has Meta.Optional cf.cf_meta ->
-			let e = dynamic_field_read e cf.cf_name in
-			transform_expr e
-		| (_, TBinop(OpAssign,{eexpr = TField(e1,FAnon cf)},e2)) when Meta.has Meta.Optional cf.cf_meta ->
-			let e = dynamic_field_write e1 cf.cf_name e2 in
-			transform_expr e
-		| (_, TBinop(OpAssignOp op,{eexpr = TField(e1,FAnon cf)},e2)) when Meta.has Meta.Optional cf.cf_meta ->
-			let e = dynamic_field_read_write ae.a_next_id e1 cf.cf_name op e2 in
-			transform_expr e
+
 		| (_, TField(e,FDynamic s)) ->
 			let e = dynamic_field_read e s in
 			transform_expr e
@@ -1101,6 +1118,7 @@ module Printer = struct
 			Printf.sprintf "%s.%s" obj (if is_extern then name else (handle_keywords name))
 		in
 		match fa with
+			(* we need to get rid of these cases in the transformer, how is this handled in js *)
 			| FInstance(c,{cf_name = "length" | "get_length"}) when (is_type "" "list")(TClassDecl c) ->
 				Printf.sprintf "_hx_builtin.len(%s)" (print_expr pctx e1)
 			| FInstance(c,{cf_name = "length"}) when (is_type "" "String")(TClassDecl c) ->

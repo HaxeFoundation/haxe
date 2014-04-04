@@ -7,20 +7,16 @@ import python.Syntax.untypedPython in py;
 @:keep
 @:native("HxOverrides")
 class HxOverrides {
+
+	// this two cases iterator and shift are like all methods in String and Array and are already handled in Reflect
+	// we need to modify the transformer to call Reflect directly
+
 	static public function iterator(x) {
-		if (Std.is(x, Array)) {
-			return Syntax.untypedPython(" _hx_c.python_internal_ArrayImpl.iterator(x)");
-		} else {
-			return Syntax.untypedPython("x.iterator()");
-		}
+		return Reflect.callMethod(null, Reflect.field(x, "iterator"), []);
 	}
 
 	static public function shift(x) {
-		if (Std.is(x, Array)) {
-			return Syntax.untypedPython(" _hx_c.python_internal_ArrayImpl.shift(x)");
-		} else {
-			return Syntax.untypedPython("x.shift()");
-		}
+		return Reflect.callMethod(null, Reflect.field(x, "shift"), []);
 	}
 
 	static public function hx_rshift(val:Int, n:Int) {
