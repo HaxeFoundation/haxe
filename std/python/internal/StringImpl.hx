@@ -73,7 +73,7 @@ class StringImpl {
 	public static function substring( s:String, startIndex : Int, ?endIndex : Int ) : String {
 		if (startIndex < 0) startIndex = 0;
 		if (endIndex == null) {
-			return Syntax.arrayAccessWithLeadingColon(s, startIndex);
+			return Syntax.arrayAccessWithTrailingColon(s, startIndex);
 		} else {
 			if (endIndex < 0) endIndex = 0;
 			if (endIndex < startIndex) {
@@ -88,7 +88,7 @@ class StringImpl {
 
 	public static function substr( s:String, startIndex : Int, ?len : Int ) : String {
 		if (len == null) {
-			return Syntax.arrayAccessWithLeadingColon(s, startIndex);
+			return Syntax.arrayAccessWithTrailingColon(s, startIndex);
 		} else {
 			if (len == 0) return "";
 			return Syntax.arrayAccess(s, startIndex, startIndex+len);

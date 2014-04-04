@@ -1212,10 +1212,12 @@ module Printer = struct
 				Printf.sprintf "%s.%s" (print_expr pctx e1) id
 			| "python_Syntax.tuple", [{eexpr = TArrayDecl el}] ->
 				Printf.sprintf "(%s)" (print_exprs pctx ", " el)
-			| "python_Syntax._arrayAccess", e1 :: [{eexpr = TArrayDecl el}] ->
-				Printf.sprintf "%s[%s]" (print_expr pctx e1) (print_exprs pctx ":" el)
-			| "__python_array_access_leading_colon__", e1::tail ->
-				Printf.sprintf "%s[%s:]" (print_expr pctx e1) (print_exprs pctx ":" tail)
+			| "python_Syntax._arrayAccess", e1 :: {eexpr = TArrayDecl el} :: etrail ->
+				let trailing_colon = match etrail with
+					| [{eexpr = TConst(TBool(true))}] -> true
+					| _ -> false
+				in
+				Printf.sprintf "%s[%s%s]" (print_expr pctx e1) (print_exprs pctx ":" el) (if trailing_colon then ":" else "")
 			| "python_Syntax.isIn",[e1;e2] ->
 				Printf.sprintf "%s in %s" (print_expr pctx e1) (print_expr pctx e2)
 (* 			| "__python_for__",[{eexpr = TBlock [{eexpr = TVar(v1,_)};e2;block]}] ->

@@ -59,14 +59,13 @@ extern class Syntax {
 		return macro $self._arrayAccess($x, $a{rest});
 	}
 
-	static function _arrayAccess(a:Dynamic, args:Array<Dynamic>):Dynamic { return null; }
+	macro public static function arrayAccessWithTrailingColon(x:Expr, rest:Array<Expr>):ExprOf<Dynamic> {
+		return macro $self._arrayAccess($x, $a{rest}, true);
+	}
+
+	static function _arrayAccess(a:Dynamic, args:Array<Dynamic>, ?trailingColon:Bool = false):Dynamic { return null; }
 
 	public static function arraySet(a:Dynamic, i:Dynamic, v:Dynamic):Dynamic { return null; }
-
-	@:noUsing macro public static function arrayAccessWithLeadingColon<T>(x:Expr, rest:Array<Expr>):haxe.macro.ExprOf<Dynamic>
-	{
-		return macro ((untyped __python_array_access_leading_colon__)($a{[x].concat(rest)}):Dynamic);
-	}
 
 	//@:noUsing macro public static function pyFor <T>(v:Expr, it:Expr, b:Expr):haxe.macro.Expr
 	//{
