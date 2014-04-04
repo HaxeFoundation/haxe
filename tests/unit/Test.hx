@@ -257,7 +257,7 @@ class Test #if swf_mark implements mt.Protect #end {
 			new TestEReg(),
 			new TestXML(),
 			new TestMisc(),
-			//new TestResource(),
+			new TestResource(),
 			new TestInt64(),
 			new TestReflect(),
 			new TestSerialize(),

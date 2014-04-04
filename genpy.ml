@@ -1728,7 +1728,7 @@ module Generator = struct
 
 	let gen_resources ctx =
 		if Hashtbl.length ctx.com.resources > 0 then begin
-			spr ctx "def _hx_resources__():\n\treturn {";
+			spr ctx "import os;\ndef _hx_resources__():\n\treturn {";
 			let first = ref true in
 			Hashtbl.iter (fun k v ->
 				let prefix = if !first then begin
@@ -1737,7 +1737,8 @@ module Generator = struct
 				end else
 					","
 				in
-				print ctx "%s'%s':'''%s'''" prefix k (Codegen.bytes_serialize v)
+				print ctx "%s'%s': open('%%s.%%s'%%(__file__,'%s'),'rb').read()" prefix k k;
+				Std.output_file (ctx.com.file ^ "." ^ k) v
 			) ctx.com.resources;
 			spr ctx "}\n"
 		end

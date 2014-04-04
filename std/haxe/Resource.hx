@@ -20,6 +20,10 @@
  * DEALINGS IN THE SOFTWARE.
  */
 package haxe;
+#if python
+import haxe.io.Bytes;
+import haxe.io.BytesData;
+#end
 
 /**
 	Resource can be used to access resources that were added through the
@@ -35,7 +39,7 @@ class Resource {
 	#if (java || cs)
 	@:keep static var content : Array<String>;
 	#elseif python
-	static var content : python.lib.Types.Dict<String, String>;
+	static var content : python.lib.Types.Dict<String, BytesData>;
 	#else
 	static var content : Array<{ name : String, data : String, str : String }>;
 	#end
@@ -98,6 +102,7 @@ class Resource {
 			return new cs.io.NativeInput(str).readAll().toString();
 		return null;
 		#elseif python
+        #if embed_resources
 		for( k in content.keys().iter() )
 			if( k == name ) {
 				var b : haxe.io.Bytes = haxe.crypto.Base64.decode(content.get(k, null));
@@ -105,6 +110,9 @@ class Resource {
 
 			}
 		return null;
+        #else
+        return content.hasKey(name) ? Bytes.ofData(content.get(name,null)).toString() : null;
+        #end
 		#else
 		for( x in content )
 			if( x.name == name ) {
@@ -140,12 +148,16 @@ class Resource {
 			return new cs.io.NativeInput(str).readAll();
 		return null;
 		#elseif python
+        #if embed_resources
 		for( k in content.keys().iter() )
 			if( k == name ) {
 				var b : haxe.io.Bytes = haxe.crypto.Base64.decode(content.get(k, null));
 				return b;
 
 			}
+        #else
+        return Bytes.ofData(content.get(name,null));
+        #end
 		return null;
 		#else
 		for( x in content )
