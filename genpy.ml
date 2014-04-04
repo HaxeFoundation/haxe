@@ -966,10 +966,10 @@ module Printer = struct
 			| TEnumParameter(e1,_,index) ->
 				Printf.sprintf "%s.params[%i]" (print_expr pctx e1) index
 			| TArray(e1,e2) ->
-				Printf.sprintf "HxOverrides.hx_array_get(%s, %s)" (print_expr pctx e1) (print_expr pctx e2)
+				Printf.sprintf "HxOverrides.arrayGet(%s, %s)" (print_expr pctx e1) (print_expr pctx e2)
 
 			| TBinop(OpAssign,{eexpr = TArray(e1,e2)},e3) ->
-				Printf.sprintf "HxOverrides.hx_array_set(%s,%s,%s)" (print_expr pctx e1) (print_expr pctx e2) (print_expr pctx e3)
+				Printf.sprintf "HxOverrides.arraySet(%s,%s,%s)" (print_expr pctx e1) (print_expr pctx e2) (print_expr pctx e3)
 			| TBinop(OpAssign,{eexpr = TField(ef1,fa)},e2) ->
 				Printf.sprintf "%s = %s" (print_field pctx ef1 fa true) (print_op_assign_right pctx e2)
 			| TBinop(OpAssign,e1,e2) ->

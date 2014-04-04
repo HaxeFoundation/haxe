@@ -35,7 +35,7 @@ class HxOverrides {
 		return Syntax.untypedPython("float('nan') if (b == 0.0) else a % b if a > 0 else -(-a % b)");
 	}
 
-	static public function hx_array_get<T>(a:Dynamic, i:Int):Dynamic {
+	static public function arrayGet<T>(a:Dynamic, i:Int):Dynamic {
 		if (Std.is(a, Array)) {
 			return ArrayImpl.__get(a, i);
 		} else {
@@ -43,7 +43,7 @@ class HxOverrides {
 		}
 	}
 
-	static public function hx_array_set(a:Dynamic, i:Int, v:Dynamic) {
+	static public function arraySet(a:Dynamic, i:Int, v:Dynamic) {
 		if (Std.is(a, Array)) {
 			return ArrayImpl.__set(a, i, v);
 		} else {
