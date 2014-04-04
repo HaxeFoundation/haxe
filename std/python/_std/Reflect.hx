@@ -96,7 +96,7 @@ class Reflect {
 	public static function callMethod( o : Dynamic, func : Dynamic, args : Array<Dynamic> ) : Dynamic
 	{
 		var args:VarArgs = args;
-		return if (Builtin.callable(func)) func(untyped __python_varargs__(args)) else null;
+		return if (Builtin.callable(func)) func(python.Syntax.varArgs(args)) else null;
 	}
 
 	public static function fields( o : Dynamic ) : Array<String>

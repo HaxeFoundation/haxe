@@ -53,7 +53,7 @@ extern class Builtin {
 	public static function int(x:Dynamic):Int;
 	//public static function ord():Void;
 	public static inline function str(o:Dynamic):String {
-		return untyped __field__(Builtin, "str")(o);
+		return python.Syntax.field(Builtin, "str")(o);
 	}
 	//public static function eval():Void;
 
@@ -63,7 +63,7 @@ extern class Builtin {
 	//public static function execfile():Void;
 
 	public static inline function print(o:Dynamic):Void {
-		return untyped __field__(Builtin, "print")(o);
+		python.Syntax.field(Builtin, "print")(o);
 	}
 
 	//public static function super():Void;

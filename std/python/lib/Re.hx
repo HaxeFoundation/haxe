@@ -54,12 +54,12 @@ private class RegexHelper {
 	{
 		if (endpos == null) {
 			if (pos == null) {
-				return untyped __field__(r, "findall")(string);
+				return python.Syntax.field(r, "findall")(string);
 			} else {
-				return untyped __field__(r, "findall")(string, pos);
+				return python.Syntax.field(r, "findall")(string, pos);
 			}
 		} else {
-			return untyped __field__(r, "findall")(string, pos, endpos);
+			return python.Syntax.field(r, "findall")(string, pos, endpos);
 		}
 
 	}
@@ -142,18 +142,18 @@ extern class Re
 
 	public static inline function findallDynamic(pattern:Pattern, string:String,    flags:Int=0):Array<Dynamic>
 	{
-		return untyped __field__(pattern, "findall")(string, flags);
+		return python.Syntax.field(pattern, "findall")(string, flags);
 	}
 
 
 	public static inline function findallString(pattern:Pattern, string:String,    flags:Int=0):Array<String>
 	{
-		return untyped __field__(pattern, "findall")(string, flags);
+		return python.Syntax.field(pattern, "findall")(string, flags);
 	}
 
 	public static inline function findallTuple(pattern:Pattern, string:String,    flags:Int=0):Array<Tuple<String>>
 	{
-		return untyped __field__(pattern, "findall")(string, flags);
+		return python.Syntax.field(pattern, "findall")(string, flags);
 	}
 
 	public static inline function findallArray(pattern:Pattern, string:String,    flags:Int=0):Array<Array<String>>

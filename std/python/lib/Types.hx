@@ -32,7 +32,7 @@ extern class ByteArray implements ArrayAccess<Int> {
 	}
 
 	public inline function get(i:Int):Int {
-		return untyped __python_array_get__(this, i);
+		return python.Syntax.arrayAccess(this, i);
 	}
 
 	public function decode(encoding:String="utf-8", errors:String="strict"):String;
@@ -133,7 +133,7 @@ extern class Set <T>
 
 	public inline function has (v:T):Bool
 	{
-		return untyped __python_in__(v, this);
+		return python.Syntax.isIn(v, this);
 	}
 
 
@@ -233,15 +233,15 @@ class DictImpl {
 		return d;
 	}
 	public static inline function hasKey <X>(d:Dict<X, Dynamic>, key:X) {
-		return untyped __python_in__(key, d);
+		return python.Syntax.isIn(key, d);
 	}
 
 	public static inline function remove <X>(d:Dict<X, Dynamic>, key:X) {
-		untyped __python_del__(untyped __python_array_get__(d, key));
+		python.Syntax.delete(python.Syntax.arrayAccess(d, key));
 	}
 
 	public static inline function set <K,V>(d:Dict<K, V>, key:K, val:V) {
-		untyped __python_array_set__(d, key, val);
+		python.Syntax.arraySet(d, key, val);
 	}
 }
 
@@ -266,7 +266,7 @@ extern class Tuple<X> implements ArrayAccess<X> {
 	}
 
 	public inline function at (i:Int):X {
-		return untyped __python_array_get__(this, i);
+		return python.Syntax.arrayAccess(this, i);
 	}
 
 	public inline function toArray ():Array<X>
@@ -278,50 +278,50 @@ extern class Tuple<X> implements ArrayAccess<X> {
 
 extern class Tup2 <A,B> extends Tuple<Dynamic>
 {
-	public static inline function create <A,B>(a:A, b:B):Tup2<A,B> return untyped __python_tuple__(a,b);
+	public static inline function create <A,B>(a:A, b:B):Tup2<A,B> return python.Syntax.tuple(a,b);
 	public var _1(get, null):A;
-	public inline function get__1():A return untyped __python_array_get__(this, 0);
+	public inline function get__1():A return python.Syntax.arrayAccess(this, 0);
 	public var _2(get, null):B;
-	public inline function get__2():B return untyped __python_array_get__(this, 1);
+	public inline function get__2():B return python.Syntax.arrayAccess(this, 1);
 }
 
 extern class Tup3 <A,B,C> extends Tuple<Dynamic>
 {
-	public static inline function create <A,B,C>(a:A, b:B,c:C):Tup3<A,B,C> return untyped __python_tuple__(a,b,c);
+	public static inline function create <A,B,C>(a:A, b:B,c:C):Tup3<A,B,C> return python.Syntax.tuple(a,b,c);
 	public var _1(get, null):A;
-	public inline function get__1():A return untyped __python_array_get__(this, 0);
+	public inline function get__1():A return python.Syntax.arrayAccess(this, 0);
 	public var _2(get, null):B;
-	public inline function get__2():B return untyped __python_array_get__(this, 1);
+	public inline function get__2():B return python.Syntax.arrayAccess(this, 1);
 	public var _3(get, null):C;
-	public inline function get__3():C return untyped __python_array_get__(this, 2);
+	public inline function get__3():C return python.Syntax.arrayAccess(this, 2);
 }
 
 extern class Tup4 <A,B,C,D> extends Tuple<Dynamic>
 {
-	public static inline function create <A,B,C,D>(a:A, b:B,c:C,d:D):Tup4<A,B,C,D> return untyped __python_tuple__(a,b,c,d);
+	public static inline function create <A,B,C,D>(a:A, b:B,c:C,d:D):Tup4<A,B,C,D> return python.Syntax.tuple(a,b,c,d);
 	public var _1(get, null):A;
-	public inline function get__1():A return untyped __python_array_get__(this, 0);
+	public inline function get__1():A return python.Syntax.arrayAccess(this, 0);
 	public var _2(get, null):B;
-	public inline function get__2():B return untyped __python_array_get__(this, 1);
+	public inline function get__2():B return python.Syntax.arrayAccess(this, 1);
 	public var _3(get, null):C;
-	public inline function get__3():C return untyped __python_array_get__(this, 2);
+	public inline function get__3():C return python.Syntax.arrayAccess(this, 2);
 	public var _4(get, null):D;
-	public inline function get__4():D return untyped __python_array_get__(this, 3);
+	public inline function get__4():D return python.Syntax.arrayAccess(this, 3);
 }
 
 extern class Tup5 <A,B,C,D,E> extends Tuple<Dynamic>
 {
-	public static inline function create <A,B,C,D,E>(a:A, b:B,c:C,d:D,e:E):Tup5<A,B,C,D,E> return untyped __python_tuple__(a,b,c,d,e);
+	public static inline function create <A,B,C,D,E>(a:A, b:B,c:C,d:D,e:E):Tup5<A,B,C,D,E> return python.Syntax.tuple(a,b,c,d,e);
 	public var _1(get, null):A;
-	public inline function get__1():A return untyped __python_array_get__(this, 0);
+	public inline function get__1():A return python.Syntax.arrayAccess(this, 0);
 	public var _2(get, null):B;
-	public inline function get__2():B return untyped __python_array_get__(this, 1);
+	public inline function get__2():B return python.Syntax.arrayAccess(this, 1);
 	public var _3(get, null):C;
-	public inline function get__3():C return untyped __python_array_get__(this, 2);
+	public inline function get__3():C return python.Syntax.arrayAccess(this, 2);
 	public var _4(get, null):D;
-	public inline function get__4():D return untyped __python_array_get__(this, 3);
+	public inline function get__4():D return python.Syntax.arrayAccess(this, 3);
 	public var _5(get, null):E;
-	public inline function get__5():E return untyped __python_array_get__(this, 4);
+	public inline function get__5():E return python.Syntax.arrayAccess(this, 4);
 }
 
 

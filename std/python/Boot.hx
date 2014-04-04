@@ -16,7 +16,7 @@ private extern class Set <T>
 {
 	public inline function has (v:T):Bool
 	{
-		return untyped __python_in__(v, this);
+		return python.Syntax.isIn(v, this);
 	}
 }
 

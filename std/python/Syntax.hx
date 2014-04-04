@@ -8,7 +8,9 @@ import haxe.macro.Context;
 import haxe.macro.ExprTools;
 #end
 
-class Syntax {
+using haxe.macro.Tools;
+
+extern class Syntax {
 
     #if macro
     static var self = macro python.Syntax;
@@ -30,47 +32,38 @@ class Syntax {
         }:Void);
     }
 
-
-
-    @:noUsing macro public static function newInstance (c:Expr, params:Array<Expr>):haxe.macro.Expr
-    {
-        return macro ((untyped __new__)($a{[c].concat(params)}):Dynamic);
+    @:noUsing
+	macro public static function newInstance (c:Expr, params:Array<Expr>):haxe.macro.Expr {
+        return macro $self._newInstance($c, $a{params});
     }
 
-    @:noUsing macro public static function isIn <T>(a:Expr, b:Expr):haxe.macro.Expr
-    {
-        return macro ((untyped __python_in__)($a, $b):Bool);
-    }
-
-    @:noUsing macro public static function delete <T>(a:Expr):haxe.macro.Expr
-    {
-        return macro ((untyped __python_del__)($a):Void);
-    }
-
-    @:noUsing macro public static function binop <T>(a:Expr, op:String, b:Expr):haxe.macro.Expr
-    {
-        return macro (((untyped __python_binop__)($a, $v{op}, $b)):Dynamic);
-    }
-
-    @:noUsing macro public static function assign <T>(a:Expr, b:Expr):haxe.macro.Expr
-    {
-        return macro ((untyped __python_assign__)($a, $b):Void);
-    }
-
+	static function _newInstance(c:Dynamic, args:Array<Dynamic>):Dynamic { return null; }
 
     @:noUsing
-    #if (!macro) macro #end
-    public static function untypedPython <T>(b:String):haxe.macro.ExprOf<Dynamic>
-    {
-        return macro (untyped __python__)($v{b});
+	public static function isIn(a:Dynamic, b:Dynamic):Bool { return false; }
+
+    @:noUsing
+	public static function delete(a:Dynamic):Void { }
+
+    @:noUsing
+	public static function binop(a:Dynamic, op:String, b:Dynamic):Dynamic { return null; }
+
+    @:noUsing
+	public static function assign(a:Dynamic, b:Dynamic):Void { }
+
+    @:noUsing
+    public static function untypedPython<T>(b:String):T { return null; };
+
+    @:noUsing
+	macro public static function arrayAccess(x:Expr, rest:Array<Expr>):ExprOf<Dynamic> {
+		return macro $self._arrayAccess($x, $a{rest});
     }
 
-    @:noUsing macro public static function arrayAccess <T>(x:Expr, rest:Array<Expr>):haxe.macro.ExprOf<Dynamic>
-    {
-        return macro ((untyped __python_array_get__)($a{[x].concat(rest)}):Dynamic);
-    }
+	static function _arrayAccess(a:Dynamic, args:Array<Dynamic>):Dynamic { return null; }
 
-    @:noUsing macro public static function arrayAccessWithLeadingColon <T>(x:Expr, rest:Array<Expr>):haxe.macro.ExprOf<Dynamic>
+	static function arraySet(a:Dynamic, i:Dynamic, v:Dynamic):Dynamic { return null; }
+
+    @:noUsing macro public static function arrayAccessWithLeadingColon<T>(x:Expr, rest:Array<Expr>):haxe.macro.ExprOf<Dynamic>
     {
         return macro ((untyped __python_array_access_leading_colon__)($a{[x].concat(rest)}):Dynamic);
     }
@@ -81,8 +74,6 @@ class Syntax {
             case EConst(CIdent(x)):x;
             case _ : Context.error("unexpected " + ExprTools.toString(v) + ": const ident expected", v.pos);
         }
-
-
 
         var res = macro @:pos(it.pos) {
             var $id = $it.getNativeIterator().__next__();
@@ -104,20 +95,28 @@ class Syntax {
         }:Void);
     }
 
-    @:noUsing macro public static function callField (o:Expr, field:ExprOf<String>, params:Array<Expr>):haxe.macro.Expr {
-
-        var field = python.Syntax.field(o, field);
-        var params = [field].concat(params);
-
-        return macro (untyped __call__)($a{params});
+    @:noUsing
+	macro public static function callField(o:Expr, field:ExprOf<String>, params:Array<Expr>):haxe.macro.Expr {
+        var e = macro $self.call($self.field($o, $field), $a{params});
+		e = macro untyped $e; // check "Dynamic should be Void" cases
+		return e;
     }
+
+	static function call(e:Dynamic, args:Array<Dynamic>):Dynamic { return null; }
 
     @:noUsing
-    #if !macro macro #end
-    public static function field (o:Expr, field:ExprOf<String>):haxe.macro.Expr
-    {
-        return macro ((untyped __field__)($o, $field):Dynamic);
-    }
+    public static function field (o:Dynamic, field:String):Dynamic { return null; }
+
+	@:noUsing
+	macro public static function tuple(args:Array<Expr>):Dynamic {
+		var args = macro $a{args};
+		return macro $self._tuple($args);
+	}
+
+	static function _tuple(args:Array<Dynamic>):Dynamic { return null; }
+
+	@:noUsing
+	public static function varArgs(args:Array<Dynamic>):Dynamic { return null; }
 
     @:noUsing
     #if !macro macro #end
@@ -150,6 +149,4 @@ class Syntax {
     {
         return macro @:pos(e.pos) ((untyped __named__)($e, $args):Dynamic);
     }
-
-
 }

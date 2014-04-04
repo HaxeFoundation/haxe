@@ -46,7 +46,7 @@ class Bytes {
 		#elseif java
 		return untyped b[pos] & 0xFF;
 		#elseif python
-		return untyped __python_array_get__(b, pos);
+		return python.Syntax.arrayAccess(b, pos);
 		#else
 		return b[pos];
 		#end
@@ -66,7 +66,7 @@ class Bytes {
 		#elseif cs
 		b[pos] = cast v;
 		#elseif python
-		untyped __python_array_set__(b, pos, v & 0xFF);
+		python.Syntax.arraySet(b, pos, v & 0xFF);
 		#else
 		b[pos] = v & 0xFF;
 		#end
@@ -144,7 +144,7 @@ class Bytes {
 		cs.system.Array.Copy(b, pos, newarr, 0, len);
 		return new Bytes(len, newarr);
 		#elseif python
-		return new Bytes(len, untyped __python_array_get__(b, pos, pos+len) );
+		return new Bytes(len, python.Syntax.arrayAccess(b, pos, pos+len) );
 		#else
 		return new Bytes(len,b.slice(pos,pos+len));
 		#end

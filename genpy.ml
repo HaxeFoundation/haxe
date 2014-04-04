@@ -1183,19 +1183,15 @@ module Printer = struct
 			| "super",_ ->
 				let s_el = print_exprs pctx ", " el in
 				Printf.sprintf "super().__init__(%s)" s_el
-(* 			| "__python_kwargs__",[e1] ->
-				"**" ^ (print_expr pctx e1) *)
-			| "__python_varargs__",[e1] ->
-				"*" ^ (print_expr pctx e1)
-			| "__python__",[e1] ->
+			| "__feature__",_ ->
+				""
+			| "__define_feature__",[_;e1] ->
+				print_expr pctx e1
+			| ("__python__" | "python_Syntax.untypedPython"),[e1] ->
 				begin match e1.eexpr with
 					| TConst (TString s) -> s
 					| e -> print_expr pctx e1
 				end
-(* 			| "__named_arg__",[{eexpr = TConst (TString name)};e2] ->
-				Printf.sprintf "%s=%s" name (print_expr pctx e2) *)
-			| "__feature__",_ ->
-				""
 			| "__named__",el ->
 				let res,fields = match List.rev el with
 					| {eexpr = TObjectDecl fields} :: el ->
@@ -1211,45 +1207,49 @@ module Printer = struct
 					| [] ->
 						Printf.sprintf "%s(%s)" (print_expr pctx e1) (print_params_named pctx ", " fields)
 				end
-			| "__define_feature__",[_;e1] ->
-				print_expr pctx e1
-			| "__call__" ,e1 :: el->
+			| "python_Syntax.varArgs",[e1] ->
+				"*" ^ (print_expr pctx e1)
+			| "python_Syntax.call" ,e1 :: [{eexpr = TArrayDecl el}]->
 				Printf.sprintf "%s(%s)" (print_expr pctx e1) (print_exprs pctx ", " el)
-			| "__field__",[e1;{eexpr = TConst(TString id)}] ->
+			| "python_Syntax.field",[e1;{eexpr = TConst(TString id)}] ->
 				Printf.sprintf "%s.%s" (print_expr pctx e1) id
-			| "__python_tuple__",el ->
+			| "python_Syntax.tuple", [{eexpr = TArrayDecl el}] ->
 				Printf.sprintf "(%s)" (print_exprs pctx ", " el)
-			| "__python_array_get__",e1::tail ->
-				Printf.sprintf "%s[%s]" (print_expr pctx e1) (print_exprs pctx ":" tail)
+			| "python_Syntax._arrayAccess", e1 :: [{eexpr = TArrayDecl el}] ->
+				Printf.sprintf "%s[%s]" (print_expr pctx e1) (print_exprs pctx ":" el)
 			| "__python_array_access_leading_colon__", e1::tail ->
 				Printf.sprintf "%s[%s:]" (print_expr pctx e1) (print_exprs pctx ":" tail)
-			| "__python_in__",[e1;e2] ->
+			| "python_Syntax.isIn",[e1;e2] ->
 				Printf.sprintf "%s in %s" (print_expr pctx e1) (print_expr pctx e2)
 			| "__python_for__",[{eexpr = TBlock [{eexpr = TVar(v1,_)};e2;block]}] ->
 				let f1 = v1.v_name in
 				let pctx = {pctx with pc_indent = "\t" ^ pctx.pc_indent} in
 				let i = pctx.pc_indent in
 				Printf.sprintf "for %s in %s:\n%s%s" f1 (print_expr pctx e2) i (print_expr pctx block)
-			| "__python_del__",[e1] ->
+			| "python_Syntax.delete",[e1] ->
 				Printf.sprintf "del %s" (print_expr pctx e1)
-			| "__python_binop__",[e0;{eexpr = TConst(TString id)};e2] ->
+			| "python_Syntax.binop",[e0;{eexpr = TConst(TString id)};e2] ->
 				Printf.sprintf "(%s %s %s)" (print_expr pctx e0) id (print_expr pctx e2)
-			| "__python_assign__",[e0;e1] ->
+			| "python_Syntax.assign",[e0;e1] ->
 				Printf.sprintf "%s = %s" (print_expr pctx e0) (print_expr pctx e1)
-			| "__python_array_set__",[e1;e2;e3] ->
+			| "python_Syntax.arraySet",[e1;e2;e3] ->
 				Printf.sprintf "%s[%s] = %s" (print_expr pctx e1) (print_expr pctx e2) (print_expr pctx e3)
+			| "python_Syntax._newInstance", e1 :: [{eexpr = TArrayDecl el}] ->
+				Printf.sprintf "%s(%s)" (print_expr pctx e1) (print_exprs pctx ", " el)
+(* 			| "__new_named__",e1::el ->
+				Printf.sprintf "new %s(%s)" (print_expr pctx e1) (print_exprs pctx ", " el) *)
+(* 			| "__python_kwargs__",[e1] ->
+				"**" ^ (print_expr pctx e1) *)
+(* 			| "__named_arg__",[{eexpr = TConst (TString name)};e2] ->
+				Printf.sprintf "%s=%s" name (print_expr pctx e2) *)
 (* 			| "__assert__",el ->
 				Printf.sprintf "assert(%s)" (print_exprs pctx ", " el) *)
-			| "__new_named__",e1::el ->
-				Printf.sprintf "new %s(%s)" (print_expr pctx e1) (print_exprs pctx ", " el)
-			| "__new__",e1::el ->
-				Printf.sprintf "%s(%s)" (print_expr pctx e1) (print_exprs pctx ", " el)
 (* 			| "__call_global__",{eexpr = TConst(TString s)} :: el ->
 				Printf.sprintf "%s(%s)" s (print_exprs pctx ", " el) *)
-			| "__is__",[e1;e2] ->
-				Printf.sprintf "%s is %s" (print_expr pctx e1) (print_expr pctx e2)
-			| "__as__",[e1;e2] ->
-				Printf.sprintf "%s as %s" (print_expr pctx e1) (print_expr pctx e2)
+(* 			| "__is__",[e1;e2] ->
+				Printf.sprintf "%s is %s" (print_expr pctx e1) (print_expr pctx e2) *)
+(* 			| "__as__",[e1;e2] ->
+				Printf.sprintf "%s as %s" (print_expr pctx e1) (print_expr pctx e2) *)
 (* 			| "__int_parse__",[e1] ->
 				Printf.sprintf "int.parse(%s)" (print_expr pctx e1) *)
 (* 			| "__double_parse__",[e1] ->
