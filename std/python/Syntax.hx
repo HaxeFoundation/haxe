@@ -2,13 +2,9 @@ package python;
 
 #if macro
 import haxe.macro.Expr;
-
 import haxe.macro.Context;
-
 import haxe.macro.ExprTools;
 #end
-
-using haxe.macro.Tools;
 
 extern class Syntax {
 
