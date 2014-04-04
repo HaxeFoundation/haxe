@@ -6,6 +6,7 @@ import python.Syntax.untypedPython in py;
 
 @:keep
 @:native("HxOverrides")
+@:access(python.internal.ArrayImpl)
 class HxOverrides {
 
 	// this two cases iterator and shift are like all methods in String and Array and are already handled in Reflect
@@ -36,8 +37,7 @@ class HxOverrides {
 
 	static public function hx_array_get<T>(a:Dynamic, i:Int):Dynamic {
 		if (Std.is(a, Array)) {
-			var a : Array<Dynamic> = a;
-			return if (i < a.length && i > -1) Syntax.arrayAccess(a, i) else null;
+			return ArrayImpl.__get(a, i);
 		} else {
 			return Syntax.arrayAccess(a, i);
 		}
@@ -45,18 +45,7 @@ class HxOverrides {
 
 	static public function hx_array_set(a:Dynamic, i:Int, v:Dynamic) {
 		if (Std.is(a, Array)) {
-			var a:Array<Dynamic> = a;
-			var l = a.length;
-			while (l < i) {
-				a.push(null);
-				l+=1;
-			}
-			if (l == i) {
-				a.push(v);
-			} else {
-				Syntax.assign(Syntax.arrayAccess(a, i), v);
-			}
-			return v;
+			return ArrayImpl.__set(a, i, v);
 		} else {
 			Syntax.assign(Syntax.arrayAccess(a, i), v);
 			return v;

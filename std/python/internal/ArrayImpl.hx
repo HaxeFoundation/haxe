@@ -139,17 +139,25 @@ class ArrayImpl {
 		return Syntax.callField(a, "reverse");
 	}
 
-	@:keep private static inline function __get<T>(x:Array<T>, idx:Int):T {
 
-		if (idx >= x.length || idx < 0)
-			return null;
-		else
-			return x[idx];
+
+	@:keep private static inline function __get<T>(x:Array<T>, idx:Int):T
+	{
+		return if (idx < x.length && idx > -1) Syntax.arrayAccess(x, idx) else null;
 	}
 
-	@:keep private static inline function __set<T>(x:Array<T>, idx:Int, v:T):T {
-
-		x[idx] = v;
+	@:keep private static inline function __set<T>(x:Array<T>, idx:Int, v:T):T
+	{
+		var l = x.length;
+		while (l < idx) {
+			x.push(null);
+			l+=1;
+		}
+		if (l == idx) {
+			x.push(v);
+		} else {
+			Syntax.assign(Syntax.arrayAccess(x, idx), v);
+		}
 		return v;
 	}
 
