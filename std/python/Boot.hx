@@ -57,7 +57,7 @@ import math as _hx_math
 		"class",	 "exec",	  "in",		"raise",
 		"continue",  "finally",   "is",		"return",
 		"def",	   "for",	   "lambda",	"try",
-		"None",	  "list"
+		"None",	  "list", "True", "False"
 	]);
 
 	static function arrayJoin <T>(x:Array<T>, sep:String):String {

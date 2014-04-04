@@ -10,7 +10,8 @@ private typedef T = {
 
 private enum MyEnum {
 	A(?x:Int, b:String);
-	B;
+	True;
+	False;
 }
 
 class TestPython extends Test {
