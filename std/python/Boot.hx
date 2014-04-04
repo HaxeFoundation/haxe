@@ -50,14 +50,14 @@ import math as _hx_math
 
 	static var keywords:Set<String> = mkSet(
 	[
-		"and",	   "del",	   "from",	  "not",	   "while",
-		"as",		"elif",	  "global",	"or",		"with",
-		"assert",	"else",	  "if",		"pass",	  "yield",
-		"break",	 "except",	"import",	"print",	 "float",
-		"class",	 "exec",	  "in",		"raise",
-		"continue",  "finally",   "is",		"return",
-		"def",	   "for",	   "lambda",	"try",
-		"None",	  "list", "True", "False"
+		"and",      "del",      "from",     "not",      "while",
+		"as",       "elif",     "global",   "or",       "with",
+		"assert",   "else",     "if",       "pass",     "yield",
+		"break",    "except",   "import",   "print",    "float",
+		"class",    "exec",     "in",       "raise",
+		"continue", "finally",  "is",       "return",
+		"def",      "for",      "lambda",   "try",
+		"None",     "list",     "True",     "False"
 	]);
 
 	static function arrayJoin <T>(x:Array<T>, sep:String):String {
