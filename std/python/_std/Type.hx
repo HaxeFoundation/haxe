@@ -61,13 +61,13 @@ enum ValueType {
 		}
 	}
 
-	public static function getEnum( o : EnumValue ) : Enum<Dynamic> untyped {
+	public static function getEnum( o : EnumValue ) : Enum<Dynamic> {
 		if( o == null )
 			return null;
 		return Syntax.field(o, "__class__");
 	}
 
-	public static function getSuperClass( c : Class<Dynamic> ) : Class<Dynamic> untyped {
+	public static function getSuperClass( c : Class<Dynamic> ) : Class<Dynamic> {
 		if( c == null )
 			return null;
 
@@ -75,7 +75,7 @@ enum ValueType {
 			if (Builtin.hasattr(c, "_hx_super")) {
 				return Syntax.field(c, "_hx_super");
 			}
-			return Syntax.arrayAccess(Syntax.field(c, "__bases__"),0);
+			return null;
 		} catch (e:Dynamic) {
 
 		}
