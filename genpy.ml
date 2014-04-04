@@ -718,10 +718,10 @@ module Transformer = struct
 			let params = List.map (fun (p) -> p.a_expr) params in
 			let e = { a_expr with eexpr = TNew(c, tp, params) } in
 			lift false blocks e
-		| (_, TCall({ eexpr = TLocal({v_name = "__python_for__" })} as x, [param])) ->
+(* 		| (_, TCall({ eexpr = TLocal({v_name = "__python_for__" })} as x, [param])) ->
 			let param = trans false [] param in
 			let call = { a_expr with eexpr = TCall(x, [param.a_expr])} in
-			lift_expr call
+			lift_expr call *)
 		| (_, TCall(e, params)) ->
 			let e = trans true [] e in
 			let params = List.map (trans true []) params in
@@ -1222,11 +1222,11 @@ module Printer = struct
 				Printf.sprintf "%s[%s:]" (print_expr pctx e1) (print_exprs pctx ":" tail)
 			| "python_Syntax.isIn",[e1;e2] ->
 				Printf.sprintf "%s in %s" (print_expr pctx e1) (print_expr pctx e2)
-			| "__python_for__",[{eexpr = TBlock [{eexpr = TVar(v1,_)};e2;block]}] ->
+(* 			| "__python_for__",[{eexpr = TBlock [{eexpr = TVar(v1,_)};e2;block]}] ->
 				let f1 = v1.v_name in
 				let pctx = {pctx with pc_indent = "\t" ^ pctx.pc_indent} in
 				let i = pctx.pc_indent in
-				Printf.sprintf "for %s in %s:\n%s%s" f1 (print_expr pctx e2) i (print_expr pctx block)
+				Printf.sprintf "for %s in %s:\n%s%s" f1 (print_expr pctx e2) i (print_expr pctx block) *)
 			| "python_Syntax.delete",[e1] ->
 				Printf.sprintf "del %s" (print_expr pctx e1)
 			| "python_Syntax.binop",[e0;{eexpr = TConst(TString id)};e2] ->

@@ -68,20 +68,20 @@ extern class Syntax {
 		return macro ((untyped __python_array_access_leading_colon__)($a{[x].concat(rest)}):Dynamic);
 	}
 
-	@:noUsing macro public static function pyFor <T>(v:Expr, it:Expr, b:Expr):haxe.macro.Expr
-	{
-		var id = switch (v.expr) {
-			case EConst(CIdent(x)):x;
-			case _ : Context.error("unexpected " + ExprTools.toString(v) + ": const ident expected", v.pos);
-		}
-
-		var res = macro @:pos(it.pos) {
-			var $id = $it.getNativeIterator().__next__();
-			$it;
-			$b;
-		}
-		return macro ((untyped __python_for__)($res):Void);
-	}
+	//@:noUsing macro public static function pyFor <T>(v:Expr, it:Expr, b:Expr):haxe.macro.Expr
+	//{
+		//var id = switch (v.expr) {
+			//case EConst(CIdent(x)):x;
+			//case _ : Context.error("unexpected " + ExprTools.toString(v) + ": const ident expected", v.pos);
+		//}
+//
+		//var res = macro @:pos(it.pos) {
+			//var $id = $it.getNativeIterator().__next__();
+			//$it;
+			//$b;
+		//}
+		//return macro $self._pythonFor($res);
+	//}
 
 	@:noUsing macro public static function importFromAs (from:String, module:String, className : String):haxe.macro.Expr {
 
