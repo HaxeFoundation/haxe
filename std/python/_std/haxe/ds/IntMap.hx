@@ -21,19 +21,19 @@ class IntMap<T> implements Map.IMap<Int, T> {
 		return h.hasKey(key);
 	}
 
-	public function remove( key : Int ) : Bool 
+	public function remove( key : Int ) : Bool
 	{
 		if(!h.hasKey(key)) return false;
-		untyped __python__("del self.h[key]");
+		python.Syntax.pythonCode("del self.h[key]");
 		return true;
 	}
 
 	public function keys() : Iterator<Int> {
 		var a = [];
-		
-		untyped __python__("for key in self.h:");
-		untyped __python__("	a.append(key)");
-		
+
+		python.Syntax.pythonCode("for key in self.h:");
+		python.Syntax.pythonCode("	a.append(key)");
+
 		return a.iterator();
 	}
 
@@ -45,7 +45,7 @@ class IntMap<T> implements Map.IMap<Int, T> {
 			next : function() { var i = iter.next(); return ref.get(i, null); }
 		};
 	}
-	
+
 	public function toString() : String {
 		var s = new StringBuf();
 		s.add("{");

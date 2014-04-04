@@ -193,7 +193,7 @@ abstract Int32(Int) from Int to Int {
 		return (x << extraBits) >> extraBits;
 		#elseif python
 		// thx to http://stackoverflow.com/questions/385572/need-help-typecasting-in-python#385583
-		return untyped (x + __python__("2**31")) % __python__("2**32 - 2**31");
+		return (x + python.Syntax.pythonCode("2**31")) % python.Syntax.pythonCode("2**32 - 2**31");
 		#else
 		return (x);
 		#end

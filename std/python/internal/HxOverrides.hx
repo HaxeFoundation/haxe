@@ -2,7 +2,7 @@ package python.internal;
 
 import python.Syntax;
 
-import python.Syntax.untypedPython in py;
+import python.Syntax.pythonCode in py;
 
 @:keep
 @:native("HxOverrides")
@@ -28,11 +28,11 @@ class HxOverrides {
 	}
 
 	static public function rshift(val:Int, n:Int) {
-		return Syntax.binop(Syntax.binop(val, "%", Syntax.untypedPython("0x100000000")), ">>", n);
+		return Syntax.binop(Syntax.binop(val, "%", Syntax.pythonCode("0x100000000")), ">>", n);
 	}
 
 	static public function modf(a:Float, b:Float) {
-		return Syntax.untypedPython("float('nan') if (b == 0.0) else a % b if a > 0 else -(-a % b)");
+		return Syntax.pythonCode("float('nan') if (b == 0.0) else a % b if a > 0 else -(-a % b)");
 	}
 
 	static public function arrayGet<T>(a:Dynamic, i:Int):Dynamic {

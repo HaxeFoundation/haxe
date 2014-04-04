@@ -17,7 +17,7 @@ extern class Syntax {
 	#end
 
 	@:noUsing macro public static function importModule (module:String):haxe.macro.Expr {
-		return macro ($self.untypedPython($v{"import " + module}):Void);
+		return macro ($self.pythonCode($v{"import " + module}):Void);
 	}
 
 	@:noUsing macro public static function importAs (module:String, className : String):haxe.macro.Expr
@@ -27,8 +27,8 @@ extern class Syntax {
 		var e1 = "_hx_c."+n+" = "+n;
 
 		return macro ({
-			$self.untypedPython($v{e});
-			$self.untypedPython($v{e1});
+			$self.pythonCode($v{e});
+			$self.pythonCode($v{e1});
 		}:Void);
 	}
 
@@ -52,7 +52,7 @@ extern class Syntax {
 	public static function assign(a:Dynamic, b:Dynamic):Void { }
 
 	@:noUsing
-	public static function untypedPython<T>(b:String):T { return null; };
+	public static function pythonCode<T>(b:String):T { return null; };
 
 	@:noUsing
 	macro public static function arrayAccess(x:Expr, rest:Array<Expr>):ExprOf<Dynamic> {
@@ -90,8 +90,8 @@ extern class Syntax {
 		var e = "from " + from + " import " + module + " as " + n;
 		var e1 = "_hx_c."+n+" = " + n;
 		return macro ({
-			$self.untypedPython($v{e});
-			$self.untypedPython($v{e1});
+			$self.pythonCode($v{e});
+			$self.pythonCode($v{e1});
 		}:Void);
 	}
 

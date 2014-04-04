@@ -88,7 +88,7 @@ class Bytes {
 		#elseif cs
 		cs.system.Array.Copy(src.b, srcpos, b, pos, len);
 		#elseif python
-		untyped __python__("self.b[pos:pos+len] = src.b[srcpos:srcpos+len]");
+		python.Syntax.pythonCode("self.b[pos:pos+len] = src.b[srcpos:srcpos+len]");
 		#else
 		var b1 = b;
 		var b2 = src.b;

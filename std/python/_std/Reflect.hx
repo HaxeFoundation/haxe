@@ -116,8 +116,8 @@ class Reflect {
 				var d:Dict<String, Dynamic> = Builtin.getattr(o, "__dict__");
 				var keys  = d.keys();
 				var handler = unhandleKeywords;
-				Syntax.untypedPython("for k in keys:");
-				Syntax.untypedPython("	a.append(handler(k))");
+				Syntax.pythonCode("for k in keys:");
+				Syntax.pythonCode("	a.append(handler(k))");
 
 			}
 			else if (Builtin.hasattr(o, "__dict__"))
@@ -125,8 +125,8 @@ class Reflect {
 				var a = [];
 				var d:Dict<String, Dynamic> = Syntax.field(o, "__dict__");
 				var keys = Syntax.callField(d, "keys");
-				Syntax.untypedPython("for k in keys:");
-				Syntax.untypedPython("	a.append(k)");
+				Syntax.pythonCode("for k in keys:");
+				Syntax.pythonCode("	a.append(k)");
 
 			}
 		}

@@ -6,7 +6,7 @@ class StringMap<T> implements Map.IMap<String, T> {
 	private var h : Dict<String,T>;
 
 	public function new() : Void {
-		h = untyped __python__("{}");
+		h = python.Syntax.pythonCode("{}");
 	}
 
 	public function set( key : String, value : T ) : Void {
@@ -26,7 +26,7 @@ class StringMap<T> implements Map.IMap<String, T> {
 		key = "$"+key;
 
 		if( !h.hasKey(key) ) return false;
-		untyped __python__("del self.h[key]");
+		python.Syntax.pythonCode("del self.h[key]");
 		return true;
 	}
 
@@ -34,8 +34,8 @@ class StringMap<T> implements Map.IMap<String, T> {
 
 		var a = [];
 
-		untyped __python__("for key in self.h:");
-		untyped __python__("	a.append(key[1:])");
+		python.Syntax.pythonCode("for key in self.h:");
+		python.Syntax.pythonCode("	a.append(key[1:])");
 
 		return a.iterator();
 	}

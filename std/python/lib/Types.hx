@@ -139,11 +139,11 @@ extern class Set <T>
 
 	public inline function minus (other:Set<T>):Set<T>
 	{
-		return untyped __python_binop__(this, "-", other);
+		return python.Syntax.binop(this, "-", other);
 	}
 	public inline function plus (other:Set<T>):Set<T>
 	{
-		return untyped __python_binop__(this, "+", other);
+		return python.Syntax.binop(this, "+", other);
 	}
 
 	static function __init__ ():Void

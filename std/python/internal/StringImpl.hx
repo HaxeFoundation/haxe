@@ -7,7 +7,7 @@ class StringImpl {
 
 
 
-	static inline function builtin ():Dynamic return Syntax.untypedPython("_hx_builtin");
+	static inline function builtin ():Dynamic return Syntax.pythonCode("_hx_builtin");
 
 
 	public static function split (s:String, d:String) {

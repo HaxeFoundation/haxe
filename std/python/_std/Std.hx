@@ -47,28 +47,28 @@ import python.Boot;
 
 			return false;
 		}
-		if (t == (untyped __python__("Dynamic"))) {
+		if (t == (python.Syntax.pythonCode("Dynamic"))) {
 			return true;
 		}
-		var isBool = Builtin.isinstance(v, (untyped __python__("bool")));
+		var isBool = Builtin.isinstance(v, (python.Syntax.pythonCode("bool")));
 
-		if (t == (untyped __python__("Bool")) && isBool) {
+		if (t == (python.Syntax.pythonCode("Bool")) && isBool) {
 			return true;
 		}
-		if (!isBool && t != (untyped __python__("Bool")) && t ==  (untyped __python__("Int")) && Builtin.isinstance(v, (untyped __python__("int")) )) {
+		if (!isBool && t != (python.Syntax.pythonCode("Bool")) && t ==  (python.Syntax.pythonCode("Int")) && Builtin.isinstance(v, (python.Syntax.pythonCode("int")) )) {
 			return true;
 		}
-		var vIsFloat = Builtin.isinstance(v, (untyped __python__("float")));
+		var vIsFloat = Builtin.isinstance(v, (python.Syntax.pythonCode("float")));
 
-		if (!isBool && vIsFloat && t == (untyped __python__("Int")) && Math.isFinite(v) && v == Std.int(v)) {
-			return true;
-		}
-
-		if (!isBool &&  t == (untyped __python__("Float")) && ( Builtin.isinstance(v, (untyped __python__("(float,int)"))))) {
+		if (!isBool && vIsFloat && t == (python.Syntax.pythonCode("Int")) && Math.isFinite(v) && v == Std.int(v)) {
 			return true;
 		}
 
-		if ( t == (untyped __python__("str"))) {
+		if (!isBool &&  t == (python.Syntax.pythonCode("Float")) && ( Builtin.isinstance(v, (python.Syntax.pythonCode("(float,int)"))))) {
+			return true;
+		}
+
+		if ( t == (python.Syntax.pythonCode("str"))) {
 			return Builtin.isinstance(v, String);
 		}
 		if (t == Enum && Inspect.isclass(v) && Builtin.hasattr(v, "_hx_constructs")) return true;
@@ -127,7 +127,7 @@ import python.Boot;
 	public static inline function int( x : Float ) : Int
 	{
 		try {
-			return (untyped __python__("int"))(x);
+			return (python.Syntax.pythonCode("int"))(x);
 		} catch (e:Dynamic) {
 			return null;
 		}
@@ -136,13 +136,13 @@ import python.Boot;
 	public static function parseInt( x : String ) : Null<Int> {
 		if (x == null) return null;
 		try {
-			return (untyped __python__("int"))(x);
+			return (python.Syntax.pythonCode("int"))(x);
 		} catch (e:Dynamic) {
 			try {
 				var prefix = x.substr(0,2).toLowerCase();
 
 				if (prefix == "0x") {
-					return (untyped __python__("int"))(x,16);
+					return (python.Syntax.pythonCode("int"))(x,16);
 				}
 				throw "fail";
 			} catch (e:Dynamic) {
@@ -189,7 +189,7 @@ import python.Boot;
 	public static function parseFloat( x : String ) : Float
 	{
 		try {
-			return untyped __python__("float")(x);
+			return python.Syntax.pythonCode("float")(x);
 		} catch (e:Dynamic) {
 
 			if (x != null) {

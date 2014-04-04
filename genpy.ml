@@ -128,7 +128,8 @@ module Transformer = struct
 
 	let create_non_local n pos =
 		let s = "nonlocal " ^ n in
-		let id = mk (TLocal (to_tvar "__python__" t_dynamic ) ) !t_void pos in
+		(* TODO: this is a hack... *)
+		let id = mk (TLocal (to_tvar "python_Syntax.pythonCode" t_dynamic ) ) !t_void pos in
 		let id2 = mk (TLocal( to_tvar s t_dynamic )) !t_void pos in
 		mk (TCall(id, [id2])) t_dynamic pos
 
@@ -1187,7 +1188,7 @@ module Printer = struct
 				""
 			| "__define_feature__",[_;e1] ->
 				print_expr pctx e1
-			| ("__python__" | "python_Syntax.untypedPython"),[e1] ->
+			| ("python_Syntax.pythonCode"),[e1] ->
 				begin match e1.eexpr with
 					| TConst (TString s) -> s
 					| e -> print_expr pctx e1

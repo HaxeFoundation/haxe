@@ -298,12 +298,12 @@ extern class Math
 		return untyped _hx_math.isnan(f);
 	}
 
-	static function __init__():Void untyped {
+	static function __init__():Void {
 		python.Syntax.importAs("math", "_hx_math");
-		NEGATIVE_INFINITY = __python__("float")('-inf');
-		POSITIVE_INFINITY = __python__("float")('inf');
-		NaN = __python__("float")('nan');
-		PI = untyped __python__("_hx_math.pi");
+		NEGATIVE_INFINITY = python.Syntax.pythonCode("float")('-inf');
+		POSITIVE_INFINITY = python.Syntax.pythonCode("float")('inf');
+		NaN = python.Syntax.pythonCode("float")('nan');
+		PI = python.Syntax.pythonCode("_hx_math.pi");
 	}
 
 }

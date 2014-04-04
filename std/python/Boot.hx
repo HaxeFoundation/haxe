@@ -41,9 +41,9 @@ import math as _hx_math
 
 	@:keep static function __init__ () {
 		Syntax.importAs("inspect", "_hx_boot_inspect");
-		Boot.inspect = Syntax.untypedPython("_hx_boot_inspect");
+		Boot.inspect = Syntax.pythonCode("_hx_boot_inspect");
 
-		Boot.builtin = Syntax.untypedPython("_hx_builtin");
+		Boot.builtin = Syntax.pythonCode("_hx_builtin");
 	}
 
 	static function mkSet <T>(a:Array<T>):Set<T> return Syntax.callField(builtin, "set", a);
@@ -321,16 +321,16 @@ import math as _hx_math
 				var keys  = d.keys();
 				var handler = unhandleKeywords;
 
-				Syntax.untypedPython("for k in keys:");
-				Syntax.untypedPython("	a.append(handler(k))");
+				Syntax.pythonCode("for k in keys:");
+				Syntax.pythonCode("	a.append(handler(k))");
 			}
 			else if (builtinHasAttr(o, "__dict__"))
 			{
 				var a = [];
 				var d:Dynamic = Syntax.field(o, "__dict__");
 				var keys  = d.keys();
-				Syntax.untypedPython("for k in keys:");
-				Syntax.untypedPython("	a.append(k)");
+				Syntax.pythonCode("for k in keys:");
+				Syntax.pythonCode("	a.append(k)");
 
 			}
 		}
