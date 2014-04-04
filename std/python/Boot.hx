@@ -124,7 +124,6 @@ import math as _hx_math
 
 	@:keep static inline function isClass(o:Dynamic) : Bool {
 		return o != null && (o == String || inspectIsClass(o));
-		//return untyped __define_feature__("python.Boot.isClass", o._hx_class);
 	}
 
 	@:keep static function isAnonObject (o:Dynamic) {
@@ -271,9 +270,6 @@ import math as _hx_math
 				return "#String";
 			}
 
-			//if (builtinHasAttr(o, "_hx_name")) {
-			//	return "#" + untyped o._hx_name;
-			//}
 			if (o == Array) {
 				return "#Array";
 			}
