@@ -10,7 +10,7 @@
 #
 .SUFFIXES : .ml .mli .cmo .cmi .cmx .mll .mly
 
-INSTALL_DIR=/usr
+INSTALL_DIR=$(DESTDIR)/usr
 INSTALL_BIN_DIR=$(INSTALL_DIR)/bin
 INSTALL_LIB_DIR=$(INSTALL_DIR)/lib/haxe
 
@@ -89,12 +89,12 @@ haxelib:
 tools: haxelib
 
 install:
-	-rm -f $(INSTALL_LIB_DIR)
-	-mkdir -p $(INSTALL_LIB_DIR)
+	rm -rf $(INSTALL_LIB_DIR)
+	mkdir -p $(INSTALL_BIN_DIR)
+	mkdir -p $(INSTALL_LIB_DIR)/lib
 	rm -rf $(INSTALL_LIB_DIR)/std
 	cp -rf std $(INSTALL_LIB_DIR)/std
 	cp -rf extra $(INSTALL_LIB_DIR)
-	-mkdir -p $(INSTALL_LIB_DIR)/lib
 	rm -f $(INSTALL_BIN_DIR)/haxe
 	cp haxe $(INSTALL_LIB_DIR)
 	ln -s $(INSTALL_LIB_DIR)/haxe $(INSTALL_BIN_DIR)/haxe
