@@ -1193,7 +1193,7 @@ module Printer = struct
 					| TConst (TString s) -> s
 					| e -> print_expr pctx e1
 				end
-			| "__named__",el ->
+			| "python_Syntax._callNamedUntyped",el ->
 				let res,fields = match List.rev el with
 					| {eexpr = TObjectDecl fields} :: el ->
 						List.rev el,fields
