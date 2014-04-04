@@ -192,8 +192,7 @@ abstract Int32(Int) from Int to Int {
 		// we might be on 64-bit php, so sign extend from 32-bit
 		return (x << extraBits) >> extraBits;
 		#elseif python
-		// thx to http://stackoverflow.com/questions/385572/need-help-typecasting-in-python#385583
-		return (x + python.Syntax.pythonCode("2**31")) % python.Syntax.pythonCode("2**32 - 2**31");
+		return (x + python.Syntax.opPow(2, 31)) % python.Syntax.opPow(2, 32) - python.Syntax.opPow(2, 31);
 		#else
 		return (x);
 		#end
