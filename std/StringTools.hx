@@ -52,7 +52,7 @@ class StringTools {
 			return cs.system.Uri.EscapeUriString(s);
 		#elseif python
 			python.Syntax.pythonCode("from urllib.parse import quote");
-			return untyped quote(s);
+			return quote(s);
 		#else
 			return null;
 		#end
@@ -80,7 +80,7 @@ class StringTools {
 			return cs.system.Uri.UnescapeDataString(s);
 		#elseif python
 			python.Syntax.pythonCode("from urllib.parse import unquote");
-			return untyped unquote(s);
+			return unquote(s);
 		#else
 			return null;
 		#end
