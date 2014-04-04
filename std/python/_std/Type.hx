@@ -68,18 +68,7 @@ enum ValueType {
 	}
 
 	public static function getSuperClass( c : Class<Dynamic> ) : Class<Dynamic> {
-		if( c == null )
-			return null;
-
-		try {
-			if (Builtin.hasattr(c, "_hx_super")) {
-				return Syntax.field(c, "_hx_super");
-			}
-			return null;
-		} catch (e:Dynamic) {
-
-		}
-		return null;
+		return python.Boot.getSuperClass(c);
 
 	}
 
@@ -199,42 +188,11 @@ enum ValueType {
 	}
 
 	public static function getInstanceFields( c : Class<Dynamic> ) : Array<String> {
-		var f = if (Builtin.hasattr(c, "_hx_fields")) {
-			var x:Array<String> = Syntax.field(c, "_hx_fields");
-			var x2:Array<String> = Syntax.field(c, "_hx_methods");
-			x.concat(x2);
-		} else {
-			[];
-		}
-
-		var sc = getSuperClass(c);
-
-		if (sc == null) {
-			return f;
-		} else {
-			var scArr = getInstanceFields(sc);
-			var scMap = [for (f in scArr) f => f];
-			var res = [];
-			for (f1 in f) {
-				if (!scMap.exists(f1)) {
-					scArr.push(f1);
-				}
-			}
-
-			return scArr;
-		}
-
-
-		//return throw "getInstanceFields not implemented";
+		return python.Boot.getInstanceFields(c);
 	}
 
 	public static function getClassFields( c : Class<Dynamic> ) : Array<String> {
-		if (Builtin.hasattr(c, "_hx_statics")) {
-			var x:Array<String> = Syntax.field(c, "_hx_statics");
-			return x.copy();
-		} else {
-			return [];
-		}
+		return python.Boot.getClassFields(c);
 	}
 
 	public static function getEnumConstructs( e : Enum<Dynamic> ) : Array<String> {
@@ -305,15 +263,15 @@ enum ValueType {
 	}
 
 	public static inline function enumConstructor( e : EnumValue ) : String {
-		return (cast e:EnumImpl).tag;
+		return asEnumImpl(e).tag;
 	}
 
 	public static inline function enumParameters( e : EnumValue ) : Array<Dynamic> {
-		return (cast e:EnumImpl).params;
+		return asEnumImpl(e).params;
 	}
 
 	public static inline function enumIndex( e : EnumValue ) : Int {
-		return (cast e:EnumImpl).index;
+		return asEnumImpl(e).index;
 	}
 
 	public static function allEnums<T>( e : Enum<T> ) : Array<T>

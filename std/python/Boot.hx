@@ -423,7 +423,7 @@ import math as _hx_math
 			if (builtinHasAttr(c, "_hx_super")) {
 				return Syntax.field(c, "_hx_super");
 			}
-			return Syntax.arrayAccess(Syntax.field("c", "__bases__"), 0);
+			return null;
 		} catch (e:Dynamic) {
 
 		}
