@@ -1,6 +1,3 @@
-import python.lib.Builtin;
-import python.lib.io.StringIO;
-
 /*
  * Copyright (C)2005-2012 Haxe Foundation
  *
@@ -22,6 +19,11 @@ import python.lib.io.StringIO;
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
+import python.lib.Builtin;
+import python.lib.io.StringIO;
+
+
 /**
 	A String buffer is an efficient way to build a big string by appending small
 	elements together.
@@ -70,7 +72,7 @@ class StringBuf {
 	}
 
 	inline function add1(s:String):Void {
-		untyped b.write(s);
+		b.write(s);
 	}
 
 /**
@@ -105,6 +107,6 @@ class StringBuf {
 		The buffer is not emptied by this operation.
 	**/
 	public inline function toString() : String {
-		return untyped b.getvalue();
+		return b.getvalue();
 	}
 }
