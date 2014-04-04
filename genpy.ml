@@ -1235,6 +1235,8 @@ module Printer = struct
 				Printf.sprintf "%s[%s] = %s" (print_expr pctx e1) (print_expr pctx e2) (print_expr pctx e3)
 			| "python_Syntax._newInstance", e1 :: [{eexpr = TArrayDecl el}] ->
 				Printf.sprintf "%s(%s)" (print_expr pctx e1) (print_exprs pctx ", " el)
+			| "python_Syntax.opPow", [e1;e2] ->
+				Printf.sprintf "(%s ** %s)" (print_expr pctx e1) (print_expr pctx e2)
 (* 			| "__new_named__",e1::el ->
 				Printf.sprintf "new %s(%s)" (print_expr pctx e1) (print_exprs pctx ", " el) *)
 (* 			| "__python_kwargs__",[e1] ->

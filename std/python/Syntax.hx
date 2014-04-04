@@ -147,4 +147,6 @@ extern class Syntax {
 	}
 
 	static function _callNamedUntyped(e:Dynamic, args:Dynamic):Dynamic { return null; }
+
+	public static function opPow(a:Int, b:Int):Int { return 0; }
 }
