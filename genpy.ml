@@ -1183,8 +1183,8 @@ module Printer = struct
 			| "super",_ ->
 				let s_el = print_exprs pctx ", " el in
 				Printf.sprintf "super().__init__(%s)" s_el
-			| "__python_kwargs__",[e1] ->
-				"**" ^ (print_expr pctx e1)
+(* 			| "__python_kwargs__",[e1] ->
+				"**" ^ (print_expr pctx e1) *)
 			| "__python_varargs__",[e1] ->
 				"*" ^ (print_expr pctx e1)
 			| "__python__",[e1] ->
@@ -1192,8 +1192,8 @@ module Printer = struct
 					| TConst (TString s) -> s
 					| e -> print_expr pctx e1
 				end
-			| "__named_arg__",[{eexpr = TConst (TString name)};e2] ->
-				Printf.sprintf "%s=%s" name (print_expr pctx e2)
+(* 			| "__named_arg__",[{eexpr = TConst (TString name)};e2] ->
+				Printf.sprintf "%s=%s" name (print_expr pctx e2) *)
 			| "__feature__",_ ->
 				""
 			| "__named__",el ->
@@ -1238,30 +1238,30 @@ module Printer = struct
 				Printf.sprintf "%s = %s" (print_expr pctx e0) (print_expr pctx e1)
 			| "__python_array_set__",[e1;e2;e3] ->
 				Printf.sprintf "%s[%s] = %s" (print_expr pctx e1) (print_expr pctx e2) (print_expr pctx e3)
-			| "__assert__",el ->
-				Printf.sprintf "assert(%s)" (print_exprs pctx ", " el)
+(* 			| "__assert__",el ->
+				Printf.sprintf "assert(%s)" (print_exprs pctx ", " el) *)
 			| "__new_named__",e1::el ->
 				Printf.sprintf "new %s(%s)" (print_expr pctx e1) (print_exprs pctx ", " el)
 			| "__new__",e1::el ->
 				Printf.sprintf "%s(%s)" (print_expr pctx e1) (print_exprs pctx ", " el)
-			| "__call_global__",{eexpr = TConst(TString s)} :: el ->
-				Printf.sprintf "%s(%s)" s (print_exprs pctx ", " el)
+(* 			| "__call_global__",{eexpr = TConst(TString s)} :: el ->
+				Printf.sprintf "%s(%s)" s (print_exprs pctx ", " el) *)
 			| "__is__",[e1;e2] ->
 				Printf.sprintf "%s is %s" (print_expr pctx e1) (print_expr pctx e2)
 			| "__as__",[e1;e2] ->
 				Printf.sprintf "%s as %s" (print_expr pctx e1) (print_expr pctx e2)
-			| "__int_parse__",[e1] ->
-				Printf.sprintf "int.parse(%s)" (print_expr pctx e1)
-			| "__double_parse__",[e1] ->
-				Printf.sprintf "double.parse(%s)" (print_expr pctx e1)
-			| "__instanceof__",[e1;e2] ->
-				Printf.sprintf "_hx_c.Std._hx_is%s,%s" (print_expr pctx e1) (print_expr pctx e2)
-			| "__strict_eq__",[e2;e3] ->
+(* 			| "__int_parse__",[e1] ->
+				Printf.sprintf "int.parse(%s)" (print_expr pctx e1) *)
+(* 			| "__double_parse__",[e1] ->
+				Printf.sprintf "double.parse(%s)" (print_expr pctx e1) *)
+(* 			| "__instanceof__",[e1;e2] ->
+				Printf.sprintf "_hx_c.Std._hx_is%s,%s" (print_expr pctx e1) (print_expr pctx e2) *)
+(* 			| "__strict_eq__",[e2;e3] ->
 				let e2 = match e2.eexpr with
 					| TBinop(OpOr,a,_) -> a
 					| _ -> e2
 				in
-				print_expr pctx {e1 with eexpr = TBinop(OpEq,e2,e3)}
+				print_expr pctx {e1 with eexpr = TBinop(OpEq,e2,e3)} *)
 			| _,el ->
 				Printf.sprintf "%s(%s)" id (print_exprs pctx ", " el)
 
