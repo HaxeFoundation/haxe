@@ -1,4 +1,7 @@
+import python.internal.AnonObject;
+import python.internal.EnumImpl;
 import python.lib.Builtin;
+import python.Syntax;
 
 /*
  * Copyright (C)2005-2012 Haxe Foundation
@@ -38,21 +41,21 @@ enum ValueType {
 
 	public static function getClass<T>( o : T ) : Class<T> {
 
-		
+
 
 		if( o == null )
 			return null;
-		
+
 
 		if (python.Boot.isClass(o)) return null;
 
 		if (python.Boot.isAnonObject(o)) return null;
 
-		if (Builtin.hasattr(o, "_hx_class")) {	
-			return untyped o._hx_class;
+		if (Builtin.hasattr(o, "_hx_class")) {
+			return Syntax.field(o, "_hx_class");
 		}
-		if (Builtin.hasattr(o, "__class__")) {	
-			return untyped o.__class__;
+		if (Builtin.hasattr(o, "__class__")) {
+			return Syntax.field(o, "__class__");
 		} else {
 			return null;
 		}
@@ -61,18 +64,18 @@ enum ValueType {
 	public static function getEnum( o : EnumValue ) : Enum<Dynamic> untyped {
 		if( o == null )
 			return null;
-		return untyped o.__class__;
+		return Syntax.field(o, "__class__");
 	}
 
 	public static function getSuperClass( c : Class<Dynamic> ) : Class<Dynamic> untyped {
 		if( c == null )
 			return null;
-		
+
 		try {
 			if (Builtin.hasattr(c, "_hx_super")) {
-				return untyped c._hx_super;
+				return Syntax.field(c, "_hx_super");
 			}
-			return untyped __python_array_get(c.__bases__,0);
+			return Syntax.arrayAccess(Syntax.field(c, "__bases__"),0);
 		} catch (e:Dynamic) {
 
 		}
@@ -81,11 +84,11 @@ enum ValueType {
 	}
 
 
-	public static function getClassName( c : Class<Dynamic> ) : String 
+	public static function getClassName( c : Class<Dynamic> ) : String
 	{
-		
+
 		if (Builtin.hasattr(c, "_hx_class_name")) {
-			return untyped c._hx_class_name;
+			return Syntax.field(c, "_hx_class_name");
 		} else {
 			// not a haxe class
 			if (c == Array) return "Array";
@@ -93,23 +96,24 @@ enum ValueType {
 			if (c == String) return "String";
 
 			try {
-				var s :String = untyped c.__name__;
+				var s :String = Syntax.field(c, "__name__");
 			} catch (e:Dynamic) {
-			
+
 			}
 		}
 		var res = null;
-		
+
 
 		return res;
 	}
 
 	public static function getEnumName( e : Enum<Dynamic> ) : String {
-		return untyped e._hx_class_name;
+		return Syntax.field(e, "_hx_class_name");
 	}
 
-	public static function resolveClass( name : String ) : Class<Dynamic> {
-		
+	public static function resolveClass( name : String ) : Class<Dynamic>
+	{
+
 		if (name == "Array") return Array;
 		if (name == "Math") return Math;
 		if (name == "String") return String;
@@ -126,38 +130,38 @@ enum ValueType {
 		return if (Builtin.hasattr(o, "_hx_constructs")) cast o else null;
 	}
 
-	public static function createInstance<T>( cl : Class<T>, args : Array<Dynamic> ) : T untyped 
+	public static function createInstance<T>( cl : Class<T>, args : Array<Dynamic> ) : T
 	{
 		var l = args.length;
-		switch( l ) 
+		switch( l )
 		{
 			case 0:
-				return __new__(cl);
+				return Syntax.newInstance(cl);
 			case 1:
-				return __new__(cl,args[0]);
+				return Syntax.newInstance(cl,args[0]);
 			case 2:
-				return __new__(cl,args[0],args[1]);
+				return Syntax.newInstance(cl,args[0],args[1]);
 			case 3:
-				return __new__(cl,args[0],args[1],args[2]);
+				return Syntax.newInstance(cl,args[0],args[1],args[2]);
 			case 4:
-				return __new__(cl,args[0],args[1],args[2],args[3]);
+				return Syntax.newInstance(cl,args[0],args[1],args[2],args[3]);
 			case 5:
-				return __new__(cl,args[0],args[1],args[2],args[3],args[4]);
+				return Syntax.newInstance(cl,args[0],args[1],args[2],args[3],args[4]);
 			case 6:
-				return __new__(cl,args[0],args[1],args[2],args[3],args[4],args[5]);
+				return Syntax.newInstance(cl,args[0],args[1],args[2],args[3],args[4],args[5]);
 			case 7:
-				return __new__(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6]);
+				return Syntax.newInstance(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6]);
 			case 8:
-				return __new__(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7]);
+				return Syntax.newInstance(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7]);
 			default:
 				throw "Too many arguments";
 		}
 		return null;
 	}
 
-	public static function createEmptyInstance<T>( cl : Class<T> ) : T 
+	public static function createEmptyInstance<T>( cl : Class<T> ) : T
 	{
-		var i = untyped cl.__new__(cl);
+		var i = Syntax.callField(cl, "__new__", cl);
 
 		function callInit (cl) {
 			var sc = getSuperClass(cl);
@@ -165,16 +169,15 @@ enum ValueType {
 				callInit(sc);
 			}
 			if (Builtin.hasattr(cl, "_hx_empty_init")) {
-				
-				untyped cl._hx_empty_init(i);
-			}	
+				Syntax.callField(cl, "_hx_empty_init", i);
+			}
 		}
 		callInit(cl);
-		
+
 		return i;
 	}
 
-	public static function createEnum<T>( e : Enum<T>, constr : String, ?params : Array<Dynamic> ) : T 
+	public static function createEnum<T>( e : Enum<T>, constr : String, ?params : Array<Dynamic> ) : T
 	{
 		var f = Reflect.field(e,constr);
 		if( f == null ) throw "No such constructor "+constr;
@@ -190,16 +193,15 @@ enum ValueType {
 
 	public static function createEnumIndex<T>( e : Enum<T>, index : Int, ?params : Array<Dynamic> ) : T {
 
-		var c : String = (untyped e._hx_constructs)[index];
+		var c : String = Syntax.field(e, "_hx_constructs")[index];
 		if( c == null ) throw index+" is not a valid enum constructor index";
 		return createEnum(e,c,params);
 	}
 
 	public static function getInstanceFields( c : Class<Dynamic> ) : Array<String> {
-		// dict((name, getattr(f, name)) for name in dir(c) if not name.startswith('__'))
 		var f = if (Builtin.hasattr(c, "_hx_fields")) {
-			var x:Array<String> = untyped c._hx_fields;
-			var x2:Array<String> = untyped c._hx_methods;
+			var x:Array<String> = Syntax.field(c, "_hx_fields");
+			var x2:Array<String> = Syntax.field(c, "_hx_methods");
 			x.concat(x2);
 		} else {
 			[];
@@ -218,17 +220,17 @@ enum ValueType {
 					scArr.push(f1);
 				}
 			}
-			
+
 			return scArr;
 		}
 
-		
+
 		//return throw "getInstanceFields not implemented";
 	}
 
 	public static function getClassFields( c : Class<Dynamic> ) : Array<String> {
 		if (Builtin.hasattr(c, "_hx_statics")) {
-			var x:Array<String> = untyped c._hx_statics;
+			var x:Array<String> = Syntax.field(c, "_hx_statics");
 			return x.copy();
 		} else {
 			return [];
@@ -237,7 +239,7 @@ enum ValueType {
 
 	public static function getEnumConstructs( e : Enum<Dynamic> ) : Array<String> {
 		if (Builtin.hasattr(e, "_hx_constructs")) {
-			var x:Array<String> = untyped e._hx_constructs;
+			var x:Array<String> = Syntax.field(e, "_hx_constructs");
 			return x.copy();
 		} else {
 			return [];
@@ -249,24 +251,24 @@ enum ValueType {
 	public static function typeof( v : Dynamic ) : ValueType {
 		if (v == null) {
 			return TNull;
-		} else if (Builtin.isinstance(v, untyped __python__("bool") )) {
+		} else if (Builtin.isinstance(v, Builtin.bool )) {
 			return TBool;
-		} else if (Builtin.isinstance(v, untyped __python__("int"))) {
+		} else if (Builtin.isinstance(v, Builtin.int)) {
 			return TInt;
-		} else if (Builtin.isinstance(v, untyped __python__("float"))) {
+		} else if (Builtin.isinstance(v, Builtin.float)) {
 			return TFloat;
 		} else if (Builtin.isinstance(v, String)) {
 			return TClass(String);
 		} else if (Builtin.isinstance(v, Array)) {
 			return TClass(Array);
-		} else if (Builtin.isinstance(v, untyped __python__("_hx_c._hx_AnonObject")) || python.lib.Inspect.isclass(v)) {
+		} else if (Builtin.isinstance(v, AnonObject) || python.lib.Inspect.isclass(v)) {
 			return TObject;
 		}
-		else if (Builtin.isinstance(v, untyped __python__("_hx_c.Enum"))) {
-			return TEnum(untyped v.__class__);
+		else if (Builtin.isinstance(v, Enum)) {
+			return TEnum(Syntax.field(v, "__class__"));
 		}
-		else if (Builtin.isinstance(v, untyped __python__("type")) || Builtin.hasattr(v, "_hx_class")) {
-			return TClass(untyped v.__class__);
+		else if (Builtin.isinstance(v, Builtin.type) || Builtin.hasattr(v, "_hx_class")) {
+			return TClass(Syntax.field(v, "__class__"));
 		} else if (Builtin.callable(v)) {
 			return TFunction;
 		} else {
@@ -274,15 +276,19 @@ enum ValueType {
 		}
 	}
 
+	static inline function asEnumImpl (x:Dynamic):EnumImpl {
+		return (cast x:EnumImpl);
+	}
+
 	public static function enumEq<T>( a : T, b : T ) : Bool {
 		if( a == b )
 			return true;
 		try {
 			if (b == null && a != b) return false;
-			if( untyped a.tag != untyped b.tag )
+			if( asEnumImpl(a).tag != asEnumImpl(b).tag )
 				return false;
-			var p1:Array<Dynamic> = untyped a.params;
-			var p2:Array<Dynamic> = untyped b.params;
+			var p1:Array<Dynamic> = asEnumImpl(a).params;
+			var p2:Array<Dynamic> = asEnumImpl(b).params;
 			if (p1.length != p2.length) return false;
 
 			for( i in 0...p1.length )
@@ -290,7 +296,7 @@ enum ValueType {
 					return false;
 			//var e = Type.getClass(a);
 
-			if( untyped a._hx_class != untyped b._hx_class)
+			if( Syntax.field(a, "_hx_class") != Syntax.field(b, "_hx_class"))
 				return false;
 		} catch( e : Dynamic ) {
 			return false;
@@ -299,15 +305,15 @@ enum ValueType {
 	}
 
 	public static inline function enumConstructor( e : EnumValue ) : String {
-		return untyped e.tag;
+		return (cast e:EnumImpl).tag;
 	}
 
 	public static inline function enumParameters( e : EnumValue ) : Array<Dynamic> {
-		return untyped e.params;
+		return (cast e:EnumImpl).params;
 	}
 
 	public static inline function enumIndex( e : EnumValue ) : Int {
-		return untyped e.index;
+		return (cast e:EnumImpl).index;
 	}
 
 	public static function allEnums<T>( e : Enum<T> ) : Array<T>

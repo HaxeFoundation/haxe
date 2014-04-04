@@ -27,7 +27,7 @@ extern class Builtin {
 
 
 	@:overload(function (obj:Dynamic, f:Tuple<Dynamic>):Bool {})
-	public static function isinstance(obj:Dynamic, cl:Class<Dynamic>):Bool;
+	public static function isinstance(obj:Dynamic, cl:Dynamic):Bool;
 
 	public static function hasattr(obj:Dynamic, attr:String):Bool;
 	public static function getattr(obj:Dynamic, attr:String):Dynamic;
@@ -81,12 +81,13 @@ extern class Builtin {
 
 
 	//public static function range():Void;
-	//public static function type():Void;
+
+	public static function type():Void;
 	@:overload(function (it:Array<Int>):python.lib.Types.ByteArray {})
 	@:overload(function (it:PyIterable<Int>):python.lib.Types.ByteArray {})
 	@:overload(function (size:Int):python.lib.Types.ByteArray {})
 	public static function bytearray(source:String,encoding:String,?errors:Dynamic):python.lib.Types.ByteArray;
-	//public static function float():Void;
+	public static function float(x:Dynamic):Float;
 
 	@:overload(function <T>(f:Array<T>):Array<T> {})
 	@:overload(function (f:String):Array<String> {})

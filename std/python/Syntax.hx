@@ -30,6 +30,13 @@ class Syntax {
         }:Void);
     }
 
+
+
+    @:noUsing macro public static function newInstance (c:Expr, params:Array<Expr>):haxe.macro.Expr
+    {
+        return macro ((untyped __new__)($a{[c].concat(params)}):Dynamic);
+    }
+
     @:noUsing macro public static function isIn <T>(a:Expr, b:Expr):haxe.macro.Expr
     {
         return macro ((untyped __python_in__)($a, $b):Bool);
