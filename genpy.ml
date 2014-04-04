@@ -1672,7 +1672,23 @@ module Generator = struct
 			let f = handle_keywords ef.ef_name in
 			begin match follow ef.ef_type with
 				| TFun(args,_) ->
-					let param_str = (String.concat "," (List.map (fun (n,o,_) -> Printf.sprintf "%s%s" (handle_keywords n) (if o then " = None" else "")) args)) in
+					let print_args args =
+						let had_optional = ref false in
+						let sl = List.map (fun (n,o,_) ->
+							let name = handle_keywords n in
+							let arg_value = if !had_optional then
+								"= None"
+							else if o then begin
+								had_optional := true;
+								" = None"
+							end else
+								""
+							in
+							Printf.sprintf "%s%s" name arg_value
+						) args in
+						String.concat "," sl
+					in
+					let param_str = print_args args in
 					let args_str = String.concat "," (List.map (fun (n,_,_) -> handle_keywords n) args) in
 					print ctx "def _%s_statics_%s (%s):\n" p f param_str;
 					print ctx "\treturn %s(\"%s\", %i, [%s])\n" p ef.ef_name ef.ef_index args_str;

@@ -7,6 +7,12 @@ private typedef T = {
 	var value:Int;
 	@:optional var maybeValue:Int;
 }
+
+private enum MyEnum {
+	A(?x:Int, b:String);
+	B;
+}
+
 class TestPython extends Test {
 
 	public function testDoWhileAsExpression () {
@@ -75,6 +81,19 @@ class TestPython extends Test {
 		var f = a.push;
 		f(12);
 		eq(12, a[0]);
+	}
+
+	function testOptionalEnumArguments() {
+		var a1 = 1;
+		var a2 = null;
+		switch(A("foo")) {
+			case A(i, b):
+				a1 = i;
+				a2 = b;
+			case _:
+		}
+		eq(null, a1);
+		eq("foo", a2);
 	}
 
 	/*
