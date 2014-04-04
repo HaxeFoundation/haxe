@@ -11,19 +11,26 @@ class HxOverrides {
 	// this two cases iterator and shift are like all methods in String and Array and are already handled in Reflect
 	// we need to modify the transformer to call Reflect directly
 
-	static public function iterator(x) {
+	inline static public function iterator(x) {
 		return Reflect.callMethod(null, Reflect.field(x, "iterator"), []);
 	}
 
-	static public function shift(x) {
+	inline static public function shift(x) {
 		return Reflect.callMethod(null, Reflect.field(x, "shift"), []);
 	}
+	inline static public function toUpperCase(x) {
+		return Reflect.callMethod(null, Reflect.field(x, "toUpperCase"), []);
+	}
 
-	static public function hx_rshift(val:Int, n:Int) {
+	inline static public function toLowerCase(x) {
+		return Reflect.callMethod(null, Reflect.field(x, "toLowerCase"), []);
+	}
+
+	static public function rshift(val:Int, n:Int) {
 		return Syntax.binop(Syntax.binop(val, "%", Syntax.untypedPython("0x100000000")), ">>", n);
 	}
 
-	static public function hx_modf(a:Float, b:Float) {
+	static public function modf(a:Float, b:Float) {
 		return Syntax.untypedPython("float('nan') if (b == 0.0) else a % b if a > 0 else -(-a % b)");
 	}
 
@@ -56,19 +63,4 @@ class HxOverrides {
 		}
 	}
 
-	static public function hx_toUpperCase(x) {
-		if (Std.is(x, String)) {
-			return (x:String).toUpperCase();
-		} else {
-			return x.toUpperCase();
-		}
-	}
-
-	static public function hx_toLowerCase(x) {
-		if (Std.is(x, String)) {
-			return (x:String).toLowerCase();
-		} else {
-			return x.toLowerCase();
-		}
-	}
 }

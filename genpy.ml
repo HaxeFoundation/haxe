@@ -995,9 +995,9 @@ module Printer = struct
 			| TBinop(OpMod,e1,e2) when (is_type1 "" "Int")(e1.etype) && (is_type1 "" "Int")(e2.etype) ->
 				Printf.sprintf "%s %% %s" (print_expr pctx e1) (print_expr pctx e2)
 			| TBinop(OpMod,e1,e2) ->
-				Printf.sprintf "HxOverrides.hx_modf(%s, %s)" (print_expr pctx e1) (print_expr pctx e2)
+				Printf.sprintf "HxOverrides.modf(%s, %s)" (print_expr pctx e1) (print_expr pctx e2)
 			| TBinop(OpUShr,e1,e2) ->
-				Printf.sprintf "HxOverrides.hx_rshift(%s, %s)" (print_expr pctx e1) (print_expr pctx e2)
+				Printf.sprintf "HxOverrides.rshift(%s, %s)" (print_expr pctx e1) (print_expr pctx e2)
 			| TBinop(OpAdd,e1,e2) when (is_type1 "" "String")(e.etype) || is_underlying_string e.etype ->
 				let safe_string ex =
 					match ex.eexpr with
@@ -1268,7 +1268,7 @@ module Printer = struct
 	and print_call pctx e1 el =
 		match e1.eexpr with
 			| TField(e1,((FAnon {cf_name = ("toUpperCase" | "toLowerCase" as s)}) | FDynamic ("toUpperCase" | "toLowerCase" as s))) ->
-				Printf.sprintf "HxOverrides.hx_%s(%s)" s (print_expr pctx e1)
+				Printf.sprintf "HxOverrides.%s(%s)" s (print_expr pctx e1)
 			| _ ->
 				print_call2 pctx e1 el
 
