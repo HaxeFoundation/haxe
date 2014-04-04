@@ -132,14 +132,12 @@ class ArrayImpl {
 	}
 
 	public static inline function insert<T>(a:Array<T>, pos : Int, x : T ) : Void {
-		return Syntax.callField(a, "insert", pos, x);
-
+		Syntax.callField(a, "insert", pos, x);
 	}
+
 	public static inline function reverse<T>(a:Array<T>) : Void {
-		return Syntax.callField(a, "reverse");
+		Syntax.callField(a, "reverse");
 	}
-
-
 
 	@:keep private static inline function __get<T>(x:Array<T>, idx:Int):T
 	{

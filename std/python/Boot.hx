@@ -102,7 +102,7 @@ import math as _hx_math
 		return Syntax.callField(builtin, "callable", o);
 	}
 	static function inspectGetMembers(o:Dynamic, f:String->Bool):Void {
-		return Syntax.callField(inspect, "getmembers", o, f);
+		Syntax.callField(inspect, "getmembers", o, f);
 	}
 
 	static function inspectIsClass(o:Dynamic):Bool {

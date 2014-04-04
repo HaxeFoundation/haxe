@@ -97,9 +97,7 @@ extern class Syntax {
 
 	@:noUsing
 	macro public static function callField(o:Expr, field:ExprOf<String>, params:Array<Expr>):haxe.macro.Expr {
-		var e = macro $self.call($self.field($o, $field), $a{params});
-		e = macro untyped $e; // check "Dynamic should be Void" cases
-		return e;
+		return macro @:pos(o.pos) $self.call($self.field($o, $field), $a{params});
 	}
 
 	static function call(e:Dynamic, args:Array<Dynamic>):Dynamic { return null; }
