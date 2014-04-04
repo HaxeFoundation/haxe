@@ -20,12 +20,14 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+import python.internal.AnonObject;
 import python.internal.StringImpl;
 import python.internal.ArrayImpl;
 
 import python.lib.Builtin;
 import python.lib.Inspect;
 import python.lib.Types;
+import python.Syntax;
 
 @:access(python.Boot)
 @:coreApi
@@ -56,54 +58,12 @@ class Reflect {
 	@:keep public static function field( o : Dynamic, field : String ) : Dynamic
 	{
 		return python.Boot.field(o, field);
-		/*
-		if (field == null) return null;
-
-		switch (field) {
-			case "length" if (isString(o)): return StringImpl.get_length(o);
-			case "length" if (isArray(o)): return ArrayImpl.get_length(o);
-
-			case "toLowerCase" if (isString(o)): return StringImpl.toLowerCase.bind(o);
-			case "toUpperCase" if (isString(o)): return StringImpl.toUpperCase.bind(o);
-			case "charAt" if (isString(o)): return StringImpl.charAt.bind(o);
-			case "charCodeAt" if (isString(o)): return StringImpl.charCodeAt.bind(o);
-			case "indexOf" if (isString(o)): return StringImpl.indexOf.bind(o);
-			case "lastIndexOf" if (isString(o)): return StringImpl.lastIndexOf.bind(o);
-			case "split" if (isString(o)): return StringImpl.split.bind(o);
-			case "substr" if (isString(o)): return StringImpl.substr.bind(o);
-			case "substring" if (isString(o)): return StringImpl.substring.bind(o);
-			case "toString" if (isString(o)): return StringImpl.toString.bind(o);
-
-			case "map" if (isArray(o)): return ArrayImpl.map.bind(o);
-			case "filter" if (isArray(o)): return ArrayImpl.filter.bind(o);
-			case "concat" if (isArray(o)): return ArrayImpl.concat.bind(o);
-			case "copy" if (isArray(o)): return ArrayImpl.copy.bind(o);
-			case "iterator" if (isArray(o)): return ArrayImpl.iterator.bind(o);
-			case "insert" if (isArray(o)): return ArrayImpl.insert.bind(o);
-			case "join" if (isArray(o)): return ArrayImpl.join.bind(o);
-			case "toString" if (isArray(o)): return ArrayImpl.toString.bind(o);
-			case "pop" if (isArray(o)): return ArrayImpl.pop.bind(o);
-			case "push" if (isArray(o)): return ArrayImpl.push.bind(o);
-			case "unshift" if (isArray(o)): return ArrayImpl.unshift.bind(o);
-			case "indexOf" if (isArray(o)): return ArrayImpl.indexOf.bind(o);
-			case "lastIndexOf" if (isArray(o)): return ArrayImpl.lastIndexOf.bind(o);
-			case "remove" if (isArray(o)): return ArrayImpl.remove.bind(o);
-			case "reverse" if (isArray(o)): return ArrayImpl.reverse.bind(o);
-			case "shift" if (isArray(o)): return ArrayImpl.shift.bind(o);
-			case "slice" if (isArray(o)): return ArrayImpl.slice.bind(o);
-			case "sort" if (isArray(o)): return ArrayImpl.sort.bind(o);
-			case "splice" if (isArray(o)): return ArrayImpl.splice.bind(o);
-		}
-
-		var field = handleKeywords(field);
-		return if (Builtin.hasattr(o, field)) Builtin.getattr(o, field) else null;
-		*/
 	}
 
-	@:keep public static function setField( o : Dynamic, field : String, value : Dynamic ) : Void untyped
+	@:keep public static function setField( o : Dynamic, field : String, value : Dynamic ) : Void
 	{
 		var field = handleKeywords(field);
-		return __define_feature__("Reflect.setField",Builtin.setattr(o,field,value));
+		return untyped __define_feature__("Reflect.setField",Builtin.setattr(o,field,value));
 	}
 
 	public static function getProperty( o : Dynamic, field : String ) : Dynamic
@@ -150,23 +110,23 @@ class Reflect {
 				var fields:Array<String> = o._hx_fields;
 				return fields.copy();
 			}
-			if (Builtin.isinstance(o, untyped __python__("_hx_c._hx_AnonObject")))
+			if (Builtin.isinstance(o, AnonObject))
 			{
 
 				var d:Dict<String, Dynamic> = Builtin.getattr(o, "__dict__");
 				var keys  = d.keys();
 				var handler = unhandleKeywords;
-				untyped __python__("for k in keys:");
-				untyped __python__("	a.append(handler(k))");
+				Syntax.untypedPython("for k in keys:");
+				Syntax.untypedPython("	a.append(handler(k))");
 
 			}
 			else if (Builtin.hasattr(o, "__dict__"))
 			{
 				var a = [];
-				var d:Dict<String, Dynamic> = Builtin.getattr(o, "__dict__");
-				var keys  = untyped d.keys();
-				untyped __python__("for k in keys:");
-				untyped __python__("	a.append(k)");
+				var d:Dict<String, Dynamic> = Syntax.field(o, "__dict__");
+				var keys = Syntax.callField(d, "keys");
+				Syntax.untypedPython("for k in keys:");
+				Syntax.untypedPython("	a.append(k)");
 
 			}
 		}
@@ -181,8 +141,8 @@ class Reflect {
 	public static function compare<T>( a : T, b : T ) : Int {
 		if (a == null && b == null) return 0;
 		return
-		if (a == null) 1 else if (b == null) -1 else
-		( a == b ) ? 0 : (((cast a) > (cast b)) ? 1 : -1);
+			if (a == null) 1 else if (b == null) -1
+			else ( a == b ) ? 0 : (((cast a) > (cast b)) ? 1 : -1);
 	}
 
 	public static function compareMethods( f1 : Dynamic, f2 : Dynamic ) : Bool {
@@ -203,12 +163,12 @@ class Reflect {
 	}
 
 	public static function isEnumValue( v : Dynamic ) : Bool {
-		return v != Enum && Builtin.isinstance(v, untyped Enum);
+		return v != Enum && Builtin.isinstance(v, cast Enum);
 	}
 
 	public static function deleteField( o : Dynamic, field : String ) : Bool {
 		if( !hasField(o,field) ) return false;
-		untyped __python__("o.__delattr__")(field);
+		Syntax.callField(o, "__delattr__", field);
 		return true;
 	}
 
