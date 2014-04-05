@@ -34,23 +34,23 @@ typedef Selectable = {
 
 @:native("select")
 extern class Select {
-    
+
     static function __init__ ():Void
     {
         Syntax.importModule("select");
     }
-    
+
     static function select<T>(reads:Array<T>,writes:Array<T>,xs:Array<T>,timeout:Float):Tup3<Array<T>,Array<T>,Array<T>>;
-    
+
 }
 
 extern class Socket {
-    
+
     static function __init__ ():Void
     {
         Syntax.importFromAs("socket", "socket", "python.lib.net.Socket");
     }
-    
+
     static var AF_APPLETALK:Int;
     static var AF_ASH:Int;
     static var AF_ATMPVC:Int;
@@ -312,12 +312,12 @@ extern class Socket {
     static var TIPC_WITHDRAWN:Int;
     static var TIPC_ZONE_SCOPE:Int;
     static var _GLOBAL_DEFAULT_TIMEOUT:Int;
-    
+
     function send(d:BytesData,flags:Int):Int;
     function recv(n:Int,flags:Int):BytesData;
-    
-    
-    
+
+
+
     /**
         Creates a new unconnected socket.
     **/
@@ -333,8 +333,8 @@ extern class Socket {
     **/
     function connect( addr : python.lib.net.Address ) : Void;
 
-    //function create_connection() : 
-    
+    //function create_connection() :
+
     /**
         Allow the socket to listen for incoming questions. The parameter tells how many pending connections we can have until they get refused. Use [accept()] to accept incoming connections.
     **/
@@ -381,13 +381,13 @@ extern class Socket {
     function setblocking( b : Bool ) : Void;
 
     /**
-        
+
     **/
     function setsockopt( family:Int, option:Int, value : Bool ) : Void;
 
-    
+
     function fileno():Int;
-    
+
     /**
         Wait until one of the sockets groups is ready for the given operation :
         [read] contains sockets on which we want to wait for available data to be read,

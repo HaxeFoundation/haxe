@@ -30,13 +30,13 @@ import python.lib.net.Socket.Select in Select;
 import python.lib.net.Address in PAddress;
 
 private class SocketInput extends haxe.io.Input {
-    
+
     var __s : PSocket;
 
     public function new(s) {
         __s = s;
     }
-    
+
     public override function readByte() : Int {
         var r:BytesData;
         try {
@@ -69,11 +69,11 @@ private class SocketInput extends haxe.io.Input {
         super.close();
         if( __s != null ) __s.close();
     }
-    
+
 }
 
 private class SocketOutput extends haxe.io.Output {
-    
+
     var __s : PSocket;
 
     public function new(s) {
@@ -110,7 +110,7 @@ private class SocketOutput extends haxe.io.Output {
 **/
 @:coreApi class Socket {
 
-    
+
     var __s:PSocket;
     /**
         The stream on which you can read available data. By default the stream is blocking until the requested data is available,
@@ -136,7 +136,7 @@ private class SocketOutput extends haxe.io.Output {
         //input = new SocketInput(__s);
         //output = new SocketOutput(__s);
     }
-    
+
     function __init() : Void  {
         __s = new PSocket();
         input = new SocketInput(__s);
@@ -161,7 +161,7 @@ private class SocketOutput extends haxe.io.Output {
         Write the whole data to the socket output.
     **/
     public function write( content : String ) : Void {
-        
+
     }
 
     /**
@@ -183,7 +183,7 @@ private class SocketOutput extends haxe.io.Output {
     /**
         Shutdown the socket, either for reading or writing.
     **/
-    public function shutdown( read : Bool, write : Bool ) : Void 
+    public function shutdown( read : Bool, write : Bool ) : Void
         __s.shutdown( (read && write) ? PSocket.SHUT_RDWR : read ?  PSocket.SHUT_RD : PSocket.SHUT_WR  );
 
     /**
@@ -234,7 +234,7 @@ private class SocketOutput extends haxe.io.Output {
         Block until some data is available for read on the socket.
     **/
     public function waitForRead() : Void {
-        
+
     }
 
     /**
@@ -250,7 +250,7 @@ private class SocketOutput extends haxe.io.Output {
     public function setFastSend( b : Bool ) : Void {}
 
     @:keep function fileno():Int return __s.fileno();
-    
+
     /**
         Wait until one of the sockets groups is ready for the given operation :
         [read] contains sockets on which we want to wait for available data to be read,
