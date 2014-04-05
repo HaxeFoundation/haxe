@@ -1099,7 +1099,7 @@ let set_heritance ctx c herits p =
 				intf.cl_build();
 				if is_parent c intf then error "Recursive class" p;
 				if c.cl_interface then error "Interfaces cannot implement another interface (use extends instead)" p;
-				if not intf.cl_interface then error "You can only implements an interface" p;
+				if not intf.cl_interface then error "You can only implement an interface" p;
 				process_meta intf;
 				c.cl_implements <- (intf, params) :: c.cl_implements;
 				if not !has_interf then begin
