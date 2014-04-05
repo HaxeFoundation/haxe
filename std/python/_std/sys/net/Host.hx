@@ -19,23 +19,46 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package haxe.io;
+package sys.net;
 
-#if neko
-	typedef BytesData =	neko.NativeString;
-#elseif flash9
-	typedef BytesData =	flash.utils.ByteArray;
-#elseif php
-	typedef BytesData =	php.NativeString;
-#elseif cpp
-	extern class Unsigned_char__ { }
-	typedef BytesData = Array<Unsigned_char__>;
-#elseif java
-	typedef BytesData = java.NativeArray<java.StdTypes.Int8>;
-#elseif cs
-	typedef BytesData = cs.NativeArray<cs.StdTypes.UInt8>;
-#elseif python
-	typedef BytesData = python.lib.Types.ByteArray;
-#else
-	typedef BytesData = Array<Int>;
-#end
+/**
+	A given IP host name.
+**/
+class Host {
+
+	/**
+		The actual IP corresponding to the host.
+	**/
+	public var ip(default,null) : Int;
+
+	/**
+		Creates a new Host : the name can be an IP in the form "127.0.0.1" or an host name such as "google.com", in which case
+		the corresponding IP address is resolved using DNS. An exception occur if the host name could not be found.
+	**/
+    var name:String;
+	public function new( name : String ) : Void {
+        this.name = name;
+    }
+
+	/**
+		Returns the IP representation of the host
+	**/
+	public function toString() : String {
+        return name;
+    }
+
+	/**
+		Perform a reverse-DNS query to resolve a host name from an IP.
+	**/
+	public function reverse() : String {
+        return "";
+    }
+
+	/**
+		Returns the local computer host name
+	**/
+	public static function localhost() : String {
+        return "";
+    }
+
+}
