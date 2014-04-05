@@ -72,12 +72,14 @@ module Transformer = struct
 		a_is_value : bool;
 	}
 
+	let como = ref None
 	let t_bool = ref t_dynamic
 	let t_void = ref t_dynamic
 	let t_string= ref t_dynamic
 	let c_reflect = ref null_class
 
 	let init com =
+		como := Some com;
 		t_bool := com.basic.tbool;
 		t_void := com.basic.tvoid;
 		t_string := com.basic.tstring;
@@ -768,6 +770,9 @@ module Transformer = struct
 			let exprs = List.map (fun (v) -> v.a_expr) values in
 			let r = { a_expr with eexpr = TArrayDecl exprs } in
 			lift_expr ~blocks:blocks r
+		| (is_value, TCast(e1,Some mt)) ->
+			let e = Codegen.default_cast ~vtmp:(ae.a_next_id()) (match !como with Some com -> com | None -> assert false) e1 mt ae.a_expr.etype ae.a_expr.epos in
+			transform_expr e
 		| (is_value, TCast(e,t)) ->
 			let e = trans is_value [] e in
 			let r = { a_expr with eexpr = e.a_expr.eexpr } in
@@ -1078,14 +1083,13 @@ module Printer = struct
 				"continue"
 			| TThrow e1 ->
 				Printf.sprintf "raise _HxException(%s)" (print_expr pctx e1)
-			| TCast(e1,_) ->
-				(* TODO: safe cast *)
+			| TCast(e1,None) ->
 				print_expr pctx e1
 			| TMeta((Meta.Custom ":ternaryIf",_,_),{eexpr = TIf(econd,eif,Some eelse)}) ->
 				Printf.sprintf "%s if %s else %s" (print_expr pctx eif) (print_expr pctx econd) (print_expr pctx eelse)
 			| TMeta(_,e1) ->
 				print_expr pctx e1
-			| TPatMatch _ | TSwitch _ ->
+			| TPatMatch _ | TSwitch _ | TCast(_, Some _) ->
 				assert false
 
 	and print_if_else pctx econd eif eelse as_elif =
@@ -1095,8 +1099,6 @@ module Printer = struct
 		in
 		let if_str = print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} eif in
 		let indent = pctx.pc_indent in
-		(* TODO: double check this *)
-		(* TODO: triple check it *)
 		let else_str = if as_elif then
 			opt eelse (print_expr pctx) "el"
 		else
@@ -1220,11 +1222,6 @@ module Printer = struct
 				Printf.sprintf "%s[%s%s]" (print_expr pctx e1) (print_exprs pctx ":" el) (if trailing_colon then ":" else "")
 			| "python_Syntax.isIn",[e1;e2] ->
 				Printf.sprintf "%s in %s" (print_expr pctx e1) (print_expr pctx e2)
-(* 			| "__python_for__",[{eexpr = TBlock [{eexpr = TVar(v1,_)};e2;block]}] ->
-				let f1 = v1.v_name in
-				let pctx = {pctx with pc_indent = "\t" ^ pctx.pc_indent} in
-				let i = pctx.pc_indent in
-				Printf.sprintf "for %s in %s:\n%s%s" f1 (print_expr pctx e2) i (print_expr pctx block) *)
 			| "python_Syntax.delete",[e1] ->
 				Printf.sprintf "del %s" (print_expr pctx e1)
 			| "python_Syntax.binop",[e0;{eexpr = TConst(TString id)};e2] ->
@@ -1237,6 +1234,11 @@ module Printer = struct
 				Printf.sprintf "%s(%s)" (print_expr pctx e1) (print_exprs pctx ", " el)
 			| "python_Syntax.opPow", [e1;e2] ->
 				Printf.sprintf "(%s ** %s)" (print_expr pctx e1) (print_expr pctx e2)
+(* 			| "__python_for__",[{eexpr = TBlock [{eexpr = TVar(v1,_)};e2;block]}] ->
+				let f1 = v1.v_name in
+				let pctx = {pctx with pc_indent = "\t" ^ pctx.pc_indent} in
+				let i = pctx.pc_indent in
+				Printf.sprintf "for %s in %s:\n%s%s" f1 (print_expr pctx e2) i (print_expr pctx block) *)
 (* 			| "__new_named__",e1::el ->
 				Printf.sprintf "new %s(%s)" (print_expr pctx e1) (print_exprs pctx ", " el) *)
 (* 			| "__python_kwargs__",[e1] ->

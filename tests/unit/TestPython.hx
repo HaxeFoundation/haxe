@@ -97,6 +97,23 @@ class TestPython extends Test {
 		eq("foo", a2);
 	}
 
+	function testTypedCatch() {
+		function throwMe(arg:Dynamic) {
+			return try {
+				throw arg;
+			} catch(e:haxe.macro.Expr.ExprDef) {
+				'ExprDef:$e';
+			} catch(s:String) {
+				'String:$s';
+			} catch(e:Dynamic) {
+				'Other:$e';
+			}
+		}
+		eq("ExprDef:EBreak", throwMe(haxe.macro.Expr.ExprDef.EBreak));
+		eq("String:foo", throwMe("foo"));
+		eq("Other:12", throwMe(12));
+	}
+
 	/*
 	function testSys () {
 
