@@ -637,15 +637,15 @@ module Transformer = struct
 			transform_switch ae is_value e cases edef
 
 		(* anon field access on optional params *)
-		| (_, TField(e,FAnon cf)) when Meta.has Meta.Optional cf.cf_meta ->
+		| (is_value, TField(e,FAnon cf)) when Meta.has Meta.Optional cf.cf_meta ->
 			let e = dynamic_field_read e cf.cf_name in
-			transform_expr e
-		| (_, TBinop(OpAssign,{eexpr = TField(e1,FAnon cf)},e2)) when Meta.has Meta.Optional cf.cf_meta ->
+			transform_expr ~is_value:is_value e
+		| (is_value, TBinop(OpAssign,{eexpr = TField(e1,FAnon cf)},e2)) when Meta.has Meta.Optional cf.cf_meta ->
 			let e = dynamic_field_write e1 cf.cf_name e2 in
-			transform_expr e
-		| (_, TBinop(OpAssignOp op,{eexpr = TField(e1,FAnon cf)},e2)) when Meta.has Meta.Optional cf.cf_meta ->
+			transform_expr ~is_value:is_value e
+		| (is_value, TBinop(OpAssignOp op,{eexpr = TField(e1,FAnon cf)},e2)) when Meta.has Meta.Optional cf.cf_meta ->
 			let e = dynamic_field_read_write ae.a_next_id e1 cf.cf_name op e2 in
-			transform_expr e
+			transform_expr ~is_value:is_value e
 		(* TODO we need to deal with Increment, Decrement too!
 
 		| (_, TUnop( (Increment | Decrement) as unop, op,{eexpr = TField(e1,FAnon cf)})) when Meta.has Meta.Optional cf.cf_meta  ->
@@ -673,18 +673,18 @@ module Transformer = struct
 			let r = { a_expr with eexpr = TUnop(op, Prefix, e1.a_expr) } in
 			lift_expr ~blocks:e1.a_blocks r
 
-		| (_, TField(e,FDynamic s)) ->
+		| (is_value, TField(e,FDynamic s)) ->
 			let e = dynamic_field_read e s in
-			transform_expr e
-		| (_, TBinop(OpAssign,{eexpr = TField(e1,FDynamic s)},e2)) ->
+			transform_expr ~is_value:is_value e
+		| (is_value, TBinop(OpAssign,{eexpr = TField(e1,FDynamic s)},e2)) ->
 			let e = dynamic_field_write e1 s e2 in
-			transform_expr e
-		| (_, TBinop(OpAssignOp op,{eexpr = TField(e1,FDynamic s)},e2)) ->
+			transform_expr ~is_value:is_value e
+		| (is_value, TBinop(OpAssignOp op,{eexpr = TField(e1,FDynamic s)},e2)) ->
 			let e = dynamic_field_read_write ae.a_next_id e1 s op e2 in
-			transform_expr e
-		| (_, TField(e1, FClosure(Some {cl_path = [],("String" | "list")},cf))) ->
+			transform_expr ~is_value:is_value e
+		| (is_value, TField(e1, FClosure(Some {cl_path = [],("String" | "list")},cf))) ->
 			let e = dynamic_field_read e1 cf.cf_name in
-			transform_expr e
+			transform_expr ~is_value:is_value e
 		| (is_value, TBinop(OpAssign, left, right))->
 			(let left = trans true [] left in
 			let right = trans true [] right in
@@ -772,7 +772,7 @@ module Transformer = struct
 			lift_expr ~blocks:blocks r
 		| (is_value, TCast(e1,Some mt)) ->
 			let e = Codegen.default_cast ~vtmp:(ae.a_next_id()) (match !como with Some com -> com | None -> assert false) e1 mt ae.a_expr.etype ae.a_expr.epos in
-			transform_expr e
+			transform_expr ~is_value:is_value e
 		| (is_value, TCast(e,t)) ->
 			let e = trans is_value [] e in
 			let r = { a_expr with eexpr = e.a_expr.eexpr } in
