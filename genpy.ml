@@ -1164,7 +1164,7 @@ module Printer = struct
 			in
 			match follow v.v_type with
 				| TDynamic _ ->
-					Printf.sprintf "%sif True:\n%s\t%s = _hx_e1\n%s\t%s" (if i > 0 then indent else "") indent v.v_name indent (print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} e)
+					Printf.sprintf "%sif True:\n%s\t%s = _hx_e1\n%s\t%s" (if i > 0 then indent ^ "el" else "") indent v.v_name indent (print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} e)
 				| TInst(c,_) ->
 					handle_base_type (t_infos (TClassDecl c))
 				| TEnum(en,_) ->
