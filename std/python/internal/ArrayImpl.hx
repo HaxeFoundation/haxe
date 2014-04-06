@@ -31,7 +31,7 @@ private abstract Builtin(Dynamic) {}
 @:keep
 class ArrayImpl {
 
-	static inline function builtin():Builtin return Syntax.pythonCode("_hx_builtin");
+	static inline function builtin():Builtin return Internal.builtin();
 
 	public static inline function get_length <T>(x:Array<T>):Int return Syntax.callField(builtin(), "len", x);
 

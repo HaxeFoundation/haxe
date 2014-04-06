@@ -22,6 +22,7 @@
 
 package;
 
+import python.internal.Internal;
 import python.lib.Builtin;
 import python.lib.Inspect;
 import python.Boot;
@@ -71,7 +72,7 @@ import python.Boot;
 		if ( t == (python.Syntax.pythonCode("str"))) {
 			return Builtin.isinstance(v, String);
 		}
-		if (t == Enum && Inspect.isclass(v) && Builtin.hasattr(v, "_hx_constructs")) return true;
+		if (t == Enum && Inspect.isclass(v) && Internal.hasConstructs(v)) return true;
 
 		if (t == Enum) return false;
 
@@ -81,7 +82,7 @@ import python.Boot;
 
 		if (Builtin.isinstance(v, Date)) return false;
 
-		if (t == Class && !Builtin.isinstance(v, untyped Enum) && Inspect.isclass(v) && Builtin.hasattr(v, "_hx_class_name") && !Builtin.hasattr(v, "_hx_constructs")) return true;
+		if (t == Class && !Builtin.isinstance(v, untyped Enum) && Inspect.isclass(v) && Internal.hasClassName(v) && !Internal.hasConstructs(v)) return true;
 
 		if (t == Class) return false; // && !Builtin.isinstance(v, untyped Enum) && Builtin.hasattr(v, "__class__") && untyped Builtin.hasattr(v.__class__, "_hx_class_name") && !untyped Builtin.hasattr(v.__class__, "_hx_constructs")) return true;
 
@@ -92,7 +93,7 @@ import python.Boot;
 
 			function loop (intf)
 			{
-				var f:Array<Dynamic> = if (Builtin.hasattr(intf,"_hx_interfaces")) Builtin.getattr(intf, "_hx_interfaces") else [];
+				var f:Array<Dynamic> = if (Internal.hasInterfaces(intf)) Internal.fieldInterfaces(intf) else [];
 				if (f != null) {
 					for (i in f) {
 						if ( i == t) {

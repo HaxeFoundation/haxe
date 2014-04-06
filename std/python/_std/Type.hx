@@ -42,11 +42,8 @@ enum ValueType {
 
 	public static function getClass<T>( o : T ) : Class<T> {
 
-
-
 		if( o == null )
 			return null;
-
 
 		if (python.Boot.isClass(o)) return null;
 
@@ -77,19 +74,16 @@ enum ValueType {
 		if (Internal.hasClassName(c)) {
 			return Internal.fieldClassName(c);
 		} else {
-			// not a haxe class
+			// it's not a haxe class
 			if (c == Array) return "Array";
 			if (c == Math) return "Math";
 			if (c == String) return "String";
 
 			try {
 				var s :String = Syntax.field(c, "__name__");
-			} catch (e:Dynamic) {
-
-			}
+			} catch (e:Dynamic) {}
 		}
 		var res = null;
-
 
 		return res;
 	}
@@ -107,7 +101,7 @@ enum ValueType {
 		var cl : Class<Dynamic> = Internal.classRegistry().get(name, null);
 		// ensure that this is a class
 		if( cl == null || !python.Boot.isClass(cl) )
-				return null;
+			return null;
 		return cl;
 	}
 
@@ -155,7 +149,7 @@ enum ValueType {
 			if (sc != null) {
 				callInit(sc);
 			}
-			if (Builtin.hasattr(cl, Internal.emptyInitVal())) {
+			if (Internal.hasEmptyInit(cl)) {
 				Internal.callEmptyInit(cl, i);
 			}
 		}
@@ -185,11 +179,11 @@ enum ValueType {
 		return createEnum(e,c,params);
 	}
 
-	public static function getInstanceFields( c : Class<Dynamic> ) : Array<String> {
+	public static inline function getInstanceFields( c : Class<Dynamic> ) : Array<String> {
 		return python.Boot.getInstanceFields(c);
 	}
 
-	public static function getClassFields( c : Class<Dynamic> ) : Array<String> {
+	public static inline function getClassFields( c : Class<Dynamic> ) : Array<String> {
 		return python.Boot.getClassFields(c);
 	}
 
@@ -223,7 +217,7 @@ enum ValueType {
 		else if (Builtin.isinstance(v, Enum)) {
 			return TEnum(Syntax.field(v, "__class__"));
 		}
-		else if (Builtin.isinstance(v, Builtin.type) || Builtin.hasattr(v, Internal.classVal())) {
+		else if (Builtin.isinstance(v, Builtin.type) || Internal.hasClass(v)) {
 			return TClass(Syntax.field(v, "__class__"));
 		} else if (Builtin.callable(v)) {
 			return TFunction;
@@ -243,14 +237,13 @@ enum ValueType {
 			if (b == null && a != b) return false;
 			if( asEnumImpl(a).tag != asEnumImpl(b).tag )
 				return false;
-			var p1:Array<Dynamic> = asEnumImpl(a).params;
-			var p2:Array<Dynamic> = asEnumImpl(b).params;
+			var p1 = asEnumImpl(a).params;
+			var p2 = asEnumImpl(b).params;
 			if (p1.length != p2.length) return false;
 
 			for( i in 0...p1.length )
 				if( !enumEq(p1[i],p2[i]) )
 					return false;
-			//var e = Type.getClass(a);
 
 			if( Internal.fieldClass(a) != Internal.fieldClass(b))
 				return false;

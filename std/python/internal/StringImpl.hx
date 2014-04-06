@@ -1,14 +1,13 @@
 package python.internal;
 
+import python.internal.Internal;
+
 
 @:keep
 @:native("HxString")
 class StringImpl {
 
-
-
-	static inline function builtin ():Dynamic return Syntax.pythonCode("_hx_builtin");
-
+	static inline function builtin ():Dynamic return Internal.builtin();
 
 	public static function split (s:String, d:String) {
 		return if (d == "") Syntax.field(builtin(), "list")(s) else Syntax.callField(s, "split", d);
@@ -19,9 +18,11 @@ class StringImpl {
 			if (s == null || s.length == 0 || index < 0 || index >= s.length) null
 			else Syntax.callField(builtin(), "ord", Syntax.arrayAccess(s, index));
 	}
+
 	public static inline function charAt(s:String, index:Int) {
 		return if (index < 0 || index >= s.length) "" else Syntax.arrayAccess(s,index);
 	}
+
 	public static inline function lastIndexOf(s:String, str:String, ?startIndex:Int):Int {
 		if (startIndex == null) {
 			return Syntax.callField(s, "rfind", str, 0, s.length);

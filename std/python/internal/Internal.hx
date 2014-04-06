@@ -37,7 +37,7 @@ class Internal {
 	}
 
 	static function fieldWithPos(o:Expr, x:String):Expr {
-		return macro @:pos(Context.currentPos()) Syntax.field($o, $v{x});
+		return macro @:pos(Context.currentPos()) python.Syntax.field($o, $v{x});
 	}
 
 	static function has (o:Expr, field:String):Expr {
@@ -45,6 +45,10 @@ class Internal {
 	}
 
 	#end
+
+	macro public static function builtin ():Expr {
+		return macro (python.Syntax.pythonCode($v{_builtin}):Dynamic);
+	}
 
 	macro public static function classRegistry ():Expr {
 		return macro (python.Syntax.pythonCode($v{_classes}) : python.lib.Types.Dict<String, Class<Dynamic>>);
@@ -70,11 +74,10 @@ class Internal {
 			case EConst(CString(x)): macro @:pos(Context.currentPos()) $v{_prefix + x};
 			case _ : macro @:pos(Context.currentPos()) $v{_prefix} + $x;
 		}
-
 	}
 
 	macro public static function importAsPrefixed (o:String, x:String) {
-		return macro @:pos(Context.currentPos()) Syntax.importAs($v{o}, $v{_prefix + x});
+		return macro @:pos(Context.currentPos()) python.Syntax.importAs($v{o}, $v{_prefix + x});
 	}
 
 	macro public static function prefix ():Expr {
@@ -82,15 +85,15 @@ class Internal {
 	}
 
 	macro public static function pythonCodePrefixed (x:String):Expr {
-		return macro Syntax.pythonCode($v{_prefix + x});
-	}
-
-	macro public static function fieldClassName (o:Expr):Expr {
-		return macro Syntax.field($o, $v{_className});
+		return macro python.Syntax.pythonCode($v{_prefix + x});
 	}
 
 	macro public static function hasClassName (o:Expr):Expr {
 		return has(o, _className);
+	}
+
+	macro public static function hasInterfaces (o:Expr):Expr {
+		return has(o, _interfaces);
 	}
 
 	macro public static function hasClass (o:Expr):Expr {
@@ -99,6 +102,10 @@ class Internal {
 
 	macro public static function hasConstructs (o:Expr):Expr {
 		return has(o, _constructs);
+	}
+
+	macro public static function hasEmptyInit (o:Expr):Expr {
+		return has(o, _emptyInit);
 	}
 
 	macro public static function hasFields (o:Expr):Expr {
@@ -112,8 +119,6 @@ class Internal {
 	macro public static function hasStatics (o:Expr):Expr {
 		return has(o, _statics);
 	}
-
-
 
 	macro public static function classNameVal ():Expr {
 		return withPos(_className);
@@ -155,6 +160,10 @@ class Internal {
 		return withPos(_emptyInit);
 	}
 
+	macro public static function fieldClassName (o:Expr):Expr {
+		return fieldWithPos(o, _className);
+	}
+
 	macro public static function fieldInterfaces (o:Expr):Expr {
 		return fieldWithPos(o, _interfaces);
 	}
@@ -170,12 +179,15 @@ class Internal {
 	macro public static function fieldStatics (o:Expr):Expr {
 		return fieldWithPos(o, _statics);
 	}
+
 	macro public static function fieldMethods (o:Expr):Expr {
 		return fieldWithPos(o, _methods);
 	}
+
 	macro public static function fieldFields (o:Expr):Expr {
 		return fieldWithPos(o, _fields);
 	}
+
 	macro public static function fieldProps (o:Expr):Expr {
 		return fieldWithPos(o, _props);
 	}
