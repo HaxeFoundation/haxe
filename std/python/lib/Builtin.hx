@@ -49,7 +49,7 @@ extern class Builtin {
 
 	//public static function staticmethod():Void;
 	//public static function enumerate():Void;
-
+	@:overload(function (x:Dynamic, base:Int):Int {})
 	public static function int(x:Dynamic):Int;
 	//public static function ord():Void;
 	public static inline function str(o:Dynamic):String {
