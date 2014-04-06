@@ -995,11 +995,11 @@ module Printer = struct
 						assert false
 				end
 			| TBinop(OpEq,e1,({eexpr = TConst TNull} as e2)) ->
-				Printf.sprintf "%s is %s" (print_expr pctx e1) (print_expr pctx e2)
+				Printf.sprintf "(%s is %s)" (print_expr pctx e1) (print_expr pctx e2)
 			| TBinop(OpNotEq,e1,({eexpr = TConst TNull} as e2)) ->
-				Printf.sprintf "%s is not %s" (print_expr pctx e1) (print_expr pctx e2)
+				Printf.sprintf "(%s is not %s)" (print_expr pctx e1) (print_expr pctx e2)
 			| TBinop(OpMod,e1,e2) when (is_type1 "" "Int")(e1.etype) && (is_type1 "" "Int")(e2.etype) ->
-				Printf.sprintf "%s %% %s" (print_expr pctx e1) (print_expr pctx e2)
+				Printf.sprintf "(%s %% %s)" (print_expr pctx e1) (print_expr pctx e2)
 			| TBinop(OpMod,e1,e2) ->
 				Printf.sprintf "HxOverrides.modf(%s, %s)" (print_expr pctx e1) (print_expr pctx e2)
 			| TBinop(OpUShr,e1,e2) ->
