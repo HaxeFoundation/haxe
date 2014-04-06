@@ -1748,7 +1748,7 @@ module Generator = struct
 
 	let gen_resources ctx =
 		if Hashtbl.length ctx.com.resources > 0 then begin
-			spr ctx "import os;\ndef _hx_resources__():\n\treturn {";
+			spr ctx "def _hx_resources__():\n\treturn {";
 			let first = ref true in
 			Hashtbl.iter (fun k v ->
 				let prefix = if !first then begin
