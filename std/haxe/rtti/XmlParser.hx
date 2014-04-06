@@ -415,7 +415,7 @@ class XmlParser {
 			doc : doc,
 			get : if( x.has.get ) mkRights(x.att.get) else RNormal,
 			set : if( x.has.set ) mkRights(x.att.set) else RNormal,
-			params : if( x.has.params ) mkTypeParams(x.att.params) else null,
+			params : if( x.has.params ) mkTypeParams(x.att.params) else [],
 			platforms : defplat(),
 			meta : meta,
 			overloads: overloads
