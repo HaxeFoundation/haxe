@@ -99,7 +99,7 @@ class Reflect {
 		return if (Builtin.callable(func)) func(python.Syntax.varArgs(args)) else null;
 	}
 
-	public static function fields( o : Dynamic ) : Array<String>
+	public static inline function fields( o : Dynamic ) : Array<String>
 	{
 		return python.Boot.fields(o);
 	}
@@ -153,7 +153,7 @@ class Reflect {
 	@:overload(function( f : Array<Dynamic> -> Void ) : Dynamic {})
 	public static function makeVarArgs( f : Array<Dynamic> -> Dynamic ) : Dynamic {
 		return function (v:VarArgs) {
-			return f((v:Array<Dynamic>));
+			return f(v);
 		}
 	}
 
