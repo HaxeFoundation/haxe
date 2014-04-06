@@ -222,8 +222,10 @@ class Boot {
 	
 	// resolve native JS class (with window or global):
 	static function __resolveNativeClass(name:String) untyped {
-		var g = __js__("typeof window") != "undefined" ? window : global;
-		return g[name];
+		if (__js__("typeof window") != "undefined")
+			return window[name];
+		else
+			return global[name];
 	}
 
 }
