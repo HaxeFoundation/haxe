@@ -90,6 +90,7 @@ module Transformer = struct
 		let s = Type.s_expr_pretty "\t" s_type e in
 		Printf.printf "%s\n" s
 
+
 	let new_counter () =
 		let n = ref (-1) in
 		(fun () ->
@@ -775,7 +776,7 @@ module Transformer = struct
 			transform_expr ~is_value:is_value e
 		| (is_value, TCast(e,t)) ->
 			let e = trans is_value [] e in
-			let r = { a_expr with eexpr = e.a_expr.eexpr } in
+			let r = { a_expr with eexpr = e.a_expr.eexpr; etype = a_expr.etype } in
 			lift_expr ~blocks:e.a_blocks r
 		| (_, TField(e,f)) ->
 			let e = trans true [] e in
@@ -783,7 +784,7 @@ module Transformer = struct
 			lift_expr ~blocks:e.a_blocks r
 		| (is_value, TMeta(m,e)) ->
 			let e = trans is_value [] e in
-			let r = { a_expr with eexpr = TMeta(m, e.a_expr) } in
+			let r = { a_expr with eexpr = TMeta(m, e.a_expr); etype = e.a_expr.etype } in
 			lift_expr ~blocks:e.a_blocks r
 		| ( _, TPatMatch _ ) -> assert false
 		| ( _, TLocal _ ) -> lift_expr a_expr
@@ -917,7 +918,8 @@ module Printer = struct
 		let sl = List.map (fun (v,cto) ->
 			let name = handle_keywords v.v_name in
 			let arg_string = match follow v.v_type with
-				| TAbstract({a_path = [],"KwdArgs"},_) -> "**" ^ name
+				| TAbstract({a_path = ["python"; "lib"],"KwArgs"},_) -> "**" ^ name
+				| TAbstract({a_path = ["python"; "lib"],"VarArgs"},_) -> "*" ^ name
 				| _ -> name
 			in
 			let arg_value = match cto with
@@ -1266,7 +1268,7 @@ module Printer = struct
 				in
 				print_expr pctx {e1 with eexpr = TBinop(OpEq,e2,e3)} *)
 			| _,el ->
-				Printf.sprintf "%s(%s)" id (print_exprs pctx ", " el)
+				Printf.sprintf "%s(%s)" id (print_call_args pctx e1 el)
 
 	and print_call pctx e1 el =
 		match e1.eexpr with
@@ -1274,6 +1276,20 @@ module Printer = struct
 				Printf.sprintf "HxOverrides.%s(%s)" s (print_expr pctx e1)
 			| _ ->
 				print_call2 pctx e1 el
+
+	and print_call_args pctx e1 el =
+		let print_arg pctx i x =
+			let prefix = match e1.eexpr, follow x.etype with
+				(* the should not apply for the instance methods of the abstract itself *)
+				| TField(_, FStatic({cl_path = ["python"; "lib"; "_Types"],"KwArgs_Impl_"},f)), _ when i == 0 && Meta.has Meta.Impl f.cf_meta -> ""
+				| TField(_, FStatic({cl_path = ["python"; "lib"; "_Types"],"VarArgs_Impl_"},f)), _ when i == 0 && Meta.has Meta.Impl f.cf_meta -> ""
+				| _, TAbstract({a_path = ["python"; "lib"],"KwArgs"},_) -> "**"
+				| _, TAbstract({a_path = ["python"; "lib"],"VarArgs"},_) -> "*"
+				| _, _ -> ""
+			in
+			prefix ^ (print_expr pctx x)
+		in
+		String.concat "," (ExtList.List.mapi (print_arg pctx) el)
 
 	and print_exprs pctx sep el =
 		String.concat sep (List.map (print_expr pctx) el)

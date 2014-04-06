@@ -181,7 +181,9 @@ class Reflect {
 
 	@:overload(function( f : Array<Dynamic> -> Void ) : Dynamic {})
 	public static function makeVarArgs( f : Array<Dynamic> -> Dynamic ) : Dynamic {
-		return throw "not implemented";
+		return function (v:VarArgs) {
+			return f((v:Array<Dynamic>));
+		}
 	}
 
 }

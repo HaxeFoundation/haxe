@@ -1,5 +1,6 @@
 package unit;
 
+import python.lib.Types.KwArgs;
 import sys.io.File;
 import sys.io.Process;
 
@@ -124,4 +125,31 @@ class TestPython extends Test {
 	}
 	*/
 
+
+	function testMakeVarArgs () {
+		var f = function (a:Array<Dynamic>) {
+			return a[0] + a[1];
+		}
+		var g = Reflect.makeVarArgs(f);
+		var res = g(1,2);
+		eq(3, res);
+	}
+
+	function testKwArgs () {
+		function x (args:python.lib.Types.KwArgs) {
+			var a = args.get("a", 0);
+			var b = args.get("b", 0);
+			return a + b;
+		}
+
+
+		var res = x( python.lib.Types.Dict.fromObject({ "a" : 1, "b" : 2}) );
+
+
+		eq(3, res);
+
+		var res2 = python.Syntax.callNamedUntyped(x, { a : 3, b : 5});
+
+		eq(8, res2);
+	}
 }
