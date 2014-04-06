@@ -521,10 +521,31 @@ module Transformer = struct
 		| (_,TVar(v,eo)) ->
 			transform_var_expr ae eo v
 		| (_,TFor(v,e1,e2)) ->
-			let e1 = trans true [] e1 in
-			let e2 = to_expr (trans false [] e2) in
-			let new_expr = mk (TFor(v,e1.a_expr,e2)) ae.a_expr.etype ae.a_expr.epos in
-			lift_expr ~blocks: e1.a_blocks new_expr
+			let a1 = trans true [] e1 in
+			let a2 = to_expr (trans false [] e2) in
+
+			let name = (ae.a_next_id ()) in
+			let t_var = alloc_var name e1.etype in
+
+			let mk_local v p = { eexpr = TLocal v; etype = v.v_type; epos = p } in
+
+			let ev = mk_local t_var e1.epos in
+			let ehasnext = mk (TField(ev,quick_field e1.etype "hasNext")) (tfun [] (!t_bool) ) e1.epos in
+			let ehasnext = mk (TCall(ehasnext,[])) ehasnext.etype ehasnext.epos in
+
+			let enext = mk (TField(ev,quick_field e1.etype "next")) (tfun [] v.v_type) e1.epos in
+			let enext = mk (TCall(enext,[])) v.v_type e1.epos in
+
+			let var_assign = mk (TVar (v,Some enext)) v.v_type a_expr.epos in
+
+			let ebody = Type.concat var_assign (a2) in
+
+			let var_decl = mk (TVar (t_var,Some a1.a_expr)) (!t_void) e1.epos in
+			let twhile = mk (TWhile((mk (TParenthesis ehasnext) ehasnext.etype ehasnext.epos),ebody,NormalWhile)) (!t_void) e1.epos in
+
+			let blocks = a1.a_blocks @ [var_decl] in
+
+			lift_expr ~blocks: blocks twhile
 		| (_,TReturn None) ->
 			ae
 		| (_,TReturn (Some ({eexpr = TFunction f} as ef))) ->
@@ -1063,10 +1084,11 @@ module Printer = struct
 				tabs := old;
 				Printf.sprintf "%s\n" s
 			| TFor(v,e1,e2) ->
-				let pctx2 = {pctx with pc_indent = "\t" ^ pctx.pc_indent} in
+				assert false
+				(* let pctx2 = {pctx with pc_indent = "\t" ^ pctx.pc_indent} in
 				let ind1 = pctx.pc_indent in
 				let ind2 = pctx2.pc_indent in
-				Printf.sprintf "_it = %s\n%swhile _it.hasNext():\n%s%s = _it.next()\n%s%s" (print_expr pctx e1) ind1 ind2 v.v_name ind2 (print_expr pctx2 e2)
+				Printf.sprintf "_it = %s\n%swhile _it.hasNext():\n%s%s = _it.next()\n%s%s" (print_expr pctx e1) ind1 ind2 v.v_name ind2 (print_expr pctx2 e2) *)
 			| TIf(econd,eif,(Some {eexpr = TIf _} as eelse)) ->
 				print_if_else pctx econd eif eelse true
 			| TIf(econd,eif,eelse) ->
