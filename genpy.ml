@@ -1063,7 +1063,8 @@ module Printer = struct
 				let id = print_base_type (t_infos (TClassDecl c)) in
 				Printf.sprintf "%s(%s)" id (print_exprs pctx ", " el)
 			| TUnop(op,Postfix,e1) ->
-				Printf.sprintf "%s%s" (print_expr pctx e1) (print_unop op)
+				assert false
+				(* Printf.sprintf "%s%s" (print_expr pctx e1) (print_unop op) *)
 			| TUnop(Not,Prefix,e1) ->
 				Printf.sprintf "(%s%s)" (print_unop Not) (print_expr pctx e1)
 			| TUnop(op,Prefix,e1) ->
