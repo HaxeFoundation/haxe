@@ -1293,10 +1293,12 @@ module Printer = struct
 				Printf.sprintf "%s(%s)" id (print_call_args pctx e1 el)
 
 	and print_call pctx e1 el =
-		match e1.eexpr with
-			| TField(e1,((FAnon {cf_name = ("toUpperCase" | "toLowerCase" as s)}) | FDynamic ("toUpperCase" | "toLowerCase" as s))) ->
+		match e1.eexpr, el with
+			| TField(e1,((FAnon {cf_name = "iterator"}) | FDynamic ("iterator"))), [] ->
+				Printf.sprintf "HxOverrides.iterator(%s)" (print_expr pctx e1)
+			| TField(e1,((FAnon {cf_name = ("toUpperCase" | "toLowerCase" as s)}) | FDynamic ("toUpperCase" | "toLowerCase" as s))), [] ->
 				Printf.sprintf "HxOverrides.%s(%s)" s (print_expr pctx e1)
-			| _ ->
+			| _,_ ->
 				print_call2 pctx e1 el
 
 	and print_call_args pctx e1 el =
