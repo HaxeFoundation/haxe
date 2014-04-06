@@ -39,7 +39,7 @@ class EReg {
 
 		If `s` is `null`, the result is unspecified.
 	**/
-	public function match( s : String ) : Bool {
+	public inline function match( s : String ) : Bool {
 		matchObj = Re.search(pattern, s);
 		return matchObj != null;
 	}
@@ -55,7 +55,7 @@ class EReg {
 
 		If `n` equals 0, the whole matched substring is returned.
 	**/
-	public function matched( n : Int ) : String {
+	public inline function matched( n : Int ) : String {
 		return matchObj.group(n);
 	}
 
@@ -70,7 +70,7 @@ class EReg {
 
 		The result does not include the matched part.
 	**/
-	public function matchedLeft() : String {
+	public inline function matchedLeft() : String {
 		return matchObj.string.substr(0, matchObj.start());
 	}
 
@@ -85,7 +85,7 @@ class EReg {
 
 		The result does not include the matched part.
 	**/
-	public function matchedRight() : String {
+	public inline function matchedRight() : String {
 		return matchObj.string.substr(matchObj.end());
 	}
 
@@ -100,7 +100,7 @@ class EReg {
 		If the global g modifier was in place for the matching, the position and
 		length of the leftmost substring is returned.
 	**/
-	public function matchedPos() : { pos : Int, len : Int } {
+	public inline function matchedPos() : { pos : Int, len : Int } {
 		return { pos : matchObj.start(), len : matchObj.end() - matchObj.start() };
 	}
 
