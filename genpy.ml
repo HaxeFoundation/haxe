@@ -1016,7 +1016,7 @@ module Printer = struct
 			| TBinop(OpAdd,e1,e2) when (match follow e.etype with TDynamic _ -> true | _ -> false) ->
 				Printf.sprintf "python_Boot._add_dynamic(%s,%s)" (print_expr pctx e1) (print_expr pctx e2);
 			| TBinop(op,e1,e2) ->
-				Printf.sprintf "%s %s %s" (print_expr pctx e1) (print_binop op) (print_expr pctx e2)
+				Printf.sprintf "(%s %s %s)" (print_expr pctx e1) (print_binop op) (print_expr pctx e2)
 			| TField(e1,fa) ->
 				print_field pctx e1 fa false
 			| TParenthesis e1 ->
