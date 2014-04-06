@@ -101,36 +101,7 @@ class Reflect {
 
 	public static function fields( o : Dynamic ) : Array<String>
 	{
-		var a = [];
-		if (o != null)
-		{
-			if (Builtin.hasattr(o, "_hx_fields"))
-			{
-
-				var fields:Array<String> = o._hx_fields;
-				return fields.copy();
-			}
-			if (Builtin.isinstance(o, AnonObject))
-			{
-
-				var d:Dict<String, Dynamic> = Builtin.getattr(o, "__dict__");
-				var keys  = d.keys();
-				var handler = unhandleKeywords;
-				Syntax.pythonCode("for k in keys:");
-				Syntax.pythonCode("	a.append(handler(k))");
-
-			}
-			else if (Builtin.hasattr(o, "__dict__"))
-			{
-				var a = [];
-				var d:Dict<String, Dynamic> = Syntax.field(o, "__dict__");
-				var keys = Syntax.callField(d, "keys");
-				Syntax.pythonCode("for k in keys:");
-				Syntax.pythonCode("	a.append(k)");
-
-			}
-		}
-		return a;
+		return python.Boot.fields(o);
 	}
 
 	public static function isFunction( f : Dynamic ) : Bool
