@@ -55,7 +55,6 @@ class StringBuf {
 	public var length(get, never):Int;
 
 	public function get_length ():Int {
-		// TODO improve implementation like f.seek(0, 2) size = f.tell() f.seek(0)
 		var pos = b.tell();
 		b.seek(0, SeekSet.SeekEnd);
 		var len = b.tell();
