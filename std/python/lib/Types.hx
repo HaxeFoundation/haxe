@@ -10,8 +10,18 @@ abstract Choice <A,B>(Dynamic) {
 	@:from public static inline function fromB <A,B>(x:B):Choice<A,B> return cast x;
 }
 
-abstract KwArgs (Dict<String, Dynamic>) to Dict<String, Dynamic> from Dict<String, Dynamic>
+abstract KwArgs (Dict<String, Dynamic>)
 {
+	inline function new (d:Dict<String, Dynamic>) this = d;
+
+	@:to inline function toDict ():Dict<String, Dynamic>
+	{
+		return this;
+	}
+	@:from static inline function fromDict (d:Dict<String, Dynamic>):KwArgs
+	{
+		return new KwArgs(d);
+	}
 
 	public function get <V>(key:String, def:V):V
 	{
@@ -19,9 +29,18 @@ abstract KwArgs (Dict<String, Dynamic>) to Dict<String, Dynamic> from Dict<Strin
 	}
 }
 
-abstract VarArgs (Array<Dynamic>) to Array<Dynamic> from Array<Dynamic>
+abstract VarArgs (Array<Dynamic>)
 {
+	inline function new (d:Array<Dynamic>) this = d;
 
+	@:to inline function toArray ():Array<Dynamic>
+	{
+		return this;
+	}
+	@:from static inline function fromArray (d:Array<Dynamic>):VarArgs
+	{
+		return new VarArgs(d);
+	}
 }
 
 
