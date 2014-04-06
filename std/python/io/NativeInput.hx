@@ -49,7 +49,7 @@ class NativeInput extends Input{
 	{
 		var pos = switch(pos)
 		{
-			case SeekBegin: SeekSet.SeekStart;
+			case SeekBegin: SeekSet.SeekSet;
 			case SeekCur: SeekSet.SeekCur;
 			case SeekEnd: SeekSet.SeekEnd;
 		};

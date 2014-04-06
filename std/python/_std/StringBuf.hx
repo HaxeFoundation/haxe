@@ -21,6 +21,7 @@
  */
 
 import python.lib.Builtin;
+import python.lib.io.IOBase.SeekSet;
 import python.lib.io.StringIO;
 
 
@@ -47,15 +48,19 @@ class StringBuf {
 
 	private var b : StringIO;
 
-	public function new():Void {
+	public inline function new():Void {
 		this.b = new StringIO();
 	}
 
 	public var length(get, never):Int;
 
-	public inline function get_length ():Int {
-		// TODO improve implementation
-		return toString().length;
+	public function get_length ():Int {
+		// TODO improve implementation like f.seek(0, 2) size = f.tell() f.seek(0)
+		var pos = b.tell();
+		b.seek(0, SeekSet.SeekEnd);
+		var len = b.tell();
+		b.seek(pos, SeekSet.SeekSet);
+		return len;
 	}
 
 	/**
@@ -75,7 +80,7 @@ class StringBuf {
 		b.write(s);
 	}
 
-/**
+	/**
 		Appends the character identified by [c] to [this] StringBuf.
 
 		If [c] is negative or has another invalid value, the result is
@@ -85,7 +90,7 @@ class StringBuf {
 		add1(String.fromCharCode(c));
 	}
 
-/**
+	/**
 		Appends a substring of [s] to [this] StringBuf.
 
 		This function expects [pos] and [len] to describe a valid substring of
@@ -101,7 +106,7 @@ class StringBuf {
 		add1((len == null ? s.substr(pos) : s.substr(pos, len)));
 	}
 
-/**
+	/**
 		Returns the content of [this] StringBuf as String.
 
 		The buffer is not emptied by this operation.

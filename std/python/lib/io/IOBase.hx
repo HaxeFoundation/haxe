@@ -2,7 +2,7 @@
 package python.lib.io;
 
 @:enum abstract SeekSet(Int) {
-	var SeekStart = 0;
+	var SeekSet = 0;
 	var SeekCur = 1;
 	var SeekEnd = 2;
 }
