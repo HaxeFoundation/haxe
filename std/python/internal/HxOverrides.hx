@@ -13,6 +13,9 @@ class HxOverrides {
 	// we need to modify the transformer to call Reflect directly
 
 	static public function iterator(x) {
+		if (Std.is(x, Array)) {
+			return (x:Array<Dynamic>).iterator();
+		}
 		return Reflect.callMethod(null, Reflect.field(x, "iterator"), []);
 	}
 
