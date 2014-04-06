@@ -46,7 +46,7 @@ import math as _hx_math
 		Boot.builtin = Syntax.pythonCode("_hx_builtin");
 	}
 
-	static function mkSet <T>(a:Array<T>):Set<T> return Syntax.callField(builtin, "set", a);
+	inline static function mkSet <T>(a:Array<T>):Set<T> return Syntax.callField(builtin, "set", a);
 
 	static var keywords:Set<String> = mkSet(
 	[
@@ -60,58 +60,57 @@ import math as _hx_math
 		"None",     "list",     "True",     "False"
 	]);
 
-	static function arrayJoin <T>(x:Array<T>, sep:String):String {
+	inline static function arrayJoin <T>(x:Array<T>, sep:String):String {
 		return Syntax.field(sep, "join")(x.map(python.Boot.toString));
 	}
 
-
-	static function isInstance(o:Dynamic, x:Dynamic):Bool {
+	inline static function isInstance(o:Dynamic, x:Dynamic):Bool {
 		return Syntax.callField(builtin, "isinstance", o, x);
 	}
 
-	static function builtinStr(o:Dynamic):String {
+	inline static function builtinStr(o:Dynamic):String {
 		return Syntax.callField(builtin, "str", o);
 	}
 
-	static function builtinHasAttr(o:Dynamic, x:String):Bool {
+	inline static function builtinHasAttr(o:Dynamic, x:String):Bool {
 		return Syntax.callField(builtin, "hasattr", o, x);
 	}
 
-	static function builtinGetAttr(o:Dynamic, x:String):Dynamic {
+	inline static function builtinGetAttr(o:Dynamic, x:String):Dynamic {
 		return Syntax.callField(builtin, "getattr", o, x);
 	}
 
-	static function isPyBool(o:Dynamic):Bool {
+	inline static function isPyBool(o:Dynamic):Bool {
 		return isInstance(o, Syntax.field(builtin, "bool"));
 	}
-	static function isPyInt(o:Dynamic):Bool {
+	inline static function isPyInt(o:Dynamic):Bool {
 		return isInstance(o, Syntax.field(builtin, "int"));
 	}
-	static function isPyFloat(o:Dynamic):Bool {
+	inline static function isPyFloat(o:Dynamic):Bool {
 		return isInstance(o, Syntax.field(builtin, "float"));
 	}
 
 
-	static function builtinLen(o:Dynamic):Int {
+	inline static function builtinLen(o:Dynamic):Int {
 		return Syntax.callField(builtin, "len", o);
 	}
-	static function builtinInt(o:Dynamic):Int {
+	inline static function builtinInt(o:Dynamic):Int {
 		return Syntax.callField(builtin, "int", o);
 	}
-	static function builtinCallable(o:Dynamic):Bool {
+	inline static function builtinCallable(o:Dynamic):Bool {
 		return Syntax.callField(builtin, "callable", o);
 	}
-	static function inspectGetMembers(o:Dynamic, f:String->Bool):Void {
+	inline static function inspectGetMembers(o:Dynamic, f:String->Bool):Void {
 		Syntax.callField(inspect, "getmembers", o, f);
 	}
 
-	static function inspectIsClass(o:Dynamic):Bool {
+	inline static function inspectIsClass(o:Dynamic):Bool {
 		return Syntax.callField(inspect, "isclass", o);
 	}
-	static function inspectIsFunction(o:Dynamic):Bool {
+	inline static function inspectIsFunction(o:Dynamic):Bool {
 		return Syntax.callField(inspect, "isclass", o);
 	}
-	static function inspectIsMethod(o:Dynamic):Bool {
+	inline static function inspectIsMethod(o:Dynamic):Bool {
 		return Syntax.callField(inspect, "isclass", o);
 	}
 
