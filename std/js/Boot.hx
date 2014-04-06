@@ -70,8 +70,13 @@ class Boot {
 	static inline function getClass(o:Dynamic) : Dynamic {
 		if (Std.is(o, Array))
 			return Array;
-		else
-			return untyped __define_feature__("js.Boot.getClass", o.__class__);
+		else {
+			var name = __nativeClassName(o);
+			if (name == "Object" || name == "Function")
+				return untyped __define_feature__("js.Boot.getClass", o.__class__);
+			else
+				return __resolveNativeClass(name);
+		}
 	}
 
 	@:ifFeature("may_print_enum")
@@ -180,11 +185,10 @@ class Boot {
 			return true;
 		default:
 			if( o != null ) {
-				// Check if o is an instance of a Haxe class
-				if( (untyped __js__("typeof"))(cl) == "function" ) {
-					if( untyped __js__("o instanceof cl") ) {
+				// Check if o is an instance of a Haxe class or a native JS object
+				if( (untyped __js__("typeof"))(cl) == "function" || __isNativeObj(cl) ) {
+					if( untyped __js__("o instanceof cl") )
 						return true;
-					}
 					if( __interfLoop(getClass(o),cl) )
 						return true;
 				}
@@ -201,6 +205,25 @@ class Boot {
 	@:ifFeature("typed_cast") private static function __cast(o : Dynamic, t : Dynamic) {
 		if (__instanceof(o, t)) return o;
 		else throw "Cannot cast " +Std.string(o) + " to " +Std.string(t);
+	}
+	
+	// get native JS [[Class]]
+	static function __nativeClassName(o:Dynamic):String {
+		return untyped __js__("{}.toString").call(o).slice(8, -1);
+	}
+	
+	// check for usable native JS object
+	static function __isNativeObj(o:Dynamic):Bool {
+		var name = __nativeClassName(o);
+		// exclude general Object and Function
+		// and also Math and JSON, because instanceof cannot be called on them
+		return name != "Object" && name != "Function" && name != "Math" && name != "JSON";
+	}
+	
+	// resolve native JS class (with window or global):
+	static function __resolveNativeClass(name:String) untyped {
+		var g = __js__("typeof")(window) != "undefined" ? window : global;
+		return g[name];
 	}
 
 }

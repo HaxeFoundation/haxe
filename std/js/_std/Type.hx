@@ -52,6 +52,8 @@ enum ValueType {
 
 	public static function getClassName( c : Class<Dynamic> ) : String {
 		var a : Array<String> = untyped c.__name__;
+		if (a == null)
+			return null;
 		return a.join(".");
 	}
 
@@ -64,7 +66,7 @@ enum ValueType {
 		var cl : Class<Dynamic> = $hxClasses[name];
 		// ensure that this is a class
 		if( cl == null || !js.Boot.isClass(cl) )
-			return null;
+			return js.Boot.__resolveNativeClass(name);
 		return cl;
 	}
 
