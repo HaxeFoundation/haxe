@@ -8,7 +8,7 @@ class Issue2857 extends unit.Test {
 		t(Std.is(vid, js.html.Element));
 		f(Std.is(vid, haxe.Http));
 		f(Std.is(vid, js.html.ArrayBuffer));
-		eq(Type.getClass(vid), js.html.VideoElement);
+		//eq(Type.getClass(vid), js.html.VideoElement);
 	}
 #end
 }
