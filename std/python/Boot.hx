@@ -3,6 +3,7 @@ package python;
 
 
 import python.internal.ArrayImpl;
+import python.internal.Internal;
 import python.internal.StringImpl;
 import python.internal.EnumImpl;
 import python.internal.HxOverrides;
@@ -10,7 +11,6 @@ import python.internal.HxException;
 import python.internal.AnonObject;
 
 import python.Syntax;
-
 
 private extern class Set <T>
 {
@@ -40,11 +40,12 @@ import math as _hx_math
 @:keep class Boot {
 
 	@:keep static function __init__ () {
-		Syntax.importAs("inspect", "_hx_boot_inspect");
-		Boot.inspect = Syntax.pythonCode("_hx_boot_inspect");
+		Internal.importAsPrefixed("inspect", "boot_inspect");
+		Boot.inspect = Internal.pythonCodePrefixed("boot_inspect");
 
-		Boot.builtin = Syntax.pythonCode("_hx_builtin");
+		Boot.builtin = Internal.pythonCodePrefixed("builtin");
 	}
+
 
 	inline static function mkSet <T>(a:Array<T>):Set<T> return Syntax.callField(builtin, "set", a);
 
@@ -229,6 +230,7 @@ import math as _hx_math
 			}
 			if (isInstance(o, Enum)) {
 
+				var o:EnumImpl = o;
 
 				var l = builtinLen(o.params);
 				var hasParams = l > 0;
@@ -248,21 +250,21 @@ import math as _hx_math
 			}
 
 
-			if (builtinHasAttr(o, "_hx_class_name") && Syntax.field(Syntax.field(o, "__class__"), "__name__") != "type") {
+			if (builtinHasAttr(o, Internal.classNameVal()) && Syntax.field(Syntax.field(o, "__class__"), "__name__") != "type") {
 
 				var fields = getInstanceFields(o);
 				var fieldsStr = [for (f in fields) '$f : ${toString1(field(o,f), s+"\t")}'];
 
-				var toStr = o._hx_class_name + "( " + arrayJoin(fieldsStr, ", ") + " )";
+				var toStr = Internal.fieldClassName(o) + "( " + arrayJoin(fieldsStr, ", ") + " )";
 				return toStr;
 			}
 
-			if (builtinHasAttr(o, "_hx_class_name") && Syntax.field(Syntax.field(o, "__class__"), "__name__") == "type") {
+			if (builtinHasAttr(o, Internal.classNameVal()) && Syntax.field(Syntax.field(o, "__class__"), "__name__") == "type") {
 
 				var fields = getClassFields(o);
 				var fieldsStr = [for (f in fields) '$f : ${toString1(field(o,f), s+"\t")}'];
 
-				var toStr = "#" + o._hx_class_name + "( " + arrayJoin(fieldsStr, ", ") + " )";
+				var toStr = "#" + Internal.fieldClassName(o) + "( " + arrayJoin(fieldsStr, ", ") + " )";
 				return toStr;
 			}
 			if (o == String) {
@@ -304,16 +306,16 @@ import math as _hx_math
 		var a = [];
 		if (o != null)
 		{
-			if (builtinHasAttr(o, "_hx_fields"))
+			if (builtinHasAttr(o, Internal.fieldsVal()))
 			{
-				var fields:Array<String> = Syntax.field(o, "_hx_fields");
+				var fields:Array<String> = Internal.fieldFields(o);
 				return fields.copy();
 			}
 			if (isInstance(o, AnonObject))
 			{
 
 				var d:Dynamic = Syntax.field(o, "__dict__");
-				var keys  = d.keys();
+				var keys = d.keys();
 				var handler = unhandleKeywords;
 
 				Syntax.pythonCode("for k in keys:");
@@ -323,8 +325,8 @@ import math as _hx_math
 			{
 				var a = [];
 				var d:Dynamic = Syntax.field(o, "__dict__");
-				var keys  = d.keys();
-				Syntax.pythonCode("for k in keys:");
+				var keys1  = d.keys();
+				Syntax.pythonCode("for k in keys1:");
 				Syntax.pythonCode("	a.append(k)");
 
 			}
@@ -384,9 +386,9 @@ import math as _hx_math
 
 
 	static function getInstanceFields( c : Class<Dynamic> ) : Array<String> {
-		var f = if (builtinHasAttr(c, "_hx_fields")) {
-			var x:Array<String> = Syntax.field(c, "_hx_fields");
-			var x2:Array<String> = Syntax.field(c, "_hx_methods");
+		var f = if (builtinHasAttr(c, Internal.fieldsVal())) {
+			var x:Array<String> = Internal.fieldFields(c);
+			var x2:Array<String> = Internal.fieldMethods(c);
 			x.concat(x2);
 		} else {
 			[];
@@ -415,8 +417,8 @@ import math as _hx_math
 			return null;
 
 		try {
-			if (builtinHasAttr(c, "_hx_super")) {
-				return Syntax.field(c, "_hx_super");
+			if (builtinHasAttr(c, Internal.superVal())) {
+				return Internal.fieldSuper(c);
 			}
 			return null;
 		} catch (e:Dynamic) {
@@ -427,8 +429,8 @@ import math as _hx_math
 	}
 
 	static function getClassFields( c : Class<Dynamic> ) : Array<String> {
-		if (builtinHasAttr(c, "_hx_statics")) {
-			var x:Array<String> = Syntax.field(c, "_hx_statics");
+		if (builtinHasAttr(c, Internal.staticsVal()) ) {
+			var x:Array<String> = Internal.fieldStatics(c);
 			return x.copy();
 		} else {
 			return [];
@@ -440,14 +442,14 @@ import math as _hx_math
 	static inline function handleKeywords(name:String):String
 	{
 		if (keywords.has(name)) {
-			return "_hx_" + name;
+			return Internal.getPrefixed(name);
 		}
 		return name;
 	}
 
 	static function unhandleKeywords(name:String):String
 	{
-		if (name.substr(0,4) == "_hx_") {
+		if (name.substr(0,4) == Internal.prefix()) {
 			var real = name.substr(4);
 			if (keywords.has(real)) return real;
 		}
