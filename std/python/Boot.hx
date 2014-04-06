@@ -171,11 +171,7 @@ import math as _hx_math
 			}
 		}
 
-
 		if (inspectIsFunction(o) || inspectIsMethod(o)) return "<function>";
-
-
-
 
 		if (isInstance(o, Array))
 		{
@@ -250,7 +246,7 @@ import math as _hx_math
 			}
 
 
-			if (builtinHasAttr(o, Internal.classNameVal()) && Syntax.field(Syntax.field(o, "__class__"), "__name__") != "type") {
+			if (Internal.hasClassName(o) && Syntax.field(Syntax.field(o, "__class__"), "__name__") != "type") {
 
 				var fields = getInstanceFields(o);
 				var fieldsStr = [for (f in fields) '$f : ${toString1(field(o,f), s+"\t")}'];
@@ -259,7 +255,7 @@ import math as _hx_math
 				return toStr;
 			}
 
-			if (builtinHasAttr(o, Internal.classNameVal()) && Syntax.field(Syntax.field(o, "__class__"), "__name__") == "type") {
+			if (Internal.hasClassName(o) && Syntax.field(Syntax.field(o, "__class__"), "__name__") == "type") {
 
 				var fields = getClassFields(o);
 				var fieldsStr = [for (f in fields) '$f : ${toString1(field(o,f), s+"\t")}'];
@@ -306,7 +302,7 @@ import math as _hx_math
 		var a = [];
 		if (o != null)
 		{
-			if (builtinHasAttr(o, Internal.fieldsVal()))
+			if (Internal.hasFields(o))
 			{
 				var fields:Array<String> = Internal.fieldFields(o);
 				return fields.copy();
@@ -386,7 +382,7 @@ import math as _hx_math
 
 
 	static function getInstanceFields( c : Class<Dynamic> ) : Array<String> {
-		var f = if (builtinHasAttr(c, Internal.fieldsVal())) {
+		var f = if (Internal.hasFields(c)) {
 			var x:Array<String> = Internal.fieldFields(c);
 			var x2:Array<String> = Internal.fieldMethods(c);
 			x.concat(x2);
@@ -417,7 +413,7 @@ import math as _hx_math
 			return null;
 
 		try {
-			if (builtinHasAttr(c, Internal.superVal())) {
+			if (Internal.hasSuper(c)) {
 				return Internal.fieldSuper(c);
 			}
 			return null;
@@ -429,7 +425,7 @@ import math as _hx_math
 	}
 
 	static function getClassFields( c : Class<Dynamic> ) : Array<String> {
-		if (builtinHasAttr(c, Internal.staticsVal()) ) {
+		if (Internal.hasStatics(c)) {
 			var x:Array<String> = Internal.fieldStatics(c);
 			return x.copy();
 		} else {
@@ -447,10 +443,12 @@ import math as _hx_math
 		return name;
 	}
 
+	static var prefixLength = Internal.prefix().length;
+
 	static function unhandleKeywords(name:String):String
 	{
-		if (name.substr(0,4) == Internal.prefix()) {
-			var real = name.substr(4);
+		if (name.substr(0,prefixLength) == Internal.prefix()) {
+			var real = name.substr(prefixLength);
 			if (keywords.has(real)) return real;
 		}
 		return name;

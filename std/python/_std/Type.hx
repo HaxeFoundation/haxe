@@ -52,7 +52,7 @@ enum ValueType {
 
 		if (python.Boot.isAnonObject(o)) return null;
 
-		if (Builtin.hasattr(o, Internal.classVal())) {
+		if (Internal.hasClass(o)) {
 			return Internal.fieldClass(o);
 		}
 		if (Builtin.hasattr(o, "__class__")) {
@@ -73,11 +73,8 @@ enum ValueType {
 
 	}
 
-
-	public static function getClassName( c : Class<Dynamic> ) : String
-	{
-
-		if (Builtin.hasattr(c, Internal.classNameVal())) {
+	public static function getClassName( c : Class<Dynamic> ) : String {
+		if (Internal.hasClassName(c)) {
 			return Internal.fieldClassName(c);
 		} else {
 			// not a haxe class
@@ -117,7 +114,7 @@ enum ValueType {
 	public static function resolveEnum( name : String ) : Enum<Dynamic> {
 		if (name == "Bool") return cast Bool;
 		var o = resolveClass(name);
-		return if (Builtin.hasattr(o, Internal.constructsVal())) cast o else null;
+		return if (Internal.hasConstructs(o)) cast o else null;
 	}
 
 	public static function createInstance<T>( cl : Class<T>, args : Array<Dynamic> ) : T
