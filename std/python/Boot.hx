@@ -125,7 +125,7 @@ import math as _hx_math
 		return o != null && (o == String || inspectIsClass(o));
 	}
 
-	@:keep static function isAnonObject (o:Dynamic) {
+	@:keep static inline function isAnonObject (o:Dynamic) {
 		return isInstance(o, AnonObject);
 	}
 
