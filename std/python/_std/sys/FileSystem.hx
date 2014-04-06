@@ -60,20 +60,20 @@ class FileSystem {
 	{
 		return Path.isdir(path);
 	}
-	public static function createDirectory( path : String ) : Void
-	{
-		Os.mkdir(path);
+
+	public static function createDirectory( path : String ) : Void {
+		Os.makedirs(path, 511, true);
 	}
-	public static function deleteFile( path : String ) : Void
-	{
+
+	public static function deleteFile( path : String ) : Void {
 		Os.remove(path);
 	}
-	public static function deleteDirectory( path : String ) : Void
-	{
+
+	public static function deleteDirectory( path : String ) : Void {
 		Os.rmdir(path);
 	}
-	public static function readDirectory( path : String ) : Array<String>
-	{
+
+	public static function readDirectory( path : String ) : Array<String> {
 		return Os.listdir(path);
 	}
 
