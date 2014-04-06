@@ -4,6 +4,7 @@ package python.io;
 import haxe.io.Eof;
 import haxe.io.Input;
 
+import python.lib.Builtin;
 import python.lib.io.RawIOBase;
 import python.lib.io.IOBase.SeekSet;
 
@@ -55,18 +56,21 @@ class NativeInput extends Input{
 		stream.seek(p, pos);
 	}
 
-	/*
-	override public function readBytes(s:Bytes, pos:Int, len:Int):Int
+
+	override public function readBytes(s:haxe.io.Bytes, pos:Int, len:Int):Int
 	{
 		if( pos < 0 || len < 0 || pos + len > s.length )
-			throw Error.OutsideBounds;
+			throw haxe.io.Error.OutsideBounds;
 
-		var ret = stream.Read(s.getData(), pos, len);
+		stream.seek(pos, python.lib.io.IOBase.SeekSet.SeekCur);
+		var ba = Builtin.bytearray(len);
+		var ret = stream.readinto(ba);
+		s.blit(pos, haxe.io.Bytes.ofData(ba) ,0,len);
 		if (ret == 0)
 			throw new Eof();
 		return ret;
 	}
-	*/
+
 
 	/*
 
