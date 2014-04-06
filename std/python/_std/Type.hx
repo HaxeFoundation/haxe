@@ -1,5 +1,6 @@
 import python.internal.AnonObject;
 import python.internal.EnumImpl;
+import python.internal.Internal;
 import python.lib.Builtin;
 import python.Syntax;
 
@@ -51,8 +52,8 @@ enum ValueType {
 
 		if (python.Boot.isAnonObject(o)) return null;
 
-		if (Builtin.hasattr(o, "_hx_class")) {
-			return Syntax.field(o, "_hx_class");
+		if (Builtin.hasattr(o, Internal.classVal())) {
+			return Internal.fieldClass(o);
 		}
 		if (Builtin.hasattr(o, "__class__")) {
 			return Syntax.field(o, "__class__");
@@ -76,8 +77,8 @@ enum ValueType {
 	public static function getClassName( c : Class<Dynamic> ) : String
 	{
 
-		if (Builtin.hasattr(c, "_hx_class_name")) {
-			return Syntax.field(c, "_hx_class_name");
+		if (Builtin.hasattr(c, Internal.classNameVal())) {
+			return Internal.fieldClassName(c);
 		} else {
 			// not a haxe class
 			if (c == Array) return "Array";
@@ -97,16 +98,16 @@ enum ValueType {
 	}
 
 	public static function getEnumName( e : Enum<Dynamic> ) : String {
-		return Syntax.field(e, "_hx_class_name");
+		return Internal.fieldClassName(e);
 	}
 
 	public static function resolveClass( name : String ) : Class<Dynamic>
 	{
-
 		if (name == "Array") return Array;
 		if (name == "Math") return Math;
 		if (name == "String") return String;
-		var cl : Class<Dynamic> = (untyped _hx_classes : python.lib.Types.Dict<String, Class<Dynamic>>).get(name, null);
+
+		var cl : Class<Dynamic> = Internal.classRegistry().get(name, null);
 		// ensure that this is a class
 		if( cl == null || !python.Boot.isClass(cl) )
 				return null;
@@ -116,7 +117,7 @@ enum ValueType {
 	public static function resolveEnum( name : String ) : Enum<Dynamic> {
 		if (name == "Bool") return cast Bool;
 		var o = resolveClass(name);
-		return if (Builtin.hasattr(o, "_hx_constructs")) cast o else null;
+		return if (Builtin.hasattr(o, Internal.constructsVal())) cast o else null;
 	}
 
 	public static function createInstance<T>( cl : Class<T>, args : Array<Dynamic> ) : T
@@ -157,8 +158,8 @@ enum ValueType {
 			if (sc != null) {
 				callInit(sc);
 			}
-			if (Builtin.hasattr(cl, "_hx_empty_init")) {
-				Syntax.callField(cl, "_hx_empty_init", i);
+			if (Builtin.hasattr(cl, Internal.emptyInitVal())) {
+				Internal.callEmptyInit(cl, i);
 			}
 		}
 		callInit(cl);
@@ -182,7 +183,7 @@ enum ValueType {
 
 	public static function createEnumIndex<T>( e : Enum<T>, index : Int, ?params : Array<Dynamic> ) : T {
 
-		var c : String = Syntax.field(e, "_hx_constructs")[index];
+		var c : String = Internal.fieldConstructs(e)[index];
 		if( c == null ) throw index+" is not a valid enum constructor index";
 		return createEnum(e,c,params);
 	}
@@ -196,8 +197,8 @@ enum ValueType {
 	}
 
 	public static function getEnumConstructs( e : Enum<Dynamic> ) : Array<String> {
-		if (Builtin.hasattr(e, "_hx_constructs")) {
-			var x:Array<String> = Syntax.field(e, "_hx_constructs");
+		if (Builtin.hasattr(e, Internal.constructsVal())) {
+			var x:Array<String> = Internal.fieldConstructs(e);
 			return x.copy();
 		} else {
 			return [];
@@ -225,7 +226,7 @@ enum ValueType {
 		else if (Builtin.isinstance(v, Enum)) {
 			return TEnum(Syntax.field(v, "__class__"));
 		}
-		else if (Builtin.isinstance(v, Builtin.type) || Builtin.hasattr(v, "_hx_class")) {
+		else if (Builtin.isinstance(v, Builtin.type) || Builtin.hasattr(v, Internal.classVal())) {
 			return TClass(Syntax.field(v, "__class__"));
 		} else if (Builtin.callable(v)) {
 			return TFunction;
@@ -254,7 +255,7 @@ enum ValueType {
 					return false;
 			//var e = Type.getClass(a);
 
-			if( Syntax.field(a, "_hx_class") != Syntax.field(b, "_hx_class"))
+			if( Internal.fieldClass(a) != Internal.fieldClass(b))
 				return false;
 		} catch( e : Dynamic ) {
 			return false;
