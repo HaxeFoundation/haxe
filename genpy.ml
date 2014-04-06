@@ -774,9 +774,9 @@ module Transformer = struct
 		| (is_value, TCast(e1,Some mt)) ->
 			let e = Codegen.default_cast ~vtmp:(ae.a_next_id()) (match !como with Some com -> com | None -> assert false) e1 mt ae.a_expr.etype ae.a_expr.epos in
 			transform_expr ~is_value:is_value e
-		| (is_value, TCast(e,t)) ->
+		| (is_value, TCast(e,None)) ->
 			let e = trans is_value [] e in
-			let r = { a_expr with eexpr = e.a_expr.eexpr; etype = a_expr.etype } in
+			let r = { a_expr with eexpr = TCast(e.a_expr, None)} in
 			lift_expr ~blocks:e.a_blocks r
 		| (_, TField(e,f)) ->
 			let e = trans true [] e in
