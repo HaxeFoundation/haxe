@@ -159,4 +159,24 @@ class TestPython extends Test {
 			e = 1;
 		}
 	}
+
+	var _s:String;
+
+	var s(get, null):String;
+	var s2(null, set_s2):String;
+	var s3(get, set):String;
+
+	function get_s() return s;
+	function set_s2(s) return s2 = s;
+	function get_s3() return _s;
+	function set_s3(s) return _s = s;
+
+    function testPropertyInit() {
+		s += "a";
+		s2 += "b";
+		s3 += "c";
+		eq("nulla", s);
+		eq("nullb", s2);
+		eq("nullc", s3);
+    }
 }

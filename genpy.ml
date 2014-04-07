@@ -1432,7 +1432,7 @@ module Generator = struct
 
 	let get_members_with_init_expr c =
 		List.filter (fun cf -> match cf.cf_kind with
-			| Var({v_read = AccResolve | AccCall _}) -> false
+			| Var _ when is_extern_field cf -> false
 			| Var _ when cf.cf_expr = None -> true
 			| _ -> false
 		) c.cl_ordered_fields
