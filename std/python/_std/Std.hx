@@ -39,6 +39,7 @@ import python.Syntax;
 		}
 	}
 
+	@:access(python.Boot.getSuperClass)
 	public static function is( v : Dynamic, t : Dynamic ) : Bool {
 
 		if (v == null && t == null) {
@@ -89,6 +90,7 @@ import python.Syntax;
 		if (try Builtin.isinstance(v, t) catch (e:Dynamic) false) {
 			return true;
 		}
+
 		if (Inspect.isclass(t)) {
 
 			function loop (intf)
@@ -110,9 +112,14 @@ import python.Syntax;
 					return false;
 				}
 			}
-			return loop(Syntax.field(v, "__class__"));
-
-
+			var currentClass = Syntax.field(v, "__class__");
+			while(currentClass != null) {
+				if (loop(currentClass)) {
+					return true;
+				}
+				currentClass = python.Boot.getSuperClass(currentClass);
+			}
+			return false;
 		} else {
 			return false;
 		}

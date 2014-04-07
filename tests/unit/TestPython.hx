@@ -15,6 +15,14 @@ private enum MyEnum {
 	False;
 }
 
+private interface IA {}
+
+private class A implements IA { }
+
+private class B extends A {
+    public function new() {}
+}
+
 class TestPython extends Test {
 
 	public function testDoWhileAsExpression () {
@@ -179,4 +187,8 @@ class TestPython extends Test {
 		eq("nullb", s2);
 		eq("nullc", s3);
     }
+
+	function testIsViaParentInterface() {
+		t(Std.is(new B(), IA));
+	}
 }
