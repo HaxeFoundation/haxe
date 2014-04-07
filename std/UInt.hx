@@ -31,7 +31,8 @@
 	The unsigned Int type is only defined for Flash9 and C#.
 	Simulate it for other platforms.
 **/
-abstract UInt(Int) from Int to Int {
+@:coreType
+abstract UInt from Int {
 
 	@:op(A + B) private static inline function add(a:UInt, b:UInt):UInt {
 		return a.toInt() + b.toInt();
@@ -200,10 +201,6 @@ abstract UInt(Int) from Int to Int {
 		return Std.string(toFloat());
 	}
 
-	private inline function toInt():Int {
-		return this;
-	}
-
 	@:to private inline function toFloat():Float {
 		var int = toInt();
 		if (int < 0) {
@@ -215,5 +212,10 @@ abstract UInt(Int) from Int to Int {
 			return int + 0.0;
 		}
 	}
+
+	@:to private inline function toInt():Int {
+		return cast this;
+	}
+
 }
 #end
