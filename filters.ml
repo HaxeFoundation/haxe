@@ -1118,13 +1118,7 @@ let run com tctx main =
 	if not (Common.defined com Define.As3 || dce_mode = "no" || Common.defined com Define.DocGen) then Dce.run com main (dce_mode = "full" && not (Common.defined com Define.Interp));
 	(* always filter empty abstract implementation classes (issue #1885) *)
 	List.iter (fun mt -> match mt with
-		| TClassDecl({cl_kind = KAbstractImpl _} as c) ->
-			let is_runtime_field cf =
-				not (Meta.has Meta.Enum cf.cf_meta)
-			in
-			(* also filter abstract implementation classes that have only @:enum fields (issue #2858) *)
-			if not (Meta.has Meta.Used c.cl_meta) || not (List.exists is_runtime_field c.cl_ordered_statics) then
-				c.cl_extern <- true
+		| TClassDecl({cl_kind = KAbstractImpl _} as c) when c.cl_ordered_statics = [] && c.cl_ordered_fields = [] && not (Meta.has Meta.Used c.cl_meta) -> c.cl_extern <- true
 		| _ -> ()
 	) com.types;
 	(* PASS 3: type filters *)
