@@ -1,6 +1,4 @@
-
 package python;
-
 
 import python.internal.ArrayImpl;
 import python.internal.Internal;
@@ -12,16 +10,16 @@ import python.internal.AnonObject;
 
 import python.Syntax;
 
-private extern class Set <T>
-{
-	public inline function has (v:T):Bool
-	{
+private extern class Set<T> {
+	public inline function has (v:T):Bool {
 		return python.Syntax.isIn(v, this);
 	}
 }
 
 @:preCode("
 import builtins as _hx_builtin
+import functools as _hx_functools
+import math as _hx_math
 
 _hx_classes = dict()
 
@@ -31,11 +29,7 @@ class _hx_AnonObject(object):
 
 _hx_c = _hx_AnonObject({})
 
-
 _hx_c._hx_AnonObject = _hx_AnonObject
-
-import functools as _hx_functools
-import math as _hx_math
 ")
 @:keep class Boot {
 
@@ -84,23 +78,27 @@ import math as _hx_math
 	inline static function isPyBool(o:Dynamic):Bool {
 		return isInstance(o, Syntax.field(builtin, "bool"));
 	}
+
 	inline static function isPyInt(o:Dynamic):Bool {
 		return isInstance(o, Syntax.field(builtin, "int"));
 	}
+
 	inline static function isPyFloat(o:Dynamic):Bool {
 		return isInstance(o, Syntax.field(builtin, "float"));
 	}
 
-
 	inline static function builtinLen(o:Dynamic):Int {
 		return Syntax.callField(builtin, "len", o);
 	}
+
 	inline static function builtinInt(o:Dynamic):Int {
 		return Syntax.callField(builtin, "int", o);
 	}
+
 	inline static function builtinCallable(o:Dynamic):Bool {
 		return Syntax.callField(builtin, "callable", o);
 	}
+
 	inline static function inspectGetMembers(o:Dynamic, f:String->Bool):Void {
 		Syntax.callField(inspect, "getmembers", o, f);
 	}
@@ -115,12 +113,8 @@ import math as _hx_math
 		return Syntax.callField(inspect, "isclass", o);
 	}
 
-
-
 	static var builtin:Dynamic;
 	static var inspect:Dynamic;
-
-
 
 	@:keep static inline function isClass(o:Dynamic) : Bool {
 		return o != null && (o == String || inspectIsClass(o));
@@ -129,7 +123,6 @@ import math as _hx_math
 	@:keep static inline function isAnonObject (o:Dynamic) {
 		return isInstance(o, AnonObject);
 	}
-
 
 	@:keep private static function _add_dynamic(a:Dynamic,b:Dynamic):Dynamic
 	{
@@ -300,15 +293,12 @@ import math as _hx_math
 
 	static function fields (o:Dynamic) {
 		var a = [];
-		if (o != null)
-		{
-			if (Internal.hasFields(o))
-			{
+		if (o != null) {
+			if (Internal.hasFields(o)) {
 				var fields:Array<String> = Internal.fieldFields(o);
 				return fields.copy();
 			}
-			if (isInstance(o, AnonObject))
-			{
+			if (isInstance(o, AnonObject)) {
 
 				var d:Dynamic = Syntax.field(o, "__dict__");
 				var keys = d.keys();
@@ -317,8 +307,7 @@ import math as _hx_math
 				Syntax.pythonCode("for k in keys:");
 				Syntax.pythonCode("	a.append(handler(k))");
 			}
-			else if (builtinHasAttr(o, "__dict__"))
-			{
+			else if (builtinHasAttr(o, "__dict__")) {
 				var a = [];
 				var d:Dynamic = Syntax.field(o, "__dict__");
 				var keys1  = d.keys();
@@ -333,12 +322,12 @@ import math as _hx_math
 	static inline function isString (o:Dynamic):Bool {
 		return isInstance(o, String);
 	}
+
 	static inline function isArray (o:Dynamic):Bool {
 		return isInstance(o, Array);
 	}
 
-	@:keep static function field( o : Dynamic, field : String ) : Dynamic
-	{
+	@:keep static function field( o : Dynamic, field : String ) : Dynamic {
 		if (field == null) return null;
 
 		switch (field) {
@@ -435,8 +424,7 @@ import math as _hx_math
 
 
 
-	static inline function handleKeywords(name:String):String
-	{
+	static inline function handleKeywords(name:String):String {
 		if (keywords.has(name)) {
 			return Internal.getPrefixed(name);
 		}
@@ -445,8 +433,7 @@ import math as _hx_math
 
 	static var prefixLength = Internal.prefix().length;
 
-	static function unhandleKeywords(name:String):String
-	{
+	static function unhandleKeywords(name:String):String {
 		if (name.substr(0,prefixLength) == Internal.prefix()) {
 			var real = name.substr(prefixLength);
 			if (keywords.has(real)) return real;
