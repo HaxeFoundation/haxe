@@ -152,4 +152,11 @@ class TestPython extends Test {
 
 		eq(8, res2);
 	}
+
+	function testNonLocal() {
+		try { }
+		catch (e:Dynamic) {
+			e = 1;
+		}
+	}
 }

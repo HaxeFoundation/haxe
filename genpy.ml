@@ -167,53 +167,60 @@ module Transformer = struct
 			e_set_field;
 		]) e_set_field.etype e_set_field.epos
 
-
-	let add_non_locals_to_func e =
-		match e.eexpr with
-		| TFunction f ->
-
-			let local_vars =
-				let h = Hashtbl.create 0 in
-				let fn (tvar, _) =
-					let x = tvar.v_name in
-					Hashtbl.add h x x;
-				in
-				List.iter fn f.tf_args;
-				h
+	let add_non_locals_to_func e = match e.eexpr with
+		| TFunction tf ->
+			let cur = ref PMap.empty in
+			let save () =
+				let prev = !cur in
+				(fun () ->
+					cur := prev
+				)
 			in
+			let declare v =
+				cur := PMap.add v.v_id v !cur;
+			in
+			List.iter (fun (v,_) -> declare v) tf.tf_args;
 			let non_locals = Hashtbl.create 0 in
-
-			let rec it lv e =
-				let maybe_continue x =
-					match x.eexpr with
-					| TFunction(_) -> ()
-					| _ ->
-						Type.iter (it (Hashtbl.copy lv)) x;
-						()
-				in
-				match e.eexpr with
-				| TVar(v,expr) ->
-					(match expr with
-					| Some x -> maybe_continue x; ()
-					| None -> ());
-					Hashtbl.add lv v.v_name v.v_name;
-					()
-				| TBinop( (OpAssign | OpAssignOp(_)) , { eexpr = TLocal( { v_name = x })}, e2) ->
-					if not (Hashtbl.mem lv x) then
-						Hashtbl.add non_locals x x;
+			let rec it e = match e.eexpr with
+				| TVar(v,e1) ->
+					begin match e1 with
+						| Some e ->
+							maybe_continue e
+						| None ->
+							()
+					end;
+					declare v;
+				| TTry(e1,catches) ->
+					it e1;
+					List.iter (fun (v,e) ->
+						let restore = save() in
+						declare v;
+						it e;
+						restore()
+					) catches;
+				| TBinop( (OpAssign | OpAssignOp(_)), { eexpr = TLocal v }, e2) ->
+					if not (PMap.mem v.v_id !cur) then
+						Hashtbl.add non_locals v.v_id v;
 					maybe_continue e2;
+				| TFunction _ ->
 					()
-				| TFunction(_) -> ()
-				| _ -> Type.iter (it (Hashtbl.copy lv)) e; ()
+				| _ ->
+					Type.iter it e
+			and maybe_continue e = match e.eexpr with
+				| TFunction _ ->
+					()
+				| _ ->
+					it e
 			in
-
-			Type.iter (it local_vars) f.tf_expr;
-			let keys = Hashtbl.fold (fun k _ acc -> k :: acc) non_locals [] in
-			let non_local_exprs = List.map (fun (k) -> create_non_local k f.tf_expr.epos) keys in
-			let new_exprs = List.append non_local_exprs [f.tf_expr] in
-			let f = { f with tf_expr = { f.tf_expr with eexpr = TBlock(new_exprs)}} in
-			{e with eexpr = TFunction f }
-		| _ -> assert false
+			it tf.tf_expr;
+			let el = Hashtbl.fold (fun k v acc ->
+				(create_non_local v.v_name e.epos) :: acc
+			) non_locals [] in
+			let el = tf.tf_expr :: el in
+			let tf = { tf with tf_expr = { tf.tf_expr with eexpr = TBlock(List.rev el)}} in
+			{e with eexpr = TFunction tf}
+		| _ ->
+			assert false
 
 	let rec transform_function tf ae is_value =
 		let p = tf.tf_expr.epos in
