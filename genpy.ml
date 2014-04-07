@@ -845,13 +845,15 @@ module Printer = struct
 	type print_context = {
 		pc_indent : string;
 		pc_next_anon_func : unit -> string;
+		pc_debug : bool;
 	}
 
 	let create_context =
 		let n = ref (-1) in
-		(fun indent -> {
+		(fun indent debug -> {
 				pc_indent = indent;
 				pc_next_anon_func = (fun () -> incr n; Printf.sprintf "anon_%i" !n);
+				pc_debug = debug;
 			}
 		)
 
@@ -1088,7 +1090,7 @@ module Printer = struct
 			| TBlock el ->
 				let old = !tabs in
 				tabs := pctx.pc_indent;
-				let s = print_exprs pctx ("\n" ^ !tabs) el in
+				let s = print_block_exprs pctx ("\n" ^ !tabs) pctx.pc_debug el in
 				tabs := old;
 				Printf.sprintf "%s\n" s
 			| TFor(v,e1,e2) ->
@@ -1326,6 +1328,16 @@ module Printer = struct
 	and print_exprs pctx sep el =
 		String.concat sep (List.map (print_expr pctx) el)
 
+	and print_block_exprs pctx sep print_debug_comment el =
+		if print_debug_comment then begin
+			let el = List.fold_left (fun acc e ->
+				let line = Lexer.get_error_line e.epos in
+				(print_expr pctx e) :: (Printf.sprintf "# %s:%i" e.epos.pfile line) :: acc
+			) [] el in
+			String.concat sep (List.rev el)
+		end else
+			print_exprs pctx sep el
+
 	and print_exprs_named pctx sep fl =
 		let args = String.concat sep (List.map (fun (s,e) -> Printf.sprintf "'%s': %s" (handle_keywords s) (print_expr pctx e)) fl) in
 		Printf.sprintf "{%s}" args
@@ -1476,7 +1488,7 @@ module Generator = struct
 		) metas
 
 	let gen_expr ctx e field indent =
-		let pctx = Printer.create_context ("\t" ^ indent) in
+		let pctx = Printer.create_context ("\t" ^ indent) ctx.com.debug in
 		let e = match e.eexpr with
 			| TFunction(f) ->
 				{e with eexpr = TBlock [e]}
@@ -1516,7 +1528,7 @@ module Generator = struct
 					print ctx "%s%s = %s" indent field expr_string_2
 
 	let gen_func_expr ctx e c name metas extra_args indent stat =
-		let pctx = Printer.create_context indent in
+		let pctx = Printer.create_context indent ctx.com.debug in
 		let e = match e.eexpr with
 			| TFunction(f) ->
 				let args = List.map (fun s ->
@@ -1655,7 +1667,7 @@ module Generator = struct
 			| Some e ->
 				let f = fun () ->
 					let e = transform_expr e in
-					spr_line ctx (texpr_str e (Printer.create_context ""));
+					spr_line ctx (texpr_str e (Printer.create_context "" ctx.com.debug));
 				in
 				ctx.class_inits <- f :: ctx.class_inits
 
