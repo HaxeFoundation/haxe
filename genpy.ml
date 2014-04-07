@@ -1789,6 +1789,7 @@ module Generator = struct
 	let gen_type ctx mt = match mt with
 		| TClassDecl c -> gen_class ctx c
 		| TEnumDecl en -> gen_enum ctx en
+		| TAbstractDecl {a_path = [],"UInt"} -> ()
 		| TAbstractDecl a when Meta.has Meta.CoreType a.a_meta -> gen_abstract ctx a
 		| _ -> ()
 
