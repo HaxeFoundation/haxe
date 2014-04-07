@@ -1005,7 +1005,6 @@ module Printer = struct
 				Printf.sprintf "%s.params[%i]" (print_expr pctx e1) index
 			| TArray(e1,e2) ->
 				Printf.sprintf "HxOverrides.arrayGet(%s, %s)" (print_expr pctx e1) (print_expr pctx e2)
-
 			| TBinop(OpAssign,{eexpr = TArray(e1,e2)},e3) ->
 				Printf.sprintf "HxOverrides.arraySet(%s,%s,%s)" (print_expr pctx e1) (print_expr pctx e2) (print_expr pctx e3)
 			| TBinop(OpAssign,{eexpr = TField(ef1,fa)},e2) ->
@@ -1071,9 +1070,6 @@ module Printer = struct
 			| TNew(c,_,el) ->
 				let id = print_base_type (t_infos (TClassDecl c)) in
 				Printf.sprintf "%s(%s)" id (print_exprs pctx ", " el)
-			| TUnop(op,Postfix,e1) ->
-				assert false
-				(* Printf.sprintf "%s%s" (print_expr pctx e1) (print_unop op) *)
 			| TUnop(Not,Prefix,e1) ->
 				Printf.sprintf "(%s%s)" (print_unop Not) (print_expr pctx e1)
 			| TUnop(op,Prefix,e1) ->
@@ -1082,7 +1078,6 @@ module Printer = struct
 				print_function pctx tf None
 			| TVar (v,eo) ->
 				print_var pctx v eo
-
 			| TBlock [] ->
 				Printf.sprintf "pass\n%s" indent
 			| TBlock [{ eexpr = TBlock _} as b] ->
@@ -1093,12 +1088,6 @@ module Printer = struct
 				let s = print_block_exprs pctx ("\n" ^ !tabs) pctx.pc_debug el in
 				tabs := old;
 				Printf.sprintf "%s\n" s
-			| TFor(v,e1,e2) ->
-				assert false
-				(* let pctx2 = {pctx with pc_indent = "\t" ^ pctx.pc_indent} in
-				let ind1 = pctx.pc_indent in
-				let ind2 = pctx2.pc_indent in
-				Printf.sprintf "_it = %s\n%swhile _it.hasNext():\n%s%s = _it.next()\n%s%s" (print_expr pctx e1) ind1 ind2 v.v_name ind2 (print_expr pctx2 e2) *)
 			| TIf(econd,eif,(Some {eexpr = TIf _} as eelse)) ->
 				print_if_else pctx econd eif eelse true
 			| TIf(econd,eif,eelse) ->
@@ -1123,7 +1112,7 @@ module Printer = struct
 				Printf.sprintf "%s if %s else %s" (print_expr pctx eif) (print_expr pctx econd) (print_expr pctx eelse)
 			| TMeta(_,e1) ->
 				print_expr pctx e1
-			| TPatMatch _ | TSwitch _ | TCast(_, Some _) ->
+			| TPatMatch _ | TSwitch _ | TCast(_, Some _) | TFor _ | TUnop(_,Postfix,_) ->
 				assert false
 
 	and print_if_else pctx econd eif eelse as_elif =
@@ -1593,7 +1582,6 @@ module Generator = struct
 				newline ctx;
 				end
 		end
-
 
 	let gen_static_field ctx c p cf =
 		let p = get_path (t_infos (TClassDecl c)) in
