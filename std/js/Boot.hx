@@ -71,11 +71,13 @@ class Boot {
 		if (Std.is(o, Array))
 			return Array;
 		else {
+			var cl = untyped __define_feature__("js.Boot.getClass", o.__class__);
+			if (cl != null)
+				return cl;
 			var name = __nativeClassName(o);
-			if (name == "Object" || name == "Function")
-				return untyped __define_feature__("js.Boot.getClass", o.__class__);
-			else
+			if (name != null)
 				return __resolveNativeClass(name);
+			return null;
 		}
 	}
 
@@ -186,10 +188,14 @@ class Boot {
 		default:
 			if( o != null ) {
 				// Check if o is an instance of a Haxe class or a native JS object
-				if( (untyped __js__("typeof"))(cl) == "function" || __isNativeObj(cl) ) {
+				if( (untyped __js__("typeof"))(cl) == "function" ) {
 					if( untyped __js__("o instanceof cl") )
 						return true;
 					if( __interfLoop(getClass(o),cl) )
+						return true;
+				}
+				else if ( (untyped __js__("typeof"))(cl) == "object" && __isNativeObj(cl) ) {
+					if( untyped __js__("o instanceof cl") )
 						return true;
 				}
 			} else {
@@ -207,17 +213,21 @@ class Boot {
 		else throw "Cannot cast " +Std.string(o) + " to " +Std.string(t);
 	}
 	
+	static var __toStr = untyped __js__("{}.toString");
 	// get native JS [[Class]]
 	static function __nativeClassName(o:Dynamic):String {
-		return untyped __js__("{}.toString").call(o).slice(8, -1);
+		var name = untyped __toStr.call(o).slice(8, -1);
+		trace(name);
+		// exclude general Object and Function
+		// also exclude Math and JSON, because instanceof cannot be called on them
+		if (name == "Object" || name == "Function" || name == "Math" || name == "JSON")
+			return null;
+		return name;
 	}
 	
 	// check for usable native JS object
 	static function __isNativeObj(o:Dynamic):Bool {
-		var name = __nativeClassName(o);
-		// exclude general Object and Function
-		// and also Math and JSON, because instanceof cannot be called on them
-		return name != "Object" && name != "Function" && name != "Math" && name != "JSON";
+		return __nativeClassName(o) != null;
 	}
 	
 	// resolve native JS class (with window or global):

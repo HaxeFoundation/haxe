@@ -66,7 +66,7 @@ enum ValueType {
 		var cl : Class<Dynamic> = $hxClasses[name];
 		// ensure that this is a class
 		if( cl == null || !js.Boot.isClass(cl) )
-			return js.Boot.__resolveNativeClass(name);
+			return null;
 		return cl;
 	}
 
