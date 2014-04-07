@@ -43,7 +43,7 @@ class ArrayImpl {
 		return Syntax.field(builtin(), "list")(x);
 	}
 
-	@:keep public static inline function iterator<T>(x:Array<T>) : Iterator<T> {
+	public static inline function iterator<T>(x:Array<T>) : Iterator<T> {
 		return new HaxeIterator(Syntax.callField(x, "__iter__"));
 	}
 
@@ -93,7 +93,7 @@ class ArrayImpl {
 		return x.insert(0,e);
 	}
 
-	@:keep public static function remove<T>(x:Array<T>,e : T) : Bool {
+	public static function remove<T>(x:Array<T>,e : T) : Bool {
 		try {
 			Syntax.callField(x, "remove", e);
 			return true;
@@ -123,11 +123,11 @@ class ArrayImpl {
 		return res;
 	}
 
-	@:keep public static inline function map<S,T>(x:Array<T>, f : T -> S ) : Array<S> {
+	public static inline function map<S,T>(x:Array<T>, f : T -> S ) : Array<S> {
 		return Syntax.field(builtin(), "list")(Syntax.field(builtin(), "map")(f, x));
 	}
 
-	@:keep public static inline function filter<T>(x:Array<T>, f : T -> Bool ) : Array<T> {
+	public static inline function filter<T>(x:Array<T>, f : T -> Bool ) : Array<T> {
 		return Syntax.field(builtin(), "list")(Syntax.field(builtin(), "filter")(f, x));
 	}
 
@@ -139,13 +139,11 @@ class ArrayImpl {
 		Syntax.callField(a, "reverse");
 	}
 
-	@:keep private static inline function __get<T>(x:Array<T>, idx:Int):T
-	{
+	private static inline function __get<T>(x:Array<T>, idx:Int):T {
 		return if (idx < x.length && idx > -1) Syntax.arrayAccess(x, idx) else null;
 	}
 
-	@:keep private static inline function __set<T>(x:Array<T>, idx:Int, v:T):T
-	{
+	private static inline function __set<T>(x:Array<T>, idx:Int, v:T):T {
 		var l = x.length;
 		while (l < idx) {
 			x.push(null);
@@ -159,11 +157,11 @@ class ArrayImpl {
 		return v;
 	}
 
-	@:keep private static inline function __unsafe_get<T>(x:Array<T>,idx:Int):T {
+	private static inline function __unsafe_get<T>(x:Array<T>,idx:Int):T {
 		return Syntax.arrayAccess(x, idx);
 	}
 
-	@:keep private static inline function __unsafe_set<T>(x:Array<T>,idx:Int, val:T):T {
+	private static inline function __unsafe_set<T>(x:Array<T>,idx:Int, val:T):T {
 		Syntax.assign(Syntax.arrayAccess(x, idx), val);
 		return val;
 	}

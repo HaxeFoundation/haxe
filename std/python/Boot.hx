@@ -33,7 +33,7 @@ _hx_c._hx_AnonObject = _hx_AnonObject
 ")
 @:keep class Boot {
 
-	@:keep static function __init__ () {
+	static function __init__ () {
 		Internal.importAsPrefixed("inspect", "boot_inspect");
 		Boot.inspect = Internal.pythonCodePrefixed("boot_inspect");
 
@@ -106,9 +106,11 @@ _hx_c._hx_AnonObject = _hx_AnonObject
 	inline static function inspectIsClass(o:Dynamic):Bool {
 		return Syntax.callField(inspect, "isclass", o);
 	}
+
 	inline static function inspectIsFunction(o:Dynamic):Bool {
 		return Syntax.callField(inspect, "isclass", o);
 	}
+
 	inline static function inspectIsMethod(o:Dynamic):Bool {
 		return Syntax.callField(inspect, "isclass", o);
 	}
@@ -116,27 +118,26 @@ _hx_c._hx_AnonObject = _hx_AnonObject
 	static var builtin:Dynamic;
 	static var inspect:Dynamic;
 
-	@:keep static inline function isClass(o:Dynamic) : Bool {
+	static inline function isClass(o:Dynamic) : Bool {
 		return o != null && (o == String || inspectIsClass(o));
 	}
 
-	@:keep static inline function isAnonObject (o:Dynamic) {
+	static inline function isAnonObject (o:Dynamic) {
 		return isInstance(o, AnonObject);
 	}
 
-	@:keep private static function _add_dynamic(a:Dynamic,b:Dynamic):Dynamic
-	{
+	private static function _add_dynamic(a:Dynamic,b:Dynamic):Dynamic {
 		if (isInstance(a, String) || isInstance(b, String)) {
 			return toString1(a,"") + toString1(b,"");
 		}
 		return Syntax.binop(a, "+", b);
 	}
 
-	@:keep static function toString (o:Dynamic) {
+	static function toString (o:Dynamic) {
 		return toString1(o, "");
 	}
 
-	@:keep private static function toString1(o:Dynamic,s:String):String {
+	private static function toString1(o:Dynamic,s:String):String {
 
 		if (s == null) s = "";
 		if( o == null ) return "null";
@@ -327,7 +328,7 @@ _hx_c._hx_AnonObject = _hx_AnonObject
 		return isInstance(o, Array);
 	}
 
-	@:keep static function field( o : Dynamic, field : String ) : Dynamic {
+	static function field( o : Dynamic, field : String ) : Dynamic {
 		if (field == null) return null;
 
 		switch (field) {
