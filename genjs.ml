@@ -1232,10 +1232,11 @@ let generate com =
 		print ctx ") { \"use strict\"";
 		newline ctx;
 		let rec print_obj f root = (
-			print ctx "%s.%s = %s.%s || {}" root f.os_name root f.os_name;
+			let path = root ^ "." ^ f.os_name in
+			print ctx "%s = %s || {}" path path;
 			ctx.separator <- true;
 			newline ctx;
-			concat ctx ";" (fun g -> print_obj g (root ^ "." ^ f.os_name)) f.os_fields
+			concat ctx ";" (fun g -> print_obj g path) f.os_fields
 		)
 		in
 		List.iter (fun f -> print_obj f "$hx_exports") exposedObject.os_fields;
