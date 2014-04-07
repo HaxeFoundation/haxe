@@ -707,3 +707,6 @@ extern class ResourceWarning extends Warning
 {
 
 }
+
+extern class TB {}
+extern class Frame {}
