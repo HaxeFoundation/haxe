@@ -2823,12 +2823,13 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				| TDynamic _ -> "",t
 				| _ -> error "Catch type must be a class, an enum or Dynamic" (pos e)
 			in
-			let name,t = loop t in
+			let name,t2 = loop t in
 			if v.[0] = '$' then display_error ctx "Catch variable names starting with a dollar are not allowed" p;
-			check_unreachable acc t (pos e);
+			check_unreachable acc t2 (pos e);
 			let locals = save_locals ctx in
 			let v = add_local ctx v t in
 			let e = type_expr ctx e with_type in
+			v.v_type <- t2;
 			locals();
 			if with_type <> NoValue then unify ctx e.etype e1.etype e.epos;
 			if PMap.mem name ctx.locals then error ("Local variable " ^ name ^ " is preventing usage of this type here") e.epos;
