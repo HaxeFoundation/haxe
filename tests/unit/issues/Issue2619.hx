@@ -1,7 +1,7 @@
 package unit.issues;
 import unit.Test;
 
-private abstract A(String) {
+private abstract A(String) to String {
 	public function new(s) this = s;
 }
 
