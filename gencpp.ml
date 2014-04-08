@@ -1379,7 +1379,6 @@ and define_local_return_block_ctx ctx expression name retval =
    let output_i = writer#write_i in
    let output = ctx.ctx_output in
    let check_this = function | "this" when not ctx.ctx_real_this_ptr -> "__this" | x -> x in
-   let reference = function | "this" -> " *__this" | "_this" -> " _this" | name -> " &" ^name in
    let rec define_local_return_block expression  =
       let declarations = Hashtbl.create 0 in
       let undeclared = Hashtbl.create 0 in
@@ -1399,8 +1398,17 @@ and define_local_return_block_ctx ctx expression name retval =
          | TObjectDecl _ -> "Dynamic"
          | _ -> type_string expression.etype in
       output_i ("inline static " ^ ret_type ^ " Block( ");
-      output (String.concat "," ( (List.map (fun var ->
-            (Hashtbl.find undeclared var) ^ (reference var)) ) vars));
+      output (String.concat "," (
+         (List.map
+            (fun var ->
+               let var_type = Hashtbl.find undeclared var in
+               (* Args passed into inline-block should be references, so they can be changed.
+                  Fake 'this' pointers can't be changed, so needn't be references *)
+               match var with
+               | "this" -> "hx::ObjectPtr<" ^ var_type ^ " > __this"
+               | "_this" -> var_type ^ " _this"
+               | name -> var_type ^ " &" ^name
+            ) vars) ) );
       output (")");
       let return_data = ret_type <> "Void" in
       writer#begin_block;
