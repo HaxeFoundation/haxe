@@ -3291,7 +3291,12 @@ and type_expr ctx (e,p) (with_type:with_type) =
 					| TAbstract({a_impl = Some c},_) when PMap.mem "toString" c.cl_statics -> call_to_string ctx c e
 					| _ -> e)
 			| (Meta.This,_,_) ->
-				List.hd ctx.this_stack
+				let e = List.hd ctx.this_stack in
+				let rec loop e = match e.eexpr with
+					| TConst TThis -> get_this ctx e.epos
+					| _ -> Type.map_expr loop e
+				in
+				loop e
 			| _ -> e()
 		in
 		ctx.meta <- old;
