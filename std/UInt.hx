@@ -32,7 +32,7 @@
 	Simulate it for other platforms.
 **/
 @:coreType
-abstract UInt from Int {
+abstract UInt from Int to Int {
 
 	@:op(A + B) private static inline function add(a:UInt, b:UInt):UInt {
 		return a.toInt() + b.toInt();
@@ -213,7 +213,7 @@ abstract UInt from Int {
 		}
 	}
 
-	@:to private inline function toInt():Int {
+	private inline function toInt():Int {
 		return cast this;
 	}
 
