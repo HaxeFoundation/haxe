@@ -1405,7 +1405,7 @@ and define_local_return_block_ctx ctx expression name retval =
                (* Args passed into inline-block should be references, so they can be changed.
                   Fake 'this' pointers can't be changed, so needn't be references *)
                match var with
-               | "this" -> "hx::ObjectPtr<" ^ var_type ^ " > __this"
+               | "this" -> "hx::ObjectPtr< " ^ var_type ^ " > __this"
                | "_this" -> var_type ^ " _this"
                | name -> var_type ^ " &" ^name
             ) vars) ) );
@@ -3838,7 +3838,7 @@ and s_fun t void =
 
 and s_type_params = function
    | [] -> ""
-   | l -> "<" ^ String.concat ", " (List.map s_type  l) ^ ">"
+   | l -> "< " ^ String.concat ", " (List.map s_type  l) ^ " >"
 
 ;;
 
@@ -3875,7 +3875,7 @@ let gen_extern_class common_ctx class_def file_info =
    in
 
 
-   let params = function [] -> "" | l ->  "<" ^ (String.concat "," (List.map (fun (n,t) -> n) l) ^ ">")  in
+   let params = function [] -> "" | l ->  "< " ^ (String.concat "," (List.map (fun (n,t) -> n) l) ^ " >")  in
    let output = file#write in
 
    let print_field stat f =
@@ -3918,8 +3918,8 @@ let gen_extern_class common_ctx class_def file_info =
             ^ " " ^ (snd path) ^ (params c.cl_types) );
    (match c.cl_super with None -> () | Some (c,pl) -> output (" extends " ^  (s_type (TInst (c,pl)))));
    List.iter (fun (c,pl) -> output ( " implements " ^ (s_type (TInst (c,pl))))) (real_interfaces c.cl_implements);
-   (match c.cl_dynamic with None -> () | Some t -> output (" implements Dynamic<" ^ (s_type t) ^ ">"));
-   (match c.cl_array_access with None -> () | Some t -> output (" implements ArrayAccess<" ^ (s_type t) ^ ">"));
+   (match c.cl_dynamic with None -> () | Some t -> output (" implements Dynamic< " ^ (s_type t) ^ " >"));
+   (match c.cl_array_access with None -> () | Some t -> output (" implements ArrayAccess< " ^ (s_type t) ^ " >"));
    output "{\n";
    (match c.cl_constructor with
    | None -> ()
@@ -3940,7 +3940,7 @@ let gen_extern_enum common_ctx enum_def file_info =
    let file = new_source_file common_ctx common_ctx.file  "extern" ".hx" path in
    let output = file#write in
 
-   let params = function [] -> "" | l ->  "<" ^ (String.concat "," (List.map (fun (n,t) -> n) l) ^ ">")  in
+   let params = function [] -> "" | l ->  "< " ^ (String.concat "," (List.map (fun (n,t) -> n) l) ^ " >")  in
    output ( "package " ^ (String.concat "." (fst path)) ^ ";\n" );
    output ( "@:include extern " ^ (if enum_def.e_private then "private " else "")
             ^ " enum " ^ (snd path) ^ (params enum_def.e_types) );
