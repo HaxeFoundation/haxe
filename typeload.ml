@@ -2104,12 +2104,8 @@ let init_class ctx c p context_init herits fields =
 	) fields;
 	(match c.cl_kind with
 	| KAbstractImpl a ->
-		a.a_to <- List.stable_sort (fun (_,cfo1) (_,cfo2) ->
-			if cfo1 = None then 1 else if cfo2 = None then -1 else 0
-		) (List.rev a.a_to);
-		a.a_from <- List.stable_sort (fun (_,cfo1) (_,cfo2) ->
-			if cfo1 = None then 1 else if cfo2 = None then -1 else 0
-		) (List.rev a.a_from);
+		a.a_to <- List.rev a.a_to;
+		a.a_from <- List.rev a.a_from;
 		a.a_ops <- List.rev a.a_ops;
 		a.a_unops <- List.rev a.a_unops;
 	| _ -> ());

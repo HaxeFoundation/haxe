@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#if (flash9 || flash9doc || cs || doc_gen)
+#if ((flash9 || flash9doc || cs) && !doc_gen)
 /**
 	The unsigned Int type is only defined for Flash9 and C#. It's currently
 	handled the same as a normal Int.
@@ -31,8 +31,7 @@
 	The unsigned Int type is only defined for Flash9 and C#.
 	Simulate it for other platforms.
 **/
-@:coreType
-abstract UInt from Int to Int {
+abstract UInt(Int) from Int to Int {
 
 	@:op(A + B) private static inline function add(a:UInt, b:UInt):UInt {
 		return a.toInt() + b.toInt();
@@ -201,6 +200,10 @@ abstract UInt from Int to Int {
 		return Std.string(toFloat());
 	}
 
+	private inline function toInt():Int {
+		return this;
+	}
+
 	@:to private inline function toFloat():Float {
 		var int = toInt();
 		if (int < 0) {
@@ -212,10 +215,5 @@ abstract UInt from Int to Int {
 			return int + 0.0;
 		}
 	}
-
-	private inline function toInt():Int {
-		return cast this;
-	}
-
 }
 #end
