@@ -13,6 +13,7 @@
 
 	all : renamed Bytes.readDouble/Float to getDouble/Float to avoid inheritance issues
 	all : deprecated Bytes.readString in favor of getString
+	all : added pretty-printing to haxe.format.JsonPrinter (and haxe.Json)
 
 2014-03-29: 3.1.2
 
