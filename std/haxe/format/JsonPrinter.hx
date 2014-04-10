@@ -58,23 +58,22 @@ class JsonPrinter {
 			else if( c == Array ) {
 				var v : Array<Dynamic> = v;
 				addChar('['.code);
-				nind++;
+
 				var len = v.length;
-				if( len > 0 ) {
+				var last = len - 1;
+				for (i in 0...len)
+				{
+					if (i > 0) addChar(','.code) else nind++;
 					newl();
 					ipad();
-					write(0, v[0]);
-					var i = 1;
-					while( i < len ) {
-						addChar(','.code);
+					write(i, v[i]);
+					if (i == last)
+					{
+						nind--;
 						newl();
 						ipad();
-						write(i, v[i++]);
 					}
 				}
-				nind--;
-				newl();
-				ipad();
 				addChar(']'.code);
 			} else if( c == haxe.ds.StringMap ) {
 				var v : haxe.ds.StringMap<Dynamic> = v;
@@ -129,23 +128,27 @@ class JsonPrinter {
 	}
 
 	function fieldsString( v : Dynamic, fields : Array<String> ) {
-		var first = true;
 		addChar('{'.code);
-		nind++;
-		for( f in fields ) {
+		var len = fields.length;
+		var last = len - 1;
+		for( i in 0...len ) {
+			var f = fields[i];
 			var value = Reflect.field(v,f);
 			if( Reflect.isFunction(value) ) continue;
-			if( first ) first = false else addChar(','.code);
+			if( i > 0 ) addChar(','.code) else nind++;
 			newl();
 			ipad();
 			quote(f);
 			addChar(':'.code);
 			if (pretty) addChar(' '.code);
 			write(f, value);
+			if (i == last)
+			{
+				nind--;
+				newl();
+				ipad();
+			}
 		}
-		nind--;
-		newl();
-		ipad();
 		addChar('}'.code);
 	}
 
