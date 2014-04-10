@@ -11,14 +11,12 @@ class JsonPrinter {
 	var buf : #if flash9 flash.utils.ByteArray #else StringBuf #end;
 	var replacer : Dynamic -> Dynamic -> Dynamic;
 	var indent:String;
-	var nl:String;
 	var pretty:Bool;
 	var nind:Int;
 	
 	function new(replacer:Dynamic -> Dynamic -> Dynamic, space:String) {
 		this.replacer = replacer;
 		this.indent = space;
-		this.nl = '\n';
 		this.pretty = space != null;
 		this.nind = 0;
 
@@ -36,7 +34,7 @@ class JsonPrinter {
 	}
 	
 	inline function newl ():Void {
-		if (pretty) add(nl);
+		if (pretty) addChar('\n'.code);
 	}
 
 	function write(k:Dynamic, v:Dynamic) {
