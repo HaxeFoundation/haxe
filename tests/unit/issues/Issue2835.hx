@@ -6,6 +6,9 @@ class Issue2835 extends unit.Test
 	{
 		var t = new Test(42);
 		eq(42,t.get());
+		t.fromFloat(12);
+		eq(12,t.get());
+		eq(12.0,t.toFloat());
 	}
 }
 
@@ -15,6 +18,16 @@ private class Test<T:(Float)>
 	public function new(value)
 	{
 		this.value = value;
+	}
+
+	public function toFloat():Float
+	{
+		return value;
+	}
+
+	public function fromFloat(v:Float)
+	{
+		this.value = cast v;
 	}
 
 	public function get():T

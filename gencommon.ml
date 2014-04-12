@@ -5714,6 +5714,9 @@ struct
         mk_cast to_t e)
       | TAbstract (a_to, _), TAbstract(a_from, _) when a_to == a_from ->
         e
+      | TAbstract _, TInst({ cl_kind = KTypeParameter _ }, _)
+      | TInst({ cl_kind = KTypeParameter _ }, _), TAbstract _ ->
+        do_unsafe_cast()
       | TAbstract _, _
       | _, TAbstract _ ->
         (try
