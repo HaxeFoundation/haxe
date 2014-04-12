@@ -2461,7 +2461,7 @@ let convert_java_enum ctx p pe =
     ) field.jf_flags;
 
     List.iter (function
-      | AttrDeprecated -> cff_meta := (Meta.Deprecated, [], p) :: !cff_meta
+      | AttrDeprecated when jc.cpath <> (["java";"util"],"Date") -> cff_meta := (Meta.Deprecated, [], p) :: !cff_meta
       (* TODO: pass anotations as @:meta *)
       | AttrVisibleAnnotations ann ->
         List.iter (function
