@@ -1624,7 +1624,13 @@ let configure gen =
     print w "%s %s %s %s" access (String.concat " " modifiers) clt (change_clname (snd cl.cl_path));
     (* type parameters *)
     let params, _ = get_string_params cl.cl_types in
-    let cl_p_to_string (c,p) = path_param_s cl.cl_pos (TClassDecl c) c.cl_path p in
+    let cl_p_to_string (c,p) =
+      let p = List.map (fun t -> match follow t with
+        | TMono _ | TDynamic _ -> t_empty
+        | _ -> t) p
+      in
+      path_param_s cl.cl_pos (TClassDecl c) c.cl_path p
+    in
     print w "%s" params;
     (if is_some cl.cl_super then print w " extends %s" (cl_p_to_string (get cl.cl_super)));
     (match cl.cl_implements with
