@@ -45,7 +45,7 @@ exception Abort
 exception Completion of string
 
 
-let version = 3102
+let version = 3103
 let version_major = version / 1000
 let version_minor = (version mod 1000) / 100
 let version_revision = (version mod 100)
@@ -1362,7 +1362,14 @@ try
 	if not !no_output && file_extension com.file = ext then delete_file com.file;
 	List.iter (fun f -> f()) (List.rev (!pre_compilation));
 	if !classes = [([],"Std")] && not !force_typing then begin
-		if !cmds = [] && not !did_something then Arg.usage basic_args_spec usage;
+		let help_spec = basic_args_spec @ [
+			("-help", Arg.Unit (fun () -> ()),": show extended help information");
+			("--help", Arg.Unit (fun () -> ()),": show extended help information");
+			("--help-defines", Arg.Unit (fun () -> ()),": print help for all compiler specific defines");
+			("--help-metas", Arg.Unit (fun () -> ()),": print help for all compiler metadatas");
+			("<dot-path>", Arg.Unit (fun () -> ()),": compile the module specified by dot-path");
+		] in
+		if !cmds = [] && not !did_something then Arg.usage help_spec usage;
 	end else begin
 		ctx.setup();
 		Common.log com ("Classpath : " ^ (String.concat ";" com.class_path));

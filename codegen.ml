@@ -770,10 +770,10 @@ module Abstract = struct
 				{e with etype = m}
 			| TCall({eexpr = TField(_,FStatic({cl_path=[],"Std"},{cf_name = "string"}))},[e1]) when (match follow e1.etype with TAbstract({a_impl = Some _},_) -> true | _ -> false) ->
 				begin match follow e1.etype with
-					| TAbstract({a_impl = Some c} as a,_) ->
+					| TAbstract({a_impl = Some c} as a,tl) ->
 						begin try
 							let cf = PMap.find "toString" c.cl_statics in
-							make_static_call ctx c cf a [] [e1] ctx.t.tstring e.epos
+							make_static_call ctx c cf a tl [e1] ctx.t.tstring e.epos
 						with Not_found ->
 							e
 						end
@@ -1621,3 +1621,84 @@ module UnificationCallback = struct
 			| _ ->
 				check (Type.map_expr (run f) e)
 end;;
+
+module DeprecationCheck = struct
+
+	let curclass = ref null_class
+
+	let warned_positions = Hashtbl.create 0
+
+	let print_deprecation_message com meta s p_usage =
+		let s = match meta with
+			| _,[EConst(String s),_],_ -> s
+			| _ -> Printf.sprintf "Usage of this %s is deprecated" s
+		in
+		if not (Hashtbl.mem warned_positions p_usage) then begin
+			Hashtbl.replace warned_positions p_usage true;
+			com.warning s p_usage;
+		end
+
+	let check_meta com meta s p_usage =
+		try
+			print_deprecation_message com (Meta.get Meta.Deprecated meta) s p_usage;
+		with Not_found ->
+			()
+
+	let check_cf com cf p = check_meta com cf.cf_meta "field" p
+
+	let check_class com c p = if c != !curclass then check_meta com c.cl_meta "class" p
+
+	let check_enum com en p = check_meta com en.e_meta "enum" p
+
+	let check_ef com ef p = check_meta com ef.ef_meta "enum field" p
+
+	let check_typedef com t p = check_meta com t.t_meta "typedef" p
+
+	let check_module_type com mt p = match mt with
+		| TClassDecl c -> check_class com c p
+		| TEnumDecl en -> check_enum com en p
+		| _ -> ()
+
+	let run com =
+		let rec expr e = match e.eexpr with
+			| TField(e1,fa) ->
+				expr e1;
+				begin match fa with
+					| FStatic(c,cf) | FInstance(c,cf) ->
+						check_class com c e.epos;
+						check_cf com cf e.epos
+					| FAnon cf ->
+						check_cf com cf e.epos
+					| FClosure(co,cf) ->
+						(match co with None -> () | Some c -> check_class com c e.epos);
+						check_cf com cf e.epos
+					| FEnum(en,ef) ->
+						check_enum com en e.epos;
+						check_ef com ef e.epos;
+					| _ ->
+						()
+				end
+			| TNew(c,_,el) ->
+				List.iter expr el;
+				check_class com c e.epos;
+				(match c.cl_constructor with None -> () | Some cf -> check_cf com cf e.epos)
+			| TTypeExpr(mt) | TCast(_,Some mt) ->
+				check_module_type com mt e.epos
+			| TMeta((Meta.Deprecated,_,_) as meta,e1) ->
+				print_deprecation_message com meta "field" e1.epos;
+				expr e1;
+			| _ ->
+				Type.iter expr e
+		in
+		List.iter (fun t -> match t with
+			| TClassDecl c ->
+				curclass := c;
+				let field cf = match cf.cf_expr with None -> () | Some e -> expr e in
+				(match c.cl_constructor with None -> () | Some cf -> field cf);
+				(match c.cl_init with None -> () | Some e -> expr e);
+				List.iter field c.cl_ordered_statics;
+				List.iter field c.cl_ordered_fields;
+			| _ ->
+				()
+		) com.types
+end

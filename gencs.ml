@@ -1055,7 +1055,7 @@ let configure gen =
 						write w " += ";
 						expr_s w ev
 					end else
-						do_call w e []
+						do_call w e [ev]
 				| TCall( ({ eexpr = TField(ef,f) } as e), [ev] ) when String.starts_with (field_name f) "remove_" ->
 					let name = field_name f in
 					let propname = String.sub name 7 (String.length name - 7) in
@@ -1066,7 +1066,7 @@ let configure gen =
 						write w " -= ";
 						expr_s w ev
 					end else
-						do_call w e []
+						do_call w e [ev]
 				| TCall( ({ eexpr = TField(ef,f) } as e), [] ) when String.starts_with (field_name f) "get_" ->
 					let name = field_name f in
 					let propname = String.sub name 4 (String.length name - 4) in

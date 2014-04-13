@@ -635,6 +635,7 @@ let rec type_module_type ctx t tparams p =
 		mk (TTypeExpr (TEnumDecl e)) (TType (e.e_type,types)) p
 	| TTypeDecl s ->
 		let t = apply_params s.t_types (List.map (fun _ -> mk_mono()) s.t_types) s.t_type in
+		Codegen.DeprecationCheck.check_typedef ctx.com s p;
 		(match follow t with
 		| TEnum (e,params) ->
 			type_module_type ctx (TEnumDecl e) (Some params) p
@@ -697,7 +698,8 @@ let make_call ctx e params t p =
 				begin match t with
 					| TAbstract(a,pl) ->
 						let has_params = a.a_types <> [] || f.cf_params <> [] in
-						let map_type = fun t -> apply_params a.a_types pl (monomorphs f.cf_params t) in
+						let monos = List.map (fun _ -> mk_mono()) f.cf_params in
+						let map_type = fun t -> apply_params a.a_types pl (apply_params f.cf_params monos t) in
 						Some (has_params,map_type)
 					| _ ->
 						None
@@ -798,17 +800,20 @@ let get_this ctx p =
 	match ctx.curfun with
 	| FunStatic ->
 		error "Cannot access this from a static function" p
-	| FunMemberLocal ->
-		let v = (match ctx.vthis with
+	| FunMemberClassLocal | FunMemberAbstractLocal ->
+		let v = match ctx.vthis with
 			| None ->
-				(* we might be in a closure of an abstract member, so check for local "this" first *)
-				let v = try PMap.find "this" ctx.locals with Not_found -> gen_local ctx ctx.tthis in
+				let v = if ctx.curfun = FunMemberAbstractLocal then
+					PMap.find "this" ctx.locals
+				else
+					gen_local ctx ctx.tthis
+				in
 				ctx.vthis <- Some v;
 				v
 			| Some v ->
 				ctx.locals <- PMap.add v.v_name v ctx.locals;
 				v
-		) in
+		in
 		mk (TLocal v) ctx.tthis p
 	| FunMemberAbstract ->
 		let v = (try PMap.find "this" ctx.locals with Not_found -> assert false) in
@@ -832,8 +837,8 @@ let field_access ctx mode f fmode t e p =
 	match f.cf_kind with
 	| Method m ->
 		if mode = MSet && m <> MethDynamic && not ctx.untyped then error "Cannot rebind this method : please use 'dynamic' before method declaration" p;
-		begin match e.eexpr with
-		| TTypeExpr(TClassDecl ({cl_kind = KAbstractImpl a} as c)) when c == ctx.curclass && ctx.curfun = FunMemberAbstract && Meta.has Meta.Impl f.cf_meta ->
+		begin match ctx.curfun,e.eexpr with
+		| (FunMemberAbstract | FunMemberAbstractLocal),TTypeExpr(TClassDecl ({cl_kind = KAbstractImpl a} as c)) when c == ctx.curclass && Meta.has Meta.Impl f.cf_meta ->
 			let e = mk (TField(e,fmode)) t p in
 			let ethis = get_this ctx p in
 			let ethis = {ethis with etype = TAbstract(a,List.map (fun _ -> mk_mono()) a.a_types)} in
@@ -1003,7 +1008,7 @@ let rec type_ident_raise ?(imported_enums=true) ctx i p mode =
 		| FunMember | FunConstructor -> ()
 		| FunMemberAbstract -> error "Cannot access super inside an abstract function" p
 		| FunStatic -> error "Cannot access super inside a static function" p;
-		| FunMemberLocal -> error "Cannot access super inside a local function" p);
+		| FunMemberClassLocal | FunMemberAbstractLocal -> error "Cannot access super inside a local function" p);
 		if mode <> MSet && ctx.in_super_call then ctx.in_super_call <- false;
 		AKExpr (mk (TConst TSuper) t p)
 	| "null" ->
@@ -2819,12 +2824,13 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				| TDynamic _ -> "",t
 				| _ -> error "Catch type must be a class, an enum or Dynamic" (pos e)
 			in
-			let name,t = loop t in
+			let name,t2 = loop t in
 			if v.[0] = '$' then display_error ctx "Catch variable names starting with a dollar are not allowed" p;
-			check_unreachable acc t (pos e);
+			check_unreachable acc t2 (pos e);
 			let locals = save_locals ctx in
 			let v = add_local ctx v t in
 			let e = type_expr ctx e with_type in
+			v.v_type <- t2;
 			locals();
 			if with_type <> NoValue then unify ctx e.etype e1.etype e.epos;
 			if PMap.mem name ctx.locals then error ("Local variable " ^ name ^ " is preventing usage of this type here") e.epos;
@@ -2978,7 +2984,12 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				if v.[0] = '$' then display_error ctx "Variable names starting with a dollar are not allowed" p;
 				Some (add_local ctx v ft)
 		) in
-		let e , fargs = Typeload.type_function ctx args rt (match ctx.curfun with FunStatic -> FunStatic | _ -> FunMemberLocal) f false p in
+		let curfun = match ctx.curfun with
+			| FunStatic -> FunStatic
+			| FunMemberAbstract -> FunMemberAbstractLocal
+			| _ -> FunMemberClassLocal
+		in
+		let e , fargs = Typeload.type_function ctx args rt curfun f false p in
 		ctx.type_params <- old;
 		let f = {
 			tf_args = fargs;
@@ -3281,7 +3292,12 @@ and type_expr ctx (e,p) (with_type:with_type) =
 					| TAbstract({a_impl = Some c},_) when PMap.mem "toString" c.cl_statics -> call_to_string ctx c e
 					| _ -> e)
 			| (Meta.This,_,_) ->
-				List.hd ctx.this_stack
+				let e = List.hd ctx.this_stack in
+				let rec loop e = match e.eexpr with
+					| TConst TThis -> get_this ctx e.epos
+					| _ -> Type.map_expr loop e
+				in
+				loop e
 			| _ -> e()
 		in
 		ctx.meta <- old;

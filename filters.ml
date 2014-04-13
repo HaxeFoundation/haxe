@@ -797,72 +797,6 @@ let rename_local_vars com e =
 	loop e;
 	e
 
-let check_deprecation com =
-	let curclass = ref null_class in
-	let definition_positions = (Common.defined_value_safe com Define.DeprecationWarnings) = "def-pos" in
-	let warned_positions = Hashtbl.create 0 in
-	let get_deprecation_message meta s p_usage p_definition =
-		try
-			let s = match Meta.get Meta.Deprecated meta with
-				| _,[EConst(String s),_],_ -> s
-				| _ -> Printf.sprintf "Usage of this %s is deprecated" s
-			in
-			if not (Hashtbl.mem warned_positions p_usage) then begin
-				Hashtbl.replace warned_positions p_usage true;
-				com.warning s p_usage;
-			end;
-			if definition_positions then com.warning "Defined here" p_definition
-		with Not_found ->
-			()
-	in
-	let check_cf cf p = get_deprecation_message cf.cf_meta "field" p cf.cf_pos in
-	let check_class c p = if c != !curclass then get_deprecation_message c.cl_meta "class" p c.cl_pos in
-	let check_enum en p = get_deprecation_message en.e_meta "enum" p en.e_pos in
-	let check_ef ef p = get_deprecation_message ef.ef_meta "enum field" p ef.ef_pos in
-	let check_module_type mt p = match mt with
-		| TClassDecl c -> check_class c p
-		| TEnumDecl en -> check_enum en p
-		| _ -> ()
-	in
-	let rec expr e = match e.eexpr with
-		| TField(e1,fa) ->
-			expr e1;
-			begin match fa with
-				| FStatic(c,cf) | FInstance(c,cf) ->
-					check_class c e.epos;
-					check_cf cf e.epos
-				| FAnon cf ->
-					check_cf cf e.epos
-				| FClosure(co,cf) ->
-					(match co with None -> () | Some c -> check_class c e.epos);
-					check_cf cf e.epos
-				| FEnum(en,ef) ->
-					check_enum en e.epos;
-					check_ef ef e.epos;
-				| _ ->
-					()
-			end
-		| TNew(c,_,el) ->
-			List.iter expr el;
-			check_class c e.epos;
-			(match c.cl_constructor with None -> () | Some cf -> check_cf cf e.epos)
-		| TTypeExpr(mt) | TCast(_,Some mt) ->
-			check_module_type mt e.epos
-		| _ ->
-			Type.iter expr e
-	in
-	List.iter (fun t -> match t with
-		| TClassDecl c ->
-			curclass := c;
-			let field cf = match cf.cf_expr with None -> () | Some e -> expr e in
-			(match c.cl_constructor with None -> () | Some cf -> field cf);
-			(match c.cl_init with None -> () | Some e -> expr e);
-			List.iter field c.cl_ordered_statics;
-			List.iter field c.cl_ordered_fields;
-		| _ ->
-			()
-	) com.types
-
 let check_unification com e t =
 	begin match follow e.etype,follow t with
 		| TEnum _,TDynamic _ ->
@@ -1142,8 +1076,8 @@ let post_process_end() =
 let run com tctx main =
 	if com.display = DMUsage then
 		Codegen.detect_usage com;
-	if Common.defined com Define.DeprecationWarnings then
-		check_deprecation com;
+	if not (Common.defined com Define.NoDeprecationWarnings) then
+		Codegen.DeprecationCheck.run com;
 
 	(* PASS 1: general expression filters *)
  	let filters = [

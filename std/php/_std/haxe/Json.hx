@@ -32,11 +32,11 @@ class Json {
 		#end
 	}
 
-	public static inline function stringify( value : Dynamic, ?replacer:Dynamic -> Dynamic -> Dynamic ) : String {
+	public static inline function stringify( value : Dynamic, ?replacer:Dynamic -> Dynamic -> Dynamic, ?space:String ) : String {
 		#if !haxeJSON
-		return phpJsonEncode(value, replacer);
+		return phpJsonEncode(value, replacer, space);
 		#else
-		return haxe.format.JsonPrinter.print(value, replacer);
+		return haxe.format.JsonPrinter.print(value, replacer, space);
 		#end
 	}
 
@@ -59,9 +59,9 @@ class Json {
 			return val;
 	}
 
-	static function phpJsonEncode(val:Dynamic, ?replacer:Dynamic -> Dynamic -> Dynamic):String {
-		if(null != replacer)
-			return haxe.format.JsonPrinter.print(val, replacer);
+	static function phpJsonEncode(val:Dynamic, ?replacer:Dynamic -> Dynamic -> Dynamic, ?space:String):String {
+		if(null != replacer || null != space)
+			return haxe.format.JsonPrinter.print(val, replacer, space);
 		var json = untyped __call__("json_encode", convertBeforeEncode(val));
 		if (untyped __physeq__(json, false))
 			return throw "invalid json";

@@ -1,4 +1,25 @@
-2014-03-39: 3.1.2
+2014-04-13: 3.1.3
+
+	Bugfixes:
+
+	all : fixed handling of abstract variance
+	flash : ensure correct endianess in haxe.io.BytesBuffer
+	cpp : fixed issue involving class paths with spaces
+	php : fixed >>>
+	macro : fixed haxe.macro.Compiler.keep
+
+	General improvements and optimizations:
+
+	all : give @:deprecated warnings by default, allow -D no-deprecation-warnings
+	cpp : optimized Vector implementation
+
+	Standard Library:
+
+	all : renamed Bytes.readDouble/Float to getDouble/Float to avoid inheritance issues
+	all : deprecated Bytes.readString in favor of getString
+	all : added pretty-printing to haxe.format.JsonPrinter (and haxe.Json)
+
+2014-03-29: 3.1.2
 
 	Bugfixes:
 
