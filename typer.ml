@@ -698,7 +698,8 @@ let make_call ctx e params t p =
 				begin match t with
 					| TAbstract(a,pl) ->
 						let has_params = a.a_types <> [] || f.cf_params <> [] in
-						let map_type = fun t -> apply_params a.a_types pl (monomorphs f.cf_params t) in
+						let monos = List.map (fun _ -> mk_mono()) f.cf_params in
+						let map_type = fun t -> apply_params a.a_types pl (apply_params f.cf_params monos t) in
 						Some (has_params,map_type)
 					| _ ->
 						None
