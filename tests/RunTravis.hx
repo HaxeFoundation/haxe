@@ -41,10 +41,15 @@ class RunTravis {
 		Sys.exit(exitCode);
 	}
 	
-	static function haxelibInstallGit(account:String, repository:String, ?branch:String, ?srcPath:String, useRetry:Bool = false):Void {
-		var args:Array<String> = ["git", repository, 'https://github.com/$account/$repository'];
-		if (branch != null) args.push(branch);
-		if (srcPath != null) args.push(srcPath);
+	static function haxelibInstallGit(account:String, repository:String, ?branch:String, ?srcPath:String, useRetry:Bool = false, ?altName:String):Void {
+		var name:String = (altName == null) ? repository : altName;
+		var args:Array<String> = ["git", name, 'https://github.com/$account/$repository'];
+		if (branch != null) {
+			args.push(branch);
+		}
+		if (srcPath != null) {
+			args.push(srcPath);
+		}
 		
 		runCommand("haxelib", args, useRetry);
 	}
@@ -326,9 +331,9 @@ class RunTravis {
 					Sys.putEnv("pwd", old);
 				}
 			case "polygonal-ds":
-				haxelibInstallGit("Simn", "ds");
-				haxelibInstallGit("polygonal", "core", "master", "src");
-				haxelibInstallGit("polygonal", "printf", "master", "src");
+				haxelibInstallGit("Simn", "ds", null, null, false, "polygonal-ds");
+				haxelibInstallGit("polygonal", "core", "master", "src", false, "polygonal-core");
+				haxelibInstallGit("polygonal", "printf", "master", "src", false, "polygonal-printf");
 				changeDirectory(getHaxelibPath("polygonal-ds"));
 				runCommand("haxe", ["-cp", "src", "-cp", "test", "-lib", "polygonal-core", "-lib", "polygonal-printf", "-main", "UnitTest", "-js", "unit.js"]);
 				runCommand("node", ["unit.js"]);
@@ -354,7 +359,7 @@ class RunTravis {
 				haxelibInstallGit("massiveinteractive", "mconsole", "master", "src");
 				haxelibInstallGit("massiveinteractive", "MassiveCover", "master", "src");
 				haxelibInstallGit("massiveinteractive", "MassiveLib", "master", "src");
-				haxelibInstallGit("massiveinteractive", "MassiveUnit", "master", "src");
+				haxelibInstallGit("massiveinteractive", "MassiveUnit", "master", "src", false, "munit");
 				changeDirectory(haxe.io.Path.join([getHaxelibPath("munit"), "..", "tool"]));
 				runCommand("haxe", ["build.hxml"]);
 				haxelibRun(["munit", "test", "-result-exit-code", "-neko"]);
