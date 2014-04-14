@@ -50,8 +50,7 @@ class RunTravis {
 	}
 	
 	static function haxelibRun(args:Array<String>):Void {
-		args.unshift("run");
-		runCommand("haxelib", args);
+		runCommand("haxelib", ["run"].concat(args));
 	}
 
 	static function getHaxelibPath(libName:String) {
