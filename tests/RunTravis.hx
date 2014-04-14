@@ -49,8 +49,8 @@ class RunTravis {
 		runCommand("haxelib", args, useRetry);
 	}
 	
-	static function haxelibRun(args:Array<String>):Void {
-		runCommand("haxelib", ["run"].concat(args));
+	static function haxelibRun(args:Array<String>, useRetry:Bool = false):Void {
+		runCommand("haxelib", ["run"].concat(args), useRetry);
 	}
 
 	static function getHaxelibPath(libName:String) {
@@ -225,7 +225,7 @@ class RunTravis {
 				haxelibInstallGit("HaxeFoundation", "hxjava", true);
 				haxelibInstallGit("HaxeFoundation", "hxcs", true);
 
-				runCommand("haxelib", ["dox", "https://github.com/dpeek/dox.git"], true);
+				haxelibRun(["dox", "https://github.com/dpeek/dox.git"], true);
 				Sys.setCwd(Sys.getEnv("HOME") + "/haxelib/dox/git/");
 				runCommand("haxe", ["run.hxml"]);
 				runCommand("haxe", ["gen.hxml"]);
