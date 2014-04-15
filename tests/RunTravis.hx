@@ -224,7 +224,7 @@ class RunTravis {
 				haxelibInstallGit("Simn", "hxparse", "development", "src", true);
 				haxelibInstallGit("Simn", "hxtemplo", "master", "src", true);
 				haxelibInstallGit("Simn", "hxargs", true);
-				haxelibInstallGit("dpeek", "haxe-markdown", "master", "src", true);
+				haxelibInstallGit("dpeek", "haxe-markdown", "master", "src", true, "markdown");
 
 				haxelibInstallGit("HaxeFoundation", "hxcpp", true);
 				haxelibInstallGit("HaxeFoundation", "hxjava", true);
