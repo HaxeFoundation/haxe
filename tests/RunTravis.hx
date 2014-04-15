@@ -40,7 +40,7 @@ class RunTravis {
 
 		Sys.exit(exitCode);
 	}
-	
+
 	static function haxelibInstallGit(account:String, repository:String, ?branch:String, ?srcPath:String, useRetry:Bool = false, ?altName:String):Void {
 		var name:String = (altName == null) ? repository : altName;
 		var args:Array<String> = ["git", name, 'https://github.com/$account/$repository'];
@@ -50,10 +50,10 @@ class RunTravis {
 		if (srcPath != null) {
 			args.push(srcPath);
 		}
-		
+
 		runCommand("haxelib", args, useRetry);
 	}
-	
+
 	static function haxelibRun(args:Array<String>, useRetry:Bool = false):Void {
 		runCommand("haxelib", ["run"].concat(args), useRetry);
 	}
@@ -318,11 +318,11 @@ class RunTravis {
 				haxelibInstallGit("openfl", "lime-tools");
 				haxelibInstallGit("openfl", "openfl-native");
 				haxelibInstallGit("openfl", "openfl");
-				haxelibInstallGit("Simn", "openfl-samples");
-				
+				haxelibInstallGit("openfl", "openfl-samples");
+
 				haxelibRun(["openfl", "rebuild", "linux"]);
 				haxelibRun(["openfl", "rebuild", "tools"]);
-				
+
 				var path = getHaxelibPath("openfl-samples");
 				var old = Sys.getEnv("pwd");
 				Sys.putEnv("pwd", path);
