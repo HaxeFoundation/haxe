@@ -230,7 +230,7 @@ class RunTravis {
 				haxelibInstallGit("HaxeFoundation", "hxjava", true);
 				haxelibInstallGit("HaxeFoundation", "hxcs", true);
 
-				haxelibRun(["dox", "https://github.com/dpeek/dox.git"], true);
+				haxelibInstallGit("dpeek", "dox", true);
 				Sys.setCwd(Sys.getEnv("HOME") + "/haxelib/dox/git/");
 				runCommand("haxe", ["run.hxml"]);
 				runCommand("haxe", ["gen.hxml"]);
@@ -308,7 +308,7 @@ class RunTravis {
 				getCppDependencies(unitDir);
 				haxelibInstallGit("openfl", "hxlibc");
 				haxelibInstallGit("jgranick", "actuate");
-				haxelibInstallGit("jgranick", "jgranick");
+				haxelibInstallGit("jgranick", "box2d");
 				haxelibInstallGit("openfl", "swf");
 				haxelibInstallGit("jgranick", "layout");
 				haxelibInstallGit("HaxeFoundation", "format");
@@ -357,8 +357,8 @@ class RunTravis {
 				runCommand("./bin/cpp/Test", []);
 			case "munit":
 				haxelibInstallGit("massiveinteractive", "mconsole", "master", "src");
-				haxelibInstallGit("massiveinteractive", "MassiveCover", "master", "src");
-				haxelibInstallGit("massiveinteractive", "MassiveLib", "master", "src");
+				haxelibInstallGit("massiveinteractive", "MassiveCover", "master", "src", false, "mcover");
+				haxelibInstallGit("massiveinteractive", "MassiveLib", "master", "src", false, "mlib");
 				haxelibInstallGit("massiveinteractive", "MassiveUnit", "master", "src", false, "munit");
 				changeDirectory(haxe.io.Path.join([getHaxelibPath("munit"), "..", "tool"]));
 				runCommand("haxe", ["build.hxml"]);
