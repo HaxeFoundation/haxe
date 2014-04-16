@@ -1125,7 +1125,7 @@ let run com tctx main =
 				not (Meta.has Meta.Enum cf.cf_meta)
 			in
 			(* also filter abstract implementation classes that have only @:enum fields (issue #2858) *)
-			if not (Meta.has Meta.Used c.cl_meta) || not (List.exists is_runtime_field c.cl_ordered_statics) then
+			if not (Meta.has Meta.Used c.cl_meta || Common.defined com Define.As3) || not (List.exists is_runtime_field c.cl_ordered_statics) then
 				c.cl_extern <- true
 		| _ -> ()
 	) com.types;
