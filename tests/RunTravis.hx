@@ -306,15 +306,15 @@ class RunTravis {
 				runFlash("unit9_as3.swf");
 			case "openfl-samples":
 				getCppDependencies(unitDir);
-				haxelibInstallGit("openfl", "hxlibc");
+				haxelibInstallGit("haxenme", "nme");
+				haxelibInstallGit("haxenme", "nme-dev");
 				haxelibInstallGit("jgranick", "actuate");
 				haxelibInstallGit("jgranick", "box2d");
-				haxelibInstallGit("openfl", "swf");
 				haxelibInstallGit("jgranick", "layout");
 				haxelibInstallGit("HaxeFoundation", "format");
+				haxelibInstallGit("openfl", "swf");
 				haxelibInstallGit("openfl", "svg");
 				haxelibInstallGit("openfl", "lime");
-				haxelibInstallGit("openfl", "lime-build");
 				haxelibInstallGit("openfl", "lime-tools");
 				haxelibInstallGit("openfl", "openfl-native");
 				haxelibInstallGit("openfl", "openfl");
