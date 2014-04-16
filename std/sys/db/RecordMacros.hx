@@ -199,7 +199,7 @@ class RecordMacros {
 			case "Int": DInt;
 			case "Float": DFloat;
 			case "Bool": DBool;
-			default: throw "Unsupported Record Type " + name;
+			default: makeType(a.get().type);
 			}
 		case TEnum(e, _):
 			var name = e.toString();
