@@ -1809,7 +1809,8 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 			| [] -> raise Not_found
 			| (o,cf) :: ops when is_assign_op && o = OpAssignOp(op) || o == op ->
 				let impl = Meta.has Meta.Impl cf.cf_meta in
-				let tcf = monomorphs cf.cf_params cf.cf_type in
+				let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
+				let tcf = apply_params cf.cf_params monos cf.cf_type in
 				let tcf = if impl then apply_params a.a_types pl tcf else tcf in
 				(match follow tcf with
 				| TFun([(_,_,t1);(_,_,t2)],r) ->
@@ -1824,6 +1825,7 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 									type_eq EqStrict (TAbstract(a,pl)) t1;
 							end;
 							Type.unify t t2;
+							check_constraints ctx "" cf.cf_params monos (apply_params a.a_types pl) false cf.cf_pos;
 							cf,t2,r,o = OpAssignOp(op),Meta.has Meta.Commutative cf.cf_meta
 						with Unify_error _ ->
 							loop ops
