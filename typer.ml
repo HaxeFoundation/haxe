@@ -161,26 +161,35 @@ let rec is_pos_infos = function
 	| _ ->
 		false
 
-let check_constraints ctx tname tpl tl map p =
+let check_constraints ctx tname tpl tl map delayed p =
 	List.iter2 (fun m (name,t) ->
 		match follow t with
 		| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] ->
-			delay ctx PCheckConstraint (fun() ->
+			let f = (fun() ->
 				List.iter (fun ct ->
 					try
 						Type.unify (map m) (map ct)
 					with Unify_error l ->
-						display_error ctx (error_msg (Unify (Constraint_failure (tname ^ "." ^ name) :: l))) p;
+						let l = Constraint_failure (tname ^ "." ^ name) :: l in
+						raise (Unify_error l)
 				) constr
-			);
+			) in
+			if delayed then
+				delay ctx PCheckConstraint f
+			else
+				f()
 		| _ ->
 			()
 	) tl tpl
 
 let enum_field_type ctx en ef tl_en tl_ef p =
 	let map t = apply_params en.e_types tl_en (apply_params ef.ef_params tl_ef t) in
-	check_constraints ctx (s_type_path en.e_path) en.e_types tl_en map p;
-	check_constraints ctx ef.ef_name ef.ef_params tl_ef map p;
+	begin try
+		check_constraints ctx (s_type_path en.e_path) en.e_types tl_en map true p;
+		check_constraints ctx ef.ef_name ef.ef_params tl_ef map true p;
+	with Unify_error l ->
+		display_error ctx (error_msg (Unify l)) p
+	end;
 	map ef.ef_type
 
 let add_constraint_checks ctx ctypes pl f tl p =
