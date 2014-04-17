@@ -1824,6 +1824,14 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 								else
 									type_eq EqStrict (TAbstract(a,pl)) t1;
 							end;
+							(* special case for == and !=: if the second type is a monomorph, assume that we want to unify
+							   it with the first type to preserve comparison semantics. *)
+							begin match op,follow t with
+								| (OpEq | OpNotEq),TMono _ ->
+									Type.unify (if left then e1.etype else e2.etype) t
+								| _ ->
+									()
+							end;
 							Type.unify t t2;
 							check_constraints ctx "" cf.cf_params monos (apply_params a.a_types pl) false cf.cf_pos;
 							cf,t2,r,o = OpAssignOp(op),Meta.has Meta.Commutative cf.cf_meta
