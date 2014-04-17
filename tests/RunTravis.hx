@@ -54,6 +54,10 @@ class RunTravis {
 		runCommand("haxelib", args, useRetry);
 	}
 
+	static function haxelibInstall(library:String):Void {
+		runCommand("haxelib", ["install", library]);
+	}
+
 	static function haxelibRun(args:Array<String>, useRetry:Bool = false):Void {
 		runCommand("haxelib", ["run"].concat(args), useRetry);
 	}
@@ -210,6 +214,22 @@ class RunTravis {
 		haxelibInstallGit("HaxeFoundation", "hxcs", true);
 	}
 
+	static function getOpenFLDependencies(unitDir:String) {
+		getCppDependencies(unitDir);
+
+		haxelibInstallGit("HaxeFoundation", "format");
+		haxelibInstallGit("haxenme", "nme");
+		haxelibInstallGit("haxenme", "nme-dev");
+		haxelibInstallGit("openfl", "svg");
+		haxelibInstallGit("openfl", "lime");
+		haxelibInstallGit("openfl", "lime-tools");
+		haxelibInstallGit("openfl", "openfl-native");
+		haxelibInstallGit("openfl", "openfl");
+
+		haxelibRun(["openfl", "rebuild", "linux"]);
+		haxelibRun(["openfl", "rebuild", "tools"]);
+	}
+
 	static function main():Void {
 		var cwd = Sys.getCwd();
 		var unitDir = cwd + "unit/";
@@ -305,23 +325,13 @@ class RunTravis {
 				runCommand("haxe", ["compile-as3.hxml", "-D", "fdb"]);
 				runFlash("unit9_as3.swf");
 			case "openfl-samples":
-				getCppDependencies(unitDir);
-				haxelibInstallGit("haxenme", "nme");
-				haxelibInstallGit("haxenme", "nme-dev");
+				getOpenFLDependencies(unitDir);
+
 				haxelibInstallGit("jgranick", "actuate");
 				haxelibInstallGit("jgranick", "box2d");
 				haxelibInstallGit("jgranick", "layout");
-				haxelibInstallGit("HaxeFoundation", "format");
 				haxelibInstallGit("openfl", "swf");
-				haxelibInstallGit("openfl", "svg");
-				haxelibInstallGit("openfl", "lime");
-				haxelibInstallGit("openfl", "lime-tools");
-				haxelibInstallGit("openfl", "openfl-native");
-				haxelibInstallGit("openfl", "openfl");
 				haxelibInstallGit("openfl", "openfl-samples");
-
-				haxelibRun(["openfl", "rebuild", "linux"]);
-				haxelibRun(["openfl", "rebuild", "tools"]);
 
 				var path = getHaxelibPath("openfl-samples");
 				var old = Sys.getEnv("pwd");
@@ -365,6 +375,24 @@ class RunTravis {
 				haxelibRun(["munit", "test", "-result-exit-code", "-neko"]);
 				changeDirectory("../");
 				haxelibRun(["munit", "test", "-result-exit-code", "-neko"]);
+			case "flixel-demos":
+				getOpenFLDependencies(unitDir);
+
+				haxelibInstall("systools");
+				haxelibInstall("spinehx");
+				haxelibInstall("nape");
+				haxelibInstall("task");
+
+				haxelibInstallGit("larsiusprime", "firetongue");
+
+				haxelibInstallGit("HaxeFlixel", "flixel");
+				haxelibInstallGit("HaxeFlixel", "flixel-addons");
+				haxelibInstallGit("HaxeFlixel", "flixel-ui");
+				haxelibInstallGit("HaxeFlixel", "flixel-demos");
+				haxelibInstallGit("HaxeFlixel", "flixel-tools");
+
+				haxelibRun(["flixel-tools", "testdemos", "-flash"]);
+				haxelibRun(["flixel-tools", "testdemos", "-neko"]);
 			case target:
 				throw "unknown target: " + target;
 		}
