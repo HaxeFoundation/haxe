@@ -70,3 +70,11 @@ You can get help and talk with fellow Haxers from around the world via:
 
  * the [official Haxe Google Group](https://groups.google.com/forum/#!forum/haxelang)
  * the [Haxe IRC chatroom](http://unic0rn.github.io/tiramisu/haxe/), #haxe on chat.freenode.net
+
+## Version compatibility
+
+Haxe   | neko
+----   | -----
+2.*    | 1.*
+3.0.0  | 2.0.0
+3.1.3  | 2.0.0
