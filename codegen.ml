@@ -700,7 +700,7 @@ module Abstract = struct
 						(* let eright = mk (TCast(eright,None)) tleft p in *)
 						do_check_cast ctx tcf eright p
 				| Some cf,Some c ->
-					make_static_call ctx c cf a tl [eright] tleft p
+					recurse cf (fun () -> make_static_call ctx c cf a tl [eright] tleft p)
 				| _ ->
 					assert false
 		in
