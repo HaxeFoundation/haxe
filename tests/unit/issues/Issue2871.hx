@@ -2,7 +2,7 @@ package unit.issues;
 
 class Issue2871 extends Test {
 	#if !java
-    function call(myUInt:Null<UInt> = null) {
+    function call(myUInt:Null<UInt> = null):Int {
         return myUInt == null ? 0 : myUInt;
     }
 
