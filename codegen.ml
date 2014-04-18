@@ -770,10 +770,10 @@ module Abstract = struct
 				{e with etype = m}
 			| TCall({eexpr = TField(_,FStatic({cl_path=[],"Std"},{cf_name = "string"}))},[e1]) when (match follow e1.etype with TAbstract({a_impl = Some _},_) -> true | _ -> false) ->
 				begin match follow e1.etype with
-					| TAbstract({a_impl = Some c} as a,_) ->
+					| TAbstract({a_impl = Some c} as a,tl) ->
 						begin try
 							let cf = PMap.find "toString" c.cl_statics in
-							make_static_call ctx c cf a [] [e1] ctx.t.tstring e.epos
+							make_static_call ctx c cf a tl [e1] ctx.t.tstring e.epos
 						with Not_found ->
 							e
 						end

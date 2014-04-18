@@ -35,14 +35,14 @@ For the complete Haxe licenses, please see http://haxe.org/doc/license or [extra
 
 ## Installing Haxe
 
-The latest stable release is [Haxe v3.1.2](http://haxe.org/download). Pre-built binaries are available for your platform:
+The latest stable release is [Haxe v3.1.3](http://haxe.org/download). Pre-built binaries are available for your platform:
 
- * **[Windows installer](http://haxe.org/file/haxe-3.1.2-win.exe)**
- * **[Windows binaries](http://haxe.org/file/haxe-3.1.2-win.zip)**
- * **[OSX installer](http://haxe.org/file/haxe-3.1.2-osx-installer.pkg)**
- * **[OSX binaries](http://haxe.org/file/haxe-3.1.2-osx.tar.gz)**
- * **[Linux 32-bit binaries](http://haxe.org/file/haxe-3.1.2-linux32.tar.gz)**
- * **[Linux 64-bit binaries](http://haxe.org/file/haxe-3.1.2-linux64.tar.gz)**
+ * **[Windows installer](http://haxe.org/file/haxe-3.1.3-win.exe)**
+ * **[Windows binaries](http://haxe.org/file/haxe-3.1.3-win.zip)**
+ * **[OSX installer](http://haxe.org/file/haxe-3.1.3-osx-installer.pkg)**
+ * **[OSX binaries](http://haxe.org/file/haxe-3.1.3-osx.tar.gz)**
+ * **[Linux 32-bit binaries](http://haxe.org/file/haxe-3.1.3-linux32.tar.gz)**
+ * **[Linux 64-bit binaries](http://haxe.org/file/haxe-3.1.3-linux64.tar.gz)**
 
 Automated development builds are available from [build.haxe.org](http://build.haxe.org).
 
@@ -70,3 +70,11 @@ You can get help and talk with fellow Haxers from around the world via:
 
  * the [official Haxe Google Group](https://groups.google.com/forum/#!forum/haxelang)
  * the [Haxe IRC chatroom](http://unic0rn.github.io/tiramisu/haxe/), #haxe on chat.freenode.net
+
+## Version compatibility
+
+Haxe   | neko
+----   | -----
+2.*    | 1.*
+3.0.0  | 2.0.0
+3.1.3  | 2.0.0

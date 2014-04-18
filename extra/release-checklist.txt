@@ -9,8 +9,10 @@
 - Run it with the fileName corresponding to the latest master file name on builds.haxe.org.
 - Upload generated files to some place.
 - Update Haxe download page.
+- Update Github README page.
 - Double-check that you got the links right.
 - Regenerate and upload API documentation.
 - Update http://haxe.org/file/CHANGES.txt
 - Write announcement post.
 - Post announcement post.
+

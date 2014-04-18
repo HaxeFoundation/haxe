@@ -698,7 +698,8 @@ let make_call ctx e params t p =
 				begin match t with
 					| TAbstract(a,pl) ->
 						let has_params = a.a_types <> [] || f.cf_params <> [] in
-						let map_type = fun t -> apply_params a.a_types pl (monomorphs f.cf_params t) in
+						let monos = List.map (fun _ -> mk_mono()) f.cf_params in
+						let map_type = fun t -> apply_params a.a_types pl (apply_params f.cf_params monos t) in
 						Some (has_params,map_type)
 					| _ ->
 						None
@@ -2857,12 +2858,13 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				| TDynamic _ -> "",t
 				| _ -> error "Catch type must be a class, an enum or Dynamic" (pos e)
 			in
-			let name,t = loop t in
+			let name,t2 = loop t in
 			if v.[0] = '$' then display_error ctx "Catch variable names starting with a dollar are not allowed" p;
-			check_unreachable acc t (pos e);
+			check_unreachable acc t2 (pos e);
 			let locals = save_locals ctx in
 			let v = add_local ctx v t in
 			let e = type_expr ctx e with_type in
+			v.v_type <- t2;
 			locals();
 			if with_type <> NoValue then unify ctx e.etype e1.etype e.epos;
 			if PMap.mem name ctx.locals then error ("Local variable " ^ name ^ " is preventing usage of this type here") e.epos;
@@ -3324,7 +3326,12 @@ and type_expr ctx (e,p) (with_type:with_type) =
 					| TAbstract({a_impl = Some c},_) when PMap.mem "toString" c.cl_statics -> call_to_string ctx c e
 					| _ -> e)
 			| (Meta.This,_,_) ->
-				List.hd ctx.this_stack
+				let e = List.hd ctx.this_stack in
+				let rec loop e = match e.eexpr with
+					| TConst TThis -> get_this ctx e.epos
+					| _ -> Type.map_expr loop e
+				in
+				loop e
 			| _ -> e()
 		in
 		ctx.meta <- old;

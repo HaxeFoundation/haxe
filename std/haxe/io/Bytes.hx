@@ -21,6 +21,10 @@
  */
 package haxe.io;
 
+#if cpp
+using cpp.NativeArray;
+#end
+
 class Bytes {
 
 	public var length(default,null) : Int;
@@ -87,6 +91,8 @@ class Bytes {
 		java.lang.System.arraycopy(src.b, srcpos, b, pos, len);
 		#elseif cs
 		cs.system.Array.Copy(src.b, srcpos, b, pos, len);
+		#elseif cpp
+		b.blit(pos, src.b, srcpos, len);
 		#elseif python
 		python.Syntax.pythonCode("self.b[pos:pos+len] = src.b[srcpos:srcpos+len]");
 		#else
@@ -116,6 +122,8 @@ class Bytes {
 		pos += len&~3;
 		for( i in 0...len&3 )
 			set(pos++,value);
+		#elseif cpp
+		untyped __global__.__hxcpp_memory_memset(b,pos,len,value);
 		#else
 		for( i in 0...len )
 			set(pos++, value);
@@ -183,6 +191,8 @@ class Bytes {
 		return untyped __php__("$this->b < $other->b ? -1 : ($this->b == $other->b ? 0 : 1)");
 		//#elseif cs
 		//TODO: memcmp if unsafe flag is on
+		#elseif cpp
+		return b.memcmp(other.b);
 		#else
 		var b1 = b;
 		var b2 = other.b;
@@ -204,6 +214,9 @@ class Bytes {
 		#elseif flash9
 		b.position = pos;
 		return b.readDouble();
+		#elseif cpp
+		if( pos < 0 || pos + 8 > length ) throw Error.OutsideBounds;
+		return untyped __global__.__hxcpp_memory_get_double(b,pos);
 		#else
 		var b = new haxe.io.BytesInput(this,pos,8);
 		return b.readDouble();
@@ -216,6 +229,9 @@ class Bytes {
 		#elseif flash9
 		b.position = pos;
 		return b.readFloat();
+		#elseif cpp
+		if( pos < 0 || pos + 4 > length ) throw Error.OutsideBounds;
+		return untyped __global__.__hxcpp_memory_get_float(b,pos);
 		#else
 		var b = new haxe.io.BytesInput(this,pos,4);
 		return b.readFloat();
@@ -228,6 +244,9 @@ class Bytes {
 		#elseif flash9
 		b.position = pos;
 		b.writeDouble(v);
+		#elseif cpp
+		if( pos < 0 || pos + 8 > length ) throw Error.OutsideBounds;
+		untyped __global__.__hxcpp_memory_set_double(b,pos,v);
 		#else
 		throw "Not supported";
 		#end
@@ -239,6 +258,9 @@ class Bytes {
 		#elseif flash9
 		b.position = pos;
 		b.writeFloat(v);
+		#elseif cpp
+		if( pos < 0 || pos + 4 > length ) throw Error.OutsideBounds;
+		untyped __global__.__hxcpp_memory_set_float(b,pos,v);
 		#else
 		throw "Not supported";
 		#end
@@ -451,7 +473,7 @@ class Bytes {
 		#elseif php
 		return untyped __call__("ord", b[pos]);
 		#elseif cpp
-		return untyped b[pos];
+		return untyped b.unsafeGet(pos);
 		#elseif java
 		return untyped b[pos] & 0xFF;
 		#else
