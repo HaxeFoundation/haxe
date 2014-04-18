@@ -167,53 +167,60 @@ module Transformer = struct
 			e_set_field;
 		]) e_set_field.etype e_set_field.epos
 
-
-	let add_non_locals_to_func e =
-		match e.eexpr with
-		| TFunction f ->
-
-			let local_vars =
-				let h = Hashtbl.create 0 in
-				let fn (tvar, _) =
-					let x = tvar.v_name in
-					Hashtbl.add h x x;
-				in
-				List.iter fn f.tf_args;
-				h
+	let add_non_locals_to_func e = match e.eexpr with
+		| TFunction tf ->
+			let cur = ref PMap.empty in
+			let save () =
+				let prev = !cur in
+				(fun () ->
+					cur := prev
+				)
 			in
+			let declare v =
+				cur := PMap.add v.v_id v !cur;
+			in
+			List.iter (fun (v,_) -> declare v) tf.tf_args;
 			let non_locals = Hashtbl.create 0 in
-
-			let rec it lv e =
-				let maybe_continue x =
-					match x.eexpr with
-					| TFunction(_) -> ()
-					| _ ->
-						Type.iter (it (Hashtbl.copy lv)) x;
-						()
-				in
-				match e.eexpr with
-				| TVar(v,expr) ->
-					(match expr with
-					| Some x -> maybe_continue x; ()
-					| None -> ());
-					Hashtbl.add lv v.v_name v.v_name;
-					()
-				| TBinop( (OpAssign | OpAssignOp(_)) , { eexpr = TLocal( { v_name = x })}, e2) ->
-					if not (Hashtbl.mem lv x) then
-						Hashtbl.add non_locals x x;
+			let rec it e = match e.eexpr with
+				| TVar(v,e1) ->
+					begin match e1 with
+						| Some e ->
+							maybe_continue e
+						| None ->
+							()
+					end;
+					declare v;
+				| TTry(e1,catches) ->
+					it e1;
+					List.iter (fun (v,e) ->
+						let restore = save() in
+						declare v;
+						it e;
+						restore()
+					) catches;
+				| TBinop( (OpAssign | OpAssignOp(_)), { eexpr = TLocal v }, e2) ->
+					if not (PMap.mem v.v_id !cur) then
+						Hashtbl.add non_locals v.v_id v;
 					maybe_continue e2;
+				| TFunction _ ->
 					()
-				| TFunction(_) -> ()
-				| _ -> Type.iter (it (Hashtbl.copy lv)) e; ()
+				| _ ->
+					Type.iter it e
+			and maybe_continue e = match e.eexpr with
+				| TFunction _ ->
+					()
+				| _ ->
+					it e
 			in
-
-			Type.iter (it local_vars) f.tf_expr;
-			let keys = Hashtbl.fold (fun k _ acc -> k :: acc) non_locals [] in
-			let non_local_exprs = List.map (fun (k) -> create_non_local k f.tf_expr.epos) keys in
-			let new_exprs = List.append non_local_exprs [f.tf_expr] in
-			let f = { f with tf_expr = { f.tf_expr with eexpr = TBlock(new_exprs)}} in
-			{e with eexpr = TFunction f }
-		| _ -> assert false
+			it tf.tf_expr;
+			let el = Hashtbl.fold (fun k v acc ->
+				(create_non_local v.v_name e.epos) :: acc
+			) non_locals [] in
+			let el = tf.tf_expr :: el in
+			let tf = { tf with tf_expr = { tf.tf_expr with eexpr = TBlock(List.rev el)}} in
+			{e with eexpr = TFunction tf}
+		| _ ->
+			assert false
 
 	let rec transform_function tf ae is_value =
 		let p = tf.tf_expr.epos in
@@ -838,13 +845,15 @@ module Printer = struct
 	type print_context = {
 		pc_indent : string;
 		pc_next_anon_func : unit -> string;
+		pc_debug : bool;
 	}
 
 	let create_context =
 		let n = ref (-1) in
-		(fun indent -> {
+		(fun indent debug -> {
 				pc_indent = indent;
 				pc_next_anon_func = (fun () -> incr n; Printf.sprintf "anon_%i" !n);
+				pc_debug = debug;
 			}
 		)
 
@@ -996,7 +1005,6 @@ module Printer = struct
 				Printf.sprintf "%s.params[%i]" (print_expr pctx e1) index
 			| TArray(e1,e2) ->
 				Printf.sprintf "HxOverrides.arrayGet(%s, %s)" (print_expr pctx e1) (print_expr pctx e2)
-
 			| TBinop(OpAssign,{eexpr = TArray(e1,e2)},e3) ->
 				Printf.sprintf "HxOverrides.arraySet(%s,%s,%s)" (print_expr pctx e1) (print_expr pctx e2) (print_expr pctx e3)
 			| TBinop(OpAssign,{eexpr = TField(ef1,fa)},e2) ->
@@ -1062,9 +1070,6 @@ module Printer = struct
 			| TNew(c,_,el) ->
 				let id = print_base_type (t_infos (TClassDecl c)) in
 				Printf.sprintf "%s(%s)" id (print_exprs pctx ", " el)
-			| TUnop(op,Postfix,e1) ->
-				assert false
-				(* Printf.sprintf "%s%s" (print_expr pctx e1) (print_unop op) *)
 			| TUnop(Not,Prefix,e1) ->
 				Printf.sprintf "(%s%s)" (print_unop Not) (print_expr pctx e1)
 			| TUnop(op,Prefix,e1) ->
@@ -1073,7 +1078,6 @@ module Printer = struct
 				print_function pctx tf None
 			| TVar (v,eo) ->
 				print_var pctx v eo
-
 			| TBlock [] ->
 				Printf.sprintf "pass\n%s" indent
 			| TBlock [{ eexpr = TBlock _} as b] ->
@@ -1081,15 +1085,9 @@ module Printer = struct
 			| TBlock el ->
 				let old = !tabs in
 				tabs := pctx.pc_indent;
-				let s = print_exprs pctx ("\n" ^ !tabs) el in
+				let s = print_block_exprs pctx ("\n" ^ !tabs) pctx.pc_debug el in
 				tabs := old;
 				Printf.sprintf "%s\n" s
-			| TFor(v,e1,e2) ->
-				assert false
-				(* let pctx2 = {pctx with pc_indent = "\t" ^ pctx.pc_indent} in
-				let ind1 = pctx.pc_indent in
-				let ind2 = pctx2.pc_indent in
-				Printf.sprintf "_it = %s\n%swhile _it.hasNext():\n%s%s = _it.next()\n%s%s" (print_expr pctx e1) ind1 ind2 v.v_name ind2 (print_expr pctx2 e2) *)
 			| TIf(econd,eif,(Some {eexpr = TIf _} as eelse)) ->
 				print_if_else pctx econd eif eelse true
 			| TIf(econd,eif,eelse) ->
@@ -1114,7 +1112,7 @@ module Printer = struct
 				Printf.sprintf "%s if %s else %s" (print_expr pctx eif) (print_expr pctx econd) (print_expr pctx eelse)
 			| TMeta(_,e1) ->
 				print_expr pctx e1
-			| TPatMatch _ | TSwitch _ | TCast(_, Some _) ->
+			| TPatMatch _ | TSwitch _ | TCast(_, Some _) | TFor _ | TUnop(_,Postfix,_) ->
 				assert false
 
 	and print_if_else pctx econd eif eelse as_elif =
@@ -1319,6 +1317,16 @@ module Printer = struct
 	and print_exprs pctx sep el =
 		String.concat sep (List.map (print_expr pctx) el)
 
+	and print_block_exprs pctx sep print_debug_comment el =
+		if print_debug_comment then begin
+			let el = List.fold_left (fun acc e ->
+				let line = Lexer.get_error_line e.epos in
+				(print_expr pctx e) :: (Printf.sprintf "# %s:%i" e.epos.pfile line) :: acc
+			) [] el in
+			String.concat sep (List.rev el)
+		end else
+			print_exprs pctx sep el
+
 	and print_exprs_named pctx sep fl =
 		let args = String.concat sep (List.map (fun (s,e) -> Printf.sprintf "'%s': %s" (handle_keywords s) (print_expr pctx e)) fl) in
 		Printf.sprintf "{%s}" args
@@ -1425,7 +1433,7 @@ module Generator = struct
 
 	let get_members_with_init_expr c =
 		List.filter (fun cf -> match cf.cf_kind with
-			| Var({v_read = AccResolve | AccCall _}) -> false
+			| Var _ when is_extern_field cf -> false
 			| Var _ when cf.cf_expr = None -> true
 			| _ -> false
 		) c.cl_ordered_fields
@@ -1469,7 +1477,7 @@ module Generator = struct
 		) metas
 
 	let gen_expr ctx e field indent =
-		let pctx = Printer.create_context ("\t" ^ indent) in
+		let pctx = Printer.create_context ("\t" ^ indent) ctx.com.debug in
 		let e = match e.eexpr with
 			| TFunction(f) ->
 				{e with eexpr = TBlock [e]}
@@ -1509,7 +1517,7 @@ module Generator = struct
 					print ctx "%s%s = %s" indent field expr_string_2
 
 	let gen_func_expr ctx e c name metas extra_args indent stat =
-		let pctx = Printer.create_context indent in
+		let pctx = Printer.create_context indent ctx.com.debug in
 		let e = match e.eexpr with
 			| TFunction(f) ->
 				let args = List.map (fun s ->
@@ -1574,7 +1582,6 @@ module Generator = struct
 				newline ctx;
 				end
 		end
-
 
 	let gen_static_field ctx c p cf =
 		let p = get_path (t_infos (TClassDecl c)) in
@@ -1648,7 +1655,7 @@ module Generator = struct
 			| Some e ->
 				let f = fun () ->
 					let e = transform_expr e in
-					spr_line ctx (texpr_str e (Printer.create_context ""));
+					spr_line ctx (texpr_str e (Printer.create_context "" ctx.com.debug));
 				in
 				ctx.class_inits <- f :: ctx.class_inits
 
@@ -1782,6 +1789,7 @@ module Generator = struct
 	let gen_type ctx mt = match mt with
 		| TClassDecl c -> gen_class ctx c
 		| TEnumDecl en -> gen_enum ctx en
+		| TAbstractDecl {a_path = [],"UInt"} -> ()
 		| TAbstractDecl a when Meta.has Meta.CoreType a.a_meta -> gen_abstract ctx a
 		| _ -> ()
 

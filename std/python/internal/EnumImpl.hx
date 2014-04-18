@@ -13,8 +13,8 @@ class EnumImpl {
 		this.params = params;
 	}
 
-	function __str__() untyped {
-		return if (self.params == null) {
+	function __str__() {
+		return if (params == null) {
 			tag;
 		} else {
 			tag + "(" + params.join(",") + ")";

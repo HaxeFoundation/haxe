@@ -15,6 +15,14 @@ private enum MyEnum {
 	False;
 }
 
+private interface IA {}
+
+private class A implements IA { }
+
+private class B extends A {
+    public function new() {}
+}
+
 class TestPython extends Test {
 
 	public function testDoWhileAsExpression () {
@@ -151,5 +159,36 @@ class TestPython extends Test {
 		var res2 = python.Syntax.callNamedUntyped(x, { a : 3, b : 5});
 
 		eq(8, res2);
+	}
+
+	function testNonLocal() {
+		try { }
+		catch (e:Dynamic) {
+			e = 1;
+		}
+	}
+
+	var _s:String;
+
+	var s(get, null):String;
+	var s2(null, set_s2):String;
+	var s3(get, set):String;
+
+	function get_s() return s;
+	function set_s2(s) return s2 = s;
+	function get_s3() return _s;
+	function set_s3(s) return _s = s;
+
+    function testPropertyInit() {
+		s += "a";
+		s2 += "b";
+		s3 += "c";
+		eq("nulla", s);
+		eq("nullb", s2);
+		eq("nullc", s3);
+    }
+
+	function testIsViaParentInterface() {
+		t(Std.is(new B(), IA));
 	}
 }
