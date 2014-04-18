@@ -351,7 +351,7 @@ class RunTravis {
 				}
 			case "polygonal-ds":
 				getPythonDependencies();
-				haxelibInstallGit("Simn", "ds", null, null, false, "polygonal-ds");
+				haxelibInstallGit("Simn", "ds", "python-support", null, false, "polygonal-ds");
 				haxelibInstallGit("polygonal", "core", "master", "src", false, "polygonal-core");
 				haxelibInstallGit("polygonal", "printf", "master", "src", false, "polygonal-printf");
 				changeDirectory(getHaxelibPath("polygonal-ds"));
