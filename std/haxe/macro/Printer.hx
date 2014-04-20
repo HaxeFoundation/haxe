@@ -23,6 +23,7 @@
 package haxe.macro;
 
 import haxe.macro.Expr;
+import haxe.macro.Tools;
 using Lambda;
 
 class Printer {
@@ -71,6 +72,9 @@ class Printer {
 	}
 	public function printString(s:String) {
 		return '"' + s.split("\n").join("\\n").split("\t").join("\\t").split("'").join("\\'").split('"').join("\\\"") #if sys .split("\x00").join("\\x00") #end + '"';
+	}
+	public function printFormatString(s:String) {
+		return "'" + s.split("\n").join("\\n").split("\t").join("\\t").split("'").join("\\'").split('"').join("\\\"") #if sys .split("\x00").join("\\x00") #end + "'";
 	}
 	public function printConstant(c:Constant) return switch(c) {
 		case CString(s): printString(s);
@@ -150,6 +154,7 @@ class Printer {
 
 
 	public function printExpr(e:Expr) return e == null ? "#NULL" : switch(e.expr) {
+		case EConst(CString(s)): TMacroStringTools.isFormatExpr(e) ? printFormatString(s) : printString(s);
 		case EConst(c): printConstant(c);
 		case EArray(e1, e2): '${printExpr(e1)}[${printExpr(e2)}]';
 		case EBinop(op, e1, e2): '${printExpr(e1)} ${printBinop(op)} ${printExpr(e2)}';
