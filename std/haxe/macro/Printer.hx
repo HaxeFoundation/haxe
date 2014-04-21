@@ -23,7 +23,6 @@
 package haxe.macro;
 
 import haxe.macro.Expr;
-import haxe.macro.Tools;
 using Lambda;
 using StringTools;
 
@@ -163,7 +162,7 @@ class Printer {
 
 	public function printExpr(e:Expr) return e == null ? "#NULL" : switch(e.expr) {
 		#if macro
-		case EConst(CString(s)): TMacroStringTools.isFormatExpr(e) ? printFormatString(s) : printString(s);
+		case EConst(CString(s)): haxe.macro.MacroStringTools.isFormatExpr(e) ? printFormatString(s) : printString(s);
 		#end
 		case EConst(c): printConstant(c);
 		case EArray(e1, e2): '${printExpr(e1)}[${printExpr(e2)}]';
