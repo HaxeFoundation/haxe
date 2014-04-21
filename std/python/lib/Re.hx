@@ -25,26 +25,32 @@ extern class MatchObject
 	public var string(default, null):String;
 
 	public function expand(template:String):String;
+
+	@:overload(function (x:String):String {})
 	public function group(?i:Int = 0):String;
+
 	public function groups(defaultVal:String = null):Tuple<String>;
 	public function groupdict(defaultVal:Dict<String, String> = null):Dict<String, String>;
 
+	@:overload(function (x:String):Int {})
 	public function start (?i:Int = 0):Int;
+
+	@:overload(function (x:String):Int {})
 	public function end (?i:Int = 0):Int;
 
 	public function span (?i:Int):Tup2<Int, Int>;
 
 
 	public inline function groupById(s:String):String {
-		return group(untyped s);
+		return group(s);
 	}
 
 	public inline function startById(s:String):Int {
-		return start(untyped s);
+		return start(s);
 	}
 
 	public inline function endById(s:String):Int {
-		return end(untyped s);
+		return end(s);
 	}
 
 }

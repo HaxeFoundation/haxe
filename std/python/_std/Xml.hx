@@ -164,7 +164,7 @@ enum XmlType {
 		var cur = 0;
 		var x = this._children;
 		return {
-			
+
 			hasNext : function(){
 				return cur < x.length;
 			},
@@ -179,7 +179,7 @@ enum XmlType {
 		var cur = 0;
 		var x = this._children;
 		return {
-			
+
 			hasNext : function() {
 				var k = cur;
 				var l = x.length;
@@ -212,7 +212,7 @@ enum XmlType {
 		var cur = 0;
 		var x = this._children;
 		return {
-			
+
 			hasNext : function() {
 				var k = cur;
 				var l = x.length;
@@ -322,14 +322,14 @@ enum XmlType {
 		return s.toString();
 	}
 
-	static function __init__() : Void untyped {
-		Xml.Element = "element";
-		Xml.PCData = "pcdata";
-		Xml.CData = "cdata";
-		Xml.Comment = "comment";
-		Xml.DocType = "doctype";
-		Xml.ProcessingInstruction = "processingInstruction";
-		Xml.Document = "document";
+	static function __init__() : Void {
+		Xml.Element = cast "element";
+		Xml.PCData = cast "pcdata";
+		Xml.CData = cast "cdata";
+		Xml.Comment = cast "comment";
+		Xml.DocType = cast "doctype";
+		Xml.ProcessingInstruction = cast "processingInstruction";
+		Xml.Document = cast "document";
 	}
 
 }

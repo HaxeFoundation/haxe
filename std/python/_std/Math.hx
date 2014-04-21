@@ -134,7 +134,7 @@ extern class Math
 		If `v` is NaN or infinite, the result is NaN.
 	**/
 	public static inline function sin(v:Float):Float {
-		return if (v == POSITIVE_INFINITY || v == NEGATIVE_INFINITY) NaN else (Math:Dynamic).sin(v);
+		return if (v == POSITIVE_INFINITY || v == NEGATIVE_INFINITY) NaN else python.lib.Math.sin(v);
 	}
 
 	/**
@@ -145,10 +145,10 @@ extern class Math
 		If `v` is NaN or infinite, the result is NaN.
 	**/
 	public static inline function cos(v:Float):Float {
-		return if (v == POSITIVE_INFINITY || v == NEGATIVE_INFINITY) NaN else (Math:Dynamic).cos(v);
+		return if (v == POSITIVE_INFINITY || v == NEGATIVE_INFINITY) NaN else python.lib.Math.cos(v);
 	}
 
-	// TODO
+
 	static function tan(v:Float):Float;
 	static function asin(v:Float):Float;
 	static function acos(v:Float):Float;
@@ -191,7 +191,7 @@ extern class Math
 		holds.
 	**/
 	public static inline function log(v:Float):Float {
-		return if (v == 0.0) NEGATIVE_INFINITY else if (v < 0.0) NaN else (Math:Dynamic).log(v);
+		return if (v == 0.0) NEGATIVE_INFINITY else if (v < 0.0) NaN else python.lib.Math.log(v);
 	}
 
 	// TODO
@@ -210,7 +210,7 @@ extern class Math
 	**/
 	public static inline function sqrt(v:Float):Float
 	{
-		return if (v < 0) NaN else (Math:Dynamic).sqrt(v);
+		return if (v < 0) NaN else python.lib.Math.sqrt(v);
 	}
 
 	/**
@@ -295,17 +295,16 @@ extern class Math
 		NEGATIVE_INFINITY are not considered NaN.
 	**/
 	static inline function isNaN( f : Float ) : Bool {
-		return untyped _hx_math.isnan(f);
+
+		return python.lib.Math.isnan(f);
 	}
 
 	static function __init__():Void {
 		python.Syntax.importAs("math", "_hx_math");
-		NEGATIVE_INFINITY = python.Syntax.pythonCode("float")('-inf');
-		POSITIVE_INFINITY = python.Syntax.pythonCode("float")('inf');
-		NaN = python.Syntax.pythonCode("float")('nan');
-		PI = python.Syntax.pythonCode("_hx_math.pi");
+		NEGATIVE_INFINITY = Builtin.float('-inf');
+		POSITIVE_INFINITY = Builtin.float('inf');
+		NaN = Builtin.float("nan");
+		PI = python.lib.Math.pi;
 	}
 
 }
-
-
