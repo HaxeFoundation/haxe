@@ -1,6 +1,5 @@
 package python.lib;
 
-@:native("_hx_math")
 extern class Math {
 
 	public static function isnan (f:Float):Bool;
