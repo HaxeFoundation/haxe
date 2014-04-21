@@ -241,6 +241,7 @@ extern class Dict <K, V>
 	{
 		return values().iter();
 	}
+	public function __iter__():PyIterator<K>;
 
 	static function __init__ ():Void
 	{

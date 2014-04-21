@@ -55,28 +55,48 @@ extern class Syntax {
 		return macro $self._arrayAccess($x, $a{rest});
 	}
 
+	@:noUsing
 	macro public static function arrayAccessWithTrailingColon(x:Expr, rest:Array<Expr>):ExprOf<Dynamic> {
 		return macro $self._arrayAccess($x, $a{rest}, true);
 	}
 
 	static function _arrayAccess(a:Dynamic, args:Array<Dynamic>, ?trailingColon:Bool = false):Dynamic { return null; }
 
+	@:noUsing
 	public static function arraySet(a:Dynamic, i:Dynamic, v:Dynamic):Dynamic { return null; }
 
-	//@:noUsing macro public static function pyFor <T>(v:Expr, it:Expr, b:Expr):haxe.macro.Expr
-	//{
-		//var id = switch (v.expr) {
-			//case EConst(CIdent(x)):x;
-			//case _ : Context.error("unexpected " + ExprTools.toString(v) + ": const ident expected", v.pos);
-		//}
-//
-		//var res = macro @:pos(it.pos) {
-			//var $id = $it.getNativeIterator().__next__();
-			//$it;
-			//$b;
-		//}
-		//return macro $self._pythonFor($res);
-	//}
+
+	static function _foreach(id:Dynamic, it:Dynamic, block:Dynamic):Dynamic { return null; }
+
+
+	@:noUsing
+	macro public static function foreach <T>(v:Expr, it:Expr, b:Expr):haxe.macro.Expr
+	{
+		var id = switch (v.expr) {
+			case EConst(CIdent(x)):x;
+			case _ : Context.error("unexpected " + ExprTools.toString(v) + ": const ident expected", v.pos);
+		}
+		var iter = try {
+			Context.typeof(macro $it.__iter__());
+			macro $it.__iter__().getNativeIterator();
+		} catch (e:Dynamic) {
+			macro $it.getNativeIterator();
+		};
+		var res = macro @:pos(it.pos) {
+			var $id = $iter.__next__();
+			$it;
+			$b;
+		}
+		try {
+			Context.typeof(res);
+		} catch (e:Dynamic) {
+			Context.error("cannot type the foreach expression", Context.currentPos());
+		}
+		return macro {
+			var $id = null;
+			$self._foreach($v, $it, $b);
+		}
+	}
 
 	@:noUsing macro public static function importFromAs (from:String, module:String, className : String):haxe.macro.Expr {
 

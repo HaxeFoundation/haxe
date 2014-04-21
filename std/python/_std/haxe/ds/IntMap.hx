@@ -29,12 +29,7 @@ class IntMap<T> implements Map.IMap<Int, T> {
 	}
 
 	public function keys() : Iterator<Int> {
-		var a = [];
-
-		python.Syntax.pythonCode("for key in self.h:");
-		python.Syntax.pythonCode("	a.append(key)");
-
-		return a.iterator();
+		return h.keys().iter();
 	}
 
 	public function iterator() : Iterator<T> {
