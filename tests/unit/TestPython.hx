@@ -133,6 +133,17 @@ class TestPython extends Test {
 	}
 	*/
 
+	function testUnderscoreAndReflection () {
+		var x = { __v : 5 };
+		eq(5, Reflect.field(x, "__v"));
+
+		var x = { ___b : 5 };
+		eq(5, Reflect.field(x, "___b"));
+
+		var x = { __iter__ : 5 };
+		eq(5, Reflect.field(x, "__iter__"));
+	}
+
 
 	function testMakeVarArgs () {
 		var f = function (a:Array<Dynamic>) {

@@ -426,10 +426,12 @@ _hx_c._hx_AnonObject = _hx_AnonObject
 
 
 	static inline function handleKeywords(name:String):String {
-		if (keywords.has(name)) {
-			return Internal.getPrefixed(name);
+		return if (keywords.has(name)) {
+			Internal.getPrefixed(name);
+		} else if (name.length > 2 && name.substr(0,2) == "__" && name.charAt(name.length-1) != "_") {
+			Internal.getPrefixed(name);
 		}
-		return name;
+		else name;
 	}
 
 	static var prefixLength = Internal.prefix().length;

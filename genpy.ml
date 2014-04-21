@@ -50,18 +50,20 @@ module KeywordHandler = struct
 			"and"; "as"; "assert"; "break"; "class"; "continue"; "def"; "del"; "elif"; "else"; "except"; "exec"; "finally"; "for";
 			"from"; "global"; "if"; "import"; "in"; "is"; "lambda"; "not"; "or"; "pass"; "print";" raise"; "return"; "try"; "while";
 			"with"; "yield"; "float"; "None"; "list"; "True"; "False"
-			;"__b" (* TODO: hack to deal with haxe.Utf8 error *)
 		];
 		h
 
 	let handle_keywords s =
-		if Hashtbl.mem kwds s then "_hx_" ^ s else s
-
-	let unhandle_keywords s =
-		if String.length s > 4 && String.sub s 0 4 = "_hx_" then
-			String.sub s 4 (String.length s - 4)
-		else
-			s
+		let l = String.length s in
+		if Hashtbl.mem kwds s then
+			"_hx_" ^ s
+		(*
+			handle special __ underscore behaviour (creates private fields for objects) for fields but only if the field doesn't
+			end with at least one underscores like __iter__ because these are special fields
+		*)
+		else if l > 2 && String.sub s 0 2 = "__" && String.sub s (l - 1) 1 <> "_" then
+			"_hx_" ^ s
+		else s
 end
 
 module Transformer = struct
