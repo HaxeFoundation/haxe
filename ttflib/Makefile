@@ -1,4 +1,5 @@
 OCAMLOPT=ocamlopt
+OCAMLC=ocamlc
 
 FLAGS=-I ../extlib -I ../swflib
 FILES=tTFData tTFParser tTFTools tTFSwfWriter tTFCanvasWriter tTFJsonWriter
@@ -6,8 +7,13 @@ LIBS=extLib swflib unix
 
 OUTPUT=ttf
 
-all:
+all: native bytecode
+
+native:
 	$(OCAMLOPT) $(FLAGS) $(FILES:=.ml) -g -a -o ttf.cmxa
+
+bytecode:
+	$(OCAMLC) $(FLAGS) $(FILES:=.ml) -g -a -o ttf.cma
 
 exec:
 	$(OCAMLOPT) $(FLAGS) $(LIBS:=.cmxa) $(FILES:=.ml) main.ml -g -o $(OUTPUT)

@@ -11,10 +11,16 @@ MODULES = \
 MLI = $(MODULES:=.mli)
 SRC = $(MLI) $(MODULES:=.ml) extLib.ml
 
-all:
+all: bytecode native
+
+opt: native
+
+bytecode:
 	$(OCAMLC) -a -o extLib.cma $(SRC)
-opt:
+
+native:
 	$(OCAMLOPT) -g -a -o extLib.cmxa $(SRC)
+
 doc:
 	$(OCAMLC) -c $(MODULES:=.mli)
 	mkdir -p doc/

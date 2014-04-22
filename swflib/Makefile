@@ -6,28 +6,48 @@ OCAMLC=ocamlc
 
 CFLAGS= -I ../extlib -I ../extc -g
 LIBS=
-LFLAGS= -o swflib.cmxa -a
 
 MODULES=as3code.cmx png.cmx swf.cmx actionScript.cmx as3parse.cmx swfPic.cmx as3hlparse.cmx swfParser.cmx
 
-all: swflib.cmxa
+all: native bytecode
+
+native: swflib.cmxa
+
+bytecode: swflib.cma
 
 swflib.cmxa: $(MODULES)
-	$(OCAMLOPT) $(LFLAGS) $(LIBS) $(MODULES)
+	$(OCAMLOPT) -o swflib.cmxa -a $(LIBS) $(MODULES)
+
+swflib.cma: $(MODULES:.cmx=.cmo)
+	$(OCAMLC) -o swflib.cma -a $(LFLAGS) $(LIBS) $(MODULES:.cmx=.cmo)
 
 actionScript.cmx: swf.cmx
+
+actionScript.cmo: swf.cmi
+
+as3code.cmo: as3.cmi
 
 as3code.cmx: as3.cmi
 
 as3hl.cmi: as3.cmi
 
+as3hlparse.cmo: as3parse.cmo as3hl.cmi as3code.cmo as3.cmi
+
 as3hlparse.cmx: as3parse.cmx as3hl.cmi as3code.cmx as3.cmi
+
+as3parse.cmo: as3code.cmo as3.cmi
 
 as3parse.cmx: as3code.cmx as3.cmi
 
+png.cmo: png.cmi
+
 png.cmx: png.cmi
 
+swf.cmo: as3.cmi
+
 swf.cmx: as3.cmi
+
+swfParser.cmo: swf.cmo as3parse.cmo actionScript.cmo
 
 swfParser.cmx: swf.cmx as3parse.cmx actionScript.cmx
 

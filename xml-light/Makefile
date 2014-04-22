@@ -12,9 +12,13 @@ CFLAGS=
 LFLAGS= -a
 LIBS=
 
-all: xml-light.cma test.exe doc
+all: bytecode test.exe doc
 
-opt: xml-light.cmxa test_opt.exe
+opt: native
+
+native: xml-light.cmxa
+
+bytecode: xml-light.cma
 
 installcommon: all
 	cp xml.mli xmlParser.mli dtd.mli xml.cmi xmlParser.cmi dtd.cmi $(INSTALLDIR)
