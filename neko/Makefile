@@ -10,4 +10,4 @@ bytecode:
 	$(OCAMLC) -I ../extlib -a -o neko.cma nast.ml nxml.ml binast.ml nbytecode.ml ncompile.ml
 
 clean:
-	rm -rf neko.cmxa neko.lib neko.a $(wilcard *.cmx) $(wildcard *.obj) $(wildcard *.o) $(wildcard *.cmi)
+	rm -rf neko.cmxa neko.cma neko.lib neko.a $(wildcard *.cmx) $(wildcard *.obj) $(wildcard *.o) $(wildcard *.cmi) $(wildcard *.cmo)

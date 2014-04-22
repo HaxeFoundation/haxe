@@ -54,8 +54,8 @@ swfParser.cmx: swf.cmx as3parse.cmx actionScript.cmx
 swfPic.cmx: swf.cmx png.cmi
 
 clean:
-	rm -f swflib.cmxa swflib.lib swflib.a as3.cmi as3hl.cmi
-	rm -f $(MODULES) $(MODULES:.cmx=.obj) $(MODULES:.cmx=.cmi) $(MODULES:.cmx=.o)
+	rm -f swflib.cmxa swflib.cma swflib.lib swflib.a as3.cmi as3hl.cmi
+	rm -f $(MODULES) $(MODULES:.cmx=.obj) $(MODULES:.cmx=.cmi) $(MODULES:.cmx=.o) $(MODULES:.cmx=.cmo)
 
 # SUFFIXES
 .ml.cmo:
