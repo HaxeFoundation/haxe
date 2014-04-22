@@ -13,7 +13,7 @@ il.cmxa:$(SRCS)
 	$(OCAMLOPT) -g -I ../extlib -a -o il.cmxa $(SRCS)
 
 il.cma:$(SRCS:.cmx=.cmo)
-	$(OCAMLOPT) -g -I ../extlib -a -o il.cmxa $(SRCS)
+	$(OCAMLC) -g -I ../extlib -a -o il.cma $(SRCS)
 
 dump: il.cmxa dump.ml peDataDebug.ml ilMetaDebug.ml
 	$(OCAMLOPT) -g -I ../extlib -o dump ../extlib/extLib.cmxa il.cmxa peDataDebug.ml dump.ml
