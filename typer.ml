@@ -2846,7 +2846,10 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		let catches = List.fold_left (fun acc (v,t,e) ->
 			let t = Typeload.load_complex_type ctx (pos e) t in
 			let rec loop t = match follow t with
-				| TInst ({ cl_path = path },params) | TEnum ({ e_path = path },params) ->
+				| TInst ({ cl_kind = KTypeParameter _} as c,_) when not (Typeload.is_generic_parameter ctx c) ->
+					error "Cannot catch non-generic type parameter" p
+				| TInst ({ cl_path = path },params)
+				| TEnum ({ e_path = path },params) ->
 					List.iter (fun pt ->
 						if pt != t_dynamic then error "Catch class parameter must be Dynamic" p;
 					) params;
