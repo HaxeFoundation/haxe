@@ -1097,7 +1097,8 @@ let transform_extractors eval cases p =
 		| [] ->
 			[]
 	in
-	loop cases,!has_extractor
+	let cases = loop cases in
+	cases,!has_extractor
 
 let extractor_depth = ref 0
 
