@@ -82,18 +82,13 @@ extern class Syntax {
 		} catch (e:Dynamic) {
 			macro $it.getNativeIterator();
 		};
-		var res = macro @:pos(it.pos) {
-			var $id = $iter.__next__();
-			$it;
-			$b;
-		}
-		try {
-			Context.typeof(res);
-		} catch (e:Dynamic) {
-			Context.error("cannot type the foreach expression", Context.currentPos());
-		}
+
+
 		return macro {
+			// the first 2 expressions are only used to create a typing context for the foreach construct
+			// TODO how can we get rid of them, so that they are not generated?
 			var $id = null;
+			if (false) $v = $iter.__next__();
 			$self._foreach($v, $it, $b);
 		}
 	}

@@ -1,12 +1,13 @@
 package haxe.ds;
 
 import python.lib.Types.Dict;
+import python.Syntax;
 
 class StringMap<T> implements Map.IMap<String, T> {
 	private var h : Dict<String,T>;
 
 	public function new() : Void {
-		h = python.Syntax.pythonCode("{}");
+		h = new Dict();
 	}
 
 	public inline function set( key : String, value : T ) : Void {
@@ -24,16 +25,15 @@ class StringMap<T> implements Map.IMap<String, T> {
 
 	public function remove( key : String ) : Bool {
 		var key = "$"+key;
-
-		if( !h.hasKey(key) ) return false;
-		python.Syntax.delete(python.Syntax.arrayAccess(h, key));
-		return true;
+		var has = h.hasKey(key);
+		if (has) h.remove(key);
+		return has;
 	}
 
 	public function keys() : Iterator<String> {
 		var a = [];
-		python.Syntax.foreach(key, h, {
-			a.push( python.Syntax.arrayAccessWithTrailingColon(key, 1) );
+		Syntax.foreach(key, h, {
+			a.push( key.substr(1));
 		});
 		return a.iterator();
 	}

@@ -818,7 +818,7 @@ module Transformer = struct
 			let e = trans true [] e in
 			let r = { a_expr with eexpr = TField(e.a_expr, f) } in
 			lift_expr ~blocks:e.a_blocks r
-		| (is_value, TMeta(m,e)) ->
+		| (is_value, TMeta(m, e)) ->
 			let e = trans is_value [] e in
 			let r = { a_expr with eexpr = TMeta(m, e.a_expr); etype = e.a_expr.etype } in
 			lift_expr ~blocks:e.a_blocks r
