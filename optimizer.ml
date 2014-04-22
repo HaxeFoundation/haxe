@@ -1271,23 +1271,26 @@ let inline_constructors ctx e =
 			) ([],PMap.empty) assigns),el_init
 		) vars in
 		let el_b = ref [] in
+		let append e = el_b := e :: !el_b in
 		let rec subst e =
 			match e.eexpr with
 			| TBlock el ->
 				let old = !el_b in
 				el_b := [];
-				List.iter (fun e -> el_b := (subst e) :: !el_b) el;
+				List.iter (fun e -> append (subst e)) el;
 				let n = !el_b in
 				el_b := old;
 				{e with eexpr = TBlock (List.rev n)}
 			| TVar (v,Some e) when v.v_id < 0 ->
 				let (vars, _),el_init = PMap.find (-v.v_id) vfields in
-				el_b := (List.rev_map subst el_init) @ !el_b;
+				List.iter (fun e ->
+					append (subst e)
+				) el_init;
 				let (v_first,e_first),vars = match vars with
 					| v :: vl -> v,vl
 					| [] -> assert false
 				in
-				List.iter (fun (v,e) -> el_b := (mk (TVar(v,Some (subst e))) ctx.t.tvoid e.epos) :: !el_b) (List.rev vars);
+				List.iter (fun (v,e) -> append (mk (TVar(v,Some (subst e))) ctx.t.tvoid e.epos)) (List.rev vars);
 				mk (TVar (v_first, Some (subst e_first))) ctx.t.tvoid e.epos
 			| TField ({ eexpr = TLocal v },FInstance (c,cf)) when v.v_id < 0 ->
 				let (_, vars),el_init = PMap.find (-v.v_id) vfields in
