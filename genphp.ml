@@ -1517,6 +1517,9 @@ and gen_expr ctx e =
 		print ctx "while($%s->hasNext()) {" tmp;
 		let bend = open_block ctx in
 		newline ctx;
+		(* unset loop variable (issue #2900) *)
+		print ctx "unset($%s)" v;
+		newline ctx;
 		print ctx "$%s = $%s->next()" v tmp;
 		gen_while_expr ctx e;
 		bend();
