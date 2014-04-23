@@ -22,7 +22,7 @@
 @:coreApi class EReg {
 
 	var r : flash.utils.RegExp;
-	var result : {> Array<String>, index : Int, input : String };
+	var result : Dynamic;
 
 	public function new( r : String, opt : String ) : Void {
 		this.r = new flash.utils.RegExp(r,opt);
