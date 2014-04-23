@@ -161,26 +161,35 @@ let rec is_pos_infos = function
 	| _ ->
 		false
 
-let check_constraints ctx tname tpl tl map p =
+let check_constraints ctx tname tpl tl map delayed p =
 	List.iter2 (fun m (name,t) ->
 		match follow t with
 		| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] ->
-			delay ctx PCheckConstraint (fun() ->
+			let f = (fun() ->
 				List.iter (fun ct ->
 					try
 						Type.unify (map m) (map ct)
 					with Unify_error l ->
-						display_error ctx (error_msg (Unify (Constraint_failure (tname ^ "." ^ name) :: l))) p;
+						let l = Constraint_failure (tname ^ "." ^ name) :: l in
+						raise (Unify_error l)
 				) constr
-			);
+			) in
+			if delayed then
+				delay ctx PCheckConstraint f
+			else
+				f()
 		| _ ->
 			()
 	) tl tpl
 
 let enum_field_type ctx en ef tl_en tl_ef p =
 	let map t = apply_params en.e_types tl_en (apply_params ef.ef_params tl_ef t) in
-	check_constraints ctx (s_type_path en.e_path) en.e_types tl_en map p;
-	check_constraints ctx ef.ef_name ef.ef_params tl_ef map p;
+	begin try
+		check_constraints ctx (s_type_path en.e_path) en.e_types tl_en map true p;
+		check_constraints ctx ef.ef_name ef.ef_params tl_ef map true p;
+	with Unify_error l ->
+		display_error ctx (error_msg (Unify l)) p
+	end;
 	map ef.ef_type
 
 let add_constraint_checks ctx ctypes pl f tl p =
@@ -1834,7 +1843,8 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 			| [] -> raise Not_found
 			| (o,cf) :: ops when is_assign_op && o = OpAssignOp(op) || o == op ->
 				let impl = Meta.has Meta.Impl cf.cf_meta in
-				let tcf = monomorphs cf.cf_params cf.cf_type in
+				let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
+				let tcf = apply_params cf.cf_params monos cf.cf_type in
 				let tcf = if impl then apply_params a.a_types pl tcf else tcf in
 				(match follow tcf with
 				| TFun([(_,_,t1);(_,_,t2)],r) ->
@@ -1848,7 +1858,16 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 								else
 									type_eq EqStrict (TAbstract(a,pl)) t1;
 							end;
+							(* special case for == and !=: if the second type is a monomorph, assume that we want to unify
+							   it with the first type to preserve comparison semantics. *)
+							begin match op,follow t with
+								| (OpEq | OpNotEq),TMono _ ->
+									Type.unify (if left then e1.etype else e2.etype) t
+								| _ ->
+									()
+							end;
 							Type.unify t t2;
+							check_constraints ctx "" cf.cf_params monos (apply_params a.a_types pl) false cf.cf_pos;
 							cf,t2,r,o = OpAssignOp(op),Meta.has Meta.Commutative cf.cf_meta
 						with Unify_error _ ->
 							loop ops
