@@ -30,6 +30,7 @@ matrix:
   fast_finish: true
   allow_failures:
     - env: TARGET=flash8
+    - env: TARGET=flixel-demos
 
 before_install:
   - travis_retry sudo apt-get update
