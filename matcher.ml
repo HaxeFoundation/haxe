@@ -798,7 +798,7 @@ let rec is_explicit_null = function
 
 let rec all_ctors mctx t =
 	let h = ref PMap.empty in
-	(* if is_explicit_null t then h := PMap.add (CConst TNull) Ast.null_pos !h; *)
+	if is_explicit_null t then h := PMap.add (CConst TNull) Ast.null_pos !h;
 	match follow t with
 	| TAbstract({a_path = [],"Bool"},_) ->
 		h := PMap.add (CConst(TBool true)) Ast.null_pos !h;
