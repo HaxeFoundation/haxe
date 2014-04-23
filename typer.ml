@@ -1522,7 +1522,7 @@ let call_to_string ctx c e =
 	let cf = PMap.find "toString" c.cl_statics in
 	make_call ctx (mk (TField(et,FStatic(c,cf))) cf.cf_type e.epos) [e] ctx.t.tstring e.epos
 
-let rec type_binop ctx op e1 e2 is_assign_op p =
+let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 	match op with
 	| OpAssign ->
 		let e1 = type_access ctx (fst e1) (snd e1) MSet in
@@ -1573,7 +1573,7 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 		(match type_access ctx (fst e1) (snd e1) MSet with
 		| AKNo s -> error ("Cannot access field or identifier " ^ s ^ " for writing") p
 		| AKExpr e ->
-			let eop = type_binop ctx op e1 e2 true p in
+			let eop = type_binop ctx op e1 e2 true with_type p in
 			(match eop.eexpr with
 			| TBinop (_,_,e2) ->
 				unify ctx eop.etype e.etype p;
@@ -1591,7 +1591,7 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 			let l = save_locals ctx in
 			let v = gen_local ctx e.etype in
 			let ev = mk (TLocal v) e.etype p in
-			let get = type_binop ctx op (EField ((EConst (Ident v.v_name),p),cf.cf_name),p) e2 true p in
+			let get = type_binop ctx op (EField ((EConst (Ident v.v_name),p),cf.cf_name),p) e2 true with_type p in
 			unify ctx get.etype t p;
 			l();
 			mk (TBlock [
@@ -1610,7 +1610,7 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 			let ev = mk (TLocal v) ta p in
 			(* this relies on the fact that cf_name is set_name *)
 			let getter_name = String.sub cf.cf_name 4 (String.length cf.cf_name - 4) in
-			let get = type_binop ctx op (EField ((EConst (Ident v.v_name),p),getter_name),p) e2 true p in
+			let get = type_binop ctx op (EField ((EConst (Ident v.v_name),p),getter_name),p) e2 true with_type p in
 			unify ctx get.etype ret p;
 			l();
 			mk (TBlock [
@@ -1635,7 +1635,7 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 			in
 			let ast_call = ECall((EField(Interp.make_ast ebase,cf_get.cf_name),p),[Interp.make_ast ekey]),p in
 			let ast_call = (EMeta((Meta.PrivateAccess,[],pos ast_call),ast_call),pos ast_call) in
-			let eget = type_binop ctx op ast_call e2 true p in
+			let eget = type_binop ctx op ast_call e2 true with_type p in
 			unify ctx eget.etype r_get p;
 			let cf_set,tf_set,r_set =
 				try find_array_access a pl ekey.etype eget.etype true
@@ -1660,8 +1660,24 @@ let rec type_binop ctx op e1 e2 is_assign_op p =
 		| AKInline _ | AKMacro _ ->
 			assert false)
 	| _ ->
-	let e1 = type_expr ctx e1 Value in
-	let e2 = type_expr ctx e2 (if op == OpEq || op == OpNotEq then WithType e1.etype else Value) in
+	(* If the with_type is an abstract which has exactly one applicable @:op method, we can promote it
+	   to the individual arguments (issue #2786). *)
+	let wt = match with_type with
+		| WithType t | WithTypeResume t ->
+			begin match follow t with
+				| TAbstract(a,_) ->
+					begin match List.filter (fun (o,_) -> o = OpAssignOp(op) || o == op) a.a_ops with
+						| [_] -> with_type
+						| _ -> Value
+					end
+				| _ ->
+					Value
+			end
+		| _ ->
+			Value
+	in
+	let e1 = type_expr ctx e1 wt in
+	let e2 = type_expr ctx e2 (if op == OpEq || op == OpNotEq then WithType e1.etype else wt) in
 	let tint = ctx.t.tint in
 	let tfloat = ctx.t.tfloat in
 	let tstring = ctx.t.tstring in
@@ -2025,7 +2041,7 @@ and type_unop ctx op flag e p =
 		let eget = (EField ((EConst (Ident v.v_name),p),cf.cf_name),p) in
 		match flag with
 		| Prefix ->
-			let get = type_binop ctx op eget one false p in
+			let get = type_binop ctx op eget one false Value p in
 			unify ctx get.etype t p;
 			l();
 			mk (TBlock [
@@ -2036,7 +2052,7 @@ and type_unop ctx op flag e p =
 			let v2 = gen_local ctx t in
 			let ev2 = mk (TLocal v2) t p in
 			let get = type_expr ctx eget Value in
-			let plusone = type_binop ctx op (EConst (Ident v2.v_name),p) one false p in
+			let plusone = type_binop ctx op (EConst (Ident v2.v_name),p) one false Value p in
 			unify ctx get.etype t p;
 			l();
 			mk (TBlock [
@@ -2510,7 +2526,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 	| EConst c ->
 		Codegen.type_constant ctx.com c p
     | EBinop (op,e1,e2) ->
-		type_binop ctx op e1 e2 false p
+		type_binop ctx op e1 e2 false with_type p
 	| EBlock [] when with_type <> NoValue ->
 		type_expr ctx (EObjectDecl [],p) with_type
 	| EBlock l ->
