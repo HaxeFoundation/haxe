@@ -23,6 +23,7 @@ env:
     - TARGET=munit
     - TARGET=openfl-samples
     - TARGET=flixel-demos
+    - TARGET=neko-sys
 
 matrix:
   fast_finish: true

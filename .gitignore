@@ -58,3 +58,4 @@ tests/unit/compile.php.hxml
 /extra/*.xml
 tests/optimization/testopt.js
 *.cmo
+tests/sys/bin/

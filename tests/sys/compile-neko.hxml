@@ -1,0 +1,2 @@
+compile-each.hxml
+-neko bin/neko/sys.n
