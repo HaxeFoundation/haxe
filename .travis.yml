@@ -24,6 +24,7 @@ env:
     - TARGET=openfl-samples
     - TARGET=flixel-demos
     - TARGET=neko-sys
+	- TARGET=bytecode
 
 matrix:
   fast_finish: true
@@ -37,7 +38,7 @@ before_install:
   - cd ~/neko && make && sudo make install && cd $TRAVIS_BUILD_DIR
 
 script:
-  - make
+  - /bin/sh -c '[ $TARGET = "bytecode" ] && make BYTECODE=1 || make'
   - make tools
   - sudo make install
   - cd tests/

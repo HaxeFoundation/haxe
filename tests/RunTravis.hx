@@ -237,7 +237,7 @@ class RunTravis {
 
 		Sys.setCwd(unitDir);
 		switch (Sys.getEnv("TARGET")) {
-			case "macro", null:
+			case "macro", "bytecode", null:
 				runCommand("haxe", ["compile-macro.hxml"]);
 
 				//generate documentation
