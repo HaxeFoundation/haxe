@@ -2448,8 +2448,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 	| EField(_,n) when n.[0] = '$' ->
 		error "Field names starting with $ are not allowed" p
 	| EConst (Ident s) ->
-		(* TODO: let's deal with this later *)
-		(* if s = "super" && with_type <> NoValue then error "Cannot use super as value" p; *)
+		if s = "super" && with_type <> NoValue then error "Cannot use super as value" p;
 		(try
 			acc_get ctx (type_ident_raise ~imported_enums:false ctx s p MGet) p
 		with Not_found -> try
