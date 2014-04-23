@@ -15,7 +15,6 @@ env:
     - TARGET=openfl-samples
     - TARGET=flixel-demos
     - TARGET=neko-sys
-    - TARGET=bytecode
 
 matrix:
   fast_finish: true
