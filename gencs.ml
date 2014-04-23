@@ -2657,10 +2657,7 @@ let configure gen =
     mkdir (gen.gcon.file ^ "/src/Resources");
     Hashtbl.iter (fun name v ->
       let full_path = gen.gcon.file ^ "/src/Resources/" ^ name in
-      let parts = Str.split_delim (Str.regexp "[\\/]+") full_path in
-      let dir_list = List.rev (List.tl (List.rev parts)) in
-
-      Common.mkdir_recursive "" dir_list;
+      mkdir_from_path full_path;
 
       let f = open_out full_path in
       output_string f v;

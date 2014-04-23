@@ -2141,10 +2141,7 @@ let configure gen =
       res := { eexpr = TConst(TString name); etype = gen.gcon.basic.tstring; epos = Ast.null_pos } :: !res;
 
       let full_path = gen.gcon.file ^ "/src/" ^ name in
-      let parts = Str.split_delim (Str.regexp "[\\/]+") full_path in
-      let dir_list = List.rev (List.tl (List.rev parts)) in
-
-      Common.mkdir_recursive "" dir_list;
+      mkdir_from_path full_path;
 
       let f = open_out full_path in
       output_string f v;

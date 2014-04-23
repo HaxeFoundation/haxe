@@ -920,6 +920,11 @@ let rec mkdir_recursive base dir_list =
 				Unix.mkdir path 0o755;
 		mkdir_recursive (if (path = "") then "/" else path) remaining
 
+let mkdir_from_path path =
+	let parts = Str.split_delim (Str.regexp "[\\/]+") path in
+	let dir_list = List.rev (List.tl (List.rev parts)) in
+	mkdir_recursive "" dir_list
+
 let mem_size v =
 	Objsize.size_with_headers (Objsize.objsize v [] [])
 
