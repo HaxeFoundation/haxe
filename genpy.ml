@@ -50,18 +50,20 @@ module KeywordHandler = struct
 			"and"; "as"; "assert"; "break"; "class"; "continue"; "def"; "del"; "elif"; "else"; "except"; "exec"; "finally"; "for";
 			"from"; "global"; "if"; "import"; "in"; "is"; "lambda"; "not"; "or"; "pass"; "print";" raise"; "return"; "try"; "while";
 			"with"; "yield"; "float"; "None"; "list"; "True"; "False"
-			;"__b" (* TODO: hack to deal with haxe.Utf8 error *)
 		];
 		h
 
 	let handle_keywords s =
-		if Hashtbl.mem kwds s then "_hx_" ^ s else s
-
-	let unhandle_keywords s =
-		if String.length s > 4 && String.sub s 0 4 = "_hx_" then
-			String.sub s 4 (String.length s - 4)
-		else
-			s
+		let l = String.length s in
+		if Hashtbl.mem kwds s then
+			"_hx_" ^ s
+		(*
+			handle special __ underscore behaviour (creates private fields for objects) for fields but only if the field doesn't
+			end with at least one underscores like __iter__ because these are special fields
+		*)
+		else if l > 2 && String.sub s 0 2 = "__" && String.sub s (l - 1) 1 <> "_" then
+			"_hx_" ^ s
+		else s
 end
 
 module Transformer = struct
@@ -477,6 +479,21 @@ module Transformer = struct
 			lift_expr ~blocks:[x] substitute
 		| _ -> def
 
+	and transform_call is_value e params ae =
+		let trans is_value blocks e = transform_expr1 is_value ae.a_next_id blocks e in
+		let trans1 e params =
+			let e = trans true [] e in
+			let blocks = e.a_blocks @ (List.flatten (List.map (fun (p) -> p.a_blocks) params)) in
+			let params = List.map (fun (p) -> p.a_expr) params in
+			let e = { ae.a_expr with eexpr = TCall(e.a_expr, params) } in
+			lift_expr ~blocks:blocks e
+		in
+		match e, params with
+		(* the foreach block should not be handled as a value *)
+		| ({ eexpr = TField(_, FStatic({cl_path = ["python";],"Syntax"},{ cf_name = "_foreach" }))} as e, [e1;e2;e3]) ->
+			trans1 e [trans true [] e1; trans true [] e2; trans false [] e3]
+		| (e, params) ->
+			trans1 e (List.map (trans true []) params)
 
 
 	and transform1 ae : adjusted_expr =
@@ -749,17 +766,8 @@ module Transformer = struct
 			let params = List.map (fun (p) -> p.a_expr) params in
 			let e = { a_expr with eexpr = TNew(c, tp, params) } in
 			lift false blocks e
-(* 		| (_, TCall({ eexpr = TLocal({v_name = "__python_for__" })} as x, [param])) ->
-			let param = trans false [] param in
-			let call = { a_expr with eexpr = TCall(x, [param.a_expr])} in
-			lift_expr call *)
-		| (_, TCall(e, params)) ->
-			let e = trans true [] e in
-			let params = List.map (trans true []) params in
-			let blocks = e.a_blocks @ (List.flatten (List.map (fun (p) -> p.a_blocks) params)) in
-			let params = List.map (fun (p) -> p.a_expr) params in
-			let e = { a_expr with eexpr = TCall(e.a_expr, params) } in
-			lift_expr ~blocks:blocks e
+		| (is_value, TCall(e,params)) ->
+			transform_call is_value e params ae
 		| (_, TArray(e1, e2)) ->
 			let e1 = trans true [] e1 in
 			let e2 = trans true [] e2 in
@@ -810,7 +818,7 @@ module Transformer = struct
 			let e = trans true [] e in
 			let r = { a_expr with eexpr = TField(e.a_expr, f) } in
 			lift_expr ~blocks:e.a_blocks r
-		| (is_value, TMeta(m,e)) ->
+		| (is_value, TMeta(m, e)) ->
 			let e = trans is_value [] e in
 			let r = { a_expr with eexpr = TMeta(m, e.a_expr); etype = e.a_expr.etype } in
 			lift_expr ~blocks:e.a_blocks r
@@ -1257,11 +1265,10 @@ module Printer = struct
 				Printf.sprintf "%s(%s)" (print_expr pctx e1) (print_exprs pctx ", " el)
 			| "python_Syntax.opPow", [e1;e2] ->
 				Printf.sprintf "(%s ** %s)" (print_expr pctx e1) (print_expr pctx e2)
-(* 			| "__python_for__",[{eexpr = TBlock [{eexpr = TVar(v1,_)};e2;block]}] ->
-				let f1 = v1.v_name in
+ 			| "python_Syntax._foreach",[e1;e2;e3] ->
 				let pctx = {pctx with pc_indent = "\t" ^ pctx.pc_indent} in
 				let i = pctx.pc_indent in
-				Printf.sprintf "for %s in %s:\n%s%s" f1 (print_expr pctx e2) i (print_expr pctx block) *)
+				Printf.sprintf "for %s in %s:\n%s%s" (print_expr pctx e1) (print_expr pctx e2) i (print_expr pctx e3)
 (* 			| "__new_named__",e1::el ->
 				Printf.sprintf "new %s(%s)" (print_expr pctx e1) (print_exprs pctx ", " el) *)
 (* 			| "__python_kwargs__",[e1] ->

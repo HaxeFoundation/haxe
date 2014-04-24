@@ -9,13 +9,6 @@ env:
   matrix:
     - TARGET=python
     - TARGET=polygonal-ds
-    - TARGET=flambe
-    - TARGET=hxtemplo
-    - TARGET=munit
-    - TARGET=openfl-samples
-    - TARGET=flixel-demos
-    - TARGET=neko-sys
-    - TARGET=bytecode
 
 matrix:
   fast_finish: true

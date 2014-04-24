@@ -1,6 +1,7 @@
 package haxe.ds;
 
 import python.lib.Types.Dict;
+import python.Syntax;
 
 class IntMap<T> implements Map.IMap<Int, T> {
 	private var h : Dict<Int, T>;
@@ -24,17 +25,12 @@ class IntMap<T> implements Map.IMap<Int, T> {
 	public function remove( key : Int ) : Bool
 	{
 		if(!h.hasKey(key)) return false;
-		python.Syntax.pythonCode("del self.h[key]");
+		Syntax.delete(Syntax.arrayAccess(h, key));
 		return true;
 	}
 
 	public function keys() : Iterator<Int> {
-		var a = [];
-
-		python.Syntax.pythonCode("for key in self.h:");
-		python.Syntax.pythonCode("	a.append(key)");
-
-		return a.iterator();
+		return h.keys().iter();
 	}
 
 	public function iterator() : Iterator<T> {
