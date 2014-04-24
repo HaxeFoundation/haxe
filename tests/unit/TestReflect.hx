@@ -117,9 +117,8 @@ class TestReflect extends Test {
 		is(-1,Int,Float);
 		is(2.0,Int,Float);
 		is(1.2,Float);
-		// TODO: check these
-		//is(1e10,Float);
-		//is(-1e10,Float);
+		is(1e10,Float);
+		is(-1e10,Float);
 		is(Math.NaN,Float);
 		is(Math.POSITIVE_INFINITY,Float);
 		is(Math.NEGATIVE_INFINITY,Float);

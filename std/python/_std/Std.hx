@@ -62,9 +62,10 @@ import python.Syntax;
 		}
 		var vIsFloat = Builtin.isinstance(v, Builtin.float);
 
-		if (!isBool && vIsFloat && t == Int && Math.isFinite(v) && v == Std.int(v)) {
+		if (!isBool && vIsFloat && t == Int && Math.isFinite(v) && v == Std.int(v) && v <= 2147483647 && v >= -2147483648) {
 			return true;
 		}
+
 
 		if (!isBool &&  t == Float && ( Builtin.isinstance(v, python.Syntax.pythonCode("(float,int)")))) {
 			return true;
