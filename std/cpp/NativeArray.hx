@@ -22,4 +22,8 @@ class NativeArray {
 	public static inline function memcmp<T>( inArrayA:Array<T>, inArrayB:Array<T>) : Int {
 		return untyped inArrayA.memcmp(inArrayB);
 	}
+
+	public static inline function setSize<T>( ioArray:Array<T>, inSize:Int) : Array<T> {
+		return untyped ioArray.__SetSizeExact(inSize);
+   }
 }

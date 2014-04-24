@@ -9,11 +9,19 @@ env:
   matrix:
     - TARGET=python
     - TARGET=polygonal-ds
+    - TARGET=flambe
+    - TARGET=hxtemplo
+    - TARGET=munit
+    - TARGET=openfl-samples
+    - TARGET=flixel-demos
+    - TARGET=neko-sys
+    - TARGET=bytecode
 
 matrix:
   fast_finish: true
   allow_failures:
     - env: TARGET=flash8
+    - env: TARGET=flixel-demos
 
 before_install:
   - travis_retry sudo apt-get update
@@ -22,7 +30,7 @@ before_install:
   - cd ~/neko && make && sudo make install && cd $TRAVIS_BUILD_DIR
 
 script:
-  - make
+  - /bin/sh -c '[ $TARGET = "bytecode" ] && make BYTECODE=1 || make'
   - make tools
   - sudo make install
   - cd tests/

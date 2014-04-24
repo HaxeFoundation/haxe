@@ -419,6 +419,7 @@ and load_complex_type ctx p t =
 				| TInst ({cl_kind = KTypeParameter _},_) ->
 					error "Cannot structurally extend type parameters" p
 				| TInst (c,tl) ->
+					ctx.com.warning "Structurally extending classes is deprecated and will be removed" p;
 					let c2 = mk_class null_module (fst c.cl_path,"+" ^ snd c.cl_path) p in
 					c2.cl_private <- true;
 					PMap.iter (fun f _ ->

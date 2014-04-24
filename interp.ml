@@ -202,6 +202,7 @@ let dec_array_ref = ref (fun v -> assert false)
 let enc_string_ref = ref (fun s -> assert false)
 let make_ast_ref = ref (fun _ -> assert false)
 let make_complex_type_ref = ref (fun _ -> assert false)
+let encode_tvar_ref = ref (fun _ -> assert false)
 let get_ctx() = (!get_ctx_ref)()
 let enc_array (l:value list) : value = (!enc_array_ref) l
 let dec_array (l:value) : value list = (!dec_array_ref) l
@@ -217,6 +218,7 @@ let enc_hash (h:('a,'b) Hashtbl.t) : value = (!enc_hash_ref) h
 let make_ast (e:texpr) : Ast.expr = (!make_ast_ref) e
 let enc_string (s:string) : value = (!enc_string_ref) s
 let make_complex_type (t:Type.t) : Ast.complex_type = (!make_complex_type_ref) t
+let encode_tvar (v:tvar) : value = (!encode_tvar_ref) v
 
 let to_int f = Int32.of_float (mod_float f 2147483648.0)
 let need_32_bits i = Int32.compare (Int32.logand (Int32.add i 0x40000000l) 0x80000000l) Int32.zero <> 0
@@ -2426,10 +2428,18 @@ let macro_lib =
 		"local_using", Fun0 (fun() ->
 			enc_array (List.map encode_clref ((get_ctx()).curapi.get_local_using()))
 		);
-		"local_vars", Fun0 (fun() ->
+		"local_vars", Fun1 (fun as_var ->
+			let as_var = match as_var with
+				| VNull | VBool false -> false
+				| VBool true -> true
+				| _ -> error()
+			in
 			let vars = (get_ctx()).curapi.get_local_vars() in
 			let h = Hashtbl.create 0 in
-			PMap.iter (fun n v -> Hashtbl.replace h (VString n) (encode_type v.v_type)) vars;
+			if as_var then
+				PMap.iter (fun n v -> Hashtbl.replace h (VString n) (encode_tvar v)) vars
+			else
+				PMap.iter (fun n v -> Hashtbl.replace h (VString n) (encode_type v.v_type)) vars;
 			enc_hash h
 		);
 		"follow", Fun2 (fun v once ->
@@ -4954,4 +4964,5 @@ encode_clref_ref := encode_clref;
 enc_string_ref := enc_string;
 enc_hash_ref := enc_hash;
 encode_texpr_ref := encode_texpr;
-decode_texpr_ref := decode_texpr
+decode_texpr_ref := decode_texpr;
+encode_tvar_ref := encode_tvar;

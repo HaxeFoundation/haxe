@@ -1223,7 +1223,7 @@ let generate com =
 
 		(* Wrap output in a closure *)
 		if (anyExposed && (Common.defined com Define.ShallowExpose)) then (
-			print ctx "var $hx_exports = {}";
+			print ctx "var $hx_exports = $hx_exports || {}";
 			ctx.separator <- true;
 			newline ctx
 		);
@@ -1231,18 +1231,15 @@ let generate com =
 		if (anyExposed && not (Common.defined com Define.ShallowExpose)) then print ctx "$hx_exports";
 		print ctx ") { \"use strict\"";
 		newline ctx;
-		let rec print_obj { os_fields = fields } = (
-			print ctx "{";
-			concat ctx "," (fun ({ os_name = name } as f) -> print ctx "%s" (name ^ ":"); print_obj f) fields;
-			print ctx "}";
+		let rec print_obj f root = (
+			let path = root ^ "." ^ f.os_name in
+			print ctx "%s = %s || {}" path path;
+			ctx.separator <- true;
+			newline ctx;
+			concat ctx ";" (fun g -> print_obj g path) f.os_fields
 		)
 		in
-		List.iter (fun f ->
-			print ctx "$hx_exports.%s = " f.os_name;
-			print_obj f;
-			ctx.separator <- true;
-			newline ctx
-		) exposedObject.os_fields;
+		List.iter (fun f -> print_obj f "$hx_exports") exposedObject.os_fields;
 	end;
 
 	(* TODO: fix $estr *)

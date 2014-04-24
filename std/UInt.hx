@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#if (flash9 || flash9doc || cs || doc_gen)
+#if ((flash9 || flash9doc || cs) && !doc_gen)
 /**
 	The unsigned Int type is only defined for Flash9 and C#. It's currently
 	handled the same as a normal Int.
@@ -31,8 +31,7 @@
 	The unsigned Int type is only defined for Flash9 and C#.
 	Simulate it for other platforms.
 **/
-@:coreType
-abstract UInt from Int {
+abstract UInt(Int) from Int to Int {
 
 	@:op(A + B) private static inline function add(a:UInt, b:UInt):UInt {
 		return a.toInt() + b.toInt();
@@ -130,11 +129,19 @@ abstract UInt from Int {
 		return a.toFloat() > b;
 	}
 
-	@:commutative @:op(A == B) private static inline function equalsFloat(a:UInt, b:Float):Bool {
+	@:commutative @:op(A == B) private static inline function equalsInt<T:Int>(a:UInt, b:T):Bool {
+		return a.toInt() == b;
+	}
+
+	@:commutative @:op(A != B) private static inline function notEqualsInt<T:Int>(a:UInt, b:T):Bool {
+		return a.toInt() != b;
+	}
+
+	@:commutative @:op(A == B) private static inline function equalsFloat<T:Float>(a:UInt, b:T):Bool {
         return a.toFloat() == b;
     }
 
-    @:commutative @:op(A != B) private static inline function notEqualsFloat(a:UInt, b:Float):Bool {
+    @:commutative @:op(A != B) private static inline function notEqualsFloat<T:Float>(a:UInt, b:T):Bool {
         return a.toFloat() != b;
     }
 
@@ -158,7 +165,6 @@ abstract UInt from Int {
 	@:op(A <= B) private static inline function lteFloat(a:UInt, b:Float):Bool {
 		return a.toFloat() <= b;
 	}
-
 
 	@:op(A < B) private static inline function floatLt(a:Float, b:UInt):Bool {
 		return a < b.toFloat();
@@ -201,6 +207,10 @@ abstract UInt from Int {
 		return Std.string(toFloat());
 	}
 
+	private inline function toInt():Int {
+		return this;
+	}
+
 	@:to private inline function toFloat():Float {
 		var int = toInt();
 		if (int < 0) {
@@ -212,10 +222,5 @@ abstract UInt from Int {
 			return int + 0.0;
 		}
 	}
-
-	@:to private inline function toInt():Int {
-		return cast this;
-	}
-
 }
 #end

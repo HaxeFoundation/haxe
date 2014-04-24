@@ -1624,7 +1624,13 @@ let configure gen =
     print w "%s %s %s %s" access (String.concat " " modifiers) clt (change_clname (snd cl.cl_path));
     (* type parameters *)
     let params, _ = get_string_params cl.cl_types in
-    let cl_p_to_string (c,p) = path_param_s cl.cl_pos (TClassDecl c) c.cl_path p in
+    let cl_p_to_string (c,p) =
+      let p = List.map (fun t -> match follow t with
+        | TMono _ | TDynamic _ -> t_empty
+        | _ -> t) p
+      in
+      path_param_s cl.cl_pos (TClassDecl c) c.cl_path p
+    in
     print w "%s" params;
     (if is_some cl.cl_super then print w " extends %s" (cl_p_to_string (get cl.cl_super)));
     (match cl.cl_implements with
@@ -2135,10 +2141,7 @@ let configure gen =
       res := { eexpr = TConst(TString name); etype = gen.gcon.basic.tstring; epos = Ast.null_pos } :: !res;
 
       let full_path = gen.gcon.file ^ "/src/" ^ name in
-      let parts = Str.split_delim (Str.regexp "[\\/]+") full_path in
-      let dir_list = List.rev (List.tl (List.rev parts)) in
-
-      Common.mkdir_recursive "" dir_list;
+      mkdir_from_path full_path;
 
       let f = open_out full_path in
       output_string f v;
@@ -2455,7 +2458,7 @@ let convert_java_enum ctx p pe =
     ) field.jf_flags;
 
     List.iter (function
-      | AttrDeprecated -> cff_meta := (Meta.Deprecated, [], p) :: !cff_meta
+      | AttrDeprecated when jc.cpath <> (["java";"util"],"Date") -> cff_meta := (Meta.Deprecated, [], p) :: !cff_meta
       (* TODO: pass anotations as @:meta *)
       | AttrVisibleAnnotations ann ->
         List.iter (function

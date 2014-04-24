@@ -140,6 +140,8 @@ class Debugger
      *          - threadNumber, the thread number of the event
      *          - event, one of THREAD_CREATED, THREAD_TERMINATED,
      *            THREAD_STARTED, or THREAD_STOPPED
+     *          - stackFrame, the stack frame number at which the thread is stopped,
+     *            undefined if event is not THREAD_STOPPED
      *          - className, the class name at which the thread is stopped,
      *            undefined if event is not THREAD_STOPPED
      *          - functionName, the function name at which the thread is
@@ -150,7 +152,7 @@ class Debugger
      *            undefined if event is not THREAD_STOPPED
      **/
     public static function setEventNotificationHandler(
-             handler : Int -> Int -> String -> String -> String -> Int -> Void)
+             handler : Int -> Int -> Int -> String -> String -> String -> Int -> Void)
     {
         untyped __global__.__hxcpp_dbg_setEventNotificationHandler(handler);
     }

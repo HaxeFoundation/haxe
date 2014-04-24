@@ -175,10 +175,20 @@ class Context {
 
 		Modifying the returned map has no effect on the compiler.
 	**/
+	@:deprecated("Use Context.getLocalTVars() instead")
 	public static function getLocalVars() : haxe.ds.StringMap<Type> {
-		return load("local_vars", 0)();
+		return load("local_vars", 1)(false);
 	}
 
+	/**
+		Similar to `getLocalVars`, but returns elements of type `TVar` instead
+		of `Type`.
+	**/
+	@:require(haxe_ver >= 3.102)
+	public static function getLocalTVars() : haxe.ds.StringMap<Type.TVar> {
+		return load("local_vars", 1)(true);
+	}
+	
 	/**
 		Tells if compiler directive `s` has been set.
 

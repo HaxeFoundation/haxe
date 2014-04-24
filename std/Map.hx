@@ -150,15 +150,15 @@ abstract Map<K,V>(IMap<K,V> ) {
 	}
 
 	@:from static inline function fromStringMap<V>(map:StringMap<V>):Map< String, V > {
-		return map;
+		return cast map;
 	}
 
 	@:from static inline function fromIntMap<V>(map:IntMap<V>):Map< Int, V > {
-		return map;
+		return cast map;
 	}
 
 	@:from static inline function fromObjectMap<K:{ }, V>(map:ObjectMap<K,V>):Map<K,V> {
-		return map;
+		return cast map;
 	}
 }
 

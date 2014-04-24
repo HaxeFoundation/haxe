@@ -774,11 +774,16 @@ let sanitize_expr com e =
 	in
 	match e.eexpr with
 	| TConst TNull ->
-		if com.config.pf_static && not (is_nullable e.etype) then
-			(match follow e.etype with
-			| TMono _ -> () (* in these cases the null will cast to default value *)
-			| TFun _ -> () (* this is a bit a particular case, maybe flash-specific actually *)
-			| _ -> com.error ("On static platforms, null can't be used as basic type " ^ s_type (print_context()) e.etype) e.epos);
+		if com.config.pf_static && not (is_nullable e.etype) then begin
+			let rec loop t = match follow t with
+				| TMono _ -> () (* in these cases the null will cast to default value *)
+				| TFun _ -> () (* this is a bit a particular case, maybe flash-specific actually *)
+				(* TODO: this should use get_underlying_type, but we do not have access to Codegen here.  *)
+				| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) -> loop (apply_params a.a_types tl a.a_this)
+				| _ -> com.error ("On static platforms, null can't be used as basic type " ^ s_type (print_context()) e.etype) e.epos
+			in
+			loop e.etype
+		end;
 		e
 	| TBinop (op,e1,e2) ->
 		let swap op1 op2 =
@@ -1266,23 +1271,26 @@ let inline_constructors ctx e =
 			) ([],PMap.empty) assigns),el_init
 		) vars in
 		let el_b = ref [] in
+		let append e = el_b := e :: !el_b in
 		let rec subst e =
 			match e.eexpr with
 			| TBlock el ->
 				let old = !el_b in
 				el_b := [];
-				List.iter (fun e -> el_b := (subst e) :: !el_b) el;
+				List.iter (fun e -> append (subst e)) el;
 				let n = !el_b in
 				el_b := old;
 				{e with eexpr = TBlock (List.rev n)}
 			| TVar (v,Some e) when v.v_id < 0 ->
 				let (vars, _),el_init = PMap.find (-v.v_id) vfields in
-				el_b := (List.rev_map subst el_init) @ !el_b;
+				List.iter (fun e ->
+					append (subst e)
+				) el_init;
 				let (v_first,e_first),vars = match vars with
 					| v :: vl -> v,vl
 					| [] -> assert false
 				in
-				List.iter (fun (v,e) -> el_b := (mk (TVar(v,Some (subst e))) ctx.t.tvoid e.epos) :: !el_b) (List.rev vars);
+				List.iter (fun (v,e) -> append (mk (TVar(v,Some (subst e))) ctx.t.tvoid e.epos)) (List.rev vars);
 				mk (TVar (v_first, Some (subst e_first))) ctx.t.tvoid e.epos
 			| TField ({ eexpr = TLocal v },FInstance (c,cf)) when v.v_id < 0 ->
 				let (_, vars),el_init = PMap.find (-v.v_id) vfields in

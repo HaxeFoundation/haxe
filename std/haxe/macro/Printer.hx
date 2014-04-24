@@ -24,6 +24,7 @@ package haxe.macro;
 
 import haxe.macro.Expr;
 using Lambda;
+using StringTools;
 
 class Printer {
 	var tabs:String;
@@ -69,9 +70,19 @@ class Printer {
 			printBinop(op)
 			+ "=";
 	}
-	public function printString(s:String) {
-		return '"' + s.split("\n").join("\\n").split("\t").join("\\t").split("'").join("\\'").split('"').join("\\\"") #if sys .split("\x00").join("\\x00") #end + '"';
+
+	function escapeString(s:String,delim:String) {
+		return delim + s.replace("\n","\\n").replace("\t","\\t").replace("'","\\'").replace('"',"\\\"") #if sys .replace("\x00","\\x00") #end + delim;
 	}
+
+	public function printFormatString(s:String) {
+		return escapeString(s,"'");
+	}
+
+	public function printString(s:String) {
+		return escapeString(s,'"');
+	}
+
 	public function printConstant(c:Constant) return switch(c) {
 		case CString(s): printString(s);
 		case CIdent(s),
@@ -150,6 +161,9 @@ class Printer {
 
 
 	public function printExpr(e:Expr) return e == null ? "#NULL" : switch(e.expr) {
+		#if macro
+		case EConst(CString(s)): haxe.macro.MacroStringTools.isFormatExpr(e) ? printFormatString(s) : printString(s);
+		#end
 		case EConst(c): printConstant(c);
 		case EArray(e1, e2): '${printExpr(e1)}[${printExpr(e2)}]';
 		case EBinop(op, e1, e2): '${printExpr(e1)} ${printBinop(op)} ${printExpr(e2)}';

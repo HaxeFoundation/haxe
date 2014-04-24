@@ -1,8 +1,0 @@
--cp src
--main Main
-
---each
--neko bin/sys.n
-
---next
--python bin/sys.py

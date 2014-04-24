@@ -1379,7 +1379,6 @@ and define_local_return_block_ctx ctx expression name retval =
    let output_i = writer#write_i in
    let output = ctx.ctx_output in
    let check_this = function | "this" when not ctx.ctx_real_this_ptr -> "__this" | x -> x in
-   let reference = function | "this" -> " *__this" | "_this" -> " _this" | name -> " &" ^name in
    let rec define_local_return_block expression  =
       let declarations = Hashtbl.create 0 in
       let undeclared = Hashtbl.create 0 in
@@ -1399,8 +1398,17 @@ and define_local_return_block_ctx ctx expression name retval =
          | TObjectDecl _ -> "Dynamic"
          | _ -> type_string expression.etype in
       output_i ("inline static " ^ ret_type ^ " Block( ");
-      output (String.concat "," ( (List.map (fun var ->
-            (Hashtbl.find undeclared var) ^ (reference var)) ) vars));
+      output (String.concat "," (
+         (List.map
+            (fun var ->
+               let var_type = Hashtbl.find undeclared var in
+               (* Args passed into inline-block should be references, so they can be changed.
+                  Fake 'this' pointers can't be changed, so needn't be references *)
+               match var with
+               | "this" -> "hx::ObjectPtr< " ^ var_type ^ " > __this"
+               | "_this" -> var_type ^ " _this"
+               | name -> var_type ^ " &" ^name
+            ) vars) ) );
       output (")");
       let return_data = ret_type <> "Void" in
       writer#begin_block;
@@ -3023,7 +3031,8 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
                   if has_meta_key definition.cf_meta Meta.NoDebug then ctx.ctx_debug_level <- 0;
                   if ctx.ctx_debug_level >0 then begin
                      hx_stack_push ctx output_cpp dot_name "new" function_def.tf_expr.epos;
-                     List.iter (fun (a,(t,o)) -> output_cpp ("\nHX_STACK_ARG(" ^ (keyword_remap o) ^ ",\"" ^ a ^"\")\n") ) constructor_arg_var_list;
+                     output_cpp "HX_STACK_THIS(this)\n";
+                     List.iter (fun (a,(t,o)) -> output_cpp ("HX_STACK_ARG(" ^ (keyword_remap o) ^ ",\"" ^ a ^"\")\n") ) constructor_arg_var_list;
                   end;
 
                   if (has_default_values function_def.tf_args) then begin
@@ -3829,7 +3838,7 @@ and s_fun t void =
 
 and s_type_params = function
    | [] -> ""
-   | l -> "<" ^ String.concat ", " (List.map s_type  l) ^ ">"
+   | l -> "< " ^ String.concat ", " (List.map s_type  l) ^ " >"
 
 ;;
 
@@ -3866,7 +3875,7 @@ let gen_extern_class common_ctx class_def file_info =
    in
 
 
-   let params = function [] -> "" | l ->  "<" ^ (String.concat "," (List.map (fun (n,t) -> n) l) ^ ">")  in
+   let params = function [] -> "" | l ->  "< " ^ (String.concat "," (List.map (fun (n,t) -> n) l) ^ " >")  in
    let output = file#write in
 
    let print_field stat f =
@@ -3909,8 +3918,8 @@ let gen_extern_class common_ctx class_def file_info =
             ^ " " ^ (snd path) ^ (params c.cl_types) );
    (match c.cl_super with None -> () | Some (c,pl) -> output (" extends " ^  (s_type (TInst (c,pl)))));
    List.iter (fun (c,pl) -> output ( " implements " ^ (s_type (TInst (c,pl))))) (real_interfaces c.cl_implements);
-   (match c.cl_dynamic with None -> () | Some t -> output (" implements Dynamic<" ^ (s_type t) ^ ">"));
-   (match c.cl_array_access with None -> () | Some t -> output (" implements ArrayAccess<" ^ (s_type t) ^ ">"));
+   (match c.cl_dynamic with None -> () | Some t -> output (" implements Dynamic< " ^ (s_type t) ^ " >"));
+   (match c.cl_array_access with None -> () | Some t -> output (" implements ArrayAccess< " ^ (s_type t) ^ " >"));
    output "{\n";
    (match c.cl_constructor with
    | None -> ()
@@ -3931,7 +3940,7 @@ let gen_extern_enum common_ctx enum_def file_info =
    let file = new_source_file common_ctx common_ctx.file  "extern" ".hx" path in
    let output = file#write in
 
-   let params = function [] -> "" | l ->  "<" ^ (String.concat "," (List.map (fun (n,t) -> n) l) ^ ">")  in
+   let params = function [] -> "" | l ->  "< " ^ (String.concat "," (List.map (fun (n,t) -> n) l) ^ " >")  in
    output ( "package " ^ (String.concat "." (fst path)) ^ ";\n" );
    output ( "@:include extern " ^ (if enum_def.e_private then "private " else "")
             ^ " enum " ^ (snd path) ^ (params enum_def.e_types) );

@@ -681,9 +681,6 @@ module Abstract = struct
 		make_static_call ctx c cf (apply_params a.a_types pl) args t p
 
 	let rec do_check_cast ctx tleft eright p =
-		let tright = follow eright.etype in
-		let tleft = follow tleft in
-		if tleft == tright then eright else
 		let recurse cf f =
 			if cf == ctx.curfield || List.mem cf !cast_stack then error "Recursive implicit cast" p;
 			cast_stack := cf :: !cast_stack;
@@ -691,43 +688,38 @@ module Abstract = struct
 			cast_stack := List.tl !cast_stack;
 			r
 		in
-		try (match tright,tleft with
-			| (TAbstract({a_impl = Some c1} as a1,pl1) as t1),(TAbstract({a_impl = Some c2} as a2,pl2) as t2) ->
-				if a1 == a2 then
-					eright
-				else begin
-					let c,cfo,a,pl = try
-						if Meta.has Meta.MultiType a1.a_meta then raise Not_found;
-						c1,snd (find_to a1 pl1 t2),a1,pl1
-					with Not_found ->
-						if Meta.has Meta.MultiType a2.a_meta then raise Not_found;
-						c2,snd (find_from a2 pl2 t1 t2),a2,pl2
-					in
-					match cfo with
-					| None -> eright
-					| Some cf ->
-						recurse cf (fun () -> make_static_call ctx c cf a pl [eright] tleft p)
-				end
-			| _, TMono _ | TMono _, _ ->
-				eright
-			| TAbstract({a_impl = Some c} as a,pl),t2 when not (Meta.has Meta.MultiType a.a_meta) ->
-				begin match find_to a pl t2 with
-					| tcf,None ->
-						let tcf = apply_params a.a_types pl tcf in
-						if type_iseq tcf tleft then eright else do_check_cast ctx tcf eright p
-					| _,Some cf ->
-						recurse cf (fun () -> make_static_call ctx c cf a pl [eright] tleft p)
-				end
-			| t1,(TAbstract({a_impl = Some c} as a,pl) as t2) when not (Meta.has Meta.MultiType a.a_meta) ->
-				begin match find_from a pl t1 t2 with
-					| tcf,None ->
-						let tcf = apply_params a.a_types pl tcf in
-						if type_iseq tcf tleft then eright else do_check_cast ctx tcf eright p
-					| _,Some cf ->
-						recurse cf (fun () -> make_static_call ctx c cf a pl [eright] tleft p)
-				end
-			| _ ->
-				eright)
+		let find a tl f =
+			let tcf,cfo = f() in
+			match cfo,a.a_impl with
+				| None,_ ->
+					let tcf = apply_params a.a_types tl tcf in
+					if type_iseq tcf tleft then
+						eright
+					else
+						(* TODO: causes Java overload issues *)
+						(* let eright = mk (TCast(eright,None)) tleft p in *)
+						do_check_cast ctx tcf eright p
+				| Some cf,Some c ->
+					recurse cf (fun () -> make_static_call ctx c cf a tl [eright] tleft p)
+				| _ ->
+					assert false
+		in
+		if type_iseq tleft eright.etype then
+			eright
+		else try
+			begin match follow eright.etype with
+				| TAbstract(a,tl) ->
+					find a tl (fun () -> find_to a tl tleft)
+				| _ ->
+					raise Not_found
+			end
+		with Not_found -> try
+			begin match follow tleft with
+				| TAbstract(a,tl) ->
+					find a tl (fun () -> find_from a tl eright.etype tleft)
+				| _ ->
+					raise Not_found
+			end
 		with Not_found ->
 			eright
 
@@ -770,10 +762,10 @@ module Abstract = struct
 				{e with etype = m}
 			| TCall({eexpr = TField(_,FStatic({cl_path=[],"Std"},{cf_name = "string"}))},[e1]) when (match follow e1.etype with TAbstract({a_impl = Some _},_) -> true | _ -> false) ->
 				begin match follow e1.etype with
-					| TAbstract({a_impl = Some c} as a,_) ->
+					| TAbstract({a_impl = Some c} as a,tl) ->
 						begin try
 							let cf = PMap.find "toString" c.cl_statics in
-							make_static_call ctx c cf a [] [e1] ctx.t.tstring e.epos
+							make_static_call ctx c cf a tl [e1] ctx.t.tstring e.epos
 						with Not_found ->
 							e
 						end

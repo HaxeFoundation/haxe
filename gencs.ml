@@ -1055,7 +1055,7 @@ let configure gen =
 						write w " += ";
 						expr_s w ev
 					end else
-						do_call w e []
+						do_call w e [ev]
 				| TCall( ({ eexpr = TField(ef,f) } as e), [ev] ) when String.starts_with (field_name f) "remove_" ->
 					let name = field_name f in
 					let propname = String.sub name 7 (String.length name - 7) in
@@ -1066,7 +1066,7 @@ let configure gen =
 						write w " -= ";
 						expr_s w ev
 					end else
-						do_call w e []
+						do_call w e [ev]
 				| TCall( ({ eexpr = TField(ef,f) } as e), [] ) when String.starts_with (field_name f) "get_" ->
 					let name = field_name f in
 					let propname = String.sub name 4 (String.length name - 4) in
@@ -2657,10 +2657,7 @@ let configure gen =
     mkdir (gen.gcon.file ^ "/src/Resources");
     Hashtbl.iter (fun name v ->
       let full_path = gen.gcon.file ^ "/src/Resources/" ^ name in
-      let parts = Str.split_delim (Str.regexp "[\\/]+") full_path in
-      let dir_list = List.rev (List.tl (List.rev parts)) in
-
-      Common.mkdir_recursive "" dir_list;
+      mkdir_from_path full_path;
 
       let f = open_out full_path in
       output_string f v;

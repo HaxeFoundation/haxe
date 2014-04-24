@@ -18,31 +18,44 @@ OUTPUT=haxe
 EXTENSION=
 OCAMLOPT=ocamlopt
 OCAMLC=ocamlc
+LFLAGS=
 
 CFLAGS= -g -I libs/extlib -I libs/extc -I libs/neko -I libs/javalib -I libs/ziplib -I libs/swflib -I libs/xml-light -I libs/ttflib -I libs/ilib -I libs/objsize
 
-CC_CMD = $(OCAMLOPT) $(CFLAGS) -c $<
-CC_PARSER_CMD = $(OCAMLOPT) -pp camlp4o $(CFLAGS) -c parser.ml
-
-LIBS=unix.cmxa str.cmxa libs/extlib/extLib.cmxa libs/xml-light/xml-light.cmxa libs/swflib/swflib.cmxa \
-	libs/extc/extc.cmxa libs/neko/neko.cmxa libs/javalib/java.cmxa libs/ziplib/zip.cmxa \
-	libs/ttflib/ttf.cmxa libs/ilib/il.cmxa libs/objsize/objsize.cmxa
+LIBS=unix str libs/extlib/extLib libs/xml-light/xml-light libs/swflib/swflib \
+	libs/extc/extc libs/neko/neko libs/javalib/java libs/ziplib/zip \
+	libs/ttflib/ttf libs/ilib/il libs/objsize/objsize
 
 NATIVE_LIBS=-cclib libs/extc/extc_stubs.o -cclib -lz -cclib libs/objsize/c_objsize.o
+
+ifeq ($(BYTECODE),1)
+	TARGET_FLAG = bytecode
+	CC_CMD = $(OCAMLC)
+	LIB_EXT = cma
+	MODULE_EXT = cmo
+	NATIVE_LIB_FLAG = -custom
+else
+	TARGET_FLAG = native
+	CC_CMD = $(OCAMLOPT)
+	LIB_EXT = cmxa
+	MODULE_EXT = cmx
+endif
+
+CC_PARSER_CMD = $(CC_CMD) -pp camlp4o $(CFLAGS) -c parser.ml
 
 RELDIR=../../..
 
 MODULES=ast type lexer common genxml parser typecore optimizer typeload \
-codegen gencommon genas3 gencpp genjs genneko genphp genswf8 \
+	codegen gencommon genas3 gencpp genjs genneko genphp genswf8 \
 	genswf9 genswf genjava gencs genpy interp dce filters typer matcher version main
 
 ADD_REVISION=0
 
 # using $(CURDIR) on Windows will not work since it might be a Cygwin path
 ifdef SYSTEMROOT
-EXTENSION=.exe
+	EXTENSION=.exe
 else
-export HAXE_STD_PATH=$(CURDIR)/std
+	export HAXE_STD_PATH=$(CURDIR)/std
 endif
 
 ifneq ($(ADD_REVISION),0)
@@ -53,24 +66,20 @@ endif
 
 all: libs haxe
 
-version.cmx:
-	echo $(VERSION_EXTRA) > version.ml
-	$(OCAMLOPT) $(CFLAGS) -c version.ml
-
 libs:
-	make -C libs/extlib opt OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC)
-	make -C libs/extc native OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC)
-	make -C libs/neko OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC)
-	make -C libs/javalib OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC)
-	make -C libs/ilib OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC)
-	make -C libs/ziplib OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC)
-	make -C libs/swflib OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC)
-	make -C libs/xml-light xml-light.cmxa OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC)
-	make -C libs/ttflib OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC)
-	make -C libs/objsize OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC)
+	make -C libs/extlib OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC) $(TARGET_FLAG)
+	make -C libs/extc OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC) $(TARGET_FLAG)
+	make -C libs/neko OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC) $(TARGET_FLAG)
+	make -C libs/javalib OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC) $(TARGET_FLAG)
+	make -C libs/ilib OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC) $(TARGET_FLAG)
+	make -C libs/ziplib OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC) $(TARGET_FLAG)
+	make -C libs/swflib OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC) $(TARGET_FLAG)
+	make -C libs/xml-light OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC) $(TARGET_FLAG)
+	make -C libs/ttflib OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC) $(TARGET_FLAG)
+	make -C libs/objsize OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC) $(TARGET_FLAG)
 
-haxe: $(MODULES:=.cmx)
-	$(OCAMLOPT) -o $(OUTPUT) $(NATIVE_LIBS) $(LIBS) $(MODULES:=.cmx)
+haxe: $(MODULES:=.$(MODULE_EXT))
+	$(CC_CMD) -o $(OUTPUT) $(NATIVE_LIBS) $(NATIVE_LIB_FLAG) $(LFLAGS) $(LIBS:=.$(LIB_EXT)) $(MODULES:=.$(MODULE_EXT))
 
 haxelib:
 	(cd $(CURDIR)/extra/haxelib_src && $(CURDIR)/$(OUTPUT) haxelib.hxml && nekotools boot bin/haxelib.n)
@@ -103,63 +112,72 @@ install_tools: tools
 uninstall:
 	rm -rf $(INSTALL_BIN_DIR)/haxe $(INSTALL_BIN_DIR)/haxelib $(INSTALL_LIB_DIR)
 
-codegen.cmx: optimizer.cmx typeload.cmx typecore.cmx type.cmx genxml.cmx common.cmx ast.cmx
+# Modules
 
-common.cmx: type.cmx ast.cmx
+codegen.$(MODULE_EXT): optimizer.$(MODULE_EXT) typeload.$(MODULE_EXT) typecore.$(MODULE_EXT) type.$(MODULE_EXT) genxml.$(MODULE_EXT) common.$(MODULE_EXT) ast.$(MODULE_EXT)
 
-dce.cmx: ast.cmx common.cmx codegen.cmx type.cmx
+common.$(MODULE_EXT): type.$(MODULE_EXT) ast.$(MODULE_EXT)
 
-filters.cmx: ast.cmx common.cmx type.cmx dce.cmx codegen.cmx typecore.cmx
+dce.$(MODULE_EXT): ast.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT) type.$(MODULE_EXT)
 
-genas3.cmx: type.cmx common.cmx codegen.cmx ast.cmx
+filters.$(MODULE_EXT): ast.$(MODULE_EXT) common.$(MODULE_EXT) type.$(MODULE_EXT) dce.$(MODULE_EXT) codegen.$(MODULE_EXT) typecore.$(MODULE_EXT)
 
-gencommon.cmx: type.cmx common.cmx codegen.cmx ast.cmx
+genas3.$(MODULE_EXT): type.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT) ast.$(MODULE_EXT)
 
-gencpp.cmx: type.cmx lexer.cmx common.cmx codegen.cmx ast.cmx
+gencommon.$(MODULE_EXT): type.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT) ast.$(MODULE_EXT)
 
-gencs.cmx: type.cmx lexer.cmx gencommon.cmx common.cmx codegen.cmx ast.cmx
+gencpp.$(MODULE_EXT): type.$(MODULE_EXT) lexer.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT) ast.$(MODULE_EXT)
 
-genjava.cmx: type.cmx gencommon.cmx common.cmx codegen.cmx ast.cmx
+gencs.$(MODULE_EXT): type.$(MODULE_EXT) lexer.$(MODULE_EXT) gencommon.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT) ast.$(MODULE_EXT)
 
-genjs.cmx: type.cmx optimizer.cmx lexer.cmx common.cmx codegen.cmx ast.cmx
+genjava.$(MODULE_EXT): type.$(MODULE_EXT) gencommon.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT) ast.$(MODULE_EXT)
 
-genneko.cmx: type.cmx lexer.cmx common.cmx codegen.cmx ast.cmx
+genjs.$(MODULE_EXT): type.$(MODULE_EXT) optimizer.$(MODULE_EXT) lexer.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT) ast.$(MODULE_EXT)
 
-genphp.cmx: type.cmx lexer.cmx common.cmx codegen.cmx ast.cmx
+genneko.$(MODULE_EXT): type.$(MODULE_EXT) lexer.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT) ast.$(MODULE_EXT)
 
-genpy.cmx: type.cmx lexer.cmx common.cmx codegen.cmx ast.cmx
+genphp.$(MODULE_EXT): type.$(MODULE_EXT) lexer.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT) ast.$(MODULE_EXT)
 
-genswf.cmx: type.cmx genswf9.cmx genswf8.cmx common.cmx ast.cmx
+genpy.$(MODULE_EXT): type.$(MODULE_EXT) lexer.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT) ast.$(MODULE_EXT)
 
-genswf8.cmx: type.cmx lexer.cmx common.cmx codegen.cmx ast.cmx
+genswf.$(MODULE_EXT): type.$(MODULE_EXT) genswf9.$(MODULE_EXT) genswf8.$(MODULE_EXT) common.$(MODULE_EXT) ast.$(MODULE_EXT)
 
-genswf9.cmx: type.cmx lexer.cmx genswf8.cmx common.cmx codegen.cmx ast.cmx
+genswf8.$(MODULE_EXT): type.$(MODULE_EXT) lexer.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT) ast.$(MODULE_EXT)
 
-genxml.cmx: type.cmx lexer.cmx common.cmx ast.cmx
+genswf9.$(MODULE_EXT): type.$(MODULE_EXT) lexer.$(MODULE_EXT) genswf8.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT) ast.$(MODULE_EXT)
 
-interp.cmx: typecore.cmx type.cmx lexer.cmx genneko.cmx common.cmx codegen.cmx ast.cmx genswf.cmx genjava.cmx parser.cmx
+genxml.$(MODULE_EXT): type.$(MODULE_EXT) lexer.$(MODULE_EXT) common.$(MODULE_EXT) ast.$(MODULE_EXT)
 
-matcher.cmx: optimizer.cmx codegen.cmx typecore.cmx type.cmx typer.cmx common.cmx ast.cmx
+interp.$(MODULE_EXT): typecore.$(MODULE_EXT) type.$(MODULE_EXT) lexer.$(MODULE_EXT) genneko.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT) ast.$(MODULE_EXT) genswf.$(MODULE_EXT) genjava.$(MODULE_EXT) parser.$(MODULE_EXT)
 
-main.cmx: filters.cmx matcher.cmx typer.cmx typeload.cmx typecore.cmx type.cmx parser.cmx optimizer.cmx lexer.cmx interp.cmx genxml.cmx genswf.cmx genphp.cmx genneko.cmx genjs.cmx gencpp.cmx genas3.cmx common.cmx codegen.cmx ast.cmx gencommon.cmx genjava.cmx gencs.cmx genpy.cmx version.cmx
+matcher.$(MODULE_EXT): optimizer.$(MODULE_EXT) codegen.$(MODULE_EXT) typecore.$(MODULE_EXT) type.$(MODULE_EXT) typer.$(MODULE_EXT) common.$(MODULE_EXT) ast.$(MODULE_EXT)
 
-optimizer.cmx: typecore.cmx type.cmx parser.cmx common.cmx ast.cmx
+main.$(MODULE_EXT): filters.$(MODULE_EXT) matcher.$(MODULE_EXT) typer.$(MODULE_EXT) typeload.$(MODULE_EXT) typecore.$(MODULE_EXT) type.$(MODULE_EXT) parser.$(MODULE_EXT) optimizer.$(MODULE_EXT) lexer.$(MODULE_EXT) interp.$(MODULE_EXT) genxml.$(MODULE_EXT) genswf.$(MODULE_EXT) genphp.$(MODULE_EXT) genneko.$(MODULE_EXT) genjs.$(MODULE_EXT) gencpp.$(MODULE_EXT) genas3.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT) ast.$(MODULE_EXT) gencommon.$(MODULE_EXT) genjava.$(MODULE_EXT) gencs.$(MODULE_EXT) genpy.$(MODULE_EXT) version.$(MODULE_EXT)
 
-parser.cmx: parser.ml lexer.cmx common.cmx ast.cmx
+optimizer.$(MODULE_EXT): typecore.$(MODULE_EXT) type.$(MODULE_EXT) parser.$(MODULE_EXT) common.$(MODULE_EXT) ast.$(MODULE_EXT)
+
+parser.$(MODULE_EXT): parser.ml lexer.$(MODULE_EXT) common.$(MODULE_EXT) ast.$(MODULE_EXT)
 	$(CC_PARSER_CMD)
 
-type.cmx: ast.cmx
+type.$(MODULE_EXT): ast.$(MODULE_EXT)
 
-typecore.cmx: type.cmx common.cmx ast.cmx
+typecore.$(MODULE_EXT): type.$(MODULE_EXT) common.$(MODULE_EXT) ast.$(MODULE_EXT)
 
-typeload.cmx: typecore.cmx type.cmx parser.cmx optimizer.cmx lexer.cmx common.cmx ast.cmx
+typeload.$(MODULE_EXT): typecore.$(MODULE_EXT) type.$(MODULE_EXT) parser.$(MODULE_EXT) optimizer.$(MODULE_EXT) lexer.$(MODULE_EXT) common.$(MODULE_EXT) ast.$(MODULE_EXT)
 
-typer.cmx: typeload.cmx typecore.cmx type.cmx parser.cmx optimizer.cmx lexer.cmx interp.cmx genneko.cmx genjs.cmx common.cmx codegen.cmx ast.cmx filters.cmx
+typer.$(MODULE_EXT): typeload.$(MODULE_EXT) typecore.$(MODULE_EXT) type.$(MODULE_EXT) parser.$(MODULE_EXT) optimizer.$(MODULE_EXT) lexer.$(MODULE_EXT) interp.$(MODULE_EXT) genneko.$(MODULE_EXT) genjs.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT) ast.$(MODULE_EXT) filters.$(MODULE_EXT)
 
-lexer.cmx: lexer.ml
+lexer.$(MODULE_EXT): lexer.ml
 
-lexer.cmx: ast.cmx
+lexer.$(MODULE_EXT): ast.$(MODULE_EXT)
 
+ast.$(MODULE_EXT):
+
+version.$(MODULE_EXT):
+	echo $(VERSION_EXTRA) > version.ml
+	$(CC_CMD) $(CFLAGS) -c version.ml
+
+# Clean
 
 clean: clean_libs clean_haxe clean_tools
 
@@ -173,21 +191,23 @@ clean_libs:
 	make -C libs/swflib clean
 	make -C libs/xml-light clean
 	make -C libs/ttflib clean
+	make -C libs/objsize clean
 
 clean_haxe:
-	rm -f $(MODULES:=.obj) $(MODULES:=.o) $(MODULES:=.cmx) $(MODULES:=.cmi) lexer.ml $(OUTPUT)
+	rm -f $(MODULES:=.obj) $(MODULES:=.o) $(MODULES:=.cmx) $(MODULES:=.cmi) $(MODULES:=.cmo) lexer.ml $(OUTPUT)
 
 clean_tools:
 	rm -f $(OUTPUT) haxelib
 
 # SUFFIXES
-.ml.cmx:
-	$(CC_CMD)
 
-.mli.cmi:
-	$(CC_CMD)
+.ml.cmx:
+	$(CC_CMD) $(CFLAGS) -c $<
+
+.ml.cmo:
+	$(CC_CMD) $(CFLAGS) -c $<
 
 .mll.ml:
 	ocamllex $<
 
-.PHONY: haxe libs version.cmx haxelib
+.PHONY: haxe libs version.cmx version.cmo haxelib

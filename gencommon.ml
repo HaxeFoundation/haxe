@@ -5714,6 +5714,9 @@ struct
         mk_cast to_t e)
       | TAbstract (a_to, _), TAbstract(a_from, _) when a_to == a_from ->
         e
+      | TAbstract _, TInst({ cl_kind = KTypeParameter _ }, _)
+      | TInst({ cl_kind = KTypeParameter _ }, _), TAbstract _ ->
+        do_unsafe_cast()
       | TAbstract _, _
       | _, TAbstract _ ->
         (try
@@ -7358,6 +7361,14 @@ struct
         let do_field cf cf_type is_static =
           let get_field ethis = { eexpr = TField (ethis, if is_static then FStatic (cl, cf) else FInstance(cl, cf)); etype = cf_type; epos = pos } in
           let this = if is_static then mk_classtype_access cl pos else { eexpr = TConst(TThis); etype = t; epos = pos } in
+          let value_local = if is_float then match follow cf_type with
+            | TInst({ cl_kind = KTypeParameter _ }, _) ->
+              mk_cast t_dynamic value_local
+            | _ ->
+              value_local
+            else
+              value_local
+          in
 
           let ret =
           {
@@ -7450,7 +7461,7 @@ struct
         let do_field cf cf_type static =
           let this = if static then mk_classtype_access cl pos else { eexpr = TConst(TThis); etype = t; epos = pos } in
           match is_float, follow cf_type with
-            | true, TInst( { cl_kind = KTypeParameter _ }, [] ) ->
+            | true, TInst( { cl_kind = KTypeParameter _ }, _ ) ->
               mk_return (mk_cast basic.tfloat (mk_cast t_dynamic (get_field cf cf_type this cl cf.cf_name)))
             | _ ->
               mk_return (maybe_cast (get_field cf cf_type this cl cf.cf_name ))
