@@ -149,11 +149,21 @@ extern class Math
 	}
 
 
-	static function tan(v:Float):Float;
-	static function asin(v:Float):Float;
-	static function acos(v:Float):Float;
-	static function atan(v:Float):Float;
-	static function atan2(y:Float, x:Float):Float;
+	static function tan(v:Float):Float {
+		return if (v == POSITIVE_INFINITY || v == NEGATIVE_INFINITY) NaN else python.lib.Math.tan(v);
+	}
+	static function asin(v:Float):Float {
+		return if (v == POSITIVE_INFINITY || v == NEGATIVE_INFINITY) NaN else python.lib.Math.asin(v);
+	}
+	static function acos(v:Float):Float {
+		return if (v == POSITIVE_INFINITY || v == NEGATIVE_INFINITY) NaN else python.lib.Math.acos(v);
+	}
+	static function atan(v:Float):Float {
+		return if (v == POSITIVE_INFINITY || v == NEGATIVE_INFINITY) NaN else python.lib.Math.atan(v);
+	}
+	static function atan2(y:Float, x:Float):Float {
+		return if (v == POSITIVE_INFINITY || v == NEGATIVE_INFINITY) NaN else python.lib.Math.atan2(v);
+	}
 
 	/**
 		Returns Euler's number, raised to the power of `v`.
