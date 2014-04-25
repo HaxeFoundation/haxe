@@ -3035,13 +3035,14 @@ let add_java_lib com file std =
     | S_DIR -> (* open classes directly from directory *)
       let rec iter_files pack dir path = try
         let file = Unix.readdir dir in
-        if String.ends_with file ".class" then
+        (if String.ends_with file ".class" then
           let file = String.sub file 0 (String.length file - 6) in
           Hashtbl.add hxpack_to_jpack (jpath_to_hx(pack,file)) (pack,file)
         else if (Unix.stat file).st_kind = S_DIR then
           let path = path ^"/"^ file in
           let pack = pack @ [file] in
-          iter_files (pack @ [file]) (Unix.opendir path) path
+					iter_files (pack @ [file]) (Unix.opendir path) path);
+				iter_files pack dir path
       with | End_of_file | Unix.Unix_error _ ->
         Unix.closedir dir
       in
