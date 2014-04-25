@@ -4,7 +4,6 @@ package python.lib.subprocess;
 import python.lib.io.BufferedReader;
 import python.lib.io.TextIOBase;
 import python.lib.Subprocess.StartupInfo;
-import python.lib.Types;
 import python.lib.Tuple;
 
 typedef PopenOptions = {

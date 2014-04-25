@@ -22,7 +22,6 @@
 package python.lib.net;
 
 import haxe.io.BytesData;
-import python.lib.Types;
 import python.lib.Tuple;
 
 /**

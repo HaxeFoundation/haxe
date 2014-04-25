@@ -3,7 +3,6 @@ package python.lib.xml.etree;
 
 import python.lib.Tuple.Tup2;
 
-import python.lib.Types;
 import python.NativeIterable;
 import python.NativeIterator;
 

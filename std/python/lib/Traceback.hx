@@ -2,7 +2,6 @@ package python.lib;
 
 import python.lib.Sys;
 import python.lib.Sys.Frame;
-import python.lib.Types;
 import python.lib.Tuple;
 
 

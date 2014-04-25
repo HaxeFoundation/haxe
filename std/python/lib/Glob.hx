@@ -1,7 +1,7 @@
 
 package python.lib;
 
-import python.lib.Types;
+
 import python.NativeIterator;
 
 extern class Glob {

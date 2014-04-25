@@ -29,7 +29,6 @@ import python.lib.Time;
 import python.lib.Traceback;
 import python.lib.Tty;
 import python.lib.Tuple;
-import python.lib.Types;
 
 import python.lib.datetime.DateTime;
 import python.lib.datetime.TimeDelta;

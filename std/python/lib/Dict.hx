@@ -3,7 +3,6 @@ package python.lib;
 
 import python.lib.Builtin;
 import python.lib.Tuple;
-import python.lib.Types;
 import python.NativeIterator;
 import python.Syntax;
 

@@ -1,7 +1,5 @@
 package python;
 
-import python.lib.Types;
-
 typedef PySys = python.lib.Sys;
 typedef PyStringTools = python.lib.StringTools;
 

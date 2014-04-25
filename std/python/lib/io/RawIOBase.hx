@@ -3,7 +3,6 @@ package python.lib.io;
 
 import python.lib.io.FileIO;
 import python.lib.io.IOBase;
-import python.lib.Types;
 
 extern class RawIOBase extends IOBase{
 
