@@ -1,21 +1,22 @@
 package python;
 
+import python.lib.NativeStrings;
+
 typedef PySys = python.lib.Sys;
-typedef PyStringTools = python.lib.StringTools;
 
 class Lib {
 
 	public static function print(v:Dynamic):Void {
 		var str = Std.string(v);
 
-		PySys.stdout.buffer.write( PyStringTools.encode(str, "utf-8"));
+		PySys.stdout.buffer.write( NativeStrings.encode(str, "utf-8"));
 		PySys.stdout.flush();
 	}
 
 	public static function println(v:Dynamic):Void {
 		var str = Std.string(v);
 
-		PySys.stdout.buffer.write( PyStringTools.encode('$str\n', "utf-8"));
+		PySys.stdout.buffer.write( NativeStrings.encode('$str\n', "utf-8"));
 		PySys.stdout.flush();
 	}
 

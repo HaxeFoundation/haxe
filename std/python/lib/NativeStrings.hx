@@ -4,15 +4,15 @@ package python.lib;
 import python.lib.Bytes;
 import python.lib.Tuple;
 
-class StringTools {
+class NativeStrings {
 
 	public static function format (s:String, args:Array<Dynamic>):String
 	{
 		return python.Syntax.field(s, "format")(python.Syntax.varArgs(args));
 	}
 
-	public static function encode(s:String, encoding:String="utf-8", errors:String="strict"):Bytes {
-		return python.Syntax.field(s, "encode")(encoding, errors);
+	@:keep public static inline function encode(s:String, encoding:String="utf-8", errors:String="strict"):Bytes {
+		return (python.Syntax.callField(s, "encode", encoding, errors):Bytes);
 	}
 
 	public static inline function contains(s:String, e:String):Bool {
