@@ -20,9 +20,8 @@
  * DEALINGS IN THE SOFTWARE.
  */
 #if !macro
-import python.lib.Builtin;
 import python.internal.ArrayImpl;
-import python.lib.Types;
+import python.lib.Types.PyIterator;
 #end
 
 @:native("list")

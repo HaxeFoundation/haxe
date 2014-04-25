@@ -33,7 +33,6 @@ package;
 **/
 #if !macro
 import python.internal.StringImpl;
-import python.lib.Builtin;
 #end
 @:coreApi
 extern class String {
