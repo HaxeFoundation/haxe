@@ -78,11 +78,6 @@ import python.Syntax;
 
 		if (t == Enum) return false;
 
-		if (t == Date && Builtin.isinstance(v, Date)) return true;
-
-		if (t == Date) return false;
-
-		if (Builtin.isinstance(v, Date)) return false;
 
 		if (t == Class && !Builtin.isinstance(v, Enum) && Inspect.isclass(v) && Internal.hasClassName(v) && !Internal.hasConstructs(v)) return true;
 
