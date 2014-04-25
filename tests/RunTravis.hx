@@ -389,6 +389,7 @@ class RunTravis {
 				haxelibInstall("task");
 
 				haxelibInstallGit("larsiusprime", "firetongue");
+				haxelibInstallGit("YellowAfterLife", "openfl-bitfive");
 
 				haxelibInstallGit("HaxeFlixel", "flixel");
 				haxelibInstallGit("HaxeFlixel", "flixel-addons");
@@ -398,6 +399,7 @@ class RunTravis {
 
 				haxelibRun(["flixel-tools", "testdemos", "-flash"]);
 				haxelibRun(["flixel-tools", "testdemos", "-neko"]);
+				haxelibRun(["flixel-tools", "testdemos", "-html5"]);
 			case target:
 				throw "unknown target: " + target;
 		}
