@@ -1051,7 +1051,7 @@ module Printer = struct
 				in
 				let e1_str = safe_string e1 in
 				let e2_str = safe_string e2 in
-				Printf.sprintf "%s + %s" e1_str e2_str
+				Printf.sprintf "(%s + %s)" e1_str e2_str
 			| TBinop(OpAdd,e1,e2) when (match follow e.etype with TDynamic _ -> true | _ -> false) ->
 				Printf.sprintf "python_Boot._add_dynamic(%s,%s)" (print_expr pctx e1) (print_expr pctx e2);
 			| TBinop(op,e1,e2) ->
