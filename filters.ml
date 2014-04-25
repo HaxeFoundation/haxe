@@ -101,6 +101,10 @@ let handle_side_effects com gen_temp e =
 			in
 			let e2 = loop e2 in
 			{e with eexpr = TBinop(op,e1,e2)}
+		| TBinop((OpAssign | OpAssignOp _) as op,e1,e2) ->
+			let e1 = loop e1 in
+			let e2 = loop e2 in
+			{e with eexpr = TBinop(op,e1,e2)}
  		| TBinop(op,e1,e2) ->
 			begin match ordered_list [e1;e2] with
 				| [e1;e2] ->
@@ -127,16 +131,17 @@ let handle_side_effects com gen_temp e =
 		| _ ->
 			Type.map_expr loop e
 	and ordered_list el =
-		let bind e =
-			declare_temp e.etype (Some (loop e)) e.epos
-		in
-		let rec no_side_effect e =
-			if Optimizer.has_side_effect e then
-				bind e
-			else
-				e
-		in
-		List.map no_side_effect el
+		match el with
+			| [e] ->
+				el
+			| _ ->
+				let bind e =
+					declare_temp e.etype (Some (loop e)) e.epos
+				in
+				if (List.exists Optimizer.has_side_effect) el then
+					List.map bind el
+				else
+					el
 	in
 	let e = loop e in
 	match close_block() with

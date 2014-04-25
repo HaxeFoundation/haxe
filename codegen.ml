@@ -690,15 +690,20 @@ module Abstract = struct
 		in
 		let find a tl f =
 			let tcf,cfo = f() in
+			let mk_cast () =
+				let tcf = apply_params a.a_types tl tcf in
+				if type_iseq tcf tleft then
+					eright
+				else
+					(* TODO: causes Java overload issues *)
+					(* let eright = mk (TCast(eright,None)) tleft p in *)
+					do_check_cast ctx tcf eright p
+			in
 			match cfo,a.a_impl with
 				| None,_ ->
-					let tcf = apply_params a.a_types tl tcf in
-					if type_iseq tcf tleft then
-						eright
-					else
-						(* TODO: causes Java overload issues *)
-						(* let eright = mk (TCast(eright,None)) tleft p in *)
-						do_check_cast ctx tcf eright p
+					mk_cast();
+				| Some cf,_ when Meta.has Meta.MultiType a.a_meta ->
+					mk_cast();
 				| Some cf,Some c ->
 					recurse cf (fun () -> make_static_call ctx c cf a tl [eright] tleft p)
 				| _ ->
