@@ -1,10 +1,10 @@
 
-package python.lib;
+package python;
 
 import python.lib.Bytes;
 import python.lib.Tuple;
 
-class NativeStrings {
+class NativeStringTools {
 
 	public static function format (s:String, args:Array<Dynamic>):String
 	{

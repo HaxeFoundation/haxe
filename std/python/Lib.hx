@@ -1,6 +1,6 @@
 package python;
 
-import python.lib.NativeStrings;
+import python.NativeStringTools;
 
 typedef PySys = python.lib.Sys;
 
@@ -9,14 +9,14 @@ class Lib {
 	public static function print(v:Dynamic):Void {
 		var str = Std.string(v);
 
-		PySys.stdout.buffer.write( NativeStrings.encode(str, "utf-8"));
+		PySys.stdout.buffer.write( NativeStringTools.encode(str, "utf-8"));
 		PySys.stdout.flush();
 	}
 
 	public static function println(v:Dynamic):Void {
 		var str = Std.string(v);
 
-		PySys.stdout.buffer.write( NativeStrings.encode('$str\n', "utf-8"));
+		PySys.stdout.buffer.write( NativeStringTools.encode('$str\n', "utf-8"));
 		PySys.stdout.flush();
 	}
 

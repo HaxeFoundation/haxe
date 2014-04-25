@@ -5,14 +5,16 @@ import python.VarArgs;
 import sys.io.File;
 import sys.io.Process;
 
-// check compilation of libs
+// check compilation python classes
+import python.NativeArrayTools;
+import python.NativeStringTools;
+
 import python.lib.Codecs;
 import python.lib.FuncTools;
 import python.lib.Glob;
 import python.lib.Inspect;
 import python.lib.Json;
-import python.lib.NativeLists;
-import python.lib.NativeStrings;
+
 import python.lib.Math;
 import python.lib.Msvcrt;
 import python.lib.Os;
