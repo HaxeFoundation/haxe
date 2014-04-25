@@ -1,7 +1,7 @@
 
 package python.lib;
 
-import python.lib.Types.Dict;
+import python.lib.Dict;
 
 extern class Json {
 

@@ -2,7 +2,7 @@ package python.internal;
 
 @:keep
 @:native("_HxException")
-class HxException extends python.lib.Types.Exception {
+class HxException extends python.lib.Exceptions.Exception {
 	public var val:Dynamic;
 	public function new(val) {
 		var message = Std.string(val);

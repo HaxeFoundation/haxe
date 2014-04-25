@@ -1,12 +1,11 @@
 
 package python.lib;
 
-import python.lib.Types;
 
 
 extern class ShUtil {
 
-	public static function rmtree(path:String, ?ignore_errors:Bool=false, ?onerror:BaseException->Void):Void;
+	public static function rmtree(path:String, ?ignore_errors:Bool=false, ?onerror:python.lib.Exceptions.BaseException->Void):Void;
 
 	public static function copyfile (src:String, dst:String):Void;
 

@@ -1,7 +1,7 @@
 
 package python.lib;
 
-import python.lib.Types.Bytes;
+import python.lib.Bytes;
 import python.lib.Tuple;
 
 class StringTools {

@@ -4,7 +4,7 @@ import python.lib.Types;
 
 class HaxeIterable<T> {
 
-	var x :NativeIterable<T>;
+	var x : NativeIterable<T>;
 
 	public inline function new (x:NativeIterable<T>) {
 		this.x = x;

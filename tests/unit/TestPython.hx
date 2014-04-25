@@ -1,8 +1,66 @@
 package unit;
 
-import python.lib.Types.KwArgs;
+import python.KwArgs;
+import python.VarArgs;
 import sys.io.File;
 import sys.io.Process;
+
+// check compilation of libs
+import python.lib.Codecs;
+import python.lib.FuncTools;
+import python.lib.Glob;
+import python.lib.Inspect;
+import python.lib.Json;
+import python.lib.List;
+import python.lib.Math;
+import python.lib.Msvcrt;
+import python.lib.Os;
+import python.lib.PPrint;
+import python.lib.Random;
+import python.lib.Re;
+import python.lib.Set;
+import python.lib.ShUtil;
+import python.lib.Subprocess;
+import python.lib.Sys;
+import python.lib.Tempfile;
+import python.lib.Termios;
+import python.lib.ThreadLowLevel;
+import python.lib.Time;
+import python.lib.Traceback;
+import python.lib.Tty;
+import python.lib.Tuple;
+import python.lib.Types;
+
+import python.lib.datetime.DateTime;
+import python.lib.datetime.TimeDelta;
+import python.lib.datetime.Timezone;
+import python.lib.datetime.TzInfo;
+
+import python.lib.io.BufferedIOBase;
+import python.lib.io.BufferedRWPair;
+import python.lib.io.BufferedRandom;
+import python.lib.io.BufferedReader;
+import python.lib.io.BufferedWriter;
+import python.lib.io.BytesIO;
+import python.lib.io.FileIO;
+import python.lib.io.IOBase;
+import python.lib.io.RawIOBase;
+import python.lib.io.StringIO;
+import python.lib.io.TextIOBase;
+
+import python.lib.net.Address;
+import python.lib.net.Socket;
+
+import python.lib.subprocess.Popen;
+
+import python.lib.threading.Thread;
+
+import python.lib.xml.etree.ElementTree;
+
+
+
+
+
 
 private typedef T = {
 	var value:Int;
@@ -155,14 +213,14 @@ class TestPython extends Test {
 	}
 
 	function testKwArgs () {
-		function x (args:python.lib.Types.KwArgs) {
+		function x (args:KwArgs) {
 			var a = args.get("a", 0);
 			var b = args.get("b", 0);
 			return a + b;
 		}
 
 
-		var res = x( python.lib.Types.Dict.fromObject({ "a" : 1, "b" : 2}) );
+		var res = x( python.lib.Dict.fromObject({ "a" : 1, "b" : 2}) );
 
 
 		eq(3, res);

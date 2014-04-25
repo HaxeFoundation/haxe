@@ -1,7 +1,7 @@
 
 package python.lib.xml.etree;
 
-import python.lib.Types.Tup2;
+import python.lib.Tuple.Tup2;
 
 import python.lib.Types;
 

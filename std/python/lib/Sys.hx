@@ -1,5 +1,6 @@
 package python.lib;
 
+import python.lib.Exceptions.BaseException;
 import python.lib.io.FileIO;
 import python.lib.io.RawIOBase;
 import python.lib.io.TextIOBase;

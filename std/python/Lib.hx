@@ -31,7 +31,7 @@ class Lib {
 					if (it1.hasNext()) {
 						return it1.next();
 					} else {
-						throw new python.lib.Types.StopIteration();
+						throw new python.lib.Exceptions.StopIteration();
 					}
 				},
 				__iter__ : function () return self

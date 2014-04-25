@@ -28,6 +28,7 @@ import python.lib.Builtin;
 import python.lib.Inspect;
 import python.lib.Types;
 import python.Syntax;
+import python.VarArgs;
 
 @:access(python.Boot)
 @:coreApi

@@ -4,9 +4,9 @@ package python.lib;
 import python.lib.io.IOBase;
 import python.lib.io.RawIOBase;
 import python.lib.io.TextIOBase;
-import python.lib.Types.Bytes;
+import python.lib.Bytes;
 import python.lib.Types.FileObject;
-import python.lib.Types.Tup2;
+import python.lib.Tuple.Tup2;
 
 extern interface Codec {
 	public function encode(input:Dynamic, ?errors:String = "strict"):Tup2<String, Int>;

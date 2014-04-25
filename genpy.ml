@@ -956,8 +956,8 @@ module Printer = struct
 		let sl = List.map (fun (v,cto) ->
 			let name = handle_keywords v.v_name in
 			let arg_string = match follow v.v_type with
-				| TAbstract({a_path = ["python"; "lib"],"KwArgs"},_) -> "**" ^ name
-				| TAbstract({a_path = ["python"; "lib"],"VarArgs"},_) -> "*" ^ name
+				| TAbstract({a_path = ["python"],"KwArgs"},_) -> "**" ^ name
+				| TAbstract({a_path = ["python"],"VarArgs"},_) -> "*" ^ name
 				| _ -> name
 			in
 			let arg_value = match cto with
@@ -1311,10 +1311,10 @@ module Printer = struct
 		let print_arg pctx i x =
 			let prefix = match e1.eexpr, follow x.etype with
 				(* the should not apply for the instance methods of the abstract itself *)
-				| TField(_, FStatic({cl_path = ["python"; "lib"; "_Types"],"KwArgs_Impl_"},f)), _ when i == 0 && Meta.has Meta.Impl f.cf_meta -> ""
-				| TField(_, FStatic({cl_path = ["python"; "lib"; "_Types"],"VarArgs_Impl_"},f)), _ when i == 0 && Meta.has Meta.Impl f.cf_meta -> ""
-				| _, TAbstract({a_path = ["python"; "lib"],"KwArgs"},_) -> "**"
-				| _, TAbstract({a_path = ["python"; "lib"],"VarArgs"},_) -> "*"
+				| TField(_, FStatic({cl_path = ["python"; "_KwArgs"],"KwArgs_Impl_"},f)), _ when i == 0 && Meta.has Meta.Impl f.cf_meta -> ""
+				| TField(_, FStatic({cl_path = ["python"; "_VarArgs"],"VarArgs_Impl_"},f)), _ when i == 0 && Meta.has Meta.Impl f.cf_meta -> ""
+				| _, TAbstract({a_path = ["python"],"KwArgs"},_) -> "**"
+				| _, TAbstract({a_path = ["python"],"VarArgs"},_) -> "*"
 				| _, _ -> ""
 			in
 			prefix ^ (print_expr pctx x)

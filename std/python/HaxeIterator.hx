@@ -1,6 +1,8 @@
 package python;
 
-import python.lib.Types;
+import python.lib.Exceptions.StopIteration;
+import python.lib.Types.NativeIterator;
+
 
 class HaxeIterator<T>
 {

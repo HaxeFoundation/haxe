@@ -1,7 +1,7 @@
 
 package python.lib;
 
-import python.lib.Types.Tuple;
+import python.lib.Tuple;
 
 private typedef TODO = Dynamic;
 

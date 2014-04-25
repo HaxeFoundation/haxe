@@ -23,6 +23,7 @@ package python.lib.net;
 
 import haxe.io.BytesData;
 import python.lib.Types;
+import python.lib.Tuple;
 
 /**
     A TCP socket class : allow you to both connect to a given server and exchange messages or start your own server and wait for connections.

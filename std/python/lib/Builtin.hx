@@ -84,10 +84,10 @@ extern class Builtin {
 	//public static function range():Void;
 
 	public static function type():Void;
-	@:overload(function (it:Array<Int>):python.lib.Types.ByteArray {})
-	@:overload(function (it:PyIterable<Int>):python.lib.Types.ByteArray {})
-	@:overload(function (size:Int):python.lib.Types.ByteArray {})
-	public static function bytearray(source:String,encoding:String,?errors:Dynamic):python.lib.Types.ByteArray;
+	@:overload(function (it:Array<Int>):python.lib.ByteArray {})
+	@:overload(function (it:PyIterable<Int>):python.lib.ByteArray {})
+	@:overload(function (size:Int):python.lib.ByteArray {})
+	public static function bytearray(source:String,encoding:String,?errors:Dynamic):python.lib.ByteArray;
 	public static function float(x:Dynamic):Float;
 
 	@:overload(function <T>(f:Array<T>):Array<T> {})

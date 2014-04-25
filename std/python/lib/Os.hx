@@ -2,6 +2,7 @@
 package python.lib;
 
 
+import python.lib.Exceptions.OSError;
 import python.lib.Tuple;
 import python.lib.Types;
 
