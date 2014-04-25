@@ -16,6 +16,7 @@ private extern class Set<T> {
 	}
 }
 
+
 @:preCode("
 import builtins as _hx_builtin
 import functools as _hx_functools
@@ -36,10 +37,13 @@ _hx_c._hx_AnonObject = _hx_AnonObject
 	static function __init__ () {
 		Internal.importAsPrefixed("inspect", "boot_inspect");
 		Boot.inspect = Internal.pythonCodePrefixed("boot_inspect");
-
+		Boot.math = Internal.pythonCodePrefixed("math");
 		Boot.builtin = Internal.pythonCodePrefixed("builtin");
 	}
 
+	static inline function mathRound (v:Float) {
+		return math.floor(v + 0.5);
+	}
 
 	inline static function mkSet <T>(a:Array<T>):Set<T> return Syntax.callField(builtin, "set", a);
 
@@ -117,6 +121,7 @@ _hx_c._hx_AnonObject = _hx_AnonObject
 
 	static var builtin:Dynamic;
 	static var inspect:Dynamic;
+	static var math:Dynamic;
 
 	static inline function isClass(o:Dynamic) : Bool {
 		return o != null && (o == String || inspectIsClass(o));
@@ -156,7 +161,7 @@ _hx_c._hx_AnonObject = _hx_AnonObject
 		if (isPyFloat(o)) {
 			try {
 				if (o == builtinInt(o)) {
-					return builtinStr(Math.round(o));
+					return builtinStr(mathRound(o));
 				} else {
 					return builtinStr(o);
 				}
