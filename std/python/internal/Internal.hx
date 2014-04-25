@@ -51,7 +51,7 @@ class Internal {
 	}
 
 	macro public static function classRegistry ():Expr {
-		return macro (python.Syntax.pythonCode($v{_classes}) : python.lib.Types.Dict<String, Class<Dynamic>>);
+		return macro (python.Syntax.pythonCode($v{_classes}) : python.lib.Dict<String, Class<Dynamic>>);
 	}
 
 	macro public static function callFieldPrefixed (o:Expr, x:String, params:Array<Expr>):Expr {

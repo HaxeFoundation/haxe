@@ -4,6 +4,7 @@ package python.lib;
 
 import python.lib.io.IOBase;
 import python.lib.Types;
+import python.lib.Dict;
 
 
 

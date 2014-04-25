@@ -2,7 +2,7 @@
 package python.lib;
 
 import python.lib.Types.Bytes;
-import python.lib.Types.Tup3;
+import python.lib.Tuple;
 
 class StringTools {
 

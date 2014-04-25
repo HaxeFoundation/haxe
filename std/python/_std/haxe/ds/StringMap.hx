@@ -1,7 +1,8 @@
 package haxe.ds;
 
-import python.lib.Types.Dict;
+
 import python.Syntax;
+import python.lib.Dict;
 
 class StringMap<T> implements Map.IMap<String, T> {
 	private var h : Dict<String,T>;

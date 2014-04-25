@@ -1,7 +1,7 @@
 package haxe.ds;
 
 import python.lib.Builtin;
-import python.lib.Types;
+import python.lib.Dict;
 
 class ObjectMap<K:{},V> implements Map.IMap<K, V> {
 

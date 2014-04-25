@@ -1,6 +1,6 @@
 package haxe.ds;
 
-import python.lib.Types.Dict;
+import python.lib.Dict;
 import python.Syntax;
 
 class IntMap<T> implements Map.IMap<Int, T> {

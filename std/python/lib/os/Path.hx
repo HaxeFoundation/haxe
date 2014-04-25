@@ -2,6 +2,7 @@
 package python.lib.os;
 
 import python.lib.Types;
+import python.lib.Tuple;
 
 extern class Path {
 

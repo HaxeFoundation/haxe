@@ -39,7 +39,7 @@ class Resource {
 	#if (java || cs)
 	@:keep static var content : Array<String>;
 	#elseif python
-	static var content : python.lib.Types.Dict<String, BytesData>;
+	static var content : python.lib.Dict<String, BytesData>;
 	#else
 	static var content : Array<{ name : String, data : String, str : String }>;
 	#end
