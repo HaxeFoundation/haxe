@@ -575,6 +575,7 @@ let parse_class ch =
       None
     | _ -> do_default()
   ) consts ch attribs in
+	IO.close_in ch;
   {
     cversion = majorv, minorv;
     cpath = this;
