@@ -10,9 +10,6 @@ abstract Choice <A,B>(Dynamic) {
 	@:from public static inline function fromB <A,B>(x:B):Choice<A,B> return cast x;
 }
 
-typedef Variant<A,B> = Dynamic;
-typedef Variant3<A,B,C> = Dynamic;
-typedef Variant4<A,B,C,D> = Dynamic;
 
 
 
@@ -35,5 +32,4 @@ typedef NativeComparable = {
 
 
 
-extern class TB {}
-extern class Frame {}
+

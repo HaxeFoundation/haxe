@@ -7,6 +7,9 @@ import python.lib.io.TextIOBase;
 import python.lib.Tuple.Tup3;
 import python.lib.Types;
 
+extern class TB {}
+extern class Frame {}
+
 extern class Sys {
 
 	public static var argv(default, never):Array<String>;
