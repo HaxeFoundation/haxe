@@ -78,9 +78,9 @@ extern class Syntax {
 		}
 		var iter = try {
 			Context.typeof(macro $it.__iter__());
-			macro $it.__iter__().getNativeIterator();
+			macro $it.__iter__().getNativeIteratorRaw();
 		} catch (e:Dynamic) {
-			macro $it.getNativeIterator();
+			macro $it.getNativeIteratorRaw();
 		};
 
 

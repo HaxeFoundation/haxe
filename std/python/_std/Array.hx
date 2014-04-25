@@ -21,7 +21,7 @@
  */
 #if !macro
 import python.internal.ArrayImpl;
-import python.lib.Types.PyIterator;
+import python.NativeIterator;
 #end
 
 @:native("list")
@@ -137,5 +137,5 @@ extern class Array<T> implements ArrayAccess<T> extends ArrayImpl {
 		return ArrayImpl.__unsafe_set(this, idx,val);
 	}
 
-	@:noCompletion private function __iter__ ():PyIterator<T>;
+	@:noCompletion private function __iter__ ():NativeIterator<T>;
 }

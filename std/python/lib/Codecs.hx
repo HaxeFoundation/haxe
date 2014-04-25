@@ -5,7 +5,7 @@ import python.lib.io.IOBase;
 import python.lib.io.RawIOBase;
 import python.lib.io.TextIOBase;
 import python.lib.Bytes;
-import python.lib.Types.FileObject;
+import python.lib.FileObject;
 import python.lib.Tuple.Tup2;
 
 extern interface Codec {

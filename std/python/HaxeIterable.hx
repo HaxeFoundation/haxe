@@ -1,12 +1,13 @@
 package python;
 
-import python.lib.Types;
+
+import python.NativeIterable.NativeIterableRaw;
 
 class HaxeIterable<T> {
 
-	var x : NativeIterable<T>;
+	var x : NativeIterableRaw<T>;
 
-	public inline function new (x:NativeIterable<T>) {
+	public inline function new (x:NativeIterableRaw<T>) {
 		this.x = x;
 	}
 

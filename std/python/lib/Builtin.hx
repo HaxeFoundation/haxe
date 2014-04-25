@@ -5,6 +5,8 @@ package python.lib;
 import python.lib.io.IOBase;
 import python.lib.Types;
 import python.lib.Dict;
+import python.NativeIterable;
+import python.NativeIterator;
 
 
 
@@ -70,7 +72,7 @@ extern class Builtin {
 	//public static function super():Void;
 	//public static function bin():Void;
 	//public static function file():Void;
-	public static function iter<X>(d:DictView<X>):PyIterator<X>;
+	public static function iter<X>(d:DictView<X>):NativeIterator<X>;
 	//public static function property():Void;
 
 
@@ -85,7 +87,7 @@ extern class Builtin {
 
 	public static function type():Void;
 	@:overload(function (it:Array<Int>):python.lib.ByteArray {})
-	@:overload(function (it:PyIterable<Int>):python.lib.ByteArray {})
+	@:overload(function (it:NativeIterable<Int>):python.lib.ByteArray {})
 	@:overload(function (size:Int):python.lib.ByteArray {})
 	public static function bytearray(source:String,encoding:String,?errors:Dynamic):python.lib.ByteArray;
 	public static function float(x:Dynamic):Float;
@@ -93,9 +95,9 @@ extern class Builtin {
 	@:overload(function <T>(f:Array<T>):Array<T> {})
 	@:overload(function (f:String):Array<String> {})
 	@:overload(function <G>(f:Tuple<G>):Array<G> {})
-	public static function list<T>(i:PyIterable<T>):Array<T>;
+	public static function list<T>(i:NativeIterable<T>):Array<T>;
 
-	public static function filter<A>(f:A->Bool, i:Choice<Array<A>, PyIterable<A>>):PyIterator<A>;
+	public static function filter<A>(f:A->Bool, i:Choice<Array<A>, NativeIterable<A>>):NativeIterator<A>;
 	//public static function raw_input():Void;
 	//public static function unichr():Void;
 
@@ -110,7 +112,7 @@ extern class Builtin {
 	//public static function vars():Void;
 	//public static function classmethod():Void;
 
-	public static function map<A,B>(fn:A->B, it:PyIterable<A>):PyIterator<B>;
+	public static function map<A,B>(fn:A->B, it:NativeIterable<A>):NativeIterator<B>;
 	//public static function repr():Void;
 	//public static function xrange():Void;
 	//public static function cmp():Void;

@@ -99,7 +99,7 @@ extern class Regex
 		return findallTuple(string, pos, endpos).map(function (t) return t.toArray());
 	}
 
-	public function finditer(string:String, ?pos:Int, ?endpos:Int):PyIterator<MatchObject>;
+	public function finditer(string:String, ?pos:Int, ?endpos:Int):NativeIterator<MatchObject>;
 
 	public function sub(repl:Repl, string:String, count:Int=0):String;
 	public function subn(repl:Repl, string:String, count:Int=0):String;
@@ -167,7 +167,7 @@ extern class Re
 		return findallTuple(pattern, string,flags).map(function (t) return t.toArray());
 	}
 
-	public static function finditer(pattern:Pattern, string:String,   flags:Int=0):PyIterator<MatchObject>;
+	public static function finditer(pattern:Pattern, string:String,   flags:Int=0):NativeIterator<MatchObject>;
 
 
 	@:overload(function (pattern:Pattern, repl:String, string:String,  ?count:Int=0, ?flags:Int=0):String {})

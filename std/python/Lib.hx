@@ -21,12 +21,12 @@ class Lib {
 		PySys.stdout.flush();
 	}
 
-	public static function toPythonIterable <T>(it:Iterable<T>):python.lib.Types.NativeIterable<T> {
+	public static function toPythonIterable <T>(it:Iterable<T>):python.NativeIterable<T> {
 		return {
 			__iter__ : function () {
 				var it1 = it.iterator();
-				var self:PyIterator<T> = null;
-				self = new PyIterator({
+				var self:NativeIterator<T> = null;
+				self = new NativeIterator({
 					__next__ : function ():T {
 					if (it1.hasNext()) {
 						return it1.next();

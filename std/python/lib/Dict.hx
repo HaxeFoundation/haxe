@@ -4,11 +4,12 @@ package python.lib;
 import python.lib.Builtin;
 import python.lib.Tuple;
 import python.lib.Types;
+import python.NativeIterator;
 import python.Syntax;
 
 
 extern class DictView<T> {
-	public inline function iter ():PyIterator<T>
+	public inline function iter ():NativeIterator<T>
 	{
 		return Builtin.iter(this);
 	}
@@ -62,7 +63,7 @@ extern class Dict <K, V>
 	{
 		return values().iter();
 	}
-	public function __iter__():PyIterator<K>;
+	public function __iter__():NativeIterator<K>;
 
 	static function __init__ ():Void
 	{

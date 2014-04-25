@@ -1,12 +1,13 @@
 
 package python.lib;
 
-import python.lib.Types.PyIterator;
+import python.NativeIterator;
+import python.NativeIterable;
 
 extern class Set <T>
 {
 	@:overload(function (?array:Array<T>):Void {})
-	public function new (?iterable:python.lib.Types.PyIterable<T>):Void;
+	public function new (?iterable:NativeIterable<T>):Void;
 
 	public inline function length ():Int
 	{
@@ -33,9 +34,9 @@ extern class Set <T>
 		Syntax.importFromAs("builtins", "set", "python.lib.Set");
 	}
 
-	function __iter__ ():PyIterator<T>;
+	function __iter__ ():NativeIterator<T>;
 
-	public inline function iterator ():Iterator<T>
+	public inline function iterator ():NativeIterator<T>
 	{
 		return __iter__();
 	}
