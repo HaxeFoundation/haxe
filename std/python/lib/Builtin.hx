@@ -6,9 +6,6 @@ import python.lib.io.IOBase;
 import python.lib.Dict;
 import python.NativeIterable;
 import python.NativeIterator;
-import python.Choice;
-
-
 
 @:native("_hx_builtin")
 extern class Builtin {
@@ -96,7 +93,8 @@ extern class Builtin {
 	@:overload(function <G>(f:Tuple<G>):Array<G> {})
 	public static function list<T>(i:NativeIterable<T>):Array<T>;
 
-	public static function filter<A>(f:A->Bool, i:Choice<Array<A>, NativeIterable<A>>):NativeIterator<A>;
+	@:overload(function <A>(f:A->Bool, i:NativeIterable<A>):NativeIterator<A> {})
+	public static function filter<A>(f:A->Bool, i:Array<A>):NativeIterator<A>;
 	//public static function raw_input():Void;
 	//public static function unichr():Void;
 
