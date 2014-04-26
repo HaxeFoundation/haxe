@@ -12,6 +12,6 @@ class FileInput extends NativeInput {
 	}
 
 	public function eof() {
-		return false; // TODO
+		return wasEof;
 	}
 }

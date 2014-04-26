@@ -12,11 +12,13 @@ import python.lib.io.IOBase.SeekSet;
 class NativeInput extends Input{
 
 	var stream:RawIOBase;
+	var wasEof:Bool;
 
 	public var canSeek(get_canSeek, null):Bool;
 
 	public function new (stream:RawIOBase) {
 		this.stream = stream;
+		wasEof = false;
 		if (!stream.readable()) throw "Write-only stream";
 	}
 
@@ -40,7 +42,7 @@ class NativeInput extends Input{
 
 		var ret = stream.read(1);
 
-		if (ret.length == 0) throw new Eof();
+		if (ret.length == 0) throwEof();
 
 		return ret.get(0);
 	}
@@ -53,6 +55,7 @@ class NativeInput extends Input{
 			case SeekCur: SeekSet.SeekCur;
 			case SeekEnd: SeekSet.SeekEnd;
 		};
+		wasEof = false;
 		stream.seek(p, pos);
 	}
 
@@ -67,16 +70,12 @@ class NativeInput extends Input{
 		var ret = stream.readinto(ba);
 		s.blit(pos, haxe.io.Bytes.ofData(ba) ,0,len);
 		if (ret == 0)
-			throw new Eof();
+			throwEof();
 		return ret;
 	}
 
-
-	/*
-
-	public function eof() : Bool
-	{
-		return stream.Position == stream.Length;
+	function throwEof() {
+		wasEof = true;
+		throw new Eof();
 	}
-	*/
 }
