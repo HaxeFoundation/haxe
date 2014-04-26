@@ -8,5 +8,4 @@ class FileOutput extends python.io.NativeOutput {
 	public function new (stream:RawIOBase) {
 		super(stream);
 	}
-
 }
