@@ -132,7 +132,7 @@ module Transformer = struct
 		{ v_name = n; v_type = t; v_id = 0; v_capture = capture; v_extra = None; v_meta = [] }
 
 	let create_non_local n pos =
-		let s = "nonlocal " ^ n in
+		let s = "nonlocal " ^ (KeywordHandler.handle_keywords n) in
 		(* TODO: this is a hack... *)
 		let id = mk (TLocal (to_tvar "python_Syntax.pythonCode" t_dynamic ) ) !t_void pos in
 		let id2 = mk (TLocal( to_tvar s t_dynamic )) !t_void pos in
