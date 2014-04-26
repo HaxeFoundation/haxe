@@ -25,12 +25,14 @@ env:
     - TARGET=openfl-samples
     - TARGET=flixel-demos
     - TARGET=neko-sys
+    - TARGET=python-sys
     - TARGET=bytecode
 
 matrix:
   fast_finish: true
   allow_failures:
     - env: TARGET=flash8
+    - env: TARGET=python-sys
 
 before_install:
   - travis_retry sudo apt-get update

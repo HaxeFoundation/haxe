@@ -338,6 +338,12 @@ class RunTravis {
 				runCommand("haxe", ["compile-neko.hxml"]);
 				Sys.setCwd("bin/neko");
 				runCommand("neko", ["sys.n", "foo", "12", "a b c\\"]);
+			case "python-sys":
+				getPythonDependencies();
+				Sys.setCwd("../sys");
+				runCommand("haxe", ["compile-python.hxml"]);
+				Sys.setCwd("bin/python");
+				runCommand("python3", ["sys.py", "foo", "12", "a b c\\"]);
 			case "openfl-samples":
 				getOpenFLDependencies(unitDir);
 
