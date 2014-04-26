@@ -7,8 +7,25 @@ env:
     # SAUCE_ACCESS_KEY
     - secure: sUvWUjCyPuWht4seNa4f2VG9DkvXkhZyLZfjJO9TUAHB2JndS16E2j/qrvKEjycyH6w8tU/B9vnjDRvvGrYXxEXcBEwsJVfkorFnRl9uwGCGIYrzjMhssEl3fMYZK7P304f+gAp5ULrDBX2gIaKeSa8lUNRtz2PsZOieE4kMdhk=
   matrix:
+    - TARGET=macro
+    - TARGET=neko
+    - TARGET=js
+    - TARGET=php
+    - TARGET=cpp
+    - TARGET=flash9
+    - TARGET=as3
+    - TARGET=java
+    - TARGET=cs
     - TARGET=python
+    - TARGET=flash8
     - TARGET=polygonal-ds
+    - TARGET=flambe
+    - TARGET=hxtemplo
+    - TARGET=munit
+    - TARGET=openfl-samples
+    - TARGET=flixel-demos
+    - TARGET=neko-sys
+    - TARGET=bytecode
 
 matrix:
   fast_finish: true

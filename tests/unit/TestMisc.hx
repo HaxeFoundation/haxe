@@ -151,6 +151,7 @@ class TestMisc extends Test {
 		var o = { add : c.add };
 		eq( o.add(1,2), 103 );
 		eq( o.add, o.add ); // we shouldn't create a new closure here
+
 		var o = { cos : Math.cos };
 		eq( o.cos(0), 1. );
 

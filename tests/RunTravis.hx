@@ -175,19 +175,19 @@ class RunTravis {
 	}
 
 	static function parseTravisFile(path:String, ignoreBeforeInstall = false) {
-		//var yaml:TravisConfig = yaml.Yaml.read(path, Parser.options().useObjects());
-		//if (!ignoreBeforeInstall) {
-			//for (code in yaml.before_install) {
-				//var args = parseCommand(code);
-				//var cmd = args.shift();
-				//runCommand(cmd, args);
-			//}
-		//}
-		//for (code in yaml.script) {
-			//var args = parseCommand(code);
-			//var cmd = args.shift();
-			//runCommand(cmd, args);
-		//}
+		var yaml:TravisConfig = yaml.Yaml.read(path, Parser.options().useObjects());
+		if (!ignoreBeforeInstall) {
+			for (code in yaml.before_install) {
+				var args = parseCommand(code);
+				var cmd = args.shift();
+				runCommand(cmd, args);
+			}
+		}
+		for (code in yaml.script) {
+			var args = parseCommand(code);
+			var cmd = args.shift();
+			runCommand(cmd, args);
+		}
 	}
 
 	static function getPhpDependencies() {
