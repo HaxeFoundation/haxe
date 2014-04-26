@@ -9,6 +9,8 @@ class FileInput extends NativeInput {
 		super(stream);
 	}
 
-
+	public function eof() {
+		return false; // TODO
+	}
 
 }
