@@ -3038,7 +3038,7 @@ let add_java_lib com file std =
 				(if String.ends_with file ".class" then
 					let file = String.sub file 0 (String.length file - 6) in
 					Hashtbl.add hxpack_to_jpack (jpath_to_hx(pack,file)) (pack,file)
-				else if (Unix.stat file).st_kind = S_DIR then
+				else if (Unix.stat file).st_kind = S_DIR && file <> "." && file <> ".." then
 					let path = path ^"/"^ file in
 					let pack = pack @ [file] in
 					iter_files (pack @ [file]) (Unix.opendir path) path);
