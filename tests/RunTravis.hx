@@ -337,7 +337,7 @@ class RunTravis {
 				Sys.setCwd("../sys");
 				runCommand("haxe", ["compile-neko.hxml"]);
 				Sys.setCwd("bin/neko");
-				runCommand("neko", ["sys.n"]);
+				runCommand("neko", ["sys.n", "foo", "12", "a b c\\"]);
 			case "openfl-samples":
 				getOpenFLDependencies(unitDir);
 
