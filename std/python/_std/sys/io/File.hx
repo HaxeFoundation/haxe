@@ -60,23 +60,23 @@ class File {
 	}
 
 	public static function read( path : String, binary : Bool = true ) : FileInput {
-		var mode = if (binary) "rb" else "r";
+		var mode = "rb";
 		var f:python.lib.io.RawIOBase = cast python.lib.Builtin.open(path, mode, -1);
-		return new FileInput(f);
+		return new FileInput(f, binary);
 	}
 
 	public static function write( path : String, binary : Bool = true ) : FileOutput {
-		var mode = if (binary) "wb" else "w";
+		var mode = "wb";
 		var f:python.lib.io.RawIOBase = cast python.lib.Builtin.open(path, mode, -1);
 
-		return new FileOutput(f);
+		return new FileOutput(f, binary);
 	}
 
 	public static function append( path : String, binary : Bool = true ) : FileOutput {
-		var mode = if (binary) "ab" else "a";
+		var mode = "ab";
 		var f:python.lib.io.RawIOBase = cast python.lib.Builtin.open(path, mode, -1);
 
-		return new FileOutput(f);
+		return new FileOutput(f, binary);
 	}
 
 	public static function copy( srcPath : String, dstPath : String ) : Void
