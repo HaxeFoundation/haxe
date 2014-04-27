@@ -1118,6 +1118,8 @@ let run com tctx main =
 	) com.types;
 	(* update cache dependencies before DCE is run *)
 	Codegen.update_cache_dependencies com;
+	(* check @:remove metadata before DCE so it is ignored there (issue #2923) *)
+	List.iter (check_remove_metadata tctx) com.types;
 	(* DCE *)
 	let dce_mode = (try Common.defined_value com Define.Dce with _ -> "no") in
 	if not (Common.defined com Define.As3 || dce_mode = "no" || Common.defined com Define.DocGen) then Dce.run com main (dce_mode = "full" && not (Common.defined com Define.Interp));
@@ -1141,7 +1143,6 @@ let run com tctx main =
 		add_rtti;
 		(match com.platform with | Java | Cs -> (fun _ _ -> ()) | _ -> add_field_inits);
 		add_meta_field;
-		check_remove_metadata;
 		check_void_field;
 	] in
 	List.iter (fun t -> List.iter (fun f -> f tctx t) type_filters) com.types
