@@ -341,7 +341,7 @@ class TestMatch extends Test {
 			case Node(Leaf("foo"), _):
 			case Leaf(_):
 		}));
-		eq("Unmatched patterns: Leaf", TestMatchMacro.getErrorMessage(switch(Leaf("foo")) {
+		eq("Unmatched patterns: Leaf(_)", TestMatchMacro.getErrorMessage(switch(Leaf("foo")) {
 			case Node(_, _):
 			case Leaf(_) if (false):
 		}));

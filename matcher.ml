@@ -898,8 +898,16 @@ let rec compile mctx stl pmat toplevel =
 			out.o_num_paths <- out.o_num_paths + 1;
 			let bl = bind_remaining out pv stl in
 			let dt = match (get_guard mctx out.o_id) with
-				| None -> expr out.o_id
-				| Some _ -> guard out.o_id (expr out.o_id) (match pl with [] -> None | _ -> Some (compile mctx stl pl false))
+				| None ->
+					expr out.o_id
+				| Some _ ->
+					let dt = match pl,mctx.need_val with
+						| [],false ->
+							None
+						| _ ->
+							Some (compile mctx stl pl false)
+					in
+					guard out.o_id (expr out.o_id) dt
 			in
 			(if bl = [] then dt else bind bl dt)
 		end else if i > 0 then begin
