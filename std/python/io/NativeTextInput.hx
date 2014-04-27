@@ -5,6 +5,7 @@ import haxe.io.Eof;
 import haxe.io.Input;
 
 import python.io.IInput;
+import python.io.IoTools;
 import python.io.NativeInput;
 import python.lib.Builtin;
 import python.lib.io.RawIOBase;
@@ -30,21 +31,7 @@ class NativeTextInput extends NativeInput<TextIOBase> implements IInput {
 	public function seek( p : Int, pos : sys.io.FileSeek ) : Void
 	{
 		wasEof = false;
-
-
- 		var pos = switch (pos) {
- 			case SeekBegin:
- 				SeekSet.SeekSet;
- 			case SeekCur:
- 				p = tell() + p;
- 				SeekSet.SeekSet;
- 			case SeekEnd :
- 				stream.seek(0, SeekSet.SeekEnd);
- 				p = tell() + p;
- 				SeekSet.SeekSet;
- 		}
- 		stream.seek(p, pos);
-
+		IoTools.seekInTextMode(stream, tell, p, pos);
 	}
 
 

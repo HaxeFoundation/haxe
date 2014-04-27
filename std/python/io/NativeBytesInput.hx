@@ -5,6 +5,7 @@ import haxe.io.Eof;
 import haxe.io.Input;
 
 import python.io.IInput;
+import python.io.IoTools;
 import python.lib.Builtin;
 import python.lib.io.RawIOBase;
 import python.lib.io.IOBase.SeekSet;
@@ -30,14 +31,8 @@ class NativeBytesInput extends NativeInput<RawIOBase> implements IInput {
 
 	public function seek( p : Int, pos : sys.io.FileSeek ) : Void
 	{
-		var pos = switch(pos)
-		{
-			case SeekBegin: SeekSet.SeekSet;
-			case SeekCur: SeekSet.SeekCur;
-			case SeekEnd: SeekSet.SeekEnd;
-		};
 		wasEof = false;
-		stream.seek(p, pos);
+		return IoTools.seekInBinaryMode(stream, p, pos);
 	}
 
 

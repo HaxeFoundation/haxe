@@ -10,6 +10,9 @@ import python.lib.io.TextIOBase;
 import sys.io.FileInput;
 import sys.io.FileOutput;
 
+import python.lib.io.IOBase.SeekSet;
+
+
 class IoTools {
 
 	public static function createFileInputFromText (t:TextIOBase) {
@@ -26,6 +29,33 @@ class IoTools {
 
 	public static function createFileOutputFromBytes (t:RawIOBase) {
 		return new FileOutput(new FileBytesOutput(t));
+	}
+
+	public static function seekInTextMode (stream:TextIOBase, tell:Void->Int , p : Int, pos : sys.io.FileSeek)
+	{
+ 		var pos = switch (pos) {
+ 			case SeekBegin:
+ 				SeekSet.SeekSet;
+ 			case SeekCur:
+ 				p = tell() + p;
+ 				SeekSet.SeekSet;
+ 			case SeekEnd :
+ 				stream.seek(0, SeekSet.SeekEnd);
+ 				p = tell() + p;
+ 				SeekSet.SeekSet;
+ 		}
+ 		stream.seek(p, pos);
+	}
+
+	public static function seekInBinaryMode (stream:RawIOBase, p : Int, pos : sys.io.FileSeek)
+	{
+ 		var pos = switch(pos)
+		{
+			case SeekBegin: SeekSet.SeekSet;
+			case SeekCur: SeekSet.SeekCur;
+			case SeekEnd: SeekSet.SeekEnd;
+		};
+		stream.seek(p, pos);
 	}
 
 }

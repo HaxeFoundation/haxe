@@ -3,6 +3,7 @@ package python.io;
 
 import haxe.io.Output;
 
+import python.io.IoTools;
 import python.lib.Builtin;
 import python.lib.io.IOBase;
 import python.lib.io.RawIOBase;
@@ -17,13 +18,7 @@ class NativeTextOutput extends NativeOutput<TextIOBase> {
 
 	public function seek( p : Int, pos : sys.io.FileSeek ) : Void
 	{
-		var pos = switch(pos)
-		{
-			case SeekBegin: SeekSet.SeekSet;
-			case SeekCur: SeekSet.SeekCur;
-			case SeekEnd: SeekSet.SeekEnd;
-		};
-		stream.seek(p, pos);
+		IoTools.seekInTextMode(stream, tell, p, pos);
 	}
 
 	override public function writeByte(c:Int):Void

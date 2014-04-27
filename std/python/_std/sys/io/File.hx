@@ -34,14 +34,14 @@ class File {
 
 	public static function getContent( path : String ) : String
 	{
-		var f:python.lib.io.TextIOBase = cast python.lib.Builtin.open(path, "r", -1, "utf-8");
+		var f:python.lib.io.TextIOBase = cast python.lib.Builtin.open(path, "r", -1, "utf-8", null, "");
 		var content = f.read(-1);
 		f.close();
 		return content;
 	}
 
 	public static function saveContent( path : String, content : String ) : Void {
-		var f:python.lib.io.TextIOBase = cast python.lib.Builtin.open(path, "w", -1, "utf-8");
+		var f:python.lib.io.TextIOBase = cast python.lib.Builtin.open(path, "w", -1, "utf-8", null, "");
 		f.write(content);
 		f.close();
 	}
@@ -63,21 +63,21 @@ class File {
 	public static function read( path : String, binary : Bool = true ) : FileInput {
 		var mode = if (binary) "rb" else "r";
 
-		var f = python.lib.Builtin.open(path, mode, -1);
+		var f = python.lib.Builtin.open(path, mode, -1, null, null, binary ? null : "");
 
 		return if (binary) IoTools.createFileInputFromBytes(cast f) else IoTools.createFileInputFromText(cast f);
 	}
 
 	public static function write( path : String, binary : Bool = true ) : FileOutput {
-		var mode = "wb";
-		var f = python.lib.Builtin.open(path, mode, -1);
+		var mode = if (binary) "wb" else "w";
+		var f = python.lib.Builtin.open(path, mode, -1, null, null, binary ? null : "");
 
 		return if (binary) IoTools.createFileOutputFromBytes(cast f) else IoTools.createFileOutputFromText(cast f);
 	}
 
 	public static function append( path : String, binary : Bool = true ) : FileOutput {
-		var mode = "ab";
-		var f = python.lib.Builtin.open(path, mode, -1);
+		var mode = if (binary) "ab" else "a";
+		var f = python.lib.Builtin.open(path, mode, -1, null, null, binary ? null : "");
 
 		return if (binary) IoTools.createFileOutputFromBytes(cast f) else IoTools.createFileOutputFromText(cast f);
 	}

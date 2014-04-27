@@ -15,13 +15,7 @@ class NativeBytesOutput extends NativeOutput<RawIOBase>{
 
 	public function seek( p : Int, pos : sys.io.FileSeek ) : Void
 	{
-		var pos = switch(pos)
-		{
-			case SeekBegin: SeekSet.SeekSet;
-			case SeekCur: SeekSet.SeekCur;
-			case SeekEnd: SeekSet.SeekEnd;
-		};
-		stream.seek(p, pos);
+		return IoTools.seekInBinaryMode(stream, p, pos);
 	}
 
 	override public function prepare(nbytes:Int):Void
