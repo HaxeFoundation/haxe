@@ -21,6 +21,7 @@
  */
 package sys.io;
 
+import python.io.IoTools;
 import sys.io.FileInput;
 
 /**
@@ -60,23 +61,25 @@ class File {
 	}
 
 	public static function read( path : String, binary : Bool = true ) : FileInput {
-		var mode = "rb";
-		var f:python.lib.io.RawIOBase = cast python.lib.Builtin.open(path, mode, -1);
-		return new FileInput(f);
+		var mode = if (binary) "rb" else "r";
+
+		var f = python.lib.Builtin.open(path, mode, -1);
+
+		return if (binary) IoTools.createFileInputFromBytes(cast f) else IoTools.createFileInputFromText(cast f);
 	}
 
 	public static function write( path : String, binary : Bool = true ) : FileOutput {
 		var mode = "wb";
-		var f:python.lib.io.RawIOBase = cast python.lib.Builtin.open(path, mode, -1);
+		var f = python.lib.Builtin.open(path, mode, -1);
 
-		return new FileOutput(f);
+		return if (binary) IoTools.createFileOutputFromBytes(cast f) else IoTools.createFileOutputFromText(cast f);
 	}
 
 	public static function append( path : String, binary : Bool = true ) : FileOutput {
 		var mode = "ab";
-		var f:python.lib.io.RawIOBase = cast python.lib.Builtin.open(path, mode, -1);
+		var f = python.lib.Builtin.open(path, mode, -1);
 
-		return new FileOutput(f);
+		return if (binary) IoTools.createFileOutputFromBytes(cast f) else IoTools.createFileOutputFromText(cast f);
 	}
 
 	public static function copy( srcPath : String, dstPath : String ) : Void

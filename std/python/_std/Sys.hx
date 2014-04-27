@@ -122,15 +122,15 @@ class Sys {
 	}
 
 	public static function stdin() : haxe.io.Input {
-		return new FileInput(cast python.lib.Sys.stdin.buffer);
+		return python.io.IoTools.createFileInputFromText(python.lib.Sys.stdin);
 	}
 
 	public static function stdout() : haxe.io.Output {
-		return new FileOutput(cast python.lib.Sys.stdout.buffer);
+		return python.io.IoTools.createFileOutputFromText(python.lib.Sys.stdout);
 	}
 
 	public static function stderr() : haxe.io.Output {
-		return new FileOutput(cast python.lib.Sys.stderr.buffer);
+		return python.io.IoTools.createFileOutputFromText(python.lib.Sys.stderr);
 	}
 
 

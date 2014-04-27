@@ -7,20 +7,15 @@ import python.lib.Builtin;
 import python.lib.io.IOBase;
 import python.lib.io.RawIOBase;
 
-class NativeOutput extends Output{
+class NativeOutput<T:IOBase> extends Output {
 
-	var stream:RawIOBase;
+	var stream:T;
 
 	public var canSeek(get_canSeek, null):Bool;
 
-	public function new (stream:RawIOBase) {
+	public function new (stream:T) {
 		this.stream = stream;
 		if (!stream.writable()) throw "Read only stream";
-	}
-
-	private function get_canSeek():Bool
-	{
-		return stream.seekable();
 	}
 
 	override public function close():Void
@@ -28,22 +23,9 @@ class NativeOutput extends Output{
 		stream.close();
 	}
 
-	public function tell() : Int
+	private function get_canSeek():Bool
 	{
-		return stream.tell();
-	}
-
-
-
-	public function seek( p : Int, pos : sys.io.FileSeek ) : Void
-	{
-		var pos = switch(pos)
-		{
-			case SeekBegin: SeekSet.SeekSet;
-			case SeekCur: SeekSet.SeekCur;
-			case SeekEnd: SeekSet.SeekEnd;
-		};
-		stream.seek(p, pos);
+		return stream.seekable();
 	}
 
 	override public function prepare(nbytes:Int):Void
@@ -56,25 +38,9 @@ class NativeOutput extends Output{
 		stream.flush();
 	}
 
-	override public function writeByte(c:Int):Void
+
+	public function tell() : Int
 	{
-		stream.write(Builtin.bytearray([c]));
+		return stream.tell();
 	}
-
-	/*
-	** TODO not sure if this implementation is working
-
-	override public function writeBytes( s : haxe.io.Bytes, pos : Int, len : Int ) : Int
-	{
-		if( pos < 0 || len < 0 || pos + len > s.length )
-			throw haxe.io.Error.OutsideBounds;
-
-		var ba = s.sub(pos, len).getData();
-
-		var ret = stream.write(ba);
-
-		return ret;
-	}
-	*/
-
 }

@@ -6,6 +6,8 @@ import python.lib.io.IOBase;
 
 extern class TextIOBase extends IOBase {
 
+	function new (buffer:BufferedIOBase):Void;
+
 	public var encoding:String;
 
 	public function write (s:String):Int;
