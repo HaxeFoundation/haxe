@@ -1,5 +1,6 @@
 package python;
 
+import python.lib.Dict;
 import python.NativeStringTools;
 
 typedef PySys = python.lib.Sys;
@@ -18,6 +19,23 @@ class Lib {
 
 		PySys.stdout.buffer.write( NativeStringTools.encode('$str\n', "utf-8"));
 		PySys.stdout.flush();
+	}
+
+	public static function dictToAnon (v:Dict<String, Dynamic>):Dynamic
+	{
+		var o = {};
+		Syntax.assign(Syntax.field(o, "__dict__"), v);
+		return o;
+	}
+
+	@:access(python.Boot) public static function anonToDict (o:{}):Dynamic
+	{
+		return if (python.Boot.isAnonObject(o))
+		{
+			Syntax.field(o, "__dict__");
+		}
+		else null;
+
 	}
 
 	public static function toPythonIterable <T>(it:Iterable<T>):python.NativeIterable<T> {
