@@ -126,33 +126,6 @@ extern class Syntax {
 	@:noUsing
 	public static function varArgs(args:Array<Dynamic>):Dynamic { return null; }
 
-	//@:noUsing
-	//#if !macro macro #end
-	//public static function callNamed (e:Expr, args:Expr):haxe.macro.Expr {
-//
-		//var fArgs = switch (Context.typeof(e)) {
-			//case TFun(args, ret): args;
-			//case _ : haxe.macro.Context.error("e must be of type function", e.pos);
-		//}
-//
-		//switch (args.expr) {
-			//case EObjectDecl(fields):
-				//for (f in fields) {
-					//var found = false;
-					//for (a in fArgs) {
-						//found = a.name == f.field;
-						//if (found) break;
-					//}
-					//if (!found) {
-						//haxe.macro.Context.error("field " + f.field + " is not a valid argument (valid names " + [for (a in fArgs) a.name].join(",") + ")", args.pos);
-					//}
-				//}
-				//// TODO check at least if fields are valid (maybe if types match);
-			//case _ : haxe.macro.Context.error("args must be an ObjectDeclaration like { name : 1 }", args.pos);
-		//}
-		//return macro @:pos(e.pos) ((untyped __named__)($e, $args):Dynamic);
-	//}
-
 	macro public static function callNamedUntyped (e:Expr, args:Expr):Expr {
 		return macro @:pos(e.pos) $self._callNamedUntyped($e, $args);
 	}
