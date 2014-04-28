@@ -285,9 +285,9 @@ class Test #if swf_mark implements mt.Protect #end {
 			#if ((dce == "full") && !interp && !as3)
 			new TestDCE(),
 			#end
-			#if ( (java || neko) && !macro && !interp)
-			new TestThreads(),
-			#end
+			// #if ( (java || neko) && !macro && !interp)
+			// new TestThreads(),
+			// #end
 			//new TestUnspecified(),
 			//new TestRemoting(),
 		];
