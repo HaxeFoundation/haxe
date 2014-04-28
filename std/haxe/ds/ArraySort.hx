@@ -109,7 +109,7 @@ class ArraySort {
 		}
 	}
 
-	static function gcd(m, n) {
+	static inline function gcd(m, n) {
 		while (n != 0) {
 			var t = m % n;
 			m = n;
@@ -147,7 +147,7 @@ class ArraySort {
 		return from;
 	}
 
-	static function swap<T>(a:Array<T>, i, j) {
+	static inline function swap<T>(a:Array<T>, i, j) {
 		var tmp = a[i];
 		a[i] = a[j];
 		a[j] = tmp;
