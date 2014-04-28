@@ -4446,7 +4446,7 @@ let vopt f v = match v with
 
 let rec encode_tconst c =
 	let tag, pl = match c with
-		| TInt i -> 0,[VInt (Int32.to_int i)]
+		| TInt i -> 0,[best_int i]
 		| TFloat f -> 1,[enc_string f]
 		| TString s -> 2,[enc_string s]
 		| TBool b -> 3,[VBool b]
@@ -4568,7 +4568,7 @@ and encode_texpr_list el =
 
 let decode_tconst c =
 	match decode_enum c with
-	| 0, [s] -> TInt (match s with VInt i -> Int32.of_int i | _ -> raise Invalid_expr)
+	| 0, [s] -> TInt (match s with VInt i -> Int32.of_int i | VInt32 i -> i | _ -> raise Invalid_expr)
 	| 1, [s] -> TFloat (dec_string s)
 	| 2, [s] -> TString (dec_string s)
 	| 3, [s] -> TBool (dec_bool s)
