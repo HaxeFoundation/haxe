@@ -230,6 +230,11 @@ class RunTravis {
 		haxelibRun(["openfl", "rebuild", "tools"]);
 	}
 
+	static function getPythonDependencies() {
+		runCommand("sudo", ["apt-get", "install", "python3", "-y"], true);
+		runCommand("python", ["-V"]);
+	}
+
 	static function main():Void {
 		var cwd = Sys.getCwd();
 		var unitDir = cwd + "unit/";
@@ -262,6 +267,10 @@ class RunTravis {
 				getPhpDependencies();
 				runCommand("haxe", ["compile-php.hxml"]);
 				runCommand("php", ["php/index.php"]);
+			case "python":
+				getPythonDependencies();
+				runCommand("haxe", ["compile-python.hxml"]);
+				runCommand("python3", ["unit.py"]);
 			case "cpp":
 				getCppDependencies(unitDir);
 				runCommand("haxe", ["compile-cpp.hxml"]);
@@ -328,7 +337,13 @@ class RunTravis {
 				Sys.setCwd("../sys");
 				runCommand("haxe", ["compile-neko.hxml"]);
 				Sys.setCwd("bin/neko");
-				runCommand("neko", ["sys.n"]);
+				runCommand("neko", ["sys.n", "foo", "12", "a b c\\\\"]);
+			case "python-sys":
+				getPythonDependencies();
+				Sys.setCwd("../sys");
+				runCommand("haxe", ["compile-python.hxml"]);
+				Sys.setCwd("bin/python");
+				runCommand("python3", ["sys.py", "foo", "12", "a b c\\\\"]);
 			case "openfl-samples":
 				getOpenFLDependencies(unitDir);
 
@@ -346,12 +361,14 @@ class RunTravis {
 					Sys.putEnv("pwd", old);
 				}
 			case "polygonal-ds":
-				haxelibInstallGit("Simn", "ds", null, null, false, "polygonal-ds");
+				getPythonDependencies();
+				haxelibInstallGit("Simn", "ds", "python-support", null, false, "polygonal-ds");
 				haxelibInstallGit("polygonal", "core", "master", "src", false, "polygonal-core");
 				haxelibInstallGit("polygonal", "printf", "master", "src", false, "polygonal-printf");
 				changeDirectory(getHaxelibPath("polygonal-ds"));
-				runCommand("haxe", ["-cp", "src", "-cp", "test", "-lib", "polygonal-core", "-lib", "polygonal-printf", "-main", "UnitTest", "-js", "unit.js"]);
+				runCommand("haxe", ["build.hxml"]);
 				runCommand("node", ["unit.js"]);
+				runCommand("python3", ["unit.py"]);
 			case "flambe":
 				runCommand("git", ["clone", "https://github.com/aduros/flambe"]);
 				runCommand("sh", ["flambe/bin/run-travis"]);

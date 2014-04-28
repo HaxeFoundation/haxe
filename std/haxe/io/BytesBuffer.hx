@@ -185,6 +185,9 @@ class BytesBuffer {
 		#elseif java
 		var buf = b.toByteArray();
 		var bytes = new Bytes(buf.length, buf);
+		#elseif python
+		var buf = python.lib.Builtin.bytearray(b);
+		var bytes = new Bytes(buf.length, buf);
 		#else
 		var bytes = new Bytes(b.length,b);
 		#end

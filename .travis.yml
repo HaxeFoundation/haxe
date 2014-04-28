@@ -16,6 +16,7 @@ env:
     - TARGET=as3
     - TARGET=java
     - TARGET=cs
+    - TARGET=python
     - TARGET=flash8
     - TARGET=polygonal-ds
     - TARGET=flambe
@@ -24,6 +25,7 @@ env:
     - TARGET=openfl-samples
     - TARGET=flixel-demos
     - TARGET=neko-sys
+    - TARGET=python-sys
     - TARGET=bytecode
 
 matrix:

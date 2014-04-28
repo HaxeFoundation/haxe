@@ -1004,6 +1004,9 @@ try
 			cp_libs := "hxjava" :: !cp_libs;
 			set_platform Java dir;
 		),"<directory> : generate Java code into target directory");
+		("-python",Arg.String (fun dir ->
+			set_platform Python dir;
+		),"<directory> : generate Python code into target directory");
 		("-xml",Arg.String (fun file ->
 			Parser.use_doc := true;
 			xml_out := Some file
@@ -1345,13 +1348,16 @@ try
 			Gencs.before_generate com;
 			add_std "cs"; "cs"
 		| Java ->
-      let old_flush = ctx.flush in
-      ctx.flush <- (fun () ->
-        List.iter (fun (_,_,close,_,_) -> close()) com.java_libs;
-        old_flush()
-      );
+			let old_flush = ctx.flush in
+			ctx.flush <- (fun () ->
+				List.iter (fun (_,_,close,_,_) -> close()) com.java_libs;
+				old_flush()
+			);
 			Genjava.before_generate com;
 			add_std "java"; "java"
+		| Python ->
+			add_std "python";
+			"python"
 	) in
 	(* if we are at the last compilation step, allow all packages accesses - in case of macros or opening another project file *)
 	if com.display <> DMNone && not ctx.has_next then com.package_rules <- PMap.foldi (fun p r acc -> match r with Forbidden -> acc | _ -> PMap.add p r acc) com.package_rules PMap.empty;
@@ -1443,6 +1449,9 @@ try
 		| Java ->
 			Common.log com ("Generating Java in : " ^ com.file);
 			Genjava.generate com;
+		| Python ->
+			Common.log com ("Generating python in : " ^ com.file);
+			Genpy.generate com;
 		);
 	end;
 	Sys.catch_break false;

@@ -66,6 +66,11 @@ abstract Vector<T>(VectorData<T>) {
 			this = new java.NativeArray(length);
 		#elseif cpp
 			this = untyped (new Array<T>()).__SetSizeExact(length);
+		#elseif python
+			this = new Array();
+			for (i in 0...length) {
+				this[i] = null;
+			}
 		#else
 			this = [];
 			untyped this.length = length;
@@ -111,6 +116,8 @@ abstract Vector<T>(VectorData<T>) {
 		#elseif cs
 			return this.Length;
 		#elseif java
+			return this.length;
+		#elseif python
 			return this.length;
 		#else
 			return untyped this.length;

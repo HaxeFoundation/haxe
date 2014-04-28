@@ -1,0 +1,215 @@
+/*
+ * Copyright (C)2005-2012 Haxe Foundation
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ */
+
+package;
+
+import python.internal.Internal;
+import python.lib.Builtin;
+import python.lib.Inspect;
+import python.Boot;
+import python.Syntax;
+
+@:keepInit
+@:coreApi class Std {
+
+	public static inline function instance<T:{}, S:T>( value : T, c : Class<S> ) : S {
+		try {
+			return Builtin.isinstance(value,c) ? cast value : null;
+		} catch (e:Dynamic) {
+			return null;
+		}
+	}
+
+	@:access(python.Boot.getSuperClass)
+	public static function is( v : Dynamic, t : Dynamic ) : Bool {
+
+		if (v == null && t == null) {
+			return false;
+		}
+		if (t == null) {
+
+			return false;
+		}
+		if (t == Dynamic) {
+			return true;
+		}
+		var isBool = Builtin.isinstance(v, Builtin.bool);
+
+		if (t == Bool && isBool) {
+			return true;
+		}
+		if (!isBool && t != Bool && t == Int && Builtin.isinstance(v, Builtin.int )) {
+			return true;
+		}
+		var vIsFloat = Builtin.isinstance(v, Builtin.float);
+
+		if (!isBool && vIsFloat && t == Int && Math.isFinite(v) && v == Std.int(v) && v <= 2147483647 && v >= -2147483648) {
+			return true;
+		}
+
+
+		if (!isBool &&  t == Float && ( Builtin.isinstance(v, python.Syntax.pythonCode("(float,int)")))) {
+			return true;
+		}
+
+		if ( t == Builtin.str) {
+			return Builtin.isinstance(v, String);
+		}
+		if (t == Enum && Inspect.isclass(v) && Internal.hasConstructs(v)) return true;
+
+		if (t == Enum) return false;
+
+
+		if (t == Class && !Builtin.isinstance(v, Enum) && Inspect.isclass(v) && Internal.hasClassName(v) && !Internal.hasConstructs(v)) return true;
+
+		if (t == Class) return false;
+
+		if (try Builtin.isinstance(v, t) catch (e:Dynamic) false) {
+			return true;
+		}
+
+		if (Inspect.isclass(t)) {
+
+			function loop (intf)
+			{
+				var f:Array<Dynamic> = if (Internal.hasInterfaces(intf)) Internal.fieldInterfaces(intf) else [];
+				if (f != null) {
+					for (i in f) {
+						if ( i == t) {
+							return true;
+						} else {
+							var l = loop(i);
+							if (l) {
+								return true;
+							}
+						}
+					}
+					return false;
+				} else {
+					return false;
+				}
+			}
+			var currentClass = Syntax.field(v, "__class__");
+			while(currentClass != null) {
+				if (loop(currentClass)) {
+					return true;
+				}
+				currentClass = python.Boot.getSuperClass(currentClass);
+			}
+			return false;
+		} else {
+			return false;
+		}
+	}
+
+	@:access(python.Boot)
+	@:keep
+	public static function string( s : Dynamic ) : String
+	{
+		return python.Boot.toString(s);
+	}
+
+	public static inline function int( x : Float ) : Int
+	{
+		try {
+			return Builtin.int(x);
+		} catch (e:Dynamic) {
+			return null;
+		}
+	}
+
+	public static function parseInt( x : String ) : Null<Int> {
+		if (x == null) return null;
+		try {
+			return Builtin.int(x);
+		} catch (e:Dynamic) {
+			try {
+				var prefix = x.substr(0,2).toLowerCase();
+
+				if (prefix == "0x") {
+					return Builtin.int(x,16);
+				}
+				throw "fail";
+			} catch (e:Dynamic) {
+
+				var r = int(parseFloat(x));
+
+				if (r == null) {
+					var r1 = shortenPossibleNumber(x);
+					if (r1 != x) {
+						return parseInt(r1);
+					} else {
+						return null;
+					}
+				}
+				return r;
+			}
+		}
+	}
+
+	static function shortenPossibleNumber (x:String):String
+	{
+		var r = "";
+		for (i in 0...x.length) {
+			var c = x.charAt(i);
+			switch (c.charCodeAt(0)) {
+				case "0".code
+				| "1".code
+				| "2".code
+				| "3".code
+				| "4".code
+				| "5".code
+				| "6".code
+				| "7".code
+				| "8".code
+				| "9".code
+				| ".".code : r += c;
+				case _ : break;
+			}
+		}
+		return r;
+	}
+
+	public static function parseFloat( x : String ) : Float
+	{
+		try {
+			return Builtin.float(x);
+		} catch (e:Dynamic) {
+
+			if (x != null) {
+				var r1 = shortenPossibleNumber(x);
+				if (r1 != x) {
+					return parseFloat(r1);
+				}
+			}
+			return Math.NaN;
+		}
+	}
+
+	public static inline function random( x : Int ) : Int {
+		if (x <= 0) {
+			return 0;
+		} else {
+			return int(Math.random()*x);
+		}
+	}
+}

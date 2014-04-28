@@ -101,6 +101,14 @@ class CallStack {
 			return stack;
 		#elseif cs
 			return makeStack(new cs.system.diagnostics.StackTrace(1, true));
+		#elseif python
+			var stack = [];
+			var infos = python.lib.Traceback.extract_stack();
+			infos.pop();
+			infos.reverse();
+			for (elem in infos)
+				stack.push(FilePos(null, elem._1, elem._2));
+			return stack;
 		#else
 			return []; // Unsupported
 		#end
@@ -159,6 +167,17 @@ class CallStack {
 			return stack;
 		#elseif cs
 			return makeStack(new cs.system.diagnostics.StackTrace(cs.internal.Exceptions.exception, true));
+		#elseif python
+			var stack = [];
+			var exc = python.lib.Sys.exc_info();
+			if (exc._3 != null)
+			{
+				var infos = python.lib.Traceback.extract_tb(exc._3);
+				infos.reverse();
+				for (elem in infos)
+					stack.push(FilePos(null, elem._1, elem._2));
+			}
+			return stack;
 		#else
 			return []; // Unsupported
 		#end

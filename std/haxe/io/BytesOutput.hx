@@ -39,6 +39,9 @@ class BytesOutput extends Output {
 		#else
 		b = new BytesBuffer();
 		#end
+		#if python
+		bigEndian = false;
+		#end
 	}
 
 	inline function get_length() : Int {

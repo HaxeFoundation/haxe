@@ -61,6 +61,8 @@ class Int64 {
 			return i | 0;
 		#elseif php
 			return i32php(i); // handle overflow of 32-bit integers correctly
+		#elseif python
+			return (i + python.Syntax.opPow(2, 31)) % python.Syntax.opPow(2, 32) - python.Syntax.opPow(2, 31);
 		#else
 			return i;
 		#end

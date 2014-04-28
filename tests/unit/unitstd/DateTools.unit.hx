@@ -8,6 +8,6 @@ var d2 = DateTools.delta(d, diff);
 d2.toString() == "2012-02-17 01:03:02";
 
 //UTC based timestamp generation
-#if (js || flash || php || cpp)
+#if (js || flash || php || cpp || python)
 DateTools.makeUtc(1982, 10, 10, 14, 2, 20) == 405784940000.;
 #end
