@@ -1239,11 +1239,15 @@ module Printer = struct
 			| "super",_ ->
 				let s_el = print_exprs pctx ", " el in
 				Printf.sprintf "super().__init__(%s)" s_el
-			| ("python_Syntax.pythonCode"),[e1] ->
-				begin match e1.eexpr with
-					| TConst (TString s) -> s
-					| e -> print_expr pctx e1
-				end
+			| ("python_Syntax.pythonCode"),[e] ->
+				(* supports native haxe string interpolation *)
+				let rec loop x =
+					(match x with
+					| { eexpr = TBinop(OpAdd,a,b)} -> (loop a) ^ (loop b)
+					| { eexpr = TConst (TString s) } -> s
+					| e -> print_expr pctx e)
+				in
+				loop e
 			| "python_Syntax._callNamedUntyped",el ->
 				let res,fields = match List.rev el with
 					| {eexpr = TObjectDecl fields} :: el ->

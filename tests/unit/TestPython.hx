@@ -1,6 +1,7 @@
 package unit;
 
 import python.KwArgs;
+import python.Syntax;
 import python.VarArgs;
 import sys.io.File;
 import sys.io.Process;
@@ -261,5 +262,33 @@ class TestPython extends Test {
 
 	function testIsViaParentInterface() {
 		t(Std.is(new B(), IA));
+	}
+
+
+	// Syntax Tests
+
+	function testPythonCodeStringInterpolation () {
+		var z = 1;
+		var a = (Syntax.pythonCode('[$z, ${2}]'):Array<Int>);
+
+		eq(a[0], z);
+		eq(a[1], 2);
+
+		inline function test2 (x:Int) {
+			x += 1;
+			return (Syntax.pythonCode('$x'):Int);
+		}
+
+		inline function test3 (x:Int) {
+			return (Syntax.pythonCode('[$x]'):Array<Int>);
+		}
+		var x = 1;
+
+		eq(2, test2(x));
+		eq(1, x);
+		eq(1, test3(1)[0]);
+
+		eq("foo1bar", Syntax.pythonCode("'foo' + str(" + x + ") + 'bar'"));
+
 	}
 }
