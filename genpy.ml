@@ -1059,6 +1059,21 @@ module Printer = struct
 				Printf.sprintf "(%s is %s)" (print_expr pctx e1) (print_expr pctx e2)
 			| TBinop(OpNotEq,e1,({eexpr = TConst TNull} as e2)) ->
 				Printf.sprintf "(%s is not %s)" (print_expr pctx e1) (print_expr pctx e2)
+			| TBinop(OpEq|OpNotEq as op,e1, e2) ->
+				let ops = match op with
+					| OpEq -> "is", "==", "HxOverrides.eq"
+					| OpNotEq -> "is not", "!=", "not HxOverrides.eq"
+					| _ -> assert false
+				in
+				let third (_,_,x) = x in
+				let fst (x,_,_) = x in
+				let snd (_,x,_) = x in
+				(match follow e1.etype, follow e2.etype with
+				| TInst({cl_path = [],("list")},_), TInst({cl_path = [],("list")},_) ->
+					Printf.sprintf "(%s %s %s)" (print_expr pctx e1) (fst ops) (print_expr pctx e2)
+				| TDynamic _, _ | _, TDynamic _ ->
+					Printf.sprintf "%s(%s,%s)" (third ops) (print_expr pctx e1) (print_expr pctx e2)
+				| _,_ -> Printf.sprintf "(%s %s %s)" (print_expr pctx e1) (snd ops) (print_expr pctx e2))
 			| TBinop(OpMod,e1,e2) when (is_type1 "" "Int")(e1.etype) && (is_type1 "" "Int")(e2.etype) ->
 				Printf.sprintf "(%s %% %s)" (print_expr pctx e1) (print_expr pctx e2)
 			| TBinop(OpMod,e1,e2) ->

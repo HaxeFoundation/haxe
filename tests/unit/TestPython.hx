@@ -289,6 +289,19 @@ class TestPython extends Test {
 		eq(1, test3(1)[0]);
 
 		eq("foo1bar", Syntax.pythonCode("'foo' + str(" + x + ") + 'bar'"));
-
 	}
+
+	// Issue #2936
+	function testArrayEq () {
+		f([1,2,3] == [1,2,3]);
+		f(([1,2,3]:Dynamic) == ([1,2,3]:Dynamic));
+		f(([1,2,3]:Dynamic) == [1,2,3]);
+		f([1,2,3] == ([1,2,3]:Dynamic));
+
+		t([1,2,3] != [1,2,3]);
+		t(([1,2,3]:Dynamic) != ([1,2,3]:Dynamic));
+		t(([1,2,3]:Dynamic) != [1,2,3]);
+		t([1,2,3] != ([1,2,3]:Dynamic));
+	}
+
 }

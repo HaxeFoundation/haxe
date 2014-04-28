@@ -7,6 +7,7 @@ import python.Syntax.pythonCode in py;
 @:keep
 @:native("HxOverrides")
 @:access(python.internal.ArrayImpl)
+@:access(python.Boot)
 class HxOverrides {
 
 	// this two cases iterator and shift are like all methods in String and Array and are already handled in Reflect
@@ -17,6 +18,13 @@ class HxOverrides {
 			return (x:Array<Dynamic>).iterator();
 		}
 		return Reflect.callMethod(null, Reflect.field(x, "iterator"), []);
+	}
+
+	static function eq( a:Dynamic, b:Dynamic ) : Bool {
+		if (Boot.isArray(a) || Boot.isArray(b)) {
+			return Syntax.pythonCode('$a is $b');
+		}
+		return Syntax.binop(a, "==", b);
 	}
 
 	static public function shift(x) {
