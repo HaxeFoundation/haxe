@@ -1398,11 +1398,11 @@ module Generator = struct
 	(* Transformer interface *)
 
 	let transform_expr e =
-		let e = Codegen.UnificationCallback.run Transformer.check_unification e in
+		(* let e = Codegen.UnificationCallback.run Transformer.check_unification e in *)
 		Transformer.transform e
 
 	let transform_to_value e =
-		let e = Codegen.UnificationCallback.run Transformer.check_unification e in
+		(* let e = Codegen.UnificationCallback.run Transformer.check_unification e in *)
 		Transformer.transform_to_value e
 
 	(* Printer interface *)
