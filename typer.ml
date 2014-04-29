@@ -2542,6 +2542,11 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		| WithType t | WithTypeResume t ->
 			(match follow t with
 			| TAnon a when not (PMap.is_empty a.a_fields) -> Some a
+			| TAbstract (a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
+				begin match Codegen.Abstract.get_underlying_type a tl with
+					| TAnon a -> Some a
+					| _ -> None
+				end
 			| _ -> None)
 		| _ -> None
 		) in
@@ -2570,7 +2575,8 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				if PMap.mem n !fields then error ("Duplicate field in object declaration : " ^ n) p;
 				let e = try
 					let t = (PMap.find n a.a_fields).cf_type in
-					let e = Codegen.Abstract.check_cast ctx t (type_expr ctx e (match with_type with WithTypeResume _ -> WithTypeResume t | _ -> WithType t)) p in
+					let e = type_expr ctx e (match with_type with WithTypeResume _ -> WithTypeResume t | _ -> WithType t) in
+					let e = Codegen.Abstract.check_cast ctx t e p in
 					unify ctx e.etype t e.epos;
 					(try type_eq EqStrict e.etype t; e with Unify_error _ -> mk (TCast (e,None)) t e.epos)
 				with Not_found ->
