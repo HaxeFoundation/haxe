@@ -354,8 +354,18 @@ let rec build_generic ctx c p tl =
 			let f = { f with cf_type = t} in
 			(* delay the expression mapping to make sure all cf_type fields are set correctly first *)
 			(delays := (fun () ->
-				try (match f.cf_expr with None -> () | Some e -> f.cf_expr <- Some (generic_substitute_expr gctx e))
-				with Unify_error l -> error (error_msg (Unify l)) f.cf_pos) :: !delays);
+				try (match f.cf_expr with
+					| None ->
+						begin match f.cf_kind with
+							| Method _ when not c.cl_interface && not c.cl_extern ->
+								display_error ctx (Printf.sprintf "Field %s has no expression (possible typing order issue)" f.cf_name) f.cf_pos;
+								error (Printf.sprintf "While building %s" (s_type_path cg.cl_path)) p;
+							| _ ->
+								()
+						end
+					| Some e -> f.cf_expr <- Some (generic_substitute_expr gctx e)
+				) with Unify_error l ->
+					error (error_msg (Unify l)) f.cf_pos) :: !delays);
 			f
 		in
 		if c.cl_init <> None || c.cl_dynamic <> None then error "This class can't be generic" p;
