@@ -340,7 +340,7 @@ class RunTravis {
 				Sys.setCwd("bin/neko");
 				runCommand("neko", ["sys.n", "foo", "12", "a b c\\\\"]);
 			case "cpp-sys":
-				//getCppDependencies();
+				getCppDependencies();
 				Sys.setCwd("../sys");
 				runCommand("haxe", ["compile-cpp.hxml"]);
 				Sys.setCwd("bin/cpp");
