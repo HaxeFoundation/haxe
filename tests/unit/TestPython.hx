@@ -282,6 +282,7 @@ class TestPython extends Test {
 		inline function test3 (x:Int) {
 			return (Syntax.pythonCode('[$x]'):Array<Int>);
 		}
+
 		var x = 1;
 
 		eq(2, test2(x));
@@ -289,6 +290,17 @@ class TestPython extends Test {
 		eq(1, test3(1)[0]);
 
 		eq("foo1bar", Syntax.pythonCode("'foo' + str(" + x + ") + 'bar'"));
+
+
+		function test4a (x:Int) {
+			return (Syntax.pythonCode("["+'${x+x}' + "][0]"):Int);
+		}
+
+		function test4b (x:Int) {
+			return (Syntax.pythonCode('['+ Std.string(x+x) + '][0]'):Int);
+		}
+
+		eq(test4a(1), test4b(1));
 	}
 
 	function testIssue2936 () {
