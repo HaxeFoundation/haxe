@@ -387,14 +387,18 @@ let gen_function_header ctx name f params p =
 		" " ^ loop meta
 	);
 	concat ctx "," (fun (v,c) ->
-		let tstr = type_str ctx v.v_type p in
-		print ctx "%s : %s" (s_ident v.v_name) tstr;
-		match c with
-		| None ->
-			if ctx.constructor_block then print ctx " = %s" (default_value tstr);
-		| Some c ->
-			spr ctx " = ";
-			gen_constant ctx p c
+		match v.v_name with
+			| "__arguments__" ->
+				print ctx "...__arguments__"
+			| _ ->
+				let tstr = type_str ctx v.v_type p in
+				print ctx "%s : %s" (s_ident v.v_name) tstr;
+				match c with
+				| None ->
+					if ctx.constructor_block then print ctx " = %s" (default_value tstr);
+				| Some c ->
+					spr ctx " = ";
+					gen_constant ctx p c
 	) f.tf_args;
 	print ctx ") : %s " (type_str ctx f.tf_type p);
 	(fun () ->
