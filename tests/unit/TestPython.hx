@@ -306,9 +306,9 @@ class TestPython extends Test {
 
 	function testIssue2937 () {
 		var f = Reflect.makeVarArgs(function(args:Array<Dynamic>) {
-            t(Std.is(args, Array)); // false, but should be true
-        });
-        f(1,2,3);
+			t(Std.is(args, Array)); // false, but should be true
+		});
+		f(1,2,3);
 	}
 
 }
