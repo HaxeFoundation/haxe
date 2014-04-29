@@ -1198,8 +1198,11 @@ let type_function ctx args ret fmode f do_display p =
 	let e = if not do_display then type_expr ctx e NoValue else try
 		if Common.defined ctx.com Define.NoCOpt then raise Exit;
 		type_expr ctx (Optimizer.optimize_completion_expr e) NoValue
-	with DisplayTypes [TMono _] | Parser.TypePath (_,None) | Exit ->
+	with
+	| Parser.TypePath (_,None) | Exit ->
 		type_expr ctx e NoValue
+	| DisplayTypes [t] when (match follow t with TMono _ -> true | _ -> false) ->
+		 type_expr ctx e NoValue
 	in
 	let e = match e.eexpr with
 		| TMeta((Meta.MergeBlock,_,_), ({eexpr = TBlock el} as e1)) -> e1
