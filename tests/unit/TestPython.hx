@@ -291,8 +291,7 @@ class TestPython extends Test {
 		eq("foo1bar", Syntax.pythonCode("'foo' + str(" + x + ") + 'bar'"));
 	}
 
-	// Issue #2936
-	function testIssue36 () {
+	function testIssue2936 () {
 		f([1,2,3] == [1,2,3]);
 		f(([1,2,3]:Dynamic) == ([1,2,3]:Dynamic));
 		f(([1,2,3]:Dynamic) == [1,2,3]);
