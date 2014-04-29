@@ -18,14 +18,15 @@ env:
     - TARGET=cs
     - TARGET=python
     - TARGET=flash8
+    - TARGET=neko-sys
+    - TARGET=python-sys
+    - TARGET=cpp-sys
     - TARGET=polygonal-ds
     - TARGET=flambe
     - TARGET=hxtemplo
     - TARGET=munit
     - TARGET=openfl-samples
     - TARGET=flixel-demos
-    - TARGET=neko-sys
-    - TARGET=python-sys
     - TARGET=bytecode
 
 matrix:

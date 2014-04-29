@@ -194,15 +194,16 @@ class RunTravis {
 		runCommand("sudo", ["apt-get", "install", "php5", "-y"], true);
 	}
 
-	static function getCppDependencies(unitDir:String) {
+	static function getCppDependencies() {
 		//hxcpp dependencies
 		runCommand("sudo", ["apt-get", "install", "gcc-multilib", "g++-multilib", "-y"], true);
 
 		//install and build hxcpp
 		haxelibInstallGit("HaxeFoundation", "hxcpp", true);
+		var oldDir = Sys.getCwd();
 		Sys.setCwd(Sys.getEnv("HOME") + "/haxelib/hxcpp/git/project/");
 		runCommand("neko", ["build.n"]);
-		Sys.setCwd(unitDir);
+		Sys.setCwd(oldDir);
 	}
 
 	static function getJavaDependencies() {
@@ -215,7 +216,7 @@ class RunTravis {
 	}
 
 	static function getOpenFLDependencies(unitDir:String) {
-		getCppDependencies(unitDir);
+		getCppDependencies();
 
 		haxelibInstallGit("HaxeFoundation", "format");
 		haxelibInstallGit("haxenme", "nme");
@@ -272,7 +273,7 @@ class RunTravis {
 				runCommand("haxe", ["compile-python.hxml"]);
 				runCommand("python3", ["unit.py"]);
 			case "cpp":
-				getCppDependencies(unitDir);
+				getCppDependencies();
 				runCommand("haxe", ["compile-cpp.hxml"]);
 				runCommand("./cpp/Test-debug", []);
 
@@ -338,6 +339,12 @@ class RunTravis {
 				runCommand("haxe", ["compile-neko.hxml"]);
 				Sys.setCwd("bin/neko");
 				runCommand("neko", ["sys.n", "foo", "12", "a b c\\\\"]);
+			case "cpp-sys":
+				//getCppDependencies();
+				Sys.setCwd("../sys");
+				runCommand("haxe", ["compile-cpp.hxml"]);
+				Sys.setCwd("bin/cpp");
+				runCommand("./Main-debug", ["foo", "12", "a b c\\\\"]);
 			case "python-sys":
 				getPythonDependencies();
 				Sys.setCwd("../sys");
@@ -375,7 +382,7 @@ class RunTravis {
 			case "hxtemplo":
 				getJavaDependencies();
 				getPhpDependencies();
-				getCppDependencies(unitDir);
+				getCppDependencies();
 				haxelibInstallGit("Simn", "hxparse", "development", "src");
 				haxelibInstallGit("Simn", "hxtemplo");
 

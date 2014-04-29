@@ -24,7 +24,7 @@ class TestFileInput extends haxe.unit.TestCase {
 	}
 
 	override public function tearDown() {
-		FileSystem.deleteFile(path);
+		//FileSystem.deleteFile(path);
 	}
 
 	public function testRead() {

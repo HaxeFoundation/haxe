@@ -1,2 +1,3 @@
 --next compile-neko.hxml
 --next compile-python.hxml
+--next compile-cpp.hxml
