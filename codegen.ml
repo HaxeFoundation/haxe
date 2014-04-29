@@ -219,7 +219,6 @@ let make_generic ctx ps pt p =
 		String.concat "_" (List.map2 (fun (s,_) t ->
 			let s_type_path_underscore (p,s) = match p with [] -> s | _ -> String.concat "_" p ^ "_" ^ s in
 			let rec loop top t = match follow t with
-				| TInst({cl_kind = KTypeParameter _},_) -> raise (Generic_Exception (("Could not determine type for parameter " ^ s), p))
 				| TInst(c,tl) -> (s_type_path_underscore c.cl_path) ^ (loop_tl tl)
 				| TEnum(en,tl) -> (s_type_path_underscore en.e_path) ^ (loop_tl tl)
 				| TAbstract(a,tl) -> (s_type_path_underscore a.a_path) ^ (loop_tl tl)
