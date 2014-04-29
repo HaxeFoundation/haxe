@@ -1838,3 +1838,27 @@ let rec s_expr_pretty tabs s_type e =
 		sprintf "cast (%s,%s)" (loop e) (s_type_path (t_path mt))
 	| TMeta ((n,el,_),e) ->
 		sprintf "@%s%s %s" (Meta.to_string n) (match el with [] -> "" | _ -> "(" ^ (String.concat ", " (List.map Ast.s_expr el)) ^ ")") (loop e)
+
+let s_types ?(sep = ", ") tl =
+	let pctx = print_context() in
+	String.concat sep (List.map (s_type pctx) tl)
+
+let s_class_kind = function
+	| KNormal ->
+		"KNormal"
+	| KTypeParameter tl ->
+		Printf.sprintf "KTypeParameter [%s]" (s_types tl)
+	| KExtension(c,tl) ->
+		Printf.sprintf "KExtension %s<%s>" (s_type_path c.cl_path) (s_types tl)
+	| KExpr _ ->
+		"KExpr"
+	| KGeneric ->
+		"KGeneric"
+	| KGenericInstance(c,tl) ->
+		Printf.sprintf "KGenericInstance %s<%s>" (s_type_path c.cl_path) (s_types tl)
+	| KMacroType ->
+		"KMacroType"
+	| KGenericBuild _ ->
+		"KGenericBuild"
+	| KAbstractImpl a ->
+		Printf.sprintf "KAbstractImpl %s" (s_type_path a.a_path)
