@@ -292,7 +292,7 @@ class TestPython extends Test {
 	}
 
 	// Issue #2936
-	function testArrayEq () {
+	function testIssue36 () {
 		f([1,2,3] == [1,2,3]);
 		f(([1,2,3]:Dynamic) == ([1,2,3]:Dynamic));
 		f(([1,2,3]:Dynamic) == [1,2,3]);
@@ -302,6 +302,13 @@ class TestPython extends Test {
 		t(([1,2,3]:Dynamic) != ([1,2,3]:Dynamic));
 		t(([1,2,3]:Dynamic) != [1,2,3]);
 		t([1,2,3] != ([1,2,3]:Dynamic));
+	}
+
+	function testIssue2937 () {
+		var f = Reflect.makeVarArgs(function(args:Array<Dynamic>) {
+            t(Std.is(args, Array)); // false, but should be true
+        });
+        f(1,2,3);
 	}
 
 }
