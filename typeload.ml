@@ -320,7 +320,6 @@ let rec load_type_def ctx p t =
 let check_param_constraints ctx types t pl c p =
 	match follow t with
 	| TMono _ -> ()
-	| TInst({cl_kind = KTypeParameter _},_) -> ()
 	| _ ->
 		let ctl = (match c.cl_kind with KTypeParameter l -> l | _ -> []) in
 		List.iter (fun ti ->
@@ -330,10 +329,6 @@ let check_param_constraints ctx types t pl c p =
 					(* if we solve a generic contraint, let's substitute with the actual generic instance before unifying *)
 					let _,_, f = ctx.g.do_build_instance ctx (TClassDecl c) p in
 					f pl
-				| TInst({cl_kind = KGenericInstance(c2,tl)},_) ->
-					(* build generic instance again with applied type parameters (issue 1965) *)
-					let _,_, f = ctx.g.do_build_instance ctx (TClassDecl c2) p in
-					f (List.map (fun t -> apply_params types pl t) tl)
 				| _ -> ti
 			) in
 			try
@@ -1138,11 +1133,11 @@ let rec type_type_params ?(enum_constructor=false) ctx path get_params p tp =
 	let n = tp.tp_name in
 	let c = mk_class ctx.m.curmod (fst path @ [snd path],n) p in
 	c.cl_types <- List.map (type_type_params ctx c.cl_path get_params p) tp.tp_params;
+	c.cl_kind <- KTypeParameter [];
 	if enum_constructor then c.cl_meta <- (Meta.EnumConstructorParam,[],c.cl_pos) :: c.cl_meta;
 	let t = TInst (c,List.map snd c.cl_types) in
 	match tp.tp_constraints with
 	| [] ->
-		c.cl_kind <- KTypeParameter [];
 		n, t
 	| _ ->
 		let r = exc_protect ctx (fun r ->
