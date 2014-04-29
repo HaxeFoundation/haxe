@@ -303,23 +303,4 @@ class TestPython extends Test {
 		eq(test4a(1), test4b(1));
 	}
 
-	function testIssue2936 () {
-		f([1,2,3] == [1,2,3]);
-		f(([1,2,3]:Dynamic) == ([1,2,3]:Dynamic));
-		f(([1,2,3]:Dynamic) == [1,2,3]);
-		f([1,2,3] == ([1,2,3]:Dynamic));
-
-		t([1,2,3] != [1,2,3]);
-		t(([1,2,3]:Dynamic) != ([1,2,3]:Dynamic));
-		t(([1,2,3]:Dynamic) != [1,2,3]);
-		t([1,2,3] != ([1,2,3]:Dynamic));
-	}
-
-	function testIssue2937 () {
-		var f = Reflect.makeVarArgs(function(args:Array<Dynamic>) {
-			t(Std.is(args, Array)); // false, but should be true
-		});
-		f(1,2,3);
-	}
-
 }
