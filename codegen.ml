@@ -219,6 +219,7 @@ let make_generic ctx ps pt p =
 		String.concat "_" (List.map2 (fun (s,_) t ->
 			let s_type_path_underscore (p,s) = match p with [] -> s | _ -> String.concat "_" p ^ "_" ^ s in
 			let rec loop top t = match follow t with
+				| TInst({cl_kind = KTypeParameter _},_) -> raise (Generic_Exception (("Could not determine type for parameter " ^ s), p))
 				| TInst(c,tl) -> (s_type_path_underscore c.cl_path) ^ (loop_tl tl)
 				| TEnum(en,tl) -> (s_type_path_underscore en.e_path) ^ (loop_tl tl)
 				| TAbstract(a,tl) -> (s_type_path_underscore a.a_path) ^ (loop_tl tl)
@@ -295,11 +296,12 @@ let rec build_generic ctx c p tl =
 			()
 	in
 	List.iter check_recursive tl;
-	let gctx = try make_generic ctx c.cl_types tl p with Generic_Exception (msg,p) -> error msg p in
-	let name = (snd c.cl_path) ^ "_" ^ gctx.name in
 	if !recurse then begin
 		TInst (c,tl) (* build a normal instance *)
-	end else try
+	end else begin
+	let gctx = try make_generic ctx c.cl_types tl p with Generic_Exception (msg,p) -> error msg p in
+	let name = (snd c.cl_path) ^ "_" ^ gctx.name in
+	try
 		Typeload.load_instance ctx { tpackage = pack; tname = name; tparams = []; tsub = None } p false
 	with Error(Module_not_found path,_) when path = (pack,name) ->
 		let m = (try Hashtbl.find ctx.g.modules (Hashtbl.find ctx.g.types_module c.cl_path) with Not_found -> assert false) in
@@ -410,6 +412,7 @@ let rec build_generic ctx c p tl =
 		) c.cl_ordered_fields;
 		List.iter (fun f -> f()) !delays;
 		TInst (cg,[])
+	end
 
 (* -------------------------------------------------------------------------- *)
 (* HAXE.XML.PROXY *)
