@@ -1491,10 +1491,16 @@ let map_expr_type f ft fv e =
 		{ e with eexpr = TUnop (op,pre,f e1); etype = ft e.etype }
 	| TArrayDecl el ->
 		{ e with eexpr = TArrayDecl (List.map f el); etype = ft e.etype }
-	| TNew (_,_,el) ->
+	| TNew (c,pl,el) ->
 		let et = ft e.etype in
 		(* make sure that we use the class corresponding to the replaced type *)
-		let c, pl = (match follow et with TInst (c,pl) -> (c,pl) | TAbstract({a_impl = Some c},pl) -> c,pl | t -> error [has_no_field t "new"]) in
+		let t = match c.cl_kind with
+			| KTypeParameter _ | KGeneric ->
+				et
+			| _ ->
+				ft (TInst(c,pl))
+		in
+		let c, pl = (match follow t with TInst (c,pl) -> (c,pl) | TAbstract({a_impl = Some c},pl) -> c,pl | t -> error [has_no_field t "new"]) in
 		{ e with eexpr = TNew (c,pl,List.map f el); etype = et }
 	| TBlock el ->
 		{ e with eexpr = TBlock (List.map f el); etype = ft e.etype }
