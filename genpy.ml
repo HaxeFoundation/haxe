@@ -1379,6 +1379,10 @@ module Generator = struct
 		cfd_methods : string list;
 	}
 
+	type import_type =
+		| IModule of string
+		| IObject of string * string
+
 	let mk_context com = {
 		com = com;
 		buf = Buffer.create 16000;
@@ -1704,22 +1708,40 @@ module Generator = struct
 				| path,name -> (ExtString.String.join "_" path) ^ "_" ^ name
 			in
 
-			let import = match args with
+			let import_type,ignore_error = match args with
 				| [(EConst(String(module_name)), _)] ->
-					(* importing whole module *)
-					"\timport " ^ module_name ^ " as " ^ class_name
-
+					IModule module_name, false
+				| [(EConst(String(module_name)), _); (EBinop(OpAssign, (EConst(Ident("ignoreError")),_), (EConst(Ident("true")),_)),_)] ->
+					IModule module_name,true
 				| [(EConst(String(module_name)), _); (EConst(String(object_name)), _)] ->
-					if String.contains object_name '.' then
-						(* importing nested class *)
-						"\timport " ^ module_name ^ " as _hx_temp_import; " ^ class_name ^ " = _hx_temp_import." ^ object_name ^ "; del _hx_temp_import"
-					else
-						(* importing a class from a module *)
-						"\tfrom " ^ module_name ^ " import " ^ object_name ^ " as " ^ class_name
+					IObject (module_name,object_name), false
+				| [(EConst(String(module_name)), _); (EConst(String(object_name)), _); (EBinop(OpAssign, (EConst(Ident("ignoreError")),_), (EConst(Ident("true")),_)),_)] ->
+					IObject (module_name,object_name), true
 				| _ ->
 					error "Unsupported @:import format" mp
 			in
-			spr_line ctx import
+
+			let import = match import_type with
+				| IModule module_name ->
+					(* importing whole module *)
+					"import " ^ module_name ^ " as " ^ class_name
+
+				| IObject (module_name,object_name) ->
+					if String.contains object_name '.' then
+						(* importing nested class *)
+						"import " ^ module_name ^ " as _hx_temp_import; " ^ class_name ^ " = _hx_temp_import." ^ object_name ^ "; del _hx_temp_import"
+					else
+						(* importing a class from a module *)
+						"from " ^ module_name ^ " import " ^ object_name ^ " as " ^ class_name
+			in
+
+			if ignore_error then begin
+				spr_line ctx "try:";
+				spr ctx "\t";
+				spr_line ctx import;
+				spr_line ctx "except:\n\tpass"
+			end else
+				spr_line ctx import
 		end
 
 	let gen_class ctx c =
@@ -1877,13 +1899,11 @@ module Generator = struct
 		end
 
 	let gen_imports ctx =
-		spr ctx "try:\n";
 		List.iter (fun mt ->
 			match mt with
 			| TClassDecl c when c.cl_extern -> gen_import ctx c
 			| _ -> ()
-		) ctx.com.types;
-		spr ctx "except:\n\tpass\n"
+		) ctx.com.types
 
 	let gen_types ctx =
 		let used_paths = Hashtbl.create 0 in

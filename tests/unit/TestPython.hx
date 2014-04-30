@@ -101,6 +101,15 @@ extern class ExternModule {
 	static function f(v:Int):Int;
 }
 
+@:import("inexistant", "AZAZA", ignoreError=true)
+extern class InexistantExtern1 {}
+
+@:import("inexistant", "AZAZA.ZAZA", ignoreError=true)
+extern class InexistantExtern2 {}
+
+@:import("inexistant", ignoreError=true)
+extern class InexistantExtern3 {}
+
 class TestPython extends Test {
 
 	public function testDoWhileAsExpression () {
