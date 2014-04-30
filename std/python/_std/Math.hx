@@ -27,7 +27,6 @@ import python.lib.Builtin;
 /**
 	This class defines mathematical functions and constants.
 **/
-@:native("_hx_math")
 @:import("math")
 @:coreApi
 extern class Math

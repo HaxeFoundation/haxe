@@ -23,15 +23,13 @@
 package python.internal;
 
 import python.lib.FuncTools;
-//import python.lib.Builtin;
-
-private abstract Builtin(Dynamic) {}
+import python.internal.HxBuiltin;
 
 @:allow(Array)
 @:keep
 class ArrayImpl {
 
-	static inline function builtin():Builtin return Internal.builtin();
+	static inline function builtin():Dynamic return HxBuiltin.instance();
 
 	public static inline function get_length <T>(x:Array<T>):Int return Syntax.callField(builtin(), "len", x);
 

@@ -7,6 +7,7 @@ import python.internal.EnumImpl;
 import python.internal.HxOverrides;
 import python.internal.HxException;
 import python.internal.AnonObject;
+import python.internal.HxBuiltin;
 
 import python.Syntax;
 
@@ -16,12 +17,10 @@ private extern class Set<T> {
 	}
 }
 
+@:import("math") private extern class Math {}
+@:import("inspect") private extern class Inspect {}
 
 @:preCode("
-import builtins as _hx_builtin
-import functools as _hx_functools
-import math as _hx_math
-
 _hx_classes = dict()
 
 class _hx_AnonObject(object):
@@ -31,10 +30,10 @@ class _hx_AnonObject(object):
 @:keep class Boot {
 
 	static function __init__ () {
-		Internal.importAsPrefixed("inspect", "boot_inspect");
-		Boot.inspect = Internal.pythonCodePrefixed("boot_inspect");
-		Boot.math = Internal.pythonCodePrefixed("math");
-		Boot.builtin = Internal.pythonCodePrefixed("builtin");
+
+		Boot.inspect = Inspect;
+		Boot.math = Math;
+		Boot.builtin = HxBuiltin.instance();
 	}
 
 	static inline function mathRound (v:Float) {

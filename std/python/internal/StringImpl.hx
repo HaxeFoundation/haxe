@@ -1,13 +1,13 @@
 package python.internal;
 
 import python.internal.Internal;
-
+import python.internal.HxBuiltin;
 
 @:keep
 @:native("HxString")
 class StringImpl {
 
-	static inline function builtin ():Dynamic return Internal.builtin();
+	static inline function builtin():Dynamic return HxBuiltin.instance();
 
 	public static function split (s:String, d:String) {
 		return if (d == "") Syntax.field(builtin(), "list")(s) else Syntax.callField(s, "split", d);

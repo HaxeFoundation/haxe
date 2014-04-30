@@ -1049,9 +1049,9 @@ module Printer = struct
 				begin match e2.eexpr with
 					| TConst(TString s) ->
 						begin match s with
-							| "string" -> Printf.sprintf "Std._hx_is(%s, _hx_builtin.str)" (print_expr pctx e1)
-							| "boolean" -> Printf.sprintf "Std._hx_is(%s, _hx_builtin.bool)" (print_expr pctx e1)
-							| "number" -> Printf.sprintf "Std._hx_is(%s, _hx_builtin.float)" (print_expr pctx e1)
+							| "string" -> Printf.sprintf "Std._hx_is(%s, python_lib_Builtin.str)" (print_expr pctx e1)
+							| "boolean" -> Printf.sprintf "Std._hx_is(%s, python_lib_Builtin.bool)" (print_expr pctx e1)
+							| "number" -> Printf.sprintf "Std._hx_is(%s, python_lib_Builtin.float)" (print_expr pctx e1)
 							| _ -> assert false
 						end
 					| _ ->
@@ -1193,9 +1193,9 @@ module Printer = struct
 		match fa with
 			(* we need to get rid of these cases in the transformer, how is this handled in js *)
 			| FInstance(c,{cf_name = "length" | "get_length"}) when (is_type "" "list")(TClassDecl c) ->
-				Printf.sprintf "_hx_builtin.len(%s)" (print_expr pctx e1)
+				Printf.sprintf "python_lib_Builtin.len(%s)" (print_expr pctx e1)
 			| FInstance(c,{cf_name = "length"}) when (is_type "" "String")(TClassDecl c) ->
-				Printf.sprintf "_hx_builtin.len(%s)" (print_expr pctx e1)
+				Printf.sprintf "python_lib_Builtin.len(%s)" (print_expr pctx e1)
 			| FStatic(c,{cf_name = "fromCharCode"}) when (is_type "" "String")(TClassDecl c) ->
 				Printf.sprintf "HxString.fromCharCode"
 			| FInstance _ | FStatic _ ->
@@ -1203,14 +1203,14 @@ module Printer = struct
 			| FAnon cf when name = "iterator" && not is_assign ->
 				begin match follow cf.cf_type with
 					| TFun([],_) ->
-						Printf.sprintf "_hx_functools.partial(HxOverrides.iterator, %s)" obj
+						Printf.sprintf "python_lib_FuncTools.partial(HxOverrides.iterator, %s)" obj
 					| _ ->
 						do_default()
 				end
 			| FAnon cf when name = "shift" && not is_assign ->
 				begin match follow cf.cf_type with
 					| TFun([],_) ->
-						Printf.sprintf "_hx_functools.partial(HxOverrides.shift, %s)" obj
+						Printf.sprintf "python_lib_FuncTools.partial(HxOverrides.shift, %s)" obj
 					| _ ->
 						do_default()
 				end
@@ -1223,9 +1223,9 @@ module Printer = struct
 			let handle_base_type bt =
 				let t = print_base_type bt in
 				let res = if t = "String" then
-					Printf.sprintf "if _hx_builtin.isinstance(_hx_e1, str):\n%s\t%s = _hx_e1\n%s\t%s" indent v.v_name indent (print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} e)
+					Printf.sprintf "if python_lib_Builtin.isinstance(_hx_e1, str):\n%s\t%s = _hx_e1\n%s\t%s" indent v.v_name indent (print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} e)
 				else
-					Printf.sprintf "if _hx_builtin.isinstance(_hx_e1, %s):\n%s\t%s = _hx_e1\n%s\t%s" t indent v.v_name indent (print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} e)
+					Printf.sprintf "if python_lib_Builtin.isinstance(_hx_e1, %s):\n%s\t%s = _hx_e1\n%s\t%s" t indent v.v_name indent (print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} e)
 				in
 				if i > 0 then
 					indent ^ "el" ^ res

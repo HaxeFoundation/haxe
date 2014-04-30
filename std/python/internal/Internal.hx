@@ -10,7 +10,6 @@ class Internal {
 
 	static var _prefix = "_hx_";
 
-	static var _builtin = _prefix + "builtin";
 
 	static var _className = _prefix + "class_name";
 	static var _class = _prefix + "class";
@@ -41,14 +40,10 @@ class Internal {
 	}
 
 	static function has (o:Expr, field:String):Expr {
-		return macro python.Syntax.pythonCode($v{_builtin}).hasattr($o, $v{field});
+		return macro python.internal.HxBuiltin.instance().hasattr($o, $v{field});
 	}
 
 	#end
-
-	macro public static function builtin ():Expr {
-		return macro (python.Syntax.pythonCode($v{_builtin}):Dynamic);
-	}
 
 	macro public static function classRegistry ():Expr {
 		return macro (python.Syntax.pythonCode($v{_classes}) : python.lib.Dict<String, Class<Dynamic>>);
