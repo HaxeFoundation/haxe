@@ -1693,40 +1693,39 @@ module Generator = struct
 				in
 				ctx.class_inits <- f :: ctx.class_inits
 
+	let gen_import ctx c =
+		gen_pre_code_meta ctx c.cl_meta;
+
+		if Meta.has Meta.Import c.cl_meta then begin
+			let _, args, mp = Meta.get Meta.Import c.cl_meta in
+
+			let class_name = match c.cl_path with
+				| [],name -> name
+				| path,name -> (ExtString.String.join "_" path) ^ "_" ^ name
+			in
+
+			let import = match args with
+				| [(EConst(String(module_name)), _)] ->
+					(* importing whole module *)
+					"import " ^ module_name ^ " as " ^ class_name
+
+				| [(EConst(String(module_name)), _); (EConst(String(object_name)), _)] ->
+					if String.contains object_name '.' then
+						(* importing nested class *)
+						"import " ^ module_name ^ " as _hx_temp_import; " ^ class_name ^ " = _hx_temp_import." ^ object_name ^ "; del _hx_temp_import"
+					else
+						(* importing a class from a module *)
+						"from " ^ module_name ^ " import " ^ object_name ^ " as " ^ class_name
+				| _ ->
+					error "Unsupported @:import format" mp
+			in
+			spr_line ctx import
+		end
+
 	let gen_class ctx c =
 		gen_pre_code_meta ctx c.cl_meta;
 		(* print ctx "# print %s.%s\n" (s_type_path c.cl_module.m_path) (snd c.cl_path); *)
-		if c.cl_extern then begin
-			if Meta.has Meta.Import c.cl_meta then begin
-				let _, args, mp = Meta.get Meta.Import c.cl_meta in
-
-				let class_name = match c.cl_path with
-					| [],name -> name
-					| path,name -> (ExtString.String.join "_" path) ^ "_" ^ name
-				in
-
-				let import = match args with
-					| [(EConst(String(module_name)), _)] ->
-						(* importing whole module *)
-						"import " ^ module_name ^ " as " ^ class_name
-
-					| [(EConst(String(module_name)), _); (EConst(String(object_name)), _)] ->
-						if String.contains object_name '.' then
-							(* importing nested class *)
-							"import " ^ module_name ^ " as _hx_temp_import; " ^ class_name ^ " = _hx_temp_import." ^ object_name ^ "; del _hx_temp_import"
-						else
-							(* importing a class from a module *)
-							"from " ^ module_name ^ " import " ^ object_name ^ " as " ^ class_name
-					| _ ->
-						error "Unsupported @:import format" mp
-				in
-
-				let f = fun () ->
-					spr_line ctx import;
-				in
-				ctx.class_inits <- f :: ctx.class_inits
-			end
-		end else begin
+		if not c.cl_extern then begin
 			let mt = (t_infos (TClassDecl c)) in
 			let p = get_path mt in
 			let p_name = get_full_name mt in
@@ -1763,6 +1762,7 @@ module Generator = struct
 			gen_class_empty_constructor ctx p c.cl_ordered_fields;
 			gen_class_data ctx c x p_super p_interfaces p p_name;
 		end;
+
 		gen_class_init ctx c
 
 
@@ -1876,6 +1876,13 @@ module Generator = struct
 			spr ctx "}\n"
 		end
 
+	let gen_imports ctx =
+		List.iter (fun mt ->
+			match mt with
+			| TClassDecl c when c.cl_extern -> gen_import ctx c
+			| _ -> ()
+		) ctx.com.types
+
 	let gen_types ctx =
 		let used_paths = Hashtbl.create 0 in
 		let find_type path =
@@ -1908,6 +1915,7 @@ module Generator = struct
 	let run com =
 		Transformer.init com;
 		let ctx = mk_context com in
+		gen_imports ctx;
 		gen_resources ctx;
 		gen_types ctx;
 		gen_class_inits ctx;
