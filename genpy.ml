@@ -1710,7 +1710,33 @@ module Generator = struct
 	let gen_class ctx c =
 		gen_pre_code_meta ctx c.cl_meta;
 		(* print ctx "# print %s.%s\n" (s_type_path c.cl_module.m_path) (snd c.cl_path); *)
-		if not c.cl_extern then begin
+		if c.cl_extern then begin
+			if Meta.has Meta.Import c.cl_meta then begin
+				let _, args, mp = Meta.get Meta.Import c.cl_meta in
+
+				let class_name = match c.cl_path with
+					| [],name -> name
+					| path,name -> (ExtString.String.join "_" path) ^ "_" ^ name
+				in
+
+				let import = match args with 
+					| [(EConst(String(module_name)), _)] ->
+						(* importing whole module *)
+						"import " ^ module_name ^ " as " ^ class_name
+					| [(EConst(String(module_name)), _); (EConst(String(object_name)), _)] ->
+						(* importing a class from a module *)
+						"from " ^ module_name ^ " import " ^ object_name ^ " as " ^ class_name;
+					| _ ->
+						error "Unsupported @:import format" mp
+				in
+
+				let f = fun () ->
+					spr_line ctx import;
+					spr_line ctx ("_hx_c." ^ class_name ^ " = " ^ class_name)
+				in
+				ctx.class_inits <- f :: ctx.class_inits
+			end
+		end else begin
 			let mt = (t_infos (TClassDecl c)) in
 			let p = get_path mt in
 			let p_name = get_full_name mt in
