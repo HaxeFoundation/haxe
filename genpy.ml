@@ -1047,9 +1047,9 @@ module Printer = struct
 				begin match e2.eexpr with
 					| TConst(TString s) ->
 						begin match s with
-							| "string" -> Printf.sprintf "_hx_c.Std._hx_is(%s, _hx_builtin.str)" (print_expr pctx e1)
-							| "boolean" -> Printf.sprintf "_hx_c.Std._hx_is(%s, _hx_builtin.bool)" (print_expr pctx e1)
-							| "number" -> Printf.sprintf "_hx_c.Std._hx_is(%s, _hx_builtin.float)" (print_expr pctx e1)
+							| "string" -> Printf.sprintf "Std._hx_is(%s, _hx_builtin.str)" (print_expr pctx e1)
+							| "boolean" -> Printf.sprintf "Std._hx_is(%s, _hx_builtin.bool)" (print_expr pctx e1)
+							| "number" -> Printf.sprintf "Std._hx_is(%s, _hx_builtin.float)" (print_expr pctx e1)
 							| _ -> assert false
 						end
 					| _ ->
@@ -1107,7 +1107,7 @@ module Printer = struct
 					| _ ->
 						()
 				end;
-				Printf.sprintf "_hx_c._hx_AnonObject(%s)" (print_exprs_named pctx ", " !fl2)
+				Printf.sprintf "_hx_AnonObject(%s)" (print_exprs_named pctx ", " !fl2)
 			| TArrayDecl el ->
 				Printf.sprintf "[%s]" (print_exprs pctx ", " el)
 			| TCall(e1,el) ->
@@ -1639,7 +1639,7 @@ module Generator = struct
 		print ctx "%s._hx_class = %s\n" p p;
 		print ctx "%s._hx_class_name = \"%s\"\n" p p_name;
 		print ctx "_hx_classes[\"%s\"] = %s\n" p_name p;
-		print ctx "_hx_c.%s = %s\n" p p;
+		(* print ctx "_hx_c.%s = %s\n" p p; *)
 		print ctx "%s._hx_fields = [%s]\n" p field_str;
 		print ctx "%s._hx_props = [%s]\n" p props_str;
 		print ctx "%s._hx_methods = [%s]\n" p method_str;
@@ -1666,10 +1666,10 @@ module Generator = struct
 		) cfl;
 		if not !found_fields then
 			spr ctx "\t\tpass\n";
-		newline ctx 
+		newline ctx
 
 	let gen_class_statics ctx c p =
-		let methods, other = List.partition (fun cf -> 
+		let methods, other = List.partition (fun cf ->
 			match cf.cf_kind with
 			| Method _ -> (match cf.cf_expr with Some _ -> true | _ -> false)
 			| _ -> false
@@ -1677,7 +1677,7 @@ module Generator = struct
 
 		(* generate non methods *)
 		let has_empty_static_vars = ref false in
-		List.iter (fun cf -> 
+		List.iter (fun cf ->
 			let p = get_path (t_infos (TClassDecl c)) in
 			let field = handle_keywords cf.cf_name in
 			match cf.cf_expr with
@@ -1696,7 +1696,7 @@ module Generator = struct
 
 		(* generate static methods *)
 		let has_static_methods = ref false in
-		List.iter (fun cf -> 
+		List.iter (fun cf ->
 			has_static_methods := true;
 			let field = handle_keywords cf.cf_name in
 			let py_metas = filter_py_metas cf.cf_meta in
@@ -1730,7 +1730,7 @@ module Generator = struct
 					| path,name -> (ExtString.String.join "_" path) ^ "_" ^ name
 				in
 
-				let import = match args with 
+				let import = match args with
 					| [(EConst(String(module_name)), _)] ->
 						(* importing whole module *)
 						"import " ^ module_name ^ " as " ^ class_name
@@ -1748,7 +1748,7 @@ module Generator = struct
 
 				let f = fun () ->
 					spr_line ctx import;
-					spr_line ctx ("_hx_c." ^ class_name ^ " = " ^ class_name)
+					(* spr_line ctx ("_hx_c." ^ class_name ^ " = " ^ class_name) *)
 				in
 				ctx.class_inits <- f :: ctx.class_inits
 			end
@@ -1807,7 +1807,7 @@ module Generator = struct
 		let p = get_path mt in
 		let p_name = get_full_name mt in
 		newline ctx;
-		print ctx "class %s(_hx_c.Enum):\n" p;
+		print ctx "class %s(Enum):\n" p;
 		spr ctx "\tdef __init__(self, t, i, p):\n";
 		print ctx "\t\tsuper(%s,self).__init__(t, i, p)\n" p;
 		let enum_constructs = PMap.foldi (fun k ef acc ->
@@ -1849,7 +1849,7 @@ module Generator = struct
 		print ctx "%s._hx_class = %s\n" p p;
 		print ctx "%s._hx_class_name = \"%s\"\n" p p_name;
 		print ctx "_hx_classes[\"%s\"] = %s\n" p_name p;
-		print ctx "_hx_c.%s = %s\n" p p;
+		(* print ctx "_hx_c.%s = %s\n" p p; *)
 		gen_enum_metadata ctx en p
 
 	let gen_abstract ctx a =
@@ -1875,8 +1875,8 @@ module Generator = struct
 
 		print ctx "%s._hx_class = %s\n" p p;
 		print ctx "%s._hx_class_name = \"%s\"\n" p p_name;
-		print ctx "_hx_classes[\"%s\"] = %s\n" p_name p;
-		print ctx "_hx_c.%s = %s\n" p p
+		print ctx "_hx_classes[\"%s\"] = %s\n" p_name p
+		(* print ctx "_hx_c.%s = %s\n" p p *)
 
 	let gen_type ctx mt = match mt with
 		| TClassDecl c -> gen_class ctx c

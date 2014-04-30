@@ -20,12 +20,8 @@ extern class Syntax {
 	{
 		var n = className.split(".").join("_");
 		var e = "import " + module + " as " + n;
-		var e1 = "_hx_c."+n+" = "+n;
 
-		return macro ({
-			$self.pythonCode($v{e});
-			$self.pythonCode($v{e1});
-		}:Void);
+		return macro ($self.pythonCode($v{e}):Void);
 	}
 
 	@:noUsing
@@ -98,11 +94,8 @@ extern class Syntax {
 		var n = className.split(".").join("_");
 
 		var e = "from " + from + " import " + module + " as " + n;
-		var e1 = "_hx_c."+n+" = " + n;
-		return macro ({
-			$self.pythonCode($v{e});
-			$self.pythonCode($v{e1});
-		}:Void);
+
+		return macro ($self.pythonCode($v{e}):Void);
 	}
 
 	@:noUsing

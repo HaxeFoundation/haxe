@@ -27,10 +27,6 @@ _hx_classes = dict()
 class _hx_AnonObject(object):
 	def __init__(self, fields):
 		self.__dict__ = fields
-
-_hx_c = _hx_AnonObject({})
-
-_hx_c._hx_AnonObject = _hx_AnonObject
 ")
 @:keep class Boot {
 
