@@ -1,6 +1,34 @@
 2014-??-??: 3.2.0
 
+	New features:
+
+	python : added python target
+
+	Bugfixes:
+
 	all : fixed nullability of abstracts over functions
+	all : fixed some equality checks between UInt and Int
+	all : fixed rare issue with abstract casts
+	all : fixed some internal code which relied on unspecified evaluation order
+	all : fixed exhaustiveness checks involving guards
+	all : fixed issue involving recursively constrained type parameters and @:generic
+	cpp : fixed issue with the side-effect handler
+	cpp : fixed issue with NativeArray in --no-inline mode
+	php : fixed issue with invalid references for closures in for-loops
+
+	General improvements and optimizations:
+
+	all : disallowed using `super` in value positions
+	all : check exhaustiveness of explicit Null types
+	neko : create output directory if it does not exist
+
+	Macro features and changes:
+
+	macro : added Context.getLocalTVars
+
+	Deprecations:
+
+	all : deprecated structurally extending classes and interfaces
 
 2014-04-13: 3.1.3
 
