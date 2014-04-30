@@ -1707,15 +1707,15 @@ module Generator = struct
 			let import = match args with
 				| [(EConst(String(module_name)), _)] ->
 					(* importing whole module *)
-					"import " ^ module_name ^ " as " ^ class_name
+					"\timport " ^ module_name ^ " as " ^ class_name
 
 				| [(EConst(String(module_name)), _); (EConst(String(object_name)), _)] ->
 					if String.contains object_name '.' then
 						(* importing nested class *)
-						"import " ^ module_name ^ " as _hx_temp_import; " ^ class_name ^ " = _hx_temp_import." ^ object_name ^ "; del _hx_temp_import"
+						"\timport " ^ module_name ^ " as _hx_temp_import; " ^ class_name ^ " = _hx_temp_import." ^ object_name ^ "; del _hx_temp_import"
 					else
 						(* importing a class from a module *)
-						"from " ^ module_name ^ " import " ^ object_name ^ " as " ^ class_name
+						"\tfrom " ^ module_name ^ " import " ^ object_name ^ " as " ^ class_name
 				| _ ->
 					error "Unsupported @:import format" mp
 			in
@@ -1877,11 +1877,13 @@ module Generator = struct
 		end
 
 	let gen_imports ctx =
+		spr ctx "try:\n";
 		List.iter (fun mt ->
 			match mt with
 			| TClassDecl c when c.cl_extern -> gen_import ctx c
 			| _ -> ()
-		) ctx.com.types
+		) ctx.com.types;
+		spr ctx "except:\n\tpass\n"
 
 	let gen_types ctx =
 		let used_paths = Hashtbl.create 0 in
