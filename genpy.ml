@@ -1709,12 +1709,17 @@ module Generator = struct
 			in
 
 			let import_type,ignore_error = match args with
-				| [(EConst(String(module_name)), _)] ->
+				| [(EConst(String(module_name)), _)]
+				| [(EConst(String(module_name)), _); (EBinop(OpAssign, (EConst(Ident("ignoreError")),_), (EConst(Ident("false")),_)),_)] ->
 					IModule module_name, false
+
 				| [(EConst(String(module_name)), _); (EBinop(OpAssign, (EConst(Ident("ignoreError")),_), (EConst(Ident("true")),_)),_)] ->
 					IModule module_name,true
-				| [(EConst(String(module_name)), _); (EConst(String(object_name)), _)] ->
+
+				| [(EConst(String(module_name)), _); (EConst(String(object_name)), _)]
+				| [(EConst(String(module_name)), _); (EConst(String(object_name)), _); (EBinop(OpAssign, (EConst(Ident("ignoreError")),_), (EConst(Ident("false")),_)),_)] ->
 					IObject (module_name,object_name), false
+
 				| [(EConst(String(module_name)), _); (EConst(String(object_name)), _); (EBinop(OpAssign, (EConst(Ident("ignoreError")),_), (EConst(Ident("true")),_)),_)] ->
 					IObject (module_name,object_name), true
 				| _ ->
