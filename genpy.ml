@@ -1723,9 +1723,14 @@ module Generator = struct
 					| [(EConst(String(module_name)), _)] ->
 						(* importing whole module *)
 						"import " ^ module_name ^ " as " ^ class_name
+
 					| [(EConst(String(module_name)), _); (EConst(String(object_name)), _)] ->
-						(* importing a class from a module *)
-						"from " ^ module_name ^ " import " ^ object_name ^ " as " ^ class_name;
+						if String.contains object_name '.' then
+							(* importing nested class *)
+							"import " ^ module_name ^ "; " ^ class_name ^ " = " ^ module_name ^ "." ^ object_name
+						else
+							(* importing a class from a module *)
+							"from " ^ module_name ^ " import " ^ object_name ^ " as " ^ class_name
 					| _ ->
 						error "Unsupported @:import format" mp
 				in
