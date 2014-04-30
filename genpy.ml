@@ -1575,24 +1575,20 @@ module Generator = struct
 			| _ ->
 				e
 		in
+		if stat then begin
+			spr ctx indent;
+			spr ctx "@staticmethod\n"
+		end;
 		let expr1 = transform_expr e in
-		let field_name = if stat then
-			Printf.sprintf "%s_statics_%s" (snd c.cl_path) name
-		else
-			name
-		in
 		let expr_string = match expr1.eexpr with
 			| TFunction f ->
-				tfunc_str f pctx (Some field_name)
+				tfunc_str f pctx (Some name)
 			| _ ->
-				Printf.sprintf "%s = %s" field_name (texpr_str expr1 pctx)
+				Printf.sprintf "%s = %s" name (texpr_str expr1 pctx)
 		in
 		gen_py_metas ctx metas indent;
 		spr ctx indent;
-		spr ctx expr_string;
-		if stat then begin
-			print ctx "%s.%s = %s" (get_path (t_infos (TClassDecl c))) name field_name
-		end
+		spr ctx expr_string
 
 	let gen_class_constructor ctx c cf =
 		let member_inits = get_members_with_init_expr c in
@@ -1631,25 +1627,6 @@ module Generator = struct
 				end
 		end
 
-	let gen_static_field ctx c p cf =
-		let p = get_path (t_infos (TClassDecl c)) in
-		let field = handle_keywords cf.cf_name in
-		match cf.cf_expr with
-			| None ->
-				print ctx "%s.%s = None;\n" p field
-			| Some e ->
-				match cf.cf_kind with
-					| Method _ ->
-						let py_metas = filter_py_metas cf.cf_meta in
-						gen_func_expr ctx e c field py_metas [] "" true;
-						newline ctx
-					| _ ->
-						(let f = fun () ->
-							gen_expr ctx e (Printf.sprintf "%s.%s" p field) "";
-							newline ctx
-						in
-						ctx.static_inits <- f :: ctx.static_inits;)
-
 	let gen_class_data ctx c cfd p_super p_interfaces p p_name =
 		let field_str = String.concat "," (List.map (fun s -> "\"" ^ s ^ "\"") cfd.cfd_fields) in
 		let props_str = String.concat "," (List.map (fun s -> "\"" ^ s ^ "\"") cfd.cfd_props) in
@@ -1676,25 +1653,59 @@ module Generator = struct
 				print ctx "%s._hx_super = %s\n" p ps
 
 	let gen_class_empty_constructor ctx p cfl =
-		let s_name = p ^ "_hx_empty_init" in
-		print ctx "def %s (_hx_o):\n" s_name;
+		print ctx "\t@staticmethod\n\tdef _hx_empty_init(_hx_o):\n";
 		let found_fields = ref false in
 		List.iter (fun cf -> match cf.cf_kind with
 				| Var ({v_read = AccResolve | AccCall}) ->
 					()
 				| Var _ ->
 					found_fields := true;
-					print ctx "\t_hx_o.%s = None\n" (handle_keywords cf.cf_name)
+					print ctx "\t\t_hx_o.%s = None\n" (handle_keywords cf.cf_name)
 				| _ ->
 					()
 		) cfl;
 		if not !found_fields then
-			spr ctx "\tpass\n";
-		print ctx "%s._hx_empty_init = %s\n" p s_name
+			spr ctx "\t\tpass\n";
+		newline ctx 
 
 	let gen_class_statics ctx c p =
-		List.iter (fun cf -> gen_static_field ctx c p cf) c.cl_ordered_statics
+		let methods, other = List.partition (fun cf -> 
+			match cf.cf_kind with
+			| Method _ -> (match cf.cf_expr with Some _ -> true | _ -> false)
+			| _ -> false
+		) c.cl_ordered_statics in
 
+		(* generate non methods *)
+		let has_empty_static_vars = ref false in
+		List.iter (fun cf -> 
+			let p = get_path (t_infos (TClassDecl c)) in
+			let field = handle_keywords cf.cf_name in
+			match cf.cf_expr with
+			| None ->
+				has_empty_static_vars := true;
+				print ctx "\t%s = None\n" field
+			| Some e ->
+				(let f = fun () ->
+					gen_expr ctx e (Printf.sprintf "%s.%s" p field) "";
+					newline ctx
+				in
+				ctx.static_inits <- f :: ctx.static_inits)
+		) other;
+
+		if !has_empty_static_vars then newline ctx;
+
+		(* generate static methods *)
+		let has_static_methods = ref false in
+		List.iter (fun cf -> 
+			has_static_methods := true;
+			let field = handle_keywords cf.cf_name in
+			let py_metas = filter_py_metas cf.cf_meta in
+			let e = match cf.cf_expr with Some e -> e | _ -> assert false in
+			gen_func_expr ctx e c field py_metas [] "\t" true;
+			newline ctx
+		) methods;
+
+		!has_static_methods
 
 	let gen_class_init ctx c =
 		match c.cl_init with
@@ -1765,16 +1776,18 @@ module Generator = struct
 				| None -> ()
 			end;
 			List.iter (fun cf -> gen_class_field ctx c p cf) c.cl_ordered_fields;
+
+			let has_static_methods = gen_class_statics ctx c p in
+
 			let x = collect_class_field_data c.cl_ordered_fields in
-			let use_pass = match x.cfd_methods with
+			let use_pass = (not has_static_methods) && match x.cfd_methods with
 				| [] -> c.cl_constructor = None
 				| _ -> c.cl_interface
 			in
 			if use_pass then spr_line ctx "\tpass\n";
 
-			gen_class_data ctx c x p_super p_interfaces p p_name;
 			gen_class_empty_constructor ctx p c.cl_ordered_fields;
-			gen_class_statics ctx c p;
+			gen_class_data ctx c x p_super p_interfaces p p_name;
 		end;
 		gen_class_init ctx c
 
