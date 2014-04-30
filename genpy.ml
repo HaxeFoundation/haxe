@@ -1727,7 +1727,7 @@ module Generator = struct
 					| [(EConst(String(module_name)), _); (EConst(String(object_name)), _)] ->
 						if String.contains object_name '.' then
 							(* importing nested class *)
-							"import " ^ module_name ^ "; " ^ class_name ^ " = " ^ module_name ^ "." ^ object_name
+							"import " ^ module_name ^ " as _hx_temp_import; " ^ class_name ^ " = _hx_temp_import." ^ object_name ^ "; del _hx_temp_import"
 						else
 							(* importing a class from a module *)
 							"from " ^ module_name ^ " import " ^ object_name ^ " as " ^ class_name
