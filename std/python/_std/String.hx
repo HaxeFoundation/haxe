@@ -34,6 +34,7 @@ package;
 #if !macro
 import python.internal.StringImpl;
 #end
+@:import("builtins", "str")
 @:coreApi
 extern class String {
 
@@ -197,10 +198,4 @@ extern class String {
 	public static function fromCharCode( code : Int ) : String {
 		return StringImpl.fromCharCode(code);
 	}
-
-	@:keep static function __init__ ():Void {
-		python.Syntax.importFromAs("builtins", "str", "String");
-	}
-
-
 }

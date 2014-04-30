@@ -30,6 +30,7 @@ extern class Stat {
 	@:optional public var st_type:Int;
 }
 
+@:import("os")
 extern class Os {
 
 	public static var environ : Dict<String, String>;
@@ -68,10 +69,4 @@ extern class Os {
 	public static function makedirs (path:String, mode : Int = 511 /* Oktal 777 */, exist_ok:Bool = false):Void;
 
 	public static function mkdir (path:String, mode : Int = 511 /* Oktal 777 */):Void;
-
-	static function __init__ ():Void
-	{
-		python.Syntax.importAs("os", "python.lib.Os");
-	}
-
 }

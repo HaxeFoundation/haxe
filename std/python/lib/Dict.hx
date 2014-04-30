@@ -23,6 +23,7 @@ extern class DictView<T> {
 	}
 }
 
+@:import("builtins", "dict")
 extern class Dict <K, V>
 {
 	public function new ():Void;
@@ -63,12 +64,6 @@ extern class Dict <K, V>
 		return values().iter();
 	}
 	public function __iter__():NativeIterator<K>;
-
-	static function __init__ ():Void
-	{
-		Syntax.importFromAs("builtins", "dict", "python.lib.Dict");
-	}
-
 }
 
 class DictImpl {

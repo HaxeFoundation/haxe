@@ -8,6 +8,7 @@ extern class StartupInfo {
 
 }
 
+@:import("subprocess")
 extern class Subprocess {
 
 	public static function STARTUPINFO():StartupInfo;
@@ -29,8 +30,4 @@ extern class Subprocess {
 
 	public static function call(args:Array<String>):Int;
 
-	static function __init__ ():Void
-	{
-		python.Syntax.importAs("subprocess", "python.lib.Subprocess");
-	}
 }

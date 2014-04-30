@@ -1,11 +1,6 @@
 
 package python.lib.threading;
 
+@:import("threading", "Thread")
 extern class Thread {
-
-	static function __init__ ():Void
-	{
-		python.Syntax.importFromAs("threading","Thread", "python.lib.thrading.Thread");
-	}
-
 }

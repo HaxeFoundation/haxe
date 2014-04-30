@@ -115,7 +115,7 @@ extern class Regex
 }
 
 
-
+@:import("re")
 extern class Re
 {
 
@@ -182,8 +182,4 @@ extern class Re
 	public static function escape(string:String):TODO;
 
 	public static function purge():Void;
-
-	static function __init__ ():Void {
-		python.Syntax.importAs("re", "python.lib.Re");
-	}
 }

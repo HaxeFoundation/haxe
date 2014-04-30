@@ -33,23 +33,15 @@ typedef Selectable = {
 }
 
 @:native("select")
+@:import("select")
 extern class Select {
-
-    static function __init__ ():Void
-    {
-        Syntax.importModule("select");
-    }
 
     static function select<T>(reads:Array<T>,writes:Array<T>,xs:Array<T>,timeout:Float):Tup3<Array<T>,Array<T>,Array<T>>;
 
 }
 
+@:import("socket", "socket")
 extern class Socket {
-
-    static function __init__ ():Void
-    {
-        Syntax.importFromAs("socket", "socket", "python.lib.net.Socket");
-    }
 
     static var AF_APPLETALK:Int;
     static var AF_ASH:Int;
