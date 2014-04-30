@@ -526,7 +526,9 @@ module Transformer = struct
 		match ae.a_is_value,ae.a_expr.eexpr with
 		| (is_value,TBlock [x]) ->
 			trans is_value [] x
-		| (_,TBlock []) ->
+		| (false,TBlock []) ->
+			lift_expr a_expr
+		| (true,TBlock []) ->
 			lift_expr (mk (TConst TNull) ae.a_expr.etype ae.a_expr.epos)
 		| (false,TBlock el) ->
 			transform_exprs_to_block el ae.a_expr.etype false ae.a_expr.epos ae.a_next_id
@@ -1124,7 +1126,7 @@ module Printer = struct
 			| TVar (v,eo) ->
 				print_var pctx v eo
 			| TBlock [] ->
-				Printf.sprintf "pass\n%s" indent
+				Printf.sprintf "pass\n"
 			| TBlock [{ eexpr = TBlock _} as b] ->
 				print_expr pctx b
 			| TBlock el ->
