@@ -1312,32 +1312,6 @@ module Printer = struct
 				let pctx = {pctx with pc_indent = "\t" ^ pctx.pc_indent} in
 				let i = pctx.pc_indent in
 				Printf.sprintf "for %s in %s:\n%s%s" (print_expr pctx e1) (print_expr pctx e2) i (print_expr pctx e3)
-(* 			| "__new_named__",e1::el ->
-				Printf.sprintf "new %s(%s)" (print_expr pctx e1) (print_exprs pctx ", " el) *)
-(* 			| "__python_kwargs__",[e1] ->
-				"**" ^ (print_expr pctx e1) *)
-(* 			| "__named_arg__",[{eexpr = TConst (TString name)};e2] ->
-				Printf.sprintf "%s=%s" name (print_expr pctx e2) *)
-(* 			| "__assert__",el ->
-				Printf.sprintf "assert(%s)" (print_exprs pctx ", " el) *)
-(* 			| "__call_global__",{eexpr = TConst(TString s)} :: el ->
-				Printf.sprintf "%s(%s)" s (print_exprs pctx ", " el) *)
-(* 			| "__is__",[e1;e2] ->
-				Printf.sprintf "%s is %s" (print_expr pctx e1) (print_expr pctx e2) *)
-(* 			| "__as__",[e1;e2] ->
-				Printf.sprintf "%s as %s" (print_expr pctx e1) (print_expr pctx e2) *)
-(* 			| "__int_parse__",[e1] ->
-				Printf.sprintf "int.parse(%s)" (print_expr pctx e1) *)
-(* 			| "__double_parse__",[e1] ->
-				Printf.sprintf "double.parse(%s)" (print_expr pctx e1) *)
-(* 			| "__instanceof__",[e1;e2] ->
-				Printf.sprintf "_hx_c.Std._hx_is%s,%s" (print_expr pctx e1) (print_expr pctx e2) *)
-(* 			| "__strict_eq__",[e2;e3] ->
-				let e2 = match e2.eexpr with
-					| TBinop(OpOr,a,_) -> a
-					| _ -> e2
-				in
-				print_expr pctx {e1 with eexpr = TBinop(OpEq,e2,e3)} *)
 			| _,el ->
 				Printf.sprintf "%s(%s)" id (print_call_args pctx e1 el)
 
@@ -1641,7 +1615,6 @@ module Generator = struct
 		print ctx "%s._hx_class = %s\n" p p;
 		print ctx "%s._hx_class_name = \"%s\"\n" p p_name;
 		print ctx "_hx_classes[\"%s\"] = %s\n" p_name p;
-		(* print ctx "_hx_c.%s = %s\n" p p; *)
 		print ctx "%s._hx_fields = [%s]\n" p field_str;
 		print ctx "%s._hx_props = [%s]\n" p props_str;
 		print ctx "%s._hx_methods = [%s]\n" p method_str;
@@ -1750,7 +1723,6 @@ module Generator = struct
 
 				let f = fun () ->
 					spr_line ctx import;
-					(* spr_line ctx ("_hx_c." ^ class_name ^ " = " ^ class_name) *)
 				in
 				ctx.class_inits <- f :: ctx.class_inits
 			end
@@ -1851,7 +1823,6 @@ module Generator = struct
 		print ctx "%s._hx_class = %s\n" p p;
 		print ctx "%s._hx_class_name = \"%s\"\n" p p_name;
 		print ctx "_hx_classes[\"%s\"] = %s\n" p_name p;
-		(* print ctx "_hx_c.%s = %s\n" p p; *)
 		gen_enum_metadata ctx en p
 
 	let gen_abstract ctx a =
@@ -1878,7 +1849,6 @@ module Generator = struct
 		print ctx "%s._hx_class = %s\n" p p;
 		print ctx "%s._hx_class_name = \"%s\"\n" p p_name;
 		print ctx "_hx_classes[\"%s\"] = %s\n" p_name p
-		(* print ctx "_hx_c.%s = %s\n" p p *)
 
 	let gen_type ctx mt = match mt with
 		| TClassDecl c -> gen_class ctx c
