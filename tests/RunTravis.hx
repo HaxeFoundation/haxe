@@ -351,6 +351,9 @@ class RunTravis {
 				runCommand("haxe", ["compile-python.hxml"]);
 				Sys.setCwd("bin/python");
 				runCommand("python3", ["sys.py", "foo", "12", "a b c\\\\"]);
+			case "misc":
+				Sys.setCwd("../misc");
+				runCommand("haxe", ["compile.hxml"]);
 			case "openfl-samples":
 				getOpenFLDependencies(unitDir);
 

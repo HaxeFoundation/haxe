@@ -21,6 +21,7 @@ env:
     - TARGET=neko-sys
     - TARGET=python-sys
     - TARGET=cpp-sys
+    - TARGET=misc
     - TARGET=polygonal-ds
     - TARGET=flambe
     - TARGET=hxtemplo
