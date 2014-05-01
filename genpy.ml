@@ -1607,29 +1607,33 @@ module Generator = struct
 				end
 		end
 
-	let gen_class_data ctx c cfd p_super p_interfaces p p_name =
-		let field_str = String.concat "," (List.map (fun s -> "\"" ^ s ^ "\"") cfd.cfd_fields) in
-		let props_str = String.concat "," (List.map (fun s -> "\"" ^ s ^ "\"") cfd.cfd_props) in
-		let method_str = String.concat "," (List.map (fun s -> "\"" ^ s ^ "\"") cfd.cfd_methods) in
-		let statics_str =
-			let statics = collect_class_statics_data c.cl_ordered_statics in
-			String.concat "," (List.map (fun s -> "\"" ^ s ^ "\"") statics)
+	let gen_class_register ctx c cfd p_super p_interfaces p p_name =
+		print ctx "@_hx_classes.registerClass(\"%s\"" p_name;
+
+		let add_names_arg lst arg_name =
+			match lst with
+			| [] -> ()
+			| l ->
+				let s = String.concat "," (List.map (fun s -> "\"" ^ s ^ "\"") l) in
+				print ctx ", %s=[%s]" arg_name s
 		in
 
-		print ctx "%s._hx_class = %s\n" p p;
-		print ctx "%s._hx_class_name = \"%s\"\n" p p_name;
-		print ctx "_hx_classes[\"%s\"] = %s\n" p_name p;
-		print ctx "%s._hx_fields = [%s]\n" p field_str;
-		print ctx "%s._hx_props = [%s]\n" p props_str;
-		print ctx "%s._hx_methods = [%s]\n" p method_str;
+		add_names_arg cfd.cfd_fields "fields";
+		add_names_arg cfd.cfd_props "props";
+		add_names_arg cfd.cfd_methods "methods";
 		(* TODO: It seems strange to have a separation for member fields but a plain _hx_statics for static ones *)
-		print ctx "%s._hx_statics = [%s]\n" p statics_str;
-		print ctx "%s._hx_interfaces = [%s]\n" p (String.concat "," p_interfaces);
-		match p_super with
-			| None ->
-				()
-			| Some ps ->
-				print ctx "%s._hx_super = %s\n" p ps
+		add_names_arg (collect_class_statics_data c.cl_ordered_statics) "statics";
+
+		(match p_interfaces with
+		| [] -> ()
+		| l -> print ctx ", interfaces=[%s]" (String.concat "," p_interfaces)
+		);
+
+		(match p_super with
+		| None -> ()
+		| Some ps -> print ctx ", superClass=%s" ps);
+
+		print ctx ")\n"
 
 	let gen_class_empty_constructor ctx p cfl =
 		print ctx "\t@staticmethod\n\tdef _hx_empty_init(_hx_o):\n";
@@ -1756,19 +1760,22 @@ module Generator = struct
 			let mt = (t_infos (TClassDecl c)) in
 			let p = get_path mt in
 			let p_name = get_full_name mt in
-			newline ctx;
-			print ctx "class %s" p;
+			let x = collect_class_field_data c.cl_ordered_fields in
 			let p_super = match c.cl_super with
 				| None ->
 					None
 				| Some (csup,_) ->
-					let p = get_path (t_infos (TClassDecl csup)) in
-					print ctx "(%s)" p;
-					Some p
+					Some (get_path (t_infos (TClassDecl csup)))
 			in
 			let p_interfaces = List.map (fun (c,tl) ->
 				get_path (t_infos (TClassDecl c))
 			) c.cl_implements in
+
+			newline ctx;
+			if not (Meta.has Meta.NativeGen c.cl_meta) then
+				gen_class_register ctx c x p_super p_interfaces p p_name;
+			print ctx "class %s" p;
+			(match p_super with Some p -> print ctx "(%s)" p | _ -> ());
 			spr ctx ":";
 			spr ctx "\n";
 			begin match c.cl_constructor with
@@ -1777,17 +1784,22 @@ module Generator = struct
 			end;
 			List.iter (fun cf -> gen_class_field ctx c p cf) c.cl_ordered_fields;
 
+			ignore (gen_class_statics ctx c p);
+(*
+   no need to add "pass" because we always generate _hx_empty_init. that may change,
+   so I'm leaving this check commented here. if you uncomment this back,
+   remove the the gen_class_statics line above
+
 			let has_static_methods = gen_class_statics ctx c p in
 
-			let x = collect_class_field_data c.cl_ordered_fields in
 			let use_pass = (not has_static_methods) && match x.cfd_methods with
 				| [] -> c.cl_constructor = None
 				| _ -> c.cl_interface
 			in
 			if use_pass then spr_line ctx "\tpass\n";
-
-			gen_class_empty_constructor ctx p c.cl_ordered_fields;
-			gen_class_data ctx c x p_super p_interfaces p p_name;
+ *)
+			if not (Meta.has Meta.NativeGen c.cl_meta) then
+				gen_class_empty_constructor ctx p c.cl_ordered_fields;
 		end;
 
 		gen_class_init ctx c
@@ -1807,49 +1819,59 @@ module Generator = struct
 		let mt = (t_infos (TEnumDecl en)) in
 		let p = get_path mt in
 		let p_name = get_full_name mt in
+
+		let enum_constructs = PMap.foldi (fun k ef acc -> ef :: acc) en.e_constrs [] in
+		let enum_constructs = List.sort (fun a b -> if a.ef_index < b.ef_index then -1 else if a.ef_index > b.ef_index then 1 else 0) enum_constructs in
+
+		let fix = match enum_constructs with [] -> "" | _ -> "\"" in
+		let enum_constructs_str = fix ^ (String.concat ("\",\"") (List.map (fun ef -> ef.ef_name) enum_constructs)) ^ fix in
+
 		newline ctx;
+		print ctx "@_hx_classes.registerEnum(\"%s\", [%s])\n" p_name enum_constructs_str;
 		print ctx "class %s(Enum):\n" p;
 		spr ctx "\tdef __init__(self, t, i, p):\n";
-		print ctx "\t\tsuper(%s,self).__init__(t, i, p)\n" p;
-		let enum_constructs = PMap.foldi (fun k ef acc ->
+		print ctx "\t\tsuper(%s,self).__init__(t, i, p)\n\n" p;
+
+		let const_constructors,param_constructors = List.partition (fun ef ->
+			match follow ef.ef_type with
+			| TFun(_,_) -> false
+			| _ -> true
+		) enum_constructs in
+
+		List.iter (fun ef ->
+			match follow ef.ef_type with
+			| TFun(args, _) ->
+				let print_args args =
+					let had_optional = ref false in
+					let sl = List.map (fun (n,o,_) ->
+						let name = handle_keywords n in
+						let arg_value = if !had_optional then
+							"= None"
+						else if o then begin
+							had_optional := true;
+							" = None"
+						end else
+							""
+						in
+						Printf.sprintf "%s%s" name arg_value
+					) args in
+					String.concat "," sl
+				in
+				let f = handle_keywords ef.ef_name in
+				let param_str = print_args args in
+				let args_str = String.concat "," (List.map (fun (n,_,_) -> handle_keywords n) args) in
+				print ctx "\t@staticmethod\n\tdef %s(%s):\n" f param_str;
+				print ctx "\t\treturn %s(\"%s\", %i, [%s])\n" p ef.ef_name ef.ef_index args_str;
+				newline ctx
+			| _ -> assert false
+		) param_constructors;
+
+		List.iter (fun ef ->
+			(* TODO: haxe source has api.quoteString for ef.ef_name *)
 			let f = handle_keywords ef.ef_name in
-			begin match follow ef.ef_type with
-				| TFun(args,_) ->
-					let print_args args =
-						let had_optional = ref false in
-						let sl = List.map (fun (n,o,_) ->
-							let name = handle_keywords n in
-							let arg_value = if !had_optional then
-								"= None"
-							else if o then begin
-								had_optional := true;
-								" = None"
-							end else
-								""
-							in
-							Printf.sprintf "%s%s" name arg_value
-						) args in
-						String.concat "," sl
-					in
-					let param_str = print_args args in
-					let args_str = String.concat "," (List.map (fun (n,_,_) -> handle_keywords n) args) in
-					print ctx "def _%s_statics_%s (%s):\n" p f param_str;
-					print ctx "\treturn %s(\"%s\", %i, [%s])\n" p ef.ef_name ef.ef_index args_str;
-					print ctx "%s.%s = _%s_statics_%s\n" p f p f;
-				| _ ->
-					(* TODO: haxe source has api.quoteString for ef.ef_name *)
-					print ctx "%s.%s = %s(\"%s\", %i, list())\n" p f p ef.ef_name ef.ef_index
-			end;
-			newline ctx;
-			ef :: acc
-		) en.e_constrs [] in
-		let fix = match enum_constructs with [] -> "" | _ -> "\"" in
-		let enum_constructs = List.sort (fun a b -> if a.ef_index < b.ef_index then -1 else if a.ef_index > b.ef_index then 1 else 0) enum_constructs in
-		let enum_constructs_str = fix ^ (String.concat ("\",\"") (List.map (fun ef -> ef.ef_name) enum_constructs)) ^ fix in
-		print ctx "%s._hx_constructs = [%s]\n" p enum_constructs_str;
-		print ctx "%s._hx_class = %s\n" p p;
-		print ctx "%s._hx_class_name = \"%s\"\n" p p_name;
-		print ctx "_hx_classes[\"%s\"] = %s\n" p_name p;
+			print ctx "%s.%s = %s(\"%s\", %i, list())\n" p f p ef.ef_name ef.ef_index
+		) const_constructors;
+
 		gen_enum_metadata ctx en p
 
 	let gen_abstract ctx a =
@@ -1859,23 +1881,19 @@ module Generator = struct
 		let mt = (t_infos (TAbstractDecl a)) in
 		let p = get_path mt in
 		let p_name = get_full_name mt in
+		print ctx "@_hx_classes.registerAbstract(\"%s\")\n" p_name;
 		print ctx "class %s" p;
 		spr ctx ":";
-		begin match a.a_impl with
-			| Some c ->
-				List.iter (fun cf ->
-					if cf.cf_name = "_new" then
-						gen_class_constructor ctx c cf
-					else
-						gen_class_field ctx c p cf
-				) c.cl_ordered_statics;
-			| None ->
-				spr_line ctx "\n\tpass\n";
-		end;
-
-		print ctx "%s._hx_class = %s\n" p p;
-		print ctx "%s._hx_class_name = \"%s\"\n" p p_name;
-		print ctx "_hx_classes[\"%s\"] = %s\n" p_name p
+		match a.a_impl with
+		| Some c ->
+			List.iter (fun cf ->
+				if cf.cf_name = "_new" then
+					gen_class_constructor ctx c cf
+				else
+					gen_class_field ctx c p cf
+			) c.cl_ordered_statics
+		| None ->
+			spr_line ctx "\n\tpass\n"
 
 	let gen_type ctx mt = match mt with
 		| TClassDecl c -> gen_class ctx c
@@ -1916,6 +1934,7 @@ module Generator = struct
 			Hashtbl.add used_paths path true;
 			Utils.find_type ctx.com path
 		in
+		gen_type ctx (find_type ([],"_hx_ClassRegistry"));
 		gen_type ctx (find_type (["python"],"Boot"));
 		gen_type ctx (find_type ([],"Enum"));
 		gen_type ctx (find_type ([],"HxOverrides"));
