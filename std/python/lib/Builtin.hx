@@ -50,7 +50,7 @@ extern class Builtin {
 	//public static function enumerate():Void;
 	@:overload(function (x:Dynamic, base:Int):Int {})
 	public static function int(x:Dynamic):Int;
-	//public static function ord():Void;
+	public static function ord(s:String):Int;
 	public static inline function str(o:Dynamic):String {
 		return python.Syntax.field(Builtin, "str")(o);
 	}

@@ -33,26 +33,26 @@ class StringTools {
 	/**
 		Encode an URL by using the standard format.
 	**/
-	#if (!java && !cpp) inline #end public static function urlEncode( s : String ) : String untyped {
+	#if (!java && !cpp) inline #end public static function urlEncode( s : String ) : String {
 		#if flash9
-			return __global__["encodeURIComponent"](s);
+			return untyped __global__["encodeURIComponent"](s);
 		#elseif flash
-			return _global["escape"](s);
+			return untyped _global["escape"](s);
 		#elseif neko
-			return new String(_urlEncode(s.__s));
+			return untyped new String(_urlEncode(s.__s));
 		#elseif js
-			return encodeURIComponent(s);
+			return untyped encodeURIComponent(s);
 		#elseif cpp
-			return s.__URLEncode();
+			return untyped s.__URLEncode();
 		#elseif java
 			try
 				return untyped __java__("java.net.URLEncoder.encode(s, \"UTF-8\")")
 			catch (e:Dynamic) throw e;
 		#elseif cs
-			return cs.system.Uri.EscapeUriString(s);
+			return untyped cs.system.Uri.EscapeUriString(s);
 		#elseif python
 			python.Syntax.pythonCode("from urllib.parse import quote");
-			return quote(s);
+			return untyped quote(s);
 		#else
 			return null;
 		#end
@@ -61,26 +61,26 @@ class StringTools {
 	/**
 		Decode an URL using the standard format.
 	**/
-	#if (!java && !cpp) inline #end public static function urlDecode( s : String ) : String untyped {
+	#if (!java && !cpp) inline #end public static function urlDecode( s : String ) : String {
 		#if flash9
-			return __global__["decodeURIComponent"](s.split("+").join(" "));
+			return untyped __global__["decodeURIComponent"](s.split("+").join(" "));
 		#elseif flash
-			return _global["unescape"](s);
+			return untyped _global["unescape"](s);
 		#elseif neko
-			return new String(_urlDecode(s.__s));
+			return untyped new String(_urlDecode(s.__s));
 		#elseif js
-			return decodeURIComponent(s.split("+").join(" "));
+			return untyped decodeURIComponent(s.split("+").join(" "));
 		#elseif cpp
-			return s.__URLDecode();
+			return untyped s.__URLDecode();
 		#elseif java
 			try
 				return untyped __java__("java.net.URLDecoder.decode(s, \"UTF-8\")")
 			catch (e:Dynamic) throw e;
 		#elseif cs
-			return cs.system.Uri.UnescapeDataString(s);
+			return untyped cs.system.Uri.UnescapeDataString(s);
 		#elseif python
 			python.Syntax.pythonCode("from urllib.parse import unquote");
-			return unquote(s);
+			return untyped unquote(s);
 		#else
 			return null;
 		#end
@@ -357,29 +357,25 @@ class StringTools {
 		This operation is not guaranteed to work if `s` contains the \0
 		character.
 	**/
-	public static inline function fastCodeAt( s : String, index : Int ) : Int untyped {
+	public static inline function fastCodeAt( s : String, index : Int ) : Int {
 		#if neko
 		return untyped __dollar__sget(s.__s, index);
 		#elseif cpp
-		return s.cca(index);
+		return untyped s.cca(index);
 		#elseif flash9
-		return s.cca(index);
+		return untyped s.cca(index);
 		#elseif flash
-		return s["cca"](index);
+		return untyped s["cca"](index);
 		#elseif java
 		return ( index < s.length ) ? cast(_charAt(s, index), Int) : -1;
 		#elseif cs
-		return ( cast(index, UInt) < s.length ) ? cast(untyped s[index], Int) : -1;
+		return ( cast(index, UInt) < s.length ) ? cast(s[index], Int) : -1;
 		#elseif js
-			#if mt
-		return (untyped s).cca(index);
-			#else
-		return (untyped s).charCodeAt(index);
-			#end
+		return s.charCodeAt(index);
 		#elseif python
 		return if (index >= s.length) -1 else python.lib.Builtin.ord(python.Syntax.arrayAccess(s, index));
 		#else
-		return s.cca(index);
+		return untyped s.cca(index);
 		#end
 	}
 
