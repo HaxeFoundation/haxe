@@ -21,11 +21,44 @@ private extern class Set<T> {
 @:import("inspect") private extern class Inspect {}
 
 @:preCode("
-_hx_classes = dict()
-
 class _hx_AnonObject(object):
 	def __init__(self, fields):
 		self.__dict__ = fields
+
+class _hx_ClassRegistry(dict):
+
+	def _register(self, cls, name):
+		cls._hx_class = cls
+		cls._hx_class_name = name
+		self[name] = cls
+
+	def register_class(self, name, fields=[], props=[], methods=[], statics=[], interfaces=[], super=None):
+		def wrapper(cls):
+			self._register(cls, name)
+			cls._hx_fields = fields
+			cls._hx_props = props
+			cls._hx_methods = methods
+			cls._hx_statics = statics
+			cls._hx_interfaces = interfaces
+			if super is not None:
+				cls._hx_super = super
+			return cls
+		return wrapper
+
+	def register_abstract(self, name):
+		def wrapper(cls):
+			self._register(cls, name)
+			return cls
+		return wrapper
+
+	def register_enum(self, name, constructs):
+		def wrapper(cls):
+			self._register(cls, name)
+			cls._hx_constructs = constructs
+			return cls
+		return wrapper
+
+_hx_classes = _hx_ClassRegistry()
 ")
 @:keep class Boot {
 
