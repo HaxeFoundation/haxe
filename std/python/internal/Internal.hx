@@ -24,6 +24,8 @@ class Internal {
 
 	static var _classes = _prefix + "classes";
 
+	static var _dict = "__dict__";
+
 	static function _getPrefixed (x:Expr):Expr {
 		return switch (x.expr) {
 			case EConst(CString(x)): macro @:pos(Context.currentPos()) $v{_prefix + x};
@@ -189,6 +191,10 @@ class Internal {
 
 	macro public static function fieldConstructs (o:Expr):Expr {
 		return fieldWithPos(o, _constructs);
+	}
+
+	macro public static function fieldDict (o:Expr):Expr {
+		return fieldWithPos(o, _dict);
 	}
 
 	macro public static function fieldEmptyInit (o:Expr):Expr {
