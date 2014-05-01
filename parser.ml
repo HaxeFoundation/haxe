@@ -369,7 +369,20 @@ let reify in_macro =
 				to_obj fields p
 			) vl p]
 		| EFunction (name,f) ->
-			expr "EFunction" [to_opt to_string name p; to_fun f p]
+			let name = match name with
+				| None ->
+					to_null p
+				| Some name ->
+					if ExtString.String.starts_with name "inline_$" then begin
+						let real_name = (String.sub name 7 (String.length name - 7)) in
+						let e_name = to_string real_name p in
+						let e_inline = to_string "inline_" p in
+						let e_add = (EBinop(OpAdd,e_inline,e_name),p) in
+						e_add
+					end else
+						to_string name p
+			in
+			expr "EFunction" [name; to_fun f p]
 		| EBlock el ->
 			expr "EBlock" [to_expr_array el p]
 		| EFor (e1,e2) ->
