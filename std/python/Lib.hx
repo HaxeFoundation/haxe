@@ -1,5 +1,7 @@
 package python;
 
+import python.internal.AnonObject;
+import python.internal.HxBuiltin;
 import python.lib.Dict;
 import python.NativeStringTools;
 
@@ -23,16 +25,17 @@ class Lib {
 
 	public static function dictToAnon (v:Dict<String, Dynamic>):Dynamic
 	{
-		var o = {};
-		Syntax.assign(Syntax.field(o, "__dict__"), v);
-		return o;
+		return new AnonObject(v.copy());
+
+		//return o;
 	}
 
-	@:access(python.Boot) public static function anonToDict (o:{}):Dynamic
+
+	public static function anonToDict (o:{}):Dynamic
 	{
-		return if (python.Boot.isAnonObject(o))
+		return if (HxBuiltin.isinstance(o, AnonObject))
 		{
-			Syntax.field(o, "__dict__");
+			(Syntax.field(o, "__dict__"):Dict<String,Dynamic>).copy();
 		}
 		else null;
 

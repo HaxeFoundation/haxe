@@ -17,7 +17,9 @@ private extern class Set<T> {
 	}
 }
 
-@:pythonImport("math") private extern class Math {}
+@:pythonImport("math") private extern class Math {
+	public static function floor (x:Float):Int;
+}
 @:pythonImport("inspect") private extern class Inspect {}
 
 typedef HxClassBase = {
@@ -95,18 +97,11 @@ private class ClassRegistry extends python.lib.Dict<String, HxClassBase> {
 @:preCode("_hx_classes = _hx_ClassRegistry()")
 @:keep class Boot {
 
-	static function __init__ () {
-
-		Boot.inspect = Inspect;
-		Boot.math = Math;
-		Boot.builtin = HxBuiltin.instance();
-	}
-
 	static inline function mathRound (v:Float) {
-		return math.floor(v + 0.5);
+		return Math.floor(v + 0.5);
 	}
 
-	inline static function mkSet <T>(a:Array<T>):Set<T> return Syntax.callField(builtin, "set", a);
+	inline static function mkSet <T>(a:Array<T>):Set<T> return Syntax.callField(HxBuiltin, "set", a);
 
 	static var keywords:Set<String> = mkSet(
 	[
@@ -125,70 +120,67 @@ private class ClassRegistry extends python.lib.Dict<String, HxClassBase> {
 	}
 
 	inline static function isInstance(o:Dynamic, x:Dynamic):Bool {
-		return Syntax.callField(builtin, "isinstance", o, x);
+		return HxBuiltin.isinstance(o,x);
 	}
 
 	inline static function builtinStr(o:Dynamic):String {
-		return Syntax.callField(builtin, "str", o);
+		return HxBuiltin.str(o);
 	}
 
 	inline static function builtinHasAttr(o:Dynamic, x:String):Bool {
-		return Syntax.callField(builtin, "hasattr", o, x);
+		return Syntax.callField(HxBuiltin, "hasattr", o, x);
 	}
 
 	inline static function builtinGetAttr(o:Dynamic, x:String):Dynamic {
-		return Syntax.callField(builtin, "getattr", o, x);
+		return Syntax.callField(HxBuiltin, "getattr", o, x);
 	}
 
 	inline static function isPyBool(o:Dynamic):Bool {
-		return isInstance(o, Syntax.field(builtin, "bool"));
+		return isInstance(o, Syntax.field(HxBuiltin, "bool"));
 	}
 
 	inline static function isPyInt(o:Dynamic):Bool {
-		return isInstance(o, Syntax.field(builtin, "int"));
+		return isInstance(o, Syntax.field(HxBuiltin, "int"));
 	}
 
 	inline static function isPyFloat(o:Dynamic):Bool {
-		return isInstance(o, Syntax.field(builtin, "float"));
+		return isInstance(o, Syntax.field(HxBuiltin, "float"));
 	}
 
 	inline static function builtinLen(o:Dynamic):Int {
-		return Syntax.callField(builtin, "len", o);
+		return Syntax.callField(HxBuiltin, "len", o);
 	}
 
 	inline static function builtinInt(o:Dynamic):Int {
-		return Syntax.callField(builtin, "int", o);
+		return Syntax.callField(HxBuiltin, "int", o);
 	}
 
 	inline static function builtinCallable(o:Dynamic):Bool {
-		return Syntax.callField(builtin, "callable", o);
+		return Syntax.callField(HxBuiltin, "callable", o);
 	}
 
 	inline static function inspectGetMembers(o:Dynamic, f:String->Bool):Void {
-		Syntax.callField(inspect, "getmembers", o, f);
+		Syntax.callField(Inspect, "getmembers", o, f);
 	}
 
 	inline static function inspectIsClass(o:Dynamic):Bool {
-		return Syntax.callField(inspect, "isclass", o);
+		return Syntax.callField(Inspect, "isclass", o);
 	}
 
 	inline static function inspectIsFunction(o:Dynamic):Bool {
-		return Syntax.callField(inspect, "isclass", o);
+		return Syntax.callField(Inspect, "isclass", o);
 	}
 
 	inline static function inspectIsMethod(o:Dynamic):Bool {
-		return Syntax.callField(inspect, "isclass", o);
+		return Syntax.callField(Inspect, "isclass", o);
 	}
 
-	static var builtin:Dynamic;
-	static var inspect:Dynamic;
-	static var math:Dynamic;
 
 	static inline function isClass(o:Dynamic) : Bool {
 		return o != null && (o == String || inspectIsClass(o));
 	}
 
-	static inline function isAnonObject (o:Dynamic) {
+	static function isAnonObject (o:Dynamic) {
 		return isInstance(o, AnonObject);
 	}
 
@@ -252,7 +244,7 @@ private class ClassRegistry extends python.lib.Dict<String, HxClassBase> {
 		}
 		try {
 			if (builtinHasAttr(o, "toString")) {
-				return o.toString();
+				return Syntax.callField(o, "toString");
 			}
 		} catch (e:Dynamic) {
 
@@ -367,8 +359,8 @@ private class ClassRegistry extends python.lib.Dict<String, HxClassBase> {
 			}
 			if (isInstance(o, AnonObject)) {
 
-				var d:Dynamic = Syntax.field(o, "__dict__");
-				var keys = d.keys();
+				var d = Syntax.field(o, "__dict__");
+				var keys = Syntax.callField(d, "keys");
 				var handler = unhandleKeywords;
 
 				Syntax.pythonCode("for k in keys:");
@@ -376,8 +368,8 @@ private class ClassRegistry extends python.lib.Dict<String, HxClassBase> {
 			}
 			else if (builtinHasAttr(o, "__dict__")) {
 				var a = [];
-				var d:Dynamic = Syntax.field(o, "__dict__");
-				var keys1  = d.keys();
+				var d = Syntax.field(o, "__dict__");
+				var keys1  = Syntax.callField(d, "keys");
 				Syntax.pythonCode("for k in keys1:");
 				Syntax.pythonCode("	a.append(k)");
 

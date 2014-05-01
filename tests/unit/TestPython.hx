@@ -248,9 +248,8 @@ class TestPython extends Test {
 			return a + b;
 		}
 
-
-		var res = x( python.lib.Dict.fromObject({ "a" : 1, "b" : 2}) );
-
+		var a = python.Lib.anonToDict({ "a" : 1, "b" : 2});
+		var res = x( a );
 
 		eq(3, res);
 

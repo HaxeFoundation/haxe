@@ -3,20 +3,20 @@ package python.internal;
 import python.internal.Internal;
 import python.internal.HxBuiltin;
 
+
+
 @:keep
 @:native("HxString")
 class StringImpl {
 
-	static inline function builtin():Dynamic return HxBuiltin.instance();
-
 	public static function split (s:String, d:String) {
-		return if (d == "") Syntax.field(builtin(), "list")(s) else Syntax.callField(s, "split", d);
+		return if (d == "") Syntax.field(HxBuiltin, "list")(s) else Syntax.callField(s, "split", d);
 	}
 
 	public static function charCodeAt(s:String, index:Int) {
 		return
 			if (s == null || s.length == 0 || index < 0 || index >= s.length) null
-			else Syntax.callField(builtin(), "ord", Syntax.arrayAccess(s, index));
+			else Syntax.callField(HxBuiltin, "ord", Syntax.arrayAccess(s, index));
 	}
 
 	public static inline function charAt(s:String, index:Int) {
@@ -29,7 +29,7 @@ class StringImpl {
 		} else {
 
 			var i = Syntax.callField(s, "rfind", str, 0, startIndex+1);
-			var startLeft = i == -1 ? Syntax.callField(builtin(), "max", 0,startIndex+1-str.length) : i+1;
+			var startLeft = i == -1 ? Syntax.callField(HxBuiltin, "max", 0,startIndex+1-str.length) : i+1;
 			var check = Syntax.callField(s,"find", str, startLeft, s.length);
 			if (check > i && check <= startIndex) {
 				return check;
@@ -58,7 +58,7 @@ class StringImpl {
 	}
 
 	public static function get_length (s:String) {
-		return Syntax.field(builtin(), "len")(s);
+		return Syntax.field(HxBuiltin, "len")(s);
 	}
 
 	public static inline function fromCharCode( code : Int ) : String {
@@ -67,7 +67,7 @@ class StringImpl {
 		#else
 		var c = code;
 		return Syntax.callField('', "join",
-			Syntax.callField(builtin(), "map", Syntax.field(builtin(), "chr"), [c])); // TODO: check cast
+			Syntax.callField(HxBuiltin, "map", Syntax.field(HxBuiltin, "chr"), [c])); // TODO: check cast
 		#end
 	}
 
