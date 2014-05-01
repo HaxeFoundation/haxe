@@ -3,7 +3,7 @@ package flash.display3D;
 @:final extern class Context3D extends flash.events.EventDispatcher {
 	var driverInfo(default,null) : String;
 	var enableErrorChecking : Bool;
-	@:require(flash12) var profile : String;
+	@:require(flash12) var profile(default,null) : String;
 	function clear(red : Float = 0, green : Float = 0, blue : Float = 0, alpha : Float = 1, depth : Float = 1, stencil : UInt = 0, mask : UInt = 0xFFFFFFFF) : Void;
 	function configureBackBuffer(width : Int, height : Int, antiAlias : Int, enableDepthAndStencil : Bool = true, wantsBestResolution : Bool = false) : Void;
 	function createCubeTexture(size : Int, format : Context3DTextureFormat, optimizeForRenderToTexture : Bool, streamingLevels : Int = 0) : flash.display3D.textures.CubeTexture;
@@ -25,7 +25,7 @@ package flash.display3D;
 	function setProgramConstantsFromMatrix(programType : Context3DProgramType, firstRegister : Int, matrix : flash.geom.Matrix3D, transposedMatrix : Bool = false) : Void;
 	function setProgramConstantsFromVector(programType : Context3DProgramType, firstRegister : Int, data : flash.Vector<Float>, numRegisters : Int = -1) : Void;
 	function setRenderToBackBuffer() : Void;
-	function setRenderToTexture(texture : flash.display3D.textures.TextureBase, enableDepthAndStencil : Bool = false, antiAlias : Int = 0, surfaceSelector : Int = 0) : Void;
+	function setRenderToTexture(texture : flash.display3D.textures.TextureBase, enableDepthAndStencil : Bool = false, antiAlias : Int = 0, surfaceSelector : Int = 0, colorOutputIndex : Int = 0) : Void;
 	@:require(flash11_6) function setSamplerStateAt(sampler : Int, wrap : Context3DWrapMode, filter : Context3DTextureFilter, mipfilter : Context3DMipFilter) : Void;
 	function setScissorRectangle(rectangle : flash.geom.Rectangle) : Void;
 	function setStencilActions(?triangleFace : Context3DTriangleFace, ?compareMode : Context3DCompareMode, ?actionOnBothPass : Context3DStencilAction, ?actionOnDepthFail : Context3DStencilAction, ?actionOnDepthPassStencilFail : Context3DStencilAction) : Void;
