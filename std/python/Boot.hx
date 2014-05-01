@@ -92,12 +92,17 @@ private class ClassRegistry extends python.lib.Dict<String, HxClassBase> {
     }
 }
 
+@:keep
+@:nativeGen
+@:native("_hx_AnonObject")
+class AnonObject extends python.lib.Object {
+	public function new(fields) {
+		this.__dict__ = fields;
+	}
+}
+
 @:preCode("
 _hx_classes = _hx_ClassRegistry()
-
-class _hx_AnonObject(object):
-	def __init__(self, fields):
-		self.__dict__ = fields
 ")
 @:keep class Boot {
 

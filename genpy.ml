@@ -1935,6 +1935,7 @@ module Generator = struct
 			Utils.find_type ctx.com path
 		in
 		gen_type ctx (find_type ([],"_hx_ClassRegistry"));
+		gen_type ctx (find_type ([],"_hx_AnonObject"));
 		gen_type ctx (find_type (["python"],"Boot"));
 		gen_type ctx (find_type ([],"Enum"));
 		gen_type ctx (find_type ([],"HxOverrides"));
