@@ -1683,7 +1683,39 @@ and gen_expression ctx retval expression =
          | _ -> false) ->
       ( match arg_list with
       | [{ eexpr = TConst (TString code) }] -> output code;
-      | _ -> error "__cpp__ accepts only one string as an argument" func.epos;
+      | ({ eexpr = TConst (TString code) } as ecode) :: tl ->
+        let exprs = Array.of_list tl in
+        let i = ref 0 in
+        let err msg =
+          let pos = { ecode.epos with pmin = ecode.epos.pmin + !i } in
+          ctx.ctx_common.error msg pos
+        in
+        let regex = Str.regexp "[{}]" in
+        let rec loop m = match m with
+          | [] -> ()
+          | Str.Text txt :: tl ->
+            i := !i + String.length txt;
+            output txt;
+            loop tl
+          | Str.Delim a :: Str.Delim b :: tl when a = b ->
+            i := !i + 2;
+            output a;
+            loop tl
+          | Str.Delim "{" :: Str.Text n :: Str.Delim "}" :: tl ->
+            (try
+              let expr = Array.get exprs (int_of_string n) in
+              gen_expression ctx true expr;
+              i := !i + 2 + String.length n;
+              loop tl
+            with | Failure "int_of_string" ->
+              err ("Index expected. Got " ^ n)
+            | Invalid_argument _ ->
+              err ("Out-of-bounds __cpp__ special parameter: " ^ n))
+          | Str.Delim x :: _ ->
+            err ("Unexpected " ^ x)
+        in
+        loop (Str.full_split regex code)
+      | _ -> error "__cpp__'s first argument must be a string" func.epos;
       )
    | TCall (func, arg_list) when tcall_expand_args->
       let use_temp_func = has_side_effects func in
