@@ -1688,7 +1688,7 @@ module Generator = struct
 			newline ctx
 		) methods;
 
-		!has_static_methods
+		!has_static_methods || !has_empty_static_vars
 
 	let gen_class_init ctx c =
 		match c.cl_init with
@@ -1784,22 +1784,23 @@ module Generator = struct
 			end;
 			List.iter (fun cf -> gen_class_field ctx c p cf) c.cl_ordered_fields;
 
-			ignore (gen_class_statics ctx c p);
-(*
-   no need to add "pass" because we always generate _hx_empty_init. that may change,
-   so I'm leaving this check commented here. if you uncomment this back,
-   remove the the gen_class_statics line above
+			let has_inner_static = gen_class_statics ctx c p in
 
-			let has_static_methods = gen_class_statics ctx c p in
+			let has_empty_constructor = match ((Meta.has Meta.NativeGen c.cl_meta) || c.cl_interface), c.cl_ordered_fields with
+				| true,_
+				| _, [] ->
+					false
+				| _ ->
+					gen_class_empty_constructor ctx p c.cl_ordered_fields;
+					true
+			in
 
-			let use_pass = (not has_static_methods) && match x.cfd_methods with
+			let use_pass = (not has_inner_static) && (not has_empty_constructor) && match x.cfd_methods with
 				| [] -> c.cl_constructor = None
 				| _ -> c.cl_interface
 			in
 			if use_pass then spr_line ctx "\tpass\n";
- *)
-			if not (Meta.has Meta.NativeGen c.cl_meta) then
-				gen_class_empty_constructor ctx p c.cl_ordered_fields;
+
 		end;
 
 		gen_class_init ctx c
