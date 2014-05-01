@@ -543,16 +543,17 @@ import cs.system.Type;
 		for (i in 0...params.Length)
 		{
 			var param = params[i].ParameterType;
-			var strParam = param + "";
+			var strParam = param + "",
+					arg = oargs[i];
 			if (StringTools.startsWith(strParam, "haxe.lang.Null"))
 			{
-				oargs[i] = mkNullable(oargs[i], param);
-			} else if (cast(untyped __typeof__(IConvertible), Type).IsAssignableFrom(param) && !cs.Lib.nativeType(oargs[i]).IsAssignableFrom(param)) {
-				if (oargs[i] == null) {
+				oargs[i] = mkNullable(arg, param);
+			} else if (cast(untyped __typeof__(IConvertible), Type).IsAssignableFrom(param)) {
+				if (arg == null) {
 					if (param.IsValueType)
 						oargs[i] = Activator.CreateInstance(param);
-				} else {
-					oargs[i] = cast(oargs[i], IConvertible).ToType(param, null);
+				} else if (!cs.Lib.nativeType(arg).IsAssignableFrom(param)) {
+					oargs[i] = cast(arg, IConvertible).ToType(param, null);
 				}
 			}
 		}
