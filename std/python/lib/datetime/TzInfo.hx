@@ -1,6 +1,6 @@
 
 package python.lib.datetime;
 
-@:import("datetime", "tzinfo")
+@:pythonImport("datetime", "tzinfo")
 extern class TzInfo {
 }

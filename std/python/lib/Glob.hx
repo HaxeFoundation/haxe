@@ -4,7 +4,7 @@ package python.lib;
 
 import python.NativeIterator;
 
-@:import("glob")
+@:pythonImport("glob")
 extern class Glob {
 
 	public static function glob (pathname:String):Array<String>;

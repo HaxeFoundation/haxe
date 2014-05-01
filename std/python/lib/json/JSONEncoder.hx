@@ -1,6 +1,6 @@
 
 package python.lib.json;
 
-@:import("json", "JSONEncoder")
+@:pythonImport("json", "JSONEncoder")
 extern class JSONEncoder {
 }

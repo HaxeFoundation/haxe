@@ -84,30 +84,30 @@ private class B extends A {
     public function new() {}
 }
 
-@:import("native_python.sample", "A")
+@:pythonImport("native_python.sample", "A")
 extern class ExternClass {
 	function new();
 	function f(v:Int):Int;
 }
 
-@:import("native_python.sample", "A.Nested")
+@:pythonImport("native_python.sample", "A.Nested")
 extern class ExternNestedClass {
 	function new();
 	function f(v:Int):Int;
 }
 
-@:import("native_python.sample")
+@:pythonImport("native_python.sample")
 extern class ExternModule {
 	static function f(v:Int):Int;
 }
 
-@:import("inexistant", "AZAZA", ignoreError=true)
+@:pythonImport("inexistant", "AZAZA", ignoreError=true)
 extern class InexistantExtern1 {}
 
-@:import("inexistant", "AZAZA.ZAZA", ignoreError=true)
+@:pythonImport("inexistant", "AZAZA.ZAZA", ignoreError=true)
 extern class InexistantExtern2 {}
 
-@:import("inexistant", ignoreError=true)
+@:pythonImport("inexistant", ignoreError=true)
 extern class InexistantExtern3 {}
 
 class TestPython extends Test {

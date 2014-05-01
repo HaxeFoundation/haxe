@@ -3,7 +3,7 @@ package python.lib;
 
 abstract TermiosSettings(Dynamic) {}
 
-@:import("termios", ignoreError=true)
+@:pythonImport("termios", ignoreError=true)
 extern class Termios {
 
 	public static var TCSADRAIN : Int;

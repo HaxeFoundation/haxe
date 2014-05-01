@@ -4,7 +4,7 @@ package python.lib;
 import python.NativeIterator;
 import python.NativeIterable;
 
-@:import("builtins", "set")
+@:pythonImport("builtins", "set")
 extern class Set <T>
 {
 	@:overload(function (?array:Array<T>):Void {})

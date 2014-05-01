@@ -3,7 +3,7 @@ package python.lib.os;
 
 import python.lib.Tuple;
 
-@:import("os", "path")
+@:pythonImport("os", "path")
 extern class Path {
 
 	public static var sep : String;

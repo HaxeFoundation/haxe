@@ -8,7 +8,7 @@ extern class StartupInfo {
 
 }
 
-@:import("subprocess")
+@:pythonImport("subprocess")
 extern class Subprocess {
 
 	public static function STARTUPINFO():StartupInfo;

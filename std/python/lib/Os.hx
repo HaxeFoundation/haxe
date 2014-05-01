@@ -30,7 +30,7 @@ extern class Stat {
 	@:optional public var st_type:Int;
 }
 
-@:import("os")
+@:pythonImport("os")
 extern class Os {
 
 	public static var environ : Dict<String, String>;

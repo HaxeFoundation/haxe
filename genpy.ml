@@ -1704,8 +1704,8 @@ module Generator = struct
 	let gen_import ctx c =
 		gen_pre_code_meta ctx c.cl_meta;
 
-		if Meta.has Meta.Import c.cl_meta then begin
-			let _, args, mp = Meta.get Meta.Import c.cl_meta in
+		if Meta.has Meta.PythonImport c.cl_meta then begin
+			let _, args, mp = Meta.get Meta.PythonImport c.cl_meta in
 
 			let class_name = match c.cl_path with
 				| [],name -> name
@@ -1727,7 +1727,7 @@ module Generator = struct
 				| [(EConst(String(module_name)), _); (EConst(String(object_name)), _); (EBinop(OpAssign, (EConst(Ident("ignoreError")),_), (EConst(Ident("true")),_)),_)] ->
 					IObject (module_name,object_name), true
 				| _ ->
-					error "Unsupported @:import format" mp
+					error "Unsupported @:pythonImport format" mp
 			in
 
 			let import = match import_type with

@@ -1,7 +1,7 @@
 
 package python.lib;
 
-@:import("tempfile")
+@:pythonImport("tempfile")
 extern class Tempfile {
 
 	public static function gettempdir():String;

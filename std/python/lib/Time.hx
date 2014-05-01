@@ -1,7 +1,7 @@
 
 package python.lib;
 
-@:import("time")
+@:pythonImport("time")
 extern class Time {
 
 	public static function time ():Float;

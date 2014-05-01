@@ -22,7 +22,7 @@ typedef PopenOptions = {
 	?creationflags : Int,
 }
 
-@:import("subprocess", "Popen")
+@:pythonImport("subprocess", "Popen")
 extern class Popen {
 
 	public static inline function create (args:Array<String>, o:PopenOptions):Popen {

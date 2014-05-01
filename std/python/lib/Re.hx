@@ -115,7 +115,7 @@ extern class Regex
 }
 
 
-@:import("re")
+@:pythonImport("re")
 extern class Re
 {
 

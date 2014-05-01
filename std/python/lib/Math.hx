@@ -1,6 +1,6 @@
 package python.lib;
 
-@:import("math")
+@:pythonImport("math")
 extern class Math {
 
 	public static function isnan (f:Float):Bool;

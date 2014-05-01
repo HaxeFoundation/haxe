@@ -43,7 +43,7 @@ extern class StreamReaderWriterText implements StreamReader implements StreamWri
 }
 
 
-@:import("codecs")
+@:pythonImport("codecs")
 extern class Codecs {
 
 	public static function open(filename:String, mode:String, ?encoding:String, ?errors:String, ?buffering:Bool):StreamReaderWriterText;

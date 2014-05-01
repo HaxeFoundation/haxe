@@ -5,7 +5,7 @@ import python.KwArgs;
 import python.lib.Dict;
 import python.lib.Tuple.Tup2;
 
-@:import("json")
+@:pythonImport("json")
 extern class Json {
 
 

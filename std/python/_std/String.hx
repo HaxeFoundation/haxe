@@ -34,7 +34,7 @@ package;
 #if !macro
 import python.internal.StringImpl;
 #end
-@:import("builtins", "str")
+@:pythonImport("builtins", "str")
 @:coreApi
 extern class String {
 

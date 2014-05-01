@@ -3,7 +3,7 @@ package python.lib;
 
 import python.Syntax;
 
-@:import("inspect")
+@:pythonImport("inspect")
 extern class Inspect {
 
 	static function getmembers (value:Dynamic, ?filter:Dynamic->Bool):Bool;

@@ -2,7 +2,7 @@
 package python.lib;
 
 
-@:import("random")
+@:pythonImport("random")
 extern class Random {
 
 	public static function random ():Float;

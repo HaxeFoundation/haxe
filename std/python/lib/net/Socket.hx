@@ -33,14 +33,14 @@ typedef Selectable = {
 }
 
 @:native("select")
-@:import("select")
+@:pythonImport("select")
 extern class Select {
 
     static function select<T>(reads:Array<T>,writes:Array<T>,xs:Array<T>,timeout:Float):Tup3<Array<T>,Array<T>,Array<T>>;
 
 }
 
-@:import("socket", "socket")
+@:pythonImport("socket", "socket")
 extern class Socket {
 
     static var AF_APPLETALK:Int;

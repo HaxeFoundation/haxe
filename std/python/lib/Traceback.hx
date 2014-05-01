@@ -4,7 +4,7 @@ import python.lib.Sys;
 import python.lib.Sys.Frame;
 import python.lib.Tuple;
 
-@:import("traceback")
+@:pythonImport("traceback")
 extern class Traceback {
 
 	public static function extract_stack(?f:Frame, ?limit:Int):Array<StackItem>;

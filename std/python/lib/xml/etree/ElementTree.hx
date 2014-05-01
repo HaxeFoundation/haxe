@@ -10,7 +10,7 @@ extern class XMLParser {
 
 }
 
-@:import("xml.etree.ElementTree", "Element")
+@:pythonImport("xml.etree.ElementTree", "Element")
 extern class Element {
 	public function getroot ():ElementTree;
 	public var tag:String;
@@ -32,7 +32,7 @@ extern class Element {
 	public function findall (match:String, namespaces:Dict<String,String> = null):Array<Element>;
 }
 
-@:import("xml.etree.ElementTree")
+@:pythonImport("xml.etree.ElementTree")
 extern class ElementTree {
 
 

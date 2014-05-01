@@ -1,7 +1,7 @@
 
 package python.lib.datetime;
 
-@:import("datetime", "timedelta")
+@:pythonImport("datetime", "timedelta")
 extern class TimeDelta {
 
 	public static var min : TimeDelta;

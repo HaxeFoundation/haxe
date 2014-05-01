@@ -17,8 +17,8 @@ private extern class Set<T> {
 	}
 }
 
-@:import("math") private extern class Math {}
-@:import("inspect") private extern class Inspect {}
+@:pythonImport("math") private extern class Math {}
+@:pythonImport("inspect") private extern class Inspect {}
 
 typedef HxClassBase = {
     _hx_class:Dynamic,

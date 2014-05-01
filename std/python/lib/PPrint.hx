@@ -1,7 +1,7 @@
 
 package python.lib;
 
-@:import("pprint")
+@:pythonImport("pprint")
 extern class PPrint {
 
 

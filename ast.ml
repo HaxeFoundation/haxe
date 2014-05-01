@@ -83,7 +83,7 @@ module Meta = struct
 		| HxGen
 		| IfFeature
 		| Impl
-		| Import
+		| PythonImport
 		| Include
 		| InitPackage
 		| Internal

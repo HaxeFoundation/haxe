@@ -7,7 +7,7 @@ import python.lib.Dict;
 import python.NativeIterable;
 import python.NativeIterator;
 
-@:import("builtins")
+@:pythonImport("builtins")
 extern class Builtin {
 
 

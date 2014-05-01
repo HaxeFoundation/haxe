@@ -10,7 +10,7 @@ import python.lib.Tuple.Tup3;
 extern class TB {}
 extern class Frame {}
 
-@:import("sys")
+@:pythonImport("sys")
 extern class Sys {
 
 	public static var argv(default, never):Array<String>;

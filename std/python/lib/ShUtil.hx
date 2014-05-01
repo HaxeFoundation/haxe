@@ -2,7 +2,7 @@
 package python.lib;
 
 
-@:import("shutil")
+@:pythonImport("shutil")
 extern class ShUtil {
 
 	public static function rmtree(path:String, ?ignore_errors:Bool=false, ?onerror:python.lib.Exceptions.BaseException->Void):Void;

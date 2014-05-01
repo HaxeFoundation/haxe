@@ -1,6 +1,6 @@
 
 package python.lib.threading;
 
-@:import("threading", "Thread")
+@:pythonImport("threading", "Thread")
 extern class Thread {
 }

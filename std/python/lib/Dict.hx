@@ -23,7 +23,7 @@ extern class DictView<T> {
 	}
 }
 
-@:import("builtins", "dict")
+@:pythonImport("builtins", "dict")
 extern class Dict <K, V>
 {
 	public function new ():Void;
