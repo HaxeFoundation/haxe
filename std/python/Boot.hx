@@ -298,28 +298,26 @@ private class ClassRegistry extends python.lib.Dict<String, HxClassBase> {
 			}
 
 
-			if (Internal.hasClassName(o) && Syntax.field(Syntax.field(o, "__class__"), "__name__") != "type") {
+			if (Internal.hasClassName(o)) {
+				if (Syntax.field(Syntax.field(o, "__class__"), "__name__") != "type") {
+					var fields = getInstanceFields(o);
+					var fieldsStr = [for (f in fields) '$f : ${toString1(field(o,f), s+"\t")}'];
 
-				var fields = getInstanceFields(o);
-				var fieldsStr = [for (f in fields) '$f : ${toString1(field(o,f), s+"\t")}'];
-
-				var toStr = Internal.fieldClassName(o) + "( " + arrayJoin(fieldsStr, ", ") + " )";
-				return toStr;
+					var toStr = Internal.fieldClassName(o) + "( " + arrayJoin(fieldsStr, ", ") + " )";
+					return toStr;
+				} else {
+					var fields = getClassFields(o);
+					var fieldsStr = [for (f in fields) '$f : ${toString1(field(o,f), s+"\t")}'];
+					var toStr = "#" + Internal.fieldClassName(o) + "( " + arrayJoin(fieldsStr, ", ") + " )";
+					return toStr;
+				}
 			}
 
-			if (Internal.hasClassName(o) && Syntax.field(Syntax.field(o, "__class__"), "__name__") == "type") {
-
-				var fields = getClassFields(o);
-				var fieldsStr = [for (f in fields) '$f : ${toString1(field(o,f), s+"\t")}'];
-
-				var toStr = "#" + Internal.fieldClassName(o) + "( " + arrayJoin(fieldsStr, ", ") + " )";
-				return toStr;
-			}
-			if (o == String) {
+			if (isMetaType(o,String)) {
 				return "#String";
 			}
 
-			if (o == Array) {
+			if (isMetaType(o,Array)) {
 				return "#Array";
 			}
 
@@ -348,6 +346,10 @@ private class ClassRegistry extends python.lib.Dict<String, HxClassBase> {
 				return "???";
 			}
 		}
+	}
+
+	static inline function isMetaType(v:Dynamic, t:Dynamic):Bool {
+		return python.Syntax.binop(v, "==", t);
 	}
 
 	static function fields (o:Dynamic) {

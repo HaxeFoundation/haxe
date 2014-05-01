@@ -22,7 +22,7 @@ class HxOverrides {
 
 	static function eq( a:Dynamic, b:Dynamic ) : Bool {
 		if (Boot.isArray(a) || Boot.isArray(b)) {
-			return Syntax.pythonCode('$a is $b');
+			return Syntax.pythonCode('a is b');
 		}
 		return Syntax.binop(a, "==", b);
 	}

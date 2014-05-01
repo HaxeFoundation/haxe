@@ -1070,10 +1070,17 @@ module Printer = struct
 				let third (_,_,x) = x in
 				let fst (x,_,_) = x in
 				let snd (_,x,_) = x in
+				let is_list_or_anon x = begin match x with
+					| TInst({cl_path = [],("list")},_) -> true
+					| TAnon _ -> true
+					| _ -> false
+				end in
 				(match follow e1.etype, follow e2.etype with
-				| TInst({cl_path = [],("list")},_), TInst({cl_path = [],("list")},_) ->
+				| TInst({cl_path = [],("list")},_), _ ->
 					Printf.sprintf "(%s %s %s)" (print_expr pctx e1) (fst ops) (print_expr pctx e2)
-				| TDynamic _, _ | _, TDynamic _ ->
+				| TDynamic _, TDynamic _ ->
+					Printf.sprintf "%s(%s,%s)" (third ops) (print_expr pctx e1) (print_expr pctx e2)
+				| TDynamic _, x | x, TDynamic _ when is_list_or_anon x ->
 					Printf.sprintf "%s(%s,%s)" (third ops) (print_expr pctx e1) (print_expr pctx e2)
 				| _,_ -> Printf.sprintf "(%s %s %s)" (print_expr pctx e1) (snd ops) (print_expr pctx e2))
 			| TBinop(OpMod,e1,e2) when (is_type1 "" "Int")(e1.etype) && (is_type1 "" "Int")(e2.etype) ->
