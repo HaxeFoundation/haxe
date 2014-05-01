@@ -357,11 +357,14 @@ let add_include writer class_path =
 let gen_forward_decl writer class_path =
    begin
       let output = writer#write in
-      let name = fst (remap_class_path class_path) in
-      output ("HX_DECLARE_CLASS" ^ (string_of_int (List.length name ) ) ^ "(");
-      List.iter (fun package_part -> output (package_part ^ ",") ) name;
-      output ( (snd class_path) ^ ")\n")
-   end;;
+      match class_path with
+      | (["@verbatim"],file) -> writer#write ("#include <" ^ file ^ ">\n");
+      | _ ->
+         let name = fst (remap_class_path class_path) in
+         output ("HX_DECLARE_CLASS" ^ (string_of_int (List.length name ) ) ^ "(");
+         List.iter (fun package_part -> output (package_part ^ ",") ) name;
+         output ( (snd class_path) ^ ")\n")
+end;;
 
 let real_interfaces =
 List.filter (function (t,pl) ->
@@ -626,6 +629,19 @@ let is_internal_member member =
 
 let is_extern_class class_def =
    class_def.cl_extern || (has_meta_key class_def.cl_meta Meta.Extern)
+;;
+
+let is_extern_class_instance obj =
+   match follow obj.etype with
+   | TInst (klass,params) -> klass.cl_extern
+   | _ -> false
+;;
+
+
+let is_struct_access t =
+   match follow t with
+   | TInst (class_def,_) -> (has_meta_key class_def.cl_meta Meta.StructAccess)
+   | _ -> false
 ;;
 
 
@@ -1082,7 +1098,7 @@ and is_dynamic_member_lookup_in_cpp ctx field_object field =
             try ( let mem_type = (Hashtbl.find ctx.ctx_class_member_types full_name) in
                ctx.ctx_dbgout ("/* =" ^ mem_type ^ "*/");
                false )
-            with Not_found -> true
+            with Not_found -> not (is_extern_class_instance field_object)
    )
 and is_dynamic_member_return_in_cpp ctx field_object field =
    let member = field_name field in
@@ -1586,6 +1602,7 @@ and gen_expression ctx retval expression =
       match follow array_type with
       | TInst (klass,[element]) ->
          ( match type_string element with
+         | _ when is_struct_access element -> ()
          | x when cant_be_null x -> ()
          | _ when is_interface_type element -> ()
          | "::String" | "Dynamic" -> ()
@@ -1638,7 +1655,9 @@ and gen_expression ctx retval expression =
          (* toString is the only internal member that can be set... *)
          let settingInternal = assigning && member="toString" in
          let isString = (type_string field_object.etype)="::String" in
-         if (is_internal_member member && not settingInternal) then begin
+         if (is_struct_access field_object.etype) then
+            output ( "." ^ member )
+         else if (is_internal_member member && not settingInternal) then begin
             output ( (if isString then "." else "->") ^ member );
          end else if (settingInternal || is_dynamic_member_lookup_in_cpp ctx field_object field) then begin
             if assigning then
@@ -1895,7 +1914,8 @@ and gen_expression ctx retval expression =
          output "->__get(";
          gen_expression ctx true index;
          output ")";
-         check_array_element_cast array_expr.etype ".StaticCast" "()";
+         if not (is_pointer array_expr.etype ) then
+            check_array_element_cast array_expr.etype ".StaticCast" "()";
       end
    (* Get precidence matching haxe ? *)
    | TBinop (op,expr1,expr2) -> gen_bin_op op expr1 expr2
@@ -3213,7 +3233,12 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
          | Var _ when is_abstract_impl -> false
          | _ -> true) in
 
-      let reflective field = not (Meta.has Meta.Unreflective field.cf_meta) in
+      let reflective field = not ( (Meta.has Meta.Unreflective field.cf_meta) ||
+          (match field.cf_type with
+          | TInst (klass,_) ->  Meta.has Meta.Unreflective klass.cl_meta
+          | _ -> false
+          )
+      ) in
       let reflect_fields = List.filter reflective (statics_except_meta @ class_def.cl_ordered_fields) in
       let reflect_writable = List.filter is_writable reflect_fields in
       let reflect_readable = List.filter is_readable reflect_fields in
