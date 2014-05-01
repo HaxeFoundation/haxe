@@ -67,8 +67,12 @@ let is_internal_class = function
    |  ([],"Math") | (["haxe";"io"], "Unsigned_char__") -> true
    | _ -> false;;
 
-let get_include_prefix common_ctx =
-   try (Common.defined_value common_ctx Define.IncludePrefix) ^ "/" with Not_found -> "";;
+let get_include_prefix common_ctx with_slash =
+   try
+     (Common.defined_value common_ctx Define.IncludePrefix) ^ (if with_slash then "/" else "")
+   with
+     Not_found -> ""
+;;
 
 
 let should_prefix_include = function
@@ -99,10 +103,14 @@ class source_writer common_ctx write_func close_func =
 
 
    method add_include class_path =
-      this#write ("#ifndef INCLUDED_" ^ (join_class_path class_path "_") ^ "\n");
-      let prefix = if should_prefix_include class_path then "" else get_include_prefix common_ctx in
-      this#write ("#include <" ^ prefix ^ (join_class_path class_path "/") ^ ".h>\n");
-      this#write ("#endif\n")
+      ( match class_path with
+         | (["@verbatim"],file) -> this#write ("#include <" ^ file ^ ">\n");
+         | _ ->
+            let prefix = if should_prefix_include class_path then "" else get_include_prefix common_ctx true in
+            this#write ("#ifndef INCLUDED_" ^ (join_class_path class_path "_") ^ "\n");
+            this#write ("#include <" ^ prefix ^ (join_class_path class_path "/") ^ ".h>\n");
+            this#write ("#endif\n")
+      )
 end;;
 
 let file_source_writer common_ctx filename =
@@ -140,10 +148,13 @@ let make_base_directory dir =
    make_class_directories "" ( ( Str.split_delim (Str.regexp "[\\/]+") dir ) );;
 
 let new_source_file common_ctx base_dir sub_dir extension class_path =
-   let include_prefix = get_include_prefix common_ctx in
+   let include_prefix = get_include_prefix common_ctx true in
    let full_dir =
       if (sub_dir="include") && (include_prefix<>"") then begin
-         let dir = base_dir ^ "/include/" ^ include_prefix ^ ( String.concat "/" (fst class_path) )  in
+         let dir = match fst class_path with
+            | [] -> base_dir ^ "/include/" ^ (get_include_prefix common_ctx false)
+            | path -> base_dir ^ "/include/" ^ include_prefix ^ ( String.concat "/" path )
+         in
          make_base_directory dir;
          dir
       end else begin
@@ -2388,12 +2399,8 @@ let gen_member_def ctx class_def is_static is_interface field =
    end
    ;;
 
-let path_of_string verbatim path =
-   if verbatim then ( ["@verbatim"], path ) else
-   match List.rev (Str.split_delim (Str.regexp "/") path ) with
-   | [] -> ([],"")
-   | [single] -> ([],single)
-   | head :: rest -> (List.rev rest, head)
+let path_of_string path =
+   ["@verbatim"], path 
 ;;
 
 
@@ -2415,7 +2422,7 @@ let find_referenced_types ctx obj super_deps constructor_deps header_only for_de
    let add_extern_class klass =
       let include_file = get_meta_string klass.cl_meta (if for_depends then Meta.Depend else Meta.Include) in
       if (include_file<>"") then
-         add_type ( path_of_string for_depends include_file )
+         add_type ( path_of_string include_file )
       else if (not for_depends) && (has_meta_key klass.cl_meta Meta.Include) then
          add_type klass.cl_path
    in
@@ -2474,12 +2481,12 @@ let find_referenced_types ctx obj super_deps constructor_deps header_only for_de
             | TFunction func_def ->
                List.iter (fun (v,_) -> visit_type v.v_type) func_def.tf_args;
             | TConst TSuper ->
-               (match expression.etype with
+               (match follow expression.etype with
                | TInst (klass,params) ->
                   (try let construct_type = Hashtbl.find constructor_deps klass.cl_path in
                      visit_type construct_type.cf_type
                   with Not_found -> () )
-               | _ -> print_endline ("TSuper : Odd etype?")
+               | _ -> print_endline ("TSuper : Odd etype ?" ^ ( (type_string expression.etype)) )
                )
             | _ -> ()
          );
@@ -2586,11 +2593,7 @@ let generate_boot common_ctx boot_classes init_classes =
    let boot_file = new_cpp_file common_ctx base_dir ([],"__boot__") in
    let output_boot = (boot_file#write) in
    output_boot "#include <hxcpp.h>\n\n";
-   List.iter ( fun class_path ->
-      let prefix = get_include_prefix common_ctx in
-      output_boot ("#include <" ^
-         prefix ^ ( join_class_path class_path "/" ) ^ ".h>\n")
-         ) boot_classes;
+   List.iter ( fun class_path -> boot_file#add_include class_path ) boot_classes;
 
    output_boot "\nvoid __files__boot();\n";
    output_boot "\nvoid __boot_all()\n{\n";
@@ -3534,15 +3537,11 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
    (match class_def.cl_super with
    | Some super ->
       let super_path = (fst super).cl_path in
-      let prefix = get_include_prefix common_ctx in
-      output_h ("#include <" ^ prefix ^ ( join_class_path super_path "/" ) ^ ".h>\n")
+      h_file#add_include super_path
    | _ -> () );
 
    (* And any interfaces ... *)
-   List.iter (fun imp->
-      let imp_path = (fst imp).cl_path in
-      let prefix = get_include_prefix common_ctx in
-      output_h ("#include <" ^ prefix ^ ( join_class_path imp_path "/" ) ^ ".h>\n") )
+   List.iter (fun imp-> h_file#add_include (fst imp).cl_path)
       (real_interfaces class_def.cl_implements);
 
    (* Only need to foreward-declare classes that are mentioned in the header file
@@ -3698,7 +3697,7 @@ let write_resources common_ctx =
 
 let write_build_data common_ctx filename classes main_deps build_extra exe_name =
    let buildfile = open_out filename in
-   let include_prefix = get_include_prefix common_ctx in
+   let include_prefix = get_include_prefix common_ctx true in
    let add_class_to_buildfile class_def =
       let class_path = fst class_def in
       let deps = snd class_def in

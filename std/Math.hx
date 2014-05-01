@@ -22,7 +22,7 @@
 /**
 	This class defines mathematical functions and constants.
 **/
-#if cpp @:include("hxMath") #end
+#if cpp @:include("hxMath.h") #end
 extern class Math
 {
 	/**
