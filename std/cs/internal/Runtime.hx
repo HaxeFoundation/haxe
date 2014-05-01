@@ -504,7 +504,7 @@ import cs.system.Type;
 			if (StringTools.startsWith(strParam, "haxe.lang.Null"))
 			{
 				oargs[i] = mkNullable(oargs[i], param);
-			} else if (cast(untyped __typeof__(IConvertible), Type).IsAssignableFrom(param)) {
+			} else if (cast(untyped __typeof__(IConvertible), Type).IsAssignableFrom(param) && !cs.Lib.nativeType(oargs[i]).IsAssignableFrom(param)) {
 				if (oargs[i] == null) {
 					if (param.IsValueType)
 						oargs[i] = Activator.CreateInstance(param);
