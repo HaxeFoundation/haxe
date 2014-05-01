@@ -1126,7 +1126,7 @@ module Printer = struct
 			| TVar (v,eo) ->
 				print_var pctx v eo
 			| TBlock [] ->
-				Printf.sprintf "pass\n"
+				Printf.sprintf "pass"
 			| TBlock [{ eexpr = TBlock _} as b] ->
 				print_expr pctx b
 			| TBlock el ->
@@ -1134,7 +1134,7 @@ module Printer = struct
 				tabs := pctx.pc_indent;
 				let s = print_block_exprs pctx ("\n" ^ !tabs) pctx.pc_debug el in
 				tabs := old;
-				Printf.sprintf "%s\n" s
+				Printf.sprintf "%s" s
 			| TIf(econd,eif,(Some {eexpr = TIf _} as eelse)) ->
 				print_if_else pctx econd eif eelse true
 			| TIf(econd,eif,eelse) ->
@@ -1174,7 +1174,8 @@ module Printer = struct
 		else
 			opt eelse (print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent}) (Printf.sprintf "else:\n%s\t" indent)
 		in
-		Printf.sprintf "if %s:\n%s\t%s\n%s%s" (print_expr pctx econd1) indent if_str indent else_str
+		let else_str = if else_str = "" then "" else "\n" ^ indent ^ else_str in
+		Printf.sprintf "if %s:\n%s\t%s%s" (print_expr pctx econd1) indent if_str else_str
 
 	and print_field pctx e1 fa is_assign =
 		let obj = match e1.eexpr with
@@ -1489,8 +1490,11 @@ module Generator = struct
 	let gen_pre_code_meta ctx metadata =
 		try
 			begin match Meta.get (Meta.Custom ":preCode") metadata with
-				| _,[(EConst(String s)),_],_ -> spr ctx s
-				| _ -> raise Not_found
+				| _,[(EConst(String s)),_],_ ->
+					newline ctx;
+					spr ctx s
+				| _ ->
+					raise Not_found
 			end
 		with Not_found ->
 			()
@@ -1536,6 +1540,7 @@ module Generator = struct
 				let expr_string_1 = texpr_str e1 pctx in
 				let expr_string_2 = texpr_str e2 pctx in
 				print ctx "%sdef %s():\n\t%s" indent name expr_string_1;
+				newline ctx;
 				print ctx "%s%s = %s" indent field expr_string_2;
 			| None,e2 ->
 				let expr_string_2 = texpr_str e2 pctx in
@@ -1572,7 +1577,6 @@ module Generator = struct
 
 	let gen_class_constructor ctx c cf =
 		let member_inits = get_members_with_init_expr c in
-		newline ctx;
 		let py_metas = filter_py_metas cf.cf_meta in
 		begin match member_inits,cf.cf_expr with
 			| _,Some ({eexpr = TFunction f} as ef) ->
@@ -1587,8 +1591,8 @@ module Generator = struct
 				(* TODO: is this correct? *)
 				()
 		end;
-		gen_func_expr ctx (match cf.cf_expr with None -> assert false | Some e -> e) c "__init__" py_metas ["self"] "\t" false;
-		newline ctx
+		newline ctx;
+		gen_func_expr ctx (match cf.cf_expr with None -> assert false | Some e -> e) c "__init__" py_metas ["self"] "\t" false
 
 	let gen_class_field ctx c p cf =
 		let field = handle_keywords cf.cf_name in
@@ -1596,6 +1600,7 @@ module Generator = struct
 			| None ->
 				()(* print ctx "\t# var %s" field *)
 			| Some e ->
+				newline ctx;
 				begin match cf.cf_kind with
 					| Method _ ->
 						let py_metas = filter_py_metas cf.cf_meta in
@@ -1603,7 +1608,6 @@ module Generator = struct
 
 					| _ ->
 						gen_expr ctx e (Printf.sprintf "# var %s" field) "\t";
-				newline ctx;
 				end
 		end
 
@@ -1636,20 +1640,21 @@ module Generator = struct
 		print ctx ")\n"
 
 	let gen_class_empty_constructor ctx p cfl =
-		print ctx "\t@staticmethod\n\tdef _hx_empty_init(_hx_o):\n";
+		newline ctx;
+		print ctx "\t@staticmethod\n\tdef _hx_empty_init(_hx_o):";
 		let found_fields = ref false in
 		List.iter (fun cf -> match cf.cf_kind with
 				| Var ({v_read = AccResolve | AccCall}) ->
 					()
 				| Var _ ->
 					found_fields := true;
-					print ctx "\t\t_hx_o.%s = None\n" (handle_keywords cf.cf_name)
+					newline ctx;
+					print ctx "\t\t_hx_o.%s = None" (handle_keywords cf.cf_name)
 				| _ ->
 					()
 		) cfl;
 		if not !found_fields then
-			spr ctx "\t\tpass\n";
-		newline ctx
+			spr ctx "\t\tpass"
 
 	let gen_class_statics ctx c p =
 		let methods, other = List.partition (fun cf ->
@@ -1666,16 +1671,15 @@ module Generator = struct
 			match cf.cf_expr with
 			| None ->
 				has_empty_static_vars := true;
-				print ctx "\t%s = None\n" field
+				newline ctx;
+				print ctx "\t%s = None" field
 			| Some e ->
 				(let f = fun () ->
+					newline ctx;
 					gen_expr ctx e (Printf.sprintf "%s.%s" p field) "";
-					newline ctx
 				in
 				ctx.static_inits <- f :: ctx.static_inits)
 		) other;
-
-		if !has_empty_static_vars then newline ctx;
 
 		(* generate static methods *)
 		let has_static_methods = ref false in
@@ -1684,8 +1688,8 @@ module Generator = struct
 			let field = handle_keywords cf.cf_name in
 			let py_metas = filter_py_metas cf.cf_meta in
 			let e = match cf.cf_expr with Some e -> e | _ -> assert false in
+			newline ctx;
 			gen_func_expr ctx e c field py_metas [] "\t" true;
-			newline ctx
 		) methods;
 
 		!has_static_methods || !has_empty_static_vars
@@ -1697,7 +1701,8 @@ module Generator = struct
 			| Some e ->
 				let f = fun () ->
 					let e = transform_expr e in
-					spr_line ctx (texpr_str e (Printer.create_context "" ctx.com.debug));
+					newline ctx;
+					spr ctx (texpr_str e (Printer.create_context "" ctx.com.debug));
 				in
 				ctx.class_inits <- f :: ctx.class_inits
 
@@ -1777,7 +1782,6 @@ module Generator = struct
 			print ctx "class %s" p;
 			(match p_super with Some p -> print ctx "(%s)" p | _ -> ());
 			spr ctx ":";
-			spr ctx "\n";
 			begin match c.cl_constructor with
 				| Some cf -> gen_class_constructor ctx c cf;
 				| None -> ()
@@ -1799,22 +1803,20 @@ module Generator = struct
 				| [] -> c.cl_constructor = None
 				| _ -> c.cl_interface
 			in
-			if use_pass then spr_line ctx "\tpass\n";
-
+			if use_pass then spr ctx "\tpass";
 		end;
 
 		gen_class_init ctx c
 
-
-    let gen_enum_metadata ctx en p =
-        let meta = Codegen.build_metadata ctx.com (TEnumDecl en) in
-        match meta with
-            | None ->
-                ()
-            | Some e ->
-            	print ctx "%s.__meta__ = " p;
-                gen_expr ctx e "" "";
-                newline ctx
+	let gen_enum_metadata ctx en p =
+		let meta = Codegen.build_metadata ctx.com (TEnumDecl en) in
+		match meta with
+			| None ->
+				()
+			| Some e ->
+				newline ctx;
+				print ctx "%s.__meta__ = " p;
+				gen_expr ctx e "" ""
 
 	let gen_enum ctx en =
 		let mt = (t_infos (TEnumDecl en)) in
@@ -1831,7 +1833,7 @@ module Generator = struct
 		print ctx "@_hx_classes.registerEnum(\"%s\", [%s])\n" p_name enum_constructs_str;
 		print ctx "class %s(Enum):\n" p;
 		spr ctx "\tdef __init__(self, t, i, p):\n";
-		print ctx "\t\tsuper(%s,self).__init__(t, i, p)\n\n" p;
+		print ctx "\t\tsuper(%s,self).__init__(t, i, p)" p;
 
 		let const_constructors,param_constructors = List.partition (fun ef ->
 			match follow ef.ef_type with
@@ -1861,16 +1863,17 @@ module Generator = struct
 				let f = handle_keywords ef.ef_name in
 				let param_str = print_args args in
 				let args_str = String.concat "," (List.map (fun (n,_,_) -> handle_keywords n) args) in
+				newline ctx;
 				print ctx "\t@staticmethod\n\tdef %s(%s):\n" f param_str;
-				print ctx "\t\treturn %s(\"%s\", %i, [%s])\n" p ef.ef_name ef.ef_index args_str;
-				newline ctx
+				print ctx "\t\treturn %s(\"%s\", %i, [%s])" p ef.ef_name ef.ef_index args_str;
 			| _ -> assert false
 		) param_constructors;
 
 		List.iter (fun ef ->
 			(* TODO: haxe source has api.quoteString for ef.ef_name *)
 			let f = handle_keywords ef.ef_name in
-			print ctx "%s.%s = %s(\"%s\", %i, list())\n" p f p ef.ef_name ef.ef_index
+			newline ctx;
+			print ctx "%s.%s = %s(\"%s\", %i, list())" p f p ef.ef_name ef.ef_index
 		) const_constructors;
 
 		gen_enum_metadata ctx en p
@@ -1894,7 +1897,7 @@ module Generator = struct
 					gen_class_field ctx c p cf
 			) c.cl_ordered_statics
 		| None ->
-			spr_line ctx "\n\tpass\n"
+			spr ctx "\n\tpass"
 
 	let gen_type ctx mt = match mt with
 		| TClassDecl c -> gen_class ctx c
@@ -1919,7 +1922,7 @@ module Generator = struct
 				print ctx "%s'%s': open('%%s.%%s'%%(__file__,'%s'),'rb').read()" prefix k k;
 				Std.output_file (ctx.com.file ^ "." ^ k) v
 			) ctx.com.resources;
-			spr ctx "}\n"
+			spr ctx "}"
 		end
 
 	let gen_imports ctx =
@@ -1956,6 +1959,7 @@ module Generator = struct
 			| None ->
 				()
 			| Some e ->
+				newline ctx;
 				gen_expr ctx e "" ""
 
 	(* Entry point *)
