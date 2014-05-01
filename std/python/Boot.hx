@@ -20,45 +20,84 @@ private extern class Set<T> {
 @:import("math") private extern class Math {}
 @:import("inspect") private extern class Inspect {}
 
+typedef HxClassBase = {
+    _hx_class:Dynamic,
+    _hx_class_name:String
+}
+
+private typedef HxAbstract = {
+    >HxClassBase,
+}
+
+private typedef HxEnum = {
+    >HxClassBase,
+    _hx_constructs:Array<String>
+}
+
+private typedef HxClass = {
+    >HxClassBase,
+    _hx_fields:Array<String>,
+    _hx_props:Array<String>,
+    _hx_methods:Array<String>,
+    _hx_statics:Array<String>,
+    _hx_interfaces:Array<HxClassBase>,
+    _hx_super:HxClass
+}
+
+@:keep
+@:nativeGen
+@:native("_hx_ClassRegistry")
+private class ClassRegistry extends python.lib.Dict<String, HxClassBase> {
+    function _register(cls:HxClassBase, name:String):Void {
+        cls._hx_class = cls;
+        cls._hx_class_name = name;
+        set(name, cls);
+    }
+
+    function registerAbstract(name:String):HxAbstract->HxAbstract {
+        function wrapper(cls:HxAbstract):HxAbstract {
+            _register(cls, name);
+            return cls;
+        }
+        return wrapper;
+    }
+
+    function registerEnum(name:String, constructs:Array<String>):HxEnum->HxEnum {
+        function wrapper(cls:HxEnum):HxEnum {
+            _register(cls, name);
+            cls._hx_constructs = constructs;
+            return cls;
+        }
+        return wrapper;
+    }
+
+    function registerClass(name:String, ?fields:Array<String>, ?props:Array<String>, ?methods:Array<String>, ?statics:Array<String>, ?interfaces:Array<HxClassBase>, ?superClass:HxClass):HxClass->HxClass {
+        if (fields == null) fields = [];
+        if (props == null) props = [];
+        if (methods == null) methods = [];
+        if (statics == null) statics = [];
+        if (interfaces == null) interfaces = [];
+        function wrapper(cls:HxClass):HxClass {
+            _register(cls, name);
+            cls._hx_fields = fields;
+            cls._hx_props = props;
+            cls._hx_methods = methods;
+            cls._hx_statics = statics;
+            cls._hx_interfaces = interfaces;
+            if (superClass != null)
+                cls._hx_super = superClass;
+            return cls;
+        }
+        return wrapper;
+    }
+}
+
 @:preCode("
+_hx_classes = _hx_ClassRegistry()
+
 class _hx_AnonObject(object):
 	def __init__(self, fields):
 		self.__dict__ = fields
-
-class _hx_ClassRegistry(dict):
-
-	def _register(self, cls, name):
-		cls._hx_class = cls
-		cls._hx_class_name = name
-		self[name] = cls
-
-	def register_class(self, name, fields=[], props=[], methods=[], statics=[], interfaces=[], super=None):
-		def wrapper(cls):
-			self._register(cls, name)
-			cls._hx_fields = fields
-			cls._hx_props = props
-			cls._hx_methods = methods
-			cls._hx_statics = statics
-			cls._hx_interfaces = interfaces
-			if super is not None:
-				cls._hx_super = super
-			return cls
-		return wrapper
-
-	def register_abstract(self, name):
-		def wrapper(cls):
-			self._register(cls, name)
-			return cls
-		return wrapper
-
-	def register_enum(self, name, constructs):
-		def wrapper(cls):
-			self._register(cls, name)
-			cls._hx_constructs = constructs
-			return cls
-		return wrapper
-
-_hx_classes = _hx_ClassRegistry()
 ")
 @:keep class Boot {
 

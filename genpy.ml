@@ -1608,7 +1608,7 @@ module Generator = struct
 		end
 
 	let gen_class_register ctx c cfd p_super p_interfaces p p_name =
-		print ctx "@_hx_classes.register_class(\"%s\"" p_name;
+		print ctx "@_hx_classes.registerClass(\"%s\"" p_name;
 
 		let add_names_arg lst arg_name =
 			match lst with
@@ -1631,7 +1631,7 @@ module Generator = struct
 
 		(match p_super with
 		| None -> ()
-		| Some ps -> print ctx ", super=%s" ps);
+		| Some ps -> print ctx ", superClass=%s" ps);
 
 		print ctx ")\n"
 
@@ -1772,7 +1772,8 @@ module Generator = struct
 			) c.cl_implements in
 
 			newline ctx;
-			gen_class_register ctx c x p_super p_interfaces p p_name;
+			if not (Meta.has Meta.NativeGen c.cl_meta) then
+				gen_class_register ctx c x p_super p_interfaces p p_name;
 			print ctx "class %s" p;
 			(match p_super with Some p -> print ctx "(%s)" p | _ -> ());
 			spr ctx ":";
@@ -1797,7 +1798,8 @@ module Generator = struct
 			in
 			if use_pass then spr_line ctx "\tpass\n";
  *)
-			gen_class_empty_constructor ctx p c.cl_ordered_fields;
+			if not (Meta.has Meta.NativeGen c.cl_meta) then
+				gen_class_empty_constructor ctx p c.cl_ordered_fields;
 		end;
 
 		gen_class_init ctx c
@@ -1825,7 +1827,7 @@ module Generator = struct
 		let enum_constructs_str = fix ^ (String.concat ("\",\"") (List.map (fun ef -> ef.ef_name) enum_constructs)) ^ fix in
 
 		newline ctx;
-		print ctx "@_hx_classes.register_enum(\"%s\", [%s])\n" p_name enum_constructs_str;
+		print ctx "@_hx_classes.registerEnum(\"%s\", [%s])\n" p_name enum_constructs_str;
 		print ctx "class %s(Enum):\n" p;
 		spr ctx "\tdef __init__(self, t, i, p):\n";
 		print ctx "\t\tsuper(%s,self).__init__(t, i, p)\n\n" p;
@@ -1879,7 +1881,7 @@ module Generator = struct
 		let mt = (t_infos (TAbstractDecl a)) in
 		let p = get_path mt in
 		let p_name = get_full_name mt in
-		print ctx "@_hx_classes.register_abstract(\"%s\")\n" p_name;
+		print ctx "@_hx_classes.registerAbstract(\"%s\")\n" p_name;
 		print ctx "class %s" p;
 		spr ctx ":";
 		match a.a_impl with
@@ -1932,6 +1934,7 @@ module Generator = struct
 			Hashtbl.add used_paths path true;
 			Utils.find_type ctx.com path
 		in
+		gen_type ctx (find_type ([],"_hx_ClassRegistry"));
 		gen_type ctx (find_type (["python"],"Boot"));
 		gen_type ctx (find_type ([],"Enum"));
 		gen_type ctx (find_type ([],"HxOverrides"));
