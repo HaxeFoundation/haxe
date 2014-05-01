@@ -14,7 +14,7 @@ class HxOverrides {
 	// we need to modify the transformer to call Reflect directly
 
 	static public function iterator(x) {
-		if (Std.is(x, Array)) {
+		if (Boot.isArray(x)) {
 			return (x:Array<Dynamic>).iterator();
 		}
 		return Reflect.callMethod(null, Reflect.field(x, "iterator"), []);
@@ -47,7 +47,7 @@ class HxOverrides {
 	}
 
 	static public function arrayGet<T>(a:Dynamic, i:Int):Dynamic {
-		if (Std.is(a, Array)) {
+		if (Boot.isArray(a)) {
 			return ArrayImpl.__get(a, i);
 		} else {
 			return Syntax.arrayAccess(a, i);
@@ -55,7 +55,7 @@ class HxOverrides {
 	}
 
 	static public function arraySet(a:Dynamic, i:Int, v:Dynamic) {
-		if (Std.is(a, Array)) {
+		if (Boot.isArray(a)) {
 			return ArrayImpl.__set(a, i, v);
 		} else {
 			Syntax.assign(Syntax.arrayAccess(a, i), v);
