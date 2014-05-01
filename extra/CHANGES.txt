@@ -3,6 +3,7 @@
 	New features:
 
 	python : added python target
+	flash : flash player 12-14 support
 
 	Bugfixes:
 
