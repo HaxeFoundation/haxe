@@ -1228,13 +1228,19 @@ module Printer = struct
 			| _ -> false
 		end in
 		let print_catch pctx i (v,e) =
+			let is_empty_expr = begin match e.eexpr with
+				| TBlock [] -> true
+				| _ -> false
+			end in
 			let indent = pctx.pc_indent in
+			(* Don't generate assignment to catch variable when catch expression is an empty block *)
+			let assign = if is_empty_expr then "" else Printf.sprintf "%s = _hx_e1\n%s" v.v_name indent in
 			let handle_base_type bt =
 				let t = print_base_type bt in
 				let res = if t = "String" then
-					Printf.sprintf "if python_lib_Builtin.isinstance(_hx_e1, str):\n%s\t%s = _hx_e1\n%s\t%s" indent v.v_name indent (print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} e)
+					Printf.sprintf "if python_lib_Builtin.isinstance(_hx_e1, str):\n%s\t%s\t%s" indent assign (print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} e)
 				else
-					Printf.sprintf "if python_lib_Builtin.isinstance(_hx_e1, %s):\n%s\t%s = _hx_e1\n%s\t%s" t indent v.v_name indent (print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} e)
+					Printf.sprintf "if python_lib_Builtin.isinstance(_hx_e1, %s):\n%s\t%s\t%s" t indent assign (print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} e)
 				in
 				if i > 0 then
 					indent ^ "el" ^ res
@@ -1244,10 +1250,10 @@ module Printer = struct
 			match follow v.v_type with
 				| TDynamic _ ->
 					begin if has_only_catch_all then
-						Printf.sprintf "%s = _hx_e1\n%s%s" v.v_name indent (print_expr pctx e)
+						Printf.sprintf "%s%s" assign (print_expr pctx e)
 					else
 						(* Dynamic is always the last block *)
-						Printf.sprintf "%selse:\n\t%s%s = _hx_e1\n%s\t%s" indent indent v.v_name indent (print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} e)
+						Printf.sprintf "%selse:\n\t%s%s\t%s" indent indent assign (print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} e)
 					end
 				| TInst(c,_) ->
 					handle_base_type (t_infos (TClassDecl c))
