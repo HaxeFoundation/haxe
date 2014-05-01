@@ -92,9 +92,7 @@ private class ClassRegistry extends python.lib.Dict<String, HxClassBase> {
     }
 }
 
-@:preCode("
-_hx_classes = _hx_ClassRegistry()
-")
+@:preCode("_hx_classes = _hx_ClassRegistry()")
 @:keep class Boot {
 
 	static function __init__ () {
