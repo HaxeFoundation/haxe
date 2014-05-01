@@ -249,7 +249,7 @@ module Transformer = struct
 	let rec transform_function tf ae is_value =
 		let p = tf.tf_expr.epos in
 		let assigns = List.fold_left (fun acc (v,value) -> match value with
-			| None ->
+			| None | Some TNull ->
 				acc
 			| Some ct ->
 				let a_local = mk (TLocal v) v.v_type p in
