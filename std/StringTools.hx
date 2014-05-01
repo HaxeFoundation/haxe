@@ -371,7 +371,7 @@ class StringTools {
 		#elseif cs
 		return ( cast(index, UInt) < s.length ) ? cast(s[index], Int) : -1;
 		#elseif js
-		return s.charCodeAt(index);
+		return (untyped s).charCodeAt(index);
 		#elseif python
 		return if (index >= s.length) -1 else python.lib.Builtin.ord(python.Syntax.arrayAccess(s, index));
 		#else
