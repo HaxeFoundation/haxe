@@ -1219,6 +1219,14 @@ module Printer = struct
 				do_default()
 
 	and print_try pctx e1 catches =
+		let has_catch_all = List.exists (fun (v,_) -> match v.v_type with
+			| TDynamic _ -> true
+			| _ -> false
+		) catches in
+		let has_only_catch_all = has_catch_all && begin match catches with
+			| [_] -> true
+			| _ -> false
+		end in
 		let print_catch pctx i (v,e) =
 			let indent = pctx.pc_indent in
 			let handle_base_type bt =
@@ -1235,7 +1243,12 @@ module Printer = struct
 			in
 			match follow v.v_type with
 				| TDynamic _ ->
-					Printf.sprintf "%sif True:\n%s\t%s = _hx_e1\n%s\t%s" (if i > 0 then indent ^ "el" else "") indent v.v_name indent (print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} e)
+					begin if has_only_catch_all then
+						Printf.sprintf "%s = _hx_e1\n%s%s" v.v_name indent (print_expr pctx e)
+					else
+						(* Dynamic is always the last block *)
+						Printf.sprintf "%selse:\n\t%s%s = _hx_e1\n%s\t%s" indent indent v.v_name indent (print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} e)
+					end
 				| TInst(c,_) ->
 					handle_base_type (t_infos (TClassDecl c))
 				| TEnum(en,_) ->
@@ -1247,8 +1260,8 @@ module Printer = struct
 		let print_expr_indented e = print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} e in
 		let try_str = Printf.sprintf "try:\n%s\t%s\n%s" indent (print_expr_indented e1) indent in
 		let except = Printf.sprintf "except Exception as _hx_e:\n%s\t_hx_e1 = _hx_e.val if isinstance(_hx_e, _HxException) else _hx_e\n%s\t" indent indent in
-		let catch_str = String.concat (Printf.sprintf "\n%s\n" indent) (ExtList.List.mapi (fun i catch -> print_catch {pctx with pc_indent = "\t" ^ pctx.pc_indent} i catch) catches) in
-		let except_end = Printf.sprintf "\n%s\telse:\n%s\t\traise _hx_e" indent indent in
+		let catch_str = String.concat (Printf.sprintf "\n") (ExtList.List.mapi (fun i catch -> print_catch {pctx with pc_indent = "\t" ^ pctx.pc_indent} i catch) catches) in
+		let except_end = if not has_catch_all then Printf.sprintf "\n%s\telse:\n%s\t\traise _hx_e" indent indent else "" in
 		Printf.sprintf "%s%s%s%s" try_str except catch_str except_end
 
 	and print_call2 pctx e1 el =
