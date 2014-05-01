@@ -48,7 +48,7 @@ class HxOverrides {
 
 	static public function arrayGet<T>(a:Dynamic, i:Int):Dynamic {
 		if (Boot.isArray(a)) {
-			return ArrayImpl.__get(a, i);
+			return ArrayImpl._get(a, i);
 		} else {
 			return Syntax.arrayAccess(a, i);
 		}
@@ -56,7 +56,7 @@ class HxOverrides {
 
 	static public function arraySet(a:Dynamic, i:Int, v:Dynamic) {
 		if (Boot.isArray(a)) {
-			return ArrayImpl.__set(a, i, v);
+			return ArrayImpl._set(a, i, v);
 		} else {
 			Syntax.assign(Syntax.arrayAccess(a, i), v);
 			return v;

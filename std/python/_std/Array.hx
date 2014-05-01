@@ -117,14 +117,14 @@ extern class Array<T> implements ArrayAccess<T> extends ArrayImpl {
 
 
 
-	@:keep private inline function __get(idx:Int):T
+	@:keep private inline function _get(idx:Int):T
 	{
-		return ArrayImpl.__get(this, idx);
+		return ArrayImpl._get(this, idx);
 	}
 
-	@:keep private inline function __set(idx:Int, val:T):T
+	@:keep private inline function _set(idx:Int, val:T):T
 	{
-		return ArrayImpl.__set(this, idx,val);
+		return ArrayImpl._set(this, idx,val);
 	}
 
 	@:keep private inline function __unsafe_get(idx:Int):T

@@ -914,6 +914,9 @@ module Printer = struct
 	let is_underlying_string t = match follow t with
 		| TAbstract(a,tl) -> (is_type1 "" "String")(Codegen.Abstract.get_underlying_type a tl)
 		| _ -> false
+	let is_underlying_array t = match follow t with
+		| TAbstract(a,tl) -> (is_type1 "" "list")(Codegen.Abstract.get_underlying_type a tl)
+		| _ -> false
 
 	let handle_keywords s =
 		KeywordHandler.handle_keywords s
@@ -1035,8 +1038,12 @@ module Printer = struct
 				handle_keywords v.v_name
 			| TEnumParameter(e1,_,index) ->
 				Printf.sprintf "%s.params[%i]" (print_expr pctx e1) index
+			| TArray(e1,e2) when (is_type1 "" "list")(e1.etype) || is_underlying_array e1.etype ->
+				Printf.sprintf "python_internal_ArrayImpl._get(%s, %s)" (print_expr pctx e1) (print_expr pctx e2)
 			| TArray(e1,e2) ->
 				Printf.sprintf "HxOverrides.arrayGet(%s, %s)" (print_expr pctx e1) (print_expr pctx e2)
+			| TBinop(OpAssign, {eexpr = TArray(e1,e2)}, e3) when (is_type1 "" "list")(e1.etype) || is_underlying_array e1.etype ->
+				Printf.sprintf "python_internal_ArrayImpl._set(%s, %s, %s)" (print_expr pctx e1) (print_expr pctx e2) (print_expr pctx e3)
 			| TBinop(OpAssign,{eexpr = TArray(e1,e2)},e3) ->
 				Printf.sprintf "HxOverrides.arraySet(%s,%s,%s)" (print_expr pctx e1) (print_expr pctx e2) (print_expr pctx e3)
 			| TBinop(OpAssign,{eexpr = TField(ef1,fa)},e2) ->

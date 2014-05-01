@@ -137,11 +137,11 @@ class ArrayImpl {
 		Syntax.callField(a, "reverse");
 	}
 
-	private static inline function __get<T>(x:Array<T>, idx:Int):T {
-		return if (idx < x.length && idx > -1) Syntax.arrayAccess(x, idx) else null;
+	private static inline function _get<T>(x:Array<T>, idx:Int):T {
+		return if (idx > -1 && idx < x.length) Syntax.arrayAccess(x, idx) else null;
 	}
 
-	private static inline function __set<T>(x:Array<T>, idx:Int, v:T):T {
+	private static inline function _set<T>(x:Array<T>, idx:Int, v:T):T {
 		var l = x.length;
 		while (l < idx) {
 			x.push(null);
