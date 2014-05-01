@@ -377,7 +377,7 @@ class StringTools {
 		return (untyped s).charCodeAt(index);
 			#end
 		#elseif python
-		return if (index >= s.length) -1 else untyped(ord(untyped s[index]));
+		return if (index >= s.length) -1 else python.lib.Builtin.ord(python.Syntax.arrayAccess(s, index));
 		#else
 		return s.cca(index);
 		#end
