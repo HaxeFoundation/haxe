@@ -200,9 +200,11 @@ private class ClassRegistry extends python.lib.Dict<String, HxClassBase> {
 		if (s == null) s = "";
 		if( o == null ) return "null";
 
-		if( s.length >= 5 ) return "<...>"; // too much deep recursion
 
-		if (isInstance(o, String)) return o;
+
+		if (isString(o)) return o;
+
+		if( s.length >= 5 ) return "<...>"; // too much deep recursion
 
 		if (isPyBool(o)) {
 			if ((o:Bool)) return "true" else return "false";
@@ -213,7 +215,7 @@ private class ClassRegistry extends python.lib.Dict<String, HxClassBase> {
 		// 1.0 should be printed as 1
 		if (isPyFloat(o)) {
 			try {
-				if (o == builtinInt(o)) {
+				if ( (o:Float) == builtinInt(o)) {
 					return builtinStr(mathRound(o));
 				} else {
 					return builtinStr(o);
@@ -223,9 +225,7 @@ private class ClassRegistry extends python.lib.Dict<String, HxClassBase> {
 			}
 		}
 
-		if (inspectIsFunction(o) || inspectIsMethod(o)) return "<function>";
-
-		if (isInstance(o, Array))
+		if (isArray(o))
 		{
 			var o1:Array<Dynamic> = o;
 			var l = o1.length;
@@ -242,18 +242,20 @@ private class ClassRegistry extends python.lib.Dict<String, HxClassBase> {
 			st += "]";
 			return st;
 		}
+
+		if (inspectIsFunction(o) || inspectIsMethod(o)) return "<function>";
+
+
 		try {
 			if (builtinHasAttr(o, "toString")) {
 				return Syntax.callField(o, "toString");
 			}
 		} catch (e:Dynamic) {
-
 		}
-
 		if (builtinHasAttr(o, "__class__"))
 		{
 
-			if (isInstance(o, AnonObject))
+			if (isAnonObject(o))
 			{
 				var toStr = null;
 				try
@@ -296,7 +298,6 @@ private class ClassRegistry extends python.lib.Dict<String, HxClassBase> {
 					return o.tag;
 				}
 			}
-
 
 			if (Internal.hasClassName(o)) {
 				if (Syntax.field(Syntax.field(o, "__class__"), "__name__") != "type") {
