@@ -1816,7 +1816,7 @@ let rec s_expr_pretty tabs s_type e =
 	| TFor (v,econd,e) ->
 		sprintf "for (%s in %s) %s" v.v_name (loop econd) (loop e)
 	| TIf (e,e1,e2) ->
-		sprintf "if (%s)%s%s)" (loop e) (loop e1) (match e2 with None -> "" | Some e -> " else " ^ loop e)
+		sprintf "if (%s)%s%s" (loop e) (loop e1) (match e2 with None -> "" | Some e -> " else " ^ loop e)
 	| TWhile (econd,e,flag) ->
 		(match flag with
 		| NormalWhile -> sprintf "while (%s) %s" (loop econd) (loop e)
