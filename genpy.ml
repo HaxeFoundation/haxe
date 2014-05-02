@@ -968,6 +968,12 @@ module Printer = struct
 		| TAbstract(a,tl) -> (is_type1 "" "list")(Codegen.Abstract.get_underlying_type a tl)
 		| _ -> false
 
+	let rec is_anon_or_dynamic t = match follow t with
+		| TAbstract(a,tl) ->
+			is_anon_or_dynamic (Codegen.Abstract.get_underlying_type a tl)
+		| TAnon _ | TDynamic _ -> true
+		| _ -> false
+
 	let handle_keywords s =
 		KeywordHandler.handle_keywords s
 
@@ -1090,12 +1096,16 @@ module Printer = struct
 				Printf.sprintf "%s.params[%i]" (print_expr pctx e1) index
 			| TArray(e1,e2) when (is_type1 "" "list")(e1.etype) || is_underlying_array e1.etype ->
 				Printf.sprintf "python_internal_ArrayImpl._get(%s, %s)" (print_expr pctx e1) (print_expr pctx e2)
-			| TArray(e1,e2) ->
+			| TArray({etype = t} as e1,e2) when is_anon_or_dynamic t ->
 				Printf.sprintf "HxOverrides.arrayGet(%s, %s)" (print_expr pctx e1) (print_expr pctx e2)
+			| TArray(e1,e2) ->
+				Printf.sprintf "%s[%s]" (print_expr pctx e1) (print_expr pctx e2)
 			| TBinop(OpAssign, {eexpr = TArray(e1,e2)}, e3) when (is_type1 "" "list")(e1.etype) || is_underlying_array e1.etype ->
 				Printf.sprintf "python_internal_ArrayImpl._set(%s, %s, %s)" (print_expr pctx e1) (print_expr pctx e2) (print_expr pctx e3)
-			| TBinop(OpAssign,{eexpr = TArray(e1,e2)},e3) ->
+			| TBinop(OpAssign,{eexpr = TArray({etype = t} as e1,e2)},e3) when is_anon_or_dynamic t ->
 				Printf.sprintf "HxOverrides.arraySet(%s,%s,%s)" (print_expr pctx e1) (print_expr pctx e2) (print_expr pctx e3)
+			| TBinop(OpAssign,{eexpr = TArray(e1,e2)},e3) ->
+				Printf.sprintf "%s[%s] = %s" (print_expr pctx e1) (print_expr pctx e2) (print_expr pctx e3)
 			| TBinop(OpAssign,{eexpr = TField(ef1,fa)},e2) ->
 				Printf.sprintf "%s = %s" (print_field pctx ef1 fa true) (print_op_assign_right pctx e2)
 			| TBinop(OpAssign,e1,e2) ->
