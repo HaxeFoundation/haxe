@@ -17,7 +17,7 @@ class HxOverrides {
 		if (Boot.isArray(x)) {
 			return (x:Array<Dynamic>).iterator();
 		}
-		return Reflect.callMethod(null, Reflect.field(x, "iterator"), []);
+		return Syntax.callField(x, "iterator");
 	}
 
 	static function eq( a:Dynamic, b:Dynamic ) : Bool {
