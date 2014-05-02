@@ -49,9 +49,10 @@ extern class Syntax {
 		return macro @:pos(Context.currentPos()) $self._pythonCode($b, $a{rest});
 	};
 
+	#if !macro
 	@:noUsing
 	public static function _pythonCode<T>(b:String, args:Array<Dynamic>):T { return null; };
-
+	#end
 	@:noUsing
 	macro public static function arrayAccess(x:Expr, rest:Array<Expr>):ExprOf<Dynamic> {
 		return macro $self._arrayAccess($x, $a{rest});

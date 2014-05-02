@@ -31,7 +31,7 @@ class ArrayImpl {
 
 
 
-	public static inline function get_length <T>(x:Array<T>):Int return Syntax.callField(HxBuiltin, "len", x);
+	public static inline function get_length <T>(x:Array<T>):Int return HxBuiltin.len(x);
 
 	public static inline function concat<T>( a1:Array<T>, a2 : Array<T>) : Array<T> {
 		return Syntax.binop(a1, "+", a2);
