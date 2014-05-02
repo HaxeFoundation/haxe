@@ -1174,8 +1174,8 @@ module Printer = struct
 				in
 				let rec safe_string ex =
 					match ex.eexpr, ex.etype with
-						| TBinop(OpAdd, e1, e2), x when (is_type1 "" "String")(x) -> Printf.sprintf "(%s + %s)" (safe_string e1) (safe_string e2)
 						| e, _ when is_safe_string ex -> print_expr pctx ex
+						| TBinop(OpAdd, e1, e2), x when (is_type1 "" "String")(x) -> Printf.sprintf "(%s + %s)" (safe_string e1) (safe_string e2)
 						| _,x when (is_type1 "" "String")(x) -> Printf.sprintf "HxOverrides.stringOrNull(%s)" (print_expr pctx ex)
 						| _,_ -> Printf.sprintf "Std.string(%s)" (print_expr pctx ex)
 				in
