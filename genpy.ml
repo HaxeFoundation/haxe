@@ -1142,17 +1142,18 @@ module Printer = struct
 					| TAnon _ -> true
 					| _ -> false
 				end in
-				let is_const_int x =
+				let is_const_byte x =
 					match x.eexpr with
-					| TConst TInt x -> true
+					| TConst TInt x ->
+						let x = Int32.to_int x in
+						x >= 0 && x <= 256
 					| _ -> false
 				in
 				(match follow e1.etype, follow e2.etype with
-				| TAbstract({a_path = [],("Int")}, _),TAbstract({a_path = [],("Int")}, _) when is_const_int e2 ->
+				| TAbstract({a_path = [],("Int")}, _),TAbstract({a_path = [],("Int")}, _) when is_const_byte e2 || is_const_byte e1 ->
 					(* the first line is the faster is comparison for ints but it causes the unit tests to fail with some
 					   weird error messages *)
-					(* Printf.sprintf "(%s %s %s)" (print_expr pctx e1) (fst ops) (print_expr pctx e2) *)
-					Printf.sprintf "(%s %s %s)" (print_expr pctx e1) (snd ops) (print_expr pctx e2)
+					Printf.sprintf "(%s %s %s)" (print_expr pctx e1) (fst ops) (print_expr pctx e2)
 				| TAbstract({a_path = [],("String")}, []),TAbstract({a_path = [],("String")}, []) when (is_type1 "" "String") (e.etype)->
 					Printf.sprintf "(%s %s %s)" (print_expr pctx e1) (fst ops) (print_expr pctx e2)
 				| TInst({cl_path = [],("list")},_), _ ->
