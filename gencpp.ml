@@ -65,6 +65,11 @@ let is_internal_class = function
    |  ([],"Array") | ([], "Class") | ([], "Enum") | ([], "Bool")
    |  ([], "Dynamic") | ([], "ArrayAccess") | (["cpp"], "FastIterator") | (["cpp"],"Pointer") -> true
    |  ([],"Math") | (["haxe";"io"], "Unsigned_char__") -> true
+   |  (["cpp"],"Int8") | (["cpp"],"UInt8")
+   |  (["cpp"],"Int16") | (["cpp"],"UInt16")
+   |  (["cpp"],"Int32") | (["cpp"],"UInt32")
+   |  (["cpp"],"Int64") | (["cpp"],"UInt64")
+   |  (["cpp"],"Float32") | (["cpp"],"Float64") -> true
    | _ -> false;;
 
 let get_include_prefix common_ctx with_slash =
@@ -411,6 +416,11 @@ let gen_close_namespace output class_path =
 (* The basic types can have default values and are passesby value *)
 let is_numeric = function
    | "Int" | "Bool" | "Float" |  "::haxe::io::Unsigned_char__" | "unsigned char" -> true
+   | "::cpp::UInt8" | "::cpp::Int8"
+   | "::cpp::UInt16" | "::cpp::Int16"
+   | "::cpp::UInt32" | "::cpp::Int32"
+   | "::cpp::UInt64" | "::cpp::Int64"
+   | "::cpp::Float32" | "::cpp::Float64"
    | "int" | "bool" | "double" | "float" -> true
    | _ -> false
 
