@@ -394,7 +394,6 @@ private class ClassRegistry extends python.lib.Dict<String, HxClassBase> {
 
 		switch (field) {
 			case "length" if (isString(o)): return StringImpl.get_length(o);
-			case "length" if (isArray(o)): return ArrayImpl.get_length(o);
 			case "toLowerCase" if (isString(o)): return StringImpl.toLowerCase.bind(o);
 			case "toUpperCase" if (isString(o)): return StringImpl.toUpperCase.bind(o);
 			case "charAt" if (isString(o)): return StringImpl.charAt.bind(o);
@@ -405,7 +404,7 @@ private class ClassRegistry extends python.lib.Dict<String, HxClassBase> {
 			case "substr" if (isString(o)): return StringImpl.substr.bind(o);
 			case "substring" if (isString(o)): return StringImpl.substring.bind(o);
 			case "toString" if (isString(o)): return StringImpl.toString.bind(o);
-
+			case "length" if (isArray(o)): return ArrayImpl.get_length(o);
 			case "map" if (isArray(o)): return ArrayImpl.map.bind(o);
 			case "filter" if (isArray(o)): return ArrayImpl.filter.bind(o);
 			case "concat" if (isArray(o)): return ArrayImpl.concat.bind(o);
@@ -426,6 +425,7 @@ private class ClassRegistry extends python.lib.Dict<String, HxClassBase> {
 			case "sort" if (isArray(o)): return ArrayImpl.sort.bind(o);
 			case "splice" if (isArray(o)): return ArrayImpl.splice.bind(o);
 		}
+
 
 		var field = handleKeywords(field);
 		return if (builtinHasAttr(o, field)) builtinGetAttr(o, field) else null;
@@ -486,10 +486,14 @@ private class ClassRegistry extends python.lib.Dict<String, HxClassBase> {
 
 
 
+	static inline function unsafeFastCodeAt (s, index) {
+		return HxBuiltin.ord(python.Syntax.arrayAccess(s, index));
+	}
+
 	static inline function handleKeywords(name:String):String {
 		return if (keywords.has(name)) {
 			Internal.getPrefixed(name);
-		} else if (name.length > 2 && name.substr(0,2) == "__" && name.charAt(name.length-1) != "_") {
+		} else if (name.length > 2 && unsafeFastCodeAt(name,0) == "_".code && unsafeFastCodeAt(name,1) == "_".code && unsafeFastCodeAt(name, name.length-1) != "_".code) {
 			Internal.getPrefixed(name);
 		}
 		else name;

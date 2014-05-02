@@ -29,9 +29,11 @@ class Internal {
 	static function _getPrefixed (x:Expr):Expr {
 		return switch (x.expr) {
 			case EConst(CString(x)): macro @:pos(Context.currentPos()) $v{_prefix + x};
-			case _ : macro @:pos(Context.currentPos()) $v{_prefix} + $x;
+			case _ : macro @:pos(Context.currentPos()) (python.Syntax.binop($v{_prefix},"+",$x):String);
 		}
 	}
+
+
 
 	static function withPos(x:String):Expr {
 		return macro @:pos(Context.currentPos()) $v{x};
@@ -46,6 +48,13 @@ class Internal {
 	}
 
 	#end
+
+	macro public static function getPrefixed (x:ExprOf<String>):Expr {
+		return switch (x.expr) {
+			case EConst(CString(x)): macro @:pos(Context.currentPos()) $v{_prefix + x};
+			case _ : macro @:pos(Context.currentPos()) (python.Syntax.binop($v{_prefix},"+",$x):String);
+		}
+	}
 
 	macro public static function classRegistry ():Expr {
 		return macro (python.Syntax.pythonCode($v{_classes}) : python.lib.Dict<String, Class<Dynamic>>);
@@ -66,12 +75,7 @@ class Internal {
 		return macro @:pos(Context.currentPos()) python.Syntax.field($a{args});
 	}
 
-	macro public static function getPrefixed (x:ExprOf<String>):Expr {
-		return switch (x.expr) {
-			case EConst(CString(x)): macro @:pos(Context.currentPos()) $v{_prefix + x};
-			case _ : macro @:pos(Context.currentPos()) $v{_prefix} + $x;
-		}
-	}
+
 
 	macro public static function importAsPrefixed (o:String, x:String) {
 		return macro @:pos(Context.currentPos()) python.Syntax.importAs($v{o}, $v{_prefix + x});

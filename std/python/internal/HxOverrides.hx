@@ -27,6 +27,10 @@ class HxOverrides {
 		return Syntax.binop(a, "==", b);
 	}
 
+	static function stringOrNull (s:String):String {
+		return if (s == null) "null" else s;
+	}
+
 	static public function shift(x) {
 		return Reflect.callMethod(null, Reflect.field(x, "shift"), []);
 	}

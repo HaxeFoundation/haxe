@@ -1097,10 +1097,27 @@ module Printer = struct
 			| TBinop(OpUShr,e1,e2) ->
 				Printf.sprintf "HxOverrides.rshift(%s, %s)" (print_expr pctx e1) (print_expr pctx e2)
 			| TBinop(OpAdd,e1,e2) when (is_type1 "" "String")(e.etype) || is_underlying_string e.etype ->
-				let safe_string ex =
-					match ex.eexpr with
-						| TConst(TString _) -> print_expr pctx ex
-						| _ -> Printf.sprintf "Std.string(%s)" (print_expr pctx ex)
+				let follow_parens e = match e.eexpr with
+					| TParenthesis e -> e
+					| _ -> e
+				in
+				let rec is_safe_string x =
+					match (follow_parens x).eexpr with
+					| TBinop(OpAdd, e1, e2) -> is_safe_string e1 && is_safe_string e2
+					| TCall (e1,_) ->
+						let id = print_expr pctx (follow_parens e1) in
+						(match id with
+						| "Std.string" -> true
+						| _ -> false)
+					| TConst (TString s) -> true
+					| _ -> false
+				in
+				let rec safe_string ex =
+					match ex.eexpr, ex.etype with
+						| TBinop(OpAdd, e1, e2), _ -> Printf.sprintf "(%s + %s)" (safe_string e1) (safe_string e2)
+						| e, _ when is_safe_string ex -> print_expr pctx ex
+						| _,x when (is_type1 "" "String")(x) -> Printf.sprintf "HxOverrides.stringOrNull(%s)" (print_expr pctx ex)
+						| _,_ -> Printf.sprintf "Std.string(%s)" (print_expr pctx ex)
 				in
 				let e1_str = safe_string e1 in
 				let e2_str = safe_string e2 in
