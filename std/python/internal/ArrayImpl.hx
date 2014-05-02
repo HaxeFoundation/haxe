@@ -71,7 +71,7 @@ class ArrayImpl {
 
 	@:access(python.Boot)
 	public static inline function join<T>(x:Array<T>, sep : String ) : String {
-		return Syntax.field(sep, "join")(x.map(python.Boot.toString));
+		return Syntax.field(sep, "join")(Syntax.pythonCode("[{0}(x1) for x1 in {1}]", python.Boot.toString, x));
 	}
 
 	public static inline function toString<T>(x:Array<T>) : String {

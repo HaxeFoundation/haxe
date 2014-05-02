@@ -44,7 +44,13 @@ extern class Syntax {
 	public static function assign(a:Dynamic, b:Dynamic):Void { }
 
 	@:noUsing
-	public static function pythonCode<T>(b:String):T { return null; };
+	macro public static function pythonCode(b:ExprOf<String>, rest:Array<Expr>):Expr {
+		if (rest == null) rest = [];
+		return macro @:pos(Context.currentPos()) $self._pythonCode($b, $a{rest});
+	};
+
+	@:noUsing
+	public static function _pythonCode<T>(b:String, args:Array<Dynamic>):T { return null; };
 
 	@:noUsing
 	macro public static function arrayAccess(x:Expr, rest:Array<Expr>):ExprOf<Dynamic> {

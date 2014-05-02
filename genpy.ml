@@ -157,7 +157,7 @@ module Transformer = struct
 	let create_non_local n pos =
 		let s = "nonlocal " ^ (KeywordHandler.handle_keywords n) in
 		(* TODO: this is a hack... *)
-		let id = mk (TLocal (to_tvar "python_Syntax.pythonCode" t_dynamic ) ) !t_void pos in
+		let id = mk (TLocal (to_tvar "python_Syntax._pythonCode" t_dynamic ) ) !t_void pos in
 		let id2 = mk (TLocal( to_tvar s t_dynamic )) !t_void pos in
 		mk (TCall(id, [id2])) t_dynamic pos
 
@@ -1367,15 +1367,38 @@ module Printer = struct
 			| "super",_ ->
 				let s_el = print_exprs pctx ", " el in
 				Printf.sprintf "super().__init__(%s)" s_el
-			| ("python_Syntax.pythonCode"),[e] ->
-				(* supports native haxe string interpolation *)
-				let rec loop x =
-					(match x with
-					| { eexpr = TBinop(OpAdd,a,b)} -> (loop a) ^ (loop b)
-					| { eexpr = TConst (TString s) } -> s
-					| e -> print_expr pctx e)
+			| ("python_Syntax._pythonCode"),[({ eexpr = TConst (TString code) } as ecode); {eexpr = TArrayDecl tl}] ->
+				let exprs = Array.of_list tl in
+				let i = ref 0 in
+				let err msg =
+					let pos = { ecode.epos with pmin = ecode.epos.pmin + !i } in
+					error msg pos
 				in
-				loop e
+				let regex = Str.regexp "[{}]" in
+				let rec loop m = match m with
+					| [] -> ""
+					| Str.Text txt :: tl ->
+						i := !i + String.length txt;
+						txt ^ (loop tl)
+					| Str.Delim a :: Str.Delim b :: tl when a = b ->
+						i := !i + 2;
+						a ^ (loop tl)
+					| Str.Delim "{" :: Str.Text n :: Str.Delim "}" :: tl ->
+						(try
+						let expr = Array.get exprs (int_of_string n) in
+						let txt = print_expr pctx expr in
+						i := !i + 2 + String.length n;
+						txt ^ (loop tl)
+					with | Failure "int_of_string" ->
+						err ("Index expected. Got " ^ n)
+					| Invalid_argument _ ->
+						err ("Out-of-bounds pythonCode special parameter: " ^ n))
+					| Str.Delim x :: _ ->
+						err ("Unexpected " ^ x)
+				in
+				loop (Str.full_split regex code)
+			| ("python_Syntax._pythonCode"), [e] ->
+				print_expr pctx e
 			| "python_Syntax._callNamedUntyped",el ->
 				let res,fields = match List.rev el with
 					| {eexpr = TObjectDecl fields} :: el ->

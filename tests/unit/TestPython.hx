@@ -294,18 +294,18 @@ class TestPython extends Test {
 
 	function testPythonCodeStringInterpolation () {
 		var z = 1;
-		var a = (Syntax.pythonCode('[$z, ${2}]'):Array<Int>);
+		var a = (Syntax.pythonCode('[{0}, {1}]', z, 2):Array<Int>);
 
 		eq(a[0], z);
 		eq(a[1], 2);
 
-		inline function test2 (x:Int) {
+		function test2 (x:Int) {
 			x += 1;
-			return (Syntax.pythonCode('$x'):Int);
+			return (Syntax.pythonCode("{0}", x):Int);
 		}
 
-		inline function test3 (x:Int) {
-			return (Syntax.pythonCode('[$x]'):Array<Int>);
+		function test3 (x:Int) {
+			return (Syntax.pythonCode('[{0}]', x):Array<Int>);
 		}
 
 		var x = 1;
@@ -314,18 +314,19 @@ class TestPython extends Test {
 		eq(1, x);
 		eq(1, test3(1)[0]);
 
-		eq("foo1bar", Syntax.pythonCode("'foo' + str(" + x + ") + 'bar'"));
+		eq("foo1bar", Syntax.pythonCode("'foo' + str({0}) + 'bar'", x));
 
 
 		function test4a (x:Int) {
-			return (Syntax.pythonCode("["+'${x+x}' + "][0]"):Int);
+			return (Syntax.pythonCode("[{0}][0]", x+x):Int);
 		}
 
-		function test4b (x:Int) {
-			return (Syntax.pythonCode('['+ Std.string(x+x) + '][0]'):Int);
+		function test4b (x:Int):String {
+			return Syntax.pythonCode('[{0}][0]', (function () return Std.string(x+x))() );
 		}
 
-		eq(test4a(1), test4b(1));
+		eq(2, test4a(1));
+		eq("2", test4b(1));
 	}
 
 	function testExtern()

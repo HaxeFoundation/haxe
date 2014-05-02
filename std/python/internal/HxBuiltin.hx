@@ -19,6 +19,7 @@ package python.internal;
 	public static function int(x:Dynamic):Int;
 	public static function ord(s:String):Int;
 
+	public static function map (a:Dynamic, b:Dynamic):Dynamic;
 	public static function str(o:Dynamic):String;
 
 	public static function float(x:Dynamic):Float;
