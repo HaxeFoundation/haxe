@@ -99,7 +99,8 @@ module Transformer = struct
 	let como = ref None
 	let t_bool = ref t_dynamic
 	let t_void = ref t_dynamic
-	let t_string= ref t_dynamic
+	let t_string = ref t_dynamic
+	let t_int = ref t_dynamic
 	let c_reflect = ref null_class
 
 	let init com =
@@ -107,13 +108,13 @@ module Transformer = struct
 		t_bool := com.basic.tbool;
 		t_void := com.basic.tvoid;
 		t_string := com.basic.tstring;
+		t_int := com.basic.tint;
 		c_reflect := Utils.class_of_module_type (Utils.find_type com ([],"Reflect"))
 
 	and debug_expr e =
 		let s_type = Type.s_type (print_context()) in
 		let s = Type.s_expr_pretty "\t" s_type e in
 		Printf.printf "%s\n" s
-
 
 	let new_counter () =
 		let n = ref (-1) in
@@ -362,6 +363,51 @@ module Transformer = struct
 			res
 		in
 		forward_transform res ae
+
+	and transform_string_switch ae is_value e1 cases edef =
+		let length_map = Hashtbl.create 0 in
+		List.iter (fun (el,e) ->
+			List.iter (fun es ->
+				match es.eexpr with
+				| TConst (TString s) ->
+					let l = String.length s in
+					let sl = try
+						Hashtbl.find length_map l
+					with Not_found ->
+						let sl = ref [] in
+						Hashtbl.replace length_map l sl;
+						sl
+					in
+					sl := ([es],e) :: !sl;
+				| _ ->
+					()
+			) el
+		) cases;
+		if Hashtbl.length length_map < 2 then
+			transform_switch ae is_value e1 cases edef
+		else
+			let mk_eq e1 e2 = mk (TBinop(OpEq,e1,e2)) !t_bool (punion e1.epos e2.epos) in
+			let mk_or e1 e2 = mk (TBinop(OpOr,e1,e2)) !t_bool (punion e1.epos e2.epos) in
+			let mk_if (el,e) eo =
+				let eif = List.fold_left (fun eacc e -> mk_or eacc (mk_eq e1 e)) (mk_eq e1 (List.hd el)) (List.tl el) in
+				mk (TIf(Codegen.mk_parent eif,e,eo)) e.etype e.epos
+			in
+			let cases = Hashtbl.fold (fun i el acc ->
+				let eint = mk (TConst (TInt (Int32.of_int i))) !t_int e1.epos in
+				let fs = match List.fold_left (fun eacc ec -> Some (mk_if ec eacc)) edef !el with Some e -> e | None -> assert false in
+				([eint],fs) :: acc
+			) length_map [] in
+			let c_string = match !t_string with TInst(c,_) -> c | _ -> assert false in
+			let cf_length = PMap.find "length" c_string.cl_fields in
+			let ef = mk (TField(e1,FInstance(c_string,cf_length))) !t_int e1.epos in
+			let res_var = alloc_var (ae.a_next_id()) ef.etype in
+			let res_local = {ef with eexpr = TLocal res_var} in
+			let var_expr = {ef with eexpr = TVar(res_var,Some ef)} in
+			let e = mk (TBlock [
+				var_expr;
+				mk (TSwitch(res_local,cases,edef)) ae.a_expr.etype e1.epos
+			]) ae.a_expr.etype e1.epos in
+			forward_transform e ae
 
 	and transform_op_assign_op ae e1 op one is_value post =
 		let e1_ = transform_expr e1 ~is_value:true ~next_id:(Some ae.a_next_id) in
@@ -704,8 +750,12 @@ module Transformer = struct
 			forward_transform new_expr ae
 
 		| (is_value, TSwitch(e, cases, edef)) ->
-			transform_switch ae is_value e cases edef
-
+			begin match follow e.etype with
+				| TInst({cl_path = [],"String"},_) ->
+					transform_string_switch ae is_value e cases edef
+				| _ ->
+					transform_switch ae is_value e cases edef
+			end
 		(* anon field access on optional params *)
 		| (is_value, TField(e,FAnon cf)) when Meta.has Meta.Optional cf.cf_meta ->
 			let e = dynamic_field_read e cf.cf_name in
