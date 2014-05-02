@@ -12,20 +12,18 @@ class StringMap<T> implements Map.IMap<String, T> {
 	}
 
 	public inline function set( key : String, value : T ) : Void {
-		h.set("$"+key, value);
+		h.set(key, value);
 	}
 
 	public inline function get( key : String ) : Null<T> {
-		return h.get("$"+key, null);
-
+		return h.get(key, null);
 	}
 
 	public inline function exists( key : String ) : Bool {
-		return h.hasKey("$" + key);
+		return h.hasKey(key);
 	}
 
 	public function remove( key : String ) : Bool {
-		var key = "$"+key;
 		var has = h.hasKey(key);
 		if (has) h.remove(key);
 		return has;
@@ -34,7 +32,7 @@ class StringMap<T> implements Map.IMap<String, T> {
 	public function keys() : Iterator<String> {
 		var a = [];
 		Syntax.foreach(key, h, {
-			a.push( key.substr(1));
+			a.push( key);
 		});
 		return a.iterator();
 	}
@@ -44,7 +42,7 @@ class StringMap<T> implements Map.IMap<String, T> {
 		var ref = h;
 		return {
 			hasNext : function() { return iter.hasNext(); },
-			next : function() { var i = iter.next(); return ref.get("$"+i, null); }
+			next : function() { var i = iter.next(); return ref.get(i, null); }
 		};
 	}
 
