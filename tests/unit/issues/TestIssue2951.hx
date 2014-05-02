@@ -6,7 +6,7 @@ import unit.Test;
 class TestIssue2951 extends Test{
 
   public static inline function foo (x) {
-    trace(x);
+
   }
 
   public static function setCwd(x:Dynamic) {
@@ -23,7 +23,7 @@ class TestIssue2951 extends Test{
 
   public function test ()
   {
-  	trace("here");
+
       var last = null;
       var args = [];
       var HxString = {
