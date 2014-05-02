@@ -307,11 +307,22 @@ module Transformer = struct
 			| [e] ->
 				transform_expr ~is_value ~next_id:(Some next_id) e
 			| _ ->
+				let size = List.length el in
 				let res = DynArray.create () in
-				List.iter (fun e ->
-					let ae = transform_expr ~is_value ~next_id:(Some next_id) e in
-					List.iter (DynArray.add res) ae.a_blocks;
-					DynArray.add res ae.a_expr
+				ExtList.List.iteri (fun i e ->
+					(* this removes Builtin.len(x) calls which are reproduced by the inlined return
+					   of Array.push even if the value is not used *)
+					let is_removable_statement e = (not is_value || i < size-1) &&
+						match e.eexpr with
+						| TCall({ eexpr = TField(_, FStatic({cl_path = ["python";"internal"],"HxBuiltin"},{ cf_name = "len" }))}, [_]) -> true
+						| _ -> false
+					in
+					if not (is_removable_statement e) then
+						let ae = transform_expr ~is_value ~next_id:(Some next_id) e in
+						List.iter (DynArray.add res) ae.a_blocks;
+						DynArray.add res ae.a_expr
+					else
+						()
 				) el;
 				lift_expr (mk (TBlock (DynArray.to_list res)) tb p)
 
