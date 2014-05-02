@@ -1661,6 +1661,7 @@ module Generator = struct
 				e
 		in
 		if stat then begin
+			newline ctx;
 			spr ctx indent;
 			spr ctx "@staticmethod\n"
 		end;
@@ -1692,6 +1693,7 @@ module Generator = struct
 				()
 		end;
 		newline ctx;
+		newline ctx;
 		gen_func_expr ctx (match cf.cf_expr with None -> assert false | Some e -> e) c "__init__" py_metas ["self"] "\t" false
 
 	let gen_class_field ctx c p cf =
@@ -1700,6 +1702,7 @@ module Generator = struct
 			| None ->
 				()(* print ctx "\t# var %s" field *)
 			| Some e ->
+				newline ctx;
 				newline ctx;
 				begin match cf.cf_kind with
 					| Method _ ->
@@ -1740,6 +1743,7 @@ module Generator = struct
 		print ctx ")\n"
 
 	let gen_class_empty_constructor ctx p cfl =
+		newline ctx;
 		newline ctx;
 		print ctx "\t@staticmethod\n\tdef _hx_empty_init(_hx_o):";
 		let found_fields = ref false in
@@ -1848,20 +1852,22 @@ module Generator = struct
 						(* importing a class from a module *)
 						"from " ^ module_name ^ " import " ^ object_name ^ " as " ^ class_name
 			in
-
+			if Buffer.length ctx.buf > 0 then newline ctx;
 			if ignore_error then begin
 				spr_line ctx "try:";
 				spr ctx "\t";
 				spr_line ctx import;
 				spr_line ctx "except:\n\tpass"
 			end else
-				spr_line ctx import
+				spr ctx import
 		end
 
 	let gen_class ctx c =
 		gen_pre_code_meta ctx c.cl_meta;
 		(* print ctx "# print %s.%s\n" (s_type_path c.cl_module.m_path) (snd c.cl_path); *)
 		if not c.cl_extern then begin
+			newline ctx;
+			newline ctx;
 			let mt = (t_infos (TClassDecl c)) in
 			let p = get_path mt in
 			let p_name = get_full_name mt in
@@ -1905,7 +1911,6 @@ module Generator = struct
 			in
 			if use_pass then spr ctx "\tpass";
 		end;
-
 		gen_class_init ctx c
 
 	let gen_enum_metadata ctx en p =
@@ -1929,6 +1934,7 @@ module Generator = struct
 		let fix = match enum_constructs with [] -> "" | _ -> "\"" in
 		let enum_constructs_str = fix ^ (String.concat ("\",\"") (List.map (fun ef -> ef.ef_name) enum_constructs)) ^ fix in
 
+		newline ctx;
 		newline ctx;
 		print ctx "@_hx_classes.registerEnum(\"%s\", [%s])\n" p_name enum_constructs_str;
 		print ctx "class %s(Enum):\n" p;
@@ -1964,6 +1970,7 @@ module Generator = struct
 				let param_str = print_args args in
 				let args_str = String.concat "," (List.map (fun (n,_,_) -> handle_keywords n) args) in
 				newline ctx;
+				newline ctx;
 				print ctx "\t@staticmethod\n\tdef %s(%s):\n" f param_str;
 				print ctx "\t\treturn %s(\"%s\", %i, [%s])" p ef.ef_name ef.ef_index args_str;
 			| _ -> assert false
@@ -1981,6 +1988,8 @@ module Generator = struct
 	let gen_abstract ctx a =
 		gen_pre_code_meta ctx a.a_meta;
 		(* print ctx "# print %s.%s\n" (s_type_path a.a_module.m_path) (snd a.a_path); *)
+		newline ctx;
+		newline ctx;
 		newline ctx;
 		let mt = (t_infos (TAbstractDecl a)) in
 		let p = get_path mt in
