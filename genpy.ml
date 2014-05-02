@@ -1142,7 +1142,19 @@ module Printer = struct
 					| TAnon _ -> true
 					| _ -> false
 				end in
+				let is_const_int x =
+					match x.eexpr with
+					| TConst TInt x -> true
+					| _ -> false
+				in
 				(match follow e1.etype, follow e2.etype with
+				| TAbstract({a_path = [],("Int")}, _),TAbstract({a_path = [],("Int")}, _) when is_const_int e2 ->
+					(* the first line is the faster is comparison for ints but it causes the unit tests to fail with some
+					   weird error messages *)
+					(* Printf.sprintf "(%s %s %s)" (print_expr pctx e1) (fst ops) (print_expr pctx e2) *)
+					Printf.sprintf "(%s %s %s)" (print_expr pctx e1) (snd ops) (print_expr pctx e2)
+				| TAbstract({a_path = [],("String")}, []),TAbstract({a_path = [],("String")}, []) when (is_type1 "" "String") (e.etype)->
+					Printf.sprintf "(%s %s %s)" (print_expr pctx e1) (fst ops) (print_expr pctx e2)
 				| TInst({cl_path = [],("list")},_), _ ->
 					Printf.sprintf "(%s %s %s)" (print_expr pctx e1) (fst ops) (print_expr pctx e2)
 				| TDynamic _, TDynamic _ ->
