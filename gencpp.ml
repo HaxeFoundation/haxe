@@ -440,6 +440,24 @@ let is_interface_type t =
 ;;
 
 
+let is_pointer haxe_type =
+   match follow haxe_type with
+   | TInst (klass,params) ->
+      (match klass.cl_path with
+      | ["cpp"] , "Pointer" -> true
+      | _ -> false )
+   | TType (type_def,params) ->
+      (match type_def.t_path with
+      | ["cpp"] , "Pointer" -> true
+      | _ -> false )
+   | _ -> false
+   ;;
+
+let is_dynamic_type_param class_kind =
+   match class_kind with
+   | KTypeParameter _ -> true
+   | _ -> false
+;;
 
 (*  Get a string to represent a type.
    The "suffix" will be nothing or "_obj", depending if we want the name of the
@@ -453,9 +471,9 @@ let rec class_string klass suffix params =
    (* FastIterator class *)
    |  (["cpp"],"FastIterator") -> "::cpp::FastIterator" ^ suffix ^ "< " ^ (String.concat ","
                (List.map type_string  params) ) ^ " >"
-   |  (["cpp"],"Pointer") -> "::cpp::Pointer" ^ suffix ^ "< " ^ (String.concat ","
-               (List.map type_string  params) ) ^ " >"
-   | _ when (match klass.cl_kind with KTypeParameter _ -> true | _ -> false) -> "Dynamic"
+   |  (["cpp"],"Pointer") -> "::cpp::Pointer< " ^ (String.concat ","
+               (List.map type_string params) ) ^ " >"
+   | _ when is_dynamic_type_param klass.cl_kind -> "Dynamic"
    |  ([],"#Int") -> "/* # */int"
    |  (["haxe";"io"],"Unsigned_char__") -> "unsigned char"
    |  ([],"Class") -> "::Class"
@@ -548,7 +566,7 @@ and is_dynamic_array_param haxe_type =
    else (match follow haxe_type with
    | TInst (klass,params) ->
          (match klass.cl_path with
-         | ([],"Array") | ([],"Class") | (["cpp"],"FastIterator") -> false
+         | ([],"Array") | ([],"Class") | (["cpp"],"FastIterator") | (["cpp"],"Pointer") -> false
          | _ -> (match klass.cl_kind with KTypeParameter _ -> true | _ -> false)
          )
    | _ -> false
@@ -574,19 +592,6 @@ let is_array haxe_type =
    ;;
 
 
-let is_pointer haxe_type =
-   match follow haxe_type with
-   | TInst (klass,params) ->
-      (match klass.cl_path with
-      | ["cpp"] , "Pointer" -> true
-      | _ -> false )
-   | TType (type_def,params) ->
-      (match type_def.t_path with
-      | ["cpp"] , "Pointer" -> true
-      | _ -> false )
-   | _ -> false
-   ;;
-
 let is_array_implementer haxe_type =
    match follow haxe_type with
    | TInst (klass,params) ->
@@ -603,6 +608,28 @@ let is_numeric_field field =
    | _ -> false;
 ;;
 
+
+let rec remove_parens expression =
+   match expression.eexpr with
+   | TParenthesis e -> remove_parens e
+   | TMeta(_,e) -> remove_parens e
+   | TCast ( e,None) -> remove_parens e
+   | _ -> expression
+;;
+
+
+let is_static_access obj =
+   match (remove_parens obj).eexpr with
+   | TTypeExpr _ -> true
+   | _ -> false
+;;
+
+let is_native_with_space func =
+   match (remove_parens func).eexpr with
+   | TField(obj,field) when is_static_access obj ->
+      String.contains (get_field_access_meta field Meta.Native) ' '
+   | _ -> false
+;;
 
 
 (* Get the type and output it to the stream *)
@@ -1113,6 +1140,7 @@ and is_dynamic_member_lookup_in_cpp ctx field_object field =
 and is_dynamic_member_return_in_cpp ctx field_object field =
    let member = field_name field in
    if (is_array field_object.etype) then false else
+   if (is_pointer field_object.etype) then false else
    if (is_internal_member member) then false else
    match field_object.eexpr with
    | TTypeExpr t ->
@@ -1165,6 +1193,14 @@ let return_type_string t =
    |  TFun (_,ret) -> type_string ret
    | _ -> ""
 ;;
+
+
+let get_return_type field =
+   match follow field.cf_type with
+      | TFun (_,return_type) -> return_type
+      | _ -> raise Not_found
+;;
+
 
 (*
 let rec has_side_effects expr =
@@ -1788,11 +1824,21 @@ and gen_expression ctx retval expression =
                (cpp_type<>expr_type) && (expr_type<>"Void") in
             if (fixed && (ctx.ctx_debug_level>1) ) then begin
                output ("/* " ^ (cpp_type) ^ " != " ^ expr_type ^ " -> cast */");
-               (* print_endline (cpp_type ^ " != " ^ expr_type ^ " -> cast"); *)
             end;
             fixed
          )
       | TParenthesis p | TMeta(_,p) -> is_fixed_override p
+      | _ -> false
+      in
+      let check_extern_pointer_cast e = match (remove_parens e).eexpr with
+      | TField (_,FInstance(class_def,_) )
+      | TField (_,FStatic(class_def,_) )
+         when class_def.cl_extern ->
+         (try
+            let return_type = expression.etype in
+            is_pointer return_type &&
+               ( output ( (type_string return_type) ^ "(" ); true; )
+         with Not_found -> false )
       | _ -> false
       in
       let is_super = (match func.eexpr with | TConst TSuper -> true | _ -> false ) in
@@ -1800,15 +1846,26 @@ and gen_expression ctx retval expression =
       let is_block_call = call_has_side_effects func arg_list in
       let cast_result =  (not is_super) && (is_fixed_override func) in
       if (cast_result) then output ("hx::TCast< " ^ expr_type ^ " >::cast(");
+      let cast_result = cast_result || check_extern_pointer_cast func in
       if (is_block_call) then
          gen_local_block_call()
       else begin
+         (* If a static function has @:native('new abc')
+             c++ new has lower precedence than in haxe so ( ) must be used *)
+         let paren_result =
+           if is_native_with_space func then
+              ( output "("; true )
+           else
+              false
+         in
          ctx.ctx_calling <- true;
          gen_expression ctx true func;
 
          output "(";
          gen_expression_list arg_list;
          output ")";
+         if paren_result then
+            output ")";
       end;
       if (cast_result) then output (")");
       if ( (is_variable func) && (expr_type<>"Dynamic") && (not is_super) && (not is_block_call)) then
@@ -2236,6 +2293,8 @@ let rec all_virtual_functions clazz =
 ;;
 
 
+
+
 let field_arg_count field =
    match follow field.cf_type, field.cf_kind  with
       | _, Method MethDynamic -> -1
@@ -2495,7 +2554,7 @@ let find_referenced_types ctx obj super_deps constructor_deps header_only for_de
       | TEnum ({ e_path = ([],"Bool") },[]) -> () *)
       | TEnum (enum,params) -> add_type enum.e_path
       (* If a class has a template parameter, then we treat it as dynamic - except
-         for the Array or Class class, for which we do a fully typed object *)
+         for the Array, Class, FastIterator or Pointer classes, for which we do a fully typed object *)
       | TInst (klass,params) ->
          (match klass.cl_path with
          | ([],"Array") | ([],"Class") | (["cpp"],"FastIterator") | (["cpp"],"Pointer")-> List.iter visit_type params
@@ -4023,14 +4082,6 @@ let gen_extern_enum common_ctx enum_def file_info =
 
    output "}\n";
    file#close
-;;
-
-let rec remove_parens expression =
-   match expression.eexpr with
-   | TParenthesis e -> remove_parens e
-   | TMeta(_,e) -> remove_parens e
-   | TCast ( e,None) -> remove_parens e
-   | _ -> expression
 ;;
 
 let is_this expression =
