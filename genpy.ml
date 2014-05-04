@@ -1162,9 +1162,11 @@ module Printer = struct
 				in
 				(match follow e1.etype, follow e2.etype with
 				| TAbstract({a_path = [],("Int")}, _),TAbstract({a_path = [],("Int")}, _) when is_const_byte e2 || is_const_byte e1 ->
-					(* the first line is the faster is comparison for ints but it causes the unit tests to fail with some
-					   weird error messages *)
-					Printf.sprintf "(%s %s %s)" (print_expr pctx e1) (fst ops) (print_expr pctx e2)
+					Printf.sprintf "(%s %s %s)" (print_expr pctx e1) (snd ops) (print_expr pctx e2)
+					(* the following optimization causes a problem with polygonal unit tests
+					   see: https://github.com/HaxeFoundation/haxe/issues/2952
+					*)
+					(* Printf.sprintf "(%s %s %s)" (print_expr pctx e1) (fst ops) (print_expr pctx e2) *)
 				| TAbstract({a_path = [],("String")}, []),TAbstract({a_path = [],("String")}, []) when (is_type1 "" "String") (e.etype)->
 					Printf.sprintf "(%s %s %s)" (print_expr pctx e1) (fst ops) (print_expr pctx e2)
 				| TInst({cl_path = [],("list")},_), _ ->
