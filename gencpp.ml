@@ -63,9 +63,11 @@ let join_class_path path separator =
 let is_internal_class = function
    |  ([],"Int") | ([],"Void") |  ([],"String") | ([], "Null") | ([], "Float")
    |  ([],"Array") | ([], "Class") | ([], "Enum") | ([], "Bool")
-   |  ([], "Dynamic") | ([], "ArrayAccess") | (["cpp"], "FastIterator") | (["cpp"],"Pointer") -> true
+   |  ([], "Dynamic") | ([], "ArrayAccess") | (["cpp"], "FastIterator")
+   |  (["cpp"],"Pointer") | (["cpp"],"ConstPointer")
+   |  (["cpp"],"BasePointer") | (["cpp"],"Function") -> true
    |  ([],"Math") | (["haxe";"io"], "Unsigned_char__") -> true
-   |  (["cpp"],"Int8") | (["cpp"],"UInt8")
+   |  (["cpp"],"Int8") | (["cpp"],"UInt8") | (["cpp"],"Char")
    |  (["cpp"],"Int16") | (["cpp"],"UInt16")
    |  (["cpp"],"Int32") | (["cpp"],"UInt32")
    |  (["cpp"],"Int64") | (["cpp"],"UInt64")
@@ -416,13 +418,22 @@ let gen_close_namespace output class_path =
 (* The basic types can have default values and are passesby value *)
 let is_numeric = function
    | "Int" | "Bool" | "Float" |  "::haxe::io::Unsigned_char__" | "unsigned char" -> true
-   | "::cpp::UInt8" | "::cpp::Int8"
+   | "::cpp::UInt8" | "::cpp::Int8" | "::cpp::Char"
    | "::cpp::UInt16" | "::cpp::Int16"
    | "::cpp::UInt32" | "::cpp::Int32"
    | "::cpp::UInt64" | "::cpp::Int64"
    | "::cpp::Float32" | "::cpp::Float64"
    | "int" | "bool" | "double" | "float" -> true
    | _ -> false
+
+
+let rec remove_parens expression =
+   match expression.eexpr with
+   | TParenthesis e -> remove_parens e
+   | TMeta(_,e) -> remove_parens e
+   | TCast ( e,None) -> remove_parens e
+   | _ -> expression
+;;
 
 
 let cant_be_null type_string =
@@ -440,15 +451,47 @@ let is_interface_type t =
 ;;
 
 
+
+let is_cpp_function_instance haxe_type =
+   match follow haxe_type with
+   | TInst (klass,params) ->
+      (match klass.cl_path with
+      | ["cpp"] , "Function" -> true
+      | _ -> false )
+   | _ -> false
+   ;;
+
+
+let is_cpp_function_class haxe_type =
+   match follow haxe_type with
+   | TType (klass,params) ->
+      (match klass.t_path with
+      | ["cpp"] , "Function" -> true
+      | _ -> false )
+   | _ -> false
+   ;;
+
+let is_fromStaticFunction_call func =
+   match (remove_parens func).eexpr with
+   | TField (_,FStatic ({cl_path=["cpp"],"Function"},{cf_name="fromStaticFunction"} ) ) -> true
+   | _ -> false
+;;
+
 let is_pointer haxe_type =
    match follow haxe_type with
    | TInst (klass,params) ->
       (match klass.cl_path with
-      | ["cpp"] , "Pointer" -> true
+      | ["cpp"] , "Pointer"
+      | ["cpp"] , "ConstPointer"
+      | ["cpp"] , "BasePointer"
+      | ["cpp"] , "Function" -> true
       | _ -> false )
    | TType (type_def,params) ->
       (match type_def.t_path with
-      | ["cpp"] , "Pointer" -> true
+      | ["cpp"] , "Pointer"
+      | ["cpp"] , "ConstPointer"
+      | ["cpp"] , "BasePointer"
+      | ["cpp"] , "Function" -> true
       | _ -> false )
    | _ -> false
    ;;
@@ -471,8 +514,12 @@ let rec class_string klass suffix params =
    (* FastIterator class *)
    |  (["cpp"],"FastIterator") -> "::cpp::FastIterator" ^ suffix ^ "< " ^ (String.concat ","
                (List.map type_string  params) ) ^ " >"
-   |  (["cpp"],"Pointer") -> "::cpp::Pointer< " ^ (String.concat ","
-               (List.map type_string params) ) ^ " >"
+   |  (["cpp"],"Pointer")
+   |  (["cpp"],"ConstPointer")
+   |  (["cpp"],"BasePointer") ->
+        "::cpp::Pointer< " ^ (String.concat "," (List.map type_string params) ) ^ " >"
+   |  (["cpp"],"Function") ->
+        "::cpp::Pointer< " ^ (cpp_function_signature_params params) ^ " >"
    | _ when is_dynamic_type_param klass.cl_kind -> "Dynamic"
    |  ([],"#Int") -> "/* # */int"
    |  (["haxe";"io"],"Unsigned_char__") -> "unsigned char"
@@ -531,10 +578,13 @@ and type_string_suff suffix haxe_type =
          (match params with
          | [t] -> "::cpp::FastIterator< " ^ (type_string (follow t) ) ^ " >"
          | _ -> assert false)
-      | ["cpp"] , "Pointer" ->
+      | ["cpp"] , "Pointer"
+      | ["cpp"] , "ConstPointer"
+      | ["cpp"] , "BasePointer" ->
          (match params with
          | [t] -> "::cpp::Pointer< " ^ (type_string (follow t) ) ^ " >"
          | _ -> assert false)
+      | ["cpp"] , "Function" -> "::cpp::Pointer< " ^ (cpp_function_signature_params params) ^ " >"
       | _ ->  type_string_suff suffix (apply_params type_def.t_types params type_def.t_type)
       )
    | TFun (args,haxe_type) -> "Dynamic" ^ suffix
@@ -566,11 +616,29 @@ and is_dynamic_array_param haxe_type =
    else (match follow haxe_type with
    | TInst (klass,params) ->
          (match klass.cl_path with
-         | ([],"Array") | ([],"Class") | (["cpp"],"FastIterator") | (["cpp"],"Pointer") -> false
+         | ([],"Array") | ([],"Class") | (["cpp"],"FastIterator") | (["cpp"],"Pointer") |(["cpp"],"ConstPointer") -> false
          | _ -> (match klass.cl_kind with KTypeParameter _ -> true | _ -> false)
          )
    | _ -> false
    )
+and cpp_function_signature tfun =
+   match follow tfun with
+   | TFun(args,ret) -> (type_string ret) ^ "(" ^ (gen_tfun_interface_arg_list args) ^ ")"
+   | _ -> "void *"
+ 
+and cpp_function_signature_params params = match params with
+   | [t] -> cpp_function_signature t
+   | _ ->  assert false;
+
+and gen_interface_arg_type_name name opt typ =
+   let type_str = (type_string typ) in
+   (if (opt && (cant_be_null type_str) ) then
+      "hx::Null< " ^ type_str ^ " > "
+   else
+      type_str )
+   ^ " " ^ (keyword_remap name)
+and gen_tfun_interface_arg_list args =
+   String.concat "," (List.map (fun (name,opt,typ) -> gen_interface_arg_type_name name opt typ) args)
 ;;
 
 
@@ -609,14 +677,6 @@ let is_numeric_field field =
 ;;
 
 
-let rec remove_parens expression =
-   match expression.eexpr with
-   | TParenthesis e -> remove_parens e
-   | TMeta(_,e) -> remove_parens e
-   | TCast ( e,None) -> remove_parens e
-   | _ -> expression
-;;
-
 
 let is_static_access obj =
    match (remove_parens obj).eexpr with
@@ -630,6 +690,16 @@ let is_native_with_space func =
       String.contains (get_field_access_meta field Meta.Native) ' '
    | _ -> false
 ;;
+
+
+let rec is_cpp_function_member func =
+   match (remove_parens func).eexpr with
+   | TField(obj,field) when is_cpp_function_instance obj.etype -> true
+   | TCall(obj,_) -> is_cpp_function_member obj
+   | _ -> false
+;;
+
+
 
 
 (* Get the type and output it to the stream *)
@@ -698,19 +768,6 @@ let gen_arg_type_name name default_val arg_type prefix =
    | Some constant when (cant_be_null type_str) -> ("hx::Null< " ^ type_str ^ " > ",prefix ^ remap_name)
    | Some constant  -> (type_str,prefix ^ remap_name)
    | _ -> (type_str,remap_name);;
-
-let gen_interface_arg_type_name name opt typ =
-   let type_str = (type_string typ) in
-   (if (opt && (cant_be_null type_str) ) then
-      "hx::Null< " ^ type_str ^ " > "
-   else
-      type_str )
-   ^ " " ^ (keyword_remap name)
-;;
-
-let gen_tfun_interface_arg_list args =
-   String.concat "," (List.map (fun (name,opt,typ) -> gen_interface_arg_type_name name opt typ) args)
-;;
 
 (* Generate prototype text, including allowing default values to be null *)
 let gen_arg name default_val arg_type prefix =
@@ -1807,6 +1864,15 @@ and gen_expression ctx retval expression =
          gen_expression ctx true func;
       end;
       output ("(" ^ !arg_string ^ ");\n");
+   | TCall (func, arg_list) when is_fromStaticFunction_call func ->
+      (match arg_list with
+         | [ {eexpr = TField( _, FStatic(klass,field)) } ] ->
+            let signature = cpp_function_signature field.cf_type in
+            let name = keyword_remap field.cf_name in
+            output ("::cpp::Pointer<" ^ signature ^">( &::" ^(join_class_path klass.cl_path "::")^ "_obj::" ^ name ^ ")");
+         | _ -> error "fromStaticFunction must take a static function" expression.epos;
+      )
+
    | TCall (func, arg_list) ->
       let rec is_variable e = match e.eexpr with
       | TField _ | TEnumParameter _ -> false
@@ -1868,7 +1934,8 @@ and gen_expression ctx retval expression =
             output ")";
       end;
       if (cast_result) then output (")");
-      if ( (is_variable func) && (expr_type<>"Dynamic") && (not is_super) && (not is_block_call)) then
+      if ( (is_variable func) && (not (is_cpp_function_member func) ) &&
+           (expr_type<>"Dynamic") && (not is_super) && (not is_block_call)) then
          ctx.ctx_output (".Cast< " ^ expr_type ^ " >()" );
 
       let rec cast_array_output func =
@@ -2557,7 +2624,7 @@ let find_referenced_types ctx obj super_deps constructor_deps header_only for_de
          for the Array, Class, FastIterator or Pointer classes, for which we do a fully typed object *)
       | TInst (klass,params) ->
          (match klass.cl_path with
-         | ([],"Array") | ([],"Class") | (["cpp"],"FastIterator") | (["cpp"],"Pointer")-> List.iter visit_type params
+         | ([],"Array") | ([],"Class") | (["cpp"],"FastIterator") | (["cpp"],"Pointer") | (["cpp"],"ConstPointer") -> List.iter visit_type params
          | _ when is_extern_class klass -> add_extern_class klass
          | _ -> (match klass.cl_kind with KTypeParameter _ -> () | _ -> add_type klass.cl_path);
          )
