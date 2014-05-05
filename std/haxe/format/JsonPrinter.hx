@@ -13,7 +13,7 @@ class JsonPrinter {
 	var indent:String;
 	var pretty:Bool;
 	var nind:Int;
-	
+
 	function new(replacer:Dynamic -> Dynamic -> Dynamic, space:String) {
 		this.replacer = replacer;
 		this.indent = space;
@@ -28,11 +28,11 @@ class JsonPrinter {
 		buf = new StringBuf();
 		#end
 	}
-	
+
 	inline function ipad ():Void {
 		if (pretty) add(StringTools.lpad('', indent, nind * indent.length));
 	}
-	
+
 	inline function newl ():Void {
 		if (pretty) addChar('\n'.code);
 	}
@@ -129,11 +129,12 @@ class JsonPrinter {
 		addChar('{'.code);
 		var len = fields.length;
 		var last = len - 1;
+		var first = true;
 		for( i in 0...len ) {
 			var f = fields[i];
 			var value = Reflect.field(v,f);
 			if( Reflect.isFunction(value) ) continue;
-			if( i > 0 ) addChar(','.code) else nind++;
+			if( first ) { nind++; first = false; } else addChar(','.code);
 			newl();
 			ipad();
 			quote(f);

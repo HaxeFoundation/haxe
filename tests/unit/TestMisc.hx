@@ -533,53 +533,6 @@ class TestMisc extends Test {
 	}
 	#end
 
-	function testJSon() {
-		var str = haxe.Json.stringify( { x : -4500, y : 1.456, a : ["hello", "wor'\"\n\t\rd"] } );
-		str = str.substr(1, str.length - 2); // remove {}
-		var parts = str.split(",");
-		t( parts.remove('"x":-4500') );
-		t( parts.remove('"y":1.456') );
-		t( parts.remove('"a":["hello"') );
-		t( parts.remove('"wor\'\\"\\n\\t\\rd"]') );
-		eq( parts.join("#"), "" );
-
-		// no support for regexps
-		#if flash8
-		return;
-		#end
-
-		function id(v:Dynamic,?pos:haxe.PosInfos) eq(haxe.Json.parse(haxe.Json.stringify(v)),v);
-		function deepId(v:Dynamic) {
-			var str = haxe.Json.stringify(v);
-			eq(haxe.Json.stringify(haxe.Json.parse(str)), str);
-		}
-
-		id(true);
-		id(false);
-		id(null);
-		id(0);
-		id(145);
-		id( -145 );
-		id(0.15461);
-		id( -485.15461);
-		id( 1e10 );
-		id( -1e-10 );
-		id( "" );
-		id( "hello" );
-		id( "he\n\r\t\\\\llo");
-
-		deepId( {field: 4} );
-		deepId( { test: { nested: null }} );
-		var mix : Array<Dynamic> = [1, 2, 3, "str"];
-		deepId( {array: mix} );
-
-		eq( haxe.Json.parse('"\\u00E9"'), "é" );
-
-		eq(haxe.Json.stringify(Math.POSITIVE_INFINITY), "null");
-		eq(haxe.Json.stringify(Math.NEGATIVE_INFINITY), "null");
-		eq(haxe.Json.stringify(Math.NaN), "null");
-	}
-
 	function testConstructorsOpts() {
 		var b = new BaseConstrOpt();
 		eq(b.s, "test");
