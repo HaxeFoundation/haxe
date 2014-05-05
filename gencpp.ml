@@ -450,8 +450,6 @@ let is_interface_type t =
    | _ -> false
 ;;
 
-
-
 let is_cpp_function_instance haxe_type =
    match follow haxe_type with
    | TInst (klass,params) ->
@@ -476,6 +474,21 @@ let is_fromStaticFunction_call func =
    | TField (_,FStatic ({cl_path=["cpp"],"Function"},{cf_name="fromStaticFunction"} ) ) -> true
    | _ -> false
 ;;
+
+let is_addressOf_call func =
+   match (remove_parens func).eexpr with
+   | TField (_,FStatic ({cl_path=["cpp"],"Pointer"},{cf_name="addressOf"} ) ) -> true
+   | _ -> false
+;;
+
+let is_lvalue var =
+   match (remove_parens var).eexpr with
+   | TLocal _ -> true
+   | TField (_,FStatic(_,field) ) | TField (_,FInstance(_,field) ) -> is_var_field field
+   | _ -> false
+;;
+
+
 
 let is_pointer haxe_type =
    match follow haxe_type with
@@ -1872,6 +1885,9 @@ and gen_expression ctx retval expression =
             output ("::cpp::Pointer<" ^ signature ^">( &::" ^(join_class_path klass.cl_path "::")^ "_obj::" ^ name ^ ")");
          | _ -> error "fromStaticFunction must take a static function" expression.epos;
       )
+
+   | TCall (func, [arg]) when is_addressOf_call func && not (is_lvalue arg) ->
+      error "addressOf must take a local or member variable" expression.epos;
 
    | TCall (func, arg_list) ->
       let rec is_variable e = match e.eexpr with
