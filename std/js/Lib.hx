@@ -41,4 +41,15 @@ class Lib {
 		return untyped __js__("eval")(code);
 	}
 
+	/**
+		Inserts a `require` expression that loads JavaScript object from
+		a module or file specified in the `module` argument.
+
+		This is only supported in environments where `require` function
+		is available, such as Node.js or RequireJS.
+	**/
+	public static inline function require( module:String ) : Dynamic {
+		return untyped __js__("require")(module);
+	}
+
 }
