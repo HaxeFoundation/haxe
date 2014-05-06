@@ -3,7 +3,7 @@ package unit.issues;
 
 import unit.Test;
 
-class TestIssue2951 extends Test{
+class Issue2951 extends Test{
 
   public static inline function foo (x) {
 
