@@ -648,13 +648,13 @@ module Abstract = struct
 
 	let find_to ab pl b =
 		if follow b == t_dynamic then
-			List.find (fun (t,_) -> t == t_dynamic) ab.a_to
+			List.find (fun (t,_) -> follow t == t_dynamic) ab.a_to
 		else
 			List.find (Type.unify_to_field ab pl b) ab.a_to
 
 	let find_from ab pl a b =
 		if follow a == t_dynamic then
-			List.find (fun (t,_) -> t == t_dynamic) ab.a_from
+			List.find (fun (t,_) -> follow t == t_dynamic) ab.a_from
 		else
 			List.find (Type.unify_from_field ab pl a b) ab.a_from
 

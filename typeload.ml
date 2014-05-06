@@ -1847,13 +1847,14 @@ let init_class ctx c p context_init herits fields =
 					let rec loop ml = match ml with
 						| (Meta.From,_,_) :: _ ->
 							if is_macro then error "Macro cast functions are not supported" p;
-							(* the return type of a from-function must be the abstract, not the underlying type *)
-							(try type_eq EqStrict ret ta with Unify_error l -> error (error_msg (Unify l)) p);
-							let t = match t with
-								| TFun([_,_,t],_) -> t
-								| _ -> error "@:from cast functions must accept exactly one argument" p
+							let r = fun () ->
+								(* the return type of a from-function must be the abstract, not the underlying type *)
+								(try type_eq EqStrict ret ta with Unify_error l -> error (error_msg (Unify l)) p);
+								match t with
+									| TFun([_,_,t],_) -> t
+									| _ -> error "@:from cast functions must accept exactly one argument" p
 							in
-							a.a_from <- (t,Some cf) :: a.a_from;
+							a.a_from <- (TLazy (ref r),Some cf) :: a.a_from;
 						| (Meta.To,_,_) :: _ ->
 							if is_macro then error "Macro cast functions are not supported" p;
 							let args = if Meta.has Meta.MultiType a.a_meta then begin
@@ -1866,14 +1867,15 @@ let init_class ctx c p context_init herits fields =
 								with Not_found ->
 									error "Constructor of multi-type abstract must be defined before the individual @:to-functions are" cf.cf_pos
 							end else [] in
-							(* the first argument of a to-function must be the underlying type, not the abstract *)
-							(try unify_raise ctx t (tfun (tthis :: args) m) f.cff_pos with Error (Unify l,p) -> error (error_msg (Unify l)) p);
 							if not (Meta.has Meta.Impl cf.cf_meta) then cf.cf_meta <- (Meta.Impl,[],cf.cf_pos) :: cf.cf_meta;
-							let m = match follow m with
-								| TMono _ when (match cf.cf_type with TFun(_,r) -> r == t_dynamic | _ -> false) -> t_dynamic
-								| m -> m
+							(* the first argument of a to-function must be the underlying type, not the abstract *)
+							let r = fun () ->
+								(try unify_raise ctx t (tfun (tthis :: args) m) f.cff_pos with Error (Unify l,p) -> error (error_msg (Unify l)) p);
+								match follow m with
+									| TMono _ when (match cf.cf_type with TFun(_,r) -> r == t_dynamic | _ -> false) -> t_dynamic
+									| m -> m
 							in
-							a.a_to <- (m, Some cf) :: a.a_to
+							a.a_to <- (TLazy (ref r), Some cf) :: a.a_to
 						| (Meta.ArrayAccess,_,_) :: _ ->
 							if is_macro then error "Macro array-access functions are not supported" p;
 							a.a_array <- cf :: a.a_array;
