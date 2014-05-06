@@ -471,7 +471,7 @@ let is_cpp_function_class haxe_type =
 
 let is_fromStaticFunction_call func =
    match (remove_parens func).eexpr with
-   | TField (_,FStatic ({cl_path=["cpp"],"Function"},{cf_name="fromStaticFunction"} ) ) -> true
+   | TField (_,FStatic ({cl_path=["cpp"],"Pointer"},{cf_name="fromStaticFunction"} ) ) -> true
    | _ -> false
 ;;
 

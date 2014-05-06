@@ -1,8 +1,9 @@
 package cpp;
 
-@:coreType @:include("cpp/Pointer.h")
+@:coreType @:include("cpp/Pointer.h") @:native("cpp.Pointer")
 extern class ConstPointer<T> extends BasePointer<T>
 {
+   public static function fromPointer<T>(inNativePointer:Dynamic) : ConstPointer<T>;
 
 	public function at(inIndex:Int):T;
 
