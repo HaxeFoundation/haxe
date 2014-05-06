@@ -629,7 +629,8 @@ and is_dynamic_array_param haxe_type =
    else (match follow haxe_type with
    | TInst (klass,params) ->
          (match klass.cl_path with
-         | ([],"Array") | ([],"Class") | (["cpp"],"FastIterator") | (["cpp"],"Pointer") |(["cpp"],"ConstPointer") -> false
+         | ([],"Array") | ([],"Class") | (["cpp"],"FastIterator")
+         | (["cpp"],"Pointer") |(["cpp"],"ConstPointer")|(["cpp"],"Function") -> false
          | _ -> (match klass.cl_kind with KTypeParameter _ -> true | _ -> false)
          )
    | _ -> false
