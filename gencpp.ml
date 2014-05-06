@@ -471,7 +471,7 @@ let is_cpp_function_class haxe_type =
 
 let is_fromStaticFunction_call func =
    match (remove_parens func).eexpr with
-   | TField (_,FStatic ({cl_path=["cpp"],"Pointer"},{cf_name="fromStaticFunction"} ) ) -> true
+   | TField (_,FStatic ({cl_path=["cpp"],"Function"},{cf_name="fromStaticFunction"} ) ) -> true
    | _ -> false
 ;;
 
@@ -532,7 +532,7 @@ let rec class_string klass suffix params =
    |  (["cpp"],"BasePointer") ->
         "::cpp::Pointer< " ^ (String.concat "," (List.map type_string params) ) ^ " >"
    |  (["cpp"],"Function") ->
-        "::cpp::Pointer< " ^ (cpp_function_signature_params params) ^ " >"
+        "::cpp::Function< " ^ (cpp_function_signature_params params) ^ " >"
    | _ when is_dynamic_type_param klass.cl_kind -> "Dynamic"
    |  ([],"#Int") -> "/* # */int"
    |  (["haxe";"io"],"Unsigned_char__") -> "unsigned char"
@@ -597,7 +597,7 @@ and type_string_suff suffix haxe_type =
          (match params with
          | [t] -> "::cpp::Pointer< " ^ (type_string (follow t) ) ^ " >"
          | _ -> assert false)
-      | ["cpp"] , "Function" -> "::cpp::Pointer< " ^ (cpp_function_signature_params params) ^ " >"
+      | ["cpp"] , "Function" -> "::cpp::Function< " ^ (cpp_function_signature_params params) ^ " >"
       | _ ->  type_string_suff suffix (apply_params type_def.t_types params type_def.t_type)
       )
    | TFun (args,haxe_type) -> "Dynamic" ^ suffix
@@ -1882,7 +1882,7 @@ and gen_expression ctx retval expression =
          | [ {eexpr = TField( _, FStatic(klass,field)) } ] ->
             let signature = cpp_function_signature field.cf_type in
             let name = keyword_remap field.cf_name in
-            output ("::cpp::Pointer<" ^ signature ^">( &::" ^(join_class_path klass.cl_path "::")^ "_obj::" ^ name ^ ")");
+            output ("::cpp::Function<" ^ signature ^">( &::" ^(join_class_path klass.cl_path "::")^ "_obj::" ^ name ^ ")");
          | _ -> error "fromStaticFunction must take a static function" expression.epos;
       )
 
@@ -2640,7 +2640,7 @@ let find_referenced_types ctx obj super_deps constructor_deps header_only for_de
          for the Array, Class, FastIterator or Pointer classes, for which we do a fully typed object *)
       | TInst (klass,params) ->
          (match klass.cl_path with
-         | ([],"Array") | ([],"Class") | (["cpp"],"FastIterator") | (["cpp"],"Pointer") | (["cpp"],"ConstPointer") -> List.iter visit_type params
+         | ([],"Array") | ([],"Class") | (["cpp"],"FastIterator") | (["cpp"],"Pointer") | (["cpp"],"ConstPointer") | (["cpp"],"Function") -> List.iter visit_type params
          | _ when is_extern_class klass -> add_extern_class klass
          | _ -> (match klass.cl_kind with KTypeParameter _ -> () | _ -> add_type klass.cl_path);
          )
