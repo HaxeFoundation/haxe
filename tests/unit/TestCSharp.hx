@@ -243,6 +243,21 @@ class TestCSharp extends Test
 		x.remove_voidvoid( fn );
 		x.dispatch();
 		f(hasFired);
+
+		var hasFired = false;
+		f(hasFired);
+		var fn:haxe.test.VoidVoid = function() hasFired = true;
+		haxe.test.MyClass.add_voidvoid2( fn );
+		f(hasFired);
+		haxe.test.MyClass.dispatch2();
+		t(hasFired);
+		hasFired = false;
+		haxe.test.MyClass.dispatch2();
+		t(hasFired);
+		hasFired = false;
+		haxe.test.MyClass.remove_voidvoid2( fn );
+		haxe.test.MyClass.dispatch2();
+		f(hasFired);
 	}
 
 #if unsafe

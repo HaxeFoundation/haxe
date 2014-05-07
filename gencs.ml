@@ -3276,7 +3276,7 @@ let convert_delegate ctx p ilcls =
 		f_args = [];
 		f_type = None;
 		f_expr = Some(
-			EReturn( Some ( EUntyped( EConst(Ident "this"), p ), p ) ), p
+			EReturn( Some ( EConst(Ident "this"), p ) ), p
 		);
 	} in
 	let fn_new = mk_abstract_fun "new" p fn_new [Meta.Extern] [APublic;AInline] in

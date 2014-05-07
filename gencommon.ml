@@ -1016,17 +1016,25 @@ let dump_descriptor gen name path_s module_s =
 	SourceWriter.newline w;
 	SourceWriter.write w "begin libs";
 	SourceWriter.newline w;
+	let path file ext =
+		if Sys.file_exists file then
+			file
+		else try Common.find_file gen.gcon file with
+			| Not_found -> try Common.find_file gen.gcon (file ^ ext) with
+			| Not_found ->
+				file
+	in
 	if Common.platform gen.gcon Java then
 		List.iter (fun (s,std,_,_,_) ->
 			if not std then begin
-				SourceWriter.write w s;
+				SourceWriter.write w (path s ".jar");
 				SourceWriter.newline w;
 			end
 		) gen.gcon.java_libs
 	else if Common.platform gen.gcon Cs then
 		List.iter (fun (s,std,_,_) ->
 			if not std then begin
-				SourceWriter.write w s;
+				SourceWriter.write w (path s ".dll");
 				SourceWriter.newline w;
 			end
 		) gen.gcon.net_libs;
