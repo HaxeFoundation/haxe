@@ -1590,7 +1590,9 @@ let rec s_type ctx t =
 	| TEnum (e,tl) ->
 		Ast.s_type_path e.e_path ^ s_type_params ctx tl
 	| TInst (c,tl) ->
-		Ast.s_type_path c.cl_path ^ s_type_params ctx tl
+		(match c.cl_kind with
+		| KExpr e -> Ast.s_expr e
+		| _ -> Ast.s_type_path c.cl_path ^ s_type_params ctx tl)
 	| TType (t,tl) ->
 		Ast.s_type_path t.t_path ^ s_type_params ctx tl
 	| TAbstract (a,tl) ->
