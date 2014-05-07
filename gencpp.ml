@@ -195,6 +195,7 @@ type context =
    mutable ctx_return_from_internal_node : bool;
    mutable ctx_debug_level : int;
    mutable ctx_real_this_ptr : bool;
+   mutable ctx_real_void : bool;
    mutable ctx_dynamic_this_ptr : bool;
    mutable ctx_dump_src_pos : unit -> unit;
    mutable ctx_static_id_curr : int;
@@ -224,6 +225,7 @@ let new_context common_ctx writer debug file_info =
    ctx_tcall_expand_args = false;
    ctx_return_from_internal_node = false;
    ctx_real_this_ptr = true;
+   ctx_real_void = false;
    ctx_dynamic_this_ptr = false;
    ctx_static_id_curr = 0;
    ctx_static_id_used = 0;
@@ -904,9 +906,15 @@ let const_char_star s =
 let clear_real_this_ptr ctx dynamic_this =
    let old_flag = ctx.ctx_real_this_ptr in
    let old_dynamic = ctx.ctx_dynamic_this_ptr in
+   let old_void = ctx.ctx_real_void in
    ctx.ctx_real_this_ptr <- false;
    ctx.ctx_dynamic_this_ptr <- dynamic_this;
-   fun () -> ( ctx.ctx_real_this_ptr <- old_flag; ctx.ctx_dynamic_this_ptr <- old_dynamic; );;
+   fun () -> (
+      ctx.ctx_real_this_ptr <- old_flag;
+      ctx.ctx_dynamic_this_ptr <- old_dynamic;
+      ctx.ctx_real_void <- old_void;
+      )
+;;
 
 
 (* Generate temp variable names *)
@@ -1883,7 +1891,12 @@ and gen_expression ctx retval expression =
          | [ {eexpr = TField( _, FStatic(klass,field)) } ] ->
             let signature = cpp_function_signature field.cf_type in
             let name = keyword_remap field.cf_name in
-            output ("::cpp::Function<" ^ signature ^">( &::" ^(join_class_path klass.cl_path "::")^ "_obj::" ^ name ^ ")");
+            let void_cast = has_meta_key field.cf_meta Meta.Void in
+            output ("::cpp::Function<" ^ signature ^">(");
+            if (void_cast) then output "hx::AnyCast(";
+            output ("&::" ^(join_class_path klass.cl_path "::")^ "_obj::" ^ name );
+            if (void_cast) then output ")";
+            output (" )");
          | _ -> error "fromStaticFunction must take a static function" expression.epos;
       )
 
@@ -2008,7 +2021,7 @@ and gen_expression ctx retval expression =
       | Some return_expression ->
          output "return ";
          gen_expression ctx true return_expression
-      | _ -> output "return null()"
+      | _ -> output (if ctx.ctx_real_void then "return" else "return null()")
       )
 
    | TConst const ->
@@ -2427,11 +2440,14 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
 
       if (not (is_dynamic_haxe_method field)) then begin
          (* The actual function definition *)
-         output return_type;
+         let real_void = is_void  && (has_meta_key field.cf_meta Meta.Void) in
+         let fake_void = is_void  && not real_void in
+         output (if real_void then "void" else return_type );
          output (" " ^ class_name ^ "::" ^ remap_name ^ "( " );
          output (gen_arg_list function_def.tf_args "__o_");
          output ")";
          ctx.ctx_real_this_ptr <- true;
+         ctx.ctx_real_void <- real_void;
          ctx.ctx_dynamic_this_ptr <- false;
          let code = (get_code field.cf_meta Meta.FunctionCode) in
          let tail_code = (get_code field.cf_meta Meta.FunctionTailCode) in
@@ -2442,7 +2458,7 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
             output code;
             gen_expression ctx false function_def.tf_expr;
             output tail_code;
-            if (is_void) then output "return null();\n";
+            if (fake_void) then output "return null();\n";
             ctx.ctx_writer#end_block;
          end else begin
             let add_block = is_void || (code <> "") || (tail_code <> "") in
@@ -2452,7 +2468,7 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
             gen_expression ctx false (to_block function_def.tf_expr);
             output tail_code;
             if (add_block) then begin
-               if (is_void) then output "return null();\n";
+               if (fake_void) then output "return null();\n";
                ctx.ctx_writer#end_block;
             end;
          end;
@@ -2564,8 +2580,10 @@ let gen_member_def ctx class_def is_static is_interface field =
          end
       end else begin
          let return_type = (type_string function_def.tf_type) in
+
          if (not is_static) then output "virtual ";
-         output return_type;
+         output (if return_type="Void" && (has_meta_key field.cf_meta Meta.Void) then "void" else return_type );
+
          output (" " ^ remap_name ^ "( " );
          output (gen_arg_list function_def.tf_args "" );
          output ");\n";

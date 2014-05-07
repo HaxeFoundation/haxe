@@ -146,6 +146,7 @@ module Meta = struct
 		| Unsafe
 		| Usage
 		| Used
+		| Void
 		| Last
 		(* do not put any custom metadata after Last *)
 		| Dollar of string
