@@ -5,6 +5,8 @@ extern class Pointer<T> extends ConstPointer<T> implements ArrayAccess<T>
 {
 	public var ref(get,set):T;
 
+   public static function fromHandle<T>(inHandle:Dynamic,?inKind:String) : Pointer<T>;
+
    public static function fromPointer<T>(inNativePointer:Dynamic) : Pointer<T>;
 
    public static function addressOf<T>(inVariable:T) : Pointer<T>;
