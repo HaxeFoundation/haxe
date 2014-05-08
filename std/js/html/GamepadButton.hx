@@ -23,21 +23,17 @@
 // This file is generated, do not edit!
 package js.html;
 
-@:native("Gamepad")
-extern class Gamepad
+/**
+ * The GamepadButton interface  defines an individual button of a gamepad or other controller,
+ * allowing access to the current state of different types of button available on the control device.
+ * A GamepadButton object is returned by querying any value of the array returned by the buttons property of the Gamepad interface.
+ * Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/ImageData">MDN</a>.
+ */
+@:native("GamepadButton")
+extern class GamepadButton
 {
-	var axes(default,null) : Array<Float>;
-
-	var buttons(default,null) : Array<Dynamic>;
+	var pressed(default, null) : Bool;
 	
-	var connected(default,null) : Bool;
-
-	var id(default,null) : String;
-
-	var index(default,null) : Int;
-	
-	var mapping(default,null) : String;
-
-	var timestamp(default,null) : Int;
+	var value(default, null) : Float;
 
 }

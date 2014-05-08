@@ -23,21 +23,14 @@
 // This file is generated, do not edit!
 package js.html;
 
-@:native("Gamepad")
-extern class Gamepad
+/**
+ * The GamepadEvent Interface of the Gamepad API contains references to gamepads connected to the system,
+ * which is what the gamepad events Window.gamepadconnected and Window.gamepaddisconnected are fired in response to.
+ * Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/ImageData">MDN</a>.
+ */
+@:native("GamepadEvent")
+extern class GamepadEvent extends Event
 {
-	var axes(default,null) : Array<Float>;
-
-	var buttons(default,null) : Array<Dynamic>;
-	
-	var connected(default,null) : Bool;
-
-	var id(default,null) : String;
-
-	var index(default,null) : Int;
-	
-	var mapping(default,null) : String;
-
-	var timestamp(default,null) : Int;
+	var gamepad(default,null) : Gamepad;
 
 }
