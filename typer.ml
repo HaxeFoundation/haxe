@@ -2635,10 +2635,15 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		]) v.v_type p
 	| EArrayDecl ((EBinop(OpArrow,_,_),_) as e1 :: el) ->
 		let keys = Hashtbl.create 0 in
-		let tkey,tval,resume = match with_type with
-			| WithType (TAbstract({a_path=[],"Map"},[tk;tv])) -> tk,tv,false
-			| WithTypeResume (TAbstract({a_path=[],"Map"},[tk;tv])) -> tk,tv,true
-			| _ -> mk_mono(),mk_mono(),false
+		let (tkey,tval),resume =
+			let get_map_params t = match follow t with
+				| TAbstract({a_path=[],"Map"},[tk;tv]) -> tk,tv
+				| _ -> mk_mono(),mk_mono()
+			in
+			match with_type with
+			| WithType t -> get_map_params t,false
+			| WithTypeResume t -> get_map_params t,true
+			| _ -> (mk_mono(),mk_mono()),false
 		in
 		let unify_with_resume ctx a b p =
 			if resume then try unify_raise ctx a b p with Error (Unify l,p) -> raise (WithTypeError(l,p))
