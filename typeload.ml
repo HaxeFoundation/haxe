@@ -1220,6 +1220,7 @@ let type_function ctx args ret fmode f do_display p =
 	else (try type_eq EqStrict ret ctx.t.tvoid with Unify_error _ ->
 		match e.eexpr with
 		(* accept final throw (issue #1923) *)
+		| TThrow _ -> ()
 		| TBlock el when (match List.rev el with ({eexpr = TThrow _} :: _) -> true | _ -> false) -> ()
 		| _ -> display_error ctx ("Missing return " ^ (s_type (print_context()) ret)) p);
 	let rec loop e =

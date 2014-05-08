@@ -566,5 +566,9 @@ class TestMisc extends Test {
 		};
 		var s = try test() catch(e:String) e;
 		eq(s,"never call me");
+
+		function test():String throw "never call me";
+		var s = try test() catch(e:String) e;
+		eq(s,"never call me");
 	}
 }
