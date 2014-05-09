@@ -148,7 +148,7 @@ class RecordMacros {
 			var csup = cl.superClass;
 			while( csup != null ) {
 				if( csup.t.toString() == "sys.db.Object" )
-					return name;
+					return c;
 				csup = csup.t.get().superClass;
 			}
 		case TType(t, p):
@@ -310,7 +310,7 @@ class RecordMacros {
 						var r = {
 							prop : f.name,
 							key : params.shift().i,
-							type : t,
+							type : t.toString(),
 							cascade : false,
 							lock : false,
 							isNull : isNull,
@@ -340,7 +340,7 @@ class RecordMacros {
 				isNull : isNull,
 			};
 			var isId = switch( fi.t ) {
-			case DId, DUId: true;
+			case DId, DUId, DBigId: true;
 			default: fi.name == "id";
 			}
 			if( isId ) {
@@ -352,17 +352,27 @@ class RecordMacros {
 		// create fields for undeclared relations keys :
 		for( r in i.relations ) {
 			var f = i.hfields.get(r.key);
+			var relatedInf = getRecordInfos(makeRecord(resolveType(r.type)));
+			var relatedKey = relatedInf.key[0];
+			var relatedKeyType = switch(relatedInf.hfields.get(relatedKey).t)
+				{
+					case DId: DInt;
+					case DUId: DUInt;
+					case DBigId: DBigInt;
+					default: throw "Unexpected id type, use either SId, SUId, SBigID";
+				}
+			
 			if( f == null ) {
 				f = {
 					name : r.key,
-					t : DInt,
+					t : relatedKeyType,
 					isNull : r.isNull,
 				};
 				i.fields.push(f);
 				i.hfields.set(f.name, f);
 			} else {
 				var pos = fieldsPos.get(f.name);
-				if( f.t != DInt ) error("Relation key should be SInt", pos);
+				if( f.t != relatedKeyType ) error("Relation source id field 	and field should have same type", pos);
 				if( f.isNull != r.isNull ) error("Relation and field should have same nullability", pos);
 			}
 		}
@@ -399,7 +409,7 @@ class RecordMacros {
 			}
 		// check primary key defined
 		if( i.key == null )
-			error("Table is missing unique id, use either SId or @:id", c.pos);
+			error("Table is missing unique id, use either SId, SUId, SBigID or @:id", c.pos);
 		g.cache.set(cname, i);
 		return i;
 	}
