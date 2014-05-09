@@ -1096,12 +1096,25 @@ let rec type_ident_raise ?(imported_enums=true) ctx i p mode =
 		field_access ctx mode f (FStatic (ctx.curclass,f)) (field_type ctx ctx.curclass [] f p) e p
 	with Not_found -> try
 		if not imported_enums then raise Not_found;
+		let wrap e = if mode = MSet then
+				AKNo i
+			else
+				AKExpr e
+		in
 		(* lookup imported enums *)
 		let rec loop l =
 			match l with
 			| [] -> raise Not_found
 			| t :: l ->
 				match t with
+ 				| TAbstractDecl ({a_impl = Some c} as a) when Meta.has Meta.Enum a.a_meta ->
+					let cf = PMap.find i c.cl_statics in
+					if not (Meta.has Meta.Enum cf.cf_meta) then
+						loop l
+					else begin
+						let et = type_module_type ctx (TClassDecl c) None p in
+						AKInline(et,cf,FStatic(c,cf),monomorphs cf.cf_params cf.cf_type)
+					end
 				| TClassDecl _ | TAbstractDecl _ ->
 					loop l
 				| TTypeDecl t ->
@@ -1114,15 +1127,11 @@ let rec type_ident_raise ?(imported_enums=true) ctx i p mode =
 						let et = type_module_type ctx t None p in
 						let monos = List.map (fun _ -> mk_mono()) e.e_types in
 						let monos2 = List.map (fun _ -> mk_mono()) ef.ef_params in
-						mk (TField (et,FEnum (e,ef))) (enum_field_type ctx e ef monos monos2 p) p
+						wrap (mk (TField (et,FEnum (e,ef))) (enum_field_type ctx e ef monos monos2 p) p)
 					with
 						Not_found -> loop l
 		in
-		let e = (try loop (List.rev ctx.m.curmod.m_types) with Not_found -> loop ctx.m.module_types) in
-		if mode = MSet then
-			AKNo i
-		else
-			AKExpr e
+		(try loop (List.rev ctx.m.curmod.m_types) with Not_found -> loop ctx.m.module_types)
 	with Not_found ->
 		(* lookup imported globals *)
 		let t, name = PMap.find i ctx.m.module_globals in
