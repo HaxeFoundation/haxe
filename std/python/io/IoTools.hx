@@ -35,14 +35,14 @@ class IoTools {
 	{
  		var pos = switch (pos) {
  			case SeekBegin:
- 				SeekSet.SeekSet;
+ 				SeekSet;
  			case SeekCur:
  				p = tell() + p;
- 				SeekSet.SeekSet;
+ 				SeekSet;
  			case SeekEnd :
- 				stream.seek(0, SeekSet.SeekEnd);
+ 				stream.seek(0, SeekEnd);
  				p = tell() + p;
- 				SeekSet.SeekSet;
+ 				SeekSet;
  		}
  		stream.seek(p, pos);
 	}
@@ -51,9 +51,9 @@ class IoTools {
 	{
  		var pos = switch(pos)
 		{
-			case SeekBegin: SeekSet.SeekSet;
-			case SeekCur: SeekSet.SeekCur;
-			case SeekEnd: SeekSet.SeekEnd;
+			case SeekBegin: SeekSet;
+			case SeekCur: SeekCur;
+			case SeekEnd: SeekEnd;
 		};
 		stream.seek(p, pos);
 	}
