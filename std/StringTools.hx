@@ -346,11 +346,15 @@ class StringTools {
 	}
 
 	/**
-		Returns the character code at position `index` of String `s`.
+		Returns the character code at position `index` of String `s`, or an
+		end-of-file indicator at if `position` equals `s.length`.
 
-		This method is faster than String.charCodeAt() on most platforms.
-		However, unlike String.charCodeAt(), the result is unspecified if
-		`index` is negative or exceeds `s.length`.
+		This method is faster than String.charCodeAt() on some platforms, but
+		the result is unspecified if `index` is negative or greater than
+		`s.length`.
+
+		End of file status can be checked by calling `StringTools.isEof` with
+		the returned value as argument.
 
 		This operation is not guaranteed to work if `s` contains the \0
 		character.
