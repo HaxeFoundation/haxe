@@ -33,6 +33,16 @@ private typedef TravisConfig = {
 	See ".travis.yml" at project root for TravisCI settings.
 */
 class RunTravis {
+	static function successMsg(msg:String):Void {
+		Sys.println('\x1b[32m' + msg + '\x1b[0m');
+	}
+	static function failMsg(msg:String):Void {
+		Sys.println('\x1b[31m' + msg + '\x1b[0m');
+	}
+	static function infoMsg(msg:String):Void {
+		Sys.println('\x1b[36m' + msg + '\x1b[0m');
+	}
+
 	/**
 		Run a command using `Sys.command()`.
 		If the command exits with non-zero code, exit the whole script with the same code.
@@ -47,7 +57,10 @@ class RunTravis {
 		while (trials-->0) {
 			Sys.println('Command: $cmd $args');
 			exitCode = Sys.command(cmd, args);
-			Sys.println('Command exited with $exitCode: $cmd $args');
+			if (exitCode == 0)
+				successMsg('Command exited with $exitCode: $cmd $args');
+			else
+				failMsg('Command exited with $exitCode: $cmd $args');
 
 			if (exitCode == 0) {
 				return;
@@ -95,12 +108,12 @@ class RunTravis {
 			Sys.println(result);
 			Sys.exit(code);
 		}
-		trace('Haxelib path for $libName: $result');
+		Sys.println('Haxelib path for $libName: $result');
 		return result;
 	}
 
 	static function changeDirectory(path:String) {
-		Sys.println('Changing directory to $path.');
+		infoMsg('Changing directory to $path.');
 		Sys.setCwd(path);
 	}
 
@@ -126,7 +139,7 @@ class RunTravis {
 				break;
 		}
 		if (!FileSystem.exists(flashlogPath)) {
-			Sys.println('$flashlogPath not found.');
+			failMsg('$flashlogPath not found.');
 			Sys.exit(1);
 		}
 
@@ -351,7 +364,7 @@ class RunTravis {
 					runCommand("node", ["RunSauceLabs.js"]);
 				}
 
-				Sys.println("Test optimization:");
+				infoMsg("Test optimization:");
 				changeDirectory(optDir);
 				runCommand("haxe", ["run.hxml"]);
 			case Java:
@@ -408,7 +421,7 @@ class RunTravis {
 			case _: return;
 		}
 		
-		Sys.println("Test hx-templo:");
+		infoMsg("Test hx-templo:");
 
 		changeDirectory(unitDir);
 
@@ -453,7 +466,7 @@ class RunTravis {
 			case _: return;
 		}
 
-		Sys.println("Test polygonal-ds:");
+		infoMsg("Test polygonal-ds:");
 
 		changeDirectory(unitDir);
 		haxelibInstallGit("Simn", "ds", "python-support", null, false, "polygonal-ds");
@@ -474,7 +487,7 @@ class RunTravis {
 	static function testMUnit() {
 		switch (target) {
 			case Neko:
-				Sys.println("Test MUnit:");
+				infoMsg("Test MUnit:");
 
 				changeDirectory(unitDir);
 
@@ -494,7 +507,7 @@ class RunTravis {
 	static function testFlambe() {
 		switch (target) {
 			case Js:
-				Sys.println("Test Flambe:");
+				infoMsg("Test Flambe:");
 
 				changeDirectory(unitDir);
 				runCommand("git", ["clone", "https://github.com/aduros/flambe"]);
@@ -511,7 +524,7 @@ class RunTravis {
 		*/
 		switch (target) {
 			case Cpp:
-				Sys.println("Test OpenFL Samples:");
+				infoMsg("Test OpenFL Samples:");
 
 				changeDirectory(unitDir);
 				getOpenFLDependencies();
@@ -539,7 +552,7 @@ class RunTravis {
 			case _: return;
 		}
 
-		Sys.println("Test Flixel Demos:");
+		infoMsg("Test Flixel Demos:");
 
 		changeDirectory(unitDir);
 		getOpenFLDependencies();
