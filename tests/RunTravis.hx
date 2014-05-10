@@ -212,7 +212,10 @@ class RunTravis {
 		runCommand("sudo", ["apt-get", "install", "php5", "-y"], true);
 	}
 
+	static var gotCppDependencies = false;
 	static function getCppDependencies() {
+		if (gotCppDependencies) return;
+
 		//hxcpp dependencies
 		runCommand("sudo", ["apt-get", "install", "gcc-multilib", "g++-multilib", "-y"], true);
 
@@ -222,6 +225,8 @@ class RunTravis {
 		changeDirectory(Sys.getEnv("HOME") + "/haxelib/hxcpp/git/project/");
 		runCommand("neko", ["build.n"]);
 		changeDirectory(oldDir);
+
+		gotCppDependencies = true;
 	}
 
 	static function getJavaDependencies() {
@@ -236,6 +241,8 @@ class RunTravis {
 	static var gotOpenFLDependencies = false;
 	static function getOpenFLDependencies() {
 		if (gotOpenFLDependencies) return;
+
+		getCppDependencies();
 
 		haxelibInstallGit("HaxeFoundation", "format");
 		haxelibInstallGit("haxenme", "nme");
@@ -497,6 +504,11 @@ class RunTravis {
 	}
 
 	static function testOpenflSamples() {
+		/*
+			TODO
+			The TravisCI script of OpenFL is compiling its samples to different targets...
+			Should find some way to split the build.
+		*/
 		switch (target) {
 			case Cpp:
 				Sys.println("Test OpenFL Samples:");
@@ -523,28 +535,35 @@ class RunTravis {
 
 	static function testFlixelDemos() {
 		switch (target) {
-			case Cpp:
-				Sys.println("Test Flixel Demos:");
+			case Flash9, Js, Neko:
+			case _: return;
+		}
 
-				changeDirectory(unitDir);
-				getOpenFLDependencies();
+		Sys.println("Test Flixel Demos:");
 
-				haxelibInstall("systools");
-				haxelibInstall("spinehx");
-				haxelibInstall("nape");
-				haxelibInstall("task");
+		changeDirectory(unitDir);
+		getOpenFLDependencies();
 
-				haxelibInstallGit("larsiusprime", "firetongue");
-				haxelibInstallGit("YellowAfterLife", "openfl-bitfive");
+		haxelibInstall("systools");
+		haxelibInstall("spinehx");
+		haxelibInstall("nape");
+		haxelibInstall("task");
 
-				haxelibInstallGit("HaxeFlixel", "flixel");
-				haxelibInstallGit("HaxeFlixel", "flixel-addons");
-				haxelibInstallGit("HaxeFlixel", "flixel-ui");
-				haxelibInstallGit("HaxeFlixel", "flixel-demos");
-				haxelibInstallGit("HaxeFlixel", "flixel-tools");
+		haxelibInstallGit("larsiusprime", "firetongue");
+		haxelibInstallGit("YellowAfterLife", "openfl-bitfive");
 
+		haxelibInstallGit("HaxeFlixel", "flixel");
+		haxelibInstallGit("HaxeFlixel", "flixel-addons");
+		haxelibInstallGit("HaxeFlixel", "flixel-ui");
+		haxelibInstallGit("HaxeFlixel", "flixel-demos");
+		haxelibInstallGit("HaxeFlixel", "flixel-tools");
+
+		switch (target) {
+			case Flash9:
 				haxelibRun(["flixel-tools", "testdemos", "-flash"]);
+			case Neko:
 				haxelibRun(["flixel-tools", "testdemos", "-neko"]);
+			case Js:
 				haxelibRun(["flixel-tools", "testdemos", "-html5"]);
 			case _: //pass
 		}
