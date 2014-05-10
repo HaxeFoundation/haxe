@@ -1093,6 +1093,28 @@ module Printer = struct
 		let s_expr = print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} tf.tf_expr in
 		Printf.sprintf "def %s(%s):\n%s\t%s" s_name s_args pctx.pc_indent s_expr
 
+	and print_tarray_list pctx e1 e2 =
+		let s1 = (print_expr pctx e1) in
+		let s2 = (print_expr pctx e2) in
+		let default = Printf.sprintf "python_internal_ArrayImpl._get(%s, %s)" s1 s2 in
+
+		let handle_index =
+			match e2.eexpr with
+			| TConst TInt index ->
+				if Int32.to_int index >= 0 then
+					Printf.sprintf "(%s[%s] if %s < python_lib_Builtin.len(%s) else None)" s1 s2 s2 s1
+				else
+					"None"
+			| TLocal _ ->
+				Printf.sprintf "(%s[%s] if %s >= 0 and %s < python_lib_Builtin.len(%s) else None)" s1 s2 s2 s2 s1
+			| _ ->
+				default
+		in
+		match e1.eexpr with
+		| TLocal _ -> handle_index
+		| TField ({eexpr=(TConst TThis | TLocal _)},_) -> handle_index
+		| _ -> default
+
 	and print_expr pctx e =
 		let indent = pctx.pc_indent in
 		let print_expr_indented e = print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} e in
@@ -1105,19 +1127,8 @@ module Printer = struct
 				handle_keywords v.v_name
 			| TEnumParameter(e1,_,index) ->
 				Printf.sprintf "%s.params[%i]" (print_expr pctx e1) index
-			| TArray(({ eexpr = TLocal _ } as e1),({ eexpr = TConst TInt index } as e2) ) when (is_type1 "" "list")(e1.etype) || is_underlying_array e1.etype ->
-				let e1 = (print_expr pctx e1) in
-				let e2 = (print_expr pctx e2) in
-				if Int32.to_int index >= 0 then
-					Printf.sprintf "(%s[%s] if %s < python_lib_Builtin.len(%s) else None)" e1 e2 e2 e1
-				else
-					Printf.sprintf "(%s[%s] if %s >= 0 and %s < python_lib_Builtin.len(%s) else None)" e1 e2 e2 e2 e1
-			| TArray(({ eexpr = TLocal _ } as e1),({ eexpr = TLocal _ } as e2) ) when (is_type1 "" "list")(e1.etype) || is_underlying_array e1.etype ->
-				let e1 = (print_expr pctx e1) in
-				let e2 = (print_expr pctx e2) in
-				Printf.sprintf "(%s[%s] if %s >= 0 and %s < python_lib_Builtin.len(%s) else None)" e1 e2 e2 e2 e1
 			| TArray(e1,e2) when (is_type1 "" "list")(e1.etype) || is_underlying_array e1.etype ->
-				Printf.sprintf "python_internal_ArrayImpl._get(%s, %s)" (print_expr pctx e1) (print_expr pctx e2)
+				print_tarray_list pctx e1 e2
 			| TArray({etype = t} as e1,e2) when is_anon_or_dynamic t ->
 				Printf.sprintf "HxOverrides.arrayGet(%s, %s)" (print_expr pctx e1) (print_expr pctx e2)
 			| TArray(e1,e2) ->
