@@ -88,3 +88,15 @@ vec3[3] == 4;
 vec3[4] == 4;
 vec3[5] == 5;
 vec3[6] == 6;
+
+// test iteration
+
+var vec1 = new haxe.ds.Vector(2);
+vec1[0] = 1;
+vec1[1] = 2;
+var res = 0;
+for (e in vec1) {
+	res += e;
+}
+eq(3, res);
+

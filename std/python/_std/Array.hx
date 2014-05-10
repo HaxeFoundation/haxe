@@ -115,8 +115,6 @@ extern class Array<T> implements ArrayAccess<T> extends ArrayImpl {
 		return ArrayImpl.filter(this,f);
 	}
 
-
-
 	@:keep private inline function _get(idx:Int):T
 	{
 		return ArrayImpl._get(this, idx);
@@ -127,14 +125,14 @@ extern class Array<T> implements ArrayAccess<T> extends ArrayImpl {
 		return ArrayImpl._set(this, idx,val);
 	}
 
-	@:keep private inline function __unsafe_get(idx:Int):T
+	@:keep private inline function unsafeGet(idx:Int):T
 	{
-		return ArrayImpl.__unsafe_get(this, idx);
+		return ArrayImpl.unsafeGet(this, idx);
 	}
 
-	@:keep private inline function __unsafe_set(idx:Int, val:T):T
+	@:keep private inline function unsafeSet(idx:Int, val:T):T
 	{
-		return ArrayImpl.__unsafe_set(this, idx,val);
+		return ArrayImpl.unsafeSet(this, idx,val);
 	}
 
 	@:noCompletion private function __iter__ ():NativeIterator<T>;

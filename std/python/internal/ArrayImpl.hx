@@ -155,11 +155,11 @@ class ArrayImpl {
 		return v;
 	}
 
-	private static inline function __unsafe_get<T>(x:Array<T>,idx:Int):T {
+	public static inline function unsafeGet<T>(x:Array<T>,idx:Int):T {
 		return Syntax.arrayAccess(x, idx);
 	}
 
-	private static inline function __unsafe_set<T>(x:Array<T>,idx:Int, val:T):T {
+	public static inline function unsafeSet<T>(x:Array<T>,idx:Int, val:T):T {
 		Syntax.assign(Syntax.arrayAccess(x, idx), val);
 		return val;
 	}

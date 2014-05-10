@@ -67,10 +67,7 @@ abstract Vector<T>(VectorData<T>) {
 		#elseif cpp
 			this = untyped (new Array<T>()).__SetSizeExact(length);
 		#elseif python
-			this = new Array();
-			for (i in 0...length) {
-				this[i] = null;
-			}
+			this = python.Syntax.pythonCode("[{0}]*{1}", null, length);
 		#else
 			this = [];
 			untyped this.length = length;
@@ -86,6 +83,8 @@ abstract Vector<T>(VectorData<T>) {
 	@:arrayAccess public inline function get(index:Int):Null<T> {
 		#if cpp
 		return this.unsafeGet(index);
+		#elseif python
+		return python.internal.ArrayImpl.unsafeGet(this, index);
 		#else
 		return this[index];
 		#end
@@ -100,6 +99,8 @@ abstract Vector<T>(VectorData<T>) {
 	@:arrayAccess public inline function set(index:Int, val:T):T {
 		#if cpp
 		return this.unsafeSet(index,val);
+		#elseif python
+		return python.internal.ArrayImpl.unsafeSet(this, index, val);
 		#else
 		return this[index] = val;
 		#end
@@ -155,6 +156,8 @@ abstract Vector<T>(VectorData<T>) {
 	public #if (flash || cpp) inline #end function toArray():Array<T> {
 		#if cpp
 			return this.copy();
+		#elseif python
+			return this.copy();
 		#else
 			var a = new Array();
 			var len = length;
@@ -199,10 +202,14 @@ abstract Vector<T>(VectorData<T>) {
 	**/
 	#if as3 @:extern #end
 	static public inline function fromArrayCopy<T>(array:Array<T>):Vector<T> {
+		#if python
+		return cast array.copy();
+		#else
 		// TODO: Optimize this for flash (and others?)
 		var vec = new Vector<T>(array.length);
 		for (i in 0...array.length)
 			vec.set(i, array[i]);
 		return vec;
+		#end
 	}
 }
