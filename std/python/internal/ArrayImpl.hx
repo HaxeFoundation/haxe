@@ -46,25 +46,27 @@ class ArrayImpl {
 	}
 
 	public static function indexOf<T>(a:Array<T>, x : T, ?fromIndex:Int) : Int {
+		var len = a.length;
 		var l =
 			if (fromIndex == null) 0
-			else if (fromIndex < 0) a.length + fromIndex
+			else if (fromIndex < 0) len + fromIndex
 			else fromIndex;
 		if (l < 0) l = 0;
-		for (i in l...a.length) {
-			if (a[i] == x) return i;
+		for (i in l...len) {
+			if (unsafeGet(a,i) == x) return i;
 		}
 		return -1;
 	}
 
 	public static function lastIndexOf<T>(a:Array<T>, x : T, ?fromIndex:Int) : Int {
+		var len = a.length;
 		var l =
-			if (fromIndex == null) a.length
-			else if (fromIndex < 0) a.length + fromIndex + 1
+			if (fromIndex == null) len
+			else if (fromIndex < 0) len + fromIndex + 1
 			else fromIndex+1;
-		if (l > a.length) l = a.length;
+		if (l > len) l = len;
 		while (--l > -1) {
-			if (a[l] == x) return l;
+			if (unsafeGet(a,l) == x) return l;
 		}
 		return -1;
 	}
@@ -138,7 +140,7 @@ class ArrayImpl {
 	}
 
 	private static inline function _get<T>(x:Array<T>, idx:Int):T {
-		return if (idx > -1 && idx < x.length) Syntax.arrayAccess(x, idx) else null;
+		return if (idx > -1 && idx < x.length) unsafeGet(x, idx) else null;
 	}
 
 	private static inline function _set<T>(x:Array<T>, idx:Int, v:T):T {
