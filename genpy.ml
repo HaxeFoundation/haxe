@@ -1105,6 +1105,17 @@ module Printer = struct
 				handle_keywords v.v_name
 			| TEnumParameter(e1,_,index) ->
 				Printf.sprintf "%s.params[%i]" (print_expr pctx e1) index
+			| TArray(({ eexpr = TLocal _ } as e1),({ eexpr = TConst TInt index } as e2) ) when (is_type1 "" "list")(e1.etype) || is_underlying_array e1.etype ->
+				let e1 = (print_expr pctx e1) in
+				let e2 = (print_expr pctx e2) in
+				if Int32.to_int index >= 0 then
+					Printf.sprintf "(%s[%s] if %s < python_lib_Builtin.len(%s) else None)" e1 e2 e2 e1
+				else
+					Printf.sprintf "(%s[%s] if %s >= 0 and %s < python_lib_Builtin.len(%s) else None)" e1 e2 e2 e2 e1
+			| TArray(({ eexpr = TLocal _ } as e1),({ eexpr = TLocal _ } as e2) ) when (is_type1 "" "list")(e1.etype) || is_underlying_array e1.etype ->
+				let e1 = (print_expr pctx e1) in
+				let e2 = (print_expr pctx e2) in
+				Printf.sprintf "(%s[%s] if %s >= 0 and %s < python_lib_Builtin.len(%s) else None)" e1 e2 e2 e2 e1
 			| TArray(e1,e2) when (is_type1 "" "list")(e1.etype) || is_underlying_array e1.etype ->
 				Printf.sprintf "python_internal_ArrayImpl._get(%s, %s)" (print_expr pctx e1) (print_expr pctx e2)
 			| TArray({etype = t} as e1,e2) when is_anon_or_dynamic t ->
