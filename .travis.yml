@@ -18,27 +18,20 @@ env:
     - TARGET=cs
     - TARGET=python
     - TARGET=flash8
-    - TARGET=polygonal-ds
-    - TARGET=flambe
-    - TARGET=hxtemplo
-    - TARGET=munit
-    - TARGET=openfl-samples
-    - TARGET=flixel-demos
-    - TARGET=bytecode
 
 matrix:
   fast_finish: true
   allow_failures:
     - env: TARGET=flash8
 
-before_install:
+install:
   - travis_retry sudo apt-get update
   - travis_retry sudo apt-get install ocaml zlib1g-dev libgc-dev -y
   - travis_retry git clone https://github.com/HaxeFoundation/neko.git ~/neko
   - cd ~/neko && make && sudo make install && cd $TRAVIS_BUILD_DIR
 
 script:
-  - /bin/sh -c '[ $TARGET = "bytecode" ] && make BYTECODE=1 || make'
+  - make
   - make tools
   - sudo make install
   - cd tests/
