@@ -241,11 +241,15 @@ class RunTravis {
 		var unitDir = cwd + "unit/";
 		var sysDir = cwd + "sys/";
 		var optDir = cwd + "optimization/";
+		var miscDir = cwd + "misc/";
 
 		Sys.setCwd(unitDir);
 		switch (Sys.getEnv("TARGET")) {
 			case "macro", "bytecode", null:
 				runCommand("haxe", ["compile-macro.hxml"]);
+				
+				Sys.setCwd(miscDir);
+				runCommand("haxe", ["compile.hxml"]);
 
 				//generate documentation
 				haxelibInstallGit("Simn", "hxparse", "development", "src", true);
@@ -350,9 +354,6 @@ class RunTravis {
 
 				runCommand("haxe", ["compile-as3.hxml", "-D", "fdb"]);
 				runFlash("unit9_as3.swf");
-			case "misc":
-				Sys.setCwd("../misc");
-				runCommand("haxe", ["compile.hxml"]);
 			case "openfl-samples":
 				getOpenFLDependencies(unitDir);
 

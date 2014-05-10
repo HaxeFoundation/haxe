@@ -18,7 +18,6 @@ env:
     - TARGET=cs
     - TARGET=python
     - TARGET=flash8
-    - TARGET=misc
     - TARGET=polygonal-ds
     - TARGET=flambe
     - TARGET=hxtemplo
