@@ -1080,7 +1080,11 @@ let set_heritance ctx c herits p =
 			process_meta csup;
 			if c.cl_interface then begin
 				if not csup.cl_interface then error "Cannot extend by using a class" p;
-				c.cl_implements <- (csup,params) :: c.cl_implements
+				c.cl_implements <- (csup,params) :: c.cl_implements;
+				if not !has_interf then begin
+					delay ctx PForce (fun() -> check_interfaces ctx c);
+					has_interf := true;
+				end
 			end else begin
 				if csup.cl_interface then error "Cannot extend by using an interface" p;
 				c.cl_super <- Some (csup,params)
