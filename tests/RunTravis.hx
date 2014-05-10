@@ -239,6 +239,7 @@ class RunTravis {
 	static function main():Void {
 		var cwd = Sys.getCwd();
 		var unitDir = cwd + "unit/";
+		var sysDir = cwd + "sys/";
 		var optDir = cwd + "optimization/";
 
 		Sys.setCwd(unitDir);
@@ -264,6 +265,11 @@ class RunTravis {
 			case "neko":
 				runCommand("haxe", ["compile-neko.hxml"]);
 				runCommand("neko", ["unit.n"]);
+
+				Sys.setCwd(sysDir);
+				runCommand("haxe", ["compile-neko.hxml"]);
+				Sys.setCwd("bin/neko");
+				runCommand("neko", ["sys.n", "foo", "12", "a b c\\\\"]);
 			case "php":
 				getPhpDependencies();
 				runCommand("haxe", ["compile-php.hxml"]);
@@ -272,6 +278,11 @@ class RunTravis {
 				getPythonDependencies();
 				runCommand("haxe", ["compile-python.hxml"]);
 				runCommand("python3", ["unit.py"]);
+
+				Sys.setCwd(sysDir);
+				runCommand("haxe", ["compile-python.hxml"]);
+				Sys.setCwd("bin/python");
+				runCommand("python3", ["sys.py", "foo", "12", "a b c\\\\"]);
 			case "cpp":
 				getCppDependencies();
 				runCommand("haxe", ["compile-cpp.hxml"]);
@@ -281,6 +292,11 @@ class RunTravis {
 
 				runCommand("haxe", ["compile-cpp.hxml", "-D", "HXCPP_M64"]);
 				runCommand("./cpp/Test-debug", []);
+
+				Sys.setCwd(sysDir);
+				runCommand("haxe", ["compile-cpp.hxml"]);
+				Sys.setCwd("bin/cpp");
+				runCommand("./Main-debug", ["foo", "12", "a b c\\\\"]);
 			case "js":
 				runCommand("haxe", ["compile-js.hxml"]);
 				runCommand("node", ["-e", "var unit = require('./unit.js').unit; unit.Test.main(); process.exit(unit.Test.success ? 0 : 1);"]);
@@ -334,23 +350,6 @@ class RunTravis {
 
 				runCommand("haxe", ["compile-as3.hxml", "-D", "fdb"]);
 				runFlash("unit9_as3.swf");
-			case "neko-sys":
-				Sys.setCwd("../sys");
-				runCommand("haxe", ["compile-neko.hxml"]);
-				Sys.setCwd("bin/neko");
-				runCommand("neko", ["sys.n", "foo", "12", "a b c\\\\"]);
-			case "cpp-sys":
-				getCppDependencies();
-				Sys.setCwd("../sys");
-				runCommand("haxe", ["compile-cpp.hxml"]);
-				Sys.setCwd("bin/cpp");
-				runCommand("./Main-debug", ["foo", "12", "a b c\\\\"]);
-			case "python-sys":
-				getPythonDependencies();
-				Sys.setCwd("../sys");
-				runCommand("haxe", ["compile-python.hxml"]);
-				Sys.setCwd("bin/python");
-				runCommand("python3", ["sys.py", "foo", "12", "a b c\\\\"]);
 			case "misc":
 				Sys.setCwd("../misc");
 				runCommand("haxe", ["compile.hxml"]);
