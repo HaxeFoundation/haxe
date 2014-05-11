@@ -9,7 +9,7 @@ import python.internal.HxBuiltin;
 @:native("HxString")
 class StringImpl {
 
-	public static function split (s:String, d:String) {
+	public static inline function split (s:String, d:String) {
 		return if (d == "") Syntax.field(HxBuiltin, "list")(s) else Syntax.callField(s, "split", d);
 	}
 
@@ -39,25 +39,25 @@ class StringImpl {
 		}
 	}
 
-	public static function toUpperCase (s:String) {
+	public static inline function toUpperCase (s:String) {
 		return Syntax.callField(s, "upper");
 	}
 
-	public static function toLowerCase (s:String) {
+	public static inline function toLowerCase (s:String) {
 		return Syntax.callField(s, "lower");
 	}
-	public static function indexOf (s:String, str:String, ?startIndex:Int) {
+	public static inline function indexOf (s:String, str:String, ?startIndex:Int) {
 		if (startIndex == null)
 			return Syntax.callField(s, "find", str);
 		else
 			return Syntax.callField(s, "find", str, startIndex);
 	}
 
-	public static function toString (s:String) {
+	public static inline function toString (s:String) {
 		return s;
 	}
 
-	public static function get_length (s:String) {
+	public static inline function get_length (s:String) {
 		return Syntax.field(HxBuiltin, "len")(s);
 	}
 

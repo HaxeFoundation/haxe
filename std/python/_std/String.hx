@@ -195,7 +195,7 @@ extern class String {
 		If [code] is negative or has another invalid value, the result is
 		unspecified.
 	**/
-	public static function fromCharCode( code : Int ) : String {
+	public static inline function fromCharCode( code : Int ) : String {
 		return StringImpl.fromCharCode(code);
 	}
 }
