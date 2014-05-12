@@ -1070,9 +1070,9 @@ let normalize path =
 let is_relative cwd rel =
 	try
 		let rel = normalize rel in
-		Filename.is_relative rel || (String.starts_with rel cwd || String.starts_with (Common.get_full_path rel) cwd)
+		Filename.is_relative rel || (String.starts_with rel cwd || String.starts_with (Common.unique_full_path rel) cwd)
 	with | Exit ->
-		String.starts_with rel cwd || String.starts_with (Common.get_full_path rel) cwd
+		String.starts_with rel cwd || String.starts_with (Common.unique_full_path rel) cwd
 
 (*
 	helper function to create the source structure. Will send each module_def to the function passed.
@@ -1080,7 +1080,7 @@ let is_relative cwd rel =
 	See that it will write a whole module
 *)
 let generate_modules gen extension source_dir (module_gen : SourceWriter.source_writer->module_def->bool) =
-	let cwd = Common.get_full_path (Sys.getcwd()) in
+	let cwd = Common.unique_full_path (Sys.getcwd()) in
 	List.iter (fun md_def ->
 		let source_dir =
 			if Common.defined gen.gcon Define.UnityStdTarget then
