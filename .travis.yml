@@ -39,4 +39,5 @@ script:
   - mkdir ~/haxelib && haxelib setup ~/haxelib
   - haxelib git hx-yaml https://github.com/mikestead/hx-yaml master src
   - haxe -version
-  - haxe -main RunTravis -lib hx-yaml --interp
+  - haxe -neko RunTravis.n -main RunTravis -lib hx-yaml
+  - neko RunTravis.n
