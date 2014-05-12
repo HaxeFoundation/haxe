@@ -37,8 +37,18 @@ type access_mode =
 	| MSet
 	| MCall
 
+type identifier_type =
+	| ITLocal of tvar
+	| ITMember of tclass * tclass_field
+	| ITStatic of tclass * tclass_field
+	| ITEnum of tenum * tenum_field
+	| ITGlobal of module_type * string * t
+	| ITType of module_type
+	| ITPackage of string
+
 exception DisplayFields of (string * t * documentation) list
-exception DisplayMetadata of metadata_entry list
+exception DisplayToplevel of identifier_type list
+
 exception WithTypeError of unify_error list * pos
 
 type access_kind =
@@ -349,6 +359,137 @@ let parse_expr_string ctx s p inl =
 	match parse_string ctx (head ^ s ^ ";}") p inl with
 	| EClass { d_data = [{ cff_name = "main"; cff_kind = FFun { f_expr = Some e } }]} -> if inl then e else loop e
 	| _ -> assert false
+
+let collect_toplevel_identifiers ctx =
+	let acc = DynArray.create () in
+
+	(* locals *)
+	PMap.iter (fun _ v ->
+		DynArray.add acc (ITLocal v)
+	) ctx.locals;
+
+	(* member vars *)
+	if ctx.curfun <> FunStatic then begin
+		let rec loop c =
+			List.iter (fun cf ->
+				DynArray.add acc (ITMember(ctx.curclass,cf))
+			) c.cl_ordered_fields;
+			match c.cl_super with
+				| None ->
+					()
+				| Some (csup,tl) ->
+					loop csup; (* TODO: type parameters *)
+		in
+		loop ctx.curclass;
+		(* TODO: local using? *)
+	end;
+
+	(* statics *)
+	List.iter (fun cf ->
+		DynArray.add acc (ITStatic(ctx.curclass,cf))
+	) ctx.curclass.cl_ordered_statics;
+
+	(* enum constructors *)
+	let rec enum_ctors t =
+		match t with
+		| TClassDecl _ | TAbstractDecl _ ->
+			()
+		| TTypeDecl t ->
+			begin match follow t.t_type with
+				| TEnum (e,_) -> enum_ctors (TEnumDecl e)
+				| _ -> ()
+			end
+		| TEnumDecl e ->
+			PMap.iter (fun _ ef ->
+				DynArray.add acc (ITEnum(e,ef))
+			) e.e_constrs;
+	in
+	List.iter enum_ctors ctx.m.curmod.m_types;
+	List.iter enum_ctors ctx.m.module_types;
+
+	(* imported globals *)
+	PMap.iter (fun _ (mt,s) ->
+		try
+			let t = match Typeload.resolve_typedef mt with
+				| TClassDecl c -> (PMap.find s c.cl_statics).cf_type
+				| TEnumDecl en -> (PMap.find s en.e_constrs).ef_type
+				| TAbstractDecl {a_impl = Some c} -> (PMap.find s c.cl_statics).cf_type
+				| _ -> raise Not_found
+			in
+			DynArray.add acc (ITGlobal(mt,s,t))
+		with Not_found ->
+			()
+	) ctx.m.module_globals;
+
+	let module_types = ref [] in
+
+	let add_type mt =
+		let path = (t_infos mt).mt_path in
+		if not (List.exists (fun mt2 -> (t_infos mt2).mt_path = path) !module_types) then module_types := mt :: !module_types
+	in
+
+	(* module types *)
+	List.iter add_type ctx.m.curmod.m_types;
+
+	(* module imports *)
+	List.iter add_type ctx.m.module_types;
+
+	(* module using *)
+	List.iter (fun c ->
+		add_type (TClassDecl c)
+	) ctx.m.module_using;
+
+	(* TODO: wildcard packages. How? *)
+
+	(* packages and toplevel types *)
+	let class_paths = ctx.com.class_path in
+	let class_paths = List.filter (fun s -> s <> "") class_paths in
+
+	let packages = ref [] in
+	let add_package pack =
+		try
+			begin match PMap.find pack ctx.com.package_rules with
+				| Forbidden ->
+					()
+				| _ ->
+					raise Not_found
+			end
+		with Not_found ->
+			if not (List.mem pack !packages) then packages := pack :: !packages
+	in
+
+	List.iter (fun dir ->
+		let entries = Sys.readdir dir in
+		Array.iter (fun file ->
+			match file with
+				| "." | ".." ->
+					()
+				| _ when Sys.is_directory (dir ^ file) ->
+					add_package file
+				| _ ->
+					let l = String.length file in
+					if l > 3 && String.sub file (l - 3) 3 = ".hx" then begin
+						try
+							let name = String.sub file 0 (l - 3) in
+							let md = Typeload.load_module ctx ([],name) Ast.null_pos in
+							List.iter (fun mt ->
+								if (t_infos mt).mt_path = md.m_path then add_type mt
+							) md.m_types
+						with _ ->
+							()
+					end
+		) entries;
+	) class_paths;
+
+	List.iter (fun pack ->
+		DynArray.add acc (ITPackage pack)
+	) !packages;
+
+	List.iter (fun mt ->
+		DynArray.add acc (ITType mt)
+	) !module_types;
+
+	raise (DisplayToplevel (DynArray.to_list acc))
 
 (* ---------------------------------------------------------------------- *)
 (* PASS 3 : type expression & check structure *)
@@ -2356,7 +2497,8 @@ and type_vars ctx vl p in_block =
 	save();
 
 	match vl with
-	| [v,eo] -> mk (TVar (v,eo)) ctx.t.tvoid p
+	| [v,eo] ->
+		mk (TVar (v,eo)) ctx.t.tvoid p
 	| _ ->
 		let e = mk (TBlock (List.map (fun (v,e) -> (mk (TVar (v,e)) ctx.t.tvoid p)) vl)) ctx.t.tvoid p in
 		mk (TMeta((Meta.MergeBlock,[],p), e)) e.etype e.epos
@@ -3150,7 +3292,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		in
 		let texpr = loop t in
 		mk (TCast (type_expr ctx e Value,Some texpr)) t p
-	| EDisplay (e,iscall) when ctx.com.display = DMUsage ->
+	| EDisplay (e,iscall) when (match ctx.com.display with DMUsage | DMPosition -> true | _ -> false) ->
 		let e = try type_expr ctx e Value with Error (Unknown_ident n,_) -> raise (Parser.TypePath ([n],None)) in
 		begin match e.eexpr with
 		| TField(_,fa) ->
@@ -3158,6 +3300,8 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				| None ->
 					()
 				| Some cf ->
+					if ctx.com.display = DMPosition then
+						raise (DisplayPosition [cf.cf_pos]);
 					cf.cf_meta <- (Meta.Usage,[],p) :: cf.cf_meta;
 			end
 		| TLocal v ->
@@ -3166,6 +3310,8 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			()
 		end;
 		e
+	| EDisplay (_) when ctx.com.display = DMToplevel ->
+		collect_toplevel_identifiers ctx;
 	| EDisplay (e,iscall) ->
 		let old = ctx.in_display in
 		let opt_args args ret = TFun(List.map(fun (n,o,t) -> n,true,t) args,ret) in
@@ -3185,26 +3331,8 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				else if field_name fa = "match" then (match follow e1.etype with
 					| TEnum _ as t -> {e1 with etype = tfun [t] ctx.t.tbool }
 					| _ -> e)
-				else if ctx.com.display = DMPosition then (match extract_field fa with
-					| None -> e
-					| Some cf -> raise (Typecore.DisplayPosition [cf.cf_pos]))
-				else if ctx.com.display = DMMetadata then (match fa with
-					| FStatic (c,cf) | FInstance (c,cf) | FClosure(Some c,cf) -> raise (DisplayMetadata (c.cl_meta @ cf.cf_meta))
-					| _ -> e)
 				else
 					e
-			| TTypeExpr mt when ctx.com.display = DMPosition ->
-				raise (DisplayPosition [match mt with
-					| TClassDecl c -> c.cl_pos
-					| TEnumDecl en -> en.e_pos
-					| TTypeDecl t -> t.t_pos
-					| TAbstractDecl a -> a.a_pos])
-			| TTypeExpr mt when ctx.com.display = DMMetadata ->
-				raise (DisplayMetadata (match mt with
-					| TClassDecl c -> c.cl_meta
-					| TEnumDecl en -> en.e_meta
-					| TTypeDecl t -> t.t_meta
-					| TAbstractDecl a -> a.a_meta))
 			| _ ->
 				e
 		in

@@ -1171,6 +1171,67 @@ let type_function_params ctx fd fname p =
 	) fd.f_params;
 	!params
 
+let find_enclosing com e =
+	let display_pos = ref (!Parser.resume_display) in
+	let encloses_display_pos p =
+		if p.pmin <= !display_pos.pmin && p.pmax >= !display_pos.pmax then begin
+			let p = !display_pos in
+			display_pos := { pfile = ""; pmin = -2; pmax = -2 };
+			Some p
+		end else
+			None
+	in
+	let rec loop e = match fst e with
+		| EBlock el ->
+			let p = pos e in
+			(* We want to find the innermost block which contains the display position. *)
+			let el = List.map loop el in
+			let el = match encloses_display_pos p with
+				| None ->
+					el
+				| Some p2 ->
+					let b,el = List.fold_left (fun (b,el) e ->
+						let p = pos e in
+						if b || p.pmax <= p2.pmin then begin
+							(b,e :: el)
+						end else begin
+							let e_d = (EDisplay(e,false)),p in
+							(true,e_d :: el)
+						end
+					) (false,[]) el in
+					let el = if b then
+						el
+					else begin
+						(EDisplay(((EConst(Ident "null")),p),false),p) :: el
+					end in
+					List.rev el
+			in
+			(EBlock el),(pos e)
+		| _ ->
+			Ast.map_expr loop e
+	in
+	loop e
+
+let find_before_pos com e =
+	let display_pos = ref (!Parser.resume_display) in
+	let is_annotated p =
+		if p.pmax = !display_pos.pmin - 1 then begin
+			display_pos := { pfile = ""; pmin = -2; pmax = -2 };
+			true
+		end else
+			false
+	in
+	let rec loop e =
+		if is_annotated (pos e) then
+			(EDisplay(e,false),(pos e))
+		else
+			e
+	in
+	let rec map e =
+		loop (Ast.map_expr map e)
+	in
+	map e
+
 let type_function ctx args ret fmode f do_display p =
 	let locals = save_locals ctx in
 	let fargs = List.map (fun (n,c,t) ->
@@ -1199,15 +1260,23 @@ let type_function ctx args ret fmode f do_display p =
 	ctx.ret <- ret;
 	ctx.opened <- [];
 	let e = match f.f_expr with None -> error "Function body required" p | Some e -> e in
-	let e = if not do_display then type_expr ctx e NoValue else try
-		if Common.defined ctx.com Define.NoCOpt then raise Exit;
-		type_expr ctx (Optimizer.optimize_completion_expr e) NoValue
-	with
-	| Parser.TypePath (_,None) | Exit ->
+	let e = if not do_display then
 		type_expr ctx e NoValue
-	| DisplayTypes [t] when (match follow t with TMono _ -> true | _ -> false) ->
-		 type_expr ctx e NoValue
-	in
+	else begin
+		let e = match ctx.com.display with
+			| DMToplevel -> find_enclosing ctx.com e
+			| DMPosition | DMUsage -> find_before_pos ctx.com e
+			| _ -> e
+		in
+		try
+			if Common.defined ctx.com Define.NoCOpt then raise Exit;
+			type_expr ctx (Optimizer.optimize_completion_expr e) NoValue
+		with
+		| Parser.TypePath (_,None) | Exit ->
+			type_expr ctx e NoValue
+		| DisplayTypes [t] when (match follow t with TMono _ -> true | _ -> false) ->
+			type_expr ctx (if ctx.com.display = DMToplevel then find_enclosing ctx.com e else e) NoValue
+	end in
 	let e = match e.eexpr with
 		| TMeta((Meta.MergeBlock,_,_), ({eexpr = TBlock el} as e1)) -> e1
 		| _ -> e

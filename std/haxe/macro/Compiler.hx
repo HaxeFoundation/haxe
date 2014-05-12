@@ -106,11 +106,15 @@ class Compiler {
 		} else {
 			function(c) return Lambda.has(ignore, c);
 		}
+		var displayValue = Context.definedValue("display");
 		if( classPaths == null ) {
 			classPaths = Context.getClassPath();
 			// do not force inclusion when using completion
-			if( Context.defined("display") )
-				return;
+			switch (displayValue) {
+				case null:
+				case "usage":
+				case _: return;
+			}
 			// normalize class path
 			for( i in 0...classPaths.length ) {
 				var cp = StringTools.replace(classPaths[i], "\\", "/");

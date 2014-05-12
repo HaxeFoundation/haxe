@@ -925,6 +925,8 @@ let detect_usage com =
 					Type.iter expr e
 				| TLocal v when Meta.has Meta.Usage v.v_meta ->
 					usage := e.epos :: !usage
+				| TVar (v,_) when com.display = DMPosition && Meta.has Meta.Usage v.v_meta ->
+					raise (Typecore.DisplayPosition [e.epos])
 				| _ -> Type.iter expr e
 			in
 			let field cf = match cf.cf_expr with None -> () | Some e -> expr e in

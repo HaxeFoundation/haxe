@@ -104,8 +104,8 @@ type display_mode =
 	| DMNone
 	| DMDefault
 	| DMUsage
-	| DMMetadata
 	| DMPosition
+	| DMToplevel
 
 type context = {
 	(* config *)

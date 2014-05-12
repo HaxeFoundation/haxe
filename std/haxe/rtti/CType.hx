@@ -26,6 +26,7 @@ typedef Path = String
 typedef Platforms = List<String>
 
 typedef FunctionArgument = { name : String, opt : Bool, t : CType, ?value:String }
+
 enum CType {
 	CUnknown;
 	CEnum( name : Path, params : List<CType> );

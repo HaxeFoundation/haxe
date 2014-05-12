@@ -1079,11 +1079,14 @@ let post_process_end() =
 	incr pp_counter
 
 let run com tctx main =
-	if com.display = DMUsage then
-		Codegen.detect_usage com;
+	begin match com.display with
+		| DMUsage | DMPosition ->
+			Codegen.detect_usage com;
+		| _ ->
+			()
+	end;
 	if not (Common.defined com Define.NoDeprecationWarnings) then
 		Codegen.DeprecationCheck.run com;
-
 	(* PASS 1: general expression filters *)
  	let filters = [
  		Codegen.UnificationCallback.run (check_unification com);
