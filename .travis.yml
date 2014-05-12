@@ -7,6 +7,7 @@ env:
     # SAUCE_ACCESS_KEY
     - secure: sUvWUjCyPuWht4seNa4f2VG9DkvXkhZyLZfjJO9TUAHB2JndS16E2j/qrvKEjycyH6w8tU/B9vnjDRvvGrYXxEXcBEwsJVfkorFnRl9uwGCGIYrzjMhssEl3fMYZK7P304f+gAp5ULrDBX2gIaKeSa8lUNRtz2PsZOieE4kMdhk=
   matrix:
+    - TEST=third-party
     - TEST=macro
     - TEST=neko
     - TEST=js
@@ -18,7 +19,6 @@ env:
     - TEST=cs
     - TEST=python
     - TEST=flash8
-    - TEST=third-party
 
 matrix:
   fast_finish: true
