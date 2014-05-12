@@ -7,22 +7,23 @@ env:
     # SAUCE_ACCESS_KEY
     - secure: sUvWUjCyPuWht4seNa4f2VG9DkvXkhZyLZfjJO9TUAHB2JndS16E2j/qrvKEjycyH6w8tU/B9vnjDRvvGrYXxEXcBEwsJVfkorFnRl9uwGCGIYrzjMhssEl3fMYZK7P304f+gAp5ULrDBX2gIaKeSa8lUNRtz2PsZOieE4kMdhk=
   matrix:
-    - TARGET=macro
-    - TARGET=neko
-    - TARGET=js
-    - TARGET=php
-    - TARGET=cpp
-    - TARGET=flash9
-    - TARGET=as3
-    - TARGET=java
-    - TARGET=cs
-    - TARGET=python
-    - TARGET=flash8
+    - TEST=macro
+    - TEST=neko
+    - TEST=js
+    - TEST=php
+    - TEST=cpp
+    - TEST=flash9
+    - TEST=as3
+    - TEST=java
+    - TEST=cs
+    - TEST=python
+    - TEST=flash8
+    - TEST=third-party
 
 matrix:
   fast_finish: true
   allow_failures:
-    - env: TARGET=flash8
+    - env: TEST=flash8
 
 install:
   - travis_retry sudo apt-get update
