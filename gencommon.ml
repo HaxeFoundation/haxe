@@ -1094,8 +1094,11 @@ let generate_modules gen extension source_dir (module_gen : SourceWriter.source_
 							"."
 					in
 					base_path ^ "/" ^ gen.gcon.file
-				else
-					Common.defined_value gen.gcon Define.UnityStdTarget ^ "/" ^ (String.concat "/" (fst md_def.m_path))
+				else match List.rev (fst md_def.m_path) with
+					| "editor" :: _ ->
+						Common.defined_value gen.gcon Define.UnityStdTarget ^ "/Editor/" ^ (String.concat "/" (fst md_def.m_path))
+					| _ ->
+						Common.defined_value gen.gcon Define.UnityStdTarget ^ "/Haxe-Std/" ^ (String.concat "/" (fst md_def.m_path))
 			else
 				gen.gcon.file ^ "/" ^ source_dir ^ "/" ^ (String.concat "/" (fst md_def.m_path))
 		in
