@@ -75,19 +75,29 @@ class RunTravis {
 
 	static function haxelibInstallGit(account:String, repository:String, ?branch:String, ?srcPath:String, useRetry:Bool = false, ?altName:String):Void {
 		var name:String = (altName == null) ? repository : altName;
-		var args:Array<String> = ["git", name, 'https://github.com/$account/$repository'];
-		if (branch != null) {
-			args.push(branch);
-		}
-		if (srcPath != null) {
-			args.push(srcPath);
-		}
+		try {
+			getHaxelibPath(name);
+			infoMsg('Warning: $name has already been installed.');
+		} catch (e:Dynamic) {
+			var args:Array<String> = ["git", name, 'https://github.com/$account/$repository'];
+			if (branch != null) {
+				args.push(branch);
+			}
+			if (srcPath != null) {
+				args.push(srcPath);
+			}
 
-		runCommand("haxelib", args, useRetry);
+			runCommand("haxelib", args, useRetry);
+		}
 	}
 
 	static function haxelibInstall(library:String):Void {
-		runCommand("haxelib", ["install", library]);
+		try {
+			getHaxelibPath(library);
+			infoMsg('Warning: $library has already been installed.');
+		} catch (e:Dynamic) {
+			runCommand("haxelib", ["install", library]);
+		}
 	}
 
 	static function haxelibRun(args:Array<String>, useRetry:Bool = false):Void {
@@ -95,7 +105,7 @@ class RunTravis {
 	}
 
 	static function getHaxelibPath(libName:String) {
-		var proc = new sys.io.Process("haxelib", ["path", libName]);
+		var proc = new Process("haxelib", ["path", libName]);
 		var result;
 		var code = proc.exitCode();
 		while(true) {
@@ -106,15 +116,13 @@ class RunTravis {
 		}
 		proc.close();
 		if (code != 0) {
-			Sys.println(result);
-			Sys.exit(code);
+			throw 'Failed to get haxelib path ($result)';
 		}
-		Sys.println('Haxelib path for $libName: $result');
 		return result;
 	}
 
 	static function changeDirectory(path:String) {
-		Sys.println('Changing directory to $path.');
+		Sys.println('Changing directory to $path');
 		Sys.setCwd(path);
 	}
 
@@ -306,16 +314,19 @@ class RunTravis {
 				haxelibInstallGit("HaxeFoundation", "hxcs", true);
 
 				haxelibInstallGit("dpeek", "dox", true);
-				changeDirectory(Sys.getEnv("HOME") + "/haxelib/dox/git/");
+				changeDirectory(getHaxelibPath("dox") + "..");
 				runCommand("haxe", ["run.hxml"]);
 				runCommand("haxe", ["gen.hxml"]);
 				haxelibRun(["dox", "-o", "bin/api.zip", "-i", "bin/xml"]);
 
 				//BYTECODE
-				// changeDirectory(repoDir);
-				// runCommand("make", ["BYTECODE=1"]);
-				// changeDirectory(unitDir);
-				// runCommand("haxe", ["compile-macro.hxml"]);
+				if (Sys.getEnv("TRAVIS") == "true") {
+					changeDirectory(repoDir);
+					runCommand("make", ["BYTECODE=1"]);
+					runCommand("sudo", ["make", "install"]);
+					changeDirectory(unitDir);
+					runCommand("haxe", ["compile-macro.hxml"]);
+				}
 			case Neko:
 				runCommand("haxe", ["compile-neko.hxml"]);
 				runCommand("neko", ["unit.n"]);
