@@ -927,6 +927,8 @@ let detect_usage com =
 					usage := e.epos :: !usage
 				| TVar (v,_) when com.display = DMPosition && Meta.has Meta.Usage v.v_meta ->
 					raise (Typecore.DisplayPosition [e.epos])
+				| TTypeExpr mt when (Meta.has Meta.Usage (t_infos mt).mt_meta) ->
+					usage := e.epos :: !usage
 				| _ -> Type.iter expr e
 			in
 			let field cf = match cf.cf_expr with None -> () | Some e -> expr e in

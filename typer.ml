@@ -3292,8 +3292,60 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		in
 		let texpr = loop t in
 		mk (TCast (type_expr ctx e Value,Some texpr)) t p
-	| EDisplay (e,iscall) when (match ctx.com.display with DMUsage | DMPosition -> true | _ -> false) ->
-		let e = try type_expr ctx e Value with Error (Unknown_ident n,_) -> raise (Parser.TypePath ([n],None)) in
+	| EDisplay (e,iscall) ->
+		handle_display ctx e iscall p
+	| EDisplayNew t ->
+		let t = Typeload.load_instance ctx t p true in
+		(match follow t with
+		| TInst (c,params) | TAbstract({a_impl = Some c},params) ->
+			let ct, f = get_constructor ctx c params p in
+			raise (DisplayTypes (ct :: List.map (fun f -> f.cf_type) f.cf_overloads))
+		| _ ->
+			error "Not a class" p)
+	| ECheckType (e,t) ->
+		let t = Typeload.load_complex_type ctx p t in
+		let e = type_expr ctx e (WithType t) in
+		let e = Codegen.Abstract.check_cast ctx t e p in
+		unify ctx e.etype t e.epos;
+		if e.etype == t then e else mk (TCast (e,None)) t p
+	| EMeta (m,e1) ->
+		let old = ctx.meta in
+		ctx.meta <- m :: ctx.meta;
+		let e () = type_expr ctx e1 with_type in
+		let e = match m with
+			| (Meta.ToString,_,_) ->
+				let e = e() in
+				(match follow e.etype with
+					| TAbstract({a_impl = Some c},_) when PMap.mem "toString" c.cl_statics -> call_to_string ctx c e
+					| _ -> e)
+			| (Meta.This,_,_) ->
+				let e = List.hd ctx.this_stack in
+				let rec loop e = match e.eexpr with
+					| TConst TThis -> get_this ctx e.epos
+					| _ -> Type.map_expr loop e
+				in
+				loop e
+			| _ -> e()
+		in
+		ctx.meta <- old;
+		e
+
+and handle_display ctx e iscall p =
+	let old = ctx.in_display in
+	ctx.in_display <- true;
+	let e = try
+		type_expr ctx e Value
+	with Error (Unknown_ident n,_) when not iscall ->
+		raise (Parser.TypePath ([n],None))
+	| Error (Unknown_ident "trace",_) ->
+		raise (DisplayTypes [tfun [t_dynamic] ctx.com.basic.tvoid])
+	in
+	ctx.in_display <- old;
+	match ctx.com.display with
+	| DMNone ->
+		assert false
+	| DMUsage | DMPosition ->
+		(* print_endline (s_expr (s_type (print_context())) e); *)
 		begin match e.eexpr with
 		| TField(_,fa) ->
 			begin match extract_field fa with
@@ -3306,23 +3358,19 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			end
 		| TLocal v ->
 			v.v_meta <- (Meta.Usage,[],p) :: v.v_meta;
+		| TTypeExpr mt ->
+			let ti = t_infos mt in
+			if ctx.com.display = DMPosition then
+				raise (DisplayPosition [ti.mt_pos]);
+			ti.mt_meta <- (Meta.Usage,[],p) :: ti.mt_meta;
 		| _ ->
 			()
 		end;
 		e
-	| EDisplay (_) when ctx.com.display = DMToplevel ->
+	| DMToplevel ->
 		collect_toplevel_identifiers ctx;
-	| EDisplay (e,iscall) ->
-		let old = ctx.in_display in
+	| DMDefault ->
 		let opt_args args ret = TFun(List.map(fun (n,o,t) -> n,true,t) args,ret) in
-		ctx.in_display <- true;
-		let e = try
-			type_expr ctx e Value
-		with Error (Unknown_ident n,_) when not iscall ->
-			raise (Parser.TypePath ([n],None))
-		| Error (Unknown_ident "trace",_) ->
-			raise (DisplayTypes [tfun [t_dynamic] ctx.com.basic.tvoid])
-		in
 		let e = match e.eexpr with
 			| TField (e1,fa) ->
 				if field_name fa = "bind" then (match follow e1.etype with
@@ -3336,7 +3384,6 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			| _ ->
 				e
 		in
-		ctx.in_display <- old;
 		let opt_type t =
 			match t with
 			| TLazy f ->
@@ -3486,41 +3533,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		(match follow t with
 		| TMono _ | TDynamic _ when ctx.in_macro -> mk (TConst TNull) t p
 		| _ -> raise (DisplayTypes [t]))
-	| EDisplayNew t ->
-		let t = Typeload.load_instance ctx t p true in
-		(match follow t with
-		| TInst (c,params) | TAbstract({a_impl = Some c},params) ->
-			let ct, f = get_constructor ctx c params p in
-			raise (DisplayTypes (ct :: List.map (fun f -> f.cf_type) f.cf_overloads))
-		| _ ->
-			error "Not a class" p)
-	| ECheckType (e,t) ->
-		let t = Typeload.load_complex_type ctx p t in
-		let e = type_expr ctx e (WithType t) in
-		let e = Codegen.Abstract.check_cast ctx t e p in
-		unify ctx e.etype t e.epos;
-		if e.etype == t then e else mk (TCast (e,None)) t p
-	| EMeta (m,e1) ->
-		let old = ctx.meta in
-		ctx.meta <- m :: ctx.meta;
-		let e () = type_expr ctx e1 with_type in
-		let e = match m with
-			| (Meta.ToString,_,_) ->
-				let e = e() in
-				(match follow e.etype with
-					| TAbstract({a_impl = Some c},_) when PMap.mem "toString" c.cl_statics -> call_to_string ctx c e
-					| _ -> e)
-			| (Meta.This,_,_) ->
-				let e = List.hd ctx.this_stack in
-				let rec loop e = match e.eexpr with
-					| TConst TThis -> get_this ctx e.epos
-					| _ -> Type.map_expr loop e
-				in
-				loop e
-			| _ -> e()
-		in
-		ctx.meta <- old;
-		e
+
 
 and type_call ctx e el (with_type:with_type) p =
 	let def () = (match e with
