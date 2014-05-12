@@ -228,6 +228,7 @@ module Define = struct
 		| SwfScriptTimeout
 		| SwfUseDoAbc
 		| Sys
+		| UnityStdTarget
 		| Unsafe
 		| UseNekoc
 		| UseRttiDoc
@@ -302,6 +303,7 @@ module Define = struct
 		| SwfScriptTimeout -> ("swf_script_timeout", "Maximum ActionScript processing time before script stuck dialog box displays (in seconds)")
 		| SwfUseDoAbc -> ("swf_use_doabc", "Use DoAbc swf-tag instead of DoAbcDefine")
 		| Sys -> ("sys","Defined for all system platforms")
+		| UnityStdTarget -> ("unity_std_target", "Changes C# sources location so that each generated C# source is relative to the Haxe source location. If the location is outside the current directory, the value set here will be used")
 		| Unsafe -> ("unsafe","Allow unsafe code when targeting C#")
 		| UseNekoc -> ("use_nekoc","Use nekoc compiler instead of internal one")
 		| UseRttiDoc -> ("use_rtti_doc","Allows access to documentation during compilation")
