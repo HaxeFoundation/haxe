@@ -914,14 +914,13 @@ let detect_usage com =
 	List.iter (fun t -> match t with
 		| TClassDecl c ->
 			let rec expr e = match e.eexpr with
-				| TField(_,fa) ->
-					begin match extract_field fa with
-						| Some cf when Meta.has Meta.Usage cf.cf_meta ->
-							let p = {e.epos with pmin = e.epos.pmax - (String.length cf.cf_name)} in
-							usage := p :: !usage;
-						| _ ->
-							()
-					end;
+				| TField(_,FEnum(_,ef)) when Meta.has Meta.Usage ef.ef_meta ->
+					let p = {e.epos with pmin = e.epos.pmax - (String.length ef.ef_name)} in
+					usage := p :: !usage;
+					Type.iter expr e
+				| TField(_,(FAnon cf | FInstance (_,cf) | FStatic (_,cf) | FClosure (_,cf))) when Meta.has Meta.Usage cf.cf_meta ->
+					let p = {e.epos with pmin = e.epos.pmax - (String.length cf.cf_name)} in
+					usage := p :: !usage;
 					Type.iter expr e
 				| TLocal v when Meta.has Meta.Usage v.v_meta ->
 					usage := e.epos :: !usage

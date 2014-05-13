@@ -3351,15 +3351,14 @@ and handle_display ctx e iscall p =
 	| DMUsage | DMPosition ->
 		(* print_endline (s_expr (s_type (print_context())) e); *)
 		begin match e.eexpr with
-		| TField(_,fa) ->
-			begin match extract_field fa with
-				| None ->
-					()
-				| Some cf ->
-					if ctx.com.display = DMPosition then
-						raise (DisplayPosition [cf.cf_pos]);
-					cf.cf_meta <- (Meta.Usage,[],p) :: cf.cf_meta;
-			end
+		| TField(_,FEnum(_,ef)) ->
+			if ctx.com.display = DMPosition then
+				raise (DisplayPosition [ef.ef_pos]);
+			ef.ef_meta <- (Meta.Usage,[],p) :: ef.ef_meta;
+		| TField(_,(FAnon cf | FInstance (_,cf) | FStatic (_,cf) | FClosure (_,cf))) ->
+			if ctx.com.display = DMPosition then
+				raise (DisplayPosition [cf.cf_pos]);
+			cf.cf_meta <- (Meta.Usage,[],p) :: cf.cf_meta;
 		| TLocal v ->
 			v.v_meta <- (Meta.Usage,[],p) :: v.v_meta;
 		| TTypeExpr mt ->
