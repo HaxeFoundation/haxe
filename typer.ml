@@ -882,6 +882,10 @@ let rec acc_get ctx g p =
 	| AKNo f -> error ("Field " ^ f ^ " cannot be accessed for reading") p
 	| AKExpr e -> e
 	| AKSet _ | AKAccess _ -> assert false
+	| AKUsing (et,c,cf,e) when ctx.in_display ->
+		(* Generate a TField node so we can easily match it for position/usage completion (issue #1968) *)
+		let ec = type_module_type ctx (TClassDecl c) None p in
+		mk (TField(ec,FStatic(c,cf))) et.etype et.epos
 	| AKUsing (et,_,cf,e) ->
 		(* build a closure with first parameter applied *)
 		(match follow et.etype with
