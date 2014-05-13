@@ -1029,7 +1029,7 @@ let field_access ctx mode f fmode t e p =
 		| (FunMemberAbstract | FunMemberAbstractLocal),TTypeExpr(TClassDecl ({cl_kind = KAbstractImpl a} as c)) when c == ctx.curclass && Meta.has Meta.Impl f.cf_meta ->
 			let e = mk (TField(e,fmode)) t p in
 			let ethis = get_this ctx p in
-			let ethis = {ethis with etype = TAbstract(a,List.map (fun _ -> mk_mono()) a.a_types)} in
+			let ethis = {ethis with etype = TAbstract(a,List.map snd a.a_types)} in
 			AKUsing(e,ctx.curclass,f,ethis)
 		| _ ->
 			(match m, mode with
