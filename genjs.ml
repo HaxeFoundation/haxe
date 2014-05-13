@@ -107,7 +107,7 @@ let kwds2 =
 		"Infinity"; "NaN"; "decodeURI"; "decodeURIComponent"; "encodeURI"; "encodeURIComponent";
 		"escape"; "eval"; "isFinite"; "isNaN"; "parseFloat"; "parseInt"; "undefined"; "unescape";
 
-		"JSON"; "Number"; "Object"; "console"; "window";
+		"JSON"; "Number"; "Object"; "console"; "window"; "require";
 	];
 	h
 
