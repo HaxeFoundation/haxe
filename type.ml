@@ -1366,48 +1366,7 @@ let rec unify a b =
 		with
 			Unify_error l -> error (cannot_unify a b :: l))
 	| TAnon a1, TAnon a2 ->
-		(try
-			PMap.iter (fun n f2 ->
-			try
-				let f1 = PMap.find n a1.a_fields in
-				if not (unify_kind f1.cf_kind f2.cf_kind) then
-					(match !(a1.a_status), f1.cf_kind, f2.cf_kind with
-					| Opened, Var { v_read = AccNormal; v_write = AccNo }, Var { v_read = AccNormal; v_write = AccNormal } ->
-						f1.cf_kind <- f2.cf_kind;
-					| _ -> error [invalid_kind n f1.cf_kind f2.cf_kind]);
-				if f2.cf_public && not f1.cf_public then error [invalid_visibility n];
-				try
-					unify_with_access f1.cf_type f2;
-					(match !(a1.a_status) with
-					| Statics c when not (Meta.has Meta.MaybeUsed f1.cf_meta) -> f1.cf_meta <- (Meta.MaybeUsed,[],f1.cf_pos) :: f1.cf_meta
-					| _ -> ());
-				with
-					Unify_error l -> error (invalid_field n :: l)
-			with
-				Not_found ->
-					match !(a1.a_status) with
-					| Opened ->
-						if not (link (ref None) a f2.cf_type) then error [];
-						a1.a_fields <- PMap.add n f2 a1.a_fields
-					| Const when Meta.has Meta.Optional f2.cf_meta ->
-						()
-					| _ ->
-						error [has_no_field a n];
-			) a2.a_fields;
-			(match !(a1.a_status) with
-			| Const when not (PMap.is_empty a2.a_fields) ->
-				PMap.iter (fun n _ -> if not (PMap.mem n a2.a_fields) then error [has_extra_field a n]) a1.a_fields;
-			| Opened ->
-				a1.a_status := Closed
-			| _ -> ());
-			(match !(a2.a_status) with
-			| Statics c -> (match !(a1.a_status) with Statics c2 when c == c2 -> () | _ -> error [])
-			| EnumStatics e -> (match !(a1.a_status) with EnumStatics e2 when e == e2 -> () | _ -> error [])
-			| AbstractStatics a -> (match !(a1.a_status) with AbstractStatics a2 when a == a2 -> () | _ -> error [])
-			| Opened -> a2.a_status := Closed
-			| Const | Extend _ | Closed -> ())
-		with
-			Unify_error l -> error (cannot_unify a b :: l))
+		unify_anons a b a1 a2
 	| TAnon an, TAbstract ({ a_path = [],"Class" },[pt]) ->
 		(match !(an.a_status) with
 		| Statics cl -> unify (TInst (cl,List.map (fun _ -> mk_mono()) cl.cl_params)) pt
@@ -1472,6 +1431,50 @@ let rec unify a b =
 		if not (List.exists (unify_from bb tl a b) bb.a_from) then error [cannot_unify a b]
 	| _ , _ ->
 		error [cannot_unify a b]
+
+and unify_anons a b a1 a2 =
+	(try
+		PMap.iter (fun n f2 ->
+		try
+			let f1 = PMap.find n a1.a_fields in
+			if not (unify_kind f1.cf_kind f2.cf_kind) then
+				(match !(a1.a_status), f1.cf_kind, f2.cf_kind with
+				| Opened, Var { v_read = AccNormal; v_write = AccNo }, Var { v_read = AccNormal; v_write = AccNormal } ->
+					f1.cf_kind <- f2.cf_kind;
+				| _ -> error [invalid_kind n f1.cf_kind f2.cf_kind]);
+			if f2.cf_public && not f1.cf_public then error [invalid_visibility n];
+			try
+				unify_with_access f1.cf_type f2;
+				(match !(a1.a_status) with
+				| Statics c when not (Meta.has Meta.MaybeUsed f1.cf_meta) -> f1.cf_meta <- (Meta.MaybeUsed,[],f1.cf_pos) :: f1.cf_meta
+				| _ -> ());
+			with
+				Unify_error l -> error (invalid_field n :: l)
+		with
+			Not_found ->
+				match !(a1.a_status) with
+				| Opened ->
+					if not (link (ref None) a f2.cf_type) then error [];
+					a1.a_fields <- PMap.add n f2 a1.a_fields
+				| Const when Meta.has Meta.Optional f2.cf_meta ->
+					()
+				| _ ->
+					error [has_no_field a n];
+		) a2.a_fields;
+		(match !(a1.a_status) with
+		| Const when not (PMap.is_empty a2.a_fields) ->
+			PMap.iter (fun n _ -> if not (PMap.mem n a2.a_fields) then error [has_extra_field a n]) a1.a_fields;
+		| Opened ->
+			a1.a_status := Closed
+		| _ -> ());
+		(match !(a2.a_status) with
+		| Statics c -> (match !(a1.a_status) with Statics c2 when c == c2 -> () | _ -> error [])
+		| EnumStatics e -> (match !(a1.a_status) with EnumStatics e2 when e == e2 -> () | _ -> error [])
+		| AbstractStatics a -> (match !(a1.a_status) with AbstractStatics a2 when a == a2 -> () | _ -> error [])
+		| Opened -> a2.a_status := Closed
+		| Const | Extend _ | Closed -> ())
+	with
+		Unify_error l -> error (cannot_unify a b :: l))
 
 and unify_from ab tl a b ?(allow_transitive_cast=true) t =
 	let t = apply_params ab.a_params tl t in
@@ -1564,11 +1567,13 @@ and unify_with_variance f t1 t2 =
 		if not (List.exists (allows_variance_to t2) a1.a_to) && not (List.exists (allows_variance_to t1) a2.a_from) then
 			error [cannot_unify t1 t2]
 	| TAbstract(a,pl),t ->
-		type_eq EqStrict (apply_params a.a_params pl a.a_this) t;
-		if not (List.exists (allows_variance_to t) a.a_to) then error [cannot_unify t1 t2]
+		type_eq EqBothDynamic (apply_params a.a_params pl a.a_this) t;
+		if not (List.exists (fun t2 -> allows_variance_to t (apply_params a.a_params pl t2)) a.a_to) then error [cannot_unify t1 t2]
 	| t,TAbstract(a,pl) ->
-		type_eq EqStrict t (apply_params a.a_params pl a.a_this);
-		if not (List.exists (allows_variance_to t) a.a_from) then error [cannot_unify t1 t2]
+		type_eq EqBothDynamic t (apply_params a.a_params pl a.a_this);
+		if not (List.exists (fun t2 -> allows_variance_to t (apply_params a.a_params pl t2)) a.a_from) then error [cannot_unify t1 t2]
+	| TAnon a1,TAnon a2 ->
+		unify_anons t1 t2 a1 a2
 	| _ ->
 		error [cannot_unify t1 t2]
 
@@ -1596,7 +1601,7 @@ and unify_with_access t1 f2 =
 	(* read only *)
 	| Method MethNormal | Method MethInline | Var { v_write = AccNo } | Var { v_write = AccNever } -> unify t1 f2.cf_type
 	(* read/write *)
-	| _ -> type_eq EqBothDynamic t1 f2.cf_type
+	| _ -> with_variance (type_eq EqBothDynamic) t1 f2.cf_type
 
 module Abstract = struct
 	open Ast
