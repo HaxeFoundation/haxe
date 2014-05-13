@@ -2648,8 +2648,6 @@ let configure gen =
 	CSharpSpecificSynf.configure gen (CSharpSpecificSynf.traverse gen runtime_cl);
 	CSharpSpecificESynf.configure gen (CSharpSpecificESynf.traverse gen runtime_cl);
 
-	let mkdir dir = if not (Sys.file_exists dir) then Unix.mkdir dir 0o755 in
-
 	(* copy resource files *)
 	if Hashtbl.length gen.gcon.resources > 0 then begin
 		let src =
