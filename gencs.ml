@@ -2652,11 +2652,14 @@ let configure gen =
 
 	(* copy resource files *)
 	if Hashtbl.length gen.gcon.resources > 0 then begin
-		mkdir gen.gcon.file;
-		mkdir (gen.gcon.file ^ "/src");
-		mkdir (gen.gcon.file ^ "/src/Resources");
+		let src =
+			if Common.defined gen.gcon Define.UnityStdTarget then
+				Common.defined_value gen.gcon Define.UnityStdTarget ^ "/../Resources"
+			else
+				gen.gcon.file ^ "/src/Resources"
+		in
 		Hashtbl.iter (fun name v ->
-			let full_path = gen.gcon.file ^ "/src/Resources/" ^ name in
+			let full_path = src ^ "/" ^ name in
 			mkdir_from_path full_path;
 
 			let f = open_out full_path in
