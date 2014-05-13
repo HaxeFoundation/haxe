@@ -1468,7 +1468,7 @@ module Printer = struct
 				Printf.sprintf "%s(%s)" (print_expr pctx e1) (print_exprs pctx ", " el)
 			| "python_Syntax.field",[e1;{eexpr = TConst(TString id)}] ->
 				Printf.sprintf "%s.%s" (print_expr pctx e1) id
-			| "python_Syntax.tuple", [{eexpr = TArrayDecl el}] ->
+			| "python_Syntax._tuple", [{eexpr = TArrayDecl el}] ->
 				Printf.sprintf "(%s)" (print_exprs pctx ", " el)
 			| "python_Syntax._arrayAccess", e1 :: {eexpr = TArrayDecl el} :: etrail ->
 				let trailing_colon = match etrail with

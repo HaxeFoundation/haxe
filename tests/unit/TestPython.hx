@@ -329,6 +329,13 @@ class TestPython extends Test {
 		eq("2", test4b(1));
 	}
 
+	function testTupleCreation() {
+		var t = Tup2.create(1, 2);
+		eq(t._1, 1);
+		eq(t._2, 2);
+		eq(t.length, 2);
+	}
+
 	function testExtern()
 	{
 		eq(new ExternClass().f(1), 2);
