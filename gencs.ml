@@ -30,6 +30,11 @@ open Printf
 open Option
 open ExtString
 
+let netname_to_hx name =
+	let len = String.length name in
+	let chr = String.get name 0 in
+	String.make 1 (Char.uppercase chr) ^ (String.sub name 1 (len-1))
+
 let rec is_cs_basic_type t =
 	match follow t with
 		| TInst( { cl_path = (["haxe"], "Int32") }, [] )
@@ -1932,7 +1937,7 @@ let configure gen =
 				| _ -> ()
 			)
 		with | Not_found -> ());
-		(* properties *
+		(* properties *)
 		let handle_prop static f =
 			match f.cf_kind with
 			| Method _ -> ()
@@ -1948,7 +1953,7 @@ let configure gen =
 					else
 						{ eexpr = TConst TThis; etype = TInst(cl,List.map snd cl.cl_types); epos = f.cf_pos }
 					in
-					print w "public %s%s %s" (if static then "static " else "") (t_s f.cf_type) f.cf_name;
+					print w "public %s%s %s" (if static then "static " else "") (t_s f.cf_type) (netname_to_hx f.cf_name);
 					begin_block w;
 					(match v.v_read with
 					| AccCall ->
@@ -1956,7 +1961,7 @@ let configure gen =
 						begin_block w;
 						write w "return ";
 						expr_s w this;
-						print w "._get_%s();" f.cf_name;
+						print w ".get_%s();" f.cf_name;
 						end_block w
 					| _ -> ());
 					(match v.v_write with
@@ -1964,14 +1969,16 @@ let configure gen =
 						write w "set";
 						begin_block w;
 						expr_s w this;
-						print w "._set_%s(value);" f.cf_name;
+						print w ".set_%s(value);" f.cf_name;
 						end_block w
 					| _ -> ());
 					end_block w;
 				end
 		in
-		List.iter (handle_prop true) cl.cl_ordered_statics;
-		List.iter (handle_prop false) cl.cl_ordered_fields*)
+		if Meta.has Meta.BridgeProperties cl.cl_meta then begin
+			List.iter (handle_prop true) cl.cl_ordered_statics;
+			List.iter (handle_prop false) cl.cl_ordered_fields;
+		end
 	in
 
 	let gen_class w cl =
@@ -2761,11 +2768,6 @@ type net_lib_ctx = {
 	ncom : Common.context;
 	nil : IlData.ilctx;
 }
-
-let netname_to_hx name =
-	let len = String.length name in
-	let chr = String.get name 0 in
-	String.make 1 (Char.uppercase chr) ^ (String.sub name 1 (len-1))
 
 let hxpath_to_net ctx path =
 	try

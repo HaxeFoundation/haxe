@@ -1,6 +1,7 @@
 2014-??-??: 3.2.0
 
 	all : fixed nullability of abstracts over functions
+	cs  : add @:bridgeProperties, which creates native property bridges for all haxe properties in the annotated class
 
 2014-04-13: 3.1.3
 
