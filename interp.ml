@@ -2511,7 +2511,7 @@ let macro_lib =
 							file,false
 						| [file;"std"] ->
 							file,true
-						| _ -> raise Exit
+						| _ -> failwith ("unsupported file@`std` format: " ^ file)
 					in
 					Gencs.add_net_lib com file is_std
 				| _ -> failwith "Unsupported platform");
