@@ -1499,6 +1499,8 @@ with
 		message ctx msg p;
 		List.iter (message ctx "Called from") l;
 		error ctx "Aborted" Ast.null_pos;
+	| Codegen.Generic_Exception(m,p) ->
+		error ctx m p
 	| Arg.Bad msg ->
 		error ctx ("Error: " ^ msg) Ast.null_pos
 	| Failure msg when not (is_debug_run()) ->
