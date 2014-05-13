@@ -921,8 +921,10 @@ let write_file gen w source_dir path extension =
 	let rec create acc = function
 		| [] -> ()
 		| d :: l ->
-				let dir = String.concat "/" (List.rev (d :: acc)) in
-				if dir <> "" && not (Sys.file_exists dir) then Unix.mkdir dir 0o755;
+				if d <> "" then begin
+					let dir = String.concat "/" (List.rev (d :: acc)) in
+					if not (Sys.file_exists dir) then Unix.mkdir dir 0o755
+				end;
 				create (d :: acc) l
 	in
 	let p = (String.nsplit source_dir "/") in
