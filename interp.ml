@@ -2505,6 +2505,15 @@ let macro_lib =
 				(match com.platform with
 				| Flash -> Genswf.add_swf_lib com file false
 				| Java -> Genjava.add_java_lib com file false
+				| Cs ->
+					let file, is_std = match ExtString.String.nsplit file "@" with
+						| [file] ->
+							file,false
+						| [file;"std"] ->
+							file,true
+						| _ -> raise Exit
+					in
+					Gencs.add_net_lib com file is_std
 				| _ -> failwith "Unsupported platform");
 				VNull
 			| _ ->
