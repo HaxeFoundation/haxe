@@ -280,8 +280,6 @@ class TestPython extends Test {
 		var x = [1,2];
 		test(x);
 
-
-
 		function test (?va:VarArgs, ?kw:KwArgs) {
 			var a = va.toArray();
 			eq(0,a.length);
@@ -294,8 +292,6 @@ class TestPython extends Test {
 	}
 
 	function testKwArgs () {
-
-
 		function x (args:KwArgs) {
 			var a = args.get("a", 0);
 			var b = args.get("b", 0);
@@ -389,8 +385,6 @@ class TestPython extends Test {
 		eq(t._2, 2);
 		eq(t.length, 2);
 	}
-
-
 
 	function testExtern()
 	{
