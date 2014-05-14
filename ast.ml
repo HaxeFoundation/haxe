@@ -89,6 +89,7 @@ module Meta = struct
 		| Internal
 		| IsVar
 		| JavaNative
+		| JsRequire
 		| Keep
 		| KeepInit
 		| KeepSub
