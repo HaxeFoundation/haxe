@@ -65,7 +65,8 @@ abstract Vector<T>(VectorData<T>) {
 		#elseif java
 			this = new java.NativeArray(length);
 		#elseif cpp
-			this = untyped (new Array<T>()).__SetSizeExact(length);
+			this = new Array<T>();
+			untyped this.__SetSizeExact(length);
 		#elseif python
 			this = python.Syntax.pythonCode("[{0}]*{1}", null, length);
 		#else
