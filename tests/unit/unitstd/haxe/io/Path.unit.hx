@@ -2,11 +2,15 @@ var path = "/dir1/dir2/file.ext";
 var path2 = "/dir1/dir.with.dots\\file";
 var path3 = ".htaccess";
 var path4 = "/dir/";
+var path5 = "..";
+var path6 = ".";
 
 var p1 = new haxe.io.Path(path);
 var p2 = new haxe.io.Path(path2);
 var p3 = new haxe.io.Path(path3);
 var p4 = new haxe.io.Path(path4);
+var p5 = new haxe.io.Path(path5);
+var p6 = new haxe.io.Path(path6);
 
 p1.ext == "ext";
 p1.dir == "/dir1/dir2";
@@ -23,6 +27,14 @@ p3.file == "";
 p4.ext == null;
 p4.dir == "/dir";
 p4.file == "";
+
+p5.ext == null;
+p5.dir == "..";
+p5.file == "";
+
+p6.ext == null;
+p6.dir == ".";
+p6.file == "";
 
 // toString
 p1.toString() == path;
