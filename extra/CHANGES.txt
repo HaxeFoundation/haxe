@@ -6,6 +6,7 @@
 	all : add --display mode for position and usage information
 	python : added python target
 	flash : flash player 12-14 support
+    js : add @:jsRequire and js.Lib.require
 
 	Bugfixes:
 
@@ -29,6 +30,7 @@
 	all : determine @:generic type parameters from constructor call if possible
 	all : properly disallowed field redefinition in extending interface
 	neko : create output directory if it does not exist
+    js : inline Math methods and fields
 
 	Macro features and changes:
 
