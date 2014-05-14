@@ -1015,7 +1015,7 @@ let rec add_constructor ctx c force_constructor p =
 							into the inherited constructor when it's not necessary for the platform
 						*)
 						match ctx.com.platform, def with
-						| _, Some _ when not ctx.com.config.pf_static -> v, (Some TNull)
+						| _, Some _ when ctx.com.config.pf_nullable_basic_types -> v, (Some TNull)
 						| Flash, Some (TString _) -> v, (Some TNull)
 						| Cpp, Some (TString _) -> v, def
 						| Cpp, Some _ -> { v with v_type = ctx.t.tnull v.v_type }, (Some TNull)

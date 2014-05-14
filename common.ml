@@ -74,8 +74,8 @@ type capture_policy =
 	| CPLoopVars
 
 type platform_config = {
-	(** has a static type system, with not-nullable basic types (Int/Float/Bool) *)
-	pf_static : bool;
+	(** has nullable basic types (Int/Float/Bool), often found on dynamic platforms *)
+	pf_nullable_basic_types : bool;
 	(** has access to the "sys" package *)
 	pf_sys : bool;
 	(** local variables are block-scoped *)
@@ -181,6 +181,7 @@ module Define = struct
 		| Fdb
 		| FlashStrict
 		| FlashUseStage
+		| ForbidNullOnBasicTypes
 		| FormatWarning
 		| GencommonDebug
 		| HaxeBoot
@@ -255,6 +256,7 @@ module Define = struct
 		| Fdb -> ("fdb","Enable full flash debug infos for FDB interactive debugging")
 		| FlashStrict -> ("flash_strict","More strict typing for flash target")
 		| FlashUseStage -> ("flash_use_stage","Keep the SWF library initial stage")
+		| ForbidNullOnBasicTypes -> ("forbid_null_on_basic_types","Forbid usage of null for basic types even if platform supports it")
 		| FormatWarning -> ("format_warning","Print a warning for each formated string, for 2.x compatibility")
 		| GencommonDebug -> ("gencommon_debug","GenCommon internal")
 		| HaxeBoot -> ("haxe_boot","Given the name 'haxe' to the flash boot class instead of a generated name")
@@ -488,7 +490,7 @@ let stats =
 
 let default_config =
 	{
-		pf_static = true;
+		pf_nullable_basic_types = false;
 		pf_sys = true;
 		pf_locals_scope = true;
 		pf_captured_scope = true;
@@ -509,7 +511,7 @@ let get_config com =
 		default_config
 	| Flash8 ->
 		{
-			pf_static = false;
+			pf_nullable_basic_types = true;
 			pf_sys = false;
 			pf_locals_scope = com.flash_version > 6.;
 			pf_captured_scope = false;
@@ -524,7 +526,7 @@ let get_config com =
 		}
 	| Js ->
 		{
-			pf_static = false;
+			pf_nullable_basic_types = true;
 			pf_sys = false;
 			pf_locals_scope = false;
 			pf_captured_scope = false;
@@ -539,7 +541,7 @@ let get_config com =
 		}
 	| Neko ->
 		{
-			pf_static = false;
+			pf_nullable_basic_types = true;
 			pf_sys = true;
 			pf_locals_scope = true;
 			pf_captured_scope = true;
@@ -554,7 +556,7 @@ let get_config com =
 		}
 	| Flash when defined Define.As3 ->
 		{
-			pf_static = true;
+			pf_nullable_basic_types = false;
 			pf_sys = false;
 			pf_locals_scope = false;
 			pf_captured_scope = true;
@@ -569,7 +571,7 @@ let get_config com =
 		}
 	| Flash ->
 		{
-			pf_static = true;
+			pf_nullable_basic_types = false;
 			pf_sys = false;
 			pf_locals_scope = true;
 			pf_captured_scope = true; (* handled by genSwf9 *)
@@ -584,7 +586,7 @@ let get_config com =
 		}
 	| Php ->
 		{
-			pf_static = false;
+			pf_nullable_basic_types = true;
 			pf_sys = true;
 			pf_locals_scope = false; (* some duplicate work is done in genPhp *)
 			pf_captured_scope = false;
@@ -599,7 +601,7 @@ let get_config com =
 		}
 	| Cpp ->
 		{
-			pf_static = true;
+			pf_nullable_basic_types = false;
 			pf_sys = true;
 			pf_locals_scope = true;
 			pf_captured_scope = true;
@@ -614,7 +616,7 @@ let get_config com =
 		}
 	| Cs ->
 		{
-			pf_static = true;
+			pf_nullable_basic_types = false;
 			pf_sys = true;
 			pf_locals_scope = false;
 			pf_captured_scope = true;
@@ -629,7 +631,7 @@ let get_config com =
 		}
 	| Java ->
 		{
-			pf_static = true;
+			pf_nullable_basic_types = false;
 			pf_sys = true;
 			pf_locals_scope = false;
 			pf_captured_scope = true;
@@ -840,9 +842,10 @@ let init_platform com pf =
 	let forbid acc p = if p = name || PMap.mem p acc then acc else PMap.add p Forbidden acc in
 	com.package_rules <- List.fold_left forbid com.package_rules (List.map platform_name platforms);
 	com.config <- get_config com;
-(*	if com.config.pf_static then define com "static"; *)
-	if com.config.pf_sys then define com Define.Sys else com.package_rules <- PMap.add "sys" Forbidden com.package_rules;
 	raw_define com name
+
+let apply_pf_config com =
+	if com.config.pf_sys then define com Define.Sys else com.package_rules <- PMap.add "sys" Forbidden com.package_rules
 
 let add_feature com f =
 	Hashtbl.replace com.features f true

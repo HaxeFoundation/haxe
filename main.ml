@@ -929,6 +929,7 @@ try
 	let pre_compilation = ref [] in
 	let interp = ref false in
 	let swf_version = ref false in
+	let pf_overrides = ref PMap.empty in
 	Common.define_value com Define.HaxeVer (float_repres (float_of_int version /. 1000.));
 	Common.define_value com Define.HxcppApiLevel "311";
 	Common.raw_define com "haxe3";
@@ -1029,6 +1030,10 @@ try
 			end;
 			Common.raw_define com var;
 		),"<var> : define a conditional compilation flag");
+		("-pf",Arg.String (fun v ->
+			let k,v = try ExtString.String.split v "=" with _ -> failwith ("Invalid platform override setting: " ^ v ^ " (should be of <key>=<value> format)") in
+			pf_overrides := PMap.add k v !pf_overrides
+		),"<key>=<value> : override platform setting");
 		("-v",Arg.Unit (fun () ->
 			com.verbose <- true
 		),": turn on verbose mode");
@@ -1374,6 +1379,23 @@ try
 			if not ctx.has_next then com.package_rules <- PMap.foldi (fun p r acc -> match r with Forbidden -> acc | _ -> PMap.add p r acc) com.package_rules PMap.empty;
 	end;
 	com.config <- get_config com; (* make sure to adapt all flags changes defined after platform *)
+
+	(* handle specific pf_* setting overrides *)
+	PMap.iter (fun k v ->
+		let get_bool =
+			match v with
+			| "true" | "1" -> true
+			| "false" | "0" -> false
+			| _ -> failwith ("Invalid value for platform setting: " ^ k ^ "(should be true/false)")
+		in
+		match k with
+		| "nullable_basic_types" -> com.config <- { com.config with pf_nullable_basic_types = get_bool }
+		| "sys" -> com.config <- { com.config with pf_sys = get_bool }
+		| _ -> failwith ("Invalid platform setting override: " ^ k)
+	) !pf_overrides;
+
+	(* apply platform configuration (add rules and defines based on pf_* settings) *)
+	Common.apply_pf_config com;
 
 	(* check file extension. In case of wrong commandline, we don't want
 		to accidentaly delete a source file. *)
