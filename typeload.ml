@@ -1931,24 +1931,30 @@ let init_class ctx c p context_init herits fields =
 							a.a_from <- (TLazy (ref r),Some cf) :: a.a_from;
 						| (Meta.To,_,_) :: _ ->
 							if is_macro then error "Macro cast functions are not supported" p;
-							let args = if Meta.has Meta.MultiType a.a_meta then begin
-								(* the return type of multitype @:to functions must unify with a_this *)
-								delay ctx PFinal (fun () -> unify ctx m tthis f.cff_pos);
-								(* the arguments must be compatible with the original constructor, which we have to find at this point *)
-								try (match follow (monomorphs a.a_types (PMap.find "_new" c.cl_statics).cf_type) with
-									| TFun(args,_) -> List.map (fun (_,_,t) -> t) args
-									| _ -> assert false)
-								with Not_found ->
-									error "Constructor of multi-type abstract must be defined before the individual @:to-functions are" cf.cf_pos
-							end else [] in
 							if not (Meta.has Meta.Impl cf.cf_meta) then cf.cf_meta <- (Meta.Impl,[],cf.cf_pos) :: cf.cf_meta;
-							(* the first argument of a to-function must be the underlying type, not the abstract *)
-							let r = fun () ->
+							let resolve_m args =
 								(try unify_raise ctx t (tfun (tthis :: args) m) f.cff_pos with Error (Unify l,p) -> error (error_msg (Unify l)) p);
 								match follow m with
 									| TMono _ when (match cf.cf_type with TFun(_,r) -> r == t_dynamic | _ -> false) -> t_dynamic
 									| m -> m
 							in
+							let r = if Meta.has Meta.MultiType a.a_meta then begin
+								let ctor = try
+									PMap.find "_new" c.cl_statics
+								with Not_found ->
+									error "Constructor of multi-type abstract must be defined before the individual @:to-functions are" cf.cf_pos
+								in
+								(fun () ->
+									delay ctx PFinal (fun () -> unify ctx m tthis f.cff_pos);
+									let args = match follow (monomorphs a.a_types ctor.cf_type) with
+										| TFun(args,_) -> List.map (fun (_,_,t) -> t) args
+										| _ -> assert false
+									in
+									resolve_m args
+								)
+							end else (fun () ->
+								resolve_m []
+							) in
 							a.a_to <- (TLazy (ref r), Some cf) :: a.a_to
 						| (Meta.ArrayAccess,_,_) :: _ ->
 							if is_macro then error "Macro array-access functions are not supported" p;
