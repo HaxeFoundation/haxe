@@ -26,12 +26,10 @@ class Lib {
 	public static function dictToAnon (v:Dict<String, Dynamic>):Dynamic
 	{
 		return new AnonObject(v.copy());
-
-		//return o;
 	}
 
 
-	public static function anonToDict (o:{}):Dynamic
+	public static function anonToDict (o:{}):Dict<String, Dynamic>
 	{
 		return if (HxBuiltin.isinstance(o, AnonObject))
 		{

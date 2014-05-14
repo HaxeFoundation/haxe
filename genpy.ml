@@ -1048,17 +1048,21 @@ module Printer = struct
 	let print_args args p =
 		let had_value = ref false in
 		let had_var_args = ref false in
+		let had_kw_args = ref false in
 		let sl = List.map (fun (v,cto) ->
-			if !had_var_args then error "Arguments after KwArgs/VarArgs are not allowed" p;
+			let check_err () = if !had_var_args || !had_kw_args then error "Arguments after KwArgs/VarArgs are not allowed" p in
 			let name = handle_keywords v.v_name in
 			match follow v.v_type with
 				| TAbstract({a_path = ["python"],"KwArgs"},_) ->
-					had_var_args := true;
+					if !had_kw_args then error "Arguments after KwArgs are not allowed" p;
+					had_kw_args := true;
 					"**" ^ name
 				| TAbstract({a_path = ["python"],"VarArgs"},_) ->
+					check_err ();
 					had_var_args := true;
 					"*" ^ name
 				| _ ->
+					check_err ();
 					name ^ match cto with
 						| None when !had_value -> " = None"
 						| None -> ""
@@ -1511,6 +1515,11 @@ module Printer = struct
 
 	and print_call_args pctx e1 el =
 		let print_arg pctx i x =
+			let e = match x.eexpr, follow x.etype with
+				| TConst TNull, TAbstract({a_path = ["python"],"KwArgs"},_) -> "{}"
+				| TConst TNull, TAbstract({a_path = ["python"],"VarArgs"},_) -> "[]"
+				| _ -> (print_expr pctx x)
+			in
 			let prefix = match e1.eexpr, follow x.etype with
 				(* the should not apply for the instance methods of the abstract itself *)
 				| TField(_, FStatic({cl_path = ["python"; "_KwArgs"],"KwArgs_Impl_"},f)), _ when i == 0 && Meta.has Meta.Impl f.cf_meta -> ""
@@ -1519,7 +1528,7 @@ module Printer = struct
 				| _, TAbstract({a_path = ["python"],"VarArgs"},_) -> "*"
 				| _, _ -> ""
 			in
-			prefix ^ (print_expr pctx x)
+			prefix ^ e
 		in
 		String.concat "," (ExtList.List.mapi (print_arg pctx) el)
 

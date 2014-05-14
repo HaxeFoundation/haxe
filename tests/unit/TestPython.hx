@@ -241,7 +241,61 @@ class TestPython extends Test {
 		eq(3, res);
 	}
 
+	function testKwArgsAfterVarArgs () {
+		function test (va:VarArgs, kw:KwArgs) {
+			var a = va.toArray();
+
+			eq(1,a[0]);
+			eq(2,a[1]);
+			eq(1,kw.get("a", null));
+		}
+		var a = python.Lib.anonToDict({ "a" : 1});
+		var x = [1,2];
+		test(x,a);
+	}
+
+	function testOptionalVarArgs () {
+		function test (?va:VarArgs, ?kw:KwArgs) {
+			var a = va.toArray();
+
+			eq(0,a.length);
+		}
+		test();
+	}
+
+	function testOptionalKwArgs () {
+		function test (?kw:KwArgs) eq(0,kw.toDict().length());
+		test();
+	}
+
+	function testOptionalKwArgsAfterOptionalVarArgs () {
+		function test (?va:VarArgs, ?kw:KwArgs) {
+			var a = va.toArray();
+
+			eq(1,a[0]);
+			eq(2,a[1]);
+
+			eq(0, kw.toDict().length());
+		}
+		var x = [1,2];
+		test(x);
+
+
+
+		function test (?va:VarArgs, ?kw:KwArgs) {
+			var a = va.toArray();
+			eq(0,a.length);
+			eq(1, kw.get("a",null));
+		}
+
+		var a = python.Lib.anonToDict({ "a" : 1});
+
+		test(a);
+	}
+
 	function testKwArgs () {
+
+
 		function x (args:KwArgs) {
 			var a = args.get("a", 0);
 			var b = args.get("b", 0);
@@ -335,6 +389,8 @@ class TestPython extends Test {
 		eq(t._2, 2);
 		eq(t.length, 2);
 	}
+
+
 
 	function testExtern()
 	{
