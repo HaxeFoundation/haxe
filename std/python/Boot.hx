@@ -116,7 +116,7 @@ private class ClassRegistry extends python.lib.Dict<String, HxClassBase> {
 	]);
 
 	inline static function arrayJoin <T>(x:Array<T>, sep:String):String {
-		return Syntax.field(sep, "join")(x.map(python.Boot.toString));
+		return Syntax.field(sep, "join")(Syntax.pythonCode("[{0}(x1,'') for x1 in {1}]", python.Boot.toString1, x));
 	}
 
 	inline static function isInstance(o:Dynamic, x:Dynamic):Bool {
@@ -128,23 +128,23 @@ private class ClassRegistry extends python.lib.Dict<String, HxClassBase> {
 	}
 
 	inline static function builtinHasAttr(o:Dynamic, x:String):Bool {
-		return Syntax.callField(HxBuiltin, "hasattr", o, x);
+		return HxBuiltin.hasattr(o, x);
 	}
 
 	inline static function builtinGetAttr(o:Dynamic, x:String):Dynamic {
-		return Syntax.callField(HxBuiltin, "getattr", o, x);
+		return HxBuiltin.getattr(o, x);
 	}
 
 	inline static function isPyBool(o:Dynamic):Bool {
-		return isInstance(o, Syntax.field(HxBuiltin, "bool"));
+		return isInstance(o, HxBuiltin.bool);
 	}
 
 	inline static function isPyInt(o:Dynamic):Bool {
-		return isInstance(o, Syntax.field(HxBuiltin, "int"));
+		return isInstance(o, HxBuiltin.int);
 	}
 
 	inline static function isPyFloat(o:Dynamic):Bool {
-		return isInstance(o, Syntax.field(HxBuiltin, "float"));
+		return isInstance(o, HxBuiltin.float);
 	}
 
 	inline static function builtinLen(o:Dynamic):Int {
@@ -168,11 +168,11 @@ private class ClassRegistry extends python.lib.Dict<String, HxClassBase> {
 	}
 
 	inline static function inspectIsFunction(o:Dynamic):Bool {
-		return Syntax.callField(Inspect, "isclass", o);
+		return Syntax.callField(Inspect, "isfunction", o);
 	}
 
 	inline static function inspectIsMethod(o:Dynamic):Bool {
-		return Syntax.callField(Inspect, "isclass", o);
+		return Syntax.callField(Inspect, "ismethod", o);
 	}
 
 
@@ -186,24 +186,22 @@ private class ClassRegistry extends python.lib.Dict<String, HxClassBase> {
 
 	private static function _add_dynamic(a:Dynamic,b:Dynamic):Dynamic {
 		if (isInstance(a, String) || isInstance(b, String)) {
-			return toString1(a,"") + toString1(b,"");
+			return Syntax.binop(toString1(a,""), "+", toString1(b,""));
 		}
 		return Syntax.binop(a, "+", b);
 	}
 
-	static function toString (o:Dynamic) {
+	static inline function toString (o:Dynamic) {
 		return toString1(o, "");
 	}
 
 	private static function toString1(o:Dynamic,s:String):String {
 
-		if (s == null) s = "";
 		if( o == null ) return "null";
-
-
 
 		if (isString(o)) return o;
 
+		if (s == null) s = "";
 		if( s.length >= 5 ) return "<...>"; // too much deep recursion
 
 		if (isPyBool(o)) {
@@ -243,15 +241,15 @@ private class ClassRegistry extends python.lib.Dict<String, HxClassBase> {
 			return st;
 		}
 
-		if (inspectIsFunction(o) || inspectIsMethod(o)) return "<function>";
-
-
 		try {
 			if (builtinHasAttr(o, "toString")) {
 				return Syntax.callField(o, "toString");
 			}
 		} catch (e:Dynamic) {
 		}
+
+		if (inspectIsFunction(o) || inspectIsMethod(o)) return "<function>";
+
 		if (builtinHasAttr(o, "__class__"))
 		{
 
@@ -382,11 +380,11 @@ private class ClassRegistry extends python.lib.Dict<String, HxClassBase> {
 	}
 
 	static inline function isString (o:Dynamic):Bool {
-		return isInstance(o, String);
+		return isInstance(o, HxBuiltin.str);
 	}
 
 	static inline function isArray (o:Dynamic):Bool {
-		return isInstance(o, Array);
+		return isInstance(o, HxBuiltin.list);
 	}
 
 	static function field( o : Dynamic, field : String ) : Dynamic {
