@@ -2,6 +2,8 @@
 
 	New features:
 
+	all : add --display mode for toplevel completion
+	all : add --display mode for position and usage information
 	python : added python target
 	flash : flash player 12-14 support
 
@@ -13,6 +15,8 @@
 	all : fixed some internal code which relied on unspecified evaluation order
 	all : fixed exhaustiveness checks involving guards
 	all : fixed issue involving recursively constrained type parameters and @:generic
+	all : fixed type inference issue in map literals
+	all : fixed type inference issue when calling abstract method from within the abstract
 	cpp : fixed issue with the side-effect handler
 	cpp : fixed issue with NativeArray in --no-inline mode
 	php : fixed issue with invalid references for closures in for-loops
@@ -21,6 +25,9 @@
 
 	all : disallowed using `super` in value positions
 	all : check exhaustiveness of explicit Null types
+	all : resolve unqualified identifiers to @:enum abstract constructors
+	all : determine @:generic type parameters from constructor call if possible
+	all : properly disallowed field redefinition in extending interface
 	neko : create output directory if it does not exist
 
 	Macro features and changes:
