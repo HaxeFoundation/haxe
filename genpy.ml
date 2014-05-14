@@ -1045,23 +1045,26 @@ module Printer = struct
 	let print_metadata (name,_,_) =
 		Printf.sprintf "@%s" name
 
-	let print_args args =
+	let print_args args p =
 		let had_value = ref false in
+		let had_var_args = ref false in
 		let sl = List.map (fun (v,cto) ->
+			if !had_var_args then error "Arguments after KwArgs/VarArgs are not allowed" p;
 			let name = handle_keywords v.v_name in
-			let arg_string = match follow v.v_type with
-				| TAbstract({a_path = ["python"],"KwArgs"},_) -> "**" ^ name
-				| TAbstract({a_path = ["python"],"VarArgs"},_) -> "*" ^ name
-				| _ -> name
-			in
-			let arg_value = match cto with
-				| None when !had_value -> " = None"
-				| None -> ""
-				| Some ct ->
-					had_value := true;
-					Printf.sprintf " = %s" (print_constant ct)
-			in
-			Printf.sprintf "%s%s" arg_string arg_value
+			match follow v.v_type with
+				| TAbstract({a_path = ["python"],"KwArgs"},_) ->
+					had_var_args := true;
+					"**" ^ name
+				| TAbstract({a_path = ["python"],"VarArgs"},_) ->
+					had_var_args := true;
+					"*" ^ name
+				| _ ->
+					name ^ match cto with
+						| None when !had_value -> " = None"
+						| None -> ""
+						| Some ct ->
+							had_value := true;
+							Printf.sprintf " = %s" (print_constant ct)
 		) args in
 		String.concat "," sl
 
@@ -1075,8 +1078,8 @@ module Printer = struct
 
 	and print_var pctx v eo =
 		match eo with
-			| Some {eexpr = TFunction tf} ->
-				print_function pctx tf (Some v.v_name)
+			| Some ({eexpr = TFunction tf} as e) ->
+				print_function pctx tf (Some v.v_name) e.epos
 			| _ ->
 				let s_init = match eo with
 					| None -> "None"
@@ -1084,12 +1087,12 @@ module Printer = struct
 				in
 				Printf.sprintf "%s = %s" (handle_keywords v.v_name) s_init
 
-	and print_function pctx tf name =
+	and print_function pctx tf name p =
 		let s_name = match name with
 			| None -> pctx.pc_next_anon_func()
 			| Some s -> handle_keywords s
 		in
-		let s_args = print_args tf.tf_args in
+		let s_args = print_args tf.tf_args p in
 		let s_expr = print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} tf.tf_expr in
 		Printf.sprintf "def %s(%s):\n%s\t%s" s_name s_args pctx.pc_indent s_expr
 
@@ -1261,7 +1264,7 @@ module Printer = struct
 			| TUnop(op,Prefix,e1) ->
 				Printf.sprintf "%s%s" (print_unop op) (print_expr pctx e1)
 			| TFunction tf ->
-				print_function pctx tf None
+				print_function pctx tf None e.epos
 			| TVar (v,eo) ->
 				print_var pctx v eo
 			| TBlock [] ->
@@ -1591,8 +1594,8 @@ module Generator = struct
 	let get_path mt =
 		Printer.print_base_type mt
 
-	let tfunc_str f pctx name =
-		Printer.print_function pctx f name
+	let tfunc_str f pctx name p =
+		Printer.print_function pctx f name p
 
 	let texpr_str e pctx =
 		Printer.print_expr pctx e
@@ -1730,7 +1733,7 @@ module Generator = struct
 				else
 					print ctx "%s%s = %s" indent field expr_string_2
 
-	let gen_func_expr ctx e c name metas extra_args indent stat =
+	let gen_func_expr ctx e c name metas extra_args indent stat p =
 		let pctx = Printer.create_context indent ctx.com.debug in
 		let e = match e.eexpr with
 			| TFunction(f) ->
@@ -1749,7 +1752,7 @@ module Generator = struct
 		let expr1 = transform_expr e in
 		let expr_string = match expr1.eexpr with
 			| TFunction f ->
-				tfunc_str f pctx (Some name)
+				tfunc_str f pctx (Some name) p
 			| _ ->
 				Printf.sprintf "%s = %s" name (texpr_str expr1 pctx)
 		in
@@ -1775,7 +1778,7 @@ module Generator = struct
 		end;
 		newline ctx;
 		newline ctx;
-		gen_func_expr ctx (match cf.cf_expr with None -> assert false | Some e -> e) c "__init__" py_metas ["self"] "\t" false
+		gen_func_expr ctx (match cf.cf_expr with None -> assert false | Some e -> e) c "__init__" py_metas ["self"] "\t" false cf.cf_pos
 
 	let gen_class_field ctx c p cf =
 		let field = handle_keywords cf.cf_name in
@@ -1788,7 +1791,7 @@ module Generator = struct
 				begin match cf.cf_kind with
 					| Method _ ->
 						let py_metas = filter_py_metas cf.cf_meta in
-						gen_func_expr ctx e c field py_metas ["self"] "\t" false;
+						gen_func_expr ctx e c field py_metas ["self"] "\t" false cf.cf_pos;
 
 					| _ ->
 						gen_expr ctx e (Printf.sprintf "# var %s" field) "\t";
@@ -1874,7 +1877,7 @@ module Generator = struct
 			let py_metas = filter_py_metas cf.cf_meta in
 			let e = match cf.cf_expr with Some e -> e | _ -> assert false in
 			newline ctx;
-			gen_func_expr ctx e c field py_metas [] "\t" true;
+			gen_func_expr ctx e c field py_metas [] "\t" true cf.cf_pos;
 		) methods;
 
 		!has_static_methods || !has_empty_static_vars
