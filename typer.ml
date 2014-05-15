@@ -3358,6 +3358,11 @@ and handle_display ctx e iscall p =
 		raise (DisplayTypes [tfun [t_dynamic] ctx.com.basic.tvoid])
 	in
 	ctx.in_display <- old;
+	let handle_field cf =
+		if ctx.com.display = DMPosition then
+			raise (DisplayPosition [cf.cf_pos]);
+		cf.cf_meta <- (Meta.Usage,[],p) :: cf.cf_meta;
+	in
 	match ctx.com.display with
 	| DMNone ->
 		assert false
@@ -3369,9 +3374,7 @@ and handle_display ctx e iscall p =
 				raise (DisplayPosition [ef.ef_pos]);
 			ef.ef_meta <- (Meta.Usage,[],p) :: ef.ef_meta;
 		| TField(_,(FAnon cf | FInstance (_,cf) | FStatic (_,cf) | FClosure (_,cf))) ->
-			if ctx.com.display = DMPosition then
-				raise (DisplayPosition [cf.cf_pos]);
-			cf.cf_meta <- (Meta.Usage,[],p) :: cf.cf_meta;
+			handle_field cf;
 		| TLocal v ->
 			v.v_meta <- (Meta.Usage,[],p) :: v.v_meta;
 		| TTypeExpr mt ->
@@ -3379,6 +3382,13 @@ and handle_display ctx e iscall p =
 			if ctx.com.display = DMPosition then
 				raise (DisplayPosition [ti.mt_pos]);
 			ti.mt_meta <- (Meta.Usage,[],p) :: ti.mt_meta;
+		| TNew(c,tl,_) ->
+			begin try
+				let _,cf = get_constructor ctx c tl p in
+				handle_field cf;
+			with Not_found ->
+				()
+			end
 		| _ ->
 			()
 		end;
