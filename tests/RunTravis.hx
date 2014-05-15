@@ -427,7 +427,7 @@ class RunTravis {
 				testFlambe();
 				testHxTemplo();
 				testMUnit();
-				//testOpenflSamples();
+				testOpenflSamples();
 				testFlixelDemos();
 			case t:
 				throw "unknown target: " + t;
@@ -507,7 +507,7 @@ class RunTravis {
 		var path = getHaxelibPath("openfl-samples");
 		var old = Sys.getEnv("pwd");
 		Sys.putEnv("pwd", path);
-		parseTravisFile(haxe.io.Path.join([path, ".travis.yml"]), true);
+		//parseTravisFile(haxe.io.Path.join([path, ".travis.yml"]), true);
 		if (old != null) {
 			Sys.putEnv("pwd", old);
 		}
