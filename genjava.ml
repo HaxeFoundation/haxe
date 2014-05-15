@@ -707,6 +707,8 @@ let configure gen =
 	let change_param_type md params =
 		match md with
 			| TClassDecl( { cl_path = (["java"], "NativeArray") } ) -> params
+			| TAbstractDecl { a_path=[],("Class" | "Enum") } | TClassDecl { cl_path = (["java";"lang"],("Class"|"Enum")) } ->
+				List.map (fun _ -> t_dynamic) params
 			| _ ->
 				match params with
 					| [] -> []
@@ -803,7 +805,7 @@ let configure gen =
 			| TAbstract( { a_path = ([], "Class") }, p	)
 			| TAbstract( { a_path = ([], "Enum") }, p  )
 			| TInst( { cl_path = ([], "Class") }, p  )
-			| TInst( { cl_path = ([], "Enum") }, p	) -> TInst(cl_cl,p)
+			| TInst( { cl_path = ([], "Enum") }, p	) -> TInst(cl_cl,[t_dynamic])
 			| TEnum(e,params) -> TEnum(e, List.map (fun _ -> t_dynamic) params)
 			| TInst(c,params) when Meta.has Meta.Enum c.cl_meta ->
 				TInst(c, List.map (fun _ -> t_dynamic) params)
