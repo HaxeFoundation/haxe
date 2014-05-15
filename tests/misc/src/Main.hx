@@ -1,4 +1,5 @@
 import sys.FileSystem;
+import sys.io.File;
 import haxe.io.Path;
 import haxe.macro.Expr;
 
@@ -30,7 +31,8 @@ class Main {
 					Sys.setCwd(dirPath);
 					Sys.println('Running haxe $path');
 					var expectFailure = file.endsWith("-fail.hxml");
-					var success = runCommand("haxe", [file], expectFailure);
+					var expectStderr = if (FileSystem.exists('$file.stderr')) prepareExpectedOutput(File.getContent('$file.stderr')) else null;
+					var success = runCommand("haxe", [file], expectFailure, expectStderr);
 					++count;
 					if (!success) {
 						failures++;
@@ -48,11 +50,28 @@ class Main {
 		};
 	}
 
-	static function runCommand(command:String, args:Array<String>, expectFailure:Bool) {
+	static function prepareExpectedOutput(s:String):String {
+		s = s.replace("\r\n", "\n"); // get rid of windows newlines
+
+		var cwd = Path.removeTrailingSlashes(FileSystem.fullPath(Sys.getCwd()));
+
+		var context = {cwd: cwd};
+		var macros = {normPath: normPath};
+
+		return new haxe.Template(s).execute(context, macros);
+	}
+
+	static function normPath(resolve, p:String):String {
+		if (Sys.systemName() == "Windows")
+			p = p.replace("/", "\\");
+		return p.toLowerCase();
+	}
+
+	static function runCommand(command:String, args:Array<String>, expectFailure:Bool, expectStderr:String) {
 		var proc = new sys.io.Process(command, args);
 		var exit = proc.exitCode();
 		var success = exit == 0;
-		return switch [success, expectFailure] {
+		var result = switch [success, expectFailure] {
 			case [true, false]:
 				true;
 			case [true, true]:
@@ -65,5 +84,20 @@ class Main {
 				Sys.print(stderr);
 				false;
 		}
+
+		if (result && expectStderr != null)
+		{
+			var stderr = proc.stderr.readAll().toString().replace("\r\n", "\n");
+			if (stderr != expectStderr)
+			{
+				Sys.println("Actual stderr output doesn't match the expected one");
+				Sys.println('Expected:\n"$expectStderr"');
+				Sys.println('Actual:\n"$stderr"');
+				result = false;
+			}
+		}
+
+		return result;
+
 	}
 }
