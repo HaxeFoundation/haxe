@@ -3101,6 +3101,7 @@ let convert_ilmethod ctx p m is_explicit_impl =
 	in
 	let acc = match m.moverride with
 		| None -> acc
+		| _ when cff_name = "new" -> acc
 		| Some (path,s) -> match lookup_ilclass ctx.nstd ctx.ncom path with
 			| Some ilcls when not (List.mem SInterface ilcls.cflags.tdf_semantics) ->
 				AOverride :: acc
