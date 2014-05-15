@@ -427,7 +427,7 @@ class RunTravis {
 				testFlambe();
 				testHxTemplo();
 				testMUnit();
-				testOpenflSamples();
+				//testOpenflSamples();
 				testFlixelDemos();
 			case t:
 				throw "unknown target: " + t;
