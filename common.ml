@@ -168,6 +168,7 @@ module Define = struct
 		| As3
 		| CheckXmlProxy
 		| CoreApi
+		| CoreApiSerialize
 		| Cppia
 		| Dce
 		| DceDebug
@@ -242,6 +243,7 @@ module Define = struct
 		| As3 -> ("as3","Defined when outputing flash9 as3 source code")
 		| CheckXmlProxy -> ("check_xml_proxy","Check the used fields of the xml proxy")
 		| CoreApi -> ("core_api","Defined in the core api context")
+		| CoreApiSerialize -> ("core_api_serialize","Sets so some generated core api classes be marked with the Serializable attribute on C#")
 		| Cppia -> ("cppia", "Generate experimental cpp instruction assembly")
 		| Dce -> ("dce","The current DCE mode")
 		| DceDebug -> ("dce_debug","Show DCE log")

@@ -1085,7 +1085,11 @@ let generate_modules gen extension source_dir (module_gen : SourceWriter.source_
 						with | Not_found ->
 							"."
 					in
-					base_path ^ "/" ^ gen.gcon.file
+					match List.rev (fst md_def.m_path) with
+						| "editor" :: _ ->
+							base_path ^ "/" ^ gen.gcon.file ^ "/Editor"
+						| _ ->
+							base_path ^ "/" ^ gen.gcon.file
 				else match List.rev (fst md_def.m_path) with
 					| "editor" :: _ ->
 						Common.defined_value gen.gcon Define.UnityStdTarget ^ "/Editor/" ^ (String.concat "/" (fst md_def.m_path))
@@ -8698,6 +8702,10 @@ struct
 			en.e_meta <- (Meta.Class, [], pos) :: en.e_meta;
 			cl.cl_module <- en.e_module;
 			cl.cl_meta <- ( Meta.Enum, [], pos ) :: cl.cl_meta;
+			(match gen.gcon.platform with
+				| Cs when Common.defined gen.gcon Define.CoreApiSerialize ->
+					cl.cl_meta <- ( Meta.Meta, [ (EField( (EConst (Ident "System"), null_pos ), "Serializable" ), null_pos) ], null_pos ) :: cl.cl_meta
+				| _ -> ());
 			let c_types =
 				if handle_type_params then
 					List.map (fun (s,t) -> (s, TInst (map_param (get_cl_t t), []))) en.e_types

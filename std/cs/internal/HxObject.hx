@@ -33,7 +33,7 @@ private interface IHxObject
 {
 }
 
-#if coreApiSerialize
+#if core_api_serialize
 @:meta(System.Serializable)
 #end
 @:keep @:native('haxe.lang.DynamicObject')
@@ -69,7 +69,7 @@ private class DynamicObject extends HxObject implements Dynamic
 
 @:native('haxe.lang.Enum')
 @:keep @:skipCtor
-#if coreApiSerialize
+#if core_api_serialize
 @:meta(System.Serializable)
 #end
 private class Enum
