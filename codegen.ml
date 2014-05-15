@@ -926,6 +926,8 @@ let detect_usage com =
 					usage := e.epos :: !usage
 				| TVar (v,_) when com.display = DMPosition && Meta.has Meta.Usage v.v_meta ->
 					raise (Typecore.DisplayPosition [e.epos])
+				| TFunction tf when com.display = DMPosition && List.exists (fun (v,_) -> Meta.has Meta.Usage v.v_meta) tf.tf_args ->
+					raise (Typecore.DisplayPosition [e.epos])
 				| TTypeExpr mt when (Meta.has Meta.Usage (t_infos mt).mt_meta) ->
 					usage := e.epos :: !usage
 				| _ -> Type.iter expr e
