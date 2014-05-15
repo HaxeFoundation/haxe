@@ -1500,15 +1500,28 @@ struct
 	let default_hxgen_func md =
 		match md with
 			| TClassDecl cl ->
-				let rec is_hxgen_class c =
+				let rec is_hxgen_class (c,_) =
 					if c.cl_extern then begin
-						if Meta.has Meta.HxGen c.cl_meta then true else Option.map_default (fun (c,_) -> is_hxgen_class c) false c.cl_super
+						if Meta.has Meta.HxGen c.cl_meta then true else Option.map_default (is_hxgen_class) false c.cl_super
 					end else begin
-						if Meta.has Meta.NativeGen c.cl_meta then Option.map_default (fun (c, _) -> is_hxgen_class c) false c.cl_super else true
+						if Meta.has Meta.NativeChildren c.cl_meta || Meta.has Meta.NativeGen c.cl_meta then
+							Option.map_default (is_hxgen_class) false c.cl_super
+						else
+							let rec has_nativec (c,p) =
+								if is_hxgen_class (c,p) then
+									false
+								else
+									(Meta.has Meta.NativeChildren c.cl_meta && not (Option.map_default is_hxgen_class false c.cl_super))
+									|| Option.map_default has_nativec false c.cl_super
+							in
+							if Option.map_default has_nativec false c.cl_super then
+								false
+							else
+								true
 					end
 				in
 
-				is_hxgen_class cl
+				is_hxgen_class (cl,[])
 			| TEnumDecl e -> if e.e_extern then Meta.has Meta.HxGen e.e_meta else not (Meta.has Meta.NativeGen e.e_meta)
 			| TAbstractDecl a -> not (Meta.has Meta.NativeGen a.a_meta)
 			| TTypeDecl t -> (* TODO see when would we use this *)
@@ -1520,12 +1533,13 @@ struct
 	*)
 	let run_filter gen is_hxgen_func =
 		let filter md =
-			if is_hxgen_func md then begin
+			let meta = if is_hxgen_func md then Meta.HxGen else Meta.NativeGen in
+			begin
 				match md with
-					| TClassDecl cl -> cl.cl_meta <- (Meta.HxGen, [], cl.cl_pos) :: cl.cl_meta
-					| TEnumDecl e -> e.e_meta <- (Meta.HxGen, [], e.e_pos) :: e.e_meta
-					| TTypeDecl t -> t.t_meta <- (Meta.HxGen, [], t.t_pos) :: t.t_meta
-					| TAbstractDecl a -> a.a_meta <- (Meta.HxGen, [], a.a_pos) :: a.a_meta
+					| TClassDecl cl -> cl.cl_meta <- (meta, [], cl.cl_pos) :: cl.cl_meta
+					| TEnumDecl e -> e.e_meta <- (meta, [], e.e_pos) :: e.e_meta
+					| TTypeDecl t -> t.t_meta <- (meta, [], t.t_pos) :: t.t_meta
+					| TAbstractDecl a -> a.a_meta <- (meta, [], a.a_pos) :: a.a_meta
 			end
 		in
 		List.iter filter gen.gcon.types

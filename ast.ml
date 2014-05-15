@@ -99,6 +99,7 @@ module Meta = struct
 		| MergeBlock
 		| MultiType
 		| Native
+		| NativeChildren
 		| NativeGen
 		| NativeGeneric
 		| NoCompletion
