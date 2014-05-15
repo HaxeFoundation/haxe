@@ -363,6 +363,7 @@ module MetaInfo = struct
 		| Depend -> ":depend",("",[Platform Cpp])
 		| Deprecated -> ":deprecated",("Automatically added by -java-lib on class fields annotated with @Deprecated annotation. Has no effect on types compiled by Haxe.",[Platform Java; UsedOnEither [TClass;TEnum;TClassField]])
 		| DynamicObject -> ":dynamicObject",("Used internally to identify the Dynamic Object implementation",[Platforms [Java;Cs]; UsedOn TClass; Internal])
+		| ENewTypePath -> ":ENewTypePath",("Internally used by --display @ position mode to store type path position for ENew expressions",[Internal;UsedOn TExpr])
 		| Enum -> ":enum",("Used internally to annotate a class that was generated from an enum",[Platforms [Java;Cs]; UsedOn TClass; Internal])
 		| EnumConstructorParam -> ":enumConstructorParam",("Used internally to annotate GADT type parameters",[UsedOn TClass; Internal])
 		| Event -> ":event",("Automatically added by -net-lib on events. Has no effect on types compiled by Haxe.",[Platform Cs; UsedOn TClassField])
