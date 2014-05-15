@@ -273,6 +273,7 @@ class RunTravis {
 		haxelibInstallGit("openfl", "lime");
 		haxelibInstallGit("openfl", "lime-tools");
 		haxelibInstallGit("openfl", "openfl-native");
+		haxelibInstallGit("openfl", "openfl-html5");
 		haxelibInstallGit("openfl", "openfl");
 
 		haxelibRun(["openfl", "rebuild", "linux"]);
