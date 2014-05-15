@@ -641,7 +641,7 @@ and cpp_function_signature tfun =
    match follow tfun with
    | TFun(args,ret) -> (type_string ret) ^ "(" ^ (gen_tfun_interface_arg_list args) ^ ")"
    | _ -> "void *"
- 
+
 and cpp_function_signature_params params = match params with
    | [t] -> cpp_function_signature t
    | _ ->  assert false;
@@ -2084,8 +2084,11 @@ and gen_expression ctx retval expression =
    (* Get precidence matching haxe ? *)
    | TBinop (op,expr1,expr2) -> gen_bin_op op expr1 expr2
    | TField (expr,_) | TEnumParameter (expr,_,_) when (is_null expr) -> output "Dynamic()"
-   | TEnumParameter (expr,_,i) ->
-      let enum = match follow expr.etype with TEnum(enum,_) -> enum | _ -> assert false in
+   | TEnumParameter (expr,ef,i) ->
+      let enum = match follow ef.ef_type with
+         | TEnum(en,_) | TFun(_,TEnum(en,_)) -> en
+         | _ -> assert false
+      in
       output (  "(::" ^ (join_class_path_remap enum.e_path "::") ^ "(");
       gen_expression ctx true expr;
       output ( "))->__Param(" ^ (string_of_int i) ^ ")")
@@ -2623,7 +2626,7 @@ let gen_member_def ctx class_def is_static is_interface field =
    ;;
 
 let path_of_string path =
-   ["@verbatim"], path 
+   ["@verbatim"], path
 ;;
 
 
