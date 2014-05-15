@@ -70,6 +70,7 @@ let unquote_ident f =
 let cache = ref (DynArray.create())
 let last_doc = ref None
 let use_doc = ref false
+let use_parser_resume = ref true
 let resume_display = ref null_pos
 let in_macro = ref false
 
@@ -85,7 +86,7 @@ let display e = raise (Display e)
 
 let is_resuming p =
 	let p2 = !resume_display in
-	p.pmax = p2.pmin && Common.unique_full_path p.pfile = p2.pfile
+	p.pmax = p2.pmin && !use_parser_resume && Common.unique_full_path p.pfile = p2.pfile
 
 let set_resume p =
 	resume_display := { p with pfile = Common.unique_full_path p.pfile }

@@ -1140,15 +1140,19 @@ try
 				let file, pos = try ExtString.String.split file_pos "@" with _ -> failwith ("Invalid format : " ^ file_pos) in
 				let file = unquote file in
 				let pos, smode = try ExtString.String.split pos "@" with _ -> pos,"" in
+				let activate_special_display_mode () =
+					Common.define com Define.NoCOpt;
+					Parser.use_parser_resume := false
+				in
 				let mode = match smode with
 					| "position" ->
-						Common.define com Define.NoCOpt;
+						activate_special_display_mode();
 						DMPosition
 					| "usage" ->
-						Common.define com Define.NoCOpt;
+						activate_special_display_mode();
 						DMUsage
 					| "toplevel" ->
-						Common.define com Define.NoCOpt;
+						activate_special_display_mode();
 						DMToplevel
 					| _ ->
 						DMDefault
