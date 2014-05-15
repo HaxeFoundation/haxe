@@ -63,8 +63,12 @@ class Main {
 
 	static function normPath(resolve, p:String):String {
 		if (Sys.systemName() == "Windows")
+		{
+			// on windows, haxe returns lowercase paths with backslashes
 			p = p.replace("/", "\\");
-		return p.toLowerCase();
+			p = p.toLowerCase();
+		}
+		return p;
 	}
 
 	static function runCommand(command:String, args:Array<String>, expectFailure:Bool, expectStderr:String) {
