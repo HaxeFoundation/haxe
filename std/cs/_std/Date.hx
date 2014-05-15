@@ -24,6 +24,9 @@ import cs.system.DateTime;
 import cs.system.TimeSpan;
 import haxe.Int64;
 
+#if coreApiSerialize
+@:meta(System.Serializable)
+#end
 @:coreApi class Date
 {
 	private var date:DateTime;
