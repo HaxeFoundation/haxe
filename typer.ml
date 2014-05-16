@@ -3364,8 +3364,6 @@ and handle_display ctx e iscall p =
 		cf.cf_meta <- (Meta.Usage,[],p) :: cf.cf_meta;
 	in
 	match ctx.com.display with
-	| DMNone ->
-		assert false
 	| DMUsage | DMPosition ->
 		(* print_endline (s_expr (s_type (print_context())) e); *)
 		begin match e.eexpr with
@@ -3395,7 +3393,7 @@ and handle_display ctx e iscall p =
 		e
 	| DMToplevel ->
 		collect_toplevel_identifiers ctx;
-	| DMDefault ->
+	| DMDefault | DMNone ->
 		let opt_args args ret = TFun(List.map(fun (n,o,t) -> n,true,t) args,ret) in
 		let e = match e.eexpr with
 			| TField (e1,fa) ->
