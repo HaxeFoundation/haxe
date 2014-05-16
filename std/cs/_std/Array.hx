@@ -28,6 +28,9 @@ import cs.NativeArray;
 		this.length = native.Length;
 	}
 ')
+#if core_api_serialize
+@:meta(System.Serializable)
+#end
 @:final @:coreApi class Array<T> implements ArrayAccess<T> {
 
 	public var length(default,null) : Int;

@@ -131,6 +131,19 @@ import cs.internal.Runtime;
 			name = "haxe.root." + name;
 #end
 		var t:cs.system.Type = cs.system.Type._GetType(name);
+#if !CF
+		if (t == null)
+		{
+			var all = cs.system.AppDomain.CurrentDomain.GetAssemblies().GetEnumerator();
+			while (all.MoveNext())
+			{
+				var t2:cs.system.reflection.Assembly = all.Current;
+				t = t2.GetType(name);
+				if (t != null)
+					break;
+			}
+		}
+#end
 		if (t == null)
 		{
 			switch(name)

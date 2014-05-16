@@ -74,6 +74,12 @@ class Path {
 		properties.
 	**/
 	public function new( path : String ) {
+		switch (path) {
+			case "." | "..":
+				dir = path;
+				file = "";
+				return;
+		}
 		var c1 = path.lastIndexOf("/");
 		var c2 = path.lastIndexOf("\\");
 		if( c1 < c2 ) {

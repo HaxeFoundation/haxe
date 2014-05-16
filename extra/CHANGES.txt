@@ -1,7 +1,45 @@
 2014-??-??: 3.2.0
 
-	all : fixed nullability of abstracts over functions
+	New features:
+
+	all : add --display mode for toplevel completion
+	all : add --display mode for position and usage information
+	python : added python target
+	flash : flash player 12-14 support
+	js : add @:jsRequire and js.Lib.require
 	cs  : add @:bridgeProperties, which creates native property bridges for all haxe properties in the annotated class
+
+	Bugfixes:
+
+	all : fixed nullability of abstracts over functions
+	all : fixed some equality checks between UInt and Int
+	all : fixed rare issue with abstract casts
+	all : fixed some internal code which relied on unspecified evaluation order
+	all : fixed exhaustiveness checks involving guards
+	all : fixed issue involving recursively constrained type parameters and @:generic
+	all : fixed type inference issue in map literals
+	all : fixed type inference issue when calling abstract method from within the abstract
+	cpp : fixed issue with the side-effect handler
+	cpp : fixed issue with NativeArray in --no-inline mode
+	php : fixed issue with invalid references for closures in for-loops
+
+	General improvements and optimizations:
+
+	all : disallowed using `super` in value positions
+	all : check exhaustiveness of explicit Null types
+	all : resolve unqualified identifiers to @:enum abstract constructors
+	all : determine @:generic type parameters from constructor call if possible
+	all : properly disallowed field redefinition in extending interface
+	neko : create output directory if it does not exist
+	js : inline Math methods and fields
+
+	Macro features and changes:
+
+	macro : added Context.getLocalTVars
+
+	Deprecations:
+
+	all : deprecated structurally extending classes and interfaces
 
 2014-04-13: 3.1.3
 
@@ -606,7 +644,7 @@
 	php: minor optimization (removed foreach from std code)
 	php: implemented haxe.Stack
 	php: changed exception handler to use Haxe call stack
-	php: changed special vars to use the » prefix instead of __
+	php: changed special vars to use the ?prefix instead of __
 	php: fixed use of reserved keywords for var names
 	php: List iterator is now class based (faster)
 	php: fixed behavior of class variables having assigned functions

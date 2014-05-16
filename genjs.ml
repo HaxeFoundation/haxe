@@ -107,7 +107,7 @@ let kwds2 =
 		"Infinity"; "NaN"; "decodeURI"; "decodeURIComponent"; "encodeURI"; "encodeURIComponent";
 		"escape"; "eval"; "isFinite"; "isNaN"; "parseFloat"; "parseInt"; "undefined"; "unescape";
 
-		"JSON"; "Number"; "Object"; "console"; "window";
+		"JSON"; "Number"; "Object"; "console"; "window"; "require";
 	];
 	h
 
@@ -1105,6 +1105,25 @@ let generate_static ctx (c,f,e) =
 	gen_value ctx e;
 	newline ctx
 
+let generate_require ctx c =
+	let _, args, mp = Meta.get Meta.JsRequire c.cl_meta in
+	let p = (s_path ctx c.cl_path) in
+
+	if ctx.js_flatten then
+		spr ctx "var "
+	else
+		generate_package_create ctx c.cl_path;
+
+	(match args with
+	| [(EConst(String(module_name)),_)] ->
+		print ctx "%s = require(\"%s\")" p module_name
+	| [(EConst(String(module_name)),_) ; (EConst(String(object_path)),_)] ->
+		print ctx "%s = require(\"%s\").%s" p module_name object_path
+	| _ ->
+		error "Unsupported @:jsRequire format" mp);
+
+	newline ctx
+
 let generate_type ctx = function
 	| TClassDecl c ->
 		(match c.cl_init with
@@ -1116,6 +1135,8 @@ let generate_type ctx = function
 		if p = "Math" then generate_class___name__ ctx c;
 		if not c.cl_extern then
 			generate_class ctx c
+		else if Meta.has Meta.JsRequire c.cl_meta then
+			generate_require ctx c
 		else if not ctx.js_flatten && Meta.has Meta.InitPackage c.cl_meta then
 			(match c.cl_path with
 			| ([],_) -> ()
@@ -1161,7 +1182,8 @@ let alloc_ctx com =
 	ctx.type_accessor <- (fun t ->
 		let p = t_path t in
 		match t with
-		| TClassDecl { cl_extern = true }
+		| TClassDecl ({ cl_extern = true } as c) when not (Meta.has Meta.JsRequire c.cl_meta)
+			-> dot_path p
 		| TEnumDecl { e_extern = true }
 			-> dot_path p
 		| _ -> s_path ctx p);

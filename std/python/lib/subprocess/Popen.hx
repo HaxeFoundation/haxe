@@ -22,6 +22,7 @@ typedef PopenOptions = {
 	?creationflags : Int,
 }
 
+@:pythonImport("subprocess", "Popen")
 extern class Popen {
 
 	public static inline function create (args:Array<String>, o:PopenOptions):Popen {
@@ -71,10 +72,5 @@ extern class Popen {
 	public var pid:Int;
 
 	public function communicate (input:Bytes = null, timeout:Null<Int> = null):Tup2<Bytes, Bytes>;
-
-	static function __init__ ():Void
-	{
-		python.Syntax.importFromAs("subprocess", "Popen", "python.lib.subprocess.Popen");
-	}
 
 }

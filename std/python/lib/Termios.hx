@@ -3,6 +3,7 @@ package python.lib;
 
 abstract TermiosSettings(Dynamic) {}
 
+@:pythonImport("termios", ignoreError=true)
 extern class Termios {
 
 	public static var TCSADRAIN : Int;
@@ -11,13 +12,5 @@ extern class Termios {
 	public static function tcgetattr (fileNo:Int):TermiosSettings;
 
 	public static function tcsetattr (fileNo:Int, when:Int, settings:TermiosSettings):Void;
-
-	static function __init__ ():Void
-	{
-		try {
-			python.Syntax.importAs("termios", "python.lib.Termios");
-		}
-		catch (e:Dynamic) {}
-	}
 
 }

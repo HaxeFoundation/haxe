@@ -64,6 +64,13 @@ public class MyClass
 	}
 
 	public event VoidVoid voidvoid;
+	public static event VoidVoid voidvoid2;
+
+	public static void dispatch2()
+	{
+		if (voidvoid2 != null)
+			voidvoid2.Invoke();
+	}
 
 }
 

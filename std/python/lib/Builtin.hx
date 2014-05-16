@@ -2,12 +2,12 @@
 package python.lib;
 
 
-import python.lib.io.IOBase;
+import python.lib.io.FileIO;
 import python.lib.Dict;
 import python.NativeIterable;
 import python.NativeIterator;
 
-@:native("_hx_builtin")
+@:pythonImport("builtins")
 extern class Builtin {
 
 
@@ -41,7 +41,7 @@ extern class Builtin {
 	@:overload(function (f:Tuple<Dynamic>):Int {})
 	public static function len(x:String):Int;
 
-	public static function open(file:String, mode:String, ?buffering:Int = -1, ?encoding:String = null, ?errors : String, ?newline:String, ?closefd:Bool, ?opener:String->Int->FileDescriptor):IOBase;
+	public static function open(file:String, mode:String, ?buffering:Int = -1, ?encoding:String = null, ?errors : String, ?newline:String, ?closefd:Bool, ?opener:String->Int->FileDescriptor):FileIO;
 
 	//public static function divmod():Void;
 	//public static function input():Void;
@@ -50,7 +50,7 @@ extern class Builtin {
 	//public static function enumerate():Void;
 	@:overload(function (x:Dynamic, base:Int):Int {})
 	public static function int(x:Dynamic):Int;
-	//public static function ord():Void;
+	public static function ord(s:String):Int;
 	public static inline function str(o:Dynamic):String {
 		return python.Syntax.field(Builtin, "str")(o);
 	}

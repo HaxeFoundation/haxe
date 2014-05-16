@@ -4,6 +4,7 @@ package python.lib;
 import python.NativeIterator;
 import python.NativeIterable;
 
+@:pythonImport("builtins", "set")
 extern class Set <T>
 {
 	@:overload(function (?array:Array<T>):Void {})
@@ -27,11 +28,6 @@ extern class Set <T>
 	public inline function plus (other:Set<T>):Set<T>
 	{
 		return python.Syntax.binop(this, "+", other);
-	}
-
-	static function __init__ ():Void
-	{
-		Syntax.importFromAs("builtins", "set", "python.lib.Set");
 	}
 
 	function __iter__ ():NativeIterator<T>;

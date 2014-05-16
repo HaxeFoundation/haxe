@@ -3,12 +3,8 @@ package python.lib;
 
 import python.Syntax;
 
+@:pythonImport("inspect")
 extern class Inspect {
-
-	static function __init__ ():Void
-	{
-		python.Syntax.importAs("inspect", "python.lib.Inspect");
-	}
 
 	static function getmembers (value:Dynamic, ?filter:Dynamic->Bool):Bool;
 	static function ismethod (value:Dynamic):Bool;

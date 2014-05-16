@@ -7,6 +7,7 @@ import python.internal.EnumImpl;
 import python.internal.HxOverrides;
 import python.internal.HxException;
 import python.internal.AnonObject;
+import python.internal.HxBuiltin;
 
 import python.Syntax;
 
@@ -16,36 +17,91 @@ private extern class Set<T> {
 	}
 }
 
+@:pythonImport("math") private extern class Math {
+	public static function floor (x:Float):Int;
+}
+@:pythonImport("inspect") private extern class Inspect {}
 
-@:preCode("
-import builtins as _hx_builtin
-import functools as _hx_functools
-import math as _hx_math
+typedef HxClassBase = {
+    _hx_class:Dynamic,
+    _hx_class_name:String
+}
 
-_hx_classes = dict()
+private typedef HxAbstract = {
+    >HxClassBase,
+}
 
-class _hx_AnonObject(object):
-	def __init__(self, fields):
-		self.__dict__ = fields
+private typedef HxEnum = {
+    >HxClassBase,
+    _hx_constructs:Array<String>
+}
 
-_hx_c = _hx_AnonObject({})
+private typedef HxClass = {
+    >HxClassBase,
+    _hx_fields:Array<String>,
+    _hx_props:Array<String>,
+    _hx_methods:Array<String>,
+    _hx_statics:Array<String>,
+    _hx_interfaces:Array<HxClassBase>,
+    _hx_super:HxClass
+}
 
-_hx_c._hx_AnonObject = _hx_AnonObject
-")
+@:keep
+@:nativeGen
+@:native("_hx_ClassRegistry")
+private class ClassRegistry extends python.lib.Dict<String, HxClassBase> {
+    function _register(cls:HxClassBase, name:String):Void {
+        cls._hx_class = cls;
+        cls._hx_class_name = name;
+        set(name, cls);
+    }
+
+    function registerAbstract(name:String):HxAbstract->HxAbstract {
+        function wrapper(cls:HxAbstract):HxAbstract {
+            _register(cls, name);
+            return cls;
+        }
+        return wrapper;
+    }
+
+    function registerEnum(name:String, constructs:Array<String>):HxEnum->HxEnum {
+        function wrapper(cls:HxEnum):HxEnum {
+            _register(cls, name);
+            cls._hx_constructs = constructs;
+            return cls;
+        }
+        return wrapper;
+    }
+
+    function registerClass(name:String, ?fields:Array<String>, ?props:Array<String>, ?methods:Array<String>, ?statics:Array<String>, ?interfaces:Array<HxClassBase>, ?superClass:HxClass):HxClass->HxClass {
+        if (fields == null) fields = [];
+        if (props == null) props = [];
+        if (methods == null) methods = [];
+        if (statics == null) statics = [];
+        if (interfaces == null) interfaces = [];
+        function wrapper(cls:HxClass):HxClass {
+            _register(cls, name);
+            cls._hx_fields = fields;
+            cls._hx_props = props;
+            cls._hx_methods = methods;
+            cls._hx_statics = statics;
+            cls._hx_interfaces = interfaces;
+            if (superClass != null)
+                cls._hx_super = superClass;
+            return cls;
+        }
+        return wrapper;
+    }
+}
+
+@:preCode("_hx_classes = _hx_ClassRegistry()")
 @:keep class Boot {
 
-	static function __init__ () {
-		Internal.importAsPrefixed("inspect", "boot_inspect");
-		Boot.inspect = Internal.pythonCodePrefixed("boot_inspect");
-		Boot.math = Internal.pythonCodePrefixed("math");
-		Boot.builtin = Internal.pythonCodePrefixed("builtin");
-	}
-
 	static inline function mathRound (v:Float) {
-		return math.floor(v + 0.5);
+		return Math.floor(v + 0.5);
 	}
 
-	inline static function mkSet <T>(a:Array<T>):Set<T> return Syntax.callField(builtin, "set", a);
+	inline static function mkSet <T>(a:Array<T>):Set<T> return Syntax.callField(HxBuiltin, "set", a);
 
 	static var keywords:Set<String> = mkSet(
 	[
@@ -60,96 +116,93 @@ _hx_c._hx_AnonObject = _hx_AnonObject
 	]);
 
 	inline static function arrayJoin <T>(x:Array<T>, sep:String):String {
-		return Syntax.field(sep, "join")(x.map(python.Boot.toString));
+		return Syntax.field(sep, "join")(Syntax.pythonCode("[{0}(x1,'') for x1 in {1}]", python.Boot.toString1, x));
 	}
 
 	inline static function isInstance(o:Dynamic, x:Dynamic):Bool {
-		return Syntax.callField(builtin, "isinstance", o, x);
+		return HxBuiltin.isinstance(o,x);
 	}
 
 	inline static function builtinStr(o:Dynamic):String {
-		return Syntax.callField(builtin, "str", o);
+		return HxBuiltin.str(o);
 	}
 
 	inline static function builtinHasAttr(o:Dynamic, x:String):Bool {
-		return Syntax.callField(builtin, "hasattr", o, x);
+		return HxBuiltin.hasattr(o, x);
 	}
 
 	inline static function builtinGetAttr(o:Dynamic, x:String):Dynamic {
-		return Syntax.callField(builtin, "getattr", o, x);
+		return HxBuiltin.getattr(o, x);
 	}
 
 	inline static function isPyBool(o:Dynamic):Bool {
-		return isInstance(o, Syntax.field(builtin, "bool"));
+		return isInstance(o, HxBuiltin.bool);
 	}
 
 	inline static function isPyInt(o:Dynamic):Bool {
-		return isInstance(o, Syntax.field(builtin, "int"));
+		return isInstance(o, HxBuiltin.int);
 	}
 
 	inline static function isPyFloat(o:Dynamic):Bool {
-		return isInstance(o, Syntax.field(builtin, "float"));
+		return isInstance(o, HxBuiltin.float);
 	}
 
 	inline static function builtinLen(o:Dynamic):Int {
-		return Syntax.callField(builtin, "len", o);
+		return Syntax.callField(HxBuiltin, "len", o);
 	}
 
 	inline static function builtinInt(o:Dynamic):Int {
-		return Syntax.callField(builtin, "int", o);
+		return Syntax.callField(HxBuiltin, "int", o);
 	}
 
 	inline static function builtinCallable(o:Dynamic):Bool {
-		return Syntax.callField(builtin, "callable", o);
+		return Syntax.callField(HxBuiltin, "callable", o);
 	}
 
 	inline static function inspectGetMembers(o:Dynamic, f:String->Bool):Void {
-		Syntax.callField(inspect, "getmembers", o, f);
+		Syntax.callField(Inspect, "getmembers", o, f);
 	}
 
 	inline static function inspectIsClass(o:Dynamic):Bool {
-		return Syntax.callField(inspect, "isclass", o);
+		return Syntax.callField(Inspect, "isclass", o);
 	}
 
 	inline static function inspectIsFunction(o:Dynamic):Bool {
-		return Syntax.callField(inspect, "isclass", o);
+		return Syntax.callField(Inspect, "isfunction", o);
 	}
 
 	inline static function inspectIsMethod(o:Dynamic):Bool {
-		return Syntax.callField(inspect, "isclass", o);
+		return Syntax.callField(Inspect, "ismethod", o);
 	}
 
-	static var builtin:Dynamic;
-	static var inspect:Dynamic;
-	static var math:Dynamic;
 
 	static inline function isClass(o:Dynamic) : Bool {
 		return o != null && (o == String || inspectIsClass(o));
 	}
 
-	static inline function isAnonObject (o:Dynamic) {
+	static function isAnonObject (o:Dynamic) {
 		return isInstance(o, AnonObject);
 	}
 
 	private static function _add_dynamic(a:Dynamic,b:Dynamic):Dynamic {
 		if (isInstance(a, String) || isInstance(b, String)) {
-			return toString1(a,"") + toString1(b,"");
+			return Syntax.binop(toString1(a,""), "+", toString1(b,""));
 		}
 		return Syntax.binop(a, "+", b);
 	}
 
-	static function toString (o:Dynamic) {
+	static inline function toString (o:Dynamic) {
 		return toString1(o, "");
 	}
 
 	private static function toString1(o:Dynamic,s:String):String {
 
-		if (s == null) s = "";
 		if( o == null ) return "null";
 
-		if( s.length >= 5 ) return "<...>"; // too much deep recursion
+		if (isString(o)) return o;
 
-		if (isInstance(o, String)) return o;
+		if (s == null) s = "";
+		if( s.length >= 5 ) return "<...>"; // too much deep recursion
 
 		if (isPyBool(o)) {
 			if ((o:Bool)) return "true" else return "false";
@@ -160,7 +213,7 @@ _hx_c._hx_AnonObject = _hx_AnonObject
 		// 1.0 should be printed as 1
 		if (isPyFloat(o)) {
 			try {
-				if (o == builtinInt(o)) {
+				if ( (o:Float) == builtinInt(o)) {
 					return builtinStr(mathRound(o));
 				} else {
 					return builtinStr(o);
@@ -170,9 +223,7 @@ _hx_c._hx_AnonObject = _hx_AnonObject
 			}
 		}
 
-		if (inspectIsFunction(o) || inspectIsMethod(o)) return "<function>";
-
-		if (isInstance(o, Array))
+		if (isArray(o))
 		{
 			var o1:Array<Dynamic> = o;
 			var l = o1.length;
@@ -189,18 +240,20 @@ _hx_c._hx_AnonObject = _hx_AnonObject
 			st += "]";
 			return st;
 		}
+
 		try {
 			if (builtinHasAttr(o, "toString")) {
-				return o.toString();
+				return Syntax.callField(o, "toString");
 			}
 		} catch (e:Dynamic) {
-
 		}
+
+		if (inspectIsFunction(o) || inspectIsMethod(o)) return "<function>";
 
 		if (builtinHasAttr(o, "__class__"))
 		{
 
-			if (isInstance(o, AnonObject))
+			if (isAnonObject(o))
 			{
 				var toStr = null;
 				try
@@ -244,29 +297,26 @@ _hx_c._hx_AnonObject = _hx_AnonObject
 				}
 			}
 
+			if (Internal.hasClassName(o)) {
+				if (Syntax.field(Syntax.field(o, "__class__"), "__name__") != "type") {
+					var fields = getInstanceFields(o);
+					var fieldsStr = [for (f in fields) '$f : ${toString1(field(o,f), s+"\t")}'];
 
-			if (Internal.hasClassName(o) && Syntax.field(Syntax.field(o, "__class__"), "__name__") != "type") {
-
-				var fields = getInstanceFields(o);
-				var fieldsStr = [for (f in fields) '$f : ${toString1(field(o,f), s+"\t")}'];
-
-				var toStr = Internal.fieldClassName(o) + "( " + arrayJoin(fieldsStr, ", ") + " )";
-				return toStr;
+					var toStr = Internal.fieldClassName(o) + "( " + arrayJoin(fieldsStr, ", ") + " )";
+					return toStr;
+				} else {
+					var fields = getClassFields(o);
+					var fieldsStr = [for (f in fields) '$f : ${toString1(field(o,f), s+"\t")}'];
+					var toStr = "#" + Internal.fieldClassName(o) + "( " + arrayJoin(fieldsStr, ", ") + " )";
+					return toStr;
+				}
 			}
 
-			if (Internal.hasClassName(o) && Syntax.field(Syntax.field(o, "__class__"), "__name__") == "type") {
-
-				var fields = getClassFields(o);
-				var fieldsStr = [for (f in fields) '$f : ${toString1(field(o,f), s+"\t")}'];
-
-				var toStr = "#" + Internal.fieldClassName(o) + "( " + arrayJoin(fieldsStr, ", ") + " )";
-				return toStr;
-			}
-			if (o == String) {
+			if (isMetaType(o,String)) {
 				return "#String";
 			}
 
-			if (o == Array) {
+			if (isMetaType(o,Array)) {
 				return "#Array";
 			}
 
@@ -297,6 +347,10 @@ _hx_c._hx_AnonObject = _hx_AnonObject
 		}
 	}
 
+	static inline function isMetaType(v:Dynamic, t:Dynamic):Bool {
+		return python.Syntax.binop(v, "==", t);
+	}
+
 	static function fields (o:Dynamic) {
 		var a = [];
 		if (o != null) {
@@ -306,8 +360,8 @@ _hx_c._hx_AnonObject = _hx_AnonObject
 			}
 			if (isInstance(o, AnonObject)) {
 
-				var d:Dynamic = Syntax.field(o, "__dict__");
-				var keys = d.keys();
+				var d = Syntax.field(o, "__dict__");
+				var keys = Syntax.callField(d, "keys");
 				var handler = unhandleKeywords;
 
 				Syntax.pythonCode("for k in keys:");
@@ -315,8 +369,8 @@ _hx_c._hx_AnonObject = _hx_AnonObject
 			}
 			else if (builtinHasAttr(o, "__dict__")) {
 				var a = [];
-				var d:Dynamic = Syntax.field(o, "__dict__");
-				var keys1  = d.keys();
+				var d = Syntax.field(o, "__dict__");
+				var keys1  = Syntax.callField(d, "keys");
 				Syntax.pythonCode("for k in keys1:");
 				Syntax.pythonCode("	a.append(k)");
 
@@ -326,11 +380,11 @@ _hx_c._hx_AnonObject = _hx_AnonObject
 	}
 
 	static inline function isString (o:Dynamic):Bool {
-		return isInstance(o, String);
+		return isInstance(o, HxBuiltin.str);
 	}
 
 	static inline function isArray (o:Dynamic):Bool {
-		return isInstance(o, Array);
+		return isInstance(o, HxBuiltin.list);
 	}
 
 	static function field( o : Dynamic, field : String ) : Dynamic {
@@ -338,7 +392,6 @@ _hx_c._hx_AnonObject = _hx_AnonObject
 
 		switch (field) {
 			case "length" if (isString(o)): return StringImpl.get_length(o);
-			case "length" if (isArray(o)): return ArrayImpl.get_length(o);
 			case "toLowerCase" if (isString(o)): return StringImpl.toLowerCase.bind(o);
 			case "toUpperCase" if (isString(o)): return StringImpl.toUpperCase.bind(o);
 			case "charAt" if (isString(o)): return StringImpl.charAt.bind(o);
@@ -349,7 +402,7 @@ _hx_c._hx_AnonObject = _hx_AnonObject
 			case "substr" if (isString(o)): return StringImpl.substr.bind(o);
 			case "substring" if (isString(o)): return StringImpl.substring.bind(o);
 			case "toString" if (isString(o)): return StringImpl.toString.bind(o);
-
+			case "length" if (isArray(o)): return ArrayImpl.get_length(o);
 			case "map" if (isArray(o)): return ArrayImpl.map.bind(o);
 			case "filter" if (isArray(o)): return ArrayImpl.filter.bind(o);
 			case "concat" if (isArray(o)): return ArrayImpl.concat.bind(o);
@@ -370,6 +423,7 @@ _hx_c._hx_AnonObject = _hx_AnonObject
 			case "sort" if (isArray(o)): return ArrayImpl.sort.bind(o);
 			case "splice" if (isArray(o)): return ArrayImpl.splice.bind(o);
 		}
+
 
 		var field = handleKeywords(field);
 		return if (builtinHasAttr(o, field)) builtinGetAttr(o, field) else null;
@@ -430,10 +484,14 @@ _hx_c._hx_AnonObject = _hx_AnonObject
 
 
 
+	static inline function unsafeFastCodeAt (s, index) {
+		return HxBuiltin.ord(python.Syntax.arrayAccess(s, index));
+	}
+
 	static inline function handleKeywords(name:String):String {
 		return if (keywords.has(name)) {
 			Internal.getPrefixed(name);
-		} else if (name.length > 2 && name.substr(0,2) == "__" && name.charAt(name.length-1) != "_") {
+		} else if (name.length > 2 && unsafeFastCodeAt(name,0) == "_".code && unsafeFastCodeAt(name,1) == "_".code && unsafeFastCodeAt(name, name.length-1) != "_".code) {
 			Internal.getPrefixed(name);
 		}
 		else name;

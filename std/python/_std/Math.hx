@@ -27,7 +27,7 @@ import python.lib.Builtin;
 /**
 	This class defines mathematical functions and constants.
 **/
-@:native("_hx_math")
+@:pythonImport("math")
 @:coreApi
 extern class Math
 {
@@ -310,7 +310,6 @@ extern class Math
 	}
 
 	static function __init__():Void {
-		python.Syntax.importAs("math", "_hx_math");
 		NEGATIVE_INFINITY = Builtin.float('-inf');
 		POSITIVE_INFINITY = Builtin.float('inf');
 		NaN = Builtin.float("nan");

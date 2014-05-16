@@ -39,7 +39,12 @@ import python.Syntax;
 		}
 	}
 
-	@:access(python.Boot.getSuperClass)
+	@:access(python.Boot)
+	static inline function isMetaType(v:Dynamic, t:Dynamic):Bool {
+		return Boot.isMetaType(v,t);
+	}
+
+	@:access(python.Boot)
 	public static function is( v : Dynamic, t : Dynamic ) : Bool {
 
 		if (v == null && t == null) {
@@ -49,39 +54,40 @@ import python.Syntax;
 
 			return false;
 		}
-		if (t == Dynamic) {
+		if (isMetaType(t,Dynamic)) {
 			return true;
 		}
 		var isBool = Builtin.isinstance(v, Builtin.bool);
 
-		if (t == Bool && isBool) {
+		if (isMetaType(t, Bool) && isBool) {
 			return true;
 		}
-		if (!isBool && t != Bool && t == Int && Builtin.isinstance(v, Builtin.int )) {
+		if (!isBool && !isMetaType(t, Bool) && isMetaType(t,Int) && Builtin.isinstance(v, Builtin.int )) {
 			return true;
 		}
 		var vIsFloat = Builtin.isinstance(v, Builtin.float);
 
-		if (!isBool && vIsFloat && t == Int && Math.isFinite(v) && v == Std.int(v) && v <= 2147483647 && v >= -2147483648) {
+		if (!isBool && vIsFloat && isMetaType(t,Int) && Math.isFinite(v) && v == Std.int(v) && v <= 2147483647 && v >= -2147483648) {
 			return true;
 		}
 
 
-		if (!isBool &&  t == Float && ( Builtin.isinstance(v, python.Syntax.pythonCode("(float,int)")))) {
+		if (!isBool &&  isMetaType(t,Float) && ( Builtin.isinstance(v, python.Syntax.pythonCode("(float,int)")))) {
 			return true;
 		}
 
-		if ( t == Builtin.str) {
+		if ( isMetaType(t, Builtin.str)) {
 			return Builtin.isinstance(v, String);
 		}
-		if (t == Enum && Inspect.isclass(v) && Internal.hasConstructs(v)) return true;
+		var isEnumType = isMetaType(t,Enum);
+		if (isEnumType && Inspect.isclass(v) && Internal.hasConstructs(v)) return true;
 
-		if (t == Enum) return false;
+		if (isEnumType) return false;
 
+		var isClassType = isMetaType(t,Class);
+		if (isClassType && !Builtin.isinstance(v, Enum) && Inspect.isclass(v) && Internal.hasClassName(v) && !Internal.hasConstructs(v)) return true;
 
-		if (t == Class && !Builtin.isinstance(v, Enum) && Inspect.isclass(v) && Internal.hasClassName(v) && !Internal.hasConstructs(v)) return true;
-
-		if (t == Class) return false;
+		if (isClassType) return false;
 
 		if (try Builtin.isinstance(v, t) catch (e:Dynamic) false) {
 			return true;

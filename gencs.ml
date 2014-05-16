@@ -2655,15 +2655,16 @@ let configure gen =
 	CSharpSpecificSynf.configure gen (CSharpSpecificSynf.traverse gen runtime_cl);
 	CSharpSpecificESynf.configure gen (CSharpSpecificESynf.traverse gen runtime_cl);
 
-	let mkdir dir = if not (Sys.file_exists dir) then Unix.mkdir dir 0o755 in
-	mkdir gen.gcon.file;
-	mkdir (gen.gcon.file ^ "/src");
-
 	(* copy resource files *)
 	if Hashtbl.length gen.gcon.resources > 0 then begin
-		mkdir (gen.gcon.file ^ "/src/Resources");
+		let src =
+			if Common.defined gen.gcon Define.UnityStdTarget then
+				Common.defined_value gen.gcon Define.UnityStdTarget ^ "/../Resources"
+			else
+				gen.gcon.file ^ "/src/Resources"
+		in
 		Hashtbl.iter (fun name v ->
-			let full_path = gen.gcon.file ^ "/src/Resources/" ^ name in
+			let full_path = src ^ "/" ^ name in
 			mkdir_from_path full_path;
 
 			let f = open_out full_path in
@@ -2725,8 +2726,8 @@ let configure gen =
 
 	generate_modules gen "cs" "src" module_gen;
 
-	dump_descriptor gen ("hxcs_build.txt") path_s module_s;
-	if ( not (Common.defined gen.gcon Define.NoCompilation) ) then begin
+	if ( not (Common.defined gen.gcon Define.NoCompilation || Common.defined gen.gcon Define.UnityStdTarget) ) then begin
+		dump_descriptor gen ("hxcs_build.txt") path_s module_s;
 		let old_dir = Sys.getcwd() in
 		Sys.chdir gen.gcon.file;
 		let cmd = "haxelib run hxcs hxcs_build.txt --haxe-version " ^ (string_of_int gen.gcon.version) in
@@ -3102,6 +3103,7 @@ let convert_ilmethod ctx p m is_explicit_impl =
 	in
 	let acc = match m.moverride with
 		| None -> acc
+		| _ when cff_name = "new" -> acc
 		| Some (path,s) -> match lookup_ilclass ctx.nstd ctx.ncom path with
 			| Some ilcls when not (List.mem SInterface ilcls.cflags.tdf_semantics) ->
 				AOverride :: acc
@@ -3218,6 +3220,12 @@ let convert_fun ctx p ret args =
 	let args = List.map (convert_fun_arg ctx p) args in
 	CTFunction(args, convert_signature ctx p ret)
 
+let get_clsname cpath =
+	match cpath with
+		| (_,[],n) -> netcl_to_hx n
+		| (_,nested,n) ->
+			String.concat "_" nested ^ "_" ^ netcl_to_hx n
+
 let convert_delegate ctx p ilcls =
 	let p = { p with pfile =	p.pfile ^" (abstract delegate)" } in
 	(* will have the following methods: *)
@@ -3225,6 +3233,9 @@ let convert_delegate ctx p ilcls =
 	(* - FromHaxeFunction(haxeType) *)
 	(* - Invoke() *)
 	(* - AsDelegate():Super *)
+	(* - @:op(A+B) Add(d:absType) *)
+	(* - @:op(A-B) Remove(d:absType) *)
+	let abs_type = mk_type_path ctx (ilcls.cpath) (List.map (fun t -> TPType (mk_type_path ctx ([],[],"T" ^ string_of_int t.tnumber) [])) ilcls.ctypes) in
 	let invoke = List.find (fun m -> m.mname = "Invoke") ilcls.cmethods in
 	let ret = invoke.mret.snorm in
 	let args = List.map (fun (_,_,s) -> s.snorm) invoke.margs in
@@ -3236,6 +3247,30 @@ let convert_delegate ctx p ilcls =
 			tp_constraints = [];
 		}
 	) ilcls.ctypes in
+	let mk_op_fn op name p =
+		let fn_name = List.assoc op cs_binops in
+		let clsname = match ilcls.cpath with
+			| (ns,inner,n) -> get_clsname (ns,inner,"Delegate_"^n)
+		in
+		let expr = (ECall( (EField( (EConst(Ident (clsname)),p), fn_name ),p), [(EConst(Ident"arg1"),p);(EConst(Ident"arg2"),p)]),p) in
+		FFun {
+			f_params = types;
+			f_args = ["arg1",false,Some abs_type,None;"arg2",false,Some abs_type,None];
+			f_type = Some abs_type;
+			f_expr = Some ( (EReturn (Some expr), p) );
+		}
+	in
+	let mk_op op name =
+		let p = { p with pfile = p.pfile ^" (op " ^ name ^ ")" } in
+		{
+			cff_name = name;
+			cff_doc = None;
+			cff_pos = p;
+			cff_meta = [ Meta.Extern,[],p ; Meta.Op, [ (EBinop(op, (EConst(Ident"A"),p), (EConst(Ident"B"),p)),p) ], p ];
+			cff_access = [APublic;AInline;AStatic];
+			cff_kind = mk_op_fn op name p;
+		}
+	in
 	let params = (List.map (fun s ->
 		TPType (mk_type_path ctx ([],[],s.tp_name) [])
 	) types) in
@@ -3278,7 +3313,7 @@ let convert_delegate ctx p ilcls =
 		f_args = [];
 		f_type = None;
 		f_expr = Some(
-			EReturn( Some ( EUntyped( EConst(Ident "this"), p ), p ) ), p
+			EReturn( Some ( EConst(Ident "this"), p ) ), p
 		);
 	} in
 	let fn_new = mk_abstract_fun "new" p fn_new [Meta.Extern] [APublic;AInline] in
@@ -3292,7 +3327,7 @@ let convert_delegate ctx p ilcls =
 		d_params = types;
 		d_meta = mk_metas [Meta.Delegate] p;
 		d_flags = [AIsType underlying_type];
-		d_data = [fn_new;fn_from_hx;fn_invoke;fn_asdel];
+		d_data = [fn_new;fn_from_hx;fn_invoke;fn_asdel;mk_op Ast.OpAdd "Add";mk_op Ast.OpSub "Remove"];
 	}
 
 let convert_ilclass ctx p ?(delegate=false) ilcls = match ilcls.csuper with
@@ -3378,6 +3413,28 @@ let convert_ilclass ctx p ?(delegate=false) ilcls = match ilcls.csuper with
 					tp_constraints = [];
 				}) ilcls.ctypes
 			in
+
+			if delegate then begin
+				(* add op_Addition and op_Subtraction *)
+				let path = ilcls.cpath in
+				let thist = mk_type_path ctx path (List.map (fun t -> TPType (mk_type_path ctx ([],[],"T" ^ string_of_int t.tnumber) [])) ilcls.ctypes) in
+				let op name =
+					{
+						cff_name = name;
+						cff_doc = None;
+						cff_pos = p;
+						cff_meta = [];
+						cff_access = [APublic;AStatic];
+						cff_kind = FFun {
+							f_params = params;
+							f_args = ["arg1",false,Some thist,None;"arg2",false,Some thist,None];
+							f_type = Some thist;
+							f_expr = None;
+						};
+					}
+				in
+				fields := op "op_Addition" :: op "op_Subtraction" :: !fields;
+			end;
 			let path = match ilcls.cpath with
 				| ns,inner,name when delegate ->
 					ns,inner,"Delegate_"^name

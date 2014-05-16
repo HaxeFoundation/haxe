@@ -14,17 +14,21 @@ class HxOverrides {
 	// we need to modify the transformer to call Reflect directly
 
 	static public function iterator(x) {
-		if (Std.is(x, Array)) {
+		if (Boot.isArray(x)) {
 			return (x:Array<Dynamic>).iterator();
 		}
-		return Reflect.callMethod(null, Reflect.field(x, "iterator"), []);
+		return Syntax.callField(x, "iterator");
 	}
 
 	static function eq( a:Dynamic, b:Dynamic ) : Bool {
 		if (Boot.isArray(a) || Boot.isArray(b)) {
-			return Syntax.pythonCode('$a is $b');
+			return Syntax.pythonCode('a is b');
 		}
 		return Syntax.binop(a, "==", b);
+	}
+
+	static function stringOrNull (s:String):String {
+		return if (s == null) "null" else s;
 	}
 
 	static public function shift(x) {
@@ -47,16 +51,16 @@ class HxOverrides {
 	}
 
 	static public function arrayGet<T>(a:Dynamic, i:Int):Dynamic {
-		if (Std.is(a, Array)) {
-			return ArrayImpl.__get(a, i);
+		if (Boot.isArray(a)) {
+			return ArrayImpl._get(a, i);
 		} else {
 			return Syntax.arrayAccess(a, i);
 		}
 	}
 
 	static public function arraySet(a:Dynamic, i:Int, v:Dynamic) {
-		if (Std.is(a, Array)) {
-			return ArrayImpl.__set(a, i, v);
+		if (Boot.isArray(a)) {
+			return ArrayImpl._set(a, i, v);
 		} else {
 			Syntax.assign(Syntax.arrayAccess(a, i), v);
 			return v;

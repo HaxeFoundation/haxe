@@ -30,18 +30,20 @@ NATIVE_LIBS=-cclib libs/extc/extc_stubs.o -cclib -lz -cclib libs/objsize/c_objsi
 
 ifeq ($(BYTECODE),1)
 	TARGET_FLAG = bytecode
-	CC_CMD = $(OCAMLC)
+	COMPILER = $(OCAMLC)
 	LIB_EXT = cma
 	MODULE_EXT = cmo
 	NATIVE_LIB_FLAG = -custom
 else
 	TARGET_FLAG = native
-	CC_CMD = $(OCAMLOPT)
+	COMPILER = $(OCAMLOPT)
 	LIB_EXT = cmxa
 	MODULE_EXT = cmx
 endif
 
-CC_PARSER_CMD = $(CC_CMD) -pp camlp4o $(CFLAGS) -c parser.ml
+CC_CMD = $(COMPILER) $(CFLAGS) -c $<
+
+CC_PARSER_CMD = $(COMPILER) -pp camlp4o $(CFLAGS) -c parser.ml
 
 RELDIR=../../..
 
@@ -79,7 +81,7 @@ libs:
 	make -C libs/objsize OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC) $(TARGET_FLAG)
 
 haxe: $(MODULES:=.$(MODULE_EXT))
-	$(CC_CMD) -o $(OUTPUT) $(NATIVE_LIBS) $(NATIVE_LIB_FLAG) $(LFLAGS) $(LIBS:=.$(LIB_EXT)) $(MODULES:=.$(MODULE_EXT))
+	$(COMPILER) -o $(OUTPUT) $(NATIVE_LIBS) $(NATIVE_LIB_FLAG) $(LFLAGS) $(LIBS:=.$(LIB_EXT)) $(MODULES:=.$(MODULE_EXT))
 
 haxelib:
 	(cd $(CURDIR)/extra/haxelib_src && $(CURDIR)/$(OUTPUT) haxelib.hxml && nekotools boot bin/haxelib.n)
@@ -175,7 +177,7 @@ ast.$(MODULE_EXT):
 
 version.$(MODULE_EXT):
 	echo $(VERSION_EXTRA) > version.ml
-	$(CC_CMD) $(CFLAGS) -c version.ml
+	$(COMPILER) $(CFLAGS) -c version.ml
 
 # Clean
 
@@ -202,10 +204,10 @@ clean_tools:
 # SUFFIXES
 
 .ml.cmx:
-	$(CC_CMD) $(CFLAGS) -c $<
+	$(CC_CMD)
 
 .ml.cmo:
-	$(CC_CMD) $(CFLAGS) -c $<
+	$(CC_CMD)
 
 .mll.ml:
 	ocamllex $<

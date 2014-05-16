@@ -1,11 +1,6 @@
 
 package python.lib.datetime;
 
+@:pythonImport("datetime", "tzinfo")
 extern class TzInfo {
-
-
-	static function __init__ ():Void
-	{
-		python.Syntax.importFromAs("datetime", "tzinfo", "python.lib.datetime.TzInfo");
-	}
 }

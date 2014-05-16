@@ -10,7 +10,6 @@ class Internal {
 
 	static var _prefix = "_hx_";
 
-	static var _builtin = _prefix + "builtin";
 
 	static var _className = _prefix + "class_name";
 	static var _class = _prefix + "class";
@@ -25,12 +24,16 @@ class Internal {
 
 	static var _classes = _prefix + "classes";
 
+	static var _dict = "__dict__";
+
 	static function _getPrefixed (x:Expr):Expr {
 		return switch (x.expr) {
 			case EConst(CString(x)): macro @:pos(Context.currentPos()) $v{_prefix + x};
-			case _ : macro @:pos(Context.currentPos()) $v{_prefix} + $x;
+			case _ : macro @:pos(Context.currentPos()) (python.Syntax.binop($v{_prefix},"+",$x):String);
 		}
 	}
+
+
 
 	static function withPos(x:String):Expr {
 		return macro @:pos(Context.currentPos()) $v{x};
@@ -41,13 +44,16 @@ class Internal {
 	}
 
 	static function has (o:Expr, field:String):Expr {
-		return macro python.Syntax.pythonCode($v{_builtin}).hasattr($o, $v{field});
+		return macro python.internal.HxBuiltin.hasattr($o, $v{field});
 	}
 
 	#end
 
-	macro public static function builtin ():Expr {
-		return macro (python.Syntax.pythonCode($v{_builtin}):Dynamic);
+	macro public static function getPrefixed (x:ExprOf<String>):Expr {
+		return switch (x.expr) {
+			case EConst(CString(x)): macro @:pos(Context.currentPos()) $v{_prefix + x};
+			case _ : macro @:pos(Context.currentPos()) (python.Syntax.binop($v{_prefix},"+",$x):String);
+		}
 	}
 
 	macro public static function classRegistry ():Expr {
@@ -69,12 +75,7 @@ class Internal {
 		return macro @:pos(Context.currentPos()) python.Syntax.field($a{args});
 	}
 
-	macro public static function getPrefixed (x:ExprOf<String>):Expr {
-		return switch (x.expr) {
-			case EConst(CString(x)): macro @:pos(Context.currentPos()) $v{_prefix + x};
-			case _ : macro @:pos(Context.currentPos()) $v{_prefix} + $x;
-		}
-	}
+
 
 	macro public static function importAsPrefixed (o:String, x:String) {
 		return macro @:pos(Context.currentPos()) python.Syntax.importAs($v{o}, $v{_prefix + x});
@@ -194,6 +195,10 @@ class Internal {
 
 	macro public static function fieldConstructs (o:Expr):Expr {
 		return fieldWithPos(o, _constructs);
+	}
+
+	macro public static function fieldDict (o:Expr):Expr {
+		return fieldWithPos(o, _dict);
 	}
 
 	macro public static function fieldEmptyInit (o:Expr):Expr {

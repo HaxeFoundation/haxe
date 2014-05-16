@@ -1080,7 +1080,11 @@ let set_heritance ctx c herits p =
 			process_meta csup;
 			if c.cl_interface then begin
 				if not csup.cl_interface then error "Cannot extend by using a class" p;
-				c.cl_implements <- (csup,params) :: c.cl_implements
+				c.cl_implements <- (csup,params) :: c.cl_implements;
+				if not !has_interf then begin
+					delay ctx PForce (fun() -> check_interfaces ctx c);
+					has_interf := true;
+				end
 			end else begin
 				if csup.cl_interface then error "Cannot extend by using an interface" p;
 				c.cl_super <- Some (csup,params)
@@ -1167,6 +1171,67 @@ let type_function_params ctx fd fname p =
 	) fd.f_params;
 	!params
 
+let find_enclosing com e =
+	let display_pos = ref (!Parser.resume_display) in
+	let encloses_display_pos p =
+		if p.pmin <= !display_pos.pmin && p.pmax >= !display_pos.pmax then begin
+			let p = !display_pos in
+			display_pos := { pfile = ""; pmin = -2; pmax = -2 };
+			Some p
+		end else
+			None
+	in
+	let rec loop e = match fst e with
+		| EBlock el ->
+			let p = pos e in
+			(* We want to find the innermost block which contains the display position. *)
+			let el = List.map loop el in
+			let el = match encloses_display_pos p with
+				| None ->
+					el
+				| Some p2 ->
+					let b,el = List.fold_left (fun (b,el) e ->
+						let p = pos e in
+						if b || p.pmax <= p2.pmin then begin
+							(b,e :: el)
+						end else begin
+							let e_d = (EDisplay(e,false)),p in
+							(true,e_d :: el)
+						end
+					) (false,[]) el in
+					let el = if b then
+						el
+					else begin
+						(EDisplay(((EConst(Ident "null")),p),false),p) :: el
+					end in
+					List.rev el
+			in
+			(EBlock el),(pos e)
+		| _ ->
+			Ast.map_expr loop e
+	in
+	loop e
+
+let find_before_pos com e =
+	let display_pos = ref (!Parser.resume_display) in
+	let is_annotated p =
+		if p.pmax = !display_pos.pmin - 1 then begin
+			display_pos := { pfile = ""; pmin = -2; pmax = -2 };
+			true
+		end else
+			false
+	in
+	let rec loop e =
+		if is_annotated (pos e) then
+			(EDisplay(e,false),(pos e))
+		else
+			e
+	in
+	let rec map e =
+		loop (Ast.map_expr map e)
+	in
+	map e
+
 let type_function ctx args ret fmode f do_display p =
 	let locals = save_locals ctx in
 	let fargs = List.map (fun (n,c,t) ->
@@ -1195,15 +1260,23 @@ let type_function ctx args ret fmode f do_display p =
 	ctx.ret <- ret;
 	ctx.opened <- [];
 	let e = match f.f_expr with None -> error "Function body required" p | Some e -> e in
-	let e = if not do_display then type_expr ctx e NoValue else try
-		if Common.defined ctx.com Define.NoCOpt then raise Exit;
-		type_expr ctx (Optimizer.optimize_completion_expr e) NoValue
-	with
-	| Parser.TypePath (_,None) | Exit ->
+	let e = if not do_display then
 		type_expr ctx e NoValue
-	| DisplayTypes [t] when (match follow t with TMono _ -> true | _ -> false) ->
-		 type_expr ctx e NoValue
-	in
+	else begin
+		let e = match ctx.com.display with
+			| DMToplevel -> find_enclosing ctx.com e
+			| DMPosition | DMUsage -> find_before_pos ctx.com e
+			| _ -> e
+		in
+		try
+			if Common.defined ctx.com Define.NoCOpt then raise Exit;
+			type_expr ctx (Optimizer.optimize_completion_expr e) NoValue
+		with
+		| Parser.TypePath (_,None) | Exit ->
+			type_expr ctx e NoValue
+		| DisplayTypes [t] when (match follow t with TMono _ -> true | _ -> false) ->
+			type_expr ctx (if ctx.com.display = DMToplevel then find_enclosing ctx.com e else e) NoValue
+	end in
 	let e = match e.eexpr with
 		| TMeta((Meta.MergeBlock,_,_), ({eexpr = TBlock el} as e1)) -> e1
 		| _ -> e
@@ -1220,6 +1293,7 @@ let type_function ctx args ret fmode f do_display p =
 	else (try type_eq EqStrict ret ctx.t.tvoid with Unify_error _ ->
 		match e.eexpr with
 		(* accept final throw (issue #1923) *)
+		| TThrow _ -> ()
 		| TBlock el when (match List.rev el with ({eexpr = TThrow _} :: _) -> true | _ -> false) -> ()
 		| _ -> display_error ctx ("Missing return " ^ (s_type (print_context()) ret)) p);
 	let rec loop e =
@@ -1702,7 +1776,7 @@ let init_class ctx c p context_init herits fields =
 			| _, FVar _ -> error ("Invalid accessor '" ^ Ast.s_access acc ^ "' for variable " ^ name) p
 			| _, FProp _ -> error ("Invalid accessor '" ^ Ast.s_access acc ^ "' for property " ^ name) p
 		) f.cff_access;
-		if override then (match c.cl_super with None -> error "Invalid override: class has no super class" p | _ -> ());
+		if override then (match c.cl_super with None -> error ("Invalid override on field '" ^ f.cff_name ^ "': class has no super class") p | _ -> ());
 		(* build the per-field context *)
 		let ctx = {
 			ctx with
@@ -1710,9 +1784,9 @@ let init_class ctx c p context_init herits fields =
 		} in
 		match f.cff_kind with
 		| FVar (t,e) ->
-			if not stat && is_abstract then error"Cannot declare member variable in abstract" p;
-			if inline && not stat then error "Inline variable must be static" p;
-			if inline && e = None then error "Inline variable must be initialized" p;
+			if not stat && is_abstract then error (f.cff_name ^ ": Cannot declare member variable in abstract") p;
+			if inline && not stat then error (f.cff_name ^ ": Inline variable must be static") p;
+			if inline && e = None then error (f.cff_name ^ ": Inline variable must be initialized") p;
 
 			let t = (match t with
 				| None when not stat && e = None ->
@@ -1743,9 +1817,9 @@ let init_class ctx c p context_init herits fields =
 			f, false, cf, true
 		| FFun fd ->
 			let params = type_function_params ctx fd f.cff_name p in
-			if inline && c.cl_interface then error "You can't declare inline methods in interfaces" p;
+			if inline && c.cl_interface then error (f.cff_name ^ ": You can't declare inline methods in interfaces") p;
 			if Meta.has Meta.Generic f.cff_meta then begin
-				if params = [] then error "Generic functions must have type parameters" p;
+				if params = [] then error (f.cff_name ^ ": Generic functions must have type parameters") p;
 			end;
 			let is_macro = is_macro || (is_class_macro && stat) in
 			let f, stat, fd = if not is_macro || stat then
@@ -1793,7 +1867,7 @@ let init_class ctx c p context_init herits fields =
 			end in
 			let parent = (if not stat then get_parent c name else None) in
 			let dynamic = List.mem ADynamic f.cff_access || (match parent with Some { cf_kind = Method MethDynamic } -> true | _ -> false) in
-			if inline && dynamic then error "You can't have both 'inline' and 'dynamic'" p;
+			if inline && dynamic then error (f.cff_name ^ ": You can't have both 'inline' and 'dynamic'") p;
 			ctx.type_params <- (match c.cl_kind with
 				| KAbstractImpl a when Meta.has Meta.Impl f.cff_meta || Meta.has Meta.From f.cff_meta || Meta.has Meta.MultiType a.a_meta && Meta.has Meta.To f.cff_meta ->
 					params @ a.a_types
@@ -1806,7 +1880,7 @@ let init_class ctx c p context_init herits fields =
 				name, c, t
 			) fd.f_args in
 			let t = TFun (fun_args args,ret) in
-			if c.cl_interface && not stat && fd.f_expr <> None then error "An interface method cannot have a body" p;
+			if c.cl_interface && not stat && fd.f_expr <> None then error (f.cff_name ^ ": An interface method cannot have a body") p;
 			if constr then begin
 				if c.cl_interface then error "An interface cannot have a constructor" p;
 				if stat then error "A constructor must not be static" p;
@@ -1835,9 +1909,9 @@ let init_class ctx c p context_init herits fields =
 					let tthis = if Meta.has Meta.Impl f.cff_meta || Meta.has Meta.To f.cff_meta then monomorphs a.a_types a.a_this else a.a_this in
 					let check_bind () =
 						if fd.f_expr = None then begin
-							if inline then error ("Inline functions must have an expression") f.cff_pos;
+							if inline then error (f.cff_name ^ ": Inline functions must have an expression") f.cff_pos;
 							begin match fd.f_type with
-								| None -> error ("Functions without expressions must have an explicit return type") f.cff_pos
+								| None -> error (f.cff_name ^ ": Functions without expressions must have an explicit return type") f.cff_pos
 								| Some _ -> ()
 							end;
 							do_add := false;
@@ -1846,56 +1920,64 @@ let init_class ctx c p context_init herits fields =
 					in
 					let rec loop ml = match ml with
 						| (Meta.From,_,_) :: _ ->
-							if is_macro then error "Macro cast functions are not supported" p;
-							(* the return type of a from-function must be the abstract, not the underlying type *)
-							(try type_eq EqStrict ret ta with Unify_error l -> error (error_msg (Unify l)) p);
-							let t = match t with
-								| TFun([_,_,t],_) -> t
-								| _ -> error "@:from cast functions must accept exactly one argument" p
+							if is_macro then error (f.cff_name ^ ": Macro cast functions are not supported") p;
+							let r = fun () ->
+								(* the return type of a from-function must be the abstract, not the underlying type *)
+								(try type_eq EqStrict ret ta with Unify_error l -> error (error_msg (Unify l)) p);
+								match t with
+									| TFun([_,_,t],_) -> t
+									| _ -> error (f.cff_name ^ ": @:from cast functions must accept exactly one argument") p
 							in
-							a.a_from <- (t,Some cf) :: a.a_from;
+							a.a_from <- (TLazy (ref r),Some cf) :: a.a_from;
 						| (Meta.To,_,_) :: _ ->
-							if is_macro then error "Macro cast functions are not supported" p;
-							let args = if Meta.has Meta.MultiType a.a_meta then begin
-								(* the return type of multitype @:to functions must unify with a_this *)
-								delay ctx PFinal (fun () -> unify ctx m tthis f.cff_pos);
-								(* the arguments must be compatible with the original constructor, which we have to find at this point *)
-								try (match follow (monomorphs a.a_types (PMap.find "_new" c.cl_statics).cf_type) with
-									| TFun(args,_) -> List.map (fun (_,_,t) -> t) args
-									| _ -> assert false)
+							if is_macro then error (f.cff_name ^ ": Macro cast functions are not supported") p;
+							if not (Meta.has Meta.Impl cf.cf_meta) then cf.cf_meta <- (Meta.Impl,[],cf.cf_pos) :: cf.cf_meta;
+							let resolve_m args =
+								(try unify_raise ctx t (tfun (tthis :: args) m) f.cff_pos with Error (Unify l,p) -> error (error_msg (Unify l)) p);
+								match follow m with
+									| TMono _ when (match cf.cf_type with TFun(_,r) -> r == t_dynamic | _ -> false) -> t_dynamic
+									| m -> m
+							in
+							let r = if Meta.has Meta.MultiType a.a_meta then begin
+								let ctor = try
+									PMap.find "_new" c.cl_statics
 								with Not_found ->
 									error "Constructor of multi-type abstract must be defined before the individual @:to-functions are" cf.cf_pos
-							end else [] in
-							(* the first argument of a to-function must be the underlying type, not the abstract *)
-							(try unify_raise ctx t (tfun (tthis :: args) m) f.cff_pos with Error (Unify l,p) -> error (error_msg (Unify l)) p);
-							if not (Meta.has Meta.Impl cf.cf_meta) then cf.cf_meta <- (Meta.Impl,[],cf.cf_pos) :: cf.cf_meta;
-							let m = match follow m with
-								| TMono _ when (match cf.cf_type with TFun(_,r) -> r == t_dynamic | _ -> false) -> t_dynamic
-								| m -> m
-							in
-							a.a_to <- (m, Some cf) :: a.a_to
+								in
+								(fun () ->
+									delay ctx PFinal (fun () -> unify ctx m tthis f.cff_pos);
+									let args = match follow (monomorphs a.a_types ctor.cf_type) with
+										| TFun(args,_) -> List.map (fun (_,_,t) -> t) args
+										| _ -> assert false
+									in
+									resolve_m args
+								)
+							end else (fun () ->
+								resolve_m []
+							) in
+							a.a_to <- (TLazy (ref r), Some cf) :: a.a_to
 						| (Meta.ArrayAccess,_,_) :: _ ->
-							if is_macro then error "Macro array-access functions are not supported" p;
+							if is_macro then error (f.cff_name ^ ": Macro array-access functions are not supported") p;
 							a.a_array <- cf :: a.a_array;
 							if Meta.has Meta.CoreType a.a_meta then check_bind();
 						| (Meta.Op,[EBinop(op,_,_),_],_) :: _ ->
-							if is_macro then error "Macro operator functions are not supported" p;
+							if is_macro then error (f.cff_name ^ ": Macro operator functions are not supported") p;
 							let targ = if Meta.has Meta.Impl f.cff_meta then tthis else ta in
 							let left_eq,right_eq = match follow t with
 								| TFun([(_,_,t1);(_,_,t2)],_) ->
 									type_iseq targ t1,type_iseq targ t2
 								| _ ->
 									if Meta.has Meta.Impl cf.cf_meta then
-										error "Member @:op functions must accept exactly one argument" cf.cf_pos
+										error (f.cff_name ^ ": Member @:op functions must accept exactly one argument") cf.cf_pos
 									else
-										error "Static @:op functions must accept exactly two arguments" cf.cf_pos
+										error (f.cff_name ^ ": Static @:op functions must accept exactly two arguments") cf.cf_pos
 							in
-							if not (left_eq || right_eq) then error ("The left or right argument type must be " ^ (s_type (print_context()) targ)) f.cff_pos;
-							if right_eq && Meta.has Meta.Commutative f.cff_meta then error ("@:commutative is only allowed if the right argument is not " ^ (s_type (print_context()) targ)) f.cff_pos;
+							if not (left_eq || right_eq) then error (f.cff_name ^ ": The left or right argument type must be " ^ (s_type (print_context()) targ)) f.cff_pos;
+							if right_eq && Meta.has Meta.Commutative f.cff_meta then error (f.cff_name ^ ": @:commutative is only allowed if the right argument is not " ^ (s_type (print_context()) targ)) f.cff_pos;
 							a.a_ops <- (op,cf) :: a.a_ops;
 							check_bind();
 						| (Meta.Op,[EUnop(op,flag,_),_],_) :: _ ->
-							if is_macro then error "Macro operator functions are not supported" p;
+							if is_macro then error (f.cff_name ^ ": Macro operator functions are not supported") p;
 							let targ = if Meta.has Meta.Impl f.cff_meta then tthis else ta in
 							(try type_eq EqStrict t (tfun [targ] (mk_mono())) with Unify_error l -> raise (Error ((Unify l),f.cff_pos)));
 							a.a_unops <- (op,flag,cf) :: a.a_unops;
@@ -1950,13 +2032,13 @@ let init_class ctx c p context_init herits fields =
 				ctx.type_params <- a.a_types;
 			| _ -> ());
 			let ret = (match t, eo with
-				| None, None -> error "Property must either define a type or a default value" p;
+				| None, None -> error (f.cff_name ^ ": Property must either define a type or a default value") p;
 				| None, _ -> mk_mono()
 				| Some t, _ -> load_complex_type ctx p t
 			) in
 			let t_get,t_set = match c.cl_kind with
 				| KAbstractImpl a when Meta.has Meta.Impl f.cff_meta ->
-					if Meta.has Meta.IsVar f.cff_meta then error "Abstract properties cannot be real variables" f.cff_pos;
+					if Meta.has Meta.IsVar f.cff_meta then error (f.cff_name ^ ": Abstract properties cannot be real variables") f.cff_pos;
 					let ta = apply_params a.a_types (List.map snd a.a_types) a.a_this in
 					tfun [ta] ret, tfun [ta;ret] ret
 				| _ -> tfun [] ret, tfun [ret] ret
@@ -1969,15 +2051,15 @@ let init_class ctx c p context_init herits fields =
 					if Common.defined ctx.com Define.As3 then f.cf_meta <- (Meta.Public,[],p) :: f.cf_meta;
 					(match f.cf_kind with
 						| Method MethMacro ->
-							display_error ctx "Macro methods cannot be used as property accessor" p;
-							display_error ctx "Accessor method is here" f.cf_pos;
+							display_error ctx (f.cf_name ^ ": Macro methods cannot be used as property accessor") p;
+							display_error ctx (f.cf_name ^ ": Accessor method is here") f.cf_pos;
 						| _ -> ());
 					unify_raise ctx t2 t f.cf_pos;
 					(match req_name with None -> () | Some n -> display_error ctx ("Please use " ^ n ^ " to name your property access method") f.cf_pos);
 				with
 					| Error (Unify l,p) -> raise (Error (Stack (Custom ("In method " ^ m ^ " required by property " ^ name),Unify l),p))
 					| Not_found ->
-						if req_name <> None then display_error ctx "Custom property accessor is no longer supported, please use get/set" p else
+						if req_name <> None then display_error ctx (f.cff_name ^ ": Custom property accessor is no longer supported, please use get/set") p else
 						if not (c.cl_interface || c.cl_extern) then display_error ctx ("Method " ^ m ^ " required by property " ^ name ^ " is missing") p
 			in
 			let get = (match get with
@@ -2005,7 +2087,7 @@ let init_class ctx c p context_init herits fields =
 					delay ctx PForce (fun() -> check_method set t_set (if set <> "set" && set <> "set_" ^ name then Some ("set_" ^ name) else None));
 					AccCall
 			) in
-			if set = AccNormal && (match get with AccCall -> true | _ -> false) then error "Unsupported property combination" p;
+			if set = AccNormal && (match get with AccCall -> true | _ -> false) then error (f.cff_name ^ ": Unsupported property combination") p;
 			let cf = {
 				cf_name = name;
 				cf_doc = f.cff_doc;

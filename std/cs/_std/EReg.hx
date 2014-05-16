@@ -42,8 +42,10 @@ class EReg {
 					isGlobal = true;
 				case 'm'.code:
 					opts |= cast(Multiline, Int);
+#if (!unity && !unity_std_target)
 				case 'c'.code:
 					opts |= cast(Compiled, Int);
+#end
 			}
 		}
 

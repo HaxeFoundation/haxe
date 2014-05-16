@@ -2,6 +2,7 @@
 package python.lib.datetime;
 
 
+@:pythonImport("datetime", "datetime")
 extern class DateTime {
 
 	public function new (year:Int, month:Int, day:Int, hour:Int=0, minute:Int=0, second:Int=0, microsecond:Int=0, tzinfo:TzInfo=null);
@@ -37,9 +38,4 @@ extern class DateTime {
 
 	// python 3.3
 	public function timestamp ():Float;
-
-	static function __init__ ():Void
-	{
-		python.Syntax.importFromAs("datetime", "datetime", "python.lib.datetime.DateTime");
-	}
 }

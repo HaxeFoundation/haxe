@@ -10,6 +10,7 @@ extern class XMLParser {
 
 }
 
+@:pythonImport("xml.etree.ElementTree", "Element")
 extern class Element {
 	public function getroot ():ElementTree;
 	public var tag:String;
@@ -29,13 +30,9 @@ extern class Element {
 	public function iterfind (tag:String, namespaces:Dict<String,String> = null):NativeIterator<Element>;
 	public function find (match:String, namespaces:Dict<String,String> = null):Null<Element>;
 	public function findall (match:String, namespaces:Dict<String,String> = null):Array<Element>;
-
-	static function __init__ ():Void
-	{
-		Syntax.importFromAs("xml.etree.ElementTree", "Element", "python.lib.xml.etree.Element");
-	}
 }
 
+@:pythonImport("xml.etree.ElementTree")
 extern class ElementTree {
 
 
@@ -46,13 +43,4 @@ extern class ElementTree {
 	public function iter (tag:String):NativeIterable<Element>;
 	public function find (match:String, namespaces:Dict<String,String> = null):Null<Element>;
 	public function getroot ():Element;
-
-
-
-
-	static function __init__ ():Void
-	{
-		Syntax.importAs("xml.etree.ElementTree", "python.lib.xml.etree.ElementTree");
-	}
-
 }

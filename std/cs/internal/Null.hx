@@ -37,6 +37,9 @@ package cs.internal;
 		}
 	}
 ')
+#if core_api_serialize
+@:meta(System.Serializable)
+#end
 @:keep @:struct @:nativeGen @:native("haxe.lang.Null") private class Nullable<T>
 {
 

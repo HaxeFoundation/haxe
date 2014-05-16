@@ -34,6 +34,7 @@ package;
 #if !macro
 import python.internal.StringImpl;
 #end
+@:pythonImport("builtins", "str")
 @:coreApi
 extern class String {
 
@@ -194,13 +195,7 @@ extern class String {
 		If [code] is negative or has another invalid value, the result is
 		unspecified.
 	**/
-	public static function fromCharCode( code : Int ) : String {
+	public static inline function fromCharCode( code : Int ) : String {
 		return StringImpl.fromCharCode(code);
 	}
-
-	@:keep static function __init__ ():Void {
-		python.Syntax.importFromAs("builtins", "str", "String");
-	}
-
-
 }

@@ -23,6 +23,7 @@ extern class DictView<T> {
 	}
 }
 
+@:pythonImport("builtins", "dict")
 extern class Dict <K, V>
 {
 	public function new ():Void;
@@ -46,9 +47,7 @@ extern class Dict <K, V>
 	public function values ():DictView<V>;
 	public function items ():DictView<Tup2<K,V>>;
 
-	public static inline function fromObject (x:{}):Dict<String,Dynamic> {
-		return DictImpl.fromObject(x);
-	}
+
 	public inline function set (key:K, val:V):Void {
 		DictImpl.set(this, key, val);
 	}
@@ -63,22 +62,10 @@ extern class Dict <K, V>
 		return values().iter();
 	}
 	public function __iter__():NativeIterator<K>;
-
-	static function __init__ ():Void
-	{
-		Syntax.importFromAs("builtins", "dict", "python.lib.Dict");
-	}
-
 }
 
 class DictImpl {
-	public static inline function fromObject (x:{}) {
-		var d = new Dict();
-		for (f in Reflect.fields(x)) {
-			d.set(f, Reflect.field(x,f));
-		}
-		return d;
-	}
+
 	public static inline function hasKey <X>(d:Dict<X, Dynamic>, key:X) {
 		return Syntax.isIn(key, d);
 	}

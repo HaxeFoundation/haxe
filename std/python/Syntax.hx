@@ -20,12 +20,8 @@ extern class Syntax {
 	{
 		var n = className.split(".").join("_");
 		var e = "import " + module + " as " + n;
-		var e1 = "_hx_c."+n+" = "+n;
 
-		return macro ({
-			$self.pythonCode($v{e});
-			$self.pythonCode($v{e1});
-		}:Void);
+		return macro ($self.pythonCode($v{e}):Void);
 	}
 
 	@:noUsing
@@ -48,8 +44,15 @@ extern class Syntax {
 	public static function assign(a:Dynamic, b:Dynamic):Void { }
 
 	@:noUsing
-	public static function pythonCode<T>(b:String):T { return null; };
+	macro public static function pythonCode(b:ExprOf<String>, rest:Array<Expr>):Expr {
+		if (rest == null) rest = [];
+		return macro @:pos(Context.currentPos()) $self._pythonCode($b, $a{rest});
+	};
 
+	#if !macro
+	@:noUsing
+	public static function _pythonCode<T>(b:String, args:Array<Dynamic>):T { return null; };
+	#end
 	@:noUsing
 	macro public static function arrayAccess(x:Expr, rest:Array<Expr>):ExprOf<Dynamic> {
 		return macro $self._arrayAccess($x, $a{rest});
@@ -98,11 +101,8 @@ extern class Syntax {
 		var n = className.split(".").join("_");
 
 		var e = "from " + from + " import " + module + " as " + n;
-		var e1 = "_hx_c."+n+" = " + n;
-		return macro ({
-			$self.pythonCode($v{e});
-			$self.pythonCode($v{e1});
-		}:Void);
+
+		return macro ($self.pythonCode($v{e}):Void);
 	}
 
 	@:noUsing

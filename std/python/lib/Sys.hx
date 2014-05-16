@@ -10,6 +10,7 @@ import python.lib.Tuple.Tup3;
 extern class TB {}
 extern class Frame {}
 
+@:pythonImport("sys")
 extern class Sys {
 
 	public static var argv(default, never):Array<String>;
@@ -30,10 +31,5 @@ extern class Sys {
 	public static var maxsize:Int;
 
 	public static function exc_info<T:BaseException>():Tup3<Class<T>, T, TB>;
-
-	static function __init__ ():Void
-	{
-		python.Syntax.importAs("sys", "python.lib.Sys");
-	}
 
 }

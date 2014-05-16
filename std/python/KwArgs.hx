@@ -7,7 +7,7 @@ abstract KwArgs (Dict<String, Dynamic>)
 {
 	inline function new (d:Dict<String, Dynamic>) this = d;
 
-	@:to inline function toDict ():Dict<String, Dynamic>
+	@:to public inline function toDict ():Dict<String, Dynamic>
 	{
 		return this;
 	}

@@ -1637,11 +1637,25 @@ let std_lib =
 			Unix.chdir (vstring s);
 			VNull;
 		);
-		"sys_string", Fun0 (fun() ->
-			VString (match Sys.os_type with
-			| "Unix" -> "Linux"
-			| "Win32" | "Cygwin" -> "Windows"
-			| s -> s)
+		"sys_string", (
+			let cached_sys_name = ref None in
+			Fun0 (fun() ->
+				VString (match Sys.os_type with
+				| "Unix" ->
+					(match !cached_sys_name with
+					| Some n -> n
+					| None ->
+						let ic = Unix.open_process_in "uname" in
+						let uname = (match input_line ic with
+							| "Darwin" -> "Mac"
+							| n -> n
+						) in
+						close_in ic;
+						cached_sys_name := Some uname;
+						uname)
+				| "Win32" | "Cygwin" -> "Windows"
+				| s -> s)
+			)
 		);
 		"sys_is64", Fun0 (fun() ->
 			VBool (Sys.word_size = 64)
@@ -2491,6 +2505,15 @@ let macro_lib =
 				(match com.platform with
 				| Flash -> Genswf.add_swf_lib com file false
 				| Java -> Genjava.add_java_lib com file false
+				| Cs ->
+					let file, is_std = match ExtString.String.nsplit file "@" with
+						| [file] ->
+							file,false
+						| [file;"std"] ->
+							file,true
+						| _ -> failwith ("unsupported file@`std` format: " ^ file)
+					in
+					Gencs.add_net_lib com file is_std
 				| _ -> failwith "Unsupported platform");
 				VNull
 			| _ ->

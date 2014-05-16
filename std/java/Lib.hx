@@ -46,7 +46,7 @@ package java;
 	}
 
 	/**
-		Gets the native System.Type from the supplied object. Will throw an exception in case of null being passed.
+		Gets the native java.lang.Class from the supplied object. Will throw an exception in case of null being passed.
 	**/
 	@:functionCode('
 		return (java.lang.Class<T>) obj.getClass();
@@ -54,6 +54,21 @@ package java;
 	public static function nativeType<T>(obj:T):java.lang.Class<T>
 	{
 		return null;
+	}
+	/**
+		Returns a Class<> equivalent to the native java.lang.Class type.
+	**/
+	public static inline function fromNativeType<T>(t:java.lang.Class<T>):Class<T>
+	{
+		return untyped t;
+	}
+
+	/**
+		Returns a java.lang.Class equivalent to the Haxe Class<> type.
+	**/
+	public static inline function toNativeType<T>(cl:Class<T>):java.lang.Class<T>
+	{
+		return untyped cl;
 	}
 
 	/**

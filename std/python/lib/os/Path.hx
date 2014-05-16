@@ -3,6 +3,7 @@ package python.lib.os;
 
 import python.lib.Tuple;
 
+@:pythonImport("os", "path")
 extern class Path {
 
 	public static var sep : String;
@@ -60,9 +61,4 @@ extern class Path {
 
 	public static function supports_unicode_filenames ():Bool;
 
-
-	static function __init__ ():Void
-	{
-		python.Syntax.importFromAs("os", "path", "python.lib.os.Path");
-	}
 }

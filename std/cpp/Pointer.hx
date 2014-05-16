@@ -1,17 +1,26 @@
 package cpp;
 
-
-extern class Pointer<T> implements ArrayAccess<T>
+@:coreType
+extern class Pointer<T> extends ConstPointer<T> implements ArrayAccess<T>
 {
-	public static function fromArray<T>(array:Array<T>, inIdx:Int):Pointer<T>;
+	public var ref(get,set):T;
 
-	public function inc():Void;
-	public function dec():Void;
-	public function add(inT:Int):Void;
+   public static function fromHandle<T>(inHandle:Dynamic,?inKind:String) : Pointer<T>;
 
-   // ptr actually returns the pointer, so the ->member sysntax will work
-   // Use [0] for a reference to the item
-	public function ptr():T;
+   public static function fromPointer<T>(inNativePointer:Dynamic) : Pointer<T>;
 
+   public static function addressOf<T>(inVariable:T) : Pointer<T>;
+
+	public static function arrayElem<T>(array:Array<T>, inElem:Int):Pointer<T>;
+
+	override public function inc():Pointer<T>;
+	override public function dec():Pointer<T>;
+	override public function incBy(inT:Int):Pointer<T>;
+	override public function add(inT:Int):Pointer<T>;
+
+	public function postIncRef():T;
+
+	public function destroy():Void;
+	public function destroyArray():Void;
 }
 

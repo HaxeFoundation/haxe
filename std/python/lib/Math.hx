@@ -1,5 +1,6 @@
 package python.lib;
 
+@:pythonImport("math")
 extern class Math {
 
 	public static function isnan (f:Float):Bool;
@@ -15,10 +16,5 @@ extern class Math {
 	static function acos(v:Float):Float;
 	static function atan(v:Float):Float;
 	static function atan2(y:Float, x:Float):Float;
-
-	static function __init__():Void {
-		python.Syntax.importAs("math", "python.lib.Math");
-
-	}
 
 }

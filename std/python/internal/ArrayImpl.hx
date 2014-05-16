@@ -23,24 +23,22 @@
 package python.internal;
 
 import python.lib.FuncTools;
-//import python.lib.Builtin;
-
-private abstract Builtin(Dynamic) {}
+import python.internal.HxBuiltin;
 
 @:allow(Array)
 @:keep
 class ArrayImpl {
 
-	static inline function builtin():Builtin return Internal.builtin();
 
-	public static inline function get_length <T>(x:Array<T>):Int return Syntax.callField(builtin(), "len", x);
+
+	public static inline function get_length <T>(x:Array<T>):Int return HxBuiltin.len(x);
 
 	public static inline function concat<T>( a1:Array<T>, a2 : Array<T>) : Array<T> {
 		return Syntax.binop(a1, "+", a2);
 	}
 
 	public static inline function copy<T>(x:Array<T>) : Array<T> {
-		return Syntax.field(builtin(), "list")(x);
+		return Syntax.field(HxBuiltin, "list")(x);
 	}
 
 	public static inline function iterator<T>(x:Array<T>) : Iterator<T> {
@@ -48,32 +46,34 @@ class ArrayImpl {
 	}
 
 	public static function indexOf<T>(a:Array<T>, x : T, ?fromIndex:Int) : Int {
+		var len = a.length;
 		var l =
 			if (fromIndex == null) 0
-			else if (fromIndex < 0) a.length + fromIndex
+			else if (fromIndex < 0) len + fromIndex
 			else fromIndex;
 		if (l < 0) l = 0;
-		for (i in l...a.length) {
-			if (a[i] == x) return i;
+		for (i in l...len) {
+			if (unsafeGet(a,i) == x) return i;
 		}
 		return -1;
 	}
 
 	public static function lastIndexOf<T>(a:Array<T>, x : T, ?fromIndex:Int) : Int {
+		var len = a.length;
 		var l =
-			if (fromIndex == null) a.length
-			else if (fromIndex < 0) a.length + fromIndex + 1
+			if (fromIndex == null) len
+			else if (fromIndex < 0) len + fromIndex + 1
 			else fromIndex+1;
-		if (l > a.length) l = a.length;
+		if (l > len) l = len;
 		while (--l > -1) {
-			if (a[l] == x) return l;
+			if (unsafeGet(a,l) == x) return l;
 		}
 		return -1;
 	}
 
 	@:access(python.Boot)
 	public static inline function join<T>(x:Array<T>, sep : String ) : String {
-		return Syntax.field(sep, "join")(x.map(python.Boot.toString));
+		return Boot.arrayJoin(x, sep);
 	}
 
 	public static inline function toString<T>(x:Array<T>) : String {
@@ -124,11 +124,11 @@ class ArrayImpl {
 	}
 
 	public static inline function map<S,T>(x:Array<T>, f : T -> S ) : Array<S> {
-		return Syntax.field(builtin(), "list")(Syntax.field(builtin(), "map")(f, x));
+		return Syntax.field(HxBuiltin, "list")(Syntax.field(HxBuiltin, "map")(f, x));
 	}
 
 	public static inline function filter<T>(x:Array<T>, f : T -> Bool ) : Array<T> {
-		return Syntax.field(builtin(), "list")(Syntax.field(builtin(), "filter")(f, x));
+		return Syntax.field(HxBuiltin, "list")(Syntax.field(HxBuiltin, "filter")(f, x));
 	}
 
 	public static inline function insert<T>(a:Array<T>, pos : Int, x : T ) : Void {
@@ -139,11 +139,11 @@ class ArrayImpl {
 		Syntax.callField(a, "reverse");
 	}
 
-	private static inline function __get<T>(x:Array<T>, idx:Int):T {
-		return if (idx < x.length && idx > -1) Syntax.arrayAccess(x, idx) else null;
+	private static inline function _get<T>(x:Array<T>, idx:Int):T {
+		return if (idx > -1 && idx < x.length) unsafeGet(x, idx) else null;
 	}
 
-	private static inline function __set<T>(x:Array<T>, idx:Int, v:T):T {
+	private static inline function _set<T>(x:Array<T>, idx:Int, v:T):T {
 		var l = x.length;
 		while (l < idx) {
 			x.push(null);
@@ -157,11 +157,11 @@ class ArrayImpl {
 		return v;
 	}
 
-	private static inline function __unsafe_get<T>(x:Array<T>,idx:Int):T {
+	public static inline function unsafeGet<T>(x:Array<T>,idx:Int):T {
 		return Syntax.arrayAccess(x, idx);
 	}
 
-	private static inline function __unsafe_set<T>(x:Array<T>,idx:Int, val:T):T {
+	public static inline function unsafeSet<T>(x:Array<T>,idx:Int, val:T):T {
 		Syntax.assign(Syntax.arrayAccess(x, idx), val);
 		return val;
 	}

@@ -49,6 +49,7 @@ open Type
 open Common
 open Option
 open Printf
+open ExtString
 
 let debug_type_ctor = function
 	| TMono _ -> "TMono"
@@ -779,10 +780,10 @@ let reorder_modules gen =
 	let con = gen.gcon in
 	con.modules <- [];
 	let processed = Hashtbl.create 20 in
-	Hashtbl.iter (fun md_path _ ->
+	Hashtbl.iter (fun md_path md ->
 		if not (Hashtbl.mem processed md_path) then begin
 			Hashtbl.add processed md_path true;
-			con.modules <- { m_id = alloc_mid(); m_path = md_path; m_types = List.rev ( Hashtbl.find_all modules md_path ); m_extra = module_extra "" "" 0. MFake } :: con.modules
+			con.modules <- { m_id = alloc_mid(); m_path = md_path; m_types = List.rev ( Hashtbl.find_all modules md_path ); m_extra = (t_infos md).mt_module.m_extra } :: con.modules
 		end
 	) modules
 
@@ -915,17 +916,9 @@ let run_filters gen =
 
 let write_file gen w source_dir path extension =
 	let t = timer "write file" in
-	let s_path = gen.gcon.file ^ "/" ^	source_dir	^ "/" ^ (String.concat "/" (fst path)) ^ "/" ^ (snd path) ^ "." ^ (extension) in
+	let s_path = source_dir	^ "/" ^ (snd path) ^ "." ^ (extension) in
 	(* create the folders if they don't exist *)
-	let rec create acc = function
-		| [] -> ()
-		| d :: l ->
-				let dir = String.concat "/" (List.rev (d :: acc)) in
-				if not (Sys.file_exists dir) then Unix.mkdir dir 0o755;
-				create (d :: acc) l
-	in
-	let p = gen.gcon.file :: source_dir :: fst path in
-	create [] p;
+	mkdir_from_path s_path;
 
 	let contents = SourceWriter.contents w in
 	let should_write = if not (Common.defined gen.gcon Define.ReplaceFiles) && Sys.file_exists s_path then begin
@@ -1016,17 +1009,25 @@ let dump_descriptor gen name path_s module_s =
 	SourceWriter.newline w;
 	SourceWriter.write w "begin libs";
 	SourceWriter.newline w;
+	let path file ext =
+		if Sys.file_exists file then
+			file
+		else try Common.find_file gen.gcon file with
+			| Not_found -> try Common.find_file gen.gcon (file ^ ext) with
+			| Not_found ->
+				file
+	in
 	if Common.platform gen.gcon Java then
 		List.iter (fun (s,std,_,_,_) ->
 			if not std then begin
-				SourceWriter.write w s;
+				SourceWriter.write w (path s ".jar");
 				SourceWriter.newline w;
 			end
 		) gen.gcon.java_libs
 	else if Common.platform gen.gcon Cs then
 		List.iter (fun (s,std,_,_) ->
 			if not std then begin
-				SourceWriter.write w s;
+				SourceWriter.write w (path s ".dll");
 				SourceWriter.newline w;
 			end
 		) gen.gcon.net_libs;
@@ -1037,32 +1038,84 @@ let dump_descriptor gen name path_s module_s =
 	output_string f contents;
 	close_out f
 
+let path_regex = Str.regexp "[/\\]+"
+
+let normalize path =
+	let rec normalize acc m = match m with
+		| [] ->
+			List.rev acc
+		| Str.Text "." :: Str.Delim _ :: tl when acc = [] ->
+			normalize [] tl
+		| Str.Text ".." :: Str.Delim _ :: tl -> (match acc with
+			| [] -> raise Exit
+			| _ :: acc -> normalize acc tl)
+		| Str.Text t :: Str.Delim _ :: tl ->
+			normalize (t :: acc) tl
+		| Str.Delim _ :: tl ->
+			normalize ("" :: acc) tl
+		| Str.Text t :: [] ->
+			List.rev (t :: acc)
+		| Str.Text _ :: Str.Text  _ :: _ -> assert false
+	in
+	String.concat "/" (normalize [] (Str.full_split path_regex path))
+
+let is_relative cwd rel =
+	try
+		let rel = normalize rel in
+		Filename.is_relative rel || (String.starts_with rel cwd || String.starts_with (Common.unique_full_path rel) cwd)
+	with | Exit ->
+		String.starts_with rel cwd || String.starts_with (Common.unique_full_path rel) cwd
+
 (*
 	helper function to create the source structure. Will send each module_def to the function passed.
 	If received true, it means that module_gen has generated this content, so the file must be saved.
 	See that it will write a whole module
 *)
 let generate_modules gen extension source_dir (module_gen : SourceWriter.source_writer->module_def->bool) =
+	let cwd = Common.unique_full_path (Sys.getcwd()) in
 	List.iter (fun md_def ->
+		let source_dir =
+			if Common.defined gen.gcon Define.UnityStdTarget then
+				let file = md_def.m_extra.m_file in
+				let file = if file = "" then "." else file in
+				if is_relative cwd file then
+					let base_path = try
+							let last = Str.search_backward path_regex file (String.length file - 1) in
+							String.sub file 0 last
+						with | Not_found ->
+							"."
+					in
+					match List.rev (fst md_def.m_path) with
+						| "editor" :: _ ->
+							base_path ^ "/" ^ gen.gcon.file ^ "/Editor"
+						| _ ->
+							base_path ^ "/" ^ gen.gcon.file
+				else match List.rev (fst md_def.m_path) with
+					| "editor" :: _ ->
+						Common.defined_value gen.gcon Define.UnityStdTarget ^ "/Editor/" ^ (String.concat "/" (fst md_def.m_path))
+					| _ ->
+						Common.defined_value gen.gcon Define.UnityStdTarget ^ "/Haxe-Std/" ^ (String.concat "/" (fst md_def.m_path))
+			else
+				gen.gcon.file ^ "/" ^ source_dir ^ "/" ^ (String.concat "/" (fst md_def.m_path))
+		in
 		let w = SourceWriter.new_source_writer () in
 		(*let should_write = List.fold_left (fun should md -> module_gen w md or should) false md_def.m_types in*)
 		let should_write = module_gen w md_def in
 		if should_write then begin
 			let path = md_def.m_path in
 			write_file gen w source_dir path extension;
-
-
 		end
 	) gen.gcon.modules
 
 let generate_modules_t gen extension source_dir change_path (module_gen : SourceWriter.source_writer->module_type->bool) =
+	let source_dir = gen.gcon.file ^ "/" ^ source_dir in
 	List.iter (fun md ->
 		let w = SourceWriter.new_source_writer () in
 		(*let should_write = List.fold_left (fun should md -> module_gen w md or should) false md_def.m_types in*)
 		let should_write = module_gen w md in
 		if should_write then begin
 			let path = change_path (t_path md) in
-			write_file gen w source_dir path extension;
+			write_file gen w (source_dir ^ "/" ^ (String.concat "/" (fst path))) path extension;
 		end
 	) gen.gcon.types
 
@@ -1451,15 +1504,28 @@ struct
 	let default_hxgen_func md =
 		match md with
 			| TClassDecl cl ->
-				let rec is_hxgen_class c =
+				let rec is_hxgen_class (c,_) =
 					if c.cl_extern then begin
-						if Meta.has Meta.HxGen c.cl_meta then true else Option.map_default (fun (c,_) -> is_hxgen_class c) false c.cl_super
+						if Meta.has Meta.HxGen c.cl_meta then true else Option.map_default (is_hxgen_class) false c.cl_super
 					end else begin
-						if Meta.has Meta.NativeGen c.cl_meta then Option.map_default (fun (c, _) -> is_hxgen_class c) false c.cl_super else true
+						if Meta.has Meta.NativeChildren c.cl_meta || Meta.has Meta.NativeGen c.cl_meta then
+							Option.map_default (is_hxgen_class) false c.cl_super
+						else
+							let rec has_nativec (c,p) =
+								if is_hxgen_class (c,p) then
+									false
+								else
+									(Meta.has Meta.NativeChildren c.cl_meta && not (Option.map_default is_hxgen_class false c.cl_super))
+									|| Option.map_default has_nativec false c.cl_super
+							in
+							if Option.map_default has_nativec false c.cl_super then
+								false
+							else
+								true
 					end
 				in
 
-				is_hxgen_class cl
+				is_hxgen_class (cl,[])
 			| TEnumDecl e -> if e.e_extern then Meta.has Meta.HxGen e.e_meta else not (Meta.has Meta.NativeGen e.e_meta)
 			| TAbstractDecl a -> not (Meta.has Meta.NativeGen a.a_meta)
 			| TTypeDecl t -> (* TODO see when would we use this *)
@@ -1471,12 +1537,13 @@ struct
 	*)
 	let run_filter gen is_hxgen_func =
 		let filter md =
-			if is_hxgen_func md then begin
+			let meta = if is_hxgen_func md then Meta.HxGen else Meta.NativeGen in
+			begin
 				match md with
-					| TClassDecl cl -> cl.cl_meta <- (Meta.HxGen, [], cl.cl_pos) :: cl.cl_meta
-					| TEnumDecl e -> e.e_meta <- (Meta.HxGen, [], e.e_pos) :: e.e_meta
-					| TTypeDecl t -> t.t_meta <- (Meta.HxGen, [], t.t_pos) :: t.t_meta
-					| TAbstractDecl a -> a.a_meta <- (Meta.HxGen, [], a.a_pos) :: a.a_meta
+					| TClassDecl cl -> cl.cl_meta <- (meta, [], cl.cl_pos) :: cl.cl_meta
+					| TEnumDecl e -> e.e_meta <- (meta, [], e.e_pos) :: e.e_meta
+					| TTypeDecl t -> t.t_meta <- (meta, [], t.t_pos) :: t.t_meta
+					| TAbstractDecl a -> a.a_meta <- (meta, [], a.a_pos) :: a.a_meta
 			end
 		in
 		List.iter filter gen.gcon.types
@@ -8635,6 +8702,10 @@ struct
 			en.e_meta <- (Meta.Class, [], pos) :: en.e_meta;
 			cl.cl_module <- en.e_module;
 			cl.cl_meta <- ( Meta.Enum, [], pos ) :: cl.cl_meta;
+			(match gen.gcon.platform with
+				| Cs when Common.defined gen.gcon Define.CoreApiSerialize ->
+					cl.cl_meta <- ( Meta.Meta, [ (EField( (EConst (Ident "System"), null_pos ), "Serializable" ), null_pos) ], null_pos ) :: cl.cl_meta
+				| _ -> ());
 			let c_types =
 				if handle_type_params then
 					List.map (fun (s,t) -> (s, TInst (map_param (get_cl_t t), []))) en.e_types

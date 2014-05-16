@@ -196,7 +196,6 @@ let string_error s sl msg =
 
 let string_source t = match follow t with
 	| TInst(c,_) -> List.map (fun cf -> cf.cf_name) c.cl_ordered_fields
-	| TEnum(en,_) -> en.e_names
 	| TAnon a -> PMap.fold (fun cf acc -> cf.cf_name :: acc) a.a_fields []
 	| TAbstract({a_impl = Some c},_) -> List.map (fun cf -> cf.cf_name) c.cl_ordered_statics
 	| _ -> []
