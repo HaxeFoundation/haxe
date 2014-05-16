@@ -1,4 +1,4 @@
-﻿2014-??-??: 3.2.0
+2014-??-??: 3.2.0
 
 	New features:
 
@@ -644,7 +644,7 @@
 	php: minor optimization (removed foreach from std code)
 	php: implemented haxe.Stack
 	php: changed exception handler to use Haxe call stack
-	php: changed special vars to use the » prefix instead of __
+	php: changed special vars to use the '\xBB' prefix instead of __
 	php: fixed use of reserved keywords for var names
 	php: List iterator is now class based (faster)
 	php: fixed behavior of class variables having assigned functions
