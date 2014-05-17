@@ -237,6 +237,10 @@ let class_field ctx c pl name p =
 
 (* checks if we can access to a given class field using current context *)
 let rec can_access ctx ?(in_overload=false) c cf stat =
+	let c = match c.cl_kind with
+		| KGenericInstance(c,_) -> c
+		| _ -> c
+	in
 	if cf.cf_public then
 		true
 	else if not in_overload && ctx.com.config.pf_overload && Meta.has Meta.Overload cf.cf_meta then
