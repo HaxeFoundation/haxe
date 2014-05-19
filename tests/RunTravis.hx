@@ -127,21 +127,50 @@ class RunTravis {
 	}
 
 	static function setupFlashPlayerDebugger():Void {
-		Sys.putEnv("DISPLAY", ":99.0");
-		runCommand("sh", ["-e", "/etc/init.d/xvfb", "start"]);
-		Sys.putEnv("AUDIODEV", "null");
-		runCommand("sudo", ["apt-get", "install", "-qq", "libgd2-xpm", "ia32-libs", "ia32-libs-multiarch", "-y"], true);
-		runCommand("wget", ["-nv", "http://fpdownload.macromedia.com/pub/flashplayer/updaters/11/flashplayer_11_sa_debug.i386.tar.gz"], true);
-		runCommand("tar", ["-xf", "flashplayer_11_sa_debug.i386.tar.gz", "-C", Sys.getEnv("HOME")]);
-		File.saveContent(Sys.getEnv("HOME") + "/mm.cfg", "ErrorReportingEnable=1\nTraceOutputFileEnable=1");
-		runCommand(Sys.getEnv("HOME") + "/flashplayerdebugger", ["-v"]);
+		var mmcfgPath = switch (systemName) {
+			case "Linux":
+				Sys.getEnv("HOME") + "/mm.cfg";
+			case "Mac":
+				"/Library/Application Support/Macromedia/mm.cfg";
+			case _:
+				throw "unsupported system";
+		}
+
+		switch (systemName) {
+			case "Linux":
+				Sys.putEnv("DISPLAY", ":99.0");
+				runCommand("sh", ["-e", "/etc/init.d/xvfb", "start"]);
+				Sys.putEnv("AUDIODEV", "null");
+				runCommand("sudo", ["apt-get", "install", "-qq", "libgd2-xpm", "ia32-libs", "ia32-libs-multiarch", "-y"], true);
+				runCommand("wget", ["-nv", "http://fpdownload.macromedia.com/pub/flashplayer/updaters/11/flashplayer_11_sa_debug.i386.tar.gz"], true);
+				runCommand("tar", ["-xf", "flashplayer_11_sa_debug.i386.tar.gz", "-C", Sys.getEnv("HOME")]);
+				File.saveContent(mmcfgPath, "ErrorReportingEnable=1\nTraceOutputFileEnable=1");
+				runCommand(Sys.getEnv("HOME") + "/flashplayerdebugger", ["-v"]);
+			case "Mac":
+				runCommand("brew", ["cask", "install", "flash-player-debugger"]);
+				runCommand("sudo", ["mkdir", "-p", Path.directory(mmcfgPath)]);
+				runCommand("printf", ["ErrorReportingEnable=1\nTraceOutputFileEnable=1" , "|", "sudo", "tee", mmcfgPath, ">", "/dev/null"]);
+		}
 	}
 
 	static function runFlash(swf:String):Void {
-		Sys.command(Sys.getEnv("HOME") + "/flashplayerdebugger", [swf, "&"]);
+		switch (systemName) {
+			case "Linux":
+				Sys.command(Sys.getEnv("HOME") + "/flashplayerdebugger", [swf, "&"]);
+			case "Mac":
+				Sys.command("open", ["-a", Sys.getEnv("HOME") + "/Applications/Flash Player Debugger.app", swf]);
+		}
 
 		//wait a little until flashlog.txt is created
-		var flashlogPath = Sys.getEnv("HOME") + "/.macromedia/Flash_Player/Logs/flashlog.txt";
+		var flashlogPath = switch (systemName) {
+			case "Linux":
+				Sys.getEnv("HOME") + "/.macromedia/Flash_Player/Logs/flashlog.txt";
+			case "Mac":
+				Sys.getEnv("HOME") + "/Library/Preferences/Macromedia/Flash Player/Logs/flashlog.txt";
+			case _:
+				throw "unsupported system";
+		}
+
 		for (t in 0...5) {
 			runCommand("sleep", ["2"]);
 			if (FileSystem.exists(flashlogPath))
@@ -153,7 +182,7 @@ class RunTravis {
 		}
 
 		//read flashlog.txt continously
-		var traceProcess = new Process("tail", ["-f", "-v", flashlogPath]);
+		var traceProcess = new Process("tail", ["-f", flashlogPath]);
 		var line = "";
 		while (true) {
 			try {
@@ -231,7 +260,12 @@ class RunTravis {
 	}
 
 	static function getPhpDependencies() {
-		runCommand("sudo", ["apt-get", "install", "php5", "-y"], true);
+		switch (systemName) {
+			case "Linux":
+				runCommand("sudo", ["apt-get", "install", "php5", "-y"], true);
+			case "Mac":
+				//pass
+		}
 	}
 
 	static var gotCppDependencies = false;
@@ -239,7 +273,7 @@ class RunTravis {
 		if (gotCppDependencies) return;
 
 		//hxcpp dependencies
-		switch (Sys.systemName()) {
+		switch (systemName) {
 			case "Linux":
 				runCommand("sudo", ["apt-get", "install", "gcc-multilib", "g++-multilib", "-y"], true);
 			case "Mac":
@@ -262,16 +296,16 @@ class RunTravis {
 	}
 
 	static function getJSDependencies() {
-		switch (Sys.systemName()) {
+		switch (systemName) {
 			case "Linux":
 				runCommand("sudo", ["apt-get", "install", "nodejs", "-y"], true);
 			case "Mac":
-				runCommand("brew", ["install", "node"], true);
+				//pass
 		}
 	}
 
 	static function getCsDependencies() {
-		switch (Sys.systemName()) {
+		switch (systemName) {
 			case "Linux":
 				runCommand("sudo", ["apt-get", "install", "mono-devel", "mono-mcs", "-y"], true);
 			case "Mac":
@@ -297,14 +331,19 @@ class RunTravis {
 		haxelibInstallGit("openfl", "openfl-html5");
 		haxelibInstallGit("openfl", "openfl");
 
-		haxelibRun(["openfl", "rebuild", "linux"]);
+		switch (systemName) {
+			case "Linux":
+				haxelibRun(["openfl", "rebuild", "linux"]);
+			case "Mac":
+				haxelibRun(["openfl", "rebuild", "mac"]);
+		}
 		haxelibRun(["openfl", "rebuild", "tools"]);
 
 		gotOpenFLDependencies = true;
 	}
 
 	static function getPythonDependencies() {
-		switch (Sys.systemName()) {
+		switch (systemName) {
 			case "Linux":
 				runCommand("sudo", ["apt-get", "install", "python3", "-y"], true);
 			case "Mac":
@@ -315,6 +354,7 @@ class RunTravis {
 	}
 
 	static var test(default, never):TEST = Sys.getEnv("TEST");
+	static var systemName(default, never) = Sys.systemName();
 	static var repoDir(default, never) = Sys.getEnv("TRAVIS_BUILD_DIR");
 	static var cwd(default, never) = Sys.getCwd();
 	static var unitDir(default, never) = cwd + "unit/";
@@ -395,7 +435,7 @@ class RunTravis {
 				runCommand("haxe", ["compile-js.hxml"]);
 				runCommand("node", ["-e", "var unit = require('./unit.js').unit; unit.Test.main(); process.exit(unit.Test.success ? 0 : 1);"]);
 
-				if (Sys.getEnv("TRAVIS_SECURE_ENV_VARS") == "true") {
+				if (Sys.getEnv("TRAVIS_SECURE_ENV_VARS") == "true" && systemName == "Linux") {
 					//https://saucelabs.com/opensource/travis
 					runCommand("npm", ["install", "wd"], true);
 					runCommand("curl", ["https://gist.github.com/santiycr/5139565/raw/sauce_connect_setup.sh", "-L", "|", "bash"], true);
@@ -454,7 +494,7 @@ class RunTravis {
 				getOpenFLDependencies();
 
 				testPolygonalDs();
-				testFlambe();
+				if (systemName == "Linux") testFlambe();
 				testHxTemplo();
 				testMUnit();
 				//testOpenflSamples();
