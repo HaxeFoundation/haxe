@@ -110,4 +110,22 @@ class Test {
 		var a = [1, 2];
 		var b = a.length;
 	}
+
+	@:js('
+		var a = [1,2];
+		a[-1];
+	')
+	static function testArrayInlineCancelNegative() {
+		var a = [1, 2];
+		a[-1];
+	}
+
+	@:js('
+		var a = [1,2];
+		a[2];
+	')
+	static function testArrayInlineCancelExceeds() {
+		var a = [1, 2];
+		a[2];
+	}
 }
