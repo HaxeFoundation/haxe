@@ -239,7 +239,13 @@ class RunTravis {
 		if (gotCppDependencies) return;
 
 		//hxcpp dependencies
-		runCommand("sudo", ["apt-get", "install", "gcc-multilib", "g++-multilib", "-y"], true);
+		switch (Sys.systemName()) {
+			case "Linux":
+				runCommand("sudo", ["apt-get", "install", "gcc-multilib", "g++-multilib", "-y"], true);
+			case "Mac":
+				//pass
+		}
+		
 
 		//install and build hxcpp
 		haxelibInstallGit("HaxeFoundation", "hxcpp", true);
@@ -255,8 +261,23 @@ class RunTravis {
 		haxelibInstallGit("HaxeFoundation", "hxjava", true);
 	}
 
+	static function getJSDependencies() {
+		switch (Sys.systemName()) {
+			case "Linux":
+				runCommand("sudo", ["apt-get", "install", "nodejs", "-y"], true);
+			case "Mac":
+				runCommand("brew", ["install", "node"], true);
+		}
+	}
+
 	static function getCsDependencies() {
-		runCommand("sudo", ["apt-get", "install", "mono-devel", "mono-mcs", "-y"], true);
+		switch (Sys.systemName()) {
+			case "Linux":
+				runCommand("sudo", ["apt-get", "install", "mono-devel", "mono-mcs", "-y"], true);
+			case "Mac":
+				runCommand("brew", ["install", "mono"], true);
+		}
+		
 		haxelibInstallGit("HaxeFoundation", "hxcs", true);
 	}
 
@@ -283,8 +304,14 @@ class RunTravis {
 	}
 
 	static function getPythonDependencies() {
-		runCommand("sudo", ["apt-get", "install", "python3", "-y"], true);
-		runCommand("python", ["-V"]);
+		switch (Sys.systemName()) {
+			case "Linux":
+				runCommand("sudo", ["apt-get", "install", "python3", "-y"], true);
+			case "Mac":
+				runCommand("brew", ["install", "python3"], true);
+		}
+		
+		runCommand("python3", ["-V"]);
 	}
 
 	static var test(default, never):TEST = Sys.getEnv("TEST");
@@ -364,6 +391,7 @@ class RunTravis {
 				changeDirectory("bin/cpp");
 				runCommand("./Main-debug", ["foo", "12", "a b c\\\\"]);
 			case Js:
+				getJSDependencies();
 				runCommand("haxe", ["compile-js.hxml"]);
 				runCommand("node", ["-e", "var unit = require('./unit.js').unit; unit.Test.main(); process.exit(unit.Test.success ? 0 : 1);"]);
 
@@ -419,6 +447,7 @@ class RunTravis {
 			case ThirdParty:
 				getPhpDependencies();
 				getJavaDependencies();
+				getJSDependencies();
 				getCsDependencies();
 				getPythonDependencies();
 				getCppDependencies();
