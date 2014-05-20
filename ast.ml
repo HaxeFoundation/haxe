@@ -38,6 +38,7 @@ module Meta = struct
 		| AutoBuild
 		| Bind
 		| Bitmap
+		| BridgeProperties
 		| Build
 		| BuildXml
 		| Class
