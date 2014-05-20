@@ -7,7 +7,7 @@
 	python : added python target
 	flash : flash player 12-14 support
 	js : add @:jsRequire and js.Lib.require
-	cs  : add @:bridgeProperties, which creates native property bridges for all haxe properties in the annotated class
+	cs : add @:bridgeProperties, which creates native property bridges for all haxe properties in the annotated class
 
 	Bugfixes:
 
