@@ -28,7 +28,6 @@ matrix:
   fast_finish: true
   allow_failures:
     - env: TEST=flash8
-    - os: osx
 
 install:
   - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then travis_retry sudo apt-get update; travis_retry sudo apt-get install ocaml zlib1g-dev libgc-dev -y; fi
