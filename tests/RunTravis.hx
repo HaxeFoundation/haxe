@@ -279,7 +279,7 @@ class RunTravis {
 			case "Mac":
 				//pass
 		}
-		
+
 
 		//install and build hxcpp
 		haxelibInstallGit("HaxeFoundation", "hxcpp", true);
@@ -311,7 +311,7 @@ class RunTravis {
 			case "Mac":
 				runCommand("brew", ["install", "mono"], true);
 		}
-		
+
 		haxelibInstallGit("HaxeFoundation", "hxcs", true);
 	}
 
@@ -349,7 +349,7 @@ class RunTravis {
 			case "Mac":
 				runCommand("brew", ["install", "python3"], true);
 		}
-		
+
 		runCommand("python3", ["-V"]);
 	}
 
@@ -491,7 +491,7 @@ class RunTravis {
 				getCsDependencies();
 				getPythonDependencies();
 				getCppDependencies();
-				getOpenFLDependencies();
+				//getOpenFLDependencies();
 
 				testPolygonalDs();
 				if (systemName == "Linux") testFlambe();
