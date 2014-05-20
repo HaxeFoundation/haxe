@@ -1257,12 +1257,16 @@ let rec type_ident_raise ?(imported_enums=true) ctx i p mode =
 			| t :: l ->
 				match t with
  				| TAbstractDecl ({a_impl = Some c} as a) when Meta.has Meta.Enum a.a_meta ->
-					let cf = PMap.find i c.cl_statics in
-					if not (Meta.has Meta.Enum cf.cf_meta) then
+ 					begin try
+						let cf = PMap.find i c.cl_statics in
+						if not (Meta.has Meta.Enum cf.cf_meta) then
+							loop l
+						else begin
+							let et = type_module_type ctx (TClassDecl c) None p in
+							AKInline(et,cf,FStatic(c,cf),monomorphs cf.cf_params cf.cf_type)
+						end
+					with Not_found ->
 						loop l
-					else begin
-						let et = type_module_type ctx (TClassDecl c) None p in
-						AKInline(et,cf,FStatic(c,cf),monomorphs cf.cf_params cf.cf_type)
 					end
 				| TClassDecl _ | TAbstractDecl _ ->
 					loop l
