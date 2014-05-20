@@ -101,7 +101,7 @@ class Printer {
 		(tp.pack.length > 0 ? tp.pack.join(".") + "." : "")
 		+ tp.name
 		+ (tp.sub != null ? '.${tp.sub}' : "")
-		+ (tp.params.length > 0 ? "<" + tp.params.map(printTypeParam).join(", ") + ">" : "");
+		+ (tp.params == null ? "" : tp.params.length > 0 ? "<" + tp.params.map(printTypeParam).join(", ") + ">" : "");
 
 	// TODO: check if this can cause loops
 	public function printComplexType(ct:ComplexType) return switch(ct) {
