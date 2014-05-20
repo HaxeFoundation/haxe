@@ -358,7 +358,7 @@ let rec build_generic ctx c p tl =
 						begin match f.cf_kind with
 							| Method _ when not c.cl_interface && not c.cl_extern ->
 								display_error ctx (Printf.sprintf "Field %s has no expression (possible typing order issue)" f.cf_name) f.cf_pos;
-								error (Printf.sprintf "While building %s" (s_type_path cg.cl_path)) p;
+								display_error ctx (Printf.sprintf "While building %s" (s_type_path cg.cl_path)) p;
 							| _ ->
 								()
 						end

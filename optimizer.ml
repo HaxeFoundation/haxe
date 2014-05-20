@@ -1242,8 +1242,10 @@ let inline_constructors ctx e =
 			end
 		| TField({eexpr = TLocal v}, (FInstance(_, {cf_kind = Var _; cf_name = s}) | FAnon({cf_kind = Var _; cf_name = s}))) ->
 			()
-		| TArray ({eexpr = TLocal v},{eexpr = TConst (TInt i)}) ->
-			()
+		| TArray ({eexpr = TLocal v},{eexpr = TConst (TInt i)}) when v.v_id < 0 ->
+			let (_,_,fields,_,_) = PMap.find (-v.v_id) !vars in
+			let i = Int32.to_int i in
+			if i < 0 || i >= List.length fields then cancel v
 		| TBinop((OpAssign | OpAssignOp _),e1,e2) ->
 			begin match e1.eexpr with
 				| TArray ({eexpr = TLocal v},{eexpr = TConst (TInt i)}) when v.v_id < 0 && not (is_valid_field v (Int32.to_string i)) ->

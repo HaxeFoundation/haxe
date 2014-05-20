@@ -237,6 +237,10 @@ let class_field ctx c pl name p =
 
 (* checks if we can access to a given class field using current context *)
 let rec can_access ctx ?(in_overload=false) c cf stat =
+	let c = match c.cl_kind with
+		| KGenericInstance(c,_) -> c
+		| _ -> c
+	in
 	if cf.cf_public then
 		true
 	else if not in_overload && ctx.com.config.pf_overload && Meta.has Meta.Overload cf.cf_meta then
@@ -3364,8 +3368,6 @@ and handle_display ctx e iscall p =
 		cf.cf_meta <- (Meta.Usage,[],p) :: cf.cf_meta;
 	in
 	match ctx.com.display with
-	| DMNone ->
-		assert false
 	| DMUsage | DMPosition ->
 		(* print_endline (s_expr (s_type (print_context())) e); *)
 		begin match e.eexpr with
@@ -3395,7 +3397,7 @@ and handle_display ctx e iscall p =
 		e
 	| DMToplevel ->
 		collect_toplevel_identifiers ctx;
-	| DMDefault ->
+	| DMDefault | DMNone ->
 		let opt_args args ret = TFun(List.map(fun (n,o,t) -> n,true,t) args,ret) in
 		let e = match e.eexpr with
 			| TField (e1,fa) ->
