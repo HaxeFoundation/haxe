@@ -149,7 +149,7 @@ class Printer {
 		+ opt(arg.value, printExpr, " = ");
 
 	public function printFunction(func:Function) return
-		(func.params.length > 0 ? "<" + func.params.map(printTypeParamDecl).join(", ") + ">" : "")
+		(func.params == null ? "" : func.params.length > 0 ? "<" + func.params.map(printTypeParamDecl).join(", ") + ">" : "")
 		+ "(" + func.args.map(printFunctionArg).join(", ") + ")"
 		+ opt(func.ret, printComplexType, ":")
 		+ opt(func.expr, printExpr, " ");
