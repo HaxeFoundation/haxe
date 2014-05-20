@@ -215,15 +215,9 @@ class Path {
 		}
 
 		var target = [];
-		var src;
-		var parts;
-		var token;
 
-		src = path.split(slash);
-		for( i in 0...src.length ) {
-			token = src[i];
-
-			if(token == '..') {
+		for( token in path.split(slash) ) {
+			if(token == '..' && target.length > 0 && target[target.length-1] != "..") {
 				target.pop();
 			} else if(token != '.') {
 				target.push(token);
