@@ -65,8 +65,12 @@ class FileSystem {
 
 	public static function createDirectory( path : String ) : Void {
 		var path = haxe.io.Path.addTrailingSlash(path);
-		var parts = [while ((path = haxe.io.Path.directory(path)) != "") path];
-		parts.reverse();
+		var _p = null;
+		var parts = [];
+		while (path != (_p = haxe.io.Path.directory(path))) {
+			parts.unshift(path);
+			path = _p;
+		}
 		for (part in parts) {
 			if (part.charCodeAt(part.length - 1) != ":".code && !exists(part))
 				sys_create_dir( untyped part.__s, 493 );
