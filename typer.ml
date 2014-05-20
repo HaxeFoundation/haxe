@@ -362,7 +362,7 @@ let parse_expr_string ctx s p inl =
 	let rec loop e = let e = Ast.map_expr loop e in (fst e,p) in
 	match parse_string ctx (head ^ s ^ ";}") p inl with
 	| EClass { d_data = [{ cff_name = "main"; cff_kind = FFun { f_expr = Some e } }]} -> if inl then e else loop e
-	| _ -> assert false
+	| _ -> raise Interp.Invalid_expr
 
 let collect_toplevel_identifiers ctx =
 	let acc = DynArray.create () in

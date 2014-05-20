@@ -2180,7 +2180,8 @@ let macro_lib =
 		);
 		"parse", Fun3 (fun s p b ->
 			match s, p, b with
-			| VString s, VAbstract (APos p), VBool b when s <> "" ->  encode_expr ((get_ctx()).curapi.parse_string s p b)
+			| VString s, VAbstract (APos p), VBool b when s <> "" ->
+				(try encode_expr ((get_ctx()).curapi.parse_string s p b) with Invalid_expr -> error())
 			| _ -> error()
 		);
 		"make_expr", Fun2 (fun v p ->
