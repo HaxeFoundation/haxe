@@ -1150,7 +1150,15 @@ and expr = parser
 	| [< '(Kwd New,p1); t = parse_type_path; '(POpen,p); s >] ->
 		if is_resuming p then display (EDisplayNew t,punion p1 p);
 		(match s with parser
-		| [< al = psep Comma expr; '(PClose,p2); s >] -> expr_next (ENew (t,al),punion p1 p2) s
+		| [< al = psep Comma expr; '(PClose,p2); s >] ->
+			let e = (ENew (t,al),punion p1 p2) in
+			let e = if do_resume() then
+				(* wrap in a meta positioned at the end of type path, so @position calls can catch it *)
+				EMeta ((Meta.ENewTypePath,[],p),e), {p with pmax = p.pmin}
+			else
+				e
+			in
+			expr_next e s
 		| [< >] -> serror())
 	| [< '(POpen,p1); e = expr; s >] -> (match s with parser
 		| [< '(PClose,p2); s >] -> expr_next (EParenthesis e, punion p1 p2) s
