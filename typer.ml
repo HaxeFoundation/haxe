@@ -1545,10 +1545,14 @@ let type_bind ctx (e : texpr) params p =
 	let inner_fun_args l = List.map (fun (v,o) -> v.v_name, o, v.v_type) l in
 	let t_inner = TFun(inner_fun_args missing_args, ret) in
 	let call = make_call ctx (vexpr loc) ordered_args ret p in
+	let e_ret = match follow ret with
+		| TAbstract ({a_path = [],"Void"},_) -> call
+		| _ -> mk (TReturn (Some call)) t_dynamic p;
+	in
 	let func = mk (TFunction {
 		tf_args = List.map (fun (v,o) -> v, if o then Some TNull else None) missing_args;
 		tf_type = ret;
-		tf_expr = mk (TReturn (Some call)) ret p;
+		tf_expr = e_ret;
 	}) t_inner p in
 	let outer_fun_args l = List.map (fun (v,o,_) -> v.v_name, o, v.v_type) l in
 	let func = mk (TFunction {
