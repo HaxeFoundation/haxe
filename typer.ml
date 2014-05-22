@@ -2711,7 +2711,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			| TAnon a when not (PMap.is_empty a.a_fields) -> Some a
 			| TAbstract (a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
 				begin match follow (Codegen.Abstract.get_underlying_type a tl) with
-					| TAnon a -> Some a
+					| TAnon a when not (PMap.is_empty a.a_fields) -> Some a
 					| _ -> None
 				end
 			| _ -> None)
