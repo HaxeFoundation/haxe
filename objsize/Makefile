@@ -2,17 +2,28 @@ CFLAGS = -I .
 LIBS =
 OCAMLOPT=ocamlopt
 OCAMLC=ocamlc
+SRC=objsize.mli objsize.ml
 
 all: bytecode native
 
-bytecode: c_objsize.obj
-	$(OCAMLC) -a -o objsize.cma $(LIBS) objsize.mli objsize.ml
+bytecode: objsize.cma
 
-native: c_objsize.obj
-	$(OCAMLOPT) -a -o objsize.cmxa $(LIBS) objsize.mli objsize.ml
+native: objsize.cmxa
 
-c_objsize.obj: c_objsize.c
+objsize.cma: c_objsize.o $(SRC)
+	$(OCAMLC) -a -o objsize.cma $(LIBS) $(SRC)
+
+objsize.cmxa: c_objsize.o $(SRC)
+	$(OCAMLOPT) -a -o objsize.cmxa $(LIBS) $(SRC)
+
+c_objsize.o: c_objsize.c
 	$(OCAMLC) $(CFLAGS) c_objsize.c
 
 clean:
 	rm -rf $(wildcard *.cma) $(wildcard *.cmxa) $(wildcard *.cmx) $(wildcard *.cmi) $(wildcard *.cmo) $(wildcard *.obj) $(wildcard *.o)
+
+.PHONY: all bytecode native clean
+
+Makefile: ;
+$(SRC): ;
+c_objsize.c: ;

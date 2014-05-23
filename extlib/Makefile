@@ -15,10 +15,14 @@ all: bytecode native
 
 opt: native
 
-bytecode:
+bytecode: extLib.cma
+
+native: extLib.cmxa
+
+extLib.cma: $(SRC)
 	$(OCAMLC) -a -o extLib.cma $(SRC)
 
-native:
+extLib.cmxa: $(SRC)
 	$(OCAMLOPT) -g -a -o extLib.cmxa $(SRC)
 
 doc:
@@ -40,3 +44,9 @@ uninstall:
 clean:
 	rm -f $(wildcard *.cmo) $(wildcard *.cmx) $(wildcard *.o) $(wildcard *.cmi) $(wildcard *.cma) $(wildcard *.cmxa) $(wildcard *.a) $(wildcard *.lib) $(wildcard *.obj)
 	rm -Rf doc
+
+.PHONY: all opt bytecode native doc copy install uninstall clean
+
+Makefile: ;
+
+$(SRC): ;
