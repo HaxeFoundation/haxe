@@ -133,6 +133,13 @@ class Manager<T : Object> {
 			var name = f.name;
 			var v = Reflect.field(x,name);
 			if( v != null ) {
+				#if cpp 
+				switch(f.t){
+					case DId, DUId: continue; // ignore the id
+					default:
+				}
+				#end
+
 				fields.add(quoteField(name));
 				switch( f.t ) {
 				case DData: v = doUpdateCache(x, name, v);
