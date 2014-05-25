@@ -439,8 +439,8 @@ class RecordMacros {
 			case CIdent(n):
 				switch( n ) {
 				case "null": return { expr : EConst(CString("NULL")), pos : v.pos };
-				case "true": return { expr : EConst(CInt("1")), pos : v.pos };
-				case "false": return { expr : EConst(CInt("0")), pos : v.pos };
+				case "true": return { expr : EConst(CInt("TRUE")), pos : v.pos };
+				case "false": return { expr : EConst(CInt("FALSE")), pos : v.pos };
 				}
 			default:
 			}
@@ -756,9 +756,9 @@ class RecordMacros {
 				case "null":
 					return { sql : makeString("NULL", p), t : DNull, n : true };
 				case "true":
-					return { sql : makeString("1", p), t : DBool, n : false };
+					return { sql : makeString("TRUE", p), t : DBool, n : false };
 				case "false":
-					return { sql : makeString("0", p), t : DBool, n : false };
+					return { sql : makeString("FALSE", p), t : DBool, n : false };
 				}
 				return buildDefault(cond);
 			}
