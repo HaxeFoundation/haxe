@@ -450,8 +450,10 @@ let reify in_macro =
 				let e = loop e1 in
 				cur_pos := old;
 				e
+			| Meta.Custom s, _ | Meta.Dollar s, _ ->
+				expr "EMeta" [to_obj [("name", mk_enum "StrictMeta" (Common.MetaInfo.cons m) [to_string s p] p);("params",to_expr_array ml p);("pos",to_pos p)] p;loop e1]
 			| _ ->
-				expr "EMeta" [to_obj [("name",to_string (fst (Common.MetaInfo.to_string m)) p);("params",to_expr_array ml p);("pos",to_pos p)] p;loop e1]
+				expr "EMeta" [to_obj [("name", mk_enum "StrictMeta" (Common.MetaInfo.cons m) [] p);("params",to_expr_array ml p);("pos",to_pos p)] p;loop e1]
 	and to_tparam_decl p t =
 		to_obj [
 			"name", to_string t.tp_name p;

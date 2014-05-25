@@ -162,7 +162,7 @@ typedef MetaAccess = {
 
 		If any argument is null, compilation fails with an error.
 	**/
-	function add( name : String, params : Array<Expr>, pos : Expr.Position ) : Void;
+	function add( name : Expr.StrictMeta, params : Array<Expr>, pos : Expr.Position ) : Void;
 
 	/**
 		Removes all `name` metadata entries from the origin of `this`
@@ -175,14 +175,14 @@ typedef MetaAccess = {
 
 		If `name` is null, compilation fails with an error.
 	**/
-	function remove( name : String ) : Void;
+	function remove( name : Expr.StrictMeta ) : Void;
 
 	/**
 		Tells if the origin of `this` MetaAccess has a `name` metadata entry.
 
 		If `name` is null, compilation fails with an error.
 	**/
-	function has( name : String ) : Bool;
+	function has( name : Expr.StrictMeta ) : Bool;
 }
 
 enum FieldKind {

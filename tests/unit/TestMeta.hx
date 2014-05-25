@@ -55,12 +55,12 @@ package unit;
 	}
 
 	public function testExprMeta() {
-		eq(getMeta(@foo a).name, "foo");
-		eq(getMeta(@foo("a") b).name, "foo");
-		eq(getMeta(@foo ("a")).name, "foo");
+		t(Type.enumEq(getMeta(@foo a).name, haxe.macro.Expr.StrictMeta.MCustom("foo")));
+		t(Type.enumEq(getMeta(@foo("a") b).name, haxe.macro.Expr.StrictMeta.MCustom("foo")));
+		t(Type.enumEq(getMeta(@foo ("a")).name, haxe.macro.Expr.StrictMeta.MCustom("foo")));
 
 		var m = getMeta(@bar("1", "foo") null);
-		eq(m.name, "bar");
+		t(Type.enumEq(m.name, haxe.macro.Expr.StrictMeta.MCustom("bar")));
 		eq(m.args[0], "1");
 		eq(m.args[1], "foo");
 

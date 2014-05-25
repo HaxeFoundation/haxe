@@ -312,7 +312,7 @@ class Compiler {
 				case TInst(cls, _):
 					if (cls.toString() == subType) {
 						found = true;
-						cls.get().meta.add(":keep", [], cls.get().pos);
+						cls.get().meta.add(MKeep, [], cls.get().pos);
 					}
 				default:
 					//
@@ -329,7 +329,7 @@ class Compiler {
 		for (type in types) {
 			switch(type) {
 				case TInst(cls, _):
-					cls.get().meta.add(":keep", [], cls.get().pos);
+					cls.get().meta.add(MKeep, [], cls.get().pos);
 				default:
 					//
 			}

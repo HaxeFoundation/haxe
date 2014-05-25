@@ -37,7 +37,7 @@ class Macro {
 		}
 		var fields = [];
 		function checkField(cf:ClassField) {
-			if (cf.meta.has(":js")) {
+			if (cf.meta.has(MCustom(":js"))) {
 				fields.push({name: cf.name, js: extractJs(cf.meta.get()), pos: cf.pos});
 			}
 		}
@@ -61,11 +61,13 @@ class Macro {
 
 	static function extractJs(meta:Metadata) {
 		for (m in meta) {
-			if (m.name == ":js") {
+			switch(m.name){
+			case MCustom(":js"):
 				switch(m.params[0]) {
 					case macro $v{(s:String)}: return stripWhitespaces(s);
 					case e: Context.error("String expected", e.pos);
 				}
+			default:
 			}
 		}
 		throw false;
