@@ -439,8 +439,8 @@ class RecordMacros {
 			case CIdent(n):
 				switch( n ) {
 				case "null": return { expr : EConst(CString("NULL")), pos : v.pos };
-				case "true": return { expr : EConst(CInt("TRUE")), pos : v.pos };
-				case "false": return { expr : EConst(CInt("FALSE")), pos : v.pos };
+				case "true": return { expr : EConst(CString("TRUE")), pos : v.pos };
+				case "false": return { expr : EConst(CString("FALSE")), pos : v.pos };
 				}
 			default:
 			}
