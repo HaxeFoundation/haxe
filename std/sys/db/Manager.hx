@@ -457,7 +457,7 @@ class Manager<T : Object> {
 				}
 			}
 		if( first )
-			s.add("1");
+			s.add("TRUE");
 	}
 
 	/* --------------------------- MISC API  ------------------------------ */
