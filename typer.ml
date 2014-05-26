@@ -1772,17 +1772,24 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 				| _ ->  error "Invalid field type for abstract setter" p
 			in
 			let l = save_locals ctx in
-			let v = gen_local ctx ta in
+			let v,is_temp = match et.eexpr with
+				| TLocal v -> v,false
+				| _ -> gen_local ctx ta,true
+			in
 			let ev = mk (TLocal v) ta p in
 			(* this relies on the fact that cf_name is set_name *)
 			let getter_name = String.sub cf.cf_name 4 (String.length cf.cf_name - 4) in
 			let get = type_binop ctx op (EField ((EConst (Ident v.v_name),p),getter_name),p) e2 true with_type p in
 			unify ctx get.etype ret p;
 			l();
-			mk (TBlock [
-				mk (TVar (v,Some et)) ctx.t.tvoid p;
-				make_call ctx ef [ev;get] ret p
-			]) ret p
+			let e_call = make_call ctx ef [ev;get] ret p in
+			if is_temp then
+				mk (TBlock [
+					mk (TVar (v,Some et)) ctx.t.tvoid p;
+					e_call
+				]) ret p
+			else
+				e_call
 		| AKAccess(ebase,ekey) ->
 			let a,pl,c = match follow ebase.etype with TAbstract({a_impl = Some c} as a,pl) -> a,pl,c | _ -> error "Invalid operation" p in
 			let et = type_module_type ctx (TClassDecl c) None p in
