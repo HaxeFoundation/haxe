@@ -3568,6 +3568,7 @@ type enum_index =
 	| IModuleType
 	| IFieldAccess
 	| IAnonStatus
+	| IStrictMeta
 
 let enum_name = function
 	| IExpr -> "ExprDef"
@@ -3588,9 +3589,10 @@ let enum_name = function
 	| IModuleType -> "ModuleType"
 	| IFieldAccess -> "FieldAccess"
 	| IAnonStatus -> "AnonStatus"
+	| IStrictMeta -> "StrictMeta"
 
 let init ctx =
-	let enums = [IExpr;IBinop;IUnop;IConst;ITParam;ICType;IField;IType;IFieldKind;IMethodKind;IVarAccess;IAccess;IClassKind;ITypedExpr;ITConstant;IModuleType;IFieldAccess;IAnonStatus] in
+	let enums = [IExpr;IBinop;IUnop;IConst;ITParam;ICType;IField;IType;IFieldKind;IMethodKind;IVarAccess;IAccess;IClassKind;ITypedExpr;ITConstant;IModuleType;IFieldAccess;IAnonStatus;IStrictMeta] in
 	let get_enum_proto e =
 		match get_path ctx ["haxe";"macro";enum_name e] null_pos with
 		| VObject e ->
@@ -3741,9 +3743,139 @@ and encode_access a =
 	in
 	enc_enum IAccess tag []
 
+and encode_strict_meta m =
+	let tag, pl = match m with
+		| Meta.Abstract -> 0, []
+		| Meta.Access -> 1, []
+		| Meta.Accessor -> 2, []
+		| Meta.Allow -> 3, []
+		| Meta.Annotation -> 4, []
+		| Meta.ArrayAccess -> 5, []
+		| Meta.Ast -> 6, []
+		| Meta.AutoBuild -> 7, []
+		| Meta.Bind -> 8, []
+		| Meta.Bitmap -> 9, []
+		| Meta.BridgeProperties -> 10, []
+		| Meta.Build -> 11, []
+		| Meta.BuildXml -> 12, []
+		| Meta.Class -> 13, []
+		| Meta.ClassCode -> 14, []
+		| Meta.Commutative -> 15, []
+		| Meta.CompilerGenerated -> 16, []
+		| Meta.CoreApi -> 17, []
+		| Meta.CoreType -> 18, []
+		| Meta.CppFileCode -> 19, []
+		| Meta.CppNamespaceCode -> 20, []
+		| Meta.CsNative -> 21, []
+		| Meta.Dce -> 22, []
+		| Meta.Debug -> 23, []
+		| Meta.Decl -> 24, []
+		| Meta.DefParam -> 25, []
+		| Meta.Delegate -> 26, []
+		| Meta.Depend -> 27, []
+		| Meta.Deprecated -> 28, []
+		| Meta.DynamicObject -> 29, []
+		| Meta.Enum -> 30, []
+		| Meta.EnumConstructorParam -> 31, []
+		| Meta.Event -> 32, []
+		| Meta.Exhaustive -> 33, []
+		| Meta.Expose -> 34, []
+		| Meta.Extern -> 35, []
+		| Meta.FakeEnum -> 36, []
+		| Meta.File -> 37, []
+		| Meta.Final -> 38, []
+		| Meta.FlatEnum -> 39, []
+		| Meta.Font -> 40, []
+		| Meta.Forward -> 41, []
+		| Meta.From -> 42, []
+		| Meta.FunctionCode -> 43, []
+		| Meta.FunctionTailCode -> 44, []
+		| Meta.Generic -> 45, []
+		| Meta.GenericBuild -> 46, []
+		| Meta.Getter -> 47, []
+		| Meta.Hack -> 48, []
+		| Meta.HaxeGeneric -> 49, []
+		| Meta.HeaderClassCode -> 50, []
+		| Meta.HeaderCode -> 51, []
+		| Meta.HeaderNamespaceCode -> 52, []
+		| Meta.HxGen -> 53, []
+		| Meta.IfFeature -> 54, []
+		| Meta.Impl -> 55, []
+		| Meta.PythonImport -> 56, []
+		| Meta.Include -> 57, []
+		| Meta.InitPackage -> 58, []
+		| Meta.Internal -> 59, []
+		| Meta.IsVar -> 60, []
+		| Meta.JavaNative -> 61, []
+		| Meta.JsRequire -> 62, []
+		| Meta.Keep -> 63, []
+		| Meta.KeepInit -> 64, []
+		| Meta.KeepSub -> 65, []
+		| Meta.Meta -> 66, []
+		| Meta.Macro -> 67, []
+		| Meta.MaybeUsed -> 68, []
+		| Meta.MergeBlock -> 69, []
+		| Meta.MultiType -> 70, []
+		| Meta.Native -> 71, []
+		| Meta.NativeChildren -> 72, []
+		| Meta.NativeGen -> 73, []
+		| Meta.NativeGeneric -> 74, []
+		| Meta.NoCompletion -> 75, []
+		| Meta.NoDebug -> 76, []
+		| Meta.NoDoc -> 77, []
+		| Meta.NoImportGlobal -> 78, []
+		| Meta.NoPackageRestrict -> 79, []
+		| Meta.NoStack -> 80, []
+		| Meta.NotNull -> 81, []
+		| Meta.NoUsing -> 82, []
+		| Meta.Ns -> 83, []
+		| Meta.Op -> 84, []
+		| Meta.Optional -> 85, []
+		| Meta.Overload -> 86, []
+		| Meta.PrivateAccess -> 87, []
+		| Meta.Property -> 88, []
+		| Meta.Protected -> 89, []
+		| Meta.Public -> 90, []
+		| Meta.PublicFields -> 91, []
+		| Meta.ReadOnly -> 92, []
+		| Meta.RealPath -> 93, []
+		| Meta.Remove -> 94, []
+		| Meta.Require -> 95, []
+		| Meta.RequiresAssign -> 96, []
+		| Meta.ReplaceReflection -> 97, []
+		| Meta.Rtti -> 98, []
+		| Meta.Runtime -> 99, []
+		| Meta.RuntimeValue -> 100, []
+		| Meta.Setter -> 101, []
+		| Meta.SkipCtor -> 102, []
+		| Meta.SkipReflection -> 103, []
+		| Meta.Sound -> 104, []
+		| Meta.Struct -> 105, []
+		| Meta.StructAccess -> 106, []
+		| Meta.SuppressWarnings -> 107, []
+		| Meta.This -> 108, []
+		| Meta.Throws -> 109, []
+		| Meta.To -> 110, []
+		| Meta.ToString -> 111, []
+		| Meta.Transient -> 112, []
+		| Meta.ValueUsed -> 113, []
+		| Meta.Volatile -> 114, []
+		| Meta.Unbound -> 115, []
+		| Meta.UnifyMinDynamic -> 116, []
+		| Meta.Unreflective -> 117, []
+		| Meta.Unsafe -> 118, []
+		| Meta.Usage -> 119, []
+		| Meta.Used -> 120, []
+		| Meta.Void -> 121, []
+		| Meta.Last -> 122, []
+		| Meta.Dollar s -> 123, [enc_string s]
+		| Meta.Custom s -> 124, [enc_string s]
+	in
+	enc_enum IStrictMeta tag pl
+
 and encode_meta_entry (m,ml,p) =
 	enc_obj [
-		"name", enc_string (fst (MetaInfo.to_string m));
+		"name", encode_strict_meta m;
 		"params", enc_array (List.map encode_expr ml);
 		"pos", encode_pos p;
 	]
@@ -4038,8 +4170,137 @@ and decode_access v =
 	| 6, [] -> AMacro
 	| _ -> raise Invalid_expr
 
+and decode_strict_meta m =
+	match decode_enum m with
+	| 0, [] -> Meta.Abstract
+	| 1, [] -> Meta.Access
+	| 2, [] -> Meta.Accessor
+	| 3, [] -> Meta.Allow
+	| 4, [] -> Meta.Annotation
+	| 5, [] -> Meta.ArrayAccess
+	| 6, [] -> Meta.Ast
+	| 7, [] -> Meta.AutoBuild
+	| 8, [] -> Meta.Bind
+	| 9, [] -> Meta.Bitmap
+	| 10, [] -> Meta.BridgeProperties
+	| 11, [] -> Meta.Build
+	| 12, [] -> Meta.BuildXml
+	| 13, [] -> Meta.Class
+	| 14, [] -> Meta.ClassCode
+	| 15, [] -> Meta.Commutative
+	| 16, [] -> Meta.CompilerGenerated
+	| 17, [] -> Meta.CoreApi
+	| 18, [] -> Meta.CoreType
+	| 19, [] -> Meta.CppFileCode
+	| 20, [] -> Meta.CppNamespaceCode
+	| 21, [] -> Meta.CsNative
+	| 22, [] -> Meta.Dce
+	| 23, [] -> Meta.Debug
+	| 24, [] -> Meta.Decl
+	| 25, [] -> Meta.DefParam
+	| 26, [] -> Meta.Delegate
+	| 27, [] -> Meta.Depend
+	| 28, [] -> Meta.Deprecated
+	| 29, [] -> Meta.DynamicObject
+	| 30, [] -> Meta.Enum
+	| 31, [] -> Meta.EnumConstructorParam
+	| 32, [] -> Meta.Event
+	| 33, [] -> Meta.Exhaustive
+	| 34, [] -> Meta.Expose
+	| 35, [] -> Meta.Extern
+	| 36, [] -> Meta.FakeEnum
+	| 37, [] -> Meta.File
+	| 38, [] -> Meta.Final
+	| 39, [] -> Meta.FlatEnum
+	| 40, [] -> Meta.Font
+	| 41, [] -> Meta.Forward
+	| 42, [] -> Meta.From
+	| 43, [] -> Meta.FunctionCode
+	| 44, [] -> Meta.FunctionTailCode
+	| 45, [] -> Meta.Generic
+	| 46, [] -> Meta.GenericBuild
+	| 47, [] -> Meta.Getter
+	| 48, [] -> Meta.Hack
+	| 49, [] -> Meta.HaxeGeneric
+	| 50, [] -> Meta.HeaderClassCode
+	| 51, [] -> Meta.HeaderCode
+	| 52, [] -> Meta.HeaderNamespaceCode
+	| 53, [] -> Meta.HxGen
+	| 54, [] -> Meta.IfFeature
+	| 55, [] -> Meta.Impl
+	| 56, [] -> Meta.PythonImport
+	| 57, [] -> Meta.Include
+	| 58, [] -> Meta.InitPackage
+	| 59, [] -> Meta.Internal
+	| 60, [] -> Meta.IsVar
+	| 61, [] -> Meta.JavaNative
+	| 62, [] -> Meta.JsRequire
+	| 63, [] -> Meta.Keep
+	| 64, [] -> Meta.KeepInit
+	| 65, [] -> Meta.KeepSub
+	| 66, [] -> Meta.Meta
+	| 67, [] -> Meta.Macro
+	| 68, [] -> Meta.MaybeUsed
+	| 69, [] -> Meta.MergeBlock
+	| 70, [] -> Meta.MultiType
+	| 71, [] -> Meta.Native
+	| 72, [] -> Meta.NativeChildren
+	| 73, [] -> Meta.NativeGen
+	| 74, [] -> Meta.NativeGeneric
+	| 75, [] -> Meta.NoCompletion
+	| 76, [] -> Meta.NoDebug
+	| 77, [] -> Meta.NoDoc
+	| 78, [] -> Meta.NoImportGlobal
+	| 79, [] -> Meta.NoPackageRestrict
+	| 80, [] -> Meta.NoStack
+	| 81, [] -> Meta.NotNull
+	| 82, [] -> Meta.NoUsing
+	| 83, [] -> Meta.Ns
+	| 84, [] -> Meta.Op
+	| 85, [] -> Meta.Optional
+	| 86, [] -> Meta.Overload
+	| 87, [] -> Meta.PrivateAccess
+	| 88, [] -> Meta.Property
+	| 89, [] -> Meta.Protected
+	| 90, [] -> Meta.Public
+	| 91, [] -> Meta.PublicFields
+	| 92, [] -> Meta.ReadOnly
+	| 93, [] -> Meta.RealPath
+	| 94, [] -> Meta.Remove
+	| 95, [] -> Meta.Require
+	| 96, [] -> Meta.RequiresAssign
+	| 97, [] -> Meta.ReplaceReflection
+	| 98, [] -> Meta.Rtti
+	| 99, [] -> Meta.Runtime
+	| 100, [] -> Meta.RuntimeValue
+	| 101, [] -> Meta.Setter
+	| 102, [] -> Meta.SkipCtor
+	| 103, [] -> Meta.SkipReflection
+	| 104, [] -> Meta.Sound
+	| 105, [] -> Meta.Struct
+	| 106, [] -> Meta.StructAccess
+	| 107, [] -> Meta.SuppressWarnings
+	| 108, [] -> Meta.This
+	| 109, [] -> Meta.Throws
+	| 110, [] -> Meta.To
+	| 111, [] -> Meta.ToString
+	| 112, [] -> Meta.Transient
+	| 113, [] -> Meta.ValueUsed
+	| 114, [] -> Meta.Volatile
+	| 115, [] -> Meta.Unbound
+	| 116, [] -> Meta.UnifyMinDynamic
+	| 117, [] -> Meta.Unreflective
+	| 118, [] -> Meta.Unsafe
+	| 119, [] -> Meta.Usage
+	| 120, [] -> Meta.Used
+	| 121, [] -> Meta.Void
+	| 122, [] -> Meta.Last
+	| 123, [s] -> Meta.Dollar (dec_string s)
+	| 124, [s] -> Meta.Custom (dec_string s)
+	| _ -> raise Invalid_expr
+
 and decode_meta_entry v =
-	MetaInfo.from_string (dec_string (field v "name")), (match field v "params" with VNull -> [] | a -> List.map decode_expr (dec_array a)), decode_pos (field v "pos")
+	(decode_strict_meta (field v "name")), (match field v "params" with VNull -> [] | a -> List.map decode_expr (dec_array a)), decode_pos (field v "pos")
 
 and decode_meta_content = function
 	| VNull -> []
@@ -4211,20 +4472,20 @@ let encode_meta m set =
 		"add", VFunction (Fun3 (fun k vl p ->
 			(try
 				let el = List.map decode_expr (dec_array vl) in
-				meta := (MetaInfo.from_string (dec_string k), el, decode_pos p) :: !meta;
+				meta := (decode_strict_meta k, el, decode_pos p) :: !meta;
 				set (!meta)
 			with Invalid_expr ->
 				failwith "Invalid expression");
 			VNull
 		));
 		"remove", VFunction (Fun1 (fun k ->
-			let k = MetaInfo.from_string (try dec_string k with Invalid_expr -> raise Builtin_error) in
+			let k = decode_strict_meta k in
 			meta := List.filter (fun (m,_,_) -> m <> k) (!meta);
 			set (!meta);
 			VNull
 		));
 		"has", VFunction (Fun1 (fun k ->
-			let k = MetaInfo.from_string (try dec_string k with Invalid_expr -> raise Builtin_error) in
+			let k = decode_strict_meta k in
 			VBool (List.exists (fun (m,_,_) -> m = k) (!meta));
 		));
 	]
