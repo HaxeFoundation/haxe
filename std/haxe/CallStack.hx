@@ -37,6 +37,26 @@ enum StackItem {
 **/
 class CallStack {
 
+	#if js
+	static function extractStack():Dynamic {
+		// https://code.google.com/p/v8/wiki/JavaScriptStackTraceApi
+		var oldValue = (untyped Error).prepareStackTrace;
+		(untyped Error).prepareStackTrace = function (_, callsites) return callsites;
+		var stack = untyped __new__("Error").stack;
+		(untyped Error).prepareStackTrace = oldValue;
+		return stack;
+	}
+
+	@:ifFeature("haxe.CallStack.exceptionStack")
+	static var lastExceptionStack:Dynamic;
+
+	@:ifFeature("haxe.CallStack.exceptionStack")
+	static function saveStack(e) {
+		lastExceptionStack = extractStack();
+		return e;
+	}
+	#end
+
 	/**
 		Return the call stack elements, or an empty array if not available.
 	**/
@@ -57,29 +77,7 @@ class CallStack {
 			var s:Array<String> = untyped __global__.__hxcpp_get_call_stack(true);
 			return makeStack(s);
 		#elseif js
-			// https://code.google.com/p/v8/wiki/JavaScriptStackTraceApi
-			var oldValue = (untyped Error).prepareStackTrace;
-			(untyped Error).prepareStackTrace = function (error, callsites :Array<Dynamic>) {
-				var stack = [];
-				for (site in callsites) {
-					var method = null;
-					var fullName :String = site.getFunctionName();
-					if (fullName != null) {
-						var idx = fullName.lastIndexOf(".");
-						if (idx >= 0) {
-							var className = fullName.substr(0, idx);
-							var methodName = fullName.substr(idx+1);
-							method = Method(className, methodName);
-						}
-					}
-					stack.push(FilePos(method, site.getFileName(), site.getLineNumber()));
-				}
-				return stack;
-			}
-			var a = makeStack(untyped __new__("Error").stack);
-			a.shift(); // remove Stack.callStack()
-			(untyped Error).prepareStackTrace = oldValue;
-			return a;
+			return makeStack(extractStack());
 		#elseif java
 			var stack = [];
 			for ( el in java.lang.Thread.currentThread().getStackTrace() ) {
@@ -178,6 +176,12 @@ class CallStack {
 					stack.push(FilePos(null, elem._1, elem._2));
 			}
 			return stack;
+		#elseif js
+			if (lastExceptionStack == null)
+				return untyped __define_feature__("haxe.CallStack.exceptionStack", []);
+			else {
+				return makeStack(lastExceptionStack);
+			}
 		#else
 			return []; // Unsupported
 		#end
@@ -299,7 +303,24 @@ class CallStack {
 				}
 				return m;
 			} else {
-				return cast s;
+				var s:Array<Dynamic> = cast s;
+				s.shift(); // remove extractStack
+				s.shift(); // remove callStack/saveStack
+				var stack = [];
+				for (site in s) {
+					var method = null;
+					var fullName :String = site.getFunctionName();
+					if (fullName != null) {
+						var idx = fullName.lastIndexOf(".");
+						if (idx >= 0) {
+							var className = fullName.substr(0, idx);
+							var methodName = fullName.substr(idx+1);
+							method = Method(className, methodName);
+						}
+					}
+					stack.push(FilePos(method, site.getFileName(), site.getLineNumber()));
+				}
+				return stack;
 			}
 		#elseif cs
 			var stack = [];

@@ -560,7 +560,10 @@ and gen_expr ctx e =
 		spr ctx "]"
 	| TThrow e ->
 		spr ctx "throw ";
+		let save_stack = has_feature ctx "haxe.CallStack.exceptionStack" in
+		if save_stack then print ctx "%s.saveStack(" (ctx.type_accessor (TClassDecl { null_class with cl_path = ["haxe"],"CallStack" }));
 		gen_value ctx e;
+		if save_stack then spr ctx ")";
 	| TVar (v,eo) ->
 		spr ctx "var ";
 		check_var_declaration v;
