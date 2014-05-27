@@ -162,7 +162,7 @@ and mark_t dce p t =
 			List.iter (mark_t dce p) pl
 		| TAbstract(a,pl) when Meta.has Meta.MultiType a.a_meta ->
 			begin try
-				mark_t dce p (snd (Codegen.Abstract.find_multitype_specialization a pl p))
+				mark_t dce p (snd (Codegen.Abstract.find_multitype_specialization dce.com a pl p))
 			with Typecore.Error _ ->
 				()
 			end

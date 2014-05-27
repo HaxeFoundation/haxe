@@ -743,7 +743,7 @@ module Abstract = struct
 	let check_cast ctx tleft eright p =
 		if ctx.com.display <> DMNone then eright else do_check_cast ctx tleft eright p
 
-	let find_multitype_specialization a pl p =
+	let find_multitype_specialization com a pl p =
 		let m = mk_mono() in
 		let tl = match Meta.get Meta.MultiType a.a_meta with
 			| _,[],_ -> pl
@@ -754,10 +754,31 @@ module Abstract = struct
 					| _ -> error "Type parameter expected" (pos e)
 				) el;
 				let tl = List.map2 (fun (n,_) t -> if Hashtbl.mem relevant n || not (has_mono t) then t else t_dynamic) a.a_types pl in
+				if com.platform = Js && a.a_path = ([],"Map") then begin match tl with
+					| t1 :: _ ->
+						let rec loop stack t =
+							if List.exists (fun t2 -> fast_eq t t2) stack then
+								t
+							else begin
+								let stack = t :: stack in
+								match follow t with
+								| TAbstract ({ a_path = [],"Class" },_) ->
+									error (Printf.sprintf "Cannot use %s as key type to Map because Class<T> is not comparable" (s_type (print_context()) t1)) p;
+								| TEnum(en,tl) ->
+									PMap.iter (fun _ ef -> ignore(loop stack ef.ef_type)) en.e_constrs;
+									Type.map (loop stack) t
+								| t ->
+									Type.map (loop stack) t
+							end
+						in
+						ignore(loop [] t1)
+					| _ -> assert false
+				end;
 				tl
 		in
 		let _,cfo =
-			try find_to a tl m
+			try
+				find_to a tl m
 			with Not_found ->
 				let at = apply_params a.a_types pl a.a_this in
 				let st = s_type (print_context()) at in
@@ -774,7 +795,7 @@ module Abstract = struct
 		let rec loop ctx e = match e.eexpr with
 			| TNew({cl_kind = KAbstractImpl a} as c,pl,el) ->
 				(* a TNew of an abstract implementation is only generated if it is a multi type abstract *)
-				let cf,m = find_multitype_specialization a pl e.epos in
+				let cf,m = find_multitype_specialization ctx.com a pl e.epos in
 				let e = make_static_call ctx c cf a pl ((mk (TConst TNull) (TAbstract(a,pl)) e.epos) :: el) m e.epos in
 				{e with etype = m}
 			| TCall({eexpr = TField(_,FStatic({cl_path=[],"Std"},{cf_name = "string"}))},[e1]) when (match follow e1.etype with TAbstract({a_impl = Some _},_) -> true | _ -> false) ->
