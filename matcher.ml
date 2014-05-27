@@ -941,7 +941,13 @@ let rec compile mctx stl pmat toplevel =
 				raise (Not_exhaustive(any,st_head))
 			| [],_ ->
 				let pl = PMap.foldi (fun cd p acc -> (mk_con_pat cd [] t_dynamic p) :: acc) !all [] in
-				raise (Not_exhaustive(collapse_pattern pl,st_head))
+				(* toplevel null can be omitted because the French dig runtime errors (issue #3054) *)
+				if toplevel && (match pl with
+					| [{p_def = PCon ({c_def = (CConst TNull)},_)}] -> true
+					| _ -> false) then
+						switch st_head cases
+				else
+					raise (Not_exhaustive(collapse_pattern pl,st_head))
 			| def,[] ->
 				compile mctx st_tail def false
 			| def,_ ->
