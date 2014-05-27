@@ -1006,7 +1006,7 @@ try
 		),"<directory> : generate Java code into target directory");
 		("-python",Arg.String (fun dir ->
 			set_platform Python dir;
-		),"<directory> : generate Python code into target directory");
+		),"<file> : generate Python code as target file");
 		("-xml",Arg.String (fun file ->
 			Parser.use_doc := true;
 			xml_out := Some file
