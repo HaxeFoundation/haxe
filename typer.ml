@@ -1773,7 +1773,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			in
 			let l = save_locals ctx in
 			let v,is_temp = match et.eexpr with
-				| TLocal v -> v,false
+				| TLocal v when not (v.v_name = "this") -> v,false
 				| _ -> gen_local ctx ta,true
 			in
 			let ev = mk (TLocal v) ta p in
