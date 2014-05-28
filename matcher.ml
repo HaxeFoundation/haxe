@@ -828,7 +828,7 @@ let rec all_ctors mctx t =
 	| TAnon a ->
 		h,true
 	| TInst(_,_) ->
-		h,false
+		h,true
 	| _ ->
 		h,true
 
