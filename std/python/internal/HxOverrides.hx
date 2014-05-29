@@ -60,11 +60,17 @@ class HxOverrides {
 	}
 
 	static public function toUpperCase(x) {
-		return Reflect.callMethod(null, Reflect.field(x, "toUpperCase"), []);
+		if (Boot.isString(x)) {
+			return (x:String).toUpperCase();
+		}
+		return Syntax.callField(x, "toUpperCase");
 	}
 
 	static public function toLowerCase(x) {
-		return Reflect.callMethod(null, Reflect.field(x, "toLowerCase"), []);
+		if (Boot.isString(x)) {
+			return (x:String).toLowerCase();
+		}
+		return Syntax.callField(x, "toLowerCase");
 	}
 
 	static public function rshift(val:Int, n:Int) {
