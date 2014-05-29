@@ -1047,7 +1047,7 @@ try
 		("-swf-version",Arg.Float (fun v ->
 			if not !swf_version || com.flash_version < v then com.flash_version <- v;
 			swf_version := true;
-		),"<version> : change the SWF version (6 to 10)");
+		),"<version> : change the SWF version");
 		("-swf-header",Arg.String (fun h ->
 			try
 				swf_header := Some (match ExtString.String.nsplit h ":" with
