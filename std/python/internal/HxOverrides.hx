@@ -31,9 +31,22 @@ class HxOverrides {
 		return if (s == null) "null" else s;
 	}
 
+
 	static public function shift(x) {
 		return Reflect.callMethod(null, Reflect.field(x, "shift"), []);
 	}
+	static public function pop(x) {
+		return Reflect.callMethod(null, Reflect.field(x, "pop"), []);
+	}
+
+	static public function push(x, e) {
+		return Reflect.callMethod(null, Reflect.field(x, "push"), [e]);
+	}
+
+	static public function join(x, e) {
+		return Reflect.callMethod(null, Reflect.field(x, "join"), [e]);
+	}
+
 	static public function toUpperCase(x) {
 		return Reflect.callMethod(null, Reflect.field(x, "toUpperCase"), []);
 	}
