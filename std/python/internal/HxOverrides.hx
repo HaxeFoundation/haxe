@@ -31,20 +31,32 @@ class HxOverrides {
 		return if (s == null) "null" else s;
 	}
 
-
 	static public function shift(x) {
-		return Reflect.callMethod(null, Reflect.field(x, "shift"), []);
+		if (Boot.isArray(x)) {
+			return (x:Array<Dynamic>).shift();
+		}
+		return Syntax.callField(x, "shift");
 	}
+
 	static public function pop(x) {
-		return Reflect.callMethod(null, Reflect.field(x, "pop"), []);
+		if (Boot.isArray(x)) {
+			return (x:Array<Dynamic>).pop();
+		}
+		return Syntax.callField(x, "pop");
 	}
 
 	static public function push(x, e) {
-		return Reflect.callMethod(null, Reflect.field(x, "push"), [e]);
+		if (Boot.isArray(x)) {
+			return (x:Array<Dynamic>).push(e);
+		}
+		return Syntax.callField(x, "push", e);
 	}
 
-	static public function join(x, e) {
-		return Reflect.callMethod(null, Reflect.field(x, "join"), [e]);
+	static public function join(x, sep) {
+		if (Boot.isArray(x)) {
+			return (x:Array<Dynamic>).join(sep);
+		}
+		return Syntax.callField(x, "join", sep);
 	}
 
 	static public function toUpperCase(x) {
