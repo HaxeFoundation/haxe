@@ -1337,6 +1337,11 @@ module Printer = struct
 		let do_default () =
 			Printf.sprintf "%s.%s" obj (if is_extern then name else (handle_keywords name))
 		in
+		let call_override s =
+			match s with
+			| "iterator" | "toUpperCase" | "toLowerCase" | "pop" | "shift" | "join" | "push" -> true
+			| _ -> false
+		in
 		match fa with
 			(* we need to get rid of these cases in the transformer, how is this handled in js *)
 			| FInstance(c,{cf_name = "length" | "get_length"}) when (is_type "" "list")(TClassDecl c) ->
@@ -1347,17 +1352,10 @@ module Printer = struct
 				Printf.sprintf "HxString.fromCharCode"
 			| FInstance _ | FStatic _ ->
 				do_default ()
-			| FAnon cf when name = "iterator" && not is_assign ->
+			| FAnon cf when is_assign && call_override(name) ->
 				begin match follow cf.cf_type with
 					| TFun([],_) ->
-						Printf.sprintf "python_lib_FuncTools.partial(HxOverrides.iterator, %s)" obj
-					| _ ->
-						do_default()
-				end
-			| FAnon cf when name = "shift" && not is_assign ->
-				begin match follow cf.cf_type with
-					| TFun([],_) ->
-						Printf.sprintf "python_lib_FuncTools.partial(HxOverrides.shift, %s)" obj
+						Printf.sprintf "python_lib_FuncTools.partial(HxOverrides.%s, %s)" name obj
 					| _ ->
 						do_default()
 				end
@@ -1506,9 +1504,9 @@ module Printer = struct
 
 	and print_call pctx e1 el =
 		match e1.eexpr, el with
-			| TField(e1,((FAnon {cf_name = "iterator"}) | FDynamic ("iterator"))), [] ->
-				Printf.sprintf "HxOverrides.iterator(%s)" (print_expr pctx e1)
-			| TField(e1,((FAnon {cf_name = ("toUpperCase" | "toLowerCase" as s)}) | FDynamic ("toUpperCase" | "toLowerCase" as s))), [] ->
+			| TField(e1,((FAnon {cf_name = (("join" | "push") as s)}) | FDynamic (("join" | "push") as s))), [x] ->
+				Printf.sprintf "HxOverrides.%s(%s, %s)" s (print_expr pctx e1) (print_expr pctx x)
+			| TField(e1,((FAnon {cf_name = (("iterator" | "toUpperCase" | "toLowerCase" | "pop" | "shift") as s)}) | FDynamic (("iterator" | "toUpperCase" | "toLowerCase" | "pop" | "shift") as s))), [] ->
 				Printf.sprintf "HxOverrides.%s(%s)" s (print_expr pctx e1)
 			| _,_ ->
 				print_call2 pctx e1 el
