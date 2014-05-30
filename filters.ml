@@ -803,12 +803,34 @@ let rename_local_vars com e =
 	e
 
 let check_unification com e t =
-	begin match follow e.etype,follow t with
+	let make_reflective c = match c.cl_kind with
+		| KTypeParameter _ ->
+			()
+		| _ ->
+			if not (Meta.has Meta.Reflective c.cl_meta) then begin
+				c.cl_meta <- (Meta.Reflective,[],c.cl_pos) :: c.cl_meta
+			end
+	in
+	let rec loop t1 t2 = match follow t1,follow t2 with
 		| TEnum _,TDynamic _ ->
 			add_feature com "may_print_enum";
+		| TInst(c,_), (TDynamic _ | TAnon _) ->
+			make_reflective c
+		| TAnon an, TDynamic _ ->
+			begin match !(an.a_status) with
+				| Statics c -> make_reflective c
+				| _ -> ()
+			end
+		(* TODO: this shouldn't be necessary *)
+		| TInst(c1,_), (TInst (c2,_)) when c1 != c2 ->
+			make_reflective c1
+		| TFun(args1,ret1),TFun(args2,ret2) when List.length args1 = List.length args2 ->
+			List.iter2 (fun (_,_,t1) (_,_,t2) -> loop t1 t2) args2 args1;
+			loop ret1 ret2
 		| _ ->
 			()
-	end;
+	in
+	loop e.etype t;
 	e
 
 (* PASS 1 end *)

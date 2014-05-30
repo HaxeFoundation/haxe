@@ -5,6 +5,7 @@ package unit;
 #if as3
 @:publicFields
 #end
+@:reflective
 class Test #if swf_mark implements mt.Protect #end {
 
 	public function new() {

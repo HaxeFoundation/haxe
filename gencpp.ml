@@ -3407,12 +3407,15 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
          | Var _ when is_abstract_impl -> false
          | _ -> true) in
 
-      let reflective field = not ( (Meta.has Meta.Unreflective field.cf_meta) ||
-          (match field.cf_type with
-          | TInst (klass,_) ->  Meta.has Meta.Unreflective klass.cl_meta
-          | _ -> false
-          )
-      ) in
+      let rec reflective_class class_def =
+         Meta.has Meta.Reflective class_def.cl_meta || match class_def.cl_super with
+            | Some (super_class,_) -> reflective_class super_class
+            | None -> false
+      in
+      let reflective field =
+            Meta.has Meta.Reflective field.cf_meta || reflective_class class_def
+         || (not (Common.defined common_ctx Define.Unreflective) && not (Meta.has Meta.Unreflective field.cf_meta) && not (Meta.has Meta.Unreflective class_def.cl_meta))
+      in
       let reflect_fields = List.filter reflective (statics_except_meta @ class_def.cl_ordered_fields) in
       let reflect_writable = List.filter is_writable reflect_fields in
       let reflect_readable = List.filter is_readable reflect_fields in
