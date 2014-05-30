@@ -7,6 +7,8 @@ OCAMLC=ocamlc
 CFLAGS= -I ../extlib -I ../extc -g
 LIBS=
 
+SRC=actionScript.ml as3hl.mli as3.mli png.ml swflib.sln swf.ml swfPic.ml as3code.ml as3hlparse.ml as3parse.ml png.mli swfParser.ml
+
 MODULES=as3code.cmx png.cmx swf.cmx actionScript.cmx as3parse.cmx swfPic.cmx as3hlparse.cmx swfParser.cmx
 
 all: native bytecode
@@ -73,3 +75,7 @@ clean:
 .mly.ml:
 	ocamlyacc $<
 
+.PHONY: all bytecode native clean
+
+Makefile: ;
+$(SRC): ;

@@ -11,6 +11,8 @@ INSTALLDIR=`$(OCAMLC) -where`
 CFLAGS=
 LFLAGS= -a
 LIBS=
+SRC=dtd.mli xml.dsp xml_lexer.mli xml.ml xmlParser.ml xml_parser.mly dtd.ml test.ml xml.dsw xml_lexer.mll xml.mli xmlParser.mli
+
 
 all: bytecode test.exe doc
 
@@ -40,8 +42,9 @@ install_ocamlfind: all opt
 	rm -rf METAtmp
 	$(OCAMLFIND) install xml-light META xml-light.a xml-light.cma xml-light.cmxa xml.cmx dtd.cmx xmlParser.cmx xml.mli xmlParser.mli dtd.mli xml.cmi xmlParser.cmi dtd.cmi
 
-doc:
-	mkdir doc
+doc: doc/index.html
+doc/index.html: xml.mli dtd.mli xmlParser.mli
+	mkdir -p doc
 	ocamldoc -sort -html -d doc xml.mli dtd.mli xmlParser.mli
 
 test.exe: xml-light.cma
@@ -89,6 +92,7 @@ xml_lexer.cmx: xml_lexer.ml xml_lexer.cmi
 clean:
 	rm -f xml-light.cma test.exe dtd.cmo dtd.cmi test.cmo test.cmi xml.cmo xml.cmi xmlParser.cmo xmlParser.cmi dtd.cmi xml.cmi xmlParser.cmi xml_lexer.cmi xml_lexer.cmo xml_lexer.ml xml_parser.mli xml_parser.cmi xml_parser.ml xml_parser.cmo
 	rm -f xml-light.lib xml-light.a xml-light.cmxa test_opt.exe dtd.cmx dtd.obj dtd.o test.cmx test.obj test.o xml.cmx xml.obj xml.o xmlParser.cmx xmlParser.obj xmlParser.o xml_lexer.cmx xml_lexer.obj xml_lexer.o xml_parser.cmx xml_parser.obj xml_parser.o
+	rm -rf doc
 
 
 # SUFFIXES
@@ -107,3 +111,6 @@ clean:
 .mly.ml:
 	ocamlyacc $<
 
+Makefile: ;
+$(SRC): ;
+.PHONY: all opt native bytecode installcommon installbyte installopt install wininstall install_ocamlfind doc clean
