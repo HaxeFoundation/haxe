@@ -81,6 +81,11 @@ class TestJava extends Test
 
 	}
 
+	function testInterfaceStaticField()
+	{
+		eq(haxe.test.StaticInterfaceField.test, 10);
+	}
+
 	function testOverloadOverride()
 	{
 		var c = new TestMyClass();

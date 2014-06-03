@@ -2130,7 +2130,8 @@ let init_class ctx c p context_init herits fields =
 		try
 			let fd , constr, f, do_add = loop_cf f in
 			let is_static = List.mem AStatic fd.cff_access in
-			if (is_static || constr) && c.cl_interface && f.cf_name <> "__init__" then error "You can't declare static fields in interfaces" p;
+			if (is_static || constr) && c.cl_interface && f.cf_name <> "__init__" && not (Meta.has Meta.JavaNative c.cl_meta) then
+				error "You can't declare static fields in interfaces" p;
 			begin try
 				let _,args,_ = Meta.get Meta.IfFeature f.cf_meta in
 				List.iter (fun e -> match fst e with
