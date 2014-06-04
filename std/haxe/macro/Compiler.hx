@@ -275,7 +275,24 @@ class Compiler {
 				var fullPath = classPath + path.split(".").join("/");
 				var isValidModule:Bool = startsWithUpperCase && sys.FileSystem.exists(fullPath + ".hx");
 				var isValidSubType:Bool = !isValidModule && moduleRootPath != "" && rootStartsWithUpperCase && sys.FileSystem.exists(moduleRootPath);
-				var isValidDirectory:Bool = !isValidSubType && sys.FileSystem.exists(fullPath) && sys.FileSystem.isDirectory(fullPath);
+
+				var doesExist : Bool = sys.FileSystem.exists(fullPath);
+				var isDirectory : Bool = doesExist && sys.FileSystem.isDirectory(fullPath);
+				var canBeValidDirectory : Bool = false;
+
+					//it can only be a valid directory if the 
+					//name exists in the parent folder under the same case,
+					//again because FileSystem is used on insensitive platforms
+				if(doesExist) {
+					var parentPath = haxe.io.Path.directory(fullPath);
+					var fileList = sys.FileSystem.readDirectory( parentPath );
+					var pathName = path.split('.').pop();
+					if(fileList.indexOf(pathName) != -1) {
+						canBeValidDirectory = true;
+					}
+				}				
+
+				var isValidDirectory:Bool = !isValidSubType && canBeValidDirectory && doesExist && isDirectory;
 				if ( !isValidDirectory && !isValidModule && !isValidSubType)
 					continue;
 				else
