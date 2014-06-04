@@ -2599,7 +2599,7 @@ let convert_java_enum ctx p pe =
 			if jc.cpath <> (["java";"lang"], "CharSequence") then
 				List.iter (fun f ->
 					try
-						if !is_interface && List.mem JStatic f.jf_flags then
+						if !is_interface && List.mem JStatic f.jf_flags && not (List.mem JFinal f.jf_flags) then
 							()
 						else begin
 							fields := convert_java_field ctx p jc f :: !fields;
