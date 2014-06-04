@@ -263,3 +263,43 @@ class TypeApi {
 	}
 
 }
+
+class CTypeTools {
+	static public function toString(t:CType):String {
+		return switch (t) {
+			case CUnknown:
+				"unknown";
+			case CClass(name, params), CEnum(name, params), CTypedef(name, params), CAbstract(name, params):
+				nameWithParams(name, params);
+			case CFunction(args, ret):
+				if (args.length == 0) {
+					"Void -> " +toString(ret);
+				} else {
+					args.map(functionArgumentName).join(" -> ");
+				}
+			case CDynamic(d):
+				if (d == null) {
+					"Dynamic";
+				} else {
+					"Dynamic<" + toString(d) + ">";
+				}
+			case CAnonymous(fields):
+				"{ " + fields.map(classField).join(", ");
+		}
+	}
+
+	static function nameWithParams(name:String, params:List<CType>) {
+		if (params.length == 0) {
+			return name;
+		}
+		return name + "<" + params.map(toString).join(", ") + ">";
+	}
+
+	static function functionArgumentName(arg:FunctionArgument) {
+		(arg.opt ? "?" : "") + arg.name + ":" + toString(arg.t) + (arg.value == null ? "" : " = " +arg.value);
+	}
+
+	static function classField(cf:ClassField) {
+		return cf.name + ":" +toString(cf.type);
+	}
+}
