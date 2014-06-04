@@ -393,7 +393,7 @@ class XmlParser {
 		};
 	}
 
-	function xclassfield( x : Fast, ?defPublic ) : ClassField {
+	function xclassfield( x : Fast, ?defPublic = false ) : ClassField {
 		var e = x.elements;
 		var t = xtype(e.next());
 		var doc = null;
