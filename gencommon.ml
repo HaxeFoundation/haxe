@@ -1102,7 +1102,10 @@ let generate_modules gen extension source_dir (module_gen : SourceWriter.source_
 		(*let should_write = List.fold_left (fun should md -> module_gen w md or should) false md_def.m_types in*)
 		let should_write = module_gen w md_def in
 		if should_write then begin
-			let path = md_def.m_path in
+			let path = match md_def.m_types with
+				| [TClassDecl c] -> c.cl_path
+				| _ -> md_def.m_path
+			in
 			write_file gen w source_dir path extension;
 		end
 	) gen.gcon.modules

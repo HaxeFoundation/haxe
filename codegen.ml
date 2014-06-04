@@ -278,6 +278,13 @@ let has_ctor_constraint c = match c.cl_kind with
 		) tl;
 	| _ -> false
 
+let get_short_name =
+	let i = ref (-1) in
+	(fun () ->
+		incr i;
+		Printf.sprintf "__hx_type_%i" !i
+	)
+
 let rec build_generic ctx c p tl =
 	let pack = fst c.cl_path in
 	let recurse = ref false in
@@ -420,6 +427,12 @@ let rec build_generic ctx c p tl =
 			f
 		) c.cl_ordered_fields;
 		List.iter (fun f -> f()) !delays;
+		(* In rare cases the class name can become too long, so let's shorten it (issue #3090). *)
+		if String.length (snd cg.cl_path) > 254 then begin
+			let n = get_short_name () in
+			let tp = fst cg.cl_path,n in
+			cg.cl_meta <- (Meta.Native,[EConst(String (s_type_path tp)),p],p) :: cg.cl_meta;
+		end;
 		TInst (cg,[])
 	end
 
