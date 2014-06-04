@@ -122,6 +122,25 @@ enum EVMTest {
 	EVMF(a:Array<EVMTest>);
 }
 
+class NonRttiClass { }
+
+@:rtti
+@:keepSub
+class RttiClass1 {
+    static var v:String;
+    public function f() {
+        return 33.0;
+    }
+}
+
+class RttiClass2 extends RttiClass1 { }
+
+class RttiClass3 extends RttiClass1 {
+	override function f():Int {
+		return 33;
+	}
+}
+
 #if !macro
 @:build(unit.UnitBuilder.build("unitstd"))
 #end
