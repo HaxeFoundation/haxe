@@ -1,4 +1,5 @@
-![Haxe logo](http://haxe.org/img/haxe2/logo.png)
+![Haxe logo](http://haxe.org/img/haxe-logo-horizontal.svg)
+
 # [Haxe - The Cross-Platform Toolkit](http://haxe.org)
 
 [![Build Status](https://travis-ci.org/HaxeFoundation/haxe.png?branch=development)](https://travis-ci.org/HaxeFoundation/haxe)
@@ -31,7 +32,7 @@ The Haxe project has several licenses, covering different parts of the projects.
  * The Haxe libraries are released under a "two-clause" BSD license.
  * The Neko runtime is licensed under the GNU Lesser General Public License version 2.1 or any later version.
 
-For the complete Haxe licenses, please see http://haxe.org/doc/license or [extra/LICENSE.txt](extra/LICENSE.txt).
+For the complete Haxe licenses, please see http://haxe.org/foundation/open-source.html or [extra/LICENSE.txt](extra/LICENSE.txt).
 
 ## Installing Haxe
 
@@ -53,23 +54,23 @@ Automated development builds are available from [build.haxe.org](http://build.ha
         git clone --recursive git://github.com/HaxeFoundation/haxe.git
         cd haxe
 
- 2. Follow the [documentation on building Haxe for your platform](http://haxe.org/doc/build).
+ 2. Follow the [documentation on building Haxe for your platform](http://haxe.org/documentation/introduction/building-haxe.html).
 
 ## Using Haxe
 
-For information on on using Haxe, consult the [Haxe documentation](http://haxe.org/doc):
+For information on on using Haxe, consult the [Haxe documentation](http://haxe.org/documentation):
 
- * [Haxe introduction](http://haxe.org/doc/intro), an introduction to the Haxe toolkit
- * [Haxe language reference](http://haxe.org/ref), an overview of the Haxe programming language
- * [Haxe API](http://api.haxe.org/), a reference for the Haxe standard and native APIs
- * [Haxelib](http://lib.haxe.org/), a repository of Haxe libraries for a variety of needs
+ * [Haxe Introduction](http://haxe.org/documentation/introduction), an introduction to the Haxe toolkit
+ * [The Haxe Manual](http://haxe.org/manual), the reference manual for the Haxe language
+ * [Haxe API](http://api.haxe.org), documentation for the Haxe standard and native APIs
+ * [Haxelib](http://lib.haxe.org), a repository of Haxe libraries for a variety of needs
 
 ## Community
 
 You can get help and talk with fellow Haxers from around the world via:
 
  * the [official Haxe Google Group](https://groups.google.com/forum/#!forum/haxelang)
- * the [Haxe IRC chatroom](http://unic0rn.github.io/tiramisu/haxe/), #haxe on chat.freenode.net
+ * the [Haxe IRC chatroom](http://unic0rn.github.io/tiramisu/haxe), #haxe on chat.freenode.net
 
 ## Version compatibility
 
