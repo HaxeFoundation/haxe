@@ -85,7 +85,7 @@ typedef TypeInfos = {
 typedef Classdef = {> TypeInfos,
 	var isExtern : Bool;
 	var isInterface : Bool;
-	var superClass : PathParams;
+	var superClass : Null<PathParams>;
 	var interfaces : List<PathParams>;
 	var fields : List<ClassField>;
 	var statics : List<ClassField>;
