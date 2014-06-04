@@ -41,7 +41,7 @@ class IntIterator {
 
 		If `max <= min`, the iterator will not act as a countdown.
 	**/
-	public function new( min : Int, max : Int ) {
+	public inline function new( min : Int, max : Int ) {
 		this.min = min;
 		this.max = max;
 	}
@@ -49,7 +49,7 @@ class IntIterator {
 	/**
 		Returns true if the iterator has other items, false otherwise.
 	**/
-	public function hasNext() {
+	public inline function hasNext() {
 		return min < max;
 	}
 
@@ -58,7 +58,7 @@ class IntIterator {
 
 		If this is called while hasNext() is false, the result is unspecified.
 	**/
-	public function next() {
+	public inline function next() {
 		return min++;
 	}
 
