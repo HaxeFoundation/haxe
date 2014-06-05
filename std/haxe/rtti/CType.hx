@@ -61,7 +61,7 @@ typedef ClassField = {
 	var type : CType;
 	var isPublic : Bool;
 	var isOverride : Bool;
-	var doc : String;
+	var doc : Null<String>;
 	var get : Rights;
 	var set : Rights;
 	var params : TypeParams;
@@ -76,7 +76,7 @@ typedef TypeInfos = {
 	var module : Path;
 	var file : Null<String>;
 	var params : TypeParams;
-	var doc : String;
+	var doc : Null<String>;
 	var isPrivate : Bool;
 	var platforms : Platforms;
 	var meta : MetaData;
