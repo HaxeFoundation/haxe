@@ -550,9 +550,9 @@ class RunTravis {
 		haxelibInstallGit("massiveinteractive", "MassiveUnit", "master", "src", false, "munit");
 		changeDirectory(Path.join([getHaxelibPath("munit"), "..", "tool"]));
 		runCommand("haxe", ["build.hxml"]);
-		haxelibRun(["munit", "test", "-result-exit-code", "-neko"]);
+		haxelibRun(["munit", "test", "-result-exit-code", "-neko"], true);
 		changeDirectory("../");
-		haxelibRun(["munit", "test", "-result-exit-code", "-neko"]);
+		haxelibRun(["munit", "test", "-result-exit-code", "-neko"], true);
 	}
 
 	static function testFlambe() {
