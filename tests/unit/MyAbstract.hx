@@ -181,7 +181,7 @@ abstract MyInt(Int) from Int to Int {
 	}
 }
 
-abstract MyInt2(Int){
+abstract MyInt2(Int) from MyInt {
 	public inline function new(v) {
 		this = v;
 	}
