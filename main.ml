@@ -1606,8 +1606,13 @@ let args = List.tl (Array.to_list Sys.argv) in
 (try
 	let server = Sys.getenv "HAXE_COMPILATION_SERVER" in
 	let host, port = (try ExtString.String.split server ":" with _ -> "127.0.0.1", server) in
-	do_connect host (try int_of_string port with _ -> failwith "Invalid HAXE_COMPILATION_SERVER port") args
-with Not_found -> try
+	let port = (try int_of_string port with _ -> failwith "Invalid HAXE_COMPILATION_SERVER port") in
+	try 
+		do_connect host port args
+	with e ->
+		eprintf "Failed to connect to haxe compilation server at %s:%i. Proceeding locally.\n" host port;
+		raise e
+with _ -> try
 	process_params create_context args
 with Completion c ->
 	prerr_endline c;
