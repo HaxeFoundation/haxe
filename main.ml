@@ -1379,9 +1379,6 @@ try
 	end;
 	com.config <- get_config com; (* make sure to adapt all flags changes defined after platform *)
 
-	(* check file extension. In case of wrong commandline, we don't want
-		to accidentaly delete a source file. *)
-	if not !no_output && file_extension com.file = ext then delete_file com.file;
 	List.iter (fun f -> f()) (List.rev (!pre_compilation));
 	if !classes = [([],"Std")] && not !force_typing then begin
 		let help_spec = basic_args_spec @ [
@@ -1418,6 +1415,9 @@ try
 		com.modules <- modules;
 		Filters.run com tctx main;
 		if ctx.has_error then raise Abort;
+		(* check file extension. In case of wrong commandline, we don't want
+			to accidentaly delete a source file. *)
+		if not !no_output && file_extension com.file = ext then delete_file com.file;
 		(match !xml_out with
 		| None -> ()
 		| Some "hx" ->
