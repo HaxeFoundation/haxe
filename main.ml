@@ -1561,7 +1561,7 @@ with
 			| Typer.ITEnum(en,ef) -> Buffer.add_string b (Printf.sprintf "<i k=\"enum\" t=\"%s\">%s</i>\n" (s_type ef.ef_type) ef.ef_name);
 			| Typer.ITGlobal(mt,s,t) -> Buffer.add_string b (Printf.sprintf "<i k=\"global\" p=\"%s\" t=\"%s\">%s</i>\n" (s_type_path (t_infos mt).mt_path) (s_type t) s);
 			| Typer.ITType(mt) -> Buffer.add_string b (Printf.sprintf "<i k=\"type\" p=\"%s\">%s</i>\n" (s_type_path (t_infos mt).mt_path) (snd (t_infos mt).mt_path));
-			| Typer.ITPackage s -> Buffer.add_string b (Printf.sprintf "<i k=\"package\">%s<i>\n" s)
+			| Typer.ITPackage s -> Buffer.add_string b (Printf.sprintf "<i k=\"package\">%s</i>\n" s)
 		) il;
 		Buffer.add_string b "</il>";
 		raise (Completion (Buffer.contents b))
