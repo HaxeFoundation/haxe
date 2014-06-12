@@ -1630,7 +1630,11 @@ module UnificationCallback = struct
 				let eo = Some (f e v.v_type) in
 				{ e with eexpr = TVar(v,eo) }
 			| TCall(e1,el) ->
-				let el = check_call f el e1.etype in
+				let t = match e1.eexpr with
+					| TField (_, (FStatic(_,cf) | FInstance(_,cf) | FAnon cf)) -> cf.cf_type
+					| _ -> e1.etype
+				in
+				let el = check_call f el t in
 				{e with eexpr = TCall(e1,el)}
 			| TNew(c,tl,el) ->
 				begin try

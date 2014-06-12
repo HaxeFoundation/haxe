@@ -230,6 +230,7 @@ module Define = struct
 		| SwfUseDoAbc
 		| Sys
 		| UnityStdTarget
+		| Unreflective
 		| Unsafe
 		| UseNekoc
 		| UseRttiDoc
@@ -306,6 +307,7 @@ module Define = struct
 		| SwfUseDoAbc -> ("swf_use_doabc", "Use DoAbc swf-tag instead of DoAbcDefine")
 		| Sys -> ("sys","Defined for all system platforms")
 		| UnityStdTarget -> ("unity_std_target", "Changes C# sources location so that each generated C# source is relative to the Haxe source location. If the location is outside the current directory, the value set here will be used")
+		| Unreflective -> ("unreflective", "Do not generate reflection code by default")
 		| Unsafe -> ("unsafe","Allow unsafe code when targeting C#")
 		| UseNekoc -> ("use_nekoc","Use nekoc compiler instead of internal one")
 		| UseRttiDoc -> ("use_rtti_doc","Allows access to documentation during compilation")
@@ -428,6 +430,7 @@ module MetaInfo = struct
 		| Property -> ":property",("Marks a property field to be compiled as a native C# property",[UsedOn TClassField;Platform Cs])
 		| ReadOnly -> ":readOnly",("Generates a field with the 'readonly' native keyword",[Platform Cs; UsedOn TClassField])
 		| RealPath -> ":realPath",("Internally used on @:native types to retain original path information",[Internal])
+		| Reflective -> ":reflective",("Keep reflection information for field or type even if -D unreflective is used",[UsedOnEither [TClass;TEnum;TAbstract]])
 		| Remove -> ":remove",("Causes an interface to be removed from all implementing classes before generation",[UsedOn TClass])
 		| Require -> ":require",("Allows access to a field only if the specified compiler flag is set",[HasParam "Compiler flag to check";UsedOn TClassField])
 		| RequiresAssign -> ":requiresAssign",("Used internally to mark certain abstract operator overloads",[Internal])

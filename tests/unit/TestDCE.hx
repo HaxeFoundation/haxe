@@ -189,6 +189,7 @@ class UsedThroughInterface implements UsedInterface {
 }
 
 class UsedAsBase { }
+
 class UsedAsBaseChild extends UsedAsBase {
 	public function new() { }
 }
@@ -208,6 +209,7 @@ interface PropertyInterface {
 	public var x(get_x, set_x):String;
 }
 
+@:reflective
 class PropertyAccessorsFromBaseClass {
 	public function get_x() return throw "must not set";
 	public function set_x(x:String) return "ok";
