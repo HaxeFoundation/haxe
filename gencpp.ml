@@ -65,7 +65,8 @@ let is_internal_class = function
    |  ([],"Array") | ([], "Class") | ([], "Enum") | ([], "Bool")
    |  ([], "Dynamic") | ([], "ArrayAccess") | (["cpp"], "FastIterator")
    |  (["cpp"],"Pointer") | (["cpp"],"ConstPointer")
-   |  (["cpp"],"BasePointer") | (["cpp"],"Function") -> true
+   |  (["cpp"],"RawPointer") | (["cpp"],"RawConstPointer")
+   |  (["cpp"],"Function") -> true
    |  ([],"Math") | (["haxe";"io"], "Unsigned_char__") -> true
    |  (["cpp"],"Int8") | (["cpp"],"UInt8") | (["cpp"],"Char")
    |  (["cpp"],"Int16") | (["cpp"],"UInt16")
@@ -492,21 +493,23 @@ let is_lvalue var =
 
 
 
-let is_pointer haxe_type =
+let is_pointer haxe_type includeRaw =
    match follow haxe_type with
    | TInst (klass,params) ->
       (match klass.cl_path with
       | ["cpp"] , "Pointer"
       | ["cpp"] , "ConstPointer"
-      | ["cpp"] , "BasePointer"
       | ["cpp"] , "Function" -> true
+      | ["cpp"] , "RawPointer" when includeRaw -> true
+      | ["cpp"] , "RawConstPointer" when includeRaw -> true
       | _ -> false )
    | TType (type_def,params) ->
       (match type_def.t_path with
       | ["cpp"] , "Pointer"
       | ["cpp"] , "ConstPointer"
-      | ["cpp"] , "BasePointer"
       | ["cpp"] , "Function" -> true
+      | ["cpp"] , "RawPointer" when includeRaw -> true
+      | ["cpp"] , "RawConstPointer" when includeRaw -> true
       | _ -> false )
    | _ -> false
    ;;
@@ -530,9 +533,12 @@ let rec class_string klass suffix params =
    |  (["cpp"],"FastIterator") -> "::cpp::FastIterator" ^ suffix ^ "< " ^ (String.concat ","
                (List.map type_string  params) ) ^ " >"
    |  (["cpp"],"Pointer")
-   |  (["cpp"],"ConstPointer")
-   |  (["cpp"],"BasePointer") ->
+   |  (["cpp"],"ConstPointer") ->
         "::cpp::Pointer< " ^ (String.concat "," (List.map type_string params) ) ^ " >"
+   |  (["cpp"],"RawPointer") ->
+        " " ^ (String.concat "," (List.map type_string params) ) ^ " "
+   |  (["cpp"],"RawConstPointer") ->
+        " const " ^ (String.concat "," (List.map type_string params) ) ^ " * "
    |  (["cpp"],"Function") ->
         "::cpp::Function< " ^ (cpp_function_signature_params params) ^ " >"
    | _ when is_dynamic_type_param klass.cl_kind -> "Dynamic"
@@ -594,10 +600,17 @@ and type_string_suff suffix haxe_type =
          | [t] -> "::cpp::FastIterator< " ^ (type_string (follow t) ) ^ " >"
          | _ -> assert false)
       | ["cpp"] , "Pointer"
-      | ["cpp"] , "ConstPointer"
-      | ["cpp"] , "BasePointer" ->
+      | ["cpp"] , "ConstPointer" ->
          (match params with
          | [t] -> "::cpp::Pointer< " ^ (type_string (follow t) ) ^ " >"
+         | _ -> assert false)
+      | ["cpp"] , "RawPointer" ->
+         (match params with
+         | [t] -> " " ^ (type_string (follow t) ) ^ " *"
+         | _ -> assert false)
+      | ["cpp"] , "RawConstPointer" ->
+         (match params with
+         | [t] -> "const " ^ (type_string (follow t) ) ^ " *"
          | _ -> assert false)
       | ["cpp"] , "Function" -> "::cpp::Function< " ^ (cpp_function_signature_params params) ^ " >"
       | _ ->  type_string_suff suffix (apply_params type_def.t_types params type_def.t_type)
@@ -632,6 +645,7 @@ and is_dynamic_array_param haxe_type =
    | TInst (klass,params) ->
          (match klass.cl_path with
          | ([],"Array") | ([],"Class") | (["cpp"],"FastIterator")
+         | (["cpp"],"RawPointer") |(["cpp"],"ConstRawPointer")
          | (["cpp"],"Pointer") |(["cpp"],"ConstPointer")|(["cpp"],"Function") -> false
          | _ -> (match klass.cl_kind with KTypeParameter _ -> true | _ -> false)
          )
@@ -1198,7 +1212,7 @@ and is_dynamic_member_lookup_in_cpp ctx field_object field =
    let member = field_name field in
    ctx.ctx_dbgout ("/*mem."^member^".*/");
    if (is_internal_member member) then false else
-   if (is_pointer field_object.etype) then false else
+   if (is_pointer field_object.etype true) then false else
    if (match field_object.eexpr with | TTypeExpr _ -> ctx.ctx_dbgout "/*!TTypeExpr*/"; true | _ -> false) then false else
    if (is_dynamic_in_cpp ctx field_object) then true else
    if (is_array field_object.etype) then false else (
@@ -1219,7 +1233,7 @@ and is_dynamic_member_lookup_in_cpp ctx field_object field =
 and is_dynamic_member_return_in_cpp ctx field_object field =
    let member = field_name field in
    if (is_array field_object.etype) then false else
-   if (is_pointer field_object.etype) then false else
+   if (is_pointer field_object.etype true) then false else
    if (is_internal_member member) then false else
    match field_object.eexpr with
    | TTypeExpr t ->
@@ -1932,7 +1946,7 @@ and gen_expression ctx retval expression =
          when class_def.cl_extern ->
          (try
             let return_type = expression.etype in
-            is_pointer return_type &&
+            (is_pointer return_type false) &&
                ( output ( (type_string return_type) ^ "(" ); true; )
          with Not_found -> false )
       | _ -> false
@@ -2078,7 +2092,7 @@ and gen_expression ctx retval expression =
          output "->__get(";
          gen_expression ctx true index;
          output ")";
-         if not (is_pointer array_expr.etype ) then
+         if not (is_pointer array_expr.etype true) then
             check_array_element_cast array_expr.etype ".StaticCast" "()";
       end
    (* Get precidence matching haxe ? *)
@@ -2662,7 +2676,9 @@ let find_referenced_types ctx obj super_deps constructor_deps header_only for_de
          for the Array, Class, FastIterator or Pointer classes, for which we do a fully typed object *)
       | TInst (klass,params) ->
          (match klass.cl_path with
-         | ([],"Array") | ([],"Class") | (["cpp"],"FastIterator") | (["cpp"],"Pointer") | (["cpp"],"ConstPointer") | (["cpp"],"Function") -> List.iter visit_type params
+         | ([],"Array") | ([],"Class") | (["cpp"],"FastIterator")
+         | (["cpp"],"Pointer") | (["cpp"],"ConstPointer") | (["cpp"],"Function")
+         | (["cpp"],"RawPointer") | (["cpp"],"RawConstPointer") -> List.iter visit_type params
          | _ when is_extern_class klass -> add_extern_class klass
          | _ -> (match klass.cl_kind with KTypeParameter _ -> () | _ -> add_type klass.cl_path);
          )
