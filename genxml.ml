@@ -167,7 +167,7 @@ let gen_constr e =
 		| _ ->
 			[] , doc
 	) in
-	node e.ef_name args t
+	node e.ef_name args (t @ gen_meta e.ef_meta)
 
 let gen_ordered_constr e =
 	let rec loop el = match el with
