@@ -51,12 +51,12 @@ class RunSauceLabs {
 			{
 				"browserName": "chrome",
 				"platform": "Windows XP",
-				"version": "31"
+				"version": "35"
 			},
 			{
 				"browserName": "firefox",
 				"platform": "Windows XP",
-				"version": "26"
+				"version": "30"
 			},
 			{
 				"browserName": "safari",
@@ -75,26 +75,30 @@ class RunSauceLabs {
 			},
 			{
 				"browserName": "iphone",
-				"platform": "OS X 10.8",
-				"version": "6.1",
-				"device-orientation": "portrait"
-			},
-			{
-				"browserName": "iphone",
-				"platform": "OS X 10.9",
-				"version": "7",
-				"device-orientation": "portrait"
-			},
-			{
-				"browserName": "iphone",
 				"platform": "OS X 10.9",
 				"version": "7.1",
+				"deviceName": "iPhone",
+				"device-orientation": "portrait"
+			},
+			{
+				"browserName": "iphone",
+				"platform": "OS X 10.6",
+				"version": "4",
+				"deviceName": "iPhone",
 				"device-orientation": "portrait"
 			},
 			{
 				"browserName": "android",
 				"platform": "Linux",
 				"version": "4.0",
+				"deviceName": "Android",
+				"device-orientation": "portrait"
+			},
+			{
+				"browserName": "android",
+				"platform": "Linux",
+				"version": "4.3",
+				"deviceName": "Android",
 				"device-orientation": "portrait"
 			}
 		];
