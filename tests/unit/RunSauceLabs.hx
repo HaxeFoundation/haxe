@@ -120,8 +120,12 @@ class RunSauceLabs {
 					console.log('${caps.browserName} ${caps.version} on ${caps.platform}:');
 					browser.init(caps, function(err) {
 						if (!handleError(err)) return;
+						browser.setAsyncScriptTimeout(30000); //30s timeout
 						browser.get("http://localhost:2000/unit-js.html", function(err) {
 							if (!handleError(err)) return;
+
+							browser.waitForConditionInBrowser("try { typeof unit.Test.success === 'boolean'; } catch(e) { false; }", 30000); //30s timeout
+
 							browser.text("body", function(err, re) {
 								if (!handleError(err)) return;
 								console.log(re);
