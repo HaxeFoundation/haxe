@@ -135,11 +135,14 @@ class RunSauceLabs {
 									}
 								}
 								success = success && test;
+								console.log("[debug] success: " + success);
 
 								//let saucelabs knows the result
 								browser.sauceJobUpdate({ passed: test }, function(err) {
+									console.log("[debug] job update: " + err);
 									if (!handleError(err)) return;
 									browser.quit(function(err) {
+										console.log("[debug] browser quit: " + err);
 										if (!handleError(err)) return;
 										testBrowsers(browsers);
 									});
