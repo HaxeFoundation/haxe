@@ -17,7 +17,7 @@ class RunSauceLabs {
 			tags.push("TravisCI");
 
 		//https://saucelabs.com/platforms
-		var browsers = [
+		var browsers:Array<Dynamic> = [
 			// {
 			// 	"browserName": "internet explorer",
 			// 	"platform": "Windows XP",
@@ -77,28 +77,18 @@ class RunSauceLabs {
 				"browserName": "iphone",
 				"platform": "OS X 10.9",
 				"version": "7.1",
-				"deviceName": "iPhone",
-				"device-orientation": "portrait"
-			},
-			{
-				"browserName": "iphone",
-				"platform": "OS X 10.6",
-				"version": "4",
-				"deviceName": "iPhone",
 				"device-orientation": "portrait"
 			},
 			{
 				"browserName": "android",
 				"platform": "Linux",
 				"version": "4.0",
-				"deviceName": "Android",
 				"device-orientation": "portrait"
 			},
 			{
 				"browserName": "android",
 				"platform": "Linux",
 				"version": "4.3",
-				"deviceName": "Android",
 				"device-orientation": "portrait"
 			}
 		];
@@ -124,7 +114,7 @@ class RunSauceLabs {
 					console.log('${caps.browserName} ${caps.version} on ${caps.platform}:');
 					browser.init(caps, function(err) {
 						if (!handleError(err)) return;
-						browser.setAsyncScriptTimeout(10000); //10s timeout
+						browser.setAsyncScriptTimeout(30000); //10s timeout
 						browser.get("http://localhost:2000/unit-js.html", function(err) {
 							if (!handleError(err)) return;
 
