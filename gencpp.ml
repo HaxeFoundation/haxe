@@ -2566,6 +2566,16 @@ let gen_field_init ctx field =
 
 
 
+let has_field_init field =
+   match field.cf_expr with
+   (* Function field *)
+   | Some { eexpr = TFunction function_def } -> is_dynamic_haxe_method field
+   (* Data field *)
+   | Some _ -> true
+   | _ -> false
+;;
+
+
 let gen_member_def ctx class_def is_static is_interface field =
    let output = ctx.ctx_output in
    let remap_name = keyword_remap field.cf_name in
@@ -2829,20 +2839,21 @@ let generate_dummy_main common_ctx =
    generate_startup "__lib__" false
    ;;
 
-let generate_boot common_ctx boot_classes init_classes =
+let generate_boot common_ctx boot_classes nonboot_classes init_classes =
    (* Write boot class too ... *)
    let base_dir = common_ctx.file in
    let boot_file = new_cpp_file common_ctx base_dir ([],"__boot__") in
    let output_boot = (boot_file#write) in
    output_boot "#include <hxcpp.h>\n\n";
-   List.iter ( fun class_path -> boot_file#add_include class_path ) boot_classes;
+   List.iter ( fun class_path -> boot_file#add_include class_path ) (boot_classes @ nonboot_classes);
 
    output_boot "\nvoid __files__boot();\n";
    output_boot "\nvoid __boot_all()\n{\n";
    output_boot "__files__boot();\n";
    output_boot "hx::RegisterResources( hx::GetResources() );\n";
    List.iter ( fun class_path ->
-      output_boot ("::" ^ ( join_class_path_remap class_path "::" ) ^ "_obj::__register();\n") ) boot_classes;
+      output_boot ("::" ^ ( join_class_path_remap class_path "::" ) ^ "_obj::__register();\n") )
+         (boot_classes @ nonboot_classes);
    List.iter ( fun class_path ->
       output_boot ("::" ^ ( join_class_path_remap class_path "::" ) ^ "_obj::__init__();\n") ) (List.rev init_classes);
    let dump_boot =
@@ -3176,6 +3187,11 @@ let has_init_field class_def =
    match class_def.cl_init with
    | Some _ -> true
    | _ -> false;;
+
+let has_boot_field class_def =
+   List.exists has_field_init (List.filter should_implement_field class_def.cl_ordered_statics);
+;;
+
 
 let is_macro meta =
    Meta.has Meta.Macro meta
@@ -3759,9 +3775,11 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
       output_cpp ("}\n\n");
    end;
 
-   output_cpp ("void " ^ class_name ^ "::__boot()\n{\n");
-   List.iter (gen_field_init ctx ) (List.filter should_implement_field class_def.cl_ordered_statics);
-   output_cpp ("}\n\n");
+   if (has_boot_field class_def) then begin
+      output_cpp ("void " ^ class_name ^ "::__boot()\n{\n");
+      List.iter (gen_field_init ctx ) (List.filter should_implement_field class_def.cl_ordered_statics);
+      output_cpp ("}\n\n");
+   end;
 
 
    gen_close_namespace output_cpp class_path;
@@ -3828,7 +3846,6 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
       if (field_integer_numeric) then output_h "\t\tdouble __INumField(int inFieldID);\n";
       if (implement_dynamic) then
          output_h ("\t\tHX_DECLARE_IMPLEMENT_DYNAMIC;\n");
-      output_h ("\t\tstatic void __boot();\n");
       output_h ("\t\tstatic void __register();\n");
       if (override_iteration) then begin
          output_h ("\t\tvoid __Mark(HX_MARK_PARAMS);\n");
@@ -3848,8 +3865,9 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
       output_h ("\t\t::String __ToString() const { return " ^ (str smart_class_name) ^ "; }\n\n");
    end else begin
       output_h ("\t\tHX_DO_INTERFACE_RTTI;\n");
-      output_h ("\t\tstatic void __boot();\n");
    end;
+   if (has_boot_field class_def) then
+      output_h ("\t\tstatic void __boot();\n");
 
 
    (match class_def.cl_array_access with
@@ -4782,6 +4800,7 @@ let generate_source common_ctx =
    let debug = 1 in
    let exe_classes = ref [] in
    let boot_classes = ref [] in
+   let nonboot_classes = ref [] in
    let init_classes = ref [] in
    let file_info = ref PMap.empty in
    let class_text path = join_class_path path "::" in
@@ -4809,9 +4828,12 @@ let generate_source common_ctx =
             ( if (debug>1) then print_endline (" internal class " ^ name ))
          else begin
             build_xml := !build_xml ^ (get_code class_def.cl_meta Meta.BuildXml);
-            boot_classes := class_def.cl_path ::  !boot_classes;
             if (has_init_field class_def) then
                init_classes := class_def.cl_path ::  !init_classes;
+            if (has_boot_field class_def) then
+               boot_classes := class_def.cl_path ::  !boot_classes
+            else
+               nonboot_classes := class_def.cl_path ::  !nonboot_classes;
             let deps = generate_class_files common_ctx
                member_types super_deps constructor_deps class_def file_info scriptable in
             exe_classes := (class_def.cl_path, deps)  ::  !exe_classes;
@@ -4845,7 +4867,7 @@ let generate_source common_ctx =
       generate_main common_ctx member_types super_deps class_def file_info
    );
 
-   generate_boot common_ctx !boot_classes !init_classes;
+   generate_boot common_ctx !boot_classes !nonboot_classes !init_classes;
 
    generate_files common_ctx file_info;
 
