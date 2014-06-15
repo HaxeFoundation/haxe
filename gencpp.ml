@@ -3188,6 +3188,73 @@ let has_init_field class_def =
    | Some _ -> true
    | _ -> false;;
 
+
+let is_abstract_impl class_def = match class_def.cl_kind with
+   | KAbstractImpl _ -> true
+   | _ -> false
+;;
+
+let variable_field field =
+   (match field.cf_expr with
+   | Some { eexpr = TFunction function_def } -> is_dynamic_haxe_method field
+   | _ -> true)
+;;
+
+let is_readable class_def field =
+   (match field.cf_kind with
+   | Var { v_read = AccNever } when (is_extern_field field) -> false
+   | Var { v_read = AccInline } -> false
+   | Var _ when is_abstract_impl class_def -> false
+   | _ -> true)
+;;
+
+let is_writable class_def field =
+   (match field.cf_kind with
+   | Var { v_write = AccNever } when (is_extern_field field) -> false
+   | Var { v_read = AccInline } -> false
+   | Var _ when is_abstract_impl class_def -> false
+   | _ -> true)
+;;
+
+let reflective class_def field = not (
+    (Meta.has Meta.Unreflective class_def.cl_meta) ||
+    (Meta.has Meta.Unreflective field.cf_meta) ||
+    (match field.cf_type with
+       | TInst (klass,_) ->  Meta.has Meta.Unreflective klass.cl_meta
+       | _ -> false
+    )
+)
+;;
+ 
+let statics_except_meta class_def = (List.filter (fun static -> static.cf_name <> "__meta__") class_def.cl_ordered_statics);;
+
+let has_set_field class_def =
+   implement_dynamic_here class_def || (
+      let reflect_fields = List.filter (reflective class_def) ((statics_except_meta class_def) @ class_def.cl_ordered_fields) in
+      let reflect_writable = List.filter (is_writable class_def) reflect_fields in
+      List.exists variable_field reflect_writable
+   )
+;;
+
+let has_get_fields class_def =
+   implement_dynamic_here class_def || (
+      let is_data_field field = (match follow field.cf_type with | TFun _ -> false | _ -> true) in
+      List.exists is_data_field class_def.cl_ordered_fields
+   )
+;;
+
+let has_get_field class_def =
+   implement_dynamic_here class_def || (
+      let reflect_fields = List.filter (reflective class_def) ((statics_except_meta class_def) @ class_def.cl_ordered_fields) in
+      List.exists (is_readable class_def) reflect_fields
+   )
+;;
+
+
+
+
+
+
 let has_boot_field class_def =
    List.exists has_field_init (List.filter should_implement_field class_def.cl_ordered_statics);
 ;;
@@ -3211,7 +3278,6 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
    let class_path = class_def.cl_path in
    let class_name = (snd class_path) ^ "_obj" in
    let dot_name = join_class_path class_path "." in
-   let is_abstract_impl = match class_def.cl_kind with | KAbstractImpl _ -> true | _ -> false in
    let smart_class_name =  (snd class_path)  in
    (*let cpp_file = new_cpp_file common_ctx.file class_path in*)
    let cpp_file = new_placed_cpp_file common_ctx class_path in
@@ -3348,7 +3414,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
       output_cpp "}\n\n";
    | _ -> ());
 
-   let statics_except_meta = (List.filter (fun static -> static.cf_name <> "__meta__") class_def.cl_ordered_statics) in
+   let statics_except_meta = statics_except_meta class_def in
    let implemented_fields = List.filter should_implement_field statics_except_meta in
    let dump_field_name = (fun field -> output_cpp ("\t" ^  (str field.cf_name) ^ ",\n")) in
    let implemented_instance_fields = List.filter should_implement_field class_def.cl_ordered_fields in
@@ -3421,33 +3487,9 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 
 
 
-      let variable_field field =
-         (match field.cf_expr with
-         | Some { eexpr = TFunction function_def } -> is_dynamic_haxe_method field
-         | _ -> true)
-      in
-      let is_readable field =
-         (match field.cf_kind with
-         | Var { v_read = AccNever } when (is_extern_field field) -> false
-         | Var { v_read = AccInline } -> false
-         | Var _ when is_abstract_impl -> false
-         | _ -> true) in
-      let is_writable field =
-         (match field.cf_kind with
-         | Var { v_write = AccNever } when (is_extern_field field) -> false
-         | Var { v_read = AccInline } -> false
-         | Var _ when is_abstract_impl -> false
-         | _ -> true) in
-
-      let reflective field = not ( (Meta.has Meta.Unreflective field.cf_meta) ||
-          (match field.cf_type with
-          | TInst (klass,_) ->  Meta.has Meta.Unreflective klass.cl_meta
-          | _ -> false
-          )
-      ) in
-      let reflect_fields = List.filter reflective (statics_except_meta @ class_def.cl_ordered_fields) in
-      let reflect_writable = List.filter is_writable reflect_fields in
-      let reflect_readable = List.filter is_readable reflect_fields in
+      let reflect_fields = List.filter (reflective class_def) (statics_except_meta @ class_def.cl_ordered_fields) in
+      let reflect_writable = List.filter (is_writable class_def) reflect_fields in
+      let reflect_readable = List.filter (is_readable class_def) reflect_fields in
       let reflect_write_variables = List.filter variable_field reflect_writable in
 
       let dump_quick_field_test fields =
@@ -3468,97 +3510,99 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
          end;
       in
 
-
-      (* Dynamic "Get" Field function - string version *)
-      output_cpp ("Dynamic " ^ class_name ^ "::__Field(const ::String &inName,bool inCallProp)\n{\n");
-      let get_field_dat = List.map (fun f ->
-         (f.cf_name, String.length f.cf_name, "return " ^
-            (match f.cf_kind with
-            | Var { v_read = AccCall } when is_extern_field f -> (keyword_remap ("get_" ^ f.cf_name)) ^ "()"
-            | Var { v_read = AccCall } -> "inCallProp ? " ^ (keyword_remap ("get_" ^ f.cf_name)) ^ "() : " ^
-                  ((keyword_remap f.cf_name) ^ if (variable_field f) then "" else "_dyn()")
-            | _ -> ((keyword_remap f.cf_name) ^ if (variable_field f) then "" else "_dyn()")
-            ) ^ ";"
-         ) )
-      in
-      dump_quick_field_test (get_field_dat reflect_readable);
-      if (implement_dynamic) then
-         output_cpp "\tHX_CHECK_DYNAMIC_GET_FIELD(inName);\n";
-      output_cpp ("\treturn super::__Field(inName,inCallProp);\n}\n\n");
-
-      (* Dynamic "Get" Field function - int version *)
-      if ( field_integer_numeric || field_integer_dynamic) then begin
-         let dump_static_ids = (fun field ->
-            let remap_name = keyword_remap field.cf_name in
-            output_cpp ("static int __id_" ^ remap_name ^ " = __hxcpp_field_to_id(\"" ^
-                           (field.cf_name) ^ "\");\n");
-            ) in
-         List.iter dump_static_ids reflect_readable;
-         output_cpp "\n\n";
-
-
-         let output_ifield return_type function_name all_fields =
-         output_cpp (return_type ^" " ^ class_name ^ "::" ^ function_name ^ "(int inFieldID)\n{\n");
-         let dump_field_test = (fun f ->
-            let remap_name = keyword_remap f.cf_name in
-            output_cpp ("\tif (inFieldID==__id_" ^ remap_name ^ ") return "  ^
-               ( if (return_type="Float") then "hx::ToDouble( " else "" ) ^
+   
+      if (has_get_field class_def) then begin
+         (* Dynamic "Get" Field function - string version *)
+         output_cpp ("Dynamic " ^ class_name ^ "::__Field(const ::String &inName,bool inCallProp)\n{\n");
+         let get_field_dat = List.map (fun f ->
+            (f.cf_name, String.length f.cf_name, "return " ^
                (match f.cf_kind with
-               | Var { v_read = AccCall } -> (keyword_remap ("get_" ^ f.cf_name)) ^ "()"
-               | _ -> (remap_name ^ if ( variable_field f) then "" else "_dyn()")
-               ) ^ ( if (return_type="Float") then " ) " else "" ) ^ ";\n");
-            ) in
-         List.iter dump_field_test (List.filter (fun f -> all_fields || (is_numeric_field f)) reflect_readable);
-         if (implement_dynamic) then
-            output_cpp "\tHX_CHECK_DYNAMIC_GET_INT_FIELD(inFieldID);\n";
-         output_cpp ("\treturn super::" ^ function_name ^ "(inFieldID);\n}\n\n");
+               | Var { v_read = AccCall } when is_extern_field f -> (keyword_remap ("get_" ^ f.cf_name)) ^ "()"
+               | Var { v_read = AccCall } -> "inCallProp ? " ^ (keyword_remap ("get_" ^ f.cf_name)) ^ "() : " ^
+                     ((keyword_remap f.cf_name) ^ if (variable_field f) then "" else "_dyn()")
+               | _ -> ((keyword_remap f.cf_name) ^ if (variable_field f) then "" else "_dyn()")
+               ) ^ ";"
+            ) )
          in
-
-         if (field_integer_dynamic) then output_ifield "Dynamic" "__IField" true;
-         if (field_integer_numeric) then output_ifield "double" "__INumField" false;
+         dump_quick_field_test (get_field_dat reflect_readable);
+         if (implement_dynamic) then
+            output_cpp "\tHX_CHECK_DYNAMIC_GET_FIELD(inName);\n";
+         output_cpp ("\treturn super::__Field(inName,inCallProp);\n}\n\n");
+   
+         (* Dynamic "Get" Field function - int version *)
+         if ( field_integer_numeric || field_integer_dynamic) then begin
+            let dump_static_ids = (fun field ->
+               let remap_name = keyword_remap field.cf_name in
+               output_cpp ("static int __id_" ^ remap_name ^ " = __hxcpp_field_to_id(\"" ^
+                              (field.cf_name) ^ "\");\n");
+               ) in
+            List.iter dump_static_ids reflect_readable;
+            output_cpp "\n\n";
+   
+   
+            let output_ifield return_type function_name all_fields =
+            output_cpp (return_type ^" " ^ class_name ^ "::" ^ function_name ^ "(int inFieldID)\n{\n");
+            let dump_field_test = (fun f ->
+               let remap_name = keyword_remap f.cf_name in
+               output_cpp ("\tif (inFieldID==__id_" ^ remap_name ^ ") return "  ^
+                  ( if (return_type="Float") then "hx::ToDouble( " else "" ) ^
+                  (match f.cf_kind with
+                  | Var { v_read = AccCall } -> (keyword_remap ("get_" ^ f.cf_name)) ^ "()"
+                  | _ -> (remap_name ^ if ( variable_field f) then "" else "_dyn()")
+                  ) ^ ( if (return_type="Float") then " ) " else "" ) ^ ";\n");
+               ) in
+            List.iter dump_field_test (List.filter (fun f -> all_fields || (is_numeric_field f)) reflect_readable);
+            if (implement_dynamic) then
+               output_cpp "\tHX_CHECK_DYNAMIC_GET_INT_FIELD(inFieldID);\n";
+            output_cpp ("\treturn super::" ^ function_name ^ "(inFieldID);\n}\n\n");
+            in
+   
+            if (field_integer_dynamic) then output_ifield "Dynamic" "__IField" true;
+            if (field_integer_numeric) then output_ifield "double" "__INumField" false;
+         end;
       end;
 
 
       (* Dynamic "Set" Field function *)
-      output_cpp ("Dynamic " ^ class_name ^ "::__SetField(const ::String &inName,const Dynamic &inValue,bool inCallProp)\n{\n");
-
-      let set_field_dat = List.map (fun f ->
-         let default_action =
-            (keyword_remap f.cf_name) ^ "=inValue.Cast< " ^ (type_string f.cf_type) ^ " >();" ^
-               " return inValue;" in
-         (f.cf_name, String.length f.cf_name,
-            (match f.cf_kind with
-            | Var { v_write = AccCall } when is_extern_field f -> "return " ^ (keyword_remap ("set_" ^ f.cf_name)) ^ "(inValue);"
-            | Var { v_write = AccCall } -> "if (inCallProp) return " ^ (keyword_remap ("set_" ^ f.cf_name)) ^ "(inValue);"
-               ^ default_action
-            | _ -> default_action
+      if (has_set_field class_def) then begin
+         output_cpp ("Dynamic " ^ class_name ^ "::__SetField(const ::String &inName,const Dynamic &inValue,bool inCallProp)\n{\n");
+   
+         let set_field_dat = List.map (fun f ->
+            let default_action =
+               (keyword_remap f.cf_name) ^ "=inValue.Cast< " ^ (type_string f.cf_type) ^ " >();" ^
+                  " return inValue;" in
+            (f.cf_name, String.length f.cf_name,
+               (match f.cf_kind with
+               | Var { v_write = AccCall } when is_extern_field f -> "return " ^ (keyword_remap ("set_" ^ f.cf_name)) ^ "(inValue);"
+               | Var { v_write = AccCall } -> "if (inCallProp) return " ^ (keyword_remap ("set_" ^ f.cf_name)) ^ "(inValue);"
+                  ^ default_action
+               | _ -> default_action
+               )
             )
-         )
-      ) in
-
-      dump_quick_field_test (set_field_dat reflect_write_variables);
-      if (implement_dynamic) then begin
-         output_cpp ("\ttry { return super::__SetField(inName,inValue,inCallProp); }\n");
-         output_cpp ("\tcatch(Dynamic e) { HX_DYNAMIC_SET_FIELD(inName,inValue); }\n");
-         output_cpp "\treturn inValue;\n}\n\n";
-      end else
-         output_cpp ("\treturn super::__SetField(inName,inValue,inCallProp);\n}\n\n");
+         ) in
+   
+         dump_quick_field_test (set_field_dat reflect_write_variables);
+         if (implement_dynamic) then begin
+            output_cpp ("\ttry { return super::__SetField(inName,inValue,inCallProp); }\n");
+            output_cpp ("\tcatch(Dynamic e) { HX_DYNAMIC_SET_FIELD(inName,inValue); }\n");
+            output_cpp "\treturn inValue;\n}\n\n";
+         end else
+            output_cpp ("\treturn super::__SetField(inName,inValue,inCallProp);\n}\n\n");
+      end;
 
       (* For getting a list of data members (eg, for serialization) *)
-      let append_field =
-         (fun field -> output_cpp ("\toutFields->push(" ^( str field.cf_name )^ ");\n")) in
-      let is_data_field field = (match follow field.cf_type with | TFun _ -> false | _ -> true) in
-
-      output_cpp ("void " ^ class_name ^ "::__GetFields(Array< ::String> &outFields)\n{\n");
-      List.iter append_field (List.filter is_data_field class_def.cl_ordered_fields);
-      if (implement_dynamic) then
-         output_cpp "\tHX_APPEND_DYNAMIC_FIELDS(outFields);\n";
-      output_cpp "\tsuper::__GetFields(outFields);\n";
-      output_cpp "};\n\n";
-
-      output_cpp "static ::String sStaticFields[] = {\n";
-      List.iter dump_field_name  implemented_fields;
-      output_cpp "\tString(null()) };\n\n";
+      if (has_get_fields class_def) then begin
+         let append_field =
+            (fun field -> output_cpp ("\toutFields->push(" ^( str field.cf_name )^ ");\n")) in
+         let is_data_field field = (match follow field.cf_type with | TFun _ -> false | _ -> true) in
+   
+         output_cpp ("void " ^ class_name ^ "::__GetFields(Array< ::String> &outFields)\n{\n");
+         List.iter append_field (List.filter is_data_field class_def.cl_ordered_fields);
+         if (implement_dynamic) then
+            output_cpp "\tHX_APPEND_DYNAMIC_FIELDS(outFields);\n";
+         output_cpp "\tsuper::__GetFields(outFields);\n";
+         output_cpp "};\n\n";
+      end;
 
       let dump_member_storage = (fun field ->
          let storage = match type_string field.cf_type with
@@ -3583,9 +3627,15 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
       output_cpp "#endif\n\n";
    end; (* cl_interface *)
 
-   output_cpp "static ::String sMemberFields[] = {\n";
-   List.iter dump_field_name  implemented_instance_fields;
-   output_cpp "\tString(null()) };\n\n";
+   let reflective_members = List.filter (reflective class_def) implemented_instance_fields in
+   let sMemberFields = if List.length reflective_members>0 then begin
+      output_cpp "static ::String sMemberFields[] = {\n";
+      List.iter dump_field_name  reflective_members;
+      output_cpp "\tString(null()) };\n\n";
+      "sMemberFields"
+   end else
+      "0 /* sMemberFields */";
+   in
 
    (* Mark static variables as used *)
    output_cpp "static void sMarkStatics(HX_MARK_PARAMS) {\n";
@@ -3745,9 +3795,19 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
          );
       end;
 
+      let reflective_statics = List.filter (reflective class_def) implemented_fields in
+      let sStaticFields = if List.length reflective_statics > 0 then begin
+         output_cpp "static ::String sStaticFields[] = {\n";
+         List.iter dump_field_name  reflective_statics;
+         output_cpp "\tString(null()) };\n\n";
+         "sStaticFields";
+      end else
+        "0 /* sStaticFields */"
+      in
+
       output_cpp ("void " ^ class_name ^ "::__register()\n{\n");
       output_cpp ("\thx::Static(__mClass) = hx::RegisterClass(" ^ (str class_name_text)  ^
-            ", hx::TCanCast< " ^ class_name ^ "> ,sStaticFields,sMemberFields,\n");
+            ", hx::TCanCast< " ^ class_name ^ "> ," ^ sStaticFields ^ "," ^ sMemberFields ^ ",\n");
       output_cpp ("\t&__CreateEmpty, &__Create,\n");
       output_cpp ("\t&super::__SGetClass(), 0, sMarkStatics\n");
       output_cpp ("#ifdef HXCPP_VISIT_ALLOCS\n    , sVisitStatics\n#endif\n");
@@ -3764,7 +3824,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 
       output_cpp ("void " ^ class_name ^ "::__register()\n{\n");
       output_cpp ("\thx::Static(__mClass) = hx::RegisterClass(" ^ (str class_name_text)  ^
-            ", hx::TCanCast< " ^ class_name ^ "> ,0,sMemberFields,\n");
+            ", hx::TCanCast< " ^ class_name ^ "> ,0," ^ sMemberFields ^ ",\n");
       output_cpp ("\t0, 0,\n");
       output_cpp ("\t&super::__SGetClass(), 0, sMarkStatics\n");
       output_cpp ("#ifdef HXCPP_VISIT_ALLOCS\n    , sVisitStatics\n#endif\n");
@@ -3841,7 +3901,14 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
       if (scriptable) then
          output_h ("\t\tstatic hx::ScriptFunction __script_construct;\n");
       output_h ("\t\t//~" ^ class_name ^ "();\n\n");
-      output_h ("\t\tHX_DO_RTTI;\n");
+      output_h ("\t\tHX_DO_RTTI_ALL;\n");
+      if (has_get_field class_def) then
+         output_h ("Dynamic __Field(const ::String &inString, bool inCallProp);\n");
+      if (has_set_field class_def) then
+         output_h ("Dynamic __SetField(const ::String &inString,const Dynamic &inValue, bool inCallProp);\n");
+      if (has_get_fields class_def) then
+         output_h ("void __GetFields(Array< ::String> &outFields);\n");
+      
       if (field_integer_dynamic) then output_h "\t\tDynamic __IField(int inFieldID);\n";
       if (field_integer_numeric) then output_h "\t\tdouble __INumField(int inFieldID);\n";
       if (implement_dynamic) then
