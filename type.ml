@@ -1365,7 +1365,9 @@ let rec unify a b =
 			Unify_error l -> error (cannot_unify a b :: l))
 	| TAnon a1, TAnon a2 ->
 		(try
-			PMap.iter (fun n f2 ->
+		    let (a1_fields_length, a2_fields_length) = ((Enum.count (PMap.enum a1.a_fields)), (Enum.count (PMap.enum a2.a_fields))) in
+		    if a1_fields_length = a2_fields_length then
+			(PMap.iter (fun n f2 ->
 			try
 				let f1 = PMap.find n a1.a_fields in
 				if not (unify_kind f1.cf_kind f2.cf_kind) then
@@ -1403,7 +1405,8 @@ let rec unify a b =
 			| EnumStatics e -> (match !(a1.a_status) with EnumStatics e2 when e == e2 -> () | _ -> error [])
 			| AbstractStatics a -> (match !(a1.a_status) with AbstractStatics a2 when a == a2 -> () | _ -> error [])
 			| Opened -> a2.a_status := Closed
-			| Const | Closed -> ())
+			| Const | Closed -> ()))
+		    else raise (Unify_error [])
 		with
 			Unify_error l -> error (cannot_unify a b :: l))
 	| TAnon an, TAbstract ({ a_path = [],"Class" },[pt]) ->
