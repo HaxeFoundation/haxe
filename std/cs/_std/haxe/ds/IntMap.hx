@@ -46,12 +46,8 @@ import cs.NativeArray;
 	private var nOccupied:Int;
 	private var upperBound:Int;
 
-	private var cachedKey:Int;
-	private var cachedIndex:Int;
-
 	public function new() : Void
 	{
-		cachedIndex = -1;
 	}
 
 	public function set( key : Int, value : T ) : Void
@@ -134,18 +130,9 @@ import cs.NativeArray;
 
 	public function get( key : Int ) : Null<T>
 	{
-		var idx = -1;
-		if (cachedKey == key && ( (idx = cachedIndex) != -1 ))
-		{
-			return vals[idx];
-		}
-
-		idx = lookup(key);
+		var idx = lookup(key);
 		if (idx != -1)
 		{
-			cachedKey = key;
-			cachedIndex = idx;
-
 			return vals[idx];
 		}
 
@@ -154,18 +141,9 @@ import cs.NativeArray;
 
 	private function getDefault( key : Int, def : T ) : T
 	{
-		var idx = -1;
-		if (cachedKey == key && ( (idx = cachedIndex) != -1 ))
-		{
-			return vals[idx];
-		}
-
-		idx = lookup(key);
+		var idx = lookup(key);
 		if (idx != -1)
 		{
-			cachedKey = key;
-			cachedIndex = idx;
-
 			return vals[idx];
 		}
 
@@ -174,18 +152,9 @@ import cs.NativeArray;
 
 	public function exists( key : Int ) : Bool
 	{
-		var idx = -1;
-		if (cachedKey == key && ( (idx = cachedIndex) != -1 ))
-		{
-			return true;
-		}
-
-		idx = lookup(key);
+		var idx = lookup(key);
 		if (idx != -1)
 		{
-			cachedKey = key;
-			cachedIndex = idx;
-
 			return true;
 		}
 
@@ -194,19 +163,12 @@ import cs.NativeArray;
 
 	public function remove( key : Int ) : Bool
 	{
-		var idx = -1;
-		if (! (cachedKey == key && ( (idx = cachedIndex) != -1 )))
-		{
-			idx = lookup(key);
-		}
+		var idx = lookup(key);
 
 		if (idx == -1)
 		{
 			return false;
 		} else {
-			if (cachedKey == key)
-				cachedIndex = -1;
-
 			if (!isEither(flags, idx))
 			{
 				setIsDelTrue(flags, idx);
@@ -253,9 +215,6 @@ import cs.NativeArray;
 
 		if (j != 0)
 		{ //rehashing is required
-			//resetting cache
-			cachedKey = 0;
-			cachedIndex = -1;
 
 			j = -1;
 			var nBuckets = nBuckets, _keys = _keys, vals = vals, flags = flags;
@@ -344,8 +303,6 @@ import cs.NativeArray;
 			},
 			next: function() {
 				var ret = _keys[i];
-				cachedIndex = i;
-				cachedKey = ret;
 
 				i = i + 1;
 				return ret;

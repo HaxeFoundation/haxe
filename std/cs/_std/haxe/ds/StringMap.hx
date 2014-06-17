@@ -46,9 +46,6 @@ import cs.NativeArray;
 	private var nOccupied:Int;
 	private var upperBound:Int;
 
-	private var cachedKey:String;
-	private var cachedIndex:Int;
-
 #if DEBUG_HASHTBL
 	private var totalProbes:Int;
 	private var probeTimes:Int;
@@ -58,7 +55,6 @@ import cs.NativeArray;
 
 	public function new() : Void
 	{
-		cachedIndex = -1;
 	}
 
 	public function set( key : String, value : T ) : Void
@@ -121,9 +117,6 @@ import cs.NativeArray;
 			assert(_keys[x] == key);
 			vals[x] = value;
 		}
-
-		cachedIndex = x;
-		cachedKey = key;
 	}
 
 	@:final private function lookup( key : String ) : Int
@@ -188,9 +181,6 @@ import cs.NativeArray;
 
 		if (j != 0)
 		{ //rehashing is required
-			//resetting cache
-			cachedKey = null;
-			cachedIndex = -1;
 
 			j = -1;
 			var nBuckets = nBuckets, _keys = _keys, vals = vals, hashes = hashes;
@@ -263,17 +253,10 @@ import cs.NativeArray;
 	public function get( key : String ) : Null<T>
 	{
 		var idx = -1;
-		if (cachedKey == key && ( (idx = cachedIndex) != -1 ))
-		{
-			return vals[idx];
-		}
 
 		idx = lookup(key);
 		if (idx != -1)
 		{
-			cachedKey = key;
-			cachedIndex = idx;
-
 			return vals[idx];
 		}
 
@@ -283,17 +266,10 @@ import cs.NativeArray;
 	private function getDefault( key : String, def : T ) : T
 	{
 		var idx = -1;
-		if (cachedKey == key && ( (idx = cachedIndex) != -1 ))
-		{
-			return vals[idx];
-		}
 
 		idx = lookup(key);
 		if (idx != -1)
 		{
-			cachedKey = key;
-			cachedIndex = idx;
-
 			return vals[idx];
 		}
 
@@ -303,17 +279,9 @@ import cs.NativeArray;
 	public function exists( key : String ) : Bool
 	{
 		var idx = -1;
-		if (cachedKey == key && ( (idx = cachedIndex) != -1 ))
-		{
-			return true;
-		}
-
 		idx = lookup(key);
 		if (idx != -1)
 		{
-			cachedKey = key;
-			cachedIndex = idx;
-
 			return true;
 		}
 
@@ -322,19 +290,11 @@ import cs.NativeArray;
 
 	public function remove( key : String ) : Bool
 	{
-		var idx = -1;
-		if (! (cachedKey == key && ( (idx = cachedIndex) != -1 )))
-		{
-			idx = lookup(key);
-		}
-
+		var idx = lookup(key);
 		if (idx == -1)
 		{
 			return false;
 		} else {
-			if (cachedKey == key)
-				cachedIndex = -1;
-
 			hashes[idx] = FLAG_DEL;
 			_keys[idx] = null;
 			vals[idx] = null;
@@ -366,8 +326,6 @@ import cs.NativeArray;
 			},
 			next: function() {
 				var ret = _keys[i];
-				cachedIndex = i;
-				cachedKey = ret;
 
 				i = i + 1;
 				return ret;
