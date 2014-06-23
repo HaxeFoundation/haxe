@@ -3987,6 +3987,8 @@ struct
 
 			(try
 				List.iter2 (fun a o ->
+					let o = run_follow gen o in
+					let a = run_follow gen a in
 					unify a o
 					(* type_eq EqStrict a o *)
 				) applied original
@@ -5959,6 +5961,7 @@ struct
 			match arglist, elist with
 			| [], [] -> true
 			| (_,_,t) :: arglist, et :: elist -> (try
+				let t = run_follow gen t in
 				unify et t;
 				check_arg arglist elist
 			with | Unify_error el ->
@@ -5972,7 +5975,11 @@ struct
 			let args, _ = get_fun t in
 			check_arg args etl
 		in
-		is_overload, List.find check_cf ctors, sup, ret_stl
+		match is_overload, ctors with
+			| false, [c] ->
+				false, c, sup, ret_stl
+			| _ ->
+				is_overload, List.find check_cf ctors, sup, ret_stl
 
 	(*
 
