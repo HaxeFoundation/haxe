@@ -432,8 +432,11 @@ class RunTravis {
 				runCommand("./Main-debug", ["foo", "12", "a b c\\\\"]);
 			case Js:
 				getJSDependencies();
-				runCommand("haxe", ["compile-js.hxml"]);
-				runCommand("node", ["-e", "var unit = require('./unit.js').unit; unit.Test.main(); process.exit(unit.Test.success ? 0 : 1);"]);
+
+				for (flatten in [true, false]) {
+					runCommand("haxe", ["compile-js.hxml"].concat(flatten ? ["-D", "js-flatten"] : []));
+					runCommand("node", ["-e", "var unit = require('./unit.js').unit; unit.Test.main(); process.exit(unit.Test.success ? 0 : 1);"]);
+				}
 
 				if (Sys.getEnv("TRAVIS_SECURE_ENV_VARS") == "true" && systemName == "Linux") {
 					//https://saucelabs.com/opensource/travis

@@ -1,6 +1,6 @@
 package unit;
 
-@:expose
+@:expose("unit.Test")
 @:keepSub
 #if as3
 @:publicFields
