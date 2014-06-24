@@ -382,7 +382,7 @@ class RunTravis {
 				haxelibInstallGit("HaxeFoundation", "hxcs", true);
 
 				haxelibInstallGit("dpeek", "dox", true);
-				changeDirectory(getHaxelibPath("dox") + "..");
+				changeDirectory(getHaxelibPath("dox"));
 				runCommand("haxe", ["run.hxml"]);
 				runCommand("haxe", ["gen.hxml"]);
 				haxelibRun(["dox", "-o", "bin/api.zip", "-i", "bin/xml"]);
