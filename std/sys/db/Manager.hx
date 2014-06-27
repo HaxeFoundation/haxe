@@ -208,7 +208,7 @@ class Manager<T : Object> {
 			if( cache == null || v != vc ) {
 				switch( f.t ) {
 				case DSmallBinary, DNekoSerialized, DLongBinary, DBytes(_), DBinary: 
-					if ( hasBinaryChanged(v,vc) )
+					if ( !hasBinaryChanged(v,vc) )
 						continue;
 				case DData:
 					v = doUpdateCache(x, name, v);
