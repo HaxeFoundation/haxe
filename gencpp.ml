@@ -765,7 +765,10 @@ let is_internal_member member =
 
 
 let is_extern_class class_def =
-   class_def.cl_extern || (has_meta_key class_def.cl_meta Meta.Extern)
+   class_def.cl_extern || (has_meta_key class_def.cl_meta Meta.Extern) ||
+      (match class_def.cl_kind with
+       | KAbstractImpl abstract_def -> (has_meta_key abstract_def.a_meta Meta.Extern)
+       | _ -> false );
 ;;
 
 let is_extern_class_instance obj =
@@ -3318,8 +3321,9 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 
    output_cpp "#include <hxcpp.h>\n\n";
 
-   let field_integer_dynamic = scriptable || (has_field_integer_lookup class_def) in
-   let field_integer_numeric = scriptable || (has_field_integer_numeric_lookup class_def) in
+   let force_field = scriptable && (has_get_field class_def) in
+   let field_integer_dynamic = force_field || (has_field_integer_lookup class_def) in
+   let field_integer_numeric = force_field || (has_field_integer_numeric_lookup class_def) in
 
    let all_referenced = find_referenced_types ctx.ctx_common (TClassDecl class_def) super_deps constructor_deps false false scriptable in
    List.iter ( add_include cpp_file  ) all_referenced;
