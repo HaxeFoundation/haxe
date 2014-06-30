@@ -4280,7 +4280,7 @@ let gen_extern_enum common_ctx enum_def file_info =
    output ( "@:include extern " ^ (if enum_def.e_private then "private " else "")
             ^ " enum " ^ (snd path) ^ (params enum_def.e_types) );
    output " {\n";
-   PMap.iter (fun _ constructor ->
+   List.iter (fun constructor ->
       let name = keyword_remap constructor.ef_name in
       match constructor.ef_type with
       | TFun (args,_) ->
@@ -4288,7 +4288,7 @@ let gen_extern_enum common_ctx enum_def file_info =
          output ( String.concat "," (List.map (fun (arg,_,t) -> arg ^ ":" ^ (s_type t) ) args) );
          output ");\n\n";
       | _ -> output ( name ^ ";\n\n" )
-   ) enum_def.e_constrs;
+   ) (List.sort (fun f1 f2 -> (f1.ef_index - f2.ef_index ) ) (pmap_values enum_def.e_constrs) );
 
    output "}\n";
    file#close
@@ -4344,8 +4344,8 @@ let rec script_type_string haxe_type =
          )
       | TAbstract (abs,pl) when abs.a_impl <> None ->
          script_type_string  (Codegen.Abstract.get_underlying_type abs pl);
-      | t ->
-         type_string_suff "" t
+      | _ ->
+         type_string_suff "" haxe_type
 ;;
 
 type array_of =
@@ -4544,7 +4544,7 @@ class script_writer common_ctx ctx filename =
             this#write (indent ^ indent_str );
             this#writeVar arg;
             match init with
-            | Some const -> this#write ("1 " ^ (this#constText const) ^ "\n")
+            | Some const when const <> TNull -> this#write ("1 " ^ (this#constText const) ^ "\n")
             | _ -> this#write "0\n";
          ) function_def.tf_args;
          this#gen_expression function_def.tf_expr;
@@ -4700,9 +4700,12 @@ class script_writer common_ctx ctx filename =
          this#write "\n";
          this#gen_expression init;
          this#gen_expression loop;
-   | TEnumParameter (expr,_,i) ->
-         let enum = match follow expr.etype with TEnum(enum,_) -> expr.etype | _ -> assert false in
-         this#write ("ENUMI " ^ (this#typeText enum) ^ (string_of_int i) ^ "\n");
+   | TEnumParameter (expr,ef,i) ->
+         let enum = match follow ef.ef_type with
+            | TEnum(en,_) | TFun(_,TEnum(en,_)) -> en
+            | _ -> assert false
+         in
+         this#write ("ENUMI " ^ (this#typeText (TEnum(enum,[])) ) ^ (string_of_int i) ^ "\n");
          this#gen_expression expr;
    | TSwitch (condition,cases,optional_default)  ->
          this#write ("SWITCH " ^ (string_of_int (List.length cases)) ^ " " ^
