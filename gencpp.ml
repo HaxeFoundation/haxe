@@ -4280,7 +4280,7 @@ let gen_extern_enum common_ctx enum_def file_info =
    output ( "@:include extern " ^ (if enum_def.e_private then "private " else "")
             ^ " enum " ^ (snd path) ^ (params enum_def.e_types) );
    output " {\n";
-   List.iter (fun constructor ->
+   PMap.iter (fun _ constructor ->
       let name = keyword_remap constructor.ef_name in
       match constructor.ef_type with
       | TFun (args,_) ->
@@ -4288,7 +4288,7 @@ let gen_extern_enum common_ctx enum_def file_info =
          output ( String.concat "," (List.map (fun (arg,_,t) -> arg ^ ":" ^ (s_type t) ) args) );
          output ");\n\n";
       | _ -> output ( name ^ ";\n\n" )
-   ) (List.sort (fun f1 f2 -> (f1.ef_index - f2.ef_index ) ) (pmap_values enum_def.e_constrs) );
+   ) enum_def.e_constrs;
 
    output "}\n";
    file#close
