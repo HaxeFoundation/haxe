@@ -373,7 +373,7 @@ class RunTravis {
 
 				//generate documentation
 				haxelibInstallGit("Simn", "hxparse", "development", "src", true);
-				haxelibInstallGit("Simn", "hxtemplo", "master", "src", true);
+				haxelibInstallGit("Simn", "hxtemplo", true);
 				haxelibInstallGit("Simn", "hxargs", true);
 				haxelibInstallGit("dpeek", "haxe-markdown", "master", "src", true, "markdown");
 
@@ -515,8 +515,6 @@ class RunTravis {
 		haxelibInstallGit("Simn", "hxparse", "development", "src");
 		haxelibInstallGit("Simn", "hxtemplo");
 
-		changeDirectory(getHaxelibPath("hxtemplo"));
-
 		var buildArgs = [
 			"-cp", "src",
 			"-cp", "test",
@@ -525,7 +523,7 @@ class RunTravis {
 			"-dce", "full"
 		];
 
-		changeDirectory(getHaxelibPath("hxtemplo"));
+		changeDirectory(getHaxelibPath("hxtemplo") + "..");
 		runCommand("haxe", ["build.hxml"]);
 	}
 
