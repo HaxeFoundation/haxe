@@ -4400,6 +4400,7 @@ class script_writer common_ctx ctx filename =
    method writeBool value = this#write (if value then "1 " else "0 ")
    method staticText value = if value then "s" else "m"
    method write str = Buffer.add_string buffer str ; just_finished_block <- false
+   method writeData str = Buffer.add_string buffer str;
    method wint ival = this#write ((string_of_int ival)^" ")
    method ident name = this#wint (this#stringId name)
    method instText clazz = match clazz.cl_path with
@@ -4867,6 +4868,12 @@ let generate_cppia common_ctx =
    | Some e -> script#write "MAIN\n";
          script#gen_expression e
    );
+
+   script#write ("RESOURCES " ^ (string_of_int (Hashtbl.length common_ctx.resources)) ^ "\n");
+   Hashtbl.iter (fun name data -> 
+      script#write ("RESO " ^ (script#stringText name) ^  (string_of_int (String.length data)) ^ "\n");
+   ) common_ctx.resources;
+   Hashtbl.iter (fun _ data -> script#writeData data) common_ctx.resources;
 
    script#close
 ;;
