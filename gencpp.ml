@@ -4280,7 +4280,8 @@ let gen_extern_enum common_ctx enum_def file_info =
    output ( "@:include extern " ^ (if enum_def.e_private then "private " else "")
             ^ " enum " ^ (snd path) ^ (params enum_def.e_types) );
    output " {\n";
-   PMap.iter (fun _ constructor ->
+   let sorted_items = List.sort (fun f1 f2 -> (f1.ef_index - f2.ef_index ) ) (pmap_values enum_def.e_constrs) in
+   List.iter (fun constructor ->
       let name = keyword_remap constructor.ef_name in
       match constructor.ef_type with
       | TFun (args,_) ->
@@ -4288,7 +4289,7 @@ let gen_extern_enum common_ctx enum_def file_info =
          output ( String.concat "," (List.map (fun (arg,_,t) -> arg ^ ":" ^ (s_type t) ) args) );
          output ");\n\n";
       | _ -> output ( name ^ ";\n\n" )
-   ) enum_def.e_constrs;
+   ) sorted_items;
 
    output "}\n";
    file#close
@@ -4461,8 +4462,9 @@ class script_writer common_ctx ctx filename =
          | Some ({ eexpr = TFunction function_def } as e) -> this#gen_expression e
          | _ -> print_endline ("Missing function body for " ^ funcName );
       end
-   method var readAcc writeAcc isStatic name varType varExpr =
-      this#write ("VAR " ^ (this#staticText isStatic) ^ " " ^ readAcc ^ " " ^ writeAcc ^ " " ^ (this#stringText name)^ (this#typeText varType) ^
+   method var readAcc writeAcc isExtern isStatic name varType varExpr =
+      this#write ("VAR " ^ (this#staticText isStatic) ^ " " ^ readAcc ^ " " ^ writeAcc ^ " " ^
+         (this#boolText isExtern) ^ " " ^ (this#stringText name)^ (this#typeText varType) ^
          (match varExpr with Some _ -> "1\n" | _ -> "0\n" ) );
       match varExpr with
       | Some expression -> this#gen_expression expression
@@ -4776,7 +4778,8 @@ let generate_script_class common_ctx script class_def =
          | AccInline -> "N"
          | AccRequire (_,_) -> "?"
          in
-         script#var (mode_code v.v_read) (mode_code v.v_write) isStatic field.cf_name t field.cf_expr
+         let isExtern = is_extern_field field in
+         script#var (mode_code v.v_read) (mode_code v.v_write) isExtern isStatic field.cf_name t field.cf_expr
       | Method MethDynamic, TFun(args,ret) ->
          script#func isStatic true field.cf_name ret args class_def.cl_interface field.cf_expr
       | Method _, TFun(args,ret) when field.cf_name="new" ->
@@ -4813,6 +4816,10 @@ let generate_script_enum common_ctx script enum_def meta =
       | _ -> script#write ( name ^ " 0\n" )
    ) sorted_items;
 
+   match meta with
+   | Some expr -> script#write "1\n";
+      script#gen_expression expr
+   | _ -> script#write "0\n";
    script#write "\n"
 ;;
 
