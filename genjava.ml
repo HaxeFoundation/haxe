@@ -2235,16 +2235,14 @@ exception ConversionError of string * pos
 let error s p = raise (ConversionError (s, p))
 
 let jname_to_hx name =
-	let name =
-		if name <> "" && (String.get name 0 < 'A' || String.get name 0 > 'Z') then
-			Char.escaped (Char.uppercase (String.get name 0)) ^ String.sub name 1 (String.length name - 1)
+	let sb = Buffer.create 16 in
+	String.iter (fun c ->
+		if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') then
+			Buffer.add_char sb c
 		else
-			name
-	in
-	(* handle non-inner classes with same final name as non-inner *)
-	let name = String.concat "__" (String.nsplit name "_") in
-	(* handle with inner classes *)
-	String.map (function | '$' -> '_' | c -> c) name
+			Buffer.add_string sb (Printf.sprintf "_%X" (Char.code c))
+	) name;
+	Buffer.contents sb
 
 let normalize_pack pack =
 	List.map (function
@@ -2264,11 +2262,19 @@ let jpath_to_hx (pack,name) = match pack, name with
 	| pack, name -> normalize_pack pack, jname_to_hx name
 
 let hxname_to_j name =
-	let name = String.implode (List.rev (String.explode name)) in
-	let fl = String.nsplit name "__" in
-	let fl = List.map (String.map (fun c -> if c = '_' then '$' else c)) fl in
-	let ret = String.concat "_" fl in
-	String.implode (List.rev (String.explode ret))
+	let sb = Buffer.create 16 in
+	let rec next i = 
+		if i >= String.length name then Buffer.contents sb else
+			let c = name.[i] in
+			if c == '_' then begin
+				Buffer.add_char sb (Char.chr (int_of_string ("0x" ^ String.sub name (i+1) 2)));
+				next (i + 3)
+			end else begin
+				Buffer.add_char sb c;
+				next (i + 1)
+			end
+	in
+	next 0
 
 let hxpath_to_j (pack,name) = match pack, name with
 	| "java" :: "com" :: ("oracle" | "sun") :: _, _
@@ -2290,11 +2296,15 @@ let lookup_jclass com path =
 	) com.java_libs None
 
 let mk_type_path ctx path params =
-	let name, sub = try
-		let p, _ = String.split (snd path) "$" in
-		jname_to_hx p, Some (jname_to_hx (snd path))
-	with | Invalid_string ->
-		jname_to_hx (snd path), None
+	let jname = snd path in
+	let name, sub = if String.ends_with jname "$sp" || String.ends_with jname "$" then
+		jname_to_hx jname, None
+	else
+		try
+			let dollarIndex = String.index jname '$' in
+				jname_to_hx (String.sub jname 0 dollarIndex), Some(jname_to_hx jname)
+		with
+			| Not_found -> jname_to_hx jname, None
 	in
 	CTPath {
 		tpackage = fst (jpath_to_hx path);
