@@ -2516,12 +2516,13 @@ let convert_java_enum ctx p pe =
 				| _ -> error "Method signature was expected" p
 		in
 		let cff_name, cff_meta =
-			if String.get cff_name 0 = '%' then
-				let name = (String.sub cff_name 1 (String.length cff_name - 1)) in
-				"_" ^ name,
-				(Meta.Native, [EConst (String (name) ), cff_pos], cff_pos) :: !cff_meta
-			else
-				cff_name, !cff_meta
+			match String.get cff_name 0 with
+				| '%' | '$' ->
+					let name = (String.sub cff_name 1 (String.length cff_name - 1)) in
+					"_" ^ name,
+					(Meta.Native, [EConst (String (name) ), cff_pos], cff_pos) :: !cff_meta
+				| _ ->
+					cff_name, !cff_meta
 		in
 
 		{
